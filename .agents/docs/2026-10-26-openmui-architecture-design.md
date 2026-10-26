@@ -4,6 +4,7 @@
 > 仓库：`Sunrisepeak/mui`（私有，暂定）。**内部的包名、模块名、命令、文档一律使用 openmui**；等各方面成熟后，再评估是否迁移到 openmui 的公开仓库。
 > 配套文档：
 > - **[实施计划](2026-10-26-openmui-implementation-plan.md)**（目录树、成员划分、里程碑、展示、CI、生态补充以它为准）
+> - [宣传片设计：对标拆解、分镜与验收](2026-10-26-openmui-promo-video-design.md)
 > - [规范设计](2026-10-26-openmui-spec-design.md)
 > - [组件、绑定与工程模型](2026-10-26-openmui-component-binding-design.md)
 > - [画布、Markdown 与旗舰示例](2026-10-26-openmui-canvas-markdown-design.md)
@@ -437,7 +438,7 @@ M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten，渲�
 | D-48 | 默认字体通过 `openmui-fonts` 固定下来，作为渲染确定性的一部分 |
 | D-49 | 通用动画引擎 `openmui-anim`：独立的 workspace 成员 `anim/`，只依赖标准库；UI、视频、游戏、画布共用；将来可以独立成仓库 |
 | D-50 | S4《组件打砖块：openmui 巡礼》：六个关卡，每一关的玩法本身就是一项框架能力 |
-| D-51 | S5 openmui 宣传片：15 秒和 90 秒两版，用 openmui-video 制作，质量对标 Opus 5.5 带起的代码动画视频 |
+| D-51 | S5 openmui 宣传片：约 60 秒主片 + 15 秒短片，用 openmui-video 制作；对标三部播放量几百万到上千万的 agent 代码动画视频（promo-video 设计文档） |
 | D-52 | 协作流程：单个 PR，每一轮修改一个 commit 作为检查点 |
 | D-53 | 每个里程碑、展示、模块都有验收标准（实施计划 §19）；能自动检查的进 CI |
 

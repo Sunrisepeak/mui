@@ -84,6 +84,16 @@ struct Visual {
 };
 
 struct Node {
+    // Move-only, and said so: its watches cannot be copied. Without this a
+    // standard library whose std::map move may throw (MSVC's) makes
+    // vector<optional<Node>> copy on growth and instantiates a copy of them.
+    Node() = default;
+    Node(const Node&) = delete;
+    Node& operator=(const Node&) = delete;
+    Node(Node&&) = default;
+    Node& operator=(Node&&) = default;
+    ~Node() = default;
+
     const ComponentType* type = nullptr;
     void*                instance = nullptr;
     std::string          segment;       // explicit id or structural (S-8)

@@ -5,6 +5,12 @@
 # file must not change depending on which command ran last.
 version = 2
 
+[package."compat.concurrentqueue"]
+namespace = "compat"
+version = "1.0.5"
+source  = "index+compat@1.0.5"
+hash    = "fnv1a:ef74c660ecd57abf"
+
 [package."compat.freetype"]
 namespace = "compat"
 version = "2.13.3"
@@ -17,6 +23,12 @@ version = "1.0.16"
 source  = "index+compat@1.0.16"
 hash    = "fnv1a:e4aa7ab4597277e8"
 
+[package."compat.glx-headers"]
+namespace = "compat"
+version = "1.7.0"
+source  = "index+compat@1.7.0"
+hash    = "fnv1a:8aac59c924aeb90b"
+
 [package."compat.harfbuzz"]
 namespace = "compat"
 version = "14.3.0"
@@ -28,36 +40,6 @@ namespace = "compat"
 version = "1.6.43"
 source  = "index+compat@1.6.43"
 hash    = "fnv1a:b3a219b122077f27"
-
-[package."openkal"]
-namespace = "mcpplibs"
-version = "0.17.0"
-source  = "index+mcpplibs@0.17.0"
-hash    = "fnv1a:d9a6fe1043f0f4d5"
-
-[package."openkal-windows"]
-namespace = "mcpplibs"
-version = "0.13.0"
-source  = "index+mcpplibs@0.13.0"
-hash    = "fnv1a:21599e2a1fc2281d"
-
-[package."mcpplibs.os"]
-namespace = "mcpplibs"
-version = "0.1.0"
-source  = "index+mcpplibs@0.1.0"
-hash    = "fnv1a:d94d43a5050491b4"
-
-[package."compat.concurrentqueue"]
-namespace = "compat"
-version = "1.0.5"
-source  = "index+compat@1.0.5"
-hash    = "fnv1a:ef74c660ecd57abf"
-
-[package."compat.glx-headers"]
-namespace = "compat"
-version = "1.7.0"
-source  = "index+compat@1.7.0"
-hash    = "fnv1a:8aac59c924aeb90b"
 
 [package."compat.sdl3"]
 namespace = "compat"
@@ -161,17 +143,29 @@ version = "0.0.2"
 source  = "index+mcpplibs@0.0.2"
 hash    = "fnv1a:aad61299abc2c4b7"
 
-[package."nlohmann.json"]
-namespace = "nlohmann"
-version = "3.12.0"
-source  = "index+nlohmann@3.12.0"
-hash    = "fnv1a:65af05f998b1b9d7"
+[package."openkal"]
+namespace = "mcpplibs"
+version = "0.17.0"
+source  = "index+mcpplibs@0.17.0"
+hash    = "fnv1a:d9a6fe1043f0f4d5"
 
 [package."openkal-linux"]
 namespace = "mcpplibs"
 version = "0.18.0"
 source  = "index+mcpplibs@0.18.0"
 hash    = "fnv1a:2947b74ddbcf8b79"
+
+[package."mcpplibs.os"]
+namespace = "mcpplibs"
+version = "0.1.0"
+source  = "index+mcpplibs@0.1.0"
+hash    = "fnv1a:d94d43a5050491b4"
+
+[package."nlohmann.json"]
+namespace = "nlohmann"
+version = "3.12.0"
+source  = "index+nlohmann@3.12.0"
+hash    = "fnv1a:65af05f998b1b9d7"
 
 [package."taskflow.taskflow"]
 namespace = "taskflow"

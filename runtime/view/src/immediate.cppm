@@ -26,6 +26,9 @@ import :primitives;
 
 export namespace omui {
 
+// The options of immediate-mode controls (the base components' properties).
+namespace im {
+
 struct ButtonOptions {
     std::string id;
     std::string variant;   // primary secondary ghost danger
@@ -55,6 +58,8 @@ struct TextBoxOptions {
     bool        disabled = false;
 };
 
+}  // namespace im
+
 struct ImState;  // shared by an immediate root, its builder and its handlers
 
 class Ui {
@@ -75,15 +80,15 @@ public:
 
     // ── controls (the base components when they are linked) ──
     // True when it was activated since the last build.
-    bool button(std::string_view label, ButtonOptions o = {}, std::source_location at = std::source_location::current());
+    bool button(std::string_view label, im::ButtonOptions o = {}, std::source_location at = std::source_location::current());
     // True when the user changed the value (it is written into `value`).
-    bool checkbox(std::string_view label, bool& value, ToggleOptions o = {},
+    bool checkbox(std::string_view label, bool& value, im::ToggleOptions o = {},
                   std::source_location at = std::source_location::current());
-    bool toggle(std::string_view label, bool& value, ToggleOptions o = {},
+    bool toggle(std::string_view label, bool& value, im::ToggleOptions o = {},
                 std::source_location at = std::source_location::current());
-    bool slider(std::string_view label, double& value, SliderOptions o = {},
+    bool slider(std::string_view label, double& value, im::SliderOptions o = {},
                 std::source_location at = std::source_location::current());
-    bool text_box(std::string_view label, std::string& value, TextBoxOptions o = {},
+    bool text_box(std::string_view label, std::string& value, im::TextBoxOptions o = {},
                   std::source_location at = std::source_location::current());
 
     // Any element: retained views nest inside immediate ones.

@@ -177,6 +177,108 @@ export namespace omui::spec {
     return out;
 }
 
+// The constexpr tables of one contract (props, events, actions, keys,
+// commands, parts, motion) and the ContractInfo `id` naming them; written
+// with the spec's types unqualified.
+std::string emit_contract_tables(const Contract& c, std::string_view id_text) {
+    std::string out;
+    const std::string id(id_text);
+    // properties
+    for (const Prop& p : c.props) {
+        if (!p.values.empty()) {
+            out += std::format("inline constexpr std::string_view {}_{}_values[] = {{", id, p.name);
+            for (std::size_t i = 0; i < p.values.size(); ++i) out += std::format("{}{}", i ? ", " : "", q(p.values[i]));
+            out += "};\n";
+        }
+        if (auto list = std::get_if<std::vector<std::string>>(&p.default_value); list && !list->empty()) {
+            out += std::format("inline constexpr std::string_view {}_{}_default[] = {{", id, p.name);
+            for (std::size_t i = 0; i < list->size(); ++i) out += std::format("{}{}", i ? ", " : "", q((*list)[i]));
+            out += "};\n";
+        }
+    }
+    if (!c.props.empty()) {
+        out += std::format("inline constexpr PropInfo {}_props[] = {{\n", id);
+        for (const Prop& p : c.props) {
+            std::string def = std::visit(
+                [&](const auto& v) -> std::string {
+                    using V = std::decay_t<decltype(v)>;
+                    if constexpr (std::same_as<V, std::monostate>) return "DefaultValue{}";
+                    else if constexpr (std::same_as<V, bool>) return std::format("DefaultValue::of_bool({})", v ? "true" : "false");
+                    else if constexpr (std::same_as<V, std::int64_t>) {
+                        if (p.type == "f64") return std::format("DefaultValue::of_double({})", format_double(static_cast<double>(v)));
+                        return std::format("DefaultValue::of_int({})", v);
+                    } else if constexpr (std::same_as<V, double>) return std::format("DefaultValue::of_double({})", format_double(v));
+                    else if constexpr (std::same_as<V, std::string>) return std::format("DefaultValue::of_string({})", q(v));
+                    else return v.empty() ? std::string("DefaultValue::of_list({})") : std::format("DefaultValue::of_list({}_{}_default)", id, p.name);
+                },
+                p.default_value);
+            std::string type = p.type == "list<string>" ? "string_list" : p.type == "bool" ? "boolean" : p.type == "enum" ? "choice" : p.type;
+            out += std::format("    {{{}, PropType::{}, {}, {}, {}, {}}},\n", q(p.name), type,
+                               p.values.empty() ? std::string("{}") : std::format("{}_{}_values", id, p.name), def,
+                               p.bindable ? "true" : "false", q(p.doc));
+        }
+        out += "};\n";
+    }
+    // events
+    for (const Event& e : c.events) {
+        if (e.args.empty()) continue;
+        out += std::format("inline constexpr ArgInfo {}_event_{}_args[] = {{", id, e.name);
+        for (std::size_t i = 0; i < e.args.size(); ++i) out += std::format("{}{{{}, {}}}", i ? ", " : "", q(e.args[i].name), q(e.args[i].type));
+        out += "};\n";
+    }
+    if (!c.events.empty()) {
+        out += std::format("inline constexpr EventInfo {}_events[] = {{\n", id);
+        for (const Event& e : c.events)
+            out += std::format("    {{{}, {}, {}, {}}},\n", q(e.name),
+                               e.args.empty() ? std::string("{}") : std::format("{}_event_{}_args", id, e.name),
+                               e.coalesce == "frame" ? "true" : "false", q(e.doc));
+        out += "};\n";
+    }
+    // actions
+    for (const ContractAction& a : c.actions) {
+        if (a.args.empty()) continue;
+        out += std::format("inline constexpr ArgInfo {}_action_{}_args[] = {{", id, a.name);
+        for (std::size_t i = 0; i < a.args.size(); ++i) out += std::format("{}{{{}, {}}}", i ? ", " : "", q(a.args[i].name), q(a.args[i].type));
+        out += "};\n";
+    }
+    if (!c.actions.empty()) {
+        out += std::format("inline constexpr ActionSpec {}_actions[] = {{\n", id);
+        for (const ContractAction& a : c.actions)
+            out += std::format("    {{{}, Effect::{}, {}, {}}},\n", q(a.name), ident(a.effect),
+                               a.args.empty() ? std::string("{}") : std::format("{}_action_{}_args", id, a.name), q(a.doc));
+        out += "};\n";
+    }
+    if (!c.keys.empty()) {
+        out += std::format("inline constexpr KeyInfo {}_keys[] = {{", id);
+        for (std::size_t i = 0; i < c.keys.size(); ++i) out += std::format("{}{{{}, {}}}", i ? ", " : "", q(c.keys[i].chord), q(c.keys[i].target));
+        out += "};\n";
+    }
+    if (!c.commands.empty()) {
+        out += std::format("inline constexpr CommandInfo {}_commands[] = {{", id);
+        for (std::size_t i = 0; i < c.commands.size(); ++i) out += std::format("{}{{{}, {}}}", i ? ", " : "", q(c.commands[i].name), q(c.commands[i].doc));
+        out += "};\n";
+    }
+    if (!c.parts.empty()) {
+        out += std::format("inline constexpr std::string_view {}_parts[] = {{", id);
+        for (std::size_t i = 0; i < c.parts.size(); ++i) out += std::format("{}{}", i ? ", " : "", q(c.parts[i].name));
+        out += "};\n";
+    }
+    if (!c.motion.empty()) {
+        out += std::format("inline constexpr MotionInfo {}_motion[] = {{", id);
+        for (std::size_t i = 0; i < c.motion.size(); ++i) out += std::format("{}{{{}, {}}}", i ? ", " : "", q(c.motion[i].part), q(c.motion[i].token));
+        out += "};\n";
+    }
+    auto span_or_empty = [&](bool any, std::string_view suffix) {
+        return any ? std::format("{}_{}", id, suffix) : std::string("{}");
+    };
+    out += std::format("inline constexpr ContractInfo {} {{{}, Role::{}, {}, {}, {}, {}, {}, {}, {}, {}, {}}};\n\n", ident(id),
+                       q(c.name), ident(c.role), q(c.spec), span_or_empty(!c.props.empty(), "props"),
+                       span_or_empty(!c.events.empty(), "events"), span_or_empty(!c.actions.empty(), "actions"),
+                       span_or_empty(!c.keys.empty(), "keys"), span_or_empty(!c.commands.empty(), "commands"),
+                       span_or_empty(!c.parts.empty(), "parts"), span_or_empty(!c.motion.empty(), "motion"), q(c.doc));
+    return out;
+}
+
 std::string emit_spec_catalog(const Registry& reg) {
     std::string out(banner);
     out += R"(//
@@ -195,100 +297,8 @@ export namespace omui::spec::catalog {
 )";
     std::string names;
     for (const Contract& c : reg.contracts) {
-        std::string id = c.name;
-        // properties
-        for (const Prop& p : c.props) {
-            if (!p.values.empty()) {
-                out += std::format("inline constexpr std::string_view {}_{}_values[] = {{", id, p.name);
-                for (std::size_t i = 0; i < p.values.size(); ++i) out += std::format("{}{}", i ? ", " : "", q(p.values[i]));
-                out += "};\n";
-            }
-            if (auto list = std::get_if<std::vector<std::string>>(&p.default_value); list && !list->empty()) {
-                out += std::format("inline constexpr std::string_view {}_{}_default[] = {{", id, p.name);
-                for (std::size_t i = 0; i < list->size(); ++i) out += std::format("{}{}", i ? ", " : "", q((*list)[i]));
-                out += "};\n";
-            }
-        }
-        if (!c.props.empty()) {
-            out += std::format("inline constexpr PropInfo {}_props[] = {{\n", id);
-            for (const Prop& p : c.props) {
-                std::string def = std::visit(
-                    [&](const auto& v) -> std::string {
-                        using V = std::decay_t<decltype(v)>;
-                        if constexpr (std::same_as<V, std::monostate>) return "DefaultValue{}";
-                        else if constexpr (std::same_as<V, bool>) return std::format("DefaultValue::of_bool({})", v ? "true" : "false");
-                        else if constexpr (std::same_as<V, std::int64_t>) {
-                            if (p.type == "f64") return std::format("DefaultValue::of_double({})", format_double(static_cast<double>(v)));
-                            return std::format("DefaultValue::of_int({})", v);
-                        } else if constexpr (std::same_as<V, double>) return std::format("DefaultValue::of_double({})", format_double(v));
-                        else if constexpr (std::same_as<V, std::string>) return std::format("DefaultValue::of_string({})", q(v));
-                        else return v.empty() ? std::string("DefaultValue::of_list({})") : std::format("DefaultValue::of_list({}_{}_default)", id, p.name);
-                    },
-                    p.default_value);
-                std::string type = p.type == "list<string>" ? "string_list" : p.type == "bool" ? "boolean" : p.type == "enum" ? "choice" : p.type;
-                out += std::format("    {{{}, PropType::{}, {}, {}, {}, {}}},\n", q(p.name), type,
-                                   p.values.empty() ? std::string("{}") : std::format("{}_{}_values", id, p.name), def,
-                                   p.bindable ? "true" : "false", q(p.doc));
-            }
-            out += "};\n";
-        }
-        // events
-        for (const Event& e : c.events) {
-            if (e.args.empty()) continue;
-            out += std::format("inline constexpr ArgInfo {}_event_{}_args[] = {{", id, e.name);
-            for (std::size_t i = 0; i < e.args.size(); ++i) out += std::format("{}{{{}, {}}}", i ? ", " : "", q(e.args[i].name), q(e.args[i].type));
-            out += "};\n";
-        }
-        if (!c.events.empty()) {
-            out += std::format("inline constexpr EventInfo {}_events[] = {{\n", id);
-            for (const Event& e : c.events)
-                out += std::format("    {{{}, {}, {}, {}}},\n", q(e.name),
-                                   e.args.empty() ? std::string("{}") : std::format("{}_event_{}_args", id, e.name),
-                                   e.coalesce == "frame" ? "true" : "false", q(e.doc));
-            out += "};\n";
-        }
-        // actions
-        for (const ContractAction& a : c.actions) {
-            if (a.args.empty()) continue;
-            out += std::format("inline constexpr ArgInfo {}_action_{}_args[] = {{", id, a.name);
-            for (std::size_t i = 0; i < a.args.size(); ++i) out += std::format("{}{{{}, {}}}", i ? ", " : "", q(a.args[i].name), q(a.args[i].type));
-            out += "};\n";
-        }
-        if (!c.actions.empty()) {
-            out += std::format("inline constexpr ActionSpec {}_actions[] = {{\n", id);
-            for (const ContractAction& a : c.actions)
-                out += std::format("    {{{}, Effect::{}, {}, {}}},\n", q(a.name), ident(a.effect),
-                                   a.args.empty() ? std::string("{}") : std::format("{}_action_{}_args", id, a.name), q(a.doc));
-            out += "};\n";
-        }
-        if (!c.keys.empty()) {
-            out += std::format("inline constexpr KeyInfo {}_keys[] = {{", id);
-            for (std::size_t i = 0; i < c.keys.size(); ++i) out += std::format("{}{{{}, {}}}", i ? ", " : "", q(c.keys[i].chord), q(c.keys[i].target));
-            out += "};\n";
-        }
-        if (!c.commands.empty()) {
-            out += std::format("inline constexpr CommandInfo {}_commands[] = {{", id);
-            for (std::size_t i = 0; i < c.commands.size(); ++i) out += std::format("{}{{{}, {}}}", i ? ", " : "", q(c.commands[i].name), q(c.commands[i].doc));
-            out += "};\n";
-        }
-        if (!c.parts.empty()) {
-            out += std::format("inline constexpr std::string_view {}_parts[] = {{", id);
-            for (std::size_t i = 0; i < c.parts.size(); ++i) out += std::format("{}{}", i ? ", " : "", q(c.parts[i].name));
-            out += "};\n";
-        }
-        if (!c.motion.empty()) {
-            out += std::format("inline constexpr MotionInfo {}_motion[] = {{", id);
-            for (std::size_t i = 0; i < c.motion.size(); ++i) out += std::format("{}{{{}, {}}}", i ? ", " : "", q(c.motion[i].part), q(c.motion[i].token));
-            out += "};\n";
-        }
-        auto span_or_empty = [&](bool any, std::string_view suffix) {
-            return any ? std::format("{}_{}", id, suffix) : std::string("{}");
-        };
-        out += std::format("inline constexpr ContractInfo {} {{{}, Role::{}, {}, {}, {}, {}, {}, {}, {}, {}, {}}};\n\n", ident(id),
-                           q(c.name), ident(c.role), q(c.spec), span_or_empty(!c.props.empty(), "props"),
-                           span_or_empty(!c.events.empty(), "events"), span_or_empty(!c.actions.empty(), "actions"),
-                           span_or_empty(!c.keys.empty(), "keys"), span_or_empty(!c.commands.empty(), "commands"),
-                           span_or_empty(!c.parts.empty(), "parts"), span_or_empty(!c.motion.empty(), "motion"), q(c.doc));
+        const std::string id = c.name;
+        out += emit_contract_tables(c, id);
         names += std::format("    &{},\n", ident(id));
     }
     out += std::format("inline constexpr std::array<const ContractInfo*, {}> core{{{{\n{}}}}};\n\n", reg.contracts.size(), names);

@@ -69,7 +69,7 @@
 const count = signal(0);
 export const Counter = () => column({ gap: 8 }, [
   text({ text: fmt("点击了 {} 次", count) }),
-  button({ id: "inc", text: "加一", onActivate: () => count.update(v => v + 1) }),
+  button({ id: "inc", text: "加一", onActivated: () => count.update(v => v + 1) }),
 ]);
 ```
 

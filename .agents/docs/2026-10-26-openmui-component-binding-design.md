@@ -206,7 +206,7 @@ auto counter() -> omui::View {
     return omui::column({.gap = 8}, {
         omui::text({.text = omui::fmt("点击了 {} 次", count)}),
         omui::button({.id = "inc", .text = "加一",
-                      .on_activate = [=] { count.update([](int v) { return v + 1; }); }}),
+                      .on_activated = [=] { count.update([](int v) { return v + 1; }); }}),
     });
 }
 ```
@@ -216,7 +216,7 @@ auto counter() -> omui::View {
 const count = signal(0);
 export const Counter = () => column({ gap: 8 }, [
   text({ text: fmt("点击了 {} 次", count) }),
-  button({ id: "inc", text: "加一", onActivate: () => count.update(v => v + 1) }),
+  button({ id: "inc", text: "加一", onActivated: () => count.update(v => v + 1) }),
 ]);
 ```
 
@@ -226,7 +226,7 @@ count = omui.signal(0)
 def counter():
     with omui.column(gap=8):
         omui.text(text=omui.fmt("点击了 {} 次", count))
-        omui.button(id="inc", text="加一", on_activate=lambda: count.update(lambda v: v + 1))
+        omui.button(id="inc", text="加一", on_activated=lambda: count.update(lambda v: v + 1))
 ```
 
 ```lua
@@ -235,7 +235,7 @@ local count = omui.signal(0)
 local function Counter()
   return omui.Column { gap = 8,
     omui.Text   { text = omui.fmt("点击了 {} 次", count) },
-    omui.Button { id = "inc", text = "加一", on_activate = function() count:update(function(v) return v + 1 end) end },
+    omui.Button { id = "inc", text = "加一", on_activated = function() count:update(function(v) return v + 1 end) end },
   }
 end
 ```
@@ -245,7 +245,7 @@ end
 export const Counter = () => (
   <Column gap={8}>
     <Text text={fmt("点击了 {} 次", count)} />
-    <Button id="inc" text="加一" onActivate={() => count.update(v => v + 1)} />
+    <Button id="inc" text="加一" onActivated={() => count.update(v => v + 1)} />
   </Column>
 );
 ```

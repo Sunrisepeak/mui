@@ -6,6 +6,10 @@
 //   omui-gen stubs <file.contract.omui.toml>... --registry <dir> --module <m>
 //                  --out <dir> [--check] [--json]
 //       a component package's script builders and view-document schema
+//   omui-gen cpp <file.contract.omui.toml>... --registry <dir> --module <m>
+//                --out <dir> [--namespace ns] [--catalog] [--check]
+//       a component package's C++: the contract partitions (typed props,
+//       options, the CRTP base) and the builders
 //   omui-gen check <file.contract.omui.toml>... --registry <dir> [--json]
 //       diagnostics only
 //   omui-gen unicode <ucd-dir> --version <x.y.z> --out <dir> [--tests <dir>] [--check]
@@ -30,6 +34,8 @@ struct Options {
     std::filesystem::path              out;
     std::filesystem::path              registry;
     std::string                        module;
+    std::string                        ns = "omui::ui";
+    bool                               catalog = false;
     std::string                        version;
     std::filesystem::path              tests;
     bool                               check = false;
@@ -39,6 +45,7 @@ struct Options {
 int usage() {
     std::println(std::cerr, "usage: omui-gen registry <registry-dir> --out <spec-dir> [--check] [--json]\n"
                             "       omui-gen stubs <contract>... --registry <dir> --module <name> --out <dir> [--check] [--json]\n"
+                            "       omui-gen cpp <contract>... --registry <dir> --module <name> --out <dir> [--namespace ns] [--catalog] [--check]\n"
                             "       omui-gen check <contract>... --registry <dir> [--json]\n"
                             "       omui-gen unicode <ucd-dir> --version <x.y.z> --out <dir> [--tests <dir>] [--check]");
     return 2;
@@ -59,6 +66,8 @@ std::optional<Options> parse_args(int argc, char** argv) {
         else if (a == "--out") { auto v = value(); if (!v) return std::nullopt; o.out = *v; }
         else if (a == "--registry") { auto v = value(); if (!v) return std::nullopt; o.registry = *v; }
         else if (a == "--module") { auto v = value(); if (!v) return std::nullopt; o.module = *v; }
+        else if (a == "--namespace") { auto v = value(); if (!v) return std::nullopt; o.ns = *v; }
+        else if (a == "--catalog") o.catalog = true;
         else if (a == "--version") { auto v = value(); if (!v) return std::nullopt; o.version = *v; }
         else if (a == "--tests") { auto v = value(); if (!v) return std::nullopt; o.tests = *v; }
         else if (a.starts_with("--")) return std::nullopt;
@@ -147,6 +156,31 @@ int run_unicode(const Options& o) {
     return 0;
 }
 
+// C++ for a component package: per contract the partition <name>_contract.cppm
+// and the builder <name>_builder.cpp.
+int run_cpp(const Options& o) {
+    if (o.inputs.empty() || o.registry.empty() || o.module.empty() || o.out.empty()) return usage();
+    Diagnostics diags;
+    Registry reg = read_registry(o.registry, diags);
+    std::vector<Contract> contracts;
+    for (const auto& file : o.inputs)
+        for (Contract& c : read_contracts(file, reg, diags)) contracts.push_back(std::move(c));
+    if (report(diags, o.json) != 0) return 1;
+    const CppOptions cpp{o.module, o.ns, o.catalog};
+    Writer w{o.check};
+    for (const Contract& c : contracts) {
+        w.put(o.out / (c.name + "_contract.cppm"), emit_cpp_contract(c, reg, cpp));
+        w.put(o.out / (c.name + "_builder.cpp"), emit_cpp_builder(c, reg, cpp));
+    }
+    if (o.check) {
+        if (w.stale) return 1;
+        std::println("omui-gen: generated files are current");
+    } else {
+        std::println("omui-gen: {} file(s) written", w.written);
+    }
+    return 0;
+}
+
 int run_contracts(const Options& o, bool emit) {
     if (o.inputs.empty() || o.registry.empty()) return usage();
     if (emit && (o.module.empty() || o.out.empty())) return usage();
@@ -173,6 +207,7 @@ int main(int argc, char** argv) {
     if (!options) return usage();
     if (options->command == "registry") return run_registry(*options);
     if (options->command == "stubs") return run_contracts(*options, true);
+    if (options->command == "cpp") return run_cpp(*options);
     if (options->command == "check") return run_contracts(*options, false);
     if (options->command == "unicode") return run_unicode(*options);
     return usage();

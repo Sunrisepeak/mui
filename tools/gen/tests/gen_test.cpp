@@ -41,6 +41,43 @@ int main(int argc, char** argv) {
         same(spec_dir() / "schema" / "core.components.json", gen::emit_view_schema(reg.contracts, "the Core profile"));
     });
 
+    s.test("the base components' C++ is current", [] {
+        // components/base/src/generated holds `omui-gen cpp` of the Core contracts it implements.
+        gen::Diagnostics diags;
+        auto reg = gen::read_registry(spec_dir() / "registry", diags);
+        const auto dir = spec_dir().parent_path() / "components" / "base" / "src" / "generated";
+        const gen::CppOptions o{"openmui.ui.base", "omui", true};
+        int seen = 0;
+        for (const auto& entry : std::filesystem::directory_iterator(dir)) {
+            const std::string file = entry.path().filename().string();
+            if (!file.ends_with("_contract.cppm")) continue;
+            const std::string name = file.substr(0, file.size() - std::string_view("_contract.cppm").size());
+            auto contracts = gen::read_contracts(spec_dir() / "registry" / "components" / (name + ".contract.omui.toml"), reg, diags);
+            check(contracts.size() == 1, name);
+            if (contracts.size() != 1) continue;
+            const std::string hint = std::format(
+                "out of date: run omui-gen cpp spec/registry/components/{}.contract.omui.toml --registry spec/registry "
+                "--module openmui.ui.base --namespace omui --out components/base/src/generated --catalog",
+                name);
+            check(read(entry.path()) == gen::emit_cpp_contract(contracts[0], reg, o), hint);
+            check(read(dir / (name + "_builder.cpp")) == gen::emit_cpp_builder(contracts[0], reg, o), hint);
+            ++seen;
+        }
+        check(seen >= 5, std::format("{} component partitions", seen));
+    });
+
+    s.test("a contract's C++ base refuses a missing action", [] {
+        gen::Diagnostics diags;
+        auto reg = gen::read_registry(spec_dir() / "registry", diags);
+        auto slider = gen::read_contracts(spec_dir() / "registry" / "components" / "slider.contract.omui.toml", reg, diags);
+        const std::string cpp = gen::emit_cpp_contract(slider.at(0), reg, {"x.ui", "x::ui", false});
+        for (auto expect : {"export module x.ui:slider_contract;", "struct SliderProps", "double step = 1.0;",
+                            "struct SliderOptions", "std::function<void(double)> on_committed;", "class SliderContract",
+                            "needs `ActResult set_value(ActContext&, const Value& value)`", "void write_value(double value)",
+                            "namespace x::ui::slider_contract_tables", "inline constexpr ContractInfo info"})
+            check(cpp.find(expect) != std::string::npos, expect);
+    });
+
     s.test("a broken contract is reported line by line", [] {
         gen::Diagnostics diags;
         auto reg = gen::read_registry(spec_dir() / "registry", diags);

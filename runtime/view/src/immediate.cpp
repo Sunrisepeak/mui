@@ -225,7 +225,7 @@ Source two_way(ImState& st, const std::string& id, Value current) {
 
 }  // namespace
 
-bool Ui::button(std::string_view label, ButtonOptions o, std::source_location at) {
+bool Ui::button(std::string_view label, im::ButtonOptions o, std::source_location at) {
     const bool generated = o.id.empty();
     std::string id = next_id("button", o.id, at);
     Element e = control("button", id, generated, at);
@@ -253,7 +253,7 @@ bool Ui::button(std::string_view label, ButtonOptions o, std::source_location at
 namespace {
 
 bool toggle_like(ImState& st, std::string_view type, std::string id, bool generated, std::string_view label,
-                 bool& value, const ToggleOptions& o, const std::source_location& at, Element& out) {
+                 bool& value, const im::ToggleOptions& o, const std::source_location& at, Element& out) {
     Element e = control(type, id, generated, at);
     if (e.type) {
         e.prop("label", Source{Value(label), {}, {}});
@@ -282,7 +282,7 @@ bool toggle_like(ImState& st, std::string_view type, std::string id, bool genera
 
 }  // namespace
 
-bool Ui::checkbox(std::string_view label, bool& value, ToggleOptions o, std::source_location at) {
+bool Ui::checkbox(std::string_view label, bool& value, im::ToggleOptions o, std::source_location at) {
     const bool generated = o.id.empty();
     std::string id = next_id("checkbox", o.id, at);
     Element e;
@@ -293,7 +293,7 @@ bool Ui::checkbox(std::string_view label, bool& value, ToggleOptions o, std::sou
     return changed;
 }
 
-bool Ui::toggle(std::string_view label, bool& value, ToggleOptions o, std::source_location at) {
+bool Ui::toggle(std::string_view label, bool& value, im::ToggleOptions o, std::source_location at) {
     const bool generated = o.id.empty();
     std::string id = next_id("toggle", o.id, at);
     Element e;
@@ -304,7 +304,7 @@ bool Ui::toggle(std::string_view label, bool& value, ToggleOptions o, std::sourc
     return changed;
 }
 
-bool Ui::slider(std::string_view label, double& value, SliderOptions o, std::source_location at) {
+bool Ui::slider(std::string_view label, double& value, im::SliderOptions o, std::source_location at) {
     const bool generated = o.id.empty();
     std::string id = next_id("slider", o.id, at);
     bool changed = false;
@@ -329,7 +329,7 @@ bool Ui::slider(std::string_view label, double& value, SliderOptions o, std::sou
     return changed;
 }
 
-bool Ui::text_box(std::string_view label, std::string& value, TextBoxOptions o, std::source_location at) {
+bool Ui::text_box(std::string_view label, std::string& value, im::TextBoxOptions o, std::source_location at) {
     const bool generated = o.id.empty();
     std::string id = next_id("text_box", o.id, at);
     bool changed = false;

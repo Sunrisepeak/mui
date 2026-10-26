@@ -16,8 +16,11 @@ repo        = "https://github.com/Sunrisepeak/mui"
 members = [
     "tests/support",
     "spec",
-    "runtime/core",
+    "modules/geom",
+    "modules/memory",
     "modules/anim",
+    "modules/render",
+    "runtime/core",
     "tools/gen",
 ]
 

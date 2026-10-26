@@ -1,4 +1,4 @@
-// openmui.core:display — contract ⑤, what a frame draws (spec §7).
+// openmui.render:display — contract ⑤, what a frame draws (spec §7).
 //
 // Components paint into a display list; a renderer (the CPU reference raster
 // or the GPU renderer) turns it into pixels. The list is plain data: commands
@@ -9,50 +9,24 @@
 // `begin_node`/`end_node` bracket what a node drew: the renderer can write an
 // object-id buffer from them, which is how devtools trace a pixel to the node
 // and the source line that produced it.
-export module openmui.core:display;
+export module openmui.render:display;
 
 import std;
-import :base;
-import :arena;
+import openmui.geom;
+import openmui.memory;
 
-export namespace omui {
+export namespace omui::render {
 
-// x' = a·x + c·y + e, y' = b·x + d·y + f
-struct Affine {
-    float a = 1, b = 0, c = 0, d = 1, e = 0, f = 0;
+using geom::Affine;
+using geom::Color;
+using geom::CornerRadii;
+using geom::Point;
+using geom::Rect;
+using geom::Size;
 
-    [[nodiscard]] static constexpr Affine translate(float x, float y) noexcept { return {1, 0, 0, 1, x, y}; }
-    [[nodiscard]] static constexpr Affine scale(float sx, float sy) noexcept { return {sx, 0, 0, sy, 0, 0}; }
-    [[nodiscard]] static Affine rotate(float radians) noexcept;
-    // This transform after `o`: (this ∘ o)(p) = this(o(p)).
-    [[nodiscard]] constexpr Affine operator*(const Affine& o) const noexcept {
-        return {a * o.a + c * o.b, b * o.a + d * o.b, a * o.c + c * o.d, b * o.c + d * o.d, a * o.e + c * o.f + e,
-                b * o.e + d * o.f + f};
-    }
-    [[nodiscard]] constexpr Point apply(Point p) const noexcept { return {a * p.x + c * p.y + e, b * p.x + d * p.y + f}; }
-    [[nodiscard]] std::optional<Affine> inverse() const noexcept;
-    [[nodiscard]] constexpr bool identity() const noexcept { return a == 1 && b == 0 && c == 0 && d == 1 && e == 0 && f == 0; }
-    [[nodiscard]] constexpr bool translation_only() const noexcept { return a == 1 && b == 0 && c == 0 && d == 1; }
-    // The bounding box of a transformed rectangle.
-    [[nodiscard]] Rect map(const Rect& r) const noexcept;
-
-    friend constexpr bool operator==(const Affine& x, const Affine& y) noexcept {
-        return x.a == y.a && x.b == y.b && x.c == y.c && x.d == y.d && x.e == y.e && x.f == y.f;
-    }
-};
-
-struct CornerRadii {
-    float top_left = 0, top_right = 0, bottom_right = 0, bottom_left = 0;
-
-    [[nodiscard]] static constexpr CornerRadii all(float r) noexcept { return {r, r, r, r}; }
-    [[nodiscard]] constexpr bool zero() const noexcept {
-        return top_left == 0 && top_right == 0 && bottom_right == 0 && bottom_left == 0;
-    }
-    friend constexpr bool operator==(const CornerRadii& x, const CornerRadii& y) noexcept {
-        return x.top_left == y.top_left && x.top_right == y.top_right && x.bottom_right == y.bottom_right &&
-               x.bottom_left == y.bottom_left;
-    }
-};
+// A rotation with the deterministic sine and cosine of openmui-anim: the same
+// matrix on every platform.
+[[nodiscard]] Affine rotate(float radians) noexcept;
 
 enum class FillRule : std::uint8_t { nonzero, even_odd };
 enum class LineCap : std::uint8_t { butt, round, square };
@@ -245,4 +219,4 @@ private:
     Arena                arena_{16 * 1024};
 };
 
-}  // namespace omui
+}  // namespace omui::render

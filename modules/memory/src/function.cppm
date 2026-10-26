@@ -1,9 +1,9 @@
-// openmui.core:function — a non-owning reference to a callable.
+// openmui.memory:function — a non-owning reference to a callable.
 //
 // std::function_ref arrives in C++26; until the baseline moves, this is the
 // same idea: two pointers, no allocation, for callbacks that do not outlive
 // the call that receives them (parallel loops, visitors).
-export module openmui.core:function;
+export module openmui.memory:function;
 
 import std;
 

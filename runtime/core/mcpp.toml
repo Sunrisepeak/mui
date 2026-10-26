@@ -1,10 +1,10 @@
 # openmui-core — the foundation of the runtime: signals, verbs, input events
-# and keys, the display list, the frame arena and handles, JSON, diagnostics,
-# task scheduling and the clock (from openmui-anim).
+# and keys, JSON, diagnostics, task scheduling; it re-exports the shared
+# geometry, memory utilities and the clock (openmui-geom, -memory, -anim).
 [package]
 name        = "openmui-core"
 version     = "0.1.0"
-description = "openmui runtime foundation: signals, verbs, input events, display list, arena, JSON, tasks"
+description = "openmui runtime foundation: signals, verbs, input events, JSON, diagnostics, tasks"
 license     = "Apache-2.0"
 repo        = "https://github.com/Sunrisepeak/mui"
 
@@ -20,6 +20,8 @@ sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 [dependencies]
 openmui-spec = { path = "../../spec" }
 openmui-anim = { path = "../../modules/anim" }
+openmui-geom = { path = "../../modules/geom" }
+openmui-memory = { path = "../../modules/memory" }
 
 [dependencies.nlohmann]
 json = "3.12.0"

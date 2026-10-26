@@ -10,7 +10,7 @@
 export module openmui.core:task;
 
 import std;
-import :function;
+import openmui.memory;
 
 export namespace omui {
 

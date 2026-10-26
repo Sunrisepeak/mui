@@ -1,35 +1,14 @@
-module openmui.core;
+module openmui.render;
 
 import std;
+import openmui.anim;
 
-namespace omui {
+namespace omui::render {
 
-// ── Affine ────────────────────────────────────────────────────────────────
-
-Affine Affine::rotate(float radians) noexcept {
-    // The deterministic sine and cosine: a rotation is the same on every platform.
-    auto c = static_cast<float>(anim::dm::cos(radians));
-    auto s = static_cast<float>(anim::dm::sin(radians));
-    return {c, s, -s, c, 0, 0};
-}
-
-std::optional<Affine> Affine::inverse() const noexcept {
-    float det = a * d - b * c;
-    if (det == 0 || det != det) return std::nullopt;
-    float id = 1.0f / det;
-    return Affine{d * id, -b * id, -c * id, a * id, (c * f - d * e) * id, (b * e - a * f) * id};
-}
-
-Rect Affine::map(const Rect& r) const noexcept {
-    Point p[4] = {apply({r.x, r.y}), apply({r.right(), r.y}), apply({r.x, r.bottom()}), apply({r.right(), r.bottom()})};
-    float l = p[0].x, t = p[0].y, rr = p[0].x, bb = p[0].y;
-    for (const Point& q : p) {
-        l = std::min(l, q.x);
-        t = std::min(t, q.y);
-        rr = std::max(rr, q.x);
-        bb = std::max(bb, q.y);
-    }
-    return Rect::ltrb(l, t, rr, bb);
+Affine rotate(float radians) noexcept {
+    auto co = static_cast<float>(anim::dm::cos(radians));
+    auto si = static_cast<float>(anim::dm::sin(radians));
+    return Affine::rotation(co, si);
 }
 
 // ── Path ──────────────────────────────────────────────────────────────────
@@ -150,19 +129,8 @@ Path& Path::add_rect(const Rect& r) {
 Path& Path::add_rounded_rect(const Rect& r, const CornerRadii& radii) {
     if (radii.zero()) return add_rect(r);
     // Radii larger than the sides are scaled down together (CSS §5.5).
-    float tl = radii.top_left, tr = radii.top_right, br = radii.bottom_right, bl = radii.bottom_left;
-    float f = 1.0f;
-    auto fit = [&](float side, float a, float b) {
-        if (a + b > side && a + b > 0) f = std::min(f, side / (a + b));
-    };
-    fit(r.width, tl, tr);
-    fit(r.width, bl, br);
-    fit(r.height, tl, bl);
-    fit(r.height, tr, br);
-    tl *= f;
-    tr *= f;
-    br *= f;
-    bl *= f;
+    CornerRadii f = radii.fitted(r.size());
+    float tl = f.top_left, tr = f.top_right, br = f.bottom_right, bl = f.bottom_left;
     constexpr float k = 0.5522847498307936f;  // 4/3·(√2 − 1): a quarter circle as one cubic
     float l = r.x, t = r.y, rr = r.right(), b = r.bottom();
     move_to({l + tl, t});
@@ -384,4 +352,4 @@ void DisplayList::clear() noexcept {
     arena_.reset();
 }
 
-}  // namespace omui
+}  // namespace omui::render

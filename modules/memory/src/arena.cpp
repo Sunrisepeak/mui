@@ -1,4 +1,4 @@
-module openmui.core;
+module openmui.memory;
 
 import std;
 

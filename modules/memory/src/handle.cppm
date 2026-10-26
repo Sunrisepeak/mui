@@ -1,11 +1,11 @@
-// openmui.core:handle — generational handles and the slot map behind them.
+// openmui.memory:handle — generational handles and the slot map behind them.
 //
 // Objects the runtime hands out (nodes, signals, subscriptions, images) are
 // referred to by a handle: an index and a generation. A handle to an object
 // that has gone is detected (its generation no longer matches) instead of
 // reading freed memory, which is what lets a script or an agent hold a handle
 // across frames safely.
-export module openmui.core:handle;
+export module openmui.memory:handle;
 
 import std;
 

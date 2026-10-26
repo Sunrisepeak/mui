@@ -1,0 +1,27 @@
+# openmui-render — the rendering abstraction: the display list of contract ⑤,
+# the renderer interface, and its CPU and GPU backends (D-57). Knows nothing
+# of nodes or views; anything that produces a display list can render it.
+[package]
+name        = "openmui-render"
+version     = "0.1.0"
+description = "Display list, renderer interface, CPU and GPU backends for 2D UI rendering"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "backend"
+
+[targets.openmui-render]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+openmui-geom   = { path = "../geom" }
+openmui-memory = { path = "../memory" }
+openmui-anim   = { path = "../anim" }
+
+[dev-dependencies]
+openmui-testing = { path = "../../tests/support" }

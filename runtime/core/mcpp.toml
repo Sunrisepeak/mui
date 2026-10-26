@@ -1,0 +1,34 @@
+# openmui-core — the foundation of the runtime: signals, verbs, input events
+# and keys, the display list, the frame arena and handles, JSON, diagnostics,
+# task scheduling and the clock (from openmui-anim).
+[package]
+name        = "openmui-core"
+version     = "0.1.0"
+description = "openmui runtime foundation: signals, verbs, input events, display list, arena, JSON, tasks"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "runtime"
+
+[targets.openmui-core]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+
+[dependencies]
+openmui-spec = { path = "../../spec" }
+openmui-anim = { path = "../../modules/anim" }
+
+[dependencies.nlohmann]
+json = "3.12.0"
+
+[dependencies.taskflow]
+taskflow = "4.1.0"
+
+[dependencies.compat]
+concurrentqueue = "1.0.5"
+
+[dev-dependencies]
+openmui-testing = { path = "../../tests/support" }

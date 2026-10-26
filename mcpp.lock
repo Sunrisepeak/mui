@@ -5,6 +5,24 @@
 # file must not change depending on which command ran last.
 version = 2
 
+[package."compat.concurrentqueue"]
+namespace = "compat"
+version = "1.0.5"
+source  = "index+compat@1.0.5"
+hash    = "fnv1a:ef74c660ecd57abf"
+
+[package."nlohmann.json"]
+namespace = "nlohmann"
+version = "3.12.0"
+source  = "index+nlohmann@3.12.0"
+hash    = "fnv1a:65af05f998b1b9d7"
+
+[package."taskflow.taskflow"]
+namespace = "taskflow"
+version = "4.1.0"
+source  = "index+taskflow@4.1.0"
+hash    = "fnv1a:30640bbab1b45045"
+
 [package."marzer.tomlplusplus"]
 namespace = "marzer"
 version = "3.4.0"

@@ -2,4 +2,4 @@
 // and the default theme. Members join this list as they land.
 export module openmui;
 
-export import openmui.anim;
+export import openmui.core;

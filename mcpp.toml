@@ -16,6 +16,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 members = [
     "tests/support",
     "spec",
+    "runtime/core",
     "modules/anim",
     "tools/gen",
 ]
@@ -37,7 +38,7 @@ kind = "lib"
 sources = ["src/openmui.cppm"]
 
 [dependencies]
-openmui-anim = { path = "modules/anim" }
+openmui-core = { path = "runtime/core" }
 
 # The root package has no test programs of its own: tests/ holds members
 # (tests/support, and the cross-member suites), each discovered by itself.

@@ -22,7 +22,6 @@ sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
 openmui = { path = "../.." }
-mcpplibs.openkal = { git = "https://github.com/mcpplibs/openkal.git", branch = "openkal-0.17.0" }  # settles the kernel layer (see the root)
 
 [dev-dependencies]
 openmui-testing = { path = "../../tests/support" }

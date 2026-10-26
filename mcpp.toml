@@ -12,12 +12,6 @@ description = "openmui: an open UI specification and its reference implementatio
 license     = "Apache-2.0"
 repo        = "https://github.com/Sunrisepeak/mui"
 
-# Graph-wide pins: every member whose graph reaches the key's package (it is
-# the root under `mcpp build -p <member>`) declares the pinned identity as the
-# root does here. lint rule `pins`.
-[package.metadata.openmui.pins]
-"mcpplibs.openkal" = "mcpplibs.os"   # openkal-linux asks for openkal by version, mcpplibs.os by git
-
 [workspace]
 members = [
     "tests/support",
@@ -80,10 +74,7 @@ openmui-trace         = { path = "modules/trace" }
 openmui-ui-base       = { path = "components/base" }
 openmui-host-headless = { path = "hosts/headless" }
 openmui-host-sdl3     = { path = "hosts/sdl3" }
-mcpplibs.os           = { git = "https://github.com/mcpplibs/os.git", branch = "os-0.1.0" }
-# mcpplibs.os asks for openkal by git and openkal-linux by version; the root
-# settles it on the branch mcpplibs.os names.
-mcpplibs.openkal      = { git = "https://github.com/mcpplibs/openkal.git", branch = "openkal-0.17.0" }
+mcpplibs.os           = "0.1.0"
 
 # The root package has no test programs of its own: tests/ holds members
 # (tests/support, and the cross-member suites), each discovered by itself.

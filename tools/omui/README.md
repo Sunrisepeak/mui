@@ -16,6 +16,7 @@ omui agent stats <app>                          frame times: mean, p50, p95, p99
 omui agent profile <app> start|stop [--out FILE.trace.json]   per-span summary; Chrome trace for Perfetto
 omui agent logs <app> [--level L] [--category C] [--limit N]
 omui agent debug <app> [--bounds] [--repaints] [--inspector] [--hud] [--off] [--slow MS] [--log FILTER]
+omui agent pipeline <app> [show|replace|insert|remove] [--stage S] [--plugin P] [--after S] [--config JSON] [--toml]
 ```
 
 An application started with `omui::run` takes the same switches at launch:

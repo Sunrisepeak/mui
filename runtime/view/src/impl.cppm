@@ -6,6 +6,7 @@ import std;
 import openmui.core;
 import openmui.layout;
 import openmui.anim;
+import openmui.pipeline;
 import openmui.render;
 import openmui.text;
 import :element;
@@ -217,6 +218,20 @@ struct Runtime::Impl {
     std::vector<ActionEntry>    journal;
     FrameStats                  stats;
     FrameRing                   history;
+    // The frame as a pipeline of stage plugins (stages.cpp, D-66).
+    pipeline::Registry                 registry;
+    std::optional<pipeline::Pipeline>  frames;
+    pipeline::Resources                resources;
+    FrameTree                          tree_token;
+    FrameLayout                        layout_token;
+    FrameBounds                        bounds_token;
+    std::uint8_t                       todo = 0;           // what the bounds stage found dirty
+    bool                               dirty_taken = false;  // a bounds stage took `dirty` this frame
+    bool                               bounds_ran = false;
+    bool                               repainted = false;
+    bool                               placed = true;      // the pipeline computes bounds (H1 and up)
+    void register_stages();
+    void build_pipeline();
     std::vector<std::pair<NodeId, seconds>> flashes;  // debug: nodes that changed, and when
     seconds                     last_slow_log{-1e9};  // slow frames are logged at most once a second
 

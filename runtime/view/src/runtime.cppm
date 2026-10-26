@@ -17,6 +17,7 @@ import std;
 import openmui.core;
 import openmui.layout;
 import openmui.render;
+import openmui.pipeline;
 import openmui.text;
 import :element;
 import :theme;
@@ -47,17 +48,70 @@ struct RuntimeOptions {
     bool                  reduce_motion = false;
     Stages                stages = Stages::paint;
     DebugOptions          debug;
+    // The frame's pipeline (D-66): nullopt is runtime_pipeline(stages). A
+    // custom one may replace, add or leave out stages; `plugins` adds the
+    // stage plugins it names to the runtime's registry.
+    std::optional<pipeline::Description>            pipeline;
+    std::function<void(pipeline::Registry&)>        plugins;
 };
+
+// What the stages of a frame exchange (pipeline resources). The tree, the
+// layout and the bounds are the runtime's own state, passed as tokens: a
+// stage reading `bounds` runs after the stage that computes them.
+struct FrameTree {
+    class Runtime* runtime = nullptr;
+};
+struct FrameLayout {
+    class Runtime* runtime = nullptr;
+};
+struct FrameBounds {
+    class Runtime* runtime = nullptr;
+};
+namespace frame_resource {
+inline constexpr std::string_view input = "frame";     // FrameInput, from the caller
+inline constexpr std::string_view tree = "tree";       // FrameTree, from the caller
+inline constexpr std::string_view layout = "layout";   // FrameLayout
+inline constexpr std::string_view bounds = "bounds";   // FrameBounds
+inline constexpr std::string_view display = "display"; // render::DisplayList
+}  // namespace frame_resource
 
 struct FrameInput {
     std::optional<anim::seconds> time;   // virtual and render clocks: the frame's time
     std::vector<InputEvent>      events;
 };
 
+}  // namespace omui
+
+export namespace omui::pipeline {
+template <>
+struct resource_type<omui::FrameInput> {
+    static constexpr std::string_view name = "omui.FrameInput";
+};
+template <>
+struct resource_type<omui::FrameTree> {
+    static constexpr std::string_view name = "omui.FrameTree";
+};
+template <>
+struct resource_type<omui::FrameLayout> {
+    static constexpr std::string_view name = "omui.FrameLayout";
+};
+template <>
+struct resource_type<omui::FrameBounds> {
+    static constexpr std::string_view name = "omui.FrameBounds";
+};
+template <>
+struct resource_type<omui::render::DisplayList> {
+    static constexpr std::string_view name = "render.DisplayList";
+};
+}  // namespace omui::pipeline
+
+export namespace omui {
+
 // Where a frame's time went, in milliseconds (also traced as spans of the
 // category "frame" while openmui.trace records).
 struct FrameTimings {
     double timers = 0, input = 0, regions = 0, animations = 0, layout = 0, bounds = 0, paint = 0;
+    double other = 0;  // stages a custom pipeline added
     double total = 0;
 };
 
@@ -91,6 +145,12 @@ struct ActionEntry {
 // The process's task pool (Tasks::shared) as the CPU renderer's Parallel:
 // hosts draw bands of rows at the same time, with the bytes of a serial render.
 [[nodiscard]] render::Parallel& raster_parallel() noexcept;
+
+// The runtime's frame pipeline for a level: H0 (semantics) is timers, input,
+// regions and animations; H1 (layout) adds layout and bounds; H2 (paint)
+// adds paint and the debug overlay. Its stage plugins are
+// `openmui-view.<stage>`.
+[[nodiscard]] pipeline::Description runtime_pipeline(Stages stages);
 
 class Runtime final : public Services {
 public:
@@ -133,6 +193,10 @@ public:
     [[nodiscard]] anim::Clock& clock() noexcept;
     // The last frames' statistics, oldest first (up to 240).
     [[nodiscard]] std::vector<FrameStats> frame_history() const;
+    // The frame's pipeline and the stage plugins it is built from: tools
+    // read them, and replace, add or remove stages between frames.
+    [[nodiscard]] pipeline::Pipeline& frame_pipeline() noexcept;
+    [[nodiscard]] pipeline::Registry& stage_plugins() noexcept;
     void set_debug(DebugOptions debug);
     [[nodiscard]] const DebugOptions& debug() const noexcept;
     // Everything the runtime knows of a node, for tools (`omui agent inspect`):

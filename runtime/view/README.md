@@ -27,6 +27,11 @@ The retained and immediate view runtime (plan §3–§5):
   of its content (S-7);
 - **immediate mode** (`omui::immediate`, `Ui`): ids from the id stack and
   call site, builds only when something happened;
+- **the frame is a pipeline** (D-66): eight stage plugins
+  (`openmui-view.timers` … `.debug`) over the frame's resources (`frame`,
+  `tree`, `layout`, `bounds`, `display`); `runtime_pipeline(Stages)` gives
+  H0, H1 and H2; `RuntimeOptions::pipeline` / `plugins` add your own stages;
+  `frame_pipeline()` and `stage_plugins()` change it between frames;
 - **observability** (D-59): every frame times its phases (timers, input,
   regions, animations, layout, bounds, paint) into `FrameStats`, kept for the
   last 240 frames (`frame_history()`) and traced as `openmui.trace` spans;
@@ -39,5 +44,5 @@ The retained and immediate view runtime (plan §3–§5):
   and a frame-time HUD (mean, p95, node counts).
 
 Depends on `openmui-core`, `-layout`, `-render`, `-text`, `-image`, `-anim`,
-`-geom`, `-memory` and `-trace`. Paint is deterministic: the reference scene renders to
+`-geom`, `-memory`, `-trace` and `-pipeline`. Paint is deterministic: the reference scene renders to
 the same bytes with GCC and LLVM, on Linux, macOS and Windows.

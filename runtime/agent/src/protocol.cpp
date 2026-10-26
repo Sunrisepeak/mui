@@ -5,13 +5,65 @@ import openmui.core;
 import openmui.view;
 import openmui.semantic;
 import openmui.trace;
+import openmui.pipeline;
 
 namespace omui::agent {
 
 namespace {
 
-constexpr std::array<std::string_view, 12> operations{"describe", "snapshot", "changes", "find", "act", "wait", "capture",
-                                                       "inspect", "stats", "profile", "logs", "debug"};
+constexpr std::array<std::string_view, 13> operations{"describe", "snapshot", "changes", "find", "act", "wait", "capture",
+                                                       "inspect", "stats", "profile", "logs", "debug", "pipeline"};
+
+// A stage's configuration from a request's JSON object.
+pipeline::Config config_of(const Value* v) {
+    pipeline::Config c;
+    if (!v || !v->map()) return c;
+    for (const auto& [k, x] : *v->map()) {
+        switch (x.type()) {
+            case Value::Type::boolean: c.set(k, x.as_bool()); break;
+            case Value::Type::integer: c.set(k, x.as_int()); break;
+            case Value::Type::real: c.set(k, x.as_double()); break;
+            case Value::Type::text: c.set(k, std::string(x.as_string())); break;
+            default: break;
+        }
+    }
+    return c;
+}
+
+Value value_of(const pipeline::ConfigValue& v) {
+    return std::visit([](const auto& x) { return Value(x); }, v);
+}
+
+// What `pipeline` answers: the stages in order with their plugins, the last
+// frame's time per stage, the plugins there are, and the description as TOML.
+Value pipeline_value(Runtime& rt) {
+    pipeline::Pipeline& p = rt.frame_pipeline();
+    const pipeline::Description& d = p.description();
+    Value v;
+    v.set("name", d.name);
+    Value::List stages;
+    for (const pipeline::StageTime& t : p.timings()) {
+        Value s;
+        s.set("name", t.name).set("ms", t.ms);
+        if (auto it = std::ranges::find(d.stages, t.name, &pipeline::StageDesc::name); it != d.stages.end()) {
+            s.set("plugin", it->plugin);
+            Value cfg = Value(Value::Map{});
+            for (const auto& [k, x] : it->config.entries()) cfg.set(k, value_of(x));
+            s.set("config", std::move(cfg));
+        }
+        stages.push_back(std::move(s));
+    }
+    v.set("stages", Value(std::move(stages)));
+    Value::List plugins;
+    for (const pipeline::PluginInfo& info : rt.stage_plugins().plugins()) {
+        Value x;
+        x.set("name", info.name).set("kind", info.kind).set("description", info.description);
+        plugins.push_back(std::move(x));
+    }
+    v.set("plugins", Value(std::move(plugins)));
+    v.set("graph", p.describe()).set("toml", pipeline::to_toml(d));
+    return v;
+}
 
 Envelope invalid(std::string message, std::string_view hint = {}) {
     Envelope e;
@@ -271,6 +323,35 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
         }
         if (records.size() > limit) records.erase(records.begin(), records.end() - static_cast<std::ptrdiff_t>(limit));
         return e.data(Value{}.set("records", Value(std::move(records)))).result(spec::exit_code::success);
+    }
+    if (op == "pipeline") {
+        // The frame's pipeline (D-66): read it, or change one stage between frames.
+        const std::string_view action = text_of(req, "action");
+        std::expected<void, std::vector<pipeline::Problem>> changed;
+        if (action.empty() || action == "show") {
+        } else if (action == "replace") {
+            changed = runtime_.frame_pipeline().replace(text_of(req, "stage"), text_of(req, "plugin"), config_of(req.get("config")),
+                                                         runtime_.stage_plugins());
+        } else if (action == "remove") {
+            changed = runtime_.frame_pipeline().remove(text_of(req, "stage"), runtime_.stage_plugins());
+        } else if (action == "insert") {
+            pipeline::StageDesc s;
+            s.name = std::string(text_of(req, "stage"));
+            s.plugin = std::string(text_of(req, "plugin"));
+            if (const Value* after = req.get("after"); after && after->list())
+                for (const Value& a : *after->list()) s.after.emplace_back(a.as_string());
+            s.config = config_of(req.get("config"));
+            changed = runtime_.frame_pipeline().insert(std::move(s), runtime_.stage_plugins());
+        } else {
+            return invalid(std::format("`pipeline` has no action `{}`", action),
+                           R"({"op":"pipeline","action":"replace","stage":"paint","plugin":"openmui-view.paint"} — actions: show, replace, insert, remove)");
+        }
+        if (!changed) {
+            e.error(spec::error_code::invalid_argument, pipeline::to_text(changed.error())).result(spec::exit_code::failure);
+            return e;
+        }
+        runtime_.request_frame();
+        return e.data(pipeline_value(runtime_)).result(spec::exit_code::success);
     }
     if (op == "debug") {
         DebugOptions o = runtime_.debug();

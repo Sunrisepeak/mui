@@ -65,4 +65,14 @@ grep -q '"name":"layout"' "$dir/run.trace.json"
 expect 0 agent profile $app_id start
 expect 0 agent profile $app_id stop
 grep -q '"summary"' <<< "$last"
+
+# The frame's pipeline, read and changed in the running process (D-66).
+expect 0 agent pipeline $app_id
+grep -q '"openmui-view.layout"' <<< "$last"
+expect 0 agent pipeline $app_id --toml
+grep -q '^\[\[stage\]\]' <<< "$last"
+expect 0 agent pipeline $app_id remove --stage debug
+expect 0 agent pipeline $app_id insert --stage debug --plugin openmui-view.debug --after paint
+expect 1 agent pipeline $app_id replace --stage paint --plugin nonesuch
+expect 0 agent wait $app_id --settled --timeout 5
 echo "agent e2e: ok"

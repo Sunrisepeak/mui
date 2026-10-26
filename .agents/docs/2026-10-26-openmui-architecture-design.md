@@ -171,7 +171,7 @@ openmui 沿用同样的约定：
 mui/                 # 根目录 = openmui 伞包 + workspace
 ├── mcpp.toml  src/{openmui.cppm, entry/}  mcpp/rules/  templates/
 ├── spec/                                  # 规范；全仓库唯一的头文件 include/openmui.h
-├── modules/{geom,anim,layout,unicode,text,raster,image,render,rhi,rhi-sdl,rhi-gles,record,encode,trace}/
+├── modules/{geom,anim,layout,unicode,text,raster,image,render,rhi,rhi-sdl,rhi-gles,record,encode,trace,pipeline}/
 │                                          # 独立组件：不依赖 openmui 的任何包，将来可以直接独立成仓库（D-55、D-57）
 ├── runtime/{core,view,semantic,agent,platform,abi,player,reflect,devtools}/
 ├── hosts/{sdl3,headless,opensal,web}/

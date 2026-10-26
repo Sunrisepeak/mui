@@ -33,6 +33,7 @@ members = [
     "modules/text",
     "modules/record",
     "modules/trace",
+    "modules/pipeline",
     "runtime/core",
     "runtime/view",
     "runtime/semantic",

@@ -143,6 +143,7 @@ mui/                                   （仓库根目录 = openmui 伞包 + wor
 │   ├── rhi-sdl/                       # ★ openmui-rhi-sdl：后端（Vulkan / Metal / D3D12）
 │   ├── rhi-gles/                      #   openmui-rhi-gles（M6：嵌入式 Linux、WebGL2）
 │   ├── rhi-webgpu/  rhi-vk/           #   以后再做
+│   ├── pipeline/                      # ★ openmui-pipeline：阶段插件组成的管线：带类型的资源、校验、确定的顺序、按阶段计时和追踪、运行中替换（D-66）
 │   ├── trace/                         # ★ openmui-trace：span / 计数器 / 标记，按线程无锁记录，导出 Chrome trace，按 span 汇总百分位（D-59）
 │   ├── record/                        # ★ openmui-record：录制和回放：带时间戳的事件 / 动作流（NDJSON），可以跳转、可以转成测试
 │   └── encode/                        # ★ openmui-encode：文件输出：PNG 序列、视频编码（经 mcpplibs.os 启动 ffmpeg 并用管道送帧，可选硬件编码）、音频混合
@@ -276,7 +277,7 @@ UI 线程（C++）：
 ### 3.3 依赖方向（用 lint 强制）
 
 ```
-modules/*（geom、anim、layout、unicode、text、raster、image、render、rhi、record、encode、trace）：只依赖标准库、彼此和第三方库，不依赖任何 openmui 包
+modules/*（geom、anim、layout、unicode、text、raster、image、render、rhi、record、encode、trace、pipeline）：只依赖标准库、彼此和第三方库，不依赖任何 openmui 包
 anim ← core（时钟来自 anim）     nlohmann.json、taskflow（tf）、concurrentqueue ← core（来自 mcpp-index，D-56）
 spec ← core ← view（节点树、组件；把 layout、text、anim 适配到节点上；产出 render 的显示列表）（把 anim 适配到节点属性）← semantic ← agent（另外依赖 platform 的 IPC）
                                          ↑

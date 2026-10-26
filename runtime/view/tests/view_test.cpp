@@ -341,6 +341,72 @@ int main(int argc, char** argv) {
         check(rt.bounds(bar).width == 200, std::format("reduced motion jumps: {}", rt.bounds(bar).width));
     });
 
+    s.test("the frame is a pipeline of stage plugins: levels, custom stages, live replacement (D-66)", [] {
+        // The levels are pipelines.
+        auto names = [](const pipeline::Description& d) {
+            std::vector<std::string> out;
+            for (const auto& st : d.stages) out.push_back(st.name);
+            return out;
+        };
+        check(names(runtime_pipeline(Stages::semantics)) == std::vector<std::string>{"timers", "input", "regions", "animations"});
+        check(names(runtime_pipeline(Stages::paint)).size() == 8);
+
+        // A custom stage between paint and the debug overlay: it updates the display list.
+        struct Badge final : pipeline::Stage {
+            std::vector<pipeline::Port> reads() const override { return {pipeline::port<render::DisplayList>("display")}; }
+            std::vector<pipeline::Port> writes() const override { return {pipeline::port<render::DisplayList>("display")}; }
+            std::expected<void, std::string> run(pipeline::Context& c) override {
+                c.resources.get<render::DisplayList>("display")->fill_rect({0, 0, 4, 4}, Color::hex(0xff00ff));
+                return {};
+            }
+        };
+        RuntimeOptions o = options();
+        pipeline::Description d = runtime_pipeline(Stages::paint);
+        d.name = "app";
+        d.stages.insert(d.stages.begin() + 7, {"badge", "app.badge", {"paint"}, {}});
+        o.pipeline = d;
+        o.plugins = [](pipeline::Registry& r) {
+            r.add({.name = "app.badge", .kind = "stage", .description = "a corner badge"},
+                  [](const pipeline::Config&) -> std::expected<std::unique_ptr<pipeline::Stage>, std::string> { return std::make_unique<Badge>(); });
+        };
+        Runtime rt(o);
+        rt.mount("main", column({.padding = 8}, {text({.id = "t", .text = "hi"})}));
+        auto out = rt.frame({seconds(0), {}});
+        auto has_badge = [&] {
+            for (const auto& c : rt.display_list().commands())
+                if (const auto* r = std::get_if<render::FillRect>(&c); r && r->paint.color == Color::hex(0xff00ff)) return true;
+            return false;
+        };
+        check(out.repainted && has_badge(), "the custom stage drew into the frame's list");
+        const auto order = rt.frame_pipeline().order();
+        check(std::ranges::find(order, "badge") - std::ranges::find(order, "paint") == 1, "it runs right after paint");
+        check(rt.frame_pipeline().describe().contains("badge (app.badge)"));
+        check(out.stats.timings.other >= 0 && out.stats.timings.total > 0);
+
+        // Removed while running: the next frame has no badge.
+        check(rt.frame_pipeline().remove("badge", rt.stage_plugins()).has_value());
+        rt.set_debug({});  // something to repaint
+        rt.frame({seconds(0.1), {}});
+        check(!has_badge(), "removed between frames");
+        // A replacement that does not build leaves the pipeline as it was.
+        check(!rt.frame_pipeline().replace("layout", "app.nonesuch", {}, rt.stage_plugins()).has_value());
+        check(rt.frame_pipeline().order().size() == 8);
+    });
+
+    s.test("a custom pipeline that does not build falls back to its level, and says why", [] {
+        std::vector<std::string> said;
+        set_log_sink([](void* user, const LogRecord& r) { static_cast<std::vector<std::string>*>(user)->emplace_back(r.message); }, &said);
+        RuntimeOptions o = options();
+        o.pipeline = pipeline::Description{"broken", {{"paint", "openmui-view.paint", {}, {}}}};  // paint without bounds
+        Runtime rt(o);
+        set_log_sink(nullptr, nullptr);
+        check(rt.frame_pipeline().description().name == "runtime.h2");
+        check(std::ranges::any_of(said, [](const std::string& m) { return m.contains("`broken` does not build") && m.contains("reads `bounds`"); }),
+              said.empty() ? "nothing logged" : said.front());
+        rt.mount("main", text({.id = "t", .text = "still works"}));
+        check(rt.frame({seconds(0), {}}).repainted);
+    });
+
     s.test("transitions: tweens follow the clock, interruptions continue from where they are", [] {
         Runtime rt(options());
         auto faded = signal(false);

@@ -8,6 +8,7 @@ import openmui.layout;
 import openmui.render;
 import openmui.text;
 import openmui.trace;
+import openmui.pipeline;
 import :impl;
 
 namespace omui {
@@ -23,22 +24,6 @@ Insets content_insets_of(const layout::Style& s) {
 
 }  // namespace
 
-namespace {
-
-// A phase of the frame: a trace span, and its time added to `out` (ms).
-struct Phase {
-    trace::Span                           span;
-    std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
-    double&                               out;
-    Phase(const char* name, double& o) : span(name, "frame"), out(o) {}
-    ~Phase() { out += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count(); }
-    Phase(const Phase&) = delete;
-    Phase& operator=(const Phase&) = delete;
-};
-
-
-}  // namespace
-
 FrameOutput Runtime::frame(const FrameInput& input) {
     Impl& d = *impl_;
     FrameTimings& t = d.stats.timings;
@@ -47,53 +32,30 @@ FrameOutput Runtime::frame(const FrameInput& input) {
     if (input.time) d.clock.set(*input.time);
     else if (d.clock.kind() == anim::ClockKind::interactive) d.clock.begin_frame();
     d.frame_requested = false;
+    d.todo = 0;
+    d.dirty_taken = d.bounds_ran = d.repainted = false;
 
-    {
-        Phase p("timers", t.timers);
-        d.queue.drain();
-        d.run_timers();
+    // The stages (stages.cpp): timers → input → regions → animations →
+    // layout → bounds → paint → debug, or what a custom pipeline has.
+    d.resources.put(frame_resource::input, const_cast<FrameInput*>(&input));
+    d.resources.put(frame_resource::tree, &d.tree_token);
+    if (auto r = d.frames->run(d.resources); !r) {
+        constexpr Log frame_log{"frame"};
+        frame_log.error("{}", r.error());
     }
-    {
-        Phase p("input", t.input);
-        for (const InputEvent& e : input.events) batch([&] { d.dispatch(e); });
+    if (!d.dirty_taken) d.dirty = dirty_none;  // no bounds stage (H0): nothing waits for the changes
+    for (const pipeline::StageTime& st : d.frames->timings()) {
+        double* into = st.name == "timers" ? &t.timers
+                     : st.name == "input" ? &t.input
+                     : st.name == "regions" ? &t.regions
+                     : st.name == "animations" ? &t.animations
+                     : st.name == "layout" ? &t.layout
+                     : st.name == "bounds" ? &t.bounds
+                     : st.name == "paint" || st.name == "debug" ? &t.paint
+                     : &t.other;
+        *into += st.ms;
     }
-    {
-        Phase p("regions", t.regions);
-        d.reconcile_regions();
-    }
-    {
-        Phase p("animations", t.animations);
-        d.run_animations();
-        d.finish_removals();
-        d.rebuild_paths();
-    }
-    const Stages stages = d.options.stages;
-    if (stages >= Stages::layout) {
-        Phase p("layout", t.layout);
-        d.run_layout();
-    }
-
-    // What painting asks for (a scroll view still gliding) is for the next frame.
-    const std::uint8_t todo = d.dirty;
-    d.dirty = dirty_none;
-    bool repainted = false;
-    const bool debugging = d.options.debug.bounds || d.options.debug.repaints || d.options.debug.inspector || d.options.debug.hud;
-    if (stages >= Stages::layout && ((todo & (dirty_paint | dirty_layout | dirty_tree)) || debugging)) {
-        {
-            Phase p("bounds", t.bounds);
-            d.compute_bounds(d.root, {0, 0}, Affine{});
-            d.place_overlays();
-            d.trap_focus();
-            for (NodeId w : std::vector<NodeId>(d.watchers))
-                if (d.alive(w)) d.at(w).type->laid_out(d.at(w).instance);
-        }
-        if (stages >= Stages::paint) {
-            Phase p("paint", t.paint);
-            d.paint();
-            if (debugging) d.paint_debug();
-            repainted = true;
-        }
-    }
+    const bool repainted = d.repainted;
     // Nodes that lived through a frame are shown: their changes may animate
     // from now on (at every stage alike, so H0, H1 and H2 agree).
     for (NodeId id : d.fresh)
@@ -108,8 +70,8 @@ FrameOutput Runtime::frame(const FrameInput& input) {
         d.last_slow_log = d.now();
         constexpr Log frame_log{"frame"};
         frame_log.warn("a slow frame: {:.2f} ms (timers {:.2f}, input {:.2f}, regions {:.2f}, animations {:.2f}, layout {:.2f}, "
-                       "bounds {:.2f}, paint {:.2f}); {} nodes, {} laid out, {} painted",
-                       t.total, t.timers, t.input, t.regions, t.animations, t.layout, t.bounds, t.paint, d.stats.nodes,
+                       "bounds {:.2f}, paint {:.2f}, other stages {:.2f}); {} nodes, {} laid out, {} painted",
+                       t.total, t.timers, t.input, t.regions, t.animations, t.layout, t.bounds, t.paint, t.other, d.stats.nodes,
                        d.stats.laid_out, d.stats.painted);
     }
     const bool more = !d.animating.empty() || !d.removing.empty() || d.frame_requested || !d.dirty_regions.empty() ||
@@ -119,6 +81,9 @@ FrameOutput Runtime::frame(const FrameInput& input) {
     d.history.push(stats);
     return FrameOutput{&d.list, repainted, more, d.semantic_revision, stats, next_timer()};
 }
+
+pipeline::Pipeline& Runtime::frame_pipeline() noexcept { return *impl_->frames; }
+pipeline::Registry& Runtime::stage_plugins() noexcept { return impl_->registry; }
 
 std::vector<FrameStats> Runtime::frame_history() const {
     std::vector<FrameStats> out;

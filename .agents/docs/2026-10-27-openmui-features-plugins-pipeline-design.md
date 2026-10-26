@@ -226,7 +226,16 @@ plugin = "openmui-host-sdl3.present"
 | damage、光栅化已经是独立、可以单独测试的步骤 | 动画引擎、布局引擎、文本引擎各抽出一份 `concept` 接口，现有实现作为默认插件 |
 | 组件已经契约优先 | 为每个插件种类写 CTS；管线工坊 |
 
-### 4.6 里程碑
+### 4.6 进度
+
+已经落地（提前于 M2）：
+
+- `modules/pipeline`（`openmui.pipeline`）：资源、阶段、插件注册表、带位置的校验、确定的顺序（更新者在声明中的位置决定读者看到旧值还是新值）、按阶段计时和 trace、`replace` / `insert` / `remove`、`to_toml`。它不解析任何文件，所以不抛异常；`*.pipeline.omui.toml` 在边缘读取（生成器在构建时，工具通过 agent 协议发 JSON）。
+- 运行时的一帧就是一条管线：`openmui-view.{timers,input,regions,animations,layout,bounds,paint,debug}` 八个阶段插件；H0 / H1 / H2 是 `runtime_pipeline(Stages)` 给出的三条管线；`RuntimeOptions::pipeline` 和 `plugins` 可以加入自己的阶段（测试里在 paint 和 debug 之间插入一个更新显示列表的阶段）；不能构建的自定义管线回退到默认管线，并记录原因。
+- agent 操作 `pipeline`（查看、替换、插入、删除）和 `omui agent pipeline`；e2e 在一个单独的进程上执行这些操作。
+- 空闲帧仍然零分配，所有 bench 预算不变。
+
+### 4.7 里程碑
 
 | 里程碑 | 内容 |
 |---|---|

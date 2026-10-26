@@ -15,7 +15,9 @@ The agent endpoint of an openmui application (spec §9, plan §11):
   phases, node counts), `profile` (`start`, then `stop` returns the per-span
   summary and, with `"chrome":true`, the Chrome trace), `logs` (recent
   records by level and category) and `debug` (the runtime's overlays, the
-  slow-frame threshold and the log filter, while it runs).
+  slow-frame threshold and the log filter, while it runs), and `pipeline`
+  (the frame's stages, plugins and times; `replace`, `insert` and `remove`
+  a stage between frames — D-66).
 - `Endpoint` — listens through `mcpplibs.os.ipc` (a local socket) in a
   per-user directory, writes `<name>.endpoint.omui.json` beside it, reads
   connections on background threads and serves requests on the UI thread in

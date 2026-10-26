@@ -145,6 +145,28 @@ int main(int argc, char** argv) {
         check(exit_of(cap) == 0 && cap[0].get("data")->get("base64")->as_string() == "UE5H");
     });
 
+    s.test("development: the frame pipeline, read and changed while it runs (D-66)", [] {
+        Notes app;
+        agent::Protocol p(app.rt);
+        app.rt.frame({seconds(0), {}});
+        auto show = talk(p, R"({"op":"pipeline"})");
+        check(exit_of(show) == 0);
+        const Value* d = show[0].get("data");
+        check(d && d->get("name")->as_string() == "runtime.h2" && d->get("stages")->list()->size() == 8);
+        check((*d->get("stages")->list())[4].get("plugin")->as_string() == "openmui-view.layout");
+        check(d->get("toml")->as_string().contains("[[stage]]") && d->get("graph")->as_string().contains("writes display"));
+        check(std::ranges::any_of(*d->get("plugins")->list(), [](const Value& x) { return x.get("name")->as_string() == "openmui-view.debug"; }));
+        auto rm = talk(p, R"({"op":"pipeline","action":"remove","stage":"debug"})");
+        check(exit_of(rm) == 0 && rm[0].get("data")->get("stages")->list()->size() == 7);
+        auto back = talk(p, R"({"op":"pipeline","action":"insert","stage":"debug","plugin":"openmui-view.debug","after":["paint"]})");
+        check(exit_of(back) == 0 && back[0].get("data")->get("stages")->list()->size() == 8);
+        auto bad = talk(p, R"({"op":"pipeline","action":"replace","stage":"paint","plugin":"nonesuch"})");
+        check(exit_of(bad) == 1 && bad[0].json().contains("no plugin `nonesuch`"), bad[0].json());
+        check(exit_of(talk(p, R"({"op":"pipeline","action":"explode"})")) == 1);
+        app.rt.frame({seconds(0.1), {}});
+        check(app.rt.frame_pipeline().order().size() == 8, "still whole");
+    });
+
     s.test("development: inspect, stats, profile, logs, debug", [] {
         Notes app;
         agent::Protocol p(app.rt);

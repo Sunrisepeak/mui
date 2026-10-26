@@ -91,6 +91,15 @@ cmd::App agent_command() {
     debug.option("log").takes_value().value_name("FILTER").help("log levels per category: layout=debug,*=info");
     (void)a.subcommand(std::move(debug));
 
+    cmd::App pipe = with_app("pipeline", "The frame's pipeline: its stages, their plugins and times; change one while it runs");
+    pipe.arg("action").help("show (default), replace, insert or remove");
+    pipe.option("stage").takes_value().value_name("NAME").help("the stage to change");
+    pipe.option("plugin").takes_value().value_name("PLUGIN").help("replace / insert: the stage plugin");
+    pipe.option("after").takes_value().value_name("STAGE").help("insert: declared right after this stage");
+    pipe.option("config").takes_value().value_name("JSON").help(R"(the stage's configuration, e.g. '{"parallel":true}')");
+    pipe.option("toml").help("show the description as <name>.pipeline.omui.toml");
+    (void)a.subcommand(std::move(pipe));
+
     cmd::App call = with_app("call", "Send a raw request");
     call.arg("request").required().help(R"(e.g. '{"op":"snapshot","depth":1}')");
     (void)a.subcommand(std::move(call));
@@ -236,6 +245,29 @@ std::expected<std::string, std::string> agent_request(const cmd::ParsedArgs& p) 
         if (auto v = a.value("log")) req.set("log", *v);
         return req.json();
     }
+    if (op == "pipeline") {
+        const std::string action = a.positionals.size() > 1 ? std::string(a.positional(1)) : std::string("show");
+        if (action != "show" && action != "replace" && action != "insert" && action != "remove")
+            return std::unexpected("pipeline takes show, replace, insert or remove");
+        req.set("action", action);
+        if (action != "show") {
+            auto stage = a.value("stage");
+            if (!stage) return std::unexpected(std::format("pipeline {} needs --stage", action));
+            req.set("stage", *stage);
+        }
+        if (action == "replace" || action == "insert") {
+            auto plugin = a.value("plugin");
+            if (!plugin) return std::unexpected(std::format("pipeline {} needs --plugin", action));
+            req.set("plugin", *plugin);
+        }
+        if (auto after = a.value("after")) req.set("after", Value(Value::List{Value(*after)}));
+        if (auto cfg = a.value("config")) {
+            auto v = parse_json(*cfg);
+            if (!v || !v->map()) return std::unexpected("--config is a JSON object");
+            req.set("config", std::move(*v));
+        }
+        return req.json();
+    }
     if (op == "capture") {
         if (auto v = a.value("node")) req.set("node", *v);
         return req.json();
@@ -274,7 +306,7 @@ std::optional<std::string> global(const cmd::ParsedArgs& p, std::string_view nam
 
 int agent(const cmd::ParsedArgs& p, std::optional<std::string> dir_option, std::ostream& out, std::ostream& err) {
     if (!p.has_subcommand()) {
-        err << "usage: omui agent <ls|describe|snapshot|changes|find|act|wait|capture|inspect|stats|profile|logs|debug|call> …\n";
+        err << "usage: omui agent <ls|describe|snapshot|changes|find|act|wait|capture|inspect|stats|profile|logs|debug|pipeline|call> …\n";
         return 2;
     }
     const cmd::ParsedArgs& sub = p.subcommand()->get();
@@ -330,6 +362,10 @@ int agent(const cmd::ParsedArgs& p, std::optional<std::string> dir_option, std::
             out << std::format("{{\"kind\":\"data\",\"data\":{{\"file\":{}}}}}\n", Value(*out_file).json());
             continue;
         }
+        if (p.subcommand_name() == "pipeline" && sub.is_flag_set("toml") && kind == "data" && r.get("data") && r.get("data")->get("toml")) {
+            out << r.get("data")->get("toml")->as_string();
+            continue;
+        }
         out << r.json() << '\n';
     }
     return code;
@@ -352,7 +388,7 @@ int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err)
     }
     if (!parsed->has_subcommand()) {
         out << "omui — the openmui command line\n\n  omui agent ls | describe | snapshot | changes | find | act | wait | capture | call\n"
-               "  omui agent inspect | stats | profile | logs | debug   (development: what the application is doing)\n\n"
+               "  omui agent inspect | stats | profile | logs | debug | pipeline   (development: what the application is doing)\n\n"
                "Run `omui agent --help` for the agent operations.\n";
         return 0;
     }

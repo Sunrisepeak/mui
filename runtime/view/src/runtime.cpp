@@ -68,6 +68,7 @@ Runtime::Runtime(RuntimeOptions options) : impl_(std::make_unique<Impl>(*this)) 
     Element root;
     root.type = &root_type();
     d.root = d.create(root, {});
+    d.build_pipeline();
 }
 
 Runtime::~Runtime() {

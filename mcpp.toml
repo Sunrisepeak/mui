@@ -35,6 +35,8 @@ members = [
     "components/base",
     "tools/gen",
     "tools/omui",
+    "mcpp/rules",
+    "tests/rules",
     "examples/01-hello-im",
     "examples/07-headless-and-agent",
 ]

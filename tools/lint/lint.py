@@ -48,6 +48,7 @@ LAYERS: list[tuple[str, set[str]]] = [
     ("video", {"modules", "spec", "runtime", "hosts", "components", "themes"}),
     ("lang/*", {"spec", "runtime", "lang"}),
     ("tools/*", {"*"}),
+    ("mcpp/*", {"tools"}),  # build code only: the rule and the generator it runs
     ("examples/*", {"*"}),
     ("showcase/*", {"*"}),
     ("tests/*", {"*"}),

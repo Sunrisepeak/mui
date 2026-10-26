@@ -1,0 +1,28 @@
+# A third-party component package built through openmui-rules: its contract
+# is all it writes about the interface; the partition, the builder, the
+# stubs and the schema are made at build time (component-binding §2).
+[package]
+name        = "openmui-rules-fixture"
+version     = "0.1.0"
+description = "A component package whose bindings openmui.rules generates at build time"
+license     = "Apache-2.0"
+
+[package.metadata.openmui]
+kind = "component"
+
+[targets.openmui-rules-fixture]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+openmui-core = { path = "../../runtime/core" }
+openmui-view = { path = "../../runtime/view" }
+
+[build-dependencies]
+openmui-rules = { path = "../../mcpp/rules" }
+
+[dev-dependencies]
+openmui-testing       = { path = "../support" }
+openmui-host-headless = { path = "../../hosts/headless" }

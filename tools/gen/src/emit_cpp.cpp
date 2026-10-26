@@ -135,6 +135,40 @@ constexpr std::array<Common, 14> common_fields{{
     {"animate", "std::vector<std::pair<std::string, Transition>> animate;", "for (auto& [k, t] : o.animate) e.animate(k, t);"},
 }};
 
+// Outside omui (a third-party package), openmui's names are written qualified.
+std::string qualify(std::string text, std::string_view ns) {
+    if (ns == "omui" || ns.starts_with("omui::")) return text;
+    static constexpr std::array<std::string_view, 22> names{
+        "Prop", "Dim", "Edges", "Fill", "Handler", "Transition", "Element", "Services", "NodeId", "ActResult", "ActContext",
+        "Value", "ValueOf", "Role", "Effect", "Placement", "component_type", "Source", "Invocation", "Size", "Point", "Rect"};
+    std::string out;
+    out.reserve(text.size() + text.size() / 8);
+    auto ident_char = [](char c) { return std::isalnum(static_cast<unsigned char>(c)) || c == '_'; };
+    bool in_string = false;
+    for (std::size_t i = 0; i < text.size();) {
+        const char c = text[i];
+        if (c == '"' && (i == 0 || text[i - 1] != '\\')) in_string = !in_string;
+        if (!in_string && ident_char(c) && (i == 0 || (!ident_char(text[i - 1]) && text[i - 1] != ':' && text[i - 1] != '.'))) {
+            std::size_t j = i;
+            while (j < text.size() && ident_char(text[j])) ++j;
+            const std::string_view word(text.data() + i, j - i);
+            const bool label = j < text.size() && text[j] == ':' && (j + 1 >= text.size() || text[j + 1] != ':');
+            if (std::ranges::find(names, word) != names.end() && !label) {
+                // A name followed by `::` (Role::status, Value::Map) is a type all the same.
+                out += "::omui::";
+            } else if (word == "spec" && j + 1 < text.size() && text[j] == ':' && text[j + 1] == ':') {
+                out += "::omui::";
+            }
+            out.append(word);
+            i = j;
+            continue;
+        }
+        out += c;
+        ++i;
+    }
+    return out;
+}
+
 bool has_prop(const Contract& c, std::string_view name) {
     return std::ranges::any_of(c.props, [&](const Prop& p) { return p.name == name; });
 }
@@ -147,7 +181,23 @@ std::string args_signature(const std::vector<Arg>& args) {
 
 }  // namespace
 
+std::string emit_cpp_contract_text(const Contract& c, const Registry& reg, const CppOptions& o);
+
 std::string emit_cpp_contract(const Contract& c, const Registry& reg, const CppOptions& o) {
+    std::string text = emit_cpp_contract_text(c, reg, o);
+    // The tables namespace speaks the spec's names unqualified (it uses them): leave it as is.
+    const auto tables = text.find("_contract_tables {");
+    const auto tables_end = tables == std::string::npos ? std::string::npos : text.find("}\n\n", tables);
+    std::string out = tables == std::string::npos
+                          ? qualify(std::move(text), o.ns)
+                          : qualify(text.substr(0, tables), o.ns) + text.substr(tables, tables_end - tables) + qualify(text.substr(tables_end), o.ns);
+    // The specialisations sit inside namespace omui: they name the template as it is there.
+    for (std::size_t at = out.find("struct ::omui::ValueOf<"); at != std::string::npos; at = out.find("struct ::omui::ValueOf<", at))
+        out.replace(at, std::string_view("struct ::omui::ValueOf<").size(), "struct ValueOf<");
+    return out;
+}
+
+std::string emit_cpp_contract_text(const Contract& c, const Registry& reg, const CppOptions& o) {
     const std::string N = pascal(c.name);
     const std::string file = c.loc.file.empty() ? c.name + ".contract.omui.toml" : std::filesystem::path(c.loc.file).filename().string();
     std::string out = std::format(banner, file);
@@ -358,7 +408,11 @@ private:
     return out;
 }
 
-std::string emit_cpp_builder(const Contract& c, const Registry&, const CppOptions& o) {
+std::string emit_cpp_builder_text(const Contract& c, const CppOptions& o);
+
+std::string emit_cpp_builder(const Contract& c, const Registry&, const CppOptions& o) { return qualify(emit_cpp_builder_text(c, o), o.ns); }
+
+std::string emit_cpp_builder_text(const Contract& c, const CppOptions& o) {
     const std::string N = pascal(c.name);
     const std::string file = c.loc.file.empty() ? c.name + ".contract.omui.toml" : std::filesystem::path(c.loc.file).filename().string();
     std::string out = std::format(banner, file);

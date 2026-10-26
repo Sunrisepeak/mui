@@ -7,7 +7,8 @@
 //                  --out <dir> [--check] [--json]
 //       a component package's script builders and view-document schema
 //   omui-gen cpp <file.contract.omui.toml>... --registry <dir> --module <m>
-//                --out <dir> [--namespace ns] [--catalog] [--check]
+//                --out <dir> [--namespace ns] [--catalog] [--contract name]
+//                [--part contract|builder] [--check]
 //       a component package's C++: the contract partitions (typed props,
 //       options, the CRTP base) and the builders
 //   omui-gen check <file.contract.omui.toml>... --registry <dir> [--json]
@@ -36,6 +37,8 @@ struct Options {
     std::string                        module;
     std::string                        ns = "omui::ui";
     bool                               catalog = false;
+    std::string                        contract;  // cpp: only this contract of the files
+    std::string                        part;      // cpp: only `contract` or `builder`
     std::string                        version;
     std::filesystem::path              tests;
     bool                               check = false;
@@ -45,7 +48,8 @@ struct Options {
 int usage() {
     std::println(std::cerr, "usage: omui-gen registry <registry-dir> --out <spec-dir> [--check] [--json]\n"
                             "       omui-gen stubs <contract>... --registry <dir> --module <name> --out <dir> [--check] [--json]\n"
-                            "       omui-gen cpp <contract>... --registry <dir> --module <name> --out <dir> [--namespace ns] [--catalog] [--check]\n"
+                            "       omui-gen cpp <contract>... --registry <dir> --module <name> --out <dir> [--namespace ns] [--catalog]\n"
+                            "                    [--contract name] [--part contract|builder] [--check]\n"
                             "       omui-gen check <contract>... --registry <dir> [--json]\n"
                             "       omui-gen unicode <ucd-dir> --version <x.y.z> --out <dir> [--tests <dir>] [--check]");
     return 2;
@@ -68,6 +72,8 @@ std::optional<Options> parse_args(int argc, char** argv) {
         else if (a == "--module") { auto v = value(); if (!v) return std::nullopt; o.module = *v; }
         else if (a == "--namespace") { auto v = value(); if (!v) return std::nullopt; o.ns = *v; }
         else if (a == "--catalog") o.catalog = true;
+        else if (a == "--contract") { auto v = value(); if (!v) return std::nullopt; o.contract = *v; }
+        else if (a == "--part") { auto v = value(); if (!v || (*v != "contract" && *v != "builder")) return std::nullopt; o.part = *v; }
         else if (a == "--version") { auto v = value(); if (!v) return std::nullopt; o.version = *v; }
         else if (a == "--tests") { auto v = value(); if (!v) return std::nullopt; o.tests = *v; }
         else if (a.starts_with("--")) return std::nullopt;
@@ -168,9 +174,16 @@ int run_cpp(const Options& o) {
     if (report(diags, o.json) != 0) return 1;
     const CppOptions cpp{o.module, o.ns, o.catalog};
     Writer w{o.check};
+    int matched = 0;
     for (const Contract& c : contracts) {
-        w.put(o.out / (c.name + "_contract.cppm"), emit_cpp_contract(c, reg, cpp));
-        w.put(o.out / (c.name + "_builder.cpp"), emit_cpp_builder(c, reg, cpp));
+        if (!o.contract.empty() && c.name != o.contract) continue;
+        ++matched;
+        if (o.part != "builder") w.put(o.out / (c.name + "_contract.cppm"), emit_cpp_contract(c, reg, cpp));
+        if (o.part != "contract") w.put(o.out / (c.name + "_builder.cpp"), emit_cpp_builder(c, reg, cpp));
+    }
+    if (!o.contract.empty() && matched == 0) {
+        std::println(std::cerr, "omui-gen: no contract `{}` in the files given", o.contract);
+        return 1;
     }
     if (o.check) {
         if (w.stale) return 1;

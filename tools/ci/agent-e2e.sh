@@ -2,6 +2,8 @@
 # M1 acceptance ② (implementation plan §19.2): `omui agent snapshot / find /
 # act / wait` operate example 07 running as its own process, and an
 # irreversible action without its answer ends in needs-answer (exit code 2).
+# Then the development operations against the same process: inspect, stats,
+# a profile written as a Chrome trace, logs, and the debug overlays.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
@@ -26,6 +28,8 @@ expect() {  # expect <exit code> <command…>
     last=$out
 }
 
+app_id=org.openmui.examples.notes
+expect 0 agent profile $app_id start
 expect 0 agent ls
 grep -q '^org.openmui.examples.notes' <<< "$last"
 expect 0 agent snapshot org.openmui.examples.notes --interactive
@@ -41,4 +45,24 @@ expect 0 agent act org.openmui.examples.notes main/delete-all activate --answer 
 expect 0 agent wait org.openmui.examples.notes --q '{"name":"0 notes"}' --settled --timeout 5
 expect 0 agent capture org.openmui.examples.notes --out "$dir/after.png"
 [ -s "$dir/after.png" ]
+
+# Development: what the running application is doing.
+expect 0 agent inspect $app_id main/compose/add
+grep -q '"type":"button"' <<< "$last"
+grep -q '"source":"[^"]*notes' <<< "$last"
+expect 0 agent stats $app_id
+grep -q '"p95_ms"' <<< "$last"
+expect 0 agent debug $app_id --bounds --hud --slow 0.001 --log 'frame=debug,*=info'
+expect 0 agent act $app_id main/compose/draft set_value --args '{"value":"traced"}'
+expect 0 agent wait $app_id --settled --timeout 5
+expect 0 agent capture $app_id --out "$dir/debug.png"
+expect 0 agent logs $app_id --category frame --limit 5
+grep -q '"category":"frame"' <<< "$last"
+expect 0 agent debug $app_id --off
+expect 0 agent profile $app_id stop --out "$dir/run.trace.json"
+grep -q '"traceEvents"' "$dir/run.trace.json"
+grep -q '"name":"layout"' "$dir/run.trace.json"
+expect 0 agent profile $app_id start
+expect 0 agent profile $app_id stop
+grep -q '"summary"' <<< "$last"
 echo "agent e2e: ok"

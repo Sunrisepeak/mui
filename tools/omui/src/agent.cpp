@@ -67,6 +67,30 @@ cmd::App agent_command() {
     capture.option("out").takes_value().value_name("FILE").help("write the PNG here");
     (void)a.subcommand(std::move(capture));
 
+    cmd::App inspect = with_app("inspect", "Everything the runtime knows of a node: type, source line, props, layout, state");
+    inspect.arg("node").help("the node's id (default: the root)");
+    (void)a.subcommand(std::move(inspect));
+
+    (void)a.subcommand(with_app("stats", "Frame times (mean, p50, p95, p99, max), their phases, and counts"));
+
+    cmd::App profile = with_app("profile", "Record where the time goes: start, then stop");
+    profile.arg("action").required().help("start or stop");
+    profile.option("out").takes_value().value_name("FILE").help("stop: write the Chrome trace (open in Perfetto)");
+    (void)a.subcommand(std::move(profile));
+
+    cmd::App logs = with_app("logs", "The application's recent log records");
+    logs.option("level").takes_value().value_name("LEVEL").help("at least: trace, debug, info, warning, error");
+    logs.option("category").takes_value().value_name("NAME").help("layout, text, frame, agent …");
+    logs.option("limit").takes_value().value_name("N").help("the last N (default 100)");
+    (void)a.subcommand(std::move(logs));
+
+    cmd::App debug = with_app("debug", "Turn development overlays on or off in the running application");
+    for (std::string_view o : {"bounds", "repaints", "inspector", "hud"}) debug.option(o).help("turn it on");
+    debug.option("off").help("turn every overlay off");
+    debug.option("slow").takes_value().value_name("MS").help("log frames slower than this");
+    debug.option("log").takes_value().value_name("FILTER").help("log levels per category: layout=debug,*=info");
+    (void)a.subcommand(std::move(debug));
+
     cmd::App call = with_app("call", "Send a raw request");
     call.arg("request").required().help(R"(e.g. '{"op":"snapshot","depth":1}')");
     (void)a.subcommand(std::move(call));
@@ -177,6 +201,41 @@ std::expected<std::string, std::string> agent_request(const cmd::ParsedArgs& p) 
         if (q->is_null() && !a.is_flag_set("settled")) return std::unexpected("wait for what? give --q JSON and/or --settled");
         return req.json();
     }
+    if (op == "inspect") {
+        if (a.positionals.size() > 1) req.set("node", a.positional(1));
+        return req.json();
+    }
+    if (op == "stats") return req.json();
+    if (op == "profile") {
+        const std::string action = a.positional(1);
+        if (action != "start" && action != "stop") return std::unexpected("profile takes start or stop");
+        req.set("action", action);
+        if (action == "stop" && a.value("out")) req.set("chrome", true);
+        return req.json();
+    }
+    if (op == "logs") {
+        if (auto v = a.value("level")) req.set("level", *v);
+        if (auto v = a.value("category")) req.set("category", *v);
+        if (a.value("limit")) {
+            auto n = integer(a, "limit");
+            if (!n) return std::unexpected("--limit is a whole number");
+            req.set("limit", *n);
+        }
+        return req.json();
+    }
+    if (op == "debug") {
+        const bool off = a.is_flag_set("off");
+        for (std::string_view o : {"bounds", "repaints", "inspector", "hud"})
+            if (off || a.is_flag_set(o)) req.set(o, !off);
+        if (a.value("slow")) {
+            double ms = 0;
+            const std::string_view v = *a.value("slow");
+            if (std::from_chars(v.data(), v.data() + v.size(), ms).ec != std::errc{}) return std::unexpected("--slow is milliseconds");
+            req.set("slow_frame_ms", ms);
+        }
+        if (auto v = a.value("log")) req.set("log", *v);
+        return req.json();
+    }
     if (op == "capture") {
         if (auto v = a.value("node")) req.set("node", *v);
         return req.json();
@@ -215,7 +274,7 @@ std::optional<std::string> global(const cmd::ParsedArgs& p, std::string_view nam
 
 int agent(const cmd::ParsedArgs& p, std::optional<std::string> dir_option, std::ostream& out, std::ostream& err) {
     if (!p.has_subcommand()) {
-        err << "usage: omui agent <ls|describe|snapshot|changes|find|act|wait|capture|call> …\n";
+        err << "usage: omui agent <ls|describe|snapshot|changes|find|act|wait|capture|inspect|stats|profile|logs|debug|call> …\n";
         return 2;
     }
     const cmd::ParsedArgs& sub = p.subcommand()->get();
@@ -242,10 +301,20 @@ int agent(const cmd::ParsedArgs& p, std::optional<std::string> dir_option, std::
     std::vector<Value> records = client->call(*parsed, limit);
     int code = 1;
     const auto out_file = p.subcommand_name() == "capture" ? sub.value("out") : std::nullopt;
+    const auto trace_file = p.subcommand_name() == "profile" ? sub.value("out") : std::nullopt;
     for (Value& r : records) {
         if (const Value* re = r.get("re"); re && r.map()) std::erase_if(*r.map(), [](const auto& kv) { return kv.first == "re"; });
         const std::string_view kind = r.get("kind") ? r.get("kind")->as_string() : "";
         if (kind == "result") code = static_cast<int>(r.get("exitCode") ? r.get("exitCode")->as_int(1) : 1);
+        if (trace_file && kind == "data" && r.get("data") && r.get("data")->get("chrome")) {
+            const std::string_view json = r.get("data")->get("chrome")->as_string();
+            if (auto w = mcpplibs::os::fs::write_atomic(*trace_file, json); !w) {
+                err << w.error().message() << '\n';
+                return 1;
+            }
+            r.map()->erase(std::ranges::find(*r.map(), std::string("data"), &std::pair<std::string, Value>::first));
+            r.set("data", Value{}.set("file", *trace_file));
+        }
         if (out_file && kind == "data") {
             const Value* b = r.get("data") ? r.get("data")->get("base64") : nullptr;
             auto bytes = base64_decode(b ? b->as_string() : "");
@@ -282,7 +351,8 @@ int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err)
         return 2;
     }
     if (!parsed->has_subcommand()) {
-        out << "omui — the openmui command line\n\n  omui agent ls | describe | snapshot | changes | find | act | wait | capture | call\n\n"
+        out << "omui — the openmui command line\n\n  omui agent ls | describe | snapshot | changes | find | act | wait | capture | call\n"
+               "  omui agent inspect | stats | profile | logs | debug   (development: what the application is doing)\n\n"
                "Run `omui agent --help` for the agent operations.\n";
         return 0;
     }

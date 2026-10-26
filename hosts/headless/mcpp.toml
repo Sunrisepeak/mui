@@ -28,6 +28,7 @@ openmui-raster   = { path = "../../modules/raster" }
 openmui-render   = { path = "../../modules/render" }
 openmui-text     = { path = "../../modules/text" }
 openmui-image    = { path = "../../modules/image" }
+openmui-trace    = { path = "../../modules/trace" }
 
 [dev-dependencies]
 openmui-testing = { path = "../../tests/support" }

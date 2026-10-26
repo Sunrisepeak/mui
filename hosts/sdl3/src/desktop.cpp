@@ -9,6 +9,7 @@ import openmui.raster;
 import openmui.render;
 import openmui.text;
 import openmui.image;
+import openmui.trace;
 import mcpplibs.os;
 import :platform;
 
@@ -41,7 +42,11 @@ struct Desktop::Impl {
         render::CpuOptions o;
         o.scale = scale;
         o.background = options.background;
-        (void)renderer.render(list, frame, {&runtime->images(), glyphs.get()}, o);
+        {
+            trace::Span span("render", "host");
+            (void)renderer.render(list, frame, {&runtime->images(), glyphs.get()}, o);
+        }
+        trace::Span span("present", "host");
         platform::present(*window, frame);
         shown = h;
         ++frames_shown;

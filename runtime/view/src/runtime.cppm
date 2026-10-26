@@ -25,6 +25,15 @@ import :component;
 
 export namespace omui {
 
+// Development aids drawn over the interface (never in what tests pin).
+struct DebugOptions {
+    bool   bounds = false;     // every node's border box, coloured by depth
+    bool   repaints = false;   // nodes whose properties changed flash
+    bool   inspector = false;  // the hovered node: its boxes, path, type, size and source line
+    bool   hud = false;        // frame time (mean, p95), nodes, layout and paint counts
+    double slow_frame_ms = 0;  // a frame slower than this logs its phases ("frame" category); 0: off
+};
+
 // How far a frame goes: the semantic tree alone (H0: build and reconcile),
 // with layout (H1: bounds, hit testing), or to a display list (H2 and up).
 enum class Stages : std::uint8_t { semantics, layout, paint };
@@ -37,6 +46,7 @@ struct RuntimeOptions {
     float                 scale = 1.0f;     // physical pixels per logical pixel
     bool                  reduce_motion = false;
     Stages                stages = Stages::paint;
+    DebugOptions          debug;
 };
 
 struct FrameInput {
@@ -44,13 +54,22 @@ struct FrameInput {
     std::vector<InputEvent>      events;
 };
 
-struct FrameStats {
-    std::size_t nodes = 0;
-    std::size_t laid_out = 0;    // layout nodes computed (not from cache)
-    std::size_t painted = 0;     // nodes painted (0 when the list was reused)
-    std::size_t bindings = 0;    // property bindings re-evaluated
-    std::size_t animating = 0;   // animation channels still moving
+// Where a frame's time went, in milliseconds (also traced as spans of the
+// category "frame" while openmui.trace records).
+struct FrameTimings {
+    double timers = 0, input = 0, regions = 0, animations = 0, layout = 0, bounds = 0, paint = 0;
+    double total = 0;
 };
+
+struct FrameStats {
+    std::size_t  nodes = 0;
+    std::size_t  laid_out = 0;    // layout nodes computed (not from cache)
+    std::size_t  painted = 0;     // nodes painted (0 when the list was reused)
+    std::size_t  bindings = 0;    // property bindings re-evaluated
+    std::size_t  animating = 0;   // animation channels still moving
+    FrameTimings timings;
+};
+
 
 struct FrameOutput {
     const render::DisplayList* list = nullptr;  // the runtime's list, valid until the next frame
@@ -108,6 +127,14 @@ public:
     [[nodiscard]] Size size() const noexcept;
     [[nodiscard]] float scale() const noexcept;
     [[nodiscard]] anim::Clock& clock() noexcept;
+    // The last frames' statistics, oldest first (up to 240).
+    [[nodiscard]] std::vector<FrameStats> frame_history() const;
+    void set_debug(DebugOptions debug);
+    [[nodiscard]] const DebugOptions& debug() const noexcept;
+    // Everything the runtime knows of a node, for tools (`omui agent inspect`):
+    // type, contract, where it was built, properties, layout style and frame,
+    // bounds, state, transitions and handlers.
+    [[nodiscard]] Value inspect(NodeId node) const;
     // When the earliest timer is due (hosts sleep until then); none when no timer waits.
     [[nodiscard]] std::optional<seconds> next_timer() const noexcept;
     [[nodiscard]] NodeId hit_test(Point window) const;

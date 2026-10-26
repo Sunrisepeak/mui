@@ -38,6 +38,9 @@ struct AppSpec {
 //   --no-agent                no endpoint
 //   --dark                    the dark theme
 //   --size WxH                the window's size in logical pixels
+//   --debug LIST              overlays: bounds,repaints,inspector,hud (the runtime's DebugOptions)
+//   --log FILTER              log levels per category: layout=debug,*=info (also OMUI_LOG)
+//   --profile FILE            record a trace of the run (Chrome / Perfetto JSON)
 struct RunOptions {
     bool                  headless = false;
     bool                  serve = false;
@@ -48,6 +51,9 @@ struct RunOptions {
     bool                  agent = true;
     bool                  dark = false;
     std::optional<Size>   size;
+    DebugOptions          debug;
+    std::string           log;
+    std::filesystem::path profile;
 
     [[nodiscard]] static std::expected<RunOptions, std::string> parse(std::span<const std::string_view> args);
 };

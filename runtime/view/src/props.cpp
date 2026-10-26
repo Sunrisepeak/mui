@@ -257,6 +257,7 @@ void Runtime::Impl::clear_prop(NodeId id, std::string_view name) {
 }
 
 void Runtime::Impl::apply(NodeId id, std::string_view name, const Value& value) {
+    if (options.debug.repaints) flashes.emplace_back(id, now());
     Node& n = at(id);
     if (value.is_null()) {
         if (auto it = n.props.find(name); it != n.props.end()) n.props.erase(it);

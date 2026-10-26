@@ -62,7 +62,7 @@ NodeId Runtime::mount(std::string_view slot, View view) {
     Impl& d = *impl_;
     // The slot is the view's top-level id: paths begin with it.
     if (!view.id.empty() && view.id != slot)
-        debug("the view mounted at '{}' had the id '{}'; the slot names it", slot, view.id);
+        omui::debug("the view mounted at '{}' had the id '{}'; the slot names it", slot, view.id);
     view.id = std::string(slot);
     if (view.key.empty()) view.key = view.id;
     auto it = std::ranges::find(d.mounted, slot, &std::pair<std::string, NodeId>::first);

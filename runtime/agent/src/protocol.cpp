@@ -4,12 +4,14 @@ import std;
 import openmui.core;
 import openmui.view;
 import openmui.semantic;
+import openmui.trace;
 
 namespace omui::agent {
 
 namespace {
 
-constexpr std::array<std::string_view, 7> operations{"describe", "snapshot", "changes", "find", "act", "wait", "capture"};
+constexpr std::array<std::string_view, 12> operations{"describe", "snapshot", "changes", "find", "act", "wait", "capture",
+                                                       "inspect", "stats", "profile", "logs", "debug"};
 
 Envelope invalid(std::string message, std::string_view hint = {}) {
     Envelope e;
@@ -180,6 +182,108 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
         Value d;
         d.set("format", "png").set("bounds", Value(Value::List{Value(region.x), Value(region.y), Value(region.width), Value(region.height)}));
         d.set("base64", base64(*png));
+        return e.data(std::move(d)).result(spec::exit_code::success);
+    }
+    // ── development: inspection, statistics, profiling, logs, debug overlays ──
+    if (op == "inspect") {
+        const std::string_view id = text_of(req, "node");
+        const NodeId n = id.empty() ? runtime_.root() : runtime_.reveal(id);
+        if (!runtime_.valid(n)) {
+            e.error(spec::error_code::not_found, std::format("no node '{}'", id)).result(spec::exit_code::failure);
+            return e;
+        }
+        return e.data(runtime_.inspect(n)).result(spec::exit_code::success);
+    }
+    if (op == "stats") {
+        const auto frames = runtime_.frame_history();
+        Value d;
+        d.set("frames", static_cast<std::int64_t>(frames.size()));
+        if (!frames.empty()) {
+            std::vector<double> totals;
+            FrameTimings mean;
+            for (const FrameStats& f : frames) {
+                totals.push_back(f.timings.total);
+                for (auto [m, x] : {std::pair{&mean.timers, f.timings.timers}, {&mean.input, f.timings.input}, {&mean.regions, f.timings.regions},
+                                    {&mean.animations, f.timings.animations}, {&mean.layout, f.timings.layout},
+                                    {&mean.bounds, f.timings.bounds}, {&mean.paint, f.timings.paint}, {&mean.total, f.timings.total}})
+                    *m += x / static_cast<double>(frames.size());
+            }
+            std::ranges::sort(totals);
+            auto pct = [&](double p) {
+                const auto rank = static_cast<std::size_t>(std::ceil(p / 100.0 * static_cast<double>(totals.size())));
+                return totals[std::clamp<std::size_t>(rank, 1, totals.size()) - 1];
+            };
+            d.set("mean_ms", mean.total).set("p50_ms", pct(50)).set("p95_ms", pct(95)).set("p99_ms", pct(99)).set("max_ms", totals.back());
+            Value phases;
+            phases.set("timers", mean.timers).set("input", mean.input).set("regions", mean.regions).set("animations", mean.animations);
+            phases.set("layout", mean.layout).set("bounds", mean.bounds).set("paint", mean.paint);
+            d.set("phases_mean_ms", std::move(phases));
+            const FrameStats& last = frames.back();
+            Value l;
+            l.set("nodes", static_cast<std::int64_t>(last.nodes)).set("laid_out", static_cast<std::int64_t>(last.laid_out));
+            l.set("painted", static_cast<std::int64_t>(last.painted)).set("bindings", static_cast<std::int64_t>(last.bindings));
+            l.set("animating", static_cast<std::int64_t>(last.animating));
+            d.set("last", std::move(l));
+        }
+        return e.data(std::move(d)).result(spec::exit_code::success);
+    }
+    if (op == "profile") {
+        const std::string_view what = text_of(req, "action");
+        if (what == "start") {
+            trace::start();
+            return e.data(Value{}.set("recording", true)).result(spec::exit_code::success);
+        }
+        if (what == "stop") {
+            const trace::Trace t = trace::stop();
+            Value::List stats;
+            for (const trace::Stat& st : t.summary()) {
+                Value x;
+                x.set("name", st.name).set("category", st.category).set("count", static_cast<std::int64_t>(st.count));
+                x.set("total_ms", st.total_ms).set("mean_ms", st.mean_ms).set("p50_ms", st.p50_ms).set("p95_ms", st.p95_ms);
+                x.set("p99_ms", st.p99_ms).set("max_ms", st.max_ms);
+                stats.push_back(std::move(x));
+            }
+            Value d;
+            d.set("summary", Value(std::move(stats))).set("events", static_cast<std::int64_t>(t.events.size()));
+            d.set("dropped", static_cast<std::int64_t>(t.dropped));
+            if (const Value* c = req.get("chrome"); c && c->as_bool()) d.set("chrome", t.chrome_json());
+            return e.data(std::move(d)).result(spec::exit_code::success);
+        }
+        return invalid("`profile` takes action start or stop", R"({"op":"profile","action":"stop","chrome":true})");
+    }
+    if (op == "logs") {
+        Level at_least = Level::trace;
+        if (const std::string_view lv = text_of(req, "level"); !lv.empty()) {
+            bool known = false;
+            for (Level l : {Level::trace, Level::debug, Level::info, Level::warning, Level::error})
+                if (name(l) == lv) {
+                    at_least = l;
+                    known = true;
+                }
+            if (!known) return invalid(std::format("`{}` is not a level", lv), "trace, debug, info, warning, error");
+        }
+        const auto limit = static_cast<std::size_t>(std::max<std::int64_t>(1, req.get("limit") ? req.get("limit")->as_int(100) : 100));
+        const std::string_view category = text_of(req, "category");
+        Value::List records;
+        for (const LoggedRecord& r : recent_logs(10'000, at_least)) {
+            if (!category.empty() && r.category != category) continue;
+            records.push_back(parse_json(to_json(r)).value_or(Value{}));
+        }
+        if (records.size() > limit) records.erase(records.begin(), records.end() - static_cast<std::ptrdiff_t>(limit));
+        return e.data(Value{}.set("records", Value(std::move(records)))).result(spec::exit_code::success);
+    }
+    if (op == "debug") {
+        DebugOptions o = runtime_.debug();
+        for (auto [k, field] : {std::pair{"bounds", &o.bounds}, {"repaints", &o.repaints}, {"inspector", &o.inspector}, {"hud", &o.hud}})
+            if (const Value* v = req.get(k)) *field = v->as_bool();
+        if (const Value* v = req.get("slow_frame_ms")) o.slow_frame_ms = v->as_double();
+        if (const Value* v = req.get("log")) {
+            if (auto r = set_log_filter(v->as_string()); !r) return invalid(r.error(), R"({"op":"debug","log":"layout=debug,*=info"})");
+        }
+        runtime_.set_debug(o);
+        Value d;
+        d.set("bounds", o.bounds).set("repaints", o.repaints).set("inspector", o.inspector).set("hud", o.hud);
+        d.set("slow_frame_ms", o.slow_frame_ms);
         return e.data(std::move(d)).result(spec::exit_code::success);
     }
     std::string known;

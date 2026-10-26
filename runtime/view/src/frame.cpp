@@ -6,6 +6,8 @@ import std;
 import openmui.core;
 import openmui.layout;
 import openmui.render;
+import openmui.text;
+import openmui.trace;
 import :impl;
 
 namespace omui {
@@ -21,34 +23,75 @@ Insets content_insets_of(const layout::Style& s) {
 
 }  // namespace
 
+namespace {
+
+// A phase of the frame: a trace span, and its time added to `out` (ms).
+struct Phase {
+    trace::Span                           span;
+    std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+    double&                               out;
+    Phase(const char* name, double& o) : span(name, "frame"), out(o) {}
+    ~Phase() { out += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count(); }
+    Phase(const Phase&) = delete;
+    Phase& operator=(const Phase&) = delete;
+};
+
+constexpr std::size_t history_frames = 240;
+
+}  // namespace
+
 FrameOutput Runtime::frame(const FrameInput& input) {
     Impl& d = *impl_;
+    FrameTimings& t = d.stats.timings;
+    const auto started = std::chrono::steady_clock::now();
+    trace::Span whole("frame", "frame");
     if (input.time) d.clock.set(*input.time);
     else if (d.clock.kind() == anim::ClockKind::interactive) d.clock.begin_frame();
     d.frame_requested = false;
 
-    d.queue.drain();
-    d.run_timers();
-    for (const InputEvent& e : input.events) batch([&] { d.dispatch(e); });
-    d.reconcile_regions();
-    d.run_animations();
-    d.finish_removals();
-    d.rebuild_paths();
+    {
+        Phase p("timers", t.timers);
+        d.queue.drain();
+        d.run_timers();
+    }
+    {
+        Phase p("input", t.input);
+        for (const InputEvent& e : input.events) batch([&] { d.dispatch(e); });
+    }
+    {
+        Phase p("regions", t.regions);
+        d.reconcile_regions();
+    }
+    {
+        Phase p("animations", t.animations);
+        d.run_animations();
+        d.finish_removals();
+        d.rebuild_paths();
+    }
     const Stages stages = d.options.stages;
-    if (stages >= Stages::layout) d.run_layout();
+    if (stages >= Stages::layout) {
+        Phase p("layout", t.layout);
+        d.run_layout();
+    }
 
     // What painting asks for (a scroll view still gliding) is for the next frame.
     const std::uint8_t todo = d.dirty;
     d.dirty = dirty_none;
     bool repainted = false;
-    if (stages >= Stages::layout && (todo & (dirty_paint | dirty_layout | dirty_tree))) {
-        d.compute_bounds(d.root, {0, 0}, Affine{});
-        d.place_overlays();
-        d.trap_focus();
-        for (NodeId w : std::vector<NodeId>(d.watchers))
-            if (d.alive(w)) d.at(w).type->laid_out(d.at(w).instance);
+    const bool debugging = d.options.debug.bounds || d.options.debug.repaints || d.options.debug.inspector || d.options.debug.hud;
+    if (stages >= Stages::layout && ((todo & (dirty_paint | dirty_layout | dirty_tree)) || debugging)) {
+        {
+            Phase p("bounds", t.bounds);
+            d.compute_bounds(d.root, {0, 0}, Affine{});
+            d.place_overlays();
+            d.trap_focus();
+            for (NodeId w : std::vector<NodeId>(d.watchers))
+                if (d.alive(w)) d.at(w).type->laid_out(d.at(w).instance);
+        }
         if (stages >= Stages::paint) {
+            Phase p("paint", t.paint);
             d.paint();
+            if (debugging) d.paint_debug();
             repainted = true;
         }
     }
@@ -60,11 +103,33 @@ FrameOutput Runtime::frame(const FrameInput& input) {
 
     d.stats.nodes = d.nodes.size();
     for (NodeId id : d.animating) d.stats.animating += static_cast<std::size_t>(std::popcount(d.at(id).moving));
-    const bool more = !d.animating.empty() || !d.removing.empty() || d.frame_requested || !d.dirty_regions.empty();
+    trace::count("nodes", static_cast<double>(d.stats.nodes), "frame");
+    t.total = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - started).count();
+    if (d.options.debug.slow_frame_ms > 0 && t.total > d.options.debug.slow_frame_ms && d.now() - d.last_slow_log > seconds(1)) {
+        d.last_slow_log = d.now();
+        constexpr Log frame_log{"frame"};
+        frame_log.warn("a slow frame: {:.2f} ms (timers {:.2f}, input {:.2f}, regions {:.2f}, animations {:.2f}, layout {:.2f}, "
+                       "bounds {:.2f}, paint {:.2f}); {} nodes, {} laid out, {} painted",
+                       t.total, t.timers, t.input, t.regions, t.animations, t.layout, t.bounds, t.paint, d.stats.nodes,
+                       d.stats.laid_out, d.stats.painted);
+    }
+    const bool more = !d.animating.empty() || !d.removing.empty() || d.frame_requested || !d.dirty_regions.empty() ||
+                      d.options.debug.hud || !d.flashes.empty();
     // Bindings that ran since the last frame count toward this one.
     FrameStats stats = std::exchange(d.stats, {});
+    d.history.push_back(stats);
+    if (d.history.size() > history_frames) d.history.pop_front();
     return FrameOutput{&d.list, repainted, more, d.semantic_revision, stats, next_timer()};
 }
+
+std::vector<FrameStats> Runtime::frame_history() const { return {impl_->history.begin(), impl_->history.end()}; }
+
+void Runtime::set_debug(DebugOptions debug) {
+    impl_->options.debug = debug;
+    impl_->touch(dirty_paint);
+}
+
+const DebugOptions& Runtime::debug() const noexcept { return impl_->options.debug; }
 
 std::optional<seconds> Runtime::next_timer() const noexcept {
     std::optional<seconds> next;

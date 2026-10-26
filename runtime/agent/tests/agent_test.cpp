@@ -145,6 +145,42 @@ int main(int argc, char** argv) {
         check(exit_of(cap) == 0 && cap[0].get("data")->get("base64")->as_string() == "UE5H");
     });
 
+    s.test("development: inspect, stats, profile, logs, debug", [] {
+        Notes app;
+        agent::Protocol p(app.rt);
+        for (int i = 0; i < 5; ++i) app.rt.frame({seconds(i * 0.016), {}});
+        auto in = talk(p, R"({"op":"inspect","node":"notes/save"})");
+        check(exit_of(in) == 0 && in[0].get("data")->get("type")->as_string() == "box");
+        check(in[0].get("data")->get("handlers")->list()->size() == 1);
+        auto st = talk(p, R"({"op":"stats"})");
+        check(exit_of(st) == 0 && st[0].get("data")->get("frames")->as_int() >= 5 && st[0].get("data")->get("p95_ms"));
+        check(exit_of(talk(p, R"({"op":"profile","action":"start"})")) == 0);
+        for (int i = 0; i < 3; ++i) {
+            app.saved.set(i % 2 == 0);
+            app.rt.frame({seconds(1 + i * 0.016), {}});
+        }
+        auto pr = talk(p, R"({"op":"profile","action":"stop","chrome":true})");
+        check(exit_of(pr) == 0);
+        const Value* summary = pr[0].get("data")->get("summary");
+        check(summary && !summary->list()->empty());
+        bool frames = false;
+        for (const Value& x : *summary->list()) frames = frames || (x.get("name")->as_string() == "frame" && x.get("count")->as_int() == 3);
+        check(frames, pr[0].json().substr(0, 300));
+        check(pr[0].get("data")->get("chrome")->as_string().starts_with("{\"displayTimeUnit\""));
+        check(exit_of(talk(p, R"({"op":"profile","action":"pause"})")) == 1);
+        set_log_sink([](void*, const LogRecord&) {}, nullptr);
+        constexpr Log notes_log{"notes"};
+        notes_log.warn("disk {} full", 97);
+        auto lg = talk(p, R"({"op":"logs","level":"warning","category":"notes"})");
+        check(exit_of(lg) == 0 && lg[0].get("data")->get("records")->list()->back().get("message")->as_string() == "disk 97 full");
+        set_log_sink(nullptr, nullptr);
+        auto dbg = talk(p, R"({"op":"debug","bounds":true,"hud":true,"log":"layout=debug,*=info"})");
+        check(exit_of(dbg) == 0 && app.rt.debug().bounds && app.rt.debug().hud && log_enabled(Level::debug, "layout"));
+        check(exit_of(talk(p, R"({"op":"debug","log":"layout=loud"})")) == 1);
+        set_log_level(Level::info);
+        app.rt.set_debug({});
+    });
+
     s.test("over a local endpoint: list, connect, call, wait across frames", [] {
         Notes app;
         auto dir = scratch_dir("agent");

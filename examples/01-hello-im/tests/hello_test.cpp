@@ -54,5 +54,28 @@ int main(int argc, char** argv) {
         check(std::filesystem::file_size(png) > 1000);
     });
 
+    s.test("the development switches: overlays, log levels, a profile of the run", [] {
+        hello::State state;
+        std::array<std::string_view, 7> args{"--debug", "bounds,hud", "--log", "frame=debug,*=warning", "--profile", "run.trace.json", "--headless"};
+        auto o = omui::RunOptions::parse(args);
+        check(o && o->debug.bounds && o->debug.hud && !o->debug.inspector && o->log == "frame=debug,*=warning" && o->profile == "run.trace.json");
+        std::array<std::string_view, 2> bad{"--debug", "sparkles"};
+        check(!omui::RunOptions::parse(bad).has_value());
+        const auto dir = scratch_dir("hello-im-profile");
+        omui::RunOptions run;
+        run.headless = true;
+        run.frames = 4;
+        run.png = dir / "debug.png";
+        run.debug.bounds = true;
+        run.debug.hud = true;
+        run.log = "frame=debug";
+        run.profile = dir / "run.trace.json";
+        check(omui::run(hello::app(state), run) == 0);
+        std::ifstream in(run.profile);
+        const std::string json{std::istreambuf_iterator<char>(in), {}};
+        check(json.starts_with("{\"displayTimeUnit\"") && json.contains("\"name\":\"layout\"") && json.contains("\"name\":\"render\""), json.substr(0, 200));
+        omui::set_log_level(omui::Level::info);
+    });
+
     return s.run(argc, argv);
 }

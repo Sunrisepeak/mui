@@ -507,6 +507,47 @@ int main(int argc, char** argv) {
         check(rt.get(rt.find("main/nested"), "text").as_string() == "still retained");
     });
 
+    s.test("development aids: timings, history, inspection, debug overlays, slow frames", [] {
+        Runtime rt(options({240, 160}));
+        rt.mount("main", column({.padding = 8, .gap = 4}, {
+                                    text({.id = "title", .text = "Hello"}),
+                                    box({.id = "card", .width = 60, .height = 30, .background = "accent", .radius = 4}),
+                                }));
+        auto out = rt.frame();
+        const FrameTimings& t = out.stats.timings;
+        check(t.total > 0 && t.layout >= 0 && t.paint > 0 && t.total >= t.layout + t.paint - 1e-9);
+        rt.frame();
+        check(rt.frame_history().size() == 2);
+        auto info = rt.inspect(rt.find("main/card"));
+        check(info.get("type")->as_string() == "box" && info.get("id")->as_string() == "main/card");
+        check(info.get("source")->as_string().find("view_test.cpp") != std::string_view::npos, "where it was built");
+        check(info.get("props")->get("background")->as_string() == "accent");
+        check(info.get("layout")->get("width")->as_double() == 60 && info.get("bounds")->list()->size() == 4);
+        // Overlays add to the list; with them off it is what it was.
+        const std::size_t plain = rt.display_list().size();
+        rt.set_debug({.bounds = true, .hud = true});
+        rt.frame();
+        check(rt.display_list().size() > plain + 3, std::format("{} vs {}", rt.display_list().size(), plain));
+        rt.set_debug({.repaints = true, .inspector = true});
+        rt.set(rt.find("main/card"), "background", Value("#ff0000"));
+        rt.frame({std::nullopt, {[] { PointerEvent p; p.position = {20, 40}; return InputEvent(p); }()}});
+        const std::size_t with_flash = rt.display_list().size();
+        check(with_flash > plain);
+        rt.set_debug({});
+        rt.frame();
+        check(rt.display_list().size() == plain, "off: nothing of it remains");
+        // A slow frame logs its phases in the "frame" category.
+        set_log_history(64);
+        set_log_sink([](void*, const LogRecord&) {}, nullptr);
+        rt.set_debug({.slow_frame_ms = 1e-9});
+        rt.set(rt.find("main/title"), "text", Value("Hello again"));
+        rt.frame();
+        auto logs = recent_logs(10, Level::warning);
+        check(!logs.empty() && logs.back().category == "frame" && logs.back().message.find("layout") != std::string::npos,
+              logs.empty() ? "no record" : logs.back().message);
+        set_log_sink(nullptr, nullptr);
+    });
+
     s.test("pixels are the same on every platform", [] {
         // Its own fonts: font references are numbered in the order they are
         // first used, and the list hash includes them.

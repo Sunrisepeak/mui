@@ -29,6 +29,7 @@ openmui-raster   = { path = "../../modules/raster" }
 openmui-render   = { path = "../../modules/render" }
 openmui-text     = { path = "../../modules/text" }
 openmui-image    = { path = "../../modules/image" }
+openmui-trace    = { path = "../../modules/trace" }
 mcpplibs.os      = { git = "https://github.com/mcpplibs/os.git", branch = "os-0.1.0" }
 compat.sdl3      = "3.4.18"
 

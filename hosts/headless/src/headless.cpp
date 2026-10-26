@@ -9,6 +9,7 @@ import openmui.raster;
 import openmui.render;
 import openmui.text;
 import openmui.image;
+import openmui.trace;
 
 namespace omui {
 
@@ -51,6 +52,7 @@ struct Headless::Impl {
         o.scale = options.scale;
         o.background = options.background;
         o.object_ids = true;
+        trace::Span span("render", "host");
         (void)renderer.render(list, surface, {&runtime->images(), glyphs.get()}, o);
         ids.assign(renderer.object_ids().begin(), renderer.object_ids().end());
         rendered = h;

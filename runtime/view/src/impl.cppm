@@ -169,6 +169,9 @@ struct Runtime::Impl {
     std::vector<Timer>          timers;
     std::vector<ActionEntry>    journal;
     FrameStats                  stats;
+    std::deque<FrameStats>      history;
+    std::vector<std::pair<NodeId, seconds>> flashes;  // debug: nodes that changed, and when
+    seconds                     last_slow_log{-1e9};  // slow frames are logged at most once a second
 
     explicit Impl(Runtime& r) : self(r) {}
 
@@ -218,6 +221,7 @@ struct Runtime::Impl {
     [[nodiscard]] bool contains(NodeId ancestor, NodeId id) const;
     void   paint();
     void   paint_node(NodeId id);
+    void   paint_debug();
     NodeId hit(NodeId id, Point window, std::optional<Rect> clip) const;
 
     // input (input.cpp)

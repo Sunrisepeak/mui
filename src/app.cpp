@@ -7,6 +7,7 @@ import openmui.agent;
 import openmui.ui.base;
 import openmui.host.headless;
 import openmui.host.sdl3;
+import openmui.trace;
 import mcpplibs.os;
 
 namespace omui {
@@ -50,9 +51,32 @@ std::expected<RunOptions, std::string> RunOptions::parse(std::span<const std::st
                 std::from_chars(v->data() + x + 1, v->data() + v->size(), h).ec != std::errc{} || w <= 0 || h <= 0)
                 return std::unexpected("--size is WxH, e.g. 800x600");
             o.size = Size{w, h};
+        } else if (a == "--debug") {
+            auto v = value();
+            if (!v) return std::unexpected("--debug takes a list: bounds,repaints,inspector,hud");
+            std::string_view list = *v;
+            while (!list.empty()) {
+                const auto comma = list.find(',');
+                const std::string_view item = list.substr(0, comma);
+                list = comma == std::string_view::npos ? std::string_view{} : list.substr(comma + 1);
+                if (item == "bounds") o.debug.bounds = true;
+                else if (item == "repaints") o.debug.repaints = true;
+                else if (item == "inspector") o.debug.inspector = true;
+                else if (item == "hud") o.debug.hud = true;
+                else return std::unexpected(std::format("--debug: no overlay `{}` (bounds, repaints, inspector, hud)", item));
+            }
+            o.debug.slow_frame_ms = 1000.0 / 60.0;
+        } else if (a == "--log") {
+            auto v = value();
+            if (!v) return std::unexpected("--log takes a filter: layout=debug,*=info");
+            o.log = std::string(*v);
+        } else if (a == "--profile") {
+            auto v = value();
+            if (!v) return std::unexpected("--profile takes a file");
+            o.profile = std::filesystem::path(*v);
         } else {
             return std::unexpected(std::format("unknown option `{}` (--headless, --frames N, --png FILE, --level hN, --serve, "
-                                               "--agent-dir DIR, --no-agent, --dark, --size WxH)",
+                                               "--agent-dir DIR, --no-agent, --dark, --size WxH, --debug LIST, --log FILTER, --profile FILE)",
                                                a));
         }
     }
@@ -78,6 +102,7 @@ int headless(AppSpec app, const RunOptions& o) {
     h.app = app.id;
     h.endpoint_directory = o.agent_dir;
     Headless host(h);
+    host.runtime().set_debug(o.debug);
     prepare(host.runtime(), app);
     if (o.frames) {
         for (int i = 0; i < *o.frames; ++i) host.step();
@@ -112,6 +137,20 @@ int headless(AppSpec app, const RunOptions& o) {
 
 int run(AppSpec app, const RunOptions& o) {
     register_base_components();
+    // Log levels: OMUI_LOG, then --log.
+    for (const std::string& filter : {mcpplibs::os::env::get("OMUI_LOG").value_or(std::string{}), o.log})
+        if (!filter.empty())
+            if (auto r = set_log_filter(filter); !r) warn("log filter `{}`: {}", filter, r.error());
+    if (!o.profile.empty()) trace::start();
+    struct Profile {
+        const std::filesystem::path& file;
+        ~Profile() {
+            if (file.empty()) return;
+            const trace::Trace t = trace::stop();
+            if (auto w = mcpplibs::os::fs::write_atomic(file, t.chrome_json()); !w) error("{}: {}", file.string(), w.error().message());
+            else std::print(std::cerr, "{}", t.table());
+        }
+    } profile{o.profile};
     if (o.headless) return headless(std::move(app), o);
     DesktopOptions d;
     d.title = app.title;
@@ -125,6 +164,7 @@ int run(AppSpec app, const RunOptions& o) {
         error("no window ({}); `--headless` runs without a display", r.error());
         return 1;
     }
+    desktop.runtime().set_debug(o.debug);
     prepare(desktop.runtime(), app);
     return desktop.run();
 }

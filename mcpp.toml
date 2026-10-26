@@ -26,6 +26,7 @@ members = [
     "modules/render",
     "modules/text",
     "modules/record",
+    "modules/trace",
     "runtime/core",
     "runtime/view",
     "runtime/semantic",
@@ -66,6 +67,7 @@ openmui-core          = { path = "runtime/core" }
 openmui-view          = { path = "runtime/view" }
 openmui-semantic      = { path = "runtime/semantic" }
 openmui-agent         = { path = "runtime/agent" }
+openmui-trace         = { path = "modules/trace" }
 openmui-ui-base       = { path = "components/base" }
 openmui-host-headless = { path = "hosts/headless" }
 openmui-host-sdl3     = { path = "hosts/sdl3" }

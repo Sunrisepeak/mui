@@ -10,6 +10,12 @@ The agent endpoint of an openmui application (spec §9, plan §11):
   `act` applies the effect rules (`needs-answer`, exit code 2) and records the
   actor (`agent:planner;via=person:alice`) in the runtime's journal. Errors
   carry hints that show the correct form.
+- Development operations (D-59): `inspect` (a node's type, source line,
+  props, layout and state), `stats` (frame-time mean and percentiles, the
+  phases, node counts), `profile` (`start`, then `stop` returns the per-span
+  summary and, with `"chrome":true`, the Chrome trace), `logs` (recent
+  records by level and category) and `debug` (the runtime's overlays, the
+  slow-frame threshold and the log filter, while it runs).
 - `Endpoint` — listens through `mcpplibs.os.ipc` (a local socket) in a
   per-user directory, writes `<name>.endpoint.omui.json` beside it, reads
   connections on background threads and serves requests on the UI thread in
@@ -24,4 +30,4 @@ The agent endpoint of an openmui application (spec §9, plan §11):
 ← {"kind":"result","exitCode":2}
 ```
 
-Depends on `openmui-core`, `openmui-view`, `openmui-semantic` and `mcpplibs.os`.
+Depends on `openmui-core`, `openmui-view`, `openmui-semantic`, `openmui-trace` and `mcpplibs.os`.

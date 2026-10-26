@@ -26,8 +26,18 @@ The retained and immediate view runtime (plan §3–§5):
   (`virtual_items`, `reveal`) so a virtualised tree answers queries over all
   of its content (S-7);
 - **immediate mode** (`omui::immediate`, `Ui`): ids from the id stack and
-  call site, builds only when something happened.
+  call site, builds only when something happened;
+- **observability** (D-59): every frame times its phases (timers, input,
+  regions, animations, layout, bounds, paint) into `FrameStats`, kept for the
+  last 240 frames (`frame_history()`) and traced as `openmui.trace` spans;
+  frames slower than `DebugOptions::slow_frame_ms` log a warning in the
+  `frame` category (at most once a second); `inspect(node)` returns what the
+  runtime knows of a node — type, contract, source line, props, bindings,
+  handlers, state, layout style and boxes; `set_debug()` turns on overlays
+  painted over the frame: node bounds (a hue per depth), repaint flashes, the
+  hovered node's margin / border / content boxes with its path and source,
+  and a frame-time HUD (mean, p95, node counts).
 
 Depends on `openmui-core`, `-layout`, `-render`, `-text`, `-image`, `-anim`,
-`-geom` and `-memory`. Paint is deterministic: the reference scene renders to
+`-geom`, `-memory` and `-trace`. Paint is deterministic: the reference scene renders to
 the same bytes with GCC and LLVM, on Linux, macOS and Windows.

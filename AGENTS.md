@@ -4,7 +4,7 @@
 
 - 仓库暂时是私有的 `Sunrisepeak/mui`。**身份用全名 `openmui`**（包、模块 `openmui.*`、总线接口）；**需要反复输入的地方用缩写 `omui`**（C++ 命名空间 `omui::`、C ABI `omui*` / `Omui*` / `OMUI_*`、`OMUI_EXT_*`、命令行短名）。不要使用裸的 `mui`。
 - 设计记录在 `.agents/docs/`，从 `.agents/docs/README.md` 开始读。总体架构文档里的决策记录（D-xx）和待决问题（Q-xx）是当前的基线。
-- 当前阶段：设计 review。代码会按里程碑 M0 开始搭建。
+- 当前阶段：设计 review。代码按[实施计划](.agents/docs/2026-10-26-openmui-implementation-plan.md)从 M0 开始搭建。
 - 工程文件只有 `mcpp.toml`（openmui 自己的声明放在 `[package.metadata.openmui]`）；构建、测试、打包都使用 mcpp；工具通过 xlings 安装。
 - 第一阶段不修改 xdesk 或 xlings 仓库。
 
@@ -12,7 +12,12 @@
 
 - 规范（`spec/`）只依赖标准库。实现层负责把 openmui 和 Luban 的规范（opensal / openas / openbus）连接起来。
 - 依赖只能向下：spec ← runtime ← gfx / host；component 只使用 runtime 的公开 API；bridge 只依赖 spec；lang 只依赖 `openmui.h`。
-- 核心代码不用异常、不用 RTTI，错误用 `std::expected`。C 头文件只出现在 `native/` 绑定模块里。
+- **C++23 是基线**；C++26（反射等）只在 `runtime/reflect` 里使用（GCC 16，`-freflection`）。
+- **不用宏，用 constexpr**：平台和特性用清单选择的模块分区 + `inline constexpr` 常量 + `if constexpr`；编译期校验用 `consteval`；断言和日志用函数加 `std::source_location`。唯一的例外是生成的 `openmui.h`。
+- **全仓库只有一个头文件 `spec/include/openmui.h`**；其他全部是模块。第三方头文件只出现在 `native/` 实现分区里，宏在那里转换成 constexpr。
+- 核心代码不用异常、不用 RTTI，错误用 `std::expected`；热路径没有虚函数，每帧零分配。
+- 每个目录都是一个 workspace 成员（独立的 `mcpp.toml`），只通过 `path` 依赖互相引用，不允许跨成员用相对路径引用源文件。
+- 动画是时间的纯函数（可以任意跳转、结果确定）；动画、布局、光栅器模块不允许使用 fast-math 和浮点收缩。
 - 组件和 native 模块都是“契约优先”：先写 `*.contract.omui.toml` / `*.native.omui.toml`，绑定由生成器产出，不手写。
 - 脚本永远不进入每帧路径。
 - ID 不能依赖显示文本；可交互的节点要写显式 ID。

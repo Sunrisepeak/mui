@@ -4,6 +4,7 @@
 
 | 文档 | 内容 |
 |---|---|
+| [2026-10-26-openmui-implementation-plan.md](2026-10-26-openmui-implementation-plan.md) | **实施计划**：技术基线和规则（不用宏、头文件最少、C++23 / 26）、workspace 成员划分和目录树、各模块的实施、动画系统、渲染、平台、语言绑定、agent、openmui-video、五个展示、文档、CI、跨平台、生态补充、里程碑 |
 | [2026-10-26-openmui-architecture-design.md](2026-10-26-openmui-architecture-design.md) | **总体架构**：定位、原则、分层、规范和实现的关系、仓库和包、构建和生态、一致性分级、三根支柱、里程碑、决策记录（D-xx）、待决问题（Q-xx） |
 | [2026-10-26-openmui-spec-design.md](2026-10-26-openmui-spec-design.md) | **规范**：registry、6 个契约、总线接口、动画语义、Core 配置档和扩展、发行版配置档、CTS |
 | [2026-10-26-openmui-component-binding-design.md](2026-10-26-openmui-component-binding-design.md) | **组件、绑定与工程模型**：组件分层、契约优先、`[package.metadata.openmui]`、脚本薄接口、三种语言、native 模块、多语言混合、构建流水线 |

@@ -303,7 +303,7 @@ export const Counter = () => (
 | 语言 | 引擎 | 模式 | 说明 |
 |---|---|---|---|
 | **TS / JS** | `quickjs-ng`（mcpp-index 中已有） | 嵌入；在 Web 上直接用浏览器的引擎 | 构建期用 esbuild 转换（D-23）；TSX 可选 |
-| **Python** | CPython（C API 或 `pybind11`） | **作为宿主**（`pip install openmui`，M3 先做）+ 嵌入（D-24） | 宿主模式下主线程运行 C++ 事件循环并释放 GIL；Python 运行在逻辑线程上 |
+| **Python** | CPython 的稳定 ABI（limited API / abi3），自己写绑定模块，不用 pybind11（D-46） | **作为宿主**（`pip install openmui`，M3 先做）+ 嵌入（D-24） | 宿主模式下主线程运行 C++ 事件循环并释放 GIL；Python 运行在逻辑线程上 |
 | **Lua** | Lua 5.4（`compat.lua`） | 嵌入 | 体积最小，适合游戏和嵌入式 Linux |
 
 - **命名规则**：TS 和 Lua 用驼峰，Python 用下划线；ID 和 verb 名在三种语言里完全相同。惯用的导入别名都是 `omui`。

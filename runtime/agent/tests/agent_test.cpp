@@ -282,5 +282,14 @@ int main(int argc, char** argv) {
         check(!gone.has_value());
     });
 
+    s.test("listing endpoints in a directory with names that are not ASCII", [] {
+        const auto dir = scratch_dir("agent-list") / std::filesystem::path(u8"代理 目录");
+        std::filesystem::create_directories(dir);
+        { std::ofstream(dir / std::filesystem::path(u8"说明.txt")) << "not an endpoint"; }
+        { std::ofstream(dir / "org.example.notes.endpoint.omui.json") << R"({"name":"org.example.notes","app":"org.example.notes","interface":"openmui.tree@0.1"})"; }
+        auto listed = agent::list(dir);
+        check(listed.size() == 1 && listed[0].name == "org.example.notes", std::format("{} endpoints", listed.size()));
+    });
+
     return s.run(argc, argv);
 }

@@ -1,6 +1,7 @@
 module openmui.gen.unicode;
 
 import std;
+import openmui.gen.model;  // utf8, generic_utf8
 
 namespace omui::gen {
 
@@ -38,7 +39,7 @@ struct Assignment {
 
 std::expected<std::vector<Assignment>, std::string> read_property(const std::filesystem::path& file, int field = 1) {
     std::ifstream in(file);
-    if (!in) return std::unexpected(std::format("cannot read {}", file.generic_string()));
+    if (!in) return std::unexpected(std::format("cannot read {}", generic_utf8(file)));
     std::vector<Assignment> defaults, explicit_;
     for (std::string line; std::getline(in, line);) {
         std::string_view l = line;
@@ -222,8 +223,8 @@ inline constexpr std::string_view ucd_version = "{0}";
 
 std::expected<std::string, std::string> unicode_test_subset(const std::filesystem::path& file, int step) {
     std::ifstream in(file);
-    if (!in) return std::unexpected(std::format("cannot read {}", file.generic_string()));
-    std::string out = std::format("# Every {}th test line of {} (omui-gen unicode-tests).\n", step, file.filename().string());
+    if (!in) return std::unexpected(std::format("cannot read {}", generic_utf8(file)));
+    std::string out = std::format("# Every {}th test line of {} (omui-gen unicode-tests).\n", step, utf8(file.filename()));
     int n = 0;
     for (std::string line; std::getline(in, line);) {
         if (line.empty() || line.starts_with('#')) continue;

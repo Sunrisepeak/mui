@@ -8,6 +8,17 @@ namespace omui::record {
 
 namespace {
 
+// UTF-8, not the code page (std::filesystem::path::string() throws on
+// Windows for a name the ANSI code page cannot spell).
+std::string utf8(const std::filesystem::path& p) {
+    const std::u8string u = p.u8string();
+    return std::string(reinterpret_cast<const char*>(u.data()), u.size());
+}
+
+}  // namespace
+
+namespace {
+
 using json = nlohmann::ordered_json;
 
 // Times are written with the shortest text that reads back to the same double.
@@ -154,7 +165,7 @@ std::expected<Session, std::string> Session::load(const std::filesystem::path& f
     auto text = mcpplibs::os::fs::read(file);
     if (!text) return std::unexpected(text.error().message());
     auto s = parse(*text);
-    if (!s) return std::unexpected(std::format("{}: {}", file.string(), s.error()));
+    if (!s) return std::unexpected(std::format("{}: {}", utf8(file), s.error()));
     return s;
 }
 

@@ -172,10 +172,17 @@ struct Reader {
 
 std::optional<toml::table> parse(const std::filesystem::path& path, Diagnostics& diags) {
     try {
-        return toml::parse_file(path.string());
+        // Read through the path itself (wide on Windows), then parse the text.
+        std::ifstream in(path, std::ios::binary);
+        if (!in) {
+            diags.error({generic_utf8(path), 0, 0}, "cannot read the file");
+            return std::nullopt;
+        }
+        const std::string text{std::istreambuf_iterator<char>(in), {}};
+        return toml::parse(text, generic_utf8(path));
     } catch (const toml::parse_error& e) {
         auto s = e.source();
-        diags.error({path.generic_string(), static_cast<int>(s.begin.line), static_cast<int>(s.begin.column)},
+        diags.error({generic_utf8(path), static_cast<int>(s.begin.line), static_cast<int>(s.begin.column)},
                     std::string(e.description()));
         return std::nullopt;
     }
@@ -268,12 +275,12 @@ Registry read_registry(const std::filesystem::path& dir, Diagnostics& diags) {
     auto load = [&](std::string_view name) -> std::optional<toml::table> {
         auto path = dir / name;
         if (!std::filesystem::exists(path)) {
-            diags.error({path.generic_string(), 0, 0}, "registry file is missing");
+            diags.error({generic_utf8(path), 0, 0}, "registry file is missing");
             return std::nullopt;
         }
         return parse(path, diags);
     };
-    auto file_of = [&](std::string_view name) { return (dir / name).generic_string(); };
+    auto file_of = [&](std::string_view name) { return generic_utf8(dir / name); };
 
     if (auto t = load("roles.toml")) {
         Reader r{file_of("roles.toml"), diags};
@@ -404,7 +411,7 @@ Registry read_registry(const std::filesystem::path& dir, Diagnostics& diags) {
     if (std::filesystem::is_directory(components)) {
         std::vector<std::filesystem::path> files;
         for (auto& entry : std::filesystem::directory_iterator(components))
-            if (entry.path().filename().string().ends_with(".contract.omui.toml")) files.push_back(entry.path());
+            if (utf8(entry.path().filename()).ends_with(".contract.omui.toml")) files.push_back(entry.path());
         std::ranges::sort(files);
         for (auto& f : files)
             for (Contract& c : read_contracts(f, reg, diags)) reg.contracts.push_back(std::move(c));
@@ -417,7 +424,7 @@ std::vector<Contract> read_contracts(const std::filesystem::path& file, const Re
     std::vector<Contract> out;
     auto parsed = parse(file, diags);
     if (!parsed) return out;
-    Reader r{file.generic_string(), diags};
+    Reader r{generic_utf8(file), diags};
     const toml::table* contracts = (*parsed)["contract"].as_table();
     if (!contracts) {
         diags.error(r.loc(&*parsed), "no [contract.<name>] table", "a contract file declares one or more [contract.<name>]");

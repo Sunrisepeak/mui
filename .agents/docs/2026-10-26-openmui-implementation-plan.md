@@ -1028,7 +1028,16 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
 ### 22.1 工程约定（全部在执行，lint 或 CI 检查）
 
 - **`.cppm` + `.cpp` 分离**：每个模块的接口单元只放声明和必要的内联，实现放在 `.cpp` 实现单元；第三方头文件只出现在 `native/` 实现分区。
-- **mcpp 和 C++ 规范**：参考 mcpp 的 `.agents/skills`；每个目录一个 workspace 成员，只用 `path` 互相依赖；带命名空间的依赖写成点分键（lint `manifest`）；平台相关的代码经由 `mcpplibs.os`（现在按版本 `0.1.0` 从 mcpp-index 引用）。
+- **mcpp 和 C++ 规范**：以 mcpp 的 `.agents/skills` 为准，逐条落到 openmui：
+
+  | mcpp skill | 规则 | openmui 的做法 |
+  |---|---|---|
+  | `mcpp-contributing` §项目结构 | `modules/` 放独立包，各带 `mcpp.toml`、由 `path` 引用、依赖显式声明；子系统的单测放 `modules/<x>/tests/`（只在它自己声明的依赖下构建，能抓到“偷偷依赖了没声明的东西”） | 每个目录一个成员；`modules/*` 不依赖 openmui 的任何包（lint `modules`、`layering`）；每个成员的测试在自己的 `tests/` 里 |
+  | `mcpp-contributing` §注意事项 | 平台相关代码集中在一处，不在别的模块里写 `#if defined`；import 指向类型的提供者，而不是它的某个消费者 | 平台代码只经由 `mcpplibs.os`（lint `platform`），没有宏（lint `macros`）；分区和模块按提供者导入 |
+  | `mcpp-contributing` §路径窄化不变式 | `std::filesystem::path::string()` 在 Windows 上经过 ANSI 代码页，遇到拼不出的名字就抛异常，而 Linux / macOS 上永远不失败；比较用 `path`，身份和显示用 UTF-8 | `omui::utf8()` / `generic_utf8()`；文件经由 `path` 本身打开；lint `paths` 禁止测试以外的 `string()` / `generic_string()`（`// NARROW-OK:` 写明理由才放行） |
+  | `mcpp-contributing` §PR 流程 | 永远走 PR；CI 全部通过 | 所有工作在 PR #1 上，每轮一个提交；7 个 CI 作业加每晚的 sanitizer 全部通过后才算完成一轮 |
+  | `mcpp-usage` | `mcpp.toml` 的写法、workspace、`mcpp test -p`、工具链 | 只用 `mcpp.toml`；带命名空间的依赖写成点分键（lint `manifest`）；`mcpplibs.os` 按版本 `0.1.0` 从 mcpp-index 引用 |
+  | `mcpp-docs-style` | 文档描述已经实现的东西，陈述式、准确、无表情符号，与实现一致 | 成员的 README 只写已实现的行为；设计记录和实现计划随实现更新（本节） |
 - **不降级、不推迟**：遇到上游缺口（mcpp-index 的包、工具链差异）就在上游修好再继续，而不是绕开或降低检查（mcpp-index #571、#575、#576、#577）。
 - 不用宏（唯一例外 `openmui.h`），不用异常和 RTTI（lint `exceptions`），每帧零分配有 bench 预算检查。
 

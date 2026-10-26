@@ -4,6 +4,22 @@ import std;
 
 namespace omui::imageio {
 
+namespace {
+
+// UTF-8 text of a path (generic separators for `generic_utf8`), never
+// through the process's code page: std::filesystem::path::string() throws on
+// Windows for a name the ANSI code page cannot spell (lint rule `paths`).
+[[maybe_unused]] std::string utf8(const std::filesystem::path& p) {
+    const std::u8string u = p.u8string();
+    return std::string(reinterpret_cast<const char*>(u.data()), u.size());
+}
+[[maybe_unused]] std::string generic_utf8(const std::filesystem::path& p) {
+    const std::u8string u = p.generic_u8string();
+    return std::string(reinterpret_cast<const char*>(u.data()), u.size());
+}
+
+}  // namespace
+
 View view(const Image& img) noexcept { return {img.rgba.data(), img.width, img.height, img.width * 4, img.alpha}; }
 
 void premultiply(Image& img) {
@@ -34,15 +50,15 @@ std::expected<void, std::string> save_png(const std::filesystem::path& file, con
     auto bytes = encode_png(pixels);
     if (!bytes) return std::unexpected(bytes.error());
     std::ofstream out(file, std::ios::binary);
-    if (!out) return std::unexpected(std::format("cannot write {}", file.generic_string()));
+    if (!out) return std::unexpected(std::format("cannot write {}", generic_utf8(file)));
     out.write(reinterpret_cast<const char*>(bytes->data()), static_cast<std::streamsize>(bytes->size()));
-    if (!out) return std::unexpected(std::format("cannot write {}", file.generic_string()));
+    if (!out) return std::unexpected(std::format("cannot write {}", generic_utf8(file)));
     return {};
 }
 
 std::expected<Image, std::string> load_png(const std::filesystem::path& file) {
     std::ifstream in(file, std::ios::binary);
-    if (!in) return std::unexpected(std::format("cannot read {}", file.generic_string()));
+    if (!in) return std::unexpected(std::format("cannot read {}", generic_utf8(file)));
     std::vector<std::uint8_t> bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
     return decode_png(bytes);
 }

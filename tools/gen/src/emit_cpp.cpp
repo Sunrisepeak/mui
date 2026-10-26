@@ -199,7 +199,7 @@ std::string emit_cpp_contract(const Contract& c, const Registry& reg, const CppO
 
 std::string emit_cpp_contract_text(const Contract& c, const Registry& reg, const CppOptions& o) {
     const std::string N = pascal(c.name);
-    const std::string file = c.loc.file.empty() ? c.name + ".contract.omui.toml" : std::filesystem::path(c.loc.file).filename().string();
+    const std::string file = c.loc.file.empty() ? c.name + ".contract.omui.toml" : c.loc.file.substr(c.loc.file.find_last_of('/') == std::string::npos ? 0 : c.loc.file.find_last_of('/') + 1);  // loc.file is generic UTF-8
     std::string out = std::format(banner, file);
     out += std::format("//\n// {}: {}\nexport module {}:{}_contract;\n\nimport std;\nimport openmui.core;\nimport openmui.view;\n\n", c.name,
                        c.doc.empty() ? std::string("a component") : c.doc, o.module, c.name);
@@ -414,7 +414,7 @@ std::string emit_cpp_builder(const Contract& c, const Registry&, const CppOption
 
 std::string emit_cpp_builder_text(const Contract& c, const CppOptions& o) {
     const std::string N = pascal(c.name);
-    const std::string file = c.loc.file.empty() ? c.name + ".contract.omui.toml" : std::filesystem::path(c.loc.file).filename().string();
+    const std::string file = c.loc.file.empty() ? c.name + ".contract.omui.toml" : c.loc.file.substr(c.loc.file.find_last_of('/') == std::string::npos ? 0 : c.loc.file.find_last_of('/') + 1);  // loc.file is generic UTF-8
     std::string out = std::format(banner, file);
     out += std::format("module {};\n\nimport std;\nimport openmui.core;\nimport openmui.view;\n\nnamespace {} {{\n\n", o.module, o.ns);
     const bool children = c.children != "none";

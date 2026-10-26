@@ -91,7 +91,10 @@ void Runtime::Impl::paint_debug() {
                         st.padding.left + st.border.left};
         list.fill_rect(b.inset(in), Color::hex(0x22c55e, 0.22f));
         list.stroke_round_rect(b, {}, 1, render::Paint::solid(Color::hex(0x3b82f6)));
-        const std::string where = std::format("{}:{}", std::filesystem::path(n.where.file_name()).filename().string(), n.where.line());
+        // The file's own name: the text after the last separator (no path conversion).
+        const std::string_view full = n.where.file_name();
+        const std::string_view base = full.substr(full.find_last_of("/\\") == std::string_view::npos ? 0 : full.find_last_of("/\\") + 1);
+        const std::string where = std::format("{}:{}", base, n.where.line());
         const std::string text = std::format("{}  {}  {:.0f}×{:.0f}  {}", self.path(id).empty() ? std::string("app") : self.path(id),
                                              n.type->name, b.width, b.height, where);
         plate(list, *fonts, theme, text, {pointer.x + 12, pointer.y + 16}, size);

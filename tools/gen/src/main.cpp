@@ -94,7 +94,7 @@ struct Writer {
         if (current == content) return;
         if (check) {
             ++stale;
-            std::println(std::cerr, "out of date: {}", path.generic_string());
+            std::println(std::cerr, "out of date: {}", generic_utf8(path));
             return;
         }
         std::filesystem::create_directories(path.parent_path());
@@ -127,7 +127,7 @@ int run_registry(const Options& o) {
     if (o.check) {
         if (w.stale) {
             std::println(std::cerr, "{} generated file(s) are out of date; run: omui-gen registry {} --out {}", w.stale,
-                         o.inputs[0].generic_string(), o.out.generic_string());
+                         generic_utf8(o.inputs[0]), generic_utf8(o.out));
             return 1;
         }
         std::println("omui-gen: generated files are current");

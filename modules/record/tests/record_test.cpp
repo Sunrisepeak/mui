@@ -101,5 +101,16 @@ int main(int argc, char** argv) {
         check(!missing.has_value());
     });
 
+    s.test("a session saves and loads under a name that is not ASCII", [] {
+        record::Session r;
+        check(r.add(0.25, "act", R"({"node":"main/保存"})").has_value());
+        const auto file = scratch_dir("record") / std::filesystem::path(u8"会话 录制.session.omui.jsonl");
+        check(r.save(file).has_value());
+        auto back = record::Session::load(file);
+        check(back.has_value() && back->size() == 1, back ? "" : back.error());
+        auto missing = record::Session::load(scratch_dir("record") / std::filesystem::path(u8"没有.session.omui.jsonl"));
+        check(!missing && missing.error().contains("没有"), missing ? "" : missing.error());
+    });
+
     return s.run(argc, argv);
 }

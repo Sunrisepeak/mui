@@ -13,6 +13,24 @@ export module openmui.rules;
 import std;
 import mcpp;
 
+// Module linkage (not exported, not an anonymous namespace): the exported
+// functions below are inline and may not name a TU-local entity.
+namespace openmui::rules {
+
+// UTF-8 text of a path (generic separators for `generic_utf8`), never
+// through the process's code page: std::filesystem::path::string() throws on
+// Windows for a name the ANSI code page cannot spell (lint rule `paths`).
+std::string utf8(const std::filesystem::path& p) {
+    const std::u8string u = p.u8string();
+    return std::string(reinterpret_cast<const char*>(u.data()), u.size());
+}
+std::string generic_utf8(const std::filesystem::path& p) {
+    const std::u8string u = p.generic_u8string();
+    return std::string(reinterpret_cast<const char*>(u.data()), u.size());
+}
+
+}  // namespace openmui::rules
+
 export namespace openmui::rules {
 
 struct options {
@@ -69,7 +87,7 @@ inline std::vector<edge> plan(const options& opt) {
     std::string registry = opt.registry;
     if (registry.empty()) {
         const std::string self = std::string(mcpp::dep_dir("rules"));
-        registry = (std::filesystem::path(self) / ".." / ".." / "spec" / "registry").lexically_normal().string();
+        registry = utf8((std::filesystem::path(self) / ".." / ".." / "spec" / "registry").lexically_normal());
     }
     if (!std::filesystem::is_directory(registry)) {
         std::println(std::cerr, "openmui.rules: no registry at {} (set options::registry to openmui's spec/registry)", registry);
@@ -79,12 +97,12 @@ inline std::vector<edge> plan(const options& opt) {
     std::vector<std::filesystem::path> files;
     std::error_code ec;
     for (const auto& e : std::filesystem::directory_iterator(dir, ec))
-        if (e.path().string().ends_with(".contract.omui.toml")) files.push_back(e.path());
+        if (utf8(e.path()).ends_with(".contract.omui.toml")) files.push_back(e.path());
     std::ranges::sort(files);
-    const std::string out = (std::filesystem::path(opt.out_dir) / "openmui").string();
+    const std::string out = utf8(std::filesystem::path(opt.out_dir) / "openmui");
     std::vector<std::string> registry_files;
     for (const auto& e : std::filesystem::recursive_directory_iterator(registry, ec))
-        if (e.is_regular_file()) registry_files.push_back(e.path().string());
+        if (e.is_regular_file()) registry_files.push_back(utf8(e.path()));
     std::ranges::sort(registry_files);
 
     std::vector<edge> edges;
@@ -94,9 +112,9 @@ inline std::vector<edge> plan(const options& opt) {
                 edge e;
                 e.id = std::format("openmui:{}:{}", part, name);
                 e.description = std::format("contract {} → {} ({})", name, file, opt.module);
-                e.command = {gen, "cpp", f.string(), "--registry", registry, "--module", opt.module, "--namespace", opt.ns,
+                e.command = {gen, "cpp", utf8(f), "--registry", registry, "--module", opt.module, "--namespace", opt.ns,
                              "--out", out, "--contract", name, "--part", part};
-                e.inputs = {f.string(), gen};
+                e.inputs = {utf8(f), gen};
                 e.inputs.insert(e.inputs.end(), registry_files.begin(), registry_files.end());
                 e.outputs = {out + "/" + file};
                 e.imports = {"std", "openmui.core", "openmui.view"};
@@ -115,10 +133,10 @@ inline std::vector<edge> plan(const options& opt) {
         e.id = "openmui:stubs";
         e.description = std::format("contracts → TS / Python / Lua stubs and the view-document schema ({})", opt.module);
         e.command = {gen, "stubs"};
-        for (const auto& f : files) e.command.push_back(f.string());
+        for (const auto& f : files) e.command.push_back(utf8(f));
         e.command.insert(e.command.end(), {"--registry", registry, "--module", opt.module, "--out", out + "/stubs"});
         e.inputs = {gen};
-        for (const auto& f : files) e.inputs.push_back(f.string());
+        for (const auto& f : files) e.inputs.push_back(utf8(f));
         e.inputs.insert(e.inputs.end(), registry_files.begin(), registry_files.end());
         for (const char* ext : {".d.ts", ".pyi", ".lua", ".components.json"}) e.outputs.push_back(out + "/stubs/" + opt.module + ext);
         edges.push_back(std::move(e));

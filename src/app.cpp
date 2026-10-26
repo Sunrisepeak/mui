@@ -115,7 +115,7 @@ int headless(AppSpec app, const RunOptions& o) {
             return 1;
         }
         std::println(std::cout, "{} serves openmui.tree@0.1 as `{}` in {} (Ctrl-C ends it)", app.id, host.endpoint()->name(),
-                     host.endpoint()->directory().string());
+                     utf8(host.endpoint()->directory()));
         std::cout.flush();
         // Frames at 60 Hz of virtual time, a frame per few milliseconds of
         // wall time: agents' waits see animations finish quickly and exactly.
@@ -126,7 +126,7 @@ int headless(AppSpec app, const RunOptions& o) {
     }
     if (!o.png.empty()) {
         if (auto r = host.save_png(o.png); !r) {
-            error("{}: {}", o.png.string(), r.error());
+            error("{}: {}", utf8(o.png), r.error());
             return 1;
         }
     }
@@ -147,7 +147,7 @@ int run(AppSpec app, const RunOptions& o) {
         ~Profile() {
             if (file.empty()) return;
             const trace::Trace t = trace::stop();
-            if (auto w = mcpplibs::os::fs::write_atomic(file, t.chrome_json()); !w) error("{}: {}", file.string(), w.error().message());
+            if (auto w = mcpplibs::os::fs::write_atomic(file, t.chrome_json()); !w) error("{}: {}", utf8(file), w.error().message());
             else std::print(std::cerr, "{}", t.table());
         }
     } profile{o.profile};

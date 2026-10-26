@@ -9,6 +9,18 @@ import std;
 
 export namespace omui::gen {
 
+// UTF-8 text of a path (generic separators for `generic_utf8`), never
+// through the process's code page: std::filesystem::path::string() throws on
+// Windows for a name the ANSI code page cannot spell (lint rule `paths`).
+inline std::string utf8(const std::filesystem::path& p) {
+    const std::u8string u = p.u8string();
+    return std::string(reinterpret_cast<const char*>(u.data()), u.size());
+}
+inline std::string generic_utf8(const std::filesystem::path& p) {
+    const std::u8string u = p.generic_u8string();
+    return std::string(reinterpret_cast<const char*>(u.data()), u.size());
+}
+
 struct Loc {
     std::string file;
     int         line   = 0;

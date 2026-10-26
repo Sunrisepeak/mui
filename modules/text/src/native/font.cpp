@@ -14,6 +14,22 @@ namespace omui::typeset {
 
 namespace {
 
+// UTF-8 text of a path (generic separators for `generic_utf8`), never
+// through the process's code page: std::filesystem::path::string() throws on
+// Windows for a name the ANSI code page cannot spell (lint rule `paths`).
+[[maybe_unused]] std::string utf8(const std::filesystem::path& p) {
+    const std::u8string u = p.u8string();
+    return std::string(reinterpret_cast<const char*>(u.data()), u.size());
+}
+[[maybe_unused]] std::string generic_utf8(const std::filesystem::path& p) {
+    const std::u8string u = p.generic_u8string();
+    return std::string(reinterpret_cast<const char*>(u.data()), u.size());
+}
+
+}  // namespace
+
+namespace {
+
 struct Face {
     std::vector<std::uint8_t> data;
     hb_blob_t*                blob = nullptr;
@@ -147,10 +163,10 @@ std::expected<FaceId, std::string> FontCollection::add_data(std::vector<std::uin
 
 std::expected<FaceId, std::string> FontCollection::add_file(const std::filesystem::path& file) {
     std::ifstream in(file, std::ios::binary);
-    if (!in) return std::unexpected(std::format("cannot read {}", file.generic_string()));
+    if (!in) return std::unexpected(std::format("cannot read {}", generic_utf8(file)));
     std::vector<std::uint8_t> data((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
     auto id = add_data(std::move(data));
-    if (!id) return std::unexpected(std::format("{}: {}", file.generic_string(), id.error()));
+    if (!id) return std::unexpected(std::format("{}: {}", generic_utf8(file), id.error()));
     return id;
 }
 

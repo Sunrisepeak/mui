@@ -14,6 +14,10 @@ Rules:
                 by every member whose graph reaches the package it is for
   modules       a member of modules/ depends on no openmui package outside modules/
   exceptions    no `throw` / `try` in runtime and modules sources (errors are std::expected)
+  paths         no std::filesystem::path::string() / generic_string() outside tests: on Windows
+                they convert through the ANSI code page and throw on a name it cannot spell; use
+                utf8() / generic_utf8() (mcpp .agents/skills/mcpp-contributing, 路径窄化不变式);
+                `// NARROW-OK: <why>` on the line allows one
   platform      no operating-system header anywhere: platform code goes through mcpplibs.os
   determinism   deterministic members do not call <cmath>'s transcendental functions and
                 compile with -ffp-contract=off
@@ -182,6 +186,13 @@ def check_sources(root: Path) -> list[Problem]:
             for no, line in enumerate(lines, 1):
                 if re.search(r"\bthrow\b|\btry\s*\{|\bcatch\s*\(", line):
                     problems.append(Problem("exceptions", f"{rel_s}:{no}", "exceptions in core code; return std::expected"))
+
+        # Paths are never narrowed through the code page (outside tests).
+        if "/tests/" not in rel_s and not rel_s.startswith("tests/"):
+            for no, line in enumerate(lines, 1):
+                if re.search(r"\.(generic_)?string\(\)", line) and "NARROW-OK:" not in line:
+                    problems.append(Problem("paths", f"{rel_s}:{no}",
+                                            "path::string() narrows through the code page on Windows; use utf8() / generic_utf8()"))
 
         for member in DETERMINISTIC:
             if rel_s.startswith(member + "/src/"):
@@ -352,6 +363,7 @@ def self_test() -> int:
         "headers": ("runtime/core/src/util.h", "int f();\n"),
         "naming": ("runtime/core/src/a.cpp", "namespace mui { }\n"),
         "exceptions": ("modules/anim/src/e.cpp", "void f() { throw 1; }\n"),
+        "paths": ("runtime/core/src/p.cpp", "std::string f(const std::filesystem::path& p) { return p.string(); }\n"),
         "determinism": ("modules/anim/src/d.cpp", "double f(double x) { return std::sin(x); }\n"),
         "platform": ("runtime/core/src/native/io.cpp", "module;\n#include <unistd.h>\nmodule x;\n"),
         "layering": None,

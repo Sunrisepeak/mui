@@ -209,5 +209,17 @@ int main(int argc, char** argv) {
         check(std::ranges::all_of(surf.pixels(), [&](auto px) { return px == surf.pixels().front(); }), "nothing drawn");
     });
 
+    s.test("fonts load from a directory whose name is not ASCII (Windows: not through the code page)", [] {
+        const auto dir = scratch_dir("text") / std::filesystem::path(u8"中文 字体 目录");
+        std::filesystem::create_directories(dir);
+        for (const char* f : {"Inter.ttf", "NotoSansSC.ttf", "NotoSansArabic.ttf", "TwemojiMozilla.ttf", "JetBrainsMono.ttf"})
+            std::filesystem::copy_file(text::FontCollection::default_directory() / f, dir / f, std::filesystem::copy_options::overwrite_existing);
+        text::FontCollection c;
+        auto r = c.add_defaults(dir);
+        check(r.has_value() && c.face_count() == 5, r ? "" : r.error());
+        auto missing = c.add_file(dir / std::filesystem::path(u8"不存在.ttf"));
+        check(!missing && missing.error().contains("不存在.ttf"), missing ? "" : missing.error());
+    });
+
     return s.run(argc, argv);
 }

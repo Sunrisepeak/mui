@@ -35,7 +35,7 @@ std::vector<EndpointInfo> list(const std::filesystem::path& directory) {
     std::vector<EndpointInfo> out;
     std::error_code ec;
     for (const auto& entry : std::filesystem::directory_iterator(directory, ec)) {
-        const std::string file = entry.path().filename().string();
+        const std::string file = utf8(entry.path().filename());
         if (!file.ends_with(descriptor_suffix)) continue;
         auto text = mcpplibs::os::fs::read(entry.path());
         if (!text) continue;
@@ -119,7 +119,7 @@ std::expected<void, std::string> Endpoint::start() {
     std::error_code ec;
     std::filesystem::create_directories(d.directory, ec);
     auto l = ipc::listener::listen(d.directory, d.name);
-    if (!l) return std::unexpected(std::format("listening as '{}' in {}: {}", d.name, d.directory.string(), l.error().message()));
+    if (!l) return std::unexpected(std::format("listening as '{}' in {}: {}", d.name, utf8(d.directory), l.error().message()));
     d.listener = std::move(*l);
     Value desc;
     desc.set("name", d.name).set("app", d.options.protocol.app).set("interface", interface_name).set("spec", spec::version);
@@ -212,7 +212,7 @@ Client::~Client() = default;
 
 std::expected<Client, std::string> Client::connect(std::string_view name, const std::filesystem::path& directory) {
     auto c = ipc::connection::connect(directory, name);
-    if (!c) return std::unexpected(std::format("no endpoint '{}' in {}: {}", name, directory.string(), c.error().message()));
+    if (!c) return std::unexpected(std::format("no endpoint '{}' in {}: {}", name, utf8(directory), c.error().message()));
     auto impl = std::make_unique<Impl>();
     impl->conn = std::move(*c);
     return Client(std::move(impl));

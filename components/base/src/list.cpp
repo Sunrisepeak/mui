@@ -288,7 +288,7 @@ Value ListItem::get_prop(std::string_view k) const {
 void ListItem::style(const Theme&, layout::Style& s) const {
     s.padding = {6, 12, 6, 12};
     s.min_height = layout::pt(32);
-    s.justify = layout::Justify::center;
+    s.align_items = layout::Align::center;  // centred across the row; the content starts at the left
 }
 
 void ListItem::paint(PaintContext& ctx) const {

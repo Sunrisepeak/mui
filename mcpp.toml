@@ -43,6 +43,7 @@ members = [
     "components/base",
     "tools/gen",
     "tools/omui",
+    "tools/inspector",
     "mcpp/rules",
     "tests/rules",
     "tests/bench",

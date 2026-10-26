@@ -276,6 +276,19 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
             l.set("painted", static_cast<std::int64_t>(last.painted)).set("bindings", static_cast<std::int64_t>(last.bindings));
             l.set("animating", static_cast<std::int64_t>(last.animating));
             d.set("last", std::move(l));
+            // "history": N — the last N frames, oldest first: total and the phases (a frame-time graph).
+            if (const Value* h = req.get("history"); h && h->is_number()) {
+                const auto want = static_cast<std::size_t>(std::clamp<std::int64_t>(h->as_int(0), 0, 240));
+                Value::List recent;
+                for (std::size_t i = frames.size() - std::min(want, frames.size()); i < frames.size(); ++i) {
+                    const FrameTimings& ft = frames[i].timings;
+                    Value f;
+                    f.set("total", ft.total).set("layout", ft.layout).set("paint", ft.paint).set("animations", ft.animations);
+                    f.set("other", ft.timers + ft.input + ft.regions + ft.bounds + ft.other);
+                    recent.push_back(std::move(f));
+                }
+                d.set("history", Value(std::move(recent)));
+            }
         }
         return e.data(std::move(d)).result(spec::exit_code::success);
     }

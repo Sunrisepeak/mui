@@ -198,6 +198,9 @@ int main(int argc, char** argv) {
         check(in[0].get("data")->get("handlers")->list()->size() == 1);
         auto st = talk(p, R"({"op":"stats"})");
         check(exit_of(st) == 0 && st[0].get("data")->get("frames")->as_int() >= 5 && st[0].get("data")->get("p95_ms"));
+        auto hist = talk(p, R"({"op":"stats","history":3})");
+        check(hist[0].get("data")->get("history") && hist[0].get("data")->get("history")->list()->size() == 3 &&
+              (*hist[0].get("data")->get("history")->list())[2].get("total"));
         check(exit_of(talk(p, R"({"op":"profile","action":"start"})")) == 0);
         for (int i = 0; i < 3; ++i) {
             app.saved.set(i % 2 == 0);
@@ -242,6 +245,7 @@ int main(int argc, char** argv) {
 
         std::atomic<bool> done{false};
         std::vector<Value> found, acted, waited;
+        std::vector<std::vector<Value>> more;  // the Inspector's polling, on the same connection
         std::string connect_error;
         std::jthread client([&] {
             auto c = agent::Client::connect("notes-test", dir);
@@ -253,6 +257,9 @@ int main(int argc, char** argv) {
             found = c->call(parse_json(R"({"op":"find","q":{"name":"Save"}})").value());
             acted = c->call(parse_json(R"({"op":"act","node":"notes/save","action":"activate","actor":"agent:test"})").value());
             waited = c->call(parse_json(R"({"op":"wait","q":{"id":"notes/status"},"settled":true})").value());
+            for (const char* r : {R"({"op":"stats","history":120})", R"({"op":"clock"})", R"({"op":"pipeline"})", R"({"op":"snapshot","depth":0})",
+                                  R"({"op":"snapshot"})"})
+                more.push_back(c->call(parse_json(r).value(), std::chrono::seconds(5)));
             done = true;
         });
         // The application's loop: frames on its clock, requests served between them.
@@ -268,6 +275,7 @@ int main(int argc, char** argv) {
         check(exit_of(found) == 0 && found[0].get("data")->get("nodes")->list()->size() == 1);
         check(exit_of(acted) == 0 && app.saved.peek());
         check(exit_of(waited) == 0);
+        for (std::size_t i = 0; i < more.size(); ++i) check(exit_of(more[i]) == 0, std::format("request {} on one connection: {}", i, more[i].empty() ? "" : more[i][0].json().substr(0, 120)));
         ep.stop();
         check(agent::list(dir).empty(), "the descriptor goes with the endpoint");
         auto gone = agent::Client::connect("notes-test", dir);

@@ -29,6 +29,7 @@ members = [
     "runtime/core",
     "runtime/view",
     "runtime/semantic",
+    "runtime/agent",
     "tools/gen",
 ]
 

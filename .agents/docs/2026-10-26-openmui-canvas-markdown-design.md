@@ -1,6 +1,6 @@
 # openmui 画布、Markdown 与旗舰示例设计
 
-> 状态：**草案 v0.1**（2026-10-26），待 review
+> 状态：**草案 v0.2**（2026-10-26），待 review
 > 范围：`openmui-ui-canvas`（高性能画布核心）、`openmui-ui-canvas-kit`（可选行为）、`openmui-ui-markdown`、旗舰示例和基准测试 **markdown-wall**。
 > 约束：**完全不碰 xdesk**；只借用 WuXian 的交互**概念**（工作区分组、相机、两种视图、小地图），而且这些都放在示例层实现，不进组件。
 
@@ -44,7 +44,7 @@
 **C++ 行为**（每帧都要执行的复杂交互）：
 
 ```cpp
-export namespace openmui::canvas {
+export namespace omui::canvas {
 
 struct PointerEvent { Vec2 screen; DVec2 world; Buttons buttons; Modifiers mods; std::optional<NodeRef> hit; };
 
@@ -60,18 +60,20 @@ public:
 }
 ```
 
-**声明式行为**（用 DSL 写，由 C++ 执行；脚本和 DSL 用户也能定义交互，但不进入每帧路径）：
+**声明式行为**：用数据化的 statechart 文件 `*.behavior.omui.toml` 描述，由 C++ 执行。脚本和 `.omui` 的用户也能定义交互，但每帧的工作不进入脚本。格式见 [omui-language](2026-10-26-openmui-omui-language-design.md) §6：
 
-```text
-behavior GroupDrag on Canvas {
-    state idle {
-        on pointer_down(hit.kind == "group.label") => dragging { capture(); }
-    }
-    state dragging {
-        on pointer_move => self { move(hit.node, delta.world); }      // 每帧在 C++ 里执行
-        on pointer_up   => idle { commit("group.moved", hit.node); }   // 只在提交时通知脚本
-    }
-}
+```toml
+# group-drag.behavior.omui.toml
+[behavior.group-drag]
+on      = "canvas"
+initial = "idle"
+
+[behavior.group-drag.states.idle]
+on.pointer_down = { when = "hit.kind == 'group.label'", to = "dragging", do = ["capture()"] }
+
+[behavior.group-drag.states.dragging]
+on.pointer_move = { do = ["move(hit.node, delta.world)"] }                     # 每帧在 C++ 里执行
+on.pointer_up   = { to = "idle", do = ["commit('group.moved', hit.node)"] }     # 只在提交时通知脚本
 ```
 
 ### 1.4 注册节点类型（示意）
@@ -103,7 +105,7 @@ canvas.register_kind("md.window", {
 
 **120Hz 下的预算（目标值）**：平移缩放的帧 CPU 小于 1ms；内容有变化的帧 CPU 小于 3ms；GPU 小于 4ms（核显）。
 
-### 1.6 语义：`MUI_EXT_canvas`
+### 1.6 语义：`OMUI_EXT_canvas`
 
 - 虚拟化语义树：只为可见、聚焦、选中的节点生成完整的语义节点；其余通过查询按需生成。
 - 空间查询：`find({in_rect, near, name, role, kind})`，**覆盖整个场景**。
@@ -152,28 +154,28 @@ IR ──► 块布局（段落 / 标题 / 列表 / 引用 / 代码块 / 表格 
 ### 2.4 契约
 
 ```toml
-# contract/markdown.contract.toml
-[component.markdown]
+# contract/markdown.contract.omui.toml
+[contract.markdown]
 role = "document"
 spec = "0.1"
 
-[props]
+[contract.markdown.props]
 source     = { type = "string" }
 base_url   = { type = "string" }
 origin     = { type = "enum", values = ["app", "user_content", "remote"], default = "user_content" }
 extensions = { type = "string[]", default = ["gfm"] }
 selectable = { type = "bool", default = true }
 
-[methods]
+[contract.markdown.methods]
 append           = { args = { chunk = "string" } }     # 流式追加
 scroll_to_anchor = { args = { anchor = "string" } }
 
-[events]
+[contract.markdown.events]
 link_activated  = { args = { href = "string" } }
 task_toggled    = { args = { index = "u32", checked = "bool" } }
 heading_visible = { args = { anchor = "string" }, coalesce = "frame" }
 
-[actions]
+[contract.markdown.actions]
 open_link   = { effect = "external", answer = "yes" }
 toggle_task = { effect = "reversible" }
 copy        = { effect = "read" }
@@ -263,7 +265,7 @@ bench.report();
 | 渲染到纹理 / 图层缓存、图集、mipmap、上传预算 | T1 / T2 档位 | M4 |
 | 实例化 SDF、msdf 文字、相机 uniform | 画布 | M4 |
 | 空间索引、LOD 策略、组件晋升 | 画布 | M4 |
-| 语义虚拟化 + 空间查询（`MUI_EXT_canvas`） | agent 和测试 | M4 |
+| 语义虚拟化 + 空间查询（`OMUI_EXT_canvas`） | agent 和测试 | M4 |
 | 基准测试和遥测接口 | 报告 | M4–M5 |
 
 **提前验证**：M1 期间就做一个最小的 GPU 原型（1 万个矩形加标签，支持平移缩放，带帧时间面板），用实测数据校准 §3.5 的目标。
@@ -275,8 +277,8 @@ bench.report();
 | # | 示例 | 展示的内容 | 里程碑 |
 |---|---|---|---|
 | 01 | hello-im | C++ 立即模式，最短路径 | M1 |
-| 02 | hello-dsl-ts | DSL + TS，不需要写 C++ | M3 |
-| 03 | counter ×3 | TS、Python、Lua 各写一遍，语义树完全相同 | M3 |
+| 02 | hello-ts | TS builder + 可选的 `.omui` 视图，不需要写 C++（模板 `openmui:app-ts`） | M3 |
+| 03 | counter ×5 | C++、TS、Python、Lua、`.omui` 各写一遍，语义树完全相同 | M3 |
 | 04 | custom-component | 契约 → C++ → 三种语言自动可用 | M3 |
 | 05 | native-module | `kind=native` | M3 |
 | 06 | theming | token、暗色、密度、动效 | M3 |

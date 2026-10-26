@@ -1,11 +1,12 @@
 # openmui 总体架构设计
 
-> 状态：**草案 v0.1**（2026-10-26），待 review
+> 状态：**草案 v0.2**（2026-10-26），待 review
 > 仓库：`Sunrisepeak/mui`（私有，暂定）。**内部的包名、模块名、命令、文档一律使用 openmui**；等各方面成熟后，再评估是否迁移到 openmui 的公开仓库。
 > 配套文档：
 > - [规范设计](2026-10-26-openmui-spec-design.md)
 > - [组件、绑定与工程模型](2026-10-26-openmui-component-binding-design.md)
 > - [画布、Markdown 与旗舰示例](2026-10-26-openmui-canvas-markdown-design.md)
+> - [视图与数据文件：`.omui` 语言、视图文档、表达式、行为、后缀体系](2026-10-26-openmui-omui-language-design.md)
 > - 前期调研见 `research/`（命名已经过时）
 > 写法说明：标注了路径的内容是本地已有事实；其余都是设计提议。示意代码和命令只表达设计意图，接口名还没有定。
 
@@ -23,7 +24,7 @@
 ### 1.1 目标
 
 1. 统一的语义层：节点、动作、效果分级、来源标记、稳定 ID。
-2. 一个运行时同时支持立即模式和保留模式（含 DSL），两者产出同一棵树。
+2. 一个运行时同时支持立即模式和保留模式，两者产出同一棵树。保留模式可以用各语言原生的 builder，也可以用可选的 `.omui` 视图语言或 `.omui.json` 视图文档。
 3. 渲染和宿主都可以替换，用 S / L / X 三种边界区分（见 §4.3）。
 4. 组件“契约优先”：C++ 实现，三种语言的绑定自动生成。
 5. 由 mcpp.toml 驱动整个工程，构建、运行、测试、打包都走 mcpp；工具和应用的分发走 xlings。
@@ -69,7 +70,7 @@
 │ 语言 openmui-lang-*：ts · py · lua（另外有 wasm 插件沙箱）                         │
 │ 工具 openmui-tools：生成器 · openmui.rules · 检查器 · 基准测试 · MCP 服务器         │
 ├─────────────────────────────── 运行时面（openmui-runtime，C++ Modules）──────────┤
-│ 写法：  openmui.im（立即模式） ──对账──► 同一棵节点树 ◄── openmui.rt（signals + DSL） │
+│ 写法：  openmui.im（立即模式）──对账──► 同一棵节点树 ◄── openmui.rt（signals + builder / .omui）│
 │ 核心：  树与 ID · 状态与 Verb · 事件、焦点与导航 · 输入法 · 任务系统               │
 │ 布局：  flex / grid / 栈 / 滚动 / 虚拟化      文本：富文本、排版、双向文字、回退、msdf │
 │ 动画：  时钟 · tween / spring / decay · 过渡 · 时间线      语义：产出、动作、效果、审计 │
@@ -79,7 +80,7 @@
 │ 跨框架桥 openmui-bridge-*：imgui · qt · godot-control · atspi · dom                │
 ├─────────────────────────────── 规范面（openmui-spec）───────────────────────────┤
 │ registry → 6 个契约：①语义树 ②视图描述 ③状态与 Verb ④宿主接口 ⑤渲染接口 ⑥C ABI     │
-│ Core 配置档 + 扩展（MUI_EXT_*）· 组件契约 · 动画语义 · 清单 schema · CTS           │
+│ Core 配置档 + 扩展（OMUI_EXT_*）· 组件契约 · 动画语义 · .omui 语法 · 清单 schema · CTS │
 └─────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -88,6 +89,7 @@
 | 包 | 只允许依赖 |
 |---|---|
 | spec | 标准库（MCU 上是 `mcpplibs.std.freestanding`） |
+| openmui（伞包） | runtime、base 组件、默认主题；`rules` / `entry-*` 特性 |
 | runtime | spec、C 库、mcpp-index 中的包 |
 | gfx / host | runtime 的后端接口 |
 | bridge | **只依赖 spec**（这样它才算第二个实现者） |
@@ -113,7 +115,7 @@
 ### 4.2 核心 + 扩展
 
 - **Core**：每个实现都必须支持。包括语义树、视图描述、基础组件契约、flex 布局、文本、键盘焦点、基础动画。
-- **扩展 `MUI_EXT_*`**：按需查询，例如 `gpu_node`、`shader_effect`、`instanced_draw`、`canvas`、`external_texture`、`world_space`、`gamepad_navigation`、`ime`、`native_handle`、`lottie`。
+- **扩展 `OMUI_EXT_*`**：按需查询，例如 `gpu_node`、`shader_effect`、`instanced_draw`、`canvas`、`external_texture`、`world_space`、`gamepad_navigation`、`ime`、`native_handle`、`lottie`。
 - 应用通过枚举扩展来了解当前 Runtime 的能力，**不靠尝试调用来判断**（opensal §2.3 的规则）。
 - 用到逃生口（原生句柄等）时必须通过扩展声明，并且会被 CTS 标记为不可移植。
 
@@ -142,7 +144,7 @@ openmui 沿用同样的约定：
 | openbus 的路径、接口、交互类型 | 总线接口按 openbus 的约定命名：`openmui.tree@0.1`，路径 `app/<id>/ui` | 由应用层或宿主层发布到总线 |
 | opencaps 的能力匹配 | 扩展和配置档的协商沿用它的思路 | — |
 
-**待决（Q-04）**：openmui 的实现层如何依赖 opensal 等规范包。可以通过 mcpp-index 发布后依赖，也可以用 git 路径依赖。规范层不受影响。
+**已确定（D-20）**：实现层先用 git 路径依赖 opensal 等规范包；等它们发布到 mcpp-index 后再改成版本依赖。规范层不受影响。
 
 ---
 
@@ -158,9 +160,14 @@ openmui 沿用同样的约定：
 
 ```
 mui/                                  （仓库名；内部一律叫 openmui）
+├── openmui/                          # 伞包 openmui：再导出模块；rules 特性（openmui.rules）；entry-player / entry-app 特性；templates/
+│   ├── src/                          #   伞模块 openmui（再导出 runtime、base 组件、默认主题）
+│   ├── rules/                        #   构建插件 openmui.rules
+│   ├── entry/                        #   入口：player.cpp / app.cpp（等 mcpp#845 落地后由特性提供）
+│   └── templates/                    #   mcpp new 的模板：app-cpp / app-ts / app-py / app-lua / app-mixed / component / native / theme
 ├── spec/                             # openmui-spec：只依赖标准库，有自己的版本号
 │   ├── SPEC.md                       #   契约正文（写法和 opensal / openas 一致）
-│   ├── registry/                     #   roles · actions · effects · motion · extensions · components/*.contract.toml · manifest schema
+│   ├── registry/                     #   roles · actions · effects · motion · extensions · components/*.contract.omui.toml · omui.ebnf · view.schema.json · manifest schema
 │   ├── include/openmui.h             #   由 registry 生成
 │   ├── src/                          #   由 registry 生成的值类型模块（openmui.spec）
 │   └── conformance/                  #   CTS：分为 S / A / B / C 四级
@@ -171,9 +178,8 @@ mui/                                  （仓库名；内部一律叫 openmui）
 ├── components/{base,data,editor,canvas,canvas-kit,markdown}/
 ├── themes/{tokens,default,compact}/
 ├── lang/{ts,py,lua}/
-├── tools/{gen,rules,inspector,bench,mcp}/
+├── tools/{gen,omui,lsp,inspector,bench,mcp}/   # gen：registry 生成器；omui：命令行（fmt / check / add）
 ├── examples/                         # 01–13，见画布和 Markdown 的设计文档
-├── templates/                        # mcpp new 用的模板：openmui-cpp / -ts / -py / -lua / -mixed / -component / -native
 ├── docs/                             # 用户文档、llms.txt
 ├── AGENTS.md
 └── .agents/docs/                     # 设计记录（本目录）
@@ -195,10 +201,13 @@ mui/                                  （仓库名；内部一律叫 openmui）
 | 后端和宿主 | `openmui-gfx-*`、`openmui-host-*`、`openmui-bridge-*` |
 | 组件 | `openmui-ui-*`（模块 `openmui.ui.*`） |
 | 构建规则 | **`openmui` 包的 `rules` 特性**，模块 `openmui.rules` |
-| 命令行工具 | `openmui`（可选的便利工具，**只读取 mcpp.toml**） |
-| 文件 | 视图 `*.mui`；契约 `*.contract.toml` |
-| 扩展 | `MUI_EXT_*` |
-| C ABI | 前缀 `mui`，命名风格待决（Q-01） |
+| 入口 | `openmui` 包的 `entry-player` / `entry-app` 特性（D-26） |
+| 模板 | `openmui` 包的 `templates/`：`mcpp new <名字> --template openmui:<模板>`（D-27） |
+| 命令行工具 | `openmui`，短名 `omui`（可选的便利工具：fmt / check / add / inspect；**只读写 mcpp.toml，不引入新的工程文件**） |
+| 文件 | `<名字>.<种类>.omui.toml`、`*.omui`、`*.omui.json`、`*.omuipkg`（完整规则见 omui-language §7，D-30） |
+| 扩展 | `OMUI_EXT_*`（D-25） |
+| C ABI | Vulkan 风格，前缀 `omui` / `Omui` / `OMUI_`（D-17、D-25） |
+| C++ 命名空间 | `omui`（D-25） |
 | 各语言的包 | npm、PyPI、LuaRocks 上都叫 `openmui` |
 
 **对外不用裸的 `mui`**，因为它和 React 的 Material UI（`@mui/*`）重名太严重。仓库名 `mui` 只是暂时的私有仓库名。
@@ -224,10 +233,11 @@ openmui = { version = "0.1", features = ["rules"], host-module = true }
 `openmui.rules` 负责：
 1. 收集依赖图上每个包的 `[package.metadata.openmui]`；
 2. 把契约编译成 IR，再生成各种产物；
-3. 编译 `.mui`：发布时生成 `.cppm`，开发时生成可以热重载的字节码；
-4. 做语义检查；
-5. 烘焙字体、图片、着色器；
-6. 打包脚本（TS 编译成 JS，Python / Lua 打包）。
+3. 编译 `.omui` / `.omui.json`：类型检查和语义检查；发布时生成 C++ 代码或 `.omuic`，开发时由运行时解释执行、可以热重载；
+4. 编译 `.behavior.omui.toml`（行为状态机）；
+5. 处理非 C++ 依赖 `[package.metadata.openmui.deps.<lang>]`（D-29）：生成各语言原生的清单，调用 npm / uv，获取 Lua 包，锁文件放在 `lock/`；
+6. 烘焙字体、图片、着色器；
+7. 打包脚本（TS 用 esbuild 转成 JS，Python / Lua 打包），并生成编辑器配置（tsconfig、.venv、.luarc.json）。
 
 每一步都是一个 mcpp action，按文件指纹做增量构建；生成 C++ 的 action 用 `role = "source"`，生成的代码由声明它的包继续编译（`mcpp/docs/31-authoring-a-rule-package.md`）。
 
@@ -236,7 +246,7 @@ openmui = { version = "0.1", features = ["rules"], host-module = true }
 | 角色 | 职责 |
 |---|---|
 | mcpp | 工程文件、构建、运行、测试、打包；交叉编译；执行规则包；`mcpp emit xpkg` |
-| xlings | 安装 mcpp、工具链、SDK、**预编译播放器**、node / esbuild / python / uv / luarocks 等外部工具；隔离环境；应用分发（`xlings install <app>`） |
+| xlings | 安装 mcpp、工具链、SDK、node / esbuild / python / uv 等外部工具（xim 索引中已有；**还没有 luarocks**）；以后提供预编译播放器；隔离环境；应用分发（`xlings install <app>`） |
 | openmui.rules | 见 §7.2 |
 | mcpp-index | 库级生态：runtime、组件、主题、后端、语言运行时 |
 | xpkg 索引 | 应用和运行时插件的分发 |
@@ -250,11 +260,14 @@ openmui = { version = "0.1", features = ["rules"], host-module = true }
 | 库插件 | mcpp-index 中的包 | 组件、主题、后端、宿主、语言运行时、跨框架桥 |
 | 运行时插件 | xpkg，运行时加载 | 脚本插件、Wasm 插件；权限受效果分级约束 |
 
-### 7.5 需要 mcpp 支持的能力（待和 mcpp 确认，Q-05）
+### 7.5 需要 mcpp 支持的能力
 
-- 没有 C++ 源文件的应用目标（“预编译播放器 + 资源包”这种形态）；
-- 规则调用外部工具链（node / uv / luarocks）时的声明方式；
-- 每个包单独打 tag、在同一个仓库里分别发布。
+| 能力 | 现状 | 处理 |
+|---|---|---|
+| 入口由依赖提供（代替 `main`） | `kind = "app"` 要求 `main` 指向本包里的文件 | 已提 issue [mcpp#845](https://github.com/mcpp-community/mcpp/issues/845)；在那之前，模板生成一行的 `src/main.cpp` |
+| 规则调用外部工具 | 已经支持：`[xlings]` / `[feature-xlings]` | 直接使用；luarocks 还需要补一个 xpkg，在那之前 Lua 依赖走 git / tarball + sha256 |
+| 同一个仓库里每个包单独打 tag、单独发布 | mcpp 有 workspace | M0 时验证 |
+| 不编译 C++、直接用“预编译播放器 + 资源包”的产物 | 不支持 | 以后再评估，非必需 |
 
 ---
 
@@ -309,10 +322,10 @@ M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten）、�
 
 | 里程碑 | 内容 | 验收 |
 |---|---|---|
-| **M0 骨架** | 仓库结构；registry 和契约 IR；生成器（`openmui.h`、`.cppm`、`.d.ts`、`.pyi`、Lua 注解）；`openmui.rules` 雏形；lint | `mcpp build` 能从契约生成全部产物 |
+| **M0 骨架** | 仓库结构（含 `openmui` 伞包）；registry 和契约 IR；生成器（`openmui.h`、`.cppm`、`.d.ts`、`.pyi`、Lua 注解）；`openmui.rules` 雏形；`app-cpp` 和 `component` 两个模板；依赖分层和命名的 lint | `mcpp new x --template openmui` 能创建工程；`mcpp build` 能从契约生成全部产物 |
 | **M1 核心** | 树和 ID、立即模式、flex 布局、基础文本、CPU 后端、SDL3 宿主、headless H0–H2、语义树和 `act` | 示例 01 和 07 能运行 |
 | **M2 文本 + Markdown** | 富文本引擎；接入 md4c；块缓存；语义映射；流式追加 | 示例 08 和 09；公开 CommonMark 测试集的通过率 |
-| **M3 声明式 + 三种语言** | signals、DSL、C ABI、TS / Python / Lua 绑定、`kind=native` | 示例 02–05、12；示例 03 三种语言的语义完全一致 |
+| **M3 声明式 + 三种语言** | signals、各语言的 builder、`.omui` / `.omui.json` 和表达式子集、`omui fmt` / `check`、C ABI、TS / Python（宿主模式）/ Lua、`kind=native`、`deps.<lang>`、其余模板 | 示例 02–05、12；示例 03 的五种写法语义完全一致 |
 | **M4 GPU + 画布** | SDL_GPU 后端、实例化 SDF、msdf、图层缓存、任务系统、canvas 和 canvas-kit | 示例 10 和 11；第一份基准报告 |
 | **M5 打磨** | 性能调优、检查器（语义树、像素溯源）、基准测试进 CI | 指标稳定，进入回归门禁 |
 | 以后 | xdesk 集成（`openwx-view` 的阶段一和阶段二）、MCU、游戏引擎、跨框架桥 | — |
@@ -345,8 +358,8 @@ M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten）、�
 | D-04 | openmui 规范自包含：和 openas / opensal 的概念保持取值兼容，但不 import 它们；由实现层把它们连起来 |
 | D-05 | 立即模式和保留模式经过对账后产出同一棵树，两种写法共用组件和 ID |
 | D-06 | 核心用 C++ Modules 实现，不用异常、不用 RTTI，错误用 `std::expected`，可以在 freestanding 目标上编译 |
-| D-07 | 脚本层是一层薄接口；**完整发行版**至少提供 TS/JS、Python、Lua 三种；脚本不进入每帧路径；DSL 的绑定表达式不是 JS |
-| D-08 | 契约优先：`*.contract.toml` 和 `.mui` 里的 `export component` 编译成同一种 IR；mcpp.toml 只放包级声明 |
+| D-07 | 脚本层是一层薄接口；**完整发行版**至少提供 TS/JS、Python、Lua 三种；脚本不进入每帧路径；需要同步求值的绑定用兼容 CEL 的表达式子集（由原生代码求值，不是 JS） |
+| D-08 | 契约优先：`*.contract.omui.toml` 和 `.omui` 里的 `component` 声明编译成同一种 IR；mcpp.toml 只放包级声明 |
 | D-09 | mcpp.toml 是唯一的工程文件；`openmui` 包的 `rules` 特性就是构建插件；分发走 xlings |
 | D-10 | 组件分三层：契约（规范）、行为（官方提供，没有特权）、设计系统（可以替换） |
 | D-11 | CPU 是参考后端；GPU 先做 SDL_GPU；宿主先做 SDL3 |
@@ -355,20 +368,31 @@ M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten）、�
 | D-14 | Markdown 是官方组件（解析用 md4c），markdown-wall 是旗舰示例和基准测试 |
 | D-15 | agent 控制分三层：verb、语义 UI、像素 / 输入 |
 | D-16 | 第一阶段完全不改 xdesk |
+| D-17 | （原 Q-01）C ABI 用 Vulkan 风格命名；缩写是 `omui`（见 §6.4、D-25） |
+| D-18 | （原 Q-02）GPU 第一个后端是 SDL_GPU；GLES 后端放到 M5 之后 |
+| D-19 | （原 Q-03）role 集合对齐 AccessKit / ARIA 的子集 |
+| D-20 | （原 Q-04）实现层先用 git 路径依赖 Luban 的规范包（opensal 等） |
+| D-21 | （原 Q-06）无障碍层先评估 AccessKit 的 C 绑定 |
+| D-22 | （原 Q-08）许可证：Apache-2.0 |
+| D-23 | （原 Q-09）JS 引擎用 quickjs-ng；TS 用 esbuild 转换（xim 索引里已有 `esbuild`、`node`） |
+| D-24 | （原 Q-10）Python 提供两种模式：作为宿主（pip）和嵌入，接口相同；M3 先做宿主模式；宿主模式下主线程运行 C++ 事件循环并释放 GIL，Python 运行在逻辑线程上 |
+| D-25 | （原 Q-11）**身份用全名 `openmui`**：包、模块（`openmui.*`）、仓库、总线接口。**需要反复输入的地方用缩写 `omui`**：C++ 命名空间、C ABI（`omui` / `Omui` / `OMUI_`）、`OMUI_EXT_*`、`OMUI_*` 环境变量、命令行短名、脚本里的惯用别名 |
+
+| D-26 | （原 Q-05）入口由框架提供，用 `openmui` 的特性控制：`entry-player`（脚本应用）/ `entry-app`（C++ 应用实现 `omui_app()` 回调，类似 SDL3 的 main callbacks）/ 都不启用（自己写 `main`）。在 mcpp#845 落地之前，模板生成一行的 `src/main.cpp` |
+| D-27 | `openmui` 包通过 `templates/` 提供 `mcpp new` 模板：`app-cpp`（默认）、`app-ts`、`app-py`、`app-lua`、`app-mixed`、`component`、`native`、`theme` |
+| D-28 | （原 Q-07）**视图文件完全可选**，只有视图 IR 是必需的。保留模式有三种等价、可以混用的写法：原生 builder（C++ / TS，可选 TSX / Python / Lua）、`.omui`、`.omui.json`；立即模式不使用视图文件 |
+| D-29 | 非 C++ 依赖写在 `[package.metadata.openmui.deps.<lang>]`，由 `openmui.rules` 处理：生成各语言原生的清单，锁文件放在 `lock/`；Lua 的 C 模块由 mcpp 编译；`manifest = "…"` 作为逃生口 |
+| D-30 | 后缀体系：`<名字>.<种类>.omui.toml`（contract / native / behavior / theme）、`.omui`、`.omui.json`、`.omuipkg`、`.omuic`；逻辑代码保持原生后缀 |
+| D-31 | `.omui` 的首要要求是**人和 agent 的可读性都很高**：十条可读性原则（omui-language §2）；事件处理只允许修改 signal、调用 verb、发出事件；表达式用兼容 CEL 的子集；行为用数据化的 statechart；格式由 `omui fmt` 唯一确定 |
 
 ---
 
 ## 14. 待决问题
 
-| ID | 问题 | 倾向 |
+前面的问题都已经确定（D-17 到 D-31）。自我 review 时新发现的问题：
+
+| ID | 问题 | 当前提议 |
 |---|---|---|
-| Q-01 | C ABI 的命名风格：`muiCreateRuntime`（Vulkan 风格）还是 `mui_runtime_create`（C 惯例） | 倾向 Vulkan 风格，方便生成 |
-| Q-02 | GPU 第一个后端是否确定为 SDL_GPU；GLES 后端什么时候做 | SDL_GPU 先做；GLES 放在 M5 之后 |
-| Q-03 | role 集合是否对齐 AccessKit / ARIA 的子集 | 对齐 |
-| Q-04 | 实现层怎么依赖 Luban 的 opensal 等规范包 | 等它们发布到 mcpp-index；在那之前用 git 路径依赖 |
-| Q-05 | 没有 C++ 源文件的应用目标、外部工具调用，mcpp 是否支持 | 和 mcpp 一起推进 |
-| Q-06 | 无障碍：用 AccessKit 的 C 绑定还是自己实现 | 先评估 AccessKit C |
-| Q-07 | DSL 的语法风格参考谁（Slint / QML / 自定义） | 参考 Slint：类型化，可以编译 |
-| Q-08 | 许可证（Apache-2.0 和 mcpp 一致，还是 MIT） | 待定 |
-| Q-09 | JS 引擎默认用 quickjs-ng；TS 编译工具链用 esbuild（由 xlings 提供） | 倾向这样 |
-| Q-10 | Python 是否同时提供“作为宿主”（pip）和“嵌入”两种模式 | 两种都提供；M3 先做宿主模式 |
+| Q-12 | `.omui` 语法的细节：`#id` 的写法，`bind(x)`、`on event:` 等关键字是否要再调整 | 按 omui-language §3 的草案，M3 实现前用真实示例再评审一轮 |
+| Q-13 | Web 平台的 GPU 后端：SDL_GPU 目前应该还没有 Web 后端（需要确认） | Web 先用 CPU 后端加 canvas 2D 提交；以后再补 WebGPU 后端 |
+| Q-14 | 自动 ID 的规则：保留模式下没有显式 `#id` 的节点用结构化 ID（`<类型>:<序号>`），立即模式用 ID 栈 + 调用位置；**ID 不能依赖显示文本**（spec S-8、S-9） | 采用；lint 要求可交互的节点必须写显式 ID |

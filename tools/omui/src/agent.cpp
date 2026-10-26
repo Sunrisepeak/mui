@@ -91,6 +91,11 @@ cmd::App agent_command() {
     debug.option("log").takes_value().value_name("FILTER").help("log levels per category: layout=debug,*=info");
     (void)a.subcommand(std::move(debug));
 
+    cmd::App clk = with_app("clock", "The application's time: pause, step, slow down, seek (animations are pure functions of time)");
+    clk.arg("action").help("show (default), pause, resume, rate, step, seek, release");
+    clk.arg("value").help("rate: the factor (0.25); step: seconds (0.016, or negative); seek: the time in seconds");
+    (void)a.subcommand(std::move(clk));
+
     cmd::App pipe = with_app("pipeline", "The frame's pipeline: its stages, their plugins and times; change one while it runs");
     pipe.arg("action").help("show (default), replace, insert or remove");
     pipe.option("stage").takes_value().value_name("NAME").help("the stage to change");
@@ -245,6 +250,18 @@ std::expected<std::string, std::string> agent_request(const cmd::ParsedArgs& p) 
         if (auto v = a.value("log")) req.set("log", *v);
         return req.json();
     }
+    if (op == "clock") {
+        const std::string action = a.positionals.size() > 1 ? std::string(a.positional(1)) : std::string("show");
+        req.set("action", action);
+        if (action == "rate" || action == "step" || action == "seek") {
+            if (a.positionals.size() < 3) return std::unexpected(std::format("clock {} needs a number", action));
+            const std::string_view v = a.positional(2);
+            double x = 0;
+            if (std::from_chars(v.data(), v.data() + v.size(), x).ec != std::errc{}) return std::unexpected(std::format("`{}` is not a number", v));
+            req.set(action == "rate" ? "rate" : "seconds", x);
+        }
+        return req.json();
+    }
     if (op == "pipeline") {
         const std::string action = a.positionals.size() > 1 ? std::string(a.positional(1)) : std::string("show");
         if (action != "show" && action != "replace" && action != "insert" && action != "remove")
@@ -306,7 +323,7 @@ std::optional<std::string> global(const cmd::ParsedArgs& p, std::string_view nam
 
 int agent(const cmd::ParsedArgs& p, std::optional<std::string> dir_option, std::ostream& out, std::ostream& err) {
     if (!p.has_subcommand()) {
-        err << "usage: omui agent <ls|describe|snapshot|changes|find|act|wait|capture|inspect|stats|profile|logs|debug|pipeline|call> …\n";
+        err << "usage: omui agent <ls|describe|snapshot|changes|find|act|wait|capture|inspect|stats|profile|logs|debug|pipeline|clock|call> …\n";
         return 2;
     }
     const cmd::ParsedArgs& sub = p.subcommand()->get();
@@ -388,7 +405,7 @@ int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err)
     }
     if (!parsed->has_subcommand()) {
         out << "omui — the openmui command line\n\n  omui agent ls | describe | snapshot | changes | find | act | wait | capture | call\n"
-               "  omui agent inspect | stats | profile | logs | debug | pipeline   (development: what the application is doing)\n\n"
+               "  omui agent inspect | stats | profile | logs | debug | pipeline | clock   (development: what the application is doing)\n\n"
                "Run `omui agent --help` for the agent operations.\n";
         return 0;
     }

@@ -191,6 +191,24 @@ public:
     [[nodiscard]] Size size() const noexcept;
     [[nodiscard]] float scale() const noexcept;
     [[nodiscard]] anim::Clock& clock() noexcept;
+    // Time control for tools (the animation inspector, time-travel
+    // debugging): the application's time follows the host's clock until one
+    // of these is used, and then the host's time mapped by them. Timers and
+    // animations both follow it. Seeking re-evaluates every live animation at
+    // the new time (animations are pure functions of time), backwards too.
+    struct TimeState {
+        anim::seconds host{0};   // the host's clock
+        anim::seconds shown{0};  // what the application sees
+        bool          controlled = false;
+        bool          paused = false;
+        double        rate = 1;
+    };
+    void pause_time(bool paused);
+    void set_time_rate(double rate);
+    void step_time(anim::seconds dt);   // takes effect at the next frame
+    void seek_time(anim::seconds t);    // takes effect at the next frame
+    void release_time();                // back to the host's time
+    [[nodiscard]] TimeState time_state() const noexcept;
     // The last frames' statistics, oldest first (up to 240).
     [[nodiscard]] std::vector<FrameStats> frame_history() const;
     // The frame's pipeline and the stage plugins it is built from: tools

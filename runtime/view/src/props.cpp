@@ -348,7 +348,8 @@ bool Runtime::Impl::animate_prop(NodeId id, std::string_view name, const Value& 
     std::array<double, 4> from{};
     const seconds start = now() + t->delay;
     if (running != n.prop_animations.end() && running->kind == to->kind && running->lanes == to->count) {
-        if (running->target == value) return true;  // already on its way there
+        if (running->target == value && !running->resting) return true;  // already on its way there
+        if (running->target == value) return false;                       // already there
         for (std::uint8_t i = 0; i < to->count; ++i) from[i] = anims.value(running->channels[i], now());
     } else {
         if (running != n.prop_animations.end()) stop_prop(id, name);
@@ -367,6 +368,7 @@ bool Runtime::Impl::animate_prop(NodeId id, std::string_view name, const Value& 
         running = n.prop_animations.end() - 1;
     }
     running->target = value;
+    running->resting = false;
     for (std::uint8_t i = 0; i < to->count; ++i) {
         if (t->kind == Transition::Kind::tween) anims.tween_to(running->channels[i], start, to->v[i], t->duration, t->ease);
         else anims.spring_to(running->channels[i], start, to->v[i], t->spring);
@@ -383,10 +385,10 @@ bool Runtime::Impl::animate_prop(NodeId id, std::string_view name, const Value& 
 void Runtime::Impl::step_props(NodeId id, seconds t, const anim::Policy& policy) {
     // Copies: applying a value may reach the component, which may change the node.
     std::vector<std::pair<std::string, Value>> values;
-    std::vector<std::string> done;
     {
         Node& n = at(id);
-        for (const PropAnimation& a : n.prop_animations) {
+        for (PropAnimation& a : n.prop_animations) {
+            if (a.resting) continue;
             std::array<double, 4> v{};
             bool settled = true;
             for (std::uint8_t i = 0; i < a.lanes; ++i) {
@@ -395,7 +397,7 @@ void Runtime::Impl::step_props(NodeId id, seconds t, const anim::Policy& policy)
             }
             if (policy.reduce_motion || settled) {
                 values.emplace_back(a.name, a.target);  // exactly what was set
-                done.push_back(a.name);
+                a.resting = true;
             } else {
                 values.emplace_back(a.name, value_of(a.kind, a.lanes, v));
             }
@@ -403,8 +405,6 @@ void Runtime::Impl::step_props(NodeId id, seconds t, const anim::Policy& policy)
     }
     for (const auto& [k, v] : values)
         if (alive(id)) apply_now(id, k, v);
-    for (const std::string& k : done)
-        if (alive(id)) stop_prop(id, k);
 }
 
 void Runtime::Impl::apply(NodeId id, std::string_view name, const Value& value) {

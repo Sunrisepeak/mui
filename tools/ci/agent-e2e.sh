@@ -66,6 +66,15 @@ expect 0 agent profile $app_id start
 expect 0 agent profile $app_id stop
 grep -q '"summary"' <<< "$last"
 
+# The application's time, controlled from outside (F4).
+expect 0 agent clock $app_id pause
+expect 0 agent clock $app_id step 0.5
+expect 0 agent clock $app_id seek 0
+expect 0 agent clock $app_id rate 0.25
+expect 1 agent clock $app_id rate nope
+expect 0 agent clock $app_id release
+grep -q '"controlled":false' <<< "$last"
+
 # The frame's pipeline, read and changed in the running process (D-66).
 expect 0 agent pipeline $app_id
 grep -q '"openmui-view.layout"' <<< "$last"

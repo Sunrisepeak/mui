@@ -234,6 +234,7 @@ plugin = "openmui-host-sdl3.present"
 - 运行时的一帧就是一条管线：`openmui-view.{timers,input,regions,animations,layout,bounds,paint,debug}` 八个阶段插件；H0 / H1 / H2 是 `runtime_pipeline(Stages)` 给出的三条管线；`RuntimeOptions::pipeline` 和 `plugins` 可以加入自己的阶段（测试里在 paint 和 debug 之间插入一个更新显示列表的阶段）；不能构建的自定义管线回退到默认管线，并记录原因。
 - agent 操作 `pipeline`（查看、替换、插入、删除）和 `omui agent pipeline`；e2e 在一个单独的进程上执行这些操作。
 - 空闲帧仍然零分配，所有 bench 预算不变。
+- F4 的基础也已落地：运行时的时间控制（暂停、调速、单步、跳转、释放），对 headless 和桌面宿主一样有效，计时器跟着时间走；跳转时重新求值所有仍然存活的动画通道，所以时间往回拨时已经结束的过渡会重新播放（属性过渡在稳定后保留通道）。agent 操作 `clock` 和 `omui agent clock` 从进程外控制它，是动画检查器和时间倒流调试的接口。
 
 ### 4.7 里程碑
 

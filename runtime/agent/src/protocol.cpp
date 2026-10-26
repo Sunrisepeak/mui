@@ -11,8 +11,8 @@ namespace omui::agent {
 
 namespace {
 
-constexpr std::array<std::string_view, 13> operations{"describe", "snapshot", "changes", "find", "act", "wait", "capture",
-                                                       "inspect", "stats", "profile", "logs", "debug", "pipeline"};
+constexpr std::array<std::string_view, 14> operations{"describe", "snapshot", "changes", "find", "act", "wait", "capture",
+                                                       "inspect", "stats", "profile", "logs", "debug", "pipeline", "clock"};
 
 // A stage's configuration from a request's JSON object.
 pipeline::Config config_of(const Value* v) {
@@ -323,6 +323,45 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
         }
         if (records.size() > limit) records.erase(records.begin(), records.end() - static_cast<std::ptrdiff_t>(limit));
         return e.data(Value{}.set("records", Value(std::move(records)))).result(spec::exit_code::success);
+    }
+    if (op == "clock") {
+        // The application's time (F4): pause, step, slow down, seek — the
+        // animation inspector and time-travel debugging drive these.
+        const std::string_view action = text_of(req, "action");
+        auto number = [&](std::string_view key) -> std::optional<double> {
+            const Value* v = req.get(key);
+            if (!v || !v->is_number()) return std::nullopt;
+            return v->as_double();
+        };
+        if (action.empty() || action == "show") {
+        } else if (action == "pause") {
+            runtime_.pause_time(true);
+        } else if (action == "resume") {
+            runtime_.pause_time(false);
+        } else if (action == "rate") {
+            const auto r = number("rate");
+            if (!r || *r < 0) return invalid("`clock` rate needs a \"rate\" ≥ 0", R"({"op":"clock","action":"rate","rate":0.25})");
+            runtime_.set_time_rate(*r);
+        } else if (action == "step") {
+            const auto dt = number("seconds");
+            if (!dt) return invalid("`clock` step needs \"seconds\"", R"({"op":"clock","action":"step","seconds":0.016})");
+            runtime_.step_time(seconds(*dt));
+        } else if (action == "seek") {
+            const auto t = number("seconds");
+            if (!t) return invalid("`clock` seek needs \"seconds\"", R"({"op":"clock","action":"seek","seconds":1.5})");
+            runtime_.seek_time(seconds(*t));
+        } else if (action == "release") {
+            runtime_.release_time();
+        } else {
+            return invalid(std::format("`clock` has no action `{}`", action), "actions: show, pause, resume, rate, step, seek, release");
+        }
+        runtime_.request_frame();
+        const Runtime::TimeState ts = runtime_.time_state();
+        Value d;
+        d.set("host", ts.host.count()).set("now", ts.shown.count()).set("controlled", ts.controlled);
+        d.set("paused", ts.paused).set("rate", ts.rate);
+        d.set("pending", action == "step" || action == "seek");  // shown at the next frame
+        return e.data(std::move(d)).result(spec::exit_code::success);
     }
     if (op == "pipeline") {
         // The frame's pipeline (D-66): read it, or change one stage between frames.

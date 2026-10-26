@@ -17,7 +17,8 @@ The agent endpoint of an openmui application (spec §9, plan §11):
   records by level and category) and `debug` (the runtime's overlays, the
   slow-frame threshold and the log filter, while it runs), and `pipeline`
   (the frame's stages, plugins and times; `replace`, `insert` and `remove`
-  a stage between frames — D-66).
+  a stage between frames — D-66), and `clock` (pause, resume, rate, step,
+  seek, release: the application's time; seeking back replays animations).
 - `Endpoint` — listens through `mcpplibs.os.ipc` (a local socket) in a
   per-user directory, writes `<name>.endpoint.omui.json` beside it, reads
   connections on background threads and serves requests on the UI thread in

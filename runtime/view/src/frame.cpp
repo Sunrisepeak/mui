@@ -31,6 +31,7 @@ FrameOutput Runtime::frame(const FrameInput& input) {
     trace::Span whole("frame", "frame");
     if (input.time) d.clock.set(*input.time);
     else if (d.clock.kind() == anim::ClockKind::interactive) d.clock.begin_frame();
+    d.apply_time_control();
     d.frame_requested = false;
     d.todo = 0;
     d.dirty_taken = d.bounds_ran = d.repainted = false;
@@ -83,6 +84,114 @@ FrameOutput Runtime::frame(const FrameInput& input) {
 }
 
 pipeline::Pipeline& Runtime::frame_pipeline() noexcept { return *impl_->frames; }
+
+void Runtime::Impl::take_time_control() {
+    if (time_control.controlled) return;
+    time_control.controlled = true;
+    time_control.host_last = clock.now();
+    time_control.shown = clock.now();
+}
+
+void Runtime::Impl::apply_time_control() {
+    TimeControl& tc = time_control;
+    if (!tc.controlled) return;
+    const seconds host = clock.now();
+    const seconds delta = host - tc.host_last;
+    tc.host_last = host;
+    if (!tc.paused) tc.shown += delta * tc.rate;
+    bool moved = false;
+    if (tc.step != seconds{0}) {
+        tc.shown += std::exchange(tc.step, seconds{0});
+        moved = true;
+    }
+    if (tc.seek) {
+        tc.shown = *tc.seek;
+        tc.seek.reset();
+        moved = true;
+    }
+    if (moved) retime();
+}
+
+void Runtime::Impl::retime() {
+    // Channels are analytic in time: sampling at another time is the state
+    // at that time, earlier or later.
+    const seconds t = now();
+    const anim::Policy policy{reduce_motion};
+    // Values to apply once every node is visited (applying can reach a component).
+    std::vector<std::tuple<NodeId, std::string, Value>> rested;
+    for (std::size_t index = 1; index < by_index.size(); ++index) {
+        const NodeId id = by_index[index];
+        if (!alive(id)) continue;
+        Node& n = at(id);
+        bool any = false;
+        for (std::size_t i = 0; i < field_count; ++i) {
+            const anim::Set::Channel c = n.channels[i];
+            if (!anims.valid(c)) continue;
+            const std::uint32_t bit = 1u << i;
+            n.visual.f[i] = static_cast<float>(anims.value(c, t, policy));
+            if (anims.settled(c, t)) n.moving &= ~bit;
+            else {
+                n.moving |= bit;
+                any = true;
+            }
+        }
+        Visual& v = n.visual;
+        v.background_color = n.moving & background_bits ? lanes_color(&v.f[static_cast<std::size_t>(Field::background_r)]) : v.background_target;
+        v.border_color = n.moving & border_bits ? lanes_color(&v.f[static_cast<std::size_t>(Field::border_r)]) : v.border_target;
+        for (Node::PropAnimation& a : n.prop_animations) {
+            bool settled = true;
+            for (std::uint8_t i = 0; i < a.lanes; ++i) settled = settled && anims.settled(a.channels[i], t);
+            // Settled by then: shown as the value it rests on; moving: the next frame applies it.
+            if (settled) rested.emplace_back(id, a.name, a.target);
+            a.resting = settled;
+        }
+        if (any || n.props_moving()) {
+            if (std::ranges::find(animating, id) == animating.end()) animating.push_back(id);
+            if (!n.state.animating) {
+                n.state.animating = true;
+                touch(dirty_semantics);
+            }
+        }
+    }
+    for (const auto& [id, name, value] : rested)
+        if (alive(id)) apply_now(id, name, value);
+    touch(dirty_paint | dirty_layout);
+    frame_requested = true;
+}
+
+void Runtime::pause_time(bool paused) {
+    impl_->take_time_control();
+    impl_->time_control.paused = paused;
+    impl_->frame_requested = true;
+}
+
+void Runtime::set_time_rate(double rate) {
+    impl_->take_time_control();
+    impl_->time_control.rate = std::max(0.0, rate);
+    impl_->frame_requested = true;
+}
+
+void Runtime::step_time(seconds dt) {
+    impl_->take_time_control();
+    impl_->time_control.step += dt;
+    impl_->frame_requested = true;
+}
+
+void Runtime::seek_time(seconds t) {
+    impl_->take_time_control();
+    impl_->time_control.seek = t;
+    impl_->frame_requested = true;
+}
+
+void Runtime::release_time() {
+    impl_->time_control = {};
+    impl_->retime();
+}
+
+Runtime::TimeState Runtime::time_state() const noexcept {
+    const Impl& d = *impl_;
+    return {d.clock.now(), d.now(), d.time_control.controlled, d.time_control.paused, d.time_control.rate};
+}
 pipeline::Registry& Runtime::stage_plugins() noexcept { return impl_->registry; }
 
 std::vector<FrameStats> Runtime::frame_history() const {
@@ -161,12 +270,12 @@ void Runtime::Impl::run_animations() {
         Visual& v = n.visual;
         v.background_color = n.moving & background_bits ? lanes_color(&v.f[static_cast<std::size_t>(Field::background_r)]) : v.background_target;
         v.border_color = n.moving & border_bits ? lanes_color(&v.f[static_cast<std::size_t>(Field::border_r)]) : v.border_target;
-        if (!n.prop_animations.empty()) {
+        if (n.props_moving()) {
             step_props(id, t, policy);  // layout and component properties (D-60)
             if (!alive(id)) continue;
         }
         Node& after = at(id);
-        if (after.moving || !after.prop_animations.empty()) still.push_back(id);
+        if (after.moving || after.props_moving()) still.push_back(id);
         else if (after.state.animating) {
             after.state.animating = false;
             // Settled: readers waiting for it see a new revision (no further frame is needed).

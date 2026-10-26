@@ -145,6 +145,28 @@ int main(int argc, char** argv) {
         check(exit_of(cap) == 0 && cap[0].get("data")->get("base64")->as_string() == "UE5H");
     });
 
+    s.test("development: the application's clock, paused, stepped and sought (F4)", [] {
+        Notes app;
+        agent::Protocol p(app.rt);
+        app.rt.frame({seconds(1), {}});
+        auto shown = talk(p, R"({"op":"clock"})");
+        check(exit_of(shown) == 0 && !shown[0].get("data")->get("controlled")->as_bool() && shown[0].get("data")->get("now")->as_double() == 1.0);
+        check(exit_of(talk(p, R"({"op":"clock","action":"pause"})")) == 0);
+        app.rt.frame({seconds(2), {}});
+        auto paused = talk(p, R"({"op":"clock"})");
+        check(paused[0].get("data")->get("now")->as_double() == 1.0 && paused[0].get("data")->get("host")->as_double() == 2.0, paused[0].json());
+        auto step = talk(p, R"({"op":"clock","action":"step","seconds":0.5})");
+        check(exit_of(step) == 0 && step[0].get("data")->get("pending")->as_bool());
+        app.rt.frame({seconds(2), {}});
+        check(app.rt.now() == seconds(1.5));
+        check(exit_of(talk(p, R"({"op":"clock","action":"seek","seconds":0.25})")) == 0);
+        app.rt.frame({seconds(2), {}});
+        check(app.rt.now() == seconds(0.25));
+        check(exit_of(talk(p, R"({"op":"clock","action":"rate","rate":-1})")) == 1);
+        check(exit_of(talk(p, R"({"op":"clock","action":"warp"})")) == 1);
+        check(exit_of(talk(p, R"({"op":"clock","action":"release"})")) == 0 && !app.rt.time_state().controlled);
+    });
+
     s.test("development: the frame pipeline, read and changed while it runs (D-66)", [] {
         Notes app;
         agent::Protocol p(app.rt);

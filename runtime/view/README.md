@@ -32,6 +32,11 @@ The retained and immediate view runtime (plan §3–§5):
   `tree`, `layout`, `bounds`, `display`); `runtime_pipeline(Stages)` gives
   H0, H1 and H2; `RuntimeOptions::pipeline` / `plugins` add your own stages;
   `frame_pipeline()` and `stage_plugins()` change it between frames;
+- **time control** (F4): `pause_time`, `set_time_rate`, `step_time`,
+  `seek_time`, `release_time` map the host's clock to the time the
+  application sees — timers and animations alike; seeking re-evaluates every
+  live channel at the new time, so a finished transition plays again when
+  time goes back (settled property transitions keep their channels for it);
 - **observability** (D-59): every frame times its phases (timers, input,
   regions, animations, layout, bounds, paint) into `FrameStats`, kept for the
   last 240 frames (`frame_history()`) and traced as `openmui.trace` spans;

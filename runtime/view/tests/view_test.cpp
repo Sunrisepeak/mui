@@ -407,6 +407,64 @@ int main(int argc, char** argv) {
         check(rt.frame({seconds(0), {}}).repainted);
     });
 
+    s.test("time control: pause, step, rate, and seeking back into finished animations (F4)", [] {
+        Runtime rt(options());
+        auto on = signal(false);
+        auto linear = Transition::tween(seconds(1), anim::ease::linear);
+        int fired = 0;
+        rt.mount("main", column({.align = "start"}, {
+                                        box({.id = "fade", .width = Prop<Dim>(Source{std::nullopt, [on] { return Value(on.get() ? 200.0 : 100.0); }, {}}),
+                                             .height = 10, .background = "accent",
+                                             .opacity = Prop<float>(Source{std::nullopt, [on] { return Value(on.get() ? 0.0 : 1.0); }, {}}),
+                                             .animate = {{"opacity", linear}, {"width", linear}}}),
+                                    }));
+        rt.frame({seconds(0), {}});
+        const NodeId fade = rt.find("main/fade");
+        auto opacity = [&] {
+            for (const auto& c : rt.display_list().commands())
+                if (const auto* l = std::get_if<render::PushLayer>(&c)) return l->opacity;
+            return 1.0f;
+        };
+        on.set(true);
+        rt.frame({seconds(0), {}});
+        rt.frame({seconds(0.25), {}});
+        check(std::abs(opacity() - 0.75f) < 1e-3f && std::abs(rt.bounds(fade).width - 125) < 0.5f);
+
+        // Paused: the host's time moves, the application's does not — nor do timers.
+        (void)rt.after(seconds(0.1), [&] { ++fired; });
+        rt.pause_time(true);
+        rt.frame({seconds(0.75), {}});
+        check(std::abs(opacity() - 0.75f) < 1e-3f, "paused");
+        check(fired == 0, "timers wait too");
+        check(rt.time_state().paused && rt.time_state().host == seconds(0.75) && std::abs(rt.time_state().shown.count() - 0.25) < 1e-9);
+        // A step while paused.
+        rt.step_time(seconds(0.25));
+        rt.frame({seconds(0.75), {}});
+        check(std::abs(opacity() - 0.5f) < 1e-3f && fired == 1, std::format("stepped: {}", opacity()));
+        // Half speed.
+        rt.pause_time(false);
+        rt.set_time_rate(0.5);
+        rt.frame({seconds(1.15), {}});  // 0.4 s of host time: 0.2 s shown
+        check(std::abs(opacity() - 0.3f) < 1e-3f, std::format("half speed: {}", opacity()));
+        // Run to the end, then seek back into the finished animation.
+        rt.set_time_rate(1);
+        rt.frame({seconds(3), {}});
+        check(opacity() == 1.0f && rt.bounds(fade).width == 200 && !rt.semantic_node(fade).states.has(State::animating), "finished");
+        rt.seek_time(seconds(0.5));
+        rt.frame({seconds(3), {}});
+        check(std::abs(opacity() - 0.5f) < 1e-3f, std::format("sought back: opacity {}", opacity()));
+        check(std::abs(rt.bounds(fade).width - 150) < 0.5f, std::format("sought back: width {}", rt.bounds(fade).width));
+        check(rt.semantic_node(fade).states.has(State::animating), "moving again");
+        // And forward again to the end: exactly what was set.
+        rt.seek_time(seconds(2));
+        rt.frame({seconds(3), {}});
+        check(opacity() == 1.0f && rt.bounds(fade).width == 200, "sought forward");
+        // Released: the host's time again.
+        rt.release_time();
+        rt.frame({seconds(4), {}});
+        check(!rt.time_state().controlled && rt.now() == seconds(4));
+    });
+
     s.test("transitions: tweens follow the clock, interruptions continue from where they are", [] {
         Runtime rt(options());
         auto faded = signal(false);

@@ -113,8 +113,12 @@ struct Node {
         std::uint8_t                      lanes = 1;
         std::array<anim::Set::Channel, 4> channels{};
         Value                             target;
+        bool                              resting = false;  // settled: kept, so seeking back in time replays it
     };
     std::vector<PropAnimation> prop_animations;
+    [[nodiscard]] bool props_moving() const noexcept {
+        return std::ranges::any_of(prop_animations, [](const PropAnimation& a) { return !a.resting; });
+    }
     NodeState            state;
     std::optional<bool>  focusable;
     bool                 shown = false; // painted once: later changes may animate
@@ -240,7 +244,22 @@ struct Runtime::Impl {
     Node&       at(NodeId id) { return *nodes.get(id); }
     const Node& at(NodeId id) const { return *nodes.get(id); }
     bool        alive(NodeId id) const { return nodes.contains(id); }
-    seconds     now() const { return clock.now(); }
+    // The time the application sees: the host's, or the host's mapped by
+    // the time controls (paused, slowed, stepped, sought) once a tool uses them.
+    struct TimeControl {
+        bool                   controlled = false;
+        bool                   paused = false;
+        double                 rate = 1;
+        seconds                host_last{0};
+        seconds                shown{0};
+        seconds                step{0};
+        std::optional<seconds> seek;
+    };
+    TimeControl time_control;
+    seconds     now() const { return time_control.controlled ? time_control.shown : clock.now(); }
+    void        take_time_control();
+    void        apply_time_control();
+    void        retime();  // every live channel re-evaluated at now()
     void        touch(std::uint8_t what) {
         dirty |= what;
         frame_requested = true;

@@ -1,0 +1,20 @@
+# The other choice of M0 ⑤'s fixture: a consumer selects `sink-memory` on its
+# dependency edge (without the default `sink-stdout`), and its test sees the
+# memory partition. Both at once is refused by the scanner: tools/ci/features.sh.
+[package]
+name        = "openmui-feature-fixture-memory"
+version     = "0.1.0"
+description = "M0 ⑤: a consumer chooses the other mutually exclusive partition"
+license     = "Apache-2.0"
+
+[targets.openmui-feature-fixture-memory]
+kind = "lib"
+
+[build]
+sources = []
+
+[dependencies]
+openmui-feature-fixture = { path = "..", default-features = false, features = ["sink-memory"] }
+
+[dev-dependencies]
+openmui-testing = { path = "../../support" }

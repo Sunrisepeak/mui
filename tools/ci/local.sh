@@ -27,6 +27,9 @@ mcpp test "${select[@]}" --toolchain llvm@23.1.3 2>&1 | grep -E 'result|FAIL' ||
 step "benchmarks against their budgets (release)"
 mcpp run -p openmui-bench --profile release -- --check tests/bench/budgets.bench.omui.json 2>&1 | grep -E '^(over budget|budgets)' || true
 
+step "feature selection (M0 ⑤)"
+tools/ci/features.sh 2>&1 | grep -E '^(ok|FAIL)|features' || true
+
 step "templates (app-cpp, component)"
 tools/ci/templates.sh 2>&1 | grep -E '^==|test result|FAIL|templates' || true
 

@@ -1021,6 +1021,60 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
 
 ---
 
+## 22. 实施进度（截至 2026-10-27）
+
+按本计划从 M0 开始实施，在 PR #1（分支 `openmui-design`）上每轮一个提交。本节只记录事实：做到了什么、凭什么说做到了、还差什么。
+
+### 22.1 工程约定（全部在执行，lint 或 CI 检查）
+
+- **`.cppm` + `.cpp` 分离**：每个模块的接口单元只放声明和必要的内联，实现放在 `.cpp` 实现单元；第三方头文件只出现在 `native/` 实现分区。
+- **mcpp 和 C++ 规范**：参考 mcpp 的 `.agents/skills`；每个目录一个 workspace 成员，只用 `path` 互相依赖；带命名空间的依赖写成点分键（lint `manifest`）；平台相关的代码经由 `mcpplibs.os`（现在按版本 `0.1.0` 从 mcpp-index 引用）。
+- **不降级、不推迟**：遇到上游缺口（mcpp-index 的包、工具链差异）就在上游修好再继续，而不是绕开或降低检查（mcpp-index #571、#575、#576、#577）。
+- 不用宏（唯一例外 `openmui.h`），不用异常和 RTTI（lint `exceptions`），每帧零分配有 bench 预算检查。
+
+### 22.2 全局质量门禁（§19.1）
+
+| 项目 | 状态 | 依据 |
+|---|---|---|
+| 构建：三个平台 | ✅ | GitHub Actions：Linux x86_64（GCC 16 dev / release、LLVM 23）、Linux aarch64（LLVM 23）、macOS 15、Windows 2022（MSVC ABI）全部通过（提交 `a65e61b`） |
+| lint | ✅ | `tools/lint/lint.py`：10 条规则，自测 10/10 能拦下各自的违规 |
+| 测试 | ✅ | 32 个成员、47 个测试程序在所有平台通过 |
+| 确定性 | ✅ | CPU 渲染和动画的固定哈希在 Linux、macOS、Windows（MSVC 和 MinGW）上完全相同；增量帧与完整渲染逐字节相同（D-62） |
+| 性能 | ✅ | `tests/bench`：12 项预算在 CI 的 release 行检查并保存报告 |
+| 内存 | ✅ | 每帧零分配有分配计数（bench `max_allocations`）；`sanitize` 配置（ASan + UBSan，整个依赖图都插桩，第一个问题即失败）每晚在 CI 上运行（`nightly.yml`，LLVM：GCC 16.1 的 UBSan 空指针检查在 `import std` 的 `std::variant` 上会让编译器崩溃）；本地全部成员通过，发现并修好了 SDL 软件窗口加载 GPU 驱动（驱动在退出时泄漏） |
+| 文档 | ✅ | 每个成员有 README；决策 D-59 至 D-67 已记录 |
+
+### 22.3 里程碑验收（§19.2）
+
+| 里程碑 | 条目 | 状态 |
+|---|---|---|
+| M0 | ① 模板生成的工程能构建和运行 | ✅ `tools/ci/templates.sh`（app-cpp、component） |
+| | ② 改契约后重新生成 C++ 分区等，增量构建 | ✅ `openmui.rules` 构建插件；`tests/rules` 夹具；生成物有新鲜度测试 |
+| | ③ 三个平台的 CI 是绿的 | ✅ 见 22.2 |
+| | ④ lint 拦下 `#define` 和越级依赖 | ✅ lint 自测 |
+| | ⑤ 按特性选择互斥源文件的最小示例 | ✅ `tests/features`：两个特性各自提供分区 `openmui.features:sink`，常量加 `if constexpr`，没有宏；消费者在依赖边上选择另一个；两个同时启用会在扫描时被拒绝（`tools/ci/features.sh`） |
+| M1 | ① 示例 01、07 在 Linux 上运行 | ✅（并且在所有平台的 CI 上测试） |
+| | ② `omui agent` 操作示例 07，不可逆动作返回 `needs-answer` | ✅ `tools/ci/agent-e2e.sh`，单独进程 |
+| | ③ CPU 金图两次运行逐字节相同 | ✅ 并且跨平台相同 |
+| | ④ ui-base 前 9 个组件满足完成标准 | ✅ 14 个组件，契约优先，金图 |
+| | ⑤ 1000 个节点、1080p、CPU 后端 60Hz | ✅ GitHub 的 4 核机器上单个文字变化的一帧 p95 2.9ms，全部卡片动画 p95 10ms |
+
+### 22.4 计划之外提前完成的
+
+- 可观测性（D-59）：`modules/trace`、日志类别、帧阶段耗时、调试叠加层、agent 开发操作。
+- 精确的增量帧和并行行带（D-62），稀疏光栅化（全帧 22.8 → 8.0ms）。
+- 所有可视属性可做动画（D-60），OKLab 颜色；运行时的时间控制（暂停、单步、调速、跳转）。
+- 管线编排（D-66）：`modules/pipeline`，运行时一帧是八个阶段插件，agent 可以在运行中替换。
+- F1 / F4 的旗舰作品 Inspector 第一版（D-61、D-63）。
+
+### 22.5 还差什么（按计划顺序）
+
+- M2：表达式（`openmui.expr`）和视图文档；CommonMark 和 `ui-markdown`；跨平台的确定性比对作业；示例 08、09；会话录制回放的 CTS。
+- M3：`runtime/abi`（C ABI）、`openmui.h` 生成的完整绑定、TS / Python / Lua；`runtime/reflect`。
+- M4：`modules/rhi` 和 `rhi-sdl`、GPU 渲染路径、Slang 着色器、效果和背景输入（液态玻璃，D-64）、画布、风格包、S1 / S2。
+- M5：openmui-video、ui-timeline、MCP 服务器、skills、S3 / S4 / S5。
+- 契约⑦（插件与管线）写进规范；Inspector 的火焰图和动画检查器视图。
+
 ## 来源
 
 - GCC 16 的 C++26 反射：[GCC 16.1 released（isocpp.org）](https://isocpp.org/blog/2026/04/gcc-16.1)、[GCC C++ Dialect Options（-freflection）](https://gcc.gnu.org/onlinedocs/gcc/C_002b_002b-Dialect-Options.html)、[cppreference：C++26 编译器支持](https://en.cppreference.com/cpp/compiler_support/26)、[GCC 16.1 发布（Phoronix）](https://www.phoronix.com/news/GCC-16.1-Released)

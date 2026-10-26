@@ -189,6 +189,10 @@ std::expected<WindowPtr, std::string> open(const WindowOptions& o) {
     w->window = SDL_CreateWindowWithProperties(props);
     SDL_DestroyProperties(props);
     if (!w->window) return std::unexpected(std::format("SDL_CreateWindow: {}", SDL_GetError()));
+    // A software renderer draws into the window's framebuffer, which SDL by
+    // default backs with an accelerated renderer — loading the GPU drivers
+    // (EGL, GL, Vulkan) for a window that asked for none. Kept in memory.
+    if (software) SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "0");
     w->renderer = SDL_CreateRenderer(w->window, o.render_driver.empty() ? nullptr : o.render_driver.c_str());
     if (!w->renderer) return std::unexpected(std::format("SDL_CreateRenderer: {}", SDL_GetError()));
     if (o.vsync) SDL_SetRenderVSync(w->renderer, 1);

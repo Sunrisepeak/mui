@@ -12,7 +12,9 @@ static_assert(spec::name(spec::Role::switch_) == "switch");
 static_assert(spec::requires_answer(spec::Effect::irreversible));
 static_assert(!spec::requires_answer(spec::Effect::read));
 static_assert(spec::interactive(spec::Role::slider) && !spec::interactive(spec::Role::text));
-static_assert(spec::catalog::find("slider") != nullptr);
+// Found, and by name: a constant expression with or without the sanitizers
+// (which make comparing an object's address with nullptr not constant).
+static_assert(spec::catalog::find("slider")->name == "slider");
 
 int main(int argc, char** argv) {
     Suite s{"spec.registry"};

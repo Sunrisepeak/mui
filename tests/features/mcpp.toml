@@ -1,0 +1,28 @@
+# openmui-feature-fixture — M0 acceptance ⑤ (plan §19.2): a feature selects
+# one of two mutually exclusive source files. Both provide the module
+# partition `openmui.features:sink`, so the module system itself refuses both
+# at once (a partition provided twice) and none (a partition missing); the
+# chosen partition exports `inline constexpr` facts the code branches on with
+# `if constexpr`. No macro anywhere (AGENTS.md: 平台和特性用清单选择的模块分区).
+#
+#   mcpp test -p openmui-feature-fixture                                         # sink-stdout (default)
+#   mcpp test -p openmui-feature-fixture --no-default-features --features sink-memory
+[package]
+name        = "openmui-feature-fixture"
+version     = "0.1.0"
+description = "M0 ⑤: a feature selects one of two mutually exclusive module partitions"
+license     = "Apache-2.0"
+
+[targets.openmui-feature-fixture]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm"]
+
+[features]
+default     = ["sink-stdout"]
+sink-stdout = { sources = ["src/sink/stdout.cppm"] }
+sink-memory = { sources = ["src/sink/memory.cppm"] }
+
+[dev-dependencies]
+openmui-testing = { path = "../support" }

@@ -24,6 +24,7 @@ struct Desktop::Impl {
     std::unique_ptr<agent::Endpoint>         endpoint;
     platform::WindowPtr                      window;
     render::CpuRenderer                      renderer;
+    render::DamageTracker                    damage;     // what the next list changes
     raster::Surface                          frame;
     std::uint64_t                            shown = 0;   // the list hash on screen
     std::size_t                              frames_shown = 0;
@@ -39,12 +40,16 @@ struct Desktop::Impl {
         const int hgt = static_cast<int>(std::lround(runtime->size().height * scale));
         if (h == shown && frame.width() == w && frame.height() == hgt) return;
         if (frame.width() != w || frame.height() != hgt) frame = raster::Surface(w, hgt);
-        render::CpuOptions o;
-        o.scale = scale;
-        o.background = options.background;
         {
             trace::Span span("render", "host");
-            (void)renderer.render(list, frame, {&runtime->images(), glyphs.get()}, o);
+            const render::Resources resources{&runtime->images(), glyphs.get()};
+            // Only the rows the new list can change: the same bytes as a full render.
+            const auto rows = damage.update(list, w, hgt, scale, resources);
+            render::CpuOptions o;
+            o.scale = scale;
+            o.background = options.background;
+            o.rows = rows;
+            if (!rows.empty()) (void)renderer.render(list, frame, resources, o);
         }
         trace::Span span("present", "host");
         platform::present(*window, frame);

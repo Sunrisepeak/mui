@@ -97,8 +97,9 @@ void Runtime::Impl::paint_debug() {
         plate(list, *fonts, theme, text, {pointer.x + 12, pointer.y + 16}, size);
     }
     if (o.hud && !history.empty()) {
-        std::vector<double> totals;
-        for (const FrameStats& f : history) totals.push_back(f.timings.total);
+        std::array<double, FrameRing::capacity> ring{};
+        const std::span<double> totals(ring.data(), history.size());
+        for (std::size_t i = 0; i < history.size(); ++i) totals[i] = history[i].timings.total;
         std::ranges::sort(totals);
         double mean = 0;
         for (double v : totals) mean += v;

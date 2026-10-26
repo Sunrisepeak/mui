@@ -36,7 +36,6 @@ struct Phase {
     Phase& operator=(const Phase&) = delete;
 };
 
-constexpr std::size_t history_frames = 240;
 
 }  // namespace
 
@@ -117,12 +116,16 @@ FrameOutput Runtime::frame(const FrameInput& input) {
                       d.options.debug.hud || !d.flashes.empty();
     // Bindings that ran since the last frame count toward this one.
     FrameStats stats = std::exchange(d.stats, {});
-    d.history.push_back(stats);
-    if (d.history.size() > history_frames) d.history.pop_front();
+    d.history.push(stats);
     return FrameOutput{&d.list, repainted, more, d.semantic_revision, stats, next_timer()};
 }
 
-std::vector<FrameStats> Runtime::frame_history() const { return {impl_->history.begin(), impl_->history.end()}; }
+std::vector<FrameStats> Runtime::frame_history() const {
+    std::vector<FrameStats> out;
+    out.reserve(impl_->history.size());
+    for (std::size_t i = 0; i < impl_->history.size(); ++i) out.push_back(impl_->history[i]);
+    return out;
+}
 
 void Runtime::set_debug(DebugOptions debug) {
     impl_->options.debug = debug;

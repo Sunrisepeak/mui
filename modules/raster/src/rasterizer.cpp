@@ -180,50 +180,56 @@ void Rasterizer::scanline(std::int32_t ey, std::int32_t x1, std::int32_t fy1, st
 
 void Rasterizer::line(std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2) {
     if (y1 == y2) return;
-    std::int32_t top = 0, bottom = height_ * one;
-    // Clip to the rows, keeping the orientation.
-    std::int32_t lo = std::min(y1, y2), hi = std::max(y1, y2);
-    if (hi <= top || lo >= bottom) return;
-    {
-        // Both ends from the original edge, so clipping does not drift.
-        const std::int64_t ox = x1, oy = y1;
-        const std::int64_t odx = static_cast<std::int64_t>(x2) - x1, ody = static_cast<std::int64_t>(y2) - y1;
-        auto x_at = [&](std::int64_t y) { return static_cast<std::int32_t>(ox + floor_div((y - oy) * odx, ody)); };
-        std::int32_t nx1 = x1, ny1 = y1, nx2 = x2, ny2 = y2;
-        if (y1 < top) { nx1 = x_at(top); ny1 = top; }
-        else if (y1 > bottom) { nx1 = x_at(bottom); ny1 = bottom; }
-        if (y2 < top) { nx2 = x_at(top); ny2 = top; }
-        else if (y2 > bottom) { nx2 = x_at(bottom); ny2 = bottom; }
-        x1 = nx1; y1 = ny1; x2 = nx2; y2 = ny2;
-    }
-    std::int64_t dx = static_cast<std::int64_t>(x2) - x1, dy = static_cast<std::int64_t>(y2) - y1;
-    if (dy == 0) return;
-
-    std::int32_t ey1 = y1 >> 8, ey2 = y2 >> 8;
-    std::int32_t fy1 = y1 & (one - 1), fy2 = y2 & (one - 1);
+    if (std::max(y1, y2) <= 0 || std::min(y1, y2) >= height_ * one) return;
+    // Every crossing of a row boundary is computed from the edge's own
+    // endpoints, and rows outside [0, height) are skipped rather than the edge
+    // cut: the coverage of a row does not depend on which other rows are
+    // rasterised. So a band of rows renders exactly as it does in a whole
+    // surface (damage-region rendering relies on it).
+    const std::int64_t dx = static_cast<std::int64_t>(x2) - x1, dy = static_cast<std::int64_t>(y2) - y1;
+    auto x_on = [&](std::int64_t y) { return static_cast<std::int32_t>(x1 + floor_div((y - y1) * dx, dy)); };
+    const std::int32_t ey1 = y1 >> 8, ey2 = y2 >> 8;
+    const std::int32_t fy1 = y1 & (one - 1), fy2 = y2 & (one - 1);
     if (ey1 == ey2) {
-        scanline(ey1, x1, fy1, x2, fy2);
+        if (ey1 >= 0 && ey1 < height_) scanline(ey1, x1, fy1, x2, fy2);
         return;
     }
-    auto x_on = [&](std::int64_t y) { return static_cast<std::int32_t>(x1 + floor_div((y - y1) * dx, dy)); };
     if (dy > 0) {
-        std::int32_t xb = x_on(static_cast<std::int64_t>(ey1 + 1) * one);
-        scanline(ey1, x1, fy1, xb, one);
-        for (std::int32_t ey = ey1 + 1; ey < ey2; ++ey) {
-            std::int32_t xn = x_on(static_cast<std::int64_t>(ey + 1) * one);
+        // Rows ey1 (from y1) … ey2 (to y2), downwards.
+        std::int32_t ey = std::max(ey1, 0);
+        std::int32_t xb;
+        if (ey == ey1) {
+            xb = x_on(static_cast<std::int64_t>(ey1 + 1) * one);
+            scanline(ey1, x1, fy1, xb, one);
+            ++ey;
+        } else {
+            xb = x_on(static_cast<std::int64_t>(ey) * one);
+        }
+        const std::int32_t last = std::min(ey2 - 1, height_ - 1);
+        for (; ey <= last; ++ey) {
+            const std::int32_t xn = x_on(static_cast<std::int64_t>(ey + 1) * one);
             scanline(ey, xb, 0, xn, one);
             xb = xn;
         }
-        scanline(ey2, xb, 0, x2, fy2);
+        if (ey2 < height_ && ey == ey2) scanline(ey2, xb, 0, x2, fy2);
     } else {
-        std::int32_t xb = x_on(static_cast<std::int64_t>(ey1) * one);
-        scanline(ey1, x1, fy1, xb, 0);
-        for (std::int32_t ey = ey1 - 1; ey > ey2; --ey) {
-            std::int32_t xn = x_on(static_cast<std::int64_t>(ey) * one);
+        // Rows ey1 (from y1) … ey2 (to y2), upwards.
+        std::int32_t ey = std::min(ey1, height_ - 1);
+        std::int32_t xb;
+        if (ey == ey1) {
+            xb = x_on(static_cast<std::int64_t>(ey1) * one);
+            scanline(ey1, x1, fy1, xb, 0);
+            --ey;
+        } else {
+            xb = x_on(static_cast<std::int64_t>(ey + 1) * one);
+        }
+        const std::int32_t last = std::max(ey2 + 1, 0);
+        for (; ey >= last; --ey) {
+            const std::int32_t xn = x_on(static_cast<std::int64_t>(ey) * one);
             scanline(ey, xb, one, xn, 0);
             xb = xn;
         }
-        scanline(ey2, xb, one, x2, fy2);
+        if (ey2 >= 0 && ey == ey2) scanline(ey2, xb, one, x2, fy2);
     }
 }
 

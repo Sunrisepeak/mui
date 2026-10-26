@@ -133,8 +133,43 @@ Canvas::Canvas(Surface& target) : base_(&target) {
     clips_.push_back({{0, 0, target.width(), target.height()}, nullptr});
 }
 
+void Canvas::reset(Surface& target) {
+    base_ = &target;
+    clips_.clear();
+    clips_.push_back({{0, 0, target.width(), target.height()}, nullptr});
+    while (!layers_.empty()) {
+        layer_pool_.push_back(std::move(layers_.back().surface));
+        layers_.pop_back();
+    }
+    object_id_ = 0;
+    if (ids_.size() != static_cast<std::size_t>(target.width()) * static_cast<std::size_t>(target.height())) ids_.clear();
+}
+
+void Canvas::restrict_rows(std::int32_t top, std::int32_t bottom) {
+    clips_.front().scissor = intersect({0, 0, base_->width(), base_->height()}, {0, top, base_->width(), bottom - top});
+}
+
 void Canvas::enable_object_ids() {
-    ids_.assign(static_cast<std::size_t>(base_->width()) * base_->height(), 0);
+    const std::size_t n = static_cast<std::size_t>(base_->width()) * static_cast<std::size_t>(base_->height());
+    if (ids_.size() != n) ids_.assign(n, 0);
+}
+
+void Canvas::clear_object_ids(std::int32_t top, std::int32_t bottom) noexcept {
+    if (ids_.empty()) return;
+    top = std::clamp(top, 0, base_->height());
+    bottom = std::clamp(bottom, top, base_->height());
+    std::fill(ids_.begin() + static_cast<std::ptrdiff_t>(top) * base_->width(), ids_.begin() + static_cast<std::ptrdiff_t>(bottom) * base_->width(), 0u);
+}
+
+std::shared_ptr<Mask> Canvas::take_mask() {
+    // A mask nobody else holds (no clip on the stack refers to it) is free.
+    for (auto& m : mask_pool_)
+        if (m.use_count() == 1) {
+            if (m->width() != base_->width() || m->height() != base_->height()) m->resize(base_->width(), base_->height(), 0);
+            return m;
+        }
+    mask_pool_.push_back(std::make_shared<Mask>(base_->width(), base_->height(), 0));
+    return mask_pool_.back();
 }
 
 void Canvas::composite(const Coverage& cov, const Shader& shader, int dx, int dy) {
@@ -185,16 +220,16 @@ void Canvas::fill_rect(const Rect& r, const Paint& paint, const Affine& m) {
         composite(coverage_, Shader(paint));
         return;
     }
-    PathBuilder pb;
-    pb.rect(r);
-    fill_path(pb.data(), FillRule::nonzero, paint, m);
+    path_.clear();
+    path_.rect(r);
+    fill_path(path_.data(), FillRule::nonzero, paint, m);
 }
 
 void Canvas::fill_round_rect(const Rect& r, const CornerRadii& radii, const Paint& paint, const Affine& m) {
     if (radii.zero()) return fill_rect(r, paint, m);
-    PathBuilder pb;
-    rounded_rect_path(pb, r, radii);
-    fill_path(pb.data(), FillRule::nonzero, paint, m);
+    path_.clear();
+    rounded_rect_path(path_, r, radii);
+    fill_path(path_.data(), FillRule::nonzero, paint, m);
 }
 
 void Canvas::fill_coverage(const Coverage& coverage, const Paint& paint, int dx, int dy) {
@@ -348,7 +383,7 @@ void Canvas::box_shadow(const Rect& r, const CornerRadii& radii, Point offset, f
 
 void Canvas::push_mask(const Coverage& coverage) {
     const Clip& below = clip();
-    auto mask = std::make_shared<Mask>(base_->width(), base_->height(), 0);
+    std::shared_ptr<Mask> mask = take_mask();  // only `box` of it is read: no need to clear the rest
     PixelRect box = intersect(coverage.bounds, below.scissor);
     for (std::int32_t y = box.y; y < box.y + box.height; ++y) {
         std::uint8_t* row = mask->row(y);
@@ -374,33 +409,31 @@ void Canvas::push_clip_rect(const Rect& r, const Affine& m) {
         return;
     }
     if (axis_aligned) {
-        Coverage c;
-        rect_coverage(d, clip().scissor, c);
-        push_mask(c);
+        rect_coverage(d, clip().scissor, scratch_);
+        push_mask(scratch_);
         return;
     }
-    PathBuilder pb;
-    pb.rect(r);
-    push_clip_path(pb.data(), FillRule::nonzero, m);
+    path_.clear();
+    path_.rect(r);
+    push_clip_path(path_.data(), FillRule::nonzero, m);
 }
 
 void Canvas::push_clip_round_rect(const Rect& r, const CornerRadii& radii, const Affine& m) {
     if (radii.zero()) return push_clip_rect(r, m);
-    PathBuilder pb;
-    rounded_rect_path(pb, r, radii);
-    push_clip_path(pb.data(), FillRule::nonzero, m);
+    path_.clear();
+    rounded_rect_path(path_, r, radii);
+    push_clip_path(path_.data(), FillRule::nonzero, m);
 }
 
 void Canvas::push_clip_path(PathData path, FillRule rule, const Affine& m) {
-    Coverage c;
     polygons_.clear();
     flatten(path, m, polygons_);
-    rasterizer_.rasterize(polygons_, rule, clip().scissor, c);
-    if (c.empty()) {
+    rasterizer_.rasterize(polygons_, rule, clip().scissor, scratch_);
+    if (scratch_.empty()) {
         clips_.push_back({{0, 0, 0, 0}, nullptr});
         return;
     }
-    push_mask(c);
+    push_mask(scratch_);
 }
 
 void Canvas::pop_clip() {
@@ -408,7 +441,17 @@ void Canvas::pop_clip() {
 }
 
 void Canvas::push_layer(float opacity, Blend blend) {
-    auto surface = std::make_unique<Surface>(base_->width(), base_->height());
+    std::unique_ptr<Surface> surface;
+    if (!layer_pool_.empty()) {
+        surface = std::move(layer_pool_.back());
+        layer_pool_.pop_back();
+        if (surface->width() != base_->width() || surface->height() != base_->height()) surface->resize(base_->width(), base_->height());
+    } else {
+        surface = std::make_unique<Surface>(base_->width(), base_->height());
+    }
+    // Only the clip's rows are drawn into and composited: clear those.
+    const PixelRect box = clip().scissor;
+    for (std::int32_t y = box.y; y < box.y + box.height; ++y) std::fill_n(surface->row(y) + box.x, box.width, Rgba8{});
     layers_.push_back({std::move(surface), std::clamp(opacity, 0.0f, 1.0f), blend, clips_.size()});
 }
 
@@ -416,6 +459,11 @@ void Canvas::pop_layer() {
     if (layers_.empty()) return;
     Layer layer = std::move(layers_.back());
     layers_.pop_back();
+    struct Return {
+        Canvas& canvas;
+        Layer&  layer;
+        ~Return() { canvas.layer_pool_.push_back(std::move(layer.surface)); }
+    } give_back{*this, layer};
     Surface& dst = target();
     const Clip& c = clip();
     std::uint32_t op = static_cast<std::uint32_t>(layer.opacity * 255.0f + 0.5f);

@@ -103,6 +103,25 @@ struct Node {
 // A change a node asks for, in the order the frame handles them.
 enum Dirty : std::uint8_t { dirty_none = 0, dirty_paint = 1, dirty_layout = 2, dirty_semantics = 4, dirty_tree = 8 };
 
+// The last frames' statistics: a fixed ring, so recording a frame allocates
+// nothing (and tools read it oldest first).
+struct FrameRing {
+    static constexpr std::size_t capacity = 240;
+    std::array<FrameStats, capacity> items{};
+    std::size_t                      head = 0;   // the oldest
+    std::size_t                      count = 0;
+
+    void push(const FrameStats& f) noexcept {
+        items[(head + count) % capacity] = f;
+        if (count < capacity) ++count;
+        else head = (head + 1) % capacity;
+    }
+    [[nodiscard]] bool empty() const noexcept { return count == 0; }
+    [[nodiscard]] std::size_t size() const noexcept { return count; }
+    [[nodiscard]] const FrameStats& operator[](std::size_t i) const noexcept { return items[(head + i) % capacity]; }
+    [[nodiscard]] const FrameStats& back() const noexcept { return (*this)[count - 1]; }
+};
+
 struct Runtime::Impl {
     Runtime&                              self;
     RuntimeOptions                        options;
@@ -169,7 +188,7 @@ struct Runtime::Impl {
     std::vector<Timer>          timers;
     std::vector<ActionEntry>    journal;
     FrameStats                  stats;
-    std::deque<FrameStats>      history;
+    FrameRing                   history;
     std::vector<std::pair<NodeId, seconds>> flashes;  // debug: nodes that changed, and when
     seconds                     last_slow_log{-1e9};  // slow frames are logged at most once a second
 

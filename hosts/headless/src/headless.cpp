@@ -37,7 +37,7 @@ struct Headless::Impl {
     raster::Surface                             surface;
     std::uint64_t                               rendered = 0;   // the list hash the surface shows
     bool                                        have_pixels = false;
-    std::vector<std::uint32_t>                  ids;            // object ids of the last render
+    render::DamageTracker                       damage;         // what the next list changes
     std::unique_ptr<agent::Endpoint>            endpoint;
     std::int64_t                                frame = -1;
 
@@ -48,13 +48,19 @@ struct Headless::Impl {
         const int w = static_cast<int>(std::lround(options.size.width * options.scale));
         const int hgt = static_cast<int>(std::lround(options.size.height * options.scale));
         if (surface.width() != w || surface.height() != hgt) surface = raster::Surface(w, hgt);
-        render::CpuOptions o;
-        o.scale = options.scale;
-        o.background = options.background;
-        o.object_ids = true;
+        if (!have_pixels) damage.invalidate();
         trace::Span span("render", "host");
-        (void)renderer.render(list, surface, {&runtime->images(), glyphs.get()}, o);
-        ids.assign(renderer.object_ids().begin(), renderer.object_ids().end());
+        const render::Resources resources{&runtime->images(), glyphs.get()};
+        // Only the rows the new list can change: the same bytes as a full render.
+        const auto rows = damage.update(list, w, hgt, options.scale, resources);
+        if (!rows.empty()) {
+            render::CpuOptions o;
+            o.scale = options.scale;
+            o.background = options.background;
+            o.object_ids = true;
+            o.rows = rows;
+            (void)renderer.render(list, surface, resources, o);
+        }
         rendered = h;
         have_pixels = true;
     }
@@ -248,7 +254,7 @@ NodeId Headless::node_at_pixel(Point p) {
     d.render_now();
     const int x = static_cast<int>(p.x * d.options.scale), y = static_cast<int>(p.y * d.options.scale);
     if (x < 0 || y < 0 || x >= d.surface.width() || y >= d.surface.height()) return {};
-    return d.runtime->node_at_index(d.ids[static_cast<std::size_t>(y) * static_cast<std::size_t>(d.surface.width()) + static_cast<std::size_t>(x)]);
+    return d.runtime->node_at_index(d.renderer.object_at(x, y, d.surface.width()));
 }
 
 agent::CaptureFn Headless::capture() {

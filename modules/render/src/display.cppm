@@ -167,6 +167,10 @@ using Command = std::variant<FillRect, FillRoundRect, StrokeRoundRect, BoxShadow
                              DrawGlyphs, PushClipRect, PushClipPath, PopClip, PushTransform, PopTransform, PushLayer,
                              PopLayer, ExternalTexture, BeginNode, EndNode>;
 
+// FNV-1a of a command's content (its payloads included, never addresses),
+// continuing from `seed`: DisplayList::hash is this over every command.
+[[nodiscard]] std::uint64_t hash_command(const Command& command, std::uint64_t seed) noexcept;
+
 class DisplayList {
 public:
     DisplayList() = default;

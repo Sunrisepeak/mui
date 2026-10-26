@@ -12,6 +12,12 @@ description = "openmui: an open UI specification and its reference implementatio
 license     = "Apache-2.0"
 repo        = "https://github.com/Sunrisepeak/mui"
 
+# Graph-wide pins: every member whose graph reaches the key's package (it is
+# the root under `mcpp build -p <member>`) declares the pinned identity as the
+# root does here. lint rule `pins`.
+[package.metadata.openmui.pins]
+"mcpplibs.openkal" = "mcpplibs.os"   # openkal-linux asks for openkal by version, mcpplibs.os by git
+
 [workspace]
 members = [
     "tests/support",

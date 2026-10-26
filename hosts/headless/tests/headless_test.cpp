@@ -148,5 +148,61 @@ int main(int argc, char** argv) {
               "a PNG, base64");
     });
 
+    s.test("every incremental frame is the full render of its list, byte for byte", [] {
+        // Text edits, a colour transition, a moving box, hover, a scroll:
+        // each frame's pixels (only the damaged rows drawn) against a fresh
+        // render of the same list.
+        auto label = signal(std::string("Hello"));
+        auto offset = signal(0.0f);
+        auto shift = signal(0.0f);
+        std::vector<Element> rows;
+        for (int i = 0; i < 12; ++i) rows.push_back(text({.id = std::format("r{}", i), .text = std::format("row {} · scrolled", i)}));
+        HeadlessOptions o = at(HeadlessLevel::pixels);
+        o.size = {320, 200};
+        Headless h(o);
+        h.mount("main", column({.padding = 8, .gap = 6}, {
+                                   text({.id = "label", .text = label, .style = "title"}),
+                                   box({.id = "mover", .width = 60, .height = 24, .background = "accent", .radius = 6,
+                                        .translate_x = shift, .label = "Mover",
+                                        .on = {{"press", [](const Value&) {}}},
+                                        .animate = {{"translate_x", Transition::tween(seconds(0.3))}, {"background", Transition::tween(seconds(0.2))}}}),
+                                   scroll({.id = "list", .y = offset, .height = 80, .gap = 2}, std::move(rows)),
+                               }));
+        h.settle();
+        typeset::GlyphCache glyphs(fonts());
+        int frames = 0;
+        auto same_as_full = [&](std::string_view what) {
+            const raster::Surface& inc = h.pixels();
+            raster::Surface full(inc.width(), inc.height());
+            render::CpuRenderer fresh;
+            (void)fresh.render(h.runtime().display_list(), full, {&h.runtime().images(), &glyphs},
+                               {.scale = o.scale, .background = o.background});
+            ++frames;
+            check(std::ranges::equal(inc.bytes(), full.bytes()), std::format("{} (frame {}): differs from the full render", what, frames));
+        };
+        same_as_full("first frame");
+        label.set("Hello, incremental world");
+        h.step();
+        same_as_full("a longer label");
+        shift.set(180.0f);
+        for (int i = 0; i < 6; ++i) {
+            h.step();
+            same_as_full("the box moving");
+        }
+        const Rect mover = h.runtime().bounds(h.runtime().find("main/mover"));
+        h.move({mover.x + 5, mover.y + 5});
+        h.step();
+        same_as_full("hover");
+        h.move({2, 2});
+        h.step();
+        same_as_full("hover gone");
+        offset.set(37.5f);
+        h.step();
+        same_as_full("scrolled");
+        label.set("Hi");
+        h.settle();
+        same_as_full("settled");
+    });
+
     return s.run(argc, argv);
 }

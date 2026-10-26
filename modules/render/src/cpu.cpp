@@ -70,17 +70,66 @@ raster::Stroke stroke_of(const StrokeStyle& s) {
 
 }  // namespace
 
-RenderReport CpuRenderer::render(const DisplayList& list, raster::Surface& target, const Resources& res,
-                                 const CpuOptions& options) {
-    RenderReport report;
-    if (options.clear) target.clear(raster::premultiply(options.background));
-    raster::Canvas canvas(target);
-    if (options.object_ids) canvas.enable_object_ids();
+struct CpuRenderer::Scratch {
+    raster::Canvas             canvas;
+    std::vector<Affine>        transforms;
+    std::vector<std::uint32_t> nodes;
+    PathConv                   paths;
+    PaintConv                  paints;
+    Path                       path;
+    explicit Scratch(raster::Surface& target) : canvas(target) {}
+};
 
-    std::vector<Affine> transforms{Affine::scale(options.scale, options.scale)};
-    std::vector<std::uint32_t> nodes{0};
-    PathConv paths;
-    PaintConv paints;
+CpuRenderer::CpuRenderer() = default;
+CpuRenderer::CpuRenderer(CpuRenderer&&) noexcept = default;
+CpuRenderer& CpuRenderer::operator=(CpuRenderer&&) noexcept = default;
+CpuRenderer::~CpuRenderer() = default;
+
+std::span<const std::uint32_t> CpuRenderer::object_ids() const noexcept {
+    if (!scratch_ || !ids_on_) return {};
+    return scratch_->canvas.object_ids();
+}
+
+RenderReport CpuRenderer::render(const DisplayList& list, raster::Surface& target, const Resources& res, const CpuOptions& options) {
+    RenderReport report;
+    if (!scratch_) scratch_ = std::make_unique<Scratch>(target);
+    ids_on_ = options.object_ids;
+    if (options.rows.empty()) {
+        draw(list, target, res, options, {0, target.height()}, true, report);
+        return report;
+    }
+    for (RowSpan band : options.rows) {
+        band.top = std::clamp(band.top, 0, target.height());
+        band.bottom = std::clamp(band.bottom, band.top, target.height());
+        if (band.bottom > band.top) draw(list, target, res, options, band, false, report);
+    }
+    return report;
+}
+
+void CpuRenderer::draw(const DisplayList& list, raster::Surface& target, const Resources& res, const CpuOptions& options, RowSpan band,
+                       bool whole, RenderReport& report) {
+    Scratch& sc = *scratch_;
+    raster::Canvas& canvas = sc.canvas;
+    canvas.reset(target);
+    if (!whole) canvas.restrict_rows(band.top, band.bottom);
+    report.rows += static_cast<std::size_t>(band.bottom - band.top);
+    if (options.clear) {
+        const raster::Rgba8 bg = raster::premultiply(options.background);
+        if (whole) target.clear(bg);
+        else
+            for (std::int32_t y = band.top; y < band.bottom; ++y) std::fill_n(target.row(y), target.width(), bg);
+    }
+    if (options.object_ids) {
+        canvas.enable_object_ids();
+        canvas.clear_object_ids(band.top, band.bottom);
+    }
+
+    auto& transforms = sc.transforms;
+    auto& nodes = sc.nodes;
+    auto& paths = sc.paths;
+    auto& paints = sc.paints;
+    transforms.assign(1, Affine::scale(options.scale, options.scale));
+    nodes.assign(1, 0);
 
     auto m = [&]() -> const Affine& { return transforms.back(); };
     // The paint's own transform is in logical space; the device needs it after the current matrix.
@@ -92,6 +141,11 @@ RenderReport CpuRenderer::render(const DisplayList& list, raster::Surface& targe
 
     for (const Command& command : list.commands()) {
         ++report.commands;
+        if (!whole)
+            if (auto b = device_bounds(command, m(), nullptr); b && (b->bottom() <= static_cast<float>(band.top) || b->y >= static_cast<float>(band.bottom))) {
+                ++report.skipped;  // cannot reach these rows
+                continue;
+            }
         std::visit(
             [&](const auto& c) {
                 using T = std::decay_t<decltype(c)>;
@@ -100,9 +154,9 @@ RenderReport CpuRenderer::render(const DisplayList& list, raster::Surface& targe
                 } else if constexpr (std::same_as<T, FillRoundRect>) {
                     canvas.fill_round_rect(c.rect, c.radii, device_paint(c.paint), m());
                 } else if constexpr (std::same_as<T, StrokeRoundRect>) {
-                    Path p;
-                    p.add_rounded_rect(c.rect, c.radii);
-                    canvas.stroke_path(paths.data(p.view()), {.width = c.width}, device_paint(c.paint), m());
+                    sc.path.clear();
+                    sc.path.add_rounded_rect(c.rect, c.radii);
+                    canvas.stroke_path(paths.data(sc.path.view()), {.width = c.width}, device_paint(c.paint), m());
                 } else if constexpr (std::same_as<T, BoxShadow>) {
                     canvas.box_shadow(c.rect, c.radii, c.offset, c.blur, c.spread, c.color, c.inset, m());
                 } else if constexpr (std::same_as<T, FillPath>) {
@@ -175,9 +229,6 @@ RenderReport CpuRenderer::render(const DisplayList& list, raster::Surface& targe
             },
             command);
     }
-    if (options.object_ids) ids_.assign(canvas.object_ids().begin(), canvas.object_ids().end());
-    else ids_.clear();
-    return report;
 }
 
 }  // namespace omui::render

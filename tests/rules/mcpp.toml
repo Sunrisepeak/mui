@@ -19,6 +19,7 @@ sources = ["src/*.cppm", "src/*.cpp"]
 [dependencies]
 openmui-core = { path = "../../runtime/core" }
 openmui-view = { path = "../../runtime/view" }
+mcpplibs.openkal = { git = "https://github.com/mcpplibs/openkal.git", branch = "openkal-0.17.0" }  # settles the kernel layer (see the root)
 
 [build-dependencies]
 openmui.rules = { path = "../../mcpp/rules", host-module = true }

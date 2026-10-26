@@ -10,6 +10,8 @@ Rules:
   naming        no bare `mui` identifier: the identity is `openmui`, the abbreviation `omui`
   layering      a member depends only on the layers below it (dependency table)
   manifest      namespaced dependencies are dotted keys (`compat.sdl3 = "…"`) of [dependencies]
+  pins          a graph-wide pin of the root ([package.metadata.openmui.pins]) is declared, the same,
+                by every member whose graph reaches the package it is for
   modules       a member of modules/ depends on no openmui package outside modules/
   exceptions    no `throw` / `try` in runtime and modules sources (errors are std::expected)
   platform      no operating-system header anywhere: platform code goes through mcpplibs.os
@@ -258,6 +260,79 @@ def check_manifests(root: Path) -> list[Problem]:
     return problems
 
 
+def check_pins(root: Path) -> list[Problem]:
+    problems = []
+    manifest = root / "mcpp.toml"
+    if not manifest.exists():
+        return problems
+    data = tomllib.loads(manifest.read_text(encoding="utf-8"))
+    pins = data.get("package", {}).get("metadata", {}).get("openmui", {}).get("pins", {})
+    if not pins:
+        return problems
+    root_deps = dict(flatten_deps(data.get("dependencies", {})))
+    loaded: dict[str, dict] = {}
+
+    def deps_of(member: str) -> dict:
+        if member not in loaded:
+            path = root / member / "mcpp.toml"
+            try:
+                d = tomllib.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+            except tomllib.TOMLDecodeError:
+                d = {}
+            out = {}
+            for table in ("dependencies", "dev-dependencies"):
+                out.update(dict(flatten_deps(d.get(table, {}))))
+            for target in d.get("target", {}).values():
+                if isinstance(target, dict):
+                    out.update(dict(flatten_deps(target.get("dependencies", {}))))
+            loaded[member] = out
+        return loaded[member]
+
+    def reaches(member: str, package: str, seen: set) -> bool:
+        if member in seen:
+            return False
+        seen.add(member)
+        for name, spec in deps_of(member).items():
+            if name == package:
+                return True
+            if isinstance(spec, dict) and "path" in spec:
+                dep = (root / member / spec["path"]).resolve()
+                try:
+                    rel = dep.relative_to(root.resolve()).as_posix() or "."
+                except ValueError:
+                    continue
+                if reaches(rel, package, seen):
+                    return True
+        return False
+
+    # A template's project depends on openmui itself, so it reaches every pinned package.
+    templates = {}
+    for t in sorted((root / "templates").glob("*/mcpp.toml.in")) if (root / "templates").exists() else []:
+        try:
+            # Placeholders as mcpp renders them (`{{project.name}}` → a name).
+            text = re.sub(r"\{\{[^}]*\}\}", "placeholder", t.read_text(encoding="utf-8"))
+            templates[t.relative_to(root).as_posix()] = dict(flatten_deps(tomllib.loads(text).get("dependencies", {})))
+        except tomllib.TOMLDecodeError as e:
+            problems.append(Problem("pins", t.relative_to(root).as_posix(), f"not valid TOML: {e}"))
+
+    for pinned, package in pins.items():
+        want = root_deps.get(pinned)
+        if want is None:
+            problems.append(Problem("pins", "mcpp.toml", f"pins `{pinned}` but does not declare it in [dependencies]"))
+            continue
+        for template, tdeps in templates.items():
+            if tdeps.get(pinned) != want:
+                problems.append(Problem("pins", template, f"an openmui project reaches {package}: declare `{pinned} = {want}`"))
+        for member in workspace_members(root):
+            if not reaches(member, package, set()):
+                continue
+            have = deps_of(member).get(pinned)
+            if have != want:
+                problems.append(Problem("pins", member, f"reaches {package}: declare `{pinned} = {want}` as the root does"
+                                        + ("" if have is None else f" (it has {have})")))
+    return problems
+
+
 def flatten_deps(table: dict, prefix: str = ""):
     for key, value in table.items():
         if isinstance(value, dict) and not any(k in value for k in ("path", "git", "version", "workspace")):
@@ -267,7 +342,7 @@ def flatten_deps(table: dict, prefix: str = ""):
 
 
 def run(root: Path) -> list[Problem]:
-    return check_sources(root) + check_manifests(root)
+    return check_sources(root) + check_manifests(root) + check_pins(root)
 
 
 def self_test() -> int:
@@ -282,14 +357,19 @@ def self_test() -> int:
         "layering": None,
         "modules": None,
         "manifest": None,
+        "pins": None,
     }
     failures = 0
     for rule, planted in cases.items():
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             members = ["modules/anim", "runtime/core", "spec"]
+            pin = ""
+            if rule == "pins":
+                pin = ('[package]\nname = "root"\nversion = "0.1.0"\n[package.metadata.openmui.pins]\n"ns.kernel" = "ns.os"\n'
+                       '[dependencies]\nns.kernel = "1.0.0"\n')
             (root / "mcpp.toml").write_text(
-                "[workspace]\nmembers = [" + ", ".join(f'"{m}"' for m in members) + "]\n", encoding="utf-8")
+                pin + "[workspace]\nmembers = [" + ", ".join(f'"{m}"' for m in members) + "]\n", encoding="utf-8")
             for m in members:
                 (root / m / "src").mkdir(parents=True)
                 deps = ""
@@ -299,6 +379,8 @@ def self_test() -> int:
                     deps = '[dependencies]\ncore = { path = "../../runtime/core" }\n'
                 if rule == "manifest" and m == "runtime/core":
                     deps = '[dependencies.compat]\nsdl3 = "3.4.18"\n'
+                if rule == "pins" and m == "runtime/core":
+                    deps = '[dependencies]\nns.os = "0.1.0"\n'  # reaches ns.os, does not pin ns.kernel
                 flags = '[build]\ncxxflags = ["-ffp-contract=off"]\n' if m == "modules/anim" else ""
                 (root / m / "mcpp.toml").write_text(f'[package]\nname = "{m}"\nversion = "0.1.0"\n{flags}{deps}',
                                                     encoding="utf-8")

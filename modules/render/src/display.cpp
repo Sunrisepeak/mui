@@ -314,37 +314,41 @@ struct Hasher {
 
 }  // namespace
 
-std::uint64_t DisplayList::hash() const noexcept {
-    Hasher h;
-    for (const Command& c : commands_) {
-        h.put(c.index());
-        std::visit(
-            [&](const auto& cmd) {
-                using T = std::decay_t<decltype(cmd)>;
-                if constexpr (std::same_as<T, FillRect>) { h.put(cmd.rect); h.put(cmd.paint); }
-                else if constexpr (std::same_as<T, FillRoundRect>) { h.put(cmd.rect); h.put(cmd.radii); h.put(cmd.paint); }
-                else if constexpr (std::same_as<T, StrokeRoundRect>) { h.put(cmd.rect); h.put(cmd.radii); h.put(cmd.width); h.put(cmd.paint); }
-                else if constexpr (std::same_as<T, BoxShadow>) { h.put(cmd.rect); h.put(cmd.radii); h.put(cmd.offset); h.put(cmd.blur); h.put(cmd.spread); h.put(cmd.color); h.put(cmd.inset); }
-                else if constexpr (std::same_as<T, FillPath>) { h.put(cmd.path); h.put(cmd.rule); h.put(cmd.paint); }
-                else if constexpr (std::same_as<T, StrokePath>) { h.put(cmd.path); h.put(cmd.style); h.put(cmd.paint); }
-                else if constexpr (std::same_as<T, DrawImage>) { h.put(cmd.image.id); h.put(cmd.source); h.put(cmd.dest); h.put(cmd.sampling); h.put(cmd.opacity); }
-                else if constexpr (std::same_as<T, DrawGlyphs>) {
-                    h.put(cmd.font.id); h.put(cmd.size); h.put(cmd.origin); h.put(cmd.paint);
-                    for (const auto& g : cmd.glyphs) { h.put(g.id); h.put(g.position); }
-                }
-                else if constexpr (std::same_as<T, PushClipRect>) { h.put(cmd.rect); h.put(cmd.radii); }
-                else if constexpr (std::same_as<T, PushClipPath>) { h.put(cmd.path); h.put(cmd.rule); }
-                else if constexpr (std::same_as<T, PushTransform>) { h.put(cmd.transform); }
-                else if constexpr (std::same_as<T, PushLayer>) {
-                    h.put(cmd.opacity); h.put(cmd.blend); h.put(cmd.effect.id); h.put(cmd.bounds);
-                    for (float p : cmd.params) h.put(p);
-                }
-                else if constexpr (std::same_as<T, ExternalTexture>) { h.put(cmd.texture); h.put(cmd.dest); h.put(cmd.opacity); }
-                else if constexpr (std::same_as<T, BeginNode>) { h.put(cmd.node); }
-            },
-            c);
-    }
+std::uint64_t hash_command(const Command& c, std::uint64_t seed) noexcept {
+    Hasher h{seed};
+    h.put(c.index());
+    std::visit(
+        [&](const auto& cmd) {
+            using T = std::decay_t<decltype(cmd)>;
+            if constexpr (std::same_as<T, FillRect>) { h.put(cmd.rect); h.put(cmd.paint); }
+            else if constexpr (std::same_as<T, FillRoundRect>) { h.put(cmd.rect); h.put(cmd.radii); h.put(cmd.paint); }
+            else if constexpr (std::same_as<T, StrokeRoundRect>) { h.put(cmd.rect); h.put(cmd.radii); h.put(cmd.width); h.put(cmd.paint); }
+            else if constexpr (std::same_as<T, BoxShadow>) { h.put(cmd.rect); h.put(cmd.radii); h.put(cmd.offset); h.put(cmd.blur); h.put(cmd.spread); h.put(cmd.color); h.put(cmd.inset); }
+            else if constexpr (std::same_as<T, FillPath>) { h.put(cmd.path); h.put(cmd.rule); h.put(cmd.paint); }
+            else if constexpr (std::same_as<T, StrokePath>) { h.put(cmd.path); h.put(cmd.style); h.put(cmd.paint); }
+            else if constexpr (std::same_as<T, DrawImage>) { h.put(cmd.image.id); h.put(cmd.source); h.put(cmd.dest); h.put(cmd.sampling); h.put(cmd.opacity); }
+            else if constexpr (std::same_as<T, DrawGlyphs>) {
+                h.put(cmd.font.id); h.put(cmd.size); h.put(cmd.origin); h.put(cmd.paint);
+                for (const auto& g : cmd.glyphs) { h.put(g.id); h.put(g.position); }
+            }
+            else if constexpr (std::same_as<T, PushClipRect>) { h.put(cmd.rect); h.put(cmd.radii); }
+            else if constexpr (std::same_as<T, PushClipPath>) { h.put(cmd.path); h.put(cmd.rule); }
+            else if constexpr (std::same_as<T, PushTransform>) { h.put(cmd.transform); }
+            else if constexpr (std::same_as<T, PushLayer>) {
+                h.put(cmd.opacity); h.put(cmd.blend); h.put(cmd.effect.id); h.put(cmd.bounds);
+                for (float p : cmd.params) h.put(p);
+            }
+            else if constexpr (std::same_as<T, ExternalTexture>) { h.put(cmd.texture); h.put(cmd.dest); h.put(cmd.opacity); }
+            else if constexpr (std::same_as<T, BeginNode>) { h.put(cmd.node); }
+        },
+        c);
     return h.h;
+}
+
+std::uint64_t DisplayList::hash() const noexcept {
+    std::uint64_t h = Hasher{}.h;
+    for (const Command& c : commands_) h = hash_command(c, h);
+    return h;
 }
 
 void DisplayList::clear() noexcept {

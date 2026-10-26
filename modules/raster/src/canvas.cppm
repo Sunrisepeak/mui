@@ -30,6 +30,18 @@ public:
     Canvas(const Canvas&) = delete;
     Canvas& operator=(const Canvas&) = delete;
 
+    // Starts over on `target`: no clips, no layers, no row restriction. The
+    // buffers (rasteriser cells, layer surfaces, clip masks) are kept, so a
+    // renderer that reuses its canvas allocates nothing per frame.
+    void reset(Surface& target);
+
+    // Draws only rows [top, bottom) and leaves the others as they are. The
+    // pixels in those rows are byte-for-byte what drawing the whole surface
+    // gives: rows rasterise independently, and the columns are clipped as
+    // they are for the whole surface. This is what damage-region rendering
+    // stands on. Call before any clip or layer is pushed.
+    void restrict_rows(std::int32_t top, std::int32_t bottom);
+
     void fill_path(PathData path, FillRule rule, const Paint& paint, const Affine& m = {});
     void stroke_path(PathData path, const Stroke& stroke, const Paint& paint, const Affine& m = {});
     void fill_rect(const Rect& r, const Paint& paint, const Affine& m = {});
@@ -54,7 +66,11 @@ public:
 
     // The node id written into the object-id buffer by subsequent drawing.
     void set_object_id(std::uint32_t id) noexcept { object_id_ = id; }
+    // An object-id buffer the size of the target; kept across reset() while
+    // the size is the same, so a partial render updates only its rows
+    // (clear_object_ids clears them first).
     void enable_object_ids();
+    void clear_object_ids(std::int32_t top, std::int32_t bottom) noexcept;
     [[nodiscard]] std::span<const std::uint32_t> object_ids() const noexcept { return ids_; }
 
     [[nodiscard]] PixelRect bounds() const noexcept { return {0, 0, base_->width(), base_->height()}; }
@@ -66,11 +82,12 @@ private:
         std::shared_ptr<Mask> mask;  // nullptr: the scissor alone
     };
     struct Layer {
-        std::unique_ptr<Surface> surface;
+        std::unique_ptr<Surface> surface;  // from layer_pool_, back to it at pop_layer
         float                    opacity;
         Blend                    blend;
         std::size_t              clip_depth;
     };
+    std::shared_ptr<Mask> take_mask();
 
     [[nodiscard]] Surface& target() noexcept { return layers_.empty() ? *base_ : *layers_.back().surface; }
     [[nodiscard]] const Clip& clip() const noexcept { return clips_.back(); }
@@ -86,6 +103,11 @@ private:
     Polygons                   polygons_;
     Coverage                   coverage_;
     std::vector<Rgba8>         row_;
+    std::vector<std::unique_ptr<Surface>> layer_pool_;
+    std::vector<std::shared_ptr<Mask>>    mask_pool_;
+    PathBuilder                path_;      // scratch for rectangles and rounded rectangles
+    Coverage                   scratch_;   // scratch for clips and shadows
+    Coverage                   scratch2_;
 };
 
 // Blurs a coverage mask (three box passes approximating a Gaussian of

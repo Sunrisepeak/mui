@@ -376,7 +376,10 @@ void Runtime::Impl::animate_field(NodeId id, std::string_view prop, Field field,
     if (t->kind == Transition::Kind::tween) anims.tween_to(c, start, target, t->duration, t->ease);
     else anims.spring_to(c, start, target, t->spring);
     n.moving |= bit;
-    n.state.animating = true;
+    if (!n.state.animating) {
+        n.state.animating = true;
+        touch(dirty_semantics);
+    }
     if (std::ranges::find(animating, id) == animating.end()) animating.push_back(id);
     touch(dirty_paint);
 }

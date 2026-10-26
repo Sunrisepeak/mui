@@ -1,0 +1,29 @@
+# openmui-record — sessions as data: a header and a stream of timestamped
+# entries (events, actions, frames, notes) in NDJSON, ordered by time and
+# seekable, saved and loaded through mcpplibs.os. An independent component
+# (D-57): it knows nothing of nodes or views, so anything with a clock can
+# record into it and replay from it.
+[package]
+name        = "openmui-record"
+version     = "0.1.0"
+description = "Recording and replay: timestamped NDJSON sessions, seekable, mergeable, independent of any UI"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "module"
+
+[targets.openmui-record]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+mcpplibs.os = { git = "https://github.com/mcpplibs/os.git", branch = "os-0.1.0" }
+
+[dependencies.nlohmann]
+json = "3.12.0"
+
+[dev-dependencies]
+openmui-testing = { path = "../../tests/support" }

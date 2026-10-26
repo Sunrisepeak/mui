@@ -111,7 +111,9 @@ void Runtime::Impl::run_animations() {
         if (n.moving) still.push_back(id);
         else if (n.state.animating) {
             n.state.animating = false;
+            // Settled: readers waiting for it see a new revision (no further frame is needed).
             dirty |= dirty_semantics;
+            ++semantic_revision;
         }
     }
     animating = std::move(still);

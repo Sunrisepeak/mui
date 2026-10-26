@@ -89,6 +89,9 @@ spec::SemanticNode Runtime::Impl::semantics(NodeId id) const {
             if (spec::ActionDesc* a = activate()) a->effect = std::max(a->effect, *e);
     if (const Value* v = prop("answer"))
         if (spec::ActionDesc* a = activate()) a->answer = std::string(v->as_string());
+    // A generic node that can be activated is a button to every reader
+    // (what ARIA asks of a clickable div), so it is found as one and must be named (S-6).
+    if (s.role == Role::generic && activate() && !prop("role")) s.role = Role::button;
     if (focusable) {
         add("focus", Effect::read);
         add("blur", Effect::read);

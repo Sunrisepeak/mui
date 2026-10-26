@@ -1,0 +1,29 @@
+# openmui-semantic — the semantic tree as agents, tests and assistive
+# technology see it: snapshots (paged, by subtree and depth, compact), deltas
+# between revisions, queries by role, name, state, value and place, actions
+# with their effects and answers, conditions to wait for, and the spec's
+# checks over the whole tree; plus recording sessions as semantic actions and
+# the clock, and replaying them exactly (with openmui-record).
+[package]
+name        = "openmui-semantic"
+version     = "0.1.0"
+description = "openmui semantic tree: snapshots, deltas, queries, actions, wait conditions, checks, recording and replay"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "runtime"
+
+[targets.openmui-semantic]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+openmui-core = { path = "../core" }
+openmui-view = { path = "../view" }
+openmui-record = { path = "../../modules/record" }
+
+[dev-dependencies]
+openmui-testing = { path = "../../tests/support" }

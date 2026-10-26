@@ -165,7 +165,7 @@ on.pointer_up   = { to = "idle", do = ["commit('group.moved', hit.node)"] }     
 
 ## 6. 后缀体系（D-30，v0.3 更新）
 
-规则是：**openmui 的数据文件一律命名为 `<名字>.<种类>.omui.{toml,json}`**；逻辑代码和着色器保持各自原生的后缀。
+规则是：**openmui 的数据文件一律命名为 `<名字>.<种类>.omui.{toml,json}`**；逐行追加的流式记录用 `.jsonl`（NDJSON，每行一个 JSON 对象）；逻辑代码和着色器保持各自原生的后缀。
 
 | 文件 | 后缀 | 例子 |
 |---|---|---|
@@ -176,6 +176,7 @@ on.pointer_up   = { to = "idle", do = ["commit('group.moved', hit.node)"] }     
 | 主题和 token | `.theme.omui.toml` | `default.theme.omui.toml` |
 | 效果着色器的元数据（可选） | `.effect.omui.toml` | `ripple.effect.omui.toml`（参数范围、说明；不写时由 Slang 反射得到） |
 | 时间轴叠加（视频预览里的修改，D-54） | `.timeline.omui.json` | `promo.timeline.omui.json`（属性、关键帧、镜头起点和长度的修改，叠加在代码之上） |
+| 会话录制（语义动作 + 输入 + 时钟，`modules/record`） | `.session.omui.jsonl` | `bug-1234.session.omui.jsonl`（第一行是头部，之后每行一条带时间戳的记录；可以流式写入、跳转、在 headless 下精确回放、转成测试） |
 | 应用包（播放器加载） | `.omuipkg` | `notes.omuipkg` |
 | 着色器源码 | `.slang` | `ripple.slang` |
 | 逻辑代码 | `.ts` / `.tsx` / `.py` / `.lua` / `.cppm` / `.cpp` | 保持原生后缀，编辑器和工具链才能正常工作 |

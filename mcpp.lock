@@ -5,6 +5,11 @@
 # file must not change depending on which command ran last.
 version = 2
 
+[package."mcpplibs.os"]
+version = "os-0.1.0"
+source  = "git+https://github.com/mcpplibs/os.git#branch=os-0.1.0@cf6dfbfe65349e8ed9183436e6af84b17cc08453"
+hash    = "fnv1a:3f844ed1801b1a6d"
+
 [package."compat.concurrentqueue"]
 namespace = "compat"
 version = "1.0.5"
@@ -58,9 +63,4 @@ namespace = "marzer"
 version = "3.4.0"
 source  = "index+marzer@3.4.0"
 hash    = "fnv1a:1420a0be548b3b22"
-
-[package."mcpplibs.os"]
-version = "os-0.1.0"
-source  = "git+https://github.com/mcpplibs/os.git#branch=os-0.1.0@cf6dfbfe65349e8ed9183436e6af84b17cc08453"
-hash    = "fnv1a:3f844ed1801b1a6d"
 

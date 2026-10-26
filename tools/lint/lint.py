@@ -54,7 +54,8 @@ LAYERS: list[tuple[str, set[str]]] = [
 ]
 
 # Members whose results are part of A-level conformance (identical bits).
-DETERMINISTIC = ["modules/anim", "modules/raster", "modules/layout", "modules/geom"]
+DETERMINISTIC = ["modules/anim", "modules/raster", "modules/layout", "modules/geom", "modules/render", "modules/text",
+                 "runtime/view"]
 
 # Operating-system headers: platform code goes through mcpplibs.os (D-57), so
 # none of ours includes them, native units included.

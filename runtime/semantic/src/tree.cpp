@@ -51,6 +51,8 @@ void Tree::refresh() {
     // Pre-order; a lifted node's children are added to its nearest kept ancestor.
     auto visit = [&](auto& self, NodeId id, std::optional<std::size_t> parent) -> void {
         spec::SemanticNode n = runtime_.semantic_node(id);
+        // Hidden content (a closed menu) is not read, as aria-hidden content is not.
+        if (options_.compact && n.states.has(State::hidden) && n.id != "app") return;
         std::optional<std::size_t> here = parent;
         if (!(options_.compact && meaningless(n))) {
             n.children.clear();

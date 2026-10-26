@@ -27,5 +27,5 @@
 - ID 不能依赖显示文本；可交互的节点要写显式 ID。
 - 视图代码优先（各语言原生的 builder）；数据文件一律命名为 `<名字>.<种类>.omui.{toml,json}`（逐行记录用 `.jsonl`，例如 `*.session.omui.jsonl`）；着色器用 `.slang`；逻辑代码保持原生后缀。builder 和数据文件都要让人和 agent 容易读懂（`view-data-files` 设计文档 §2）。
 - 仓库根目录就是 `openmui` 伞包；`mcpp/` 只放构建系统的代码；入口在 `src/entry/`。
-- 渲染器只写一次（`modules/render`），GPU 路径基于 `omui.gpu` 抽象层，各后端只依赖这个抽象层的接口。
+- 渲染器只写一次（`modules/render`），GPU 路径基于 `omui.rhi` 抽象层，各后端只依赖这个抽象层的接口。
 - **平台相关的代码一律经由 `mcpplibs.os`**（文件、目录、进程、管道、IPC）；窗口和输入经由 SDL3（D-57）。

@@ -139,10 +139,10 @@ mui/                                   （仓库根目录 = openmui 伞包 + wor
 │   ├── raster/                        # ★ openmui-raster：确定性的 CPU 2D 光栅器（路径、描边、渐变、合成）
 │   ├── image/                         # ★ openmui-image：图像缓冲、PNG / JPEG 编解码（libpng、zlib）
 │   ├── render/                        # ★ openmui-render：**渲染层抽象**：显示列表、渲染器接口、CPU 后端（基于 raster）、GPU 后端（基于 gpu）、内置 Slang 着色器
-│   ├── gpu/                           # ★ openmui-gpu：UI 尺度的 GPU 抽象层接口 omui.gpu
-│   ├── gpu-sdl/                       # ★ openmui-gpu-sdl：后端（Vulkan / Metal / D3D12）
-│   ├── gpu-gles/                      #   openmui-gpu-gles（M6：嵌入式 Linux、WebGL2）
-│   ├── gpu-webgpu/  gpu-vk/           #   以后再做
+│   ├── rhi/                           # ★ openmui-rhi：UI 尺度的 GPU 抽象层接口 omui.rhi
+│   ├── rhi-sdl/                       # ★ openmui-rhi-sdl：后端（Vulkan / Metal / D3D12）
+│   ├── rhi-gles/                      #   openmui-rhi-gles（M6：嵌入式 Linux、WebGL2）
+│   ├── rhi-webgpu/  rhi-vk/           #   以后再做
 │   ├── record/                        # ★ openmui-record：录制和回放：带时间戳的事件 / 动作流（NDJSON），可以跳转、可以转成测试
 │   └── encode/                        # ★ openmui-encode：文件输出：PNG 序列、视频编码（经 mcpplibs.os 启动 ffmpeg 并用管道送帧，可选硬件编码）、音频混合
 │
@@ -199,7 +199,7 @@ mui/                                   （仓库根目录 = openmui 伞包 + wor
 | modules/unicode | `openmui-unicode` | ✅ 通用库 | mcpp-index 里没有断行库，所以自己做；也可以贡献给 mcpplibs |
 | modules/text | `openmui-text` | ✅ 通用库 | C++ 模块化的文本引擎在 C++ 生态里很少见 |
 | modules/raster | `openmui-raster` | ✅ 通用库 | 确定性的 2D 光栅器 |
-| modules/gpu + 各后端 | `openmui-gpu*` | ✅ | UI 尺度的 GPU 抽象层 |
+| modules/rhi + 各后端 | `openmui-rhi*` | ✅ | UI 尺度的 GPU 抽象层 |
 | components/markdown、canvas | `openmui-ui-*` | ✅ | 有独立用户时 |
 | video | `openmui-video` | ✅ | 产品形态独立 |
 | lang/* | `openmui-lang-*` | ✅ 有独立维护者时 | 参考 OpenTelemetry |
@@ -257,7 +257,7 @@ UI 线程（C++）：
   输入（按帧合并）→ 分发事件 → 执行动作 / verb
   → signal 传播（批量、拓扑排序）→ 对账（立即模式的 build、保留模式的局部重建）
   → 增量布局 → 动画求值（批量、SoA）→ 语义变更 → 显示列表（增量）→ 交给渲染线程
-渲染线程：显示列表 → render（批处理、实例化、图层缓存）→ omui.gpu 或 raster → 提交 → 等待帧已显示（帧节奏）
+渲染线程：显示列表 → render（批处理、实例化、图层缓存）→ omui.rhi 或 raster → 提交 → 等待帧已显示（帧节奏）
 任务线程池：文本排版、图片解码、缩略图光栅化、视频帧渲染、布局测量（大子树）
 脚本线程（每种语言一个）：事件处理、verb、业务逻辑 ↔ 通过消息队列和 UI 线程交换值
 ```
@@ -474,13 +474,13 @@ text({ opacity: interpolate(frame(), [0, 30], [0, 1]), scale: spring({ frame: fr
 |---|---|---|
 | raster（CPU 参考光栅器） | **自己实现定点数的扫描线光栅器**，用解析覆盖率做抗锯齿，保证跨平台逐字节一致（不依赖 pixman 的 SIMD 路径，避免不同平台的取整差异）；字形由 FreeType 光栅化（版本由 mcpp.lock 锁定，关闭 hinting） | M1 |
 | render | 显示列表 → 批处理；圆角矩形、边框、阴影用 SDF；msdf 文字图集；图层缓存；脏区；外部纹理 | M4（CPU 路径在 M1 就有） |
-| gpu | `omui.gpu` 接口：设备、缓冲、纹理、管线、命令列表、导入外部纹理、能力查询 | M4 |
-| gpu-sdl | 第一个 GPU 后端（Vulkan / Metal / D3D12） | M4 |
+| rhi | `omui.rhi` 接口（RHI，Render Hardware Interface）：设备、缓冲、纹理、管线、命令列表、导入外部纹理、能力查询 | M4 |
+| rhi-sdl | 第一个 GPU 后端（Vulkan / Metal / D3D12） | M4 |
 | shaders | 用 Slang 写内置着色器；`rules-slang` 编译成 SPIR-V / MSL / DXIL（/ GLSL ES / WGSL）；通过反射得到参数；开发期热重载 | M4 |
 | 效果（第 ① 级） | 效果模板 `EffectInput`；参数就是带类型的属性，可以做动画；第三方的着色器只能使用模板 | M4 |
 | 材质（第 ② 级） | 画布节点类型自己的着色器 | M4–M5 |
-| gpu-gles | 嵌入式 Linux 和 WebGL2（D-36） | M6 |
-| CI 中的 GPU | headless 下用 **mesa-lavapipe**（xim 中已有）跑 gpu-sdl 的 Vulkan 路径 | M4 |
+| rhi-gles | 嵌入式 Linux 和 WebGL2（D-36） | M6 |
+| CI 中的 GPU | headless 下用 **mesa-lavapipe**（xim 中已有）跑 rhi-sdl 的 Vulkan 路径 | M4 |
 
 ---
 
@@ -510,7 +510,7 @@ mcpplibs.os = { git = "https://github.com/mcpplibs/os.git", branch = "os-0.1.0" 
 |---|---|---|
 | **headless** | 虚拟 surface、注入时钟、输出 PNG；CI、agent、**视频渲染**都使用它 | M1 |
 | **sdl3** | Linux / Windows / macOS 桌面，以后包括 Android / iOS | M1（Linux）→ M2（三个桌面平台） |
-| web | emscripten（emsdk 在 xim 中已有）+ gpu-gles（WebGL2） | M6 |
+| web | emscripten（emsdk 在 xim 中已有）+ rhi-gles（WebGL2） | M6 |
 | opensal | 以后接入 Luban / xdesk | 以后 |
 
 ---
@@ -619,7 +619,7 @@ export default composition({ id: "intro", width: 1920, height: 1080, fps: 60, fr
 
 ```
 合成 + 帧区间 → 拆成帧块分给任务线程或进程 → 每一帧：渲染时钟 = 帧号 / fps
-  → 对账 → 布局 → 动画求值 → 渲染（gpu-sdl 或 lavapipe，也可以用 CPU raster）
+  → 对账 → 布局 → 动画求值 → 渲染（rhi-sdl 或 lavapipe，也可以用 CPU raster）
   →（可选的运动模糊：子帧累加）→ 帧缓冲
 → 编码：ffmpeg（compat.ffmpeg）→ mp4（h264 / h265 / av1）/ webm / png 序列 / gif；音频混合
 ```
@@ -825,9 +825,9 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
 |---|---|---|---|
 | M1 | Linux x86_64 | CPU raster | headless + SDL3 |
 | M2 | + Windows x64、macOS arm64 | CPU raster | 平台差异用模块分区处理；跨平台确定性测试开始运行 |
-| M4 | 三个桌面平台 | + gpu-sdl（Vulkan / D3D12 / Metal） | lavapipe 用于 CI |
-| M6 | + Web | gpu-gles → WebGL2（emsdk、openkal-emscripten） | SDL_GPU 的 WebGPU 后端还只是实验性的 PR，不依赖它 |
-| M6 之后 | Android、iOS、Linux aarch64、嵌入式 Linux | gpu-sdl / gpu-gles | — |
+| M4 | 三个桌面平台 | + rhi-sdl（Vulkan / D3D12 / Metal） | lavapipe 用于 CI |
+| M6 | + Web | rhi-gles → WebGL2（emsdk、openkal-emscripten） | SDL_GPU 的 WebGPU 后端还只是实验性的 PR，不依赖它 |
+| M6 之后 | Android、iOS、Linux aarch64、嵌入式 Linux | rhi-sdl / rhi-gles | — |
 | 以后 | MCU | mcu 渲染 | freestanding 配置档 |
 
 ---
@@ -850,7 +850,7 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
 | mcpp-index | `compat.cpython`（limited API 的头文件和导入库） | Python 绑定 | M3 |
 | mcpp-index | `accesskit-c`（预编译） | 无障碍层（D-21） | M5 |
 | mcpp-index | `compat.thorvg` | Lottie（以后的扩展） | 以后 |
-| mcpp-index | `compat.dawn` 或 `wgpu-native` | gpu-webgpu | 以后 |
+| mcpp-index | `compat.dawn` 或 `wgpu-native` | rhi-webgpu | 以后 |
 | xim | `luarocks` | Lua 依赖（D-29） | M3 |
 | xim | `ffmpeg`（命令行） | 视频的调试和转码 | M5 |
 | xim | `openmui-fonts`（Inter、Noto Sans、Noto Sans CJK 子集、等宽字体） | **默认字体固定下来**，保证跨平台一致（A / B 级） | M1 |
@@ -870,9 +870,9 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
 | **M1 核心** | 6–8 周 | core（含基于 taskflow 的任务调度）/ layout（flex）/ 基础文本 / view（im）/ semantic / agent（本地端点 + 命令行）/ raster / host-headless / host-sdl3（Linux）/ ui-base 的前 9 个组件；规范 0.1 的 S 级 | 示例 01 和 07；`omui agent` 能操作示例；CPU 金图逐字节一致 |
 | **M2 文本 + 动画 + Markdown** | 6–8 周（**文本可以从 M1 开始并行**） | 富文本、UAX#14、双向文字、编辑和输入法；**anim 全部功能（§6）**；ui-markdown；录制和回放；Windows / macOS | 示例 08 和 09；动画的 A 级用例和跳转一致性；跨平台确定性测试是绿色的 |
 | **M3 声明式 + 三种语言** | 6–8 周 | rt / expr / 视图文档；C ABI；TS / Python（宿主模式，abi3）/ Lua；native 模块；`deps.<lang>`；player；其余模板；规范 0.2 | 示例 02–06、12；四种写法加视图文档的语义树一致；三种语言的 CTS 一致 |
-| **M4 GPU + 画布 + 风格化** | 8–10 周 | omui.gpu + gpu-sdl；render；Slang 着色器流水线；效果和材质；lavapipe 进 CI；ui-canvas / canvas-kit；themes/styles；规范 0.3；**openmui-video 的原型，S5 的对标拆解、分镜、动态分镜和风格帧** | **S1 Markdown 墙**和 **S2 风格画廊**；第一份基准报告 |
+| **M4 GPU + 画布 + 风格化** | 8–10 周 | omui.rhi + rhi-sdl；render；Slang 着色器流水线；效果和材质；lavapipe 进 CI；ui-canvas / canvas-kit；themes/styles；规范 0.3；**openmui-video 的原型，S5 的对标拆解、分镜、动态分镜和风格帧** | **S1 Markdown 墙**和 **S2 风格画廊**；第一份基准报告 |
 | **M5 视频 + 游戏 + Agent** | 6–8 周 | openmui-video；ui-timeline；动画检查器；MCP 服务器；skills；accesskit | **S3、S4（六个关卡）、S5（约 60 秒主片 + 15 秒短片）**；详见 §19.3 |
-| **M6 打磨和跨平台** | 持续 | 检查器（像素溯源）；性能调优和门禁；gpu-gles 和 Web；文档完整；准备公开 | 指标稳定；文档完整；评估迁移到公开仓库 |
+| **M6 打磨和跨平台** | 持续 | 检查器（像素溯源）；性能调优和门禁；rhi-gles 和 Web；文档完整；准备公开 | 指标稳定；文档完整；评估迁移到公开仓库 |
 
 ### 18.1 M0 的任务清单（可以直接开工）
 
@@ -912,7 +912,7 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
 | **M1** | ① 示例 01 和 07 在 Linux 上运行；② `omui agent snapshot / find / act / wait` 能操作示例 07，不可逆动作没有 `answer` 时返回 `needs-answer`（退出码 2）；③ CPU 金图在 Linux 上两次运行逐字节相同；④ ui-base 的前 9 个组件全部满足组件完成标准；⑤ 1000 个节点的界面在 CPU 后端上 1080p 达到 60Hz（目标值） |
 | **M2** | ① 示例 08 和 09；② 公开的 CommonMark 测试集通过率 ≥ 95%（GFM 扩展单独统计）；③ **动画**：§6.6 的 A 级曲线金值全部通过；跳转一致性用例（随机抽取 1000 个时刻）全部通过；被打断的 spring 速度连续（误差 < 1e-9）；④ 跨平台确定性测试在三个桌面平台上是绿的；⑤ 中文、阿拉伯语、emoji 混排的排版测试集通过；⑥ 录制一段会话，在 headless 下回放，结果完全相同 |
 | **M3** | ① 示例 02–06、12；② 同一个视图用四种语言加视图文档写，语义树完全相同（CTS 的 S 级）；③ 同一组 JSON 场景由 TS、Python、Lua 执行，结果完全相同；④ 脚本热重载在 200ms 以内生效，并且 signal 的状态保留；⑤ `pip install openmui` 后运行 Python 示例（Linux）；⑥ native 模块的契约生成三种语言的绑定，不需要手写代码 |
-| **M4** | ① **S1** 和 **S2** 满足 §19.3；② gpu-sdl 在三个桌面平台上运行；lavapipe 金图在 CI 里通过；③ 一个自定义的 Slang 效果从编写到生效不需要改任何 C++ 代码，着色器热重载在 500ms 以内；④ 第一份公开的基准报告 |
+| **M4** | ① **S1** 和 **S2** 满足 §19.3；② rhi-sdl 在三个桌面平台上运行；lavapipe 金图在 CI 里通过；③ 一个自定义的 Slang 效果从编写到生效不需要改任何 C++ 代码，着色器热重载在 500ms 以内；④ 第一份公开的基准报告 |
 | **M5** | ① **S3、S4、S5** 满足 §19.3；② MCP 服务器能让 Claude Code 操作任意一个示例；③ `skills/openmui` 和 `skills/openmui-video` 发布；④ **视频基准套件（§12.6）的每一项都优于业界最好的工具**，结果写进公开的基准报告 |
 | **M6** | ① Web（WebGL2）上运行 S1 的缩小版和示例 01；② 文档完整（四种语言的入门、所有指南、生成的 API 参考）；③ 所有门禁稳定运行 4 周以上 |
 
@@ -976,6 +976,7 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
 | D-53 | 每个里程碑、展示、模块都有验收标准；能自动检查的进 CI，不能自动检查的写成检查清单并由维护者签字 |
 | D-55 | **独立组件放在 `modules/` 下**（参考 mcpp 的 `modules/`）：它们不依赖 openmui 的任何其他包，随时可以拆成独立仓库；openmui 专用的包留在 spec / runtime / hosts / components 等原来的位置 |
 | D-57 | **渲染层抽象也是独立组件**：`modules/render`（显示列表、渲染器接口、CPU 和 GPU 后端、内置着色器），`gfx/` 目录取消；布局引擎 `modules/layout`、图像编解码 `modules/image`、录制回放 `modules/record`、文件和视频输出 `modules/encode` 同样放在 `modules/` 下；这些模块共用一个只依赖标准库的几何模块 `modules/geom`（规范保留自己的线上值类型，运行时在边界处转换）。**平台相关的代码一律经由 `mcpplibs.os`**（文件、目录、进程、管道、IPC），窗口和输入经由 SDL3 |
+| D-58 | **GPU 抽象层叫 RHI**：`modules/gpu` 改名为 `modules/rhi`（包 `openmui-rhi`，接口 `omui.rhi`，后端 `rhi-sdl`、`rhi-gles`、`rhi-webgpu`、`rhi-vk`），沿用业界对“渲染硬件接口”的叫法；`modules/render` 保持原名：它是渲染子系统（显示列表、渲染器接口、CPU 和 GPU 渲染器），和 `layout`、`raster`、`text` 一样以子系统命名 |
 | D-56 | **mcpp-index 里已经有知名、跨平台的库时，优先使用生态里的库，不自己实现**：JSON 用 `nlohmann.json`，TOML 用 `marzer.tomlplusplus`，任务系统用 `taskflow`，无锁队列用 `compat.concurrentqueue`，PNG 用 `compat.libpng`，Markdown 用 `compat.md4c`，排版用 HarfBuzz / FreeType / fribidi。**只有两种情况自己实现**：生态里没有（UAX#14 断行表）；或者确定性要求无法满足（anim 的数学函数，因为各平台 libm 的结果不同；CPU 光栅器，因为 pixman 的 SIMD 路径在不同平台上取整不同）。缺少的库优先补充到 mcpp-index（§17.2） |
 | D-54 | openmui-video 的渲染速度、修改后的增量渲染（四层缓存）、GPU 和硬件编码、预览和可再编辑性都作为指标，**每一项都要优于业界最好的工具**（§12.6）；修改以旁路数据文件 `.timeline.omui.json` 叠加在代码之上 |
 

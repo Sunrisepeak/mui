@@ -251,6 +251,22 @@ void Runtime::invalidate_layout(NodeId node) {
 }
 
 void Runtime::invalidate_semantics(NodeId) { impl_->touch(dirty_semantics); }
+
+void Runtime::restyle(NodeId node) {
+    if (valid(node)) impl_->sync_style(node);
+}
+
+void Runtime::recompose(NodeId node) {
+    Impl& d = *impl_;
+    if (!d.alive(node) || !d.at(node).composed) return;
+    RegionState& rs = *d.at(node).composed;
+    rs.pending = untracked([&] { return d.at(node).type->compose(d.at(node).instance); });
+    if (!rs.dirty) {
+        rs.dirty = true;
+        d.dirty_regions.push_back(d.at(node).composed);
+    }
+    d.frame_requested = true;
+}
 void Runtime::request_frame() { impl_->frame_requested = true; }
 void Runtime::focus(NodeId node) { impl_->set_focus(node, impl_->focus_visible); }
 void Runtime::capture_pointer(NodeId node) { impl_->capture = node; }

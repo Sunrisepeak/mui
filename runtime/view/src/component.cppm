@@ -33,10 +33,36 @@ struct NodeState {
     bool animating = false;
 };
 
+// Where an overlay goes: against its parent (a menu below its button), or
+// centred in the window (a dialog). It flips to stay inside the window.
+struct Placement {
+    enum class Side : std::uint8_t { below, above, start, end, center };
+    Side  side = Side::below;
+    float offset = 4;           // the gap to the anchor
+    bool  modal = false;        // blocks the interface below; Tab stays inside
+    bool  scrim = false;        // darkens what is below (theme `scrim`)
+    bool  light_dismiss = true; // a press outside performs its `dismiss` action
+    bool  match_width = false;  // at least as wide as the anchor (a select's popup)
+};
+
 // The runtime's services, as components see them.
 class Services {
 public:
     virtual ~Services() = default;
+    // The tree around a node (components that coordinate: tabs and their tabs).
+    [[nodiscard]] virtual NodeId parent(NodeId node) const = 0;
+    [[nodiscard]] virtual std::vector<NodeId> children(NodeId node) const = 0;
+    [[nodiscard]] virtual Value get(NodeId node, std::string_view property) const = 0;
+    // As a script sets it: a two-way binding learns it, a plain property takes it.
+    virtual void set(NodeId node, std::string_view property, const Value& value) = 0;
+    // Handlers on another node (a tooltip on its target's hover); `off` takes the token.
+    virtual std::uint64_t on(NodeId node, std::string event, Handler handler) = 0;
+    virtual void off(std::uint64_t token) = 0;
+    [[nodiscard]] virtual std::string path(NodeId node) const = 0;
+    // The node's default style depends on what changed (a menu that closed).
+    virtual void restyle(NodeId node) = 0;
+    // A composite component's own children are built again (compose()).
+    virtual void recompose(NodeId node) = 0;
     [[nodiscard]] virtual const Theme& theme() const = 0;
     [[nodiscard]] virtual typeset::FontCollection& fonts() = 0;
     [[nodiscard]] virtual render::ImageStore& images() = 0;
@@ -127,6 +153,7 @@ struct ComponentType {
     Role                      role = Role::generic;
     bool                      focusable = false;
     bool                      clips = false;  // children are clipped to the node
+    bool                      overlay = false;  // laid out and painted above everything, placed by `placement`
     std::string_view          cursor;         // the pointer's shape over it: "text", "pointer", "grab" … (empty: inherit)
     void* (*create)() = nullptr;
     void (*destroy)(void*) = nullptr;
@@ -145,6 +172,11 @@ struct ComponentType {
     Point (*scroll_offset)(const void*) = nullptr;
     // The theme changed: drop what was resolved from it (shaped text).
     void (*restyle)(void*) = nullptr;
+    // An overlay's place (overlays only).
+    Placement (*placement)(const void*) = nullptr;
+    // A composite component's own children (a select's popup and options),
+    // after those its element gave; built again on Services::recompose.
+    std::vector<Element> (*compose)(void*) = nullptr;
 };
 
 // The function table of component class C. C declares `static constexpr
@@ -159,6 +191,11 @@ template <class C>
         if constexpr (requires { C::focusable; }) x.focusable = C::focusable;
         if constexpr (requires { C::clips; }) x.clips = C::clips;
         if constexpr (requires { C::cursor; }) x.cursor = C::cursor;
+        if constexpr (requires { C::overlay; }) x.overlay = C::overlay;
+        if constexpr (requires(C& c) { { c.compose() } -> std::same_as<std::vector<Element>>; })
+            x.compose = [](void* p) { return static_cast<C*>(p)->compose(); };
+        if constexpr (requires(const C& c) { { c.placement() } -> std::same_as<Placement>; })
+            x.placement = [](const void* p) { return static_cast<const C*>(p)->placement(); };
         if constexpr (requires { C::contract(); }) x.contract = &C::contract();
         x.create = [] { return static_cast<void*>(new C()); };
         x.destroy = [](void* p) { delete static_cast<C*>(p); };

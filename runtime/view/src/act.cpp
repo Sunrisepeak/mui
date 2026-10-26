@@ -53,7 +53,7 @@ spec::SemanticNode Runtime::Impl::semantics(NodeId id) const {
         .set(State::pressed, n.state.pressed)
         .set(State::removing, n.state.removing)
         .set(State::animating, n.state.animating)
-        .set(State::hidden, !n.visual.visible);
+        .set(State::hidden, !displayed(id));
     // Without layout (H0) a node has no place: neither bounds nor offscreen.
     const bool placed = options.stages >= Stages::layout;
     if (placed && id != root && !n.bounds.intersects(Rect{0, 0, size.width, size.height})) s.states.set(State::offscreen);

@@ -96,6 +96,7 @@ struct Node {
     Affine               world;         // node → window
     std::source_location where;
     std::uint32_t        index = 0;     // display-list node marker; 0 is none
+    std::shared_ptr<RegionState> composed;  // a composite component's own children
 };
 
 // A change a node asks for, in the order the frame handles them.
@@ -129,6 +130,8 @@ struct Runtime::Impl {
     std::vector<NodeId>                   animating;  // nodes with moving channels
     std::vector<NodeId>                   removing;   // nodes playing their exit transition (S-4)
     std::vector<NodeId>                   fresh;      // created since the last frame ended
+    std::vector<NodeId>                   overlays;   // overlay nodes, bottom to top
+    std::vector<std::pair<NodeId, NodeId>> modal_focus;  // a modal overlay, and the focus before it opened
     Size                                  size;
     float                                 scale = 1;
     bool                                  reduce_motion = false;
@@ -204,7 +207,12 @@ struct Runtime::Impl {
     void   run_timers();
     void   run_animations();
     void   run_layout();
-    void   compute_bounds(NodeId id, Point origin, const Affine& parent_world);
+    void   compute_bounds(NodeId id, Point origin, const Affine& parent_world, std::optional<Point> placed = std::nullopt);
+    void   place_overlays();
+    void   trap_focus();
+    [[nodiscard]] bool displayed(NodeId id) const;
+    [[nodiscard]] NodeId topmost_modal() const;
+    [[nodiscard]] bool contains(NodeId ancestor, NodeId id) const;
     void   paint();
     void   paint_node(NodeId id);
     NodeId hit(NodeId id, Point window, std::optional<Rect> clip) const;

@@ -69,6 +69,7 @@ NodeId Runtime::Impl::create(Element& e, NodeId parent) {
     by_layout[lnode] = id;
 
     if (type.measure) layout.set_measure(lnode, &measure_trampoline, this, type.baseline ? &baseline_trampoline : nullptr);
+    if (type.overlay) overlays.push_back(id);
     if (type.mount) type.mount(at(id).instance, self, id);
 
     for (auto& [name, source] : e.props) {
@@ -79,6 +80,18 @@ NodeId Runtime::Impl::create(Element& e, NodeId parent) {
 
     std::vector<ChildSlot> slots = reconcile(id, {}, e.children);
     at(id).slots = std::move(slots);
+    if (type.compose) {
+        // The component's own children: a region whose builder asks the component.
+        auto rs = std::make_shared<RegionState>();
+        rs->parent = id;
+        rs->region = std::make_shared<Region>(Region{[this, id] {
+            Node& n = at(id);
+            return n.type->compose(n.instance);
+        }});
+        run_region(rs);
+        at(id).composed = rs;
+        at(id).slots.push_back({{}, rs});
+    }
     flatten(id);
     if (at(id).transitions.contains("enter")) enter(id);
     else fresh.push_back(id);
@@ -128,6 +141,7 @@ void Runtime::Impl::destroy(NodeId id) {
     std::erase(animating, id);
     std::erase(removing, id);
     std::erase(fresh, id);
+    std::erase(overlays, id);
     std::erase_if(runtime_handlers, [&](const RuntimeHandler& h) { return h.node == id; });
     nodes.erase(id);
     paths_dirty = true;
@@ -264,7 +278,10 @@ void Runtime::Impl::update_from(NodeId id, Element& e) {
         if (std::ranges::find(at(id).element_props, name) == at(id).element_props.end()) clear_prop(id, name);
 
     std::vector<ChildSlot> old = std::move(at(id).slots);
+    std::shared_ptr<RegionState> composed = at(id).composed;
+    if (composed) std::erase_if(old, [&](const ChildSlot& s) { return s.region == composed; });
     std::vector<ChildSlot> slots = reconcile(id, std::move(old), e.children);
+    if (composed) slots.push_back({{}, composed});
     at(id).slots = std::move(slots);
     flatten(id);
 }
@@ -284,7 +301,12 @@ void Runtime::Impl::flatten(NodeId id) {
     if (out != n.children) {
         n.children = std::move(out);
         layout.clear_children(n.layout);
-        for (NodeId c : n.children) layout.append(n.layout, at(c).layout);
+        // Overlays are laid out from the root, wherever they are in the tree.
+        const layout::NodeId top = at(root).layout;
+        for (NodeId c : n.children) layout.append(at(c).type->overlay ? top : n.layout, at(c).layout);
+        if (id == root)
+            for (NodeId o : overlays)
+                if (alive(o) && o != id) layout.append(top, at(o).layout);
         assign_segments(id);
         touch(dirty_tree | dirty_layout | dirty_paint);
     }

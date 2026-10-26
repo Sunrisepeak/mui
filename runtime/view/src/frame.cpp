@@ -43,6 +43,8 @@ FrameOutput Runtime::frame(const FrameInput& input) {
     bool repainted = false;
     if (stages >= Stages::layout && (todo & (dirty_paint | dirty_layout | dirty_tree))) {
         d.compute_bounds(d.root, {0, 0}, Affine{});
+        d.place_overlays();
+        d.trap_focus();
         if (stages >= Stages::paint) {
             d.paint();
             repainted = true;
@@ -142,9 +144,91 @@ void Runtime::Impl::run_layout() {
     ++semantic_revision;  // bounds moved
 }
 
-void Runtime::Impl::compute_bounds(NodeId id, Point origin, const Affine& parent_world) {
+bool Runtime::Impl::displayed(NodeId id) const {
+    const Node& n = at(id);
+    return n.visual.visible && layout.style(n.layout).display != layout::Display::none;
+}
+
+bool Runtime::Impl::contains(NodeId ancestor, NodeId id) const {
+    for (NodeId c = id; alive(c); c = at(c).parent)
+        if (c == ancestor) return true;
+    return false;
+}
+
+NodeId Runtime::Impl::topmost_modal() const {
+    for (auto it = overlays.rbegin(); it != overlays.rend(); ++it) {
+        const Node& n = at(*it);
+        if (displayed(*it) && n.type->placement && n.type->placement(n.instance).modal) return *it;
+    }
+    return {};
+}
+
+void Runtime::Impl::trap_focus() {
+    // A modal overlay that opened takes focus (its first focusable node);
+    // one that closed gives it back to where it was.
+    while (!modal_focus.empty()) {
+        const NodeId m = modal_focus.back().first;
+        if (alive(m) && displayed(m)) break;
+        const NodeId before = modal_focus.back().second;
+        modal_focus.pop_back();
+        if (alive(before)) set_focus(before, focus_visible);
+    }
+    const NodeId modal = topmost_modal();
+    if (!modal || (!modal_focus.empty() && modal_focus.back().first == modal)) return;
+    modal_focus.emplace_back(modal, focus);
+    if (!contains(modal, focus)) {
+        const std::vector<NodeId> order = focus_order();
+        set_focus(order.empty() ? NodeId{} : order.front(), focus_visible);
+    }
+}
+
+void Runtime::Impl::place_overlays() {
+    const Rect window{0, 0, size.width, size.height};
+    for (NodeId id : overlays) {
+        if (!alive(id) || !displayed(id)) continue;
+        Node& n = at(id);
+        const Placement p = n.type->placement ? n.type->placement(n.instance) : Placement{};
+        const Rect frame = layout.frame(n.layout);
+        const Rect anchor = alive(n.parent) ? at(n.parent).bounds : window;
+        const float w = frame.width, h = frame.height;
+        Point at{};
+        switch (p.side) {
+            case Placement::Side::center: at = {(window.width - w) / 2, (window.height - h) / 2}; break;
+            case Placement::Side::below:
+            case Placement::Side::above: {
+                const float below = anchor.bottom() + p.offset, above = anchor.y - p.offset - h;
+                const bool down = p.side == Placement::Side::below ? (below + h <= window.bottom() || above < 0)
+                                                                   : !(above >= 0 || below + h > window.bottom());
+                at = {anchor.x, down ? below : above};
+                break;
+            }
+            case Placement::Side::start:
+            case Placement::Side::end: {
+                const float after = anchor.right() + p.offset, before = anchor.x - p.offset - w;
+                const bool right = p.side == Placement::Side::end ? (after + w <= window.right() || before < 0)
+                                                                  : !(before >= 0 || after + w > window.right());
+                at = {right ? after : before, anchor.y};
+                break;
+            }
+        }
+        // Inside the window, as far as it fits.
+        at.x = std::clamp(at.x, 0.0f, std::max(0.0f, window.width - w));
+        at.y = std::clamp(at.y, 0.0f, std::max(0.0f, window.height - h));
+        compute_bounds(id, {0, 0}, Affine{}, at);
+        if (p.match_width && w < anchor.width) {
+            sync_style(id);  // the anchor's width became known: lay out again next frame
+            frame_requested = true;
+        }
+    }
+}
+
+void Runtime::Impl::compute_bounds(NodeId id, Point origin, const Affine& parent_world, std::optional<Point> placed) {
     Node& n = at(id);
     n.frame = layout.frame(n.layout);
+    if (placed) {
+        n.frame.x = placed->x;
+        n.frame.y = placed->y;
+    }
     n.bounds = {origin.x + n.frame.x, origin.y + n.frame.y, n.frame.width, n.frame.height};
     n.content_offset = n.type->scroll_offset ? n.type->scroll_offset(n.instance) : Point{};
 
@@ -167,12 +251,25 @@ void Runtime::Impl::compute_bounds(NodeId id, Point origin, const Affine& parent
     const Point off = n.content_offset;
     const Point inner{n.bounds.x - off.x, n.bounds.y - off.y};
     const Affine child_world = (off.x != 0 || off.y != 0) ? n.world * Affine::translate(-off.x, -off.y) : n.world;
-    for (std::size_t i = 0; i < at(id).children.size(); ++i) compute_bounds(at(id).children[i], inner, child_world);
+    for (std::size_t i = 0; i < at(id).children.size(); ++i) {
+        const NodeId c = at(id).children[i];
+        if (!at(c).type->overlay) compute_bounds(c, inner, child_world);
+    }
 }
 
 void Runtime::Impl::paint() {
     list.clear();
     paint_node(root);
+    // Overlays above everything, bottom to top; a modal one darkens what is below.
+    for (NodeId id : overlays) {
+        if (!alive(id) || !displayed(id)) continue;
+        const Node& n = at(id);
+        if (n.type->placement && n.type->placement(n.instance).scrim) {
+            const Color scrim = theme.color("scrim", Color::hex(0x0f172a, 0.45f));
+            list.fill_rect({0, 0, size.width, size.height}, scrim.with_alpha(scrim.a * std::clamp(n.visual[Field::opacity], 0.0f, 1.0f)));
+        }
+        paint_node(id);
+    }
 }
 
 void Runtime::Impl::paint_node(NodeId id) {
@@ -182,6 +279,7 @@ void Runtime::Impl::paint_node(NodeId id) {
     const Affine local = n.local;
     const float s = v[Field::scale];
     if (!v.visible || v[Field::opacity] <= 0 || s == 0) return;
+    if (layout.style(n.layout).display == layout::Display::none) return;
     ++stats.painted;
 
     list.begin_node(n.index);
@@ -218,7 +316,10 @@ void Runtime::Impl::paint_node(NodeId id) {
     const Point off = n.content_offset;
     const bool shifted = off.x != 0 || off.y != 0;
     if (shifted) list.push_transform(Affine::translate(-off.x, -off.y));
-    for (std::size_t i = 0; i < at(id).children.size(); ++i) paint_node(at(id).children[i]);
+    for (std::size_t i = 0; i < at(id).children.size(); ++i) {
+        const NodeId c = at(id).children[i];
+        if (!at(c).type->overlay) paint_node(c);  // overlays paint in their own pass
+    }
     if (shifted) list.pop_transform();
 
     Node& again = at(id);
@@ -248,18 +349,29 @@ void Runtime::Impl::paint_node(NodeId id) {
 NodeId Runtime::Impl::hit(NodeId id, Point window, std::optional<Rect>) const {
     const Node& n = at(id);
     if (!n.visual.visible || n.visual[Field::opacity] <= 0 || n.state.removing) return {};
+    if (layout.style(n.layout).display == layout::Display::none) return {};
     const Point p = local_point(n, window);
     const bool inside = p.x >= 0 && p.y >= 0 && p.x < n.frame.width && p.y < n.frame.height;
     if ((n.visual.clip || n.type->clips) && !inside) return {};
-    for (std::size_t i = n.children.size(); i-- > 0;)
+    for (std::size_t i = n.children.size(); i-- > 0;) {
+        if (at(n.children[i]).type->overlay) continue;
         if (NodeId h = hit(n.children[i], window, std::nullopt)) return h;
+    }
     if (inside && n.visual.hit) return id;
     return {};
 }
 
 NodeId Runtime::hit_test(Point window) const {
-    NodeId h = impl_->hit(impl_->root, window, std::nullopt);
-    return h ? h : impl_->root;
+    const Impl& d = *impl_;
+    // Overlays first, top to bottom; a modal one hides what is below it.
+    for (auto it = d.overlays.rbegin(); it != d.overlays.rend(); ++it) {
+        if (!d.alive(*it) || !d.displayed(*it)) continue;
+        if (NodeId h = d.hit(*it, window, std::nullopt)) return h;
+        const Node& o = d.at(*it);
+        if (o.type->placement && o.type->placement(o.instance).modal) return *it;
+    }
+    NodeId h = d.hit(d.root, window, std::nullopt);
+    return h ? h : d.root;
 }
 
 Insets Runtime::content_insets(NodeId node) const {

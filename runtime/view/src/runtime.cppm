@@ -84,16 +84,16 @@ public:
     // ── the tree ──
     [[nodiscard]] bool valid(NodeId node) const noexcept;
     [[nodiscard]] NodeId find(std::string_view path) const;
-    [[nodiscard]] std::string path(NodeId node) const;
-    [[nodiscard]] NodeId parent(NodeId node) const;
-    [[nodiscard]] std::vector<NodeId> children(NodeId node) const;
+    [[nodiscard]] std::string path(NodeId node) const override;
+    [[nodiscard]] NodeId parent(NodeId node) const override;
+    [[nodiscard]] std::vector<NodeId> children(NodeId node) const override;
     [[nodiscard]] const ComponentType& type(NodeId node) const;
     [[nodiscard]] std::source_location origin(NodeId node) const;  // where its element was built
-    [[nodiscard]] Value get(NodeId node, std::string_view property) const;
-    void set(NodeId node, std::string_view property, const Value& value);
+    [[nodiscard]] Value get(NodeId node, std::string_view property) const override;
+    void set(NodeId node, std::string_view property, const Value& value) override;
     // Handlers added at run time (scripts); returns a token for `off`.
-    std::uint64_t on(NodeId node, std::string event, Handler handler);
-    void off(std::uint64_t token);
+    std::uint64_t on(NodeId node, std::string event, Handler handler) override;
+    void off(std::uint64_t token) override;
     // Pre-order traversal from the root.
     void walk(FunctionRef<void(NodeId, int depth)> visit) const;
     [[nodiscard]] std::size_t node_count() const noexcept;
@@ -149,6 +149,8 @@ public:
     void invalidate_paint(NodeId node) override;
     void invalidate_layout(NodeId node) override;
     void invalidate_semantics(NodeId node) override;
+    void restyle(NodeId node) override;
+    void recompose(NodeId node) override;
     void request_frame() override;
     void focus(NodeId node) override;
     void capture_pointer(NodeId node) override;

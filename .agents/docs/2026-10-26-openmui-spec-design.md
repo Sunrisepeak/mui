@@ -112,7 +112,7 @@ spec/registry/
 - **规范性的内容**：混合在哪个色彩空间进行（Q：线性还是 sRGB，需要明确）、预乘 alpha、取整规则。
 - **CPU 参考渲染**：作为 B 级一致性的基准，要求逐字节确定。
 - **效果着色器的接口约定**（`OMUI_EXT_shader_effect`）：规范只规定**接口**，包括输入 `EffectInput`（uv、尺寸、时间、节点内容的纹理）、输出（预乘颜色）和参数的反射规则（参数会变成带类型的属性）。**源语言是 Slang，交换格式是 SPIR-V**；实现可以编译成自己后端的格式。CPU 参考后端不要求执行效果着色器：遇到效果时按“不带效果”绘制，并给出诊断。
-- **GPU 抽象层不属于规范**：参考实现内部的 `omui.gpu`（D-33）是实现细节；规范只通过扩展对外暴露能力（`gpu_node`、`instanced_draw`、`external_texture` 等）。
+- **GPU 抽象层不属于规范**：参考实现内部的 `omui.rhi`（D-33）是实现细节；规范只通过扩展对外暴露能力（`gpu_node`、`instanced_draw`、`external_texture` 等）。
 
 ---
 

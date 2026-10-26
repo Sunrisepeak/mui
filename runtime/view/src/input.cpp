@@ -113,6 +113,33 @@ void Runtime::Impl::pointer_event(const PointerEvent& e) {
         }
         case PointerKind::down: {
             NodeId target = self.hit_test(e.position);
+            // A press outside an overlay dismisses it (light dismiss), top first;
+            // outside a modal one it goes no further.
+            bool swallowed = false;
+            for (auto it = overlays.rbegin(); it != overlays.rend(); ++it) {
+                const NodeId o = *it;
+                if (!alive(o) || !displayed(o)) continue;
+                if (contains(o, target)) break;
+                const Node& on = at(o);
+                const Placement p = on.type->placement ? on.type->placement(on.instance) : Placement{};
+                const bool outside = !on.bounds.contains(e.position);
+                if (p.modal) {
+                    if (outside && p.light_dismiss) {
+                        Invocation call;
+                        call.actor = {"person", "user", {"input:pointer"}};
+                        (void)self.act(o, "dismiss", call);
+                    }
+                    swallowed = outside;
+                    break;
+                }
+                if (p.light_dismiss && !contains(on.parent, target)) {
+                    Invocation call;
+                    call.actor = {"person", "user", {"input:pointer"}};
+                    (void)self.act(o, "dismiss", call);
+                }
+            }
+            if (swallowed) break;
+            target = self.hit_test(e.position);
             set_hover(target);
             NodeId f = focusable_ancestor(target);
             if (f) set_focus(f, false);
@@ -297,7 +324,7 @@ void Runtime::Impl::set_focus(NodeId id, bool keyboard) {
 bool Runtime::Impl::is_focusable(NodeId id) const {
     if (!alive(id)) return false;
     const Node& n = at(id);
-    if (n.state.disabled || n.state.removing || !n.visual.visible) return false;
+    if (n.state.disabled || n.state.removing || !displayed(id)) return false;
     if (n.focusable) return *n.focusable;
     if (n.type->focusable) return true;
     // Whatever can be activated can be reached by keyboard.
@@ -308,11 +335,13 @@ std::vector<NodeId> Runtime::Impl::focus_order() const {
     std::vector<NodeId> out;
     auto walk = [&](auto& self, NodeId id) -> void {
         const Node& n = at(id);
-        if (!n.visual.visible || n.state.removing || n.state.disabled) return;
+        if (!displayed(id) || n.state.removing || n.state.disabled) return;
         if (id != root && is_focusable(id)) out.push_back(id);
         for (NodeId c : n.children) self(self, c);
     };
-    walk(walk, root);
+    // A modal overlay keeps Tab inside it.
+    const NodeId modal = topmost_modal();
+    walk(walk, modal ? modal : root);
     return out;
 }
 

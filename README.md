@@ -4,7 +4,7 @@
 
 - 一个语义层：像素、无障碍、agent、测试都来自同一棵语义树
 - 立即模式和保留模式产出同一棵树；视图代码优先，直接用 C++ / TS / Python / Lua 写，布局和逻辑在一起；`*.view.omui.json` 是给工具和 agent 用的可选数据格式
-- 渲染器只写一次，基于 GPU 抽象层 `omui.gpu`；支持用 Slang 写自定义着色器
+- 渲染器只写一次，基于 GPU 抽象层 `omui.rhi`；支持用 Slang 写自定义着色器
 - 渲染和宿主可以替换：CPU 参考后端、SDL_GPU 等；可以跨平台，也可以跨框架
 - 组件契约优先：C++ 实现，TS/JS、Python、Lua 的绑定自动生成
 - 由 `mcpp.toml` 驱动，构建、测试、打包都使用 mcpp，分发走 xlings

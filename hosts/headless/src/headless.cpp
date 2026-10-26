@@ -59,6 +59,7 @@ struct Headless::Impl {
             o.background = options.background;
             o.object_ids = true;
             o.rows = rows;
+            if (options.parallel_raster) o.parallel = &raster_parallel();
             (void)renderer.render(list, surface, resources, o);
         }
         rendered = h;

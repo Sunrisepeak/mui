@@ -13,6 +13,23 @@ namespace omui {
 
 namespace {
 
+struct TasksParallel final : render::Parallel {
+    void run(std::size_t count, FunctionRef<void(std::size_t)> body) override {
+        Tasks::shared().parallel_for(count, 1, [&](std::size_t begin, std::size_t end) {
+            for (std::size_t i = begin; i < end; ++i) body(i);
+        });
+    }
+};
+
+}  // namespace
+
+render::Parallel& raster_parallel() noexcept {
+    static TasksParallel p;
+    return p;
+}
+
+namespace {
+
 Value default_of(const spec::DefaultValue& d) {
     using K = spec::DefaultValue::Kind;
     switch (d.kind) {

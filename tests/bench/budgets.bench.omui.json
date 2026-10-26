@@ -8,6 +8,8 @@
      "why": "pointer motion over the same interface holds 60 Hz"},
     {"name": "ui/frame/all-labels", "metric": "p95_ms", "max": 16.67,
      "why": "even when every label of the interface changes in one frame"},
+    {"name": "ui/frame/animate-all", "metric": "p95_ms", "max": 16.67,
+     "why": "a strong-animation framework (D-60): every card of the interface in motion still holds 60 Hz"},
     {"name": "ui/frame/idle", "metric": "p95_ms", "max": 0.5,
      "why": "a frame with nothing to do costs next to nothing"},
     {"name": "ui/frame/idle", "metric": "max_allocations", "max": 0,

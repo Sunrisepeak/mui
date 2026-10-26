@@ -6,6 +6,7 @@ import std;
 import openmui.geom;
 import openmui.raster;
 import openmui.render;
+import openmui.memory;
 import openmui.testing;
 
 using namespace omui::testing;
@@ -92,6 +93,14 @@ void scene(render::DisplayList& dl, const Knobs& k) {
         dl.end_node();
     }
 }
+
+// A pool for tests: one thread per task, so bands really run at the same time.
+struct Threads final : render::Parallel {
+    void run(std::size_t count, omui::FunctionRef<void(std::size_t)> body) override {
+        std::vector<std::jthread> threads;
+        for (std::size_t i = 0; i < count; ++i) threads.emplace_back([&body, i] { body(i); });
+    }
+};
 
 struct Pair {
     raster::Surface     incremental{W, H};
@@ -213,6 +222,32 @@ int main(int argc, char** argv) {
                 check(outside_untouched, std::format("rows {}…{} drew outside", top, bottom));
             }
         }
+    });
+
+    s.test("bands drawn at the same time give the serial bytes and ids", [] {
+        Threads pool;
+        Knobs k;
+        render::DisplayList dl;
+        scene(dl, k);
+        raster::Surface serial(W, H), parallel(W, H);
+        render::CpuRenderer a, b;
+        (void)a.render(dl, serial, {}, {.object_ids = true, .background = geom::Color::white()});
+        (void)b.render(dl, parallel, {}, {.object_ids = true, .background = geom::Color::white(), .parallel = &pool, .rows_per_task = 16});
+        check(std::ranges::equal(serial.bytes(), parallel.bytes()), "whole frame");
+        check(std::ranges::equal(a.object_ids(), b.object_ids()), "whole frame ids");
+        // And incrementally: the damaged rows only, cut into tasks.
+        render::DamageTracker t;
+        (void)t.update(dl, W, H, 1);
+        k.angle = 1.4f;
+        k.card_y = 40;
+        scene(dl, k);
+        const auto rows = t.update(dl, W, H, 1);
+        (void)b.render(dl, parallel, {}, {.object_ids = true, .background = geom::Color::white(), .rows = rows, .parallel = &pool, .rows_per_task = 8});
+        raster::Surface full(W, H);
+        render::CpuRenderer c;
+        (void)c.render(dl, full, {}, {.object_ids = true, .background = geom::Color::white()});
+        check(std::ranges::equal(full.bytes(), parallel.bytes()), "incremental, in parallel");
+        check(std::ranges::equal(c.object_ids(), b.object_ids()), "incremental ids");
     });
 
     s.test("a reused renderer allocates its buffers once", [] {

@@ -263,6 +263,84 @@ int main(int argc, char** argv) {
         check_eq(j[1].exit_code, 0);
     });
 
+    s.test("colour transitions travel through OKLab and land on the exact colour (D-60)", [] {
+        Runtime rt(options());
+        auto warm = signal(false);
+        rt.mount("main", column({}, {
+                                        box({.id = "swatch", .width = 40, .height = 40,
+                                             .background = Prop<Fill>(Source{std::nullopt, [warm] { return Value(warm.get() ? "#ffff00" : "#0000ff"); }, {}}),
+                                             .animate = {{"background", Transition::tween(seconds(1), anim::ease::linear)}}}),
+                                    }));
+        auto fill = [&]() -> std::optional<Color> {
+            for (const auto& c : rt.display_list().commands())
+                if (const auto* r = std::get_if<render::FillRect>(&c)) return r->paint.color;
+            return std::nullopt;
+        };
+        rt.frame({seconds(0), {}});
+        check(fill() == std::optional<Color>(Color::hex(0x0000ff)), "at rest: exactly the colour set");
+        warm.set(true);
+        rt.frame({seconds(0), {}});
+        rt.frame({seconds(0.5), {}});
+        // Halfway in OKLab, not in sRGB (which would be the grey 0.5, 0.5, 0.5).
+        const auto lb = anim::lanes<anim::Rgba>::to({0, 0, 1, 1});
+        const auto ly = anim::lanes<anim::Rgba>::to({1, 1, 0, 1});
+        const anim::Rgba mid = anim::lanes<anim::Rgba>::from({(lb[0] + ly[0]) / 2, (lb[1] + ly[1]) / 2, (lb[2] + ly[2]) / 2, 1});
+        const auto half = fill();
+        check(half && std::abs(half->r - mid.r) < 2e-3f && std::abs(half->g - mid.g) < 2e-3f && std::abs(half->b - mid.b) < 2e-3f,
+              half ? std::format("{} {} {} (OKLab mid {} {} {})", half->r, half->g, half->b, mid.r, mid.g, mid.b) : "no fill");
+        check(half && !(std::abs(half->r - 0.5f) < 0.02f && std::abs(half->g - 0.5f) < 0.02f && std::abs(half->b - 0.5f) < 0.02f),
+              "not the sRGB midpoint");
+        rt.frame({seconds(1.0), {}});
+        check(fill() == std::optional<Color>(Color::hex(0xffff00)), "settled: exactly the colour set");
+    });
+
+    s.test("every visual property transitions: layout, text size and colour (D-60)", [] {
+        Runtime rt(options());
+        auto wide = signal(false);
+        auto big = signal(false);
+        auto linear = Transition::tween(seconds(1), anim::ease::linear);
+        rt.mount("main", column({.align = "start"}, {
+                                        box({.id = "bar", .width = Prop<Dim>(Source{std::nullopt, [wide] { return Value(wide.get() ? 200.0 : 100.0); }, {}}),
+                                             .height = 20, .background = "accent", .animate = {{"width", linear}}}),
+                                        text({.id = "title", .text = "Title",
+                                              .color = Prop<Fill>(Source{std::nullopt, [big] { return Value(big.get() ? "#ff0000" : "#0000ff"); }, {}}),
+                                              .size = Prop<float>(Source{std::nullopt, [big] { return Value(big.get() ? 32.0 : 16.0); }, {}}),
+                                              .animate = {{"size", linear}, {"color", linear}}}),
+                                    }));
+        rt.frame({seconds(0), {}});
+        const NodeId bar = rt.find("main/bar"), title = rt.find("main/title");
+        check(rt.bounds(bar).width == 100);
+        const float small_h = rt.bounds(title).height;
+        wide.set(true);
+        big.set(true);
+        rt.frame({seconds(0), {}});
+        check(rt.semantic_node(bar).states.has(State::animating), "a layout property in transition is animating");
+        rt.frame({seconds(0.5), {}});
+        check(std::abs(rt.bounds(bar).width - 150) < 0.5f, std::format("halfway: {}", rt.bounds(bar).width));
+        const float mid_h = rt.bounds(title).height;
+        check(mid_h > small_h && rt.get(title, "size").as_double() > 16 && rt.get(title, "size").as_double() < 32,
+              std::format("the text grows: {} → {}", small_h, mid_h));
+        const std::string mid_color(rt.get(title, "color").as_string());
+        check(mid_color != "#ff0000" && mid_color != "#0000ff", "the colour is in between: " + mid_color);
+        // Retarget halfway: it continues from where it is.
+        wide.set(false);
+        rt.frame({seconds(0.5), {}});
+        rt.frame({seconds(1.0), {}});
+        const float back = rt.bounds(bar).width;
+        check(back > 100 && back < 150, std::format("on its way back from 150: {}", back));
+        rt.frame({seconds(2.0), {}});
+        check(rt.bounds(bar).width == 100, "lands exactly");
+        check(rt.get(title, "size") == Value(32.0) && rt.get(title, "color") == Value("#ff0000"), "exactly what was set");
+        check(rt.bounds(title).height > mid_h);
+        check(!rt.semantic_node(bar).states.has(State::animating) && !rt.semantic_node(title).states.has(State::animating));
+        // Reduced motion: values jump.
+        rt.set_reduce_motion(true);
+        wide.set(true);
+        rt.frame({seconds(2.0), {}});
+        rt.frame({seconds(2.0), {}});
+        check(rt.bounds(bar).width == 200, std::format("reduced motion jumps: {}", rt.bounds(bar).width));
+    });
+
     s.test("transitions: tweens follow the clock, interruptions continue from where they are", [] {
         Runtime rt(options());
         auto faded = signal(false);

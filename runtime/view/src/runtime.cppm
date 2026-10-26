@@ -88,6 +88,10 @@ struct ActionEntry {
     int         exit_code = 0;
 };
 
+// The process's task pool (Tasks::shared) as the CPU renderer's Parallel:
+// hosts draw bands of rows at the same time, with the bytes of a serial render.
+[[nodiscard]] render::Parallel& raster_parallel() noexcept;
+
 class Runtime final : public Services {
 public:
     explicit Runtime(RuntimeOptions options = {});

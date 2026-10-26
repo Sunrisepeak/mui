@@ -192,9 +192,18 @@ void Runtime::Impl::run_animations() {
                 n.visual.f[i] = static_cast<float>(anims.value(c, t, policy));
             }
         }
-        if (n.moving) still.push_back(id);
-        else if (n.state.animating) {
-            n.state.animating = false;
+        // Colours: the lanes' colour while moving, the exact colour once settled.
+        Visual& v = n.visual;
+        v.background_color = n.moving & background_bits ? lanes_color(&v.f[static_cast<std::size_t>(Field::background_r)]) : v.background_target;
+        v.border_color = n.moving & border_bits ? lanes_color(&v.f[static_cast<std::size_t>(Field::border_r)]) : v.border_target;
+        if (!n.prop_animations.empty()) {
+            step_props(id, t, policy);  // layout and component properties (D-60)
+            if (!alive(id)) continue;
+        }
+        Node& after = at(id);
+        if (after.moving || !after.prop_animations.empty()) still.push_back(id);
+        else if (after.state.animating) {
+            after.state.animating = false;
             // Settled: readers waiting for it see a new revision (no further frame is needed).
             dirty |= dirty_semantics;
             ++semantic_revision;

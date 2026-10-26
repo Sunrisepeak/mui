@@ -49,6 +49,7 @@ struct Desktop::Impl {
             o.scale = scale;
             o.background = options.background;
             o.rows = rows;
+            if (options.parallel_raster) o.parallel = &raster_parallel();
             if (!rows.empty()) (void)renderer.render(list, frame, resources, o);
         }
         trace::Span span("present", "host");

@@ -34,6 +34,7 @@ struct DesktopOptions {
     bool                    vsync = true;
     std::string             video_driver;     // "" the platform's; "offscreen" in CI
     std::string             render_driver;    // "" the best; "software" for exact read-back
+    bool                    parallel_raster = true;  // the CPU renderer draws bands of rows at the same time
 };
 
 class Desktop {

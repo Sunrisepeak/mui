@@ -42,6 +42,7 @@ struct HeadlessOptions {
     bool                    reduce_motion = false;
     std::string             app = "openmui-app";  // the application id (endpoint name, descriptor)
     std::filesystem::path   endpoint_directory;   // H3; default: agent::default_directory()
+    bool                    parallel_raster = true;  // bands of rows at the same time (the same bytes)
 };
 
 class Headless {

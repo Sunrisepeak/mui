@@ -142,7 +142,7 @@ void Canvas::reset(Surface& target) {
         layers_.pop_back();
     }
     object_id_ = 0;
-    if (ids_.size() != static_cast<std::size_t>(target.width()) * static_cast<std::size_t>(target.height())) ids_.clear();
+    ids_ = {};  // enable_object_ids or use_object_ids again for this frame
 }
 
 void Canvas::restrict_rows(std::int32_t top, std::int32_t bottom) {
@@ -151,7 +151,13 @@ void Canvas::restrict_rows(std::int32_t top, std::int32_t bottom) {
 
 void Canvas::enable_object_ids() {
     const std::size_t n = static_cast<std::size_t>(base_->width()) * static_cast<std::size_t>(base_->height());
-    if (ids_.size() != n) ids_.assign(n, 0);
+    if (own_ids_.size() != n) own_ids_.assign(n, 0);
+    ids_ = own_ids_;
+}
+
+void Canvas::use_object_ids(std::span<std::uint32_t> ids) noexcept {
+    const std::size_t n = static_cast<std::size_t>(base_->width()) * static_cast<std::size_t>(base_->height());
+    ids_ = ids.size() == n ? ids : std::span<std::uint32_t>{};
 }
 
 void Canvas::clear_object_ids(std::int32_t top, std::int32_t bottom) noexcept {

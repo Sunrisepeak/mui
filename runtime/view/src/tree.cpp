@@ -127,6 +127,9 @@ void Runtime::Impl::destroy(NodeId id) {
     if (m.type->destroy) m.type->destroy(m.instance);
     for (anim::Set::Channel c : m.channels)
         if (anims.valid(c)) anims.remove(c);
+    for (const Node::PropAnimation& a : m.prop_animations)
+        for (std::uint8_t i = 0; i < a.lanes; ++i)
+            if (anims.valid(a.channels[i])) anims.remove(a.channels[i]);
     layout.destroy(m.layout);
     by_layout[m.layout] = {};
     by_index[m.index] = {};

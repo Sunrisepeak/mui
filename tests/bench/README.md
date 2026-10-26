@@ -14,10 +14,12 @@ mcpp run -p openmui-bench -- --list                                  # what ther
 |---|---|
 | `ui/frame/one-label` | **M1 ⑤**: one value of the 1000-node dashboard changes; layout, paint and the CPU raster at 1920×1080 |
 | `ui/frame/all-labels` | every value changes in one frame |
+| `ui/frame/animate-all` | every card moves at once: the whole frame redrawn, in parallel bands |
 | `ui/frame/hover-sweep` | the pointer moves from button to button: hit testing, hover restyle, repaint |
 | `ui/frame/idle` | a frame with nothing to do (and its allocations: none) |
 | `ui/layout/resize` | the window's width changes: layout alone |
-| `ui/raster/full-1080p` | the whole display list through the CPU renderer |
+| `ui/raster/full-1080p` | the whole display list through the CPU renderer, on one thread |
+| `ui/raster/full-1080p-parallel` | the same in bands of 64 rows on the task pool — the same bytes |
 | `ui/mount` | building, mounting and laying out the dashboard |
 | `agent/snapshot` | the semantic snapshot an agent receives, as JSON |
 | `text/paragraph` | shaping and breaking 2 KB of text (per byte) |

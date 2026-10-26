@@ -70,6 +70,9 @@ public:
     // the size is the same, so a partial render updates only its rows
     // (clear_object_ids clears them first).
     void enable_object_ids();
+    // Or writes them into a buffer someone else owns (width × height of the
+    // target): canvases drawing disjoint rows of one surface at once share it.
+    void use_object_ids(std::span<std::uint32_t> ids) noexcept;
     void clear_object_ids(std::int32_t top, std::int32_t bottom) noexcept;
     [[nodiscard]] std::span<const std::uint32_t> object_ids() const noexcept { return ids_; }
 
@@ -97,7 +100,8 @@ private:
     Surface*                   base_;
     std::vector<Clip>          clips_;
     std::vector<Layer>         layers_;
-    std::vector<std::uint32_t> ids_;
+    std::span<std::uint32_t>   ids_;        // where object ids go (empty: nowhere)
+    std::vector<std::uint32_t> own_ids_;    // enable_object_ids()'s buffer
     std::uint32_t              object_id_ = 0;
     Rasterizer                 rasterizer_;
     Polygons                   polygons_;

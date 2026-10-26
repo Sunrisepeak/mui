@@ -256,7 +256,163 @@ void Runtime::Impl::clear_prop(NodeId id, std::string_view name) {
     apply(id, name, Value{});
 }
 
+namespace {
+
+using PropAnimation = Node::PropAnimation;
+
+struct Lanes {
+    PropAnimation::Kind   kind = PropAnimation::Kind::number;
+    std::uint8_t          count = 1;
+    std::array<double, 4> v{};
+};
+
+// What a property's value interpolates as, when it does: a number (integers
+// stay integers), a percentage, a colour (hex or a theme token: OKLab lanes),
+// or a list of up to four numbers (edges, radii).
+std::optional<Lanes> lanes_of(const Value& v, const Theme& theme) {
+    using K = PropAnimation::Kind;
+    if (v.type() == Value::Type::integer) return Lanes{K::integer, 1, {static_cast<double>(v.as_int())}};
+    if (v.type() == Value::Type::real) return Lanes{K::number, 1, {v.as_double()}};
+    if (v.type() == Value::Type::text) {
+        const std::string_view s = v.as_string();
+        if (s.size() > 1 && s.back() == '%') {
+            double d = 0;
+            if (std::from_chars(s.data(), s.data() + s.size() - 1, d).ec == std::errc{}) return Lanes{K::percent, 1, {d}};
+            return std::nullopt;
+        }
+        const bool color = (!s.empty() && s.front() == '#') || theme.colors.contains(s);
+        if (!color) return std::nullopt;
+        const Color c = theme.color(s, Color::transparent());
+        const auto l = anim::lanes<anim::Rgba>::to(anim::Rgba{c.r, c.g, c.b, c.a});
+        return Lanes{K::color, 4, {l[0], l[1], l[2], l[3]}};
+    }
+    if (const Value::List* l = v.list(); l && !l->empty() && l->size() <= 4) {
+        Lanes out{K::list, static_cast<std::uint8_t>(l->size()), {}};
+        for (std::size_t i = 0; i < l->size(); ++i) {
+            if (!(*l)[i].is_number()) return std::nullopt;
+            out.v[i] = (*l)[i].as_double();
+        }
+        return out;
+    }
+    return std::nullopt;
+}
+
+Value value_of(PropAnimation::Kind kind, std::uint8_t count, const std::array<double, 4>& v) {
+    using K = PropAnimation::Kind;
+    switch (kind) {
+        case K::integer: return Value(static_cast<std::int64_t>(std::llround(v[0])));
+        case K::number: return Value(v[0]);
+        case K::percent: return Value(std::format("{}%", v[0]));
+        case K::color: {
+            const anim::Rgba c = anim::lanes<anim::Rgba>::from(v);
+            return ValueOf<Color>::to(Color{c.r, c.g, c.b, c.a});
+        }
+        case K::list: {
+            Value::List l;
+            for (std::uint8_t i = 0; i < count; ++i) l.emplace_back(v[i]);
+            return Value(std::move(l));
+        }
+    }
+    return {};
+}
+
+}  // namespace
+
+const Transition* Runtime::Impl::transition_for(const Node& n, std::string_view prop) const {
+    if (auto it = n.transitions.find(prop); it != n.transitions.end()) return &it->second;
+    if (prop == "enter" || prop == "exit") return nullptr;
+    if (auto all = n.transitions.find("all"); all != n.transitions.end()) return &all->second;
+    return nullptr;
+}
+
+void Runtime::Impl::stop_prop(NodeId id, std::string_view name) {
+    Node& n = at(id);
+    auto it = std::ranges::find(n.prop_animations, name, &PropAnimation::name);
+    if (it == n.prop_animations.end()) return;
+    for (std::uint8_t i = 0; i < it->lanes; ++i)
+        if (anims.valid(it->channels[i])) anims.remove(it->channels[i]);
+    n.prop_animations.erase(it);
+}
+
+bool Runtime::Impl::animate_prop(NodeId id, std::string_view name, const Value& value) {
+    // The runtime's own channels animate these (animate_field).
+    if (scalar_field(name) || name == "background" || name == "border_color" || name == "radius") return false;
+    Node& n = at(id);
+    const Transition* t = n.shown && !value.is_null() ? transition_for(n, name) : nullptr;
+    const auto to = t ? lanes_of(value, theme) : std::nullopt;
+    auto running = std::ranges::find(n.prop_animations, name, &PropAnimation::name);
+    if (!to) {
+        if (running != n.prop_animations.end()) stop_prop(id, name);
+        return false;
+    }
+    std::array<double, 4> from{};
+    const seconds start = now() + t->delay;
+    if (running != n.prop_animations.end() && running->kind == to->kind && running->lanes == to->count) {
+        if (running->target == value) return true;  // already on its way there
+        for (std::uint8_t i = 0; i < to->count; ++i) from[i] = anims.value(running->channels[i], now());
+    } else {
+        if (running != n.prop_animations.end()) stop_prop(id, name);
+        auto shown = n.props.find(name);
+        if (shown == n.props.end()) return false;
+        const auto f = lanes_of(shown->second, theme);
+        if (!f || f->kind != to->kind || f->count != to->count) return false;
+        if (shown->second == value) return false;
+        from = f->v;
+        PropAnimation a;
+        a.name = std::string(name);
+        a.kind = to->kind;
+        a.lanes = to->count;
+        for (std::uint8_t i = 0; i < to->count; ++i) a.channels[i] = anims.hold(from[i]);
+        n.prop_animations.push_back(std::move(a));
+        running = n.prop_animations.end() - 1;
+    }
+    running->target = value;
+    for (std::uint8_t i = 0; i < to->count; ++i) {
+        if (t->kind == Transition::Kind::tween) anims.tween_to(running->channels[i], start, to->v[i], t->duration, t->ease);
+        else anims.spring_to(running->channels[i], start, to->v[i], t->spring);
+    }
+    if (!n.state.animating) {
+        n.state.animating = true;
+        touch(dirty_semantics);
+    }
+    if (std::ranges::find(animating, id) == animating.end()) animating.push_back(id);
+    frame_requested = true;
+    return true;
+}
+
+void Runtime::Impl::step_props(NodeId id, seconds t, const anim::Policy& policy) {
+    // Copies: applying a value may reach the component, which may change the node.
+    std::vector<std::pair<std::string, Value>> values;
+    std::vector<std::string> done;
+    {
+        Node& n = at(id);
+        for (const PropAnimation& a : n.prop_animations) {
+            std::array<double, 4> v{};
+            bool settled = true;
+            for (std::uint8_t i = 0; i < a.lanes; ++i) {
+                v[i] = anims.value(a.channels[i], t, policy);
+                settled = settled && anims.settled(a.channels[i], t);
+            }
+            if (policy.reduce_motion || settled) {
+                values.emplace_back(a.name, a.target);  // exactly what was set
+                done.push_back(a.name);
+            } else {
+                values.emplace_back(a.name, value_of(a.kind, a.lanes, v));
+            }
+        }
+    }
+    for (const auto& [k, v] : values)
+        if (alive(id)) apply_now(id, k, v);
+    for (const std::string& k : done)
+        if (alive(id)) stop_prop(id, k);
+}
+
 void Runtime::Impl::apply(NodeId id, std::string_view name, const Value& value) {
+    if (animate_prop(id, name, value)) return;
+    apply_now(id, name, value);
+}
+
+void Runtime::Impl::apply_now(NodeId id, std::string_view name, const Value& value) {
     if (options.debug.repaints) flashes.emplace_back(id, now());
     Node& n = at(id);
     if (value.is_null()) {
@@ -278,9 +434,13 @@ void Runtime::Impl::apply(NodeId id, std::string_view name, const Value& value) 
                                                                            : ValueOf<Color>::from(value));
             bool bg = name == "background";
             Field base = bg ? Field::background_r : Field::border_r;
-            const std::array<float, 4> parts{c.r, c.g, c.b, c.a};
+            const std::array<float, 4> parts = color_lanes(c);
             for (std::size_t i = 0; i < 4; ++i)
                 animate_field(id, name, static_cast<Field>(static_cast<std::size_t>(base) + i), parts[i]);
+            // Shown exactly as set when no transition runs; the frame shows the lanes while one does.
+            Node& now = at(id);
+            (bg ? now.visual.background_target : now.visual.border_target) = c;
+            if (!(now.moving & (bg ? background_bits : border_bits))) (bg ? now.visual.background_color : now.visual.border_color) = c;
         } else if (name == "radius") {
             float r = value.is_number() ? static_cast<float>(value.as_double()) : t.corner(value.as_string(), 0);
             animate_field(id, name, Field::radius, r);

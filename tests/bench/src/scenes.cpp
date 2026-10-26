@@ -10,6 +10,7 @@ import openmui.text;
 import openmui.trace;
 import openmui.ui.base;
 import openmui.host.headless;
+import openmui.anim;
 
 namespace omui::bench {
 
@@ -24,6 +25,7 @@ constexpr std::size_t card_count = columns * card_rows;  // 168 cards of 6 nodes
 struct Dashboard {
     std::vector<Signal<std::int32_t>> values;
     Signal<std::int64_t>              tick = signal(std::int64_t{0});
+    Signal<float>                     lift = signal(0.0f);  // every card moves by it, in transition
 
     Dashboard() {
         values.reserve(card_count);
@@ -37,7 +39,8 @@ struct Dashboard {
             const Signal<std::int32_t> v = values[i];
             const Signal<std::int64_t> t = tick;
             cards.push_back(column({.id = std::format("c{}", i), .padding = 6, .gap = 3, .background = "surface", .border_color = "border",
-                                    .border_width = 1, .radius = 6},
+                                    .border_width = 1, .radius = 6, .translate_y = lift,
+                                    .animate = {{"translate_y", Transition::tween(seconds(0.5), anim::ease::linear)}}},
                                    {
                                        row({.id = "head", .gap = 4, .align = "center"},
                                            {
@@ -154,6 +157,21 @@ void add_framework_benchmarks() {
             frame_counters(s, f);
         }
     });
+    add("ui/frame/animate-all", "every card moves at once (a transition on all 168): the whole frame is redrawn", [](State& s) {
+        Dashboard d;
+        Headless h(scene_options());
+        h.mount("main", d.view());
+        h.settle();
+        (void)h.pixels();
+        float to = 0;
+        while (s.next()) {
+            if (h.step().animating == false) {
+                to = to == 0 ? 6.0f : 0.0f;  // turn around: another half second of motion
+                d.lift.set(to);
+            }
+            (void)h.pixels();
+        }
+    });
     add("ui/frame/hover-sweep", "the pointer moves from button to button: hit testing, hover restyle, repaint", [](State& s) {
         Dashboard d;
         Headless h(scene_options());
@@ -193,6 +211,20 @@ void add_framework_benchmarks() {
         const render::DisplayList& list = h.runtime().display_list();
         s.counter("commands", static_cast<double>(list.size()));
         while (s.next()) (void)renderer.render(list, target, {&h.runtime().images(), &glyphs}, o);
+    });
+    add("ui/raster/full-1080p-parallel", "the same, in bands of 64 rows on the task pool (the same bytes)", [](State& s) {
+        Dashboard d;
+        Headless h(scene_options());
+        h.mount("main", d.view());
+        h.settle();
+        typeset::GlyphCache glyphs(h.runtime().fonts());
+        render::CpuRenderer renderer;
+        raster::Surface target(static_cast<int>(full_hd.width), static_cast<int>(full_hd.height));
+        render::CpuOptions o;
+        o.background = Color::white();
+        o.parallel = &raster_parallel();
+        s.counter("threads", static_cast<double>(Tasks::shared().threads()));
+        while (s.next()) (void)renderer.render(h.runtime().display_list(), target, {&h.runtime().images(), &glyphs}, o);
     });
     add("ui/mount", "the dashboard is built, mounted and laid out (its first frame)", [](State& s) {
         Dashboard d;

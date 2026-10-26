@@ -14,6 +14,7 @@ export module openmui.render:cpu;
 
 import std;
 import openmui.geom;
+import openmui.memory;
 import openmui.raster;
 import :display;
 import :resources;
@@ -31,6 +32,17 @@ struct RenderReport {
     std::size_t skipped = 0;   // draw commands outside every band
 };
 
+// Runs body(0) … body(count − 1) at the same time, in any order, and returns
+// when all have run: the host's thread pool (openmui-core's Tasks, or any
+// other). This package has none of its own.
+class Parallel {
+public:
+    virtual void run(std::size_t count, FunctionRef<void(std::size_t)> body) = 0;
+
+protected:
+    ~Parallel() = default;
+};
+
 struct CpuOptions {
     float scale = 1.0f;        // physical pixels per logical pixel
     bool  object_ids = false;  // fill the object-id buffer (pixel provenance)
@@ -39,6 +51,10 @@ struct CpuOptions {
     // Only these rows (sorted, not overlapping), over what the surface holds;
     // empty: the whole surface.
     std::span<const RowSpan> rows;
+    // Bands of at most `rows_per_task` rows drawn at the same time. The bytes
+    // are those of a serial render: every band is exact (restrict_rows).
+    Parallel*    parallel = nullptr;
+    std::int32_t rows_per_task = 64;
 };
 
 class CpuRenderer {
@@ -63,10 +79,10 @@ public:
 
 private:
     struct Scratch;
-    void draw(const DisplayList& list, raster::Surface& target, const Resources& resources, const CpuOptions& options, RowSpan band, bool whole,
-              RenderReport& report);
-    std::unique_ptr<Scratch> scratch_;
-    bool                     ids_on_ = false;
+    struct Impl;
+    void draw(Scratch& scratch, const DisplayList& list, raster::Surface& target, const Resources& resources, const CpuOptions& options,
+              RowSpan band, bool whole, RenderReport& report);
+    std::unique_ptr<Impl> impl_;
 };
 
 }  // namespace omui::render

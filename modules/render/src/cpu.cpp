@@ -80,35 +80,272 @@ struct CpuRenderer::Scratch {
     explicit Scratch(raster::Surface& target) : canvas(target) {}
 };
 
-CpuRenderer::CpuRenderer() = default;
+namespace {
+
+// The glyph masks and outlines of a frame, looked up by the calling thread
+// before the bands are drawn at the same time: the bands then only read this
+// table (the text engine's cache is not for several threads).
+class Resolved final : public GlyphSource {
+public:
+    void begin(GlyphSource* source) {
+        source_ = source;
+        std::ranges::fill(masks_, MaskSlot{});
+        std::ranges::fill(outlines_, OutlineSlot{});
+        mask_count_ = outline_count_ = 0;
+    }
+    GlyphMask mask(FontRef font, std::uint32_t glyph, float size, Point fraction) override {
+        const MaskKey k{font.id, glyph, size, fraction.x, fraction.y};
+        if (resolving_) {
+            if (MaskSlot* s = find(k, true); s && !s->used) {
+                *s = {k, source_->mask(font, glyph, size, fraction), true};
+                ++mask_count_;
+            }
+            return {};
+        }
+        const MaskSlot* s = find(k, false);  // read only: bands call this at the same time
+        return s && s->used ? s->mask : GlyphMask{};
+    }
+    raster::PathData outline(FontRef font, std::uint32_t glyph) override {
+        const std::uint64_t k = (static_cast<std::uint64_t>(font.id) << 32) | glyph;
+        if (resolving_) {
+            if (OutlineSlot* s = find_outline(k, true); s && !s->used) {
+                *s = {k, source_->outline(font, glyph), true};
+                ++outline_count_;
+            }
+            return {};
+        }
+        const OutlineSlot* s = find_outline(k, false);
+        return s && s->used ? s->data : raster::PathData{};
+    }
+    // While resolving, calls go to the source and are recorded; afterwards
+    // they are answered from the record.
+    bool resolving_ = false;
+    void reserve(std::size_t glyphs) {
+        std::size_t n = 64;
+        while (n < 2 * glyphs) n *= 2;
+        if (masks_.size() < n) masks_.resize(n);
+        if (outlines_.size() < n) outlines_.resize(n);
+    }
+
+private:
+    struct MaskKey {
+        std::uint32_t font, glyph;
+        float         size, fx, fy;
+        friend bool operator==(const MaskKey& a, const MaskKey& b) noexcept {
+            return a.font == b.font && a.glyph == b.glyph && a.size == b.size && a.fx == b.fx && a.fy == b.fy;
+        }
+    };
+    struct MaskSlot {
+        MaskKey   key{};
+        GlyphMask mask{};
+        bool      used = false;
+    };
+    struct OutlineSlot {
+        std::uint64_t    key = 0;
+        raster::PathData data{};
+        bool             used = false;
+    };
+    static std::uint64_t hash(const MaskKey& k) noexcept {
+        std::uint64_t h = 0xcbf29ce484222325ull;
+        for (std::uint32_t v : {k.font, k.glyph, std::bit_cast<std::uint32_t>(k.size), std::bit_cast<std::uint32_t>(k.fx),
+                                std::bit_cast<std::uint32_t>(k.fy)})
+            h = (h ^ v) * 0x100000001b3ull;
+        return h;
+    }
+    MaskSlot* find(const MaskKey& k, bool insert) {
+        if (masks_.empty()) return nullptr;
+        if (insert && 2 * (mask_count_ + 1) > masks_.size()) grow_masks();
+        const std::size_t mask = masks_.size() - 1;
+        for (std::size_t i = hash(k) & mask;; i = (i + 1) & mask) {
+            if (!masks_[i].used) return insert ? &masks_[i] : nullptr;
+            if (masks_[i].key == k) return &masks_[i];
+        }
+    }
+    OutlineSlot* find_outline(std::uint64_t k, bool insert) {
+        if (outlines_.empty()) return nullptr;
+        if (insert && 2 * (outline_count_ + 1) > outlines_.size()) grow_outlines();
+        const std::size_t mask = outlines_.size() - 1;
+        for (std::size_t i = (k * 0x9e3779b97f4a7c15ull) & mask;; i = (i + 1) & mask) {
+            if (!outlines_[i].used) return insert ? &outlines_[i] : nullptr;
+            if (outlines_[i].key == k) return &outlines_[i];
+        }
+    }
+    void grow_masks() {
+        std::vector<MaskSlot> old(masks_.size() * 2);
+        old.swap(masks_);
+        mask_count_ = 0;
+        for (const MaskSlot& s : old)
+            if (s.used) {
+                *find(s.key, true) = s;
+                ++mask_count_;
+            }
+    }
+    void grow_outlines() {
+        std::vector<OutlineSlot> old(outlines_.size() * 2);
+        old.swap(outlines_);
+        outline_count_ = 0;
+        for (const OutlineSlot& s : old)
+            if (s.used) {
+                *find_outline(s.key, true) = s;
+                ++outline_count_;
+            }
+    }
+
+    GlyphSource*             source_ = nullptr;
+    std::vector<MaskSlot>    masks_;
+    std::vector<OutlineSlot> outlines_;
+    std::size_t              mask_count_ = 0, outline_count_ = 0;
+};
+
+// Where a glyph's mask is asked for and placed: one function for the bands
+// and for the pass that resolves their glyphs first, so both ask the same.
+bool simple_glyphs(const Affine& m) noexcept { return m.b == 0 && m.c == 0 && m.a == m.d && m.a > 0; }
+
+struct MaskCall {
+    float ix, iy;
+    float size;
+    Point fraction;
+};
+
+MaskCall mask_call(const DrawGlyphs& c, const Glyph& g, const Affine& m) noexcept {
+    const Point d = m.apply({c.origin.x + g.position.x, c.origin.y + g.position.y});
+    const float ix = std::floor(d.x), iy = std::floor(d.y);
+    return {ix, iy, c.size * m.a, {d.x - ix, d.y - iy}};
+}
+
+// Asks `glyphs` for every mask and outline the bands of `tasks` will draw.
+void resolve_glyphs(const DisplayList& list, GlyphSource& glyphs, float scale, std::span<const RowSpan> tasks,
+                    std::vector<Affine>& transforms) {
+    transforms.assign(1, Affine::scale(scale, scale));
+    for (const Command& command : list.commands()) {
+        if (const auto* t = std::get_if<PushTransform>(&command)) {
+            transforms.push_back(transforms.back() * t->transform);
+            continue;
+        }
+        if (std::holds_alternative<PopTransform>(command)) {
+            if (transforms.size() > 1) transforms.pop_back();
+            continue;
+        }
+        const auto* c = std::get_if<DrawGlyphs>(&command);
+        if (!c) continue;
+        const Affine& m = transforms.back();
+        const auto b = device_bounds(command, m, nullptr);
+        if (!b || std::ranges::none_of(tasks, [&](RowSpan r) { return b->bottom() > static_cast<float>(r.top) && b->y < static_cast<float>(r.bottom); }))
+            continue;
+        const bool simple = simple_glyphs(m);
+        for (const Glyph& g : c->glyphs) {
+            if (simple) {
+                const MaskCall call = mask_call(*c, g, m);
+                (void)glyphs.mask(c->font, g.id, call.size, call.fraction);
+            } else {
+                (void)glyphs.outline(c->font, g.id);
+            }
+        }
+    }
+}
+
+}  // namespace
+
+struct CpuRenderer::Impl {
+    std::vector<std::unique_ptr<Scratch>> pool;    // one canvas per band drawn at the same time
+    std::vector<Scratch*>                 free;
+    std::mutex                            lock;
+    std::vector<std::uint32_t>            ids;     // object ids, shared by the canvases
+    bool                                  ids_on = false;
+    std::vector<RowSpan>                  tasks;
+    std::vector<Affine>                   transforms;  // the glyph pass's
+    std::vector<RenderReport>             reports;     // one per task
+    Resolved                              resolved;
+
+    Scratch& take(raster::Surface& target) {
+        std::scoped_lock g(lock);
+        if (free.empty()) {
+            pool.push_back(std::make_unique<Scratch>(target));
+            return *pool.back();
+        }
+        Scratch* s = free.back();
+        free.pop_back();
+        return *s;
+    }
+    void give(Scratch& s) {
+        std::scoped_lock g(lock);
+        free.push_back(&s);
+    }
+};
+
+CpuRenderer::CpuRenderer() : impl_(std::make_unique<Impl>()) {}
 CpuRenderer::CpuRenderer(CpuRenderer&&) noexcept = default;
 CpuRenderer& CpuRenderer::operator=(CpuRenderer&&) noexcept = default;
 CpuRenderer::~CpuRenderer() = default;
 
 std::span<const std::uint32_t> CpuRenderer::object_ids() const noexcept {
-    if (!scratch_ || !ids_on_) return {};
-    return scratch_->canvas.object_ids();
+    if (!impl_ || !impl_->ids_on) return {};
+    return impl_->ids;
 }
 
 RenderReport CpuRenderer::render(const DisplayList& list, raster::Surface& target, const Resources& res, const CpuOptions& options) {
     RenderReport report;
-    if (!scratch_) scratch_ = std::make_unique<Scratch>(target);
-    ids_on_ = options.object_ids;
-    if (options.rows.empty()) {
-        draw(list, target, res, options, {0, target.height()}, true, report);
-        return report;
-    }
-    for (RowSpan band : options.rows) {
+    Impl& d = *impl_;
+    d.ids_on = options.object_ids;
+    const std::size_t pixels = static_cast<std::size_t>(target.width()) * static_cast<std::size_t>(target.height());
+    if (options.object_ids && d.ids.size() != pixels) d.ids.assign(pixels, 0);
+
+    // The bands to draw, cut into tasks of at most rows_per_task rows.
+    d.tasks.clear();
+    auto add = [&](RowSpan band) {
         band.top = std::clamp(band.top, 0, target.height());
         band.bottom = std::clamp(band.bottom, band.top, target.height());
-        if (band.bottom > band.top) draw(list, target, res, options, band, false, report);
+        if (band.bottom <= band.top) return;
+        const std::int32_t step = options.parallel ? std::max(8, options.rows_per_task) : band.bottom - band.top;
+        for (std::int32_t y = band.top; y < band.bottom; y += step) d.tasks.push_back({y, std::min(band.bottom, y + step)});
+    };
+    const bool whole = options.rows.empty();
+    if (whole) add({0, target.height()});
+    else
+        for (RowSpan band : options.rows) add(band);
+
+    if (!options.parallel || d.tasks.size() < 2) {
+        Scratch& sc = d.take(target);
+        if (whole && !options.parallel) draw(sc, list, target, res, options, {0, target.height()}, true, report);
+        else
+            for (RowSpan band : d.tasks) draw(sc, list, target, res, options, band, false, report);
+        d.give(sc);
+        return report;
+    }
+
+    // Glyphs first, on this thread; then the bands at the same time.
+    Resources shared = res;
+    if (res.glyphs) {
+        std::size_t glyphs = 0;
+        for (const Command& c : list.commands())
+            if (const auto* g = std::get_if<DrawGlyphs>(&c)) glyphs += g->glyphs.size();
+        d.resolved.reserve(glyphs);
+        d.resolved.begin(res.glyphs);
+        d.resolved.resolving_ = true;
+        resolve_glyphs(list, d.resolved, options.scale, d.tasks, d.transforms);
+        d.resolved.resolving_ = false;
+        shared.glyphs = &d.resolved;
+    }
+    d.reports.assign(d.tasks.size(), RenderReport{});
+    options.parallel->run(d.tasks.size(), [&](std::size_t i) {
+        Scratch& sc = d.take(target);
+        draw(sc, list, target, shared, options, d.tasks[i], false, d.reports[i]);
+        d.give(sc);
+    });
+    for (const RenderReport& r : d.reports) {
+        report.commands += r.commands;
+        report.effects_skipped += r.effects_skipped;
+        report.external_skipped += r.external_skipped;
+        report.missing_images += r.missing_images;
+        report.missing_glyphs += r.missing_glyphs;
+        report.rows += r.rows;
+        report.skipped += r.skipped;
     }
     return report;
 }
 
-void CpuRenderer::draw(const DisplayList& list, raster::Surface& target, const Resources& res, const CpuOptions& options, RowSpan band,
-                       bool whole, RenderReport& report) {
-    Scratch& sc = *scratch_;
+void CpuRenderer::draw(Scratch& sc, const DisplayList& list, raster::Surface& target, const Resources& res, const CpuOptions& options,
+                       RowSpan band, bool whole, RenderReport& report) {
     raster::Canvas& canvas = sc.canvas;
     canvas.reset(target);
     if (!whole) canvas.restrict_rows(band.top, band.bottom);
@@ -120,7 +357,7 @@ void CpuRenderer::draw(const DisplayList& list, raster::Surface& target, const R
             for (std::int32_t y = band.top; y < band.bottom; ++y) std::fill_n(target.row(y), target.width(), bg);
     }
     if (options.object_ids) {
-        canvas.enable_object_ids();
+        canvas.use_object_ids(impl_->ids);
         canvas.clear_object_ids(band.top, band.bottom);
     }
 
@@ -177,13 +414,13 @@ void CpuRenderer::draw(const DisplayList& list, raster::Surface& target, const R
                     }
                     raster::Paint paint = device_paint(c.paint);
                     const Affine& mm = m();
-                    bool simple = mm.b == 0 && mm.c == 0 && mm.a == mm.d && mm.a > 0;
+                    const bool simple = simple_glyphs(mm);
                     for (const Glyph& g : c.glyphs) {
                         Point pen{c.origin.x + g.position.x, c.origin.y + g.position.y};
                         if (simple) {
-                            Point d = mm.apply(pen);
-                            float ix = std::floor(d.x), iy = std::floor(d.y);
-                            GlyphMask gm = res.glyphs->mask(c.font, g.id, c.size * mm.a, {d.x - ix, d.y - iy});
+                            const MaskCall call = mask_call(c, g, mm);
+                            const float ix = call.ix, iy = call.iy;
+                            GlyphMask gm = res.glyphs->mask(c.font, g.id, call.size, call.fraction);
                             if (gm.color) {
                                 const auto& b = gm.color_bounds;
                                 canvas.draw_image(gm.color->view(), {0, 0, static_cast<float>(b.width), static_cast<float>(b.height)},

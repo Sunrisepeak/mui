@@ -5,6 +5,7 @@ module openmui.view:impl;
 import std;
 import openmui.core;
 import openmui.layout;
+import openmui.anim;
 import openmui.render;
 import openmui.text;
 import :element;
@@ -45,6 +46,18 @@ enum class Field : std::uint8_t {
     count_,
 };
 inline constexpr std::size_t field_count = static_cast<std::size_t>(Field::count_);
+inline constexpr std::uint32_t background_bits = 0xfu << static_cast<unsigned>(Field::background_r);
+inline constexpr std::uint32_t border_bits = 0xfu << static_cast<unsigned>(Field::border_r);
+
+// A colour as the lanes it animates in (OKLab premultiplied by alpha, alpha), and back.
+[[nodiscard]] inline std::array<float, 4> color_lanes(const Color& c) noexcept {
+    const auto l = anim::lanes<anim::Rgba>::to(anim::Rgba{c.r, c.g, c.b, c.a});
+    return {static_cast<float>(l[0]), static_cast<float>(l[1]), static_cast<float>(l[2]), static_cast<float>(l[3])};
+}
+[[nodiscard]] inline Color lanes_color(const float* f) noexcept {
+    const anim::Rgba c = anim::lanes<anim::Rgba>::from({f[0], f[1], f[2], f[3]});
+    return {c.r, c.g, c.b, c.a};
+}
 
 struct Visual {
     std::array<float, field_count> f{1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -56,10 +69,14 @@ struct Visual {
 
     float&       operator[](Field x) noexcept { return f[static_cast<std::size_t>(x)]; }
     float        operator[](Field x) const noexcept { return f[static_cast<std::size_t>(x)]; }
-    [[nodiscard]] Color background() const noexcept {
-        return {f[7], f[8], f[9], f[10]};
-    }
-    [[nodiscard]] Color border() const noexcept { return {f[11], f[12], f[13], f[14]}; }
+    // The colours' channels in `f` are anim's lanes (OKLab premultiplied by
+    // alpha, then alpha), so a transition travels through OKLab (D-60). What
+    // is painted is the exact colour that was set while nothing moves, and the
+    // lanes' colour in between.
+    Color background_color = Color::transparent(), background_target = Color::transparent();
+    Color border_color = Color::transparent(), border_target = Color::transparent();
+    [[nodiscard]] Color background() const noexcept { return background_color; }
+    [[nodiscard]] Color border() const noexcept { return border_color; }
     [[nodiscard]] CornerRadii corners(Size s) const noexcept {
         return (radii ? *radii : CornerRadii::all((*this)[Field::radius])).fitted(s);
     }
@@ -86,6 +103,17 @@ struct Node {
     Visual               visual;
     std::array<anim::Set::Channel, field_count> channels{};
     std::uint32_t        moving = 0;    // bit per field: its channel is still moving
+    // Any other property in transition (D-60): layout properties, a
+    // component's numbers and colours. Each frame applies its value.
+    struct PropAnimation {
+        enum class Kind : std::uint8_t { number, integer, percent, color, list };
+        std::string                       name;
+        Kind                              kind = Kind::number;
+        std::uint8_t                      lanes = 1;
+        std::array<anim::Set::Channel, 4> channels{};
+        Value                             target;
+    };
+    std::vector<PropAnimation> prop_animations;
     NodeState            state;
     std::optional<bool>  focusable;
     bool                 shown = false; // painted once: later changes may animate
@@ -221,7 +249,14 @@ struct Runtime::Impl {
     void   finish_removals();
 
     // properties (props.cpp)
+    // Sets a property; when a transition covers it and both ends interpolate,
+    // starts (or retargets) the transition instead, and frames apply it.
     void apply(NodeId id, std::string_view name, const Value& value);
+    void apply_now(NodeId id, std::string_view name, const Value& value);
+    bool animate_prop(NodeId id, std::string_view name, const Value& value);
+    void step_props(NodeId id, seconds t, const anim::Policy& policy);
+    void stop_prop(NodeId id, std::string_view name);
+    [[nodiscard]] const Transition* transition_for(const Node& n, std::string_view prop) const;
     void set_source(NodeId id, const std::string& name, const Source& source);
     void clear_prop(NodeId id, std::string_view name);
     void sync_style(NodeId id);

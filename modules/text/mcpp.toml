@@ -24,6 +24,7 @@ openmui-unicode = { path = "../unicode" }
 openmui-raster  = { path = "../raster" }
 openmui-render  = { path = "../render" }
 mcpplibs.os     = { git = "https://github.com/mcpplibs/os.git", branch = "os-0.1.0" }
+mcpplibs.openkal = { git = "https://github.com/mcpplibs/openkal.git", branch = "openkal-0.17.0" }  # settles the kernel layer (see the root)
 compat.harfbuzz = "14.3.0"
 compat.fribidi  = "1.0.16"
 

@@ -17,7 +17,7 @@
 - **全仓库只有一个头文件 `spec/include/openmui.h`**；其他全部是模块。第三方头文件只出现在 `native/` 实现分区里，宏在那里转换成 constexpr。
 - 核心代码不用异常、不用 RTTI，错误用 `std::expected`；热路径没有虚函数，每帧零分配。
 - 每个目录都是一个 workspace 成员（独立的 `mcpp.toml`），只通过 `path` 依赖互相引用，不允许跨成员用相对路径引用源文件。
-- **独立组件放在 `modules/` 下**（geom、anim、layout、unicode、text、raster、image、render、gpu、gpu-*、record、encode）：不允许依赖 openmui 的任何其他包，只依赖标准库、彼此和第三方库，所以随时可以拆成独立仓库（D-55）。
+- **独立组件放在 `modules/` 下**（geom、anim、layout、unicode、text、raster、image、render、rhi、rhi-*、record、encode、trace）：不允许依赖 openmui 的任何其他包，只依赖标准库、彼此和第三方库，所以随时可以拆成独立仓库（D-55）。
 - **优先使用 mcpp 生态**：mcpp-index 里已经有知名、跨平台的库时直接使用（JSON 用 `nlohmann.json`，TOML 用 `marzer.tomlplusplus`，任务用 `taskflow`……），不自己实现；只有生态里没有、或者无法满足确定性要求时才自己写（D-56）。
 - 动画引擎 `modules/anim/` 只依赖标准库，不允许依赖任何 UI 模块；动画是时间的纯函数（可以任意跳转、结果确定）；动画、布局、光栅器模块不允许使用 fast-math 和浮点收缩。
 - 协作：当前的工作都放在同一个 PR（分支 `openmui-design`）里，每一轮修改提交一个 commit 作为检查点。
@@ -29,3 +29,5 @@
 - 仓库根目录就是 `openmui` 伞包；`mcpp/` 只放构建系统的代码；入口在 `src/entry/`。
 - 渲染器只写一次（`modules/render`），GPU 路径基于 `omui.rhi` 抽象层，各后端只依赖这个抽象层的接口。
 - **平台相关的代码一律经由 `mcpplibs.os`**（文件、目录、进程、管道、IPC）；窗口和输入经由 SDL3（D-57）。
+- **开发和分析工具都有两种界面**：命令行（JSON 输出、退出码，给 agent 和 CI）和用 openmui 自己写的界面（给人看）；两者读同一份数据（agent 协议、trace、bench 报告）。每个工具的界面都要突出框架的特色，工具本身就是展示（D-61）。
+- **可观测性是框架的一部分**（D-59）：新的子系统要有 trace span 和日志类别；性能声明要有 `tests/bench` 里的基准和 `budgets.bench.omui.json` 里的预算。

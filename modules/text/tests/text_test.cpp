@@ -194,5 +194,20 @@ int main(int argc, char** argv) {
         check_eq(std::format("{:016x}", surf.hash()), std::string("09abccfc87e4202b"));
     });
 
+    s.test("a collection without fonts shapes, lays out and draws nothing instead of failing", [] {
+        text::FontCollection none;
+        check(none.add_defaults("/no/fonts/here").has_value() == false);
+        text::Paragraph p(none, "Hello 统一 مرحبا \U0001F680", style());
+        p.layout(200);
+        check(p.size().width == 0, std::format("width {}", p.size().width));
+        render::DisplayList dl;
+        p.paint(dl, {0, 0});
+        text::GlyphCache glyphs(none);
+        raster::Surface surf(64, 32);
+        render::CpuRenderer cpu;
+        (void)cpu.render(dl, surf, {nullptr, &glyphs}, {.background = geom::Color::white()});
+        check(std::ranges::all_of(surf.pixels(), [&](auto px) { return px == surf.pixels().front(); }), "nothing drawn");
+    });
+
     return s.run(argc, argv);
 }

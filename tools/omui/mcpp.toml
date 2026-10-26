@@ -23,6 +23,7 @@ openmui-core     = { path = "../../runtime/core" }
 openmui-agent    = { path = "../../runtime/agent" }
 mcpplibs.cmdline = "0.0.2"
 mcpplibs.os      = { git = "https://github.com/mcpplibs/os.git", branch = "os-0.1.0" }
+mcpplibs.openkal = { git = "https://github.com/mcpplibs/openkal.git", branch = "openkal-0.17.0" }  # settles the kernel layer (see the root)
 
 [dev-dependencies]
 openmui-testing       = { path = "../../tests/support" }

@@ -331,7 +331,7 @@ video ← (view, anim, host-headless, render, ffmpeg)      game / canvas ← ani
 | abi | 实现 `openmui.h` | 由生成器产出调用桩；不让异常越过边界 | M3 |
 | player | 加载清单、视图文档、脚本、native 模块 | `entry-player` 使用它 | M3 |
 | reflect | C++26 反射的易用层：`omui::form(settings)`、`omui::model_of<T>()` | **只在 GCC 16 加 `-freflection` 时可用**；C++23 下有由契约生成的替代方案 | M3 之后 |
-| devtools | 检查协议、遥测、基准测试接口、像素溯源（对象 ID 缓冲） | 检查器本身就是一个 openmui 应用 | M4–M6 |
+| devtools | 检查协议、遥测、基准测试接口、像素溯源（对象 ID 缓冲）；协议操作 `clock`、`trace` 订阅、`signals` | 检查器本身就是一个 openmui 应用，同时是示例（D-61）：节点树、属性、帧时间、火焰图、日志、动画检查器、依赖图 | M2 起逐步（可观测性的数据已经在 D-59 里），M4–M6 完成像素溯源 |
 
 C++26 反射的易用层示意（只在 `openmui-reflect` 里）：
 
@@ -428,6 +428,18 @@ void evaluate(Set&, seconds t, std::span<std::byte> out);
 | 需要重绘 | 颜色、圆角、阴影、文字颜色 | 重新录制这一个节点 |
 | 需要重新布局 | 尺寸、边距、flex 参数 | 子树重新布局（开发工具会给出提示） |
 
+**所有可视属性都可以做动画（D-60）**：契约里类型是数值、长度、颜色、变换、渐变、阴影、路径的属性，默认都可以动画（`lanes<T>` 给出插值的分量），契约可以写 `animatable = false` 排除；生成器为每个属性产出它的代价级别，开发工具和 lint 据此提示“这个动画会触发重新布局”。颜色一律经过 OKLab，阴影、渐变逐分量插值，路径用形变插值。
+
+**控制粒度分三层，都是时间的纯函数，都可以跳转**：
+
+| 粒度 | 能动的东西 | 做法 |
+|---|---|---|
+| 对象 / 属性 | 节点的任何可视属性；布局（FLIP、共享元素）；出现和消失 | 上面的三级代价；`animating` / `removing` 进语义树，agent 可以 `wait settled` |
+| 子对象 | 文字的每个字形 / 词 / 行（错峰、逐字出现、打字机）；路径的描边进度和虚线偏移（“画出来”的效果）；渐变的色标；画布和粒子的每个实例 | 文字排版后的字形序列、路径的弧长参数、实例数组都暴露为可以错峰的**域**（`stagger(域, …)`），每个元素的值仍然是 `f(t, i)` |
+| 像素 | 溶解、擦除、遮罩显现、位移、噪声、模糊、色散；任意子树先渲染成图层（render-to-texture）再加效果；轨道遮罩（track matte） | Slang 效果：`f(uv, t, 参数)`，参数就是可以动画的属性；CPU 参考路径也要能算，保证金图和跳转一致性（Slang 的 CPU 目标或手写的参考实现，M4 验证）；`painter` 节点可以按时间逐像素绘制 |
+
+这三层对视频尤其重要：Remotion 一类的工具停在 DOM / CSS 的属性层，像素层要另起 WebGL；openmui 在同一棵树、同一个时钟、同一个确定性的渲染器里覆盖三层，所以任意一帧都能直接渲染、并行渲染、增量重渲染（§12.6）。
+
 ### 6.4 API（四种语言同一套概念）
 
 ```cpp
@@ -466,6 +478,16 @@ text({ opacity: interpolate(frame(), [0, 30], [0, 1]), scale: spring({ frame: fr
 
 - **动画检查器**：任何正在运行的 openmui 应用都可以连接，用时间轴组件（`openmui-ui-timeline`）拖动时间、逐帧查看、慢放。
 - `omui anim plot`：把一条曲线画成图，检查和设计稿是否一致。
+
+### 6.8 强动画框架的特色（D-60）
+
+- **时间是一等输入**：时钟可以注入、暂停、慢放、逐帧、倒放；任何应用的动画状态都可以拖到任意时刻查看（动画检查器），录下的会话可以按帧回放。
+- **可以打断而且可以跳转**：spring 被打断时速度连续，段列表就是历史，所以“交互里的动画”也能跳转和回放。
+- **布局动画是自动的**：尺寸和位置的变化用 FLIP，跨视图的共享元素过渡；列表的插入、删除、重排有默认的过渡。
+- **设计一次，界面和视频共用**：界面里的动效 token（`motion.*`）原样进入视频时间线。
+- **可测**：动画在任意时刻的值和像素都可以金值比对；`animating` / `settled` 进语义树。
+- **减少动效**是全局开关，spring 直接到终态，测试覆盖。
+- **代价可见**：开发工具按帧显示每个正在动的属性落在哪一级（合成 / 重绘 / 重新布局）。
 
 ---
 
@@ -804,7 +826,7 @@ omui video check  intro.video.ts            # 每一帧的语义检查：文字�
 |---|---|---|
 | `ci.yml` | PR / push | 三个桌面平台：构建、单元测试、CTS 的 S / A 级、lint（依赖方向、头文件、宏、命名） |
 | `golden.yml` | PR / push | Linux：B 级金图（CPU + lavapipe） |
-| `bench.yml` | PR（带标签时）/ 每晚 | 性能门禁、报告 |
+| `bench.yml` | PR（带标签时）/ 每晚 | 性能门禁、报告（`tests/bench`：`omui-bench --check budgets.bench.omui.json`；在 `ci.yml` 的 release 行上已经运行） |
 | `nightly.yml` | 每晚 | 模糊测试、sanitizer、长时间运行、跨平台确定性比对 |
 | `release.yml` | tag | 按成员发布：mcpp-index、xpkg、wheel、npm |
 
@@ -979,6 +1001,8 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
 | D-57 | **渲染层抽象也是独立组件**：`modules/render`（显示列表、渲染器接口、CPU 和 GPU 后端、内置着色器），`gfx/` 目录取消；布局引擎 `modules/layout`、图像编解码 `modules/image`、录制回放 `modules/record`、文件和视频输出 `modules/encode` 同样放在 `modules/` 下；这些模块共用一个只依赖标准库的几何模块 `modules/geom`（规范保留自己的线上值类型，运行时在边界处转换）。**平台相关的代码一律经由 `mcpplibs.os`**（文件、目录、进程、管道、IPC），窗口和输入经由 SDL3 |
 | D-58 | **GPU 抽象层叫 RHI**：`modules/gpu` 改名为 `modules/rhi`（包 `openmui-rhi`，接口 `omui.rhi`，后端 `rhi-sdl`、`rhi-gles`、`rhi-webgpu`、`rhi-vk`），沿用业界对“渲染硬件接口”的叫法；`modules/render` 保持原名：它是渲染子系统（显示列表、渲染器接口、CPU 和 GPU 渲染器），和 `layout`、`raster`、`text` 一样以子系统命名 |
 | D-59 | **可观测性是框架的一部分，不是外挂工具**：独立组件 `modules/trace`（`openmui-trace`：按线程的定长缓冲，每个事件无锁、无分配；关闭时一个 span 只是一次 relaxed 原子读；导出 Chrome trace JSON，在 Perfetto 里打开；按 span 汇总 count / total / p50 / p95 / p99 / max）；日志分类别（`Log{"layout"}`），过滤规则 `layout=debug,*=info` 来自 `OMUI_LOG` 或 `--log`，最近的记录留在环形历史里；运行时记录每一帧各阶段的耗时（timers、input、regions、animations、layout、bounds、paint）和最近 240 帧的历史，慢帧按限频写警告；调试模式（`DebugOptions`）叠加节点边界、重绘闪烁、悬停检查器（盒模型、路径、类型、源码行）和帧时间 HUD；agent 协议增加开发操作 `inspect`、`stats`、`profile`、`logs`、`debug`，`omui agent` 和 `omui::run` 的 `--debug` / `--log` / `--profile` 对应它们。开发辅助只走诊断通道，不改变语义树，像素黄金值只在调试模式关闭时有效 |
+| D-60 | **所有可视属性都可以做动画，控制粒度到像素**：契约里数值、长度、颜色、变换、渐变、阴影、路径类型的属性默认可以动画，代价级别由生成器标出；粒度分对象 / 属性、子对象（字形、路径弧长、实例，作为可错峰的域）、像素（Slang 效果、图层、轨道遮罩、按时间绘制的 `painter`）三层，全部是时间的纯函数，可以跳转；颜色一律在 OKLab 插值（§6.3、§6.8） |
+| D-61 | **开发工具用 openmui 自己写，同时是示例**：`tools/inspector`（openmui-devtools）通过 agent 协议连接任何正在运行的应用（进程外，几乎不扰动目标），包含节点树和属性面板（`inspect`）、帧时间曲线和阶段堆叠图（`stats`）、火焰图和时间线（`profile` 的 trace，画布 + 虚拟化，10 万个事件流畅）、日志查看（`logs`）、叠加层开关（`debug`）、动画检查器（拖动目标应用的时钟）、像素溯源（对象 ID 缓冲）和“为什么重绘 / 重新布局”的依赖图；它自己的界面也在 headless 下做金图测试，可以检查它自己；作为示例展示画布、虚拟化、时间轴、图表和 agent 协议。需要的协议操作：`clock`（暂停、逐帧、跳转、调速）、`trace` 流式订阅、`signals`（依赖图）。**每个工具都有两种界面，读同一份数据**：命令行（JSON 行输出、退出码，方便 agent 分析和 CI）和用 openmui 写的界面（方便人观察和操作）；每个工具的界面都要**突出框架自己的特色**，让工具本身就是框架的展示：火焰图和事件时间线用画布、虚拟化和动画缩放，节点树用语义树和 agent 协议，动画检查器用可跳转的时钟，基准报告用仪表盘（`tests/bench` 的参考场景本身就是 1000 个节点的仪表盘）。`omui-bench`、`omui agent` 先有命令行，界面随 inspector 落地 |
 | D-56 | **mcpp-index 里已经有知名、跨平台的库时，优先使用生态里的库，不自己实现**：JSON 用 `nlohmann.json`，TOML 用 `marzer.tomlplusplus`，任务系统用 `taskflow`，无锁队列用 `compat.concurrentqueue`，PNG 用 `compat.libpng`，Markdown 用 `compat.md4c`，排版用 HarfBuzz / FreeType / fribidi。**只有两种情况自己实现**：生态里没有（UAX#14 断行表）；或者确定性要求无法满足（anim 的数学函数，因为各平台 libm 的结果不同；CPU 光栅器，因为 pixman 的 SIMD 路径在不同平台上取整不同）。缺少的库优先补充到 mcpp-index（§17.2） |
 | D-54 | openmui-video 的渲染速度、修改后的增量渲染（四层缓存）、GPU 和硬件编码、预览和可再编辑性都作为指标，**每一项都要优于业界最好的工具**（§12.6）；修改以旁路数据文件 `.timeline.omui.json` 叠加在代码之上 |
 

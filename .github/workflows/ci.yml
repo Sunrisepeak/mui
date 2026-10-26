@@ -112,3 +112,18 @@ jobs:
       - name: The templates build and pass their tests (M0 acceptance ①)
         if: runner.os == 'Linux' && matrix.profile == 'dev'
         run: tools/ci/templates.sh
+
+      - name: Benchmarks against their budgets (M1 acceptance ⑤; tests/bench)
+        if: matrix.profile == 'release'
+        run: |
+          mcpp run -p openmui-bench --profile release -- \
+            --check tests/bench/budgets.bench.omui.json --json results.bench.omui.json \
+            --label "${{ matrix.os }} ${{ matrix.toolchain }}"
+
+      - name: Keep the benchmark report
+        if: always() && matrix.profile == 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-${{ matrix.os }}-${{ matrix.toolchain }}
+          path: results.bench.omui.json
+          if-no-files-found: ignore

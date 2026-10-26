@@ -1,0 +1,28 @@
+{
+  "format": "openmui.bench.budgets@0.1",
+  "about": "Limits for release builds on CI's runners (omui-bench --check). Each says why it is there; raising one needs the same.",
+  "budgets": [
+    {"name": "ui/frame/one-label", "metric": "p95_ms", "max": 16.67,
+     "why": "M1 acceptance ⑤: a 1000-node interface at 1080p on the CPU renderer holds 60 Hz"},
+    {"name": "ui/frame/hover-sweep", "metric": "p95_ms", "max": 16.67,
+     "why": "pointer motion over the same interface holds 60 Hz"},
+    {"name": "ui/frame/all-labels", "metric": "p95_ms", "max": 16.67,
+     "why": "even when every label of the interface changes in one frame"},
+    {"name": "ui/frame/idle", "metric": "p95_ms", "max": 0.5,
+     "why": "a frame with nothing to do costs next to nothing"},
+    {"name": "ui/frame/idle", "metric": "max_allocations", "max": 0,
+     "why": "no allocation per frame (AGENTS.md): the steady state allocates nothing"},
+    {"name": "ui/mount", "metric": "p95_ms", "max": 16.67,
+     "why": "building and laying out the whole interface fits in one frame"},
+    {"name": "agent/snapshot", "metric": "p95_ms", "max": 5,
+     "why": "an agent reads the whole tree of a 1000-node interface without stalling the UI thread"},
+    {"name": "text/paragraph", "metric": "ns_per_item", "max": 1500,
+     "why": "shaping and breaking stay well under a microsecond and a half per byte"},
+    {"name": "trace/span-off", "metric": "ns_per_item", "max": 2,
+     "why": "tracing that is off costs one relaxed load (D-59)"},
+    {"name": "trace/span-on", "metric": "ns_per_item", "max": 100,
+     "why": "recording a span takes no lock and no allocation (D-59)"},
+    {"name": "log/filtered-out", "metric": "ns_per_item", "max": 2,
+     "why": "a log record the filter leaves out is not formatted (D-59)"}
+  ]
+}

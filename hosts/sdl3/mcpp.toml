@@ -31,6 +31,7 @@ openmui-text     = { path = "../../modules/text" }
 openmui-image    = { path = "../../modules/image" }
 openmui-trace    = { path = "../../modules/trace" }
 mcpplibs.os      = { git = "https://github.com/mcpplibs/os.git", branch = "os-0.1.0" }
+mcpplibs.openkal = { git = "https://github.com/mcpplibs/openkal.git", branch = "openkal-0.17.0" }  # settles the kernel layer (see the root)
 compat.sdl3      = "3.4.18"
 
 [dev-dependencies]

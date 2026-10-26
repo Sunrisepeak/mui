@@ -44,8 +44,22 @@ struct FontCollection::Impl {
     std::vector<std::unique_ptr<Face>> faces;
     std::vector<Instance>              instances;
     std::vector<FaceId>                fallback;
+    // What a collection with no faces shapes with: HarfBuzz's empty face, which
+    // has no glyphs, so text takes no room and draws nothing instead of
+    // reaching past the end of `faces`.
+    Face                               none = [] {
+        Face f;
+        f.face = hb_face_reference(hb_face_get_empty());
+        f.unicodes = hb_set_create();
+        f.info.units_per_em = 1000;
+        return f;
+    }();
+
+    [[nodiscard]] const Face& at(FaceId id) const noexcept { return id < faces.size() ? *faces[id] : none; }
 
     ~Impl() {
+        hb_set_destroy(none.unicodes);
+        hb_face_destroy(none.face);
         for (Instance& i : instances) hb_font_destroy(i.font);
         for (auto& f : faces) {
             hb_set_destroy(f->unicodes);
@@ -62,10 +76,29 @@ FontCollection& FontCollection::operator=(FontCollection&&) noexcept = default;
 
 std::filesystem::path FontCollection::default_directory() {
     namespace os = mcpplibs::os;
+    // 1. OMUI_FONTS; 2. `fonts/` beside the program (a packaged application);
+    // 3. a checkout of openmui above the program or the working directory (any
+    // build profile in the tree, where release builds trim source paths);
+    // 4. this file's own tree (development builds, out-of-tree consumers).
     if (auto env = os::env::get("OMUI_FONTS"); env && !env->empty()) return *env;
-    if (auto exe = os::env::image(); exe && std::filesystem::exists(exe->parent_path() / "fonts" / "Inter.ttf"))
-        return exe->parent_path() / "fonts";
-    // The source tree (development and tests).
+    auto has_fonts = [](const std::filesystem::path& dir) {
+        std::error_code ec;
+        return std::filesystem::is_regular_file(dir / "Inter.ttf", ec);
+    };
+    auto checkout_above = [&](std::filesystem::path dir) -> std::optional<std::filesystem::path> {
+        for (int depth = 0; depth < 12 && !dir.empty(); ++depth) {
+            if (has_fonts(dir / "modules" / "text" / "fonts")) return dir / "modules" / "text" / "fonts";
+            if (dir == dir.parent_path()) break;
+            dir = dir.parent_path();
+        }
+        return std::nullopt;
+    };
+    const auto exe = os::env::image();
+    if (exe && has_fonts(exe->parent_path() / "fonts")) return exe->parent_path() / "fonts";
+    if (exe)
+        if (auto d = checkout_above(exe->parent_path())) return *d;
+    std::error_code ec;
+    if (auto d = checkout_above(std::filesystem::current_path(ec))) return *d;
     return std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path().parent_path() / "fonts";
 }
 
@@ -133,7 +166,7 @@ std::expected<void, std::string> FontCollection::add_defaults(const std::filesys
 }
 
 std::size_t FontCollection::face_count() const noexcept { return impl_->faces.size(); }
-const FaceInfo& FontCollection::face(FaceId id) const { return impl_->faces[id]->info; }
+const FaceInfo& FontCollection::face(FaceId id) const { return impl_->at(id).info; }
 
 std::optional<FaceId> FontCollection::find_family(std::string_view family) const {
     auto lower = [](std::string_view s) {
@@ -151,7 +184,7 @@ std::optional<FaceId> FontCollection::find_family(std::string_view family) const
     return std::nullopt;
 }
 
-bool FontCollection::covers(FaceId id, char32_t cp) const { return hb_set_has(impl_->faces[id]->unicodes, cp); }
+bool FontCollection::covers(FaceId id, char32_t cp) const { return hb_set_has(impl_->at(id).unicodes, cp); }
 
 void FontCollection::set_fallback(std::vector<FaceId> chain) { impl_->fallback = std::move(chain); }
 std::span<const FaceId> FontCollection::fallback() const noexcept { return impl_->fallback; }
@@ -169,7 +202,7 @@ FaceId FontCollection::select(std::span<const std::string> families, std::u32str
                  (cluster.size() > 1 || cluster.front() >= 0x1F000);
     if (emoji)
         for (FaceId f : impl_->fallback)
-            if (impl_->faces[f]->info.color && ok(f)) return f;
+            if (impl_->at(f).info.color && ok(f)) return f;
     for (const std::string& fam : families)
         if (auto f = find_family(fam); f && ok(*f)) return *f;
     for (FaceId f : impl_->fallback)
@@ -181,13 +214,13 @@ FaceId FontCollection::select(std::span<const std::string> families, std::u32str
 }
 
 FontRef FontCollection::font(FaceId face, float weight, Slant slant) {
-    const FaceInfo& info = impl_->faces[face]->info;
+    const FaceInfo& info = impl_->at(face).info;
     float w = info.variable ? std::clamp(weight, info.min_weight, info.max_weight) : info.weight;
     for (std::size_t i = 0; i < impl_->instances.size(); ++i) {
         const Instance& in = impl_->instances[i];
         if (in.face == face && in.weight == w && in.slant == slant) return {static_cast<std::uint32_t>(i + 1)};
     }
-    hb_font_t* f = hb_font_create(impl_->faces[face]->face);
+    hb_font_t* f = hb_font_create(impl_->at(face).face);
     hb_font_set_scale(f, static_cast<int>(info.units_per_em), static_cast<int>(info.units_per_em));
     if (info.variable) {
         hb_variation_t v{HB_OT_TAG_VAR_AXIS_WEIGHT, w};
@@ -205,7 +238,7 @@ void* FontCollection::hb_font(FontRef font) const { return impl_->instances[font
 
 Metrics FontCollection::metrics(FontRef font, float size) const {
     hb_font_t* f = impl_->instances[font.id - 1].font;
-    const FaceInfo& info = impl_->faces[face_of(font)]->info;
+    const FaceInfo& info = impl_->at(face_of(font)).info;
     float k = size / static_cast<float>(info.units_per_em);
     auto get = [&](hb_ot_metrics_tag_t tag, hb_position_t fallback) {
         hb_position_t v = 0;

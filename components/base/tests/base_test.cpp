@@ -248,6 +248,240 @@ int main(int argc, char** argv) {
         check(act(h, "main/code", "focus") == 0);
     });
 
+    s.test("progress and radio groups", [] {
+        Headless h(options());
+        auto done = signal(0.25);
+        auto size = signal(std::string("m"));
+        std::vector<std::string> picked;
+        h.mount("main", column({.padding = 12, .gap = 8}, {
+                                   progress({.id = "upload", .label = "Upload", .value = done}),
+                                   progress({.id = "busy", .label = "Working"}),
+                                   column({.id = "size", .gap = 4}, {
+                                       radio({.id = "s", .group = size, .label = "Small", .value = "s"}),
+                                       radio({.id = "m", .group = size, .label = "Medium", .value = "m"}),
+                                       radio({.id = "l", .group = size, .label = "Large", .value = "l",
+                                              .on_selected = [&](std::string v) { picked.push_back(v); }}),
+                                   }),
+                               }));
+        h.settle();
+        check(sem(h, "main/upload").value == Value(0.25) && sem(h, "main/upload").role == Role::progress);
+        check(sem(h, "main/busy").states.has(State::busy), "indeterminate is busy");
+        check(sem(h, "main/size/m").states.has(State::checked) && !sem(h, "main/size/s").states.has(State::checked));
+        check(h.click("main/size/l"));
+        check(size.peek() == "l" && picked == std::vector<std::string>{"l"});
+        check(!sem(h, "main/size/m").states.has(State::checked), "the group's other radios follow its signal");
+        check(act(h, "main/size/s", "select") == 0 && size.peek() == "s");
+        done.set(0.75);
+        h.step();
+        check(sem(h, "main/upload").value == Value(0.75));
+    });
+
+    s.test("tabs: click, arrows, and the panel that follows", [] {
+        Headless h(options());
+        auto page = signal(std::string("general"));
+        std::vector<std::string> changes;
+        h.mount("main", column({.padding = 12}, {
+                                   tabs({.id = "tabs", .selected = page, .on_changed = [&](std::string t) { changes.push_back(t); }}, {
+                                       tab({.id = "general", .text = "General"}),
+                                       tab({.id = "privacy", .text = "Privacy"}),
+                                       tab({.id = "about", .disabled = true, .text = "About"}),
+                                       tab({.id = "advanced", .text = "Advanced"}),
+                                   }),
+                                   when([page] { return page.get() == "privacy"; }, [] { return text({.id = "panel", .text = "Privacy settings"}); },
+                                        [] { return text({.id = "panel", .text = "General settings"}); }),
+                               }));
+        h.settle();
+        check(sem(h, "main/tabs").role == Role::tab_list && sem(h, "main/tabs/general").states.has(State::selected));
+        check(h.click("main/tabs/privacy"));
+        check(page.peek() == "privacy" && changes == std::vector<std::string>{"privacy"});
+        check(sem(h, "main/panel").name == "Privacy settings");
+        key(h, Key::right);
+        check(page.peek() == "advanced", std::format("Right skips the disabled tab: {}", page.peek()));
+        check(h.runtime().path(h.runtime().focused()) == "main/tabs/advanced");
+        key(h, Key::right);
+        check(page.peek() == "general", "and wraps");
+        check(act(h, "main/tabs/privacy", "select") == 0 && page.peek() == "privacy");
+        check(act(h, "main/tabs", "next") == 1, "next is a command of the keys, not an action");
+    });
+
+    s.test("menu: opens below its button, keys and choices close it, focus comes back", [] {
+        Headless h(options({360, 300}));
+        auto open = signal(false);
+        int closed = 0;
+        std::vector<std::string> chosen;
+        h.mount("main", column({.padding = 12, .gap = 8}, {
+                                   row({.id = "file"}, {
+                                       button({.id = "open", .text = "File", .on_activated = [open] { open.set(!open.peek()); }}),
+                                       menu({.id = "menu", .open = open, .on_closed = [&] { ++closed; }}, {
+                                           menu_item({.id = "new", .shortcut = "Ctrl+N", .text = "New", .on_activated = [&] { chosen.push_back("new"); }}),
+                                           menu_item({.id = "save", .disabled = true, .text = "Save"}),
+                                           menu_item({.id = "quit", .text = "Quit", .on_activated = [&] { chosen.push_back("quit"); }}),
+                                       }),
+                                   }),
+                                   text({.id = "below", .text = "Content"}),
+                               }));
+        h.settle();
+        check(!h.tree().node("main/file/menu") || h.tree().find({.role = Role::menu_item}).empty(), "a closed menu is not read");
+        check(h.click("main/file/open"));
+        h.settle();
+        check(open.peek());
+        const Rect button_b = bounds(h, "main/file/open"), menu_b = bounds(h, "main/file/menu");
+        check(menu_b.y >= button_b.bottom() && menu_b.x == button_b.x, std::format("below: {} {}", menu_b.x, menu_b.y));
+        check(h.runtime().hit_test({menu_b.x + 20, menu_b.y + 20}) != h.runtime().find("main/below"), "above the content");
+        check(h.runtime().path(h.runtime().focused()) == "main/file/menu/new", "the first item takes focus");
+        key(h, Key::down);
+        check(h.runtime().path(h.runtime().focused()) == "main/file/menu/quit", "Down skips the disabled item");
+        key(h, Key::enter);
+        h.settle();
+        check(chosen == std::vector<std::string>{"quit"} && !open.peek() && closed == 1);
+        check(h.runtime().path(h.runtime().focused()) == "main/file/open", "focus goes back to the button");
+        open.set(true);
+        h.settle();
+        key(h, Key::escape);
+        h.settle();
+        check(!open.peek() && closed == 2, "Escape");
+        open.set(true);
+        h.settle();
+        h.click(Point{340, 280});
+        h.settle();
+        check(!open.peek() && closed == 3, "a press outside");
+    });
+
+    s.test("dialog: modal, focus kept inside and given back, dismissed by Escape or the scrim", [] {
+        Headless h(options({400, 300}));
+        auto open = signal(false);
+        std::vector<std::string> results;
+        h.mount("main", column({.padding = 12, .gap = 8}, {
+                                   button({.id = "ask", .text = "Delete…", .on_activated = [open] { open.set(true); }}),
+                                   button({.id = "other", .text = "Other"}),
+                                   dialog({.id = "confirm", .open = open, .title = "Delete the file?",
+                                           .on_closed = [&](std::string r) { results.push_back(r); }}, {
+                                       text({.id = "body", .text = "This cannot be undone."}),
+                                       row({.id = "actions", .gap = 8}, {
+                                           button({.id = "cancel", .text = "Cancel", .on_activated = [open] { open.set(false); }}),
+                                           button({.id = "delete", .text = "Delete", .variant = ButtonVariant::danger}),
+                                       }),
+                                   }),
+                               }));
+        h.settle();
+        h.focus_next();
+        check(h.runtime().path(h.runtime().focused()) == "main/ask");
+        key(h, Key::enter);
+        h.settle();
+        check(open.peek());
+        auto d = sem(h, "main/confirm");
+        check(d.role == Role::dialog && d.name == "Delete the file?" && d.states.has(State::modal));
+        check(h.runtime().path(h.runtime().focused()) == "main/confirm/actions/cancel", h.runtime().path(h.runtime().focused()));
+        key(h, Key::tab);
+        key(h, Key::tab);
+        check(h.runtime().path(h.runtime().focused()) == "main/confirm/actions/cancel", "Tab stays inside");
+        check(h.runtime().hit_test(bounds(h, "main/other").center()) == h.runtime().find("main/confirm"), "the scrim blocks what is below");
+        key(h, Key::escape);
+        h.settle();
+        check(!open.peek() && results == std::vector<std::string>{"dismissed"});
+        check(h.runtime().path(h.runtime().focused()) == "main/ask", "focus comes back");
+        open.set(true);
+        h.settle();
+        h.click(Point{5, 295});
+        h.settle();
+        check(!open.peek() && results.size() == 2, "a press on the scrim");
+        open.set(true);
+        h.settle();
+        check(h.click("main/confirm/actions/cancel"));
+        h.settle();
+        check(!open.peek() && results.size() == 3);
+    });
+
+    s.test("tooltip: after a delay on hover, gone on leave", [] {
+        Headless h(options());
+        h.mount("main", column({.padding = 40, .gap = 8}, {
+                                   row({.id = "bar"}, {
+                                       button({.id = "save", .text = "Save"}),
+                                       tooltip({.id = "tip", .delay = 0.5, .text = "Save the document (Ctrl+S)"}),
+                                   }),
+                               }));
+        h.settle();
+        check(h.tree().find({.role = Role::tooltip}).empty());
+        h.move(bounds(h, "main/bar/save").center());
+        h.advance(seconds(0.3));
+        check(h.tree().find({.role = Role::tooltip}).empty(), "not before the delay");
+        h.advance(seconds(0.3));
+        h.settle();
+        auto tips = h.tree().find({.role = Role::tooltip});
+        check(tips.size() == 1 && tips[0].name == "Save the document (Ctrl+S)");
+        check(bounds(h, "main/bar/tip").bottom() <= bounds(h, "main/bar/save").y, "above its target");
+        h.move({5, 230});
+        h.settle();
+        check(h.tree().find({.role = Role::tooltip}).empty(), "gone on leave");
+    });
+
+    s.test("select: pointer, keys and agents choose; values are checked", [] {
+        Headless h(options({360, 320}));
+        auto city = signal(std::string("paris"));
+        std::vector<std::string> changes;
+        h.mount("main", column({.padding = 12, .gap = 8}, {
+                                   select({.id = "city", .label = "City", .labels = std::vector<std::string>{"Paris", "Tokyo", "Lima"},
+                                           .options = std::vector<std::string>{"paris", "tokyo", "lima"}, .value = city,
+                                           .on_changed = [&](std::string v) { changes.push_back(v); }}),
+                               }));
+        h.settle();
+        auto n = sem(h, "main/city");
+        check(n.role == Role::combo_box && n.name == "City" && n.value.get("value")->as_string() == "paris");
+        check(n.value.get("options")->list()->size() == 3);
+        check(h.click("main/city"));
+        h.settle();
+        check(sem(h, "main/city").states.has(State::expanded));
+        auto options = h.tree().find({.role = Role::option});
+        check(options.size() == 3 && options[1].name == "Tokyo");
+        check(bounds(h, "main/city/popup").width >= bounds(h, "main/city").width, "at least as wide as the field");
+        check(h.click(options[2].id));
+        h.settle();
+        check(city.peek() == "lima" && changes == std::vector<std::string>{"lima"} && !sem(h, "main/city").states.has(State::expanded));
+        check(h.runtime().path(h.runtime().focused()) == "main/city");
+        key(h, Key::enter);
+        h.settle();
+        key(h, Key::up);
+        key(h, Key::enter);
+        h.settle();
+        check(city.peek() == "tokyo", city.peek());
+        check(act(h, "main/city", "set_value", Value{}.set("value", "paris")) == 0 && city.peek() == "paris");
+        check(act(h, "main/city", "set_value", Value{}.set("value", "berlin")) == 1, "not an option");
+        h.settle();
+    });
+
+    s.test("overlays in a picture: an open select and an open menu", [] {
+        typeset::FontCollection own;
+        check(own.add_defaults().has_value());
+        HeadlessOptions o = options({360, 240});
+        o.fonts = &own;
+        o.scale = 2;
+        Headless h(o);
+        auto open = signal(true);
+        h.mount("main", row({.padding = 16, .gap = 16, .align = "start"}, {
+                                select({.id = "city", .labels = std::vector<std::string>{"Paris", "Tokyo", "Lima"},
+                                        .options = std::vector<std::string>{"paris", "tokyo", "lima"}, .value = std::string("tokyo")}),
+                                column({.id = "file"}, {
+                                    button({.id = "open", .text = "File"}),
+                                    menu({.id = "menu", .open = open}, {
+                                        menu_item({.id = "new", .shortcut = "Ctrl+N", .text = "New"}),
+                                        menu_item({.id = "quit", .text = "Quit"}),
+                                    }),
+                                }),
+                            }));
+        h.settle();
+        check(act(h, "main/city", "expand") == 0);
+        h.settle();
+        const Rect field = bounds(h, "main/city");
+        for (const auto& opt : h.tree().find({.role = Role::option}))
+            check(bounds(h, opt.id).width >= field.width - 10, std::format("{} is {} wide", opt.id, bounds(h, opt.id).width));
+        Hash hash;
+        const auto& px = h.pixels();
+        for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
+        std::println("ui.base overlays {:016x}", hash.value());
+        check(h.save_png(scratch_dir("ui-base-overlays") / "overlays@2x.png").has_value());
+        check(hash.value() == 0x2324e7862a245162ULL, std::format("overlays {:016x}", hash.value()));
+    });
+
     s.test("immediate mode uses the real components", [] {
         Headless h(options());
         int saves = 0;

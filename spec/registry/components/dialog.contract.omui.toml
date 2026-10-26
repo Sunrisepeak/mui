@@ -1,4 +1,5 @@
 [contract.dialog]
+children = "any"
 role = "dialog"
 spec = "0.1"
 doc  = "A window over the application; modal by default."

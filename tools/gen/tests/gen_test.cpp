@@ -52,11 +52,13 @@ int main(int argc, char** argv) {
             const std::string file = entry.path().filename().string();
             if (!file.ends_with("_contract.cppm")) continue;
             const std::string name = file.substr(0, file.size() - std::string_view("_contract.cppm").size());
-            auto contracts = gen::read_contracts(spec_dir() / "registry" / "components" / (name + ".contract.omui.toml"), reg, diags);
-            check(contracts.size() == 1, name);
-            if (contracts.size() != 1) continue;
+            // A contract file may hold several contracts (tabs and tab): look it up by name.
+            const auto it = std::ranges::find(reg.contracts, name, &gen::Contract::name);
+            check(it != reg.contracts.end(), name);
+            if (it == reg.contracts.end()) continue;
+            std::vector<gen::Contract> contracts{*it};
             const std::string hint = std::format(
-                "out of date: run omui-gen cpp spec/registry/components/{}.contract.omui.toml --registry spec/registry "
+                "out of date: run omui-gen cpp spec/registry/components/*.contract.omui.toml for {} --registry spec/registry "
                 "--module openmui.ui.base --namespace omui --out components/base/src/generated --catalog",
                 name);
             check(read(entry.path()) == gen::emit_cpp_contract(contracts[0], reg, o), hint);

@@ -71,6 +71,55 @@ int main(int argc, char** argv) {
         check_frame(e, b, {66, 11, 30, 40});
     });
 
+    s.test("a subtree hidden and shown again is laid out again", [] {
+        // display: none zeroes the frames below it; showing it must not reuse
+        // the cached sizes that skip positioning its grandchildren.
+        layout::Engine e;
+        auto root = e.create();
+        layout::Style ps;
+        ps.direction = layout::Direction::column;
+        ps.padding = omui::geom::Insets::all(4);
+        auto panel = e.create(ps);
+        auto row = e.create();
+        auto leaf = e.create(box(30, 10));
+        e.append(root, panel);
+        e.append(panel, row);
+        e.append(row, leaf);
+        e.compute(root, {200, 100});
+        check_frame(e, leaf, {0, 0, 30, 10});
+        ps.display = layout::Display::none;
+        e.set_style(panel, ps);
+        e.compute(root, {200, 100});
+        check_frame(e, leaf, {0, 0, 0, 0});
+        ps.display = layout::Display::flex;
+        e.set_style(panel, ps);
+        e.compute(root, {200, 100});
+        check_frame(e, leaf, {0, 0, 30, 10});
+        check_frame(e, row, {4, 4, 30, 10});
+    });
+
+    s.test("an auto-sized column stretches its items to its min width (§9.4)", [] {
+        layout::Engine e;
+        auto root = e.create();
+        layout::Style ps;
+        ps.direction = layout::Direction::column;
+        ps.position = layout::Position::absolute;
+        ps.min_width = layout::pt(160);
+        ps.padding = omui::geom::Insets::all(4);
+        auto pop = e.create(ps);
+        auto a = e.create(box(60, 10));
+        layout::Style bs;
+        bs.height = layout::pt(10);
+        auto b = e.create(bs);
+        e.append(root, pop);
+        e.append(pop, a);
+        e.append(pop, b);
+        e.compute(root, {400, 300});
+        check_frame(e, pop, {0, 0, 160, 28});
+        check_frame(e, a, {4, 4, 60, 10});      // a definite width stays
+        check_frame(e, b, {4, 14, 152, 10});    // an auto one stretches to the clamped line
+    });
+
     s.test("grow shares free space by factor, within max", [] {
         layout::Engine e;
         auto root = e.create();

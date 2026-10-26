@@ -432,6 +432,10 @@ std::vector<Contract> read_contracts(const std::filesystem::path& file, const Re
         c.doc = r.str(*t, "doc");
         c.role = r.str(*t, "role", true);
         c.spec = r.str(*t, "spec", true);
+        c.children = r.str(*t, "children");
+        if (c.children.empty()) c.children = "none";
+        if (c.children != "none" && c.children != "any" && !valid_identifier(c.children))
+            diags.error(r.loc(t->get("children")), std::format("`children` is none, any, or a contract name, not `{}`", c.children));
         if (!valid_identifier(c.name))
             diags.error(c.loc, std::format("contract name `{}` is not lower_snake_case", c.name));
         if (!c.role.empty() && !Registry::find(reg.roles, c.role))

@@ -1,4 +1,5 @@
 [contract.menu]
+children = "menu_item"
 role = "menu"
 spec = "0.1"
 doc  = "A popup list of commands."

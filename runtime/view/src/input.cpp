@@ -119,10 +119,11 @@ void Runtime::Impl::pointer_event(const PointerEvent& e) {
             for (auto it = overlays.rbegin(); it != overlays.rend(); ++it) {
                 const NodeId o = *it;
                 if (!alive(o) || !displayed(o)) continue;
-                if (contains(o, target)) break;
                 const Node& on = at(o);
                 const Placement p = on.type->placement ? on.type->placement(on.instance) : Placement{};
                 const bool outside = !on.bounds.contains(e.position);
+                // A modal overlay answers hit tests on its scrim itself: outside is what counts.
+                if (contains(o, target) && !(p.modal && outside)) break;
                 if (p.modal) {
                     if (outside && p.light_dismiss) {
                         Invocation call;

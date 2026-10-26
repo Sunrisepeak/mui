@@ -44,6 +44,12 @@ void keep_frames(PaintContext& ctx, std::initializer_list<const Motion*> motions
     return {a.r * u + b.r * t, a.g * u + b.g * t, a.b * u + b.b * t, a.a * u + b.a * t};
 }
 
+// A node's own id: the last segment of its path.
+[[nodiscard]] std::string segment(const Services& services, NodeId node);
+
+// A small downward chevron (selects, menus), centred on `c`.
+void chevron(PaintContext& ctx, Point c, float size, Color color);
+
 // The ring keyboard focus draws around a control (theme token `focus`).
 void focus_ring(PaintContext& ctx, const Rect& r, const CornerRadii& radii);
 

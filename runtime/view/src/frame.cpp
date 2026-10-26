@@ -189,7 +189,15 @@ void Runtime::Impl::place_overlays() {
         Node& n = at(id);
         const Placement p = n.type->placement ? n.type->placement(n.instance) : Placement{};
         const Rect frame = layout.frame(n.layout);
-        const Rect anchor = alive(n.parent) ? at(n.parent).bounds : window;
+        Rect anchor = alive(n.parent) ? at(n.parent).bounds : window;
+        if (p.anchor == Placement::Anchor::previous && alive(n.parent)) {
+            NodeId before;
+            for (NodeId c : at(n.parent).children) {
+                if (c == id) break;
+                if (!at(c).type->overlay) before = c;
+            }
+            if (alive(before)) anchor = at(before).bounds;
+        }
         const float w = frame.width, h = frame.height;
         Point at{};
         switch (p.side) {

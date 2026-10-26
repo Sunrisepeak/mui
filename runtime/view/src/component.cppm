@@ -37,7 +37,9 @@ struct NodeState {
 // centred in the window (a dialog). It flips to stay inside the window.
 struct Placement {
     enum class Side : std::uint8_t { below, above, start, end, center };
-    Side  side = Side::below;
+    enum class Anchor : std::uint8_t { parent, previous };  // previous: the sibling before it (a tooltip's target)
+    Side   side = Side::below;
+    Anchor anchor = Anchor::parent;
     float offset = 4;           // the gap to the anchor
     bool  modal = false;        // blocks the interface below; Tab stays inside
     bool  scrim = false;        // darkens what is below (theme `scrim`)

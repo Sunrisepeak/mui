@@ -227,7 +227,11 @@ Size Engine::layout(NodeId node, const Request& request) {
 
 void Engine::hide_subtree(NodeId node) {
     for (NodeId c : at(node).children) {
-        at(c).frame = {};
+        Node& n = at(c);
+        n.frame = {};
+        // The zeroed frames are not what its cache describes: shown again, it
+        // must be laid out (and position its children) anew.
+        n.invalidate();
         hide_subtree(c);
     }
 }

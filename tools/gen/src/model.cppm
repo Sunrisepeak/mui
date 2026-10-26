@@ -167,6 +167,7 @@ struct Motion {
 struct Contract : Named {
     std::string                 role;
     std::string                 spec;
+    std::string                 children = "none";  // none, any, or the contract its children are (tabs: tab)
     std::vector<Prop>           props;
     std::vector<Event>          events;
     std::vector<ContractAction> actions;

@@ -81,6 +81,8 @@ label = {}
 thumb = "motion.fast"
 ```
 
+容器类组件在契约头部写 `children`：`"none"`（默认）、`"any"`，或者子节点所属的契约名（`[contract.tabs] children = "tab"`、`[contract.menu] children = "menu_item"`）；生成的 builder 据此多接受一个子节点列表。浮层（菜单、对话框、提示）由组件声明 `overlay` 和放置方式，运行时负责布局、绘制顺序、轻触关闭和模态焦点。
+
 ### 2.3 从契约生成的内容
 
 ```

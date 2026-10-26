@@ -52,6 +52,22 @@ void keep_frames(PaintContext& ctx, std::initializer_list<const Motion*> motions
         }
 }
 
+std::string segment(const Services& services, NodeId node) {
+    const std::string p = services.path(node);
+    const auto slash = p.rfind('/');
+    return slash == std::string::npos ? p : p.substr(slash + 1);
+}
+
+void chevron(PaintContext& ctx, Point c, float size, Color color) {
+    render::Path p;
+    p.move_to({c.x - size / 2, c.y - size / 4}).line_to({c.x, c.y + size / 4}).line_to({c.x + size / 2, c.y - size / 4});
+    render::StrokeStyle st;
+    st.width = 1.5f;
+    st.cap = render::LineCap::round;
+    st.join = render::LineJoin::round;
+    ctx.list.stroke_path(p, st, render::Paint::solid(color));
+}
+
 void focus_ring(PaintContext& ctx, const Rect& r, const CornerRadii& radii) {
     constexpr float gap = 2, width = 2;
     const float out = gap + width / 2;

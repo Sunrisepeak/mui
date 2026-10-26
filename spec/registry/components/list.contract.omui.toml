@@ -1,4 +1,5 @@
 [contract.list]
+children = "any"
 role = "list"
 spec = "0.1"
 doc  = "A list of items, virtualised: only the visible items exist as nodes, the rest answer queries (S-7)."

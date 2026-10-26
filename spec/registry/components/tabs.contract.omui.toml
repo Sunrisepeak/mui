@@ -1,4 +1,5 @@
 [contract.tabs]
+children = "tab"
 role = "tab_list"
 spec = "0.1"
 doc  = "A set of tabs selecting one panel."

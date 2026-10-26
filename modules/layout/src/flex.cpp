@@ -318,6 +318,17 @@ Size FlexAlgorithm::run(Engine& e, NodeId node, const Engine::Request& r) {
     }
     if (!lines.empty()) lines_cross += gap_cross * static_cast<float>(lines.size() - 1);
     float container_cross = inner_cross ? *inner_cross : lines_cross;
+    if (!inner_cross) {
+        // An auto cross size is still within the container's own min and max
+        // (border-box sizes), and a single line takes the clamped size: items
+        // stretch to it (§9.4 15), so a popup's options span a popup widened
+        // to its anchor.
+        const float pb_cross = row ? pb_h : pb_w;
+        const std::optional<float> parent_cross = row ? r.parent_height : r.parent_width;
+        if (auto lo = (row ? s.min_height : s.min_width).resolve(parent_cross)) container_cross = std::max(container_cross, *lo - pb_cross);
+        if (auto hi = (row ? s.max_height : s.max_width).resolve(parent_cross)) container_cross = std::min(container_cross, *hi - pb_cross);
+        container_cross = std::max(0.0f, container_cross);
+    }
     if (single && !lines.empty() && !inner_cross) lines.front().cross = container_cross;
 
     // align-content (§9.4 15)

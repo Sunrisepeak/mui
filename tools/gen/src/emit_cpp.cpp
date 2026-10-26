@@ -220,8 +220,13 @@ std::string emit_cpp_contract(const Contract& c, const Registry& reg, const CppO
         if (!has_prop(c, f.name)) out += std::format("    {}\n", f.decl);
     out += "};\n\n";
 
-    out += std::format("[[nodiscard]] Element {}({}Options options = {{}}, std::source_location where = std::source_location::current());\n\n",
-                       ident(c.name), N);
+    if (c.children == "none")
+        out += std::format("[[nodiscard]] Element {}({}Options options = {{}}, std::source_location where = std::source_location::current());\n\n",
+                           ident(c.name), N);
+    else
+        out += std::format("// Its children: {}.\n[[nodiscard]] Element {}({}Options options = {{}}, std::vector<Element> children = {{}},\n"
+                           "                        std::source_location where = std::source_location::current());\n\n",
+                           c.children == "any" ? std::string("any elements") : std::format("{} elements", c.children), ident(c.name), N);
 
     // The CRTP base.
     out += std::format(R"(// The base of the class implementing {0}: derive as `class {1} : public {1}Contract<{1}>`.
@@ -358,9 +363,11 @@ std::string emit_cpp_builder(const Contract& c, const Registry&, const CppOption
     const std::string file = c.loc.file.empty() ? c.name + ".contract.omui.toml" : std::filesystem::path(c.loc.file).filename().string();
     std::string out = std::format(banner, file);
     out += std::format("module {};\n\nimport std;\nimport openmui.core;\nimport openmui.view;\n\nnamespace {} {{\n\n", o.module, o.ns);
-    out += std::format("Element {}({}Options o, std::source_location where) {{\n    Element e;\n    e.type = &component_type<{}>();\n"
-                       "    e.id = std::move(o.id);\n    e.where = where;\n",
-                       ident(c.name), N, N);
+    const bool children = c.children != "none";
+    out += std::format("Element {}({}Options o, {}std::source_location where) {{\n    Element e;\n    e.type = &component_type<{}>();\n"
+                       "    e.id = std::move(o.id);\n    e.where = where;\n{}",
+                       ident(c.name), N, children ? "std::vector<Element> children, " : "", N,
+                       children ? "    e.children = std::move(children);\n" : "");
     for (const Prop& p : c.props) out += std::format("    e.prop({}, o.{});\n", cpp_string(p.name), ident(p.name));
     for (const Event& e : c.events) {
         std::string call;

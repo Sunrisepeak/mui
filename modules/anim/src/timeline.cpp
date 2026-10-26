@@ -98,7 +98,9 @@ Timeline& Timeline::nest(seconds start, Timeline child, std::string prefix, Time
     e.start = start;
     e.map = map;
     e.natural = child.duration();
-    e.child = std::make_shared<const Timeline>(std::move(child));
+    // Not std::make_shared: under MinGW its type-tag object, instantiated in a module
+    // unit, collides with the one in libstdc++.a at link time.
+    e.child = std::shared_ptr<const Timeline>(new Timeline(std::move(child)));
     entries_.push_back(std::move(e));
     return *this;
 }

@@ -177,6 +177,7 @@ on.pointer_up   = { to = "idle", do = ["commit('group.moved', hit.node)"] }     
 | 效果着色器的元数据（可选） | `.effect.omui.toml` | `ripple.effect.omui.toml`（参数范围、说明；不写时由 Slang 反射得到） |
 | 时间轴叠加（视频预览里的修改，D-54） | `.timeline.omui.json` | `promo.timeline.omui.json`（属性、关键帧、镜头起点和长度的修改，叠加在代码之上） |
 | 会话录制（语义动作 + 输入 + 时钟，`modules/record`） | `.session.omui.jsonl` | `bug-1234.session.omui.jsonl`（第一行是头部，之后每行一条带时间戳的记录；可以流式写入、跳转、在 headless 下精确回放、转成测试） |
+| agent 脚本（openmui.tree@0.1 的请求，每行可带 `expect`：退出码、错误码、节点数） | `.agent.omui.jsonl` | `delete-all.agent.omui.jsonl`（测试里逐行发送并核对；见示例 07） |
 | agent 端点的描述（运行时写在端点目录里，退出时删除） | `.endpoint.omui.json` | `org.example.notes.endpoint.omui.json`（名字、应用 ID、接口 `openmui.tree@0.1`；`omui agent ls` 读取它） |
 | 应用包（播放器加载） | `.omuipkg` | `notes.omuipkg` |
 | 着色器源码 | `.slang` | `ripple.slang` |

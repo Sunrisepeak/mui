@@ -92,6 +92,9 @@ jobs:
           mcpp toolchain install "${spec%@*}" "${spec#*@}"
           mcpp toolchain default "$spec"
 
+      - name: SDL's offscreen video driver (the desktop host's tests open windows)
+        run: echo "SDL_VIDEO_DRIVER=offscreen" >> "$GITHUB_ENV"
+
       - name: Build every member
         run: mcpp build --workspace --profile '${{ matrix.profile }}'
 
@@ -99,3 +102,9 @@ jobs:
         run: |
           mcpp test --workspace --profile '${{ matrix.profile }}' 2>&1 | tee tests.log
           grep -q "workspace result ok" tests.log || { echo "::error::workspace tests failed"; exit 1; }
+
+      - name: An agent drives example 07 in its own process (M1 acceptance ②)
+        if: runner.os == 'Linux'
+        env:
+          PROFILE: ${{ matrix.profile }}
+        run: tools/ci/agent-e2e.sh

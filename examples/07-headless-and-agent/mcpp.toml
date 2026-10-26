@@ -1,0 +1,27 @@
+# Example 07 — headless and agents (canvas-markdown design §5): a small notes
+# app tested at the headless levels H0 (semantics), H1 (layout) and H2
+# (pixels), driven by an agent script, with the irreversible "delete all"
+# stopped until it is answered (S-1, S-2), and a recorded session replayed.
+#
+#   mcpp run -- --serve           then: omui agent ls / snapshot / find / act / wait
+[package]
+name        = "openmui-example-headless-and-agent"
+version     = "0.1.0"
+description = "openmui example 07: headless tests, agent scripts, effects stopped until answered"
+license     = "Apache-2.0"
+
+[package.metadata.openmui]
+kind = "example"
+
+[targets.notes-agent]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+openmui = { path = "../.." }
+
+[dev-dependencies]
+openmui-testing = { path = "../../tests/support" }

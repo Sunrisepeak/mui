@@ -1,0 +1,28 @@
+# Example 01 — hello, immediate mode: the shortest path from nothing to an
+# openmui window (canvas-markdown design §5). The interface is declared every
+# build in plain C++; ids come from explicit `.id`s where it matters.
+#
+#   mcpp run                      a window
+#   mcpp run -- --headless --png hello.png
+#   mcpp run -- --serve           headless, for agents (omui agent ls)
+[package]
+name        = "openmui-example-hello-im"
+version     = "0.1.0"
+description = "openmui example 01: hello, immediate mode"
+license     = "Apache-2.0"
+
+[package.metadata.openmui]
+kind = "example"
+
+[targets.hello-im]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+openmui = { path = "../.." }
+
+[dev-dependencies]
+openmui-testing = { path = "../../tests/support" }

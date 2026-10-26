@@ -76,12 +76,6 @@ Snapshot Tree::snapshot(const SnapshotOptions& o) {
     refresh();
     Snapshot s;
     s.revision = read_;
-    std::size_t start = 0;
-    if (!o.root.empty()) {
-        auto it = index_.find(o.root);
-        if (it == index_.end()) return s;
-        start = it->second;
-    }
     // The subtree in pre-order, with depths from the subtree's root.
     std::vector<std::pair<std::size_t, int>> order;
     auto walk = [&](auto& self, std::size_t i, int depth) -> void {
@@ -90,7 +84,22 @@ Snapshot Tree::snapshot(const SnapshotOptions& o) {
         for (const std::string& c : nodes_[i].children)
             if (auto it = index_.find(c); it != index_.end()) self(self, it->second, depth + 1);
     };
-    if (!nodes_.empty()) walk(walk, start, 0);
+    if (o.root.empty()) {
+        if (!nodes_.empty()) walk(walk, 0, 0);
+    } else if (auto it = index_.find(o.root); it != index_.end()) {
+        walk(walk, it->second, 0);
+    } else {
+        // A root the compact tree lifted: its kept descendants nearest to it
+        // are the subtree's tops (pre-order keeps them in document order).
+        const std::string prefix = o.root + "/";
+        std::vector<std::size_t> tops;
+        for (std::size_t i = 0; i < nodes_.size(); ++i) {
+            if (!nodes_[i].id.starts_with(prefix)) continue;
+            const bool nested = std::ranges::any_of(tops, [&](std::size_t t) { return nodes_[i].id.starts_with(nodes_[t].id + "/"); });
+            if (!nested) tops.push_back(i);
+        }
+        for (std::size_t t : tops) walk(walk, t, 1);
+    }
     std::vector<const spec::SemanticNode*> picked;
     for (auto [i, depth] : order)
         if (!o.interactive || interactive(nodes_[i])) picked.push_back(&nodes_[i]);

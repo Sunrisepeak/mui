@@ -24,6 +24,9 @@ mcpp test "${select[@]}" --toolchain gcc@16.1.0 --profile release 2>&1 | grep -E
 step "llvm@23.1.3 dev"
 mcpp test "${select[@]}" --toolchain llvm@23.1.3 2>&1 | grep -E 'result|FAIL' || true
 
+step "agent e2e (example 07 in its own process)"
+tools/ci/agent-e2e.sh 2>&1 | grep -E '^(ok|FAIL)|e2e' || true
+
 if command -v wine > /dev/null; then
     step "x86_64-windows-gnu under wine"
     mcpp test "${select[@]}" --target x86_64-windows-gnu --no-run > /dev/null 2>&1

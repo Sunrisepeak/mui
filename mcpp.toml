@@ -35,6 +35,8 @@ members = [
     "components/base",
     "tools/gen",
     "tools/omui",
+    "examples/01-hello-im",
+    "examples/07-headless-and-agent",
 ]
 
 [workspace.package]
@@ -55,10 +57,17 @@ dialect_cxxflags = ["-Wa,-mbig-obj"]
 kind = "lib"
 
 [build]
-sources = ["src/openmui.cppm"]
+sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-openmui-core = { path = "runtime/core" }
+openmui-core          = { path = "runtime/core" }
+openmui-view          = { path = "runtime/view" }
+openmui-semantic      = { path = "runtime/semantic" }
+openmui-agent         = { path = "runtime/agent" }
+openmui-ui-base       = { path = "components/base" }
+openmui-host-headless = { path = "hosts/headless" }
+openmui-host-sdl3     = { path = "hosts/sdl3" }
+mcpplibs.os           = { git = "https://github.com/mcpplibs/os.git", branch = "os-0.1.0" }
 
 # The root package has no test programs of its own: tests/ holds members
 # (tests/support, and the cross-member suites), each discovered by itself.

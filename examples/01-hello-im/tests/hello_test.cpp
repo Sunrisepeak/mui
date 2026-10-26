@@ -1,0 +1,58 @@
+// Example 01 runs headless: the agent's view of it, typing and clicking, and a picture.
+import std;
+import openmui;
+import openmui.testing;
+import hello;
+
+using namespace omui::testing;
+
+int main(int argc, char** argv) {
+    omui::testing::Suite s{"example.hello-im"};
+
+    s.test("an agent finds, types and clicks; the view follows", [] {
+        omui::register_base_components();
+        hello::State state;
+        omui::AppSpec app = hello::app(state);
+        omui::HeadlessOptions o;
+        o.size = app.size;
+        omui::Headless h(o);
+        h.mount("main", app.view());
+        h.settle();
+        auto field = h.tree().find({.role = omui::Role::text_box});
+        check(field.size() == 1 && field[0].name == "Name");
+        auto button = h.tree().find({.role = omui::Role::button});
+        check(button.size() == 1 && button[0].name == "Click me" && button[0].id.ends_with("/click"));
+        check(h.click(field[0].id));
+        h.type("Ada");
+        h.settle();
+        check(state.name == "Ada");
+        check(!h.tree().find({.name = "Nice to meet you, Ada!"}).empty());
+        omui::Invocation agent;
+        agent.actor = {"agent", "example", {}};
+        check(h.tree().act(button[0].id, "activate", agent).exit_code() == std::optional<int>(0));
+        h.settle();
+        check(state.clicks == 1);
+        auto after = h.tree().node(button[0].id);
+        check(after && after->name == "Clicked 1 times", "the label changed; the id did not (S-9)");
+        check(h.tree().violations().empty());
+        check(h.save_png(scratch_dir("hello-im") / "hello.png").has_value());
+    });
+
+    s.test("the command line", [] {
+        hello::State state;
+        std::array<std::string_view, 5> args{"--headless", "--frames", "3", "--png", "x.png"};
+        auto o = omui::RunOptions::parse(args);
+        check(o && o->headless && o->frames == 3 && o->png == "x.png");
+        std::array<std::string_view, 1> bad{"--frobnicate"};
+        check(!omui::RunOptions::parse(bad).has_value());
+        const auto png = scratch_dir("hello-im-run") / "run.png";
+        omui::RunOptions run;
+        run.headless = true;
+        run.frames = 5;
+        run.png = png;
+        check(omui::run(hello::app(state), run) == 0);
+        check(std::filesystem::file_size(png) > 1000);
+    });
+
+    return s.run(argc, argv);
+}

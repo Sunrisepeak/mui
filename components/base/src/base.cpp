@@ -23,6 +23,8 @@ void register_base_components() {
     register_type(component_type<MenuItem>());
     register_type(component_type<Dialog>());
     register_type(component_type<Tooltip>());
+    register_type(component_type<List>());
+    register_type(component_type<ListItem>());
 }
 
 }  // namespace omui

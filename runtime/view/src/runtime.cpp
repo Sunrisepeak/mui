@@ -256,6 +256,43 @@ void Runtime::restyle(NodeId node) {
     if (valid(node)) impl_->sync_style(node);
 }
 
+Model& Runtime::model(std::string_view name) {
+    auto& slot = impl_->models[std::string(name)];
+    if (!slot) slot = std::make_unique<Model>(std::string(name));
+    return *slot;
+}
+
+NodeId Runtime::reveal(std::string_view path) {
+    Impl& d = *impl_;
+    if (NodeId n = find(path); valid(n)) return n;
+    // The deepest node on the path that exists, and the segment after it.
+    std::size_t cut = path.size();
+    while (true) {
+        cut = path.rfind('/', cut == 0 ? 0 : cut - 1);
+        if (cut == std::string_view::npos) return {};
+        const NodeId holder = find(path.substr(0, cut));
+        if (!valid(holder)) continue;
+        Node& h = d.at(holder);
+        if (!h.type->reveal) return {};
+        std::string_view rest = path.substr(cut + 1);
+        const std::string_view key = rest.substr(0, rest.find('/'));
+        if (!h.type->reveal(h.instance, key)) return {};
+        d.reconcile_regions();
+        d.paths_dirty = true;
+        if (NodeId n = find(path); valid(n)) return n;
+        // Deeper virtual levels: materialise the next one the same way.
+        const NodeId next = find(path.substr(0, cut + 1 + key.size()));
+        return valid(next) && next != holder ? reveal(path) : NodeId{};
+    }
+}
+
+std::vector<spec::SemanticNode> Runtime::virtual_items(NodeId node) const {
+    if (!valid(node)) return {};
+    const Node& n = impl_->at(node);
+    if (!n.type->virtual_items) return {};
+    return n.type->virtual_items(n.instance, path(node));
+}
+
 void Runtime::recompose(NodeId node) {
     Impl& d = *impl_;
     if (!d.alive(node) || !d.at(node).composed) return;

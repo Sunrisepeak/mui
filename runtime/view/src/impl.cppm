@@ -9,6 +9,7 @@ import openmui.render;
 import openmui.text;
 import :element;
 import :theme;
+import :model;
 import :component;
 import :runtime;
 
@@ -131,7 +132,9 @@ struct Runtime::Impl {
     std::vector<NodeId>                   removing;   // nodes playing their exit transition (S-4)
     std::vector<NodeId>                   fresh;      // created since the last frame ended
     std::vector<NodeId>                   overlays;   // overlay nodes, bottom to top
-    std::vector<std::pair<NodeId, NodeId>> modal_focus;  // a modal overlay, and the focus before it opened
+    std::vector<NodeId>                   watchers;   // nodes whose type has laid_out()
+    std::vector<std::pair<NodeId, NodeId>> modal_focus;
+    std::map<std::string, std::unique_ptr<Model>, std::less<>> models;  // a modal overlay, and the focus before it opened
     Size                                  size;
     float                                 scale = 1;
     bool                                  reduce_motion = false;

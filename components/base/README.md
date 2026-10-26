@@ -15,6 +15,7 @@ The Core components (spec §11), contract-first (component-binding §2):
 | `select` | `select` (role `combo_box`) | a composite: it builds its popup (an overlay as wide as the field) and its options; keys, pointer and `set_value` (checked against the options) |
 | `menu`, `menu_item` | `menu`, `menu_item` | an overlay below the element before it; the first item takes focus; arrows, Enter, Escape, a press outside; focus returns to the trigger |
 | `dialog` | `dialog` | modal: scrim, focus kept inside and given back, Escape or the scrim dismisses (`closed` says how) |
+| `list`, `list_view` | `list` | virtualised (S-7): the rows in view are nodes, the rest are stated by the semantic tree and materialised when acted on; measured heights; roving focus; none, single or multiple selection |
 | `tooltip` | `tooltip` | describes the element before it; shown after `delay` on hover or focus, on the runtime's timers |
 
 Each class derives from the CRTP base `omui-gen cpp` makes from its contract

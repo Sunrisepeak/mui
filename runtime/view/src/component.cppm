@@ -16,6 +16,7 @@ import openmui.render;
 import openmui.text;
 import :element;
 import :theme;
+import :model;
 
 export namespace omui {
 
@@ -65,6 +66,11 @@ public:
     virtual void restyle(NodeId node) = 0;
     // A composite component's own children are built again (compose()).
     virtual void recompose(NodeId node) = 0;
+    // A model by name, made empty on first use.
+    virtual Model& model(std::string_view name) = 0;
+    // The node at a path, materialised first if a virtualising ancestor (a
+    // list) holds it unmaterialised (spec S-7); none when nothing is there.
+    virtual NodeId reveal(std::string_view path) = 0;
     [[nodiscard]] virtual const Theme& theme() const = 0;
     [[nodiscard]] virtual typeset::FontCollection& fonts() = 0;
     [[nodiscard]] virtual render::ImageStore& images() = 0;
@@ -179,6 +185,14 @@ struct ComponentType {
     // A composite component's own children (a select's popup and options),
     // after those its element gave; built again on Services::recompose.
     std::vector<Element> (*compose)(void*) = nullptr;
+    // Virtualising components (spec S-7): every item, materialised or not,
+    // in order, as the semantic tree states them (`path` is the node's), and
+    // materialising one by its key.
+    std::vector<spec::SemanticNode> (*virtual_items)(const void*, std::string_view path) = nullptr;
+    bool (*reveal)(void*, std::string_view key) = nullptr;
+    // After each layout pass, with bounds known (measured sizes, keeping
+    // something in view): changes made here show at the next frame.
+    void (*laid_out)(void*) = nullptr;
 };
 
 // The function table of component class C. C declares `static constexpr
@@ -196,6 +210,12 @@ template <class C>
         if constexpr (requires { C::overlay; }) x.overlay = C::overlay;
         if constexpr (requires(C& c) { { c.compose() } -> std::same_as<std::vector<Element>>; })
             x.compose = [](void* p) { return static_cast<C*>(p)->compose(); };
+        if constexpr (requires(const C& c, std::string_view p) { { c.virtual_items(p) } -> std::same_as<std::vector<spec::SemanticNode>>; })
+            x.virtual_items = [](const void* p, std::string_view path) { return static_cast<const C*>(p)->virtual_items(path); };
+        if constexpr (requires(C& c, std::string_view k) { { c.reveal(k) } -> std::same_as<bool>; })
+            x.reveal = [](void* p, std::string_view key) { return static_cast<C*>(p)->reveal(key); };
+        if constexpr (requires(C& c) { c.laid_out(); })
+            x.laid_out = [](void* p) { static_cast<C*>(p)->laid_out(); };
         if constexpr (requires(const C& c) { { c.placement() } -> std::same_as<Placement>; })
             x.placement = [](const void* p) { return static_cast<const C*>(p)->placement(); };
         if constexpr (requires { C::contract(); }) x.contract = &C::contract();

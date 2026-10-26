@@ -54,7 +54,8 @@ void Tree::refresh() {
         // Hidden content (a closed menu) is not read, as aria-hidden content is not.
         if (options_.compact && n.states.has(State::hidden) && n.id != "app") return;
         std::optional<std::size_t> here = parent;
-        if (!(options_.compact && meaningless(n))) {
+        const bool kept = !(options_.compact && meaningless(n));
+        if (kept) {
             n.children.clear();
             const std::size_t i = nodes_.size();
             if (parent) nodes_[*parent].children.push_back(n.id);
@@ -63,6 +64,27 @@ void Tree::refresh() {
             here = i;
         }
         for (NodeId c : runtime_.children(id)) self(self, c, here);
+        // A virtualising node (a list) states all its items (S-7): those not
+        // materialised join as offscreen nodes, and all keep the model's order.
+        if (kept && here) {
+            auto items = runtime_.virtual_items(id);
+            if (!items.empty()) {
+                const std::size_t holder = *here;
+                std::vector<std::string> order;
+                for (spec::SemanticNode& v : items) {
+                    order.push_back(v.id);
+                    if (index_.contains(v.id)) continue;
+                    v.children.clear();
+                    index_.emplace(v.id, nodes_.size());
+                    nodes_.push_back(std::move(v));
+                }
+                std::erase_if(order, [&](const std::string& o) { return !index_.contains(o); });
+                // Materialised items keep any other child (headers) after them.
+                for (const std::string& c : nodes_[holder].children)
+                    if (std::ranges::find(order, c) == order.end()) order.push_back(c);
+                nodes_[holder].children = std::move(order);
+            }
+        }
     };
     visit(visit, runtime_.root(), std::nullopt);
     read_ = runtime_.semantic_revision();
@@ -153,7 +175,8 @@ std::optional<spec::SemanticNode> Tree::node(std::string_view id) {
 }
 
 Envelope Tree::act(std::string_view id, std::string_view action, const Invocation& call) {
-    NodeId n = runtime_.find(id);
+    // An item a list holds unmaterialised is materialised first (S-7).
+    NodeId n = runtime_.reveal(id);
     if (!runtime_.valid(n)) {
         Envelope e;
         e.error(spec::error_code::not_found, std::format("no node '{}'", id),

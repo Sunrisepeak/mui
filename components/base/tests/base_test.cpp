@@ -482,6 +482,68 @@ int main(int argc, char** argv) {
         check(hash.value() == 0x2324e7862a245162ULL, std::format("overlays {:016x}", hash.value()));
     });
 
+    s.test("list: a thousand rows, the visible ones materialised, all of them queryable (S-7)", [] {
+        Headless h(options({320, 400}));
+        Model& notes = h.runtime().model("notes");
+        std::vector<Row> rows;
+        for (int i = 0; i < 1000; ++i) rows.push_back({std::format("n{}", i), Value{}.set("title", std::format("Note {}", i))});
+        check(notes.push(std::move(rows)).has_value());
+        check(!notes.push({{"bad key!", {}}}).has_value(), "keys are ids");
+        check(!notes.push({{"n3", {}}}).has_value(), "and unique");
+        auto selected = signal(std::vector<std::string>{});
+        std::vector<std::string> activated;
+        h.mount("main", column({.padding = 10}, {
+                                   list_view({.id = "notes", .estimate = 32.0, .model = "notes", .selectable = ListSelectable::multiple,
+                                              .selected = selected,
+                                              .on_activated = [&](std::string k) { activated.push_back(k); },
+                                              .height = 320},
+                                             [](const Row& r, std::size_t i) {
+                                                 return text({.text = std::format("{} — {}", Model::label_of(r), i % 7 == 0 ? "starred" : "plain")});
+                                             }),
+                               }));
+        h.settle();
+        const NodeId list = h.runtime().find("main/notes");
+        const std::size_t materialised = h.runtime().children(list).size() - 2;  // less the two spacers
+        check(materialised > 5 && materialised < 30, std::format("{} rows are nodes", materialised));
+        check(h.runtime().node_count() < 200, std::format("{} nodes for a thousand rows", h.runtime().node_count()));
+        // The semantic tree states all of them, in order.
+        auto snap = h.tree().snapshot({.root = "main/notes", .depth = 1});
+        check(snap.nodes.size() == 1001, std::format("{}", snap.nodes.size()));
+        check(snap.nodes.front().children.size() == 1000 && snap.nodes.front().children[999] == "main/notes/n999");
+        auto far = h.tree().find({.name = "Note 750"});
+        check(far.size() == 1 && far[0].states.has(State::offscreen), "found though not materialised");
+        // An action on it brings it into view first.
+        check(act(h, "main/notes/n750", "activate") == 0);
+        h.settle();
+        check(activated == std::vector<std::string>{"n750"} && selected.peek() == std::vector<std::string>{"n750"});
+        check(h.runtime().valid(h.runtime().find("main/notes/n750")), "now a node");
+        const Rect lb = bounds(h, "main/notes"), ib = bounds(h, "main/notes/n750");
+        check(ib.y >= lb.y - 0.5f && ib.bottom() <= lb.bottom() + 0.5f, std::format("in view: {}..{} in {}..{}", ib.y, ib.bottom(), lb.y, lb.bottom()));
+        check(!h.tree().node("main/notes/n750")->states.has(State::offscreen));
+        // Keys walk the items from the one focused, scrolling as they go.
+        check(act(h, "main/notes/n750", "focus") == 0);
+        for (int i = 0; i < 20; ++i) key(h, Key::down);
+        h.settle();
+        check(h.runtime().path(h.runtime().focused()) == "main/notes/n770", h.runtime().path(h.runtime().focused()));
+        check(h.runtime().valid(h.runtime().find("main/notes/n770")));
+        // The wheel moves the window.
+        h.scroll(lb.center(), {0, -100000});
+        h.settle();
+        check(h.runtime().valid(h.runtime().find("main/notes/n0")) && !h.runtime().valid(h.runtime().find("main/notes/n750")));
+        // Rows measured taller than the estimate keep their place.
+        check(act(h, "main/notes", "scroll_to", Value{}.set("x", 0).set("y", "end")) == 0);
+        h.settle();
+        check(h.runtime().valid(h.runtime().find("main/notes/n999")));
+        // The model changes: the list follows.
+        check(notes.patch(999, {{"last", Value{}.set("title", "The last one")}}).has_value());
+        h.settle();
+        check(!h.tree().find({.name = "The last one"}).empty());
+        notes.remove(0, 990);
+        h.settle();
+        check(h.tree().snapshot({.root = "main/notes", .depth = 1}).nodes.size() == 11);
+        check(h.tree().violations().empty(), std::format("{}", h.tree().violations().size()));
+    });
+
     s.test("immediate mode uses the real components", [] {
         Headless h(options());
         int saves = 0;

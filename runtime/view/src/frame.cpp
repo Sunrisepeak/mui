@@ -45,6 +45,8 @@ FrameOutput Runtime::frame(const FrameInput& input) {
         d.compute_bounds(d.root, {0, 0}, Affine{});
         d.place_overlays();
         d.trap_focus();
+        for (NodeId w : std::vector<NodeId>(d.watchers))
+            if (d.alive(w)) d.at(w).type->laid_out(d.at(w).instance);
         if (stages >= Stages::paint) {
             d.paint();
             repainted = true;

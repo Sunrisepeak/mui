@@ -21,6 +21,7 @@ export module openmui.view:immediate;
 import std;
 import openmui.core;
 import :element;
+import :model;
 import :component;
 import :primitives;
 

@@ -20,6 +20,7 @@ import openmui.render;
 import openmui.text;
 import :element;
 import :theme;
+import :model;
 import :component;
 
 export namespace omui {

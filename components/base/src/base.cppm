@@ -27,6 +27,7 @@ export import :menu_contract;
 export import :menu_item_contract;
 export import :dialog_contract;
 export import :tooltip_contract;
+export import :list_contract;
 export import :button;
 export import :toggle;
 export import :slider;
@@ -36,6 +37,7 @@ export import :tabs;
 export import :menu;
 export import :dialog;
 export import :select;
+export import :list;
 
 export namespace omui {
 

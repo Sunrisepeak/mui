@@ -17,6 +17,14 @@ The retained and immediate view runtime (plan §3–§5):
   audit journal, and each node's semantics;
 - **primitives**: box, column, row, stack, grid, spacer, text, image, scroll
   view, painter, and their builders with designated-initializer options;
+- **models**: named, keyed rows that lists show and scripts and agents push
+  to; a revision signal makes readers follow;
+- **overlays** (menus, dialogs, tooltips, popups): laid out from the root,
+  placed against an anchor, painted on top, light dismiss, modal focus trap
+  and restore; **composite** components that build their own children; a
+  `laid_out` hook for measurement-driven adjustments; virtualisation hooks
+  (`virtual_items`, `reveal`) so a virtualised tree answers queries over all
+  of its content (S-7);
 - **immediate mode** (`omui::immediate`, `Ui`): ids from the id stack and
   call site, builds only when something happened.
 

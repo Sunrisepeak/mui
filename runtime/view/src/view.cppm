@@ -9,6 +9,7 @@ export import openmui.layout;
 export import openmui.render;
 export import openmui.text;
 export import :element;
+export import :model;
 export import :theme;
 export import :component;
 export import :runtime;

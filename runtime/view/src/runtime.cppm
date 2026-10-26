@@ -20,6 +20,7 @@ import openmui.render;
 import openmui.text;
 import :element;
 import :theme;
+import :model;
 import :component;
 
 export namespace omui {
@@ -151,6 +152,10 @@ public:
     void invalidate_semantics(NodeId node) override;
     void restyle(NodeId node) override;
     void recompose(NodeId node) override;
+    Model& model(std::string_view name) override;
+    NodeId reveal(std::string_view path) override;
+    // A virtualising node's items as the semantic tree states them (S-7).
+    [[nodiscard]] std::vector<spec::SemanticNode> virtual_items(NodeId node) const;
     void request_frame() override;
     void focus(NodeId node) override;
     void capture_pointer(NodeId node) override;

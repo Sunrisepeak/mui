@@ -70,6 +70,7 @@ NodeId Runtime::Impl::create(Element& e, NodeId parent) {
 
     if (type.measure) layout.set_measure(lnode, &measure_trampoline, this, type.baseline ? &baseline_trampoline : nullptr);
     if (type.overlay) overlays.push_back(id);
+    if (type.laid_out) watchers.push_back(id);
     if (type.mount) type.mount(at(id).instance, self, id);
 
     for (auto& [name, source] : e.props) {
@@ -142,6 +143,7 @@ void Runtime::Impl::destroy(NodeId id) {
     std::erase(removing, id);
     std::erase(fresh, id);
     std::erase(overlays, id);
+    std::erase(watchers, id);
     std::erase_if(runtime_handlers, [&](const RuntimeHandler& h) { return h.node == id; });
     nodes.erase(id);
     paths_dirty = true;

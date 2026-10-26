@@ -83,5 +83,20 @@ int main(int argc, char** argv) {
         check_near(st[0].mean_ms, 50.5, 1e-9);
     });
 
+    s.test("interned names outlive the strings they came from", [] {
+        std::string name = "stage-made-at-run-time";
+        const char* a = omui::trace::intern(name);
+        name.assign(name.size(), 'x');  // the original text is gone
+        check(std::string_view(a) == "stage-made-at-run-time");
+        check(omui::trace::intern("stage-made-at-run-time") == a, "the same text, the same pointer");
+        omui::trace::start();
+        {
+            std::string temporary = "temporary";
+            omui::trace::Span span(omui::trace::intern(temporary), omui::trace::intern("cat"));
+        }
+        const auto t = omui::trace::stop();
+        check(t.chrome_json().contains("\"name\":\"temporary\""));
+    });
+
     return s.run(argc, argv);
 }

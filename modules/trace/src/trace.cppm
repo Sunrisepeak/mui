@@ -66,6 +66,12 @@ private:
     bool        open_ = false;
 };
 
+// Names and categories are recorded as pointers and read when a trace is
+// exported, so they must outlive it: string literals do. A name made at run
+// time (a pipeline stage's) is interned: the same text gives the same
+// pointer, valid until the program ends.
+[[nodiscard]] const char* intern(std::string_view text);
+
 inline void count(const char* name, double value, const char* category = "app") noexcept {
     if (enabled()) detail::record(Kind::counter, name, category, value);
 }

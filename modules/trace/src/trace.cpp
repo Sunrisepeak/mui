@@ -110,6 +110,14 @@ void record(Kind kind, const char* name, const char* category, double value) noe
 
 }  // namespace detail
 
+const char* intern(std::string_view text) {
+    // Never freed: what a trace may still point to is never released.
+    static std::mutex lock;
+    static std::unordered_set<std::string>* names = new std::unordered_set<std::string>();
+    std::scoped_lock g(lock);
+    return names->emplace(text).first->c_str();
+}
+
 void name_thread(std::string name) {
     Local& l = local();
     l.name = name;

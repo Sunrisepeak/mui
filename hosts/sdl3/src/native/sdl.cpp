@@ -13,6 +13,7 @@ module;
 #include <SDL3/SDL_keycode.h>
 #include <SDL3/SDL_mouse.h>
 #include <SDL3/SDL_pixels.h>
+#include <SDL3/SDL_properties.h>
 #include <SDL3/SDL_render.h>
 #include <SDL3/SDL_stdinc.h>
 #include <SDL3/SDL_surface.h>
@@ -175,7 +176,18 @@ std::expected<WindowPtr, std::string> open(const WindowOptions& o) {
     WindowPtr w(new Window);
     SDL_WindowFlags flags = SDL_WINDOW_HIGH_PIXEL_DENSITY;
     if (o.resizable) flags |= SDL_WINDOW_RESIZABLE;
-    w->window = SDL_CreateWindow(o.title.c_str(), static_cast<int>(o.size.width), static_cast<int>(o.size.height), flags);
+    // The software renderer draws into the window's surface and needs no GPU
+    // context; saying so stops SDL on macOS from implying OpenGL for any
+    // driver that has it — the offscreen driver's is EGL, which macOS lacks.
+    const bool software = o.render_driver == "software";
+    const SDL_PropertiesID props = SDL_CreateProperties();
+    SDL_SetStringProperty(props, SDL_PROP_WINDOW_CREATE_TITLE_STRING, o.title.c_str());
+    SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, static_cast<Sint64>(o.size.width));
+    SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, static_cast<Sint64>(o.size.height));
+    SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_FLAGS_NUMBER, static_cast<Sint64>(flags));
+    if (software) SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_EXTERNAL_GRAPHICS_CONTEXT_BOOLEAN, true);
+    w->window = SDL_CreateWindowWithProperties(props);
+    SDL_DestroyProperties(props);
     if (!w->window) return std::unexpected(std::format("SDL_CreateWindow: {}", SDL_GetError()));
     w->renderer = SDL_CreateRenderer(w->window, o.render_driver.empty() ? nullptr : o.render_driver.c_str());
     if (!w->renderer) return std::unexpected(std::format("SDL_CreateRenderer: {}", SDL_GetError()));

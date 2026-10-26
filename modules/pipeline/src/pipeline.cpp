@@ -175,6 +175,7 @@ struct Pipeline::Impl {
     std::vector<std::string>            names;     // in run order (stable: span names point into them)
     std::vector<std::string>            plugins;
     std::vector<std::string>            categories;
+    std::vector<const char*>            spans, span_categories;  // interned: a trace may outlive the pipeline
     std::vector<std::vector<Port>>      writes;    // in run order: checked after each run
     std::vector<StageTime>              timings;
     std::string                         graph;     // describe()
@@ -345,6 +346,8 @@ std::expected<Pipeline, std::vector<Problem>> Pipeline::build(const Description&
         impl->plugins.push_back(d.stages[i].plugin);
         const PluginInfo* info = registry.info(d.stages[i].plugin);
         impl->categories.push_back(info ? info->trace_category : "frame");
+        impl->spans.push_back(trace::intern(d.stages[i].name));
+        impl->span_categories.push_back(trace::intern(impl->categories.back()));
         impl->writes.push_back(writes[i]);
         impl->timings.push_back({d.stages[i].name, 0});
     }
@@ -366,7 +369,7 @@ std::expected<void, std::string> Pipeline::run(Resources& resources) {
     Impl& d = *impl_;
     Context ctx{resources, d.runs++};
     for (std::size_t i = 0; i < d.stages.size(); ++i) {
-        trace::Span span(d.names[i].c_str(), d.categories[i].c_str());
+        trace::Span span(d.spans[i], d.span_categories[i]);
         const auto start = std::chrono::steady_clock::now();
         auto r = d.stages[i]->run(ctx);
         d.timings[i].ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();

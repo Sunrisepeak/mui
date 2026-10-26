@@ -12,6 +12,10 @@ on:
   schedule:
     - cron: "0 3 * * *"  # 03:00 UTC every day
   workflow_dispatch:
+  # A change to this workflow or to the profile it runs (mcpp.toml) is
+  # checked on its pull request, before it can only fail at night.
+  pull_request:
+    paths: [".github/workflows/nightly.yml", "mcpp.toml"]
 
 concurrency:
   group: nightly-${{ github.ref }}

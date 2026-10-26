@@ -10,6 +10,7 @@
 | [2026-10-26-openmui-spec-design.md](2026-10-26-openmui-spec-design.md) | **规范**：registry、6 个契约、总线接口、动画语义、Core 配置档和扩展、发行版配置档、CTS |
 | [2026-10-26-openmui-component-binding-design.md](2026-10-26-openmui-component-binding-design.md) | **组件、绑定与工程模型**：组件分层、契约优先、`[package.metadata.openmui]`、脚本薄接口、三种语言、native 模块、多语言混合、构建流水线 |
 | [2026-10-26-openmui-canvas-markdown-design.md](2026-10-26-openmui-canvas-markdown-design.md) | **画布、Markdown 与旗舰示例**：画布的机制和策略分离、Markdown 组件、markdown-wall 基准测试、示例目录 |
+| [2026-10-27-openmui-features-plugins-pipeline-design.md](2026-10-27-openmui-features-plugins-pipeline-design.md) | **特色、旗舰作品、可拔插架构与管线**：九项特色和各自的双视角旗舰作品（真实可用 + 展示 + 招牌镜头）、液态玻璃的原理和通用的背景效果能力、契约⑦（插件与管线）、插件种类、`*.pipeline.omui.toml` 管线编排 |
 | [2026-10-26-openmui-view-data-files-design.md](2026-10-26-openmui-view-data-files-design.md) | **视图与数据文件**：代码优先、可读性要求、`*.view.omui.json` 视图文档、表达式（组合函数 + CEL 字符串）、行为状态机、后缀体系 |
 
 `research/` 目录下是前期的调研和讨论稿。其中的命名（openui / mui）已经过时，一切以上面的设计文档为准。

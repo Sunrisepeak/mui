@@ -1,0 +1,25 @@
+# openmui-layout — a layout engine: flexbox, grid, z-stacks, absolute
+# positioning, aspect ratio, scroll containers; incremental with per-node
+# caches. Deterministic: compiled without floating-point contraction (A-level).
+[package]
+name        = "openmui-layout"
+version     = "0.1.0"
+description = "Flexbox, grid, stack and absolute layout: incremental, cached and deterministic"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "runtime"
+
+[targets.openmui-layout]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+openmui-geom = { path = "../geom" }
+
+[dev-dependencies]
+openmui-testing = { path = "../../tests/support" }

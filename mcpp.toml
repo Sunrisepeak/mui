@@ -19,6 +19,7 @@ members = [
     "modules/geom",
     "modules/memory",
     "modules/anim",
+    "modules/layout",
     "modules/render",
     "runtime/core",
     "tools/gen",
@@ -26,6 +27,7 @@ members = [
 
 [workspace.package]
 standard = "c++23"
+mcpp     = ">=2026.10.26.1"
 
 # MinGW GCC 16 emits the function-local statics of inline standard-library
 # functions instantiated in module units (std::variant's __reasons,

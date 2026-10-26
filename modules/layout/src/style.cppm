@@ -7,14 +7,14 @@
 export module openmui.layout:style;
 
 import std;
-import openmui.spec;
+import openmui.geom;
 
 export namespace omui::layout {
 
-using spec::Insets;
-using spec::Point;
-using spec::Rect;
-using spec::Size;
+using geom::Insets;
+using geom::Point;
+using geom::Rect;
+using geom::Size;
 
 struct Length {
     enum class Unit : std::uint8_t { auto_, points, percent };

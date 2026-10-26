@@ -102,7 +102,15 @@ def strip_comments(text: str) -> str:
             j = n if j < 0 else j + 2
             out.append("\n" * text.count("\n", i, j))
             i = j
-        elif c == '"' and not text.startswith('R"', i - 1):
+        elif c == 'R' and text.startswith('R"', i) and (i == 0 or not (text[i - 1].isalnum() or text[i - 1] == '_')):
+            # A raw string literal: R"delim( ... )delim"
+            open_paren = text.find("(", i + 2)
+            delim = text[i + 2:open_paren]
+            close = text.find(")" + delim + '"', open_paren + 1)
+            j = n if close < 0 else close + len(delim) + 2
+            out.append('""' + "\n" * text.count("\n", i, j))
+            i = j
+        elif c == '"':
             j = i + 1
             while j < n and text[j] != '"':
                 j += 2 if text[j] == "\\" else 1

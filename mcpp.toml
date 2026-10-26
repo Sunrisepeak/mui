@@ -15,11 +15,20 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [workspace]
 members = [
     "tests/support",
+    "spec",
     "modules/anim",
+    "tools/gen",
 ]
 
 [workspace.package]
 standard = "c++23"
+
+# MinGW GCC 16 emits the function-local statics of inline standard-library
+# functions instantiated in module units (std::variant's __reasons,
+# make_shared's type tag) as strong symbols, so two units of one program define
+# them twice. The definitions are identical; the linker keeps one.
+[workspace.target.x86_64-windows-gnu.build]
+ldflags = ["-Wl,--allow-multiple-definition"]
 
 [targets.openmui]
 kind = "lib"

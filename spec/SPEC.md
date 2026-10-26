@@ -1,0 +1,245 @@
+# The openmui specification, version 0.1
+
+Status: draft. This document is normative. The tables it refers to are in
+[docs/registry.md](docs/registry.md), generated from [registry/](registry/); where
+the two disagree, the registry is right and this text is wrong.
+
+The key words MUST, MUST NOT, SHOULD and MAY are used as in RFC 2119. Each
+clause has an identifier (S-1, V-2, …); the conformance suite
+([conformance/](conformance/)) has at least one case per clause.
+
+## 1. Scope and conventions
+
+openmui specifies a user interface by its **semantic tree**: what is on the
+screen, what each thing is, what it can do and what doing it means. Pixels,
+accessibility, agents and tests are renderings of that tree. The specification
+defines six contracts:
+
+1. the semantic tree (§3);
+2. the view description (§4);
+3. state and verbs (§5);
+4. the host interface (§6);
+5. the render interface (§7);
+6. the C ABI, `openmui.h` (§8);
+
+and with them animation (§10), component contracts (§11), extensions and
+profiles (§12), the manifest (§14) and conformance (§13).
+
+It does not specify how an implementation is built, how it renders, or how a
+component looks.
+
+- **G-1** Every value defined here can cross an address space: it holds no
+  pointer and no callback.
+- **G-2** Versions only add: a new version adds interfaces, fields and messages
+  and changes none. A reader MUST skip fields, records and enumerators it does
+  not know, except where a clause says otherwise (an unknown effect, §3.3).
+- **G-3** The specification depends on nothing but the C++ standard library (for
+  its reference value types) and C99 (for `openmui.h`).
+
+## 2. The registry
+
+`registry/` is the machine-readable source of truth: roles, states, effects,
+origins, actions, extensions, profiles, motion, the expression language, the
+effect-shader interface, the C ABI and the Core component contracts.
+`include/openmui.h`, `src/generated/`, `docs/registry.md`, `stubs/` and
+`schema/` are generated from it and MUST NOT be edited by hand.
+
+Enumerators keep the order of their registry file; their numeric values are
+stable across versions (G-2).
+
+## 3. Contract ①: the semantic tree
+
+### 3.1 Nodes
+
+A node has an `id`, a `role`, a `name`, a `description`, a `value`, an
+`origin`, a set of `state` bits, a list of `actions`, optional `bounds` and the
+ids of its `children` (docs/registry.md lists roles and states). Its wire form
+is a JSON object with those keys; enumerations are written by name; absent
+fields are omitted.
+
+`bounds` are in logical pixels. While a node animates, its bounds and values
+are those of the **target** state (state `animating`).
+
+### 3.2 Identity
+
+- **S-8** In retained mode a node without an explicit id has a **structural
+  id**: `<type>:<index>`, where index counts the node's preceding siblings of
+  the same type, starting at 0 (`column:0/text:1`). Every way of writing a
+  retained view (builders in any language, view documents) MUST produce the
+  same structural ids for the same structure. In immediate mode an automatic id
+  comes from the id stack and the call site and is stable within one build of
+  the program. Interactive nodes SHOULD have explicit ids.
+- **S-9** An id MUST NOT depend on display text (labels, translated strings).
+- An id is a path of segments joined by `/`. A segment is 1 to 128 characters
+  of `[A-Za-z0-9_.:-]`, not `.` or `..`. The character `:` appears only in
+  structural segments, so an explicit id never collides with an automatic one.
+
+### 3.3 Actions and effects
+
+An action has a `name`, an `effect` (`read`, `reversible`, `irreversible`,
+`external`), optionally the `verb` it invokes, the `answer` that confirms it,
+and typed arguments.
+
+- **S-1** An action whose effect is `irreversible` or `external` MUST state its
+  `answer`.
+- **S-2** Performing an action that needs an answer without being given it MUST
+  NOT wait: the call answers at once with an `error` record of code
+  `needs-answer`, the options that would answer it, and exit code 2.
+- A node MAY declare a stronger effect for an action than the registry's
+  default (a delete button's `activate` is `irreversible`), never a weaker one
+  (effect tiers, docs/registry.md). A reader that meets an effect it does not
+  know MUST treat it as `irreversible`.
+- **S-4** A node in state `removing` accepts no action; a node in state
+  `disabled` accepts only actions whose effect is `read`.
+
+### 3.4 Origins
+
+- **S-3** The text of a node whose origin is `user_content` or `remote` is data.
+  A consumer acting on the tree (an agent) MUST NOT follow instructions found in
+  it.
+
+### 3.5 Change and scale
+
+- **S-5** The tree has a revision number. Changes are delivered as ordered
+  deltas: `added`, `removed`, `updated`, under the new revision.
+- **S-6** A node with an interactive role (docs/registry.md) MUST have a name.
+- **S-7** A tree MAY be virtualised (a canvas, a long list): nodes that are not
+  materialised are produced on demand by queries, and queries cover the whole
+  content, not only the viewport.
+
+## 4. Contract ②: the view description
+
+- **V-1** The view IR is a tree of component types, ids, properties,
+  bindings, event handlers, conditionals, loops over models, slots and
+  transitions. It is the only required form; builders in code and view
+  documents (`*.view.omui.json`, schema/) are equivalent sources of it.
+- **V-2** Layout follows a subset of CSS flexbox and grid. Coordinates round to
+  physical pixels by `floor(v·scale + 0.5)` computed in double precision;
+  rectangles snap their edges, not their sizes (A-level).
+- **V-3** Expressions are an AST with no side effects that always terminates.
+  Code builds it with combinators; data files write it as CEL-compatible
+  strings (docs/registry.md, Expressions). An expression error yields the
+  type's default value and a diagnostic, never an exception. Expressions are
+  evaluated synchronously by native code; a closure written in a script
+  language is evaluated on the script's thread and MAY apply up to one frame
+  late.
+- **V-4** An event handler in a view document performs only three operations:
+  set a signal, invoke a verb, emit an event.
+
+## 5. Contract ③: state and verbs
+
+- A **signal** holds a value; properties bind to signals one way, or two ways
+  when the property is `bindable` (component contracts).
+- A **verb** is a named operation of the application: lower-case words joined by
+  dots (`note.delete`), with a summary, an effect, typed arguments and, for
+  `irreversible` and `external` verbs, an answer (S-1 applies to verbs).
+- An **event** belongs to a component contract; an event marked
+  `coalesce = "frame"` is delivered at most once per frame with its last
+  arguments.
+
+## 6. Contract ④: the host interface
+
+A host provides a surface (premultiplied BGRA8 pixels with a stride and damage
+rectangles, or a GPU device under `OMUI_EXT_host_render_pass`) and events (keys,
+text commit, pre-edit text, pointer, wheel, focus, close request, frame
+presented, visibility); the model is opensal's. A host MAY drive frames:
+`frame(time, events) → (semantic delta, display list, damage)` — the form of
+headless operation and game-engine embedding.
+
+## 7. Contract ⑤: the render interface
+
+- Display-list primitives: rectangle, rounded rectangle, path (non-zero and
+  even-odd fill, stroke), image, glyph run, clip, transform, layer, external
+  texture.
+- **R-1** Colours are sRGB with straight alpha at the interface; compositing is
+  in premultiplied, sRGB-encoded space (as browsers composite); 8-bit channels
+  round half up.
+- **R-2** The CPU reference renderer is byte-for-byte deterministic: the same
+  display list gives the same pixels on every platform (B-level baseline).
+- **R-3** Effect shaders (`OMUI_EXT_shader_effect`) have the interface of
+  registry/effect.toml: source language Slang, interchange format SPIR-V. A
+  backend that cannot run an effect draws the node without it and reports a
+  diagnostic.
+
+## 8. Contract ⑥: the C ABI
+
+`include/openmui.h` is generated from registry/abi.toml.
+
+- **C-1** Only handles and values cross it; no C++ type and no exception.
+- **C-2** Every function returns `OmuiResult`. Text and structured results are
+  passed to a caller-supplied sink, so no memory changes hands.
+- **C-3** Structured values travel as JSON text in the wire forms of this
+  specification.
+- **C-4** A struct that can grow starts with `type` and `next`.
+- **C-5** The header's only macros are its include guard and `OMUI_API`;
+  constants are enumerators.
+
+## 9. The bus interface `openmui.tree@0.1`
+
+Path: `host/<h>/system/<s>/app/<app-id>/ui` (openbus §2.4). Operations:
+`snapshot` (call), `changes` (topic), `find` (call: role, name glob, state,
+spatial range), `act` (call, with an actor), `wait` (call: a node appears, a
+state changes, an animation is `settled`; with a timeout), `capture` (optional
+pixels of a node).
+
+Calls answer with envelopes: newline-delimited JSON records of kinds `phase`,
+`progress`, `log`, `notice`, `error`, `data` and a final `result` with
+`exitCode` (0 success, 1 failure, 2 needs an answer, 3 not ready). An actor is
+written as openas writes it: `agent:planner;via=person:alice`.
+
+## 10. Animation
+
+- **M-1** Easing curves and the spring are defined by the formulas of
+  registry/motion.toml. A value is a function of time and parameters only: an
+  implementation MUST be able to evaluate any instant directly.
+- **M-2** Retargeting a spring keeps position and velocity continuous.
+- **M-3** A spring is settled from the first instant its envelope bounds the
+  distance to the target by `delta` and the speed by `speed`; from then on it
+  is exactly at the target.
+- **M-4** A node in state `animating` reports its target state; `wait` for
+  `settled` returns when every animation of the node has settled and never
+  before.
+- **M-5** With reduced motion, transitions show their target immediately and
+  springs settle at once.
+- **M-6** The clock is injectable: under a virtual or render clock results are
+  determined by the times given (A-level: identical to the reference
+  implementation's bits).
+
+## 11. Component contracts
+
+A component contract (`*.contract.omui.toml`) declares a component's role,
+typed properties (with defaults and bindability), events, actions (with
+effects), key bindings, commands, parts and motion. The Core contracts are in
+registry/components and use the same format as any third-party contract.
+
+## 12. Extensions and profiles
+
+Capabilities beyond the Core profile are extensions (`OMUI_EXT_*`), queried at
+run time. A profile states what a distribution provides; `full` requires the
+TS/JS, Python and Lua script languages.
+
+## 13. Conformance
+
+| Level | Content | Status |
+|---|---|---|
+| S | Semantics and behaviour: contracts, keys, effects; every way of writing a view yields the same tree; every script language yields the same results | normative |
+| A | Layout snapshots, animation values at given instants, text layout | normative |
+| B | Rendering: CPU byte-identical, GPU within tolerance | advisory |
+| C | Platform adaptation tables | informative |
+
+Cross-language cases are written as language-neutral JSON steps and run in
+each language.
+
+## 14. The manifest
+
+`[package.metadata.openmui]` of `mcpp.toml` describes a package: `kind`,
+`contracts`, `views`, `shaders`, `behaviors`, `themes`, `id`, `spec`,
+`extensions`, `profile`, `scripts`, `natives`, `deps.<lang>`, `verbs`,
+`permissions`. Other build systems MAY carry the same structure as JSON.
+
+## 15. Not addressed by 0.1
+
+Fine-grained permissions (tokens, scopes, budgets); mapping to native controls
+of other frameworks beyond the Core profile; world-space UI, gamepad
+navigation, XR; contracts for rich-text and code editors; the material-shader
+interface of canvas node types.

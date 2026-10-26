@@ -1,0 +1,53 @@
+# extensions — capabilities beyond the Core profile, queried at run time.
+spec = "0.1"
+
+[[extension]]
+name    = "OMUI_EXT_ime"
+version = 1
+doc     = "Input methods: pre-edit text, candidate window position, commit."
+
+[[extension]]
+name    = "OMUI_EXT_instanced_draw"
+version = 1
+doc     = "Many copies of one primitive in a draw (canvases)."
+
+[[extension]]
+name    = "OMUI_EXT_render_to_texture"
+version = 1
+doc     = "Layer caching: render a subtree once, composite it many times."
+
+[[extension]]
+name    = "OMUI_EXT_shader_effect"
+version = 1
+requires = ["OMUI_EXT_render_to_texture"]
+doc     = "Slang effect shaders on nodes and layers, parameters as typed properties."
+
+[[extension]]
+name    = "OMUI_EXT_gpu_node"
+version = 1
+doc     = "A node that draws itself inside the render pass."
+
+[[extension]]
+name    = "OMUI_EXT_external_texture"
+version = 1
+doc     = "Textures produced outside openmui: video frames, windows, engine views."
+
+[[extension]]
+name    = "OMUI_EXT_canvas"
+version = 1
+doc     = "Canvas semantics: spatial queries, viewport actions, virtualised items."
+
+[[extension]]
+name    = "OMUI_EXT_native_handle"
+version = 1
+doc     = "Native window and device handles (not portable)."
+
+[[extension]]
+name    = "OMUI_EXT_host_render_pass"
+version = 1
+doc     = "Draw inside a render pass the host owns (engines)."
+
+[[extension]]
+name    = "OMUI_EXT_video"
+version = 1
+doc     = "Compositions rendered to video frames by a render clock."

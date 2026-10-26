@@ -1,0 +1,19 @@
+# Every mistake the reader must report, one per line.
+[contract.bad_widget]
+role = "spaceship"
+spec = "0.1"
+
+[contract.bad_widget.props]
+size  = { type = "huge", default = 1 }
+mode  = { type = "enum", values = ["a", "b"], default = "c" }
+count = { type = "i32", default = "three" }
+
+[contract.bad_widget.actions]
+activate = { effect = "read" }
+launch   = { effect = "orbital" }
+
+[contract.bad_widget.keys]
+"Space" = "fly"
+
+[contract.bad_widget.motion]
+body = "motion.warp"

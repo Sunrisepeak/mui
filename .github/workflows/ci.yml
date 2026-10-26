@@ -36,6 +36,10 @@ jobs:
         run: python3 tools/lint/lint.py
       - name: Each rule catches a planted violation
         run: python3 tools/lint/lint.py --self-test
+      - name: openmui.h is plain C99 and C++11
+        run: |
+          gcc -std=c99 -Wall -Wextra -pedantic -Werror -Ispec/include -fsyntax-only tools/lint/abi_c99.c
+          g++ -std=c++11 -Wall -Wextra -pedantic -Werror -Ispec/include -x c++ -fsyntax-only tools/lint/abi_c99.c
 
   test:
     name: test ${{ matrix.os }} ${{ matrix.toolchain }} ${{ matrix.profile }}

@@ -10,7 +10,7 @@ import openmui.unicode;
 import :font;
 import :paragraph;
 
-namespace omui::text {
+namespace omui::typeset {
 
 struct ShapedGlyph {
     std::uint32_t id = 0;
@@ -53,4 +53,4 @@ struct Paragraph::Shaped {
 // Shapes `text` (implemented over HarfBuzz and fribidi in native/shape.cpp).
 void shape(Paragraph::Shaped& s);
 
-}  // namespace omui::text
+}  // namespace omui::typeset

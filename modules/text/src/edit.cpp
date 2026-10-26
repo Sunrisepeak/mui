@@ -3,7 +3,7 @@ module openmui.text;
 import std;
 import openmui.unicode;
 
-namespace omui::text {
+namespace omui::typeset {
 
 TextEditor::TextEditor(std::string text, EditorOptions options) : options_(options) { set_text(std::move(text)); }
 
@@ -238,4 +238,4 @@ bool TextEditor::redo() {
     return true;
 }
 
-}  // namespace omui::text
+}  // namespace omui::typeset

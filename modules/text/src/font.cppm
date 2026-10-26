@@ -11,7 +11,7 @@ import std;
 import openmui.geom;
 import openmui.render;
 
-export namespace omui::text {
+export namespace omui::typeset {
 
 using FaceId = std::uint32_t;
 using render::FontRef;
@@ -90,4 +90,4 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
-}  // namespace omui::text
+}  // namespace omui::typeset

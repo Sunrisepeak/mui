@@ -10,7 +10,7 @@ import std;
 import openmui.unicode;
 import :shaped;
 
-namespace omui::text {
+namespace omui::typeset {
 
 namespace {
 
@@ -203,4 +203,4 @@ void shape(Paragraph::Shaped& s) {
     hb_buffer_destroy(buf);
 }
 
-}  // namespace omui::text
+}  // namespace omui::typeset

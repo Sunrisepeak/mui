@@ -13,7 +13,7 @@ import openmui.raster;
 import openmui.render;
 import :font;
 
-export namespace omui::text {
+export namespace omui::typeset {
 
 class GlyphCache final : public render::GlyphSource {
 public:
@@ -34,4 +34,4 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
-}  // namespace omui::text
+}  // namespace omui::typeset

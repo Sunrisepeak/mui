@@ -175,9 +175,9 @@ template <class F>
 // Watch is destroyed (or `dispose` is called).
 class Watch {
 public:
-    Watch() = default;
+    Watch() noexcept;
     explicit Watch(std::function<void()> fn);
-    Watch(Watch&&) noexcept = default;
+    Watch(Watch&&) noexcept;  // out of line: State is complete only there
     Watch& operator=(Watch&&) noexcept;
     Watch(const Watch&) = delete;
     Watch& operator=(const Watch&) = delete;

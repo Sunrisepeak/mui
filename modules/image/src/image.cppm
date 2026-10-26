@@ -9,7 +9,7 @@ export module openmui.image;
 
 import std;
 
-export namespace omui::image {
+export namespace omui::imageio {
 
 enum class Alpha : std::uint8_t { straight, premultiplied };
 
@@ -53,4 +53,4 @@ struct PngOptions {
 [[nodiscard]] std::expected<void, std::string> save_png(const std::filesystem::path& file, const View& pixels);
 [[nodiscard]] std::expected<Image, std::string> load_png(const std::filesystem::path& file);
 
-}  // namespace omui::image
+}  // namespace omui::imageio

@@ -9,7 +9,7 @@ export module openmui.text:edit;
 
 import std;
 
-export namespace omui::text {
+export namespace omui::typeset {
 
 struct Selection {
     std::size_t anchor = 0, focus = 0;
@@ -88,4 +88,4 @@ private:
     std::uint64_t     revision_ = 0;
 };
 
-}  // namespace omui::text
+}  // namespace omui::typeset

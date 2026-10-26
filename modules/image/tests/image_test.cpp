@@ -3,7 +3,7 @@ import openmui.image;
 import openmui.testing;
 
 using namespace omui::testing;
-namespace image = omui::image;
+namespace image = omui::imageio;
 
 int main(int argc, char** argv) {
     Suite s{"image"};

@@ -26,6 +26,7 @@ members = [
     "modules/render",
     "modules/text",
     "runtime/core",
+    "runtime/view",
     "tools/gen",
 ]
 

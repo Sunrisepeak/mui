@@ -8,7 +8,7 @@ import std;
 import openmui.unicode;
 import :shaped;
 
-namespace omui::text {
+namespace omui::typeset {
 
 Paragraph::Paragraph(FontCollection& fonts, std::string text, ParagraphStyle style, std::vector<StyledRange> ranges)
     : shaped_(std::make_unique<Shaped>()) {
@@ -476,4 +476,4 @@ void Paragraph::paint(render::DisplayList& list, Point origin) const {
     }
 }
 
-}  // namespace omui::text
+}  // namespace omui::typeset

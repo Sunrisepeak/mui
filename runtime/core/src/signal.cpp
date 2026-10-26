@@ -158,6 +158,9 @@ Watch::Watch(std::function<void()> fn) : state_(std::make_unique<State>(std::mov
     state_->checked = 1;
 }
 
+Watch::Watch() noexcept = default;
+Watch::Watch(Watch&& o) noexcept : state_(std::move(o.state_)) {}
+
 Watch& Watch::operator=(Watch&& o) noexcept {
     if (this != &o) {
         dispose();

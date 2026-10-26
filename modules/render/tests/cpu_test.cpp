@@ -59,10 +59,10 @@ int main(int argc, char** argv) {
         // The same pixel at 2x is the same colour where the colour is flat.
         check(one.at(30, 110) == two.at(60, 220));
         auto dir = scratch_dir("render-cpu");
-        omui::image::View v1{reinterpret_cast<const std::uint8_t*>(one.pixels().data()), 200, 140, 800};
-        omui::image::View v2{reinterpret_cast<const std::uint8_t*>(two.pixels().data()), 400, 280, 1600};
-        check(omui::image::save_png(dir / "card@1x.png", v1).has_value());
-        check(omui::image::save_png(dir / "card@2x.png", v2).has_value());
+        omui::imageio::View v1{reinterpret_cast<const std::uint8_t*>(one.pixels().data()), 200, 140, 800};
+        omui::imageio::View v2{reinterpret_cast<const std::uint8_t*>(two.pixels().data()), 400, 280, 1600};
+        check(omui::imageio::save_png(dir / "card@1x.png", v1).has_value());
+        check(omui::imageio::save_png(dir / "card@2x.png", v2).has_value());
         std::println("    {:016x} {:016x}  ({})", one.hash(), two.hash(), (dir / "card@2x.png").generic_string());
         check_eq(std::format("{:016x}/{:016x}", one.hash(), two.hash()), std::string("76f0acb68946e096/09f8ffc1b651f38d"));
     });

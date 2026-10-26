@@ -2,7 +2,7 @@ module openmui.image;
 
 import std;
 
-namespace omui::image {
+namespace omui::imageio {
 
 View view(const Image& img) noexcept { return {img.rgba.data(), img.width, img.height, img.width * 4, img.alpha}; }
 
@@ -47,4 +47,4 @@ std::expected<Image, std::string> load_png(const std::filesystem::path& file) {
     return decode_png(bytes);
 }
 
-}  // namespace omui::image
+}  // namespace omui::imageio

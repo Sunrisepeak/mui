@@ -13,7 +13,7 @@ import openmui.geom;
 import openmui.render;
 import :font;
 
-export namespace omui::text {
+export namespace omui::typeset {
 
 using geom::Color;
 using geom::Point;
@@ -141,4 +141,4 @@ private:
     bool                    truncated_ = false;
 };
 
-}  // namespace omui::text
+}  // namespace omui::typeset

@@ -10,6 +10,12 @@ version = "os-0.1.0"
 source  = "git+https://github.com/mcpplibs/os.git#branch=os-0.1.0@cf6dfbfe65349e8ed9183436e6af84b17cc08453"
 hash    = "fnv1a:3f844ed1801b1a6d"
 
+[package."compat.concurrentqueue"]
+namespace = "compat"
+version = "1.0.5"
+source  = "index+compat@1.0.5"
+hash    = "fnv1a:ef74c660ecd57abf"
+
 [package."compat.freetype"]
 namespace = "compat"
 version = "2.13.3"
@@ -33,12 +39,6 @@ namespace = "compat"
 version = "1.6.43"
 source  = "index+compat@1.6.43"
 hash    = "fnv1a:b3a219b122077f27"
-
-[package."compat.concurrentqueue"]
-namespace = "compat"
-version = "1.0.5"
-source  = "index+compat@1.0.5"
-hash    = "fnv1a:ef74c660ecd57abf"
 
 [package."compat.zlib"]
 namespace = "compat"

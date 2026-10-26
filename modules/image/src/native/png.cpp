@@ -6,7 +6,7 @@ module openmui.image;
 
 import std;
 
-namespace omui::image {
+namespace omui::imageio {
 
 std::expected<std::vector<std::uint8_t>, std::string> encode_png(const View& pixels, PngOptions) {
     if (!pixels.rgba || pixels.width <= 0 || pixels.height <= 0) return std::unexpected("empty image");
@@ -63,4 +63,4 @@ std::expected<Image, std::string> decode_png(std::span<const std::uint8_t> bytes
     return out;
 }
 
-}  // namespace omui::image
+}  // namespace omui::imageio

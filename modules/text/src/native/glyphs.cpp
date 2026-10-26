@@ -8,7 +8,7 @@ module openmui.text;
 import std;
 import openmui.raster;
 
-namespace omui::text {
+namespace omui::typeset {
 
 namespace {
 
@@ -194,4 +194,4 @@ render::GlyphMask GlyphCache::mask(render::FontRef font, std::uint32_t glyph, fl
     return {&e.coverage, nullptr, {}};
 }
 
-}  // namespace omui::text
+}  // namespace omui::typeset

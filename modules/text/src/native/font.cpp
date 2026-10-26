@@ -10,7 +10,7 @@ import std;
 import openmui.unicode;
 import mcpplibs.os;
 
-namespace omui::text {
+namespace omui::typeset {
 
 namespace {
 
@@ -223,4 +223,4 @@ Metrics FontCollection::metrics(FontRef font, float size) const {
     return m;
 }
 
-}  // namespace omui::text
+}  // namespace omui::typeset

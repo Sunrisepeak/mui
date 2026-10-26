@@ -9,7 +9,7 @@ import openmui.image;
 import openmui.testing;
 
 using namespace omui::testing;
-namespace text = omui::text;
+namespace text = omui::typeset;
 namespace render = omui::render;
 namespace raster = omui::raster;
 namespace geom = omui::geom;
@@ -187,9 +187,9 @@ int main(int argc, char** argv) {
         auto report = cpu.render(dl, surf, {nullptr, &glyphs}, {.background = geom::Color::white()});
         check_eq(report.missing_glyphs, std::size_t{0});
         auto dir = scratch_dir("text");
-        omui::image::View v{reinterpret_cast<const std::uint8_t*>(surf.pixels().data()), surf.width(), surf.height(),
+        omui::imageio::View v{reinterpret_cast<const std::uint8_t*>(surf.pixels().data()), surf.width(), surf.height(),
                             surf.width() * 4};
-        check(omui::image::save_png(dir / "mixed.png", v).has_value());
+        check(omui::imageio::save_png(dir / "mixed.png", v).has_value());
         std::println("    {:016x} ({})", surf.hash(), (dir / "mixed.png").generic_string());
         check_eq(std::format("{:016x}", surf.hash()), std::string("09abccfc87e4202b"));
     });

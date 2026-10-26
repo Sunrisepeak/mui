@@ -72,21 +72,48 @@ struct Polygons {
 // edges anti-alias like the exact curve.
 void flatten(PathData path, const Affine& m, Polygons& out, float tolerance = 1.0f / 32.0f);
 
+// Runs of equal coverage on one row: what a shape covers, without the pixels
+// it does not. A fill composites a run of one value as one colour.
+struct Span {
+    std::int32_t y = 0;
+    std::int32_t x = 0;
+    std::int32_t length = 0;
+    std::uint8_t value = 0;  // 1…255 (runs of 0 are left out)
+};
+
+struct Spans {
+    PixelRect         bounds;  // the rectangle the runs lie in
+    std::vector<Span> runs;    // by row, then by column
+    [[nodiscard]] bool empty() const noexcept { return runs.empty(); }
+};
+
 // Coverage of polygons inside `clip` (device pixels).
+//
+// The cells an edge crosses are kept sparse — only those it touches, sorted
+// by row and column — and a sweep per row turns them into coverage: at a
+// cell, the winding so far and the cell's area; between two cells, the
+// winding alone, so the run between them is one value. The arithmetic per
+// pixel is the dense sweep's, so both outputs give the same bytes; the cost
+// follows the outline, not the area.
 class Rasterizer {
 public:
     void rasterize(const Polygons& polygons, FillRule rule, PixelRect clip, Coverage& out);
+    void rasterize(const Polygons& polygons, FillRule rule, PixelRect clip, Spans& out);
 
 private:
+    struct Cell {
+        std::int32_t y, x, cover, area;
+    };
+    // Bounds and cells; false: nothing to cover.
+    bool prepare(const Polygons& polygons, PixelRect clip);
+    template <class Emit>
+    void sweep(FillRule rule, Emit&& emit) const;
     void line(std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2);
     void scanline(std::int32_t ey, std::int32_t x1, std::int32_t fy1, std::int32_t x2, std::int32_t fy2);
     void cell(std::int32_t ex, std::int32_t ey, std::int32_t cover, std::int32_t area);
 
-    // Dense cells over the bounding rows × columns (+1 column for edges at the
-    // right border).
-    std::vector<std::int32_t> cover_;
-    std::vector<std::int32_t> area_;
-    std::int32_t              min_x_ = 0, min_y_ = 0, width_ = 0, height_ = 0;
+    std::vector<Cell> cells_;
+    std::int32_t      min_x_ = 0, min_y_ = 0, width_ = 0, height_ = 0;
 };
 
 // Convenience: flatten and rasterise in one step.

@@ -70,6 +70,14 @@ raster::Stroke stroke_of(const StrokeStyle& s) {
 
 }  // namespace
 
+std::string_view command_kind_name(std::size_t index) noexcept {
+    static constexpr std::array<std::string_view, std::variant_size_v<Command>> names{
+        "fill_rect", "fill_round_rect", "stroke_round_rect", "box_shadow", "fill_path", "stroke_path", "draw_image", "draw_glyphs",
+        "push_clip_rect", "push_clip_path", "pop_clip", "push_transform", "pop_transform", "push_layer", "pop_layer",
+        "external_texture", "begin_node", "end_node"};
+    return index < names.size() ? names[index] : std::string_view{};
+}
+
 struct CpuRenderer::Scratch {
     raster::Canvas             canvas;
     std::vector<Affine>        transforms;
@@ -333,6 +341,10 @@ RenderReport CpuRenderer::render(const DisplayList& list, raster::Surface& targe
         d.give(sc);
     });
     for (const RenderReport& r : d.reports) {
+        for (std::size_t k = 0; k < r.kinds.size(); ++k) {
+            report.kinds[k].count += r.kinds[k].count;
+            report.kinds[k].ms += r.kinds[k].ms;
+        }
         report.commands += r.commands;
         report.effects_skipped += r.effects_skipped;
         report.external_skipped += r.external_skipped;
@@ -378,6 +390,18 @@ void CpuRenderer::draw(Scratch& sc, const DisplayList& list, raster::Surface& ta
 
     for (const Command& command : list.commands()) {
         ++report.commands;
+        const auto measured_from = options.measure ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
+        struct Measure {
+            const CpuOptions&                     o;
+            RenderReport&                         r;
+            std::size_t                           kind;
+            std::chrono::steady_clock::time_point from;
+            ~Measure() {
+                if (!o.measure) return;
+                r.kinds[kind].count += 1;
+                r.kinds[kind].ms += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - from).count();
+            }
+        } measure{options, report, command.index(), measured_from};
         if (!whole)
             if (auto b = device_bounds(command, m(), nullptr); b && (b->bottom() <= static_cast<float>(band.top) || b->y >= static_cast<float>(band.bottom))) {
                 ++report.skipped;  // cannot reach these rows

@@ -30,7 +30,18 @@ struct RenderReport {
     std::size_t missing_glyphs = 0;
     std::size_t rows = 0;      // rows drawn
     std::size_t skipped = 0;   // draw commands outside every band
+    // With CpuOptions::measure: per kind of command (the index of Command's
+    // alternative, command_kind_name), how many and how long — where a
+    // frame's raster time goes.
+    struct Kind {
+        std::size_t count = 0;
+        double      ms = 0;
+    };
+    std::array<Kind, std::variant_size_v<Command>> kinds{};
 };
+
+// The name of a command kind: "fill_rect", "draw_glyphs" …
+[[nodiscard]] std::string_view command_kind_name(std::size_t index) noexcept;
 
 // Runs body(0) … body(count − 1) at the same time, in any order, and returns
 // when all have run: the host's thread pool (openmui-core's Tasks, or any
@@ -55,6 +66,7 @@ struct CpuOptions {
     // are those of a serial render: every band is exact (restrict_rows).
     Parallel*    parallel = nullptr;
     std::int32_t rows_per_task = 64;
+    bool         measure = false;  // fill RenderReport::kinds (a clock read per command)
 };
 
 class CpuRenderer {

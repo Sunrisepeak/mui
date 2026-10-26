@@ -10,6 +10,11 @@ version = "openkal-0.17.0"
 source  = "git+https://github.com/mcpplibs/openkal.git#branch=openkal-0.17.0@18b36578808d2095fb6cf5f29f1e76463c2998b4"
 hash    = "fnv1a:125ff2b9e8c59497"
 
+[package."mcpplibs.os"]
+version = "os-0.1.0"
+source  = "git+https://github.com/mcpplibs/os.git#branch=os-0.1.0@cf6dfbfe65349e8ed9183436e6af84b17cc08453"
+hash    = "fnv1a:3f844ed1801b1a6d"
+
 [package."compat.concurrentqueue"]
 namespace = "compat"
 version = "1.0.5"
@@ -159,9 +164,4 @@ namespace = "mcpplibs"
 version = "0.0.2"
 source  = "index+mcpplibs@0.0.2"
 hash    = "fnv1a:aad61299abc2c4b7"
-
-[package."mcpplibs.os"]
-version = "os-0.1.0"
-source  = "git+https://github.com/mcpplibs/os.git#branch=os-0.1.0@cf6dfbfe65349e8ed9183436e6af84b17cc08453"
-hash    = "fnv1a:3f844ed1801b1a6d"
 

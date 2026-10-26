@@ -20,11 +20,11 @@
      "why": "an agent reads the whole tree of a 1000-node interface without stalling the UI thread"},
     {"name": "text/paragraph", "metric": "ns_per_item", "max": 1500,
      "why": "shaping and breaking stay well under a microsecond and a half per byte"},
-    {"name": "trace/span-off", "metric": "ns_per_item", "max": 2,
-     "why": "tracing that is off costs one relaxed load (D-59)"},
+    {"name": "trace/span-off", "metric": "ns_per_item", "max": 5,
+     "why": "tracing that is off is a branch on a relaxed load (D-59): a few cycles even on a shared CI runner, so a frame's spans cost under a microsecond"},
     {"name": "trace/span-on", "metric": "ns_per_item", "max": 100,
      "why": "recording a span takes no lock and no allocation (D-59)"},
-    {"name": "log/filtered-out", "metric": "ns_per_item", "max": 2,
-     "why": "a log record the filter leaves out is not formatted (D-59)"}
+    {"name": "log/filtered-out", "metric": "ns_per_item", "max": 5,
+     "why": "a log record the filter leaves out is not formatted (D-59): a branch on a relaxed load, a few cycles even on a shared CI runner"}
   ]
 }

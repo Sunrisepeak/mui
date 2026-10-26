@@ -141,10 +141,14 @@ std::int64_t floor_div(std::int64_t a, std::int64_t b) {
 void Rasterizer::cell(std::int32_t ex, std::int32_t ey, std::int32_t cover, std::int32_t area) {
     if (ey < 0 || ey >= height_) return;
     if (ex < 0) ex = 0;
-    if (ex > width_) ex = width_;
-    std::size_t i = static_cast<std::size_t>(ey) * static_cast<std::size_t>(width_ + 1) + static_cast<std::size_t>(ex);
-    cover_[i] += cover;
-    area_[i] += area;
+    if (ex > width_) ex = width_;  // the extra column: edges right of the clip
+    if (cover == 0 && area == 0) return;
+    if (!cells_.empty() && cells_.back().x == ex && cells_.back().y == ey) {
+        cells_.back().cover += cover;
+        cells_.back().area += area;
+        return;
+    }
+    cells_.push_back({ey, ex, cover, area});
 }
 
 void Rasterizer::scanline(std::int32_t ey, std::int32_t x1, std::int32_t fy1, std::int32_t x2, std::int32_t fy2) {
@@ -233,10 +237,9 @@ void Rasterizer::line(std::int32_t x1, std::int32_t y1, std::int32_t x2, std::in
     }
 }
 
-void Rasterizer::rasterize(const Polygons& polygons, FillRule rule, PixelRect clip, Coverage& out) {
-    out.values.clear();
-    out.bounds = {};
-    if (polygons.points.empty() || clip.empty()) return;
+bool Rasterizer::prepare(const Polygons& polygons, PixelRect clip) {
+    cells_.clear();
+    if (polygons.points.empty() || clip.empty()) return false;
     float l = polygons.points[0].x, t = polygons.points[0].y, r = l, b = t;
     for (const Point& p : polygons.points) {
         l = std::min(l, p.x);
@@ -248,14 +251,11 @@ void Rasterizer::rasterize(const Polygons& polygons, FillRule rule, PixelRect cl
     auto ceili = [](float v) { return static_cast<std::int32_t>(std::ceil(std::clamp(v, -1e6f, 1e6f))); };
     std::int32_t x0 = std::max(floori(l), clip.x), y0 = std::max(floori(t), clip.y);
     std::int32_t x1 = std::min(ceili(r), clip.x + clip.width), y1 = std::min(ceili(b), clip.y + clip.height);
-    if (x1 <= x0 || y1 <= y0) return;
+    if (x1 <= x0 || y1 <= y0) return false;
     min_x_ = x0;
     min_y_ = y0;
     width_ = x1 - x0;
     height_ = y1 - y0;
-    std::size_t cells = static_cast<std::size_t>(width_ + 1) * static_cast<std::size_t>(height_);
-    cover_.assign(cells, 0);
-    area_.assign(cells, 0);
 
     // Edges left of the clip keep their winding in the first column; edges
     // right of it fall in the extra column and change no visible pixel.
@@ -271,26 +271,83 @@ void Rasterizer::rasterize(const Polygons& polygons, FillRule rule, PixelRect cl
             line(sx(a.x), sy(a.y), sx(c.x), sy(c.y));
         }
     }
-
-    out.bounds = {x0, y0, width_, height_};
-    out.values.resize(static_cast<std::size_t>(width_) * height_);
-    for (std::int32_t y = 0; y < height_; ++y) {
-        const std::int32_t* cv = cover_.data() + static_cast<std::size_t>(y) * (width_ + 1);
-        const std::int32_t* ar = area_.data() + static_cast<std::size_t>(y) * (width_ + 1);
-        std::uint8_t* dst = out.values.data() + static_cast<std::size_t>(y) * width_;
-        std::int64_t acc = 0;
-        for (std::int32_t x = 0; x < width_; ++x) {
-            acc += cv[x];
-            std::int64_t v = (acc << 9) - ar[x];
-            if (v < 0) v = -v;
-            std::int64_t c = v >> 9;
-            if (rule == FillRule::even_odd) {
-                c &= 511;
-                if (c > 256) c = 512 - c;
-            }
-            dst[x] = static_cast<std::uint8_t>(c > 255 ? 255 : c);
+    // By row, then column; the same cell from several edges adds up.
+    std::ranges::sort(cells_, [](const Cell& a, const Cell& b) { return a.y != b.y ? a.y < b.y : a.x < b.x; });
+    std::size_t n = 0;
+    for (const Cell& c : cells_) {
+        if (n > 0 && cells_[n - 1].y == c.y && cells_[n - 1].x == c.x) {
+            cells_[n - 1].cover += c.cover;
+            cells_[n - 1].area += c.area;
+        } else {
+            cells_[n++] = c;
         }
     }
+    cells_.resize(n);
+    return true;
+}
+
+// emit(row, column, count, value) for every pixel of the bounds, in runs: a
+// cell's pixel alone, and the pixels between cells together.
+template <class Emit>
+void Rasterizer::sweep(FillRule rule, Emit&& emit) const {
+    auto value = [rule](std::int64_t v) -> std::uint8_t {
+        if (v < 0) v = -v;
+        std::int64_t c = v >> 9;
+        if (rule == FillRule::even_odd) {
+            c &= 511;
+            if (c > 256) c = 512 - c;
+        }
+        return static_cast<std::uint8_t>(c > 255 ? 255 : c);
+    };
+    std::size_t i = 0;
+    for (std::int32_t y = 0; y < height_; ++y) {
+        std::int64_t acc = 0;
+        std::int32_t x = 0;  // the next pixel not emitted
+        for (; i < cells_.size() && cells_[i].y == y; ++i) {
+            const Cell& c = cells_[i];
+            if (c.x >= width_) {  // the extra column: after every visible pixel
+                if (x < width_) emit(y, x, width_ - x, value(acc << 9));
+                x = width_;
+                acc += c.cover;
+                continue;
+            }
+            if (c.x > x) emit(y, x, c.x - x, value(acc << 9));
+            acc += c.cover;
+            emit(y, c.x, 1, value((acc << 9) - c.area));
+            x = c.x + 1;
+        }
+        if (x < width_) emit(y, x, width_ - x, value(acc << 9));
+    }
+}
+
+void Rasterizer::rasterize(const Polygons& polygons, FillRule rule, PixelRect clip, Coverage& out) {
+    out.values.clear();
+    out.bounds = {};
+    if (!prepare(polygons, clip)) return;
+    out.bounds = {min_x_, min_y_, width_, height_};
+    out.values.resize(static_cast<std::size_t>(width_) * height_);
+    sweep(rule, [&](std::int32_t y, std::int32_t x, std::int32_t count, std::uint8_t v) {
+        std::fill_n(out.values.data() + static_cast<std::size_t>(y) * width_ + x, count, v);
+    });
+}
+
+void Rasterizer::rasterize(const Polygons& polygons, FillRule rule, PixelRect clip, Spans& out) {
+    out.runs.clear();
+    out.bounds = {};
+    if (!prepare(polygons, clip)) return;
+    out.bounds = {min_x_, min_y_, width_, height_};
+    sweep(rule, [&](std::int32_t y, std::int32_t x, std::int32_t count, std::uint8_t v) {
+        if (v == 0) return;
+        const std::int32_t gy = y + min_y_, gx = x + min_x_;
+        if (!out.runs.empty()) {
+            Span& last = out.runs.back();
+            if (last.y == gy && last.value == v && last.x + last.length == gx) {
+                last.length += count;
+                return;
+            }
+        }
+        out.runs.push_back({gy, gx, count, v});
+    });
 }
 
 void fill_coverage(PathData path, const Affine& m, FillRule rule, PixelRect clip, Coverage& out) {

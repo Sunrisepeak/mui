@@ -211,6 +211,11 @@ void add_framework_benchmarks() {
         const render::DisplayList& list = h.runtime().display_list();
         s.counter("commands", static_cast<double>(list.size()));
         while (s.next()) (void)renderer.render(list, target, {&h.runtime().images(), &glyphs}, o);
+        // Where the time goes, per kind of command (one measured pass after the timed ones).
+        o.measure = true;
+        const render::RenderReport r = renderer.render(list, target, {&h.runtime().images(), &glyphs}, o);
+        for (std::size_t k = 0; k < r.kinds.size(); ++k)
+            if (r.kinds[k].count) s.counter(std::format("{}_ms", render::command_kind_name(k)), r.kinds[k].ms);
     });
     add("ui/raster/full-1080p-parallel", "the same, in bands of 64 rows on the task pool (the same bytes)", [](State& s) {
         Dashboard d;

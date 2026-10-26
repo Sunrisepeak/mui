@@ -95,6 +95,8 @@ private:
     [[nodiscard]] Surface& target() noexcept { return layers_.empty() ? *base_ : *layers_.back().surface; }
     [[nodiscard]] const Clip& clip() const noexcept { return clips_.back(); }
     void composite(const Coverage& coverage, const Shader& shader, int dx = 0, int dy = 0);
+    void composite(const Spans& spans, const Shader& shader);
+    void fill_solid_rect(const Rect& device, Rgba8 color);
     void push_mask(const Coverage& coverage);
 
     Surface*                   base_;
@@ -106,6 +108,7 @@ private:
     Rasterizer                 rasterizer_;
     Polygons                   polygons_;
     Coverage                   coverage_;
+    Spans                      spans_;
     std::vector<Rgba8>         row_;
     std::vector<std::unique_ptr<Surface>> layer_pool_;
     std::vector<std::shared_ptr<Mask>>    mask_pool_;

@@ -178,12 +178,53 @@ std::shared_ptr<Mask> Canvas::take_mask() {
     return mask_pool_.back();
 }
 
+namespace {
+
+// A premultiplied colour scaled by coverage k (0…255), exactly as composite does it.
+Rgba8 scaled(Rgba8 s, std::uint32_t k) noexcept {
+    if (k == 255) return s;
+    return {static_cast<std::uint8_t>(mul255(s.r, k)), static_cast<std::uint8_t>(mul255(s.g, k)),
+            static_cast<std::uint8_t>(mul255(s.b, k)), static_cast<std::uint8_t>(mul255(s.a, k))};
+}
+
+// Source-over of s onto d; an opaque source replaces (s + d·0 = s exactly).
+Rgba8 over(Rgba8 d, Rgba8 s) noexcept {
+    if (s.a == 255) return s;
+    const std::uint32_t inv = 255u - s.a;
+    return {static_cast<std::uint8_t>(s.r + mul255(d.r, inv)), static_cast<std::uint8_t>(s.g + mul255(d.g, inv)),
+            static_cast<std::uint8_t>(s.b + mul255(d.b, inv)), static_cast<std::uint8_t>(s.a + mul255(d.a, inv))};
+}
+
+}  // namespace
+
 void Canvas::composite(const Coverage& cov, const Shader& shader, int dx, int dy) {
     const Clip& c = clip();
     PixelRect placed{cov.bounds.x + dx, cov.bounds.y + dy, cov.bounds.width, cov.bounds.height};
     PixelRect box = intersect(placed, c.scissor);
     if (box.empty()) return;
     Surface& dst = target();
+    if (shader.solid()) {
+        // One colour: no shading per row, and a covered opaque pixel is a store.
+        const Rgba8 sc = shader.solid_color();
+        if (sc == Rgba8{}) return;  // transparent black draws nothing
+        const bool ids = !ids_.empty() && object_id_;
+        for (std::int32_t y = box.y; y < box.y + box.height; ++y) {
+            const std::uint8_t* cv = cov.values.data() + static_cast<std::size_t>(y - placed.y) * placed.width + (box.x - placed.x);
+            const std::uint8_t* mk = c.mask ? c.mask->row(y) + box.x : nullptr;
+            Rgba8* out = dst.row(y) + box.x;
+            std::uint32_t* id = ids ? ids_.data() + static_cast<std::size_t>(y) * base_->width() + box.x : nullptr;
+            for (std::int32_t i = 0; i < box.width; ++i) {
+                std::uint32_t k = cv[i];
+                if (mk) k = mul255(k, mk[i]);
+                if (k == 0) continue;
+                const Rgba8 s = scaled(sc, k);
+                if (s == Rgba8{}) continue;
+                out[i] = over(out[i], s);
+                if (id && k >= 128) id[i] = object_id_;
+            }
+        }
+        return;
+    }
     row_.resize(static_cast<std::size_t>(box.width));
     bool ids = !ids_.empty();  // a node drawn into a layer still owns its pixels
     for (std::int32_t y = box.y; y < box.y + box.height; ++y) {
@@ -206,29 +247,144 @@ void Canvas::composite(const Coverage& cov, const Shader& shader, int dx, int dy
     }
 }
 
+void Canvas::composite(const Spans& spans, const Shader& shader) {
+    // The dense composite's arithmetic, a run at a time: one coverage value
+    // per run, so one scaled colour per run for a solid paint.
+    const Clip& c = clip();
+    const PixelRect box = c.scissor;
+    if (box.empty() || spans.empty()) return;
+    Surface& dst = target();
+    const bool ids = !ids_.empty() && object_id_;
+    const bool solid = shader.solid();
+    const Rgba8 sc = shader.solid_color();
+    if (solid && sc == Rgba8{}) return;
+    for (const Span& run : spans.runs) {
+        if (run.y < box.y || run.y >= box.y + box.height) continue;
+        const std::int32_t x0 = std::max(run.x, box.x), x1 = std::min(run.x + run.length, box.x + box.width);
+        if (x1 <= x0) continue;
+        const std::int32_t n = x1 - x0;
+        Rgba8* out = dst.row(run.y) + x0;
+        std::uint32_t* id = ids ? ids_.data() + static_cast<std::size_t>(run.y) * base_->width() + x0 : nullptr;
+        if (!solid) {
+            row_.resize(static_cast<std::size_t>(n));
+            shader.shade(x0, run.y, n, row_.data());
+        }
+        if (c.mask) {
+            const std::uint8_t* mk = c.mask->row(run.y) + x0;
+            for (std::int32_t i = 0; i < n; ++i) {
+                const std::uint32_t k = mul255(run.value, mk[i]);
+                if (k == 0) continue;
+                const Rgba8 s = scaled(solid ? sc : row_[static_cast<std::size_t>(i)], k);
+                if (s == Rgba8{}) continue;
+                out[i] = over(out[i], s);
+                if (id && k >= 128) id[i] = object_id_;
+            }
+            continue;
+        }
+        const std::uint32_t k = run.value;
+        if (solid) {
+            const Rgba8 s = scaled(sc, k);
+            if (s == Rgba8{}) continue;
+            if (s.a == 255) std::fill_n(out, n, s);
+            else
+                for (std::int32_t i = 0; i < n; ++i) out[i] = over(out[i], s);
+        } else {
+            for (std::int32_t i = 0; i < n; ++i) {
+                const Rgba8 s = scaled(row_[static_cast<std::size_t>(i)], k);
+                if (s == Rgba8{}) continue;
+                out[i] = over(out[i], s);
+                if (id && k >= 128) id[i] = object_id_;
+            }
+            continue;
+        }
+        if (id && k >= 128) std::fill_n(id, n, object_id_);
+    }
+}
+
 void Canvas::fill_path(PathData path, FillRule rule, const Paint& paint, const Affine& m) {
     polygons_.clear();
     flatten(path, m, polygons_);
-    rasterizer_.rasterize(polygons_, rule, clip().scissor, coverage_);
-    composite(coverage_, Shader(paint));
+    rasterizer_.rasterize(polygons_, rule, clip().scissor, spans_);
+    composite(spans_, Shader(paint));
 }
 
 void Canvas::stroke_path(PathData path, const Stroke& stroke, const Paint& paint, const Affine& m) {
     polygons_.clear();
     stroke_outline(path, m, stroke, polygons_);
-    rasterizer_.rasterize(polygons_, FillRule::nonzero, clip().scissor, coverage_);
-    composite(coverage_, Shader(paint));
+    rasterizer_.rasterize(polygons_, FillRule::nonzero, clip().scissor, spans_);
+    composite(spans_, Shader(paint));
 }
 
 void Canvas::fill_rect(const Rect& r, const Paint& paint, const Affine& m) {
     if (m.translation_only() || (m.b == 0 && m.c == 0)) {
+        const Shader shader(paint);
+        if (shader.solid() && !clip().mask) {
+            fill_solid_rect(m.map(r), shader.solid_color());
+            return;
+        }
         rect_coverage(m.map(r), clip().scissor, coverage_);
-        composite(coverage_, Shader(paint));
+        composite(coverage_, shader);
         return;
     }
     path_.clear();
     path_.rect(r);
     fill_path(path_.data(), FillRule::nonzero, paint, m);
+}
+
+// rect_coverage and composite fused for one colour and no mask: the same
+// sub-pixel edges, the same coverage per pixel ((column · row + 128) >> 8),
+// the same blending — without the coverage buffer; a fully covered run of an
+// opaque colour is a fill.
+void Canvas::fill_solid_rect(const Rect& r, Rgba8 sc) {
+    if (sc == Rgba8{}) return;
+    auto sub = [](float v) { return static_cast<std::int64_t>(std::floor(static_cast<double>(v) * 256.0 + 0.5)); };
+    const std::int64_t l = sub(r.x), t = sub(r.y), rr = sub(r.right()), b = sub(r.bottom());
+    if (rr <= l || b <= t) return;
+    const auto x0 = static_cast<std::int32_t>(l >> 8), y0 = static_cast<std::int32_t>(t >> 8);
+    const auto x1 = static_cast<std::int32_t>((rr + 255) >> 8), y1 = static_cast<std::int32_t>((b + 255) >> 8);
+    const PixelRect box = intersect({x0, y0, x1 - x0, y1 - y0}, clip().scissor);
+    if (box.empty()) return;
+    auto span = [](std::int64_t lo, std::int64_t hi, std::int32_t px) {
+        const std::int64_t a = std::max<std::int64_t>(lo, static_cast<std::int64_t>(px) * 256);
+        const std::int64_t c = std::min<std::int64_t>(hi, static_cast<std::int64_t>(px + 1) * 256);
+        return static_cast<std::uint32_t>(std::max<std::int64_t>(0, c - a));  // 0..256
+    };
+    // Columns fully inside: [full_l, full_r).
+    const std::int32_t full_l = std::max(box.x, static_cast<std::int32_t>((l + 255) >> 8));
+    const std::int32_t full_r = std::min(box.x + box.width, static_cast<std::int32_t>(rr >> 8));
+    Surface& dst = target();
+    const bool ids = !ids_.empty() && object_id_;
+    for (std::int32_t y = box.y; y < box.y + box.height; ++y) {
+        const std::uint32_t row = span(t, b, y);
+        Rgba8* out = dst.row(y);
+        std::uint32_t* id = ids ? ids_.data() + static_cast<std::size_t>(y) * base_->width() : nullptr;
+        auto pixel = [&](std::int32_t x, std::uint32_t col) {
+            std::uint32_t k = (col * row + 128) >> 8;
+            if (k > 255) k = 255;
+            if (k == 0) return;
+            const Rgba8 s = scaled(sc, k);
+            if (s == Rgba8{}) return;
+            out[x] = over(out[x], s);
+            if (id && k >= 128) id[x] = object_id_;
+        };
+        std::int32_t x = box.x;
+        for (; x < std::min(full_l, box.x + box.width); ++x) pixel(x, span(l, rr, x));
+        if (full_r > x) {
+            // Interior columns: coverage is the row's alone.
+            const std::uint32_t k = std::min<std::uint32_t>((256 * row + 128) >> 8, 255);
+            if (k != 0) {
+                const Rgba8 s = scaled(sc, k);
+                if (!(s == Rgba8{})) {
+                    if (s.a == 255) std::fill(out + x, out + full_r, s);
+                    else
+                        for (std::int32_t i = x; i < full_r; ++i) out[i] = over(out[i], s);
+                    if (id && k >= 128) std::fill(id + x, id + full_r, object_id_);
+                }
+            }
+            x = full_r;
+        }
+        for (; x < box.x + box.width; ++x) pixel(x, span(l, rr, x));
+    }
 }
 
 void Canvas::fill_round_rect(const Rect& r, const CornerRadii& radii, const Paint& paint, const Affine& m) {

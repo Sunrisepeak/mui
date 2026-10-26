@@ -42,7 +42,6 @@ members = [
     "tests/rules",
     "tests/bench",
     "tests/features",
-    "tests/features/memory",
     "examples/01-hello-im",
     "examples/07-headless-and-agent",
 ]

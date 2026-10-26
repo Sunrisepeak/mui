@@ -1038,7 +1038,7 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
 |---|---|---|
 | 构建：三个平台 | ✅ | GitHub Actions：Linux x86_64（GCC 16 dev / release、LLVM 23）、Linux aarch64（LLVM 23）、macOS 15、Windows 2022（MSVC ABI）全部通过（提交 `a65e61b`） |
 | lint | ✅ | `tools/lint/lint.py`：10 条规则，自测 10/10 能拦下各自的违规 |
-| 测试 | ✅ | 32 个成员、47 个测试程序在所有平台通过 |
+| 测试 | ✅ | 31 个成员、46 个测试程序在所有平台通过 |
 | 确定性 | ✅ | CPU 渲染和动画的固定哈希在 Linux、macOS、Windows（MSVC 和 MinGW）上完全相同；增量帧与完整渲染逐字节相同（D-62） |
 | 性能 | ✅ | `tests/bench`：12 项预算在 CI 的 release 行检查并保存报告 |
 | 内存 | ✅ | 每帧零分配有分配计数（bench `max_allocations`）；`sanitize` 配置（ASan + UBSan，整个依赖图都插桩，第一个问题即失败）每晚在 CI 上运行（`nightly.yml`，LLVM：GCC 16.1 的 UBSan 空指针检查在 `import std` 的 `std::variant` 上会让编译器崩溃）；本地全部成员通过，发现并修好了 SDL 软件窗口加载 GPU 驱动（驱动在退出时泄漏） |
@@ -1052,7 +1052,7 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
 | | ② 改契约后重新生成 C++ 分区等，增量构建 | ✅ `openmui.rules` 构建插件；`tests/rules` 夹具；生成物有新鲜度测试 |
 | | ③ 三个平台的 CI 是绿的 | ✅ 见 22.2 |
 | | ④ lint 拦下 `#define` 和越级依赖 | ✅ lint 自测 |
-| | ⑤ 按特性选择互斥源文件的最小示例 | ✅ `tests/features`：两个特性各自提供分区 `openmui.features:sink`，常量加 `if constexpr`，没有宏；消费者在依赖边上选择另一个；两个同时启用会在扫描时被拒绝（`tools/ci/features.sh`） |
+| | ⑤ 按特性选择互斥源文件的最小示例 | ✅ `tests/features`：两个特性各自提供分区 `openmui.features:sink`，常量加 `if constexpr`，没有宏；一个工作区外的应用在依赖边上选择另一个（工作区构建会把所有成员一起规划，同一个包的两种互斥配置不能同在一次构建里）；两个同时启用会在扫描时被拒绝（`tools/ci/features.sh`） |
 | M1 | ① 示例 01、07 在 Linux 上运行 | ✅（并且在所有平台的 CI 上测试） |
 | | ② `omui agent` 操作示例 07，不可逆动作返回 `needs-answer` | ✅ `tools/ci/agent-e2e.sh`，单独进程 |
 | | ③ CPU 金图两次运行逐字节相同 | ✅ 并且跨平台相同 |

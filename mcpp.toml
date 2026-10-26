@@ -24,6 +24,7 @@ members = [
     "modules/raster",
     "modules/image",
     "modules/render",
+    "modules/text",
     "runtime/core",
     "tools/gen",
 ]
@@ -38,6 +39,9 @@ mcpp     = ">=2026.10.26.1"
 # them twice. The definitions are identical; the linker keeps one.
 [workspace.target.x86_64-windows-gnu.build]
 ldflags = ["-Wl,--allow-multiple-definition"]
+# HarfBuzz's amalgamated unit exceeds COFF's 2^15 sections under GCC; the big
+# object format lifts the limit. Graph-wide, so it reaches that dependency.
+dialect_cxxflags = ["-Wa,-mbig-obj"]
 
 [targets.openmui]
 kind = "lib"

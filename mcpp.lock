@@ -5,17 +5,40 @@
 # file must not change depending on which command ran last.
 version = 2
 
+[package."mcpplibs.os"]
+version = "os-0.1.0"
+source  = "git+https://github.com/mcpplibs/os.git#branch=os-0.1.0@cf6dfbfe65349e8ed9183436e6af84b17cc08453"
+hash    = "fnv1a:3f844ed1801b1a6d"
+
+[package."compat.freetype"]
+namespace = "compat"
+version = "2.13.3"
+source  = "index+compat@2.13.3"
+hash    = "fnv1a:26da6529899be586"
+
+[package."compat.fribidi"]
+namespace = "compat"
+version = "1.0.16"
+source  = "index+compat@1.0.16"
+hash    = "fnv1a:e4aa7ab4597277e8"
+
+[package."compat.harfbuzz"]
+namespace = "compat"
+version = "14.3.0"
+source  = "index+compat@14.3.0"
+hash    = "fnv1a:87f3d11b2c5bd0dd"
+
+[package."compat.libpng"]
+namespace = "compat"
+version = "1.6.43"
+source  = "index+compat@1.6.43"
+hash    = "fnv1a:b3a219b122077f27"
+
 [package."compat.concurrentqueue"]
 namespace = "compat"
 version = "1.0.5"
 source  = "index+compat@1.0.5"
 hash    = "fnv1a:ef74c660ecd57abf"
-
-[package."compat.libpng"]
-namespace = "compat"
-version = "1.6.59"
-source  = "index+compat@1.6.59"
-hash    = "fnv1a:b3a587b1220a6fe8"
 
 [package."compat.zlib"]
 namespace = "compat"

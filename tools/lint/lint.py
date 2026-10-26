@@ -162,6 +162,8 @@ def check_sources(root: Path) -> list[Problem]:
             stripped = line.strip()
             if re.match(r"#\s*define\b", stripped) and not is_the_header:
                 problems.append(Problem("macros", f"{rel_s}:{no}", "#define; use constexpr, consteval or a module partition"))
+            if re.search(r"\bstd::(getenv|system|_Exit)\s*\(|\bgetenv\s*\(", line) or "/proc/" in text.splitlines()[no - 1]:
+                problems.append(Problem("platform", f"{rel_s}:{no}", "environment and process access go through mcpplibs.os (env, process)"))
             if OS_HEADERS.match(stripped):
                 problems.append(Problem("platform", f"{rel_s}:{no}", "an operating-system header; use mcpplibs.os"))
             if re.match(r"#\s*include\b", stripped) and not in_native and not is_the_header:

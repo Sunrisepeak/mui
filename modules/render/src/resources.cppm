@@ -26,10 +26,14 @@ private:
     std::uint32_t next_ = 1;
 };
 
-// A glyph's coverage at a size, positioned relative to its origin on the
-// baseline: the mask's bounds are in device pixels with (0, 0) at the origin.
+// A glyph at a size, positioned relative to its origin on the baseline: the
+// bounds are in device pixels with (0, 0) at the origin. A colour glyph (an
+// emoji) has premultiplied pixels instead of a coverage mask and ignores the
+// run's paint.
 struct GlyphMask {
     const raster::Coverage* coverage = nullptr;
+    const raster::Surface*  color = nullptr;
+    geom::PixelRect         color_bounds;
 };
 
 // Implemented by the text engine. One virtual call per glyph (a coarse

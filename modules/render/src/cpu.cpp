@@ -130,6 +130,13 @@ RenderReport CpuRenderer::render(const DisplayList& list, raster::Surface& targe
                             Point d = mm.apply(pen);
                             float ix = std::floor(d.x), iy = std::floor(d.y);
                             GlyphMask gm = res.glyphs->mask(c.font, g.id, c.size * mm.a, {d.x - ix, d.y - iy});
+                            if (gm.color) {
+                                const auto& b = gm.color_bounds;
+                                canvas.draw_image(gm.color->view(), {0, 0, static_cast<float>(b.width), static_cast<float>(b.height)},
+                                                  {ix + b.x, iy + b.y, static_cast<float>(b.width), static_cast<float>(b.height)},
+                                                  raster::Sampling::nearest, c.paint.color.a);
+                                continue;
+                            }
                             if (!gm.coverage) {
                                 ++report.missing_glyphs;
                                 continue;

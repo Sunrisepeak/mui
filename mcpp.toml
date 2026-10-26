@@ -20,6 +20,8 @@ members = [
     "modules/memory",
     "modules/anim",
     "modules/layout",
+    "modules/raster",
+    "modules/image",
     "modules/render",
     "runtime/core",
     "tools/gen",

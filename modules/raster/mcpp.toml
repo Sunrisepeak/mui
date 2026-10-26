@@ -1,0 +1,26 @@
+# openmui-raster — a deterministic CPU 2D rasterizer: exact integer coverage,
+# gradients, images, strokes, clips, layers with blend modes, shadows (D-43).
+# The same drawing is the same bytes on every platform.
+[package]
+name        = "openmui-raster"
+version     = "0.1.0"
+description = "Deterministic CPU 2D rasterizer: paths, strokes, gradients, images, clips, layers, blend modes, shadows"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "backend"
+
+[targets.openmui-raster]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+openmui-geom = { path = "../geom" }
+openmui-anim = { path = "../anim" }
+
+[dev-dependencies]
+openmui-testing = { path = "../../tests/support" }

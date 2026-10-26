@@ -1,0 +1,23 @@
+# openmui-image — images in memory and PNG encoding and decoding (libpng's
+# simplified API, through compat.libpng and compat.zlib from mcpp-index).
+[package]
+name        = "openmui-image"
+version     = "0.1.0"
+description = "Image buffers, premultiplication, PNG encode and decode"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "runtime"
+
+[targets.openmui-image]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+
+[dependencies.compat]
+libpng = "1.6.59"
+
+[dev-dependencies]
+openmui-testing = { path = "../../tests/support" }

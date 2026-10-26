@@ -22,6 +22,8 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 openmui-geom   = { path = "../geom" }
 openmui-memory = { path = "../memory" }
 openmui-anim   = { path = "../anim" }
+openmui-raster = { path = "../raster" }
 
 [dev-dependencies]
 openmui-testing = { path = "../../tests/support" }
+openmui-image   = { path = "../image" }

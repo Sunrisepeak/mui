@@ -175,6 +175,7 @@ on.pointer_up   = { to = "idle", do = ["commit('group.moved', hit.node)"] }     
 | 行为状态机 | `.behavior.omui.toml` | `group-drag.behavior.omui.toml` |
 | 主题和 token | `.theme.omui.toml` | `default.theme.omui.toml` |
 | 效果着色器的元数据（可选） | `.effect.omui.toml` | `ripple.effect.omui.toml`（参数范围、说明；不写时由 Slang 反射得到） |
+| 时间轴叠加（视频预览里的修改，D-54） | `.timeline.omui.json` | `promo.timeline.omui.json`（属性、关键帧、镜头起点和长度的修改，叠加在代码之上） |
 | 应用包（播放器加载） | `.omuipkg` | `notes.omuipkg` |
 | 着色器源码 | `.slang` | `ripple.slang` |
 | 逻辑代码 | `.ts` / `.tsx` / `.py` / `.lua` / `.cppm` / `.cpp` | 保持原生后缀，编辑器和工具链才能正常工作 |

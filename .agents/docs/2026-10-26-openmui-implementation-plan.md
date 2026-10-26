@@ -1,8 +1,8 @@
 # openmui 实施计划
 
-> 状态：**草案 v1.2**（2026-10-26），待 review
+> 状态：**草案 v1.3**（2026-10-26），待 review
 > 依据：[architecture](2026-10-26-openmui-architecture-design.md)（D-01 到 D-37）、[spec](2026-10-26-openmui-spec-design.md)、[component-binding](2026-10-26-openmui-component-binding-design.md)、[view-data-files](2026-10-26-openmui-view-data-files-design.md)、[canvas-markdown](2026-10-26-openmui-canvas-markdown-design.md)。
-> 本计划新增的决策是 **D-38 到 D-53**（§21），已经同步到架构文档 §13。**验收标准见 §19。**
+> 本计划新增的决策是 **D-38 到 D-54**（§21），已经同步到架构文档 §13。**验收标准见 §19。**
 > 写法说明：标注了路径或来源的内容是事实；性能数字都是**目标值**，需要实测校准；命令和 API 是示意。
 
 ---
@@ -17,6 +17,7 @@
 | 平台 | OS 服务通过 git 依赖 **`mcpplibs/os`（分支 `os-0.1.0`）**；窗口和输入走 SDL3；平台差异用“清单按目标选择模块分区 + constexpr 常量”来处理（§8） |
 | 动画 | **通用动画引擎 `openmui-anim`**：独立的 workspace 成员，只依赖标准库，将来可以独立成仓库；**时间的纯函数**（可以任意跳转、结果确定，spring 有解析解）；UI、视频、游戏、画布共用；**提前到 M2**（§6） |
 | 展示 | S1 无限画布 Markdown 墙 · S2 风格化 GPU 渲染 · S3 Agent 操作 · **S4《组件打砖块：openmui 巡礼》**（游戏本身就是框架导览）· **S5 openmui 宣传片**（约 60 秒，用 openmui-video 制作，对标播放量几百万到上千万的 agent 代码动画视频，拆解和分镜见 [promo-video](2026-10-26-openmui-promo-video-design.md)）（§13） |
+| 视频 | **性能和编辑体验全面领先业界**：60 秒 1080p60 完整渲染 ≤ 15 秒（GPU），修改一个镜头后整片重新渲染 ≤ 3 秒（四层缓存），预览热重载 ≤ 100 毫秒，修改可以从预览写回（§12.6） |
 | 测试 | 单元测试、CTS 的 S / A / B / C 四级、CPU 金图逐字节比对、GPU 金图（lavapipe）、跨平台确定性、三种语言的语义一致性、性能门禁、模糊测试和 sanitizer（§15） |
 | 生态 | 需要补充到 mcpp-index、xim、mcpplibs、mcpp 的内容逐项列出（§17） |
 | 里程碑 | M0 骨架 → M1 核心 → M2 文本 + 动画 + Markdown → M3 声明式 + 三种语言 → M4 GPU + 画布 + 风格化 → M5 视频 + 游戏 + Agent → M6 打磨和跨平台（§18） |
@@ -635,6 +636,56 @@ omui video check  intro.video.ts            # 每一帧的语义检查：文字�
 - MCP 工具：`video_render(range)`、`video_still(frame)`、`video_snapshot(frame)`（某一帧的语义树）、`video_check()`。
 - **闭环**：agent 写代码 → 渲染关键帧 → 读取语义树和截图检查 → 修改 → 最终渲染。
 
+### 12.6 性能和编辑体验：要全面领先业界（D-54）
+
+**业界现状（公开数据，口径各不相同，只作量级参考）**：
+
+| 工具 | 公开的速度 | 编辑体验 |
+|---|---|---|
+| Remotion（本地） | 简单的 1080p 合成热缓存时约 90 fps；真实项目常见 5–15 fps；一份第三方指南说 60 秒的视频在本地要 3–7 分钟；首次构建还要额外几分钟，安装占用约 870 MB | Studio 预览、React 热更新；属性面板有限 |
+| Remotion Lambda | 1 分钟（1440 帧）约 15–19 秒，靠的是 **约 200 个 Lambda 并发** | 同上 |
+| Revideo / Motion Canvas | Revideo 自称“几乎总是快于实时”，每个渲染任务建议 8–10 GB 内存；一次对比测试里 Motion Canvas 比 Remotion 快约 35% | Motion Canvas 有编辑器，可以拖动时间轴 |
+| HyperFrames | 第三方测试里本地比 Remotion 快约 2 倍 | HTML 写法 |
+
+**openmui-video 的优势来源**：
+- 原生渲染，没有浏览器、没有截图、没有进程间传帧；
+- 帧是时间的纯函数，**任意帧可以并行渲染、可以缓存**；
+- GPU 渲染之后直接交给硬件编码器，零拷贝（不能零拷贝的平台走固定的回读路径）；
+- 每一帧都知道自己读了哪些输入，所以**可以精确地判断一次修改影响了哪些帧**。
+
+**缓存的分层（修改代码以后只重做受影响的部分）**：
+
+| 层 | 缓存什么 | 失效条件 |
+|---|---|---|
+| ① 帧依赖记录 | 每一帧读取了哪些 signal、属性、素材、着色器，以及它们在这一帧的取值摘要 | 无（每次渲染都会更新） |
+| ② 图层和子树 | 静态子树的光栅结果、文字排版、字形图集、矢量路径的细分结果 | 子树的输入改变 |
+| ③ 帧 | 每一帧的像素摘要（内容哈希） | 这一帧的依赖摘要改变 |
+| ④ 编码分块 | 按 GOP 对齐的编码分块（例如每 2 秒一块） | 块里有任何一帧的摘要改变；没有改变的块直接拷贝码流，不重新编码 |
+
+**性能和编辑体验的指标（参考机器：8 核 CPU + 主流独立显卡或较新的核显；具体型号在 M4 写进基准报告）**：
+
+| 指标 | 目标 | 和业界比 |
+|---|---|---|
+| 完整渲染 60 秒 1080p60（3600 帧），GPU + 硬件编码 | **≤ 15 秒（≥ 240 fps，4 倍实时）** | 单机超过 Remotion Lambda 的 200 并发（1440 帧约 15–19 秒） |
+| 完整渲染 60 秒 1080p60，只用 CPU 光栅器 + 软件编码 | ≤ 60 秒（≥ 实时） | 比 Remotion 本地快 3–7 倍 |
+| 4K60 完整渲染（GPU） | ≤ 60 秒 | — |
+| **修改一个镜头（约 5 秒）以后重新渲染整片** | **≤ 3 秒**；没有受影响的编码块 100% 命中缓存 | 业界工具都是整片重渲染 |
+| 只改字幕或一个颜色 | ≤ 2 秒，只重做受影响的帧 | — |
+| 冷启动到第一帧 | ≤ 1 秒（没有浏览器，没有打包步骤） | Remotion 首次构建要几分钟 |
+| 预览：拖动时间轴 | 1080p 下 60fps，不掉帧；跳到任意一帧 ≤ 50 毫秒 | — |
+| 预览：保存代码到画面更新 | TS / Python / Lua ≤ 100 毫秒，**时间轴位置和属性面板里的修改都保留** | — |
+| 内存峰值 | 1080p 渲染 ≤ 1 GB，4K ≤ 2 GB | Revideo 建议每个任务 8–10 GB |
+| 安装体积 | 命令行 + 运行时 + 默认字体 ≤ 60 MB | Remotion 约 870 MB |
+
+**编辑体验（“可再编辑”）**：
+- **属性面板写回**：在预览里选中元素（按语义 ID），拖动数值、调整关键帧、改颜色。修改写到一个旁路数据文件 `<名字>.timeline.omui.json`，叠加在代码之上，不改动代码文本；`omui video bake` 可以把它合并回代码里的字面量。人、agent、脚本修改的是同一份数据，diff 清楚。
+- **像素溯源**：点击画面上的任何像素，跳到产生它的源码位置（文件和行号），以及对应的语义节点和动画轨道。
+- **时间轴就是数据**：每个镜头、标记、节拍点都显示在 `openmui-ui-timeline` 上，可以拖动起点和长度；拖动的结果同样写进 `.timeline.omui.json`。
+- **按时间提问**：agent 可以问“第 12.3 秒画面上有什么”，得到的是语义树，不是截图。
+- **局部预览**：只渲染选中的时间段和区域（降低分辨率、只渲染一个图层），用来快速确认修改。
+
+**基准套件**（`tests/bench/video/`，M4 建立，M5 起进门禁）：五个标准合成（文字和图形、1000 个粒子、Markdown 滚动、视频里嵌视频、着色器效果）。**在同一台机器上**分别用 openmui-video、Remotion、Revideo、HyperFrames 渲染，比较完整渲染时间、修改后重新渲染的时间、冷启动、内存峰值和安装体积。结果写进公开的基准报告。**领先的标准：每一项都优于业界最好的工具。**
+
 ---
 
 ## 13. 展示（showcase）
@@ -858,7 +909,7 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
 | **M2** | ① 示例 08 和 09；② 公开的 CommonMark 测试集通过率 ≥ 95%（GFM 扩展单独统计）；③ **动画**：§6.6 的 A 级曲线金值全部通过；跳转一致性用例（随机抽取 1000 个时刻）全部通过；被打断的 spring 速度连续（误差 < 1e-9）；④ 跨平台确定性测试在三个桌面平台上是绿的；⑤ 中文、阿拉伯语、emoji 混排的排版测试集通过；⑥ 录制一段会话，在 headless 下回放，结果完全相同 |
 | **M3** | ① 示例 02–06、12；② 同一个视图用四种语言加视图文档写，语义树完全相同（CTS 的 S 级）；③ 同一组 JSON 场景由 TS、Python、Lua 执行，结果完全相同；④ 脚本热重载在 200ms 以内生效，并且 signal 的状态保留；⑤ `pip install openmui` 后运行 Python 示例（Linux）；⑥ native 模块的契约生成三种语言的绑定，不需要手写代码 |
 | **M4** | ① **S1** 和 **S2** 满足 §19.3；② gpu-sdl 在三个桌面平台上运行；lavapipe 金图在 CI 里通过；③ 一个自定义的 Slang 效果从编写到生效不需要改任何 C++ 代码，着色器热重载在 500ms 以内；④ 第一份公开的基准报告 |
-| **M5** | ① **S3、S4、S5** 满足 §19.3；② MCP 服务器能让 Claude Code 操作任意一个示例；③ `skills/openmui` 和 `skills/openmui-video` 发布 |
+| **M5** | ① **S3、S4、S5** 满足 §19.3；② MCP 服务器能让 Claude Code 操作任意一个示例；③ `skills/openmui` 和 `skills/openmui-video` 发布；④ **视频基准套件（§12.6）的每一项都优于业界最好的工具**，结果写进公开的基准报告 |
 | **M6** | ① Web（WebGL2）上运行 S1 的缩小版和示例 01；② 文档完整（四种语言的入门、所有指南、生成的 API 参考）；③ 所有门禁稳定运行 4 周以上 |
 
 ### 19.3 各展示的验收
@@ -869,7 +920,7 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
 | **S2 风格画廊** | 五种风格在核显上都达到 120Hz；**换风格前后语义树完全相同**；每种风格的 GPU 开销进报告；lavapipe 金图通过 | 每种风格的观感达到设计稿的水平 |
 | **S3 Agent 操作** | 脚本化的 agent 完成整理任务，结果 100% 确定；不可逆操作 100% 被拦下；录制的会话回放结果完全相同；生成的视图文档通过 schema 和语义检查 | 用真实的 LLM agent（Claude Code）手动跑 10 次，至少 9 次完成任务 |
 | **S4 组件打砖块** | 120Hz，输入延迟 ≤ 1 帧；给定种子和输入，三个平台上的回放哈希完全相同；最近 30 秒内可以倒流到任意时刻，倒流后继续游戏的结果和直接回放相同；三种语言写的道具都能热重载（< 200ms）；脚本化的 agent 能通过第 5 关 | 六个关卡**每一关都能让玩家明白它演示的是哪项框架能力**；作为游戏本身好玩（试玩反馈） |
-| **S5 宣传片** | 见 [promo-video](2026-10-26-openmui-promo-video-design.md) §5.1：时长（主片 60 秒 ± 5 秒，短片 15 秒 ± 1 秒）、规格、确定性、跳转一致性、逐帧语义检查零问题、字幕阅读时间、卡点误差 ≤ 1 帧、渲染时间、双语字幕 | 见 promo-video §5.2：**和三个标杆并排观看，按十个维度打分，每一项都不低于标杆的平均分，总分 ≥ 4.0**；每个镜头都在演示框架能力；制作过程有完整记录；至少 5 位外部观众看完能说出 3 个以上的特点 |
+| **S5 宣传片** | 见 [promo-video](2026-10-26-openmui-promo-video-design.md) §5.1：时长（主片 60 秒 ± 5 秒，短片 15 秒 ± 1 秒）、规格、确定性、跳转一致性、逐帧语义检查零问题、字幕阅读时间、卡点误差 ≤ 1 帧、双语字幕；**渲染性能按 §12.6**：完整渲染 60 秒 1080p60 ≤ 15 秒（GPU），修改一个镜头后整片重新渲染 ≤ 3 秒 | 见 promo-video §5.2：**和三个标杆并排观看，按十个维度打分，每一项都不低于标杆的平均分，总分 ≥ 4.0**；每个镜头都在演示框架能力；制作过程有完整记录；至少 5 位外部观众看完能说出 3 个以上的特点 |
 
 ### 19.4 各模块的完成标准
 
@@ -919,12 +970,14 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
 | D-51 | S5 是 **openmui 宣传片**：约 60 秒主片 + 15 秒短片，双语字幕；用 openmui-video 制作，全部是实时渲染的真实场景；对标三部播放量几百万到上千万的 agent 代码动画视频，拆解、分镜、验收见 promo-video 设计文档 |
 | D-52 | 协作流程：单个 PR，每一轮修改一个 commit 作为检查点 |
 | D-53 | 每个里程碑、展示、模块都有验收标准；能自动检查的进 CI，不能自动检查的写成检查清单并由维护者签字 |
+| D-54 | openmui-video 的渲染速度、修改后的增量渲染（四层缓存）、GPU 和硬件编码、预览和可再编辑性都作为指标，**每一项都要优于业界最好的工具**（§12.6）；修改以旁路数据文件 `.timeline.omui.json` 叠加在代码之上 |
 
 ---
 
 ## 来源
 
 - GCC 16 的 C++26 反射：[GCC 16.1 released（isocpp.org）](https://isocpp.org/blog/2026/04/gcc-16.1)、[GCC C++ Dialect Options（-freflection）](https://gcc.gnu.org/onlinedocs/gcc/C_002b_002b-Dialect-Options.html)、[cppreference：C++26 编译器支持](https://en.cppreference.com/cpp/compiler_support/26)、[GCC 16.1 发布（Phoronix）](https://www.phoronix.com/news/GCC-16.1-Released)
+- 视频工具的性能数据：[Remotion Lambda 成本和耗时示例](https://www.remotion.dev/docs/lambda/cost-example)、[Remotion Render Times（rendercomp）](https://rendercomp.com/blog/remotion-render-time-benchmarks/)、[Remotion Alternatives（Orshot）](https://orshot.com/blog/remotion-alternatives)、[IntelligentMixVideo#251 的实测](https://github.com/HsiangNianian/IntelligentMixVideo/pull/251)、[Remotion Lambda 指南（rendercomp）](https://rendercomp.com/blog/remotion-lambda-cloud-rendering-guide/)、[Revideo：Slow Rendering](https://docs.re.video/common-issues/slow-rendering/)、[yt3#166：Motion Canvas 和 Remotion 的对比](https://github.com/KAFKA2306/yt3/pull/166)、[HyperFrames vs Remotion（ArceApps）](https://arceapps.com/blog/hyperframes-vs-remotion-2026/)
 - Remotion 和 agent skills：[Remotion Agent Skills Guide 2026](https://aividpipeline.com/blog/remotion-agent-skills-guide-2026)、[Remotion Skills 2026（gaga.art）](https://gaga.art/blog/remotion-skills/)、[What Is the Remotion Skill?](https://www.ngram.com/blog/remotion-skills-sh-ai-video-creation)
 - Opus 5.5 带起的代码动画视频：[The Emergence of Code-Based Animation in Claude Opus 5.5](https://bretkerr.substack.com/p/the-emergence-of-code-based-animation)、[officechai：10 Best Examples](https://officechai.com/ai/claude-opus-5-5-motion-graphic-videos/)、[How to Make an Opus 5.5 Cartoon in Claude Code](https://explainx.ai/blog/how-opus-5-5-viral-videos-are-made-code-not-diffusion-2026)、[Claude Motion 教程](https://help.apiyi.com/en/claude-motion-opus-5-5-prompt-to-motion-video-tutorial-en.html)、[revid.ai：64 Videos + Prompts](https://www.revid.ai/claude-motion-graphics)
 - SDL_GPU 的 WebGPU 后端（实验性的 PR）：[libsdl-org/SDL#16020](https://github.com/libsdl-org/SDL/pull/16020)、[libsdl-org/SDL#12046](https://github.com/libsdl-org/SDL/pull/12046)

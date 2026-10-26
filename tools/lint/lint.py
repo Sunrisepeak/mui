@@ -11,6 +11,7 @@ Rules:
   layering      a member depends only on the layers below it (dependency table)
   modules       a member of modules/ depends on no openmui package outside modules/
   exceptions    no `throw` / `try` in runtime and modules sources (errors are std::expected)
+  platform      no operating-system header anywhere: platform code goes through mcpplibs.os
   determinism   deterministic members do not call <cmath>'s transcendental functions and
                 compile with -ffp-contract=off
   members       every directory listed as a workspace member has an mcpp.toml, and every
@@ -40,11 +41,10 @@ LAYERS: list[tuple[str, set[str]]] = [
     ("modules/*", {"modules"}),
     ("spec", set()),
     ("runtime/*", {"modules", "spec", "runtime"}),
-    ("gfx/*", {"modules", "spec", "runtime", "gfx"}),
-    ("hosts/*", {"modules", "spec", "runtime", "gfx", "hosts"}),
+    ("hosts/*", {"modules", "spec", "runtime", "hosts"}),
     ("components/*", {"modules", "spec", "runtime", "components", "themes"}),
     ("themes/*", {"modules", "spec", "runtime", "themes"}),
-    ("video", {"modules", "spec", "runtime", "gfx", "hosts", "components", "themes"}),
+    ("video", {"modules", "spec", "runtime", "hosts", "components", "themes"}),
     ("lang/*", {"spec", "runtime", "lang"}),
     ("tools/*", {"*"}),
     ("examples/*", {"*"}),
@@ -54,7 +54,13 @@ LAYERS: list[tuple[str, set[str]]] = [
 ]
 
 # Members whose results are part of A-level conformance (identical bits).
-DETERMINISTIC = ["modules/anim", "modules/raster", "runtime/layout"]
+DETERMINISTIC = ["modules/anim", "modules/raster", "modules/layout", "modules/geom"]
+
+# Operating-system headers: platform code goes through mcpplibs.os (D-57), so
+# none of ours includes them, native units included.
+OS_HEADERS = re.compile(
+    r"#\s*include\s*[<\"](windows\.h|winsock2?\.h|unistd\.h|pthread\.h|dlfcn\.h|fcntl\.h|sys/[^>\"]+|mach/[^>\"]+|"
+    r"CoreFoundation/[^>\"]+|Cocoa/[^>\"]+|AppKit/[^>\"]+|linux/[^>\"]+)[>\"]")
 TRANSCENDENTAL = re.compile(
     r"\bstd::(exp|exp2|expm1|log|log2|log10|log1p|pow|sin|cos|tan|asin|acos|atan|atan2|sinh|cosh|tanh|cbrt|hypot|lerp)\s*\(")
 
@@ -156,6 +162,8 @@ def check_sources(root: Path) -> list[Problem]:
             stripped = line.strip()
             if re.match(r"#\s*define\b", stripped) and not is_the_header:
                 problems.append(Problem("macros", f"{rel_s}:{no}", "#define; use constexpr, consteval or a module partition"))
+            if OS_HEADERS.match(stripped):
+                problems.append(Problem("platform", f"{rel_s}:{no}", "an operating-system header; use mcpplibs.os"))
             if re.match(r"#\s*include\b", stripped) and not in_native and not is_the_header:
                 problems.append(Problem("headers", f"{rel_s}:{no}", "#include outside a native/ unit; import a module instead"))
             if re.search(r"\bmui(::|_[a-z])|\bMUI_|\bnamespace\s+mui\b|\bmodule\s+mui\b|import\s+mui\b", line):
@@ -253,6 +261,7 @@ def self_test() -> int:
         "naming": ("runtime/core/src/a.cpp", "namespace mui { }\n"),
         "exceptions": ("modules/anim/src/e.cpp", "void f() { throw 1; }\n"),
         "determinism": ("modules/anim/src/d.cpp", "double f(double x) { return std::sin(x); }\n"),
+        "platform": ("runtime/core/src/native/io.cpp", "module;\n#include <unistd.h>\nmodule x;\n"),
         "layering": None,
         "modules": None,
     }

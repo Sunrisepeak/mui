@@ -96,7 +96,8 @@
 | runtime | spec、C 库、mcpp-index 中的包 |
 | **modules/***（独立组件） | **标准库、其他 `modules/*` 成员、第三方库；不允许依赖 openmui 的任何其他包**（D-55） |
 | modules/gpu-* | 只依赖 `modules/gpu`（`omui.gpu` 接口）和各自的图形库 |
-| gfx/render | runtime 的渲染接口、`modules/gpu`、`modules/raster`、`modules/text` |
+| modules/render | `modules/geom`、`modules/raster`、`modules/gpu`、`modules/image` |
+| runtime/platform | **mcpplibs.os**（平台相关的代码只在这里经由 mcpplibs.os 出现） |
 | host | runtime 的宿主接口 |
 | bridge | **只依赖 spec**（这样它才算第二个实现者） |
 | component | **只依赖 runtime 的公开 API**，不能依赖任何后端 |
@@ -170,10 +171,9 @@ openmui 沿用同样的约定：
 mui/                 # 根目录 = openmui 伞包 + workspace
 ├── mcpp.toml  src/{openmui.cppm, entry/}  mcpp/rules/  templates/
 ├── spec/                                  # 规范；全仓库唯一的头文件 include/openmui.h
-├── modules/{anim,unicode,text,raster,gpu,gpu-sdl,gpu-gles,gpu-webgpu,gpu-vk}/
-│                                          # 独立组件：不依赖 openmui 的任何包，将来可以直接独立成仓库（D-55）
-├── runtime/{core,layout,view,semantic,agent,platform,abi,player,reflect,devtools}/
-├── gfx/{render,shaders}/
+├── modules/{geom,anim,layout,unicode,text,raster,image,render,gpu,gpu-sdl,gpu-gles,record,encode}/
+│                                          # 独立组件：不依赖 openmui 的任何包，将来可以直接独立成仓库（D-55、D-57）
+├── runtime/{core,view,semantic,agent,platform,abi,player,reflect,devtools}/
 ├── hosts/{sdl3,headless,opensal,web}/
 ├── components/{base,markdown,canvas,canvas-kit,timeline,data,editor}/
 ├── themes/{tokens,default,compact,styles}/   video/   lang/{ts,py,lua}/
@@ -198,7 +198,7 @@ mui/                 # 根目录 = openmui 伞包 + workspace
 | 伞包 | `openmui`（模块 `openmui`，再导出 runtime、base 组件和默认主题） |
 | 规范 | `openmui-spec`（模块 `openmui.spec`） |
 | 运行时 | `openmui-runtime`（模块 `openmui.core`、`openmui.im`、`openmui.rt`、`openmui.text`、`openmui.anim` …） |
-| 渲染和宿主 | `openmui-render`、`openmui-gpu`、`openmui-gpu-*`（模块 `openmui.gpu`、命名空间 `omui::gpu`）、`openmui-gfx-cpu`、`openmui-host-*`、`openmui-bridge-*` |
+| 渲染和宿主 | `openmui-render`（模块 `openmui.render`）、`openmui-gpu`、`openmui-gpu-*`（模块 `openmui.gpu`、命名空间 `omui::gpu`）、`openmui-host-*`、`openmui-bridge-*` |
 | 组件 | `openmui-ui-*`（模块 `openmui.ui.*`） |
 | 构建规则 | **`openmui` 包的 `rules` 特性**，模块 `openmui.rules` |
 | 入口 | `openmui` 包的 `entry-player` / `entry-app` 特性；源码在 `src/entry/`（D-26、D-32） |
@@ -442,7 +442,8 @@ M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten，渲�
 | D-51 | S5 openmui 宣传片：约 60 秒主片 + 15 秒短片，用 openmui-video 制作；对标三部播放量几百万到上千万的 agent 代码动画视频（promo-video 设计文档） |
 | D-52 | 协作流程：单个 PR，每一轮修改一个 commit 作为检查点 |
 | D-53 | 每个里程碑、展示、模块都有验收标准（实施计划 §19）；能自动检查的进 CI |
-| D-55 | **独立组件放在 `modules/` 下**（参考 mcpp 的 `modules/`）：anim、unicode、text、raster、gpu 和各个 gpu 后端。它们不依赖 openmui 的任何其他包，只依赖标准库、彼此和第三方库，所以随时可以拆成独立仓库；openmui 专用的包（spec、runtime、gfx/render、host、组件、video、lang）留在原来的位置 |
+| D-55 | **独立组件放在 `modules/` 下**（参考 mcpp 的 `modules/`）：anim、unicode、text、raster、gpu 和各个 gpu 后端。它们不依赖 openmui 的任何其他包，只依赖标准库、彼此和第三方库，所以随时可以拆成独立仓库；openmui 专用的包（spec、runtime、host、组件、video、lang）留在原来的位置 |
+| D-57 | 渲染层抽象（`modules/render`）、布局（`modules/layout`）、图像（`modules/image`）、录制回放（`modules/record`）、文件和视频输出（`modules/encode`）都是独立组件，共用几何模块 `modules/geom`；`gfx/` 取消；平台相关的代码一律经由 `mcpplibs.os`（实施计划 §21） |
 | D-56 | mcpp-index 里已经有知名、跨平台的库时优先使用（JSON：nlohmann.json；TOML：tomlplusplus；任务：taskflow；队列：concurrentqueue；PNG：libpng；Markdown：md4c；排版：HarfBuzz / FreeType / fribidi）；只有生态里没有、或者确定性要求无法满足时才自己实现（实施计划 §21） |
 | D-54 | openmui-video 的渲染速度、增量渲染（四层缓存）、GPU 和硬件编码、预览和可再编辑性都作为指标，每一项都要优于业界最好的工具（实施计划 §12.6） |
 

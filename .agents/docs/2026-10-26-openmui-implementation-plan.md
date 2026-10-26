@@ -2,7 +2,7 @@
 
 > 状态：**草案 v1.3**（2026-10-26），待 review
 > 依据：[architecture](2026-10-26-openmui-architecture-design.md)（D-01 到 D-37）、[spec](2026-10-26-openmui-spec-design.md)、[component-binding](2026-10-26-openmui-component-binding-design.md)、[view-data-files](2026-10-26-openmui-view-data-files-design.md)、[canvas-markdown](2026-10-26-openmui-canvas-markdown-design.md)。
-> 本计划新增的决策是 **D-38 到 D-56**（§21），已经同步到架构文档 §13。**验收标准见 §19。**
+> 本计划新增的决策是 **D-38 到 D-57**（§21），已经同步到架构文档 §13。**验收标准见 §19。**
 > 写法说明：标注了路径或来源的内容是事实；性能数字都是**目标值**，需要实测校准；命令和 API 是示意。
 
 ---
@@ -130,31 +130,32 @@ mui/                                   （仓库根目录 = openmui 伞包 + wor
 │   ├── src/                           #   值类型模块 openmui.spec（生成 + 少量手写）
 │   └── conformance/{S,A,B,C}/         #   CTS
 │
-├── modules/                           # ★ 独立组件（D-55）：不依赖 openmui 的任何其他包，随时可以拆成独立仓库
+├── modules/                           # ★ 独立组件（D-55、D-57）：不依赖 openmui 的任何其他包，随时可以拆成独立仓库
+│   ├── geom/                          # ★ openmui-geom：点、尺寸、矩形、边距、颜色、仿射变换、像素对齐（modules 共用的几何类型）
 │   ├── anim/                          # ★ openmui-anim：**通用动画引擎**（只依赖标准库；UI、视频、游戏、画布共用，§6.0）
-│   ├── unicode/                       # ★ openmui-unicode：UAX#14 断行、UAX#9 双向、UAX#29 字素，表由 tools/gen 从 Unicode 数据生成
+│   ├── layout/                        # ★ openmui-layout：flex / grid / 栈 / 绝对定位 / 滚动的布局引擎（自带节点存储，增量、带缓存、结果确定）
+│   ├── unicode/                       # ★ openmui-unicode：UAX#14 断行、UAX#29 字素，表由 tools/gen 从 Unicode 数据生成
 │   ├── text/                          # ★ openmui-text：字体、排版、断行、字体回退、编辑（依赖 unicode、HarfBuzz）
-│   ├── raster/                        # ★ openmui-raster：确定性的 CPU 2D 光栅器（路径、描边、渐变、图片、PNG）
+│   ├── raster/                        # ★ openmui-raster：确定性的 CPU 2D 光栅器（路径、描边、渐变、合成）
+│   ├── image/                         # ★ openmui-image：图像缓冲、PNG / JPEG 编解码（libpng、zlib）
+│   ├── render/                        # ★ openmui-render：**渲染层抽象**：显示列表、渲染器接口、CPU 后端（基于 raster）、GPU 后端（基于 gpu）、内置 Slang 着色器
 │   ├── gpu/                           # ★ openmui-gpu：UI 尺度的 GPU 抽象层接口 omui.gpu
 │   ├── gpu-sdl/                       # ★ openmui-gpu-sdl：后端（Vulkan / Metal / D3D12）
 │   ├── gpu-gles/                      #   openmui-gpu-gles（M6：嵌入式 Linux、WebGL2）
-│   └── gpu-webgpu/  gpu-vk/           #   以后再做
+│   ├── gpu-webgpu/  gpu-vk/           #   以后再做
+│   ├── record/                        # ★ openmui-record：录制和回放：带时间戳的事件 / 动作流（NDJSON），可以跳转、可以转成测试
+│   └── encode/                        # ★ openmui-encode：文件输出：PNG 序列、视频编码（经 mcpplibs.os 启动 ffmpeg 并用管道送帧，可选硬件编码）、音频混合
 │
 ├── runtime/
-│   ├── core/                          # ★ openmui-core：树、ID、signal、verb、事件、焦点、语义、arena、时钟（来自 anim）
-│   ├── layout/                        # ★ openmui-layout：flex / grid / 栈 / 滚动 / 虚拟化
-│   ├── view/                          # ★ openmui-view：视图 IR、对账、立即模式（openmui.im）、保留模式（openmui.rt）、表达式（openmui.expr）、视图文档
-│   ├── semantic/                      # ★ openmui-semantic：语义树、动作执行、效果分级、信封、录制和回放
+│   ├── core/                          # ★ openmui-core：signal、verb、输入事件和按键、arena、句柄、JSON、任务调度、诊断
+│   ├── view/                          # ★ openmui-view：节点树、组件模型、帧流水线、视图 IR、对账、立即模式（openmui.im）、保留模式（openmui.rt）、表达式（openmui.expr）、视图文档
+│   ├── semantic/                      # ★ openmui-semantic：语义树、动作执行、效果分级、信封、查询
 │   ├── agent/                         # ★ openmui-agent：openmui.tree@0.1 本地端点（mcpplibs.os.ipc）、协议
-│   ├── platform/                      # ★ openmui-platform：平台服务（依赖 mcpplibs/os）
+│   ├── platform/                      # ★ openmui-platform：平台服务（**全部经由 mcpplibs/os**，每个服务标注效果分级）
 │   ├── abi/                           # ★ openmui-abi：openmui.h 的实现（C ABI 的对外导出）
 │   ├── player/                        # ★ openmui-player：加载清单、视图文档和脚本
 │   ├── reflect/                       # ★ openmui-reflect：C++26 反射的易用层（只在 GCC 16 下可选）
 │   └── devtools/                      # ★ openmui-devtools：检查协议、遥测、基准测试接口、像素溯源
-│
-├── gfx/
-│   ├── render/                        # ★ openmui-render：UI 渲染器（只写一次；GPU 路径基于 omui.gpu，CPU 路径基于 raster）
-│   └── shaders/                       #   内置着色器（Slang）：SDF 图元、文字、模糊、效果模板
 │
 ├── hosts/
 │   ├── sdl3/                          # ★ openmui-host-sdl3：桌面（以后包括移动）
@@ -220,7 +221,7 @@ modules  = true
 [workspace]
 members = [
   "spec", "modules/*",
-  "runtime/*", "gfx/*", "hosts/*", "components/*", "themes/*",
+  "runtime/*", "hosts/*", "components/*", "themes/*",
   "video", "lang/*", "tools/*", "examples/*", "showcase/*", "tests/*",
 ]
 
@@ -274,11 +275,11 @@ UI 线程（C++）：
 ### 3.3 依赖方向（用 lint 强制）
 
 ```
-modules/*（anim、unicode、text、raster、gpu）：只依赖标准库、彼此和第三方库，不依赖任何 openmui 包
+modules/*（geom、anim、layout、unicode、text、raster、image、render、gpu、record、encode）：只依赖标准库、彼此和第三方库，不依赖任何 openmui 包
 anim ← core（时钟来自 anim）     nlohmann.json、taskflow（tf）、concurrentqueue ← core（来自 mcpp-index，D-56）
-spec ← core ← {layout, text 适配} ← view（把 anim 适配到节点属性）← semantic ← agent（另外依赖 platform 的 IPC）
+spec ← core ← view（节点树、组件；把 layout、text、anim 适配到节点上；产出 render 的显示列表）（把 anim 适配到节点属性）← semantic ← agent（另外依赖 platform 的 IPC）
                                          ↑
-                    render ← {gpu ← gpu-*, raster, text}
+                    render ← {gpu ← gpu-*, raster, image}
                     host-* ← (core, render)      platform ← mcpplibs/os
 component ← (view 的公开 API)      lang-* ← openmui.h ← abi
 video ← (view, anim, host-headless, render, ffmpeg)      game / canvas ← anim
@@ -973,7 +974,8 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
 | D-51 | S5 是 **openmui 宣传片**：约 60 秒主片 + 15 秒短片，双语字幕；用 openmui-video 制作，全部是实时渲染的真实场景；对标三部播放量几百万到上千万的 agent 代码动画视频，拆解、分镜、验收见 promo-video 设计文档 |
 | D-52 | 协作流程：单个 PR，每一轮修改一个 commit 作为检查点 |
 | D-53 | 每个里程碑、展示、模块都有验收标准；能自动检查的进 CI，不能自动检查的写成检查清单并由维护者签字 |
-| D-55 | **独立组件放在 `modules/` 下**（参考 mcpp 的 `modules/`）：anim、unicode、text、raster、gpu 和各个 gpu 后端；它们不依赖 openmui 的任何其他包，随时可以拆成独立仓库；openmui 专用的包留在 spec / runtime / gfx / hosts / components 等原来的位置 |
+| D-55 | **独立组件放在 `modules/` 下**（参考 mcpp 的 `modules/`）：它们不依赖 openmui 的任何其他包，随时可以拆成独立仓库；openmui 专用的包留在 spec / runtime / hosts / components 等原来的位置 |
+| D-57 | **渲染层抽象也是独立组件**：`modules/render`（显示列表、渲染器接口、CPU 和 GPU 后端、内置着色器），`gfx/` 目录取消；布局引擎 `modules/layout`、图像编解码 `modules/image`、录制回放 `modules/record`、文件和视频输出 `modules/encode` 同样放在 `modules/` 下；这些模块共用一个只依赖标准库的几何模块 `modules/geom`（规范保留自己的线上值类型，运行时在边界处转换）。**平台相关的代码一律经由 `mcpplibs.os`**（文件、目录、进程、管道、IPC），窗口和输入经由 SDL3 |
 | D-56 | **mcpp-index 里已经有知名、跨平台的库时，优先使用生态里的库，不自己实现**：JSON 用 `nlohmann.json`，TOML 用 `marzer.tomlplusplus`，任务系统用 `taskflow`，无锁队列用 `compat.concurrentqueue`，PNG 用 `compat.libpng`，Markdown 用 `compat.md4c`，排版用 HarfBuzz / FreeType / fribidi。**只有两种情况自己实现**：生态里没有（UAX#14 断行表）；或者确定性要求无法满足（anim 的数学函数，因为各平台 libm 的结果不同；CPU 光栅器，因为 pixman 的 SIMD 路径在不同平台上取整不同）。缺少的库优先补充到 mcpp-index（§17.2） |
 | D-54 | openmui-video 的渲染速度、修改后的增量渲染（四层缓存）、GPU 和硬件编码、预览和可再编辑性都作为指标，**每一项都要优于业界最好的工具**（§12.6）；修改以旁路数据文件 `.timeline.omui.json` 叠加在代码之上 |
 

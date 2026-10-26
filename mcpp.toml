@@ -20,6 +20,7 @@ members = [
     "modules/memory",
     "modules/anim",
     "modules/layout",
+    "modules/unicode",
     "modules/raster",
     "modules/image",
     "modules/render",

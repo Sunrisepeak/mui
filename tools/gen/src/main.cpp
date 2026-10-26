@@ -8,6 +8,8 @@
 //       a component package's script builders and view-document schema
 //   omui-gen check <file.contract.omui.toml>... --registry <dir> [--json]
 //       diagnostics only
+//   omui-gen unicode <ucd-dir> --version <x.y.z> --out <dir> [--tests <dir>] [--check]
+//       openmui-unicode's tables (and a subset of the UCD's conformance tests)
 //
 // --check writes nothing and fails (exit 1) when an output differs from what
 // is on disk: CI's proof that committed outputs are current. --json prints
@@ -16,6 +18,7 @@ import std;
 import openmui.gen.model;
 import openmui.gen.read;
 import openmui.gen.emit;
+import openmui.gen.unicode;
 
 using namespace omui::gen;
 
@@ -27,6 +30,8 @@ struct Options {
     std::filesystem::path              out;
     std::filesystem::path              registry;
     std::string                        module;
+    std::string                        version;
+    std::filesystem::path              tests;
     bool                               check = false;
     bool                               json = false;
 };
@@ -34,7 +39,8 @@ struct Options {
 int usage() {
     std::println(std::cerr, "usage: omui-gen registry <registry-dir> --out <spec-dir> [--check] [--json]\n"
                             "       omui-gen stubs <contract>... --registry <dir> --module <name> --out <dir> [--check] [--json]\n"
-                            "       omui-gen check <contract>... --registry <dir> [--json]");
+                            "       omui-gen check <contract>... --registry <dir> [--json]\n"
+                            "       omui-gen unicode <ucd-dir> --version <x.y.z> --out <dir> [--tests <dir>] [--check]");
     return 2;
 }
 
@@ -53,6 +59,8 @@ std::optional<Options> parse_args(int argc, char** argv) {
         else if (a == "--out") { auto v = value(); if (!v) return std::nullopt; o.out = *v; }
         else if (a == "--registry") { auto v = value(); if (!v) return std::nullopt; o.registry = *v; }
         else if (a == "--module") { auto v = value(); if (!v) return std::nullopt; o.module = *v; }
+        else if (a == "--version") { auto v = value(); if (!v) return std::nullopt; o.version = *v; }
+        else if (a == "--tests") { auto v = value(); if (!v) return std::nullopt; o.tests = *v; }
         else if (a.starts_with("--")) return std::nullopt;
         else o.inputs.emplace_back(a);
     }
@@ -114,6 +122,31 @@ int run_registry(const Options& o) {
     return 0;
 }
 
+int run_unicode(const Options& o) {
+    if (o.inputs.size() != 1 || o.out.empty() || o.version.empty()) return usage();
+    auto tables = emit_unicode_tables(o.inputs[0], o.version);
+    if (!tables) {
+        std::println(std::cerr, "omui-gen: {}", tables.error());
+        return 1;
+    }
+    Writer w{o.check};
+    w.put(o.out / "tables.cppm", *tables);
+    if (!o.tests.empty()) {
+        for (auto [file, step] : {std::pair{"LineBreakTest.txt", 4}, std::pair{"GraphemeBreakTest.txt", 1},
+                                  std::pair{"WordBreakTest.txt", 1}}) {
+            auto subset = unicode_test_subset(o.inputs[0] / file, step);
+            if (!subset) {
+                std::println(std::cerr, "omui-gen: {}", subset.error());
+                return 1;
+            }
+            w.put(o.tests / file, *subset);
+        }
+    }
+    if (o.check && w.stale) return 1;
+    std::println("omui-gen: {} file(s) written", w.written);
+    return 0;
+}
+
 int run_contracts(const Options& o, bool emit) {
     if (o.inputs.empty() || o.registry.empty()) return usage();
     if (emit && (o.module.empty() || o.out.empty())) return usage();
@@ -141,5 +174,6 @@ int main(int argc, char** argv) {
     if (options->command == "registry") return run_registry(*options);
     if (options->command == "stubs") return run_contracts(*options, true);
     if (options->command == "check") return run_contracts(*options, false);
+    if (options->command == "unicode") return run_unicode(*options);
     return usage();
 }

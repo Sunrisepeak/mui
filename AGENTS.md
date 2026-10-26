@@ -16,4 +16,6 @@
 - 组件和 native 模块都是“契约优先”：先写 `*.contract.omui.toml` / `*.native.omui.toml`，绑定由生成器产出，不手写。
 - 脚本永远不进入每帧路径。
 - ID 不能依赖显示文本；可交互的节点要写显式 ID。
-- 后缀：`<名字>.<种类>.omui.toml`、`*.omui`、`*.omui.json`；逻辑代码保持原生后缀。`.omui` 必须保持人和 agent 都容易读懂（`omui-language` 设计文档 §2）。
+- 视图代码优先（各语言原生的 builder）；数据文件一律命名为 `<名字>.<种类>.omui.{toml,json}`；着色器用 `.slang`；逻辑代码保持原生后缀。builder 和数据文件都要让人和 agent 容易读懂（`view-data-files` 设计文档 §2）。
+- 仓库根目录就是 `openmui` 伞包；`mcpp/` 只放构建系统的代码；入口在 `src/entry/`。
+- 渲染器只写一次，基于 `omui.gpu` 抽象层；各后端只依赖这个抽象层的接口。

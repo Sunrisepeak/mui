@@ -1,7 +1,7 @@
 # openmui 组件、绑定与工程模型设计
 
-> 状态：**草案 v0.2**（2026-10-26），待 review
-> 总体架构见 [architecture](2026-10-26-openmui-architecture-design.md)；契约的结构由 [spec](2026-10-26-openmui-spec-design.md) 定义；视图和数据文件见 [omui-language](2026-10-26-openmui-omui-language-design.md)。
+> 状态：**草案 v0.3**（2026-10-26），待 review
+> 总体架构见 [architecture](2026-10-26-openmui-architecture-design.md)；契约的结构由 [spec](2026-10-26-openmui-spec-design.md) 定义；视图和数据文件见 [view-data-files](2026-10-26-openmui-view-data-files-design.md)。
 > 命名（D-25）：包和模块用 `openmui`，C++ 命名空间用 `omui`。
 
 ---
@@ -38,7 +38,6 @@ openmui-ui-slider/
 ├── src/
 │   ├── slider.cppm                        # C++ 行为实现
 │   └── slider.parts.cppm                  # 部件布局（外观交给主题）
-├── views/slider.omui                      # 可选：默认的视觉组合
 └── tests/test_slider.cpp                  # S / A / B 用例（骨架由契约生成）
 （没有手写的绑定代码）
 ```
@@ -88,7 +87,7 @@ thumb = "motion.fast"
 *.contract.omui.toml ──openmui.rules──► C++：属性存储、事件枚举、动作分发、CRTP 基类（模块分区 :contract）
                                      ├─► C ABI：属性 / 事件 / 动作的 ID 表
                                      ├─► TS .d.ts / Python .pyi / Lua 的 LuaLS 注解和类型化封装
-                                     ├─► .omui 编译器和语言服务器的类型信息
+                                     ├─► 视图文档的 schema 片段和类型信息
                                      ├─► 语义检查规则
                                      ├─► 文档和画廊条目
                                      ├─► CTS 骨架
@@ -121,13 +120,12 @@ public:
 ## 3. 契约的两种来源，编译成同一种 IR
 
 ```
-*.contract.omui.toml（用 C++ 实现的组件；数据形式，工具和 agent 都容易读取） ─┐
-                                                                            ├─► 契约 IR ──► 所有生成产物
-.omui 里的 component 声明（用 DSL 组合出来的组件，见 omui-language §3.4）   ─┘
+*.contract.omui.toml（用 C++ 实现的组件；数据形式，工具和 agent 都容易读取）       ─┐
+*.view.omui.json 里带 interface 的 component（语言中立的组合组件，见 view-data-files §3.3）─┴─► 契约 IR ──► 所有生成产物
 ```
 
 - **规范 registry 里的 Core 组件契约也使用同样的结构**，所以官方组件和第三方组件完全一致。
-- **只在一种语言里使用的组合组件**（比如 TS 里写的一个函数），可以不写契约，因为它是由契约组件组合出来的，语义仍然完整。**需要跨语言复用时，就必须有契约**：要么写 `.contract.omui.toml`，要么用 `.omui` 的 `component` 声明。
+- **只在一种语言里使用的组合组件**（比如 TS 里写的一个函数），可以不写契约，因为它是由契约组件组合出来的，语义仍然完整。**需要跨语言复用时，就必须有契约**：要么用 C++ 实现并写 `.contract.omui.toml`，要么写成带 `interface` 的视图文档。
 - **为什么契约不写进 mcpp.toml**：一个组件包可能有 20 多个组件，mcpp.toml 会膨胀，构建配置和 API 定义也会混在一起。判断标准是：**包是什么、包含什么、应用需要什么权限**，写进 mcpp.toml；**某个组件的接口长什么样**，写进契约文件。
 
 ---
@@ -138,7 +136,8 @@ public:
 |---|---|---|
 | `kind` | 全部 | spec / runtime / backend / host / bridge / component / native / theme / lang / tool / app |
 | `contracts` | component、native | 契约文件的 glob |
-| `views` | component、app | `.omui` / `.omui.json` 的 glob（可选） |
+| `views` | component、app | `*.view.omui.json` 的 glob（可选） |
+| `shaders` | component、app | `*.slang` 的 glob（自定义效果和材质） |
 | `behaviors` | component、app | `.behavior.omui.toml` 的 glob |
 | `themes` | theme、component | `.theme.omui.toml` 的 glob |
 | `id` | app | 反向域名形式的应用 ID |
@@ -158,7 +157,6 @@ public:
 [package.metadata.openmui]
 kind      = "component"
 contracts = ["contract/*.contract.omui.toml"]
-views     = ["views/*.omui"]
 
 # 应用
 [package.metadata.openmui]
@@ -166,7 +164,7 @@ kind       = "app"
 id         = "org.example.notes"
 spec       = "0.1"
 extensions = ["OMUI_EXT_ime"]
-views      = ["ui/*.omui"]
+views      = ["ui/*.view.omui.json"]          # 可选
 
 [package.metadata.openmui.verbs."note.delete"]
 effect = "irreversible"
@@ -178,13 +176,12 @@ fs = { effect = "reversible", scope = "~/Documents/Notes" }
 
 ---
 
-## 5. 写视图的几种方式（视图文件可选，D-28）
+## 5. 写视图的几种方式（代码优先，视图文件可选；D-28、D-37）
 
 | 写法 | 立即模式 | 保留模式 |
 |---|---|---|
-| C++ / TS / Python / Lua 原生代码 | ✅ | ✅ builder |
-| `.omui` | — | ✅ 可选 |
-| `.omui.json` | — | ✅ 可选 |
+| C++ / TS（可选 TSX）/ Python / Lua 原生代码，布局和逻辑写在一起 | ✅ | ✅ builder |
+| `*.view.omui.json` 视图文档（数据） | — | ✅ 可选 |
 
 ### 5.1 立即模式（C++）
 
@@ -198,14 +195,16 @@ if (ui.button("保存", {.verb = "doc.save", .effect = omui::Effect::reversible}
 
 ### 5.2 保留模式：同一个视图的几种写法（S 级用例：语义树必须完全相同）
 
-只有可交互的按钮写了显式 ID `inc`；Column 和 Text 使用结构化的自动 ID（`column:0`、`column:0/text:0`），五种写法用同一条规则（spec S-8）。
+只有可交互的按钮写了显式 ID `inc`；Column 和 Text 使用结构化的自动 ID（`column:0`、`column:0/text:0`），所有写法用同一条规则（spec S-8）。四种语言加上视图文档（view-data-files §3.1），产出的语义树完全相同。
+
+`fmt(...)` 是**表达式组合函数**：构造一棵由原生代码同步求值的表达式树（view-data-files §4）；写成闭包的话，在脚本里就是异步的。
 
 ```cpp
 // C++
 auto counter() -> omui::View {
     auto count = omui::signal(0);
     return omui::column({.gap = 8}, {
-        omui::text({.text = omui::computed([=] { return std::format("点击了 {} 次", count()); })}),
+        omui::text({.text = omui::fmt("点击了 {} 次", count)}),
         omui::button({.id = "inc", .text = "加一",
                       .on_activate = [=] { count.update([](int v) { return v + 1; }); }}),
     });
@@ -216,7 +215,7 @@ auto counter() -> omui::View {
 // TS（builder；也可以用 TSX，esbuild 原生支持，jsxFactory 指向 openmui）
 const count = signal(0);
 export const Counter = () => column({ gap: 8 }, [
-  text({ text: () => `点击了 ${count()} 次` }),
+  text({ text: fmt("点击了 {} 次", count) }),
   button({ id: "inc", text: "加一", onActivate: () => count.update(v => v + 1) }),
 ]);
 ```
@@ -226,7 +225,7 @@ export const Counter = () => column({ gap: 8 }, [
 count = omui.signal(0)
 def counter():
     with omui.column(gap=8):
-        omui.text(text=lambda: f"点击了 {count()} 次")
+        omui.text(text=omui.fmt("点击了 {} 次", count))
         omui.button(id="inc", text="加一", on_activate=lambda: count.update(lambda v: v + 1))
 ```
 
@@ -235,23 +234,20 @@ def counter():
 local count = omui.signal(0)
 local function Counter()
   return omui.Column { gap = 8,
-    omui.Text   { text = function() return ("点击了 %d 次"):format(count()) end },
+    omui.Text   { text = omui.fmt("点击了 {} 次", count) },
     omui.Button { id = "inc", text = "加一", on_activate = function() count:update(function(v) return v + 1 end) end },
   }
 end
 ```
 
-```text
-// .omui
-omui 0.1
-import openmui.ui.base
-view Counter {
-    signal count: int = 0
-    Column { gap: 8
-        Text { text: format("点击了 {} 次", count) }
-        Button #inc { text: "加一"; on activate: count += 1 }
-    }
-}
+```tsx
+// TSX（可选；esbuild 原生支持 JSX，jsxFactory 指向 openmui）
+export const Counter = () => (
+  <Column gap={8}>
+    <Text text={fmt("点击了 {} 次", count)} />
+    <Button id="inc" text="加一" onActivate={() => count.update(v => v + 1)} />
+  </Column>
+);
 ```
 
 ### 5.3 统一的机制
@@ -259,7 +255,7 @@ view Counter {
 - 立即模式每帧声明，再按 ID 和影子树对账；没有事件、定时器、动画时**不调用 build**。
 - 保留模式在 signal 变化时局部重建。
 - 对账之后两者是同一棵树，可以互相嵌套。MCU 默认用保留模式。
-- **脚本里写的 computed 闭包是异步的**（在逻辑线程上求值，最多晚一帧）；需要同步的场景，用 `.omui` 里的表达式或原生绑定。
+- **脚本里写的 computed 闭包是异步的**（在逻辑线程上求值，最多晚一帧）；需要同步的场景，用表达式组合函数（`fmt`、`select`、`lookup` …）或原生绑定。
 - **从脚本里使用立即模式**：不推荐，因为每个控件调用都要跨语言。Lua 写工具时可以例外。
 
 ---
@@ -270,11 +266,11 @@ view Counter {
 
 | 分类 | 操作 |
 |---|---|
-| 视图 | `mount(slot, view)` / `unmount(slot)`；`view(path)` 加载 `.omui` / `.omui.json` |
+| 视图 | `mount(slot, view)` / `unmount(slot)`；`view(path)` 加载 `*.view.omui.json` |
 | 节点 | `find(selector)` → 句柄；`get(h, prop)`；`set(h, props)`（批量，在帧边界生效） |
 | 事务 | `batch(fn)` |
 | 事件 | `on(h, event, fn)` / `off`（高频事件按帧合并） |
-| 状态 | `signal(v)`、`computed(fn)`；`bind(h.prop, signal)` |
+| 状态 | `signal(v)`、`computed(fn)`；`bind(h.prop, signal)`；表达式组合函数 `fmt` / `select` / `eq` / `not_` / `lookup` … |
 | Verb | `verb(name, {effect, answer}, fn)` / `invoke(name, args)` |
 | 模型 | `model(name)` / `push(batch)` / `patch(range)`：列式或二进制，批量交付 |
 | 异步 | `task`、`timer`、`await` |
@@ -296,7 +292,7 @@ view Counter {
 
 1. 脚本永远不进入每帧路径。
 2. 能声明的就不写回调。
-3. 同步的绑定用表达式（兼容 CEL 的子集）由原生代码求值，不用 JS。
+3. 同步的绑定用表达式：代码里用组合函数，数据文件里用兼容 CEL 的字符串，都由原生代码求值，不用 JS。
 4. 跨语言调用要粗粒度、批量；高频事件按帧合并。
 5. 大数据通过列式或二进制缓冲交付（ArrayBuffer / memoryview / userdata），虚拟化留在 C++ 里。
 
@@ -344,7 +340,7 @@ const hits = await search.query("spring", 20);
 
 ```
 ┌─────────────── 应用 ──────────────────────────────────────────────────────┐
-│ 视图    原生 builder，或可选的 ui/*.omui / *.omui.json                        │
+│ 视图    原生 builder（和逻辑写在一起），或可选的 ui/*.view.omui.json             │
 │ 逻辑    logic/*.ts │ *.py │ *.lua（事件处理、verb、流程；不进入每帧路径）      │
 │ 插件    plugins/*（脚本或 Wasm，放进沙箱，权限受效果分级约束）                │
 │ 原生    native/*（kind=native：热点计算）+ 自定义组件（kind=component）       │
@@ -355,8 +351,8 @@ const hits = await search.query("spring", 20);
 ```
 notes/                                   （mcpp new notes --template openmui:app-mixed）
 ├── mcpp.toml
-├── ui/{notes,preview}.omui
-├── logic/main.ts
+├── logic/{main,views}.ts            # 视图和逻辑（TS builder）
+├── ui/preview.view.omui.json        # 可选：交给设计器维护的视图
 ├── plugins/export_pdf.py
 ├── plugins/macros.lua
 ├── native/{search.native.omui.toml,search.cppm}
@@ -372,7 +368,7 @@ openmui-ui-markdown = "0.1"
 [package.metadata.openmui]
 kind    = "app"
 id      = "org.example.notes"
-views   = ["ui/*.omui"]
+views   = ["ui/*.view.omui.json"]
 natives = ["native/*.native.omui.toml"]
 scripts = [
   { lang = "ts",  entry = "logic/main.ts" },
@@ -432,7 +428,7 @@ mcpp 的模板是包自带的纯数据：`templates/<name>/template.toml` 加若
 
 | openmui 的特性 | 入口 | 适合 |
 |---|---|---|
-| `entry-player` | 播放器：读取清单，加载视图和脚本 | 纯 TS / Python / Lua 应用 |
+| `entry-player` | 播放器（`openmui.player`，属于运行时）：读取清单，加载视图和脚本 | 纯 TS / Python / Lua 应用 |
 | `entry-app` | 框架提供 `main`，再调用应用实现的 `omui_app()` 回调（类似 SDL3 的 main callbacks） | 不想自己写 `main` 的 C++ 应用 |
 | 都不启用 | 应用自己写 `main` | 需要定制启动流程、或者嵌入其他宿主的情况 |
 
@@ -443,6 +439,7 @@ extern "C++" auto omui_app() -> omui::AppSpec {
 }
 ```
 
+- **代码放在哪里**：入口是**运行时代码，不是构建代码**。入口文件放在伞包的 `src/entry/`（`player.cpp`、`app.cpp`），每个只有几行；播放器的逻辑放在 `runtime/player/`（模块 `openmui.player`）。仓库根目录下的 `mcpp/` 只放构建系统相关的东西（`openmui.rules`）。
 - **过渡办法（现在就能用）**：mcpp 的 `kind = "app"` 要求 `main` 指向本包里的一个文件，所以模板先生成一个可见的 `src/main.cpp`，只有一行，注释写明“由 openmui 模板生成，一般不需要修改”。
 - **最终形态**：已经向 mcpp 提了 issue [#845](https://github.com/mcpp-community/mcpp/issues/845)，提议在目标里支持 `entry = "openmui"`（由依赖的某个特性提供入口），用来代替 `main`。落地之后，模板默认启用 `entry-player` 或 `entry-app`，工程里就看不到 `main.cpp` 了。
 - **测试**：mcpp test 只发现 `tests/**/*.cpp`，所以模板里带一个 `tests/test_ui.cpp`，由它运行 `tests/**/*.test.{ts,py,lua}` 这些语义测试脚本。
@@ -451,9 +448,10 @@ extern "C++" auto omui_app() -> omui::AppSpec {
 
 ```
 契约 ──生成──► C++ 分区 / C ABI / 各语言封装 / 类型信息 / CTS 骨架
-*.omui / *.omui.json ─► 类型检查 + 语义检查 ─► 发布：C++ 代码或 .omuic；开发：解释执行，可热重载
+*.view.omui.json ────► schema + 类型 + 语义检查 ─► 发布：嵌入成二进制格式；开发：直接加载，可热重载
 *.behavior.omui.toml ─► 编译成原生状态机
-assets/ ──────────────► 按目标烘焙：字体子集、图片、着色器（SPIR-V → MSL / DXIL）
+*.slang ─────────────► rules-slang：SPIR-V / MSL / DXIL / GLSL ES / WGSL + 反射得到参数
+assets/ ──────────────► 按目标烘焙：字体子集、图片
 deps.* + 脚本 ────────► npm / uv / Lua 获取 → TS 转 JS 并打包 → 打包 Python / Lua
 src/*.cppm ───────────► mcpp 编译模块 ─► 链接运行时 + 选定的后端 ─► mcpp-plugins dist：appimage / wix / apple / apk / web
 ```
@@ -484,7 +482,7 @@ src/*.cppm ───────────► mcpp 编译模块 ─► 链接�
 - [ ] 读屏器可用，支持双向文字和输入法
 - [ ] 主题 token 全部生效，暗色、亮色、两种密度都正常
 - [ ] S / A / B 级用例；agent 用例（能用 find + act 操作，不可逆动作会被拦下）
-- [ ] 原生 builder 和 `.omui` 两种写法、三种语言都有示例；有文档；有画廊条目
+- [ ] 四种语言的 builder 和视图文档都有示例；有文档；有画廊条目
 
 ---
 

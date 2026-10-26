@@ -1,12 +1,12 @@
 # openmui 总体架构设计
 
-> 状态：**草案 v0.2**（2026-10-26），待 review
+> 状态：**草案 v0.3**（2026-10-26），待 review
 > 仓库：`Sunrisepeak/mui`（私有，暂定）。**内部的包名、模块名、命令、文档一律使用 openmui**；等各方面成熟后，再评估是否迁移到 openmui 的公开仓库。
 > 配套文档：
 > - [规范设计](2026-10-26-openmui-spec-design.md)
 > - [组件、绑定与工程模型](2026-10-26-openmui-component-binding-design.md)
 > - [画布、Markdown 与旗舰示例](2026-10-26-openmui-canvas-markdown-design.md)
-> - [视图与数据文件：`.omui` 语言、视图文档、表达式、行为、后缀体系](2026-10-26-openmui-omui-language-design.md)
+> - [视图与数据文件：代码优先、视图文档、表达式、行为、后缀体系](2026-10-26-openmui-view-data-files-design.md)
 > - 前期调研见 `research/`（命名已经过时）
 > 写法说明：标注了路径的内容是本地已有事实；其余都是设计提议。示意代码和命令只表达设计意图，接口名还没有定。
 
@@ -24,7 +24,7 @@
 ### 1.1 目标
 
 1. 统一的语义层：节点、动作、效果分级、来源标记、稳定 ID。
-2. 一个运行时同时支持立即模式和保留模式，两者产出同一棵树。保留模式可以用各语言原生的 builder，也可以用可选的 `.omui` 视图语言或 `.omui.json` 视图文档。
+2. 一个运行时同时支持立即模式和保留模式，两者产出同一棵树。保留模式**代码优先**：布局和逻辑一起用各语言原生的 builder 来写；`*.view.omui.json` 视图文档是给工具和 agent 用的可选数据格式。
 3. 渲染和宿主都可以替换，用 S / L / X 三种边界区分（见 §4.3）。
 4. 组件“契约优先”：C++ 实现，三种语言的绑定自动生成。
 5. 由 mcpp.toml 驱动整个工程，构建、运行、测试、打包都走 mcpp；工具和应用的分发走 xlings。
@@ -70,17 +70,18 @@
 │ 语言 openmui-lang-*：ts · py · lua（另外有 wasm 插件沙箱）                         │
 │ 工具 openmui-tools：生成器 · openmui.rules · 检查器 · 基准测试 · MCP 服务器         │
 ├─────────────────────────────── 运行时面（openmui-runtime，C++ Modules）──────────┤
-│ 写法：  openmui.im（立即模式）──对账──► 同一棵节点树 ◄── openmui.rt（signals + builder / .omui）│
+│ 写法：  openmui.im（立即模式）──对账──► 同一棵节点树 ◄── openmui.rt（signals + builder / 视图文档）│
 │ 核心：  树与 ID · 状态与 Verb · 事件、焦点与导航 · 输入法 · 任务系统               │
 │ 布局：  flex / grid / 栈 / 滚动 / 虚拟化      文本：富文本、排版、双向文字、回退、msdf │
 │ 动画：  时钟 · tween / spring / decay · 过渡 · 时间线      语义：产出、动作、效果、审计 │
 ├─────────────────────────────── 后端面 ──────────────────────────────────────────┤
-│ 渲染 openmui-gfx-*：cpu（参考后端）· sdlgpu · gles · vk · mcu · 引擎宿主            │
+│ 渲染：render（UI 渲染器，只写一次）→ omui.gpu 抽象层 → gpu-sdl · gpu-gles · gpu-webgpu · gpu-vk │
+│       cpu（参考光栅器）· mcu（这两个不经过抽象层）· 着色器用 Slang                      │
 │ 宿主 openmui-host-*：sdl3 · opensal · web · godot …                                │
 │ 跨框架桥 openmui-bridge-*：imgui · qt · godot-control · atspi · dom                │
 ├─────────────────────────────── 规范面（openmui-spec）───────────────────────────┤
 │ registry → 6 个契约：①语义树 ②视图描述 ③状态与 Verb ④宿主接口 ⑤渲染接口 ⑥C ABI     │
-│ Core 配置档 + 扩展（OMUI_EXT_*）· 组件契约 · 动画语义 · .omui 语法 · 清单 schema · CTS │
+│ Core 配置档 + 扩展（OMUI_EXT_*）· 组件契约 · 动画语义 · 视图文档 schema · 效果着色器接口 · CTS │
 └─────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -89,9 +90,12 @@
 | 包 | 只允许依赖 |
 |---|---|
 | spec | 标准库（MCU 上是 `mcpplibs.std.freestanding`） |
-| openmui（伞包） | runtime、base 组件、默认主题；`rules` / `entry-*` 特性 |
+| openmui（伞包，仓库根目录） | runtime、base 组件、默认主题；`rules` / `entry-*` 特性 |
 | runtime | spec、C 库、mcpp-index 中的包 |
-| gfx / host | runtime 的后端接口 |
+| gfx/render | runtime 的渲染接口、`omui.gpu` |
+| gfx/gpu-* | 只依赖 `omui.gpu` 接口和各自的图形库 |
+| gfx/cpu、gfx/mcu | runtime 的渲染接口（不经过 `omui.gpu`） |
+| host | runtime 的宿主接口 |
 | bridge | **只依赖 spec**（这样它才算第二个实现者） |
 | component | **只依赖 runtime 的公开 API**，不能依赖任何后端 |
 | lang | 只依赖 `openmui.h`（C ABI） |
@@ -159,31 +163,44 @@ openmui 沿用同样的约定：
 ### 6.2 目录结构
 
 ```
-mui/                                  （仓库名；内部一律叫 openmui）
-├── openmui/                          # 伞包 openmui：再导出模块；rules 特性（openmui.rules）；entry-player / entry-app 特性；templates/
-│   ├── src/                          #   伞模块 openmui（再导出 runtime、base 组件、默认主题）
-│   ├── rules/                        #   构建插件 openmui.rules
-│   ├── entry/                        #   入口：player.cpp / app.cpp（等 mcpp#845 落地后由特性提供）
-│   └── templates/                    #   mcpp new 的模板：app-cpp / app-ts / app-py / app-lua / app-mixed / component / native / theme
-├── spec/                             # openmui-spec：只依赖标准库，有自己的版本号
-│   ├── SPEC.md                       #   契约正文（写法和 opensal / openas 一致）
-│   ├── registry/                     #   roles · actions · effects · motion · extensions · components/*.contract.omui.toml · omui.ebnf · view.schema.json · manifest schema
-│   ├── include/openmui.h             #   由 registry 生成
-│   ├── src/                          #   由 registry 生成的值类型模块（openmui.spec）
-│   └── conformance/                  #   CTS：分为 S / A / B / C 四级
-├── runtime/                          # openmui-runtime：core · im · rt · layout · text · anim · semantic · jobs · devtools
-├── gfx/{cpu,sdlgpu,gles,vk,mcu}/
+mui/                         （仓库根目录 = openmui 伞包 + workspace；内部一律叫 openmui）
+├── mcpp.toml                # [package] openmui · [workspace] members · [features] rules / entry-player / entry-app
+├── src/
+│   ├── openmui.cppm         # 伞模块：再导出 runtime、base 组件、默认主题
+│   └── entry/               # 入口（运行时代码）：player.cpp / app.cpp，每个只有几行（等 mcpp#845 落地后由特性提供）
+├── mcpp/                    # **只放构建系统相关的东西**
+│   └── rules/               #   构建插件 openmui.rules：契约、视图文档、行为、deps、着色器、资源烘焙、脚本打包
+├── templates/               # mcpp new 的模板（mcpp 约定必须放在包的根目录）：app-cpp / app-ts / app-py / app-lua / app-mixed / component / native / theme
+├── spec/                    # openmui-spec：只依赖标准库，有自己的版本号
+│   ├── SPEC.md              #   契约正文（写法和 opensal / openas 一致）
+│   ├── registry/            #   roles · actions · effects · motion · extensions · components/*.contract.omui.toml · view.schema.json · expr · effect · manifest schema
+│   ├── include/openmui.h    #   由 registry 生成
+│   ├── src/                 #   由 registry 生成的值类型模块（openmui.spec）
+│   └── conformance/         #   CTS：分为 S / A / B / C 四级
+├── runtime/                 # openmui-runtime：core · im · rt · layout · text · anim · semantic · jobs · player · devtools
+├── gfx/
+│   ├── render/              # UI 渲染器（只写一次，基于 omui.gpu）：实例化 SDF、msdf 文字、图层缓存、效果、外部纹理
+│   ├── gpu/                 # omui.gpu：UI 尺度的 GPU 抽象层接口
+│   ├── gpu-sdl/             # 后端：SDL_GPU（Vulkan / Metal / D3D12）——第一个
+│   ├── gpu-gles/            # 后端：GLES 3（嵌入式 Linux、WebGL2、合成器的 EGL）——第二个
+│   ├── gpu-webgpu/          # 后端：WebGPU（Web；也可以接 wgpu-native / Dawn）
+│   ├── gpu-vk/              # 后端：直接使用 Vulkan（引擎、合成器）
+│   ├── cpu/                 # CPU 参考光栅器（不经过抽象层，是正确性的基准）
+│   └── mcu/                 # MCU 渲染（不经过抽象层）
+├── shaders/                 # 内置着色器（Slang），由 rules-slang 编译到各后端的格式
 ├── hosts/{sdl3,opensal,web}/
 ├── bridges/{imgui,qt,godot-control,atspi,dom}/   （后期）
 ├── components/{base,data,editor,canvas,canvas-kit,markdown}/
 ├── themes/{tokens,default,compact}/
 ├── lang/{ts,py,lua}/
-├── tools/{gen,omui,lsp,inspector,bench,mcp}/   # gen：registry 生成器；omui：命令行（fmt / check / add）
-├── examples/                         # 01–13，见画布和 Markdown 的设计文档
-├── docs/                             # 用户文档、llms.txt
+├── tools/{gen,omui,inspector,bench,mcp}/   # gen：registry 生成器；omui：命令行（check / fmt / add）
+├── examples/                # 01–13，见画布和 Markdown 的设计文档
+├── docs/                    # 用户文档、llms.txt
 ├── AGENTS.md
-└── .agents/docs/                     # 设计记录（本目录）
+└── .agents/docs/            # 设计记录（本目录）
 ```
+
+**为什么仓库根目录就是伞包**：mcpp 支持“带根包的 workspace”（`mcpp/docs/07-workspace.md` §2.2）。用户写的 `features = ["rules"]`、`--template openmui:app-ts` 都指向 `openmui` 这个包，所以 `rules` 特性、入口特性和 `templates/` 都必须属于它。**`mcpp/` 只放构建系统的代码**；入口是运行时代码，所以放在 `src/entry/`，播放器的逻辑放在 `runtime/player`（D-32）。
 
 ### 6.3 包的种类（用 `[package.metadata.openmui] kind` 标注）
 
@@ -198,13 +215,13 @@ mui/                                  （仓库名；内部一律叫 openmui）
 | 伞包 | `openmui`（模块 `openmui`，再导出 runtime、base 组件和默认主题） |
 | 规范 | `openmui-spec`（模块 `openmui.spec`） |
 | 运行时 | `openmui-runtime`（模块 `openmui.core`、`openmui.im`、`openmui.rt`、`openmui.text`、`openmui.anim` …） |
-| 后端和宿主 | `openmui-gfx-*`、`openmui-host-*`、`openmui-bridge-*` |
+| 渲染和宿主 | `openmui-render`、`openmui-gpu`、`openmui-gpu-*`（模块 `openmui.gpu`、命名空间 `omui::gpu`）、`openmui-gfx-cpu`、`openmui-host-*`、`openmui-bridge-*` |
 | 组件 | `openmui-ui-*`（模块 `openmui.ui.*`） |
 | 构建规则 | **`openmui` 包的 `rules` 特性**，模块 `openmui.rules` |
-| 入口 | `openmui` 包的 `entry-player` / `entry-app` 特性（D-26） |
+| 入口 | `openmui` 包的 `entry-player` / `entry-app` 特性；源码在 `src/entry/`（D-26、D-32） |
 | 模板 | `openmui` 包的 `templates/`：`mcpp new <名字> --template openmui:<模板>`（D-27） |
 | 命令行工具 | `openmui`，短名 `omui`（可选的便利工具：fmt / check / add / inspect；**只读写 mcpp.toml，不引入新的工程文件**） |
-| 文件 | `<名字>.<种类>.omui.toml`、`*.omui`、`*.omui.json`、`*.omuipkg`（完整规则见 omui-language §7，D-30） |
+| 文件 | 数据文件一律是 `<名字>.<种类>.omui.{toml,json}`；另有 `*.omuipkg`；着色器 `*.slang`；逻辑代码保持原生后缀（完整规则见 view-data-files §6，D-30） |
 | 扩展 | `OMUI_EXT_*`（D-25） |
 | C ABI | Vulkan 风格，前缀 `omui` / `Omui` / `OMUI_`（D-17、D-25） |
 | C++ 命名空间 | `omui`（D-25） |
@@ -233,10 +250,10 @@ openmui = { version = "0.1", features = ["rules"], host-module = true }
 `openmui.rules` 负责：
 1. 收集依赖图上每个包的 `[package.metadata.openmui]`；
 2. 把契约编译成 IR，再生成各种产物；
-3. 编译 `.omui` / `.omui.json`：类型检查和语义检查；发布时生成 C++ 代码或 `.omuic`，开发时由运行时解释执行、可以热重载；
+3. 检查 `*.view.omui.json` 视图文档（schema、名字、类型、ID、语义），发布时嵌入成二进制格式；开发时由运行时直接加载，可以热重载；
 4. 编译 `.behavior.omui.toml`（行为状态机）；
 5. 处理非 C++ 依赖 `[package.metadata.openmui.deps.<lang>]`（D-29）：生成各语言原生的清单，调用 npm / uv，获取 Lua 包，锁文件放在 `lock/`；
-6. 烘焙字体、图片、着色器；
+6. 编译着色器：调用 `rules-slang` 把 `*.slang` 编译到各后端的格式，并通过反射得到参数；烘焙字体和图片；
 7. 打包脚本（TS 用 esbuild 转成 JS，Python / Lua 打包），并生成编辑器配置（tsconfig、.venv、.luarc.json）。
 
 每一步都是一个 mcpp action，按文件指纹做增量构建；生成 C++ 的 action 用 `role = "source"`，生成的代码由声明它的包继续编译（`mcpp/docs/31-authoring-a-rule-package.md`）。
@@ -277,21 +294,58 @@ openmui = { version = "0.1", features = ["rules"], host-module = true }
 
 图元：矩形、圆角矩形、路径、图片、字形串、裁剪、变换、图层（不透明度、模糊）、外部纹理。每帧携带脏区。像素格式是预乘 BGRA，和 opensal §4 一致。
 
-### 8.2 后端
+### 8.2 渲染：UI 渲染器 + GPU 抽象层（D-33）
 
-| 后端 | 用途 | 依赖（mcpp-index 中已有） | 优先级 |
+**UI 渲染器只写一次**，写在一个“UI 尺度”的 GPU 抽象层 `omui.gpu` 之上；每个平台只需要实现一个比较薄的后端。范围参考 sokol_gfx 和 SDL_GPU 的规模，不做成游戏引擎那种大而全的 RHI。
+
+```cpp
+export module openmui.gpu;
+export namespace omui::gpu {
+
+struct Caps { bool compute, instancing, msaa, external_texture, timestamps; ShaderFormats formats; };
+
+class Device {                                         // 由各后端实现
+public:
+    virtual Caps caps() const = 0;
+    virtual std::expected<Buffer,   Error> create_buffer(const BufferDesc&) = 0;
+    virtual std::expected<Texture,  Error> create_texture(const TextureDesc&) = 0;
+    virtual std::expected<Pipeline, Error> create_pipeline(const PipelineDesc&) = 0;   // 着色器 + 顶点布局 + 混合
+    virtual std::expected<Texture,  Error> import_external(const ExternalDesc&) = 0;   // dmabuf / IOSurface / D3D 共享句柄
+    virtual CommandList begin() = 0;                                                   // render pass、实例化绘制、可选的 compute
+    virtual void submit(CommandList&&, Target&) = 0;
+    virtual ~Device() = default;
+};
+
+}
+```
+
+| 渲染路径 | 用途 | 依赖（mcpp-index 中已有） | 优先级 |
 |---|---|---|---|
-| **cpu（参考后端）** | 正确性基准、headless 金图、兜底 | pixman、freetype、harfbuzz、nanosvg、libpng（**借鉴 xdesk.draw 的思路，但不依赖 xdesk**） | M1 |
-| **sdlgpu** | 桌面和移动的 GPU 后端（Vulkan / Metal / D3D12） | `compat.sdl3` 3.4.2 | M4 |
-| gles | 嵌入式 Linux；以后在合成器内部使用 | glad / EGL | 后期 |
-| vk | 自研引擎、需要细粒度控制的场景 | vulkan、VMA | 后期 |
-| mcu | 局部帧缓冲 + 脏区 | std-freestanding + 板级包 | 后期 |
+| **cpu（参考光栅器）** | 正确性基准、headless 金图、兜底；不经过抽象层 | pixman、freetype、harfbuzz、nanosvg、libpng（**借鉴 xdesk.draw 的思路，但不依赖 xdesk**） | M1 |
+| **gpu-sdl** | 第一个 GPU 后端，覆盖桌面和移动（Vulkan / Metal / D3D12） | `compat.sdl3` 3.4.2 | M4 |
+| **gpu-gles** | 嵌入式 Linux、**Web（emscripten 把 GLES 3 映射到 WebGL2）**、以后在合成器里使用 | glad / EGL | M5 之后 |
+| gpu-webgpu | Web 的现代 GPU 路径；也可以把 wgpu-native / Dawn 作为这个后端的实现 | — | 后期 |
+| gpu-vk | 自研引擎、合成器、需要细粒度控制的场景 | vulkan、VMA | 后期 |
+| mcu | 局部帧缓冲 + 脏区；不经过抽象层 | std-freestanding + 板级包 | 后期 |
 
-### 8.3 宿主
+### 8.3 自定义着色器（D-34）
 
-M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten）、引擎宿主放在后面。
+- **着色器语言用 Slang**：写一次，编译成 SPIR-V / MSL / DXIL / GLSL ES / WGSL。本地 `mcpp-plugins` 已经有 `rules-slang` 和 `rules-spirv`；参数通过反射得到（`compat.spirv-reflect`）。WGSL 和 GLSL ES 的输出质量要在 M4 之前验证，不行就回退到 SPIRV-Cross / Naga 来转换。
+- **自定义渲染分四级**：
+  1. 效果：节点或图层上的片段着色器，`OMUI_EXT_shader_effect`；
+  2. 材质：画布节点类型自己的顶点和片段着色器，`OMUI_EXT_instanced_draw`；
+  3. GPU 节点：通过 `omui.gpu` 完全接管一个 render pass，`OMUI_EXT_gpu_node`；
+  4. 原生句柄：逃生口，不可移植，`OMUI_EXT_native_handle`。
+- **着色器参数就是带类型的属性**：可以绑定，也可以由原生代码驱动动画。
+- **开发期热重载**：着色器文件改动后重新编译、替换管线。
+- **测试**：CPU 参考光栅器不执行自定义着色器（按“不带效果”绘制并给出诊断）；GPU 后端的金图测试在 headless 下用 **lavapipe（软件 Vulkan）**来跑，mcpp 的 adapter 文档里正好提到了 lavapipe 的 ICD。
+- **安全**：第三方插件的着色器只能使用“效果模板”（固定的输入和输出，不能改管线状态），并且必须经过编译器校验。
 
-### 8.4 平台服务
+### 8.4 宿主
+
+M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten，渲染走 gpu-gles 映射到 WebGL2，D-36）、引擎宿主放在后面。
+
+### 8.5 平台服务
 
 文件对话框、通知、托盘、菜单、打开链接、剪贴板、生命周期、权限，单独做成 `openmui-platform`（通过能力查询提供）。**每个服务都标注效果分级**，例如打开链接是 `external`。
 
@@ -325,8 +379,8 @@ M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten）、�
 | **M0 骨架** | 仓库结构（含 `openmui` 伞包）；registry 和契约 IR；生成器（`openmui.h`、`.cppm`、`.d.ts`、`.pyi`、Lua 注解）；`openmui.rules` 雏形；`app-cpp` 和 `component` 两个模板；依赖分层和命名的 lint | `mcpp new x --template openmui` 能创建工程；`mcpp build` 能从契约生成全部产物 |
 | **M1 核心** | 树和 ID、立即模式、flex 布局、基础文本、CPU 后端、SDL3 宿主、headless H0–H2、语义树和 `act` | 示例 01 和 07 能运行 |
 | **M2 文本 + Markdown** | 富文本引擎；接入 md4c；块缓存；语义映射；流式追加 | 示例 08 和 09；公开 CommonMark 测试集的通过率 |
-| **M3 声明式 + 三种语言** | signals、各语言的 builder、`.omui` / `.omui.json` 和表达式子集、`omui fmt` / `check`、C ABI、TS / Python（宿主模式）/ Lua、`kind=native`、`deps.<lang>`、其余模板 | 示例 02–05、12；示例 03 的五种写法语义完全一致 |
-| **M4 GPU + 画布** | SDL_GPU 后端、实例化 SDF、msdf、图层缓存、任务系统、canvas 和 canvas-kit | 示例 10 和 11；第一份基准报告 |
+| **M3 声明式 + 三种语言** | signals、各语言的 builder（含 TSX）、表达式组合函数、视图文档和 `omui check` / `fmt`、C ABI、TS / Python（宿主模式）/ Lua、`kind=native`、`deps.<lang>`、其余模板 | 示例 02–05、12；示例 03 的四种语言加视图文档，语义树完全一致 |
+| **M4 GPU + 画布** | `omui.gpu` 抽象层 + gpu-sdl 后端、UI 渲染器（实例化 SDF、msdf、图层缓存）、Slang 着色器流水线和效果（第 ① 级）、lavapipe 测试、任务系统、canvas 和 canvas-kit | 示例 10 和 11；第一份基准报告 |
 | **M5 打磨** | 性能调优、检查器（语义树、像素溯源）、基准测试进 CI | 指标稳定，进入回归门禁 |
 | 以后 | xdesk 集成（`openwx-view` 的阶段一和阶段二）、MCU、游戏引擎、跨框架桥 | — |
 
@@ -359,7 +413,7 @@ M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten）、�
 | D-05 | 立即模式和保留模式经过对账后产出同一棵树，两种写法共用组件和 ID |
 | D-06 | 核心用 C++ Modules 实现，不用异常、不用 RTTI，错误用 `std::expected`，可以在 freestanding 目标上编译 |
 | D-07 | 脚本层是一层薄接口；**完整发行版**至少提供 TS/JS、Python、Lua 三种；脚本不进入每帧路径；需要同步求值的绑定用兼容 CEL 的表达式子集（由原生代码求值，不是 JS） |
-| D-08 | 契约优先：`*.contract.omui.toml` 和 `.omui` 里的 `component` 声明编译成同一种 IR；mcpp.toml 只放包级声明 |
+| D-08 | 契约优先：`*.contract.omui.toml`（C++ 组件）和带 `interface` 的视图文档（语言中立的组合组件）编译成同一种契约 IR；mcpp.toml 只放包级声明 |
 | D-09 | mcpp.toml 是唯一的工程文件；`openmui` 包的 `rules` 特性就是构建插件；分发走 xlings |
 | D-10 | 组件分三层：契约（规范）、行为（官方提供，没有特权）、设计系统（可以替换） |
 | D-11 | CPU 是参考后端；GPU 先做 SDL_GPU；宿主先做 SDL3 |
@@ -380,19 +434,28 @@ M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten）、�
 
 | D-26 | （原 Q-05）入口由框架提供，用 `openmui` 的特性控制：`entry-player`（脚本应用）/ `entry-app`（C++ 应用实现 `omui_app()` 回调，类似 SDL3 的 main callbacks）/ 都不启用（自己写 `main`）。在 mcpp#845 落地之前，模板生成一行的 `src/main.cpp` |
 | D-27 | `openmui` 包通过 `templates/` 提供 `mcpp new` 模板：`app-cpp`（默认）、`app-ts`、`app-py`、`app-lua`、`app-mixed`、`component`、`native`、`theme` |
-| D-28 | （原 Q-07）**视图文件完全可选**，只有视图 IR 是必需的。保留模式有三种等价、可以混用的写法：原生 builder（C++ / TS，可选 TSX / Python / Lua）、`.omui`、`.omui.json`；立即模式不使用视图文件 |
+| D-28 | **视图文件完全可选**，只有视图 IR 是必需的。保留模式**代码优先**：原生 builder（C++ / TS，可选 TSX / Python / Lua），布局和逻辑写在一起；`*.view.omui.json` 视图文档是可选的数据格式，可以和代码混用；立即模式不使用视图文件 |
 | D-29 | 非 C++ 依赖写在 `[package.metadata.openmui.deps.<lang>]`，由 `openmui.rules` 处理：生成各语言原生的清单，锁文件放在 `lock/`；Lua 的 C 模块由 mcpp 编译；`manifest = "…"` 作为逃生口 |
-| D-30 | 后缀体系：`<名字>.<种类>.omui.toml`（contract / native / behavior / theme）、`.omui`、`.omui.json`、`.omuipkg`、`.omuic`；逻辑代码保持原生后缀 |
-| D-31 | `.omui` 的首要要求是**人和 agent 的可读性都很高**：十条可读性原则（omui-language §2）；事件处理只允许修改 signal、调用 verb、发出事件；表达式用兼容 CEL 的子集；行为用数据化的 statechart；格式由 `omui fmt` 唯一确定 |
+| D-30 | 后缀体系：数据文件一律是 `<名字>.<种类>.omui.{toml,json}`（view / contract / native / behavior / theme / effect）；另有 `.omuipkg`；着色器 `.slang`；逻辑代码保持原生后缀 |
+| D-31 | **人和 agent 的可读性都要很高**：可读性主要由宿主语言保证；builder 和数据文件遵守 view-data-files §2 的八条要求（名字和契约一致、显式 ID、事件的后果可见、类型明确、诊断支持 `--json`、文件自带版本、JSON Schema、llms.txt） |
+
+| D-32 | **仓库根目录就是 `openmui` 伞包 + workspace**。`mcpp/` 只放构建系统的代码（`mcpp/rules` = `openmui.rules`）；入口是运行时代码，放在 `src/entry/`；播放器在 `runtime/player`；`templates/` 按 mcpp 的约定放在根目录 |
+| D-33 | **GPU 抽象层 `omui.gpu`**（UI 尺度）：UI 渲染器只写一次；后端顺序是 gpu-sdl → gpu-gles → gpu-webgpu / gpu-vk；CPU 参考光栅器和 MCU 不经过抽象层；抽象层是实现细节，不属于规范 |
+| D-34 | **着色器用 Slang**（`rules-slang`）；自定义渲染分四级（效果、材质、GPU 节点、原生句柄）；着色器参数就是带类型的属性；headless 下用 lavapipe 测试 GPU 后端；规范只规定效果着色器的接口（Slang 源码，SPIR-V 作为交换格式） |
+| D-35 | （原 Q-14）自动 ID：保留模式用结构化 ID（`<类型>:<序号>`），立即模式用 ID 栈 + 调用位置；**ID 永远不依赖显示文本**；可交互的节点必须写显式 ID（spec S-8、S-9） |
+| D-36 | （原 Q-13）Web 先通过 gpu-gles 映射到 WebGL2，以后再补 gpu-webgpu；不依赖 SDL_GPU 将来是否提供 Web 后端 |
+| D-37 | （原 Q-12）**取消 `.omui` 视图语言**：代码优先，符合当前的趋势（SwiftUI / Compose / Flutter / React）；给机器用的视图文档是 JSON；表达式的写法是“代码里用组合函数 + 数据文件里用 CEL 字符串”，两者编译成同一个 AST |
 
 ---
 
 ## 14. 待决问题
 
-前面的问题都已经确定（D-17 到 D-31）。自我 review 时新发现的问题：
+目前没有阻塞设计的待决问题。下面是实现过程中需要验证的事项：
 
-| ID | 问题 | 当前提议 |
+| ID | 事项 | 什么时候验证 |
 |---|---|---|
-| Q-12 | `.omui` 语法的细节：`#id` 的写法，`bind(x)`、`on event:` 等关键字是否要再调整 | 按 omui-language §3 的草案，M3 实现前用真实示例再评审一轮 |
-| Q-13 | Web 平台的 GPU 后端：SDL_GPU 目前应该还没有 Web 后端（需要确认） | Web 先用 CPU 后端加 canvas 2D 提交；以后再补 WebGPU 后端 |
-| Q-14 | 自动 ID 的规则：保留模式下没有显式 `#id` 的节点用结构化 ID（`<类型>:<序号>`），立即模式用 ID 栈 + 调用位置；**ID 不能依赖显示文本**（spec S-8、S-9） | 采用；lint 要求可交互的节点必须写显式 ID |
+| V-01 | Slang 输出 WGSL / GLSL ES 的质量 | M4 之前 |
+| V-02 | mcpp 的 workspace 能不能每个包单独打 tag、单独发布 | M0 |
+| V-03 | mcpp#845（入口由依赖提供）的进展；在那之前用一行的 `main.cpp` 过渡 | 持续跟进 |
+| V-04 | lavapipe 在 CI 里运行 GPU 后端金图测试的速度和稳定性 | M4 |
+| V-05 | 表达式的组合函数在四种语言里的命名和手感（例如 Python 的 `not_`） | M3 |

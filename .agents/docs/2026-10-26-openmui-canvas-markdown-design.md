@@ -1,6 +1,6 @@
 # openmui 画布、Markdown 与旗舰示例设计
 
-> 状态：**草案 v0.2**（2026-10-26），待 review
+> 状态：**草案 v0.3**（2026-10-26），待 review
 > 范围：`openmui-ui-canvas`（高性能画布核心）、`openmui-ui-canvas-kit`（可选行为）、`openmui-ui-markdown`、旗舰示例和基准测试 **markdown-wall**。
 > 约束：**完全不碰 xdesk**；只借用 WuXian 的交互**概念**（工作区分组、相机、两种视图、小地图），而且这些都放在示例层实现，不进组件。
 
@@ -60,7 +60,7 @@ public:
 }
 ```
 
-**声明式行为**：用数据化的 statechart 文件 `*.behavior.omui.toml` 描述，由 C++ 执行。脚本和 `.omui` 的用户也能定义交互，但每帧的工作不进入脚本。格式见 [omui-language](2026-10-26-openmui-omui-language-design.md) §6：
+**声明式行为**：用数据化的 statechart 文件 `*.behavior.omui.toml` 描述，由 C++ 执行。脚本用户和视图文档也能定义交互，但每帧的工作不进入脚本。格式见 [view-data-files](2026-10-26-openmui-view-data-files-design.md) §5：
 
 ```toml
 # group-drag.behavior.omui.toml
@@ -91,7 +91,8 @@ canvas.register_kind("md.window", {
 
 | 内容 | 技术 |
 |---|---|
-| 节点框（圆角、边框、阴影、选中高亮） | SDF 片段着色器 + 实例化：同一种图元一次 draw call |
+| 节点框（圆角、边框、阴影、选中高亮） | SDF 片段着色器 + 实例化：同一种图元一次 draw call（通过 `omui.gpu` 实现，所有 GPU 后端共用一套渲染器） |
+| 自定义节点外观 | **材质**：节点类型可以带自己的 Slang 顶点和片段着色器，使用 openmui 提供的实例化顶点布局（自定义渲染的第 ② 级） |
 | 连线 | GPU 细分或 SDF 曲线；按 LOD 降低段数 |
 | 文字 | msdf 图集；小于阈值时退化为灰条（greeking） |
 | 缩略图 / 图片 | 纹理图集 + mipmap |
@@ -277,8 +278,8 @@ bench.report();
 | # | 示例 | 展示的内容 | 里程碑 |
 |---|---|---|---|
 | 01 | hello-im | C++ 立即模式，最短路径 | M1 |
-| 02 | hello-ts | TS builder + 可选的 `.omui` 视图，不需要写 C++（模板 `openmui:app-ts`） | M3 |
-| 03 | counter ×5 | C++、TS、Python、Lua、`.omui` 各写一遍，语义树完全相同 | M3 |
+| 02 | hello-ts | TS builder（可选 TSX），不需要写 C++（模板 `openmui:app-ts`） | M3 |
+| 03 | counter ×4 + 视图文档 | C++、TS、Python、Lua 各写一遍，再加一份 `*.view.omui.json`，语义树完全相同 | M3 |
 | 04 | custom-component | 契约 → C++ → 三种语言自动可用 | M3 |
 | 05 | native-module | `kind=native` | M3 |
 | 06 | theming | token、暗色、密度、动效 | M3 |

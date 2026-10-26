@@ -2,7 +2,7 @@
 
 > 状态：**草案 v1.3**（2026-10-26），待 review
 > 依据：[architecture](2026-10-26-openmui-architecture-design.md)（D-01 到 D-37）、[spec](2026-10-26-openmui-spec-design.md)、[component-binding](2026-10-26-openmui-component-binding-design.md)、[view-data-files](2026-10-26-openmui-view-data-files-design.md)、[canvas-markdown](2026-10-26-openmui-canvas-markdown-design.md)。
-> 本计划新增的决策是 **D-38 到 D-54**（§21），已经同步到架构文档 §13。**验收标准见 §19。**
+> 本计划新增的决策是 **D-38 到 D-55**（§21），已经同步到架构文档 §13。**验收标准见 §19。**
 > 写法说明：标注了路径或来源的内容是事实；性能数字都是**目标值**，需要实测校准；命令和 API 是示意。
 
 ---
@@ -130,11 +130,21 @@ mui/                                   （仓库根目录 = openmui 伞包 + wor
 │   ├── src/                           #   值类型模块 openmui.spec（生成 + 少量手写）
 │   └── conformance/{S,A,B,C}/         #   CTS
 │
+├── modules/                           # ★ 独立组件（D-55）：不依赖 openmui 的任何其他包，随时可以拆成独立仓库
+│   ├── anim/                          # ★ openmui-anim：**通用动画引擎**（只依赖标准库；UI、视频、游戏、画布共用，§6.0）
+│   ├── jobs/                          # ★ openmui-jobs：任务系统（工作窃取、优先级、取消）
+│   ├── json/                          # ★ openmui-json：JSON 读写（agent 协议、视图文档、诊断输出），带位置信息的错误
+│   ├── unicode/                       # ★ openmui-unicode：UAX#14 断行、UAX#9 双向、UAX#29 字素，表由 tools/gen 从 Unicode 数据生成
+│   ├── text/                          # ★ openmui-text：字体、排版、断行、字体回退、编辑（依赖 unicode、HarfBuzz）
+│   ├── raster/                        # ★ openmui-raster：确定性的 CPU 2D 光栅器（路径、描边、渐变、图片、PNG）
+│   ├── gpu/                           # ★ openmui-gpu：UI 尺度的 GPU 抽象层接口 omui.gpu
+│   ├── gpu-sdl/                       # ★ openmui-gpu-sdl：后端（Vulkan / Metal / D3D12）
+│   ├── gpu-gles/                      #   openmui-gpu-gles（M6：嵌入式 Linux、WebGL2）
+│   └── gpu-webgpu/  gpu-vk/           #   以后再做
+│
 ├── runtime/
-│   ├── core/                          # ★ openmui-core：树、ID、signal、verb、事件、焦点、语义、arena、时钟
-│   ├── jobs/                          # ★ openmui-jobs：任务系统（以后可以作为通用库独立出去）
+│   ├── core/                          # ★ openmui-core：树、ID、signal、verb、事件、焦点、语义、arena、时钟（来自 anim）
 │   ├── layout/                        # ★ openmui-layout：flex / grid / 栈 / 滚动 / 虚拟化
-│   ├── text/                          # ★ openmui-text：排版、断行（UAX#14）、双向文字、回退、编辑、输入法
 │   ├── view/                          # ★ openmui-view：视图 IR、对账、立即模式（openmui.im）、保留模式（openmui.rt）、表达式（openmui.expr）、视图文档
 │   ├── semantic/                      # ★ openmui-semantic：语义树、动作执行、效果分级、信封、录制和回放
 │   ├── agent/                         # ★ openmui-agent：openmui.tree@0.1 本地端点（mcpplibs.os.ipc）、协议
@@ -145,12 +155,7 @@ mui/                                   （仓库根目录 = openmui 伞包 + wor
 │   └── devtools/                      # ★ openmui-devtools：检查协议、遥测、基准测试接口、像素溯源
 │
 ├── gfx/
-│   ├── render/                        # ★ openmui-render：UI 渲染器（只写一次，基于 omui.gpu）
-│   ├── gpu/                           # ★ openmui-gpu：GPU 抽象层接口
-│   ├── gpu-sdl/                       # ★ openmui-gpu-sdl：后端（Vulkan / Metal / D3D12）
-│   ├── gpu-gles/                      #   openmui-gpu-gles（M6：嵌入式 Linux、WebGL2）
-│   ├── gpu-webgpu/  gpu-vk/           #   以后再做
-│   ├── raster/                        # ★ openmui-raster：确定性的 CPU 参考光栅器（以后可以作为通用库独立出去）
+│   ├── render/                        # ★ openmui-render：UI 渲染器（只写一次；GPU 路径基于 omui.gpu，CPU 路径基于 raster）
 │   └── shaders/                       #   内置着色器（Slang）：SDF 图元、文字、模糊、效果模板
 │
 ├── hosts/
@@ -165,7 +170,6 @@ mui/                                   （仓库根目录 = openmui 伞包 + wor
 │   ├── timeline/                      # ★ openmui-ui-timeline：时间轴、播放器控件（视频预览和动画检查器都用）
 │   └── data/  editor/                 #   以后再做
 ├── themes/{tokens,default,compact,styles}/   # styles：风格包（token + Slang 效果 + 动效），S2 使用
-├── anim/                              # ★ openmui-anim：**通用动画引擎**（只依赖标准库；UI、视频、游戏、画布共用；以后可以独立成仓库，§6.0）
 ├── video/                             # ★ openmui-video：合成、帧、离线渲染、编码（§12；以后可以独立成仓库）
 ├── lang/{ts,py,lua}/                  # ★ openmui-lang-*：语言绑定
 ├── tools/
@@ -176,7 +180,7 @@ mui/                                   （仓库根目录 = openmui 伞包 + wor
 ├── examples/01-…/ … 13-…/             # 小示例（文档的骨架）
 ├── showcase/                          # 旗舰展示（§13）
 │   ├── markdown-wall/  style-gallery/  agent-ops/  widget-breakout/  promo-video/
-├── tests/                             # 跨成员的测试：CTS 运行器、e2e、确定性、性能
+├── tests/{support,cts,e2e,bench}/     # support：测试共用的检查（openmui-testing，只作为 dev 依赖）；其余是跨成员的测试：CTS 运行器、e2e、确定性、性能
 ├── skills/{openmui,openmui-video}/    # 给 agent 用的技能包（SKILL.md + 规则文件），参考 Remotion 的做法
 ├── docs/{en,zh}/  llms.txt
 ├── .github/workflows/
@@ -192,11 +196,12 @@ mui/                                   （仓库根目录 = openmui 伞包 + wor
 | 成员 | 包名 | 将来可以独立吗 | 说明 |
 |---|---|---|---|
 | spec | `openmui-spec` | ✅ 出现第二个实现者时 | 参考 openkal、Vulkan-Docs |
-| **anim** | `openmui-anim` | ✅ **通用动画引擎** | 只依赖标准库，不知道 UI 的存在；游戏引擎、其他 UI 框架都可以使用 |
-| runtime/jobs | `openmui-jobs` | ✅ 通用库 | 也可以贡献给 mcpplibs |
-| runtime/text | `openmui-text` | ✅ 通用库 | C++ 模块化的文本引擎在 C++ 生态里很少见 |
-| gfx/raster | `openmui-raster` | ✅ 通用库 | 确定性的 2D 光栅器 |
-| gfx/gpu + 各后端 | `openmui-gpu*` | ✅ | UI 尺度的 GPU 抽象层 |
+| **modules/anim** | `openmui-anim` | ✅ **通用动画引擎** | 只依赖标准库，不知道 UI 的存在；游戏引擎、其他 UI 框架都可以使用 |
+| modules/jobs | `openmui-jobs` | ✅ 通用库 | 也可以贡献给 mcpplibs |
+| modules/json、modules/unicode | `openmui-json`、`openmui-unicode` | ✅ 通用库 | 也可以贡献给 mcpplibs |
+| modules/text | `openmui-text` | ✅ 通用库 | C++ 模块化的文本引擎在 C++ 生态里很少见 |
+| modules/raster | `openmui-raster` | ✅ 通用库 | 确定性的 2D 光栅器 |
+| modules/gpu + 各后端 | `openmui-gpu*` | ✅ | UI 尺度的 GPU 抽象层 |
 | components/markdown、canvas | `openmui-ui-*` | ✅ | 有独立用户时 |
 | video | `openmui-video` | ✅ | 产品形态独立 |
 | lang/* | `openmui-lang-*` | ✅ 有独立维护者时 | 参考 OpenTelemetry |
@@ -217,9 +222,9 @@ modules  = true
 
 [workspace]
 members = [
-  "spec",
+  "spec", "modules/*",
   "runtime/*", "gfx/*", "hosts/*", "components/*", "themes/*",
-  "anim", "video", "lang/*", "tools/*", "examples/*", "showcase/*",
+  "video", "lang/*", "tools/*", "examples/*", "showcase/*", "tests/*",
 ]
 
 [dependencies]
@@ -272,10 +277,11 @@ UI 线程（C++）：
 ### 3.3 依赖方向（用 lint 强制）
 
 ```
-anim（只依赖标准库）← core（时钟来自 anim）
-spec ← core ← {jobs, layout, text} ← view（把 anim 适配到节点属性）← semantic ← agent（另外依赖 platform 的 IPC）
+modules/*（anim、jobs、json、unicode、text、raster、gpu）：只依赖标准库、彼此和第三方库，不依赖任何 openmui 包
+anim ← core（时钟来自 anim）     json ← core     jobs ← core
+spec ← core ← {layout, text 适配} ← view（把 anim 适配到节点属性）← semantic ← agent（另外依赖 platform 的 IPC）
                                          ↑
-                    render ← gpu ← gpu-*         raster
+                    render ← {gpu ← gpu-*, raster, text}
                     host-* ← (core, render)      platform ← mcpplibs/os
 component ← (view 的公开 API)      lang-* ← openmui.h ← abi
 video ← (view, anim, host-headless, render, ffmpeg)      game / canvas ← anim
@@ -318,7 +324,7 @@ video ← (view, anim, host-headless, render, ffmpeg)      game / canvas ← ani
 | jobs | 线程池、优先级、取消、帧内的并行 for | 工作窃取；任务不在热路径上分配内存 | M1 |
 | layout | flex、grid、栈、滚动、虚拟化 | 增量布局、测量结果缓存、**取整规则**（A 级）、`-ffp-contract=off` | M1–M2 |
 | text | HarfBuzz 排版、FreeType 字形、fribidi、**UAX#14 断行**、字体回退、选区和编辑、输入法 | 断行表由 `tools/gen` 从 Unicode 数据生成（不额外依赖 ICU）；排版结果缓存；msdf 图集交给 render | M1–M2 |
-| anim | 独立成员 `anim/`，见 §6 | 只依赖标准库 | M2 |
+| anim | 独立组件 `modules/anim/`，见 §6 | 只依赖标准库 | M2 |
 | view | 视图 IR、对账、`openmui.im`、`openmui.rt`、`openmui.expr`、视图文档的加载 | 立即模式在没有事件时不调用 build；表达式 AST 由原生代码求值；CEL 子集解析器要做模糊测试 | M1（im）、M3（rt、expr、视图文档） |
 | semantic | 产出语义树、执行动作、效果分级、`needs-answer`、Origin、信封、**录制和回放** | 增量变更；虚拟化语义；录制内容是“语义动作 + 时钟” | M1 |
 | agent | `openmui.tree@0.1` 本地端点（`mcpplibs.os.ipc`），协议是 JSON lines | snapshot / changes / find / act / wait / capture；actor 的文本形式和 openas 一致 | M1（基础）、M5（完整） |
@@ -347,7 +353,7 @@ auto settings_panel(Settings& s) -> omui::View {
 
 ### 6.0 定位：通用动画引擎 `openmui-anim`（D-49）
 
-- **独立的 workspace 成员 `anim/`**，有自己的 `mcpp.toml`，**只依赖标准库**，不知道节点、视图、渲染的存在。将来可以直接独立成仓库（甚至贡献给 mcpplibs）。
+- **独立组件 `modules/anim/`**，有自己的 `mcpp.toml`，**只依赖标准库**，不知道节点、视图、渲染的存在。将来可以直接独立成仓库（甚至贡献给 mcpplibs）。
 - **使用方**：`openmui-view` 把它适配到节点属性上；`openmui-video` 用它做合成和时间线；S4 游戏用它做玩法里的补间和时间倒流；画布用它驱动相机。**其他项目也可以单独使用**，比如游戏引擎、别的 UI 框架。
 - **对外的核心抽象**：
 
@@ -965,11 +971,12 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
 | D-46 | Python 绑定用 CPython 的稳定 ABI（abi3）自己实现，不用 pybind11 |
 | D-47 | UAX#14 断行表由 `tools/gen` 从 Unicode 数据生成，不依赖 ICU |
 | D-48 | 默认字体通过 `openmui-fonts` 固定下来，作为渲染确定性的一部分 |
-| D-49 | **通用动画引擎 `openmui-anim`**：独立的 workspace 成员 `anim/`，只依赖标准库，不知道 UI 的存在；UI、视频、游戏、画布共用；将来可以独立成仓库 |
+| D-49 | **通用动画引擎 `openmui-anim`**：独立组件 `modules/anim/`，只依赖标准库，不知道 UI 的存在；UI、视频、游戏、画布共用；将来可以独立成仓库 |
 | D-50 | S4 改为《组件打砖块：openmui 巡礼》：六个关卡，每一关的玩法本身就是一项框架能力（语义、风格、画布、时间倒流、agent、多语言） |
 | D-51 | S5 是 **openmui 宣传片**：约 60 秒主片 + 15 秒短片，双语字幕；用 openmui-video 制作，全部是实时渲染的真实场景；对标三部播放量几百万到上千万的 agent 代码动画视频，拆解、分镜、验收见 promo-video 设计文档 |
 | D-52 | 协作流程：单个 PR，每一轮修改一个 commit 作为检查点 |
 | D-53 | 每个里程碑、展示、模块都有验收标准；能自动检查的进 CI，不能自动检查的写成检查清单并由维护者签字 |
+| D-55 | **独立组件放在 `modules/` 下**（参考 mcpp 的 `modules/`）：anim、jobs、json、unicode、text、raster、gpu 和各个 gpu 后端；它们不依赖 openmui 的任何其他包，随时可以拆成独立仓库；openmui 专用的包留在 spec / runtime / gfx / hosts / components 等原来的位置 |
 | D-54 | openmui-video 的渲染速度、修改后的增量渲染（四层缓存）、GPU 和硬件编码、预览和可再编辑性都作为指标，**每一项都要优于业界最好的工具**（§12.6）；修改以旁路数据文件 `.timeline.omui.json` 叠加在代码之上 |
 
 ---

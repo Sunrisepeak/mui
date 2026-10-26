@@ -1,0 +1,36 @@
+# openmui — the umbrella package, and the workspace of every openmui member.
+#
+# The repository root is the package users name (`openmui`): its module
+# re-exports the runtime, the base components and the default theme, and its
+# features are the build rule (`rules`) and the entries (`entry-*`). Each
+# member below has its own mcpp.toml and depends on others only by `path`, so
+# any of them can move to its own repository (D-41).
+[package]
+name        = "openmui"
+version     = "0.1.0"
+description = "openmui: an open UI specification and its reference implementation in C++ modules"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[workspace]
+members = [
+    "tests/support",
+    "modules/anim",
+]
+
+[workspace.package]
+standard = "c++23"
+
+[targets.openmui]
+kind = "lib"
+
+[build]
+sources = ["src/openmui.cppm"]
+
+[dependencies]
+openmui-anim = { path = "modules/anim" }
+
+# The root package has no test programs of its own: tests/ holds members
+# (tests/support, and the cross-member suites), each discovered by itself.
+[test]
+discover = []

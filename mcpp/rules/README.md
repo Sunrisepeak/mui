@@ -1,4 +1,4 @@
-# openmui-rules
+# openmui.rules
 
 openmui's build rule (component-binding §2.3, §10.3). A component package
 writes its interface once, as contracts, and the rule makes the rest when it
@@ -12,7 +12,7 @@ builds:
 
 ```toml
 [build-dependencies]
-openmui-rules = { path = "…/mcpp/rules" }
+openmui.rules = { path = "…/mcpp/rules", host-module = true }
 ```
 
 ```cpp

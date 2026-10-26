@@ -21,7 +21,7 @@ openmui-core = { path = "../../runtime/core" }
 openmui-view = { path = "../../runtime/view" }
 
 [build-dependencies]
-openmui-rules = { path = "../../mcpp/rules" }
+openmui.rules = { path = "../../mcpp/rules", host-module = true }
 
 [dev-dependencies]
 openmui-testing       = { path = "../support" }

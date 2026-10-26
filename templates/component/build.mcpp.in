@@ -1,0 +1,6 @@
+// The contracts in contract/ become this package's bindings when it builds.
+import std;
+import mcpp;
+import openmui.rules;
+
+int main() { return openmui::rules::components({.module = "{{project.name}}", .ns = "{{project.name}}"}) ? 0 : 1; }

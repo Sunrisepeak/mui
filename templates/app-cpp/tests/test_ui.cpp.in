@@ -1,0 +1,16 @@
+// The interface without a window: find the button as an agent would, press it.
+import std;
+import openmui;
+import app;
+
+int main() {
+    omui::register_base_components();
+    omui::Headless h({.size = {480, 320}});
+    h.mount("main", app::spec().view());
+    h.settle();
+    auto buttons = h.tree().find({.role = omui::Role::button, .name = "Click me"});
+    if (buttons.size() != 1) return 1;
+    if (h.tree().act(buttons[0].id, "activate").exit_code() != std::optional<int>(0)) return 1;
+    h.settle();
+    return h.tree().find({.name = "Clicked 1 times"}).empty() ? 1 : 0;
+}

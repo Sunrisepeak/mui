@@ -62,13 +62,13 @@ inline std::vector<edge> plan(const options& opt) {
     }
     const std::string gen = std::string(mcpp::dep_bin("openmui-gen", "omui-gen"));
     if (gen.empty()) {
-        std::println(std::cerr, "openmui.rules: omui-gen was not built for this build (openmui-rules depends on "
+        std::println(std::cerr, "openmui.rules: omui-gen was not built for this build (openmui.rules depends on "
                                 "openmui-gen with tools = [\"omui-gen\"])");
         return {};
     }
     std::string registry = opt.registry;
     if (registry.empty()) {
-        const std::string self = std::string(mcpp::dep_dir("openmui-rules"));
+        const std::string self = std::string(mcpp::dep_dir("rules"));
         registry = (std::filesystem::path(self) / ".." / ".." / "spec" / "registry").lexically_normal().string();
     }
     if (!std::filesystem::is_directory(registry)) {

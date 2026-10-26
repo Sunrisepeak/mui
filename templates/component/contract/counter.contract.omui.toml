@@ -1,0 +1,23 @@
+# The interface of a component: the one source of truth. Its C++ base, the
+# builder, the TS / Python / Lua stubs and the view-document schema are made
+# from it when the package builds (component-binding §2).
+[contract.counter]
+role = "spin_button"
+spec = "0.1"
+doc  = "A number stepped up and down."
+
+[contract.counter.props]
+value = { type = "i32", default = 0, bindable = true }
+step  = { type = "i32", default = 1 }
+label = { type = "string", default = "", doc = "What it counts (the accessible name)." }
+
+[contract.counter.events]
+changed = { args = { value = "i32" } }
+
+[contract.counter.actions]
+increment = { effect = "reversible" }
+decrement = { effect = "reversible" }
+
+[contract.counter.keys]
+"Up|Right"  = "increment"
+"Down|Left" = "decrement"

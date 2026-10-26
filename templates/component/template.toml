@@ -1,0 +1,3 @@
+[template]
+description  = "An openmui component package: a contract, its behaviour in C++, bindings generated at build time"
+post_message = "cd into the project: contract/ is the interface, src/ the behaviour; `mcpp test` builds both. The package name is its module name, so keep it to letters, digits, '_' and '.'."

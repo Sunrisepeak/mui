@@ -13,3 +13,4 @@ export import :theme;
 export import :component;
 export import :runtime;
 export import :primitives;
+export import :immediate;

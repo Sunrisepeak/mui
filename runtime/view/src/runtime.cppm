@@ -52,6 +52,7 @@ struct FrameOutput {
     bool                       animating = false;  // another frame is wanted
     std::uint64_t              revision = 0;       // semantic revision after the frame
     FrameStats                 stats;
+    std::optional<seconds>     next_timer;         // when the earliest timer is due (hosts sleep until then)
 };
 
 // One performed action, for audit (openas: who did what, with what result).
@@ -149,6 +150,8 @@ public:
     [[nodiscard]] std::string clipboard_text() override;
     void set_clipboard_text(std::string_view text) override;
     anim::Set& animations() override;
+    std::uint64_t after(seconds delay, std::function<void()> fn) override;
+    void cancel(std::uint64_t timer) override;
 
     // The text-input request of the last frame (hosts show the IME there).
     [[nodiscard]] std::optional<Rect> text_input_rect() const noexcept;

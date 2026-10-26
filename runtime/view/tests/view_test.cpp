@@ -418,8 +418,102 @@ int main(int argc, char** argv) {
         check_eq(rt.origin(rt.find("main/dot")).line() > 0, true);
     });
 
+    s.test("immediate mode: ids from call sites, actions return true once, no build without cause", [] {
+        Runtime rt(options({300, 200}));
+        int builds = 0, clicks = 0;
+        bool dark = false;
+        std::string label = "Add";
+        rt.mount("main", immediate([&](Ui& ui) {
+                     ++builds;
+                     ui.column({.gap = 4}, [&] {
+                         ui.text(std::format("clicked {} times", clicks));
+                         if (ui.button(label, {.id = "add"})) ++clicks;
+                         ui.checkbox("Dark", dark, {.id = "dark"});
+                         for (int i = 0; i < 3; ++i) {
+                             auto scope = ui.scope(i);
+                             ui.text("row");
+                         }
+                     });
+                 }));
+        rt.frame({seconds(0), {}});
+        check(builds == 1);
+        NodeId add = rt.find("main/add");
+        check(!rt.valid(add), "ids are paths: the button sits in the column");
+        NodeId column = rt.children(rt.find("main"))[0];
+        std::string col = rt.path(column);
+        check(col.starts_with("main/column:i"), col);
+        add = rt.find(col + "/add");
+        check(rt.valid(add));
+        auto kids = rt.children(column);
+        check(kids.size() == 6);
+        check(rt.path(kids[3]) != rt.path(kids[4]), "the id stack tells loop iterations apart");
+        // Idle frames do not build.
+        rt.frame({seconds(0.1), {}});
+        rt.frame({seconds(0.2), {}});
+        check(builds == 1);
+        // An action builds again, once; the button reports it once.
+        check(rt.act(add, "activate").exit_code() == std::optional<int>(0));
+        check(clicks == 1);
+        rt.frame({seconds(0.3), {}});
+        check(rt.get(kids[0], "text").as_string() == "clicked 1 times");
+        const int after = builds;
+        rt.frame({seconds(0.4), {}});
+        check(builds == after && clicks == 1);
+        // Labels are not ids (S-9): renaming keeps the node.
+        label = "Plus";
+        check(rt.act(add, "activate").exit_code() == std::optional<int>(0));
+        rt.frame({seconds(0.5), {}});
+        check(rt.find(col + "/add") == add && clicks == 2);
+        // The stand-in checkbox (no base components linked) toggles its bool.
+        check(rt.act(rt.find(col + "/dark"), "activate").exit_code() == std::optional<int>(0));
+        check(dark);
+        // Ids of automatic nodes are the same in the next build.
+        check(rt.path(rt.children(column)[3]) == rt.path(kids[3]));
+    });
+
+    s.test("immediate mode: timers and events drive builds; retained views nest", [] {
+        Runtime rt(options({300, 200}));
+        int builds = 0, ticks = 0, downs = 0;
+        auto shared = signal(std::string("retained"));
+        rt.mount("main", immediate([&](Ui& ui) {
+                     ++builds;
+                     if (ticks < 3) {
+                         ++ticks;
+                         ui.rebuild_after(seconds(1));
+                     }
+                     ui.add(painter({.id = "pad", .width = 50, .height = 50}));
+                     if (ui.event("pad", "pointer_down")) ++downs;
+                     ui.add(text({.id = "nested", .text = shared}));
+                 }));
+        rt.frame({seconds(0), {}});
+        check(builds == 1);
+        rt.frame({seconds(0.5), {}});
+        check(builds == 1);
+        auto out = rt.frame({seconds(1.0), {}});
+        check(builds == 2);
+        check(out.next_timer.has_value() && *out.next_timer == seconds(2.0));
+        rt.frame({seconds(2.0), {}});
+        rt.frame({seconds(3.0), {}});
+        rt.frame({seconds(4.0), {}});
+        check(builds == 4 && ticks == 3);
+        // The first build asked about pointer_down: from then on it arrives.
+        rt.frame({seconds(4.0), {pointer(PointerKind::down, 10, 10), pointer(PointerKind::up, 10, 10)}});
+        check(downs == 1);
+        // A retained text inside updates by its binding, no build needed.
+        const int before = builds;
+        shared.set("still retained");
+        rt.frame({seconds(4.1), {}});
+        check(builds == before);
+        check(rt.get(rt.find("main/nested"), "text").as_string() == "still retained");
+    });
+
     s.test("pixels are the same on every platform", [] {
+        // Its own fonts: font references are numbered in the order they are
+        // first used, and the list hash includes them.
+        typeset::FontCollection own;
+        check(own.add_defaults().has_value());
         RuntimeOptions o = options({240, 120});
+        o.fonts = &own;
         o.scale = 2;
         Runtime rt(o);
         rt.mount("main", column({.padding = 12, .gap = 8, .background = "background"}, {
@@ -432,12 +526,12 @@ int main(int argc, char** argv) {
                                     text({.text = "Body text wraps when it is longer than the line.", .max_lines = 1}),
                                 }));
         rt.frame();
-        typeset::GlyphCache glyphs(fonts());
+        typeset::GlyphCache glyphs(own);
         auto px = draw(rt, glyphs);
         Hash h;
         for (int y = 0; y < px.height(); ++y)
             h.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
-        const std::uint64_t list_hash = 0x09123a765bc6e0d9ULL;
+        const std::uint64_t list_hash = 0xe0666bd669386d14ULL;
         std::println("view pixels {:016x} list {:016x}", h.value(), rt.display_list().hash());
         imageio::View v{reinterpret_cast<const std::uint8_t*>(px.pixels().data()), px.width(), px.height(), px.width() * 4};
         check(imageio::save_png(scratch_dir("view") / "scene@2x.png", v).has_value());

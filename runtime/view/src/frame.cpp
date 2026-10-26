@@ -28,6 +28,7 @@ FrameOutput Runtime::frame(const FrameInput& input) {
     d.frame_requested = false;
 
     d.queue.drain();
+    d.run_timers();
     for (const InputEvent& e : input.events) batch([&] { d.dispatch(e); });
     d.reconcile_regions();
     d.run_animations();
@@ -50,7 +51,38 @@ FrameOutput Runtime::frame(const FrameInput& input) {
     const bool more = !d.animating.empty() || !d.removing.empty() || d.frame_requested || !d.dirty_regions.empty();
     // Bindings that ran since the last frame count toward this one.
     FrameStats stats = std::exchange(d.stats, {});
-    return FrameOutput{d.list, repainted, more, d.semantic_revision, stats};
+    std::optional<seconds> next;
+    for (const Impl::Timer& t : d.timers) next = next ? std::min(*next, t.due) : t.due;
+    return FrameOutput{d.list, repainted, more, d.semantic_revision, stats, next};
+}
+
+void Runtime::Impl::run_timers() {
+    // Due timers in order of due time, then of creation; one a timer adds
+    // runs at a later frame at the earliest.
+    const seconds t = now();
+    std::vector<Timer> due;
+    for (auto it = timers.begin(); it != timers.end();) {
+        if (it->due <= t) {
+            due.push_back(std::move(*it));
+            it = timers.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    std::ranges::sort(due, [](const Timer& a, const Timer& b) { return a.due != b.due ? a.due < b.due : a.token < b.token; });
+    for (Timer& x : due) batch([&] { x.fn(); });
+}
+
+std::uint64_t Runtime::after(seconds delay, std::function<void()> fn) {
+    Impl& d = *impl_;
+    const std::uint64_t token = d.next_token++;
+    d.timers.push_back({d.now() + std::max(delay, seconds(0)), token, std::move(fn)});
+    d.frame_requested = true;
+    return token;
+}
+
+void Runtime::cancel(std::uint64_t timer) {
+    std::erase_if(impl_->timers, [&](const Impl::Timer& t) { return t.token == timer; });
 }
 
 void Runtime::Impl::run_animations() {

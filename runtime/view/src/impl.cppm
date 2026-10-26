@@ -151,6 +151,12 @@ struct Runtime::Impl {
         Handler       fn;
     };
     std::vector<RuntimeHandler> runtime_handlers;
+    struct Timer {
+        seconds               due;
+        std::uint64_t         token;
+        std::function<void()> fn;
+    };
+    std::vector<Timer>          timers;
     std::vector<ActionEntry>    journal;
     FrameStats                  stats;
 
@@ -191,6 +197,7 @@ struct Runtime::Impl {
     void animate_field(NodeId id, std::string_view prop, Field field, float target);
 
     // frames (frame.cpp)
+    void   run_timers();
     void   run_animations();
     void   run_layout();
     void   compute_bounds(NodeId id, Point origin);

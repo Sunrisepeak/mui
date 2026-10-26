@@ -42,7 +42,7 @@ NodeId Runtime::Impl::create(Element& e, NodeId parent) {
     n.parent = parent;
     n.where = e.where;
     if (!e.id.empty()) {
-        if (!spec::valid_explicit_segment(e.id))
+        if (e.generated_id ? !spec::valid_segment(e.id) : !spec::valid_explicit_segment(e.id))
             warn("invalid explicit id '{}' (spec S-8: 1-128 of [A-Za-z0-9_.-]); at {}:{}", e.id, e.where.file_name(),
                     e.where.line());
         n.segment = e.id;

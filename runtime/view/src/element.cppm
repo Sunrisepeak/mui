@@ -162,6 +162,7 @@ struct Region {
 struct Element {
     const ComponentType*                             type = nullptr;
     std::string                                      id;   // explicit id (S-8: never display text)
+    bool                                             generated_id = false;  // an immediate-mode id (`type:i…`)
     std::string                                      key;  // identity among siblings of a region (defaults to id)
     std::vector<std::pair<std::string, Source>>      props;
     std::vector<std::pair<std::string, Handler>>     handlers;

@@ -65,6 +65,10 @@ public:
     virtual void set_clipboard_text(std::string_view text) = 0;
     // A spring or tween on one scalar of the node (scroll offsets, thumbs).
     virtual anim::Set& animations() = 0;
+    // Runs `fn` at the first frame at or after now + delay, on the clock of
+    // the runtime (virtual and render clocks make timers deterministic).
+    virtual std::uint64_t after(seconds delay, std::function<void()> fn) = 0;
+    virtual void cancel(std::uint64_t timer) = 0;
 };
 
 struct PaintContext {

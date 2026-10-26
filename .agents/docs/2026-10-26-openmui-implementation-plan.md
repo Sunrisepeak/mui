@@ -2,7 +2,7 @@
 
 > 状态：**草案 v1.3**（2026-10-26），待 review
 > 依据：[architecture](2026-10-26-openmui-architecture-design.md)（D-01 到 D-37）、[spec](2026-10-26-openmui-spec-design.md)、[component-binding](2026-10-26-openmui-component-binding-design.md)、[view-data-files](2026-10-26-openmui-view-data-files-design.md)、[canvas-markdown](2026-10-26-openmui-canvas-markdown-design.md)。
-> 本计划新增的决策是 **D-38 到 D-55**（§21），已经同步到架构文档 §13。**验收标准见 §19。**
+> 本计划新增的决策是 **D-38 到 D-56**（§21），已经同步到架构文档 §13。**验收标准见 §19。**
 > 写法说明：标注了路径或来源的内容是事实；性能数字都是**目标值**，需要实测校准；命令和 API 是示意。
 
 ---
@@ -132,8 +132,6 @@ mui/                                   （仓库根目录 = openmui 伞包 + wor
 │
 ├── modules/                           # ★ 独立组件（D-55）：不依赖 openmui 的任何其他包，随时可以拆成独立仓库
 │   ├── anim/                          # ★ openmui-anim：**通用动画引擎**（只依赖标准库；UI、视频、游戏、画布共用，§6.0）
-│   ├── jobs/                          # ★ openmui-jobs：任务系统（工作窃取、优先级、取消）
-│   ├── json/                          # ★ openmui-json：JSON 读写（agent 协议、视图文档、诊断输出），带位置信息的错误
 │   ├── unicode/                       # ★ openmui-unicode：UAX#14 断行、UAX#9 双向、UAX#29 字素，表由 tools/gen 从 Unicode 数据生成
 │   ├── text/                          # ★ openmui-text：字体、排版、断行、字体回退、编辑（依赖 unicode、HarfBuzz）
 │   ├── raster/                        # ★ openmui-raster：确定性的 CPU 2D 光栅器（路径、描边、渐变、图片、PNG）
@@ -197,8 +195,7 @@ mui/                                   （仓库根目录 = openmui 伞包 + wor
 |---|---|---|---|
 | spec | `openmui-spec` | ✅ 出现第二个实现者时 | 参考 openkal、Vulkan-Docs |
 | **modules/anim** | `openmui-anim` | ✅ **通用动画引擎** | 只依赖标准库，不知道 UI 的存在；游戏引擎、其他 UI 框架都可以使用 |
-| modules/jobs | `openmui-jobs` | ✅ 通用库 | 也可以贡献给 mcpplibs |
-| modules/json、modules/unicode | `openmui-json`、`openmui-unicode` | ✅ 通用库 | 也可以贡献给 mcpplibs |
+| modules/unicode | `openmui-unicode` | ✅ 通用库 | mcpp-index 里没有断行库，所以自己做；也可以贡献给 mcpplibs |
 | modules/text | `openmui-text` | ✅ 通用库 | C++ 模块化的文本引擎在 C++ 生态里很少见 |
 | modules/raster | `openmui-raster` | ✅ 通用库 | 确定性的 2D 光栅器 |
 | modules/gpu + 各后端 | `openmui-gpu*` | ✅ | UI 尺度的 GPU 抽象层 |
@@ -277,8 +274,8 @@ UI 线程（C++）：
 ### 3.3 依赖方向（用 lint 强制）
 
 ```
-modules/*（anim、jobs、json、unicode、text、raster、gpu）：只依赖标准库、彼此和第三方库，不依赖任何 openmui 包
-anim ← core（时钟来自 anim）     json ← core     jobs ← core
+modules/*（anim、unicode、text、raster、gpu）：只依赖标准库、彼此和第三方库，不依赖任何 openmui 包
+anim ← core（时钟来自 anim）     nlohmann.json、taskflow（tf）、concurrentqueue ← core（来自 mcpp-index，D-56）
 spec ← core ← {layout, text 适配} ← view（把 anim 适配到节点属性）← semantic ← agent（另外依赖 platform 的 IPC）
                                          ↑
                     render ← {gpu ← gpu-*, raster, text}
@@ -308,7 +305,7 @@ video ← (view, anim, host-headless, render, ffmpeg)      game / canvas ← ani
 | 同上 | 视图文档的 JSON Schema、组件目录（给 agent 用） |
 | 同上 | CTS 骨架、文档里的表格、`llms.txt` 的片段 |
 
-生成器本身是一个 C++ 模块化程序（依赖 `marzer.tomlplusplus` 和 `compat.yyjson`），由 `openmui.rules` 在构建期调用。
+生成器本身是一个 C++ 模块化程序（依赖 mcpp-index 里的 `marzer.tomlplusplus` 和 `nlohmann.json`，两者都以 C++23 模块提供），由 `openmui.rules` 在构建期调用。
 
 ### 4.3 流程
 
@@ -321,7 +318,7 @@ video ← (view, anim, host-headless, render, ffmpeg)      game / canvas ← ani
 | 成员 | 范围 | 关键点 | 里程碑 |
 |---|---|---|---|
 | core | 树、ID（S-8 / S-9）、signal、verb、事件、焦点和导航、arena | SoA + 带代数的句柄；`consteval` 校验 ID 字面量；signal 批量提交；**时钟使用 `omui::anim::Clock`，可以注入**（交互、虚拟、渲染三种） | M1 |
-| jobs | 线程池、优先级、取消、帧内的并行 for | 工作窃取；任务不在热路径上分配内存 | M1 |
+| 任务调度（core 内） | 基于 mcpp-index 的 **taskflow**（模块 `tf`）：帧内的并行 for、任务图、优先级（帧关键 / 后台）、取消；UI 线程和脚本线程之间的队列用 `compat.concurrentqueue` | 不自己写线程池（D-56）；热路径上不分配内存 | M1 |
 | layout | flex、grid、栈、滚动、虚拟化 | 增量布局、测量结果缓存、**取整规则**（A 级）、`-ffp-contract=off` | M1–M2 |
 | text | HarfBuzz 排版、FreeType 字形、fribidi、**UAX#14 断行**、字体回退、选区和编辑、输入法 | 断行表由 `tools/gen` 从 Unicode 数据生成（不额外依赖 ICU）；排版结果缓存；msdf 图集交给 render | M1–M2 |
 | anim | 独立组件 `modules/anim/`，见 §6 | 只依赖标准库 | M2 |
@@ -840,7 +837,7 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
 
 | 位置 | 内容 |
 |---|---|
-| mcpp-index | `compat.sdl3`、`compat.harfbuzz`、`compat.freetype`、`compat.fribidi`、`compat.msdfgen`、`compat.md4c`、`compat.quickjs-ng`、`compat.lua`、`compat.ffmpeg` / `ffmpeg.ffmpeg`、`compat.miniaudio`、`compat.spirv-reflect`、`compat.libpng`、`compat.zlib`、`compat.yyjson`、`marzer.tomlplusplus`、`compat.xxhash`、`compat.mimalloc`、`compat.wamr` |
+| mcpp-index | `compat.sdl3`、`compat.harfbuzz`、`compat.freetype`、`compat.fribidi`、`compat.msdfgen`、`compat.md4c`、`compat.quickjs-ng`、`compat.lua`、`compat.ffmpeg` / `ffmpeg.ffmpeg`、`compat.miniaudio`、`compat.spirv-reflect`、`compat.libpng`、`compat.zlib`、**`nlohmann.json`**（JSON，模块 `nlohmann.json`）、**`marzer.tomlplusplus`**（TOML，模块 `tomlplusplus`）、**`taskflow.taskflow`**（任务系统，模块 `tf`）、`compat.concurrentqueue`（无锁队列）、`compat.xxhash`、`compat.mimalloc`、`compat.wamr` |
 | xim（xlings） | `slang`、`mesa-lavapipe`、`vulkan-loader` / `vulkan-headers`、`glslang`、`spirv-tools`、`esbuild`、`node`、`uv`、`python`、`emsdk` |
 | mcpp-plugins | `rules-slang`、`rules-spirv`、`dist`（apk / apple / web / wix / appimage） |
 | mcpplibs | `os`（git 依赖，分支 `os-0.1.0`）、`openkal` |
@@ -857,7 +854,7 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
 | xim | `ffmpeg`（命令行） | 视频的调试和转码 | M5 |
 | xim | `openmui-fonts`（Inter、Noto Sans、Noto Sans CJK 子集、等宽字体） | **默认字体固定下来**，保证跨平台一致（A / B 级） | M1 |
 | xim | `omui`（命令行）、`openmui-player` | 分发 | M3 |
-| mcpplibs（以后贡献） | `mcpplibs.unicode`（UAX#14 / #9 的表和算法）、`openmui-jobs`、`openmui-raster` | 通用库 | 稳定以后 |
+| mcpplibs（以后贡献） | `mcpplibs.unicode`（UAX#14 / #29 的表和算法）、`openmui-raster` | 通用库 | 稳定以后 |
 | mcpp | #845（入口由依赖提供）；每个成员单独打 tag 和发布（V-02）。**已确认 mcpp 支持**：按特性开关选择互斥的源文件；依赖图里有 C++26 成员时 BMI 兼容 | 工程体验 | 持续 |
 
 ---
@@ -869,7 +866,7 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
 | 里程碑 | 粗略时间 | 主要交付 | 验收 |
 |---|---|---|---|
 | **M0 骨架** | 2–3 周 | workspace 和所有 ★ 成员的空包；registry 格式；`tools/gen` 的最小闭环（`openmui.h`、契约 → C++ 分区）；`openmui.rules` 雏形；`app-cpp` 和 `component` 两个模板；lint；CI 骨架（三个平台）；`.xlings.json`；`openmui-fonts` | `mcpp new x --template openmui` 能创建工程并构建通过；三个平台的 CI 是绿色的 |
-| **M1 核心** | 6–8 周 | core / jobs / layout（flex）/ 基础文本 / view（im）/ semantic / agent（本地端点 + 命令行）/ raster / host-headless / host-sdl3（Linux）/ ui-base 的前 9 个组件；规范 0.1 的 S 级 | 示例 01 和 07；`omui agent` 能操作示例；CPU 金图逐字节一致 |
+| **M1 核心** | 6–8 周 | core（含基于 taskflow 的任务调度）/ layout（flex）/ 基础文本 / view（im）/ semantic / agent（本地端点 + 命令行）/ raster / host-headless / host-sdl3（Linux）/ ui-base 的前 9 个组件；规范 0.1 的 S 级 | 示例 01 和 07；`omui agent` 能操作示例；CPU 金图逐字节一致 |
 | **M2 文本 + 动画 + Markdown** | 6–8 周（**文本可以从 M1 开始并行**） | 富文本、UAX#14、双向文字、编辑和输入法；**anim 全部功能（§6）**；ui-markdown；录制和回放；Windows / macOS | 示例 08 和 09；动画的 A 级用例和跳转一致性；跨平台确定性测试是绿色的 |
 | **M3 声明式 + 三种语言** | 6–8 周 | rt / expr / 视图文档；C ABI；TS / Python（宿主模式，abi3）/ Lua；native 模块；`deps.<lang>`；player；其余模板；规范 0.2 | 示例 02–06、12；四种写法加视图文档的语义树一致；三种语言的 CTS 一致 |
 | **M4 GPU + 画布 + 风格化** | 8–10 周 | omui.gpu + gpu-sdl；render；Slang 着色器流水线；效果和材质；lavapipe 进 CI；ui-canvas / canvas-kit；themes/styles；规范 0.3；**openmui-video 的原型，S5 的对标拆解、分镜、动态分镜和风格帧** | **S1 Markdown 墙**和 **S2 风格画廊**；第一份基准报告 |
@@ -976,7 +973,8 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
 | D-51 | S5 是 **openmui 宣传片**：约 60 秒主片 + 15 秒短片，双语字幕；用 openmui-video 制作，全部是实时渲染的真实场景；对标三部播放量几百万到上千万的 agent 代码动画视频，拆解、分镜、验收见 promo-video 设计文档 |
 | D-52 | 协作流程：单个 PR，每一轮修改一个 commit 作为检查点 |
 | D-53 | 每个里程碑、展示、模块都有验收标准；能自动检查的进 CI，不能自动检查的写成检查清单并由维护者签字 |
-| D-55 | **独立组件放在 `modules/` 下**（参考 mcpp 的 `modules/`）：anim、jobs、json、unicode、text、raster、gpu 和各个 gpu 后端；它们不依赖 openmui 的任何其他包，随时可以拆成独立仓库；openmui 专用的包留在 spec / runtime / gfx / hosts / components 等原来的位置 |
+| D-55 | **独立组件放在 `modules/` 下**（参考 mcpp 的 `modules/`）：anim、unicode、text、raster、gpu 和各个 gpu 后端；它们不依赖 openmui 的任何其他包，随时可以拆成独立仓库；openmui 专用的包留在 spec / runtime / gfx / hosts / components 等原来的位置 |
+| D-56 | **mcpp-index 里已经有知名、跨平台的库时，优先使用生态里的库，不自己实现**：JSON 用 `nlohmann.json`，TOML 用 `marzer.tomlplusplus`，任务系统用 `taskflow`，无锁队列用 `compat.concurrentqueue`，PNG 用 `compat.libpng`，Markdown 用 `compat.md4c`，排版用 HarfBuzz / FreeType / fribidi。**只有两种情况自己实现**：生态里没有（UAX#14 断行表）；或者确定性要求无法满足（anim 的数学函数，因为各平台 libm 的结果不同；CPU 光栅器，因为 pixman 的 SIMD 路径在不同平台上取整不同）。缺少的库优先补充到 mcpp-index（§17.2） |
 | D-54 | openmui-video 的渲染速度、修改后的增量渲染（四层缓存）、GPU 和硬件编码、预览和可再编辑性都作为指标，**每一项都要优于业界最好的工具**（§12.6）；修改以旁路数据文件 `.timeline.omui.json` 叠加在代码之上 |
 
 ---

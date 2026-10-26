@@ -170,7 +170,7 @@ openmui 沿用同样的约定：
 mui/                 # 根目录 = openmui 伞包 + workspace
 ├── mcpp.toml  src/{openmui.cppm, entry/}  mcpp/rules/  templates/
 ├── spec/                                  # 规范；全仓库唯一的头文件 include/openmui.h
-├── modules/{anim,jobs,json,unicode,text,raster,gpu,gpu-sdl,gpu-gles,gpu-webgpu,gpu-vk}/
+├── modules/{anim,unicode,text,raster,gpu,gpu-sdl,gpu-gles,gpu-webgpu,gpu-vk}/
 │                                          # 独立组件：不依赖 openmui 的任何包，将来可以直接独立成仓库（D-55）
 ├── runtime/{core,layout,view,semantic,agent,platform,abi,player,reflect,devtools}/
 ├── gfx/{render,shaders}/
@@ -362,7 +362,7 @@ M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten，渲�
 | 里程碑 | 主要内容 | 对应的展示 |
 |---|---|---|
 | M0 骨架 | workspace、registry、生成器、rules、模板、lint、CI | — |
-| M1 核心 | core / jobs / layout / 基础文本 / 立即模式 / 语义 / agent 端点 / CPU raster / headless + SDL3 | 示例 01、07 |
+| M1 核心 | core（任务调度用 taskflow）/ layout / 基础文本 / 立即模式 / 语义 / agent 端点 / CPU raster / headless + SDL3 | 示例 01、07 |
 | M2 文本 + 动画 + Markdown | 富文本、**动画全部功能**（视频依赖它）、Markdown、录制和回放、三个桌面平台 | 示例 08、09 |
 | M3 声明式 + 三种语言 | rt / 表达式 / 视图文档、C ABI、TS / Python / Lua、native、player | 示例 02–06、12 |
 | M4 GPU + 画布 + 风格化 | omui.gpu + gpu-sdl、render、Slang、canvas | S1 Markdown 墙、S2 风格画廊 |
@@ -442,7 +442,8 @@ M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten，渲�
 | D-51 | S5 openmui 宣传片：约 60 秒主片 + 15 秒短片，用 openmui-video 制作；对标三部播放量几百万到上千万的 agent 代码动画视频（promo-video 设计文档） |
 | D-52 | 协作流程：单个 PR，每一轮修改一个 commit 作为检查点 |
 | D-53 | 每个里程碑、展示、模块都有验收标准（实施计划 §19）；能自动检查的进 CI |
-| D-55 | **独立组件放在 `modules/` 下**（参考 mcpp 的 `modules/`）：anim、jobs、json、unicode、text、raster、gpu 和各个 gpu 后端。它们不依赖 openmui 的任何其他包，只依赖标准库、彼此和第三方库，所以随时可以拆成独立仓库；openmui 专用的包（spec、runtime、gfx/render、host、组件、video、lang）留在原来的位置 |
+| D-55 | **独立组件放在 `modules/` 下**（参考 mcpp 的 `modules/`）：anim、unicode、text、raster、gpu 和各个 gpu 后端。它们不依赖 openmui 的任何其他包，只依赖标准库、彼此和第三方库，所以随时可以拆成独立仓库；openmui 专用的包（spec、runtime、gfx/render、host、组件、video、lang）留在原来的位置 |
+| D-56 | mcpp-index 里已经有知名、跨平台的库时优先使用（JSON：nlohmann.json；TOML：tomlplusplus；任务：taskflow；队列：concurrentqueue；PNG：libpng；Markdown：md4c；排版：HarfBuzz / FreeType / fribidi）；只有生态里没有、或者确定性要求无法满足时才自己实现（实施计划 §21） |
 | D-54 | openmui-video 的渲染速度、增量渲染（四层缓存）、GPU 和硬件编码、预览和可再编辑性都作为指标，每一项都要优于业界最好的工具（实施计划 §12.6） |
 
 ---

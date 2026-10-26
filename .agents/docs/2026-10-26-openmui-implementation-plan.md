@@ -1,8 +1,8 @@
 # openmui 实施计划
 
-> 状态：**草案 v1.0**（2026-10-26），待 review
+> 状态：**草案 v1.1**（2026-10-26），待 review
 > 依据：[architecture](2026-10-26-openmui-architecture-design.md)（D-01 到 D-37）、[spec](2026-10-26-openmui-spec-design.md)、[component-binding](2026-10-26-openmui-component-binding-design.md)、[view-data-files](2026-10-26-openmui-view-data-files-design.md)、[canvas-markdown](2026-10-26-openmui-canvas-markdown-design.md)。
-> 本计划新增的决策是 **D-38 到 D-48**（§20），已经同步到架构文档 §13。
+> 本计划新增的决策是 **D-38 到 D-53**（§21），已经同步到架构文档 §13。**验收标准见 §19。**
 > 写法说明：标注了路径或来源的内容是事实；性能数字都是**目标值**，需要实测校准；命令和 API 是示意。
 
 ---
@@ -15,11 +15,13 @@
 | 规则 | **不用宏，用 constexpr**；**头文件只有 `openmui.h`（C ABI）**；核心不用异常和 RTTI；热路径没有虚函数，每帧零分配 |
 | 工程 | 一个仓库，多个 **workspace 成员**。每个成员有独立的 `mcpp.toml`，就是将来可以拆分出去的独立仓库（§2） |
 | 平台 | OS 服务通过 git 依赖 **`mcpplibs/os`（分支 `os-0.1.0`）**；窗口和输入走 SDL3；平台差异用“清单按目标选择模块分区 + constexpr 常量”来处理（§8） |
-| 动画 | **时间的纯函数**：可以任意跳转到某一帧，结果确定；spring 有解析解；交互模式和渲染模式共用同一套动画；**提前到 M2**，因为视频依赖它（§6） |
-| 展示 | S1 无限画布 Markdown 墙（缩放、高帧率）· S2 风格化 GPU 渲染 · S3 Agent 操作 · S4 特色小游戏《组件打砖块》· S5 用代码做动画视频（openmui-video，对标 Remotion）（§13） |
+| 动画 | **通用动画引擎 `openmui-anim`**：独立的 workspace 成员，只依赖标准库，将来可以独立成仓库；**时间的纯函数**（可以任意跳转、结果确定，spring 有解析解）；UI、视频、游戏、画布共用；**提前到 M2**（§6） |
+| 展示 | S1 无限画布 Markdown 墙 · S2 风格化 GPU 渲染 · S3 Agent 操作 · **S4《组件打砖块：openmui 巡礼》**（游戏本身就是框架导览）· **S5 openmui 宣传片**（用 openmui-video 制作，质量对标 Opus 5.5 带起的代码动画视频热潮）（§13） |
 | 测试 | 单元测试、CTS 的 S / A / B / C 四级、CPU 金图逐字节比对、GPU 金图（lavapipe）、跨平台确定性、三种语言的语义一致性、性能门禁、模糊测试和 sanitizer（§15） |
 | 生态 | 需要补充到 mcpp-index、xim、mcpplibs、mcpp 的内容逐项列出（§17） |
 | 里程碑 | M0 骨架 → M1 核心 → M2 文本 + 动画 + Markdown → M3 声明式 + 三种语言 → M4 GPU + 画布 + 风格化 → M5 视频 + 游戏 + Agent → M6 打磨和跨平台（§18） |
+| 验收 | 全局质量门禁 + 每个里程碑、模块、展示各自的验收标准，**能自动检查的都进 CI**（§19） |
+| 协作 | **单个 PR，每一轮修改提交一个 commit 作为检查点**，方便审查（§2.5） |
 
 ---
 
@@ -132,7 +134,6 @@ mui/                                   （仓库根目录 = openmui 伞包 + wor
 │   ├── jobs/                          # ★ openmui-jobs：任务系统（以后可以作为通用库独立出去）
 │   ├── layout/                        # ★ openmui-layout：flex / grid / 栈 / 滚动 / 虚拟化
 │   ├── text/                          # ★ openmui-text：排版、断行（UAX#14）、双向文字、回退、编辑、输入法
-│   ├── anim/                          # ★ openmui-anim：时钟、曲线、spring 解析解、时间线、过渡（§6）
 │   ├── view/                          # ★ openmui-view：视图 IR、对账、立即模式（openmui.im）、保留模式（openmui.rt）、表达式（openmui.expr）、视图文档
 │   ├── semantic/                      # ★ openmui-semantic：语义树、动作执行、效果分级、信封、录制和回放
 │   ├── agent/                         # ★ openmui-agent：openmui.tree@0.1 本地端点（mcpplibs.os.ipc）、协议
@@ -163,6 +164,7 @@ mui/                                   （仓库根目录 = openmui 伞包 + wor
 │   ├── timeline/                      # ★ openmui-ui-timeline：时间轴、播放器控件（视频预览和动画检查器都用）
 │   └── data/  editor/                 #   以后再做
 ├── themes/{tokens,default,compact,styles}/   # styles：风格包（token + Slang 效果 + 动效），S2 使用
+├── anim/                              # ★ openmui-anim：**通用动画引擎**（只依赖标准库；UI、视频、游戏、画布共用；以后可以独立成仓库，§6.0）
 ├── video/                             # ★ openmui-video：合成、帧、离线渲染、编码（§12；以后可以独立成仓库）
 ├── lang/{ts,py,lua}/                  # ★ openmui-lang-*：语言绑定
 ├── tools/
@@ -172,7 +174,7 @@ mui/                                   （仓库根目录 = openmui 伞包 + wor
 │   └── inspector/                     # 检查器（用 openmui 自己写的应用）
 ├── examples/01-…/ … 13-…/             # 小示例（文档的骨架）
 ├── showcase/                          # 旗舰展示（§13）
-│   ├── markdown-wall/  style-gallery/  agent-ops/  widget-breakout/  intro-video/
+│   ├── markdown-wall/  style-gallery/  agent-ops/  widget-breakout/  promo-video/
 ├── tests/                             # 跨成员的测试：CTS 运行器、e2e、确定性、性能
 ├── skills/{openmui,openmui-video}/    # 给 agent 用的技能包（SKILL.md + 规则文件），参考 Remotion 的做法
 ├── docs/{en,zh}/  llms.txt
@@ -189,6 +191,7 @@ mui/                                   （仓库根目录 = openmui 伞包 + wor
 | 成员 | 包名 | 将来可以独立吗 | 说明 |
 |---|---|---|---|
 | spec | `openmui-spec` | ✅ 出现第二个实现者时 | 参考 openkal、Vulkan-Docs |
+| **anim** | `openmui-anim` | ✅ **通用动画引擎** | 只依赖标准库，不知道 UI 的存在；游戏引擎、其他 UI 框架都可以使用 |
 | runtime/jobs | `openmui-jobs` | ✅ 通用库 | 也可以贡献给 mcpplibs |
 | runtime/text | `openmui-text` | ✅ 通用库 | C++ 模块化的文本引擎在 C++ 生态里很少见 |
 | gfx/raster | `openmui-raster` | ✅ 通用库 | 确定性的 2D 光栅器 |
@@ -215,7 +218,7 @@ modules  = true
 members = [
   "spec",
   "runtime/*", "gfx/*", "hosts/*", "components/*", "themes/*",
-  "video", "lang/*", "tools/*", "examples/*", "showcase/*",
+  "anim", "video", "lang/*", "tools/*", "examples/*", "showcase/*",
 ]
 
 [dependencies]
@@ -231,6 +234,13 @@ sources     = ["mcpp/rules/*.cppm"]
 [features.entry-player]
 sources = ["src/entry/player.cpp"]      # mcpp#845 落地后改成入口声明
 ```
+
+### 2.5 协作流程：单个 PR，commit 作为检查点（D-52）
+
+- 当前阶段的工作都放在**同一个 PR** 里（分支 `openmui-design`，PR 合入 `main`），方便集中审查。
+- **每一轮修改提交一个 commit 作为检查点**。commit 信息写清楚这一轮改了什么、为什么改，审查时可以按 commit 逐轮查看差异。
+- 每个检查点都要满足：文档之间互相一致（决策编号、目录树、里程碑、后缀）；以后有了代码，还要求 CI 全绿。
+- 进入实现阶段以后，仍然按里程碑一个 PR；里程碑之内用 commit 作为检查点。
 
 ---
 
@@ -261,12 +271,13 @@ UI 线程（C++）：
 ### 3.3 依赖方向（用 lint 强制）
 
 ```
-spec ← core ← {jobs, layout, text, anim} ← view ← semantic ← agent（另外依赖 platform 的 IPC）
+anim（只依赖标准库）← core（时钟来自 anim）
+spec ← core ← {jobs, layout, text} ← view（把 anim 适配到节点属性）← semantic ← agent（另外依赖 platform 的 IPC）
                                          ↑
                     render ← gpu ← gpu-*         raster
                     host-* ← (core, render)      platform ← mcpplibs/os
 component ← (view 的公开 API)      lang-* ← openmui.h ← abi
-video ← (view, anim, host-headless, render, ffmpeg)
+video ← (view, anim, host-headless, render, ffmpeg)      game / canvas ← anim
 ```
 
 ---
@@ -302,11 +313,11 @@ video ← (view, anim, host-headless, render, ffmpeg)
 
 | 成员 | 范围 | 关键点 | 里程碑 |
 |---|---|---|---|
-| core | 树、ID（S-8 / S-9）、signal、verb、事件、焦点和导航、arena、时钟 | SoA + 带代数的句柄；`consteval` 校验 ID 字面量；signal 批量提交；**时钟可以注入**（交互、虚拟、渲染三种） | M1 |
+| core | 树、ID（S-8 / S-9）、signal、verb、事件、焦点和导航、arena | SoA + 带代数的句柄；`consteval` 校验 ID 字面量；signal 批量提交；**时钟使用 `omui::anim::Clock`，可以注入**（交互、虚拟、渲染三种） | M1 |
 | jobs | 线程池、优先级、取消、帧内的并行 for | 工作窃取；任务不在热路径上分配内存 | M1 |
 | layout | flex、grid、栈、滚动、虚拟化 | 增量布局、测量结果缓存、**取整规则**（A 级）、`-ffp-contract=off` | M1–M2 |
 | text | HarfBuzz 排版、FreeType 字形、fribidi、**UAX#14 断行**、字体回退、选区和编辑、输入法 | 断行表由 `tools/gen` 从 Unicode 数据生成（不额外依赖 ICU）；排版结果缓存；msdf 图集交给 render | M1–M2 |
-| anim | 见 §6 | — | M2 |
+| anim | 独立成员 `anim/`，见 §6 | 只依赖标准库 | M2 |
 | view | 视图 IR、对账、`openmui.im`、`openmui.rt`、`openmui.expr`、视图文档的加载 | 立即模式在没有事件时不调用 build；表达式 AST 由原生代码求值；CEL 子集解析器要做模糊测试 | M1（im）、M3（rt、expr、视图文档） |
 | semantic | 产出语义树、执行动作、效果分级、`needs-answer`、Origin、信封、**录制和回放** | 增量变更；虚拟化语义；录制内容是“语义动作 + 时钟” | M1 |
 | agent | `openmui.tree@0.1` 本地端点（`mcpplibs.os.ipc`），协议是 JSON lines | snapshot / changes / find / act / wait / capture；actor 的文本形式和 openas 一致 | M1（基础）、M5（完整） |
@@ -332,6 +343,44 @@ auto settings_panel(Settings& s) -> omui::View {
 ---
 
 ## 6. 动画系统（重点：同时服务交互和视频）
+
+### 6.0 定位：通用动画引擎 `openmui-anim`（D-49）
+
+- **独立的 workspace 成员 `anim/`**，有自己的 `mcpp.toml`，**只依赖标准库**，不知道节点、视图、渲染的存在。将来可以直接独立成仓库（甚至贡献给 mcpplibs）。
+- **使用方**：`openmui-view` 把它适配到节点属性上；`openmui-video` 用它做合成和时间线；S4 游戏用它做玩法里的补间和时间倒流；画布用它驱动相机。**其他项目也可以单独使用**，比如游戏引擎、别的 UI 框架。
+- **对外的核心抽象**：
+
+```cpp
+export module openmui.anim;
+import std;
+
+export namespace omui::anim {
+
+using seconds = std::chrono::duration<double>;
+
+template <class T>
+concept Animatable = requires(const T& a, const T& b, double t) {
+    { lerp(a, b, t) } -> std::same_as<T>;           // 颜色在 OKLab 空间插值，变换按分量插值
+};
+
+class Clock;                                       // 交互 / 虚拟 / 渲染三种，可以注入
+template <Animatable T> class Track;               // 关键帧轨道：每一段有自己的缓动
+template <Animatable T> class Spring;              // 阻尼谐振子的解析解，可以分段（被打断时）
+class Timeline;                                    // 轨道、序列、错峰、嵌套合成、时间映射
+
+// 纯函数求值：任意时刻 O(1) 或 O(log n)，结果确定
+template <Animatable T> auto sample(const Track<T>&, seconds t) -> T;
+template <Animatable T> auto sample(const Spring<T>&, seconds t) -> T;
+
+// 批量求值：SoA，给 UI 线程每帧调用一次
+class Set;                                         // 活跃动画的集合
+void evaluate(Set&, seconds t, std::span<std::byte> out);
+
+}
+```
+
+- **和 UI 的边界**：anim 只负责“给定时刻，算出值”；“把值写到哪个属性上”由 view 负责。所以 anim 里没有任何节点、属性、线程的概念。
+
 
 ### 6.1 设计目标
 
@@ -514,7 +563,7 @@ mcpplibs.os = { git = "https://github.com/mcpplibs/os.git", branch = "os-0.1.0" 
 
 ---
 
-## 12. openmui-video：用代码制作动画视频（对标 Remotion）
+## 12. openmui-video：用代码制作动画视频（对标 Remotion 和 Opus 5.5 带起的代码动画）
 
 ### 12.1 背景
 
@@ -530,6 +579,10 @@ openmui-video 走同样的路线，并且有几项明显的优势：
 | 特效 | CSS / WebGL | **Slang 着色器**效果，和界面共用 |
 | 语言 | TS / React | TS、Python、Lua、C++ |
 | 给 agent 的质量检查 | 截图 | **每一帧都有语义树**：agent 可以检查文字是否重叠、是否出界、时间点是否正确，不只是看截图 |
+
+### 12.1a 质量对标：Opus 5.5 带起的代码动画视频
+
+2026 年 9 月 22 日 Claude Opus 5.5 发布以后，“让模型写动画代码、再逐帧渲染成视频”迅速流行：常见的流程是模型写 HTML / Canvas / three.js，再用无头 Chrome 加 ffmpeg 渲染；社区收录了上千个作品，最常见的形式是 15 秒展示短片。openmui-video 的目标是**达到同样的画面质量**，同时提供它们没有的东西：原生渲染（不需要浏览器）、结果确定、帧可以并行渲染、每一帧都有语义树可以检查。
 
 ### 12.2 概念
 
@@ -616,20 +669,57 @@ omui video check  intro.video.ts            # 每一帧的语义检查：文字�
 - **CI**：不需要真的调用 LLM。用一个脚本化的“假 agent”按确定的步骤操作，验证协议、效果分级和回放。
 - **里程碑**：M5（基础协议在 M1 已经可用）。
 
-### S4 特色小游戏：《组件打砖块》（`showcase/widget-breakout`）
+### S4 特色小游戏：《组件打砖块：openmui 巡礼》（`showcase/widget-breakout`，D-50）
 
-- **玩法**：经典的打砖块，但**每一块砖都是一个真实的 openmui 组件**：按钮、开关、滑块、Markdown 卡片。砖块被击中时播放 Slang 溶解效果，并用 GPU 实例化喷出粒子。道具也是组件，必须“用”了才生效：拖动滑块改变挡板的宽度，打开开关进入慢动作（直接调整动画时钟的倍率）。
-- **控制**：鼠标、键盘、手柄都可以；**也可以由 agent 来玩**：挡板是一个语义节点，带 `move_to(x)` 动作，游戏状态都能在语义树里读到。这里展示的是 agent 实时控制。
-- **技术**：游戏循环和 HUD 用立即模式，菜单用保留模式；物理按固定步长计算、由种子决定；目标 120Hz。
-- **CI**：给定种子和输入，在 headless 下回放，比对最终状态以及若干关键帧的哈希。
+**定位：它是一个真正好玩的游戏，同时也是一次框架导览。** 每一关讲解一项框架能力，而且这项能力就是这一关的**玩法本身**，不是贴在旁边的说明。
+
+- **基础玩法**：打砖块。**每一块砖都是真实的 openmui 组件**（按钮、开关、滑块、Markdown 卡片），被击碎时播放 Slang 溶解效果，并用 GPU 实例化喷出粒子；砖块碎掉后会露出一张 Markdown 卡片，用一两句话介绍这一关演示的能力。
+- **关卡（每一关对应一项框架特色）**：
+
+| 关卡 | 演示的能力 | 玩法 |
+|---|---|---|
+| 1 语义 | 语义树、显式 ID | 按 Tab 打开“语义透视”，砖块显示出 role 和 ID；击碎砖块时，语义树的变化实时显示在侧栏 |
+| 2 风格 | 风格包、着色器效果 | 每击碎一排，风格就切换一次（玻璃 → 霓虹 → CRT → 水墨 → 液态）；物理和语义完全不受影响 |
+| 3 画布 | 无限画布、缩放 | 关卡场地本身是一块无限画布；球飞出视野时镜头会拉远，露出整面 Markdown 墙；在不同的缩放级别之间穿梭打砖块 |
+| 4 时间 | 动画是时间的纯函数 | **时间倒流**：按住按键就能倒放（参考《时空幻境》），这正是“动画可以任意跳转、结果确定”这一点；道具“慢动作”直接调整动画时钟的倍率 |
+| 5 Agent | agent 原生 | 和 AI 合作或对战：AI 通过语义 API 控制第二块挡板（`paddle2` 的 `move_to(x)`），它的每一个动作都实时显示在“动作日志”里 |
+| 6 多语言 | 三种脚本语言、热重载 | **用户可以用 TS、Python 或 Lua 写道具**，保存后立即生效（热重载）；官方自带的三个道具，三种语言各写一个 |
+
+- **控制**：鼠标、键盘、手柄都可以；也可以由 agent 来玩。
+- **技术**：游戏循环和 HUD 用立即模式，菜单和关卡选择用保留模式；物理按固定步长计算、由种子决定；时间倒流靠 `openmui-anim` 的分段解析解和输入记录；目标 120Hz。
+- **CI**：给定种子和输入，在 headless 下回放，比对最终状态和关键帧的哈希；时间倒流和跳转的一致性；AI 关卡用脚本化的 agent。
 - **里程碑**：M5。
 
-### S5 代码动画视频（`showcase/intro-video`）
+### S5 openmui 宣传片（`showcase/promo-video`，D-51）
 
-- **内容**：《openmui 一分钟介绍》**完全用 openmui-video 写成**。片中会实时呈现 S1 的缩放、S2 的风格切换、S4 的游戏片段（复用这些展示的组件和场景），再配上字幕和音乐。
-- **加分项**：这段视频由 agent 借助 `skills/openmui-video` 来写，人只给要求并审核。
-- **CI**：渲染若干关键帧做金图比对；检查跳转一致性；检查每一帧的语义（文字不重叠、不出界）。
-- **里程碑**：M5。
+**定位：这是框架的宣传片。片子本身就是用 openmui 做的，片子里演示的也是 openmui。** 质量对标 2026 年 9 月 Claude Opus 5.5 发布后流行起来的“代码生成动画视频”：那些作品由模型写动画代码，再逐帧渲染成 MP4，画面讲究构图、节奏和缓动，常见的形式是 15 秒展示短片和讲解动画（来源见文末）。
+
+- **成片**：
+  1. **15 秒展示短片**（16:9 和 9:16 各一版）：用来在社交平台传播；
+  2. **90 秒宣传片**（16:9，1080p60 和 4K60）：完整介绍框架；
+  3. **双语字幕**（中文、英文）。
+- **分镜（90 秒版本）**：
+
+| 时间 | 镜头 | 用的是哪项能力（**全部是实时渲染的真实场景，不是录屏**） |
+|---|---|---|
+| 0–8 秒 | 标题动效：动态排版，字母用 spring 弹入，接一道着色器扫光 | 文本引擎、spring 解析解、效果着色器 |
+| 8–22 秒 | 代码到界面：左边逐字打出一段 TS，右边界面随之搭建起来；接着同一段代码依次“变形”成 C++、Python、Lua，**右边的界面一像素都不变** | 代码优先、四种写法的语义一致性（S 级） |
+| 22–38 秒 | 镜头从一个窗口一路拉远到 Markdown 墙全景，再推近到另一个窗口 | 无限画布、LOD、高帧率 |
+| 38–52 秒 | 同一个界面在五种风格之间流畅切换 | 风格包、Slang 效果 |
+| 52–66 秒 | 语义树以动态图的形式展开；agent 的光标沿着语义节点操作界面，删除时弹出确认 | agent 原生、效果分级 |
+| 66–80 秒 | 游戏片段：时间倒流、AI 挡板 | S4、确定性 |
+| 80–90 秒 | 结尾：`mcpp new app --template openmui`，标语，仓库地址 | 模板 |
+
+- **制作方式**：
+  - 由 agent（例如 Claude Code + Opus）借助 `skills/openmui-video` 来写，人只负责提要求和审核，**制作过程本身也是一次演示**；
+  - 每个镜头直接复用 S1、S2、S4 的组件和场景，在合成里实时渲染；
+  - 镜头、字幕、配乐按节拍对齐，时间线由 `openmui-anim` 驱动。
+- **画面质量要求**：
+  - 动效设计遵循动画的基本原则（预备动作、缓入缓出、跟随和重叠、错峰）；
+  - 镜头运动有 2.5D 视差和景深（着色器实现）；
+  - 后期处理：调色 LUT、轻微的胶片颗粒、运动模糊；
+  - 音画同步。
+- **里程碑**：M5（分镜和样片在 M4 就开始做，用来检验 openmui-video 和动画引擎）。
 
 ### S6 入门和画廊（`examples/01` 到 `13`）
 
@@ -730,7 +820,7 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
 | xim | `openmui-fonts`（Inter、Noto Sans、Noto Sans CJK 子集、等宽字体） | **默认字体固定下来**，保证跨平台一致（A / B 级） | M1 |
 | xim | `omui`（命令行）、`openmui-player` | 分发 | M3 |
 | mcpplibs（以后贡献） | `mcpplibs.unicode`（UAX#14 / #9 的表和算法）、`openmui-jobs`、`openmui-raster` | 通用库 | 稳定以后 |
-| mcpp | #845（入口由依赖提供）；每个成员单独打 tag 和发布（V-02）；按特性开关选择互斥的源文件（如果不支持，再提需求） | 工程体验 | 持续 |
+| mcpp | #845（入口由依赖提供）；每个成员单独打 tag 和发布（V-02）。**已确认 mcpp 支持**：按特性开关选择互斥的源文件；依赖图里有 C++26 成员时 BMI 兼容 | 工程体验 | 持续 |
 
 ---
 
@@ -744,8 +834,8 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
 | **M1 核心** | 6–8 周 | core / jobs / layout（flex）/ 基础文本 / view（im）/ semantic / agent（本地端点 + 命令行）/ raster / host-headless / host-sdl3（Linux）/ ui-base 的前 9 个组件；规范 0.1 的 S 级 | 示例 01 和 07；`omui agent` 能操作示例；CPU 金图逐字节一致 |
 | **M2 文本 + 动画 + Markdown** | 6–8 周（**文本可以从 M1 开始并行**） | 富文本、UAX#14、双向文字、编辑和输入法；**anim 全部功能（§6）**；ui-markdown；录制和回放；Windows / macOS | 示例 08 和 09；动画的 A 级用例和跳转一致性；跨平台确定性测试是绿色的 |
 | **M3 声明式 + 三种语言** | 6–8 周 | rt / expr / 视图文档；C ABI；TS / Python（宿主模式，abi3）/ Lua；native 模块；`deps.<lang>`；player；其余模板；规范 0.2 | 示例 02–06、12；四种写法加视图文档的语义树一致；三种语言的 CTS 一致 |
-| **M4 GPU + 画布 + 风格化** | 8–10 周 | omui.gpu + gpu-sdl；render；Slang 着色器流水线；效果和材质；lavapipe 进 CI；ui-canvas / canvas-kit；themes/styles；规范 0.3 | **S1 Markdown 墙**和 **S2 风格画廊**；第一份基准报告 |
-| **M5 视频 + 游戏 + Agent** | 6–8 周 | openmui-video；ui-timeline；动画检查器；MCP 服务器；skills；accesskit | **S3、S4、S5**；视频的跳转一致性和逐帧语义检查 |
+| **M4 GPU + 画布 + 风格化** | 8–10 周 | omui.gpu + gpu-sdl；render；Slang 着色器流水线；效果和材质；lavapipe 进 CI；ui-canvas / canvas-kit；themes/styles；规范 0.3；**openmui-video 的原型和 S5 的分镜样片** | **S1 Markdown 墙**和 **S2 风格画廊**；第一份基准报告 |
+| **M5 视频 + 游戏 + Agent** | 6–8 周 | openmui-video；ui-timeline；动画检查器；MCP 服务器；skills；accesskit | **S3、S4（六个关卡）、S5（15 秒和 90 秒两版成片）**；详见 §19.3 |
 | **M6 打磨和跨平台** | 持续 | 检查器（像素溯源）；性能调优和门禁；gpu-gles 和 Web；文档完整；准备公开 | 指标稳定；文档完整；评估迁移到公开仓库 |
 
 ### 18.1 M0 的任务清单（可以直接开工）
@@ -758,11 +848,62 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
 6. CI：三个平台的构建 + 单元测试；`.xlings.json`。
 7. 模板：`app-cpp`（带一行的 `src/main.cpp`）、`component`。
 8. `openmui-fonts` 的 xpkg 草稿。
-9. 验证 V-02（每个成员单独打 tag 和发布）以及“按特性选择互斥源文件”。
+9. 验证 V-02（每个成员单独打 tag 和发布）；用一个最小示例跑通“按特性选择互斥源文件”（mcpp 已经支持），作为没有宏的特性分区的样板。
 
 ---
 
-## 19. 风险与对策
+## 19. 验收标准（D-53）
+
+原则：**能自动检查的都进 CI**；不能自动检查的（例如视频的画面质量）写成检查清单，由维护者签字确认。数字都是目标值，M1 期间做一次实测校准，校准后的数值写回本节，从此作为门禁。
+
+### 19.1 全局质量门禁（每个 PR、每个检查点都要满足）
+
+| 项目 | 标准 |
+|---|---|
+| 构建 | Linux、Windows、macOS 三个平台都能构建（M2 起） |
+| lint | 依赖方向、头文件（只允许 `openmui.h`）、`#define`（为 0）、命名、显式 ID 全部通过 |
+| 测试 | 单元测试、CTS 的 S / A 级 100% 通过；B 级金图通过 |
+| 确定性 | CPU 渲染和动画曲线的哈希在三个平台上完全相同 |
+| 性能 | 基准测试的 P99 相对基线退步不超过 5%（超过就失败，除非 PR 里写明原因并获得批准） |
+| 内存 | ASan / UBSan 每晚运行无报错；每帧零分配的模块有分配计数测试 |
+| 文档 | 公开 API 的改动必须同步文档；设计文档之间互相一致 |
+
+### 19.2 各里程碑的验收
+
+| 里程碑 | 验收标准 |
+|---|---|
+| **M0** | ① `mcpp new demo --template openmui` 生成的工程能构建和运行；② 修改一份契约以后，`mcpp build` 重新生成 C++ 分区、`openmui.h`、`.d.ts` / `.pyi` / Lua 注解，并且增量构建只重新编译受影响的成员；③ 三个平台的 CI 都是绿的；④ lint 能拦下一个故意加入的 `#define` 和一个越级依赖；⑤ 用一个最小示例跑通“按特性选择互斥源文件” |
+| **M1** | ① 示例 01 和 07 在 Linux 上运行；② `omui agent snapshot / find / act / wait` 能操作示例 07，不可逆动作没有 `answer` 时返回 `needs-answer`（退出码 2）；③ CPU 金图在 Linux 上两次运行逐字节相同；④ ui-base 的前 9 个组件全部满足组件完成标准；⑤ 1000 个节点的界面在 CPU 后端上 1080p 达到 60Hz（目标值） |
+| **M2** | ① 示例 08 和 09；② 公开的 CommonMark 测试集通过率 ≥ 95%（GFM 扩展单独统计）；③ **动画**：§6.6 的 A 级曲线金值全部通过；跳转一致性用例（随机抽取 1000 个时刻）全部通过；被打断的 spring 速度连续（误差 < 1e-9）；④ 跨平台确定性测试在三个桌面平台上是绿的；⑤ 中文、阿拉伯语、emoji 混排的排版测试集通过；⑥ 录制一段会话，在 headless 下回放，结果完全相同 |
+| **M3** | ① 示例 02–06、12；② 同一个视图用四种语言加视图文档写，语义树完全相同（CTS 的 S 级）；③ 同一组 JSON 场景由 TS、Python、Lua 执行，结果完全相同；④ 脚本热重载在 200ms 以内生效，并且 signal 的状态保留；⑤ `pip install openmui` 后运行 Python 示例（Linux）；⑥ native 模块的契约生成三种语言的绑定，不需要手写代码 |
+| **M4** | ① **S1** 和 **S2** 满足 §19.3；② gpu-sdl 在三个桌面平台上运行；lavapipe 金图在 CI 里通过；③ 一个自定义的 Slang 效果从编写到生效不需要改任何 C++ 代码，着色器热重载在 500ms 以内；④ 第一份公开的基准报告 |
+| **M5** | ① **S3、S4、S5** 满足 §19.3；② MCP 服务器能让 Claude Code 操作任意一个示例；③ `skills/openmui` 和 `skills/openmui-video` 发布 |
+| **M6** | ① Web（WebGL2）上运行 S1 的缩小版和示例 01；② 文档完整（四种语言的入门、所有指南、生成的 API 参考）；③ 所有门禁稳定运行 4 周以上 |
+
+### 19.3 各展示的验收
+
+| 展示 | 自动检查（进 CI） | 人工检查（维护者签字） |
+|---|---|---|
+| **S1 Markdown 墙** | 1000 个窗口，缩放扫描（1% ↔ 400%）：核显 120Hz 下帧时间 P99 < 8.3ms；平移和缩放时每帧 CPU < 1ms；清晰化时间 < 300ms；20 个窗口同时流式输出时不掉帧；内存不超过公开的预算；三种语言写的场景脚本结果一致 | 缩放过程中没有可见的闪烁和跳变 |
+| **S2 风格画廊** | 五种风格在核显上都达到 120Hz；**换风格前后语义树完全相同**；每种风格的 GPU 开销进报告；lavapipe 金图通过 | 每种风格的观感达到设计稿的水平 |
+| **S3 Agent 操作** | 脚本化的 agent 完成整理任务，结果 100% 确定；不可逆操作 100% 被拦下；录制的会话回放结果完全相同；生成的视图文档通过 schema 和语义检查 | 用真实的 LLM agent（Claude Code）手动跑 10 次，至少 9 次完成任务 |
+| **S4 组件打砖块** | 120Hz，输入延迟 ≤ 1 帧；给定种子和输入，三个平台上的回放哈希完全相同；最近 30 秒内可以倒流到任意时刻，倒流后继续游戏的结果和直接回放相同；三种语言写的道具都能热重载（< 200ms）；脚本化的 agent 能通过第 5 关 | 六个关卡**每一关都能让玩家明白它演示的是哪项框架能力**；作为游戏本身好玩（试玩反馈） |
+| **S5 宣传片** | 1080p60 和 4K60 都能渲染；**两次渲染的结果逐字节相同**（CPU 路径）或在容差内（GPU 路径）；跳转一致性通过；逐帧语义检查零问题（文字不重叠、不出安全区、没有空白帧）；音画同步误差 ≤ 1 帧；在参考机器上，90 秒 1080p60 的渲染时间 ≤ 10 分钟（并行，目标值）；双语字幕齐全 | **质量对标**：和 3 部 Opus 5.5 时期的热门代码动画作品（展示短片、讲解动画各至少一部）并排观看，在构图、节奏、缓动、排版、音画同步五个维度上不低于它们；分镜里的每个镜头都确实在演示对应的框架能力；制作过程（agent 写、人审核）有完整记录 |
+
+### 19.4 各模块的完成标准
+
+| 模块类型 | 标准 |
+|---|---|
+| 所有成员 | 独立的 `mcpp.toml` 能单独构建和测试；README 写明用途和依赖；公开 API 有文档注释；不违反 lint |
+| 核心模块（core、anim、layout、text、view、semantic、raster、render） | 有基准测试并进入门禁；热路径每帧零分配（有分配计数测试）；单元测试覆盖主要分支（M2 起统计覆盖率，目标是行覆盖率 ≥ 80%） |
+| 解析器（契约、视图文档、表达式、Markdown） | 有模糊测试，每晚运行不崩溃；错误信息带位置和修改建议，并支持 `--json` |
+| 组件 | 满足组件完成标准（component-binding §12） |
+| 语言绑定 | 通过三种语言的 CTS；类型存根完整；示例能运行 |
+| 规范 | 每一条条款都有对应的 CTS 用例；registry 能生成全部产物 |
+
+---
+
+## 20. 风险与对策
 
 | 风险 | 对策 |
 |---|---|
@@ -777,7 +918,7 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
 
 ---
 
-## 20. 本计划新增的决策
+## 21. 本计划新增的决策
 
 | ID | 决策 |
 |---|---|
@@ -792,6 +933,11 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
 | D-46 | Python 绑定用 CPython 的稳定 ABI（abi3）自己实现，不用 pybind11 |
 | D-47 | UAX#14 断行表由 `tools/gen` 从 Unicode 数据生成，不依赖 ICU |
 | D-48 | 默认字体通过 `openmui-fonts` 固定下来，作为渲染确定性的一部分 |
+| D-49 | **通用动画引擎 `openmui-anim`**：独立的 workspace 成员 `anim/`，只依赖标准库，不知道 UI 的存在；UI、视频、游戏、画布共用；将来可以独立成仓库 |
+| D-50 | S4 改为《组件打砖块：openmui 巡礼》：六个关卡，每一关的玩法本身就是一项框架能力（语义、风格、画布、时间倒流、agent、多语言） |
+| D-51 | S5 改为 **openmui 宣传片**（15 秒和 90 秒两版，双语字幕），用 openmui-video 制作、全部是实时渲染的真实场景，质量对标 Opus 5.5 带起的代码动画视频 |
+| D-52 | 协作流程：单个 PR，每一轮修改一个 commit 作为检查点 |
+| D-53 | 每个里程碑、展示、模块都有验收标准；能自动检查的进 CI，不能自动检查的写成检查清单并由维护者签字 |
 
 ---
 
@@ -799,5 +945,6 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
 
 - GCC 16 的 C++26 反射：[GCC 16.1 released（isocpp.org）](https://isocpp.org/blog/2026/04/gcc-16.1)、[GCC C++ Dialect Options（-freflection）](https://gcc.gnu.org/onlinedocs/gcc/C_002b_002b-Dialect-Options.html)、[cppreference：C++26 编译器支持](https://en.cppreference.com/cpp/compiler_support/26)、[GCC 16.1 发布（Phoronix）](https://www.phoronix.com/news/GCC-16.1-Released)
 - Remotion 和 agent skills：[Remotion Agent Skills Guide 2026](https://aividpipeline.com/blog/remotion-agent-skills-guide-2026)、[Remotion Skills 2026（gaga.art）](https://gaga.art/blog/remotion-skills/)、[What Is the Remotion Skill?](https://www.ngram.com/blog/remotion-skills-sh-ai-video-creation)
+- Opus 5.5 带起的代码动画视频：[The Emergence of Code-Based Animation in Claude Opus 5.5](https://bretkerr.substack.com/p/the-emergence-of-code-based-animation)、[officechai：10 Best Examples](https://officechai.com/ai/claude-opus-5-5-motion-graphic-videos/)、[How to Make an Opus 5.5 Cartoon in Claude Code](https://explainx.ai/blog/how-opus-5-5-viral-videos-are-made-code-not-diffusion-2026)、[Claude Motion 教程](https://help.apiyi.com/en/claude-motion-opus-5-5-prompt-to-motion-video-tutorial-en.html)、[revid.ai：64 Videos + Prompts](https://www.revid.ai/claude-motion-graphics)
 - SDL_GPU 的 WebGPU 后端（实验性的 PR）：[libsdl-org/SDL#16020](https://github.com/libsdl-org/SDL/pull/16020)、[libsdl-org/SDL#12046](https://github.com/libsdl-org/SDL/pull/12046)
 - 本地：`mcpplibs/os`（分支 `os-0.1.0`）的 README 和 `mcpp.toml`；`mcpp/docs/05-dependencies.md`（git 依赖）、`07-workspace.md`（带根包的 workspace）、`04-mcpp-toml.md`；xim-pkgindex 和 mcpp-index 的包列表

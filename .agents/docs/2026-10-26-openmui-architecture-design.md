@@ -169,7 +169,8 @@ openmui 沿用同样的约定：
 mui/                 # 根目录 = openmui 伞包 + workspace
 ├── mcpp.toml  src/{openmui.cppm, entry/}  mcpp/rules/  templates/
 ├── spec/                                  # 规范；全仓库唯一的头文件 include/openmui.h
-├── runtime/{core,jobs,layout,text,anim,view,semantic,agent,platform,abi,player,reflect,devtools}/
+├── anim/                                  # 通用动画引擎（只依赖标准库，将来可以独立，D-49）
+├── runtime/{core,jobs,layout,text,view,semantic,agent,platform,abi,player,reflect,devtools}/
 ├── gfx/{render,gpu,gpu-sdl,gpu-gles,gpu-webgpu,gpu-vk,raster,shaders}/
 ├── hosts/{sdl3,headless,opensal,web}/
 ├── components/{base,markdown,canvas,canvas-kit,timeline,data,editor}/
@@ -363,7 +364,7 @@ M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten，渲�
 | M2 文本 + 动画 + Markdown | 富文本、**动画全部功能**（视频依赖它）、Markdown、录制和回放、三个桌面平台 | 示例 08、09 |
 | M3 声明式 + 三种语言 | rt / 表达式 / 视图文档、C ABI、TS / Python / Lua、native、player | 示例 02–06、12 |
 | M4 GPU + 画布 + 风格化 | omui.gpu + gpu-sdl、render、Slang、canvas | S1 Markdown 墙、S2 风格画廊 |
-| M5 视频 + 游戏 + Agent | openmui-video、timeline、MCP、skills | S3 Agent 操作、S4 组件打砖块、S5 代码动画视频 |
+| M5 视频 + 游戏 + Agent | openmui-video、timeline、MCP、skills | S3 Agent 操作、S4《组件打砖块：openmui 巡礼》、S5 openmui 宣传片 |
 | M6 打磨和跨平台 | 检查器、性能门禁、gpu-gles / Web、文档 | — |
 
 ## 12. 风险
@@ -434,6 +435,11 @@ M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten，渲�
 | D-46 | Python 绑定用 CPython 的稳定 ABI（abi3）自己实现，不用 pybind11 |
 | D-47 | UAX#14 断行表由 `tools/gen` 从 Unicode 数据生成，不依赖 ICU |
 | D-48 | 默认字体通过 `openmui-fonts` 固定下来，作为渲染确定性的一部分 |
+| D-49 | 通用动画引擎 `openmui-anim`：独立的 workspace 成员 `anim/`，只依赖标准库；UI、视频、游戏、画布共用；将来可以独立成仓库 |
+| D-50 | S4《组件打砖块：openmui 巡礼》：六个关卡，每一关的玩法本身就是一项框架能力 |
+| D-51 | S5 openmui 宣传片：15 秒和 90 秒两版，用 openmui-video 制作，质量对标 Opus 5.5 带起的代码动画视频 |
+| D-52 | 协作流程：单个 PR，每一轮修改一个 commit 作为检查点 |
+| D-53 | 每个里程碑、展示、模块都有验收标准（实施计划 §19）；能自动检查的进 CI |
 
 ---
 
@@ -448,5 +454,5 @@ M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten，渲�
 | V-03 | mcpp#845（入口由依赖提供）的进展；在那之前用一行的 `main.cpp` 过渡 | 持续跟进 |
 | V-04 | lavapipe 在 CI 里运行 GPU 后端金图测试的速度和稳定性 | M4 |
 | V-05 | 表达式的组合函数在四种语言里的命名和手感（例如 Python 的 `not_`） | M3 |
-| V-06 | mcpp 能否按特性开关选择互斥的源文件（用于没有宏的特性分区）；依赖图里有 C++26 成员时 BMI 的兼容性 | M0 |
+| V-06 | ~~mcpp 能否按特性开关选择互斥的源文件；依赖图里有 C++26 成员时 BMI 的兼容性~~ **已确认 mcpp 支持**（M0 用一个最小示例作为样板） | — |
 | V-07 | GCC 16 的 `-freflection` 在 `openmui-reflect` 里的稳定性 | M3 |

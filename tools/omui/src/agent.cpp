@@ -208,7 +208,7 @@ std::expected<std::string, std::string> agent_request(const cmd::ParsedArgs& p) 
         if (a.is_flag_set("settled")) req.set("settled", true);
         if (a.value("timeout")) {
             double t = 0;
-            const std::string_view s = *a.value("timeout");
+            const std::string s = *a.value("timeout");  // owned: value() returns a temporary
             if (std::from_chars(s.data(), s.data() + s.size(), t).ec != std::errc{}) return std::unexpected("--timeout is in seconds");
             req.set("timeout", t);
         }
@@ -243,7 +243,7 @@ std::expected<std::string, std::string> agent_request(const cmd::ParsedArgs& p) 
             if (off || a.is_flag_set(o)) req.set(o, !off);
         if (a.value("slow")) {
             double ms = 0;
-            const std::string_view v = *a.value("slow");
+            const std::string v = *a.value("slow");  // owned: value() returns a temporary
             if (std::from_chars(v.data(), v.data() + v.size(), ms).ec != std::errc{}) return std::unexpected("--slow is milliseconds");
             req.set("slow_frame_ms", ms);
         }

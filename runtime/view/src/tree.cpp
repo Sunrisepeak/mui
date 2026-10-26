@@ -81,6 +81,7 @@ NodeId Runtime::Impl::create(Element& e, NodeId parent) {
     at(id).slots = std::move(slots);
     flatten(id);
     if (at(id).transitions.contains("enter")) enter(id);
+    else fresh.push_back(id);
     touch(dirty_tree | dirty_layout | dirty_paint);
     return id;
 }
@@ -126,6 +127,7 @@ void Runtime::Impl::destroy(NodeId id) {
     std::erase(hover_chain, id);
     std::erase(animating, id);
     std::erase(removing, id);
+    std::erase(fresh, id);
     std::erase_if(runtime_handlers, [&](const RuntimeHandler& h) { return h.node == id; });
     nodes.erase(id);
     paths_dirty = true;

@@ -24,6 +24,10 @@ import :component;
 
 export namespace omui {
 
+// How far a frame goes: the semantic tree alone (H0: build and reconcile),
+// with layout (H1: bounds, hit testing), or to a display list (H2 and up).
+enum class Stages : std::uint8_t { semantics, layout, paint };
+
 struct RuntimeOptions {
     Theme                 theme = Theme::light();
     typeset::FontCollection* fonts = nullptr;  // nullptr: the runtime loads the default fonts
@@ -31,6 +35,7 @@ struct RuntimeOptions {
     Size                  size{800, 600};   // logical pixels
     float                 scale = 1.0f;     // physical pixels per logical pixel
     bool                  reduce_motion = false;
+    Stages                stages = Stages::paint;
 };
 
 struct FrameInput {
@@ -47,7 +52,7 @@ struct FrameStats {
 };
 
 struct FrameOutput {
-    const render::DisplayList& list;
+    const render::DisplayList* list = nullptr;  // the runtime's list, valid until the next frame
     bool                       repainted = false;
     bool                       animating = false;  // another frame is wanted
     std::uint64_t              revision = 0;       // semantic revision after the frame

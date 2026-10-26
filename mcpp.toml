@@ -30,7 +30,9 @@ members = [
     "runtime/view",
     "runtime/semantic",
     "runtime/agent",
+    "hosts/headless",
     "tools/gen",
+    "tools/omui",
 ]
 
 [workspace.package]

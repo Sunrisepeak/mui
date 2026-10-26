@@ -209,7 +209,11 @@ def check_manifests(root: Path) -> list[Problem]:
         if not manifest.exists():
             problems.append(Problem("members", member, "listed as a member, but has no mcpp.toml"))
             continue
-        data = tomllib.loads(manifest.read_text(encoding="utf-8"))
+        try:
+            data = tomllib.loads(manifest.read_text(encoding="utf-8"))
+        except tomllib.TOMLDecodeError as e:
+            problems.append(Problem("members", member, f"mcpp.toml is not valid TOML: {e}"))
+            continue
         allowed = rule_for(member)
         if allowed is None:
             problems.append(Problem("layering", member, "a member in no known layer; add it to tools/lint/lint.py"))

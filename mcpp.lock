@@ -46,6 +46,12 @@ version = "1.3.2"
 source  = "index+compat@1.3.2"
 hash    = "fnv1a:9f13dbeaae3ef4c0"
 
+[package."mcpplibs.cmdline"]
+namespace = "mcpplibs"
+version = "0.0.2"
+source  = "index+mcpplibs@0.0.2"
+hash    = "fnv1a:aad61299abc2c4b7"
+
 [package."nlohmann.json"]
 namespace = "nlohmann"
 version = "3.12.0"

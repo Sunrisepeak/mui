@@ -34,17 +34,25 @@ FrameOutput Runtime::frame(const FrameInput& input) {
     d.run_animations();
     d.finish_removals();
     d.rebuild_paths();
-    d.run_layout();
+    const Stages stages = d.options.stages;
+    if (stages >= Stages::layout) d.run_layout();
 
     // What painting asks for (a scroll view still gliding) is for the next frame.
     const std::uint8_t todo = d.dirty;
     d.dirty = dirty_none;
     bool repainted = false;
-    if (todo & (dirty_paint | dirty_layout | dirty_tree)) {
-        d.compute_bounds(d.root, {0, 0});
-        d.paint();
-        repainted = true;
+    if (stages >= Stages::layout && (todo & (dirty_paint | dirty_layout | dirty_tree))) {
+        d.compute_bounds(d.root, {0, 0}, Affine{});
+        if (stages >= Stages::paint) {
+            d.paint();
+            repainted = true;
+        }
     }
+    // Nodes that lived through a frame are shown: their changes may animate
+    // from now on (at every stage alike, so H0, H1 and H2 agree).
+    for (NodeId id : d.fresh)
+        if (d.alive(id)) d.at(id).shown = true;
+    d.fresh.clear();
 
     d.stats.nodes = d.nodes.size();
     for (NodeId id : d.animating) d.stats.animating += static_cast<std::size_t>(std::popcount(d.at(id).moving));
@@ -53,7 +61,7 @@ FrameOutput Runtime::frame(const FrameInput& input) {
     FrameStats stats = std::exchange(d.stats, {});
     std::optional<seconds> next;
     for (const Impl::Timer& t : d.timers) next = next ? std::min(*next, t.due) : t.due;
-    return FrameOutput{d.list, repainted, more, d.semantic_revision, stats, next};
+    return FrameOutput{&d.list, repainted, more, d.semantic_revision, stats, next};
 }
 
 void Runtime::Impl::run_timers() {
@@ -130,25 +138,15 @@ void Runtime::Impl::run_layout() {
     ++semantic_revision;  // bounds moved
 }
 
-void Runtime::Impl::compute_bounds(NodeId id, Point origin) {
+void Runtime::Impl::compute_bounds(NodeId id, Point origin, const Affine& parent_world) {
     Node& n = at(id);
     n.frame = layout.frame(n.layout);
     n.bounds = {origin.x + n.frame.x, origin.y + n.frame.y, n.frame.width, n.frame.height};
     n.content_offset = n.type->scroll_offset ? n.type->scroll_offset(n.instance) : Point{};
-    const Point inner{n.bounds.x - n.content_offset.x, n.bounds.y - n.content_offset.y};
-    for (std::size_t i = 0; i < at(id).children.size(); ++i) compute_bounds(at(id).children[i], inner);
-}
 
-void Runtime::Impl::paint() {
-    list.clear();
-    paint_node(root, Affine{});
-}
-
-void Runtime::Impl::paint_node(NodeId id, const Affine& parent_world) {
-    Node& n = at(id);
+    // The local transform: the frame's offset, then the visual transforms about the centre.
     const Visual& v = n.visual;
     const Size size = n.frame.size();
-
     Affine local = Affine::translate(n.frame.x + v[Field::translate_x], n.frame.y + v[Field::translate_y]);
     const float s = v[Field::scale];
     const float rotation = v[Field::rotation];
@@ -159,8 +157,26 @@ void Runtime::Impl::paint_node(NodeId id, const Affine& parent_world) {
         if (s != 1) m = m * Affine::scale(s, s);
         local = local * m * Affine::translate(-cx, -cy);
     }
+    n.local = local;
     n.world = parent_world * local;
-    n.shown = true;
+
+    const Point off = n.content_offset;
+    const Point inner{n.bounds.x - off.x, n.bounds.y - off.y};
+    const Affine child_world = (off.x != 0 || off.y != 0) ? n.world * Affine::translate(-off.x, -off.y) : n.world;
+    for (std::size_t i = 0; i < at(id).children.size(); ++i) compute_bounds(at(id).children[i], inner, child_world);
+}
+
+void Runtime::Impl::paint() {
+    list.clear();
+    paint_node(root);
+}
+
+void Runtime::Impl::paint_node(NodeId id) {
+    Node& n = at(id);
+    const Visual& v = n.visual;
+    const Size size = n.frame.size();
+    const Affine local = n.local;
+    const float s = v[Field::scale];
     if (!v.visible || v[Field::opacity] <= 0 || s == 0) return;
     ++stats.painted;
 
@@ -198,8 +214,7 @@ void Runtime::Impl::paint_node(NodeId id, const Affine& parent_world) {
     const Point off = n.content_offset;
     const bool shifted = off.x != 0 || off.y != 0;
     if (shifted) list.push_transform(Affine::translate(-off.x, -off.y));
-    const Affine child_world = shifted ? at(id).world * Affine::translate(-off.x, -off.y) : at(id).world;
-    for (std::size_t i = 0; i < at(id).children.size(); ++i) paint_node(at(id).children[i], child_world);
+    for (std::size_t i = 0; i < at(id).children.size(); ++i) paint_node(at(id).children[i]);
     if (shifted) list.pop_transform();
 
     Node& again = at(id);

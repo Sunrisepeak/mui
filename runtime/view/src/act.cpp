@@ -54,7 +54,9 @@ spec::SemanticNode Runtime::Impl::semantics(NodeId id) const {
         .set(State::removing, n.state.removing)
         .set(State::animating, n.state.animating)
         .set(State::hidden, !n.visual.visible);
-    if (id != root && !n.bounds.intersects(Rect{0, 0, size.width, size.height})) s.states.set(State::offscreen);
+    // Without layout (H0) a node has no place: neither bounds nor offscreen.
+    const bool placed = options.stages >= Stages::layout;
+    if (placed && id != root && !n.bounds.intersects(Rect{0, 0, size.width, size.height})) s.states.set(State::offscreen);
 
     // Actions: the contract's, then the verb's classification of activate.
     auto add = [&](std::string_view name, Effect effect, std::span<const spec::ArgInfo> args = {}) -> spec::ActionDesc& {
@@ -102,7 +104,7 @@ spec::SemanticNode Runtime::Impl::semantics(NodeId id) const {
             break;
         }
 
-    if (id != root || !n.bounds.empty()) s.bounds = to_spec(n.bounds);
+    if (placed) s.bounds = to_spec(n.bounds);
     for (NodeId c : n.children) s.children.push_back(self.path(c));
     if (n.type->semantics) {
         SemanticsContext ctx{self, id, n.state};

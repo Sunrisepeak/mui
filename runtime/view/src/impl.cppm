@@ -92,7 +92,8 @@ struct Node {
     Rect                 frame;         // relative to the parent's border box (layout)
     Rect                 bounds;        // window coordinates, without visual transforms
     Point                content_offset;
-    Affine               world;         // local → window, with visual transforms (last paint)
+    Affine               local;         // parent → node: its frame and visual transforms
+    Affine               world;         // node → window
     std::source_location where;
     std::uint32_t        index = 0;     // display-list node marker; 0 is none
 };
@@ -127,6 +128,7 @@ struct Runtime::Impl {
     std::vector<std::weak_ptr<RegionState>> dirty_regions;
     std::vector<NodeId>                   animating;  // nodes with moving channels
     std::vector<NodeId>                   removing;   // nodes playing their exit transition (S-4)
+    std::vector<NodeId>                   fresh;      // created since the last frame ended
     Size                                  size;
     float                                 scale = 1;
     bool                                  reduce_motion = false;
@@ -200,9 +202,9 @@ struct Runtime::Impl {
     void   run_timers();
     void   run_animations();
     void   run_layout();
-    void   compute_bounds(NodeId id, Point origin);
+    void   compute_bounds(NodeId id, Point origin, const Affine& parent_world);
     void   paint();
-    void   paint_node(NodeId id, const Affine& parent_world);
+    void   paint_node(NodeId id);
     NodeId hit(NodeId id, Point window, std::optional<Rect> clip) const;
 
     // input (input.cpp)

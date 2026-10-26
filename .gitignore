@@ -4,3 +4,4 @@ build/
 compile_commands.json
 *.swp
 .DS_Store
+.xlings/

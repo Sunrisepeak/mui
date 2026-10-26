@@ -20,8 +20,8 @@ main = "src/main.cpp"
 [build]
 sources = ["src/*.cppm", "src/*.cpp"]
 
-[dependencies.marzer]
-tomlplusplus = "3.4.0"
+[dependencies]
+marzer.tomlplusplus = "3.4.0"
 
 [dev-dependencies]
 openmui-testing = { path = "../../tests/support" }

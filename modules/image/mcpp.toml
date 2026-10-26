@@ -18,8 +18,8 @@ kind = "lib"
 [build]
 sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 
-[dependencies.compat]
-libpng = "1.6.43"
+[dependencies]
+compat.libpng = "1.6.43"
 
 [dev-dependencies]
 openmui-testing = { path = "../../tests/support" }

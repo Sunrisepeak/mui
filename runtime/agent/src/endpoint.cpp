@@ -81,8 +81,11 @@ struct Endpoint::Impl {
                 buffer.erase(0, nl + 1);
                 if (!line.empty() && line.back() == '\r') line.pop_back();
                 if (line.empty()) continue;
-                std::scoped_lock g(lock);
-                inbox.push_back({link, std::move(line)});
+                {
+                    std::scoped_lock g(lock);
+                    inbox.push_back({link, std::move(line)});
+                }
+                if (options.wake) options.wake();
             }
         }
         link->open = false;

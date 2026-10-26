@@ -1,0 +1,49 @@
+// openmui.host.sdl3:platform — the window, as the rest of the host sees it:
+// no SDL type crosses this line (SDL lives in native/sdl.cpp).
+module openmui.host.sdl3:platform;
+
+import std;
+import openmui.core;
+import openmui.raster;
+
+namespace omui::platform {
+
+struct WindowOptions {
+    std::string title;
+    Size        size;
+    bool        resizable = true;
+    bool        vsync = true;
+    std::string video_driver;
+    std::string render_driver;
+};
+
+struct Window;  // SDL_Window, SDL_Renderer, the frame's texture
+
+struct WindowDeleter {
+    void operator()(Window* w) const noexcept;
+};
+using WindowPtr = std::unique_ptr<Window, WindowDeleter>;
+
+std::expected<WindowPtr, std::string> open(const WindowOptions& options);
+
+struct Polled {
+    std::vector<InputEvent> events;
+    bool                    quit = false;
+};
+// The window's pending events, translated; with `wait`, sleeps up to
+// `timeout` (none: until an event) for the first one.
+Polled poll(Window& w, bool wait, std::optional<std::chrono::milliseconds> timeout);
+
+[[nodiscard]] Size  logical_size(Window& w);
+[[nodiscard]] float pixel_scale(Window& w);
+void present(Window& w, const raster::Surface& frame);
+void text_input(Window& w, std::optional<Rect> caret);
+void cursor(Window& w, std::string_view shape);
+[[nodiscard]] std::string clipboard();
+void set_clipboard(std::string_view text);
+// Wakes a poll that sleeps (from any thread).
+void wake();
+void synthesize(Window& w, std::span<const InputEvent> events);
+std::expected<raster::Surface, std::string> read_back(Window& w);
+
+}  // namespace omui::platform

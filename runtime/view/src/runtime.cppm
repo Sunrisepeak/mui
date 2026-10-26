@@ -107,6 +107,8 @@ public:
     [[nodiscard]] Size size() const noexcept;
     [[nodiscard]] float scale() const noexcept;
     [[nodiscard]] anim::Clock& clock() noexcept;
+    // When the earliest timer is due (hosts sleep until then); none when no timer waits.
+    [[nodiscard]] std::optional<seconds> next_timer() const noexcept;
     [[nodiscard]] NodeId hit_test(Point window) const;
 
     // ── actions, focus, verbs ──
@@ -160,6 +162,12 @@ public:
 
     // The text-input request of the last frame (hosts show the IME there).
     [[nodiscard]] std::optional<Rect> text_input_rect() const noexcept;
+    // The pointer's shape over the hovered node: its `cursor` property, its
+    // type's, or its ancestors' ("default" when none asks).
+    [[nodiscard]] std::string_view cursor() const;
+    // Where the clipboard is (a host's system clipboard); without one the
+    // runtime keeps its own.
+    void set_clipboard(std::function<std::string()> read, std::function<void(std::string_view)> write);
 
     struct Impl;  // defined by the implementation (openmui.view:impl)
 

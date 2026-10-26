@@ -1,0 +1,36 @@
+# openmui-host-sdl3 — openmui on the desktop through SDL3 (mcpp-index
+# compat.sdl3): a window, the display's scale, mouse, touch, wheel,
+# keyboard, text and input methods, the system clipboard and cursors; the
+# CPU renderer's frames streamed into a texture (the GPU renderer replaces it
+# at M4); a loop that sleeps until an event, a timer or an agent's request;
+# the agent endpoint served between frames.
+[package]
+name        = "openmui-host-sdl3"
+version     = "0.1.0"
+description = "openmui desktop host over SDL3: window, input, IME, clipboard, cursors, CPU frames, agent endpoint"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "host"
+
+[targets.openmui-host-sdl3]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+
+[dependencies]
+openmui-core     = { path = "../../runtime/core" }
+openmui-view     = { path = "../../runtime/view" }
+openmui-semantic = { path = "../../runtime/semantic" }
+openmui-agent    = { path = "../../runtime/agent" }
+openmui-raster   = { path = "../../modules/raster" }
+openmui-render   = { path = "../../modules/render" }
+openmui-text     = { path = "../../modules/text" }
+openmui-image    = { path = "../../modules/image" }
+mcpplibs.os      = { git = "https://github.com/mcpplibs/os.git", branch = "os-0.1.0" }
+compat.sdl3      = "3.4.18"
+
+[dev-dependencies]
+openmui-testing = { path = "../../tests/support" }

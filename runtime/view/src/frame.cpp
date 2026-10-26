@@ -59,9 +59,13 @@ FrameOutput Runtime::frame(const FrameInput& input) {
     const bool more = !d.animating.empty() || !d.removing.empty() || d.frame_requested || !d.dirty_regions.empty();
     // Bindings that ran since the last frame count toward this one.
     FrameStats stats = std::exchange(d.stats, {});
+    return FrameOutput{&d.list, repainted, more, d.semantic_revision, stats, next_timer()};
+}
+
+std::optional<seconds> Runtime::next_timer() const noexcept {
     std::optional<seconds> next;
-    for (const Impl::Timer& t : d.timers) next = next ? std::min(*next, t.due) : t.due;
-    return FrameOutput{&d.list, repainted, more, d.semantic_revision, stats, next};
+    for (const Impl::Timer& t : impl_->timers) next = next ? std::min(*next, t.due) : t.due;
+    return next;
 }
 
 void Runtime::Impl::run_timers() {

@@ -19,12 +19,10 @@ main = "src/main.cpp"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-openmui-core  = { path = "../../runtime/core" }
-openmui-agent = { path = "../../runtime/agent" }
-
-[dependencies.mcpplibs]
-cmdline = "0.0.2"
-os      = { git = "https://github.com/mcpplibs/os.git", branch = "os-0.1.0" }
+openmui-core     = { path = "../../runtime/core" }
+openmui-agent    = { path = "../../runtime/agent" }
+mcpplibs.cmdline = "0.0.2"
+mcpplibs.os      = { git = "https://github.com/mcpplibs/os.git", branch = "os-0.1.0" }
 
 [dev-dependencies]
 openmui-testing       = { path = "../../tests/support" }

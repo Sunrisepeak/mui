@@ -19,6 +19,9 @@ struct EndpointOptions {
     std::string           name;       // default: the app id, else "openmui-app"
     std::filesystem::path directory;  // default: default_directory()
     ProtocolOptions       protocol;
+    // Called from a reading thread when a request arrives: a host whose loop
+    // sleeps until an event wakes it here (it must be thread-safe).
+    std::function<void()> wake;
 };
 
 // The per-user directory endpoints live in: the runtime directory (XDG),

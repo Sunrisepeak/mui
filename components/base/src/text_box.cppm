@@ -16,6 +16,8 @@ export namespace omui {
 
 class TextBox : public TextBoxContract<TextBox> {
 public:
+    static constexpr std::string_view cursor = "text";
+
     TextBox() = default;
     TextBox(const TextBox&) = delete;
     TextBox& operator=(const TextBox&) = delete;

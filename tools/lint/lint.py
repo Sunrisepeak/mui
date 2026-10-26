@@ -9,6 +9,7 @@ Rules:
   headers       no header files but spec/include/openmui.h; `#include` only in `native/` units
   naming        no bare `mui` identifier: the identity is `openmui`, the abbreviation `omui`
   layering      a member depends only on the layers below it (dependency table)
+  manifest      namespaced dependencies are dotted keys (`compat.sdl3 = "…"`) of [dependencies]
   modules       a member of modules/ depends on no openmui package outside modules/
   exceptions    no `throw` / `try` in runtime and modules sources (errors are std::expected)
   platform      no operating-system header anywhere: platform code goes through mcpplibs.os
@@ -214,6 +215,14 @@ def check_manifests(root: Path) -> list[Problem]:
         except tomllib.TOMLDecodeError as e:
             problems.append(Problem("members", member, f"mcpp.toml is not valid TOML: {e}"))
             continue
+        # Namespaced dependencies are dotted keys of the one table
+        # (`compat.sdl3 = "3.4.18"`), never tables of their own.
+        for table in ("dependencies", "dev-dependencies"):
+            for line in manifest.read_text(encoding="utf-8").splitlines():
+                m = re.match(r"^\[" + table + r"\.([A-Za-z0-9_\-]+)\]\s*$", line)
+                if m:
+                    problems.append(Problem("manifest", member,
+                                            f"[{table}.{m.group(1)}]: write `{m.group(1)}.<name> = ...` under [{table}]"))
         allowed = rule_for(member)
         if allowed is None:
             problems.append(Problem("layering", member, "a member in no known layer; add it to tools/lint/lint.py"))
@@ -271,6 +280,7 @@ def self_test() -> int:
         "platform": ("runtime/core/src/native/io.cpp", "module;\n#include <unistd.h>\nmodule x;\n"),
         "layering": None,
         "modules": None,
+        "manifest": None,
     }
     failures = 0
     for rule, planted in cases.items():
@@ -286,6 +296,8 @@ def self_test() -> int:
                     deps = '[dependencies]\ncore = { path = "../runtime/core" }\n'
                 if rule == "modules" and m == "modules/anim":
                     deps = '[dependencies]\ncore = { path = "../../runtime/core" }\n'
+                if rule == "manifest" and m == "runtime/core":
+                    deps = '[dependencies.compat]\nsdl3 = "3.4.18"\n'
                 flags = '[build]\ncxxflags = ["-ffp-contract=off"]\n' if m == "modules/anim" else ""
                 (root / m / "mcpp.toml").write_text(f'[package]\nname = "{m}"\nversion = "0.1.0"\n{flags}{deps}',
                                                     encoding="utf-8")

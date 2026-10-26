@@ -270,8 +270,28 @@ void Runtime::text_input(NodeId node, std::optional<Rect> caret) {
     d.text_input = caret->offset({b.x, b.y});
 }
 
-std::string Runtime::clipboard_text() { return impl_->clipboard; }
-void Runtime::set_clipboard_text(std::string_view text) { impl_->clipboard = std::string(text); }
+std::string Runtime::clipboard_text() { return impl_->clipboard_read ? impl_->clipboard_read() : impl_->clipboard; }
+
+void Runtime::set_clipboard_text(std::string_view text) {
+    if (impl_->clipboard_write) impl_->clipboard_write(text);
+    else impl_->clipboard = std::string(text);
+}
+
+void Runtime::set_clipboard(std::function<std::string()> read, std::function<void(std::string_view)> write) {
+    impl_->clipboard_read = std::move(read);
+    impl_->clipboard_write = std::move(write);
+}
+
+std::string_view Runtime::cursor() const {
+    const Impl& d = *impl_;
+    for (NodeId id : d.hover_chain) {
+        if (!d.alive(id)) continue;
+        const Node& n = d.at(id);
+        if (auto it = n.props.find("cursor"); it != n.props.end() && !it->second.as_string().empty()) return it->second.as_string();
+        if (!n.type->cursor.empty()) return n.type->cursor;
+    }
+    return "default";
+}
 anim::Set& Runtime::animations() { return impl_->anims; }
 std::optional<Rect> Runtime::text_input_rect() const noexcept { return impl_->text_input; }
 

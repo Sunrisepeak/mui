@@ -127,6 +127,7 @@ struct ComponentType {
     Role                      role = Role::generic;
     bool                      focusable = false;
     bool                      clips = false;  // children are clipped to the node
+    std::string_view          cursor;         // the pointer's shape over it: "text", "pointer", "grab" … (empty: inherit)
     void* (*create)() = nullptr;
     void (*destroy)(void*) = nullptr;
     void (*mount)(void*, Services&, NodeId) = nullptr;
@@ -157,6 +158,7 @@ template <class C>
         if constexpr (requires { C::role; }) x.role = C::role;
         if constexpr (requires { C::focusable; }) x.focusable = C::focusable;
         if constexpr (requires { C::clips; }) x.clips = C::clips;
+        if constexpr (requires { C::cursor; }) x.cursor = C::cursor;
         if constexpr (requires { C::contract(); }) x.contract = &C::contract();
         x.create = [] { return static_cast<void*>(new C()); };
         x.destroy = [](void* p) { delete static_cast<C*>(p); };

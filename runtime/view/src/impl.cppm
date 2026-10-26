@@ -143,6 +143,8 @@ struct Runtime::Impl {
     std::optional<Rect>  text_input;
     NodeId               text_input_node;
     std::string          clipboard;
+    std::function<std::string()>            clipboard_read;
+    std::function<void(std::string_view)>   clipboard_write;
 
     std::uint64_t        semantic_revision = 1;
     std::uint64_t        next_token = 1;

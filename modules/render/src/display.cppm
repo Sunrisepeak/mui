@@ -140,6 +140,23 @@ enum class BlendMode : std::uint8_t {
 struct Glyph {
     std::uint32_t id = 0;
     Point         position;  // the glyph's origin relative to the run's origin (baseline)
+    // Where it came from (D-68): the first byte of its cluster in the source
+    // text, and its grapheme, word and line in the paragraph. Nothing draws
+    // with these; glyph-level animation, text ranges and selection address them.
+    std::uint32_t cluster = 0, grapheme = 0, word = 0, line = 0;
+};
+
+// One glyph's own style over its run's (D-68): an affine transform about the
+// glyph's origin (its pen position on the baseline), an opacity, and a tint
+// mixed over the run's colour by the tint's alpha. The default is no change.
+struct GlyphStyle {
+    Affine transform;
+    float  opacity = 1;
+    Color  tint{0, 0, 0, 0};
+    [[nodiscard]] bool plain() const noexcept { return transform == Affine{} && opacity == 1 && tint.a == 0; }
+    [[nodiscard]] bool translation_only() const noexcept {
+        return transform.a == 1 && transform.b == 0 && transform.c == 0 && transform.d == 1;
+    }
 };
 
 // ── commands ──────────────────────────────────────────────────────────────
@@ -151,7 +168,8 @@ struct BoxShadow     { Rect rect; CornerRadii radii; Point offset; float blur; f
 struct FillPath      { PathView path; FillRule rule; Paint paint; };
 struct StrokePath    { PathView path; StrokeStyle style; Paint paint; };
 struct DrawImage     { ImageRef image; Rect source; Rect dest; Sampling sampling; float opacity; };
-struct DrawGlyphs    { FontRef font; float size; Point origin; std::span<const Glyph> glyphs; Paint paint; };
+// `styles` is empty, or one style per glyph (D-68).
+struct DrawGlyphs    { FontRef font; float size; Point origin; std::span<const Glyph> glyphs; Paint paint; std::span<const GlyphStyle> styles; };
 struct PushClipRect  { Rect rect; CornerRadii radii; };
 struct PushClipPath  { PathView path; FillRule rule; };
 struct PopClip       {};
@@ -187,7 +205,12 @@ public:
     void fill_path(const Path& path, FillRule rule, const Paint& p);
     void stroke_path(const Path& path, const StrokeStyle& style, const Paint& p);
     void draw_image(ImageRef image, const Rect& source, const Rect& dest, Sampling s = Sampling::linear, float opacity = 1);
-    void draw_glyphs(FontRef font, float size, Point origin, std::span<const Glyph> glyphs, const Paint& p);
+    void draw_glyphs(FontRef font, float size, Point origin, std::span<const Glyph> glyphs, const Paint& p,
+                     std::span<const GlyphStyle> styles = {});
+    // Gives the DrawGlyphs command at `index` per-glyph styles (one per glyph),
+    // or removes them (empty): how the runtime animates any node's text after
+    // the node painted it (D-68).
+    void style_glyphs(std::size_t index, std::span<const GlyphStyle> styles);
     void push_clip(const Rect& r, const CornerRadii& radii = {});
     void push_clip(const Path& path, FillRule rule = FillRule::nonzero);
     void pop_clip();

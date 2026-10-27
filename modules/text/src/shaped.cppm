@@ -30,6 +30,7 @@ struct ShapedRun {
 
 struct Grapheme {
     std::size_t begin = 0, end = 0;
+    std::uint32_t word = 0;        // the UAX #29 word segment it is in (spaces and punctuation are segments too)
     float       advance = 0;   // including letter spacing
     std::size_t run = 0;
     bool        space = false;    // white space (hangs at line ends, stretches when justified)

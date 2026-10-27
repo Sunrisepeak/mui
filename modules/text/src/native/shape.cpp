@@ -148,8 +148,19 @@ void shape(Paragraph::Shaped& s) {
 
     // ── grapheme advances: each cluster's glyphs shared by the graphemes it covers ──
     s.graphemes.resize(gs.size());
-    for (std::size_t i = 0; i < gs.size(); ++i)
-        s.graphemes[i] = {gs[i].begin, gs[i].end, 0, 0, gs[i].space, gs[i].newline};
+    {
+        // Word segments (UAX #29) of the whole text: each grapheme's index of its segment.
+        const std::vector<std::size_t> words = unicode::word_boundaries(text);
+        std::uint32_t w = 0;
+        std::size_t next = 1;
+        for (std::size_t i = 0; i < gs.size(); ++i) {
+            while (next < words.size() && words[next] <= gs[i].begin) {
+                ++next;
+                ++w;
+            }
+            s.graphemes[i] = {gs[i].begin, gs[i].end, w, 0, 0, gs[i].space, gs[i].newline};
+        }
+    }
     auto grapheme_index = [&](std::size_t byte) {
         auto it = std::ranges::upper_bound(s.graphemes, byte, {}, &Grapheme::begin);
         return static_cast<std::size_t>(it - s.graphemes.begin()) - 1;

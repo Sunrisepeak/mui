@@ -278,7 +278,9 @@ void Paragraph::layout(float width) {
             er.baseline = line.baseline;
             float px = x;
             for (const ShapedGlyph& g : s.ellipsis.glyphs) {
-                er.glyphs.push_back({g.id, {px + g.x_offset, line.baseline + g.y_offset}});
+                const auto last = static_cast<std::uint32_t>(s.graphemes.empty() ? 0 : s.graphemes.size() - 1);
+                er.glyphs.push_back({g.id, {px + g.x_offset, line.baseline + g.y_offset}, static_cast<std::uint32_t>(s.text.size()), last,
+                                     s.graphemes.empty() ? 0 : s.graphemes.back().word + 1, static_cast<std::uint32_t>(lines_.size())});
                 px += g.advance;
             }
             return er;
@@ -317,7 +319,8 @@ void Paragraph::layout(float width) {
                     std::ranges::upper_bound(s.graphemes, g.cluster, {}, &Grapheme::begin) - s.graphemes.begin()) - 1;
                 newline = s.graphemes[gidx].newline;
                 if (newline) continue;
-                gr.glyphs.push_back({g.id, {px + g.x_offset, line.baseline + g.y_offset}});
+                gr.glyphs.push_back({g.id, {px + g.x_offset, line.baseline + g.y_offset}, g.cluster, static_cast<std::uint32_t>(gidx),
+                                     s.graphemes[gidx].word, static_cast<std::uint32_t>(lines_.size())});
                 px += g.advance;
                 bool last_of_cluster = gi + 1 >= run.glyphs.size() || run.glyphs[gi + 1].cluster != g.cluster;
                 if (last_of_cluster && g.cluster != prev_cluster) {

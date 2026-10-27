@@ -71,6 +71,21 @@ std::optional<Rect> device_bounds(const Command& command, const Affine& m, Glyph
             } else if constexpr (std::same_as<T, DrawGlyphs>) {
                 if (c.glyphs.empty()) return std::nullopt;
                 const bool simple = m.b == 0 && m.c == 0 && m.a == m.d && m.a > 0;
+                if (!c.styles.empty()) {
+                    // Styled glyphs (D-68): each glyph's generous em box, moved by its
+                    // style about its origin, then by the list's transform.
+                    Rect box;
+                    for (std::size_t i = 0; i < c.glyphs.size(); ++i) {
+                        const GlyphStyle& st = c.styles[i];
+                        if (st.opacity <= 0) continue;
+                        const Point pen{c.origin.x + c.glyphs[i].position.x, c.origin.y + c.glyphs[i].position.y};
+                        const Rect em{-c.size, -1.5f * c.size, 3 * c.size, 2.25f * c.size};
+                        const Affine to = m * Affine::translate(pen.x, pen.y) * st.transform;
+                        box = box.empty() ? mapped(to, em) : box.united(mapped(to, em));
+                    }
+                    if (box.empty()) return std::nullopt;
+                    return grow(box, aa);
+                }
                 if (glyphs && simple) {
                     // Exactly where the renderer places each glyph's mask.
                     Rect box;

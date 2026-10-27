@@ -212,8 +212,14 @@ void DisplayList::stroke_path(const Path& path, const StrokeStyle& style, const 
 void DisplayList::draw_image(ImageRef image, const Rect& source, const Rect& dest, Sampling s, float opacity) {
     commands_.emplace_back(DrawImage{image, source, dest, s, opacity});
 }
-void DisplayList::draw_glyphs(FontRef font, float size, Point origin, std::span<const Glyph> glyphs, const Paint& p) {
-    commands_.emplace_back(DrawGlyphs{font, size, origin, arena_.copy(glyphs), own(p)});
+void DisplayList::draw_glyphs(FontRef font, float size, Point origin, std::span<const Glyph> glyphs, const Paint& p,
+                              std::span<const GlyphStyle> styles) {
+    commands_.emplace_back(DrawGlyphs{font, size, origin, arena_.copy(glyphs), own(p), arena_.copy(styles)});
+}
+void DisplayList::style_glyphs(std::size_t index, std::span<const GlyphStyle> styles) {
+    if (index >= commands_.size()) return;
+    if (auto* g = std::get_if<DrawGlyphs>(&commands_[index]))
+        g->styles = styles.size() == g->glyphs.size() ? arena_.copy(styles) : std::span<const GlyphStyle>{};
 }
 void DisplayList::push_clip(const Rect& r, const CornerRadii& radii) { commands_.emplace_back(PushClipRect{r, radii}); }
 void DisplayList::push_clip(const Path& path, FillRule rule) { commands_.emplace_back(PushClipPath{own(path), rule}); }
@@ -238,7 +244,10 @@ Command DisplayList::own(const Command& c) {
             if constexpr (requires { copy.paint; }) copy.paint = own(cmd.paint);
             if constexpr (requires { copy.path; }) copy.path = {arena_.copy(cmd.path.verbs), arena_.copy(cmd.path.points)};
             if constexpr (requires { copy.style; }) copy.style = own(cmd.style);
-            if constexpr (std::same_as<T, DrawGlyphs>) copy.glyphs = arena_.copy(cmd.glyphs);
+            if constexpr (std::same_as<T, DrawGlyphs>) {
+                copy.glyphs = arena_.copy(cmd.glyphs);
+                copy.styles = arena_.copy(cmd.styles);
+            }
             if constexpr (std::same_as<T, PushLayer>) copy.params = arena_.copy(cmd.params);
             return copy;
         },
@@ -330,6 +339,7 @@ std::uint64_t hash_command(const Command& c, std::uint64_t seed) noexcept {
             else if constexpr (std::same_as<T, DrawGlyphs>) {
                 h.put(cmd.font.id); h.put(cmd.size); h.put(cmd.origin); h.put(cmd.paint);
                 for (const auto& g : cmd.glyphs) { h.put(g.id); h.put(g.position); }
+                for (const auto& st : cmd.styles) { h.put(st.transform); h.put(st.opacity); h.put(st.tint); }
             }
             else if constexpr (std::same_as<T, PushClipRect>) { h.put(cmd.rect); h.put(cmd.radii); }
             else if constexpr (std::same_as<T, PushClipPath>) { h.put(cmd.path); h.put(cmd.rule); }

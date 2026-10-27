@@ -215,10 +215,37 @@ struct MaskCall {
     Point fraction;
 };
 
-MaskCall mask_call(const DrawGlyphs& c, const Glyph& g, const Affine& m) noexcept {
-    const Point d = m.apply({c.origin.x + g.position.x, c.origin.y + g.position.y});
+MaskCall mask_call(Point pen, float size, const Affine& m) noexcept {
+    const Point d = m.apply(pen);
     const float ix = std::floor(d.x), iy = std::floor(d.y);
-    return {ix, iy, c.size * m.a, {d.x - ix, d.y - iy}};
+    return {ix, iy, size * m.a, {d.x - ix, d.y - iy}};
+}
+
+// How glyph i of a command is drawn under the list's transform m (D-68):
+// through the glyph cache's masks at an exact pixel placement when nothing
+// but a translation applies (the glyph's own style may move it), else as an
+// outline (or, for a colour glyph, its image) under `outline`.
+struct Placed {
+    bool              mask = true;
+    Point             pen;          // the glyph's origin, list coordinates
+    Affine            outline;      // glyph space (ems) to device, when not a mask
+    const GlyphStyle* style = nullptr;
+};
+
+Placed place(const DrawGlyphs& c, std::size_t i, const Affine& m) noexcept {
+    const Glyph& g = c.glyphs[i];
+    Placed p;
+    p.pen = {c.origin.x + g.position.x, c.origin.y + g.position.y};
+    if (!c.styles.empty() && !c.styles[i].plain()) p.style = &c.styles[i];
+    if (!p.style || p.style->translation_only()) {
+        if (p.style) p.pen = {p.pen.x + p.style->transform.e, p.pen.y + p.style->transform.f};
+        p.mask = simple_glyphs(m);
+        p.outline = m * Affine::translate(p.pen.x, p.pen.y) * Affine::scale(c.size, c.size);
+        return p;
+    }
+    p.mask = false;
+    p.outline = m * Affine::translate(p.pen.x, p.pen.y) * p.style->transform * Affine::scale(c.size, c.size);
+    return p;
 }
 
 // Asks `glyphs` for every mask and outline the bands of `tasks` will draw.
@@ -240,13 +267,16 @@ void resolve_glyphs(const DisplayList& list, GlyphSource& glyphs, float scale, s
         const auto b = device_bounds(command, m, nullptr);
         if (!b || std::ranges::none_of(tasks, [&](RowSpan r) { return b->bottom() > static_cast<float>(r.top) && b->y < static_cast<float>(r.bottom); }))
             continue;
-        const bool simple = simple_glyphs(m);
-        for (const Glyph& g : c->glyphs) {
-            if (simple) {
-                const MaskCall call = mask_call(*c, g, m);
+        for (std::size_t i = 0; i < c->glyphs.size(); ++i) {
+            const Glyph& g = c->glyphs[i];
+            const Placed pl = place(*c, i, m);
+            if (pl.style && pl.style->opacity <= 0) continue;
+            if (pl.mask) {
+                const MaskCall call = mask_call(pl.pen, c->size, m);
                 (void)glyphs.mask(c->font, g.id, call.size, call.fraction);
             } else {
-                (void)glyphs.outline(c->font, g.id);
+                if (glyphs.outline(c->font, g.id).verbs.empty())
+                    (void)glyphs.mask(c->font, g.id, c->size * m.max_scale(), {0, 0});  // a colour glyph's image
             }
         }
     }
@@ -436,32 +466,64 @@ void CpuRenderer::draw(Scratch& sc, const DisplayList& list, raster::Surface& ta
                         report.missing_glyphs += c.glyphs.size();
                         return;
                     }
-                    raster::Paint paint = device_paint(c.paint);
+                    const raster::Paint run_paint = device_paint(c.paint);
                     const Affine& mm = m();
-                    const bool simple = simple_glyphs(mm);
-                    for (const Glyph& g : c.glyphs) {
-                        Point pen{c.origin.x + g.position.x, c.origin.y + g.position.y};
-                        if (simple) {
-                            const MaskCall call = mask_call(c, g, mm);
-                            const float ix = call.ix, iy = call.iy;
+                    for (std::size_t i = 0; i < c.glyphs.size(); ++i) {
+                        const Glyph& g = c.glyphs[i];
+                        const Placed pl = place(c, i, mm);
+                        float opacity = 1;
+                        raster::Paint paint = run_paint;
+                        if (pl.style) {
+                            // The glyph's own opacity and tint over the run's colour (D-68).
+                            opacity = std::clamp(pl.style->opacity, 0.0f, 1.0f);
+                            if (opacity <= 0) continue;
+                            if (c.paint.kind == Paint::Kind::solid) {
+                                const Color t = pl.style->tint;
+                                const float k = std::clamp(t.a, 0.0f, 1.0f);
+                                Color col = c.paint.color;
+                                col = {col.r + (t.r - col.r) * k, col.g + (t.g - col.g) * k, col.b + (t.b - col.b) * k, col.a * opacity};
+                                paint = device_paint(Paint::solid(col));
+                            } else if (opacity < 1) {
+                                canvas.push_layer(opacity, raster::Blend::normal);
+                            }
+                        }
+                        const bool layered = pl.style && c.paint.kind != Paint::Kind::solid && opacity < 1;
+                        if (pl.mask) {
+                            const MaskCall call = mask_call(pl.pen, c.size, mm);
                             GlyphMask gm = res.glyphs->mask(c.font, g.id, call.size, call.fraction);
                             if (gm.color) {
                                 const auto& b = gm.color_bounds;
                                 canvas.draw_image(gm.color->view(), {0, 0, static_cast<float>(b.width), static_cast<float>(b.height)},
-                                                  {ix + b.x, iy + b.y, static_cast<float>(b.width), static_cast<float>(b.height)},
-                                                  raster::Sampling::nearest, c.paint.color.a);
-                                continue;
-                            }
-                            if (!gm.coverage) {
+                                                  {call.ix + b.x, call.iy + b.y, static_cast<float>(b.width), static_cast<float>(b.height)},
+                                                  raster::Sampling::nearest, c.paint.color.a * opacity);
+                            } else if (gm.coverage) {
+                                canvas.fill_coverage(*gm.coverage, paint, static_cast<int>(call.ix), static_cast<int>(call.iy));
+                            } else {
                                 ++report.missing_glyphs;
-                                continue;
                             }
-                            canvas.fill_coverage(*gm.coverage, paint, static_cast<int>(ix), static_cast<int>(iy));
                         } else {
                             raster::PathData outline = res.glyphs->outline(c.font, g.id);
-                            canvas.fill_path(outline, raster::FillRule::nonzero, paint,
-                                             mm * Affine::translate(pen.x, pen.y) * Affine::scale(c.size, c.size));
+                            if (!outline.verbs.empty()) {
+                                canvas.fill_path(outline, raster::FillRule::nonzero, paint, pl.outline);
+                            } else {
+                                // A colour glyph (emoji) has an image, not an outline: drawn at
+                                // device size, then under the glyph's transform.
+                                const float s = mm.max_scale();
+                                GlyphMask gm = res.glyphs->mask(c.font, g.id, c.size * s, {0, 0});
+                                if (gm.color) {
+                                    const auto& b = gm.color_bounds;
+                                    const Affine to = mm * Affine::translate(pl.pen.x, pl.pen.y) *
+                                                      (pl.style ? pl.style->transform : Affine{}) * Affine::scale(1 / s, 1 / s);
+                                    canvas.draw_image(gm.color->view(), {0, 0, static_cast<float>(b.width), static_cast<float>(b.height)},
+                                                      {static_cast<float>(b.x), static_cast<float>(b.y), static_cast<float>(b.width),
+                                                       static_cast<float>(b.height)},
+                                                      raster::Sampling::linear, c.paint.color.a * opacity, to);
+                                } else {
+                                    ++report.missing_glyphs;
+                                }
+                            }
                         }
+                        if (layered) canvas.pop_layer();
                     }
                 } else if constexpr (std::same_as<T, PushClipRect>) {
                     canvas.push_clip_round_rect(c.rect, c.radii, m());

@@ -28,6 +28,7 @@ members = [
     "modules/record",
     "modules/trace",
     "modules/pipeline",
+    "modules/markdown",
     "runtime/core",
     "runtime/view",
     "runtime/semantic",

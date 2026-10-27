@@ -27,6 +27,7 @@ sources = ["src/*.cppm", "src/*.cpp"]
 [dependencies]
 openmui               = { path = "../.." }
 openmui-trace         = { path = "../../modules/trace" }
+openmui-markdown      = { path = "../../modules/markdown" }
 mcpplibs.os           = "0.1.0"
 
 [dev-dependencies]

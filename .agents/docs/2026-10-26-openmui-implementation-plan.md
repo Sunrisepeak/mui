@@ -1067,6 +1067,7 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
 | | ③ CPU 金图两次运行逐字节相同 | ✅ 并且跨平台相同 |
 | | ④ ui-base 前 9 个组件满足完成标准 | ✅ 14 个组件，契约优先，金图 |
 | | ⑤ 1000 个节点、1080p、CPU 后端 60Hz | ✅ GitHub 的 4 核机器上单个文字变化的一帧 p95 2.9ms，全部卡片动画 p95 10ms |
+| M2 | ② CommonMark 测试集通过率 ≥ 95%（GFM 扩展单独统计） | ✅ `modules/markdown`（md4c 经 `mcpplibs.mwrap.md4c`，见下）：CommonMark 0.31.2 规范 652/652，GFM 扩展、回归和覆盖用例 156/156；808 个例子从文档模型写出的 HTML 和 md4c-html 逐字节相同；三个桌面平台和 wine 上一致 |
 
 ### 22.4 计划之外提前完成的
 
@@ -1075,10 +1076,11 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
 - 所有可视属性可做动画（D-60），OKLab 颜色；运行时的时间控制（暂停、单步、调速、跳转）。
 - 管线编排（D-66）：`modules/pipeline`，运行时一帧是八个阶段插件，agent 可以在运行中替换。
 - F1 / F4 的旗舰作品 Inspector 第一版（D-61、D-63）。
+- Markdown 的文档模型（`modules/markdown`）：块和行内标记、标题锚点、任务位置、块哈希；流式追加只重新解析尾部（稳定边界由 md4c 用哨兵行确认，结果总等于整篇解析；4 字节一个 token 时每次约 1µs）。md4c 按 mwrap 规范做成了 `mcpplibs/md4c-m`（`mcpplibs.mwrap.md4c` 0.5.3，含 md4c-html 和宏映射，上游 808 个例子在四个平台的 CI 上通过），已收录进 mcpp-index（#578）。
 
 ### 22.5 还差什么（按计划顺序）
 
-- M2：表达式（`openmui.expr`）和视图文档；CommonMark 和 `ui-markdown`；跨平台的确定性比对作业；示例 08、09；会话录制回放的 CTS。
+- M2：`ui-markdown` 组件（契约、块布局缓存、链接 external 效果、语义树）；示例 08、09；表达式（`openmui.expr`）和视图文档；跨平台的确定性比对作业；会话录制回放的 CTS。
 - M3：`runtime/abi`（C ABI）、`openmui.h` 生成的完整绑定、TS / Python / Lua；`runtime/reflect`。
 - M4：`modules/rhi` 和 `rhi-sdl`、GPU 渲染路径、Slang 着色器、效果和背景输入（液态玻璃，D-64）、画布、风格包、S1 / S2。
 - M5：openmui-video、ui-timeline、MCP 服务器、skills、S3 / S4 / S5。

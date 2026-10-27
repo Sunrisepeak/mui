@@ -11,6 +11,7 @@ import openmui.trace;
 import openmui.ui.base;
 import openmui.host.headless;
 import openmui.anim;
+import openmui.markdown;
 
 namespace omui::bench {
 
@@ -87,6 +88,19 @@ std::vector<Point> button_centres(Runtime& rt) {
             out.push_back({b.x + b.width / 2, b.y + b.height / 2});
         }
     });
+    return out;
+}
+
+// A long Markdown answer as an assistant writes one: headings, paragraphs with
+// inline styles and links, lists, fenced code with blank lines, a table.
+std::string markdown_answer(int sections) {
+    std::string out;
+    for (int i = 0; i < sections; ++i)
+        out += std::format(
+            "## Step {0}\n\nWe compute **{1}** with `f({0})`, as [the guide](https://example.com/guide#{0}) explains; "
+            "the *result* must stay positive.\n\n- check the input\n- call `f`\n- [x] compare with {1}\n\n"
+            "```cpp\nauto x = f({0});\n\nassert(x > 0);\n```\n\n| n | f(n) |\n|--:|-----:|\n| {0} | {1} |\n\n",
+            i, i * i);
     return out;
 }
 
@@ -270,6 +284,30 @@ void add_framework_benchmarks() {
             p.layout(600);
             s.counter("height", static_cast<double>(p.size().height));
         }
+    });
+    add("markdown/parse", "parsing a 40 KB Markdown answer into the document (md4c and the block / inline model)", [](State& s) {
+        const std::string source = markdown_answer(160);
+        s.items(source.size());
+        while (s.next()) {
+            const auto doc = md::parse(source);
+            s.counter("blocks", static_cast<double>(doc.root.children.size()));
+        }
+    });
+    add("markdown/stream-token", "appending a 40 KB answer 4 bytes at a time: the cost of one streamed token", [](State& s) {
+        const std::string source = markdown_answer(160);
+        constexpr std::size_t token = 4;
+        s.items(source.size() / token);
+        while (s.next()) {
+            md::Stream stream;
+            for (std::size_t pos = 0; pos < source.size(); pos += token) stream.append(std::string_view(source).substr(pos, token));
+            s.counter("frozen_blocks", static_cast<double>(stream.stable_blocks()));
+        }
+    });
+    add("markdown/to-html", "the document of a 40 KB answer back to HTML", [](State& s) {
+        const std::string source = markdown_answer(160);
+        const auto doc = md::parse(source);
+        s.items(source.size());
+        while (s.next()) s.counter("bytes", static_cast<double>(md::to_html(doc).size()));
     });
     add("trace/span-off", "10 000 spans while nothing records: the cost tracing adds to a normal run", [](State& s) {
         (void)trace::stop();

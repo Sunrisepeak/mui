@@ -68,7 +68,11 @@ void scroll_when_shown(std::string anchor, int tries = 10) {
 }  // namespace
 
 bool Model::open(const std::filesystem::path& where, bool remember) {
-    const std::filesystem::path file = std::filesystem::is_directory(where) ? index_of(where) : where;
+    // Absolute first: on Windows a name like `\docs` is on the current drive.
+    std::error_code ec;
+    const std::filesystem::path place = std::filesystem::absolute(where, ec);
+    const std::filesystem::path& w = ec ? where : place;
+    const std::filesystem::path file = std::filesystem::is_directory(w) ? index_of(w) : w;
     auto text = os::fs::read(file);
     if (!text) {
         status.set(std::format("cannot open {}: {}", generic_utf8(file), text.error().message()));

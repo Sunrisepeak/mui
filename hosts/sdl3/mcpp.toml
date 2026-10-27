@@ -31,7 +31,7 @@ openmui.render   = { path = "../../modules/render" }
 openmui.text     = { path = "../../modules/text" }
 openmui.image    = { path = "../../modules/image" }
 openmui.trace    = { path = "../../modules/trace" }
-mcpplibs.os      = "0.1.0"
+mcpplibs.os      = "0.1.1"
 compat.sdl3      = "3.4.18"
 
 [dev-dependencies]

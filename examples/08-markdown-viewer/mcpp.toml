@@ -25,7 +25,7 @@ sources = ["src/*.cppm", "src/*.cpp"]
 [dependencies]
 openmui.sdk         = { path = "../.." }
 openmui.ui.markdown = { path = "../../components/markdown" }
-mcpplibs.os         = "0.1.0"
+mcpplibs.os         = "0.1.1"
 
 [dev-dependencies]
 openmui.testing = { path = "../../tests/support" }

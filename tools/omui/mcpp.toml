@@ -23,7 +23,7 @@ sources = ["src/*.cppm", "src/*.cpp"]
 openmui.core     = { path = "../../runtime/core" }
 openmui.agent    = { path = "../../runtime/agent" }
 mcpplibs.cmdline = "0.0.2"
-mcpplibs.os      = "0.1.0"
+mcpplibs.os      = "0.1.1"
 
 [dev-dependencies]
 openmui.testing       = { path = "../../tests/support" }

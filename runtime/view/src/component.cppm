@@ -68,6 +68,11 @@ public:
     virtual void recompose(NodeId node) = 0;
     // A model by name, made empty on first use.
     virtual Model& model(std::string_view name) = 0;
+    // An outlet: what is mounted under a name while a mounted view shows a
+    // slot of that name (a view document's `slot`, a script's slot()). A
+    // region that reads it claims the name: Runtime::mount(name, …) then
+    // shows there instead of at the top level, before or after.
+    [[nodiscard]] virtual Signal<std::optional<Element>> outlet(std::string_view name) = 0;
     // The application's verbs (a view document's `verb` operation).
     [[nodiscard]] virtual Verbs& verbs() noexcept = 0;
     // The node at a path, materialised first if a virtualising ancestor (a

@@ -269,6 +269,7 @@ public:
     void restyle(NodeId node) override;
     void recompose(NodeId node) override;
     Model& model(std::string_view name) override;
+    [[nodiscard]] Signal<std::optional<Element>> outlet(std::string_view name) override;
     NodeId reveal(std::string_view path) override;
     // A virtualising node's items as the semantic tree states them (S-7).
     [[nodiscard]] std::vector<spec::SemanticNode> virtual_items(NodeId node) const;

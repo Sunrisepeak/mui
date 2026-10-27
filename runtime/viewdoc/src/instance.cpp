@@ -309,7 +309,13 @@ void append(std::vector<Element>& out, const Node& n, const Env& env) {
             out.push_back(dynamic([st, name = n.slot] {
                 (void)st->slots_revision.get();
                 std::vector<Element> filled;
-                if (auto it = st->slots.find(name); it != st->slots.end()) filled.push_back(it->second);
+                if (auto it = st->slots.find(name); it != st->slots.end()) {
+                    filled.push_back(it->second);
+                } else if (st->services) {
+                    // Not filled by code: the slot is an outlet — a view mounted
+                    // under its name (another document, a script's) shows here.
+                    if (const auto& v = st->services->outlet(name).get()) filled.push_back(*v);
+                }
                 return filled;
             }));
             return;

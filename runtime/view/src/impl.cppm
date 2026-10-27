@@ -208,6 +208,14 @@ struct Runtime::Impl {
     std::vector<NodeId>                   by_layout;  // layout node → node
     NodeId                                root;
     std::vector<std::pair<std::string, NodeId>> mounted;  // slot → node
+    // Outlets (Services::outlet): by name, what a slot region shows; the
+    // views mounted under a name, kept to move between the top level and an
+    // outlet as regions that claim the name come and go.
+    std::map<std::string, Signal<std::optional<Element>>, std::less<>> outlets;
+    std::map<std::string, Element, std::less<>>                       mounted_views;
+    std::set<std::string, std::less<>>                                in_outlet;
+    // Moves views between the top level and the outlets that claim them.
+    void reconcile_outlets();
     render::DisplayList                   list;
     std::unordered_map<std::string, NodeId> path_index;
     bool                                  paths_dirty = true;

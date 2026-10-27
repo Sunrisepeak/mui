@@ -76,6 +76,41 @@ Runtime::~Runtime() {
     impl_->destroy(impl_->root);
 }
 
+Signal<std::optional<Element>> Runtime::outlet(std::string_view name) {
+    Impl& d = *impl_;
+    auto it = d.outlets.find(name);
+    if (it == d.outlets.end()) it = d.outlets.emplace(std::string(name), Signal<std::optional<Element>>{}).first;
+    return it->second;
+}
+
+void Runtime::Impl::reconcile_outlets() {
+    for (auto& [name, o] : outlets) {
+        auto view = mounted_views.find(name);
+        if (view == mounted_views.end()) continue;
+        if (o.observed() && !in_outlet.contains(name)) {
+            // A region claims the name: what is at the top level moves into it.
+            if (auto it = std::ranges::find(mounted, name, &std::pair<std::string, NodeId>::first); it != mounted.end()) {
+                const NodeId id = it->second;
+                mounted.erase(it);
+                std::erase_if(at(root).slots, [&](const ChildSlot& s) { return s.node == id; });
+                destroy(id);
+                flatten(root);
+            }
+            in_outlet.insert(name);
+            o.set(view->second);
+        } else if (!o.observed() && in_outlet.contains(name)) {
+            // The region went: the view goes back to the top level.
+            in_outlet.erase(name);
+            o.set(std::nullopt);
+            Element e = view->second;
+            const NodeId id = create(e, root);
+            at(root).slots.push_back({id, {}});
+            mounted.emplace_back(name, id);
+            flatten(root);
+        }
+    }
+}
+
 NodeId Runtime::mount(std::string_view slot, View view) {
     Impl& d = *impl_;
     // The slot is the view's top-level id: paths begin with it.
@@ -83,6 +118,15 @@ NodeId Runtime::mount(std::string_view slot, View view) {
         omui::debug("the view mounted at '{}' had the id '{}'; the slot names it", slot, view.id);
     view.id = std::string(slot);
     if (view.key.empty()) view.key = view.id;
+    d.mounted_views.insert_or_assign(std::string(slot), view);
+    // A region shows this name: the view goes there (see reconcile_outlets).
+    if (auto o = d.outlets.find(slot); o != d.outlets.end() && o->second.observed()) {
+        if (std::ranges::find(d.mounted, slot, &std::pair<std::string, NodeId>::first) != d.mounted.end()) unmount(slot);
+        d.mounted_views.insert_or_assign(std::string(slot), view);  // unmount forgot it
+        d.in_outlet.insert(std::string(slot));
+        o->second.set(std::move(view));
+        return NodeId{};
+    }
     auto it = std::ranges::find(d.mounted, slot, &std::pair<std::string, NodeId>::first);
     if (it != d.mounted.end() && d.alive(it->second) && d.at(it->second).type == (view.type ? view.type : find_type("box"))) {
         // The same kind of view again: update it in place (state, focus and animations survive).
@@ -100,6 +144,12 @@ NodeId Runtime::mount(std::string_view slot, View view) {
 
 void Runtime::unmount(std::string_view slot) {
     Impl& d = *impl_;
+    if (auto v = d.mounted_views.find(slot); v != d.mounted_views.end()) d.mounted_views.erase(v);
+    if (auto o = d.in_outlet.find(slot); o != d.in_outlet.end()) {
+        d.in_outlet.erase(o);
+        d.outlets.at(std::string(slot)).set(std::nullopt);
+        return;
+    }
     auto it = std::ranges::find(d.mounted, slot, &std::pair<std::string, NodeId>::first);
     if (it == d.mounted.end()) return;
     NodeId id = it->second;

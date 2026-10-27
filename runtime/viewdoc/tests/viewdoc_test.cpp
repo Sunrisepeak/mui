@@ -574,5 +574,46 @@ int main(int argc, char** argv) {
         check_eq(h.hex(), std::string("02819cb2dcd45461"));
     });
 
+    s.test("a slot no code fills is an outlet: a view mounted under its name shows there, before or after", [] {
+        Headless h(options({320, 240}));
+        auto help = viewdoc::View::load(h.runtime(), R"j({"omui": "0.1", "view": {"root":
+            {"type": "text", "id": "tip", "props": {"text": "Press F1"}}}})j");
+        auto shell = viewdoc::View::load(h.runtime(), R"j({"omui": "0.1", "view": {"root":
+            {"type": "column", "children": [{"type": "text", "id": "title", "props": {"text": "Notes"}}, {"slot": "help"}]}}})j");
+        check(help.has_value() && shell.has_value());
+        if (!help || !shell) return;
+        auto hv = *help;
+        auto sv = *shell;
+        // Before: the help view, mounted first, is at the top level.
+        hv.mount(h.runtime(), "help");
+        h.settle();
+        check(h.tree().node("help").has_value(), "at the top level while nothing claims it");
+        // A view with a slot of its name: the help moves into it.
+        sv.mount(h.runtime(), "main");
+        h.settle();
+        h.settle();
+        check(!h.tree().node("help").has_value(), "no longer at the top level");
+        const auto inside = h.tree().find({.name = "Press F1"});
+        check(inside.size() == 1 && inside[0].id.starts_with("main/"), inside.empty() ? "none" : inside[0].id);
+        // After: mounted again, it goes straight into the slot.
+        auto again = viewdoc::View::load(h.runtime(), R"j({"omui": "0.1", "view": {"root":
+            {"type": "text", "id": "tip", "props": {"text": "Press F2"}}}})j");
+        check(again.has_value());
+        if (!again) return;
+        auto av = *again;
+        av.mount(h.runtime(), "help");
+        h.settle();
+        check(h.tree().find({.name = "Press F2"}).size() == 1 && !h.tree().node("help").has_value(), "into the slot again");
+        // The slot goes: the view returns to the top level, not lost.
+        h.runtime().unmount("main");
+        h.settle();
+        h.settle();
+        check(h.tree().node("help").has_value() && h.tree().find({.name = "Press F2"}).size() == 1, "back at the top level");
+        // Unmounted: gone from both.
+        h.runtime().unmount("help");
+        h.settle();
+        check(h.tree().find({.name = "Press F2"}).empty());
+    });
+
     return s.run(argc, argv);
 }

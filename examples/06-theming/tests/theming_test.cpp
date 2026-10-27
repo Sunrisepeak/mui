@@ -125,13 +125,17 @@ int main(int argc, char** argv) {
         settle(h, p);
         check(h.runtime().theme().color("accent").r == Color::hex(0x0f766e).r);
         const auto brand = app / "themes" / "brand.theme.omui.toml";
+        // Each save a later time than the last, whatever the clock's grain
+        // (Windows': about 15 ms, so two quick saves would read the same).
+        const auto start = std::filesystem::last_write_time(brand);
+        int saves = 0;
         auto save = [&](std::string_view from, std::string_view to) {
             std::ifstream in(brand, std::ios::binary);
             std::string text{std::istreambuf_iterator<char>(in), {}};
             in.close();
             text.replace(text.find(from), from.size(), to);
             std::ofstream(brand, std::ios::binary) << text;
-            std::filesystem::last_write_time(brand, std::filesystem::last_write_time(brand) + std::chrono::seconds(2));
+            std::filesystem::last_write_time(brand, start + std::chrono::seconds(2 * ++saves));
         };
         save("accent         = \"#0f766e\"", "accent         = \"#be123c\"");
         const auto reloaded = p.poll();

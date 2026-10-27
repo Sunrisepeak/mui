@@ -109,6 +109,8 @@ public:
 
     [[nodiscard]] std::uint64_t version() const noexcept { return state_->version; }
     [[nodiscard]] bool same_as(const Signal& o) const noexcept { return state_ == o.state_; }
+    // Whether anything reads it now (a computed value, an effect, a region).
+    [[nodiscard]] bool observed() const noexcept { return !state_->observers.empty(); }
 
 private:
     struct State : detail::ReactiveNode {

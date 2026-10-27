@@ -32,6 +32,7 @@ FrameOutput Runtime::frame(const FrameInput& input) {
     if (input.time) d.clock.set(*input.time);
     else if (d.clock.kind() == anim::ClockKind::interactive) d.clock.begin_frame();
     d.apply_time_control();
+    d.reconcile_outlets();  // views move to the slots that claim them (Services::outlet)
     d.frame_requested = false;
     d.todo = 0;
     d.dirty_taken = d.bounds_ran = d.repainted = false;

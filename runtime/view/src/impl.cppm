@@ -233,6 +233,7 @@ struct Runtime::Impl {
     Size                                  size;
     float                                 scale = 1;
     bool                                  reduce_motion = false;
+    bool                                  reduce_transparency = false;
 
     // input
     NodeId               capture;

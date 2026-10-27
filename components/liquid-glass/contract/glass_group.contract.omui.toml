@@ -1,0 +1,25 @@
+# A group of liquid glass (D-64): its liquid_glass members are one piece of
+# glass, drawn in one pass, their shapes merged like drops when they come
+# within `smoothness` of each other and pulled apart when they move away
+# (animate a member's place or size with a spring). The material is the
+# group's; the members give their shapes. features-plugins-pipeline §3.3.
+[contract.glass_group]
+role     = "group"
+spec     = "0.1"
+children = "any"
+doc      = "Liquid glass whose members merge like drops."
+
+[contract.glass_group.props]
+smoothness = { type = "f64", default = 18, doc = "How close members come before they merge, logical pixels (0: never)." }
+direction  = { type = "enum", values = ["row", "column"], default = "row", doc = "How the members are laid out." }
+gap        = { type = "f64", default = 8, doc = "Space between members, logical pixels." }
+thickness  = { type = "f64", default = 12, doc = "How thick the glass looks: the bevel's width in logical pixels, where what is behind bends." }
+ior        = { type = "f64", default = 1.45, doc = "Index of refraction: how strongly the bevel bends what is behind (1: not at all)." }
+blur       = { type = "f64", default = 0, doc = "Frosting: how much what is behind is blurred, logical pixels (0: clear glass)." }
+dispersion = { type = "f64", default = 0.3, doc = "Colour split at the bevel, as through a prism (0: none)." }
+tint       = { type = "color", default = "#ffffff1a", doc = "The glass's own colour over what is behind; its alpha is how much." }
+light_x    = { type = "f64", default = 0.4, doc = "The light's direction, x: the rim facing it is lit (bind it to a device's tilt)." }
+light_y    = { type = "f64", default = -0.8, doc = "The light's direction, y (up is negative)." }
+rim        = { type = "f64", default = 0.6, doc = "How bright the rim light and the inner edge line are (0: none)." }
+adaptive   = { type = "bool", default = true, doc = "Darker over a bright backdrop, lighter over a dark one, so the content stays legible." }
+label      = { type = "string", default = "", doc = "The group's accessible name." }

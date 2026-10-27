@@ -187,6 +187,7 @@ Desktop::Desktop(DesktopOptions options) : impl_(std::make_unique<Impl>()) {
     ro.clock = anim::Clock::interactive();
     ro.size = d.options.size;
     ro.reduce_motion = d.options.reduce_motion;
+    ro.reduce_transparency = d.options.reduce_transparency;
     d.own_runtime = std::make_unique<Runtime>(std::move(ro));
     d.runtime = d.own_runtime.get();
     d.tree = std::make_unique<semantic::Tree>(*d.runtime);

@@ -79,6 +79,9 @@ public:
     // list) holds it unmaterialised (spec S-7); none when nothing is there.
     virtual NodeId reveal(std::string_view path) = 0;
     [[nodiscard]] virtual const Theme& theme() const = 0;
+    // The person asked for less transparency (a system setting): glass and
+    // other see-through materials draw as opaque panels.
+    [[nodiscard]] virtual bool reduce_transparency() const { return false; }
     [[nodiscard]] virtual typeset::FontCollection& fonts() = 0;
     [[nodiscard]] virtual render::ImageStore& images() = 0;
     [[nodiscard]] virtual anim::seconds now() const = 0;

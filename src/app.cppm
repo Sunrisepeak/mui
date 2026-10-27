@@ -44,6 +44,7 @@ struct AppSpec {
 //   --no-agent                no endpoint
 //   --dark                    the dark theme
 //   --gpu | --cpu             who draws the window (default: the GPU when the machine has one)
+//   --reduce-transparency     see-through materials (glass) drawn as opaque panels
 //   --size WxH                the window's size in logical pixels
 //   --debug LIST              overlays: bounds,repaints,inspector,hud (the runtime's DebugOptions)
 //   --log FILTER              log levels per category: layout=debug,*=info (also OMUI_LOG)
@@ -58,6 +59,7 @@ struct RunOptions {
     bool                  agent = true;
     bool                  dark = false;
     std::optional<bool>   gpu;  // --gpu / --cpu
+    bool                  reduce_transparency = false;
     std::optional<Size>   size;
     DebugOptions          debug;
     std::string           log;

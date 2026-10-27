@@ -56,6 +56,7 @@ Runtime::Runtime(RuntimeOptions options) : impl_(std::make_unique<Impl>(*this)) 
     d.size = options.size;
     d.scale = options.scale;
     d.reduce_motion = options.reduce_motion;
+    d.reduce_transparency = options.reduce_transparency;
     if (options.fonts) {
         d.fonts = options.fonts;
     } else {
@@ -287,6 +288,13 @@ void Runtime::set_reduce_motion(bool reduce) {
     impl_->reduce_motion = reduce;
     impl_->touch(dirty_paint);
 }
+
+void Runtime::set_reduce_transparency(bool reduce) {
+    impl_->reduce_transparency = reduce;
+    impl_->touch(dirty_paint);
+}
+
+bool Runtime::reduce_transparency() const { return impl_->reduce_transparency; }
 
 const Theme& Runtime::theme() const { return impl_->theme; }
 typeset::FontCollection& Runtime::fonts() { return *impl_->fonts; }

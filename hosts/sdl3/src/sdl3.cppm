@@ -38,6 +38,7 @@ struct DesktopOptions {
     Theme                   theme = Theme::light();
     typeset::FontCollection* fonts = nullptr;
     bool                    reduce_motion = false;
+    bool                    reduce_transparency = false;  // glass drawn as opaque panels
     Color                   background = Color::white();
     bool                    vsync = true;
     std::string             video_driver;     // "" the platform's; "offscreen" in CI

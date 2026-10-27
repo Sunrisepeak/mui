@@ -26,6 +26,7 @@ std::expected<RunOptions, std::string> RunOptions::parse(std::span<const std::st
         else if (a == "--dark") o.dark = true;
         else if (a == "--gpu") o.gpu = true;
         else if (a == "--cpu") o.gpu = false;
+        else if (a == "--reduce-transparency") o.reduce_transparency = true;
         else if (a == "--frames") {
             auto v = value();
             int n = 0;
@@ -78,7 +79,7 @@ std::expected<RunOptions, std::string> RunOptions::parse(std::span<const std::st
             o.profile = std::filesystem::path(*v);
         } else {
             return std::unexpected(std::format("unknown option `{}` (--headless, --frames N, --png FILE, --level hN, --serve, "
-                                               "--agent-dir DIR, --no-agent, --dark, --gpu, --cpu, --size WxH, --debug LIST, --log FILTER, --profile FILE)",
+                                               "--agent-dir DIR, --no-agent, --dark, --gpu, --cpu, --reduce-transparency, --size WxH, --debug LIST, --log FILTER, --profile FILE)",
                                                a));
         }
     }
@@ -105,6 +106,7 @@ int headless(AppSpec app, const RunOptions& o) {
     h.endpoint_directory = o.agent_dir;
     Headless host(h);
     host.runtime().set_debug(o.debug);
+    host.runtime().set_reduce_transparency(o.reduce_transparency);
     prepare(host.runtime(), app);
     if (o.frames) {
         for (int i = 0; i < *o.frames; ++i) host.step();
@@ -168,6 +170,7 @@ int run(AppSpec app, const RunOptions& o) {
     d.agent_directory = o.agent_dir;
     d.theme = o.dark ? Theme::dark_theme() : app.theme;
     d.effects = app.effects;
+    d.reduce_transparency = o.reduce_transparency;
     if (o.gpu) d.renderer = *o.gpu ? DesktopOptions::Renderer::gpu : DesktopOptions::Renderer::cpu;
     Desktop desktop(d);
     if (auto r = desktop.open(); !r) {

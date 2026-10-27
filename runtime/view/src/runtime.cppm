@@ -46,6 +46,7 @@ struct RuntimeOptions {
     Size                  size{800, 600};   // logical pixels
     float                 scale = 1.0f;     // physical pixels per logical pixel
     bool                  reduce_motion = false;
+    bool                  reduce_transparency = false;  // see-through materials (glass) drawn opaque
     Stages                stages = Stages::paint;
     DebugOptions          debug;
     // The frame's pipeline (D-66): nullopt is runtime_pipeline(stages). A
@@ -251,9 +252,11 @@ public:
     // ── theme ──
     void set_theme(Theme theme);
     void set_reduce_motion(bool reduce);
+    void set_reduce_transparency(bool reduce);
 
     // ── Services ──
     [[nodiscard]] const Theme& theme() const override;
+    [[nodiscard]] bool reduce_transparency() const override;
     [[nodiscard]] typeset::FontCollection& fonts() override;
     [[nodiscard]] render::ImageStore& images() override;
     [[nodiscard]] anim::seconds now() const override;

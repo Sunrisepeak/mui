@@ -1,4 +1,4 @@
-# openmui-host-headless
+# openmui.host.headless
 
 openmui without a display: a runtime on a clock stepped frame by frame,
 input injected the way a person gives it (by point, or by id), pixels from

@@ -397,7 +397,7 @@ int main(int argc, char** argv) {
         std::vector<std::string> said;
         set_log_sink([](void* user, const LogRecord& r) { static_cast<std::vector<std::string>*>(user)->emplace_back(r.message); }, &said);
         RuntimeOptions o = options();
-        o.pipeline = pipeline::Description{"broken", {{"paint", "openmui-view.paint", {}, {}}}};  // paint without bounds
+        o.pipeline = pipeline::Description{"broken", {{"paint", "openmui.view.paint", {}, {}}}};  // paint without bounds
         Runtime rt(o);
         set_log_sink(nullptr, nullptr);
         check(rt.frame_pipeline().description().name == "runtime.h2");

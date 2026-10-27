@@ -9,7 +9,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
-mcpp test -p openmui-feature-fixture > /tmp/omui-features.log 2>&1 || { cat /tmp/omui-features.log; exit 1; }
+mcpp test -p openmui.features > /tmp/omui-features.log 2>&1 || { cat /tmp/omui-features.log; exit 1; }
 grep -q '^sink: stdout' /tmp/omui-features.log
 echo "ok   sink-stdout (the default) builds and passes"
 
@@ -23,7 +23,7 @@ grep -q 'features.memory: 1 passed' /tmp/omui-features.log
 echo "ok   sink-memory (an application's choice on its dependency edge) builds and passes"
 
 set +e
-mcpp build -p openmui-feature-fixture --features sink-memory > /tmp/omui-features.log 2>&1
+mcpp build -p openmui.features --features sink-memory > /tmp/omui-features.log 2>&1
 code=$?
 set -e
 if [ "$code" = 0 ]; then echo "FAIL: both sinks at once built"; exit 1; fi

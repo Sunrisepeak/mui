@@ -14,8 +14,8 @@ render() {  # render <template> <destination> <project name>
     python3 - "$root/templates/$1" "$2" "$3" "$root" <<'PY'
 import sys, pathlib, re
 src, dst, name, root = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2]), sys.argv[3], sys.argv[4]
-vars = {"project.name": name, "self.name": "openmui", "self.version": "0.1.0",
-        "template.package.namespace": "openmui", "template.package.name": "openmui"}
+vars = {"project.name": name, "self.name": "openmui.sdk", "self.version": "0.1.0",
+        "template.package.namespace": "openmui", "template.package.name": "sdk"}
 for f in src.rglob("*"):
     if f.is_dir() or f.name == "template.toml": continue
     rel = f.relative_to(src)
@@ -29,7 +29,7 @@ for f in src.rglob("*"):
 # This checkout instead of the published packages.
 m = dst / "mcpp.toml"
 t = m.read_text()
-t = t.replace('"openmui" = "0.1.0"', f'openmui = {{ path = "{root}" }}')
+t = t.replace('"openmui.sdk" = "0.1.0"', f'openmui.sdk = {{ path = "{root}" }}')
 t = t.replace('openmui.rules = { version = "0.1.0", host-module = true }', f'openmui.rules = {{ path = "{root}/mcpp/rules", host-module = true }}')
 m.write_text(t)
 PY
@@ -56,7 +56,7 @@ p = sys.argv[1]; s = open(p).read()
 s = s.replace('    "tests/rules",\n', '    "tests/rules",\n    ".template-check/widgets",\n')
 open(p, "w").write(s)
 PY
-        sed -i "s|openmui.rules = { path = \"$root/mcpp/rules\"|openmui.rules = { path = \"../../mcpp/rules\"|; s|openmui = { path = \"$root\" }|openmui = { path = \"../..\" }|" "$check/$name/mcpp.toml"
+        sed -i "s|openmui.rules = { path = \"$root/mcpp/rules\"|openmui.rules = { path = \"../../mcpp/rules\"|; s|openmui.sdk = { path = \"$root\" }|openmui.sdk = { path = \"../..\" }|" "$check/$name/mcpp.toml"
         (cd "$root" && mcpp test -p widgets 2>&1 | grep -E "test result|FAIL|error" ) || { echo "FAIL $template"; exit 1; }
     else
         render "$template" "$work/$name" "$name"

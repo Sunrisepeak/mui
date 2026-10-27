@@ -1,8 +1,9 @@
-# openmui-geom — the geometry the independent modules share: points, sizes,
+# openmui.geom — the geometry the independent modules share: points, sizes,
 # rectangles, insets, radii, colours, affine transforms, pixel snapping.
 # Standard library only; header-like (every function is constexpr).
 [package]
-name        = "openmui-geom"
+namespace   = "openmui"
+name        = "geom"
 version     = "0.1.0"
 description = "2D geometry for openmui's modules: points, rectangles, colours, affine transforms, pixel snapping"
 license     = "Apache-2.0"
@@ -19,4 +20,4 @@ sources  = ["src/*.cppm"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dev-dependencies]
-openmui-testing = { path = "../../tests/support" }
+openmui.testing = { path = "../../tests/support" }

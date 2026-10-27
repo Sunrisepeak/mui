@@ -1,11 +1,12 @@
-# openmui-ui-markdown — the Markdown component (canvas-markdown §2): a
-# document of semantic nodes over openmui-markdown's model, with block nodes
+# openmui.ui.markdown — the Markdown component (canvas-markdown §2): a
+# document of semantic nodes over openmui.markdown's model, with block nodes
 # keyed by content so streaming re-lays out only the tail. Contract-first:
 # contract/markdown.contract.omui.toml becomes the base class, the builder,
 # the stubs and the schema when it builds (openmui.rules). An official
 # component package, not in the umbrella's defaults.
 [package]
-name        = "openmui-ui-markdown"
+namespace   = "openmui.ui"
+name        = "markdown"
 version     = "0.1.0"
 description = "The Markdown component: CommonMark + GFM rendered as semantic nodes, links with external effects, tasks, code, tables, streaming"
 license     = "Apache-2.0"
@@ -22,13 +23,13 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-openmui-core     = { path = "../../runtime/core" }
-openmui-view     = { path = "../../runtime/view" }
-openmui-markdown = { path = "../../modules/markdown" }
+openmui.core     = { path = "../../runtime/core" }
+openmui.view     = { path = "../../runtime/view" }
+openmui.markdown = { path = "../../modules/markdown" }
 
 [build-dependencies]
 openmui.rules = { path = "../../mcpp/rules", host-module = true }
 
 [dev-dependencies]
-openmui-testing       = { path = "../../tests/support" }
-openmui-host-headless = { path = "../../hosts/headless" }
+openmui.testing       = { path = "../../tests/support" }
+openmui.host.headless = { path = "../../hosts/headless" }

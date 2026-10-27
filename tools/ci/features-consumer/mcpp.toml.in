@@ -3,7 +3,8 @@
 # Not a workspace member: a workspace build plans every member together and
 # would give the fixture both sinks. tools/ci/features.sh builds it standalone.
 [package]
-name        = "openmui-feature-consumer"
+namespace   = "openmui"
+name        = "features-consumer"
 version     = "0.1.0"
 description = "M0 ⑤: a consumer chooses the other mutually exclusive partition"
 license     = "Apache-2.0"
@@ -15,7 +16,7 @@ kind = "lib"
 sources = []
 
 [dependencies]
-openmui-feature-fixture = { path = "{{repo}}/tests/features", default-features = false, features = ["sink-memory"] }
+openmui.features = { path = "{{repo}}/tests/features", default-features = false, features = ["sink-memory"] }
 
 [dev-dependencies]
-openmui-testing = { path = "{{repo}}/tests/support" }
+openmui.testing = { path = "{{repo}}/tests/support" }

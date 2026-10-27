@@ -1,4 +1,4 @@
-# openmui-layout
+# openmui.layout
 
 A layout engine (module `openmui.layout`): flexbox, grid, z-stacks and absolute positioning in a CSS subset with border-box sizing — wrap, grow/shrink with the §9.7 freeze loop and the automatic minimum size, stretch and baseline alignment, justify and align-content, reversal; grid placement (explicit, negative and spanning lines, row/column auto-flow) and track sizing (fixed, %, fr, auto, min/max-content, minmax); aspect ratio, min/max sizes, scroll containers.
 

@@ -1,4 +1,4 @@
-# openmui-semantic
+# openmui.semantic
 
 The semantic tree of a running interface, as agents, tests and assistive
 technology read it (spec §3 and §9, `openmui.tree@0.1`):
@@ -14,8 +14,8 @@ technology read it (spec §3 and §9, `openmui.tree@0.1`):
 - **conditions** to wait for: a match appears or goes, the interface settles;
 - the spec's **checks** over every node;
 - **sessions**: `Recorder` writes frames with their input and actions with
-  their actor into an `openmui-record` session, with checkpoints of the
+  their actor into an `openmui.record` session, with checkpoints of the
   tree's digest; `Player` replays them on a fresh runtime, step by step or to
   the end, and reports any disagreement.
 
-Depends on `openmui-core`, `openmui-view` and `openmui-record`.
+Depends on `openmui.core`, `openmui.view` and `openmui.record`.

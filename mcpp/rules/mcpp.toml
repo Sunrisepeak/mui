@@ -26,4 +26,4 @@ kind = "rules"
 # that uses this rule (a generating rule compiles no device language, so it is
 # a plain library of build programs: mcpp's 08-build-rules shape).
 [dependencies]
-openmui-gen = { path = "../../tools/gen", tools = ["omui-gen"], reexport = true }
+openmui.gen = { path = "../../tools/gen", tools = ["omui-gen"], reexport = true }

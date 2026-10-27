@@ -14,7 +14,7 @@ import :surface;
 
 export namespace omui::raster {
 
-// The same values as openmui-render's PathVerb, so a display list's paths are
+// The same values as openmui.render's PathVerb, so a display list's paths are
 // rasterised without conversion.
 enum class Verb : std::uint8_t { move, line, quad, cubic, close };
 enum class FillRule : std::uint8_t { nonzero, even_odd };

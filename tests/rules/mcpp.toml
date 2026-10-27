@@ -2,7 +2,8 @@
 # is all it writes about the interface; the partition, the builder, the
 # stubs and the schema are made at build time (component-binding §2).
 [package]
-name        = "openmui-rules-fixture"
+namespace   = "acme"
+name        = "ui"
 version     = "0.1.0"
 description = "A component package whose bindings openmui.rules generates at build time"
 license     = "Apache-2.0"
@@ -17,12 +18,12 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-openmui-core = { path = "../../runtime/core" }
-openmui-view = { path = "../../runtime/view" }
+openmui.core = { path = "../../runtime/core" }
+openmui.view = { path = "../../runtime/view" }
 
 [build-dependencies]
 openmui.rules = { path = "../../mcpp/rules", host-module = true }
 
 [dev-dependencies]
-openmui-testing       = { path = "../support" }
-openmui-host-headless = { path = "../../hosts/headless" }
+openmui.testing       = { path = "../support" }
+openmui.host.headless = { path = "../../hosts/headless" }

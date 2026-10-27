@@ -1,4 +1,4 @@
-# openmui-trace
+# openmui.trace
 
 Where the time goes. Spans (begin at construction, end at scope exit),
 counters and instant marks, recorded per thread into fixed buffers — no lock

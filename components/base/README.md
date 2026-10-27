@@ -1,4 +1,4 @@
-# openmui-ui-base
+# openmui.ui.base
 
 The Core components (spec §11), contract-first (component-binding §2):
 
@@ -9,7 +9,7 @@ The Core components (spec §11), contract-first (component-binding §2):
 | `checkbox` | `checkbox` | the mark draws itself in; indeterminate (`mixed`) |
 | `radio` | `radio` | one value per group: the group is a signal its radios share |
 | `slider` | `slider` | drag with capture, keys (arrows, Home, End), actions with `min`/`max`; `changed` while moving, `committed` at the end |
-| `text_box` | `text_box` | the editing model of openmui-text: graphemes, words, undo; selection by pointer and keys; clipboard; input methods; blinking caret; masked passwords; actions in grapheme offsets |
+| `text_box` | `text_box` | the editing model of openmui.text: graphemes, words, undo; selection by pointer and keys; clipboard; input methods; blinking caret; masked passwords; actions in grapheme offsets |
 | `progress` | `progress` | determinate with a gliding fill, indeterminate (`busy`) with a sweep on the runtime's clock |
 | `tabs`, `tab` | `tabs`, `tab` | `selected` is the tab's id; the indicator springs; arrows walk the strip, skipping disabled tabs |
 | `select` | `select` (role `combo_box`) | a composite: it builds its popup (an overlay as wide as the field) and its options; keys, pointer and `set_value` (checked against the options) |

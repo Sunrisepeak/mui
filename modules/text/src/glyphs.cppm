@@ -1,8 +1,8 @@
 // openmui.text:glyphs — glyph images for renderers.
 //
 // The renderer asks for a glyph at a size and a subpixel phase; the cache
-// draws its outline (HarfBuzz draw callbacks into an openmui-raster path) and
-// rasterises it with openmui-raster, so text pixels are as deterministic as
+// draws its outline (HarfBuzz draw callbacks into an openmui.raster path) and
+// rasterises it with openmui.raster, so text pixels are as deterministic as
 // any other shape. Colour glyphs (COLR layers, as emoji fonts have) become
 // premultiplied images composed from the font's palette.
 export module openmui.text:glyphs;

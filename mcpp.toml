@@ -6,7 +6,8 @@
 # member below has its own mcpp.toml and depends on others only by `path`, so
 # any of them can move to its own repository (D-41).
 [package]
-name        = "openmui"
+namespace   = "openmui"
+name        = "sdk"
 version     = "0.1.0"
 description = "openmui: an open UI specification and its reference implementation in C++ modules"
 license     = "Apache-2.0"
@@ -79,14 +80,14 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-openmui-core          = { path = "runtime/core" }
-openmui-view          = { path = "runtime/view" }
-openmui-semantic      = { path = "runtime/semantic" }
-openmui-agent         = { path = "runtime/agent" }
-openmui-trace         = { path = "modules/trace" }
-openmui-ui-base       = { path = "components/base" }
-openmui-host-headless = { path = "hosts/headless" }
-openmui-host-sdl3     = { path = "hosts/sdl3" }
+openmui.core          = { path = "runtime/core" }
+openmui.view          = { path = "runtime/view" }
+openmui.semantic      = { path = "runtime/semantic" }
+openmui.agent         = { path = "runtime/agent" }
+openmui.trace         = { path = "modules/trace" }
+openmui.ui.base       = { path = "components/base" }
+openmui.host.headless = { path = "hosts/headless" }
+openmui.host.sdl3     = { path = "hosts/sdl3" }
 mcpplibs.os           = "0.1.0"
 
 # The root package has no test programs of its own: tests/ holds members

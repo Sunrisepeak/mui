@@ -365,7 +365,7 @@ notes/                                   （mcpp new notes --template openmui:ap
 ```toml
 [dependencies]
 openmui             = { version = "0.1", features = ["entry-player"] }   # 脚本主导：播放器加载视图和脚本，native 模块链接进来
-openmui-ui-markdown = "0.1"
+openmui.ui.markdown = "0.1"
 
 [package.metadata.openmui]
 kind    = "app"
@@ -492,8 +492,8 @@ src/*.cppm ───────────► mcpp 编译模块 ─► 链接�
 
 | 包 | 内容 | 里程碑 |
 |---|---|---|
-| `openmui-ui-base` | Core 组件（见 spec §11） | M1–M3 |
-| `openmui-ui-markdown` | Markdown 渲染和流式输出 | M2 |
+| `openmui.ui.base` | Core 组件（见 spec §11） | M1–M3 |
+| `openmui.ui.markdown` | Markdown 渲染和流式输出 | M2 |
 | `openmui-ui-canvas` | 高性能画布核心（只提供机制） | M4 |
 | `openmui-ui-canvas-kit` | 画布的可选行为：选择、拖动、缩放手柄、吸附、连线、小地图、网格 | M4 |
 | `openmui-ui-data` | DataGrid、TreeTable、Chart | M5 之后 |

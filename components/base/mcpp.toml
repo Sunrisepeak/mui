@@ -1,4 +1,4 @@
-# openmui-ui-base — the Core components (spec §11), behaviour over the
+# openmui.ui.base — the Core components (spec §11), behaviour over the
 # runtime's public API only (component-binding §1: no privilege). Each
 # component's interface is its contract in spec/registry/components; the
 # partitions in src/generated are omui-gen's (`omui-gen cpp … --namespace omui
@@ -6,7 +6,8 @@
 # the classes beside them are the behaviour, and the look comes from the
 # theme's tokens.
 [package]
-name        = "openmui-ui-base"
+namespace   = "openmui.ui"
+name        = "base"
 version     = "0.1.0"
 description = "openmui Core components: button, toggle, checkbox, slider, text box …, contract-first"
 license     = "Apache-2.0"
@@ -23,10 +24,10 @@ sources  = ["src/*.cppm", "src/*.cpp", "src/generated/*.cppm", "src/generated/*.
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-openmui-core    = { path = "../../runtime/core" }
-openmui-view    = { path = "../../runtime/view" }
-openmui-unicode = { path = "../../modules/unicode" }
+openmui.core    = { path = "../../runtime/core" }
+openmui.view    = { path = "../../runtime/view" }
+openmui.unicode = { path = "../../modules/unicode" }
 
 [dev-dependencies]
-openmui-testing       = { path = "../../tests/support" }
-openmui-host-headless = { path = "../../hosts/headless" }
+openmui.testing       = { path = "../../tests/support" }
+openmui.host.headless = { path = "../../hosts/headless" }

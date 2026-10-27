@@ -123,7 +123,7 @@ jobs:
       - name: Benchmarks against their budgets (M1 acceptance ⑤; tests/bench)
         if: matrix.profile == 'release'
         run: |
-          mcpp run -p openmui-bench --profile release -- \
+          mcpp run -p openmui.bench --profile release -- \
             --check tests/bench/budgets.bench.omui.json --json results.bench.omui.json \
             --label "${{ matrix.os }} ${{ matrix.toolchain }}"
 

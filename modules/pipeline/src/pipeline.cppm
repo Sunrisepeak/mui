@@ -19,7 +19,7 @@
 //     auto p = omui::pipeline::Pipeline::build(app_pipeline(), plugins, inputs);  // app_pipeline(): generated from app.pipeline.omui.toml
 //     p->run(resources);
 //
-// An independent component (D-55): the standard library and openmui-trace.
+// An independent component (D-55): the standard library and openmui.trace.
 // `<name>.pipeline.omui.toml` is read at the edges: omui-gen (and the
 // openmui.rules build plugin) turns it into a C++ Description at build time,
 // and tools send changes as JSON over the agent protocol; this package parses
@@ -121,7 +121,7 @@ public:
 };
 
 struct PluginInfo {
-    std::string name;                // "openmui-render.cpu"
+    std::string name;                // "openmui.render.cpu"
     std::string kind = "stage";      // the plugin kinds of D-65
     std::string interface;           // "omui.pipeline.stage@1"
     std::string description;
@@ -174,7 +174,7 @@ struct Problem {
 //     name = "desktop"
 //     [[stage]]
 //     name = "raster"
-//     plugin = "openmui-render.cpu"
+//     plugin = "openmui.render.cpu"
 //     after = ["damage"]
 //     config = { parallel = true }
 [[nodiscard]] std::string to_toml(const Description& description);

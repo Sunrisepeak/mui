@@ -16,7 +16,7 @@ A tool written in openmui that inspects any running openmui application
 - **overlays** on the application: bounds, repaints, the frame-time HUD (`debug`).
 
 ```text
-mcpp run -p openmui-inspector -- [--app org.example.notes] [--inspect-dir DIR]
+mcpp run -p openmui.inspector -- [--app org.example.notes] [--inspect-dir DIR]
 ```
 
 Without `--app` it inspects the first application that listens (never

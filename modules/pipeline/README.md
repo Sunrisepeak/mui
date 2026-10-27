@@ -1,4 +1,4 @@
-# openmui-pipeline
+# openmui.pipeline
 
 A frame as a graph of stages (D-66). A **stage** is a plugin that reads and
 writes named, typed **resources**; a **pipeline** is a list of stages built
@@ -13,7 +13,7 @@ against a **registry** of plugins.
   updater's place in the declaration decides which readers see what it
   changed: a reader declared before it sees the old value.
 - **Observable.** Each run times every stage (`timings()`) and traces it as a
-  span in its plugin's category (openmui-trace); `describe()` lists the
+  span in its plugin's category (openmui.trace); `describe()` lists the
   order, each stage's plugin and its ports.
 - **Live.** `replace`, `insert` and `remove` rebuild between runs; a change
   that does not build leaves the pipeline as it was.
@@ -36,8 +36,8 @@ Stages are called once per run, never per node or per pixel (D-65).
 edges — by the generator at build time, and as JSON by tools over the agent
 protocol — so this package parses nothing and throws nothing.
 
-The runtime's frame is a pipeline of `openmui-view.*` stages
+The runtime's frame is a pipeline of `openmui.view.*` stages
 (`runtime_pipeline(Stages)`: H0, H1, H2), and `omui agent pipeline` shows and
 changes a running application's.
 
-An independent component (D-55): the standard library and openmui-trace.
+An independent component (D-55): the standard library and openmui.trace.

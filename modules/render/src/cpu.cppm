@@ -1,5 +1,5 @@
 // openmui.render:cpu — the CPU reference backend: display lists to pixels with
-// openmui-raster, byte-for-byte the same on every platform (spec R-2).
+// openmui.raster, byte-for-byte the same on every platform (spec R-2).
 //
 // Effects (D-68): a layer with an effect from render::effects() is drawn
 // offscreen first — whole, whatever bands are asked for, since an effect may
@@ -47,7 +47,7 @@ struct RenderReport {
 [[nodiscard]] std::string_view command_kind_name(std::size_t index) noexcept;
 
 // Runs body(0) … body(count − 1) at the same time, in any order, and returns
-// when all have run: the host's thread pool (openmui-core's Tasks, or any
+// when all have run: the host's thread pool (openmui.core's Tasks, or any
 // other). This package has none of its own.
 class Parallel {
 public:

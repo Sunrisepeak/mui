@@ -1,6 +1,6 @@
-# openmui-markdown
+# openmui.markdown
 
-Markdown to a document of blocks and inline marks (module `openmui.markdown`): CommonMark 0.31 and GitHub's extensions, parsed by md4c through [`mcpplibs.mwrap.md4c`](https://github.com/mcpplibs/md4c-m). An independent component (D-55): it depends on the standard library, md4c and openmui-trace.
+Markdown to a document of blocks and inline marks (module `openmui.markdown`): CommonMark 0.31 and GitHub's extensions, parsed by md4c through [`mcpplibs.mwrap.md4c`](https://github.com/mcpplibs/md4c-m). An independent component (D-55): it depends on the standard library, md4c and openmui.trace.
 
 - **The document**: blocks nested as in the source (quotes, bullet and ordered lists, items with their task state and the task mark's byte in the source, headings with unique GitHub-style anchors, fenced and indented code with info and language, raw HTML, tables with alignment). Every leaf has its text, with entities decoded, and its inline structure as ordered open / close / break marks, so nesting survives (`*(*a*)*`). Links, images and wikilinks are in a side table. Every block has a hash of its content, equal wherever the block is, which a renderer can use as the key of a layout cache.
 - **`runs`**: the marks flattened into styled stretches (`bit(Span::strong) | bit(Span::link)` …), which a text engine can lay out.

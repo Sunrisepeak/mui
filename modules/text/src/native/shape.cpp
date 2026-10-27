@@ -1,5 +1,5 @@
 // Shaping: bidi levels (fribidi), grapheme clusters and line-break
-// opportunities (openmui-unicode), script runs, font fallback per cluster,
+// opportunities (openmui.unicode), script runs, font fallback per cluster,
 // and HarfBuzz shaping of each run with the whole text as context.
 module;
 #include <hb.h>

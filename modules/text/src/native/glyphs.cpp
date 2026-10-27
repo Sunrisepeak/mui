@@ -1,5 +1,5 @@
 // Glyph outlines through hb_font_draw_glyph, colour layers through the OT
-// COLR/CPAL API, both rasterised by openmui-raster.
+// COLR/CPAL API, both rasterised by openmui.raster.
 module;
 #include <hb.h>
 #include <hb-ot.h>

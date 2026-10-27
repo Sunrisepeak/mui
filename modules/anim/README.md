@@ -1,4 +1,4 @@
-# openmui-anim
+# openmui.anim
 
 A general animation engine in C++23 modules. It depends on the standard library only and knows nothing of UI, so a game, a video composition or another framework can use it as is.
 
@@ -30,4 +30,4 @@ intro.at(seconds(0), "title.opacity", Tween<double>{.from = 0, .to = 1, .duratio
      .marker(seconds(1), "beat");
 ```
 
-Tests: `mcpp test -p openmui-anim`.
+Tests: `mcpp test -p openmui.anim`.

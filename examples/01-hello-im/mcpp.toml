@@ -6,7 +6,8 @@
 #   mcpp run -- --headless --png hello.png
 #   mcpp run -- --serve           headless, for agents (omui agent ls)
 [package]
-name        = "openmui-example-hello-im"
+namespace   = "openmui.example"
+name        = "hello-im"
 version     = "0.1.0"
 description = "openmui example 01: hello, immediate mode"
 license     = "Apache-2.0"
@@ -22,7 +23,7 @@ main = "src/main.cpp"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-openmui = { path = "../.." }
+openmui.sdk = { path = "../.." }
 
 [dev-dependencies]
-openmui-testing = { path = "../../tests/support" }
+openmui.testing = { path = "../../tests/support" }

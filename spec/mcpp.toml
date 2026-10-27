@@ -1,4 +1,4 @@
-# openmui-spec — the specification: registry, generated C ABI, value types, CTS.
+# openmui.spec — the specification: registry, generated C ABI, value types, CTS.
 #
 # Standard library only (spec §1). spec/registry is the single source of
 # truth; include/openmui.h, src/generated/, docs/registry.md, stubs/ and
@@ -6,7 +6,8 @@
 # are current. When a second implementation appears, this directory becomes
 # its own repository unchanged (D-41).
 [package]
-name        = "openmui-spec"
+namespace   = "openmui"
+name        = "spec"
 version     = "0.1.0"
 description = "The openmui specification: semantic tree, view IR, state and verbs, host, render and C ABI contracts"
 license     = "Apache-2.0"
@@ -23,4 +24,4 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp", "src/generated/*.cppm"]
 
 [dev-dependencies]
-openmui-testing = { path = "../tests/support" }
+openmui.testing = { path = "../tests/support" }

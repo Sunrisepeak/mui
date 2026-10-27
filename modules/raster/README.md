@@ -1,4 +1,4 @@
-# openmui-raster
+# openmui.raster
 
 A deterministic CPU 2D rasterizer (module `openmui.raster`, D-43): the reference renderer of openmui.
 

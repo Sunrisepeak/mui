@@ -17,7 +17,7 @@
 //     auto doc = omui::md::parse("# Title\n\nSome *text*.\n");
 //     doc.root.children[0].kind == Kind::heading;  // .anchor == "title"
 //
-// Depends on the standard library, md4c and openmui-trace only (D-55); parse
+// Depends on the standard library, md4c and openmui.trace only (D-55); parse
 // and append are traced as spans of category "markdown".
 export module openmui.markdown;
 

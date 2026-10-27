@@ -2,7 +2,8 @@
 # running application today; check, fmt, add, video and bench as their
 # members land.
 [package]
-name        = "openmui-cli"
+namespace   = "openmui"
+name        = "cli"
 version     = "0.1.0"
 description = "The openmui command line: omui agent ls / describe / snapshot / changes / find / act / wait / capture / call"
 license     = "Apache-2.0"
@@ -19,11 +20,11 @@ main = "src/main.cpp"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-openmui-core     = { path = "../../runtime/core" }
-openmui-agent    = { path = "../../runtime/agent" }
+openmui.core     = { path = "../../runtime/core" }
+openmui.agent    = { path = "../../runtime/agent" }
 mcpplibs.cmdline = "0.0.2"
 mcpplibs.os      = "0.1.0"
 
 [dev-dependencies]
-openmui-testing       = { path = "../../tests/support" }
-openmui-host-headless = { path = "../../hosts/headless" }
+openmui.testing       = { path = "../../tests/support" }
+openmui.host.headless = { path = "../../hosts/headless" }

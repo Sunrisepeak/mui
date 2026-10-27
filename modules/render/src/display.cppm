@@ -24,7 +24,7 @@ using geom::Point;
 using geom::Rect;
 using geom::Size;
 
-// A rotation with the deterministic sine and cosine of openmui-anim: the same
+// A rotation with the deterministic sine and cosine of openmui.anim: the same
 // matrix on every platform.
 [[nodiscard]] Affine rotate(float radians) noexcept;
 

@@ -1,13 +1,14 @@
-# openmui-inspector — the openmui Inspector (D-61, D-63, D-67): a tool
+# openmui.inspector — the openmui Inspector (D-61, D-63, D-67): a tool
 # written in openmui that connects to any running openmui application and
 # shows its semantic tree, a node's type / source / props / layout / state,
 # frame times against the 60 Hz budget, the frame's pipeline, and the
 # application's clock — which it can pause, step, slow down and send back in
 # time. `omui agent` prints the same data as JSON.
 #
-#   mcpp run -p openmui-inspector -- [--app org.example.notes] [--agent-dir DIR]
+#   mcpp run -p openmui.inspector -- [--app org.example.notes] [--agent-dir DIR]
 [package]
-name        = "openmui-inspector"
+namespace   = "openmui"
+name        = "inspector"
 version     = "0.1.0"
 description = "The openmui Inspector: semantic tree, node details, frame times, pipeline and time control of a running openmui application"
 license     = "Apache-2.0"
@@ -26,8 +27,8 @@ main = "src/main.cpp"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-openmui               = { path = "../.." }
-mcpplibs.os           = "0.1.0"
+openmui.sdk = { path = "../.." }
+mcpplibs.os = "0.1.0"
 
 [dev-dependencies]
-openmui-testing = { path = "../../tests/support" }
+openmui.testing = { path = "../../tests/support" }

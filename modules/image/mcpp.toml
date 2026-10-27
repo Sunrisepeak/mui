@@ -1,9 +1,10 @@
-# openmui-image — images in memory and PNG encoding and decoding (libpng's
+# openmui.image — images in memory and PNG encoding and decoding (libpng's
 # simplified API, through compat.libpng and compat.zlib from mcpp-index).
 # libpng 1.6.43: the version compat.freetype (under HarfBuzz) requires, so
 # one libpng serves the whole graph.
 [package]
-name        = "openmui-image"
+namespace   = "openmui"
+name        = "image"
 version     = "0.1.0"
 description = "Image buffers, premultiplication, PNG encode and decode"
 license     = "Apache-2.0"
@@ -22,4 +23,4 @@ sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 compat.libpng = "1.6.43"
 
 [dev-dependencies]
-openmui-testing = { path = "../../tests/support" }
+openmui.testing = { path = "../../tests/support" }

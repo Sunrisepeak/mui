@@ -1,13 +1,13 @@
-# openmui-bench
+# openmui.bench
 
 The framework's benchmarks, and the gate made of them. `omui-bench` runs
 them, prints a table, writes the report as JSON (`openmui.bench@0.1`,
 `<name>.bench.omui.json`) and checks it against `budgets.bench.omui.json`:
 
 ```text
-mcpp run -p openmui-bench --profile release -- --check tests/bench/budgets.bench.omui.json --json results.bench.omui.json
-mcpp run -p openmui-bench --profile release -- --filter ui/frame     # some of them
-mcpp run -p openmui-bench -- --list                                  # what there is
+mcpp run -p openmui.bench --profile release -- --check tests/bench/budgets.bench.omui.json --json results.bench.omui.json
+mcpp run -p openmui.bench --profile release -- --filter ui/frame     # some of them
+mcpp run -p openmui.bench -- --list                                  # what there is
 ```
 
 | Benchmark | What it measures |
@@ -48,4 +48,4 @@ omui::bench::add("ui/frame/mine", "what it measures", [](omui::bench::State& s) 
 ```
 
 Depends on `openmui` (the runtime, the base components, the headless host),
-`openmui-trace` and `mcpplibs.os`.
+`openmui.trace` and `mcpplibs.os`.

@@ -78,10 +78,10 @@ inline std::vector<edge> plan(const options& opt) {
         std::println(std::cerr, "openmui.rules: options::module names the package's module (acme.ui)");
         return {};
     }
-    const std::string gen = std::string(mcpp::dep_bin("openmui-gen", "omui-gen"));
+    const std::string gen = std::string(mcpp::dep_bin("openmui.gen", "omui-gen"));
     if (gen.empty()) {
         std::println(std::cerr, "openmui.rules: omui-gen was not built for this build (openmui.rules depends on "
-                                "openmui-gen with tools = [\"omui-gen\"])");
+                                "openmui.gen with tools = [\"omui-gen\"])");
         return {};
     }
     std::string registry = opt.registry;

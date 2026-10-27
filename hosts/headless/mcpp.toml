@@ -1,10 +1,11 @@
-# openmui-host-headless — openmui without a display: a virtual surface, a
+# openmui.host.headless — openmui without a display: a virtual surface, a
 # clock stepped frame by frame, input injected by point or by id, pixels from
 # the CPU renderer as PNG, and the agent endpoint served between frames. The
 # four headless levels (H0 semantics, H1 layout, H2 pixels, H3 a session an
 # agent can drive). CI, agents and video rendering all run on it.
 [package]
-name        = "openmui-host-headless"
+namespace   = "openmui.host"
+name        = "headless"
 version     = "0.1.0"
 description = "openmui headless host: stepped virtual clock, injected input, CPU pixels and PNG, agent endpoint (H0-H3)"
 license     = "Apache-2.0"
@@ -20,15 +21,15 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-openmui-core     = { path = "../../runtime/core" }
-openmui-view     = { path = "../../runtime/view" }
-openmui-semantic = { path = "../../runtime/semantic" }
-openmui-agent    = { path = "../../runtime/agent" }
-openmui-raster   = { path = "../../modules/raster" }
-openmui-render   = { path = "../../modules/render" }
-openmui-text     = { path = "../../modules/text" }
-openmui-image    = { path = "../../modules/image" }
-openmui-trace    = { path = "../../modules/trace" }
+openmui.core     = { path = "../../runtime/core" }
+openmui.view     = { path = "../../runtime/view" }
+openmui.semantic = { path = "../../runtime/semantic" }
+openmui.agent    = { path = "../../runtime/agent" }
+openmui.raster   = { path = "../../modules/raster" }
+openmui.render   = { path = "../../modules/render" }
+openmui.text     = { path = "../../modules/text" }
+openmui.image    = { path = "../../modules/image" }
+openmui.trace    = { path = "../../modules/trace" }
 
 [dev-dependencies]
-openmui-testing = { path = "../../tests/support" }
+openmui.testing = { path = "../../tests/support" }

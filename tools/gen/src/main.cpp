@@ -14,7 +14,7 @@
 //   omui-gen check <file.contract.omui.toml>... --registry <dir> [--json]
 //       diagnostics only
 //   omui-gen unicode <ucd-dir> --version <x.y.z> --out <dir> [--tests <dir>] [--check]
-//       openmui-unicode's tables (and a subset of the UCD's conformance tests)
+//       openmui.unicode's tables (and a subset of the UCD's conformance tests)
 //
 // --check writes nothing and fails (exit 1) when an output differs from what
 // is on disk: CI's proof that committed outputs are current. --json prints

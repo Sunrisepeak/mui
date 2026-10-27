@@ -8,10 +8,11 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 # PROFILE=release uses the release build (CI's release row); the newest binaries are this build's.
-mcpp build -p openmui-example-headless-and-agent -p openmui-cli ${PROFILE:+--profile "$PROFILE"} > /dev/null
-newest() { find target -path "*/bin/$1" -type f -printf '%T@ %p\n' | sort -rn | head -1 | cut -d' ' -f2; }
-app=$(newest openmui-example-headless-and-agent/notes-agent)
-omui=$(newest openmui-cli/omui)
+mcpp build -p openmui.example.headless-and-agent -p openmui.cli ${PROFILE:+--profile "$PROFILE"} > /dev/null
+# By the binary's name: where mcpp puts it under bin/ is its business.
+newest() { find target -path "*/bin/*" -name "$1" -type f -printf '%T@ %p\n' | sort -rn | head -1 | cut -d' ' -f2; }
+app=$(newest notes-agent)
+omui=$(newest omui)
 dir=$(mktemp -d)
 trap 'kill "$pid" 2> /dev/null || true; rm -rf "$dir"' EXIT
 
@@ -77,11 +78,11 @@ grep -q '"controlled":false' <<< "$last"
 
 # The frame's pipeline, read and changed in the running process (D-66).
 expect 0 agent pipeline $app_id
-grep -q '"openmui-view.layout"' <<< "$last"
+grep -q '"openmui.view.layout"' <<< "$last"
 expect 0 agent pipeline $app_id --toml
 grep -q '^\[\[stage\]\]' <<< "$last"
 expect 0 agent pipeline $app_id remove --stage debug
-expect 0 agent pipeline $app_id insert --stage debug --plugin openmui-view.debug --after paint
+expect 0 agent pipeline $app_id insert --stage debug --plugin openmui.view.debug --after paint
 expect 1 agent pipeline $app_id replace --stage paint --plugin nonesuch
 expect 0 agent wait $app_id --settled --timeout 5
 echo "agent e2e: ok"

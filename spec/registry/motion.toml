@@ -1,7 +1,7 @@
 # motion — the normative definitions of animation (spec §10).
 #
 # Every curve and the spring are defined by formula, so two implementations
-# produce the same values; openmui-anim is the reference (A-level: identical
+# produce the same values; openmui.anim is the reference (A-level: identical
 # bits with its deterministic elementary functions, B-level tolerance 1e-9 for
 # another implementation using its platform's libm).
 spec = "0.1"

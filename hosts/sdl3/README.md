@@ -1,4 +1,4 @@
-# openmui-host-sdl3
+# openmui.host.sdl3
 
 openmui on the desktop, through SDL3 (`compat.sdl3` from mcpp-index):
 

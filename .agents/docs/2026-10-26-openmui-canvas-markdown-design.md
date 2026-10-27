@@ -1,7 +1,7 @@
 # openmui 画布、Markdown 与旗舰示例设计
 
 > 状态：**草案 v0.3**（2026-10-26），待 review
-> 范围：`openmui-ui-canvas`（高性能画布核心）、`openmui-ui-canvas-kit`（可选行为）、`openmui-ui-markdown`、旗舰示例和基准测试 **markdown-wall**。
+> 范围：`openmui-ui-canvas`（高性能画布核心）、`openmui-ui-canvas-kit`（可选行为）、`openmui.ui.markdown`、旗舰示例和基准测试 **markdown-wall**。
 > 约束：**完全不碰 xdesk**；只借用 WuXian 的交互**概念**（工作区分组、相机、两种视图、小地图），而且这些都放在示例层实现，不进组件。
 
 ---
@@ -123,7 +123,7 @@ canvas.on("group.moved", ({ node }) => save(node));                    // 只在
 
 ---
 
-## 2. Markdown 组件：`openmui-ui-markdown`
+## 2. Markdown 组件：`openmui.ui.markdown`
 
 ### 2.1 定位
 
@@ -192,7 +192,7 @@ find        = { effect = "read", args = { query = "string" } }
 ```
 openmui-ui-canvas
 ├── 工作区分组：示例里自定义的节点类型 group（底板、标签、颜色）
-│     └── N 个 md.window 节点（标题栏、边框、内容槽位 → openmui-ui-markdown）
+│     └── N 个 md.window 节点（标题栏、边框、内容槽位 → openmui.ui.markdown）
 │            文档内容混合：README 风格、长文档、大量代码、大量中文、表格、图片
 ├── 示例里自定义的行为：GroupDrag、WindowDrag；从 kit 中启用：选择、小地图
 ├── 两个相机预设：“1:1 聚焦”和“总览”，之间用 spring 过渡

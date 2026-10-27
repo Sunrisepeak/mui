@@ -1,4 +1,4 @@
-# openmui 规范设计（openmui-spec 0.1 大纲）
+# openmui 规范设计（openmui.spec 0.1 大纲）
 
 > 状态：**草案 v0.3**（2026-10-26），待 review。这是 `spec/SPEC.md` 的设计依据，不是规范正文本身。
 > 总体架构见 [architecture](2026-10-26-openmui-architecture-design.md)。

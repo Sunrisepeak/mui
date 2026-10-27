@@ -4,7 +4,7 @@
 //   :style   what a node asks of layout (a CSS subset, border-box sizing)
 //   :engine  the layout tree, measure functions, caching, computation
 //
-// Standard library and openmui-geom only: any tree of boxes can use it.
+// Standard library and openmui.geom only: any tree of boxes can use it.
 export module openmui.layout;
 
 export import :style;

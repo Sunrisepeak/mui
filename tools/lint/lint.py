@@ -256,7 +256,7 @@ def check_manifests(root: Path) -> list[Problem]:
                     continue
                 dep_layer = layer_of(dep_rel) if dep_rel != "" else "."
                 if dep_rel.startswith("tests/support"):
-                    problems.append(Problem("layering", member, f"`{name}`: openmui-testing belongs in [dev-dependencies]"))
+                    problems.append(Problem("layering", member, f"`{name}`: openmui.testing belongs in [dev-dependencies]"))
                     continue
                 if "*" in allowed:
                     continue

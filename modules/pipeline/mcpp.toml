@@ -1,12 +1,13 @@
-# openmui-pipeline — a frame as a graph of stages (D-66): typed resources,
+# openmui.pipeline — a frame as a graph of stages (D-66): typed resources,
 # stage plugins from a registry, a build that checks producers, types and
 # cycles, a deterministic order, per-stage timing and trace spans, and stages
 # replaced, added or removed between runs. Pipelines are described by
 # `<name>.pipeline.omui.toml` (read by omui-gen at build time, or sent as
 # JSON by tools); this package parses nothing.
-# An independent component (D-55): the standard library and openmui-trace.
+# An independent component (D-55): the standard library and openmui.trace.
 [package]
-name        = "openmui-pipeline"
+namespace   = "openmui"
+name        = "pipeline"
 version     = "0.1.0"
 description = "Pipelines of stage plugins over typed resources: checked builds, deterministic order, per-stage timing and tracing, hot replacement"
 license     = "Apache-2.0"
@@ -22,7 +23,7 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-openmui-trace = { path = "../trace" }
+openmui.trace = { path = "../trace" }
 
 [dev-dependencies]
-openmui-testing = { path = "../../tests/support" }
+openmui.testing = { path = "../../tests/support" }

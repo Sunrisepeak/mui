@@ -185,9 +185,3 @@ version = "0.0.2"
 source  = "index+mcpplibs@0.0.2"
 hash    = "fnv1a:aad61299abc2c4b7"
 
-[package."openkal-windows"]
-namespace = "mcpplibs"
-version = "0.13.0"
-source  = "index+mcpplibs@0.13.0"
-hash    = "fnv1a:21599e2a1fc2281d"
-

@@ -1,8 +1,9 @@
-# openmui-core — the foundation of the runtime: signals, verbs, input events
+# openmui.core — the foundation of the runtime: signals, verbs, input events
 # and keys, JSON, diagnostics, task scheduling; it re-exports the shared
-# geometry, memory utilities and the clock (openmui-geom, -memory, -anim).
+# geometry, memory utilities and the clock (openmui.geom, -memory, -anim).
 [package]
-name        = "openmui-core"
+namespace   = "openmui"
+name        = "core"
 version     = "0.1.0"
 description = "openmui runtime foundation: signals, verbs, input events, JSON, diagnostics, tasks"
 license     = "Apache-2.0"
@@ -18,13 +19,13 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 
 [dependencies]
-openmui-spec           = { path = "../../spec" }
-openmui-anim           = { path = "../../modules/anim" }
-openmui-geom           = { path = "../../modules/geom" }
-openmui-memory         = { path = "../../modules/memory" }
+openmui.spec           = { path = "../../spec" }
+openmui.anim           = { path = "../../modules/anim" }
+openmui.geom           = { path = "../../modules/geom" }
+openmui.memory         = { path = "../../modules/memory" }
 nlohmann.json          = "3.12.0"
 taskflow.taskflow      = "4.1.0"
 compat.concurrentqueue = "1.0.5"
 
 [dev-dependencies]
-openmui-testing = { path = "../../tests/support" }
+openmui.testing = { path = "../../tests/support" }

@@ -396,7 +396,7 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
             changed = runtime_.frame_pipeline().insert(std::move(s), runtime_.stage_plugins());
         } else {
             return invalid(std::format("`pipeline` has no action `{}`", action),
-                           R"({"op":"pipeline","action":"replace","stage":"paint","plugin":"openmui-view.paint"} — actions: show, replace, insert, remove)");
+                           R"({"op":"pipeline","action":"replace","stage":"paint","plugin":"openmui.view.paint"} — actions: show, replace, insert, remove)");
         }
         if (!changed) {
             e.error(spec::error_code::invalid_argument, pipeline::to_text(changed.error())).result(spec::exit_code::failure);

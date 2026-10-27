@@ -1,10 +1,11 @@
-# openmui-agent — the local agent endpoint (openmui.tree@0.1 over JSON
+# openmui.agent — the local agent endpoint (openmui.tree@0.1 over JSON
 # lines): every application listens in a known directory through
 # mcpplibs.os.ipc; agents and the `omui agent` command connect, read the
 # semantic tree, find nodes, perform actions under the effect rules, and
 # wait for conditions. Requests are served on the UI thread, between frames.
 [package]
-name        = "openmui-agent"
+namespace   = "openmui"
+name        = "agent"
 version     = "0.1.0"
 description = "openmui agent endpoint: openmui.tree@0.1 over local IPC, JSON lines, envelopes"
 license     = "Apache-2.0"
@@ -20,12 +21,12 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-openmui-core     = { path = "../core" }
-openmui-view     = { path = "../view" }
-openmui-semantic = { path = "../semantic" }
-openmui-trace    = { path = "../../modules/trace" }
-openmui-pipeline = { path = "../../modules/pipeline" }
+openmui.core     = { path = "../core" }
+openmui.view     = { path = "../view" }
+openmui.semantic = { path = "../semantic" }
+openmui.trace    = { path = "../../modules/trace" }
+openmui.pipeline = { path = "../../modules/pipeline" }
 mcpplibs.os      = "0.1.0"
 
 [dev-dependencies]
-openmui-testing = { path = "../../tests/support" }
+openmui.testing = { path = "../../tests/support" }

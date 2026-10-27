@@ -1,8 +1,9 @@
-# openmui-testing — the checks openmui's test programs share.
+# openmui.testing — the checks openmui's test programs share.
 #
 # Every member names it under [dev-dependencies], so it is part of no artifact.
 [package]
-name        = "openmui-testing"
+namespace   = "openmui"
+name        = "testing"
 version     = "0.1.0"
 description = "Test checks, suites and determinism hashes for openmui test programs"
 license     = "Apache-2.0"

@@ -1,10 +1,11 @@
-# openmui-view — the retained view runtime: elements (contract ②), the
+# openmui.view — the retained view runtime: elements (contract ②), the
 # component function tables, design tokens, the runtime (tree, bindings,
 # regions, transitions, layout, paint, input, focus, actions, semantics) and
 # the primitives (box, column, row, stack, grid, spacer, text, image,
 # scroll view, painter).
 [package]
-name        = "openmui-view"
+namespace   = "openmui"
+name        = "view"
 version     = "0.1.0"
 description = "openmui retained view runtime: elements, components, theme tokens, frames, input, actions and semantics"
 license     = "Apache-2.0"
@@ -21,17 +22,17 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-openmui-core   = { path = "../core" }
-openmui-geom   = { path = "../../modules/geom" }
-openmui-memory = { path = "../../modules/memory" }
-openmui-anim   = { path = "../../modules/anim" }
-openmui-layout = { path = "../../modules/layout" }
-openmui-raster = { path = "../../modules/raster" }
-openmui-render = { path = "../../modules/render" }
-openmui-image  = { path = "../../modules/image" }
-openmui-text   = { path = "../../modules/text" }
-openmui-trace  = { path = "../../modules/trace" }
-openmui-pipeline = { path = "../../modules/pipeline" }
+openmui.core     = { path = "../core" }
+openmui.geom     = { path = "../../modules/geom" }
+openmui.memory   = { path = "../../modules/memory" }
+openmui.anim     = { path = "../../modules/anim" }
+openmui.layout   = { path = "../../modules/layout" }
+openmui.raster   = { path = "../../modules/raster" }
+openmui.render   = { path = "../../modules/render" }
+openmui.image    = { path = "../../modules/image" }
+openmui.text     = { path = "../../modules/text" }
+openmui.trace    = { path = "../../modules/trace" }
+openmui.pipeline = { path = "../../modules/pipeline" }
 
 [dev-dependencies]
-openmui-testing = { path = "../../tests/support" }
+openmui.testing = { path = "../../tests/support" }

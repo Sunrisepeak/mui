@@ -4,7 +4,7 @@
 // properties of every code point; ICU is not in the dependency graph, so the
 // generator reads the UCD files and writes compact two-stage tables (a block
 // index per 256 code points, shared 256-entry blocks) as a C++ partition of
-// openmui-unicode, together with the enumerations of the property values.
+// openmui.unicode, together with the enumerations of the property values.
 export module openmui.gen.unicode;
 
 import std;

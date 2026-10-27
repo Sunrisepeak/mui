@@ -1,4 +1,4 @@
-# openmui-spec
+# openmui.spec
 
 The openmui specification and its machine-readable registry.
 
@@ -15,8 +15,8 @@ The openmui specification and its machine-readable registry.
 Regenerate after changing the registry:
 
 ```bash
-mcpp build -p openmui-gen
+mcpp build -p openmui.gen
 <built omui-gen> registry spec/registry --out spec
 ```
 
-`mcpp test -p openmui-gen` fails when a generated file is out of date. Standard library only; `mcpp test -p openmui-spec` runs the value-type tests.
+`mcpp test -p openmui.gen` fails when a generated file is out of date. Standard library only; `mcpp test -p openmui.spec` runs the value-type tests.

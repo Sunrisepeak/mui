@@ -81,7 +81,7 @@
 │       raster（CPU 参考光栅器）· mcu（这两个不经过抽象层）· 着色器用 Slang               │
 │ 宿主 openmui-host-*：sdl3 · opensal · web · godot …                                │
 │ 跨框架桥 openmui-bridge-*：imgui · qt · godot-control · atspi · dom                │
-├─────────────────────────────── 规范面（openmui-spec）───────────────────────────┤
+├─────────────────────────────── 规范面（openmui.spec）───────────────────────────┤
 │ registry → 6 个契约：①语义树 ②视图描述 ③状态与 Verb ④宿主接口 ⑤渲染接口 ⑥C ABI     │
 │ Core 配置档 + 扩展（OMUI_EXT_*）· 组件契约 · 动画语义 · 视图文档 schema · 效果着色器接口 · CTS │
 └─────────────────────────────────────────────────────────────────────────────────┘
@@ -160,7 +160,7 @@ openmui 沿用同样的约定：
 ### 6.1 仓库策略
 
 - **阶段一（现在到规范 1.0，或者出现第二个独立实现者为止）**：规范和实现放在**同一个仓库** `Sunrisepeak/mui`（私有）。理由是规范由实现驱动，两者需要原子地一起修改，CI 每次都对参考实现跑 CTS。
-- **阶段二**：把规范、registry、生成的头文件和 CTS 拆成 `openmui-spec` 仓库（参考 openkal、Vulkan-Docs）。各语言绑定只有在出现独立维护者时才拆。
+- **阶段二**：把规范、registry、生成的头文件和 CTS 拆成 `openmui.spec` 仓库（参考 openkal、Vulkan-Docs）。各语言绑定只有在出现独立维护者时才拆。
 - **迁移到公开仓库**：等各方面成熟后再评估，迁移到 openmui 的公开组织。因为内部一直使用 openmui 命名，迁移只需要改仓库地址。
 
 ### 6.2 目录结构
@@ -196,9 +196,9 @@ mui/                 # 根目录 = openmui 伞包 + workspace
 | 对象 | 名字 |
 |---|---|
 | 伞包 | `openmui`（模块 `openmui`，再导出 runtime、base 组件和默认主题） |
-| 规范 | `openmui-spec`（模块 `openmui.spec`） |
+| 规范 | `openmui.spec`（模块 `openmui.spec`） |
 | 运行时 | `openmui-runtime`（模块 `openmui.core`、`openmui.im`、`openmui.rt`、`openmui.text`、`openmui.anim` …） |
-| 渲染和宿主 | `openmui-render`（模块 `openmui.render`）、`openmui-rhi`、`openmui-rhi-*`（模块 `openmui.gpu`、命名空间 `omui::gpu`）、`openmui-host-*`、`openmui-bridge-*` |
+| 渲染和宿主 | `openmui.render`（模块 `openmui.render`）、`openmui-rhi`、`openmui-rhi-*`（模块 `openmui.gpu`、命名空间 `omui::gpu`）、`openmui-host-*`、`openmui-bridge-*` |
 | 组件 | `openmui-ui-*`（模块 `openmui.ui.*`） |
 | 构建规则 | **`openmui` 包的 `rules` 特性**，模块 `openmui.rules` |
 | 入口 | `openmui` 包的 `entry-player` / `entry-app` 特性；源码在 `src/entry/`（D-26、D-32） |
@@ -437,7 +437,7 @@ M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten，渲�
 | D-46 | Python 绑定用 CPython 的稳定 ABI（abi3）自己实现，不用 pybind11 |
 | D-47 | UAX#14 断行表由 `tools/gen` 从 Unicode 数据生成，不依赖 ICU |
 | D-48 | 默认字体通过 `openmui-fonts` 固定下来，作为渲染确定性的一部分 |
-| D-49 | 通用动画引擎 `openmui-anim`：独立的 workspace 成员 `modules/anim/`，只依赖标准库；UI、视频、游戏、画布共用；将来可以独立成仓库 |
+| D-49 | 通用动画引擎 `openmui.anim`：独立的 workspace 成员 `modules/anim/`，只依赖标准库；UI、视频、游戏、画布共用；将来可以独立成仓库 |
 | D-50 | S4《组件打砖块：openmui 巡礼》：六个关卡，每一关的玩法本身就是一项框架能力 |
 | D-51 | S5 openmui 宣传片：约 60 秒主片 + 15 秒短片，用 openmui-video 制作；对标三部播放量几百万到上千万的 agent 代码动画视频（promo-video 设计文档） |
 | D-52 | 协作流程：单个 PR，每一轮修改一个 commit 作为检查点 |

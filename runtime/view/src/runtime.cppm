@@ -149,7 +149,7 @@ struct ActionEntry {
 // The runtime's frame pipeline for a level: H0 (semantics) is timers, input,
 // regions and animations; H1 (layout) adds layout and bounds; H2 (paint)
 // adds paint and the debug overlay. Its stage plugins are
-// `openmui-view.<stage>`.
+// `openmui.view.<stage>`.
 [[nodiscard]] pipeline::Description runtime_pipeline(Stages stages);
 
 class Runtime final : public Services {

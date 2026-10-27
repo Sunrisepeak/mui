@@ -125,7 +125,7 @@ private:
 
 // ── transitions ──────────────────────────────────────────────────────────
 
-// How a property moves to a new value: a tween or a spring (openmui-anim).
+// How a property moves to a new value: a tween or a spring (openmui.anim).
 struct Transition {
     enum class Kind : std::uint8_t { tween, spring };
     Kind               kind = Kind::tween;

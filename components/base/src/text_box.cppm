@@ -1,5 +1,5 @@
 // openmui.ui.base:text_box — a single- or multi-line text field (contract
-// `text_box`): the editing model of openmui-text (graphemes, words, undo),
+// `text_box`): the editing model of openmui.text (graphemes, words, undo),
 // selection by pointer and keys, the clipboard, input methods (preedit shown
 // in place, the candidate window at the caret), a blinking caret on the
 // runtime's timers, horizontal scrolling of a long line, masked passwords,

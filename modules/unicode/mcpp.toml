@@ -1,7 +1,8 @@
-# openmui-unicode — UAX #14 line breaking and UAX #29 grapheme and word
+# openmui.unicode — UAX #14 line breaking and UAX #29 grapheme and word
 # segmentation from generated UCD tables (D-47; no ICU). Standard library only.
 [package]
-name        = "openmui-unicode"
+namespace   = "openmui"
+name        = "unicode"
 version     = "0.1.0"
 description = "Unicode line breaking (UAX #14) and text segmentation (UAX #29) without ICU"
 license     = "Apache-2.0"
@@ -17,4 +18,4 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp", "src/generated/*.cppm"]
 
 [dev-dependencies]
-openmui-testing = { path = "../../tests/support" }
+openmui.testing = { path = "../../tests/support" }

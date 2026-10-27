@@ -1,7 +1,8 @@
-# openmui-memory — the frame arena, generational handles and slot maps, and
+# openmui.memory — the frame arena, generational handles and slot maps, and
 # FunctionRef. Standard library only.
 [package]
-name        = "openmui-memory"
+namespace   = "openmui"
+name        = "memory"
 version     = "0.1.0"
 description = "Frame arena, generational handles, slot maps and FunctionRef"
 license     = "Apache-2.0"
@@ -17,4 +18,4 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dev-dependencies]
-openmui-testing = { path = "../../tests/support" }
+openmui.testing = { path = "../../tests/support" }

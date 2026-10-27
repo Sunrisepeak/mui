@@ -214,9 +214,9 @@ int main(int argc, char** argv) {
     });
 
     s.test("a description writes as <name>.pipeline.omui.toml", [] {
-        pl::Description d{"desktop", {{"raster", "openmui-render.cpu", {"damage"}, {{"parallel", true}, {"rows_per_task", std::int64_t{64}}, {"gamma", 2.0}, {"label", std::string("a \"b\"")}}}}};
+        pl::Description d{"desktop", {{"raster", "openmui.render.cpu", {"damage"}, {{"parallel", true}, {"rows_per_task", std::int64_t{64}}, {"gamma", 2.0}, {"label", std::string("a \"b\"")}}}}};
         const std::string toml = pl::to_toml(d);
-        check_eq(toml, std::string("name = \"desktop\"\n\n[[stage]]\nname = \"raster\"\nplugin = \"openmui-render.cpu\"\nafter = [\"damage\"]\n"
+        check_eq(toml, std::string("name = \"desktop\"\n\n[[stage]]\nname = \"raster\"\nplugin = \"openmui.render.cpu\"\nafter = [\"damage\"]\n"
                                    "config = { parallel = true, rows_per_task = 64, gamma = 2.0, label = \"a \\\"b\\\"\" }\n"));
     });
 

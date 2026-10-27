@@ -6,6 +6,11 @@
 - 设计记录在 `.agents/docs/`，从 `.agents/docs/README.md` 开始读。总体架构文档里的决策记录（D-xx）和待决问题（Q-xx）是当前的基线。
 - 当前阶段：设计 review。代码按[实施计划](.agents/docs/2026-10-26-openmui-implementation-plan.md)从 M0 开始搭建。
 - 工程文件只有 `mcpp.toml`（openmui 自己的声明放在 `[package.metadata.openmui]`）；构建、测试、打包都使用 mcpp；工具通过 xlings 安装。带命名空间的依赖写成 `[dependencies]` 里的点分键（`compat.sdl3 = "3.4.18"`、`nlohmann.json = "3.12.0"`），不单独开 `[dependencies.<ns>]` 表（lint 规则 `manifest`）。
+- **包的身份就是模块名**：`[package] namespace = "openmui"`、`name = "core"` 得到 `openmui.core`，和 `import openmui.core;` 一致。
+  - 组件用命名空间 `openmui.ui`（`openmui.ui.base`），宿主用 `openmui.host`（`openmui.host.headless`）。
+  - 伞包是 `openmui.sdk`（`import openmui;`）。
+  - 依赖写 `openmui.core = { path = "…" }`，命令行写 `mcpp test -p openmui.core`。
+  - 库的 target 名（产物名）保持 `openmui-…`，保证产物不重名。
 - 第一阶段不修改 xdesk 或 xlings 仓库。
 
 ## 规则（会随着代码落地逐步改成 lint）

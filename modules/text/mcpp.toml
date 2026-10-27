@@ -1,8 +1,9 @@
-# openmui-text — fonts, shaping, bidi, line breaking, paragraphs, glyph
+# openmui.text — fonts, shaping, bidi, line breaking, paragraphs, glyph
 # rasterisation and the editing model, over HarfBuzz and fribidi (mcpp-index)
-# and openmui-unicode, openmui-raster and openmui-render.
+# and openmui.unicode, openmui.raster and openmui.render.
 [package]
-name        = "openmui-text"
+namespace   = "openmui"
+name        = "text"
 version     = "0.1.0"
 description = "Text engine: font fallback, HarfBuzz shaping, bidi, UAX #14 line breaking, paragraphs, carets, glyph rasterisation, editing"
 license     = "Apache-2.0"
@@ -19,17 +20,17 @@ sources  = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-openmui-geom    = { path = "../geom" }
-openmui-unicode = { path = "../unicode" }
-openmui-raster  = { path = "../raster" }
-openmui-render  = { path = "../render" }
+openmui.geom    = { path = "../geom" }
+openmui.unicode = { path = "../unicode" }
+openmui.raster  = { path = "../raster" }
+openmui.render  = { path = "../render" }
 mcpplibs.os     = "0.1.0"
 compat.harfbuzz = "14.3.0"
 compat.fribidi  = "1.0.16"
 
 [dev-dependencies]
-openmui-testing = { path = "../../tests/support" }
-openmui-image   = { path = "../image" }
+openmui.testing = { path = "../../tests/support" }
+openmui.image   = { path = "../image" }
 
 # fribidi is a static library: its headers declare plain entry points only
 # when told so (otherwise dllimport under _WIN32).

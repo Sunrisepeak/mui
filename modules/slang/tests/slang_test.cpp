@@ -103,8 +103,15 @@ int main(int argc, char** argv) {
             const slang::Entry* i = inside->entry(e.name);
             check(i && i->stage == e.stage && i->counts == e.counts && i->code.size() == e.code.size(), e.name);
             if (!i) continue;
-            for (std::size_t k = 0; k < e.code.size() && k < i->code.size(); ++k)
-                check(i->code[k].format == e.code[k].format && i->code[k].bytes == e.code[k].bytes, std::format("{}: the same bytes", e.name));
+            for (std::size_t k = 0; k < e.code.size() && k < i->code.size(); ++k) {
+                const auto& a = i->code[k].bytes;
+                const auto& b = e.code[k].bytes;
+                std::size_t at = 0;
+                while (at < a.size() && at < b.size() && a[at] == b[at]) ++at;
+                check(i->code[k].format == e.code[k].format && a == b,
+                      std::format("{} ({}): the same bytes — {} and {} long, first difference at {}", e.name, rhi::name(e.code[k].format), a.size(),
+                                  b.size(), at));
+            }
         }
         auto names = [](const slang::Program& p) {
             std::set<std::string> out;

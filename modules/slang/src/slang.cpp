@@ -513,6 +513,9 @@ std::expected<Program, std::string> compile(const std::filesystem::path& source,
             auto bytes = read_bytes(job->out);
             if (!bytes) return std::unexpected(bytes.error());
             if (format == rhi::ShaderFormat::msl) {
+                // Text with LF line ends, as slangc writes it elsewhere (on
+                // Windows it writes CRLF): the same bytes on every platform.
+                std::erase_if(*bytes, [](std::byte b) { return b == std::byte{'\r'}; });
                 // Metal compiles source with fast math unless the source says
                 // otherwise (SDL_GPU passes no compile options): IEEE results
                 // and no contraction, as SPIR-V and the CPU reference have.

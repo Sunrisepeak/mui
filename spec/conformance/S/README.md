@@ -19,7 +19,7 @@ The trace is semantic. Its trees are the agent protocol's nodes (id, role, name,
     "doc": "what it covers",
     "signals": {"count": 0},
     "models": {"notes": [{"key": "n1", "title": "Milk"}]},
-    "verbs": {"note.archive": {"effect": "reversible", "summary": "…", "do": [actions], "result": value}},
+    "verbs": {"note.archive": {"effect": "reversible", "summary": "…", "person": false, "do": [actions], "result": value}},
     "view": element,
     "steps": [step, …]
   }

@@ -48,6 +48,7 @@
               "effect": {"enum": ["read", "reversible", "irreversible", "external"]},
               "answer": {"type": "string"},
               "summary": {"type": "string"},
+              "person": {"type": "boolean"},
               "do": {"type": "array", "items": {"$ref": "#/$defs/action"}},
               "result": {"$ref": "#/$defs/value"}
             }

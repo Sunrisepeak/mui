@@ -68,7 +68,7 @@ int main(int argc, char** argv) {
         for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
         std::println("example.hello-ts pixels {}", hash.hex());
         check(h.save_png(scratch_dir("example-hello-ts") / "stats.png").has_value());
-        check_eq(hash.hex(), std::string("7bdbcd72b95281e6"));
+        check_eq(hash.hex(), std::string("906093a7086f5bdd"));
 
         Invocation call;
         call.actor = {"agent", "test", {}};

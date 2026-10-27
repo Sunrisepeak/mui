@@ -253,7 +253,7 @@ int main(int argc, char** argv) {
         check(h.save_png(scratch_dir("ui-markdown") / "readme@2x.png").has_value());
         std::println("    pixels {}", hash.hex());
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
-        check_eq(hash.hex(), std::string("3b14309314d2dcf6"));
+        check_eq(hash.hex(), std::string("5f07eca688e51220"));
     });
 
     return s.run(argc, argv);

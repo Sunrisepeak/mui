@@ -123,7 +123,7 @@ int main(int argc, char** argv) {
         check(a.h.save_png(scratch_dir("markdown-viewer-pixels") / "handbook.png").has_value());
         std::println("    pixels {}", hash.hex());
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
-        check_eq(hash.hex(), std::string("490a13c700d32cde"));
+        check_eq(hash.hex(), std::string("a90578e2ff2a7ab3"));
     });
 
     return s.run(argc, argv);

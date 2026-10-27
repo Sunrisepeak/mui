@@ -108,7 +108,7 @@ int main(int argc, char** argv) {
         for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
         std::println("example.contrast pixels {}", hash.hex());
         check(h.save_png(scratch_dir("example-contrast") / "contrast.png").has_value());
-        check_eq(hash.hex(), std::string("10e2ae4ed3c54062"));
+        check_eq(hash.hex(), std::string("d2247b21c27d38f2"));
     });
 
     return s.run(argc, argv);

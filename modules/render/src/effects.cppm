@@ -67,6 +67,11 @@ struct EffectInput {
     const raster::Surface* backdrop = nullptr;
     // The layer's shapes in the surface's pixels (at least one: its bounds).
     std::span<const EffectShape> shapes;
+    // The rows of target to compute, [row_begin, row_end) (row_end < 0: to
+    // the last): an effect each of whose rows depends only on the source
+    // (EffectInfo::row_local) is run in bands at the same time.
+    int row_begin = 0, row_end = -1;
+    [[nodiscard]] int last_row() const noexcept { return row_end < 0 ? target.height() : std::min(row_end, target.height()); }
 };
 
 // The signed distance from p to a shape's edge, negative inside (pixels,
@@ -80,7 +85,7 @@ struct EffectInput {
 // Three box passes each way of `radius` pixels, in integers: the blur
 // effect's, and how a backdrop is frosted. The radius for `logical` pixels
 // at a scale is box_radius's.
-void box_blur(raster::Surface& surface, int radius);
+void box_blur(raster::Surface& surface, int radius, class Parallel* parallel = nullptr);
 [[nodiscard]] int box_radius(float logical, float scale) noexcept;
 
 // How the GPU renderer runs an effect.
@@ -127,7 +132,14 @@ struct EffectInfo {
     // in code.
     std::string_view            source;
     std::shared_ptr<const void> storage;
+    // Each row of the result depends on the inputs alone (not on other rows
+    // of the result): the CPU renderer computes bands of rows at the same time.
+    bool row_local = false;
 };
+
+// Runs an effect's CPU reference over its rows — in bands on `parallel` when
+// it is row-local and there is one; the same bytes either way.
+void run_cpu_effect(const EffectInfo& info, const EffectInput& in, class Parallel* parallel);
 
 class EffectRegistry {
 public:

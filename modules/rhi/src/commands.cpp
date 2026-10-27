@@ -59,6 +59,10 @@ void CommandList::upload(Texture texture, Region region, std::span<const std::by
     commands_.emplace_back(cmd::UploadTexture{texture, region, own(data), row_bytes});
 }
 
+void CommandList::upload_borrowed(Texture texture, Region region, std::span<const std::byte> data, std::uint32_t row_bytes) {
+    commands_.emplace_back(cmd::UploadTexture{texture, region, data, row_bytes});
+}
+
 void CommandList::copy(Texture from, Region region, Texture to, std::uint32_t x, std::uint32_t y) {
     commands_.emplace_back(cmd::CopyTexture{from, region, to, x, y});
 }

@@ -241,7 +241,7 @@ int main(int argc, char** argv) {
         const std::uint64_t got = pixels(h);
         std::println("example.counter pixels {:016x}", got);
         check(h.save_png(scratch_dir("example-counter-png") / "tally.png").has_value());
-        check(got == 0x210b1831433cf1b2ULL, std::format("pixels {:016x}", got));
+        check(got == 0x2ca1490961252cf6ULL, std::format("pixels {:016x}", got));
     });
 
     return s.run(argc, argv);

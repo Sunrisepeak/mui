@@ -466,7 +466,7 @@ void CpuRenderer::prepare_effects(const DisplayList& list, const raster::Surface
             out.params = params;
             out.scale = scale;
             out.layer = layer.offset({-x0, -y0});
-            if (!out.backdrop) info->cpu({out.source, out.result, params, scale, out.layer, nullptr, out.shapes});
+            if (!out.backdrop) run_cpu_effect(*info, {out.source, out.result, params, scale, out.layer, nullptr, out.shapes}, options.parallel);
         }
         i = pop;  // nested effect layers are the offscreen render's
     }
@@ -525,9 +525,11 @@ void CpuRenderer::draw(Scratch& sc, const DisplayList& list, raster::Surface& ta
                     const int from = std::max(0, -x0), to = std::min(w, target.width() - x0);
                     if (to > from) std::copy_n(target.row(ty) + x0 + from, to - from, layer.under.row(y) + from);
                 }
-                if (layer.info->backdrop_blur) box_blur(layer.under, box_radius(layer.info->backdrop_blur(layer.params), layer.scale));
+                if (layer.info->backdrop_blur)
+                    box_blur(layer.under, box_radius(layer.info->backdrop_blur(layer.params), layer.scale), options.parallel);
                 layer.result.clear();
-                layer.info->cpu({layer.source, layer.result, layer.params, layer.scale, layer.layer, &layer.under, layer.shapes});
+                // The frame is drawn in one band here (it reads its backdrop): the effect's own rows go to the pool.
+                run_cpu_effect(*layer.info, {layer.source, layer.result, layer.params, layer.scale, layer.layer, &layer.under, layer.shapes}, options.parallel);
             }
             const bool blended = push.blend != BlendMode::normal;
             if (blended) canvas.push_layer(1, static_cast<raster::Blend>(push.blend));
@@ -565,9 +567,12 @@ void CpuRenderer::draw(Scratch& sc, const DisplayList& list, raster::Surface& ta
                 } else if constexpr (std::same_as<T, FillRoundRect>) {
                     canvas.fill_round_rect(c.rect, c.radii, device_paint(c.paint), m());
                 } else if constexpr (std::same_as<T, StrokeRoundRect>) {
+                    if (!(c.width > 0)) return;
+                    const Ring ring = stroke_ring(c.rect, c.radii, c.width);
                     sc.path.clear();
-                    sc.path.add_rounded_rect(c.rect, c.radii);
-                    canvas.stroke_path(paths.data(sc.path.view()), {.width = c.width}, device_paint(c.paint), m());
+                    sc.path.add_rounded_rect(ring.outer, ring.outer_radii);
+                    if (ring.hollow) sc.path.add_rounded_rect(ring.inner, ring.inner_radii);
+                    canvas.fill_path(paths.data(sc.path.view()), raster::FillRule::even_odd, device_paint(c.paint), m());
                 } else if constexpr (std::same_as<T, BoxShadow>) {
                     canvas.box_shadow(c.rect, c.radii, c.offset, c.blur, c.spread, c.color, c.inset, m());
                 } else if constexpr (std::same_as<T, FillPath>) {

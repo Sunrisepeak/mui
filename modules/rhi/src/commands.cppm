@@ -76,6 +76,11 @@ public:
 
     void upload(Buffer buffer, std::uint32_t offset, std::span<const std::byte> data);
     void upload(Texture texture, Region region, std::span<const std::byte> data, std::uint32_t row_bytes = 0);
+    // As upload, the bytes not copied into the list: read where they are when
+    // the list is submitted, so they must stay as they are until then (an
+    // image's pixels the caller holds through the submission — megabytes a
+    // frame not copied twice).
+    void upload_borrowed(Texture texture, Region region, std::span<const std::byte> data, std::uint32_t row_bytes = 0);
     template <class T>
         requires std::is_trivially_copyable_v<T>
     void upload(Buffer buffer, std::uint32_t offset, std::span<const T> data) {

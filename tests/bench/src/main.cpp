@@ -4,6 +4,10 @@
 //   omui-bench --filter ui/frame                  the ones whose name contains it
 //   omui-bench --json results.bench.omui.json     also the report as JSON
 //   omui-bench --check budgets.bench.omui.json    exit 1 when a budget is exceeded
+//   omui-bench --report report.md                 also the report for people, in Markdown
+//                                                 (beside --check's budgets when given)
+//   omui-bench --report-zh report.md              the same in Chinese (docs/zh)
+//   omui-bench --note TEXT                        a note in the report (repeatable; --note-zh for the Chinese)
 //   omui-bench --quick                            a few iterations each (a smoke run)
 //   omui-bench --list                             names and descriptions
 //
@@ -31,7 +35,7 @@ namespace {
 
 int usage(std::string_view problem) {
     std::println(std::cerr, "omui-bench: {}\nusage: omui-bench [--filter TEXT] [--json FILE] [--check BUDGETS] [--all-budgets] "
-                            "[--quick] [--min-time MS] [--label TEXT] [--list]",
+                            "[--report FILE.md] [--report-zh FILE.md] [--note TEXT] [--note-zh TEXT] [--quick] [--min-time MS] [--label TEXT] [--list]",
                  problem);
     return 2;
 }
@@ -42,7 +46,7 @@ int main(int argc, char** argv) {
     namespace bench = omui::bench;
     bench::add_framework_benchmarks();
     bench::Options options;
-    std::optional<std::filesystem::path> json_file, budgets_file;
+    std::optional<std::filesystem::path> json_file, budgets_file, report_file, report_zh;
     bool list = false, require_all = false;
     for (int i = 1; i < argc; ++i) {
         const std::string_view a = argv[i];
@@ -58,6 +62,22 @@ int main(int argc, char** argv) {
             auto v = value();
             if (!v) return usage("--json takes a file");
             json_file = std::filesystem::path(*v);
+        } else if (a == "--report") {
+            auto v = value();
+            if (!v) return usage("--report takes a file");
+            report_file = std::filesystem::path(*v);
+        } else if (a == "--note") {
+            auto v = value();
+            if (!v) return usage("--note takes a text");
+            options.notes.emplace_back(*v);
+        } else if (a == "--note-zh") {
+            auto v = value();
+            if (!v) return usage("--note-zh takes a text");
+            options.notes_zh.emplace_back(*v);
+        } else if (a == "--report-zh") {
+            auto v = value();
+            if (!v) return usage("--report-zh takes a file");
+            report_zh = std::filesystem::path(*v);
         } else if (a == "--check") {
             auto v = value();
             if (!v) return usage("--check takes a budgets file");
@@ -99,6 +119,13 @@ int main(int argc, char** argv) {
     if (json_file) {
         if (auto w = mcpplibs::os::fs::write_atomic(*json_file, report.json()); !w) {
             std::println(std::cerr, "omui-bench: {}: {}", json_file->string(), w.error().message());
+            return 1;
+        }
+    }
+    for (const auto& [file, language] : {std::pair{report_file, "en"}, std::pair{report_zh, "zh"}}) {
+        if (!file) continue;
+        if (auto w = mcpplibs::os::fs::write_atomic(*file, report.markdown(budgets, language)); !w) {
+            std::println(std::cerr, "omui-bench: {}: {}", file->string(), w.error().message());
             return 1;
         }
     }

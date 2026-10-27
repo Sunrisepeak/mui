@@ -31,6 +31,32 @@ int main(int argc, char** argv) {
         check(big.size() == 100000);
     });
 
+    s.test("large copies among small ones: the same sizes in any order allocate nothing new", [] {
+        // A renderer's frame: small commands, and the pixels of images of
+        // several sizes uploaded among them, in an order that changes.
+        omui::Arena arena(16 * 1024);
+        std::vector<std::byte> pixels(5 * 1024 * 1024, std::byte{7});
+        std::array<std::size_t, 8> sizes{5u << 20, 1u << 20, 300u << 10, 2u << 20, 1u << 20, 64u << 10, 5u << 20, 700u << 10};
+        auto frame = [&] {
+            for (std::size_t size : sizes) {
+                for (int k = 0; k < 50; ++k) (void)arena.make<Box>();
+                const auto copy = arena.copy(std::span<const std::byte>(pixels).first(size));
+                check(copy.front() == std::byte{7} && copy.back() == std::byte{7});
+            }
+            arena.reset();
+        };
+        frame();
+        const auto settled = arena.heap_allocations();
+        const auto capacity = arena.capacity();
+        std::minstd_rand order(42);
+        for (int n = 0; n < 200; ++n) {
+            std::ranges::shuffle(sizes, order);
+            frame();
+        }
+        check_eq(arena.heap_allocations(), settled);
+        check_eq(arena.capacity(), capacity);
+    });
+
     s.test("slot maps detect stale handles", [] {
         omui::SlotMap<std::string, NodeTag> map;
         auto a = map.insert("a");

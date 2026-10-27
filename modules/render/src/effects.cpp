@@ -10,6 +10,7 @@ import openmui.raster;
 import openmui.anim;
 import :display;
 import :effects;
+import :cpu;
 
 namespace omui::render {
 
@@ -72,7 +73,7 @@ float ramp(float value, float progress, float soft) noexcept {
 
 template <class F>
 void each_pixel(const EffectInput& in, F f) {
-    for (int y = 0; y < in.target.height(); ++y) {
+    for (int y = in.row_begin; y < in.last_row(); ++y) {
         Rgba8* out = in.target.row(y);
         const Rgba8* src = in.source.row(y);
         for (int x = 0; x < in.target.width(); ++x) out[x] = f(x, y, src[x]);
@@ -151,7 +152,7 @@ float displace_row(std::span<const float> params, float scale, int y) {
 }
 
 void displace(const EffectInput& in) {
-    for (int y = 0; y < in.target.height(); ++y) {
+    for (int y = in.row_begin; y < in.last_row(); ++y) {
         const float dx = displace_row(in.params, in.scale, y);
         Rgba8* out = in.target.row(y);
         for (int x = 0; x < in.target.width(); ++x) {
@@ -178,7 +179,7 @@ geom::Point chromatic_offset(std::span<const float> params, float scale) {
 
 void chromatic(const EffectInput& in) {
     const auto [ox, oy] = chromatic_offset(in.params, in.scale);
-    for (int y = 0; y < in.target.height(); ++y) {
+    for (int y = in.row_begin; y < in.last_row(); ++y) {
         Rgba8* out = in.target.row(y);
         for (int x = 0; x < in.target.width(); ++x) {
             const float px = static_cast<float>(x) + 0.5f, py = static_cast<float>(y) + 0.5f;
@@ -191,12 +192,14 @@ void chromatic(const EffectInput& in) {
     }
 }
 
-// Box blur of radius r along one axis, in integers (sums of premultiplied bytes).
-void box_pass(const Surface& from, Surface& to, int r, bool horizontal) {
+// Box blur of radius r along one axis, in integers (sums of premultiplied
+// bytes); lines [first, last) of it (rows or columns, each on its own).
+void box_pass(const Surface& from, Surface& to, int r, bool horizontal, int first = 0, int last = -1) {
     const int w = from.width(), h = from.height();
     const int n = 2 * r + 1;
     const int lines = horizontal ? h : w, length = horizontal ? w : h;
-    for (int line = 0; line < lines; ++line) {
+    if (last < 0 || last > lines) last = lines;
+    for (int line = first; line < last; ++line) {
         auto px = [&](int i) -> const Rgba8& {
             return horizontal ? from.at(i, line) : from.at(line, i);
         };
@@ -456,7 +459,7 @@ void crt(const EffectInput& in) {
     const float curve = std::clamp(in.params[0], 0.0f, 0.5f), mask = clamp01(in.params[2]), vignette = clamp01(in.params[3]);
     const float hw = std::max(in.layer.width * 0.5f, 1.0f), hh = std::max(in.layer.height * 0.5f, 1.0f);
     const float cx = in.layer.x + hw, cy = in.layer.y + hh;
-    for (int y = 0; y < in.target.height(); ++y) {
+    for (int y = in.row_begin; y < in.last_row(); ++y) {
         const float scan = crt_row(in.params, in.scale, y);
         Rgba8* out = in.target.row(y);
         for (int x = 0; x < in.target.width(); ++x) {
@@ -514,7 +517,7 @@ float smooth_noise(float seed, float x, float y, std::uint64_t salt) {
 }
 void wobble(const EffectInput& in) {
     const float amount = in.params[0] * in.scale, size = std::max(1.0f, in.params[1] * in.scale), seed = in.params[2], ink = clamp01(in.params[3]);
-    for (int y = 0; y < in.target.height(); ++y) {
+    for (int y = in.row_begin; y < in.last_row(); ++y) {
         Rgba8* out = in.target.row(y);
         for (int x = 0; x < in.target.width(); ++x) {
             const float qx = static_cast<float>(x) + 0.5f, qy = static_cast<float>(y) + 0.5f;
@@ -589,34 +592,40 @@ EffectGpu pixel(const rhi::ShaderDesc& fs, decltype(EffectGpu::derive) derive = 
     return {EffectPass::pixel, &fs, derive, rows};
 }
 
+// An effect whose every row depends on its inputs alone.
+EffectInfo local(EffectInfo info) {
+    info.row_local = true;
+    return info;
+}
+
 void register_builtins(EffectRegistry& r) {
-    r.add({"dissolve", "Pixels (or cells of `grain` pixels) vanish in a seeded random order as progress goes from 0 to 1.",
+    r.add(local({"dissolve", "Pixels (or cells of `grain` pixels) vanish in a seeded random order as progress goes from 0 to 1.",
            {{"progress", 0, 0, 1, "0: all shown; 1: all gone"},
             {"seed", 1, 0, 1e6f, "which random order"},
             {"softness", 0.15f, 0.001f, 1, "how gradually each pixel fades"},
             {"grain", 1, 1, 64, "cell size in logical pixels"}},
-           no_reach, dissolve, pixel(fx::dissolve::dissolve_fs, derive_dissolve)});
-    r.add({"wipe", "The layer is wiped away from one edge as progress goes from 0 to 1.",
+           no_reach, dissolve, pixel(fx::dissolve::dissolve_fs, derive_dissolve)}));
+    r.add(local({"wipe", "The layer is wiped away from one edge as progress goes from 0 to 1.",
            {{"progress", 0, 0, 1, "0: all shown; 1: all gone"},
             {"angle", 0, -360, 360, "direction of travel in degrees (0: left to right)"},
             {"softness", 0.1f, 0.001f, 1, "width of the edge"}},
-           no_reach, wipe, pixel(fx::wipe::wipe_fs, derive_wipe)});
-    r.add({"reveal", "A circle grows from a point and shows the layer as progress goes from 0 to 1.",
+           no_reach, wipe, pixel(fx::wipe::wipe_fs, derive_wipe)}));
+    r.add(local({"reveal", "A circle grows from a point and shows the layer as progress goes from 0 to 1.",
            {{"progress", 0, 0, 1, "0: hidden; 1: all shown"},
             {"x", 0.5f, 0, 1, "centre, as a fraction of the layer's width"},
             {"y", 0.5f, 0, 1, "centre, as a fraction of the layer's height"},
             {"softness", 0.08f, 0.001f, 1, "width of the edge"}},
-           no_reach, reveal, pixel(fx::reveal::reveal_fs, derive_reveal)});
-    r.add({"displace", "Rows shift sideways along a sine wave (heat haze, water, a flag).",
+           no_reach, reveal, pixel(fx::reveal::reveal_fs, derive_reveal)}));
+    r.add(local({"displace", "Rows shift sideways along a sine wave (heat haze, water, a flag).",
            {{"amount", 4, 0, 200, "largest shift in logical pixels"},
             {"wavelength", 40, 1, 2000, "wave length in logical pixels"},
             {"phase", 0, 0, 1, "position of the wave (animate it to make it travel)"}},
-           [](std::span<const float> p) { return std::abs(p[0]); }, displace, pixel(fx::displace::displace_fs, nullptr, rows_displace)});
-    r.add({"noise", "Seeded grain over the colours.",
-           {{"amount", 0.15f, 0, 1, "strength"}, {"seed", 1, 0, 1e6f, "which grain"}}, no_reach, noise, pixel(fx::noise::noise_fs)});
-    r.add({"chromatic", "Red and blue drift apart from green, as through a cheap lens.",
+           [](std::span<const float> p) { return std::abs(p[0]); }, displace, pixel(fx::displace::displace_fs, nullptr, rows_displace)}));
+    r.add(local({"noise", "Seeded grain over the colours.",
+           {{"amount", 0.15f, 0, 1, "strength"}, {"seed", 1, 0, 1e6f, "which grain"}}, no_reach, noise, pixel(fx::noise::noise_fs)}));
+    r.add(local({"chromatic", "Red and blue drift apart from green, as through a cheap lens.",
            {{"offset", 2, 0, 100, "distance in logical pixels"}, {"angle", 0, -360, 360, "direction in degrees"}},
-           [](std::span<const float> p) { return std::abs(p[0]); }, chromatic, pixel(fx::chromatic::chromatic_fs, derive_chromatic)});
+           [](std::span<const float> p) { return std::abs(p[0]); }, chromatic, pixel(fx::chromatic::chromatic_fs, derive_chromatic)}));
     r.add({"blur", "A Gaussian-like blur (three box passes each way).",
            {{"radius", 4, 0, 200, "radius in logical pixels"}}, [](std::span<const float> p) { return std::abs(p[0]); }, blur,
            {EffectPass::blur, nullptr, derive_blur, nullptr}});
@@ -633,7 +642,7 @@ void register_builtins(EffectRegistry& r) {
            [](std::span<const float> p) { return std::abs(p[2]) + std::abs(p[3]) + p[4]; }, particles,
            {EffectPass::particles, nullptr, derive_particles, nullptr}});
     // The style packs' (S2).
-    r.add({"neon", "Light around the layer's shapes: a glow outside, a bright tube at the edge, a band sweeping across.",
+    r.add(local({"neon", "Light around the layer's shapes: a glow outside, a bright tube at the edge, a band sweeping across.",
            {{"color_r", 0.13f, 0, 1, "the light's colour, red"},
             {"color_g", 0.9f, 0, 1, "green"},
             {"color_b", 1, 0, 1, "blue"},
@@ -641,33 +650,33 @@ void register_builtins(EffectRegistry& r) {
             {"intensity", 0.9f, 0, 2, "how bright"},
             {"sweep", -1, -1, 2, "where the band of light is across the layer (0…1; below 0: none)"},
             {"sweep_width", 24, 1, 400, "the band's half width, logical pixels"}},
-           [](std::span<const float> p) { return std::abs(p[3]); }, neon, pixel(fx::neon::neon_fs)});
-    r.add({"crt", "An old screen: bent outward, in scanlines, through an aperture grille, darker towards its corners.",
+           [](std::span<const float> p) { return std::abs(p[3]); }, neon, pixel(fx::neon::neon_fs)}));
+    r.add(local({"crt", "An old screen: bent outward, in scanlines, through an aperture grille, darker towards its corners.",
            {{"curvature", 0.08f, 0, 0.5f, "how much the glass bulges"},
             {"scanlines", 0.5f, 0, 1, "how dark the lines between scanlines are"},
             {"mask", 0.35f, 0, 1, "the aperture grille's strength"},
             {"vignette", 0.6f, 0, 1, "darkening towards the corners"}},
-           no_reach, crt, pixel(fx::crt::crt_fs, nullptr, rows_crt)});
-    r.add({"paper", "As if printed on paper: a warm tone, a fine grain, darker towards the edges.",
+           no_reach, crt, pixel(fx::crt::crt_fs, nullptr, rows_crt)}));
+    r.add(local({"paper", "As if printed on paper: a warm tone, a fine grain, darker towards the edges.",
            {{"grain", 0.35f, 0, 1, "the grain's strength"},
             {"warmth", 0.6f, 0, 1, "how warm the paper is"},
             {"seed", 7, 0, 1e6f, "which grain"},
             {"grain_size", 1, 1, 16, "the grain's size, logical pixels"},
             {"edge", 0.5f, 0, 1, "darkening towards the edges"}},
-           no_reach, paper, pixel(fx::paper::paper_fs)});
-    r.add({"wobble", "Drawn by hand: the layer pushed about by a smooth noise and inked at its edges (a new seed, a new drawing).",
+           no_reach, paper, pixel(fx::paper::paper_fs)}));
+    r.add(local({"wobble", "Drawn by hand: the layer pushed about by a smooth noise and inked at its edges (a new seed, a new drawing).",
            {{"amount", 1.5f, 0, 50, "how far lines wander, logical pixels"},
             {"size", 18, 1, 400, "the wander's feature size, logical pixels"},
             {"seed", 1, 0, 1e6f, "which drawing (step it for a boil)"},
             {"ink", 0.5f, 0, 1, "how dark edges are inked"}},
-           [](std::span<const float> p) { return std::abs(p[0]) + 1; }, wobble, pixel(fx::wobble::wobble_fs)});
-    r.add({"metaball", "The layer's shapes merge like drops; the bridges between them are filled, the content over them.",
+           [](std::span<const float> p) { return std::abs(p[0]) + 1; }, wobble, pixel(fx::wobble::wobble_fs)}));
+    r.add(local({"metaball", "The layer's shapes merge like drops; the bridges between them are filled, the content over them.",
            {{"smoothness", 16, 0, 400, "how far apart shapes still merge, logical pixels"},
             {"color_r", 0.31f, 0, 1, "the bridges' colour, red"},
             {"color_g", 0.27f, 0, 1, "green"},
             {"color_b", 0.9f, 0, 1, "blue"},
             {"color_a", 1, 0, 1, "opacity"}},
-           [](std::span<const float> p) { return std::abs(p[0]); }, metaball, pixel(fx::metaball::metaball_fs)});
+           [](std::span<const float> p) { return std::abs(p[0]); }, metaball, pixel(fx::metaball::metaball_fs)}));
     {
         EffectInfo glass{"liquid_glass",
                          "A thick transparent material over what lies under it (D-64): the backdrop bent at the bevel, split by colour, "
@@ -689,12 +698,30 @@ void register_builtins(EffectRegistry& r) {
                          liquid_glass,
                          pixel(fx::liquid_glass::liquid_glass_fs, derive_glass)};
         glass.backdrop = true;
+        glass.row_local = true;
         glass.backdrop_blur = [](std::span<const float> p) { return p[2]; };
         r.add(std::move(glass));
     }
 }
 
 }  // namespace
+
+void run_cpu_effect(const EffectInfo& info, const EffectInput& in, Parallel* parallel) {
+    if (!info.cpu) return;
+    const int rows = in.last_row() - in.row_begin;
+    constexpr int band = 32;
+    if (!info.row_local || !parallel || rows <= band) {
+        info.cpu(in);
+        return;
+    }
+    const auto bands = static_cast<std::size_t>((rows + band - 1) / band);
+    parallel->run(bands, [&](std::size_t i) {
+        EffectInput part = in;
+        part.row_begin = in.row_begin + static_cast<int>(i) * band;
+        part.row_end = std::min(part.row_begin + band, in.last_row());
+        info.cpu(part);
+    });
+}
 
 float shape_distance(const EffectShape& shape, geom::Point p) noexcept {
     const geom::Rect& r = shape.rect;
@@ -715,12 +742,24 @@ float smooth_min(float a, float b, float k) noexcept {
     return std::min(a, b) - h * h * k * 0.25f;
 }
 
-void box_blur(raster::Surface& surface, int radius) {
+void box_blur(raster::Surface& surface, int radius, Parallel* parallel) {
     if (radius <= 0) return;
     raster::Surface scratch(surface.width(), surface.height());
+    // Each pass's lines are independent: in groups on the pool, the same bytes.
+    auto pass = [&](const Surface& from, Surface& to, bool horizontal) {
+        const int lines = horizontal ? from.height() : from.width();
+        constexpr int group = 64;
+        if (!parallel || lines <= group) {
+            box_pass(from, to, radius, horizontal);
+            return;
+        }
+        parallel->run(static_cast<std::size_t>((lines + group - 1) / group), [&](std::size_t i) {
+            box_pass(from, to, radius, horizontal, static_cast<int>(i) * group, static_cast<int>(i) * group + group);
+        });
+    };
     for (int i = 0; i < 3; ++i) {
-        box_pass(surface, scratch, radius, true);
-        box_pass(scratch, surface, radius, false);
+        pass(surface, scratch, true);
+        pass(scratch, surface, false);
     }
 }
 

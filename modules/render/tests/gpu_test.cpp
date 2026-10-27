@@ -96,6 +96,7 @@ struct Rig {
     rhi::Texture         target;
     render::ImageStore   images;
     Boxes                glyphs;
+    render::RenderReport last{};  // the GPU's, of the last compare
 
     // Both renders of `dl`; how they differ.
     std::string compare(const render::DisplayList& dl, std::string_view name, Tolerance t) {
@@ -104,6 +105,7 @@ struct Rig {
         cpu.render(dl, ref, {&images, &glyphs}, {.scale = 1, .background = bg});
         auto report = gpu.render(dl, target, {&images, &glyphs}, {.scale = 1, .background = bg});
         if (!report) return std::format("{}: the GPU render failed: {}", name, report.error().message);
+        last = *report;
         auto bytes = d.read(target, {0, 0, W, H});
         if (!bytes) return std::format("{}: read back: {}", name, bytes.error().message);
         int worst = 0;
@@ -231,9 +233,18 @@ const std::vector<Case>& cases() {
              dl.fill_round_rect({100, 8, 50, 30}, geom::CornerRadii::all(40), render::Paint::solid(geom::Color::hex(0x16a34a)));
          },
          {8, 240}},
-        {"strokes",
+        // A rounded rectangle's stroke: the area between its outer and inner
+        // rrects (render's stroke_ring), the GPU's exact, the CPU's arcs as
+        // chords — two arcs a corner, so twice the edge pixels of a fill.
+        {"rounded strokes",
          [](render::DisplayList& dl, Rig&) {
              dl.stroke_round_rect({10.5f, 10.5f, 60, 40}, geom::CornerRadii::all(8), 3, render::Paint::solid(geom::Color::hex(0x7c3aed)));
+             dl.stroke_round_rect({90, 10, 50, 30}, geom::CornerRadii::all(3), 10, render::Paint::solid(geom::Color{0.86f, 0.15f, 0.15f, 0.8f}));
+             dl.stroke_round_rect({20.25f, 64.75f, 120, 44}, {14, 0, 22, 4}, 1.5f, render::Paint::solid(geom::Color::hex(0x0f766e)));
+         },
+         {8, 480}},
+        {"strokes",
+         [](render::DisplayList& dl, Rig&) {
              dl.stroke_round_rect({90, 10, 50, 40}, {}, 2, render::Paint::solid(geom::Color::hex(0xdc2626)));
              render::Path star;
              star.move_to({40, 62}).line_to({52, 110}).line_to({12, 80}).line_to({68, 80}).line_to({28, 110}).close();
@@ -438,13 +449,63 @@ int main(int argc, char** argv) {
                                                       rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "test.target"});
         check(target.has_value());
         if (!target) return;
-        Rig rig{*device, std::move(*gpu), {}, *target, {}, {}};
+        Rig rig{*device, std::move(*gpu), {}, *target, {}, {}, {}};
         for (const Case& c : cases()) {
             render::DisplayList dl;
             c.build(dl, rig);
             const std::string problem = rig.compare(dl, c.name, c.tolerance);
             check(problem.empty(), problem);
         }
+    });
+
+    s.test("masks are kept from frame to frame; the atlas grows, and past its size is emptied — every frame the CPU's pixels", [] {
+        auto device = open_device();
+        if (!device) return;
+        auto gpu = render::GpuRenderer::create(*device);
+        if (!gpu) return;
+        auto target = device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, W, H,
+                                                      rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "test.target"});
+        if (!target) return;
+        Rig rig{*device, std::move(*gpu), {}, *target, {}, {}, {}};
+        // n circles, each a mask of its own (no two alike: the centre's
+        // fraction and the radius differ), faint so all show.
+        auto circles = [](render::DisplayList& dl, int n, float seed) {
+            for (int i = 0; i < n; ++i) {
+                const float f = static_cast<float>(i);
+                render::Path c;
+                c.add_circle({80 + std::fmod(f * 0.37f + seed, 1.0f) - 0.5f + static_cast<float>(i % 7) - 3, 60 + std::fmod(f * 0.61f + seed, 1.0f) - 0.5f},
+                             40 + std::fmod(f * 0.13f + seed, 9.0f));
+                dl.fill_path(c, render::FillRule::nonzero, render::Paint::solid(geom::Color{0.1f, 0.3f, 0.8f, 0.02f}));
+            }
+        };
+        render::DisplayList few;
+        circles(few, 30, 0.1f);
+        check(rig.compare(few, "masks: first", {1, 0}).empty());
+        const geom::Color bg = geom::Color::hex(0xf8fafc);
+        auto again = rig.gpu.render(few, *target, {&rig.images, &rig.glyphs}, {.scale = 1, .background = bg});
+        check(again.has_value());
+        if (again) {
+            check_eq(again->masks_made, std::size_t{0});
+            check_eq(again->masks_reused, std::size_t{30});
+            // Only the frame's instances go up again.
+            check_eq(again->uploaded, std::size_t{30} * 192);
+        }
+        // A frame of more masks than the atlas's first size holds (it grows),
+        // then frames of others: past its free size it is emptied of what
+        // earlier frames left, and still draws what the CPU draws.
+        std::size_t emptied = 0;
+        for (float seed : {0.3f, 0.55f, 0.8f}) {
+            render::DisplayList many;
+            circles(many, 1200, seed);
+            const std::string problem = rig.compare(many, std::format("masks: 1200 ({})", seed), {1, 0});
+            check(problem.empty(), problem);
+            check_eq(rig.last.masks_made, std::size_t{1200});
+            emptied += rig.last.atlas_emptied;
+        }
+        check_eq(emptied, std::size_t{3});  // each needs more than its free size, beside the last frame's
+        auto last = rig.gpu.render(few, *target, {&rig.images, &rig.glyphs}, {.scale = 1, .background = bg});
+        check(last.has_value());
+        if (last) check(last->masks_made + last->masks_reused == 30, "the first frame's masks, made again or kept");
     });
 
     s.test("what the GPU does not draw yet is counted, as the CPU counts what it skips", [] {

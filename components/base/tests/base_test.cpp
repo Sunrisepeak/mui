@@ -479,7 +479,7 @@ int main(int argc, char** argv) {
         for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
         std::println("ui.base overlays {:016x}", hash.value());
         check(h.save_png(scratch_dir("ui-base-overlays") / "overlays@2x.png").has_value());
-        check(hash.value() == 0x2324e7862a245162ULL, std::format("overlays {:016x}", hash.value()));
+        check(hash.value() == 0xbdb31159cd5ec8a4ULL, std::format("overlays {:016x}", hash.value()));
     });
 
     s.test("list: a thousand rows, the visible ones materialised, all of them queryable (S-7)", [] {
@@ -593,7 +593,7 @@ int main(int argc, char** argv) {
         std::println("ui.base gallery {:016x}", hash.value());
         check(h.save_png(scratch_dir("ui-base") / "gallery@2x.png").has_value());
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
-        check(hash.value() == 0xdd3d2b69d02e9060ULL, std::format("gallery {:016x}", hash.value()));
+        check(hash.value() == 0xae3e686a8040c61fULL, std::format("gallery {:016x}", hash.value()));
     });
 
     return s.run(argc, argv);

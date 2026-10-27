@@ -75,7 +75,7 @@ int main(int argc, char** argv) {
         }
         check_eq(looks.size(), std::size_t{5});
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
-        check_eq(all.hex(), std::string("5affb36830180c6c"));
+        check_eq(all.hex(), std::string("f8d70fea1afe1ef2"));
     });
 
     s.test("switching is a cross-fade; a person's click and an agent's verb do the same", [] {

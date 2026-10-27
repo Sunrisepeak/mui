@@ -15,6 +15,11 @@ import openmui.markdown;
 import openmui.ui.canvas;
 import openmui.ui.canvas_kit;
 import openmui.showcase.wall;
+import openmui.showcase.styles;
+import openmui.theme.styles;
+import openmui.rhi;
+import openmui.rhi.sdl;
+import mcpplibs.os;
 
 namespace omui::bench {
 
@@ -71,6 +76,77 @@ HeadlessOptions scene_options(HeadlessLevel level = HeadlessLevel::pixels) {
     o.app = "org.openmui.bench";
     return o;
 }
+
+// A GPU to draw frames on (omui.rhi through SDL), when the machine has one:
+// tools/ci/gpu.sh's OMUI_VULKAN_LIBRARY and OMUI_GPU_VIDEO_DRIVER as the
+// tests use them. A software device (lavapipe) is counted `software`, so a
+// GPU's frame budget is not held to it; the device is in the report.
+class Gpu {
+public:
+    explicit Gpu(Size size) {
+        rhi::sdl::Options o;
+        o.formats = render::gpu_shader_formats();
+        if (auto lib = mcpplibs::os::env::get("OMUI_VULKAN_LIBRARY")) o.vulkan_library = *lib;
+        if (auto video = mcpplibs::os::env::get("OMUI_GPU_VIDEO_DRIVER")) o.video_driver = *video;
+        auto device = rhi::sdl::create(o);
+        if (!device) {
+            why_ = std::format("no GPU device ({})", device.error().message);
+            return;
+        }
+        device_ = std::move(*device);
+        auto renderer = render::GpuRenderer::create(*device_);
+        if (!renderer) {
+            why_ = std::format("the GPU renderer: {}", renderer.error().message);
+            return;
+        }
+        renderer_.emplace(std::move(*renderer));
+        auto target = device_->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, static_cast<std::uint32_t>(size.width),
+                                                       static_cast<std::uint32_t>(size.height),
+                                                       rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "bench.frame"});
+        if (!target) {
+            why_ = std::format("the frame's target: {}", target.error().message);
+            return;
+        }
+        target_ = *target;
+    }
+    ~Gpu() {
+        if (device_ && target_) device_->destroy(target_);
+    }
+    Gpu(const Gpu&) = delete;
+    Gpu& operator=(const Gpu&) = delete;
+
+    // False (and the benchmark skipped) without a device; else the device noted.
+    bool ready(State& s) {
+        if (!why_.empty()) {
+            s.skip(why_);
+            return false;
+        }
+        const rhi::Caps& caps = device_->caps();
+        s.note("device", std::format("{} ({}{})", caps.device, rhi::name(caps.backend), caps.software ? ", software" : ""));
+        return true;
+    }
+
+    // The list drawn whole into the frame and waited for: counted as gpu_ms,
+    // of which encode_ms is the CPU's (the list encoded and submitted), and
+    // what it uploaded (uploaded_kb: new images, new masks, the instances).
+    void draw(State& s, const render::DisplayList& list, const render::Resources& resources, Color background) {
+        const auto t0 = std::chrono::steady_clock::now();
+        auto r = renderer_->render(list, target_, resources, {.scale = 1, .clear = true, .background = background});
+        s.counter("encode_ms", std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count());
+        if (r) s.counter("uploaded_kb", static_cast<double>(r->uploaded) / 1024.0);
+        auto w = device_->wait_idle();
+        const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+        if (!r || !w) std::println(std::cerr, "omui-bench: the GPU frame failed: {}", !r ? r.error().message : w.error().message);
+        s.counter("gpu_ms", ms);
+        s.counter("software", device_->caps().software ? 1 : 0);
+    }
+
+private:
+    std::unique_ptr<rhi::Device>       device_;
+    std::optional<render::GpuRenderer> renderer_;
+    rhi::Texture                       target_{};
+    std::string                        why_;
+};
 
 // The phase times and the counts of a frame, as counters.
 void frame_counters(State& s, const FrameOutput& f) {
@@ -307,6 +383,22 @@ void add_framework_benchmarks() {
             w.frame(s, {WheelEvent{.position = {960, 540}, .delta = {0, 60 * dir}}});
         }
     });
+    add("wall/zoom-sweep-1000-gpu", "the same sweep with the GPU drawing every frame (S1: 120 Hz, frame p99 under 8.3 ms)", [](State& s) {
+        Gpu gpu(full_hd);
+        if (!gpu.ready(s)) return;
+        Wall w(1000, 40, "bench-wall-zoom-gpu");
+        const auto b = world::scene("bench-wall-zoom-gpu").bounds();
+        w.camera(b.x + b.width / 2, b.y + b.height / 2, 0.01);
+        typeset::GlyphCache glyphs(w.h.runtime().fonts());
+        float dir = -1;
+        while (s.next()) {
+            const double z = w.model.zoom.peek();
+            if (z >= 4) dir = 1;
+            if (z <= 0.01) dir = -1;
+            w.frame(s, {WheelEvent{.position = {960, 540}, .delta = {0, 60 * dir}}});
+            gpu.draw(s, w.h.runtime().display_list(), {&w.h.runtime().images(), &glyphs}, Color::white());
+        }
+    });
     add("wall/pan-1000", "1000 windows as textures (about 160 px each), a trackpad pans every frame", [](State& s) {
         Wall w(1000, 40, "bench-wall-pan");
         const auto b = world::scene("bench-wall-pan").bounds();
@@ -380,6 +472,73 @@ void add_framework_benchmarks() {
             w.h.settle();
         }
     });
+
+    // ── liquid glass (D-64): ten glass panels over a busy 1080p backdrop,
+    // the frame drawn whole — by the CPU reference, and on the GPU when the
+    // machine has one (lavapipe in CI: a CPU's Vulkan; a real GPU's number is
+    // the report's, M4's 120 Hz target).
+    auto glass_frame = [](render::DisplayList& dl) {
+        dl.clear();
+        dl.fill_rect({0, 0, 1920, 1080}, Color::hex(0x0f172a));
+        for (int i = 0; i < 24; ++i)
+            dl.fill_rect({static_cast<float>(i) * 80.0f + 6, 0, 36, 1080}, Color{0.2f + 0.03f * static_cast<float>(i), 0.35f, 0.85f - 0.025f * static_cast<float>(i), 1});
+        for (int i = 0; i < 6; ++i) {
+            render::Path ring;
+            ring.add_circle({300.0f + static_cast<float>(i) * 260, 540}, 140).add_circle({300.0f + static_cast<float>(i) * 260, 540}, 110);
+            dl.fill_path(ring, render::FillRule::even_odd, render::Paint::solid(Color::hex(0xf59e0b, 0.8f)));
+        }
+        const auto ref = render::effects().find("liquid_glass");
+        const std::array<std::pair<std::string_view, float>, 3> values{{{"blur", 8}, {"tint_a", 0.12f}, {"dispersion", 0.4f}}};
+        const auto params = render::effects().params(*ref, values);
+        for (int i = 0; i < 10; ++i) {
+            const Rect r{80.0f + static_cast<float>(i % 5) * 360, 140.0f + static_cast<float>(i / 5) * 440, 300, 360};
+            const std::array<render::EffectShape, 1> shape{{{r, CornerRadii::all(28)}}};
+            dl.push_layer(1, render::BlendMode::normal, *ref, params, r, shape);
+            dl.fill_rect({r.x + 24, r.y + 24, 120, 18}, Color::hex(0xffffff, 0.85f));
+            dl.pop_layer();
+        }
+    };
+    add("glass/10-1080p-cpu", "ten liquid glass panels at 1920×1080, the frame drawn whole by the CPU reference (on the task pool, in bands)", [glass_frame](State& s) {
+        render::DisplayList dl;
+        glass_frame(dl);
+        raster::Surface target(1920, 1080);
+        render::CpuRenderer r;
+        while (s.next()) (void)r.render(dl, target, {}, {.parallel = &raster_parallel()});
+    });
+    add("glass/10-1080p-gpu", "the same frame on the GPU (omui.rhi), submitted and waited for", [glass_frame](State& s) {
+        Gpu gpu(full_hd);
+        if (!gpu.ready(s)) return;
+        render::DisplayList dl;
+        glass_frame(dl);
+        render::ImageStore images;
+        while (s.next()) gpu.draw(s, dl, {&images, nullptr}, Color::hex(0x0f172a));
+    });
+
+    // ── S2 (§19.3): every style pack's frame on the GPU — the studio at
+    // 1080p, the volume slider moving every frame so every frame is drawn;
+    // the runtime's frame (CPU) and the GPU's, both counted.
+    for (std::string_view pack : themes::style_names) {
+        add(std::format("styles/{}-gpu", pack),
+            std::format("S2's interface in the {} pack at 1920×1080, the slider moving: the runtime's frame, then the GPU draws it whole", pack),
+            [pack](State& s) {
+                Gpu gpu(full_hd);
+                if (!gpu.ready(s)) return;
+                Headless       h(scene_options());
+                styles::Studio studio;
+                auto spec = styles::app(studio, pack);
+                spec.setup(h.runtime());
+                h.mount("main", spec.view());
+                h.settle();
+                typeset::GlyphCache glyphs(h.runtime().fonts());
+                std::size_t i = 0;
+                while (s.next()) {
+                    studio.volume.set(static_cast<double>(++i % 100) / 100.0);
+                    const auto f = h.step();
+                    frame_counters(s, f);
+                    gpu.draw(s, h.runtime().display_list(), {&h.runtime().images(), &glyphs}, Color::white());
+                }
+            });
+    }
 
     // ── M1 ⑤: the 1000-node dashboard at 1080p, through the CPU renderer ──
     add("ui/frame/idle", "nothing changed: the frame the runtime skips", [](State& s) {

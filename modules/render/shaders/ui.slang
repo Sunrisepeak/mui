@@ -17,7 +17,7 @@ struct Prim {
     float4 m0 : TEXCOORD1;       // local → device: a, b, c, d
     float4 m1 : TEXCOORD2;       // e, f, kind, flags
     float4 radii : TEXCOORD3;    // rrect: top-left, top-right, bottom-right, bottom-left; axis-aligned rect, image: the device rectangle's edges left, top, right, bottom
-    float4 shape : TEXCOORD4;    // -, a byte the result is scaled by (a layered glyph's opacity), a layer's opacity byte, -
+    float4 shape : TEXCOORD4;    // rring: the stroke's width (local); a byte the result is scaled by (a layered glyph's opacity), a layer's opacity byte, -
     float4 color : TEXCOORD5;    // solid: premultiplied bytes / 255; image paint: w the byte its texels are scaled by
     float4 paint : TEXCOORD6;    // paint kind, ramp row, spread, conic start angle
     float4 pgeo : TEXCOORD7;     // gradient start.xy, end.xy (radial: end.x is the radius)
@@ -48,6 +48,7 @@ static const int KIND_RECT = 0;
 static const int KIND_RRECT = 1;
 static const int KIND_MASK = 2;
 static const int KIND_IMAGE = 3;
+static const int KIND_RRING = 4;  // a rounded rectangle's stroke: the rrect (the stroke's outer edge) less the one shape.x inside it
 
 static const int FLAG_AXIS_ALIGNED = 1;   // the transform maps the rectangle to an axis-aligned one
 static const int FLAG_CLIP_MASK = 2;      // multiply by the clip mask
@@ -333,13 +334,23 @@ float4 ui_fs(VOut i) : SV_Target {
     } else {
         const float2 half = i.rect.zw * 0.5;
         const float2 centred = i.local - (i.rect.xy + half);
+        // A stroke is its outer rrect less its inner one: the outline moved in
+        // by the width, each radius by as much (none below zero) — the area
+        // between, exactly, where the CPU strokes the rrect's path.
+        const bool ring = kind == KIND_RRING;
+        const float w = i.shape.x;
+        const float2 inner = i.rect.zw - 2 * w;
+        const bool hollow = ring && inner.x > 0 && inner.y > 0;
+        const float4 inner_radii = max(i.radii - w, 0.0);
         float f;
         if ((flags & FLAG_AXIS_ALIGNED) != 0) {
             // The pixel into local space (an axis-aligned transform keeps it a rectangle).
             const float2 a = (p - 0.5 - i.m1.xy) / float2(i.m0.x, i.m0.w), b = (p + 0.5 - i.m1.xy) / float2(i.m0.x, i.m0.w);
             f = exact_rounded(min(a, b), max(a, b), i.rect.xy, i.rect.zw, i.radii);
+            if (hollow) f -= exact_rounded(min(a, b), max(a, b), i.rect.xy + w, inner, inner_radii);
         } else {
-            f = rounded_coverage(centred, half, kind == KIND_RRECT ? i.radii : float4(0, 0, 0, 0), i.m0);
+            f = rounded_coverage(centred, half, kind == KIND_RRECT || ring ? i.radii : float4(0, 0, 0, 0), i.m0);
+            if (hollow) f -= rounded_coverage(centred, inner * 0.5, inner_radii, i.m0);
         }
         k = coverage_byte(f);
     }

@@ -30,6 +30,8 @@ struct Options {
     std::size_t  max_iterations = 100'000;
     std::size_t  warmup = 3;
     std::string  label;                  // what was measured: the toolchain and profile, a machine name
+    std::vector<std::string> notes;      // what a reader should know of the run (the report's notes)
+    std::vector<std::string> notes_zh;   // the same, for the Chinese report
 };
 
 // The loop a benchmark's body runs: `while (state.next()) { … }`.
@@ -48,6 +50,14 @@ public:
 
     // A figure the body measured itself, reported as the mean over the timed iterations.
     void counter(std::string_view name, double value);
+
+    // A fact about the run that is not a number (the GPU it ran on), in the report beside it.
+    void note(std::string_view name, std::string text);
+
+    // The benchmark cannot run here (no GPU, say): reported as skipped, with
+    // the reason, and never as numbers; its budgets do not apply. The body
+    // returns after it.
+    void skip(std::string reason);
 
     [[nodiscard]] std::size_t iteration() const noexcept { return done_; }
 
@@ -74,6 +84,8 @@ private:
     std::vector<double>                         samples_ms_;
     std::vector<std::uint64_t>                  allocations_;
     std::vector<std::pair<std::string, double>> counters_;       // sums over the timed iterations
+    std::string                                 skipped_;
+    std::vector<std::pair<std::string, std::string>> notes_;
     std::vector<std::pair<std::string, std::size_t>> counter_n_;
 };
 
@@ -87,6 +99,8 @@ struct Result {
     double       allocations = -1;       // per iteration (mean); -1: not counted
     std::uint64_t max_allocations = 0;
     std::vector<std::pair<std::string, double>> counters;
+    std::string  skipped;                // why it did not run; empty when it did
+    std::vector<std::pair<std::string, std::string>> notes;
 
     // A metric by name: min_ms mean_ms p50_ms p95_ms p99_ms max_ms ns_per_item
     // allocations max_allocations, or a counter's name.
@@ -99,6 +113,9 @@ struct Budget {
     std::string metric = "p95_ms";
     double      max = 0;
     std::string why;
+    // Not applied to a run that counted this (non-zero): "software", for a
+    // GPU's frame budget that a software device (lavapipe) cannot speak to.
+    std::string unless;
 };
 
 struct Violation {
@@ -106,16 +123,31 @@ struct Violation {
     double value = 0;                    // NaN: the benchmark or the metric was not in the report
 };
 
+// What the numbers were measured on.
+struct Machine {
+    std::string                  cpu;        // the processor's model ("" when the system does not say)
+    std::string                  arch;       // x86_64, aarch64…
+    std::string                  system;     // the operating system and its version
+    std::optional<std::uint64_t> memory;     // bytes
+};
+[[nodiscard]] Machine this_machine();
+
 struct Report {
     std::string          label;
     std::string          platform;
     unsigned             hardware_threads = 0;
     std::string          started;        // UTC, ISO 8601
+    Machine              machine;
+    Options              options;        // how it was measured
     std::vector<Result>  results;
 
     [[nodiscard]] const Result* find(std::string_view name) const noexcept;
     [[nodiscard]] std::string json() const;
     [[nodiscard]] std::string table() const;
+    // The report for people (docs/en/benchmarks/): the machine, the method,
+    // every result by group beside its budgets, and why each budget is there.
+    // `language`: "en", or "zh" (the docs' two).
+    [[nodiscard]] std::string markdown(std::span<const Budget> budgets, std::string_view language = "en") const;
     // Budgets of benchmarks that did not run are skipped unless `require_all`.
     [[nodiscard]] std::vector<Violation> check(std::span<const Budget> budgets, bool require_all = false) const;
 };
@@ -134,7 +166,7 @@ void add(std::string name, std::string description, Body body);
 [[nodiscard]] Report run(const Options& options);
 [[nodiscard]] Result run_one(const Case& c, const Options& options);
 
-// budgets.bench.omui.json: {"format":"openmui.bench.budgets@0.1","budgets":[{"name":…,"metric":…,"max":…,"why":…}]}
+// budgets.bench.omui.json: {"format":"openmui.bench.budgets@0.1","budgets":[{"name":…,"metric":…,"max":…,"why":…,"unless":…}]}
 [[nodiscard]] std::expected<std::vector<Budget>, std::string> parse_budgets(std::string_view json);
 
 // Heap allocations: a program that replaces the global operator new calls

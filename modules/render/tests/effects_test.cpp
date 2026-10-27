@@ -116,7 +116,7 @@ int main(int argc, char** argv) {
             all.u64(out.hash());
         }
         // Pinned: GCC and LLVM, Linux, macOS and Windows compute these bytes.
-        check_eq(all.hex(), std::string("3d4c89579de40989"));
+        check_eq(all.hex(), std::string("9a97767fe1102700"));
     });
 
     s.test("liquid glass: the backdrop bent, frosted, tinted and lit under the glass; pinned", [] {
@@ -229,7 +229,7 @@ int main(int argc, char** argv) {
         check(apart.r == 15 && apart.g == 23 && apart.b == 42, "smoothness 0: apart");
         // Pinned: GCC and LLVM, Linux, macOS and Windows compute these bytes.
         std::println("    all {}", all.hex());
-        check_eq(all.hex(), std::string("8cecdcc5e3d27e9a"));
+        check_eq(all.hex(), std::string("40df5182c5755cb0"));
     });
 
     s.test("progress 0 is the layer as it is (1 for reveal)", [] {

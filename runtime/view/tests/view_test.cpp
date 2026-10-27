@@ -864,7 +864,7 @@ int main(int argc, char** argv) {
         check(imageio::save_png(scratch_dir("view") / "scene@2x.png", v).has_value());
         check(rt.display_list().balanced());
         // Pinned: GCC and LLVM, Linux, macOS and Windows render this scene to the same bytes.
-        check(h.value() == 0xc843dc8d4c1ccdbcULL, std::format("pixels {:016x}", h.value()));
+        check(h.value() == 0x2356c65d358f85d3ULL, std::format("pixels {:016x}", h.value()));
         check(rt.display_list().hash() == list_hash, std::format("list {:016x}", rt.display_list().hash()));
     });
 

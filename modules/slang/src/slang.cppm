@@ -71,6 +71,11 @@ struct Options {
     // reloaded while the program runs): no run to discover them, so the
     // compile takes one slangc start. Empty: every entry point in the file.
     std::vector<EntryName>             entries;
+    // Compile in this process when Slang's library is beside slangc: no
+    // program started and no core module loaded per compile, which is most
+    // of slangc's time (a hot reload's budget). The same files either way;
+    // false (or OMUI_SLANGC_PROCESS=1): run slangc.
+    bool                               in_process = true;
 };
 
 // slangc: OMUI_SLANGC, else the one mcpp provisioned for this build

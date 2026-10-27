@@ -365,7 +365,7 @@ int main(int argc, char** argv) {
         check(a.h.save_png(scratch_dir("wall-pixels") / "handbook.png").has_value());
         std::println("    pixels {}", hash.hex());
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
-        check_eq(hash.hex(), std::string("a21c1864f84f6368"));
+        check_eq(hash.hex(), std::string("e756bc33972b1f35"));
     });
 
     return s.run(argc, argv);

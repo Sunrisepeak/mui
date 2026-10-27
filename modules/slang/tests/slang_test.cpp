@@ -89,6 +89,46 @@ int main(int argc, char** argv) {
         check(!missing && missing.error().contains("nope_fs"), missing ? "" : missing.error());
     });
 
+    s.test("in this process (Slang's library, a warm session) and by slangc: the same program, the same diagnostics", [] {
+        const auto formats = rhi::formats({rhi::ShaderFormat::spirv, rhi::ShaderFormat::msl});
+        auto warm = slang::compile(data("quad.slang"), {.formats = formats});  // the session made, the core module loaded
+        const auto from = std::chrono::steady_clock::now();
+        auto inside = slang::compile(data("quad.slang"), {.formats = formats});
+        const auto took = std::chrono::steady_clock::now() - from;
+        auto outside = slang::compile(data("quad.slang"), {.formats = formats, .in_process = false});
+        check(warm.has_value() && inside.has_value() && outside.has_value(), inside ? (outside ? "" : outside.error()) : inside.error());
+        if (!inside || !outside) return;
+        check_eq(inside->entries.size(), outside->entries.size());
+        for (const slang::Entry& e : outside->entries) {
+            const slang::Entry* i = inside->entry(e.name);
+            check(i && i->stage == e.stage && i->counts == e.counts && i->code.size() == e.code.size(), e.name);
+            if (!i) continue;
+            for (std::size_t k = 0; k < e.code.size() && k < i->code.size(); ++k)
+                check(i->code[k].format == e.code[k].format && i->code[k].bytes == e.code[k].bytes, std::format("{}: the same bytes", e.name));
+        }
+        auto names = [](const slang::Program& p) {
+            std::set<std::string> out;
+            for (const auto& d : p.dependencies) out.insert(d.filename().string());
+            return out;
+        };
+        check(names(*inside) == names(*outside), "the same files read");
+        std::println("  in this process, SPIR-V and MSL: {} ms", std::chrono::duration_cast<std::chrono::milliseconds>(took).count());
+        // A mistake: slangc's words either way, with where it is.
+        const auto dir = scratch_dir("slang-inprocess");
+        const auto broken = dir / "broken.slang";
+        {
+            std::ofstream f(broken, std::ios::binary);
+            f << "[shader(\"fragment\")]\nfloat4 paint() : SV_Target {\n    return undefined_thing;\n}\n";
+        }
+        auto a = slang::compile(broken, {.entries = {{"paint", rhi::Stage::fragment}}});
+        auto b = slang::compile(broken, {.entries = {{"paint", rhi::Stage::fragment}}, .in_process = false});
+        check(!a && !b);
+        if (!a && !b) {
+            check(a.error().contains("undefined_thing") && a.error().contains("broken.slang:3:12"), a.error());
+            check(b.error().contains("undefined_thing") && b.error().contains("broken.slang:3:12"), b.error());
+        }
+    });
+
     s.test("a compute shader: its work group, what it reads and writes", [] {
         auto p = slang::compile(data("blur.slang"));
         check(p.has_value(), p ? "" : p.error());

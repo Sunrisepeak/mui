@@ -4,6 +4,7 @@ import std;
 import mcpplibs.os;
 import nlohmann.json;
 import openmui.rhi;
+import :session;
 
 namespace omui::slang {
 
@@ -34,6 +35,7 @@ struct Run {
     // `out` empty: what slangc writes goes to its standard output (a run for
     // its reflection only).
     std::expected<void, std::string> slangc_run(std::vector<std::string> extra, const std::filesystem::path& out) {
+        if (InProcess* compiler = options.in_process ? InProcess::beside(slangc) : nullptr) return in_process(*compiler, std::move(extra), out);
         os::process::spawn_options o;
         o.program = slangc;
         o.args = {os::fs::utf8(source)};
@@ -51,6 +53,38 @@ struct Run {
             return std::unexpected(text.empty() ? std::format("slangc failed ({})", r->status.code) : text);
         }
         if (!out.empty()) read_depfile(dep);
+        return {};
+    }
+
+    // The same run by Slang's library: what slangc would write (the code to
+    // `out`, the reflection where -reflection-json says) written so, the
+    // files it read noted as its depfile would name them.
+    std::expected<void, std::string> in_process(InProcess& compiler, std::vector<std::string> extra, const std::filesystem::path& out) {
+        std::vector<std::string> args{os::fs::utf8(source)};
+        for (const auto& i : options.includes) args.push_back("-I" + os::fs::utf8(i));
+        for (const auto& d : options.defines) args.push_back("-D" + d);
+        std::filesystem::path reflection;
+        for (std::size_t i = 0; i < extra.size(); ++i) {
+            if (extra[i] == "-reflection-json" && i + 1 < extra.size()) {
+                reflection = os::fs::from_utf8(extra[++i]);
+                continue;
+            }
+            args.push_back(std::move(extra[i]));
+        }
+        auto r = compiler.run(args, !out.empty(), !reflection.empty());
+        if (!r) return std::unexpected(r.error());
+        auto write = [](const std::filesystem::path& f, std::span<const std::byte> bytes) -> std::expected<void, std::string> {
+            std::ofstream o(f, std::ios::binary);
+            o.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
+            if (!o) return std::unexpected(std::format("cannot write {}", os::fs::utf8(f)));
+            return {};
+        };
+        if (!out.empty())
+            if (auto w = write(out, r->code); !w) return w;
+        if (!reflection.empty())
+            if (auto w = write(reflection, std::as_bytes(std::span(r->reflection))); !w) return w;
+        std::scoped_lock g(lock);
+        for (std::string& d : r->dependencies) dependencies.insert(std::move(d));
         return {};
     }
 

@@ -146,14 +146,16 @@ jobs:
         run: |
           mcpp run -p openmui.bench --profile release -- \
             --check tests/bench/budgets.bench.omui.json --json results.bench.omui.json \
-            --label "${{ matrix.os }} ${{ matrix.toolchain }}"
+            --report bench-report.md --label "${{ matrix.os }} ${{ matrix.toolchain }}"
 
       - name: Keep the benchmark report
         if: always() && matrix.profile == 'release'
         uses: actions/upload-artifact@v4
         with:
           name: bench-${{ matrix.os }}-${{ matrix.toolchain }}
-          path: results.bench.omui.json
+          path: |
+            results.bench.omui.json
+            bench-report.md
           if-no-files-found: ignore
 
       # The Python extension (src/entry/python) last: it needs an mcpp that

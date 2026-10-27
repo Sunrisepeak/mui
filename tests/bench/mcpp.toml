@@ -32,6 +32,10 @@ openmui.markdown      = { path = "../../modules/markdown" }
 openmui.ui.canvas     = { path = "../../components/canvas" }
 openmui.ui.canvas_kit = { path = "../../components/canvas-kit" }
 openmui.showcase.wall = { path = "../../showcase/markdown-wall" }
+openmui.showcase.styles = { path = "../../showcase/style-gallery" }
+openmui.theme.styles  = { path = "../../themes/styles" }
+"openmui.rhi"         = { path = "../../modules/rhi" }
+"openmui.rhi.sdl"     = { path = "../../modules/rhi-sdl" }
 mcpplibs.os           = "0.1.2"
 
 [dev-dependencies]

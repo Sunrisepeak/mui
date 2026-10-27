@@ -34,6 +34,12 @@ struct RenderReport {
     std::size_t missing_glyphs = 0;
     std::size_t rows = 0;      // rows drawn
     std::size_t skipped = 0;   // draw commands outside every band
+    // GPU: coverage masks (glyphs, paths, shadows) rasterised and uploaded
+    // this frame, and drawn from the atlas as an earlier frame left them;
+    // `atlas_emptied` when the frame was encoded again with the atlas emptied.
+    std::size_t masks_made = 0;
+    std::size_t masks_reused = 0;
+    bool        atlas_emptied = false;
     // With CpuOptions::measure: per kind of command (the index of Command's
     // alternative, command_kind_name), how many and how long — where a
     // frame's raster time goes.

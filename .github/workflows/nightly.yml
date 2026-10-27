@@ -79,20 +79,30 @@ jobs:
       - name: SDL's offscreen video driver (the desktop host's tests open windows)
         run: echo "SDL_VIDEO_DRIVER=offscreen" >> "$GITHUB_ENV"
 
-      - name: Whether this mcpp links the Python extension (mcpp-community/mcpp#846)
-        id: python
-        run: tools/ci/python-extension-probe.sh sanitize
-
       - name: Every member under ASan and UBSan
         env:
           ASAN_OPTIONS: detect_leaks=1:abort_on_error=1:strict_string_checks=1
           UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
         run: |
-          mcpp test --workspace --profile sanitize ${{ steps.python.outputs.ok != 'true' && '--exclude openmui.entry.python' || '' }} 2>&1 | tee sanitize.log
+          mcpp test --workspace --profile sanitize --exclude openmui.entry.python 2>&1 | tee sanitize.log
           grep -q "workspace result ok" sanitize.log || { echo "::error::a test failed under the sanitizers"; exit 1; }
           if grep -qE "ERROR: AddressSanitizer|runtime error:|ERROR: LeakSanitizer" sanitize.log; then
             echo "::error::the sanitizers reported a finding"; exit 1
           fi
+
+      # The Python extension last (mcpp-community/mcpp#846; see ci.yml).
+      - name: Whether this mcpp links the Python extension
+        id: python
+        run: tools/ci/python-extension-probe.sh sanitize
+
+      - name: The Python binding under ASan and UBSan
+        if: steps.python.outputs.ok == 'true'
+        env:
+          ASAN_OPTIONS: detect_leaks=1:abort_on_error=1:strict_string_checks=1
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+        run: |
+          mcpp test -p openmui.entry.python --profile sanitize 2>&1 | tee -a sanitize.log
+          grep -q "test result ok" sanitize.log || { echo "::error::the Python binding failed under the sanitizers"; exit 1; }
 
       - name: Keep the log
         if: always()

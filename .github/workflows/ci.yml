@@ -109,19 +109,12 @@ jobs:
       - name: SDL's offscreen video driver (the desktop host's tests open windows)
         run: echo "SDL_VIDEO_DRIVER=offscreen" >> "$GITHUB_ENV"
 
-      # The Python extension needs an mcpp that puts the kernel-abi package
-      # into a shared library (mcpp-community/mcpp#846); with an older one it
-      # is left out, with a warning, and comes back by itself.
-      - name: Whether this mcpp links the Python extension
-        id: python
-        run: tools/ci/python-extension-probe.sh '${{ matrix.profile }}'
-
       - name: Build every member
-        run: mcpp build --workspace --profile '${{ matrix.profile }}' ${{ steps.python.outputs.ok != 'true' && '--exclude openmui.entry.python' || '' }}
+        run: mcpp build --workspace --profile '${{ matrix.profile }}' --exclude openmui.entry.python
 
       - name: Test every member
         run: |
-          mcpp test --workspace --profile '${{ matrix.profile }}' ${{ steps.python.outputs.ok != 'true' && '--exclude openmui.entry.python' || '' }} 2>&1 | tee tests.log
+          mcpp test --workspace --profile '${{ matrix.profile }}' --exclude openmui.entry.python 2>&1 | tee tests.log
           grep -q "workspace result ok" tests.log || { echo "::error::workspace tests failed"; exit 1; }
 
       - name: An agent drives example 07 in its own process (M1 acceptance ②)
@@ -129,10 +122,6 @@ jobs:
         env:
           PROFILE: ${{ matrix.profile }}
         run: tools/ci/agent-e2e.sh
-
-      - name: The Python wheel, pip-installed, runs example 03 (M3 acceptance ⑤)
-        if: runner.os == 'Linux' && matrix.profile == 'dev' && steps.python.outputs.ok == 'true'
-        run: tools/ci/python-wheel.sh
 
       - name: A feature selects one of two exclusive sources (M0 acceptance ⑤)
         if: runner.os == 'Linux' && matrix.profile == 'dev'
@@ -156,3 +145,22 @@ jobs:
           name: bench-${{ matrix.os }}-${{ matrix.toolchain }}
           path: results.bench.omui.json
           if-no-files-found: ignore
+
+      # The Python extension (src/entry/python) last: it needs an mcpp that
+      # puts the kernel-abi package into a shared library
+      # (mcpp-community/mcpp#846). The probe builds it; with an older mcpp it
+      # is left out, with a warning, and comes back by itself. Nothing else is
+      # built after it.
+      - name: Whether this mcpp links the Python extension
+        id: python
+        run: tools/ci/python-extension-probe.sh '${{ matrix.profile }}'
+
+      - name: The Python binding's suite (CPython against the extension)
+        if: steps.python.outputs.ok == 'true'
+        run: |
+          mcpp test -p openmui.entry.python --profile '${{ matrix.profile }}' 2>&1 | tee python.log
+          grep -q "test result ok" python.log || { echo "::error::the Python binding's suite failed"; exit 1; }
+
+      - name: The Python wheel, pip-installed, runs example 03 (M3 acceptance ⑤)
+        if: runner.os == 'Linux' && matrix.profile == 'dev' && steps.python.outputs.ok == 'true'
+        run: tools/ci/python-wheel.sh

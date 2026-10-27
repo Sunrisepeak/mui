@@ -39,9 +39,17 @@ public:
     [[nodiscard]] Channel decay(double from, double velocity, seconds start, DecayParams p = {});
 
     // Retarget from the channel's position and velocity at `now`.
+    // Retargets from `now`, continuous in position (and, for a spring, in
+    // velocity). The motion before `now` is kept as the channel's history, so
+    // the channel answers for any earlier time as it did then: seeking back
+    // replays what was played (D-60, plan §6.8), within keep_history.
     void spring_to(Channel c, seconds now, double target, std::optional<SpringParams> p = std::nullopt);
     void tween_to(Channel c, seconds now, double target, seconds duration, Ease e = ease::out_cubic);
+    // This value at every time: the history is gone.
     void jump(Channel c, double value);
+    // How far back the history of retargets reaches (default 30 s): older
+    // segments are dropped, and a time before them reads the oldest kept.
+    void keep_history(seconds window) noexcept { history_window_ = window.count(); }
 
     void remove(Channel c);
     void clear();
@@ -66,7 +74,19 @@ public:
 private:
     enum class Kind : std::uint8_t { free, hold, tween, spring, decay };
 
+    // A motion a retarget superseded: what the channel did from `start`.
+    struct Segment {
+        Kind         kind = Kind::hold;
+        double       start = 0, end = 0, from = 0, target = 0, duration = 0;
+        Ease         ease;
+        Oscillator   osc;
+        Glide        glide;
+    };
+
     std::uint32_t allocate();
+    void push_history(std::uint32_t i);
+    [[nodiscard]] static double segment_value(const Segment& s, double t) noexcept;
+    [[nodiscard]] static double segment_velocity(const Segment& s, double t) noexcept;
     [[nodiscard]] double value_at(std::uint32_t i, double t, Policy policy) const noexcept;
     [[nodiscard]] double velocity_at(std::uint32_t i, double t) const noexcept;
 
@@ -83,6 +103,8 @@ private:
     std::vector<SpringParams>  params_;
     std::vector<Rest>          rest_;
     std::vector<std::uint32_t> free_;
+    std::vector<std::vector<Segment>> history_;  // per channel, oldest first
+    double                     history_window_ = 30.0;
     std::size_t                live_ = 0;
 };
 

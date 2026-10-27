@@ -23,6 +23,7 @@ std::uint32_t Set::allocate() {
         glide_.push_back({});
         params_.push_back({});
         rest_.push_back({});
+        history_.emplace_back();
     }
     ++live_;
     return i;
@@ -76,12 +77,28 @@ bool Set::valid(Channel c) const noexcept {
     return c.index < kind_.size() && kind_[c.index] != Kind::free && generation_[c.index] == c.generation;
 }
 
+void Set::push_history(std::uint32_t i) {
+    auto& h = history_[i];
+    // Segments that end before the window are dropped; those that start at the
+    // same time as the new one never showed and are replaced.
+    const double now = start_[i];
+    while (!h.empty() && h.back().start >= now) h.pop_back();
+    if (kind_[i] != Kind::hold || start_[i] != 0 || !h.empty())
+        h.push_back({kind_[i], start_[i], end_[i], from_[i], target_[i], duration_[i], ease_[i], osc_[i], glide_[i]});
+    // The oldest goes once the next began before the window: the window's
+    // start stays covered.
+    std::size_t drop = 0;
+    while (drop + 1 < h.size() && h[drop + 1].start < now - history_window_) ++drop;
+    if (drop) h.erase(h.begin(), h.begin() + static_cast<std::ptrdiff_t>(drop));
+}
+
 void Set::spring_to(Channel c, seconds now, double target, std::optional<SpringParams> p) {
     if (!valid(c)) return;
     std::uint32_t i = c.index;
     double t = now.count();
     double x = value_at(i, t, {});
     double v = velocity_at(i, t);
+    push_history(i);
     SpringParams params = p.value_or(kind_[i] == Kind::spring ? params_[i] : springs::standard);
     Rest rest = kind_[i] == Kind::spring ? rest_[i] : Rest{};
     kind_[i] = Kind::spring;
@@ -99,6 +116,7 @@ void Set::tween_to(Channel c, seconds now, double target, seconds duration, Ease
     std::uint32_t i = c.index;
     double t = now.count();
     double x = value_at(i, t, {});
+    push_history(i);
     kind_[i] = Kind::tween;
     start_[i] = t;
     from_[i] = x;
@@ -111,6 +129,7 @@ void Set::tween_to(Channel c, seconds now, double target, seconds duration, Ease
 void Set::jump(Channel c, double value) {
     if (!valid(c)) return;
     std::uint32_t i = c.index;
+    history_[i].clear();
     kind_[i] = Kind::hold;
     from_[i] = target_[i] = value;
     end_[i] = start_[i] = 0;
@@ -118,6 +137,7 @@ void Set::jump(Channel c, double value) {
 
 void Set::remove(Channel c) {
     if (!valid(c)) return;
+    history_[c.index].clear();
     kind_[c.index] = Kind::free;
     ++generation_[c.index];
     free_.push_back(c.index);
@@ -127,6 +147,7 @@ void Set::remove(Channel c) {
 void Set::clear() {
     for (std::uint32_t i = 0; i < kind_.size(); ++i) {
         if (kind_[i] == Kind::free) continue;
+        history_[i].clear();
         kind_[i] = Kind::free;
         ++generation_[i];
         free_.push_back(i);
@@ -134,8 +155,43 @@ void Set::clear() {
     live_ = 0;
 }
 
+double Set::segment_value(const Segment& s, double t) noexcept {
+    const double local = t - s.start;
+    switch (s.kind) {
+        case Kind::free:
+        case Kind::hold: return s.from;
+        case Kind::tween:
+            if (local <= 0.0) return s.from;
+            if (local >= s.duration) return s.target;
+            return dm::mix(s.from, s.target, s.ease(local / s.duration));
+        case Kind::spring: return s.osc.position(local);
+        case Kind::decay: return s.glide.position(local);
+    }
+    return s.from;
+}
+
+double Set::segment_velocity(const Segment& s, double t) noexcept {
+    const double local = t - s.start;
+    switch (s.kind) {
+        case Kind::free:
+        case Kind::hold: return 0.0;
+        case Kind::tween:
+            if (local < 0.0 || local >= s.duration || s.duration <= 0.0) return 0.0;
+            return (s.target - s.from) * s.ease.slope(local / s.duration) / s.duration;
+        case Kind::spring: return s.osc.velocity(local);
+        case Kind::decay: return s.glide.velocity(local);
+    }
+    return 0.0;
+}
+
 double Set::value_at(std::uint32_t i, double t, Policy policy) const noexcept {
     if (policy.reduce_motion) return target_[i];
+    // Before the current motion: the segment that was playing then.
+    if (t < start_[i] && !history_[i].empty()) {
+        const auto& h = history_[i];
+        auto it = std::upper_bound(h.begin(), h.end(), t, [](double x, const Segment& s) { return x < s.start; });
+        return segment_value(it == h.begin() ? h.front() : *(it - 1), t);
+    }
     double local = t - start_[i];
     switch (kind_[i]) {
         case Kind::free:
@@ -152,6 +208,11 @@ double Set::value_at(std::uint32_t i, double t, Policy policy) const noexcept {
 }
 
 double Set::velocity_at(std::uint32_t i, double t) const noexcept {
+    if (t < start_[i] && !history_[i].empty()) {
+        const auto& h = history_[i];
+        auto it = std::upper_bound(h.begin(), h.end(), t, [](double x, const Segment& s) { return x < s.start; });
+        return segment_velocity(it == h.begin() ? h.front() : *(it - 1), t);
+    }
     double local = t - start_[i];
     switch (kind_[i]) {
         case Kind::free:
@@ -176,7 +237,10 @@ double Set::velocity(Channel c, seconds t) const noexcept {
 double Set::target(Channel c) const noexcept { return valid(c) ? target_[c.index] : 0.0; }
 
 bool Set::settled(Channel c, seconds t) const noexcept {
-    return !valid(c) || kind_[c.index] == Kind::hold || t.count() >= end_[c.index];
+    if (!valid(c)) return true;
+    // Before the current motion began, it is still to come.
+    if (t.count() < start_[c.index] && !history_[c.index].empty()) return false;
+    return kind_[c.index] == Kind::hold || t.count() >= end_[c.index];
 }
 
 seconds Set::settle_time(Channel c) const noexcept { return seconds(valid(c) ? end_[c.index] : 0.0); }

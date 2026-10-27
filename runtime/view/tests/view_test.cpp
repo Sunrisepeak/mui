@@ -784,6 +784,31 @@ int main(int argc, char** argv) {
         check(rt.display_list().hash() == list_hash, std::format("list {:016x}", rt.display_list().hash()));
     });
 
+    s.test("seeking back past an interruption shows what was played (D-60: the segments are the history)", [] {
+        Runtime rt(options({400, 100}));
+        auto wide = signal(0);
+        rt.mount("main", column({}, {box({.id = "bar",
+                                           .width = Prop<Dim>(Source{std::nullopt, [wide] { return Value(wide.get() == 0 ? 50.0 : wide.get() == 1 ? 350.0 : 120.0); }, {}}),
+                                           .height = 10, .background = "#4f46e5",
+                                           .animate = {{"width", Transition::spring_with(anim::springs::gentle)}}})}));
+        rt.frame({seconds(0), {}});
+        wide.set(1);                     // to 350 …
+        std::vector<float> played;
+        for (int f = 0; f <= 150; ++f) {
+            if (f == 24) wide.set(2);    // … interrupted at 0.4 s, to 120
+            rt.frame({seconds(f / 60.0), {}});
+            played.push_back(rt.bounds(rt.find("main/bar")).width);
+        }
+        int differing = 0;
+        for (int f : {3, 12, 23, 24, 30, 61, 90, 7, 140}) {
+            rt.seek_time(seconds(f / 60.0));
+            rt.frame({seconds(10 + f), {}});
+            if (rt.bounds(rt.find("main/bar")).width != played[static_cast<std::size_t>(f)]) ++differing;
+        }
+        check_eq(differing, 0);
+        rt.release_time();
+    });
+
     s.test("glyph motion: any node's text, glyph by glyph, a function of time (D-68)", [] {
         typeset::GlyphCache glyphs(fonts());
         Runtime plain(options({260, 60}));

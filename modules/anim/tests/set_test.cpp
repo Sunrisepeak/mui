@@ -40,6 +40,50 @@ int main(int argc, char** argv) {
         check_bits(set.target(ch), -20.0);
     });
 
+    s.test("seek consistency: 1000 random frames, seeked after the fact, are the frames played (M2 ③)", [] {
+        // Played: a spring interrupted, retargeted, turned into a tween and back,
+        // stepped at 60 Hz with every interruption applied when its time comes.
+        struct Step {
+            double t;
+            int    kind;  // 0: spring_to, 1: tween_to
+            double target;
+        };
+        const std::array<Step, 4> script{{{0.25, 0, -20}, {0.6, 1, 50}, {1.1, 0, 0}, {1.45, 0, 80}}};
+        anim::Set set;
+        const auto ch = set.spring(0, 100, seconds(0), anim::springs::gentle);
+        std::vector<double> played;
+        std::size_t next = 0;
+        constexpr int frames = 60 * 4;
+        for (int f = 0; f <= frames; ++f) {
+            const double t = f / 60.0;
+            while (next < script.size() && script[next].t <= t) {
+                const Step& st = script[next++];
+                const double before = set.velocity(ch, seconds(st.t));
+                if (st.kind == 0) set.spring_to(ch, seconds(st.t), st.target, st.target == 0 ? std::optional(anim::springs::wobbly) : std::nullopt);
+                else set.tween_to(ch, seconds(st.t), st.target, seconds(0.4), anim::ease::in_out_cubic);
+                if (st.kind == 0)
+                    check(std::abs(set.velocity(ch, seconds(st.t)) - before) < 1e-9, std::format("velocity continuous at {}", st.t));
+            }
+            played.push_back(set.value(ch, seconds(t)));
+        }
+        // Seeked: the finished channel asked about any time — its segments are its history.
+        std::uint64_t state = 20261027;
+        auto next_random = [&] {
+            state += 0x9e3779b97f4a7c15ull;
+            std::uint64_t z = state;
+            z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ull;
+            z = (z ^ (z >> 27)) * 0x94d049bb133111ebull;
+            return z ^ (z >> 31);
+        };
+        int differing = 0;
+        for (int i = 0; i < 1000; ++i) {
+            const auto f = static_cast<int>(next_random() % (frames + 1));
+            if (std::bit_cast<std::uint64_t>(set.value(ch, seconds(f / 60.0))) != std::bit_cast<std::uint64_t>(played[static_cast<std::size_t>(f)]))
+                ++differing;
+        }
+        check_eq(differing, 0);
+    });
+
     s.test("reduced motion shows targets", [] {
         anim::Set set;
         auto ch = set.tween(0, 1, seconds(0), seconds(1));

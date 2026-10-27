@@ -1,4 +1,4 @@
-// wall — S1, the Markdown wall (canvas-markdown §3).
+// openmui.showcase.wall — S1, the Markdown wall (canvas-markdown §3).
 //
 // Documents (a folder's *.md, or the benchmark's synthetic set) become a
 // scene: a workspace per folder — a backdrop with a label strip — and on it
@@ -17,7 +17,7 @@
 // views (1: one to one; 2: the overview). A HUD in immediate mode reads the
 // canvas's statistics; `stream` writes into windows at a language model's
 // pace, live windows every tick and textures at most four times a second.
-export module wall;
+export module openmui.showcase.wall;
 
 import std;
 import openmui;
@@ -28,7 +28,7 @@ import openmui.ui.markdown;
 export import :group_drag_behavior;
 export import :views_behavior;
 
-export namespace wall {
+export namespace omui::wall {
 
 struct Document {
     std::string key;     // stable: a hash of its path
@@ -117,4 +117,4 @@ void register_all();
 
 [[nodiscard]] omui::AppSpec app(Model& model);
 
-}  // namespace wall
+}  // namespace omui::wall

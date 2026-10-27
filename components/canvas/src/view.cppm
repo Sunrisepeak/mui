@@ -141,6 +141,10 @@ private:
     mutable std::uint64_t                drawn_revision_ = 0;
     std::string                          focused_;
     std::uint64_t                        tick_ = 0;   // the pending step's timer
+    // Nodes go live once the camera has rested this long (seconds).
+    static constexpr double              promote_after = 0.12;
+    anim::seconds                        last_motion_{-1e9};
+    std::uint64_t                        promote_timer_ = 0;
     bool                                 writing_ = false;
     bool                                 started_ = false;  // `start` has placed the camera
     Size                                 placed_for_{};     // the viewport the live nodes were placed for

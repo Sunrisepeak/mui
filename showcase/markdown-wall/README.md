@@ -3,9 +3,9 @@
 `omui-wall` is a document wall: every Markdown file under a folder laid out on the infinite canvas, a workspace per folder, to read and search across. openmui's own design documents are read with it (`omui-wall .agents/docs`); with `--synthetic N` it is the benchmark's wall of N documents.
 
 ```sh
-mcpp run -p openmui.showcase.markdown-wall -- .agents/docs
-mcpp run -p openmui.showcase.markdown-wall -- --synthetic 1000 --stream 20
-mcpp run -p openmui.showcase.markdown-wall -- docs --headless --png wall.png
+mcpp run -p openmui.showcase.wall -- .agents/docs
+mcpp run -p openmui.showcase.wall -- --synthetic 1000 --stream 20
+mcpp run -p openmui.showcase.wall -- docs --headless --png wall.png
 ```
 
 ## What it shows

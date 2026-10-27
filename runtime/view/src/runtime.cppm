@@ -221,6 +221,9 @@ public:
     void seek_time(anim::seconds t);    // takes effect at the next frame
     void release_time();                // back to the host's time
     [[nodiscard]] TimeState time_state() const noexcept;
+    // Frames drawn in the last second of real time (a frame with nothing to
+    // draw is not one): what a HUD shows as its frame rate.
+    [[nodiscard]] double frame_rate() const noexcept;
     // The last frames' statistics, oldest first (up to 240).
     [[nodiscard]] std::vector<FrameStats> frame_history() const;
     // The frame's pipeline and the stage plugins it is built from: tools

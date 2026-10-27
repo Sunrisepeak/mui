@@ -271,6 +271,13 @@ void* Runtime::instance_of(NodeId node, const ComponentType& type) noexcept {
     return n.type == &type ? n.instance : nullptr;
 }
 
+double Runtime::frame_rate() const noexcept {
+    const auto now = std::chrono::steady_clock::now();
+    return static_cast<double>(std::ranges::count_if(impl_->drawn, [&](auto t) {
+        return t != std::chrono::steady_clock::time_point{} && now - t <= std::chrono::seconds(1);
+    }));
+}
+
 bool Runtime::deterministic() const { return impl_->clock.kind() != anim::ClockKind::interactive; }
 NodeId Runtime::focused() const noexcept { return impl_->focus; }
 Verbs& Runtime::verbs() noexcept { return impl_->verbs; }

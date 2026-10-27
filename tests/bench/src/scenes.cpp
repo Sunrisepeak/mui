@@ -14,6 +14,7 @@ import openmui.anim;
 import openmui.markdown;
 import openmui.ui.canvas;
 import openmui.ui.canvas_kit;
+import openmui.showcase.wall;
 
 namespace omui::bench {
 
@@ -252,6 +253,132 @@ void add_framework_benchmarks() {
             s.counter("display_commands", static_cast<double>(h.runtime().display_list().size()));
         }
         h.step({PointerEvent{.kind = PointerKind::up, .position = grab, .button = MouseButton::left}});
+    });
+
+    // ── S1, the Markdown wall at 1080p (canvas-markdown §3.5): what a frame
+    // costs the UI thread while many windows move at once. The pool's work —
+    // laying pages out and rasterising their textures — is waited for before
+    // each frame, outside the timed part: it is not the frame's.
+    struct Wall {
+        omui::wall::Model model;
+        Headless          h{scene_options()};
+        Wall(std::size_t count, std::size_t groups, std::string scene) {
+            model.docs = omui::wall::synthetic(count, 1, groups);
+            model.scene = std::move(scene);
+            model.hud.set(false);
+            auto spec = omui::wall::app(model);
+            spec.setup(h.runtime());
+            h.mount("main", spec.view());
+            h.settle();
+        }
+        Canvas& canvas() { return *model.canvas(); }
+        void camera(double x, double y, double zoom) {
+            canvas().set_camera({x, y, zoom});
+            h.settle();
+        }
+        // One frame, timed alone.
+        FrameOutput frame(State& s, std::vector<InputEvent> events = {}) {
+            s.pause();
+            Tasks::shared().wait_idle();
+            s.resume();
+            const FrameOutput f = h.step(std::move(events));
+            const auto& st = canvas().stats();
+            s.counter("visible", static_cast<double>(st.visible));
+            s.counter("textured", static_cast<double>(st.textured));
+            s.counter("stretched", static_cast<double>(st.stretched));
+            s.counter("live", static_cast<double>(st.promoted));
+            s.counter("canvas_paint_ms", st.paint_ms);
+            frame_counters(s, f);
+            return f;
+        }
+        Point at(double x, double y) const {
+            return world::Camera{model.x.peek(), model.y.peek(), model.zoom.peek()}.to_screen(x, y, full_hd);
+        }
+    };
+    add("wall/zoom-sweep-1000", "1000 windows, the wheel sweeps 1% ↔ 400% about the centre: tiers, textures asked for and stretched", [](State& s) {
+        Wall w(1000, 40, "bench-wall-zoom");
+        const auto b = world::scene("bench-wall-zoom").bounds();
+        w.camera(b.x + b.width / 2, b.y + b.height / 2, 0.01);
+        float dir = -1;  // in
+        while (s.next()) {
+            const double z = w.model.zoom.peek();
+            if (z >= 4) dir = 1;
+            if (z <= 0.01) dir = -1;
+            w.frame(s, {WheelEvent{.position = {960, 540}, .delta = {0, 60 * dir}}});
+        }
+    });
+    add("wall/pan-1000", "1000 windows as textures (about 160 px each), a trackpad pans every frame", [](State& s) {
+        Wall w(1000, 40, "bench-wall-pan");
+        const auto b = world::scene("bench-wall-pan").bounds();
+        w.camera(b.x + b.width / 2, b.y + b.height / 2, 0.25);
+        int i = 0;
+        while (s.next()) {
+            ++i;
+            w.frame(s, {WheelEvent{.position = {960, 540}, .delta = {(i / 90) % 2 ? 41.0f : -41.0f, (i / 45) % 2 ? 23.0f : -23.0f}, .precise = true}});
+        }
+    });
+    add("wall/workspace-drag-100", "a workspace of 100 windows dragged by its label every frame (a declarative behaviour moving 101 nodes)", [](State& s) {
+        Wall w(1000, 10, "bench-wall-workspace");
+        auto& sc = world::scene("bench-wall-workspace");
+        world::NodeRef ws;
+        sc.each([&](world::NodeRef n) {
+            if (!ws.valid() && sc.kind_name(n) == "workspace") ws = n;
+        });
+        const auto r = sc.rect(ws);
+        w.camera(r.x + r.width / 2, r.y + r.height / 2, 0.12);
+        const Point label = w.at(r.x + 300, r.y + 30);
+        w.h.step({PointerEvent{.kind = PointerKind::down, .position = label, .button = MouseButton::left, .buttons = 1}});
+        int i = 0;
+        while (s.next()) {
+            ++i;
+            const float t = static_cast<float>(i) * 0.07f;
+            w.frame(s, {PointerEvent{.kind = PointerKind::move, .position = {label.x + 120 * std::sin(t), label.y + 70 * std::cos(t * 0.7f)}, .buttons = 1}});
+        }
+        w.h.step({PointerEvent{.kind = PointerKind::up, .position = label, .button = MouseButton::left}});
+    });
+    add("wall/selection-drag-1000", "all 1000 windows chosen, dragged by one title bar every frame (canvas-kit's drag and snap)", [](State& s) {
+        Wall w(1000, 40, "bench-wall-selection");
+        auto& sc = world::scene("bench-wall-selection");
+        std::vector<std::string> all;
+        world::NodeRef first;
+        sc.each([&](world::NodeRef n) {
+            if (sc.kind_name(n) != "window") return;
+            if (!first.valid()) first = n;
+            all.emplace_back(sc.key(n));
+        });
+        w.canvas().select(all);
+        const auto r = sc.rect(first);
+        w.camera(r.x + r.width / 2, r.y + r.height / 2, 0.4);
+        const Point title = w.at(r.x + r.width / 2, r.y + 12);
+        w.h.step({PointerEvent{.kind = PointerKind::down, .position = title, .button = MouseButton::left, .buttons = 1}});
+        int i = 0;
+        while (s.next()) {
+            ++i;
+            const float t = static_cast<float>(i) * 0.05f;
+            w.frame(s, {PointerEvent{.kind = PointerKind::move, .position = {title.x + 150 * std::sin(t), title.y + 90 * std::sin(t * 0.6f)}, .buttons = 1}});
+        }
+        w.h.step({PointerEvent{.kind = PointerKind::up, .position = title, .button = MouseButton::left}});
+    });
+    add("wall/stream-20", "20 windows written into at 50 tokens a second each: live ones append, textures stale four times a second", [](State& s) {
+        Wall w(1000, 40, "bench-wall-stream");
+        const auto b = world::scene("bench-wall-stream").bounds();
+        w.camera(b.x + b.width / 4, b.y + b.height / 4, 0.5);
+        w.model.stream(20, 50);
+        while (s.next()) w.frame(s);
+        w.model.stop_stream();
+    });
+    add("wall/sharpen", "the camera stops at a new zoom over a wall of 1000 pages: until every window on screen is sharp (§3.5, < 300 ms)", [](State& s) {
+        Wall w(1000, 40, "bench-wall-sharpen");
+        const auto b = world::scene("bench-wall-sharpen").bounds();
+        int i = 0;
+        while (s.next()) {
+            // Another level, and the pages' content new (the cache would answer an old one).
+            w.canvas().set_camera({b.x + b.width / 3, b.y + b.height / 3, ++i % 2 ? 0.31 : 0.17});
+            auto& sc = world::scene("bench-wall-sharpen");
+            sc.each([&](world::NodeRef n) { sc.touch(n); });
+            w.h.step();
+            w.h.settle();
+        }
     });
 
     // ── M1 ⑤: the 1000-node dashboard at 1080p, through the CPU renderer ──

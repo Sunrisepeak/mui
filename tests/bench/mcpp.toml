@@ -31,6 +31,7 @@ openmui.trace         = { path = "../../modules/trace" }
 openmui.markdown      = { path = "../../modules/markdown" }
 openmui.ui.canvas     = { path = "../../components/canvas" }
 openmui.ui.canvas_kit = { path = "../../components/canvas-kit" }
+openmui.showcase.wall = { path = "../../showcase/markdown-wall" }
 mcpplibs.os           = "0.1.2"
 
 [dev-dependencies]

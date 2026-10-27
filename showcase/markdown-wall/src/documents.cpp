@@ -1,10 +1,10 @@
 // The wall's documents: a folder's Markdown, or the benchmark's synthetic set.
-module wall;
+module openmui.showcase.wall;
 
 import std;
 import openmui;
 
-namespace wall {
+namespace omui::wall {
 
 namespace {
 
@@ -183,4 +183,4 @@ std::vector<Document> synthetic(std::size_t count, std::uint64_t seed, std::size
     return out;
 }
 
-}  // namespace wall
+}  // namespace omui::wall

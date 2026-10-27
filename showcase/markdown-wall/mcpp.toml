@@ -9,17 +9,20 @@
 # mode shows what each frame cost. `--stream N` has N windows written into
 # at a language model's pace; `--synthetic N` is the benchmark's dataset.
 #
-#   mcpp run -p openmui.showcase.markdown-wall -- .agents/docs
-#   mcpp run -p openmui.showcase.markdown-wall -- --synthetic 1000 --stream 20
+#   mcpp run -p openmui.showcase.wall -- .agents/docs
+#   mcpp run -p openmui.showcase.wall -- --synthetic 1000 --stream 20
 [package]
 namespace   = "openmui.showcase"
-name        = "markdown-wall"
+name        = "wall"
 version     = "0.1.0"
 description = "S1, the Markdown wall: a folder's documents on the infinite canvas, with tiers of detail, live windows, workspaces, streaming and a HUD"
 license     = "Apache-2.0"
 
 [package.metadata.openmui]
 kind = "showcase"
+
+[targets.openmui-showcase-wall]
+kind = "lib"
 
 [targets.omui-wall]
 kind = "bin"

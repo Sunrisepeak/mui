@@ -126,6 +126,7 @@ void Canvas::animate_to(const Camera& c, anim::SpringParams params) {
 // The camera after input or an animation step: the promoted nodes placed, the
 // view redrawn, the binding and listeners told.
 void Canvas::changed() {
+    last_motion_ = services().now();
     place();
     services().invalidate_paint(node());
     services().invalidate_semantics(node());
@@ -177,6 +178,7 @@ Canvas::~Canvas() {
     if (!observed_.empty())
         if (world::Scene* s = world::find_scene(observed_)) s->unobserve(observer_);
     if (tick_ && attached()) services().cancel(tick_);
+    if (promote_timer_ && attached()) services().cancel(promote_timer_);
     if (attached()) textures_.clear(services().images());
 }
 
@@ -248,16 +250,30 @@ void Canvas::place() {
     world::Scene* s = scene();
     const Size vp = viewport();
     std::vector<std::string> keys;
+    // While the camera moves, no node goes live (a live node is laid out on
+    // the UI thread: a zoom through a wall would stall on each one); those
+    // already live stay, the focused one goes at once, the rest when it rests.
+    const bool moving = (services().now() - last_motion_).count() < promote_after;
+    bool deferred = false;
     if (s && vp.width > 0) {
         std::vector<NodeRef> seen;
         s->query(camera_.visible(vp), seen);
         for (NodeRef n : seen) {
             const world::Kind& k = s->kind_of(n);
             if (!k.promote) continue;
-            const std::size_t t = tier_of(k, camera_.to_screen(s->rect(n), vp), s->key(n) == focused_);
-            if (k.tiers[t].draw == world::Tier::Draw::promote) keys.emplace_back(s->key(n));
+            const std::string_view key = s->key(n);
+            const std::size_t t = tier_of(k, camera_.to_screen(s->rect(n), vp), key == focused_);
+            if (k.tiers[t].draw != world::Tier::Draw::promote) continue;
+            if (moving && key != focused_ && std::ranges::find(promoted_, key) == promoted_.end()) deferred = true;
+            else keys.emplace_back(key);
         }
     }
+    if (deferred && !promote_timer_)
+        promote_timer_ = services().after(anim::seconds(promote_after), [this] {
+            promote_timer_ = 0;
+            place();
+            services().invalidate_paint(node());
+        });
     if (keys != promoted_) {
         promoted_ = std::move(keys);
         services().recompose(node());
@@ -375,7 +391,9 @@ void Canvas::paint(PaintContext& ctx) const {
     for (const NodeRef n : visible_) {
         const world::Kind& k = s->kind_of(n);
         const Rect screen = camera_.to_screen(s->rect(n), vp);
-        const std::size_t t = tier_of(k, screen, s->key(n) == focused_);
+        std::size_t t = tier_of(k, screen, s->key(n) == focused_);
+        // Not live yet (the camera is moving): the tier below it meanwhile.
+        if (k.tiers[t].draw == world::Tier::Draw::promote && t > 0 && std::ranges::find(promoted_, s->key(n)) == promoted_.end()) --t;
         switch (k.tiers[t].draw) {
             case world::Tier::Draw::box: {
                 const Color fill = s->fill(n);

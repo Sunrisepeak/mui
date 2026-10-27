@@ -1,12 +1,12 @@
 // The wall as a scene: workspaces and windows, and how each looks at each size.
-module wall;
+module openmui.showcase.wall;
 
 import std;
 import openmui;
 import openmui.ui.canvas;
 import openmui.ui.markdown;
 
-namespace wall {
+namespace omui::wall {
 
 namespace {
 
@@ -207,4 +207,4 @@ void build(Model& model, Scene& scene, const Geometry& g) {
         }
 }
 
-}  // namespace wall
+}  // namespace omui::wall

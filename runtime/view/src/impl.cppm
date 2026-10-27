@@ -266,6 +266,10 @@ struct Runtime::Impl {
     std::vector<ActionEntry>    journal;
     FrameStats                  stats;
     FrameRing                   history;
+    // When the last drawn frames were drawn (real time), a ring: the frame
+    // rate, up to 512 a second, with no allocation per frame.
+    std::array<std::chrono::steady_clock::time_point, 512> drawn{};
+    std::size_t                                           drawn_next = 0;
     // The frame as a pipeline of stage plugins (stages.cpp, D-66).
     pipeline::Registry                 registry;
     std::optional<pipeline::Pipeline>  frames;

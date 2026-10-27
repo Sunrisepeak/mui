@@ -1,5 +1,5 @@
 // The wall's model (live text, streaming), its HUD and the application.
-module wall;
+module openmui.showcase.wall;
 
 import std;
 import openmui;
@@ -7,7 +7,7 @@ import openmui.ui.canvas;
 import openmui.ui.canvas_kit;
 import openmui.ui.markdown;
 
-namespace wall {
+namespace omui::wall {
 
 namespace {
 
@@ -155,7 +155,7 @@ void hud(omui::Ui& ui, Model& model) {
     ui.column({.id = "hud", .width = 340, .padding = Edges(10.0f, 12.0f), .gap = 4, .background = Fill("surface"), .border_color = Fill("border"),
                .border_width = 1, .radius = 10, .shadow = "md"},
               [&] {
-                  ui.text(std::format("frame {:.2f} ms · p99 {:.2f} ms", p50, p99), {.id = "frame", .style = "label"});
+                  ui.text(std::format("{:.0f} fps · frame {:.2f} ms · p99 {:.2f} ms", model.runtime->frame_rate(), p50, p99), {.id = "frame", .style = "label"});
                   // The last frames, against a 120 Hz frame's 8.3 ms.
                   ui.add(painter({.id = "frames",
                                   .width = 316,
@@ -237,4 +237,4 @@ omui::AppSpec app(Model& model) {
     return a;
 }
 
-}  // namespace wall
+}  // namespace omui::wall

@@ -28,6 +28,10 @@ mcpp run -p openmui.bench -- --list                                  # what ther
 | `canvas/pan-1000`, `canvas/zoom-sweep-1000` | a wall of 1000 windows panned by a trackpad, zoomed in and out by the wheel: the visible set, tiers, the display list |
 | `canvas/pan-100k` | 100,000 windows, a few hundred on screen: the grid index makes it cost what is visible |
 | `canvas/sharpen` | 40 windows of content, the camera stops at a new zoom: until every texture is rasterised at it |
+| `wall/zoom-sweep-1000`, `wall/pan-1000` | S1's wall of 1000 pages: the wheel sweeping 1% ↔ 400%, a trackpad panning (the pool's work waited for outside the timed frame) |
+| `wall/workspace-drag-100`, `wall/selection-drag-1000` | moving many windows at once: a workspace of 100 by its label, 1000 chosen ones by a title |
+| `wall/stream-20` | 20 windows written into at 50 tokens a second |
+| `wall/sharpen` | the camera stops over the wall: until every window on screen is sharp |
 | `canvas-kit/drag-100k` | 10 chosen windows of 100,000 dragged every frame with select, drag, snap, grid and minimap on |
 
 Each result has min, mean, p50, p95, p99 and max per iteration (nearest

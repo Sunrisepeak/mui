@@ -76,9 +76,9 @@ private:
 // the mean colour of the nodes over it, more opaque where more of them are —
 // through difference arrays, so making it costs the nodes plus the pixels
 // whatever their sizes, and a frame draws it as one image. It is made again
-// when the scene changes: for a large scene at most ten times a second (a
-// drag changes it every frame, the image barely), in passes of 12,000 nodes
-// a frame, and once more when the changes stop.
+// when the scene changes: at most ten times a second (a drag changes it
+// every frame, the image barely), in passes of 12,000 nodes a frame, and once
+// more when the changes stop.
 class Minimap final : public Behavior {
 public:
     explicit Minimap(std::string_view args) {
@@ -170,8 +170,8 @@ private:
         h.set_camera(c);
     }
 
-    // Made again when the scene changes — for a large scene at most ten
-    // times a second, and in passes of a bounded number of nodes a frame, the
+    // Made again when the scene changes — at most ten times a second, and in
+    // passes of a bounded number of nodes a frame, the
     // last image drawn meanwhile: a frame never pays for the whole scene.
     void refresh(Host& h) {
         const Scene& s = h.scene();
@@ -179,7 +179,7 @@ private:
         const anim::seconds now = h.services().now();
         if (!building_) {
             if (built_ && s.revision() == revision_) return;
-            if (built_ && s.size() > per_frame && now - built_at_ < every) {
+            if (built_ && now - built_at_ < every) {
                 // Begun when the period is over (the canvas owns this behaviour: alive, so is its host).
                 if (!pending_) {
                     pending_ = true;

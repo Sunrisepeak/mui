@@ -58,6 +58,7 @@ FrameOutput Runtime::frame(const FrameInput& input) {
         *into += st.ms;
     }
     const bool repainted = d.repainted;
+    if (repainted) d.drawn[d.drawn_next++ % d.drawn.size()] = std::chrono::steady_clock::now();
     // Nodes that lived through a frame are shown: their changes may animate
     // from now on (at every stage alike, so H0, H1 and H2 agree).
     for (NodeId id : d.fresh)

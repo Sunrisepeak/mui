@@ -7,7 +7,7 @@
 import std;
 import openmui;
 import openmui.ui.canvas;
-import wall;
+import openmui.showcase.wall;
 import openmui.testing;
 
 using namespace omui::testing;
@@ -19,15 +19,15 @@ std::filesystem::path docs() { return std::filesystem::path(std::source_location
 
 struct App {
     Headless    h{HeadlessOptions{.size = {1440, 900}}};
-    wall::Model model;
-    explicit App(std::vector<wall::Document> d = {}) {
+    omui::wall::Model model;
+    explicit App(std::vector<omui::wall::Document> d = {}) {
         if (d.empty()) {
-            auto read = wall::read_folder(docs());
+            auto read = omui::wall::read_folder(docs());
             check(read.has_value(), read ? std::string{} : read.error());
             d = std::move(*read);
         }
         model.docs = std::move(d);
-        AppSpec spec = wall::app(model);
+        AppSpec spec = omui::wall::app(model);
         spec.setup(h.runtime());
         for (auto& v : spec.verbs) (void)h.runtime().verbs().add(v.desc, v.fn);
         h.mount("main", spec.view());
@@ -49,8 +49,8 @@ struct App {
     }
 };
 
-const wall::Document& by_path(const std::vector<wall::Document>& docs, std::string_view path) {
-    return *std::ranges::find(docs, path, &wall::Document::path);
+const omui::wall::Document& by_path(const std::vector<omui::wall::Document>& docs, std::string_view path) {
+    return *std::ranges::find(docs, path, &omui::wall::Document::path);
 }
 
 }  // namespace
@@ -59,7 +59,7 @@ int main(int argc, char** argv) {
     Suite s{"showcase.markdown-wall"};
 
     s.test("documents: a folder's Markdown, titled by its first heading, grouped by folder; made ones the same for a seed", [] {
-        const auto d = wall::read_folder(docs());
+        const auto d = omui::wall::read_folder(docs());
         check(d.has_value());
         std::vector<std::string> paths;
         for (const auto& doc : *d) paths.push_back(doc.path);
@@ -69,10 +69,10 @@ int main(int argc, char** argv) {
         check_eq(by_path(*d, "notes/todo.md").title, std::string("todo"));
         check_eq(by_path(*d, "README.md").group, std::string("."));
         check_eq(by_path(*d, "guide/install.md").group, std::string("guide"));
-        check(!wall::read_folder(docs() / "guide" / "install.md").has_value(), "a file is not a folder");
-        const auto a = wall::synthetic(120, 7), b = wall::synthetic(120, 7), c = wall::synthetic(120, 8);
-        check(a.size() == 120 && std::ranges::equal(a, b, {}, &wall::Document::source, &wall::Document::source), "the same for a seed");
-        check(!std::ranges::equal(a, c, {}, &wall::Document::source, &wall::Document::source), "another seed, other documents");
+        check(!omui::wall::read_folder(docs() / "guide" / "install.md").has_value(), "a file is not a folder");
+        const auto a = omui::wall::synthetic(120, 7), b = omui::wall::synthetic(120, 7), c = omui::wall::synthetic(120, 8);
+        check(a.size() == 120 && std::ranges::equal(a, b, {}, &omui::wall::Document::source, &omui::wall::Document::source), "the same for a seed");
+        check(!std::ranges::equal(a, c, {}, &omui::wall::Document::source, &omui::wall::Document::source), "another seed, other documents");
         std::set<std::string> groups;
         for (const auto& doc : a) groups.insert(doc.group);
         check_eq(groups.size(), std::size_t{5});
@@ -83,7 +83,7 @@ int main(int argc, char** argv) {
     });
 
     s.test("the layout: every window on its workspace, none over another, workspaces apart", [] {
-        App a(wall::synthetic(160, 3));
+        App a(omui::wall::synthetic(160, 3));
         auto& sc = a.scene();
         std::vector<world::NodeRef> workspaces, windows;
         sc.each([&](world::NodeRef n) { (sc.kind_name(n) == "workspace" ? workspaces : windows).push_back(n); });
@@ -94,7 +94,7 @@ int main(int argc, char** argv) {
             for (std::size_t j = i + 1; j < workspaces.size(); ++j) check(!overlap(sc.rect(workspaces[i]), sc.rect(workspaces[j])), "workspaces apart");
         for (std::size_t i = 0; i < windows.size(); ++i) {
             const auto r = sc.rect(windows[i]);
-            const auto ws = sc.rect(*sc.find(wall::key_of("workspace:" + std::string(sc.text(windows[i], "workspace")))));
+            const auto ws = sc.rect(*sc.find(omui::wall::key_of("workspace:" + std::string(sc.text(windows[i], "workspace")))));
             check(r.x >= ws.x && r.y >= ws.y + 72 && r.right() <= ws.right() && r.bottom() <= ws.bottom(), "on its workspace, below its label");
             for (std::size_t j = i + 1; j < windows.size(); ++j) check(!overlap(r, sc.rect(windows[j])), "windows apart");
         }
@@ -124,7 +124,7 @@ int main(int argc, char** argv) {
 
     s.test("a workspace drags by its label with its windows; Esc puts them back; a window drags by its title alone", [] {
         App a;
-        const auto guide = wall::key_of("workspace:guide");
+        const auto guide = omui::wall::key_of("workspace:guide");
         const auto install = by_path(a.model.docs, "guide/install.md").key, usage = by_path(a.model.docs, "guide/usage.md").key;
         const auto ws0 = a.rect(guide), i0 = a.rect(install), u0 = a.rect(usage);
         const double z = a.model.zoom.peek();

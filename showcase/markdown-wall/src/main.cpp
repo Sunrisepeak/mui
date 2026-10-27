@@ -3,7 +3,7 @@
 // windows. The rest of the line is openmui's (--dark, --headless --png …).
 import std;
 import openmui;
-import wall;
+import openmui.showcase.wall;
 
 int main(int argc, char** argv) {
     constexpr std::array<std::string_view, 8> valued{"--png", "--size", "--frames", "--level", "--agent-dir", "--debug", "--log", "--profile"};
@@ -20,13 +20,13 @@ int main(int argc, char** argv) {
         else if (!a.starts_with("--") && !(i > 1 && std::ranges::find(valued, std::string_view(argv[i - 1])) != valued.end()) && !folder) folder = std::string(a);
         else rest.push_back(argv[i]);
     }
-    wall::Model model;
+    omui::wall::Model model;
     if (synthetic) {
-        model.docs = wall::synthetic(synthetic);
+        model.docs = omui::wall::synthetic(synthetic);
         model.title = std::format("{} documents", synthetic);
     } else {
         const std::filesystem::path where = folder ? std::filesystem::path(std::u8string(folder->begin(), folder->end())) : std::filesystem::current_path();
-        auto docs = wall::read_folder(where);
+        auto docs = omui::wall::read_folder(where);
         if (!docs) {
             std::println(std::cerr, "omui-wall: {}", docs.error());
             return 1;
@@ -34,7 +34,7 @@ int main(int argc, char** argv) {
         model.docs = std::move(*docs);
         model.title = omui::utf8(std::filesystem::absolute(where).filename());
     }
-    omui::AppSpec spec = wall::app(model);
+    omui::AppSpec spec = omui::wall::app(model);
     if (stream) {
         auto setup = spec.setup;
         spec.setup = [setup, stream, &model](omui::Runtime& rt) {

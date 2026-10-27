@@ -18,4 +18,5 @@ export import :canvas_contract;
 export import :scene;
 export import :camera;
 export import :textures;
+export import :behavior;
 export import :view;

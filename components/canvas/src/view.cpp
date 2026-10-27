@@ -56,6 +56,8 @@ void Canvas::observe() {
 
 void Canvas::mounted() {
     self_ = this;
+    host_.c = this;
+    build_behaviors();
     observe();
     camera_ = {props.x, props.y, std::clamp(props.zoom, props.min_zoom, props.max_zoom)};
     textures_.configure({.budget = static_cast<std::size_t>(std::max(1.0, props.cache_mb) * 1024 * 1024),
@@ -83,7 +85,9 @@ void Canvas::prop_changed(CanvasProp p) {
             textures_.configure({.budget = static_cast<std::size_t>(std::max(1.0, props.cache_mb) * 1024 * 1024),
                                  .upload = static_cast<std::size_t>(std::max(0.25, props.upload_mb) * 1024 * 1024)});
             break;
+        case CanvasProp::behaviors: build_behaviors(); break;
         case CanvasProp::scene:
+            selected_.clear();
             textures_.clear(services().images());
             observe();
             place();
@@ -159,10 +163,62 @@ void Canvas::step() {
 }
 
 Canvas::~Canvas() {
+    if (attached())
+        for (const auto& b : behaviors_) b->unmounted(host_);
     if (!observed_.empty())
         if (world::Scene* s = world::find_scene(observed_)) s->unobserve(observer_);
     if (tick_ && attached()) services().cancel(tick_);
     if (attached()) textures_.clear(services().images());
+}
+
+// ── behaviours ───────────────────────────────────────────────────────────
+
+void Canvas::build_behaviors() {
+    gesture_ = nullptr;
+    if (attached())
+        for (const auto& b : behaviors_) b->unmounted(host_);
+    behaviors_.clear();
+    for (const std::string& name : props.behaviors) {
+        if (auto b = world::make_behavior(name)) behaviors_.push_back(std::move(b));
+        else warn("canvas: no behaviour is named '{}' (world::behaviors() lists them; canvas-kit registers its own)", name);
+    }
+    // Offered from the highest priority; equal ones in the order named.
+    std::ranges::stable_sort(behaviors_, std::greater{}, [](const auto& b) { return b->priority(); });
+    if (attached()) services().invalidate_paint(node());
+}
+
+world::Behavior* Canvas::behavior(std::string_view name) const {
+    for (const auto& b : behaviors_)
+        if (b->name() == name) return b.get();
+    return nullptr;
+}
+
+world::Scene& Canvas::HostAdapter::scene() {
+    world::Scene* s = c->scene();
+    if (!s) fatal("canvas: a behaviour asked for the scene of a canvas that shows none");
+    return *s;
+}
+
+void Canvas::HostAdapter::committed(std::string_view what, const Value& args) { c->services().emit(c->node(), what, args); }
+
+void Canvas::select(std::vector<std::string> keys) {
+    if (keys == selected_) return;
+    selected_ = std::move(keys);
+    services().invalidate_paint(node());
+    services().invalidate_semantics(node());
+    emit_selection_changed(selected_);
+}
+
+world::PointerInput Canvas::pointer_input(const PointerEvent& p, Point at) const {
+    world::PointerInput in;
+    in.kind = p.kind;
+    in.screen = at;
+    in.world = camera_.to_world(at, viewport());
+    in.button = p.button;
+    in.mods = p.mods;
+    in.clicks = p.clicks;
+    if (world::Scene* s = scene()) in.hit = s->hit(in.world[0], in.world[1]);
+    return in;
 }
 
 // ── tiers and promotion ──────────────────────────────────────────────────
@@ -263,6 +319,8 @@ void Canvas::paint(PaintContext& ctx) const {
     if (!s || vp.width <= 0 || vp.height <= 0) return;
     s->query(camera_.visible(vp), visible_);
     const auto queried = std::chrono::steady_clock::now();
+    for (const auto& b : behaviors_) b->paint_under(host_, ctx.list);
+    paint_edges(*s, ctx.list, vp);
     stats_.visible = visible_.size();
     for (const NodeRef n : visible_) {
         const world::Kind& k = s->kind_of(n);
@@ -325,6 +383,49 @@ void Canvas::paint(PaintContext& ctx) const {
     trace::count("canvas.visible", static_cast<double>(stats_.visible), "canvas");
 }
 
+void Canvas::paint_over(PaintContext& ctx) const {
+    if (!scene()) return;
+    for (const auto& b : behaviors_) b->paint_over(host_, ctx.list);
+}
+
+// Edges between their nodes' facing sides: a curve, or a straight line when
+// far out; none when both ends are dots.
+void Canvas::paint_edges(const world::Scene& s, render::DisplayList& list, Size vp) const {
+    const auto edges = s.edges();
+    if (edges.empty()) return;
+    const world::WorldRect view = camera_.visible(vp);
+    const auto z = static_cast<float>(camera_.zoom);
+    for (const world::Edge& e : edges) {
+        const auto a = s.find(e.from), b = s.find(e.to);
+        if (!a || !b) continue;
+        const world::WorldRect ra = s.rect(*a), rb = s.rect(*b);
+        if (!ra.united(rb).overlaps(view)) continue;
+        const Rect sa = camera_.to_screen(ra, vp), sb = camera_.to_screen(rb, vp);
+        if (std::max(sa.width, sa.height) < 2 && std::max(sb.width, sb.height) < 2) continue;
+        const Point ca{sa.x + sa.width / 2, sa.y + sa.height / 2}, cb{sb.x + sb.width / 2, sb.y + sb.height / 2};
+        // Out of the sides that face each other.
+        const bool horizontal = std::abs(cb.x - ca.x) * sa.height >= std::abs(cb.y - ca.y) * sa.width;
+        Point p0, p1, n0, n1;
+        if (horizontal) {
+            const float dir = cb.x >= ca.x ? 1.0f : -1.0f;
+            p0 = {dir > 0 ? sa.right() : sa.x, ca.y};
+            p1 = {dir > 0 ? sb.x : sb.right(), cb.y};
+            n0 = {dir, 0}, n1 = {-dir, 0};
+        } else {
+            const float dir = cb.y >= ca.y ? 1.0f : -1.0f;
+            p0 = {ca.x, dir > 0 ? sa.bottom() : sa.y};
+            p1 = {cb.x, dir > 0 ? sb.y : sb.bottom()};
+            n0 = {0, dir}, n1 = {0, -dir};
+        }
+        render::Path path;
+        path.move_to(p0);
+        const float bend = std::hypot(p1.x - p0.x, p1.y - p0.y) * 0.4f;
+        if (camera_.zoom < 0.15 || bend < 6) path.line_to(p1);
+        else path.cubic_to({p0.x + n0.x * bend, p0.y + n0.y * bend}, {p1.x + n1.x * bend, p1.y + n1.y * bend}, p1);
+        list.stroke_path(path, {.width = std::max(1.0f, e.width * z), .cap = render::LineCap::round}, render::Paint::solid(e.color));
+    }
+}
+
 // ── input: drag pans, the wheel and a pinch zoom, a fling glides ─────────
 
 bool Canvas::on_event(EventContext& ctx, const InputEvent& e) {
@@ -344,6 +445,9 @@ bool Canvas::on_event(EventContext& ctx, const InputEvent& e) {
         changed();
         return true;
     }
+    if (const auto* k = std::get_if<KeyEvent>(&e); k && k->kind == KeyKind::down && scene())
+        for (const auto& b : behaviors_)
+            if (b->key(host_, *k)) return true;
     if (const auto* k = std::get_if<KeyEvent>(&e); k && k->kind == KeyKind::down) {
         const float step = 80;
         switch (k->key) {
@@ -366,6 +470,30 @@ bool Canvas::on_event(EventContext& ctx, const InputEvent& e) {
     const auto* p = std::get_if<PointerEvent>(&e);
     if (!p) return false;
     const Point at{p->position.x - origin.x, p->position.y - origin.y};
+    // The gesture arena: a press goes to the behaviours, the highest first,
+    // until one takes it; that one has the pointer until it is released.
+    if (gesture_) {
+        if (p->kind == PointerKind::move || p->kind == PointerKind::up || p->kind == PointerKind::cancel) {
+            world::Behavior* b = gesture_;
+            (void)b->pointer(host_, pointer_input(*p, at));
+            if (p->kind != PointerKind::move) {
+                gesture_ = nullptr;
+                services().release_pointer();
+            }
+            return true;
+        }
+    } else if (p->kind == PointerKind::down && pointers_.empty() && scene()) {
+        const world::PointerInput in = pointer_input(*p, at);
+        for (const auto& b : behaviors_)
+            if (b->pointer(host_, in) == world::Claim::take) {
+                gesture_ = b.get();
+                motion_.reset();
+                glide_.reset();
+                services().capture_pointer(node());
+                services().focus(node());
+                return true;
+            }
+    }
     auto pointer = std::ranges::find(pointers_, p->pointer, &Pointer::id);
     switch (p->kind) {
         case PointerKind::down: {
@@ -384,6 +512,8 @@ bool Canvas::on_event(EventContext& ctx, const InputEvent& e) {
             if (pointer == pointers_.end()) pointers_.push_back({p->pointer, at});
             else pointer->at = at;
             dragging_ = true;
+            pressed_at_ = at;
+            travelled_ = false;
             velocity_ = {};
             last_move_ = services().now();
             pinch_distance_ = 0;
@@ -405,6 +535,8 @@ bool Canvas::on_event(EventContext& ctx, const InputEvent& e) {
                 if (pointer == pointers_.begin() || pointer == pointers_.begin() + 1) camera_.pan({(at.x - before.x) / 2, (at.y - before.y) / 2});
             } else {
                 const Point delta{at.x - before.x, at.y - before.y};
+                if (std::hypot(at.x - pressed_at_.x, at.y - pressed_at_.y) > 3) travelled_ = true;
+                if (!travelled_) return true;  // a tap's jitter does not pan
                 camera_.pan(delta);
                 // The pointer's velocity, smoothed, for the fling.
                 const anim::seconds now = services().now();
@@ -425,6 +557,13 @@ bool Canvas::on_event(EventContext& ctx, const InputEvent& e) {
             }
             dragging_ = false;
             services().release_pointer();
+            // A click no behaviour took: offered to them as a tap.
+            if (!travelled_ && p->kind == PointerKind::up && scene()) {
+                const world::PointerInput in = pointer_input(*p, at);
+                for (const auto& b : behaviors_)
+                    if (b->tap(host_, in)) return true;
+                return true;
+            }
             // A fling: the last movement was recent and fast.
             const bool recent = (services().now() - last_move_).count() < 0.1;
             if (props.inertia && recent && p->kind == PointerKind::up && std::hypot(velocity_.x, velocity_.y) > 50) {
@@ -444,31 +583,58 @@ void Canvas::semantics(SemanticsContext&, spec::SemanticNode& n) const {
     if (world::Scene* s = scene()) n.description = std::format("{} nodes, {} on screen; zoom {:.3g}", s->size(), visible_.size(), camera_.zoom);
 }
 
+spec::SemanticNode Canvas::item(const world::Scene& s, NodeRef n, std::string_view path, Size vp, Rect b) const {
+    const world::Kind& k = s.kind_of(n);
+    spec::SemanticNode it;
+    const std::string_view key = s.key(n);
+    it.id = std::format("{}/{}", path, key);
+    it.role = k.role;
+    it.name = std::string(s.text(n, k.name_column));
+    const Rect r = camera_.to_screen(s.rect(n), vp);
+    it.bounds = spec::Rect{b.x + r.x, b.y + r.y, r.width, r.height};
+    it.states.set(State::offscreen, !camera_.visible(vp).overlaps(s.rect(n)));
+    it.states.set(State::focused, key == focused_);
+    it.states.set(State::selected, std::ranges::find(selected_, key) != selected_.end());
+    it.actions.push_back({"focus", Effect::read, {}, {}, {}});
+    // What the behaviours make of it (its `move` because drag is on).
+    for (const auto& beh : behaviors_) beh->describe(host_, n, it);
+    return it;
+}
+
 std::vector<spec::SemanticNode> Canvas::virtual_items(std::string_view path) const {
     std::vector<spec::SemanticNode> out;
     world::Scene* s = scene();
     if (!s || !attached()) return out;
     const Size vp = viewport();
     const Rect b = services().bounds(node());
-    std::vector<NodeRef> on_screen;
-    s->query(camera_.visible(vp), on_screen);
+    std::vector<NodeRef> stated;
+    s->query(camera_.visible(vp), stated);
+    // The focused and the selected are stated wherever they are.
+    for (const std::string& k : selected_)
+        if (auto n = s->find(k); n && std::ranges::find(stated, *n) == stated.end()) stated.push_back(*n);
     if (!focused_.empty())
-        if (auto f = s->find(focused_); f && std::ranges::find(on_screen, *f) == on_screen.end()) on_screen.push_back(*f);
-    out.reserve(on_screen.size());
-    for (const NodeRef n : on_screen) {
-        const world::Kind& k = s->kind_of(n);
-        spec::SemanticNode item;
-        item.id = std::format("{}/{}", path, s->key(n));
-        item.role = k.role;
-        item.name = std::string(s->text(n, k.name_column));
-        const Rect r = camera_.to_screen(s->rect(n), vp);
-        item.bounds = spec::Rect{b.x + r.x, b.y + r.y, r.width, r.height};
-        item.states.set(State::offscreen, !camera_.visible(vp).overlaps(s->rect(n)));
-        item.states.set(State::focused, s->key(n) == focused_);
-        item.actions.push_back({"focus", Effect::read, {}, {}, {}});
-        out.push_back(std::move(item));
-    }
+        if (auto f = s->find(focused_); f && std::ranges::find(stated, *f) == stated.end()) stated.push_back(*f);
+    out.reserve(stated.size());
+    for (const NodeRef n : stated) out.push_back(item(*s, n, path, vp, b));
     return out;
+}
+
+std::optional<spec::SemanticNode> Canvas::virtual_item(std::string_view path, std::string_view key) const {
+    world::Scene* s = scene();
+    if (!s || !attached()) return std::nullopt;
+    const auto n = s->find(key);
+    if (!n) return std::nullopt;
+    return item(*s, *n, path, viewport(), services().bounds(node()));
+}
+
+ActResult Canvas::act_item(ActContext& ctx, std::string_view key, std::string_view action) {
+    world::Scene* s = scene();
+    const auto n = s ? s->find(key) : std::nullopt;
+    if (!n) return ActResult::fail(std::format("no node has the key `{}`", key));
+    if (action == "focus") return focus_node(ctx, Value(std::string(key)));
+    for (const auto& b : behaviors_)
+        if (auto r = b->act(host_, *n, action, ctx.args)) return *r;
+    return ActResult::fail(std::format("`{}` has no action `{}`", key, action));
 }
 
 bool Canvas::reveal(std::string_view key) {

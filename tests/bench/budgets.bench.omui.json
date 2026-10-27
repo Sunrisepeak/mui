@@ -18,6 +18,8 @@
      "why": "canvas-markdown §3.5: zooming the same wall in and out costs under 1 ms of CPU a frame"},
     {"name": "canvas/pan-100k", "metric": "p95_ms", "max": 1.0,
      "why": "the grid index: a 100,000-node scene pans as cheaply as what is on screen"},
+    {"name": "canvas-kit/drag-100k", "metric": "p95_ms", "max": 1.0,
+     "why": "canvas-markdown §1.1: dragging a selection with snapping, the grid and a minimap of 100,000 nodes costs under 1 ms of CPU a frame"},
     {"name": "ui/frame/idle", "metric": "p95_ms", "max": 0.5,
      "why": "a frame with nothing to do costs next to nothing"},
     {"name": "ui/frame/idle", "metric": "max_allocations", "max": 0,

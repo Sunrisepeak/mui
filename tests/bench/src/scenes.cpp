@@ -13,6 +13,7 @@ import openmui.host.headless;
 import openmui.anim;
 import openmui.markdown;
 import openmui.ui.canvas;
+import openmui.ui.canvas_kit;
 
 namespace omui::bench {
 
@@ -212,6 +213,45 @@ void add_framework_benchmarks() {
     });
     add("canvas/pan-100k", "100,000 windows, a few hundred on screen: the frame follows what is visible, not the scene", [=](State& s) {
         canvas_frame(s, "bench-big", 100000, 0.25, false);
+    });
+    // canvas-kit: a person dragging a selection about a large scene, with
+    // everything on — selection outlines, snapping to what is in view, the
+    // grid and the minimap over 100,000 nodes.
+    register_canvas_kit();
+    add("canvas-kit/drag-100k", "100,000 windows, 10 chosen dragged every frame with select, drag, snap, grid and minimap on", [](State& s) {
+        canvas_wall("bench-kit", 100000);
+        Headless h(scene_options());
+        h.mount("main", column({.width = full_hd.width, .height = full_hd.height},
+                               {canvas({.id = "wall",
+                                        .behaviors = std::vector<std::string>{"select", "drag", "snap", "grid", "minimap"},
+                                        .scene = "bench-kit",
+                                        .x = 9000,
+                                        .y = 6000,
+                                        .zoom = 0.25,
+                                        .width = full_hd.width,
+                                        .height = full_hd.height})}));
+        h.settle();
+        // Ten windows near the centre, chosen as an agent would.
+        auto& sc = world::scene("bench-kit");
+        std::vector<world::NodeRef> near;
+        sc.query({8000, 5000, 2000, 2000}, near);
+        Invocation call;
+        call.actor = {"agent", "bench", {}};
+        for (std::size_t i = 0; i < std::min<std::size_t>(10, near.size()); ++i) (void)h.tree().act(std::format("main/wall/{}", sc.key(near[i])), "select", call);
+        h.step();
+        const world::WorldRect first = sc.rect(near.front());
+        const Point grab{static_cast<float>(960 + (first.x + 40 - 9000) * 0.25), static_cast<float>(540 + (first.y + 40 - 6000) * 0.25)};
+        h.step({PointerEvent{.kind = PointerKind::down, .position = grab, .button = MouseButton::left, .buttons = 1}});
+        int i = 0;
+        while (s.next()) {
+            ++i;
+            // Back and forth, past the snapping distance each way.
+            const float dx = 40.0f * std::sin(static_cast<float>(i) * 0.05f), dy = 25.0f * std::cos(static_cast<float>(i) * 0.031f);
+            const FrameOutput f = h.step({PointerEvent{.kind = PointerKind::move, .position = {grab.x + dx, grab.y + dy}, .buttons = 1}});
+            frame_counters(s, f);
+            s.counter("display_commands", static_cast<double>(h.runtime().display_list().size()));
+        }
+        h.step({PointerEvent{.kind = PointerKind::up, .position = grab, .button = MouseButton::left}});
     });
 
     // ── M1 ⑤: the 1000-node dashboard at 1080p, through the CPU renderer ──

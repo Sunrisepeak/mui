@@ -285,6 +285,67 @@ Envelope Runtime::act(NodeId node, std::string_view action, const Invocation& ca
     return e;
 }
 
+Envelope Runtime::act_item(NodeId holder, std::string_view key, std::string_view action, const Invocation& call) {
+    Impl& d = *impl_;
+    Envelope env;
+    const std::string where = d.alive(holder) ? std::format("{}/{}", path(holder), key) : std::string(key);
+    auto finish = [&](Envelope e) {
+        d.journal.push_back({where, std::string(action), call.actor.text(), e.exit_code().value_or(0)});
+        return e;
+    };
+    if (!d.alive(holder) || !d.at(holder).type->act_item || !d.at(holder).type->virtual_item) {
+        env.error(spec::error_code::not_found, std::format("no node '{}'", where)).result(spec::exit_code::failure);
+        return finish(std::move(env));
+    }
+    const Node& h = d.at(holder);
+    const auto item = h.type->virtual_item(h.instance, path(holder), key);
+    if (!item) {
+        env.error(spec::error_code::not_found, std::format("no node '{}'", where)).result(spec::exit_code::failure);
+        return finish(std::move(env));
+    }
+    const spec::ActionDesc* a = item->action(action);
+    if (!a) {
+        Value::List names;
+        for (const spec::ActionDesc& x : item->actions) names.emplace_back(x.name);
+        env.error(spec::error_code::not_found, std::format("'{}' has no action '{}'", where, action), Value{}.set("actions", Value(std::move(names))))
+            .result(spec::exit_code::failure);
+        return finish(std::move(env));
+    }
+    if (spec::requires_answer(a->effect) && call.answer != a->answer)
+        return finish(needs_answer(std::format("{} on '{}' ({})", action, where, spec::name(a->effect)), a->answer));
+    if (!a->args.empty())
+        if (auto wrong = invalid_arguments(*a, call.args); !wrong.empty()) {
+            Value::Map takes;
+            for (const auto& [name, type] : a->args) takes.emplace_back(name, Value(type));
+            env.error(spec::error_code::invalid_argument, std::format("{} on '{}': {}", action, where, wrong), Value{}.set("args", Value(std::move(takes))))
+                .result(spec::exit_code::failure);
+            return finish(std::move(env));
+        }
+    const ActResult r = batch([&] {
+        ActContext ctx{*this, holder, call.args};
+        return d.at(holder).type->act_item(d.at(holder).instance, ctx, key, action);
+    });
+    if (!r.ok) {
+        env.error(spec::error_code::refused, r.error.empty() ? std::format("'{}' refused '{}'", where, action) : r.error).result(spec::exit_code::failure);
+        return finish(std::move(env));
+    }
+    if (!r.data.is_null()) env.data(r.data);
+    env.result(spec::exit_code::success);
+    d.touch(dirty_semantics | dirty_paint);
+    return finish(std::move(env));
+}
+
+std::optional<spec::SemanticNode> Runtime::virtual_item(NodeId holder, std::string_view key) const {
+    const Impl& d = *impl_;
+    if (!d.alive(holder) || !d.at(holder).type->virtual_item) return std::nullopt;
+    return d.at(holder).type->virtual_item(d.at(holder).instance, path(holder), key);
+}
+
+bool Runtime::acts_on_items(NodeId holder) const {
+    const Impl& d = *impl_;
+    return d.alive(holder) && d.at(holder).type->act_item && d.at(holder).type->virtual_item;
+}
+
 std::span<const ActionEntry> Runtime::action_journal() const noexcept { return impl_->journal; }
 
 std::vector<spec::ActionDesc> Runtime::actions(NodeId node) const {

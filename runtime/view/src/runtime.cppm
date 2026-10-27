@@ -235,6 +235,13 @@ public:
     // being removed, disabled nodes, the verb a node invokes. `call.args`
     // are the action's arguments; answers with an envelope.
     Envelope act(NodeId node, std::string_view action, const Invocation& call = {});
+    // An action on an item a virtualising node holds without a node of its
+    // own (its `act_item`): the item's action checked as a node's is —
+    // effect, answer, arguments — and journaled.
+    Envelope act_item(NodeId holder, std::string_view key, std::string_view action, const Invocation& call = {});
+    // An item of a virtualising node, stated or not (its `virtual_item`).
+    [[nodiscard]] std::optional<spec::SemanticNode> virtual_item(NodeId holder, std::string_view key) const;
+    [[nodiscard]] bool acts_on_items(NodeId holder) const;
     [[nodiscard]] std::span<const ActionEntry> action_journal() const noexcept;
     // The actions a node offers now, with their effects.
     [[nodiscard]] std::vector<spec::ActionDesc> actions(NodeId node) const;

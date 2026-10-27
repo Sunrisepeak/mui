@@ -22,11 +22,18 @@ inertia    = { type = "bool", default = true, doc = "A fling glides on and slows
 background = { type = "color", default = "background", doc = "Behind the scene." }
 label      = { type = "string", default = "", doc = "The canvas's accessible name." }
 cache_mb   = { type = "f64", default = 256, doc = "Memory for nodes' textures (MiB); beyond it the least recently drawn go, and their nodes fall back a tier." }
+behaviors  = { type = "list<string>", default = [], doc = "What else it does, by name: canvas-kit's select, drag, resize, snap, connect, grid, minimap, delete, a program's own, or a declarative behaviour's (*.behavior.omui.toml)." }
 upload_mb  = { type = "f64", default = 16, doc = "Textures entering the frame at most (MiB a frame): what a GPU uploads stays within a frame's budget." }
 
 [contract.canvas.events]
 camera_changed = { args = { x = "f64", y = "f64", zoom = "f64" }, coalesce = "frame" }
-activated      = { args = { key = "string" } }
+activated         = { args = { key = "string" } }
+selection_changed = { args = { keys = "list<string>" } }
+moved             = { args = { keys = "list<string>", dx = "f64", dy = "f64" } }
+resized           = { args = { key = "string", x = "f64", y = "f64", width = "f64", height = "f64" } }
+connected         = { args = { edge = "string", from = "string", to = "string" } }
+disconnected      = { args = { edge = "string", from = "string", to = "string" } }
+deleted           = { args = { keys = "list<string>" } }
 
 [contract.canvas.actions]
 pan_to        = { effect = "read", args = { x = "f64", y = "f64" }, doc = "Move the view's centre to a world point (animated)." }

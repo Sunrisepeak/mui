@@ -206,6 +206,11 @@ struct ComponentType {
     // materialising one by its key.
     std::vector<spec::SemanticNode> (*virtual_items)(const void*, std::string_view path) = nullptr;
     bool (*reveal)(void*, std::string_view key) = nullptr;
+    // A virtualising component whose items need not become nodes to be acted
+    // on (a canvas's thousands): one item's semantics by key, stated or not,
+    // and its actions, performed by the component.
+    std::optional<spec::SemanticNode> (*virtual_item)(const void*, std::string_view path, std::string_view key) = nullptr;
+    ActResult (*act_item)(void*, ActContext&, std::string_view key, std::string_view action) = nullptr;
     // After each layout pass, with bounds known (measured sizes, keeping
     // something in view): changes made here show at the next frame.
     void (*laid_out)(void*) = nullptr;
@@ -235,6 +240,10 @@ template <class C>
             x.compose = [](void* p) { return static_cast<C*>(p)->compose(); };
         if constexpr (requires(const C& c, std::string_view p) { { c.virtual_items(p) } -> std::same_as<std::vector<spec::SemanticNode>>; })
             x.virtual_items = [](const void* p, std::string_view path) { return static_cast<const C*>(p)->virtual_items(path); };
+        if constexpr (requires(const C& c, std::string_view p) { { c.virtual_item(p, p) } -> std::same_as<std::optional<spec::SemanticNode>>; })
+            x.virtual_item = [](const void* p, std::string_view path, std::string_view key) { return static_cast<const C*>(p)->virtual_item(path, key); };
+        if constexpr (requires(C& c, ActContext& ctx, std::string_view k) { { c.act_item(ctx, k, k) } -> std::same_as<ActResult>; })
+            x.act_item = [](void* p, ActContext& ctx, std::string_view key, std::string_view a) { return static_cast<C*>(p)->act_item(ctx, key, a); };
         if constexpr (requires(C& c, std::string_view k) { { c.reveal(k) } -> std::same_as<bool>; })
             x.reveal = [](void* p, std::string_view key) { return static_cast<C*>(p)->reveal(key); };
         if constexpr (requires(C& c) { c.laid_out(); })

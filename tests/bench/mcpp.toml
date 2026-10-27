@@ -26,11 +26,12 @@ main = "src/main.cpp"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-openmui.sdk      = { path = "../.." }
-openmui.trace    = { path = "../../modules/trace" }
-openmui.markdown = { path = "../../modules/markdown" }
-openmui.ui.canvas = { path = "../../components/canvas" }
-mcpplibs.os      = "0.1.2"
+openmui.sdk           = { path = "../.." }
+openmui.trace         = { path = "../../modules/trace" }
+openmui.markdown      = { path = "../../modules/markdown" }
+openmui.ui.canvas     = { path = "../../components/canvas" }
+openmui.ui.canvas_kit = { path = "../../components/canvas-kit" }
+mcpplibs.os           = "0.1.2"
 
 [dev-dependencies]
 openmui.testing = { path = "../support" }

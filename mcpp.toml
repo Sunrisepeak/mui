@@ -62,6 +62,7 @@ members = [
     "components/markdown",
     "components/liquid-glass",
     "components/canvas",
+    "components/canvas-kit",
     "tools/gen",
     "tools/omui",
     "tools/inspector",

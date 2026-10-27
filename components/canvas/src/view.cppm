@@ -26,6 +26,7 @@ import :canvas_contract;
 import :scene;
 import :camera;
 import :textures;
+import :behavior;
 
 export namespace omui {
 
@@ -43,9 +44,12 @@ public:
     void prop_changed(CanvasProp p);
     void style(const Theme& theme, layout::Style& s) const;
     void paint(PaintContext& ctx) const;
+    void paint_over(PaintContext& ctx) const;  // the behaviours' overlays, above the live nodes too
     bool on_event(EventContext& ctx, const InputEvent& e);
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
     std::vector<spec::SemanticNode> virtual_items(std::string_view path) const;
+    std::optional<spec::SemanticNode> virtual_item(std::string_view path, std::string_view key) const;
+    ActResult act_item(ActContext& ctx, std::string_view key, std::string_view action);
     bool reveal(std::string_view key);
     std::vector<Element> compose();
 
@@ -73,6 +77,11 @@ public:
     };
     [[nodiscard]] world::Textures::Stats texture_stats() const { return textures_.stats(); }
     [[nodiscard]] const Stats& stats() const noexcept { return stats_; }
+    // The selection (keys, in the order chosen), and choosing it.
+    [[nodiscard]] const std::vector<std::string>& selection() const noexcept { return selected_; }
+    void select(std::vector<std::string> keys);
+    // The behaviours this canvas holds (its `behaviors`).
+    [[nodiscard]] world::Behavior* behavior(std::string_view name) const;
 
 private:
     void changed();   // after the camera moved: placed, redrawn, told
@@ -81,6 +90,30 @@ private:
     void place();     // the live nodes: composed, or moved with the camera
     [[nodiscard]] std::array<float, 3> placement(const world::Scene& s, world::NodeRef n, Size viewport) const;
     [[nodiscard]] std::size_t tier_of(const world::Kind& k, Rect screen, bool focused) const;
+    void build_behaviors();
+    [[nodiscard]] world::PointerInput pointer_input(const PointerEvent& p, Point at) const;
+    spec::SemanticNode item(const world::Scene& s, world::NodeRef n, std::string_view path, Size vp, Rect bounds) const;
+    void paint_edges(const world::Scene& s, render::DisplayList& list, Size vp) const;
+
+    // What behaviours see of the canvas.
+    struct HostAdapter final : world::Host {
+        Canvas* c = nullptr;
+        world::Scene& scene() override;
+        world::Camera camera() const override { return c->camera_; }
+        Size viewport() const override { return c->viewport(); }
+        void set_camera(const world::Camera& cam) override { c->set_camera(cam); }
+        void animate_to(const world::Camera& cam) override { c->animate_to(cam); }
+        Services& services() override { return c->services(); }
+        void redraw() override { c->services().invalidate_paint(c->node()); }
+        const std::vector<std::string>& selection() const override { return c->selected_; }
+        void select(std::vector<std::string> keys) override { c->select(std::move(keys)); }
+        void committed(std::string_view what, const Value& args) override;
+        world::Behavior* behavior(std::string_view name) override { return c->behavior(name); }
+    };
+    mutable HostAdapter                           host_;
+    std::vector<std::unique_ptr<world::Behavior>> behaviors_;
+    world::Behavior*                              gesture_ = nullptr;  // the behaviour that took the pointer
+    std::vector<std::string>                      selected_;
 
     world::Camera camera_;
     // An animation in flight (a spring to a view, or a fling's glide).
@@ -94,6 +127,8 @@ private:
     std::vector<Pointer> pointers_;
     bool                 dragging_ = false;
     Point                velocity_{};      // screen px/s, for the fling
+    Point                pressed_at_{};    // where the press no behaviour took began (a tap ends there)
+    bool                 travelled_ = false;
     anim::seconds        last_move_{0};
     float                pinch_distance_ = 0;
     // The frame's view of the scene.

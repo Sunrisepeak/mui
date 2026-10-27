@@ -171,11 +171,22 @@ std::optional<spec::SemanticNode> Tree::node(std::string_view id) {
     // A lifted node (compact trees) is still addressable.
     NodeId n = runtime_.find(id);
     if (runtime_.valid(n)) return runtime_.semantic_node(n);
+    // An item its holder states only when asked (a canvas's offscreen nodes).
+    if (const auto cut = id.rfind('/'); cut != std::string_view::npos)
+        if (NodeId holder = runtime_.find(id.substr(0, cut)); runtime_.valid(holder))
+            return runtime_.virtual_item(holder, id.substr(cut + 1));
     return std::nullopt;
 }
 
 Envelope Tree::act(std::string_view id, std::string_view action, const Invocation& call) {
     // An item a list holds unmaterialised is materialised first (S-7).
+    // An item its holder acts on without a node (a canvas's), for the actions
+    // the holder states on it; anything else materialises it first.
+    if (!runtime_.valid(runtime_.find(id)))
+        if (const auto cut = id.rfind('/'); cut != std::string_view::npos)
+            if (NodeId holder = runtime_.find(id.substr(0, cut)); runtime_.valid(holder) && runtime_.acts_on_items(holder))
+                if (const auto item = runtime_.virtual_item(holder, id.substr(cut + 1)); item && item->action(action))
+                    return runtime_.act_item(holder, id.substr(cut + 1), action, call);
     NodeId n = runtime_.reveal(id);
     if (!runtime_.valid(n)) {
         Envelope e;

@@ -25,6 +25,10 @@ mcpp run -p openmui.bench -- --list                                  # what ther
 | `text/paragraph` | shaping and breaking 2 KB of text (per byte) |
 | `trace/span-off`, `trace/span-on` | a span while nothing records, and while a profile does (per span) |
 | `log/filtered-out` | a debug record the filter leaves out (per record) |
+| `canvas/pan-1000`, `canvas/zoom-sweep-1000` | a wall of 1000 windows panned by a trackpad, zoomed in and out by the wheel: the visible set, tiers, the display list |
+| `canvas/pan-100k` | 100,000 windows, a few hundred on screen: the grid index makes it cost what is visible |
+| `canvas/sharpen` | 40 windows of content, the camera stops at a new zoom: until every texture is rasterised at it |
+| `canvas-kit/drag-100k` | 10 chosen windows of 100,000 dragged every frame with select, drag, snap, grid and minimap on |
 
 Each result has min, mean, p50, p95, p99 and max per iteration (nearest
 rank), the cost per item, heap allocations per iteration (the program counts

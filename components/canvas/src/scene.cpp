@@ -75,7 +75,12 @@ bool Scene::valid(NodeRef n) const noexcept {
 }
 
 NodeRef Scene::add(const NodeDesc& d) {
-    const auto k = find_kind(d.kind).value_or(0);
+    // A kind not registered yet is registered as a box, by its name: what
+    // reads the kind (hits, behaviours, find) sees the name, and registering
+    // it later gives these nodes its look.
+    const std::string_view kind_name = d.kind.empty() ? std::string_view("box") : d.kind;
+    const auto found = find_kind(kind_name);
+    const std::uint16_t k = found ? *found : kind(kind_name, Kind{});
     std::uint32_t i;
     if (!free_.empty()) {
         i = free_.back();
@@ -103,8 +108,10 @@ NodeRef Scene::add(const NodeDesc& d) {
     for (auto& [name, col] : numbers_) col[i] = 0;
     for (auto& [name, col] : texts_) col[i].clear();
     ++live_;
+    const bool kept = bounds_revision_ == revision_;  // a node more only grows them
     changed();
     index(i);
+    if (kept) keep_bounds(bounds_.united({x_[i], y_[i], w_[i], h_[i]}));
     return {i, generation_[i]};
 }
 
@@ -126,6 +133,8 @@ std::vector<NodeRef> Scene::push(std::span<const double> x, std::span<const doub
 bool Scene::remove(NodeRef n) {
     if (!valid(n)) return false;
     const std::uint32_t i = n.index;
+    const bool kept = bounds_revision_ == revision_ && interior({x_[i], y_[i], w_[i], h_[i]});
+    std::erase_if(edges_, [&](const Edge& e) { return e.from == key_[i] || e.to == key_[i]; });
     unindex(i);
     keys_.erase(key_[i]);
     alive_[i] = false;
@@ -133,6 +142,7 @@ bool Scene::remove(NodeRef n) {
     free_.push_back(i);
     --live_;
     changed();
+    if (kept) keep_bounds(bounds_);
     return true;
 }
 
@@ -144,18 +154,22 @@ void Scene::clear() {
 void Scene::move(NodeRef n, double x, double y) {
     const std::uint32_t i = at(n);
     if (x_[i] == x && y_[i] == y) return;
+    const bool kept = bounds_revision_ == revision_ && interior({x_[i], y_[i], w_[i], h_[i]});
     unindex(i);
     x_[i] = x, y_[i] = y;
     index(i);
     changed();
+    if (kept) keep_bounds(bounds_.united({x_[i], y_[i], w_[i], h_[i]}));
 }
 
 void Scene::resize(NodeRef n, float width, float height) {
     const std::uint32_t i = at(n);
+    const bool kept = bounds_revision_ == revision_ && interior({x_[i], y_[i], w_[i], h_[i]});
     unindex(i);
     w_[i] = std::max(0.0f, width), h_[i] = std::max(0.0f, height);
     index(i);
     changed();
+    if (kept) keep_bounds(bounds_.united({x_[i], y_[i], w_[i], h_[i]}));
 }
 
 void Scene::set_fill(NodeRef n, Color fill, float radius) {
@@ -190,11 +204,27 @@ std::optional<NodeRef> Scene::find(std::string_view key) const {
     return NodeRef{it->second, generation_[it->second]};
 }
 
+// The bounds are kept across changes when they can be: a node that comes,
+// or one that moves or changes size or goes from strictly inside them, does
+// not need every node visited again; one that held an edge does (the next
+// bounds() finds them). A drag inside a large scene costs nothing here.
 WorldRect Scene::bounds() const {
+    if (bounds_revision_ == revision_) return bounds_;
     WorldRect r;
     for (std::uint32_t i = 0; i < alive_.size(); ++i)
         if (alive_[i]) r = r.united({x_[i], y_[i], w_[i], h_[i]});
+    bounds_ = r;
+    bounds_revision_ = revision_;
     return r;
+}
+
+bool Scene::interior(const WorldRect& r) const noexcept {
+    return !r.empty() && r.x > bounds_.x && r.y > bounds_.y && r.right() < bounds_.right() && r.bottom() < bounds_.bottom();
+}
+
+void Scene::keep_bounds(const WorldRect& b) {
+    bounds_ = b;
+    bounds_revision_ = revision_;
 }
 
 void Scene::set(NodeRef n, std::string_view column, double value) {
@@ -306,6 +336,33 @@ void Scene::each(const std::function<void(NodeRef)>& f) const {
         if (alive_[i]) order.push_back(i);
     std::ranges::sort(order, [&](std::uint32_t a, std::uint32_t b) { return z_[a] < z_[b]; });
     for (std::uint32_t i : order) f({i, generation_[i]});
+}
+
+void Scene::each_unordered(const std::function<void(NodeRef)>& f) const {
+    for (std::uint32_t i = 0; i < alive_.size(); ++i)
+        if (alive_[i]) f({i, generation_[i]});
+}
+
+std::string Scene::connect(Edge e) {
+    if (e.key.empty()) e.key = std::format("e{}", next_edge_++);
+    std::erase_if(edges_, [&](const Edge& x) { return x.key == e.key; });
+    std::string key = e.key;
+    edges_.push_back(std::move(e));
+    changed();
+    return key;
+}
+
+bool Scene::disconnect(std::string_view key) {
+    const auto n = std::erase_if(edges_, [&](const Edge& x) { return x.key == key; });
+    if (n) changed();
+    return n > 0;
+}
+
+std::vector<const Edge*> Scene::edges_of(std::string_view node_key) const {
+    std::vector<const Edge*> out;
+    for (const Edge& e : edges_)
+        if (e.from == node_key || e.to == node_key) out.push_back(&e);
+    return out;
 }
 
 void Scene::preset(std::string name, Preset p) {

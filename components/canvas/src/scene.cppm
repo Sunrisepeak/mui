@@ -87,12 +87,22 @@ struct Kind {
 
 // A node as a script or a loader hands it over.
 struct NodeDesc {
-    std::string_view kind;
+    std::string_view kind;             // empty: "box"; one not registered yet: a box of that name
     double           x = 0, y = 0;
     float            width = 0, height = 0;
     std::string_view key;              // empty: "n<index>"
     Color            fill = Color::transparent();
     float            radius = 0;
+};
+
+// A connection between two nodes (canvas-kit's connectors draw them): by
+// the nodes' keys, so it outlives their slots; drawn between their sides.
+struct Edge {
+    std::string key;
+    std::string from, to;
+    Color       color = Color::hex(0x64748b);
+    float       width = 2;  // logical pixels at zoom 1
+    std::string label;
 };
 
 // What a point on the canvas hits.
@@ -137,7 +147,7 @@ public:
     [[nodiscard]] std::string_view key(NodeRef n) const;
     [[nodiscard]] std::optional<NodeRef> find(std::string_view key) const;
     [[nodiscard]] std::size_t size() const noexcept { return live_; }
-    [[nodiscard]] WorldRect bounds() const;  // of every node (empty: none)
+    [[nodiscard]] WorldRect bounds() const;  // of every node (empty: none); kept until the scene changes
     // Bumped by every change: a canvas draws again when it moves.
     [[nodiscard]] std::uint64_t revision() const noexcept { return revision_; }
     // Told of every change (on the scene's thread, which is the UI's): a
@@ -158,6 +168,27 @@ public:
     [[nodiscard]] std::optional<Hit> hit(double x, double y) const;
     // Every node, bottom to top.
     void each(const std::function<void(NodeRef)>& f) const;
+    // Every node in no particular order (by slot): a pass over the whole
+    // scene that needs no stacking order skips sorting it.
+    void each_unordered(const std::function<void(NodeRef)>& f) const;
+    // Every node's rectangle and fill, by slot, straight from the columns:
+    // the cheapest pass over the whole scene (a minimap of a million nodes);
+    // over the slots [first, last), a pass can be spread over frames.
+    template <class F>
+    void each_rect(F&& f, std::size_t first = 0, std::size_t last = std::numeric_limits<std::size_t>::max()) const {
+        for (std::size_t i = first, end = std::min(last, alive_.size()); i < end; ++i)
+            if (alive_[i]) f(WorldRect{x_[i], y_[i], w_[i], h_[i]}, fill_[i]);
+    }
+    // The columns' length: slots, live or not.
+    [[nodiscard]] std::size_t slots() const noexcept { return alive_.size(); }
+
+    // ── edges ──
+    // Connects two nodes (a key already used replaces that edge); empty key:
+    // "e<n>". Removing a node removes its edges.
+    std::string connect(Edge e);
+    bool disconnect(std::string_view key);
+    [[nodiscard]] std::span<const Edge> edges() const noexcept { return edges_; }
+    [[nodiscard]] std::vector<const Edge*> edges_of(std::string_view node_key) const;
 
     // ── camera presets (named views of the scene: "overview", "focus") ──
     struct Preset {
@@ -171,6 +202,8 @@ private:
     void index(std::uint32_t i);
     void unindex(std::uint32_t i);
     [[nodiscard]] std::uint32_t at(NodeRef n) const;
+    [[nodiscard]] bool interior(const WorldRect& r) const noexcept;  // strictly inside the kept bounds
+    void keep_bounds(const WorldRect& b);
 
     double cell_;
     // The columns.
@@ -200,7 +233,11 @@ private:
     mutable std::vector<std::uint32_t> stamp_;  // dedup per query
     mutable std::uint32_t      query_ = 0;
     std::map<std::string, Preset, std::less<>> presets_;
+    std::vector<Edge>          edges_;
+    std::uint64_t              next_edge_ = 0;
     std::vector<std::pair<std::uint64_t, std::function<void()>>> observers_;
+    mutable WorldRect          bounds_;
+    mutable std::uint64_t      bounds_revision_ = std::numeric_limits<std::uint64_t>::max();
     std::uint64_t next_observer_ = 1;
     void changed();
 };

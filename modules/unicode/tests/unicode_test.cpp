@@ -60,6 +60,44 @@ void conformance(std::string_view file, F compute, bool include_start) {
 int main(int argc, char** argv) {
     Suite s{"unicode"};
 
+    s.test("simple case mapping (UnicodeData.txt)", [] {
+        check(uc::simple_upper(U'a') == U'A' && uc::simple_lower(U'Z') == U'z');
+        check(uc::simple_upper(U'\u00E4') == U'\u00C4', "a with diaeresis");
+        check(uc::simple_lower(U'\u0100') == U'\u0101' && uc::simple_lower(U'\u0101') == U'\u0101', "Latin Extended-A pairs (stride 2)");
+        check(uc::simple_upper(U'\u03C3') == U'\u03A3' && uc::simple_upper(U'\u03C2') == U'\u03A3', "both sigmas");
+        check(uc::simple_lower(U'\u0416') == U'\u0436', "Cyrillic");
+        check(uc::simple_lower(U'\u0130') == U'i', "dotted capital I: its simple lowercase is i");
+        check(uc::simple_upper(U'\u00DF') == U'\u00DF', "sharp s has no simple uppercase");
+        check(uc::simple_upper(U'\u4E2D') == U'\u4E2D' && uc::simple_lower(U'1') == U'1', "uncased");
+        check(uc::simple_lower(U'\U00010400') == U'\U00010428', "Deseret, beyond the BMP");
+        check(uc::upper("a\xFF" "b") == std::string("A\xFF" "B"), "invalid bytes pass through");
+        // Every mapping round trips where Unicode says it does: upper(lower(x)) for x = upper(x).
+        int pairs = 0, broken = 0;
+        for (char32_t c = 0; c < 0x110000; ++c) {
+            const char32_t l = uc::simple_lower(c);
+            if (l == c) continue;
+            ++pairs;
+            if (uc::simple_upper(l) != c && uc::simple_lower(uc::simple_upper(l)) != l) ++broken;
+        }
+        check(pairs > 1400 && broken == 0, std::format("{} lowercase mappings, {} broken", pairs, broken));
+    });
+
+    s.test("full case mapping (SpecialCasing.txt, Final_Sigma)", [] {
+        check_eq(uc::upper("Grüße, мир, σοφία"), std::string("GRÜSSE, МИР, ΣΟΦΊΑ"));
+        check_eq(uc::upper("ﬁﬀ ŉ ΐ"), std::string("FIFF \u02BCN \u0399\u0308\u0301"));
+        check_eq(uc::lower("İstanbul"), std::string("i̇stanbul"));
+        check_eq(uc::lower("ÀÉÎ ΣΟΦΙΑ"), std::string("àéî σοφια"));
+        // Σ lowers to ς at the end of a word, to σ elsewhere.
+        check_eq(uc::lower("ΟΔΥΣΣΕΥΣ"), std::string("οδυσσευς"));
+        check_eq(uc::lower("ΣΑΣ. Σ"), std::string("σας. σ"));
+        check_eq(uc::lower("ΑΣ'Β ΑΣ'"), std::string("ασ'β ας'"));  // ' is case-ignorable: skipped both ways
+        check_eq(uc::lower("1Σ"), std::string("1σ"));
+        // Every unconditional full mapping is applied.
+        check_eq(uc::upper("\u0587"), std::string("\u0535\u0552"));  // Armenian ech-yiwn
+        check_eq(uc::lower("\u1F88"), std::string("\u1F80"));
+        check_eq(uc::upper("\u1F80"), std::string("\u1F08\u0399"));
+    });
+
     s.test("grapheme clusters (UAX #29 conformance)", [] {
         conformance("GraphemeBreakTest.txt", [](std::string_view t) { return uc::grapheme_boundaries(t); }, true);
     });

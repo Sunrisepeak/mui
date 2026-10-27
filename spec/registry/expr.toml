@@ -122,11 +122,11 @@ doc = "CEL's endsWith."
 [[function]]
 name = "lower"
 signature = "lower(string) -> string"
-doc = "Lower case (Unicode simple case mapping)."
+doc = "Lower case: Unicode full case mapping, the same in every locale (Σ ending a word becomes ς)."
 [[function]]
 name = "upper"
 signature = "upper(string) -> string"
-doc = "Upper case (Unicode simple case mapping)."
+doc = "Upper case: Unicode full case mapping, the same in every locale (ß becomes SS)."
 [[function]]
 name = "trim"
 signature = "trim(string) -> string"

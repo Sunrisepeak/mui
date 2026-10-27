@@ -273,8 +273,8 @@ The machine-readable tables of the specification. Enumerators are append-only; t
 | `contains` | `contains(string, string) -> bool \| contains(list, any) -> bool` | Whether the first argument contains the second. |
 | `startsWith` | `startsWith(string, string) -> bool` | CEL's startsWith. |
 | `endsWith` | `endsWith(string, string) -> bool` | CEL's endsWith. |
-| `lower` | `lower(string) -> string` | Lower case (Unicode simple case mapping). |
-| `upper` | `upper(string) -> string` | Upper case (Unicode simple case mapping). |
+| `lower` | `lower(string) -> string` | Lower case: Unicode full case mapping, the same in every locale (Σ ending a word becomes ς). |
+| `upper` | `upper(string) -> string` | Upper case: Unicode full case mapping, the same in every locale (ß becomes SS). |
 | `trim` | `trim(string) -> string` | Removes white space at both ends. |
 | `min` | `min(number, number...) -> number` | The smallest argument. |
 | `max` | `max(number, number...) -> number` | The largest argument. |

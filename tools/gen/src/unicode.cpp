@@ -113,7 +113,106 @@ std::string enum_text(std::string_view name, const std::vector<std::string>& val
 
 }  // namespace
 
+// Simple case mappings of UnicodeData.txt (field 12 uppercase, 13 lowercase)
+// as runs of code points that map by the same delta, consecutive (stride 1)
+// or alternating (stride 2: the paired upper and lower case letters of
+// Latin Extended-A and its like).
+struct CaseRun {
+    std::uint32_t first = 0, last = 0, stride = 1;
+    std::int64_t  delta = 0;
+};
+
+std::expected<std::array<std::vector<CaseRun>, 2>, std::string> read_case_runs(const std::filesystem::path& file) {
+    std::ifstream in(file, std::ios::binary);
+    if (!in) return std::unexpected(std::format("cannot read {}", generic_utf8(file)));
+    std::array<std::vector<std::pair<std::uint32_t, std::int64_t>>, 2> maps;  // upper, lower
+    for (std::string line; std::getline(in, line);) {
+        std::vector<std::string_view> f;
+        std::string_view rest = line;
+        for (std::size_t p; (p = rest.find(';')) != std::string_view::npos; rest.remove_prefix(p + 1)) f.push_back(rest.substr(0, p));
+        f.push_back(rest);
+        if (f.size() < 14) continue;
+        std::uint32_t cp = 0;
+        if (std::from_chars(f[0].data(), f[0].data() + f[0].size(), cp, 16).ec != std::errc{}) continue;
+        for (int k = 0; k < 2; ++k) {
+            const std::string_view m = trim(f[k == 0 ? 12 : 13]);
+            std::uint32_t to = 0;
+            if (m.empty() || std::from_chars(m.data(), m.data() + m.size(), to, 16).ec != std::errc{}) continue;
+            maps[static_cast<std::size_t>(k)].emplace_back(cp, static_cast<std::int64_t>(to) - static_cast<std::int64_t>(cp));
+        }
+    }
+    std::array<std::vector<CaseRun>, 2> out;
+    for (std::size_t k = 0; k < 2; ++k) {
+        std::vector<CaseRun>& runs = out[k];
+        for (const auto& [cp, delta] : maps[k]) {
+            if (!runs.empty()) {
+                CaseRun& r = runs.back();
+                const std::uint32_t gap = cp - r.last;
+                const bool single = r.first == r.last;
+                if (r.delta == delta && ((single && (gap == 1 || gap == 2)) || (!single && gap == r.stride))) {
+                    if (single) r.stride = gap;
+                    r.last = cp;
+                    continue;
+                }
+            }
+            runs.push_back({cp, cp, 1, delta});
+        }
+    }
+    return out;
+}
+
+// SpecialCasing.txt's unconditional full mappings: one code point to up to
+// three (ß → SS, İ → i̇, ﬃ → FFI). The conditional entries are left to code:
+// Final_Sigma, the one that is not a language's, needs the context (case.cpp);
+// the language-specific ones (lt, tr, az) need a locale these functions do
+// not take.
+struct CaseSpecial {
+    std::uint32_t                cp = 0;
+    std::vector<std::uint32_t>   to;
+};
+
+std::expected<std::array<std::vector<CaseSpecial>, 2>, std::string> read_special_casing(const std::filesystem::path& file) {
+    std::ifstream in(file, std::ios::binary);
+    if (!in) return std::unexpected(std::format("cannot read {}", generic_utf8(file)));
+    std::array<std::vector<CaseSpecial>, 2> out;  // upper, lower
+    auto code_points_of = [](std::string_view list) -> std::optional<std::vector<std::uint32_t>> {
+        std::vector<std::uint32_t> cps;
+        list = trim(list);
+        while (!list.empty()) {
+            const std::size_t sp = list.find(' ');
+            const std::string_view h = list.substr(0, sp);
+            std::uint32_t v = 0;
+            if (std::from_chars(h.data(), h.data() + h.size(), v, 16).ec != std::errc{}) return std::nullopt;
+            cps.push_back(v);
+            list = sp == std::string_view::npos ? std::string_view{} : trim(list.substr(sp + 1));
+        }
+        return cps;
+    };
+    for (std::string line; std::getline(in, line);) {
+        std::string_view l = line;
+        if (const auto hash = l.find('#'); hash != std::string_view::npos) l = l.substr(0, hash);
+        std::vector<std::string_view> f;
+        for (std::size_t p; (p = l.find(';')) != std::string_view::npos; l.remove_prefix(p + 1)) f.push_back(trim(l.substr(0, p)));
+        if (f.size() != 4) continue;  // a comment, or a fifth field: a condition
+        auto cp = code_points_of(f[0]);
+        if (!cp || cp->size() != 1) return std::unexpected(std::format("SpecialCasing: bad code point `{}`", f[0]));
+        for (int k = 0; k < 2; ++k) {
+            auto to = code_points_of(f[k == 0 ? 3 : 1]);
+            if (!to || to->empty() || to->size() > 3) return std::unexpected(std::format("SpecialCasing: bad mapping of {:04X}", (*cp)[0]));
+            if (to->size() == 1 && (*to)[0] == (*cp)[0]) continue;  // maps to itself: nothing special
+            out[static_cast<std::size_t>(k)].push_back({(*cp)[0], std::move(*to)});
+        }
+    }
+    for (auto& v : out) std::ranges::sort(v, {}, &CaseSpecial::cp);
+    return out;
+}
+
 std::expected<std::string, std::string> emit_unicode_tables(const std::filesystem::path& ucd, std::string_view version) {
+    auto cases = read_case_runs(ucd / "UnicodeData.txt");
+    if (!cases) return std::unexpected(cases.error());
+    auto special = read_special_casing(ucd / "SpecialCasing.txt");
+    if (!special) return std::unexpected(special.error());
+    auto core = read_property(ucd / "DerivedCoreProperties.txt");
     auto lb = read_property(ucd / "LineBreak.txt");
     auto ea = read_property(ucd / "EastAsianWidth.txt");
     auto gcb = read_property(ucd / "GraphemeBreakProperty.txt");
@@ -121,7 +220,7 @@ std::expected<std::string, std::string> emit_unicode_tables(const std::filesyste
     auto emoji = read_property(ucd / "emoji-data.txt");
     auto incb = read_property(ucd / "DerivedCoreProperties.txt", 2);
     auto gc = read_property(ucd / "DerivedGeneralCategory.txt");
-    for (auto* r : {&lb, &ea, &gcb, &wb, &emoji, &incb, &gc})
+    for (auto* r : {&lb, &ea, &gcb, &wb, &emoji, &incb, &gc, &core})
         if (!*r) return std::unexpected(r->error());
 
     // Value sets: the line-break classes and word-break values as the data
@@ -182,6 +281,13 @@ std::expected<std::string, std::string> emit_unicode_tables(const std::filesyste
         line[c] = static_cast<std::uint8_t>(line[c] | (pi[c] ? 0x40 : 0) | (pf[c] ? 0x80 : 0));
     }
 
+    // Cased and Case_Ignorable, the context of Final_Sigma (Unicode §3.13).
+    std::vector<std::uint8_t> casing(code_points, 0);
+    {
+        auto cased = flag(*core, "Cased"), ignorable = flag(*core, "Case_Ignorable");
+        for (std::uint32_t c = 0; c < code_points; ++c) casing[c] = static_cast<std::uint8_t>((cased[c] ? 1 : 0) | (ignorable[c] ? 2 : 0));
+    }
+
     std::string out = std::format(R"(// Generated by omui-gen from the Unicode Character Database {0}. Do not edit:
 //     omui-gen unicode <ucd-{0}> --out modules/unicode/src/generated
 //
@@ -193,6 +299,12 @@ std::expected<std::string, std::string> emit_unicode_tables(const std::filesyste
 //             Extended_Pictographic, bits 5-6 Indic_Conjunct_Break
 //             (1 Linker, 2 Consonant, 3 Extend), bit 7 General_Category = Cn
 //   word      bits 0-4 Word_Break (enum Wb), bits 5-7 East_Asian_Width (enum Ea)
+//   casing    bit 0 Cased, bit 1 Case_Ignorable (DerivedCoreProperties.txt)
+//
+// Simple case mappings (UnicodeData.txt fields 12 and 13): sorted runs of code
+// points that map by one delta, every `stride`th code point from `first` to
+// `last`. Full mappings (SpecialCasing.txt, unconditional): sorted by code
+// point, `count` code points of `to`.
 export module openmui.unicode:tables;
 
 import std;
@@ -211,6 +323,27 @@ inline constexpr std::string_view ucd_version = "{0}";
     emit_table(out, "line", compress(line));
     emit_table(out, "grapheme", compress(grapheme));
     emit_table(out, "word", compress(word));
+    emit_table(out, "casing", compress(casing));
+    out += "struct CaseRun {\n    char32_t      first, last;\n    std::uint8_t  stride;\n    std::int32_t  delta;\n};\n\n";
+    for (std::size_t k = 0; k < 2; ++k) {
+        const auto& runs = (*cases)[k];
+        out += std::format("inline constexpr std::array<CaseRun, {}> {}{{{{\n", runs.size(), k == 0 ? "to_upper" : "to_lower");
+        for (std::size_t i = 0; i < runs.size(); ++i)
+            out += std::format("    {{0x{:04X}, 0x{:04X}, {}, {}}},{}", runs[i].first, runs[i].last, runs[i].stride, runs[i].delta,
+                               (i % 3 == 2 || i + 1 == runs.size()) ? "\n" : " ");
+        out += "}};\n\n";
+    }
+    out += "struct CaseSpecial {\n    char32_t                cp;\n    std::uint8_t            count;\n    std::array<char32_t, 3> to;\n};\n\n";
+    for (std::size_t k = 0; k < 2; ++k) {
+        const auto& list = (*special)[k];
+        out += std::format("inline constexpr std::array<CaseSpecial, {}> {}{{{{\n", list.size(), k == 0 ? "full_upper" : "full_lower");
+        for (const CaseSpecial& c : list) {
+            std::string to;
+            for (std::size_t i = 0; i < 3; ++i) to += std::format("{}0x{:04X}", i ? ", " : "", i < c.to.size() ? c.to[i] : 0u);
+            out += std::format("    {{0x{:04X}, {}, {{{}}}}},\n", c.cp, c.to.size(), to);
+        }
+        out += "}};\n\n";
+    }
     out += R"([[nodiscard]] constexpr std::uint8_t lookup(const auto& stage1, const auto& stage2, char32_t cp) noexcept {
     if (cp >= 0x110000) cp = 0xFFFD;
     return stage2[static_cast<std::size_t>(stage1[cp >> 8]) * 256 + (cp & 255)];

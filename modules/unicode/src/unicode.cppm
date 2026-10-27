@@ -60,4 +60,16 @@ struct LineBreak {
 // enclose it.
 [[nodiscard]] std::pair<std::size_t, std::size_t> word_at(std::string_view text, std::size_t offset);
 
+// Simple case mapping (UnicodeData.txt): one code point to one, the same in
+// every locale; a code point without a mapping maps to itself.
+[[nodiscard]] char32_t simple_upper(char32_t cp) noexcept;
+[[nodiscard]] char32_t simple_lower(char32_t cp) noexcept;
+// Full case mapping of a text, the same in every locale: SpecialCasing.txt's
+// unconditional mappings (ß → SS, İ → i̇, ﬁ → FI) and Final_Sigma (Σ at the end
+// of a word lowers to ς), the simple mapping otherwise. The language-specific
+// rules (Turkish dotless i, Lithuanian dots) need a locale and are not applied.
+// Invalid UTF-8 stays as it is.
+[[nodiscard]] std::string upper(std::string_view text);
+[[nodiscard]] std::string lower(std::string_view text);
+
 }  // namespace omui::unicode

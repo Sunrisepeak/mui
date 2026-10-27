@@ -1057,7 +1057,7 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
 |---|---|---|
 | 构建：三个平台 | ✅ | GitHub Actions：Linux x86_64（GCC 16 dev / release、LLVM 23）、Linux aarch64（LLVM 23）、macOS 15、Windows 2022（MSVC ABI）全部通过（提交 `a65e61b`） |
 | lint | ✅ | `tools/lint/lint.py`：10 条规则，自测 10/10 能拦下各自的违规 |
-| 测试 | ✅ | 31 个成员、46 个测试程序在所有平台通过 |
+| 测试 | ✅ | 36 个成员、54 个测试程序在所有平台通过 |
 | 确定性 | ✅ | CPU 渲染和动画的固定哈希在 Linux、macOS、Windows（MSVC 和 MinGW）上完全相同；增量帧与完整渲染逐字节相同（D-62） |
 | 性能 | ✅ | `tests/bench`：12 项预算在 CI 的 release 行检查并保存报告 |
 | 内存 | ✅ | 每帧零分配有分配计数（bench `max_allocations`）；`sanitize` 配置（ASan + UBSan，整个依赖图都插桩，第一个问题即失败）每晚在 CI 上运行（`nightly.yml`，LLVM：GCC 16.1 的 UBSan 空指针检查在 `import std` 的 `std::variant` 上会让编译器崩溃）；本地全部成员通过，发现并修好了 SDL 软件窗口加载 GPU 驱动（驱动在退出时泄漏） |
@@ -1102,7 +1102,9 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
 ### 22.5 还差什么（按计划顺序）
 
 - M2 的验收已完成（见 22.3）。
-- M3：表达式（`openmui.expr`）和视图文档；`runtime/abi`（C ABI）、`openmui.h` 生成的完整绑定、TS / Python / Lua；`runtime/reflect`；示例 02–06、12。
+- M3 进行中：
+  - ✅ 表达式 `openmui.expr`（`runtime/expr`）：CEL 兼容的解析器和打印器（往返由随机合法和随机非法输入做模糊测试，四个平台同一个固定哈希）、组合子、同步求值器（错误给 null 和定位诊断，带修复提示）、注册表里的全部函数（函数表从生成的注册表来）；树高不超过 200 层，解析、求值、打印都不会栈溢出。`openmui.unicode` 同时补上了完整的大小写映射（SpecialCasing、Final_Sigma）。
+  - 视图文档；`runtime/abi`（C ABI）、`openmui.h` 生成的完整绑定、TS / Python / Lua；`runtime/reflect`；示例 02–06、12。
 - M4：`modules/rhi` 和 `rhi-sdl`、GPU 渲染路径、Slang 着色器、效果和背景输入（液态玻璃，D-64）、画布、风格包、S1 / S2。
 - M5：openmui-video、ui-timeline、MCP 服务器、skills、S3 / S4 / S5。
 - 契约⑦（插件与管线）写进规范；Inspector 的火焰图和动画检查器视图。

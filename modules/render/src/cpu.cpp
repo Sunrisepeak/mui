@@ -249,9 +249,9 @@ Placed place(const DrawGlyphs& c, std::size_t i, const Affine& m) noexcept {
 }
 
 // Asks `glyphs` for every mask and outline the bands of `tasks` will draw.
-void resolve_glyphs(const DisplayList& list, GlyphSource& glyphs, float scale, std::span<const RowSpan> tasks,
+void resolve_glyphs(const DisplayList& list, GlyphSource& glyphs, const Affine& base, std::span<const RowSpan> tasks,
                     std::vector<Affine>& transforms) {
-    transforms.assign(1, Affine::scale(scale, scale));
+    transforms.assign(1, base);
     for (const Command& command : list.commands()) {
         if (const auto* t = std::get_if<PushTransform>(&command)) {
             transforms.push_back(transforms.back() * t->transform);
@@ -294,6 +294,20 @@ struct CpuRenderer::Impl {
     std::vector<Affine>                   transforms;  // the glyph pass's
     std::vector<RenderReport>             reports;     // one per task
     Resolved                              resolved;
+    // The effect layers of the list being drawn, prepared before the bands:
+    // where each begins and ends in the list, where its result goes on the
+    // surface (device pixels), and the result.
+    // Kept between frames (the first `effect_count` are this frame's), with
+    // their buffers: a steady animation allocates nothing.
+    struct EffectLayer {
+        std::size_t                  push = 0, pop = 0;
+        Rect                         device;
+        raster::Surface              source, result;
+        DisplayList                  inner;
+        std::unique_ptr<CpuRenderer> offscreen;
+    };
+    std::vector<EffectLayer> effect_layers;
+    std::size_t              effect_count = 0;
 
     Scratch& take(raster::Surface& target) {
         std::scoped_lock g(lock);
@@ -337,6 +351,7 @@ RenderReport CpuRenderer::render(const DisplayList& list, raster::Surface& targe
         const std::int32_t step = options.parallel ? std::max(8, options.rows_per_task) : band.bottom - band.top;
         for (std::int32_t y = band.top; y < band.bottom; y += step) d.tasks.push_back({y, std::min(band.bottom, y + step)});
     };
+    prepare_effects(list, target, res, options, report);
     const bool whole = options.rows.empty();
     if (whole) add({0, target.height()});
     else
@@ -360,7 +375,7 @@ RenderReport CpuRenderer::render(const DisplayList& list, raster::Surface& targe
         d.resolved.reserve(glyphs);
         d.resolved.begin(res.glyphs);
         d.resolved.resolving_ = true;
-        resolve_glyphs(list, d.resolved, options.scale, d.tasks, d.transforms);
+        resolve_glyphs(list, d.resolved, options.transform.value_or(Affine::scale(options.scale, options.scale)), d.tasks, d.transforms);
         d.resolved.resolving_ = false;
         shared.glyphs = &d.resolved;
     }
@@ -386,6 +401,73 @@ RenderReport CpuRenderer::render(const DisplayList& list, raster::Surface& targe
     return report;
 }
 
+void CpuRenderer::prepare_effects(const DisplayList& list, const raster::Surface& target, const Resources& res, const CpuOptions& options,
+                                  RenderReport& report) {
+    Impl& d = *impl_;
+    d.effect_count = 0;
+    const auto& all = list.commands();
+    std::vector<Affine> transforms{options.transform.value_or(Affine::scale(options.scale, options.scale))};
+    // Logical pixels to device pixels, for the effects' sizes and reaches.
+    const float scale = transforms.front().max_scale();
+    for (std::size_t i = 0; i < all.size(); ++i) {
+        const Command& c = all[i];
+        if (const auto* t = std::get_if<PushTransform>(&c)) {
+            transforms.push_back(transforms.back() * t->transform);
+            continue;
+        }
+        if (std::holds_alternative<PopTransform>(c)) {
+            if (transforms.size() > 1) transforms.pop_back();
+            continue;
+        }
+        const auto* push = std::get_if<PushLayer>(&c);
+        if (!push || push->effect.id == 0) continue;
+        // Its pop: the matching one at the same depth.
+        std::size_t pop = i + 1;
+        for (int depth = 1; pop < all.size(); ++pop) {
+            if (std::holds_alternative<PushLayer>(all[pop])) ++depth;
+            else if (std::holds_alternative<PopLayer>(all[pop]) && --depth == 0) break;
+        }
+        if (pop >= all.size()) break;  // unbalanced: drawn as an ordinary layer
+        const EffectInfo* info = effects().info(push->effect);
+        if (!info || !info->cpu) {
+            ++report.effects_skipped;
+            continue;  // drawn without it
+        }
+        std::vector<float> params(push->params.begin(), push->params.end());
+        for (std::size_t k = params.size(); k < info->params.size(); ++k) params.push_back(info->params[k].value);
+        const float reach = std::ceil(effects().reach(push->effect, params) * scale) + 1;
+        const Rect layer = transforms.back().map(push->bounds);
+        const Rect screen{-reach, -reach, static_cast<float>(target.width()) + 2 * reach, static_cast<float>(target.height()) + 2 * reach};
+        const Rect wanted = Rect{layer.x - reach, layer.y - reach, layer.width + 2 * reach, layer.height + 2 * reach}.intersection(screen);
+        if (d.effect_count == d.effect_layers.size()) d.effect_layers.emplace_back();
+        Impl::EffectLayer& out = d.effect_layers[d.effect_count++];
+        out.push = i;
+        out.pop = pop;
+        out.device = {};
+        if (!wanted.empty()) {
+            const float x0 = std::floor(wanted.x), y0 = std::floor(wanted.y);
+            const int w = static_cast<int>(std::ceil(wanted.right()) - x0), h = static_cast<int>(std::ceil(wanted.bottom()) - y0);
+            out.device = {x0, y0, static_cast<float>(w), static_cast<float>(h)};
+            // The layer's content, whole, under the transform it had, offscreen.
+            out.inner.clear();
+            for (std::size_t k = i + 1; k < pop; ++k) out.inner.append_command(all[k]);
+            if (out.source.width() != w || out.source.height() != h) out.source.resize(w, h);
+            if (out.result.width() != w || out.result.height() != h) out.result.resize(w, h);
+            out.result.clear();
+            if (!out.offscreen) out.offscreen = std::make_unique<CpuRenderer>();
+            CpuOptions o;
+            o.transform = Affine::translate(-x0, -y0) * transforms.back();
+            o.background = Color::transparent();
+            const RenderReport r = out.offscreen->render(out.inner, out.source, res, o);
+            report.missing_glyphs += r.missing_glyphs;
+            report.missing_images += r.missing_images;
+            report.effects_skipped += r.effects_skipped;
+            info->cpu({out.source, out.result, params, scale, layer.offset({-x0, -y0})});
+        }
+        i = pop;  // nested effect layers are the offscreen render's
+    }
+}
+
 void CpuRenderer::draw(Scratch& sc, const DisplayList& list, raster::Surface& target, const Resources& res, const CpuOptions& options,
                        RowSpan band, bool whole, RenderReport& report) {
     raster::Canvas& canvas = sc.canvas;
@@ -407,7 +489,7 @@ void CpuRenderer::draw(Scratch& sc, const DisplayList& list, raster::Surface& ta
     auto& nodes = sc.nodes;
     auto& paths = sc.paths;
     auto& paints = sc.paints;
-    transforms.assign(1, Affine::scale(options.scale, options.scale));
+    transforms.assign(1, options.transform.value_or(Affine::scale(options.scale, options.scale)));
     nodes.assign(1, 0);
 
     auto m = [&]() -> const Affine& { return transforms.back(); };
@@ -418,7 +500,25 @@ void CpuRenderer::draw(Scratch& sc, const DisplayList& list, raster::Surface& ta
         return rp;
     };
 
-    for (const Command& command : list.commands()) {
+    const auto& all = list.commands();
+    std::size_t next_effect = 0;
+    for (std::size_t index = 0; index < all.size(); ++index) {
+        const Command& command = all[index];
+        // A prepared effect layer: its result, then on after its pop (D-68).
+        while (next_effect < impl_->effect_count && impl_->effect_layers[next_effect].pop < index) ++next_effect;
+        if (next_effect < impl_->effect_count && impl_->effect_layers[next_effect].push == index) {
+            const auto& layer = impl_->effect_layers[next_effect];
+            const auto& push = std::get<PushLayer>(command);
+            const bool blended = push.blend != BlendMode::normal;
+            if (blended) canvas.push_layer(1, static_cast<raster::Blend>(push.blend));
+            if (layer.device.width > 0 && layer.result.width() > 0)
+                canvas.draw_image(layer.result.view(), {0, 0, static_cast<float>(layer.result.width()), static_cast<float>(layer.result.height())},
+                                  layer.device, raster::Sampling::nearest, push.opacity, Affine{});
+            if (blended) canvas.pop_layer();
+            report.commands += layer.pop - layer.push + 1;
+            index = layer.pop;
+            continue;
+        }
         ++report.commands;
         const auto measured_from = options.measure ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
         struct Measure {
@@ -536,7 +636,7 @@ void CpuRenderer::draw(Scratch& sc, const DisplayList& list, raster::Surface& ta
                 } else if constexpr (std::same_as<T, PopTransform>) {
                     if (transforms.size() > 1) transforms.pop_back();
                 } else if constexpr (std::same_as<T, PushLayer>) {
-                    if (c.effect.id != 0) ++report.effects_skipped;
+                    // An effect that is not registered (counted by prepare_effects): the layer without it.
                     canvas.push_layer(c.opacity, static_cast<raster::Blend>(c.blend));
                 } else if constexpr (std::same_as<T, PopLayer>) {
                     canvas.pop_layer();

@@ -81,10 +81,10 @@ int main(int argc, char** argv) {
         check_eq(report.missing_images, std::size_t{1});
     });
 
-    s.test("effects and external textures are skipped and counted (R-3)", [] {
+    s.test("unregistered effects and external textures are skipped and counted (R-3)", [] {
         render::DisplayList dl;
         std::array<float, 1> params{0.5f};
-        dl.push_layer(1, render::BlendMode::normal, {7}, params);
+        dl.push_layer(1, render::BlendMode::normal, {999}, params);  // no effect has this ref
         dl.fill_rect({0, 0, 4, 4}, geom::Color::white());
         dl.pop_layer();
         dl.external_texture(42, {0, 0, 2, 2});

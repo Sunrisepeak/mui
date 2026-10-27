@@ -43,6 +43,11 @@ The retained and immediate view runtime (plan §3–§5):
   component's text can be typed out, raised, gathered, scattered or set to a wave with no change to
   the component. The motion is a pure function of time: it seeks, pauses and steps, and respects
   reduced motion. It costs about 90 ns per glyph per frame (`text/glyph-motion`).
+- **pixel effects** (D-68): any node's whole drawing, children included, in an effect layer of
+  `render::effects()`: dissolve, wipe, reveal, displace, noise, chromatic, blur, pixelate, particles,
+  or one a program registers. The `pixel_effect` property is a map with the effect's name and its
+  parameters by name. With a `duration` (and `ease`, `delay`, `reverse`) the runtime drives `progress`
+  from the time it was set. The effect is seekable, and the node is `animating` until it ends.
 - **observability** (D-59): every frame times its phases (timers, input,
   regions, animations, layout, bounds, paint) into `FrameStats`, kept for the
   last 240 frames (`frame_history()`) and traced as `openmui.trace` spans;

@@ -134,6 +134,22 @@ struct Node {
         seconds     ends{std::numeric_limits<double>::infinity()};  // known after its first paint
     };
     std::optional<GlyphMotionState> glyph_motion;
+    // Its pixel effect (D-68): the node's whole drawing in an effect layer.
+    // With a duration, the runtime drives `progress` from `start`.
+    struct PixelEffectState {
+        render::EffectRef  effect;
+        std::vector<float> params;
+        int                progress = -1;  // the index of `progress` among the params, if any
+        seconds            start{0};
+        std::optional<seconds> duration;
+        seconds            delay{0};
+        anim::Ease         ease = anim::ease::standard;
+        bool               reverse = false;
+    };
+    std::optional<PixelEffectState> pixel_effect;
+    [[nodiscard]] bool effect_moving(seconds now) const noexcept {
+        return pixel_effect && pixel_effect->duration && now - pixel_effect->start < *pixel_effect->duration + pixel_effect->delay;
+    }
     [[nodiscard]] bool glyphs_moving(seconds now) const noexcept { return glyph_motion && now - glyph_motion->start < glyph_motion->ends; }
     [[nodiscard]] bool props_moving() const noexcept {
         return std::ranges::any_of(prop_animations, [](const PropAnimation& a) { return !a.resting; });

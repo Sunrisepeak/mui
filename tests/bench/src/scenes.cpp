@@ -329,6 +329,25 @@ void add_framework_benchmarks() {
             s.counter("moving", f.moving ? 1 : 0);
         }
     });
+    add("render/effect-particles", "a 480 × 320 layer bursting into particles: offscreen, effect, composite (D-68)", [](State& s) {
+        render::DisplayList dl;
+        const Rect area{20, 20, 480, 320};
+        const auto ref = *render::effects().find("particles");
+        const std::array<std::pair<std::string_view, float>, 2> given{{{"progress", 0.4f}, {"seed", 2}}};
+        const auto params = render::effects().params(ref, given);
+        dl.push_layer(1, render::BlendMode::normal, ref, params, area);
+        for (int i = 0; i < 12; ++i)
+            dl.fill_round_rect({area.x + 10.0f + 38.0f * static_cast<float>(i), area.y + 20, 30, 280}, CornerRadii::all(8),
+                               render::Paint::solid(Color::hex(0x4f46e5 + 0x0a0a00 * static_cast<std::uint32_t>(i))));
+        dl.pop_layer();
+        raster::Surface surf(560, 400);
+        render::CpuRenderer cpu;
+        s.items(static_cast<std::size_t>(area.width * area.height));
+        while (s.next()) {
+            const auto r = cpu.render(dl, surf, {}, {.background = Color::white()});
+            s.counter("skipped", static_cast<double>(r.effects_skipped));
+        }
+    });
     add("trace/span-off", "10 000 spans while nothing records: the cost tracing adds to a normal run", [](State& s) {
         (void)trace::stop();
         constexpr std::size_t n = 10'000;

@@ -2,6 +2,7 @@ module openmui.render;
 
 import std;
 import openmui.geom;
+import :effects;
 
 namespace omui::render {
 
@@ -172,6 +173,15 @@ void DamageTracker::build(const DisplayList& list, float scale, std::int32_t wid
             clips_.push_back(clips_.back().intersection(grow(mapped(m, points_bounds(cp->path.points)), 1)));
         } else if (std::holds_alternative<PopClip>(command)) {
             if (clips_.size() > 1) clips_.pop_back();
+        } else if (const auto* layer = std::get_if<PushLayer>(&command); layer && layer->effect.id != 0) {
+            // An effect may move pixels up to its reach outside the layer (D-68):
+            // all of that is the node's own drawing.
+            std::vector<float> params(layer->params.begin(), layer->params.end());
+            if (const EffectInfo* info = effects().info(layer->effect))
+                for (std::size_t k = params.size(); k < info->params.size(); ++k) params.push_back(info->params[k].value);
+            const float reach = effects().reach(layer->effect, params) * m.max_scale() + 2;
+            const Rect visible = grow(mapped(m, layer->bounds), reach).intersection(clips_.back());
+            if (!visible.empty()) out[at].own = out[at].own.united(visible);
         } else if (auto b = device_bounds(command, m, resources.glyphs)) {
             const Rect visible = b->intersection(clips_.back());
             if (!visible.empty()) out[at].own = out[at].own.united(visible);

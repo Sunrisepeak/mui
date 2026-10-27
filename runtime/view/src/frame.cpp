@@ -146,7 +146,7 @@ void Runtime::Impl::retime() {
             a.resting = settled;
         }
         // Glyph motions are functions of the time: before their end, they move again.
-        if (any || n.props_moving() || n.glyphs_moving(t)) {
+        if (any || n.props_moving() || n.glyphs_moving(t) || n.effect_moving(t)) {
             if (std::ranges::find(animating, id) == animating.end()) animating.push_back(id);
             if (!n.state.animating) {
                 n.state.animating = true;
@@ -276,7 +276,7 @@ void Runtime::Impl::run_animations() {
             if (!alive(id)) continue;
         }
         Node& after = at(id);
-        if (after.moving || after.props_moving() || after.glyphs_moving(t)) still.push_back(id);
+        if (after.moving || after.props_moving() || after.glyphs_moving(t) || after.effect_moving(t)) still.push_back(id);
         else if (after.state.animating) {
             after.state.animating = false;
             // Settled: readers waiting for it see a new revision (no further frame is needed).
@@ -448,6 +448,18 @@ void Runtime::Impl::paint_node(NodeId id) {
     list.push_transform(local);
     const bool layer = v[Field::opacity] < 1;
     const Rect box{0, 0, size.width, size.height};
+    // The pixel effect takes the node's whole drawing, children included (D-68).
+    const bool effected = n.pixel_effect.has_value();
+    if (effected) {
+        auto& fx = *n.pixel_effect;
+        if (fx.duration && fx.progress >= 0) {
+            const double u = (now() - fx.start - fx.delay).count() / std::max(1e-6, fx.duration->count());
+            double p = reduce_motion ? 1.0 : fx.ease(std::clamp(u, 0.0, 1.0));
+            if (fx.reverse) p = 1 - p;
+            fx.params[static_cast<std::size_t>(fx.progress)] = static_cast<float>(p);
+        }
+        list.push_layer(1, render::BlendMode::normal, fx.effect, fx.params, box);
+    }
     if (layer) list.push_layer(v[Field::opacity], render::BlendMode::normal, {}, {}, box);
 
     const CornerRadii radii = v.corners(size);
@@ -506,6 +518,7 @@ void Runtime::Impl::paint_node(NodeId id) {
     }
 
     if (layer) list.pop_layer();
+    if (effected) list.pop_layer();
     list.pop_transform();
     list.end_node();
 }

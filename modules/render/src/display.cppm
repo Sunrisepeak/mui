@@ -225,6 +225,8 @@ public:
 
     // Appends another list's commands (copying their payloads into this arena).
     void append(const DisplayList& other);
+    // One command of another list, with its payload copied into this one.
+    void append_command(const Command& c) { commands_.push_back(own(c)); }
 
     [[nodiscard]] std::span<const Command> commands() const noexcept { return commands_; }
     [[nodiscard]] std::size_t size() const noexcept { return commands_.size(); }

@@ -14,3 +14,4 @@ export import :display;
 export import :resources;
 export import :damage;
 export import :cpu;
+export import :effects;

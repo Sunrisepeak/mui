@@ -1,9 +1,12 @@
 // openmui.render:cpu — the CPU reference backend: display lists to pixels with
 // openmui-raster, byte-for-byte the same on every platform (spec R-2).
 //
-// Effects (shader parameters on layers) are a GPU capability; this backend
-// draws the layer without its effect and counts it in the report (R-3).
-// External textures are drawn as nothing and counted the same way.
+// Effects (D-68): a layer with an effect from render::effects() is drawn
+// offscreen first — whole, whatever bands are asked for, since an effect may
+// move pixels across rows — the effect's CPU reference runs on it, and the
+// result is composited where the layer is. A layer whose effect is not
+// registered is drawn without it and counted in the report (R-3). External
+// textures are drawn as nothing and counted the same way.
 //
 // Given bands of rows (CpuOptions::rows, from a DamageTracker), it draws only
 // those rows of a surface that still holds the previous frame, and the result
@@ -67,6 +70,9 @@ struct CpuOptions {
     Parallel*    parallel = nullptr;
     std::int32_t rows_per_task = 64;
     bool         measure = false;  // fill RenderReport::kinds (a clock read per command)
+    // The device transform the list starts under (default: scale). An
+    // effect's layer renders offscreen under its own (D-68).
+    std::optional<Affine> transform;
 };
 
 class CpuRenderer {
@@ -94,6 +100,8 @@ private:
     struct Impl;
     void draw(Scratch& scratch, const DisplayList& list, raster::Surface& target, const Resources& resources, const CpuOptions& options,
               RowSpan band, bool whole, RenderReport& report);
+    void prepare_effects(const DisplayList& list, const raster::Surface& target, const Resources& resources, const CpuOptions& options,
+                         RenderReport& report);
     std::unique_ptr<Impl> impl_;
 };
 

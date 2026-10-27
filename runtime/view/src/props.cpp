@@ -26,7 +26,7 @@ constexpr std::array<std::string_view, 15> visual_props{
 };
 
 // Animation the runtime applies to whatever the node draws (D-68).
-constexpr std::array<std::string_view, 1> motion_props{"glyph_motion"};
+constexpr std::array<std::string_view, 2> motion_props{"glyph_motion", "pixel_effect"};
 
 constexpr std::array<std::string_view, 9> semantic_props{
     "label", "description", "role", "origin", "focusable", "disabled", "verb", "effect", "answer",
@@ -475,6 +475,42 @@ void Runtime::Impl::apply_now(NodeId id, std::string_view name, const Value& val
             else m.focusable = value.as_bool();
         }
         what |= dirty_semantics;
+    }
+    if (name == "pixel_effect") {
+        Node& g = at(id);
+        g.pixel_effect.reset();
+        if (const Value* fx = value.get("name"); fx && value.map()) {
+            if (auto ref = render::effects().find(fx->as_string())) {
+                std::vector<std::pair<std::string_view, float>> given;
+                for (const auto& [k, v] : *value.map())
+                    if (v.is_number()) given.emplace_back(k, static_cast<float>(v.as_double()));
+                Node::PixelEffectState st;
+                st.effect = *ref;
+                st.params = render::effects().params(*ref, given);
+                if (const render::EffectInfo* info = render::effects().info(*ref))
+                    for (std::size_t i = 0; i < info->params.size(); ++i)
+                        if (info->params[i].name == "progress") st.progress = static_cast<int>(i);
+                st.start = now();
+                if (const Value* d = value.get("duration"); d && d->is_number() && st.progress >= 0) st.duration = seconds(d->as_double());
+                if (const Value* d = value.get("delay"); d && d->is_number()) st.delay = seconds(d->as_double());
+                if (const Value* e = value.get("ease"))
+                    if (auto pe = anim::parse_ease(e->as_string())) st.ease = *pe;
+                if (const Value* r = value.get("reverse")) st.reverse = r->as_bool();
+                g.pixel_effect = std::move(st);
+                if (g.pixel_effect->duration) {
+                    if (!g.state.animating) {
+                        g.state.animating = true;
+                        what |= dirty_semantics;
+                    }
+                    if (std::ranges::find(animating, id) == animating.end()) animating.push_back(id);
+                    frame_requested = true;
+                }
+            } else {
+                warn("pixel_effect: no effect is named '{}' (render::effects().names())", fx->as_string());
+            }
+        }
+        touch(what);
+        return;
     }
     if (in(motion_props, name)) {
         Node& g = at(id);

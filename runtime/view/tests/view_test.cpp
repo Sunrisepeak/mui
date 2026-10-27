@@ -829,6 +829,59 @@ int main(int argc, char** argv) {
         check(draw(plain, glyphs).hash() == rest);
     });
 
+    s.test("pixel effects on any node: its whole drawing, driven by time (D-68)", [] {
+        typeset::GlyphCache glyphs(fonts());
+        auto card = [] {
+            return box({.id = "card", .padding = 10, .background = "accent", .radius = 10},
+                       {text({.id = "t", .text = "Burst into particles", .color = "on_accent"})});
+        };
+        Runtime plain(options({260, 80}));
+        plain.mount("main", column({.padding = 8}, {card()}));
+        plain.frame({seconds(0), {}});
+        const auto rest = draw(plain, glyphs).hash();
+        Runtime empty(options({260, 80}));
+        empty.mount("main", column({.padding = 8}, {}));
+        empty.frame({seconds(0), {}});
+        const auto blank = draw(empty, glyphs).hash();
+
+        Runtime rt(options({260, 80}));
+        rt.mount("main", column({.padding = 8}, {card()}));
+        rt.frame({seconds(0), {}});
+        Value fx;
+        fx.set("name", "particles").set("duration", 1.0).set("seed", 3.0).set("spread", 50.0).set("ease", "linear");
+        rt.set(rt.find("main/card"), "pixel_effect", fx);
+        rt.frame({seconds(0), {}});
+        check(draw(rt, glyphs).hash() == rest, "progress 0: the node as it is");
+        check(rt.semantic_node(rt.find("main/card")).states.has(State::animating));
+        rt.frame({seconds(0.4), {}});
+        const auto mid = draw(rt, glyphs).hash();
+        check(mid != rest && mid != blank, "bursting");
+        rt.frame({seconds(1.5), {}});
+        check(draw(rt, glyphs).hash() == blank, "gone at the end");
+        check(!rt.semantic_node(rt.find("main/card")).states.has(State::animating), "settled");
+        rt.seek_time(seconds(0.4));
+        rt.frame({seconds(2), {}});
+        check(draw(rt, glyphs).hash() == mid, "seek consistency");
+        rt.release_time();
+        // Backwards: gathered out of the cloud, ending as the node itself.
+        rt.frame({seconds(3), {}});
+        fx.set("reverse", true);
+        rt.set(rt.find("main/card"), "pixel_effect", fx);
+        rt.frame({seconds(3), {}});
+        check(draw(rt, glyphs).hash() == blank, "reversed: starts gone");
+        rt.frame({seconds(5), {}});
+        check(draw(rt, glyphs).hash() == rest, "and ends whole");
+        // A static effect stays on; null removes it.
+        Value blur;
+        blur.set("name", "blur").set("radius", 3.0);
+        rt.set(rt.find("main/card"), "pixel_effect", blur);
+        rt.frame({seconds(5), {}});
+        check(draw(rt, glyphs).hash() != rest, "blurred");
+        rt.set(rt.find("main/card"), "pixel_effect", Value{});
+        rt.frame({seconds(5), {}});
+        check(draw(rt, glyphs).hash() == rest, "and back");
+    });
+
     s.test("glyph motion: domains, ranges, orders, randomness, round trips", [] {
         std::vector<render::Glyph> g;
         for (std::uint32_t i = 0; i < 6; ++i) g.push_back({1, {static_cast<float>(i) * 10, 0}, i, i, i / 3, 0});

@@ -119,6 +119,14 @@ void Model::follow(std::string_view href) {
     (browse ? browse : open_in_browser)(generic_utf8(std::filesystem::absolute(target)));
 }
 
+void Model::watch(omui::Runtime& rt) {
+    // The model outlives the runtime's timers: no shared ownership, no cycle.
+    rt.after(omui::seconds(0.5), [this, &rt] {
+        reload_if_changed();
+        watch(rt);
+    });
+}
+
 bool Model::go_back() {
     if (back.empty()) return false;
     const std::string previous = back.back();
@@ -134,13 +142,7 @@ omui::AppSpec app(Model& m) {
     spec.size = {980, 720};
     spec.setup = [&m](Runtime& rt) {
         runtime = &rt;
-        // A saved file shows at once: its stamp, twice a second.
-        auto tick = std::make_shared<std::function<void()>>();
-        *tick = [&m, &rt, tick] {
-            m.reload_if_changed();
-            rt.after(seconds(0.5), *tick);
-        };
-        rt.after(seconds(0.5), *tick);
+        m.watch(rt);  // a saved file shows at once
     };
     spec.view = [&m] {
         Element toc = scroll({.id = "toc", .width = 240, .gap = 2, .padding = Edges(12.0f), .background = "surface", .label = "Contents"},

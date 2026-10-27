@@ -135,18 +135,20 @@ for (auto token : model.stream(prompt))
     return out;
 }
 
+void Model::play_from(std::size_t i) {
+    if (i >= playing.size()) {
+        end();
+        return;
+    }
+    append(playing[i]);
+    runtime->after(omui::seconds(1.0 / rate), [this, i] { play_from(i + 1); });
+}
+
 void play(Model& m, std::vector<std::string> tokens, double per_second) {
-    auto shared = std::make_shared<std::vector<std::string>>(std::move(tokens));
-    auto next = std::make_shared<std::function<void(std::size_t)>>();
-    *next = [&m, shared, next, per_second](std::size_t i) {
-        if (i >= shared->size()) {
-            m.end();
-            return;
-        }
-        m.append((*shared)[i]);
-        m.runtime->after(omui::seconds(1.0 / per_second), [next, i] { (*next)(i + 1); });
-    };
-    m.runtime->after(omui::seconds(0.2), [next] { (*next)(0); });
+    // The model outlives the runtime's timers: no shared ownership, no cycle.
+    m.playing = std::move(tokens);
+    m.rate = per_second;
+    m.runtime->after(omui::seconds(0.2), [&m] { m.play_from(0); });
 }
 
 void read_stdin(Model& m) {

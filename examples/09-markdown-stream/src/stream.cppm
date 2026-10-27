@@ -27,6 +27,9 @@ struct Model {
     omui::seconds first{-1}, last{0};  // when the first and the latest piece came
 
     omui::Runtime* runtime = nullptr;
+    std::vector<std::string> playing;  // the demo's tokens (play)
+    double                   rate = 30;
+    void play_from(std::size_t i);
     omui::md::Stream mirror;           // the document as the component has it (for the newest block)
 };
 

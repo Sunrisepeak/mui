@@ -33,6 +33,7 @@ struct Model {
     // Opens a file, or a folder's index.md / README.md.
     bool open(const std::filesystem::path& where, bool remember = true);
     void reload_if_changed();
+    void watch(omui::Runtime& rt);       // reload_if_changed twice a second, from now on
     void follow(std::string_view href);  // a link of the document
     bool go_back();
 };

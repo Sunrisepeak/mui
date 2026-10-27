@@ -1077,7 +1077,12 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
 | | ③ CPU 金图两次运行逐字节相同 | ✅ 并且跨平台相同 |
 | | ④ ui-base 前 9 个组件满足完成标准 | ✅ 14 个组件，契约优先，金图 |
 | | ⑤ 1000 个节点、1080p、CPU 后端 60Hz | ✅ GitHub 的 4 核机器上单个文字变化的一帧 p95 2.9ms，全部卡片动画 p95 10ms |
-| M2 | ② CommonMark 测试集通过率 ≥ 95%（GFM 扩展单独统计） | ✅ `modules/markdown`（md4c 经 `mcpplibs.mwrap.md4c`，见下）：CommonMark 0.31.2 规范 652/652，GFM 扩展、回归和覆盖用例 156/156；808 个例子从文档模型写出的 HTML 和 md4c-html 逐字节相同；三个桌面平台和 wine 上一致 |
+| M2 | ① 示例 08 和 09 | ✅ `examples/08-markdown-viewer`（目录、文档间链接和返回、外部链接 S-2a、保存即重载）和 `examples/09-markdown-stream`（标准输入流式渲染，新字节淡入）：都是真实工具，headless 测试，像素在各平台固定 |
+| | ② CommonMark 测试集通过率 ≥ 95%（GFM 扩展单独统计） | ✅ `modules/markdown`（md4c 经 `mcpplibs.mwrap.md4c`）：CommonMark 0.31.2 规范 652/652，GFM 扩展、回归和覆盖用例 156/156；808 个例子从文档模型写出的 HTML 和 md4c-html 逐字节相同；三个桌面平台和 wine 上一致 |
+| | ③ 动画：A 级曲线金值；随机 1000 个时刻的跳转一致性；被打断的 spring 速度连续（< 1e-9） | ✅ 曲线、spring、decay 的金值在各平台固定；通道保留被打断前的分段作为历史（30 秒），事后跳转到 1000 个随机帧和播放时逐位相同，打断处速度连续；运行时跳转越过被打断的过渡也一样 |
+| | ④ 跨平台确定性测试在三个桌面平台上是绿的 | ✅ 每个金图（视图、组件、文本、效果、示例）在 Linux / macOS / Windows（MSVC ABI）和 wine 上是同一个固定哈希 |
+| | ⑤ 中文、阿拉伯语、emoji 混排的排版测试集 | ✅ `modules/text`：回退、双向、断行、字素和混排像素固定；带样式的字形（旋转、着色）也固定 |
+| | ⑥ 录制一段会话，在 headless 下回放，结果完全相同 | ✅ 示例 07 的“recorded session replays exactly”；会话文件名可以是任何文字（`mcpplibs.os` 0.1.1） |
 
 ### 22.4 计划之外提前完成的
 
@@ -1096,8 +1101,8 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
 
 ### 22.5 还差什么（按计划顺序）
 
-- M2：`ui-markdown` 组件（契约、块布局缓存、链接 external 效果、语义树）；示例 08、09；表达式（`openmui.expr`）和视图文档；跨平台的确定性比对作业；会话录制回放的 CTS。
-- M3：`runtime/abi`（C ABI）、`openmui.h` 生成的完整绑定、TS / Python / Lua；`runtime/reflect`。
+- M2 的验收已完成（见 22.3）。
+- M3：表达式（`openmui.expr`）和视图文档；`runtime/abi`（C ABI）、`openmui.h` 生成的完整绑定、TS / Python / Lua；`runtime/reflect`；示例 02–06、12。
 - M4：`modules/rhi` 和 `rhi-sdl`、GPU 渲染路径、Slang 着色器、效果和背景输入（液态玻璃，D-64）、画布、风格包、S1 / S2。
 - M5：openmui-video、ui-timeline、MCP 服务器、skills、S3 / S4 / S5。
 - 契约⑦（插件与管线）写进规范；Inspector 的火焰图和动画检查器视图。

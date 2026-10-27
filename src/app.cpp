@@ -108,6 +108,12 @@ int headless(AppSpec app, const RunOptions& o) {
         for (int i = 0; i < *o.frames; ++i) host.step();
     } else {
         host.settle();
+        // What runs beside the runtime (scripts) finishes, then the frames settle again.
+        for (int i = 0; app.ready && !app.ready() && i < 10000; ++i) {
+            host.step();
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        host.settle();
     }
     if (o.serve) {
         if (!host.endpoint()) {

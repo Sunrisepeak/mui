@@ -317,6 +317,7 @@ export const Counter = () => (
 - **线程**：`openmui.lang` 的 `Host` 让脚本在自己的线程上运行，树留在运行时的线程上。脚本调用运行时（`ui`）在下一个帧边界执行；运行时调用脚本实现的 verb 时一边等一边替脚本做事，脚本等运行时的时候也会执行运行时正在等的事，所以脚本调用自己的 verb 不会死锁。
 - **视图就是视图文档**：脚本构造的元素树编译成视图文档。表达式组合函数变成 CEL，由运行时同步求值；脚本的 signal 是运行时的 signal（`omuiSignalShare`），文档里声明为 `"provided": true`，所以所有视图和脚本共享一份状态；脚本的处理函数变成文档自己的事件（`emit`），连同事件和所在循环的行转发给脚本。因此任何语言写的视图和 C++ builder 是同一棵树（S 级，已测试）。
 - **signal 是镜像**：脚本读 signal 不等待；写入发出去不等待，下一帧运行时就有了；两边的修改都会通知脚本。
+- **TS / JS**：QuickJS-ng，ES 模块 `openmui`，builder 名字是组件契约名的驼峰形式（`textBox`），属性驼峰、处理函数 `on<Event>`；错误是异常（`OmuiError`）；TypeScript 由 esbuild 编译，程序自己的模块打包进去，`openmui` 保持为导入。
 - **Lua**：`omui.Column { … }` 表构造语法，名字来自已注册的组件；signal 的算术运算构造表达式；`omui.each(model, function(row) … end)` 只构造一次，`row.title` 是表达式；出错时返回 `nil, message`；热重载保留 signal 的值，测试要求 200ms 以内。
 
 ---
@@ -379,11 +380,13 @@ kind    = "app"
 id      = "org.example.notes"
 views   = ["ui/*.view.omui.json"]
 natives = ["native/*.native.omui.toml"]
-scripts = [
-  { lang = "ts",  entry = "logic/main.ts" },
-  { lang = "py",  entry = "plugins/export_pdf.py" },
-  { lang = "lua", entry = "plugins/macros.lua" },
-]
+
+# 按名字列出（按名字的顺序运行）；语言由扩展名决定，也可以写 lang。
+# mcpp 的清单不允许元数据里用数组套表，所以写成表。
+[package.metadata.openmui.scripts]
+main       = "logic/main.ts"
+export_pdf = { lang = "py", entry = "plugins/export_pdf.py" }
+macros     = "plugins/macros.lua"
 ```
 
 ### 9.2 非 C++ 依赖：写在 mcpp.toml 的扩展子段里，由 `openmui.rules` 处理（D-29）
@@ -448,6 +451,7 @@ extern "C++" auto omui_app() -> omui::AppSpec {
 }
 ```
 
+- **实现（2026-10-27）**：播放器入口是 `src/entry/player` 下单独的包 `openmui.entry.player`，不是伞包的特性。原因是 workspace 构建里每个包只编译一次，一个成员打开的特性会带到所有依赖伞包的成员上，却不带特性的依赖，链接就失败了。应用的 `src/main.cpp` 只有一行：`return omui::player_main(argc, argv);`。
 - **代码放在哪里**：入口是**运行时代码，不是构建代码**。入口文件放在伞包的 `src/entry/`（`player.cpp`、`app.cpp`），每个只有几行；播放器的逻辑放在 `runtime/player/`（模块 `openmui.player`）。仓库根目录下的 `mcpp/` 只放构建系统相关的东西（`openmui.rules`）。
 - **过渡办法（现在就能用）**：mcpp 的 `kind = "app"` 要求 `main` 指向本包里的一个文件，所以模板先生成一个可见的 `src/main.cpp`，只有一行，注释写明“由 openmui 模板生成，一般不需要修改”。
 - **最终形态**：已经向 mcpp 提了 issue [#845](https://github.com/mcpp-community/mcpp/issues/845)，提议在目标里支持 `entry = "openmui"`（由依赖的某个特性提供入口），用来代替 `main`。落地之后，模板默认启用 `entry-player` 或 `entry-app`，工程里就看不到 `main.cpp` 了。

@@ -1,0 +1,40 @@
+# Example 02 — hello, TypeScript (canvas-markdown §5): an application written
+# in TypeScript alone, no C++ to write. The player (openmui.entry.player) reads the
+# manifest below, compiles logic/main.ts with esbuild and runs it; a saved
+# file shows at once. The tool: statistics of a text — characters, words,
+# sentences, reading time — as you type or paste.
+#
+#   mcpp run                       a window
+#   mcpp run -- --headless --png stats.png
+[package]
+namespace   = "openmui.example"
+name        = "hello-ts"
+version     = "0.1.0"
+description = "openmui example 02: a text-statistics tool written in TypeScript, run by the player"
+license     = "Apache-2.0"
+
+[package.metadata.openmui]
+kind  = "app"
+id    = "org.openmui.text-stats"
+title = "Text statistics"
+size  = "480x320"
+
+# The scripts, by name (run in the names' order); the language comes from the
+# extension unless `lang` says it.
+[package.metadata.openmui.scripts]
+main = "logic/main.ts"
+
+[targets.text-stats]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cpp"]
+
+[dependencies]
+openmui.entry.player = { path = "../../src/entry/player" }
+
+[dev-dependencies]
+openmui.testing = { path = "../../tests/support" }
+openmui.player  = { path = "../../runtime/player" }
+openmui.lang.js = { path = "../../lang/js" }

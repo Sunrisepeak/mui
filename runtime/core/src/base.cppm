@@ -45,6 +45,11 @@ using anim::seconds;
     const std::u8string u = p.u8string();
     return std::string(reinterpret_cast<const char*>(u.data()), u.size());
 }
+// The same with `/` between components on every platform (messages, keys).
+[[nodiscard]] inline std::string generic_utf8(const std::filesystem::path& p) {
+    const std::u8string u = p.generic_u8string();
+    return std::string(reinterpret_cast<const char*>(u.data()), u.size());
+}
 
 // The spec's wire geometry and the shared geometry have the same fields.
 [[nodiscard]] constexpr spec::Rect to_spec(const Rect& r) noexcept { return {r.x, r.y, r.width, r.height}; }

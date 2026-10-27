@@ -6,6 +6,10 @@ import std;
 import openmui;
 import tally;
 import openmui.testing;
+import openmui.abi;
+import openmui.lang;
+import openmui.lang.lua;
+import openmui.lang.js;
 
 using namespace omui::testing;
 using namespace omui;
@@ -14,6 +18,11 @@ namespace {
 
 std::filesystem::path document() {
     return std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path() / "ui" / "tally.view.omui.json";
+}
+
+// A version of the example: lua/tally.lua, ts/tally.ts.
+std::filesystem::path script_file(std::string_view relative) {
+    return std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path() / relative;
 }
 
 std::string text_of(const std::filesystem::path& f) {
@@ -104,6 +113,75 @@ int main(int argc, char** argv) {
         check(p.doc.tree().node("main/controls/minus")->states.has(spec::State::disabled), "nothing to take away");
         check_eq(p.state.count.peek(), 0);
         check(p.document->view().signal("goal")->peek() == Value(1));
+    });
+
+    // A script version against the C++ one, through every operation.
+    auto script_version = [](std::string_view language, auto make_script, std::string code, std::string name) {
+        Headless code_host(HeadlessOptions{.size = {360, 300}});
+        Headless script_host(HeadlessOptions{.size = {360, 300}});
+        tally::State state;
+        code_host.mount("main", tally::view(state));
+        auto handle = abi::attach(script_host.runtime());
+        {
+            lang::Host host(handle);
+            lang::Session session(host);
+            auto script = make_script(session);
+            std::vector<std::string> errors;
+            script->on_error([&](std::string_view m) { errors.emplace_back(m); });
+            auto ran = script->run(std::move(code), std::move(name));
+            while (ran.wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
+                script_host.step();
+                std::this_thread::sleep_for(std::chrono::microseconds(200));
+            }
+            auto result = ran.get();
+            check(result.has_value(), result ? "" : result.error().text());
+            auto settle = [&] {
+                for (int i = 0; i < 2000 && !host.idle(); ++i) {
+                    script_host.step();
+                    std::this_thread::sleep_for(std::chrono::microseconds(200));
+                }
+                script_host.settle();
+                code_host.settle();
+            };
+            settle();
+            auto same = [&](std::string_view when) {
+                const auto a = tree(code_host), b = tree(script_host);
+                if (a != b) {
+                    for (std::size_t i = 0; i < std::min(a.size(), b.size()); ++i)
+                        if (!(a[i] == b[i])) {
+                            fail(std::format("{} {}: {} differs ({} / {})", language, when, a[i].id, a[i].name, b[i].name));
+                            return;
+                        }
+                    fail(std::format("{} {}: {} nodes against {}", language, when, a.size(), b.size()));
+                }
+                check(pixels(code_host) == pixels(script_host), std::format("{} {}: the pixels", language, when));
+            };
+            same("at the start");
+            for (std::string_view op : {"plus", "plus", "minus"}) {
+                for (Headless* h : {&code_host, &script_host})
+                    check_eq(act(*h, std::format("main/controls/{}", op), "activate"), std::int64_t{0});
+                settle();
+            }
+            same("after +1, +1, −1");
+            for (Headless* h : {&code_host, &script_host})
+                check_eq(act(*h, "main/goal/value", "set_value", Value(Value::Map{{"value", Value(1)}})), std::int64_t{0});
+            settle();
+            same("with the goal reached");
+            check(errors.empty(), errors.empty() ? "" : errors[0]);
+        }
+        abi::detach(handle);
+    };
+
+    s.test("the Lua version is the same tree and pixels, before and after each operation", [&] {
+        script_version("Lua", [](lang::Session& s) { return std::make_unique<lang::lua::Script>(s); }, text_of(script_file("lua/tally.lua")),
+                       "@lua/tally.lua");
+    });
+
+    s.test("the TypeScript version is the same tree and pixels, before and after each operation", [&] {
+        auto js = lang::js::compile_typescript(script_file("ts/tally.ts"));
+        check(js.has_value(), js ? "" : js.error());
+        if (!js) return;
+        script_version("TypeScript", [](lang::Session& s) { return std::make_unique<lang::js::Script>(s); }, *js, "ts/tally.ts");
     });
 
     s.test("the document passes omui check clean and is in the canonical format", [] {

@@ -4,8 +4,8 @@
 # expression arithmetic, regions, verbs, models and the bus interface.
 # Embedded: the script runs on openmui.lang's script thread.
 [package]
-namespace   = "openmui"
-name        = "lang.lua"
+namespace   = "openmui.lang"
+name        = "lua"
 version     = "0.1.0"
 description = "openmui for Lua 5.4: builders, signals, expressions, verbs, models and the semantic tree"
 license     = "Apache-2.0"
@@ -22,7 +22,8 @@ sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 
 [dependencies]
 openmui.lang  = { path = "../common" }
-openmui.abi   = { path = "../../runtime/abi" }
+openmui.abi    = { path = "../../runtime/abi" }
+openmui.player = { path = "../../runtime/player" }
 nlohmann.json = "3.12.0"
 compat.lua    = "5.4.7"
 

@@ -1,0 +1,33 @@
+# openmui.entry.player — the player's main (component-binding §10.2): what a
+# script-first application's one-line src/main.cpp calls. It reads the
+# application's [package.metadata.openmui], registers the official components
+# and the script languages (Lua, JavaScript, TypeScript), and runs the player
+# with openmui's options; saved files reload in place.
+#
+# A package of its own rather than a feature of the umbrella: a workspace
+# builds each package once, so a feature one member enables would reach every
+# member that depends on the umbrella, without the feature's dependencies.
+[package]
+namespace   = "openmui.entry"
+name        = "player"
+version     = "0.1.0"
+description = "The player's main for script-first openmui applications (entry-player)"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "entry"
+
+[targets.openmui-entry-player]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+openmui.sdk         = { path = "../../.." }
+openmui.player      = { path = "../../../runtime/player" }
+openmui.lang.lua    = { path = "../../../lang/lua" }
+openmui.lang.js     = { path = "../../../lang/js" }
+openmui.ui.markdown = { path = "../../../components/markdown" }
+marzer.tomlplusplus = "3.4.0"

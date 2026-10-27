@@ -47,11 +47,11 @@ version = "0.17.0"
 source  = "index+mcpplibs@0.17.0"
 hash    = "fnv1a:d9a6fe1043f0f4d5"
 
-[package."openkal-windows"]
+[package."openkal-linux"]
 namespace = "mcpplibs"
-version = "0.13.0"
-source  = "index+mcpplibs@0.13.0"
-hash    = "fnv1a:21599e2a1fc2281d"
+version = "0.18.0"
+source  = "index+mcpplibs@0.18.0"
+hash    = "fnv1a:2947b74ddbcf8b79"
 
 [package."mcpplibs.os"]
 namespace = "mcpplibs"
@@ -88,6 +88,12 @@ namespace = "compat"
 version = "0.5.3"
 source  = "index+compat@0.5.3"
 hash    = "fnv1a:dcc5c2d1d2b47bd3"
+
+[package."compat.quickjs-ng"]
+namespace = "compat"
+version = "0.17.0"
+source  = "index+compat@0.17.0"
+hash    = "fnv1a:d215459d2e758387"
 
 [package."compat.sdl3"]
 namespace = "compat"
@@ -190,10 +196,4 @@ namespace = "mcpplibs.mwrap"
 version = "0.5.3"
 source  = "index+mcpplibs.mwrap@0.5.3"
 hash    = "fnv1a:23e80030c05427e1"
-
-[package."openkal-linux"]
-namespace = "mcpplibs"
-version = "0.18.0"
-source  = "index+mcpplibs@0.18.0"
-hash    = "fnv1a:2947b74ddbcf8b79"
 

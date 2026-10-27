@@ -85,7 +85,9 @@ struct OmuiRuntime_T {
     std::string                                       app_id;
     bool                                              headless = true;
     std::unique_ptr<typeset::FontCollection>          fonts;
-    std::unique_ptr<Runtime>                          rt;
+    std::unique_ptr<Runtime>                          owned;    // nothing when attached to a host's runtime
+    Runtime*                                          rt = nullptr;
+    std::shared_ptr<bool>                             alive = std::make_shared<bool>(true);
     std::unique_ptr<typeset::GlyphCache>              glyphs;
     std::unique_ptr<agent::Protocol>                  protocol;
     render::CpuRenderer                               renderer;
@@ -170,7 +172,25 @@ struct OmuiRuntime_T {
 
 void set_window_runner(WindowRunner runner) { window_runner() = std::move(runner); }
 
-Runtime* runtime_of(OmuiRuntime rt) noexcept { return rt ? rt->rt.get() : nullptr; }
+Runtime* runtime_of(OmuiRuntime rt) noexcept { return rt ? rt->rt : nullptr; }
+
+OmuiRuntime attach(Runtime& runtime, std::string app_id) {
+    auto r = std::make_unique<OmuiRuntime_T>();
+    r->app_id = app_id.empty() ? std::string("openmui-app") : std::move(app_id);
+    r->headless = false;
+    r->rt = &runtime;
+    r->glyphs = std::make_unique<typeset::GlyphCache>(runtime.fonts());
+    agent::ProtocolOptions po;
+    po.app = r->app_id;
+    po.default_actor = "script:binding";
+    r->protocol = std::make_unique<agent::Protocol>(runtime, std::move(po));
+    return r.release();
+}
+
+void detach(OmuiRuntime rt) {
+    if (!rt) return;
+    (void)omuiDestroyRuntime(rt);
+}
 
 extern "C" {
 
@@ -193,7 +213,8 @@ OmuiResult omuiCreateRuntime(const OmuiRuntimeCreateInfo* info, OmuiRuntime* out
     RuntimeOptions o;
     o.fonts = r->fonts.get();
     o.clock = anim::Clock::virtual_time();
-    r->rt = std::make_unique<Runtime>(std::move(o));
+    r->owned = std::make_unique<Runtime>(std::move(o));
+    r->rt = r->owned.get();
     r->glyphs = std::make_unique<typeset::GlyphCache>(*r->fonts);
     agent::ProtocolOptions po;
     po.app = r->app_id;
@@ -209,7 +230,8 @@ OmuiResult omuiDestroyRuntime(OmuiRuntime rt) noexcept {
     rt->subscriptions.clear();
     rt->views.clear();
     rt->protocol.reset();
-    rt->rt.reset();
+    *rt->alive = false;
+    rt->owned.reset();
     delete rt;
     return OMUI_SUCCESS;
 }
@@ -304,7 +326,7 @@ OmuiResult omuiSet(OmuiRuntime rt, OmuiNode node, const OmuiProp* props, std::ui
         batch_of.emplace_back(std::string(text(props[i].name)), std::move(*v));
     }
     // One batch, at the next frame boundary.
-    Runtime* r = rt->rt.get();
+    Runtime* r = rt->rt;
     r->queue().post([r, n, values = std::move(batch_of)] {
         if (!r->valid(n)) return;
         batch([&] {
@@ -326,6 +348,13 @@ OmuiResult omuiOn(OmuiRuntime rt, OmuiNode node, OmuiString event, PFN_omuiEvent
     OmuiRuntime_T* self = rt;
     const std::uint64_t token = rt->rt->on(n, name, [self, sub, fn, user, node, name, coalesce](const Value& args) {
         if (coalesce) {
+            // The last of a frame's, delivered at the next frame boundary.
+            if (self->pending.empty()) {
+                std::weak_ptr<bool> alive = self->alive;
+                self->rt->queue().post([self, alive] {
+                    if (auto a = alive.lock(); a && *a) self->flush_events();
+                });
+            }
             self->pending.insert_or_assign(sub, OmuiRuntime_T::Pending{fn, user, node, name, args});
             return;
         }

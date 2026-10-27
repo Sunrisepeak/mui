@@ -1,8 +1,8 @@
 # openmui — the umbrella package, and the workspace of every openmui member.
 #
 # The repository root is the package users name (`openmui`): its module
-# re-exports the runtime, the base components and the default theme, and its
-# features are the build rule (`rules`) and the entries (`entry-*`). Each
+# re-exports the runtime, the base components and the default theme; the
+# entries are packages under src/entry (the player's: src/entry/player). Each
 # member below has its own mcpp.toml and depends on others only by `path`, so
 # any of them can move to its own repository (D-41).
 [package]
@@ -37,11 +37,13 @@ members = [
     "runtime/semantic",
     "runtime/agent",
     "runtime/abi",
+    "runtime/player",
     "hosts/headless",
     "hosts/sdl3",
     "components/base",
     "lang/common",
     "lang/lua",
+    "lang/js",
     "components/markdown",
     "tools/gen",
     "tools/omui",
@@ -50,7 +52,9 @@ members = [
     "tests/rules",
     "tests/bench",
     "tests/features",
+    "src/entry/player",
     "examples/01-hello-im",
+    "examples/02-hello-ts",
     "examples/03-counter",
     "examples/07-headless-and-agent",
     "examples/08-markdown-viewer",

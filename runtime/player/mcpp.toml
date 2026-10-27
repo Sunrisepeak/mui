@@ -1,0 +1,33 @@
+# openmui.player — the player (component-binding §10.2): what a script-first
+# application runs in. It defines the manifest's component documents, mounts
+# its view documents, runs its scripts in the languages registered with it
+# (lang/lua, lang/js …, plugins over the C ABI), and reloads what changes on
+# disk in place: a view keeps its nodes, a script its signals.
+[package]
+namespace   = "openmui"
+name        = "player"
+version     = "0.1.0"
+description = "openmui's player: an application's views, components and scripts, run and reloaded in place"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "runtime"
+
+[targets.openmui-player]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+openmui.core    = { path = "../core" }
+openmui.view    = { path = "../view" }
+openmui.viewdoc = { path = "../viewdoc" }
+openmui.abi     = { path = "../abi" }
+openmui.trace   = { path = "../../modules/trace" }
+
+[dev-dependencies]
+openmui.testing       = { path = "../../tests/support" }
+openmui.ui.base       = { path = "../../components/base" }
+openmui.host.headless = { path = "../../hosts/headless" }

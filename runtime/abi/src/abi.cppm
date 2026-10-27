@@ -22,4 +22,10 @@ void set_window_runner(WindowRunner runner);
 // The Runtime of a handle, for C++ that mixes both.
 [[nodiscard]] Runtime* runtime_of(OmuiRuntime rt) noexcept;
 
+// A handle over a runtime the caller owns (a desktop's or a headless host's,
+// which runs its frames): the C ABI and the script bindings work on it.
+// Detach before the runtime goes; the runtime stays.
+[[nodiscard]] OmuiRuntime attach(Runtime& runtime, std::string app_id = {});
+void detach(OmuiRuntime rt);
+
 }  // namespace omui::abi

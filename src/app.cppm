@@ -24,6 +24,9 @@ struct AppSpec {
     Theme                  theme = Theme::light();
     // Called once the runtime exists, before the view mounts (timers, more slots).
     std::function<void(Runtime&)> setup;
+    // Whether what setup started (scripts on their threads) is done for now:
+    // a headless run settles until it is.
+    std::function<bool()> ready;
 };
 
 // How to run, from the command line:

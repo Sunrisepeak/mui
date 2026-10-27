@@ -58,6 +58,7 @@ LAYERS: list[tuple[str, set[str]]] = [
     ("lang/*", {"spec", "runtime", "lang"}),
     ("tools/*", {"*"}),
     ("mcpp/*", {"tools"}),  # build code only: the rule and the generator it runs
+    ("src/entry/*", {"*"}),  # entries: the composition roots (component-binding §10.2)
     ("examples/*", {"*"}),
     ("showcase/*", {"*"}),
     ("tests/*", {"*"}),

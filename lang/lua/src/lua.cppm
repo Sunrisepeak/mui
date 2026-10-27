@@ -21,6 +21,7 @@ export module openmui.lang.lua;
 
 import std;
 import openmui.lang;
+import openmui.player;
 
 export namespace omui::lang::lua {
 
@@ -47,5 +48,8 @@ public:
 private:
     std::unique_ptr<Impl> impl_;
 };
+
+// Lua for the player: `lang = "lua"`, *.lua.
+[[nodiscard]] player::Language language();
 
 }  // namespace omui::lang::lua

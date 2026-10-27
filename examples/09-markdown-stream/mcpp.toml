@@ -1,0 +1,32 @@
+# Example 09 — Markdown as it streams (canvas-markdown §5): an answer arriving
+# token by token, from standard input (`llm "…" | md-stream`) or the built-in
+# demo, rendered as it comes. Each append re-parses only the tail, and the new
+# words fade in by glyph motion on just the new bytes. A real tool for
+# watching a model write, and the showcase of streaming and glyph motion.
+#
+#   some-llm "explain modules" | mcpp run -p openmui.example.markdown-stream
+#   mcpp run -p openmui.example.markdown-stream -- --demo
+[package]
+namespace   = "openmui.example"
+name        = "markdown-stream"
+version     = "0.1.0"
+description = "openmui example 09: Markdown rendered as it streams in, new words fading in"
+license     = "Apache-2.0"
+
+[package.metadata.openmui]
+kind = "example"
+
+[targets.md-stream]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+openmui.sdk         = { path = "../.." }
+openmui.ui.markdown = { path = "../../components/markdown" }
+mcpplibs.os         = "0.1.0"
+
+[dev-dependencies]
+openmui.testing = { path = "../../tests/support" }

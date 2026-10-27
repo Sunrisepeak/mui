@@ -47,6 +47,8 @@ members = [
     "tests/features",
     "examples/01-hello-im",
     "examples/07-headless-and-agent",
+    "examples/08-markdown-viewer",
+    "examples/09-markdown-stream",
 ]
 
 # Sanitizers (plan §19.1 "内存"): AddressSanitizer and UndefinedBehavior-

@@ -1,0 +1,31 @@
+# Example 08 — a Markdown viewer (canvas-markdown §5): open a file or a
+# folder of documents; a table of contents that follows the reading; links to
+# other documents open in place (with a way back), links to the web leave the
+# application only when asked (S-1, S-2a); the view reloads when the file is
+# saved. A real tool for reading docs, and the Markdown component's showcase.
+#
+#   mcpp run -- README.md             mcpp run -- docs/        (index.md or README.md)
+[package]
+namespace   = "openmui.example"
+name        = "markdown-viewer"
+version     = "0.1.0"
+description = "openmui example 08: a Markdown viewer with a live table of contents, document links and reload"
+license     = "Apache-2.0"
+
+[package.metadata.openmui]
+kind = "example"
+
+[targets.md-view]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+openmui.sdk         = { path = "../.." }
+openmui.ui.markdown = { path = "../../components/markdown" }
+mcpplibs.os         = "0.1.0"
+
+[dev-dependencies]
+openmui.testing = { path = "../../tests/support" }

@@ -100,7 +100,189 @@ JsonError locate(std::string_view text, std::size_t offset, std::string message)
     return e;
 }
 
+// A scanner of JSON that is known to parse, for json_location: it follows
+// one pointer down and skips everything else.
+struct Seek {
+    std::string_view text;
+    std::size_t      i = 0;
+
+    void space() {
+        while (i < text.size() && (text[i] == ' ' || text[i] == '\t' || text[i] == '\n' || text[i] == '\r')) ++i;
+    }
+
+    static void utf8(std::string& out, std::uint32_t cp) {
+        if (cp < 0x80) out += static_cast<char>(cp);
+        else if (cp < 0x800) {
+            out += static_cast<char>(0xC0 | (cp >> 6));
+            out += static_cast<char>(0x80 | (cp & 0x3F));
+        } else if (cp < 0x10000) {
+            out += static_cast<char>(0xE0 | (cp >> 12));
+            out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
+            out += static_cast<char>(0x80 | (cp & 0x3F));
+        } else {
+            out += static_cast<char>(0xF0 | (cp >> 18));
+            out += static_cast<char>(0x80 | ((cp >> 12) & 0x3F));
+            out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
+            out += static_cast<char>(0x80 | (cp & 0x3F));
+        }
+    }
+
+    std::optional<std::uint32_t> hex4() {
+        if (i + 4 > text.size()) return std::nullopt;
+        std::uint32_t v = 0;
+        if (std::from_chars(text.data() + i, text.data() + i + 4, v, 16).ptr != text.data() + i + 4) return std::nullopt;
+        i += 4;
+        return v;
+    }
+
+    // A string at i (at its quote), decoded.
+    std::optional<std::string> string() {
+        if (i >= text.size() || text[i] != '"') return std::nullopt;
+        ++i;
+        std::string out;
+        while (i < text.size() && text[i] != '"') {
+            if (text[i] != '\\') {
+                out += text[i++];
+                continue;
+            }
+            if (++i >= text.size()) return std::nullopt;
+            const char e = text[i++];
+            switch (e) {
+                case 'b': out += '\b'; break;
+                case 'f': out += '\f'; break;
+                case 'n': out += '\n'; break;
+                case 'r': out += '\r'; break;
+                case 't': out += '\t'; break;
+                case 'u': {
+                    auto cp = hex4();
+                    if (!cp) return std::nullopt;
+                    if (*cp >= 0xD800 && *cp < 0xDC00 && text.substr(i, 2) == "\\u") {
+                        i += 2;
+                        auto lo = hex4();
+                        if (!lo) return std::nullopt;
+                        *cp = 0x10000 + ((*cp - 0xD800) << 10) + (*lo - 0xDC00);
+                    }
+                    utf8(out, *cp);
+                    break;
+                }
+                default: out += e;
+            }
+        }
+        if (i >= text.size()) return std::nullopt;
+        ++i;
+        return out;
+    }
+
+    // Skips the value at i.
+    bool skip(int depth = 0) {
+        if (depth > 10000) return false;
+        space();
+        if (i >= text.size()) return false;
+        const char c = text[i];
+        if (c == '"') return string().has_value();
+        if (c == '{' || c == '[') {
+            const char close = c == '{' ? '}' : ']';
+            ++i;
+            space();
+            if (i < text.size() && text[i] == close) {
+                ++i;
+                return true;
+            }
+            while (true) {
+                if (c == '{') {
+                    space();
+                    if (!string()) return false;
+                    space();
+                    if (i >= text.size() || text[i] != ':') return false;
+                    ++i;
+                }
+                if (!skip(depth + 1)) return false;
+                space();
+                if (i >= text.size()) return false;
+                if (text[i] == ',') {
+                    ++i;
+                    continue;
+                }
+                if (text[i] != close) return false;
+                ++i;
+                return true;
+            }
+        }
+        while (i < text.size() && text[i] != ',' && text[i] != '}' && text[i] != ']' && text[i] != ' ' && text[i] != '\n' &&
+               text[i] != '\r' && text[i] != '\t')
+            ++i;
+        return true;
+    }
+
+    // Moves i to the start of the member or element `token` of the value at i.
+    bool enter(std::string_view token) {
+        space();
+        if (i >= text.size()) return false;
+        if (text[i] == '{') {
+            ++i;
+            while (true) {
+                space();
+                if (i < text.size() && text[i] == '}') return false;
+                auto key = string();
+                if (!key) return false;
+                space();
+                if (i >= text.size() || text[i] != ':') return false;
+                ++i;
+                space();
+                if (*key == token) return true;
+                if (!skip()) return false;
+                space();
+                if (i >= text.size() || text[i] != ',') return false;
+                ++i;
+            }
+        }
+        if (text[i] == '[') {
+            std::size_t want = 0;
+            const auto r = std::from_chars(token.data(), token.data() + token.size(), want);
+            if (r.ec != std::errc{} || r.ptr != token.data() + token.size() || token.empty()) return false;
+            ++i;
+            for (std::size_t k = 0;; ++k) {
+                space();
+                if (i < text.size() && text[i] == ']') return false;
+                if (k == want) return true;
+                if (!skip()) return false;
+                space();
+                if (i >= text.size() || text[i] != ',') return false;
+                ++i;
+            }
+        }
+        return false;
+    }
+};
+
 }  // namespace
+
+std::optional<JsonError> json_location(std::string_view text, std::string_view pointer) {
+    Seek s{text};
+    if (!pointer.empty() && pointer.front() != '/') return std::nullopt;
+    while (!pointer.empty()) {
+        pointer.remove_prefix(1);
+        const std::size_t end = pointer.find('/');
+        std::string token;
+        for (std::size_t k = 0; k < std::min(end, pointer.size()); ++k) {  // ~1 is '/', ~0 is '~'
+            if (pointer[k] == '~' && k + 1 < pointer.size() && (pointer[k + 1] == '0' || pointer[k + 1] == '1')) {
+                token += pointer[k + 1] == '0' ? '~' : '/';
+                ++k;
+            } else {
+                token += pointer[k];
+            }
+        }
+        if (!s.enter(token)) return std::nullopt;
+        pointer = end == std::string_view::npos ? std::string_view{} : pointer.substr(end);
+    }
+    s.space();
+    JsonError at;
+    at.offset = s.i;
+    at.line = 1 + static_cast<std::size_t>(std::ranges::count(text.substr(0, s.i), '\n'));
+    const std::size_t line_start = s.i == 0 ? 0 : (text.rfind('\n', s.i - 1) == std::string_view::npos ? 0 : text.rfind('\n', s.i - 1) + 1);
+    at.column = s.i - line_start + 1;
+    return at;
+}
 
 std::expected<Value, JsonError> parse_json(std::string_view text) {
     Builder b;

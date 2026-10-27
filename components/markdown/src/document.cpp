@@ -242,4 +242,6 @@ ActResult Markdown::find(ActContext&, const Value& query) {
     return ActResult::done(Value(std::move(hits)));
 }
 
+void register_markdown_component() { register_type(component_type<Markdown>()); }
+
 }  // namespace omui

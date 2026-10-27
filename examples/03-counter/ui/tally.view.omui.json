@@ -1,0 +1,75 @@
+{
+  "omui": "0.1",
+  "imports": ["openmui.ui.base"],
+  "notes": "A tally counter. src/tally.cpp builds the same view in C++; the tests check that the two make one semantic tree.",
+  "view": {
+    "name": "Tally",
+    "signals": {"count": {"type": "int", "value": 0}, "goal": {"type": "int", "value": 10}},
+    "root": {
+      "type": "column",
+      "props": {"padding": 24, "gap": 12},
+      "children": [
+        {
+          "type": "text",
+          "id": "count",
+          "props": {"text": {"expr": "string(count)"}, "style": "display"}
+        },
+        {
+          "type": "progress",
+          "id": "progress",
+          "props": {
+            "label": "Towards the goal",
+            "value": {"expr": "clamp(double(count) / double(max(goal, 1)), 0.0, 1.0)"}
+          }
+        },
+        {
+          "type": "text",
+          "id": "status",
+          "props": {
+            "text": {
+              "expr": "count >= goal ? format('Goal of {} reached', goal) : format('{} to go', goal - count)"
+            }
+          }
+        },
+        {
+          "type": "row",
+          "id": "controls",
+          "props": {"gap": 8},
+          "children": [
+            {
+              "type": "button",
+              "id": "minus",
+              "props": {"disabled": {"expr": "count == 0"}, "text": "−1"},
+              "on": {"activated": [{"set": "count", "expr": "max(count - 1, 0)"}]}
+            },
+            {
+              "type": "button",
+              "id": "plus",
+              "props": {"text": "+1", "variant": "primary"},
+              "on": {"activated": [{"set": "count", "expr": "count + 1"}]}
+            },
+            {
+              "type": "button",
+              "id": "reset",
+              "props": {"text": "Reset", "variant": "ghost"},
+              "on": {"activated": [{"set": "count", "value": 0}]}
+            }
+          ]
+        },
+        {
+          "type": "row",
+          "id": "goal",
+          "props": {"gap": 8},
+          "children": [
+            {"type": "text", "props": {"text": "Goal"}},
+            {
+              "type": "slider",
+              "id": "value",
+              "props": {"label": "Goal", "max": 100, "min": 1, "step": 1, "value": {"bind": "goal"}}
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

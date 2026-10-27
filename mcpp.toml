@@ -33,6 +33,7 @@ members = [
     "runtime/core",
     "runtime/expr",
     "runtime/view",
+    "runtime/viewdoc",
     "runtime/semantic",
     "runtime/agent",
     "hosts/headless",
@@ -47,6 +48,7 @@ members = [
     "tests/bench",
     "tests/features",
     "examples/01-hello-im",
+    "examples/03-counter",
     "examples/07-headless-and-agent",
     "examples/08-markdown-viewer",
     "examples/09-markdown-stream",
@@ -87,6 +89,8 @@ openmui.core          = { path = "runtime/core" }
 openmui.view          = { path = "runtime/view" }
 openmui.semantic      = { path = "runtime/semantic" }
 openmui.agent         = { path = "runtime/agent" }
+openmui.expr          = { path = "runtime/expr" }
+openmui.viewdoc       = { path = "runtime/viewdoc" }
 openmui.trace         = { path = "modules/trace" }
 openmui.ui.base       = { path = "components/base" }
 openmui.host.headless = { path = "hosts/headless" }

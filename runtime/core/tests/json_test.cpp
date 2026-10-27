@@ -37,5 +37,23 @@ int main(int argc, char** argv) {
         check(!bad && bad.error().line == 2);
     });
 
+    s.test("a pointer's place in the text", [] {
+        const std::string_view text = "{\n  \"view\": {\"root\": {\"children\": [\n    {\"type\": \"text\"},\n    {\"type\": \"butto\"}\n  ]}},\n  \"a/b\": 1, \"t~\": [true, {\"\\u00e9\\ud83d\\ude00\": null}]\n}";
+        auto at = [&](std::string_view p) { return omui::json_location(text, p); };
+        auto root = at("");
+        check(root && root->line == 1 && root->column == 1);
+        auto bad = at("/view/root/children/1/type");
+        check(bad && bad->line == 4 && bad->column == 14, bad ? bad->text() : "none");
+        auto second = at("/view/root/children/1");
+        check(second && second->line == 4 && second->column == 5);
+        check(at("/a~1b") && at("/a~1b")->line == 6, "~1 is a slash");
+        auto escaped = at("/t~0/1/\u00e9\U0001F600");
+        check(escaped && escaped->line == 6, "keys compare decoded");
+        check(!at("/view/root/children/2"), "past the end");
+        check(!at("/view/nothing"));
+        check(!at("/a~1b/0"), "into a number");
+        check(!at("view"), "a pointer starts with /");
+    });
+
     return s.run(argc, argv);
 }

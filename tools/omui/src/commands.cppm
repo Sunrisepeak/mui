@@ -7,6 +7,7 @@ export module openmui.cli;
 
 import std;
 import mcpplibs.cmdline;
+import openmui.viewdoc;
 
 export namespace omui::cli {
 
@@ -21,5 +22,17 @@ int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err)
 [[nodiscard]] std::expected<std::string, std::string> agent_request(const mcpplibs::cmdline::ParsedArgs& op);
 
 [[nodiscard]] std::expected<std::vector<std::uint8_t>, std::string> base64_decode(std::string_view text);
+
+}  // namespace omui::cli
+
+// The document commands (documents.cpp), for run().
+namespace omui::cli {
+
+[[nodiscard]] mcpplibs::cmdline::App check_command();
+[[nodiscard]] mcpplibs::cmdline::App fmt_command();
+[[nodiscard]] mcpplibs::cmdline::App schema_command();
+int check(const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ostream& err);
+int fmt(const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ostream& err);
+int schema(const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ostream& err);
 
 }  // namespace omui::cli

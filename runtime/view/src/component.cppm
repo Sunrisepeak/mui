@@ -68,6 +68,8 @@ public:
     virtual void recompose(NodeId node) = 0;
     // A model by name, made empty on first use.
     virtual Model& model(std::string_view name) = 0;
+    // The application's verbs (a view document's `verb` operation).
+    [[nodiscard]] virtual Verbs& verbs() noexcept = 0;
     // The node at a path, materialised first if a virtualising ancestor (a
     // list) holds it unmaterialised (spec S-7); none when nothing is there.
     virtual NodeId reveal(std::string_view path) = 0;
@@ -196,6 +198,13 @@ struct ComponentType {
     // After each layout pass, with bounds known (measured sizes, keeping
     // something in view): changes made here show at the next frame.
     void (*laid_out)(void*) = nullptr;
+    // A component that shows a model's rows (a list) takes the view of a row
+    // from whoever builds it: a builder, or a view document's `for`.
+    void (*set_item)(void*, std::function<Element(const Row&, std::size_t)>) = nullptr;
+    // A type made at run time (a view document with an interface) carries
+    // what its instances are made from: they come from create_in(context).
+    const void* context = nullptr;
+    void* (*create_in)(const void* context) = nullptr;
 };
 
 // The function table of component class C. C declares `static constexpr
@@ -222,6 +231,8 @@ template <class C>
         if constexpr (requires(const C& c) { { c.placement() } -> std::same_as<Placement>; })
             x.placement = [](const void* p) { return static_cast<const C*>(p)->placement(); };
         if constexpr (requires { C::contract(); }) x.contract = &C::contract();
+        if constexpr (requires(C& c, std::function<Element(const Row&, std::size_t)> f) { c.item = std::move(f); })
+            x.set_item = [](void* p, std::function<Element(const Row&, std::size_t)> f) { static_cast<C*>(p)->item = std::move(f); };
         x.create = [] { return static_cast<void*>(new C()); };
         x.destroy = [](void* p) { delete static_cast<C*>(p); };
         if constexpr (requires(C& c, Services& s, NodeId n) { c.mount(s, n); })

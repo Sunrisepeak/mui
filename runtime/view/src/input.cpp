@@ -41,6 +41,14 @@ bool is_pointer_kind(const InputEvent& e, PointerKind k) {
 
 }  // namespace
 
+std::span<const std::string_view> runtime_events() noexcept {
+    // handler_name's events, the root's close request, and the activation handlers.
+    static constexpr std::array<std::string_view, 16> events{
+        "activate", "blur", "close_request", "focus", "key_down", "key_up", "pointer_cancel", "pointer_down", "pointer_enter",
+        "pointer_leave", "pointer_move", "pointer_up", "preedit", "press", "text_input", "wheel"};
+    return events;
+}
+
 KeyTarget parse_key_target(std::string_view text) {
     KeyTarget t;
     auto open = text.find('(');

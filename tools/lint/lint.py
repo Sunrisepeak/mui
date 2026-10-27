@@ -23,6 +23,9 @@ Rules:
                 compile with -ffp-contract=off
   members       every directory listed as a workspace member has an mcpp.toml, and every
                 mcpp.toml under the tree is listed
+  documents     every view document (*.view.omui.json) is valid against the committed schema,
+                spec/schema/view.schema.json (`omui schema`); needs the `jsonschema` package
+                (CI installs it; without it the rule says it was skipped)
 """
 from __future__ import annotations
 
@@ -352,8 +355,36 @@ def flatten_deps(table: dict, prefix: str = ""):
             yield prefix + key, value
 
 
+def check_documents(root: Path) -> list[Problem]:
+    try:
+        import jsonschema  # type: ignore
+    except ImportError:
+        print("lint: documents skipped (pip install jsonschema)", file=sys.stderr)
+        return []
+    import json
+    schema_file = root / "spec" / "schema" / "view.schema.json"
+    docs = [f for f in root.rglob("*.view.omui.json") if not (set(f.relative_to(root).parts) & SKIP_DIRS)]
+    if not docs:
+        return []
+    if not schema_file.exists():
+        return [Problem("documents", "spec/schema/view.schema.json", "missing: omui schema --out spec/schema/view.schema.json")]
+    validator = jsonschema.Draft202012Validator(json.loads(schema_file.read_text(encoding="utf-8")))
+    problems = []
+    for f in sorted(docs):
+        where = f.relative_to(root).as_posix()
+        try:
+            doc = json.loads(f.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as e:
+            problems.append(Problem("documents", f"{where}:{e.lineno}:{e.colno}", e.msg))
+            continue
+        for e in sorted(validator.iter_errors(doc), key=lambda e: list(e.absolute_path)):
+            pointer = "/" + "/".join(str(x) for x in e.absolute_path)
+            problems.append(Problem("documents", f"{where} {pointer}", e.message[:200]))
+    return problems
+
+
 def run(root: Path) -> list[Problem]:
-    return check_sources(root) + check_manifests(root) + check_pins(root)
+    return check_sources(root) + check_manifests(root) + check_pins(root) + check_documents(root)
 
 
 def self_test() -> int:
@@ -370,7 +401,13 @@ def self_test() -> int:
         "modules": None,
         "manifest": None,
         "pins": None,
+        "documents": ("examples/x/ui/bad.view.omui.json", '{"omui": "0.1", "view": {"root": {"typ": "text"}}}'),
     }
+    try:
+        import jsonschema  # type: ignore  # noqa: F401
+    except ImportError:
+        del cases["documents"]
+        print("  skip  documents: pip install jsonschema")
     failures = 0
     for rule, planted in cases.items():
         with tempfile.TemporaryDirectory() as tmp:
@@ -396,6 +433,10 @@ def self_test() -> int:
                 flags = '[build]\ncxxflags = ["-ffp-contract=off"]\n' if m == "modules/anim" else ""
                 (root / m / "mcpp.toml").write_text(f'[package]\nname = "{m}"\nversion = "0.1.0"\n{flags}{deps}',
                                                     encoding="utf-8")
+            if rule == "documents":
+                (root / "spec" / "schema").mkdir(parents=True, exist_ok=True)
+                shutil.copy(Path(__file__).resolve().parents[2] / "spec" / "schema" / "view.schema.json",
+                            root / "spec" / "schema" / "view.schema.json")
             if planted:
                 path, text = planted
                 (root / path).parent.mkdir(parents=True, exist_ok=True)

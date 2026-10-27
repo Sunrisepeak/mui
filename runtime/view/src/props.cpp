@@ -28,8 +28,8 @@ constexpr std::array<std::string_view, 15> visual_props{
 // Animation the runtime applies to whatever the node draws (D-68).
 constexpr std::array<std::string_view, 2> motion_props{"glyph_motion", "pixel_effect"};
 
-constexpr std::array<std::string_view, 9> semantic_props{
-    "label", "description", "role", "origin", "focusable", "disabled", "verb", "effect", "answer",
+constexpr std::array<std::string_view, 10> semantic_props{
+    "label", "description", "role", "origin", "focusable", "disabled", "verb", "verb_args", "effect", "answer",
 };
 
 template <std::size_t N>
@@ -228,6 +228,21 @@ float scalar_default(Field f) { return f == Field::opacity || f == Field::scale 
 }  // namespace
 
 bool is_layout_prop(std::string_view name) noexcept { return in(layout_props, name); }
+
+std::span<const std::string_view> runtime_properties() noexcept {
+    static const auto all = [] {
+        std::vector<std::string_view> v;
+        for (auto set : {std::span<const std::string_view>(layout_props), std::span<const std::string_view>(visual_props),
+                         std::span<const std::string_view>(motion_props), std::span<const std::string_view>(semantic_props)})
+            v.insert(v.end(), set.begin(), set.end());
+        std::ranges::sort(v);
+        v.erase(std::ranges::unique(v).begin(), v.end());
+        return v;
+    }();
+    return all;
+}
+
+bool is_runtime_property(std::string_view name) noexcept { return std::ranges::binary_search(runtime_properties(), name); }
 bool is_visual_prop(std::string_view name) noexcept { return in(visual_props, name); }
 
 void Runtime::Impl::set_source(NodeId id, const std::string& name, const Source& source) {

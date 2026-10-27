@@ -32,6 +32,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: The schema checker of view documents
+        run: python3 -m pip install jsonschema
       - name: Repository rules
         run: python3 tools/lint/lint.py
       - name: Each rule catches a planted violation

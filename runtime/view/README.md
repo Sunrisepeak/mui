@@ -25,6 +25,10 @@ The retained and immediate view runtime (plan §3–§5):
   `laid_out` hook for measurement-driven adjustments; virtualisation hooks
   (`virtual_items`, `reveal`) so a virtualised tree answers queries over all
   of its content (S-7);
+- **for view documents and other generic builders**: `registered_types()`, the runtime's own
+  `runtime_properties()` and `runtime_events()`; `ComponentType::set_item` (a list takes the view of
+  a row from whoever builds it) and `create_in` (a type made at run time carries its context);
+  `verb_args`, the node's own arguments to its activation's verb, which a caller cannot override;
 - **immediate mode** (`omui::immediate`, `Ui`): ids from the id stack and
   call site, builds only when something happened;
 - **the frame is a pipeline** (D-66): eight stage plugins

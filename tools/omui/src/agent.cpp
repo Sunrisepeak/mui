@@ -303,6 +303,9 @@ cmd::App app() {
     (void)a.version("0.1.0").description("The openmui command line");
     a.option("dir").takes_value().value_name("DIR").global().help("agent: the endpoint directory (default: the per-user one)");
     (void)a.subcommand(agent_command());
+    (void)a.subcommand(check_command());
+    (void)a.subcommand(fmt_command());
+    (void)a.subcommand(schema_command());
     return a;
 }
 
@@ -405,11 +408,17 @@ int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err)
     }
     if (!parsed->has_subcommand()) {
         out << "omui — the openmui command line\n\n  omui agent ls | describe | snapshot | changes | find | act | wait | capture | call\n"
-               "  omui agent inspect | stats | profile | logs | debug | pipeline | clock   (development: what the application is doing)\n\n"
-               "Run `omui agent --help` for the agent operations.\n";
+               "  omui agent inspect | stats | profile | logs | debug | pipeline | clock   (development: what the application is doing)\n"
+               "  omui check FILE…     view documents: names, types, ids, expressions (--json)\n"
+               "  omui fmt FILE…       the canonical format (--check)\n"
+               "  omui schema          the JSON Schema of view documents\n\n"
+               "Run `omui <command> --help` for its options.\n";
         return 0;
     }
     if (parsed->subcommand_name() == "agent") return agent(parsed->subcommand()->get(), global(*parsed, "dir"), out, err);
+    if (parsed->subcommand_name() == "check") return check(parsed->subcommand()->get(), out, err);
+    if (parsed->subcommand_name() == "fmt") return fmt(parsed->subcommand()->get(), out, err);
+    if (parsed->subcommand_name() == "schema") return schema(parsed->subcommand()->get(), out, err);
     err << "omui: no command `" << parsed->subcommand_name() << "`\n";
     return 2;
 }

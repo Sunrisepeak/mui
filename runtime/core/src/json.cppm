@@ -22,6 +22,12 @@ struct JsonError {
 // Parses one JSON value; trailing text other than white space is an error.
 [[nodiscard]] std::expected<Value, JsonError> parse_json(std::string_view text);
 
+// Where the value at a JSON pointer (RFC 6901: "/view/root/children/1")
+// begins in a text that parses: diagnostics about a document point at the
+// line and column of what they are about. Nothing when the pointer names no
+// value. `message` is empty.
+[[nodiscard]] std::optional<JsonError> json_location(std::string_view text, std::string_view pointer);
+
 // The values of newline-delimited JSON (envelopes, the agent protocol, event
 // recordings); blank lines are skipped.
 [[nodiscard]] std::expected<std::vector<Value>, JsonError> parse_ndjson(std::string_view text);

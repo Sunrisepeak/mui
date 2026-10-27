@@ -192,8 +192,14 @@ Envelope Runtime::Impl::perform(NodeId id, std::string_view action, const Invoca
         call_handlers(id, "press", call.args);
         call_handlers(id, "activate", call.args);
         if (a && !a->verb.empty()) {
-            Envelope v = verbs.invoke(a->verb, call);
-            return v;
+            // The node's own arguments (a row's delete button names its row)
+            // win over the caller's: an action cannot be pointed elsewhere.
+            Invocation with = call;
+            if (auto own = at(id).props.find("verb_args"); own != at(id).props.end() && own->second.map()) {
+                if (!with.args.map()) with.args = Value(Value::Map{});
+                for (const auto& [k, v] : *own->second.map()) with.args.set(k, v);
+            }
+            return verbs.invoke(a->verb, with);
         }
     }
     if (!r.data.is_null()) env.data(std::move(r.data));

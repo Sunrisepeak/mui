@@ -113,5 +113,53 @@ int main(int argc, char** argv) {
         check(journal.size() >= 2 && journal[journal.size() - 2].actor == "agent:planner;via=person:alice");
     });
 
+    s.test("omui check: located diagnostics, as text and as JSON", [] {
+        const auto dir = scratch_dir("omui-check");
+        auto write = [&](std::string_view name, std::string_view text) {
+            std::ofstream(dir / name, std::ios::binary) << text;
+            return utf8(dir / name);
+        };
+        const std::string good = write("good.view.omui.json", R"({"omui": "0.1", "view": {"root": {"type": "text", "props": {"text": "hi"}}}})");
+        const std::string bad = write("bad.view.omui.json", "{\"omui\": \"0.1\",\n \"view\": {\"root\": {\"type\": \"buton\"}}}");
+        const std::string component = write("search.view.omui.json", R"({"omui": "0.1", "component": {"name": "search_field",
+            "interface": {"props": {"query": {"type": "string", "bindable": true}}},
+            "root": {"type": "text_box", "id": "input", "props": {"text": {"bind": "query"}}}}})");
+        const std::string user = write("page.view.omui.json", R"({"omui": "0.1", "view": {"root": {"type": "search_field", "id": "find"}}})");
+        auto r = omui_cmd({"check", good});
+        check_eq(r.code, 0);
+        check(r.out.empty() && r.err.find("0 errors, 0 warnings in 1 file") != std::string::npos, r.err);
+        r = omui_cmd({"check", good, bad});
+        check_eq(r.code, 1);
+        check_eq(r.out, bad + ":2:28: error: no component is named `buton` (did you mean `button`?) [unknown-type]\n");
+        r = omui_cmd({"check", "--json", bad});
+        check(r.code == 1 && parse_json(r.out).has_value() && parse_json(r.out)->get("pointer")->as_string() == "/view/root/type", r.out);
+        // A document that uses another document's component, given in either order.
+        r = omui_cmd({"check", user, component});
+        check(r.code == 0, r.out + r.err);
+    });
+
+    s.test("omui fmt rewrites to the canonical format; --check only reports", [] {
+        const auto dir = scratch_dir("omui-fmt");
+        const auto file = dir / "a.view.omui.json";
+        std::ofstream(file, std::ios::binary) << R"({"view":{"root":{"type":"text"}},"omui":"0.1"})";
+        auto r = omui_cmd({"fmt", "--check", utf8(file)});
+        check(r.code == 1 && r.out == utf8(file) + "\n", r.out);
+        check_eq(omui_cmd({"fmt", utf8(file)}).code, 0);
+        std::ifstream in(file, std::ios::binary);
+        const std::string text{std::istreambuf_iterator<char>(in), {}};
+        check_eq(text, std::string("{\n  \"omui\": \"0.1\",\n  \"view\": {\n    \"root\": {\"type\": \"text\"}\n  }\n}\n"));
+        check_eq(omui_cmd({"fmt", "--check", utf8(file)}).code, 0);
+    });
+
+    s.test("omui schema is the committed spec/schema/view.schema.json", [] {
+        const auto committed = std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path().parent_path().parent_path() /
+                               "spec" / "schema" / "view.schema.json";
+        std::ifstream in(committed, std::ios::binary);
+        const std::string text{std::istreambuf_iterator<char>(in), {}};
+        auto r = omui_cmd({"schema"});
+        check_eq(r.code, 0);
+        check(!text.empty() && r.out == text, "regenerate it: omui schema --out spec/schema/view.schema.json");
+    });
+
     return s.run(argc, argv);
 }

@@ -1,0 +1,33 @@
+# openmui.viewdoc — view documents (`*.view.omui.json`, view-data-files §3):
+# an interface as data, checked against the registered components with
+# located diagnostics, turned into the same Elements a builder makes, bound
+# to signals and models by openmui.expr expressions, reloaded in place with
+# its state kept; a document with an interface is a component every language
+# can use. Also the documents' JSON Schema and canonical format.
+[package]
+namespace   = "openmui"
+name        = "viewdoc"
+version     = "0.1.0"
+description = "openmui view documents: checking, loading, reloading, component documents, JSON Schema, canonical format"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "runtime"
+
+[targets.openmui-viewdoc]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+openmui.core  = { path = "../core" }
+openmui.view  = { path = "../view" }
+openmui.expr  = { path = "../expr" }
+openmui.trace = { path = "../../modules/trace" }
+
+[dev-dependencies]
+openmui.testing       = { path = "../../tests/support" }
+openmui.ui.base       = { path = "../../components/base" }
+openmui.host.headless = { path = "../../hosts/headless" }

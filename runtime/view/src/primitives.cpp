@@ -684,6 +684,13 @@ const ComponentType* find_type(std::string_view name) {
 
 void register_type(const ComponentType& type) { registry().types.insert_or_assign(std::string(type.name), &type); }
 
+std::vector<const ComponentType*> registered_types() {
+    std::vector<const ComponentType*> out;
+    for (const auto& [name, type] : registry().types) out.push_back(type);
+    std::ranges::sort(out, {}, &ComponentType::name);
+    return out;
+}
+
 Element box(BoxOptions o, std::vector<Element> children, std::source_location where) {
     return boxed(component_type<BoxNode>(), std::move(o), std::move(children), where);
 }

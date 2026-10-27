@@ -476,7 +476,11 @@ private:
                     if (failed_) return {};
                     return located(expr::has(Expr(arg.node().args[0]), arg.node().name), t.at);
                 }
-                return located(call(t.text, arguments(Tok::rparen, "`)`")), t.at);
+                std::vector<Expr> args = arguments(Tok::rparen, "`)`");
+                // select(c, a, b) is the combinators' name of c ? a : b.
+                if (t.text == "select" && args.size() == 3 && !failed_)
+                    return located(select(std::move(args[0]), std::move(args[1]), std::move(args[2])), t.at);
+                return located(call(t.text, std::move(args)), t.at);
             }
             case Tok::end:
                 fail(t.at, "the expression ends early", "complete it");

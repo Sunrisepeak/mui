@@ -164,6 +164,15 @@ struct PaintOptions {
 [[nodiscard]] const ComponentType& root_type();
 [[nodiscard]] const ComponentType* find_type(std::string_view name);
 void register_type(const ComponentType& type);
+// Every registered type (view documents and their schema, `omui check`), by name.
+[[nodiscard]] std::vector<const ComponentType*> registered_types();
+
+// What the runtime itself gives every node, whatever its type: the layout,
+// look, motion and semantic properties, and the events of input and of the
+// action handlers (`press`, `activate`).
+[[nodiscard]] std::span<const std::string_view> runtime_properties() noexcept;
+[[nodiscard]] bool is_runtime_property(std::string_view name) noexcept;
+[[nodiscard]] std::span<const std::string_view> runtime_events() noexcept;
 
 // Track lists: "1fr 2fr 120 auto minmax(80, 1fr) repeat(3, 1fr)".
 [[nodiscard]] std::vector<layout::Track> parse_tracks(std::string_view text);

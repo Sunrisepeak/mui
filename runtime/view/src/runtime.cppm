@@ -236,7 +236,7 @@ public:
     [[nodiscard]] std::vector<spec::ActionDesc> actions(NodeId node) const;
     [[nodiscard]] NodeId focused() const noexcept;
     void focus_next(bool backward = false);
-    [[nodiscard]] Verbs& verbs() noexcept;
+    [[nodiscard]] Verbs& verbs() noexcept override;
     [[nodiscard]] UiQueue& queue() noexcept;
 
     // ── semantics ──

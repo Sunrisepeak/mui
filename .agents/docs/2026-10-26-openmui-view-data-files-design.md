@@ -52,11 +52,11 @@
     "name": "Counter",
     "signals": { "count": { "type": "int", "value": 0 } },
     "root": {
-      "type": "Column", "props": { "gap": 8 },
+      "type": "column", "props": { "gap": 8 },
       "children": [
-        { "type": "Text",   "props": { "text": { "expr": "format('点击了 {} 次', count)" } } },
-        { "type": "Button", "id": "inc", "props": { "text": "加一" },
-          "on": { "activate": [ { "set": "count", "expr": "count + 1" } ] } }
+        { "type": "text",   "props": { "text": { "expr": "format('点击了 {} 次', count)" } } },
+        { "type": "button", "id": "inc", "props": { "text": "加一" },
+          "on": { "activated": [ { "set": "count", "expr": "count + 1" } ] } }
       ]
     }
   }
@@ -101,9 +101,9 @@ export const Counter = () => column({ gap: 8 }, [
                   "value":       { "type": "string", "default": "", "bindable": true } },
       "events": { "submitted":   { "args": { "text": "string" } } }
     },
-    "root": { "type": "TextBox", "id": "input",
-              "props": { "placeholder": { "expr": "placeholder" }, "value": { "bind": "value" } },
-              "on": { "submit": [ { "emit": "submitted", "args": ["value"] } ] } } } }
+    "root": { "type": "text_box", "id": "input",
+              "props": { "placeholder": { "expr": "placeholder" }, "text": { "bind": "value" } },
+              "on": { "submitted": [ { "emit": "submitted", "args": ["value"] } ] } } } }
 ```
 
 `openmui.rules` 根据 `interface` **自动产出契约 IR**，所以四种语言都能直接使用 `SearchBox`，绑定照样自动生成。用 C++ 实现的组件仍然写 `.contract.omui.toml`。
@@ -199,8 +199,20 @@ on.pointer_up   = { to = "idle", do = ["commit('group.moved', hit.node)"] }     
 
 ---
 
+## 7A. 实现（`runtime/viewdoc`，2026-10-27）
+
+- **名字就是契约里的名字**（R1、R3）：组件类型写契约名（`column`、`text_box`），属性、事件、动作也一样；`Button`、`TextBox` 这样的写法会被拒绝，并提示正确的名字。
+- **检查**：所有名字都按运行时已注册的东西解析：组件和它的契约、运行时自己的属性和事件、文档的 signal / model / 接口。诊断带 JSON 指针、行列（表达式的错误定位到字符串内部）和修改建议，`omui check --json` 输出结构化记录；不认识的字段是警告（R7）。
+- **事件里的 verb**：激活事件（`activate`、`activated`、`press`）里的 `verb` 会变成节点的 `verb` 属性，参数变成 `verb_args`。这样运行时按 verb 的效果给动作分级，并要求回答（S-1、S-2）；行里的删除按钮带着自己那一行的 key，调用方改不了。一次激活只能调用一个 verb。其他事件里的 verb 直接调用，没有回答，所以需要回答的 verb 应该放在激活上。
+- **`for`**：只遍历 model，每行的节点 ID 就是行的 key（S-8），行节点不能再写 `id`。放在列表组件（`list`）里时，循环体就是列表项的视图，自动虚拟化（S-7）；带 `where` 时列表得到一个过滤后的 model，跟着原 model 和条件读到的 signal 更新。
+- **`emit`**：组件文档里发出接口声明的事件（`args` 可以按声明顺序写成列表，也可以按名字写成对象）；普通视图里发给代码（`View::on`）。
+- **重新加载**：先检查，有错误就什么都不改；同名同类型的 signal 保留值，保留下来的节点保留状态、焦点和动画。
+- **组件文档**：`define_component` 从接口生成契约，四种语言和别的文档都能按名字使用；可绑定的属性会写回外层绑定；重新定义时所有实例原地重建，属性和状态保留。
+- **schema 和格式**：`spec/schema/view.schema.json` 由已注册的组件生成（`omui schema`），CI 用它校验仓库里所有视图文档；`omui fmt` 输出唯一的规范格式。
+
 ## 8. 待细化
 
-- 视图文档 JSON Schema 的全文；
-- 表达式子集的完整函数表，以及各语言组合函数的名字对照表；
-- `for` 和虚拟化的交互细节（估算高度、key 的稳定性）。
+- ~~视图文档 JSON Schema 的全文~~（`spec/schema/view.schema.json`，生成的）；
+- ~~表达式子集的完整函数表~~（`spec/registry/expr.toml`，`openmui.expr` 实现了全部函数）；各语言组合函数的名字对照表随 TS / Python / Lua 绑定落地；
+- ~~`for` 和虚拟化的交互~~（见 7A：列表里的循环由列表虚拟化，key 就是行的 key）；
+- 发布构建时把视图文档嵌入成紧凑的二进制格式（`openmui.rules`）。

@@ -323,6 +323,8 @@ int main(int argc, char** argv) {
         is("lookup(user, 'email', '-')", "\"-\"");
         is("lookup(user, 'email')", "null");
         is("lookup(null, 'x', 0)", "0");
+        is("select(ok, 'y', 'n')", "\"y\"");  // the combinators' name of ?:
+        round_trip("select(ok, 1, 2)", "ok ? 1 : 2");
         error("lookup(tags, 'a')", "int index");
 
         is("tr('items', count)", "\"items\"");  // no catalog: the key is the pattern; a translation may leave arguments out

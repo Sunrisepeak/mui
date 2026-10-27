@@ -38,7 +38,7 @@ NodeId Runtime::Impl::create(Element& e, NodeId parent) {
     const ComponentType& type = type_of(e);
     Node n;
     n.type = &type;
-    n.instance = type.create();
+    n.instance = type.create_in ? type.create_in(type.context) : type.create();
     n.parent = parent;
     n.where = e.where;
     if (!e.id.empty()) {

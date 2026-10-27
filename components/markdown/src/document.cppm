@@ -62,4 +62,7 @@ private:
     std::string                  heading_seen_;
 };
 
+// Registers the component by name, for view documents and immediate mode.
+void register_markdown_component();
+
 }  // namespace omui

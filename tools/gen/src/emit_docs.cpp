@@ -118,7 +118,9 @@ std::string emit_docs(const Registry& reg) {
         }
         if (!c.actions.empty()) {
             out += "| Action | Effect | Arguments |\n|---|---|---|\n";
-            for (const ContractAction& a : c.actions) out += std::format("| `{}` | `{}` | {} |\n", a.name, a.effect, args_text(a.args));
+            for (const ContractAction& a : c.actions)
+                out += std::format("| `{}` | `{}`{} | {} |\n", a.name, a.effect, a.answer.empty() ? "" : std::format(" (answer `{}`)", a.answer),
+                                   args_text(a.args));
             out += "\n";
         }
         if (!c.keys.empty()) {

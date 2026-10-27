@@ -445,3 +445,10 @@ aria        = "slider"
 accesskit   = "Slider"
 interactive = true
 doc         = "A time axis with a playhead (openmui-ui-timeline)."
+
+[[role]]
+name        = "blockquote"
+aria        = "blockquote"
+accesskit   = "Blockquote"
+interactive = false
+doc         = "A section quoted from another source."

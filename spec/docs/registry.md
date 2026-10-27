@@ -71,6 +71,7 @@ The machine-readable tables of the specification. Enumerators are append-only; t
 | 60 | `splitter` | yes | separator | Splitter | A movable divider between two panes. |
 | 61 | `disclosure` | yes | button | Button | Shows or hides a section of content. |
 | 62 | `timeline` | yes | slider | Slider | A time axis with a playhead (openmui-ui-timeline). |
+| 63 | `blockquote` |  | blockquote | Blockquote | A section quoted from another source. |
 
 ## States
 

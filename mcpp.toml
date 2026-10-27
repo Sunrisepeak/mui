@@ -36,6 +36,7 @@ members = [
     "hosts/headless",
     "hosts/sdl3",
     "components/base",
+    "components/markdown",
     "tools/gen",
     "tools/omui",
     "tools/inspector",

@@ -175,6 +175,7 @@ void Runtime::Impl::pointer_event(const PointerEvent& e) {
                 if (inside && !handled) {
                     Invocation call;
                     call.actor = {"person", "user", {"input:pointer"}};
+                    call.answer = own_answer(p, "activate");
                     (void)self.act(p, "activate", call);
                 }
             }
@@ -255,6 +256,7 @@ bool Runtime::Impl::key_binding(NodeId id, const KeyEvent& e) {
         return false;
     }
     if ((e.key == Key::enter || e.key == Key::space) && e.mods.bits == 0 && activatable_ancestor(id) == id) {
+        call.answer = own_answer(id, "activate");
         (void)self.act(id, "activate", call);
         return true;
     }
@@ -350,6 +352,15 @@ NodeId Runtime::Impl::focusable_ancestor(NodeId id) const {
     for (NodeId c = id; alive(c); c = at(c).parent)
         if (is_focusable(c)) return c;
     return {};
+}
+
+std::string Runtime::Impl::own_answer(NodeId id, std::string_view action) const {
+    if (!alive(id)) return {};
+    const spec::SemanticNode n = semantics(id);
+    const spec::ActionDesc* a = n.action(action);
+    // Only reaching outside (a link, a file): an irreversible action asks a
+    // person too, and the application turns needs-answer into its confirmation.
+    return a && a->effect == Effect::external ? a->answer : std::string();
 }
 
 NodeId Runtime::Impl::activatable_ancestor(NodeId id) const {

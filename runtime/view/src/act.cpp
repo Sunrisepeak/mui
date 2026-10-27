@@ -70,7 +70,7 @@ spec::SemanticNode Runtime::Impl::semantics(NodeId id) const {
         return s.actions.back();
     };
     if (const spec::ContractInfo* c = n.type->contract)
-        for (const spec::ActionSpec& a : c->actions) add(a.name, a.effect, a.args);
+        for (const spec::ActionSpec& a : c->actions) add(a.name, a.effect, a.args).answer = std::string(a.answer);
     else if (has_handler(id, "press") || has_handler(id, "activate") || prop("verb"))
         add("activate", Effect::reversible);
     if (const Value* v = prop("verb"); v && !v->as_string().empty()) {

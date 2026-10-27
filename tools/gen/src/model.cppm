@@ -158,6 +158,7 @@ struct Event : Named {
 struct ContractAction : Named {
     std::string      effect;
     std::vector<Arg> args;
+    std::string      answer;  // what confirms it (S-1): required for irreversible and external effects
 };
 
 struct Key {

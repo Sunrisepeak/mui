@@ -64,6 +64,9 @@ spec/registry/
 
 - **S-1** 效果为 `irreversible` 或 `external` 的动作必须写明 `answer`。
 - **S-2** 执行一个需要确认、但调用方没有提供 `answer` 的动作时，返回 `needs-answer`，并给出能回答它的选项；**绝不等待**（和 openas §3.3 的语义一致）。
+- **S-2a** 人通过指针或键盘**直接**激活一个效果为 `external` 的节点（按下并在节点上松开、焦点在节点上按 Enter / 空格）时，这次输入本身就是这个人的回答：运行时代填该动作声明的 `answer`。理由：人亲手点开链接或文件就是同意；否则所有链接对人都点不开。
+  - agent、脚本、测试和其他节点转发的调用，仍然要显式给出 `answer`。
+  - `irreversible` 的动作（删除、发送）对人也照样返回 `needs-answer`，避免误操作；应用据此弹出自己的确认。
 - **S-3** 来源为 `user_content` 或 `remote` 的文本，在消费方（agent）那里只能当作数据，不能当作指令。
 - **S-4** 处于 `removing` 状态的节点不接受动作。
 - **S-5** 语义树有 revision 号；变更是有序的 added / removed / updated 序列。

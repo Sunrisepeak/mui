@@ -34,6 +34,7 @@ struct ActionSpec {
     Effect                   effect;
     std::span<const ArgInfo> args;
     std::string_view         doc;
+    std::string_view         answer;  // what confirms it (S-1); empty when the effect needs none
 };
 
 // A key chord ("Right|Up", "Alt+Down") bound to an action or a command, with

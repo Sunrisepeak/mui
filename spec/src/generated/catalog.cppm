@@ -25,7 +25,7 @@ inline constexpr EventInfo button_events[] = {
     {"activated", {}, false, ""},
 };
 inline constexpr ActionSpec button_actions[] = {
-    {"activate", Effect::reversible, {}, "Do what the element is for: press a button, follow a link, choose an option."},
+    {"activate", Effect::reversible, {}, "Do what the element is for: press a button, follow a link, choose an option.", ""},
 };
 inline constexpr KeyInfo button_keys[] = {{"Enter|Space", "activate"}};
 inline constexpr std::string_view button_parts[] = {"background", "focus_ring", "icon", "label"};
@@ -43,8 +43,8 @@ inline constexpr EventInfo checkbox_events[] = {
     {"changed", checkbox_event_changed_args, false, ""},
 };
 inline constexpr ActionSpec checkbox_actions[] = {
-    {"activate", Effect::reversible, {}, "Do what the element is for: press a button, follow a link, choose an option."},
-    {"toggle", Effect::reversible, {}, "Flip the checked state of a checkbox, switch or toggle button."},
+    {"activate", Effect::reversible, {}, "Do what the element is for: press a button, follow a link, choose an option.", ""},
+    {"toggle", Effect::reversible, {}, "Flip the checked state of a checkbox, switch or toggle button.", ""},
 };
 inline constexpr KeyInfo checkbox_keys[] = {{"Space", "toggle"}};
 inline constexpr std::string_view checkbox_parts[] = {"box", "label", "mark"};
@@ -61,7 +61,7 @@ inline constexpr EventInfo dialog_events[] = {
     {"closed", dialog_event_closed_args, false, ""},
 };
 inline constexpr ActionSpec dialog_actions[] = {
-    {"dismiss", Effect::reversible, {}, "Close a dialog, menu, popup or tooltip without choosing."},
+    {"dismiss", Effect::reversible, {}, "Close a dialog, menu, popup or tooltip without choosing.", ""},
 };
 inline constexpr KeyInfo dialog_keys[] = {{"Escape", "dismiss"}};
 inline constexpr std::string_view dialog_parts[] = {"scrim", "surface", "title"};
@@ -97,7 +97,7 @@ inline constexpr EventInfo list_events[] = {
 };
 inline constexpr ArgInfo list_action_scroll_to_args[] = {{"x", "f64"}, {"y", "f64"}};
 inline constexpr ActionSpec list_actions[] = {
-    {"scroll_to", Effect::read, list_action_scroll_to_args, "Scroll a scroll view to a content offset."},
+    {"scroll_to", Effect::read, list_action_scroll_to_args, "Scroll a scroll view to a content offset.", ""},
 };
 inline constexpr KeyInfo list_keys[] = {{"Down", "next"}, {"Up", "previous"}};
 inline constexpr CommandInfo list_commands[] = {{"next", "Move focus to the next item."}, {"previous", "Move focus to the previous item."}};
@@ -111,7 +111,7 @@ inline constexpr EventInfo menu_events[] = {
     {"closed", {}, false, ""},
 };
 inline constexpr ActionSpec menu_actions[] = {
-    {"dismiss", Effect::reversible, {}, "Close a dialog, menu, popup or tooltip without choosing."},
+    {"dismiss", Effect::reversible, {}, "Close a dialog, menu, popup or tooltip without choosing.", ""},
 };
 inline constexpr KeyInfo menu_keys[] = {{"Escape", "dismiss"}};
 inline constexpr std::string_view menu_parts[] = {"surface"};
@@ -128,7 +128,7 @@ inline constexpr EventInfo menu_item_events[] = {
     {"activated", {}, false, ""},
 };
 inline constexpr ActionSpec menu_item_actions[] = {
-    {"activate", Effect::reversible, {}, "Do what the element is for: press a button, follow a link, choose an option."},
+    {"activate", Effect::reversible, {}, "Do what the element is for: press a button, follow a link, choose an option.", ""},
 };
 inline constexpr KeyInfo menu_item_keys[] = {{"Enter|Space", "activate"}};
 inline constexpr ContractInfo menu_item {"menu_item", Role::menu_item, "0.1", menu_item_props, menu_item_events, menu_item_actions, menu_item_keys, {}, {}, {}, "A command of a menu."};
@@ -152,8 +152,8 @@ inline constexpr EventInfo radio_events[] = {
     {"selected", radio_event_selected_args, false, ""},
 };
 inline constexpr ActionSpec radio_actions[] = {
-    {"activate", Effect::reversible, {}, "Do what the element is for: press a button, follow a link, choose an option."},
-    {"select", Effect::reversible, {}, "Select the element within its container."},
+    {"activate", Effect::reversible, {}, "Do what the element is for: press a button, follow a link, choose an option.", ""},
+    {"select", Effect::reversible, {}, "Select the element within its container.", ""},
 };
 inline constexpr KeyInfo radio_keys[] = {{"Space", "select"}};
 inline constexpr std::string_view radio_parts[] = {"circle", "dot", "label"};
@@ -172,8 +172,8 @@ inline constexpr EventInfo scroll_view_events[] = {
 inline constexpr ArgInfo scroll_view_action_scroll_by_args[] = {{"dx", "f64"}, {"dy", "f64"}};
 inline constexpr ArgInfo scroll_view_action_scroll_to_args[] = {{"x", "f64"}, {"y", "f64"}};
 inline constexpr ActionSpec scroll_view_actions[] = {
-    {"scroll_by", Effect::read, scroll_view_action_scroll_by_args, "Scroll a scroll view by a distance."},
-    {"scroll_to", Effect::read, scroll_view_action_scroll_to_args, "Scroll a scroll view to a content offset."},
+    {"scroll_by", Effect::read, scroll_view_action_scroll_by_args, "Scroll a scroll view by a distance.", ""},
+    {"scroll_to", Effect::read, scroll_view_action_scroll_to_args, "Scroll a scroll view to a content offset.", ""},
 };
 inline constexpr KeyInfo scroll_view_keys[] = {{"End", "scroll_to(0, end)"}, {"Home", "scroll_to(0, 0)"}, {"PageDown", "scroll_by(0, page)"}, {"PageUp", "scroll_by(0, -page)"}};
 inline constexpr std::string_view scroll_view_parts[] = {"scrollbar", "thumb", "viewport"};
@@ -193,9 +193,9 @@ inline constexpr EventInfo select_events[] = {
 };
 inline constexpr ArgInfo select_action_set_value_args[] = {{"value", "string"}};
 inline constexpr ActionSpec select_actions[] = {
-    {"collapse", Effect::reversible, {}, "Hide the controlled content."},
-    {"expand", Effect::reversible, {}, "Show the controlled content."},
-    {"set_value", Effect::reversible, select_action_set_value_args, "Replace the value (a slider's number, a text field's text, a select's choice)."},
+    {"collapse", Effect::reversible, {}, "Hide the controlled content.", ""},
+    {"expand", Effect::reversible, {}, "Show the controlled content.", ""},
+    {"set_value", Effect::reversible, select_action_set_value_args, "Replace the value (a slider's number, a text field's text, a select's choice).", ""},
 };
 inline constexpr KeyInfo select_keys[] = {{"Escape", "collapse"}, {"Space|Enter|Alt+Down", "expand"}};
 inline constexpr std::string_view select_parts[] = {"button", "chevron", "option", "popup"};
@@ -218,9 +218,9 @@ inline constexpr EventInfo slider_events[] = {
 };
 inline constexpr ArgInfo slider_action_set_value_args[] = {{"value", "f64"}};
 inline constexpr ActionSpec slider_actions[] = {
-    {"decrement", Effect::reversible, {}, "Step the value down."},
-    {"increment", Effect::reversible, {}, "Step the value up."},
-    {"set_value", Effect::reversible, slider_action_set_value_args, "Replace the value (a slider's number, a text field's text, a select's choice)."},
+    {"decrement", Effect::reversible, {}, "Step the value down.", ""},
+    {"increment", Effect::reversible, {}, "Step the value up.", ""},
+    {"set_value", Effect::reversible, slider_action_set_value_args, "Replace the value (a slider's number, a text field's text, a select's choice).", ""},
 };
 inline constexpr KeyInfo slider_keys[] = {{"End", "set_value(max)"}, {"Home", "set_value(min)"}, {"Left|Down", "decrement"}, {"Right|Up", "increment"}};
 inline constexpr std::string_view slider_parts[] = {"fill", "label", "thumb", "track"};
@@ -232,8 +232,8 @@ inline constexpr PropInfo tab_props[] = {
     {"text", PropType::string, {}, DefaultValue::of_string(""), false, ""},
 };
 inline constexpr ActionSpec tab_actions[] = {
-    {"activate", Effect::reversible, {}, "Do what the element is for: press a button, follow a link, choose an option."},
-    {"select", Effect::reversible, {}, "Select the element within its container."},
+    {"activate", Effect::reversible, {}, "Do what the element is for: press a button, follow a link, choose an option.", ""},
+    {"select", Effect::reversible, {}, "Select the element within its container.", ""},
 };
 inline constexpr ContractInfo tab {"tab", Role::tab, "0.1", tab_props, {}, tab_actions, {}, {}, {}, {}, "A tab of a tab list."};
 
@@ -287,10 +287,10 @@ inline constexpr ArgInfo text_box_action_replace_selection_args[] = {{"text", "s
 inline constexpr ArgInfo text_box_action_set_selection_args[] = {{"anchor", "i64"}, {"focus", "i64"}};
 inline constexpr ArgInfo text_box_action_set_value_args[] = {{"value", "string"}};
 inline constexpr ActionSpec text_box_actions[] = {
-    {"focus", Effect::read, {}, "Move keyboard focus to the element."},
-    {"replace_selection", Effect::reversible, text_box_action_replace_selection_args, "Replace the selected text of a text field (typing, pasting)."},
-    {"set_selection", Effect::read, text_box_action_set_selection_args, "Set the text selection of a text field (grapheme offsets)."},
-    {"set_value", Effect::reversible, text_box_action_set_value_args, "Replace the value (a slider's number, a text field's text, a select's choice)."},
+    {"focus", Effect::read, {}, "Move keyboard focus to the element.", ""},
+    {"replace_selection", Effect::reversible, text_box_action_replace_selection_args, "Replace the selected text of a text field (typing, pasting).", ""},
+    {"set_selection", Effect::read, text_box_action_set_selection_args, "Set the text selection of a text field (grapheme offsets).", ""},
+    {"set_value", Effect::reversible, text_box_action_set_value_args, "Replace the value (a slider's number, a text field's text, a select's choice).", ""},
 };
 inline constexpr KeyInfo text_box_keys[] = {{"Enter", "submit"}};
 inline constexpr CommandInfo text_box_commands[] = {{"submit", "Emit `submitted` (single-line fields)."}};
@@ -308,8 +308,8 @@ inline constexpr EventInfo toggle_events[] = {
     {"changed", toggle_event_changed_args, false, ""},
 };
 inline constexpr ActionSpec toggle_actions[] = {
-    {"activate", Effect::reversible, {}, "Do what the element is for: press a button, follow a link, choose an option."},
-    {"toggle", Effect::reversible, {}, "Flip the checked state of a checkbox, switch or toggle button."},
+    {"activate", Effect::reversible, {}, "Do what the element is for: press a button, follow a link, choose an option.", ""},
+    {"toggle", Effect::reversible, {}, "Flip the checked state of a checkbox, switch or toggle button.", ""},
 };
 inline constexpr KeyInfo toggle_keys[] = {{"Space|Enter", "toggle"}};
 inline constexpr std::string_view toggle_parts[] = {"label", "thumb", "track"};
@@ -321,7 +321,7 @@ inline constexpr PropInfo tooltip_props[] = {
     {"text", PropType::string, {}, DefaultValue::of_string(""), false, ""},
 };
 inline constexpr ActionSpec tooltip_actions[] = {
-    {"dismiss", Effect::reversible, {}, "Close a dialog, menu, popup or tooltip without choosing."},
+    {"dismiss", Effect::reversible, {}, "Close a dialog, menu, popup or tooltip without choosing.", ""},
 };
 inline constexpr std::string_view tooltip_parts[] = {"surface"};
 inline constexpr MotionInfo tooltip_motion[] = {{"surface", "motion.fast"}};

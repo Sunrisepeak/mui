@@ -244,8 +244,8 @@ std::string emit_contract_tables(const Contract& c, std::string_view id_text) {
     if (!c.actions.empty()) {
         out += std::format("inline constexpr ActionSpec {}_actions[] = {{\n", id);
         for (const ContractAction& a : c.actions)
-            out += std::format("    {{{}, Effect::{}, {}, {}}},\n", q(a.name), ident(a.effect),
-                               a.args.empty() ? std::string("{}") : std::format("{}_action_{}_args", id, a.name), q(a.doc));
+            out += std::format("    {{{}, Effect::{}, {}, {}, {}}},\n", q(a.name), ident(a.effect),
+                               a.args.empty() ? std::string("{}") : std::format("{}_action_{}_args", id, a.name), q(a.doc), q(a.answer));
         out += "};\n";
     }
     if (!c.keys.empty()) {

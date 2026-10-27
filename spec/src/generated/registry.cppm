@@ -87,9 +87,10 @@ enum class Role : std::uint8_t {
     splitter,
     disclosure,
     timeline,
+    blockquote,
 };
 
-inline constexpr std::array<RoleInfo, 63> roles{{
+inline constexpr std::array<RoleInfo, 64> roles{{
     {"none", "none", "GenericContainer", false, "Not exposed: presentation only."},
     {"generic", "generic", "GenericContainer", false, "A container with no meaning of its own."},
     {"application", "application", "Application", false, "The root of an application's interface."},
@@ -153,6 +154,7 @@ inline constexpr std::array<RoleInfo, 63> roles{{
     {"splitter", "separator", "Splitter", true, "A movable divider between two panes."},
     {"disclosure", "button", "Button", true, "Shows or hides a section of content."},
     {"timeline", "slider", "Slider", true, "A time axis with a playhead (openmui-ui-timeline)."},
+    {"blockquote", "blockquote", "Blockquote", false, "A section quoted from another source."},
 }};
 
 [[nodiscard]] constexpr std::string_view name(Role v) noexcept {

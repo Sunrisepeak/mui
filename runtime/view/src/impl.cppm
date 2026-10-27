@@ -334,6 +334,9 @@ struct Runtime::Impl {
     [[nodiscard]] std::vector<NodeId> focus_order() const;
     [[nodiscard]] NodeId focusable_ancestor(NodeId id) const;
     [[nodiscard]] NodeId activatable_ancestor(NodeId id) const;
+    // A person pressing the node itself (pointer or keyboard) is that
+    // person's answer to an external action (spec S-2a); irreversible ones ask.
+    [[nodiscard]] std::string own_answer(NodeId id, std::string_view action) const;
     bool   key_binding(NodeId id, const KeyEvent& e);
 
     // actions and semantics (act.cpp)

@@ -208,6 +208,8 @@ typedef enum OmuiRole {
     OMUI_ROLE_DISCLOSURE = 61,
     /* A time axis with a playhead (openmui-ui-timeline). */
     OMUI_ROLE_TIMELINE = 62,
+    /* A section quoted from another source. */
+    OMUI_ROLE_BLOCKQUOTE = 63,
     OMUI_ROLE_MAX_ENUM = 0x7FFFFFFF
 } OmuiRole;
 

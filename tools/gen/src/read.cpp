@@ -529,9 +529,15 @@ std::vector<Contract> read_contracts(const std::filesystem::path& file, const Re
                     a.effect = r.str(*at, "effect", true);
                     a.args = r.args(*at, "args");
                     a.doc = r.str(*at, "doc");
+                    // `answer = "yes"` names the answer; `answer = true` means the usual "yes".
+                    if (const auto* b = (*at)["answer"].as_boolean()) a.answer = b->get() ? "yes" : "";
+                    else a.answer = r.str(*at, "answer");
                 }
                 const Effect* eff = Registry::find(reg.effects, a.effect);
                 if (!eff) diags.error(a.loc, std::format("action `{}` names unknown effect `{}`", a.name, a.effect));
+                if (eff && eff->answer && a.answer.empty())
+                    diags.error(a.loc, std::format("action `{}` is `{}` but states no answer (S-1)", a.name, a.effect),
+                                "add answer = \"yes\" (what an agent must say to confirm it)");
                 if (const Action* common = Registry::find(reg.actions, a.name)) {
                     const Effect* base = Registry::find(reg.effects, common->effect);
                     if (eff && base && eff->tier < base->tier)

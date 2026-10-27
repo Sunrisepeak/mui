@@ -12,6 +12,7 @@ import openmui.ui.base;
 import openmui.host.headless;
 import openmui.anim;
 import openmui.markdown;
+import openmui.ui.canvas;
 
 namespace omui::bench {
 
@@ -113,6 +114,27 @@ std::string paragraph_text() {
     return s;
 }
 
+
+// canvas-markdown §3: a wall of windows on the canvas — a box far out, a
+// title bar and greeked lines when larger — `count` of them on a grid.
+void canvas_wall(std::string_view name, std::size_t count) {
+    auto& sc = world::scene(name);
+    sc.clear();
+    sc.kind("window", world::Kind{.tiers = {{0, world::Tier::Draw::box}, {80, world::Tier::Draw::custom}},
+                                  .draw = [](world::DrawContext& d) {
+                                      const Rect r = d.screen;
+                                      d.list.fill_round_rect(r, CornerRadii::all(6), render::Paint::solid(d.scene.fill(d.node)));
+                                      d.list.fill_rect({r.x, r.y, r.width, std::min(r.height, 22.0f)}, Color::hex(0x334155));
+                                      for (float y = r.y + 30; y + 6 < r.bottom() - 6; y += 12)
+                                          d.list.fill_rect({r.x + 8, y, (r.width - 16) * 0.8f, 5}, Color::hex(0xcbd5e1));
+                                  },
+                                  .role = Role::window});
+    const auto across = static_cast<std::size_t>(std::ceil(std::sqrt(static_cast<double>(count) * 1.5)));
+    for (std::size_t i = 0; i < count; ++i)
+        sc.add({.kind = "window", .x = static_cast<double>(i % across) * 700.0, .y = static_cast<double>(i / across) * 500.0, .width = 640,
+                .height = 440, .key = std::format("w{}", i), .fill = Color::hex(i % 3 ? 0xf8fafc : 0xe0f2fe), .radius = 8});
+}
+
 }  // namespace
 
 SceneFacts reference_scene_facts() {
@@ -129,6 +151,38 @@ void add_framework_benchmarks() {
     if (added) return;
     added = true;
     register_base_components();
+
+    // ── canvas-markdown §3.5: the canvas's frame while the camera moves ──
+    register_canvas_component();
+    auto canvas_frame = [](State& s, std::string_view scene, std::size_t count, double zoom, bool sweep) {
+        canvas_wall(scene, count);
+        // The runtime's frame — the visible set, tiers, the display list — and
+        // no raster (pixels are rasterised only when asked for).
+        HeadlessOptions o = scene_options();
+        Headless h(o);
+        h.mount("main", column({.width = full_hd.width, .height = full_hd.height},
+                               {canvas({.id = "wall", .scene = std::string(scene), .x = 9000, .y = 6000, .zoom = zoom,
+                                        .width = full_hd.width, .height = full_hd.height})}));
+        h.settle();
+        int i = 0;
+        while (s.next()) {
+            ++i;
+            if (sweep) h.scroll({960, 540}, {0, (i / 40) % 2 ? 60.0f : -60.0f}, false);  // the wheel, in and out
+            else h.scroll({960, 540}, {(i / 60) % 2 ? 37.0f : -37.0f, 23.0f * ((i / 30) % 2 ? 1 : -1)}, true);  // a trackpad pan
+            const FrameOutput f = h.step();
+            frame_counters(s, f);
+            s.counter("display_commands", static_cast<double>(h.runtime().display_list().size()));
+        }
+    };
+    add("canvas/pan-1000", "1000 windows, a trackpad pans every frame: the visible set, tiers and the display list", [=](State& s) {
+        canvas_frame(s, "bench-pan", 1000, 0.18, false);
+    });
+    add("canvas/zoom-sweep-1000", "1000 windows, the wheel zooms in and out about the centre every frame", [=](State& s) {
+        canvas_frame(s, "bench-zoom", 1000, 0.18, true);
+    });
+    add("canvas/pan-100k", "100,000 windows, a few hundred on screen: the frame follows what is visible, not the scene", [=](State& s) {
+        canvas_frame(s, "bench-big", 100000, 0.25, false);
+    });
 
     // ── M1 ⑤: the 1000-node dashboard at 1080p, through the CPU renderer ──
     add("ui/frame/idle", "nothing changed: the frame the runtime skips", [](State& s) {

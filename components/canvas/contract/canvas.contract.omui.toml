@@ -1,0 +1,35 @@
+# An infinite canvas (canvas-markdown §1, OMUI_EXT_canvas): a scene of nodes
+# in world space — thousands of windows, notes, shapes — seen through a
+# camera. The mechanism only: pan by dragging (or a trackpad's two fingers),
+# zoom about the cursor (the wheel, a pinch), a fling that glides to a stop,
+# zoom limits, named views; how nodes look at each size is their kind's, and
+# selection, dragging, handles, snapping, connectors and the minimap are
+# canvas-kit's behaviours. The semantic tree states what is on screen; `find`
+# searches the whole scene.
+[contract.canvas]
+role = "canvas"
+spec = "0.1"
+doc  = "An infinite canvas: a scene of nodes seen through a camera that pans and zooms."
+
+[contract.canvas.props]
+scene      = { type = "string", default = "", doc = "The scene it shows, by name (world::scene(name) fills it)." }
+x          = { type = "f64", default = 0, bindable = true, doc = "The world point at the centre of the view, x." }
+y          = { type = "f64", default = 0, bindable = true, doc = "The world point at the centre of the view, y." }
+zoom       = { type = "f64", default = 1, bindable = true, doc = "Screen pixels per world unit." }
+min_zoom   = { type = "f64", default = 0.01, doc = "The farthest out the camera goes." }
+max_zoom   = { type = "f64", default = 16, doc = "The farthest in the camera goes." }
+inertia    = { type = "bool", default = true, doc = "A fling glides on and slows to a stop." }
+background = { type = "color", default = "background", doc = "Behind the scene." }
+label      = { type = "string", default = "", doc = "The canvas's accessible name." }
+
+[contract.canvas.events]
+camera_changed = { args = { x = "f64", y = "f64", zoom = "f64" }, coalesce = "frame" }
+activated      = { args = { key = "string" } }
+
+[contract.canvas.actions]
+pan_to        = { effect = "read", args = { x = "f64", y = "f64" }, doc = "Move the view's centre to a world point (animated)." }
+zoom_to       = { effect = "read", args = { zoom = "f64" }, doc = "Zoom about the view's centre (animated)." }
+fit           = { effect = "read", args = { target = "string" }, doc = "Show `all` the scene, or the node with this key, whole (animated)." }
+focus_node    = { effect = "read", args = { key = "string" }, doc = "Bring the node with this key to the centre at a zoom that shows it whole, and focus it." }
+camera_preset = { effect = "read", args = { name = "string" }, doc = "Go to one of the scene's named views (animated)." }
+find          = { effect = "read", args = { query = "any" }, doc = "The keys of the scene's nodes matching {in_rect: [x, y, w, h], near: [x, y], radius, name, kind, role}, nearest first when `near` is given — over the whole scene, not only what is on screen." }

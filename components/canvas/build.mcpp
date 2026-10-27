@@ -1,0 +1,7 @@
+// The package's build program: its contract becomes the C++ base, the
+// builder, the stubs and the schema (component-binding §2).
+import std;
+import mcpp;
+import openmui.rules;
+
+int main() { return openmui::rules::components({.module = "openmui.ui.canvas", .ns = "omui"}) ? 0 : 1; }

@@ -11,8 +11,7 @@ std::string Error::text() const {
     return message.empty() ? std::format("openmui: result {}", static_cast<int>(result)) : message;
 }
 
-// What the script thread asks of the runtime's thread. It outlives the Host
-// while a post that will drain it is in flight.
+// What the script thread asks of the runtime's thread.
 struct Host::Inbox {
     std::mutex                        mutex;
     std::deque<std::function<void()>> tasks;
@@ -40,15 +39,38 @@ struct Host::Inbox {
 
 namespace {
 
+// The inboxes posts may still reach, by id. A post carries the id, not a
+// pointer it owns: one the runtime drops unrun (it was torn down first)
+// leaks nothing, and one that runs after its Host is gone finds no inbox.
+std::mutex                                           inboxes_mutex;
+std::unordered_map<std::uint64_t, std::weak_ptr<Host::Inbox>> inboxes;
+std::uint64_t                                        next_inbox = 1;
+
+std::uint64_t enrol(const std::shared_ptr<Host::Inbox>& inbox) {
+    std::scoped_lock lock(inboxes_mutex);
+    inboxes.emplace(next_inbox, inbox);
+    return next_inbox++;
+}
+
+void withdraw(std::uint64_t id) {
+    std::scoped_lock lock(inboxes_mutex);
+    inboxes.erase(id);
+}
+
 // The post that wakes the runtime's thread: it drains the inbox.
 void drain_posted(void* p) {
-    std::unique_ptr<std::shared_ptr<Host::Inbox>> inbox(static_cast<std::shared_ptr<Host::Inbox>*>(p));
-    (*inbox)->drain();
+    std::shared_ptr<Host::Inbox> inbox;
+    {
+        std::scoped_lock lock(inboxes_mutex);
+        if (auto it = inboxes.find(reinterpret_cast<std::uintptr_t>(p)); it != inboxes.end()) inbox = it->second.lock();
+    }
+    if (inbox) inbox->drain();
 }
 
 }  // namespace
 
-Host::Host(abi::OmuiRuntime runtime) : rt_(runtime), runtime_thread_(std::this_thread::get_id()), inbox_(std::make_shared<Inbox>()) {
+Host::Host(abi::OmuiRuntime runtime)
+    : rt_(runtime), runtime_thread_(std::this_thread::get_id()), inbox_(std::make_shared<Inbox>()), inbox_id_(enrol(inbox_)) {
     std::promise<std::thread::id> started;
     auto id = started.get_future();
     thread_ = std::jthread([this, &started](std::stop_token stop) {
@@ -63,6 +85,7 @@ Host::~Host() {
     wake_.notify_all();
     if (thread_.joinable()) thread_.join();
     inbox_->drain();  // nothing the script asked is left undone
+    withdraw(inbox_id_);
 }
 
 void Host::post(std::function<void()> fn) {
@@ -97,7 +120,8 @@ void Host::send(std::function<void()> fn) {
         return;
     }
     inbox_->push(std::move(fn));
-    if (abi::omuiPost(rt_, drain_posted, new std::shared_ptr<Inbox>(inbox_)) != abi::OMUI_SUCCESS) inbox_->drain();
+    if (abi::omuiPost(rt_, drain_posted, reinterpret_cast<void*>(static_cast<std::uintptr_t>(inbox_id_))) != abi::OMUI_SUCCESS)
+        inbox_->drain();
 }
 
 void Host::run_on_ui(std::function<void()> fn) {

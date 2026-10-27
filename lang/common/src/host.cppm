@@ -88,7 +88,7 @@ public:
     // runtime's thread, between frames or while it waits for the script).
     void drain();
 
-    struct Inbox;  // the runtime thread's queue, shared with posts in flight
+    struct Inbox;  // the runtime thread's queue; posts reach it by id
 
 private:
     void run_on_ui(std::function<void()> fn);
@@ -104,6 +104,7 @@ private:
     std::deque<std::function<void()>> urgent_;  // the runtime waits for these (a verb), even inside a script's call
     bool                              running_ = false;
     std::shared_ptr<Inbox>            inbox_;
+    std::uint64_t                     inbox_id_ = 0;  // what a post carries: no allocation to leak
     std::jthread                      thread_;
 };
 

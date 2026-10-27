@@ -41,6 +41,18 @@ case "$(uname -s)" in
 esac
 [ -n "$loader" ] || { echo "::error::the Vulkan loader is not where xlings installs"; exit 1; }
 if [ "$(uname -s)" = Linux ]; then
+    # xim's vulkan-loader has one Linux payload, x86_64, and installs it on
+    # every machine: on aarch64 it is a library of the wrong architecture. The
+    # ELF header says so; there, the distribution's loader is used instead
+    # (lavapipe itself is aarch64 from xim).
+    machine() { python3 -c 'import sys; d=open(sys.argv[1],"rb").read(20); print({62:"x86_64",183:"aarch64"}.get(int.from_bytes(d[18:20],"little"),"?"))' "$1"; }
+    if [ "$(machine "$loader")" != "$(uname -m)" ]; then
+        echo "gpu: xim's Vulkan loader is $(machine "$loader") on an $(uname -m) machine; using the distribution's"
+        system=/usr/lib/$(uname -m)-linux-gnu/libvulkan.so.1
+        [ -e "$system" ] || sudo apt-get install -y --no-install-recommends libvulkan1 > /dev/null
+        [ -e "$system" ] || { echo "::error::no Vulkan loader for $(uname -m)"; exit 1; }
+        loader=$system
+    fi
     # What the loader and the driver resolve to, so a device that does not
     # come up says why; the loader reports its own errors on stderr.
     driver=$(dirname "$icd")/../../../lib/libvulkan_lvp.so

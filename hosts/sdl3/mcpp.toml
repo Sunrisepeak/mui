@@ -1,5 +1,5 @@
-# openmui.host.sdl3 — openmui on the desktop through SDL3 (mcpp-index
-# compat.sdl3): a window, the display's scale, mouse, touch, wheel,
+# openmui.host.sdl3 — openmui on the desktop through SDL3 (imported as the
+# C++ module mcpplibs.mwrap.sdl3 over mcpp-index's compat.sdl3): a window, the display's scale, mouse, touch, wheel,
 # keyboard, text and input methods, the system clipboard and cursors; frames
 # drawn by the GPU renderer into the window's swapchain (omui.rhi on SDL_GPU)
 # or by the CPU renderer into a streamed texture; a program's effect files
@@ -38,7 +38,7 @@ openmui.trace    = { path = "../../modules/trace" }
 "openmui.rhi.sdl" = { path = "../../modules/rhi-sdl" }
 openmui.effect   = { path = "../../modules/effect" }
 mcpplibs.os      = "0.1.2"
-compat.sdl3      = "3.4.18"
+mcpplibs.mwrap.sdl3 = "3.4.18"
 
 [dev-dependencies]
 openmui.testing = { path = "../../tests/support" }

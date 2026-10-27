@@ -1,29 +1,14 @@
-// SDL3 for openmui.host.sdl3:platform. The one unit that sees SDL's headers
-// (and its macros): everything leaves as openmui's own types.
-module;
-// The headers this unit uses, not <SDL3/SDL.h>: that one brings SDL_assert.h,
-// whose <intrin.h> on MinGW puts libstdc++'s C++ wrappers in this global
-// module fragment, where they conflict with `import std`.
-#include <SDL3/SDL_clipboard.h>
-#include <SDL3/SDL_error.h>
-#include <SDL3/SDL_events.h>
-#include <SDL3/SDL_hints.h>
-#include <SDL3/SDL_init.h>
-#include <SDL3/SDL_keyboard.h>
-#include <SDL3/SDL_keycode.h>
-#include <SDL3/SDL_mouse.h>
-#include <SDL3/SDL_pixels.h>
-#include <SDL3/SDL_properties.h>
-#include <SDL3/SDL_render.h>
-#include <SDL3/SDL_stdinc.h>
-#include <SDL3/SDL_surface.h>
-#include <SDL3/SDL_video.h>
+// SDL3 for openmui.host.sdl3:platform. The one unit that uses SDL (imported
+// as a module, mcpplibs.mwrap.sdl3; its macros as constants): everything
+// leaves as openmui's own types.
 module openmui.host.sdl3;
 
 import std;
+import mcpplibs.mwrap.sdl3;
 import openmui.core;
 import openmui.raster;
 import :platform;
+using namespace mcpplibs::mwrap::sdl3::macros;
 
 namespace omui::platform {
 

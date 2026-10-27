@@ -1,19 +1,14 @@
-// SDL_GPU for openmui.rhi.sdl: the one unit that sees SDL's headers. rhi's
+// SDL_GPU for openmui.rhi.sdl: the one unit that uses SDL (imported as a
+// module, mcpplibs.mwrap.sdl3). rhi's
 // descriptions become SDL's create-infos, a validated CommandList becomes one
 // SDL command buffer.
-module;
-// The headers this unit uses, not <SDL3/SDL.h> (whose SDL_assert.h brings
-// <intrin.h> on MinGW, which conflicts with `import std`).
-#include <SDL3/SDL_error.h>
-#include <SDL3/SDL_gpu.h>
-#include <SDL3/SDL_hints.h>
-#include <SDL3/SDL_init.h>
-#include <SDL3/SDL_properties.h>
 module openmui.rhi.sdl;
 
 import std;
+import mcpplibs.mwrap.sdl3;
 import openmui.memory;
 import openmui.rhi;
+using namespace mcpplibs::mwrap::sdl3::macros;
 
 namespace omui::rhi::sdl {
 

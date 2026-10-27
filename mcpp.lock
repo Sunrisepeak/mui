@@ -221,6 +221,12 @@ version = "0.17.0"
 source  = "index+mcpplibs.mwrap@0.17.0"
 hash    = "fnv1a:306d8ee6f7a018eb"
 
+[package."mcpplibs.mwrap.sdl3"]
+namespace = "mcpplibs.mwrap"
+version = "3.4.18"
+source  = "index+mcpplibs.mwrap@3.4.18"
+hash    = "fnv1a:bc48fbfcd7e26f65"
+
 [package."nlohmann.json"]
 namespace = "nlohmann"
 version = "3.12.0"

@@ -1,11 +1,12 @@
-// The pool over taskflow and the UI queue over moodycamel's ConcurrentQueue
-// (imported as a module, mcpplibs.mwrap.concurrentqueue), here in an
-// implementation unit: nothing of it is exported (D-40).
+// The pool over taskflow, in an implementation unit: nothing of it is
+// exported (D-40). The UI queue is ui_queue.cpp's: taskflow and the queue's
+// module are imported by units of their own (clang's Microsoft ABI gives
+// taskflow's internal helpers one name across its partitions when another
+// module joins them in a unit).
 module openmui.core;
 
 import std;
 import tf;
-import mcpplibs.mwrap.concurrentqueue;
 
 namespace omui {
 
@@ -78,27 +79,5 @@ void Tasks::wait_idle() {
     std::unique_lock lock(impl_->mutex);
     impl_->idle.wait(lock, [&] { return impl_->pending.load() == 0; });
 }
-
-struct UiQueue::Impl {
-    moodycamel::ConcurrentQueue<std::function<void()>> queue;
-};
-
-UiQueue::UiQueue() : impl_(std::make_unique<Impl>()) {}
-UiQueue::~UiQueue() = default;
-
-void UiQueue::post(std::function<void()> fn) { impl_->queue.enqueue(std::move(fn)); }
-
-std::size_t UiQueue::drain() {
-    std::size_t limit = impl_->queue.size_approx();
-    std::size_t ran = 0;
-    std::function<void()> fn;
-    while (ran < limit && impl_->queue.try_dequeue(fn)) {
-        fn();
-        ++ran;
-    }
-    return ran;
-}
-
-std::size_t UiQueue::approximate_size() const noexcept { return impl_->queue.size_approx(); }
 
 }  // namespace omui

@@ -65,6 +65,7 @@ members = [
     "examples/01-hello-im",
     "examples/02-hello-ts",
     "examples/03-counter",
+    "examples/04-rating",
     "examples/05-contrast",
     "examples/06-theming",
     "examples/07-headless-and-agent",

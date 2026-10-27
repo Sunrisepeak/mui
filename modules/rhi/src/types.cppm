@@ -59,7 +59,9 @@ struct ShaderFormats {
     [[nodiscard]] constexpr bool empty() const noexcept { return bits == 0; }
     [[nodiscard]] constexpr ShaderFormats operator&(ShaderFormats o) const noexcept { return {static_cast<std::uint8_t>(bits & o.bits)}; }
     [[nodiscard]] constexpr ShaderFormats operator|(ShaderFormats o) const noexcept { return {static_cast<std::uint8_t>(bits | o.bits)}; }
-    friend constexpr bool operator==(ShaderFormats, ShaderFormats) noexcept = default;
+    // Spelled out, not defaulted: GCC 16.1 crashes comparing a defaulted
+    // friend of an exported type from another module.
+    friend constexpr bool operator==(ShaderFormats a, ShaderFormats b) noexcept { return a.bits == b.bits; }
 };
 [[nodiscard]] constexpr ShaderFormats formats(std::initializer_list<ShaderFormat> list) noexcept {
     ShaderFormats s;
@@ -159,7 +161,9 @@ struct SamplerDesc {
 // A rectangle of texels.
 struct Region {
     std::uint32_t x = 0, y = 0, width = 0, height = 0;
-    friend constexpr bool operator==(Region, Region) noexcept = default;
+    friend constexpr bool operator==(Region a, Region b) noexcept {
+        return a.x == b.x && a.y == b.y && a.width == b.width && a.height == b.height;
+    }
 };
 
 // ── shaders ──────────────────────────────────────────────────────────────
@@ -241,7 +245,10 @@ struct Blend {
         return {true, BlendFactor::one, BlendFactor::one, BlendOp::add, BlendFactor::one, BlendFactor::one, BlendOp::add};
     }
     [[nodiscard]] static constexpr Blend replace() noexcept { return {}; }
-    friend constexpr bool operator==(Blend, Blend) noexcept = default;
+    friend constexpr bool operator==(Blend a, Blend b) noexcept {
+        return a.enabled == b.enabled && a.src_color == b.src_color && a.dst_color == b.dst_color && a.color_op == b.color_op &&
+               a.src_alpha == b.src_alpha && a.dst_alpha == b.dst_alpha && a.alpha_op == b.alpha_op;
+    }
 };
 
 enum class Topology : std::uint8_t { triangle_list, triangle_strip, line_list };
@@ -265,7 +272,11 @@ struct ComputePipelineDesc {
 struct Counts {
     std::uint32_t samplers = 0, storage_textures = 0, storage_buffers = 0, uniform_buffers = 0;
     std::uint32_t rw_storage_textures = 0, rw_storage_buffers = 0;
-    friend constexpr bool operator==(Counts, Counts) noexcept = default;
+    friend constexpr bool operator==(Counts a, Counts b) noexcept {
+        return a.samplers == b.samplers && a.storage_textures == b.storage_textures && a.storage_buffers == b.storage_buffers &&
+               a.uniform_buffers == b.uniform_buffers && a.rw_storage_textures == b.rw_storage_textures &&
+               a.rw_storage_buffers == b.rw_storage_buffers;
+    }
 };
 [[nodiscard]] constexpr Counts counts(const ShaderDesc& d) noexcept {
     return {d.samplers, d.storage_textures, d.storage_buffers, d.uniform_buffers, d.rw_storage_textures, d.rw_storage_buffers};
@@ -282,7 +293,7 @@ struct ComputePipelineInfo {
 // What a submission is waited on by.
 struct Submission {
     std::uint64_t id = 0;
-    friend constexpr bool operator==(Submission, Submission) noexcept = default;
+    friend constexpr bool operator==(Submission a, Submission b) noexcept { return a.id == b.id; }
 };
 
 // What makes a description wrong before any backend sees it ("" when it is

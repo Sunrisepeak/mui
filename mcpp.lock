@@ -5,12 +5,6 @@
 # file must not change depending on which command ran last.
 version = 2
 
-[package."compat.concurrentqueue"]
-namespace = "compat"
-version = "1.0.5"
-source  = "index+compat@1.0.5"
-hash    = "fnv1a:ef74c660ecd57abf"
-
 [package."compat.fribidi"]
 namespace = "compat"
 version = "1.0.16"
@@ -23,11 +17,11 @@ version = "1.7.0"
 source  = "index+compat@1.7.0"
 hash    = "fnv1a:8aac59c924aeb90b"
 
-[package."compat.libpng"]
+[package."compat.lua"]
 namespace = "compat"
-version = "1.6.43"
-source  = "index+compat@1.6.43"
-hash    = "fnv1a:b3a219b122077f27"
+version = "5.4.7"
+source  = "index+compat@5.4.7"
+hash    = "fnv1a:62ff6fb178577847"
 
 [package."compat.md4c"]
 namespace = "compat"
@@ -119,12 +113,6 @@ version = "1.6.0"
 source  = "index+compat@1.6.0"
 hash    = "fnv1a:da8beda12a37830a"
 
-[package."compat.zlib"]
-namespace = "compat"
-version = "1.3.2"
-source  = "index+compat@1.3.2"
-hash    = "fnv1a:9f13dbeaae3ef4c0"
-
 [package."marzer.tomlplusplus"]
 namespace = "marzer"
 version = "3.4.0"
@@ -149,11 +137,11 @@ version = "3.12.0"
 source  = "index+nlohmann@3.12.0"
 hash    = "fnv1a:65af05f998b1b9d7"
 
-[package."taskflow.taskflow"]
-namespace = "taskflow"
-version = "4.1.0"
-source  = "index+taskflow@4.1.0"
-hash    = "fnv1a:30640bbab1b45045"
+[package."compat.concurrentqueue"]
+namespace = "compat"
+version = "1.0.5"
+source  = "index+compat@1.0.5"
+hash    = "fnv1a:ef74c660ecd57abf"
 
 [package."compat.freetype"]
 namespace = "compat"
@@ -167,6 +155,24 @@ version = "14.3.0"
 source  = "index+compat@14.3.0"
 hash    = "fnv1a:87f3d11b2c5bd0dd"
 
+[package."compat.libpng"]
+namespace = "compat"
+version = "1.6.43"
+source  = "index+compat@1.6.43"
+hash    = "fnv1a:b3a219b122077f27"
+
+[package."compat.quickjs-ng"]
+namespace = "compat"
+version = "0.17.0"
+source  = "index+compat@0.17.0"
+hash    = "fnv1a:d215459d2e758387"
+
+[package."compat.zlib"]
+namespace = "compat"
+version = "1.3.2"
+source  = "index+compat@1.3.2"
+hash    = "fnv1a:9f13dbeaae3ef4c0"
+
 [package."openkal"]
 namespace = "mcpplibs"
 version = "0.17.0"
@@ -178,4 +184,10 @@ namespace = "mcpplibs"
 version = "0.18.0"
 source  = "index+mcpplibs@0.18.0"
 hash    = "fnv1a:2947b74ddbcf8b79"
+
+[package."taskflow.taskflow"]
+namespace = "taskflow"
+version = "4.1.0"
+source  = "index+taskflow@4.1.0"
+hash    = "fnv1a:30640bbab1b45045"
 

@@ -27,11 +27,16 @@ for f in src.rglob("*"):
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_bytes(text)
 # This checkout instead of the published packages.
+paths = {"openmui.sdk": ".", "openmui.entry.player": "src/entry/player", "openmui.player": "runtime/player",
+         "openmui.lang.js": "lang/js", "openmui.lang.lua": "lang/lua", "openmui.native": "runtime/native",
+         "openmui.theme.default": "themes/default"}
 m = dst / "mcpp.toml"
-t = m.read_text()
-t = t.replace('"openmui.sdk" = "0.1.0"', f'openmui.sdk = {{ path = "{root}" }}')
-t = t.replace('openmui.rules = { version = "0.1.0", host-module = true }', f'openmui.rules = {{ path = "{root}/mcpp/rules", host-module = true }}')
-m.write_text(t)
+if m.exists():
+    t = m.read_text()
+    for pkg, rel in paths.items():
+        t = re.sub(r'^"?' + re.escape(pkg) + r'"? = "0\.1\.0"$', f'{pkg} = {{ path = "{root}/{rel}" }}', t, flags=re.M)
+    t = t.replace('openmui.rules = { version = "0.1.0", host-module = true }', f'openmui.rules = {{ path = "{root}/mcpp/rules", host-module = true }}')
+    m.write_text(t)
 PY
 }
 
@@ -44,24 +49,31 @@ cp "$root/mcpp.toml" "$work/mcpp.toml.saved"
 cleanup() { cp "$work/mcpp.toml.saved" "$root/mcpp.toml"; rm -rf "$check" "$work"; }
 trap cleanup EXIT
 
-for t in app-cpp:demo component:widgets; do
+# A template whose package runs a build rule (component, native, theme) is
+# checked in the workspace; an application out of it, as a user makes one.
+for t in app-cpp:demo app-ts:tsdemo app-lua:luademo component:widgets native:wordkit theme:brandkit; do
     template=${t%%:*}; name=${t#*:}
     echo "== $template ($name)"
-    if [ "$template" = component ]; then
-        mkdir -p "$check"
-        render "$template" "$check/$name" "$name"
-        python3 - "$root/mcpp.toml" <<'PY'
+    case "$template" in
+        component|native|theme)
+            mkdir -p "$check"
+            render "$template" "$check/$name" "$name"
+            python3 - "$root/mcpp.toml" "$name" <<'PY'
 import sys
-p = sys.argv[1]; s = open(p).read()
-s = s.replace('    "tests/rules",\n', '    "tests/rules",\n    ".template-check/widgets",\n')
+p, name = sys.argv[1], sys.argv[2]; s = open(p).read()
+s = s.replace('    "tests/rules",\n', f'    "tests/rules",\n    ".template-check/{name}",\n')
 open(p, "w").write(s)
 PY
-        sed -i "s|openmui.rules = { path = \"$root/mcpp/rules\"|openmui.rules = { path = \"../../mcpp/rules\"|; s|openmui.sdk = { path = \"$root\" }|openmui.sdk = { path = \"../..\" }|" "$check/$name/mcpp.toml"
-        (cd "$root" && mcpp test -p widgets 2>&1 | grep -E "test result|FAIL|error" ) || { echo "FAIL $template"; exit 1; }
-    else
-        render "$template" "$work/$name" "$name"
-        (cd "$work/$name" && mcpp build > build.log 2>&1 || { cat build.log; exit 1; })
-        (cd "$work/$name" && mcpp test 2>&1 | grep -E "test result|FAIL" ) || { echo "FAIL $template"; exit 1; }
-    fi
+            sed -i "s|path = \"$root/|path = \"../../|g; s|path = \"$root\" }|path = \"../..\" }|g" "$check/$name/mcpp.toml"
+            (cd "$root" && mcpp test -p "$name" 2>&1 | grep -E "test result|FAIL|error" ) || { echo "FAIL $template"; exit 1; }
+            (cd "$root" && mcpp test -p "$name" 2>&1 | grep -q "test result ok") || { echo "FAIL $template"; exit 1; }
+            ;;
+        *)
+            render "$template" "$work/$name" "$name"
+            (cd "$work/$name" && mcpp build > build.log 2>&1 || { cat build.log; exit 1; })
+            (cd "$work/$name" && mcpp test 2>&1 | grep -E "test result|FAIL" ) || { echo "FAIL $template"; exit 1; }
+            (cd "$work/$name" && mcpp test 2>&1 | grep -q "test result ok") || { echo "FAIL $template"; exit 1; }
+            ;;
+    esac
 done
 echo "templates: ok"

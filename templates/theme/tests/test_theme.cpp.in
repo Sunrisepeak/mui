@@ -1,0 +1,19 @@
+// The theme composes: over light, with its own accent.
+import std;
+import openmui.core;
+import openmui.theme;
+import {{project.name}};
+
+int main() {
+    if (auto r = {{project.name}}::add(); !r) {
+        for (const auto& d : r.error()) std::println(std::cerr, "{}", d.text());
+        return 1;
+    }
+    const std::vector<std::string> layers{"brand"};
+    auto t = omui::theme::library().compose(layers);
+    if (!t) {
+        std::println(std::cerr, "{}", t.error());
+        return 1;
+    }
+    return t->color("accent").g == omui::Color::hex(0x0f766e).g && !t->dark ? 0 : 1;
+}

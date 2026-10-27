@@ -1,5 +1,6 @@
 // openmui.rules — contracts to code, inside a build (component-binding §2.3,
-// §8): components() for *.contract.omui.toml, natives() for *.native.omui.toml.
+// §8, §11): components() for *.contract.omui.toml, natives() for
+// *.native.omui.toml, themes() for *.theme.omui.toml.
 //
 // For each contract in `contract/*.contract.omui.toml`, two actions run
 // `omui-gen cpp`: one makes the partition `<module>:<name>_contract`
@@ -269,6 +270,62 @@ inline bool natives(native_options opt) {
     auto edges = plan_natives(opt);
     if (edges.empty()) {
         std::println(std::cerr, "openmui.rules: no native module in {}/ (files named <name>.native.omui.toml)", opt.natives);
+        return false;
+    }
+    return submit(edges);
+}
+
+// ── theme packages (openmui.theme) ──────────────────────────────────────────
+
+struct theme_options {
+    std::string module;                                   // the package's module (acme.themes)
+    std::string ns;                                       // the namespace of the embedded texts (default: the module's)
+    std::string themes = "themes";                        // the directory of *.theme.omui.toml
+    std::string out_dir = std::string(mcpp::out_dir());   // generated files go under out_dir/openmui
+};
+
+// Each theme file as a partition `<module>:<stem>_theme` holding its text
+// (`omui-gen embed`): the package adds it to the program's library with
+// omui::theme::library().add(<stem>_theme, "<stem>.theme.omui.toml").
+inline std::vector<edge> plan_themes(const theme_options& opt) {
+    const std::string root = mcpp::manifest_dir();
+    const std::string gen = std::string(mcpp::dep_bin("openmui.gen", "omui-gen"));
+    if (root.empty() || opt.module.empty() || gen.empty()) {
+        std::println(std::cerr, "openmui.rules: themes() runs from build.mcpp, theme_options::module names the package's module, "
+                                "and omui-gen is built for the build");
+        return {};
+    }
+    std::string ns = opt.ns;
+    if (ns.empty())
+        for (char c : opt.module) ns += c == '.' ? std::string("::") : std::string(1, c);
+    const std::string out = utf8(std::filesystem::path(opt.out_dir) / "openmui");
+    std::vector<std::filesystem::path> files;
+    std::error_code ec;
+    for (const auto& e : std::filesystem::directory_iterator(std::filesystem::path(root) / opt.themes, ec))
+        if (utf8(e.path()).ends_with(".theme.omui.toml")) files.push_back(e.path());
+    std::ranges::sort(files);
+    std::vector<edge> edges;
+    for (const auto& f : files) {
+        std::string stem = utf8(f.filename());
+        stem = stem.substr(0, stem.find('.'));
+        edge e;
+        e.id = std::format("openmui:theme:{}", stem);
+        e.description = std::format("theme {} → {}_theme.cppm ({})", utf8(f.filename()), stem, opt.module);
+        e.command = {gen, "embed", utf8(f), "--module", opt.module, "--namespace", ns, "--name", stem + "_theme", "--out", out};
+        e.inputs = {utf8(f), gen};
+        e.outputs = {out + "/" + stem + "_theme.cppm"};
+        e.provides = {opt.module + ":" + stem + "_theme"};
+        e.imports = {"std"};
+        edges.push_back(std::move(e));
+    }
+    return edges;
+}
+
+inline bool themes(theme_options opt) {
+    mcpp::rerun_if_changed_glob((opt.themes + "/**").c_str());
+    auto edges = plan_themes(opt);
+    if (edges.empty()) {
+        std::println(std::cerr, "openmui.rules: no theme in {}/ (files named <name>.theme.omui.toml)", opt.themes);
         return false;
     }
     return submit(edges);

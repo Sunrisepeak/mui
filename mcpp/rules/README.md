@@ -38,6 +38,11 @@ int main() { return openmui::rules::natives({.module = "acme.finder"}) ? 0 : 1; 
 The package implements the functions the partition declares, and its program
 calls `<name>::define()` once before scripts run.
 
+A theme package (`kind = "theme"`) carries its `themes/*.theme.omui.toml`
+embedded: `themes({.module = "acme.themes"})` makes each file the partition
+`<module>:<stem>_theme` holding its text (`omui-gen embed`), which the package
+adds to the program's theme library.
+
 The generator is a dependency built for the build machine
 (`tools = ["omui-gen"]`); every action declares it, the contract and the
 registry as inputs, so changing any of them regenerates, and nothing else

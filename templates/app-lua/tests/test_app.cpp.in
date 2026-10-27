@@ -1,0 +1,36 @@
+// The application without a window: the player runs the script; find the
+// button as an agent would, press it, read what it says.
+import std;
+import openmui;
+import openmui.player;
+import openmui.entry.player;
+import openmui.lang.lua;
+
+int main() {
+    using namespace omui;
+    register_base_components();
+    auto m = read_manifest(std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path() / "mcpp.toml");
+    if (!m) {
+        std::println(std::cerr, "{}", m.error());
+        return 1;
+    }
+    Headless h({.size = m->size});
+    player::Player p(h.runtime(), *m, {lang::lua::language()});
+    if (auto started = p.start(); !started) {
+        std::println(std::cerr, "{}", started.error());
+        return 1;
+    }
+    auto settle = [&] {
+        for (int i = 0; i < 4000 && !p.idle(); ++i) {
+            h.step();
+            std::this_thread::sleep_for(std::chrono::microseconds(250));
+        }
+        h.settle();
+    };
+    settle();
+    auto buttons = h.tree().find({.role = Role::button, .name = "Click me"});
+    if (buttons.size() != 1) return 1;
+    if (h.tree().act(buttons[0].id, "activate").exit_code() != std::optional<int>(0)) return 1;
+    settle();
+    return h.tree().find({.name = "Clicked 1 times"}).empty() ? 1 : 0;
+}

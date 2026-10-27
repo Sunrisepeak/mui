@@ -1117,7 +1117,8 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
   - ✅ native 模块（M3 ⑥）：`*.native.omui.toml` 契约 → `omui-gen native`（记录类型、要实现的函数声明、转换、`define()`；TS / Python / Lua 存根）→ 注册表 `openmui.native`（参数按契约类型在一处检查，`invalid-argument` 指出位置）→ C ABI `omuiNativeCatalog` / `omuiNativeCall` → 三种语言的绑定由目录生成（`openmui:native/<name>`、`openmui.native`、`omui.native`；async 的在 worker 上跑，JS 得到 promise，另有 `…Sync`）；`openmui.rules` 的 `natives()` 在构建时生成。官方 native 模块 `fuzzy`（`modules/fuzzy` 是独立的 fzf 式匹配算法，确定、多线程排序）由各宿主注册；CTS 场景 `finder` 证明三种语言经生成的绑定得到同一轨迹。示例 05 是 WCAG 对比度检查器：TS 界面 + 应用自己的 native 模块（C++ 色彩科学），构建时生成绑定。
   - ✅ 主题即数据：`runtime/theme`（`openmui.theme`）读 `*.theme.omui.toml`（主题、`extends`、覆盖层 overlay；颜色、文字、间距、圆角、阴影、动效 token、`density`），一次读完报告全部错误（行列和修改建议），组合 `["dark", "compact", "reduced_motion"]`；`themes/default`（light / dark / reduced_motion，与运行时内置 token 由测试保持一致）、`themes/compact`（密度 0.8，基础控件的高度和内边距按密度缩放，默认密度下所有金图不变）；文件由通用的 `omui-gen embed` 嵌入；C ABI `omuiTheme` / `omuiThemes`，三种语言的 `theme()` / `themes()`；播放器清单的 `themes` / `theme`，保存即重新加载；CTS 场景 `themed` 证明各组合下语义树相同。示例 06 是 Lua 写的主题预览工具（应用自己的品牌主题文件热重载）。
   - ✅ 示例 04 自定义组件：阅读清单（TS），应用自己的 `rating` 组件从契约（`rating.contract.omui.toml`）经 `openmui.rules` 构建时生成 C++ 分区、builder 和 TS / Python / Lua 存根，`src/rating.cpp` 写行为（星形逐渐填充、悬停预览、动作和键位）；注册后 TS、Lua、视图文档和 agent 都按名字使用，测试证明 Lua / 视图文档 / C++ builder 得到同一个语义节点。
-  - `runtime/reflect`；示例 12；模板 app-ts / app-py / app-lua。
+  - ✅ 模板：`app-ts` / `app-lua`（播放器跑脚本，headless 测试像 agent 一样按按钮）、`app-py`（`pip install openmui` 的纯 Python 应用，CI 在装好的 wheel 上跑它的测试并做 `mypy --strict`）、`native`（native 模块包，构建时生成绑定）、`theme`（主题包，`openmui.rules` 的 `themes()` 在构建时嵌入主题文件）；`tools/ci/templates.sh` 全部渲染、构建、测试。
+  - `runtime/reflect`；示例 12。
 - M4：`modules/rhi` 和 `rhi-sdl`、GPU 渲染路径、Slang 着色器、效果和背景输入（液态玻璃，D-64）、画布、风格包、S1 / S2。
 - M5：openmui-video、ui-timeline、MCP 服务器、skills、S3 / S4 / S5。
 - 契约⑦（插件与管线）写进规范；Inspector 的火焰图和动画检查器视图。

@@ -1,0 +1,21 @@
+[package]
+name    = "{{project.name}}"
+version = "0.1.0"
+
+[package.metadata.openmui]
+kind      = "native"
+contracts = ["native/*.native.omui.toml"]
+
+[targets.{{project.name}}]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+openmui.native = "{{self.version}}"
+nlohmann.json  = "3.12.0"
+
+# The rule that makes the C++ partition and the stubs from native/ when this builds.
+[build-dependencies]
+openmui.rules = { version = "{{self.version}}", host-module = true }

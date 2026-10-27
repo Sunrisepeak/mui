@@ -1,0 +1,6 @@
+// The theme files in themes/ are embedded in this package when it builds.
+import std;
+import mcpp;
+import openmui.rules;
+
+int main() { return openmui::rules::themes({.module = "{{project.name}}"}) ? 0 : 1; }

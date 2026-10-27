@@ -1,0 +1,5 @@
+// {{project.name}}: the native module `words`; its interface is generated from
+// native/words.native.omui.toml (the partition :words_native).
+export module {{project.name}};
+
+export import :words_native;

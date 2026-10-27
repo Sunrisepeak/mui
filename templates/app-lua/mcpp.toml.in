@@ -1,0 +1,28 @@
+[package]
+name    = "{{project.name}}"
+version = "0.1.0"
+
+# The player reads this: the application's id, title and size, and its
+# scripts (run in their names' order; the language is the extension's).
+[package.metadata.openmui]
+kind  = "app"
+id    = "org.example.{{project.name}}"
+title = "{{project.name}}"
+size  = "480x320"
+
+[package.metadata.openmui.scripts]
+main = "logic/main.lua"
+
+[targets.{{project.name}}]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cpp"]
+
+[dependencies]
+openmui.entry.player = "{{self.version}}"
+
+[dev-dependencies]
+openmui.player = "{{self.version}}"
+openmui.lang.lua = "{{self.version}}"

@@ -1,0 +1,20 @@
+# A native module: C++ functions scripts call (component-binding §8). The
+# bindings are generated from this file; src/words.cpp implements them.
+[native.words]
+spec = "0.1"
+doc  = "Counts in a text: words, characters, sentences."
+
+[native.words.types.Counts]
+doc = "What a text holds."
+
+[native.words.types.Counts.fields]
+words      = "u32"
+characters = "u32"
+sentences  = "u32"
+
+[native.words.functions.count]
+doc     = "The words, characters (code points) and sentences of a text."
+returns = "Counts"
+
+[native.words.functions.count.args]
+text = "string"

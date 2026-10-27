@@ -41,6 +41,26 @@ std::vector<std::string> sources(const std::filesystem::path& file) {
     return out;
 }
 
+// The same "random" numbers with every standard library: std::shuffle and
+// std::uniform_int_distribution are implementation-defined (MSVC's STL and
+// libstdc++ shuffle differently), so the documents and pieces are this.
+struct Rng {
+    std::uint64_t s;
+    std::uint64_t next() noexcept {
+        s += 0x9e3779b97f4a7c15ull;
+        std::uint64_t z = s;
+        z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ull;
+        z = (z ^ (z >> 27)) * 0x94d049bb133111ebull;
+        return z ^ (z >> 31);
+    }
+    std::size_t below(std::size_t n) noexcept { return static_cast<std::size_t>(next() % n); }
+};
+
+template <class T>
+void shuffle(std::vector<T>& v, Rng& r) {
+    for (std::size_t i = v.size(); i > 1; --i) std::swap(v[i - 1], v[r.below(i)]);
+}
+
 std::vector<std::string> all_sources() {
     std::vector<std::string> out;
     std::vector<std::filesystem::path> files;
@@ -53,12 +73,11 @@ std::vector<std::string> all_sources() {
 
 // Appends `source` in pieces of 1 to `max` bytes and compares with parse()
 // of the prefix after every piece; returns the bytes md4c read in total.
-std::size_t stream_matches(std::string_view source, std::mt19937& rng, std::size_t max, md::Extension ext, std::string_view what) {
+std::size_t stream_matches(std::string_view source, Rng& rng, std::size_t max, md::Extension ext, std::string_view what) {
     md::Stream s(ext);
     std::size_t pos = 0, parsed = 0;
-    std::uniform_int_distribution<std::size_t> len(1, max);
     while (pos < source.size()) {
-        const std::size_t n = std::min(len(rng), source.size() - pos);
+        const std::size_t n = std::min(1 + rng.below(max), source.size() - pos);
         s.append(source.substr(pos, n));
         pos += n;
         parsed += s.last_parsed();
@@ -80,7 +99,7 @@ int main(int argc, char** argv) {
     s.test("every suite example, appended in random pieces, equals the whole parse after every piece", [] {
         const auto examples = all_sources();
         check_eq(examples.size(), std::size_t{808});
-        std::mt19937 rng(20261027);
+        Rng rng{20261027};
         for (std::size_t i = 0; i < examples.size(); ++i) {
             stream_matches(examples[i], rng, 7, md::gfm, std::format("example {}", i));
             if (failures()) return;
@@ -90,9 +109,9 @@ int main(int argc, char** argv) {
     s.test("long documents of examples (no reference definitions): equal, and they freeze", [] {
         auto examples = all_sources();
         std::erase_if(examples, [](const std::string& e) { return e.find("]:") != std::string::npos; });
-        std::mt19937 rng(7);
+        Rng rng{7};
         for (int round = 0; round < 12; ++round) {
-            std::ranges::shuffle(examples, rng);
+            shuffle(examples, rng);
             std::string doc;
             // Blank lines between examples, as separate blocks would be.
             for (std::size_t i = 0; i < 60; ++i) doc += examples[i] + "\n";
@@ -107,7 +126,7 @@ int main(int argc, char** argv) {
 
     s.test("reference definitions anywhere: the stream re-parses whole and still equals parse()", [] {
         const std::string doc = "Intro [foo] and [bar].\n\n# Heading\n\n- a\n- b\n\nmore text\n\n[foo]: /foo \"Foo\"\n\n[bar]: /bar\n";
-        std::mt19937 rng(3);
+        Rng rng{3};
         stream_matches(doc, rng, 5, md::gfm, "definitions");
         md::Stream s;
         s.assign(doc);

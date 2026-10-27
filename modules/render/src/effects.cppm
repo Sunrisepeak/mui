@@ -8,9 +8,11 @@
 //
 // The registry is a plugin point (D-65): the built-ins are registered first,
 // in a fixed order (their refs are the same in every process), and a program
-// adds its own. Each effect has a CPU reference implementation — the pixels
-// the GPU path (M4: a Slang fragment or compute shader of the same name) is
-// held to.
+// adds its own. An effect has a CPU reference implementation, a GPU path, or
+// both: the built-ins have both, the GPU path held to the CPU's pixels
+// (effects/<name>.slang, written against the effect template
+// effects/lib/openmui_effect.slang); a program's Slang effect (openmui.effect)
+// may have only the GPU path, and the CPU renderer counts it as skipped.
 //
 //     auto ref = render::effects().find("dissolve");
 //     list.push_layer(1, BlendMode::normal, *ref, params, bounds);
@@ -19,7 +21,19 @@ export module openmui.render:effects;
 import std;
 import openmui.geom;
 import openmui.raster;
+import openmui.rhi;
 import :display;
+// The built-ins' GPU paths (effects/*.slang), compiled by build.mcpp.
+export import :quad_shaders;
+export import :dissolve_shaders;
+export import :wipe_shaders;
+export import :reveal_shaders;
+export import :displace_shaders;
+export import :noise_shaders;
+export import :chromatic_shaders;
+export import :blur_shaders;
+export import :pixelate_shaders;
+export import :particles_shaders;
 
 export namespace omui::render {
 
@@ -41,6 +55,30 @@ struct EffectInput {
     geom::Rect             layer;    // the layer's rectangle in source and target
 };
 
+// How the GPU renderer runs an effect.
+enum class EffectPass : std::uint8_t {
+    none,       // no GPU path: drawn without the effect, counted as skipped
+    pixel,      // `fragment`, the template's, once per pixel of the surface
+    blur,       // three box passes each way (derived 0: the radius)
+    pixelate,   // a compute pass, one invocation a block (derived 0…2: size, origin)
+    particles,  // one instance a cell (derived 0…7, see effects/particles.slang)
+};
+
+// What the GPU path reads besides the parameters, computed on the CPU the
+// way the CPU reference computes it (trigonometry, rounding of sizes): the
+// template's `derived` values and, for some, one value per row of the surface.
+struct EffectFrame {
+    std::array<float, 8> derived{};
+};
+
+struct EffectGpu {
+    EffectPass             pass = EffectPass::none;
+    const rhi::ShaderDesc* fragment = nullptr;  // pass pixel
+    void (*derive)(std::span<const float> params, float scale, geom::Rect layer, EffectFrame& out) = nullptr;
+    // pass pixel: the aux texture's values, one a row (r32_float), when set.
+    void (*rows)(std::span<const float> params, float scale, std::span<float> out) = nullptr;
+};
+
 struct EffectInfo {
     std::string_view         name;
     std::string_view         doc;
@@ -48,6 +86,10 @@ struct EffectInfo {
     // How far, in logical pixels, the effect may move pixels outside the layer.
     float (*reach)(std::span<const float> params) = nullptr;
     void (*cpu)(const EffectInput& in) = nullptr;
+    EffectGpu                gpu;
+    // Strings the entry owns (a program's effect loaded from files): name,
+    // doc and parameter names point into it.
+    std::shared_ptr<const void> storage;
 };
 
 class EffectRegistry {
@@ -58,6 +100,12 @@ public:
 
     // Registers an effect (a name registered twice keeps its first entry).
     EffectRef add(EffectInfo info);
+    // Replaces a registered effect's entry (a reloaded shader, new parameters):
+    // its ref stays, its generation grows. False for an unknown ref.
+    bool replace(EffectRef ref, EffectInfo info);
+    // How many times `ref` was replaced: a renderer's cached pipeline for it
+    // is stale when this differs.
+    [[nodiscard]] std::uint64_t generation(EffectRef ref) const;
     [[nodiscard]] std::optional<EffectRef> find(std::string_view name) const;
     [[nodiscard]] const EffectInfo* info(EffectRef ref) const;
     [[nodiscard]] std::vector<std::string_view> names() const;
@@ -68,8 +116,9 @@ public:
     [[nodiscard]] float reach(EffectRef ref, std::span<const float> params) const;
 
 private:
-    mutable std::shared_mutex lock_;
-    std::deque<EffectInfo>    entries_;  // stable addresses
+    mutable std::shared_mutex  lock_;
+    std::deque<EffectInfo>     entries_;      // stable addresses
+    std::deque<std::uint64_t>  generations_;
 };
 
 // The process's registry: dissolve, wipe, reveal, displace, noise,

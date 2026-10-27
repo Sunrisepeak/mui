@@ -81,9 +81,11 @@ void each_pixel(const EffectInput& in, F f) {
 
 // ── the effects ──
 
+float dissolve_cell(std::span<const float> params, float scale) { return std::max(1.0f, std::round(params[3] * scale)); }
+
 void dissolve(const EffectInput& in) {
     const float p = in.params[0], seed = in.params[1], soft = in.params[2];
-    const float cell = std::max(1.0f, std::round(in.params[3] * in.scale));
+    const float cell = dissolve_cell(in.params, in.scale);
     each_pixel(in, [&](int x, int y, Rgba8 s) {
         if (s.a == 0) return s;
         const float n = hash01(seed, static_cast<std::int64_t>(std::floor(static_cast<float>(x) / cell)),
@@ -92,17 +94,24 @@ void dissolve(const EffectInput& in) {
     });
 }
 
-void wipe(const EffectInput& in) {
-    const float p = in.params[0], soft = in.params[2];
-    const double a = static_cast<double>(in.params[1]) * anim::dm::pi / 180.0;
+// The direction's cosine and sine, and the layer's extent along it.
+struct WipeFrame {
+    float c, sn, lo, span;
+};
+WipeFrame wipe_frame(std::span<const float> params, geom::Rect r) {
+    const double a = static_cast<double>(params[1]) * anim::dm::pi / 180.0;
     const auto c = static_cast<float>(anim::dm::cos(a)), sn = static_cast<float>(anim::dm::sin(a));
-    const geom::Rect r = in.layer;
     float lo = std::numeric_limits<float>::max(), hi = -lo;
     for (geom::Point q : {geom::Point{r.x, r.y}, {r.right(), r.y}, {r.x, r.bottom()}, {r.right(), r.bottom()}}) {
         lo = std::min(lo, q.x * c + q.y * sn);
         hi = std::max(hi, q.x * c + q.y * sn);
     }
-    const float span = std::max(hi - lo, 1.0f);
+    return {c, sn, lo, std::max(hi - lo, 1.0f)};
+}
+
+void wipe(const EffectInput& in) {
+    const float p = in.params[0], soft = in.params[2];
+    const auto [c, sn, lo, span] = wipe_frame(in.params, in.layer);
     each_pixel(in, [&](int x, int y, Rgba8 s) {
         if (s.a == 0) return s;
         const float t = ((static_cast<float>(x) + 0.5f) * c + (static_cast<float>(y) + 0.5f) * sn - lo) / span;
@@ -110,14 +119,21 @@ void wipe(const EffectInput& in) {
     });
 }
 
-void reveal(const EffectInput& in) {
-    const float p = in.params[0], soft = in.params[3];
-    const geom::Rect r = in.layer;
-    const float cx = r.x + r.width * in.params[1], cy = r.y + r.height * in.params[2];
+// The circle's centre and the distance to the layer's farthest corner.
+struct RevealFrame {
+    float cx, cy, far;
+};
+RevealFrame reveal_frame(std::span<const float> params, geom::Rect r) {
+    const float cx = r.x + r.width * params[1], cy = r.y + r.height * params[2];
     float far = 0;
     for (geom::Point q : {geom::Point{r.x, r.y}, {r.right(), r.y}, {r.x, r.bottom()}, {r.right(), r.bottom()}})
         far = std::max(far, std::sqrt((q.x - cx) * (q.x - cx) + (q.y - cy) * (q.y - cy)));
-    far = std::max(far, 1.0f);
+    return {cx, cy, std::max(far, 1.0f)};
+}
+
+void reveal(const EffectInput& in) {
+    const float p = in.params[0], soft = in.params[3];
+    const auto [cx, cy, far] = reveal_frame(in.params, in.layer);
     each_pixel(in, [&](int x, int y, Rgba8 s) {
         if (s.a == 0) return s;
         const float dx = static_cast<float>(x) + 0.5f - cx, dy = static_cast<float>(y) + 0.5f - cy;
@@ -127,11 +143,16 @@ void reveal(const EffectInput& in) {
     });
 }
 
+// Row y's shift.
+float displace_row(std::span<const float> params, float scale, int y) {
+    const float amount = params[0] * scale, wavelength = std::max(1.0f, params[1] * scale), phase = params[2];
+    const double arg = 2 * anim::dm::pi * ((static_cast<double>(y) + 0.5) / wavelength + phase);
+    return amount * static_cast<float>(anim::dm::sin(arg));
+}
+
 void displace(const EffectInput& in) {
-    const float amount = in.params[0] * in.scale, wavelength = std::max(1.0f, in.params[1] * in.scale), phase = in.params[2];
     for (int y = 0; y < in.target.height(); ++y) {
-        const double arg = 2 * anim::dm::pi * ((static_cast<double>(y) + 0.5) / wavelength + phase);
-        const float dx = amount * static_cast<float>(anim::dm::sin(arg));
+        const float dx = displace_row(in.params, in.scale, y);
         Rgba8* out = in.target.row(y);
         for (int x = 0; x < in.target.width(); ++x) {
             const auto v = sample(in.source, static_cast<float>(x) + 0.5f - dx, static_cast<float>(y) + 0.5f);
@@ -150,10 +171,13 @@ void noise(const EffectInput& in) {
     });
 }
 
+geom::Point chromatic_offset(std::span<const float> params, float scale) {
+    const double a = static_cast<double>(params[1]) * anim::dm::pi / 180.0;
+    return {params[0] * scale * static_cast<float>(anim::dm::cos(a)), params[0] * scale * static_cast<float>(anim::dm::sin(a))};
+}
+
 void chromatic(const EffectInput& in) {
-    const double a = static_cast<double>(in.params[1]) * anim::dm::pi / 180.0;
-    const float ox = in.params[0] * in.scale * static_cast<float>(anim::dm::cos(a));
-    const float oy = in.params[0] * in.scale * static_cast<float>(anim::dm::sin(a));
+    const auto [ox, oy] = chromatic_offset(in.params, in.scale);
     for (int y = 0; y < in.target.height(); ++y) {
         Rgba8* out = in.target.row(y);
         for (int x = 0; x < in.target.width(); ++x) {
@@ -199,8 +223,10 @@ void box_pass(const Surface& from, Surface& to, int r, bool horizontal) {
     }
 }
 
+int blur_radius(std::span<const float> params, float scale) { return static_cast<int>(std::round(params[0] * scale / 3)); }
+
 void blur(const EffectInput& in) {
-    const int r = static_cast<int>(std::round(in.params[0] * in.scale / 3));
+    const int r = blur_radius(in.params, in.scale);
     if (r <= 0) {
         each_pixel(in, [](int, int, Rgba8 s) { return s; });
         return;
@@ -214,8 +240,10 @@ void blur(const EffectInput& in) {
     each_pixel(in, [&](int x, int y, Rgba8) { return a.at(x, y); });
 }
 
+int pixelate_size(std::span<const float> params, float scale) { return std::max(1, static_cast<int>(std::round(params[0] * scale))); }
+
 void pixelate(const EffectInput& in) {
-    const int size = std::max(1, static_cast<int>(std::round(in.params[0] * in.scale)));
+    const int size = pixelate_size(in.params, in.scale);
     const int ox = static_cast<int>(std::floor(in.layer.x)), oy = static_cast<int>(std::floor(in.layer.y));
     auto first = [&](int v, int o) { return o + static_cast<int>(std::floor(static_cast<float>(v - o) / static_cast<float>(size))) * size; };
     for (int by = first(0, oy); by < in.target.height(); by += size)
@@ -248,13 +276,26 @@ Rgba8 over(Rgba8 src, Rgba8 dst) noexcept {
 // flies in a seeded direction `spread` far while falling `gravity`, and fades.
 // Progress 0 is the layer as it is; 1, every particle gone. Run backwards it
 // gathers the layer out of a cloud.
+struct ParticlesFrame {
+    float spread, gravity;
+    int   size;
+    float stagger;
+    int   x0, y0, x1, y1;
+};
+ParticlesFrame particles_frame(std::span<const float> params, float scale, geom::Rect layer) {
+    return {params[2] * scale,
+            params[3] * scale,
+            std::max(1, static_cast<int>(std::round(params[4] * scale))),
+            std::clamp(params[5], 0.0f, 0.95f),
+            static_cast<int>(std::floor(layer.x)),
+            static_cast<int>(std::floor(layer.y)),
+            static_cast<int>(std::ceil(layer.right())),
+            static_cast<int>(std::ceil(layer.bottom()))};
+}
+
 void particles(const EffectInput& in) {
     const float p = in.params[0], seed = in.params[1];
-    const float spread = in.params[2] * in.scale, gravity = in.params[3] * in.scale;
-    const int size = std::max(1, static_cast<int>(std::round(in.params[4] * in.scale)));
-    const float stagger = std::clamp(in.params[5], 0.0f, 0.95f);
-    const int x0 = static_cast<int>(std::floor(in.layer.x)), y0 = static_cast<int>(std::floor(in.layer.y));
-    const int x1 = static_cast<int>(std::ceil(in.layer.right())), y1 = static_cast<int>(std::ceil(in.layer.bottom()));
+    const auto [spread, gravity, size, stagger, x0, y0, x1, y1] = particles_frame(in.params, in.scale, in.layer);
     for (int cy = y0; cy < y1; cy += size)
         for (int cx = x0; cx < x1; cx += size) {
             const std::int64_t i = (cx - x0) / size, j = (cy - y0) / size;
@@ -281,38 +322,76 @@ void particles(const EffectInput& in) {
 
 float no_reach(std::span<const float>) { return 0; }
 
+// ── the GPU paths' derived values: the CPU reference's own computations ──
+
+namespace fx = shaders;  // effects/*.slang
+
+void derive_dissolve(std::span<const float> p, float scale, geom::Rect, EffectFrame& out) { out.derived[0] = dissolve_cell(p, scale); }
+void derive_wipe(std::span<const float> p, float, geom::Rect layer, EffectFrame& out) {
+    const WipeFrame w = wipe_frame(p, layer);
+    out.derived = {w.c, w.sn, w.lo, w.span, 0, 0, 0, 0};
+}
+void derive_reveal(std::span<const float> p, float, geom::Rect layer, EffectFrame& out) {
+    const RevealFrame r = reveal_frame(p, layer);
+    out.derived = {r.cx, r.cy, r.far, 0, 0, 0, 0, 0};
+}
+void rows_displace(std::span<const float> p, float scale, std::span<float> out) {
+    for (std::size_t y = 0; y < out.size(); ++y) out[y] = displace_row(p, scale, static_cast<int>(y));
+}
+void derive_chromatic(std::span<const float> p, float scale, geom::Rect, EffectFrame& out) {
+    const geom::Point o = chromatic_offset(p, scale);
+    out.derived[0] = o.x;
+    out.derived[1] = o.y;
+}
+void derive_blur(std::span<const float> p, float scale, geom::Rect, EffectFrame& out) { out.derived[0] = static_cast<float>(blur_radius(p, scale)); }
+void derive_pixelate(std::span<const float> p, float scale, geom::Rect layer, EffectFrame& out) {
+    out.derived[0] = static_cast<float>(pixelate_size(p, scale));
+    out.derived[1] = std::floor(layer.x);
+    out.derived[2] = std::floor(layer.y);
+}
+void derive_particles(std::span<const float> p, float scale, geom::Rect layer, EffectFrame& out) {
+    const ParticlesFrame f = particles_frame(p, scale, layer);
+    out.derived = {static_cast<float>(f.size), static_cast<float>(f.x0), static_cast<float>(f.y0), static_cast<float>(f.x1),
+                   static_cast<float>(f.y1),   f.stagger,                  f.spread,                   f.gravity};
+}
+
+EffectGpu pixel(const rhi::ShaderDesc& fs, decltype(EffectGpu::derive) derive = nullptr, decltype(EffectGpu::rows) rows = nullptr) {
+    return {EffectPass::pixel, &fs, derive, rows};
+}
+
 void register_builtins(EffectRegistry& r) {
     r.add({"dissolve", "Pixels (or cells of `grain` pixels) vanish in a seeded random order as progress goes from 0 to 1.",
            {{"progress", 0, 0, 1, "0: all shown; 1: all gone"},
             {"seed", 1, 0, 1e6f, "which random order"},
             {"softness", 0.15f, 0.001f, 1, "how gradually each pixel fades"},
             {"grain", 1, 1, 64, "cell size in logical pixels"}},
-           no_reach, dissolve});
+           no_reach, dissolve, pixel(fx::dissolve::dissolve_fs, derive_dissolve)});
     r.add({"wipe", "The layer is wiped away from one edge as progress goes from 0 to 1.",
            {{"progress", 0, 0, 1, "0: all shown; 1: all gone"},
             {"angle", 0, -360, 360, "direction of travel in degrees (0: left to right)"},
             {"softness", 0.1f, 0.001f, 1, "width of the edge"}},
-           no_reach, wipe});
+           no_reach, wipe, pixel(fx::wipe::wipe_fs, derive_wipe)});
     r.add({"reveal", "A circle grows from a point and shows the layer as progress goes from 0 to 1.",
            {{"progress", 0, 0, 1, "0: hidden; 1: all shown"},
             {"x", 0.5f, 0, 1, "centre, as a fraction of the layer's width"},
             {"y", 0.5f, 0, 1, "centre, as a fraction of the layer's height"},
             {"softness", 0.08f, 0.001f, 1, "width of the edge"}},
-           no_reach, reveal});
+           no_reach, reveal, pixel(fx::reveal::reveal_fs, derive_reveal)});
     r.add({"displace", "Rows shift sideways along a sine wave (heat haze, water, a flag).",
            {{"amount", 4, 0, 200, "largest shift in logical pixels"},
             {"wavelength", 40, 1, 2000, "wave length in logical pixels"},
             {"phase", 0, 0, 1, "position of the wave (animate it to make it travel)"}},
-           [](std::span<const float> p) { return std::abs(p[0]); }, displace});
+           [](std::span<const float> p) { return std::abs(p[0]); }, displace, pixel(fx::displace::displace_fs, nullptr, rows_displace)});
     r.add({"noise", "Seeded grain over the colours.",
-           {{"amount", 0.15f, 0, 1, "strength"}, {"seed", 1, 0, 1e6f, "which grain"}}, no_reach, noise});
+           {{"amount", 0.15f, 0, 1, "strength"}, {"seed", 1, 0, 1e6f, "which grain"}}, no_reach, noise, pixel(fx::noise::noise_fs)});
     r.add({"chromatic", "Red and blue drift apart from green, as through a cheap lens.",
            {{"offset", 2, 0, 100, "distance in logical pixels"}, {"angle", 0, -360, 360, "direction in degrees"}},
-           [](std::span<const float> p) { return std::abs(p[0]); }, chromatic});
+           [](std::span<const float> p) { return std::abs(p[0]); }, chromatic, pixel(fx::chromatic::chromatic_fs, derive_chromatic)});
     r.add({"blur", "A Gaussian-like blur (three box passes each way).",
-           {{"radius", 4, 0, 200, "radius in logical pixels"}}, [](std::span<const float> p) { return std::abs(p[0]); }, blur});
+           {{"radius", 4, 0, 200, "radius in logical pixels"}}, [](std::span<const float> p) { return std::abs(p[0]); }, blur,
+           {EffectPass::blur, nullptr, derive_blur, nullptr}});
     r.add({"pixelate", "The layer in square blocks of their average colour.",
-           {{"size", 6, 1, 256, "block size in logical pixels"}}, no_reach, pixelate});
+           {{"size", 6, 1, 256, "block size in logical pixels"}}, no_reach, pixelate, {EffectPass::pixelate, nullptr, derive_pixelate, nullptr}});
     r.add({"particles", "The layer bursts into square particles that fly, fall and fade as progress goes from 0 to 1 "
                         "(backwards: gathers out of a cloud).",
            {{"progress", 0, 0, 1, "0: whole; 1: gone"},
@@ -321,7 +400,8 @@ void register_builtins(EffectRegistry& r) {
             {"gravity", 40, -2000, 2000, "how far they fall meanwhile"},
             {"size", 3, 1, 64, "particle size in logical pixels"},
             {"stagger", 0.5f, 0, 0.95f, "how spread out their starts are"}},
-           [](std::span<const float> p) { return std::abs(p[2]) + std::abs(p[3]) + p[4]; }, particles});
+           [](std::span<const float> p) { return std::abs(p[2]) + std::abs(p[3]) + p[4]; }, particles,
+           {EffectPass::particles, nullptr, derive_particles, nullptr}});
 }
 
 }  // namespace
@@ -333,7 +413,22 @@ EffectRef EffectRegistry::add(EffectInfo info) {
     for (std::size_t i = 0; i < entries_.size(); ++i)
         if (entries_[i].name == info.name) return {static_cast<std::uint32_t>(i + 1)};
     entries_.push_back(std::move(info));
+    generations_.push_back(0);
     return {static_cast<std::uint32_t>(entries_.size())};
+}
+
+bool EffectRegistry::replace(EffectRef ref, EffectInfo info) {
+    std::unique_lock g(lock_);
+    if (ref.id == 0 || ref.id > entries_.size()) return false;
+    entries_[ref.id - 1] = std::move(info);
+    ++generations_[ref.id - 1];
+    return true;
+}
+
+std::uint64_t EffectRegistry::generation(EffectRef ref) const {
+    std::shared_lock g(lock_);
+    if (ref.id == 0 || ref.id > generations_.size()) return 0;
+    return generations_[ref.id - 1];
 }
 
 std::optional<EffectRef> EffectRegistry::find(std::string_view name) const {

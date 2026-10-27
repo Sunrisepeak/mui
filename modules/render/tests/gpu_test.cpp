@@ -1,16 +1,21 @@
 // The GPU backend against the CPU reference, scene by scene, on the
-// machine's device (lavapipe in Linux CI; with OMUI_REQUIRE_GPU=1 a missing
-// device fails). Each scene states its tolerance: what is computed the same
-// way on both (axis-aligned rectangles, everything drawn from coverage the
-// rasteriser made, gradient tables, nearest images, layers) agrees within
-// blending's rounding. Rounded rectangles are where the two differ, and the
-// GPU is the exact one: it covers a pixel by the area of the true circle (or,
-// rotated, by signed distance), while the CPU flattens arcs to chords within
-// 1/32 pixel, which loses at most ⅔ · 1/32 of a pixel where an arc runs
-// nearly along a pixel's side: 255 · 2/3 / 32 ≈ 5.3 levels, plus a level of
-// rounding on each side, so 8; only edge pixels may differ. Rotated, the
-// GPU's distance is exact along straight edges and approximate across a
-// corner or an arc, which the transforms scene allows two levels more.
+// machine's device (lavapipe on Linux and Windows CI, Metal on macOS; with
+// OMUI_REQUIRE_GPU=1 a missing device fails). The GPU works in the CPU's
+// bytes — coverage as raster makes it (rectangles in 1/256 pixel, the
+// rasteriser's masks), premultiplied 8-bit colours, gradient tables at the
+// same index, images sampled with the same integer weights, every product a
+// rounded mul255 — and leaves source-over to the blending unit, which on an
+// exact unit (lavapipe) gives the CPU's bytes: those scenes allow a level, for
+// units that round a last bit differently.
+//
+// Rounded rectangles are where the two differ, and the GPU is the exact one:
+// it covers a pixel by the area of the true circle (or, rotated, by signed
+// distance), while the CPU flattens arcs to chords within 1/32 pixel, which
+// loses at most ⅔ · 1/32 of a pixel where an arc runs nearly along a pixel's
+// side: 255 · 2/3 / 32 ≈ 5.3 levels, plus a level of rounding on each side,
+// so 8; only edge pixels may differ. Rotated, the GPU's distance is exact
+// along straight edges and approximate across a corner or an arc, which the
+// transforms scene allows two levels more.
 import std;
 import mcpplibs.os;
 import openmui.geom;
@@ -142,6 +147,35 @@ render::Paint gradient(render::GradientKind kind, geom::Point a, geom::Point b, 
 
 const std::array<render::GradientStop, 3> rainbow{{{0, geom::Color::hex(0xef4444)}, {0.5f, geom::Color::hex(0x22c55e)}, {1, geom::Color{0.2f, 0.3f, 0.9f, 0.6f}}}};
 
+// An effect layer over content both backends draw alike (a gradient
+// rectangle, a path ring, a dot): what differs is the effect alone.
+void effect_scene(render::DisplayList& dl, std::string_view name, std::vector<std::pair<std::string_view, float>> values,
+                  render::BlendMode mode = render::BlendMode::normal, float opacity = 1) {
+    const geom::Rect layer{24.5f, 18, 110, 84};
+    dl.fill_rect({0, 0, 160, 120}, geom::Color::hex(0xf1f5f9));
+    dl.fill_rect({0, 60, 160, 60}, geom::Color{0.2f, 0.4f, 0.9f, 0.5f});
+    const auto ref = render::effects().find(name);
+    check(ref.has_value(), std::format("the effect {}", name));
+    if (!ref) return;
+    const auto params = render::effects().params(*ref, values);
+    dl.push_layer(opacity, mode, *ref, params, layer);
+    render::Paint card;
+    card.kind = render::Paint::Kind::gradient;
+    card.gradient.start = {layer.x, layer.y};
+    card.gradient.end = {layer.right(), layer.bottom()};
+    static const std::array<render::GradientStop, 3> stops{
+        {{0, geom::Color::hex(0x4f46e5)}, {0.5f, geom::Color::hex(0xdb2777)}, {1, geom::Color{0.96f, 0.62f, 0.04f, 0.8f}}}};
+    card.gradient.stops = stops;
+    dl.fill_rect(layer, card);
+    render::Path ring;
+    ring.add_circle({layer.x + 55, layer.y + 42}, 26).add_circle({layer.x + 55, layer.y + 42}, 18);
+    dl.fill_path(ring, render::FillRule::even_odd, render::Paint::solid(geom::Color::white()));
+    render::Path dot;
+    dot.add_circle({layer.x + 55, layer.y + 42}, 7);
+    dl.fill_path(dot, render::FillRule::nonzero, render::Paint::solid(geom::Color::hex(0x0f172a)));
+    dl.pop_layer();
+}
+
 using Scene = std::function<void(render::DisplayList&, Rig&)>;
 struct Case {
     std::string_view name;
@@ -166,7 +200,7 @@ const std::vector<Case>& cases() {
              dl.fill_rect({0, 60, 80, 60}, gradient(render::GradientKind::linear, {20, 80}, {40, 100}, 0, render::Spread::reflect, rainbow));
              dl.fill_rect({80, 60, 80, 60}, gradient(render::GradientKind::conic, {120, 90}, {}, 0.5f, render::Spread::pad, rainbow));
          },
-         {1, 4}},
+         {1, 0}},
         {"rounded",
          [](render::DisplayList& dl, Rig&) {
              dl.fill_round_rect({10, 10, 70, 50}, geom::CornerRadii::all(12), render::Paint::solid(geom::Color::hex(0x0ea5e9)));
@@ -231,15 +265,14 @@ const std::vector<Case>& cases() {
              dl.pop_layer();
              dl.pop_layer();
          },
-         {2, 0}},
+         {1, 0}},
         {"blend modes",
          [](render::DisplayList& dl, Rig&) {
              // A backdrop with opaque, translucent and empty parts, and every
              // mode over it in a cell: whole, under a fractional rectangle
-             // clip, and under a rounded (mask) clip. A layer's own pixels may
-             // differ by a level (the GPU's blending unit rounds once, in
-             // float; the CPU rounds the source to 8 bits first), and colour
-             // dodge and burn divide by the source: that level grows to 4.
+             // clip, and under a rounded (mask) clip. Colour dodge and burn
+             // divide by the source, so a last bit a GPU's division rounds
+             // differently can grow to two levels.
              dl.fill_rect({0, 0, 160, 80}, gradient(render::GradientKind::linear, {0, 0}, {160, 0}, 0, render::Spread::pad, rainbow));
              dl.fill_rect({0, 50, 160, 40}, geom::Color{0.95f, 0.85f, 0.2f, 0.5f});
              for (int mode = 0; mode <= static_cast<int>(render::BlendMode::erase); ++mode) {
@@ -259,7 +292,7 @@ const std::vector<Case>& cases() {
                  if (clip != 0) dl.pop_clip();
              }
          },
-         {4, 360}},
+         {2, 8}},
         {"blend arithmetic",
          [](render::DisplayList& dl, Rig&) {
              // Layers whose pixels both backends make alike (pixel-aligned solid
@@ -284,6 +317,22 @@ const std::vector<Case>& cases() {
                  dl.pop_layer();
                  if (mode % 4 == 0) dl.pop_clip();
              }
+         },
+         {1, 0}},
+        {"effect dissolve", [](render::DisplayList& dl, Rig&) { effect_scene(dl, "dissolve", {{"progress", 0.45f}, {"seed", 7}, {"grain", 3}}); }, {1, 0}},
+        {"effect wipe", [](render::DisplayList& dl, Rig&) { effect_scene(dl, "wipe", {{"progress", 0.4f}, {"angle", 30}, {"softness", 0.2f}}); }, {1, 0}},
+        {"effect reveal", [](render::DisplayList& dl, Rig&) { effect_scene(dl, "reveal", {{"progress", 0.6f}, {"x", 0.3f}, {"y", 0.6f}}); }, {1, 0}},
+        {"effect displace", [](render::DisplayList& dl, Rig&) { effect_scene(dl, "displace", {{"amount", 6}, {"wavelength", 30}, {"phase", 0.2f}}); }, {1, 0}},
+        {"effect noise", [](render::DisplayList& dl, Rig&) { effect_scene(dl, "noise", {{"amount", 0.3f}, {"seed", 3}}); }, {1, 0}},
+        {"effect chromatic", [](render::DisplayList& dl, Rig&) { effect_scene(dl, "chromatic", {{"offset", 3}, {"angle", 20}}); }, {1, 0}},
+        {"effect blur", [](render::DisplayList& dl, Rig&) { effect_scene(dl, "blur", {{"radius", 9}}); }, {1, 0}},
+        {"effect pixelate", [](render::DisplayList& dl, Rig&) { effect_scene(dl, "pixelate", {{"size", 7}}); }, {1, 0}},
+        {"effect particles", [](render::DisplayList& dl, Rig&) { effect_scene(dl, "particles", {{"progress", 0.35f}, {"seed", 5}, {"size", 4}}); }, {1, 0}},
+        {"effect under a clip and a blend mode",
+         [](render::DisplayList& dl, Rig&) {
+             dl.push_clip({10, 10, 140, 100}, geom::CornerRadii::all(16));
+             effect_scene(dl, "reveal", {{"progress", 0.7f}}, render::BlendMode::multiply, 0.8f);
+             dl.pop_clip();
          },
          {1, 0}},
         {"images",

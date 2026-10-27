@@ -16,9 +16,9 @@ struct Prim {
     float4 rect : TEXCOORD0;     // kind rect/rrect/image: local x, y, w, h; mask: device x, y, w, h
     float4 m0 : TEXCOORD1;       // local → device: a, b, c, d
     float4 m1 : TEXCOORD2;       // e, f, kind, flags
-    float4 radii : TEXCOORD3;    // top-left, top-right, bottom-right, bottom-left
-    float4 shape : TEXCOORD4;    // -, opacity (an image's; a mask's coverage scale), -, -
-    float4 color : TEXCOORD5;    // premultiplied solid colour (the tint of an image paint)
+    float4 radii : TEXCOORD3;    // rrect: top-left, top-right, bottom-right, bottom-left; axis-aligned rect, image: the device rectangle's edges left, top, right, bottom
+    float4 shape : TEXCOORD4;    // -, a byte the result is scaled by (a layered glyph's opacity), a layer's opacity byte, -
+    float4 color : TEXCOORD5;    // solid: premultiplied bytes / 255; image paint: w the byte its texels are scaled by
     float4 paint : TEXCOORD6;    // paint kind, ramp row, spread, conic start angle
     float4 pgeo : TEXCOORD7;     // gradient start.xy, end.xy (radial: end.x is the radius)
     float4 pinv0 : TEXCOORD8;    // device → paint: a, b, c, d
@@ -52,6 +52,7 @@ static const int KIND_IMAGE = 3;
 static const int FLAG_AXIS_ALIGNED = 1;   // the transform maps the rectangle to an axis-aligned one
 static const int FLAG_CLIP_MASK = 2;      // multiply by the clip mask
 static const int FLAG_LINEAR = 4;         // image paint / image: bilinear
+static const int FLAG_LAYER = 8;          // a layer composited: its pixel at the layer's opacity (shape.z), as the CPU pops it
 
 struct Frame {
     float4 size;   // target width, height; atlas width, height
@@ -236,64 +237,121 @@ float spread_t(float t, int spread) {
     return saturate(t);
 }
 
-float4 paint_at(VOut i, float2 p) {
+// ── bytes: the CPU reference's arithmetic (openmui.raster) ─────────────
+
+// x·y/255 rounded to nearest, exactly, for 8-bit values.
+uint mul255(uint x, uint y) {
+    const uint t = x * y + 128;
+    return (t + (t >> 8)) >> 8;
+}
+uint4 mul255(uint4 c, uint k) { return k == 255 ? c : uint4(mul255(c.r, k), mul255(c.g, k), mul255(c.b, k), mul255(c.a, k)); }
+
+uint4 bytes(float4 v) { return uint4(round(saturate(v) * 255.0)); }
+
+// A fraction of a pixel covered as the rasteriser makes it a byte.
+uint coverage_byte(float f) { return min(255u, uint(max(f, 0.0) * 256.0)); }
+
+// A coordinate in 1/256 pixel, as rect_coverage rounds it.
+int sub(float v) { return int(floor(v * 256.0 + 0.5)); }
+
+// The coverage of pixel `px` by the device rectangle with edges left, top,
+// right, bottom (as Rect::right() and bottom() compute them): raster's
+// rect_coverage — sub-pixel edges, ((column · row + 128) >> 8) per pixel.
+uint rect_coverage(int2 px, float4 edges) {
+    const int l = sub(edges.x), t = sub(edges.y), rr = sub(edges.z), b = sub(edges.w);
+    if (rr <= l || b <= t) return 0;
+    const int col = max(0, min(rr, (px.x + 1) * 256) - max(l, px.x * 256));
+    const int row = max(0, min(b, (px.y + 1) * 256) - max(t, px.y * 256));
+    return min(255u, (uint(col) * uint(row) + 128) >> 8);
+}
+
+// An image's texel as bytes; coordinates clamped to its edges.
+uint4 texel(int2 t, float2 size) {
+    const int2 n = int2(size);
+    t = clamp(t, int2(0, 0), n - 1);
+    return bytes(image.SampleLevel((float2(t) + 0.5) / size, 0));
+}
+
+// raster's Shader::image_at: nearest, or bilinear in 1/256 weights.
+uint4 image_at(float2 q, float2 size, bool bilinear) {
+    if (!bilinear) return texel(int2(floor(q)), size);
+    const float2 f = q - 0.5;
+    const float2 f0 = floor(f);
+    const int2 i0 = int2(f0);
+    const uint wx = min(256u, uint(int((f.x - f0.x) * 256.0 + 0.5))), wy = min(256u, uint(int((f.y - f0.y) * 256.0 + 0.5)));
+    const uint4 a = texel(i0, size), b = texel(i0 + int2(1, 0), size), c = texel(i0 + int2(0, 1), size), d = texel(i0 + int2(1, 1), size);
+    const uint4 top = a * (256 - wx) + b * wx, bottom = c * (256 - wx) + d * wx;
+    return (top * (256 - wy) + bottom * wy + 32768) >> 16;
+}
+
+float2 inverse_at(VOut i, float2 p) {
+    precise const float qx = i.pinv0.x * p.x + i.pinv0.z * p.y + i.pinv1.x;
+    precise const float qy = i.pinv0.y * p.x + i.pinv0.w * p.y + i.pinv1.y;
+    return float2(qx, qy);
+}
+
+// The paint's pixel at p (the pixel's centre) as bytes.
+uint4 paint_at(VOut i, float2 p, int flags) {
     const int kind = int(i.paint.x);
-    if (kind == 0) return i.color;
-    const float2 q = apply(i.pinv0, i.pinv1.xy, p);
-    if (kind == 4) {  // image: q in image pixels
-        const float2 size = i.pinv1.zw;
-        const float4 c = image.SampleLevel((q) / size, 0);
-        return c * i.color.a;
-    }
+    if (kind == 0) return bytes(i.color);
+    const float2 q = inverse_at(i, p);
+    if (kind == 4) return mul255(image_at(q, i.pinv1.zw, (flags & FLAG_LINEAR) != 0), uint(i.color.w));
     float t = 0;
     if (kind == 1) {
-        const float2 d = i.pgeo.zw - i.pgeo.xy;
-        const float len2 = dot(d, d);
-        t = len2 > 0 ? dot(q - i.pgeo.xy, d) / len2 : 0;
+        precise const float dx = i.pgeo.z - i.pgeo.x, dy = i.pgeo.w - i.pgeo.y;
+        precise const float len2 = dx * dx + dy * dy;
+        precise const float along = (q.x - i.pgeo.x) * dx + (q.y - i.pgeo.y) * dy;
+        t = len2 > 0 ? along / len2 : 0;
     } else if (kind == 2) {
-        t = i.pgeo.z > 0 ? length(q - i.pgeo.xy) / i.pgeo.z : 1;
+        precise const float dx = q.x - i.pgeo.x, dy = q.y - i.pgeo.y;
+        precise const float d2 = dx * dx + dy * dy;
+        t = i.pgeo.z > 0 ? sqrt(d2) / i.pgeo.z : 1;
     } else {
         const float turn = (atan2(q.y - i.pgeo.y, q.x - i.pgeo.x) - i.paint.w) / 6.283185307179586;
         t = turn - floor(turn);
     }
     t = spread_t(t, int(i.paint.z));
-    const float index = floor(t * 255.0 + 0.5);
-    return ramps.SampleLevel(float2((index + 0.5) / 256.0, (i.paint.y + 0.5) / fframe.ramps.x), 0);
+    const float index = float(int(t * 255.0 + 0.5));
+    return bytes(ramps.SampleLevel(float2((index + 0.5) / 256.0, (i.paint.y + 0.5) / fframe.ramps.x), 0));
 }
 
 [shader("fragment")]
 float4 ui_fs(VOut i) : SV_Target {
     const float2 p = i.pos.xy;  // the pixel's centre, device space
+    const int2 px = int2(p);
     const int kind = int(i.m1.z);
     const int flags = int(i.m1.w);
-    float coverage;
-    float4 colour;
-    if (kind == KIND_MASK) {
+    // The coverage as a byte, as the CPU has it.
+    uint k;
+    if ((flags & FLAG_LAYER) != 0) {
+        k = uint(i.shape.z);
+    } else if (kind == KIND_MASK) {
         const float2 at = i.uv.xy + (p - i.rect.xy);
-        coverage = atlas.SampleLevel(at / fframe.size.zw, 0).r * i.shape.y;
-        colour = paint_at(i, p);
+        k = bytes(atlas.SampleLevel(at / fframe.size.zw, 0)).r;
+    } else if ((flags & FLAG_AXIS_ALIGNED) != 0 && (kind == KIND_RECT || kind == KIND_IMAGE)) {
+        k = rect_coverage(px, i.radii);
     } else {
         const float2 half = i.rect.zw * 0.5;
         const float2 centred = i.local - (i.rect.xy + half);
-        if ((flags & FLAG_AXIS_ALIGNED) != 0 && (kind == KIND_RECT || kind == KIND_IMAGE)) {
-            const float2 a = apply(i.m0, i.m1.xy, i.rect.xy), b = apply(i.m0, i.m1.xy, i.rect.xy + i.rect.zw);
-            coverage = box(p, min(a, b), max(a, b));
-        } else if ((flags & FLAG_AXIS_ALIGNED) != 0) {
+        float f;
+        if ((flags & FLAG_AXIS_ALIGNED) != 0) {
             // The pixel into local space (an axis-aligned transform keeps it a rectangle).
             const float2 a = (p - 0.5 - i.m1.xy) / float2(i.m0.x, i.m0.w), b = (p + 0.5 - i.m1.xy) / float2(i.m0.x, i.m0.w);
-            coverage = exact_rounded(min(a, b), max(a, b), i.rect.xy, i.rect.zw, i.radii);
+            f = exact_rounded(min(a, b), max(a, b), i.rect.xy, i.rect.zw, i.radii);
         } else {
-            coverage = rounded_coverage(centred, half, kind == KIND_RRECT ? i.radii : float4(0, 0, 0, 0), i.m0);
+            f = rounded_coverage(centred, half, kind == KIND_RRECT ? i.radii : float4(0, 0, 0, 0), i.m0);
         }
-        if (kind == KIND_IMAGE) {
-            // The local position over the destination maps to the source's pixels.
-            const float2 s = i.uv.xy + (i.local - i.rect.xy) / i.rect.zw * i.uv.zw;
-            colour = image.SampleLevel(s / i.pinv1.zw, 0) * i.shape.y;
-        } else {
-            colour = paint_at(i, p);
-        }
+        k = coverage_byte(f);
     }
-    coverage *= box(p, i.clip.xy, i.clip.zw);
-    if ((flags & FLAG_CLIP_MASK) != 0) coverage *= clip_mask.SampleLevel(p / fframe.size.xy, 0).r;
-    return colour * coverage;
+    // The clip: its rectangle covers by rect_coverage (a pixel-aligned one is
+    // all or nothing), its mask by its bytes.
+    const uint clip = rect_coverage(px, i.clip);
+    if (clip != 255) k = mul255(k, clip);
+    if ((flags & FLAG_CLIP_MASK) != 0) k = mul255(k, bytes(clip_mask.SampleLevel(p / fframe.size.xy, 0)).r);
+    if (k == 0) discard;
+    uint4 s = (flags & FLAG_LAYER) != 0 ? texel(px, i.pinv1.zw) : paint_at(i, p, flags);
+    s = mul255(s, k);
+    s = mul255(s, uint(i.shape.y));
+    if (all(s == 0)) discard;
+    return float4(s) / 255.0;
 }

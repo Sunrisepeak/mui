@@ -20,12 +20,16 @@ struct Prim {
 static_assert(sizeof(Prim) == 12 * 16);
 
 constexpr float kind_rect = 0, kind_rrect = 1, kind_mask = 2, kind_image = 3;
-constexpr int flag_axis = 1, flag_clip_mask = 2;
+constexpr int flag_axis = 1, flag_clip_mask = 2, flag_linear = 4, flag_layer = 8;
+
+// A value 0…1 as a byte, the way raster rounds opacities.
+float byte_of(float v) { return static_cast<float>(static_cast<std::uint32_t>(std::clamp(v, 0.0f, 1.0f) * 255.0f + 0.5f)); }
+
+void edges(std::array<float, 4>& v, const Rect& r) { v = {r.x, r.y, r.right(), r.bottom()}; }
 
 struct Draw {
     Prim         prim;
     rhi::Texture image;  // the image slot's texture (none: white)
-    bool         linear = false;
     rhi::Texture mask;   // the clip mask (none: white)
 };
 
@@ -33,12 +37,13 @@ struct Draw {
 // blend.slang): the target's box is copied to the backdrop, and the layer
 // blended with it is written in its place.
 struct BlendPass {
-    rhi::Texture  layer;
-    rhi::Region   box;
-    BlendMode     mode = BlendMode::normal;
-    std::uint32_t opacity = 255;  // 0…255, as the CPU rounds it
-    rhi::Texture  mask;           // the clip mask, or none
-    std::array<float, 4> clip{};  // the clip rectangle
+    rhi::Texture         layer;
+    rhi::Texture         backdrop;
+    rhi::Region          box;
+    BlendMode            mode = BlendMode::normal;
+    std::uint32_t        opacity = 255;  // 0…255, as the CPU rounds it
+    rhi::Texture         mask;           // the clip mask, or none
+    std::array<float, 4> clip{};         // the clip rectangle
 };
 
 // What blend.slang's uniforms are.
@@ -46,14 +51,40 @@ struct BlendParams {
     std::array<float, 4> size, box, mode, clip;
 };
 
-// A run of draws into one target, the passes in the order they run: a
-// layer's pass runs before the rest of its parent's.
-struct Segment {
-    rhi::Texture             target;
-    rhi::LoadOp              load = rhi::LoadOp::load;
-    std::array<float, 4>     clear{};
-    std::vector<Draw>        draws;
-    std::optional<BlendPass> blend;  // before the draws
+// What the effect template's uniforms are (effects/lib/openmui_effect.slang).
+struct EffectUniforms {
+    std::array<float, 4>  size{}, layer{};
+    std::array<float, 16> params{};
+    std::array<float, 8>  derived{};
+};
+static_assert(sizeof(EffectUniforms) == 32 * 4);
+
+// pixelate.slang's uniforms.
+struct PixelateGrid {
+    std::array<std::int32_t, 4> size, first;
+};
+
+// An effect run on a layer's surface (D-68): `source` holds the layer drawn
+// offscreen, `result` what the effect makes of it.
+struct EffectStep {
+    EffectGpu             gpu;
+    rhi::GraphicsPipeline pipeline;  // pixel: the effect's
+    EffectUniforms        uniforms;
+    rhi::Texture          source, scratch, result, aux;
+};
+
+// The frame's work, in the order it runs: a layer's passes run before the
+// rest of its parent's.
+struct Pass {
+    enum class Kind : std::uint8_t { draws, blend, effect };
+    Kind                 kind = Kind::draws;
+    rhi::Texture         target;
+    std::uint32_t        w = 0, h = 0;
+    rhi::LoadOp          load = rhi::LoadOp::load;
+    std::array<float, 4> clear{};
+    std::vector<Draw>    draws;   // draws
+    BlendPass            blend;   // blend
+    EffectStep           effect;  // effect
 };
 
 struct Frame {
@@ -64,10 +95,14 @@ struct Frame {
 struct Clip {
     float        x0, y0, x1, y1;  // the device rectangle
     rhi::Texture mask;           // the mask texture, or none
-    std::shared_ptr<std::vector<std::uint8_t>> coverage;  // the mask, target-sized
+    std::shared_ptr<std::vector<std::uint8_t>> coverage;  // the mask, surface-sized
 };
 
-std::array<float, 4> premultiplied(Color c) { return {c.r * c.a, c.g * c.a, c.b * c.a, c.a}; }
+// A colour premultiplied to bytes as raster does it, as exact fractions of 255.
+std::array<float, 4> premultiplied(Color c) {
+    const raster::Rgba8 b = raster::premultiply(c);
+    return {b.r / 255.0f, b.g / 255.0f, b.b / 255.0f, b.a / 255.0f};
+}
 
 void set(std::array<float, 4>& v, float a, float b, float c, float d) { v = {a, b, c, d}; }
 
@@ -89,13 +124,20 @@ raster::PixelRect pixels(const Clip& c) {
     return {x0, y0, std::max(0, x1 - x0), std::max(0, y1 - y0)};
 }
 
+// What the effect template allows a shader to bind: the source and the aux
+// texture, the uniforms; no storage (architecture §8).
+bool template_shaped(const rhi::ShaderDesc& s) {
+    return s.stage == rhi::Stage::fragment && s.samplers <= 2 && s.uniform_buffers <= 1 && s.storage_textures == 0 && s.storage_buffers == 0 &&
+           s.rw_storage_textures == 0 && s.rw_storage_buffers == 0;
+}
+
 }  // namespace
 
 struct GpuRenderer::Impl {
     rhi::Device&          d;
     rhi::GraphicsPipeline pipeline, blend_pipeline;
-    rhi::Sampler          nearest, linear;
-    rhi::Texture          white, white_mask;
+    rhi::Sampler          nearest;  // every texture is read texel by texel; bilinear images are weighed in the shader
+    rhi::Texture          white, white_mask, zero_row;
     rhi::Texture          ramps;
     std::uint32_t         ramp_capacity = 0;
     rhi::Texture          atlas;
@@ -103,15 +145,32 @@ struct GpuRenderer::Impl {
     rhi::Buffer           instances;
     std::uint32_t         instance_capacity = 0;
     std::unordered_map<const raster::Surface*, rhi::Texture> images;
-    std::vector<rhi::Texture> layers, masks;
-    rhi::Texture              backdrop;  // target-sized, made on the first blend mode
+
+    // The effects' pipelines, made on first use: a pixel effect's by its ref
+    // and generation (a reloaded shader is a new pipeline).
+    rhi::GraphicsPipeline blur_pipeline, particles_pipeline;
+    rhi::ComputePipeline  pixelate_pipeline;
+    std::map<std::pair<std::uint32_t, std::uint64_t>, rhi::GraphicsPipeline> effect_pipelines;
+
+    // Textures by size, format and usage, reused from frame to frame; one not
+    // used for a while is released.
+    struct Pooled {
+        rhi::Texture      texture;
+        std::uint32_t     w, h;
+        rhi::Format       format;
+        rhi::TextureUsage usage;
+        bool              used = false;
+        std::uint64_t     last = 0;
+    };
+    std::vector<Pooled> pool;
+    std::uint64_t       frame_number = 0;
 
     std::array<rhi::VertexAttribute, 12> attributes{};
     std::array<rhi::VertexBufferLayout, 1> layout{};
 
     // The frame being built.
     std::uint32_t                       width = 0, height = 0;
-    std::vector<Segment>                segments;
+    std::vector<Pass>                   passes;
     std::vector<std::array<raster::Rgba8, 256>> ramp_rows;
     struct AtlasEntry {
         std::uint32_t x, y;
@@ -119,9 +178,9 @@ struct GpuRenderer::Impl {
     };
     std::vector<AtlasEntry>             atlas_entries;
     std::deque<raster::Coverage>        owned;  // the frame's coverage (a deque: the atlas list points into it)
+    std::deque<std::vector<float>>      rows;   // the frame's effect rows (uploads point into them)
     std::uint32_t                       shelf_x = 0, shelf_y = 0, shelf_h = 0;
     std::vector<const raster::Surface*> images_used;
-    std::size_t                         layers_used = 0, masks_used = 0;
     rhi::CommandList                    list;
     raster::Polygons                    polygons;
     raster::Rasterizer                  rasterizer;
@@ -132,15 +191,14 @@ struct GpuRenderer::Impl {
     }
     ~Impl() {
         static_cast<void>(d.wait_idle());
-        for (rhi::Texture t : layers) d.destroy(t);
-        for (rhi::Texture t : masks) d.destroy(t);
+        for (const Pooled& p : pool) d.destroy(p.texture);
         for (auto& [s, t] : images) d.destroy(t);
-        for (rhi::Texture t : {white, white_mask, ramps, atlas, backdrop}) d.destroy(t);
+        for (rhi::Texture t : {white, white_mask, zero_row, ramps, atlas}) d.destroy(t);
         d.destroy(instances);
         d.destroy(nearest);
-        d.destroy(linear);
-        d.destroy(pipeline);
-        d.destroy(blend_pipeline);
+        for (rhi::GraphicsPipeline p : {pipeline, blend_pipeline, blur_pipeline, particles_pipeline}) d.destroy(p);
+        for (auto& [k, p] : effect_pipelines) d.destroy(p);
+        d.destroy(pixelate_pipeline);
     }
 
     rhi::Result<void> init() {
@@ -153,25 +211,52 @@ struct GpuRenderer::Impl {
         if (!bp) return std::unexpected(bp.error());
         blend_pipeline = *bp;
         auto n = d.create(rhi::SamplerDesc{rhi::Filter::nearest, rhi::Filter::nearest});
-        auto l = d.create(rhi::SamplerDesc{rhi::Filter::linear, rhi::Filter::linear});
-        if (!n || !l) return std::unexpected(n ? l.error() : n.error());
+        if (!n) return std::unexpected(n.error());
         nearest = *n;
-        linear = *l;
         auto w = d.create(rhi::TextureDesc{rhi::Format::rgba8_unorm, 1, 1, rhi::TextureUsage::sampled, "render.white"});
         auto wm = d.create(rhi::TextureDesc{rhi::Format::r8_unorm, 1, 1, rhi::TextureUsage::sampled, "render.white_mask"});
-        if (!w || !wm) return std::unexpected(w ? wm.error() : w.error());
+        auto zr = d.create(rhi::TextureDesc{rhi::Format::r32_float, 1, 1, rhi::TextureUsage::sampled, "render.zero_row"});
+        if (!w || !wm || !zr) return std::unexpected(!w ? w.error() : !wm ? wm.error() : zr.error());
         white = *w;
         white_mask = *wm;
+        zero_row = *zr;
         rhi::CommandList up;
         const std::array<std::uint8_t, 4> one{255, 255, 255, 255};
+        const std::array<float, 1> zero{0};
         up.upload(white, rhi::Region{0, 0, 1, 1}, std::as_bytes(std::span(one)));
         up.upload(white_mask, rhi::Region{0, 0, 1, 1}, std::as_bytes(std::span(one).first(1)));
+        up.upload(zero_row, rhi::Region{0, 0, 1, 1}, std::as_bytes(std::span(zero)));
         auto s = d.submit(up);
         if (!s) return std::unexpected(s.error());
         return d.wait(*s);
     }
 
     // ── per-frame resources ──────────────────────────────────────────────
+
+    rhi::Result<rhi::Texture> pooled(std::uint32_t w, std::uint32_t h, rhi::Format format, rhi::TextureUsage usage, std::string_view label) {
+        for (Pooled& p : pool)
+            if (!p.used && p.w == w && p.h == h && p.format == format && p.usage == usage) {
+                p.used = true;
+                p.last = frame_number;
+                return p.texture;
+            }
+        auto t = d.create(rhi::TextureDesc{format, w, h, usage, label});
+        if (!t) return std::unexpected(t.error());
+        pool.push_back({*t, w, h, format, usage, true, frame_number});
+        return *t;
+    }
+
+    // A frame begins: every pooled texture is free again, and one unused for
+    // the last 120 frames goes (a size the window no longer has).
+    void pool_frame() {
+        ++frame_number;
+        std::erase_if(pool, [&](Pooled& p) {
+            p.used = false;
+            if (frame_number - p.last <= 120) return false;
+            d.destroy(p.texture);
+            return true;
+        });
+    }
 
     rhi::Result<void> ensure_ramps(std::uint32_t rows) {
         if (rows <= ramp_capacity && ramps) return {};
@@ -197,33 +282,6 @@ struct GpuRenderer::Impl {
         atlas = *t;
         atlas_h = cap;
         return {};
-    }
-
-    rhi::Result<rhi::Texture> layer_texture() {
-        if (layers_used < layers.size()) return layers[layers_used++];
-        auto t = d.create(rhi::TextureDesc{rhi::Format::rgba8_unorm, width, height,
-                                           rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "render.layer"});
-        if (!t) return std::unexpected(t.error());
-        layers.push_back(*t);
-        ++layers_used;
-        return *t;
-    }
-
-    rhi::Result<rhi::Texture> backdrop_texture() {
-        if (backdrop) return backdrop;
-        auto t = d.create(rhi::TextureDesc{rhi::Format::rgba8_unorm, width, height, rhi::TextureUsage::sampled, "render.backdrop"});
-        if (!t) return std::unexpected(t.error());
-        backdrop = *t;
-        return backdrop;
-    }
-
-    rhi::Result<rhi::Texture> mask_texture() {
-        if (masks_used < masks.size()) return masks[masks_used++];
-        auto t = d.create(rhi::TextureDesc{rhi::Format::r8_unorm, width, height, rhi::TextureUsage::sampled, "render.clip_mask"});
-        if (!t) return std::unexpected(t.error());
-        masks.push_back(*t);
-        ++masks_used;
-        return *t;
     }
 
     rhi::Result<rhi::Texture> image_texture(const raster::Surface& s) {
@@ -267,6 +325,116 @@ struct GpuRenderer::Impl {
         atlas_entries.push_back({at.first, at.second, &c});
         return at;
     }
+
+    // ── the effects' pipelines ───────────────────────────────────────────
+
+    rhi::Result<rhi::GraphicsPipeline> effect_pipeline(EffectRef ref, std::uint64_t generation, const rhi::ShaderDesc& fragment) {
+        const auto key = std::pair{ref.id, generation};
+        if (auto it = effect_pipelines.find(key); it != effect_pipelines.end()) return it->second;
+        // An older generation's pipeline goes with the shader it was made of.
+        for (auto it = effect_pipelines.begin(); it != effect_pipelines.end();)
+            if (it->first.first == ref.id) {
+                static_cast<void>(d.wait_idle());
+                d.destroy(it->second);
+                it = effect_pipelines.erase(it);
+            } else {
+                ++it;
+            }
+        auto p = d.create(rhi::GraphicsPipelineDesc{.vertex = &shaders::quad::quad_vs, .fragment = &fragment, .blend = rhi::Blend::replace(),
+                                                    .label = "render.effect"});
+        if (!p) return std::unexpected(p.error());
+        effect_pipelines.emplace(key, *p);
+        return *p;
+    }
+
+    rhi::Result<void> builtin_pipelines(EffectPass pass) {
+        if (pass == EffectPass::blur && !blur_pipeline) {
+            auto p = d.create(rhi::GraphicsPipelineDesc{.vertex = &shaders::quad::quad_vs, .fragment = &shaders::blur::blur_fs,
+                                                        .blend = rhi::Blend::replace(), .label = "render.effect.blur"});
+            if (!p) return std::unexpected(p.error());
+            blur_pipeline = *p;
+        }
+        if (pass == EffectPass::particles && !particles_pipeline) {
+            auto p = d.create(rhi::GraphicsPipelineDesc{.vertex = &shaders::particles::particles_vs, .fragment = &shaders::particles::particles_fs,
+                                                        .blend = rhi::Blend::premultiplied(), .label = "render.effect.particles"});
+            if (!p) return std::unexpected(p.error());
+            particles_pipeline = *p;
+        }
+        if (pass == EffectPass::pixelate && !pixelate_pipeline) {
+            auto p = d.create(rhi::ComputePipelineDesc{&shaders::pixelate::pixelate_cs, "render.effect.pixelate"});
+            if (!p) return std::unexpected(p.error());
+            pixelate_pipeline = *p;
+        }
+        return {};
+    }
+
+    // The commands that run an effect step (outside any pass).
+    void record_effect(const EffectStep& e) {
+        const auto w = static_cast<std::int32_t>(e.uniforms.size[0]), h = static_cast<std::int32_t>(e.uniforms.size[1]);
+        auto quad = [&](rhi::GraphicsPipeline p, rhi::Texture from, rhi::Texture to, const EffectUniforms& u, rhi::Texture aux) {
+            list.begin_render({to, rhi::LoadOp::clear, {0, 0, 0, 0}});
+            list.set_pipeline(p);
+            list.push_uniforms(rhi::Stage::fragment, 0, u);
+            list.bind_texture(rhi::Stage::fragment, 0, from, nearest);
+            if (aux) list.bind_texture(rhi::Stage::fragment, 1, aux, nearest);
+            list.draw(3);
+            list.end_render();
+        };
+        switch (e.gpu.pass) {
+            case EffectPass::pixel:
+                quad(e.pipeline, e.source, e.result, e.uniforms, e.gpu.fragment->samplers >= 2 ? (e.aux ? e.aux : zero_row) : rhi::Texture{});
+                break;
+            case EffectPass::blur: {
+                // Three box passes each way, as the reference: source → scratch → result → scratch → … → result.
+                EffectUniforms u = e.uniforms;
+                rhi::Texture from = e.source;
+                for (int i = 0; i < 3; ++i) {
+                    u.derived[1] = 1, u.derived[2] = 0;
+                    quad(blur_pipeline, from, e.scratch, u, {});
+                    u.derived[1] = 0, u.derived[2] = 1;
+                    quad(blur_pipeline, e.scratch, e.result, u, {});
+                    from = e.result;
+                }
+                break;
+            }
+            case EffectPass::pixelate: {
+                const auto size = static_cast<std::int32_t>(e.uniforms.derived[0]);
+                const auto ox = static_cast<std::int32_t>(e.uniforms.derived[1]), oy = static_cast<std::int32_t>(e.uniforms.derived[2]);
+                // The reference's first block: the one holding pixel 0 on the grid through the layer's corner.
+                auto first = [&](std::int32_t o) {
+                    return o + static_cast<std::int32_t>(std::floor(static_cast<float>(-o) / static_cast<float>(size))) * size;
+                };
+                const std::int32_t fx = first(ox), fy = first(oy);
+                const std::int32_t across = (w - fx + size - 1) / size, down = (h - fy + size - 1) / size;
+                const PixelateGrid grid{{w, h, size, 0}, {fx, fy, across, down}};
+                const std::array<rhi::Texture, 1> writes{e.result};
+                list.begin_compute(writes);
+                list.set_pipeline(pixelate_pipeline);
+                list.bind_texture(rhi::Stage::compute, 0, e.source, nearest);
+                list.push_uniforms(rhi::Stage::compute, 0, grid);
+                list.dispatch(static_cast<std::uint32_t>((across + 7) / 8), static_cast<std::uint32_t>((down + 7) / 8));
+                list.end_compute();
+                break;
+            }
+            case EffectPass::particles: {
+                const auto size = static_cast<std::int32_t>(e.uniforms.derived[0]);
+                const auto x0 = static_cast<std::int32_t>(e.uniforms.derived[1]), y0 = static_cast<std::int32_t>(e.uniforms.derived[2]);
+                const auto x1 = static_cast<std::int32_t>(e.uniforms.derived[3]), y1 = static_cast<std::int32_t>(e.uniforms.derived[4]);
+                const std::int32_t across = (x1 - x0 + size - 1) / size, down = (y1 - y0 + size - 1) / size;
+                list.begin_render({e.result, rhi::LoadOp::clear, {0, 0, 0, 0}});
+                if (across > 0 && down > 0) {
+                    list.set_pipeline(particles_pipeline);
+                    list.push_uniforms(rhi::Stage::vertex, 0, e.uniforms);
+                    list.push_uniforms(rhi::Stage::fragment, 0, e.uniforms);
+                    list.bind_texture(rhi::Stage::fragment, 0, e.source, nearest);
+                    list.draw(6, static_cast<std::uint32_t>(across * down));
+                }
+                list.end_render();
+                break;
+            }
+            case EffectPass::none: break;
+        }
+    }
 };
 
 GpuRenderer::GpuRenderer(std::unique_ptr<Impl> impl) : impl_(std::move(impl)) {}
@@ -290,43 +458,63 @@ rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, rhi::Textur
     if (!desc) return rhi::fail(rhi::Errc::invalid, "render: a stale target");
     if (desc->format != rhi::Format::rgba8_unorm || !rhi::has(desc->usage, rhi::TextureUsage::color_target))
         return rhi::fail(rhi::Errc::invalid, "render: the target must be an rgba8_unorm colour target");
-    if (g.width != desc->width || g.height != desc->height) {
-        static_cast<void>(g.d.wait_idle());
-        for (rhi::Texture t : g.layers) g.d.destroy(t);
-        for (rhi::Texture t : g.masks) g.d.destroy(t);
-        if (g.backdrop) g.d.destroy(g.backdrop);
-        g.layers.clear();
-        g.masks.clear();
-        g.backdrop = {};
-    }
     g.width = desc->width;
     g.height = desc->height;
-    const auto W = static_cast<float>(g.width), H = static_cast<float>(g.height);
 
     RenderReport report;
-    g.segments.clear();
+    g.pool_frame();
+    g.passes.clear();
     g.ramp_rows.clear();
     g.atlas_entries.clear();
     g.owned.clear();
+    g.rows.clear();
     g.shelf_x = g.shelf_y = g.shelf_h = 0;
     g.images_used.clear();
-    g.layers_used = g.masks_used = 0;
     g.list.clear();
     rhi::Error failure{};
     bool failed = false;
     auto fail = [&](const rhi::Error& e) {
         if (!failed) failure = e, failed = true;
     };
+    auto check = [&](const auto& r) {
+        if (!r) fail(r.error());
+        return static_cast<bool>(r);
+    };
 
-    g.segments.push_back({target, options.clear ? rhi::LoadOp::clear : rhi::LoadOp::load, premultiplied(options.background), {}, std::nullopt});
+    // The surface drawn into: the target, or an effect layer's own.
+    struct Surface {
+        std::uint32_t w, h;
+    };
+    std::vector<Surface> surfaces{{g.width, g.height}};
+    auto here = [&]() -> const Surface& { return surfaces.back(); };
+    auto whole = [&]() -> raster::PixelRect { return {0, 0, static_cast<std::int32_t>(here().w), static_cast<std::int32_t>(here().h)}; };
+
     std::size_t current = 0;
+    auto draws_into = [&](rhi::Texture t, std::uint32_t w, std::uint32_t h, rhi::LoadOp load, std::array<float, 4> clear) {
+        Pass p;
+        p.target = t;
+        p.w = w;
+        p.h = h;
+        p.load = load;
+        p.clear = clear;
+        g.passes.push_back(std::move(p));
+        current = g.passes.size() - 1;
+    };
+    draws_into(target, g.width, g.height, options.clear ? rhi::LoadOp::clear : rhi::LoadOp::load, premultiplied(options.background));
+
     std::vector<Affine> transforms{Affine::scale(options.scale, options.scale)};
-    std::vector<Clip> clips{{0, 0, W, H, {}, nullptr}};
+    std::vector<Clip> clips{{0, 0, static_cast<float>(g.width), static_cast<float>(g.height), {}, nullptr}};
+    // An open layer: an ordinary one (drawn into a surface-sized texture), or
+    // an effect's (drawn into its own surface, the transform, clip and
+    // surface pushed with it).
     struct Open {
         std::size_t  parent;
         rhi::Texture texture;
         float        opacity;
         BlendMode    blend;
+        bool         effect = false;
+        EffectStep   step;
+        Rect         device;  // effect: where its surface lies in the parent's
     };
     std::vector<Open> open;
     PathConv paths;
@@ -343,13 +531,16 @@ rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, rhi::Textur
         }
     };
     // The paint's colour fields; false when it cannot be drawn (a missing image).
-    auto paint_into = [&](Prim& p, Draw& d, const Paint& paint) -> bool {
-        p.shape[1] = 1;
+    // The shader works in the CPU's bytes: a solid colour premultiplied as
+    // raster premultiplies it, an image paint's tint as a byte.
+    auto paint_into = [&](Prim& p, Draw& d, int& flags, const Paint& paint) -> bool {
+        p.shape[1] = 255;
         switch (paint.kind) {
-            case Paint::Kind::solid:
+            case Paint::Kind::solid: {
                 p.color = premultiplied(paint.color);
                 p.paint = {0, 0, 0, 0};
                 return true;
+            }
             case Paint::Kind::gradient: {
                 raster::Paint rp;
                 rp.kind = raster::Paint::Kind::gradient;
@@ -386,8 +577,8 @@ rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, rhi::Textur
                     return false;
                 }
                 d.image = *t;
-                d.linear = paint.sampling == Sampling::linear;
-                p.color = {0, 0, 0, paint.color.a};
+                if (paint.sampling == Sampling::linear) flags |= flag_linear;
+                p.color = {0, 0, 0, byte_of(paint.color.a)};
                 p.paint = {4, 0, 0, 0};
                 inverse(p, m() * paint.image_transform);
                 p.pinv1[2] = static_cast<float>(img->width());
@@ -397,20 +588,24 @@ rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, rhi::Textur
         }
         return false;
     };
-    auto emit = [&](Draw d) { g.segments[current].draws.push_back(std::move(d)); };
+    auto emit = [&](Draw d) { g.passes[current].draws.push_back(std::move(d)); };
     // An analytic rectangle or rounded rectangle.
     auto shape = [&](const Rect& r, const CornerRadii& radii, const Paint& paint) {
         Draw d;
         Prim& p = d.prim;
-        if (!paint_into(p, d, paint)) return;
         const Affine& mm = m();
         const bool rounded = !radii.zero();
         int flags = (mm.b == 0 && mm.c == 0 && mm.a != 0 && mm.d != 0) ? flag_axis : 0;
+        if (!paint_into(p, d, flags, paint)) return;
         clip_into(p, d, flags);
         transform(p, mm, rounded ? kind_rrect : kind_rect, flags);
         set(p.rect, r.x, r.y, r.width, r.height);
-        const CornerRadii f = radii.fitted(r.size());
-        set(p.radii, f.top_left, f.top_right, f.bottom_right, f.bottom_left);
+        if (rounded) {
+            const CornerRadii f = radii.fitted(r.size());
+            set(p.radii, f.top_left, f.top_right, f.bottom_right, f.bottom_left);
+        } else {
+            edges(p.radii, mm.map(r));  // the device rectangle, as the CPU maps it
+        }
         emit(std::move(d));
     };
     // Coverage the rasteriser made, in device space, under a paint. What the
@@ -426,9 +621,9 @@ rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, rhi::Textur
         }
         Draw d;
         Prim& p = d.prim;
-        if (!paint_into(p, d, paint)) return;
-        p.shape[1] = scale;
         int flags = 0;
+        if (!paint_into(p, d, flags, paint)) return;
+        p.shape[1] = byte_of(scale);  // a layered glyph's opacity, applied after, as its layer's pop
         clip_into(p, d, flags);
         transform(p, Affine{}, kind_mask, flags);
         set(p.rect, static_cast<float>(c.bounds.x + dx), static_cast<float>(c.bounds.y + dy), static_cast<float>(c.bounds.width),
@@ -437,49 +632,234 @@ rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, rhi::Textur
         emit(std::move(d));
     };
     auto owned = [&]() -> raster::Coverage& { return g.owned.emplace_back(); };
-    // An image's pixels over `dest` (local space under `mm`).
+    // A texture's pixels (w × h) over `dest` (local space under `mm`).
+    // As raster's draw_image: the destination filled with an image paint
+    // whose transform takes the source rectangle onto it.
+    auto texture_image = [&](rhi::Texture t, std::uint32_t w, std::uint32_t h, const Rect& source, const Rect& dest, Sampling sampling,
+                             float opacity, const Affine& mm) {
+        if (source.empty() || dest.empty()) return;
+        Draw d;
+        Prim& p = d.prim;
+        d.image = t;
+        int flags = (mm.b == 0 && mm.c == 0 && mm.a != 0 && mm.d != 0) ? flag_axis : 0;
+        if (sampling == Sampling::linear) flags |= flag_linear;
+        clip_into(p, d, flags);
+        transform(p, mm, kind_image, flags);
+        set(p.rect, dest.x, dest.y, dest.width, dest.height);
+        edges(p.radii, mm.map(dest));
+        p.shape[1] = 255;
+        p.paint = {4, 0, 0, 0};
+        p.color = {0, 0, 0, byte_of(opacity)};  // the white tint's byte times the opacity's
+        inverse(p, mm * Affine::translate(dest.x, dest.y) * Affine::scale(dest.width / source.width, dest.height / source.height) *
+                       Affine::translate(-source.x, -source.y));
+        p.pinv1[2] = static_cast<float>(w);
+        p.pinv1[3] = static_cast<float>(h);
+        emit(std::move(d));
+    };
+    // A layer's pixels over its parent's, at its opacity under the clip, as
+    // raster's pop_layer composites them.
+    auto layer_image = [&](rhi::Texture t, std::uint32_t w, std::uint32_t h, float opacity) {
+        Draw d;
+        Prim& p = d.prim;
+        d.image = t;
+        int flags = flag_axis | flag_layer;
+        clip_into(p, d, flags);
+        transform(p, Affine{}, kind_image, flags);
+        set(p.rect, 0, 0, static_cast<float>(w), static_cast<float>(h));
+        edges(p.radii, {0, 0, static_cast<float>(w), static_cast<float>(h)});
+        p.shape = {0, 255, byte_of(opacity), 0};
+        p.pinv1[2] = static_cast<float>(w);
+        p.pinv1[3] = static_cast<float>(h);
+        emit(std::move(d));
+    };
     auto image = [&](const raster::Surface& img, const Rect& source, const Rect& dest, Sampling sampling, float opacity, const Affine& mm) {
         auto t = g.image_texture(img);
         if (!t) {
             fail(t.error());
             return;
         }
-        Draw d;
-        Prim& p = d.prim;
-        d.image = *t;
-        d.linear = sampling == Sampling::linear;
-        int flags = (mm.b == 0 && mm.c == 0) ? flag_axis : 0;
-        clip_into(p, d, flags);
-        transform(p, mm, kind_image, flags);
-        set(p.rect, dest.x, dest.y, dest.width, dest.height);
-        set(p.uv, source.x, source.y, source.width, source.height);
-        p.shape[1] = opacity;
-        p.pinv1[2] = static_cast<float>(img.width());
-        p.pinv1[3] = static_cast<float>(img.height());
-        emit(std::move(d));
+        texture_image(*t, static_cast<std::uint32_t>(img.width()), static_cast<std::uint32_t>(img.height()), source, dest, sampling, opacity, mm);
     };
     auto push_mask_clip = [&](const raster::Coverage& c) {
         const Clip& below = clips.back();
-        auto values = std::make_shared<std::vector<std::uint8_t>>(static_cast<std::size_t>(g.width) * g.height, 0);
-        for (std::int32_t y = std::max(0, c.bounds.y); y < std::min<std::int32_t>(static_cast<std::int32_t>(g.height), c.bounds.y + c.bounds.height); ++y)
-            for (std::int32_t x = std::max(0, c.bounds.x); x < std::min<std::int32_t>(static_cast<std::int32_t>(g.width), c.bounds.x + c.bounds.width); ++x) {
-                const std::size_t i = static_cast<std::size_t>(y) * g.width + static_cast<std::size_t>(x);
+        const std::uint32_t W = here().w, H = here().h;
+        auto values = std::make_shared<std::vector<std::uint8_t>>(static_cast<std::size_t>(W) * H, 0);
+        for (std::int32_t y = std::max(0, c.bounds.y); y < std::min<std::int32_t>(static_cast<std::int32_t>(H), c.bounds.y + c.bounds.height); ++y)
+            for (std::int32_t x = std::max(0, c.bounds.x); x < std::min<std::int32_t>(static_cast<std::int32_t>(W), c.bounds.x + c.bounds.width); ++x) {
+                const std::size_t i = static_cast<std::size_t>(y) * W + static_cast<std::size_t>(x);
                 const std::uint32_t under = below.coverage ? (*below.coverage)[i] : 255u;
                 (*values)[i] = static_cast<std::uint8_t>(raster::mul255(c.at(x, y), under));
             }
-        auto t = g.mask_texture();
+        auto t = g.pooled(W, H, rhi::Format::r8_unorm, rhi::TextureUsage::sampled, "render.clip_mask");
         if (!t) {
             fail(t.error());
             clips.push_back(below);
             return;
         }
-        g.list.upload(*t, rhi::Region{0, 0, g.width, g.height}, std::as_bytes(std::span(*values)));
+        g.list.upload(*t, rhi::Region{0, 0, W, H}, std::as_bytes(std::span(*values)));
         clips.push_back({below.x0, below.y0, below.x1, below.y1, *t, std::move(values)});
     };
+    // An ordinary layer opens: drawn into a surface-sized texture.
+    auto open_layer = [&](float opacity, BlendMode mode) {
+        auto t = g.pooled(here().w, here().h, rhi::Format::rgba8_unorm, rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "render.layer");
+        if (!t) {
+            fail(t.error());
+            return;
+        }
+        open.push_back({current, *t, opacity, mode});
+        draws_into(*t, here().w, here().h, rhi::LoadOp::clear, {0, 0, 0, 0});
+    };
+    // An ordinary layer closes: over its parent, within the clip and under its
+    // mask as the CPU composites it (what it holds was clipped as it was
+    // drawn, and is masked again), or blended with what lies under it.
+    auto close_layer = [&](const Open& o) {
+        const rhi::Texture parent = g.passes[o.parent].target;
+        const std::uint32_t W = g.passes[o.parent].w, H = g.passes[o.parent].h;
+        const Clip& c = clips.back();
+        if (o.blend != BlendMode::normal) {
+            raster::PixelRect b = pixels(c);
+            const std::int32_t x1 = std::min<std::int32_t>(b.x + b.width, static_cast<std::int32_t>(W));
+            const std::int32_t y1 = std::min<std::int32_t>(b.y + b.height, static_cast<std::int32_t>(H));
+            b.x = std::max(b.x, 0);
+            b.y = std::max(b.y, 0);
+            b.width = x1 - b.x;
+            b.height = y1 - b.y;
+            if (!b.empty()) {
+                auto backdrop = g.pooled(W, H, rhi::Format::rgba8_unorm, rhi::TextureUsage::sampled, "render.backdrop");
+                if (!backdrop) {
+                    fail(backdrop.error());
+                    return;
+                }
+                Pass p;
+                p.kind = Pass::Kind::blend;
+                p.target = parent;
+                p.w = W;
+                p.h = H;
+                p.blend = {o.texture,
+                           *backdrop,
+                           {static_cast<std::uint32_t>(b.x), static_cast<std::uint32_t>(b.y), static_cast<std::uint32_t>(b.width),
+                            static_cast<std::uint32_t>(b.height)},
+                           o.blend,
+                           static_cast<std::uint32_t>(std::clamp(o.opacity, 0.0f, 1.0f) * 255.0f + 0.5f),
+                           c.mask,
+                           {c.x0, c.y0, c.x1, c.y1}};
+                g.passes.push_back(std::move(p));
+            }
+            draws_into(parent, W, H, rhi::LoadOp::load, {});
+            return;
+        }
+        draws_into(parent, W, H, rhi::LoadOp::load, {});
+        layer_image(o.texture, W, H, o.opacity);
+    };
+    // An effect layer (D-68) opens: its content offscreen in a surface of its
+    // own, larger than the layer by the effect's reach, as the CPU renderer
+    // prepares it. False: drawn as an ordinary layer (no GPU path, or no pop).
+    auto open_effect = [&](const PushLayer& push, std::size_t index, std::size_t& skip_to) -> bool {
+        const auto& all = dl.commands();
+        const EffectInfo* info = effects().info(push.effect);
+        std::size_t pop = index + 1;
+        for (int depth = 1; pop < all.size(); ++pop) {
+            if (std::holds_alternative<PushLayer>(all[pop])) ++depth;
+            else if (std::holds_alternative<PopLayer>(all[pop]) && --depth == 0) break;
+        }
+        if (pop >= all.size()) return false;  // unbalanced: an ordinary layer
+        const bool drawable = info && info->gpu.pass != EffectPass::none &&
+                              (info->gpu.pass != EffectPass::pixel || (info->gpu.fragment && template_shaped(*info->gpu.fragment)));
+        if (!drawable) {
+            ++report.effects_skipped;
+            return false;  // drawn without it
+        }
+        EffectStep step;
+        step.gpu = info->gpu;
+        std::vector<float> params(push.params.begin(), push.params.end());
+        for (std::size_t k = params.size(); k < info->params.size(); ++k) params.push_back(info->params[k].value);
+        const float scale = transforms.front().max_scale();
+        const float reach = std::ceil(effects().reach(push.effect, params) * scale) + 1;
+        const Rect layer = m().map(push.bounds);
+        const Rect screen{-reach, -reach, static_cast<float>(here().w) + 2 * reach, static_cast<float>(here().h) + 2 * reach};
+        const Rect wanted = Rect{layer.x - reach, layer.y - reach, layer.width + 2 * reach, layer.height + 2 * reach}.intersection(screen);
+        if (wanted.empty()) {  // nothing of it on the surface
+            report.commands += pop - index;
+            skip_to = pop;
+            return true;
+        }
+        const float x0 = std::floor(wanted.x), y0 = std::floor(wanted.y);
+        const auto w = static_cast<std::uint32_t>(std::ceil(wanted.right()) - x0), h = static_cast<std::uint32_t>(std::ceil(wanted.bottom()) - y0);
+        const Rect inside = layer.offset({-x0, -y0});
+        EffectFrame frame;
+        if (info->gpu.derive) info->gpu.derive(params, scale, inside, frame);
+        step.uniforms.size = {static_cast<float>(w), static_cast<float>(h), scale, 0};
+        step.uniforms.layer = {inside.x, inside.y, inside.width, inside.height};
+        for (std::size_t k = 0; k < std::min<std::size_t>(params.size(), 16); ++k) step.uniforms.params[k] = params[k];
+        step.uniforms.derived = frame.derived;
+        const auto rgba = rhi::TextureUsage::color_target | rhi::TextureUsage::sampled;
+        if (!check(g.builtin_pipelines(info->gpu.pass))) return true;
+        if (info->gpu.pass == EffectPass::pixel) {
+            auto p = g.effect_pipeline(push.effect, effects().generation(push.effect), *info->gpu.fragment);
+            if (!check(p)) return true;
+            step.pipeline = *p;
+            if (info->gpu.rows) {
+                std::vector<float>& values = g.rows.emplace_back(h);
+                info->gpu.rows(params, scale, values);
+                auto aux = g.pooled(h, 1, rhi::Format::r32_float, rhi::TextureUsage::sampled, "render.effect.rows");
+                if (!check(aux)) return true;
+                step.aux = *aux;
+                g.list.upload(step.aux, rhi::Region{0, 0, h, 1}, std::as_bytes(std::span(values)));
+            }
+        }
+        auto source = g.pooled(w, h, rhi::Format::rgba8_unorm, rgba, "render.effect.source");
+        auto result = g.pooled(w, h, rhi::Format::rgba8_unorm,
+                               info->gpu.pass == EffectPass::pixelate ? rhi::TextureUsage::compute_write | rhi::TextureUsage::sampled : rgba,
+                               "render.effect.result");
+        if (!check(source) || !check(result)) return true;
+        step.source = *source;
+        step.result = *result;
+        if (info->gpu.pass == EffectPass::blur) {
+            auto scratch = g.pooled(w, h, rhi::Format::rgba8_unorm, rgba, "render.effect.scratch");
+            if (!check(scratch)) return true;
+            step.scratch = *scratch;
+        }
+        open.push_back({current, step.source, push.opacity, push.blend, true, step, {x0, y0, static_cast<float>(w), static_cast<float>(h)}});
+        draws_into(step.source, w, h, rhi::LoadOp::clear, {0, 0, 0, 0});
+        transforms.push_back(Affine::translate(-x0, -y0) * m());
+        clips.push_back({0, 0, static_cast<float>(w), static_cast<float>(h), {}, nullptr});
+        surfaces.push_back({w, h});
+        return true;
+    };
+    // An effect layer closes: the effect runs on its surface, and the result
+    // goes where the layer is, under the clip it was pushed in (and its blend
+    // mode, as a layer of its own), as the CPU renderer composites it.
+    auto close_effect = [&](const Open& o) {
+        transforms.pop_back();
+        clips.pop_back();
+        surfaces.pop_back();
+        Pass p;
+        p.kind = Pass::Kind::effect;
+        p.effect = o.step;
+        g.passes.push_back(std::move(p));
+        const rhi::Texture parent = g.passes[o.parent].target;
+        const std::uint32_t W = g.passes[o.parent].w, H = g.passes[o.parent].h;
+        draws_into(parent, W, H, rhi::LoadOp::load, {});
+        const bool blended = o.blend != BlendMode::normal;
+        if (blended) open_layer(1, o.blend);
+        const auto w = static_cast<std::uint32_t>(o.device.width), h = static_cast<std::uint32_t>(o.device.height);
+        texture_image(o.step.result, w, h, {0, 0, o.device.width, o.device.height}, o.device, Sampling::nearest, o.opacity, Affine{});
+        if (blended && !open.empty()) {
+            const Open inner = open.back();
+            open.pop_back();
+            close_layer(inner);
+        }
+    };
 
-    for (const Command& command : dl.commands()) {
-        if (failed) break;
+    const auto& all = dl.commands();
+    for (std::size_t index = 0; index < all.size() && !failed; ++index) {
         ++report.commands;
+        if (const auto* push = std::get_if<PushLayer>(&all[index]); push && push->effect.id != 0) {
+            std::size_t skip_to = index;
+            if (!open_effect(*push, index, skip_to)) open_layer(push->opacity, push->blend);
+            index = skip_to;
+            continue;
+        }
         std::visit(
             [&](const auto& c) {
                 using T = std::decay_t<decltype(c)>;
@@ -591,13 +971,12 @@ rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, rhi::Textur
                         raster::PathBuilder pb;
                         raster::rounded_rect_path(pb, c.rect, c.radii);
                         raster::Coverage cov;
-                        raster::fill_coverage(pb.data(), mm, raster::FillRule::nonzero, {0, 0, static_cast<std::int32_t>(g.width), static_cast<std::int32_t>(g.height)}, cov);
+                        raster::fill_coverage(pb.data(), mm, raster::FillRule::nonzero, whole(), cov);
                         push_mask_clip(cov);
                     }
                 } else if constexpr (std::same_as<T, PushClipPath>) {
                     raster::Coverage cov;
-                    raster::fill_coverage(paths.data(c.path), m(), static_cast<raster::FillRule>(c.rule),
-                                          {0, 0, static_cast<std::int32_t>(g.width), static_cast<std::int32_t>(g.height)}, cov);
+                    raster::fill_coverage(paths.data(c.path), m(), static_cast<raster::FillRule>(c.rule), whole(), cov);
                     push_mask_clip(cov);
                 } else if constexpr (std::same_as<T, PopClip>) {
                     if (clips.size() > 1) clips.pop_back();
@@ -606,65 +985,18 @@ rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, rhi::Textur
                 } else if constexpr (std::same_as<T, PopTransform>) {
                     if (transforms.size() > 1) transforms.pop_back();
                 } else if constexpr (std::same_as<T, PushLayer>) {
-                    if (c.effect.id != 0) ++report.effects_skipped;
-                    auto t = g.layer_texture();
-                    if (!t) {
-                        fail(t.error());
-                        return;
-                    }
-                    open.push_back({current, *t, c.opacity, c.blend});
-                    g.segments.push_back({*t, rhi::LoadOp::clear, {0, 0, 0, 0}, {}, std::nullopt});
-                    current = g.segments.size() - 1;
+                    open_layer(c.opacity, c.blend);
                 } else if constexpr (std::same_as<T, PopLayer>) {
                     if (open.empty()) return;
-                    const Open o = open.back();
+                    const Open o = std::move(open.back());
                     open.pop_back();
-                    g.segments.push_back({g.segments[o.parent].target, rhi::LoadOp::load, {}, {}, std::nullopt});
-                    current = g.segments.size() - 1;
-                    // The layer over its parent, within the clip and under its mask
-                    // as the CPU composites it (what it holds was clipped as it was
-                    // drawn, and is masked again).
-                    const Clip& c = clips.back();
-                    if (o.blend != BlendMode::normal) {
-                        raster::PixelRect b = pixels(c);
-                        const std::int32_t x1 = std::min<std::int32_t>(b.x + b.width, static_cast<std::int32_t>(g.width));
-                        const std::int32_t y1 = std::min<std::int32_t>(b.y + b.height, static_cast<std::int32_t>(g.height));
-                        b.x = std::max(b.x, 0);
-                        b.y = std::max(b.y, 0);
-                        b.width = x1 - b.x;
-                        b.height = y1 - b.y;
-                        if (b.empty()) return;
-                        auto backdrop = g.backdrop_texture();
-                        if (!backdrop) {
-                            fail(backdrop.error());
-                            return;
-                        }
-                        g.segments.back().blend = BlendPass{o.texture,
-                                                            {static_cast<std::uint32_t>(b.x), static_cast<std::uint32_t>(b.y),
-                                                             static_cast<std::uint32_t>(b.width), static_cast<std::uint32_t>(b.height)},
-                                                            o.blend,
-                                                            static_cast<std::uint32_t>(std::clamp(o.opacity, 0.0f, 1.0f) * 255.0f + 0.5f),
-                                                            c.mask,
-                                                            {c.x0, c.y0, c.x1, c.y1}};
-                        return;
-                    }
-                    Draw d;
-                    Prim& p = d.prim;
-                    d.image = o.texture;
-                    int flags = flag_axis;
-                    clip_into(p, d, flags);
-                    transform(p, Affine{}, kind_image, flags);
-                    set(p.rect, 0, 0, W, H);
-                    set(p.uv, 0, 0, W, H);
-                    p.shape[1] = std::clamp(o.opacity, 0.0f, 1.0f);
-                    p.pinv1[2] = W;
-                    p.pinv1[3] = H;
-                    emit(std::move(d));
+                    if (o.effect) close_effect(o);
+                    else close_layer(o);
                 } else if constexpr (std::same_as<T, ExternalTexture>) {
                     ++report.external_skipped;
                 }
             },
-            command);
+            all[index]);
     }
     if (failed) return std::unexpected(failure);
 
@@ -681,7 +1013,7 @@ rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, rhi::Textur
         g.list.upload(g.atlas, rhi::Region{e.x, e.y, static_cast<std::uint32_t>(e.coverage->bounds.width), static_cast<std::uint32_t>(e.coverage->bounds.height)},
                       std::as_bytes(std::span(e.coverage->values)));
     std::size_t total = 0;
-    for (const Segment& s : g.segments) total += s.draws.size();
+    for (const Pass& p : g.passes) total += p.draws.size();
     if (total > 0) {
         const auto bytes = static_cast<std::uint32_t>(total * sizeof(Prim));
         if (bytes > g.instance_capacity) {
@@ -693,21 +1025,25 @@ rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, rhi::Textur
             g.instances = *b;
             g.instance_capacity = cap;
         }
-        std::vector<Prim> all;
-        all.reserve(total);
-        for (const Segment& s : g.segments)
-            for (const Draw& d : s.draws) all.push_back(d.prim);
-        g.list.upload(g.instances, 0, std::span<const Prim>(all));
+        std::vector<Prim> prims;
+        prims.reserve(total);
+        for (const Pass& p : g.passes)
+            for (const Draw& d : p.draws) prims.push_back(d.prim);
+        g.list.upload(g.instances, 0, std::span<const Prim>(prims));
     }
 
     // ── the passes ───────────────────────────────────────────────────────
-    const Frame frame{{W, H, static_cast<float>(g.atlas_w), static_cast<float>(g.atlas_h)}, {static_cast<float>(g.ramp_capacity), 0, 0, 0}};
     std::uint32_t first = 0;
-    for (const Segment& s : g.segments) {
-        if (s.blend) {
-            const BlendPass& b = *s.blend;
-            g.list.copy(s.target, b.box, g.backdrop, b.box.x, b.box.y);
-            g.list.begin_render({s.target, s.load, s.clear});
+    for (const Pass& s : g.passes) {
+        if (s.kind == Pass::Kind::effect) {
+            g.record_effect(s.effect);
+            continue;
+        }
+        if (s.kind == Pass::Kind::blend) {
+            const BlendPass& b = s.blend;
+            const auto W = static_cast<float>(s.w), H = static_cast<float>(s.h);
+            g.list.copy(s.target, b.box, b.backdrop, b.box.x, b.box.y);
+            g.list.begin_render({s.target, rhi::LoadOp::load, {}});
             const BlendParams params{{W, H, 0, 0},
                                      {static_cast<float>(b.box.x), static_cast<float>(b.box.y), static_cast<float>(b.box.x + b.box.width),
                                       static_cast<float>(b.box.y + b.box.height)},
@@ -717,17 +1053,18 @@ rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, rhi::Textur
             g.list.push_uniforms(rhi::Stage::vertex, 0, params);
             g.list.push_uniforms(rhi::Stage::fragment, 0, params);
             g.list.bind_texture(rhi::Stage::fragment, 0, b.layer, g.nearest);
-            g.list.bind_texture(rhi::Stage::fragment, 1, g.backdrop, g.nearest);
+            g.list.bind_texture(rhi::Stage::fragment, 1, b.backdrop, g.nearest);
             g.list.bind_texture(rhi::Stage::fragment, 2, b.mask ? b.mask : g.white_mask, g.nearest);
             g.list.draw(6);
-            if (s.draws.empty()) {
-                g.list.end_render();
-                continue;
-            }
-        } else {
-            g.list.begin_render({s.target, s.load, s.clear});
+            g.list.end_render();
+            continue;
         }
+        // A pass that only loads and draws nothing does nothing.
+        if (s.draws.empty() && s.load == rhi::LoadOp::load) continue;
+        g.list.begin_render({s.target, s.load, s.clear});
         if (!s.draws.empty()) {
+            const Frame frame{{static_cast<float>(s.w), static_cast<float>(s.h), static_cast<float>(g.atlas_w), static_cast<float>(g.atlas_h)},
+                              {static_cast<float>(g.ramp_capacity), 0, 0, 0}};
             g.list.set_pipeline(g.pipeline);
             g.list.push_uniforms(rhi::Stage::vertex, 0, frame);
             g.list.push_uniforms(rhi::Stage::fragment, 0, frame);
@@ -738,8 +1075,8 @@ rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, rhi::Textur
             while (i < s.draws.size()) {
                 const Draw& head = s.draws[i];
                 std::size_t j = i + 1;
-                while (j < s.draws.size() && s.draws[j].image == head.image && s.draws[j].linear == head.linear && s.draws[j].mask == head.mask) ++j;
-                g.list.bind_texture(rhi::Stage::fragment, 2, head.image ? head.image : g.white, head.linear ? g.linear : g.nearest);
+                while (j < s.draws.size() && s.draws[j].image == head.image && s.draws[j].mask == head.mask) ++j;
+                g.list.bind_texture(rhi::Stage::fragment, 2, head.image ? head.image : g.white, g.nearest);
                 g.list.bind_texture(rhi::Stage::fragment, 3, head.mask ? head.mask : g.white_mask, g.nearest);
                 g.list.draw(6, static_cast<std::uint32_t>(j - i), 0, first + static_cast<std::uint32_t>(i));
                 i = j;

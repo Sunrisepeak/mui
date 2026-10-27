@@ -12,8 +12,8 @@ import std;
 export namespace omui::abi {
 
 inline constexpr std::uint32_t OMUI_SPEC_VERSION_MAJOR = 0;
-inline constexpr std::uint32_t OMUI_SPEC_VERSION_MINOR = 1;
-inline constexpr std::uint32_t OMUI_SPEC_VERSION = (0 << 16) | 1;
+inline constexpr std::uint32_t OMUI_SPEC_VERSION_MINOR = 3;
+inline constexpr std::uint32_t OMUI_SPEC_VERSION = (0 << 16) | 3;
 
 struct OmuiRuntime_T;
 using OmuiRuntime = OmuiRuntime_T*;

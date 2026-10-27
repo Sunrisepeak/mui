@@ -1208,6 +1208,9 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
       - 可以编辑强调色、圆角和各效果参数，即时生效；导出 verb 为 external；
       - 语义树在五种风格下完全相同；测试覆盖切换、编辑、导出、可用性，像素固定。
     - 还没做：核显 120Hz 的 GPU 开销报告（真机）。
+  - ✅ 规范 0.3（`spec/SPEC.md` §16）：
+    - 扩展条款：K-1–K-6 画布（条目、`find`、视口动作、实例化条目、行为、声明式行为）；E-1–E-6 效果和背景输入；ST-1–ST-3 风格包；P-1–P-3 帧节奏；T-1、T-2 纹理档位和确定性；VD-1 视频。
+    - 总线 `invoke`；registry 升到 0.3，新增扩展 `OMUI_EXT_backdrop_effect`、`OMUI_EXT_style_pack`、`OMUI_EXT_frame_pacing`；`openmui.h` 等由生成器重新生成。
 - M5：openmui-video、ui-timeline、MCP 服务器、skills、S3 / S4 / S5。
 - 契约⑦（插件与管线）写进规范；Inspector 的火焰图和动画检查器视图。
 

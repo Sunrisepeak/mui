@@ -6,7 +6,7 @@
 #
 # `tier` orders the classes for the rule that a node may declare a stronger
 # effect than an action's default, never a weaker one.
-spec = "0.1"
+spec = "0.3"
 
 [[effect]]
 name   = "read"

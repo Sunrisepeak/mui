@@ -10,9 +10,9 @@ import :types;
 
 export namespace omui::spec {
 
-inline constexpr std::string_view version = "0.1";
+inline constexpr std::string_view version = "0.3";
 inline constexpr int version_major = 0;
-inline constexpr int version_minor = 1;
+inline constexpr int version_minor = 3;
 
 struct RoleInfo {
     std::string_view name;
@@ -403,8 +403,10 @@ struct ExtensionInfo {
 };
 
 inline constexpr std::string_view extension_requires_OMUI_EXT_shader_effect[] = {"OMUI_EXT_render_to_texture"};
+inline constexpr std::string_view extension_requires_OMUI_EXT_backdrop_effect[] = {"OMUI_EXT_shader_effect"};
+inline constexpr std::string_view extension_requires_OMUI_EXT_style_pack[] = {"OMUI_EXT_shader_effect"};
 
-inline constexpr std::array<ExtensionInfo, 10> extensions{{
+inline constexpr std::array<ExtensionInfo, 13> extensions{{
     {"OMUI_EXT_ime", 1, {}, "Input methods: pre-edit text, candidate window position, commit."},
     {"OMUI_EXT_instanced_draw", 1, {}, "Many copies of one primitive in a draw (canvases)."},
     {"OMUI_EXT_render_to_texture", 1, {}, "Layer caching: render a subtree once, composite it many times."},
@@ -415,6 +417,9 @@ inline constexpr std::array<ExtensionInfo, 10> extensions{{
     {"OMUI_EXT_native_handle", 1, {}, "Native window and device handles (not portable)."},
     {"OMUI_EXT_host_render_pass", 1, {}, "Draw inside a render pass the host owns (engines)."},
     {"OMUI_EXT_video", 1, {}, "Compositions rendered to video frames by a render clock."},
+    {"OMUI_EXT_backdrop_effect", 1, extension_requires_OMUI_EXT_backdrop_effect, "Effects that read what lies under their layer, frosted alike on every renderer (liquid glass)."},
+    {"OMUI_EXT_style_pack", 1, extension_requires_OMUI_EXT_style_pack, "Style packs: tokens and effects by window, type and role; the semantic tree unchanged."},
+    {"OMUI_EXT_frame_pacing", 1, {}, "Frame demand: frames as often as they are wanted, evaluated at their presentation time."},
 }};
 
 [[nodiscard]] constexpr const ExtensionInfo* find_extension(std::string_view name) noexcept {

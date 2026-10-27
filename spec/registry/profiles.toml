@@ -1,5 +1,5 @@
 # profiles — what a distribution of openmui provides.
-spec = "0.1"
+spec = "0.3"
 
 [[profile]]
 name    = "full"

@@ -5,7 +5,7 @@
 # classification; a component or an application may declare a stronger one
 # for a particular node (a delete button's `activate` is `irreversible`), never
 # a weaker one. Argument types: bool, i64, f64, string, point, rect, size.
-spec = "0.1"
+spec = "0.3"
 
 [[action]]
 name   = "activate"

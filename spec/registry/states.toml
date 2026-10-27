@@ -1,5 +1,5 @@
 # states — the state bits of a semantic node. Each has a fixed bit; append-only.
-spec = "0.1"
+spec = "0.3"
 
 [[state]]
 name = "disabled"

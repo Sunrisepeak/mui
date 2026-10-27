@@ -1,5 +1,5 @@
 # extensions — capabilities beyond the Core profile, queried at run time.
-spec = "0.1"
+spec = "0.3"
 
 [[extension]]
 name    = "OMUI_EXT_ime"
@@ -51,3 +51,20 @@ doc     = "Draw inside a render pass the host owns (engines)."
 name    = "OMUI_EXT_video"
 version = 1
 doc     = "Compositions rendered to video frames by a render clock."
+
+[[extension]]
+name    = "OMUI_EXT_backdrop_effect"
+version = 1
+requires = ["OMUI_EXT_shader_effect"]
+doc     = "Effects that read what lies under their layer, frosted alike on every renderer (liquid glass)."
+
+[[extension]]
+name    = "OMUI_EXT_style_pack"
+version = 1
+requires = ["OMUI_EXT_shader_effect"]
+doc     = "Style packs: tokens and effects by window, type and role; the semantic tree unchanged."
+
+[[extension]]
+name    = "OMUI_EXT_frame_pacing"
+version = 1
+doc     = "Frame demand: frames as often as they are wanted, evaluated at their presentation time."

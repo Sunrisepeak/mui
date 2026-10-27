@@ -10,7 +10,7 @@
 #
 # The generator writes the C declarations from this file; runtime/abi
 # implements them; lang/* bind to them.
-spec = "0.1"
+spec = "0.3"
 prefix = "omui"
 
 [[handle]]

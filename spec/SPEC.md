@@ -1,6 +1,10 @@
-# The openmui specification, version 0.1
+# The openmui specification, version 0.3
 
-Status: draft. This document is normative. The tables it refers to are in
+Status: draft. This document is normative. Version 0.2 added the view
+document, the expression language, the Script Binding Profile and the
+contract and manifest schemas (§4, §11, §14, schema/); version 0.3 adds the
+extensions of §16 — canvases, effects and backdrops, style packs, frame
+pacing, texture tiers, video — and the bus's `invoke` (§9). The tables it refers to are in
 [docs/registry.md](docs/registry.md), generated from [registry/](registry/); where
 the two disagree, the registry is right and this text is wrong.
 
@@ -245,9 +249,106 @@ each language.
 `extensions`, `profile`, `scripts`, `natives`, `deps.<lang>`, `verbs`,
 `permissions`. Other build systems MAY carry the same structure as JSON.
 
-## 15. Not addressed by 0.1
+## 15. Not addressed by 0.3
 
 Fine-grained permissions (tokens, scopes, budgets); mapping to native controls
 of other frameworks beyond the Core profile; world-space UI, gamepad
 navigation, XR; contracts for rich-text and code editors; the material-shader
-interface of canvas node types.
+interface of canvas node types; build-time markers (they are a tooling
+convention, not a contract).
+
+## 16. Extensions (0.3)
+
+An implementation that reports an extension (§12) MUST meet its clauses.
+
+### 16.1 `OMUI_EXT_canvas`
+
+- **K-1** A canvas states as its children the items on screen and those that
+  are focused or chosen; every other item is produced on demand (S-7). An
+  item's id is `<canvas>/<key>`, where the key is the node's stable name in
+  the scene, never derived from display text (S-9).
+- **K-2** The canvas's `find` action takes `{in_rect: [x, y, w, h], near:
+  [x, y], radius, name, kind, role}` (each optional) and answers the keys of
+  matching items over the whole scene; with `near`, nearest first.
+- **K-3** The viewport's actions — `pan_to`, `zoom_to`, `fit`, `focus_node`,
+  `camera_preset` — are `read`: they change what is seen, not what is.
+- **K-4** An item drawn as a live component (materialised) is still the item:
+  the node states what its canvas says of it where it says nothing itself, and
+  the canvas's actions on the item reach the canvas.
+- **K-5** Behaviours: a press is offered to a canvas's behaviours in priority
+  order until one claims it; the claimant receives the gesture until it ends;
+  a press no behaviour claims moves the camera. What a behaviour makes
+  possible is stated as actions on the items (`select`, `move_to`, `resize`,
+  `connect`, …; `delete` is `irreversible` and states its answer, S-1).
+- **K-6** A declarative behaviour (`*.behavior.omui.toml`) is a statechart:
+  states, transitions on `pointer_down`, `pointer_move`, `pointer_up`,
+  `pointer_cancel`, `tap` and `key` with an optional `when` expression (§4,
+  V-3), operations the canvas defines, and actions it adds to items. It MUST be
+  checked when it is loaded — every state, event, operation, argument count and
+  name — and refused whole if anything is wrong; it never runs a script.
+
+### 16.2 `OMUI_EXT_shader_effect` and `OMUI_EXT_backdrop_effect`
+
+- **E-1** An effect is a fragment program run once per pixel of a layer's
+  surface, written against the effect template (registry/effect.toml): it reads
+  the layer's pixels, an auxiliary texture, and the frame's values — the
+  surface's size and scale, the layer's rectangle, its parameters, values
+  derived from them, its shapes — and nothing else. A program that binds
+  anything else MUST be refused.
+- **E-2** Parameters are typed numbers with a default, a minimum and a
+  maximum; a value outside is clamped, a missing one is its default.
+- **E-3** A built-in effect has a CPU reference; a GPU path gives the
+  reference's pixels within one level of 8 bits, except where the effect
+  declares a tolerance (B-level).
+- **E-4** An effect that reads its backdrop gets what lies under its layer
+  where the layer begins, blurred by the radius it declares with the same
+  integer box blur on every renderer.
+- **E-5** A layer carries up to eight shapes — rounded rectangles in its
+  space — that effects read as signed distances (negative inside) and merge
+  smoothly by the template's `smooth_min`. A node's layer carries the surfaces
+  it paints: its own rounded box, a component's reported surfaces (a switch's
+  track and thumb), and its children that paint a background or a border.
+- **E-6** A node's effect is its own `pixel_effect` property, else the effect
+  its style gives its type, else its role (§16.3).
+
+### 16.3 `OMUI_EXT_style_pack`
+
+- **ST-1** A style pack (`*.style.omui.toml`) is a theme to start from, the
+  tokens it changes, and the effects it puts on the window, on component types
+  and on roles (`role:<role>`). It changes pixels only: the semantic tree of
+  any interface is identical under every style (S-level).
+- **ST-2** A pack is checked when it is read: an unknown effect or parameter
+  is refused with the nearest names; a token it changes MUST exist in the theme
+  it starts from.
+- **ST-3** A change of style MAY be shown as a cross-fade: during it, a frame
+  shows the frame before the change fading over the new one; actions, focus
+  and the semantic tree follow the new style from the change on.
+
+### 16.4 `OMUI_EXT_frame_pacing`
+
+- **P-1** Each frame states how often frames are wanted next: a minimum rate,
+  a maximum (none: no frame is wanted; unbounded: the display's fastest), a
+  preferred rate and a reason. Demands merge by the largest maximum, the
+  largest minimum and the largest preferred rate, whose reason is kept.
+- **P-2** Animations in progress and input that moves something (in the last
+  300 ms of the runtime's clock) want the display's fastest; a pending timer
+  wants frames as often as it is due, at most 60 a second; a component MAY
+  hold a demand of its own for as long as it lives. With no demand, no frame
+  is drawn.
+- **P-3** Under an interactive clock a frame is evaluated at the time the host
+  predicts it is presented, so motion keeps pace with what is seen whatever
+  the refresh rate.
+
+### 16.5 `OMUI_EXT_render_to_texture`
+
+- **T-1** A subtree MAY be drawn into a texture and composited many times; a
+  texture of a node's content MAY be shown at another resolution until one at
+  the screen's is ready, never a blank frame where it was drawn before.
+- **T-2** Under a virtual or render clock, work an implementation hands to
+  other threads for a frame (textures) is waited for at the next frame, so the
+  frames shown depend on the frames before only (M-6).
+
+### 16.6 `OMUI_EXT_video`
+
+- **VD-1** Under a render clock at rate r, frame n is the instant n/r; any
+  frame may be rendered in any order and gives the same pixels (M-1, M-6).

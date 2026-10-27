@@ -4,7 +4,7 @@
 # in data files. Expressions have no side effects, always terminate, are typed,
 # and are evaluated synchronously by native code; an error yields the type's
 # default value and a diagnostic, never an exception.
-spec = "0.1"
+spec = "0.3"
 
 types = ["null", "bool", "int", "double", "string", "list", "map"]
 

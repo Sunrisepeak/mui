@@ -4,7 +4,9 @@
 #
 #   Linux, Windows  lavapipe (Mesa's Vulkan on the CPU) and the Vulkan loader,
 #                   both from xlings; the loader is pointed at lavapipe
-#   macOS           the runner's Metal device
+#   macOS           the runner's Metal device, through SDL's cocoa video
+#                   driver: the offscreen driver makes no Metal views, so
+#                   SDL_GPU cannot choose Metal under it
 #
 # Writes the environment to $GITHUB_ENV (stdout without it).
 set -euo pipefail
@@ -13,6 +15,7 @@ say() { echo "$1" >> "$out"; echo "gpu: $1"; }
 
 case "$(uname -s)" in
     Darwin)
+        say "OMUI_GPU_VIDEO_DRIVER=cocoa"
         say "OMUI_REQUIRE_GPU=1"
         exit 0
         ;;
@@ -37,6 +40,17 @@ case "$(uname -s)" in
         ;;
 esac
 [ -n "$loader" ] || { echo "::error::the Vulkan loader is not where xlings installs"; exit 1; }
+if [ "$(uname -s)" = Linux ]; then
+    # What the loader and the driver resolve to, so a device that does not
+    # come up says why; the loader reports its own errors on stderr.
+    driver=$(dirname "$icd")/../../../lib/libvulkan_lvp.so
+    for so in "$loader" "$driver"; do
+        echo "gpu: $so"
+        ldd "$so" | sed 's/^/gpu:   /'
+        if ldd "$so" | grep -q 'not found'; then echo "::error::$so has unresolved libraries"; exit 1; fi
+    done
+    say "VK_LOADER_DEBUG=error,warn"
+fi
 say "VK_DRIVER_FILES=$icd"
 say "VK_ICD_FILENAMES=$icd"
 say "OMUI_VULKAN_LIBRARY=$loader"

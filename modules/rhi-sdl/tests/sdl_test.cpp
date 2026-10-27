@@ -23,6 +23,7 @@ std::unique_ptr<Device> open_device() {
     sdl::Options o;
     o.formats = cts::shader_formats();  // what the suite's shaders were compiled to
     if (auto lib = mcpplibs::os::env::get("OMUI_VULKAN_LIBRARY")) o.vulkan_library = *lib;
+    if (auto video = mcpplibs::os::env::get("OMUI_GPU_VIDEO_DRIVER")) o.video_driver = *video;
     auto d = sdl::create(o);
     if (!d) {
         if (required()) check(false, std::format("OMUI_REQUIRE_GPU=1 and no device: {}", d.error().message));

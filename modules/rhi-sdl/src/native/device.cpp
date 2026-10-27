@@ -165,9 +165,15 @@ bool software_device(std::string_view name) {
 std::mutex video_mutex;
 int        video_users = 0;
 
-bool video_acquire() {
+bool video_acquire(const std::string& driver) {
     std::scoped_lock lock(video_mutex);
-    if (video_users == 0 && !SDL_InitSubSystem(SDL_INIT_VIDEO)) return false;
+    if (video_users == 0) {
+        const bool choose = !driver.empty() && SDL_WasInit(SDL_INIT_VIDEO) == 0;
+        if (choose) SDL_SetHintWithPriority(SDL_HINT_VIDEO_DRIVER, driver.c_str(), SDL_HINT_OVERRIDE);
+        const bool ok = SDL_InitSubSystem(SDL_INIT_VIDEO);
+        if (choose) SDL_ResetHint(SDL_HINT_VIDEO_DRIVER);
+        if (!ok) return false;
+    }
     ++video_users;
     return true;
 }
@@ -683,7 +689,7 @@ Result<void> SdlDevice::fetch(Buffer b, std::uint32_t offset, std::span<std::byt
 Result<std::unique_ptr<Device>> create(const Options& options) {
     if (options.formats.empty()) return fail(Errc::invalid, "no shader format: say which formats the program's shaders carry");
     if (!options.vulkan_library.empty()) SDL_SetHint(SDL_HINT_VULKAN_LIBRARY, options.vulkan_library.c_str());
-    if (!video_acquire()) return fail(Errc::unsupported, sdl_error("initialising SDL's video subsystem"));
+    if (!video_acquire(options.video_driver)) return fail(Errc::unsupported, sdl_error("initialising SDL's video subsystem"));
     const SDL_PropertiesID props = SDL_CreateProperties();
     auto want = [&](const char* key, ShaderFormat f) { SDL_SetBooleanProperty(props, key, options.formats.has(f)); };
     want(SDL_PROP_GPU_DEVICE_CREATE_SHADERS_SPIRV_BOOLEAN, ShaderFormat::spirv);

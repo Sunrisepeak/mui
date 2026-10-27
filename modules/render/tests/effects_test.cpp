@@ -166,6 +166,72 @@ int main(int argc, char** argv) {
         check_eq(all.hex(), std::string("5b06f8bd3fe613ad"));
     });
 
+    s.test("the style packs' effects (S2): neon, crt, paper, wobble, metaball — each changes the layer, pinned", [] {
+        // Two rounded shapes in the layer (a switch's track and thumb): what
+        // neon lights and metaball merges.
+        const std::vector<render::EffectShape> shapes{{{layer.x + 10, layer.y + 30, 70, 40}, geom::CornerRadii::all(20)},
+                                                      {{layer.x + 90, layer.y + 34, 32, 32}, geom::CornerRadii::all(16)}};
+        auto build = [&](render::DisplayList& dl, std::string_view name, std::vector<std::pair<std::string_view, float>> values, bool shaped) {
+            dl.clear();
+            dl.begin_node(1);
+            dl.fill_rect({0, 0, W, H}, geom::Color::hex(0x0f172a));
+            dl.begin_node(2);
+            const auto ref = render::effects().find(name);
+            check(ref.has_value(), std::string(name));
+            const auto params = render::effects().params(*ref, values);
+            if (shaped) dl.push_layer(1, render::BlendMode::normal, *ref, params, layer, shapes);
+            else dl.push_layer(1, render::BlendMode::normal, *ref, params, layer);
+            if (shaped)
+                for (const auto& sh : shapes) dl.fill_round_rect(sh.rect, sh.radii, render::Paint::solid(geom::Color::hex(0xe0e7ff)));
+            else content(dl);
+            dl.pop_layer();
+            dl.end_node();
+            dl.end_node();
+        };
+        using P = std::vector<std::pair<std::string_view, float>>;
+        const std::vector<std::tuple<std::string_view, P, bool>> cases{
+            {"neon", {{"radius", 12}, {"intensity", 1.1f}, {"sweep", 0.4f}, {"sweep_width", 20}}, true},
+            {"crt", {{"curvature", 0.12f}, {"scanlines", 0.6f}, {"mask", 0.4f}, {"vignette", 0.7f}}, false},
+            {"paper", {{"grain", 0.6f}, {"warmth", 0.8f}, {"seed", 4}, {"grain_size", 2}, {"edge", 0.6f}}, false},
+            {"wobble", {{"amount", 3}, {"size", 14}, {"seed", 2}, {"ink", 0.8f}}, false},
+            {"metaball", {{"smoothness", 24}, {"color_r", 0.4f}, {"color_g", 0.3f}, {"color_b", 0.95f}}, true},
+        };
+        Hash all;
+        render::DisplayList dl;
+        for (const auto& [name, params, shaped] : cases) {
+            build(dl, name, {}, shaped);
+            // The plain layer: the effect with its parameters at "nothing" is not
+            // defined for all of them, so compare against no layer at all.
+            render::DisplayList plain_dl;
+            plain_dl.begin_node(1);
+            plain_dl.fill_rect({0, 0, W, H}, geom::Color::hex(0x0f172a));
+            plain_dl.begin_node(2);
+            if (shaped)
+                for (const auto& sh : shapes) plain_dl.fill_round_rect(sh.rect, sh.radii, render::Paint::solid(geom::Color::hex(0xe0e7ff)));
+            else content(plain_dl);
+            plain_dl.end_node();
+            plain_dl.end_node();
+            const auto plain = draw(plain_dl);
+            build(dl, name, params, shaped);
+            const auto out = draw(dl);
+            save(out, name);
+            check(out.hash() != plain.hash(), std::format("{} changes the layer", name));
+            std::println("    {:<10} {:016x}", name, out.hash());
+            all.u64(out.hash());
+        }
+        // metaball merges: between the track and the thumb (a gap of 10 px) it is filled.
+        build(dl, "metaball", {{"smoothness", 24}}, true);
+        const auto merged = draw(dl);
+        const auto bridge = merged.at(static_cast<int>(layer.x + 85), static_cast<int>(layer.y + 50));
+        check(bridge.b > 150 && bridge.r < 140, std::format("the bridge is filled: {} {} {}", bridge.r, bridge.g, bridge.b));
+        build(dl, "metaball", {{"smoothness", 0}}, true);
+        const auto apart = draw(dl).at(static_cast<int>(layer.x + 85), static_cast<int>(layer.y + 50));
+        check(apart.r == 15 && apart.g == 23 && apart.b == 42, "smoothness 0: apart");
+        // Pinned: GCC and LLVM, Linux, macOS and Windows compute these bytes.
+        std::println("    all {}", all.hex());
+        check_eq(all.hex(), std::string("8cecdcc5e3d27e9a"));
+    });
+
     s.test("progress 0 is the layer as it is (1 for reveal)", [] {
         render::DisplayList dl;
         scene(dl, std::nullopt);

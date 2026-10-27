@@ -406,6 +406,148 @@ void liquid_glass(const EffectInput& in) {
     });
 }
 
+// ── the style packs' effects (S2): neon, crt, paper, wobble, metaball ──
+
+// neon: light around the layer's shapes — a glow outside fading over
+// `radius`, a bright tube just inside the edge — under the content, and a
+// band of light sweeping across it.
+void neon(const EffectInput& in) {
+    const float cr = clamp01(in.params[0]), cg = clamp01(in.params[1]), cb = clamp01(in.params[2]);
+    const float radius = std::max(in.params[3] * in.scale, 1.0f), intensity = std::clamp(in.params[4], 0.0f, 2.0f);
+    const float sweep = in.params[5], width = std::max(in.params[6] * in.scale, 1.0f);
+    const float bx = in.layer.x + in.layer.width * sweep;
+    const float tube = 1.5f * in.scale;
+    each_pixel(in, [&](int x, int y, Rgba8 s) {
+        const float qx = static_cast<float>(x) + 0.5f, qy = static_cast<float>(y) + 0.5f;
+        const float d = shapes_distance(in.shapes, qx, qy, 0);
+        float g = 0;
+        if (d > 0) {
+            const float t = 1 - d / radius;
+            if (t > 0) g = intensity * t * t;
+        } else {
+            g = intensity * clamp01(1 + d / tube);
+        }
+        g = clamp01(g);
+        float c[4] = {static_cast<float>(s.r), static_cast<float>(s.g), static_cast<float>(s.b), static_cast<float>(s.a)};
+        if (sweep >= 0 && d <= 0 && s.a > 0) {
+            const float f = clamp01(1 - std::abs(qx - bx) / width) * 0.6f;
+            for (int i = 0; i < 3; ++i) c[i] = c[i] + (c[3] - c[i]) * f;
+        }
+        const float inv = 1 - c[3] / 255.0f;
+        const float a = 255.0f * g * inv;
+        return Rgba8{q8(c[0] + cr * a), q8(c[1] + cg * a), q8(c[2] + cb * a), q8(c[3] + a)};
+    });
+}
+
+// crt: an old screen over the layer — bent outward (barrel), lit in
+// scanlines (one factor a row, the aux texture's on the GPU), seen through an
+// aperture grille, darker towards its corners; black beyond the glass.
+float crt_row(std::span<const float> params, float scale, int y) {
+    const float strength = clamp01(params[1]);
+    const double period = std::max(2.0, 3.0 * static_cast<double>(scale));
+    const double phase = (static_cast<double>(y) + 0.5) / period;
+    const double wave = 0.5 - 0.5 * anim::dm::cos(2 * anim::dm::pi * phase);
+    return static_cast<float>(1.0 - static_cast<double>(strength) * 0.6 * wave);
+}
+void rows_crt(std::span<const float> p, float scale, std::span<float> out) {
+    for (std::size_t y = 0; y < out.size(); ++y) out[y] = crt_row(p, scale, static_cast<int>(y));
+}
+void crt(const EffectInput& in) {
+    const float curve = std::clamp(in.params[0], 0.0f, 0.5f), mask = clamp01(in.params[2]), vignette = clamp01(in.params[3]);
+    const float hw = std::max(in.layer.width * 0.5f, 1.0f), hh = std::max(in.layer.height * 0.5f, 1.0f);
+    const float cx = in.layer.x + hw, cy = in.layer.y + hh;
+    for (int y = 0; y < in.target.height(); ++y) {
+        const float scan = crt_row(in.params, in.scale, y);
+        Rgba8* out = in.target.row(y);
+        for (int x = 0; x < in.target.width(); ++x) {
+            const float qx = static_cast<float>(x) + 0.5f, qy = static_cast<float>(y) + 0.5f;
+            const float u = (qx - cx) / hw, v = (qy - cy) / hh;
+            const float r2 = u * u + v * v;
+            const float f = 1 + curve * r2;
+            const float su = u * f, sv = v * f;
+            if (std::abs(su) > 1 || std::abs(sv) > 1) {
+                out[x] = Rgba8{0, 0, 0, 255};
+                continue;
+            }
+            const auto c = sample(in.source, cx + su * hw, cy + sv * hh);
+            const int col = x % 3;
+            const float mr = col == 0 ? 1 : 1 - mask * 0.5f, mg = col == 1 ? 1 : 1 - mask * 0.5f, mb = col == 2 ? 1 : 1 - mask * 0.5f;
+            const float vig = 1 - vignette * 0.5f * r2;
+            const float k = scan * std::max(vig, 0.0f);
+            out[x] = Rgba8{q8(c[0] * mr * k), q8(c[1] * mg * k), q8(c[2] * mb * k), q8(c[3])};
+        }
+    }
+}
+
+// paper: what is drawn as if printed on paper — a warm tone, a fine grain
+// (seeded, `grain_size` logical pixels), darker towards the edges.
+void paper(const EffectInput& in) {
+    const float grain = clamp01(in.params[0]), warmth = clamp01(in.params[1]), seed = in.params[2];
+    const float size = std::max(1.0f, std::round(in.params[3] * in.scale)), edge = clamp01(in.params[4]);
+    const float hw = std::max(in.layer.width * 0.5f, 1.0f), hh = std::max(in.layer.height * 0.5f, 1.0f);
+    const float cx = in.layer.x + hw, cy = in.layer.y + hh;
+    each_pixel(in, [&](int x, int y, Rgba8 s) {
+        if (s.a == 0) return s;
+        const float n = hash01(seed, static_cast<std::int64_t>(std::floor(static_cast<float>(x) / size)),
+                               static_cast<std::int64_t>(std::floor(static_cast<float>(y) / size)), 3);
+        const float a = static_cast<float>(s.a);
+        const float k = (n - 0.5f) * 2 * grain * 0.12f * a;
+        const float u = (static_cast<float>(x) + 0.5f - cx) / hw, v = (static_cast<float>(y) + 0.5f - cy) / hh;
+        const float dark = 1 - edge * 0.25f * (u * u + v * v);
+        auto ch = [&](std::uint8_t c, float tone) { return q8(std::clamp((static_cast<float>(c) * tone + k) * dark, 0.0f, a)); };
+        return Rgba8{ch(s.r, 1), ch(s.g, 1 - warmth * 0.04f), ch(s.b, 1 - warmth * 0.12f), s.a};
+    });
+}
+
+// wobble: lines as if drawn by hand — the layer pushed about by a smooth
+// noise (`amount` logical pixels, features `size` wide; a new `seed`, a new
+// drawing: animate it in steps for a hand-drawn boil), inked at its edges.
+float smooth_noise(float seed, float x, float y, std::uint64_t salt) {
+    const float fx = std::floor(x), fy = std::floor(y);
+    const auto ix = static_cast<std::int64_t>(fx), iy = static_cast<std::int64_t>(fy);
+    const float tx = x - fx, ty = y - fy;
+    const float sx = tx * tx * (3 - 2 * tx), sy = ty * ty * (3 - 2 * ty);
+    const float a = hash01(seed, ix, iy, salt), b = hash01(seed, ix + 1, iy, salt);
+    const float c = hash01(seed, ix, iy + 1, salt), d = hash01(seed, ix + 1, iy + 1, salt);
+    const float top = a + (b - a) * sx, bottom = c + (d - c) * sx;
+    return (top + (bottom - top) * sy) * 2 - 1;
+}
+void wobble(const EffectInput& in) {
+    const float amount = in.params[0] * in.scale, size = std::max(1.0f, in.params[1] * in.scale), seed = in.params[2], ink = clamp01(in.params[3]);
+    for (int y = 0; y < in.target.height(); ++y) {
+        Rgba8* out = in.target.row(y);
+        for (int x = 0; x < in.target.width(); ++x) {
+            const float qx = static_cast<float>(x) + 0.5f, qy = static_cast<float>(y) + 0.5f;
+            const float ox = smooth_noise(seed, qx / size, qy / size, 1) * amount, oy = smooth_noise(seed, qx / size, qy / size, 2) * amount;
+            const auto c = sample(in.source, qx - ox, qy - oy);
+            // Ink where the alpha changes: an edge.
+            const auto l = sample(in.source, qx - ox - 1, qy - oy), r = sample(in.source, qx - ox + 1, qy - oy);
+            const auto u = sample(in.source, qx - ox, qy - oy - 1), d = sample(in.source, qx - ox, qy - oy + 1);
+            const float e = clamp01((std::abs(r[3] - l[3]) + std::abs(d[3] - u[3])) / 255.0f);
+            const float k = 1 - ink * 0.7f * e;
+            out[x] = Rgba8{q8(c[0] * k), q8(c[1] * k), q8(c[2] * k), q8(c[3])};
+        }
+    }
+}
+
+// metaball: the layer's shapes merge like drops (`smoothness` logical
+// pixels apart); where they bridge, the bridge is filled with `colour`, and
+// the layer's content lies over it — switches and sliders that flow.
+void metaball(const EffectInput& in) {
+    const float k = in.params[0] * in.scale;
+    const float cr = clamp01(in.params[1]), cg = clamp01(in.params[2]), cb = clamp01(in.params[3]), ca = clamp01(in.params[4]);
+    each_pixel(in, [&](int x, int y, Rgba8 s) {
+        const float qx = static_cast<float>(x) + 0.5f, qy = static_cast<float>(y) + 0.5f;
+        const float d = shapes_distance(in.shapes, qx, qy, k);
+        const float cov = clamp01(0.5f - d);
+        if (cov <= 0) return s;
+        const float inv = 1 - static_cast<float>(s.a) / 255.0f;
+        const float a = 255.0f * ca * cov * inv;
+        return Rgba8{q8(static_cast<float>(s.r) + cr * a), q8(static_cast<float>(s.g) + cg * a), q8(static_cast<float>(s.b) + cb * a),
+                     q8(static_cast<float>(s.a) + a)};
+    });
+}
+
 void derive_glass(std::span<const float>, float, geom::Rect, EffectFrame&) {}
 
 float no_reach(std::span<const float>) { return 0; }
@@ -490,6 +632,42 @@ void register_builtins(EffectRegistry& r) {
             {"stagger", 0.5f, 0, 0.95f, "how spread out their starts are"}},
            [](std::span<const float> p) { return std::abs(p[2]) + std::abs(p[3]) + p[4]; }, particles,
            {EffectPass::particles, nullptr, derive_particles, nullptr}});
+    // The style packs' (S2).
+    r.add({"neon", "Light around the layer's shapes: a glow outside, a bright tube at the edge, a band sweeping across.",
+           {{"color_r", 0.13f, 0, 1, "the light's colour, red"},
+            {"color_g", 0.9f, 0, 1, "green"},
+            {"color_b", 1, 0, 1, "blue"},
+            {"radius", 14, 0, 200, "how far the glow reaches, logical pixels"},
+            {"intensity", 0.9f, 0, 2, "how bright"},
+            {"sweep", -1, -1, 2, "where the band of light is across the layer (0…1; below 0: none)"},
+            {"sweep_width", 24, 1, 400, "the band's half width, logical pixels"}},
+           [](std::span<const float> p) { return std::abs(p[3]); }, neon, pixel(fx::neon::neon_fs)});
+    r.add({"crt", "An old screen: bent outward, in scanlines, through an aperture grille, darker towards its corners.",
+           {{"curvature", 0.08f, 0, 0.5f, "how much the glass bulges"},
+            {"scanlines", 0.5f, 0, 1, "how dark the lines between scanlines are"},
+            {"mask", 0.35f, 0, 1, "the aperture grille's strength"},
+            {"vignette", 0.6f, 0, 1, "darkening towards the corners"}},
+           no_reach, crt, pixel(fx::crt::crt_fs, nullptr, rows_crt)});
+    r.add({"paper", "As if printed on paper: a warm tone, a fine grain, darker towards the edges.",
+           {{"grain", 0.35f, 0, 1, "the grain's strength"},
+            {"warmth", 0.6f, 0, 1, "how warm the paper is"},
+            {"seed", 7, 0, 1e6f, "which grain"},
+            {"grain_size", 1, 1, 16, "the grain's size, logical pixels"},
+            {"edge", 0.5f, 0, 1, "darkening towards the edges"}},
+           no_reach, paper, pixel(fx::paper::paper_fs)});
+    r.add({"wobble", "Drawn by hand: the layer pushed about by a smooth noise and inked at its edges (a new seed, a new drawing).",
+           {{"amount", 1.5f, 0, 50, "how far lines wander, logical pixels"},
+            {"size", 18, 1, 400, "the wander's feature size, logical pixels"},
+            {"seed", 1, 0, 1e6f, "which drawing (step it for a boil)"},
+            {"ink", 0.5f, 0, 1, "how dark edges are inked"}},
+           [](std::span<const float> p) { return std::abs(p[0]) + 1; }, wobble, pixel(fx::wobble::wobble_fs)});
+    r.add({"metaball", "The layer's shapes merge like drops; the bridges between them are filled, the content over them.",
+           {{"smoothness", 16, 0, 400, "how far apart shapes still merge, logical pixels"},
+            {"color_r", 0.31f, 0, 1, "the bridges' colour, red"},
+            {"color_g", 0.27f, 0, 1, "green"},
+            {"color_b", 0.9f, 0, 1, "blue"},
+            {"color_a", 1, 0, 1, "opacity"}},
+           [](std::span<const float> p) { return std::abs(p[0]); }, metaball, pixel(fx::metaball::metaball_fs)});
     {
         EffectInfo glass{"liquid_glass",
                          "A thick transparent material over what lies under it (D-64): the backdrop bent at the bevel, split by colour, "

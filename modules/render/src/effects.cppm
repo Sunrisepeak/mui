@@ -35,6 +35,11 @@ export import :blur_shaders;
 export import :pixelate_shaders;
 export import :particles_shaders;
 export import :liquid_glass_shaders;
+export import :neon_shaders;
+export import :crt_shaders;
+export import :paper_shaders;
+export import :wobble_shaders;
+export import :metaball_shaders;
 // The template's text (effects/lib/openmui_effect.slang), for a program's
 // effects compiled while it runs (openmui.effect).
 export import :effect_template;

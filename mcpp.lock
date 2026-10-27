@@ -5,6 +5,18 @@
 # file must not change depending on which command ran last.
 version = 2
 
+[package."mcpplibs.os"]
+namespace = "mcpplibs"
+version = "0.1.2"
+source  = "index+mcpplibs@0.1.2"
+hash    = "fnv1a:d94d45a50504951a"
+
+[package."nlohmann.json"]
+namespace = "nlohmann"
+version = "3.12.0"
+source  = "index+nlohmann@3.12.0"
+hash    = "fnv1a:65af05f998b1b9d7"
+
 [package."compat.concurrentqueue"]
 namespace = "compat"
 version = "1.0.5"
@@ -41,11 +53,23 @@ version = "1.6.43"
 source  = "index+compat@1.6.43"
 hash    = "fnv1a:b3a219b122077f27"
 
+[package."compat.lua"]
+namespace = "compat"
+version = "5.4.7"
+source  = "index+compat@5.4.7"
+hash    = "fnv1a:62ff6fb178577847"
+
 [package."compat.md4c"]
 namespace = "compat"
 version = "0.5.3"
 source  = "index+compat@0.5.3"
 hash    = "fnv1a:dcc5c2d1d2b47bd3"
+
+[package."compat.quickjs-ng"]
+namespace = "compat"
+version = "0.17.0"
+source  = "index+compat@0.17.0"
+hash    = "fnv1a:d215459d2e758387"
 
 [package."compat.sdl3"]
 namespace = "compat"
@@ -143,23 +167,11 @@ version = "3.4.0"
 source  = "index+marzer@3.4.0"
 hash    = "fnv1a:1420a0be548b3b22"
 
-[package."openkal"]
+[package."mcpplibs.cmdline"]
 namespace = "mcpplibs"
-version = "0.17.0"
-source  = "index+mcpplibs@0.17.0"
-hash    = "fnv1a:d9a6fe1043f0f4d5"
-
-[package."openkal-linux"]
-namespace = "mcpplibs"
-version = "0.18.0"
-source  = "index+mcpplibs@0.18.0"
-hash    = "fnv1a:2947b74ddbcf8b79"
-
-[package."mcpplibs.os"]
-namespace = "mcpplibs"
-version = "0.1.2"
-source  = "index+mcpplibs@0.1.2"
-hash    = "fnv1a:d94d45a50504951a"
+version = "0.0.2"
+source  = "index+mcpplibs@0.0.2"
+hash    = "fnv1a:aad61299abc2c4b7"
 
 [package."mcpplibs.mwrap.concurrentqueue"]
 namespace = "mcpplibs.mwrap"
@@ -185,11 +197,23 @@ version = "1.6.43"
 source  = "index+mcpplibs.mwrap@1.6.43"
 hash    = "fnv1a:2b3d4ee2a70d559d"
 
+[package."mcpplibs.mwrap.lua"]
+namespace = "mcpplibs.mwrap"
+version = "5.4.7"
+source  = "index+mcpplibs.mwrap@5.4.7"
+hash    = "fnv1a:3c1369870f28cd6d"
+
 [package."mcpplibs.mwrap.md4c"]
 namespace = "mcpplibs.mwrap"
 version = "0.5.3"
 source  = "index+mcpplibs.mwrap@0.5.3"
 hash    = "fnv1a:23e80030c05427e1"
+
+[package."mcpplibs.mwrap.quickjs_ng"]
+namespace = "mcpplibs.mwrap"
+version = "0.17.0"
+source  = "index+mcpplibs.mwrap@0.17.0"
+hash    = "fnv1a:306d8ee6f7a018eb"
 
 [package."mcpplibs.mwrap.sdl3"]
 namespace = "mcpplibs.mwrap"
@@ -197,45 +221,21 @@ version = "3.4.18"
 source  = "index+mcpplibs.mwrap@3.4.18"
 hash    = "fnv1a:bc48fbfcd7e26f65"
 
-[package."nlohmann.json"]
-namespace = "nlohmann"
-version = "3.12.0"
-source  = "index+nlohmann@3.12.0"
-hash    = "fnv1a:65af05f998b1b9d7"
+[package."openkal"]
+namespace = "mcpplibs"
+version = "0.17.0"
+source  = "index+mcpplibs@0.17.0"
+hash    = "fnv1a:d9a6fe1043f0f4d5"
+
+[package."openkal-linux"]
+namespace = "mcpplibs"
+version = "0.18.0"
+source  = "index+mcpplibs@0.18.0"
+hash    = "fnv1a:2947b74ddbcf8b79"
 
 [package."taskflow.taskflow"]
 namespace = "taskflow"
 version = "4.1.0"
 source  = "index+taskflow@4.1.0"
 hash    = "fnv1a:30640bbab1b45045"
-
-[package."compat.lua"]
-namespace = "compat"
-version = "5.4.7"
-source  = "index+compat@5.4.7"
-hash    = "fnv1a:62ff6fb178577847"
-
-[package."compat.quickjs-ng"]
-namespace = "compat"
-version = "0.17.0"
-source  = "index+compat@0.17.0"
-hash    = "fnv1a:d215459d2e758387"
-
-[package."mcpplibs.cmdline"]
-namespace = "mcpplibs"
-version = "0.0.2"
-source  = "index+mcpplibs@0.0.2"
-hash    = "fnv1a:aad61299abc2c4b7"
-
-[package."mcpplibs.mwrap.lua"]
-namespace = "mcpplibs.mwrap"
-version = "5.4.7"
-source  = "index+mcpplibs.mwrap@5.4.7"
-hash    = "fnv1a:3c1369870f28cd6d"
-
-[package."mcpplibs.mwrap.quickjs_ng"]
-namespace = "mcpplibs.mwrap"
-version = "0.17.0"
-source  = "index+mcpplibs.mwrap@0.17.0"
-hash    = "fnv1a:306d8ee6f7a018eb"
 

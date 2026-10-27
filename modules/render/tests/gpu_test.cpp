@@ -351,6 +351,22 @@ const std::vector<Case>& cases() {
         {"effect blur", [](render::DisplayList& dl, Rig&) { effect_scene(dl, "blur", {{"radius", 9}}); }, {1, 0}},
         {"effect pixelate", [](render::DisplayList& dl, Rig&) { effect_scene(dl, "pixelate", {{"size", 7}}); }, {1, 0}},
         {"effect particles", [](render::DisplayList& dl, Rig&) { effect_scene(dl, "particles", {{"progress", 0.35f}, {"seed", 5}, {"size", 4}}); }, {1, 0}},
+        {"effect neon", [](render::DisplayList& dl, Rig&) { effect_scene(dl, "neon", {{"radius", 10}, {"intensity", 1.2f}, {"sweep", 0.35f}}); }, {1, 0}},
+        {"effect crt", [](render::DisplayList& dl, Rig&) { effect_scene(dl, "crt", {{"curvature", 0.12f}, {"scanlines", 0.6f}, {"mask", 0.4f}}); }, {1, 0}},
+        {"effect paper", [](render::DisplayList& dl, Rig&) { effect_scene(dl, "paper", {{"grain", 0.6f}, {"warmth", 0.8f}, {"grain_size", 2}}); }, {1, 0}},
+        {"effect wobble", [](render::DisplayList& dl, Rig&) { effect_scene(dl, "wobble", {{"amount", 3}, {"size", 14}, {"ink", 0.8f}}); }, {1, 0}},
+        {"effect metaball",
+         [](render::DisplayList& dl, Rig&) {
+             dl.fill_rect({0, 0, 160, 120}, geom::Color::hex(0x0f172a));
+             const std::vector<render::EffectShape> shapes{{{20.5f, 40, 70, 40}, geom::CornerRadii::all(20)}, {{100.5f, 44, 32, 32}, geom::CornerRadii::all(16)}};
+             const auto ref = render::effects().find("metaball");
+             const auto params = render::effects().params(*ref, std::vector<std::pair<std::string_view, float>>{{"smoothness", 24}});
+             dl.push_layer(1, render::BlendMode::normal, *ref, params, {10.5f, 30, 140, 60}, shapes);
+             for (const auto& sh : shapes) dl.fill_round_rect(sh.rect, sh.radii, render::Paint::solid(geom::Color::hex(0xe0e7ff)));
+             dl.pop_layer();
+         },
+         // The content is two rounded rectangles: their edges as the rounded rectangles scene allows.
+         {8, 240}},
         {"effect under a clip and a blend mode",
          [](render::DisplayList& dl, Rig&) {
              dl.push_clip({10, 10, 140, 100}, geom::CornerRadii::all(16));

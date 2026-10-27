@@ -236,7 +236,14 @@ Element build(const Node& n, const Env& env);
 std::string filtered_model(const Node& loop, const Env& env) {
     const std::string name = std::format("{}?{}", loop.model, loop.pointer);
     Shared& st = *env.st;
-    st.filters.insert_or_assign(name, Watch([env, &loop, name] {
+    // The state owns the watch: it holds the state weakly (no cycle).
+    std::weak_ptr<Shared> weak = env.st;
+    Env without = env;
+    without.st.reset();
+    st.filters.insert_or_assign(name, Watch([weak, without, &loop, name] {
+        Env env = without;
+        env.st = weak.lock();
+        if (!env.st) return;
         Model& base = env.st->services->model(loop.model);
         (void)base.revision();
         std::vector<Row> keep;

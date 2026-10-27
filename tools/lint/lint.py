@@ -24,7 +24,9 @@ Rules:
   members       every directory listed as a workspace member has an mcpp.toml, and every
                 mcpp.toml under the tree is listed
   documents     every view document (*.view.omui.json) is valid against the committed schema,
-                spec/schema/view.schema.json (`omui schema`); needs the `jsonschema` package
+                spec/schema/view.schema.json (`omui schema`), and every CTS scenario and trace
+                (*.scenario.omui.json, *.trace.omui.json) against spec/schema/scenario.schema.json;
+                needs the `jsonschema` package
                 (CI installs it; without it the rule says it was skipped)
 """
 from __future__ import annotations
@@ -356,6 +358,14 @@ def flatten_deps(table: dict, prefix: str = ""):
             yield prefix + key, value
 
 
+# The data files a schema governs: the committed schema of each kind.
+DOCUMENT_SCHEMAS = [
+    ("*.view.omui.json", "view.schema.json", "omui schema --out spec/schema/view.schema.json"),
+    ("*.scenario.omui.json", "scenario.schema.json", "spec/conformance/S/README.md describes it"),
+    ("*.trace.omui.json", "scenario.schema.json", "spec/conformance/S/README.md describes it"),
+]
+
+
 def check_documents(root: Path) -> list[Problem]:
     try:
         import jsonschema  # type: ignore
@@ -363,24 +373,26 @@ def check_documents(root: Path) -> list[Problem]:
         print("lint: documents skipped (pip install jsonschema)", file=sys.stderr)
         return []
     import json
-    schema_file = root / "spec" / "schema" / "view.schema.json"
-    docs = [f for f in root.rglob("*.view.omui.json") if not (set(f.relative_to(root).parts) & SKIP_DIRS)]
-    if not docs:
-        return []
-    if not schema_file.exists():
-        return [Problem("documents", "spec/schema/view.schema.json", "missing: omui schema --out spec/schema/view.schema.json")]
-    validator = jsonschema.Draft202012Validator(json.loads(schema_file.read_text(encoding="utf-8")))
     problems = []
-    for f in sorted(docs):
-        where = f.relative_to(root).as_posix()
-        try:
-            doc = json.loads(f.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as e:
-            problems.append(Problem("documents", f"{where}:{e.lineno}:{e.colno}", e.msg))
+    for pattern, schema_name, how in DOCUMENT_SCHEMAS:
+        docs = [f for f in root.rglob(pattern) if not (set(f.relative_to(root).parts) & SKIP_DIRS)]
+        if not docs:
             continue
-        for e in sorted(validator.iter_errors(doc), key=lambda e: list(e.absolute_path)):
-            pointer = "/" + "/".join(str(x) for x in e.absolute_path)
-            problems.append(Problem("documents", f"{where} {pointer}", e.message[:200]))
+        schema_file = root / "spec" / "schema" / schema_name
+        if not schema_file.exists():
+            problems.append(Problem("documents", f"spec/schema/{schema_name}", f"missing ({how})"))
+            continue
+        validator = jsonschema.Draft202012Validator(json.loads(schema_file.read_text(encoding="utf-8")))
+        for f in sorted(docs):
+            where = f.relative_to(root).as_posix()
+            try:
+                doc = json.loads(f.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as e:
+                problems.append(Problem("documents", f"{where}:{e.lineno}:{e.colno}", e.msg))
+                continue
+            for e in sorted(validator.iter_errors(doc), key=lambda e: list(e.absolute_path)):
+                pointer = "/" + "/".join(str(x) for x in e.absolute_path)
+                problems.append(Problem("documents", f"{where} {pointer}", e.message[:200]))
     return problems
 
 

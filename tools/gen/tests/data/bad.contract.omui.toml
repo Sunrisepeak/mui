@@ -11,6 +11,7 @@ count = { type = "i32", default = "three" }
 [contract.bad_widget.actions]
 activate = { effect = "read" }
 launch   = { effect = "orbital" }
+aim      = { effect = "read", args = { at = "f64 | Up | | down" } }
 
 [contract.bad_widget.keys]
 "Space" = "fly"

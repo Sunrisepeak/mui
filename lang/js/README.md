@@ -18,7 +18,7 @@ The ES module `openmui` provides:
 - **Signals and expressions**:
   - signals: `signal(v [, key])` with `get`, `set`, `update`, `watch` and `value`. They are mirrored, so a read never waits;
   - expressions: `fmt`, `call(fn, …)`, `select(c, a, b)`, `eq` / `ne` / `lt` / `le` / `gt` / `ge`, `and` / `or` / `not` and `add` / `sub` / `mul` / `div` / `mod` / `neg`, plus the same as methods (`count.add(1)`). The runtime evaluates them synchronously; no JavaScript runs in a frame.
-- **Regions**: `when(cond, then, else)`, `each(model, (row) => element [, where])` (where `row.title` is an expression) and `slot(name)`.
+- **Regions**: `when(cond, then, else)`, `each(model, (row) => element [, where])`, where `where` is an expression or a function of the row (`(row) => row.done.not()`) and `row.title` is an expression and `slot(name)`.
 - **The rest of the profile**:
   - views: `mount`, `unmount` and `document`;
   - verbs: `verb(name, {effect, answer, summary}, fn)` (S-1, S-2) and `invoke`;
@@ -29,3 +29,5 @@ The ES module `openmui` provides:
 - **Hot reload**: `Script::reload(code)` evaluates the module again under a new name. The n-th `signal()` returns the same signal with its value, views are reconciled, and handlers are replaced. The tests require it to finish in under 200 ms.
 
 For the player: `javascript()` (`*.js`, `*.mjs`) and `typescript()` (`*.ts`, `*.tsx`, compiled with the `esbuild` on `PATH`, or `OMUI_ESBUILD`).
+
+The conformance scenarios (`spec/conformance/S`, CTS level S) run in JavaScript through `tests/cts.js`. It builds each view with the builders and the expression functions and does the steps through `act`, `invoke` and the rest. It must record the trace pinned beside each scenario, which Python and Lua record too.

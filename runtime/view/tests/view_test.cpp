@@ -523,6 +523,38 @@ int main(int argc, char** argv) {
         check(!rt.valid(toast));
     });
 
+    s.test("an action's declared arguments are required and typed; others are refused (spec §3.3)", [] {
+        Runtime rt(options({200, 100}));
+        auto y = signal(0.0);
+        std::vector<Element> rows;
+        for (int i = 0; i < 10; ++i) rows.push_back(box({.id = std::format("r{}", i), .height = 30}));
+        rt.mount("main", column({}, {scroll({.id = "list", .y = y, .height = 100}, std::move(rows))}));
+        rt.frame({seconds(0), {}});
+        const NodeId list = rt.find("main/list");
+        auto refused = [&](Value args, std::string_view says) {
+            const Envelope e = rt.act(list, "scroll_to", {std::move(args)});
+            check_eq(e.exit_code().value_or(-1), spec::exit_code::failure);
+            std::string text;
+            for (const spec::Record& r : e.records())
+                if (r.kind == spec::RecordKind::error) text = r.json();
+            check(text.find("invalid-argument") != std::string::npos && text.find(says) != std::string::npos, text);
+            check(text.find("it takes x: f64 | end | page | -page") != std::string::npos, text);
+        };
+        refused(Value{}.set("y", 10), "`x` (f64 | end | page | -page) is missing");
+        refused(Value{}.set("x", 0).set("y", "sideways"), "`y` is a f64 | end | page | -page");
+        refused(Value{}.set("x", 0).set("y", 10).set("z", 1), "`z` is not an argument of it");
+        refused(Value("down"), "a map of names to values");
+        rt.frame({seconds(0.5), {}});
+        check(y.peek() == 0.0, "a refused call changes nothing");
+        // A number, a symbol: both are what it takes.
+        check_eq(rt.act(list, "scroll_to", {Value{}.set("x", 0).set("y", "end")}).exit_code().value_or(-1), 0);
+        rt.frame({seconds(1), {}});
+        check(y.peek() == 200.0, "end");
+        check_eq(rt.act(list, "scroll_by", {Value{}.set("dx", 0).set("dy", -50.0)}).exit_code().value_or(-1), 0);
+        // An action that declares none passes what it is given on.
+        check_eq(rt.act(rt.find("main/list/r3"), "scroll_into_view", {Value{}.set("anything", 1)}).exit_code().value_or(-1), 0);
+    });
+
     s.test("scroll views: wheel, actions with symbols, two-way offsets, scroll into view", [] {
         Runtime rt(options({200, 100}));
         auto y = signal(0.0);

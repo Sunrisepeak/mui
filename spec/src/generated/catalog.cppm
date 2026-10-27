@@ -95,9 +95,9 @@ inline constexpr EventInfo list_events[] = {
     {"activated", list_event_activated_args, false, ""},
     {"changed", list_event_changed_args, false, ""},
 };
-inline constexpr ArgInfo list_action_scroll_to_args[] = {{"x", "f64"}, {"y", "f64"}};
+inline constexpr ArgInfo list_action_scroll_to_args[] = {{"x", "f64 | end | page | -page"}, {"y", "f64 | end | page | -page"}};
 inline constexpr ActionSpec list_actions[] = {
-    {"scroll_to", Effect::read, list_action_scroll_to_args, "Scroll a scroll view to a content offset.", ""},
+    {"scroll_to", Effect::read, list_action_scroll_to_args, "Scroll a scroll view to a content offset: a distance, or `end`, `page`, `-page`.", ""},
 };
 inline constexpr KeyInfo list_keys[] = {{"Down", "next"}, {"Up", "previous"}};
 inline constexpr CommandInfo list_commands[] = {{"next", "Move focus to the next item."}, {"previous", "Move focus to the previous item."}};
@@ -169,11 +169,11 @@ inline constexpr ArgInfo scroll_view_event_scrolled_args[] = {{"x", "f64"}, {"y"
 inline constexpr EventInfo scroll_view_events[] = {
     {"scrolled", scroll_view_event_scrolled_args, true, ""},
 };
-inline constexpr ArgInfo scroll_view_action_scroll_by_args[] = {{"dx", "f64"}, {"dy", "f64"}};
-inline constexpr ArgInfo scroll_view_action_scroll_to_args[] = {{"x", "f64"}, {"y", "f64"}};
+inline constexpr ArgInfo scroll_view_action_scroll_by_args[] = {{"dx", "f64 | page | -page"}, {"dy", "f64 | page | -page"}};
+inline constexpr ArgInfo scroll_view_action_scroll_to_args[] = {{"x", "f64 | end | page | -page"}, {"y", "f64 | end | page | -page"}};
 inline constexpr ActionSpec scroll_view_actions[] = {
-    {"scroll_by", Effect::read, scroll_view_action_scroll_by_args, "Scroll a scroll view by a distance.", ""},
-    {"scroll_to", Effect::read, scroll_view_action_scroll_to_args, "Scroll a scroll view to a content offset.", ""},
+    {"scroll_by", Effect::read, scroll_view_action_scroll_by_args, "Scroll a scroll view by a distance, or by `page` / `-page`.", ""},
+    {"scroll_to", Effect::read, scroll_view_action_scroll_to_args, "Scroll a scroll view to a content offset: a distance, or `end`, `page`, `-page`.", ""},
 };
 inline constexpr KeyInfo scroll_view_keys[] = {{"End", "scroll_to(0, end)"}, {"Home", "scroll_to(0, 0)"}, {"PageDown", "scroll_by(0, page)"}, {"PageUp", "scroll_by(0, -page)"}};
 inline constexpr std::string_view scroll_view_parts[] = {"scrollbar", "thumb", "viewport"};
@@ -216,7 +216,7 @@ inline constexpr EventInfo slider_events[] = {
     {"changed", slider_event_changed_args, true, ""},
     {"committed", slider_event_committed_args, false, ""},
 };
-inline constexpr ArgInfo slider_action_set_value_args[] = {{"value", "f64"}};
+inline constexpr ArgInfo slider_action_set_value_args[] = {{"value", "f64 | min | max"}};
 inline constexpr ActionSpec slider_actions[] = {
     {"decrement", Effect::reversible, {}, "Step the value down.", ""},
     {"increment", Effect::reversible, {}, "Step the value up.", ""},

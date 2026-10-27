@@ -109,7 +109,12 @@ export function each(model, body, where) {
   const variable = depth ? "row" + (depth + 1) : "row";
   depth++;
   let el;
-  try { el = body(rowProxy(new Expr(variable, []))); } finally { depth--; }
+  try {
+    const row = rowProxy(new Expr(variable, []));
+    el = body(row);
+    // A filter of the row's own fields: (row) => row.done.not().
+    if (typeof where === "function") where = where(row);
+  } finally { depth--; }
   if (!(el instanceof Element)) throw new OmuiError("each: the function answers one element, the view of a row");
   return new Element({ region: { kind: "each", model, variable, where: where === undefined ? null : operand(where), body: el } });
 }

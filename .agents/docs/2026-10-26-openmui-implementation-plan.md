@@ -1113,7 +1113,8 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
   - ✅ 播放器 `openmui.player`（`runtime/player`）和 `entry-player` 特性：清单里的组件文档、视图文档和脚本（语言是插件），保存即原地重新加载。
   - ✅ 示例 03 五种写法（C++、视图文档、Lua、TypeScript、Python）语义树和像素完全相同。
   - ✅ Python 绑定（`lang/python` + `src/entry/python`，abi3，宿主模式）：扩展 `_openmui` 不用 CPython 头文件、不链接 libpython，函数在加载它的解释器里解析（`mcpplibs.os` 0.1.2 的 `library`），一份构建服务一个平台上所有 CPython 3.10+；`with` 块 builder、运算符表达式、verb 装饰器、异常；`.pyi` 从组件目录生成（`mypy --strict` 通过）；PEP 517 后端（`lang/python/packaging`）用 mcpp 构建、按 mcpp 的结果记录取产物、捆绑旁边的共享库和第三方声明，归档可复现；CI 里 pip 安装 wheel 后跑套件和示例 03（M3 ⑤）。为此修了 mcpp：kernel-abi 包现在会放进引用它的共享库（mcpp-community/mcpp#846）。
-  - `runtime/reflect`；native 模块（M3 ⑥）；示例 04–06、12；场景三语言一致（M3 ③）；模板 app-ts / app-py / app-lua。
+  - ✅ CTS 的 S 级场景（M3 ③）：`spec/conformance/S` 里语言中立的场景（视图、处理函数、verb、步骤；`spec/schema/scenario.schema.json`，lint 校验），Python、Lua、JavaScript 各有一个运行器（`lang/*/tests/cts.*`），用各自的 builder、运算符和闭包搭视图，用各自的 API 执行步骤，记录的轨迹必须和场景旁边固定的轨迹逐条相同（`openmui.cts` 是 C++ 一侧的驱动）。三种语言一次就对上了；顺带补上了：`each` 的 `where` 可以是行的函数（三种语言），动作的参数按声明检查（缺少、类型不对、多余都以 `invalid-argument` 拒绝，规范 §3.3，参数类型可以写成 `f64 | min | max` 这样的备选），Session 把拒绝作为记录返回。
+  - `runtime/reflect`；native 模块（M3 ⑥）；示例 04–06、12；模板 app-ts / app-py / app-lua。
 - M4：`modules/rhi` 和 `rhi-sdl`、GPU 渲染路径、Slang 着色器、效果和背景输入（液态玻璃，D-64）、画布、风格包、S1 / S2。
 - M5：openmui-video、ui-timeline、MCP 服务器、skills、S3 / S4 / S5。
 - 契约⑦（插件与管线）写进规范；Inspector 的火焰图和动画检查器视图。

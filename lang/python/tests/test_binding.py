@@ -90,7 +90,7 @@ class Binding(unittest.TestCase):
     def test_loops_verbs_and_regions(self):
         archived = []
 
-        @omui.verb("note.archive", summary="Archive a note")
+        @omui.verb("shelf.archive", summary="Archive a note")
         def archive(args):
             archived.append(args["id"])
             return {"archived": args["id"]}
@@ -105,7 +105,7 @@ class Binding(unittest.TestCase):
                 omui.each("notes", lambda row: omui.row(
                     omui.text(text=row.title),
                     omui.button(id="archive", text="Archive",
-                                on_activated=lambda e: omui.invoke("note.archive", {"id": e["rows"]["row"]["key"]})),
+                                on_activated=lambda e: omui.invoke("shelf.archive", {"id": e["rows"]["row"]["key"]})),
                 ))
 
         omui.mount("l", view)
@@ -117,7 +117,7 @@ class Binding(unittest.TestCase):
         only_open.set(True)
         omui.settle()
         self.assertEqual(name_of("l/filter"), "open only")
-        self.assertEqual(omui.invoke("note.archive", {"id": "n1"}), {"archived": "n1"})
+        self.assertEqual(omui.invoke("shelf.archive", {"id": "n1"}), {"archived": "n1"})
         omui.unmount("l")
 
     def test_errors_are_exceptions(self):

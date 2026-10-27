@@ -18,7 +18,7 @@ std::string cell(std::string_view s) {
 std::string args_text(const std::vector<Arg>& args) {
     std::string out;
     for (std::size_t i = 0; i < args.size(); ++i) out += std::format("{}{}: {}", i ? ", " : "", args[i].name, args[i].type);
-    return out.empty() ? "—" : out;
+    return out.empty() ? "—" : cell(out);  // `f64 | min | max` stays in its cell
 }
 
 }  // namespace

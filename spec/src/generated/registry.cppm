@@ -320,8 +320,8 @@ inline constexpr std::array<OriginInfo, 3> origins{{
 }
 
 inline constexpr ArgInfo action_args_set_value[] = {{"value", "any"}};
-inline constexpr ArgInfo action_args_scroll_to[] = {{"x", "f64"}, {"y", "f64"}};
-inline constexpr ArgInfo action_args_scroll_by[] = {{"dx", "f64"}, {"dy", "f64"}};
+inline constexpr ArgInfo action_args_scroll_to[] = {{"x", "f64 | end | page | -page"}, {"y", "f64 | end | page | -page"}};
+inline constexpr ArgInfo action_args_scroll_by[] = {{"dx", "f64 | page | -page"}, {"dy", "f64 | page | -page"}};
 inline constexpr ArgInfo action_args_set_selection[] = {{"anchor", "i64"}, {"focus", "i64"}};
 inline constexpr ArgInfo action_args_replace_selection[] = {{"text", "string"}};
 inline constexpr ArgInfo action_args_move_to[] = {{"x", "f64"}, {"y", "f64"}};
@@ -375,8 +375,8 @@ inline constexpr std::array<ActionInfo, 21> actions{{
     {"dismiss", Effect::reversible, {}, "Close a dialog, menu, popup or tooltip without choosing."},
     {"open_menu", Effect::read, {}, "Open the element's context menu."},
     {"scroll_into_view", Effect::read, {}, "Scroll the containers so the element is visible."},
-    {"scroll_to", Effect::read, action_args_scroll_to, "Scroll a scroll view to a content offset."},
-    {"scroll_by", Effect::read, action_args_scroll_by, "Scroll a scroll view by a distance."},
+    {"scroll_to", Effect::read, action_args_scroll_to, "Scroll a scroll view to a content offset: a distance, or `end`, `page`, `-page`."},
+    {"scroll_by", Effect::read, action_args_scroll_by, "Scroll a scroll view by a distance, or by `page` / `-page`."},
     {"set_selection", Effect::read, action_args_set_selection, "Set the text selection of a text field (grapheme offsets)."},
     {"replace_selection", Effect::reversible, action_args_replace_selection, "Replace the selected text of a text field (typing, pasting)."},
     {"move_to", Effect::reversible, action_args_move_to, "Move a positioned item (a canvas item, a paddle) to a point."},

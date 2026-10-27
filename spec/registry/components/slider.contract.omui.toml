@@ -18,7 +18,7 @@ committed = { args = { value = "f64" } }
 [contract.slider.actions]
 increment = { effect = "reversible" }
 decrement = { effect = "reversible" }
-set_value = { effect = "reversible", args = { value = "f64" } }
+set_value = { effect = "reversible", args = { value = "f64 | min | max" } }
 
 [contract.slider.keys]
 "Right|Up"  = "increment"

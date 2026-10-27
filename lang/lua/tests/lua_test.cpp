@@ -9,6 +9,7 @@ import openmui.lang;
 import openmui.lang.lua;
 import openmui.ui.base;
 import openmui.testing;
+import openmui.cts;
 
 using namespace omui::testing;
 using namespace omui::abi;
@@ -23,6 +24,7 @@ void collect(void* user, const char* data, std::size_t size) { static_cast<std::
 struct Runtime {
     OmuiRuntime rt = nullptr;
     double      time = 0;
+    int         width = 320, height = 240;
     Runtime() {
         OmuiRuntimeCreateInfo info{};
         info.type = OMUI_STRUCTURE_TYPE_RUNTIME_CREATE_INFO;
@@ -35,8 +37,8 @@ struct Runtime {
         OmuiFrameInput in{};
         in.type = OMUI_STRUCTURE_TYPE_FRAME_INPUT;
         in.time = time += 1.0 / 60.0;
-        in.width = 320;
-        in.height = 240;
+        in.width = width;
+        in.height = height;
         in.scale = 1;
         (void)omuiFrame(rt, &in, nullptr);
     }
@@ -112,6 +114,29 @@ constexpr std::string_view counter_document = R"j({"omui": "0.1", "view": {
   "root": {"type": "column", "props": {"gap": 8}, "children": [
     {"type": "text", "props": {"text": {"expr": "format('{} clicks', count)"}}},
     {"type": "button", "id": "inc", "props": {"text": "+1"}, "on": {"activated": [{"set": "count", "expr": "count + 1"}]}}]}}})j";
+
+// A verb of the script, called as the runtime calls it: its data, or what
+// went wrong ({"runner-error": …}).
+Json invoke(Runtime& r, std::string_view verb, const Json& args) {
+    std::string out;
+    const std::string a = args.dump();
+    (void)omuiInvoke(r.rt, str(verb), str(a), collect, &out);
+    Json data = nullptr;
+    for (auto line : out | std::views::split('\n')) {
+        Json rec = Json::parse(std::string_view(line.begin(), line.end()), nullptr, false);
+        if (!rec.is_object()) continue;
+        if (rec.value("kind", "") == "error") return Json{{"runner-error", rec.value("code", "") + ": " + rec.value("message", "")}};
+        if (rec.value("kind", "") == "data" && rec.contains("data")) data = rec["data"];
+    }
+    return data;
+}
+
+std::string text_of(const std::filesystem::path& file) {
+    std::ifstream in(file, std::ios::binary);
+    return std::string(std::istreambuf_iterator<char>(in), {});
+}
+
+std::filesystem::path tests_dir() { return std::filesystem::path(std::source_location::current().file_name()).parent_path(); }
 
 }  // namespace
 
@@ -236,6 +261,25 @@ assert(not ok3 and err3:find("pattern"), err3)
         check_eq(r.act("main/inc", "activate"), std::int64_t{0});
         r.settle(lua.host);
         check_eq(r.name_of("main/text:0"), std::string("12 taps"));
+    });
+
+    s.test("CTS level S: every scenario records its pinned trace (spec/conformance/S, tests/cts.lua)", [] {
+        auto all = omui::cts::scenarios();
+        check(all.has_value() && all->size() >= 3, all ? "fewer than three scenarios" : all.error());
+        if (!all) return;
+        const std::string runner = text_of(tests_dir() / "cts.lua");
+        for (const omui::cts::Scenario& scenario : *all) {
+            Runtime r;
+            r.height = 480;  // the scenarios' viewport: 320 × 480
+            Lua lua(r);
+            auto ran = lua.run(runner, "@cts.lua");
+            check(ran.has_value(), ran ? "" : ran.error().text());
+            if (!ran) continue;
+            const Json trace = omui::cts::run(
+                scenario, [&](std::string_view verb, const Json& args) { return invoke(r, verb, args); }, [&] { r.settle(lua.host); });
+            for (const std::string& d : omui::cts::check(scenario, trace)) fail(d);
+            check(lua.errors.empty(), lua.errors.empty() ? "" : scenario.name + ": " + lua.errors[0]);
+        }
     });
 
     return s.run(argc, argv);

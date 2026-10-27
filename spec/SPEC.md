@@ -91,6 +91,13 @@ and typed arguments.
   know MUST treat it as `irreversible`.
 - **S-4** A node in state `removing` accepts no action; a node in state
   `disabled` accepts only actions whose effect is `read`.
+- An action's declared arguments are all required and typed (`string`, `bool`,
+  `i32` and `i64` integers, `f64` numbers, `list<string>`, or alternatives such
+  as `f64 | min | max`, where a word is a symbol the component interprets). A call missing one,
+  giving one of another type, or giving one the action does not declare MUST be
+  refused with an `error` record of code `invalid-argument` that names the
+  arguments the action takes, and change nothing. An action that declares none
+  passes what it is given on (the arguments of the verb an `activate` invokes).
 
 ### 3.4 Origins
 

@@ -1,0 +1,23 @@
+# openmui.cts — the harness of the conformance suite's level S
+# (spec/conformance/S): the scenarios, the run of a language's runner through
+# the two verbs it registers, and the comparison of what it records with the
+# trace pinned beside the scenario. The Lua and JavaScript tests use it; the
+# Python suite does the same in Python (lang/python/tests/cts.py).
+#
+# A dev-dependency only: it is part of no artifact.
+[package]
+namespace   = "openmui"
+name        = "cts"
+version     = "0.1.0"
+description = "The CTS level S harness: language-neutral scenarios and their pinned traces"
+license     = "Apache-2.0"
+
+[targets.openmui-cts]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+nlohmann.json = "3.12.0"
+mcpplibs.os   = "0.1.2"

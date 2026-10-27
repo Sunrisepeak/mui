@@ -321,9 +321,9 @@ typedef enum OmuiAction {
     OMUI_ACTION_OPEN_MENU = 12,
     /* Scroll the containers so the element is visible. */
     OMUI_ACTION_SCROLL_INTO_VIEW = 13,
-    /* Scroll a scroll view to a content offset. */
+    /* Scroll a scroll view to a content offset: a distance, or `end`, `page`, `-page`. */
     OMUI_ACTION_SCROLL_TO = 14,
-    /* Scroll a scroll view by a distance. */
+    /* Scroll a scroll view by a distance, or by `page` / `-page`. */
     OMUI_ACTION_SCROLL_BY = 15,
     /* Set the text selection of a text field (grapheme offsets). */
     OMUI_ACTION_SET_SELECTION = 16,

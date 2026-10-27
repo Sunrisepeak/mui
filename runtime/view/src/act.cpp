@@ -9,6 +9,66 @@ import :impl;
 
 namespace omui {
 
+namespace {
+
+// Whether a value is of a declared argument type: a number with no fraction
+// is an integer, whichever way the caller's language wrote it.
+bool of_one_type(const Value& v, std::string_view type) {
+    if (type == "string") return v.type() == Value::Type::text;
+    if (type == "bool") return v.type() == Value::Type::boolean;
+    if (type == "f64" || type == "f32") return v.is_number();
+    if (type == "i32" || type == "i64") {
+        if (v.type() == Value::Type::integer) return type == "i64" || (v.as_int() >= std::numeric_limits<std::int32_t>::min() &&
+                                                                      v.as_int() <= std::numeric_limits<std::int32_t>::max());
+        const double d = v.as_double();
+        return v.type() == Value::Type::real && std::isfinite(d) && d == std::trunc(d) &&
+               std::abs(d) <= (type == "i32" ? 2147483647.0 : 9007199254740992.0);
+    }
+    if (type == "list<string>") {
+        const Value::List* l = v.list();
+        return l && std::ranges::all_of(*l, [](const Value& x) { return x.type() == Value::Type::text; });
+    }
+    if (type == "any" || type == "point" || type == "rect" || type == "size" || type == "color") return true;
+    return v.type() == Value::Type::text && v.as_string() == type;  // a symbol: `end`, `-page`
+}
+
+// A type, or alternatives `f64 | min | max` (spec §3.3).
+bool of_type(const Value& v, std::string_view type) {
+    for (auto part : type | std::views::split('|')) {
+        std::string_view t(part.begin(), part.end());
+        while (!t.empty() && t.front() == ' ') t.remove_prefix(1);
+        while (!t.empty() && t.back() == ' ') t.remove_suffix(1);
+        if (of_one_type(v, t)) return true;
+    }
+    return false;
+}
+
+// What is wrong with the arguments of a call to an action that declares
+// them (spec §3.3): empty when nothing is.
+std::string invalid_arguments(const spec::ActionDesc& a, const Value& args) {
+    const Value::Map empty;
+    const Value::Map* given = args.map();
+    std::vector<std::string> problems;
+    if (!given && !args.is_null()) problems.emplace_back("the arguments are a map of names to values");
+    if (!given) given = &empty;
+    for (const auto& [name, type] : a.args) {
+        auto it = std::ranges::find(*given, name, &std::pair<std::string, Value>::first);
+        if (it == given->end()) problems.push_back(std::format("`{}` ({}) is missing", name, type));
+        else if (!of_type(it->second, type)) problems.push_back(std::format("`{}` is a {}", name, type));
+    }
+    for (const auto& [name, v] : *given)
+        if (std::ranges::find(a.args, name, &std::pair<std::string, std::string>::first) == a.args.end())
+            problems.push_back(std::format("`{}` is not an argument of it", name));
+    std::string out;
+    for (const std::string& p : problems) out += (out.empty() ? "" : "; ") + p;
+    if (out.empty()) return out;
+    std::string takes;
+    for (const auto& [name, type] : a.args) takes += std::format("{}{}: {}", takes.empty() ? "" : ", ", name, type);
+    return std::format("{} (it takes {})", out, takes);
+}
+
+}  // namespace
+
 void Runtime::Impl::call_handlers(NodeId id, std::string_view event, const Value& args) {
     if (!alive(id)) return;
     std::vector<Handler> calls;
@@ -141,6 +201,15 @@ Envelope Runtime::Impl::perform(NodeId id, std::string_view action, const Invoca
     }
     if (a && spec::requires_answer(effect) && call.answer != a->answer)
         return needs_answer(std::format("{} on '{}' ({})", action, where, spec::name(effect)), a->answer);
+    if (a && !a->args.empty())
+        if (auto wrong = invalid_arguments(*a, call.args); !wrong.empty()) {
+            Value::Map takes;
+            for (const auto& [name, type] : a->args) takes.emplace_back(name, Value(type));
+            env.error(spec::error_code::invalid_argument, std::format("{} on '{}': {}", action, where, wrong),
+                      Value{}.set("args", Value(std::move(takes))))
+                .result(spec::exit_code::failure);
+            return env;
+        }
 
     if (action == "focus") {
         set_focus(id, true);

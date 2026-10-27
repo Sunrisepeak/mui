@@ -81,14 +81,14 @@ doc    = "Scroll the containers so the element is visible."
 [[action]]
 name   = "scroll_to"
 effect = "read"
-args   = { x = "f64", y = "f64" }
-doc    = "Scroll a scroll view to a content offset."
+args   = { x = "f64 | end | page | -page", y = "f64 | end | page | -page" }
+doc    = "Scroll a scroll view to a content offset: a distance, or `end`, `page`, `-page`."
 
 [[action]]
 name   = "scroll_by"
 effect = "read"
-args   = { dx = "f64", dy = "f64" }
-doc    = "Scroll a scroll view by a distance."
+args   = { dx = "f64 | page | -page", dy = "f64 | page | -page" }
+doc    = "Scroll a scroll view by a distance, or by `page` / `-page`."
 
 [[action]]
 name   = "set_selection"

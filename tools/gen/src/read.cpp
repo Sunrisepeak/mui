@@ -203,6 +203,26 @@ bool valid_identifier(std::string_view name) {
 constexpr std::array<std::string_view, 9> prop_types{"bool", "i32", "i64", "f64", "string", "color", "enum", "list<string>", "any"};
 constexpr std::array<std::string_view, 9> arg_types{"bool", "i32", "i64", "f64", "string", "point", "rect", "size", "any"};
 
+// An argument's type: one of the vocabulary, or alternatives such as
+// `f64 | min | max`, each a type or a symbol the component interprets (a
+// word, possibly negated: `end`, `-page`).
+bool valid_arg_type(std::string_view type) {
+    bool some = false;
+    for (auto part : type | std::views::split('|')) {
+        std::string_view p(part.begin(), part.end());
+        while (!p.empty() && p.front() == ' ') p.remove_prefix(1);
+        while (!p.empty() && p.back() == ' ') p.remove_suffix(1);
+        if (p.empty()) return false;
+        some = true;
+        if (std::ranges::find(prop_types, p) != prop_types.end() || std::ranges::find(arg_types, p) != arg_types.end()) continue;
+        std::size_t i = p.front() == '-' ? 1 : 0;
+        if (i >= p.size() || p[i] < 'a' || p[i] > 'z') return false;
+        for (; i < p.size(); ++i)
+            if (!((p[i] >= 'a' && p[i] <= 'z') || (p[i] >= '0' && p[i] <= '9') || p[i] == '_')) return false;
+    }
+    return some;
+}
+
 void read_abi(const toml::table& root, Reader& r, Abi& abi) {
     abi.prefix = r.str(root, "prefix");
     r.each(root, "handle", [&](const toml::table& t) {
@@ -513,8 +533,7 @@ std::vector<Contract> read_contracts(const std::filesystem::path& file, const Re
                         diags.error(e.loc, std::format("event `{}`: coalesce must be \"frame\"", e.name));
                 }
                 for (const Arg& a : e.args)
-                    if (std::ranges::find(prop_types, a.type) == prop_types.end() &&
-                        std::ranges::find(arg_types, a.type) == arg_types.end())
+                    if (!valid_arg_type(a.type))
                         diags.error(e.loc, std::format("event `{}` argument `{}` has unknown type `{}`", e.name, a.name, a.type));
                 c.events.push_back(std::move(e));
             }
@@ -528,6 +547,10 @@ std::vector<Contract> read_contracts(const std::filesystem::path& file, const Re
                 if (const toml::table* at = av.as_table()) {
                     a.effect = r.str(*at, "effect", true);
                     a.args = r.args(*at, "args");
+                    for (const Arg& x : a.args)
+                        if (!valid_arg_type(x.type))
+                            diags.error(a.loc, std::format("action `{}` argument `{}` has unknown type `{}`", a.name, x.name, x.type),
+                                        "a type (bool i32 i64 f64 string point rect size any …), or alternatives: `f64 | min | max`");
                     a.doc = r.str(*at, "doc");
                     // `answer = "yes"` names the answer; `answer = true` means the usual "yes".
                     if (const auto* b = (*at)["answer"].as_boolean()) a.answer = b->get() ? "yes" : "";

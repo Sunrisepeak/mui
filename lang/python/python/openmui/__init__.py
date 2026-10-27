@@ -323,13 +323,18 @@ _depth = [0]
 
 
 def each(model, body, where=None):
-    """A model's rows: ``each("notes", lambda row: omui.text(text=row.title))``; built once, with ``row`` an expression."""
+    """A model's rows: ``each("notes", lambda row: omui.text(text=row.title), where=lambda row: ~row.done)``.
+
+    The body (and a ``where`` given as a function) is built once, with ``row`` an expression."""
     variable = "row" if not _depth[0] else f"row{_depth[0] + 1}"
     capture = Element("")
     _stack().append(capture)
     _depth[0] += 1
     try:
-        el = body(Expr(variable))
+        row = Expr(variable)
+        el = body(row)
+        if callable(where):  # a filter of the row's own fields: where=lambda row: ~row.done
+            where = where(row)
     finally:
         _depth[0] -= 1
         _stack().pop()

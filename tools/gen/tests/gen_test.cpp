@@ -95,7 +95,7 @@ int main(int argc, char** argv) {
         auto text = diags.text();
         for (auto expect : {"unknown role `spaceship`", "unknown type `huge`", "default of `mode`", "default of `count`",
                             "weaker than its default", "unknown effect `orbital`", "names `fly`",
-                            "unknown token `motion.warp`"})
+                            "unknown token `motion.warp`", "action `aim` argument `at` has unknown type `f64 | Up | | down`"})
             check(text.find(expect) != std::string::npos, expect);
         check(text.find("bad.contract.omui.toml:3:") != std::string::npos, "diagnostics carry line numbers");
         auto json = diags.json();

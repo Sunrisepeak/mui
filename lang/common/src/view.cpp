@@ -522,7 +522,7 @@ Result<std::vector<Json>> Session::snapshot(const Json& query) {
     const std::string q = query.dump();
     std::string out;
     const abi::OmuiResult r = host_.ui([&] { return abi::omuiSnapshot(host_.runtime(), str(q), collect, &out); });
-    if (r < 0) return std::unexpected(failure(r, out));
+    if (r < 0 && out.empty()) return std::unexpected(failure(r, out));
     return records(out);
 }
 
@@ -530,7 +530,9 @@ Result<std::vector<Json>> Session::act(const Json& request) {
     const std::string q = request.dump();
     std::string out;
     const abi::OmuiResult r = host_.ui([&] { return abi::omuiAct(host_.runtime(), str(q), collect, &out); });
-    if (r < 0 && r != abi::OMUI_ERROR_NOT_FOUND && r != abi::OMUI_ERROR_REFUSED) return std::unexpected(failure(r, out));
+    // A refusal is an answer (its error record says why: not-found,
+    // invalid-argument, needs-answer …); only a call that got none failed.
+    if (r < 0 && out.empty()) return std::unexpected(failure(r, out));
     return records(out);
 }
 
@@ -538,7 +540,7 @@ Result<std::vector<Json>> Session::invoke(std::string_view verb, const Json& arg
     const std::string a = args.dump();
     std::string out;
     const abi::OmuiResult r = host_.ui([&] { return abi::omuiInvoke(host_.runtime(), str(verb), str(a), collect, &out); });
-    if (r == abi::OMUI_ERROR_INVALID_ARGUMENT) return std::unexpected(failure(r, out));
+    if (r < 0 && out.empty()) return std::unexpected(failure(r, out));
     return records(out);
 }
 

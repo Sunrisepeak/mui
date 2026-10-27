@@ -137,8 +137,8 @@ The machine-readable tables of the specification. Enumerators are append-only; t
 | `dismiss` | `reversible` | — | Close a dialog, menu, popup or tooltip without choosing. |
 | `open_menu` | `read` | — | Open the element's context menu. |
 | `scroll_into_view` | `read` | — | Scroll the containers so the element is visible. |
-| `scroll_to` | `read` | x: f64, y: f64 | Scroll a scroll view to a content offset. |
-| `scroll_by` | `read` | dx: f64, dy: f64 | Scroll a scroll view by a distance. |
+| `scroll_to` | `read` | x: f64 \| end \| page \| -page, y: f64 \| end \| page \| -page | Scroll a scroll view to a content offset: a distance, or `end`, `page`, `-page`. |
+| `scroll_by` | `read` | dx: f64 \| page \| -page, dy: f64 \| page \| -page | Scroll a scroll view by a distance, or by `page` / `-page`. |
 | `set_selection` | `read` | anchor: i64, focus: i64 | Set the text selection of a text field (grapheme offsets). |
 | `replace_selection` | `reversible` | text: string | Replace the selected text of a text field (typing, pasting). |
 | `move_to` | `reversible` | x: f64, y: f64 | Move a positioned item (a canvas item, a paddle) to a point. |
@@ -392,7 +392,7 @@ A list of items, virtualised: only the visible items exist as nodes, the rest an
 
 | Action | Effect | Arguments |
 |---|---|---|
-| `scroll_to` | `read` | x: f64, y: f64 |
+| `scroll_to` | `read` | x: f64 \| end \| page \| -page, y: f64 \| end \| page \| -page |
 
 Keys: `Down` → `next`, `Up` → `previous`
 
@@ -483,8 +483,8 @@ A viewport onto content larger than itself.
 
 | Action | Effect | Arguments |
 |---|---|---|
-| `scroll_by` | `read` | dx: f64, dy: f64 |
-| `scroll_to` | `read` | x: f64, y: f64 |
+| `scroll_by` | `read` | dx: f64 \| page \| -page, dy: f64 \| page \| -page |
+| `scroll_to` | `read` | x: f64 \| end \| page \| -page, y: f64 \| end \| page \| -page |
 
 Keys: `End` → `scroll_to(0, end)`, `Home` → `scroll_to(0, 0)`, `PageDown` → `scroll_by(0, page)`, `PageUp` → `scroll_by(0, -page)`
 
@@ -534,7 +534,7 @@ Chooses a number in a range by dragging a thumb or stepping.
 |---|---|---|
 | `decrement` | `reversible` | — |
 | `increment` | `reversible` | — |
-| `set_value` | `reversible` | value: f64 |
+| `set_value` | `reversible` | value: f64 \| min \| max |
 
 Keys: `End` → `set_value(max)`, `Home` → `set_value(min)`, `Left|Down` → `decrement`, `Right|Up` → `increment`
 

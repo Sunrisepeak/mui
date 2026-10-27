@@ -14,7 +14,7 @@ activated = { args = { key = "string" } }
 changed   = { args = { selected = "list<string>" } }
 
 [contract.list.actions]
-scroll_to = { effect = "read", args = { x = "f64", y = "f64" } }
+scroll_to = { effect = "read", args = { x = "f64 | end | page | -page", y = "f64 | end | page | -page" } }
 
 [contract.list.keys]
 "Down" = "next"

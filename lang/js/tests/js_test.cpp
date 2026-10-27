@@ -9,6 +9,7 @@ import openmui.lang;
 import openmui.lang.js;
 import openmui.ui.base;
 import openmui.testing;
+import openmui.cts;
 
 using namespace omui::testing;
 using namespace omui::abi;
@@ -23,6 +24,7 @@ void collect(void* user, const char* data, std::size_t size) { static_cast<std::
 struct Runtime {
     OmuiRuntime rt = nullptr;
     double      time = 0;
+    int         width = 320, height = 240;
     Runtime() {
         OmuiRuntimeCreateInfo info{};
         info.type = OMUI_STRUCTURE_TYPE_RUNTIME_CREATE_INFO;
@@ -35,8 +37,8 @@ struct Runtime {
         OmuiFrameInput in{};
         in.type = OMUI_STRUCTURE_TYPE_FRAME_INPUT;
         in.time = time += 1.0 / 60.0;
-        in.width = 320;
-        in.height = 240;
+        in.width = width;
+        in.height = height;
         in.scale = 1;
         (void)omuiFrame(rt, &in, nullptr);
     }
@@ -83,6 +85,27 @@ struct Runtime {
         return omuiAct(rt, str(text), collect, &out);
     }
 };
+
+// A verb of the script, called as the runtime calls it: its data, or what
+// went wrong ({"runner-error": …}).
+Json invoke(Runtime& r, std::string_view verb, const Json& args) {
+    std::string out;
+    const std::string a = args.dump();
+    (void)omuiInvoke(r.rt, str(verb), str(a), collect, &out);
+    Json data = nullptr;
+    for (auto line : out | std::views::split('\n')) {
+        Json rec = Json::parse(std::string_view(line.begin(), line.end()), nullptr, false);
+        if (!rec.is_object()) continue;
+        if (rec.value("kind", "") == "error") return Json{{"runner-error", rec.value("code", "") + ": " + rec.value("message", "")}};
+        if (rec.value("kind", "") == "data" && rec.contains("data")) data = rec["data"];
+    }
+    return data;
+}
+
+std::string file_text(const std::filesystem::path& file) {
+    std::ifstream in(file, std::ios::binary);
+    return std::string(std::istreambuf_iterator<char>(in), {});
+}
 
 struct Js {
     Runtime&        r;
@@ -261,6 +284,25 @@ mount("main", column({ gap: 8 }, [
         check_eq(r.name_of("main/text:1"), std::string("1 clicks"));
         auto broken = lang::js::compile_typescript(dir / "missing.ts");
         check(!broken && !broken.error().empty());
+    });
+
+    s.test("CTS level S: every scenario records its pinned trace (spec/conformance/S, tests/cts.js)", [] {
+        auto all = omui::cts::scenarios();
+        check(all.has_value() && all->size() >= 3, all ? "fewer than three scenarios" : all.error());
+        if (!all) return;
+        const std::string runner = file_text(std::filesystem::path(std::source_location::current().file_name()).parent_path() / "cts.js");
+        for (const omui::cts::Scenario& scenario : *all) {
+            Runtime r;
+            r.height = 480;  // the scenarios' viewport: 320 × 480
+            Js js(r);
+            auto ran = js.run(runner, "cts.js");
+            check(ran.has_value(), ran ? "" : ran.error().text());
+            if (!ran) continue;
+            const Json trace = omui::cts::run(
+                scenario, [&](std::string_view verb, const Json& args) { return invoke(r, verb, args); }, [&] { r.settle(js.host); });
+            for (const std::string& d : omui::cts::check(scenario, trace)) fail(d);
+            check(js.errors.empty(), js.errors.empty() ? "" : scenario.name + ": " + js.errors[0]);
+        }
     });
 
     return s.run(argc, argv);

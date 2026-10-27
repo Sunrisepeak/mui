@@ -522,7 +522,7 @@ int l_when(lua_State* L, Script::Impl&) {
 
 int l_each(lua_State* L, Script::Impl& s) {
     if (lua_type(L, 1) != LUA_TSTRING || lua_type(L, 2) != LUA_TFUNCTION)
-        return raise(L, "omui.each(model, function(row) return element end [, where])");
+        return raise(L, "omui.each(model, function(row) return element end [, where or function(row) return where end])");
     const std::string model = lua_tostring(L, 1);
     const std::string variable = s.depth ? std::format("row{}", s.depth + 1) : std::string("row");
     // The body is built once, with the row as an expression: row.title is
@@ -537,9 +537,21 @@ int l_each(lua_State* L, Script::Impl& s) {
     if (!body) return raise(L, "omui.each: the function answers one element, the view of a row");
     Region r{.kind = Region::Kind::each, .then = {body->element}, .model = model, .variable = variable};
     lua_pop(L, 1);
-    if (!lua_isnoneornil(L, 3)) {
+    if (lua_type(L, 3) == LUA_TFUNCTION) {
+        // A filter of the row's own fields: function(row) return omui.not_(row.done) end.
+        lua_pushvalue(L, 3);
+        make(L, expr_type, ExprBox{name_ref(variable)});
+        ++s.depth;
+        const int filtered = lua_pcall(L, 1, 1, 0);
+        --s.depth;
+        if (filtered != LUA_OK) return -1;
+        auto where = to_expr(L, -1);
+        lua_pop(L, 1);
+        if (!where) return raise(L, "omui.each: `where` answers an expression of the row");
+        r.condition = std::move(*where);
+    } else if (!lua_isnoneornil(L, 3)) {
         auto where = to_expr(L, 3);
-        if (!where) return raise(L, "omui.each: `where` is an expression");
+        if (!where) return raise(L, "omui.each: `where` is an expression, or a function of the row");
         r.condition = std::move(*where);
     }
     Element e;

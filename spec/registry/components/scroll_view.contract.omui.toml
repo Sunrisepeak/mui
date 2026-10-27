@@ -13,8 +13,8 @@ vertical   = { type = "bool", default = true }
 scrolled = { args = { x = "f64", y = "f64" }, coalesce = "frame" }
 
 [contract.scroll_view.actions]
-scroll_to = { effect = "read", args = { x = "f64", y = "f64" } }
-scroll_by = { effect = "read", args = { dx = "f64", dy = "f64" } }
+scroll_to = { effect = "read", args = { x = "f64 | end | page | -page", y = "f64 | end | page | -page" } }
+scroll_by = { effect = "read", args = { dx = "f64 | page | -page", dy = "f64 | page | -page" } }
 
 [contract.scroll_view.keys]
 "PageDown" = "scroll_by(0, page)"

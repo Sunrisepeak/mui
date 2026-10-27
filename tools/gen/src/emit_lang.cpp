@@ -12,6 +12,17 @@ namespace omui::gen {
 namespace {
 
 std::string ts_type(const std::string& type, const std::vector<std::string>& values) {
+    if (type.find('|') != std::string::npos) {
+        // Alternatives (`f64 | min | max`): each a type, or a symbol as its string.
+        std::string out;
+        for (auto part : type | std::views::split('|')) {
+            std::string t(part.begin(), part.end());
+            std::erase(t, ' ');
+            const std::string one = ts_type(t, values);
+            out += (out.empty() ? "" : " | ") + (one == "unknown" ? std::format("\"{}\"", t) : one);
+        }
+        return out;
+    }
     if (type == "bool") return "boolean";
     if (type == "i32" || type == "i64" || type == "f64") return "number";
     if (type == "string" || type == "color") return "string";

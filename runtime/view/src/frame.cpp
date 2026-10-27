@@ -33,6 +33,7 @@ FrameOutput Runtime::frame(const FrameInput& input) {
     else if (d.clock.kind() == anim::ClockKind::interactive) d.clock.begin_frame(input.present_at.value_or(started));
     d.apply_time_control();
     if (input.display_hz > 0) d.display_hz = input.display_hz;
+    if (d.fading) d.touch(dirty_paint);  // the cross-fade moves every frame
     d.reconcile_outlets();  // views move to the slots that claim them (Services::outlet)
     d.frame_requested = false;
     d.todo = 0;
@@ -78,7 +79,7 @@ FrameOutput Runtime::frame(const FrameInput& input) {
                        t.total, t.timers, t.input, t.regions, t.animations, t.layout, t.bounds, t.paint, t.other, d.stats.nodes,
                        d.stats.laid_out, d.stats.painted);
     }
-    const bool more = !d.animating.empty() || !d.removing.empty() || d.frame_requested || !d.dirty_regions.empty() ||
+    const bool more = !d.animating.empty() || !d.removing.empty() || d.frame_requested || !d.dirty_regions.empty() || d.fading.has_value() ||
                       d.options.debug.hud || !d.flashes.empty();
     // What frames are wanted for from now on (D-70).
     {
@@ -90,7 +91,7 @@ FrameOutput Runtime::frame(const FrameInput& input) {
                 d.input_until = d.now() + seconds(0.3);
         }
         FrameDemand want;
-        if (!d.animating.empty()) want = merge(want, FrameDemand::fastest("animation"));
+        if (!d.animating.empty() || d.fading) want = merge(want, FrameDemand::fastest("animation"));
         if (d.now() < d.input_until) want = merge(want, FrameDemand::fastest("input"));
         for (const auto& [token, lease] : d.leases) want = merge(want, lease);
         // A timer: as often as it is due (a caret's blink), at most 60 a second.
@@ -449,6 +450,16 @@ void Runtime::Impl::compute_bounds(NodeId id, Point origin, const Affine& parent
 void Runtime::Impl::paint() {
     list.clear();
     paint_node(root);
+    // What was on screen before a style's change, fading out over what comes.
+    if (fading) {
+        const double u = reduce_motion ? 1.0 : (now() - fade_start).count() / std::max(1e-6, fade_length.count());
+        if (u >= 1) fading.reset();
+        else {
+            list.push_layer(static_cast<float>(1 - anim::ease::standard(u)), render::BlendMode::normal);
+            list.append(*fading);
+            list.pop_layer();
+        }
+    }
     // Overlays above everything, bottom to top; a modal one darkens what is below.
     for (NodeId id : overlays) {
         if (!alive(id) || !displayed(id)) continue;
@@ -476,16 +487,34 @@ void Runtime::Impl::paint_node(NodeId id) {
     const bool layer = v[Field::opacity] < 1;
     const Rect box{0, 0, size.width, size.height};
     // The pixel effect takes the node's whole drawing, children included (D-68).
-    const bool effected = n.pixel_effect.has_value();
+    // Its own, else what the style's rules give its type or role (D-69: a
+    // style pack's effects; the node's property wins).
+    Node::PixelEffectState* fxs = n.pixel_effect ? &*n.pixel_effect : (n.styled_effect ? &*n.styled_effect : nullptr);
+    const bool effected = fxs != nullptr;
     if (effected) {
-        auto& fx = *n.pixel_effect;
+        auto& fx = *fxs;
         if (fx.duration && fx.progress >= 0) {
             const double u = (now() - fx.start - fx.delay).count() / std::max(1e-6, fx.duration->count());
             double p = reduce_motion ? 1.0 : fx.ease(std::clamp(u, 0.0, 1.0));
             if (fx.reverse) p = 1 - p;
             fx.params[static_cast<std::size_t>(fx.progress)] = static_cast<float>(p);
         }
-        list.push_layer(1, render::BlendMode::normal, fx.effect, fx.params, box);
+        // The layer's shapes: what the node paints as surfaces — its own
+        // rounded box, and each child's that has a background or a border
+        // (a group's members: what neon lights and metaball merges).
+        std::array<render::EffectShape, 8> shapes{};
+        std::size_t count = 0;
+        shapes[count++] = {box, v.corners(size)};
+        for (const NodeId c : n.children) {
+            if (count == shapes.size()) break;
+            const Node& k = at(c);
+            if (k.type->overlay || !k.visual.visible) continue;
+            const bool surface = k.visual.background().a > 0 || (k.visual[Field::border_width] > 0 && k.visual.border().a > 0);
+            if (!surface) continue;
+            const Rect f = k.frame;
+            shapes[count++] = {{f.x + k.visual[Field::translate_x], f.y + k.visual[Field::translate_y], f.width, f.height}, k.visual.corners(f.size())};
+        }
+        list.push_layer(1, render::BlendMode::normal, fx.effect, fx.params, box, std::span(shapes.data(), count));
     }
     if (layer) list.push_layer(v[Field::opacity], render::BlendMode::normal, {}, {}, box);
 

@@ -78,6 +78,7 @@ NodeId Runtime::Impl::create(Element& e, NodeId parent) {
         set_source(id, name, source);
     }
     sync_style(id);
+    apply_rules(id);
 
     std::vector<ChildSlot> slots = reconcile(id, {}, e.children);
     at(id).slots = std::move(slots);

@@ -70,6 +70,34 @@ struct Layer {
 // diagnostics), or everything wrong with it.
 [[nodiscard]] std::expected<std::vector<Layer>, Diagnostics> read(std::string_view source, std::string_view file);
 
+// A style pack (S2, D-69): a theme to start from, the tokens it changes, and
+// the effects it puts on the window, on component types and on roles —
+// glass, neon, CRT, ink on paper, liquid — the semantic tree the same under
+// every one (S2's promise: only pixels change).
+//
+//     # neon.style.omui.toml
+//     [style.neon]
+//     theme = "dark"
+//     [style.neon.colors]
+//     accent = "#22d3ee"
+//     [style.neon.effects]
+//     button        = { effect = "neon", radius = 12 }
+//     "role:switch" = { effect = "metaball", smoothness = 14 }
+//     window        = { effect = "crt", curvature = 0.06 }
+struct Style {
+    std::string              name;
+    std::string              doc;
+    std::string              file;
+    std::vector<std::string> layers;      // the theme, then overlays ("dark", "compact")
+    Layer                    tokens;      // what it changes: an overlay over them
+    std::vector<EffectRule>  effects;     // window, a type, or role:<role>
+    double                   crossfade = 0.35;  // seconds: how a switch to it is seen
+};
+
+// The styles a file declares, or everything wrong with it (unknown effects
+// and parameters with their nearest names).
+[[nodiscard]] std::expected<std::vector<Style>, Diagnostics> read_styles(std::string_view source, std::string_view file);
+
 class Library {
 public:
     // Adds what a file declares. A name another file already declared is
@@ -87,9 +115,17 @@ public:
     // overlays. The result is named by its layers: "dark+compact".
     [[nodiscard]] std::expected<Theme, std::string> compose(std::span<const std::string> layers) const;
 
+    // Style packs: added like themes (a file again replaces what it declared).
+    std::expected<void, Diagnostics> add_styles(std::string_view source, std::string_view file);
+    [[nodiscard]] std::vector<std::string> styles() const;
+    [[nodiscard]] std::optional<Style> find_style(std::string_view name) const;
+    // A style's theme: its layers composed, its tokens over them.
+    [[nodiscard]] std::expected<Theme, std::string> compose_style(std::string_view name) const;
+
 private:
     mutable std::mutex         mutex_;
     std::vector<Layer>         layers_;
+    std::vector<Style>         styles_;
 };
 
 // The program's library: theme packages add theirs to it at start; the C ABI
@@ -98,5 +134,8 @@ private:
 
 // Composes from the program's library and gives the runtime the result.
 std::expected<void, std::string> apply(Runtime& rt, std::span<const std::string> layers);
+// A style: its theme and its effects to the runtime, seen as a cross-fade
+// from what was on screen (unless `crossfade` is false: a first frame).
+std::expected<void, std::string> apply_style(Runtime& rt, std::string_view name, bool crossfade = true);
 
 }  // namespace omui::theme

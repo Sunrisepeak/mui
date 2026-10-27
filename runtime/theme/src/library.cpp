@@ -172,6 +172,50 @@ std::expected<Theme, std::string> Library::compose(std::span<const std::string> 
     return t;
 }
 
+std::expected<void, Diagnostics> Library::add_styles(std::string_view source, std::string_view file) {
+    auto read_ = read_styles(source, file);
+    if (!read_) return std::unexpected(std::move(read_.error()));
+    std::scoped_lock lock(mutex_);
+    Diagnostics clash;
+    for (const Style& st : *read_)
+        for (const Style& other : styles_)
+            if (other.name == st.name && other.file != st.file)
+                clash.push_back({std::string(file), 0, 0, std::format("the style `{}` is already declared by {}", st.name, other.file), ""});
+    if (!clash.empty()) return std::unexpected(std::move(clash));
+    std::erase_if(styles_, [&](const Style& st) { return st.file == file; });
+    for (Style& st : *read_) styles_.push_back(std::move(st));
+    return {};
+}
+
+std::vector<std::string> Library::styles() const {
+    std::scoped_lock lock(mutex_);
+    std::vector<std::string> out;
+    for (const Style& st : styles_) out.push_back(st.name);
+    std::ranges::sort(out);
+    return out;
+}
+
+std::optional<Style> Library::find_style(std::string_view name) const {
+    std::scoped_lock lock(mutex_);
+    for (const Style& st : styles_)
+        if (st.name == name) return st;
+    return std::nullopt;
+}
+
+std::expected<Theme, std::string> Library::compose_style(std::string_view name) const {
+    const auto st = find_style(name);
+    if (!st) {
+        std::string all;
+        for (const std::string& n : styles()) all += std::format("{}{}", all.empty() ? "" : ", ", n);
+        return std::unexpected(std::format("no style is named `{}` (styles: {})", name, all.empty() ? std::string("none") : all));
+    }
+    auto t = compose(st->layers);
+    if (!t) return std::unexpected(std::format("{}: the style `{}` starts from what cannot be composed: {}", st->file, name, t.error()));
+    if (auto r = layer_onto(st->tokens, *t, true); !r) return std::unexpected(r.error());
+    t->name = std::format("{}@{}", t->name, name);
+    return t;
+}
+
 Library& library() {
     static Library l;
     return l;
@@ -181,6 +225,16 @@ std::expected<void, std::string> apply(Runtime& rt, std::span<const std::string>
     auto t = library().compose(layers);
     if (!t) return std::unexpected(t.error());
     rt.set_theme(std::move(*t));
+    return {};
+}
+
+std::expected<void, std::string> apply_style(Runtime& rt, std::string_view name, bool crossfade) {
+    auto t = library().compose_style(name);
+    if (!t) return std::unexpected(t.error());
+    const auto st = library().find_style(name);
+    if (crossfade && st->crossfade > 0) rt.crossfade(seconds(st->crossfade));
+    rt.set_theme(std::move(*t));
+    rt.set_effect_rules(st->effects);
     return {};
 }
 

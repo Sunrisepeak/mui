@@ -480,6 +480,7 @@ void Runtime::Impl::apply_now(NodeId id, std::string_view name, const Value& val
             m.visual.hit = value.as_string() != "none";
         }
     }
+    if (name == "role" && !effect_rules.empty()) apply_rules(id);  // a rule may name its role
     if (in(semantic_props, name)) {
         Node& m = at(id);
         if (name == "disabled") {
@@ -493,38 +494,16 @@ void Runtime::Impl::apply_now(NodeId id, std::string_view name, const Value& val
     }
     if (name == "pixel_effect") {
         Node& g = at(id);
-        g.pixel_effect.reset();
-        if (const Value* fx = value.get("name"); fx && value.map()) {
-            if (auto ref = render::effects().find(fx->as_string())) {
-                std::vector<std::pair<std::string_view, float>> given;
-                for (const auto& [k, v] : *value.map())
-                    if (v.is_number()) given.emplace_back(k, static_cast<float>(v.as_double()));
-                Node::PixelEffectState st;
-                st.effect = *ref;
-                st.params = render::effects().params(*ref, given);
-                if (const render::EffectInfo* info = render::effects().info(*ref))
-                    for (std::size_t i = 0; i < info->params.size(); ++i)
-                        if (info->params[i].name == "progress") st.progress = static_cast<int>(i);
-                st.start = now();
-                if (const Value* d = value.get("duration"); d && d->is_number() && st.progress >= 0) st.duration = seconds(d->as_double());
-                if (const Value* d = value.get("delay"); d && d->is_number()) st.delay = seconds(d->as_double());
-                if (const Value* e = value.get("ease"))
-                    if (auto pe = anim::parse_ease(e->as_string())) st.ease = *pe;
-                if (const Value* r = value.get("reverse")) st.reverse = r->as_bool();
-                g.pixel_effect = std::move(st);
-                if (g.pixel_effect->duration) {
-                    if (!g.state.animating) {
-                        g.state.animating = true;
-                        what |= dirty_semantics;
-                    }
-                    if (std::ranges::find(animating, id) == animating.end()) animating.push_back(id);
-                    frame_requested = true;
-                }
-            } else {
-                warn("pixel_effect: no effect is named '{}' (render::effects().names())", fx->as_string());
+        g.pixel_effect = effect_state(value, "pixel_effect");
+        if (g.pixel_effect && g.pixel_effect->duration) {
+            if (!g.state.animating) {
+                g.state.animating = true;
+                what |= dirty_semantics;
             }
+            if (std::ranges::find(animating, id) == animating.end()) animating.push_back(id);
+            frame_requested = true;
         }
-        touch(what);
+        touch(what | dirty_paint);
         return;
     }
     if (in(motion_props, name)) {
@@ -555,6 +534,53 @@ void Runtime::Impl::apply_now(NodeId id, std::string_view name, const Value& val
         }
     }
     touch(what);
+}
+
+std::optional<Node::PixelEffectState> Runtime::Impl::effect_state(const Value& value, std::string_view where) {
+    const Value* fx = value.get("name");
+    if (!fx || !value.map()) return std::nullopt;
+    const auto ref = render::effects().find(fx->as_string());
+    if (!ref) {
+        warn("{}: no effect is named '{}' (render::effects().names())", where, fx->as_string());
+        return std::nullopt;
+    }
+    std::vector<std::pair<std::string_view, float>> given;
+    for (const auto& [k, v] : *value.map())
+        if (v.is_number()) given.emplace_back(k, static_cast<float>(v.as_double()));
+    Node::PixelEffectState st;
+    st.effect = *ref;
+    st.params = render::effects().params(*ref, given);
+    if (const render::EffectInfo* info = render::effects().info(*ref))
+        for (std::size_t i = 0; i < info->params.size(); ++i)
+            if (info->params[i].name == "progress") st.progress = static_cast<int>(i);
+    st.start = now();
+    if (const Value* d = value.get("duration"); d && d->is_number() && st.progress >= 0) st.duration = seconds(d->as_double());
+    if (const Value* d = value.get("delay"); d && d->is_number()) st.delay = seconds(d->as_double());
+    if (const Value* e = value.get("ease"))
+        if (auto pe = anim::parse_ease(e->as_string())) st.ease = *pe;
+    if (const Value* r = value.get("reverse")) st.reverse = r->as_bool();
+    return st;
+}
+
+// The style's rule for a node: the window's for the root, else its type's,
+// else its role's (D-69).
+void Runtime::Impl::apply_rules(NodeId id) {
+    Node& n = at(id);
+    n.styled_effect.reset();
+    if (effect_rules.empty()) return;
+    Role r = n.type->contract ? n.type->contract->role : n.type->role;
+    if (auto it = n.props.find("role"); it != n.props.end())
+        if (auto parsed = spec::parse_role(it->second.as_string())) r = *parsed;
+    const std::string role = std::format("role:{}", spec::name(r));
+    const EffectRule* best = nullptr;
+    for (const EffectRule& r : effect_rules) {
+        if (id == root ? r.selector == "window" : r.selector == n.type->name) {
+            best = &r;
+            break;
+        }
+        if (id != root && !best && r.selector == role) best = &r;
+    }
+    if (best) n.styled_effect = effect_state(best->effect, std::format("the style's `{}`", best->selector));
 }
 
 void Runtime::Impl::sync_style(NodeId id) {

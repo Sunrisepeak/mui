@@ -76,6 +76,15 @@ inline constexpr std::string_view bounds = "bounds";   // FrameBounds
 inline constexpr std::string_view display = "display"; // render::DisplayList
 }  // namespace frame_resource
 
+// A style's effect on what a selector names (D-69): "window" (the whole
+// window), a component type ("button"), or "role:<role>" ("role:switch").
+// `effect` is written as the pixel_effect property is: {name, params…}. A
+// node's own pixel_effect wins.
+struct EffectRule {
+    std::string selector;
+    Value       effect;
+};
+
 struct FrameInput {
     std::optional<anim::seconds> time;   // virtual and render clocks: the frame's time
     std::vector<InputEvent>      events;
@@ -288,6 +297,12 @@ public:
     void release_frames(std::uint64_t token) noexcept override;
     // What the last frame found frames are wanted for: animations, input in
     // the last 300 ms, timers, the leases (D-70).
+    // The style's effects (they replace the rules before), and a cross-fade
+    // from what is on screen now to what comes, over `length` (a style's or
+    // a theme's change seen as one).
+    void set_effect_rules(std::vector<EffectRule> rules);
+    [[nodiscard]] const std::vector<EffectRule>& effect_rules() const noexcept;
+    void crossfade(seconds length);
     [[nodiscard]] const FrameDemand& frame_demand() const noexcept;
     // The display's refresh rate, as the host last said (0: unknown).
     [[nodiscard]] double display_hz() const noexcept;

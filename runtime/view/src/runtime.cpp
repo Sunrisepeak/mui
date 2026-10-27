@@ -290,6 +290,30 @@ void Runtime::release_frames(std::uint64_t token) noexcept {
 }
 
 const FrameDemand& Runtime::frame_demand() const noexcept { return impl_->demand; }
+
+void Runtime::set_effect_rules(std::vector<EffectRule> rules) {
+    Impl& d = *impl_;
+    d.effect_rules = std::move(rules);
+    std::vector<NodeId> all;
+    walk([&](NodeId id, int) { all.push_back(id); });
+    d.apply_rules(d.root);
+    for (NodeId id : all) d.apply_rules(id);
+    d.touch(dirty_paint);
+}
+
+const std::vector<EffectRule>& Runtime::effect_rules() const noexcept { return impl_->effect_rules; }
+
+void Runtime::crossfade(seconds length) {
+    Impl& d = *impl_;
+    if (!(length.count() > 0) || d.list.commands().empty()) return;
+    render::DisplayList before;
+    before.append(d.list);
+    d.fading = std::move(before);
+    d.fade_start = d.now();
+    d.fade_length = length;
+    d.frame_requested = true;
+    d.touch(dirty_paint);
+}
 double Runtime::display_hz() const noexcept { return impl_->display_hz; }
 
 bool Runtime::deterministic() const { return impl_->clock.kind() != anim::ClockKind::interactive; }

@@ -6,6 +6,7 @@ import std;
 import tomlplusplus;
 import openmui.core;
 import openmui.view;
+import openmui.render;
 import openmui.anim;
 
 namespace omui::theme {
@@ -16,6 +17,8 @@ constexpr std::array<std::string_view, 11> theme_keys{"doc",     "dark",   "exte
                                                       "text",    "spacing", "radius", "shadows", "motion"};
 constexpr std::array<std::string_view, 5> text_keys{"size", "weight", "line_height", "letter_spacing", "families"};
 constexpr std::array<std::string_view, 5> shadow_keys{"x", "y", "blur", "spread", "color"};
+constexpr std::array<std::string_view, 10> style_keys{"doc", "theme", "crossfade", "effects", "colors", "text", "spacing", "radius", "shadows", "motion"};
+constexpr std::array<std::string_view, 4> effect_control_keys{"effect", "duration", "delay", "ease"};
 
 std::size_t distance(std::string_view a, std::string_view b) {
     std::vector<std::size_t> row(b.size() + 1);
@@ -184,6 +187,36 @@ struct Reader {
         if (auto* x = t->get("delay")) out.delay = anim::seconds(number(*x, "delay (ms)", 0).value_or(0) / 1000.0);
         return out;
     }
+
+    // A layer's tokens: colours, text styles, spacing, radii, shadows, motion.
+    void tokens(const toml::table& t, Layer& l) {
+        auto each = [&](std::string_view section, auto&& fn) {
+            if (const toml::node* n = t.get(section)) {
+                if (const toml::table* s = n->as_table())
+                    for (auto&& [name, value] : *s) fn(std::string(name.str()), value);
+                else
+                    error(n, std::format("`{}` must be a table", section));
+            }
+        };
+        each("colors", [&](std::string name, const toml::node& v) {
+            if (auto c = color(v, std::format("colour `{}`", name))) l.colors[name] = *c;
+        });
+        each("text", [&](std::string name, const toml::node& v) {
+            if (auto p = text(v, name)) l.text[name] = std::move(*p);
+        });
+        each("spacing", [&](std::string name, const toml::node& v) {
+            if (auto n = number(v, std::format("spacing `{}`", name), 0)) l.spacing[name] = *n;
+        });
+        each("radius", [&](std::string name, const toml::node& v) {
+            if (auto n = number(v, std::format("radius `{}`", name), 0)) l.radius[name] = *n;
+        });
+        each("shadows", [&](std::string name, const toml::node& v) {
+            if (auto s = shadow(v, name)) l.shadows[name] = *s;
+        });
+        each("motion", [&](std::string name, const toml::node& v) {
+            if (auto m = motion(v, name)) l.motion[name] = *m;
+        });
+    }
 };
 
 }  // namespace
@@ -237,33 +270,124 @@ std::expected<std::vector<Layer>, Diagnostics> read(std::string_view source, std
         if (l.overlay && l.dark)
             r.error(t->get("dark"), std::format("overlay `{}` cannot say whether the theme is dark", l.name), "dark is a theme's: declare a theme that extends one");
         if (!l.extends.empty() && l.extends == l.name) r.error(t->get("extends"), std::format("theme `{}` extends itself", l.name));
-        auto each = [&](std::string_view section, auto&& fn) {
-            if (const toml::node* n = t->get(section)) {
-                if (const toml::table* s = n->as_table())
-                    for (auto&& [name, value] : *s) fn(std::string(name.str()), value);
-                else
-                    r.error(n, std::format("`{}` must be a table", section));
-            }
-        };
-        each("colors", [&](std::string name, const toml::node& v) {
-            if (auto c = r.color(v, std::format("colour `{}`", name))) l.colors[name] = *c;
-        });
-        each("text", [&](std::string name, const toml::node& v) {
-            if (auto p = r.text(v, name)) l.text[name] = std::move(*p);
-        });
-        each("spacing", [&](std::string name, const toml::node& v) {
-            if (auto n = r.number(v, std::format("spacing `{}`", name), 0)) l.spacing[name] = *n;
-        });
-        each("radius", [&](std::string name, const toml::node& v) {
-            if (auto n = r.number(v, std::format("radius `{}`", name), 0)) l.radius[name] = *n;
-        });
-        each("shadows", [&](std::string name, const toml::node& v) {
-            if (auto s = r.shadow(v, name)) l.shadows[name] = *s;
-        });
-        each("motion", [&](std::string name, const toml::node& v) {
-            if (auto m = r.motion(v, name)) l.motion[name] = *m;
-        });
+        r.tokens(*t, l);
         out.push_back(std::move(l));
+    }
+    if (!problems.empty()) return std::unexpected(std::move(problems));
+    return out;
+}
+
+std::expected<std::vector<Style>, Diagnostics> read_styles(std::string_view source, std::string_view file) {
+    Diagnostics problems;
+    toml::table root;
+    try {
+        root = toml::parse(source, std::string(file));
+    } catch (const toml::parse_error& e) {
+        const auto s = e.source();
+        problems.push_back({std::string(file), static_cast<int>(s.begin.line), static_cast<int>(s.begin.column), std::string(e.description()), ""});
+        return std::unexpected(std::move(problems));
+    }
+    Reader r{std::string(file), problems};
+    const toml::table* styles = root["style"].as_table();
+    if (!styles) {
+        r.error(&root, "no [style.<name>] table", "a style file declares one or more [style.<name>]");
+        return std::unexpected(std::move(problems));
+    }
+    for (auto&& [k, v] : root)
+        if (k.str() != "style") r.error(&v, std::format("`{}` is not a table of a style file", k.str()), "a style file holds [style.<name>] tables");
+    std::vector<Style> out;
+    for (auto&& [key, node] : *styles) {
+        Style st;
+        st.name = std::string(key.str());
+        st.file = std::string(file);
+        const toml::table* t = node.as_table();
+        if (!t) {
+            r.error(&node, std::format("style `{}` must be a table", st.name));
+            continue;
+        }
+        if (st.name.empty() || !std::ranges::all_of(st.name, [](char c) { return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_'; }))
+            r.error(&node, std::format("style name `{}` is not lower_snake_case", st.name));
+        r.only(*t, style_keys, std::format("a style (`{}`)", st.name));
+        if (auto s = (*t)["doc"].value<std::string>()) st.doc = *s;
+        if (auto s = (*t)["theme"].value<std::string>()) {
+            // "dark" or "dark+compact": a theme, then overlays.
+            std::string_view rest = *s;
+            while (!rest.empty()) {
+                const auto plus = rest.find('+');
+                st.layers.emplace_back(rest.substr(0, plus));
+                rest = plus == std::string_view::npos ? std::string_view{} : rest.substr(plus + 1);
+            }
+        } else {
+            r.error(t, std::format("style `{}` names no theme to start from", st.name), "theme = \"dark\" (or \"light+compact\")");
+        }
+        if (const toml::node* c = t->get("crossfade")) {
+            auto v = c->value<double>();
+            if (!v || *v < 0 || *v > 5) r.error(c, "crossfade is a number of seconds from 0 to 5", "0.35 is the default");
+            else st.crossfade = *v;
+        }
+        st.tokens.name = std::format("style:{}", st.name);
+        st.tokens.file = st.file;
+        st.tokens.overlay = true;
+        r.tokens(*t, st.tokens);
+        if (const toml::node* e = t->get("effects")) {
+            const toml::table* et = e->as_table();
+            if (!et) r.error(e, "`effects` must be a table", "window = { effect = \"crt\", curvature = 0.08 }");
+            else
+                for (auto&& [sel, rule] : *et) {
+                    const std::string selector(sel.str());
+                    const toml::table* rt = rule.as_table();
+                    if (!rt) {
+                        r.error(&rule, std::format("the effect for `{}` must be a table", selector), "{ effect = \"neon\", radius = 12 }");
+                        continue;
+                    }
+                    const auto name = (*rt)["effect"].value<std::string>();
+                    if (!name) {
+                        r.error(&rule, std::format("the effect for `{}` names no `effect`", selector), "{ effect = \"neon\", … }");
+                        continue;
+                    }
+                    const auto ref = render::effects().find(*name);
+                    if (!ref) {
+                        std::vector<std::string_view> names;
+                        for (std::string_view n : render::effects().names()) names.push_back(n);
+                        std::string_view best;
+                        std::size_t d = std::max<std::size_t>(1, name->size() / 3) + 1;
+                        for (std::string_view n : names)
+                            if (const std::size_t x = distance(*name, n); x < d) d = x, best = n;
+                        r.error(rt->get("effect"), std::format("no effect is named `{}`", *name),
+                                best.empty() ? std::string("render::effects().names() lists them") : std::format("did you mean `{}`?", best));
+                        continue;
+                    }
+                    const render::EffectInfo* info = render::effects().info(*ref);
+                    Value effect = Value{}.set("name", Value(*name));
+                    for (auto&& [pk, pv] : *rt) {
+                        const std::string_view param = pk.str();
+                        if (param == "effect") continue;
+                        if (param == "ease") {
+                            if (auto e = pv.value<std::string>()) effect.set(param, Value(*e));
+                            else r.error(&pv, "`ease` is a name (\"standard\", \"emphasized\" …)");
+                            continue;
+                        }
+                        const bool control = std::ranges::find(effect_control_keys, param) != effect_control_keys.end();
+                        const bool known = control || std::ranges::any_of(info->params, [&](const render::EffectParam& ep) { return ep.name == param; });
+                        if (!known) {
+                            std::string all;
+                            std::string_view best;
+                            std::size_t d = std::max<std::size_t>(1, param.size() / 3) + 1;
+                            for (const auto& ep : info->params) {
+                                all += std::format("{}`{}`", all.empty() ? "" : ", ", ep.name);
+                                if (const std::size_t x = distance(param, ep.name); x < d) d = x, best = ep.name;
+                            }
+                            r.error(&pv, std::format("the effect `{}` has no parameter `{}`", *name, param),
+                                    best.empty() ? std::format("its parameters: {}", all) : std::format("did you mean `{}`?", best));
+                            continue;
+                        }
+                        if (auto n = pv.value<double>()) effect.set(param, Value(*n));
+                        else r.error(&pv, std::format("`{}` is a number", param));
+                    }
+                    st.effects.push_back({selector, std::move(effect)});
+                }
+        }
+        out.push_back(std::move(st));
     }
     if (!problems.empty()) return std::unexpected(std::move(problems));
     return out;

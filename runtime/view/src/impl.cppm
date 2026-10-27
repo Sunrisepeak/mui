@@ -147,6 +147,7 @@ struct Node {
         bool               reverse = false;
     };
     std::optional<PixelEffectState> pixel_effect;
+    std::optional<PixelEffectState> styled_effect;  // what the style's rules give its type or role
     [[nodiscard]] bool effect_moving(seconds now) const noexcept {
         return pixel_effect && pixel_effect->duration && now - pixel_effect->start < *pixel_effect->duration + pixel_effect->delay;
     }
@@ -278,6 +279,11 @@ struct Runtime::Impl {
     FrameDemand                                           demand;
     double                                                display_hz = 0;
     std::shared_ptr<const int>                            life = std::make_shared<const int>(0);  // leases see it expire
+    // A style's effects by window, type or role (D-69), and the cross-fade
+    // from the frame before a change.
+    std::vector<EffectRule>                               effect_rules;
+    std::optional<render::DisplayList>                    fading;
+    seconds                                               fade_start{0}, fade_length{0};
     // The frame as a pipeline of stage plugins (stages.cpp, D-66).
     pipeline::Registry                 registry;
     std::optional<pipeline::Pipeline>  frames;
@@ -324,6 +330,9 @@ struct Runtime::Impl {
 
     // tree (tree.cpp)
     NodeId create(Element& e, NodeId parent);
+    // A pixel effect as a property or a rule writes it ({name, params…, duration…}).
+    std::optional<Node::PixelEffectState> effect_state(const Value& value, std::string_view where);
+    void apply_rules(NodeId id);
     void   destroy(NodeId id);
     std::vector<ChildSlot> reconcile(NodeId parent, std::vector<ChildSlot> old, std::vector<Element>& elements);
     void   run_region(const std::shared_ptr<RegionState>& region);

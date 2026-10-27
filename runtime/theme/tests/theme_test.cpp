@@ -5,6 +5,7 @@ import std;
 import openmui.core;
 import openmui.view;
 import openmui.theme;
+import openmui.render;
 import openmui.testing;
 
 using namespace omui::testing;
@@ -188,6 +189,93 @@ extends = "a"
         check(!bad, "a broken edit is refused");
         auto still = l.compose(L({"one"}));
         check(still && same_color(still->color("text"), Color::hex(0xffffff)), "and changes nothing");
+    });
+
+    s.test("style packs (S2, D-69): tokens over a theme, effects on the window, a type and a role; the semantic tree the same", [&] {
+        const char* neon = R"toml(
+[style.neon]
+doc       = "Light in the dark."
+theme     = "dark"
+crossfade = 0.4
+[style.neon.colors]
+accent = "#22d3ee"
+[style.neon.effects]
+window       = { effect = "crt", curvature = 0.06, scanlines = 0.4 }
+button       = { effect = "neon", radius = 10, intensity = 1.2 }
+"role:group" = { effect = "metaball", smoothness = 12 }
+text         = { effect = "paper", grain = 0.2 }
+)toml";
+        auto added = lib.add_styles(neon, "neon.style.omui.toml");
+        check(added.has_value(), added ? "" : all(added.error()));
+        check(lib.styles() == L({"neon"}));
+        const auto st = lib.find_style("neon");
+        check(st && st->layers == L({"dark"}) && st->effects.size() == 4 && st->crossfade == 0.4);
+        auto t = lib.compose_style("neon");
+        check(t.has_value(), t ? "" : t.error());
+        if (t) {
+            check(t->dark, "over the dark theme");
+            check(same_color(t->color("accent"), Color::hex(0x22d3ee)), "its accent");
+            check_eq(t->name, std::string("dark@neon"));
+        }
+        // On a runtime: the rules reach the window, buttons and groups; nothing else changes.
+        Runtime rt({.size = {200, 120}});
+        auto view = [] {
+            return column({.id = "ui", .padding = 10, .gap = 8},
+                          {box({.id = "cta", .width = 80, .height = 24, .background = "accent", .radius = 12, .on = {{"press", [](const Value&) {}}}}),
+                           text({.text = "Hello"})});
+        };
+        rt.mount("main", view());
+        rt.frame();
+        const auto before = rt.display_list().commands().size();
+        std::vector<spec::SemanticNode> tree_before;
+        for (NodeId id : {rt.find("main"), rt.find("main/cta")}) tree_before.push_back(rt.semantic_node(id));
+        // The library here is the test's: apply through the program's library.
+        check(theme::library().add_file(default_file).has_value() || true);
+        check(theme::library().add_styles(neon, "neon.style.omui.toml").has_value());
+        auto applied = theme::apply_style(rt, "neon");
+        check(applied.has_value(), applied ? "" : applied.error());
+        rt.frame();
+        // Layers with effects: the window's crt at least, and the cross-fade's layer.
+        std::size_t effect_layers = 0, plain_layers = 0;
+        for (const auto& c : rt.display_list().commands())
+            if (const auto* l = std::get_if<render::PushLayer>(&c)) (l->effect.id != 0 ? effect_layers : plain_layers) += 1;
+        check(effect_layers >= 2, std::format("the window's effect and the text's: {} effect layers", effect_layers));
+        check(plain_layers >= 1, "the cross-fade from the frame before");
+        check(rt.display_list().commands().size() > before, "the old frame drawn over, fading");
+        for (std::size_t i = 0; i < tree_before.size(); ++i) {
+            const NodeId id = i == 0 ? rt.find("main") : rt.find("main/cta");
+            const auto now = rt.semantic_node(id);
+            check(now.role == tree_before[i].role && now.name == tree_before[i].name && now.actions == tree_before[i].actions && now.states == tree_before[i].states,
+                  "the same semantic node under the style");
+        }
+        // After the cross-fade, only the style's layers.
+        rt.step_time(seconds(1));
+        rt.frame();
+        rt.frame();
+        std::size_t plain_after = 0;
+        for (const auto& c : rt.display_list().commands())
+            if (const auto* l = std::get_if<render::PushLayer>(&c); l && l->effect.id == 0) ++plain_after;
+        check_eq(plain_after, std::size_t{0});
+        // A style's mistakes, where they are, with the names meant.
+        const char* wrong = R"toml(
+[style.bad]
+theme = "dark"
+[style.bad.effects]
+window = { effect = "crtt" }
+button = { effect = "neon", radios = 3 }
+card   = { radius = 3 }
+)toml";
+        auto bad = theme::read_styles(wrong, "bad.style.omui.toml");
+        check(!bad.has_value(), "refused");
+        if (!bad) {
+            const std::string text = all(bad.error());
+            check(text.contains("bad.style.omui.toml:5") && text.contains("did you mean `crt`?"), text);
+            check(text.contains("bad.style.omui.toml:6") && text.contains("did you mean `radius`?"), text);
+            check(text.contains("bad.style.omui.toml:7") && text.contains("names no `effect`"), text);
+        }
+        auto themeless = theme::read_styles("[style.x]\ndoc = \"no theme\"\n", "x.style.omui.toml");
+        check(!themeless.has_value() && all(themeless.error()).contains("names no theme"), "a style starts from a theme");
+        check(!lib.compose_style("nope").has_value(), "an unknown style");
     });
 
     return s.run(argc, argv);

@@ -5,18 +5,6 @@
 # file must not change depending on which command ran last.
 version = 2
 
-[package."mcpplibs.os"]
-namespace = "mcpplibs"
-version = "0.1.2"
-source  = "index+mcpplibs@0.1.2"
-hash    = "fnv1a:d94d45a50504951a"
-
-[package."nlohmann.json"]
-namespace = "nlohmann"
-version = "3.12.0"
-source  = "index+nlohmann@3.12.0"
-hash    = "fnv1a:65af05f998b1b9d7"
-
 [package."compat.concurrentqueue"]
 namespace = "compat"
 version = "1.0.5"
@@ -35,12 +23,6 @@ version = "1.0.16"
 source  = "index+compat@1.0.16"
 hash    = "fnv1a:e4aa7ab4597277e8"
 
-[package."compat.glx-headers"]
-namespace = "compat"
-version = "1.7.0"
-source  = "index+compat@1.7.0"
-hash    = "fnv1a:8aac59c924aeb90b"
-
 [package."compat.harfbuzz"]
 namespace = "compat"
 version = "14.3.0"
@@ -52,6 +34,48 @@ namespace = "compat"
 version = "1.6.43"
 source  = "index+compat@1.6.43"
 hash    = "fnv1a:b3a219b122077f27"
+
+[package."mcpplibs.os"]
+namespace = "mcpplibs"
+version = "0.1.2"
+source  = "index+mcpplibs@0.1.2"
+hash    = "fnv1a:d94d45a50504951a"
+
+[package."mcpplibs.mwrap.concurrentqueue"]
+namespace = "mcpplibs.mwrap"
+version = "1.0.5"
+source  = "index+mcpplibs.mwrap@1.0.5"
+hash    = "fnv1a:1e68fe4be4b56265"
+
+[package."mcpplibs.mwrap.fribidi"]
+namespace = "mcpplibs.mwrap"
+version = "1.0.16"
+source  = "index+mcpplibs.mwrap@1.0.16"
+hash    = "fnv1a:a718def3fa353576"
+
+[package."mcpplibs.mwrap.harfbuzz"]
+namespace = "mcpplibs.mwrap"
+version = "14.3.0"
+source  = "index+mcpplibs.mwrap@14.3.0"
+hash    = "fnv1a:c38a099cb49d2e5f"
+
+[package."nlohmann.json"]
+namespace = "nlohmann"
+version = "3.12.0"
+source  = "index+nlohmann@3.12.0"
+hash    = "fnv1a:65af05f998b1b9d7"
+
+[package."taskflow.taskflow"]
+namespace = "taskflow"
+version = "4.1.0"
+source  = "index+taskflow@4.1.0"
+hash    = "fnv1a:30640bbab1b45045"
+
+[package."compat.glx-headers"]
+namespace = "compat"
+version = "1.7.0"
+source  = "index+compat@1.7.0"
+hash    = "fnv1a:8aac59c924aeb90b"
 
 [package."compat.lua"]
 namespace = "compat"
@@ -173,24 +197,6 @@ version = "0.0.2"
 source  = "index+mcpplibs@0.0.2"
 hash    = "fnv1a:aad61299abc2c4b7"
 
-[package."mcpplibs.mwrap.concurrentqueue"]
-namespace = "mcpplibs.mwrap"
-version = "1.0.5"
-source  = "index+mcpplibs.mwrap@1.0.5"
-hash    = "fnv1a:1e68fe4be4b56265"
-
-[package."mcpplibs.mwrap.fribidi"]
-namespace = "mcpplibs.mwrap"
-version = "1.0.16"
-source  = "index+mcpplibs.mwrap@1.0.16"
-hash    = "fnv1a:a718def3fa353576"
-
-[package."mcpplibs.mwrap.harfbuzz"]
-namespace = "mcpplibs.mwrap"
-version = "14.3.0"
-source  = "index+mcpplibs.mwrap@14.3.0"
-hash    = "fnv1a:c38a099cb49d2e5f"
-
 [package."mcpplibs.mwrap.libpng"]
 namespace = "mcpplibs.mwrap"
 version = "1.6.43"
@@ -232,10 +238,4 @@ namespace = "mcpplibs"
 version = "0.18.0"
 source  = "index+mcpplibs@0.18.0"
 hash    = "fnv1a:2947b74ddbcf8b79"
-
-[package."taskflow.taskflow"]
-namespace = "taskflow"
-version = "4.1.0"
-source  = "index+taskflow@4.1.0"
-hash    = "fnv1a:30640bbab1b45045"
 

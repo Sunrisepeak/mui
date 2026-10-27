@@ -24,6 +24,7 @@ sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 openmui.core        = { path = "../core" }
 openmui.view        = { path = "../view" }
 openmui.anim        = { path = "../../modules/anim" }
+openmui.render      = { path = "../../modules/render" }
 marzer.tomlplusplus = "3.4.0"
 
 [dev-dependencies]

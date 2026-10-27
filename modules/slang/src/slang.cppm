@@ -55,12 +55,22 @@ struct Program {
     }
 };
 
+// An entry point the caller already knows.
+struct EntryName {
+    std::string name;
+    rhi::Stage  stage = rhi::Stage::fragment;
+};
+
 struct Options {
     std::filesystem::path              slangc;  // empty: find_slangc()
     rhi::ShaderFormats                 formats = rhi::formats({rhi::ShaderFormat::spirv});
     std::vector<std::filesystem::path> includes;
     std::vector<std::string>           defines;  // NAME or NAME=VALUE
     std::filesystem::path              scratch;  // where slangc writes (empty: a temporary directory)
+    // The entry points to compile, when the caller knows them (a shader
+    // reloaded while the program runs): no run to discover them, so the
+    // compile takes one slangc start. Empty: every entry point in the file.
+    std::vector<EntryName>             entries;
 };
 
 // slangc: OMUI_SLANGC, else the one mcpp provisioned for this build

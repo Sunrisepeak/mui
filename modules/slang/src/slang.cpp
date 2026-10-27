@@ -14,6 +14,8 @@ using Json = nlohmann::json;
 
 // ── running slangc ───────────────────────────────────────────────────────
 
+// slangc runs at the same time, each into files of its own (`file`), so
+// what they share is locked.
 struct Run {
     const Options&               options;
     std::filesystem::path        slangc;
@@ -21,8 +23,12 @@ struct Run {
     std::filesystem::path        scratch;
     std::set<std::string>        dependencies;  // UTF-8, as the depfiles name them
     int                          files = 0;
+    std::mutex                   lock;
 
-    std::filesystem::path file(std::string_view ext) { return scratch / std::format("out{}{}", files++, ext); }
+    std::filesystem::path file(std::string_view ext) {
+        std::scoped_lock g(lock);
+        return scratch / std::format("out{}{}", files++, ext);
+    }
 
     // slangc with the common arguments, then `extra`; its depfile is read.
     // `out` empty: what slangc writes goes to its standard output (a run for
@@ -51,7 +57,9 @@ struct Run {
     void read_depfile(const std::filesystem::path& dep) {
         std::ifstream in(dep, std::ios::binary);
         const std::string text((std::istreambuf_iterator<char>(in)), {});
-        for (std::string& d : depfile_prerequisites(text)) dependencies.insert(std::move(d));
+        auto found = depfile_prerequisites(text);
+        std::scoped_lock g(lock);
+        for (std::string& d : found) dependencies.insert(std::move(d));
     }
 };
 
@@ -301,7 +309,7 @@ std::expected<Program, std::string> compile(const std::filesystem::path& source,
         slangc = *found;
     }
     const bool own_scratch = options.scratch.empty();
-    Run run{options, slangc, source, own_scratch ? scratch_dir() : options.scratch, {}, 0};
+    Run run{options, slangc, source, own_scratch ? scratch_dir() : options.scratch, {}, 0, {}};
     std::error_code ec;
     std::filesystem::create_directories(run.scratch, ec);
     struct Cleanup {
@@ -313,30 +321,103 @@ std::expected<Program, std::string> compile(const std::filesystem::path& source,
         }
     } cleanup{own_scratch, run.scratch};
 
-    // The entry points and their resources, from a SPIR-V compile (its
-    // set/binding numbers are the convention's).
-    const auto reflection_file = run.file(".json");
-    {
+    const std::string file_name = os::fs::utf8(source.filename());
+    auto read_json = [](const std::filesystem::path& f) {
+        std::ifstream in(f, std::ios::binary);
+        return Json::parse(in, nullptr, false);
+    };
+
+    // The entry points: the caller's, or every one in the file, found with
+    // the module's resources by a SPIR-V compile (its set/binding numbers
+    // are the convention's).
+    struct Wanted {
+        std::string name;
+        rhi::Stage  stage;
+        Json        reflection;  // the entry's, when its own run reports it
+    };
+    std::vector<Wanted> wanted;
+    Json module_reflection;
+    if (options.entries.empty()) {
+        const auto reflection_file = run.file(".json");
         std::vector<std::string> args = target_args(rhi::ShaderFormat::spirv);
         args.insert(args.end(), {"-reflection-json", os::fs::utf8(reflection_file)});
         if (auto r = run.slangc_run(std::move(args), run.file(".spv")); !r) return std::unexpected(r.error());
+        module_reflection = read_json(reflection_file);
+        if (module_reflection.is_discarded()) return std::unexpected(std::string("slangc wrote reflection that is not JSON"));
+        for (const Json& e : module_reflection.value("entryPoints", Json::array())) {
+            const std::string ename = e.value("name", "");
+            const auto stage = stage_of(e.value("stage", ""));
+            if (!stage)
+                return std::unexpected(std::format("{}: the entry point `{}` is a {} shader; rhi runs vertex, fragment and compute shaders",
+                                                   file_name, ename, e.value("stage", "?")));
+            wanted.push_back({ename, *stage, e});
+        }
+    } else {
+        for (const EntryName& e : options.entries) wanted.push_back({e.name, e.stage, {}});
     }
-    std::ifstream in(reflection_file, std::ios::binary);
-    const Json reflection = Json::parse(in, nullptr, false);
-    if (reflection.is_discarded()) return std::unexpected(std::string("slangc wrote reflection that is not JSON"));
-    auto params = parameters(reflection);
-    if (!params) return std::unexpected(std::format("{}: {}", os::fs::utf8(source.filename()), params.error()));
+    for (const Wanted& w : wanted)
+        if (w.name == "main")
+            return std::unexpected(std::format("{}: an entry point named `main` (Metal reserves it); name it for what it does", file_name));
 
-    // HLSL's registers (what DXBC, DXIL and MSL bind by) must say what the
+    // Every remaining run at once: each entry's SPIR-V (with its reflection,
+    // when discovery did not run), each entry's other formats, and HLSL's
+    // registers (what DXBC, DXIL and MSL bind by), which must say what the
     // Vulkan bindings say.
     const bool registers = options.formats.has(rhi::ShaderFormat::dxbc) || options.formats.has(rhi::ShaderFormat::dxil) ||
                            options.formats.has(rhi::ShaderFormat::msl) || options.formats.has(rhi::ShaderFormat::metallib);
+    struct Job {
+        std::size_t           entry;  // npos: HLSL's registers
+        rhi::ShaderFormat     format;
+        std::filesystem::path out, reflection;
+        std::future<std::expected<void, std::string>> done;
+    };
+    constexpr std::size_t registers_job = std::numeric_limits<std::size_t>::max();
+    std::vector<Job> jobs;
+    auto start = [&](std::size_t entry, rhi::ShaderFormat format, std::vector<std::string> args, std::filesystem::path out,
+                     std::filesystem::path reflection) {
+        if (!reflection.empty()) args.insert(args.end(), {"-reflection-json", os::fs::utf8(reflection)});
+        auto done = std::async(std::launch::async, [&run, args = std::move(args), out]() mutable { return run.slangc_run(std::move(args), out); });
+        jobs.push_back({entry, format, std::move(out), std::move(reflection), std::move(done)});
+    };
+    for (std::size_t i = 0; i < wanted.size(); ++i)
+        for (std::size_t f = 0; f < rhi::shader_format_count; ++f) {
+            const auto format = static_cast<rhi::ShaderFormat>(f);
+            // SPIR-V always: what an entry point uses is read from it.
+            if (format != rhi::ShaderFormat::spirv && !options.formats.has(format)) continue;
+            std::vector<std::string> args{"-entry", wanted[i].name, "-stage", std::string(name(wanted[i].stage))};
+            const auto target = target_args(format);
+            args.insert(args.end(), target.begin(), target.end());
+            const bool reflect = format == rhi::ShaderFormat::spirv && options.entries.size() > 0;
+            start(i, format, std::move(args),
+                  run.file(format == rhi::ShaderFormat::spirv ? ".spv" : format == rhi::ShaderFormat::msl ? ".metal" : ".bin"),
+                  reflect ? run.file(".json") : std::filesystem::path{});
+        }
+    if (registers) start(registers_job, rhi::ShaderFormat::spirv, {"-target", "hlsl"}, {}, run.file(".json"));
+    std::string failure;
+    for (Job& j : jobs)
+        if (auto r = j.done.get(); !r && failure.empty())
+            failure = j.entry == registers_job ? r.error()
+                                               : std::format("{} ({} for {}): {}", file_name, wanted[j.entry].name, name(j.format), r.error());
+    if (!failure.empty()) return std::unexpected(failure);
+
+    // The module's resources: from discovery, or from the first entry's run
+    // (Slang reports every global of the module for each entry).
+    if (module_reflection.is_null()) {
+        for (const Job& j : jobs)
+            if (j.entry == 0 && !j.reflection.empty()) module_reflection = read_json(j.reflection);
+        if (module_reflection.is_discarded() || module_reflection.is_null()) return std::unexpected(std::string("slangc wrote reflection that is not JSON"));
+        for (Wanted& w : wanted)
+            for (const Job& j : jobs)
+                if (j.entry != registers_job && &wanted[j.entry] == &w && !j.reflection.empty()) {
+                    const Json r = read_json(j.reflection);
+                    for (const Json& e : r.value("entryPoints", Json::array()))
+                        if (e.value("name", "") == w.name) w.reflection = e;
+                }
+    }
+    auto params = parameters(module_reflection);
+    if (!params) return std::unexpected(std::format("{}: {}", file_name, params.error()));
     if (registers) {
-        const auto hlsl_reflection = run.file(".json");
-        if (auto r = run.slangc_run({"-target", "hlsl", "-reflection-json", os::fs::utf8(hlsl_reflection)}, {}); !r)
-            return std::unexpected(r.error());
-        std::ifstream hin(hlsl_reflection, std::ios::binary);
-        const Json hlsl = Json::parse(hin, nullptr, false);
+        const Json hlsl = read_json(std::ranges::find(jobs, registers_job, &Job::entry)->reflection);
         for (const Json& p : hlsl.value("parameters", Json::array())) {
             const std::string pname = p.value("name", "");
             auto it = params->find(pname);
@@ -351,9 +432,8 @@ std::expected<Program, std::string> compile(const std::filesystem::path& source,
                     const char reg = k == "samplerState" ? 's' : k == "unorderedAccess" ? 'u' : k == "constantBuffer" ? 'b' : 't';
                     return std::unexpected(std::format("{}: `{}` is at set {}, binding {} for Vulkan but at register({}{}, space{}) for D3D "
                                                        "and Metal; write both: {}",
-                                                       os::fs::utf8(source.filename()), pname, it->second.binding.space,
-                                                       it->second.binding.index, reg, h.index, h.space,
-                                                       annotation(it->second.binding, it->second.kind)));
+                                                       file_name, pname, it->second.binding.space, it->second.binding.index, reg, h.index,
+                                                       h.space, annotation(it->second.binding, it->second.kind)));
                 }
             }
         }
@@ -361,29 +441,18 @@ std::expected<Program, std::string> compile(const std::filesystem::path& source,
 
     Program program;
     program.source = source;
-    for (const Json& e : reflection.value("entryPoints", Json::array())) {
+    for (std::size_t i = 0; i < wanted.size(); ++i) {
         Entry entry;
-        entry.name = e.value("name", "");
-        const auto stage = stage_of(e.value("stage", ""));
-        if (!stage)
-            return std::unexpected(std::format("{}: the entry point `{}` is a {} shader; rhi runs vertex, fragment and compute shaders",
-                                               os::fs::utf8(source.filename()), entry.name, e.value("stage", "?")));
-        entry.stage = *stage;
-        if (entry.name == "main")
-            return std::unexpected(std::format("{}: an entry point named `main` (Metal reserves it); name it for what it does",
-                                               os::fs::utf8(source.filename())));
+        entry.name = wanted[i].name;
+        entry.stage = wanted[i].stage;
+        std::optional<std::vector<std::byte>> spirv;
+        for (const Job& j : jobs)
+            if (j.entry == i && j.format == rhi::ShaderFormat::spirv) {
+                auto bytes = read_bytes(j.out);
+                if (!bytes) return std::unexpected(bytes.error());
+                spirv = std::move(*bytes);
+            }
         // What the entry point uses, from its own SPIR-V.
-        const auto spirv_args = [&] {
-            std::vector<std::string> a{"-entry", entry.name, "-stage", std::string(name(entry.stage))};
-            const auto t = target_args(rhi::ShaderFormat::spirv);
-            a.insert(a.end(), t.begin(), t.end());
-            return a;
-        }();
-        const auto spirv_file = run.file(".spv");
-        if (auto r = run.slangc_run(spirv_args, spirv_file); !r)
-            return std::unexpected(std::format("{} ({} for spirv): {}", os::fs::utf8(source.filename()), entry.name, r.error()));
-        auto spirv = read_bytes(spirv_file);
-        if (!spirv) return std::unexpected(spirv.error());
         const auto reached = bindings_in(*spirv);
         std::vector<Parameter> used;
         for (const auto& [pname, p] : *params)
@@ -392,23 +461,18 @@ std::expected<Program, std::string> compile(const std::filesystem::path& source,
         if (!counts) return std::unexpected(counts.error());
         entry.counts = *counts;
         if (entry.stage == rhi::Stage::compute) {
-            const Json size = e.value("threadGroupSize", Json::array());
-            for (std::size_t i = 0; i < 3 && i < size.size(); ++i) entry.threads[i] = size[i].get<std::uint32_t>();
+            const Json size = wanted[i].reflection.value("threadGroupSize", Json::array());
+            for (std::size_t k = 0; k < 3 && k < size.size(); ++k) entry.threads[k] = size[k].get<std::uint32_t>();
         }
         for (std::size_t f = 0; f < rhi::shader_format_count; ++f) {
             const auto format = static_cast<rhi::ShaderFormat>(f);
             if (!options.formats.has(format)) continue;
-            std::vector<std::string> args{"-entry", entry.name, "-stage", std::string(name(entry.stage))};
-            const auto target = target_args(format);
-            args.insert(args.end(), target.begin(), target.end());
             if (format == rhi::ShaderFormat::spirv) {
                 entry.code.push_back({format, *spirv});
                 continue;
             }
-            const auto out = run.file(format == rhi::ShaderFormat::msl ? ".metal" : ".bin");
-            if (auto r = run.slangc_run(std::move(args), out); !r)
-                return std::unexpected(std::format("{} ({} for {}): {}", os::fs::utf8(source.filename()), entry.name, name(format), r.error()));
-            auto bytes = read_bytes(out);
+            const auto job = std::ranges::find_if(jobs, [&](const Job& j) { return j.entry == i && j.format == format; });
+            auto bytes = read_bytes(job->out);
             if (!bytes) return std::unexpected(bytes.error());
             if (format == rhi::ShaderFormat::msl) {
                 // Metal compiles source with fast math unless the source says

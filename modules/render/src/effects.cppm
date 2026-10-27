@@ -34,6 +34,9 @@ export import :chromatic_shaders;
 export import :blur_shaders;
 export import :pixelate_shaders;
 export import :particles_shaders;
+// The template's text (effects/lib/openmui_effect.slang), for a program's
+// effects compiled while it runs (openmui.effect).
+export import :effect_template;
 
 export namespace omui::render {
 
@@ -84,11 +87,14 @@ struct EffectInfo {
     std::string_view         doc;
     std::vector<EffectParam> params;
     // How far, in logical pixels, the effect may move pixels outside the layer.
-    float (*reach)(std::span<const float> params) = nullptr;
+    std::function<float(std::span<const float> params)> reach;
     void (*cpu)(const EffectInput& in) = nullptr;
     EffectGpu                gpu;
-    // Strings the entry owns (a program's effect loaded from files): name,
-    // doc and parameter names point into it.
+    // A program's effect loaded from files (openmui.effect): the file it came
+    // from, and what the entry owns — name, doc, parameter names and the
+    // shader point into it. Empty for the built-ins and effects registered
+    // in code.
+    std::string_view            source;
     std::shared_ptr<const void> storage;
 };
 

@@ -177,5 +177,16 @@ int main(int argc, char** argv) {
         check(seen >= 2, "default and compact at least");
     });
 
+    s.test("the effect template the renderer carries is current (modules/render)", [] {
+        const auto render = spec_dir().parent_path() / "modules" / "render";
+        std::ifstream in(render / "effects" / "lib" / "openmui_effect.slang", std::ios::binary);
+        const std::string text{std::istreambuf_iterator<char>(in), {}};
+        check(!text.empty(), "effects/lib/openmui_effect.slang");
+        check(read(render / "src" / "generated" / "effect_template.cppm") ==
+                  gen::emit_embed(text, "openmui_effect.slang", "openmui.render", "omui::render", "effect_template"),
+              "modules/render: run omui-gen embed modules/render/effects/lib/openmui_effect.slang --module openmui.render --name effect_template "
+              "--namespace omui::render --out modules/render/src/generated");
+    });
+
     return s.run(argc, argv);
 }

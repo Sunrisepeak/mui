@@ -66,6 +66,29 @@ int main(int argc, char** argv) {
         check(rhi::check(d, rhi::formats({rhi::ShaderFormat::spirv})).empty() && d.samplers == 1 && d.entry == "quad_fs");
     });
 
+    s.test("entries the caller names: the same program as discovery's, in one slangc start", [] {
+        const auto formats = rhi::formats({rhi::ShaderFormat::spirv, rhi::ShaderFormat::msl});
+        auto found = slang::compile(data("quad.slang"), {.formats = formats});
+        const auto from = std::chrono::steady_clock::now();
+        auto named = slang::compile(data("quad.slang"), {.formats = formats,
+                                                         .entries = {{"quad_vs", rhi::Stage::vertex}, {"quad_fs", rhi::Stage::fragment}}});
+        const auto took = std::chrono::steady_clock::now() - from;
+        check(found.has_value() && named.has_value(), named ? "" : named.error());
+        if (!found || !named) return;
+        check_eq(named->entries.size(), std::size_t{2});
+        for (const slang::Entry& e : found->entries) {
+            const slang::Entry* n = named->entry(e.name);
+            check(n && n->stage == e.stage && n->counts == e.counts && n->code.size() == e.code.size(), e.name);
+            if (!n) continue;
+            for (std::size_t i = 0; i < e.code.size() && i < n->code.size(); ++i)
+                check(n->code[i].format == e.code[i].format && n->code[i].bytes == e.code[i].bytes, std::format("{}: the same bytes", e.name));
+        }
+        std::println("  named entries, SPIR-V and MSL: {} ms", std::chrono::duration_cast<std::chrono::milliseconds>(took).count());
+        // A name the file does not have is slangc's error, with the name.
+        auto missing = slang::compile(data("quad.slang"), {.entries = {{"nope_fs", rhi::Stage::fragment}}});
+        check(!missing && missing.error().contains("nope_fs"), missing ? "" : missing.error());
+    });
+
     s.test("a compute shader: its work group, what it reads and writes", [] {
         auto p = slang::compile(data("blur.slang"));
         check(p.has_value(), p ? "" : p.error());

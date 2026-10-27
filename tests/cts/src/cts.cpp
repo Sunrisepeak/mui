@@ -22,7 +22,7 @@ std::string show(const Json& v) {
 }
 
 const Json* recorded(const Json& record) {
-    for (const char* k : {"act", "invoke", "get", "rows", "native", "error"})
+    for (const char* k : {"act", "invoke", "get", "rows", "native", "theme", "themes", "error"})
         if (record.contains(k)) return &record[k];
     return nullptr;
 }

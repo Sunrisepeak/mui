@@ -31,4 +31,6 @@ compat.quickjs-ng = "0.17.0"
 openmui.testing = { path = "../../tests/support" }
 openmui.cts     = { path = "../../tests/cts" }
 openmui.native.fuzzy = { path = "../../natives/fuzzy" }
+openmui.theme.default = { path = "../../themes/default" }
+openmui.theme.compact = { path = "../../themes/compact" }
 openmui.ui.base = { path = "../../components/base" }

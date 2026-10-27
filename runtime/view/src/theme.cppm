@@ -32,6 +32,9 @@ class Theme {
 public:
     std::string name = "light";
     bool        dark = false;
+    // How dense controls are: their heights, paddings and items scale by it
+    // (1, the default; 0.8, compact). Whole pixels: see scaled().
+    float       density = 1;
     std::map<std::string, Color, std::less<>>       colors;
     std::map<std::string, TextToken, std::less<>>   text;
     std::map<std::string, float, std::less<>>       spacing;
@@ -45,6 +48,8 @@ public:
     [[nodiscard]] float space(std::string_view token, float fallback = 0) const;
     [[nodiscard]] float corner(std::string_view token, float fallback = 0) const;
     [[nodiscard]] Transition transition(std::string_view token) const;
+    // A control's metric at this density, in whole pixels (exactly v at 1).
+    [[nodiscard]] float scaled(float v) const noexcept { return density == 1 ? v : std::round(v * density); }
 
     [[nodiscard]] static Theme light();
     [[nodiscard]] static Theme dark_theme();

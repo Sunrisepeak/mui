@@ -130,6 +130,13 @@ public:
     };
     Result<void> verb(VerbSpec spec, std::function<Result<Json>(const Json& args)> fn);
 
+    // ── themes (openmui.theme) ──
+    // Composes the runtime's theme: a theme, then overlays ({"dark", "compact"}).
+    // Why not, as "not-found: …" or "invalid-argument: …"; the theme stays.
+    Result<void> theme(const std::vector<std::string>& layers);
+    // {"themes": […], "overlays": […], "current": "dark+compact", "dark": true}
+    [[nodiscard]] Json themes();
+
     // ── native modules (component-binding §8) ──
     // The catalogue (omuiNativeCatalog): {"modules": {name: {types, functions}}}.
     [[nodiscard]] Json natives();

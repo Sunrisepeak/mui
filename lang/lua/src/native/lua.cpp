@@ -748,6 +748,34 @@ int l_log(lua_State* L, Script::Impl&) {
     return 0;
 }
 
+// omui.theme("dark", "compact") or omui.theme{ "dark", "compact" }: a theme,
+// then overlays (openmui.theme); true, or nil and why.
+int l_theme(lua_State* L, Script::Impl& s) {
+    std::vector<std::string> layers;
+    if (lua_type(L, 1) == LUA_TTABLE) {
+        const lua_Integer n = static_cast<lua_Integer>(lua_rawlen(L, 1));
+        for (lua_Integer i = 1; i <= n; ++i) {
+            lua_rawgeti(L, 1, i);
+            if (lua_type(L, -1) == LUA_TSTRING) layers.emplace_back(lua_tostring(L, -1));
+            lua_pop(L, 1);
+        }
+    } else {
+        for (int i = 1; i <= lua_gettop(L); ++i)
+            if (lua_type(L, i) == LUA_TSTRING) layers.emplace_back(lua_tostring(L, i));
+    }
+    if (layers.empty()) return raise(L, "omui.theme(\"dark\", \"compact\"): a theme, then overlays");
+    auto r = s.session.theme(layers);
+    if (!r) return failed(L, r.error().text());
+    lua_pushboolean(L, 1);
+    return 1;
+}
+
+// omui.themes(): { themes = {…}, overlays = {…}, current = "dark+compact", dark = true }
+int l_themes(lua_State* L, Script::Impl& s) {
+    push_json(L, s.session.themes());
+    return 1;
+}
+
 // omui.native.<module>.<function>(…): a native module's function
 // (component-binding §8), its arguments positional in the contract's order.
 // It answers the result (omui.null for nothing), or nil and why. An `async`
@@ -868,6 +896,8 @@ int open_module(lua_State* L) {
     set_function(L, s, "find", entry<l_find>);
     set_function(L, s, "model", entry<l_model>);
     set_function(L, s, "log", entry<l_log>);
+    set_function(L, s, "theme", entry<l_theme>);
+    set_function(L, s, "themes", entry<l_themes>);
     lua_pushlightuserdata(L, nullptr);
     lua_setfield(L, -2, "null");
     // omui.native.fuzzy …: native modules, by the catalogue.

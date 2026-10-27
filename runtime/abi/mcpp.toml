@@ -37,6 +37,7 @@ openmui.render   = { path = "../../modules/render" }
 openmui.raster   = { path = "../../modules/raster" }
 openmui.text     = { path = "../../modules/text" }
 openmui.native   = { path = "../native" }
+openmui.theme    = { path = "../theme" }
 nlohmann.json    = "3.12.0"
 
 [dev-dependencies]

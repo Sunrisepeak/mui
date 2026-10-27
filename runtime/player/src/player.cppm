@@ -33,6 +33,8 @@ struct Manifest {
     std::filesystem::path              base;        // the paths below are relative to it
     std::vector<std::filesystem::path> components;  // component documents, defined first
     std::vector<std::filesystem::path> views;       // view documents, mounted at their files' stems
+    std::vector<std::filesystem::path> themes;      // theme files (*.theme.omui.toml), added to the program's library
+    std::vector<std::string>           theme;       // the composition to start with: a theme, then overlays
     std::vector<Script>                scripts;
 };
 

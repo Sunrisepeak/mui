@@ -51,10 +51,10 @@ void Button::prop_changed(ButtonProp p) {
 
 void Button::restyle() { label_.set_style("label"); }
 
-void Button::style(const Theme&, layout::Style& s) const {
-    s.padding = {0, padding_x, 0, padding_x};
-    s.min_height = layout::pt(height);
-    s.min_width = layout::pt(height);
+void Button::style(const Theme& theme, layout::Style& s) const {
+    s.padding = {0, theme.scaled(padding_x), 0, theme.scaled(padding_x)};
+    s.min_height = layout::pt(theme.scaled(height));
+    s.min_width = layout::pt(theme.scaled(height));
 }
 
 Size Button::measure(MeasureContext& m, std::optional<float> width, std::optional<float>, layout::Available, layout::Available) {

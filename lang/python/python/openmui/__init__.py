@@ -42,7 +42,7 @@ from . import _openmui as _n
 __all__ = [
     "OmuiError", "Expr", "Signal", "Element", "signal", "fmt", "call", "select", "tr", "eq", "ne", "lt", "le", "gt", "ge",
     "and_", "or_", "not_", "when", "each", "slot", "element", "mount", "mount_document", "unmount", "document", "verb", "invoke", "act",
-    "snapshot", "model", "find", "run", "settle", "step", "png", "pixels", "log", "reload", "native",
+    "snapshot", "model", "find", "run", "settle", "step", "png", "pixels", "log", "reload", "native", "theme", "themes",
 ]
 
 
@@ -554,6 +554,16 @@ def png(file):
 def pixels():
     """The last frame's pixels as the hash tests pin: FNV-1a over the RGBA rows, 16 hex digits (headless)."""
     return _native(_n.pixels)
+
+
+def theme(*layers):
+    """The runtime's theme: a theme, then overlays — ``omui.theme("dark", "compact")``. A refusal is OmuiError; the theme stays."""
+    _native(_n.theme, _dump([str(l) for l in layers]))
+
+
+def themes():
+    """The themes and overlays there are, and the composition now: ``{"themes", "overlays", "current", "dark"}``."""
+    return _json.loads(_n.themes())
 
 
 def log(*values):

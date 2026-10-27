@@ -162,6 +162,11 @@ class Runner:
                 return {"step": i, "get": self.signals[st["get"]].get()}
             if "rows" in st:
                 return {"step": i, "rows": omui.model(st["rows"]).rows()}
+            if "theme" in st:
+                omui.theme(*st["theme"])
+                return {"step": i, "theme": "ok"}
+            if "themes" in st:
+                return {"step": i, "themes": omui.themes()}
             if "native" in st and "into" not in st:
                 try:
                     function = _native(st["native"])
@@ -184,6 +189,8 @@ class Runner:
             if r is not None:
                 out.append(r)
         omui.unmount("main")
+        if any("theme" in st for st in self.s["steps"]):
+            omui.theme("light")  # the world goes on: as it was
         for name in self.s.get("models", {}):
             omui.model(name).clear()
         return out
@@ -216,7 +223,7 @@ def expectations(scenario, trace):
                     if got != want:
                         out.append(f"step {i}: {node}.{k} is {got!r}, not {want!r}")
         else:
-            got = next((r[k] for k in ("act", "invoke", "get", "rows", "native", "error") if k in r), None)
+            got = next((r[k] for k in ("act", "invoke", "get", "rows", "native", "theme", "themes", "error") if k in r), None)
             if got != st["expect"]:
                 out.append(f"step {i}: {got!r}, not {st['expect']!r}")
     return out

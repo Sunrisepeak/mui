@@ -46,6 +46,8 @@ OmuiResult omuiModelRows(OmuiRuntime rt, OmuiString model, std::uint32_t from, s
 OmuiResult omuiCatalog(OmuiRuntime rt, PFN_omuiSink sink, void* user) noexcept;
 OmuiResult omuiNativeCatalog(OmuiRuntime rt, PFN_omuiSink sink, void* user) noexcept;
 OmuiResult omuiNativeCall(OmuiRuntime rt, OmuiString module_name, OmuiString function_name, OmuiString args_json, PFN_omuiSink sink, void* user) noexcept;
+OmuiResult omuiTheme(OmuiRuntime rt, OmuiString layers_json, PFN_omuiSink sink, void* user) noexcept;
+OmuiResult omuiThemes(OmuiRuntime rt, PFN_omuiSink sink, void* user) noexcept;
 
 }  // extern "C"
 

@@ -60,6 +60,13 @@ struct CppOptions {
 [[nodiscard]] std::string emit_native_pyi(const NativeModule& m, std::string_view module);
 [[nodiscard]] std::string emit_native_lua(const std::vector<NativeModule>& modules, std::string_view module);
 
+// A data file as a module partition `<module>:<name>`, its text an exported
+// `inline constexpr std::string_view <name>` in namespace `ns`: how a package
+// carries a theme, a document or a table in its code, generated, never
+// copied by hand.
+[[nodiscard]] std::string emit_embed(std::string_view text, std::string_view source, std::string_view module, std::string_view ns,
+                                     std::string_view name);
+
 // The JSON Schema fragment of view documents for a contract set: one
 // definition per component type with its properties and events.
 [[nodiscard]] std::string emit_view_schema(const std::vector<Contract>& contracts, std::string_view module);

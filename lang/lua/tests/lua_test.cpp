@@ -12,6 +12,9 @@ import openmui.testing;
 import openmui.cts;
 import openmui.native;
 import openmui.native.fuzzy;
+import openmui.theme;
+import openmui.theme.default_theme;
+import openmui.theme.compact;
 
 using namespace omui::testing;
 using namespace omui::abi;
@@ -286,6 +289,7 @@ assert(not ok3 and err3:find("pattern"), err3)
 
     s.test("CTS level S: every scenario records its pinned trace (spec/conformance/S, tests/cts.lua)", [] {
         if (!omui::native::find("fuzzy")) check(omui::natives::fuzzy::define().has_value(), "the official native module");
+        check(omui::themes::add_default().has_value() && omui::themes::add_compact().has_value(), "the official themes");
         auto all = omui::cts::scenarios();
         check(all.has_value() && all->size() >= 3, all ? "fewer than three scenarios" : all.error());
         if (!all) return;

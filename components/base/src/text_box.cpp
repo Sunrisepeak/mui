@@ -68,7 +68,7 @@ void TextBox::prop_changed(TextBoxProp p) {
 
 void TextBox::restyle() { paragraph_dirty_ = true; }
 
-void TextBox::style(const Theme&, layout::Style& s) const {
+void TextBox::style(const Theme& theme, layout::Style& s) const {
     s.padding = {pad_y, pad_x, pad_y, pad_x};
     s.border = Insets::all(1);
     s.min_height = layout::pt(36);

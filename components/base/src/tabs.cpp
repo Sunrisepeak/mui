@@ -105,9 +105,9 @@ void Tab::prop_changed(TabProp p) {
     }
 }
 
-void Tab::style(const Theme&, layout::Style& s) const {
-    s.padding = {0, pad_x, 0, pad_x};
-    s.min_height = layout::pt(tab_h);
+void Tab::style(const Theme& theme, layout::Style& s) const {
+    s.padding = {0, theme.scaled(pad_x), 0, theme.scaled(pad_x)};
+    s.min_height = layout::pt(theme.scaled(tab_h));
 }
 
 Size Tab::measure(MeasureContext& m, std::optional<float>, std::optional<float>, layout::Available, layout::Available) {

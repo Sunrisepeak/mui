@@ -64,6 +64,8 @@ Each step runs once the runtime has settled after the previous one.
 | `{"get": "count"}` | `{"get": value}` |
 | `{"rows": "notes"}` | `{"rows": [rows]}` |
 | `{"native": "fuzzy.match", "args": [...]}` | `{"native": result}` or `{"error": code}` |
+| `{"theme": ["dark", "compact"]}` | `{"theme": "ok"}` or `{"error": code}` (openmui.theme: a theme, then overlays) |
+| `{"themes": true}` | `{"themes": {themes, overlays, current, dark}}` |
 | `{"set": …}`, `{"add": …}`, `{"push": …}`, `{"remove": …}`, `{"change": …}` | nothing; the action is done |
 
 Every record also carries `"step"`, the step's index. `"expect"` on a step is checked as well as the trace:

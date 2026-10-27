@@ -25,6 +25,7 @@ openmui.core    = { path = "../core" }
 openmui.view    = { path = "../view" }
 openmui.viewdoc = { path = "../viewdoc" }
 openmui.abi     = { path = "../abi" }
+openmui.theme   = { path = "../theme" }
 openmui.trace   = { path = "../../modules/trace" }
 
 [dev-dependencies]

@@ -32,6 +32,8 @@ openmui.lang.python = { path = "../../../lang/python" }  # and openmui.lang, thr
 openmui.ui.markdown = { path = "../../../components/markdown" }
 openmui.image       = { path = "../../../modules/image" }
 openmui.native.fuzzy = { path = "../../../natives/fuzzy" }
+openmui.theme.default = { path = "../../../themes/default" }
+openmui.theme.compact = { path = "../../../themes/compact" }
 nlohmann.json       = "3.12.0"
 mcpplibs.os         = "0.1.2"
 

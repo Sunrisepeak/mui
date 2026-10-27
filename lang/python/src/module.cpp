@@ -193,6 +193,23 @@ PyObject* f_signal_watch(PyObject*, PyObject* args) {
     return none();
 }
 
+// The runtime's theme (openmui.theme): a JSON list of layers; the list of themes.
+PyObject* f_theme(PyObject*, PyObject* args) {
+    auto layers = str_arg(args, 0);
+    if (!layers) return arguments("theme(layers_json)");
+    std::vector<std::string> l;
+    for (const Json& x : parse(*layers))
+        if (x.is_string()) l.push_back(x.get<std::string>());
+    auto r = on_script([&] { return state().session->theme(l); });
+    if (!r) return raise(r.error().text());
+    return none();
+}
+
+PyObject* f_themes(PyObject*, PyObject*) {
+    const std::string out = on_script([&] { return state().session->themes().dump(); });
+    return str(out);
+}
+
 // Native modules (component-binding §8): the catalogue, and a call. A call
 // runs here, with the GIL released: a native touches no runtime state, and
 // Python's thread is not the runtime's.
@@ -473,6 +490,8 @@ PyObject* create_module(Session& session, Hooks hooks) {
         {"signal_watch", f_signal_watch, METH_VARARGS, "signal_watch(handle, fn(json))"},
         {"catalog", f_catalog, METH_NOARGS, "catalog() -> json: the registered components"},
         {"natives", f_natives, METH_NOARGS, "natives() -> json: the registered native modules"},
+        {"theme", f_theme, METH_VARARGS, "theme(layers_json): a theme, then overlays"},
+        {"themes", f_themes, METH_NOARGS, "themes() -> json: the themes, overlays and the current composition"},
         {"native", f_native, METH_VARARGS, "native(module, function, args_json) -> json: a native module's function"},
         {"mount", f_mount, METH_VARARGS, "mount(slot, tree_json, handlers)"},
         {"mount_document", f_mount_document, METH_VARARGS, "mount_document(slot, text): a *.view.omui.json"},

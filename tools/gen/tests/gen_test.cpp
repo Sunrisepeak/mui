@@ -155,5 +155,27 @@ int main(int argc, char** argv) {
         check(seen >= 1, "natives/fuzzy at least");
     });
 
+    s.test("the theme packages' embedded files are current (themes/*)", [] {
+        const auto root = spec_dir().parent_path() / "themes";
+        std::error_code ec;
+        int seen = 0;
+        for (const auto& pkg : std::filesystem::directory_iterator(root, ec)) {
+            const std::string name = gen::generic_utf8(pkg.path().filename());
+            const auto file = pkg.path() / (name + ".theme.omui.toml");
+            if (!std::filesystem::exists(file)) continue;
+            ++seen;
+            std::ifstream in(file, std::ios::binary);
+            const std::string text{std::istreambuf_iterator<char>(in), {}};
+            // A module name is identifiers: `default` (a keyword) is `default_theme`.
+            const std::string module = name == "default" ? "openmui.theme.default_theme" : "openmui.theme." + name;
+            const std::string want = gen::emit_embed(text, name + ".theme.omui.toml", module, "omui::themes", name + "_theme");
+            check(read(pkg.path() / "src" / "generated" / (name + "_theme.cppm")) == want,
+                  std::format("themes/{0}: run omui-gen embed themes/{0}/{0}.theme.omui.toml --module {1} --namespace omui::themes "
+                              "--name {0}_theme --out themes/{0}/src/generated",
+                              name, module));
+        }
+        check(seen >= 2, "default and compact at least");
+    });
+
     return s.run(argc, argv);
 }

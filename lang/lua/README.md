@@ -33,3 +33,5 @@ Lua errors unwind with `longjmp`, so no entry point raises while a C++ object is
 The conformance scenarios (`spec/conformance/S`, CTS level S) run in Lua through `tests/cts.lua`. It builds each view with the Lua builders and metamethods and does the steps through `omui.act`, `omui.invoke` and the rest. It must record the trace pinned beside each scenario, which Python and JavaScript record too.
 
 **Native modules** (component-binding §8) are made from the program's catalogue, with no binding written by hand: `omui.native.fuzzy.rank(q, files, 20)`: positional arguments in the contract's order; it answers the result, or `nil, why`. An `async` function is called synchronously (Lua has no promises).
+
+**Themes** (openmui.theme): a theme, then overlays — `omui.theme("dark", "compact")` (true, or nil and why) and `omui.themes()`.

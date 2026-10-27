@@ -326,3 +326,11 @@ doc = "The native modules the program registered (component-binding §8), as JSO
 name = "omuiNativeCall"
 params = [ { name = "rt", type = "OmuiRuntime" }, { name = "module_name", type = "OmuiString" }, { name = "function_name", type = "OmuiString" }, { name = "args_json", type = "OmuiString" }, { name = "sink", type = "PFN_omuiSink" }, { name = "user", type = "void*" } ]
 doc = "Calls a native module's function on the calling thread (any thread: it touches no runtime state). The arguments are a JSON list in the contract's order or an object by name, and are checked against the contract; the sink receives an envelope with the result as data, or an error record (invalid-argument, not-found, failed)."
+[[function]]
+name = "omuiTheme"
+params = [ { name = "rt", type = "OmuiRuntime" }, { name = "layers_json", type = "OmuiString" }, { name = "sink", type = "PFN_omuiSink" }, { name = "user", type = "void*" } ]
+doc = "Composes a theme from the program's theme library and gives it to the runtime: a JSON list, a theme then overlays ([\"dark\", \"compact\", \"reduced_motion\"]). Every component follows on the next frame; the semantic tree is the same. A name no theme file declares is not found; a composition that cannot be made is an invalid argument; either way the sink receives why and the theme stays."
+[[function]]
+name = "omuiThemes"
+params = [ { name = "rt", type = "OmuiRuntime" }, { name = "sink", type = "PFN_omuiSink" }, { name = "user", type = "void*" } ]
+doc = "The program's themes and overlays and the runtime's composition, as JSON: {\"themes\": [\"dark\", \"light\"], \"overlays\": [\"compact\"], \"current\": \"dark+compact\", \"dark\": true}."

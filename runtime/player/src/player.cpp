@@ -4,6 +4,7 @@ import std;
 import openmui.core;
 import openmui.view;
 import openmui.abi;
+import openmui.theme;
 import openmui.trace;
 
 namespace omui::player {
@@ -47,7 +48,7 @@ std::string diagnostics_text(std::string_view ndjson, std::string_view file) {
 
 struct Player::Impl {
     struct File {
-        enum class Kind : std::uint8_t { component, view, script };
+        enum class Kind : std::uint8_t { component, view, script, theme };
         Kind                              kind = Kind::view;
         std::filesystem::path             path;
         std::filesystem::file_time_type   stamp{};
@@ -108,6 +109,30 @@ struct Player::Impl {
         return true;
     }
 
+    // A theme file into the program's library (again: a saved edit, which
+    // replaces what it declared); the runtime's composition is made again.
+    bool add_theme(File& f, bool again) {
+        auto text = read_file(full(f.path));
+        if (!text) {
+            problem(std::format("{}: cannot be read", name(f.path)));
+            return false;
+        }
+        if (auto r = theme::library().add(*text, name(f.path)); !r) {
+            std::string all;
+            for (const auto& x : r.error()) all += x.text() + "\n";
+            problem(all);
+            return false;
+        }
+        if (!again) return true;
+        std::vector<std::string> layers;
+        for (auto part : rt.theme().name | std::views::split('+')) layers.emplace_back(part.begin(), part.end());
+        if (auto r = theme::apply(rt, layers); !r) {
+            problem(std::format("{}: {}", name(f.path), r.error()));
+            return false;
+        }
+        return true;
+    }
+
     bool mount(File& f) {
         auto text = read_file(full(f.path));
         if (!text) {
@@ -162,6 +187,13 @@ Status Player::start() {
     trace::Span span("player.start", "player");
     Impl& d = *impl_;
     d.problems.clear();
+    // Themes first: what the views and scripts show is themed from the start.
+    for (const auto& t : d.manifest.themes) {
+        d.files.push_back({Impl::File::Kind::theme, t, stamp_of(d.full(t)), {}, nullptr, nullptr});
+        (void)d.add_theme(d.files.back(), false);
+    }
+    if (!d.manifest.theme.empty())
+        if (auto r = theme::apply(d.rt, d.manifest.theme); !r) d.problem(std::format("theme: {}", r.error()));
     for (const auto& c : d.manifest.components) d.files.push_back({Impl::File::Kind::component, c, stamp_of(d.full(c)), {}, nullptr, nullptr});
     for (const auto& v : d.manifest.views) {
         // ui/main.view.omui.json mounts at "main".
@@ -215,6 +247,7 @@ std::vector<std::string> Player::poll() {
             case Impl::File::Kind::component: ok = d.define(f); break;
             case Impl::File::Kind::view: ok = d.mount(f); break;
             case Impl::File::Kind::script: ok = d.run(f, true); break;
+            case Impl::File::Kind::theme: ok = d.add_theme(f, true); break;
         }
         if (ok) {
             log.info("{} reloaded", d.name(f.path));

@@ -12,6 +12,8 @@ import openmui.lang.python;
 import openmui.ui.markdown;
 import openmui.image;
 import openmui.native.fuzzy;
+import openmui.theme.default_theme;
+import openmui.theme.compact;
 
 namespace omui::entry::python {
 
@@ -35,6 +37,8 @@ struct World {
         register_base_components();
         register_markdown_component();
         if (auto r = natives::fuzzy::define(); !r) warn("the native module fuzzy: {}", r.error());
+        for (auto add : {themes::add_default, themes::add_compact})
+            if (auto r = add(); !r) warn("a theme package: {}", r.error()[0].text());
         fonts = std::make_unique<typeset::FontCollection>();
         if (auto r = fonts->add_defaults(); !r) warn("the default fonts did not load: {}", r.error());
         RuntimeOptions o;

@@ -117,6 +117,11 @@ omui.verb("cts.step", { summary: "Do a step of the loaded CTS scenario" }, ({ st
     if ("invoke" in st) return { step: i, invoke: omui.invoke(st.invoke, st.args ?? {}) };
     if ("get" in st) return { step: i, get: signals[st.get].get() };
     if ("rows" in st) return { step: i, rows: omui.model(st.rows).rows() };
+    if ("theme" in st) {
+      omui.theme(st.theme);
+      return { step: i, theme: "ok" };
+    }
+    if ("themes" in st) return { step: i, themes: omui.themes() };
     if ("native" in st && !("into" in st)) {
       const fn = nativeFunction(st.native, true);  // a verb cannot await: the Sync form
       if (!fn) return { step: i, error: "not-found" };  // the binding has no such function

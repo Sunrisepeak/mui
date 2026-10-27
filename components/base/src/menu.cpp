@@ -110,9 +110,9 @@ void MenuItem::prop_changed(MenuItemProp p) {
     if (attached() && (p == MenuItemProp::text || p == MenuItemProp::shortcut)) services().invalidate_layout(node());
 }
 
-void MenuItem::style(const Theme&, layout::Style& s) const {
-    s.padding = {0, item_pad, 0, item_pad};
-    s.min_height = layout::pt(item_h);
+void MenuItem::style(const Theme& theme, layout::Style& s) const {
+    s.padding = {0, theme.scaled(item_pad), 0, theme.scaled(item_pad)};
+    s.min_height = layout::pt(theme.scaled(item_h));
 }
 
 Size MenuItem::measure(MeasureContext& m, std::optional<float>, std::optional<float>, layout::Available, layout::Available) {

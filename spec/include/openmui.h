@@ -542,6 +542,12 @@ OMUI_API OmuiResult omuiNativeCatalog(OmuiRuntime rt, PFN_omuiSink sink, void* u
 /* Calls a native module's function on the calling thread (any thread: it touches no runtime state). The arguments are a JSON list in the contract's order or an object by name, and are checked against the contract; the sink receives an envelope with the result as data, or an error record (invalid-argument, not-found, failed). */
 OMUI_API OmuiResult omuiNativeCall(OmuiRuntime rt, OmuiString module_name, OmuiString function_name, OmuiString args_json, PFN_omuiSink sink, void* user);
 
+/* Composes a theme from the program's theme library and gives it to the runtime: a JSON list, a theme then overlays (["dark", "compact", "reduced_motion"]). Every component follows on the next frame; the semantic tree is the same. A name no theme file declares is not found; a composition that cannot be made is an invalid argument; either way the sink receives why and the theme stays. */
+OMUI_API OmuiResult omuiTheme(OmuiRuntime rt, OmuiString layers_json, PFN_omuiSink sink, void* user);
+
+/* The program's themes and overlays and the runtime's composition, as JSON: {"themes": ["dark", "light"], "overlays": ["compact"], "current": "dark+compact", "dark": true}. */
+OMUI_API OmuiResult omuiThemes(OmuiRuntime rt, PFN_omuiSink sink, void* user);
+
 #ifdef __cplusplus
 }
 #endif

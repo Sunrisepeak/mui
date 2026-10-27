@@ -186,6 +186,12 @@ assert(omui.verb("cts.step", { summary = "Do a step of the loaded CTS scenario" 
     return { step = i, get = signals[st.get]:get() }
   elseif st.rows then
     return { step = i, rows = assert(omui.model(st.rows):rows()) }
+  elseif st.theme then
+    local ok, err = omui.theme(st.theme)
+    if not ok then return { step = i, error = code_of(err) } end
+    return { step = i, theme = "ok" }
+  elseif st.themes then
+    return { step = i, themes = omui.themes() }
   elseif st.native and not st.into then
     local fn = native_function(st.native)
     if not fn then return { step = i, error = "not-found" } end  -- the binding has no such function

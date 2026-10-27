@@ -168,6 +168,13 @@ export function verb(name, options, fn) {
   native(N.verb, String(name), json(options ?? {}), (args) => json(fn(JSON.parse(args))));
 }
 export const invoke = (name, args) => answer(native(N.invoke, String(name), json(args ?? {})));
+// The runtime's theme: theme("dark", "compact") or theme(["dark", "compact"]) —
+// a theme, then overlays; themes() lists them and the current composition.
+export function theme(...layers) {
+  const l = layers.length === 1 && Array.isArray(layers[0]) ? layers[0] : layers;
+  native(N.theme, json(l.map(String)));
+}
+export const themes = () => JSON.parse(N.themes());
 // A native module's function (component-binding §8), as openmui:native/<name>
 // calls it: positional arguments, a result; an `async` one, a promise of it.
 export function __native(module, fn, isAsync, args) {

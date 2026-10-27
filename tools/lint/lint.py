@@ -13,7 +13,8 @@ Rules:
   pins          a graph-wide pin of the root ([package.metadata.openmui.pins]) is declared, the same,
                 by every member whose graph reaches the package it is for
   modules       a member of modules/ depends on no openmui package outside modules/
-  exceptions    no `throw` / `try` in runtime and modules sources (errors are std::expected)
+  exceptions    no `throw` / `try` in runtime and modules sources (errors are std::expected); a
+                native/ unit may catch what a third-party library throws, to answer std::expected
   paths         no std::filesystem::path::string() / generic_string() outside tests: on Windows
                 they convert through the ANSI code page and throw on a name it cannot spell; use
                 utf8() / generic_utf8() (mcpp .agents/skills/mcpp-contributing, 路径窄化不变式);
@@ -192,8 +193,12 @@ def check_sources(root: Path) -> list[Problem]:
         top = rel.parts[0] if rel.parts else ""
         is_test = "tests" in rel.parts
         if top in ("runtime", "modules") and not is_test:
+            # A native/ unit adapts a third-party library as it adapts its
+            # macros: it may catch what the library throws, to answer
+            # std::expected. Nothing in core code throws.
+            pattern = r"\bthrow\b" if in_native else r"\bthrow\b|\btry\s*\{|\bcatch\s*\("
             for no, line in enumerate(lines, 1):
-                if re.search(r"\bthrow\b|\btry\s*\{|\bcatch\s*\(", line):
+                if re.search(pattern, line):
                     problems.append(Problem("exceptions", f"{rel_s}:{no}", "exceptions in core code; return std::expected"))
 
         # Paths are never narrowed through the code page (outside tests).

@@ -15,6 +15,8 @@
 //                   --out <dir> [--namespace ns] [--native name] [--part cpp|stubs] [--check]
 //       a native module's C++ (records, the functions to implement, define())
 //       and its TS / Python / Lua stubs (component-binding §8)
+//   omui-gen embed <file> --module <m> --name <partition> --out <dir> [--namespace ns] [--check]
+//       a data file (a theme) as a partition holding its text
 //   omui-gen check <file.contract.omui.toml or .native.omui.toml>... --registry <dir> [--json]
 //       diagnostics only
 //   omui-gen abi <registry-dir> --out <runtime/abi/src> [--check]
@@ -46,6 +48,7 @@ struct Options {
     bool                               catalog = false;
     std::string                        contract;  // cpp: only this contract of the files
     std::string                        native;    // native: only this module of the files
+    std::string                        name;      // embed: the partition's and the constant's name
     std::string                        part;      // cpp: `contract` or `builder`; native: `cpp` or `stubs`
     std::string                        version;
     std::filesystem::path              tests;
@@ -60,6 +63,7 @@ int usage() {
                             "                    [--contract name] [--part contract|builder] [--check]\n"
                             "       omui-gen native <native>... --registry <dir> --module <name> --out <dir> [--namespace ns]\n"
                             "                    [--native name] [--part cpp|stubs] [--check]\n"
+                            "       omui-gen embed <file> --module <name> --name <partition> --out <dir> [--namespace ns] [--check]\n"
                             "       omui-gen check <contract or native>... --registry <dir> [--json]\n"
                             "       omui-gen abi <registry-dir> --out <runtime/abi/src> [--check]\n"
                             "       omui-gen unicode <ucd-dir> --version <x.y.z> --out <dir> [--tests <dir>] [--check]");
@@ -85,6 +89,7 @@ std::optional<Options> parse_args(int argc, char** argv) {
         else if (a == "--catalog") o.catalog = true;
         else if (a == "--contract") { auto v = value(); if (!v) return std::nullopt; o.contract = *v; }
         else if (a == "--native") { auto v = value(); if (!v) return std::nullopt; o.native = *v; }
+        else if (a == "--name") { auto v = value(); if (!v) return std::nullopt; o.name = *v; }
         else if (a == "--part") {
             auto v = value();
             if (!v || (*v != "contract" && *v != "builder" && *v != "cpp" && *v != "stubs")) return std::nullopt;
@@ -272,6 +277,32 @@ int run_native(const Options& o) {
     return 0;
 }
 
+// A data file as a partition <module>:<name> with its text (a theme a
+// package carries, a document).
+int run_embed(const Options& o) {
+    if (o.inputs.size() != 1 || o.module.empty() || o.name.empty() || o.out.empty()) return usage();
+    std::ifstream in(o.inputs[0], std::ios::binary);
+    if (!in) {
+        std::println(std::cerr, "omui-gen: cannot read {}", generic_utf8(o.inputs[0]));
+        return 1;
+    }
+    const std::string text{std::istreambuf_iterator<char>(in), {}};
+    std::string ns = o.ns;
+    if (ns == "omui::ui") {
+        ns.clear();
+        for (char c : o.module) ns += c == '.' ? std::string("::") : std::string(1, c);
+    }
+    Writer w{o.check};
+    w.put(o.out / (o.name + ".cppm"), emit_embed(text, generic_utf8(o.inputs[0].filename()), o.module, ns, o.name));
+    if (o.check) {
+        if (w.stale) return 1;
+        std::println("omui-gen: generated files are current");
+    } else {
+        std::println("omui-gen: {} file(s) written", w.written);
+    }
+    return 0;
+}
+
 int run_contracts(const Options& o, bool emit) {
     if (o.inputs.empty() || o.registry.empty()) return usage();
     if (emit && (o.module.empty() || o.out.empty())) return usage();
@@ -305,6 +336,7 @@ int main(int argc, char** argv) {
     if (options->command == "stubs") return run_contracts(*options, true);
     if (options->command == "cpp") return run_cpp(*options);
     if (options->command == "native") return run_native(*options);
+    if (options->command == "embed") return run_embed(*options);
     if (options->command == "check") return run_contracts(*options, false);
     if (options->command == "unicode") return run_unicode(*options);
     if (options->command == "abi") return run_abi(*options);

@@ -1,0 +1,27 @@
+# openmui.theme.compact — the compact theme file (compact.theme.omui.toml), embedded:
+# add_compact() adds what it declares to the program's theme library
+# (openmui.theme). The partition holding the text is generated
+# (`omui-gen embed`; tools/gen's test keeps it current).
+[package]
+namespace   = "openmui.theme"
+name        = "compact"
+version     = "0.1.0"
+description = "openmui's compact theme as data"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind   = "theme"
+themes = ["compact.theme.omui.toml"]
+
+[targets.openmui-theme-compact]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/generated/*.cppm"]
+
+[dependencies]
+openmui.theme = { path = "../../runtime/theme" }
+
+[dev-dependencies]
+openmui.testing = { path = "../../tests/support" }

@@ -15,6 +15,7 @@ import openmui.raster;
 import openmui.text;
 import openmui.trace;
 import openmui.native;
+import openmui.theme;
 import nlohmann.json;
 import :c;
 import :api;
@@ -644,6 +645,41 @@ OmuiResult omuiModelSplice(OmuiRuntime rt, OmuiString model, std::uint32_t from,
 OmuiResult omuiModelRows(OmuiRuntime rt, OmuiString model, std::uint32_t from, std::uint32_t count, PFN_omuiSink sink, void* user) noexcept {
     if (!rt || text(model).empty()) return OMUI_ERROR_INVALID_ARGUMENT;
     send(sink, user, rt->rt->model(text(model)).to_value(from, count).json());
+    return OMUI_SUCCESS;
+}
+
+// ── themes (openmui.theme) ──────────────────────────────────────────────────
+
+OmuiResult omuiTheme(OmuiRuntime rt, OmuiString layers_json, PFN_omuiSink sink, void* user) noexcept {
+    if (!rt) return OMUI_ERROR_INVALID_ARGUMENT;
+    Envelope e;
+    const auto parsed = nlohmann::json::parse(text(layers_json), nullptr, false);
+    std::vector<std::string> layers;
+    if (parsed.is_array())
+        for (const auto& x : parsed)
+            if (x.is_string()) layers.push_back(x.get<std::string>());
+    if (!parsed.is_array() || layers.size() != parsed.size() || layers.empty()) {
+        e.error(spec::error_code::invalid_argument, R"j(the layers are a JSON list of names: ["dark", "compact"])j").result(spec::exit_code::failure);
+    } else if (auto missing = std::ranges::find_if(layers, [](const std::string& n) { return !omui::theme::library().find(n); }); missing != layers.end()) {
+        std::string known;
+        for (const auto& n : omui::theme::library().themes()) known += (known.empty() ? "" : ", ") + n;
+        for (const auto& n : omui::theme::library().overlays()) known += (known.empty() ? "" : ", ") + n;
+        e.error(spec::error_code::not_found, std::format("no theme or overlay is named `{}` (there are: {})", *missing, known.empty() ? "none" : known))
+            .result(spec::exit_code::failure);
+    } else if (auto r = omui::theme::apply(*rt->rt, layers); !r) {
+        e.error(spec::error_code::invalid_argument, r.error()).result(spec::exit_code::failure);
+    } else {
+        e.result(spec::exit_code::success);
+    }
+    send(sink, user, e.ndjson());
+    return result_of(e.exit_code().value_or(1), error_code_of(e));
+}
+
+OmuiResult omuiThemes(OmuiRuntime rt, PFN_omuiSink sink, void* user) noexcept {
+    if (!rt) return OMUI_ERROR_INVALID_ARGUMENT;
+    const omui::Theme& t = rt->rt->theme();
+    nlohmann::json out{{"themes", omui::theme::library().themes()}, {"overlays", omui::theme::library().overlays()}, {"current", t.name}, {"dark", t.dark}};
+    send(sink, user, out.dump());
     return OMUI_SUCCESS;
 }
 

@@ -127,9 +127,9 @@ ActResult Select::set_value(ActContext&, const Value& value) {
     return ActResult::done(Value(v));
 }
 
-void Select::style(const Theme&, layout::Style& s) const {
-    s.padding = {0, pad_x + chevron_room, 0, pad_x};
-    s.min_height = layout::pt(field_h);
+void Select::style(const Theme& theme, layout::Style& s) const {
+    s.padding = {0, theme.scaled(pad_x) + chevron_room, 0, theme.scaled(pad_x)};
+    s.min_height = layout::pt(theme.scaled(field_h));
     s.min_width = layout::pt(160);
     s.border = Insets::all(1);
 }
@@ -160,7 +160,7 @@ void Select::paint(PaintContext& ctx) const {
     const Color c = props.value.empty() ? th.color("text_muted") : th.color("text");
     const Size t = label_.measure(ctx.services, c);
     label_.paint(ctx, {ctx.content.x, ctx.content.y + (ctx.content.height - t.height) / 2}, c);
-    parts::chevron(ctx, {box.width - pad_x - 6, box.height / 2}, 10, th.color("text_muted"));
+    parts::chevron(ctx, {box.width - th.scaled(pad_x) - 6, box.height / 2}, 10, th.color("text_muted"));
     if (off) ctx.list.pop_layer();
     keep_frames(ctx, {&hover_});
 }
@@ -242,9 +242,9 @@ Value SelectOption::get_prop(std::string_view k) const {
     return {};
 }
 
-void SelectOption::style(const Theme&, layout::Style& s) const {
+void SelectOption::style(const Theme& theme, layout::Style& s) const {
     s.padding = {0, 10, 0, 10};
-    s.min_height = layout::pt(option_h);
+    s.min_height = layout::pt(theme.scaled(option_h));
 }
 
 Size SelectOption::measure(MeasureContext& m, std::optional<float>, std::optional<float>, layout::Available, layout::Available) {

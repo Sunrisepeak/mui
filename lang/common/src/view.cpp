@@ -551,6 +551,25 @@ Result<void> Session::set(abi::OmuiNode node, const std::vector<std::pair<std::s
     return {};
 }
 
+// ── themes ─────────────────────────────────────────────────────────────────
+
+Result<void> Session::theme(const std::vector<std::string>& layers) {
+    const std::string l = Json(layers).dump();
+    std::string out;
+    const abi::OmuiResult r = host_.ui([&] { return abi::omuiTheme(host_.runtime(), str(l), collect, &out); });
+    for (const Json& rec : records(out))
+        if (rec.value("kind", "") == "error") return std::unexpected(failure(r, rec.value("code", "error") + ": " + rec.value("message", "")));
+    if (r < 0) return std::unexpected(failure(r, out));
+    return {};
+}
+
+Json Session::themes() {
+    std::string out;
+    (void)host_.ui([&] { return abi::omuiThemes(host_.runtime(), collect, &out); });
+    Json t = Json::parse(out, nullptr, false);
+    return t.is_discarded() ? Json::object() : t;
+}
+
 // ── native modules ────────────────────────────────────────────────────────
 
 Json Session::natives() {

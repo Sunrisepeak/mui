@@ -9,6 +9,9 @@ import openmui.lang.lua;
 import openmui.lang.js;
 import openmui.native;
 import openmui.native.fuzzy;
+import openmui.theme;
+import openmui.theme.default_theme;
+import openmui.theme.compact;
 
 namespace omui {
 
@@ -67,6 +70,11 @@ std::expected<player::Manifest, std::string> read_manifest(const std::filesystem
     };
     paths("components", m.components);
     paths("views", m.views);
+    paths("themes", m.themes);
+    // theme = ["dark", "compact"]: the composition to start with.
+    if (const toml::array* a = t["theme"].as_array())
+        for (const auto& v : *a)
+            if (auto s = v.value<std::string>()) m.theme.push_back(*s);
     // [package.metadata.openmui.scripts]: name = "logic/main.ts", or
     // name = { lang = "ts", entry = "logic/main.ts" }; run in the names' order.
     if (const toml::table* scripts = t["scripts"].as_table())
@@ -105,6 +113,10 @@ int player_main(int argc, char** argv) {
     // its main, before this): `import { fuzzy } from "openmui:native/fuzzy"`.
     if (!native::find("fuzzy"))
         if (auto r = natives::fuzzy::define(); !r) warn("the native module fuzzy: {}", r.error());
+    // The official themes (light, dark, compact, reduced_motion); an
+    // application's own come from its manifest (`themes`).
+    for (auto add : {themes::add_default, themes::add_compact})
+        if (auto r = add(); !r) warn("a theme package: {}", r.error()[0].text());
     std::optional<player::Player> p;
     AppSpec app;
     app.id = m->id;

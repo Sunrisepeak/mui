@@ -33,7 +33,9 @@ struct Options {
     // host has already brought up keeps its driver.
     std::string video_driver;
     // A window (SDL_GetWindowID) the device draws into: claimed for the GPU,
-    // shown by Device::present. 0: none (offscreen work only).
+    // shown by Device::present. 0: none (offscreen work only). A window of
+    // the offscreen video driver that the backend makes no swapchain for has
+    // nothing to show: the device draws, and present() answers false.
     std::uint32_t window = 0;
     bool          vsync = true;  // the swapchain waits for the display
 };

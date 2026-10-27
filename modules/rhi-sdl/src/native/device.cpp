@@ -391,7 +391,17 @@ public:
     // The window this device draws into: claimed, its swapchain in sync with
     // the display (or as fast as it goes).
     Result<void> claim(SDL_Window* window, bool vsync) {
-        if (!SDL_ClaimWindowForGPUDevice(device_, window)) return fail(Errc::unsupported, sdl_error("claiming the window for the GPU"));
+        if (!SDL_ClaimWindowForGPUDevice(device_, window)) {
+            // A window of the offscreen video driver has no display: when the
+            // backend makes no swapchain for it (no headless surface), the
+            // device still draws, and present() shows nothing.
+            const char* video = SDL_GetCurrentVideoDriver();
+            if (video && std::string_view(video) == "offscreen") {
+                displayless_ = true;
+                return {};
+            }
+            return fail(Errc::unsupported, sdl_error("claiming the window for the GPU"));
+        }
         window_ = window;
         const SDL_GPUPresentMode mode =
             vsync || !SDL_WindowSupportsGPUPresentMode(device_, window, SDL_GPU_PRESENTMODE_IMMEDIATE) ? SDL_GPU_PRESENTMODE_VSYNC
@@ -406,6 +416,7 @@ protected:
     // swapchain's format and scales to its size), after every submission so
     // far, since command buffers run in order.
     Result<bool> show(Texture frame) override {
+        if (displayless_) return false;  // an offscreen window: nothing to show
         if (!window_) return fail(Errc::unsupported, "present: the device was made for no window (rhi::sdl::Options::window)");
         const TextureSlot* f = textures_.get(frame);
         if (!f) return fail(Errc::invalid, "present: a stale texture handle");
@@ -435,6 +446,7 @@ protected:
 
 private:
     SDL_Window* window_ = nullptr;  // claimed (Options::window)
+    bool        displayless_ = false;  // made for an offscreen window it could not claim
 
     struct BufferSlot {
         SDL_GPUBuffer* buffer = nullptr;

@@ -185,7 +185,10 @@ std::expected<WindowPtr, std::string> open(const WindowOptions& o) {
     SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, static_cast<Sint64>(o.size.width));
     SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, static_cast<Sint64>(o.size.height));
     SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_FLAGS_NUMBER, static_cast<Sint64>(flags));
-    if (software) SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_EXTERNAL_GRAPHICS_CONTEXT_BOOLEAN, true);
+    // The window's graphics are someone else's: the software renderer draws
+    // into its surface, and a GPU device claims it (Metal views, Vulkan
+    // surfaces) — so SDL loads no default backend (OpenGL on macOS) for it.
+    if (software || o.gpu) SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_EXTERNAL_GRAPHICS_CONTEXT_BOOLEAN, true);
     w->window = SDL_CreateWindowWithProperties(props);
     SDL_DestroyProperties(props);
     if (!w->window) return std::unexpected(std::format("SDL_CreateWindow: {}", SDL_GetError()));

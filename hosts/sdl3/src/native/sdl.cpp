@@ -179,7 +179,7 @@ std::expected<WindowPtr, std::string> open(const WindowOptions& o) {
     // The software renderer draws into the window's surface and needs no GPU
     // context; saying so stops SDL on macOS from implying OpenGL for any
     // driver that has it — the offscreen driver's is EGL, which macOS lacks.
-    const bool software = o.render_driver == "software";
+    const bool software = !o.gpu && o.render_driver == "software";
     const SDL_PropertiesID props = SDL_CreateProperties();
     SDL_SetStringProperty(props, SDL_PROP_WINDOW_CREATE_TITLE_STRING, o.title.c_str());
     SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, static_cast<Sint64>(o.size.width));
@@ -193,11 +193,14 @@ std::expected<WindowPtr, std::string> open(const WindowOptions& o) {
     // default backs with an accelerated renderer — loading the GPU drivers
     // (EGL, GL, Vulkan) for a window that asked for none. Kept in memory.
     if (software) SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "0");
+    if (o.gpu) return w;  // the GPU device claims it and presents
     w->renderer = SDL_CreateRenderer(w->window, o.render_driver.empty() ? nullptr : o.render_driver.c_str());
     if (!w->renderer) return std::unexpected(std::format("SDL_CreateRenderer: {}", SDL_GetError()));
     if (o.vsync) SDL_SetRenderVSync(w->renderer, 1);
     return w;
 }
+
+std::uint32_t window_id(Window& w) { return static_cast<std::uint32_t>(SDL_GetWindowID(w.window)); }
 
 Size logical_size(Window& w) {
     int pw = 0, ph = 0;
@@ -338,7 +341,7 @@ Polled poll(Window& w, bool wait, std::optional<std::chrono::milliseconds> timeo
 }
 
 void present(Window& w, const raster::Surface& frame) {
-    if (frame.width() <= 0 || frame.height() <= 0) return;
+    if (frame.width() <= 0 || frame.height() <= 0 || !w.renderer) return;
     if (!w.texture || w.tw != frame.width() || w.th != frame.height()) {
         if (w.texture) SDL_DestroyTexture(w.texture);
         // RGBA32 is R, G, B, A in memory on every platform: the surface's bytes.
@@ -463,7 +466,7 @@ void synthesize(Window& w, std::span<const InputEvent> events) {
 }
 
 std::expected<raster::Surface, std::string> read_back(Window& w) {
-    if (!w.texture) return std::unexpected("nothing shown yet");
+    if (!w.renderer || !w.texture) return std::unexpected("nothing shown yet");
     // Draw the last frame again and read it before presenting (a presented
     // back buffer may be gone).
     SDL_RenderClear(w.renderer);

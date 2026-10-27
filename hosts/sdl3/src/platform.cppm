@@ -15,6 +15,7 @@ struct WindowOptions {
     bool        vsync = true;
     std::string video_driver;
     std::string render_driver;
+    bool        gpu = false;  // a GPU device claims the window: no SDL renderer
 };
 
 struct Window;  // SDL_Window, SDL_Renderer, the frame's texture
@@ -35,6 +36,8 @@ struct Polled {
 Polled poll(Window& w, bool wait, std::optional<std::chrono::milliseconds> timeout);
 
 [[nodiscard]] Size  logical_size(Window& w);
+// What rhi::sdl::Options::window takes.
+[[nodiscard]] std::uint32_t window_id(Window& w);
 [[nodiscard]] float pixel_scale(Window& w);
 void present(Window& w, const raster::Surface& frame);
 void text_input(Window& w, std::optional<Rect> caret);

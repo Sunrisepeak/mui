@@ -22,6 +22,9 @@ struct AppSpec {
     std::function<View()>  view;                 // what the window shows (mounted at "main")
     std::vector<VerbSpec>  verbs;                // the application's verbs (S-1: their effects classify actions)
     Theme                  theme = Theme::light();
+    // A directory of the application's own effects (*.effect.omui.toml):
+    // loaded with the window, loaded again when one changes (openmui.effect).
+    std::filesystem::path  effects;
     // Called once the runtime exists, before the view mounts (timers, more slots).
     std::function<void(Runtime&)> setup;
     // Whether what setup started (scripts on their threads) is done for now:
@@ -40,6 +43,7 @@ struct AppSpec {
 //   --agent-dir DIR           where the endpoint listens
 //   --no-agent                no endpoint
 //   --dark                    the dark theme
+//   --gpu | --cpu             who draws the window (default: the GPU when the machine has one)
 //   --size WxH                the window's size in logical pixels
 //   --debug LIST              overlays: bounds,repaints,inspector,hud (the runtime's DebugOptions)
 //   --log FILTER              log levels per category: layout=debug,*=info (also OMUI_LOG)
@@ -53,6 +57,7 @@ struct RunOptions {
     std::filesystem::path agent_dir;
     bool                  agent = true;
     bool                  dark = false;
+    std::optional<bool>   gpu;  // --gpu / --cpu
     std::optional<Size>   size;
     DebugOptions          debug;
     std::string           log;

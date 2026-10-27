@@ -71,6 +71,8 @@ std::expected<player::Manifest, std::string> read_manifest(const std::filesystem
     paths("components", m.components);
     paths("views", m.views);
     paths("themes", m.themes);
+    // effects = "fx": the application's own effects, a directory.
+    if (auto e = t["effects"].value<std::string>()) m.effects = m.base / std::filesystem::path(std::u8string(e->begin(), e->end()));
     // theme = ["dark", "compact"]: the composition to start with.
     if (const toml::array* a = t["theme"].as_array())
         for (const auto& v : *a)
@@ -122,6 +124,7 @@ int player_main(int argc, char** argv) {
     app.id = m->id;
     app.title = m->title;
     app.size = m->size;
+    app.effects = m->effects;
     app.setup = [&](Runtime& rt) {
         p.emplace(rt, *m, std::vector<player::Language>{lang::lua::language(), lang::js::javascript(), lang::js::typescript()});
         if (auto r = p->start(); !r) std::print(std::cerr, "{}", r.error());

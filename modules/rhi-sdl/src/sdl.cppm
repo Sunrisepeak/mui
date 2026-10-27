@@ -32,6 +32,10 @@ struct Options {
     // for this initialisation only); empty: SDL's choice. A subsystem a
     // host has already brought up keeps its driver.
     std::string video_driver;
+    // A window (SDL_GetWindowID) the device draws into: claimed for the GPU,
+    // shown by Device::present. 0: none (offscreen work only).
+    std::uint32_t window = 0;
+    bool          vsync = true;  // the swapchain waits for the display
 };
 
 // A device, or why there is none (Errc::unsupported: no GPU, driver or

@@ -1,8 +1,12 @@
 // The desktop host on SDL's offscreen video driver with software rendering:
 // what the window shows is the CPU frame; input goes through SDL's queue and
 // the host's translation; idle frames are not presented; the clipboard is the
-// system's; an agent's request wakes a sleeping loop.
+// system's; an agent's request wakes a sleeping loop. And on the machine's
+// GPU (lavapipe in CI; required with OMUI_REQUIRE_GPU=1): the swapchain shows
+// the GPU renderer's frame, and a program's effect file, edited while it
+// runs, shows on the next frame.
 import std;
+import mcpplibs.os;
 import openmui.host.sdl3;
 import openmui.testing;
 
@@ -30,7 +34,17 @@ DesktopOptions offscreen(std::string app = "sdl3-test") {
     o.fonts = &fonts();
     o.app = std::move(app);
     o.agent = false;
+    o.renderer = DesktopOptions::Renderer::cpu;  // the CPU frame, read back exactly
     return o;
+}
+
+void write(const std::filesystem::path& f, std::string_view text) {
+    std::error_code ec;
+    const auto before = std::filesystem::exists(f) ? std::filesystem::last_write_time(f) : std::filesystem::file_time_type::min();
+    std::ofstream(f, std::ios::binary) << text;
+    // Later than what was loaded, whatever the clock's grain.
+    if (before != std::filesystem::file_time_type::min())
+        std::filesystem::last_write_time(f, std::max(std::filesystem::last_write_time(f), before + std::chrono::seconds(1)), ec);
 }
 
 }  // namespace
@@ -64,6 +78,67 @@ int main(int argc, char** argv) {
         auto blue = d.window_pixels();
         auto b = blue->at(static_cast<int>(40 * d.scale()), static_cast<int>(40 * d.scale()));
         check(b.b == 255 && b.r == 0);
+    });
+
+    s.test("on the GPU: the swapchain shows the frame, and an effect file edited while it runs shows on the next frame", [] {
+        const auto dir = std::filesystem::temp_directory_path() / "openmui-host-effects";
+        std::error_code ec;
+        std::filesystem::remove_all(dir, ec);
+        std::filesystem::create_directories(dir, ec);
+        write(dir / "invert.effect.omui.toml", "name = \"invert\"\ndoc = \"The colours turned over.\"\n");
+        const std::string invert = R"(import openmui_effect;
+[shader("fragment")]
+float4 invert_fs(EffectPixel px) : SV_Target {
+    const uint4 s = source_texel(at(px));
+    return out8(uint4(s.a - s.r, s.a - s.g, s.a - s.b, s.a));
+}
+)";
+        write(dir / "invert.slang", invert);
+        DesktopOptions o = offscreen("sdl3-gpu");
+        o.renderer = DesktopOptions::Renderer::gpu;
+        o.effects = dir;
+        if (auto lib = mcpplibs::os::env::get("OMUI_VULKAN_LIBRARY")) o.vulkan_library = *lib;
+        if (auto video = mcpplibs::os::env::get("OMUI_GPU_VIDEO_DRIVER")) o.video_driver = *video;
+        Desktop d(o);
+        auto opened = d.open();
+        if (!opened) {
+            if (mcpplibs::os::env::get("OMUI_REQUIRE_GPU") == "1") check(false, std::format("OMUI_REQUIRE_GPU=1: {}", opened.error()));
+            else std::println("  no GPU for the window here ({})", opened.error());
+            return;
+        }
+        check(d.gpu(), "the GPU draws");
+        check(d.effects() && d.effects()->names() == std::vector<std::string>{"invert"}, "the effect file loaded with the window");
+        d.mount("main", column({.padding = 20}, {box({.id = "swatch", .width = 40, .height = 40, .background = Fill(Color::hex(0xff0000))})}));
+        check(d.step());
+        check_eq(d.frames_shown(), std::size_t{1});
+        const auto pixel = [&](int x, int y) -> std::optional<raster::Rgba8> {
+            auto px = d.window_pixels();
+            check(px.has_value(), px ? "" : px.error());
+            if (!px) return std::nullopt;
+            return px->at(static_cast<int>(x * d.scale()), static_cast<int>(y * d.scale()));
+        };
+        if (auto at = pixel(40, 40)) check(at->r == 255 && at->g == 0 && at->b == 0, std::format("red: {} {} {}", at->r, at->g, at->b));
+        if (auto bg = pixel(5, 5)) check(bg->r == 255 && bg->g == 255 && bg->b == 255, "the background");
+
+        // The node under the program's effect.
+        Value fx;
+        fx.set("name", "invert");
+        d.runtime().set(d.runtime().find("main/swatch"), "pixel_effect", fx);
+        d.step();
+        if (auto at = pixel(40, 40)) check(at->r == 0 && at->g == 255 && at->b == 255, std::format("inverted: {} {} {}", at->r, at->g, at->b));
+
+        // The shader edited while the program runs: green, on the next frame.
+        std::string green = invert;
+        green.replace(green.find("uint4(s.a - s.r, s.a - s.g, s.a - s.b, s.a)"), std::string_view("uint4(s.a - s.r, s.a - s.g, s.a - s.b, s.a)").size(),
+                      "uint4(0, s.a, 0, s.a)");
+        write(dir / "invert.slang", green);
+        const auto from = std::chrono::steady_clock::now();
+        d.step();
+        const auto took = std::chrono::steady_clock::now() - from;
+        if (auto at = pixel(40, 40)) check(at->r == 0 && at->g == 255 && at->b == 0, std::format("edited: {} {} {}", at->r, at->g, at->b));
+        std::println("  from the saved shader to the frame showing it: {} ms", std::chrono::duration_cast<std::chrono::milliseconds>(took).count());
+        check(took < std::chrono::milliseconds(500), "M4 ③: within 500 ms");
+        std::filesystem::remove_all(dir, ec);
     });
 
     s.test("input goes through SDL: pointer, keys, text, wheel, close", [] {

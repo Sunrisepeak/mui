@@ -57,6 +57,13 @@ public:
     [[nodiscard]] Result<std::vector<std::byte>> read(Texture t, Region region);
     [[nodiscard]] Result<void> read(Buffer b, std::uint32_t offset, std::span<std::byte> out);
 
+    // The window the device was made for (a backend's option) shows `frame`:
+    // an rgba8 or bgra8 texture the device can sample, scaled to the window's
+    // swapchain, after every submission so far. False: nothing shown (the
+    // window is minimised, its swapchain not ready). Errc::unsupported: the
+    // device was made for no window.
+    [[nodiscard]] Result<bool> present(Texture frame);
+
 protected:
     // A description already checked.
     virtual Result<Buffer> make(const BufferDesc& d) = 0;
@@ -69,6 +76,8 @@ protected:
     // A region inside the texture, `out` exactly its size; a range inside the buffer.
     virtual Result<void> fetch(Texture t, Region region, std::span<std::byte> out) = 0;
     virtual Result<void> fetch(Buffer b, std::uint32_t offset, std::span<std::byte> out) = 0;
+    // A frame already checked; a device made for no window keeps this one.
+    virtual Result<bool> show(Texture frame);
 };
 
 // Every command of `list` against `device`'s resources: passes balanced and

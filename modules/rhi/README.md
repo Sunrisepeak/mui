@@ -32,6 +32,8 @@ auto pixels = device.read(*target, {0, 0, 256, 256});
   A mistake is an `Errc::invalid` naming the command (`command 3 (draw): the fragment shader reads a sampled texture at slot 0, and nothing is bound there`), not a driver crash.
 - **Virtual calls are per resource and per submission, never per draw.** A backend implements the protected `make`, `run` and `fetch`, and `describe` for what it created.
 
+**Presenting.** A device made for a window (a backend's option: `rhi::sdl::Options::window`) shows a frame with `present(texture)`: a sampled rgba8 or bgra8 texture, scaled to the window's swapchain after every submission so far; false when nothing could be shown (a minimised window). The check is rhi's, the showing the backend's protected `show`; a device made for no window answers `Errc::unsupported`.
+
 Shaders reach a device as `ShaderDesc`: one entry point, its code in each format it was compiled to, and the resources it binds by kind. Slots follow one convention for every backend (SDL_GPU's); [openmui.slang](../slang) compiles Slang to it and checks it.
 
-The tests (`tests/rhi_test.cpp`) run against a device that only remembers what it created: description checks, lists as data, every kind of validation failure, compute passes, readback bounds.
+The tests (`tests/rhi_test.cpp`) run against a device that only remembers what it created: description checks, lists as data, every kind of validation failure, compute passes, readback bounds, what present() takes.

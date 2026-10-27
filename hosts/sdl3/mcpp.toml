@@ -1,14 +1,15 @@
 # openmui.host.sdl3 — openmui on the desktop through SDL3 (mcpp-index
 # compat.sdl3): a window, the display's scale, mouse, touch, wheel,
-# keyboard, text and input methods, the system clipboard and cursors; the
-# CPU renderer's frames streamed into a texture (the GPU renderer replaces it
-# at M4); a loop that sleeps until an event, a timer or an agent's request;
-# the agent endpoint served between frames.
+# keyboard, text and input methods, the system clipboard and cursors; frames
+# drawn by the GPU renderer into the window's swapchain (omui.rhi on SDL_GPU)
+# or by the CPU renderer into a streamed texture; a program's effect files
+# loaded and reloaded while it runs; a loop that sleeps until an event, a
+# timer or an agent's request; the agent endpoint served between frames.
 [package]
 namespace   = "openmui.host"
 name        = "sdl3"
 version     = "0.1.0"
-description = "openmui desktop host over SDL3: window, input, IME, clipboard, cursors, CPU frames, agent endpoint"
+description = "openmui desktop host over SDL3: window, input, IME, clipboard, cursors, GPU or CPU frames, effect reloading, agent endpoint"
 license     = "Apache-2.0"
 repo        = "https://github.com/Sunrisepeak/mui"
 
@@ -31,6 +32,11 @@ openmui.render   = { path = "../../modules/render" }
 openmui.text     = { path = "../../modules/text" }
 openmui.image    = { path = "../../modules/image" }
 openmui.trace    = { path = "../../modules/trace" }
+# Quoted: as dotted keys of one table, `openmui.rhi.sdl` would extend the
+# inline table `openmui.rhi`, which TOML forbids.
+"openmui.rhi"     = { path = "../../modules/rhi" }
+"openmui.rhi.sdl" = { path = "../../modules/rhi-sdl" }
+openmui.effect   = { path = "../../modules/effect" }
 mcpplibs.os      = "0.1.2"
 compat.sdl3      = "3.4.18"
 

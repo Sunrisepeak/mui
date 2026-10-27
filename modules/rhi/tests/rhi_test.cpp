@@ -293,5 +293,22 @@ int main(int argc, char** argv) {
         check_eq(sc.d.read(sc.quad, 56, b).error().message, std::string("read: bytes 56–72 of a buffer of 64"));
     });
 
+    s.test("present: a sampled rgba8 or bgra8 frame, to a device made for a window", [] {
+        Scene sc;
+        auto frame = sc.d.create(TextureDesc{Format::rgba8_unorm, 8, 8, TextureUsage::color_target | TextureUsage::sampled, "frame"});
+        auto unsampled = sc.d.create(TextureDesc{Format::rgba8_unorm, 8, 8, TextureUsage::color_target, "unsampled"});
+        auto r8 = sc.d.create(TextureDesc{Format::r8_unorm, 8, 8, TextureUsage::sampled, "mask"});
+        check(frame && unsampled && r8);
+        if (!frame || !unsampled || !r8) return;
+        check_eq(sc.d.present(*unsampled).error().message,
+                 std::string("present: the frame is not sampled (TextureUsage::sampled): the device reads it"));
+        check_eq(sc.d.present(*r8).error().message, std::string("present: a r8_unorm texture; a frame is rgba8_unorm or bgra8_unorm"));
+        sc.d.destroy(*unsampled);
+        check_eq(sc.d.present(*unsampled).error().message, std::string("present: a stale texture handle"));
+        // A device made for no window says so; the backend's own show() is not reached otherwise.
+        const auto none = sc.d.present(*frame);
+        check(!none && none.error().code == Errc::unsupported, none ? "" : none.error().message);
+    });
+
     return s.run(argc, argv);
 }

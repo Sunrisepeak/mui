@@ -1,6 +1,6 @@
 # openmui.player
 
-The player (component-binding §9, §10.2): what a script-first application runs in. The `entry-player` entry reads the application's manifest (`[package.metadata.openmui]`: `components`, `views`, `scripts`) and gives it to a `Player` over the runtime of a desktop or headless host.
+The player (component-binding §9, §10.2): what a script-first application runs in. The `entry-player` entry reads the application's manifest (`[package.metadata.openmui]`: `components`, `views`, `scripts`, `themes`, and `effects` — a directory of the application's own `*.effect.omui.toml` effects, which the desktop host loads with the window and loads again when one changes) and gives it to a `Player` over the runtime of a desktop or headless host.
 
 - **Start**: the component documents are defined first, in whatever order they need one another. The view documents are then mounted, each at its file's stem (`ui/main.view.omui.json` is `main`). Last, the scripts run.
 - **Languages are plugins** (`Language`): a name, extensions, how to make an `Engine` over the C ABI, and optionally how to load an entry (TypeScript through esbuild). The player knows none of them; the entry registers Lua ([lang/lua](../../lang/lua)), JavaScript and TypeScript. Each script runs on a thread of its own.

@@ -202,6 +202,7 @@ public:
 
     ~SdlDevice() override {
         SDL_WaitForGPUIdle(device_);
+        if (window_) SDL_ReleaseWindowFromGPUDevice(device_, window_);
         for (auto& [id, fence] : fences_) SDL_ReleaseGPUFence(device_, fence);
         buffers_.for_each([&](Buffer, BufferSlot& b) { SDL_ReleaseGPUBuffer(device_, b.buffer); });
         textures_.for_each([&](Texture, TextureSlot& t) { SDL_ReleaseGPUTexture(device_, t.texture); });
@@ -386,7 +387,55 @@ protected:
     Result<void> fetch(Texture t, Region region, std::span<std::byte> out) override;
     Result<void> fetch(Buffer b, std::uint32_t offset, std::span<std::byte> out) override;
 
+public:
+    // The window this device draws into: claimed, its swapchain in sync with
+    // the display (or as fast as it goes).
+    Result<void> claim(SDL_Window* window, bool vsync) {
+        if (!SDL_ClaimWindowForGPUDevice(device_, window)) return fail(Errc::unsupported, sdl_error("claiming the window for the GPU"));
+        window_ = window;
+        const SDL_GPUPresentMode mode =
+            vsync || !SDL_WindowSupportsGPUPresentMode(device_, window, SDL_GPU_PRESENTMODE_IMMEDIATE) ? SDL_GPU_PRESENTMODE_VSYNC
+                                                                                                       : SDL_GPU_PRESENTMODE_IMMEDIATE;
+        if (!SDL_SetGPUSwapchainParameters(device_, window, SDL_GPU_SWAPCHAINCOMPOSITION_SDR, mode))
+            return fail(Errc::unsupported, sdl_error("setting the window's swapchain"));
+        return {};
+    }
+
+protected:
+    // The frame blitted into the next swapchain texture (SDL converts to the
+    // swapchain's format and scales to its size), after every submission so
+    // far, since command buffers run in order.
+    Result<bool> show(Texture frame) override {
+        if (!window_) return fail(Errc::unsupported, "present: the device was made for no window (rhi::sdl::Options::window)");
+        const TextureSlot* f = textures_.get(frame);
+        if (!f) return fail(Errc::invalid, "present: a stale texture handle");
+        SDL_GPUCommandBuffer* cmd = SDL_AcquireGPUCommandBuffer(device_);
+        if (!cmd) return fail(Errc::device_lost, sdl_error("acquiring a command buffer"));
+        SDL_GPUTexture* swap = nullptr;
+        Uint32 w = 0, h = 0;
+        if (!SDL_WaitAndAcquireGPUSwapchainTexture(cmd, window_, &swap, &w, &h)) {
+            SDL_CancelGPUCommandBuffer(cmd);
+            return fail(Errc::device_lost, sdl_error("acquiring the window's swapchain texture"));
+        }
+        if (swap && w > 0 && h > 0) {
+            SDL_GPUBlitInfo blit{};
+            blit.source.texture = f->texture;
+            blit.source.w = f->desc.width;
+            blit.source.h = f->desc.height;
+            blit.destination.texture = swap;
+            blit.destination.w = w;
+            blit.destination.h = h;
+            blit.load_op = SDL_GPU_LOADOP_DONT_CARE;
+            blit.filter = (w == f->desc.width && h == f->desc.height) ? SDL_GPU_FILTER_NEAREST : SDL_GPU_FILTER_LINEAR;
+            SDL_BlitGPUTexture(cmd, &blit);
+        }
+        if (!SDL_SubmitGPUCommandBuffer(cmd)) return fail(Errc::device_lost, sdl_error("submitting the present"));
+        return swap != nullptr;
+    }
+
 private:
+    SDL_Window* window_ = nullptr;  // claimed (Options::window)
+
     struct BufferSlot {
         SDL_GPUBuffer* buffer = nullptr;
         BufferDesc     desc;
@@ -723,7 +772,13 @@ Result<std::unique_ptr<Device>> create(const Options& options) {
     caps.software = software_device(caps.device);
     caps.compute = true;
     caps.max_texture_size = 8192;
-    return std::unique_ptr<Device>(new SdlDevice(device, std::move(caps)));
+    auto made = std::make_unique<SdlDevice>(device, std::move(caps));
+    if (options.window != 0) {
+        SDL_Window* window = SDL_GetWindowFromID(static_cast<SDL_WindowID>(options.window));
+        if (!window) return fail(Errc::invalid, std::format("no window has the id {} (SDL_GetWindowID)", options.window));
+        if (auto r = made->claim(window, options.vsync); !r) return std::unexpected(r.error());
+    }
+    return std::unique_ptr<Device>(std::move(made));
 }
 
 std::vector<Backend> backends() {

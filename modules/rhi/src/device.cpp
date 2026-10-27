@@ -76,6 +76,17 @@ Result<std::vector<std::byte>> Device::read(Texture t, Region region) {
     return out;
 }
 
+Result<bool> Device::present(Texture frame) {
+    const auto d = describe(frame);
+    if (!d) return fail(Errc::invalid, "present: a stale texture handle");
+    if (d->format != Format::rgba8_unorm && d->format != Format::bgra8_unorm)
+        return fail(Errc::invalid, std::format("present: a {} texture; a frame is rgba8_unorm or bgra8_unorm", name(d->format)));
+    if (!has(d->usage, TextureUsage::sampled)) return fail(Errc::invalid, "present: the frame is not sampled (TextureUsage::sampled): the device reads it");
+    return show(frame);
+}
+
+Result<bool> Device::show(Texture) { return fail(Errc::unsupported, "present: the device was made for no window"); }
+
 Result<void> Device::read(Buffer b, std::uint32_t offset, std::span<std::byte> out) {
     const auto d = describe(b);
     if (!d) return fail(Errc::invalid, "read: a stale buffer handle");

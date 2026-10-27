@@ -10,6 +10,9 @@ import openmui.render;
 import openmui.text;
 import openmui.image;
 import openmui.trace;
+import openmui.rhi;
+import openmui.rhi.sdl;
+import openmui.effect;
 import mcpplibs.os;
 import :platform;
 
@@ -33,12 +36,64 @@ struct Desktop::Impl {
     int                                      exit_code = 0;
     bool                                     idle = false;  // the last frame wanted no other
 
+    // The GPU path: a device that claimed the window, the renderer, and the
+    // frame texture the swapchain shows.
+    std::unique_ptr<rhi::Device>             device;
+    std::optional<render::GpuRenderer>       gpu;
+    rhi::Texture                             gpu_frame;
+    std::uint32_t                            gpu_w = 0, gpu_h = 0;
+    std::optional<effect::Library>           effects;
+
+    // A device for the window, when the options and the machine say the GPU
+    // draws: none for a software rasteriser unless the GPU is insisted on.
+    std::expected<void, std::string> open_gpu() {
+        using R = DesktopOptions::Renderer;
+        if (options.renderer == R::cpu) return {};
+        rhi::sdl::Options o;
+        o.formats = render::gpu_shader_formats();
+        o.window = platform::window_id(*window);
+        o.vsync = options.vsync;
+        o.vulkan_library = options.vulkan_library;
+        auto made = rhi::sdl::create(o);
+        if (!made) {
+            if (options.renderer == R::gpu) return std::unexpected(std::format("no GPU device for the window: {}", made.error().message));
+            return {};
+        }
+        if ((*made)->caps().software && options.renderer == R::automatic) return {};  // the CPU renderer is faster
+        auto r = render::GpuRenderer::create(**made);
+        if (!r) {
+            if (options.renderer == R::gpu) return std::unexpected(std::format("the GPU renderer: {}", r.error().message));
+            return {};
+        }
+        device = std::move(*made);
+        gpu.emplace(std::move(*r));
+        return {};
+    }
+
+    // The frame as shown, read back (the GPU's texture, or the CPU's surface).
+    std::expected<raster::Surface, std::string> pixels() {
+        if (!gpu) {
+            if (frame.width() <= 0) return std::unexpected("nothing shown yet");
+            return frame;
+        }
+        if (!gpu_frame) return std::unexpected("nothing shown yet");
+        auto bytes = device->read(gpu_frame, rhi::Region{0, 0, gpu_w, gpu_h});
+        if (!bytes) return std::unexpected(bytes.error().message);
+        raster::Surface out(static_cast<int>(gpu_w), static_cast<int>(gpu_h));
+        std::memcpy(out.pixels().data(), bytes->data(), bytes->size());
+        return out;
+    }
+
     void show() {
         const render::DisplayList& list = runtime->display_list();
         const std::uint64_t h = list.hash();
         const float scale = runtime->scale();
         const int w = static_cast<int>(std::lround(runtime->size().width * scale));
         const int hgt = static_cast<int>(std::lround(runtime->size().height * scale));
+        if (gpu) {
+            show_gpu(list, h, scale, w, hgt);
+            return;
+        }
         if (h == shown && frame.width() == w && frame.height() == hgt) return;
         if (frame.width() != w || frame.height() != hgt) frame = raster::Surface(w, hgt);
         {
@@ -57,6 +112,51 @@ struct Desktop::Impl {
         platform::present(*window, frame);
         shown = h;
         ++frames_shown;
+    }
+
+    void show_gpu(const render::DisplayList& list, std::uint64_t h, float scale, int w, int hgt) {
+        if (w <= 0 || hgt <= 0) return;
+        const auto uw = static_cast<std::uint32_t>(w), uh = static_cast<std::uint32_t>(hgt);
+        if (h == shown && uw == gpu_w && uh == gpu_h) return;
+        if (uw != gpu_w || uh != gpu_h) {
+            if (gpu_frame) device->destroy(gpu_frame);
+            auto t = device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, uw, uh, rhi::TextureUsage::color_target | rhi::TextureUsage::sampled,
+                                                     "host.frame"});
+            if (!t) {
+                warn("the frame texture: {}", t.error().message);
+                return;
+            }
+            gpu_frame = *t;
+            gpu_w = uw;
+            gpu_h = uh;
+        }
+        {
+            trace::Span span("render", "host");
+            const render::Resources resources{&runtime->images(), glyphs.get()};
+            auto r = gpu->render(list, gpu_frame, resources, {.scale = scale, .clear = true, .background = options.background});
+            if (!r) {
+                warn("the GPU renderer: {}", r.error().message);
+                return;
+            }
+        }
+        trace::Span span("present", "host");
+        auto p = device->present(gpu_frame);
+        if (!p) warn("present: {}", p.error().message);
+        shown = h;
+        ++frames_shown;
+    }
+
+    // Effects whose files changed, loaded again; the next frame redrawn.
+    void reload_effects() {
+        if (!effects) return;
+        for (const effect::Reload& r : effects->poll()) {
+            if (r.ok()) {
+                info("effect {} reloaded in {} ms", r.name, static_cast<double>(r.took.count()) / 1000.0);
+                shown = 0;
+            } else {
+                for (const effect::Diagnostic& d : r.problems) warn("effect {}: {}", r.name, d.text());
+            }
+        }
     }
 };
 
@@ -95,17 +195,40 @@ Desktop::Desktop(DesktopOptions options) : impl_(std::make_unique<Impl>()) {
 
 Desktop::~Desktop() {
     if (impl_->endpoint) impl_->endpoint->stop();
+    // The GPU's before the window it claimed.
+    if (impl_->device && impl_->gpu_frame) impl_->device->destroy(impl_->gpu_frame);
+    impl_->gpu.reset();
+    impl_->device.reset();
     impl_->window.reset();
 }
 
 std::expected<void, std::string> Desktop::open() {
     Impl& d = *impl_;
     if (d.window) return {};
+    // A window for the GPU first (when it may draw); the CPU's otherwise.
+    const bool try_gpu = d.options.renderer != DesktopOptions::Renderer::cpu;
     platform::WindowOptions wo{d.options.title, d.options.size, d.options.resizable, d.options.vsync, d.options.video_driver,
-                               d.options.render_driver};
+                               d.options.render_driver, try_gpu};
     auto w = platform::open(wo);
     if (!w) return std::unexpected(w.error());
     d.window = std::move(*w);
+    if (try_gpu) {
+        if (auto g = d.open_gpu(); !g) return std::unexpected(g.error());
+        if (!d.gpu) {
+            // No GPU after all: the window again, with an SDL renderer for the CPU's frames.
+            d.window.reset();
+            wo.gpu = false;
+            auto again = platform::open(wo);
+            if (!again) return std::unexpected(again.error());
+            d.window = std::move(*again);
+        }
+    }
+    if (!d.options.effects.empty()) {
+        d.effects.emplace(effect::Options{.formats = d.device ? d.device->caps().formats : render::gpu_shader_formats()});
+        if (auto loaded = d.effects->load_directory(d.options.effects); !loaded)
+            for (const effect::Diagnostic& p : loaded.error()) warn("effect: {}", p.text());
+        if (!d.gpu) warn("effects in {} are drawn by the GPU renderer; the CPU renderer draws their layers without them", mcpplibs::os::fs::utf8(d.options.effects));
+    }
     d.runtime->resize(platform::logical_size(*d.window), platform::pixel_scale(*d.window));
     d.runtime->set_clipboard([] { return platform::clipboard(); }, [](std::string_view t) { platform::set_clipboard(t); });
     if (d.options.agent) {
@@ -115,13 +238,14 @@ std::expected<void, std::string> Desktop::open() {
         eo.protocol.app = d.options.app;
         eo.protocol.capture = [&d](Rect region) -> std::expected<std::vector<std::uint8_t>, std::string> {
             // The frame on screen, cut to the region (logical pixels).
-            if (d.frame.width() <= 0) return std::unexpected("nothing shown yet");
+            auto shown_frame = d.pixels();
+            if (!shown_frame) return std::unexpected(shown_frame.error());
+            const raster::Surface& f = *shown_frame;
             const PixelRect r = geom::snap(region, d.runtime->scale());
-            const int x0 = std::clamp(r.x, 0, d.frame.width()), y0 = std::clamp(r.y, 0, d.frame.height());
-            const int x1 = std::clamp(r.x + r.width, x0, d.frame.width()), y1 = std::clamp(r.y + r.height, y0, d.frame.height());
+            const int x0 = std::clamp(r.x, 0, f.width()), y0 = std::clamp(r.y, 0, f.height());
+            const int x1 = std::clamp(r.x + r.width, x0, f.width()), y1 = std::clamp(r.y + r.height, y0, f.height());
             if (x1 <= x0 || y1 <= y0) return std::unexpected("the region is outside the window");
-            imageio::View v{reinterpret_cast<const std::uint8_t*>(d.frame.row(y0) + x0), x1 - x0, y1 - y0, d.frame.width() * 4,
-                            imageio::Alpha::premultiplied};
+            imageio::View v{reinterpret_cast<const std::uint8_t*>(f.row(y0) + x0), x1 - x0, y1 - y0, f.width() * 4, imageio::Alpha::premultiplied};
             return imageio::encode_png(v);
         };
         eo.wake = [] { platform::wake(); };
@@ -139,6 +263,8 @@ Runtime& Desktop::runtime() noexcept { return *impl_->runtime; }
 semantic::Tree& Desktop::tree() noexcept { return *impl_->tree; }
 agent::Endpoint* Desktop::endpoint() noexcept { return impl_->endpoint.get(); }
 std::size_t Desktop::frames_shown() const noexcept { return impl_->frames_shown; }
+bool Desktop::gpu() const noexcept { return impl_->gpu.has_value(); }
+effect::Library* Desktop::effects() noexcept { return impl_->effects ? &*impl_->effects : nullptr; }
 float Desktop::scale() const noexcept { return impl_->runtime->scale(); }
 NodeId Desktop::mount(std::string_view slot, View view) { return impl_->runtime->mount(slot, std::move(view)); }
 
@@ -167,6 +293,7 @@ bool Desktop::step(bool wait) {
     }
     platform::Polled polled = platform::poll(*d.window, sleep, timeout);
     if (d.endpoint) d.endpoint->pump();
+    d.reload_effects();
     FrameInput in;
     in.events = std::move(polled.events);
     FrameOutput out = d.runtime->frame(in);
@@ -191,6 +318,7 @@ void Desktop::synthesize(std::span<const InputEvent> events) {
 
 std::expected<raster::Surface, std::string> Desktop::window_pixels() {
     if (!impl_->window) return std::unexpected("the window is not open");
+    if (impl_->gpu) return impl_->pixels();  // the frame the swapchain was given, exactly
     return platform::read_back(*impl_->window);
 }
 

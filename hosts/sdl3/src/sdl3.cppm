@@ -9,6 +9,13 @@
 // frame, and shows it when it changed; between turns it sleeps until an
 // event, the next timer, or an agent's request, and paces animation by the
 // display's refresh.
+//
+// Frames are drawn by the GPU renderer into a texture the window's swapchain
+// shows (omui.rhi on SDL_GPU), or by the CPU renderer into a surface
+// streamed to the window — the same pixels (openmui.render's tests hold the
+// two together). A directory of effect files (openmui.effect) is loaded with
+// the window and loaded again, between frames, when a file in it changes:
+// an effect's shader edited while the program runs shows on the next frame.
 export module openmui.host.sdl3;
 
 import std;
@@ -17,6 +24,7 @@ export import openmui.view;
 export import openmui.semantic;
 export import openmui.agent;
 export import openmui.raster;
+export import openmui.effect;
 
 export namespace omui {
 
@@ -35,6 +43,16 @@ struct DesktopOptions {
     std::string             video_driver;     // "" the platform's; "offscreen" in CI
     std::string             render_driver;    // "" the best; "software" for exact read-back
     bool                    parallel_raster = true;  // the CPU renderer draws bands of rows at the same time
+    // Who draws the frames: the GPU when the machine has one (a software
+    // rasteriser such as lavapipe or WARP is slower than the CPU renderer),
+    // else the CPU; or either, insisted on (gpu: no device is an error).
+    enum class Renderer : std::uint8_t { automatic, cpu, gpu };
+    Renderer                renderer = Renderer::automatic;
+    std::string             vulkan_library;   // the Vulkan loader the GPU device uses ("" the system's)
+    // A directory of *.effect.omui.toml (openmui.effect): loaded with the
+    // window, loaded again when a file changes. Effects are drawn by the GPU
+    // renderer; the CPU renderer draws their layers without them.
+    std::filesystem::path   effects;
     // Show a runtime that exists already rather than make one (the window
     // does not own it; it must outlive the desktop).
     Runtime*                runtime = nullptr;
@@ -73,6 +91,10 @@ public:
     [[nodiscard]] float scale() const noexcept;
     [[nodiscard]] agent::Endpoint* endpoint() noexcept;
     [[nodiscard]] std::size_t frames_shown() const noexcept;
+    // Whether the GPU renderer draws the frames (after open()).
+    [[nodiscard]] bool gpu() const noexcept;
+    // The effect library of `effects` (null: none asked for).
+    [[nodiscard]] effect::Library* effects() noexcept;
 
     struct Impl;
 

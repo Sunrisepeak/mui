@@ -29,7 +29,6 @@ struct RenderReport {
     std::size_t commands = 0;
     std::size_t effects_skipped = 0;
     std::size_t external_skipped = 0;
-    std::size_t blends_skipped = 0;  // layers composited normally, their blend mode not drawn (GPU, for now)
     std::size_t missing_images = 0;
     std::size_t missing_glyphs = 0;
     std::size_t rows = 0;      // rows drawn

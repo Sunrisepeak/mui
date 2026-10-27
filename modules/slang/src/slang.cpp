@@ -48,27 +48,10 @@ struct Run {
         return {};
     }
 
-    // Make syntax: `target: dep dep \` lines, spaces in names escaped.
     void read_depfile(const std::filesystem::path& dep) {
         std::ifstream in(dep, std::ios::binary);
         const std::string text((std::istreambuf_iterator<char>(in)), {});
-        const auto colon = text.find(": ");
-        if (colon == std::string::npos) return;
-        std::string cur;
-        for (std::size_t i = colon + 2; i < text.size(); ++i) {
-            const char c = text[i];
-            if (c == '\\' && i + 1 < text.size() && text[i + 1] == ' ') {
-                cur += ' ';
-                ++i;
-            } else if (c == '\\' && i + 1 < text.size() && (text[i + 1] == '\n' || text[i + 1] == '\r')) {
-                continue;
-            } else if (c == ' ' || c == '\n' || c == '\r' || c == '\t') {
-                if (!cur.empty()) dependencies.insert(std::exchange(cur, {}));
-            } else {
-                cur += c;
-            }
-        }
-        if (!cur.empty()) dependencies.insert(cur);
+        for (std::string& d : depfile_prerequisites(text)) dependencies.insert(std::move(d));
     }
 };
 
@@ -268,6 +251,47 @@ std::expected<std::filesystem::path, std::string> find_slangc() {
     return std::unexpected(std::string("Slang shaders need slangc: xlings install slang, or OMUI_SLANGC=/path/to/slangc"));
 }
 
+std::vector<std::string> depfile_prerequisites(std::string_view text) {
+    std::vector<std::string> out;
+    // The target ends at the first `:` that is not escaped and not a drive
+    // letter's (a colon followed by a blank or the end of a line).
+    std::size_t i = 0;
+    for (; i < text.size(); ++i) {
+        if (text[i] == '\\' && i + 1 < text.size()) {
+            ++i;
+            continue;
+        }
+        if (text[i] == ':' && (i + 1 == text.size() || text[i + 1] == ' ' || text[i + 1] == '\t' || text[i + 1] == '\n' || text[i + 1] == '\r')) break;
+    }
+    if (i >= text.size()) return out;
+    std::string cur;
+    auto flush = [&] {
+        if (!cur.empty()) out.push_back(std::exchange(cur, {}));
+    };
+    for (++i; i < text.size(); ++i) {
+        const char c = text[i];
+        const char next = i + 1 < text.size() ? text[i + 1] : '\0';
+        if (c == '\\' && (next == ' ' || next == '#' || next == ':')) {
+            cur += next;
+            ++i;
+        } else if (c == '\\' && (next == '\n' || next == '\r')) {
+            flush();
+            i += next == '\r' && i + 2 < text.size() && text[i + 2] == '\n' ? 2 : 1;  // the line goes on
+        } else if (c == '$' && next == '$') {
+            cur += '$';
+            ++i;
+        } else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+            flush();
+            // A second rule (`a: b` lines after the first) ends the list.
+            if ((c == '\n' || c == '\r') && next != '\0' && next != ' ' && next != '\t' && next != '\n' && next != '\r') break;
+        } else {
+            cur += c;
+        }
+    }
+    flush();
+    return out;
+}
+
 std::expected<Program, std::string> compile(const std::filesystem::path& source, const Options& options) {
     if (options.formats.empty()) return std::unexpected(std::string("no shader format asked for"));
     std::filesystem::path slangc = options.slangc;
@@ -386,6 +410,15 @@ std::expected<Program, std::string> compile(const std::filesystem::path& source,
                 return std::unexpected(std::format("{} ({} for {}): {}", os::fs::utf8(source.filename()), entry.name, name(format), r.error()));
             auto bytes = read_bytes(out);
             if (!bytes) return std::unexpected(bytes.error());
+            if (format == rhi::ShaderFormat::msl) {
+                // Metal compiles source with fast math unless the source says
+                // otherwise (SDL_GPU passes no compile options): IEEE results
+                // and no contraction, as SPIR-V and the CPU reference have.
+                // Compilers before MSL 3.2 ignore the pragmas.
+                constexpr std::string_view precise = "#pragma METAL fp math_mode(safe)\n#pragma METAL fp contract(off)\n";
+                const auto head = std::as_bytes(std::span(precise));
+                bytes->insert(bytes->begin(), head.begin(), head.end());
+            }
             entry.code.push_back({format, std::move(*bytes)});
         }
         program.entries.push_back(std::move(entry));

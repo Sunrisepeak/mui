@@ -1,12 +1,13 @@
-// The GPU renderer's one shader (openmui.render:gpu): every primitive of a
+// The GPU renderer's shader for drawing (openmui.render:gpu; layers under
+// blend modes are composited by blend.slang): every primitive of a
 // display list is an instance of a quad, its kind saying how coverage is
 // found; the paint says the colour. What the CPU reference computes exactly
 // the GPU computes the same way (an axis-aligned rectangle's coverage is the
 // area of the pixel inside it; a gradient is looked up in the same 256-entry
 // table at the same index; paths, strokes, glyphs and shadows are coverage
-// the CPU rasteriser produced, in an atlas). Rounded rectangles and
-// transformed rectangles use signed distances, within the renderer's
-// tolerance.
+// the CPU rasteriser produced, in an atlas). A rounded rectangle covers a
+// pixel by the exact area of its circles; rotated shapes use signed
+// distances, within the renderer's tolerance.
 //
 // Device space: pixels, y down, (0, 0) the target's top-left corner.
 

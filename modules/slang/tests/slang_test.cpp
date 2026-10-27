@@ -56,7 +56,8 @@ int main(int argc, char** argv) {
         const auto* spv = fs->code_for(rhi::ShaderFormat::spirv);
         check(spv && spv->bytes.size() > 20 && word(spv->bytes) == 0x07230203u, "SPIR-V, by its magic number");
         const auto* msl = fs->code_for(rhi::ShaderFormat::msl);
-        check(msl && text(msl->bytes).contains("quad_fs") && text(msl->bytes).contains("[[texture(0)]]"),
+        check(msl && text(msl->bytes).contains("quad_fs") && text(msl->bytes).contains("[[texture(0)]]") &&
+                  text(msl->bytes).starts_with("#pragma METAL fp math_mode(safe)\n#pragma METAL fp contract(off)\n"),
               "MSL, its entry point kept by name and its texture at slot 0");
         check(std::ranges::any_of(p->dependencies, [](const auto& d) { return d.filename() == "quad.slang"; }), "the depfile names the source");
         // The description a device checks.
@@ -101,6 +102,18 @@ int main(int argc, char** argv) {
         check(cpp.contains("inline constexpr std::array<const omui::rhi::ShaderDesc*, 2> entries{&quad_vs, &quad_fs};"));
         auto again = slang::compile(data("quad.slang"));
         check(again && slang::emit_cpp(*again, o) == cpp, "deterministic");
+    });
+
+    s.test("a depfile's prerequisites: escapes, Windows paths, continued lines", [] {
+        using omui::slang::depfile_prerequisites;
+        using V = std::vector<std::string>;
+        check(depfile_prerequisites("out.spv: a.slang b\\ c.slang\n") == V{"a.slang", "b c.slang"});
+        // slangc on Windows: the drive's colon escaped, backslash separators kept.
+        check(depfile_prerequisites("D\\:/a/x.spv: D\\:/a/mui/shaders/ui.slang \\\r\n  D\\:\\a\\inc\\common.slang\r\n") ==
+              V{"D:/a/mui/shaders/ui.slang", "D:\\a\\inc\\common.slang"});
+        check(depfile_prerequisites("C:/out/x.spv: C:/src/x.slang \\\n C:/src/y.slang\n") == V{"C:/src/x.slang", "C:/src/y.slang"});
+        check(depfile_prerequisites("x: a$$b \\#c\nother: d\n") == V{"a$b", "#c"});
+        check(depfile_prerequisites("no rule here").empty());
     });
 
     s.test("the formats a build compiles to, by target and host", [] {

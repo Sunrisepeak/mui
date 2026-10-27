@@ -15,9 +15,13 @@
 // rectangle is a mask texture. Draws are batched in list order, a batch
 // breaking only where a texture or the target changes.
 //
+// A layer under a blend mode other than normal is composited by a second
+// shader (shaders/blend.slang) over a copy of what lies under it, with the
+// CPU's arithmetic.
+//
 // Not yet drawn here, and counted in the report as the CPU counts what it
-// skips: layer effects (effects_skipped), blend modes other than normal
-// (blends_skipped), external textures. Object ids are the CPU renderer's.
+// skips: layer effects (effects_skipped), external textures. Object ids are
+// the CPU renderer's.
 export module openmui.render:gpu;
 
 import std;
@@ -27,6 +31,7 @@ import :display;
 import :resources;
 import :cpu;
 export import :ui_shaders;
+export import :blend_shaders;
 
 export namespace omui::render {
 

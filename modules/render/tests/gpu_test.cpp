@@ -232,6 +232,60 @@ const std::vector<Case>& cases() {
              dl.pop_layer();
          },
          {2, 0}},
+        {"blend modes",
+         [](render::DisplayList& dl, Rig&) {
+             // A backdrop with opaque, translucent and empty parts, and every
+             // mode over it in a cell: whole, under a fractional rectangle
+             // clip, and under a rounded (mask) clip. A layer's own pixels may
+             // differ by a level (the GPU's blending unit rounds once, in
+             // float; the CPU rounds the source to 8 bits first), and colour
+             // dodge and burn divide by the source: that level grows to 4.
+             dl.fill_rect({0, 0, 160, 80}, gradient(render::GradientKind::linear, {0, 0}, {160, 0}, 0, render::Spread::pad, rainbow));
+             dl.fill_rect({0, 50, 160, 40}, geom::Color{0.95f, 0.85f, 0.2f, 0.5f});
+             for (int mode = 0; mode <= static_cast<int>(render::BlendMode::erase); ++mode) {
+                 const float x = static_cast<float>(mode % 5) * 32, y = static_cast<float>(mode / 5) * 40;
+                 const int clip = mode % 3;
+                 if (clip == 1) dl.push_clip({x + 2.5f, y + 3.25f, 26.5f, 33.5f});
+                 if (clip == 2) dl.push_clip({x + 1, y + 2, 30, 36}, geom::CornerRadii::all(9));
+                 dl.push_layer(mode % 2 ? 0.8f : 1.0f, static_cast<render::BlendMode>(mode));
+                 dl.fill_rect({x, y, 32, 40}, gradient(render::GradientKind::linear, {x, y}, {x + 32, y + 40}, 0, render::Spread::pad, rainbow));
+                 // Shapes both backends cover alike (a fractional rectangle, a path),
+                 // so what differs is the blending alone.
+                 dl.fill_rect({x + 4.5f, y + 6.25f, 14, 20.5f}, render::Paint::solid(geom::Color{0.1f, 0.2f, 0.8f, 0.7f}));
+                 render::Path dot;
+                 dot.add_circle({x + 20, y + 26}, 9);
+                 dl.fill_path(dot, render::FillRule::nonzero, render::Paint::solid(geom::Color{0.9f, 0.9f, 0.95f, 0.85f}));
+                 dl.pop_layer();
+                 if (clip != 0) dl.pop_clip();
+             }
+         },
+         {4, 360}},
+        {"blend arithmetic",
+         [](render::DisplayList& dl, Rig&) {
+             // Layers whose pixels both backends make alike (pixel-aligned solid
+             // rectangles), over a backdrop of the same kind with alphas from 0
+             // to 1: the blend shader against composite_pixel, at
+             // two opacities and under a rounded mask.
+             // Channels of 0 or 1 under alphas of n/255: premultiplied, the
+             // same bytes however a backend rounds.
+             auto exact = [](int bits, int alpha) {
+                 return geom::Color{static_cast<float>(bits & 1), static_cast<float>((bits >> 1) & 1), static_cast<float>((bits >> 2) & 1),
+                                    static_cast<float>(alpha) / 255.0f};
+             };
+             for (int band = 0; band < 6; ++band)
+                 dl.fill_rect({0, static_cast<float>(band * 20), 160, 20}, exact(band + 1, band * 51));
+             for (int mode = 1; mode <= static_cast<int>(render::BlendMode::erase); ++mode) {
+                 const float x = static_cast<float>((mode - 1) % 7) * 22 + 2, y = static_cast<float>((mode - 1) / 7) * 60;
+                 if (mode % 4 == 0) dl.push_clip({x, y + 4, 20, 52}, geom::CornerRadii::all(8));
+                 dl.push_layer(mode % 2 ? 0.6f : 1.0f, static_cast<render::BlendMode>(mode));
+                 for (int k = 0; k < 4; ++k)
+                     dl.fill_rect({x, y + static_cast<float>(k * 15), 20, 15},
+                                  exact(7 - k - mode % 3, 64 + k * 63));
+                 dl.pop_layer();
+                 if (mode % 4 == 0) dl.pop_clip();
+             }
+         },
+         {1, 0}},
         {"images",
          [](render::DisplayList& dl, Rig& r) {
              std::vector<raster::Rgba8> px(16 * 16);
@@ -303,13 +357,10 @@ int main(int argc, char** argv) {
         auto target = device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, 8, 8, rhi::TextureUsage::color_target, "test.small"});
         if (!target) return;
         render::DisplayList dl;
-        dl.push_layer(1, render::BlendMode::multiply);
-        dl.fill_rect({0, 0, 8, 8}, geom::Color::white());
-        dl.pop_layer();
         dl.external_texture(7, {0, 0, 4, 4});
         auto report = gpu->render(dl, *target, {});
         check(report.has_value());
-        if (report) check(report->blends_skipped == 1 && report->external_skipped == 1 && report->commands == dl.size());
+        if (report) check(report->external_skipped == 1 && report->commands == dl.size());
     });
 
     return s.run(argc, argv);

@@ -1131,7 +1131,7 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
 - M3 的验收已完成（见 22.3）。
 - M4：`modules/rhi` 和 `rhi-sdl`、GPU 渲染路径、Slang 着色器、效果和背景输入（液态玻璃，D-64）、画布、风格包、S1 / S2。进行中：
   - ✅ `omui.rhi`（描述先校验再交给后端，命令列表是数据）、`openmui.slang`（slangc 按入口和格式编译，绑定从 SPIR-V 读出；`openmui.slang.rules` 在构建时编译）、`rhi-sdl`（SDL_GPU）、`rhi-cts`（B 级一致性，15 个用例，像素精确）。CI 每一行都有 GPU 并且必须可用：Linux 和 Windows 用 lavapipe，macOS 用 Metal（offscreen 视频驱动做不了 Metal 视图，所以设备用 cocoa 驱动打开，`Options::video_driver`）。
-  - ✅ GPU 渲染器（`openmui.render:gpu`）：一个 Slang 着色器画实例化的四边形，只在纹理变化处分批。CPU 精确算的东西，GPU 用同样的方法算：设备对齐的矩形按面积覆盖，渐变查 CPU 的 256 项表，路径、描边、字形、阴影、非矩形裁剪用 raster 的覆盖率进图集，图层是纹理。**和第 7 节 render 一行的差别**：圆角矩形不用 SDF，而是按真实圆弧的面积精确覆盖（旋转后才用有符号距离）；CPU 把圆弧压成 1/32 像素以内的折线，两者最多差 8 级（测试按这个上界检查，其余场景在混合的舍入以内）。还没做：混合模式、效果、外部纹理、交换链。
+  - ✅ GPU 渲染器（`openmui.render:gpu`）：一个 Slang 着色器画实例化的四边形，只在纹理变化处分批。CPU 精确算的东西，GPU 用同样的方法算：设备对齐的矩形按面积覆盖，渐变查 CPU 的 256 项表，路径、描边、字形、阴影、非矩形裁剪用 raster 的覆盖率进图集，图层是纹理。**和第 7 节 render 一行的差别**：圆角矩形不用 SDF，而是按真实圆弧的面积精确覆盖（旋转后才用有符号距离）；CPU 把圆弧压成 1/32 像素以内的折线，两者最多差 8 级（测试按这个上界检查，其余场景在混合的舍入以内）。混合模式由第二个着色器（`blend.slang`）在目标的副本上按 CPU 的算法合成，输入相同则字节相同；Metal 上 MSL 要求 IEEE 运算、不做收缩（`#pragma METAL fp`）。还没做：效果、外部纹理、交换链。
 - M5：openmui-video、ui-timeline、MCP 服务器、skills、S3 / S4 / S5。
 - 契约⑦（插件与管线）写进规范；Inspector 的火焰图和动画检查器视图。
 

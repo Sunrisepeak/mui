@@ -92,4 +92,11 @@ struct EmitOptions {
 // when the host is Windows (its d3dcompiler compiles it).
 [[nodiscard]] rhi::ShaderFormats formats_for(std::string_view target_os, std::string_view host_os) noexcept;
 
+// The prerequisites of a Make-syntax depfile (slangc's): after the first
+// `target:`, names separated by blanks, `\` + newline continuing a line.
+// `\ `, `\#` and `\:` are the character escaped and `$$` is `$`; any other
+// backslash is part of the name (a Windows separator), so `D\:\a\x.slang`
+// is `D:\a\x.slang`.
+[[nodiscard]] std::vector<std::string> depfile_prerequisites(std::string_view text);
+
 }  // namespace omui::slang

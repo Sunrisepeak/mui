@@ -193,6 +193,12 @@ std::expected<WindowPtr, std::string> open(const WindowOptions& o) {
     return w;
 }
 
+double refresh_hz(Window& w) {
+    const SDL_DisplayID display = SDL_GetDisplayForWindow(w.window);
+    const SDL_DisplayMode* mode = display ? SDL_GetCurrentDisplayMode(display) : nullptr;
+    return mode && mode->refresh_rate > 0 ? static_cast<double>(mode->refresh_rate) : 0.0;
+}
+
 std::uint32_t window_id(Window& w) { return static_cast<std::uint32_t>(SDL_GetWindowID(w.window)); }
 
 Size logical_size(Window& w) {

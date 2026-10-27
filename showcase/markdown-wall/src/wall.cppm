@@ -109,6 +109,7 @@ private:
     double                                                     rate_ = 50;
     omui::seconds                                              last_{0};
     std::uint64_t                                              tokens_ = 0;
+    omui::FrameDemandLease                                     pace_;  // while streaming: 60 a second is enough for text
     std::shared_ptr<int>                                       alive_ = std::make_shared<int>(0);  // a pending tick's: expired once the model is gone
 };
 

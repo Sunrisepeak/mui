@@ -270,6 +270,14 @@ struct Runtime::Impl {
     // rate, up to 512 a second, with no allocation per frame.
     std::array<std::chrono::steady_clock::time_point, 512> drawn{};
     std::size_t                                           drawn_next = 0;
+    // Frame demand (D-70): the components' leases, the last input that
+    // moves something, and what the last frame found.
+    std::vector<std::pair<std::uint64_t, FrameDemand>>    leases;
+    std::uint64_t                                         next_lease = 1;
+    seconds                                               input_until{-1};  // on the runtime's clock: a virtual one is deterministic
+    FrameDemand                                           demand;
+    double                                                display_hz = 0;
+    std::shared_ptr<const int>                            life = std::make_shared<const int>(0);  // leases see it expire
     // The frame as a pipeline of stage plugins (stages.cpp, D-66).
     pipeline::Registry                 registry;
     std::optional<pipeline::Pipeline>  frames;

@@ -63,6 +63,58 @@ raster::Surface draw(Runtime& rt, typeset::GlyphCache& glyphs) {
 int main(int argc, char** argv) {
     Suite s{"view"};
 
+    s.test("frame demand (D-70): idle asks for none; animations, input, timers and leases ask, and say why", [] {
+        Runtime rt(options());
+        rt.mount("main", column({}, {box({.id = "b", .width = 10, .height = 10, .opacity = 1.0f,
+                                          .animate = {{"opacity", Transition::tween(seconds(1))}}})}));
+        rt.frame();
+        rt.frame();
+        check(rt.frame_demand().idle(), std::format("idle: {}", rt.frame_demand().reason));
+        // An animation: as fast as the display goes.
+        rt.set(rt.find("main/b"), "opacity", Value(0.2));
+        auto f = rt.frame();
+        check(!f.demand.idle() && std::isinf(f.demand.max_hz) && f.demand.reason == "animation", f.demand.reason);
+        rt.step_time(seconds(2));
+        rt.frame();
+        rt.frame();
+        check(rt.frame_demand().idle(), "settled");
+        // Input that moves something keeps it fast a moment after.
+        f = rt.frame({.events = {WheelEvent{.position = {5, 5}, .delta = {0, 10}}}});
+        check(f.demand.reason == "input" && std::isinf(f.demand.max_hz), f.demand.reason);
+        // A lease: what it asks, while it lives.
+        rt.step_time(seconds(0.31));
+        rt.frame();
+        check(rt.frame_demand().idle(), "300 ms after the input");
+        {
+            auto lease = rt.demand_frames({.min_hz = 24, .max_hz = 60, .preferred_hz = 50, .reason = "stream"});
+            check(static_cast<bool>(lease));
+            f = rt.frame();
+            check(f.demand.reason == "stream" && f.demand.wanted() == 50 && f.demand.min_hz == 24, f.demand.reason);
+        }
+        rt.frame();
+        check(rt.frame_demand().idle(), "released");
+        // A timer, as often as it is due (here: twice a second).
+        (void)rt.after(seconds(0.5), [] {});
+        f = rt.frame();
+        check(f.demand.reason == "timer" && std::abs(f.demand.wanted() - 2) < 1e-9, std::format("{} {}", f.demand.reason, f.demand.wanted()));
+        // Merging and pacing are pure.
+        const FrameDemand stream{.min_hz = 24, .max_hz = 60, .preferred_hz = 50, .reason = "stream"}, blink{0, 2, 2, "caret"};
+        const FrameDemand both = merge(blink, stream);
+        check(both.reason == "stream" && both.wanted() == 50 && both.min_hz == 24);
+        check(merge(both, FrameDemand::fastest("camera")).reason == "camera");
+        check(std::abs(frame_interval(stream, 120) - 1.0 / 50) < 1e-12, "its preferred rate");
+        check(std::abs(frame_interval(FrameDemand::fastest("x"), 120) - 1.0 / 120) < 1e-12, "the display's fastest");
+        check(std::abs(frame_interval(stream, 30) - 1.0 / 30) < 1e-12, "never faster than the display");
+        check(frame_interval(FrameDemand{}, 120) == 0, "none");
+        // A lease outliving its runtime releases nothing.
+        FrameDemandLease kept;
+        {
+            Runtime other(options());
+            kept = other.demand_frames(FrameDemand::fastest("gone"));
+        }
+        kept.release();
+    });
+
     s.test("elements become nodes with structural and explicit ids (S-8)", [] {
         Runtime rt(options());
         rt.mount("main", column({}, {

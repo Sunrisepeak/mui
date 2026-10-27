@@ -1187,7 +1187,14 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
       - 测试要求三者记录的答案和留下的墙（相机、窗口位置、选择）完全相同。
       - 协议新增 `invoke`（调用应用的 verb，S-1 规则同 `act`）。
       - 实例化（晋升）后的节点仍然是它的条目：语义树合并持有者的描述，持有者的动作照常路由。
-    - 还没做：真机实时模式的帧节奏报告（GPU 时间、掉帧率），与动态刷新率设计一起做。
+    - ✅ 帧需求与帧节奏（D-70）的平台无关部分：
+      - `FrameDemand`（L2 RAII 租约 `demand_frames`，租约在运行时销毁后自动失效）；
+      - L0 自动来源：动画、300ms 内的输入、定时器节奏；
+      - 合并规则 `merge` 和 `frame_interval`；`FrameOutput::demand`；trace 计数 `frame.demand_hz`；
+      - 按预测上屏时间求值（`FrameInput::present_at`）；
+      - 桌面宿主按需求的节奏出帧：低于刷新率时等待，空闲时睡眠，没有 vsync 时也不空转；
+      - 画布在相机自行移动时请求最快，S1 流式输出请求 60Hz；HUD 显示请求的刷新率和原因。
+    - 还没做：平台映射（macOS ProMotion 的 `CAMetalDisplayLink`、Windows VRR 的 tearing present）、呈现反馈校准、真机实时帧节奏报告。
 - M5：openmui-video、ui-timeline、MCP 服务器、skills、S3 / S4 / S5。
 - 契约⑦（插件与管线）写进规范；Inspector 的火焰图和动画检查器视图。
 

@@ -30,8 +30,9 @@ FrameOutput Runtime::frame(const FrameInput& input) {
     const auto started = std::chrono::steady_clock::now();
     trace::Span whole("frame", "frame");
     if (input.time) d.clock.set(*input.time);
-    else if (d.clock.kind() == anim::ClockKind::interactive) d.clock.begin_frame();
+    else if (d.clock.kind() == anim::ClockKind::interactive) d.clock.begin_frame(input.present_at.value_or(started));
     d.apply_time_control();
+    if (input.display_hz > 0) d.display_hz = input.display_hz;
     d.reconcile_outlets();  // views move to the slots that claim them (Services::outlet)
     d.frame_requested = false;
     d.todo = 0;
@@ -79,10 +80,34 @@ FrameOutput Runtime::frame(const FrameInput& input) {
     }
     const bool more = !d.animating.empty() || !d.removing.empty() || d.frame_requested || !d.dirty_regions.empty() ||
                       d.options.debug.hud || !d.flashes.empty();
+    // What frames are wanted for from now on (D-70).
+    {
+        // Input that moves something (a drag, the wheel, a touch) keeps the
+        // display at its fastest a little after, so a gesture's end is smooth.
+        for (const InputEvent& e : input.events) {
+            const auto* p = std::get_if<PointerEvent>(&e);
+            if (std::holds_alternative<WheelEvent>(e) || (p && (p->buttons != 0 || p->type == PointerType::touch)))
+                d.input_until = d.now() + seconds(0.3);
+        }
+        FrameDemand want;
+        if (!d.animating.empty()) want = merge(want, FrameDemand::fastest("animation"));
+        if (d.now() < d.input_until) want = merge(want, FrameDemand::fastest("input"));
+        for (const auto& [token, lease] : d.leases) want = merge(want, lease);
+        // A timer: as often as it is due (a caret's blink), at most 60 a second.
+        if (const auto next = next_timer(); next && want.idle()) {
+            const double in = (*next - d.now()).count();
+            if (in < 2.0) {
+                const double hz = std::min(60.0, 1.0 / std::max(in, 1.0 / 60));
+                want = merge(want, FrameDemand{0, hz, hz, "timer"});
+            }
+        }
+        d.demand = std::move(want);
+        trace::count("frame.demand_hz", d.demand.idle() ? 0.0 : std::min(d.demand.wanted(), 1000.0), "frame.pacing");
+    }
     // Bindings that ran since the last frame count toward this one.
     FrameStats stats = std::exchange(d.stats, {});
     d.history.push(stats);
-    return FrameOutput{&d.list, repainted, more, d.semantic_revision, stats, next_timer()};
+    return FrameOutput{&d.list, repainted, more, d.semantic_revision, stats, next_timer(), d.demand};
 }
 
 pipeline::Pipeline& Runtime::frame_pipeline() noexcept { return *impl_->frames; }

@@ -146,6 +146,24 @@ float4 invert_fs(EffectPixel px) : SV_Target {
         std::filesystem::remove_all(dir, ec);
     });
 
+    s.test("frames as often as they are wanted (D-70): a lease of 20 Hz paces the loop, idle sleeps", [] {
+        Desktop d(offscreen("sdl3-pacing"));
+        d.mount("main", column({.width = 240, .height = 160}, {text({.text = "paced"})}));
+        check(d.step(false));
+        // Something asks for 20 frames a second: ten frames take about half a second.
+        auto lease = d.runtime().demand_frames({.min_hz = 10, .max_hz = 20, .preferred_hz = 20, .reason = "test"});
+        check(d.step(false));  // the demand is the frame's: from the next one on
+        const auto from = std::chrono::steady_clock::now();
+        for (int i = 0; i < 10; ++i) check(d.step(true));
+        const double took = std::chrono::duration<double>(std::chrono::steady_clock::now() - from).count();
+        std::println("  10 frames at 20 Hz: {:.3f} s", took);
+        check(took > 0.40 && took < 2.0, std::format("paced: {:.3f} s", took));
+        check(d.runtime().frame_demand().reason == "test");
+        lease.release();
+        check(d.step(false));
+        check(d.runtime().frame_demand().idle(), "idle once released");
+    });
+
     s.test("input goes through SDL: pointer, keys, text, wheel, close", [] {
         Desktop d(offscreen());
         if (!d.open()) return;

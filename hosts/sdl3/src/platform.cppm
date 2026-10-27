@@ -39,6 +39,8 @@ Polled poll(Window& w, bool wait, std::optional<std::chrono::milliseconds> timeo
 // What rhi::sdl::Options::window takes.
 [[nodiscard]] std::uint32_t window_id(Window& w);
 [[nodiscard]] float pixel_scale(Window& w);
+// The refresh rate of the display the window is on (Hz; 0 when it says none).
+[[nodiscard]] double refresh_hz(Window& w);
 void present(Window& w, const raster::Surface& frame);
 void text_input(Window& w, std::optional<Rect> caret);
 void cursor(Window& w, std::string_view shape);

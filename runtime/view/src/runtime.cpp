@@ -278,6 +278,20 @@ double Runtime::frame_rate() const noexcept {
     }));
 }
 
+FrameDemandLease Runtime::demand_frames(FrameDemand d) {
+    const std::uint64_t token = impl_->next_lease++;
+    impl_->leases.emplace_back(token, std::move(d));
+    request_frame();
+    return {this, token, impl_->life};
+}
+
+void Runtime::release_frames(std::uint64_t token) noexcept {
+    std::erase_if(impl_->leases, [&](const auto& l) { return l.first == token; });
+}
+
+const FrameDemand& Runtime::frame_demand() const noexcept { return impl_->demand; }
+double Runtime::display_hz() const noexcept { return impl_->display_hz; }
+
 bool Runtime::deterministic() const { return impl_->clock.kind() != anim::ClockKind::interactive; }
 NodeId Runtime::focused() const noexcept { return impl_->focus; }
 Verbs& Runtime::verbs() noexcept { return impl_->verbs; }

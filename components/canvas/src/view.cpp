@@ -120,13 +120,23 @@ void Canvas::animate_to(const Camera& c, anim::SpringParams params) {
     const auto v = motion_ ? motion_->velocity(services().now()) : std::array<double, 3>{};
     glide_.reset();
     motion_.emplace(camera_, to, services().now(), params, v);
+    pace();
     schedule();
 }
 
 // The camera after input or an animation step: the promoted nodes placed, the
 // view redrawn, the binding and listeners told.
+// While the camera moves on its own (a spring, a fling), frames as fast as
+// the display goes (D-70); none asked for once it rests.
+void Canvas::pace() {
+    const bool moving = motion_.has_value() || glide_.has_value();
+    if (moving && !pace_) pace_ = services().demand_frames(FrameDemand::fastest(motion_ ? "camera spring" : "camera fling"));
+    else if (!moving && pace_) pace_.release();
+}
+
 void Canvas::changed() {
     last_motion_ = services().now();
+    pace();
     place();
     services().invalidate_paint(node());
     services().invalidate_semantics(node());
@@ -637,6 +647,7 @@ bool Canvas::on_event(EventContext& ctx, const InputEvent& e) {
             const bool recent = (services().now() - last_move_).count() < 0.1;
             if (props.inertia && recent && p->kind == PointerKind::up && std::hypot(velocity_.x, velocity_.y) > 50) {
                 glide_.emplace(camera_, velocity_, services().now());
+                pace();
                 schedule();
             }
             return true;

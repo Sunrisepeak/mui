@@ -309,6 +309,8 @@ int main(int argc, char** argv) {
         const auto e = a.h.runtime().verbs().invoke("wall.stream", call);
         check_eq(e.exit_code().value_or(-1), std::int64_t{0});
         check_eq(a.model.streaming(), std::size_t{2});
+        a.h.step();
+        check(a.h.runtime().frame_demand().reason == "streaming" && a.h.runtime().frame_demand().wanted() == 60, "60 frames a second for text (D-70)");
         auto& sc = a.scene();
         std::map<std::string, std::uint64_t> revisions;
         sc.each([&](world::NodeRef n) { revisions[std::string(sc.key(n))] = sc.content_revision(n); });

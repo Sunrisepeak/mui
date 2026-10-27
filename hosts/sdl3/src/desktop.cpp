@@ -35,6 +35,8 @@ struct Desktop::Impl {
     bool                                     quitting = false;
     int                                      exit_code = 0;
     bool                                     idle = false;  // the last frame wanted no other
+    FrameDemand                              demand;        // what the last frame said frames are wanted for (D-70)
+    std::chrono::steady_clock::time_point    last_frame{};
 
     // The GPU path: a device that claimed the window, the renderer, and the
     // frame texture the swapchain shows.
@@ -283,13 +285,28 @@ bool Desktop::step(bool wait) {
             return false;
         }
     }
-    // Sleep only when nothing moves: until an event, or the next timer.
+    // Frames as often as they are wanted (D-70): none while nothing moves —
+    // sleep until an event or the next timer —, and while something does, at
+    // the rate its demand asks within the display's (a stream's 60 on a 120 Hz
+    // panel: half the frames, and the display may follow down).
+    const double display = d.window ? platform::refresh_hz(*d.window) : 0;
+    const double interval = frame_interval(d.demand, display);
     std::optional<std::chrono::milliseconds> timeout;
-    const bool sleep = wait && d.idle;
+    bool sleep = wait && d.idle;
     if (sleep) {
         if (auto next = d.runtime->next_timer()) {
             const double left = (*next - d.runtime->now()).count();
             timeout = std::chrono::milliseconds(static_cast<std::int64_t>(std::max(0.0, std::ceil(left * 1000))));
+        }
+    } else if (wait && interval > 0) {
+        // Slower than the display — or with no vsync to hold the loop to it:
+        // wait out the interval (an event still wakes it).
+        const double period = display > 0 ? 1.0 / display : 1.0 / 60;
+        const auto due = d.last_frame + std::chrono::duration<double>(interval);
+        const auto now = std::chrono::steady_clock::now();
+        if ((interval > period * 1.5 || !d.options.vsync) && due > now) {
+            sleep = true;
+            timeout = std::chrono::milliseconds(static_cast<std::int64_t>(std::ceil(std::chrono::duration<double, std::milli>(due - now).count())));
         }
     }
     platform::Polled polled = platform::poll(*d.window, sleep, timeout);
@@ -297,11 +314,17 @@ bool Desktop::step(bool wait) {
     d.reload_effects();
     FrameInput in;
     in.events = std::move(polled.events);
+    // Evaluated where it will be seen: the next refresh (D-70).
+    const auto start = std::chrono::steady_clock::now();
+    in.present_at = start + std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::duration<double>(display > 0 ? 1.0 / display : 1.0 / 60));
+    in.display_hz = display;
+    d.last_frame = start;
     FrameOutput out = d.runtime->frame(in);
+    d.demand = out.demand;
     d.show();
     platform::text_input(*d.window, d.runtime->text_input_rect());
     platform::cursor(*d.window, d.runtime->cursor());
-    d.idle = !out.animating;
+    d.idle = !out.animating && out.demand.idle();
     if (polled.quit) d.quitting = true;
     return !d.quitting;
 }

@@ -79,6 +79,12 @@ inline constexpr std::string_view display = "display"; // render::DisplayList
 struct FrameInput {
     std::optional<anim::seconds> time;   // virtual and render clocks: the frame's time
     std::vector<InputEvent>      events;
+    // Interactive clock: when the host predicts this frame reaches the
+    // screen; its animations are evaluated there, so motion keeps pace with
+    // what is seen whatever the refresh rate (D-70). Unset: now.
+    std::optional<std::chrono::steady_clock::time_point> present_at;
+    // The refresh rate of the display the frame goes to (0: unknown).
+    double display_hz = 0;
 };
 
 }  // namespace omui
@@ -133,6 +139,7 @@ struct FrameOutput {
     std::uint64_t              revision = 0;       // semantic revision after the frame
     FrameStats                 stats;
     std::optional<seconds>     next_timer;         // when the earliest timer is due (hosts sleep until then)
+    FrameDemand                demand;             // how often frames are wanted from now on, and why (D-70)
 };
 
 // One performed action, for audit (openas: who did what, with what result).
@@ -277,6 +284,13 @@ public:
     [[nodiscard]] bool reduce_transparency() const override;
     [[nodiscard]] float pixel_scale() const override { return scale(); }
     [[nodiscard]] bool deterministic() const override;
+    [[nodiscard]] FrameDemandLease demand_frames(FrameDemand d) override;
+    void release_frames(std::uint64_t token) noexcept override;
+    // What the last frame found frames are wanted for: animations, input in
+    // the last 300 ms, timers, the leases (D-70).
+    [[nodiscard]] const FrameDemand& frame_demand() const noexcept;
+    // The display's refresh rate, as the host last said (0: unknown).
+    [[nodiscard]] double display_hz() const noexcept;
     [[nodiscard]] typeset::FontCollection& fonts() override;
     [[nodiscard]] render::ImageStore& images() override;
     [[nodiscard]] anim::seconds now() const override;

@@ -89,6 +89,7 @@ private:
     void changed();   // after the camera moved: placed, redrawn, told
     void schedule();  // the next frame's animation step
     void step();
+    void pace();      // the frame demand while the camera moves on its own
     void place();     // the live nodes: composed, or moved with the camera
     [[nodiscard]] std::array<float, 3> placement(const world::Scene& s, world::NodeRef n, Size viewport) const;
     [[nodiscard]] std::size_t tier_of(const world::Kind& k, Rect screen, bool focused) const;
@@ -145,6 +146,7 @@ private:
     static constexpr double              promote_after = 0.12;
     anim::seconds                        last_motion_{-1e9};
     std::uint64_t                        promote_timer_ = 0;
+    FrameDemandLease                     pace_;
     bool                                 writing_ = false;
     bool                                 started_ = false;  // `start` has placed the camera
     Size                                 placed_for_{};     // the viewport the live nodes were placed for

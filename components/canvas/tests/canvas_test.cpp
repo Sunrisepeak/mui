@@ -343,6 +343,26 @@ int main(int argc, char** argv) {
         check(h.tree().node("main/board/n999").has_value());
     });
 
+    s.test("frame demand (D-70): the fastest while the camera moves on its own, none once it rests", [] {
+        auto& sc = world::scene("pacing");
+        sc.clear();
+        sc.add({.kind = "box", .x = 0, .y = 0, .width = 100, .height = 100, .key = "a", .fill = Color::hex(0x16a34a)});
+        sc.add({.kind = "box", .x = 3000, .y = 2000, .width = 100, .height = 100, .key = "b", .fill = Color::hex(0x2563eb)});
+        Headless h({.size = {800, 600}});
+        h.mount("main", column({.width = 800, .height = 600}, {canvas({.id = "board", .scene = "pacing", .width = 800, .height = 600})}));
+        h.settle();
+        check(h.runtime().frame_demand().idle(), "at rest");
+        Invocation call;
+        call.actor = {"agent", "test", {}};
+        call.args = Value{}.set("key", Value("b"));
+        (void)h.tree().act("main/board", "focus_node", call);
+        h.step();
+        const auto& d = h.runtime().frame_demand();
+        check(!d.idle() && std::isinf(d.max_hz) && d.reason == "camera spring", d.reason);
+        h.settle();
+        check(h.runtime().frame_demand().idle(), "settled: none");
+    });
+
     s.test("input: the wheel zooms about the cursor, a drag pans, a fling glides", [] {
         auto& sc = world::scene("input");
         sc.clear();

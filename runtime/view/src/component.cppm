@@ -49,6 +49,54 @@ struct Placement {
 };
 
 // The runtime's services, as components see them.
+// How often frames are wanted (D-70): the runtime merges every source's —
+// animations, input, timers, and the leases components take — and the host
+// paces frames and asks the display (ProMotion, VRR) for a rate within it.
+struct FrameDemand {
+    double      min_hz = 0;        // slower than this shows (0: any)
+    double      max_hz = 0;        // 0: no frame is needed; infinity: as fast as the display goes
+    double      preferred_hz = 0;  // 0: as max_hz
+    std::string reason;            // what asks: "camera", "animation", "streaming" (trace, HUD)
+
+    [[nodiscard]] static FrameDemand fastest(std::string why) {
+        return {0, std::numeric_limits<double>::infinity(), 0, std::move(why)};
+    }
+    [[nodiscard]] bool idle() const noexcept { return !(max_hz > 0); }
+    // The rate it asks for: the preferred one, else the most it takes.
+    [[nodiscard]] double wanted() const noexcept { return preferred_hz > 0 ? std::min(preferred_hz, max_hz) : max_hz; }
+};
+
+// Both ask, together: the most each wants, the reason of the one that wants most.
+[[nodiscard]] FrameDemand merge(const FrameDemand& a, const FrameDemand& b);
+
+// The time between frames for a demand on a display of `display_hz`: its
+// wanted rate, at least its minimum, at most the display's (0: no frame).
+[[nodiscard]] double frame_interval(const FrameDemand& d, double display_hz) noexcept;
+
+class Services;
+
+// A demand while it lasts (RAII): released when it goes — or when the
+// runtime that granted it goes first (a program's model may outlive it).
+class FrameDemandLease {
+public:
+    FrameDemandLease() = default;
+    FrameDemandLease(Services* s, std::uint64_t token, std::weak_ptr<const void> life) noexcept
+        : services_(s), token_(token), life_(std::move(life)) {}
+    FrameDemandLease(FrameDemandLease&& o) noexcept
+        : services_(std::exchange(o.services_, nullptr)), token_(std::exchange(o.token_, 0)), life_(std::move(o.life_)) {}
+    FrameDemandLease& operator=(FrameDemandLease&& o) noexcept;
+    FrameDemandLease(const FrameDemandLease&) = delete;
+    FrameDemandLease& operator=(const FrameDemandLease&) = delete;
+    ~FrameDemandLease() { release(); }
+    void release() noexcept;
+    [[nodiscard]] explicit operator bool() const noexcept { return token_ != 0; }
+
+private:
+    Services*                 services_ = nullptr;
+    std::uint64_t             token_ = 0;
+    std::weak_ptr<const void> life_;  // the granting runtime's
+};
+
 class Services {
 public:
     virtual ~Services() = default;
@@ -90,6 +138,10 @@ public:
     // frame, so a frame shows what the frames before asked for, never what
     // the threads happened to finish (a canvas's textures).
     [[nodiscard]] virtual bool deterministic() const { return false; }
+    // Frames at this rate while the lease lives (D-70, L2): a camera on a
+    // spring asks for the display's fastest, a stream for 60.
+    [[nodiscard]] virtual FrameDemandLease demand_frames(FrameDemand d) { (void)d; return {}; }
+    virtual void release_frames(std::uint64_t token) noexcept { (void)token; }
     [[nodiscard]] virtual typeset::FontCollection& fonts() = 0;
     [[nodiscard]] virtual render::ImageStore& images() = 0;
     [[nodiscard]] virtual anim::seconds now() const = 0;

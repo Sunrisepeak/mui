@@ -71,10 +71,13 @@ void Model::stream(std::size_t windows, double rate) {
     for (std::size_t i = 0; i < std::min(windows, near.size()); ++i) streams_.push_back({near[i].second});
     rate_ = rate;
     last_ = runtime->now();
+    // Text arriving reads smoothly at 60 frames a second; 24 at the least (D-70).
+    pace_ = runtime->demand_frames({.min_hz = 24, .max_hz = 60, .preferred_hz = 60, .reason = "streaming"});
     schedule();
 }
 
 void Model::stop_stream() {
+    pace_.release();
     if (runtime && timer_) runtime->cancel(timer_);
     timer_ = 0;
     // What was written stays; the textures show all of it.
@@ -156,6 +159,14 @@ void hud(omui::Ui& ui, Model& model) {
                .border_width = 1, .radius = 10, .shadow = "md"},
               [&] {
                   ui.text(std::format("{:.0f} fps · frame {:.2f} ms · p99 {:.2f} ms", model.runtime->frame_rate(), p50, p99), {.id = "frame", .style = "label"});
+                  // What frames are asked for, and why (D-70).
+                  const FrameDemand& want = model.runtime->frame_demand();
+                  const double hz = model.runtime->display_hz();
+                  ui.text(want.idle() ? std::format("idle · display {:.0f} Hz", hz)
+                                      : std::format("asks {} · {} · display {:.0f} Hz",
+                                                    std::isinf(want.wanted()) ? std::string("the fastest") : std::format("{:.0f} Hz", want.wanted()),
+                                                    want.reason, hz),
+                          {.id = "pacing", .style = "caption"});
                   // The last frames, against a 120 Hz frame's 8.3 ms.
                   ui.add(painter({.id = "frames",
                                   .width = 316,

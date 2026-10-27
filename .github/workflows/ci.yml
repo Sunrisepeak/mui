@@ -109,6 +109,9 @@ jobs:
       - name: SDL's offscreen video driver (the desktop host's tests open windows)
         run: echo "SDL_VIDEO_DRIVER=offscreen" >> "$GITHUB_ENV"
 
+      - name: A GPU for omui.rhi (lavapipe on Linux and Windows, Metal on macOS; required, not skipped)
+        run: tools/ci/gpu.sh
+
       - name: Build every member
         run: mcpp build --workspace --profile '${{ matrix.profile }}' --exclude openmui.entry.python --exclude openmui.reflect
 

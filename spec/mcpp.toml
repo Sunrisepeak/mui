@@ -22,6 +22,8 @@ kind = "lib"
 
 [build]
 sources = ["src/*.cppm", "src/*.cpp", "src/generated/*.cppm"]
+# openmui.h, for the C side of the ABI (runtime/abi checks its layouts against it).
+include_dirs = ["include"]
 
 [dev-dependencies]
 openmui.testing = { path = "../tests/support" }

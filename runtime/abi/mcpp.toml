@@ -1,0 +1,42 @@
+# openmui.abi — openmui.h implemented (spec §8): the one boundary every
+# language binding is written against. Handles and values cross it, never a
+# C++ type or an exception; text and structured results reach the caller's
+# sink; views are view documents (openmui.viewdoc), queries and actions the
+# bus interface's (openmui.agent). Its types and declarations are generated
+# from spec/registry/abi.toml (`omui-gen abi`), and a native unit checks every
+# layout against the header.
+[package]
+namespace   = "openmui"
+name        = "abi"
+version     = "0.1.0"
+description = "openmui's C ABI (openmui.h): runtimes, view documents, signals, verbs, frames and the semantic tree"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "runtime"
+
+[targets.openmui-abi]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/generated/*.cppm", "src/native/*.cpp"]
+
+[test]
+# The C++ suite, and a C program that includes openmui.h.
+discover = ["tests/**/*.cpp", "tests/**/*.c"]
+
+[dependencies]
+openmui.spec     = { path = "../../spec" }
+openmui.core     = { path = "../core" }
+openmui.view     = { path = "../view" }
+openmui.viewdoc  = { path = "../viewdoc" }
+openmui.semantic = { path = "../semantic" }
+openmui.agent    = { path = "../agent" }
+openmui.render   = { path = "../../modules/render" }
+openmui.raster   = { path = "../../modules/raster" }
+openmui.text     = { path = "../../modules/text" }
+
+[dev-dependencies]
+openmui.testing = { path = "../../tests/support" }
+openmui.ui.base = { path = "../../components/base" }

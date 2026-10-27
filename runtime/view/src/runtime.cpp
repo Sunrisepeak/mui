@@ -165,6 +165,12 @@ void Runtime::set(NodeId node, std::string_view property, const Value& value) {
     d.apply(node, property, value);
 }
 
+void Runtime::bind(NodeId node, std::string property, Source source) {
+    Impl& d = *impl_;
+    if (!d.alive(node)) return;
+    d.set_source(node, property, source);
+}
+
 std::uint64_t Runtime::on(NodeId node, std::string event, Handler handler) {
     Impl& d = *impl_;
     std::uint64_t token = d.next_token++;

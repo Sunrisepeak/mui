@@ -175,6 +175,9 @@ public:
     [[nodiscard]] std::source_location origin(NodeId node) const;  // where its element was built
     [[nodiscard]] Value get(NodeId node, std::string_view property) const override;
     void set(NodeId node, std::string_view property, const Value& value) override;
+    // A property read from a source from now on: a signal, an expression, two-way
+    // where the source writes (what an element's property is; the C ABI's omuiBind).
+    void bind(NodeId node, std::string property, Source source);
     // Handlers added at run time (scripts); returns a token for `off`.
     std::uint64_t on(NodeId node, std::string event, Handler handler) override;
     void off(std::uint64_t token) override;

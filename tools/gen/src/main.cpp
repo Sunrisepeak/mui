@@ -13,6 +13,9 @@
 //       options, the CRTP base) and the builders
 //   omui-gen check <file.contract.omui.toml>... --registry <dir> [--json]
 //       diagnostics only
+//   omui-gen abi <registry-dir> --out <runtime/abi/src> [--check]
+//       openmui.h's types and functions for the C++ that implements them, and
+//       the check that their layouts agree with the header
 //   omui-gen unicode <ucd-dir> --version <x.y.z> --out <dir> [--tests <dir>] [--check]
 //       openmui.unicode's tables (and a subset of the UCD's conformance tests)
 //
@@ -51,6 +54,7 @@ int usage() {
                             "       omui-gen cpp <contract>... --registry <dir> --module <name> --out <dir> [--namespace ns] [--catalog]\n"
                             "                    [--contract name] [--part contract|builder] [--check]\n"
                             "       omui-gen check <contract>... --registry <dir> [--json]\n"
+                            "       omui-gen abi <registry-dir> --out <runtime/abi/src> [--check]\n"
                             "       omui-gen unicode <ucd-dir> --version <x.y.z> --out <dir> [--tests <dir>] [--check]");
     return 2;
 }
@@ -134,6 +138,24 @@ int run_registry(const Options& o) {
     } else {
         std::println("omui-gen: {} file(s) written", w.written);
     }
+    return 0;
+}
+
+int run_abi(const Options& o) {
+    if (o.inputs.size() != 1 || o.out.empty()) return usage();
+    Diagnostics diags;
+    Registry reg = read_registry(o.inputs[0], diags);
+    if (report(diags, o.json) != 0) return 1;
+    Writer w{o.check};
+    w.put(o.out / "generated" / "c.cppm", emit_abi_types(reg));
+    w.put(o.out / "generated" / "api.cppm", emit_abi_functions(reg));
+    w.put(o.out / "native" / "layout.cpp", emit_abi_layout(reg));
+    if (o.check && w.stale) {
+        std::println(std::cerr, "{} generated file(s) are out of date; run: omui-gen abi {} --out {}", w.stale, generic_utf8(o.inputs[0]),
+                     generic_utf8(o.out));
+        return 1;
+    }
+    std::println("omui-gen: {} file(s) written", w.written);
     return 0;
 }
 
@@ -223,5 +245,6 @@ int main(int argc, char** argv) {
     if (options->command == "cpp") return run_cpp(*options);
     if (options->command == "check") return run_contracts(*options, false);
     if (options->command == "unicode") return run_unicode(*options);
+    if (options->command == "abi") return run_abi(*options);
     return usage();
 }

@@ -670,3 +670,8 @@ A short description shown while hovering or focusing an element.
 | `omuiAct` | Performs an action (bus interface `act`); OMUI_NEEDS_ANSWER when an answer is missing (S-2). |
 | `omuiWait` | Waits for a condition (bus interface `wait`), running frames of a headless runtime meanwhile. |
 | `omuiPost` | Runs fn on the runtime's thread at the next frame boundary; callable from any thread. |
+| `omuiCheck` | Checks a view document against what is registered; the sink receives one JSON diagnostic per line. OMUI_ERROR_INVALID_ARGUMENT when there is an error. |
+| `omuiDefineComponent` | Defines (or redefines) the component of a document with an interface; the sink receives its diagnostics. |
+| `omuiSignalFind` | The signal a view mounted at a slot declares, by name: what a binding's own signal object refers to. |
+| `omuiSignalWatch` | Calls fn after each batch that changed the signal; omuiOff ends it. |
+| `omuiRun` | Shows a runtime created without `headless` in a window and runs it until the window closes; OMUI_ERROR_EXTENSION_NOT_PRESENT where no display host is linked. |

@@ -39,6 +39,14 @@ int main(int argc, char** argv) {
         same(spec_dir() / "stubs" / "core.pyi", gen::emit_pyi(reg.contracts, "the Core profile"));
         same(spec_dir() / "stubs" / "core.lua", gen::emit_lua(reg.contracts, "the Core profile"));
         same(spec_dir() / "schema" / "core.components.json", gen::emit_view_schema(reg.contracts, "the Core profile"));
+        // runtime/abi's view of the same ABI.
+        const auto abi = spec_dir().parent_path() / "runtime" / "abi" / "src";
+        auto current = [](const std::filesystem::path& p, const std::string& now) {
+            check(read(p) == now, std::format("{} is out of date: run omui-gen abi spec/registry --out runtime/abi/src", p.generic_string()));
+        };
+        current(abi / "generated" / "c.cppm", gen::emit_abi_types(reg));
+        current(abi / "generated" / "api.cppm", gen::emit_abi_functions(reg));
+        current(abi / "native" / "layout.cpp", gen::emit_abi_layout(reg));
     });
 
     s.test("the base components' C++ is current", [] {

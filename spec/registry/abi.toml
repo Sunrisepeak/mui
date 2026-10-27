@@ -269,3 +269,32 @@ doc = "Waits for a condition (bus interface `wait`), running frames of a headles
 name = "omuiPost"
 params = [ { name = "rt", type = "OmuiRuntime" }, { name = "fn", type = "PFN_omuiTask" }, { name = "user", type = "void*" } ]
 doc = "Runs fn on the runtime's thread at the next frame boundary; callable from any thread."
+
+# ── 0.1, appended (M3: bindings need these) ──
+
+[[callback]]
+name = "PFN_omuiChange"
+returns = "void"
+params = [ { name = "user", type = "void*" }, { name = "signal", type = "OmuiSignal" }, { name = "value_json", type = "OmuiString" } ]
+doc = "A signal's new value, on the runtime's thread, after the batch that wrote it."
+
+[[function]]
+name = "omuiCheck"
+params = [ { name = "rt", type = "OmuiRuntime" }, { name = "view_json", type = "OmuiString" }, { name = "sink", type = "PFN_omuiSink" }, { name = "user", type = "void*" } ]
+doc = "Checks a view document against what is registered; the sink receives one JSON diagnostic per line. OMUI_ERROR_INVALID_ARGUMENT when there is an error."
+[[function]]
+name = "omuiDefineComponent"
+params = [ { name = "rt", type = "OmuiRuntime" }, { name = "component_json", type = "OmuiString" }, { name = "sink", type = "PFN_omuiSink" }, { name = "user", type = "void*" } ]
+doc = "Defines (or redefines) the component of a document with an interface; the sink receives its diagnostics."
+[[function]]
+name = "omuiSignalFind"
+params = [ { name = "rt", type = "OmuiRuntime" }, { name = "slot", type = "OmuiString" }, { name = "name", type = "OmuiString" }, { name = "out", type = "OmuiSignal*" } ]
+doc = "The signal a view mounted at a slot declares, by name: what a binding's own signal object refers to."
+[[function]]
+name = "omuiSignalWatch"
+params = [ { name = "rt", type = "OmuiRuntime" }, { name = "signal", type = "OmuiSignal" }, { name = "fn", type = "PFN_omuiChange" }, { name = "user", type = "void*" }, { name = "out", type = "OmuiSubscription*" } ]
+doc = "Calls fn after each batch that changed the signal; omuiOff ends it."
+[[function]]
+name = "omuiRun"
+params = [ { name = "rt", type = "OmuiRuntime" } ]
+doc = "Shows a runtime created without `headless` in a window and runs it until the window closes; OMUI_ERROR_EXTENSION_NOT_PRESENT where no display host is linked."

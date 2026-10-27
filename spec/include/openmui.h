@@ -439,6 +439,9 @@ typedef OmuiResult (*PFN_omuiVerb)(void* user, OmuiString args_json, PFN_omuiSin
 /* Work posted to the runtime's thread. */
 typedef void (*PFN_omuiTask)(void* user);
 
+/* A signal's new value, on the runtime's thread, after the batch that wrote it. */
+typedef void (*PFN_omuiChange)(void* user, OmuiSignal signal, OmuiString value_json);
+
 /* ── functions ───────────────────────────────────────────────────────── */
 
 /* Creates a runtime. */
@@ -503,6 +506,21 @@ OMUI_API OmuiResult omuiWait(OmuiRuntime rt, OmuiString condition_json, uint32_t
 
 /* Runs fn on the runtime's thread at the next frame boundary; callable from any thread. */
 OMUI_API OmuiResult omuiPost(OmuiRuntime rt, PFN_omuiTask fn, void* user);
+
+/* Checks a view document against what is registered; the sink receives one JSON diagnostic per line. OMUI_ERROR_INVALID_ARGUMENT when there is an error. */
+OMUI_API OmuiResult omuiCheck(OmuiRuntime rt, OmuiString view_json, PFN_omuiSink sink, void* user);
+
+/* Defines (or redefines) the component of a document with an interface; the sink receives its diagnostics. */
+OMUI_API OmuiResult omuiDefineComponent(OmuiRuntime rt, OmuiString component_json, PFN_omuiSink sink, void* user);
+
+/* The signal a view mounted at a slot declares, by name: what a binding's own signal object refers to. */
+OMUI_API OmuiResult omuiSignalFind(OmuiRuntime rt, OmuiString slot, OmuiString name, OmuiSignal* out);
+
+/* Calls fn after each batch that changed the signal; omuiOff ends it. */
+OMUI_API OmuiResult omuiSignalWatch(OmuiRuntime rt, OmuiSignal signal, PFN_omuiChange fn, void* user, OmuiSubscription* out);
+
+/* Shows a runtime created without `headless` in a window and runs it until the window closes; OMUI_ERROR_EXTENSION_NOT_PRESENT where no display host is linked. */
+OMUI_API OmuiResult omuiRun(OmuiRuntime rt);
 
 #ifdef __cplusplus
 }

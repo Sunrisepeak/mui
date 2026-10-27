@@ -1106,7 +1106,8 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
   - ✅ 表达式 `openmui.expr`（`runtime/expr`）：CEL 兼容的解析器和打印器（往返由随机合法和随机非法输入做模糊测试，四个平台同一个固定哈希）、组合子、同步求值器（错误给 null 和定位诊断，带修复提示）、注册表里的全部函数（函数表从生成的注册表来）；树高不超过 200 层，解析、求值、打印都不会栈溢出。`openmui.unicode` 同时补上了完整的大小写映射（SpecialCasing、Final_Sigma）。
   - ✅ 视图文档 `openmui.viewdoc`（`runtime/viewdoc`）：检查（名字、类型、ID、表达式，带位置和修改建议）、加载成和 builder 相同的 Element、绑定和事件（`set` / `verb` / `emit`，激活上的 verb 走 S-1 / S-2）、`if` / `for`（列表里虚拟化）、插槽、原地重新加载（signal 和节点保留）、组件文档（接口生成契约）、JSON Schema（`spec/schema/view.schema.json`，CI 校验）、规范格式；`omui check` / `fmt` / `schema`；随机文档模糊测试。
   - 示例 03 的 C++ 和视图文档两种写法：语义树和像素完全相同（S 级），保存即重新加载（< 200ms，计数保留）；TS / Python / Lua 版本随绑定加入。
-  - `runtime/abi`（C ABI）、`openmui.h` 生成的完整绑定、TS / Python / Lua；`runtime/reflect`；示例 02–06、12。
+  - ✅ C ABI `openmui.abi`（`runtime/abi`）：`openmui.h` 的全部函数，视图文档、节点、signal、verb（S-1 / S-2）、总线接口（snapshot / act / wait）、帧和像素；类型和声明由 `omui-gen abi` 从 `abi.toml` 生成，原生单元对照头文件检查每个大小和偏移；C++ 测试覆盖每个函数和每种误用，C 程序测试头文件本身。为绑定追加了 `omuiCheck`、`omuiDefineComponent`、`omuiSignalFind`、`omuiSignalWatch`、`omuiRun`。
+  - TS / Python / Lua 绑定（基于 C ABI 和视图文档）；`runtime/reflect`；示例 02、04–06、12。
 - M4：`modules/rhi` 和 `rhi-sdl`、GPU 渲染路径、Slang 着色器、效果和背景输入（液态玻璃，D-64）、画布、风格包、S1 / S2。
 - M5：openmui-video、ui-timeline、MCP 服务器、skills、S3 / S4 / S5。
 - 契约⑦（插件与管线）写进规范；Inspector 的火焰图和动画检查器视图。

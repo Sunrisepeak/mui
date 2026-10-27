@@ -36,6 +36,7 @@ members = [
     "runtime/viewdoc",
     "runtime/semantic",
     "runtime/agent",
+    "runtime/abi",
     "hosts/headless",
     "hosts/sdl3",
     "components/base",

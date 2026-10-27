@@ -109,12 +109,19 @@ jobs:
       - name: SDL's offscreen video driver (the desktop host's tests open windows)
         run: echo "SDL_VIDEO_DRIVER=offscreen" >> "$GITHUB_ENV"
 
+      # The Python extension needs an mcpp that puts the kernel-abi package
+      # into a shared library (mcpp-community/mcpp#846); with an older one it
+      # is left out, with a warning, and comes back by itself.
+      - name: Whether this mcpp links the Python extension
+        id: python
+        run: tools/ci/python-extension-probe.sh '${{ matrix.profile }}'
+
       - name: Build every member
-        run: mcpp build --workspace --profile '${{ matrix.profile }}'
+        run: mcpp build --workspace --profile '${{ matrix.profile }}' ${{ steps.python.outputs.ok != 'true' && '--exclude openmui.entry.python' || '' }}
 
       - name: Test every member
         run: |
-          mcpp test --workspace --profile '${{ matrix.profile }}' 2>&1 | tee tests.log
+          mcpp test --workspace --profile '${{ matrix.profile }}' ${{ steps.python.outputs.ok != 'true' && '--exclude openmui.entry.python' || '' }} 2>&1 | tee tests.log
           grep -q "workspace result ok" tests.log || { echo "::error::workspace tests failed"; exit 1; }
 
       - name: An agent drives example 07 in its own process (M1 acceptance ②)
@@ -124,7 +131,7 @@ jobs:
         run: tools/ci/agent-e2e.sh
 
       - name: The Python wheel, pip-installed, runs example 03 (M3 acceptance ⑤)
-        if: runner.os == 'Linux' && matrix.profile == 'dev'
+        if: runner.os == 'Linux' && matrix.profile == 'dev' && steps.python.outputs.ok == 'true'
         run: tools/ci/python-wheel.sh
 
       - name: A feature selects one of two exclusive sources (M0 acceptance ⑤)

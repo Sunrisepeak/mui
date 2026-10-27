@@ -66,7 +66,7 @@ struct Runtime {
             Json v = Json::parse(std::string_view(line.begin(), line.end()), nullptr, false);
             if (v.is_object() && v.contains("data") && v["data"].contains("nodes"))
                 for (const Json& n : v["data"]["nodes"])
-                    if (n["id"] == id) return n.value("name", "");
+                    if (n["id"] == std::string(id)) return n.value("name", "");
         }
         return "<none>";
     }

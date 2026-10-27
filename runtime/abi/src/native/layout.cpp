@@ -26,6 +26,7 @@ static_assert(static_cast<long long>(::OMUI_ERROR_REFUSED) == static_cast<long l
 static_assert(static_cast<long long>(::OMUI_ERROR_EXTENSION_NOT_PRESENT) == static_cast<long long>(omui::abi::OMUI_ERROR_EXTENSION_NOT_PRESENT));
 static_assert(static_cast<long long>(::OMUI_ERROR_INCOMPATIBLE_VERSION) == static_cast<long long>(omui::abi::OMUI_ERROR_INCOMPATIBLE_VERSION));
 static_assert(static_cast<long long>(::OMUI_ERROR_INTERNAL) == static_cast<long long>(omui::abi::OMUI_ERROR_INTERNAL));
+static_assert(static_cast<long long>(::OMUI_ERROR_FAILED) == static_cast<long long>(omui::abi::OMUI_ERROR_FAILED));
 static_assert(static_cast<long long>(::OMUI_ROLE_NONE) == static_cast<long long>(omui::abi::OMUI_ROLE_NONE));
 static_assert(static_cast<long long>(::OMUI_ROLE_GENERIC) == static_cast<long long>(omui::abi::OMUI_ROLE_GENERIC));
 static_assert(static_cast<long long>(::OMUI_ROLE_APPLICATION) == static_cast<long long>(omui::abi::OMUI_ROLE_APPLICATION));

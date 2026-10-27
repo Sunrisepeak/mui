@@ -55,6 +55,9 @@ LAYERS: list[tuple[str, set[str]]] = [
     ("runtime/*", {"modules", "spec", "runtime"}),
     ("hosts/*", {"modules", "spec", "runtime", "hosts"}),
     ("components/*", {"modules", "spec", "runtime", "components", "themes"}),
+    # Native modules (component-binding §8): a contract and C++ over modules,
+    # registered in the runtime's registry (openmui.native).
+    ("natives/*", {"modules", "spec", "runtime", "natives"}),
     ("themes/*", {"modules", "spec", "runtime", "themes"}),
     ("video", {"modules", "spec", "runtime", "hosts", "components", "themes"}),
     ("lang/*", {"spec", "runtime", "lang"}),
@@ -68,7 +71,7 @@ LAYERS: list[tuple[str, set[str]]] = [
 ]
 
 # Members whose results are part of A-level conformance (identical bits).
-DETERMINISTIC = ["modules/anim", "modules/raster", "modules/layout", "modules/geom", "modules/render", "modules/text",
+DETERMINISTIC = ["modules/fuzzy", "modules/anim", "modules/raster", "modules/layout", "modules/geom", "modules/render", "modules/text",
                  "runtime/view"]
 
 # Operating-system headers: platform code goes through mcpplibs.os (D-57), so

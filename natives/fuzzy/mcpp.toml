@@ -1,0 +1,30 @@
+# openmui.native.fuzzy — openmui.fuzzy for scripts, the official native
+# module every host registers (the player, the Python extension): its
+# contract (native/fuzzy.native.omui.toml) is all that is written about the
+# interface; the partition and the TS / Python / Lua stubs are generated
+# (`omui-gen native`; tools/gen's test keeps them current).
+[package]
+namespace   = "openmui.native"
+name        = "fuzzy"
+version     = "0.1.0"
+description = "Fuzzy matching for scripts: openmui.fuzzy behind a native-module contract"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind      = "native"
+contracts = ["native/*.native.omui.toml"]
+
+[targets.openmui-native-fuzzy]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/generated/*.cppm"]
+
+[dependencies]
+openmui.native = { path = "../../runtime/native" }
+openmui.fuzzy  = { path = "../../modules/fuzzy" }
+nlohmann.json  = "3.12.0"
+
+[dev-dependencies]
+openmui.testing = { path = "../../tests/support" }

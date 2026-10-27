@@ -171,16 +171,16 @@
    ]
   },
   {
-   "step": 1,
-   "error": "invalid-argument"
+   "error": "invalid-argument",
+   "step": 1
   },
   {
-   "step": 2,
-   "act": "ok"
+   "act": "ok",
+   "step": 2
   },
   {
-   "step": 3,
-   "get": "Ada"
+   "get": "Ada",
+   "step": 3
   },
   {
    "step": 4,
@@ -360,20 +360,20 @@
    ]
   },
   {
-   "step": 5,
-   "act": "ok"
+   "act": "ok",
+   "step": 5
   },
   {
-   "step": 6,
-   "get": true
+   "get": true,
+   "step": 6
   },
   {
-   "step": 7,
-   "act": "ok"
+   "act": "ok",
+   "step": 7
   },
   {
-   "step": 8,
-   "get": "l"
+   "get": "l",
+   "step": 8
   },
   {
    "step": 9,
@@ -555,24 +555,24 @@
    ]
   },
   {
-   "step": 10,
-   "act": "ok"
+   "act": "ok",
+   "step": 10
   },
   {
-   "step": 11,
-   "get": "Ada"
+   "get": "Ada",
+   "step": 11
   },
   {
-   "step": 12,
-   "act": "ok"
+   "act": "ok",
+   "step": 12
   },
   {
-   "step": 13,
-   "get": false
+   "get": false,
+   "step": 13
   },
   {
-   "step": 14,
-   "error": "refused"
+   "error": "refused",
+   "step": 14
   },
   {
    "step": 16,
@@ -745,8 +745,8 @@
    ]
   },
   {
-   "step": 17,
-   "get": 1
+   "get": 1,
+   "step": 17
   }
  ]
 }

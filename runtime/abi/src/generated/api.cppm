@@ -44,6 +44,8 @@ OmuiResult omuiSignalShare(OmuiRuntime rt, OmuiSignal signal, OmuiString name) n
 OmuiResult omuiModelSplice(OmuiRuntime rt, OmuiString model, std::uint32_t from, std::uint32_t remove, OmuiString rows_json) noexcept;
 OmuiResult omuiModelRows(OmuiRuntime rt, OmuiString model, std::uint32_t from, std::uint32_t count, PFN_omuiSink sink, void* user) noexcept;
 OmuiResult omuiCatalog(OmuiRuntime rt, PFN_omuiSink sink, void* user) noexcept;
+OmuiResult omuiNativeCatalog(OmuiRuntime rt, PFN_omuiSink sink, void* user) noexcept;
+OmuiResult omuiNativeCall(OmuiRuntime rt, OmuiString module_name, OmuiString function_name, OmuiString args_json, PFN_omuiSink sink, void* user) noexcept;
 
 }  // extern "C"
 

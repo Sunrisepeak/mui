@@ -7,6 +7,7 @@ import std;
 import openmui.abi;
 import openmui.core;
 import openmui.ui.base;
+import openmui.native.fuzzy;
 import openmui.testing;
 
 using namespace omui::testing;
@@ -360,6 +361,25 @@ int main(int argc, char** argv) {
         check_eq(r.frame(160, 100, "[{\"type\": 3"), OMUI_ERROR_INVALID_ARGUMENT);
         out.stride = 4;
         check_eq(r.frame(160, 100, {}, &out), OMUI_ERROR_INVALID_ARGUMENT);
+    });
+
+    s.test("native modules: the catalogue, and calls checked against the contract (component-binding §8)", [] {
+        check(omui::natives::fuzzy::define().has_value(), "the official fuzzy module");
+        Rt r;
+        std::string catalog;
+        check_eq(omuiNativeCatalog(r.rt, collect, &catalog), OMUI_SUCCESS);
+        check(catalog.find(R"j("rank":{"async":true)j") != std::string::npos, catalog.substr(0, 300));
+        std::string out;
+        check_eq(omuiNativeCall(r.rt, str("fuzzy"), str("rank"), str(R"j(["fb", ["foobar", "foo_bar", "xyz"]])j"), collect, &out), OMUI_SUCCESS);
+        check(out.find(R"j("text":"foo_bar")j") != std::string::npos && out.find(R"j("kind":"data")j") != std::string::npos, out);
+        check(out.find("foo_bar") < out.find(R"j("text":"foobar")j"), "the word start first");
+        std::string bad;
+        check_eq(omuiNativeCall(r.rt, str("fuzzy"), str("rank"), str(R"j({"query": 3})j"), collect, &bad), OMUI_ERROR_INVALID_ARGUMENT);
+        check(bad.find("`query` is the number 3, not a string") != std::string::npos, bad);
+        std::string none;
+        check_eq(omuiNativeCall(r.rt, str("fuzzy"), str("sort"), str("[]"), collect, &none), OMUI_ERROR_NOT_FOUND);
+        check_eq(omuiNativeCall(r.rt, str("fuzzy"), str("rank"), str("{"), collect, &none), OMUI_ERROR_INVALID_ARGUMENT);
+        check_eq(omuiNativeCall(nullptr, str("fuzzy"), str("rank"), str("[]"), collect, &none), OMUI_ERROR_INVALID_ARGUMENT);
     });
 
     s.test("the catalogue of components", [] {

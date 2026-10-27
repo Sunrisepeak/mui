@@ -44,6 +44,7 @@ inline constexpr std::string_view invalid_argument = "invalid-argument";
 inline constexpr std::string_view stale            = "stale";
 inline constexpr std::string_view timeout          = "timeout";
 inline constexpr std::string_view internal         = "internal";
+inline constexpr std::string_view failed           = "failed";  // the work ran and did not succeed
 }  // namespace error_code
 
 struct Record {

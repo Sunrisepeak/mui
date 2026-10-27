@@ -29,6 +29,7 @@ struct Script::Impl {
     int                                         next_function = 1;
     std::map<std::string, std::vector<int>>     slot_functions;  // a mounted view's handlers
     std::vector<int>                            pending_slot;    // handlers of the mount in progress
+    std::shared_ptr<bool>                       alive = std::make_shared<bool>(true);  // false once the context is gone
 
     explicit Impl(Session& s) : session(s) {}
 
@@ -299,6 +300,41 @@ JSValue n_splice(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
     return JS_UNDEFINED;
 }
 
+// A native module's function (component-binding §8): its result as JSON text.
+JSValue n_native_call(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
+    auto r = impl(ctx).session.native(text(ctx, argv[0]), text(ctx, argv[1]), Json::parse(text(ctx, argv[2]), nullptr, false));
+    if (!r) return fail(ctx, r.error().text());
+    const std::string out = r->dump();
+    return JS_NewStringLen(ctx, out.data(), out.size());
+}
+
+// An `async` one: a promise of its result as JSON text. It runs on a worker
+// thread; the promise settles on the script thread, and its jobs run then.
+JSValue n_native_async(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
+    JSValue resolving[2];
+    JSValue promise = JS_NewPromiseCapability(ctx, resolving);
+    if (JS_IsException(promise)) return promise;
+    Script::Impl& s = impl(ctx);
+    const int resolve = s.keep(resolving[0]), reject = s.keep(resolving[1]);
+    JS_FreeValue(ctx, resolving[0]);
+    JS_FreeValue(ctx, resolving[1]);
+    s.session.native_async(text(ctx, argv[0]), text(ctx, argv[1]), Json::parse(text(ctx, argv[2]), nullptr, false),
+                           [impl = &s, alive = std::weak_ptr<bool>(s.alive), resolve, reject](lang::Result<Json> r) {
+                               auto live = alive.lock();
+                               if (!live || !*live) return;
+                               const std::string out = r ? r->dump() : r.error().text();
+                               JSValue arg = JS_NewStringLen(impl->ctx, out.data(), out.size());
+                               JSValue f = impl->functions.at(r ? resolve : reject);
+                               JSValue x = JS_Call(impl->ctx, f, JS_UNDEFINED, 1, &arg);
+                               JS_FreeValue(impl->ctx, x);
+                               JS_FreeValue(impl->ctx, arg);
+                               impl->release(resolve);
+                               impl->release(reject);
+                               impl->run_jobs();
+                           });
+    return promise;
+}
+
 JSValue n_log(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
     std::println(std::cerr, "js: {}", text(ctx, argv[0]));
     return JS_UNDEFINED;
@@ -318,10 +354,50 @@ std::string camel(std::string_view snake) {
     return out;
 }
 
+// openmui:native/<name>: a native module's functions, made from the
+// catalogue (component-binding §8): `import { fuzzy } from "openmui:native/fuzzy"`.
+std::optional<std::string> native_module_source(Script::Impl& s, std::string_view module) {
+    const Json catalog = s.session.natives();
+    if (!catalog.contains("modules") || !catalog["modules"].contains(std::string(module))) return std::nullopt;
+    const Json& m = catalog["modules"][std::string(module)];
+    std::string out = "import { __native } from \"openmui\";\n";
+    std::string members;
+    for (auto it = m["functions"].begin(); it != m["functions"].end(); ++it) {
+        const std::string fn = camel(it.key());
+        const bool async = it.value().value("async", false);
+        out += std::format("export const {} = (...args) => __native({}, {}, {}, args);\n", fn, Json(std::string(module)).dump(), Json(it.key()).dump(),
+                           async ? "true" : "false");
+        members += (members.empty() ? "" : ", ") + fn;
+        if (async) {
+            // And waiting for it, where a promise cannot be awaited (a verb).
+            out += std::format("export const {}Sync = (...args) => __native({}, {}, false, args);\n", fn, Json(std::string(module)).dump(),
+                               Json(it.key()).dump());
+            members += std::format(", {}Sync", fn);
+        }
+    }
+    out += std::format("export const {0} = {{ {1} }};\nexport default {0};\n", module, members);
+    return out;
+}
+
 JSModuleDef* load_module(JSContext* ctx, const char* name, void*) {
     auto& s = impl(ctx);
-    if (std::string_view(name) != "openmui") {
-        JS_ThrowReferenceError(ctx, "no module `%s` (scripts import \"openmui\"; bundle the rest at build time)", name);
+    std::string_view n = name;
+    std::string source;
+    if (n.starts_with("openmui:native/")) {
+        auto m = native_module_source(s, n.substr(15));
+        if (!m) {
+            JS_ThrowReferenceError(ctx, "no native module `%s` (the program registers its native modules before scripts run)", name + 15);
+            return nullptr;
+        }
+        source = std::move(*m);
+        JSValue mod = JS_Eval(ctx, source.data(), source.size(), name, JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
+        if (JS_IsException(mod)) return nullptr;
+        auto* def = static_cast<JSModuleDef*>(JS_VALUE_GET_PTR(mod));
+        JS_FreeValue(ctx, mod);
+        return def;
+    }
+    if (n != "openmui") {
+        JS_ThrowReferenceError(ctx, "no module `%s` (scripts import \"openmui\" and \"openmui:native/<name>\"; bundle the rest at build time)", name);
         return nullptr;
     }
     JSValue m = JS_Eval(ctx, s.module_source.data(), s.module_source.size(), "openmui", JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
@@ -348,7 +424,8 @@ Script::Script(Session& session) : impl_(std::make_unique<Impl>(session)) {
             {"unmount", n_unmount, 1},            {"document", n_document, 1},     {"verb", n_verb, 3},
             {"invoke", n_invoke, 2},              {"act", n_act, 1},               {"snapshot", n_snapshot, 1},
             {"find", n_find, 1},                  {"get", n_get, 2},               {"set", n_set, 2},
-            {"rows", n_rows, 1},                  {"splice", n_splice, 4},         {"log", n_log, 1}};
+            {"rows", n_rows, 1},                  {"splice", n_splice, 4},         {"log", n_log, 1},
+            {"nativeCall", n_native_call, 3},     {"nativeAsync", n_native_async, 3}};
         for (const auto& [name, fn, arity] : natives) JS_SetPropertyStr(s->ctx, n, name, JS_NewCFunction(s->ctx, fn, name, arity));
         JS_SetPropertyStr(s->ctx, global, "__omui", n);
         JS_FreeValue(s->ctx, global);
@@ -375,6 +452,7 @@ Script::Script(Session& session) : impl_(std::make_unique<Impl>(session)) {
 Script::~Script() {
     Impl* s = impl_.get();
     s->session.host().script([s] {
+        *s->alive = false;  // an async native's answer arriving later finds no context
         for (auto& [id, f] : s->functions) JS_FreeValue(s->ctx, f);
         s->functions.clear();
         JS_FreeContext(s->ctx);

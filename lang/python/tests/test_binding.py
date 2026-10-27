@@ -136,6 +136,23 @@ class Binding(unittest.TestCase):
         self.assertEqual(doc["view"]["root"]["type"], "text")
         self.assertIn("provided", json.dumps(doc))
 
+    def test_native_modules(self):
+        # The official fuzzy module, through the binding made from the catalogue.
+        from openmui.native import fuzzy
+        best = fuzzy.rank("mcfg", ["src/main.cpp", "my_config.toml", "docs/mcfg.md"])
+        self.assertEqual([m["text"] for m in best], ["docs/mcfg.md", "my_config.toml"])
+        self.assertEqual(fuzzy.rank(query="mcfg", candidates=["docs/mcfg.md", "x"], limit=1)[0]["index"], 0)
+        self.assertIsNone(fuzzy.match("zz", "foo"))
+        self.assertIs(omui.native.fuzzy, fuzzy)
+        with self.assertRaises(omui.OmuiError) as e:
+            fuzzy.rank("q", ["a", 3])
+        self.assertIn("`candidates[1]` is the number 3, not a string", str(e.exception))
+        with self.assertRaises(AttributeError):
+            fuzzy.sort
+        with self.assertRaises(AttributeError):
+            omui.native.nope
+        self.assertIn("fuzzy", dir(omui.native))
+
     def test_a_headless_run_writes_its_pixels(self):
         with tempfile.TemporaryDirectory() as d:
             png = os.path.join(d, "hello.png")

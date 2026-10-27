@@ -20,6 +20,8 @@ import builtins as _b
 from collections.abc import Callable, Iterable, Mapping
 from typing import Any, Literal, TypeVar, overload
 
+from . import native as native
+
 _F = TypeVar("_F", bound=Callable[..., Any])
 
 class OmuiError(RuntimeError): ...

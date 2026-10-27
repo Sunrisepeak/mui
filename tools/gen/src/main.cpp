@@ -11,7 +11,11 @@
 //                [--part contract|builder] [--check]
 //       a component package's C++: the contract partitions (typed props,
 //       options, the CRTP base) and the builders
-//   omui-gen check <file.contract.omui.toml>... --registry <dir> [--json]
+//   omui-gen native <file.native.omui.toml>... --registry <dir> --module <m>
+//                   --out <dir> [--namespace ns] [--native name] [--part cpp|stubs] [--check]
+//       a native module's C++ (records, the functions to implement, define())
+//       and its TS / Python / Lua stubs (component-binding §8)
+//   omui-gen check <file.contract.omui.toml or .native.omui.toml>... --registry <dir> [--json]
 //       diagnostics only
 //   omui-gen abi <registry-dir> --out <runtime/abi/src> [--check]
 //       openmui.h's types and functions for the C++ that implements them, and
@@ -41,7 +45,8 @@ struct Options {
     std::string                        ns = "omui::ui";
     bool                               catalog = false;
     std::string                        contract;  // cpp: only this contract of the files
-    std::string                        part;      // cpp: only `contract` or `builder`
+    std::string                        native;    // native: only this module of the files
+    std::string                        part;      // cpp: `contract` or `builder`; native: `cpp` or `stubs`
     std::string                        version;
     std::filesystem::path              tests;
     bool                               check = false;
@@ -53,7 +58,9 @@ int usage() {
                             "       omui-gen stubs <contract>... --registry <dir> --module <name> --out <dir> [--check] [--json]\n"
                             "       omui-gen cpp <contract>... --registry <dir> --module <name> --out <dir> [--namespace ns] [--catalog]\n"
                             "                    [--contract name] [--part contract|builder] [--check]\n"
-                            "       omui-gen check <contract>... --registry <dir> [--json]\n"
+                            "       omui-gen native <native>... --registry <dir> --module <name> --out <dir> [--namespace ns]\n"
+                            "                    [--native name] [--part cpp|stubs] [--check]\n"
+                            "       omui-gen check <contract or native>... --registry <dir> [--json]\n"
                             "       omui-gen abi <registry-dir> --out <runtime/abi/src> [--check]\n"
                             "       omui-gen unicode <ucd-dir> --version <x.y.z> --out <dir> [--tests <dir>] [--check]");
     return 2;
@@ -77,7 +84,12 @@ std::optional<Options> parse_args(int argc, char** argv) {
         else if (a == "--namespace") { auto v = value(); if (!v) return std::nullopt; o.ns = *v; }
         else if (a == "--catalog") o.catalog = true;
         else if (a == "--contract") { auto v = value(); if (!v) return std::nullopt; o.contract = *v; }
-        else if (a == "--part") { auto v = value(); if (!v || (*v != "contract" && *v != "builder")) return std::nullopt; o.part = *v; }
+        else if (a == "--native") { auto v = value(); if (!v) return std::nullopt; o.native = *v; }
+        else if (a == "--part") {
+            auto v = value();
+            if (!v || (*v != "contract" && *v != "builder" && *v != "cpp" && *v != "stubs")) return std::nullopt;
+            o.part = *v;
+        }
         else if (a == "--version") { auto v = value(); if (!v) return std::nullopt; o.version = *v; }
         else if (a == "--tests") { auto v = value(); if (!v) return std::nullopt; o.tests = *v; }
         else if (a.starts_with("--")) return std::nullopt;
@@ -216,14 +228,63 @@ int run_cpp(const Options& o) {
     return 0;
 }
 
+bool is_native(const std::filesystem::path& file) { return generic_utf8(file).ends_with(".native.omui.toml"); }
+
+// A native module's C++ (<name>_native.cppm) and the stubs of the files'
+// modules: <module>.natives.d.ts, <name>.pyi, <module>.natives.lua.
+int run_native(const Options& o) {
+    if (o.inputs.empty() || o.registry.empty() || o.module.empty() || o.out.empty()) return usage();
+    Diagnostics diags;
+    Registry reg = read_registry(o.registry, diags);
+    std::vector<std::pair<NativeModule, std::string>> modules;  // the module, the file it is from
+    for (const auto& file : o.inputs)
+        for (NativeModule& m : read_natives(file, reg, diags)) modules.emplace_back(std::move(m), generic_utf8(file.filename()));
+    if (report(diags, o.json) != 0) return 1;
+    // The package's namespace: --namespace, else its module's (acme.finder → acme::finder).
+    std::string ns = o.ns;
+    if (ns == "omui::ui") {
+        ns.clear();
+        for (char c : o.module) ns += c == '.' ? std::string("::") : std::string(1, c);
+    }
+    const CppOptions cpp{o.module, ns, false};
+    Writer w{o.check};
+    std::vector<NativeModule> selected;
+    for (auto& [m, source] : modules) {
+        if (!o.native.empty() && m.name != o.native) continue;
+        if (o.part != "stubs") w.put(o.out / (m.name + "_native.cppm"), emit_cpp_native(m, cpp, source));
+        if (o.part != "cpp") w.put(o.out / (m.name + ".pyi"), emit_native_pyi(m, o.module));
+        selected.push_back(m);
+    }
+    if (!o.native.empty() && selected.empty()) {
+        std::println(std::cerr, "omui-gen: no native module `{}` in the files given", o.native);
+        return 1;
+    }
+    if (o.part != "cpp") {
+        w.put(o.out / (o.module + ".natives.d.ts"), emit_native_dts(selected, o.module));
+        w.put(o.out / (o.module + ".natives.lua"), emit_native_lua(selected, o.module));
+    }
+    if (o.check) {
+        if (w.stale) return 1;
+        std::println("omui-gen: generated files are current");
+    } else {
+        std::println("omui-gen: {} file(s) written", w.written);
+    }
+    return 0;
+}
+
 int run_contracts(const Options& o, bool emit) {
     if (o.inputs.empty() || o.registry.empty()) return usage();
     if (emit && (o.module.empty() || o.out.empty())) return usage();
     Diagnostics diags;
     Registry reg = read_registry(o.registry, diags);
     std::vector<Contract> contracts;
-    for (const auto& file : o.inputs)
+    for (const auto& file : o.inputs) {
+        if (is_native(file)) {
+            (void)read_natives(file, reg, diags);  // checked: their code is `omui-gen native`'s
+            continue;
+        }
         for (Contract& c : read_contracts(file, reg, diags)) contracts.push_back(std::move(c));
+    }
     if (report(diags, o.json) != 0 || !emit) return diags.has_errors() ? 1 : 0;
 
     Writer w{o.check};
@@ -243,6 +304,7 @@ int main(int argc, char** argv) {
     if (options->command == "registry") return run_registry(*options);
     if (options->command == "stubs") return run_contracts(*options, true);
     if (options->command == "cpp") return run_cpp(*options);
+    if (options->command == "native") return run_native(*options);
     if (options->command == "check") return run_contracts(*options, false);
     if (options->command == "unicode") return run_unicode(*options);
     if (options->command == "abi") return run_abi(*options);

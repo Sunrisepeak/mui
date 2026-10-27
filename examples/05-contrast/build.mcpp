@@ -1,0 +1,7 @@
+// The package's build program: its native contract becomes code
+// (openmui.rules; component-binding §8).
+import std;
+import mcpp;
+import openmui.rules;
+
+int main() { return openmui::rules::natives({.module = "colors"}) ? 0 : 1; }

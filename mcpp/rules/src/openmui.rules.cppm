@@ -1,4 +1,5 @@
-// openmui.rules — contracts to code, inside a build (component-binding §2.3).
+// openmui.rules — contracts to code, inside a build (component-binding §2.3,
+// §8): components() for *.contract.omui.toml, natives() for *.native.omui.toml.
 //
 // For each contract in `contract/*.contract.omui.toml`, two actions run
 // `omui-gen cpp`: one makes the partition `<module>:<name>_contract`
@@ -166,6 +167,108 @@ inline bool components(options opt) {
     auto edges = plan(opt);
     if (edges.empty()) {
         std::println(std::cerr, "openmui.rules: no contract in {}/ (files named <name>.contract.omui.toml)", opt.contracts);
+        return false;
+    }
+    return submit(edges);
+}
+
+// ── native modules (component-binding §8) ───────────────────────────────────
+
+struct native_options {
+    std::string module;                                   // the package's module (acme.finder)
+    std::string ns;                                       // its C++ namespace (default: the module's, acme::finder)
+    std::string natives = "native";                       // the directory of *.native.omui.toml
+    std::string registry;                                 // spec/registry (default: beside this rule in the openmui tree)
+    std::string out_dir = std::string(mcpp::out_dir());   // generated files go under out_dir/openmui
+    bool        stubs = true;                             // TS / Python / Lua stubs
+};
+
+// The native modules a file declares (its `[native.<name>]` tables).
+inline std::vector<std::string> native_names(const std::filesystem::path& file) {
+    std::vector<std::string> out;
+    std::ifstream in(file);
+    std::string line;
+    while (std::getline(in, line)) {
+        if (!line.starts_with("[native.")) continue;
+        const auto end = line.find(']');
+        if (end == std::string::npos) continue;
+        const std::string name = line.substr(8, end - 8);
+        if (name.find('.') == std::string::npos) out.push_back(name);  // [native.x.types…] is a sub-table
+    }
+    return out;
+}
+
+inline std::vector<edge> plan_natives(const native_options& opt) {
+    const std::string root = mcpp::manifest_dir();
+    if (root.empty() || opt.module.empty()) {
+        std::println(std::cerr, "openmui.rules: natives() runs from build.mcpp, and native_options::module names the package's module");
+        return {};
+    }
+    const std::string gen = std::string(mcpp::dep_bin("openmui.gen", "omui-gen"));
+    if (gen.empty()) {
+        std::println(std::cerr, "openmui.rules: omui-gen was not built for this build");
+        return {};
+    }
+    std::string registry = opt.registry;
+    if (registry.empty()) {
+        const std::string self = std::string(mcpp::dep_dir("rules"));
+        registry = utf8((std::filesystem::path(self) / ".." / ".." / "spec" / "registry").lexically_normal());
+    }
+    std::string ns = opt.ns;
+    if (ns.empty())
+        for (char c : opt.module) ns += c == '.' ? std::string("::") : std::string(1, c);
+    std::vector<std::filesystem::path> files;
+    std::error_code ec;
+    for (const auto& e : std::filesystem::directory_iterator(std::filesystem::path(root) / opt.natives, ec))
+        if (utf8(e.path()).ends_with(".native.omui.toml")) files.push_back(e.path());
+    std::ranges::sort(files);
+    const std::string out = utf8(std::filesystem::path(opt.out_dir) / "openmui");
+    std::vector<std::string> registry_files;
+    for (const auto& e : std::filesystem::recursive_directory_iterator(registry, ec))
+        if (e.is_regular_file()) registry_files.push_back(utf8(e.path()));
+    std::ranges::sort(registry_files);
+
+    std::vector<edge> edges;
+    std::vector<std::string> names;
+    for (const auto& f : files)
+        for (const std::string& name : native_names(f)) {
+            names.push_back(name);
+            edge e;
+            e.id = std::format("openmui:native:{}", name);
+            e.description = std::format("native module {} → {}_native.cppm ({})", name, name, opt.module);
+            e.command = {gen, "native", utf8(f), "--registry", registry, "--module", opt.module, "--namespace", ns, "--out", out,
+                         "--native", name, "--part", "cpp"};
+            e.inputs = {utf8(f), gen};
+            e.inputs.insert(e.inputs.end(), registry_files.begin(), registry_files.end());
+            e.outputs = {out + "/" + name + "_native.cppm"};
+            e.provides = {opt.module + ":" + name + "_native"};
+            e.imports = {"std", "nlohmann.json", "openmui.native"};
+            edges.push_back(std::move(e));
+        }
+    if (opt.stubs && !files.empty()) {
+        edge e;
+        e.id = "openmui:native-stubs";
+        e.description = std::format("native modules → TS / Python / Lua stubs ({})", opt.module);
+        e.command = {gen, "native"};
+        for (const auto& f : files) e.command.push_back(utf8(f));
+        e.command.insert(e.command.end(), {"--registry", registry, "--module", opt.module, "--out", out + "/stubs", "--part", "stubs"});
+        e.inputs = {gen};
+        for (const auto& f : files) e.inputs.push_back(utf8(f));
+        e.inputs.insert(e.inputs.end(), registry_files.begin(), registry_files.end());
+        e.outputs = {out + "/stubs/" + opt.module + ".natives.d.ts", out + "/stubs/" + opt.module + ".natives.lua"};
+        for (const auto& n : names) e.outputs.push_back(out + "/stubs/" + n + ".pyi");
+        edges.push_back(std::move(e));
+    }
+    return edges;
+}
+
+// Plans and submits the native modules' edges; false (and a message) when
+// the build cannot go on.
+inline bool natives(native_options opt) {
+    mcpp::rerun_if_changed_glob((opt.natives + "/**").c_str());
+    auto edges = plan_natives(opt);
+    if (edges.empty()) {
+        std::println(std::cerr, "openmui.rules: no native module in {}/ (files named <name>.native.omui.toml)", opt.natives);
         return false;
     }
     return submit(edges);

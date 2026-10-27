@@ -48,6 +48,7 @@ Runners create the signals in the order of their names. The models get their row
 - `{"add": "count", "by": 1, "min": 0, "max": 10}`: an update, clamped by `min` and `max` when they are given.
 - `{"invoke": "verb", "args": {"k": value}}`.
 - `{"push": "notes", "row": {…}}`, `{"remove": "notes", "key": value}` and `{"change": "notes", "key": value, "set": {…}}`.
+- `{"native": "fuzzy.rank", "args": [values], "into": "best"}`: a native module's function (component-binding §8) through the language's generated binding (awaited where the language returns a promise), its result into a signal.
 
 A value in an action is a constant, `{"event": "value"}` (the event's argument), `{"row": "key"}` (the field of the row the handler is in), `{"arg": "key"}` (the verb's argument) or `{"get": "count"}` (a signal's value now).
 
@@ -62,6 +63,7 @@ Each step runs once the runtime has settled after the previous one.
 | `{"invoke": "verb", "args": {…}}` | `{"invoke": answer}` or `{"error": code}` |
 | `{"get": "count"}` | `{"get": value}` |
 | `{"rows": "notes"}` | `{"rows": [rows]}` |
+| `{"native": "fuzzy.match", "args": [...]}` | `{"native": result}` or `{"error": code}` |
 | `{"set": …}`, `{"add": …}`, `{"push": …}`, `{"remove": …}`, `{"change": …}` | nothing; the action is done |
 
 Every record also carries `"step"`, the step's index. `"expect"` on a step is checked as well as the trace:

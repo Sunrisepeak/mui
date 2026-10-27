@@ -73,6 +73,10 @@ doc = "The runtime implements an older spec than requested."
 name = "OMUI_ERROR_INTERNAL"
 value = -7
 doc = "A failure inside the runtime; the sink received a diagnostic."
+[[result]]
+name = "OMUI_ERROR_FAILED"
+value = -8
+doc = "The work ran and did not succeed (a native function said why); the sink received the reason."
 
 [[enum]]
 name = "OmuiValueType"
@@ -314,3 +318,11 @@ doc = "A model's rows [from, from + count), as JSON ([{\"key\": …, fields…}]
 name = "omuiCatalog"
 params = [ { name = "rt", type = "OmuiRuntime" }, { name = "sink", type = "PFN_omuiSink" }, { name = "user", type = "void*" } ]
 doc = "The registered components, as JSON: each one's contract (properties with their type, default and whether they bind two-way; events with their arguments; actions with their effect), and the properties and events every node has. Bindings build typed builders from it; agents read it."
+[[function]]
+name = "omuiNativeCatalog"
+params = [ { name = "rt", type = "OmuiRuntime" }, { name = "sink", type = "PFN_omuiSink" }, { name = "user", type = "void*" } ]
+doc = "The native modules the program registered (component-binding §8), as JSON: each module's records, and its functions with their parameters, return type, effect and whether scripts may await them. Bindings make their native modules from it."
+[[function]]
+name = "omuiNativeCall"
+params = [ { name = "rt", type = "OmuiRuntime" }, { name = "module_name", type = "OmuiString" }, { name = "function_name", type = "OmuiString" }, { name = "args_json", type = "OmuiString" }, { name = "sink", type = "PFN_omuiSink" }, { name = "user", type = "void*" } ]
+doc = "Calls a native module's function on the calling thread (any thread: it touches no runtime state). The arguments are a JSON list in the contract's order or an object by name, and are checked against the contract; the sink receives an envelope with the result as data, or an error record (invalid-argument, not-found, failed)."

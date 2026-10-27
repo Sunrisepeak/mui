@@ -17,6 +17,8 @@ def top_level(tree):
             names.add(node.name)
         elif isinstance(node, ast.Assign):
             names.update(t.id for t in node.targets if isinstance(t, ast.Name))
+        elif isinstance(node, ast.ImportFrom):  # from . import native as native
+            names.update(a.asname or a.name for a in node.names)
     return names
 
 

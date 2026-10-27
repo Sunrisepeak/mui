@@ -21,6 +21,12 @@ _BINARY = {
 _verbs = {}  # name → what it does in the scenario that runs now
 
 
+def _native(name):
+    """`fuzzy.rank` through the generated binding: omui.native.fuzzy.rank."""
+    module, function = name.split(".")
+    return getattr(getattr(omui.native, module), function)
+
+
 class Runner:
     def __init__(self, scenario):
         self.s = scenario["scenario"]
@@ -92,7 +98,9 @@ class Runner:
         def val(v):
             return self.value(v, event, args)
 
-        if "set" in a and "to" in a:
+        if "native" in a:
+            self.signals[a["into"]].set(_native(a["native"])(*[val(x) for x in a.get("args", [])]))
+        elif "set" in a and "to" in a:
             self.signals[a["set"]].set(val(a["to"]))
         elif "add" in a:
             by, lo, hi = a["by"], a.get("min"), a.get("max")
@@ -154,6 +162,12 @@ class Runner:
                 return {"step": i, "get": self.signals[st["get"]].get()}
             if "rows" in st:
                 return {"step": i, "rows": omui.model(st["rows"]).rows()}
+            if "native" in st and "into" not in st:
+                try:
+                    function = _native(st["native"])
+                except AttributeError:
+                    return {"step": i, "error": "not-found"}  # the binding has no such function
+                return {"step": i, "native": function(*st.get("args", []))}
         except omui.OmuiError as e:
             return {"step": i, "error": str(e).split(":", 1)[0]}
         self.action(st)
@@ -202,7 +216,7 @@ def expectations(scenario, trace):
                     if got != want:
                         out.append(f"step {i}: {node}.{k} is {got!r}, not {want!r}")
         else:
-            got = next((r[k] for k in ("act", "invoke", "get", "rows", "error") if k in r), None)
+            got = next((r[k] for k in ("act", "invoke", "get", "rows", "native", "error") if k in r), None)
             if got != st["expect"]:
                 out.append(f"step {i}: {got!r}, not {st['expect']!r}")
     return out

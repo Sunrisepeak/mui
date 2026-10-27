@@ -156,11 +156,10 @@
    ]
   },
   {
-   "step": 1,
-   "act": "ok"
+   "act": "ok",
+   "step": 1
   },
   {
-   "step": 2,
    "rows": [
     {
      "done": true,
@@ -172,15 +171,16 @@
      "key": "n3",
      "title": "Eggs"
     }
-   ]
+   ],
+   "step": 2
   },
   {
-   "step": 3,
-   "get": 1
+   "get": 1,
+   "step": 3
   },
   {
-   "step": 4,
-   "act": "ok"
+   "act": "ok",
+   "step": 4
   },
   {
    "step": 5,
@@ -359,15 +359,14 @@
    ]
   },
   {
-   "step": 10,
-   "invoke": "n4"
+   "invoke": "n4",
+   "step": 10
   },
   {
-   "step": 11,
-   "invoke": true
+   "invoke": true,
+   "step": 11
   },
   {
-   "step": 12,
    "rows": [
     {
      "done": true,
@@ -379,15 +378,16 @@
      "key": "n3",
      "title": "Eggs"
     }
-   ]
+   ],
+   "step": 12
   },
   {
-   "step": 13,
-   "error": "not-found"
+   "error": "not-found",
+   "step": 13
   },
   {
-   "step": 14,
-   "error": "not-found"
+   "error": "not-found",
+   "step": 14
   },
   {
    "step": 16,

@@ -110,5 +110,50 @@ int main(int argc, char** argv) {
         check_eq(gen::format_double(100), std::string("100.0"));
     });
 
+    s.test("a broken native contract is reported line by line", [] {
+        gen::Diagnostics diags;
+        auto reg = gen::read_registry(spec_dir() / "registry", diags);
+        auto modules = gen::read_natives(here() / "data" / "bad.native.omui.toml", reg, diags);
+        auto text = diags.text();
+        for (auto expect : {"native module name `Bad` is not lower_snake_case", "type name `point` is not PascalCase",
+                            "Node.next holds a Node in itself", "Node.weight: unknown type `decimal`",
+                            "`irreversible`, which needs an answer (S-1)", "find(query) follows the optional `limit`",
+                            "find returns: unknown type `Hit`"})
+            check(text.find(expect) != std::string::npos, expect);
+        check(text.find("bad.native.omui.toml:10:") != std::string::npos, "diagnostics carry line numbers");
+    });
+
+    s.test("the official native modules' generated code and stubs are current (natives/*)", [] {
+        gen::Diagnostics diags;
+        auto reg = gen::read_registry(spec_dir() / "registry", diags);
+        const auto root = spec_dir().parent_path() / "natives";
+        std::error_code ec;
+        int seen = 0;
+        for (const auto& pkg : std::filesystem::directory_iterator(root, ec)) {
+            for (const auto& f : std::filesystem::directory_iterator(pkg.path() / "native", ec)) {
+                const std::string file = gen::generic_utf8(f.path().filename());
+                if (!file.ends_with(".native.omui.toml")) continue;
+                const std::string module = "openmui.native." + gen::generic_utf8(pkg.path().filename());
+                auto modules = gen::read_natives(f.path(), reg, diags);
+                check(!diags.has_errors(), diags.text());
+                auto read = [](const std::filesystem::path& p) {
+                    std::ifstream in(p, std::ios::binary);
+                    return std::string(std::istreambuf_iterator<char>(in), {});
+                };
+                for (const auto& m : modules) {
+                    ++seen;
+                    const gen::CppOptions o{module, "omui::natives", false};
+                    check(read(pkg.path() / "src" / "generated" / (m.name + "_native.cppm")) == gen::emit_cpp_native(m, o, file),
+                          std::format("{}: run omui-gen native {} --registry spec/registry --module {} --namespace omui::natives --out {}/src/generated --part cpp",
+                                      m.name, gen::generic_utf8(f.path()), module, gen::generic_utf8(pkg.path())));
+                    check(read(pkg.path() / "stubs" / (m.name + ".pyi")) == gen::emit_native_pyi(m, module), m.name + ".pyi");
+                }
+                check(read(pkg.path() / "stubs" / (module + ".natives.d.ts")) == gen::emit_native_dts(modules, module), module + ".natives.d.ts");
+                check(read(pkg.path() / "stubs" / (module + ".natives.lua")) == gen::emit_native_lua(modules, module), module + ".natives.lua");
+            }
+        }
+        check(seen >= 1, "natives/fuzzy at least");
+    });
+
     return s.run(argc, argv);
 }

@@ -11,6 +11,7 @@ import openmui.lang;
 import openmui.lang.python;
 import openmui.ui.markdown;
 import openmui.image;
+import openmui.native.fuzzy;
 
 namespace omui::entry::python {
 
@@ -33,6 +34,7 @@ struct World {
     World() {
         register_base_components();
         register_markdown_component();
+        if (auto r = natives::fuzzy::define(); !r) warn("the native module fuzzy: {}", r.error());
         fonts = std::make_unique<typeset::FontCollection>();
         if (auto r = fonts->add_defaults(); !r) warn("the default fonts did not load: {}", r.error());
         RuntimeOptions o;

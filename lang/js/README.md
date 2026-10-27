@@ -31,3 +31,5 @@ The ES module `openmui` provides:
 For the player: `javascript()` (`*.js`, `*.mjs`) and `typescript()` (`*.ts`, `*.tsx`, compiled with the `esbuild` on `PATH`, or `OMUI_ESBUILD`).
 
 The conformance scenarios (`spec/conformance/S`, CTS level S) run in JavaScript through `tests/cts.js`. It builds each view with the builders and the expression functions and does the steps through `act`, `invoke` and the rest. It must record the trace pinned beside each scenario, which Python and Lua record too.
+
+**Native modules** (component-binding §8) are made from the program's catalogue, with no binding written by hand: `import { fuzzy } from "openmui:native/fuzzy"`: an `async` function answers a promise, and has a `…Sync` form for where a promise cannot be awaited (a verb). esbuild leaves `openmui:native/*` external.

@@ -10,6 +10,8 @@ import openmui.lang.js;
 import openmui.ui.base;
 import openmui.testing;
 import openmui.cts;
+import openmui.native;
+import openmui.native.fuzzy;
 
 using namespace omui::testing;
 using namespace omui::abi;
@@ -233,6 +235,41 @@ try { invoke("no.such", {}); throw new Error("no throw"); } catch (e) { if (!e.m
         check(!missing && missing.error().text().find("no module `left-pad`") != std::string::npos, missing ? "" : missing.error().text());
     });
 
+    s.test("native modules: openmui:native/<name>, a promise for an async one, its refusals as OmuiError", [] {
+        if (!omui::native::find("fuzzy")) check(omui::natives::fuzzy::define().has_value(), "the official native module");
+        Runtime r;
+        Js js(r);
+        auto ran = js.run(R"js(
+import { OmuiError, verb } from "openmui";
+import { fuzzy, rank, rankSync, match } from "openmui:native/fuzzy";
+import fz from "openmui:native/fuzzy";
+let outcome = "pending";
+verb("t.outcome", () => outcome);
+const files = ["src/main.cpp", "my_config.toml", "docs/mcfg.md"];
+const now = rankSync("mcfg", files);
+if (now[0].text !== "docs/mcfg.md" || now.length !== 2) throw new Error(JSON.stringify(now));
+if (match("zz", "foo") !== null || fz.match !== match || fuzzy.rank !== rank) throw new Error("the module's shape");
+const p = rank("mcfg", files, 1);
+if (!(p instanceof Promise)) throw new Error("an async native answers a promise");
+p.then((best) => {
+  if (best.length !== 1 || best[0].index !== 2) throw new Error(JSON.stringify(best));
+  return rank("q", ["a", 3]);
+}).then(() => { outcome = "no rejection"; }, (e) => { outcome = e instanceof OmuiError ? e.message : "not an OmuiError: " + e; });
+)js");
+        check(ran.has_value(), ran ? "" : ran.error().text());
+        int quiet = 0;
+        for (int i = 0; i < 20000 && quiet < 3; ++i) {
+            r.frame();
+            quiet = js.session.idle() ? quiet + 1 : 0;
+            if (!quiet) std::this_thread::sleep_for(std::chrono::microseconds(100));
+        }
+        const std::string outcome = invoke(r, "t.outcome", Json::object()).get<std::string>();
+        check(outcome.find("invalid-argument") != std::string::npos && outcome.find("`candidates[1]` is the number 3") != std::string::npos, outcome);
+        check(js.errors.empty(), js.errors.empty() ? "" : js.errors[0]);
+        auto missing = js.run("import { x } from 'openmui:native/nope';", "nope.js");
+        check(!missing && missing.error().text().find("no native module `nope`") != std::string::npos, missing ? "" : missing.error().text());
+    });
+
     s.test("a reload keeps the state, the nodes, and replaces the handlers", [] {
         Runtime r;
         Js js(r);
@@ -287,6 +324,7 @@ mount("main", column({ gap: 8 }, [
     });
 
     s.test("CTS level S: every scenario records its pinned trace (spec/conformance/S, tests/cts.js)", [] {
+        if (!omui::native::find("fuzzy")) check(omui::natives::fuzzy::define().has_value(), "the official native module");
         auto all = omui::cts::scenarios();
         check(all.has_value() && all->size() >= 3, all ? "fewer than three scenarios" : all.error());
         if (!all) return;
@@ -299,7 +337,16 @@ mount("main", column({ gap: 8 }, [
             check(ran.has_value(), ran ? "" : ran.error().text());
             if (!ran) continue;
             const Json trace = omui::cts::run(
-                scenario, [&](std::string_view verb, const Json& args) { return invoke(r, verb, args); }, [&] { r.settle(js.host); });
+                scenario, [&](std::string_view verb, const Json& args) { return invoke(r, verb, args); },
+                [&] {
+                    // Until the session is idle: an async native's answer is in flight too.
+                    int quiet = 0;
+                    for (int i = 0; i < 20000 && quiet < 3; ++i) {
+                        r.frame();
+                        quiet = js.session.idle() ? quiet + 1 : 0;
+                        if (!quiet) std::this_thread::sleep_for(std::chrono::microseconds(100));
+                    }
+                });
             for (const std::string& d : omui::cts::check(scenario, trace)) fail(d);
             check(js.errors.empty(), js.errors.empty() ? "" : scenario.name + ": " + js.errors[0]);
         }

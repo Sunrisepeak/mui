@@ -42,7 +42,7 @@ from . import _openmui as _n
 __all__ = [
     "OmuiError", "Expr", "Signal", "Element", "signal", "fmt", "call", "select", "tr", "eq", "ne", "lt", "le", "gt", "ge",
     "and_", "or_", "not_", "when", "each", "slot", "element", "mount", "mount_document", "unmount", "document", "verb", "invoke", "act",
-    "snapshot", "model", "find", "run", "settle", "step", "png", "pixels", "log", "reload",
+    "snapshot", "model", "find", "run", "settle", "step", "png", "pixels", "log", "reload", "native",
 ]
 
 
@@ -576,3 +576,7 @@ def __getattr__(name):
         build.__doc__ = _components()[name].get("doc", "")
         return build
     raise AttributeError(f"module 'openmui' has no attribute '{name}' (and no component is named so)")
+
+
+# Native modules: omui.native.fuzzy, or `from openmui.native import fuzzy`.
+from . import native  # noqa: E402  (it needs the names above)

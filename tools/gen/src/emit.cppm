@@ -48,6 +48,18 @@ struct CppOptions {
 [[nodiscard]] std::string emit_pyi(const std::vector<Contract>& contracts, std::string_view module);
 [[nodiscard]] std::string emit_lua(const std::vector<Contract>& contracts, std::string_view module);
 
+// A native module's C++ (component-binding §8): the partition
+// `<module>:<name>_native` with its records, the declarations of the
+// functions the package implements, their conversions, and define(), which
+// registers them for scripts (openmui.native).
+[[nodiscard]] std::string emit_cpp_native(const NativeModule& m, const CppOptions& o, std::string_view source);
+// Script stubs of native modules: the TypeScript module declarations
+// (`openmui:native/<name>`), a Python stub per module (openmui/native/<name>.pyi)
+// and the LuaLS annotations of omui.native.<name>.
+[[nodiscard]] std::string emit_native_dts(const std::vector<NativeModule>& modules, std::string_view module);
+[[nodiscard]] std::string emit_native_pyi(const NativeModule& m, std::string_view module);
+[[nodiscard]] std::string emit_native_lua(const std::vector<NativeModule>& modules, std::string_view module);
+
 // The JSON Schema fragment of view documents for a contract set: one
 // definition per component type with its properties and events.
 [[nodiscard]] std::string emit_view_schema(const std::vector<Contract>& contracts, std::string_view module);

@@ -130,9 +130,19 @@ public:
     };
     Result<void> verb(VerbSpec spec, std::function<Result<Json>(const Json& args)> fn);
 
-    // Script-thread work done and the runtime has everything sent: for frame
-    // loops and tests (runtime thread).
-    [[nodiscard]] bool idle() const noexcept { return host_.idle(); }
+    // ── native modules (component-binding §8) ──
+    // The catalogue (omuiNativeCatalog): {"modules": {name: {types, functions}}}.
+    [[nodiscard]] Json natives();
+    // A call on the calling thread (a native touches no runtime state): its
+    // result, or why not ("invalid-argument: …", "not-found: …", "failed: …").
+    [[nodiscard]] Result<Json> native(std::string_view module, std::string_view function, const Json& args);
+    // An `async` one: it runs on a worker thread, and `done` runs on the
+    // script thread with the answer (while this session lives).
+    void native_async(std::string module, std::string function, Json args, std::function<void(Result<Json>)> done);
+
+    // Script-thread work done, no native call in flight, and the runtime has
+    // everything sent: for frame loops and tests (runtime thread).
+    [[nodiscard]] bool idle() const noexcept { return host_.idle() && in_flight_->load() == 0; }
 
 private:
     struct Mirror {
@@ -146,6 +156,7 @@ private:
         std::vector<std::shared_ptr<void>>  users;     // what the subscriptions call with
     };
     struct VerbBox;
+    struct Workers;  // the threads async natives run on
 
     void changed(abi::OmuiSignal s, Json value);
 
@@ -155,6 +166,8 @@ private:
     std::vector<std::unique_ptr<VerbBox>>    verbs_;
     std::vector<std::shared_ptr<void>>       watchers_;  // what signal watches call with
     std::shared_ptr<bool>                    alive_ = std::make_shared<bool>(true);
+    std::shared_ptr<std::atomic<int>>        in_flight_ = std::make_shared<std::atomic<int>>(0);
+    std::unique_ptr<Workers>                 workers_;  // started by the first async call
 };
 
 }  // namespace omui::lang

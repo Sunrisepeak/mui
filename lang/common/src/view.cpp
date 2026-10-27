@@ -303,10 +303,43 @@ struct Session::VerbBox {
     std::function<Result<Json>(const Json&)>        fn;
 };
 
+// The threads async natives run on: a queue, and a few workers.
+struct Session::Workers {
+    std::mutex                        mutex;
+    std::condition_variable_any       wake;
+    std::deque<std::function<void()>> jobs;
+    std::vector<std::jthread>         threads;  // last: joined first, while the queue still exists
+
+    explicit Workers(std::size_t n) {
+        for (std::size_t i = 0; i < n; ++i)
+            threads.emplace_back([this](std::stop_token stop) {
+                while (true) {
+                    std::function<void()> job;
+                    {
+                        std::unique_lock lock(mutex);
+                        if (!wake.wait(lock, stop, [&] { return !jobs.empty(); })) return;
+                        job = std::move(jobs.front());
+                        jobs.pop_front();
+                    }
+                    job();
+                }
+            });
+    }
+
+    void push(std::function<void()> job) {
+        {
+            std::scoped_lock lock(mutex);
+            jobs.push_back(std::move(job));
+        }
+        wake.notify_one();
+    }
+};
+
 Session::Session(Host& host) : host_(host) {}
 
 Session::~Session() {
     *alive_ = false;
+    workers_.reset();  // a native call running now finishes; the queued ones are dropped
     // What the session subscribed to goes with it.
     auto rt = host_.runtime();
     std::vector<abi::OmuiSubscription> subs;
@@ -516,6 +549,42 @@ Result<void> Session::set(abi::OmuiNode node, const std::vector<std::pair<std::s
     });
     if (r != abi::OMUI_SUCCESS) return std::unexpected(failure(r));
     return {};
+}
+
+// ── native modules ────────────────────────────────────────────────────────
+
+Json Session::natives() {
+    std::string out;
+    (void)abi::omuiNativeCatalog(host_.runtime(), collect, &out);
+    Json c = Json::parse(out, nullptr, false);
+    return c.is_discarded() ? Json{{"modules", Json::object()}} : c;
+}
+
+Result<Json> Session::native(std::string_view module, std::string_view function, const Json& args) {
+    const std::string a = args.dump();
+    std::string out;
+    const abi::OmuiResult r = abi::omuiNativeCall(host_.runtime(), str(module), str(function), str(a), collect, &out);
+    Json data = nullptr;
+    for (const Json& rec : records(out)) {
+        if (rec.value("kind", "") == "error") return std::unexpected(failure(r, rec.value("code", "error") + ": " + rec.value("message", "")));
+        if (rec.value("kind", "") == "data" && rec.contains("data")) data = rec["data"];
+    }
+    if (r < 0) return std::unexpected(failure(r, out));
+    return data;
+}
+
+void Session::native_async(std::string module, std::string function, Json args, std::function<void(Result<Json>)> done) {
+    if (!workers_) workers_ = std::make_unique<Workers>(std::clamp(std::thread::hardware_concurrency(), 1u, 4u));
+    in_flight_->fetch_add(1);
+    workers_->push([this, alive = std::weak_ptr<bool>(alive_), in_flight = in_flight_, module = std::move(module), function = std::move(function),
+                    args = std::move(args), done = std::move(done)]() mutable {
+        // The session outlives this: its destructor joins the workers.
+        Result<Json> r = native(module, function, args);
+        host_.post([alive, in_flight, done = std::move(done), r = std::move(r)]() mutable {
+            if (auto live = alive.lock(); live && *live) done(std::move(r));
+            in_flight->fetch_sub(1);
+        });
+    });
 }
 
 Result<std::vector<Json>> Session::snapshot(const Json& query) {

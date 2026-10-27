@@ -190,6 +190,33 @@ struct Contract : Named {
     std::vector<Motion>         motion;
 };
 
+// A native module's contract (*.native.omui.toml; component-binding §8):
+// functions written in C++ that scripts call, with the records they take
+// and give. Parameters keep the order the file writes them in.
+struct NativeParam {
+    std::string name;
+    std::string type;  // bool i32 u32 i64 f64 string any, a record, T[], T?
+    std::string doc;
+    Loc         loc;
+};
+
+struct NativeType : Named {
+    std::vector<NativeParam> fields;
+};
+
+struct NativeFunction : Named {
+    std::string              effect = "read";
+    bool                     async = false;
+    std::vector<NativeParam> params;
+    std::string              returns;  // empty: nothing
+};
+
+struct NativeModule : Named {
+    std::string                 spec;
+    std::vector<NativeType>     types;
+    std::vector<NativeFunction> functions;
+};
+
 struct Registry {
     std::string                spec;
     std::vector<Role>          roles;

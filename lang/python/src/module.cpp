@@ -193,6 +193,28 @@ PyObject* f_signal_watch(PyObject*, PyObject* args) {
     return none();
 }
 
+// Native modules (component-binding §8): the catalogue, and a call. A call
+// runs here, with the GIL released: a native touches no runtime state, and
+// Python's thread is not the runtime's.
+PyObject* f_natives(PyObject*, PyObject*) {
+    PyThreadState* saved = py().PyEval_SaveThread();
+    const std::string out = state().session->natives().dump();
+    py().PyEval_RestoreThread(saved);
+    return str(out);
+}
+
+PyObject* f_native(PyObject*, PyObject* args) {
+    auto module = str_arg(args, 0);
+    auto function = str_arg(args, 1);
+    auto a = str_arg(args, 2);
+    if (!module || !function || !a) return arguments("native(module, function, args_json)");
+    PyThreadState* saved = py().PyEval_SaveThread();
+    auto r = state().session->native(*module, *function, parse(*a));
+    py().PyEval_RestoreThread(saved);
+    if (!r) return raise(r.error().text());
+    return str(r->dump());
+}
+
 PyObject* f_catalog(PyObject*, PyObject*) {
     std::string out;
     on_script([&] {
@@ -450,6 +472,8 @@ PyObject* create_module(Session& session, Hooks hooks) {
         {"signal_set", f_signal_set, METH_VARARGS, "signal_set(handle, json)"},
         {"signal_watch", f_signal_watch, METH_VARARGS, "signal_watch(handle, fn(json))"},
         {"catalog", f_catalog, METH_NOARGS, "catalog() -> json: the registered components"},
+        {"natives", f_natives, METH_NOARGS, "natives() -> json: the registered native modules"},
+        {"native", f_native, METH_VARARGS, "native(module, function, args_json) -> json: a native module's function"},
         {"mount", f_mount, METH_VARARGS, "mount(slot, tree_json, handlers)"},
         {"mount_document", f_mount_document, METH_VARARGS, "mount_document(slot, text): a *.view.omui.json"},
         {"unmount", f_unmount, METH_VARARGS, "unmount(slot)"},

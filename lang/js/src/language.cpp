@@ -18,7 +18,7 @@ public:
 
     std::future<player::Status> run(std::string code, std::string name) override { return status(script_.run(std::move(code), name)); }
     std::future<player::Status> reload(std::string code, std::string name) override { return status(script_.reload(std::move(code), name)); }
-    [[nodiscard]] bool idle() const override { return host_.idle(); }
+    [[nodiscard]] bool idle() const override { return session_.idle(); }  // async natives in flight count
 
 private:
     std::future<player::Status> status(std::future<Result<void>> inner) {
@@ -48,7 +48,7 @@ std::expected<std::string, std::string> compile_typescript(const std::filesystem
     if (!esbuild) return std::unexpected(std::string("TypeScript needs esbuild (xlings install esbuild, or OMUI_ESBUILD=/path/to/esbuild)"));
     mcpplibs::os::process::spawn_options o;
     o.program = *esbuild;
-    o.args = {mcpplibs::os::fs::utf8(file), "--bundle", "--format=esm", "--platform=neutral", "--external:openmui", "--log-level=error", "--charset=utf8"};
+    o.args = {mcpplibs::os::fs::utf8(file), "--bundle", "--format=esm", "--platform=neutral", "--external:openmui", "--external:openmui:native/*", "--log-level=error", "--charset=utf8"};
     auto r = mcpplibs::os::process::run(std::move(o));
     if (!r) return std::unexpected(std::format("esbuild did not run: {}", r.error().message()));
     if (!r->status.success()) return std::unexpected(r->err.empty() ? std::format("esbuild failed ({})", r->status.code) : r->err);

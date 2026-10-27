@@ -5,6 +5,15 @@
 // then cts.step with each step's index, the runtime settling between them; a
 // step's answer is its record, or nothing.
 import * as omui from "openmui";
+import * as fuzzy from "openmui:native/fuzzy";
+
+// The native modules the scenarios use, through the generated bindings.
+const natives = { fuzzy };
+const nativeFunction = (name, sync) => {
+  const [module, fn] = name.split(".");
+  const m = natives[module];
+  return m && ((sync && m[camel(fn) + "Sync"]) || m[camel(fn)]);
+};
 
 let S = null;
 const signals = {};
@@ -37,8 +46,9 @@ function element(e, row) {
   const props = {};
   for (const [k, v] of Object.entries(e.props ?? {})) props[camel(k)] = operand(v, row);
   if (e.id !== undefined) props.id = e.id;
+  // A handler awaits what an action promises (an async native).
   for (const [event, actions] of Object.entries(e.on ?? {}))
-    props["on" + camel("_" + event)] = (ev) => { for (const a of actions) action(a, ev); };
+    props["on" + camel("_" + event)] = async (ev) => { for (const a of actions) await action(a, ev); };
   return omui[camel(e.type)](props, (e.children ?? []).map((c) => element(c, row)));
 }
 
@@ -56,6 +66,10 @@ function value(v, event, args) {
 function action(a, event, args) {
   const val = (v) => value(v, event, args);
   const map = (o) => Object.fromEntries(Object.entries(o ?? {}).map(([k, x]) => [k, val(x)]));
+  if ("native" in a) {
+    const into = signals[a.into];
+    return Promise.resolve(nativeFunction(a.native, false)(...(a.args ?? []).map(val))).then((r) => into.set(r));
+  }
   if ("set" in a && "to" in a) signals[a.set].set(val(a.to));
   else if ("add" in a)
     signals[a.add].update((v) => {
@@ -103,6 +117,11 @@ omui.verb("cts.step", { summary: "Do a step of the loaded CTS scenario" }, ({ st
     if ("invoke" in st) return { step: i, invoke: omui.invoke(st.invoke, st.args ?? {}) };
     if ("get" in st) return { step: i, get: signals[st.get].get() };
     if ("rows" in st) return { step: i, rows: omui.model(st.rows).rows() };
+    if ("native" in st && !("into" in st)) {
+      const fn = nativeFunction(st.native, true);  // a verb cannot await: the Sync form
+      if (!fn) return { step: i, error: "not-found" };  // the binding has no such function
+      return { step: i, native: fn(...(st.args ?? [])) };
+    }
   } catch (e) {
     if (e instanceof omui.OmuiError) return { step: i, error: codeOf(e) };
     throw e;

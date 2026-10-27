@@ -36,7 +36,10 @@ openmui.agent    = { path = "../agent" }
 openmui.render   = { path = "../../modules/render" }
 openmui.raster   = { path = "../../modules/raster" }
 openmui.text     = { path = "../../modules/text" }
+openmui.native   = { path = "../native" }
+nlohmann.json    = "3.12.0"
 
 [dev-dependencies]
 openmui.testing = { path = "../../tests/support" }
 openmui.ui.base = { path = "../../components/base" }
+openmui.native.fuzzy = { path = "../../natives/fuzzy" }

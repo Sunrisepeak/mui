@@ -14,6 +14,8 @@ import openmui.render;
 import openmui.raster;
 import openmui.text;
 import openmui.trace;
+import openmui.native;
+import nlohmann.json;
 import :c;
 import :api;
 
@@ -67,6 +69,7 @@ OmuiResult result_of(int exit_code, std::string_view error) {
     if (error == spec::error_code::invalid_argument) return OMUI_ERROR_INVALID_ARGUMENT;
     if (error == spec::error_code::stale) return OMUI_ERROR_STALE_HANDLE;
     if (error == spec::error_code::refused) return OMUI_ERROR_REFUSED;
+    if (error == spec::error_code::failed) return OMUI_ERROR_FAILED;
     return OMUI_ERROR_INTERNAL;
 }
 
@@ -642,6 +645,33 @@ OmuiResult omuiModelRows(OmuiRuntime rt, OmuiString model, std::uint32_t from, s
     if (!rt || text(model).empty()) return OMUI_ERROR_INVALID_ARGUMENT;
     send(sink, user, rt->rt->model(text(model)).to_value(from, count).json());
     return OMUI_SUCCESS;
+}
+
+// ── native modules (component-binding §8) ──────────────────────────────────
+
+OmuiResult omuiNativeCatalog(OmuiRuntime rt, PFN_omuiSink sink, void* user) noexcept {
+    if (!rt) return OMUI_ERROR_INVALID_ARGUMENT;
+    send(sink, user, omui::native::catalog().dump());
+    return OMUI_SUCCESS;
+}
+
+OmuiResult omuiNativeCall(OmuiRuntime rt, OmuiString module_name, OmuiString function_name, OmuiString args_json, PFN_omuiSink sink,
+                          void* user) noexcept {
+    if (!rt) return OMUI_ERROR_INVALID_ARGUMENT;
+    trace::Span span("abi.native", "abi");
+    Envelope e;
+    const auto args = nlohmann::json::parse(text(args_json).empty() ? std::string_view("null") : text(args_json), nullptr, false);
+    if (args.is_discarded()) {
+        e.error(spec::error_code::invalid_argument, "the arguments are not JSON").result(spec::exit_code::failure);
+    } else if (auto r = omui::native::call(text(module_name), text(function_name), args)) {
+        auto data = parse_json(r->dump());
+        if (data) e.data(std::move(*data)).result(spec::exit_code::success);
+        else e.error(spec::error_code::internal, data.error().message).result(spec::exit_code::failure);
+    } else {
+        e.error(r.error().code, r.error().message).result(spec::exit_code::failure);
+    }
+    send(sink, user, e.ndjson());
+    return result_of(e.exit_code().value_or(1), error_code_of(e));
 }
 
 OmuiResult omuiCatalog(OmuiRuntime rt, PFN_omuiSink sink, void* user) noexcept {

@@ -30,4 +30,5 @@ openmui.player      = { path = "../../../runtime/player" }
 openmui.lang.lua    = { path = "../../../lang/lua" }
 openmui.lang.js     = { path = "../../../lang/js" }
 openmui.ui.markdown = { path = "../../../components/markdown" }
+openmui.native.fuzzy = { path = "../../../natives/fuzzy" }
 marzer.tomlplusplus = "3.4.0"

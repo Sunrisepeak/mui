@@ -90,9 +90,21 @@ local function find(rows, key)
   error("no row " .. tostring(key))
 end
 
+-- `fuzzy.rank` through the generated binding: omui.native.fuzzy.rank.
+local function native_function(name)
+  local module, fn = name:match("^(.-)%.(.+)$")
+  local m = omui.native[module]
+  return m and m[fn]
+end
+
 action = function(a, event, args)
   local function val(v) return value(v, event, args) end
-  if a.set ~= nil and a.to ~= nil then
+  if a.native then
+    local call = {}
+    for i, x in ipairs(a.args or {}) do call[i] = val(x) end
+    local r = assert(native_function(a.native)(table.unpack(call, 1, #(a.args or {}))))
+    signals[a.into]:set(r)
+  elseif a.set ~= nil and a.to ~= nil then
     signals[a.set]:set(val(a.to))
   elseif a.add then
     local by, lo, hi = a.by, a.min, a.max
@@ -174,6 +186,13 @@ assert(omui.verb("cts.step", { summary = "Do a step of the loaded CTS scenario" 
     return { step = i, get = signals[st.get]:get() }
   elseif st.rows then
     return { step = i, rows = assert(omui.model(st.rows):rows()) }
+  elseif st.native and not st.into then
+    local fn = native_function(st.native)
+    if not fn then return { step = i, error = "not-found" } end  -- the binding has no such function
+    local given = st.args or {}
+    local r, err = fn(table.unpack(given, 1, #given))
+    if r == nil then return { step = i, error = code_of(err) } end
+    return { step = i, native = r }
   end
   action(st)
   return nil

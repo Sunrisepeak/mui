@@ -22,6 +22,22 @@ import openmui.rules;
 int main() { return openmui::rules::components({.module = "acme.ui", .ns = "acme::ui"}) ? 0 : 1; }
 ```
 
+A native-module package (component-binding §8, `kind = "native"`) does the
+same for `native/*.native.omui.toml`:
+
+| from `native/*.native.omui.toml` | made by | goes |
+|---|---|---|
+| `<name>_native.cppm` — records, the functions to implement, `define()` | `omui-gen native --part cpp` | compiled, as the partition `<module>:<name>_native` |
+| `<module>.natives.d.ts`, `<name>.pyi`, `<module>.natives.lua` | `omui-gen native --part stubs` | shipped beside the package |
+
+```cpp
+// build.mcpp
+int main() { return openmui::rules::natives({.module = "acme.finder"}) ? 0 : 1; }
+```
+
+The package implements the functions the partition declares, and its program
+calls `<name>::define()` once before scripts run.
+
 The generator is a dependency built for the build machine
 (`tools = ["omui-gen"]`); every action declares it, the contract and the
 registry as inputs, so changing any of them regenerates, and nothing else

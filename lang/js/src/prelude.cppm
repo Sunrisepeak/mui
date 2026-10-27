@@ -22,6 +22,8 @@ const merge = (a, b) => [...new Set([...a, ...b])];
 export class Expr {
   constructor(text, signals) { this.text = text; this.signals = signals; }
   field(name) { return new Expr(this.text + "." + name, this.signals); }
+  // An element of a list, or a value of a map: list.at(0), map.at("key").
+  at(index) { const i = operand(index); return new Expr("(" + this.text + ")[" + i.text + "]", merge(this.signals, i.signals)); }
   toString() { return "Expr(" + this.text + ")"; }
 }
 function operand(v) {
@@ -66,7 +68,7 @@ export class Signal {
   watch(f) { N.signalWatch(this.handle, (t) => f(JSON.parse(t))); }
   toString() { return "Signal(s" + this.handle + ")"; }
 }
-for (const m of ["add", "sub", "mul", "div", "mod", "eq", "ne", "lt", "le", "gt", "ge", "and", "or", "not", "neg", "field"])
+for (const m of ["add", "sub", "mul", "div", "mod", "eq", "ne", "lt", "le", "gt", "ge", "and", "or", "not", "neg", "field", "at"])
   Signal.prototype[m] = function (...a) { return this.expr[m](...a); };
 export function signal(initial, key) { return new Signal(native(N.signalCreate, json(initial), key === undefined ? "" : String(key))); }
 
@@ -166,6 +168,13 @@ export function verb(name, options, fn) {
   native(N.verb, String(name), json(options ?? {}), (args) => json(fn(JSON.parse(args))));
 }
 export const invoke = (name, args) => answer(native(N.invoke, String(name), json(args ?? {})));
+// A native module's function (component-binding §8), as openmui:native/<name>
+// calls it: positional arguments, a result; an `async` one, a promise of it.
+export function __native(module, fn, isAsync, args) {
+  const a = json(args.map((v) => (v === undefined ? null : v)));
+  if (isAsync) return N.nativeAsync(module, fn, a).then((t) => JSON.parse(t), (why) => { throw new OmuiError(String(why)); });
+  return JSON.parse(native(N.nativeCall, module, fn, a));
+}
 export const act = (request) => answer(native(N.act, json(request)));
 export const snapshot = (query) => answer(native(N.snapshot, json(query ?? {})));
 export function model(name) {

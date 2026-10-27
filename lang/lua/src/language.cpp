@@ -19,7 +19,7 @@ public:
     std::future<player::Status> reload(std::string code, std::string name) override {
         return status(script_.reload(std::move(code), "@" + name));
     }
-    [[nodiscard]] bool idle() const override { return host_.idle(); }
+    [[nodiscard]] bool idle() const override { return session_.idle(); }  // async natives in flight count
 
 private:
     // The run's result, as the player states it: settled on the script thread

@@ -748,6 +748,47 @@ int l_log(lua_State* L, Script::Impl&) {
     return 0;
 }
 
+// omui.native.<module>.<function>(…): a native module's function
+// (component-binding §8), its arguments positional in the contract's order.
+// It answers the result (omui.null for nothing), or nil and why. An `async`
+// one is called here too: Lua has no promises, and the script's thread is
+// not the runtime's.
+int l_native_call(lua_State* L, Script::Impl& s) {
+    const std::string module = lua_tostring(L, lua_upvalueindex(2));
+    const std::string function = lua_tostring(L, lua_upvalueindex(3));
+    Json args = Json::array();
+    for (int i = 1; i <= lua_gettop(L); ++i) {
+        auto v = to_json(L, i);
+        if (!v) return raise(L, std::format("omui.native.{}.{}: argument {} is not data", module, function, i));
+        args.push_back(std::move(*v));
+    }
+    auto r = s.session.native(module, function, args);
+    if (!r) return failed(L, r.error().text());
+    push_json(L, *r);
+    return 1;
+}
+
+// omui.native.<module>: the module's functions, made from the catalogue the
+// first time it is named.
+int l_native_index(lua_State* L, Script::Impl& s) {
+    if (lua_type(L, 2) != LUA_TSTRING) return 0;
+    const std::string name = lua_tostring(L, 2);
+    const Json catalog = s.session.natives();
+    if (!catalog.contains("modules") || !catalog["modules"].contains(name)) return 0;
+    lua_newtable(L);
+    const Json& functions = catalog["modules"][name]["functions"];
+    for (auto it = functions.begin(); it != functions.end(); ++it) {
+        lua_pushlightuserdata(L, &s);
+        lua_pushstring(L, name.c_str());
+        lua_pushstring(L, it.key().c_str());
+        lua_pushcclosure(L, entry<l_native_call>, 3);
+        lua_setfield(L, -2, it.key().c_str());
+    }
+    lua_pushvalue(L, -1);
+    lua_setfield(L, 1, name.c_str());  // cached
+    return 1;
+}
+
 // omui.<Component>: a builder for any registered component's name.
 int l_module_index(lua_State* L, Script::Impl&) {
     if (lua_type(L, 2) != LUA_TSTRING) return 0;
@@ -829,6 +870,12 @@ int open_module(lua_State* L) {
     set_function(L, s, "log", entry<l_log>);
     lua_pushlightuserdata(L, nullptr);
     lua_setfield(L, -2, "null");
+    // omui.native.fuzzy …: native modules, by the catalogue.
+    lua_newtable(L);
+    lua_newtable(L);
+    set_function(L, s, "__index", entry<l_native_index>);
+    lua_setmetatable(L, -2);
+    lua_setfield(L, -2, "native");
     // omui.Column, omui.Text …: builders, by name.
     lua_newtable(L);
     set_function(L, s, "__index", entry<l_module_index>);

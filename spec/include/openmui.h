@@ -75,6 +75,8 @@ typedef enum OmuiResult {
     OMUI_ERROR_INCOMPATIBLE_VERSION = -6,
     /* A failure inside the runtime; the sink received a diagnostic. */
     OMUI_ERROR_INTERNAL = -7,
+    /* The work ran and did not succeed (a native function said why); the sink received the reason. */
+    OMUI_ERROR_FAILED = -8,
     OMUI_RESULT_MAX_ENUM = 0x7FFFFFFF
 } OmuiResult;
 
@@ -533,6 +535,12 @@ OMUI_API OmuiResult omuiModelRows(OmuiRuntime rt, OmuiString model, uint32_t fro
 
 /* The registered components, as JSON: each one's contract (properties with their type, default and whether they bind two-way; events with their arguments; actions with their effect), and the properties and events every node has. Bindings build typed builders from it; agents read it. */
 OMUI_API OmuiResult omuiCatalog(OmuiRuntime rt, PFN_omuiSink sink, void* user);
+
+/* The native modules the program registered (component-binding §8), as JSON: each module's records, and its functions with their parameters, return type, effect and whether scripts may await them. Bindings make their native modules from it. */
+OMUI_API OmuiResult omuiNativeCatalog(OmuiRuntime rt, PFN_omuiSink sink, void* user);
+
+/* Calls a native module's function on the calling thread (any thread: it touches no runtime state). The arguments are a JSON list in the contract's order or an object by name, and are checked against the contract; the sink receives an envelope with the result as data, or an error record (invalid-argument, not-found, failed). */
+OMUI_API OmuiResult omuiNativeCall(OmuiRuntime rt, OmuiString module_name, OmuiString function_name, OmuiString args_json, PFN_omuiSink sink, void* user);
 
 #ifdef __cplusplus
 }

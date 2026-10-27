@@ -29,4 +29,10 @@ struct Diagnostics {
 [[nodiscard]] std::vector<Contract> read_contracts(const std::filesystem::path& file, const Registry& registry,
                                                    Diagnostics& diags);
 
+// The native modules of one *.native.omui.toml (component-binding §8),
+// checked: names, types (scalars, records the module declares, T[], T?),
+// effects the registry knows and that need no answer (an answer is a verb's).
+[[nodiscard]] std::vector<NativeModule> read_natives(const std::filesystem::path& file, const Registry& registry,
+                                                     Diagnostics& diags);
+
 }  // namespace omui::gen

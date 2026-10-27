@@ -7,6 +7,8 @@ import openmui.player;
 import openmui.ui.markdown;
 import openmui.lang.lua;
 import openmui.lang.js;
+import openmui.native;
+import openmui.native.fuzzy;
 
 namespace omui {
 
@@ -99,6 +101,10 @@ int player_main(int argc, char** argv) {
         return 2;
     }
     register_markdown_component();
+    // The official native modules (an application's own are registered by
+    // its main, before this): `import { fuzzy } from "openmui:native/fuzzy"`.
+    if (!native::find("fuzzy"))
+        if (auto r = natives::fuzzy::define(); !r) warn("the native module fuzzy: {}", r.error());
     std::optional<player::Player> p;
     AppSpec app;
     app.id = m->id;

@@ -25,6 +25,7 @@
   "$defs": {
     "name": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
     "verbName": {"type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"},
+    "nativeName": {"type": "string", "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$"},
     "scenario": {
       "type": "object",
       "required": ["doc", "view", "steps"],
@@ -152,6 +153,12 @@
         {"type": "object", "required": ["remove", "key"], "additionalProperties": false, "properties": {"remove": {"$ref": "#/$defs/name"}, "key": {"$ref": "#/$defs/value"}}},
         {
           "type": "object",
+          "required": ["native", "into"],
+          "additionalProperties": false,
+          "properties": {"native": {"$ref": "#/$defs/nativeName"}, "args": {"type": "array", "items": {"$ref": "#/$defs/value"}}, "into": {"$ref": "#/$defs/name"}}
+        },
+        {
+          "type": "object",
           "required": ["change", "key", "set"],
           "additionalProperties": false,
           "properties": {"change": {"$ref": "#/$defs/name"}, "key": {"$ref": "#/$defs/value"}, "set": {"$ref": "#/$defs/values"}}
@@ -173,6 +180,9 @@
         }},
         {"type": "object", "required": ["get"], "additionalProperties": false, "properties": {"get": {"$ref": "#/$defs/name"}, "expect": true}},
         {"type": "object", "required": ["rows"], "additionalProperties": false, "properties": {"rows": {"$ref": "#/$defs/name"}, "expect": true}},
+        {"type": "object", "required": ["native"], "additionalProperties": false, "properties": {
+          "native": {"$ref": "#/$defs/nativeName"}, "args": {"type": "array"}, "expect": true
+        }},
         {"$ref": "#/$defs/action"}
       ]
     },
@@ -188,6 +198,7 @@
         "invoke": true,
         "get": true,
         "rows": {"type": "array"},
+        "native": true,
         "error": {"type": "string", "pattern": "^[a-z][a-z-]*$"}
       },
       "additionalProperties": false

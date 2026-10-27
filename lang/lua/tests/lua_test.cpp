@@ -10,6 +10,8 @@ import openmui.lang.lua;
 import openmui.ui.base;
 import openmui.testing;
 import openmui.cts;
+import openmui.native;
+import openmui.native.fuzzy;
 
 using namespace omui::testing;
 using namespace omui::abi;
@@ -224,6 +226,25 @@ show_filter = function() only_open:set(true) end
         check_eq(r.name_of("main/filter"), std::string("open only"));
     });
 
+    s.test("native modules: omui.native.<module>.<function>, nil and why on a refusal", [] {
+        if (!omui::native::find("fuzzy")) check(omui::natives::fuzzy::define().has_value(), "the official native module");
+        Runtime r;
+        Lua lua(r);
+        auto ran = lua.run(R"lua(
+local fuzzy = omui.native.fuzzy
+local best = assert(fuzzy.rank("mcfg", { "src/main.cpp", "my_config.toml", "docs/mcfg.md" }))
+assert(#best == 2 and best[1].text == "docs/mcfg.md" and best[1].index == 2, best[1].text)
+assert(best[1].segments[2].text == "mcfg" and best[1].segments[2].matched == true)
+assert(#assert(fuzzy.rank("mcfg", { "docs/mcfg.md", "my_config.toml" }, 1)) == 1, "the limit")
+assert(fuzzy.match("zz", "foo") == omui.null, "nothing is omui.null")
+local ok, err = fuzzy.rank("q", { "a", 3 })
+assert(ok == nil and err:find("invalid%-argument") and err:find("`candidates%[1%]` is the number 3"), err)
+assert(fuzzy.sort == nil and omui.native.nope == nil)
+assert(omui.native.fuzzy == fuzzy, "made once")
+)lua");
+        check(ran.has_value(), ran ? "" : ran.error().text());
+    });
+
     s.test("errors are values, and the line says where", [] {
         Runtime r;
         Lua lua(r);
@@ -264,6 +285,7 @@ assert(not ok3 and err3:find("pattern"), err3)
     });
 
     s.test("CTS level S: every scenario records its pinned trace (spec/conformance/S, tests/cts.lua)", [] {
+        if (!omui::native::find("fuzzy")) check(omui::natives::fuzzy::define().has_value(), "the official native module");
         auto all = omui::cts::scenarios();
         check(all.has_value() && all->size() >= 3, all ? "fewer than three scenarios" : all.error());
         if (!all) return;
@@ -276,7 +298,16 @@ assert(not ok3 and err3:find("pattern"), err3)
             check(ran.has_value(), ran ? "" : ran.error().text());
             if (!ran) continue;
             const Json trace = omui::cts::run(
-                scenario, [&](std::string_view verb, const Json& args) { return invoke(r, verb, args); }, [&] { r.settle(lua.host); });
+                scenario, [&](std::string_view verb, const Json& args) { return invoke(r, verb, args); },
+                [&] {
+                    // Until the session is idle: an async native's answer is in flight too.
+                    int quiet = 0;
+                    for (int i = 0; i < 20000 && quiet < 3; ++i) {
+                        r.frame();
+                        quiet = lua.session.idle() ? quiet + 1 : 0;
+                        if (!quiet) std::this_thread::sleep_for(std::chrono::microseconds(100));
+                    }
+                });
             for (const std::string& d : omui::cts::check(scenario, trace)) fail(d);
             check(lua.errors.empty(), lua.errors.empty() ? "" : scenario.name + ": " + lua.errors[0]);
         }

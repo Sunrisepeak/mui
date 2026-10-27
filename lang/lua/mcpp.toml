@@ -30,4 +30,5 @@ compat.lua    = "5.4.7"
 [dev-dependencies]
 openmui.testing = { path = "../../tests/support" }
 openmui.cts     = { path = "../../tests/cts" }
+openmui.native.fuzzy = { path = "../../natives/fuzzy" }
 openmui.ui.base = { path = "../../components/base" }

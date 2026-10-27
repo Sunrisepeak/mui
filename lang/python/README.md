@@ -45,3 +45,5 @@ python examples/03-counter/python/tally.py
   - `--config-settings profile=dev|release` (default `release`);
   - `mcpp=PATH`, or `$OMUI_MCPP`, to choose the mcpp binary.
 - **Tests.** `mcpp test -p openmui.entry.python` runs `tests/` in the system's CPython against the built extension. `tests/cts.py` is Python's runner of the conformance scenarios (`spec/conformance/S`): it must record each scenario's pinned trace, as the Lua and JavaScript runners do. CI also installs the wheel and runs example 03 headless.
+
+**Native modules** (component-binding §8) are made from the program's catalogue, with no binding written by hand: `from openmui.native import fuzzy`, then `fuzzy.rank(q, files, 20)` or by keyword; a refusal is `OmuiError`. The wheel ships the official modules' `.pyi` stubs.

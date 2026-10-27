@@ -631,3 +631,177 @@ std::vector<Contract> read_contracts(const std::filesystem::path& file, const Re
 }
 
 }  // namespace omui::gen
+
+// ── native modules (component-binding §8) ─────────────────────────────────
+
+namespace omui::gen {
+
+namespace {
+
+constexpr std::array<std::string_view, 7> native_scalars{"bool", "i32", "u32", "i64", "f64", "string", "any"};
+
+bool pascal_identifier(std::string_view s) {
+    if (s.empty() || s.front() < 'A' || s.front() > 'Z') return false;
+    return std::ranges::all_of(s, [](char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9'); });
+}
+
+// What is wrong with a native type (empty: nothing).
+std::string native_type_problem(std::string_view type, const std::set<std::string, std::less<>>& records) {
+    if (type.ends_with("?")) return native_type_problem(type.substr(0, type.size() - 1), records);
+    if (type.ends_with("[]")) return native_type_problem(type.substr(0, type.size() - 2), records);
+    if (std::ranges::find(native_scalars, type) != native_scalars.end() || records.contains(type)) return {};
+    return std::format("unknown type `{}`", type);
+}
+
+// `name = "type"` or `name = { type = "…", doc = "…" }`, in the order the
+// file writes them (a TOML table keeps no order; the source does).
+std::vector<NativeParam> native_params(const Reader& r, const toml::table& t, std::string_view key) {
+    std::vector<NativeParam> out;
+    const toml::node* n = t.get(key);
+    if (!n) return out;
+    const toml::table* m = n->as_table();
+    if (!m) {
+        r.diags.error(r.loc(n), std::format("`{}` must be a table: name = \"type\", or name = {{ type = …, doc = … }}", key));
+        return out;
+    }
+    for (auto&& [k, v] : *m) {
+        NativeParam p;
+        p.name = std::string(k.str());
+        p.loc = r.loc(&v);
+        if (auto s = v.value<std::string>()) {
+            p.type = *s;
+        } else if (const toml::table* pt = v.as_table()) {
+            p.type = r.str(*pt, "type", true);
+            p.doc = r.str(*pt, "doc");
+        } else {
+            r.diags.error(p.loc, std::format("`{}` is \"type\" or {{ type = …, doc = … }}", p.name));
+            continue;
+        }
+        if (!valid_identifier(p.name)) r.diags.error(p.loc, std::format("`{}` is not lower_snake_case", p.name));
+        out.push_back(std::move(p));
+    }
+    std::ranges::stable_sort(out, [](const NativeParam& a, const NativeParam& b) {
+        return std::pair(a.loc.line, a.loc.column) < std::pair(b.loc.line, b.loc.column);
+    });
+    return out;
+}
+
+}  // namespace
+
+std::vector<NativeModule> read_natives(const std::filesystem::path& file, const Registry& reg, Diagnostics& diags) {
+    std::vector<NativeModule> out;
+    auto parsed = parse(file, diags);
+    if (!parsed) return out;
+    Reader r{generic_utf8(file), diags};
+    const toml::table* natives = (*parsed)["native"].as_table();
+    if (!natives) {
+        diags.error(r.loc(&*parsed), "no [native.<name>] table", "a native contract declares one or more [native.<name>]");
+        return out;
+    }
+    for (auto&& [key, node] : *natives) {
+        const toml::table* t = node.as_table();
+        if (!t) continue;
+        NativeModule m;
+        m.name = std::string(key.str());
+        m.loc = r.loc(t);
+        m.doc = r.str(*t, "doc");
+        m.spec = r.str(*t, "spec", true);
+        if (!valid_identifier(m.name)) diags.error(m.loc, std::format("native module name `{}` is not lower_snake_case", m.name));
+        if (m.doc.empty()) diags.warning(m.loc, std::format("native module `{}` has no doc", m.name), "add doc = \"…\": scripts and agents read it");
+
+        std::set<std::string, std::less<>> records;
+        if (const toml::table* types = (*t)["types"].as_table())
+            for (auto&& [tk, tv] : *types) records.emplace(tk.str());
+        if (const toml::table* types = (*t)["types"].as_table()) {
+            for (auto&& [tk, tv] : *types) {
+                NativeType ty;
+                ty.name = std::string(tk.str());
+                ty.loc = r.loc(&tv);
+                const toml::table* tt = tv.as_table();
+                if (!tt) {
+                    diags.error(ty.loc, std::format("type `{}` must be a table {{ fields = {{ … }} }}", ty.name));
+                    continue;
+                }
+                if (!pascal_identifier(ty.name)) diags.error(ty.loc, std::format("type name `{}` is not PascalCase", ty.name));
+                ty.doc = r.str(*tt, "doc");
+                ty.fields = native_params(r, *tt, "fields");
+                if (ty.fields.empty()) diags.error(ty.loc, std::format("type `{}` has no fields", ty.name));
+                for (const NativeParam& f : ty.fields)
+                    if (auto p = native_type_problem(f.type, records); !p.empty())
+                        diags.error(f.loc, std::format("{}.{}: {}", ty.name, f.name, p), "bool i32 u32 i64 f64 string any, a type of the module, T[], T?");
+                m.types.push_back(std::move(ty));
+            }
+        }
+        if (const toml::table* functions = (*t)["functions"].as_table()) {
+            for (auto&& [fk, fv] : *functions) {
+                NativeFunction f;
+                f.name = std::string(fk.str());
+                f.loc = r.loc(&fv);
+                const toml::table* ft = fv.as_table();
+                if (!ft) {
+                    diags.error(f.loc, std::format("function `{}` must be a table {{ args = …, returns = … }}", f.name));
+                    continue;
+                }
+                if (!valid_identifier(f.name)) diags.error(f.loc, std::format("function name `{}` is not lower_snake_case", f.name));
+                f.doc = r.str(*ft, "doc");
+                if (f.doc.empty()) diags.warning(f.loc, std::format("function `{}` has no doc", f.name), "add doc = \"…\": scripts and agents read it");
+                f.effect = r.str(*ft, "effect");
+                if (f.effect.empty()) f.effect = "read";
+                f.async = r.boolean(*ft, "async", false);
+                f.params = native_params(r, *ft, "args");
+                f.returns = r.str(*ft, "returns");
+                const Effect* eff = Registry::find(reg.effects, f.effect);
+                if (!eff)
+                    diags.error(r.loc(ft->get("effect")), std::format("function `{}` names unknown effect `{}`", f.name, f.effect));
+                else if (eff->answer)
+                    diags.error(r.loc(ft->get("effect")), std::format("function `{}` is `{}`, which needs an answer (S-1)", f.name, f.effect),
+                                "a native function cannot be confirmed: make the irreversible work a verb, which states its answer");
+                for (std::size_t i = 1; i < f.params.size(); ++i)
+                    if (f.params[i - 1].type.ends_with("?") && !f.params[i].type.ends_with("?"))
+                        diags.error(f.params[i].loc, std::format("{}({}) follows the optional `{}`", f.name, f.params[i].name, f.params[i - 1].name),
+                                    "optional arguments come last: a positional call leaves them out from the end");
+                for (const NativeParam& p : f.params)
+                    if (auto x = native_type_problem(p.type, records); !x.empty())
+                        diags.error(p.loc, std::format("{}({}): {}", f.name, p.name, x), "bool i32 u32 i64 f64 string any, a type of the module, T[], T?");
+                if (!f.returns.empty())
+                    if (auto x = native_type_problem(f.returns, records); !x.empty())
+                        diags.error(r.loc(ft->get("returns")), std::format("{} returns: {}", f.name, x));
+                m.functions.push_back(std::move(f));
+            }
+        }
+        if (m.functions.empty()) diags.error(m.loc, std::format("native module `{}` declares no function", m.name));
+        // The file's order, which a TOML table does not keep.
+        auto by_place = [](const auto& a, const auto& b) { return std::pair(a.loc.line, a.loc.column) < std::pair(b.loc.line, b.loc.column); };
+        std::ranges::stable_sort(m.types, by_place);
+        std::ranges::stable_sort(m.functions, by_place);
+        // A record holds another by value or optionally only if that one
+        // does not hold it back (a list may: it holds it indirectly).
+        for (const NativeType& a : m.types)
+            for (const NativeParam& f : a.fields) {
+                std::string_view t = f.type;
+                if (t.ends_with("?")) t.remove_suffix(1);
+                if (t == a.name) diags.error(f.loc, std::format("{}.{} holds a {} in itself", a.name, f.name, a.name), "a list of them (`{}[]`) may");
+            }
+        {
+            std::set<std::string, std::less<>> placed;
+            for (std::size_t pass = 0; pass <= m.types.size(); ++pass)
+                for (const NativeType& a : m.types) {
+                    if (placed.contains(a.name)) continue;
+                    const bool ready = std::ranges::all_of(a.fields, [&](const NativeParam& f) {
+                        std::string_view t = f.type;
+                        if (t.ends_with("?")) t.remove_suffix(1);
+                        return t.ends_with("[]") || !records.contains(t) || t == a.name || placed.contains(t);
+                    });
+                    if (ready) placed.insert(a.name);
+                }
+            std::string cycle;
+            for (const NativeType& a : m.types)
+                if (!placed.contains(a.name)) cycle += (cycle.empty() ? "" : ", ") + a.name;
+            if (!cycle.empty()) diags.error(m.loc, std::format("records hold each other by value: {}", cycle), "make one of the fields a list (`T[]`)");
+        }
+        out.push_back(std::move(m));
+    }
+    return out;
+}
+
+}  // namespace omui::gen

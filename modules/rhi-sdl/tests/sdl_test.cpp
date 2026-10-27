@@ -6,6 +6,7 @@
 import std;
 import openmui.rhi;
 import openmui.rhi.sdl;
+import mcpplibs.os;
 import openmui.testing;
 
 using namespace omui::testing;
@@ -14,14 +15,13 @@ using namespace omui::rhi;
 namespace {
 
 bool required() {
-    const char* v = std::getenv("OMUI_REQUIRE_GPU");
-    return v && std::string_view(v) == "1";
+    return mcpplibs::os::env::get("OMUI_REQUIRE_GPU") == "1";
 }
 
 std::unique_ptr<Device> open_device() {
     sdl::Options o;
     o.formats = formats({ShaderFormat::spirv, ShaderFormat::msl, ShaderFormat::dxbc});
-    if (const char* lib = std::getenv("OMUI_VULKAN_LIBRARY")) o.vulkan_library = lib;
+    if (auto lib = mcpplibs::os::env::get("OMUI_VULKAN_LIBRARY")) o.vulkan_library = *lib;
     auto d = sdl::create(o);
     if (!d) {
         if (required()) check(false, std::format("OMUI_REQUIRE_GPU=1 and no device: {}", d.error().message));

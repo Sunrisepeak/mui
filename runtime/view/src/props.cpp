@@ -25,6 +25,9 @@ constexpr std::array<std::string_view, 15> visual_props{
     "scale", "rotation", "clip", "visible", "pointer_events", "overflow", "radii",
 };
 
+// Animation the runtime applies to whatever the node draws (D-68).
+constexpr std::array<std::string_view, 1> motion_props{"glyph_motion"};
+
 constexpr std::array<std::string_view, 9> semantic_props{
     "label", "description", "role", "origin", "focusable", "disabled", "verb", "effect", "answer",
 };
@@ -472,6 +475,22 @@ void Runtime::Impl::apply_now(NodeId id, std::string_view name, const Value& val
             else m.focusable = value.as_bool();
         }
         what |= dirty_semantics;
+    }
+    if (in(motion_props, name)) {
+        Node& g = at(id);
+        if (auto motion = value.is_null() ? std::nullopt : glyph_motion_from(value)) {
+            g.glyph_motion = Node::GlyphMotionState{*motion, now(), seconds(std::numeric_limits<double>::infinity())};
+            if (!g.state.animating) {
+                g.state.animating = true;
+                what |= dirty_semantics;
+            }
+            if (std::ranges::find(animating, id) == animating.end()) animating.push_back(id);
+            frame_requested = true;
+        } else {
+            g.glyph_motion.reset();
+        }
+        touch(what);
+        return;
     }
     Node& m = at(id);
     if (!is_layout_prop(name) || name == "border_width") {

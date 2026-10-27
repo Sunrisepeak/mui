@@ -145,7 +145,8 @@ void Runtime::Impl::retime() {
             if (settled) rested.emplace_back(id, a.name, a.target);
             a.resting = settled;
         }
-        if (any || n.props_moving()) {
+        // Glyph motions are functions of the time: before their end, they move again.
+        if (any || n.props_moving() || n.glyphs_moving(t)) {
             if (std::ranges::find(animating, id) == animating.end()) animating.push_back(id);
             if (!n.state.animating) {
                 n.state.animating = true;
@@ -275,7 +276,7 @@ void Runtime::Impl::run_animations() {
             if (!alive(id)) continue;
         }
         Node& after = at(id);
-        if (after.moving || after.props_moving()) still.push_back(id);
+        if (after.moving || after.props_moving() || after.glyphs_moving(t)) still.push_back(id);
         else if (after.state.animating) {
             after.state.animating = false;
             // Settled: readers waiting for it see a new revision (no further frame is needed).
@@ -471,8 +472,10 @@ void Runtime::Impl::paint_node(NodeId id) {
     const bool clip = v.clip || type.clips;
     if (clip) list.push_clip(box, radii);
     if (type.paint) {
+        const std::size_t first = list.commands().size();
         PaintContext ctx{self, list, id, size, content, n.state, theme};
         type.paint(n.instance, ctx);
+        if (at(id).glyph_motion) restyle_glyphs(id, first);
     }
     const Point off = n.content_offset;
     const bool shifted = off.x != 0 || off.y != 0;
@@ -505,6 +508,25 @@ void Runtime::Impl::paint_node(NodeId id) {
     if (layer) list.pop_layer();
     list.pop_transform();
     list.end_node();
+}
+
+void Runtime::Impl::restyle_glyphs(NodeId id, std::size_t first) {
+    // Every glyph command the component just recorded, styled by the node's
+    // glyph motion at this frame's time (D-68): the component did nothing.
+    Node& n = at(id);
+    std::vector<std::size_t> at_index;
+    std::vector<std::span<const render::Glyph>> runs;
+    const auto& commands = list.commands();
+    for (std::size_t i = first; i < commands.size(); ++i)
+        if (const auto* g = std::get_if<render::DrawGlyphs>(&commands[i])) {
+            at_index.push_back(i);
+            runs.push_back(g->glyphs);
+        }
+    if (runs.empty()) return;
+    auto& state = *n.glyph_motion;
+    const GlyphFrame f = glyph_frame(state.motion, now() - state.start, runs, reduce_motion);
+    state.ends = f.ends;
+    for (std::size_t k = 0; k < at_index.size(); ++k) list.style_glyphs(at_index[k], f.styles[k]);
 }
 
 NodeId Runtime::Impl::hit(NodeId id, Point window, std::optional<Rect>) const {

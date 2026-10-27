@@ -309,6 +309,26 @@ void add_framework_benchmarks() {
         s.items(source.size());
         while (s.next()) s.counter("bytes", static_cast<double>(md::to_html(doc).size()));
     });
+    add("text/glyph-motion", "one frame of glyph motion over 2 KB of laid-out text: every glyph's style (D-68)", [](State& s) {
+        typeset::FontCollection fonts;
+        if (auto r = fonts.add_defaults(); !r) warn("the default fonts did not load: {}", r.error());
+        typeset::Paragraph p(fonts, paragraph_text(), {});
+        p.layout(600);
+        std::vector<std::span<const render::Glyph>> runs;
+        std::size_t n = 0;
+        for (const auto& l : p.lines())
+            for (const auto& r : l.runs) {
+                runs.emplace_back(r.glyphs);
+                n += r.glyphs.size();
+            }
+        const GlyphMotion m = GlyphMotion::gather(3);
+        s.items(n);
+        double t = 0;
+        while (s.next()) {
+            const GlyphFrame f = glyph_frame(m, anim::seconds(t += 0.016), runs);
+            s.counter("moving", f.moving ? 1 : 0);
+        }
+    });
     add("trace/span-off", "10 000 spans while nothing records: the cost tracing adds to a normal run", [](State& s) {
         (void)trace::stop();
         constexpr std::size_t n = 10'000;

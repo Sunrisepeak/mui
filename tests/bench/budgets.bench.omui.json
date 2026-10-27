@@ -26,6 +26,8 @@
      "why": "a streamed token re-parses only the tail: under 5 µs each, so 20 streaming windows cost well under a millisecond a frame"},
     {"name": "markdown/to-html", "metric": "ns_per_item", "max": 15,
      "why": "copy as HTML of a long answer stays below a millisecond"},
+    {"name": "text/glyph-motion", "metric": "ns_per_item", "max": 400,
+     "why": "styling a glyph for a frame of motion stays far below its rasterisation: 2 000 animated glyphs cost under a millisecond"},
     {"name": "trace/span-off", "metric": "ns_per_item", "max": 5,
      "why": "tracing that is off is a branch on a relaxed load (D-59): a few cycles even on a shared CI runner, so a frame's spans cost under a microsecond"},
     {"name": "trace/span-on", "metric": "ns_per_item", "max": 100,

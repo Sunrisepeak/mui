@@ -10,6 +10,7 @@ import openmui.pipeline;
 import openmui.render;
 import openmui.text;
 import :element;
+import :glyphs;
 import :theme;
 import :model;
 import :component;
@@ -126,6 +127,14 @@ struct Node {
         bool                              resting = false;  // settled: kept, so seeking back in time replays it
     };
     std::vector<PropAnimation> prop_animations;
+    // Its text's glyph motion (D-68): a pure function of the time since `start`.
+    struct GlyphMotionState {
+        GlyphMotion motion;
+        seconds     start{0};
+        seconds     ends{std::numeric_limits<double>::infinity()};  // known after its first paint
+    };
+    std::optional<GlyphMotionState> glyph_motion;
+    [[nodiscard]] bool glyphs_moving(seconds now) const noexcept { return glyph_motion && now - glyph_motion->start < glyph_motion->ends; }
     [[nodiscard]] bool props_moving() const noexcept {
         return std::ranges::any_of(prop_animations, [](const PropAnimation& a) { return !a.resting; });
     }
@@ -334,6 +343,8 @@ struct Runtime::Impl {
     [[nodiscard]] std::vector<NodeId> focus_order() const;
     [[nodiscard]] NodeId focusable_ancestor(NodeId id) const;
     [[nodiscard]] NodeId activatable_ancestor(NodeId id) const;
+    // Styles the glyph commands recorded since `first` by the node's glyph motion.
+    void restyle_glyphs(NodeId id, std::size_t first);
     // A person pressing the node itself (pointer or keyboard) is that
     // person's answer to an external action (spec S-2a); irreversible ones ask.
     [[nodiscard]] std::string own_answer(NodeId id, std::string_view action) const;

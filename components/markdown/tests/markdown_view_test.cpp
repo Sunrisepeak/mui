@@ -216,6 +216,30 @@ int main(int argc, char** argv) {
             check(n.origin == spec::Origin::remote, std::format("{} is not marked remote", n.id));
     });
 
+    s.test("glyph motion reaches the document's text; the component does nothing for it (D-68)", [] {
+        Headless h({.size = {720, 600}});
+        h.mount("main", column({.padding = 16}, {markdown({.id = "doc", .source = std::string(readme)})}));
+        h.settle();
+        auto hash = [&] {
+            Hash x;
+            const auto& px = h.pixels();
+            for (int y = 0; y < px.height(); ++y) x.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
+            return x.value();
+        };
+        const auto rest = hash();
+        // A paragraph's words rise and the heading's letters gather: set on the
+        // document's own nodes, as an agent or a script would.
+        h.runtime().set(h.runtime().find("main/doc/b1"), "glyph_motion", to_value(GlyphMotion::rise()));
+        h.runtime().set(h.runtime().find("main/doc/b0"), "glyph_motion", to_value(GlyphMotion::gather(5)));
+        h.step();
+        h.step();
+        check(hash() != rest, "on their way");
+        check(h.tree().node("main/doc/b1")->states.has(State::animating));
+        h.settle();
+        check(hash() == rest, "and back to the document's own pixels");
+        check(!h.tree().node("main/doc/b1")->states.has(State::animating));
+    });
+
     s.test("the same pixels on every platform", [] {
         HeadlessOptions o;
         o.size = {640, 820};

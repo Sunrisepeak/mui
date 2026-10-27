@@ -37,6 +37,12 @@ The retained and immediate view runtime (plan §3–§5):
   application sees — timers and animations alike; seeking re-evaluates every
   live channel at the new time, so a finished transition plays again when
   time goes back (settled property transitions keep their channels for it);
+- **glyph motion** (D-68): any node's text, animated glyph by glyph, grapheme, word or line. It is the
+  `glyph_motion` property (`animate_glyphs(element, GlyphMotion::rise())`, or a value an agent sets).
+  After a component paints, the runtime styles the glyphs it recorded at the frame's time, so every
+  component's text can be typed out, raised, gathered, scattered or set to a wave with no change to
+  the component. The motion is a pure function of time: it seeks, pauses and steps, and respects
+  reduced motion. It costs about 90 ns per glyph per frame (`text/glyph-motion`).
 - **observability** (D-59): every frame times its phases (timers, input,
   regions, animations, layout, bounds, paint) into `FrameStats`, kept for the
   last 240 frames (`frame_history()`) and traced as `openmui.trace` spans;

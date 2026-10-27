@@ -16,3 +16,4 @@ export import :component;
 export import :runtime;
 export import :primitives;
 export import :immediate;
+export import :glyphs;

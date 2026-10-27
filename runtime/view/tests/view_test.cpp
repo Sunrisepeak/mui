@@ -784,5 +784,84 @@ int main(int argc, char** argv) {
         check(rt.display_list().hash() == list_hash, std::format("list {:016x}", rt.display_list().hash()));
     });
 
+    s.test("glyph motion: any node's text, glyph by glyph, a function of time (D-68)", [] {
+        typeset::GlyphCache glyphs(fonts());
+        Runtime plain(options({260, 60}));
+        plain.mount("main", column({.padding = 8}, {text({.id = "t", .text = "Hello glyph motion"})}));
+        plain.frame({seconds(0), {}});
+        const auto rest = draw(plain, glyphs).hash();
+        Runtime empty(options({260, 60}));
+        empty.mount("main", column({.padding = 8}, {}));
+        empty.frame({seconds(0), {}});
+        const auto blank = draw(empty, glyphs).hash();
+
+        Runtime rt(options({260, 60}));
+        rt.mount("main", column({.padding = 8}, {animate_glyphs(text({.id = "t", .text = "Hello glyph motion"}), GlyphMotion::rise())}));
+        rt.frame({seconds(0), {}});
+        check(draw(rt, glyphs).hash() == blank, "at its start every word is hidden");
+        check(rt.semantic_node(rt.find("main/t")).states.has(State::animating), "and the node is animating");
+        rt.frame({seconds(0.3), {}});
+        const auto mid = draw(rt, glyphs).hash();
+        check(mid != blank && mid != rest, "words on their way");
+        rt.frame({seconds(3), {}});
+        check(draw(rt, glyphs).hash() == rest, "at its end, the text as it is without motion");
+        check(!rt.semantic_node(rt.find("main/t")).states.has(State::animating), "settled");
+        // Seeking back renders the same frame as playing to it.
+        rt.seek_time(seconds(0.3));
+        rt.frame({seconds(3.1), {}});
+        check(draw(rt, glyphs).hash() == mid, "seek consistency");
+        rt.release_time();
+        // Reduced motion: the end at once.
+        Runtime calm(options({260, 60}));
+        calm.set_reduce_motion(true);
+        calm.mount("main", column({.padding = 8}, {animate_glyphs(text({.id = "t", .text = "Hello glyph motion"}), GlyphMotion::gather(7))}));
+        calm.frame({seconds(0), {}});
+        check(draw(calm, glyphs).hash() == rest, "reduced motion shows the end");
+        // Set later (by an agent or a script): it starts at the runtime's time then.
+        plain.frame({seconds(1), {}});
+        plain.set(plain.find("main/t"), "glyph_motion", to_value(GlyphMotion::typewriter(seconds(0.05))));
+        plain.frame({seconds(1), {}});
+        check(draw(plain, glyphs).hash() == blank, "the typewriter starts empty");
+        plain.frame({seconds(1.12), {}});
+        const auto typed = draw(plain, glyphs).hash();
+        check(typed != blank && typed != rest, "a few letters typed");
+        plain.frame({seconds(9), {}});
+        check(draw(plain, glyphs).hash() == rest);
+    });
+
+    s.test("glyph motion: domains, ranges, orders, randomness, round trips", [] {
+        std::vector<render::Glyph> g;
+        for (std::uint32_t i = 0; i < 6; ++i) g.push_back({1, {static_cast<float>(i) * 10, 0}, i, i, i / 3, 0});
+        const std::array<std::span<const render::Glyph>, 1> one{std::span<const render::Glyph>(g)};
+        GlyphMotion m;
+        m.domain = GlyphDomain::word;
+        m.from = {.y = 10};
+        m.to = {};
+        m.transition = Transition::tween(seconds(0.2), anim::ease::linear);
+        m.stagger = seconds(0.1);
+        auto y = [&](const GlyphFrame& f, std::size_t i) { return f.styles[0].empty() ? 0.0f : f.styles[0][i].transform.f; };
+        auto f = glyph_frame(m, seconds(0.1), one);
+        check(std::abs(y(f, 0) - 5) < 1e-4 && std::abs(y(f, 2) - 5) < 1e-4, "the first word, half way");
+        check(std::abs(y(f, 3) - 10) < 1e-4, "the second word, not started");
+        check(std::abs(f.ends.count() - 0.3) < 1e-9 && f.moving);
+        m.order = GlyphOrder::reverse;
+        f = glyph_frame(m, seconds(0.1), one);
+        check(std::abs(y(f, 3) - 5) < 1e-4 && std::abs(y(f, 0) - 10) < 1e-4, "reverse: the last word first");
+        m.order = GlyphOrder::forward;
+        m.begin = 3;
+        f = glyph_frame(m, seconds(0), one);
+        check(f.styles[0][0].plain() && !f.styles[0][3].plain(), "outside the byte range nothing moves");
+        // Seeded randomness: the same seed, the same frame; another seed, another.
+        auto r1 = GlyphMotion::gather(1), r2 = GlyphMotion::gather(2);
+        const auto a = glyph_frame(r1, seconds(0.05), one), b = glyph_frame(r1, seconds(0.05), one), c = glyph_frame(r2, seconds(0.05), one);
+        check(a.styles[0][1].transform == b.styles[0][1].transform && !(a.styles[0][1].transform == c.styles[0][1].transform));
+        // Every preset survives the trip through a property value.
+        for (const GlyphMotion& p : {GlyphMotion::typewriter(), GlyphMotion::rise(), GlyphMotion::gather(3), GlyphMotion::scatter(4), GlyphMotion::wave()}) {
+            const auto back = glyph_motion_from(to_value(p));
+            check(back && *back == p, to_value(p).json());
+        }
+        check(GlyphMotion::wave().repeat == 0 && glyph_frame(GlyphMotion::wave(), seconds(100), one).moving, "a wave never ends");
+    });
+
     return s.run(argc, argv);
 }

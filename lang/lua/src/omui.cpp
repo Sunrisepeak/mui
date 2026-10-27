@@ -2,18 +2,18 @@
 // C++ destructors, so no function here raises while a C++ object is alive:
 // each entry point does its work in a scope that ends before it reports an
 // error (`entry` below), and every call back into Lua is protected (pcall).
-module;
-
-#include <lua.hpp>
-
+// Lua's C API is the module mcpplibs.mwrap.lua (lua-m): no header here.
 module openmui.lang.lua;
 
 import std;
+import mcpplibs.mwrap.lua;
 import nlohmann.json;
 import openmui.abi;
 import openmui.lang;
 
 namespace omui::lang::lua {
+
+using namespace mcpplibs::mwrap::lua::macros;  // lua_pop, lua_tostring, LUA_OK … (lua.h's macros)
 
 namespace {
 

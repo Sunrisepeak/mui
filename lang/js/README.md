@@ -1,6 +1,6 @@
 # openmui.lang.js
 
-openmui for JavaScript and TypeScript, embedded with QuickJS-ng (`compat.quickjs-ng`; component-binding §7). The script runs on [openmui.lang](../common)'s script thread. What it builds is a view document, so a view in TypeScript is the C++ builder's tree (CTS S level: `tests/js_test.cpp`, and example 03).
+openmui for JavaScript and TypeScript, embedded with QuickJS-ng (component-binding §7), imported as a module: [`mcpplibs.mwrap.quickjs_ng`](https://github.com/mcpplibs/quickjs-ng-m) over `compat.quickjs-ng`, so no C header appears here. The script runs on [openmui.lang](../common)'s script thread. What it builds is a view document, so a view in TypeScript is the C++ builder's tree (CTS S level: `tests/js_test.cpp`, and example 03).
 
 ```ts
 import { signal, fmt, column, text, button, mount } from "openmui";

@@ -2,19 +2,21 @@
 // Everything here runs on the script thread: QuickJS is single-threaded.
 // The JavaScript functions the runtime may call later (handlers, verbs,
 // watches) are kept in a table by id; what reaches the runtime is the id.
-module;
-
-#include <quickjs.h>
-
+// QuickJS-ng's API is the module mcpplibs.mwrap.quickjs_ng (quickjs-ng-m):
+// no header here.
 module openmui.lang.js;
 
 import std;
+import mcpplibs.mwrap.quickjs_ng;
 import nlohmann.json;
 import openmui.abi;
 import openmui.lang;
 import :prelude;
 
 namespace omui::lang::js {
+
+using namespace mcpplibs::mwrap::quickjs_ng;          // quickjs.h's static inline API (JS_IsException, JS_ToCString …)
+using namespace mcpplibs::mwrap::quickjs_ng::macros;  // its macros (JS_UNDEFINED, JS_EVAL_TYPE_MODULE …)
 
 struct Script::Impl {
     Session&                                    session;

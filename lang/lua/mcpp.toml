@@ -1,4 +1,4 @@
-# openmui.lang.lua — Lua 5.4 (compat.lua) on the Script Binding Profile
+# openmui.lang.lua — Lua 5.4 (mcpplibs.mwrap.lua, lua-m) on the Script Binding Profile
 # (component-binding §7): the `omui` module, its builders (table
 # constructors: omui.Column { gap = 8, omui.Text { … } }), signals with
 # expression arithmetic, regions, verbs, models and the bus interface.
@@ -18,14 +18,14 @@ kind = "lang"
 kind = "lib"
 
 [build]
-sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
 openmui.lang  = { path = "../common" }
 openmui.abi    = { path = "../../runtime/abi" }
 openmui.player = { path = "../../runtime/player" }
 nlohmann.json = "3.12.0"
-compat.lua    = "5.4.7"
+mcpplibs.mwrap.lua = "5.4.7"
 
 [dev-dependencies]
 openmui.testing = { path = "../../tests/support" }

@@ -569,9 +569,9 @@ mcpplibs.os = { git = "https://github.com/mcpplibs/os.git", branch = "os-0.1.0" 
 | 语言 | 方案 | 里程碑 |
 |---|---|---|
 | C ABI | `openmui.h` + `runtime/abi`，由生成器产出 | M3 |
-| TS / JS | `compat.quickjs-ng`；TS 在构建期用 esbuild 转换（xim 中已有）；生成 `.d.ts`；可选 TSX | M3 |
+| TS / JS | `mcpplibs.mwrap.quickjs_ng`（quickjs-ng-m，模块封装 `compat.quickjs-ng`）；TS 在构建期用 esbuild 转换（xim 中已有）；生成 `.d.ts`；可选 TSX | M3 |
 | Python | **用 CPython 的稳定 ABI（limited API / abi3）自己写绑定模块**，不用 pybind11（它是依赖宏的头文件库，不符合“不用宏、头文件最少”的规则）；先做“作为宿主”的模式（`pip install openmui`，每个平台一个 wheel）；生成 `.pyi` | M3 |
-| Lua | `compat.lua`（5.4）；生成 LuaLS 注解 | M3 |
+| Lua | `mcpplibs.mwrap.lua`（lua-m，模块封装 `compat.lua` 5.4）；生成 LuaLS 注解 | M3 |
 
 - **线程**：每种语言一个逻辑线程；和 UI 线程之间用无锁的 MPSC 队列交换值。
 - **测试**：同一组语言中立的 JSON 场景，分别由三种语言执行，语义结果必须完全相同（CTS 的 S 级）。
@@ -882,7 +882,7 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
 
 | 位置 | 内容 |
 |---|---|
-| mcpp-index | `compat.sdl3`、`compat.harfbuzz`、`compat.freetype`、`compat.fribidi`、`compat.msdfgen`、`compat.md4c`、`compat.quickjs-ng`、`compat.lua`、`compat.ffmpeg` / `ffmpeg.ffmpeg`、`compat.miniaudio`、`compat.spirv-reflect`、`compat.libpng`、`compat.zlib`、**`nlohmann.json`**（JSON，模块 `nlohmann.json`）、**`marzer.tomlplusplus`**（TOML，模块 `tomlplusplus`）、**`taskflow.taskflow`**（任务系统，模块 `tf`）、`compat.concurrentqueue`（无锁队列）、`compat.xxhash`、`compat.mimalloc`、`compat.wamr` |
+| mcpp-index | `compat.sdl3`、`compat.harfbuzz`、`compat.freetype`、`compat.fribidi`、`compat.msdfgen`、`compat.md4c`（`mcpplibs.mwrap.md4c`）、`compat.quickjs-ng`（`mcpplibs.mwrap.quickjs_ng`）、`compat.lua`（`mcpplibs.mwrap.lua`）、`compat.ffmpeg` / `ffmpeg.ffmpeg`、`compat.miniaudio`、`compat.spirv-reflect`、`compat.libpng`、`compat.zlib`、**`nlohmann.json`**（JSON，模块 `nlohmann.json`）、**`marzer.tomlplusplus`**（TOML，模块 `tomlplusplus`）、**`taskflow.taskflow`**（任务系统，模块 `tf`）、`compat.concurrentqueue`（无锁队列）、`compat.xxhash`、`compat.mimalloc`、`compat.wamr` |
 | xim（xlings） | `slang`、`mesa-lavapipe`、`vulkan-loader` / `vulkan-headers`、`glslang`、`spirv-tools`、`esbuild`、`node`、`uv`、`python`、`emsdk` |
 | mcpp-plugins | `rules-slang`、`rules-spirv`、`dist`（apk / apple / web / wix / appimage） |
 | mcpplibs | `os`（git 依赖，分支 `os-0.1.0`）、`openkal` |

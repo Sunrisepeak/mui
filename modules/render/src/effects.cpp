@@ -223,7 +223,7 @@ void box_pass(const Surface& from, Surface& to, int r, bool horizontal) {
     }
 }
 
-int blur_radius(std::span<const float> params, float scale) { return static_cast<int>(std::round(params[0] * scale / 3)); }
+int blur_radius(std::span<const float> params, float scale) { return box_radius(params[0], scale); }
 
 void blur(const EffectInput& in) {
     const int r = blur_radius(in.params, in.scale);
@@ -232,11 +232,8 @@ void blur(const EffectInput& in) {
         return;
     }
     // Three box passes each way approach a Gaussian of the given radius.
-    Surface a = in.source, b(in.source.width(), in.source.height());
-    for (int i = 0; i < 3; ++i) {
-        box_pass(a, b, r, true);
-        box_pass(b, a, r, false);
-    }
+    Surface a = in.source;
+    box_blur(a, r);
     each_pixel(in, [&](int x, int y, Rgba8) { return a.at(x, y); });
 }
 
@@ -320,6 +317,97 @@ void particles(const EffectInput& in) {
         }
 }
 
+// ── liquid glass (D-64) ──
+//
+// A thick transparent material over what lies under it: the backdrop bent
+// at the shape's bevel (refraction from the signed distance's gradient),
+// split a little by colour (dispersion), frosted (the renderer's box blur),
+// tinted — darker over a bright backdrop, lighter over a dark one, so what is
+// on the glass stays legible — lit at the rim facing the light and along a
+// fine inner edge; the layer's own content over it. Every operation is the
+// GPU path's (effects/liquid_glass.slang), in the same order.
+
+struct Glass {
+    float thickness, ior, dispersion;
+    float tint[4];
+    float lx, ly;  // the light's direction, unit
+    float smoothness;
+    bool  adaptive;
+    float rim;
+};
+
+Glass glass_of(std::span<const float> p, float scale) {
+    Glass g{};
+    g.thickness = std::max(p[0] * scale, 1.0f);
+    g.ior = p[1];
+    g.dispersion = p[3];
+    for (int i = 0; i < 4; ++i) g.tint[i] = clamp01(p[static_cast<std::size_t>(4 + i)]);
+    const float ll = std::sqrt(p[8] * p[8] + p[9] * p[9]);
+    g.lx = ll > 0 ? p[8] / ll : 0.0f;
+    g.ly = ll > 0 ? p[9] / ll : 0.0f;
+    g.smoothness = p[10] * scale;
+    g.adaptive = p[11] >= 0.5f;
+    g.rim = clamp01(p[12]);
+    return g;
+}
+
+float shapes_distance(std::span<const EffectShape> shapes, float x, float y, float k) {
+    float d = shape_distance(shapes[0], {x, y});
+    for (std::size_t i = 1; i < shapes.size() && i < 8; ++i) d = smooth_min(d, shape_distance(shapes[i], {x, y}), k);
+    return d;
+}
+
+void liquid_glass(const EffectInput& in) {
+    const Glass g = glass_of(in.params, in.scale);
+    const Surface empty;
+    const Surface& under = in.backdrop ? *in.backdrop : empty;
+    each_pixel(in, [&](int x, int y, Rgba8 s) {
+        const float qx = static_cast<float>(x) + 0.5f, qy = static_cast<float>(y) + 0.5f;
+        const float d = shapes_distance(in.shapes, qx, qy, g.smoothness);
+        const float cov = clamp01(0.5f - d);
+        if (cov <= 0) return s;
+        // The bevel: 0 at the edge, 1 where the glass is flat.
+        const float e = std::max(-d, 0.0f);
+        const float t = clamp01(e / g.thickness);
+        // The surface's normal, outward: the distance's gradient.
+        const float gx = (shapes_distance(in.shapes, qx + 1, qy, g.smoothness) - shapes_distance(in.shapes, qx - 1, qy, g.smoothness)) * 0.5f;
+        const float gy = (shapes_distance(in.shapes, qx, qy + 1, g.smoothness) - shapes_distance(in.shapes, qx, qy - 1, g.smoothness)) * 0.5f;
+        const float gl = std::sqrt(gx * gx + gy * gy);
+        const float nx = gl > 0 ? gx / gl : 0.0f, ny = gl > 0 ? gy / gl : 0.0f;
+        // Refraction: the backdrop pulled in from beyond the edge.
+        const float bend = (1 - t) * (1 - t);
+        const float off = (g.ior - 1) * g.thickness * bend;
+        const float spread = g.dispersion * 0.5f;
+        const float ro = off * (1 + spread), bo = off * (1 - spread);
+        const auto red = sample(under, qx - nx * ro, qy - ny * ro);
+        const auto green = sample(under, qx - nx * off, qy - ny * off);
+        const auto blue = sample(under, qx - nx * bo, qy - ny * bo);
+        float c[4] = {std::min(red[0], green[3]), green[1], std::min(blue[2], green[3]), green[3]};
+        // Tint, over (premultiplied).
+        const float ta = g.tint[3];
+        for (int i = 0; i < 3; ++i) c[i] = g.tint[i] * ta * 255.0f + c[i] * (1 - ta);
+        c[3] = ta * 255.0f + c[3] * (1 - ta);
+        // Adaptive: what is on the glass stays legible.
+        if (g.adaptive && c[3] > 0) {
+            const float lum = (0.2126f * c[0] + 0.7152f * c[1] + 0.0722f * c[2]) / c[3];
+            const float darken = 0.08f * clamp01((lum - 0.55f) / 0.35f), lighten = 0.08f * clamp01((0.45f - lum) / 0.35f);
+            for (int i = 0; i < 3; ++i) c[i] = c[i] * (1 - darken) + c[3] * lighten;
+        }
+        // Light: the rim facing it, and a fine line inside the edge.
+        const float facing = std::max(0.0f, -(nx * g.lx + ny * g.ly));
+        const float rim = g.rim * (1 - t) * (1 - t) * (1 - t) * facing;
+        const float line = g.rim * 0.5f * clamp01(1 - e / (1.5f * in.scale));
+        const float light = std::min(rim + line, 1.0f);
+        for (int i = 0; i < 3; ++i) c[i] = std::min(c[i] + (c[3] - c[i]) * light, c[3]);
+        // The glass where it covers; the layer's content over it.
+        const float inv = 1 - static_cast<float>(s.a) / 255.0f;
+        auto ch = [&](std::uint8_t sv, float gv) { return q8(static_cast<float>(sv) + gv * cov * inv); };
+        return Rgba8{ch(s.r, c[0]), ch(s.g, c[1]), ch(s.b, c[2]), ch(s.a, c[3])};
+    });
+}
+
+void derive_glass(std::span<const float>, float, geom::Rect, EffectFrame&) {}
+
 float no_reach(std::span<const float>) { return 0; }
 
 // ── the GPU paths' derived values: the CPU reference's own computations ──
@@ -402,9 +490,63 @@ void register_builtins(EffectRegistry& r) {
             {"stagger", 0.5f, 0, 0.95f, "how spread out their starts are"}},
            [](std::span<const float> p) { return std::abs(p[2]) + std::abs(p[3]) + p[4]; }, particles,
            {EffectPass::particles, nullptr, derive_particles, nullptr}});
+    {
+        EffectInfo glass{"liquid_glass",
+                         "A thick transparent material over what lies under it (D-64): the backdrop bent at the bevel, split by colour, "
+                         "frosted, tinted to keep its content legible, lit at the rim.",
+                         {{"thickness", 12, 0, 200, "the bevel's width, logical pixels: how far in from the edge the backdrop bends"},
+                          {"ior", 1.45f, 1, 3, "index of refraction: how strongly it bends"},
+                          {"blur", 0, 0, 100, "frosting: the backdrop's blur radius, logical pixels"},
+                          {"dispersion", 0.3f, 0, 1, "colour split at the bevel (0: none)"},
+                          {"tint_r", 1, 0, 1, "tint, red"},
+                          {"tint_g", 1, 0, 1, "tint, green"},
+                          {"tint_b", 1, 0, 1, "tint, blue"},
+                          {"tint_a", 0.1f, 0, 1, "tint, opacity"},
+                          {"light_x", 0.4f, -1, 1, "the light's direction, x"},
+                          {"light_y", -0.8f, -1, 1, "the light's direction, y (up is negative)"},
+                          {"smoothness", 0, 0, 200, "how far apart a group's members merge like drops, logical pixels"},
+                          {"adaptive", 1, 0, 1, "darker over a bright backdrop, lighter over a dark one (0: off)"},
+                          {"rim", 0.6f, 0, 1, "the rim light's strength"}},
+                         [](std::span<const float> p) { return std::abs(p[0]) * 2 + std::abs(p[2]) + p[10]; },
+                         liquid_glass,
+                         pixel(fx::liquid_glass::liquid_glass_fs, derive_glass)};
+        glass.backdrop = true;
+        glass.backdrop_blur = [](std::span<const float> p) { return p[2]; };
+        r.add(std::move(glass));
+    }
 }
 
 }  // namespace
+
+float shape_distance(const EffectShape& shape, geom::Point p) noexcept {
+    const geom::Rect& r = shape.rect;
+    const float hx = r.width * 0.5f, hy = r.height * 0.5f;
+    const float px = p.x - (r.x + hx), py = p.y - (r.y + hy);
+    const geom::CornerRadii& c = shape.radii;
+    float rad = px < 0 ? (py < 0 ? c.top_left : c.bottom_left) : (py < 0 ? c.top_right : c.bottom_right);
+    rad = std::max(0.0f, std::min(rad, std::min(hx, hy)));
+    const float qx = std::abs(px) - hx + rad, qy = std::abs(py) - hy + rad;
+    const float ox = std::max(qx, 0.0f), oy = std::max(qy, 0.0f);
+    const float outside = std::sqrt(ox * ox + oy * oy);
+    return outside + std::min(std::max(qx, qy), 0.0f) - rad;
+}
+
+float smooth_min(float a, float b, float k) noexcept {
+    if (!(k > 0)) return std::min(a, b);
+    const float h = std::max(k - std::abs(a - b), 0.0f) / k;
+    return std::min(a, b) - h * h * k * 0.25f;
+}
+
+void box_blur(raster::Surface& surface, int radius) {
+    if (radius <= 0) return;
+    raster::Surface scratch(surface.width(), surface.height());
+    for (int i = 0; i < 3; ++i) {
+        box_pass(surface, scratch, radius, true);
+        box_pass(scratch, surface, radius, false);
+    }
+}
+
+int box_radius(float logical, float scale) noexcept { return static_cast<int>(std::round(logical * scale / 3)); }
 
 EffectRegistry::EffectRegistry() = default;
 

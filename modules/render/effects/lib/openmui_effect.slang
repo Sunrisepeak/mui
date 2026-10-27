@@ -12,11 +12,14 @@
 //     }
 //
 // What it reads is fixed: the source surface (premultiplied RGBA, 8 bits a
-// channel), an auxiliary texture the renderer fills for some built-ins, and
-// `effect` — the surface's size, the layer's rectangle in it, the device
-// scale, the parameters in the effect's order and values derived from them on
-// the CPU. It cannot change pipeline state, and the renderer checks the
-// shader binds nothing else.
+// channel), an auxiliary texture — for an effect that reads its backdrop
+// (OMUI_EXT_backdrop_effect, D-64) what lies under the layer, frosted as the
+// effect asks; for some built-ins a value per row — and `effect`: the
+// surface's size, the layer's rectangle in it, the device scale, the
+// parameters in the effect's order, values derived from them on the CPU, and
+// the layer's shapes (a glass group's members) for signed distances. It
+// cannot change pipeline state, and the renderer checks the shader binds
+// nothing else.
 //
 // The helpers are the CPU reference implementations' (render/src/effects.cpp)
 // operation for operation: an effect written with them gives the CPU's bytes
@@ -28,6 +31,8 @@ struct EffectFrame {
     float4 layer;       // the layer's rectangle in the surface: x, y, width, height
     float4 params[4];   // parameters 0…15, in the effect's order
     float4 derived[2];  // 0…7: values the renderer computed for the effect on the CPU
+    float4 shape_info;  // the number of shapes (1…8), -, -, -
+    float4 shapes[16];  // shape i: [2i] its rectangle x, y, w, h; [2i + 1] its radii tl, tr, br, bl (surface pixels)
 };
 
 [[vk::binding(0, 2)]] Sampler2D effect_source : register(t0, space2) : register(s0, space2);
@@ -96,6 +101,62 @@ float ramp(float value, float progress, float soft) {
     soft = max(soft, 1e-4);
     precise const float threshold = progress * (1 + soft) - soft;
     return clamp01((value - threshold) / soft);
+}
+
+// What lies under the layer (an effect that reads its backdrop): the aux
+// texture's pixel as bytes, outside the surface transparent; and bilinear in
+// byte units, as source_bilinear.
+uint4 backdrop_texel(int2 p) {
+    const int2 n = surface_size();
+    if (p.x < 0 || p.y < 0 || p.x >= n.x || p.y >= n.y) return uint4(0);
+    return uint4(round(saturate(effect_aux.SampleLevel((float2(p) + 0.5) / float2(n), 0)) * 255.0));
+}
+float4 backdrop_bilinear(float2 q) {
+    q -= 0.5;
+    const float2 f = floor(q);
+    const int2 i = int2(f);
+    const float2 t = q - f;
+    float4 out = 0;
+    for (int dy = 0; dy < 2; ++dy)
+        for (int dx = 0; dx < 2; ++dx) {
+            precise const float w = (dx != 0 ? t.x : 1 - t.x) * (dy != 0 ? t.y : 1 - t.y);
+            precise const float4 v = float4(backdrop_texel(i + int2(dx, dy))) * w;
+            out += v;
+        }
+    return out;
+}
+
+// ── shapes (D-64): signed distances, negative inside, in surface pixels ──
+
+int shape_count() { return int(effect.shape_info.x); }
+
+// The distance from p to shape i's edge, its corners rounded: render's
+// shape_distance in the same operations.
+float shape_distance(int i, float2 p) {
+    const float4 r = effect.shapes[2 * i], c = effect.shapes[2 * i + 1];
+    const float hx = r.z * 0.5, hy = r.w * 0.5;
+    precise const float px = p.x - (r.x + hx), py = p.y - (r.y + hy);
+    float rad = px < 0 ? (py < 0 ? c.x : c.w) : (py < 0 ? c.y : c.z);
+    rad = max(0.0, min(rad, min(hx, hy)));
+    precise const float qx = abs(px) - hx + rad, qy = abs(py) - hy + rad;
+    const float ox = max(qx, 0.0), oy = max(qy, 0.0);
+    precise const float o2 = ox * ox + oy * oy;
+    return sqrt(o2) + min(max(qx, qy), 0.0) - rad;
+}
+
+// The smooth minimum of two distances, k wide (k ≤ 0: the minimum).
+float smooth_min(float a, float b, float k) {
+    if (!(k > 0)) return min(a, b);
+    const float h = max(k - abs(a - b), 0.0) / k;
+    precise const float bite = h * h * k * 0.25;
+    return min(a, b) - bite;
+}
+
+// Every shape merged, smoothly when k > 0 (a glass group's drops).
+float shapes_distance(float2 p, float k) {
+    float d = shape_distance(0, p);
+    for (int i = 1; i < shape_count(); ++i) d = smooth_min(d, shape_distance(i, p), k);
+    return d;
 }
 
 // ── hashing: effects.cpp's 64-bit mix, in pairs of 32-bit words ─────────

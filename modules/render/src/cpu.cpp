@@ -254,6 +254,15 @@ struct CpuRenderer::Impl {
         raster::Surface              source, result;
         DisplayList                  inner;
         std::unique_ptr<CpuRenderer> offscreen;
+        // An effect that reads its backdrop runs when the draw reaches it,
+        // over what the target holds there: what it needs, kept until then.
+        const EffectInfo*            info = nullptr;
+        bool                         backdrop = false;
+        std::vector<float>           params;
+        float                        scale = 1;
+        Rect                         layer;   // in the surface
+        std::vector<EffectShape>     shapes;  // in the surface
+        raster::Surface              under;
     };
     std::vector<EffectLayer> effect_layers;
     std::size_t              effect_count = 0;
@@ -302,6 +311,38 @@ RenderReport CpuRenderer::render(const DisplayList& list, raster::Surface& targe
     };
     prepare_effects(list, target, res, options, report);
     const bool whole = options.rows.empty();
+    // An effect that reads its backdrop reads the target where the draw
+    // reaches it: the frame is drawn in one band, in order, and a band that
+    // reaches such an effect's surface takes all of its rows (what lies
+    // under it is drawn again, not the last frame's glass).
+    bool backdrops = false;
+    for (std::size_t i = 0; i < d.effect_count; ++i) backdrops = backdrops || (d.effect_layers[i].backdrop && d.effect_layers[i].device.width > 0);
+    if (backdrops) {
+        RowSpan band{0, target.height()};
+        if (!whole) {
+            band = options.rows.front();
+            for (RowSpan b : options.rows) band = {std::min(band.top, b.top), std::max(band.bottom, b.bottom)};
+            for (bool grew = true; grew;) {
+                grew = false;
+                for (std::size_t i = 0; i < d.effect_count; ++i) {
+                    const auto& e = d.effect_layers[i];
+                    if (!e.backdrop || e.device.width <= 0) continue;
+                    const auto top = static_cast<std::int32_t>(e.device.y), bottom = static_cast<std::int32_t>(e.device.y + e.device.height);
+                    if (bottom <= band.top || top >= band.bottom) continue;
+                    if (top < band.top || bottom > band.bottom) {
+                        band = {std::min(band.top, top), std::max(band.bottom, bottom)};
+                        grew = true;
+                    }
+                }
+            }
+        }
+        band.top = std::clamp(band.top, 0, target.height());
+        band.bottom = std::clamp(band.bottom, band.top, target.height());
+        Scratch& sc = d.take(target);
+        if (band.bottom > band.top) draw(sc, list, target, res, options, band, band.top == 0 && band.bottom == target.height(), report);
+        d.give(sc);
+        return report;
+    }
     if (whole) add({0, target.height()});
     else
         for (RowSpan band : options.rows) add(band);
@@ -411,7 +452,21 @@ void CpuRenderer::prepare_effects(const DisplayList& list, const raster::Surface
             report.missing_glyphs += r.missing_glyphs;
             report.missing_images += r.missing_images;
             report.effects_skipped += r.effects_skipped;
-            info->cpu({out.source, out.result, params, scale, layer.offset({-x0, -y0})});
+            // The shapes in the surface's pixels: the layer's, or its bounds.
+            const Affine& m = transforms.back();
+            const float k = m.max_scale();
+            out.shapes.clear();
+            for (const EffectShape& sh : push->shapes) {
+                const Rect r = m.map(sh.rect).offset({-x0, -y0});
+                out.shapes.push_back({r, {sh.radii.top_left * k, sh.radii.top_right * k, sh.radii.bottom_right * k, sh.radii.bottom_left * k}});
+            }
+            if (out.shapes.empty()) out.shapes.push_back({layer.offset({-x0, -y0}), {}});
+            out.info = info;
+            out.backdrop = info->backdrop;
+            out.params = params;
+            out.scale = scale;
+            out.layer = layer.offset({-x0, -y0});
+            if (!out.backdrop) info->cpu({out.source, out.result, params, scale, out.layer, nullptr, out.shapes});
         }
         i = pop;  // nested effect layers are the offscreen render's
     }
@@ -456,8 +511,24 @@ void CpuRenderer::draw(Scratch& sc, const DisplayList& list, raster::Surface& ta
         // A prepared effect layer: its result, then on after its pop (D-68).
         while (next_effect < impl_->effect_count && impl_->effect_layers[next_effect].pop < index) ++next_effect;
         if (next_effect < impl_->effect_count && impl_->effect_layers[next_effect].push == index) {
-            const auto& layer = impl_->effect_layers[next_effect];
+            auto& layer = impl_->effect_layers[next_effect];
             const auto& push = std::get<PushLayer>(command);
+            if (layer.backdrop && layer.device.width > 0) {
+                // What the target holds under the surface, now; transparent beyond it.
+                const int w = layer.source.width(), h = layer.source.height();
+                if (layer.under.width() != w || layer.under.height() != h) layer.under.resize(w, h);
+                layer.under.clear();
+                const auto x0 = static_cast<int>(layer.device.x), y0 = static_cast<int>(layer.device.y);
+                for (int y = 0; y < h; ++y) {
+                    const int ty = y0 + y;
+                    if (ty < 0 || ty >= target.height()) continue;
+                    const int from = std::max(0, -x0), to = std::min(w, target.width() - x0);
+                    if (to > from) std::copy_n(target.row(ty) + x0 + from, to - from, layer.under.row(y) + from);
+                }
+                if (layer.info->backdrop_blur) box_blur(layer.under, box_radius(layer.info->backdrop_blur(layer.params), layer.scale));
+                layer.result.clear();
+                layer.info->cpu({layer.source, layer.result, layer.params, layer.scale, layer.layer, &layer.under, layer.shapes});
+            }
             const bool blended = push.blend != BlendMode::normal;
             if (blended) canvas.push_layer(1, static_cast<raster::Blend>(push.blend));
             if (layer.device.width > 0 && layer.result.width() > 0)

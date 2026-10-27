@@ -34,6 +34,7 @@ export import :chromatic_shaders;
 export import :blur_shaders;
 export import :pixelate_shaders;
 export import :particles_shaders;
+export import :liquid_glass_shaders;
 // The template's text (effects/lib/openmui_effect.slang), for a program's
 // effects compiled while it runs (openmui.effect).
 export import :effect_template;
@@ -56,7 +57,26 @@ struct EffectInput {
     std::span<const float> params;   // every parameter, in the effect's order
     float                  scale = 1;  // device pixels per logical pixel (sizes in params are logical)
     geom::Rect             layer;    // the layer's rectangle in source and target
+    // What lies under the layer, the same size and place as source
+    // (EffectInfo::backdrop; transparent beyond the target); else null.
+    const raster::Surface* backdrop = nullptr;
+    // The layer's shapes in the surface's pixels (at least one: its bounds).
+    std::span<const EffectShape> shapes;
 };
+
+// The signed distance from p to a shape's edge, negative inside (pixels,
+// the shape's corners rounded): the effect template's shape_distance, in the
+// same operations.
+[[nodiscard]] float shape_distance(const EffectShape& shape, geom::Point p) noexcept;
+// The smooth minimum of two distances, `k` wide (k ≤ 0: the minimum): how a
+// glass group's shapes merge like drops (the template's smooth_min).
+[[nodiscard]] float smooth_min(float a, float b, float k) noexcept;
+
+// Three box passes each way of `radius` pixels, in integers: the blur
+// effect's, and how a backdrop is frosted. The radius for `logical` pixels
+// at a scale is box_radius's.
+void box_blur(raster::Surface& surface, int radius);
+[[nodiscard]] int box_radius(float logical, float scale) noexcept;
 
 // How the GPU renderer runs an effect.
 enum class EffectPass : std::uint8_t {
@@ -90,6 +110,12 @@ struct EffectInfo {
     std::function<float(std::span<const float> params)> reach;
     void (*cpu)(const EffectInput& in) = nullptr;
     EffectGpu                gpu;
+    // The effect reads what lies under its layer (OMUI_EXT_backdrop_effect,
+    // D-64): the renderer captures it where the layer begins, frosted by
+    // `backdrop_blur` logical pixels (box_blur, the same on both renderers),
+    // and gives it as EffectInput::backdrop (the template's aux texture).
+    bool                                                 backdrop = false;
+    std::function<float(std::span<const float> params)> backdrop_blur;
     // A program's effect loaded from files (openmui.effect): the file it came
     // from, and what the entry owns — name, doc, parameter names and the
     // shader point into it. Empty for the built-ins and effects registered

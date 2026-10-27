@@ -84,6 +84,7 @@ private:
     std::vector<Rect>          clips_;
     std::vector<Rect>          rects_;
     std::vector<RowSpan>       rows_;
+    std::vector<Rect>          backdrops_;  // the current list's backdrop effects' regions
     std::int32_t               width_ = 0, height_ = 0;
     float                      scale_ = 0;
     bool                       valid_ = false;

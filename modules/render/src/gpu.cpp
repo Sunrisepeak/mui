@@ -56,8 +56,11 @@ struct EffectUniforms {
     std::array<float, 4>  size{}, layer{};
     std::array<float, 16> params{};
     std::array<float, 8>  derived{};
+    std::array<float, 4>  shape_info{};  // the number of shapes
+    std::array<float, 64> shapes{};      // 8 × (x, y, w, h; tl, tr, br, bl)
 };
-static_assert(sizeof(EffectUniforms) == 32 * 4);
+static_assert(sizeof(EffectUniforms) == 100 * 4);
+constexpr std::size_t max_shapes = 8;
 
 // pixelate.slang's uniforms.
 struct PixelateGrid {
@@ -71,6 +74,14 @@ struct EffectStep {
     rhi::GraphicsPipeline pipeline;  // pixel: the effect's
     EffectUniforms        uniforms;
     rhi::Texture          source, scratch, result, aux;
+    // An effect that reads its backdrop: what the parent target holds under
+    // the surface — the same when the layer ends as when it began, since its
+    // content is drawn elsewhere — copied into `aux` and frosted.
+    bool                  backdrop = false;
+    rhi::Texture          parent;
+    std::int32_t          x0 = 0, y0 = 0;  // the surface's corner in the parent
+    std::uint32_t         parent_w = 0, parent_h = 0;
+    int                   frost = 0;       // box radius, pixels
 };
 
 // The frame's work, in the order it runs: a layer's passes run before the
@@ -127,6 +138,7 @@ raster::PixelRect pixels(const Clip& c) {
 // What the effect template allows a shader to bind: the source and the aux
 // texture, the uniforms; no storage (architecture §8).
 bool template_shaped(const rhi::ShaderDesc& s) {
+    // source, and aux (rows, or the backdrop); the uniforms
     return s.stage == rhi::Stage::fragment && s.samplers <= 2 && s.uniform_buffers <= 1 && s.storage_textures == 0 && s.storage_buffers == 0 &&
            s.rw_storage_textures == 0 && s.rw_storage_buffers == 0;
 }
@@ -380,6 +392,28 @@ struct GpuRenderer::Impl {
             list.draw(3);
             list.end_render();
         };
+        if (e.backdrop) {
+            // The backdrop: transparent, then what the parent holds under the surface, frosted.
+            list.begin_render({e.aux, rhi::LoadOp::clear, {0, 0, 0, 0}});
+            list.end_render();
+            const std::int32_t cx0 = std::max(e.x0, 0), cy0 = std::max(e.y0, 0);
+            const std::int32_t cx1 = std::min(e.x0 + w, static_cast<std::int32_t>(e.parent_w)), cy1 = std::min(e.y0 + h, static_cast<std::int32_t>(e.parent_h));
+            if (cx1 > cx0 && cy1 > cy0)
+                list.copy(e.parent,
+                          rhi::Region{static_cast<std::uint32_t>(cx0), static_cast<std::uint32_t>(cy0), static_cast<std::uint32_t>(cx1 - cx0),
+                                      static_cast<std::uint32_t>(cy1 - cy0)},
+                          e.aux, static_cast<std::uint32_t>(cx0 - e.x0), static_cast<std::uint32_t>(cy0 - e.y0));
+            if (e.frost > 0) {
+                EffectUniforms u = e.uniforms;
+                u.derived = {static_cast<float>(e.frost), 0, 0, 0, 0, 0, 0, 0};
+                for (int i = 0; i < 3; ++i) {
+                    u.derived[1] = 1, u.derived[2] = 0;
+                    quad(blur_pipeline, e.aux, e.scratch, u, {});
+                    u.derived[1] = 0, u.derived[2] = 1;
+                    quad(blur_pipeline, e.scratch, e.aux, u, {});
+                }
+            }
+        }
         switch (e.gpu.pass) {
             case EffectPass::pixel:
                 quad(e.pipeline, e.source, e.result, e.uniforms, e.gpu.fragment->samplers >= 2 ? (e.aux ? e.aux : zero_row) : rhi::Texture{});
@@ -792,8 +826,46 @@ rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, rhi::Textur
         step.uniforms.layer = {inside.x, inside.y, inside.width, inside.height};
         for (std::size_t k = 0; k < std::min<std::size_t>(params.size(), 16); ++k) step.uniforms.params[k] = params[k];
         step.uniforms.derived = frame.derived;
+        // The shapes in the surface's pixels, as the CPU renderer maps them.
+        {
+            const Affine& mm = m();
+            const float k = mm.max_scale();
+            std::size_t n = 0;
+            auto put = [&](const Rect& r, const CornerRadii& c) {
+                if (n >= max_shapes) return;
+                std::copy_n(std::array<float, 8>{r.x, r.y, r.width, r.height, c.top_left * k, c.top_right * k, c.bottom_right * k, c.bottom_left * k}.begin(),
+                            8, step.uniforms.shapes.begin() + static_cast<std::ptrdiff_t>(n * 8));
+                ++n;
+            };
+            for (const EffectShape& sh : push.shapes) put(mm.map(sh.rect).offset({-x0, -y0}), sh.radii);
+            if (n == 0) {
+                const Rect r = inside;
+                std::copy_n(std::array<float, 8>{r.x, r.y, r.width, r.height, 0, 0, 0, 0}.begin(), 8, step.uniforms.shapes.begin());
+                n = 1;
+            }
+            step.uniforms.shape_info = {static_cast<float>(n), 0, 0, 0};
+        }
         const auto rgba = rhi::TextureUsage::color_target | rhi::TextureUsage::sampled;
         if (!check(g.builtin_pipelines(info->gpu.pass))) return true;
+        if (info->backdrop) {
+            // Frosting runs the blur passes.
+            if (!check(g.builtin_pipelines(EffectPass::blur))) return true;
+            step.backdrop = true;
+            step.parent = g.passes[current].target;
+            step.parent_w = here().w;
+            step.parent_h = here().h;
+            step.x0 = static_cast<std::int32_t>(x0);
+            step.y0 = static_cast<std::int32_t>(y0);
+            step.frost = info->backdrop_blur ? box_radius(info->backdrop_blur(params), scale) : 0;
+            auto aux = g.pooled(w, h, rhi::Format::rgba8_unorm, rgba, "render.effect.backdrop");
+            if (!check(aux)) return true;
+            step.aux = *aux;
+            if (step.frost > 0) {
+                auto scratch = g.pooled(w, h, rhi::Format::rgba8_unorm, rgba, "render.effect.frost");
+                if (!check(scratch)) return true;
+                step.scratch = *scratch;
+            }
+        }
         if (info->gpu.pass == EffectPass::pixel) {
             auto p = g.effect_pipeline(push.effect, effects().generation(push.effect), *info->gpu.fragment);
             if (!check(p)) return true;

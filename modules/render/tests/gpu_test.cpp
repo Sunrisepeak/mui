@@ -147,6 +147,29 @@ render::Paint gradient(render::GradientKind kind, geom::Point a, geom::Point b, 
 
 const std::array<render::GradientStop, 3> rainbow{{{0, geom::Color::hex(0xef4444)}, {0.5f, geom::Color::hex(0x22c55e)}, {1, geom::Color{0.2f, 0.3f, 0.9f, 0.6f}}}};
 
+// Liquid glass (D-64) over a busy backdrop — stripes, a gradient, a ring —
+// with a mark on the glass as its content; one shape, or a group's.
+void glass_scene(render::DisplayList& dl, std::vector<std::pair<std::string_view, float>> values, std::vector<render::EffectShape> shapes = {}) {
+    dl.fill_rect({0, 0, 160, 120}, geom::Color::hex(0xf8fafc));
+    for (int i = 0; i < 8; ++i)
+        dl.fill_rect({static_cast<float>(i) * 20.0f + 2.5f, 0, 9, 120}, geom::Color{0.15f + 0.1f * static_cast<float>(i), 0.3f, 0.8f - 0.08f * static_cast<float>(i), 1});
+    dl.fill_rect({0, 70, 160, 50}, gradient(render::GradientKind::linear, {0, 70}, {160, 120}, 0, render::Spread::pad, rainbow));
+    render::Path ring;
+    ring.add_circle({80, 60}, 30).add_circle({80, 60}, 22);
+    dl.fill_path(ring, render::FillRule::even_odd, render::Paint::solid(geom::Color::hex(0x111827)));
+    const geom::Rect layer{30.5f, 25, 100, 70};
+    const auto ref = render::effects().find("liquid_glass");
+    check(ref.has_value(), "liquid_glass is a built-in");
+    if (!ref) return;
+    if (shapes.empty()) shapes.push_back({layer, geom::CornerRadii::all(24)});
+    const auto params = render::effects().params(*ref, values);
+    dl.push_layer(1, render::BlendMode::normal, *ref, params, layer, shapes);
+    render::Path mark;
+    mark.move_to({72, 50}).line_to({92, 60}).line_to({72, 70}).close();
+    dl.fill_path(mark, render::FillRule::nonzero, render::Paint::solid(geom::Color{0.05f, 0.05f, 0.1f, 0.9f}));
+    dl.pop_layer();
+}
+
 // An effect layer over content both backends draw alike (a gradient
 // rectangle, a path ring, a dot): what differs is the effect alone.
 void effect_scene(render::DisplayList& dl, std::string_view name, std::vector<std::pair<std::string_view, float>> values,
@@ -335,6 +358,16 @@ const std::vector<Case>& cases() {
              dl.pop_clip();
          },
          {1, 0}},
+        {"liquid glass", [](render::DisplayList& dl, Rig&) { glass_scene(dl, {}); }, {2, 40}},
+        {"liquid glass, frosted with dispersion",
+         [](render::DisplayList& dl, Rig&) { glass_scene(dl, {{"blur", 6}, {"dispersion", 0.8f}, {"tint_a", 0.25f}, {"thickness", 18}}); },
+         {2, 40}},
+        {"liquid glass, a group merging",
+         [](render::DisplayList& dl, Rig&) {
+             glass_scene(dl, {{"smoothness", 20}, {"ior", 1.6f}},
+                         {{{30.5f, 30, 52, 52}, geom::CornerRadii::all(26)}, {{90, 40, 44, 44}, geom::CornerRadii::all(22)}});
+         },
+         {2, 40}},
         {"images",
          [](render::DisplayList& dl, Rig& r) {
              std::vector<raster::Rgba8> px(16 * 16);

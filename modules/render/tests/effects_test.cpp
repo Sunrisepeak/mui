@@ -119,6 +119,53 @@ int main(int argc, char** argv) {
         check_eq(all.hex(), std::string("3d4c89579de40989"));
     });
 
+    s.test("liquid glass: the backdrop bent, frosted, tinted and lit under the glass; pinned", [] {
+        // A striped backdrop; glass over its middle, a mark on the glass.
+        auto build = [](render::DisplayList& dl, std::vector<std::pair<std::string_view, float>> values, std::vector<render::EffectShape> shapes,
+                        bool mark = true) {
+            dl.clear();
+            dl.fill_rect({0, 0, W, H}, geom::Color::hex(0xf8fafc));
+            for (int i = 0; i < 12; ++i)
+                dl.fill_rect({static_cast<float>(i) * 20.0f, 0, 10, H}, geom::Color{0.1f + 0.07f * static_cast<float>(i), 0.35f, 0.85f - 0.06f * static_cast<float>(i), 1});
+            const auto ref = render::effects().find("liquid_glass");
+            if (!ref) return;
+            const auto params = render::effects().params(*ref, values);
+            dl.push_layer(1, render::BlendMode::normal, *ref, params, layer, shapes);
+            if (mark) dl.fill_round_rect({layer.x + 60, layer.y + 40, 20, 20}, geom::CornerRadii::all(10), render::Paint::solid(geom::Color::hex(0x0f172a)));
+            dl.pop_layer();
+        };
+        render::DisplayList dl;
+        build(dl, {}, {{layer, geom::CornerRadii::all(28)}});
+        const auto clear_glass = draw(dl);
+        save(clear_glass, "liquid_glass");
+        // Under the flat middle the backdrop is as it was (the tint aside);
+        // at the bevel it is bent: a stripe's edge moves.
+        const raster::Rgba8 middle = clear_glass.at(static_cast<int>(layer.x + 30), static_cast<int>(layer.y + 50));
+        check(middle.a == 255, "the glass is over an opaque backdrop");
+        build(dl, {{"thickness", 0.0f}, {"tint_a", 0.0f}, {"rim", 0.0f}, {"adaptive", 0.0f}}, {{layer, geom::CornerRadii::all(28)}});
+        const auto flat = draw(dl);  // no bevel, no tint, no light: the backdrop itself under the glass
+        int moved = 0;
+        for (int y = static_cast<int>(layer.y) + 2; y < static_cast<int>(layer.bottom()) - 2; ++y)
+            for (int x = static_cast<int>(layer.x) + 2; x < static_cast<int>(layer.x) + 10; ++x)
+                moved += clear_glass.at(x, y) == flat.at(x, y) ? 0 : 1;
+        check(moved > 50, std::format("the bevel bends the backdrop ({} pixels moved)", moved));
+        build(dl, {{"blur", 8}, {"dispersion", 0.8f}, {"tint_a", 0.3f}}, {{layer, geom::CornerRadii::all(28)}});
+        const auto frosted = draw(dl);
+        save(frosted, "liquid_glass_frosted");
+        build(dl, {{"smoothness", 24}},
+              {{{layer.x, layer.y + 20, 60, 60}, geom::CornerRadii::all(30)}, {{layer.x + 70, layer.y + 25, 50, 50}, geom::CornerRadii::all(25)}},
+              false);
+        const auto group = draw(dl);
+        save(group, "liquid_glass_group");
+        // Between the two drops, merged: glass where neither shape is alone.
+        check(!(group.at(static_cast<int>(layer.x + 65), static_cast<int>(layer.y + 50)) == flat.at(static_cast<int>(layer.x + 65), static_cast<int>(layer.y + 50))),
+              "the drops merge across the gap");
+        Hash all;
+        for (const raster::Surface* s : {&clear_glass, &frosted, &group}) all.u64(s->hash());
+        std::println("    liquid_glass {}", all.hex());
+        check_eq(all.hex(), std::string("5b06f8bd3fe613ad"));
+    });
+
     s.test("progress 0 is the layer as it is (1 for reveal)", [] {
         render::DisplayList dl;
         scene(dl, std::nullopt);

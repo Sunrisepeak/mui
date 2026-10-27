@@ -182,6 +182,8 @@ void DamageTracker::build(const DisplayList& list, float scale, std::int32_t wid
             const float reach = effects().reach(layer->effect, params) * m.max_scale() + 2;
             const Rect visible = grow(mapped(m, layer->bounds), reach).intersection(clips_.back());
             if (!visible.empty()) out[at].own = out[at].own.united(visible);
+            // An effect that reads its backdrop changes when anything under it does.
+            if (const EffectInfo* info = effects().info(layer->effect); info && info->backdrop && !visible.empty()) backdrops_.push_back(visible);
         } else if (auto b = device_bounds(command, m, resources.glyphs)) {
             const Rect visible = b->intersection(clips_.back());
             if (!visible.empty()) out[at].own = out[at].own.united(visible);
@@ -214,6 +216,7 @@ std::span<const RowSpan> DamageTracker::update(const DisplayList& list, std::int
                                                const Resources& resources) {
     rects_.clear();
     rows_.clear();
+    backdrops_.clear();
     build(list, scale, width, height, resources, current_);
     full_ = !valid_ || width != width_ || height != height_ || scale != scale_;
     if (full_) {
@@ -235,6 +238,19 @@ std::span<const RowSpan> DamageTracker::update(const DisplayList& list, std::int
                     add(a.own);
                     add(b.own);
                 }
+            }
+        }
+    }
+    // A backdrop effect any damage reaches is damaged whole (D-64), and so
+    // may reach another.
+    for (bool grew = !full_; grew;) {
+        grew = false;
+        for (Rect& b : backdrops_) {
+            if (b.empty()) continue;
+            if (std::ranges::any_of(rects_, [&](const Rect& r) { return !r.intersection(b).empty(); })) {
+                add(b);
+                b = {};
+                grew = true;
             }
         }
     }

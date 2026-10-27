@@ -59,6 +59,18 @@ float Toggle::baseline(MeasureContext& m, Size content) {
     return (content.height - t.height) / 2 + label_.baseline(m.services, c);
 }
 
+// Its surfaces for an effect: the track and the thumb where it is now.
+std::size_t Toggle::effect_shapes(Size, Rect content, std::span<render::EffectShape> out) const {
+    if (out.size() < 2) return 0;
+    const float t = static_cast<float>(thumb_.value());
+    const float y = content.y + (content.height - track_h) / 2;
+    const float d = track_h - 2 * thumb_inset;
+    const float x = content.x + thumb_inset + t * (track_w - 2 * thumb_inset - d);
+    out[0] = {{content.x, y, track_w, track_h}, CornerRadii::all(track_h / 2)};
+    out[1] = {{x, y + thumb_inset, d, d}, CornerRadii::all(d / 2)};
+    return 2;
+}
+
 void Toggle::paint(PaintContext& ctx) const {
     shown_ = true;
     const Theme& th = ctx.theme;

@@ -97,6 +97,9 @@ struct Style {
 // The styles a file declares, or everything wrong with it (unknown effects
 // and parameters with their nearest names).
 [[nodiscard]] std::expected<std::vector<Style>, Diagnostics> read_styles(std::string_view source, std::string_view file);
+// A style as its file is written: read_styles of it gives it back (an editor
+// exports what was changed; numbers shortest, keys in order).
+[[nodiscard]] std::string write_style(const Style& style);
 
 class Library {
 public:

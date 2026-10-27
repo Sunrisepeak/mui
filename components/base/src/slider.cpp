@@ -72,6 +72,17 @@ bool Slider::change(double v, bool animate, bool commit) {
     return moved;
 }
 
+// Its surfaces for an effect: the track and the thumb where it is now.
+std::size_t Slider::effect_shapes(Size size, Rect, std::span<render::EffectShape> out) const {
+    if (out.size() < 2) return 0;
+    const Rect t = track(size);
+    const float f = static_cast<float>(std::clamp(thumb_.value(), 0.0, 1.0));
+    const Point c{t.x + t.width * f, size.height / 2};
+    out[0] = {t, CornerRadii::all(track_h / 2)};
+    out[1] = {{c.x - thumb_d / 2, c.y - thumb_d / 2, thumb_d, thumb_d}, CornerRadii::all(thumb_d / 2)};
+    return 2;
+}
+
 void Slider::paint(PaintContext& ctx) const {
     const Theme& th = ctx.theme;
     size_ = ctx.size;

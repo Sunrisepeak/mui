@@ -216,6 +216,89 @@ std::expected<Theme, std::string> Library::compose_style(std::string_view name) 
     return t;
 }
 
+namespace {
+
+// A TOML key: bare when it can be, quoted when not ("role:region").
+std::string key_of(std::string_view k) {
+    const bool bare = !k.empty() && std::ranges::all_of(k, [](char c) { return std::isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '-'; });
+    if (bare) return std::string(k);
+    std::string out = "\"";
+    for (char c : k) out += c == '"' || c == '\\' ? std::string("\\") + c : std::string(1, c);
+    return out + "\"";
+}
+
+std::string toml_string(std::string_view v) { return key_of(v).starts_with('"') ? key_of(v) : std::format("\"{}\"", v); }
+
+std::string colour(Color c) {
+    auto b = [](float v) { return static_cast<int>(std::lround(std::clamp(v, 0.0f, 1.0f) * 255)); };
+    std::string out = std::format("#{:02x}{:02x}{:02x}", b(c.r), b(c.g), b(c.b));
+    if (c.a < 1) out += std::format(" / {}", c.a);
+    return std::format("\"{}\"", out);
+}
+
+std::string value_of(const Value& v) {
+    if (v.type() == Value::Type::text) return toml_string(v.as_string());
+    if (v.type() == Value::Type::boolean) return v.as_bool() ? "true" : "false";
+    if (v.type() == Value::Type::integer) return std::format("{}", v.as_int());
+    return std::format("{}", static_cast<float>(v.as_double()));
+}
+
+}  // namespace
+
+std::string write_style(const Style& st) {
+    const std::string at = std::format("style.{}", key_of(st.name));
+    std::string out = std::format("[{}]\n", at);
+    if (!st.doc.empty()) out += std::format("doc       = {}\n", toml_string(st.doc));
+    std::string layers;
+    for (const std::string& l : st.layers) layers += (layers.empty() ? "" : "+") + l;
+    out += std::format("theme     = \"{}\"\n", layers);
+    out += std::format("crossfade = {}\n", st.crossfade);
+    const Layer& t = st.tokens;
+    auto section = [&](std::string_view name, const auto& map, auto&& write) {
+        if (map.empty()) return;
+        out += std::format("\n[{}.{}]\n", at, name);
+        for (const auto& [k, v] : map) out += std::format("{} = {}\n", key_of(k), write(v));
+    };
+    section("colors", t.colors, [](Color c) { return colour(c); });
+    section("text", t.text, [](const TextPatch& p) {
+        std::string f;
+        auto put = [&](std::string_view k, std::string v) { f += std::format("{}{} = {}", f.empty() ? "" : ", ", k, v); };
+        if (p.size) put("size", std::format("{}", *p.size));
+        if (p.weight) put("weight", std::format("{}", *p.weight));
+        if (p.line_height) put("line_height", std::format("{}", *p.line_height));
+        if (p.letter_spacing) put("letter_spacing", std::format("{}", *p.letter_spacing));
+        if (p.families) {
+            std::string fams;
+            for (const std::string& fam : *p.families) fams += std::format("{}{}", fams.empty() ? "" : ", ", toml_string(fam));
+            put("families", std::format("[{}]", fams));
+        }
+        return std::format("{{ {} }}", f);
+    });
+    section("spacing", t.spacing, [](float v) { return std::format("{}", v); });
+    section("radius", t.radius, [](float v) { return std::format("{}", v); });
+    section("shadows", t.shadows, [](const ShadowToken& sh) {
+        return std::format("{{ x = {}, y = {}, blur = {}, spread = {}, color = {} }}", sh.offset.x, sh.offset.y, sh.blur, sh.spread, colour(sh.color));
+    });
+    section("motion", t.motion, [](const Transition& m) {
+        std::string f = m.kind == Transition::Kind::spring
+                            ? std::format("stiffness = {}, damping = {}, mass = {}", m.spring.stiffness, m.spring.damping, m.spring.mass)
+                            : std::format("duration = {}, easing = \"{}\"", m.duration.count() * 1000, anim::to_string(m.ease));
+        if (m.delay.count() > 0) f += std::format(", delay = {}", m.delay.count() * 1000);
+        return std::format("{{ {} }}", f);
+    });
+    if (!st.effects.empty()) {
+        out += std::format("\n[{}.effects]\n", at);
+        for (const EffectRule& r : st.effects) {
+            std::string f = std::format("effect = {}", r.effect.get("name") ? toml_string(r.effect.get("name")->as_string()) : std::string("\"\""));
+            if (const Value::Map* m = r.effect.map())
+                for (const auto& [k, v] : *m)
+                    if (k != "name") f += std::format(", {} = {}", key_of(k), value_of(v));
+            out += std::format("{} = {{ {} }}\n", key_of(r.selector), f);
+        }
+    }
+    return out;
+}
+
 Library& library() {
     static Library l;
     return l;

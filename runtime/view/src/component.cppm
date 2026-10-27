@@ -246,6 +246,10 @@ struct ComponentType {
     float (*baseline)(void*, MeasureContext&, Size) = nullptr;
     void (*paint)(const void*, PaintContext&) = nullptr;
     void (*paint_over)(const void*, PaintContext&) = nullptr;  // after the children (focus rings, scroll bars)
+    // The surfaces it paints itself (a switch's track and thumb), for an
+    // effect over it (neon lights them, metaball merges them, D-69); none:
+    // its box. Answers how many it wrote.
+    std::size_t (*effect_shapes)(const void*, Size, Rect content, std::span<render::EffectShape> out) = nullptr;
     bool (*event)(void*, EventContext&, const InputEvent&) = nullptr;
     ActResult (*act)(void*, ActContext&, std::string_view) = nullptr;
     void (*semantics)(const void*, SemanticsContext&, spec::SemanticNode&) = nullptr;
@@ -329,6 +333,8 @@ template <class C>
             x.baseline = [](void* p, MeasureContext& m, Size s) { return static_cast<C*>(p)->baseline(m, s); };
         if constexpr (requires(const C& c, PaintContext& ctx) { c.paint(ctx); })
             x.paint = [](const void* p, PaintContext& ctx) { static_cast<const C*>(p)->paint(ctx); };
+        if constexpr (requires(const C& c, Size sz, Rect r, std::span<render::EffectShape> o) { { c.effect_shapes(sz, r, o) } -> std::same_as<std::size_t>; })
+            x.effect_shapes = [](const void* p, Size sz, Rect r, std::span<render::EffectShape> o) { return static_cast<const C*>(p)->effect_shapes(sz, r, o); };
         if constexpr (requires(const C& c, PaintContext& ctx) { c.paint_over(ctx); })
             x.paint_over = [](const void* p, PaintContext& ctx) { static_cast<const C*>(p)->paint_over(ctx); };
         if constexpr (requires(C& c, EventContext& ctx, const InputEvent& e) { { c.on_event(ctx, e) } -> std::same_as<bool>; })

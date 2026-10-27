@@ -1,0 +1,36 @@
+# S2 — the style workshop (implementation plan §13): a real settings panel
+# and dashboard shown in each of the style packs — glass, neon, retro CRT,
+# ink on paper, liquid — switched with a cross-fade; the pack's tokens and
+# its effects' parameters edited live, and exported as a *.style.omui.toml a
+# real program loads. The semantic tree is the same under every style: only
+# pixels change, and agents act the same.
+#
+#   mcpp run -p openmui.showcase.styles
+#   mcpp run -p openmui.showcase.styles -- --style neon --headless --png neon.png
+[package]
+namespace   = "openmui.showcase"
+name        = "styles"
+version     = "0.1.0"
+description = "S2, the style workshop: one interface in five style packs, edited live and exported"
+license     = "Apache-2.0"
+
+[package.metadata.openmui]
+kind = "showcase"
+
+[targets.openmui-showcase-styles]
+kind = "lib"
+
+[targets.omui-styles]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+openmui.sdk           = { path = "../.." }
+openmui.theme.styles  = { path = "../../themes/styles" }
+"openmui.theme"       = { path = "../../runtime/theme" }
+
+[dev-dependencies]
+openmui.testing = { path = "../../tests/support" }

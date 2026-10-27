@@ -504,7 +504,12 @@ void Runtime::Impl::paint_node(NodeId id) {
         // (a group's members: what neon lights and metaball merges).
         std::array<render::EffectShape, 8> shapes{};
         std::size_t count = 0;
-        shapes[count++] = {box, v.corners(size)};
+        if (n.type->effect_shapes) {
+            const Insets pad = content_insets_of(layout.style(n.layout));
+            const Rect inner{pad.left, pad.top, std::max(0.0f, size.width - pad.horizontal()), std::max(0.0f, size.height - pad.vertical())};
+            count = n.type->effect_shapes(n.instance, size, inner, std::span(shapes));
+        }
+        if (count == 0) shapes[count++] = {box, v.corners(size)};
         for (const NodeId c : n.children) {
             if (count == shapes.size()) break;
             const Node& k = at(c);

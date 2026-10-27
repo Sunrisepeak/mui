@@ -1195,6 +1195,19 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
       - 桌面宿主按需求的节奏出帧：低于刷新率时等待，空闲时睡眠，没有 vsync 时也不空转；
       - 画布在相机自行移动时请求最快，S1 流式输出请求 60Hz；HUD 显示请求的刷新率和原因。
     - 还没做：平台映射（macOS ProMotion 的 `CAMetalDisplayLink`、Windows VRR 的 tearing present）、呈现反馈校准、真机实时帧节奏报告。
+  - ✅ 风格包与 S2 风格工坊：
+    - **新效果**：neon、crt、paper、wobble、metaball 五个效果，CPU 参考实现和 Slang GPU 路径在 lavapipe 上相差不超过一级，像素固定。
+    - **`*.style.omui.toml` 风格包**：起始主题、token 修改，以及按窗口 / 组件类型 / role 指定的效果。未知效果或参数会报错，并给出最接近的名字；`write_style` 能写回原文件。
+    - **运行时**：
+      - 效果规则，节点自己的 `pixel_effect` 优先；
+      - 效果层的形状取节点实际绘制的表面，组件可以通过 `effect_shapes` 报告轨道和滑块；
+      - 换风格时与上一帧交叉淡化；`apply_style`。
+    - **五个风格包**（themes/styles）：glass、neon、retro、ink、liquid。`openmui.rules` 新增通用的 `embed()`。
+    - **S2 `showcase/style-gallery`**（`omui-styles`）：
+      - 真实的设置面板加仪表盘，可在五种风格之间切换，带交叉淡化；
+      - 可以编辑强调色、圆角和各效果参数，即时生效；导出 verb 为 external；
+      - 语义树在五种风格下完全相同；测试覆盖切换、编辑、导出、可用性，像素固定。
+    - 还没做：核显 120Hz 的 GPU 开销报告（真机）。
 - M5：openmui-video、ui-timeline、MCP 服务器、skills、S3 / S4 / S5。
 - 契约⑦（插件与管线）写进规范；Inspector 的火焰图和动画检查器视图。
 

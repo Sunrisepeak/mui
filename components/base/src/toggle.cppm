@@ -22,6 +22,7 @@ public:
     float baseline(MeasureContext& m, Size content);
     void paint(PaintContext& ctx) const;
     void paint_over(PaintContext& ctx) const;
+    std::size_t effect_shapes(Size size, Rect content, std::span<render::EffectShape> out) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
 
     ActResult toggle(ActContext& ctx);

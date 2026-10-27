@@ -19,6 +19,7 @@ public:
                  layout::Available ah);
     void paint(PaintContext& ctx) const;
     void paint_over(PaintContext& ctx) const;
+    std::size_t effect_shapes(Size size, Rect content, std::span<render::EffectShape> out) const;
     bool on_event(EventContext& ctx, const InputEvent& e);
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
 

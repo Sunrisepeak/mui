@@ -276,6 +276,20 @@ card   = { radius = 3 }
         auto themeless = theme::read_styles("[style.x]\ndoc = \"no theme\"\n", "x.style.omui.toml");
         check(!themeless.has_value() && all(themeless.error()).contains("names no theme"), "a style starts from a theme");
         check(!lib.compose_style("nope").has_value(), "an unknown style");
+        // Written out and read back: the same style.
+        const std::string text = theme::write_style(*st);
+        auto again = theme::read_styles(text, "again.style.omui.toml");
+        check(again.has_value(), again ? text : all(again.error()) + "\n" + text);
+        if (again) {
+            const theme::Style& b = again->front();
+            check(b.name == st->name && b.doc == st->doc && b.layers == st->layers && b.crossfade == st->crossfade, text);
+            check(b.tokens.colors.size() == st->tokens.colors.size() && same_color(b.tokens.colors.at("accent"), st->tokens.colors.at("accent")), text);
+            check(b.effects.size() == st->effects.size(), text);
+            for (std::size_t i = 0; i < b.effects.size() && i < st->effects.size(); ++i)
+                check(b.effects[i].selector == st->effects[i].selector && b.effects[i].effect.json() == st->effects[i].effect.json(),
+                      std::format("{} vs {}", b.effects[i].effect.json(), st->effects[i].effect.json()));
+            check_eq(theme::write_style(b), text);
+        }
     });
 
     return s.run(argc, argv);

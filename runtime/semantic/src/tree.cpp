@@ -73,7 +73,19 @@ void Tree::refresh() {
                 std::vector<std::string> order;
                 for (spec::SemanticNode& v : items) {
                     order.push_back(v.id);
-                    if (index_.contains(v.id)) continue;
+                    if (auto at = index_.find(v.id); at != index_.end()) {
+                        // Materialised (a canvas's live node, a list's row):
+                        // the node is the item — what the holder says of it
+                        // fills what the node does not say itself.
+                        spec::SemanticNode& real = nodes_[at->second];
+                        if (real.role == Role::generic || real.role == Role::none) real.role = v.role;
+                        if (real.name.empty()) real.name = v.name;
+                        if (real.description.empty()) real.description = v.description;
+                        real.states.bits |= v.states.bits;
+                        for (spec::ActionDesc& a : v.actions)
+                            if (!real.action(a.name)) real.actions.push_back(std::move(a));
+                        continue;
+                    }
                     v.children.clear();
                     index_.emplace(v.id, nodes_.size());
                     nodes_.push_back(std::move(v));
@@ -182,7 +194,11 @@ Envelope Tree::act(std::string_view id, std::string_view action, const Invocatio
     // An item a list holds unmaterialised is materialised first (S-7).
     // An item its holder acts on without a node (a canvas's), for the actions
     // the holder states on it; anything else materialises it first.
-    if (!runtime_.valid(runtime_.find(id)))
+    // A materialised one (a canvas's live node) keeps its holder's actions:
+    // those the node does not have itself go to the holder.
+    const NodeId real = runtime_.find(id);
+    const bool own = runtime_.valid(real) && runtime_.semantic_node(real).action(action) != nullptr;
+    if (!own)
         if (const auto cut = id.rfind('/'); cut != std::string_view::npos)
             if (NodeId holder = runtime_.find(id.substr(0, cut)); runtime_.valid(holder) && runtime_.acts_on_items(holder))
                 if (const auto item = runtime_.virtual_item(holder, id.substr(cut + 1)); item && item->action(action))

@@ -9,7 +9,7 @@
 //
 // A request may carry "re": any JSON value, repeated in each of its records,
 // so a client can have several in flight. Operations: describe, snapshot,
-// changes, find, act, wait, capture. The protocol is transport-free: the
+// changes, find, act, invoke (an application verb), wait, capture. The protocol is transport-free: the
 // endpoint feeds it lines from local IPC; tests and the MCP bridge feed it
 // directly. It runs on the thread that owns the runtime.
 export module openmui.agent:protocol;

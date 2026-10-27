@@ -41,4 +41,8 @@ openmui.ui.markdown   = { path = "../../components/markdown" }
 openmui.rules = { path = "../../mcpp/rules", host-module = true }
 
 [dev-dependencies]
-openmui.testing = { path = "../../tests/support" }
+openmui.testing  = { path = "../../tests/support" }
+openmui.abi      = { path = "../../runtime/abi" }
+openmui.lang.lua = { path = "../../lang/lua" }
+openmui.lang.js  = { path = "../../lang/js" }
+mcpplibs.os      = "0.1.2"

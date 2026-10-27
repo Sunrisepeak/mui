@@ -9,6 +9,11 @@ import openmui;
 import openmui.ui.canvas;
 import openmui.showcase.wall;
 import openmui.testing;
+import openmui.abi;
+import openmui.lang;
+import openmui.lang.lua;
+import openmui.lang.js;
+import mcpplibs.os;
 
 using namespace omui::testing;
 using namespace omui;
@@ -18,9 +23,9 @@ namespace {
 std::filesystem::path docs() { return std::filesystem::path(std::source_location::current().file_name()).parent_path() / "data" / "docs"; }
 
 struct App {
-    Headless    h{HeadlessOptions{.size = {1440, 900}}};
+    Headless          h;
     omui::wall::Model model;
-    explicit App(std::vector<omui::wall::Document> d = {}) {
+    explicit App(std::vector<omui::wall::Document> d = {}, HeadlessOptions o = {.size = {1440, 900}}) : h(std::move(o)) {
         if (d.empty()) {
             auto read = omui::wall::read_folder(docs());
             check(read.has_value(), read ? std::string{} : read.error());
@@ -51,6 +56,129 @@ struct App {
 
 const omui::wall::Document& by_path(const std::vector<omui::wall::Document>& docs, std::string_view path) {
     return *std::ranges::find(docs, path, &omui::wall::Document::path);
+}
+
+
+// ── the tour (scripts/tour.{ts,lua,py}): the same records, the same wall ──
+
+std::filesystem::path scripts() { return std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path() / "scripts"; }
+
+std::string text_of(const std::filesystem::path& f) {
+    std::ifstream in(f, std::ios::binary);
+    return {std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
+}
+
+struct Tour {
+    std::vector<std::string> records;  // each step's result, as JSON
+    std::string              wall;     // what it left: the camera, the moved window, the selection
+};
+
+// The verb the tour records with, and what it left.
+void listen(App& a, std::vector<std::string>& records) {
+    check(a.h.runtime()
+              .verbs()
+              .add({"tour.record", "A step of the tour and what it answered.", Effect::read, {}, {}},
+                   [&records](const Value& args) -> VerbResult {
+                       const Value* step = args.get("step");
+                       const Value* value = args.get("value");
+                       records.push_back(std::format("{} = {}", step ? std::string(step->as_string()) : std::string("?"), value ? value->json() : std::string("null")));
+                       return Value{};
+                   })
+              .has_value());
+}
+
+std::string left(App& a) {
+    a.h.settle();
+    const auto using_key = by_path(a.model.docs, "guide/usage.md").key;
+    const auto r = a.rect(using_key);
+    std::string chosen;
+    for (const auto& k : a.model.canvas()->selection()) chosen += k + " ";
+    return std::format("camera {:.6f} {:.6f} {:.6f}; window {} {} {}x{}; chosen {}; streaming {}", a.model.x.peek(), a.model.y.peek(), a.model.zoom.peek(),
+                       r.x, r.y, r.width, r.height, chosen, a.model.streaming());
+}
+
+template <class Make>
+Tour in_process(Make make, std::string code, std::string name) {
+    Tour t;
+    App a;
+    listen(a, t.records);
+    auto handle = abi::attach(a.h.runtime());
+    {
+        lang::Host host(handle);
+        lang::Session session(host);
+        auto script = make(session);
+        std::vector<std::string> errors;
+        script->on_error([&](std::string_view m) { errors.emplace_back(m); });
+        auto ran = script->run(std::move(code), std::move(name));
+        // The script calls into the runtime, which answers between frames.
+        for (int i = 0; i < 200000 && ran.wait_for(std::chrono::seconds(0)) != std::future_status::ready; ++i) {
+            a.h.step();
+            std::this_thread::sleep_for(std::chrono::microseconds(200));
+        }
+        auto result = ran.get();
+        check(result.has_value(), result ? "" : result.error().text());
+        for (int i = 0; i < 2000 && !host.idle(); ++i) {
+            a.h.step();
+            std::this_thread::sleep_for(std::chrono::microseconds(200));
+        }
+        check(errors.empty(), errors.empty() ? "" : errors.front());
+    }
+    abi::detach(handle);
+    t.wall = left(a);
+    return t;
+}
+
+// A Python that runs (python3, else python: a Windows runner's python3 may be the store's stub).
+std::optional<std::filesystem::path> python() {
+    for (const char* name : {"python3", "python"}) {
+        mcpplibs::os::process::spawn_options o;
+        auto exe = mcpplibs::os::env::find_executable(name);
+        if (!exe) continue;
+        o.program = *exe;
+        o.args = {"-c", "import sys; print(sys.version_info >= (3, 10))"};
+        if (auto r = mcpplibs::os::process::run(std::move(o)); r && r->status.success() && r->out.starts_with("True")) return *exe;
+    }
+    return std::nullopt;
+}
+
+// Python drives the wall as an agent does: through its endpoint, with openmui_agent.
+Tour as_agent() {
+    Tour t;
+    // A short directory: a socket's path has room for about a hundred bytes.
+    const auto dir = std::filesystem::temp_directory_path() / "omui-t";
+    std::filesystem::create_directories(dir);
+    HeadlessOptions o;
+    o.level = HeadlessLevel::session;
+    o.size = {1440, 900};
+    o.app = "wall-tour";
+    o.endpoint_directory = dir;
+    App a(std::vector<omui::wall::Document>{}, std::move(o));
+    listen(a, t.records);
+    check(a.h.endpoint() && a.h.endpoint()->listening(), "the endpoint listens");
+    const auto py = python();
+    check(py.has_value(), "a Python 3.10 or later on PATH (python3 or python)");
+    if (!py) return t;
+    mcpplibs::os::process::spawn_options run;
+    run.program = *py;
+    run.args = {mcpplibs::os::fs::utf8(scripts() / "tour.py"), "wall-tour", mcpplibs::os::fs::utf8(dir)};
+    const auto client = std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path().parent_path().parent_path() / "lang" /
+                        "python" / "python";
+    run.env = {{"PYTHONPATH", mcpplibs::os::fs::utf8(client)}, {"PYTHONIOENCODING", "utf-8"}};
+    run.out = mcpplibs::os::process::stdio::inherit;
+    run.err = mcpplibs::os::process::stdio::inherit;
+    auto child = mcpplibs::os::process::process::spawn(run);
+    check(child.has_value(), child ? std::string{} : child.error().message());
+    if (!child) return t;
+    std::optional<mcpplibs::os::process::exit_status> status;
+    for (int i = 0; i < 60000 && !status; ++i) {
+        a.h.step();  // pumps the endpoint
+        auto w = child->try_wait();
+        if (w && *w) status = *w;
+        else std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    check(status && status->success(), status ? std::format("tour.py ended with {}", status->code) : std::string("tour.py did not end"));
+    t.wall = left(a);
+    return t;
 }
 
 }  // namespace
@@ -204,6 +332,24 @@ int main(int argc, char** argv) {
         bool grew = false;
         for (const auto& d : a.model.docs) grew = grew || a.model.text(d.key).size() > d.source.size() + 400;
         check(grew, "the streamed text kept");
+    });
+
+    s.test("the tour in TypeScript, Lua and Python: the same records, the same wall (§3.6)", [] {
+        auto ts = lang::js::compile_typescript(scripts() / "tour.ts");
+        check(ts.has_value(), ts ? std::string{} : ts.error());
+        if (!ts) return;
+        const Tour t = in_process([](lang::Session& s) { return std::make_unique<lang::js::Script>(s); }, *ts, "tour.ts");
+        const Tour l = in_process([](lang::Session& s) { return std::make_unique<lang::lua::Script>(s); }, text_of(scripts() / "tour.lua"), "@tour.lua");
+        const Tour p = as_agent();
+        check_eq(t.records.size(), std::size_t{10});
+        for (const auto& r : t.records) std::println("    {}", r);
+        check_eq(l.records, t.records);
+        check_eq(p.records, t.records);
+        std::println("    {}", t.wall);
+        check_eq(l.wall, t.wall);
+        check_eq(p.wall, t.wall);
+        check(t.wall.contains("window 4000 3000"), "the window moved where the tour put it");
+        check(t.records.size() == 10 && t.records[8] == "refused = \"not-found\"", "the refusal, as a code");
     });
 
     s.test("the same pixels on every platform", [] {

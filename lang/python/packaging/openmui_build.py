@@ -32,6 +32,7 @@ import zipfile
 from pathlib import Path
 
 PACKAGE = Path(__file__).resolve().parents[1]  # lang/python
+AGENT = "openmui_agent.py"                      # the agent's client: standard library only
 ROOT = PACKAGE.parents[1]                       # the workspace (or the sdist)
 NAME = "openmui"
 TAG = "cp310-abi3"
@@ -83,6 +84,7 @@ def _stage(artifacts, into):
     """The ``openmui`` package as the wheel holds it, in ``into/openmui``."""
     package = into / NAME
     shutil.copytree(PACKAGE / "python" / NAME, package, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+    shutil.copy2(PACKAGE / "python" / AGENT, into / AGENT)
     extension = next((Path(a["path"]) for a in artifacts if a.get("name") == "_openmui"), None)
     if extension is None or not extension.is_file():
         raise RuntimeError("the build made no _openmui extension")
@@ -180,6 +182,8 @@ def build_wheel(wheel_directory, config_settings=None, metadata_directory=None):
         entries = []
         for f in sorted(p for p in (stage / NAME).rglob("*") if p.is_file() and "__pycache__" not in p.parts):
             entries.append((f.relative_to(stage).as_posix(), f.read_bytes(), os.access(f, os.X_OK)))
+        # The agent's client, a module of its own (it needs no extension).
+        entries.append((AGENT, (stage / AGENT).read_bytes(), False))
         if notices:
             for f in sorted(p for p in notices.rglob("*") if p.is_file()):
                 entries.append((f"{dist_info}/licenses/{f.relative_to(notices).as_posix()}", f.read_bytes(), False))

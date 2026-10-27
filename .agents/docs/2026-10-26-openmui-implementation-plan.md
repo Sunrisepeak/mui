@@ -1174,7 +1174,20 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
     - 流式输出：`--stream N` 或 verb `wall.stream`，每秒 50 个 token。实时窗口立即追加，纹理窗口最多每秒标记过期四次。
     - 通用能力：`Runtime::component<C>()`；声明式行为的 `hit.inside`（框连同上面的东西一起拖）、`preset` / `zoom_to` / `fit('all')`，按键事件在手势期间也能看到 `hit` / `travel`。
     - 测试：7 项，像素固定。
-    - 还没做：基准报告（`--bench`，以及 tests/bench 里的缩放扫描、平移、清晰化、20 个窗口流式输出），三种语言的场景脚本。
+    - ✅ 基准（tests/bench 的 `wall/*`，CPU 预算进门禁）：
+      - 1000 个窗口缩放扫描 1%↔400%，p95 0.12ms；
+      - 平移 0.012ms；
+      - 拖动 100 个窗口的工作区 0.23ms；
+      - 1000 个选中窗口一起拖 0.35ms；
+      - 20 个窗口流式输出 0.65ms；
+      - 清晰化约 50ms（预算 300ms）。
+      - 为此做的改动：相机移动时不晋升（聚焦的除外），停下 120ms 后再晋升；小地图任何规模都最多每秒重做 10 次；`Runtime::frame_rate()`，HUD 显示 FPS。
+    - ✅ 三种语言的场景脚本 `scripts/tour.{ts,lua,py}`：
+      - TS / Lua 在进程内通过 openmui.lang 会话运行；Python 经 agent 端点用 `openmui_agent` 驱动（纯标准库客户端，随 wheel 发布）。
+      - 测试要求三者记录的答案和留下的墙（相机、窗口位置、选择）完全相同。
+      - 协议新增 `invoke`（调用应用的 verb，S-1 规则同 `act`）。
+      - 实例化（晋升）后的节点仍然是它的条目：语义树合并持有者的描述，持有者的动作照常路由。
+    - 还没做：真机实时模式的帧节奏报告（GPU 时间、掉帧率），与动态刷新率设计一起做。
 - M5：openmui-video、ui-timeline、MCP 服务器、skills、S3 / S4 / S5。
 - 契约⑦（插件与管线）写进规范；Inspector 的火焰图和动画检查器视图。
 

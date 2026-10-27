@@ -185,7 +185,8 @@ headless operation and game-engine embedding.
 
 Path: `host/<h>/system/<s>/app/<app-id>/ui` (openbus §2.4). Operations:
 `snapshot` (call), `changes` (topic), `find` (call: role, name glob, state,
-spatial range), `act` (call, with an actor), `wait` (call: a node appears, a
+spatial range), `act` (call, with an actor), `invoke` (call: an application
+verb, with an actor; S-1 as for `act`), `wait` (call: a node appears, a
 state changes, an animation is `settled`; with a timeout), `capture` (optional
 pixels of a node).
 

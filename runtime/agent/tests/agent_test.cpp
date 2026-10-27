@@ -101,6 +101,23 @@ int main(int argc, char** argv) {
         check(exit_of(bad_actor) == 1);
     });
 
+    s.test("invoke: an application verb, its answer asked for as an action's (S-1)", [] {
+        Notes app;
+        int cleared = 0;
+        check(app.rt.verbs().add({"notes.clear", "Removes every note.", Effect::irreversible, "yes", {{"keep", "i64"}}},
+                                 [&](const Value& args) -> VerbResult {
+                                     ++cleared;
+                                     return Value(args.get("keep") ? args.get("keep")->as_int() : 0);
+                                 }).has_value());
+        agent::Protocol p(app.rt);
+        auto asked = talk(p, R"({"op":"invoke","verb":"notes.clear","args":{"keep":2}})");
+        check(exit_of(asked) == 2 && cleared == 0, "needs its answer");
+        auto done = talk(p, R"({"op":"invoke","verb":"notes.clear","args":{"keep":2},"answer":"yes","actor":"agent:tidy"})");
+        check(exit_of(done) == 0 && cleared == 1 && done[0].get("data")->as_int() == 2, done.empty() ? "" : done.front().json());
+        check(exit_of(talk(p, R"({"op":"invoke","verb":"notes.nothing"})")) == 1, "an unknown verb");
+        check(exit_of(talk(p, R"({"op":"invoke"})")) == 1, "no verb");
+    });
+
     s.test("wait: answered when the condition holds, between frames", [] {
         Notes app;
         agent::Protocol p(app.rt);

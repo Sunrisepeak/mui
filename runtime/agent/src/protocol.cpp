@@ -11,7 +11,7 @@ namespace omui::agent {
 
 namespace {
 
-constexpr std::array<std::string_view, 14> operations{"describe", "snapshot", "changes", "find", "act", "wait", "capture",
+constexpr std::array<std::string_view, 15> operations{"describe", "snapshot", "changes", "find", "act", "invoke", "wait", "capture",
                                                        "inspect", "stats", "profile", "logs", "debug", "pipeline", "clock"};
 
 // A stage's configuration from a request's JSON object.
@@ -192,6 +192,20 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
         if (!parsed) return invalid(std::format("`{}` is not an actor", actor), "kind:name[;via=kind:name], e.g. agent:planner;via=person:alice");
         call.actor = std::move(*parsed);
         return tree_.act(node, action, call);
+    }
+    if (op == "invoke") {
+        // An application verb (S-1 as for a person's: an irreversible or
+        // external one needs its answer).
+        const std::string_view verb = text_of(req, "verb");
+        if (verb.empty()) return invalid("`invoke` needs a `verb`", R"({"op":"invoke","verb":"notes.new","args":{"title":"Today"}})");
+        Invocation call;
+        if (const Value* a = req.get("args")) call.args = *a;
+        call.answer = std::string(text_of(req, "answer"));
+        const std::string_view actor = text_of(req, "actor");
+        auto parsed = Actor::parse(actor.empty() ? std::string_view(options_.default_actor) : actor);
+        if (!parsed) return invalid(std::format("`{}` is not an actor", actor), "kind:name[;via=kind:name], e.g. agent:planner;via=person:alice");
+        call.actor = std::move(*parsed);
+        return runtime_.verbs().invoke(verb, call);
     }
     if (op == "wait") {
         // The condition's fields sit in the request itself: q, absent, settled.

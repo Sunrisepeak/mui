@@ -41,6 +41,7 @@ members = [
     "hosts/sdl3",
     "components/base",
     "lang/common",
+    "lang/lua",
     "components/markdown",
     "tools/gen",
     "tools/omui",

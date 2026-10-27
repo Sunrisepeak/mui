@@ -312,6 +312,13 @@ export const Counter = () => (
 - **异步映射**：TS 用 Promise，Python 用 asyncio，Lua 用协程。
 - **一起设计、分先后实现**：接口形状一起设计；实现时先打磨 TS，Python 和 Lua 紧跟其后。
 
+### 7.1 实现（`lang/common`、`lang/lua`，2026-10-27）
+
+- **线程**：`openmui.lang` 的 `Host` 让脚本在自己的线程上运行，树留在运行时的线程上。脚本调用运行时（`ui`）在下一个帧边界执行；运行时调用脚本实现的 verb 时一边等一边替脚本做事，脚本等运行时的时候也会执行运行时正在等的事，所以脚本调用自己的 verb 不会死锁。
+- **视图就是视图文档**：脚本构造的元素树编译成视图文档。表达式组合函数变成 CEL，由运行时同步求值；脚本的 signal 是运行时的 signal（`omuiSignalShare`），文档里声明为 `"provided": true`，所以所有视图和脚本共享一份状态；脚本的处理函数变成文档自己的事件（`emit`），连同事件和所在循环的行转发给脚本。因此任何语言写的视图和 C++ builder 是同一棵树（S 级，已测试）。
+- **signal 是镜像**：脚本读 signal 不等待；写入发出去不等待，下一帧运行时就有了；两边的修改都会通知脚本。
+- **Lua**：`omui.Column { … }` 表构造语法，名字来自已注册的组件；signal 的算术运算构造表达式；`omui.each(model, function(row) … end)` 只构造一次，`row.title` 是表达式；出错时返回 `nil, message`；热重载保留 signal 的值，测试要求 200ms 以内。
+
 ---
 
 ## 8. native 模块（`kind = "native"`）

@@ -65,6 +65,7 @@ members = [
     "components/canvas-kit",
     "tools/gen",
     "tools/omui",
+    "tools/mcp",
     "tools/inspector",
     "mcpp/rules",
     "tests/rules",

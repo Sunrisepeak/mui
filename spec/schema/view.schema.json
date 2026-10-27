@@ -75,6 +75,7 @@
         "padding_top",
         "padding_x",
         "padding_y",
+        "person",
         "pixel_effect",
         "pointer_events",
         "position",

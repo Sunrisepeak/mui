@@ -284,6 +284,46 @@ int main(int argc, char** argv) {
         check_eq(rows(), std::string("[]"));
     });
 
+    s.test("a verb chained as the person's own (S-10): its action marked in the tree, a wrong link refused", [] {
+        Rt r;
+        int allowed = 0;
+        OmuiVerbPerson person{};
+        person.type = OMUI_STRUCTURE_TYPE_VERB_PERSON;
+        person.person = 1;
+        OmuiVerbDesc desc{};
+        desc.type = OMUI_STRUCTURE_TYPE_VERB_DESC;
+        desc.next = &person;
+        desc.name = str("cockpit.allow");
+        desc.summary = str("Allow what the agent asked");
+        desc.effect = OMUI_EFFECT_REVERSIBLE;
+        check_eq(omuiRegisterVerb(
+                     r.rt, &desc,
+                     [](void* user, OmuiString, PFN_omuiSink, void*) {
+                         ++*static_cast<int*>(user);
+                         return OMUI_SUCCESS;
+                     },
+                     &allowed),
+                 OMUI_SUCCESS);
+        OmuiFrameInput wrong{};
+        wrong.type = OMUI_STRUCTURE_TYPE_FRAME_INPUT;
+        OmuiVerbDesc bad = desc;
+        bad.name = str("cockpit.other");
+        bad.next = &wrong;
+        check_eq(omuiRegisterVerb(r.rt, &bad, [](void*, OmuiString, PFN_omuiSink, void*) { return OMUI_SUCCESS; }, nullptr),
+                 OMUI_ERROR_INVALID_ARGUMENT);
+        check_eq(omuiMount(r.rt, str("main"), str(R"j({"omui": "0.1", "view": {"root": {"type": "button", "id": "allow",
+            "props": {"text": "Allow", "verb": "cockpit.allow"}}}})j")),
+                 OMUI_SUCCESS);
+        check_eq(r.frame(), OMUI_SUCCESS);
+        std::string tree;
+        check_eq(omuiSnapshot(r.rt, str(R"j({"interactive": true})j"), collect, &tree), OMUI_SUCCESS);
+        check(tree.contains(R"("name":"activate","effect":"reversible","verb":"cockpit.allow","person":true)"), tree);
+        // The program itself (its scripts, its host) is not the bus: it may invoke it.
+        std::string out;
+        check_eq(omuiInvoke(r.rt, str("cockpit.allow"), str("{}"), collect, &out), OMUI_SUCCESS);
+        check_eq(allowed, 1);
+    });
+
     s.test("verbs: a C implementation, answers, and the action that invokes one", [] {
         Rt r;
         Store store;

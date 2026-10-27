@@ -357,6 +357,7 @@ typedef enum OmuiStructureType {
     OMUI_STRUCTURE_TYPE_FRAME_INPUT = 1,
     OMUI_STRUCTURE_TYPE_FRAME_OUTPUT = 2,
     OMUI_STRUCTURE_TYPE_VERB_DESC = 3,
+    OMUI_STRUCTURE_TYPE_VERB_PERSON = 4,
     OMUI_STRUCTURE_TYPE_MAX_ENUM = 0x7FFFFFFF
 } OmuiStructureType;
 
@@ -426,6 +427,13 @@ typedef struct OmuiVerbDesc {
     OmuiEffect effect;
     OmuiString answer;                       /* The answer that confirms it (irreversible, external). */
 } OmuiVerbDesc;
+
+/* Chained to an OmuiVerbDesc (`next`): the verb is the person's own (S-10). */
+typedef struct OmuiVerbPerson {
+    OmuiStructureType type;
+    const void* next;
+    uint32_t person;                         /* Non-zero: only the person at the machine invokes it; a request over the bus is refused, whatever its actor. */
+} OmuiVerbPerson;
 
 /* ── callbacks ───────────────────────────────────────────────────────── */
 

@@ -59,6 +59,13 @@ Envelope needs_answer(std::string_view what, std::string_view answer) {
     return e;
 }
 
+Envelope person_only(std::string_view what) {
+    Envelope e;
+    e.error(spec::error_code::refused, std::format("{} is the person's own: only they do it, at the machine (S-10)", what));
+    e.result(spec::exit_code::failure);
+    return e;
+}
+
 Envelope Verbs::invoke(std::string_view name, const Invocation& call) {
     auto record = [&](int code) {
         journal_.push_back({std::string(name), call.actor.text(), call.args, code});
@@ -69,6 +76,10 @@ Envelope Verbs::invoke(std::string_view name, const Invocation& call) {
         e.error(spec::error_code::not_found, std::format("no verb `{}`", name)).result(spec::exit_code::failure);
         record(spec::exit_code::failure);
         return e;
+    }
+    if (it->desc.person && call.remote) {
+        record(spec::exit_code::failure);
+        return person_only(std::format("`{}`", name));
     }
     if (spec::requires_answer(it->desc.effect) && call.answer != it->desc.answer) {
         record(spec::exit_code::needs_answer);

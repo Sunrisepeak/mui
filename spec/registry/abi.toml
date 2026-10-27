@@ -86,7 +86,7 @@ values = ["NULL", "BOOL", "INT", "DOUBLE", "STRING", "JSON"]
 [[enum]]
 name = "OmuiStructureType"
 doc  = "The `type` of an extensible struct."
-values = ["RUNTIME_CREATE_INFO", "FRAME_INPUT", "FRAME_OUTPUT", "VERB_DESC"]
+values = ["RUNTIME_CREATE_INFO", "FRAME_INPUT", "FRAME_OUTPUT", "VERB_DESC", "VERB_PERSON"]
 
 [[struct]]
 name = "OmuiString"
@@ -163,6 +163,14 @@ fields = [
   { name = "summary", type = "OmuiString" },
   { name = "effect", type = "OmuiEffect" },
   { name = "answer", type = "OmuiString", doc = "The answer that confirms it (irreversible, external)." },
+]
+
+[[struct]]
+name = "OmuiVerbPerson"
+extensible = true
+doc  = "Chained to an OmuiVerbDesc (`next`): the verb is the person's own (S-10)."
+fields = [
+  { name = "person", type = "uint32_t", doc = "Non-zero: only the person at the machine invokes it; a request over the bus is refused, whatever its actor." },
 ]
 
 [[callback]]

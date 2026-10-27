@@ -325,7 +325,7 @@ PyObject* f_verb(PyObject*, PyObject* args) {
     PyObject* fn = py().PyTuple_GetItem(args, 2);
     if (!name || !spec || !fn || !py().PyCallable_Check(fn)) return arguments("verb(name, spec, fn)");
     const Json o = parse(*spec);
-    Session::VerbSpec v{*name, o.value("summary", ""), effect_of(o.value("effect", "reversible")), o.value("answer", "")};
+    Session::VerbSpec v{*name, o.value("summary", ""), effect_of(o.value("effect", "reversible")), o.value("answer", ""), o.value("person", false)};
     const int id = keep(fn);
     auto r = on_script([&] {
         return state().session->verb(std::move(v), [id](const Json& a) -> Result<Json> {

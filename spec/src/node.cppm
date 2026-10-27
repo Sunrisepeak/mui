@@ -34,10 +34,13 @@ struct ActionDesc {
     std::string verb;    // the application verb it invokes, if any
     std::string answer;  // the answer that confirms it (S-1)
     std::vector<std::pair<std::string, std::string>> args;  // name, type
+    // Only the person at the machine performs it, through the host's own
+    // input; a request over the bus is refused, whatever its actor (S-10).
+    bool        person = false;
 
     // Written out: GCC 16.1 crashes on defaulted comparisons of module types.
     friend bool operator==(const ActionDesc& a, const ActionDesc& b) noexcept {
-        return a.name == b.name && a.effect == b.effect && a.verb == b.verb && a.answer == b.answer && a.args == b.args;
+        return a.name == b.name && a.effect == b.effect && a.verb == b.verb && a.answer == b.answer && a.args == b.args && a.person == b.person;
     }
 };
 

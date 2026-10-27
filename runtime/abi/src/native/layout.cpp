@@ -153,6 +153,7 @@ static_assert(static_cast<long long>(::OMUI_STRUCTURE_TYPE_RUNTIME_CREATE_INFO) 
 static_assert(static_cast<long long>(::OMUI_STRUCTURE_TYPE_FRAME_INPUT) == static_cast<long long>(omui::abi::OMUI_STRUCTURE_TYPE_FRAME_INPUT));
 static_assert(static_cast<long long>(::OMUI_STRUCTURE_TYPE_FRAME_OUTPUT) == static_cast<long long>(omui::abi::OMUI_STRUCTURE_TYPE_FRAME_OUTPUT));
 static_assert(static_cast<long long>(::OMUI_STRUCTURE_TYPE_VERB_DESC) == static_cast<long long>(omui::abi::OMUI_STRUCTURE_TYPE_VERB_DESC));
+static_assert(static_cast<long long>(::OMUI_STRUCTURE_TYPE_VERB_PERSON) == static_cast<long long>(omui::abi::OMUI_STRUCTURE_TYPE_VERB_PERSON));
 
 static_assert(sizeof(::OmuiString) == sizeof(omui::abi::OmuiString) && alignof(::OmuiString) == alignof(omui::abi::OmuiString));
 static_assert(offsetof(::OmuiString, data) == offsetof(omui::abi::OmuiString, data));
@@ -200,5 +201,9 @@ static_assert(offsetof(::OmuiVerbDesc, name) == offsetof(omui::abi::OmuiVerbDesc
 static_assert(offsetof(::OmuiVerbDesc, summary) == offsetof(omui::abi::OmuiVerbDesc, summary));
 static_assert(offsetof(::OmuiVerbDesc, effect) == offsetof(omui::abi::OmuiVerbDesc, effect));
 static_assert(offsetof(::OmuiVerbDesc, answer) == offsetof(omui::abi::OmuiVerbDesc, answer));
+static_assert(sizeof(::OmuiVerbPerson) == sizeof(omui::abi::OmuiVerbPerson) && alignof(::OmuiVerbPerson) == alignof(omui::abi::OmuiVerbPerson));
+static_assert(offsetof(::OmuiVerbPerson, type) == offsetof(omui::abi::OmuiVerbPerson, type));
+static_assert(offsetof(::OmuiVerbPerson, next) == offsetof(omui::abi::OmuiVerbPerson, next));
+static_assert(offsetof(::OmuiVerbPerson, person) == offsetof(omui::abi::OmuiVerbPerson, person));
 
 }  // namespace omui::abi

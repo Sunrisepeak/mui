@@ -85,4 +85,27 @@ expect 0 agent pipeline $app_id remove --stage debug
 expect 0 agent pipeline $app_id insert --stage debug --plugin openmui.view.debug --after paint
 expect 1 agent pipeline $app_id replace --stage paint --plugin nonesuch
 expect 0 agent wait $app_id --settled --timeout 5
+
+# The MCP server (S3) over real pipes, as Claude Code runs it: the tools
+# listed, a node found, an irreversible action refused to a client that
+# cannot ask its user, a reversible one done.
+mcp_out=$("$omui" mcp --dir "$dir" <<'JSON'
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"e2e"}}}
+{"jsonrpc":"2.0","method":"notifications/initialized"}
+{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}
+{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"ui_find","arguments":{"name":"Delete*"}}}
+{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"ui_act","arguments":{"node":"main/delete-all","action":"activate"}}}
+{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"ui_act","arguments":{"node":"main/compose/draft","action":"set_value","args":{"value":"from MCP"}}}}
+{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"ui_snapshot","arguments":{"root":"main/compose"}}}
+JSON
+)
+echo "$mcp_out" | head -c 2000; echo
+[ "$(grep -c '"jsonrpc":"2.0"' <<< "$mcp_out")" = 6 ] || { echo "FAIL: six responses from omui mcp"; exit 1; }
+grep -q '"protocolVersion":"2025-06-18"' <<< "$mcp_out"
+grep -q '"name":"ui_capture"' <<< "$mcp_out"
+grep -q '"id":3.*main/delete-all' <<< "$mcp_out"
+grep -q "\"id\":4.*needs the user's confirmation.*\"isError\":true" <<< "$mcp_out"
+grep -q '"id":5.*done: set_value on main/compose/draft' <<< "$mcp_out"
+grep -q '"id":6.*from MCP' <<< "$mcp_out"
+echo "ok   omui mcp"
 echo "agent e2e: ok"

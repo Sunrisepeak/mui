@@ -31,6 +31,11 @@ struct ProtocolOptions {
     std::string default_actor = "agent:anonymous";  // when a request names none
     double      default_timeout = 5.0;               // seconds, for `wait`
     CaptureFn   capture;
+    // Requests come over the bus (an endpoint, another process): a person's
+    // own action is refused to them whatever actor they name (S-10). False
+    // only for the program's own requests through this handler (the C ABI
+    // its language bindings call).
+    bool        remote = true;
 };
 
 class Protocol {

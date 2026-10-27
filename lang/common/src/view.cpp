@@ -641,6 +641,10 @@ Result<void> Session::verb(VerbSpec spec, std::function<Result<Json>(const Json&
         d.summary = str(spec.summary);
         d.effect = spec.effect;
         d.answer = str(spec.answer);
+        abi::OmuiVerbPerson person{};
+        person.type = abi::OMUI_STRUCTURE_TYPE_VERB_PERSON;
+        person.person = 1;
+        if (spec.person) d.next = &person;
         return abi::omuiRegisterVerb(
             host_.runtime(), &d,
             [](void* user, abi::OmuiString args, abi::PFN_omuiSink sink, void* sink_user) -> abi::OmuiResult {

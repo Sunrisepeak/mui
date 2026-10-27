@@ -144,7 +144,7 @@ class Runner:
         for name, d in sorted(self.s.get("verbs", {}).items()):
             if name not in _verbs:
                 omui.verb(name, (lambda n: lambda args: _verbs[n](args))(name), effect=d.get("effect", "reversible"),
-                          answer=d.get("answer", ""), summary=d.get("summary", ""))
+                          answer=d.get("answer", ""), summary=d.get("summary", ""), person=d.get("person", False))
             _verbs[name] = self.verb(d)
         omui.mount("main", self.element(self.s["view"]))
 

@@ -604,7 +604,7 @@ abi::OmuiEffect effect_of(std::string_view e) {
 
 int l_verb(lua_State* L, Script::Impl& s) {
     if (lua_type(L, 1) != LUA_TSTRING || lua_type(L, 3) != LUA_TFUNCTION)
-        return raise(L, "omui.verb(name, {effect = …, answer = …, summary = …}, function(args) … end)");
+        return raise(L, "omui.verb(name, {effect = …, answer = …, summary = …, person = true}, function(args) … end)");
     Session::VerbSpec spec{lua_tostring(L, 1), "", abi::OMUI_EFFECT_REVERSIBLE, ""};
     if (lua_type(L, 2) == LUA_TTABLE) {
         lua_getfield(L, 2, "effect");
@@ -613,7 +613,9 @@ int l_verb(lua_State* L, Script::Impl& s) {
         if (lua_type(L, -1) == LUA_TSTRING) spec.answer = lua_tostring(L, -1);
         lua_getfield(L, 2, "summary");
         if (lua_type(L, -1) == LUA_TSTRING) spec.summary = lua_tostring(L, -1);
-        lua_pop(L, 3);
+        lua_getfield(L, 2, "person");
+        spec.person = lua_toboolean(L, -1) != 0;
+        lua_pop(L, 4);
     }
     const int ref = keep_function(L, s, 3);
     Script::Impl* self = &s;

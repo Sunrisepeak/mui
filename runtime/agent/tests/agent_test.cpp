@@ -118,6 +118,43 @@ int main(int argc, char** argv) {
         check(exit_of(talk(p, R"({"op":"invoke"})")) == 1, "no verb");
     });
 
+    s.test("the person's own (S-10): marked in the tree, refused over the bus whatever the actor, done by the person's input", [] {
+        Notes app;
+        int allowed = 0;
+        VerbDesc allow{"cockpit.allow", "Allow what the agent asked", Effect::reversible, "", {}};
+        allow.person = true;
+        check(app.rt.verbs().add(allow, [&](const Value&) -> VerbResult {
+                      ++allowed;
+                      return Value{};
+                  }).has_value());
+        int pressed = 0;
+        app.rt.mount("cockpit", row({.gap = 4}, {
+                                        box({.id = "allow", .width = 60, .height = 20, .label = "Allow"}).prop("verb", Source{Value("cockpit.allow"), {}, {}}),
+                                        box({.id = "deny", .width = 60, .height = 20, .label = "Deny", .on = {{"press", [&](const Value&) { ++pressed; }}}})
+                                            .prop("person", Source{Value(true), {}, {}}),
+                                    }));
+        app.rt.frame({seconds(0.1), {}});
+        agent::Protocol p(app.rt);
+        auto tree = talk(p, R"({"op":"find","q":{"name":"Allow"}})");
+        check(!tree.empty() && tree.front().json().contains(R"("verb":"cockpit.allow","person":true)"), tree.empty() ? "" : tree.front().json());
+        // Over the bus, as an agent or claiming to be the person: refused, nothing done.
+        for (std::string_view line : {R"({"op":"act","node":"cockpit/allow","action":"activate","actor":"agent:sly"})",
+                                      R"({"op":"act","node":"cockpit/allow","action":"activate","actor":"person:user;via=input:pointer"})",
+                                      R"({"op":"invoke","verb":"cockpit.allow","actor":"person:user"})",
+                                      R"({"op":"act","node":"cockpit/deny","action":"activate"})"}) {
+            auto r = talk(p, line);
+            check(exit_of(r) == 1 && !r.empty() && r.front().json().contains("refused") && r.front().json().contains("S-10"), std::string(line));
+        }
+        check_eq(allowed, 0);
+        check_eq(pressed, 0);
+        // The person's own input does it.
+        const auto at = app.rt.bounds(app.rt.find("cockpit/allow"));
+        const Point c{at.x + at.width / 2, at.y + at.height / 2};
+        app.rt.frame({seconds(0.2), {PointerEvent{.kind = PointerKind::down, .position = c, .button = MouseButton::left, .buttons = 1},
+                                     PointerEvent{.kind = PointerKind::up, .position = c, .button = MouseButton::left}}});
+        check_eq(allowed, 1);
+    });
+
     s.test("wait: answered when the condition holds, between frames", [] {
         Notes app;
         agent::Protocol p(app.rt);

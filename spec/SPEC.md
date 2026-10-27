@@ -95,6 +95,17 @@ and typed arguments.
   know MUST treat it as `irreversible`.
 - **S-4** A node in state `removing` accepts no action; a node in state
   `disabled` accepts only actions whose effect is `read`.
+- **S-10** An action or a verb MAY be the person's own (`person`): the answer
+  to a confirmation an agent asked for, a permission, a payment's approval.
+  Only the person at the machine performs it, through the host's own input. A
+  request that arrives through the bus interface (§9) or from any other
+  process MUST be refused with an `error` record of code `refused` and exit
+  code 1, whatever actor it names, and change nothing; the implementation
+  marks such requests itself, never from what they say. The semantic tree
+  states the mark on the action (`"person": true`), so an agent does not try.
+  An action's mark comes from the verb it invokes or from the node (the
+  universal property `person`), and, like an effect, may be added but not
+  lifted. The program's own code — its scripts, its host — is not the bus.
 - An action's declared arguments are all required and typed (`string`, `bool`,
   `i32` and `i64` integers, `f64` numbers, `list<string>`, or alternatives such
   as `f64 | min | max`, where a word is a symbol the component interprets). A call missing one,

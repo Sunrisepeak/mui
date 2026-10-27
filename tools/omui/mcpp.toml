@@ -5,7 +5,7 @@
 namespace   = "openmui"
 name        = "cli"
 version     = "0.1.0"
-description = "The openmui command line: omui agent (ls, describe, snapshot, act …), check, fmt and schema"
+description = "The openmui command line: omui agent (ls, describe, snapshot, act …), check, fmt, schema and mcp"
 license     = "Apache-2.0"
 repo        = "https://github.com/Sunrisepeak/mui"
 
@@ -22,6 +22,7 @@ sources = ["src/*.cppm", "src/*.cpp"]
 [dependencies]
 openmui.core     = { path = "../../runtime/core" }
 openmui.agent    = { path = "../../runtime/agent" }
+openmui.mcp      = { path = "../mcp" }
 openmui.viewdoc  = { path = "../../runtime/viewdoc" }
 openmui.ui.base  = { path = "../../components/base" }
 openmui.ui.markdown = { path = "../../components/markdown" }

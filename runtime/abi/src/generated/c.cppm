@@ -188,6 +188,7 @@ enum OmuiStructureType : std::int32_t {
     OMUI_STRUCTURE_TYPE_FRAME_INPUT = 1,
     OMUI_STRUCTURE_TYPE_FRAME_OUTPUT = 2,
     OMUI_STRUCTURE_TYPE_VERB_DESC = 3,
+    OMUI_STRUCTURE_TYPE_VERB_PERSON = 4,
     OMUI_STRUCTURE_TYPE_MAX_ENUM = 0x7FFFFFFF,
 };
 
@@ -251,6 +252,12 @@ struct OmuiVerbDesc {
     OmuiString summary;
     OmuiEffect effect;
     OmuiString answer;
+};
+
+struct OmuiVerbPerson {
+    OmuiStructureType type;
+    const void* next;
+    std::uint32_t person;
 };
 
 using PFN_omuiSink = void (*)(void* user, const char* data, std::size_t size);

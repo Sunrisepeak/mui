@@ -191,6 +191,7 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
         auto parsed = Actor::parse(actor.empty() ? std::string_view(options_.default_actor) : actor);
         if (!parsed) return invalid(std::format("`{}` is not an actor", actor), "kind:name[;via=kind:name], e.g. agent:planner;via=person:alice");
         call.actor = std::move(*parsed);
+        call.remote = options_.remote;  // over the bus: whatever actor it names (S-10)
         return tree_.act(node, action, call);
     }
     if (op == "invoke") {
@@ -205,6 +206,7 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
         auto parsed = Actor::parse(actor.empty() ? std::string_view(options_.default_actor) : actor);
         if (!parsed) return invalid(std::format("`{}` is not an actor", actor), "kind:name[;via=kind:name], e.g. agent:planner;via=person:alice");
         call.actor = std::move(*parsed);
+        call.remote = options_.remote;  // over the bus: whatever actor it names (S-10)
         return runtime_.verbs().invoke(verb, call);
     }
     if (op == "wait") {

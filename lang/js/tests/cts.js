@@ -97,7 +97,7 @@ omui.verb("cts.load", { summary: "Load a CTS scenario" }, (scenario) => {
   for (const name of Object.keys(S.models ?? {}).sort()) omui.model(name).push(S.models[name]);
   for (const name of Object.keys(S.verbs ?? {}).sort()) {
     const d = S.verbs[name];
-    omui.verb(name, { effect: d.effect ?? "reversible", answer: d.answer ?? "", summary: d.summary ?? "" }, (args) => {
+    omui.verb(name, { effect: d.effect ?? "reversible", answer: d.answer ?? "", summary: d.summary ?? "", person: d.person ?? false }, (args) => {
       for (const a of d.do ?? []) action(a, undefined, args);
       return value(d.result, undefined, args);
     });

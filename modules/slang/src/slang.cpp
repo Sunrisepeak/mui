@@ -35,7 +35,11 @@ struct Run {
     // `out` empty: what slangc writes goes to its standard output (a run for
     // its reflection only).
     std::expected<void, std::string> slangc_run(std::vector<std::string> extra, const std::filesystem::path& out) {
-        if (InProcess* compiler = options.in_process ? InProcess::beside(slangc) : nullptr) return in_process(*compiler, std::move(extra), out);
+        if (InProcess* compiler = options.in_process ? InProcess::beside(slangc) : nullptr; compiler && compiler->usable()) {
+            auto r = in_process(*compiler, extra, out);
+            if (r || !InProcess::environment_failure(r.error())) return r;
+            compiler->give_up();  // a piece of Slang did not load in this process: slangc from here on
+        }
         os::process::spawn_options o;
         o.program = slangc;
         o.args = {os::fs::utf8(source)};
@@ -59,7 +63,7 @@ struct Run {
     // The same run by Slang's library: what slangc would write (the code to
     // `out`, the reflection where -reflection-json says) written so, the
     // files it read noted as its depfile would name them.
-    std::expected<void, std::string> in_process(InProcess& compiler, std::vector<std::string> extra, const std::filesystem::path& out) {
+    std::expected<void, std::string> in_process(InProcess& compiler, const std::vector<std::string>& extra, const std::filesystem::path& out) {
         std::vector<std::string> args{os::fs::utf8(source)};
         for (const auto& i : options.includes) args.push_back("-I" + os::fs::utf8(i));
         for (const auto& d : options.defines) args.push_back("-D" + d);
@@ -69,7 +73,7 @@ struct Run {
                 reflection = os::fs::from_utf8(extra[++i]);
                 continue;
             }
-            args.push_back(std::move(extra[i]));
+            args.push_back(extra[i]);
         }
         auto r = compiler.run(args, !out.empty(), !reflection.empty());
         if (!r) return std::unexpected(r.error());

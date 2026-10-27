@@ -47,6 +47,7 @@ Value to_value(const SemanticNode& node) {
             av.set("effect", name(a.effect));
             if (!a.verb.empty()) av.set("verb", a.verb);
             if (!a.answer.empty()) av.set("answer", a.answer);
+            if (a.person) av.set("person", true);
             if (!a.args.empty()) {
                 Value args;
                 for (const auto& [n, t] : a.args) args.set(n, t);
@@ -90,6 +91,7 @@ std::optional<SemanticNode> node_from_value(const Value& v) {
             if (const Value* f = av.get("effect")) a.effect = parse_effect(f->as_string()).value_or(Effect::irreversible);
             if (const Value* f = av.get("verb")) a.verb = std::string(f->as_string());
             if (const Value* f = av.get("answer")) a.answer = std::string(f->as_string());
+            if (const Value* f = av.get("person")) a.person = f->as_bool();
             if (const Value* f = av.get("args"); f && f->map())
                 for (const auto& [k, t] : *f->map()) a.args.emplace_back(k, std::string(t.as_string()));
             n.actions.push_back(std::move(a));

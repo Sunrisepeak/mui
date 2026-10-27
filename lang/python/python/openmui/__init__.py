@@ -456,10 +456,11 @@ def _answer(text):
     return data
 
 
-def verb(name, fn=None, *, effect="reversible", answer="", summary=""):
-    """Registers a verb the script implements (S-1: an irreversible verb states its answer). Usable as a decorator."""
+def verb(name, fn=None, *, effect="reversible", answer="", summary="", person=False):
+    """Registers a verb the script implements (S-1: an irreversible verb states its answer; S-10: a `person` verb
+    is the person's own, refused over the bus). Usable as a decorator."""
     def register(f):
-        _native(_n.verb, name, _dump({"effect": effect, "answer": answer, "summary": summary}),
+        _native(_n.verb, name, _dump({"effect": effect, "answer": answer, "summary": summary, "person": bool(person)}),
                 lambda text: _dump(f(_json.loads(text))))
         return f
     return register(fn) if fn is not None else register

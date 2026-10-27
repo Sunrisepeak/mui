@@ -236,7 +236,8 @@ abi::OmuiEffect effect_of(std::string_view e) {
 JSValue n_verb(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
     auto& s = impl(ctx);
     const Json o = Json::parse(text(ctx, argv[1]), nullptr, false);
-    Session::VerbSpec spec{text(ctx, argv[0]), o.value("summary", ""), effect_of(o.value("effect", "reversible")), o.value("answer", "")};
+    Session::VerbSpec spec{text(ctx, argv[0]), o.value("summary", ""), effect_of(o.value("effect", "reversible")), o.value("answer", ""),
+                           o.value("person", false)};
     const int id = s.keep(argv[2]);
     Script::Impl* self = &s;
     auto r = s.session.verb(std::move(spec), [self, id](const Json& args) -> Result<Json> {

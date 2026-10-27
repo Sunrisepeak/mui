@@ -156,7 +156,7 @@ assert(omui.verb("cts.load", { summary = "Load a CTS scenario" }, function(scena
   for _, name in ipairs(sorted_keys(S.models)) do assert(omui.model(name):push(S.models[name])) end
   for _, name in ipairs(sorted_keys(S.verbs)) do
     local d = S.verbs[name]
-    assert(omui.verb(name, { effect = d.effect or "reversible", answer = d.answer, summary = d.summary }, function(args)
+    assert(omui.verb(name, { effect = d.effect or "reversible", answer = d.answer, summary = d.summary, person = d.person }, function(args)
       for _, a in ipairs(d["do"] or {}) do action(a, nil, args) end
       return value(d.result, nil, args)
     end))

@@ -62,7 +62,9 @@ std::vector<std::filesystem::path> candidates(const std::filesystem::path& slang
 }  // namespace
 
 struct InProcess::Impl {
-    os::library::handle        library;
+    os::library::handle              library;
+    std::vector<os::library::handle> companions;  // Windows: Slang's own DLLs, loaded from its directory
+    std::atomic<bool>                broken{false};  // its pieces did not load here: slangc runs instead
     Api                        api{};
     std::mutex                 lock;
     std::vector<SlangSession*> idle;    // sessions not compiling now
@@ -92,6 +94,14 @@ struct InProcess::Impl {
 
 InProcess::InProcess(std::unique_ptr<Impl> impl) : impl_(std::move(impl)) {}
 InProcess::~InProcess() = default;
+
+bool InProcess::usable() const noexcept { return !impl_->broken.load(std::memory_order_relaxed); }
+
+bool InProcess::environment_failure(std::string_view diagnostics) noexcept {
+    return diagnostics.contains("failed to load downstream compiler") || diagnostics.contains("failed to load dynamic library");
+}
+
+void InProcess::give_up() noexcept { impl_->broken.store(true, std::memory_order_relaxed); }
 
 InProcess* InProcess::beside(const std::filesystem::path& slangc) {
     static std::mutex lock;
@@ -125,6 +135,19 @@ InProcess* InProcess::beside(const std::filesystem::path& slangc) {
                               a.compile && a.diagnostics && a.entry_code && a.request_code && a.reflection && a.reflection_json &&
                               a.dependency_count && a.dependency;
         if (!complete) continue;
+        if constexpr (os::is_windows) {
+            // Slang loads its downstream compilers (slang-glslang for SPIR-V,
+            // dxcompiler for DXIL) by bare name, which Windows looks for beside
+            // the program and on PATH — not beside Slang, as it is for slangc.
+            // Loaded here from Slang's directory first, the bare name finds them.
+            std::error_code ec;
+            for (const auto& entry : std::filesystem::directory_iterator(file.parent_path(), ec)) {
+                const std::string name = os::fs::utf8(entry.path().filename());
+                const bool companion = name.starts_with("slang-glslang") || name.starts_with("dxcompiler") || name.starts_with("dxil");
+                if (!companion || entry.path().extension() != ".dll") continue;
+                if (auto c = os::library::open(entry.path())) impl->companions.push_back(std::move(*c));
+            }
+        }
         impl->library = std::move(*lib);
         slot = std::make_unique<InProcess>(std::move(impl));
         break;

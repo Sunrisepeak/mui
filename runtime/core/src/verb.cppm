@@ -18,6 +18,9 @@ struct VerbDesc {
     Effect      effect = Effect::reversible;
     std::string answer;   // required for irreversible and external verbs
     std::vector<std::pair<std::string, std::string>> args;  // name, type
+    // Only the person at the machine invokes it — the answer to a
+    // confirmation, a permission — never a request over the bus (S-10).
+    bool        person = false;
 };
 
 // Who asks, with what, and the answer they give.
@@ -25,7 +28,14 @@ struct Invocation {
     Value       args;
     std::string answer;
     Actor       actor{"person", "user", {}};
+    // The request came over the bus interface (the agent protocol, another
+    // process): set by the runtime's protocol, never by what the request
+    // says, so an actor that claims to be the person is still remote (S-10).
+    bool        remote = false;
 };
+
+// The refusal of a person's own action asked for over the bus (S-10).
+[[nodiscard]] Envelope person_only(std::string_view what);
 
 // What a verb's implementation returns: a value for the `data` record, or a
 // failure message.

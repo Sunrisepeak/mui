@@ -120,6 +120,23 @@ jobs:
           mcpp test --workspace --profile '${{ matrix.profile }}' --exclude openmui.entry.python --exclude openmui.reflect 2>&1 | tee tests.log
           grep -q "workspace result ok" tests.log || { echo "::error::workspace tests failed"; exit 1; }
 
+      # A pinned picture that differs on one platform is looked at, not
+      # guessed at: every test's pictures, kept when a test failed.
+      - name: Keep the tests' pictures (on failure)
+        if: failure()
+        run: |
+          src="$(python3 -c 'import tempfile; print(tempfile.gettempdir())')/openmui-tests"
+          mkdir -p test-pictures
+          if [ -d "$src" ]; then (cd "$src" && find . -name '*.png' | tar -cf - -T -) | tar -C test-pictures -xf -; fi
+
+      - name: Upload the tests' pictures (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-pictures-${{ matrix.os }}-${{ matrix.toolchain }}-${{ matrix.profile }}
+          path: test-pictures
+          if-no-files-found: ignore
+
       # C++26 reflection (D-39): GCC 16 with -freflection only, and a C++26
       # build of its graph of its own, so on one row — gated on a toolchain
       # that builds reflection beside C headers (V-08, tools/ci/reflect.sh).

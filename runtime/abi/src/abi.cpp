@@ -188,6 +188,7 @@ OmuiRuntime attach(Runtime& runtime, std::string app_id) {
     agent::ProtocolOptions po;
     po.app = r->app_id;
     po.default_actor = "script:binding";
+    po.remote = false;  // the program's own scripts, not the bus (S-10)
     r->protocol = std::make_unique<agent::Protocol>(runtime, std::move(po));
     return r.release();
 }
@@ -228,6 +229,7 @@ OmuiResult omuiCreateRuntime(const OmuiRuntimeCreateInfo* info, OmuiRuntime* out
     agent::ProtocolOptions po;
     po.app = r->app_id;
     po.default_actor = "script:binding";
+    po.remote = false;  // the program's own scripts, not the bus (S-10)
     r->protocol = std::make_unique<agent::Protocol>(*r->rt, std::move(po));
     *out = r.release();
     return OMUI_SUCCESS;
@@ -436,6 +438,11 @@ OmuiResult omuiRegisterVerb(OmuiRuntime rt, const OmuiVerbDesc* desc, PFN_omuiVe
     if (desc->effect < 0 || desc->effect > static_cast<std::int32_t>(Effect::external)) return OMUI_ERROR_INVALID_ARGUMENT;
     d.effect = static_cast<Effect>(desc->effect);
     d.answer = std::string(text(desc->answer));
+    // What is chained to it: the person's own (S-10).
+    for (const auto* link = static_cast<const OmuiVerbPerson*>(desc->next); link; link = static_cast<const OmuiVerbPerson*>(link->next)) {
+        if (link->type != OMUI_STRUCTURE_TYPE_VERB_PERSON) return OMUI_ERROR_INVALID_ARGUMENT;  // nothing else chains to a verb yet
+        d.person = link->person != 0;
+    }
     auto added = rt->rt->verbs().add(std::move(d), [fn, user](const Value& args) -> VerbResult {
         const std::string in = args.json();
         std::string out;

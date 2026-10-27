@@ -139,6 +139,7 @@ spec::SemanticNode Runtime::Impl::semantics(NodeId id) const {
         if (const VerbDesc* d = verbs.find(a.verb)) {
             a.effect = std::max(a.effect, d->effect);
             a.answer = d->answer;
+            a.person = a.person || d->person;
         }
     }
     auto activate = [&]() -> spec::ActionDesc* {
@@ -151,6 +152,9 @@ spec::SemanticNode Runtime::Impl::semantics(NodeId id) const {
             if (spec::ActionDesc* a = activate()) a->effect = std::max(a->effect, *e);
     if (const Value* v = prop("answer"))
         if (spec::ActionDesc* a = activate()) a->answer = std::string(v->as_string());
+    // The person's own (S-10): a node may only add the mark, never lift its verb's.
+    if (const Value* v = prop("person"); v && v->as_bool())
+        if (spec::ActionDesc* a = activate()) a->person = true;
     // A generic node that can be activated is a button to every reader
     // (what ARIA asks of a clickable div), so it is found as one and must be named (S-6).
     if (s.role == Role::generic && activate() && !prop("role")) s.role = Role::button;
@@ -199,6 +203,7 @@ Envelope Runtime::Impl::perform(NodeId id, std::string_view action, const Invoca
         env.error(spec::error_code::refused, std::format("'{}' is disabled", where)).result(spec::exit_code::failure);
         return env;
     }
+    if (a && a->person && call.remote) return person_only(std::format("{} on '{}'", action, where));
     if (a && spec::requires_answer(effect) && call.answer != a->answer)
         return needs_answer(std::format("{} on '{}' ({})", action, where, spec::name(effect)), a->answer);
     if (a && !a->args.empty())
@@ -311,6 +316,7 @@ Envelope Runtime::act_item(NodeId holder, std::string_view key, std::string_view
             .result(spec::exit_code::failure);
         return finish(std::move(env));
     }
+    if (a->person && call.remote) return finish(person_only(std::format("{} on '{}'", action, where)));
     if (spec::requires_answer(a->effect) && call.answer != a->answer)
         return finish(needs_answer(std::format("{} on '{}' ({})", action, where, spec::name(a->effect)), a->answer));
     if (!a->args.empty())

@@ -127,6 +127,7 @@ public:
         std::string name, summary;
         abi::OmuiEffect effect = abi::OMUI_EFFECT_REVERSIBLE;
         std::string answer;
+        bool        person = false;  // the person's own: refused over the bus (S-10)
     };
     Result<void> verb(VerbSpec spec, std::function<Result<Json>(const Json& args)> fn);
 

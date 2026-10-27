@@ -28,8 +28,8 @@ constexpr std::array<std::string_view, 15> visual_props{
 // Animation the runtime applies to whatever the node draws (D-68).
 constexpr std::array<std::string_view, 2> motion_props{"glyph_motion", "pixel_effect"};
 
-constexpr std::array<std::string_view, 10> semantic_props{
-    "label", "description", "role", "origin", "focusable", "disabled", "verb", "verb_args", "effect", "answer",
+constexpr std::array<std::string_view, 11> semantic_props{
+    "label", "description", "role", "origin", "focusable", "disabled", "verb", "verb_args", "effect", "answer", "person",
 };
 
 template <std::size_t N>

@@ -30,6 +30,13 @@ public:
     // slangc's diagnostics.
     [[nodiscard]] std::expected<InProcessOutput, std::string> run(std::span<const std::string> args, bool code, bool reflection);
 
+    // Whether a failure is the environment's — a piece of Slang that did not
+    // load here (a downstream compiler) — not the shader's: then slangc,
+    // which finds its pieces beside it, runs instead from here on.
+    [[nodiscard]] static bool environment_failure(std::string_view diagnostics) noexcept;
+    void give_up() noexcept;
+    [[nodiscard]] bool usable() const noexcept;
+
     InProcess(const InProcess&) = delete;
     InProcess& operator=(const InProcess&) = delete;
     ~InProcess();

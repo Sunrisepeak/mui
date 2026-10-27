@@ -5,6 +5,7 @@ import mcpplibs.cmdline;
 import mcpplibs.os;
 import openmui.core;
 import openmui.agent;
+import openmui.mcp;
 
 namespace omui::cli {
 
@@ -306,6 +307,11 @@ cmd::App app() {
     (void)a.subcommand(check_command());
     (void)a.subcommand(fmt_command());
     (void)a.subcommand(schema_command());
+    cmd::App mcp{"mcp"};
+    (void)mcp.description("An MCP server on standard input and output: agents (Claude Code …) operate running applications with ui_* tools");
+    mcp.option("app").takes_value().value_name("NAME").help("the application a call names none of (default: the one running)");
+    mcp.option("actor").takes_value().value_name("KIND:NAME").help("who acts (default: the client's name, agent:claude-code)");
+    (void)a.subcommand(std::move(mcp));
     return a;
 }
 
@@ -411,7 +417,8 @@ int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err)
                "  omui agent inspect | stats | profile | logs | debug | pipeline | clock   (development: what the application is doing)\n"
                "  omui check FILE…     view documents: names, types, ids, expressions (--json)\n"
                "  omui fmt FILE…       the canonical format (--check)\n"
-               "  omui schema          the JSON Schema of view documents\n\n"
+               "  omui schema          the JSON Schema of view documents\n"
+               "  omui mcp             an MCP server: agents operate running applications (claude mcp add openmui -- omui mcp)\n\n"
                "Run `omui <command> --help` for its options.\n";
         return 0;
     }
@@ -419,6 +426,18 @@ int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err)
     if (parsed->subcommand_name() == "check") return check(parsed->subcommand()->get(), out, err);
     if (parsed->subcommand_name() == "fmt") return fmt(parsed->subcommand()->get(), out, err);
     if (parsed->subcommand_name() == "schema") return schema(parsed->subcommand()->get(), out, err);
+    if (parsed->subcommand_name() == "mcp") {
+        // The protocol is this process's standard streams, whatever `out` is.
+        const cmd::ParsedArgs& m = parsed->subcommand()->get();
+        mcp::ServerOptions o;
+        if (auto v = m.value("app")) o.app = *v;
+        if (auto v = m.value("actor")) o.actor = *v;
+        if (auto d = global(*parsed, "dir")) o.directory = mcpplibs::os::fs::from_utf8(*d);
+        mcp::Server server(std::move(o));
+        mcp::StdioTransport stdio;
+        server.serve(stdio);
+        return 0;
+    }
     err << "omui: no command `" << parsed->subcommand_name() << "`\n";
     return 2;
 }

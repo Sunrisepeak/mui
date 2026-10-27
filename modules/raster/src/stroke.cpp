@@ -199,4 +199,11 @@ void stroke_outline(PathData path, const Affine& m, const Stroke& stroke, Polygo
     }
 }
 
+void stroke_coverage(PathData path, const Stroke& stroke, const Affine& m, PixelRect clip, Coverage& out) {
+    Polygons polygons;
+    stroke_outline(path, m, stroke, polygons);
+    Rasterizer r;
+    r.rasterize(polygons, FillRule::nonzero, clip, out);
+}
+
 }  // namespace omui::raster

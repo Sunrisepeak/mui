@@ -113,6 +113,7 @@ private:
     std::vector<std::unique_ptr<Surface>> layer_pool_;
     std::vector<std::shared_ptr<Mask>>    mask_pool_;
     PathBuilder                path_;      // scratch for rectangles and rounded rectangles
+    Coverage                   shadow_;    // scratch for box shadows
     Coverage                   scratch_;   // scratch for clips and shadows
     Coverage                   scratch2_;
 };
@@ -120,5 +121,16 @@ private:
 // Blurs a coverage mask (three box passes approximating a Gaussian of
 // standard deviation sigma, W3C Filter Effects §9.2), growing its bounds.
 void blur(Coverage& coverage, float sigma);
+
+// The path of a rounded rectangle (radii fitted to its size), as rounded
+// fills, clips and shadows draw it.
+void rounded_rect_path(PathBuilder& pb, const Rect& r, const CornerRadii& radii);
+
+// The coverage of a CSS box shadow (σ = blur / 2): what Canvas::box_shadow
+// composites, for a renderer that composites elsewhere (the GPU). The
+// shadow is cut to `scissor` as a canvas's clip would; `polygons` and
+// `rasterizer` are scratch, so a caller drawing many reuses its own.
+void box_shadow_coverage(const Rect& r, const CornerRadii& radii, Point offset, float blur, float spread, bool inset,
+                         const Affine& m, PixelRect scissor, Coverage& out, Polygons& polygons, Rasterizer& rasterizer);
 
 }  // namespace omui::raster

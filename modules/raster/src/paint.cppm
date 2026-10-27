@@ -57,6 +57,10 @@ public:
     [[nodiscard]] Rgba8 solid_color() const noexcept { return solid_color_; }
     // The premultiplied colours of `count` pixels of row y from column x.
     void shade(int x, int y, int count, Rgba8* out) const;
+    // A gradient's lookup table: entry i is the colour at t = i / 255 (the
+    // paint's opacity applied), looked up at int(t × 255 + 0.5) — what a GPU
+    // renderer uploads to shade exactly as this one does.
+    [[nodiscard]] std::span<const Rgba8, 256> table() const noexcept { return lut_; }
 
 private:
     [[nodiscard]] Rgba8 gradient_at(float px, float py) const;

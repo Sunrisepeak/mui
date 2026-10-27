@@ -19,7 +19,11 @@ kind = "lib"
 sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
+[build-dependencies]
+openmui.slang.rules = { path = "../slang/rules", host-module = true }
+
 [dependencies]
+openmui.rhi    = { path = "../rhi" }
 openmui.geom   = { path = "../geom" }
 openmui.memory = { path = "../memory" }
 openmui.anim   = { path = "../anim" }
@@ -28,3 +32,5 @@ openmui.raster = { path = "../raster" }
 [dev-dependencies]
 openmui.testing = { path = "../../tests/support" }
 openmui.image   = { path = "../image" }
+openmui.rhi.sdl = { path = "../rhi-sdl" }
+mcpplibs.os     = "0.1.2"

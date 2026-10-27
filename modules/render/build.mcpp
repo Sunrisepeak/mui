@@ -1,0 +1,7 @@
+// The GPU backend's shader (shaders/ui.slang) becomes the partition
+// openmui.render:ui_shaders, for the formats this build's target takes.
+import std;
+import mcpp;
+import openmui.slang.rules;
+
+int main() { return openmui::slang::rules::shaders({.module = "openmui.render", .ns = "omui::render::shaders"}) ? 0 : 1; }

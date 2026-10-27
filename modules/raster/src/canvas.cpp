@@ -13,27 +13,6 @@ PixelRect intersect(PixelRect a, PixelRect b) {
     return {l, t, r - l, bb - t};
 }
 
-// A shape for clips and shadows.
-void rounded_rect_path(PathBuilder& pb, const Rect& r, const CornerRadii& radii) {
-    if (radii.zero()) {
-        pb.rect(r);
-        return;
-    }
-    CornerRadii f = radii.fitted(r.size());
-    constexpr float k = 0.5522847498307936f;
-    float l = r.x, t = r.y, rr = r.right(), b = r.bottom();
-    pb.move_to({l + f.top_left, t});
-    pb.line_to({rr - f.top_right, t});
-    if (f.top_right > 0) pb.cubic_to({rr - f.top_right + k * f.top_right, t}, {rr, t + f.top_right - k * f.top_right}, {rr, t + f.top_right});
-    pb.line_to({rr, b - f.bottom_right});
-    if (f.bottom_right > 0) pb.cubic_to({rr, b - f.bottom_right + k * f.bottom_right}, {rr - f.bottom_right + k * f.bottom_right, b}, {rr - f.bottom_right, b});
-    pb.line_to({l + f.bottom_left, b});
-    if (f.bottom_left > 0) pb.cubic_to({l + f.bottom_left - k * f.bottom_left, b}, {l, b - f.bottom_left + k * f.bottom_left}, {l, b - f.bottom_left});
-    pb.line_to({l, t + f.top_left});
-    if (f.top_left > 0) pb.cubic_to({l, t + f.top_left - k * f.top_left}, {l + f.top_left - k * f.top_left, t}, {l + f.top_left, t});
-    pb.close();
-}
-
 // Exact analytic coverage of an axis-aligned rectangle (the fast path of UI
 // backgrounds): per-column × per-row coverage of the fractional edges.
 void rect_coverage(const Rect& r, PixelRect clip, Coverage& out) {
@@ -128,6 +107,28 @@ Rgba8 composite_pixel(Rgba8 d, Rgba8 s, Blend mode) {
 }
 
 }  // namespace
+
+// A shape for clips and shadows.
+void rounded_rect_path(PathBuilder& pb, const Rect& r, const CornerRadii& radii) {
+    if (radii.zero()) {
+        pb.rect(r);
+        return;
+    }
+    CornerRadii f = radii.fitted(r.size());
+    constexpr float k = 0.5522847498307936f;
+    float l = r.x, t = r.y, rr = r.right(), b = r.bottom();
+    pb.move_to({l + f.top_left, t});
+    pb.line_to({rr - f.top_right, t});
+    if (f.top_right > 0) pb.cubic_to({rr - f.top_right + k * f.top_right, t}, {rr, t + f.top_right - k * f.top_right}, {rr, t + f.top_right});
+    pb.line_to({rr, b - f.bottom_right});
+    if (f.bottom_right > 0) pb.cubic_to({rr, b - f.bottom_right + k * f.bottom_right}, {rr - f.bottom_right + k * f.bottom_right, b}, {rr - f.bottom_right, b});
+    pb.line_to({l + f.bottom_left, b});
+    if (f.bottom_left > 0) pb.cubic_to({l + f.bottom_left - k * f.bottom_left, b}, {l, b - f.bottom_left + k * f.bottom_left}, {l, b - f.bottom_left});
+    pb.line_to({l, t + f.top_left});
+    if (f.top_left > 0) pb.cubic_to({l, t + f.top_left - k * f.top_left}, {l + f.top_left - k * f.top_left, t}, {l + f.top_left, t});
+    pb.close();
+}
+
 
 Canvas::Canvas(Surface& target) : base_(&target) {
     clips_.push_back({{0, 0, target.width(), target.height()}, nullptr});
@@ -465,8 +466,9 @@ void blur(Coverage& c, float sigma) {
     for (std::size_t i = 0; i < buf.size(); ++i) c.values[i] = static_cast<std::uint8_t>(std::min<std::uint32_t>(255, buf[i]));
 }
 
-void Canvas::box_shadow(const Rect& r, const CornerRadii& radii, Point offset, float blur_radius, float spread,
-                        Color color, bool inset, const Affine& m) {
+void box_shadow_coverage(const Rect& r, const CornerRadii& radii, Point offset, float blur_radius, float spread, bool inset,
+                         const Affine& m, PixelRect scissor, Coverage& out, Polygons& polygons_, Rasterizer& rasterizer_) {
+    out = Coverage{};
     float sigma = blur_radius / 2;
     PathBuilder pb;
     Coverage shape;
@@ -478,7 +480,7 @@ void Canvas::box_shadow(const Rect& r, const CornerRadii& radii, Point offset, f
         rounded_rect_path(pb, s, rr);
         // Rasterise beyond the clip by the blur's reach, so the blur sees the whole edge.
         int reach = 8 + static_cast<int>(std::ceil(3 * blur_radius * m.max_scale()));
-        PixelRect sc = clip().scissor;
+        PixelRect sc = scissor;
         PixelRect limit = intersect(everywhere, {sc.x - reach, sc.y - reach, sc.width + 2 * reach, sc.height + 2 * reach});
         polygons_.clear();
         flatten(pb.data(), m, polygons_);
@@ -498,7 +500,7 @@ void Canvas::box_shadow(const Rect& r, const CornerRadii& radii, Point offset, f
                     std::size_t i = static_cast<std::size_t>(y - shape.bounds.y) * shape.bounds.width + (x - shape.bounds.x);
                     shape.values[i] = static_cast<std::uint8_t>(mul255(shape.values[i], 255u - inside.at(x, y)));
                 }
-        composite(shape, Shader(Paint::solid(color)));
+        out = std::move(shape);
     } else {
         // Inset: the blurred complement of the shrunk, offset box, inside the box.
         Rect s{r.x + offset.x + spread, r.y + offset.y + spread, std::max(0.0f, r.width - 2 * spread),
@@ -510,7 +512,7 @@ void Canvas::box_shadow(const Rect& r, const CornerRadii& radii, Point offset, f
         Coverage outer;
         polygons_.clear();
         flatten(box.data(), m, polygons_);
-        rasterizer_.rasterize(polygons_, FillRule::nonzero, clip().scissor, outer);
+        rasterizer_.rasterize(polygons_, FillRule::nonzero, scissor, outer);
         if (outer.empty()) return;
         PixelRect pad{outer.bounds.x - 4 - static_cast<int>(3 * blur_radius), outer.bounds.y - 4 - static_cast<int>(3 * blur_radius),
                       outer.bounds.width + 8 + static_cast<int>(6 * blur_radius), outer.bounds.height + 8 + static_cast<int>(6 * blur_radius)};
@@ -528,7 +530,7 @@ void Canvas::box_shadow(const Rect& r, const CornerRadii& radii, Point offset, f
                 hole.values[i] = static_cast<std::uint8_t>(255 - shape.values[static_cast<std::size_t>(y) * shape.bounds.width + x]);
             }
         blur(hole, sigma * m.max_scale());
-        Coverage out = outer;
+        out = outer;
         for (std::int32_t y = 0; y < outer.bounds.height; ++y)
             for (std::int32_t x = 0; x < outer.bounds.width; ++x) {
                 int gx = x + outer.bounds.x, gy = y + outer.bounds.y;
@@ -539,8 +541,14 @@ void Canvas::box_shadow(const Rect& r, const CornerRadii& radii, Point offset, f
                 std::size_t i = static_cast<std::size_t>(y) * outer.bounds.width + x;
                 out.values[i] = static_cast<std::uint8_t>(mul255(outer.values[i], h));
             }
-        composite(out, Shader(Paint::solid(color)));
     }
+}
+
+
+void Canvas::box_shadow(const Rect& r, const CornerRadii& radii, Point offset, float blur_radius, float spread,
+                        Color color, bool inset, const Affine& m) {
+    box_shadow_coverage(r, radii, offset, blur_radius, spread, inset, m, clip().scissor, shadow_, polygons_, rasterizer_);
+    if (!shadow_.empty()) composite(shadow_, Shader(Paint::solid(color)));
 }
 
 void Canvas::push_mask(const Coverage& coverage) {

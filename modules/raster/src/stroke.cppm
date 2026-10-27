@@ -27,4 +27,8 @@ struct Stroke {
 // width is in path units: a scaled transform scales it.
 void stroke_outline(PathData path, const Affine& m, const Stroke& stroke, Polygons& out);
 
+// The coverage of a stroked path, as Canvas::stroke_path composites it (the
+// outline filled nonzero), cut to `clip`.
+void stroke_coverage(PathData path, const Stroke& stroke, const Affine& m, PixelRect clip, Coverage& out);
+
 }  // namespace omui::raster

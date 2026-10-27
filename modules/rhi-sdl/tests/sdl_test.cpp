@@ -1,11 +1,12 @@
 // omui.rhi on SDL_GPU, on whatever device this machine has (lavapipe in
 // Linux CI). With OMUI_REQUIRE_GPU=1 (CI) a missing device fails; otherwise
 // it is said and the cases pass vacuously. Uploads, clears, copies and
-// readback, byte for byte; the rhi conformance suite (openmui.rhi.cts) runs
-// the shader cases.
+// readback, byte for byte; then the rhi conformance suite (openmui.rhi.cts),
+// every case with the suite's own shaders.
 import std;
 import openmui.rhi;
 import openmui.rhi.sdl;
+import openmui.rhi.cts;
 import mcpplibs.os;
 import openmui.testing;
 
@@ -20,7 +21,7 @@ bool required() {
 
 std::unique_ptr<Device> open_device() {
     sdl::Options o;
-    o.formats = formats({ShaderFormat::spirv, ShaderFormat::msl, ShaderFormat::dxbc});
+    o.formats = cts::shader_formats();  // what the suite's shaders were compiled to
     if (auto lib = mcpplibs::os::env::get("OMUI_VULKAN_LIBRARY")) o.vulkan_library = *lib;
     auto d = sdl::create(o);
     if (!d) {
@@ -86,6 +87,17 @@ int main(int argc, char** argv) {
         std::array<std::uint32_t, 4> back{};
         check(d->read(*b, 16, std::as_writable_bytes(std::span(back))).has_value());
         check(back == words, std::format("{}", back));
+    });
+
+    s.test("the omui.rhi conformance suite (level B): every case, exactly", [] {
+        auto d = open_device();
+        if (!d) return;
+        const auto outcomes = cts::run(*d);
+        check_eq(outcomes.size(), cts::cases().size());
+        for (const cts::Outcome& o : outcomes) {
+            std::println("  cts {:<16} {}", o.name, o.passed ? "ok" : o.detail);
+            check(o.passed, std::format("{}: {}", o.name, o.detail));
+        }
     });
 
     s.test("an invalid list never reaches SDL", [] {

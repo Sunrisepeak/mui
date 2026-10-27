@@ -26,4 +26,5 @@ compat.sdl3    = "3.4.18"
 
 [dev-dependencies]
 openmui.testing = { path = "../../tests/support" }
+openmui.rhi.cts = { path = "../rhi-cts" }
 mcpplibs.os     = "0.1.2"

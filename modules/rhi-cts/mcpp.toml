@@ -1,0 +1,26 @@
+# openmui.rhi.cts — the conformance suite every omui.rhi backend runs (level B,
+# plan §15): its own Slang shaders, compiled at build time for the target's
+# formats (openmui.slang.rules), and cases that render or dispatch and read
+# back what an exact device must produce. A backend's tests call run(device).
+[package]
+namespace   = "openmui.rhi"
+name        = "cts"
+version     = "0.1.0"
+description = "The omui.rhi backend conformance suite: shaders and cases with exact expected pixels"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "backend"
+
+[targets.openmui-rhi-cts]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[build-dependencies]
+openmui.slang.rules = { path = "../slang/rules", host-module = true }
+
+[dependencies]
+openmui.rhi = { path = "../rhi" }

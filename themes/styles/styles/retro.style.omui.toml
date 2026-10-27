@@ -1,0 +1,36 @@
+# Retro: a green phosphor terminal on an old curved screen — monospace type,
+# square corners, scanlines and an aperture grille over the whole window.
+[style.retro]
+doc       = "A green phosphor terminal on an old curved screen."
+theme     = "dark"
+crossfade = 0.5
+
+[style.retro.colors]
+background      = "#020d06"
+surface         = "#04170b"
+surface_variant = "#062312"
+surface_pressed = "#0a3a1d"
+border          = "#22c55e / 0.6"
+text            = "#4ade80"
+text_muted      = "#16a34a"
+accent          = "#4ade80"
+on_accent       = "#020d06"
+track           = "#064e3b"
+thumb           = "#86efac"
+
+[style.retro.text]
+display = { families = ["JetBrains Mono"] }
+title   = { families = ["JetBrains Mono"] }
+heading = { families = ["JetBrains Mono"] }
+body    = { families = ["JetBrains Mono"] }
+label   = { families = ["JetBrains Mono"] }
+caption = { families = ["JetBrains Mono"] }
+
+[style.retro.radius]
+small  = 0
+medium = 0
+large  = 2
+xl     = 2
+
+[style.retro.effects]
+window = { effect = "crt", curvature = 0.07, scanlines = 0.55, mask = 0.35, vignette = 0.7 }

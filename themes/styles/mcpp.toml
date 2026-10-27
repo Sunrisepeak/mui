@@ -1,0 +1,33 @@
+# openmui.theme.styles — the style packs (S2, D-69) as data, embedded: glass,
+# neon, retro (a CRT), ink (on paper) and liquid. Each is a theme to start
+# from, the tokens it changes and the effects it puts on the window, on
+# component types and on roles; add_styles() adds them to the program's
+# library, theme::apply_style(rt, name) shows one (a cross-fade from the
+# last). The semantic tree is the same under all of them.
+[package]
+namespace   = "openmui.theme"
+name        = "styles"
+version     = "0.1.0"
+description = "openmui's style packs: glass, neon, retro CRT, ink on paper, liquid"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind   = "theme"
+styles = ["styles/*.style.omui.toml"]
+
+[targets.openmui-theme-styles]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+"openmui.theme"         = { path = "../../runtime/theme" }
+"openmui.theme.default" = { path = "../default" }
+
+[build-dependencies]
+openmui.rules = { path = "../../mcpp/rules", host-module = true }
+
+[dev-dependencies]
+openmui.testing = { path = "../../tests/support" }

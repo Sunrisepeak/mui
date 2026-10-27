@@ -1,0 +1,21 @@
+# Liquid: soft, rounded and fluid — a switch's thumb and track, a slider's
+# fill and handle merge like drops as they move.
+[style.liquid]
+doc       = "Soft and fluid: controls that flow like drops."
+theme     = "light"
+crossfade = 0.4
+
+[style.liquid.colors]
+background = "#eef2ff"
+accent     = "#6366f1"
+track      = "#c7d2fe"
+
+[style.liquid.radius]
+small  = 10
+medium = 16
+large  = 24
+xl     = 28
+
+[style.liquid.effects]
+toggle = { effect = "metaball", smoothness = 14, color_r = 0.39, color_g = 0.4, color_b = 0.95 }
+slider = { effect = "metaball", smoothness = 12, color_r = 0.39, color_g = 0.4, color_b = 0.95 }

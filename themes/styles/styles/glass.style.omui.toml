@@ -1,0 +1,27 @@
+# Glass: frosted panels over a deep, colourful backdrop — the cards are
+# liquid glass (the backdrop bent at their bevels, frosted, tinted), the
+# controls light and clear.
+[style.glass]
+doc       = "Frosted glass panels over a deep, colourful backdrop."
+theme     = "dark"
+crossfade = 0.45
+
+[style.glass.colors]
+background      = "#1e1b4b"
+surface         = "#ffffff / 0.10"
+surface_variant = "#ffffff / 0.16"
+surface_pressed = "#ffffff / 0.24"
+border          = "#ffffff / 0.28"
+text            = "#f8fafc"
+text_muted      = "#c7d2fe"
+accent          = "#a5b4fc"
+on_accent       = "#1e1b4b"
+track           = "#ffffff / 0.25"
+
+[style.glass.radius]
+medium = 14
+large  = 20
+xl     = 24
+
+[style.glass.effects]
+"role:region" = { effect = "liquid_glass", thickness = 14, blur = 10, tint_a = 0.12, dispersion = 0.4, rim = 0.7 }

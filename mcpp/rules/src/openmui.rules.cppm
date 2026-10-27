@@ -392,4 +392,65 @@ inline bool behaviors(behavior_options opt) {
     return submit(edges);
 }
 
+
+// ── embedded data files (D-73's embed plugin) ───────────────────────────────
+
+struct embed_options {
+    std::string module;                                   // the package's module
+    std::string ns;                                       // the namespace of the texts (default: the module's)
+    std::string dir;                                      // where the files are
+    std::string suffix;                                   // which: ".style.omui.toml"
+    std::string tag;                                      // the partitions' and constants' suffix: <stem>_<tag>
+    std::string out_dir = std::string(mcpp::out_dir());
+};
+
+// Each file `<stem><suffix>` in `dir` as a partition `<module>:<stem>_<tag>`
+// holding its text (`-` in the stem becomes `_`): a program carries its data
+// files and reads none to have them.
+inline std::vector<edge> plan_embed(const embed_options& opt) {
+    const std::string root = mcpp::manifest_dir();
+    const std::string gen = std::string(mcpp::dep_bin("openmui.gen", "omui-gen"));
+    if (root.empty() || opt.module.empty() || opt.suffix.empty() || opt.tag.empty() || gen.empty()) {
+        std::println(std::cerr, "openmui.rules: embed() runs from build.mcpp, with a module, a suffix and a tag, and omui-gen built for the build");
+        return {};
+    }
+    std::string ns = opt.ns;
+    if (ns.empty())
+        for (char c : opt.module) ns += c == '.' ? std::string("::") : std::string(1, c);
+    const std::string out = utf8(std::filesystem::path(opt.out_dir) / "openmui");
+    std::vector<std::filesystem::path> files;
+    std::error_code ec;
+    for (const auto& e : std::filesystem::directory_iterator(std::filesystem::path(root) / opt.dir, ec))
+        if (utf8(e.path()).ends_with(opt.suffix)) files.push_back(e.path());
+    std::ranges::sort(files);
+    std::vector<edge> edges;
+    for (const auto& f : files) {
+        std::string stem = utf8(f.filename());
+        stem = stem.substr(0, stem.size() - opt.suffix.size());
+        for (char& c : stem)
+            if (c == '-' || c == '.') c = '_';
+        const std::string name = stem + "_" + opt.tag;
+        edge e;
+        e.id = std::format("openmui:{}:{}", opt.tag, stem);
+        e.description = std::format("{} {} → {}.cppm ({})", opt.tag, utf8(f.filename()), name, opt.module);
+        e.command = {gen, "embed", utf8(f), "--module", opt.module, "--namespace", ns, "--name", name, "--out", out};
+        e.inputs = {utf8(f), gen};
+        e.outputs = {out + "/" + name + ".cppm"};
+        e.provides = {opt.module + ":" + name};
+        e.imports = {"std"};
+        edges.push_back(std::move(e));
+    }
+    return edges;
+}
+
+inline bool embed(embed_options opt) {
+    mcpp::rerun_if_changed_glob((opt.dir + "/**").c_str());
+    auto edges = plan_embed(opt);
+    if (edges.empty()) {
+        std::println(std::cerr, "openmui.rules: no {} file in {}/", opt.suffix, opt.dir);
+        return false;
+    }
+    return submit(edges);
+}
+
 }  // namespace openmui::rules

@@ -1,0 +1,24 @@
+# Neon: light in the dark — buttons and switches are tubes of cyan, panels
+# glow faintly magenta at their edges.
+[style.neon]
+doc       = "Light in the dark: tubes of cyan, panels glowing at their edges."
+theme     = "dark"
+crossfade = 0.4
+
+[style.neon.colors]
+background      = "#04050d"
+surface         = "#0a0e1f"
+surface_variant = "#11163a"
+border          = "#f0abfc / 0.45"
+text            = "#e0f2fe"
+text_muted      = "#7dd3fc"
+accent          = "#22d3ee"
+on_accent       = "#04050d"
+track           = "#1e1b4b"
+thumb           = "#e0f2fe"
+
+[style.neon.effects]
+button        = { effect = "neon", color_r = 0.13, color_g = 0.83, color_b = 0.93, radius = 12, intensity = 1.1 }
+toggle        = { effect = "neon", color_r = 0.13, color_g = 0.83, color_b = 0.93, radius = 10, intensity = 0.9 }
+slider        = { effect = "neon", color_r = 0.13, color_g = 0.83, color_b = 0.93, radius = 8, intensity = 0.7 }
+"role:region" = { effect = "neon", color_r = 0.94, color_g = 0.67, color_b = 0.99, radius = 18, intensity = 0.35 }

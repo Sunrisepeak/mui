@@ -1,0 +1,11 @@
+// The style packs (styles/*.style.omui.toml) embedded in the program:
+// partitions openmui.theme.styles:<name>_style.
+import std;
+import mcpp;
+import openmui.rules;
+
+int main() {
+    return openmui::rules::embed({.module = "openmui.theme.styles", .ns = "omui::themes", .dir = "styles", .suffix = ".style.omui.toml", .tag = "style"})
+               ? 0
+               : 1;
+}

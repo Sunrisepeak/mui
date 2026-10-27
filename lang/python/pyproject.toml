@@ -1,0 +1,15 @@
+# The `openmui` wheel: `pip install ./lang/python` (one wheel per platform,
+# cp310-abi3). The backend (packaging/openmui_build.py) builds the extension
+# with mcpp; the version is lang/python/mcpp.toml's.
+[build-system]
+requires = []
+build-backend = "openmui_build"
+backend-path = ["packaging"]
+
+[project]
+name = "openmui"
+dynamic = ["version"]
+description = "openmui for Python: one semantic tree for pixels, accessibility, agents and tests"
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.10"

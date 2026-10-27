@@ -1,15 +1,16 @@
-# Example 03 — a tally counter, written four times
+# Example 03 — a tally counter, written five times
 
 `tally` counts people at a door, laps or reps towards a goal: **+1**, **−1** (it stops at zero), **Reset**, and a slider for the goal, with a progress bar and how many are left.
 
-The same interface is written four times:
+The same interface is written five times:
 
 - in C++, with the builders: [`src/tally.cpp`](src/tally.cpp);
 - as a view document: [`ui/tally.view.omui.json`](ui/tally.view.omui.json) (view-data-files §3), with CEL expressions for what the text shows and `set` operations for what the buttons do;
 - in Lua: [`lua/tally.lua`](lua/tally.lua) ([openmui.lang.lua](../../lang/lua)). It uses table builders and signal arithmetic, and its handlers run on the script's own thread.
 - in TypeScript: [`ts/tally.ts`](ts/tally.ts) ([openmui.lang.js](../../lang/js)). esbuild compiles it, and QuickJS-ng runs it.
+- in Python: [`python/tally.py`](python/tally.py) ([openmui for Python](../../lang/python)). The builders nest as `with` blocks, the stubs type it (`mypy --strict` passes), and `pip install ./lang/python` then `python examples/03-counter/python/tally.py` runs it.
 
-The four are **one semantic tree and the same pixels**, before and after every click and every agent action (the CTS S level). The Python version joins them when that binding lands.
+The five are **one semantic tree and the same pixels**, before and after every click and every agent action (the CTS S level). The Python version is checked by the Python binding's suite, which runs it in CPython against the view document and pins the same pixel hash (`lang/python/tests/test_example_counter.py`).
 
 ```sh
 mcpp run -p openmui.example.counter                                     # the C++ view

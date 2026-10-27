@@ -67,6 +67,17 @@ struct Element {
     std::shared_ptr<Region>                    region;   // set: this is a region, not a component
 };
 
+// An element tree as the bindings' own layers (the JavaScript prelude, the
+// Python package) send it, as JSON:
+//   {"type", "id", "props": {name: {"c": constant} | {"e": cel, "s": [signals]}
+//                                  | {"b": signal} | {"t": key, "a": [{"e", "s"}]}},
+//    "on": {event: handler index}, "animate": {prop: transition}, "children": […]}
+//   {"region": {"kind": "when", "cond": {"e", "s"}, "then": […], "else": […]}
+//              | {"kind": "each", "model", "variable", "where": {"e", "s"} | null, "body": {…}}
+//              | {"kind": "slot", "name"}}
+// `handler` gives the handler of an index; nothing for an index it has not.
+[[nodiscard]] Result<Element> element_from_json(const Json& tree, const std::function<std::optional<Handler>(std::size_t)>& handler);
+
 // "TextBox", "textBox" and "text-box" are the contract's `text_box`.
 [[nodiscard]] std::string contract_name(std::string_view name);
 

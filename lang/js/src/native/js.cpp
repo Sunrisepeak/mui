@@ -121,89 +121,6 @@ std::int64_t integer(JSContext* ctx, JSValueConst v) {
     return x;
 }
 
-// ── the element tree the prelude serialised ──
-
-Expr expr_of(const Json& j) {
-    Expr e{j.value("e", ""), {}};
-    if (j.contains("s"))
-        for (const Json& s : j["s"]) e.signals.push_back(s.get<abi::OmuiSignal>());
-    return e;
-}
-
-// `handlers`: the kept functions, by the prelude's index; with none (a
-// document only shown), handlers are placeholders.
-std::optional<Element> element_of(Script::Impl& s, const Json& j, const std::vector<int>& handlers, std::string& error) {
-    Element e;
-    if (j.contains("region")) {
-        const Json& r = j["region"];
-        auto region = std::make_shared<Region>();
-        const std::string kind = r.value("kind", "");
-        auto list = [&](const Json& a, std::vector<Element>& out) {
-            for (const Json& c : a) {
-                auto x = element_of(s, c, handlers, error);
-                if (!x) return false;
-                out.push_back(std::move(*x));
-            }
-            return true;
-        };
-        if (kind == "when") {
-            region->kind = Region::Kind::when;
-            region->condition = expr_of(r["cond"]);
-            if (!list(r["then"], region->then) || !list(r["else"], region->otherwise)) return std::nullopt;
-        } else if (kind == "each") {
-            region->kind = Region::Kind::each;
-            region->model = r.value("model", "");
-            region->variable = r.value("variable", "row");
-            if (r.contains("where") && r["where"].is_object()) region->condition = expr_of(r["where"]);
-            auto body = element_of(s, r["body"], handlers, error);
-            if (!body) return std::nullopt;
-            region->then.push_back(std::move(*body));
-        } else {
-            region->kind = Region::Kind::slot;
-            region->slot = r.value("name", "");
-        }
-        e.region = std::move(region);
-        return e;
-    }
-    e.type = j.value("type", "");
-    e.id = j.value("id", "");
-    for (auto it = j["props"].begin(); it != j["props"].end(); ++it) {
-        const Json& p = it.value();
-        Prop prop;
-        if (p.contains("c")) prop.value = p["c"];
-        else if (p.contains("b")) {
-            prop.kind = Prop::Kind::bind;
-            prop.signal = p["b"].get<abi::OmuiSignal>();
-        } else if (p.contains("e")) {
-            prop.kind = Prop::Kind::expr;
-            prop.expr = expr_of(p);
-        } else if (p.contains("t")) {
-            prop.kind = Prop::Kind::tr;
-            prop.value = p["t"];
-            for (const Json& a : p["a"]) prop.args.push_back(expr_of(a));
-        }
-        e.props.emplace_back(it.key(), std::move(prop));
-    }
-    Script::Impl* self = &s;
-    for (auto it = j["on"].begin(); it != j["on"].end(); ++it) {
-        const std::size_t index = it.value().get<std::size_t>();
-        if (index >= handlers.size() && !handlers.empty()) {
-            error = "a handler is missing";
-            return std::nullopt;
-        }
-        const int id = handlers.empty() ? 0 : handlers[index];
-        e.on.emplace_back(it.key(), [self, id](const Json& event) { (void)self->call(id, event.dump(), true); });
-    }
-    if (j.contains("animate") && j["animate"].is_object())
-        for (auto it = j["animate"].begin(); it != j["animate"].end(); ++it) e.animate.emplace_back(it.key(), it.value());
-    for (const Json& c : j["children"]) {
-        auto x = element_of(s, c, handlers, error);
-        if (!x) return std::nullopt;
-        e.children.push_back(std::move(*x));
-    }
-    return e;
-}
-
 // ── __omui ──
 
 JSValue n_signal_create(JSContext* ctx, JSValueConst, int argc, JSValueConst* argv) {
@@ -270,9 +187,13 @@ JSValue n_mount(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
         handlers.push_back(s.keep(f));
         JS_FreeValue(ctx, f);
     }
-    std::string error;
-    auto root = element_of(s, tree, handlers, error);
-    Result<void> r = root ? s.session.mount(slot, *root) : Result<void>(std::unexpected(Error{abi::OMUI_ERROR_INVALID_ARGUMENT, error}));
+    Script::Impl* self = &s;
+    auto root = element_from_json(tree, [&](std::size_t index) -> std::optional<Handler> {
+        if (index >= handlers.size()) return std::nullopt;
+        const int id = handlers[index];
+        return [self, id](const Json& event) { (void)self->call(id, event.dump(), true); };
+    });
+    Result<void> r = root ? s.session.mount(slot, *root) : Result<void>(std::unexpected(root.error()));
     if (!r) {
         for (int id : handlers) s.release(id);
         return fail(ctx, r.error().text());
@@ -296,9 +217,9 @@ JSValue n_unmount(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
 JSValue n_document(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
     auto& s = impl(ctx);
     const Json tree = Json::parse(text(ctx, argv[0]), nullptr, false);
-    std::string error;
-    auto root = element_of(s, tree, {}, error);
-    if (!root) return fail(ctx, error);
+    // A document only shown: its handlers are placeholders.
+    auto root = element_from_json(tree, [](std::size_t) -> std::optional<Handler> { return [](const Json&) {}; });
+    if (!root) return fail(ctx, root.error().text());
     return string(ctx, s.session.document(*root).dump());
 }
 

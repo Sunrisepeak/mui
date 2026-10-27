@@ -6,3 +6,6 @@ compile_commands.json
 .DS_Store
 .xlings/
 .template-check/
+__pycache__/
+*.pyc
+dist/

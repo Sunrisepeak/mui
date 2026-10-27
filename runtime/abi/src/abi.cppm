@@ -28,4 +28,8 @@ void set_window_runner(WindowRunner runner);
 [[nodiscard]] OmuiRuntime attach(Runtime& runtime, std::string app_id = {});
 void detach(OmuiRuntime rt);
 
+// Called (from any thread) after omuiPost queues work: a host whose loop
+// sleeps until something happens wakes it (Desktop::wake).
+void set_wake(OmuiRuntime rt, std::function<void()> wake);
+
 }  // namespace omui::abi

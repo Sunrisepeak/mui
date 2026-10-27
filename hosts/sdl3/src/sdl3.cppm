@@ -35,6 +35,9 @@ struct DesktopOptions {
     std::string             video_driver;     // "" the platform's; "offscreen" in CI
     std::string             render_driver;    // "" the best; "software" for exact read-back
     bool                    parallel_raster = true;  // the CPU renderer draws bands of rows at the same time
+    // Show a runtime that exists already rather than make one (the window
+    // does not own it; it must outlive the desktop).
+    Runtime*                runtime = nullptr;
 };
 
 class Desktop {

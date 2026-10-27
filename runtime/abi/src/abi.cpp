@@ -88,6 +88,7 @@ struct OmuiRuntime_T {
     std::unique_ptr<Runtime>                          owned;    // nothing when attached to a host's runtime
     Runtime*                                          rt = nullptr;
     std::shared_ptr<bool>                             alive = std::make_shared<bool>(true);
+    std::function<void()>                             wake;  // the host's loop, when it sleeps
     std::unique_ptr<typeset::GlyphCache>              glyphs;
     std::unique_ptr<agent::Protocol>                  protocol;
     render::CpuRenderer                               renderer;
@@ -185,6 +186,10 @@ OmuiRuntime attach(Runtime& runtime, std::string app_id) {
     po.default_actor = "script:binding";
     r->protocol = std::make_unique<agent::Protocol>(runtime, std::move(po));
     return r.release();
+}
+
+void set_wake(OmuiRuntime rt, std::function<void()> wake) {
+    if (rt) rt->wake = std::move(wake);
 }
 
 void detach(OmuiRuntime rt) {
@@ -537,6 +542,7 @@ OmuiResult omuiWait(OmuiRuntime rt, OmuiString condition_json, std::uint32_t tim
 OmuiResult omuiPost(OmuiRuntime rt, PFN_omuiTask fn, void* user) noexcept {
     if (!rt || !fn) return OMUI_ERROR_INVALID_ARGUMENT;
     rt->rt->queue().post([fn, user] { fn(user); });
+    if (rt->wake) rt->wake();
     return OMUI_SUCCESS;
 }
 

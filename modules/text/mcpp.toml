@@ -24,7 +24,7 @@ openmui.geom    = { path = "../geom" }
 openmui.unicode = { path = "../unicode" }
 openmui.raster  = { path = "../raster" }
 openmui.render  = { path = "../render" }
-mcpplibs.os     = "0.1.1"
+mcpplibs.os     = "0.1.2"
 compat.harfbuzz = "14.3.0"
 compat.fribidi  = "1.0.16"
 

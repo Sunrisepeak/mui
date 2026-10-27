@@ -26,7 +26,7 @@ openmui.viewdoc  = { path = "../../runtime/viewdoc" }
 openmui.ui.base  = { path = "../../components/base" }
 openmui.ui.markdown = { path = "../../components/markdown" }
 mcpplibs.cmdline = "0.0.2"
-mcpplibs.os      = "0.1.1"
+mcpplibs.os      = "0.1.2"
 
 [dev-dependencies]
 openmui.testing       = { path = "../../tests/support" }

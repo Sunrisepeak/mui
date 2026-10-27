@@ -29,7 +29,7 @@ sources = ["src/*.cppm", "src/*.cpp"]
 openmui.sdk      = { path = "../.." }
 openmui.trace    = { path = "../../modules/trace" }
 openmui.markdown = { path = "../../modules/markdown" }
-mcpplibs.os      = "0.1.1"
+mcpplibs.os      = "0.1.2"
 
 [dev-dependencies]
 openmui.testing = { path = "../support" }

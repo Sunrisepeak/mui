@@ -96,6 +96,100 @@ std::string contract_name(std::string_view s) {
     return out;
 }
 
+// ── the element tree the bindings' own layers send ──────────────────────────────
+
+namespace {
+
+Expr expr_of(const Json& j) {
+    Expr e{j.value("e", ""), {}};
+    if (j.contains("s") && j["s"].is_array())
+        for (const Json& s : j["s"]) e.signals.push_back(s.get<abi::OmuiSignal>());
+    return e;
+}
+
+Result<Element> element_of(const Json& j, const std::function<std::optional<Handler>(std::size_t)>& handler, int depth) {
+    auto bad = [](std::string m) { return std::unexpected(Error{abi::OMUI_ERROR_INVALID_ARGUMENT, std::move(m)}); };
+    if (depth > 200) return bad("the element tree is deeper than 200 levels");
+    if (!j.is_object()) return bad("an element is an object");
+    auto list = [&](const Json& a, std::vector<Element>& out) -> Result<void> {
+        if (!a.is_array()) return bad("children are a list");
+        for (const Json& c : a) {
+            auto x = element_of(c, handler, depth + 1);
+            if (!x) return std::unexpected(x.error());
+            out.push_back(std::move(*x));
+        }
+        return {};
+    };
+    Element e;
+    if (j.contains("region")) {
+        const Json& r = j["region"];
+        auto region = std::make_shared<Region>();
+        const std::string kind = r.value("kind", "");
+        if (kind == "when") {
+            region->kind = Region::Kind::when;
+            region->condition = expr_of(r.value("cond", Json::object()));
+            if (auto x = list(r.value("then", Json::array()), region->then); !x) return std::unexpected(x.error());
+            if (auto x = list(r.value("else", Json::array()), region->otherwise); !x) return std::unexpected(x.error());
+        } else if (kind == "each") {
+            region->kind = Region::Kind::each;
+            region->model = r.value("model", "");
+            region->variable = r.value("variable", "row");
+            if (r.contains("where") && r["where"].is_object()) region->condition = expr_of(r["where"]);
+            auto body = element_of(r.value("body", Json::object()), handler, depth + 1);
+            if (!body) return std::unexpected(body.error());
+            region->then.push_back(std::move(*body));
+        } else if (kind == "slot") {
+            region->kind = Region::Kind::slot;
+            region->slot = r.value("name", "");
+        } else {
+            return bad(std::format("no region `{}`", kind));
+        }
+        e.region = std::move(region);
+        return e;
+    }
+    e.type = j.value("type", "");
+    e.id = j.value("id", "");
+    if (j.contains("props") && j["props"].is_object())
+        for (auto it = j["props"].begin(); it != j["props"].end(); ++it) {
+            const Json& p = it.value();
+            Prop prop;
+            if (p.contains("c")) {
+                prop.value = p["c"];
+            } else if (p.contains("b")) {
+                prop.kind = Prop::Kind::bind;
+                prop.signal = p["b"].get<abi::OmuiSignal>();
+            } else if (p.contains("e")) {
+                prop.kind = Prop::Kind::expr;
+                prop.expr = expr_of(p);
+            } else if (p.contains("t")) {
+                prop.kind = Prop::Kind::tr;
+                prop.value = p["t"];
+                if (p.contains("a"))
+                    for (const Json& a : p["a"]) prop.args.push_back(expr_of(a));
+            } else {
+                return bad(std::format("the property `{}` has no value", it.key()));
+            }
+            e.props.emplace_back(it.key(), std::move(prop));
+        }
+    if (j.contains("on") && j["on"].is_object())
+        for (auto it = j["on"].begin(); it != j["on"].end(); ++it) {
+            auto h = handler(it.value().get<std::size_t>());
+            if (!h) return bad(std::format("the handler of `{}` is missing", it.key()));
+            e.on.emplace_back(it.key(), std::move(*h));
+        }
+    if (j.contains("animate") && j["animate"].is_object())
+        for (auto it = j["animate"].begin(); it != j["animate"].end(); ++it) e.animate.emplace_back(it.key(), it.value());
+    if (j.contains("children"))
+        if (auto x = list(j["children"], e.children); !x) return std::unexpected(x.error());
+    return e;
+}
+
+}  // namespace
+
+Result<Element> element_from_json(const Json& tree, const std::function<std::optional<Handler>(std::size_t)>& handler) {
+    return element_of(tree, handler, 0);
+}
+
 // ── the document of an element tree ──────────────────────────────────────────
 
 namespace {

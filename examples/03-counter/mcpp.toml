@@ -1,7 +1,8 @@
-# Example 03 — a tally counter, written four times (canvas-markdown §5): in
+# Example 03 — a tally counter, written five times (canvas-markdown §5): in
 # C++ (src/tally.cpp), as a view document (ui/tally.view.omui.json), in Lua
-# (lua/tally.lua) and in TypeScript (ts/tally.ts). They make the same semantic
-# tree and the same pixels (CTS S level); Python joins them with its binding.
+# (lua/tally.lua), in TypeScript (ts/tally.ts) and in Python (python/tally.py;
+# checked by lang/python's suite). They make the same semantic tree and the
+# same pixels (CTS S level).
 # Count people at a door, laps, reps — with a goal and its progress.
 #
 #   mcpp run                                  the C++ view

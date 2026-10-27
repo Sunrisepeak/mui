@@ -123,6 +123,10 @@ jobs:
           PROFILE: ${{ matrix.profile }}
         run: tools/ci/agent-e2e.sh
 
+      - name: The Python wheel, pip-installed, runs example 03 (M3 acceptance ⑤)
+        if: runner.os == 'Linux' && matrix.profile == 'dev'
+        run: tools/ci/python-wheel.sh
+
       - name: A feature selects one of two exclusive sources (M0 acceptance ⑤)
         if: runner.os == 'Linux' && matrix.profile == 'dev'
         run: tools/ci/features.sh

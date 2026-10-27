@@ -44,6 +44,7 @@ members = [
     "lang/common",
     "lang/lua",
     "lang/js",
+    "lang/python",
     "components/markdown",
     "tools/gen",
     "tools/omui",
@@ -53,6 +54,7 @@ members = [
     "tests/bench",
     "tests/features",
     "src/entry/player",
+    "src/entry/python",
     "examples/01-hello-im",
     "examples/02-hello-ts",
     "examples/03-counter",
@@ -102,7 +104,7 @@ openmui.trace         = { path = "modules/trace" }
 openmui.ui.base       = { path = "components/base" }
 openmui.host.headless = { path = "hosts/headless" }
 openmui.host.sdl3     = { path = "hosts/sdl3" }
-mcpplibs.os           = "0.1.1"
+mcpplibs.os           = "0.1.2"
 
 # The root package has no test programs of its own: tests/ holds members
 # (tests/support, and the cross-member suites), each discovered by itself.

@@ -18,7 +18,8 @@ namespace omui {
 struct Desktop::Impl {
     DesktopOptions                           options;
     std::unique_ptr<typeset::FontCollection> own_fonts;
-    std::unique_ptr<Runtime>                 runtime;
+    std::unique_ptr<Runtime>                 own_runtime;
+    Runtime*                                 runtime = nullptr;  // own_runtime's, or the one adopted
     std::unique_ptr<semantic::Tree>          tree;
     std::unique_ptr<typeset::GlyphCache>     glyphs;
     std::unique_ptr<agent::Endpoint>         endpoint;
@@ -64,6 +65,16 @@ Desktop::Desktop(DesktopOptions options) : impl_(std::make_unique<Impl>()) {
     d.options = std::move(options);
     // Shortcuts use Command where the platform does.
     if constexpr (mcpplibs::os::is_macos) set_primary_modifier(Modifier::meta);
+    if (d.options.runtime) {
+        // A runtime the caller made (a script binding's, which existed first):
+        // the window shows it, on the interactive clock.
+        d.runtime = d.options.runtime;
+        d.runtime->clock() = anim::Clock::interactive();
+        d.runtime->resize(d.options.size, d.runtime->scale());
+        d.tree = std::make_unique<semantic::Tree>(*d.runtime);
+        d.glyphs = std::make_unique<typeset::GlyphCache>(d.runtime->fonts());
+        return;
+    }
     typeset::FontCollection* fonts = d.options.fonts;
     if (!fonts) {
         d.own_fonts = std::make_unique<typeset::FontCollection>();
@@ -76,7 +87,8 @@ Desktop::Desktop(DesktopOptions options) : impl_(std::make_unique<Impl>()) {
     ro.clock = anim::Clock::interactive();
     ro.size = d.options.size;
     ro.reduce_motion = d.options.reduce_motion;
-    d.runtime = std::make_unique<Runtime>(std::move(ro));
+    d.own_runtime = std::make_unique<Runtime>(std::move(ro));
+    d.runtime = d.own_runtime.get();
     d.tree = std::make_unique<semantic::Tree>(*d.runtime);
     d.glyphs = std::make_unique<typeset::GlyphCache>(*fonts);
 }

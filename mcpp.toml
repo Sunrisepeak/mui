@@ -40,6 +40,7 @@ members = [
     "runtime/agent",
     "runtime/native",
     "runtime/theme",
+    "runtime/reflect",
     "themes/default",
     "themes/compact",
     "natives/fuzzy",

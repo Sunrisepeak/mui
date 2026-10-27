@@ -110,12 +110,20 @@ jobs:
         run: echo "SDL_VIDEO_DRIVER=offscreen" >> "$GITHUB_ENV"
 
       - name: Build every member
-        run: mcpp build --workspace --profile '${{ matrix.profile }}' --exclude openmui.entry.python
+        run: mcpp build --workspace --profile '${{ matrix.profile }}' --exclude openmui.entry.python --exclude openmui.reflect
 
       - name: Test every member
         run: |
-          mcpp test --workspace --profile '${{ matrix.profile }}' --exclude openmui.entry.python 2>&1 | tee tests.log
+          mcpp test --workspace --profile '${{ matrix.profile }}' --exclude openmui.entry.python --exclude openmui.reflect 2>&1 | tee tests.log
           grep -q "workspace result ok" tests.log || { echo "::error::workspace tests failed"; exit 1; }
+
+      # C++26 reflection (D-39): GCC 16 with -freflection only, and a C++26
+      # build of its graph of its own, so on one row.
+      - name: openmui.reflect (C++26 reflection, GCC 16)
+        if: runner.os == 'Linux' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'dev'
+        run: |
+          mcpp test -p openmui.reflect --profile '${{ matrix.profile }}' 2>&1 | tee reflect.log
+          grep -q "test result ok" reflect.log || { echo "::error::openmui.reflect failed"; exit 1; }
 
       - name: An agent drives example 07 in its own process (M1 acceptance ②)
         if: runner.os == 'Linux'

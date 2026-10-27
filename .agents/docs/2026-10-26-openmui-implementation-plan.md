@@ -1118,7 +1118,8 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
   - ✅ 主题即数据：`runtime/theme`（`openmui.theme`）读 `*.theme.omui.toml`（主题、`extends`、覆盖层 overlay；颜色、文字、间距、圆角、阴影、动效 token、`density`），一次读完报告全部错误（行列和修改建议），组合 `["dark", "compact", "reduced_motion"]`；`themes/default`（light / dark / reduced_motion，与运行时内置 token 由测试保持一致）、`themes/compact`（密度 0.8，基础控件的高度和内边距按密度缩放，默认密度下所有金图不变）；文件由通用的 `omui-gen embed` 嵌入；C ABI `omuiTheme` / `omuiThemes`，三种语言的 `theme()` / `themes()`；播放器清单的 `themes` / `theme`，保存即重新加载；CTS 场景 `themed` 证明各组合下语义树相同。示例 06 是 Lua 写的主题预览工具（应用自己的品牌主题文件热重载）。
   - ✅ 示例 04 自定义组件：阅读清单（TS），应用自己的 `rating` 组件从契约（`rating.contract.omui.toml`）经 `openmui.rules` 构建时生成 C++ 分区、builder 和 TS / Python / Lua 存根，`src/rating.cpp` 写行为（星形逐渐填充、悬停预览、动作和键位）；注册后 TS、Lua、视图文档和 agent 都按名字使用，测试证明 Lua / 视图文档 / C++ builder 得到同一个语义节点。
   - ✅ 模板：`app-ts` / `app-lua`（播放器跑脚本，headless 测试像 agent 一样按按钮）、`app-py`（`pip install openmui` 的纯 Python 应用，CI 在装好的 wheel 上跑它的测试并做 `mypy --strict`）、`native`（native 模块包，构建时生成绑定）、`theme`（主题包，`openmui.rules` 的 `themes()` 在构建时嵌入主题文件）；`tools/ci/templates.sh` 全部渲染、构建、测试。
-  - `runtime/reflect`；示例 12。
+  - ✅ `runtime/reflect`（`openmui.reflect`，C++26，GCC 16 `-freflection`）：`form(signal)` 按成员类型生成文本框 / 开关 / 滑块 / 下拉 / 分组，双向绑定，成员名是语义 ID 和标签，注解 `range` / `label` / `hidden`；`to_value` / `from_value` / `fields<T>()`。C++26 的模块要和 C++23 的分开构建，所以它单独成员、在 GCC dev 一行单独测试（V-07：注解里的字符串要用数组，字符串字面量的地址不是常量）。
+  - 示例 12（notes-mixed）。
 - M4：`modules/rhi` 和 `rhi-sdl`、GPU 渲染路径、Slang 着色器、效果和背景输入（液态玻璃，D-64）、画布、风格包、S1 / S2。
 - M5：openmui-video、ui-timeline、MCP 服务器、skills、S3 / S4 / S5。
 - 契约⑦（插件与管线）写进规范；Inspector 的火焰图和动画检查器视图。

@@ -84,7 +84,7 @@ jobs:
           ASAN_OPTIONS: detect_leaks=1:abort_on_error=1:strict_string_checks=1
           UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
         run: |
-          mcpp test --workspace --profile sanitize --exclude openmui.entry.python 2>&1 | tee sanitize.log
+          mcpp test --workspace --profile sanitize --exclude openmui.entry.python --exclude openmui.reflect 2>&1 | tee sanitize.log
           grep -q "workspace result ok" sanitize.log || { echo "::error::a test failed under the sanitizers"; exit 1; }
           if grep -qE "ERROR: AddressSanitizer|runtime error:|ERROR: LeakSanitizer" sanitize.log; then
             echo "::error::the sanitizers reported a finding"; exit 1

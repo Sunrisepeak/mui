@@ -1,5 +1,5 @@
 # openmui.text — fonts, shaping, bidi, line breaking, paragraphs, glyph
-# rasterisation and the editing model, over HarfBuzz and fribidi (mcpp-index)
+# rasterisation and the editing model, over HarfBuzz and fribidi as C++ modules (mcpp-index's mwrap)
 # and openmui.unicode, openmui.raster and openmui.render.
 [package]
 namespace   = "openmui"
@@ -25,14 +25,10 @@ openmui.unicode = { path = "../unicode" }
 openmui.raster  = { path = "../raster" }
 openmui.render  = { path = "../render" }
 mcpplibs.os     = "0.1.2"
-compat.harfbuzz = "14.3.0"
-compat.fribidi  = "1.0.16"
+mcpplibs.mwrap.harfbuzz = "14.3.0"
+mcpplibs.mwrap.fribidi  = "1.0.16"
 
 [dev-dependencies]
 openmui.testing = { path = "../../tests/support" }
 openmui.image   = { path = "../image" }
 
-# fribidi is a static library: its headers declare plain entry points only
-# when told so (otherwise dllimport under _WIN32).
-[target.'cfg(os = "windows")'.build]
-defines = ["FRIBIDI_LIB_STATIC"]

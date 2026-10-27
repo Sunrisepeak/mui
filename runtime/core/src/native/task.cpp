@@ -1,12 +1,11 @@
-// The pool over taskflow and the UI queue over moodycamel's ConcurrentQueue.
-// The queue's header is included here, in an implementation unit, and nothing
-// of it is exported (D-40).
-module;
-#include <concurrentqueue.h>
+// The pool over taskflow and the UI queue over moodycamel's ConcurrentQueue
+// (imported as a module, mcpplibs.mwrap.concurrentqueue), here in an
+// implementation unit: nothing of it is exported (D-40).
 module openmui.core;
 
 import std;
 import tf;
+import mcpplibs.mwrap.concurrentqueue;
 
 namespace omui {
 

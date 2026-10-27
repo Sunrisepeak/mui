@@ -1,6 +1,6 @@
 # openmui.text
 
-A text engine (module `openmui.text`) over HarfBuzz and fribidi (mcpp-index) and openmui.unicode, openmui.raster and openmui.render.
+A text engine (module `openmui.text`) over HarfBuzz and fribidi — imported as C++ modules (`mcpplibs.mwrap.harfbuzz`, `mcpplibs.mwrap.fribidi` from mcpp-index; no header is included) — and openmui.unicode, openmui.raster and openmui.render.
 
 - **Fonts**: files and data, variable instances by weight (and italic), metrics; the default set in `fonts/` (D-48); fallback per grapheme cluster through the family list and a fallback chain, emoji presentation to the colour face.
 - **Paragraphs**: bidi levels (fribidi), script runs, shaping (HarfBuzz) with features and language, UAX #14 line breaking with hanging spaces and overflow breaks inside overlong words, UBA L2 reordering per line, start / end / center / justify alignment, `max_lines` with an ellipsis, styled ranges (size, weight, colour, letter spacing, line height, underline, strikethrough), intrinsic widths for layout.

@@ -1,14 +1,13 @@
 // Faces and fonts over HarfBuzz: hb_face from the file's bytes, hb_font
 // instances per (face, weight, slant) with the variation axes set, metrics
 // from the OS/2 and hhea tables through hb_ot_metrics.
-module;
-#include <hb.h>
-#include <hb-ot.h>
 module openmui.text;
 
 import std;
 import openmui.unicode;
 import mcpplibs.os;
+import mcpplibs.mwrap.harfbuzz;
+using namespace mcpplibs::mwrap::harfbuzz::macros;
 
 namespace omui::typeset {
 

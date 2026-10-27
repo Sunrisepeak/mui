@@ -1,12 +1,11 @@
 // Glyph outlines through hb_font_draw_glyph, colour layers through the OT
 // COLR/CPAL API, both rasterised by openmui.raster.
-module;
-#include <hb.h>
-#include <hb-ot.h>
 module openmui.text;
 
 import std;
 import openmui.raster;
+import mcpplibs.mwrap.harfbuzz;
+using namespace mcpplibs::mwrap::harfbuzz::macros;
 
 namespace omui::typeset {
 

@@ -1,10 +1,10 @@
 // PNG through libpng's simplified API, which reports errors in its control
 // structure instead of longjmp-ing through C++ frames.
-module;
-#include <png.h>
 module openmui.image;
 
 import std;
+import mcpplibs.mwrap.libpng;
+using namespace mcpplibs::mwrap::libpng::macros;  // PNG_IMAGE_VERSION, PNG_FORMAT_RGBA, PNG_IMAGE_SIZE
 
 namespace omui::imageio {
 

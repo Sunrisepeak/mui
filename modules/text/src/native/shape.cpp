@@ -1,14 +1,15 @@
 // Shaping: bidi levels (fribidi), grapheme clusters and line-break
 // opportunities (openmui.unicode), script runs, font fallback per cluster,
 // and HarfBuzz shaping of each run with the whole text as context.
-module;
-#include <hb.h>
-#include <fribidi.h>
 module openmui.text;
 
 import std;
 import openmui.unicode;
 import :shaped;
+import mcpplibs.mwrap.harfbuzz;
+import mcpplibs.mwrap.fribidi;
+using namespace mcpplibs::mwrap::harfbuzz::macros;
+using namespace mcpplibs::mwrap::fribidi::macros;
 
 namespace omui::typeset {
 

@@ -31,7 +31,7 @@ struct OpSpec {
     std::size_t              least, most;  // arguments
 };
 
-constexpr std::array<OpSpec, 15> op_specs{{
+constexpr std::array<OpSpec, 17> op_specs{{
     {{"capture", "capture()", "In pointer_down: take the pointer until it is released (a press not captured goes on to the next behaviour, or pans)."}, 0, 0},
     {{"move", "move(target, delta)", "Move a node, or each of a list of keys, by a {x, y} of world units."}, 2, 2},
     {{"move_to", "move_to(target, x, y)", "Move a node's top-left corner to a world point."}, 3, 3},
@@ -46,7 +46,9 @@ constexpr std::array<OpSpec, 15> op_specs{{
     {{"remove", "remove(target)", "Remove a node, or each of a list, with its edges."}, 1, 1},
     {{"commit", "commit(event, value?)", "Tell the canvas's listeners: the event, with the value (what scripts save on)."}, 1, 2},
     {{"set", "set(name, value)", "Remember a value: vars.<name>, until the canvas makes its behaviours again."}, 2, 2},
-    {{"fit", "fit(target)", "Move the camera to show a node whole (on a spring)."}, 1, 1},
+    {{"fit", "fit(target)", "Move the camera to show a node, a list of them, or `'all'` the scene, whole (on a spring)."}, 1, 1},
+    {{"preset", "preset(name)", "Move the camera to one of the scene's named views (on a spring)."}, 1, 1},
+    {{"zoom_to", "zoom_to(zoom)", "Zoom about the view's centre to screen pixels per world unit: 1 is 1:1 (on a spring)."}, 1, 1},
 }};
 
 constexpr auto operation_list = [] {
@@ -58,7 +60,8 @@ constexpr auto operation_list = [] {
 // The names each place's expressions see.
 constexpr std::array<std::string_view, 11> pointer_names{"pointer", "press", "delta", "travel", "hit", "over", "mods", "selection", "zoom", "vars", "state"};
 constexpr std::array<std::string_view, 8>  tap_names{"pointer", "hit", "over", "mods", "selection", "zoom", "vars", "state"};
-constexpr std::array<std::string_view, 6>  key_names{"key", "mods", "selection", "zoom", "vars", "state"};
+// A key during a gesture also sees the gesture (Esc puts a drag back); outside one, they are null.
+constexpr std::array<std::string_view, 10> key_names{"key", "mods", "hit", "press", "delta", "travel", "selection", "zoom", "vars", "state"};
 constexpr std::array<std::string_view, 12> entry_names{"pointer", "press", "delta", "travel", "hit", "over", "mods", "key", "selection", "zoom", "vars", "state"};
 constexpr std::array<std::string_view, 5>  action_when_names{"node", "selection", "zoom", "vars", "state"};
 constexpr std::array<std::string_view, 6>  action_names{"node", "args", "selection", "zoom", "vars", "state"};
@@ -386,9 +389,24 @@ Value pointer_value(const PointerInput& in) {
         .set("clicks", Value(static_cast<int>(in.clicks)));
 }
 
-Value hit_value(const Scene& s, const std::optional<world::Hit>& hit) {
+// What a pointer is over; with `inside`, the keys of the nodes lying wholly
+// on it too, bottom to top (a frame dragged with what is on it).
+Value hit_value(const Scene& s, const std::optional<world::Hit>& hit, bool inside = false) {
     if (!hit || !s.valid(hit->node)) return {};
-    return Value{}.set("node", Value(s.key(hit->node))).set("kind", Value(s.kind_name(hit->node))).set("title", Value(hit->title));
+    Value v = Value{}.set("node", Value(s.key(hit->node))).set("kind", Value(s.kind_name(hit->node))).set("title", Value(hit->title));
+    if (inside) {
+        const WorldRect r = s.rect(hit->node);
+        std::vector<NodeRef> under;
+        s.query(r, under);
+        Value::List keys;
+        for (NodeRef n : under) {
+            if (n == hit->node) continue;
+            const WorldRect q = s.rect(n);
+            if (q.x >= r.x && q.y >= r.y && q.right() <= r.right() && q.bottom() <= r.bottom()) keys.emplace_back(s.key(n));
+        }
+        v.set("inside", Value(std::move(keys)));
+    }
+    return v;
 }
 
 Value mods_value(Modifiers m) {
@@ -426,7 +444,7 @@ public:
         switch (in.kind) {
             case PointerKind::down:
                 press_ = pointer_value(in);
-                press_hit_ = hit_value(h.scene(), in.hit);
+                press_hit_ = hit_value(h.scene(), in.hit, true);
                 start_ = last_ = {in.screen, in.world};
                 captured_ = false;
                 env.hit = &press_hit_;
@@ -453,7 +471,7 @@ public:
     bool tap(Host& h, const PointerInput& in) override {
         Env env{h};
         env.in = &in;
-        const Value hit = hit_value(h.scene(), in.hit);
+        const Value hit = hit_value(h.scene(), in.hit, true);
         env.hit = &hit;
         start_ = last_ = {in.screen, in.world};
         return dispatch(env, Event::tap);
@@ -462,6 +480,7 @@ public:
     bool key(Host& h, const KeyEvent& e) override {
         Env env{h};
         env.key = &e;
+        if (captured_) env.hit = &press_hit_;
         return dispatch(env, Event::key);
     }
 
@@ -505,12 +524,13 @@ private:
     Value resolve(const Env& env, std::string_view name) const {
         Scene& s = env.h.scene();
         if (name == "pointer") return env.in ? pointer_value(*env.in) : Value{};
-        if (name == "press") return press_.is_null() && env.in ? pointer_value(*env.in) : press_;
+        if (name == "press") return press_.is_null() && env.in ? pointer_value(*env.in) : press_;  // null outside a gesture, for a key
         if (name == "delta" || name == "travel") {
-            if (!env.in) return {};
+            // Where the pointer is: this event's, or (a key during a gesture) its last.
+            if (!env.in && !captured_) return {};
+            const Where now = env.in ? Where{env.in->screen, env.in->world} : last_;
             const Where& from = name == "delta" ? last_ : start_;
-            return point(env.in->screen.x - from.screen.x, env.in->screen.y - from.screen.y)
-                .set("world", point(env.in->world[0] - from.world[0], env.in->world[1] - from.world[1]));
+            return point(now.screen.x - from.screen.x, now.screen.y - from.screen.y).set("world", point(now.world[0] - from.world[0], now.world[1] - from.world[1]));
         }
         if (name == "hit") return env.hit ? *env.hit : Value{};
         if (name == "over") return env.in ? hit_value(s, env.in->hit) : Value{};
@@ -688,11 +708,31 @@ private:
                 break;
             }
             case Op::fit: {
+                if (a[0].type() == Value::Type::text && a[0].as_string() == "all") {
+                    if (s.size()) h.animate_to(world::Camera::fit(s.bounds(), h.viewport(), 24, 1e-9, 1e9));
+                    break;
+                }
                 const auto nodes = targets(s, a[0], problem);
                 if (nodes.empty()) break;
                 WorldRect r = s.rect(nodes.front());
                 for (NodeRef n : nodes) r = r.united(s.rect(n));
                 h.animate_to(world::Camera::fit(r, h.viewport(), 24, 1e-9, 1e9));
+                break;
+            }
+            case Op::preset: {
+                if (a[0].type() != Value::Type::text) return std::format("a view is a name, not {}", expr::text_of(a[0]));
+                const auto p = s.preset(a[0].as_string());
+                if (!p) return std::format("the scene has no view named `{}`", a[0].as_string());
+                h.animate_to({p->x, p->y, p->zoom});
+                break;
+            }
+            case Op::zoom_to: {
+                const auto z = number(a[0], "zoom");
+                if (!z) return problem;
+                if (!(*z > 0)) return std::format("a zoom is above 0, not {}", *z);
+                world::Camera c = h.camera();
+                c.zoom = *z;
+                h.animate_to(c);
                 break;
             }
         }

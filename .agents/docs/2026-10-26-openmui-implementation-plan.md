@@ -1165,7 +1165,16 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
     - 标题栏显示最大的五个文件，点击即调用 `focus_node` 飞过去。
     - agent 可以用 `find` 按名字查找整棵树。
     - 测试覆盖扫描、treemap 不变量（包含、不重叠、面积比例）、人和 agent 的操作，像素固定。
-    - 还没做：S1。
+  - ✅ S1 Markdown 墙 `showcase/markdown-wall`（`omui-wall`，真实工具：文档墙，可以用来读 `.agents/docs`）：
+    - 工作区按文件夹划分，窗口在工作区里按行排列。
+    - 档位：远处是色块加标题条；中间是窗口自身元素在线程池上离屏渲染的纹理，同时按 mip 级别逐步清晰化；近处或聚焦时变成实时文档。
+    - 工作区按标签拖动用声明式行为 `group-drag.behavior.omui.toml`，构建时通过 `openmui.rules` 的 `behaviors()` 嵌入程序，Esc 复原；窗口按标题栏拖动，选择、吸附、小地图都来自 canvas-kit。
+    - 视图：1 是 1:1，2 是总览，H 切换 HUD（`views.behavior.omui.toml`）。
+    - HUD 用立即模式写：帧时间曲线、各档位的数量、纹理缓存、清晰比例。
+    - 流式输出：`--stream N` 或 verb `wall.stream`，每秒 50 个 token。实时窗口立即追加，纹理窗口最多每秒标记过期四次。
+    - 通用能力：`Runtime::component<C>()`；声明式行为的 `hit.inside`（框连同上面的东西一起拖）、`preset` / `zoom_to` / `fit('all')`，按键事件在手势期间也能看到 `hit` / `travel`。
+    - 测试：7 项，像素固定。
+    - 还没做：基准报告（`--bench`，以及 tests/bench 里的缩放扫描、平移、清晰化、20 个窗口流式输出），三种语言的场景脚本。
 - M5：openmui-video、ui-timeline、MCP 服务器、skills、S3 / S4 / S5。
 - 契约⑦（插件与管线）写进规范；Inspector 的火焰图和动画检查器视图。
 

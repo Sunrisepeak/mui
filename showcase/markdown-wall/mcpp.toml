@@ -1,0 +1,41 @@
+# S1 — the Markdown wall (implementation plan §13, canvas-markdown §3): a
+# document wall. `omui-wall DIR` lays every Markdown file under a folder on
+# the infinite canvas, a workspace per folder, to read and search across;
+# openmui's own design documents are read with it. Far out a window is a
+# block and a title strip, nearer a texture of its page drawn on the pool at
+# the screen's resolution, close up — or focused — a live Markdown document.
+# Workspaces drag by their labels (a declarative behaviour), windows by their
+# title bars; 1 is one to one, 2 the overview; a HUD written in immediate
+# mode shows what each frame cost. `--stream N` has N windows written into
+# at a language model's pace; `--synthetic N` is the benchmark's dataset.
+#
+#   mcpp run -p openmui.showcase.markdown-wall -- .agents/docs
+#   mcpp run -p openmui.showcase.markdown-wall -- --synthetic 1000 --stream 20
+[package]
+namespace   = "openmui.showcase"
+name        = "markdown-wall"
+version     = "0.1.0"
+description = "S1, the Markdown wall: a folder's documents on the infinite canvas, with tiers of detail, live windows, workspaces, streaming and a HUD"
+license     = "Apache-2.0"
+
+[package.metadata.openmui]
+kind = "showcase"
+
+[targets.omui-wall]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+openmui.sdk           = { path = "../.." }
+openmui.ui.canvas     = { path = "../../components/canvas" }
+openmui.ui.canvas_kit = { path = "../../components/canvas-kit" }
+openmui.ui.markdown   = { path = "../../components/markdown" }
+
+[build-dependencies]
+openmui.rules = { path = "../../mcpp/rules", host-module = true }
+
+[dev-dependencies]
+openmui.testing = { path = "../../tests/support" }

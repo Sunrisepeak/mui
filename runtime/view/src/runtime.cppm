@@ -169,6 +169,14 @@ public:
     // ── the tree ──
     [[nodiscard]] bool valid(NodeId node) const noexcept;
     [[nodiscard]] NodeId find(std::string_view path) const;
+    // The component of type C at a node — the program's own access to what
+    // it mounted (a canvas's statistics for its HUD); null when the node is
+    // not a C. Checked against C's type, not cast blindly (no RTTI needed).
+    template <class C>
+    [[nodiscard]] C* component(NodeId node) noexcept {
+        return static_cast<C*>(instance_of(node, component_type<C>()));
+    }
+    [[nodiscard]] void* instance_of(NodeId node, const ComponentType& type) noexcept;
     [[nodiscard]] std::string path(NodeId node) const override;
     [[nodiscard]] NodeId parent(NodeId node) const override;
     [[nodiscard]] std::vector<NodeId> children(NodeId node) const override;

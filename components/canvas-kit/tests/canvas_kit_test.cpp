@@ -498,7 +498,7 @@ int main(int argc, char** argv) {
         check(loaded.has_value(), loaded ? std::string{} : loaded.error().front().text());
         check_eq(loaded.value_or(std::vector<std::string>{}), std::vector<std::string>{"group-drag"});
         check(has(world::behaviors(), "group-drag"), "registered by name");
-        check_eq(world::behavior_operations().size(), std::size_t{15});
+        check_eq(world::behavior_operations().size(), std::size_t{17});
         auto& sc = board("group");
         sc.add({.kind = "label", .x = -300, .y = -200, .width = 120, .height = 30, .key = "g1", .fill = Color::hex(0xfacc15)});
         std::vector<Value> told;

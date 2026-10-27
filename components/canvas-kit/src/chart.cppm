@@ -39,7 +39,7 @@ inline constexpr std::array<std::string_view, 6> event_names{"pointer_down", "po
 
 enum class Op : std::uint8_t {
     capture, move, move_to, resize, raise, select, add_to_selection, toggle_selection, clear_selection,
-    connect, disconnect, remove, commit, set, fit,
+    connect, disconnect, remove, commit, set, fit, preset, zoom_to,
 };
 
 // An operation, its arguments compiled.

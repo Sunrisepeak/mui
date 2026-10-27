@@ -1,6 +1,7 @@
 // openmui.rules — contracts to code, inside a build (component-binding §2.3,
 // §8, §11): components() for *.contract.omui.toml, natives() for
-// *.native.omui.toml, themes() for *.theme.omui.toml.
+// *.native.omui.toml, themes() for *.theme.omui.toml, behaviors() for
+// *.behavior.omui.toml.
 //
 // For each contract in `contract/*.contract.omui.toml`, two actions run
 // `omui-gen cpp`: one makes the partition `<module>:<name>_contract`
@@ -326,6 +327,66 @@ inline bool themes(theme_options opt) {
     auto edges = plan_themes(opt);
     if (edges.empty()) {
         std::println(std::cerr, "openmui.rules: no theme in {}/ (files named <name>.theme.omui.toml)", opt.themes);
+        return false;
+    }
+    return submit(edges);
+}
+
+
+// ── declarative behaviours (canvas-kit) ─────────────────────────────────────
+
+struct behavior_options {
+    std::string module;                                   // the package's module (acme.wall)
+    std::string ns;                                       // the namespace of the embedded texts (default: the module's)
+    std::string behaviors = "behaviors";                  // the directory of *.behavior.omui.toml
+    std::string out_dir = std::string(mcpp::out_dir());   // generated files go under out_dir/openmui
+};
+
+// Each behaviour file as a partition `<module>:<stem>_behavior` holding its
+// text (`-` in the stem becomes `_`): the program loads it with
+// omui::world::load_behaviors(<stem>_behavior, "<stem>.behavior.omui.toml"),
+// so a shipped program carries its behaviours and reads no file to have them.
+inline std::vector<edge> plan_behaviors(const behavior_options& opt) {
+    const std::string root = mcpp::manifest_dir();
+    const std::string gen = std::string(mcpp::dep_bin("openmui.gen", "omui-gen"));
+    if (root.empty() || opt.module.empty() || gen.empty()) {
+        std::println(std::cerr, "openmui.rules: behaviors() runs from build.mcpp, behavior_options::module names the package's module, "
+                                "and omui-gen is built for the build");
+        return {};
+    }
+    std::string ns = opt.ns;
+    if (ns.empty())
+        for (char c : opt.module) ns += c == '.' ? std::string("::") : std::string(1, c);
+    const std::string out = utf8(std::filesystem::path(opt.out_dir) / "openmui");
+    std::vector<std::filesystem::path> files;
+    std::error_code ec;
+    for (const auto& e : std::filesystem::directory_iterator(std::filesystem::path(root) / opt.behaviors, ec))
+        if (utf8(e.path()).ends_with(".behavior.omui.toml")) files.push_back(e.path());
+    std::ranges::sort(files);
+    std::vector<edge> edges;
+    for (const auto& f : files) {
+        std::string stem = utf8(f.filename());
+        stem = stem.substr(0, stem.find('.'));
+        for (char& c : stem)
+            if (c == '-') c = '_';
+        edge e;
+        e.id = std::format("openmui:behavior:{}", stem);
+        e.description = std::format("behaviour {} → {}_behavior.cppm ({})", utf8(f.filename()), stem, opt.module);
+        e.command = {gen, "embed", utf8(f), "--module", opt.module, "--namespace", ns, "--name", stem + "_behavior", "--out", out};
+        e.inputs = {utf8(f), gen};
+        e.outputs = {out + "/" + stem + "_behavior.cppm"};
+        e.provides = {opt.module + ":" + stem + "_behavior"};
+        e.imports = {"std"};
+        edges.push_back(std::move(e));
+    }
+    return edges;
+}
+
+inline bool behaviors(behavior_options opt) {
+    mcpp::rerun_if_changed_glob((opt.behaviors + "/**").c_str());
+    auto edges = plan_behaviors(opt);
+    if (edges.empty()) {
+        std::println(std::cerr, "openmui.rules: no behaviour in {}/ (files named <name>.behavior.omui.toml)", opt.behaviors);
         return false;
     }
     return submit(edges);

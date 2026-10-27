@@ -41,6 +41,12 @@ version = "1.6.43"
 source  = "index+compat@1.6.43"
 hash    = "fnv1a:b3a219b122077f27"
 
+[package."compat.md4c"]
+namespace = "compat"
+version = "0.5.3"
+source  = "index+compat@0.5.3"
+hash    = "fnv1a:dcc5c2d1d2b47bd3"
+
 [package."compat.sdl3"]
 namespace = "compat"
 version = "3.4.18"
@@ -179,6 +185,12 @@ version = "1.6.43"
 source  = "index+mcpplibs.mwrap@1.6.43"
 hash    = "fnv1a:2b3d4ee2a70d559d"
 
+[package."mcpplibs.mwrap.md4c"]
+namespace = "mcpplibs.mwrap"
+version = "0.5.3"
+source  = "index+mcpplibs.mwrap@0.5.3"
+hash    = "fnv1a:23e80030c05427e1"
+
 [package."mcpplibs.mwrap.sdl3"]
 namespace = "mcpplibs.mwrap"
 version = "3.4.18"
@@ -203,12 +215,6 @@ version = "5.4.7"
 source  = "index+compat@5.4.7"
 hash    = "fnv1a:62ff6fb178577847"
 
-[package."compat.md4c"]
-namespace = "compat"
-version = "0.5.3"
-source  = "index+compat@0.5.3"
-hash    = "fnv1a:dcc5c2d1d2b47bd3"
-
 [package."compat.quickjs-ng"]
 namespace = "compat"
 version = "0.17.0"
@@ -226,12 +232,6 @@ namespace = "mcpplibs.mwrap"
 version = "5.4.7"
 source  = "index+mcpplibs.mwrap@5.4.7"
 hash    = "fnv1a:3c1369870f28cd6d"
-
-[package."mcpplibs.mwrap.md4c"]
-namespace = "mcpplibs.mwrap"
-version = "0.5.3"
-source  = "index+mcpplibs.mwrap@0.5.3"
-hash    = "fnv1a:23e80030c05427e1"
 
 [package."mcpplibs.mwrap.quickjs_ng"]
 namespace = "mcpplibs.mwrap"

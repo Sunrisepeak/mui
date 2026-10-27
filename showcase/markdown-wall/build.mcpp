@@ -1,0 +1,7 @@
+// The wall's behaviours (behaviors/*.behavior.omui.toml) embedded in the
+// program: partitions wall:<name>_behavior, loaded when it starts.
+import std;
+import mcpp;
+import openmui.rules;
+
+int main() { return openmui::rules::behaviors({.module = "wall"}) ? 0 : 1; }

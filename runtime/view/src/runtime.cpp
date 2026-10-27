@@ -265,6 +265,12 @@ void Runtime::resize(Size size, float scale) {
 Size Runtime::size() const noexcept { return impl_->size; }
 float Runtime::scale() const noexcept { return impl_->scale; }
 anim::Clock& Runtime::clock() noexcept { return impl_->clock; }
+void* Runtime::instance_of(NodeId node, const ComponentType& type) noexcept {
+    if (!valid(node)) return nullptr;
+    const Node& n = impl_->at(node);
+    return n.type == &type ? n.instance : nullptr;
+}
+
 bool Runtime::deterministic() const { return impl_->clock.kind() != anim::ClockKind::interactive; }
 NodeId Runtime::focused() const noexcept { return impl_->focus; }
 Verbs& Runtime::verbs() noexcept { return impl_->verbs; }

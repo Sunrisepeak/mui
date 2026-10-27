@@ -1,12 +1,16 @@
 // The pool over taskflow, in an implementation unit: nothing of it is
-// exported (D-40). The UI queue is ui_queue.cpp's: taskflow and the queue's
-// module are imported by units of their own (clang's Microsoft ABI gives
-// taskflow's internal helpers one name across its partitions when another
-// module joins them in a unit).
+// exported (D-40). Taskflow's headers are included here rather than its
+// `tf` module imported: the module's partitions each include the profiler's
+// header, whose `static inline` helpers clang's Microsoft ABI names alike
+// across them, so a unit constructing an Executor (which makes the profiler
+// when TF_ENABLE_PROFILER is set) defined them twice on Windows. Included
+// once, in this native unit, they are one. The UI queue is ui_queue.cpp's.
+module;
+#include <taskflow/taskflow.hpp>
+#include <taskflow/algorithm/for_each.hpp>
 module openmui.core;
 
 import std;
-import tf;
 
 namespace omui {
 

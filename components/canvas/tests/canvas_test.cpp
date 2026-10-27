@@ -71,7 +71,7 @@ int main(int argc, char** argv) {
             nodes.push_back(sc.add({.kind = "box", .x = rng.next() * 100000 - 50000, .y = rng.next() * 100000 - 50000,
                                     .width = static_cast<float>(10 + rng.next() * 400), .height = static_cast<float>(10 + rng.next() * 300)}));
         // A few huge ones (the large list).
-        for (int i = 0; i < 5; ++i) nodes.push_back(sc.add({.kind = "box", .x = -60000, .y = -60000 + i * 20000, .width = 120000, .height = 500}));
+        for (int i = 0; i < 5; ++i) nodes.push_back(sc.add({.kind = "box", .x = -60000, .y = -60000.0 + i * 20000.0, .width = 120000, .height = 500}));
         for (int i = 0; i < 2000; ++i) sc.move(nodes[static_cast<std::size_t>(i * 7)], rng.next() * 1000, rng.next() * 1000);
         for (int i = 0; i < 1000; ++i) sc.remove(nodes[static_cast<std::size_t>(i * 13 + 1)]);
         check_eq(sc.size(), std::size_t{20005 - 1000});

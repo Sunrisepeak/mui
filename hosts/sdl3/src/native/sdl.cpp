@@ -151,9 +151,14 @@ void WindowDeleter::operator()(Window* w) const noexcept {
 
 std::expected<WindowPtr, std::string> open(const WindowOptions& o) {
     if (windows_open == 0) {
-        if (!o.video_driver.empty()) SDL_SetHint(SDL_HINT_VIDEO_DRIVER, o.video_driver.c_str());
+        // A driver the program names wins over SDL_VIDEO_DRIVER in the
+        // environment (CI's offscreen): macOS's GPU windows need cocoa's
+        // Metal views whatever the rest of the run uses.
+        if (!o.video_driver.empty()) SDL_SetHintWithPriority(SDL_HINT_VIDEO_DRIVER, o.video_driver.c_str(), SDL_HINT_OVERRIDE);
         SDL_SetHint(SDL_HINT_IME_IMPLEMENTED_UI, "composition");  // openmui draws the preedit itself
-        if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS)) return std::unexpected(std::format("SDL_Init: {}", SDL_GetError()));
+        const bool initialised = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
+        if (!o.video_driver.empty()) SDL_ResetHint(SDL_HINT_VIDEO_DRIVER);
+        if (!initialised) return std::unexpected(std::format("SDL_Init: {}", SDL_GetError()));
         wake_event = SDL_RegisterEvents(1);
         sdl_ready = true;
     }

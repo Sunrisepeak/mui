@@ -10,3 +10,4 @@ __pycache__/
 *.pyc
 dist/
 python-probe.log
+reflect-canary.log

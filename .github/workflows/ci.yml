@@ -118,12 +118,11 @@ jobs:
           grep -q "workspace result ok" tests.log || { echo "::error::workspace tests failed"; exit 1; }
 
       # C++26 reflection (D-39): GCC 16 with -freflection only, and a C++26
-      # build of its graph of its own, so on one row.
+      # build of its graph of its own, so on one row — gated on a toolchain
+      # that builds reflection beside C headers (V-08, tools/ci/reflect.sh).
       - name: openmui.reflect (C++26 reflection, GCC 16)
         if: runner.os == 'Linux' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'dev'
-        run: |
-          mcpp test -p openmui.reflect --profile '${{ matrix.profile }}' 2>&1 | tee reflect.log
-          grep -q "test result ok" reflect.log || { echo "::error::openmui.reflect failed"; exit 1; }
+        run: tools/ci/reflect.sh '${{ matrix.profile }}'
 
       - name: An agent drives example 07 in its own process (M1 acceptance ②)
         if: runner.os == 'Linux'

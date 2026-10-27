@@ -1,0 +1,26 @@
+# openmui.rhi — the UI-scale GPU abstraction (omui.rhi, D-33 / D-58): resource
+# and pipeline descriptions, shader code per backend format, recorded command
+# lists, the Device interface with validation. Backends live in their own
+# packages (modules/rhi-sdl); this one depends on no graphics library.
+[package]
+namespace   = "openmui"
+name        = "rhi"
+version     = "0.1.0"
+description = "A UI-scale GPU abstraction: descriptions, recorded command lists, a validating device interface"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "backend"
+
+[targets.openmui-rhi]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+openmui.memory = { path = "../memory" }
+
+[dev-dependencies]
+openmui.testing = { path = "../../tests/support" }

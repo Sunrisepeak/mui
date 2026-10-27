@@ -27,6 +27,7 @@ members = [
     "modules/raster",
     "modules/image",
     "modules/render",
+    "modules/rhi",
     "modules/text",
     "modules/record",
     "modules/trace",

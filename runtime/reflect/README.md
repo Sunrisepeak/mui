@@ -29,3 +29,7 @@ rt.mount("main", omui::reflect::form(settings));    // main/display_name, main/z
 - **`fields<T>()`** describes the members as a model's rows declare them.
 
 It is a member of its own because C++26 modules are built apart from C++23 ones: its graph is built again in C++26. CI tests it on the GCC dev row by itself, and the workspace's runs leave it out (`--exclude openmui.reflect`).
+
+**It does not build inside openmui's graph with GCC 16.1 (V-08).** libstdc++'s `std` module exports `<meta>` only when `std` is built with `-freflection`. A `std` built that way cannot merge the C library's unnamed-struct typedefs (`__mbstate_t` first) with any unit that includes a C header in its global module fragment, and openmui's graph has many such units: libpng, FreeType and SDL's, and the third-party module wrappers. A unit built without `-freflection` cannot read that `std` at all. Keeping `-freflection` to this package's units fails the same way, and so does wrapping `<meta>` in a module of its own. Clang 23 has no `-freflection`.
+
+The code here was verified in standalone graphs only. CI runs `tools/ci/reflect.sh`: it builds the smallest graph with the conflict and, while that fails, warns. Once a toolchain builds it, the suite runs and must pass.

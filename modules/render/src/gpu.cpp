@@ -993,7 +993,14 @@ rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, rhi::Textur
                     if (o.effect) close_effect(o);
                     else close_layer(o);
                 } else if constexpr (std::same_as<T, ExternalTexture>) {
-                    ++report.external_skipped;
+                    const std::optional<rhi::Texture> t = options.external ? options.external(c.texture) : std::nullopt;
+                    const auto desc = t ? g.d.describe(*t) : std::nullopt;
+                    if (!desc || !rhi::has(desc->usage, rhi::TextureUsage::sampled)) {
+                        ++report.external_skipped;
+                        return;
+                    }
+                    const auto w = static_cast<float>(desc->width), h = static_cast<float>(desc->height);
+                    texture_image(*t, desc->width, desc->height, {0, 0, w, h}, c.dest, Sampling::linear, c.opacity, m());
                 }
             },
             all[index]);

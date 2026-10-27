@@ -19,9 +19,10 @@
 // shader (shaders/blend.slang) over a copy of what lies under it, with the
 // CPU's arithmetic.
 //
-// Not yet drawn here, and counted in the report as the CPU counts what it
-// skips: layer effects (effects_skipped), external textures. Object ids are
-// the CPU renderer's.
+// External textures are what the program made on the device
+// (GpuOptions::external), drawn over their rectangle like an image. Effects
+// without a GPU path are counted in effects_skipped. Object ids are the CPU
+// renderer's.
 export module openmui.render:gpu;
 
 import std;
@@ -39,6 +40,11 @@ struct GpuOptions {
     float scale = 1.0f;  // physical pixels per logical pixel
     bool  clear = true;
     Color background = Color::transparent();
+    // The textures external_texture() commands name (OMUI_EXT_external_texture):
+    // what the program made on the same device — a video frame it decoded,
+    // an engine's view — premultiplied, sampled. None for an id: skipped and
+    // counted, as the CPU renderer counts every one.
+    std::function<std::optional<rhi::Texture>(std::uint64_t id)> external;
 };
 
 class GpuRenderer {

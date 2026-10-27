@@ -412,5 +412,50 @@ int main(int argc, char** argv) {
         if (report) check(report->external_skipped == 1 && report->commands == dl.size());
     });
 
+    s.test("an external texture the program made on the device is drawn like an image of its pixels", [] {
+        auto device = open_device();
+        if (!device) return;
+        auto gpu = render::GpuRenderer::create(*device);
+        if (!gpu) return;
+        auto target = device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, W, H,
+                                                      rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "test.target"});
+        // A "video frame": a texture uploaded by the program, premultiplied.
+        constexpr std::uint32_t fw = 12, fh = 9;
+        std::vector<raster::Rgba8> px(fw * fh);
+        for (std::uint32_t y = 0; y < fh; ++y)
+            for (std::uint32_t x = 0; x < fw; ++x)
+                px[y * fw + x] = {static_cast<std::uint8_t>(x * 20), static_cast<std::uint8_t>(y * 28), 90, 255};
+        auto frame = device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, fw, fh, rhi::TextureUsage::sampled, "test.video"});
+        check(target.has_value() && frame.has_value());
+        if (!target || !frame) return;
+        rhi::CommandList up;
+        up.upload(*frame, rhi::Region{0, 0, fw, fh}, std::as_bytes(std::span(px)));
+        check(device->submit(up).has_value());
+        render::DisplayList dl;
+        dl.fill_rect({0, 0, W, H}, geom::Color::white());
+        dl.external_texture(42, {20.5f, 10, 96, 72}, 0.9f);
+        render::GpuOptions o;
+        o.background = geom::Color::white();
+        o.external = [&](std::uint64_t id) -> std::optional<rhi::Texture> { return id == 42 ? std::optional(*frame) : std::nullopt; };
+        auto report = gpu->render(dl, *target, {}, o);
+        check(report.has_value() && report->external_skipped == 0);
+        auto got = device->read(*target, rhi::Region{0, 0, W, H});
+        // The CPU's draw_image of the same pixels, bilinear, is the reference.
+        render::ImageStore images;
+        const render::ImageRef ref = images.add(static_cast<int>(fw), static_cast<int>(fh), std::vector<raster::Rgba8>(px));
+        render::DisplayList same;
+        same.fill_rect({0, 0, W, H}, geom::Color::white());
+        same.draw_image(ref, {0, 0, fw, fh}, {20.5f, 10, 96, 72}, render::Sampling::linear, 0.9f);
+        raster::Surface cpu(static_cast<int>(W), static_cast<int>(H));
+        render::CpuRenderer r;
+        (void)r.render(same, cpu, {&images, nullptr}, {.scale = 1, .background = geom::Color::white()});
+        check(got.has_value());
+        if (!got) return;
+        int worst = 0;
+        for (std::size_t i = 0; i < got->size(); ++i)
+            worst = std::max(worst, std::abs(std::to_integer<int>((*got)[i]) - static_cast<int>(cpu.bytes()[i])));
+        check(worst <= 1, std::format("the external texture is {} levels from the CPU's image of its pixels", worst));
+    });
+
     return s.run(argc, argv);
 }

@@ -10,6 +10,7 @@ import std;
 import openmui.ui.canvas;
 import openmui.host.headless;
 import openmui.render;
+import openmui.raster;
 import openmui.testing;
 
 using namespace omui::testing;
@@ -180,6 +181,69 @@ int main(int argc, char** argv) {
         h.scroll({400, 300}, {-50, 0});
         const auto moved = h.tree().node("main/board/c55");
         check(moved && moved->bounds && at && at->bounds && std::abs((moved->bounds->x - at->bounds->x) - 50) < 1, "moved 50 px with the pan");
+    });
+
+    s.test("texture tiers: rasterised in the background, the nearest ready level stretched meanwhile, stale content kept until the new one is in", [] {
+        auto& sc = world::scene("textures");
+        sc.clear();
+        std::atomic<int> built = 0;
+        sc.kind("doc", world::Kind{.tiers = {{0, world::Tier::Draw::box}, {60, world::Tier::Draw::texture}},
+                                   .content = [&](const world::Scene& s, world::NodeRef n, render::DisplayList& dl) {
+                                       ++built;
+                                       const auto r = s.rect(n);
+                                       dl.fill_rect({0, 0, static_cast<float>(r.width), static_cast<float>(r.height)},
+                                                    Color::hex(static_cast<std::uint32_t>(s.number(n, "color", 0xdc2626))));
+                                       dl.fill_rect({0, 0, static_cast<float>(r.width), 20}, Color::hex(0x1d4ed8));
+                                   }});
+        for (int i = 0; i < 12; ++i)
+            sc.add({.kind = "doc", .x = (i % 4) * 300.0, .y = (i / 4) * 250.0, .width = 240, .height = 200, .key = std::format("d{}", i),
+                    .fill = Color::hex(0x94a3b8)});
+        Headless h({.size = {800, 600}});
+        h.mount("main", column({.width = 800, .height = 600},
+                               {canvas({.id = "board", .scene = "textures", .x = 570, .y = 350, .zoom = 0.6, .width = 800, .height = 600})}));
+        h.step();
+        // The first frame: boxes (nothing is rasterised yet).
+        auto at = [&](world::NodeRef n) {
+            const auto r = sc.rect(n);
+            const Point p = world::Camera{570, 350, 0.6}.to_screen(r.x + r.width / 2, r.y + r.height / 2, {800, 600});
+            return h.pixels().at(static_cast<int>(p.x), static_cast<int>(p.y));
+        };
+        const auto d5 = *sc.find("d5");
+        const raster::Rgba8 grey = raster::premultiply(Color::hex(0x94a3b8)), red = raster::premultiply(Color::hex(0xdc2626));
+        check(at(d5) == grey, "a box until its texture is in");
+        h.settle();
+        check(built.load() >= 12, std::format("every visible node's content was built ({})", built.load()));
+        check(at(d5) == red, "the texture, once in");
+        // The content changes: the stale texture stays until the new one is in.
+        sc.set(d5, "color", 0x16a34a);
+        sc.touch(d5);
+        h.step();
+        check(at(d5) == red, "the old texture meanwhile, not a box");
+        h.settle();
+        check(at(d5) == raster::premultiply(Color::hex(0x16a34a)), "the new content");
+        // Closer: a sharper level is asked for; the one in is stretched meanwhile, never a box.
+        h.runtime().set(h.runtime().find("main/board"), "zoom", Value(2.5));
+        h.runtime().set(h.runtime().find("main/board"), "x", Value(sc.rect(d5).x + 120));
+        h.runtime().set(h.runtime().find("main/board"), "y", Value(sc.rect(d5).y + 100));
+        h.step();
+        const auto centre = h.pixels().at(400, 300);
+        check(centre == raster::premultiply(Color::hex(0x16a34a)), "the coarser texture, stretched, at once");
+        h.settle();
+        check(h.pixels().at(400, 300) == raster::premultiply(Color::hex(0x16a34a)), "and the sharper one when it is in");
+        h.runtime().set(h.runtime().find("main/board"), "zoom", Value(0.6));
+        h.runtime().set(h.runtime().find("main/board"), "x", Value(570.0));
+        h.runtime().set(h.runtime().find("main/board"), "y", Value(350.0));
+        h.settle();
+        // A tight memory budget: textures go, nodes fall back to boxes, and the frame still draws.
+        h.runtime().set(h.runtime().find("main/board"), "cache_mb", Value(0.3));
+        h.settle();
+        int boxes = 0, textured = 0;
+        for (int i = 0; i < 12; ++i) {
+            const auto px = at(*sc.find(std::format("d{}", i)));
+            boxes += px == grey;
+            textured += !(px == grey);
+        }
+        check(textured >= 1, "what fits stays");
     });
 
     s.test("semantics: what is on screen, the viewport's actions, and find over the whole scene", [] {

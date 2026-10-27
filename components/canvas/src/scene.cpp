@@ -29,12 +29,24 @@ WorldRect WorldRect::united(const WorldRect& o) const noexcept {
 
 Scene::Scene() : Scene(512) {}
 
+void Scene::changed() {
+    ++revision_;
+    for (auto& [token, fn] : observers_) fn();
+}
+
+std::uint64_t Scene::observe(std::function<void()> fn) {
+    observers_.emplace_back(next_observer_, std::move(fn));
+    return next_observer_++;
+}
+
+void Scene::unobserve(std::uint64_t token) { std::erase_if(observers_, [&](const auto& o) { return o.first == token; }); }
+
 Scene::Scene(double cell) : cell_(cell > 0 ? cell : 512) { kind("box", Kind{}); }
 
 std::uint16_t Scene::kind(std::string_view name, Kind k) {
     if (k.tiers.empty()) k.tiers.push_back({0, Tier::Draw::box});
     std::ranges::sort(k.tiers, {}, &Tier::from);
-    ++revision_;
+    changed();
     if (auto i = find_kind(name)) {
         kinds_[*i] = std::move(k);
         return *i;
@@ -72,6 +84,7 @@ NodeRef Scene::add(const NodeDesc& d) {
         i = static_cast<std::uint32_t>(x_.size());
         x_.push_back(0), y_.push_back(0), w_.push_back(0), h_.push_back(0), radius_.push_back(0);
         fill_.push_back({}), kind_.push_back(0), generation_.push_back(0), z_.push_back(0), alive_.push_back(false), key_.emplace_back();
+        content_.push_back(0);
         in_large_.push_back(false);
         stamp_.push_back(0);
         for (auto& [name, col] : numbers_) col.push_back(0);
@@ -79,6 +92,7 @@ NodeRef Scene::add(const NodeDesc& d) {
     }
     x_[i] = d.x, y_[i] = d.y, w_[i] = std::max(0.0f, d.width), h_[i] = std::max(0.0f, d.height);
     fill_[i] = d.fill, radius_[i] = d.radius, kind_[i] = k, z_[i] = next_z_++, alive_[i] = true;
+    ++content_[i];  // a new node in an old slot: none of the old one's textures
     key_[i] = d.key.empty() ? std::format("n{}", i) : std::string(d.key);
     if (auto old = keys_.find(key_[i]); old != keys_.end()) {
         // A key names one node: the old one goes.
@@ -89,7 +103,7 @@ NodeRef Scene::add(const NodeDesc& d) {
     for (auto& [name, col] : numbers_) col[i] = 0;
     for (auto& [name, col] : texts_) col[i].clear();
     ++live_;
-    ++revision_;
+    changed();
     index(i);
     return {i, generation_[i]};
 }
@@ -118,7 +132,7 @@ bool Scene::remove(NodeRef n) {
     ++generation_[i];
     free_.push_back(i);
     --live_;
-    ++revision_;
+    changed();
     return true;
 }
 
@@ -133,7 +147,7 @@ void Scene::move(NodeRef n, double x, double y) {
     unindex(i);
     x_[i] = x, y_[i] = y;
     index(i);
-    ++revision_;
+    changed();
 }
 
 void Scene::resize(NodeRef n, float width, float height) {
@@ -141,18 +155,25 @@ void Scene::resize(NodeRef n, float width, float height) {
     unindex(i);
     w_[i] = std::max(0.0f, width), h_[i] = std::max(0.0f, height);
     index(i);
-    ++revision_;
+    changed();
 }
 
 void Scene::set_fill(NodeRef n, Color fill, float radius) {
     const std::uint32_t i = at(n);
     fill_[i] = fill, radius_[i] = radius;
-    ++revision_;
+    changed();
 }
+
+void Scene::touch(NodeRef n) {
+    ++content_[at(n)];
+    changed();
+}
+
+std::uint64_t Scene::content_revision(NodeRef n) const { return content_[at(n)] ^ (static_cast<std::uint64_t>(n.index) << 40); }
 
 void Scene::raise(NodeRef n) {
     z_[at(n)] = next_z_++;
-    ++revision_;
+    changed();
 }
 
 WorldRect Scene::rect(NodeRef n) const {
@@ -181,7 +202,7 @@ void Scene::set(NodeRef n, std::string_view column, double value) {
     auto [it, made] = numbers_.try_emplace(std::string(column));
     if (made) it->second.assign(x_.size(), 0);
     it->second[i] = value;
-    ++revision_;
+    changed();
 }
 
 void Scene::set(NodeRef n, std::string_view column, std::string value) {
@@ -189,7 +210,7 @@ void Scene::set(NodeRef n, std::string_view column, std::string value) {
     auto [it, made] = texts_.try_emplace(std::string(column));
     if (made) it->second.assign(x_.size(), std::string{});
     it->second[i] = std::move(value);
-    ++revision_;
+    changed();
 }
 
 double Scene::number(NodeRef n, std::string_view column, double fallback) const {
@@ -289,7 +310,7 @@ void Scene::each(const std::function<void(NodeRef)>& f) const {
 
 void Scene::preset(std::string name, Preset p) {
     presets_[std::move(name)] = p;
-    ++revision_;
+    changed();
 }
 
 std::optional<Scene::Preset> Scene::preset(std::string_view name) const {

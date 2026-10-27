@@ -61,6 +61,9 @@ struct Tier {
     enum class Draw : std::uint8_t {
         box,      // its fill, its radius: one instanced rounded rectangle
         custom,   // the kind's draw()
+        texture,  // the kind's content(), rasterised in the background at the
+                  // screen's resolution (a mip level), cached; the nearest
+                  // ready level stretched meanwhile, a box before any is
         promote,  // a live component (the kind's promote()), interactive
     };
     float from = 0;
@@ -71,6 +74,10 @@ struct Kind {
     std::vector<Tier> tiers{{0, Tier::Draw::box}};
     std::function<void(DrawContext&)> draw;                       // Tier::Draw::custom
     std::function<Element(const Scene&, NodeRef)> promote;        // Tier::Draw::promote
+    // Tier::Draw::texture: the node drawn in its own world units (0, 0, w,
+    // h), on the UI thread; the canvas rasterises it elsewhere. Its textures
+    // are drawn again when the node's content revision moves (Scene::touch).
+    std::function<void(const Scene&, NodeRef, render::DisplayList&)> content;
     // The semantic tree: its role, and the text column its name comes from.
     Role        role = Role::generic;
     std::string name_column = "title";
@@ -119,6 +126,9 @@ public:
     void resize(NodeRef n, float width, float height);
     void set_fill(NodeRef n, Color fill, float radius);
     void raise(NodeRef n);  // above every other node
+    // What the node's kind draws from it changed: its textures are stale.
+    void touch(NodeRef n);
+    [[nodiscard]] std::uint64_t content_revision(NodeRef n) const;
 
     [[nodiscard]] bool valid(NodeRef n) const noexcept;
     [[nodiscard]] WorldRect rect(NodeRef n) const;
@@ -130,6 +140,10 @@ public:
     [[nodiscard]] WorldRect bounds() const;  // of every node (empty: none)
     // Bumped by every change: a canvas draws again when it moves.
     [[nodiscard]] std::uint64_t revision() const noexcept { return revision_; }
+    // Told of every change (on the scene's thread, which is the UI's): a
+    // canvas showing it draws again. Observers should only take note.
+    std::uint64_t observe(std::function<void()> fn);
+    void unobserve(std::uint64_t token);
 
     // ── columns a kind reads ──
     void set(NodeRef n, std::string_view column, double value);
@@ -166,6 +180,7 @@ private:
     std::vector<std::uint16_t> kind_;
     std::vector<std::uint32_t> generation_;
     std::vector<std::uint64_t> z_;
+    std::vector<std::uint64_t> content_;
     std::vector<bool>          alive_;
     std::vector<std::string>   key_;
     std::unordered_map<std::string, std::vector<double>> numbers_;
@@ -185,6 +200,9 @@ private:
     mutable std::vector<std::uint32_t> stamp_;  // dedup per query
     mutable std::uint32_t      query_ = 0;
     std::map<std::string, Preset, std::less<>> presets_;
+    std::vector<std::pair<std::uint64_t, std::function<void()>>> observers_;
+    std::uint64_t next_observer_ = 1;
+    void changed();
 };
 
 // Scenes by name, as models are: a view names its canvas's scene, the

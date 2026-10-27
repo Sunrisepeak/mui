@@ -25,6 +25,7 @@ import openmui.anim;
 import :canvas_contract;
 import :scene;
 import :camera;
+import :textures;
 
 export namespace omui {
 
@@ -67,9 +68,10 @@ public:
     [[nodiscard]] std::span<const world::NodeRef> visible() const noexcept { return visible_; }
     // What the frame drew per tier kind: boxes, custom, promoted (the HUD's).
     struct Stats {
-        std::size_t boxes = 0, custom = 0, promoted = 0, visible = 0;
+        std::size_t boxes = 0, custom = 0, textured = 0, stretched = 0, promoted = 0, visible = 0;
         double      query_ms = 0, paint_ms = 0;
     };
+    [[nodiscard]] world::Textures::Stats texture_stats() const { return textures_.stats(); }
     [[nodiscard]] const Stats& stats() const noexcept { return stats_; }
 
 private:
@@ -102,6 +104,14 @@ private:
     std::string                          focused_;
     std::uint64_t                        tick_ = 0;   // the pending step's timer
     bool                                 writing_ = false;
+    Canvas*                              self_ = nullptr;  // for the steps the painting (const) schedules
+    // The scene observed: its changes are drawn (coalesced to one repaint).
+    void                                 observe();
+    std::string                          observed_;
+    std::uint64_t                        observer_ = 0;
+    mutable bool                         scene_dirty_ = false;
+    mutable world::Textures              textures_;
+    mutable std::uint64_t                frame_ = 0;
 };
 
 // Registers the canvas by name, for view documents and immediate mode.

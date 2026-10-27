@@ -174,6 +174,36 @@ void add_framework_benchmarks() {
             s.counter("display_commands", static_cast<double>(h.runtime().display_list().size()));
         }
     };
+    add("canvas/sharpen", "40 windows of content on screen, the camera stops at a new zoom: until every texture is rasterised at it (§3.5, < 300 ms)",
+        [](State& s) {
+            auto& sc = world::scene("bench-sharpen");
+            sc.clear();
+            sc.kind("doc", world::Kind{.tiers = {{0, world::Tier::Draw::box}, {60, world::Tier::Draw::texture}},
+                                       .content = [](const world::Scene& sc2, world::NodeRef n, render::DisplayList& dl) {
+                                           const auto r = sc2.rect(n);
+                                           const float w = static_cast<float>(r.width), h = static_cast<float>(r.height);
+                                           dl.fill_round_rect({0, 0, w, h}, CornerRadii::all(8), render::Paint::solid(Color::hex(0xf8fafc)));
+                                           dl.fill_rect({0, 0, w, 28}, Color::hex(0x334155));
+                                           for (float y = 40; y + 10 < h; y += 18) dl.fill_rect({12, y, (w - 24) * (0.6f + 0.4f * std::fmod(y * 0.37f, 1.0f)), 9}, Color::hex(0x94a3b8));
+                                       }});
+            for (int i = 0; i < 40; ++i)
+                sc.add({.kind = "doc", .x = (i % 8) * 700.0, .y = (i / 8) * 500.0, .width = 640, .height = 440, .key = std::format("d{}", i),
+                        .fill = Color::hex(0xe2e8f0)});
+            Headless h(scene_options());
+            auto zoom = signal(0.3);
+            h.mount("main", column({.width = full_hd.width, .height = full_hd.height},
+                                   {canvas({.id = "wall", .scene = "bench-sharpen", .x = 2650, .y = 1200, .zoom = zoom,
+                                            .width = full_hd.width, .height = full_hd.height})}));
+            h.settle();
+            int i = 0;
+            while (s.next()) {
+                // Another mip level, and new content (the cache would answer an old one).
+                zoom.set(++i % 2 ? 0.62 : 0.3);
+                sc.each([&](world::NodeRef n) { sc.touch(n); });
+                h.step();
+                h.settle();  // frames until every texture is in
+            }
+        });
     add("canvas/pan-1000", "1000 windows, a trackpad pans every frame: the visible set, tiers and the display list", [=](State& s) {
         canvas_frame(s, "bench-pan", 1000, 0.18, false);
     });

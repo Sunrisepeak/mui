@@ -4,6 +4,7 @@ import std;
 import openmui.core;
 import openmui.view;
 import openmui.render;
+import openmui.raster;
 import openmui.anim;
 import openmui.trace;
 
@@ -36,7 +37,30 @@ Size Canvas::viewport() const {
 
 Camera Canvas::camera() const { return camera_; }
 
-void Canvas::mounted() { camera_ = {props.x, props.y, std::clamp(props.zoom, props.min_zoom, props.max_zoom)}; }
+void Canvas::observe() {
+    if (!observed_.empty())
+        if (world::Scene* old = world::find_scene(observed_)) old->unobserve(observer_);
+    observed_ = props.scene;
+    observer_ = 0;
+    world::Scene* s = scene();
+    if (!s) return;
+    observer_ = s->observe([this] {
+        if (scene_dirty_) return;
+        scene_dirty_ = true;
+        services().invalidate_paint(node());
+        services().invalidate_semantics(node());
+        // The live nodes: placed again when the frame starts.
+        schedule();
+    });
+}
+
+void Canvas::mounted() {
+    self_ = this;
+    observe();
+    camera_ = {props.x, props.y, std::clamp(props.zoom, props.min_zoom, props.max_zoom)};
+    textures_.configure({.budget = static_cast<std::size_t>(std::max(1.0, props.cache_mb) * 1024 * 1024),
+                         .upload = static_cast<std::size_t>(std::max(0.25, props.upload_mb) * 1024 * 1024)});
+}
 
 void Canvas::prop_changed(CanvasProp p) {
     if (!attached()) return;
@@ -54,6 +78,16 @@ void Canvas::prop_changed(CanvasProp p) {
             place();
             break;
         }
+        case CanvasProp::cache_mb:
+        case CanvasProp::upload_mb:
+            textures_.configure({.budget = static_cast<std::size_t>(std::max(1.0, props.cache_mb) * 1024 * 1024),
+                                 .upload = static_cast<std::size_t>(std::max(0.25, props.upload_mb) * 1024 * 1024)});
+            break;
+        case CanvasProp::scene:
+            textures_.clear(services().images());
+            observe();
+            place();
+            break;
         case CanvasProp::min_zoom:
         case CanvasProp::max_zoom: camera_.zoom = std::clamp(camera_.zoom, props.min_zoom, props.max_zoom); break;
         default: break;
@@ -104,6 +138,14 @@ void Canvas::schedule() {
 }
 
 void Canvas::step() {
+    if (scene_dirty_) place();  // the scene changed: its live nodes again
+    // Textures that came back: drawn this frame.
+    if (textures_.collect(services().images(), frame_)) services().invalidate_paint(node());
+    const bool moving = motion_ || glide_;
+    if (!moving) {
+        if (textures_.busy()) schedule();
+        return;
+    }
     const anim::seconds t = services().now();
     if (motion_) {
         camera_ = motion_->at(t);
@@ -113,11 +155,14 @@ void Canvas::step() {
         if (glide_->settled(t)) glide_.reset();
     }
     changed();
-    if (motion_ || glide_) schedule();
+    if (motion_ || glide_ || textures_.busy()) schedule();
 }
 
 Canvas::~Canvas() {
+    if (!observed_.empty())
+        if (world::Scene* s = world::find_scene(observed_)) s->unobserve(observer_);
     if (tick_ && attached()) services().cancel(tick_);
+    if (attached()) textures_.clear(services().images());
 }
 
 // ── tiers and promotion ──────────────────────────────────────────────────
@@ -210,6 +255,7 @@ void Canvas::paint(PaintContext& ctx) const {
     trace::Span span("canvas.paint", "canvas");
     const auto from = std::chrono::steady_clock::now();
     const Size vp = ctx.size;
+    scene_dirty_ = false;
     ctx.list.fill_rect({0, 0, vp.width, vp.height}, ctx.theme.color(props.background, ctx.theme.color("background")));
     stats_ = {};
     visible_.clear();
@@ -240,9 +286,39 @@ void Canvas::paint(PaintContext& ctx) const {
                 }
                 ++stats_.custom;
                 break;
+            case world::Tier::Draw::texture: {
+                // The content's texture at the screen's resolution, the nearest
+                // ready one meanwhile, a box before any is.
+                const std::string_view key = s->key(n);
+                const std::uint64_t rev = s->content_revision(n);
+                const int level = world::Textures::level_for(camera_.zoom * services().pixel_scale());
+                const auto pick = textures_.pick(key, rev, level, frame_);
+                if (!pick || !pick->exact) {
+                    const float cx = screen.x + screen.width / 2 - vp.width / 2, cy = screen.y + screen.height / 2 - vp.height / 2;
+                    const float centrality = 1.0f / (1.0f + (cx * cx + cy * cy) / (vp.width * vp.width + vp.height * vp.height));
+                    textures_.want(key, rev, level, n, screen.width * screen.height * centrality);
+                }
+                const raster::Surface* img = pick ? services().images().get(pick->image) : nullptr;
+                if (img) {
+                    ctx.list.draw_image(pick->image, {0, 0, static_cast<float>(img->width()), static_cast<float>(img->height())}, screen,
+                                        render::Sampling::linear);
+                    ++stats_.textured;
+                    if (!pick->exact) ++stats_.stretched;
+                } else {
+                    const Color fill = s->fill(n);
+                    if (fill.a > 0) ctx.list.fill_round_rect(screen, CornerRadii::all(static_cast<float>(s->radius(n) * camera_.zoom)), render::Paint::solid(fill));
+                    ++stats_.boxes;
+                }
+                break;
+            }
             case world::Tier::Draw::promote: ++stats_.promoted; break;  // a live child draws it
         }
     }
+    // What the frame wants and has not: rasterised on the pool, collected at
+    // the start of a frame (the step), drawn when it is in.
+    textures_.issue(*s, ctx.services.images(), &ctx.services.fonts());
+    ++frame_;
+    if (textures_.busy() && self_ && !tick_) self_->schedule();
     const auto done = std::chrono::steady_clock::now();
     stats_.query_ms = std::chrono::duration<double, std::milli>(queried - from).count();
     stats_.paint_ms = std::chrono::duration<double, std::milli>(done - queried).count();

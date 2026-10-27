@@ -18,6 +18,17 @@ ImageRef ImageStore::add(std::shared_ptr<const raster::Surface> surface) {
 
 void ImageStore::remove(ImageRef image) { images_.erase(image.id); }
 
+void ImageStore::put(ImageRef image, std::shared_ptr<const raster::Surface> surface) {
+    if (image.id == 0 || !surface) return;
+    images_[image.id] = std::move(surface);
+    next_ = std::max(next_, image.id + 1);
+}
+
+std::shared_ptr<const raster::Surface> ImageStore::shared(ImageRef image) const {
+    const auto it = images_.find(image.id);
+    return it == images_.end() ? nullptr : it->second;
+}
+
 const raster::Surface* ImageStore::get(ImageRef image) const noexcept {
     auto it = images_.find(image.id);
     return it == images_.end() ? nullptr : it->second.get();

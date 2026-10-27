@@ -21,6 +21,8 @@ max_zoom   = { type = "f64", default = 16, doc = "The farthest in the camera goe
 inertia    = { type = "bool", default = true, doc = "A fling glides on and slows to a stop." }
 background = { type = "color", default = "background", doc = "Behind the scene." }
 label      = { type = "string", default = "", doc = "The canvas's accessible name." }
+cache_mb   = { type = "f64", default = 256, doc = "Memory for nodes' textures (MiB); beyond it the least recently drawn go, and their nodes fall back a tier." }
+upload_mb  = { type = "f64", default = 16, doc = "Textures entering the frame at most (MiB a frame): what a GPU uploads stays within a frame's budget." }
 
 [contract.canvas.events]
 camera_changed = { args = { x = "f64", y = "f64", zoom = "f64" }, coalesce = "frame" }

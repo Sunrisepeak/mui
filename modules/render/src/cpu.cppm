@@ -28,6 +28,7 @@ export namespace omui::render {
 struct RenderReport {
     std::size_t commands = 0;
     std::size_t effects_skipped = 0;
+    std::size_t uploaded = 0;  // GPU: bytes the frame sent to the device (images once, coverage, instances)
     std::size_t external_skipped = 0;
     std::size_t missing_images = 0;
     std::size_t missing_glyphs = 0;

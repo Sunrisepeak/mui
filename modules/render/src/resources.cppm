@@ -19,6 +19,12 @@ public:
     ImageRef add(std::shared_ptr<const raster::Surface> surface);
     void remove(ImageRef image);
     [[nodiscard]] const raster::Surface* get(ImageRef image) const noexcept;
+    // The image itself, shared: work on another thread keeps it alive and
+    // never reads the store.
+    [[nodiscard]] std::shared_ptr<const raster::Surface> shared(ImageRef image) const;
+    // An image under an id another store gave it: a snapshot of what a
+    // display list refers to, for work on another thread.
+    void put(ImageRef image, std::shared_ptr<const raster::Surface> surface);
     [[nodiscard]] std::size_t size() const noexcept { return images_.size(); }
 
 private:

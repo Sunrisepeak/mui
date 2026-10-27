@@ -56,8 +56,12 @@ std::string name_of(hb_face_t* face, hb_ot_name_id_t id) {
 }  // namespace
 
 struct FontCollection::Impl {
-    std::vector<std::unique_ptr<Face>> faces;
-    std::vector<Instance>              instances;
+    std::deque<std::unique_ptr<Face>>  faces;
+    // Fonts are made while text is shaped (a new weight) and read by glyph
+    // caches on other threads (a canvas's textures): the lists change under
+    // `lock`, and a deque keeps every entry where it is.
+    std::deque<Instance>               instances;
+    mutable std::shared_mutex          lock;
     std::vector<FaceId>                fallback;
     // What a collection with no faces shapes with: HarfBuzz's empty face, which
     // has no glyphs, so text takes no room and draws nothing instead of
@@ -70,7 +74,14 @@ struct FontCollection::Impl {
         return f;
     }();
 
-    [[nodiscard]] const Face& at(FaceId id) const noexcept { return id < faces.size() ? *faces[id] : none; }
+    [[nodiscard]] const Face& at(FaceId id) const noexcept {
+        std::shared_lock g(lock);
+        return id < faces.size() ? *faces[id] : none;
+    }
+    [[nodiscard]] Instance instance(FontRef font) const noexcept {
+        std::shared_lock g(lock);
+        return instances[font.id - 1];
+    }
 
     ~Impl() {
         hb_set_destroy(none.unicodes);
@@ -156,6 +167,7 @@ std::expected<FaceId, std::string> FontCollection::add_data(std::vector<std::uin
             info.max_weight = axes[i].max_value;
             info.weight = axes[i].default_value;
         }
+    std::unique_lock g(impl_->lock);
     impl_->faces.push_back(std::move(f));
     return static_cast<FaceId>(impl_->faces.size() - 1);
 }
@@ -180,7 +192,10 @@ std::expected<void, std::string> FontCollection::add_defaults(const std::filesys
     return {};
 }
 
-std::size_t FontCollection::face_count() const noexcept { return impl_->faces.size(); }
+std::size_t FontCollection::face_count() const noexcept {
+    std::shared_lock g(impl_->lock);
+    return impl_->faces.size();
+}
 const FaceInfo& FontCollection::face(FaceId id) const { return impl_->at(id).info; }
 
 std::optional<FaceId> FontCollection::find_family(std::string_view family) const {
@@ -190,8 +205,11 @@ std::optional<FaceId> FontCollection::find_family(std::string_view family) const
         return o;
     };
     std::string want = lower(family);
-    for (std::size_t i = 0; i < impl_->faces.size(); ++i)
-        if (lower(impl_->faces[i]->info.family) == want) return static_cast<FaceId>(i);
+    {
+        std::shared_lock g(impl_->lock);
+        for (std::size_t i = 0; i < impl_->faces.size(); ++i)
+            if (lower(impl_->faces[i]->info.family) == want) return static_cast<FaceId>(i);
+    }
     // Generic families.
     if (want == "sans-serif" || want == "system-ui" || want == "ui") return find_family("Inter");
     if (want == "monospace" || want == "code") return find_family("JetBrains Mono");
@@ -231,9 +249,16 @@ FaceId FontCollection::select(std::span<const std::string> families, std::u32str
 FontRef FontCollection::font(FaceId face, float weight, Slant slant) {
     const FaceInfo& info = impl_->at(face).info;
     float w = info.variable ? std::clamp(weight, info.min_weight, info.max_weight) : info.weight;
-    for (std::size_t i = 0; i < impl_->instances.size(); ++i) {
-        const Instance& in = impl_->instances[i];
-        if (in.face == face && in.weight == w && in.slant == slant) return {static_cast<std::uint32_t>(i + 1)};
+    auto find = [&]() -> std::optional<FontRef> {
+        for (std::size_t i = 0; i < impl_->instances.size(); ++i) {
+            const Instance& in = impl_->instances[i];
+            if (in.face == face && in.weight == w && in.slant == slant) return FontRef{static_cast<std::uint32_t>(i + 1)};
+        }
+        return std::nullopt;
+    };
+    {
+        std::shared_lock g(impl_->lock);
+        if (auto r = find()) return *r;
     }
     hb_font_t* f = hb_font_create(impl_->at(face).face);
     hb_font_set_scale(f, static_cast<int>(info.units_per_em), static_cast<int>(info.units_per_em));
@@ -242,17 +267,22 @@ FontRef FontCollection::font(FaceId face, float weight, Slant slant) {
         hb_font_set_variations(f, &v, 1);
     }
     if (slant == Slant::italic && !info.variable) hb_font_set_synthetic_slant(f, 0.2f);
+    std::unique_lock g(impl_->lock);
+    if (auto r = find()) {  // made meanwhile on another thread
+        hb_font_destroy(f);
+        return *r;
+    }
     impl_->instances.push_back({face, w, slant, f});
     return {static_cast<std::uint32_t>(impl_->instances.size())};
 }
 
-FaceId FontCollection::face_of(FontRef font) const { return impl_->instances[font.id - 1].face; }
-float FontCollection::weight_of(FontRef font) const { return impl_->instances[font.id - 1].weight; }
+FaceId FontCollection::face_of(FontRef font) const { return impl_->instance(font).face; }
+float FontCollection::weight_of(FontRef font) const { return impl_->instance(font).weight; }
 
-void* FontCollection::hb_font(FontRef font) const { return impl_->instances[font.id - 1].font; }
+void* FontCollection::hb_font(FontRef font) const { return impl_->instance(font).font; }
 
 Metrics FontCollection::metrics(FontRef font, float size) const {
-    hb_font_t* f = impl_->instances[font.id - 1].font;
+    hb_font_t* f = impl_->instance(font).font;
     const FaceInfo& info = impl_->at(face_of(font)).info;
     float k = size / static_cast<float>(info.units_per_em);
     auto get = [&](hb_ot_metrics_tag_t tag, hb_position_t fallback) {

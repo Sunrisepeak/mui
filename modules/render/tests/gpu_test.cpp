@@ -445,6 +445,27 @@ int main(int argc, char** argv) {
         if (report) check(report->external_skipped == 1 && report->commands == dl.size());
     });
 
+    s.test("an image of the store is uploaded once, whatever frames draw it, and released when the store drops it", [] {
+        auto device = open_device();
+        if (!device) return;
+        auto gpu = render::GpuRenderer::create(*device);
+        auto target = device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, W, H, rhi::TextureUsage::color_target, "test.target"});
+        if (!gpu || !target) return;
+        render::ImageStore images;
+        const render::ImageRef big = images.add(256, 256, std::vector<raster::Rgba8>(256 * 256, raster::Rgba8{30, 60, 90, 255}));
+        render::DisplayList dl;
+        dl.draw_image(big, {0, 0, 256, 256}, {0, 0, 160, 120});
+        auto first = gpu->render(dl, *target, {&images, nullptr});
+        auto second = gpu->render(dl, *target, {&images, nullptr});
+        check(first && second, "both frames drew");
+        if (!first || !second) return;
+        check(first->uploaded >= 256u * 256 * 4, std::format("the first frame uploads the image ({} bytes)", first->uploaded));
+        check(second->uploaded < 256u * 256, std::format("the second does not ({} bytes)", second->uploaded));
+        images.remove(big);
+        render::DisplayList empty;
+        check(gpu->render(empty, *target, {&images, nullptr}).has_value(), "a frame after the store dropped it");
+    });
+
     s.test("an external texture the program made on the device is drawn like an image of its pixels", [] {
         auto device = open_device();
         if (!device) return;

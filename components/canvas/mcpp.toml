@@ -28,6 +28,9 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 openmui.core   = { path = "../../runtime/core" }
 openmui.view   = { path = "../../runtime/view" }
 openmui.render = { path = "../../modules/render" }
+openmui.raster = { path = "../../modules/raster" }
+openmui.geom   = { path = "../../modules/geom" }
+openmui.text   = { path = "../../modules/text" }
 openmui.anim   = { path = "../../modules/anim" }
 openmui.trace  = { path = "../../modules/trace" }
 

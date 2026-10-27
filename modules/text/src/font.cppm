@@ -42,6 +42,9 @@ struct Metrics {
     [[nodiscard]] float line_height() const noexcept { return ascent + descent + line_gap; }
 };
 
+// Fonts may be made (a weight not seen yet) on the thread that shapes while
+// glyph caches on other threads read them (a canvas's textures, rasterised in
+// the background); faces and the fallback chain are set up before that.
 class FontCollection {
 public:
     FontCollection();

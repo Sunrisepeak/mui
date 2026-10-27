@@ -156,7 +156,14 @@ struct GpuRenderer::Impl {
     std::uint32_t         atlas_w = 2048, atlas_h = 0;
     rhi::Buffer           instances;
     std::uint32_t         instance_capacity = 0;
-    std::unordered_map<const raster::Surface*, rhi::Texture> images;
+    std::unordered_map<const raster::Surface*, rhi::Texture> images;  // surfaces without an id (glyph colour images)
+    // The ImageStore's images by id: immutable while the store holds them, so
+    // uploaded once (a wall of thumbnails costs its uploads once, not a frame).
+    struct Stored {
+        rhi::Texture           texture;
+        const raster::Surface* surface = nullptr;
+    };
+    std::unordered_map<std::uint32_t, Stored> stored;
 
     // The effects' pipelines, made on first use: a pixel effect's by its ref
     // and generation (a reloaded shader is a new pipeline).
@@ -205,6 +212,7 @@ struct GpuRenderer::Impl {
         static_cast<void>(d.wait_idle());
         for (const Pooled& p : pool) d.destroy(p.texture);
         for (auto& [s, t] : images) d.destroy(t);
+        for (auto& [id, st] : stored) d.destroy(st.texture);
         for (rhi::Texture t : {white, white_mask, zero_row, ramps, atlas}) d.destroy(t);
         d.destroy(instances);
         d.destroy(nearest);
@@ -294,6 +302,32 @@ struct GpuRenderer::Impl {
         atlas = *t;
         atlas_h = cap;
         return {};
+    }
+
+    // An ImageStore image: uploaded the first time it is drawn.
+    rhi::Result<rhi::Texture> stored_texture(std::uint32_t id, const raster::Surface& s) {
+        if (auto it = stored.find(id); it != stored.end() && it->second.surface == &s) return it->second.texture;
+        if (auto it = stored.find(id); it != stored.end()) {
+            d.destroy(it->second.texture);
+            stored.erase(it);
+        }
+        auto t = d.create(rhi::TextureDesc{rhi::Format::rgba8_unorm, static_cast<std::uint32_t>(s.width()), static_cast<std::uint32_t>(s.height()),
+                                           rhi::TextureUsage::sampled, "render.image"});
+        if (!t) return std::unexpected(t.error());
+        for (int y = 0; y < s.height(); ++y)
+            list.upload(*t, rhi::Region{0, static_cast<std::uint32_t>(y), static_cast<std::uint32_t>(s.width()), 1},
+                        std::as_bytes(std::span(s.row(y), static_cast<std::size_t>(s.width()))));
+        stored.emplace(id, Stored{*t, &s});
+        return *t;
+    }
+
+    // The stored images the store no longer holds go.
+    void release_stored(const ImageStore* store) {
+        std::erase_if(stored, [&](auto& kv) {
+            if (store && store->get(ImageRef{kv.first}) == kv.second.surface) return false;
+            d.destroy(kv.second.texture);
+            return true;
+        });
     }
 
     rhi::Result<rhi::Texture> image_texture(const raster::Surface& s) {
@@ -497,6 +531,7 @@ rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, rhi::Textur
 
     RenderReport report;
     g.pool_frame();
+    g.release_stored(res.images);
     g.passes.clear();
     g.ramp_rows.clear();
     g.atlas_entries.clear();
@@ -605,7 +640,7 @@ rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, rhi::Textur
                     ++report.missing_images;
                     return false;
                 }
-                auto t = g.image_texture(*img);
+                auto t = g.stored_texture(paint.image.id, *img);
                 if (!t) {
                     fail(t.error());
                     return false;
@@ -971,7 +1006,13 @@ rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, rhi::Textur
                         ++report.missing_images;
                         return;
                     }
-                    image(*img, c.source, c.dest, c.sampling, c.opacity, m());
+                    auto t = g.stored_texture(c.image.id, *img);
+                    if (!t) {
+                        fail(t.error());
+                        return;
+                    }
+                    texture_image(*t, static_cast<std::uint32_t>(img->width()), static_cast<std::uint32_t>(img->height()), c.source, c.dest,
+                                  c.sampling, c.opacity, m());
                 } else if constexpr (std::same_as<T, DrawGlyphs>) {
                     if (!res.glyphs) {
                         report.missing_glyphs += c.glyphs.size();
@@ -1163,6 +1204,10 @@ rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, rhi::Textur
             first += static_cast<std::uint32_t>(s.draws.size());
         }
         g.list.end_render();
+    }
+    for (const rhi::Command& c : g.list.commands()) {
+        if (const auto* u = std::get_if<rhi::cmd::UploadTexture>(&c)) report.uploaded += u->data.size();
+        else if (const auto* b = std::get_if<rhi::cmd::UploadBuffer>(&c)) report.uploaded += b->data.size();
     }
     auto submitted = g.d.submit(g.list);
     if (!submitted) return std::unexpected(submitted.error());

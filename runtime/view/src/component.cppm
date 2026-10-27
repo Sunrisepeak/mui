@@ -82,6 +82,9 @@ public:
     // The person asked for less transparency (a system setting): glass and
     // other see-through materials draw as opaque panels.
     [[nodiscard]] virtual bool reduce_transparency() const { return false; }
+    // Physical pixels per logical pixel: what a component rasterising its own
+    // textures (a canvas's thumbnails) sizes them by.
+    [[nodiscard]] virtual float pixel_scale() const { return 1; }
     [[nodiscard]] virtual typeset::FontCollection& fonts() = 0;
     [[nodiscard]] virtual render::ImageStore& images() = 0;
     [[nodiscard]] virtual anim::seconds now() const = 0;

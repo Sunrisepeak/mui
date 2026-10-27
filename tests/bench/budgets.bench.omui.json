@@ -10,6 +10,8 @@
      "why": "even when every label of the interface changes in one frame"},
     {"name": "ui/frame/animate-all", "metric": "p95_ms", "max": 16.67,
      "why": "a strong-animation framework (D-60): every card of the interface in motion still holds 60 Hz"},
+    {"name": "canvas/sharpen", "metric": "p95_ms", "max": 300,
+     "why": "canvas-markdown §3.5: after the camera stops, what is on screen is sharp again within 300 ms"},
     {"name": "canvas/pan-1000", "metric": "p95_ms", "max": 1.0,
      "why": "canvas-markdown §3.5: panning a wall of 1000 windows costs under 1 ms of CPU a frame (raster aside)"},
     {"name": "canvas/zoom-sweep-1000", "metric": "p95_ms", "max": 1.0,

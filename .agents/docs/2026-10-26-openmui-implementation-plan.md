@@ -1083,6 +1083,12 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
 | | ④ 跨平台确定性测试在三个桌面平台上是绿的 | ✅ 每个金图（视图、组件、文本、效果、示例）在 Linux / macOS / Windows（MSVC ABI）和 wine 上是同一个固定哈希 |
 | | ⑤ 中文、阿拉伯语、emoji 混排的排版测试集 | ✅ `modules/text`：回退、双向、断行、字素和混排像素固定；带样式的字形（旋转、着色）也固定 |
 | | ⑥ 录制一段会话，在 headless 下回放，结果完全相同 | ✅ 示例 07 的“recorded session replays exactly”；会话文件名可以是任何文字（`mcpplibs.os` 0.1.1） |
+| M3 | ① 示例 02–06、12 | ✅ 02 hello-ts、03 计数器（五种写法）、04 阅读清单（应用自己的组件）、05 对比度检查器（应用自己的 native 模块）、06 主题预览、12 笔记（四种语言）：都是真实工具，headless 测试，像素在各平台固定 |
+| | ② 四种语言加视图文档的语义树相同（CTS 的 S 级） | ✅ 示例 03：C++、视图文档、Lua、TypeScript、Python 五种写法的语义树和像素完全相同；示例 04 的组件从 Lua、视图文档、C++ builder 得到同一个节点 |
+| | ③ 同一组 JSON 场景由 TS、Python、Lua 执行，结果相同 | ✅ `spec/conformance/S` 的五个场景（counter、notes、form、finder、themed），三种语言的轨迹和固定轨迹逐条相同 |
+| | ④ 脚本热重载 200ms 以内，signal 状态保留 | ✅ Lua、TypeScript、视图文档的重新加载测试（节点和 signal 保留） |
+| | ⑤ `pip install openmui` 后运行 Python 示例（Linux） | ✅ `tools/ci/python-wheel.sh`：装好的 wheel 上跑套件、示例 03 和 `app-py` 模板，`mypy --strict` |
+| | ⑥ native 模块的契约生成三种语言的绑定 | ✅ `omui-gen native` + `openmui.rules` 的 `natives()`；`fuzzy` 和示例 05 的模块，CTS 场景 `finder` |
 
 ### 22.4 计划之外提前完成的
 
@@ -1102,7 +1108,7 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
 ### 22.5 还差什么（按计划顺序）
 
 - M2 的验收已完成（见 22.3）。
-- M3 进行中：
+- M3：
   - ✅ 表达式 `openmui.expr`（`runtime/expr`）：CEL 兼容的解析器和打印器（往返由随机合法和随机非法输入做模糊测试，四个平台同一个固定哈希）、组合子、同步求值器（错误给 null 和定位诊断，带修复提示）、注册表里的全部函数（函数表从生成的注册表来）；树高不超过 200 层，解析、求值、打印都不会栈溢出。`openmui.unicode` 同时补上了完整的大小写映射（SpecialCasing、Final_Sigma）。
   - ✅ 视图文档 `openmui.viewdoc`（`runtime/viewdoc`）：检查（名字、类型、ID、表达式，带位置和修改建议）、加载成和 builder 相同的 Element、绑定和事件（`set` / `verb` / `emit`，激活上的 verb 走 S-1 / S-2）、`if` / `for`（列表里虚拟化）、插槽、原地重新加载（signal 和节点保留）、组件文档（接口生成契约）、JSON Schema（`spec/schema/view.schema.json`，CI 校验）、规范格式；`omui check` / `fmt` / `schema`；随机文档模糊测试。
   - 示例 03 的 C++ 和视图文档两种写法：语义树和像素完全相同（S 级），保存即重新加载（< 200ms，计数保留）；TS / Python / Lua 版本随绑定加入。
@@ -1119,7 +1125,10 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
   - ✅ 示例 04 自定义组件：阅读清单（TS），应用自己的 `rating` 组件从契约（`rating.contract.omui.toml`）经 `openmui.rules` 构建时生成 C++ 分区、builder 和 TS / Python / Lua 存根，`src/rating.cpp` 写行为（星形逐渐填充、悬停预览、动作和键位）；注册后 TS、Lua、视图文档和 agent 都按名字使用，测试证明 Lua / 视图文档 / C++ builder 得到同一个语义节点。
   - ✅ 模板：`app-ts` / `app-lua`（播放器跑脚本，headless 测试像 agent 一样按按钮）、`app-py`（`pip install openmui` 的纯 Python 应用，CI 在装好的 wheel 上跑它的测试并做 `mypy --strict`）、`native`（native 模块包，构建时生成绑定）、`theme`（主题包，`openmui.rules` 的 `themes()` 在构建时嵌入主题文件）；`tools/ci/templates.sh` 全部渲染、构建、测试。
   - ✅ `runtime/reflect`（`openmui.reflect`，C++26，GCC 16 `-freflection`）：`form(signal)` 按成员类型生成文本框 / 开关 / 滑块 / 下拉 / 分组，双向绑定，成员名是语义 ID 和标签，注解 `range` / `label` / `hidden`；`to_value` / `from_value` / `fields<T>()`。C++26 的模块要和 C++23 的分开构建，所以它单独成员、在 GCC dev 一行单独测试（V-07：注解里的字符串要用数组，字符串字面量的地址不是常量）。
-  - 示例 12（notes-mixed）。
+  - ✅ 示例 12 笔记：TypeScript 写视图和逻辑，Lua 写文本宏（verb，任何语言和 agent 都能调用），视图文档是帮助面板，C++ 的 `fuzzy` 边输入边在 worker 上搜索；它们只共享 signal、model、verb 和事件。为此补上了：
+    - 出口（outlet）：没有代码填的插槽显示以它的名字挂载的视图，有人读这个插槽时视图移进来，没人读时回到顶层。
+    - 事件在批次之后送达（core 的 `after_batch`）：脚本的处理函数读到的 signal 就是事件发生时的值。之前绑定的镜像晚一步，清空搜索框时搜的是上一次的文字。
+- M3 的验收已完成（见 22.3）。
 - M4：`modules/rhi` 和 `rhi-sdl`、GPU 渲染路径、Slang 着色器、效果和背景输入（液态玻璃，D-64）、画布、风格包、S1 / S2。
 - M5：openmui-video、ui-timeline、MCP 服务器、skills、S3 / S4 / S5。
 - 契约⑦（插件与管线）写进规范；Inspector 的火焰图和动画检查器视图。

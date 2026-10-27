@@ -56,6 +56,7 @@ void evaluate_tracked(ReactiveNode& node, void (*body)(ReactiveNode*));
 void schedule(ReactiveNode& effect);
 void begin_batch() noexcept;
 void end_batch();
+void after_batch(std::function<void()> f);
 void dispose(ReactiveNode& node);
 
 struct UntrackedScope {
@@ -202,6 +203,12 @@ decltype(auto) batch(F&& f) {
     } end;
     return std::invoke(std::forward<F>(f));
 }
+
+// `f`, once the outermost batch has ended and the effects its writes
+// scheduled have run (now, outside any): what is told of a change made in a
+// batch (an event to a script) sees the state the change left, watches
+// included. In order.
+inline void after_batch(std::function<void()> f) { detail::after_batch(std::move(f)); }
 
 // Reads inside `f` do not become dependencies.
 template <class F>

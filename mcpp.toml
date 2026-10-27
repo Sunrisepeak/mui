@@ -72,6 +72,7 @@ members = [
     "examples/07-headless-and-agent",
     "examples/08-markdown-viewer",
     "examples/09-markdown-stream",
+    "examples/12-notes",
 ]
 
 # Sanitizers (plan §19.1 "内存"): AddressSanitizer and UndefinedBehavior-

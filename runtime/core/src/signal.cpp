@@ -14,6 +14,7 @@ struct Graph {
     int                        batch   = 0;
     bool                       flushing = false;
     std::deque<ReactiveNode*>  queue;              // effects to run
+    std::deque<std::function<void()>> after;       // after_batch's, once the effects ran
 };
 
 thread_local Graph graph;
@@ -51,6 +52,13 @@ void flush() {
         e->checked = graph.epoch;
     }
     graph.flushing = false;
+    // What waits for the writes to have notified: in order; what it writes
+    // flushes again (and may wait in turn).
+    while (!graph.after.empty() && graph.batch == 0 && !graph.flushing) {
+        std::function<void()> f = std::move(graph.after.front());
+        graph.after.pop_front();
+        f();
+    }
 }
 
 }  // namespace
@@ -125,6 +133,15 @@ void evaluate_tracked(ReactiveNode& n, void (*body)(ReactiveNode*)) {
 }
 
 void begin_batch() noexcept { ++graph.batch; }
+
+void after_batch(std::function<void()> f) {
+    if (graph.batch == 0 && !graph.flushing && graph.after.empty()) {
+        f();
+        return;
+    }
+    graph.after.push_back(std::move(f));
+    if (graph.batch == 0 && !graph.flushing) flush();
+}
 
 void end_batch() {
     if (--graph.batch == 0) flush();

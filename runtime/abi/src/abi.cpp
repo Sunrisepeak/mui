@@ -367,8 +367,14 @@ OmuiResult omuiOn(OmuiRuntime rt, OmuiNode node, OmuiString event, PFN_omuiEvent
             self->pending.insert_or_assign(sub, OmuiRuntime_T::Pending{fn, user, node, name, args});
             return;
         }
-        const std::string json = args.json();
-        fn(user, node, OmuiString{name.data(), name.size()}, OmuiString{json.data(), json.size()});
+        // Once the batch it was emitted in has notified its writes: the
+        // binding's mirrors of the signals (their watches) are told first,
+        // so a handler reads them as the event left them.
+        std::weak_ptr<bool> alive = self->alive;
+        after_batch([self, alive, sub, fn, user, node, name, json = args.json()] {
+            if (auto a = alive.lock(); !a || !*a || !self->subscriptions.contains(sub)) return;
+            fn(user, node, OmuiString{name.data(), name.size()}, OmuiString{json.data(), json.size()});
+        });
     });
     rt->subscriptions[sub].token = token;
     *out = sub;

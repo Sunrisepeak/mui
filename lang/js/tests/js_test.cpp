@@ -84,9 +84,9 @@ struct Runtime {
         }
         return "<none>";
     }
-    std::int64_t act(std::string_view node, std::string_view action) {
+    std::int64_t act(std::string_view node, std::string_view action, Json args = Json::object()) {
         std::string out;
-        const std::string text = Json{{"node", node}, {"action", action}}.dump();
+        const std::string text = Json{{"node", node}, {"action", action}, {"args", std::move(args)}}.dump();
         return omuiAct(rt, str(text), collect, &out);
     }
 };
@@ -217,6 +217,24 @@ globalThis.showFilter = () => onlyOpen.set(true);
         check(archived.has_value(), archived ? "" : archived.error().text());
         check(js.run("showFilter();", "show.js").has_value());
         check_eq(r.name_of("main/filter"), std::string("open only"));
+    });
+
+    s.test("a handler reads the signals as its event left them (a bound field's changed)", [] {
+        Runtime r;
+        Js js(r);
+        auto ran = js.run(R"js(
+import { signal, column, textBox, mount } from "openmui";
+const query = signal("");
+globalThis.seen = [];
+mount("main", column([textBox({ id: "q", label: "Search", text: query, onChanged: (e) => seen.push(query.get() + "|" + e.text) })]));
+)js");
+        check(ran.has_value(), ran ? "" : ran.error().text());
+        for (std::string_view v : {"middle", "", "rose"}) {
+            check_eq(r.act("main/q", "set_value", Json{{"value", v}}), std::int64_t{0});
+            r.settle(js.host);
+        }
+        auto seen = js.run("const want = 'middle|middle,|,rose|rose'; if (seen.join() !== want) throw new Error(seen.join());", "check.js");
+        check(seen.has_value(), seen ? "" : seen.error().text());
     });
 
     s.test("errors are exceptions, with what and where", [] {

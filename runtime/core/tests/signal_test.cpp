@@ -60,6 +60,31 @@ int main(int argc, char** argv) {
         check_eq(runs, 2);
     });
 
+    s.test("after_batch: once the batch's effects ran, in order; now outside a batch", [] {
+        auto x = omui::signal(0);
+        std::vector<std::string> log;
+        omui::Watch w([=, &log] { log.push_back(std::format("watch {}", x())); });
+        omui::batch([&] {
+            x.set(1);
+            omui::after_batch([&] { log.push_back(std::format("told {}", x.peek())); });
+            omui::batch([&] { omui::after_batch([&] { log.push_back("second"); }); });
+            x.set(2);
+        });
+        check(log == std::vector<std::string>{"watch 0", "watch 2", "told 2", "second"}, std::format("{}", log));
+        // What it writes notifies before what waits after it.
+        log.clear();
+        omui::batch([&] {
+            omui::after_batch([&] {
+                x.set(3);
+                omui::after_batch([&] { log.push_back("then"); });
+            });
+        });
+        check(log == std::vector<std::string>{"watch 3", "then"}, std::format("{}", log));
+        bool now = false;
+        omui::after_batch([&] { now = true; });
+        check(now, "outside a batch, at once");
+    });
+
     s.test("dynamic dependencies", [] {
         auto use_a = omui::signal(true);
         auto a = omui::signal(std::string("a"));

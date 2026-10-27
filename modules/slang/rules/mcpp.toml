@@ -1,0 +1,25 @@
+# openmui.slang.rules — a package's Slang shaders compiled in its build:
+# each `shaders/*.slang` becomes the module partition `<module>:<stem>_shaders`
+# of rhi::ShaderDesc constants, for the formats the build's target takes
+# (omui-slang, built for the build machine). Only build-system code.
+#
+#   [build-dependencies]
+#   openmui.slang.rules = { path = "…/modules/slang/rules", host-module = true }
+#
+#   // build.mcpp
+#   import mcpp;
+#   import openmui.slang.rules;
+#   int main() { return openmui::slang::rules::shaders({.module = "acme.render"}) ? 0 : 1; }
+[package]
+name        = "rules"
+namespace   = "openmui.slang"
+version     = "0.1.0"
+description = "Build rule: a package's Slang shaders to omui.rhi shader descriptions, at build time"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "rules"
+
+[dependencies]
+openmui.slang = { path = "..", tools = ["omui-slang"], reexport = true }

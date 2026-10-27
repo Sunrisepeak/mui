@@ -29,6 +29,8 @@ members = [
     "modules/render",
     "modules/rhi",
     "modules/slang",
+    "modules/slang/rules",
+    "modules/rhi-sdl",
     "modules/text",
     "modules/record",
     "modules/trace",

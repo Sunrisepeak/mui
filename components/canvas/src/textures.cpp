@@ -2,6 +2,8 @@ module openmui.ui.canvas;
 
 import std;
 import openmui.core;
+import openmui.view;
+import openmui.anim;
 import openmui.geom;
 import openmui.raster;
 import openmui.render;
@@ -12,6 +14,7 @@ namespace omui::world {
 
 // A raster that came back.
 struct Textures::Done {
+    std::uint64_t                    order;  // issued nth: results enter in the order asked for, not finished
     std::string                      key;
     std::uint64_t                    revision;
     int                              level;
@@ -26,9 +29,84 @@ struct Textures::Inbox {
     std::vector<Done>     done;
     std::atomic<bool>     closed = false;
     std::atomic<std::uint64_t> epoch = 0;
+    // Jobs running: the cache waits for them when it goes, since they use
+    // what its canvas lends them (the fonts) and that goes with it.
+    int                     running = 0;
+    std::condition_variable idle;
+    // Jobs issued and not yet finished (or given up): a deterministic run
+    // waits for them at the next frame.
+    std::size_t             outstanding = 0;
+    std::condition_variable finished;
+
+    // A job begins, unless the cache has gone.
+    bool enter() {
+        std::scoped_lock g(lock);
+        if (closed) return false;
+        ++running;
+        return true;
+    }
+    void leave() {
+        std::scoped_lock g(lock);
+        if (--running == 0) idle.notify_all();
+    }
+    void issued() {
+        std::scoped_lock g(lock);
+        ++outstanding;
+    }
+    void done_with(std::optional<Done> d) {
+        std::scoped_lock g(lock);
+        if (d && !closed) done.push_back(std::move(*d));
+        if (--outstanding == 0) finished.notify_all();
+    }
+};
+
+// Runtimes that lay a kind's view out away from the UI thread: one a job,
+// leased and given back, all in the canvas's theme (a new theme, new ones).
+struct Textures::Offscreen {
+    std::mutex                            lock;
+    std::vector<std::unique_ptr<Runtime>> idle;
+    std::optional<Theme>                  theme;
+    typeset::FontCollection*              fonts = nullptr;
+    std::uint64_t                         generation = 0;
+
+    struct Lease {
+        std::unique_ptr<Runtime> runtime;
+        std::uint64_t            generation = 0;
+    };
+    Lease take(Size size) {
+        std::scoped_lock g(lock);
+        if (!idle.empty()) {
+            Lease l{std::move(idle.back()), generation};
+            idle.pop_back();
+            l.runtime->resize(size, 1);
+            return l;
+        }
+        RuntimeOptions o;
+        o.theme = theme.value_or(Theme::light());
+        o.fonts = fonts;
+        o.size = size;
+        return {std::make_unique<Runtime>(std::move(o)), generation};
+    }
+    void give_back(Lease l) {
+        std::scoped_lock g(lock);
+        if (l.generation == generation && idle.size() < 64) idle.push_back(std::move(l.runtime));
+    }
 };
 
 namespace {
+
+// A view laid out at `size` (its world units) and painted, settled: what an
+// offscreen runtime draws of it once its animations have ended.
+void paint_view(Runtime& rt, const Element& view, render::DisplayList& out) {
+    rt.mount("content", view);
+    FrameOutput f = rt.frame();
+    for (int i = 0; i < 8 && f.animating; ++i) {
+        rt.step_time(anim::seconds(10));
+        f = rt.frame();
+    }
+    out.append(rt.display_list());
+    rt.unmount("content");
+}
 
 // The images a display list draws, by reference.
 void images_of(const render::DisplayList& dl, std::vector<render::ImageRef>& out) {
@@ -55,9 +133,13 @@ render::GlyphSource* glyphs_for(typeset::FontCollection* fonts) {
 
 }  // namespace
 
-Textures::Textures() : inbox_(std::make_shared<Inbox>()) {}
+Textures::Textures() : inbox_(std::make_shared<Inbox>()), offscreen_(std::make_shared<Offscreen>()) {}
 
-Textures::~Textures() { inbox_->closed = true; }
+Textures::~Textures() {
+    std::unique_lock g(inbox_->lock);
+    inbox_->closed = true;
+    inbox_->idle.wait(g, [&] { return inbox_->running == 0; });
+}
 
 int Textures::level_for(double texels_per_unit) noexcept {
     if (!(texels_per_unit > 0)) return -8;
@@ -85,14 +167,23 @@ void Textures::want(std::string_view key, std::uint64_t revision, int level, Nod
     candidates_.push_back({std::string(key), revision, level, node, priority});
 }
 
-void Textures::issue(const Scene& scene, const render::ImageStore& images, typeset::FontCollection* fonts) {
+void Textures::issue(const Scene& scene, const render::ImageStore& images, typeset::FontCollection* fonts, const Theme& theme) {
     const std::size_t limit = options_.jobs ? options_.jobs : 2 * std::max(1u, Tasks::shared().threads());
+    {
+        std::scoped_lock g(offscreen_->lock);
+        if (!offscreen_->theme || offscreen_->fonts != fonts) {
+            offscreen_->theme = theme;
+            offscreen_->fonts = fonts;
+            ++offscreen_->generation;
+            offscreen_->idle.clear();
+        }
+    }
     std::ranges::sort(candidates_, std::greater{}, &Candidate::priority);
     for (Candidate& c : candidates_) {
         if (in_flight_.size() >= limit) break;
         if (!scene.valid(c.node)) continue;
         const Kind& k = scene.kind_of(c.node);
-        if (!k.content) continue;
+        if (!k.content && !k.view) continue;
         const WorldRect r = scene.rect(c.node);
         if (r.empty()) continue;
         // The texture: 2^level texels a world unit, its largest side capped.
@@ -100,38 +191,68 @@ void Textures::issue(const Scene& scene, const render::ImageStore& images, types
         const double largest = std::max(r.width, r.height) * s;
         if (largest > options_.max_side) s *= options_.max_side / largest;
         const int pw = std::max(1, static_cast<int>(std::ceil(r.width * s))), ph = std::max(1, static_cast<int>(std::ceil(r.height * s)));
-        // Built here, on the scene's thread; drawn on the pool.
+        // Built here, on the scene's thread: a display list, or a view to lay out on the pool.
         auto dl = std::make_shared<render::DisplayList>();
-        k.content(scene, c.node, *dl);
+        std::shared_ptr<const Element> view;
         auto snapshot = std::make_shared<render::ImageStore>();
-        std::vector<render::ImageRef> used;
-        images_of(*dl, used);
-        for (render::ImageRef i : used) snapshot->put(i, images.shared(i));
+        if (k.content) {
+            k.content(scene, c.node, *dl);
+            std::vector<render::ImageRef> used;
+            images_of(*dl, used);
+            for (render::ImageRef i : used) snapshot->put(i, images.shared(i));
+        } else {
+            view = std::make_shared<const Element>(k.view(scene, c.node));
+        }
         in_flight_.insert({c.key, c.revision, c.level});
+        inbox_->issued();
+        const std::uint64_t order = next_order_++;
         const float sx = static_cast<float>(pw / r.width), sy = static_cast<float>(ph / r.height);
-        Tasks::shared().spawn([inbox = inbox_, dl, snapshot, fonts, key = c.key, rev = c.revision, level = c.level, epoch = inbox_->epoch.load(), pw, ph, sx,
-                               sy](std::stop_token stop) {
-            if (inbox->closed || stop.stop_requested()) return;
+        const Size world{static_cast<float>(r.width), static_cast<float>(r.height)};
+        Tasks::shared().spawn([inbox = inbox_, offscreen = offscreen_, dl, view, snapshot, fonts, world, key = c.key, rev = c.revision, level = c.level,
+                               epoch = inbox_->epoch.load(), order, pw, ph, sx, sy](std::stop_token stop) {
+            if (stop.stop_requested() || !inbox->enter()) {
+                inbox->done_with(std::nullopt);
+                return;
+            }
+            struct Leave {
+                Inbox& in;
+                ~Leave() { in.leave(); }
+            } leave{*inbox};
             trace::Span span("canvas.texture", "canvas");
             auto surface = std::make_shared<raster::Surface>(pw, ph);
             render::CpuRenderer r;
             render::CpuOptions o;
             o.transform = geom::Affine::scale(sx, sy);
             o.background = Color::transparent();
-            (void)r.render(*dl, *surface, {snapshot.get(), glyphs_for(fonts)}, o);
-            std::scoped_lock g(inbox->lock);
-            if (!inbox->closed) inbox->done.push_back({key, rev, level, epoch, std::move(surface)});
+            if (view) {
+                // Laid out and painted here; its images are its runtime's.
+                auto lease = offscreen->take(world);
+                render::DisplayList painted;
+                {
+                    trace::Span layout("canvas.texture.view", "canvas");
+                    paint_view(*lease.runtime, *view, painted);
+                }
+                (void)r.render(painted, *surface, {&lease.runtime->images(), glyphs_for(fonts)}, o);
+                offscreen->give_back(std::move(lease));
+            } else {
+                (void)r.render(*dl, *surface, {snapshot.get(), glyphs_for(fonts)}, o);
+            }
+            inbox->done_with(Done{order, key, rev, level, epoch, std::move(surface)});
         });
     }
     candidates_.clear();
 }
 
-bool Textures::collect(render::ImageStore& images, std::uint64_t frame) {
+bool Textures::collect(render::ImageStore& images, std::uint64_t frame, bool wait) {
     std::vector<Done> done;
     {
-        std::scoped_lock g(inbox_->lock);
+        std::unique_lock g(inbox_->lock);
+        if (wait) inbox_->finished.wait(g, [&] { return inbox_->outstanding == 0; });
         done.swap(inbox_->done);
     }
+    // In the order they were asked for: which enter within the frame's budget
+    // does not depend on which thread finished first.
+    std::ranges::sort(done, {}, &Done::order);
     last_.entered = last_.evicted = 0;
     bool changed = false;
     std::size_t entered = 0;
@@ -194,6 +315,11 @@ bool Textures::collect(render::ImageStore& images, std::uint64_t frame) {
 
 void Textures::clear(render::ImageStore& images) {
     ++inbox_->epoch;
+    {
+        // The views are laid out again, in the theme the next frame gives.
+        std::scoped_lock g(offscreen_->lock);
+        offscreen_->theme.reset();
+    }
     for (auto& [key, e] : entries_)
         for (auto& [lv, l] : e.levels) images.remove(l.image);
     entries_.clear();

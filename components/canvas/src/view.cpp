@@ -71,11 +71,16 @@ void Canvas::prop_changed(CanvasProp p) {
         case CanvasProp::y:
         case CanvasProp::zoom: {
             if (writing_) return;
-            // A binding moved it (not our own write-back, which equals the camera).
+            // A binding moved it — not our own write-back coming round again,
+            // perhaps a frame later, while the camera has moved on (a spring).
+            if ((p == CanvasProp::x && props.x == written_.x) || (p == CanvasProp::y && props.y == written_.y) ||
+                (p == CanvasProp::zoom && props.zoom == written_.zoom))
+                return;
             const Camera c{props.x, props.y, std::clamp(props.zoom, props.min_zoom, props.max_zoom)};
             if (c == camera_) return;
             motion_.reset();
             glide_.reset();
+            refit_ = false;
             camera_ = c;
             place();
             break;
@@ -88,6 +93,7 @@ void Canvas::prop_changed(CanvasProp p) {
         case CanvasProp::behaviors: build_behaviors(); break;
         case CanvasProp::scene:
             selected_.clear();
+            started_ = false;
             textures_.clear(services().images());
             observe();
             place();
@@ -108,6 +114,7 @@ void Canvas::set_camera(const Camera& c) {
 }
 
 void Canvas::animate_to(const Camera& c, anim::SpringParams params) {
+    refit_ = false;
     const Camera to{c.x, c.y, std::clamp(c.zoom, props.min_zoom, props.max_zoom)};
     // Retargeted mid-flight, it keeps its velocity.
     const auto v = motion_ ? motion_->velocity(services().now()) : std::array<double, 3>{};
@@ -123,6 +130,7 @@ void Canvas::changed() {
     services().invalidate_paint(node());
     services().invalidate_semantics(node());
     writing_ = true;
+    written_ = camera_;
     services().write_back(node(), "x", Value(camera_.x));
     services().write_back(node(), "y", Value(camera_.y));
     services().write_back(node(), "zoom", Value(camera_.zoom));
@@ -142,9 +150,10 @@ void Canvas::schedule() {
 }
 
 void Canvas::step() {
+    if (!started_ && !props.start.empty()) laid_out();  // the scene was empty when it was laid out
     if (scene_dirty_) place();  // the scene changed: its live nodes again
     // Textures that came back: drawn this frame.
-    if (textures_.collect(services().images(), frame_)) services().invalidate_paint(node());
+    if (textures_.collect(services().images(), frame_, services().deterministic())) services().invalidate_paint(node());
     const bool moving = motion_ || glide_;
     if (!moving) {
         if (textures_.busy()) schedule();
@@ -300,9 +309,50 @@ std::vector<Element> Canvas::compose() {
     return out;
 }
 
+// `start`: the camera placed once the canvas has its size (layout gives it)
+// and its scene something to show.
+void Canvas::laid_out() {
+    const Size vp = viewport();
+    // A new size moves every screen position: the live nodes follow at once.
+    world::Scene* s = scene();
+    if (vp.width != placed_for_.width || vp.height != placed_for_.height) {
+        placed_for_ = vp;
+        // Fitted at the start and not moved since: still the whole scene (the
+        // window's first layouts settle its size over a frame or two).
+        if (refit_ && s && vp.width > 0 && vp.height > 0) set_camera(Camera::fit(s->bounds(), vp, 24, props.min_zoom, props.max_zoom));
+        else place();
+    }
+    if (started_ || props.start.empty()) return;
+    if (!s || s->size() == 0 || vp.width <= 0 || vp.height <= 0) return;
+    if (props.start == "fit") {
+        started_ = true;
+        set_camera(Camera::fit(s->bounds(), vp, 24, props.min_zoom, props.max_zoom));
+        refit_ = true;
+    } else if (props.start.starts_with("preset:")) {
+        started_ = true;
+        if (const auto p = s->preset(std::string_view(props.start).substr(7))) set_camera({p->x, p->y, p->zoom});
+        else warn("canvas: the scene has no view named `{}` to start at", std::string_view(props.start).substr(7));
+    } else {
+        started_ = true;
+        warn("canvas: start is `fit`, `preset:<name>` or empty, not `{}`", props.start);
+    }
+}
+
+// The textures were drawn in the old theme: drawn again (the stale ones
+// meanwhile are gone, so the nodes are boxes for a moment, then sharp).
+void Canvas::restyle() {
+    if (!attached()) return;
+    textures_.clear(services().images());
+    services().invalidate_paint(node());
+}
+
 void Canvas::style(const Theme&, layout::Style& s) const {
     // The promoted nodes overlap at the origin; their transforms place them.
     s.display = layout::Display::stack;
+    // Its size is the layout's to give, never its live nodes' (laid out at
+    // their world size, they may be far larger than the view).
+    s.min_width = s.min_height = layout::pt(0);
+    s.overflow_x = s.overflow_y = layout::Overflow::clip;
 }
 
 // ── drawing ──────────────────────────────────────────────────────────────
@@ -339,7 +389,7 @@ void Canvas::paint(PaintContext& ctx) const {
             }
             case world::Tier::Draw::custom:
                 if (k.draw) {
-                    world::DrawContext dc{*s, n, ctx.list, screen, camera_.zoom, t, ctx.theme};
+                    world::DrawContext dc{*s, n, ctx.list, screen, camera_.zoom, t, ctx.theme, &ctx.services.fonts()};
                     k.draw(dc);
                 }
                 ++stats_.custom;
@@ -374,7 +424,7 @@ void Canvas::paint(PaintContext& ctx) const {
     }
     // What the frame wants and has not: rasterised on the pool, collected at
     // the start of a frame (the step), drawn when it is in.
-    textures_.issue(*s, ctx.services.images(), &ctx.services.fonts());
+    textures_.issue(*s, ctx.services.images(), &ctx.services.fonts(), ctx.theme);
     ++frame_;
     if (textures_.busy() && self_ && !tick_) self_->schedule();
     const auto done = std::chrono::steady_clock::now();
@@ -430,6 +480,7 @@ void Canvas::paint_edges(const world::Scene& s, render::DisplayList& list, Size 
 
 bool Canvas::on_event(EventContext& ctx, const InputEvent& e) {
     const Size vp = viewport();
+    refit_ = false;  // the person moves the camera from here on
     const Point origin = [&] {
         const Rect b = services().bounds(node());
         return Point{b.x, b.y};

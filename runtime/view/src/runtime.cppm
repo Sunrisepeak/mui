@@ -265,6 +265,7 @@ public:
     [[nodiscard]] const Theme& theme() const override;
     [[nodiscard]] bool reduce_transparency() const override;
     [[nodiscard]] float pixel_scale() const override { return scale(); }
+    [[nodiscard]] bool deterministic() const override;
     [[nodiscard]] typeset::FontCollection& fonts() override;
     [[nodiscard]] render::ImageStore& images() override;
     [[nodiscard]] anim::seconds now() const override;

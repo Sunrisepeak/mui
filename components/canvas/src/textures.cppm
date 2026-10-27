@@ -1,8 +1,9 @@
 // openmui.ui.canvas:textures — the canvas's textures of its nodes (canvas-
 // markdown §3.2 T1–T2, §3.3).
 //
-// A node of a kind with a content() is drawn, from some size on screen up,
-// as a texture of that content: rasterised in the background, on the shared
+// A node of a kind with a content() — or a view(), laid out and painted by
+// an offscreen runtime — is drawn, from some size on screen up, as a texture
+// of that content: rasterised in the background, on the shared
 // task pool, at a mip level — a power of two of the world's scale — that the
 // screen's resolution asks for. Until that level is ready the nearest ready
 // one is stretched (sharper first), so a fast zoom shows something at once
@@ -18,6 +19,7 @@ export module openmui.ui.canvas:textures;
 
 import std;
 import openmui.core;
+import openmui.view;
 import openmui.render;
 import openmui.text;
 import :scene;
@@ -51,13 +53,15 @@ public:
     // The frame wants `level` of a node and it is not ready: a candidate.
     void want(std::string_view key, std::uint64_t revision, int level, NodeRef node, float priority);
     // The frame's candidates, by priority, as jobs (their content built here,
-    // on the calling thread; rasterised on the pool).
-    void issue(const Scene& scene, const render::ImageStore& images, typeset::FontCollection* fonts);
+    // on the calling thread — a view as an element, laid out on the pool;
+    // rasterised on the pool) in the theme given.
+    void issue(const Scene& scene, const render::ImageStore& images, typeset::FontCollection* fonts, const Theme& theme);
 
     // What came back, into the store within the frame's upload budget, and
-    // the budget of bytes kept; true when something new can be drawn.
-    bool collect(render::ImageStore& images, std::uint64_t frame);
-    // Every texture out of the store (the canvas goes, or its scene changes).
+    // the budget of bytes kept; true when something new can be drawn. `wait`
+    // (a deterministic run): every job issued is waited for first.
+    bool collect(render::ImageStore& images, std::uint64_t frame, bool wait = false);
+    // Every texture out of the store (the canvas goes, its scene or its theme changes).
     void clear(render::ImageStore& images);
 
     [[nodiscard]] bool busy() const;  // jobs in flight or results waiting
@@ -89,14 +93,17 @@ private:
     };
     struct Done;
     struct Inbox;
+    struct Offscreen;
 
     Options                                       options_;
     std::unordered_map<std::string, Entry>        entries_;
     std::vector<Candidate>                        candidates_;
     std::set<std::tuple<std::string, std::uint64_t, int>> in_flight_;
     std::shared_ptr<Inbox>                        inbox_;
+    std::shared_ptr<Offscreen>                    offscreen_;  // runtimes that lay views out on the pool
     std::size_t                                   bytes_ = 0;
     Stats                                         last_;
+    std::uint64_t                                 next_order_ = 0;
 };
 
 }  // namespace omui::world

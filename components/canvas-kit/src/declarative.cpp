@@ -751,9 +751,9 @@ std::expected<std::vector<std::string>, BehaviorProblems> load_behaviors(std::st
 
 std::expected<std::vector<std::string>, BehaviorProblems> load_behavior_file(const std::filesystem::path& file) {
     std::ifstream in(file, std::ios::binary);
-    if (!in) return std::unexpected(BehaviorProblems{{file.string(), 0, 0, "cannot read the file", ""}});
+    if (!in) return std::unexpected(BehaviorProblems{{utf8(file), 0, 0, "cannot read the file", ""}});
     std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-    return load_behaviors(text, file.string());
+    return load_behaviors(text, utf8(file));
 }
 
 std::span<const BehaviorOperation> behavior_operations() noexcept { return kit::operation_list; }

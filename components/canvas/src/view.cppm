@@ -43,6 +43,8 @@ public:
     void mounted();
     void prop_changed(CanvasProp p);
     void style(const Theme& theme, layout::Style& s) const;
+    void restyle();
+    void laid_out();
     void paint(PaintContext& ctx) const;
     void paint_over(PaintContext& ctx) const;  // the behaviours' overlays, above the live nodes too
     bool on_event(EventContext& ctx, const InputEvent& e);
@@ -116,6 +118,7 @@ private:
     std::vector<std::string>                      selected_;
 
     world::Camera camera_;
+    world::Camera written_{std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN()};  // the camera last told to the bindings
     // An animation in flight (a spring to a view, or a fling's glide).
     std::optional<world::CameraMotion> motion_;
     std::optional<world::Inertia>      glide_;
@@ -139,6 +142,9 @@ private:
     std::string                          focused_;
     std::uint64_t                        tick_ = 0;   // the pending step's timer
     bool                                 writing_ = false;
+    bool                                 started_ = false;  // `start` has placed the camera
+    Size                                 placed_for_{};     // the viewport the live nodes were placed for
+    bool                                 refit_ = false;    // fitted by `start`, untouched since: fits again when its size changes
     Canvas*                              self_ = nullptr;  // for the steps the painting (const) schedules
     // The scene observed: its changes are drawn (coalesced to one repaint).
     void                                 observe();

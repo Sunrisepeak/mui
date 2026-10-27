@@ -85,6 +85,11 @@ public:
     // Physical pixels per logical pixel: what a component rasterising its own
     // textures (a canvas's thumbnails) sizes them by.
     [[nodiscard]] virtual float pixel_scale() const { return 1; }
+    // The clock is virtual or a render clock (headless runs, video export):
+    // what a component hands to the task pool is waited for at the next
+    // frame, so a frame shows what the frames before asked for, never what
+    // the threads happened to finish (a canvas's textures).
+    [[nodiscard]] virtual bool deterministic() const { return false; }
     [[nodiscard]] virtual typeset::FontCollection& fonts() = 0;
     [[nodiscard]] virtual render::ImageStore& images() = 0;
     [[nodiscard]] virtual anim::seconds now() const = 0;

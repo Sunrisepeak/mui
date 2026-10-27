@@ -246,6 +246,60 @@ int main(int argc, char** argv) {
         check(textured >= 1, "what fits stays");
     });
 
+    s.test("texture tiers from a view: laid out offscreen on the pool, the same pixels as the live node, drawn again in a new theme", [] {
+        auto& sc = world::scene("views");
+        sc.clear();
+        // One element for the texture and the live node: a card of the theme's surface, a coloured band, a title.
+        auto card = [](const world::Scene& s, world::NodeRef n) {
+            return column({.width = Dim(static_cast<float>(s.rect(n).width)), .height = Dim(static_cast<float>(s.rect(n).height)), .background = Fill("surface")},
+                          {box({.height = 40, .background = Fill(Color::hex(static_cast<std::uint32_t>(s.number(n, "band", 0x7c3aed))))}),
+                           text({.text = std::string(s.text(n, "title")), .style = "heading"})});
+        };
+        sc.kind("card", world::Kind{.tiers = {{0, world::Tier::Draw::box}, {60, world::Tier::Draw::texture}, {700, world::Tier::Draw::promote}},
+                                    .promote = card,
+                                    .view = card});
+        for (int i = 0; i < 6; ++i) {
+            const auto n = sc.add({.kind = "card", .x = (i % 3) * 320.0, .y = (i / 3) * 260.0, .width = 280, .height = 220, .key = std::format("c{}", i),
+                                   .fill = Color::hex(0x94a3b8)});
+            sc.set(n, "title", std::format("Card {}", i));
+        }
+        sc.set(*sc.find("c4"), "band", 0x0ea5e9);
+        const world::Camera cam{460, 240, 1.0};
+        Headless h({.size = {800, 600}});
+        h.mount("main", column({.width = 800, .height = 600},
+                               {canvas({.id = "board", .scene = "views", .x = cam.x, .y = cam.y, .zoom = cam.zoom, .width = 800, .height = 600})}));
+        h.step();
+        const auto c4 = *sc.find("c4");
+        auto at = [&](double wx, double wy) {
+            const Point p = cam.to_screen(wx, wy, {800, 600});
+            return h.pixels().at(static_cast<int>(p.x), static_cast<int>(p.y));
+        };
+        const auto band = [&] { return at(sc.rect(c4).x + 140, sc.rect(c4).y + 20); };
+        check(band() == raster::premultiply(Color::hex(0x94a3b8)), "a box before its texture is in");
+        h.settle();
+        check(band() == raster::premultiply(Color::hex(0x0ea5e9)), "the view's band, from the texture");
+        // The texture is the view's own pixels: the same region drawn live (promoted, at 1:1) is the same bytes.
+        const Rect region = [&] {
+            const Rect r = cam.to_screen(sc.rect(c4), {800, 600});
+            return Rect{std::round(r.x), std::round(r.y), 280, 220};
+        }();
+        const auto textured = h.png(region);
+        h.runtime().set(h.runtime().find("main/board"), "zoom", Value(1.0));
+        sc.kind("card", world::Kind{.tiers = {{0, world::Tier::Draw::box}, {60, world::Tier::Draw::promote}}, .promote = card, .view = card});
+        h.settle();
+        const auto live = h.png(region);
+        check(textured && live && *textured == *live, "the texture and the live node, byte for byte");
+        // A new theme: drawn again in it.
+        sc.kind("card", world::Kind{.tiers = {{0, world::Tier::Draw::box}, {60, world::Tier::Draw::texture}}, .promote = card, .view = card});
+        h.settle();
+        const auto light = at(sc.rect(c4).x + 140, sc.rect(c4).y + 150);
+        h.runtime().set_theme(Theme::dark_theme());
+        h.settle();
+        const auto dark = at(sc.rect(c4).x + 140, sc.rect(c4).y + 150);
+        check(light == raster::premultiply(Theme::light().color("surface")) && dark == raster::premultiply(Theme::dark_theme().color("surface")),
+              "the card's surface follows the theme");
+    });
+
     s.test("semantics: what is on screen, the viewport's actions, and find over the whole scene", [] {
         auto& sc = world::scene("search");
         sc.clear();

@@ -96,6 +96,7 @@ struct OmuiRuntime_T {
 
     std::map<OmuiSignal, Signal<Value>> signals;
     OmuiSignal                          next_signal = 1;
+    std::map<std::string, Signal<Value>, std::less<>> shared;  // by the name documents declare
 
     struct Subscription {
         std::uint64_t token = 0;  // a node's event
@@ -232,11 +233,21 @@ OmuiResult omuiMount(OmuiRuntime rt, OmuiString slot, OmuiString view_json) noex
         }
         return OMUI_SUCCESS;
     }
-    auto v = viewdoc::View::load(*rt->rt, text(view_json), {.file = name});
+    OmuiRuntime_T* self = rt;
+    viewdoc::LoadOptions o{.file = name, .translate = {}, .provide = [self](std::string_view n) -> std::optional<Signal<Value>> {
+                               auto s = self->shared.find(n);
+                               if (s == self->shared.end()) return std::nullopt;
+                               return s->second;
+                           }};
+    auto v = viewdoc::View::load(*rt->rt, text(view_json), std::move(o));
     if (!v) {
         for (const auto& d : v.error()) log.warn("{}", d.text(name));
         return OMUI_ERROR_INVALID_ARGUMENT;
     }
+    // A view's own events reach the binding at the slot's root node (omuiOn).
+    v->on_any([self, name](std::string_view event, const Value& args) {
+        if (const NodeId root = self->rt->find(name)) self->rt->emit(root, event, args);
+    });
     auto [it, _] = rt->views.insert_or_assign(name, std::move(*v));
     it->second.mount(*rt->rt, name);
     return OMUI_SUCCESS;
@@ -545,6 +556,96 @@ OmuiResult omuiSignalWatch(OmuiRuntime rt, OmuiSignal signal, PFN_omuiChange fn,
         fn(user, signal, OmuiString{json.data(), json.size()});
     });
     *out = sub;
+    return OMUI_SUCCESS;
+}
+
+OmuiResult omuiSignalShare(OmuiRuntime rt, OmuiSignal signal, OmuiString name) noexcept {
+    if (!rt || text(name).empty()) return OMUI_ERROR_INVALID_ARGUMENT;
+    auto it = rt->signals.find(signal);
+    if (it == rt->signals.end()) return OMUI_ERROR_NOT_FOUND;
+    rt->shared.insert_or_assign(std::string(text(name)), it->second);
+    return OMUI_SUCCESS;
+}
+
+OmuiResult omuiModelSplice(OmuiRuntime rt, OmuiString model, std::uint32_t from, std::uint32_t remove, OmuiString rows_json) noexcept {
+    if (!rt || text(model).empty()) return OMUI_ERROR_INVALID_ARGUMENT;
+    auto parsed = json_or_null(rows_json);
+    if (!parsed || !(parsed->is_null() || parsed->list())) return OMUI_ERROR_INVALID_ARGUMENT;
+    std::vector<Row> rows;
+    if (const Value::List* l = parsed->list())
+        for (const Value& r : *l) {
+            const Value* key = r.get("key");
+            if (!r.map() || !key || key->type() != Value::Type::text || !spec::valid_explicit_segment(key->as_string())) {
+                log.warn("a row of `{}` has no key that is an id (S-8): {}", text(model), r.json());
+                return OMUI_ERROR_INVALID_ARGUMENT;
+            }
+            Value fields(Value::Map{});
+            for (const auto& [k, v] : *r.map())
+                if (k != "key") fields.set(k, v);
+            rows.push_back({std::string(key->as_string()), std::move(fields)});
+        }
+    Model& m = rt->rt->model(text(model));
+    if (from > m.size()) return OMUI_ERROR_INVALID_ARGUMENT;
+    const std::size_t removed = std::min<std::size_t>(remove, m.size() - from);
+    // One change, checked whole: the keys that stay and the new ones are unique.
+    std::set<std::string_view> keys;
+    for (std::size_t i = 0; i < m.size(); ++i)
+        if (i < from || i >= from + removed) keys.insert(m.at(i).key);
+    for (const Row& r : rows)
+        if (!keys.insert(r.key).second) {
+            log.warn("the key `{}` is in `{}` twice", r.key, text(model));
+            return OMUI_ERROR_INVALID_ARGUMENT;
+        }
+    batch([&] {
+        if (removed) m.remove(from, removed);
+        if (!rows.empty()) (void)m.insert(from, std::move(rows));
+    });
+    return OMUI_SUCCESS;
+}
+
+OmuiResult omuiModelRows(OmuiRuntime rt, OmuiString model, std::uint32_t from, std::uint32_t count, PFN_omuiSink sink, void* user) noexcept {
+    if (!rt || text(model).empty()) return OMUI_ERROR_INVALID_ARGUMENT;
+    send(sink, user, rt->rt->model(text(model)).to_value(from, count).json());
+    return OMUI_SUCCESS;
+}
+
+OmuiResult omuiCatalog(OmuiRuntime rt, PFN_omuiSink sink, void* user) noexcept {
+    if (!rt) return OMUI_ERROR_INVALID_ARGUMENT;
+    Value components(Value::Map{});
+    for (const ComponentType* t : registered_types()) {
+        if (t->name == "root") continue;
+        Value c(Value::Map{});
+        c.set("role", spec::name(t->contract ? t->contract->role : t->role));
+        Value props(Value::Map{}), events(Value::Map{}), actions(Value::Map{});
+        if (const spec::ContractInfo* k = t->contract) {
+            for (const spec::PropInfo& p : k->props) {
+                Value x(Value::Map{});
+                x.set("type", spec::name(p.type)).set("bindable", p.bindable);
+                if (!p.values.empty()) {
+                    Value::List values;
+                    for (std::string_view v : p.values) values.emplace_back(v);
+                    x.set("values", Value(std::move(values)));
+                }
+                if (!p.doc.empty()) x.set("doc", p.doc);
+                props.set(p.name, std::move(x));
+            }
+            for (const spec::EventInfo& e : k->events) {
+                Value args(Value::Map{});
+                for (const spec::ArgInfo& a : e.args) args.set(a.name, a.type);
+                events.set(e.name, Value(Value::Map{}).set("args", std::move(args)));
+            }
+            for (const spec::ActionSpec& a : k->actions) actions.set(a.name, Value(Value::Map{}).set("effect", spec::name(a.effect)));
+            if (!k->doc.empty()) c.set("doc", k->doc);
+        }
+        c.set("contract", t->contract != nullptr).set("props", std::move(props)).set("events", std::move(events)).set("actions", std::move(actions));
+        components.set(t->name, std::move(c));
+    }
+    Value common(Value::List{}), common_events(Value::List{});
+    for (std::string_view p : runtime_properties()) common.list()->emplace_back(p);
+    for (std::string_view e : runtime_events()) common_events.list()->emplace_back(e);
+    Value out(Value::Map{});
+    out.set("components", std::move(components)).set("properties", std::move(common)).set("events", std::move(common_events));
+    send(sink, user, out.json());
     return OMUI_SUCCESS;
 }
 

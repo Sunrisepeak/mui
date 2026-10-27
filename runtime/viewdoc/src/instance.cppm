@@ -31,6 +31,8 @@ struct LoadOptions {
     std::string file;  // for diagnostics
     // tr(key, args…): the message of the key in the current locale.
     std::function<std::string(std::string_view key)> translate;
+    // The host's signals, for the document's `"provided": true` ones.
+    std::function<std::optional<Signal<Value>>(std::string_view name)> provide;
 };
 
 class View {
@@ -44,6 +46,8 @@ public:
     View& slot(std::string_view name, Element content);
     // The document's events that are not a component's (`emit` in a view).
     View& on(std::string event, std::function<void(const Value& args)> handler);
+    // Every such event, with its name (a binding forwards them to its code).
+    View& on_any(std::function<void(std::string_view event, const Value& args)> handler);
 
     // The view, to embed among other elements: it adds no node of its own,
     // and follows reloads.

@@ -1,0 +1,478 @@
+module openmui.lang;
+
+import std;
+import nlohmann.json;
+import openmui.abi;
+import :host;
+import :view;
+
+namespace omui::lang {
+
+namespace {
+
+abi::OmuiString str(std::string_view s) { return {s.data(), s.size()}; }
+
+void collect(void* user, const char* data, std::size_t size) { static_cast<std::string*>(user)->append(data, size); }
+
+void merge(std::vector<abi::OmuiSignal>& into, const std::vector<abi::OmuiSignal>& from) {
+    for (abi::OmuiSignal s : from)
+        if (std::ranges::find(into, s) == into.end()) into.push_back(s);
+}
+
+std::string signal_name(abi::OmuiSignal s) { return std::format("s{}", s); }
+
+abi::OmuiValue json_value(const std::string& text) {
+    abi::OmuiValue v{};
+    v.type = abi::OMUI_VALUE_TYPE_JSON;
+    v.s = str(text);
+    return v;
+}
+
+std::vector<Json> records(std::string_view ndjson) {
+    std::vector<Json> out;
+    for (auto line : ndjson | std::views::split('\n')) {
+        const std::string_view l(line.begin(), line.end());
+        if (l.find_first_not_of(" \r\t") == std::string_view::npos) continue;
+        Json v = Json::parse(l, nullptr, false);
+        if (!v.is_discarded()) out.push_back(std::move(v));
+    }
+    return out;
+}
+
+Error failure(abi::OmuiResult r, std::string message = {}) { return Error{r, std::move(message)}; }
+
+}  // namespace
+
+// ── expressions ───────────────────────────────────────────────────────────
+
+Expr literal(const Json& value) { return {value.dump(), {}}; }
+Expr signal_ref(abi::OmuiSignal s) { return {signal_name(s), {s}}; }
+Expr name_ref(std::string name) { return {std::move(name), {}}; }
+
+Expr call(std::string_view function, std::vector<Expr> args) {
+    Expr e{std::string(function) + "(", {}};
+    for (std::size_t i = 0; i < args.size(); ++i) {
+        if (i) e.text += ", ";
+        e.text += args[i].text;
+        merge(e.signals, args[i].signals);
+    }
+    e.text += ")";
+    return e;
+}
+
+Expr binary(std::string_view op, Expr a, Expr b) {
+    Expr e{std::format("({} {} {})", a.text, op, b.text), std::move(a.signals)};
+    merge(e.signals, b.signals);
+    return e;
+}
+
+Expr unary(std::string_view op, Expr a) { return {std::format("{}({})", op, a.text), std::move(a.signals)}; }
+
+Expr select(Expr cond, Expr then, Expr otherwise) {
+    Expr e{std::format("({} ? {} : {})", cond.text, then.text, otherwise.text), std::move(cond.signals)};
+    merge(e.signals, then.signals);
+    merge(e.signals, otherwise.signals);
+    return e;
+}
+
+Expr member(Expr object, std::string_view field) { return {std::format("{}.{}", object.text, field), std::move(object.signals)}; }
+
+Expr fmt(std::string_view pattern, std::vector<Expr> args) {
+    args.insert(args.begin(), literal(Json(pattern)));
+    return call("format", std::move(args));
+}
+
+std::string contract_name(std::string_view s) {
+    std::string out;
+    for (std::size_t i = 0; i < s.size(); ++i) {
+        const char c = s[i];
+        if (c >= 'A' && c <= 'Z') {
+            if (i > 0 && s[i - 1] != '_' && s[i - 1] != '-') out += '_';
+            out += static_cast<char>(c - 'A' + 'a');
+        } else {
+            out += c == '-' ? '_' : c;
+        }
+    }
+    return out;
+}
+
+// ── the document of an element tree ──────────────────────────────────────────
+
+namespace {
+
+struct Compiler {
+    std::vector<abi::OmuiSignal>     signals;
+    std::vector<std::string>         models;    // what its loops read
+    std::map<std::string, Handler>*  handlers;  // by the event the document emits
+    std::vector<std::string>         rows;      // loop variables in scope
+    int                              next = 0;
+
+    Json prop(const Prop& p) {
+        switch (p.kind) {
+            case Prop::Kind::constant:
+                // A constant that could read as a binding stays a constant.
+                if (p.value.is_object() && p.value.size() == 1 &&
+                    (p.value.contains("expr") || p.value.contains("bind") || p.value.contains("tr") || p.value.contains("value")))
+                    return Json{{"value", p.value}};
+                return p.value;
+            case Prop::Kind::expr:
+                merge(signals, p.expr.signals);
+                return Json{{"expr", p.expr.text}};
+            case Prop::Kind::bind:
+                merge(signals, {p.signal});
+                return Json{{"bind", signal_name(p.signal)}};
+            case Prop::Kind::tr: {
+                Json args = Json::array();
+                for (const Expr& a : p.args) {
+                    merge(signals, a.signals);
+                    args.push_back(a.text);
+                }
+                Json t{{"tr", p.value}};
+                if (!args.empty()) t["args"] = std::move(args);
+                return t;
+            }
+        }
+        return nullptr;
+    }
+
+    Json nodes(const std::vector<Element>& list) {
+        Json out = Json::array();
+        for (const Element& e : list) out.push_back(node(e));
+        return out;
+    }
+
+    Json node(const Element& e) {
+        if (e.region) {
+            const Region& r = *e.region;
+            switch (r.kind) {
+                case Region::Kind::when: {
+                    merge(signals, r.condition.signals);
+                    Json n{{"if", r.condition.text}, {"then", nodes(r.then)}};
+                    if (!r.otherwise.empty()) n["else"] = nodes(r.otherwise);
+                    return n;
+                }
+                case Region::Kind::each: {
+                    if (std::ranges::find(models, r.model) == models.end()) models.push_back(r.model);
+                    Json n{{"for", r.variable}, {"in", r.model}};
+                    if (!r.condition.text.empty()) {
+                        merge(signals, r.condition.signals);
+                        n["where"] = r.condition.text;
+                    }
+                    rows.push_back(r.variable);
+                    n["body"] = nodes(r.then);
+                    rows.pop_back();
+                    return n;
+                }
+                case Region::Kind::slot: return Json{{"slot", r.slot}};
+            }
+        }
+        Json n{{"type", contract_name(e.type)}};
+        if (!e.id.empty()) n["id"] = e.id;
+        if (!e.props.empty()) {
+            Json props = Json::object();
+            for (const auto& [k, p] : e.props) props[k] = prop(p);
+            n["props"] = std::move(props);
+        }
+        if (!e.on.empty()) {
+            // A handler is the document's own event, forwarded to the script
+            // with the event and the rows of the loops it is in.
+            Json on = Json::object();
+            for (const auto& [event, h] : e.on) {
+                const std::string name = std::format("h{}", ++next);
+                (*handlers)[name] = h;
+                Json args{{"event", "event"}};
+                if (!rows.empty()) {
+                    std::string map = "{";
+                    for (std::size_t i = 0; i < rows.size(); ++i) map += std::format("{}\"{}\": {}", i ? ", " : "", rows[i], rows[i]);
+                    args["rows"] = map + "}";
+                }
+                on[event] = Json::array({Json{{"emit", name}, {"args", std::move(args)}}});
+            }
+            n["on"] = std::move(on);
+        }
+        if (!e.animate.empty()) {
+            Json a = Json::object();
+            for (const auto& [k, t] : e.animate) a[k] = t;
+            n["animate"] = std::move(a);
+        }
+        if (!e.children.empty()) n["children"] = nodes(e.children);
+        return n;
+    }
+};
+
+}  // namespace
+
+// ── the session ──────────────────────────────────────────────────────────
+
+struct Session::VerbBox {
+    Host*                                           host;
+    std::function<Result<Json>(const Json&)>        fn;
+};
+
+Session::Session(Host& host) : host_(host) {}
+
+Session::~Session() {
+    *alive_ = false;
+    // What the session subscribed to goes with it.
+    auto rt = host_.runtime();
+    std::vector<abi::OmuiSubscription> subs;
+    for (auto& [s, m] : signals_)
+        if (m.watch) subs.push_back(m.watch);
+    for (auto& [slot, m] : mounted_) subs.insert(subs.end(), m.subscriptions.begin(), m.subscriptions.end());
+    host_.ui([&] {
+        for (abi::OmuiSubscription s : subs) (void)abi::omuiOff(rt, s);
+    });
+}
+
+Result<abi::OmuiSignal> Session::signal(const Json& initial) {
+    const std::string text = initial.dump();
+    struct Watcher {
+        Host*                 host;
+        Session*              session;
+        std::shared_ptr<bool> alive;
+    };
+    auto watcher = std::make_shared<Watcher>(Watcher{&host_, this, alive_});
+    abi::OmuiSignal s = 0;
+    abi::OmuiSubscription sub = 0;
+    const abi::OmuiResult r = host_.ui([&] {
+        const abi::OmuiValue v = json_value(text);
+        abi::OmuiResult x = abi::omuiSignalCreate(host_.runtime(), &v, &s);
+        if (x != abi::OMUI_SUCCESS) return x;
+        const std::string name = signal_name(s);
+        if ((x = abi::omuiSignalShare(host_.runtime(), s, str(name))) != abi::OMUI_SUCCESS) return x;
+        return abi::omuiSignalWatch(
+            host_.runtime(), s,
+            [](void* user, abi::OmuiSignal signal, abi::OmuiString value) {
+                auto* w = static_cast<Watcher*>(user);
+                Json v = Json::parse(std::string_view(value.data, value.size), nullptr, false);
+                std::weak_ptr<bool> alive = w->alive;
+                Session* session = w->session;
+                w->host->post([alive, session, signal, v = std::move(v)]() mutable {
+                    if (auto a = alive.lock(); a && *a) session->changed(signal, std::move(v));
+                });
+            },
+            watcher.get(), &sub);
+    });
+    if (r != abi::OMUI_SUCCESS) return std::unexpected(failure(r, "a signal could not be made"));
+    Mirror& m = signals_[s];
+    m.value = initial;
+    m.watch = sub;
+    watchers_.push_back(std::move(watcher));
+    return s;
+}
+
+const Json& Session::get(abi::OmuiSignal s) const {
+    static const Json null;
+    auto it = signals_.find(s);
+    return it == signals_.end() ? null : it->second.value;
+}
+
+void Session::changed(abi::OmuiSignal s, Json value) {
+    auto it = signals_.find(s);
+    if (it == signals_.end() || it->second.value == value) return;
+    it->second.value = std::move(value);
+    for (auto& fn : it->second.watchers) fn(it->second.value);
+}
+
+void Session::set(abi::OmuiSignal s, Json value) {
+    const std::string text = value.dump();
+    changed(s, std::move(value));
+    auto rt = host_.runtime();
+    host_.send([rt, s, text] {
+        const abi::OmuiValue v = json_value(text);
+        (void)abi::omuiSignalSet(rt, s, &v);
+    });
+}
+
+void Session::watch(abi::OmuiSignal s, std::function<void(const Json&)> fn) { signals_[s].watchers.push_back(std::move(fn)); }
+
+namespace {
+
+Json compile(const Element& root, std::map<std::string, Handler>& handlers) {
+    Compiler c{{}, {}, &handlers, {}, 0};
+    Json r = c.node(root);
+    Json signals = Json::object();
+    for (abi::OmuiSignal s : c.signals) signals[signal_name(s)] = Json{{"type", "any"}, {"provided", true}};
+    Json view = Json::object();
+    if (!signals.empty()) view["signals"] = std::move(signals);
+    if (!c.models.empty()) {
+        Json models = Json::object();
+        for (const std::string& m : c.models) models[m] = "row";
+        view["models"] = std::move(models);
+    }
+    view["root"] = std::move(r);
+    return Json{{"omui", "0.1"}, {"view", std::move(view)}};
+}
+
+}  // namespace
+
+Json Session::document(const Element& root) const {
+    std::map<std::string, Handler> handlers;
+    return compile(root, handlers);
+}
+
+Result<void> Session::mount(std::string slot, const Element& root) {
+    std::map<std::string, Handler> handlers;
+    const std::string text = compile(root, handlers).dump();
+
+    struct Forward {
+        Host*                 host;
+        std::shared_ptr<bool> alive;
+        Handler               handler;
+    };
+    std::vector<std::shared_ptr<void>> users;
+    std::vector<abi::OmuiSubscription> subs;
+    std::string diagnostics;
+    const abi::OmuiResult result = host_.ui([&] {
+        auto rt = host_.runtime();
+        if (auto it = mounted_.find(slot); it != mounted_.end())
+            for (abi::OmuiSubscription s : it->second.subscriptions) (void)abi::omuiOff(rt, s);
+        abi::OmuiResult x = abi::omuiMount(rt, str(slot), str(text));
+        if (x != abi::OMUI_SUCCESS) {
+            (void)abi::omuiCheck(rt, str(text), collect, &diagnostics);
+            return x;
+        }
+        abi::OmuiNode node = 0;
+        if ((x = abi::omuiFind(rt, str(slot), &node)) != abi::OMUI_SUCCESS) return x;
+        for (const auto& [event, h] : handlers) {
+            auto f = std::make_shared<Forward>(Forward{&host_, alive_, h});
+            abi::OmuiSubscription sub = 0;
+            x = abi::omuiOn(
+                rt, node, str(event),
+                [](void* user, abi::OmuiNode, abi::OmuiString, abi::OmuiString args) {
+                    auto* f = static_cast<Forward*>(user);
+                    Json a = Json::parse(std::string_view(args.data, args.size), nullptr, false);
+                    Json e = a.is_object() && a.contains("event") ? a["event"] : Json(nullptr);
+                    if (e.is_null()) e = Json::object();
+                    if (a.is_object() && a.contains("rows") && e.is_object()) e["rows"] = a["rows"];
+                    std::weak_ptr<bool> alive = f->alive;
+                    f->host->post([alive, h = f->handler, e = std::move(e)] {
+                        if (auto live = alive.lock(); live && *live) h(e);
+                    });
+                },
+                f.get(), &sub);
+            if (x != abi::OMUI_SUCCESS) return x;
+            subs.push_back(sub);
+            users.push_back(std::move(f));
+        }
+        return abi::OMUI_SUCCESS;
+    });
+    if (result != abi::OMUI_SUCCESS) return std::unexpected(failure(result, diagnostics));
+    Mounted& m = mounted_[slot];  // the old subscriptions are off: their users can go
+    m.subscriptions = std::move(subs);
+    m.handlers = std::move(handlers);
+    m.users = std::move(users);
+    return {};
+}
+
+Result<void> Session::unmount(std::string slot) {
+    auto it = mounted_.find(slot);
+    std::vector<abi::OmuiSubscription> subs = it == mounted_.end() ? std::vector<abi::OmuiSubscription>{} : it->second.subscriptions;
+    const abi::OmuiResult r = host_.ui([&] {
+        for (abi::OmuiSubscription s : subs) (void)abi::omuiOff(host_.runtime(), s);
+        return abi::omuiUnmount(host_.runtime(), str(slot));
+    });
+    if (it != mounted_.end()) mounted_.erase(it);
+    if (r != abi::OMUI_SUCCESS) return std::unexpected(failure(r, std::format("nothing is mounted at `{}`", slot)));
+    return {};
+}
+
+Result<void> Session::splice(std::string_view model, std::size_t from, std::size_t remove, const Json& rows) {
+    const std::string text = rows.dump();
+    const abi::OmuiResult r = host_.ui([&] {
+        return abi::omuiModelSplice(host_.runtime(), str(model), static_cast<std::uint32_t>(from), static_cast<std::uint32_t>(remove), str(text));
+    });
+    if (r != abi::OMUI_SUCCESS) return std::unexpected(failure(r, std::format("the rows of `{}` were refused (keys are unique ids)", model)));
+    return {};
+}
+
+Result<Json> Session::rows(std::string_view model, std::size_t from, std::size_t count) {
+    std::string out;
+    const abi::OmuiResult r = host_.ui([&] {
+        return abi::omuiModelRows(host_.runtime(), str(model), static_cast<std::uint32_t>(from), static_cast<std::uint32_t>(count), collect, &out);
+    });
+    if (r != abi::OMUI_SUCCESS) return std::unexpected(failure(r));
+    return Json::parse(out, nullptr, false);
+}
+
+Result<abi::OmuiNode> Session::find(std::string_view selector) {
+    abi::OmuiNode n = 0;
+    const abi::OmuiResult r = host_.ui([&] { return abi::omuiFind(host_.runtime(), str(selector), &n); });
+    if (r != abi::OMUI_SUCCESS) return std::unexpected(failure(r, std::format("no node `{}`", selector)));
+    return n;
+}
+
+Result<Json> Session::get(abi::OmuiNode node, std::string_view prop) {
+    std::string out;
+    const abi::OmuiResult r = host_.ui([&] { return abi::omuiGet(host_.runtime(), node, str(prop), collect, &out); });
+    if (r != abi::OMUI_SUCCESS) return std::unexpected(failure(r));
+    return Json::parse(out, nullptr, false);
+}
+
+Result<void> Session::set(abi::OmuiNode node, const std::vector<std::pair<std::string, Json>>& props) {
+    std::vector<std::string> names, values;
+    for (const auto& [k, v] : props) {
+        names.push_back(k);
+        values.push_back(v.dump());
+    }
+    const abi::OmuiResult r = host_.ui([&] {
+        std::vector<abi::OmuiProp> batch(props.size());
+        for (std::size_t i = 0; i < props.size(); ++i) batch[i] = {str(names[i]), json_value(values[i])};
+        return abi::omuiSet(host_.runtime(), node, batch.data(), static_cast<std::uint32_t>(batch.size()));
+    });
+    if (r != abi::OMUI_SUCCESS) return std::unexpected(failure(r));
+    return {};
+}
+
+Result<std::vector<Json>> Session::snapshot(const Json& query) {
+    const std::string q = query.dump();
+    std::string out;
+    const abi::OmuiResult r = host_.ui([&] { return abi::omuiSnapshot(host_.runtime(), str(q), collect, &out); });
+    if (r < 0) return std::unexpected(failure(r, out));
+    return records(out);
+}
+
+Result<std::vector<Json>> Session::act(const Json& request) {
+    const std::string q = request.dump();
+    std::string out;
+    const abi::OmuiResult r = host_.ui([&] { return abi::omuiAct(host_.runtime(), str(q), collect, &out); });
+    if (r < 0 && r != abi::OMUI_ERROR_NOT_FOUND && r != abi::OMUI_ERROR_REFUSED) return std::unexpected(failure(r, out));
+    return records(out);
+}
+
+Result<std::vector<Json>> Session::invoke(std::string_view verb, const Json& args) {
+    const std::string a = args.dump();
+    std::string out;
+    const abi::OmuiResult r = host_.ui([&] { return abi::omuiInvoke(host_.runtime(), str(verb), str(a), collect, &out); });
+    if (r == abi::OMUI_ERROR_INVALID_ARGUMENT) return std::unexpected(failure(r, out));
+    return records(out);
+}
+
+Result<void> Session::verb(VerbSpec spec, std::function<Result<Json>(const Json& args)> fn) {
+    auto box = std::make_unique<VerbBox>(VerbBox{&host_, std::move(fn)});
+    const abi::OmuiResult r = host_.ui([&] {
+        abi::OmuiVerbDesc d{};
+        d.type = abi::OMUI_STRUCTURE_TYPE_VERB_DESC;
+        d.name = str(spec.name);
+        d.summary = str(spec.summary);
+        d.effect = spec.effect;
+        d.answer = str(spec.answer);
+        return abi::omuiRegisterVerb(
+            host_.runtime(), &d,
+            [](void* user, abi::OmuiString args, abi::PFN_omuiSink sink, void* sink_user) -> abi::OmuiResult {
+                auto* b = static_cast<VerbBox*>(user);
+                const Json a = Json::parse(std::string_view(args.data, args.size), nullptr, false);
+                // The runtime waits for the script, and answers it meanwhile.
+                Result<Json> out = b->host->script([&] { return b->fn(a); });
+                const std::string text = out ? out->dump() : out.error().text();
+                sink(sink_user, text.data(), text.size());
+                return out ? abi::OMUI_SUCCESS : abi::OMUI_ERROR_REFUSED;
+            },
+            box.get());
+    });
+    if (r != abi::OMUI_SUCCESS) return std::unexpected(failure(r, std::format("the verb `{}` was refused", spec.name)));
+    verbs_.push_back(std::move(box));
+    return {};
+}
+
+}  // namespace omui::lang

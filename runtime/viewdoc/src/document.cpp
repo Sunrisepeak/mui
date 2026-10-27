@@ -341,14 +341,24 @@ private:
                 error(q, "signals", "a signal is declared by an object", R"({"type": "int", "value": 0})");
                 continue;
             }
-            unknown_fields(decl, q, std::array<std::string_view, 3>{"type", "value", "doc"});
+            unknown_fields(decl, q, std::array<std::string_view, 4>{"type", "value", "provided", "doc"});
+            if (const Value* p = decl.get("provided")) {
+                if (p->type() != Value::Type::boolean) error(at(q, "provided"), "signals", "`provided` is true or false");
+                else s.provided = p->as_bool();
+                if (s.provided && doc_.component)
+                    error(at(q, "provided"), "signals", "a component's state is its own: it takes values through its interface",
+                          "declare an interface property instead");
+            }
             const Value* type = decl.get("type");
             s.type = type && type->type() == Value::Type::text ? std::string(type->as_string()) : "any";
             if (std::ranges::find(signal_types, s.type) == signal_types.end()) {
                 error(at(q, "type"), "type", std::format("`{}` is not a signal type", s.type), nearest(s.type, signal_types));
                 s.type = "any";
             }
-            if (const Value* value = decl.get("value")) {
+            if (const Value* value = decl.get("value"); value && s.provided) {
+                error(at(q, "value"), "signals", std::format("`{}` is provided by the host, which gives its value", name),
+                      "remove the value, or the `provided`");
+            } else if (value) {
                 auto c = coerce(s.type, *value);
                 if (!c) error(at(q, "value"), "type", std::format("the value of `{}` is not a {}", name, s.type));
                 else s.value = std::move(*c);

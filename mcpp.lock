@@ -47,11 +47,11 @@ version = "0.17.0"
 source  = "index+mcpplibs@0.17.0"
 hash    = "fnv1a:d9a6fe1043f0f4d5"
 
-[package."openkal-windows"]
+[package."openkal-linux"]
 namespace = "mcpplibs"
-version = "0.13.0"
-source  = "index+mcpplibs@0.13.0"
-hash    = "fnv1a:21599e2a1fc2281d"
+version = "0.18.0"
+source  = "index+mcpplibs@0.18.0"
+hash    = "fnv1a:2947b74ddbcf8b79"
 
 [package."mcpplibs.os"]
 namespace = "mcpplibs"
@@ -185,9 +185,9 @@ version = "0.5.3"
 source  = "index+mcpplibs.mwrap@0.5.3"
 hash    = "fnv1a:23e80030c05427e1"
 
-[package."openkal-linux"]
+[package."openkal-windows"]
 namespace = "mcpplibs"
-version = "0.18.0"
-source  = "index+mcpplibs@0.18.0"
-hash    = "fnv1a:2947b74ddbcf8b79"
+version = "0.13.0"
+source  = "index+mcpplibs@0.13.0"
+hash    = "fnv1a:21599e2a1fc2281d"
 

@@ -231,6 +231,58 @@ int main(int argc, char** argv) {
         check_eq(omuiSignalSet(r.rt, 999, &list), OMUI_ERROR_NOT_FOUND);
     });
 
+    s.test("a shared signal is one state for the binding and every view; a view's events reach the binding", [] {
+        Rt r;
+        OmuiValue zero{};
+        zero.type = OMUI_VALUE_TYPE_INT;
+        OmuiSignal count = 0;
+        check_eq(omuiSignalCreate(r.rt, &zero, &count), OMUI_SUCCESS);
+        check_eq(omuiSignalShare(r.rt, count, str("count")), OMUI_SUCCESS);
+        constexpr std::string_view shared = R"j({"omui": "0.1", "view": {"signals": {"count": {"type": "int", "provided": true}},
+          "root": {"type": "button", "id": "b", "props": {"text": {"expr": "format('{}', count)"}},
+                   "on": {"activated": [{"set": "count", "expr": "count + 1"}, {"emit": "h1", "args": {"n": "count"}}]}}}})j";
+        check_eq(omuiMount(r.rt, str("a"), str(shared)), OMUI_SUCCESS);
+        check_eq(omuiMount(r.rt, str("b"), str(shared)), OMUI_SUCCESS);
+        check_eq(r.frame(), OMUI_SUCCESS);
+        std::vector<std::string> seen;
+        OmuiSubscription sub = 0;
+        check_eq(omuiOn(r.rt, r.find("a"), str("h1"),
+                        [](void* u, OmuiNode, OmuiString, OmuiString args) { static_cast<std::vector<std::string>*>(u)->emplace_back(args.data, args.size); },
+                        &seen, &sub),
+                 OMUI_SUCCESS);
+        std::string out;
+        check_eq(omuiAct(r.rt, str(R"j({"node": "a", "action": "activate"})j"), collect, &out), OMUI_SUCCESS);
+        check_eq(r.frame(), OMUI_SUCCESS);
+        check_eq(r.name_of("b"), std::string("1"));
+        check(seen == std::vector<std::string>{R"j({"n":1})j"}, seen.empty() ? "" : seen[0]);
+        std::string value;
+        check_eq(omuiSignalGet(r.rt, count, collect, &value), OMUI_SUCCESS);
+        check_eq(value, std::string("1"));
+        check_eq(omuiMount(r.rt, str("c"), str(R"j({"omui": "0.1", "view": {"signals": {"other": {"type": "int", "provided": true}},
+            "root": {"type": "text"}}})j")), OMUI_ERROR_INVALID_ARGUMENT);
+    });
+
+    s.test("models: one splice is push, insert, patch, remove and clear", [] {
+        Rt r;
+        auto rows = [&] {
+            std::string out;
+            check_eq(omuiModelRows(r.rt, str("notes"), 0, 100, collect, &out), OMUI_SUCCESS);
+            return out;
+        };
+        check_eq(omuiModelSplice(r.rt, str("notes"), 0, 0, str(R"j([{"key": "a", "title": "A"}, {"key": "b", "title": "B"}])j")), OMUI_SUCCESS);
+        check_eq(omuiModelSplice(r.rt, str("notes"), 1, 0, str(R"j([{"key": "x", "title": "X"}])j")), OMUI_SUCCESS);
+        check_eq(rows(), std::string(R"j([{"key":"a","title":"A"},{"key":"x","title":"X"},{"key":"b","title":"B"}])j"));
+        check_eq(omuiModelSplice(r.rt, str("notes"), 1, 1, str(R"j([{"key": "x", "title": "Y"}])j")), OMUI_SUCCESS);  // a patch
+        check_eq(omuiModelSplice(r.rt, str("notes"), 0, 1, str("")), OMUI_SUCCESS);  // a removal
+        check_eq(rows(), std::string(R"j([{"key":"x","title":"Y"},{"key":"b","title":"B"}])j"));
+        check_eq(omuiModelSplice(r.rt, str("notes"), 0, 0, str(R"j([{"key": "b"}])j")), OMUI_ERROR_INVALID_ARGUMENT);  // b twice
+        check_eq(omuiModelSplice(r.rt, str("notes"), 0, 0, str(R"j([{"title": "no key"}])j")), OMUI_ERROR_INVALID_ARGUMENT);
+        check_eq(omuiModelSplice(r.rt, str("notes"), 9, 0, str("[]")), OMUI_ERROR_INVALID_ARGUMENT);
+        check_eq(rows(), std::string(R"j([{"key":"x","title":"Y"},{"key":"b","title":"B"}])j"));  // a refused change changes nothing
+        check_eq(omuiModelSplice(r.rt, str("notes"), 0, 100, str("")), OMUI_SUCCESS);  // clear
+        check_eq(rows(), std::string("[]"));
+    });
+
     s.test("verbs: a C implementation, answers, and the action that invokes one", [] {
         Rt r;
         Store store;
@@ -308,6 +360,22 @@ int main(int argc, char** argv) {
         check_eq(r.frame(160, 100, "[{\"type\": 3"), OMUI_ERROR_INVALID_ARGUMENT);
         out.stride = 4;
         check_eq(r.frame(160, 100, {}, &out), OMUI_ERROR_INVALID_ARGUMENT);
+    });
+
+    s.test("the catalogue of components", [] {
+        Rt r;
+        std::string out;
+        check_eq(omuiCatalog(r.rt, collect, &out), OMUI_SUCCESS);
+        auto v = omui::parse_json(out);
+        check(v.has_value());
+        if (!v) return;
+        const omui::Value* button = v->get("components")->get("button");
+        check(button && button->get("role")->as_string() == "button");
+        check(button->get("props")->get("text")->get("bindable")->as_bool() == true);
+        check(button->get("props")->get("variant")->get("values")->list()->size() == 4);
+        check(button->get("events")->get("activated") != nullptr);
+        check(v->get("components")->get("column")->get("contract")->as_bool() == false);
+        check(v->get("properties")->json().find("\"width\"") != std::string::npos);
     });
 
     s.test("misuse is a result, never a crash", [] {

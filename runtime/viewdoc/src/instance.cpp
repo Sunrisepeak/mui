@@ -28,6 +28,7 @@ struct Shared {
     std::map<std::string, Element, std::less<>>        slots;
     Signal<std::uint64_t>                              slots_revision{0};
     std::vector<std::pair<std::string, std::function<void(const Value&)>>> listeners;
+    std::vector<std::function<void(std::string_view, const Value&)>>       forwarders;
     NodeId                                             self{};  // a component instance's node
     bool                                               component = false;
     std::set<std::string>                              reported;
@@ -194,6 +195,7 @@ void run(const Env& env, const std::vector<const Op*>& ops, const Value& args) {
                     } else {
                         for (const auto& [event, handler] : inner.st->listeners)
                             if (event == op->target) handler(a);
+                        for (const auto& forward : inner.st->forwarders) forward(op->target, a);
                     }
                     break;
                 }
@@ -367,8 +369,31 @@ Element build(const Node& n, const Env& env) {
 
 Element root_element(const std::shared_ptr<Shared>& st) { return build(st->doc->root, Env{st, st->doc, {}}); }
 
-void init_signals(Shared& st) {
-    for (const SignalDecl& d : st.doc->signals) st.signals.insert_or_assign(d.name, Signal<Value>(d.value));
+// The document's signals: its own, and those the host provides.
+std::expected<void, std::vector<Diagnostic>> init_signals(Shared& st) {
+    std::vector<Diagnostic> missing;
+    for (const SignalDecl& d : st.doc->signals) {
+        if (!d.provided) {
+            st.signals.insert_or_assign(d.name, Signal<Value>(d.value));
+            continue;
+        }
+        auto s = st.options.provide ? st.options.provide(d.name) : std::nullopt;
+        if (!s) {
+            Diagnostic m;
+            m.code = "provided";
+            m.pointer = d.pointer;
+            m.message = std::format("the host provides no signal `{}`", d.name);
+            if (auto place = json_location(st.source, d.pointer)) {
+                m.line = static_cast<std::uint32_t>(place->line);
+                m.column = static_cast<std::uint32_t>(place->column);
+            }
+            missing.push_back(std::move(m));
+            continue;
+        }
+        st.signals.insert_or_assign(d.name, *s);
+    }
+    if (!missing.empty()) return std::unexpected(std::move(missing));
+    return {};
 }
 
 void log_warnings(const std::vector<Diagnostic>& diags, std::string_view file) {
@@ -408,7 +433,7 @@ std::expected<View, std::vector<Diagnostic>> View::load(Services& services, std:
     st->source = std::string(json);
     st->options = std::move(options);
     st->warnings = warnings_of(std::move(r.diagnostics));
-    init_signals(*st);
+    if (auto ok = init_signals(*st); !ok) return std::unexpected(std::move(ok.error()));
     View v;
     v.state_ = std::move(st);
     return v;
@@ -429,6 +454,11 @@ View& View::slot(std::string_view name, Element content) {
 
 View& View::on(std::string event, std::function<void(const Value& args)> handler) {
     state_->listeners.emplace_back(std::move(event), std::move(handler));
+    return *this;
+}
+
+View& View::on_any(std::function<void(std::string_view event, const Value& args)> handler) {
+    state_->forwarders.push_back(std::move(handler));
     return *this;
 }
 
@@ -462,9 +492,21 @@ std::expected<void, std::vector<Diagnostic>> View::reload(std::string_view json)
     // Signals of the same name and type keep their state (and identity).
     std::map<std::string, Signal<Value>, std::less<>> next;
     for (const SignalDecl& d : doc->signals) {
+        if (d.provided) {
+            auto s = st.options.provide ? st.options.provide(d.name) : std::nullopt;
+            if (!s) {
+                Diagnostic m;
+                m.code = "provided";
+                m.pointer = d.pointer;
+                m.message = std::format("the host provides no signal `{}`", d.name);
+                return std::unexpected(std::vector{std::move(m)});
+            }
+            next.insert_or_assign(d.name, *s);
+            continue;
+        }
         const SignalDecl* before = st.doc->signal(d.name);
         auto old = st.signals.find(d.name);
-        if (before && before->type == d.type && old != st.signals.end()) next.insert_or_assign(d.name, old->second);
+        if (before && !before->provided && before->type == d.type && old != st.signals.end()) next.insert_or_assign(d.name, old->second);
         else next.insert_or_assign(d.name, Signal<Value>(d.value));
     }
     st.signals = std::move(next);

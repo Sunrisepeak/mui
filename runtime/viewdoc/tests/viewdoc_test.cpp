@@ -331,6 +331,36 @@ int main(int argc, char** argv) {
         check(done.size() == 1 && done[0].get("text")->as_string() == "hi");
     });
 
+    s.test("provided signals are the host's, shared by every view; events forward to the host", [] {
+        Headless h(options());
+        auto shared = signal(Value(3));
+        const vd::LoadOptions o{.provide = [&](std::string_view n) -> std::optional<Signal<Value>> {
+            if (n == "count") return shared;
+            return std::nullopt;
+        }};
+        const std::string text = view_of(R"j({"type": "button", "id": "b", "props": {"text": {"expr": "format('{}', count)"}},
+            "on": {"activated": [{"set": "count", "expr": "count + 1"}, {"emit": "clicked", "args": {"n": "count"}}]}})j",
+                                         R"j("signals": {"count": {"type": "int", "provided": true}}, )j");
+        auto a = vd::View::load(h.runtime(), text, o);
+        auto b = vd::View::load(h.runtime(), text, o);
+        check(a && b);
+        if (!a || !b) return;
+        std::vector<std::pair<std::string, Value>> forwarded;
+        a->on_any([&](std::string_view e, const Value& v) { forwarded.emplace_back(std::string(e), v); });
+        a->mount(h.runtime(), "a");
+        b->mount(h.runtime(), "b");
+        h.step();
+        check_eq(act(h, "a", "activate"), std::int64_t{0});
+        check(shared.peek() == Value(4), "the host's signal changed");
+        check_eq(name_of(h, "b"), std::string("4"));  // the other view follows
+        check(forwarded.size() == 1 && forwarded[0].first == "clicked" && forwarded[0].second.get("n")->as_int() == 4);
+        // A provided signal the host lacks is an error at load; a value for one is a mistake.
+        auto none = vd::View::load(h.runtime(), text);
+        check(!none && none.error().at(0).code == "provided");
+        diagnoses(view_of(R"j({"type": "text"})j", R"j("signals": {"n": {"type": "int", "provided": true, "value": 1}}, )j"), "signals",
+                  "provided by the host");
+    });
+
     s.test("slots are filled by code, before or after mounting", [] {
         Headless h(options());
         auto view = load(h, view_of(R"j({"type": "column", "children": [{"slot": "toolbar"}, {"type": "text", "id": "body", "props": {"text": "Body"}}]})j"));

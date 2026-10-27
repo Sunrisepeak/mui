@@ -40,6 +40,10 @@ OmuiResult omuiDefineComponent(OmuiRuntime rt, OmuiString component_json, PFN_om
 OmuiResult omuiSignalFind(OmuiRuntime rt, OmuiString slot, OmuiString name, OmuiSignal* out) noexcept;
 OmuiResult omuiSignalWatch(OmuiRuntime rt, OmuiSignal signal, PFN_omuiChange fn, void* user, OmuiSubscription* out) noexcept;
 OmuiResult omuiRun(OmuiRuntime rt) noexcept;
+OmuiResult omuiSignalShare(OmuiRuntime rt, OmuiSignal signal, OmuiString name) noexcept;
+OmuiResult omuiModelSplice(OmuiRuntime rt, OmuiString model, std::uint32_t from, std::uint32_t remove, OmuiString rows_json) noexcept;
+OmuiResult omuiModelRows(OmuiRuntime rt, OmuiString model, std::uint32_t from, std::uint32_t count, PFN_omuiSink sink, void* user) noexcept;
+OmuiResult omuiCatalog(OmuiRuntime rt, PFN_omuiSink sink, void* user) noexcept;
 
 }  // extern "C"
 

@@ -88,6 +88,9 @@ struct SignalDecl {
     std::string name;
     std::string type;  // bool, int, double, string, list, map, any
     Value       value;
+    // The host's signal of this name, shared with its code and other views
+    // (a script's `signal(0)`), rather than the document's own.
+    bool        provided = false;
     std::string pointer;
 };
 

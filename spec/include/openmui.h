@@ -522,6 +522,18 @@ OMUI_API OmuiResult omuiSignalWatch(OmuiRuntime rt, OmuiSignal signal, PFN_omuiC
 /* Shows a runtime created without `headless` in a window and runs it until the window closes; OMUI_ERROR_EXTENSION_NOT_PRESENT where no display host is linked. */
 OMUI_API OmuiResult omuiRun(OmuiRuntime rt);
 
+/* Names a signal for view documents, which declare it with "provided": true: one state for the binding's code and every view. A view's own events (`emit`) reach omuiOn on the slot's root node. */
+OMUI_API OmuiResult omuiSignalShare(OmuiRuntime rt, OmuiSignal signal, OmuiString name);
+
+/* Replaces `remove` rows of a model at `from` with rows_json ([{"key": …, fields…}]), as one change: push, insert, patch, remove and clear in one call. Keys are ids (S-8), unique in the model. */
+OMUI_API OmuiResult omuiModelSplice(OmuiRuntime rt, OmuiString model, uint32_t from, uint32_t remove, OmuiString rows_json);
+
+/* A model's rows [from, from + count), as JSON ([{"key": …, fields…}]). */
+OMUI_API OmuiResult omuiModelRows(OmuiRuntime rt, OmuiString model, uint32_t from, uint32_t count, PFN_omuiSink sink, void* user);
+
+/* The registered components, as JSON: each one's contract (properties with their type, default and whether they bind two-way; events with their arguments; actions with their effect), and the properties and events every node has. Bindings build typed builders from it; agents read it. */
+OMUI_API OmuiResult omuiCatalog(OmuiRuntime rt, PFN_omuiSink sink, void* user);
+
 #ifdef __cplusplus
 }
 #endif

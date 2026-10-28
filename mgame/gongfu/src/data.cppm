@@ -123,6 +123,18 @@ struct MoveDef {
     std::int32_t                 meter_cost = 0;
     std::int32_t                 meter_gain = 0;    // on hit; half on block
     std::int32_t                 freeze = 0;        // frames both fighters stand still at its first frame (a super's flash)
+    // System 0.3 (posture and supers design): a super's level (1–3; 0 for
+    // any other move) — its damage scaling's floor and its posture by
+    // default; its weight in a clash (−1: by its kind — light 1, medium 2,
+    // heavy 3, special 3, super 5); what a block of the whole move costs the
+    // defender's posture, shared among its hits (−1: by its kind); whether
+    // its strikes clash with others, and whether a perfect clash may be
+    // cancelled into a special.
+    std::int32_t                 level = 0;
+    std::int32_t                 weight = -1;
+    std::int32_t                 posture = -1;
+    bool                         clash = true;
+    bool                         clash_cancel = false;
 };
 
 struct FighterDef {
@@ -140,6 +152,7 @@ struct FighterDef {
     // The impact profiles its hits name, by HitDef::impact: what a picture
     // draws for a hit (a look's `impact.<name>`); the simulation never reads them.
     std::vector<std::string> impacts;
+    std::int32_t             posture_max = 1000;  // posture it can take before a guard break
 };
 
 struct SystemDef {
@@ -150,13 +163,37 @@ struct SystemDef {
     std::int32_t round_frames = 99 * 60;
     Fixed        stage_width = 1920_fx;
     Fixed        start_distance = 400_fx;
-    std::int32_t meter_max = 1000;
+    std::int32_t meter_max = 3000;  // three bars of 1000: a super's level is the bars it costs
     std::int32_t knockdown = 30;  // frames down
     std::int32_t wakeup = 10;     // frames getting up, invulnerable
     // Holding back near an opponent's move — starting or active — guards in
     // place instead of walking away (proximity guard).
     Fixed        proximity_guard = 300_fx;
     Socd         socd = Socd::up_wins;
+    // Posture (system 0.3): recovered after this many quiet frames, by this
+    // much a frame (half holding back, double moving forward or attacking);
+    // a guard break's stagger, the frames of protection after it (counted
+    // while able to act), and the damage scaling a combo from it starts at.
+    std::int32_t posture_delay = 45;
+    std::int32_t posture_rate = 3;
+    std::int32_t break_stagger = 40;
+    std::int32_t break_protect = 180;
+    std::int32_t break_scaling = 80;
+    // Clashes: within this many frames of each other two strikes are even;
+    // the stop both stand in; the recovery after an even clash, and a lost one's.
+    std::int32_t clash_window = 2;
+    std::int32_t clash_stop = 12;
+    std::int32_t clash_recovery = 10;
+    std::int32_t clash_lost = 18;
+    // Deflects: back pressed within this many frames before the hit, after it
+    // was not held for `deflect_fresh` frames (or within `deflect_again` of a
+    // deflect, for the next hit of a string); its blockstun shorter by this.
+    std::int32_t deflect_window = 3;  // −1: no deflects
+    std::int32_t deflect_fresh = 8;
+    std::int32_t deflect_again = 10;
+    std::int32_t deflect_gain = 4;
+    // A super's damage scaling floor, by level (percent).
+    std::array<std::int32_t, 4> super_scaling{0, 30, 40, 50};
 };
 
 struct Problem {
@@ -168,6 +205,10 @@ struct Problem {
 struct Fighter {
     FighterDef                                          def;
     std::vector<std::vector<std::vector<std::int32_t>>> cancel_targets;  // per move, per cancel: the moves it allows
+    // Per move: its clash weight, and the posture each of its hits costs a
+    // blocker (its projectile's hits: the last entry); its budget, shared.
+    std::vector<std::int32_t>                           weights;
+    std::vector<std::vector<std::int32_t>>              posture;
     [[nodiscard]] std::int32_t find(std::string_view move) const noexcept;
     // The first frame any of a move's hits (or its throw, or its projectile) is active.
     [[nodiscard]] std::int32_t startup(std::int32_t move) const noexcept;

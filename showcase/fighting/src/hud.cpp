@@ -62,6 +62,22 @@ void bars(render::DisplayList& out, const gongfu::Match& match) {
         const float filled = static_cast<float>(w * share);
         // Each bar drains from the middle toward its own side, as the genre's do.
         out.fill_round_rect({i == 0 ? x : x + w - filled, y, filled, h}, CornerRadii::all(4), render::Paint::solid(tone(i == 0 ? 0xf2c14e : 0x4ec9f2)));
+        // Posture (system 0.3): a thin bar under the health, filling from the middle as it is taken; red past 70%, white when broken.
+        const auto& f = st.f[static_cast<std::size_t>(i)];
+        const double taken = std::clamp(f.posture / static_cast<double>(match.fighter(i).def.posture_max), 0.0, 1.0);
+        const float pw = static_cast<float>(w * taken), py = y + h + 4;
+        out.fill_rect({x, py, w, 5}, tone(0x0b0d12, 0.7f));
+        const std::uint32_t c = f.mode == gongfu::Mode::broken ? 0xffffff : taken > 0.7 ? 0xf24e5a : 0xe8dcc4;
+        out.fill_rect({i == 0 ? x + w - pw : x, py, pw, 5}, tone(c));
+        // Meter: three bars in the bottom corner on its side.
+        const float mw = 60, mh = 8, my = height - 22;
+        for (int bar = 0; bar < 3; ++bar) {
+            const float mx = i == 0 ? 40 + bar * (mw + 6) : width - 40 - mw - bar * (mw + 6);
+            const double full = std::clamp((f.meter - bar * 1000) / 1000.0, 0.0, 1.0);
+            out.fill_round_rect({mx, my, mw, mh}, CornerRadii::all(3), render::Paint::solid(tone(0x0b0d12, 0.7f)));
+            const float fw = static_cast<float>(mw * full);
+            out.fill_round_rect({i == 0 ? mx : mx + mw - fw, my, fw, mh}, CornerRadii::all(3), render::Paint::solid(tone(full >= 1 ? 0x7af0ff : 0x3a8fa8)));
+        }
     }
 }
 

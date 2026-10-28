@@ -99,6 +99,8 @@ void Match::start(std::int32_t i, std::int32_t move) {
     s.landed = 0;
     s.contact = 0;
     s.thrower = 0;
+    s.super_scale = 0;
+    s.clash_cancel = 0;
     s.meter -= m.meter_cost;
     if (s.pos.y <= Fixed{}) s.vel = {};
     if (m.freeze > 0) state_.freeze = std::max(state_.freeze, m.freeze);
@@ -133,19 +135,25 @@ void Match::decide(std::int32_t i) {
     const bool free = neutral(s.mode) || s.mode == Mode::air;
     std::array<std::int32_t, 32> open{};
     const std::size_t open_count = open_cancels(i, open);
+    // A perfect clash's recovery, for a move that allows it: a special (not a super) may start.
+    const bool clash_open = s.mode == Mode::clash && s.clash_cancel;
     auto is_open = [&](std::int32_t m) {
+        if (clash_open) {
+            const MoveDef& md = def.moves[static_cast<std::size_t>(m)];
+            if (md.level == 0 && (md.command.motion.length > 0 || md.command.charge.from != 0)) return true;
+        }
         return std::find(open.begin(), open.begin() + static_cast<std::ptrdiff_t>(open_count), m) != open.begin() + static_cast<std::ptrdiff_t>(open_count);
     };
     // A move asked for while standing still starts now, if it still may.
     if (s.queued >= 0) {
         const std::int32_t m = s.queued;
         s.queued = -1;
-        if ((free || (s.mode == Mode::move && is_open(m))) && may_start(i, m)) {
+        if ((free || ((s.mode == Mode::move || clash_open) && is_open(m))) && may_start(i, m)) {
             start(i, m);
             return;
         }
     }
-    if (free || open_count > 0) {
+    if (free || open_count > 0 || clash_open) {
         for (std::int32_t m : order_[static_cast<std::size_t>(i)]) {
             if (!free && !is_open(m)) continue;
             if (!may_start(i, m)) continue;
@@ -237,6 +245,8 @@ void Match::advance(std::int32_t i) {
         s.combo = 0;
         s.juggle = 0;
         s.relaunched = 0;
+        s.scale_cap = 100;
+        s.clash_cancel = 0;
     };
     switch (s.mode) {
         case Mode::idle:
@@ -321,6 +331,13 @@ void Match::advance(std::int32_t i) {
         case Mode::blockstun:
             s.pos.x += s.push;
             if (--s.stun <= 0) to_neutral(), s.protect = 1 + 2;  // the 2 frames after
+            break;
+        case Mode::clash:
+            s.pos.x += s.push;
+            if (--s.stun <= 0) to_neutral();
+            break;
+        case Mode::broken:
+            if (--s.stun <= 0) to_neutral(), s.protect = 1 + 2;
             break;
         case Mode::reset:
             fall();
@@ -461,6 +478,7 @@ void Match::resolve() {
             if (r.overlaps(body[static_cast<std::size_t>(d)][k])) return meeting(r, body[static_cast<std::size_t>(d)][k]);
         return std::nullopt;
     };
+    clash();
     for (std::int32_t a = 0; a < 2; ++a) {
         const std::int32_t d = 1 - a;
         const FighterState& sa = state_.f[static_cast<std::size_t>(a)];
@@ -478,7 +496,8 @@ void Match::resolve() {
                 }
         }
         if (m.throw_ && m.throw_->active.contains(sa.move_frame) && !(sa.landed & throw_bit)) {
-            const bool grounded = sd.pos.y <= Fixed{} && (neutral(sd.mode) || sd.mode == Mode::landing || sd.mode == Mode::prejump || sd.mode == Mode::move);
+            const bool grounded = sd.pos.y <= Fixed{} && (neutral(sd.mode) || sd.mode == Mode::landing || sd.mode == Mode::prejump ||
+                                                         sd.mode == Mode::move || sd.mode == Mode::broken);
             if (grounded && sd.protect == 0 && !invulnerable(d, to_throw) && meets(place(m.throw_->range, sa.pos, sa.facing), d))
                 throwing[static_cast<std::size_t>(a)] = true;
         }
@@ -550,9 +569,10 @@ void Match::resolve() {
         sa.landed |= throw_bit;
         sa.contact = 1;
         sa.thrower = 1;
+        const bool staggered = sd.mode == Mode::broken;  // a guard break's throw is not broken
         sd.mode = Mode::thrown;
         sd.move = -1;
-        sd.tech = t.tech_window;
+        sd.tech = staggered ? 0 : t.tech_window;
         sd.stun = std::max(t.tech_window, 1);
         sd.throw_damage = t.damage;
         sd.vel = {};
@@ -564,6 +584,110 @@ void Match::resolve() {
         }
     }
     for (std::size_t k = 0; k < n; ++k) apply(strikes[k], blocked[k], counter[k]);
+}
+
+// Blade on blade (system 0.3): two strikes active on one frame whose hit
+// boxes meet, facing each other. The super wins over anything else; within
+// the clash window the heavier wins, or with equal weight neither does (a
+// perfect clash: nothing changes); outside it the fresher wins — the one
+// that met a strike already swung. Both strikes are spent and both moves end
+// in a shared stop and a clash recovery; the loser takes the winner's
+// posture, and breaks if that fills it.
+void Match::clash() {
+    FighterState& a = state_.f[0];
+    FighterState& b = state_.f[1];
+    if (state_.over || a.mode != Mode::move || b.mode != Mode::move || a.facing == b.facing) return;
+    const MoveDef& ma = fighter(0).def.moves[static_cast<std::size_t>(a.move)];
+    const MoveDef& mb = fighter(1).def.moves[static_cast<std::size_t>(b.move)];
+    if (!ma.clash || !mb.clash) return;
+    for (std::size_t h1 = 0; h1 < ma.hits.size() && h1 < 30; ++h1) {
+        const HitDef& x = ma.hits[h1];
+        if (!x.active.contains(a.move_frame) || (a.landed & (1 << h1))) continue;
+        for (std::size_t h2 = 0; h2 < mb.hits.size() && h2 < 30; ++h2) {
+            const HitDef& y = mb.hits[h2];
+            if (!y.active.contains(b.move_frame) || (b.landed & (1 << h2))) continue;
+            std::optional<Vec> at;
+            for (const Box& bx : x.boxes)
+                for (const Box& by : y.boxes)
+                    if (!at) {
+                        const Rect rx = place(bx, a.pos, a.facing), ry = place(by, b.pos, b.facing);
+                        if (rx.overlaps(ry)) at = meeting(rx, ry);
+                    }
+            if (!at) continue;
+            // A strike the other is invulnerable to passes through it: no blades meet.
+            if (invulnerable(1, a.pos.y > Fixed{} ? to_air : to_strike) || invulnerable(0, b.pos.y > Fixed{} ? to_air : to_strike)) return;
+            const std::int32_t t0 = a.move_frame - x.active.from, t1 = b.move_frame - y.active.from;
+            const std::int32_t w0 = fighter(0).weights[static_cast<std::size_t>(a.move)], w1 = fighter(1).weights[static_cast<std::size_t>(b.move)];
+            std::int32_t winner = -1;
+            if ((ma.level > 0) != (mb.level > 0)) winner = ma.level > 0 ? 0 : 1;
+            else if (std::abs(t0 - t1) <= system_.clash_window) winner = w0 == w1 ? -1 : (w0 > w1 ? 0 : 1);
+            else winner = t0 < t1 ? 0 : 1;
+            const std::array<std::int32_t, 2> hits{static_cast<std::int32_t>(h1), static_cast<std::int32_t>(h2)};
+            const std::array<std::int32_t, 2> moves{a.move, b.move};
+            const std::array<bool, 2> cancel{ma.clash_cancel, mb.clash_cancel};
+            const std::uint16_t impact = winner == 1 ? y.impact : x.impact;
+            events_.push_back({Event::Kind::clash, winner, winner >= 0 ? moves[static_cast<std::size_t>(winner)] : moves[0], 0, 0, impact, *at});
+            for (std::int32_t i = 0; i < 2; ++i) {
+                FighterState& f = state_.f[static_cast<std::size_t>(i)];
+                const FighterState& o = state_.f[static_cast<std::size_t>(1 - i)];
+                f.landed |= 1 << hits[static_cast<std::size_t>(i)];
+                f.move = -1;
+                f.stop = std::max(f.stop, system_.clash_stop);
+                f.push = Fixed::of(3) * away(o, f);
+                if (f.pos.y > Fixed{}) {
+                    f.mode = Mode::reset;  // a clash in the air: both fall apart
+                    f.vel = {Fixed::of(2) * away(o, f), max(f.vel.y, Fixed{})};
+                } else {
+                    f.mode = Mode::clash;
+                    f.vel = {};
+                    f.stun = winner == 1 - i ? system_.clash_lost : system_.clash_recovery;
+                    f.clash_cancel = winner < 0 && cancel[static_cast<std::size_t>(i)] ? 1 : 0;
+                }
+            }
+            if (winner >= 0) {
+                FighterState& loser = state_.f[static_cast<std::size_t>(1 - winner)];
+                const auto& per = fighter(winner).posture[static_cast<std::size_t>(moves[static_cast<std::size_t>(winner)])];
+                take_posture(1 - winner, per[static_cast<std::size_t>(hits[static_cast<std::size_t>(winner)])], *at);
+                (void)loser;
+            }
+            return;
+        }
+    }
+}
+
+// Posture taken by fighter i (a blocked hit, a lost clash): unless steadied
+// after a break; at its max, a guard break.
+void Match::take_posture(std::int32_t i, std::int32_t amount, Vec at) {
+    FighterState& f = state_.f[static_cast<std::size_t>(i)];
+    f.quiet = 0;
+    if (f.steady > 0 || amount <= 0) return;
+    f.posture = std::min(fighter(i).def.posture_max, f.posture + amount);
+    if (f.posture < fighter(i).def.posture_max || f.pos.y > Fixed{}) return;
+    f.mode = Mode::broken;
+    f.stun = system_.break_stagger;
+    f.move = -1;
+    f.vel = {};
+    f.push = Fixed{};
+    events_.push_back({Event::Kind::guard_break, 1 - i, -1, 0, 0, 0, at});
+}
+
+// A deflect (system 0.3): back pressed afresh just before the hit — not
+// held for a while before (or soon after the last deflect, for a string) —
+// read from the directions as given, so turning around is not a press.
+bool Match::deflects(std::int32_t i) const noexcept {
+    const FighterState& f = state_.f[static_cast<std::size_t>(i)];
+    auto back = [&](std::int32_t age) {
+        const int r = f.log.raw(age);
+        return f.facing > 0 ? (r == 1 || r == 4 || r == 7) : (r == 3 || r == 6 || r == 9);
+    };
+    for (std::int32_t a = 0; a <= system_.deflect_window; ++a) {
+        if (!back(a) || back(a + 1)) continue;
+        if (f.deflected > 0) return true;
+        bool fresh = true;
+        for (std::int32_t k = a + 1; k <= a + system_.deflect_fresh && fresh; ++k) fresh = !back(k);
+        if (fresh) return true;
+    }
+    return false;
 }
 
 void Match::apply(const Strike& s, bool blocked, bool counter) {
@@ -583,16 +707,39 @@ void Match::apply(const Strike& s, bool blocked, bool counter) {
     d.queued = -1;
     const std::int32_t sign = away(a, d);
     if (blocked) {
+        const bool deflect = m.level == 0 && deflects(1 - s.attacker);
         d.mode = Mode::blockstun;
-        d.stun = h.blockstun;
+        d.stun = deflect ? std::max(1, h.blockstun - system_.deflect_gain) : h.blockstun;
         d.move = -1;
-        d.health -= h.chip;
         d.push = h.pushback * sign;
-        a.meter = std::min(system_.meter_max, a.meter + m.meter_gain / 2);
-        events_.push_back({Event::Kind::block, s.attacker, s.move, s.hit, h.chip, h.impact, at});
+        if (m.level == 0) a.meter = std::min(system_.meter_max, a.meter + m.meter_gain / 2);
+        if (deflect) {
+            // Neither side's posture changes; the defender is 4 frames better off.
+            d.deflected = system_.deflect_again;
+            d.quiet = 0;
+            events_.push_back({Event::Kind::deflect, s.attacker, s.move, s.hit, 0, h.impact, at});
+        } else {
+            d.health -= h.chip;
+            events_.push_back({Event::Kind::block, s.attacker, s.move, s.hit, h.chip, h.impact, at});
+            const auto& per = fighter(s.attacker).posture[static_cast<std::size_t>(s.move)];
+            take_posture(1 - s.attacker, s.projectile ? per.back() : per[static_cast<std::size_t>(s.hit)], at);
+        }
     } else {
+        // The first hit on a broken guard: posture back to 0, steadied, and the combo from it scaled from 80%.
+        if (d.mode == Mode::broken || d.posture >= fighter(1 - s.attacker).def.posture_max) {
+            d.posture = 0;
+            d.steady = system_.break_protect;
+            d.scale_cap = system_.break_scaling;
+        }
+        d.quiet = 0;
         const auto& scaling = system_.scaling;
-        const std::int32_t step = scaling[static_cast<std::size_t>(std::min<std::int32_t>(d.combo, static_cast<std::int32_t>(scaling.size()) - 1))];
+        std::int32_t step = scaling[static_cast<std::size_t>(std::min<std::int32_t>(d.combo, static_cast<std::int32_t>(scaling.size()) - 1))] *
+                            d.scale_cap / 100;
+        // A super locks its scaling once, at its first hit: no lower than its level's floor.
+        if (m.level > 0) {
+            if (a.super_scale == 0) a.super_scale = std::max(step, system_.super_scaling[static_cast<std::size_t>(std::min(m.level, 3))]);
+            step = a.super_scale;
+        }
         std::int32_t damage = h.damage * step / 100;
         if (counter) damage = damage * system_.counter_damage / 100;
         d.health -= damage;
@@ -626,7 +773,7 @@ void Match::apply(const Strike& s, bool blocked, bool counter) {
             d.stun = h.hitstun + (counter ? system_.counter_hitstun : 0);
             d.push = h.pushback * sign;
         }
-        a.meter = std::min(system_.meter_max, a.meter + m.meter_gain);
+        if (m.level == 0) a.meter = std::min(system_.meter_max, a.meter + m.meter_gain);  // a super gives none back
         events_.push_back({counter ? Event::Kind::counter : Event::Kind::hit, s.attacker, s.move, s.hit, damage, h.impact, at});
     }
     // Each stands still for its own hitstop; a projectile's owner goes on.
@@ -638,6 +785,28 @@ void Match::apply(const Strike& s, bool blocked, bool counter) {
         state_.winner = state_.over && state_.winner != s.attacker ? 2 : s.attacker;
         state_.over = 1;
         events_.push_back({Event::Kind::ko, s.attacker, s.move, s.hit, 0, h.impact, at});
+    }
+}
+
+// Posture recovers after a quiet while: half as fast holding back, twice as
+// fast going forward or attacking; a break's protection runs out while able
+// to act; a deflect's window for the next hit closes.
+void Match::recover(const std::array<bool, 2>& still) {
+    for (std::int32_t i = 0; i < 2; ++i) {
+        FighterState& f = state_.f[static_cast<std::size_t>(i)];
+        if (still[static_cast<std::size_t>(i)]) continue;
+        if (f.deflected > 0) --f.deflected;
+        if (f.steady > 0 && actionable(i)) --f.steady;
+        if (f.quiet < system_.posture_delay) {
+            ++f.quiet;
+            continue;
+        }
+        if (f.posture <= 0 || f.mode == Mode::broken) continue;
+        const int d = f.log.direction(0);
+        std::int32_t rate = system_.posture_rate;
+        if (d == 1 || d == 4 || d == 7) rate = state_.frame % 2 == 0 ? rate : 0;  // half: every other frame
+        else if (d == 3 || d == 6 || d == 9 || f.mode == Mode::move) rate *= 2;
+        f.posture = std::max(0, f.posture - rate);
     }
 }
 
@@ -688,6 +857,7 @@ void Match::tick(Pad left, Pad right) {
     separate();
     resolve();
     face();
+    recover(still);
     if (!state_.over && --state_.timer <= 0) {
         state_.over = 1;
         const std::int32_t h0 = state_.f[0].health, h1 = state_.f[1].health;

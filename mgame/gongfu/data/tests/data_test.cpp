@@ -91,6 +91,8 @@ down = 24
 name = "623P"
 input = "623P"
 total = 40
+weight = 4
+posture = 150
 invulnerable = [{ frames = [1, 7], to = ["air"] }, [1, 2]]
 [[move.hit]]
 active = [6, 9]
@@ -125,6 +127,7 @@ blockstun = 12
 name = "4throw"
 input = "4LP+LK"
 total = 30
+clash = false
 [move.throw]
 active = [5, 6]
 range = [0, 0, 80, 150]
@@ -139,9 +142,11 @@ swap = true
         const HitDef& hp = mv[1].hits[0];
         check(hp.hitstop == 13 && hp.hitstop_attacker == 9 && hp.down == 24 && mv[1].hurt.size() == 1 && mv[1].hurt[0].boxes.size() == 2);
         check(mv[2].invulnerable.size() == 2 && mv[2].invulnerable[0].to == to_air && mv[2].invulnerable[1].to == to_all && mv[2].hits[0].juggle == 2);
+        check(f->weights[2] == 4 && f->posture[2] == std::vector<std::int32_t>{150}, "weight and posture as written");
+        check(f->weights[1] == 3 && f->posture[1] == std::vector<std::int32_t>{110}, "5HP by its kind: heavy");
         const ProjectileDef& p = *mv[3].projectile;
         check(p.velocity == Vec{5_fx, -5_fx} && p.hits == 2 && p.interval == 4 && p.strength == 2 && p.limit == 1);
-        check(mv[4].throw_->swap && mv[4].command.direction == 4 && mv[4].command.together);
+        check(mv[4].throw_->swap && mv[4].command.direction == 4 && mv[4].command.together && !mv[4].clash);
         auto bad = data::read_fighter(R"(gongfu = "0.1"
 name = "Bad"
 jump = { prejump = 4, up = 20, forward = 5, gravity = 1, landing = 3 }
@@ -174,6 +179,9 @@ invulnerable = [{ frames = [1, 7], to = ["airr"] }]
         check(system.has_value(), system ? "" : std::format("{}", texts(system.error())));
         if (!system) return;
         check(system->round_frames == 99 * 60 && system->counter_damage == 120 && system->socd == Socd::up_wins);
+        check(system->meter_max == 3000 && system->clash_window == 2 && system->deflect_window == 3 && system->break_scaling == 80 &&
+                  system->super_scaling[3] == 50,
+              "system 0.3's numbers");
         Match m(*system, *kata, *kata);
         State st = m.state();
         st.f[0].pos.x = 915_fx;

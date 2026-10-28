@@ -27,6 +27,8 @@ enum class Mode : std::int32_t {
     thrown,
     ko,
     reset,      // an air reset: falling untouchable, landing free
+    clash,      // the recovery after a clash (`stun` frames)
+    broken,     // a guard break: staggered, unable to block or act (`stun` frames)
 };
 
 struct FighterState {
@@ -51,6 +53,13 @@ struct FighterState {
     std::int32_t juggle = 0;         // juggle points left while launched
     std::int32_t relaunched = 0;     // 1 once launched again in this juggle
     std::int32_t protect = 0;        // it cannot be thrown while more than 0: 3 frames after waking up, 2 after hitstun or blockstun (counted down at each frame's start)
+    std::int32_t posture = 0;        // posture taken (system 0.3): at the fighter's max, a guard break
+    std::int32_t quiet = 0;          // frames since it last blocked, lost a clash or was hit: posture recovers after a while
+    std::int32_t steady = 0;         // frames of protection after a guard break (no posture taken), counted while able to act
+    std::int32_t deflected = 0;      // frames left in which a fresh back press deflects the next hit of a string
+    std::int32_t scale_cap = 100;    // its combo's damage scaling at most this (percent): 80 for a combo from a guard break
+    std::int32_t super_scale = 0;    // the scaling its super locked at its first hit (percent; 0: none yet)
+    std::int32_t clash_cancel = 0;   // 1 while a perfect clash's recovery may be cancelled into a special
     InputLog     log;
 };
 

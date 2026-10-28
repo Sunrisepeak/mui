@@ -110,11 +110,17 @@ FighterDef body() {
     drop.projectile->hit = strike({1, 120}, {-15_fx, -15_fx, 30_fx, 30_fx}, 500, 16);
     f.moves.push_back(drop);
     MoveDef great{.name = "236236P", .command = {.motion = motion({2, 3, 6, 2, 3, 6}, 24), .buttons = punches}, .total = 50, .priority = 20,
-                  .meter_cost = 1000, .freeze = 30};
+                  .meter_cost = 1000, .freeze = 30, .level = 1};
     great.projectile = ProjectileDef{.spawn = 10, .offset = {60_fx, 100_fx}, .velocity = {7_fx, 0_fx}, .life = 200, .hits = 3, .interval = 4,
                                      .strength = 2};
     great.projectile->hit = strike({1, 200}, {-30_fx, -30_fx, 60_fx, 60_fx}, 500, 24, 6);
     f.moves.push_back(great);
+
+    // A striking super (level 2), no flash: it wins every clash but another super's.
+    MoveDef rush{.name = "214214P", .command = {.motion = motion({2, 1, 4, 2, 1, 4}, 24), .buttons = punches}, .total = 40, .priority = 20,
+                 .meter_cost = 2000, .level = 2};
+    rush.hits.push_back(strike({8, 12}, {20_fx, 80_fx, 120_fx, 60_fx}, 1500, 30, 12));
+    f.moves.push_back(rush);
 
     // Throws: forward and back.
     MoveDef grab{.name = "throw", .command = {.buttons = static_cast<std::uint16_t>(LP | LK), .together = true}, .total = 30, .priority = 20};
@@ -150,6 +156,31 @@ Match apart(Fixed gap) {
     s.f[1].pos.x = mid + (gap - gap / 2);
     m.restore(s);
     return m;
+}
+
+// Fighter 2 has held back (its guard, facing left: 6) for a while; the two `gap` apart again.
+void guarding(Match& m, Fixed gap) {
+    for (int f = 0; f < 12; ++f) m.tick(pad(5), pad(6));
+    State s = m.state();
+    const Fixed mid = m.system().stage_width / 2;
+    s.f[0].pos.x = mid - gap / 2;
+    s.f[1].pos.x = mid + (gap - gap / 2);
+    s.f[1].mode = Mode::idle;
+    m.restore(s);
+}
+
+// Fighter 1 presses `button` (as its first pad) while fighter 2 gives `guard`; ticks until something happens or `frames` pass.
+std::vector<Event> exchange(Match& m, std::uint16_t button, std::span<const Pad> guard, int frames = 40) {
+    std::vector<Event> seen;
+    for (int f = 0; f < frames; ++f) {
+        m.tick(f == 0 ? pad(5, button) : pad(5), f < static_cast<int>(guard.size()) ? guard[static_cast<std::size_t>(f)] : guard.back());
+        seen.insert(seen.end(), m.events().begin(), m.events().end());
+    }
+    return seen;
+}
+
+bool any_kind(std::span<const Event> es, Event::Kind k) {
+    return std::ranges::any_of(es, [&](const Event& e) { return e.kind == k; });
 }
 
 bool has(const Match& m, Event::Kind k) {
@@ -251,7 +282,7 @@ int main(int argc, char** argv) {
             hits += count(g, Event::Kind::hit);
         }
         check_eq(hits, 3);
-        check_eq(g.state().f[1].health, 10000 - 500 - 500 * 100 / 100 - 500 * 80 / 100);
+        check_eq(g.state().f[1].health, 10000 - 3 * 500);  // a super's scaling is locked at its first hit (system 0.3)
         Match c = apart(900_fx);
         st = c.state();
         st.f[0].meter = 1000;
@@ -428,7 +459,239 @@ int main(int argc, char** argv) {
         check_eq(down, 20);
     });
 
-    s.test("all of it rolled back: 5,000 frames of motions, dashes, supers, juggles and throws, every rollback the bytes of a straight run; the hash pinned", [] {
+    s.test("P-1 posture: a block costs the move's posture; full, a guard break; its first follow-up resets it, steadies and scales from 80%", [] {
+        FighterDef small = body();
+        small.posture_max = 300;
+        const Fighter thin = *compile(small);
+        check_eq(thin.posture[static_cast<std::size_t>(thin.find("5HP"))][0], std::int32_t{110});
+        Match m(rules(), thin, thin);
+        guarding(m, 120_fx);
+        const std::array hold{pad(6)};
+        std::vector<Event> all;
+        for (int round = 0; round < 3; ++round) {
+            State st = m.state();
+            st.f[0].pos.x = st.f[1].pos.x - 120_fx;  // the attacker back in range
+            m.restore(st);
+            auto es = exchange(m, HP, hold, 40);
+            all.insert(all.end(), es.begin(), es.end());
+            if (round < 2) check_eq(m.state().f[1].posture, std::int32_t{110 * (round + 1)});
+        }
+        check(any_kind(all, Event::Kind::guard_break), "the third blocked 5HP breaks a guard of 300");
+        // Broken again from the start: staggered, unable to block; the first hit resets posture, steadies, scales.
+        Match b(rules(), thin, thin);
+        guarding(b, 120_fx);
+        State st = b.state();
+        st.f[1].posture = 300;
+        st.f[1].mode = Mode::broken;
+        st.f[1].stun = 40;
+        b.restore(st);
+        auto es = exchange(b, HP, hold, 20);
+        auto hit = std::ranges::find(es, Event::Kind::hit, &Event::kind);
+        check(hit != es.end() && hit->damage == 800 * 80 / 100, std::format("a broken guard is hit, scaled from 80%: {}", hit != es.end() ? hit->damage : -1));
+        check(b.state().f[1].posture == 0 && b.state().f[1].steady > 0, "posture back to 0, steadied");
+    });
+
+    s.test("P-1 posture recovers after a quiet while: half holding back, double going forward", [] {
+        std::vector<std::int32_t> recovered;
+        for (const int dir : {5, 6, 4}) {  // fighter 2 faces left: 6 is back, 4 forward
+            Match m = apart(600_fx);
+            State st = m.state();
+            st.f[1].posture = 500;
+            m.restore(st);
+            for (int f = 0; f < 45; ++f) m.tick(pad(5), pad(5));
+            const std::int32_t before = m.state().f[1].posture;
+            for (int f = 0; f < 40; ++f) m.tick(pad(5), pad(dir));
+            recovered.push_back(before - m.state().f[1].posture);
+        }
+        check(recovered[0] == 120 && recovered[1] == 60 && recovered[2] == 240, std::format("{}", recovered));
+    });
+
+    s.test("P-2 clashes: equal and even, nothing changes; heavier wins; fresher wins; a super wins; an invulnerable move passes through", [] {
+        // Two 5HPs at once, 180 apart: blades meet, bodies out of reach.
+        {
+            Match m = apart(180_fx);
+            std::vector<Event> es;
+            for (int f = 0; f < 40; ++f) {
+                m.tick(f == 0 ? pad(5, HP) : pad(5), f == 0 ? pad(5, HP) : pad(5));
+                es.insert(es.end(), m.events().begin(), m.events().end());
+                if (f == 12) check(m.state().f[0].mode == m.state().f[1].mode, "both in the same state");
+            }
+            auto c = std::ranges::find(es, Event::Kind::clash, &Event::kind);
+            check(c != es.end() && c->attacker == -1, "a perfect clash");
+            check(!any_kind(es, Event::Kind::hit) && m.state().f[0].posture == 0 && m.state().f[1].posture == 0 && m.state().f[0].health == 10000 &&
+                      m.state().f[1].health == 10000,
+                  "nothing changes");
+        }
+        // 5MP against 5HP, both fresh: the heavier wins; the loser takes its posture and recovers 8 later.
+        {
+            Match m = apart(180_fx);
+            std::vector<Event> es;
+            for (int f = 0; f < 40; ++f) {
+                m.tick(f == 3 ? pad(5, MP) : pad(5), f == 0 ? pad(5, HP) : pad(5));
+                es.insert(es.end(), m.events().begin(), m.events().end());
+            }
+            auto c = std::ranges::find(es, Event::Kind::clash, &Event::kind);
+            check(c != es.end() && c->attacker == 1, std::format("the 5HP wins: {}", c != es.end() ? c->attacker : -9));
+            check_eq(m.state().f[0].posture, std::int32_t{110});
+        }
+        // A long 8LK met 5 frames into its active ones by a fresh 5LP: the fresher wins.
+        {
+            Match m = apart(160_fx);
+            std::vector<Event> es;
+            for (int f = 0; f < 40; ++f) {
+                m.tick(f == 0 ? pad(8, LK) : pad(5), f == 5 ? pad(5, LP) : pad(5));
+                es.insert(es.end(), m.events().begin(), m.events().end());
+            }
+            auto c = std::ranges::find(es, Event::Kind::clash, &Event::kind);
+            check(c != es.end() && c->attacker == 1, std::format("the fresh jab wins: {}", c != es.end() ? c->attacker : -9));
+        }
+        // A super against a fresh 5HP: the super wins.
+        {
+            Match m = apart(180_fx);
+            State st = m.state();
+            st.f[0].meter = 3000;
+            m.restore(st);
+            const std::array motion{pad(2), pad(1), pad(4), pad(2), pad(1), pad(4, LP)};
+            std::vector<Event> es;
+            for (int f = 0; f < 50; ++f) {
+                m.tick(f < 6 ? motion[static_cast<std::size_t>(f)] : pad(5), f == 7 ? pad(5, HP) : pad(5));
+                es.insert(es.end(), m.events().begin(), m.events().end());
+            }
+            auto c = std::ranges::find(es, Event::Kind::clash, &Event::kind);
+            check(c != es.end() && c->attacker == 0, std::format("the super wins: {}", c != es.end() ? c->attacker : -9));
+        }
+        // An anti-air invulnerable to the air: a jumping strike passes through it, no clash.
+        {
+            Match m = apart(60_fx);
+            State st = m.state();
+            st.f[0].mode = Mode::move;
+            st.f[0].move = rule().find("j.HP");
+            st.f[0].move_frame = 7;
+            st.f[0].pos.y = 100_fx;
+            st.f[0].vel = {0_fx, -1_fx};
+            st.f[1].mode = Mode::move;
+            st.f[1].move = rule().find("623P");
+            st.f[1].move_frame = 5;
+            st.f[1].facing = -1;
+            m.restore(st);
+            m.tick(pad(5), pad(5));
+            check(!has(m, Event::Kind::clash), "no blades meet through invulnerability");
+        }
+    });
+
+    s.test("P-3 deflects: a fresh back just before the hit; not a back held long, not one too early, not against a super; again for a string", [] {
+        auto blocked_with = [](std::span<const Pad> guard) {
+            Match m = apart(120_fx);
+            return exchange(m, HP, guard, 40);
+        };
+        // 5HP is active on its frame 8: the hit lands on tick 8 (index 7).
+        std::vector<Pad> fresh(40, pad(6));
+        for (int f = 0; f < 5; ++f) fresh[static_cast<std::size_t>(f)] = pad(5);  // back from tick 6: two frames before the hit
+        auto es = blocked_with(fresh);
+        check(any_kind(es, Event::Kind::deflect) && !any_kind(es, Event::Kind::block), "deflected");
+        std::vector<Pad> early(40, pad(6));
+        for (int f = 0; f < 2; ++f) early[static_cast<std::size_t>(f)] = pad(5);  // back from tick 3: too early
+        es = blocked_with(early);
+        check(any_kind(es, Event::Kind::block) && !any_kind(es, Event::Kind::deflect), "too early: a block");
+        // Held all along (and long before): a block, and the posture it costs.
+        Match held = apart(120_fx);
+        guarding(held, 120_fx);
+        const std::array hold{pad(6)};
+        es = exchange(held, HP, hold, 40);
+        check(any_kind(es, Event::Kind::block) && held.state().f[1].posture == 110, "held: a block");
+        // A deflect leaves the attacker 4 frames worse off than a block (and neither's posture changes).
+        auto advantage = [](std::span<const Pad> guard) {
+            Match m = apart(120_fx);
+            m.tick(pad(5, HP), guard[0]);
+            int hit = -1;
+            for (int f = 1; f < 30 && hit < 0; ++f) {
+                m.tick(pad(5), guard[static_cast<std::size_t>(f)]);
+                if (has(m, Event::Kind::block) || has(m, Event::Kind::deflect)) hit = f;
+            }
+            int att = -1, def = -1;
+            for (int f = 1; f < 80 && (att < 0 || def < 0); ++f) {
+                m.tick(pad(5), pad(6));
+                if (att < 0 && m.recovered(0)) att = f;
+                if (def < 0 && m.recovered(1)) def = f;
+            }
+            return std::pair{def - att, m.state().f[1].posture};
+        };
+        std::vector<Pad> fresh_long(40, pad(6)), early_long(40, pad(6));
+        for (int f = 0; f < 5; ++f) fresh_long[static_cast<std::size_t>(f)] = pad(5);
+        for (int f = 0; f < 2; ++f) early_long[static_cast<std::size_t>(f)] = pad(5);
+        const auto [d_adv, d_posture] = advantage(fresh_long);
+        const auto [b_adv, b_posture] = advantage(early_long);
+        check(b_adv - d_adv == 4 && d_posture == 0 && b_posture == 110, std::format("deflect {:+} / block {:+}; posture {} / {}", d_adv, b_adv, d_posture, b_posture));
+        // A super is not deflected.
+        {
+            Match m = apart(160_fx);
+            State st = m.state();
+            st.f[0].meter = 3000;
+            m.restore(st);
+            const std::array motion{pad(2), pad(1), pad(4), pad(2), pad(1), pad(4, LP)};
+            std::vector<Event> all;
+            for (int f = 0; f < 40; ++f) {
+                m.tick(f < 6 ? motion[static_cast<std::size_t>(f)] : pad(5), f >= 11 ? pad(6) : pad(5));
+                all.insert(all.end(), m.events().begin(), m.events().end());
+            }
+            check(any_kind(all, Event::Kind::block) && !any_kind(all, Event::Kind::deflect), "a super is blocked, never deflected");
+        }
+        // A string: 5LP chained into 5LP. Where its two hits land (blocked), then each met by a tap two frames before.
+        {
+            auto play = [](const std::vector<bool>& back, bool guard_first) {
+                Match m = apart(90_fx);
+                if (guard_first) guarding(m, 90_fx);  // a guard held long before: blocks, not deflects
+                else
+                    for (int f = 0; f < 12; ++f) m.tick(pad(5), pad(5));  // the same frames, neutral
+                std::vector<std::pair<int, Event::Kind>> at;
+                for (int f = 0; f < 40; ++f) {
+                    m.tick(f == 0 || f == 6 ? pad(5, LP) : pad(5), back[static_cast<std::size_t>(f)] ? pad(6) : pad(5));
+                    for (const Event& e : m.events()) at.emplace_back(f, e.kind);
+                }
+                return at;
+            };
+            std::vector<bool> held(40, true);
+            const auto plain = play(held, true);
+            std::vector<int> lands;
+            for (const auto& [f, k] : plain)
+                if (k == Event::Kind::block) lands.push_back(f);
+            check_eq(lands.size(), std::size_t{2});
+            if (lands.size() == 2) {
+                std::vector<bool> taps(40, false);
+                for (const int f : lands)
+                    for (int k = f - 2; k <= f + 4 && k < 40; ++k) taps[static_cast<std::size_t>(k)] = true;
+                const auto deflected = play(taps, false);
+                check_eq(std::ranges::count(deflected, Event::Kind::deflect, &std::pair<int, Event::Kind>::second), std::ptrdiff_t{2});
+            }
+        }
+    });
+
+    s.test("P-4 three bars; a super's scaling locked once, never under its level's floor; no meter back from a super", [] {
+        check_eq(SystemDef{}.meter_max, std::int32_t{3000});
+        SystemDef steep = rules();
+        steep.scaling = {100, 50, 20};
+        Match m(steep, rule(), rule());
+        State st = m.state();
+        const Fixed mid = m.system().stage_width / 2;
+        st.f[0].pos.x = mid - 200_fx;
+        st.f[1].pos.x = mid + 200_fx;
+        st.f[0].meter = 1000;
+        st.f[1].combo = 2;  // already deep in a combo: 20%
+        st.f[1].mode = Mode::hitstun;
+        st.f[1].stun = 200;
+        m.restore(st);
+        const std::array super{pad(2), pad(3), pad(6), pad(2), pad(3), pad(6, LP)};
+        std::vector<std::int32_t> damage;
+        for (int f = 0; f < 120; ++f) {
+            m.tick(f < 6 ? super[static_cast<std::size_t>(f)] : pad(5), pad(5));
+            for (const Event& e : m.events())
+                if (e.kind == Event::Kind::hit) damage.push_back(e.damage);
+        }
+        check(damage == std::vector<std::int32_t>{150, 150, 150}, std::format("{} (30% of 500, three times)", damage));
+        check_eq(m.state().f[0].meter, std::int32_t{0});
+    });
+
+    s.test("all of it rolled back: 5,000 frames of motions, dashes, supers, juggles, throws, clashes, deflects and guard breaks, every rollback the bytes of a straight run; the hash pinned", [] {
         // Inputs a player could give this fighter: held directions, presses, and now and then a whole motion.
         struct Rng {
             std::uint64_t s;
@@ -437,43 +700,74 @@ int main(int argc, char** argv) {
                 return static_cast<std::uint32_t>(s >> 11);
             }
         };
-        auto script = [](std::uint64_t seed, int frames) {
+        // Directions as the player on the left gives them; the right one's are mirrored.
+        // The left one presses; the right one mostly guards (holding back, low or high), and fights back now and then.
+        auto script = [](std::uint64_t seed, int frames, bool right) {
             Rng r{seed};
             std::vector<Pad> out;
             int held = 5;
             while (static_cast<int>(out.size()) < frames) {
                 const std::uint32_t v = r.next();
-                switch (v % 16) {
+                switch (v % 20) {
+                    case 16: for (int k = 0; k < 8; ++k) out.push_back(pad(4)); break;           // guard a while: posture
+                    case 17: for (int k = 0; k < 10; ++k) out.push_back(pad(k < 8 ? 5 : 4)); break;  // a fresh back: a deflect, if timed
+                    case 18: for (int k = 0; k < 6; ++k) out.push_back(pad(6, k == 0 ? MP : 0)); break;  // press forward with a medium
+                    case 19: out.push_back(pad(5, HP)); break;
                     case 0: for (Pad p : {pad(2), pad(3), pad(6, LP)}) out.push_back(p); break;
                     case 1: for (Pad p : {pad(6), pad(2), pad(3, HP)}) out.push_back(p); break;
                     case 2: for (Pad p : {pad(6), pad(5), pad(6)}) out.push_back(p); break;
-                    case 3: for (Pad p : {pad(4), pad(5), pad(4)}) out.push_back(p); break;
+                    case 3: for (Pad p : {pad(6), pad(6), pad(6, LK)}) out.push_back(p); break;
                     case 4: for (Pad p : {pad(2), pad(3), pad(6), pad(2), pad(3), pad(6, LP)}) out.push_back(p); break;
                     case 5: out.push_back(pad(held, static_cast<std::uint16_t>(LP | LK))); break;
                     case 6: out.push_back(pad(2, HP)); break;
                     case 7: out.push_back(pad(8, LK)); break;
                     default: {
-                        constexpr std::array<int, 10> dirs{5, 6, 6, 4, 2, 3, 1, 9, 7, 8};
-                        if (v % 3 == 0) held = dirs[(v >> 6) % dirs.size()];
+                        constexpr std::array<int, 10> press{5, 6, 6, 6, 3, 3, 1, 9, 6, 2};  // mostly forward: they meet
+                        constexpr std::array<int, 10> guard{4, 4, 4, 1, 1, 4, 6, 5, 1, 4};
+                        if (v % 3 == 0) held = (right ? guard : press)[(v >> 6) % press.size()];
                         const std::uint16_t b = v % 4 == 1 ? static_cast<std::uint16_t>(1u << ((v >> 9) % 6)) : 0;
                         out.push_back(pad(held, b));
                     }
                 }
             }
             out.resize(static_cast<std::size_t>(frames));
+            if (right)
+                for (Pad& p : out) {
+                    const bool l = p.directions & Pad::left, rt = p.directions & Pad::right;
+                    p.directions = static_cast<std::uint16_t>((p.directions & ~(Pad::left | Pad::right)) | (l ? Pad::right : 0) | (rt ? Pad::left : 0));
+                }
             return out;
         };
         constexpr int frames = 5000;
-        const auto a = script(7, frames), b = script(31, frames);
+        auto a = script(7, frames, false), b = script(31, frames, true);
+        // First, scripted: a pressure string into a held guard until it breaks;
+        // two 5HPs meeting; 5HPs met by timed back taps; a launcher and its
+        // follow-ups into an air reset. Then the random rest.
+        for (int f = 0; f < 1600; ++f) {
+            Pad pa = pad(6), pb = pad(5);
+            const int c = f % 40;  // a 40-frame cycle: a 5HP, then walking in again
+            if (f < 900) pa = c == 0 ? pad(5, HP) : pad(6), pb = pad(6);  // the right one faces left: 6 is its back (to the wall, then guarding)
+            else if (f < 1040) pa = c == 0 ? pad(5, HP) : pad(6), pb = c == 0 ? pad(5, HP) : pad(4);
+            else if (f < 1360) pa = c == 0 ? pad(5, HP) : pad(6), pb = c >= 6 && c < 12 ? pad(6) : pad(4);  // back tapped as the 5HP comes
+            else pa = f % 40 == 0 ? pad(2, HP) : f % 6 == 3 ? pad(8, LK) : pad(6), pb = pad(5);
+            a[static_cast<std::size_t>(f)] = pa;
+            b[static_cast<std::size_t>(f)] = pb;
+        }
         FighterDef tough = body();
         tough.health = 1 << 24;
+        tough.posture_max = 250;  // guards break often enough to be rolled back through
         const Fighter t = *compile(tough);
         Match straight(rules(), t, t);
         State st = straight.state();
         st.f[0].meter = st.f[1].meter = 1000;  // supers from the start
+        st.f[0].pos.x = 900_fx;                 // close: they fight
+        st.f[1].pos.x = 1020_fx;
         straight.restore(st);
         std::vector<std::uint64_t> hashes;
         std::array<int, 8> seen{};
+        std::array<int, 4> events{};  // clashes, deflects, guard breaks, hits
+        int blocks = 0;
+        int most_posture = 0;
         for (int i = 0; i < frames; ++i) {
             straight.tick(a[static_cast<std::size_t>(i)], b[static_cast<std::size_t>(i)]);
             hashes.push_back(straight.checksum());
@@ -486,6 +780,14 @@ int main(int argc, char** argv) {
             }
             seen[4] += straight.state().freeze > 0;
             seen[5] += static_cast<int>(std::ranges::count_if(straight.state().p, [](const ProjectileState& p) { return p.alive != 0; }));
+            most_posture = std::max({most_posture, straight.state().f[0].posture, straight.state().f[1].posture});
+            for (const Event& e : straight.events()) {
+                if (e.kind == Event::Kind::clash) ++events[0];
+                if (e.kind == Event::Kind::deflect) ++events[1];
+                if (e.kind == Event::Kind::guard_break) ++events[2];
+                if (e.kind == Event::Kind::hit || e.kind == Event::Kind::counter) ++events[3];
+                if (e.kind == Event::Kind::block) ++blocks;
+            }
         }
         Match rolled(rules(), t, t);
         rolled.restore(st);
@@ -503,10 +805,13 @@ int main(int argc, char** argv) {
             if (rolled.checksum() != hashes[static_cast<std::size_t>(i)]) ++mismatches;
         }
         check_eq(mismatches, 0);
+        check(events[0] > 0 && events[1] > 0 && events[2] > 0, std::format("clashes {}, deflects {}, guard breaks {}", events[0], events[1], events[2]));
         check(seen[0] > 0 && seen[1] > 0 && seen[2] > 0 && seen[3] > 0 && seen[4] > 0 && seen[5] > 0,
               std::format("resets {}, thrown {}, dashes {}, supers {}, flashes {}, projectiles {}", seen[0], seen[1], seen[2], seen[3], seen[4], seen[5]));
+        std::println("    rules run: clashes {}, deflects {}, guard breaks {}, hits {}, blocks {} (posture up to {}); resets {}", events[0], events[1], events[2], events[3], blocks,
+                     most_posture, seen[0]);
         std::println("    rules run hash {:016x}", hashes.back());
-        check(hashes.back() == 0xc349faacaa4ed0beULL, std::format("run hash {:016x}", hashes.back()));  // GCC, LLVM and wasm
+        check(hashes.back() == 0x62ecca2c05caf4a5ULL, std::format("run hash {:016x}", hashes.back()));  // GCC, LLVM and wasm
     });
 
     return s.run(argc, argv);

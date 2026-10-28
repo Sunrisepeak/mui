@@ -76,7 +76,7 @@ int main(int argc, char** argv) {
         check(baked && !jab.hurt.empty(), "the fighter's jab has its baked hurtboxes");
         // A probe: one tall box reaching 110 forward, active on its first frame.
         FighterDef probe_def = k.fighter.def;
-        MoveDef probe{.name = "probe", .command = {.buttons = bit(Button::mk)}, .total = 4, .priority = 50};
+        MoveDef probe{.name = "probe", .command = {.buttons = bit(Button::mk)}, .total = 4, .priority = 50, .clash = false};  // it reaches the body, never the blade
         probe.hits.push_back({.active = {1, 1}, .boxes = {{20_fx, 0_fx, 90_fx, 220_fx}}, .damage = 100, .hitstun = 10, .blockstun = 8});
         probe_def.moves.push_back(probe);
         const Fighter prober = *compile(probe_def);

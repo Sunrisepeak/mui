@@ -46,6 +46,8 @@ Phase phase(const Match& match, std::int32_t i) noexcept {
         case Mode::hitstun: return Phase::hitstun;
         case Mode::blockstun: return Phase::blockstun;
         case Mode::thrown: return Phase::thrown;
+        case Mode::clash: return Phase::recovery;
+        case Mode::broken: return Phase::hitstun;
         case Mode::knockdown:
         case Mode::wakeup:
         case Mode::reset:
@@ -95,7 +97,7 @@ void Readout::record(const Match& match, Pad left, Pad right) noexcept {
             ++combo_.hits;
             combo_.damage += e.damage;
         }
-        if (strike || e.kind == Event::Kind::block) {
+        if (strike || e.kind == Event::Kind::block || e.kind == Event::Kind::deflect) {
             pending_attacker_ = e.attacker;
             waited_ = 0;
             free_at_ = {-1, -1};

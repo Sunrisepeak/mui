@@ -47,8 +47,9 @@ void InputLog::record(Pad p, std::int32_t facing, Socd socd) noexcept {
     const auto held_before = static_cast<std::uint16_t>((previous >> 4) & any_button);
     const auto pressed_now = static_cast<std::uint16_t>(held_now & ~held_before);
     head = (head + 1) % frames;
-    entries[static_cast<std::size_t>(head)] =
-        static_cast<std::uint16_t>(relative(d, facing) | (held_now << 4) | (pressed_now << 10));
+    entries[static_cast<std::size_t>(head)] = static_cast<std::uint32_t>(relative(d, facing)) | (static_cast<std::uint32_t>(held_now) << 4) |
+                                              (static_cast<std::uint32_t>(pressed_now) << 10) |
+                                              (static_cast<std::uint32_t>(relative(d, 1)) << 16);
     count = std::min(count + 1, frames);
     previous = static_cast<std::int32_t>((p.directions & direction_mask) | (held_now << 4));
 }
@@ -66,6 +67,11 @@ std::uint16_t InputLog::held(std::int32_t age) const noexcept {
 std::uint16_t InputLog::pressed(std::int32_t age) const noexcept {
     if (age < 0 || age >= count) return 0;
     return static_cast<std::uint16_t>((entries[static_cast<std::size_t>((head - age + frames) % frames)] >> 10) & any_button);
+}
+
+int InputLog::raw(std::int32_t age) const noexcept {
+    if (age < 0 || age >= count) return 5;
+    return static_cast<int>((entries[static_cast<std::size_t>((head - age + frames) % frames)] >> 16) & 0xF);
 }
 
 std::optional<std::int32_t> recognise(const InputLog& log, const Command& c) noexcept {

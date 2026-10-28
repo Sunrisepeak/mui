@@ -21,9 +21,9 @@ import :state;
 export namespace gongfu {
 
 struct Event {
-    enum class Kind : std::uint8_t { hit, counter, block, throw_, tech, projectile_clash, ko, time_over };
+    enum class Kind : std::uint8_t { hit, counter, block, throw_, tech, projectile_clash, ko, time_over, clash, deflect, guard_break };
     Kind          kind = Kind::hit;
-    std::int32_t  attacker = 0;   // 0 or 1
+    std::int32_t  attacker = 0;   // 0 or 1 (a clash: its winner, or −1 when even; a deflect: the one who struck)
     std::int32_t  move = -1;      // the attacker's move
     std::int32_t  hit = 0;        // the move's hit (or its projectile's)
     std::int32_t  damage = 0;
@@ -80,6 +80,10 @@ private:
     void separate();
     void face();
     void resolve();
+    void clash();
+    void take_posture(std::int32_t i, std::int32_t amount, Vec at);
+    [[nodiscard]] bool deflects(std::int32_t i) const noexcept;
+    void recover(const std::array<bool, 2>& still);
     void apply(const Strike& s, bool blocked, bool counter);
     // Whether fighter i lets pass what `to` names (to_strike, to_air, to_projectile, to_throw).
     [[nodiscard]] bool invulnerable(std::int32_t i, std::uint8_t to) const noexcept;

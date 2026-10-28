@@ -12,12 +12,13 @@ namespace gongfu::data {
 
 namespace {
 
-constexpr std::array<std::string_view, 9> fighter_keys{"gongfu", "name", "health", "walk", "jump", "push", "hurt", "move", "doc"};
+constexpr std::array<std::string_view, 10> fighter_keys{"gongfu", "name", "health", "posture", "walk", "jump", "push", "hurt", "move", "doc"};
 constexpr std::array<std::string_view, 2> walk_keys{"forward", "back"};
 constexpr std::array<std::string_view, 5> jump_keys{"prejump", "up", "forward", "gravity", "landing"};
 constexpr std::array<std::string_view, 3> hurt_keys{"standing", "crouching", "air"};
-constexpr std::array<std::string_view, 15> move_keys{"name", "input", "stance", "total", "priority", "hit", "cancel", "invulnerable",
-                                                     "hurt", "step", "throw", "projectile", "meter", "freeze", "doc"};
+constexpr std::array<std::string_view, 20> move_keys{"name", "input", "stance", "total", "priority", "hit", "cancel", "invulnerable",
+                                                     "hurt", "step", "throw", "projectile", "meter", "freeze", "level", "weight", "posture", "clash",
+                                                     "clash_cancel", "doc"};
 constexpr std::array<std::string_view, 15> hit_keys{"active", "boxes", "damage", "chip", "hitstun", "blockstun", "hitstop", "pushback",
                                                     "level", "knockdown", "launch", "impact", "down", "juggle", "juggle_cost"};
 constexpr std::array<std::string_view, 2> hitstop_keys{"attacker", "defender"};
@@ -30,8 +31,11 @@ constexpr std::array<std::string_view, 5> throw_keys{"active", "range", "damage"
 constexpr std::array<std::string_view, 10> projectile_keys{"spawn", "offset", "speed", "velocity", "life", "hit", "hits", "interval", "strength", "limit"};
 constexpr std::array<std::string_view, 2> meter_keys{"cost", "gain"};
 constexpr std::array<std::string_view, 3> input_keys{"notation", "window", "buffer"};
-constexpr std::array<std::string_view, 11> system_keys{"gongfu", "scaling", "counter", "round", "stage", "meter", "knockdown", "wakeup",
-                                                      "proximity_guard", "socd", "doc"};
+constexpr std::array<std::string_view, 15> system_keys{"gongfu", "scaling", "counter", "round", "stage", "meter", "knockdown", "wakeup",
+                                                      "proximity_guard", "socd", "posture", "clash", "deflect", "super_scaling", "doc"};
+constexpr std::array<std::string_view, 5> posture_rule_keys{"delay", "rate", "break_stagger", "break_protect", "break_scaling"};
+constexpr std::array<std::string_view, 4> clash_rule_keys{"window", "stop", "recovery", "lost"};
+constexpr std::array<std::string_view, 4> deflect_rule_keys{"window", "fresh", "again", "gain"};
 constexpr std::array<std::string_view, 2> counter_keys{"damage", "hitstun"};
 constexpr std::array<std::string_view, 2> stage_keys{"width", "start"};
 constexpr std::string_view format_version = "0.1";
@@ -412,6 +416,12 @@ struct Reader {
             if (auto v = integer(mt->get("gain"), "a meter's `gain`")) m.meter_gain = *v;
         }
         if (auto v = integer(t.get("freeze"), "`freeze`", 0, 600)) m.freeze = *v;
+        // System 0.3: a super's level; clash weight; the posture a block of the whole move costs; clashing.
+        if (auto v = integer(t.get("level"), "`level` (a super's: 1, 2 or 3)", 0, 3)) m.level = *v;
+        if (auto v = integer(t.get("weight"), "`weight`", 0, 10)) m.weight = *v;
+        if (auto v = integer(t.get("posture"), "`posture`", 0, 10000)) m.posture = *v;
+        if (auto v = boolean(t.get("clash"), "`clash`")) m.clash = *v;
+        if (auto v = boolean(t.get("clash_cancel"), "`clash_cancel`")) m.clash_cancel = *v;
         return m;
     }
 
@@ -467,6 +477,8 @@ std::expected<Fighter, std::vector<Diagnostic>> read_fighter(std::string_view so
     r.mark(f.name, &*root);
     if (auto v = r.integer(root->get("health"), "`health`", 1)) f.health = *v;
     r.mark(f.name + ".health", root->get("health"));
+    if (auto v = r.integer(root->get("posture"), "`posture`", 1, 100000)) f.posture_max = *v;
+    r.mark(f.name + ".posture_max", root->get("posture"));
     if (const toml::table* w = r.table(root->get("walk"), "`walk`")) {
         r.only(*w, walk_keys, "`walk`");
         if (auto v = r.number(w->get("forward"), "`walk.forward`")) f.walk_forward = *v;
@@ -568,6 +580,38 @@ std::expected<SystemDef, std::vector<Diagnostic>> read_system(std::string_view s
     r.mark("system.knockdown", root->get("knockdown"));
     if (auto v = r.integer(root->get("wakeup"), "`wakeup`", 0, 600)) s.wakeup = *v;
     if (auto v = r.number(root->get("proximity_guard"), "`proximity_guard`")) s.proximity_guard = *v;
+    // System 0.3's numbers: posture, clashes, deflects, supers' scaling floors.
+    if (const toml::table* t = r.table(root->get("posture"), "`posture`")) {
+        r.only(*t, posture_rule_keys, "`posture`");
+        if (auto v = r.integer(t->get("delay"), "`posture.delay`", 0, 600)) s.posture_delay = *v;
+        if (auto v = r.integer(t->get("rate"), "`posture.rate`", 0, 1000)) s.posture_rate = *v;
+        if (auto v = r.integer(t->get("break_stagger"), "`posture.break_stagger`", 1, 600)) s.break_stagger = *v;
+        if (auto v = r.integer(t->get("break_protect"), "`posture.break_protect`", 0, 6000)) s.break_protect = *v;
+        if (auto v = r.integer(t->get("break_scaling"), "`posture.break_scaling`", 1, 100)) s.break_scaling = *v;
+    }
+    if (const toml::table* t = r.table(root->get("clash"), "`clash`")) {
+        r.only(*t, clash_rule_keys, "`clash`");
+        if (auto v = r.integer(t->get("window"), "`clash.window`", 0, 30)) s.clash_window = *v;
+        if (auto v = r.integer(t->get("stop"), "`clash.stop`", 0, 120)) s.clash_stop = *v;
+        if (auto v = r.integer(t->get("recovery"), "`clash.recovery`", 1, 120)) s.clash_recovery = *v;
+        if (auto v = r.integer(t->get("lost"), "`clash.lost`", 1, 120)) s.clash_lost = *v;
+    }
+    if (const toml::table* t = r.table(root->get("deflect"), "`deflect`")) {
+        r.only(*t, deflect_rule_keys, "`deflect`");
+        if (auto v = r.integer(t->get("window"), "`deflect.window` (−1: none)", -1, 30)) s.deflect_window = *v;
+        if (auto v = r.integer(t->get("fresh"), "`deflect.fresh`", 0, 60)) s.deflect_fresh = *v;
+        if (auto v = r.integer(t->get("again"), "`deflect.again`", 0, 60)) s.deflect_again = *v;
+        if (auto v = r.integer(t->get("gain"), "`deflect.gain`", 0, 30)) s.deflect_gain = *v;
+    }
+    if (const toml::node* n = root->get("super_scaling")) {
+        const toml::array* a = n->as_array();
+        if (a && a->size() == 3) {
+            for (std::size_t i = 0; i < 3; ++i)
+                if (auto v = r.integer(&(*a)[i], "a super's scaling floor", 0, 100)) s.super_scaling[i + 1] = *v;
+        } else {
+            r.error(n, "`super_scaling` is three percentages", "super_scaling = [30, 40, 50]: levels 1, 2 and 3");
+        }
+    }
     if (auto v = r.text(root->get("socd"), "`socd`")) {
         if (*v == "neutral") s.socd = Socd::neutral;
         else if (*v == "last_wins") s.socd = Socd::last_wins;

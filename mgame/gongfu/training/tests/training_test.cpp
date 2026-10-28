@@ -53,6 +53,7 @@ const Fighter& drill() {
 SystemDef rules() {
     SystemDef s;
     s.round_frames = 1 << 20;
+    s.deflect_window = -1;  // a guard starting with the attack is a plain block here
     return s;
 }
 

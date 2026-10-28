@@ -130,6 +130,11 @@ int main(int argc, char** argv) {
         check(g.act("press", pad(0, "5")));
         for (int i = 0; i < 10; ++i) check(g.act("step"));
         check(g.act("press", pad(1, "6")));  // player 2 faces left: 6 holds back, a block
+        check(g.act("press", pad(0, "5")));
+        for (int i = 0; i < 2; ++i) check(g.act("step"));
+        // Held a while (a guard raised just before the hit would be a deflect); player 1 walks back in.
+        check(g.act("press", pad(0, "6")));
+        for (int i = 0; i < 120 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 90; ++i) check(g.act("step"));
         check(g.act("press", pad(0, "5LP")));
         check(g.act("step"));
         check(g.act("press", pad(0, "5")));
@@ -227,10 +232,14 @@ int main(int argc, char** argv) {
                 // Close enough that the move meets the body on its first active frame.
                 const gongfu::Box& reach = def.projectile ? gongfu::Box{def.projectile->offset.x, 0_fx, 0_fx, 0_fx} : def.hits[0].boxes[0];
                 const gongfu::Fixed gap = gongfu::max(reach.x + reach.w / 2, 60_fx);
+                const gongfu::Pad guard = block ? gongfu::pad(row.low ? 3 : 6) : gongfu::pad(5);  // facing left: back is 6
+                // The guard held a while first (a guard raised just before the hit is a deflect, system 0.3).
+                for (int f = 0; f < 12; ++f) match.tick(gongfu::pad(5), guard);
+                st = match.state();
                 st.f[0].pos.x = 900_fx;
                 st.f[1].pos.x = 900_fx + gap;
+                st.f[1].mode = st.f[1].mode == gongfu::Mode::crouch ? gongfu::Mode::crouch : gongfu::Mode::idle;
                 match.restore(st);
-                const gongfu::Pad guard = block ? gongfu::pad(row.low ? 3 : 6) : gongfu::pad(5);  // facing left: back is 6
                 for (const gongfu::Pad p : pads(def.command)) match.tick(p, guard);
                 int contact = -1;
                 for (int f = 0; f < 60 && contact < 0; ++f) {
@@ -268,7 +277,7 @@ int main(int argc, char** argv) {
         std::println("    fighting versus {:016x} training {:016x}", px[0], px[1]);
         check(px[0] != px[1], "training draws the boxes");
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
-        check(px == std::vector<std::uint64_t>{0x641fb19b539ee2a9ULL, 0x590a330bf5b0a370ULL}, "pinned");
+        check(px == std::vector<std::uint64_t>{0x6673067c5af529f5ULL, 0x6fd3faab68e6d24cULL}, "pinned");
     });
 
     return s.run(argc, argv);

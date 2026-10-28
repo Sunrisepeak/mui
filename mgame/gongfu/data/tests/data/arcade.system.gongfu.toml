@@ -4,8 +4,13 @@ scaling = [100, 100, 80, 70, 60, 50, 40, 30]
 counter = { damage = 120, hitstun = 2 }
 round = 99
 stage = { width = 1920, start = 400 }
-meter = 1000
+meter = 3000              # three bars: a super's level is the bars it costs
 knockdown = 30
 wakeup = 10
 proximity_guard = 300
 socd = "up_wins"
+# System 0.3: posture and guard breaks, clashes, deflects, supers' scaling floors.
+posture = { delay = 45, rate = 3, break_stagger = 40, break_protect = 180, break_scaling = 80 }
+clash = { window = 2, stop = 12, recovery = 10, lost = 18 }
+deflect = { window = 3, fresh = 8, again = 10, gain = 4 }
+super_scaling = [30, 40, 50]

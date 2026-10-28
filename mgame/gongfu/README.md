@@ -53,7 +53,16 @@ for (const gongfu::Event& e : match.events()) { /* hits, blocks, throws, KO: wha
     - A launch gives juggle points, and each hit in the air spends some.
     - With too few left, the defender air-resets: it falls untouchable and lands free.
     - A defender can be launched again only once in a juggle.
-  - **Meter:** a defender gains a tenth of the damage it takes.
+  - **Meter:** a defender gains a tenth of the damage it takes. There are three bars (3000), and a super's level is the bars it costs. A super locks its damage scaling at its first hit, never under its level's floor (30 / 40 / 50%), and gives no meter back.
+  - **Posture** (system 0.3, [posture and supers design](../../.agents/docs/2026-10-28-gongfu-posture-supers-design.md)):
+    - Blocking a move costs the defender its posture, shared among the move's hits. A full posture is a guard break: 40 frames of stagger, and the first hit after resets it, protects it for 180 frames and scales that combo from 80%.
+    - Posture recovers after 45 quiet frames, half as fast holding back and twice as fast going forward.
+  - **Clashes:** two strikes whose hit boxes meet, the fighters facing each other.
+    - A super wins over any other move.
+    - Within 2 frames of each other, the heavier wins. With equal weight it is a perfect clash, which changes nothing for either side.
+    - Otherwise the fresher strike wins, and the loser takes its posture.
+    - A strike the other is invulnerable to passes through.
+  - **Deflects:** back pressed afresh at most 3 frames before a hit, read from the directions as given, so turning round is not a press. It costs no posture and no chip, the defender is 4 frames better off, and the attacker loses nothing. It never works on a super; a string can be deflected hit by hit.
 - **The state** (`:state`): one block of plain data without padding (checked at compile time); `checksum` is the hash of its bytes.
 
 `tests/rules_test.cpp` checks system 0.2's rules one by one ([characters design](../../.agents/docs/2026-10-28-gongfu-characters-design.md) §2, G-1..G-10):
@@ -67,7 +76,9 @@ for (const gongfu::Event& e : match.events()) { /* hits, blocks, throws, KO: wha
 - hitstop by side, and input kept through a flash;
 - meter for the defender, and a knockdown's own length.
 
-It also plays 5,000 frames of all of these, rolled back every frame, against a straight run. The hash is pinned and the same on GCC, LLVM and wasm.
+It also checks system 0.3's rules one by one (P-1..P-4): posture and guard breaks, recovery rates, the four kinds of clash, deflects and their limits, and supers' scaling and meter.
+
+It also plays 5,000 frames of all of these, rolled back every frame, against a straight run. A scripted start makes sure guards break, blades meet and deflects happen. The hash is pinned and the same on GCC, LLVM and wasm.
 
 `tests/gongfu_test.cpp` holds the numbers, the input reading, the data's problems, movement, frame data measured as declared (startup, active, recovery on whiff; advantage on hit and block = stun − what the attacker has left), blocking, cancels and combo scaling, counter hits, throws and breaks, projectiles and clashes, invulnerability — and 10,000 rollbacks of random depth over 10,000 random frames leaving every frame's state the bytes of a run without them. The run's hash is pinned: GCC, LLVM and wasm32-emscripten play those inputs into the same bytes.
 

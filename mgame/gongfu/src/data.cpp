@@ -54,6 +54,7 @@ std::expected<Fighter, std::vector<Problem>> compile(FighterDef def) {
     c.prefix = def.name.empty() ? std::string("?") : def.name;
     c.need(!def.name.empty(), "", "a fighter has a name");
     c.need(def.health > 0, ".health", "health is more than 0");
+    c.need(def.posture_max > 0, ".posture_max", "posture is more than 0");
     c.need(def.gravity > Fixed{}, ".gravity", "gravity pulls down: more than 0");
     c.need(def.jump_up > Fixed{}, ".jump_up", "a jump goes up: more than 0");
     c.need(def.prejump >= 1 && def.landing >= 0, ".prejump", "prejump is at least 1 frame, landing 0 or more");
@@ -99,6 +100,8 @@ std::expected<Fighter, std::vector<Problem>> compile(FighterDef def) {
             c.hit(m.projectile->hit, m.projectile->life, at + ".projectile.hit");
         }
         c.need(m.meter_cost >= 0 && m.meter_gain >= 0 && m.freeze >= 0, at + ".meter", "meter and freeze are 0 or more");
+        c.need(m.level >= 0 && m.level <= 3, at + ".level", "a super's level is 1, 2 or 3 (0: not a super)");
+        c.need(m.weight >= -1 && m.posture >= -1, at + ".weight", "weight and posture are 0 or more (or left to the move's kind)");
         for (std::size_t k = 0; k < m.cancels.size(); ++k) {
             const CancelDef& cd = m.cancels[k];
             c.frames(cd.frames, m.total, std::format("{}.cancels[{}].frames", at, k));
@@ -120,6 +123,28 @@ std::expected<Fighter, std::vector<Problem>> compile(FighterDef def) {
                 for (std::size_t j = 0; j < def.moves.size(); ++j)
                     if (def.moves[j].name == name) into.push_back(static_cast<std::int32_t>(j));
         }
+    // Weights and posture, from the move's own numbers or its kind.
+    for (const MoveDef& m : def.moves) {
+        const bool special = m.command.motion.length > 0 || m.command.charge.from != 0;
+        const std::uint16_t b = m.command.buttons;
+        const std::int32_t strength = (b & (bit(Button::hp) | bit(Button::hk))) ? 3 : (b & (bit(Button::mp) | bit(Button::mk))) ? 2 : 1;
+        f.weights.push_back(m.weight >= 0 ? m.weight : m.level > 0 ? 5 : special ? 3 : strength);
+        constexpr std::array<std::int32_t, 4> by_level{0, 150, 250, 400};
+        constexpr std::array<std::int32_t, 4> by_strength{0, 40, 70, 110};
+        const std::int32_t budget = m.posture >= 0 ? m.posture
+                                    : m.level > 0  ? by_level[static_cast<std::size_t>(std::min(m.level, 3))]
+                                    : special      ? 90
+                                                   : by_strength[static_cast<std::size_t>(strength)];
+        // Shared among the hits; the remainder to the first, so they add up to the budget.
+        const std::int32_t hits = static_cast<std::int32_t>(m.hits.size()) + (m.projectile ? m.projectile->hits : 0);
+        std::vector<std::int32_t> per(m.hits.size() + (m.projectile ? 1 : 0), 0);
+        if (hits > 0) {
+            const std::int32_t each = budget / hits, rest = budget - each * hits;
+            for (std::size_t h = 0; h < m.hits.size(); ++h) per[h] = each + (h == 0 ? rest : 0);
+            if (m.projectile) per.back() = each + (m.hits.empty() ? rest : 0);
+        }
+        f.posture.push_back(std::move(per));
+    }
     f.def = std::move(def);
     return f;
 }

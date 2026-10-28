@@ -93,6 +93,7 @@ const Fighter& kata_fighter() {
 SystemDef long_round() {
     SystemDef s;
     s.round_frames = 1 << 20;
+    s.deflect_window = -1;  // system 0.2's rules: a guard starting with the attack is a plain block (rules_test has deflects)
     return s;
 }
 
@@ -511,7 +512,7 @@ int main(int argc, char** argv) {
                      straight.state().f[1].health);
         check(straight.state().f[0].health < (1 << 24) && straight.state().f[1].health < (1 << 24), "both were hit");
         // Pinned: every platform and compiler plays these inputs into these bytes.
-        check(hashes.back() == 0xe10f6a611b9c237cULL, std::format("run hash {:016x}", hashes.back()));
+        check(hashes.back() == 0x71b15c36ec8046a3ULL, std::format("run hash {:016x}", hashes.back()));
     });
 
     return s.run(argc, argv);

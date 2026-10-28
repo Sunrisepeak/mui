@@ -216,7 +216,9 @@ void Stage::semantics(SemanticsContext&, spec::SemanticNode& node) const {
                                         .set("health", f.health)
                                         .set("doing", std::string(p2::clip_name(match_->fighter(i), f)))
                                         .set("x", f.pos.x.to_double())
-                                        .set("combo", f.combo));
+                                        .set("combo", f.combo)
+                                        .set("posture", f.posture)
+                                        .set("meter", f.meter));
     }
     // Training's readings, as a person sees them.
     Value training;

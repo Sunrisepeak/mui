@@ -15,8 +15,8 @@ using omui::geom::Affine;
 using omui::geom::Rect;
 namespace render = omui::render;
 
-constexpr std::array<std::string_view, 15> mode_clips{"idle",    "walk_forward", "walk_back", "crouch", "prejump", "air",    "landing", "move",
-                                                      "hitstun", "blockstun",    "knockdown", "wakeup", "thrown",  "ko",     "reset"};
+constexpr std::array<std::string_view, 17> mode_clips{"idle",    "walk_forward", "walk_back", "crouch", "prejump", "air",   "landing", "move",    "hitstun",
+                                                      "blockstun", "knockdown", "wakeup", "thrown", "ko",      "reset", "clash", "broken"};
 
 double stage(Fixed f) { return f.to_double(); }
 
@@ -77,7 +77,8 @@ void ellipse(render::Path& p, Point centre, double angle, float along, float acr
 }
 
 bool contact(Event::Kind k) noexcept {
-    return k == Event::Kind::hit || k == Event::Kind::counter || k == Event::Kind::block || k == Event::Kind::throw_ || k == Event::Kind::ko;
+    return k == Event::Kind::hit || k == Event::Kind::counter || k == Event::Kind::block || k == Event::Kind::throw_ || k == Event::Kind::ko ||
+           k == Event::Kind::clash || k == Event::Kind::deflect || k == Event::Kind::guard_break;
 }
 
 const Look& look_of(const Event& e, const Look& left, const Look& right) noexcept { return e.attacker == 1 ? right : left; }
@@ -134,6 +135,8 @@ void pose(const Look& look, const Fighter& fighter, const FighterState& s, std::
         }
     }
     if (it == look.clips.end() && s.mode == Mode::reset) it = look.clips.find(std::string_view("air"));  // an air reset falls as a jump does
+    if (it == look.clips.end() && s.mode == Mode::clash) it = look.clips.find(std::string_view("blockstun"));  // thrown back by the clash
+    if (it == look.clips.end() && s.mode == Mode::broken) it = look.clips.find(std::string_view("hitstun"));  // staggered
     if (it == look.clips.end()) it = look.clips.find(std::string_view("idle"));
     const Clip* clip = it == look.clips.end() ? nullptr : &it->second;
     // A move's clip at its frame; a stun's at the frames it has taken; the rest at the match's, looping.
@@ -177,7 +180,18 @@ const Impact& default_impact(Event::Kind kind) noexcept {
                              .spark_color = Color::hex(0xf2f2f2)};
     static const Impact ko{.name = "ko", .shake = 12, .shake_frames = 20, .zoom = 0.08f, .zoom_frames = 30, .flash = Flash::white, .flash_frames = 12,
                            .spark = Spark::rays, .spark_size = 60, .spark_count = 12, .spark_frames = 24};
+    // System 0.3: blades meeting, a deflect, a guard breaking.
+    static const Impact clash{.name = "clash", .shake = 6, .shake_frames = 10, .zoom = 0.03f, .zoom_frames = 12, .spark = Spark::rays, .spark_size = 54,
+                              .spark_count = 12, .spark_frames = 14, .spark_color = Color::hex(0xfff3c4), .counter_color = Color::hex(0xfff3c4)};
+    static const Impact deflect{.name = "deflect", .shake = 2, .shake_frames = 5, .spark = Spark::ring, .spark_size = 36, .spark_count = 1,
+                                .spark_frames = 10, .spark_color = Color::white(), .counter_color = Color::white()};
+    static const Impact broken{.name = "break", .shake = 10, .shake_frames = 16, .zoom = 0.06f, .zoom_frames = 20, .flash = Flash::white, .flash_frames = 4,
+                               .spark = Spark::shards, .spark_size = 72, .spark_count = 14, .spark_frames = 22, .spark_color = Color::hex(0xe8f1ff),
+                               .counter_color = Color::hex(0xe8f1ff)};
     switch (kind) {
+        case Event::Kind::clash: return clash;
+        case Event::Kind::deflect: return deflect;
+        case Event::Kind::guard_break: return broken;
         case Event::Kind::block: return block;
         case Event::Kind::throw_:
         case Event::Kind::tech: return grab;
@@ -215,6 +229,12 @@ const Impact& impact_for(const Look& look, const Event& e) noexcept {
         if (const Impact* i = named("ko")) return *i;
     } else if (e.kind == Event::Kind::throw_ || e.kind == Event::Kind::tech) {
         if (const Impact* i = named("throw")) return *i;
+    } else if (e.kind == Event::Kind::clash) {
+        if (const Impact* i = named("clash")) return *i;
+    } else if (e.kind == Event::Kind::deflect) {
+        if (const Impact* i = named("deflect")) return *i;
+    } else if (e.kind == Event::Kind::guard_break) {
+        if (const Impact* i = named("break")) return *i;
     }
     return default_impact(e.kind);
 }

@@ -3,10 +3,12 @@
 # pokes; 「挑」 takes jumpers out of the air (and only the air); an ink step
 # slips back or forward, but can be thrown. Close up she is slow: her
 # fastest buttons are 4 frames and few of them cancel.
-# Units are pixels and frames (1/60 s); every number here is the design's.
+# Units are pixels and frames (1/60 s); every number here is the design's
+# (characters design §3; her supers: posture and supers design §6).
 gongfu = "0.1"
 name = "Mo"
 health = 9500
+posture = 900
 walk = { forward = 3.6, back = 3 }
 jump = { prejump = 4, up = 20, forward = 4.5, gravity = 1, landing = 3 }
 push = [-28, 0, 56, 160]
@@ -534,7 +536,8 @@ name = "236236P"
 input = "236236P"
 total = 50
 priority = 20
-freeze = 40
+level = 1
+freeze = 30
 invulnerable = [[1, 12]]
 meter = { cost = 1000 }
 [move.projectile]
@@ -548,8 +551,8 @@ strength = 2
 [move.projectile.hit]
 active = [1, 160]
 boxes = [[-40, -40, 80, 80]]
-damage = 500
-chip = 100
+damage = 400
+chip = 80
 hitstun = 30
 blockstun = 26
 hitstop = 6

@@ -55,8 +55,10 @@ enum class Socd : std::uint8_t {
 struct InputLog {
     static constexpr std::int32_t frames = 64;
     // Per frame: the relative numpad direction (bits 0–3), buttons held
-    // (bits 4–9) and pressed this frame (bits 10–15).
-    std::array<std::uint16_t, frames> entries{};
+    // (bits 4–9), pressed this frame (bits 10–15) and the screen-absolute
+    // direction as given (bits 16–19: what the player did, which a fighter
+    // turning around does not change).
+    std::array<std::uint32_t, frames> entries{};
     std::int32_t head = 0;             // the newest frame's index
     std::int32_t count = 0;            // frames recorded, up to `frames`
     std::int32_t last_horizontal = 0;  // +1 right, −1 left: pressed last (Socd::last_wins)
@@ -69,6 +71,8 @@ struct InputLog {
     [[nodiscard]] int direction(std::int32_t age) const noexcept;
     [[nodiscard]] std::uint16_t held(std::int32_t age) const noexcept;
     [[nodiscard]] std::uint16_t pressed(std::int32_t age) const noexcept;
+    // The screen-absolute numpad direction given `age` frames ago (5: none).
+    [[nodiscard]] int raw(std::int32_t age) const noexcept;
 };
 
 // The relative numpad direction of directions held, the fighter facing

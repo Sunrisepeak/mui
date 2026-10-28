@@ -1,8 +1,8 @@
 # Example 03 — a tally counter, written five times (canvas-markdown §5): in
 # C++ (src/tally.cpp), as a view document (ui/tally.view.omui.json), in Lua
 # (lua/tally.lua), in TypeScript (ts/tally.ts) and in Python (python/tally.py;
-# checked by lang/python's suite). They make the same semantic tree and the
-# same pixels (CTS S level).
+# checked by lang/python's suite in host mode, and here embedded). They make
+# the same semantic tree and the same pixels (CTS S level).
 # Count people at a door, laps, reps — with a goal and its progress.
 #
 #   mcpp run                                  the C++ view
@@ -31,3 +31,4 @@ openmui.sdk = { path = "../.." }
 openmui.testing  = { path = "../../modules/base/testing" }
 openmui.lang.lua = { path = "../../lang/lua" }
 openmui.lang.js  = { path = "../../lang/js" }
+openmui.lang.python.embedded = { path = "../../lang/python/embedded" }

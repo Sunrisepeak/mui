@@ -1,0 +1,37 @@
+# openmui.lang.python.embedded — Python embedded in a C++ program, with
+# PocketPy 2.2 (mcpplibs.mwrap.pocketpy, pocketpy-m) on the Script Binding
+# Profile (component-binding §7): the `openmui` module (builders, signals with
+# expression operators, regions, verbs, models, the semantic tree), running on
+# openmui.lang's script thread. A script reads as it does in host mode
+# (lang/python, CPython loading openmui): `import openmui as omui`.
+[package]
+namespace   = "openmui.lang.python"
+name        = "embedded"
+version     = "0.1.0"
+description = "openmui for Python embedded (PocketPy): builders, signals, expressions, verbs, models and the semantic tree"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "lang"
+
+[targets.openmui-lang-python-embedded]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+
+[dependencies]
+openmui.lang   = { path = "../.." }
+openmui.abi    = { path = "../../../modules/ui/abi" }
+openmui.player = { path = "../../../modules/ui/player" }
+nlohmann.json = "3.12.0"
+mcpplibs.mwrap.pocketpy = "2.2.0"
+
+[dev-dependencies]
+openmui.testing       = { path = "../../../modules/base/testing" }
+openmui.cts           = { path = "../../../tests/cts" }
+openmui.native.fuzzy  = { path = "../../../modules/ui/native/fuzzy" }
+openmui.theme.default = { path = "../../../modules/ui/theme/default" }
+openmui.theme.compact = { path = "../../../modules/ui/theme/compact" }
+openmui.ui.base       = { path = "../../../components/base" }

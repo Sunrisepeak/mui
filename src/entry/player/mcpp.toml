@@ -1,8 +1,8 @@
 # openmui.entry.player — the player's main (component-binding §10.2): what a
 # script-first application's one-line src/main.cpp calls. It reads the
 # application's [package.metadata.openmui], registers the official components
-# and the script languages (Lua, JavaScript, TypeScript), and runs the player
-# with openmui's options; saved files reload in place.
+# and the script languages (Lua, JavaScript, TypeScript, Python), and runs
+# the player with openmui's options; saved files reload in place.
 #
 # A package of its own rather than a feature of the umbrella: a workspace
 # builds each package once, so a feature one member enables would reach every
@@ -29,6 +29,7 @@ openmui.sdk           = { path = "../../.." }
 openmui.player        = { path = "../../../modules/ui/player" }
 openmui.lang.lua      = { path = "../../../lang/lua" }
 openmui.lang.js       = { path = "../../../lang/js" }
+openmui.lang.python.embedded = { path = "../../../lang/python/embedded" }
 openmui.ui.markdown   = { path = "../../../components/markdown" }
 openmui.native.fuzzy  = { path = "../../../modules/ui/native/fuzzy" }
 openmui.theme.default = { path = "../../../modules/ui/theme/default" }

@@ -59,6 +59,12 @@ version = "0.11.25"
 source  = "index+compat@0.11.25"
 hash    = "fnv1a:6c8ae057496981a3"
 
+[package."compat.pocketpy"]
+namespace = "compat"
+version = "2.2.0"
+source  = "index+compat@2.2.0"
+hash    = "fnv1a:c7d0947dc7509874"
+
 [package."compat.quickjs-ng"]
 namespace = "compat"
 version = "0.17.0"
@@ -226,6 +232,12 @@ namespace = "mcpplibs.mwrap"
 version = "0.11.25"
 source  = "index+mcpplibs.mwrap@0.11.25"
 hash    = "fnv1a:638898a9cc007151"
+
+[package."mcpplibs.mwrap.pocketpy"]
+namespace = "mcpplibs.mwrap"
+version = "2.2.0"
+source  = "index+mcpplibs.mwrap@2.2.0"
+hash    = "fnv1a:bc81b5b479c20e16"
 
 [package."mcpplibs.mwrap.quickjs_ng"]
 namespace = "mcpplibs.mwrap"

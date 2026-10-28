@@ -82,6 +82,7 @@ members = [
     "lang/js",
     "lang/lua",
     "lang/python",
+    "lang/python/embedded",
     "tools/cli",
     "tools/gen",
     "tools/inspector",

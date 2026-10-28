@@ -7,6 +7,7 @@ import openmui.player;
 import openmui.ui.markdown;
 import openmui.lang.lua;
 import openmui.lang.js;
+import openmui.lang.python.embedded;
 import openmui.native;
 import openmui.native.fuzzy;
 import openmui.theme;
@@ -126,7 +127,8 @@ int player_main(int argc, char** argv) {
     app.size = m->size;
     app.effects = m->effects;
     app.setup = [&](Runtime& rt) {
-        p.emplace(rt, *m, std::vector<player::Language>{lang::lua::language(), lang::js::javascript(), lang::js::typescript()});
+        p.emplace(rt, *m, std::vector<player::Language>{lang::lua::language(), lang::js::javascript(), lang::js::typescript(),
+                                                       lang::python::embedded::language()});
         if (auto r = p->start(); !r) std::print(std::cerr, "{}", r.error());
         p->watch();
     };

@@ -1,6 +1,6 @@
 # openmui for Python
 
-`openmui.lang.python` is openmui in Python, in host mode (component-binding §7, D-46): `import openmui` loads the runtime, the official components and the desktop host, and the program builds its views on them. A view in Python is the C++ builder's tree: example 03 in Python (`examples/03-counter/python/tally.py`) has the same semantic tree and the same pixels as the C++, view-document, Lua and TypeScript versions (CTS S level; `tests/test_example_counter.py`).
+`openmui.lang.python` is openmui in Python, in host mode (component-binding §7, D-46): `import openmui` loads the runtime, the official components and the desktop host, and the program builds its views on them. A C++ program (and the player, `lang = "py"`) embeds Python instead with [embedded](embedded) (`openmui.lang.python.embedded`, PocketPy): the same `openmui` module in PocketPy's subset of Python, so a script reads the same in both. A view in Python is the C++ builder's tree: example 03 in Python (`examples/03-counter/python/tally.py`) has the same semantic tree and the same pixels as the C++, view-document, Lua and TypeScript versions (CTS S level; `tests/test_example_counter.py`).
 
 ```python
 import openmui as omui

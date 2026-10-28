@@ -10,7 +10,7 @@ The same interface is written five times:
 - in TypeScript: [`ts/tally.ts`](ts/tally.ts) ([openmui.lang.js](../../lang/js)). esbuild compiles it, and QuickJS-ng runs it.
 - in Python: [`python/tally.py`](python/tally.py) ([openmui for Python](../../lang/python)). The builders nest as `with` blocks, the stubs type it (`mypy --strict` passes), and `pip install ./lang/python` then `python examples/03-counter/python/tally.py` runs it.
 
-The five are **one semantic tree and the same pixels**, before and after every click and every agent action (the CTS S level). The Python version is checked by the Python binding's suite, which runs it in CPython against the view document and pins the same pixel hash (`lang/python/tests/test_example_counter.py`).
+The five are **one semantic tree and the same pixels**, before and after every click and every agent action (the CTS S level). The Python version is checked by the Python binding's suite, which runs it in CPython against the view document and pins the same pixel hash (`lang/python/tests/test_example_counter.py`). The same file also runs unchanged in Python embedded in a C++ program ([PocketPy](../../lang/python/embedded)), and this example's tests check it against the C++ view, as they check the Lua and TypeScript versions.
 
 ```sh
 mcpp run -p openmui.example.counter                                     # the C++ view

@@ -163,6 +163,27 @@ struct CinematicLook {
         Color        color = Color::hex(0xf2e6c8);
     };
     std::vector<Ring> rings;
+    // A prism (璃's): the defender drawn again, `images` times either side,
+    // `spread` apart and tinted, over the frames [from, to].
+    struct Prism {
+        std::int32_t images = 0;
+        float        spread = 40;
+        std::int32_t from = 0, to = 0;
+        Color        tint = Color::hex(0x9fd8ff, 0.35f);
+    } prism;
+    // Cracks across the picture: one more for each of the cinematic's hits
+    // landed so far (as the simulation plays them).
+    struct Cracks {
+        bool  on = false;
+        Color color = Color::hex(0xffffff, 0.8f);
+    } cracks;
+    // The picture falling apart: from `frame`, `count` pieces of it fall,
+    // turning and fading.
+    struct Fall {
+        std::int32_t frame = -1;
+        std::int32_t count = 48;
+        Color        color = Color::hex(0xe8f6ff, 0.9f);
+    } fall;
 };
 
 struct Look {
@@ -192,6 +213,15 @@ struct Look {
         Color color = Color::hex(0xff3ea5);
         float width = 0;
     } glow;
+    // Its set pieces (G-15, panes): the glass, its edge (a pane that turns
+    // projectiles back: `reflect`), the shine across it; cracks as it loses
+    // durability.
+    struct Pane {
+        Color glass = Color::hex(0xcfe8ff, 0.22f);
+        Color edge = Color::hex(0xe8f6ff, 0.85f);
+        Color shine = Color::hex(0xffffff, 0.5f);
+        Color reflect = Color::hex(0xffd36b, 0.9f);
+    } pane;
     // A heavy fighter's footfalls (a giant): walking, the camera dips on each
     // step (every `every` frames of its walk clip) by `dip`, back over `frames`.
     struct Footfall {

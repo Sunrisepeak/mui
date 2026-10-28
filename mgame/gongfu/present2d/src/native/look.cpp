@@ -59,15 +59,19 @@ namespace {
 using data::Diagnostic;
 
 constexpr std::string_view format_version = "0.1";
-constexpr std::array<std::string_view, 16> look_keys{"gongfu", "name", "outline", "accent", "trail", "glow", "footfall", "palette", "bone", "part", "clip", "impact",
+constexpr std::array<std::string_view, 17> look_keys{"gongfu", "name", "outline", "accent", "trail", "glow", "footfall", "pane", "palette", "bone", "part", "clip", "impact",
                                                      "glyph", "cinematic", "projectile", "doc"};
 constexpr std::array<std::string_view, 3> trail_keys{"color", "frames", "alpha"};
 constexpr std::array<std::string_view, 2> glow_keys{"color", "width"};
 constexpr std::array<std::string_view, 3> footfall_keys{"every", "dip", "frames"};
+constexpr std::array<std::string_view, 4> pane_keys{"glass", "edge", "shine", "reflect"};
 constexpr std::array<std::string_view, 4> projectile_look_keys{"glyph", "size", "color", "halo"};
 constexpr std::array<std::string_view, 2> stroke_keys{"points", "width"};
-constexpr std::array<std::string_view, 13> cinematic_keys{"attacker", "defender", "backdrop", "camera", "glyph", "seal", "flash", "scanlines",
-                                                          "attacker_path", "defender_path", "quake", "ring", "doc"};
+constexpr std::array<std::string_view, 16> cinematic_keys{"attacker", "defender", "backdrop", "camera", "glyph", "seal", "flash", "scanlines",
+                                                          "attacker_path", "defender_path", "quake", "ring", "prism", "cracks", "fall", "doc"};
+constexpr std::array<std::string_view, 5> prism_keys{"images", "spread", "from", "to", "tint"};
+constexpr std::array<std::string_view, 1> cracks_keys{"color"};
+constexpr std::array<std::string_view, 3> fall_keys{"frame", "count", "color"};
 constexpr std::array<std::string_view, 4> backdrop_keys{"color", "in", "out", "clouds"};
 constexpr std::array<std::string_view, 3> clouds_keys{"color", "count", "between"};
 constexpr std::array<std::string_view, 6> written_keys{"name", "at", "size", "from", "ends", "color"};
@@ -519,6 +523,13 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
         if (auto c = r.colour(t->get("color"), "a glow's `color`")) look.glow.color = *c;
         if (auto v = r.number(t->get("width"), "a glow's `width`", 0, 64)) look.glow.width = static_cast<float>(*v);
     }
+    if (const toml::table* t = r.table_of(root->get("pane"), "`pane`")) {
+        r.only(*t, pane_keys, "`pane`");
+        if (auto c = r.colour(t->get("glass"), "a pane's `glass`")) look.pane.glass = *c;
+        if (auto c = r.colour(t->get("edge"), "a pane's `edge`")) look.pane.edge = *c;
+        if (auto c = r.colour(t->get("shine"), "a pane's `shine`")) look.pane.shine = *c;
+        if (auto c = r.colour(t->get("reflect"), "a pane's `reflect`")) look.pane.reflect = *c;
+    }
     if (const toml::table* t = r.table_of(root->get("footfall"), "`footfall`")) {
         r.only(*t, footfall_keys, "`footfall`");
         if (auto v = r.integer(t->get("every"), "a footfall's `every`", 1, 600)) look.footfall.every = static_cast<std::int32_t>(*v);
@@ -588,6 +599,25 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
                         if (auto v = r.pair(cl->get("between"), "the clouds' `between`", "between = [250, 900]: how high, from where the lock began"))
                             c.clouds.low = static_cast<float>((*v)[0]), c.clouds.high = static_cast<float>((*v)[1]);
                     }
+                }
+                if (const toml::table* pr = r.table_of(t->get("prism"), "a cinematic's `prism`")) {
+                    r.only(*pr, prism_keys, "a prism");
+                    if (auto v = r.integer(pr->get("images"), "a prism's `images`", 0, 4)) c.prism.images = static_cast<std::int32_t>(*v);
+                    if (auto v = r.number(pr->get("spread"), "a prism's `spread`", 0, 400)) c.prism.spread = static_cast<float>(*v);
+                    if (auto v = r.integer(pr->get("from"), "a prism's `from`", 0, 1200)) c.prism.from = static_cast<std::int32_t>(*v);
+                    if (auto v = r.integer(pr->get("to"), "a prism's `to`", 0, 1200)) c.prism.to = static_cast<std::int32_t>(*v);
+                    if (auto v = r.colour(pr->get("tint"), "a prism's `tint`")) c.prism.tint = *v;
+                }
+                if (const toml::table* cr = r.table_of(t->get("cracks"), "a cinematic's `cracks`")) {
+                    r.only(*cr, cracks_keys, "cracks");
+                    c.cracks.on = true;
+                    if (auto v = r.colour(cr->get("color"), "the cracks' `color`")) c.cracks.color = *v;
+                }
+                if (const toml::table* fa = r.table_of(t->get("fall"), "a cinematic's `fall`")) {
+                    r.only(*fa, fall_keys, "a fall");
+                    if (auto v = r.integer(fa->get("frame"), "a fall's `frame`", 0, 1200)) c.fall.frame = static_cast<std::int32_t>(*v);
+                    if (auto v = r.integer(fa->get("count"), "a fall's `count`", 1, 200)) c.fall.count = static_cast<std::int32_t>(*v);
+                    if (auto v = r.colour(fa->get("color"), "a fall's `color`")) c.fall.color = *v;
                 }
                 if (const toml::node* cam = t->get("camera")) {
                     if (const toml::array* a = cam->as_array()) {
@@ -722,6 +752,9 @@ std::string write_look(const Look& look) {
         s += std::format("], alpha = {} }}\n", look.trail.alpha);
     }
     if (look.glow.width > 0) s += std::format("glow = {{ color = {}, width = {} }}\n", colour_text(look.glow.color), look.glow.width);
+    if (look.pane.glass != Look::Pane{}.glass || look.pane.edge != Look::Pane{}.edge || look.pane.shine != Look::Pane{}.shine || look.pane.reflect != Look::Pane{}.reflect)
+        s += std::format("pane = {{ glass = {}, edge = {}, shine = {}, reflect = {} }}\n", colour_text(look.pane.glass), colour_text(look.pane.edge),
+                         colour_text(look.pane.shine), colour_text(look.pane.reflect));
     if (look.footfall.dip > 0) s += std::format("footfall = {{ every = {}, dip = {}, frames = {} }}\n", look.footfall.every, look.footfall.dip, look.footfall.frames);
     for (std::size_t p = 0; p < look.palettes.size(); ++p) {
         s += std::format("\n[[palette]]\nname = \"{}\"\n", p < look.palette_names.size() ? look.palette_names[p] : std::string());
@@ -815,6 +848,11 @@ std::string write_look(const Look& look) {
         list("defender_path", c.defender_path, [](const auto& k) { return std::format("[{}, {}, {}]", k.frame, k.at.x, k.at.y); });
         list("quake", c.quakes, [](const auto& q) { return std::format("[{}, {}, {}]", q.frame, q.strength, q.frames); });
         list("ring", c.rings, [](const auto& g) { return std::format("[{}, {}, {}, {}, {}]", g.frame, g.at.x, g.at.y, g.size, g.frames); });
+        if (c.prism.images > 0)
+            s += std::format("prism = {{ images = {}, spread = {}, from = {}, to = {}, tint = {} }}\n", c.prism.images, c.prism.spread, c.prism.from, c.prism.to,
+                             colour_text(c.prism.tint));
+        if (c.cracks.on) s += std::format("cracks = {{ color = {} }}\n", colour_text(c.cracks.color));
+        if (c.fall.frame >= 0) s += std::format("fall = {{ frame = {}, count = {}, color = {} }}\n", c.fall.frame, c.fall.count, colour_text(c.fall.color));
         if (c.seal_frame >= 0)
             s += std::format("seal = {{ frame = {}, at = [{}, {}], size = {}, color = {} }}\n", c.seal_frame, c.seal_at.x, c.seal_at.y, c.seal_size, colour_text(c.seal_color));
         if (!c.flashes.empty()) {

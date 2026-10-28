@@ -226,10 +226,11 @@ bool Match::may_start(std::int32_t i, std::int32_t m) const noexcept {
     const MoveDef& md = fighter(i).def.moves[static_cast<std::size_t>(m)];
     if ((md.stance == Stance::air) != (s.pos.y > Fixed{})) return false;
     if (md.meter_cost > s.meter) return false;
+    if (md.needs_piece && !has_piece(i)) return false;
     if (md.projectile && md.projectile->limit > 0) {
         std::int32_t alive = 0;
         for (const ProjectileState& p : state_.p)
-            if (p.alive && p.owner == i && fighter(i).def.moves[static_cast<std::size_t>(p.move)].projectile->limit > 0) ++alive;
+            if (p.alive && p.from == i && !p.reflected && fighter(i).def.moves[static_cast<std::size_t>(p.move)].projectile->limit > 0) ++alive;
         if (alive >= md.projectile->limit) return false;
     }
     return true;
@@ -285,6 +286,7 @@ void Match::advance(std::int32_t i) {
             const MoveDef& m = def.moves[static_cast<std::size_t>(s.move)];
             ++s.move_frame;
             const bool airborne_start = s.pos.y > Fixed{};
+            const bool air_move = m.stance == Stance::air;  // started in the air (a ground move may rise and come down: it goes on)
             // The move's own movement, or, started in the air, the jump's arc.
             const StepDef* step = nullptr;
             for (const StepDef& st : m.steps)
@@ -299,20 +301,19 @@ void Match::advance(std::int32_t i) {
             if (m.projectile && s.move_frame == m.projectile->spawn) {
                 for (ProjectileState& p : state_.p)
                     if (!p.alive) {
-                        p = {1, i, s.move, 0, s.facing, {s.pos.x + m.projectile->offset.x * s.facing, s.pos.y + m.projectile->offset.y},
-                             m.projectile->hits, m.projectile->strength, 0, 0};
+                        p = {1, i, i, s.move, 0, s.facing, {s.pos.x + m.projectile->offset.x * s.facing, s.pos.y + m.projectile->offset.y},
+                             m.projectile->hits, m.projectile->strength, 0, 0, 0};
                         break;
                     }
             }
-            if (s.pos.y < Fixed{}) {
-                s.pos.y = Fixed{};
-                if (airborne_start) {  // an air move ends where it lands
-                    s.move = -1;
-                    s.vel = {};
-                    s.mode = def.landing > 0 ? Mode::landing : Mode::idle;
-                    s.stun = def.landing;
-                    break;
-                }
+            for (const PieceDef& pd : m.pieces)
+                if (s.move_frame == pd.frame) act(i, pd);
+            if (s.pos.y < Fixed{}) s.pos.y = Fixed{};
+            if (air_move && airborne_start && s.pos.y <= Fixed{}) {  // an air move ends where it lands (at the ground or past it)
+                s.move = -1;
+                s.vel = {};
+                s.mode = def.landing > 0 ? Mode::landing : Mode::idle;
+                s.stun = def.landing;
             }
             break;
         }
@@ -493,6 +494,7 @@ void Match::resolve() {
         return std::nullopt;
     };
     clash();
+    pieces();
     for (std::int32_t a = 0; a < 2; ++a) {
         const std::int32_t d = 1 - a;
         const FighterState& sa = state_.f[static_cast<std::size_t>(a)];
@@ -505,7 +507,7 @@ void Match::resolve() {
             if (!hd.active.contains(sa.move_frame) || (sa.landed & (1 << h)) || invulnerable(d, kind)) continue;
             for (const Box& b : hd.boxes)
                 if (auto at = meets(place(b, sa.pos, sa.facing), d)) {
-                    if (n < strikes.size()) strikes[n++] = {a, sa.move, static_cast<std::int32_t>(h), false, -1, *at};
+                    if (n < strikes.size()) strikes[n++] = {a, sa.move, static_cast<std::int32_t>(h), false, -1, *at, a};
                     break;
                 }
         }
@@ -523,12 +525,12 @@ void Match::resolve() {
     for (std::size_t k = 0; k < state_.p.size(); ++k) {
         ProjectileState& p = state_.p[k];
         if (!p.alive) continue;
-        const HitDef& hd = fighter(p.owner).def.moves[static_cast<std::size_t>(p.move)].projectile->hit;
+        const HitDef& hd = fighter(p.from).def.moves[static_cast<std::size_t>(p.move)].projectile->hit;
         if (!hd.active.contains(p.frame)) continue;
         for (std::size_t q = k + 1; q < state_.p.size() && p.alive; ++q) {
             ProjectileState& r = state_.p[q];
             if (!r.alive || r.owner == p.owner) continue;
-            const HitDef& rh = fighter(r.owner).def.moves[static_cast<std::size_t>(r.move)].projectile->hit;
+            const HitDef& rh = fighter(r.from).def.moves[static_cast<std::size_t>(r.move)].projectile->hit;
             if (!rh.active.contains(r.frame)) continue;
             bool clash = false;
             for (const Box& b : hd.boxes)
@@ -547,7 +549,7 @@ void Match::resolve() {
         if (invulnerable(d, to_projectile)) continue;
         for (const Box& b : hd.boxes)
             if (auto at = meets(place(b, p.pos, p.facing), d)) {
-                if (n < strikes.size()) strikes[n++] = {p.owner, p.move, 0, true, static_cast<std::int32_t>(k), *at};
+                if (n < strikes.size()) strikes[n++] = {p.owner, p.move, 0, true, static_cast<std::int32_t>(k), *at, p.from};
                 break;
             }
     }
@@ -568,7 +570,7 @@ void Match::resolve() {
     std::array<bool, 16> blocked{}, counter{};
     for (std::size_t k = 0; k < n; ++k) {
         const Strike& s = strikes[k];
-        const MoveDef& m = fighter(s.attacker).def.moves[static_cast<std::size_t>(s.move)];
+        const MoveDef& m = fighter(s.from).def.moves[static_cast<std::size_t>(s.move)];
         const HitDef& hd = s.projectile ? m.projectile->hit : m.hits[static_cast<std::size_t>(s.hit)];
         const std::int32_t d = 1 - s.attacker;
         const FighterState& sd = state_.f[static_cast<std::size_t>(d)];
@@ -726,9 +728,10 @@ bool Match::deflects(std::int32_t i) const noexcept {
 void Match::apply(const Strike& s, bool blocked, bool counter) {
     FighterState& a = state_.f[static_cast<std::size_t>(s.attacker)];
     FighterState& d = state_.f[static_cast<std::size_t>(1 - s.attacker)];
-    const MoveDef& m = fighter(s.attacker).def.moves[static_cast<std::size_t>(s.move)];
+    const MoveDef& m = fighter(s.from).def.moves[static_cast<std::size_t>(s.move)];
     const HitDef& h = s.projectile ? m.projectile->hit : m.hits[static_cast<std::size_t>(s.hit)];
     const Vec at = s.at;
+    const bool own = s.from == s.attacker;  // a reflected projectile gives no one meter (G-15)
     if (s.projectile) {
         ProjectileState& p = state_.p[static_cast<std::size_t>(s.slot)];
         if (--p.hits <= 0) p.alive = 0;
@@ -745,7 +748,7 @@ void Match::apply(const Strike& s, bool blocked, bool counter) {
         d.stun = deflect ? std::max(1, h.blockstun - system_.deflect_gain) : h.blockstun;
         d.move = -1;
         d.push = h.pushback * sign;
-        if (m.level == 0) a.meter = std::min(system_.meter_max, a.meter + m.meter_gain / 2);
+        if (m.level == 0 && own) a.meter = std::min(system_.meter_max, a.meter + m.meter_gain / 2);
         if (deflect) {
             // Neither side's posture changes; the defender is 4 frames better off.
             d.deflected = system_.deflect_again;
@@ -754,7 +757,7 @@ void Match::apply(const Strike& s, bool blocked, bool counter) {
         } else {
             d.health -= h.chip;
             events_.push_back({Event::Kind::block, s.attacker, s.move, s.hit, h.chip, h.impact, at});
-            const auto& per = fighter(s.attacker).posture[static_cast<std::size_t>(s.move)];
+            const auto& per = fighter(s.from).posture[static_cast<std::size_t>(s.move)];
             take_posture(1 - s.attacker, s.projectile ? per.back() : per[static_cast<std::size_t>(s.hit)], at);
         }
     } else if (const auto& armor = d.mode == Mode::move ? fighter(1 - s.attacker).def.moves[static_cast<std::size_t>(d.move)].armor : std::nullopt;
@@ -763,8 +766,8 @@ void Match::apply(const Strike& s, bool blocked, bool counter) {
         ++d.armored;
         const std::int32_t damage = h.damage;
         d.health -= damage;
-        d.meter = std::min(system_.meter_max, d.meter + damage / 10);
-        a.meter = std::min(system_.meter_max, a.meter + m.meter_gain);
+        if (own) d.meter = std::min(system_.meter_max, d.meter + damage / 10);
+        if (own) a.meter = std::min(system_.meter_max, a.meter + m.meter_gain);
         events_.push_back({Event::Kind::armor, s.attacker, s.move, s.hit, damage, h.impact, at});
     } else {
         // The first hit on a broken guard: posture back to 0, steadied, and the combo from it scaled from 80%.
@@ -785,7 +788,7 @@ void Match::apply(const Strike& s, bool blocked, bool counter) {
         std::int32_t damage = h.damage * step / 100;
         if (counter) damage = damage * system_.counter_damage / 100;
         d.health -= damage;
-        d.meter = std::min(system_.meter_max, d.meter + damage / 10);
+        if (own) d.meter = std::min(system_.meter_max, d.meter + damage / 10);
         ++d.combo;
         d.move = -1;
         const bool airborne = d.pos.y > Fixed{} || d.vel.y > Fixed{};
@@ -815,7 +818,7 @@ void Match::apply(const Strike& s, bool blocked, bool counter) {
             d.stun = h.hitstun + (counter ? system_.counter_hitstun : 0);
             d.push = h.pushback * sign;
         }
-        if (m.level == 0) a.meter = std::min(system_.meter_max, a.meter + m.meter_gain);  // a super gives none back
+        if (m.level == 0 && own) a.meter = std::min(system_.meter_max, a.meter + m.meter_gain);  // a super gives none back
         events_.push_back({counter ? Event::Kind::counter : Event::Kind::hit, s.attacker, s.move, s.hit, damage, h.impact, at});
         // A level-3 super's first hit: the cinematic locks both (P-5).
         if (m.cinematic && !s.projectile && s.hit == 0 && d.health > 0) {
@@ -862,6 +865,156 @@ void Match::recover(const std::array<bool, 2>& still) {
         else if (d == 3 || d == 6 || d == 9 || f.mode == Mode::move) rate *= 2;
         f.posture = std::max(0, f.posture - rate);
     }
+}
+
+// Set pieces (G-15).
+
+bool Match::has_piece(std::int32_t i) const noexcept {
+    return std::ranges::any_of(state_.pieces, [i](const PieceState& q) { return q.alive && q.owner == i; });
+}
+
+void Match::act(std::int32_t i, const PieceDef& pd) {
+    const FighterState& s = state_.f[static_cast<std::size_t>(i)];
+    const FighterState& o = state_.f[static_cast<std::size_t>(1 - i)];
+    const std::int32_t toward = o.pos.x >= s.pos.x ? 1 : -1;  // from the owner to the other fighter
+    switch (pd.act) {
+        case PieceAct::place:
+            for (const Fixed d : pd.at) place_piece(i, pd.at_opponent ? o.pos.x - d * toward : s.pos.x + d * s.facing, pd);
+            break;
+        case PieceAct::shatter: {
+            const std::int32_t shard = pd.shard_move >= 0 ? pd.shard_move : -1;
+            bool any = false;
+            for (std::size_t q = 0; q < state_.pieces.size(); ++q) {
+                const PieceState& piece = state_.pieces[q];
+                if (!piece.alive || piece.owner != i) continue;
+                any = true;
+                shatter(q, shard >= 0 ? shard : piece.shard, shard >= 0 ? pd.shards : piece.shards);
+            }
+            // None standing: one placed where it says, and shattered at once.
+            if (!any && !pd.at.empty() && shard >= 0) {
+                place_piece(i, pd.at_opponent ? o.pos.x - pd.at[0] * toward : s.pos.x + pd.at[0] * s.facing, pd);
+                for (std::size_t q = 0; q < state_.pieces.size(); ++q)
+                    if (state_.pieces[q].alive && state_.pieces[q].owner == i) shatter(q, shard, pd.shards);
+            }
+            break;
+        }
+        case PieceAct::warp: {
+            // To the far side of the piece nearest the other fighter; it shatters.
+            std::size_t best = state_.pieces.size();
+            for (std::size_t q = 0; q < state_.pieces.size(); ++q) {
+                const PieceState& piece = state_.pieces[q];
+                if (piece.alive && piece.owner == i &&
+                    (best == state_.pieces.size() || abs(piece.pos.x - o.pos.x) < abs(state_.pieces[best].pos.x - o.pos.x)))
+                    best = q;
+            }
+            if (best == state_.pieces.size()) break;
+            const PieceState& piece = state_.pieces[best];
+            const std::int32_t side = o.pos.x >= piece.pos.x ? 1 : -1;
+            FighterState& f = state_.f[static_cast<std::size_t>(i)];
+            f.pos.x = min(max(piece.pos.x - Fixed::of(40) * side, Fixed{}), system_.stage_width);
+            shatter(best, piece.shard, piece.shards);
+            break;
+        }
+    }
+}
+
+void Match::place_piece(std::int32_t i, Fixed x, const PieceDef& pd) {
+    // The oldest of the owner's give way, down to one fewer than the limit (three at most).
+    for (;;) {
+        std::int32_t standing = 0;
+        std::size_t oldest = state_.pieces.size();
+        for (std::size_t q = 0; q < state_.pieces.size(); ++q) {
+            const PieceState& piece = state_.pieces[q];
+            if (!piece.alive || piece.owner != i) continue;
+            ++standing;
+            if (oldest == state_.pieces.size() || piece.placed < state_.pieces[oldest].placed) oldest = q;
+        }
+        if (standing < std::min(pd.limit, 3)) break;
+        state_.pieces[oldest].alive = 0;
+    }
+    for (PieceState& piece : state_.pieces) {
+        if (piece.alive) continue;
+        piece = {1, i, {min(max(x, Fixed{}), system_.stage_width), Fixed{}}, pd.durability, pd.life, pd.reflects, pd.shard_move, pd.shards, 0, state_.frame};
+        events_.push_back({Event::Kind::piece, i, -1, 0, 0, 0, piece.pos});
+        return;
+    }
+}
+
+void Match::shatter(std::size_t q, std::int32_t shard, std::int32_t shards) {
+    PieceState& piece = state_.pieces[q];
+    piece.alive = 0;
+    events_.push_back({Event::Kind::shatter, piece.owner, shard, 0, 0, 0, {piece.pos.x, piece.pos.y + 85_fx}});
+    if (shard < 0) return;
+    const ProjectileDef& pd = *fighter(piece.owner).def.moves[static_cast<std::size_t>(shard)].projectile;
+    const FighterState& o = state_.f[static_cast<std::size_t>(1 - piece.owner)];
+    const std::int32_t facing = o.pos.x >= piece.pos.x ? 1 : -1;
+    // Its shards, one above another, toward the other fighter; none past a full pool.
+    for (std::int32_t k = 0; k < shards; ++k)
+        for (ProjectileState& p : state_.p)
+            if (!p.alive) {
+                p = {1, piece.owner, piece.owner, shard, 0, facing, {piece.pos.x + pd.offset.x * facing, piece.pos.y + pd.offset.y + Fixed::of(35 * k)},
+                     pd.hits, pd.strength, 0, 0, 0};
+                break;
+            }
+}
+
+// The pieces against the other side's projectiles (stopped, or turned back)
+// and against strikes (a strike costs a piece once; its owner's shatters
+// it), then their life.
+void Match::pieces() {
+    for (ProjectileState& p : state_.p) {
+        if (!p.alive || p.stop > 0 || p.wait > 0) continue;
+        const MoveDef& m = fighter(p.from).def.moves[static_cast<std::size_t>(p.move)];
+        const ProjectileDef& pd = *m.projectile;
+        if (!pd.hit.active.contains(p.frame)) continue;
+        for (std::size_t q = 0; q < state_.pieces.size() && p.alive; ++q) {
+            PieceState& piece = state_.pieces[q];
+            if (!piece.alive || piece.owner == p.owner) continue;
+            const Rect at = place(system_.piece_box, piece.pos, 1);
+            if (!std::ranges::any_of(pd.hit.boxes, [&](const Box& b) { return place(b, p.pos, p.facing).overlaps(at); })) continue;
+            const bool reflectable = pd.reflectable ? *pd.reflectable : m.level == 0 && pd.strength < 2;
+            if (piece.reflects > 0 && reflectable && !p.reflected) {
+                p.owner = piece.owner;
+                p.facing = -p.facing;
+                p.reflected = 1;
+                events_.push_back({Event::Kind::reflect, piece.owner, p.move, 0, 0, pd.hit.impact, {piece.pos.x, p.pos.y}});
+                if (--piece.reflects == 0) shatter(q, piece.shard, piece.shards);
+            } else {
+                if (--p.hits <= 0) p.alive = 0;
+                else p.stop = pd.hit.hitstop, p.wait = pd.interval;
+                --piece.durability;
+                events_.push_back({Event::Kind::piece_hit, p.owner, p.move, piece.durability, 0, pd.hit.impact, {piece.pos.x, p.pos.y}});
+                if (piece.durability <= 0) piece.alive = 0;
+            }
+            break;
+        }
+    }
+    for (std::size_t q = 0; q < state_.pieces.size(); ++q) {
+        PieceState& piece = state_.pieces[q];
+        if (!piece.alive) continue;
+        const Rect at = place(system_.piece_box, piece.pos, 1);
+        std::int32_t touched = 0;
+        for (std::int32_t a = 0; a < 2; ++a) {
+            const FighterState& f = state_.f[static_cast<std::size_t>(a)];
+            if (f.mode != Mode::move) continue;
+            const MoveDef& m = fighter(a).def.moves[static_cast<std::size_t>(f.move)];
+            for (std::size_t h = 0; h < m.hits.size() && h < 30; ++h)
+                if (m.hits[h].active.contains(f.move_frame) && !(f.landed & (1 << h)) &&
+                    std::ranges::any_of(m.hits[h].boxes, [&](const Box& b) { return place(b, f.pos, f.facing).overlaps(at); }))
+                    touched |= 1 << a;
+        }
+        const std::int32_t fresh = touched & ~piece.touched;
+        piece.touched = touched;
+        if (fresh & (1 << piece.owner)) {
+            shatter(q, piece.shard, piece.shards);
+        } else if (fresh) {
+            --piece.durability;
+            events_.push_back({Event::Kind::piece_hit, 1 - piece.owner, -1, piece.durability, 0, 0, {piece.pos.x, piece.pos.y + 100_fx}});
+            if (piece.durability <= 0) piece.alive = 0;
+        }
+    }
+    for (PieceState& piece : state_.pieces)  // from the frame after it was placed
+        if (piece.alive && piece.placed != state_.frame && --piece.life <= 0) piece.alive = 0;
 }
 
 void Match::play_lock() {
@@ -947,7 +1100,7 @@ void Match::tick(Pad left, Pad right) {
         }
         if (p.wait > 0) --p.wait;
         ++p.frame;
-        const ProjectileDef& pd = *fighter(p.owner).def.moves[static_cast<std::size_t>(p.move)].projectile;
+        const ProjectileDef& pd = *fighter(p.from).def.moves[static_cast<std::size_t>(p.move)].projectile;
         p.pos.x += pd.velocity.x * p.facing;
         p.pos.y += pd.velocity.y;
         const bool landed = pd.velocity.y < Fixed{} && p.pos.y <= Fixed{};

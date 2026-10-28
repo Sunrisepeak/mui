@@ -70,7 +70,8 @@ std::expected<Fighter, std::vector<Problem>> compile(FighterDef def) {
         c.need(!m.name.empty(), at, "a move has a name");
         for (std::size_t j = 0; j < i; ++j) c.need(def.moves[j].name != m.name, at, std::format("two moves are called `{}`", m.name));
         c.need(m.total >= 1, at + ".total", "a move lasts at least 1 frame");
-        c.need(m.command.buttons != 0 || m.command.motion.length > 0, at + ".command", "a move is asked for with a button, or a motion alone (66)");
+        if (m.asked) c.need(m.command.buttons != 0 || m.command.motion.length > 0, at + ".command", "a move is asked for with a button, or a motion alone (66)");
+        else c.need(m.projectile.has_value(), at + ".projectile", "a move no input asks for is a shard: it has a projectile");
         c.need(m.command.motion.rotation == 0 || m.command.buttons != 0, at + ".command", "a rotation (360, 720) ends with a button");
         for (std::size_t h = 0; h < m.hits.size(); ++h) c.hit(m.hits[h], m.total, std::format("{}.hits[{}]", at, h));
         for (std::size_t k = 0; k < m.invulnerable.size(); ++k) {
@@ -107,6 +108,22 @@ std::expected<Fighter, std::vector<Problem>> compile(FighterDef def) {
             c.frames(m.armor->frames, m.total, at + ".armor.frames");
             c.need(m.armor->hits >= 1, at + ".armor.hits", "armour takes at least one hit");
         }
+        for (std::size_t k = 0; k < m.pieces.size(); ++k) {
+            const PieceDef& pd = m.pieces[k];
+            const std::string where = std::format("{}.pieces[{}]", at, k);
+            c.need(pd.frame >= 1 && pd.frame <= m.total, where + ".frame", std::format("on a frame of the move's {}", m.total));
+            c.need(pd.act != PieceAct::place || (!pd.at.empty() && pd.at.size() <= 3), where + ".at", "one to three places");
+            c.need(pd.life >= 1 && pd.durability >= 1 && pd.limit >= 1 && pd.limit <= 3 && pd.reflects >= 0 && pd.shards >= 0 && pd.shards <= 4, where,
+                   "life and durability at least 1, a limit of 1 to 3 pieces, 0 to 4 shards");
+            if (!pd.shard.empty()) {
+                std::int32_t t = -1;
+                for (std::size_t j = 0; j < def.moves.size(); ++j)
+                    if (def.moves[j].name == pd.shard) t = static_cast<std::int32_t>(j);
+                c.need(t >= 0 && def.moves[static_cast<std::size_t>(t)].projectile.has_value(), where + ".shard", std::format("`{}` is a move with a projectile", pd.shard));
+            } else {
+                c.need(pd.act != PieceAct::place, where + ".shard", "a piece placed names the move its shards are");
+            }
+        }
         if (m.cinematic) {
             c.need(!m.hits.empty() || m.throw_, at + ".cinematic", "a cinematic starts when the move's first hit lands or its throw takes hold: it needs one");
             c.need(m.cinematic->frames >= 1, at + ".cinematic.frames", "a cinematic lasts at least 1 frame");
@@ -127,6 +144,10 @@ std::expected<Fighter, std::vector<Problem>> compile(FighterDef def) {
         }
     }
     if (!c.problems.empty()) return std::unexpected(std::move(c.problems));
+    for (MoveDef& m : def.moves)
+        for (PieceDef& pd : m.pieces)
+            for (std::size_t j = 0; j < def.moves.size() && !pd.shard.empty(); ++j)
+                if (def.moves[j].name == pd.shard) pd.shard_move = static_cast<std::int32_t>(j);
     // Resolved: per move, per cancel, the moves it allows, in the order named.
     f.cancel_targets.assign(def.moves.size(), {});
     for (std::size_t i = 0; i < def.moves.size(); ++i)

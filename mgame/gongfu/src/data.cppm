@@ -107,6 +107,37 @@ struct ProjectileDef {
     std::int32_t interval = 0;  // frames after a hit before it can hit again
     std::int32_t strength = 1;  // meeting another: the weaker is gone, the stronger goes on weakened by it; equal, both are gone
     std::int32_t limit = 0;     // at most this many of its owner's limited projectiles at once (0: not limited); the move is not started past it
+    // Whether a set piece may turn it back (G-15): left out, any but a
+    // super's and one of strength 2 or more.
+    std::optional<bool> reflectable;
+};
+
+// Set pieces (G-15, 璃's panes): what a move does to its owner's pieces on
+// one of its frames. `place` sets one piece at each distance in `at` in
+// front of the fighter (or, with `at_opponent`, in front of the other one,
+// toward the owner); at most `limit` of the owner's pieces stand at once,
+// the oldest giving way. A piece stops the other side's projectiles (each
+// hit costs it 1 of its `durability`, and the projectile 1 of its hits),
+// loses durability to the other side's strikes (once a strike), turns back
+// `reflects` projectiles before it shatters, and shatters into `shards`
+// projectiles of the move `shard` when its owner strikes it. `shatter`
+// shatters every piece of the owner (with its own `shard` if it names one;
+// with none standing and `at` given, places one there first). `warp` takes
+// the fighter to the far side of the piece nearest the other fighter, which
+// shatters.
+enum class PieceAct : std::uint8_t { place, shatter, warp };
+struct PieceDef {
+    PieceAct           act = PieceAct::place;
+    std::int32_t       frame = 1;
+    std::vector<Fixed> at;
+    bool               at_opponent = false;
+    std::int32_t       life = 480;
+    std::int32_t       durability = 2;
+    std::int32_t       limit = 2;
+    std::int32_t       reflects = 0;
+    std::string        shard;           // a move's name; compiled to `shard_move`
+    std::int32_t       shards = 3;
+    std::int32_t       shard_move = -1;
 };
 
 // A level-3 super's cinematic (system 0.3, P-5): when its first hit lands
@@ -151,6 +182,9 @@ struct MoveDef {
     std::optional<CinematicDef>  cinematic;  // a level-3 super's, on its first hit
     std::optional<Frames>        pass;       // frames it passes through the other fighter (no pushing apart)
     std::optional<ArmorDef>      armor;
+    std::vector<PieceDef>        pieces;            // what it does to its owner's set pieces (G-15)
+    bool                         needs_piece = false;  // only started with one of its owner's pieces standing
+    bool                         asked = true;      // false: no input asks for it (a shard, started by a piece)
     std::int32_t                 meter_cost = 0;
     std::int32_t                 meter_gain = 0;    // on hit; half on block
     std::int32_t                 freeze = 0;        // frames both fighters stand still at its first frame (a super's flash)
@@ -193,6 +227,7 @@ struct SystemDef {
     std::int32_t counter_hitstun = 2;   // extra frames
     std::int32_t round_frames = 99 * 60;
     Fixed        stage_width = 1920_fx;
+    Box          piece_box{-8_fx, 0_fx, 16_fx, 170_fx};  // a set piece's, from where it stands (G-15)
     Fixed        start_distance = 400_fx;
     std::int32_t meter_max = 3000;  // three bars of 1000: a super's level is the bars it costs
     std::int32_t knockdown = 30;  // frames down

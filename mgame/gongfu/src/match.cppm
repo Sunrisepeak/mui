@@ -21,7 +21,13 @@ import :state;
 export namespace gongfu {
 
 struct Event {
-    enum class Kind : std::uint8_t { hit, counter, block, throw_, tech, projectile_clash, ko, time_over, clash, deflect, guard_break, cinematic, armor };
+    // Set pieces (G-15): `piece` placed (attacker: its owner), `piece_hit` (a
+    // projectile stopped or a strike taking durability; attacker: who hit
+    // it), `reflect` (attacker: the piece's owner), `shatter` (its owner).
+    enum class Kind : std::uint8_t {
+        hit, counter, block, throw_, tech, projectile_clash, ko, time_over, clash, deflect, guard_break, cinematic, armor,
+        piece, piece_hit, reflect, shatter
+    };
     Kind          kind = Kind::hit;
     std::int32_t  attacker = 0;   // 0 or 1 (a clash: its winner, or −1 when even; a deflect: the one who struck)
     std::int32_t  move = -1;      // the attacker's move
@@ -67,6 +73,7 @@ private:
         bool         projectile;
         std::int32_t slot;  // the projectile's
         Vec          at;    // the middle of where the box met the body
+        std::int32_t from;  // whose move it is (a reflected projectile's thrower)
     };
     void decide(std::int32_t i);
     // While standing still (a hitstop, a super's flash): a move asked for is
@@ -85,6 +92,14 @@ private:
     [[nodiscard]] bool deflects(std::int32_t i) const noexcept;
     void recover(const std::array<bool, 2>& still);
     void play_lock();  // one frame of a cinematic
+    // Set pieces (G-15): a move's act on its frame; one placed; one shattered
+    // into its shards (toward the other fighter); against strikes and
+    // projectiles, then their life.
+    void act(std::int32_t i, const PieceDef& pd);
+    void place_piece(std::int32_t i, Fixed x, const PieceDef& pd);
+    void shatter(std::size_t q, std::int32_t shard, std::int32_t shards);
+    void pieces();
+    [[nodiscard]] bool has_piece(std::int32_t i) const noexcept;
     void apply(const Strike& s, bool blocked, bool counter);
     // Whether fighter i lets pass what `to` names (to_strike, to_air, to_projectile, to_throw).
     [[nodiscard]] bool invulnerable(std::int32_t i, std::uint8_t to) const noexcept;

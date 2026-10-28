@@ -15,8 +15,10 @@ using omui::geom::Affine;
 using omui::geom::Rect;
 namespace render = omui::render;
 
-constexpr std::array<std::string_view, 17> mode_clips{"idle",    "walk_forward", "walk_back", "crouch", "prejump", "air",   "landing", "move",    "hitstun",
-                                                      "blockstun", "knockdown", "wakeup", "thrown", "ko",      "reset", "clash", "broken"};
+constexpr std::array<std::string_view, mode_count> mode_clips{"idle",      "walk_forward", "walk_back", "crouch", "prejump", "air",   "landing",
+                                                              "move",      "hitstun",      "blockstun", "knockdown", "wakeup", "thrown", "ko",
+                                                              "reset",     "clash",        "broken",    "cinematic"};
+static_assert(std::ranges::none_of(mode_clips, &std::string_view::empty), "a clip name for every mode");
 
 double stage(Fixed f) { return f.to_double(); }
 
@@ -80,10 +82,15 @@ void ellipse(render::Path& p, Point centre, double angle, float along, float acr
 
 bool contact(Event::Kind k) noexcept {
     return k == Event::Kind::hit || k == Event::Kind::counter || k == Event::Kind::block || k == Event::Kind::throw_ || k == Event::Kind::ko ||
-           k == Event::Kind::clash || k == Event::Kind::deflect || k == Event::Kind::guard_break;
+           k == Event::Kind::clash || k == Event::Kind::deflect || k == Event::Kind::guard_break || k == Event::Kind::piece_hit ||
+           k == Event::Kind::shatter || k == Event::Kind::reflect;
 }
 
-const Look& look_of(const Event& e, const Look& left, const Look& right) noexcept { return e.attacker == 1 ? right : left; }
+// Whose look a contact is drawn by: the attacker's; a pane struck, its owner's (the glass).
+const Look& look_of(const Event& e, const Look& left, const Look& right) noexcept {
+    const std::int32_t by = e.kind == Event::Kind::piece_hit ? 1 - e.attacker : e.attacker;
+    return by == 1 ? right : left;
+}
 
 // 1 at contact, easing (quadratically) to 0 after `frames`.
 double falloff(std::int32_t age, std::int32_t frames) noexcept {
@@ -206,7 +213,17 @@ const Impact& default_impact(Event::Kind kind) noexcept {
     static const Impact broken{.name = "break", .shake = 10, .shake_frames = 16, .zoom = 0.06f, .zoom_frames = 20, .flash = Flash::white, .flash_frames = 4,
                                .spark = Spark::shards, .spark_size = 72, .spark_count = 14, .spark_frames = 22, .spark_color = Color::hex(0xe8f1ff),
                                .counter_color = Color::hex(0xe8f1ff)};
+    // Set pieces (G-15): a pane struck, shattering, turning a projectile back.
+    static const Impact pane{.name = "pane", .shake = 1, .shake_frames = 4, .spark = Spark::shards, .spark_size = 30, .spark_count = 5, .spark_frames = 12,
+                             .spark_color = Color::hex(0xe8f6ff), .counter_color = Color::hex(0xe8f6ff)};
+    static const Impact shatter{.name = "shatter", .shake = 3, .shake_frames = 8, .spark = Spark::shards, .spark_size = 70, .spark_count = 12,
+                                .spark_frames = 20, .spark_color = Color::hex(0xe8f6ff), .counter_color = Color::hex(0xe8f6ff)};
+    static const Impact reflect{.name = "reflect", .shake = 2, .shake_frames = 5, .spark = Spark::ring, .spark_size = 50, .spark_count = 1,
+                                .spark_frames = 12, .spark_color = Color::hex(0xffd36b), .counter_color = Color::hex(0xffd36b)};
     switch (kind) {
+        case Event::Kind::piece_hit: return pane;
+        case Event::Kind::shatter: return shatter;
+        case Event::Kind::reflect: return reflect;
         case Event::Kind::clash: return clash;
         case Event::Kind::deflect: return deflect;
         case Event::Kind::guard_break: return broken;
@@ -253,6 +270,12 @@ const Impact& impact_for(const Look& look, const Event& e) noexcept {
         if (const Impact* i = named("deflect")) return *i;
     } else if (e.kind == Event::Kind::guard_break) {
         if (const Impact* i = named("break")) return *i;
+    } else if (e.kind == Event::Kind::piece_hit) {
+        if (const Impact* i = named("pane")) return *i;
+    } else if (e.kind == Event::Kind::shatter) {
+        if (const Impact* i = named("shatter")) return *i;
+    } else if (e.kind == Event::Kind::reflect) {
+        if (const Impact* i = named("reflect")) return *i;
     }
     return default_impact(e.kind);
 }
@@ -796,7 +819,50 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
                 drawn.pos.y = st.lock.y + Fixed::raw(static_cast<std::int32_t>(std::lround(off.y * Fixed::one_bits)));
             }
         }
+        // A prism: the defender again either side, faint, as through cut glass.
+        if (cine && i != st.lock.owner && cine->prism.images > 0 && st.lock.frame >= cine->prism.from && st.lock.frame <= cine->prism.to) {
+            const double in = std::min(1.0, (st.lock.frame - cine->prism.from) / 8.0);
+            for (std::int32_t k = 1; k <= cine->prism.images; ++k)
+                for (const std::int32_t side : {-1, 1}) {
+                    FighterState image = drawn;
+                    const double sway = 1 + 0.15 * dm::sin(st.lock.frame * 0.11 + k);  // the images breathe a little
+                    image.pos.x += Fixed::raw(static_cast<std::int32_t>(std::lround(side * k * cine->prism.spread * sway * Fixed::one_bits)));
+                    body(i == 0 ? left : right, match.fighter(i), image, st.frame, scene, view.cam, out, clip, st.lock.frame,
+                         fade(cine->prism.tint, in / k));
+                }
+        }
         body(i == 0 ? left : right, match.fighter(i), drawn, st.frame, scene, view.cam, out, clip, st.lock.frame);
+    }
+
+    // Cracks across the picture: one for each of the cinematic's hits landed so far.
+    if (cine && cine->cracks.on) {
+        const MoveDef& md = match.fighter(st.lock.owner).def.moves[static_cast<std::size_t>(st.lock.move)];
+        std::int32_t landed = 0;
+        if (md.cinematic)
+            for (const CinematicHit& h : md.cinematic->hits) landed += h.frame <= st.lock.frame;
+        auto unit = [](std::uint64_t z) {
+            z = (z + 0x9e3779b97f4a7c15ull) * 0xbf58476d1ce4e5b9ull;
+            z = (z ^ (z >> 27)) * 0x94d049bb133111ebull;
+            return static_cast<double>((z ^ (z >> 31)) >> 40) / static_cast<double>(1u << 24);
+        };
+        for (std::int32_t n = 0; n < landed; ++n) {
+            const auto k = static_cast<std::uint64_t>(n) * 64;
+            const Point c{scene.width * static_cast<float>(0.12 + 0.76 * unit(k)), scene.height * static_cast<float>(0.12 + 0.7 * unit(k + 1))};
+            const int lines = 5 + static_cast<int>(unit(k + 2) * 3);
+            for (int l = 0; l < lines; ++l) {
+                double a = dm::two_pi * (l + unit(k + 3 + static_cast<std::uint64_t>(l))) / lines;
+                Point at = c;
+                path_.clear();
+                path_.move_to(at);
+                for (int seg = 0; seg < 4; ++seg) {
+                    a += (unit(k + 16 + static_cast<std::uint64_t>(l * 4 + seg)) - 0.5) * 0.7;
+                    const float len = scene.height * static_cast<float>(0.04 + 0.05 * unit(k + 40 + static_cast<std::uint64_t>(l * 4 + seg)));
+                    at = {at.x + len * static_cast<float>(dm::cos(a)), at.y + len * static_cast<float>(dm::sin(a))};
+                    path_.line_to(at);
+                }
+                out.stroke_path(path_, {.width = 1.6f, .cap = render::LineCap::round, .join = render::LineJoin::round}, render::Paint::solid(cine->cracks.color));
+            }
+        }
     }
 
     // The cinematic's glyph, written stroke by stroke over the defender, and its seal.
@@ -839,8 +905,8 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
     for (const ProjectileState& pr : st.p) {
         if (!pr.alive) continue;
         const Point c = view.at(stage(pr.pos.x), stage(pr.pos.y));
-        const Look& look = pr.owner == 0 ? left : right;
-        const auto& name = match.fighter(pr.owner).def.moves[static_cast<std::size_t>(pr.move)].name;
+        const Look& look = pr.from == 0 ? left : right;  // drawn as its thrower draws it, turned back or not
+        const auto& name = match.fighter(pr.from).def.moves[static_cast<std::size_t>(pr.move)].name;
         if (const auto* g = projectile_of(look, name)) {
             if (auto strokes = look.glyphs.find(g->glyph); strokes != look.glyphs.end()) {
                 // Flying, the ink bleeds a little more each frame (into its halo, if it has one).
@@ -859,6 +925,50 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         path_.clear();
         circle(path_, c, view.size(14));
         out.fill_path(path_, render::FillRule::nonzero, render::Paint::solid(Color::hex(0xe9fbff)));
+    }
+
+    // Set pieces (G-15): panes of glass, their shine, cracks as they lose durability; an edge of gold on one that turns projectiles back.
+    for (std::size_t q = 0; q < st.pieces.size(); ++q) {
+        const PieceState& piece = st.pieces[q];
+        if (!piece.alive) continue;
+        const Look& look = piece.owner == 0 ? left : right;
+        const Box& box = match.system().piece_box;
+        const double half = std::max(14.0, stage(box.w) / 2), middle = stage(piece.pos.x + box.x) + stage(box.w) / 2;  // drawn a little wider than it meets
+        const Point lo = view.at(middle - half, stage(piece.pos.y + box.y));
+        const Point hi = view.at(middle + half, stage(piece.pos.y + box.y + box.h));
+        const omui::geom::Rect r{std::min(lo.x, hi.x), std::min(lo.y, hi.y), std::abs(hi.x - lo.x), std::abs(hi.y - lo.y)};
+        // Fading in over its first frames.
+        const double in = std::min(1.0, (st.frame - piece.placed + 1) / 6.0);
+        out.fill_rect(r, fade(look.pane.glass, in));
+        path_.clear();
+        path_.move_to({r.x + r.width * 0.15f, r.y + r.height * 0.55f}).line_to({r.x + r.width * 0.85f, r.y + r.height * 0.3f}).line_to({r.x + r.width * 0.85f, r.y + r.height * 0.38f})
+            .line_to({r.x + r.width * 0.15f, r.y + r.height * 0.63f}).close();
+        out.fill_path(path_, render::FillRule::nonzero, render::Paint::solid(fade(look.pane.shine, in)));
+        path_.clear();
+        path_.move_to({r.x, r.y}).line_to({r.x + r.width, r.y}).line_to({r.x + r.width, r.y + r.height}).line_to({r.x, r.y + r.height}).close();
+        out.stroke_path(path_, {.width = view.size(piece.reflects > 0 ? 3.f : 2.f)},
+                        render::Paint::solid(fade(piece.reflects > 0 ? look.pane.reflect : look.pane.edge, in)));
+        // Cracks: none whole; four at one left; from a point its slot and placing frame choose.
+        const std::int32_t cracks = 4 * std::max(0, 2 - piece.durability);
+        auto unit = [&](std::uint32_t i) {
+            std::uint64_t z = (static_cast<std::uint64_t>(q) << 40) ^ (static_cast<std::uint64_t>(piece.placed) << 8) ^ i;
+            z = (z + 0x9e3779b97f4a7c15ull) * 0xbf58476d1ce4e5b9ull;
+            z = (z ^ (z >> 27)) * 0x94d049bb133111ebull;
+            return static_cast<double>((z ^ (z >> 31)) >> 40) / static_cast<double>(1u << 24);
+        };
+        const Point from{r.x + r.width * static_cast<float>(0.3 + 0.4 * unit(0)), r.y + r.height * static_cast<float>(0.3 + 0.4 * unit(1))};
+        for (std::int32_t c = 0; c < cracks; ++c) {
+            const double a = dm::two_pi * (c + unit(static_cast<std::uint32_t>(2 + c))) / cracks;
+            path_.clear();
+            path_.move_to(from);
+            Point at = from;
+            for (int seg = 0; seg < 3; ++seg) {
+                const double turn = a + (unit(static_cast<std::uint32_t>(20 + c * 3 + seg)) - 0.5) * 0.8;
+                at = {at.x + r.width * 0.45f * static_cast<float>(dm::cos(turn)), at.y + r.height * 0.12f * static_cast<float>(dm::sin(turn))};
+                path_.line_to({std::clamp(at.x, r.x, r.x + r.width), std::clamp(at.y, r.y, r.y + r.height)});
+            }
+            out.stroke_path(path_, {.width = view.size(1.5f), .cap = render::LineCap::round}, render::Paint::solid(fade(look.pane.edge, in)));
+        }
     }
 
     // Sparks and flashes, each contact as its impact profile says.
@@ -892,6 +1002,33 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
             circle(path_, c, view.size(r.size * (0.15 + 0.85 * (1 - (1 - u) * (1 - u)))));
             out.stroke_path(path_, {.width = view.size(10 * (1 - u) + 2)}, render::Paint::solid(fade(r.color, 1 - u)));
         }
+
+    // The picture falling apart: pieces of it, turning, falling and fading.
+    if (cine && cine->fall.frame >= 0 && st.lock.frame >= cine->fall.frame) {
+        const double t = st.lock.frame - cine->fall.frame;
+        auto unit = [](std::uint64_t z) {
+            z = (z + 0x9e3779b97f4a7c15ull) * 0xbf58476d1ce4e5b9ull;
+            z = (z ^ (z >> 27)) * 0x94d049bb133111ebull;
+            return static_cast<double>((z ^ (z >> 31)) >> 40) / static_cast<double>(1u << 24);
+        };
+        const double alpha = std::max(0.0, 1 - t / 30);
+        for (std::int32_t n = 0; n < cine->fall.count && alpha > 0; ++n) {
+            const auto k = 1000 + static_cast<std::uint64_t>(n) * 8;
+            const double size = scene.height * (0.03 + 0.05 * unit(k));
+            const double x = scene.width * unit(k + 1), y0 = scene.height * unit(k + 2) * 0.9;
+            const double y = y0 + 0.35 * (0.6 + unit(k + 3)) * t * t + t * 2;
+            const double spin = (unit(k + 4) - 0.5) * 0.3 * t + unit(k + 5) * dm::two_pi;
+            path_.clear();
+            for (int v = 0; v < 3; ++v) {
+                const double a = spin + v * (dm::two_pi / 3) + (unit(k + 6) - 0.5) * 0.6 * (v == 1);
+                const Point p{static_cast<float>(x + size * dm::cos(a)), static_cast<float>(y + size * 0.8 * dm::sin(a))};
+                if (v == 0) path_.move_to(p);
+                else path_.line_to(p);
+            }
+            path_.close();
+            out.fill_path(path_, render::FillRule::nonzero, render::Paint::solid(fade(cine->fall.color, alpha)));
+        }
+    }
 
     // A cinematic's screen lines, as its backdrop shows.
     if (cine && cine->scanlines) {

@@ -31,6 +31,8 @@ enum class Mode : std::int32_t {
     broken,     // a guard break: staggered, unable to block or act (`stun` frames)
     cinematic,  // locked in a level-3 super's cinematic (State::lock)
 };
+// How many modes there are: what a table by mode is sized by.
+inline constexpr std::size_t mode_count = static_cast<std::size_t>(Mode::cinematic) + 1;
 
 struct FighterState {
     Vec          pos, vel;
@@ -67,7 +69,8 @@ struct FighterState {
 
 struct ProjectileState {
     std::int32_t alive = 0;
-    std::int32_t owner = 0;    // 0 or 1
+    std::int32_t owner = 0;    // 0 or 1: whose it is now (a reflected one changes side)
+    std::int32_t from = 0;     // whose move defines it
     std::int32_t move = -1;    // the move that spawned it
     std::int32_t frame = 0;    // frames since it spawned, from 1
     std::int32_t facing = 1;
@@ -76,6 +79,25 @@ struct ProjectileState {
     std::int32_t strength = 0;
     std::int32_t stop = 0;     // frames it stands still after a hit
     std::int32_t wait = 0;     // frames before it can hit again
+    std::int32_t reflected = 0;
+};
+
+// A set piece standing (G-15): whose, where, how much more it takes, how
+// long it stands, how many projectiles it still turns back, what it
+// shatters into; which fighters' strikes touched it last frame (bit per
+// fighter: a strike costs it once, however many frames it stays in it);
+// when it was placed (the oldest gives way).
+struct PieceState {
+    std::int32_t alive = 0;
+    std::int32_t owner = 0;
+    Vec          pos;
+    std::int32_t durability = 0;
+    std::int32_t life = 0;
+    std::int32_t reflects = 0;
+    std::int32_t shard = -1;   // the owner's move whose projectile its shards are
+    std::int32_t shards = 0;
+    std::int32_t touched = 0;
+    std::int32_t placed = 0;   // the frame
 };
 
 // A level-3 super's cinematic under way: who, which move, its frame, and
@@ -89,7 +111,8 @@ struct Lock {
 };
 
 struct State {
-    static constexpr std::size_t projectiles = 8;
+    static constexpr std::size_t projectiles = 16;
+    static constexpr std::size_t piece_slots = 6;  // three each
     std::int32_t                             frame = 0;    // frames played
     std::int32_t                             timer = 0;    // frames left in the round
     std::int32_t                             freeze = 0;   // frames of a super's flash
@@ -97,6 +120,7 @@ struct State {
     std::int32_t                             winner = -1;  // 0, 1, or 2 for a draw
     std::array<FighterState, 2>              f{};
     std::array<ProjectileState, projectiles> p{};
+    std::array<PieceState, piece_slots>      pieces{};
     Lock                                     lock{};
 };
 

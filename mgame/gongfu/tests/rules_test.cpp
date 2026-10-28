@@ -149,6 +149,35 @@ FighterDef body() {
     catcher.throw_ = ThrowDef{.active = {5, 8}, .range = {0_fx, 60_fx, 90_fx, 160_fx}, .damage = 1600, .tech_window = 0, .air = true};
     f.moves.push_back(catcher);
 
+    // 璃's: panes (set pieces, G-15) placed, shattered, warped to; a gallery
+    // that turns projectiles back; shards that only panes start.
+    auto shard = [](std::string name, std::int32_t damage) {
+        MoveDef m{.name = std::move(name), .total = 1, .asked = false};
+        m.projectile = ProjectileDef{.spawn = 1, .offset = {0_fx, 60_fx}, .velocity = {9_fx, 0_fx}, .life = 80,
+                                     .hit = strike({1, 80}, {-15_fx, -10_fx, 30_fx, 20_fx}, damage, 18, 12)};
+        return m;
+    };
+    f.moves.push_back(shard("shard", 200));
+    f.moves.push_back(shard("glint", 330));
+    MoveDef pane{.name = "236K", .command = {.motion = quarter_forward, .buttons = kicks}, .total = 34, .priority = 10};
+    pane.pieces.push_back({.act = PieceAct::place, .frame = 14, .at = {120_fx}, .shard = "shard"});
+    f.moves.push_back(pane);
+    MoveDef burst{.name = "214K", .command = {.motion = quarter_back, .buttons = kicks}, .total = 28, .priority = 10};
+    burst.pieces.push_back({.act = PieceAct::shatter, .frame = 8});
+    f.moves.push_back(burst);
+    MoveDef step{.name = "22K", .command = {.motion = motion({2, 5, 2}, 12), .buttons = kicks}, .total = 30, .priority = 10, .needs_piece = true};
+    step.pieces.push_back({.act = PieceAct::warp, .frame = 12});
+    step.invulnerable.push_back({.frames = {6, 16}, .to = to_strike});
+    f.moves.push_back(step);
+    MoveDef gallery{.name = "22P", .command = {.motion = motion({2, 5, 2}, 12), .buttons = punches}, .total = 40, .priority = 15,
+                    .meter_cost = 1000, .freeze = 30, .level = 1};
+    gallery.pieces.push_back({.act = PieceAct::place, .frame = 10, .at = {100_fx, 200_fx, 300_fx}, .limit = 3, .reflects = 1, .shard = "shard"});
+    f.moves.push_back(gallery);
+    MoveDef glints{.name = "214214K", .command = {.motion = motion({2, 1, 4, 2, 1, 4}, 24), .buttons = kicks}, .total = 40, .priority = 20,
+                   .meter_cost = 2000, .freeze = 40, .level = 2};
+    glints.pieces.push_back({.act = PieceAct::shatter, .frame = 10, .at = {60_fx}, .at_opponent = true, .shard = "glint", .shards = 3});
+    f.moves.push_back(glints);
+
     // Throws: forward and back.
     MoveDef grab{.name = "throw", .command = {.buttons = static_cast<std::uint16_t>(LP | LK), .together = true}, .total = 30, .priority = 20};
     grab.throw_ = ThrowDef{.active = {5, 6}, .range = {0_fx, 0_fx, 80_fx, 150_fx}, .damage = 1200};
@@ -587,6 +616,202 @@ int main(int argc, char** argv) {
         }
     });
 
+    s.test("landing: a ground move that rises and comes down past the ground lasts its frames; an air move ends where it lands, at the ground or past it", [] {
+        FighterDef def = rule().def;
+        MoveDef kick{.name = "rising", .command = {.direction = 6, .buttons = LK}, .total = 38, .priority = 3};
+        kick.steps = {{3, {2_fx, 12_fx}}, {12, {0_fx, -8_fx}}};  // up 108, down 8 a frame: past the ground on its 25th frame
+        kick.hits.push_back(strike({6, 11}, {0_fx, 80_fx, 70_fx, 120_fx}, 500, 20));
+        def.moves.push_back(kick);
+        MoveDef flat = kick;  // the same, on the ground throughout
+        flat.name = "flat";
+        flat.command = {.direction = 4, .buttons = LK};
+        flat.steps.clear();
+        def.moves.push_back(flat);
+        const Fighter f = *compile(def);
+        auto lasts = [&](Pad press) {
+            Match m(rules(), f, f);
+            m.tick(press, pad(5));
+            int frames = 1;
+            while (m.state().f[0].mode == Mode::move && frames < 80) {
+                m.tick(pad(5), pad(5));
+                ++frames;
+            }
+            return frames;
+        };
+        check_eq(lasts(pad(6, LK)), lasts(pad(4, LK)));
+        // A jump's arc comes back to the ground exactly: a jumping heavy pressed at the top ends as it lands.
+        Match j(rules(), rule(), rule());
+        j.tick(pad(8), pad(5));
+        while (j.state().f[0].vel.y > Fixed{} || j.state().f[0].mode != Mode::air) j.tick(pad(5), pad(5));
+        j.tick(pad(5, HP), pad(5));
+        while (j.state().f[0].pos.y > Fixed{}) j.tick(pad(5), pad(5));
+        check(j.state().f[0].mode != Mode::move, std::format("landed: mode {}", static_cast<int>(j.state().f[0].mode)));
+    });
+
+    s.test("G-15 a pane stops the other side's projectiles, one of its durability a hit, and is gone at none; strikes and bodies pass it, a strike costing it once", [] {
+        Match m = apart(500_fx);
+        const std::array pane{pad(2), pad(3), pad(6, LK)};
+        play(m, pane);
+        for (int f = 0; f < 14; ++f) m.tick(pad(5), pad(5));
+        auto standing = [&] { return std::ranges::count_if(m.state().pieces, [](const PieceState& q) { return q.alive != 0; }); };
+        check(standing() == 1 && m.state().pieces[0].durability == 2 && m.state().pieces[0].pos.x == m.state().f[0].pos.x + 120_fx,
+              std::format("one pane, 120 in front: {}", standing()));
+        // Fighter 2 (facing left: 214 on the screen is its 236) throws two glyphs; the pane takes both, and is gone.
+        int stopped = 0;
+        for (int shot = 0; shot < 2; ++shot) {
+            const std::array fireball{pad(2), pad(1), pad(4, LP)};
+            play(m, {}, fireball);
+            for (int f = 0; f < 90; ++f) {
+                m.tick(pad(5), pad(5));
+                stopped += count(m, Event::Kind::piece_hit);
+            }
+        }
+        check(stopped == 2 && standing() == 0 && m.state().f[0].health == 10000, std::format("stopped {}, standing {}, health {}", stopped, standing(), m.state().f[0].health));
+        // Another; fighter 2 walks through it, then jabs fighter 1 through it: the jab lands, and costs the pane 1, once.
+        play(m, pane);
+        for (int f = 0; f < 14; ++f) m.tick(pad(5), pad(5));
+        const Fixed pane_x = m.state().pieces[0].pos.x;
+        while (m.state().f[1].pos.x - m.state().f[0].pos.x > 80_fx) m.tick(pad(5), pad(4));
+        check(m.state().f[1].pos.x < pane_x, "walked past the pane");
+        State st = m.state();
+        st.pieces[0].pos.x = st.f[0].pos.x + 40_fx;  // between them, in the jab's reach
+        m.restore(st);
+        std::vector<Event> seen;
+        for (int f = 0; f < 20; ++f) {
+            m.tick(pad(5), f == 0 ? pad(5, LP) : pad(5));
+            seen.insert(seen.end(), m.events().begin(), m.events().end());
+        }
+        check(any_kind(seen, Event::Kind::hit) && std::ranges::count(seen, Event::Kind::piece_hit, &Event::kind) == 1 && m.state().pieces[0].durability == 1,
+              std::format("pane at {}", m.state().pieces[0].durability));
+    });
+
+    s.test("G-15 her own strike shatters her pane into three shards that fly at the other fighter; 214K shatters them all; the oldest gives way; a pane's life", [] {
+        Match m = apart(300_fx);
+        const std::array pane{pad(2), pad(3), pad(6, LK)};
+        play(m, pane);
+        for (int f = 0; f < 30; ++f) m.tick(pad(5), pad(5));
+        State st = m.state();
+        st.pieces[0].pos.x = st.f[0].pos.x + 50_fx;  // in her jab's reach
+        m.restore(st);
+        std::vector<Event> seen;
+        int shards = 0;
+        for (int f = 0; f < 60; ++f) {
+            m.tick(f == 0 ? pad(5, LP) : pad(5), pad(5));
+            seen.insert(seen.end(), m.events().begin(), m.events().end());
+            shards = std::max<int>(shards, static_cast<int>(std::ranges::count_if(m.state().p, [](const ProjectileState& p) { return p.alive && p.from == 0; })));
+        }
+        check(any_kind(seen, Event::Kind::shatter) && shards == 3, std::format("shards {}", shards));
+        check(std::ranges::count_if(seen, [](const Event& e) { return e.kind == Event::Kind::hit && e.attacker == 0; }) >= 1, "a shard hit");
+        // Three placed, two stand (the limit): the first is gone; 214K shatters both.
+        Match n = apart(600_fx);
+        std::array<std::int32_t, 3> placed{};
+        for (int k = 0; k < 3; ++k) {
+            play(n, pane);
+            for (int f = 0; f < 36; ++f) n.tick(pad(5), pad(5));
+            placed[static_cast<std::size_t>(k)] = n.state().frame;
+        }
+        const auto alive = [](const Match& x) { return std::ranges::count_if(x.state().pieces, [](const PieceState& q) { return q.alive != 0; }); };
+        check(alive(n) == 2, std::format("{} standing", alive(n)));
+        const std::array burst{pad(2), pad(1), pad(4, LK)};
+        play(n, burst);
+        int bursts = 0;
+        for (int f = 0; f < 12; ++f) {
+            n.tick(pad(5), pad(5));
+            bursts += count(n, Event::Kind::shatter);
+        }
+        check(bursts == 2 && alive(n) == 0, std::format("{} shattered", bursts));
+        // Left alone, a pane is gone after its 480 frames.
+        Match o = apart(900_fx);
+        play(o, pane);
+        int life = 0;
+        for (int f = 0; f < 600 && (life == 0 || alive(o) > 0); ++f) {
+            o.tick(pad(5), pad(5));
+            if (alive(o) > 0) ++life;
+        }
+        check_eq(life, 480);
+    });
+
+    s.test("G-15 a gallery's pane turns a projectile back once — it hits its thrower, and gives no one meter — then shatters; a super's is stopped, not turned", [] {
+        FighterDef def = rule().def;
+        def.moves[static_cast<std::size_t>(rule().find("22P"))].pieces[0].shards = 0;  // no shards here: only the reflected glyph hits
+        const Fighter f = *compile(def);
+        auto gallery = [&](std::vector<Pad> other) {
+            Match m(rules(), f, f);
+            State st = m.state();
+            st.f[0].pos.x = 500_fx;
+            st.f[1].pos.x = 1100_fx;
+            st.f[0].meter = 1000;
+            st.f[1].meter = 1000;
+            m.restore(st);
+            const std::array call{pad(2), pad(5), pad(2, LP)};
+            play(m, call);
+            while (m.state().freeze > 0 || m.state().f[0].mode == Mode::move) m.tick(pad(5), pad(5));
+            check(std::ranges::count_if(m.state().pieces, [](const PieceState& q) { return q.alive && q.reflects == 1; }) == 3, "three panes that turn one back");
+            play(m, {}, other);
+            std::vector<Event> seen;
+            for (int fr = 0; fr < 200; ++fr) {
+                m.tick(pad(5), pad(5));
+                seen.insert(seen.end(), m.events().begin(), m.events().end());
+            }
+            return std::pair{m.state(), seen};
+        };
+        const auto [after, seen] = gallery({pad(2), pad(1), pad(4, LP)});
+        check(any_kind(seen, Event::Kind::reflect) && any_kind(seen, Event::Kind::shatter), "turned back; the pane shattered");
+        check(after.f[1].health == 10000 - 600 && after.f[0].health == 10000, std::format("the thrower hit by its own glyph: {}", after.f[1].health));
+        check(after.f[0].meter == 0 && after.f[1].meter == 1000, std::format("meter {} / {}: none from the reflected hit", after.f[0].meter, after.f[1].meter));
+        // A super's projectile (strength 2): stopped by the panes, never turned back.
+        const auto [after_super, seen_super] = gallery({pad(2), pad(1), pad(4), pad(2), pad(1), pad(4, LP)});
+        check(!any_kind(seen_super, Event::Kind::reflect) && any_kind(seen_super, Event::Kind::piece_hit) && after_super.f[1].health == 10000,
+              std::format("stopped, not turned: thrower at {}", after_super.f[1].health));
+    });
+
+    s.test("G-15 22K takes her to the far side of the pane nearest the other fighter, which shatters; without a pane it is not done", [] {
+        Match m = apart(500_fx);
+        const std::array pane{pad(2), pad(3), pad(6, LK)};
+        play(m, pane);
+        for (int f = 0; f < 40; ++f) m.tick(pad(5), pad(5));
+        const Fixed pane_x = m.state().pieces[0].pos.x;
+        const std::array step{pad(2), pad(5), pad(2, LK)};
+        play(m, step);
+        check_eq(moving(m, 0), std::string_view("22K"));
+        bool shattered = false;
+        while (m.state().f[0].mode == Mode::move && m.state().f[0].move_frame < 12) {
+            m.tick(pad(5), pad(5));
+            shattered = shattered || has(m, Event::Kind::shatter);
+        }
+        check(shattered && m.state().f[0].pos.x == pane_x - 40_fx, std::format("at {} (the pane at {})", m.state().f[0].pos.x.to_double(), pane_x.to_double()));
+        Match n = apart(500_fx);
+        play(n, step);
+        check(moving(n, 0) != "22K", "no pane: not done");
+    });
+
+    s.test("G-15 the level 2 with no pane standing places one before the other fighter and shatters it: three glints; a full pool takes no more", [] {
+        Match m = apart(500_fx);
+        State st = m.state();
+        st.f[0].meter = 2000;
+        m.restore(st);
+        const std::array call{pad(2), pad(1), pad(4), pad(2), pad(1), pad(4, LK)};
+        play(m, call);
+        int glints = 0, hits = 0;
+        for (int f = 0; f < 120; ++f) {
+            m.tick(pad(5), pad(5));
+            glints = std::max<int>(glints, static_cast<int>(std::ranges::count_if(m.state().p, [](const ProjectileState& p) { return p.alive != 0; })));
+            hits += static_cast<int>(std::ranges::count_if(m.events(), [](const Event& e) { return e.kind == Event::Kind::hit && e.attacker == 0; }));
+        }
+        check(glints == 3 && hits == 3, std::format("glints {}, hits {}", glints, hits));
+        // Every slot taken: a shatter adds none, and moves none of those flying.
+        Match full = apart(500_fx);
+        play(full, std::array{pad(2), pad(3), pad(6, LK)});
+        for (int f = 0; f < 30; ++f) full.tick(pad(5), pad(5));
+        st = full.state();
+        for (ProjectileState& p : st.p) p = {1, 1, 1, rule().find("shard"), 1, -1, {1800_fx, 300_fx}, 1, 1, 0, 0, 0};
+        full.restore(st);
+        const std::array burst{pad(2), pad(1), pad(4, LK)};
+        play(full, burst);
+        for (int f = 0; f < 10; ++f) full.tick(pad(5), pad(5));
+        check(std::ranges::all_of(full.state().p, [](const ProjectileState& p) { return p.from == 1; }), "the pool as it was");
+    });
+
     s.test("P-1 posture: a block costs the move's posture; full, a guard break; its first follow-up resets it, steadies and scales from 80%", [] {
         FighterDef small = body();
         small.posture_max = 300;
@@ -882,7 +1107,7 @@ int main(int argc, char** argv) {
         }
     });
 
-    s.test("all of it rolled back: 5,000 frames of motions, dashes, supers, juggles, throws, clashes, deflects, guard breaks and a cinematic, every rollback the bytes of a straight run; the hash pinned", [] {
+    s.test("all of it rolled back: 5,000 frames of motions, dashes, supers, juggles, throws, clashes, deflects, guard breaks, a cinematic and panes, every rollback the bytes of a straight run; the hash pinned", [] {
         // Inputs a player could give this fighter: held directions, presses, and now and then a whole motion.
         struct Rng {
             std::uint64_t s;
@@ -912,6 +1137,10 @@ int main(int argc, char** argv) {
                     case 5: out.push_back(pad(held, static_cast<std::uint16_t>(LP | LK))); break;
                     case 6: out.push_back(pad(2, HP)); break;
                     case 7: out.push_back(pad(8, LK)); break;
+                    case 8: for (Pad p : {pad(2), pad(3), pad(6, LK)}) out.push_back(p); break;  // a pane (G-15)
+                    case 9: for (Pad p : {pad(2), pad(1), pad(4, LK)}) out.push_back(p); break;  // shattered
+                    case 10: for (Pad p : {pad(2), pad(5), pad(2, LK)}) out.push_back(p); break;  // a step to it
+                    case 11: for (Pad p : {pad(2), pad(5), pad(2, LP)}) out.push_back(p); break;  // the gallery
                     default: {
                         constexpr std::array<int, 10> press{5, 6, 6, 6, 3, 3, 1, 9, 6, 2};  // mostly forward: they meet
                         constexpr std::array<int, 10> guard{4, 4, 4, 1, 1, 4, 6, 5, 1, 4};
@@ -934,12 +1163,19 @@ int main(int argc, char** argv) {
         // First, scripted: a pressure string into a held guard until it breaks;
         // two 5HPs meeting; 5HPs met by timed back taps; a launcher and its
         // follow-ups into an air reset. Then the random rest.
-        for (int g = 0; g < 1800; ++g) {
+        for (int g = 0; g < 2000; ++g) {
             Pad pa = pad(6), pb = pad(5);
-            // The level 3 first, while they stand close; then the rest.
+            // The level 3 first, while they stand close; then the rest; last,
+            // the right one's gallery, and a glyph thrown into it.
             if (g < 200) {
                 a[static_cast<std::size_t>(g)] = g < 6 ? std::array{pad(2), pad(3), pad(6), pad(2), pad(3), pad(6, LK)}[static_cast<std::size_t>(g)] : pad(5);
                 b[static_cast<std::size_t>(g)] = pad(5);
+                continue;
+            }
+            if (g >= 1800) {
+                const int k = g - 1800;
+                b[static_cast<std::size_t>(g)] = k >= 40 && k < 43 ? std::array{pad(2), pad(5), pad(2, LP)}[static_cast<std::size_t>(k - 40)] : pad(5);
+                a[static_cast<std::size_t>(g)] = k < 120 ? pad(4) : k >= 130 && k < 133 ? std::array{pad(2), pad(3), pad(6, LP)}[static_cast<std::size_t>(k - 130)] : pad(5);
                 continue;
             }
             const int f = g - 200;
@@ -965,6 +1201,7 @@ int main(int argc, char** argv) {
         std::array<int, 8> seen{};
         std::array<int, 4> events{};  // clashes, deflects, guard breaks, hits
         int blocks = 0, cinematics = 0;
+        std::array<int, 4> panes{};  // placed, stopped or struck, turned back, shattered
         int most_posture = 0;
         for (int i = 0; i < frames; ++i) {
             straight.tick(a[static_cast<std::size_t>(i)], b[static_cast<std::size_t>(i)]);
@@ -986,6 +1223,10 @@ int main(int argc, char** argv) {
                 if (e.kind == Event::Kind::hit || e.kind == Event::Kind::counter) ++events[3];
                 if (e.kind == Event::Kind::block) ++blocks;
                 if (e.kind == Event::Kind::cinematic) ++cinematics;
+                if (e.kind == Event::Kind::piece) ++panes[0];
+                if (e.kind == Event::Kind::piece_hit) ++panes[1];
+                if (e.kind == Event::Kind::reflect) ++panes[2];
+                if (e.kind == Event::Kind::shatter) ++panes[3];
             }
         }
         Match rolled(rules(), t, t);
@@ -1010,8 +1251,10 @@ int main(int argc, char** argv) {
               std::format("resets {}, thrown {}, dashes {}, supers {}, flashes {}, projectiles {}", seen[0], seen[1], seen[2], seen[3], seen[4], seen[5]));
         std::println("    rules run: clashes {}, deflects {}, guard breaks {}, hits {}, blocks {} (posture up to {}); resets {}", events[0], events[1], events[2], events[3], blocks,
                      most_posture, seen[0]);
+        std::println("    panes: placed {}, stopped or struck {}, turned back {}, shattered {}", panes[0], panes[1], panes[2], panes[3]);
+        check(panes[0] > 0 && panes[1] > 0 && panes[2] > 0 && panes[3] > 0, "panes placed, struck, turning back, shattered");
         std::println("    rules run hash {:016x}", hashes.back());
-        check(hashes.back() == 0x387534c7595d8ff9ULL, std::format("run hash {:016x}", hashes.back()));  // GCC, LLVM and wasm
+        check(hashes.back() == 0x3bca0667a5ed4cb8ULL, std::format("run hash {:016x}", hashes.back()));  // GCC, LLVM and wasm
     });
 
     return s.run(argc, argv);

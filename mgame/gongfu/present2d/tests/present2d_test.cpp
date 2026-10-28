@@ -421,6 +421,35 @@ spark = { style = "rays", colour = "#ffd166" }
         }
     });
 
+    s.test("set pieces (G-15) drawn: a whole pane, a cracked one, one that turns projectiles back — the owner's glass; pinned", [&] {
+        Match m = close_match();
+        State st = m.state();
+        const Fixed mid = m.system().stage_width / 2;
+        st.pieces[0] = {1, 0, {mid - 150_fx, 0_fx}, 2, 300, 0, -1, 0, 0, 0};
+        st.pieces[1] = {1, 0, {mid + 150_fx, 0_fx}, 1, 300, 0, -1, 0, 0, 0};
+        st.pieces[2] = {1, 1, {mid + 260_fx, 0_fx}, 2, 300, 1, -1, 0, 0, 0};
+        st.frame = 40;
+        m.restore(st);
+        p2::Look glassy = ink;
+        glassy.pane.glass = Color::hex(0x9fd8ff, 0.3f);
+        p2::Effects fx;
+        omui::render::DisplayList dl;
+        p2::draw(m, glassy, paper, fx, {}, dl);
+        omui::raster::Surface px(960, 540);
+        omui::render::CpuRenderer{}.render(dl, px, {}, {.scale = 1});
+        save(px, "panes");
+        Hash h;
+        h.u64(dl.hash());
+        std::println("    panes {}", h.hex());
+        check_eq(h.hex(), std::string("62e5a7979533bae1"));
+        // A pane's colours read back from a look file.
+        auto look = p2::read_look("pane = { glass = \"#9fd8ff4c\", edge = \"#ffffffcc\", shine = \"#ffffff80\", reflect = \"#ffd36be6\" }\n" +
+                                      read(here() / "data" / "kata.look.gongfu.toml"),
+                                  "kata.look.gongfu.toml");
+        check(look && look->pane.reflect == Color::parse("#ffd36be6") && p2::read_look(p2::write_look(*look), "w.look.gongfu.toml")->pane.glass == look->pane.glass,
+              "the pane's colours, written back");
+    });
+
     s.test("each spark style and flash draws its own picture, pinned", [&] {
         std::vector<std::uint64_t> lists;
         Hash all;

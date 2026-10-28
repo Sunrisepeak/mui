@@ -16,9 +16,11 @@ constexpr std::array<std::string_view, 10> fighter_keys{"gongfu", "name", "healt
 constexpr std::array<std::string_view, 2> walk_keys{"forward", "back"};
 constexpr std::array<std::string_view, 5> jump_keys{"prejump", "up", "forward", "gravity", "landing"};
 constexpr std::array<std::string_view, 3> hurt_keys{"standing", "crouching", "air"};
-constexpr std::array<std::string_view, 23> move_keys{"name", "input", "stance", "total", "priority", "hit", "cancel", "invulnerable",
+constexpr std::array<std::string_view, 25> move_keys{"name", "input", "stance", "total", "priority", "hit", "cancel", "invulnerable",
                                                      "hurt", "step", "throw", "projectile", "meter", "freeze", "level", "weight", "posture", "clash",
-                                                     "clash_cancel", "cinematic", "pass", "armor", "doc"};
+                                                     "clash_cancel", "cinematic", "pass", "armor", "piece", "needs_piece", "doc"};
+constexpr std::array<std::string_view, 10> piece_keys{"act", "frame", "at", "at_opponent", "life", "durability", "limit", "reflects", "shard", "shards"};
+constexpr std::array<std::string_view, 3> piece_acts{"place", "shatter", "warp"};
 constexpr std::array<std::string_view, 2> armor_keys{"frames", "hits"};
 constexpr std::array<std::string_view, 6> cinematic_keys{"frames", "hits", "attacker", "defender", "down", "recovery"};
 constexpr std::array<std::string_view, 15> hit_keys{"active", "boxes", "damage", "chip", "hitstun", "blockstun", "hitstop", "pushback",
@@ -30,7 +32,8 @@ constexpr std::array<std::string_view, 2> move_hurt_keys{"frames", "boxes"};
 constexpr std::array<std::string_view, 3> cancel_keys{"frames", "into", "on_contact"};
 constexpr std::array<std::string_view, 2> step_keys{"frame", "velocity"};
 constexpr std::array<std::string_view, 6> throw_keys{"active", "range", "damage", "tech", "swap", "air"};
-constexpr std::array<std::string_view, 10> projectile_keys{"spawn", "offset", "speed", "velocity", "life", "hit", "hits", "interval", "strength", "limit"};
+constexpr std::array<std::string_view, 11> projectile_keys{"spawn", "offset", "speed", "velocity", "life", "hit", "hits", "interval", "strength", "limit",
+                                                          "reflectable"};
 constexpr std::array<std::string_view, 2> meter_keys{"cost", "gain"};
 constexpr std::array<std::string_view, 3> input_keys{"notation", "window", "buffer"};
 constexpr std::array<std::string_view, 15> system_keys{"gongfu", "scaling", "counter", "round", "stage", "meter", "knockdown", "wakeup",
@@ -274,7 +277,9 @@ struct Reader {
             } else {
                 note = text(in, "`input`");
             }
-            if (note) {
+            if (note && *note == "none") {
+                m.asked = false;  // no input asks for it: a shard, started by a piece
+            } else if (note) {
                 if (auto c = parse_command(*note)) {
                     m.command = *c;
                     if (it) {
@@ -408,6 +413,7 @@ struct Reader {
             if (auto v = integer(pt->get("interval"), "a projectile's `interval`", 0, 600)) pd.interval = *v;
             if (auto v = integer(pt->get("strength"), "a projectile's `strength`", 1, 100)) pd.strength = *v;
             if (auto v = integer(pt->get("limit"), "a projectile's `limit`", 0, 8)) pd.limit = *v;
+            if (auto v = boolean(pt->get("reflectable"), "a projectile's `reflectable`")) pd.reflectable = *v;
             if (const toml::table* h = table(pt->get("hit"), "a projectile's `hit`")) pd.hit = hit(*h, at + ".projectile.hit");
             else if (!pt->get("hit")) error(pt, "a projectile has no `hit`", "[move.projectile.hit] active = [1, 120] …");
             m.projectile = std::move(pd);
@@ -434,6 +440,36 @@ struct Reader {
             m.armor = a;
             mark(at + ".armor", ar);
         }
+        // Set pieces (G-15): [[move.piece]] act = "place" | "shatter" | "warp", on a frame.
+        each_table(t.get("piece"), "piece", "[[move.piece]] act = \"place\", frame = 14, at = [120], shard = \"shard\"", [&](const toml::table& pt, std::size_t i) {
+            only(pt, piece_keys, "a piece");
+            const std::string where = std::format("{}.pieces[{}]", at, i);
+            for (const char* suffix : {"", ".frame", ".at", ".shard"}) mark(where + suffix, &pt);
+            PieceDef pd;
+            if (auto a = text(pt.get("act"), "a piece's `act`")) {
+                const auto k = std::ranges::find(piece_acts, *a);
+                if (k == piece_acts.end()) error(pt.get("act"), std::format("`{}` is not what a move does to a piece", *a), nearest(*a, piece_acts));
+                else pd.act = static_cast<PieceAct>(k - piece_acts.begin());
+            }
+            if (auto v = integer(pt.get("frame"), "a piece's `frame`", 1, 600)) pd.frame = *v;
+            if (const toml::node* n = pt.get("at")) {
+                if (const toml::array* a = n->as_array()) {
+                    for (const toml::node& d : *a)
+                        if (auto v = number(&d, "a place in front")) pd.at.push_back(*v);
+                } else {
+                    error(n, "a piece's `at` is a list of distances in front", "at = [120]");
+                }
+            }
+            if (auto v = boolean(pt.get("at_opponent"), "a piece's `at_opponent`")) pd.at_opponent = *v;
+            if (auto v = integer(pt.get("life"), "a piece's `life`", 1, 6000)) pd.life = *v;
+            if (auto v = integer(pt.get("durability"), "a piece's `durability`", 1, 100)) pd.durability = *v;
+            if (auto v = integer(pt.get("limit"), "a piece's `limit`", 1, 3)) pd.limit = *v;
+            if (auto v = integer(pt.get("reflects"), "a piece's `reflects`", 0, 10)) pd.reflects = *v;
+            if (auto v = text(pt.get("shard"), "a piece's `shard` (a move)")) pd.shard = *v;
+            if (auto v = integer(pt.get("shards"), "a piece's `shards`", 0, 4)) pd.shards = *v;
+            m.pieces.push_back(std::move(pd));
+        });
+        if (auto v = boolean(t.get("needs_piece"), "`needs_piece`")) m.needs_piece = *v;
         // A level 3's cinematic: [move.cinematic] frames, hits = [[frame, damage, "impact"], …], where each ends, down, recovery.
         if (const toml::table* ct = table(t.get("cinematic"), "`cinematic`")) {
             only(*ct, cinematic_keys, "a cinematic");

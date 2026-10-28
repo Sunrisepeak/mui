@@ -73,8 +73,14 @@ std::expected<Command, std::string> parse_command(std::string_view s) {
         if (d == '5') return fail("5 is neutral: write the button alone");
         c.direction = static_cast<std::uint8_t>(d - '0');
     } else if (digits.size() > 1) {
-        if (digits.size() > c.motion.steps.size()) return fail(std::format("a motion of at most {} directions", c.motion.steps.size()));
-        for (char d : digits) c.motion.steps[c.motion.length++] = static_cast<std::uint8_t>(d - '0');
+        // A direction twice in a row is tapped twice (22K): neutral between.
+        std::size_t steps = digits.size();
+        for (std::size_t k = 1; k < digits.size(); ++k) steps += digits[k] == digits[k - 1];
+        if (steps > c.motion.steps.size()) return fail(std::format("a motion of at most {} directions", c.motion.steps.size()));
+        for (std::size_t k = 0; k < digits.size(); ++k) {
+            if (k > 0 && digits[k] == digits[k - 1]) c.motion.steps[c.motion.length++] = 5;
+            c.motion.steps[c.motion.length++] = static_cast<std::uint8_t>(digits[k] - '0');
+        }
         c.motion.window = static_cast<std::uint8_t>(default_window(digits.size()));
     }
     // Buttons: one, or several together (+); none for a dash (66, 44): a
@@ -118,7 +124,9 @@ std::string notation(const Command& c) {
     if (c.buttons == 0 && c.motion.length == 3 && c.motion.steps[1] == 5 && c.motion.steps[0] == c.motion.steps[2])
         return std::string(2, static_cast<char>('0' + c.motion.steps[0]));
     if (c.motion.rotation > 0) out += c.motion.rotation == 1 ? "360" : "720";
-    for (std::size_t k = 0; k < c.motion.length; ++k) out += static_cast<char>('0' + c.motion.steps[k]);
+    for (std::size_t k = 0; k < c.motion.length; ++k)
+        if (!(c.motion.steps[k] == 5 && k > 0 && k + 1 < c.motion.length && c.motion.steps[k - 1] == c.motion.steps[k + 1]))  // a tap twice: 22
+            out += static_cast<char>('0' + c.motion.steps[k]);
     if (c.direction != 0) out += static_cast<char>('0' + c.direction);
     std::string buttons;
     auto add = [&](std::string_view name) { buttons += std::format("{}{}", buttons.empty() ? "" : "+", name); };

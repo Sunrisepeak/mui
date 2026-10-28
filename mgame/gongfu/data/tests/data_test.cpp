@@ -34,7 +34,7 @@ int main(int argc, char** argv) {
     Suite s{"gongfu.data"};
 
     s.test("numpad notation: read and written back", [] {
-        for (const char* n : {"LP", "2LK", "6HP", "236P", "623K", "63214HP", "[4]6P", "[2]8K", "[4:60]6HP", "LP+LK", "214MK", "K", "66", "44", "4LP+LK", "236236P"}) {
+        for (const char* n : {"LP", "2LK", "6HP", "236P", "623K", "63214HP", "[4]6P", "[2]8K", "[4:60]6HP", "LP+LK", "214MK", "K", "66", "44", "4LP+LK", "236236P", "22K", "214214P"}) {
             auto c = data::parse_command(n);
             check(c.has_value(), c ? std::string(n) : c.error());
             if (c) check_eq(data::notation(*c), std::string(n));
@@ -53,6 +53,8 @@ int main(int argc, char** argv) {
         check_eq(bad("236"), std::string("`236`: no button (only a dash, 66 or 44, has none)"));
         auto dash = *data::parse_command("66");
         check(dash.buttons == 0 && dash.motion.length == 3 && dash.motion.steps[1] == 5, "66: forward, neutral, forward");
+        auto tap = *data::parse_command("22K");
+        check(tap.motion.length == 3 && tap.motion.steps[0] == 2 && tap.motion.steps[1] == 5 && tap.motion.steps[2] == 2, "22K: down tapped twice, not held");
     });
 
     s.test("system 0.2 in a file: hitstop by side, invulnerability by kind, a move's hurtboxes, projectiles that fall and hit again, back throws", [] {
@@ -220,6 +222,97 @@ invulnerable = [{ frames = [1, 7], to = ["airr"] }]
                 if (e.kind == Event::Kind::hit) damage.push_back(e.damage);
         }
         check(damage == std::vector<std::int32_t>{300, 600}, std::format("{}", damage));
+    });
+
+    s.test("set pieces in a file (G-15): placed, shattered, warped to; a shard no input asks for; a projectile that is not turned back; the problems", [] {
+        const std::string head = R"(gongfu = "0.1"
+name = "Glass"
+jump = { prejump = 4, up = 20, forward = 5, gravity = 1, landing = 3 }
+push = [-30, 0, 60, 160]
+hurt = { standing = [-35, 0, 70, 180], crouching = [-35, 0, 70, 110], air = [-30, 40, 60, 130] }
+
+[[move]]
+name = "shard"
+input = "none"
+total = 1
+[move.projectile]
+spawn = 1
+offset = [0, 60]
+speed = 9
+life = 80
+reflectable = false
+[move.projectile.hit]
+active = [1, 80]
+boxes = [[-15, -10, 30, 20]]
+damage = 200
+hitstun = 18
+blockstun = 14
+)";
+        const std::string text = head + R"(
+[[move]]
+name = "236K"
+input = "236K"
+total = 34
+[[move.piece]]
+act = "place"
+frame = 14
+at = [120, 220]
+life = 480
+durability = 2
+limit = 2
+reflects = 1
+shard = "shard"
+shards = 3
+
+[[move]]
+name = "214K"
+input = "214K"
+total = 28
+[[move.piece]]
+act = "shatter"
+frame = 8
+
+[[move]]
+name = "22K"
+input = "22K"
+total = 30
+needs_piece = true
+[[move.piece]]
+act = "warp"
+frame = 12
+)";
+        auto f = data::read_fighter(text, "glass.fighter.gongfu.toml");
+        check(f.has_value(), f ? "" : std::format("{}", texts(f.error())));
+        if (!f) return;
+        const MoveDef& shard = f->def.moves[static_cast<std::size_t>(f->find("shard"))];
+        check(!shard.asked && shard.projectile && shard.projectile->reflectable == false, "a shard: asked by no input, not turned back");
+        const MoveDef& place = f->def.moves[static_cast<std::size_t>(f->find("236K"))];
+        check(place.pieces.size() == 1 && place.pieces[0].at.size() == 2 && place.pieces[0].reflects == 1 && place.pieces[0].shard_move == f->find("shard"),
+              "placed: two, turning one back, shattering into the shard");
+        const MoveDef& warp = f->def.moves[static_cast<std::size_t>(f->find("22K"))];
+        check(warp.needs_piece && warp.pieces[0].act == PieceAct::warp && f->def.moves[static_cast<std::size_t>(f->find("214K"))].pieces[0].act == PieceAct::shatter);
+        // An act that is none, and a shard that is no move.
+        const std::string wrong = head + R"(
+[[move]]
+name = "236K"
+input = "236K"
+total = 34
+[[move.piece]]
+act = "plaec"
+frame = 14
+at = [120]
+shard = "shrad"
+)";
+        auto bad = data::read_fighter(wrong, "wrong.fighter.gongfu.toml");
+        check(!bad.has_value());
+        if (!bad) {
+            const auto t = texts(bad.error());
+            check(contains(t, "wrong.fighter.gongfu.toml:29:7: `plaec` is not what a move does to a piece (did you mean `place`?)"), std::format("{}", t));
+        }
+        auto unknown = data::read_fighter(head + "\n[[move]]\nname = \"236K\"\ninput = \"236K\"\ntotal = 34\n[[move.piece]]\nframe = 14\nat = [120]\nshard = \"shrad\"\n",
+                                          "unknown.fighter.gongfu.toml");
+        check(!unknown && std::ranges::any_of(texts(unknown.error()), [](const std::string& e) { return e.find("`shrad` is a move with a projectile") != std::string::npos; }),
+              unknown ? "read" : std::format("{}", texts(unknown.error())));
     });
 
     s.test("problems at their line and column: the format's, with the nearest key, and the compiler's", [] {

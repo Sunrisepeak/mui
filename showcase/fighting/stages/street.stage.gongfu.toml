@@ -1,0 +1,179 @@
+# 霓's street (the fighting game quality design §5): a rainy night in a neon
+# district — a far skyline of lit windows, shopfronts whose signs hum and
+# flicker in magenta and cyan, a street lamp's cone, rain falling in front and
+# behind, and the wet road giving the signs back as long trembling streaks.
+# The light comes from the signs, upper right: a cyan rim on whoever stands here.
+gongfu = "0.1"
+name = "street"
+sky = ["#07081a", "#1d1236"]
+floor = "#0d0f20"
+line = "#2a2f55"
+marks = false
+light = { from = [0.55, -0.83], shadow = "#030208", rim_color = "#3ef2ffbb" }
+
+# The skyline, far and still but for its windows.
+[[layer]]
+name = "skyline"
+parallax = 0.12
+repeat = 1400
+[[layer.shape]]
+points = [[0, 0], [0, 520], [140, 520], [140, 600], [260, 600], [260, 470], [380, 470], [380, 660], [470, 660], [470, 540], [620, 540], [620, 720], [700, 720], [700, 500], [860, 500], [860, 610], [1000, 610], [1000, 450], [1150, 450], [1150, 640], [1260, 640], [1260, 520], [1400, 520], [1400, 0]]
+color = "#11122a"
+[[layer.shape]]
+points = [[40, 400], [56, 400], [56, 420], [40, 420]]
+color = "#ffd27a"
+flicker = 0.3
+[[layer.shape]]
+points = [[300, 380], [316, 380], [316, 400], [300, 400]]
+color = "#7af0ff"
+[[layer.shape]]
+points = [[420, 560], [436, 560], [436, 580], [420, 580]]
+color = "#ffd27a"
+[[layer.shape]]
+points = [[650, 600], [666, 600], [666, 620], [650, 620]]
+color = "#ff7ad1"
+flicker = 0.5
+[[layer.shape]]
+points = [[900, 520], [916, 520], [916, 540], [900, 540]]
+color = "#ffd27a"
+[[layer.shape]]
+points = [[1060, 380], [1076, 380], [1076, 400], [1060, 400]]
+color = "#7af0ff"
+flicker = 0.2
+[[layer.shape]]
+points = [[1200, 560], [1216, 560], [1216, 580], [1200, 580]]
+color = "#ffd27a"
+
+# Rain far behind: thin, slow, many.
+[[layer]]
+name = "far rain"
+parallax = 0.3
+[[layer.rain]]
+seed = 3
+count = 140
+span = [-400, 2320]
+height = [0, 760]
+length = 18
+speed = 700
+slant = 0.1
+color = "#8fb3ff40"
+
+# Shopfronts and their signs, and the road giving them back.
+[[layer]]
+name = "shops"
+parallax = 0.5
+[[layer.shape]]
+points = [[-500, 0], [2420, 0], [2420, 300], [-500, 300]]
+color = "#161733"
+color2 = "#0f1026"
+[[layer.shape]]
+points = [[560, 0], [980, 0], [980, 180], [560, 180]]
+color = "#1c1e3e"
+[[layer.shape]]
+points = [[590, 20], [950, 20], [950, 150], [590, 150]]
+color = "#2c1f4a"
+color2 = "#1b1636"
+[[layer.shape]]
+points = [[620, 214], [930, 214], [930, 262], [620, 262]]
+color = "#ff3ea5"
+glow = 14
+flicker = 0.15
+[[layer.shape]]
+points = [[636, 226], [914, 226], [914, 250], [636, 250]]
+color = "#1a0b16"
+[[layer.shape]]
+points = [[656, 232], [692, 232], [692, 244], [656, 244]]
+color = "#ff7ad1"
+[[layer.shape]]
+points = [[708, 232], [790, 232], [790, 244], [708, 244]]
+color = "#ff7ad1"
+[[layer.shape]]
+points = [[806, 232], [896, 232], [896, 244], [806, 244]]
+color = "#ff7ad1"
+[[layer.shape]]
+points = [[620, -6], [930, -6], [930, -150], [620, -150]]
+color = "#ff3ea518"
+color2 = "#ff3ea500"
+[[layer.shape]]
+points = [[1000, 0], [1440, 0], [1440, 200], [1000, 200]]
+color = "#1c1e3e"
+[[layer.shape]]
+points = [[1030, 20], [1410, 20], [1410, 170], [1030, 170]]
+color = "#13304a"
+color2 = "#101b33"
+[[layer.shape]]
+points = [[1280, 210], [1320, 210], [1320, 420], [1280, 420]]
+color = "#3ef2ff"
+glow = 12
+flicker = 0.25
+[[layer.shape]]
+points = [[1288, 222], [1312, 222], [1312, 260], [1288, 260]]
+color = "#06202a"
+[[layer.shape]]
+points = [[1288, 280], [1312, 280], [1312, 318], [1288, 318]]
+color = "#06202a"
+[[layer.shape]]
+points = [[1288, 338], [1312, 338], [1312, 400], [1288, 400]]
+color = "#06202a"
+[[layer.shape]]
+points = [[1280, -6], [1320, -6], [1320, -170], [1280, -170]]
+color = "#3ef2ff20"
+color2 = "#3ef2ff00"
+[[layer.shape]]
+points = [[1050, 214], [1240, 214], [1240, 250], [1050, 250]]
+color = "#ffb13e"
+glow = 10
+[[layer.shape]]
+points = [[1050, -6], [1240, -6], [1240, -90], [1050, -90]]
+color = "#ffb13e14"
+color2 = "#ffb13e00"
+
+# A street lamp and its cone of light.
+[[layer]]
+name = "lamp"
+parallax = 0.75
+[[layer.shape]]
+points = [[760, 0], [772, 0], [772, 420], [760, 420]]
+color = "#22243f"
+[[layer.shape]]
+points = [[760, 410], [820, 418], [820, 428], [760, 424]]
+color = "#22243f"
+[[layer.shape]]
+points = [[806, 412], [838, 412], [838, 418], [806, 418]]
+color = "#fff1c2"
+glow = 16
+flicker = 0.08
+[[layer.shape]]
+points = [[810, 412], [836, 412], [950, 0], [700, 0]]
+color = "#fff1c218"
+color2 = "#fff1c204"
+
+# Puddles on the road, trembling.
+[[layer]]
+name = "puddles"
+parallax = 1
+[[layer.shape]]
+shape = "curve"
+points = [[620, -30], [840, -26], [920, -44], [740, -58], [580, -50]]
+color = "#3ef2ff14"
+flicker = 0.5
+[[layer.shape]]
+shape = "curve"
+points = [[1060, -20], [1280, -18], [1360, -34], [1160, -46], [1010, -36]]
+color = "#ff3ea514"
+flicker = 0.5
+
+# Rain in front: fewer, longer, faster.
+[[layer]]
+name = "near rain"
+parallax = 1.3
+front = true
+[[layer.rain]]
+seed = 9
+count = 60
+span = [-500, 2420]
+height = [-100, 700]
+length = 40
+speed = 1300
+slant = 0.14
+color = "#cfe0ff38"

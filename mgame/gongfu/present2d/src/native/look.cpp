@@ -1029,8 +1029,9 @@ namespace {
 
 constexpr std::array<std::string_view, 8> stage_keys{"gongfu", "name", "sky", "floor", "line", "marks", "light", "layer"};
 constexpr std::array<std::string_view, 3> stage_light_keys{"from", "shadow", "rim_color"};
-constexpr std::array<std::string_view, 10> layer_keys{"name", "parallax", "repeat", "opacity", "front", "clip", "shape", "bamboo", "lattice", "planks"};
-constexpr std::array<std::string_view, 6> stage_shape_keys{"shape", "points", "color", "color2", "sway", "flicker"};
+constexpr std::array<std::string_view, 11> layer_keys{"name", "parallax", "repeat", "opacity", "front", "clip", "shape", "bamboo", "lattice", "planks", "rain"};
+constexpr std::array<std::string_view, 9> stage_shape_keys{"shape", "points", "color", "color2", "sway", "flicker", "drift", "wrap", "glow"};
+constexpr std::array<std::string_view, 8> rain_keys{"seed", "count", "span", "height", "length", "speed", "slant", "color"};
 constexpr std::array<std::string_view, 4> sway_keys{"degrees", "period", "phase", "pivot"};
 constexpr std::array<std::string_view, 8> bamboo_keys{"seed", "count", "span", "height", "width", "color", "leaves", "sway"};
 constexpr std::array<std::string_view, 6> lattice_keys{"at", "size", "cells", "bar", "color", "paper"};
@@ -1114,6 +1115,26 @@ void planks(StageLayer& layer, std::uint64_t seed, std::array<double, 2> span, f
         const float offset = static_cast<float>(d.between(0, length));
         for (float x = static_cast<float>(span[0]) + offset; x < span[1]; x += length * static_cast<float>(d.between(0.8, 1.2)))
             layer.shapes.push_back(quad(x - 1, y, x + 1, y + depth / rows, seam));
+    }
+}
+
+// Rain: thin streaks spread over the span and the heights, each falling (and
+// slanting) at about `speed` units a second, wrapping round the height's range.
+void rain(StageLayer& layer, std::uint64_t seed, int count, std::array<double, 2> span, std::array<double, 2> height, float length, float speed, float slant,
+          Color colour) {
+    Draws d{seed};
+    const float range = static_cast<float>(height[1] - height[0]);
+    for (int i = 0; i < count; ++i) {
+        const float x = static_cast<float>(d.between(span[0], span[1])), y = static_cast<float>(d.between(height[0], height[1]));
+        const float v = speed * static_cast<float>(d.between(0.85, 1.15)), l = length * static_cast<float>(d.between(0.7, 1.3));
+        StageShape st;
+        // Drawn above the top of its range so that, falling `range` and wrapping, it covers the range whatever the frame.
+        const float top = y + range;
+        st.points = {{x, top}, {x + 1.2f, top}, {x + 1.2f - slant * l, top - l}, {x - slant * l, top - l}};
+        st.color = colour;
+        st.drift = {-slant * v, -v};
+        st.wrap = range;
+        layer.shapes.push_back(std::move(st));
     }
 }
 
@@ -1204,6 +1225,9 @@ std::expected<Stage, std::vector<Diagnostic>> read_stage(std::string_view source
                 if (auto xy = r.pair(w->get("pivot"), "a sway's `pivot`", "pivot = [0, 0]")) sh.pivot = {static_cast<float>((*xy)[0]), static_cast<float>((*xy)[1])};
             }
             if (auto v = r.number(u.get("flicker"), "a shape's `flicker`", 0, 1)) sh.flicker = static_cast<float>(*v);
+            if (auto xy = r.pair(u.get("drift"), "a shape's `drift`", "drift = [0, -900]: units a second")) sh.drift = {static_cast<float>((*xy)[0]), static_cast<float>((*xy)[1])};
+            if (auto v = r.number(u.get("wrap"), "a shape's `wrap`", 0, 100000)) sh.wrap = static_cast<float>(*v);
+            if (auto v = r.number(u.get("glow"), "a shape's `glow`", 0, 200)) sh.glow = static_cast<float>(*v);
             layer.shapes.push_back(std::move(sh));
         });
         r.tables(t.get("bamboo"), "layer.bamboo", "[[layer.bamboo]] seed = 7 count = 9 span = [-600, 600] height = [380, 520]", [&](const toml::table& u) {
@@ -1239,6 +1263,18 @@ std::expected<Stage, std::vector<Diagnostic>> read_stage(std::string_view source
             const auto seed = r.integer(u.get("seed"), "planks' `seed`", 0, std::numeric_limits<std::int32_t>::max()).value_or(1);
             planks(layer, static_cast<std::uint64_t>(seed), span, depth, rows, length, seam);
         });
+        r.tables(t.get("rain"), "layer.rain", "[[layer.rain]] seed = 3 count = 120 span = [-300, 2220] height = [0, 700] speed = 900", [&](const toml::table& u) {
+            r.only(u, rain_keys, "rain");
+            const auto seed = r.integer(u.get("seed"), "rain's `seed`", 0, std::numeric_limits<std::int32_t>::max()).value_or(1);
+            const auto count = r.integer(u.get("count"), "rain's `count`", 1, 2000).value_or(100);
+            const auto span = r.pair(u.get("span"), "rain's `span`", "span = [-300, 2220]").value_or(std::array<double, 2>{0, 1920});
+            const auto height = r.pair(u.get("height"), "rain's `height`", "height = [0, 700]").value_or(std::array<double, 2>{0, 700});
+            const float length = static_cast<float>(r.number(u.get("length"), "rain's `length`", 1, 500).value_or(26));
+            const float speed = static_cast<float>(r.number(u.get("speed"), "rain's `speed`", 1, 10000).value_or(900));
+            const float slant = static_cast<float>(r.number(u.get("slant"), "rain's `slant`", -2, 2).value_or(0.12));
+            const Color colour = r.colour(u.get("color"), "rain's `color`").value_or(Color::hex(0xbfd8ff, 0.35f));
+            rain(layer, static_cast<std::uint64_t>(seed), count, span, height, length, speed, slant, colour);
+        });
         st.layers.push_back(std::move(layer));
     });
     if (!out.empty()) return std::unexpected(std::move(out));
@@ -1271,6 +1307,9 @@ std::string write_stage(const Stage& st) {
             if (sh.sway > 0)
                 s += std::format("sway = {{ degrees = {}, period = {}, phase = {}, pivot = [{}, {}] }}\n", sh.sway, sh.period, sh.phase, sh.pivot.x, sh.pivot.y);
             if (sh.flicker > 0) s += std::format("flicker = {}\n", sh.flicker);
+            if (sh.drift.x != 0 || sh.drift.y != 0) s += std::format("drift = [{}, {}]\n", sh.drift.x, sh.drift.y);
+            if (sh.wrap > 0) s += std::format("wrap = {}\n", sh.wrap);
+            if (sh.glow > 0) s += std::format("glow = {}\n", sh.glow);
         }
     }
     return s;

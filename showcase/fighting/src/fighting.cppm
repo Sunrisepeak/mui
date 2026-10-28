@@ -13,6 +13,7 @@ export import :hud;
 export import :sound;
 export import :fight_sound;
 export import :study_stage;
+export import :street_stage;
 export import :stage;
 
 export namespace omui::fighting {

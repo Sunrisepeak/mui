@@ -754,9 +754,16 @@ void Painter::stage_layers(const Stage& art, bool front, const Scene& scene, con
                 // Its sway at this frame: a turn about its pivot, a pure function of the frame.
                 const double turn = sh.sway > 0 ? sh.sway * dm::pi / 180 * dm::sin(2 * dm::pi * (seconds / sh.period + sh.phase)) : 0.0;
                 const double ca = dm::cos(turn), sa = dm::sin(turn);
+                // Its drift at this frame, wrapping round (rain falls past the bottom and starts again at the top).
+                double mx = sh.drift.x * seconds, my = sh.drift.y * seconds;
+                if (sh.wrap > 0 && (sh.drift.x != 0 || sh.drift.y != 0)) {
+                    const double len = std::sqrt(static_cast<double>(sh.drift.x) * sh.drift.x + static_cast<double>(sh.drift.y) * sh.drift.y);
+                    const double along = std::fmod(len * seconds, static_cast<double>(sh.wrap));
+                    mx = sh.drift.x / len * along, my = sh.drift.y / len * along;
+                }
                 auto placed = [&](Point q) {
                     const double dx = q.x - sh.pivot.x, dy = q.y - sh.pivot.y;
-                    return at(ox + sh.pivot.x + dx * ca - dy * sa, sh.pivot.y + dx * sa + dy * ca);
+                    return at(ox + mx + sh.pivot.x + dx * ca - dy * sa, my + sh.pivot.y + dx * sa + dy * ca);
                 };
                 path_.clear();
                 float top = std::numeric_limits<float>::max(), bottom = std::numeric_limits<float>::lowest();
@@ -777,6 +784,11 @@ void Painter::stage_layers(const Stage& art, bool front, const Scene& scene, con
                 // A flicker: two slow waves out of step, so it never repeats too plainly.
                 double a = layer.opacity * alpha;
                 if (sh.flicker > 0) a *= 1 - sh.flicker * (0.5 + 0.25 * dm::sin(seconds * 7.3 + sh.phase * 11) + 0.25 * dm::sin(seconds * 2.9 + sh.phase * 5));
+                if (sh.glow > 0) {  // a halo: wide, faint strokes in its colour, behind it
+                    for (const float k : {1.0f, 0.5f})
+                        out.stroke_path(path_, {.width = static_cast<float>(sh.glow * zoom * k * 2), .join = render::LineJoin::round},
+                                        render::Paint::solid(fade(sh.color, a * 0.22 / k)));
+                }
                 if (sh.color2.a > 0) {
                     const std::array<render::GradientStop, 2> stops{{{0, fade(sh.color, a)}, {1, fade(sh.color2, a)}}};
                     render::Paint paint;

@@ -371,6 +371,9 @@ struct StageShape {
     float              phase = 0;               // 0–1 of a period
     Point              pivot;
     float              flicker = 0;             // how far its alpha dips (a lantern, a sign)
+    Point              drift;                   // units a second it moves (rain falling, a cloud)
+    float              wrap = 0;                // > 0: its drift wraps round every this many units (along the drift)
+    float              glow = 0;                // > 0: a halo this wide around it in its colour (a neon sign)
 };
 
 // A layer's shapes are placed in the stage's units (x along it, y up from the

@@ -347,6 +347,15 @@ int main(int argc, char** argv) {
         check_eq(px, std::uint64_t{0x5e488f5387e965d5});  // GCC and LLVM
     });
 
+    s.test("霓's home, the street: rain in front and behind, signs humming, the wet road giving them back — pinned", [] {
+        Game g("versus", "ni", "mo");
+        g.h.advance(seconds(1.5));
+        check(g.h.save_png(scratch_dir("fighting-street") / "street.png").has_value());
+        const auto px = g.pixels();
+        std::println("    street {:016x}", px);
+        check_eq(px, std::uint64_t{0x9beef09a494f03e7});  // GCC (LLVM checked with the next full run)
+    });
+
     s.test("the README's loop: 墨's level 3 from the flash to the seal, an animated PNG under 1 MB", [] {
         Game g("training", "mo", "kata", 0.5f);  // 480 × 270: a README's width
         check(g.act("pause"));

@@ -200,6 +200,49 @@ int main(int argc, char** argv) {
         check(piercing, "piercing");
     });
 
+    s.test("rules: a level's, bounded; changed by a step's input from that step on, kept in the state so a rewind brings the old back; a brick's own gift always drops", [] {
+        bo::Level l = wall_of_bricks();
+        l.rules.wide_half = 1000;  // out of bounds: held at the most
+        l.bricks[24].gift = bo::Gift::pierce;  // the lowest row's first
+        bo::State st = bo::start(l);
+        check_eq(st.rules.wide_half, std::int32_t{300});
+        mgame::Timeline<bo::Game> t(st, 30 * bo::steps_per_second, 60);
+        for (int f = 0; f < 200; ++f) t.step({});
+        bo::Input in;
+        in.rules = st.rules;
+        in.rules.multi_balls = 4;
+        in.rules.slow_percent = 25;
+        in.new_rules = 1;
+        t.step(in);
+        check(t.state().rules.multi_balls == 4 && t.state().rules.slow_percent == 25, "from that step");
+        for (int f = 0; f < 100; ++f) t.step({});
+        check(t.seek(150));
+        check_eq(t.state().rules.multi_balls, std::int32_t{2});  // before the change: the old rules
+        check(t.seek(300));
+        check_eq(t.state().rules.multi_balls, std::int32_t{4});  // replayed: the input brought them again, no script ran
+        // Four extra balls a flying ball; the brick with a gift drops it when broken.
+        bo::State m = bo::start(l);
+        m.rules.multi_balls = 4;
+        bo::step(m, {launch(), {}});
+        bo::step(m, {});
+        const mgame::Entity e = m.world.create();
+        m.world.add(e, bo::Capsule{{m.paddles[0].x, m.paddles[0].y - 12}, bo::Gift::multi, 0});
+        bo::step(m, {});
+        check_eq(balls(m), std::int32_t{5});
+        bo::State g = bo::start(l);
+        bool dropped = false;
+        g.world.each<bo::Ball>([](mgame::Entity, bo::Ball& b) {
+            b.on = 0;
+            b.at = {180, 300};
+            b.velocity = {0, -6};
+        });
+        for (int f = 0; f < 60 && !dropped; ++f) {
+            bo::step(g, {});
+            for (std::uint32_t i = 0; i < g.events; ++i) dropped = dropped || (g.event[i].what == bo::Happened::gift && g.event[i].id == static_cast<std::uint32_t>(bo::Gift::pierce));
+        }
+        check(dropped, "its own gift");
+    });
+
     s.test("lives run out with nobody at the paddle; a cleared field ends it", [] {
         bo::State st = bo::start(wall_of_bricks());
         for (int f = 0; f < 5000 && !st.over; ++f) {
@@ -246,7 +289,7 @@ int main(int argc, char** argv) {
             all = (all ^ bo::checksum(st)) * 0x100000001b3ull;
         }
         std::println("    game {:016x} ({} frames, score {}, over {})", all, frames, st.score, st.over);
-        check_eq(all, std::uint64_t{0xb8159eb49a9454cf});  // GCC, LLVM and wasm
+        check_eq(all, std::uint64_t{0x998a082a06e7bfe8});  // GCC, LLVM and wasm
     });
 
     return s.run(argc, argv);

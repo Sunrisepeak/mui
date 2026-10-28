@@ -40,6 +40,7 @@ struct Brick {
     std::int32_t  durability = 1;
     std::uint32_t id = 0;   // the UI's brick (its node)
     std::uint32_t row = 0;
+    Gift          gift = Gift::none;  // what it always drops, broken (none: now and then, by chance)
 };
 struct Ball {
     mgame::V2     at, velocity;  // velocity: pixels a step
@@ -56,6 +57,24 @@ struct Capsule {
 };
 
 using World = mgame::World<512, Body, Brick, Ball, Capsule>;
+
+// What the gifts do: numbers a level sets, or scripts (level 6) — each
+// bounded, all whole (ticks, pixels, percents, counts), in the state, so a
+// rewind brings back the rules in force then; changed only at a step's start,
+// by the step's input (a replay applies them again without any script).
+struct Rules {
+    std::int32_t wide_steps = 10 * steps_per_second, wide_half = 110;  // a wide paddle: how long, half how wide
+    std::int32_t multi_balls = 2;                                        // a flying ball's extra balls (1 … 4: ±20°, then ±40°)
+    std::int32_t slow_steps = 8 * steps_per_second, slow_percent = 50;  // slow motion: how long, the clock's speed
+    std::int32_t pierce_steps = 5 * steps_per_second;                  // passing through bricks: how long
+    std::int32_t drop_one_in = 6;                                        // a broken brick drops a capsule one time in this many
+    friend constexpr bool operator==(const Rules& a, const Rules& b) noexcept {  // written out (GCC 16)
+        return a.wide_steps == b.wide_steps && a.wide_half == b.wide_half && a.multi_balls == b.multi_balls && a.slow_steps == b.slow_steps &&
+               a.slow_percent == b.slow_percent && a.pierce_steps == b.pierce_steps && a.drop_one_in == b.drop_one_in;
+    }
+};
+// Each within its bounds: wide 1–30 s and 80–300 px half, 1–4 balls, slow 1–20 s at 25–90 %, pierce 1–20 s, one in 2–20.
+[[nodiscard]] Rules bounded(Rules r) noexcept;
 
 struct Paddle {
     double       x = field_w / 2, y = field_h - 30;
@@ -82,6 +101,7 @@ struct State {
     double                 speed = 6.5;  // the balls', pixels a step
     std::uint32_t          events = 0, over = 0;  // over: 1 cleared, 2 out of lives
     std::int64_t           gate_from = 0, gate_to = 0;  // the frames the gates stand open: [from, to)
+    Rules                  rules;                       // what the gifts do now
     double                 height = field_h;  // the field's: taller than a screen, the camera shows part of it
     double                 zoom = 1;          // the camera (level 3): 1 a screen of the field's bottom, less to see more of it
     std::array<Event, 32>  event{};
@@ -94,6 +114,8 @@ static_assert(std::is_trivially_copyable_v<State>, "a state is saved and restore
 inline constexpr int launch_button = 0, look_button = 1;
 struct Input {
     mgame::Actions player{}, second{};
+    Rules          rules{};        // with `new_rules`: from this step on (a script reloaded, level 6)
+    std::uint32_t  new_rules = 0;
 };
 
 struct BrickSpec {
@@ -101,6 +123,7 @@ struct BrickSpec {
     Kind          kind = Kind::button;
     std::int32_t  durability = 1;
     std::uint32_t id = 0, row = 0;
+    Gift          gift = Gift::none;  // what it always drops (none: by chance)
 };
 struct Level {
     std::vector<BrickSpec> bricks;
@@ -110,6 +133,7 @@ struct Level {
     std::uint64_t          seed = 1;
     std::int64_t           gate_from = 0, gate_to = 0;  // its gates open on these frames: [from, to)
     double                 height = field_h;            // taller: the camera zooms out to keep the balls in sight
+    Rules                  rules;                       // what its gifts do
 };
 
 // The camera's zoom at most out: the whole field's height on a screen.

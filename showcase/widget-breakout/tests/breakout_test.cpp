@@ -256,8 +256,8 @@ int main(int argc, char** argv) {
         const auto dir = scratch_dir("breakout-level2");  // to look at
         check(a.h.save_png(dir / std::format("{}.png", sa)).has_value() && b.h.save_png(dir / std::format("{}.png", sb)).has_value());
         std::println("    {} {:016x}, {} {:016x}", sa, pa, sb, pb);
-        check_eq(pa, std::uint64_t{0xfb380264fafce5f5});  // neon, GCC and LLVM
-        check_eq(pb, std::uint64_t{0x80211beef4c381d8});  // liquid
+        check_eq(pa, std::uint64_t{0x92450f9c4873275a});  // neon, GCC and LLVM
+        check_eq(pb, std::uint64_t{0xa041567b43192bcc});  // liquid
         check(!a.act("next") || a.state().over, "next: once over");
     });
 

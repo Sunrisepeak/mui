@@ -15,6 +15,8 @@ using mgame::V2;
 constexpr double sqrt3 = 1.7320508075688772;    // tan 60°: the paddle's steepest bounce
 constexpr double cos20 = 0.93969262078590838;   // a multi-ball's spread
 constexpr double sin20 = 0.34202014332566871;
+constexpr double cos40 = 0.766044443118978;    // and further out (correctly rounded)
+constexpr double sin40 = 0.6427876096865394;
 constexpr double key_speed = 14, pointer_speed = 26;  // a paddle's most a step
 constexpr double paddle_h = 16;
 constexpr int    most_hits = 8;                  // collisions a ball meets in one step
@@ -54,33 +56,35 @@ void move_paddle(Paddle& p, const mgame::Actions& a, double half) {
     p.moved = p.x - was;
 }
 
-// The gift a broken brick drops, now and then (the state's own generator).
-void drop(State& s, V2 at) {
+// The gift a broken brick drops: its own, or now and then one by chance (the state's own generator).
+void drop(State& s, V2 at, Gift own) {
     const std::uint64_t r = next(s.rng);
-    if (r % 6 != 0) return;
+    if (own == Gift::none && r % static_cast<std::uint64_t>(s.rules.drop_one_in) != 0) return;
     const mgame::Entity e = s.world.create();
     if (!e.valid()) return;
-    const Gift g = static_cast<Gift>(1 + (r >> 8) % 4);
+    const Gift g = own != Gift::none ? own : static_cast<Gift>(1 + (r >> 8) % 4);
     s.world.add(e, Capsule{at, g, 0});
     happened(s, Happened::gift, static_cast<std::uint32_t>(g), at);
 }
 
 void give(State& s, Gift g) {
     switch (g) {
-        case Gift::wide: s.paddles[0].wide = 10 * steps_per_second; break;
-        case Gift::slow: s.slow = 8 * steps_per_second; break;
-        case Gift::pierce: s.world.each<Ball>([](mgame::Entity, Ball& b) { b.pierce = 5 * steps_per_second; }); break;
+        case Gift::wide: s.paddles[0].wide = s.rules.wide_steps; break;
+        case Gift::slow: s.slow = s.rules.slow_steps; break;
+        case Gift::pierce: s.world.each<Ball>([&](mgame::Entity, Ball& b) { b.pierce = static_cast<std::uint32_t>(s.rules.pierce_steps); }); break;
         case Gift::multi: {
-            // Each flying ball becomes three: itself, and two turned 20° either way.
+            // Each flying ball gains its extra balls: turned 20° one way and the other, then 40°.
+            constexpr std::array<std::array<double, 3>, 4> turns{{{1, cos20, sin20}, {-1, cos20, sin20}, {1, cos40, sin40}, {-1, cos40, sin40}}};
             std::array<Ball, 64> more{};
             std::size_t n = 0;
             s.world.each<Ball>([&](mgame::Entity, Ball& b) {
                 if (b.on != 0) return;
-                for (const double sign : {-1.0, 1.0})
+                for (std::size_t t = 0; t < static_cast<std::size_t>(s.rules.multi_balls); ++t)
                     if (n < more.size()) {
-                        Ball c = b;
-                        c.velocity = {b.velocity.x * cos20 - sign * b.velocity.y * sin20, sign * b.velocity.x * sin20 + b.velocity.y * cos20};
-                        more[n++] = c;
+                        const auto [sign, c, sn] = turns[t];
+                        Ball m = b;
+                        m.velocity = {b.velocity.x * c - sign * b.velocity.y * sn, sign * b.velocity.x * sn + b.velocity.y * c};
+                        more[n++] = m;
                     }
             });
             for (std::size_t i = 0; i < n; ++i)
@@ -153,9 +157,10 @@ void hit_brick(State& s, mgame::Entity e) {
     happened(s, Happened::broke, brick.id, middle);
     s.score += 10 * (1 + s.combo);
     ++s.combo;
+    const Gift gift = brick.gift;
     s.world.destroy(e);
     --s.bricks;
-    drop(s, middle);
+    drop(s, middle, gift);
 }
 
 void fly(State& s, mgame::Entity e) {
@@ -206,6 +211,18 @@ void aim_camera(State& s, bool look) {
 
 }  // namespace
 
+Rules bounded(Rules r) noexcept {
+    constexpr std::int32_t s = steps_per_second;
+    r.wide_steps = std::clamp(r.wide_steps, 1 * s, 30 * s);
+    r.wide_half = std::clamp(r.wide_half, 80, 300);
+    r.multi_balls = std::clamp(r.multi_balls, 1, 4);
+    r.slow_steps = std::clamp(r.slow_steps, 1 * s, 20 * s);
+    r.slow_percent = std::clamp(r.slow_percent, 25, 90);
+    r.pierce_steps = std::clamp(r.pierce_steps, 1 * s, 20 * s);
+    r.drop_one_in = std::clamp(r.drop_one_in, 2, 20);
+    return r;
+}
+
 State start(const Level& level) {
     State s;
     s.rng = level.seed;
@@ -215,13 +232,14 @@ State start(const Level& level) {
     s.paddles[1].y = 30;
     s.height = std::max(level.height, field_h);
     s.paddles[0].y = s.height - 30;
+    s.rules = bounded(level.rules);
     s.gate_from = level.gate_from;
     s.gate_to = level.gate_to;
     for (const BrickSpec& b : level.bricks) {
         const mgame::Entity e = s.world.create();
         if (!e.valid()) break;
         s.world.add(e, Body{b.box});
-        s.world.add(e, Brick{b.kind, b.durability, b.id, b.row});
+        s.world.add(e, Brick{b.kind, b.durability, b.id, b.row, b.gift});
         if (b.kind != Kind::wall && b.kind != Kind::gate) ++s.bricks;
     }
     rest(s, 0);
@@ -233,7 +251,8 @@ void step(State& s, const Input& in) {
     ++s.frame;
     s.events = 0;
     // Paddles first: what this frame's input asks moves them this frame (≤ 1 frame of latency).
-    move_paddle(s.paddles[0], in.player, s.paddles[0].wide > 0 ? 110 : 70);
+    if (in.new_rules) s.rules = bounded(in.rules);  // at the step's start, all at once
+    move_paddle(s.paddles[0], in.player, s.paddles[0].wide > 0 ? s.rules.wide_half : 70);
     if (s.paddles[1].active) move_paddle(s.paddles[1], in.second, 70);
     if (s.paddles[0].wide > 0) --s.paddles[0].wide;
     if (s.slow > 0) --s.slow;
@@ -312,6 +331,8 @@ std::uint64_t checksum(const State& s) noexcept {
     };
     for (const Paddle& p : s.paddles) bytes(p.x), bytes(p.y), bytes(p.half), bytes(p.moved), bytes(p.wide), bytes(p.active);
     bytes(s.rng), bytes(s.frame), bytes(s.score), bytes(s.combo), bytes(s.lives), bytes(s.slow), bytes(s.bricks), bytes(s.speed), bytes(s.over), bytes(s.gate_from), bytes(s.gate_to), bytes(s.height), bytes(s.zoom);
+    const Rules& r = s.rules;
+    bytes(r.wide_steps), bytes(r.wide_half), bytes(r.multi_balls), bytes(r.slow_steps), bytes(r.slow_percent), bytes(r.pierce_steps), bytes(r.drop_one_in);
     bytes(s.events);
     for (std::uint32_t i = 0; i < s.events; ++i) bytes(s.event[i]);
     return h;

@@ -342,7 +342,7 @@ void Field::run(std::int32_t steps) {
     } else {
         for (std::int32_t k = 0; k < steps; ++k) play(input());
     }
-    pacer_.clock().scale = timeline_->state().slow > 0 ? 0.5 : 1.0;  // the slow capsule: the game's clock at half speed
+    pacer_.clock().scale = timeline_->state().slow > 0 ? timeline_->state().rules.slow_percent / 100.0 : 1.0;  // the slow capsule: the game's clock slower
     refresh();
 }
 

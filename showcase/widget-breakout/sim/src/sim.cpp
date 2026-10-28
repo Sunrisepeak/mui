@@ -129,7 +129,9 @@ Contact first_contact(const State& s, const Ball& b, V2 d, double left) {
         if (auto h = mgame::sweep(b.at, b.radius, d - V2{s.paddles[i].moved * left, 0}, from)) meet(*h, [&] { c.paddle = static_cast<std::int32_t>(i); });
     }
     // Bricks, by index.
+    const bool open = gates_open(s);
     s.world.each<Body, Brick>([&](mgame::Entity e, const Body& body, const Brick& brick) {
+        if (brick.kind == Kind::gate && open) return;
         if (auto h = mgame::sweep(b.at, b.radius, d, body.box))
             meet(*h, [&] {
                 if (c.count < c.bricks.size()) c.bricks[c.count++] = e;
@@ -142,7 +144,7 @@ void hit_brick(State& s, mgame::Entity e) {
     Brick& brick = s.world.get<Brick>(e);
     const Box box = s.world.get<Body>(e).box;
     const V2 middle{box.x + box.w / 2, box.y + box.h / 2};
-    if (brick.kind == Kind::wall) {
+    if (brick.kind == Kind::wall || brick.kind == Kind::gate) {
         happened(s, Happened::wall, brick.id, middle);
         return;
     }
@@ -200,12 +202,14 @@ State start(const Level& level) {
     s.speed = level.speed;
     s.paddles[1].active = level.second_paddle ? 1 : 0;
     s.paddles[1].y = 30;
+    s.gate_from = level.gate_from;
+    s.gate_to = level.gate_to;
     for (const BrickSpec& b : level.bricks) {
         const mgame::Entity e = s.world.create();
         if (!e.valid()) break;
         s.world.add(e, Body{b.box});
         s.world.add(e, Brick{b.kind, b.durability, b.id, b.row});
-        if (b.kind != Kind::wall) ++s.bricks;
+        if (b.kind != Kind::wall && b.kind != Kind::gate) ++s.bricks;
     }
     rest(s, 0);
     return s;
@@ -293,7 +297,7 @@ std::uint64_t checksum(const State& s) noexcept {
         for (std::size_t i = 0; i < sizeof(v); ++i) h = (h ^ p[i]) * 0x100000001b3ull;
     };
     for (const Paddle& p : s.paddles) bytes(p.x), bytes(p.y), bytes(p.half), bytes(p.moved), bytes(p.wide), bytes(p.active);
-    bytes(s.rng), bytes(s.frame), bytes(s.score), bytes(s.combo), bytes(s.lives), bytes(s.slow), bytes(s.bricks), bytes(s.speed), bytes(s.over);
+    bytes(s.rng), bytes(s.frame), bytes(s.score), bytes(s.combo), bytes(s.lives), bytes(s.slow), bytes(s.bricks), bytes(s.speed), bytes(s.over), bytes(s.gate_from), bytes(s.gate_to);
     bytes(s.events);
     for (std::uint32_t i = 0; i < s.events; ++i) bytes(s.event[i]);
     return h;

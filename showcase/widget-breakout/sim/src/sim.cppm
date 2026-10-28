@@ -27,7 +27,8 @@ inline constexpr double field_w = 1280, field_h = 720;
 inline constexpr std::int32_t steps_per_second = 120;
 
 // What a brick is (its component in the UI), and what a capsule gives.
-enum class Kind : std::uint32_t { button, toggle, slider, card, wall, hidden };
+// A gate is a wall that stands open for a while, once (level 4: only a rewind gets through it again).
+enum class Kind : std::uint32_t { button, toggle, slider, card, wall, hidden, gate };
 enum class Gift : std::uint32_t { none, wide, multi, slow, pierce };
 
 struct Body {
@@ -80,6 +81,7 @@ struct State {
     std::int32_t           combo = 0, lives = 3, slow = 0, bricks = 0;  // slow: steps left of slow motion (the app's clock reads it)
     double                 speed = 6.5;  // the balls', pixels a step
     std::uint32_t          events = 0, over = 0;  // over: 1 cleared, 2 out of lives
+    std::int64_t           gate_from = 0, gate_to = 0;  // the frames the gates stand open: [from, to)
     std::array<Event, 32>  event{};
 };
 static_assert(std::is_trivially_copyable_v<State>, "a state is saved and restored as one block");
@@ -103,7 +105,11 @@ struct Level {
     bool                   second_paddle = false;  // a paddle at the top too (and no wall there)
     std::int32_t           lives = 3;
     std::uint64_t          seed = 1;
+    std::int64_t           gate_from = 0, gate_to = 0;  // its gates open on these frames: [from, to)
 };
+
+// Whether the gates stand open on the state's frame.
+[[nodiscard]] constexpr bool gates_open(const State& s) noexcept { return s.frame >= s.gate_from && s.frame < s.gate_to; }
 
 [[nodiscard]] State start(const Level& level);
 void step(State& s, const Input& in);

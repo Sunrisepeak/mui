@@ -130,6 +130,34 @@ int main(int argc, char** argv) {
         check(after.x == 0 && after.y == 6, std::format("({}, {})", after.x, after.y));
     });
 
+    s.test("a gate is a wall but on its frames: a ball through it then, bounced off it before and after", [] {
+        // A ball rising at a gate across the field; the gate open on frames [from, to).
+        auto rise = [](std::int64_t from, std::int64_t to) {
+            bo::Level l;
+            l.gate_from = from;
+            l.gate_to = to;
+            l.bricks.push_back({Box{0, 300, bo::field_w, 20}, bo::Kind::gate, 1, 1, 0});
+            l.bricks.push_back({Box{0, 0, 10, 10}, bo::Kind::button, 1, 2, 0});  // out of the way: the field is not cleared
+            bo::State st = bo::start(l);
+            check_eq(st.bricks, std::int32_t{1});  // a gate is not a brick to break
+            st.world.each<bo::Ball>([](mgame::Entity, bo::Ball& b) {
+                b.on = 0;
+                b.at = {640, 400};
+                b.velocity = {0, -6};
+            });
+            double highest = 1000;
+            for (int f = 0; f < 40; ++f) {
+                bo::step(st, {});
+                st.world.each<bo::Ball>([&](mgame::Entity, const bo::Ball& b) { highest = std::min(highest, b.at.y); });
+            }
+            return highest;
+        };
+        check(rise(0, 0) > 300, "never open: bounced");
+        check(rise(1, 60) < 300, "open: through");
+        check(rise(1, 5) > 300, "closed again before the ball came: bounced");
+        check(rise(100, 200) > 300, "not open yet: bounced");
+    });
+
     s.test("capsules give: wide, three balls for one, slow motion, piercing", [] {
         bo::State st = bo::start(wall_of_bricks());
         bo::step(st, {launch(), {}});
@@ -197,7 +225,7 @@ int main(int argc, char** argv) {
             all = (all ^ bo::checksum(st)) * 0x100000001b3ull;
         }
         std::println("    game {:016x} ({} frames, score {}, over {})", all, frames, st.score, st.over);
-        check_eq(all, std::uint64_t{0xd3b4621bcebd9510});  // GCC, LLVM and wasm
+        check_eq(all, std::uint64_t{0x89f9b5b31fc15e90});  // GCC, LLVM and wasm
     });
 
     return s.run(argc, argv);

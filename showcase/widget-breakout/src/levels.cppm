@@ -16,6 +16,7 @@ struct BrickDef {
     std::int32_t durability = 1;
     std::string  label;
     float        width = 150, height = 44;
+    float        grow = 0;   // > 0: a share of its row's width instead (the row then spans the field, no gaps)
 };
 
 struct LevelDef {
@@ -23,16 +24,21 @@ struct LevelDef {
     std::string           title;     // what the level shows of openmui
     std::string           lesson;    // the card a cleared level leaves: a sentence or two
     std::vector<BrickDef> bricks;
+    std::vector<std::size_t> rows;     // where each row starts (empty: at each change of kind)
     double                speed = 6.5;
     std::int32_t          lives = 3;
     std::uint64_t         seed = 1;
+    std::int64_t          gate_from = 0, gate_to = 0;  // the frames its gates stand open
 };
 
-inline constexpr std::int32_t levels = 2;  // made so far (of six)
-[[nodiscard]] const LevelDef& level(std::int32_t number);  // 1 … levels (others: the nearest)
+// The levels made so far (of six), by number.
+[[nodiscard]] std::span<const LevelDef> levels();
+[[nodiscard]] const LevelDef& level(std::int32_t number);  // that one (none: the first)
+[[nodiscard]] std::int32_t next_level(std::int32_t number);  // the one after it, 0 after the last
 
-// A brick as its component: a button, a toggle, a slider, a card (text), or
-// a hidden one (nothing drawn: only the semantic tree knows it is there).
+// A brick as its component: a button, a toggle, a slider, a card (text), a
+// hidden one (nothing drawn: only the semantic tree knows it is there), a
+// wall (a plate), or a gate (a progress bar: how near its opening is).
 [[nodiscard]] Element brick_view(const BrickDef& b, std::size_t index);
 // The id the n-th brick's node has: "brick.<n>".
 [[nodiscard]] std::string brick_id(std::size_t index);

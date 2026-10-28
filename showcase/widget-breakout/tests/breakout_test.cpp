@@ -83,7 +83,8 @@ struct Game {
         state().world.each<bo::Brick>([&](mgame::Entity, const bo::Brick& b) { left[b.id] = b.durability; });
         for (std::size_t i = 0; i < nodes.size(); ++i) {
             const auto& r = h.runtime();
-            if (r.get(nodes[i], "visible").as_bool(true) != (left[i] > 0)) return std::format("brick {}: visible", i);
+            const bool standing = def.bricks[i].kind == bo::Kind::gate ? !bo::gates_open(state()) : left[i] > 0;  // a gate: closed
+            if (r.get(nodes[i], "visible").as_bool(true) != standing) return std::format("brick {}: visible", i);
             if (def.bricks[i].kind == bo::Kind::toggle && r.get(nodes[i], "checked").as_bool() != ((def.bricks[i].durability - left[i]) % 2 == 0))
                 return std::format("toggle {}: checked", i);
             if (def.bricks[i].kind == bo::Kind::slider && r.get(nodes[i], "value").as_double() != static_cast<double>(left[i]) / def.bricks[i].durability)
@@ -232,8 +233,8 @@ int main(int argc, char** argv) {
         const auto dir = scratch_dir("breakout-level2");  // to look at
         check(a.h.save_png(dir / std::format("{}.png", sa)).has_value() && b.h.save_png(dir / std::format("{}.png", sb)).has_value());
         std::println("    {} {:016x}, {} {:016x}", sa, pa, sb, pb);
-        check_eq(pa, std::uint64_t{0xb7c31df5cb91e392});  // neon, GCC and LLVM
-        check_eq(pb, std::uint64_t{0xcd3a98b98e12ad4d});  // liquid
+        check_eq(pa, std::uint64_t{0xfe35d19db7d4ac4c});  // neon, GCC and LLVM
+        check_eq(pb, std::uint64_t{0x47bbe4eba60522d4});  // liquid
         check(!a.act("next") || a.state().over, "next: once over");
     });
 
@@ -251,6 +252,47 @@ int main(int argc, char** argv) {
         check_eq(g.component().props.level, over == 1 ? 2 : 1);
         check_eq(g.state().over, std::uint32_t{0});
         check_eq(g.state().bricks, static_cast<std::int32_t>(bo::level(g.component().props.level).bricks.size()));
+    });
+
+    s.test("level 4: a gate fills toward its moment, stands open three seconds, then closes for good; R held rewinds through it", [] {
+        Game g(4);
+        const auto nodes = g.bricks();
+        const auto& def = bo::level(4);
+        const auto gate = static_cast<std::size_t>(std::ranges::find(def.bricks, bo::Kind::gate, &bo::BrickDef::kind) - def.bricks.begin());
+        const NodeId n = nodes[gate];
+        auto& r = g.h.runtime();
+        check(r.bounds(nodes[gate - 1]).width > 400 && r.bounds(nodes[gate + 1]).width > 400, "walls span the rest of the row");
+        // Halfway to 0:15: half full, closed.
+        check(g.act("pause"));
+        g.play(def.gate_from / 2 - g.state().frame);
+        check(std::abs(r.get(n, "value").as_double() - 0.5) < 0.01, std::format("value {}", r.get(n, "value").as_double()));
+        check(r.get(n, "visible").as_bool(true), "closed");
+        g.h.step();
+        check(g.h.save_png(scratch_dir("breakout-level4-filling") / "filling.png").has_value());
+        g.play(def.gate_from - g.state().frame + 10);
+        check(!r.get(n, "visible").as_bool(true) && bo::gates_open(g.state()), "open");
+        g.play(def.gate_to - g.state().frame + 10);
+        check(r.get(n, "visible").as_bool(true) && !bo::gates_open(g.state()), "closed again");
+        check(r.get(n, "label").as_string().starts_with("Closed for good"), std::string(r.get(n, "label").as_string()));
+        check_eq(g.disagreement(), std::string());
+        // R held for a second: back 240 frames, through the gate's moment; let go: on from there.
+        check(g.act("resume"));
+        const auto before = g.state().frame;
+        g.h.runtime().focus(g.field());
+        g.h.step({KeyEvent{.kind = KeyKind::down, .key = Key::r}});
+        g.h.advance(seconds(1));
+        g.h.step({KeyEvent{.kind = KeyKind::up, .key = Key::r}});
+        const auto back = g.state().frame;
+        check(back < before - 200 && back > before - 260, std::format("from {} to {}", before, back));
+        check(bo::gates_open(g.state()) && !r.get(n, "visible").as_bool(true), "open again, at that moment");
+        check_eq(g.disagreement(), std::string());
+        g.h.advance(seconds(0.5));
+        check(g.state().frame > back + 50, "on from there");
+        const auto dir = scratch_dir("breakout-level4");  // to look at
+        check(g.h.save_png(dir / "open.png").has_value());
+        const auto open = g.pixels();
+        std::println("    open {:016x}", open);
+        check_eq(open, std::uint64_t{0xd4795f8821cca287});  // GCC and LLVM
     });
 
     return s.run(argc, argv);

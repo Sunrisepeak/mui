@@ -64,6 +64,7 @@ private:
     void restart_level();           // the level afresh: bricks, simulation, lens and style
     [[nodiscard]] std::string style_wanted() const;  // level 2: by the rows cleared, and the player's turns
     void show_style();              // asks for it when it changed
+    void show_gates();              // level 4: a gate's bar fills toward its opening; open, it is gone
 
     static constexpr std::size_t log_size = 8;
 
@@ -76,6 +77,7 @@ private:
     std::int32_t                         rows_ = 0;            // the level's rows of bricks
     std::int32_t                         turns_ = 0;           // level 2: the styles the player turned on
     std::string                          style_shown_;         // what the host was last asked for
+    bool                                 rewinding_ = false;   // R held: back two frames a step
     std::deque<std::string>              log_;                 // the lens's latest changes
     mutable std::map<std::string, typeset::Paragraph, std::less<>> words_;  // the lens's labels, shaped once
 };

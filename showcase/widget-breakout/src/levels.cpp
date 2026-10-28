@@ -41,8 +41,29 @@ LevelDef styles() {
     return l;
 }
 
+LevelDef time_level() {
+    LevelDef l;
+    l.number = 4;
+    l.title = "时间 · Time";
+    l.lesson = "Every frame is a function of time: the simulation seeks any frame within 30 seconds exactly, and the components follow it — rewinding is not a recording played backwards.";
+    l.speed = 6.5;
+    l.seed = 4;
+    l.gate_from = 15 * steps_per_second;  // open from 0:15 to 0:18, once
+    l.gate_to = 18 * steps_per_second;
+    // The vault: reached only through the gate.
+    for (const char* b : {"Undo", "Redo", "Seek", "Branch", "Replay", "Snapshot"}) l.bricks.push_back({Kind::button, 1, b});
+    l.bricks.push_back({Kind::wall, 1, "", 0, 44, 1});
+    l.bricks.push_back({Kind::gate, 1, "Opens at 0:15, once", 300});
+    l.bricks.push_back({Kind::wall, 1, "", 0, 44, 1});
+    for (const char* s : {"Speed", "Scale", "Time"}) l.bricks.push_back({Kind::slider, 3, s, 220});
+    for (const char* c : {"hold R: rewind", "slow capsule: ½ time", "the gate opens once", "frame = f(time)"}) l.bricks.push_back({Kind::card, 1, c, 190});
+    l.rows = {0, 6, 9, 12};
+    return l;
+}
+
 // The rows a level's bricks are laid out in: a break before each change of kind (a hidden brick sits in its neighbours' row).
 std::vector<std::size_t> row_starts(const LevelDef& l) {
+    if (!l.rows.empty()) return l.rows;
     std::vector<std::size_t> starts{0};
     auto group = [](Kind k) { return k == Kind::hidden ? Kind::toggle : k; };
     for (std::size_t i = 1; i < l.bricks.size(); ++i)
@@ -52,9 +73,21 @@ std::vector<std::size_t> row_starts(const LevelDef& l) {
 
 }  // namespace
 
+std::span<const LevelDef> levels() {
+    static const std::array<LevelDef, 3> all{semantics(), styles(), time_level()};
+    return all;
+}
+
 const LevelDef& level(std::int32_t number) {
-    static const std::array<LevelDef, levels> all{semantics(), styles()};
-    return all[static_cast<std::size_t>(std::clamp(number, 1, levels) - 1)];
+    for (const LevelDef& l : levels())
+        if (l.number == number) return l;
+    return levels().front();
+}
+
+std::int32_t next_level(std::int32_t number) {
+    for (const LevelDef& l : levels())
+        if (l.number > number) return l.number;
+    return 0;
 }
 
 std::string brick_id(std::size_t index) { return std::format("brick.{}", index); }
@@ -71,7 +104,10 @@ Element brick_view(const BrickDef& b, std::size_t index) {
                                     {text({.text = b.label, .style = "caption"})})
                                  .prop("role", Source(Value("region"))));  // a panel: a style's panel effects reach it
         case Kind::hidden: return button({.id = id, .text = b.label, .width = w, .height = h, .opacity = 0.0f});
-        case Kind::wall: break;
+        case Kind::gate: return progress({.id = id, .label = b.label, .value = 0.0, .width = w, .height = h});
+        case Kind::wall:
+            if (b.grow > 0) return column({.id = id, .height = h, .grow = b.grow});
+            break;
     }
     return column({.id = id, .width = w, .height = h}, {text({.text = b.label})});
 }
@@ -85,7 +121,9 @@ std::vector<Element> level_rows(const LevelDef& l) {
         const std::size_t from = starts[r], to = r + 1 < starts.size() ? starts[r + 1] : l.bricks.size();
         std::vector<Element> bricks;
         for (std::size_t i = from; i < to; ++i) bricks.push_back(brick_view(l.bricks[i], i));
-        rows.push_back(row({.id = std::format("row.{}.{}", l.number, r), .gap = 12.0f, .justify = "center"}, std::move(bricks)));
+        const bool spans = std::ranges::any_of(std::span(l.bricks).subspan(from, to - from), [](const BrickDef& b) { return b.grow > 0; });
+        if (spans) rows.push_back(row({.id = std::format("row.{}.{}", l.number, r), .width = Dim(layout::pct(100))}, std::move(bricks)));
+        else rows.push_back(row({.id = std::format("row.{}.{}", l.number, r), .gap = 12.0f, .justify = "center"}, std::move(bricks)));
     }
     return rows;
 }

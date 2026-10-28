@@ -141,6 +141,8 @@ bool Field::begin() {
     l.speed = def.speed;
     l.lives = def.lives;
     l.seed = def.seed;
+    l.gate_from = def.gate_from;
+    l.gate_to = def.gate_to;
     std::uint32_t row = 0;
     double last_y = -1;
     for (std::size_t i = 0; i < nodes.size(); ++i) {
@@ -203,6 +205,26 @@ void Field::play(const Input& in) {
         }
     }
     show_style();  // a row cleared: level 2's next pack
+    show_gates();
+}
+
+void Field::show_gates() {
+    if (!timeline_) return;
+    const State& s = timeline_->state();
+    const auto nodes = bricks();
+    const LevelDef& def = level(props.level);
+    for (std::size_t i = 0; i < nodes.size() && i < def.bricks.size(); ++i) {
+        if (def.bricks[i].kind != Kind::gate) continue;
+        const bool open = gates_open(s), shown = services().get(nodes[i], "visible").as_bool(true);
+        if (open == shown) {
+            services().set(nodes[i], "visible", Value(!open));
+            note(std::format("{} progress · {}", brick_id(i), open ? "hidden (open)" : "shown (closed)"));
+        }
+        if (open) continue;
+        const double v = s.frame < s.gate_from ? static_cast<double>(s.frame) / static_cast<double>(s.gate_from) : 1.0;
+        services().set(nodes[i], "value", Value(v));
+        services().set(nodes[i], "label", Value(s.frame < s.gate_from ? def.bricks[i].label : std::string("Closed for good — hold R to go back")));
+    }
 }
 
 void Field::show_bricks() {
@@ -221,6 +243,7 @@ void Field::show_bricks() {
         if (b.kind == Kind::toggle) services().set(nodes[i], "checked", Value(hits % 2 == 0));
         if (b.kind == Kind::slider) services().set(nodes[i], "value", Value(static_cast<double>(left[i]) / b.durability));
     }
+    show_gates();
 }
 
 void Field::note(std::string change) {
@@ -235,7 +258,14 @@ void Field::run(std::int32_t steps) {
         refresh();
     }
     if (props.paused) return;
-    for (std::int32_t k = 0; k < steps; ++k) play(input());
+    if (rewinding_) {
+        // Back through time at twice its pace, to the oldest frame kept.
+        const std::int64_t to = std::max(timeline_->earliest(), timeline_->frame() - 2 * static_cast<std::int64_t>(steps));
+        if (to != timeline_->frame() && timeline_->seek(to)) show_bricks();
+    } else {
+        for (std::int32_t k = 0; k < steps; ++k) play(input());
+    }
+    pacer_.clock().scale = timeline_->state().slow > 0 ? 0.5 : 1.0;  // the slow capsule: the game's clock at half speed
     refresh();
 }
 
@@ -258,6 +288,7 @@ void Field::paint_over(PaintContext& ctx) const {
     auto& out = ctx.list;
     auto& fonts = services().fonts();
     const Color ink = services().theme().color("text", Color::hex(0xe8eaf6));  // the paddles, balls and score: the style's text
+    if (words_.size() > 256) words_.clear();  // a clock's and a hash's text change every frame: shaped again, not kept
     // Text shaped once (`width`: wrapped to it).
     auto label = [&](std::string_view text, float size, Color color, float width = 0) -> const typeset::Paragraph& {
         const std::string key = std::format("{}|{}|{},{},{},{}|{}", text, size, color.r, color.g, color.b, color.a, width);
@@ -335,11 +366,37 @@ void Field::paint_over(PaintContext& ctx) const {
         const auto& line = label(std::format("{}  ·  play {:016x}  ·  S: next style", style_shown_, checksum(s)), 12, ink.with_alpha(0.7f));
         line.paint(out, {24, ctx.size.height - 26});
     }
+    // Level 4: the clock, the gate's moment, and a rewind in progress; an open gate's place outlined.
+    if (s.gate_to > 0) {
+        auto clock = [](std::int64_t frame) { return std::format("{}:{:05.2f}", frame / (60 * steps_per_second), static_cast<double>(frame % (60 * steps_per_second)) / steps_per_second); };
+        const auto& line = label(std::format("{}  ·  the gate: {} – {}  ·  hold R: rewind", clock(s.frame), clock(s.gate_from), clock(s.gate_to)), 12, ink.with_alpha(0.7f));
+        line.paint(out, {24, ctx.size.height - 26});
+        if (rewinding_) {
+            const auto& back = label("◀◀  REWINDING", 20, Color::hex(0x64ffda));
+            back.paint(out, {ctx.size.width / 2 - back.size().width / 2, 22});
+        }
+        // The gate: when it opens (over its bar), open (its place outlined), or closed for good.
+        const Rect me = services().bounds(node());
+        const auto nodes = bricks();
+        const LevelDef& def = level(props.level);
+        for (std::size_t i = 0; i < nodes.size() && i < def.bricks.size(); ++i) {
+            if (def.bricks[i].kind != Kind::gate) continue;
+            const Rect r = services().bounds(nodes[i]);
+            const Rect at{r.x - me.x, r.y - me.y, r.width, r.height};
+            const bool open = gates_open(s), before = s.frame < s.gate_from;
+            if (open) out.stroke_round_rect(at, CornerRadii::all(6), 1.5f, render::Paint::solid(Color::hex(0x64ffda, 0.8f)));
+            const std::string what = open     ? std::format("open · {:.1f} s", static_cast<double>(s.gate_to - s.frame) / steps_per_second)
+                                     : before ? std::format("opens in {:.1f} s", static_cast<double>(s.gate_from - s.frame) / steps_per_second)
+                                              : std::string("closed for good — hold R");
+            const auto& p = label(what, 12, open ? Color::hex(0x64ffda) : ink.with_alpha(0.75f));
+            p.paint(out, {at.x + at.width / 2 - p.size().width / 2, open ? at.y + at.height / 2 - p.size().height / 2 : at.y + 3});
+        }
+    }
     // Over: what the level showed (cleared), and what next.
     if (s.over) {
         const float w = 640;
         const auto& lesson = label(s.over == 1 ? level(props.level).lesson : std::string("Out of balls."), 18, Color::hex(0xf5f5f5), w);
-        const auto& hint = label(s.over == 1 && props.level < levels ? "Enter — the next level" : "Enter — this level again", 13, Color::hex(0xffd54f));
+        const auto& hint = label(s.over == 1 && next_level(props.level) ? "Enter — the next level" : "Enter — this level again", 13, Color::hex(0xffd54f));
         const float h = lesson.size().height + hint.size().height + 52, x = ctx.size.width / 2 - w / 2 - 24, y = ctx.size.height / 2 - h / 2 + 60;
         out.fill_round_rect({x, y, w + 48, h}, CornerRadii::all(14), render::Paint::solid(Color::hex(0x0b0e17, 0.9f)));
         out.stroke_round_rect({x, y, w + 48, h}, CornerRadii::all(14), 1.5f, render::Paint::solid(Color::hex(0xffd54f, 0.6f)));
@@ -354,6 +411,13 @@ bool Field::on_event(EventContext& ctx, const InputEvent& e) {
             props.lens = !props.lens;
             prop_changed(FieldProp::lens);
         }
+        ctx.handled = true;
+        return true;
+    }
+    // R held: rewinding.
+    if (const auto* k = std::get_if<KeyEvent>(&e); k && k->key == Key::r) {
+        if (!k->repeat) rewinding_ = k->kind == KeyKind::down;
+        if (!rewinding_ && timeline_) note(std::format("rewound to frame {}", timeline_->frame()));
         ctx.handled = true;
         return true;
     }
@@ -437,8 +501,8 @@ ActResult Field::restart(ActContext&) {
 
 ActResult Field::next(ActContext&) {
     if (!timeline_ || !timeline_->state().over) return ActResult::fail("the level is not over yet");
-    if (timeline_->state().over == 1 && props.level < levels) {
-        props.level += 1;
+    if (timeline_->state().over == 1 && next_level(props.level)) {
+        props.level = next_level(props.level);
         prop_changed(FieldProp::level);
     } else {
         restart_level();

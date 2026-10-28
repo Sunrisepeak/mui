@@ -79,6 +79,48 @@ struct WebpOptions {
 [[nodiscard]] std::expected<void, std::string> save_webp(const std::filesystem::path& file, const View& pixels, WebpOptions options = {});
 [[nodiscard]] std::expected<Image, std::string> load_webp(const std::filesystem::path& file);
 
+// An animated WebP, shaped like encode_apng (so a caller switches format by
+// name): every frame the size of the first, shown `delay` seconds (num / den)
+// each, `loops` 0 forever (at most 65535). libwebp's WebPAnimEncoder stores
+// each frame as what changed from the one before, merges a frame equal to the
+// one before into it (it lasts longer), and codes them lossy (with alpha kept
+// losslessly) or lossless. WebP keeps time in whole milliseconds: frame i
+// starts at i × delay rounded to the nearest one, so a 1/12 s delay alternates
+// 83 and 84 ms and never drifts. A key frame (one drawn without the one
+// before, where a viewer can start) comes at most every `kmax` frames and no
+// sooner than `kmin` after the last (kmax 0: only the first; 1: every frame).
+// Colours under clear pixels kept (exact); single-threaded, so the bytes are
+// the same on every platform for a given libwebp. What comes out as a single
+// frame (one, or all the same) libwebp writes as a still WebP: no delay, no
+// loop count.
+struct AnimatedWebpOptions {
+    std::uint16_t delay_num = 1, delay_den = 12;
+    std::uint32_t loops = 0;
+    float         quality = 80;  // lossy: 0–100, higher is better and larger; lossless: effort
+    bool          lossless = false;
+    int           method = 4;    // 0 (fast) – 6 (smallest)
+    int           kmin = 33, kmax = 64;
+};
+[[nodiscard]] std::expected<std::vector<std::uint8_t>, std::string> encode_animated_webp(std::span<const View> frames,
+                                                                                      AnimatedWebpOptions options = {});
+[[nodiscard]] std::expected<void, std::string> save_animated_webp(const std::filesystem::path& file, std::span<const View> frames,
+                                                                  AnimatedWebpOptions options = {});
+
+// An animation played back: each frame the whole canvas as shown (straight
+// alpha), how long it is shown. Frames the encoder merged come back as one.
+struct AnimationFrame {
+    Image         image;
+    std::uint32_t delay_ms = 0;
+};
+struct Animation {
+    int                         width = 0, height = 0;
+    std::uint32_t               loops = 0;  // 0: forever
+    std::vector<AnimationFrame> frames;
+};
+// Any WebP (a still one is an animation of one frame).
+[[nodiscard]] std::expected<Animation, std::string> decode_animated_webp(std::span<const std::uint8_t> bytes);
+[[nodiscard]] std::expected<Animation, std::string> load_animated_webp(const std::filesystem::path& file);
+
 // Either format, told by its signature (PNG's eight bytes, WebP's RIFF/WEBP).
 [[nodiscard]] std::expected<Image, std::string> decode(std::span<const std::uint8_t> bytes);
 [[nodiscard]] std::expected<Image, std::string> load(const std::filesystem::path& file);

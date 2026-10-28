@@ -22,7 +22,7 @@ Rules:
                 a local index's descriptors (D-83)
   platforms     a package that says it runs on the Web (platforms lists "emscripten") depends only on
                 packages that say so too (dev-dependencies included) (D-84)
-  media         a picture in the repository (.png .gif .jpg .webp) is under 1 MB, and every showcase's
+  media         a picture in the repository (.png .apng .gif .jpg .webp) is under 1 MB, and every showcase's
                 README shows its signature shot from its media/ (tools/ci/readme-media.sh makes them)
   thirdparty    a wrapped C library (`import mcpplibs.mwrap.*`) only in a native/ unit (D-83)
   exceptions    no `throw` / `try` in runtime and modules sources (errors are std::expected); a

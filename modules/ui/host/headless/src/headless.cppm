@@ -20,7 +20,7 @@ export import openmui.view;
 export import openmui.semantic;
 export import openmui.agent;
 export import openmui.raster;
-export import openmui.image;  // recordings: imageio::ApngOptions
+export import openmui.image;  // recordings: imageio::AnimatedWebpOptions
 
 export namespace omui {
 
@@ -31,6 +31,12 @@ enum class HeadlessLevel : std::uint8_t {
     pixels,     // H2: CPU raster, PNG
     session,    // H3: pixels and an agent endpoint
 };
+
+// A recording's timing (each frame `delay_num / delay_den` seconds, `loops`
+// 0 forever) and, written to a `.webp` file, its coding: an animated WebP,
+// lossy at quality 80 unless asked otherwise (a README loop a fraction of its
+// APNG's size). Any other name is an animated PNG, which takes the timing alone.
+using RecordingOptions = imageio::AnimatedWebpOptions;
 
 struct HeadlessOptions {
     HeadlessLevel           level = HeadlessLevel::pixels;
@@ -85,12 +91,14 @@ public:
     [[nodiscard]] const raster::Surface& pixels();
     [[nodiscard]] std::expected<std::vector<std::uint8_t>, std::string> png(std::optional<Rect> region = {});
     std::expected<void, std::string> save_png(const std::filesystem::path& file, std::optional<Rect> region = {});
-    // A recording for an animated PNG (a README's loop, a bug report): each
+    // A recording for an animation (a README's loop, a bug report): each
     // `record()` keeps the current frame (of `region`, the first's for the
-    // rest); `save_recording` writes them (imageio::encode_apng) and starts afresh.
+    // rest); `save_recording` writes them and starts afresh: an animated WebP
+    // for a `.webp` file (imageio::encode_animated_webp), else an animated
+    // PNG (imageio::encode_apng).
     void record(std::optional<Rect> region = {});
     [[nodiscard]] std::size_t recorded() const noexcept;
-    std::expected<void, std::string> save_recording(const std::filesystem::path& file, imageio::ApngOptions options = {});
+    std::expected<void, std::string> save_recording(const std::filesystem::path& file, RecordingOptions options = {});
     // The node that drew a pixel (logical coordinates), through the object-id buffer.
     [[nodiscard]] NodeId node_at_pixel(Point p);
     // A capture function for the agent protocol.

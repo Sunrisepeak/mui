@@ -134,6 +134,54 @@ int main(int argc, char** argv) {
         check(!h.save_recording(file).has_value(), "nothing recorded");
     });
 
+    s.test("a recording to a .webp file is an animated WebP: the same frames and timing, and smaller than the APNG", [] {
+        // The same film on a fresh host each time: three clicks, each frame kept, the last kept twice.
+        struct Film {
+            Headless                               h{at(HeadlessLevel::pixels)};
+            Counter                                c;
+            std::vector<std::vector<std::uint8_t>> shown;  // each kept frame as a PNG gives it (straight)
+            Film() {
+                h.mount("main", c.view());
+                h.step();
+                keep();
+                for (int k = 0; k < 3; ++k) {
+                    check(h.click("main/inc"));
+                    h.step();
+                    keep();
+                }
+                h.record();  // the same again: one frame, shown longer
+            }
+            void keep() {
+                h.record();
+                auto png = h.png();
+                if (png) shown.push_back(imageio::decode_png(*png)->rgba);
+            }
+        };
+        const auto dir = scratch_dir("headless-recording-webp");
+        Film exact;
+        check(exact.h.save_recording(dir / "counter.WebP", {.delay_num = 1, .delay_den = 4, .loops = 2, .lossless = true}).has_value());
+        check_eq(exact.h.recorded(), std::size_t{0});
+        auto anim = imageio::load_animated_webp(dir / "counter.WebP");
+        check(anim.has_value(), anim ? "" : anim.error());
+        if (anim) {
+            check(anim->width == 240 && anim->height == 120 && anim->loops == 2);
+            check_eq(anim->frames.size(), std::size_t{4});
+            const std::array<std::uint32_t, 4> lasts{250, 250, 250, 500};
+            for (std::size_t k = 0; k < anim->frames.size() && k < 4 && k < exact.shown.size(); ++k) {
+                check(anim->frames[k].image.rgba == exact.shown[k], std::format("frame {} as rendered (lossless)", k));
+                check_eq(anim->frames[k].delay_ms, lasts[k]);
+            }
+        }
+        Film lossy, png;
+        check(lossy.h.save_recording(dir / "counter.webp").has_value());
+        check(png.h.save_recording(dir / "counter.png").has_value());
+        const auto webp_size = std::filesystem::file_size(dir / "counter.webp"), apng_size = std::filesystem::file_size(dir / "counter.png");
+        std::println("counter recording: animated WebP (lossy) {} bytes, APNG {} bytes", webp_size, apng_size);
+        check(webp_size < apng_size, "smaller");
+        check(imageio::load_animated_webp(dir / "counter.webp").has_value());
+        check(imageio::load_png(dir / "counter.png").has_value(), "any other name: an animated PNG");
+    });
+
     s.test("H3: an agent drives the session over the endpoint", [] {
         auto dir = scratch_dir("headless-h3");
         HeadlessOptions o = at(HeadlessLevel::session);

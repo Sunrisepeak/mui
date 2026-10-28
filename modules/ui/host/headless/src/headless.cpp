@@ -271,12 +271,17 @@ void Headless::record(std::optional<Rect> region) {
 
 std::size_t Headless::recorded() const noexcept { return impl_->recording.size(); }
 
-std::expected<void, std::string> Headless::save_recording(const std::filesystem::path& file, imageio::ApngOptions options) {
+std::expected<void, std::string> Headless::save_recording(const std::filesystem::path& file, RecordingOptions options) {
     Impl& d = *impl_;
     if (d.recording.empty()) return std::unexpected("nothing recorded");
     std::vector<imageio::View> views;
     for (const auto& img : d.recording) views.push_back(imageio::view(img));
-    auto r = imageio::save_apng(file, views, options);
+    // The format by the file's extension, in any case.
+    const std::u8string ext = file.extension().u8string();
+    const auto lower = [](char8_t a) { return a >= u8'A' && a <= u8'Z' ? static_cast<char8_t>(a - u8'A' + u8'a') : a; };
+    const bool webp = std::ranges::equal(ext, std::u8string_view(u8".webp"), {}, lower);
+    auto r = webp ? imageio::save_animated_webp(file, views, options)
+                  : imageio::save_apng(file, views, {.delay_num = options.delay_num, .delay_den = options.delay_den, .loops = options.loops});
     d.recording.clear();
     return r;
 }

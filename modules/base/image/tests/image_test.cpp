@@ -101,6 +101,55 @@ image::Image test_picture(int w, int h) {
     return img;
 }
 
+// The frames of a moving box over a still background (frames 3 and 4 the
+// same): what encode_apng's test draws, here for animated WebP too.
+std::vector<image::Image> moving_box(int w = 64, int h = 40) {
+    std::vector<image::Image> frames;
+    for (int f = 0; f < 6; ++f) {
+        image::Image img;
+        img.width = w, img.height = h;
+        img.rgba.assign(static_cast<std::size_t>(w) * h * 4, 0);
+        for (std::size_t i = 0; i < img.rgba.size(); i += 4) img.rgba[i] = 30, img.rgba[i + 1] = 40, img.rgba[i + 2] = 60, img.rgba[i + 3] = 255;
+        const int x = 4 + 8 * std::min(f, 3) + (f >= 5 ? 8 : 0);
+        for (int y = 10; y < 22; ++y)
+            for (int k = x; k < x + 12; ++k) {
+                auto px = img.rgba.begin() + (static_cast<std::ptrdiff_t>(y) * w + k) * 4;
+                px[0] = 240, px[1] = 200, px[2] = 80;
+            }
+        frames.push_back(std::move(img));
+    }
+    return frames;
+}
+
+// A README-like loop: a soft shaded panel (a gradient with a little grain, as
+// the renderer's antialiased UI and art are) and an antialiased disc moving
+// over it, a caption bar that blinks.
+std::vector<image::Image> readme_loop(int w, int h, int count) {
+    std::vector<image::Image> frames;
+    for (int f = 0; f < count; ++f) {
+        image::Image img = test_picture(w, h);
+        for (std::size_t i = 3; i < img.rgba.size(); i += 4) img.rgba[i] = 255;
+        const double cx = 30 + (w - 60) * f / double(count - 1), cy = h / 2.0 + 30 * std::sin(f * 0.4), r = 22;
+        for (int y = 0; y < h; ++y)
+            for (int x = 0; x < w; ++x) {
+                const double d = std::sqrt((x + 0.5 - cx) * (x + 0.5 - cx) + (y + 0.5 - cy) * (y + 0.5 - cy));
+                const double a = std::clamp(r - d + 0.5, 0.0, 1.0);
+                auto px = img.rgba.begin() + (static_cast<std::ptrdiff_t>(y) * w + x) * 4;
+                const std::array<double, 3> disc{250, 120, 40};
+                for (std::size_t c = 0; c < 3; ++c) px[static_cast<std::ptrdiff_t>(c)] = static_cast<std::uint8_t>(std::lround(px[static_cast<std::ptrdiff_t>(c)] * (1 - a) + disc[c] * a));
+                if (y >= h - 16 && (f / 4) % 2 == 0 && x >= 8 && x < w / 2) px[0] = px[1] = px[2] = 245;
+            }
+        frames.push_back(std::move(img));
+    }
+    return frames;
+}
+
+std::vector<image::View> views_of(const std::vector<image::Image>& frames) {
+    std::vector<image::View> v;
+    for (const auto& f : frames) v.push_back(image::view(f));
+    return v;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -319,6 +368,196 @@ int main(int argc, char** argv) {
         check(!too_wide.has_value() && too_wide.error().starts_with("webp:"), too_wide ? "" : too_wide.error());
     });
 
+    s.test("an animated WebP: shaped like an APNG, played back with its frames, delays, size and loops (a still frame merged)", [] {
+        const auto frames = moving_box();
+        const auto views = views_of(frames);
+        auto webp = image::encode_animated_webp(views, {.delay_num = 1, .delay_den = 10, .loops = 3, .lossless = true});
+        check(webp.has_value(), webp ? "" : webp.error());
+        if (!webp) return;
+        check(webp->size() > 12 && std::string_view(reinterpret_cast<const char*>(webp->data() + 8), 4) == "WEBP");
+        auto back = image::decode_animated_webp(*webp);
+        check(back.has_value(), back ? "" : back.error());
+        if (!back) return;
+        check(back->width == 64 && back->height == 40, std::format("{} × {}", back->width, back->height));
+        check_eq(back->loops, std::uint32_t{3});
+        check_eq(back->frames.size(), std::size_t{5});  // frames 3 and 4 are one, shown twice as long
+        const std::array<std::size_t, 5> which{0, 1, 2, 3, 5};
+        const std::array<std::uint32_t, 5> lasts{100, 100, 100, 200, 100};
+        for (std::size_t k = 0; k < back->frames.size() && k < 5; ++k) {
+            check(back->frames[k].image.rgba == frames[which[k]].rgba, std::format("frame {} exact", k));
+            check_eq(back->frames[k].delay_ms, lasts[k]);
+        }
+        // A delay that is not whole milliseconds: the starts rounded, never drifting (1/12 s: 83, 84, 83, ...).
+        auto twelfth = image::decode_animated_webp(*image::encode_animated_webp(std::span(views).first(4), {.lossless = true}));
+        check(twelfth.has_value() && twelfth->frames.size() == 4);
+        if (twelfth && twelfth->frames.size() == 4) {
+            std::uint32_t total = 0;
+            for (const auto& f : twelfth->frames) total += f.delay_ms, check(f.delay_ms == 83 || f.delay_ms == 84, std::format("{} ms", f.delay_ms));
+            check_eq(total, std::uint32_t{333});  // 4/12 s
+            check_eq(twelfth->loops, std::uint32_t{0});
+        }
+        auto one = image::decode_animated_webp(*image::encode_animated_webp(std::span(views).first(1)));
+        check(one.has_value() && one->frames.size() == 1, "one frame");
+        // A still WebP reads as an animation of one frame; an animated one is not a still.
+        auto still = image::decode_animated_webp(*image::encode_webp(views[0], {.lossless = true}));
+        check(still.has_value() && still->frames.size() == 1 && still->frames[0].image.rgba == frames[0].rgba, "a still WebP");
+        auto not_still = image::decode_webp(*webp);
+        check(!not_still.has_value() && not_still.error().contains("decode_animated_webp"), not_still ? "" : not_still.error());
+    });
+
+    s.test("an animated WebP lossless keeps every pixel: alpha, and colours under clear pixels", [] {
+        std::vector<image::Image> frames;
+        for (int f = 0; f < 5; ++f) {
+            image::Image img;
+            img.width = 37, img.height = 19;
+            img.rgba.resize(37 * 19 * 4);
+            for (std::size_t i = 0; i < img.rgba.size(); ++i) img.rgba[i] = static_cast<std::uint8_t>((i * 131) ^ (i >> 3));
+            for (std::size_t i = 3; i < img.rgba.size(); i += 4 * 5) img.rgba[i] = 0;  // every fifth pixel clear, its colour kept
+            for (int y = 4; y < 12; ++y)  // a band that moves, part clear
+                for (int x = f * 5; x < f * 5 + 9; ++x) {
+                    auto px = img.rgba.begin() + (y * 37 + x) * 4;
+                    px[0] = 10, px[1] = static_cast<std::uint8_t>(40 * f), px[2] = 200, px[3] = static_cast<std::uint8_t>(x % 3 == 0 ? 0 : 60 * x % 256);
+                }
+            frames.push_back(std::move(img));
+        }
+        const auto views = views_of(frames);
+        auto webp = image::encode_animated_webp(views, {.lossless = true, .kmin = 2, .kmax = 3});  // key frames among them
+        check(webp.has_value(), webp ? "" : webp.error());
+        if (!webp) return;
+        auto back = image::decode_animated_webp(*webp);
+        check(back.has_value() && back->frames.size() == frames.size());
+        if (!back || back->frames.size() != frames.size()) return;
+        for (std::size_t k = 0; k < frames.size(); ++k) {
+            check(back->frames[k].image.alpha == image::Alpha::straight);
+            int off = 0;
+            for (std::size_t i = 0; i < frames[k].rgba.size(); ++i) off += back->frames[k].image.rgba[i] != frames[k].rgba[i];
+            check_eq(off, 0);
+        }
+        // Premultiplied frames are written straight.
+        image::Image pm;
+        pm.width = 1, pm.height = 1, pm.alpha = image::Alpha::premultiplied, pm.rgba = {64, 0, 0, 128};
+        image::Image pm2 = pm;
+        pm2.rgba = {0, 64, 0, 128};
+        const std::array<image::View, 2> two{image::view(pm), image::view(pm2)};
+        auto straight = image::decode_animated_webp(*image::encode_animated_webp(two, {.lossless = true}));
+        check(straight.has_value() && straight->frames.size() == 2 && straight->frames[0].image.rgba == std::vector<std::uint8_t>{128, 0, 0, 128} &&
+              straight->frames[1].image.rgba == std::vector<std::uint8_t>{0, 128, 0, 128});
+    });
+
+    s.test("an animated WebP lossy: every frame close to its picture, its alpha exact", [] {
+        std::vector<image::Image> frames;
+        for (int f = 0; f < 6; ++f) {
+            image::Image img = test_picture(96, 64);  // alpha rising, a clear band
+            for (int y = 20; y < 40; ++y)
+                for (int x = 10 + f * 12; x < 30 + f * 12; ++x) {
+                    auto px = img.rgba.begin() + (y * 96 + x) * 4;
+                    px[0] = 250, px[1] = 250, px[2] = 250, px[3] = 255;
+                }
+            frames.push_back(std::move(img));
+        }
+        const auto views = views_of(frames);
+        auto webp = image::encode_animated_webp(views, {.quality = 90});
+        check(webp.has_value(), webp ? "" : webp.error());
+        if (!webp) return;
+        check(webp->size() < image::encode_animated_webp(views, {.lossless = true})->size(), "smaller than lossless");
+        auto back = image::decode_animated_webp(*webp);
+        check(back.has_value() && back->frames.size() == frames.size());
+        if (!back || back->frames.size() != frames.size()) return;
+        for (std::size_t k = 0; k < frames.size(); ++k) {
+            const auto& got = back->frames[k].image.rgba;
+            const auto& want = frames[k].rgba;
+            double sum = 0;
+            int worst = 0, alpha_off = 0;
+            std::size_t counted = 0;
+            for (std::size_t i = 0; i < want.size(); i += 4) {
+                if (got[i + 3] != want[i + 3]) ++alpha_off;
+                if (want[i + 3] == 0) continue;  // a clear pixel's colour is not seen
+                ++counted;
+                for (std::size_t c = 0; c < 3; ++c) {
+                    const int d = std::abs(int{got[i + c]} - int{want[i + c]});
+                    sum += d, worst = std::max(worst, d);
+                }
+            }
+            const double mean = sum / (3.0 * static_cast<double>(counted));
+            check(mean < 3.5, std::format("frame {}: mean difference {:.2f}", k, mean));
+            check(worst <= 40, std::format("frame {}: worst difference {}", k, worst));
+            check_eq(alpha_off, 0);
+        }
+    });
+
+    s.test("an animated WebP is deterministic: an encoding's bytes and its played-back pixels, pinned", [] {
+        const auto frames = moving_box(32, 24);
+        const auto views = views_of(frames);
+        auto lossy = image::encode_animated_webp(views, {.delay_num = 1, .delay_den = 10, .quality = 75});
+        auto lossless = image::encode_animated_webp(views, {.delay_num = 1, .delay_den = 10, .lossless = true});
+        check(lossy.has_value() && lossless.has_value());
+        if (!lossy || !lossless) return;
+        std::println("animated webp pins: lossy {} bytes {:#018x}, lossless {} bytes {:#018x}", lossy->size(), fnv(*lossy), lossless->size(), fnv(*lossless));
+        check_eq(lossy->size(), std::size_t{578});
+        check_eq(fnv(*lossy), 0x714e5b4e9b8c1e08ull);
+        check_eq(lossless->size(), std::size_t{424});
+        check_eq(fnv(*lossless), 0x14e8478fd980fb93ull);
+        auto back = image::decode_animated_webp(*lossy);
+        check(back.has_value());
+        if (!back) return;
+        std::vector<std::uint8_t> all;
+        for (const auto& f : back->frames) all.insert(all.end(), f.image.rgba.begin(), f.image.rgba.end());
+        std::println("animated webp pins: lossy played back {:#018x}", fnv(all));
+        check_eq(fnv(all), 0x77dadea3c94e0960ull);
+        check(image::encode_animated_webp(views, {.delay_num = 1, .delay_den = 10, .quality = 75}) == lossy, "the same again");
+    });
+
+    s.test("an animated WebP is much smaller than the APNG of the same loop", [] {
+        const auto frames = readme_loop(320, 200, 36);
+        const auto views = views_of(frames);
+        auto apng = image::encode_apng(views, {.delay_num = 1, .delay_den = 12});
+        auto lossy = image::encode_animated_webp(views, {.delay_num = 1, .delay_den = 12});
+        auto lossless = image::encode_animated_webp(views, {.delay_num = 1, .delay_den = 12, .lossless = true});
+        check(apng.has_value() && lossy.has_value() && lossless.has_value());
+        if (!apng || !lossy || !lossless) return;
+        std::println("320 × 200 × 36 frames: APNG {} bytes, animated WebP lossy (quality 80) {} bytes ({:.1f}×smaller), lossless {} bytes",
+                     apng->size(), lossy->size(), double(apng->size()) / double(lossy->size()), lossless->size());
+        const auto box = moving_box();
+        auto box_apng = image::encode_apng(views_of(box));
+        auto box_webp = image::encode_animated_webp(views_of(box));
+        if (box_apng && box_webp) std::println("moving box 64 × 40 × 6: APNG {} bytes, animated WebP lossy {} bytes", box_apng->size(), box_webp->size());
+        check(lossy->size() * 3 < apng->size(), "lossy WebP under a third of the APNG");
+        auto back = image::decode_animated_webp(*lossy);
+        check(back.has_value() && back->frames.size() == frames.size());
+    });
+
+    s.test("an animated WebP: bad input is an error, not a crash", [] {
+        const auto frames = moving_box();
+        const auto views = views_of(frames);
+        check(!image::encode_animated_webp({}).has_value(), "no frames");
+        image::Image other;
+        other.width = 8, other.height = 8, other.rgba.assign(8 * 8 * 4, 0);
+        const std::array<image::View, 2> mixed{views[0], image::view(other)};
+        check(!image::encode_animated_webp(mixed).has_value(), "every frame the size of the first");
+        check(!image::encode_animated_webp(views, {.delay_den = 0}).has_value(), "a zero denominator");
+        check(!image::encode_animated_webp(views, {.delay_num = 1, .delay_den = 2000}).has_value(), "under a millisecond");
+        check(!image::encode_animated_webp(views, {.loops = 70000}).has_value(), "too many loops");
+        const std::array<image::View, 1> empty{image::View{}};
+        check(!image::encode_animated_webp(empty).has_value(), "an empty image");
+        image::Image huge;
+        huge.width = 20000, huge.height = 1, huge.rgba.assign(20000 * 4, 255);
+        const std::array<image::View, 1> wide{image::view(huge)};
+        auto too_wide = image::encode_animated_webp(wide);
+        check(!too_wide.has_value() && too_wide.error().starts_with("webp:"), too_wide ? "" : too_wide.error());
+        std::array<std::uint8_t, 4> junk{1, 2, 3, 4};
+        auto bad = image::decode_animated_webp(junk);
+        check(!bad.has_value() && bad.error().starts_with("webp:"));
+        check(!image::decode_animated_webp({}).has_value(), "nothing");
+        for (const bool lossless : {false, true}) {
+            auto good = *image::encode_animated_webp(views, {.lossless = lossless});
+            for (const std::size_t keep : {std::size_t{12}, std::size_t{30}, good.size() / 2, good.size() - 1})
+                check(!image::decode_animated_webp(std::span(good).first(keep)).has_value(), std::format("cut to {} of {}", keep, good.size()));
+            auto scrambled = good;
+            for (std::size_t i = 40; i < scrambled.size(); i += 3) scrambled[i] ^= 0x5a;
+            (void)image::decode_animated_webp(scrambled);  // an error or some pixels; only not a crash
+        }
+    });
+
     s.test("files and errors", [] {
         auto dir = scratch_dir("image");
         image::Image img;
@@ -343,6 +582,14 @@ int main(int argc, char** argv) {
         auto neither = image::decode(junk);
         check(!neither.has_value() && neither.error() == "not a PNG or WebP image");
         check(!image::load(dir / "missing.webp").has_value());
+        const std::array<image::View, 2> two{image::view(img), image::view(*back)};
+        check(image::save_animated_webp(dir / "anim.webp", two, {.lossless = true}).has_value());
+        auto anim = image::load_animated_webp(dir / "anim.webp");
+        // The same frame twice is one frame, and libwebp writes a single frame as a still WebP (no delay: 0).
+        check(anim && anim->frames.size() == 1 && anim->frames[0].image.rgba == img.rgba && anim->frames[0].delay_ms == 0, "the same frame twice: one");
+        auto as_still = image::load_webp(dir / "anim.webp");
+        check(as_still && as_still->rgba == img.rgba, "a still");
+        check(!image::load_animated_webp(dir / "missing.webp").has_value());
     });
 
     return s.run(argc, argv);

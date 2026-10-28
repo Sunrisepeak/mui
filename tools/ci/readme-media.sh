@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The showcases' README media. Each showcase's tests draw its signature shot
-# headless (a still, or an animated PNG under 1 MB) into the scratch directory
+# headless (a still, or an animated WebP or PNG under 1 MB) into the scratch directory
 # readme-<showcase>; the files are deterministic, so they are committed in
 # showcase/<showcase>/media/ and CI holds them to what the tests draw.
 #

@@ -100,6 +100,14 @@ std::expected<void, std::string> save_webp(const std::filesystem::path& file, co
     return write_file(file, encode_webp(pixels, options));
 }
 
+std::expected<void, std::string> save_animated_webp(const std::filesystem::path& file, std::span<const View> frames, AnimatedWebpOptions options) {
+    return write_file(file, encode_animated_webp(frames, options));
+}
+
+std::expected<Animation, std::string> load_animated_webp(const std::filesystem::path& file) {
+    return read_file(file).and_then([](const auto& b) { return decode_animated_webp(b); });
+}
+
 std::expected<Image, std::string> load_png(const std::filesystem::path& file) { return read_file(file).and_then([](const auto& b) { return decode_png(b); }); }
 
 std::expected<Image, std::string> load_webp(const std::filesystem::path& file) { return read_file(file).and_then([](const auto& b) { return decode_webp(b); }); }

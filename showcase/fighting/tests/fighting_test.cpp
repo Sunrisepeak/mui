@@ -296,6 +296,38 @@ int main(int argc, char** argv) {
         check_eq(all.hex(), std::string("342a69dba5b0073f"));  // GCC and LLVM, every platform
     });
 
+    s.test("墨's glyphs: 一, 人 and 永 written in front of her and thrown, and her level 2's stroke across the stage — frames pinned", [] {
+        const auto dir = scratch_dir("fighting-mo-glyphs");
+        Hash all;
+        int saved = 0;
+        for (const auto& [name, steps] : std::vector<std::pair<std::string, std::vector<std::string>>>{
+                 {"236LP", {"2", "3", "6LP"}}, {"236MP", {"2", "3", "6MP"}}, {"236HP", {"2", "3", "6HP"}}, {"214214P", {"2", "1", "4", "2", "1", "4LP"}}}) {
+            Game g("training", "mo", "kata");
+            check(g.act("pause"));
+            check(g.act("fill"));
+            for (const auto& p : steps) {
+                check(g.act("press", pad(0, p)));
+                check(g.act("step"));
+            }
+            check(g.act("press", pad(0, "5")));
+            for (int i = 0; i < 100; ++i) {  // a level 2's flash first
+                check(g.act("step"));
+                const auto& f = g.state().f[0];
+                const bool writing = f.mode == gongfu::Mode::move && f.move_frame == 8 && g.state().freeze == 0;
+                const bool flying = std::ranges::any_of(g.state().p, [](const gongfu::ProjectileState& p) { return p.alive && p.frame == 14; });
+                if (writing || flying) {
+                    g.h.step();
+                    all.u64(g.pixels());
+                    check(g.h.save_png(dir / std::format("{}-{}.png", name, writing ? "writing" : "flying")).has_value());
+                    ++saved;
+                }
+            }
+        }
+        check_eq(saved, 8);
+        std::println("    mo glyphs {}", all.hex());
+        check_eq(all.hex(), std::string("d5b4e49388e17c72"));  // GCC and LLVM, every platform
+    });
+
     s.test("frames pinned: versus and training (boxes and the meter) at a jab's active frame", [] {
         std::vector<std::uint64_t> px;
         const auto dir = scratch_dir("fighting");

@@ -896,6 +896,21 @@ flash = ["invert", 6]
 spark = { style = "splash", size = 80, count = 16, frames = 28, color = "#101114", counter = "#c0392b" }
 rumble = [1, 26]
 
+[glyph."一"]
+strokes = [{ points = [[12, 50], [50, 53], [88, 49]], width = [10, 7, 12] }]
+
+[glyph."人"]
+strokes = [
+  { points = [[52, 88], [44, 55], [18, 14]], width = [9, 7, 2] },
+  { points = [[46, 58], [64, 34], [88, 14]], width = [4, 9, 4] },
+]
+
+[glyph."丶"]
+strokes = [{ points = [[40, 62], [58, 40]], width = [6, 16, 8] }]
+
+[glyph."横"]
+strokes = [{ points = [[0, 50], [35, 54], [70, 49], [100, 51]], width = [8, 10, 4] }]
+
 [glyph."永"]
 strokes = [
   { points = [[47, 93], [53, 84]], width = [9, 14, 7] },
@@ -907,6 +922,31 @@ strokes = [
   { points = [[86, 63], [76, 55], [66, 47]], width = [9, 6, 2] },
   { points = [[64, 49], [78, 30], [93, 12]], width = [4, 9, 3] },
 ]
+
+[projectile.236LP]
+glyph = "一"
+size = 64
+halo = "#efe6d288"
+
+[projectile.236MP]
+glyph = "人"
+size = 64
+halo = "#efe6d288"
+
+[projectile.236HP]
+glyph = "永"
+size = 64
+halo = "#efe6d288"
+
+[projectile."j.236P"]
+glyph = "丶"
+size = 44
+halo = "#efe6d288"
+
+[projectile.214214P]
+glyph = "横"
+size = 200
+halo = "#efe6d288"
 
 [cinematic.236236K]
 attacker = "236236K.cinematic"

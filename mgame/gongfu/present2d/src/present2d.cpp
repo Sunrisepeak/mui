@@ -473,6 +473,21 @@ const CinematicLook* cinematic_of(const Match& match, const Look& left, const Lo
     return it == look.cinematics.end() ? nullptr : &it->second;
 }
 
+// A look's projectile glyph for a move, by its name or its general name (236P for 236LP).
+const Look::GlyphProjectile* projectile_of(const Look& look, std::string_view name) {
+    if (auto it = look.projectiles.find(name); it != look.projectiles.end()) return &it->second;
+    if (name.size() < 2) return nullptr;
+    const std::string_view tail = name.substr(name.size() - 2);
+    const char general = tail == "LP" || tail == "MP" || tail == "HP" ? 'P' : tail == "LK" || tail == "MK" || tail == "HK" ? 'K' : '\0';
+    if (!general) return nullptr;
+    std::array<char, 48> buffer{};
+    const std::size_t n = std::min(name.size() - 2, buffer.size() - 1);
+    std::copy_n(name.begin(), n, buffer.begin());
+    buffer[n] = general;
+    auto it = look.projectiles.find(std::string_view(buffer.data(), n + 1));
+    return it == look.projectiles.end() ? nullptr : &it->second;
+}
+
 // The fighter in a super's flash, and how far into it (0 → 1); −1 when none.
 std::pair<std::int32_t, double> flashing(const Match& match) {
     const State& st = match.state();
@@ -536,7 +551,7 @@ void Painter::body(const Look& look, const Fighter& fighter, const FighterState&
     }
 }
 
-void Painter::glyph(const std::vector<Stroke>& strokes, double progress, Point centre, float size, Color color, render::DisplayList& out) {
+void Painter::glyph(const std::vector<Stroke>& strokes, double progress, Point centre, float size, Color color, render::DisplayList& out, float thicken) {
     double total = 0;
     for (const Stroke& st : strokes)
         for (std::size_t k = 1; k < st.points.size(); ++k) total += std::hypot(st.points[k].x - st.points[k - 1].x, st.points[k].y - st.points[k - 1].y);
@@ -571,7 +586,7 @@ void Painter::glyph(const std::vector<Stroke>& strokes, double progress, Point c
             centre_at[static_cast<std::size_t>(i)] = {centre.x + static_cast<float>((x - 50) * k), centre.y - static_cast<float>((y - 50) * k)};
             const double c = 2 * st.width[1] - (st.width[0] + st.width[2]) / 2.0;
             width_at[static_cast<std::size_t>(i)] =
-                static_cast<float>(((1 - u) * (1 - u) * st.width[0] + 2 * u * (1 - u) * c + u * u * st.width[2]) * k / 2);
+                static_cast<float>(((1 - u) * (1 - u) * st.width[0] + 2 * u * (1 - u) * c + u * u * st.width[2]) * k / 2 * thicken);
         }
         for (const float bleed : {1.35f, 1.0f}) {  // the ink bleeding into the paper, then the stroke
             path_.clear();
@@ -699,10 +714,41 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         }
     }
 
-    // Projectiles: a core and a halo.
+    // Glyphs being written before they fly: in front of who writes them, over the move's frames up to its spawn.
+    for (std::int32_t i = 0; i < 2; ++i) {
+        const FighterState& f = st.f[static_cast<std::size_t>(i)];
+        if (f.mode != Mode::move) continue;
+        const MoveDef& m = match.fighter(i).def.moves[static_cast<std::size_t>(f.move)];
+        if (!m.projectile || f.move_frame >= m.projectile->spawn) continue;
+        const Look& look = i == 0 ? left : right;
+        const auto* g = projectile_of(look, m.name);
+        if (!g) continue;
+        auto strokes = look.glyphs.find(g->glyph);
+        if (strokes == look.glyphs.end()) continue;
+        const Point at = view.at(stage(f.pos.x + m.projectile->offset.x * f.facing), stage(f.pos.y + m.projectile->offset.y));
+        const double written = static_cast<double>(f.move_frame) / m.projectile->spawn;
+        if (g->halo.a > 0) glyph(strokes->second, written, at, view.size(g->size), g->halo, out, 2.4f);
+        glyph(strokes->second, written, at, view.size(g->size), g->color, out);
+    }
+
+    // Projectiles: a glyph the look writes for its move, else a core and a halo.
     for (const ProjectileState& pr : st.p) {
         if (!pr.alive) continue;
         const Point c = view.at(stage(pr.pos.x), stage(pr.pos.y));
+        const Look& look = pr.owner == 0 ? left : right;
+        const auto& name = match.fighter(pr.owner).def.moves[static_cast<std::size_t>(pr.move)].name;
+        if (const auto* g = projectile_of(look, name)) {
+            if (auto strokes = look.glyphs.find(g->glyph); strokes != look.glyphs.end()) {
+                // Flying, the ink bleeds a little more each frame (into its halo, if it has one).
+                const double spread = 1.0 + std::min(0.25, pr.frame * 0.004);
+                if (g->halo.a > 0) glyph(strokes->second, 1.0, c, view.size(g->size), g->halo, out, 2.4f);
+                Color bleed = g->color;
+                bleed.a *= 0.18f;
+                glyph(strokes->second, 1.0, c, view.size(g->size * static_cast<float>(spread)), bleed, out);
+                glyph(strokes->second, 1.0, c, view.size(g->size), g->color, out);
+                continue;
+            }
+        }
         path_.clear();
         circle(path_, c, view.size(26));
         out.fill_path(path_, render::FillRule::nonzero, render::Paint::solid(Color::hex(0x6fd3ff, 0.35f)));

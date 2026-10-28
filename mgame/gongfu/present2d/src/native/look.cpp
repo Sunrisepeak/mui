@@ -59,7 +59,9 @@ namespace {
 using data::Diagnostic;
 
 constexpr std::string_view format_version = "0.1";
-constexpr std::array<std::string_view, 12> look_keys{"gongfu", "name", "outline", "accent", "palette", "bone", "part", "clip", "impact", "glyph", "cinematic", "doc"};
+constexpr std::array<std::string_view, 13> look_keys{"gongfu", "name", "outline", "accent", "palette", "bone", "part", "clip", "impact", "glyph", "cinematic",
+                                                     "projectile", "doc"};
+constexpr std::array<std::string_view, 4> projectile_look_keys{"glyph", "size", "color", "halo"};
 constexpr std::array<std::string_view, 2> stroke_keys{"points", "width"};
 constexpr std::array<std::string_view, 8> cinematic_keys{"attacker", "defender", "backdrop", "camera", "glyph", "seal", "flash", "doc"};
 constexpr std::array<std::string_view, 3> backdrop_keys{"color", "in", "out"};
@@ -619,6 +621,32 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
         }
     }
 
+    // Projectiles drawn as glyphs: [projectile.236P] glyph = "一", size = 60.
+    if (const toml::node* pn = root->get("projectile")) {
+        if (const toml::table* pt = pn->as_table()) {
+            for (const auto& [name, node] : *pt) {
+                const toml::table* t = node.as_table();
+                const std::string what = std::format("projectile `{}`", name.str());
+                if (!t) {
+                    r.error(&node, std::format("{} is a table", what), "[projectile.236P] glyph = \"一\" size = 60");
+                    continue;
+                }
+                r.only(*t, projectile_look_keys, what);
+                Look::GlyphProjectile g;
+                if (auto v = r.text(t->get("glyph"), "a projectile's `glyph`")) {
+                    g.glyph = *v;
+                    if (!look.glyphs.contains(*v)) r.error(t->get("glyph"), std::format("{} is drawn as `{}`, which is no glyph of the look", what, *v));
+                }
+                if (auto v = r.number(t->get("size"), "a projectile's `size`", 1, 2000)) g.size = static_cast<float>(*v);
+                if (auto v = r.colour(t->get("color"), "a projectile's `color`")) g.color = *v;
+                if (auto v = r.colour(t->get("halo"), "a projectile's `halo`")) g.halo = *v;
+                look.projectiles.insert_or_assign(std::string(name.str()), std::move(g));
+            }
+        } else {
+            r.error(pn, "`projectile` is a table of projectiles");
+        }
+    }
+
     for (const Bone& b : look.bones)
         if (b.parent < 0 && &b != &look.bones.front()) r.error(&*root, std::format("bone `{}` has no parent; only the first bone is the root", b.name));
     if (!out.empty()) return std::unexpected(std::move(out));
@@ -685,6 +713,11 @@ std::string write_look(const Look& look) {
             s += std::format("], width = [{}, {}, {}] }},\n", st.width[0], st.width[1], st.width[2]);
         }
         s += "]\n";
+    }
+    for (const auto& [name, g] : look.projectiles)
+    {
+        s += std::format("\n[projectile.{}]\nglyph = \"{}\"\nsize = {}\ncolor = {}\n", key_text(name), g.glyph, g.size, colour_text(g.color));
+        if (g.halo.a > 0) s += std::format("halo = {}\n", colour_text(g.halo));
     }
     constexpr std::array<std::string_view, 3> flash_text{"none", "white", "invert"};
     for (const auto& [name, c] : look.cinematics) {

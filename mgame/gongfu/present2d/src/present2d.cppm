@@ -148,6 +148,16 @@ struct Look {
     Color                                 accent = Color::hex(0xf2c14e);  // a super's flash and close-up band
     std::map<std::string, std::vector<Stroke>, std::less<>>  glyphs;      // by name: 永, 一, 人
     std::map<std::string, CinematicLook, std::less<>>        cinematics;  // by the level 3's move name
+    // A projectile drawn as a glyph (G-11), by its move's name (236P serves
+    // 236LP, 236MP and 236HP): written in front of the fighter over the
+    // move's frames before it flies, then flying whole, its ink bleeding.
+    struct GlyphProjectile {
+        std::string glyph;
+        float       size = 60;
+        Color       color = Color::hex(0x101114);
+        Color       halo = Color::transparent();  // a glow behind it, to read on a dark stage (transparent: none)
+    };
+    std::map<std::string, GlyphProjectile, std::less<>>      projectiles;
     // Bound to a fighter (bind): its FighterDef::impacts index → impacts' (−1: none).
     std::vector<std::int32_t>             impact_of;
 };
@@ -242,8 +252,10 @@ public:
     // contact sheet, a character select); `clip`/`t` to play a clip by name instead.
     void body(const Look& look, const Fighter& fighter, const FighterState& state, std::int32_t frame, const Scene& scene, const Camera& camera,
               omui::render::DisplayList& out, std::string_view clip = {}, std::int32_t t = 0);
-    // A glyph written to `progress` (0–1 of its strokes' total length) at `centre`, `size` pixels square.
-    void glyph(const std::vector<Stroke>& strokes, double progress, Point centre, float size, Color color, omui::render::DisplayList& out);
+    // A glyph written to `progress` (0–1 of its strokes' total length) at `centre`, `size` pixels square;
+    // its strokes `thicken` times as wide (a halo behind it).
+    void glyph(const std::vector<Stroke>& strokes, double progress, Point centre, float size, Color color, omui::render::DisplayList& out,
+               float thicken = 1);
     // A glyph whose stroke k is written over the frames up to ends[k], from `from`, at `frame`.
     void glyph_by_frames(const std::vector<Stroke>& strokes, std::span<const std::int32_t> ends, std::int32_t from, std::int32_t frame, Point centre,
                          float size, Color color, omui::render::DisplayList& out);

@@ -1,12 +1,18 @@
 # 霓 (Ni), the street fighter: how she looks and how her hits feel (gongfu characters
-# design §4.3). A dark body drawn in neon — magenta lines, cyan lights on the gloves and
-# knees — afterimages behind every move, electric sparks, and a cinematic in a neon city.
+# design §4.3; the fighting game's quality design §3, §5). Drawn in neon on a dark
+# body: an undercut with a long magenta fringe that whips after her, a cropped
+# bomber with a high collar and a lit zip, hand wraps under fingerless gloves
+# with lit knuckles, cargo trousers with a lit knee, sneakers with white soles,
+# and an earphone cord whose lit end trails her. Afterimages behind every move,
+# electric sparks, a cinematic in a neon city. In a bone's frame x runs along it
+# and y across: for a bone pointing up, +y is her back.
 gongfu = "0.1"
 name = "ni"
 outline = { color = "#ff3ea5", width = 2 }
 accent = "#ff3ea5"
 trail = { color = "#ff3ea5", frames = [2, 4, 6], alpha = 0.32 }
 glow = { color = "#ff3ea5", width = 5 }
+light = { from = [-0.62, -0.78], shade = 4, darken = 0.35, shadow = "#05040c", rim = 2, rim_color = "#3ef2ffaa" }
 
 [[palette]]
 name = "neon"
@@ -15,6 +21,8 @@ limb = "#202034"
 skin = "#d9b49c"
 hair = "#ff3ea5"
 light = "#3ef2ff"
+wrap = "#e6e6ee"
+sole = "#f2f2f7"
 
 [[palette]]
 name = "acid"
@@ -23,6 +31,8 @@ limb = "#1f2a1a"
 skin = "#d9b49c"
 hair = "#c6ff3e"
 light = "#ff8a3e"
+wrap = "#e6e6ee"
+sole = "#e6efe0"
 
 [[bone]]
 name = "hip"
@@ -50,6 +60,7 @@ parent = "head"
 joint = [14, 6]
 length = 26
 rest = 72
+follow = { lag = 4, amount = 0.7, max = 45, drag = 0.8 }
 
 [[bone]]
 name = "upper_back"
@@ -111,11 +122,39 @@ joint = [46, 0]
 length = 48
 rest = -30
 
+[[bone]]
+name = "cord"
+parent = "head"
+joint = [4, -6]
+length = 46
+rest = -92
+hang = true
+follow = { lag = 5, amount = 0.6, max = 60, drag = 1.4 }
+
+# ── behind the body ─────────────────────────────────────────────────────────
+
 [[part]]
+name = "cord"
+bone = "cord"
+shape = "polygon"
+points = [[0, -1.2], [44, -1], [44, 1], [0, 1.2]]
+color = "wrap"
+shade = false
+
+[[part]]
+name = "cord_end"
+bone = "cord"
+shape = "ellipse"
+size = [3.5, 3.5]
+color = "light"
+shade = false
+
+[[part]]
+name = "sleeve_back"
 bone = "upper_back"
-shape = "capsule"
-size = [8, 7]
-color = "limb"
+shape = "curve"
+points = [[-3, -10], [14, -11], [29, -9], [31, 0], [29, 9], [14, 11], [-3, 10]]
+color = "body"
 
 [[part]]
 bone = "fore_back"
@@ -124,9 +163,16 @@ size = [6, 7]
 color = "skin"
 
 [[part]]
+name = "wrap_back"
+bone = "fore_back"
+shape = "polygon"
+points = [[14, -7], [24, -7.5], [24, 7.5], [14, 7]]
+color = "wrap"
+
+[[part]]
 bone = "thigh_back"
 shape = "capsule"
-size = [10, 8]
+size = [11, 9]
 color = "limb"
 
 [[part]]
@@ -136,45 +182,135 @@ size = [8, 7]
 color = "limb"
 
 [[part]]
-bone = "hair"
+name = "shoe_back"
+bone = "shin_back"
+shape = "curve"
+points = [[40, -6], [50, -7], [54, 2], [53, 15], [46, 16], [42, 5]]
+color = "body"
+
+[[part]]
+name = "sole_back"
+bone = "shin_back"
 shape = "polygon"
-points = [[0, -9], [26, -3], [30, 6], [0, 8]]
+points = [[51, -7], [55, -6], [55, 16], [51, 16]]
+color = "sole"
+shade = false
+
+[[part]]
+name = "fringe"
+bone = "hair"
+shape = "curve"
+points = [[-2, -9], [12, -10], [26, -6], [34, 2], [28, 7], [12, 8], [0, 9]]
 color = "hair"
 depth = 1
 
+# ── the body ────────────────────────────────────────────────────────────────
+
 [[part]]
+name = "jacket"
 bone = "torso"
-shape = "capsule"
-size = [16, 13]
+shape = "curve"
+points = [[4, -17], [24, -16], [44, -14], [54, -9], [55, 8], [44, 15], [24, 16], [4, 17]]
 color = "body"
 depth = 2
 
 [[part]]
+name = "waist"
 bone = "hip"
 shape = "capsule"
 size = [14, 14]
-color = "body"
+color = "limb"
 depth = 2
 
 [[part]]
+name = "hem"
 bone = "torso"
 shape = "polygon"
-points = [[8, -15], [40, -12], [40, -9], [8, -12]]
-color = "light"
+points = [[2, -17], [9, -17], [9, 17], [2, 17]]
+color = "limb"
 depth = 3
 
 [[part]]
+name = "zip"
+bone = "torso"
+shape = "polygon"
+points = [[9, -16], [52, -11], [52, -8.5], [9, -13.5]]
+color = "light"
+depth = 3
+shade = false
+
+[[part]]
+name = "collar"
+bone = "torso"
+shape = "curve"
+points = [[46, -14], [58, -12], [62, 0], [58, 12], [46, 14], [50, 0]]
+color = "body"
+depth = 3
+
+[[part]]
+name = "neck"
 bone = "head"
-shape = "ellipse"
-size = [13, 11]
+shape = "capsule"
+size = [5.5, 5.5]
+color = "skin"
+depth = 2
+
+[[part]]
+name = "face"
+bone = "head"
+shape = "curve"
+points = [[1, -7], [7, -11], [16, -12], [23, -9], [25, -1], [23, 7], [14, 11], [4, 9]]
 color = "skin"
 depth = 3
 
 [[part]]
+name = "undercut"
+bone = "head"
+shape = "curve"
+points = [[3, 10], [14, 13], [22, 10], [25, 2], [20, 4], [12, 6], [6, 6]]
+color = "body"
+depth = 4
+
+[[part]]
+name = "eye"
+bone = "head"
+shape = "polygon"
+points = [[13, -9.5], [16.5, -10.5], [16, -7], [13.5, -7.5]]
+color = "body"
+depth = 4
+shade = false
+
+[[part]]
+name = "brow"
+bone = "head"
+shape = "polygon"
+points = [[17, -12], [19, -10.5], [18.5, -6.5], [16.5, -8]]
+color = "body"
+depth = 4
+shade = false
+
+[[part]]
+name = "stud"
+bone = "head"
+shape = "ellipse"
+size = [1.6, 1.6]
+color = "light"
+depth = 4
+shade = false
+
+[[part]]
 bone = "thigh_front"
 shape = "capsule"
-size = [10, 8]
+size = [11, 9]
 color = "limb"
+depth = 3
+
+[[part]]
+name = "pocket"
+bone = "thigh_front"
+shape = "polygon"
+points = [[16, -11], [32, -10], [32, -3], [16, -4]]
+color = "body"
 depth = 3
 
 [[part]]
@@ -190,12 +326,33 @@ shape = "ellipse"
 size = [5, 5]
 color = "light"
 depth = 4
+shade = false
 
 [[part]]
+name = "shoe_front"
+bone = "shin_front"
+shape = "curve"
+points = [[40, -6], [50, -7], [54, 2], [53, 15], [46, 16], [42, 5]]
+color = "body"
+depth = 3
+
+[[part]]
+name = "sole_front"
+bone = "shin_front"
+shape = "polygon"
+points = [[51, -7], [55, -6], [55, 16], [51, 16]]
+color = "sole"
+depth = 3
+shade = false
+
+# ── in front ────────────────────────────────────────────────────────────────
+
+[[part]]
+name = "sleeve_front"
 bone = "upper_front"
-shape = "capsule"
-size = [8, 7]
-color = "limb"
+shape = "curve"
+points = [[-3, -10], [14, -11], [29, -9], [31, 0], [29, 9], [14, 11], [-3, 10]]
+color = "body"
 depth = 5
 
 [[part]]
@@ -206,11 +363,29 @@ color = "skin"
 depth = 5
 
 [[part]]
+name = "wrap_front"
+bone = "fore_front"
+shape = "polygon"
+points = [[14, -7], [24, -7.5], [24, 7.5], [14, 7]]
+color = "wrap"
+depth = 5
+
+[[part]]
+name = "glove"
 bone = "fore_front"
 shape = "ellipse"
 size = [8, 8]
+color = "body"
+depth = 6
+
+[[part]]
+name = "knuckles"
+bone = "fore_front"
+shape = "polygon"
+points = [[29, -5], [33, -4], [33, 4], [29, 5]]
 color = "light"
 depth = 6
+shade = false
 
 [clip.idle]
 frames = 30

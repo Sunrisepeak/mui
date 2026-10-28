@@ -344,7 +344,7 @@ int main(int argc, char** argv) {
         check(g.h.save_png(dir / "study.png").has_value());
         const auto px = g.pixels();
         std::println("    study {:016x}", px);
-        check_eq(px, std::uint64_t{0x1add7085bea3cb19});  // GCC and LLVM
+        check_eq(px, std::uint64_t{0x5e488f5387e965d5});  // GCC and LLVM
     });
 
     s.test("the README's loop: 墨's level 3 from the flash to the seal, an animated PNG under 1 MB", [] {
@@ -482,7 +482,7 @@ int main(int argc, char** argv) {
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    ni level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("b752039ae801b1db"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("b40453247ffd4c00"));  // GCC and LLVM, every platform
     });
 
     s.test("岳 as designed: every normal's and elbow's startup and advantage, measured in the simulation (characters 2 design §3)", [] {
@@ -1035,7 +1035,7 @@ int main(int argc, char** argv) {
             check(rate >= 0.38 && rate <= 0.62, std::format("{} wins {:.2f} of its rounds", r.names[i], rate));
         }
         std::println("    rounds {}", all.hex());
-        check_eq(all.hex(), std::string("36e6c3308979e122"));  // the same rounds on GCC and LLVM
+        check_eq(all.hex(), std::string("5d29560b86fc2917"));  // the same rounds on GCC and LLVM
     });
 
     s.test("the fight heard, offline: silence until the first contact, its sounds on its frame, the same bits every run — and a WAV of it", [] {

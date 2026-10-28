@@ -41,6 +41,12 @@ version = "1.6.43"
 source  = "index+compat@1.6.43"
 hash    = "fnv1a:b3a219b122077f27"
 
+[package."compat.libwebp"]
+namespace = "compat"
+version = "1.5.0"
+source  = "index+compat@1.5.0"
+hash    = "fnv1a:abebd516dacc0216"
+
 [package."compat.lua"]
 namespace = "compat"
 version = "5.4.7"
@@ -214,6 +220,12 @@ namespace = "mcpplibs.mwrap"
 version = "1.6.43"
 source  = "index+mcpplibs.mwrap@1.6.43"
 hash    = "fnv1a:2b3d4ee2a70d559d"
+
+[package."mcpplibs.mwrap.libwebp"]
+namespace = "mcpplibs.mwrap"
+version = "1.5.0"
+source  = "index+mcpplibs.mwrap@1.5.0"
+hash    = "fnv1a:2cac2f9dc1f3db34"
 
 [package."mcpplibs.mwrap.lua"]
 namespace = "mcpplibs.mwrap"

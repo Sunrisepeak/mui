@@ -73,6 +73,34 @@ std::vector<std::pair<image::Image, std::uint32_t>> play(std::span<const std::ui
     return shown;
 }
 
+// FNV-1a over the pixels: a pin that names a whole picture.
+std::uint64_t fnv(std::span<const std::uint8_t> b) {
+    std::uint64_t h = 0xcbf29ce484222325ull;
+    for (std::uint8_t x : b) h = (h ^ x) * 0x100000001b3ull;
+    return h;
+}
+
+// A picture like art or a photograph: smooth colour with a little grain
+// (what lossy coding is for), alpha rising left to right, and a clear band
+// on the left whose colours must survive (exact).
+image::Image test_picture(int w, int h) {
+    image::Image img;
+    img.width = w, img.height = h;
+    img.rgba.resize(static_cast<std::size_t>(w) * h * 4);
+    std::uint32_t grain = 12345;
+    for (int y = 0; y < h; ++y)
+        for (int x = 0; x < w; ++x) {
+            auto px = img.rgba.begin() + (static_cast<std::ptrdiff_t>(y) * w + x) * 4;
+            const std::array<int, 3> c{x * 255 / (w - 1), y * 255 / (h - 1), 255 - (x + y) * 255 / (w + h - 2)};
+            for (std::size_t k = 0; k < 3; ++k) {
+                grain = grain * 1664525u + 1013904223u;
+                px[static_cast<std::ptrdiff_t>(k)] = static_cast<std::uint8_t>(std::clamp(c[k] + static_cast<int>(grain >> 29) - 4, 0, 255));
+            }
+            px[3] = x < w / 8 ? 0 : static_cast<std::uint8_t>(std::min(255, 64 + x * 255 / w));
+        }
+    return img;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -176,6 +204,121 @@ int main(int argc, char** argv) {
         }
     });
 
+    s.test("WebP: the first use from many threads at once (libwebp's setup made once)", [] {
+        const auto img = test_picture(48, 32);
+        std::array<std::uint64_t, 8> got{};
+        {
+            std::vector<std::jthread> threads;
+            for (std::size_t t = 0; t < got.size(); ++t)
+                threads.emplace_back([&, t] {
+                    auto bytes = image::encode_webp(image::view(img), {.lossless = t % 2 == 1});
+                    auto back = bytes ? image::decode_webp(*bytes) : std::unexpected(bytes.error());
+                    got[t] = back ? fnv(back->rgba) : 0;
+                });
+        }
+        for (std::size_t t = 2; t < got.size(); ++t) check(got[t] == got[t % 2], std::format("thread {}", t));
+        check(got[0] != 0 && got[1] != 0);
+    });
+
+    s.test("WebP lossless round trip keeps every pixel, colours under clear pixels too", [] {
+        image::Image img;
+        img.width = 37;
+        img.height = 19;
+        img.rgba.resize(37 * 19 * 4);
+        for (std::size_t i = 0; i < img.rgba.size(); ++i) img.rgba[i] = static_cast<std::uint8_t>((i * 131) ^ (i >> 3));
+        for (std::size_t i = 3; i < img.rgba.size(); i += 4 * 5) img.rgba[i] = 0;  // every fifth pixel clear, its colour kept
+        auto webp = image::encode_webp(image::view(img), {.lossless = true});
+        check(webp.has_value(), webp ? "" : webp.error());
+        if (!webp) return;
+        check(webp->size() > 12 && std::string_view(reinterpret_cast<const char*>(webp->data()), 4) == "RIFF" &&
+              std::string_view(reinterpret_cast<const char*>(webp->data() + 8), 4) == "WEBP");
+        auto back = image::decode_webp(*webp);
+        check(back.has_value());
+        check(back->width == 37 && back->height == 19 && back->alpha == image::Alpha::straight);
+        check(back->rgba == img.rgba);
+    });
+
+    s.test("WebP lossy: close to the picture, smaller, its alpha exact", [] {
+        const auto img = test_picture(96, 64);
+        auto webp = image::encode_webp(image::view(img), {.quality = 90});
+        check(webp.has_value(), webp ? "" : webp.error());
+        if (!webp) return;
+        check(webp->size() < image::encode_webp(image::view(img), {.lossless = true})->size(), "smaller than lossless");
+        auto back = image::decode_webp(*webp);
+        check(back.has_value() && back->width == 96 && back->height == 64);
+        if (!back) return;
+        double sum = 0;
+        int worst = 0, alpha_off = 0;
+        for (std::size_t i = 0; i < img.rgba.size(); i += 4) {
+            if (back->rgba[i + 3] != img.rgba[i + 3]) ++alpha_off;
+            for (std::size_t c = 0; c < 3; ++c) {
+                const int d = std::abs(int{back->rgba[i + c]} - int{img.rgba[i + c]});
+                sum += d, worst = std::max(worst, d);
+            }
+        }
+        const double mean = sum / (96.0 * 64 * 3);
+        check(mean < 3.0, std::format("mean difference {:.2f}", mean));
+        check(worst <= 24, std::format("worst difference {}", worst));
+        check_eq(alpha_off, 0);  // alpha is coded losslessly beside lossy colour
+    });
+
+    s.test("WebP is deterministic: a file's pixels and an encoding's, pinned", [] {
+        // A 16 × 16 lossy WebP with alpha, as this libwebp writes test_picture(16, 16) at quality 75.
+        static constexpr std::array<std::uint8_t, 152> file{
+            0x52, 0x49, 0x46, 0x46, 0x90, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50, 0x56, 0x50, 0x38, 0x58,
+            0x0a, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x0f, 0x00, 0x00, 0x0f, 0x00, 0x00, 0x41, 0x4c,
+            0x50, 0x48, 0x22, 0x00, 0x00, 0x00, 0x01, 0x5f, 0x20, 0x10, 0x20, 0x24, 0x38, 0xf4, 0x3f, 0xa2,
+            0x21, 0x22, 0x92, 0x1c, 0x10, 0x09, 0x40, 0xb8, 0x62, 0x8b, 0x2d, 0xb6, 0xd8, 0x62, 0x83, 0x8d,
+            0x7a, 0x44, 0xff, 0x03, 0x94, 0xd3, 0xed, 0x17, 0x56, 0x50, 0x38, 0x20, 0x48, 0x00, 0x00, 0x00,
+            0xb0, 0x02, 0x00, 0x9d, 0x01, 0x2a, 0x10, 0x00, 0x10, 0x00, 0x02, 0x00, 0x34, 0x25, 0xb0, 0x02,
+            0x74, 0x73, 0x01, 0x78, 0x03, 0x6c, 0x03, 0xf4, 0x00, 0x0d, 0x07, 0x18, 0x7c, 0xd8, 0x00, 0xfe,
+            0xfa, 0x93, 0x32, 0x41, 0x31, 0xb7, 0x44, 0x26, 0x8a, 0xb1, 0xf6, 0x88, 0x18, 0x93, 0xfd, 0x7f,
+            0xf5, 0x11, 0x3d, 0x80, 0x10, 0x4c, 0x48, 0x2f, 0xb0, 0xce, 0x86, 0x9d, 0x33, 0xff, 0xe8, 0x76,
+            0xfd, 0xff, 0xfa, 0x3c, 0x3d, 0x0a, 0x78, 0x00,
+        };
+        auto from_file = image::decode_webp(file);
+        check(from_file.has_value() && from_file->width == 16 && from_file->height == 16);
+        if (from_file) check_eq(fnv(from_file->rgba), 0x28d81b35ae3737a6ull);
+        const auto img = test_picture(16, 16);
+        auto bytes = image::encode_webp(image::view(img), {.quality = 75});
+        check(bytes.has_value() && std::ranges::equal(*bytes, file), "the encoder writes the same bytes");
+        const auto big = test_picture(96, 64);
+        auto lossy = image::decode_webp(*image::encode_webp(image::view(big), {.quality = 80, .method = 6}));
+        check(lossy.has_value());
+        if (lossy) check_eq(fnv(lossy->rgba), 0xbdf44cf8f79c0179ull);
+    });
+
+    s.test("WebP: premultiplied pixels are written straight", [] {
+        image::Image img;
+        img.width = 1;
+        img.height = 1;
+        img.alpha = image::Alpha::premultiplied;
+        img.rgba = {64, 0, 0, 128};  // 50% of #800000 premultiplied
+        auto back = image::decode_webp(*image::encode_webp(image::view(img), {.lossless = true}));
+        check(back.has_value() && back->rgba == std::vector<std::uint8_t>{128, 0, 0, 128});
+    });
+
+    s.test("WebP: bad input is an error, not a crash", [] {
+        std::array<std::uint8_t, 4> junk{1, 2, 3, 4};
+        auto bad = image::decode_webp(junk);
+        check(!bad.has_value() && bad.error().starts_with("webp:"));
+        check(!image::decode_webp({}).has_value(), "nothing");
+        const auto img = test_picture(32, 32);
+        for (const bool lossless : {false, true}) {
+            auto good = *image::encode_webp(image::view(img), {.lossless = lossless});
+            for (const std::size_t keep : {std::size_t{12}, std::size_t{30}, good.size() / 2, good.size() - 1})
+                check(!image::decode_webp(std::span(good).first(keep)).has_value(), std::format("cut to {} of {}", keep, good.size()));
+            auto scrambled = good;
+            for (std::size_t i = 20; i < scrambled.size(); i += 3) scrambled[i] ^= 0x5a;
+            (void)image::decode_webp(scrambled);  // an error or some pixels; only not a crash
+        }
+        check(!image::encode_webp(image::View{}).has_value(), "an empty image");
+        image::Image huge;
+        huge.width = 20000, huge.height = 1, huge.rgba.assign(20000 * 4, 255);
+        auto too_wide = image::encode_webp(image::view(huge));
+        check(!too_wide.has_value() && too_wide.error().starts_with("webp:"), too_wide ? "" : too_wide.error());
+    });
+
     s.test("files and errors", [] {
         auto dir = scratch_dir("image");
         image::Image img;
@@ -189,6 +332,17 @@ int main(int argc, char** argv) {
         auto bad = image::decode_png(junk);
         check(!bad.has_value() && bad.error().starts_with("png:"));
         check(!image::load_png(dir / "missing.png").has_value());
+        check(image::save_webp(dir / "a.webp", image::view(img), {.lossless = true}).has_value());
+        auto webp = image::load_webp(dir / "a.webp");
+        check(webp && webp->rgba == img.rgba);
+        // Either format, told by its signature.
+        auto sniffed_png = image::load(dir / "a.png");
+        auto sniffed_webp = image::load(dir / "a.webp");
+        check(sniffed_png && sniffed_png->rgba == img.rgba, "load: a PNG");
+        check(sniffed_webp && sniffed_webp->rgba == img.rgba, "load: a WebP");
+        auto neither = image::decode(junk);
+        check(!neither.has_value() && neither.error() == "not a PNG or WebP image");
+        check(!image::load(dir / "missing.webp").has_value());
     });
 
     return s.run(argc, argv);

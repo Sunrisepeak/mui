@@ -46,8 +46,25 @@ void unpremultiply(Image& img) {
     img.alpha = Alpha::straight;
 }
 
-std::expected<void, std::string> save_png(const std::filesystem::path& file, const View& pixels) {
-    auto bytes = encode_png(pixels);
+Straight straight(const View& pixels) {
+    if (pixels.alpha == Alpha::straight) return {{}, pixels.rgba, pixels.stride};
+    Image tmp;
+    tmp.width = pixels.width;
+    tmp.height = pixels.height;
+    tmp.alpha = Alpha::premultiplied;
+    tmp.rgba.resize(static_cast<std::size_t>(pixels.width) * pixels.height * 4);
+    for (int y = 0; y < pixels.height; ++y)
+        std::memcpy(tmp.rgba.data() + static_cast<std::size_t>(y) * pixels.width * 4, pixels.rgba + static_cast<std::size_t>(y) * pixels.stride,
+                    static_cast<std::size_t>(pixels.width) * 4);
+    unpremultiply(tmp);
+    Straight out{std::move(tmp.rgba), nullptr, pixels.width * 4};
+    out.rgba = out.copy.data();
+    return out;
+}
+
+namespace {
+
+std::expected<void, std::string> write_file(const std::filesystem::path& file, std::expected<std::vector<std::uint8_t>, std::string> bytes) {
     if (!bytes) return std::unexpected(bytes.error());
     std::ofstream out(file, std::ios::binary);
     if (!out) return std::unexpected(std::format("cannot write {}", generic_utf8(file)));
@@ -56,22 +73,44 @@ std::expected<void, std::string> save_png(const std::filesystem::path& file, con
     return {};
 }
 
-std::expected<void, std::string> save_apng(const std::filesystem::path& file, std::span<const View> frames, ApngOptions options) {
-    auto bytes = encode_apng(frames, options);
-    if (!bytes) return std::unexpected(bytes.error());
-    std::ofstream out(file, std::ios::binary);
-    if (!out) return std::unexpected(std::format("cannot write {}", generic_utf8(file)));
-    out.write(reinterpret_cast<const char*>(bytes->data()), static_cast<std::streamsize>(bytes->size()));
-    if (!out) return std::unexpected(std::format("cannot write {}", generic_utf8(file)));
-    return {};
-}
-
-std::expected<Image, std::string> load_png(const std::filesystem::path& file) {
+std::expected<std::vector<std::uint8_t>, std::string> read_file(const std::filesystem::path& file) {
     std::ifstream in(file, std::ios::binary);
     if (!in) return std::unexpected(std::format("cannot read {}", generic_utf8(file)));
-    std::vector<std::uint8_t> bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-    return decode_png(bytes);
+    return std::vector<std::uint8_t>((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
 }
+
+bool is_png(std::span<const std::uint8_t> b) {
+    constexpr std::array<std::uint8_t, 8> sig{0x89, 'P', 'N', 'G', 0x0d, 0x0a, 0x1a, 0x0a};
+    return b.size() >= sig.size() && std::equal(sig.begin(), sig.end(), b.begin());
+}
+bool is_webp(std::span<const std::uint8_t> b) {
+    auto at = [&](std::size_t i, std::string_view tag) { return std::equal(tag.begin(), tag.end(), b.begin() + static_cast<std::ptrdiff_t>(i)); };
+    return b.size() >= 12 && at(0, "RIFF") && at(8, "WEBP");
+}
+
+}  // namespace
+
+std::expected<void, std::string> save_png(const std::filesystem::path& file, const View& pixels) { return write_file(file, encode_png(pixels)); }
+
+std::expected<void, std::string> save_apng(const std::filesystem::path& file, std::span<const View> frames, ApngOptions options) {
+    return write_file(file, encode_apng(frames, options));
+}
+
+std::expected<void, std::string> save_webp(const std::filesystem::path& file, const View& pixels, WebpOptions options) {
+    return write_file(file, encode_webp(pixels, options));
+}
+
+std::expected<Image, std::string> load_png(const std::filesystem::path& file) { return read_file(file).and_then([](const auto& b) { return decode_png(b); }); }
+
+std::expected<Image, std::string> load_webp(const std::filesystem::path& file) { return read_file(file).and_then([](const auto& b) { return decode_webp(b); }); }
+
+std::expected<Image, std::string> decode(std::span<const std::uint8_t> bytes) {
+    if (is_png(bytes)) return decode_png(bytes);
+    if (is_webp(bytes)) return decode_webp(bytes);
+    return std::unexpected("not a PNG or WebP image");
+}
+
+std::expected<Image, std::string> load(const std::filesystem::path& file) { return read_file(file).and_then([](const auto& b) { return decode(b); }); }
 
 namespace {
 

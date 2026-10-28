@@ -1,10 +1,10 @@
-// openmui.image — images in memory, PNG, and animated PNG.
+// openmui.image — images in memory, PNG, animated PNG, and WebP.
 //
 // An Image is 8-bit RGBA, rows top to bottom, either straight or
 // premultiplied alpha (the renderer works premultiplied; files are straight).
-// PNG goes through libpng's simplified API (D-56). Decoding returns an error
-// message rather than throwing; writing is deterministic for a given libpng
-// and zlib, which mcpp.lock pins.
+// PNG goes through libpng's simplified API, WebP through libwebp (D-56).
+// Decoding returns an error message rather than throwing; writing is
+// deterministic for a given libpng, zlib and libwebp, which mcpp.lock pins.
 export module openmui.image;
 
 import std;
@@ -65,6 +65,24 @@ struct ApngOptions {
 [[nodiscard]] std::expected<std::vector<std::uint8_t>, std::string> encode_apng(std::span<const View> frames, ApngOptions options = {});
 [[nodiscard]] std::expected<void, std::string> save_apng(const std::filesystem::path& file, std::span<const View> frames, ApngOptions options = {});
 
+// WebP (still images): lossy (VP8, alpha kept losslessly beside it) or
+// lossless (VP8L). Colours under clear pixels are kept either way (libwebp's
+// `exact`), so unpremultiplied art keeps its edges. Single-threaded, so the
+// bytes are the same on every platform for a given libwebp.
+struct WebpOptions {
+    float quality = 90;     // lossy: 0–100, higher is better and larger; lossless: effort
+    bool  lossless = false;
+    int   method = 4;       // 0 (fast) – 6 (smallest)
+};
+[[nodiscard]] std::expected<std::vector<std::uint8_t>, std::string> encode_webp(const View& pixels, WebpOptions options = {});
+[[nodiscard]] std::expected<Image, std::string> decode_webp(std::span<const std::uint8_t> bytes);  // straight alpha
+[[nodiscard]] std::expected<void, std::string> save_webp(const std::filesystem::path& file, const View& pixels, WebpOptions options = {});
+[[nodiscard]] std::expected<Image, std::string> load_webp(const std::filesystem::path& file);
+
+// Either format, told by its signature (PNG's eight bytes, WebP's RIFF/WEBP).
+[[nodiscard]] std::expected<Image, std::string> decode(std::span<const std::uint8_t> bytes);
+[[nodiscard]] std::expected<Image, std::string> load(const std::filesystem::path& file);
+
 // ── cutting art out of a sheet (drawn or generated on a flat background) ──
 
 // Keys out a background colour (a green or blue screen): each pixel's alpha
@@ -102,5 +120,18 @@ struct Packed {
 // A region of a picture as a picture of its own.
 [[nodiscard]] Image crop(const Image& img, std::int32_t x, std::int32_t y, std::int32_t width, std::int32_t height);
 [[nodiscard]] std::expected<Image, std::string> load_png(const std::filesystem::path& file);
+
+}  // namespace omui::imageio
+
+namespace omui::imageio {
+
+// For the codecs (not exported): the pixels straight, tightly packed — a
+// copy unpremultiplied when they are premultiplied, else the view itself.
+struct Straight {
+    std::vector<std::uint8_t> copy;
+    const std::uint8_t*       rgba = nullptr;
+    int                       stride = 0;
+};
+[[nodiscard]] Straight straight(const View& pixels);
 
 }  // namespace omui::imageio

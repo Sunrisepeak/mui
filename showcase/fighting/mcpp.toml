@@ -35,3 +35,4 @@ gongfu.rules  = { path = "../../mgame/gongfu/rules", host-module = true }
 
 [dev-dependencies]
 openmui.testing = { path = "../../modules/base/testing" }
+gongfu.ai       = { path = "../../mgame/gongfu/ai" }

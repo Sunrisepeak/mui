@@ -57,7 +57,7 @@ total = 36
 meter = { gain = 60 }
 [[move.hit]]
 active = [11, 14]
-boxes = [[30, 100, 140, 40]]
+boxes = [[30, 100, 120, 40]]
 damage = 900
 hitstun = 26
 blockstun = 19

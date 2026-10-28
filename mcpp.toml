@@ -63,6 +63,7 @@ members = [
     "mgame/gongfu/rules",
     "mgame/gongfu/studio",
     "mgame/gongfu/training",
+    "mgame/gongfu/ai",
     "mgame/net",
     "components/base",
     "components/canvas",

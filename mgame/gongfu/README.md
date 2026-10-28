@@ -93,10 +93,17 @@ It also plays 5,000 frames of all of these, rolled back every frame, against a s
   - a recorder that plays a player's pads back, looped (the dummy).
 
   It uses only the standard library and allocates nothing per frame.
+- [ai](ai) (`gongfu.ai`): a computer opponent, and fighters measured against each other.
+  - The kit: what a fighter's moves are for, read from their data.
+  - The bot: it sees the other side a reaction late; it guards, anti-airs, jumps projectiles, punishes whiffs (stepping in when it has to), zones, pokes, throws and spends meter. It is seeded, so a round plays the same everywhere.
+  - Rounds and records: wins, damage (by move), round length and supers, with the sides swapped every other round.
+
+  The fighting game's tests hold the roster to its balance gates with it.
 - [studio](studio) (`gongfu.studio`): making fighters. The library and the command line (`gongfu-studio`, JSON output and exit codes) for people, agents and CI:
   - `bake` writes each fighter's hurtboxes from its look's animation (`<name>.boxes.gongfu.toml`): where a limb reaches out of the stance's box, frame by frame (G-5);
   - `check` says whether those files are current;
-  - `embed` gives a program its fighters.
+  - `embed` gives a program its fighters;
+  - `versus` has bots play every pair of a directory's fighters, and reports each pair's record and where each fighter's damage comes from.
 
   The graphical studio comes later, on the same library.
 - [rules](rules) (`gongfu.rules`): the build rule. A program's fighters (with their looks and baked hurtboxes) become a module partition it carries, and a stale bake fails the build, naming the command to run. The simulation never samples an animation.

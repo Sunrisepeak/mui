@@ -7,6 +7,7 @@ import std;
 import openmui;
 import openmui.showcase.fighting;
 import openmui.testing;
+import gongfu.ai;
 
 using namespace omui::testing;
 using namespace omui;
@@ -929,7 +930,7 @@ int main(int argc, char** argv) {
             }
         };
         for (std::size_t a = 0; a < r.fighters.size(); ++a) {
-            int longest = 0;
+            int longest = 0, longest_locked = 0;
             Rng rng{0x5eed + a};
             for (int run = 0; run < 120; ++run) {
                 gongfu::Match m(sys, r.fighters[a], r.fighters[a]);
@@ -938,7 +939,7 @@ int main(int argc, char** argv) {
                 st.f[0].pos.x = sys.stage_width - 120_fx;
                 st.f[0].meter = st.f[1].meter = 3000;
                 m.restore(st);
-                int stunned = 0;
+                int stunned = 0, locked = 0;
                 for (int f = 0; f < 900; ++f) {
                     const std::uint32_t v = rng.next();
                     const int dirs[] = {5, 5, 6, 2, 3, 8};
@@ -948,12 +949,54 @@ int main(int argc, char** argv) {
                     const bool held = mode == gongfu::Mode::hitstun || mode == gongfu::Mode::broken || mode == gongfu::Mode::cinematic || mode == gongfu::Mode::thrown;
                     stunned = held ? stunned + 1 : 0;
                     longest = std::max(longest, stunned);
+                    // Knocked down and hit again as it rises counts too: a loop is never let go, stunned or not.
+                    locked = mode == gongfu::Mode::idle ? 0 : locked + 1;
+                    longest_locked = std::max(longest_locked, locked);
                     if (m.state().over) break;
                 }
             }
             check(longest < 300, std::format("{}: the longest the opponent stayed stunned was {} frames", r.names[a], longest));
-            std::println("    {} longest stun {} frames", r.names[a], longest);
+            check(longest_locked < 600, std::format("{}: the longest the opponent was never let go was {} frames", r.names[a], longest_locked));
+            std::println("    {} longest stun {} frames, never let go {}", r.names[a], longest, longest_locked);
         }
+    });
+
+    s.test("balance gates (characters 2 design §7): bots play every pair, sides swapped; each fighter wins 38–62% of its rounds, no pair beyond 25–75", [] {
+        const auto& r = fighting::roster();
+        constexpr std::int32_t rounds = 100;
+        std::vector<double> won(r.fighters.size(), 0);
+        std::vector<std::int32_t> played(r.fighters.size(), 0);
+        // Each pair on its own thread (its rounds depend on nothing else: the same records however they run).
+        struct Pair {
+            std::size_t a, b;
+            gongfu::ai::Record record;
+        };
+        std::vector<Pair> pairs;
+        for (std::size_t a = 0; a < r.fighters.size(); ++a)
+            for (std::size_t b = a + 1; b < r.fighters.size(); ++b) pairs.push_back({a, b, {}});
+        {
+            std::vector<std::jthread> workers;
+            for (Pair& p : pairs)
+                workers.emplace_back([&r, at = &p] { at->record = gongfu::ai::versus(r.system, r.fighters[at->a], r.fighters[at->b], rounds, 1); });
+        }
+        Hash all;
+        for (const Pair& p : pairs) {
+            const std::size_t a = p.a, b = p.b;
+            const gongfu::ai::Record& rec = p.record;
+            check(rec.win_rate(0) >= 0.25 && rec.win_rate(0) <= 0.75, std::format("{} against {}: {:.2f}", r.names[a], r.names[b], rec.win_rate(0)));
+            won[a] += rec.win_rate(0) * rounds;
+            won[b] += rec.win_rate(1) * rounds;
+            played[a] += rounds;
+            played[b] += rounds;
+            all.u64(static_cast<std::uint64_t>(rec.wins[0]) << 32 | static_cast<std::uint64_t>(rec.frames));
+        }
+        for (std::size_t i = 0; i < r.fighters.size(); ++i) {
+            const double rate = won[i] / played[i];
+            std::println("    {} wins {:.2f}", r.names[i], rate);
+            check(rate >= 0.38 && rate <= 0.62, std::format("{} wins {:.2f} of its rounds", r.names[i], rate));
+        }
+        std::println("    rounds {}", all.hex());
+        check_eq(all.hex(), std::string("6f6812df1978b57e"));  // the same rounds on GCC and LLVM
     });
 
     s.test("frames pinned: versus and training (boxes and the meter) at a jab's active frame", [] {

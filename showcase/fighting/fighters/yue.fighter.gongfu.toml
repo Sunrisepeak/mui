@@ -4,7 +4,7 @@
 # buttons, the biggest body. Units are pixels and frames; every number is the design's.
 gongfu = "0.1"
 name = "Yue"
-health = 11500
+health = 11100
 posture = 1400
 walk = { forward = 3, back = 2.6 }
 jump = { prejump = 5, up = 22, forward = 4, gravity = 1, landing = 4 }

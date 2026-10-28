@@ -1,0 +1,27 @@
+# gongfu.ai — a computer opponent, and fighters measured against each other
+# (gongfu characters 2 design §7: the report balance is tuned by). A bot reads
+# what a fighter's moves are for from their data, sees the other side a
+# reaction late, and guards, answers jumps, zones, pokes, throws and spends
+# meter as a person might; seeded, so a round plays the same every time. The
+# standard library alone.
+[package]
+namespace   = "gongfu"
+name        = "ai"
+version     = "0.1.0"
+description = "gongfu's computer opponent, and rounds between fighters measured: wins, damage, round length"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[targets.gongfu-ai]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+gongfu = { path = ".." }
+
+[dev-dependencies]
+openmui.testing = { path = "../../../modules/base/testing" }

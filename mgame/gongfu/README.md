@@ -23,4 +23,5 @@ for (const gongfu::Event& e : match.events()) { /* hits, blocks, throws, KO: wha
 
 ## Inside
 
+- [present2d](present2d) (`gongfu.present2d`): a match drawn in 2D — skeletons with vector parts posed by clips, the camera, sparks and shakes — every picture a pure function of the state and its events.
 - [data](data) (`gongfu.data`): characters and rules as files — `*.fighter.gongfu.toml`, `*.system.gongfu.toml` — read with every problem at its line and column, moves in numpad notation (`236P`, `[4]6P`, `2LK`, `LP+LK`).

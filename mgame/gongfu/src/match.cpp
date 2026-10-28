@@ -13,6 +13,12 @@ constexpr Command tech_command{.buttons = static_cast<std::uint16_t>(bit(Button:
 
 bool neutral(Mode m) { return m == Mode::idle || m == Mode::walk_forward || m == Mode::walk_back || m == Mode::crouch; }
 
+// The middle of where two boxes meet: where a spark goes.
+Vec meeting(const Rect& a, const Rect& b) {
+    const Fixed left = max(a.left, b.left), right = min(a.right, b.right), bottom = max(a.bottom, b.bottom), top = min(a.top, b.top);
+    return {(left + right) / 2, (bottom + top) / 2};
+}
+
 // Away from `from` along the stage: +1 to the right of it, −1 to the left.
 std::int32_t away(const FighterState& from, const FighterState& of) { return of.pos.x >= from.pos.x ? 1 : -1; }
 
@@ -410,8 +416,8 @@ void Match::resolve() {
             const HitDef& hd = m.hits[h];
             if (!hd.active.contains(sa.move_frame) || (sa.landed & (1 << h)) || invulnerable(d)) continue;
             for (const Box& b : hd.boxes)
-                if (place(b, sa.pos, sa.facing).overlaps(target)) {
-                    if (n < strikes.size()) strikes[n++] = {a, sa.move, static_cast<std::int32_t>(h), false, -1};
+                if (const Rect r = place(b, sa.pos, sa.facing); r.overlaps(target)) {
+                    if (n < strikes.size()) strikes[n++] = {a, sa.move, static_cast<std::int32_t>(h), false, -1, meeting(r, target)};
                     break;
                 }
         }
@@ -445,8 +451,8 @@ void Match::resolve() {
         const std::int32_t d = 1 - p.owner;
         if (invulnerable(d)) continue;
         for (const Box& b : hd.boxes)
-            if (place(b, p.pos, p.facing).overlaps(hurt(d))) {
-                if (n < strikes.size()) strikes[n++] = {p.owner, p.move, 0, true, static_cast<std::int32_t>(k)};
+            if (const Rect r = place(b, p.pos, p.facing); r.overlaps(hurt(d))) {
+                if (n < strikes.size()) strikes[n++] = {p.owner, p.move, 0, true, static_cast<std::int32_t>(k), meeting(r, hurt(d))};
                 break;
             }
     }
@@ -500,7 +506,7 @@ void Match::apply(const Strike& s, bool blocked, bool counter) {
     FighterState& d = state_.f[static_cast<std::size_t>(1 - s.attacker)];
     const MoveDef& m = fighter(s.attacker).def.moves[static_cast<std::size_t>(s.move)];
     const HitDef& h = s.projectile ? m.projectile->hit : m.hits[static_cast<std::size_t>(s.hit)];
-    const Vec at = d.pos + Vec{Fixed{}, fighter(1 - s.attacker).def.hurt_standing.h / 2};
+    const Vec at = s.at;
     if (s.projectile) state_.p[static_cast<std::size_t>(s.slot)].alive = 0;
     else {
         a.landed |= 1 << s.hit;

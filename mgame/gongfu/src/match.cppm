@@ -61,6 +61,7 @@ private:
         std::int32_t attacker, move, hit;
         bool         projectile;
         std::int32_t slot;  // the projectile's
+        Vec          at;    // the middle of where the box met the body
     };
     void decide(std::int32_t i);
     void queue(std::int32_t i);

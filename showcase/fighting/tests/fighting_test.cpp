@@ -58,9 +58,10 @@ int main(int argc, char** argv) {
     s.test("the roster reads: the training fighter's file, every move compiled", [] {
         const auto& r = fighting::roster();
         check(r.problems.empty(), r.problems.empty() ? std::string() : r.problems.front());
-        check(r.names == std::vector<std::string>{"kata", "mo"}, "Kata and Mo");
+        check(r.names == std::vector<std::string>{"kata", "mo", "ni"}, "Kata, Mo and Ni");
         check_eq(r.fighters[0].def.name, std::string("Kata"));
         check_eq(r.fighters[1].def.name, std::string("Mo"));
+        check_eq(r.fighters[2].def.name, std::string("Ni"));
         check(r.fighters[0].find("236P") >= 0 && r.fighters[0].find("623P") >= 0, "its specials");
         check_eq(r.looks.size(), 2 * r.fighters.size());  // a colour for each side
     });
@@ -261,6 +262,73 @@ int main(int argc, char** argv) {
         }
     });
 
+    s.test("霓 as designed: every normal's, kick rush's and hop's startup and advantage, measured in the simulation (characters design §4)", [] {
+        using gongfu::operator""_fx;
+        const gongfu::Fighter& mo = fighting::roster().fighters[fighting::fighter_index("ni")];
+        struct Row {
+            const char* move;
+            int         startup;
+            std::optional<int> hit, block;
+            bool        low = false;
+        };
+        // The design's table; the special's numbers are point blank.
+        const std::vector<Row> table{
+            {"5LP", 3, 4, -1},  {"5MP", 5, 3, -1}, {"5HP", 8, 3, -3},  {"5LK", 4, 3, -2},        {"5MK", 6, 2, -3},        {"5HK", 10, 2, -4},
+            {"2LP", 3, 3, -1},  {"2MP", 5, 2, -2}, {"2HP", 7, {}, -9}, {"2LK", 4, 2, -2, true},  {"2MK", 7, 1, -4, true}, {"2HK", 9, {}, -11, true},
+            {"6MK", 18, 4, -3}, {"236LK", 10, 2, -4}, {"236MK", 12, 2, -6}, {"236HK", 14, {}, -8},
+        };
+        // The pads that ask for a move, facing right: a motion's steps, then the press.
+        auto pads = [](const gongfu::Command& c) {
+            std::vector<gongfu::Pad> out;
+            for (std::size_t k = 0; k + 1 < c.motion.length; ++k) out.push_back(gongfu::pad(c.motion.steps[k]));
+            const int last = c.motion.length > 0 ? c.motion.steps[c.motion.length - 1] : c.direction != 0 ? c.direction : 5;
+            out.push_back(gongfu::pad(last, static_cast<std::uint16_t>(c.buttons & -c.buttons)));  // one of its buttons
+            return out;
+        };
+        for (const Row& row : table) {
+            const std::int32_t m = mo.find(row.move);
+            check(m >= 0, row.move);
+            if (m < 0) continue;
+            const gongfu::MoveDef& def = mo.def.moves[static_cast<std::size_t>(m)];
+            check_eq(mo.startup(m), std::int32_t{row.startup});
+            for (const bool block : {false, true}) {
+                const std::optional<int>& want = block ? row.block : row.hit;
+                if (!want) continue;
+                gongfu::SystemDef sys;
+                sys.round_frames = 1 << 20;
+                gongfu::Match match(sys, mo, mo);
+                gongfu::State st = match.state();
+                // Close enough that the move meets the body on its first active frame.
+                const gongfu::Box& reach = def.projectile ? gongfu::Box{def.projectile->offset.x, 0_fx, 0_fx, 0_fx} : def.hits[0].boxes[0];
+                const gongfu::Fixed gap = gongfu::max(reach.x + reach.w / 2, 60_fx);
+                const gongfu::Pad guard = block ? gongfu::pad(row.low ? 3 : 6) : gongfu::pad(5);  // facing left: back is 6
+                // The guard held a while first (a guard raised just before the hit is a deflect, system 0.3).
+                for (int f = 0; f < 12; ++f) match.tick(gongfu::pad(5), guard);
+                st = match.state();
+                st.f[0].pos.x = 900_fx;
+                st.f[1].pos.x = 900_fx + gap;
+                st.f[1].mode = st.f[1].mode == gongfu::Mode::crouch ? gongfu::Mode::crouch : gongfu::Mode::idle;
+                match.restore(st);
+                for (const gongfu::Pad p : pads(def.command)) match.tick(p, guard);
+                int contact = -1;
+                for (int f = 0; f < 60 && contact < 0; ++f) {
+                    for (const gongfu::Event& e : match.events())
+                        if (e.attacker == 0 && (e.kind == gongfu::Event::Kind::hit || e.kind == gongfu::Event::Kind::block || e.kind == gongfu::Event::Kind::counter))
+                            contact = match.state().f[0].move_frame;
+                    if (contact < 0) match.tick(gongfu::pad(5), guard);
+                }
+                check(contact == row.startup, std::format("{} {}: contact on frame {}", row.move, block ? "blocked" : "hit", contact));
+                int attacker = -1, defender = -1;
+                for (int f = 1; f < 120 && (attacker < 0 || defender < 0); ++f) {
+                    match.tick(gongfu::pad(5), guard);
+                    if (attacker < 0 && match.recovered(0)) attacker = f;
+                    if (defender < 0 && match.recovered(1)) defender = f;
+                }
+                check(defender - attacker == *want, std::format("{} on {}: {:+} measured, {:+} designed", row.move, block ? "block" : "hit", defender - attacker, *want));
+            }
+        }
+    });
+
     s.test("墨's level 3, 「永字八法」: the flash and its close-up, then 永 written stroke by stroke on paper and sealed — frames pinned", [] {
         Game g("training", "mo", "kata");
         check(g.act("pause"));
@@ -326,6 +394,52 @@ int main(int argc, char** argv) {
         check_eq(saved, 8);
         std::println("    mo glyphs {}", all.hex());
         check_eq(all.hex(), std::string("d5b4e49388e17c72"));  // GCC and LLVM, every platform
+    });
+
+    s.test("霓's afterimages and her level 3, 「全频」: the neon city, the flurry, the uppercut — frames pinned", [] {
+        Game g("training", "ni", "kata");
+        check(g.act("pause"));
+        check(g.act("fill"));
+        check(g.act("press", pad(0, "6")));
+        for (int i = 0; i < 120 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 120; ++i) check(g.act("step"));
+        const auto dir = scratch_dir("fighting-ni-level3");
+        std::vector<std::uint64_t> px;
+        // A kick rush first: her afterimages.
+        for (std::string_view p : {"2", "3", "6MK"}) {
+            check(g.act("press", pad(0, p)));
+            check(g.act("step"));
+        }
+        check(g.act("press", pad(0, "5")));
+        for (int i = 0; i < 13; ++i) check(g.act("step"));
+        g.h.step();
+        px.push_back(g.pixels());
+        check(g.h.save_png(dir / "00-afterimages.png").has_value());
+        for (int i = 0; i < 60; ++i) check(g.act("step"));
+        check(g.act("press", pad(0, "6")));
+        for (int i = 0; i < 120 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 100; ++i) check(g.act("step"));
+        for (std::string_view p : {"2", "3", "6", "2", "3", "6HK"}) {
+            check(g.act("press", pad(0, p)));
+            check(g.act("step"));
+        }
+        check(g.act("press", pad(0, "5")));
+        std::int32_t lock_from = -1;
+        for (int i = 0; i < 300; ++i) {
+            check(g.act("step"));
+            const auto& st = g.state();
+            if (st.lock.owner == 0 && lock_from < 0) lock_from = st.frame;
+            const std::int32_t lf = st.lock.owner == 0 ? st.lock.frame : -1;
+            if (st.freeze == 25 || lf == 16 || lf == 80 || lf == 162) {
+                g.h.step();
+                px.push_back(g.pixels());
+                check(g.h.save_png(dir / std::format("{:02}-{}.png", px.size(), lf < 0 ? std::string("flash") : std::format("lock-{}", lf))).has_value());
+            }
+        }
+        check(lock_from > 0, "the knee hit: the cinematic played");
+        check_eq(px.size(), std::size_t{5});
+        Hash all;
+        for (auto v : px) all.u64(v);
+        std::println("    ni level 3 {}", all.hex());
+        check_eq(all.hex(), std::string("b692d67c3650f078"));  // GCC and LLVM, every platform
     });
 
     s.test("frames pinned: versus and training (boxes and the meter) at a jab's active frame", [] {

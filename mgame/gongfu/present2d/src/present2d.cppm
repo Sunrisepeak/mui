@@ -130,6 +130,7 @@ struct CinematicLook {
         std::int32_t frames = 6;
     };
     std::vector<FlashKey> flashes;
+    bool                  scanlines = false;  // a screen's lines over the picture while it plays
 };
 
 struct Look {
@@ -146,6 +147,19 @@ struct Look {
     std::vector<std::string>              palette_names;
     std::vector<Impact>                   impacts;  // by name; "block" and "ko" for those contacts
     Color                                 accent = Color::hex(0xf2c14e);  // a super's flash and close-up band
+    // Afterimages (G-12): during a move, the poses of these frames before, in
+    // `color`, fading — drawn from the states the Effects keep, so a
+    // rollback draws them again the same. No frames: none.
+    struct Trail {
+        Color                     color = Color::hex(0xff3ea5);
+        std::vector<std::int32_t> frames;
+        float                     alpha = 0.3f;
+    } trail;
+    // A glow around the outline (neon): its colour and width (0: none).
+    struct Glow {
+        Color color = Color::hex(0xff3ea5);
+        float width = 0;
+    } glow;
     std::map<std::string, std::vector<Stroke>, std::less<>>  glyphs;      // by name: 永, 一, 人
     std::map<std::string, CinematicLook, std::less<>>        cinematics;  // by the level 3's move name
     // A projectile drawn as a glyph (G-11), by its move's name (236P serves
@@ -228,9 +242,17 @@ public:
         Event        event;
     };
     [[nodiscard]] std::span<const Kept> kept() const noexcept { return kept_; }
+    // The fighters as they were `ago` frames before the latest recorded (for
+    // afterimages); none when not kept (beyond 8 frames, or before a rewind).
+    [[nodiscard]] const FighterState* past(std::int32_t fighter, std::int32_t frame) const noexcept;
 
 private:
     std::vector<Kept> kept_;
+    struct Past {
+        std::int32_t                 frame = -1;
+        std::array<FighterState, 2> f{};
+    };
+    std::array<Past, 8> past_{};
 };
 
 // The camera a frame is drawn with: frame_camera's, punched in and shaken by
@@ -251,7 +273,7 @@ public:
     // One fighter's body as `draw` draws it, through `camera` (a studio's
     // contact sheet, a character select); `clip`/`t` to play a clip by name instead.
     void body(const Look& look, const Fighter& fighter, const FighterState& state, std::int32_t frame, const Scene& scene, const Camera& camera,
-              omui::render::DisplayList& out, std::string_view clip = {}, std::int32_t t = 0);
+              omui::render::DisplayList& out, std::string_view clip = {}, std::int32_t t = 0, std::optional<Color> tint = std::nullopt);
     // A glyph written to `progress` (0–1 of its strokes' total length) at `centre`, `size` pixels square;
     // its strokes `thicken` times as wide (a halo behind it).
     void glyph(const std::vector<Stroke>& strokes, double progress, Point centre, float size, Color color, omui::render::DisplayList& out,

@@ -1,0 +1,864 @@
+# 霓 (Ni), the street fighter: rushdown (gongfu characters design §4; her
+# supers: posture and supers design §6). The fastest buttons in the game,
+# chains and a target combo, a dash that closes the screen, a high-low mix
+# (6MK over, 2LK under), a hop over projectiles; weak at a distance and
+# against the air. Units are pixels and frames; every number is the design's.
+gongfu = "0.1"
+name = "Ni"
+health = 10000
+posture = 1000
+walk = { forward = 5.2, back = 3.6 }
+jump = { prejump = 4, up = 17, forward = 5.5, gravity = 1, landing = 3 }
+push = [-28, 0, 56, 158]
+hurt = { standing = [-32, 0, 64, 172], crouching = [-32, 0, 64, 104], air = [-28, 40, 56, 124] }
+
+[[move]]
+name = "5LP"
+input = "LP"
+total = 12
+meter = { gain = 20 }
+[[move.hit]]
+active = [3, 4]
+boxes = [[15, 115, 60, 25]]
+damage = 250
+hitstun = 13
+blockstun = 8
+hitstop = 5
+pushback = 2
+impact = "light"
+[[move.cancel]]
+frames = [3, 11]
+into = ["5LP", "2LP", "236LK", "236MK", "236HK", "623LK", "623MK", "623HK", "214LP", "214MP", "214HP", "236236P", "214214P", "236236K"]
+
+[[move]]
+name = "5MP"
+input = "MP"
+total = 18
+meter = { gain = 40 }
+[[move.hit]]
+active = [5, 7]
+boxes = [[15, 100, 70, 30]]
+damage = 500
+hitstun = 16
+blockstun = 12
+hitstop = 7
+pushback = 3
+impact = "medium"
+[[move.cancel]]
+frames = [5, 14]
+into = ["5HP", "236LK", "236MK", "236HK", "623LK", "623MK", "623HK", "214LP", "214MP", "214HP", "236236P", "214214P", "236236K"]
+
+[[move]]
+name = "5HP"
+input = "HP"
+total = 28
+meter = { gain = 60 }
+[[move.hit]]
+active = [8, 10]
+boxes = [[20, 95, 80, 35]]
+damage = 800
+hitstun = 23
+blockstun = 17
+hitstop = 9
+pushback = 3
+impact = "heavy"
+[[move.cancel]]
+frames = [8, 17]
+into = ["236LK", "236MK", "236HK", "623LK", "623MK", "623HK", "214LP", "214MP", "214HP", "236236P", "214214P", "236236K"]
+
+[[move]]
+name = "5LK"
+input = "LK"
+total = 14
+meter = { gain = 20 }
+[[move.hit]]
+active = [4, 5]
+boxes = [[15, 55, 65, 25]]
+damage = 250
+hitstun = 13
+blockstun = 8
+hitstop = 5
+pushback = 2
+impact = "light"
+
+[[move]]
+name = "5MK"
+input = "MK"
+total = 22
+meter = { gain = 40 }
+[[move.hit]]
+active = [6, 8]
+boxes = [[20, 40, 80, 30]]
+damage = 550
+hitstun = 18
+blockstun = 13
+hitstop = 7
+pushback = 3
+impact = "medium"
+[[move.cancel]]
+frames = [6, 15]
+into = ["236LK", "236MK", "236HK", "623LK", "623MK", "623HK", "214LP", "214MP", "214HP", "236236P", "214214P", "236236K"]
+
+[[move]]
+name = "5HK"
+input = "HK"
+total = 32
+meter = { gain = 60 }
+[[move.hit]]
+active = [10, 12]
+boxes = [[10, 110, 90, 50]]
+damage = 850
+hitstun = 24
+blockstun = 18
+hitstop = 9
+pushback = 3
+impact = "heavy"
+
+[[move]]
+name = "2LP"
+input = "2LP"
+stance = "crouching"
+total = 12
+meter = { gain = 20 }
+[[move.hit]]
+active = [3, 4]
+boxes = [[15, 70, 55, 25]]
+damage = 230
+hitstun = 12
+blockstun = 8
+hitstop = 5
+pushback = 2
+impact = "light"
+[[move.cancel]]
+frames = [3, 11]
+into = ["5LP", "2LP", "236LK", "236MK", "236HK", "623LK", "623MK", "623HK", "214LP", "214MP", "214HP", "236236P", "214214P", "236236K"]
+
+[[move]]
+name = "2MP"
+input = "2MP"
+stance = "crouching"
+total = 19
+meter = { gain = 40 }
+[[move.hit]]
+active = [5, 7]
+boxes = [[15, 60, 75, 30]]
+damage = 500
+hitstun = 16
+blockstun = 12
+hitstop = 7
+pushback = 3
+impact = "medium"
+[[move.cancel]]
+frames = [5, 14]
+into = ["236LK", "236MK", "236HK", "623LK", "623MK", "623HK", "214LP", "214MP", "214HP", "236236P", "214214P", "236236K"]
+
+[[move]]
+name = "2HP"
+input = "2HP"
+stance = "crouching"
+total = 30
+meter = { gain = 60 }
+[[move.hit]]
+active = [7, 10]
+boxes = [[0, 110, 70, 110]]
+damage = 850
+hitstun = 40
+blockstun = 14
+hitstop = 9
+pushback = 3
+launch = [2, 15]
+juggle = 2
+impact = "heavy"
+[[move.cancel]]
+frames = [7, 17]
+into = ["236LK", "236MK", "236HK", "623LK", "623MK", "623HK", "214LP", "214MP", "214HP", "236236P", "214214P", "236236K"]
+
+[[move]]
+name = "2LK"
+input = "2LK"
+stance = "crouching"
+total = 14
+meter = { gain = 20 }
+[[move.hit]]
+active = [4, 5]
+boxes = [[10, 0, 80, 25]]
+damage = 220
+hitstun = 12
+blockstun = 8
+hitstop = 5
+pushback = 2
+level = "low"
+impact = "light"
+[[move.cancel]]
+frames = [4, 12]
+into = ["2LP", "5LP"]
+
+[[move]]
+name = "2MK"
+input = "2MK"
+stance = "crouching"
+total = 24
+meter = { gain = 40 }
+[[move.hit]]
+active = [7, 9]
+boxes = [[15, 0, 100, 25]]
+damage = 550
+hitstun = 18
+blockstun = 13
+hitstop = 7
+pushback = 3
+level = "low"
+impact = "medium"
+[[move.cancel]]
+frames = [7, 16]
+into = ["236LK", "236MK", "236HK", "623LK", "623MK", "623HK", "214LP", "214MP", "214HP", "236236P", "214214P", "236236K"]
+
+[[move]]
+name = "2HK"
+input = "2HK"
+stance = "crouching"
+total = 35
+meter = { gain = 60 }
+[[move.hit]]
+active = [9, 11]
+boxes = [[15, 0, 115, 30]]
+damage = 850
+hitstun = 24
+blockstun = 15
+hitstop = 9
+pushback = 3
+level = "low"
+knockdown = true
+impact = "heavy"
+
+[[move]]
+name = "6MK"
+input = "6MK"
+total = 31
+priority = 1
+meter = { gain = 40 }
+[[move.hit]]
+active = [18, 19]
+boxes = [[15, 90, 70, 50]]
+damage = 600
+hitstun = 17
+blockstun = 10
+hitstop = 7
+pushback = 3
+level = "overhead"
+impact = "medium"
+
+[[move]]
+name = "j.LP"
+input = "LP"
+stance = "air"
+total = 20
+meter = { gain = 30 }
+[[move.hit]]
+active = [3, 8]
+boxes = [[10, 60, 55, 30]]
+damage = 250
+hitstun = 12
+blockstun = 9
+hitstop = 5
+pushback = 2
+level = "overhead"
+impact = "light"
+
+[[move]]
+name = "j.MP"
+input = "MP"
+stance = "air"
+total = 20
+meter = { gain = 30 }
+[[move.hit]]
+active = [5, 8]
+boxes = [[15, 40, 75, 40]]
+damage = 550
+hitstun = 16
+blockstun = 12
+hitstop = 7
+pushback = 3
+level = "overhead"
+impact = "medium"
+
+[[move]]
+name = "j.HP"
+input = "HP"
+stance = "air"
+total = 22
+meter = { gain = 30 }
+[[move.hit]]
+active = [8, 10]
+boxes = [[10, -10, 85, 60]]
+damage = 850
+hitstun = 20
+blockstun = 16
+hitstop = 9
+pushback = 3
+level = "overhead"
+impact = "heavy"
+
+[[move]]
+name = "j.LK"
+input = "LK"
+stance = "air"
+total = 21
+meter = { gain = 30 }
+[[move.hit]]
+active = [4, 9]
+boxes = [[10, 20, 55, 30]]
+damage = 250
+hitstun = 12
+blockstun = 9
+hitstop = 5
+pushback = 2
+level = "overhead"
+impact = "light"
+
+[[move]]
+name = "j.MK"
+input = "MK"
+stance = "air"
+total = 21
+meter = { gain = 30 }
+[[move.hit]]
+active = [6, 9]
+boxes = [[15, 10, 80, 35]]
+damage = 550
+hitstun = 16
+blockstun = 12
+hitstop = 7
+pushback = 3
+level = "overhead"
+impact = "medium"
+
+[[move]]
+name = "j.HK"
+input = "HK"
+stance = "air"
+total = 23
+meter = { gain = 30 }
+[[move.hit]]
+active = [8, 11]
+boxes = [[10, 0, 90, 45]]
+damage = 800
+hitstun = 19
+blockstun = 15
+hitstop = 9
+pushback = 3
+level = "overhead"
+impact = "heavy"
+
+[[move]]
+name = "236LK"
+input = "236LK"
+total = 37
+priority = 10
+meter = { gain = 50 }
+[[move.step]]
+frame = 8
+velocity = [6, 0]
+[[move.step]]
+frame = 20
+velocity = [0, 0]
+[[move.hit]]
+active = [10, 11]
+boxes = [[15, 70, 80, 50]]
+damage = 300
+hitstun = 16
+blockstun = 14
+hitstop = 5
+pushback = 1
+impact = "neon"
+[[move.hit]]
+active = [14, 15]
+boxes = [[15, 70, 80, 50]]
+damage = 300
+hitstun = 16
+blockstun = 14
+hitstop = 5
+pushback = 1
+impact = "neon"
+[[move.hit]]
+active = [18, 19]
+boxes = [[15, 70, 80, 50]]
+damage = 300
+hitstun = 21
+blockstun = 15
+hitstop = 5
+pushback = 1
+impact = "neon"
+
+[[move]]
+name = "236MK"
+input = "236MK"
+total = 41
+priority = 10
+meter = { gain = 50 }
+[[move.step]]
+frame = 10
+velocity = [7.5, 0]
+[[move.step]]
+frame = 22
+velocity = [0, 0]
+[[move.hit]]
+active = [12, 13]
+boxes = [[15, 70, 80, 50]]
+damage = 330
+hitstun = 16
+blockstun = 14
+hitstop = 5
+pushback = 1
+impact = "neon"
+[[move.hit]]
+active = [16, 17]
+boxes = [[15, 70, 80, 50]]
+damage = 330
+hitstun = 16
+blockstun = 14
+hitstop = 5
+pushback = 1
+impact = "neon"
+[[move.hit]]
+active = [20, 21]
+boxes = [[15, 70, 80, 50]]
+damage = 340
+hitstun = 23
+blockstun = 15
+hitstop = 5
+pushback = 1
+impact = "neon"
+
+[[move]]
+name = "236HK"
+input = "236HK"
+total = 45
+priority = 10
+meter = { gain = 50 }
+[[move.step]]
+frame = 12
+velocity = [8.5, 0]
+[[move.step]]
+frame = 24
+velocity = [0, 0]
+[[move.hit]]
+active = [14, 15]
+boxes = [[15, 70, 80, 50]]
+damage = 380
+hitstun = 16
+blockstun = 14
+hitstop = 5
+pushback = 1
+impact = "neon"
+[[move.hit]]
+active = [18, 19]
+boxes = [[15, 70, 80, 50]]
+damage = 380
+hitstun = 16
+blockstun = 14
+hitstop = 5
+pushback = 1
+impact = "neon"
+[[move.hit]]
+active = [22, 23]
+boxes = [[15, 70, 80, 50]]
+damage = 390
+hitstun = 25
+blockstun = 15
+hitstop = 5
+pushback = 1
+impact = "neon"
+knockdown = true
+down = 35
+
+[[move]]
+name = "623LK"
+input = "623LK"
+total = 38
+priority = 11
+meter = { gain = 60 }
+[[move.step]]
+frame = 4
+velocity = [1.5, 12]
+[[move.step]]
+frame = 10
+velocity = [0.5, -6]
+[[move.hit]]
+active = [4, 5]
+boxes = [[0, 90, 60, 110]]
+damage = 500
+hitstun = 30
+blockstun = 16
+hitstop = 7
+pushback = 1
+launch = [1, 12]
+juggle = 1
+impact = "neon"
+[[move.hit]]
+active = [7, 8]
+boxes = [[0, 120, 60, 110]]
+damage = 500
+hitstun = 30
+blockstun = 7
+hitstop = 10
+pushback = 2
+knockdown = true
+launch = [2, 14]
+impact = "heavy"
+
+[[move]]
+name = "623MK"
+input = "623MK"
+total = 41
+priority = 11
+meter = { gain = 60 }
+[[move.step]]
+frame = 5
+velocity = [1.5, 12]
+[[move.step]]
+frame = 11
+velocity = [0.5, -6]
+[[move.hit]]
+active = [5, 6]
+boxes = [[0, 90, 60, 110]]
+damage = 550
+hitstun = 30
+blockstun = 16
+hitstop = 7
+pushback = 1
+launch = [1, 12]
+juggle = 1
+impact = "neon"
+[[move.hit]]
+active = [8, 9]
+boxes = [[0, 120, 60, 110]]
+damage = 550
+hitstun = 30
+blockstun = 9
+hitstop = 10
+pushback = 2
+knockdown = true
+launch = [2, 14]
+impact = "heavy"
+
+[[move]]
+name = "623HK"
+input = "623HK"
+total = 46
+priority = 11
+invulnerable = [[1, 6]]
+meter = { gain = 60 }
+[[move.step]]
+frame = 6
+velocity = [1.5, 12]
+[[move.step]]
+frame = 12
+velocity = [0.5, -6]
+[[move.hit]]
+active = [6, 7]
+boxes = [[0, 90, 60, 110]]
+damage = 620
+hitstun = 30
+blockstun = 16
+hitstop = 7
+pushback = 1
+launch = [1, 12]
+juggle = 1
+impact = "neon"
+[[move.hit]]
+active = [9, 10]
+boxes = [[0, 120, 60, 110]]
+damage = 630
+hitstun = 30
+blockstun = 13
+hitstop = 10
+pushback = 2
+knockdown = true
+launch = [2, 14]
+impact = "heavy"
+
+[[move]]
+name = "214LP"
+input = "214LP"
+total = 37
+priority = 10
+invulnerable = [{ frames = [3, 16], to = ["projectile"] }]
+meter = { gain = 50 }
+[[move.step]]
+frame = 1
+velocity = [6.5, 8]
+[[move.step]]
+frame = 12
+velocity = [6.5, -8]
+[[move.step]]
+frame = 23
+velocity = [0, 0]
+[[move.hit]]
+active = [23, 25]
+boxes = [[10, 60, 70, 80]]
+damage = 700
+hitstun = 30
+blockstun = 10
+hitstop = 9
+pushback = 2
+level = "overhead"
+knockdown = true
+down = 24
+impact = "heavy"
+
+[[move]]
+name = "214MP"
+input = "214MP"
+total = 37
+priority = 10
+invulnerable = [{ frames = [3, 16], to = ["projectile"] }]
+meter = { gain = 50 }
+[[move.step]]
+frame = 1
+velocity = [6.5, 8]
+[[move.step]]
+frame = 12
+velocity = [6.5, -8]
+[[move.step]]
+frame = 23
+velocity = [0, 0]
+[[move.hit]]
+active = [23, 25]
+boxes = [[10, 60, 70, 80]]
+damage = 700
+hitstun = 30
+blockstun = 10
+hitstop = 9
+pushback = 2
+level = "overhead"
+knockdown = true
+down = 24
+impact = "heavy"
+
+[[move]]
+name = "214HP"
+input = "214HP"
+total = 37
+priority = 10
+invulnerable = [{ frames = [3, 16], to = ["projectile"] }]
+meter = { gain = 50 }
+[[move.step]]
+frame = 1
+velocity = [6.5, 8]
+[[move.step]]
+frame = 12
+velocity = [6.5, -8]
+[[move.step]]
+frame = 23
+velocity = [0, 0]
+[[move.hit]]
+active = [23, 25]
+boxes = [[10, 60, 70, 80]]
+damage = 700
+hitstun = 30
+blockstun = 10
+hitstop = 9
+pushback = 2
+level = "overhead"
+knockdown = true
+down = 24
+impact = "heavy"
+
+[[move]]
+name = "236236P"
+input = "236236P"
+total = 52
+priority = 20
+level = 1
+freeze = 30
+invulnerable = [[1, 6]]
+meter = { cost = 1000 }
+[[move.step]]
+frame = 5
+velocity = [6, 0]
+[[move.step]]
+frame = 34
+velocity = [0, 0]
+[[move.hit]]
+active = [7, 8]
+boxes = [[10, 60, 90, 70]]
+damage = 333
+hitstun = 30
+blockstun = 20
+hitstop = 4
+pushback = 1
+impact = "neon"
+[[move.hit]]
+active = [12, 13]
+boxes = [[10, 60, 90, 70]]
+damage = 333
+hitstun = 30
+blockstun = 20
+hitstop = 4
+pushback = 1
+impact = "neon"
+[[move.hit]]
+active = [17, 18]
+boxes = [[10, 60, 90, 70]]
+damage = 333
+hitstun = 30
+blockstun = 20
+hitstop = 4
+pushback = 1
+impact = "neon"
+[[move.hit]]
+active = [22, 23]
+boxes = [[10, 60, 90, 70]]
+damage = 333
+hitstun = 30
+blockstun = 20
+hitstop = 4
+pushback = 1
+impact = "neon"
+[[move.hit]]
+active = [27, 28]
+boxes = [[10, 60, 90, 70]]
+damage = 333
+hitstun = 30
+blockstun = 20
+hitstop = 4
+pushback = 1
+impact = "neon"
+[[move.hit]]
+active = [32, 33]
+boxes = [[10, 60, 90, 70]]
+damage = 335
+hitstun = 30
+blockstun = 6
+hitstop = 4
+pushback = 1
+impact = "neon"
+knockdown = true
+
+[[move]]
+name = "214214P"
+input = "214214P"
+total = 60
+priority = 20
+level = 2
+freeze = 40
+invulnerable = [{ frames = [1, 22], to = ["projectile"] }]
+pass = [6, 18]
+meter = { cost = 2000 }
+[[move.step]]
+frame = 6
+velocity = [22, 0]
+[[move.step]]
+frame = 14
+velocity = [0, 0]
+[[move.hit]]
+active = [16, 17]
+boxes = [[-110, 60, 120, 90]]
+damage = 1000
+hitstun = 30
+blockstun = 20
+hitstop = 6
+pushback = 1
+impact = "neon"
+[[move.hit]]
+active = [21, 22]
+boxes = [[-110, 60, 120, 90]]
+damage = 1000
+hitstun = 30
+blockstun = 20
+hitstop = 6
+pushback = 1
+impact = "neon"
+[[move.hit]]
+active = [26, 27]
+boxes = [[-110, 40, 120, 110]]
+damage = 1000
+hitstun = 30
+blockstun = 22
+hitstop = 10
+pushback = 2
+knockdown = true
+impact = "super"
+
+[[move]]
+name = "236236K"
+input = "236236K"
+total = 44
+priority = 21
+level = 3
+freeze = 50
+invulnerable = [[1, 8]]
+meter = { cost = 3000 }
+[[move.step]]
+frame = 3
+velocity = [5, 0]
+[[move.step]]
+frame = 9
+velocity = [0, 0]
+[[move.hit]]
+active = [6, 8]
+boxes = [[10, 80, 70, 60]]
+damage = 300
+hitstun = 40
+blockstun = 26
+hitstop = 12
+pushback = 3
+impact = "heavy"
+[move.cinematic]
+frames = 180
+hits = [[30, 220, "neon"], [37, 220, "neon"], [44, 220, "neon"], [51, 220, "neon"], [58, 220, "neon"], [65, 220, "neon"], [72, 220, "neon"], [79, 220, "neon"], [86, 220, "neon"], [93, 220, "neon"], [100, 220, "neon"], [107, 220, "neon"], [114, 220, "neon"], [121, 220, "neon"], [128, 220, "neon"], [135, 220, "neon"], [160, 480, "super"]]
+attacker = [0, 0]
+defender = [200, 0]
+down = 70
+recovery = 26
+
+[[move]]
+name = "66"
+input = "66"
+total = 18
+priority = 5
+[[move.step]]
+frame = 1
+velocity = [9, 0]
+[[move.step]]
+frame = 14
+velocity = [0, 0]
+
+[[move]]
+name = "44"
+input = "44"
+total = 22
+priority = 5
+invulnerable = [{ frames = [1, 8], to = ["strike", "air", "projectile"] }]
+[[move.step]]
+frame = 1
+velocity = [-6.5, 0]
+[[move.step]]
+frame = 16
+velocity = [0, 0]
+
+[[move]]
+name = "throw"
+input = "LP+LK"
+total = 29
+priority = 20
+clash = false
+[move.throw]
+active = [5, 6]
+range = [0, 0, 80, 150]
+damage = 1200
+tech = 7
+
+[[move]]
+name = "back throw"
+input = "4LP+LK"
+total = 29
+priority = 21
+clash = false
+[move.throw]
+active = [5, 6]
+range = [0, 0, 80, 150]
+damage = 1200
+tech = 7
+swap = true

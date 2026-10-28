@@ -388,6 +388,14 @@ void Match::advance(std::int32_t i) {
 void Match::separate() {
     FighterState& a = state_.f[0];
     FighterState& b = state_.f[1];
+    // A move passing through the other (a cross-under, a teleport) is not pushed apart on its frames.
+    auto passing = [&](std::int32_t i) {
+        const FighterState& f = state_.f[static_cast<std::size_t>(i)];
+        if (f.mode != Mode::move) return false;
+        const auto& p = fighter(i).def.moves[static_cast<std::size_t>(f.move)].pass;
+        return p && p->contains(f.move_frame);
+    };
+    const bool through = passing(0) || passing(1);
     // Left and right: who stands where (by position; the first on a tie).
     FighterState& l = a.pos.x <= b.pos.x ? a : b;
     FighterState& r = &l == &a ? b : a;
@@ -398,7 +406,7 @@ void Match::separate() {
         const Rect rl = place(lp, l.pos, l.facing), rr = place(rp, r.pos, r.facing);
         return rl.overlaps(rr) ? rl.right - rr.left : Fixed{};
     };
-    if (const Fixed o = overlap(); o > Fixed{}) {
+    if (const Fixed o = overlap(); o > Fixed{} && !through) {
         const Fixed half = o / 2;
         l.pos.x -= half;
         r.pos.x += o - half;
@@ -411,7 +419,7 @@ void Match::separate() {
     };
     keep(l, lp);
     keep(r, rp);
-    if (const Fixed o = overlap(); o > Fixed{}) {
+    if (const Fixed o = overlap(); o > Fixed{} && !through) {
         if (place(lp, l.pos, l.facing).left <= Fixed{}) r.pos.x += o;
         else l.pos.x -= o;
         keep(l, lp);

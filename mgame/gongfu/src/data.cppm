@@ -140,6 +140,7 @@ struct MoveDef {
     std::optional<ThrowDef>      throw_;
     std::optional<ProjectileDef> projectile;
     std::optional<CinematicDef>  cinematic;  // a level-3 super's, on its first hit
+    std::optional<Frames>        pass;       // frames it passes through the other fighter (no pushing apart)
     std::int32_t                 meter_cost = 0;
     std::int32_t                 meter_gain = 0;    // on hit; half on block
     std::int32_t                 freeze = 0;        // frames both fighters stand still at its first frame (a super's flash)

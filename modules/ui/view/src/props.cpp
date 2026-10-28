@@ -528,7 +528,10 @@ void Runtime::Impl::apply_now(NodeId id, std::string_view name, const Value& val
         return;
     }
     Node& m = at(id);
-    if (!is_layout_prop(name) || name == "border_width") {
+    // The component too, when its contract has a property of this name: a
+    // layout name a component also means (text's `align`, a stage's `left`)
+    // reaches both the layout and the component, never only the layout.
+    {
         if (m.type->set_prop && m.type->set_prop(m.instance, name, value)) {
             what |= dirty_semantics;
             if (m.type->style) sync_style(id);  // its default style may follow the property

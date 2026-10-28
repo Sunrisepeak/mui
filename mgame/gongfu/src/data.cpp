@@ -101,6 +101,7 @@ std::expected<Fighter, std::vector<Problem>> compile(FighterDef def) {
         }
         c.need(m.meter_cost >= 0 && m.meter_gain >= 0 && m.freeze >= 0, at + ".meter", "meter and freeze are 0 or more");
         c.need(m.level >= 0 && m.level <= 3, at + ".level", "a super's level is 1, 2 or 3 (0: not a super)");
+        if (m.pass) c.frames(*m.pass, m.total, at + ".pass");
         if (m.cinematic) {
             c.need(!m.hits.empty(), at + ".cinematic", "a cinematic starts when the move's first hit lands: it needs a hit");
             c.need(m.cinematic->frames >= 1, at + ".cinematic.frames", "a cinematic lasts at least 1 frame");

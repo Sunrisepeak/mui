@@ -335,7 +335,16 @@ Camera frame_camera(const Match& match, const Scene& scene) {
     return {x, std::max(0.0, high - 160), zoom};
 }
 
+const FighterState* Effects::past(std::int32_t fighter, std::int32_t frame) const noexcept {
+    for (const Past& p : past_)
+        if (p.frame == frame) return &p.f[static_cast<std::size_t>(fighter)];
+    return nullptr;
+}
+
 void Effects::record(const Match& match) {
+    Past& slot = past_[static_cast<std::size_t>(match.state().frame) % past_.size()];
+    slot.frame = match.state().frame;
+    slot.f = match.state().f;
     for (const Event& e : match.events()) kept_.push_back({match.state().frame, e});
     // A few seconds is all a picture reads.
     const std::int32_t keep_from = match.state().frame - 120;
@@ -344,6 +353,8 @@ void Effects::record(const Match& match) {
 
 void Effects::rewind(std::int32_t frame) {
     std::erase_if(kept_, [&](const Kept& k) { return k.frame >= frame; });
+    for (Past& p : past_)
+        if (p.frame >= frame) p.frame = -1;
 }
 
 Point on_picture(const Scene& scene, const Camera& cam, double x, double y) noexcept {
@@ -505,7 +516,7 @@ std::pair<std::int32_t, double> flashing(const Match& match) {
 }  // namespace
 
 void Painter::body(const Look& look, const Fighter& fighter, const FighterState& s, std::int32_t frame, const Scene& scene, const Camera& camera,
-                   render::DisplayList& out, std::string_view clip, std::int32_t t) {
+                   render::DisplayList& out, std::string_view clip, std::int32_t t, std::optional<Color> tint) {
     const View view{scene, camera};
     // Outlines behind, parts back to front.
     if (clip.empty()) pose(look, fighter, s, frame, pose_);
@@ -516,12 +527,17 @@ void Painter::body(const Look& look, const Fighter& fighter, const FighterState&
     // Insertion sort by depth: stable, in place (std::stable_sort may take a buffer).
     for (std::size_t a = 1; a < order_.size(); ++a)
         for (std::size_t b = a; b > 0 && look.parts[order_[b - 1]].depth > look.parts[order_[b]].depth; --b) std::swap(order_[b - 1], order_[b]);
-    for (const bool outline : {true, false}) {
+    // A glow (neon) behind the outline, then the outline, then the parts; a tinted afterimage is the parts alone, in one colour.
+    enum class Pass : std::uint8_t { glow, outline, fill };
+    for (const Pass pass : {Pass::glow, Pass::outline, Pass::fill}) {
+        if (pass == Pass::glow && (look.glow.width <= 0 || tint)) continue;
+        if (pass == Pass::outline && tint) continue;
+        const bool outline = pass != Pass::fill;
         for (std::size_t k : order_) {
             const Part& part = look.parts[k];
             if (part.bone < 0 || static_cast<std::size_t>(part.bone) >= p.size()) continue;
             const BonePlace& b = p[static_cast<std::size_t>(part.bone)];
-            const float grow = outline ? look.outline_width : 0;
+            const float grow = pass == Pass::glow ? look.outline_width + look.glow.width : outline ? look.outline_width : 0;
             render::Path& path = path_;
             path.clear();
             const Point j = view.at(b.joint.x, b.joint.y), t = view.at(b.tip.x, b.tip.y);
@@ -542,10 +558,11 @@ void Painter::body(const Look& look, const Fighter& fighter, const FighterState&
                     break;
                 }
             }
+            const Color colour = tint ? *tint : pass == Pass::glow ? fade(look.glow.color, 0.35) : outline ? look.outline : part.color;
             if (outline && part.shape == Shape::polygon) {
-                out.stroke_path(path, {.width = 2 * look.outline_width, .join = render::LineJoin::round}, render::Paint::solid(look.outline));
+                out.stroke_path(path, {.width = 2 * grow, .join = render::LineJoin::round}, render::Paint::solid(colour));
             } else {
-                out.fill_path(path, render::FillRule::nonzero, render::Paint::solid(outline ? look.outline : part.color));
+                out.fill_path(path, render::FillRule::nonzero, render::Paint::solid(colour));
             }
         }
     }
@@ -688,6 +705,20 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         out.fill_rect({0, 0, scene.width, scene.height}, fade(cine->backdrop, in * out_));
     }
 
+    // Afterimages: during a move, the poses of a few frames before, fading (from the states the Effects keep).
+    if (!cine)
+        for (std::int32_t i = 0; i < 2; ++i) {
+            const Look& look = i == 0 ? left : right;
+            const FighterState& f = st.f[static_cast<std::size_t>(i)];
+            if (look.trail.frames.empty() || f.mode != Mode::move) continue;
+            for (std::size_t n = look.trail.frames.size(); n-- > 0;) {
+                const FighterState* then = effects.past(i, st.frame - look.trail.frames[n]);
+                if (!then || then->mode != Mode::move) continue;
+                const double a = look.trail.alpha * (1 - static_cast<double>(n) / static_cast<double>(look.trail.frames.size()));
+                body(look, match.fighter(i), *then, st.frame - look.trail.frames[n], scene, view.cam, out, {}, 0, fade(look.trail.color, a));
+            }
+        }
+
     // The fighters (in a cinematic, each plays the clip it says, at the lock's frame).
     for (std::int32_t i = 0; i < 2; ++i) {
         std::string_view clip;
@@ -775,6 +806,15 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
                 out.pop_layer();
             }
         }
+    }
+
+    // A cinematic's screen lines, as its backdrop shows.
+    if (cine && cine->scanlines) {
+        const std::int32_t t = st.lock.frame;
+        const double in = between(t, cine->backdrop_in[0], cine->backdrop_in[1]);
+        const double out_ = cine->backdrop_out[1] > cine->backdrop_out[0] ? 1 - between(t, cine->backdrop_out[0], cine->backdrop_out[1]) : 1.0;
+        const Color line = Color::hex(0x000000, static_cast<float>(0.22 * in * out_));
+        for (float y = static_cast<float>(t % 4); y < scene.height; y += 4) out.fill_rect({0, y, scene.width, 1.5f}, line);
     }
 
     // A cinematic's flashes.

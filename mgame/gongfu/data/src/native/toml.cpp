@@ -16,9 +16,9 @@ constexpr std::array<std::string_view, 10> fighter_keys{"gongfu", "name", "healt
 constexpr std::array<std::string_view, 2> walk_keys{"forward", "back"};
 constexpr std::array<std::string_view, 5> jump_keys{"prejump", "up", "forward", "gravity", "landing"};
 constexpr std::array<std::string_view, 3> hurt_keys{"standing", "crouching", "air"};
-constexpr std::array<std::string_view, 21> move_keys{"name", "input", "stance", "total", "priority", "hit", "cancel", "invulnerable",
+constexpr std::array<std::string_view, 22> move_keys{"name", "input", "stance", "total", "priority", "hit", "cancel", "invulnerable",
                                                      "hurt", "step", "throw", "projectile", "meter", "freeze", "level", "weight", "posture", "clash",
-                                                     "clash_cancel", "cinematic", "doc"};
+                                                     "clash_cancel", "cinematic", "pass", "doc"};
 constexpr std::array<std::string_view, 6> cinematic_keys{"frames", "hits", "attacker", "defender", "down", "recovery"};
 constexpr std::array<std::string_view, 15> hit_keys{"active", "boxes", "damage", "chip", "hitstun", "blockstun", "hitstop", "pushback",
                                                     "level", "knockdown", "launch", "impact", "down", "juggle", "juggle_cost"};
@@ -423,6 +423,7 @@ struct Reader {
         if (auto v = integer(t.get("posture"), "`posture`", 0, 10000)) m.posture = *v;
         if (auto v = boolean(t.get("clash"), "`clash`")) m.clash = *v;
         if (auto v = boolean(t.get("clash_cancel"), "`clash_cancel`")) m.clash_cancel = *v;
+        if (auto f = frames(t.get("pass"), "`pass` (frames passing through the other fighter)")) m.pass = *f;
         // A level 3's cinematic: [move.cinematic] frames, hits = [[frame, damage, "impact"], …], where each ends, down, recovery.
         if (const toml::table* ct = table(t.get("cinematic"), "`cinematic`")) {
             only(*ct, cinematic_keys, "a cinematic");

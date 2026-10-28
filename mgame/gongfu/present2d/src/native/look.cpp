@@ -59,11 +59,13 @@ namespace {
 using data::Diagnostic;
 
 constexpr std::string_view format_version = "0.1";
-constexpr std::array<std::string_view, 13> look_keys{"gongfu", "name", "outline", "accent", "palette", "bone", "part", "clip", "impact", "glyph", "cinematic",
-                                                     "projectile", "doc"};
+constexpr std::array<std::string_view, 15> look_keys{"gongfu", "name", "outline", "accent", "trail", "glow", "palette", "bone", "part", "clip", "impact",
+                                                     "glyph", "cinematic", "projectile", "doc"};
+constexpr std::array<std::string_view, 3> trail_keys{"color", "frames", "alpha"};
+constexpr std::array<std::string_view, 2> glow_keys{"color", "width"};
 constexpr std::array<std::string_view, 4> projectile_look_keys{"glyph", "size", "color", "halo"};
 constexpr std::array<std::string_view, 2> stroke_keys{"points", "width"};
-constexpr std::array<std::string_view, 8> cinematic_keys{"attacker", "defender", "backdrop", "camera", "glyph", "seal", "flash", "doc"};
+constexpr std::array<std::string_view, 9> cinematic_keys{"attacker", "defender", "backdrop", "camera", "glyph", "seal", "flash", "scanlines", "doc"};
 constexpr std::array<std::string_view, 3> backdrop_keys{"color", "in", "out"};
 constexpr std::array<std::string_view, 6> written_keys{"name", "at", "size", "from", "ends", "color"};
 constexpr std::array<std::string_view, 4> seal_keys{"frame", "at", "size", "color"};
@@ -501,6 +503,19 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
     }
 
     if (auto c = r.colour(root->get("accent"), "`accent`")) look.accent = *c;
+    if (const toml::table* t = r.table_of(root->get("trail"), "`trail`")) {
+        r.only(*t, trail_keys, "`trail`");
+        if (auto c = r.colour(t->get("color"), "a trail's `color`")) look.trail.color = *c;
+        if (auto v = r.number(t->get("alpha"), "a trail's `alpha`", 0, 1)) look.trail.alpha = static_cast<float>(*v);
+        if (const toml::array* a = t->get("frames") ? t->get("frames")->as_array() : nullptr)
+            for (const toml::node& n : *a)
+                if (auto v = r.integer(&n, "a trail's frame", 1, 8)) look.trail.frames.push_back(*v);
+    }
+    if (const toml::table* t = r.table_of(root->get("glow"), "`glow`")) {
+        r.only(*t, glow_keys, "`glow`");
+        if (auto c = r.colour(t->get("color"), "a glow's `color`")) look.glow.color = *c;
+        if (auto v = r.number(t->get("width"), "a glow's `width`", 0, 64)) look.glow.width = static_cast<float>(*v);
+    }
 
     // Glyphs: strokes in a 100 × 100 box, y up, in the order they are written.
     if (const toml::node* gn = root->get("glyph")) {
@@ -597,6 +612,7 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
                     if (auto v = r.number(sl->get("size"), "the seal's `size`", 1, 1000)) c.seal_size = static_cast<float>(*v);
                     if (auto v = r.colour(sl->get("color"), "the seal's `color`")) c.seal_color = *v;
                 }
+                if (auto v = r.boolean(t->get("scanlines"), "a cinematic's `scanlines`")) c.scanlines = *v;
                 if (const toml::node* fl = t->get("flash")) {
                     if (const toml::array* a = fl->as_array()) {
                         for (const toml::node& k : *a) {
@@ -657,6 +673,12 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
 std::string write_look(const Look& look) {
     std::string s = std::format("gongfu = \"{}\"\nname = \"{}\"\noutline = {{ color = {}, width = {} }}\naccent = {}\n", format_version, look.name,
                                 colour_text(look.outline), look.outline_width, colour_text(look.accent));
+    if (!look.trail.frames.empty()) {
+        s += std::format("trail = {{ color = {}, frames = [", colour_text(look.trail.color));
+        for (std::size_t i = 0; i < look.trail.frames.size(); ++i) s += std::format("{}{}", i ? ", " : "", look.trail.frames[i]);
+        s += std::format("], alpha = {} }}\n", look.trail.alpha);
+    }
+    if (look.glow.width > 0) s += std::format("glow = {{ color = {}, width = {} }}\n", colour_text(look.glow.color), look.glow.width);
     for (std::size_t p = 0; p < look.palettes.size(); ++p) {
         s += std::format("\n[[palette]]\nname = \"{}\"\n", p < look.palette_names.size() ? look.palette_names[p] : std::string());
         for (std::size_t k = 0; k < look.slots.size() && k < look.palettes[p].size(); ++k)
@@ -735,6 +757,7 @@ std::string write_look(const Look& look) {
             for (std::size_t i = 0; i < c.glyph_ends.size(); ++i) s += std::format("{}{}", i ? ", " : "", c.glyph_ends[i]);
             s += std::format("], color = {} }}\n", colour_text(c.glyph_color));
         }
+        if (c.scanlines) s += "scanlines = true\n";
         if (c.seal_frame >= 0)
             s += std::format("seal = {{ frame = {}, at = [{}, {}], size = {}, color = {} }}\n", c.seal_frame, c.seal_at.x, c.seal_at.y, c.seal_size, colour_text(c.seal_color));
         if (!c.flashes.empty()) {

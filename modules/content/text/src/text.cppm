@@ -1,7 +1,7 @@
 // openmui.text — a text engine.
 //
 //   :font       font files, variable instances, fallback per cluster
-//   :paragraph  shaping (HarfBuzz), bidi (fribidi), line breaking (UAX #14),
+//   :paragraph  shaping (HarfBuzz), bidi (SheenBidi), line breaking (UAX #14),
 //               alignment, ellipsis, hit testing, carets, selections
 //   :glyphs     glyph masks and colour glyphs for renderers (openmui.raster)
 //   :edit       the editing model of a text field: graphemes, words, IME,

@@ -1,5 +1,5 @@
 // openmui.text:shaped — a paragraph after shaping, before line layout. Plain
-// data shared by the shaping unit (HarfBuzz, fribidi) and the layout unit;
+// data shared by the shaping unit (HarfBuzz, SheenBidi) and the layout unit;
 // exported to no one.
 module openmui.text:shaped;
 
@@ -53,7 +53,7 @@ struct Paragraph::Shaped {
     float                      ellipsis_width = 0;
 };
 
-// Shapes `text` (implemented over HarfBuzz and fribidi in native/shape.cpp).
+// Shapes `text` (implemented over HarfBuzz and SheenBidi in native/shape.cpp).
 void shape(Paragraph::Shaped& s);
 
 }  // namespace omui::typeset

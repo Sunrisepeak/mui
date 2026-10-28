@@ -1,6 +1,6 @@
 // openmui.text:paragraph — shaped, wrapped, aligned text.
 //
-// A paragraph is shaped once (bidi levels by fribidi, script runs, font
+// A paragraph is shaped once (bidi levels by SheenBidi, script runs, font
 // fallback per grapheme cluster, HarfBuzz shaping) and laid out for any width
 // (UAX #14 line breaks, overflow breaking inside words when a word is wider
 // than the line, bidi reordering per line, alignment, justification,

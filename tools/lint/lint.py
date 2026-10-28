@@ -17,6 +17,9 @@ Rules:
                 package outside them (D-55)
   layout        a library's directory is its package's name, a package inside another is named after it,
                 and every directory with packages under it has a README.md that links each (D-80)
+  licenses      every index package the workspace reaches is in tools/lint/licenses.toml; none is GPL
+                or AGPL; LGPL only under [dynamic] (optional, linked dynamically); the licences match
+                a local index's descriptors (D-83)
   thirdparty    a wrapped C library (`import mcpplibs.mwrap.*`) only in a native/ unit (D-83)
   exceptions    no `throw` / `try` in runtime and modules sources (errors are std::expected); a
                 native/ unit may catch what a third-party library throws, to answer std::expected
@@ -359,6 +362,81 @@ def check_layout(root: Path) -> list[Problem]:
     return problems
 
 
+# Licences (D-83): GPL and AGPL never, dynamic linking included; LGPL only
+# as an optional plugin linked dynamically. tools/lint/licenses.toml lists
+# every index package the workspace reaches.
+COPYLEFT = re.compile(r"^(A?GPL)-")
+WEAK_COPYLEFT = re.compile(r"^LGPL-")
+
+
+def index_packages(root: Path) -> set[str]:
+    """Index packages the manifests (every table, every target) and mcpp.lock name."""
+    names: set[str] = set()
+    manifests = [root / m / "mcpp.toml" for m in workspace_members(root)] + [root / "mcpp.toml"]
+    for manifest in manifests:
+        try:
+            data = tomllib.loads(manifest.read_text(encoding="utf-8"))
+        except (OSError, tomllib.TOMLDecodeError):
+            continue
+        tables = [data.get(t, {}) for t in ("dependencies", "dev-dependencies", "build-dependencies")]
+        for target in data.get("target", {}).values():
+            if isinstance(target, dict):
+                tables += [target.get(t, {}) for t in ("dependencies", "dev-dependencies", "build-dependencies")]
+        for table in tables:
+            for name, spec in flatten_deps(table):
+                if isinstance(spec, str) or (isinstance(spec, dict) and "path" not in spec):
+                    names.add(name)
+    lock = root / "mcpp.lock"
+    if lock.exists():
+        try:
+            names |= set(tomllib.loads(lock.read_text(encoding="utf-8")).get("package", {}).keys())
+        except tomllib.TOMLDecodeError:
+            pass
+    return names
+
+
+def index_licences(name: str) -> list[str] | None:
+    """The licences a local mcpp index's descriptor lists, when one is there."""
+    for pkgs in sorted(Path.home().glob(".mcpp/indices/*/pkgs")):
+        candidates = list(pkgs.glob(f"*/{name}.lua"))
+        if name.startswith("mcpplibs.mwrap."):
+            candidates.append(pkgs / "mwrap" / (name[len("mcpplibs.mwrap."):] + ".lua"))
+        if name.startswith("mcpplibs."):
+            candidates += list(pkgs.glob(f"*/{name[len('mcpplibs.'):]}.lua"))
+        for f in candidates:
+            if f.exists():
+                m = re.search(r"licenses\s*=\s*\{([^}]*)\}", f.read_text(encoding="utf-8"))
+                return re.findall(r'"([^"]+)"', m.group(1)) if m else []
+    return None
+
+
+def check_licences(root: Path) -> list[Problem]:
+    problems = []
+    table_file = root / "tools" / "lint" / "licenses.toml"
+    try:
+        table = tomllib.loads(table_file.read_text(encoding="utf-8")) if table_file.exists() else {}
+    except tomllib.TOMLDecodeError as e:
+        return [Problem("licenses", "tools/lint/licenses.toml", f"not valid TOML: {e}")]
+    listed: dict = table.get("packages", {})
+    dynamic: dict = table.get("dynamic", {})
+    for name in sorted(index_packages(root)):
+        if name not in listed:
+            problems.append(Problem("licenses", name, "not in tools/lint/licenses.toml: list it with its licences (SPDX) "
+                                                      "before depending on it"))
+            continue
+        licences = listed[name]
+        for lic in licences:
+            if COPYLEFT.match(lic):
+                problems.append(Problem("licenses", name, f"{lic}: no GPL or AGPL in openmui, dynamically linked or not (D-83)"))
+            elif WEAK_COPYLEFT.match(lic) and name not in dynamic:
+                problems.append(Problem("licenses", name, f"{lic}: an LGPL library only as an optional plugin, linked "
+                                                          "dynamically and listed under [dynamic] (D-83)"))
+        known = index_licences(name)
+        if known and sorted(known) != sorted(licences):
+            problems.append(Problem("licenses", name, f"tools/lint/licenses.toml says {licences}, the index says {known}"))
+    return problems
+
+
 def check_pins(root: Path) -> list[Problem]:
     problems = []
     manifest = root / "mcpp.toml"
@@ -479,7 +557,8 @@ def check_documents(root: Path) -> list[Problem]:
 
 
 def run(root: Path) -> list[Problem]:
-    return check_sources(root) + check_manifests(root) + check_layout(root) + check_pins(root) + check_documents(root)
+    return (check_sources(root) + check_manifests(root) + check_layout(root) + check_licences(root) + check_pins(root)
+            + check_documents(root))
 
 
 def self_test() -> int:
@@ -495,6 +574,7 @@ def self_test() -> int:
         "layering": None,
         "modules": None,
         "layout": None,
+        "licenses": None,
         "thirdparty": ("modules/base/hanim/src/w.cpp", "module x;\nimport mcpplibs.mwrap.md4c;\n"),
         "manifest": None,
         "pins": None,
@@ -520,6 +600,9 @@ def self_test() -> int:
                        '[dependencies]\nns.kernel = "1.0.0"\n')
             (root / "mcpp.toml").write_text(
                 pin + "[workspace]\nmembers = [" + ", ".join(f'"{m}"' for m in members) + "]\n", encoding="utf-8")
+            (root / "tools" / "lint").mkdir(parents=True, exist_ok=True)
+            (root / "tools" / "lint" / "licenses.toml").write_text(
+                '[packages]\n"ns.kernel" = ["MIT"]\n"ns.os" = ["MIT"]\n"compat.sdl3" = ["Zlib"]\n', encoding="utf-8")
             readmes = {"modules": "[base](base) [ui](ui)", "modules/base": "[hanim](hanim)", "modules/ui": "[core](core)"}
             for d, text in readmes.items():
                 (root / d).mkdir(parents=True, exist_ok=True)
@@ -535,6 +618,10 @@ def self_test() -> int:
                     deps = '[dependencies.compat]\nsdl3 = "3.4.18"\n'
                 if rule == "pins" and m == "modules/ui/core":
                     deps = '[dependencies]\nns.os = "0.1.0"\n'  # reaches ns.os, does not pin ns.kernel
+                if rule == "licenses" and m == "modules/ui/core":
+                    deps = '[dependencies]\nacme.copyleft = "1.0.0"\n'
+                    with (root / "tools" / "lint" / "licenses.toml").open("a", encoding="utf-8") as f:
+                        f.write('"acme.copyleft" = ["GPL-3.0-only"]\n')
                 flags = '[build]\ncxxflags = ["-ffp-contract=off"]\n' if m == "modules/base/hanim" else ""
                 (root / m / "mcpp.toml").write_text(f'[package]\n{names[m]}\nversion = "0.1.0"\n{flags}{deps}',
                                                     encoding="utf-8")

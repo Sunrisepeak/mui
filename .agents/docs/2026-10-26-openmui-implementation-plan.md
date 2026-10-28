@@ -1241,7 +1241,11 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
   - 按角色改名：`openmui.anim` → `hanim`（`hanim::`）、`openmui.slang` → `openmui.shader`（`omui::shader`、`omui-shader`）、`openmui.record` → `openmui.session`（`omui::session`）、`openmui.effect` → `openmui.render.effect`、`openmui.ui.canvas_kit` → `openmui.ui.canvas.kit`。
   - lint：`layering` 按分组（独立组件、openmui、mgame；gongfu 的核心只依赖标准库）、`layout`（路径就是包名、有包的目录都有列出它们的 README）、`thirdparty`（`mcpplibs.mwrap.*` 只在 `native/` 单元里，三处移进了 `native/`）；自测 13/13。
   - 每个分组目录一份 README；主 README 以作品为中心重写（英文为主，附 `README.zh.md`），仓库加上 Apache-2.0 的 `LICENSE`。
-  - 发现：`mcpp` 对带引号的三段依赖键（`"openmui.render.effect"`）编译但不链接，改用不带引号的写法（和带引号的 `"openmui.render"` 是不同的键，合法 TOML）；fribidi 是 LGPL-2.1 且静态链接，违反 D-83，换成 SheenBidi（Apache-2.0）的工作和 lint `licenses` 一起落地。
+  - 发现：`mcpp` 对带引号的三段依赖键（`"openmui.render.effect"`）编译但不链接，改用不带引号的写法（和带引号的 `"openmui.render"` 是不同的键，合法 TOML）；fribidi 是 LGPL-2.1 且静态链接，违反 D-83（下一条）。
+- ✅ 许可（D-83）：
+  - lint `licenses`：`tools/lint/licenses.toml` 列出工作区经由清单和 `mcpp.lock` 用到的每个 mcpp-index 包和它的许可（SPDX）；没有列出的包、GPL / AGPL、不在 `[dynamic]` 里的 LGPL 都会失败；有本地索引时，许可要和索引的描述一致。自测 14/14。
+  - 双向文本从 fribidi 换成 SheenBidi 3.0.0（Apache-2.0，Unicode 17）：上游新增 `compat.sheenbidi`（mcpp-index #607）和 `mcpplibs.mwrap.sheenbidi`（mcpplibs/sheenbidi-m，mcpp-index #608），模块的测试在所有平台上跑 Unicode 的 BidiTest（770,241 例）和 BidiCharacterTest（91,707 例），0 错误。`openmui.text` 按 UBA P1 逐段解析（换行结束一段，下一段按自己的第一个强字符定方向，新测试），L1 的段落部分自己做，行尾部分仍在排版里；固定的像素哈希不变。
+  - fribidi 只剩 SDL3 在 X11 上的可选用法：编译时用头文件，运行时 dlopen 系统的 `libfribidi.so.0`（消息框的 RTL 文本），登记在 `[dynamic]`。
 - M5：openmui-video、ui-timeline、MCP 服务器、skills、S3 / S4 / S5。
 - 契约⑦（插件与管线）写进规范；Inspector 的火焰图和动画检查器视图。
 

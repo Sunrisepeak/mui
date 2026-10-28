@@ -1,4 +1,4 @@
-// Shaping: bidi levels (fribidi), grapheme clusters and line-break
+// Shaping: bidi levels (SheenBidi), grapheme clusters and line-break
 // opportunities (openmui.unicode), script runs, font fallback per cluster,
 // and HarfBuzz shaping of each run with the whole text as context.
 module openmui.text;
@@ -7,13 +7,49 @@ import std;
 import openmui.unicode;
 import :shaped;
 import mcpplibs.mwrap.harfbuzz;
-import mcpplibs.mwrap.fribidi;
+import mcpplibs.mwrap.sheenbidi;
 using namespace mcpplibs::mwrap::harfbuzz::macros;
-using namespace mcpplibs::mwrap::fribidi::macros;
+using namespace mcpplibs::mwrap::sheenbidi::macros;
 
 namespace omui::typeset {
 
 namespace {
+
+// UBA L1, the paragraph's part: segment and paragraph separators, and the
+// whitespace and isolate formatters before them or at the paragraph's end,
+// take the paragraph's level.
+void reset_separators(std::string_view text, std::size_t begin, std::size_t end, SBLevel base, std::vector<std::uint8_t>& level_at) {
+    struct Cp {
+        std::size_t at, length;
+        SBBidiType  type;
+    };
+    std::vector<Cp> cps;
+    for (std::size_t i = begin; i < end;) {
+        auto d = unicode::decode(text, i);
+        cps.push_back({i, d.length, SBCodepointGetBidiType(d.cp)});
+        i += d.length;
+    }
+    auto set = [&](const Cp& c) {
+        for (std::size_t b = c.at; b < c.at + c.length; ++b) level_at[b] = base;
+    };
+    auto trailing = [](SBBidiType t) {
+        return t == SBBidiTypeWS || t == SBBidiTypeLRI || t == SBBidiTypeRLI || t == SBBidiTypeFSI || t == SBBidiTypePDI ||
+               t == SBBidiTypeBN || t == SBBidiTypeLRE || t == SBBidiTypeRLE || t == SBBidiTypeLRO || t == SBBidiTypeRLO ||
+               t == SBBidiTypePDF;
+    };
+    bool resetting = true;  // the paragraph's end
+    for (std::size_t k = cps.size(); k-- > 0;) {
+        const SBBidiType t = cps[k].type;
+        if (t == SBBidiTypeS || t == SBBidiTypeB) {
+            set(cps[k]);
+            resetting = true;
+        } else if (resetting && trailing(t)) {
+            set(cps[k]);
+        } else {
+            resetting = false;
+        }
+    }
+}
 
 hb_script_t script_of(char32_t cp) { return hb_unicode_script(hb_unicode_funcs_get_default(), cp); }
 
@@ -64,32 +100,34 @@ void shape(Paragraph::Shaped& s) {
     const std::string& text = s.text;
 
     // ── bidi levels per byte ──
-    std::vector<std::size_t> cp_offsets;
-    std::vector<FriBidiChar> cps;
-    for (std::size_t i = 0; i < text.size();) {
-        auto d = unicode::decode(text, i);
-        cp_offsets.push_back(i);
-        cps.push_back(d.cp);
-        i += d.length;
-    }
+    // SheenBidi reads the UTF-8 itself and resolves each paragraph (UBA P1:
+    // a paragraph separator ends one) to levels per code unit — per byte
+    // here. Rule L1's paragraph part is applied below; its line part
+    // (trailing whitespace) is the layout's, per line.
     std::vector<std::uint8_t> level_at(text.size(), 0);
-    FriBidiParType dir = s.paragraph.direction == TextDirection::rtl   ? FRIBIDI_PAR_RTL
-                         : s.paragraph.direction == TextDirection::ltr ? FRIBIDI_PAR_LTR
-                                                                       : FRIBIDI_PAR_ON;
-    if (!cps.empty()) {
-        auto n = static_cast<FriBidiStrIndex>(cps.size());
-        std::vector<FriBidiCharType> types(cps.size());
-        std::vector<FriBidiBracketType> brackets(cps.size());
-        std::vector<FriBidiLevel> levels(cps.size());
-        fribidi_get_bidi_types(cps.data(), n, types.data());
-        fribidi_get_bracket_types(cps.data(), n, types.data(), brackets.data());
-        fribidi_get_par_embedding_levels_ex(types.data(), brackets.data(), n, &dir, levels.data());
-        for (std::size_t i = 0; i < cps.size(); ++i) {
-            std::size_t end = i + 1 < cps.size() ? cp_offsets[i + 1] : text.size();
-            for (std::size_t b = cp_offsets[i]; b < end; ++b) level_at[b] = static_cast<std::uint8_t>(levels[i]);
+    const SBLevel wanted = s.paragraph.direction == TextDirection::rtl   ? SBLevel{1}
+                           : s.paragraph.direction == TextDirection::ltr ? SBLevel{0}
+                                                                         : SBLevelDefaultLTR;
+    SBLevel first_base = 0;
+    if (!text.empty()) {
+        const SBCodepointSequence seq{SBStringEncodingUTF8, const_cast<char*>(text.data()), text.size()};
+        SBAlgorithmRef algorithm = SBAlgorithmCreate(&seq);
+        for (SBUInteger offset = 0; offset < text.size();) {
+            SBParagraphRef par = SBAlgorithmCreateParagraph(algorithm, offset, text.size() - offset, wanted);
+            if (!par) break;
+            const SBUInteger length = SBParagraphGetLength(par);
+            const SBLevel base = SBParagraphGetBaseLevel(par);
+            if (offset == 0) first_base = base;
+            const SBLevel* levels = SBParagraphGetLevelsPtr(par);
+            for (SBUInteger i = 0; i < length; ++i) level_at[offset + i] = levels[i];
+            reset_separators(text, offset, offset + length, base, level_at);
+            SBParagraphRelease(par);
+            if (length == 0) break;
+            offset += length;
         }
+        SBAlgorithmRelease(algorithm);
     }
-    s.base_level = (s.paragraph.direction == TextDirection::rtl || (dir == FRIBIDI_PAR_RTL && !cps.empty())) ? 1 : 0;
+    s.base_level = (s.paragraph.direction == TextDirection::rtl || (s.paragraph.direction != TextDirection::ltr && first_base == 1)) ? 1 : 0;
 
     // ── graphemes with their face, style, level and script ──
     auto bounds = unicode::grapheme_boundaries(text);

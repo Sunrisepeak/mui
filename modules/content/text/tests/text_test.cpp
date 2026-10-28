@@ -145,6 +145,15 @@ int main(int argc, char** argv) {
         text::Paragraph mixed(fonts(), "abc مرحبا def", style(16));
         check(!mixed.lines()[0].rtl);
         check(mixed.lines()[0].runs.size() >= 3);
+        // UBA P1: a line feed ends a paragraph, and the next one takes its
+        // direction from its own first strong character — so the `!` that
+        // opens an Arabic paragraph belongs to it and is drawn at its right.
+        text::Paragraph two(fonts(), "abc\n!مرحبا", style(16));
+        check(two.lines().size() == 2);
+        const std::size_t bang = 4;
+        check(two.caret(bang).x > two.caret(bang + 1).x,
+              std::format("`!` at {} drawn right of the Arabic at {}", two.caret(bang).x, two.caret(bang + 1).x));
+        check(two.caret(1).x > two.caret(0).x, "the first paragraph stays left to right");
     });
 
     s.test("alignment, justification, ellipsis", [] {

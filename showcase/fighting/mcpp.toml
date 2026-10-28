@@ -28,6 +28,8 @@ openmui.sdk      = { path = "../.." }
 gongfu.data      = { path = "../../mgame/gongfu/data" }
 gongfu.present2d = { path = "../../mgame/gongfu/present2d" }
 gongfu.training  = { path = "../../mgame/gongfu/training" }
+"openmui.audio"  = { path = "../../modules/media/audio" }
+"openmui.audio.device" = { path = "../../modules/media/audio/device" }
 
 [build-dependencies]
 openmui.rules = { path = "../../mcpp/rules", host-module = true }

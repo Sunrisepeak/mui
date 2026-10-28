@@ -331,25 +331,30 @@ angle.shin_back = [[0, -50.3]]
 [impact.light]
 shake = [2, 6]
 spark = { style = "rays", size = 24, count = 6, frames = 12, color = "#ffd166", counter = "#ff4d5e" }
+sound = ["snap", "thud_light", ""]
 
 [impact.low]
 shake = [2, 6]
 spark = { style = "rays", size = 22, count = 6, frames = 12, color = "#ffd166", counter = "#ff4d5e" }
+sound = ["snap", "thud_medium", ""]
 
 [impact.overhead]
 shake = [5, 10]
 zoom = [0.02, 8]
 spark = { style = "rays", size = 36, count = 8, frames = 16, color = "#ffd166", counter = "#ff4d5e" }
+sound = ["crack", "thud_medium", ""]
 
 [impact.heavy]
 shake = [7, 12]
 zoom = [0.04, 12]
 spark = { style = "rays", size = 44, count = 10, frames = 18, color = "#ffd166", counter = "#ff4d5e" }
 rumble = [0.6, 10]
+sound = ["crack", "thud_heavy", "tail_short"]
 
 [impact.fireball]
 shake = [3, 8]
 spark = { style = "ring", size = 50, count = 1, frames = 16, color = "#6fd3ff", counter = "#ff4d5e" }
+sound = ["crack", "thud_medium", "tail_short"]
 
 [impact.rising]
 shake = [9, 14]
@@ -357,18 +362,22 @@ zoom = [0.05, 16]
 flash = ["white", 3]
 spark = { style = "rays", size = 54, count = 12, frames = 20, color = "#ffd166", counter = "#ff4d5e" }
 rumble = [0.8, 14]
+sound = ["crack", "thud_heavy", ""]
 
 [impact.air]
 shake = [4, 8]
 spark = { style = "rays", size = 32, count = 8, frames = 14, color = "#ffd166", counter = "#ff4d5e" }
+sound = ["snap", "thud_medium", ""]
 
 [impact.block]
 shake = [1, 4]
 spark = { style = "ring", size = 46, count = 1, frames = 14, color = "#7ad7ff", counter = "#7ad7ff" }
+sound = ["block_tick", "", ""]
 
 [impact.throw]
 shake = [6, 10]
 spark = { style = "ring", size = 56, count = 1, frames = 16, color = "#f2f2f2", counter = "#f2f2f2" }
+sound = ["", "thud_heavy", "slam_tail"]
 
 [impact.ko]
 shake = [12, 20]
@@ -376,3 +385,4 @@ zoom = [0.08, 30]
 flash = ["white", 12]
 spark = { style = "rays", size = 60, count = 12, frames = 24, color = "#ffd166", counter = "#ff4d5e" }
 rumble = [1, 24]
+sound = ["crack", "boom", "tail_long"]

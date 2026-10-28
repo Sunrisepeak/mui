@@ -1,0 +1,34 @@
+# openmui.audio — sound for openmui and its games (D-86): sounds as data
+# (*.sound.omui.toml: layered oscillators and noise, gliding pitch and
+# filters, envelopes), voices mixed into buses through their effects into
+# a limited master, a block at a time with nothing allocated, every sample a
+# function of what was played and when: an offline render is the same bits on
+# every platform. Devices and codecs are plugins (openmui.audio.device).
+# An independent component (D-55): the standard library, hanim (its
+# deterministic math), openmui.trace (spans in category "audio") and toml++.
+[package]
+namespace   = "openmui"
+name        = "audio"
+version     = "0.1.0"
+description = "Sounds as data, mixed in blocks with nothing allocated, rendered the same bits everywhere"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "runtime"
+
+[targets.openmui-audio]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+hanim               = { path = "../../base/hanim" }
+openmui.trace       = { path = "../../base/trace" }
+marzer.tomlplusplus = "3.4.0"
+
+[dev-dependencies]
+openmui.testing = { path = "../../base/testing" }

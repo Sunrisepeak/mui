@@ -66,6 +66,7 @@ void Stage::start_round() {
     match_ = std::make_unique<gongfu::Match>(r.system, r.fighters[left_], r.fighters[right_]);
     effects_ = {};
     readout_.clear();
+    sounds_.restart();
     over_reported_ = false;
 }
 
@@ -76,6 +77,7 @@ Stage::~Stage() {
 void Stage::mounted() {
     frame_.reserve(512);
     start_round();
+    if (hearing() && !heard_) heard_ = hearing()(sounds_);  // the program hears the fight (a device on its mixer)
     services().focus(node());  // the keyboard is the players'
     // A game shows every frame it plays: sixty a second while it is on screen.
     pace_ = services().demand_frames({.min_hz = 60, .max_hz = 60, .preferred_hz = 60, .reason = "game"});
@@ -128,6 +130,8 @@ void Stage::advance() {
     match_->tick(a, b);
     effects_.record(*match_);
     readout_.record(*match_, a, b);
+    const Roster& r = roster();
+    sounds_.heard(*match_, r.looks[2 * left_], r.looks[2 * right_ + 1]);
     if (match_->state().over && !over_reported_) {
         over_reported_ = true;
         emit_round_over(match_->state().winner);

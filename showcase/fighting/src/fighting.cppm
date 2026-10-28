@@ -10,6 +10,8 @@ export import :stage_contract;
 export import :gongfu_fighters;
 export import :roster;
 export import :hud;
+export import :sound;
+export import :fight_sound;
 export import :stage;
 
 export namespace omui::fighting {

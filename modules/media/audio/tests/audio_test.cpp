@@ -1,0 +1,234 @@
+// Sounds as data and the mixer: a sound file read and written back, its
+// problems at their line and column; a sine at its pitch; a sound starting on
+// its sample to the sample; an envelope's shape; a glide reaching its pitch;
+// a lowpass taking off the highs; voices taken oldest first; the limiter;
+// nothing allocated while rendering; one thread playing while another
+// renders; and a scene rendered offline, its bits pinned on every platform.
+import std;
+import openmui.audio;
+import openmui.testing;
+
+using namespace omui::testing;
+namespace audio = omui::audio;
+
+// Heap allocations counted here, in the test program only.
+namespace {
+std::atomic<std::int64_t> allocations{0};
+}
+void* operator new(std::size_t size) {
+    allocations.fetch_add(1, std::memory_order_relaxed);
+    if (void* p = std::malloc(size ? size : 1)) return p;
+    std::abort();
+}
+void* operator new[](std::size_t size) { return ::operator new(size); }
+void operator delete(void* p) noexcept { std::free(p); }
+void operator delete[](void* p) noexcept { std::free(p); }
+void operator delete(void* p, std::size_t) noexcept { std::free(p); }
+void operator delete[](void* p, std::size_t) noexcept { std::free(p); }
+
+namespace {
+
+constexpr std::string_view file = R"(doc = "Two sounds: a punch and a bell."
+
+[sound.punch]
+gain = 0.9
+
+[[sound.punch.layer]]
+wave = "noise"
+length = 0.09
+envelope = { attack = 0.001, decay = 0.08, sustain = 0, release = 0.01 }
+filter = { kind = "lowpass", cutoff = [4000, 500], q = 0.8 }
+gain = 0.7
+seed = 7
+
+[[sound.punch.layer]]
+wave = "sine"
+length = 0.16
+pitch = [170, 55]
+envelope = { attack = 0.002, decay = 0.14, sustain = 0, release = 0.02 }
+drive = 0.3
+
+[sound.bell]
+bus = "music"
+
+[[sound.bell.layer]]
+wave = "sine"
+length = 1.2
+pitch = 660
+envelope = { attack = 0.003, decay = 1.1, sustain = 0, release = 0.05 }
+
+[[sound.bell.layer]]
+wave = "triangle"
+at = 0.01
+length = 0.8
+pitch = 1650
+envelope = { attack = 0.003, decay = 0.7, sustain = 0, release = 0.05 }
+gain = 0.3
+pan = 0.4
+)";
+
+audio::Sound tone(float hz, float seconds, audio::Wave wave = audio::Wave::sine) {
+    audio::Sound s{.name = std::format("tone{}", hz)};
+    s.layers.push_back({.wave = wave, .length = seconds, .pitch = {hz, hz}, .envelope = {.attack = 0.0001f, .hold = 10, .decay = 0.001f, .sustain = 1, .release = 0.0001f}});
+    return s;
+}
+
+// Zero crossings upward in the left channel of [from, to) frames.
+int crossings(std::span<const float> lr, std::size_t from, std::size_t to) {
+    int n = 0;
+    for (std::size_t i = from + 1; i < to; ++i) n += lr[2 * (i - 1)] < 0 && lr[2 * i] >= 0;
+    return n;
+}
+
+}  // namespace
+
+int main(int argc, char** argv) {
+    Suite s{"audio"};
+
+    s.test("a sound file reads, and what is written reads back as itself; its problems at their line and column", [] {
+        auto sounds = audio::read_sounds(file, "test.sound.omui.toml");
+        check(sounds.has_value(), sounds ? "" : sounds.error().front().text());
+        if (!sounds) return;
+        auto named = [&](std::string_view n) { return *std::ranges::find(*sounds, n, &audio::Sound::name); };  // by name: a file's sounds come in name order
+        check(sounds->size() == 2 && named("punch").layers.size() == 2 && named("bell").bus == "music");
+        const audio::Layer& thump = named("punch").layers[1];
+        check(thump.pitch[0] == 170 && thump.pitch[1] == 55 && thump.drive == 0.3f, "the thump falls from 170 to 55 Hz");
+        check_near(named("punch").length(), 0.16, 1e-6);
+        const std::string written = audio::write_sounds(*sounds);
+        auto again = audio::read_sounds(written, "written.sound.omui.toml");
+        check(again && audio::write_sounds(*again) == written, "written back as itself");
+        auto bad = audio::read_sounds("[sound.x]\n[[sound.x.layer]]\nwave = \"sqaure\"\nptich = 3\nlength = -1\n", "bad.sound.omui.toml");
+        check(!bad.has_value());
+        if (bad) return;
+        std::vector<std::string> texts;
+        for (const auto& p : bad.error()) texts.push_back(p.text());
+        auto has = [&](std::string_view t) { return std::ranges::any_of(texts, [&](const std::string& x) { return x == t; }); };
+        check(has("bad.sound.omui.toml:3:8: `sqaure` is not a wave (sine, triangle, square, saw, noise) (did you mean `square`?)"), std::format("{}", texts));
+        check(has("bad.sound.omui.toml:4:1: sound `x`'s layer has no key `ptich` (did you mean `pitch`?)"), std::format("{}", texts));
+        check(has("bad.sound.omui.toml:5:10: a layer's `length` (seconds) is 0.001–60, not -1"), std::format("{}", texts));
+    });
+
+    s.test("a sine plays at its pitch; a sound starts on its sample, to the sample", [] {
+        audio::Mixer m;
+        const auto a = m.add(tone(440, 1.0f));
+        check(m.play(a, 0));
+        const auto out = audio::render(m, 48000);
+        const int n = crossings(out, 0, 48000);
+        check(n >= 439 && n <= 441, std::format("{} cycles in a second", n));
+        // From sample 1000 of the clock: silence before it, then the very samples it makes from 0, 1000 later.
+        auto from = [](std::int64_t at) {
+            audio::Mixer m2;
+            m2.play(m2.add(tone(440, 0.05f, audio::Wave::square)), at);
+            return audio::render(m2, 4000);
+        };
+        const auto early = from(0), late = from(1000);
+        bool silent = true, same = true;
+        for (std::size_t i = 0; i < 2000; ++i) silent = silent && late[i] == 0;
+        for (std::size_t i = 0; i < 2 * 3000; ++i) same = same && late[2000 + i] == early[i];
+        check(silent && same, "the same samples, 1000 later");
+    });
+
+    s.test("an envelope's shape: up over its attack, down to its sustain, silent at its end; a glide reaches its pitch", [] {
+        audio::Sound s{.name = "shape"};
+        s.layers.push_back({.wave = audio::Wave::square, .length = 0.5f, .pitch = {100, 100},
+                            .envelope = {.attack = 0.1f, .hold = 0, .decay = 0.1f, .sustain = 0.5f, .release = 0.1f}});
+        audio::Mixer m;
+        m.play(m.add(s), 0);
+        const auto out = audio::render(m, 24000);
+        auto level = [&](double at) {  // the loudest over a 10 ms window there
+            const auto from = static_cast<std::size_t>(at * 48000);
+            return audio::peak(std::span(out).subspan(2 * from, 2 * 480));
+        };
+        check(level(0.02) < level(0.09) && level(0.09) > 0.8, std::format("rising: {} then {}", level(0.02), level(0.09)));
+        check(level(0.3) > 0.4 && level(0.3) < 0.6, std::format("sustained at half: {}", level(0.3)));
+        check(level(0.49) < 0.1, std::format("released: {}", level(0.49)));
+        // 200 → 800 Hz over a second: near 800 at its end.
+        audio::Sound g{.name = "glide"};
+        g.layers.push_back({.length = 1.0f, .pitch = {200, 800}, .envelope = {.attack = 0.0001f, .hold = 10, .decay = 0.001f, .sustain = 1, .release = 0.0001f}});
+        audio::Mixer gm;
+        gm.play(gm.add(g), 0);
+        const auto glide = audio::render(gm, 48000);
+        const int start = crossings(glide, 0, 4800), end = crossings(glide, 43200, 48000);
+        // The last 100 ms glide from 4^0.9 × 200 ≈ 696 Hz to 800: about 74 cycles.
+        check(start >= 19 && start <= 23 && end >= 72 && end <= 76, std::format("{} then {} cycles in 100 ms", start, end));
+    });
+
+    s.test("a lowpass takes off the highs: filtered noise moves less from sample to sample", [] {
+        auto roughness = [](audio::FilterKind f) {
+            audio::Sound s{.name = "noise"};
+            s.layers.push_back({.wave = audio::Wave::noise, .length = 0.2f, .envelope = {.attack = 0.0001f, .hold = 10, .decay = 0.001f, .sustain = 1, .release = 0.0001f},
+                                .filter = f, .cutoff = {800, 800}, .gain = 0.5f});
+            audio::Mixer m;
+            m.play(m.add(s), 0);
+            const auto out = audio::render(m, 9600);
+            double r = 0;
+            for (std::size_t i = 1; i < 9600; ++i) r += std::abs(out[2 * i] - out[2 * (i - 1)]);
+            return r;
+        };
+        const double raw = roughness(audio::FilterKind::none), low = roughness(audio::FilterKind::lowpass);
+        check(low < raw / 5, std::format("{} filtered, {} raw", low, raw));
+    });
+
+    s.test("voices: past the most at once, the oldest gives way; the limiter holds loud ones under its ceiling", [] {
+        audio::Mixer m({.voices = 4});
+        const auto t = m.add(tone(220, 1.0f));
+        for (int i = 0; i < 10; ++i) m.play(t, i * 10);
+        const auto out = audio::render(m, 4800);
+        check_eq(m.sounding(), std::int32_t{4});
+        check(audio::peak(out) <= 0.89f + 1e-6f, std::format("peak {}", audio::peak(out)));
+    });
+
+    s.test("nothing is allocated while playing and rendering", [] {
+        auto sounds = *audio::read_sounds(file, "test.sound.omui.toml");
+        audio::Mixer m;
+        std::vector<std::int32_t> ids;
+        for (const auto& snd : sounds) ids.push_back(m.add(snd));
+        m.add_effect("sfx", audio::echo(0.12f, 0.35f, 0.3f, 48000));
+        std::vector<float> block(2 * 256);
+        m.render(block);  // a first block (a trace buffer, if any, made once)
+        const std::int64_t before = allocations.load();
+        for (int b = 0; b < 400; ++b) {
+            if (b % 7 == 0) m.play(ids[static_cast<std::size_t>(b % 2)], m.clock() + 37, 0.8f, (b % 3 - 1) * 0.5f);
+            m.render(block);
+        }
+        check_eq(allocations.load() - before, std::int64_t{0});
+    });
+
+    s.test("one thread plays while another renders: every play begins, none lost", [] {
+        if constexpr (!threads) return;  // the Web row runs no threads
+        audio::Mixer m({.voices = 64, .queue = 64});
+        const auto t = m.add(tone(330, 0.01f));
+        std::atomic<bool> done{false};
+        std::jthread renderer([&] {
+            std::vector<float> block(2 * 128);
+            while (!done.load() || m.begun() < 200) m.render(block);
+        });
+        for (int i = 0; i < 200; ++i) {
+            while (!m.play(t, 0)) std::this_thread::yield();
+            if (i % 10 == 0) std::this_thread::sleep_for(std::chrono::microseconds(300));
+        }
+        done = true;
+        renderer.join();
+        check_eq(m.begun(), std::int64_t{200});
+    });
+
+    s.test("a scene rendered offline — punches, a bell, an echo on the effects — is the same bits everywhere; a WAV of it", [] {
+        auto sounds = *audio::read_sounds(file, "test.sound.omui.toml");  // the bell, then the punch (name order)
+        audio::Mixer m;
+        const auto bell = m.add(sounds[0]), punch = m.add(sounds[1]);
+        m.add_effect("sfx", audio::echo(0.09f, 0.3f, 0.25f, 48000));
+        m.add_effect("music", audio::filter(audio::FilterKind::highpass, 120));
+        for (int k = 0; k < 6; ++k) m.play(punch, 4800 * k + 77 * k, 1.0f - 0.1f * k, k % 2 ? -0.6f : 0.6f, 1.0f + 0.05f * k);
+        m.play(bell, 30000, 0.7f);
+        const auto out = audio::render(m, 96000);
+        check(audio::peak(out) > 0.2f && audio::peak(out) <= 0.89f + 1e-6f, std::format("peak {}", audio::peak(out)));
+        const auto w = audio::wav(out, 48000);
+        check(w.size() == 44 + out.size() * 2 && static_cast<char>(w[0]) == 'R' && static_cast<char>(w[8]) == 'W', "a 16-bit WAV");
+        const auto dir = scratch_dir("audio");
+        std::ofstream(dir / "scene.wav", std::ios::binary).write(reinterpret_cast<const char*>(w.data()), static_cast<std::streamsize>(w.size()));
+        std::println("    scene {:016x}", audio::hash(out));
+        check_eq(audio::hash(out), std::uint64_t{0xe332a3d4a569c772});  // GCC, LLVM and wasm
+    });
+
+    return s.run(argc, argv);
+}

@@ -21,6 +21,11 @@ mcpp run -p openmui.showcase.fighting -- --headless --png fight.png
   - `fighters/<name>.boxes.gongfu.toml` holds its hurtboxes, baked from the look's animation by `gongfu-studio bake`. The build (`gongfu.rules`) refuses a stale one, and training draws them: a jab's arm can be hit.
 
   A file that does not read appears in the stage's semantic value with the problem's line and column; the program doesn't crash.
+- **The fight is heard** (`openmui.audio`). Each impact profile in a look names its sounds — attack, body, tail — from `sounds/fight.sound.omui.toml`.
+  - The library has shared thuds, cracks, blocks and booms, and each fighter's own: ink for 墨, neon for 霓, glass for 璃, the mountain for 岳, the clock for 刻.
+  - Sounds play on the frame the simulation made them, panned by where on the stage and louder for more damage. A super's flash has its sweep.
+  - `omui-fight` hears them through the system's output (`openmui.audio.device`); headless or with `--quiet`, nothing is heard.
+  - Offline, each sound starts on its frame's very sample, so a match's sound is as determined as its pixels: the tests pin a fight's audio and write it as a WAV.
 - **The match runs on the runtime's clock.** A timer plays every frame that is due: a late frame catches up, and a stall of more than four frames is skipped, not replayed. Headless, a second is exactly 60 frames. Pausing is a property. While paused, `step` plays one frame.
 - **An agent plays through the stage's actions:**
   - `press` holds a pad written in numpad notation (`6`, `2LK`, `5LP+LK`) until the next press; `release` gives the keyboard back.

@@ -7,3 +7,4 @@ export module openmui.bench;
 export import :harness;
 export import :scenes;
 export import :game;
+export import :audio;

@@ -40,6 +40,8 @@ members = [
     "modules/content/layout",
     "modules/content/markdown",
     "modules/content/text",
+    "modules/media/audio",
+    "modules/media/audio/device",
     "modules/ui/abi",
     "modules/ui/agent",
     "modules/ui/core",

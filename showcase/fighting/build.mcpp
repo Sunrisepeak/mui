@@ -10,5 +10,8 @@ int main() {
     const bool stage = openmui::rules::components({.module = "openmui.showcase.fighting", .ns = "omui::fighting"});
     // The fighters, their looks and baked hurtboxes; a stale bake fails the build.
     const bool fighters = gongfu::rules::fighters({.module = "openmui.showcase.fighting", .ns = "omui::fighting::files"});
-    return stage && fighters ? 0 : 1;
+    // What the fight sounds like (openmui.audio).
+    const bool sounds = openmui::rules::embed({.module = "openmui.showcase.fighting", .ns = "omui::fighting::files", .dir = "sounds",
+                                               .suffix = ".sound.omui.toml", .tag = "sound"});
+    return stage && fighters && sounds ? 0 : 1;
 }

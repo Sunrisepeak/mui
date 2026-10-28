@@ -846,20 +846,24 @@ angle.brush = [[0, 0], [4, -77], [6, -77], [16, -17], [28, 0]]
 [impact.light]
 shake = [2, 6]
 spark = { style = "splash", size = 26, count = 6, frames = 14, color = "#101114", counter = "#c0392b" }
+sound = ["ink_splash", "thud_light", ""]
 
 [impact.medium]
 shake = [4, 8]
 spark = { style = "splash", size = 36, count = 8, frames = 16, color = "#101114", counter = "#c0392b" }
+sound = ["ink_splash", "thud_medium", ""]
 
 [impact.heavy]
 shake = [8, 14]
 zoom = [0.04, 14]
 spark = { style = "splash", size = 52, count = 11, frames = 20, color = "#101114", counter = "#c0392b" }
 rumble = [0.6, 12]
+sound = ["ink_splash", "thud_heavy", "tail_short"]
 
 [impact.glyph]
 shake = [3, 8]
 spark = { style = "splash", size = 44, count = 9, frames = 18, color = "#101114", counter = "#c0392b" }
+sound = ["ink_splash", "thud_medium", ""]
 
 [impact.stroke]
 shake = [9, 16]
@@ -867,12 +871,14 @@ zoom = [0.05, 16]
 flash = ["white", 3]
 spark = { style = "splash", size = 58, count = 12, frames = 22, color = "#101114", counter = "#c0392b" }
 rumble = [0.8, 14]
+sound = ["ink_splash", "thud_heavy", "tail_short"]
 
 [impact.super]
 shake = [10, 18]
 zoom = [0.06, 20]
 spark = { style = "splash", size = 70, count = 14, frames = 24, color = "#101114", counter = "#c0392b" }
 rumble = [1, 18]
+sound = ["ink_splash", "thud_heavy", "tail_long"]
 
 [impact.seal]
 shake = [14, 24]
@@ -880,14 +886,17 @@ zoom = [0.1, 30]
 flash = ["white", 6]
 spark = { style = "splash", size = 90, count = 18, frames = 30, color = "#c0392b", counter = "#c0392b" }
 rumble = [1, 30]
+sound = ["crack", "boom", "tail_long"]
 
 [impact.block]
 shake = [1, 4]
 spark = { style = "ring", size = 46, count = 1, frames = 14, color = "#efe8da", counter = "#efe8da" }
+sound = ["block_tick", "", ""]
 
 [impact.throw]
 shake = [6, 10]
 spark = { style = "ring", size = 56, count = 1, frames = 16, color = "#c0392b", counter = "#c0392b" }
+sound = ["", "thud_heavy", "slam_tail"]
 
 [impact.ko]
 shake = [12, 22]
@@ -895,6 +904,7 @@ zoom = [0.08, 32]
 flash = ["invert", 6]
 spark = { style = "splash", size = 80, count = 16, frames = 28, color = "#101114", counter = "#c0392b" }
 rumble = [1, 26]
+sound = ["crack", "boom", "tail_long"]
 
 [glyph."一"]
 strokes = [{ points = [[12, 50], [50, 53], [88, 49]], width = [10, 7, 12] }]

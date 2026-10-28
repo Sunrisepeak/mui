@@ -8,9 +8,11 @@ import openmui;
 import openmui.showcase.fighting;
 import openmui.testing;
 import gongfu.ai;
+import openmui.audio;
 
 using namespace omui::testing;
 using namespace omui;
+namespace audio = omui::audio;
 
 namespace {
 
@@ -28,6 +30,7 @@ struct Game {
         h.step();
     }
     const fighting::Stage& stage() { return *h.runtime().component<fighting::Stage>(h.runtime().find("main")); }
+    fighting::Stage& stage_mut() { return const_cast<fighting::Stage&>(stage()); }  // its sounds, rendered by the test
     const gongfu::State& state() { return stage().match().state(); }
     Value seen() {
         for (const auto& n : h.tree().snapshot({}).nodes)
@@ -997,6 +1000,58 @@ int main(int argc, char** argv) {
         }
         std::println("    rounds {}", all.hex());
         check_eq(all.hex(), std::string("6f6812df1978b57e"));  // the same rounds on GCC and LLVM
+    });
+
+    s.test("the fight heard, offline: silence until the first contact, its sounds on its frame, the same bits every run — and a WAV of it", [] {
+        Game g("training", "mo", "yue");
+        check(g.act("pause"));
+        check(g.act("fill"));
+        auto& sounds = g.stage_mut().sounds();
+        const std::int64_t per = sounds.frame_samples();
+        std::vector<float> all;
+        std::vector<float> one(static_cast<std::size_t>(2 * per));
+        std::int32_t first_contact = -1;
+        // Each frame played, then that frame's sound rendered: the mixer's clock keeps the match's.
+        auto step = [&] {
+            check(g.act("step"));
+            if (first_contact < 0 && std::ranges::any_of(g.stage().match().events(), [](const gongfu::Event& e) {
+                    return e.kind == gongfu::Event::Kind::hit || e.kind == gongfu::Event::Kind::block || e.kind == gongfu::Event::Kind::counter;
+                }))
+                first_contact = g.state().frame;
+            sounds.mixer().render(one);
+            all.insert(all.end(), one.begin(), one.end());
+        };
+        auto press = [&](std::initializer_list<std::string_view> pads) {
+            for (std::string_view p : pads) {
+                check(g.act("press", pad(0, p)));
+                step();
+            }
+            check(g.act("press", pad(0, "5")));
+        };
+        check(g.act("press", pad(0, "6")));
+        while ((g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 130) step();
+        check(g.act("press", pad(0, "5")));
+        for (int i = 0; i < 6; ++i) step();
+        press({"5HP"});
+        for (int i = 0; i < 40; ++i) step();
+        press({"2", "3", "6MP"});        // a glyph (ink on the body)
+        for (int i = 0; i < 80; ++i) step();
+        check(g.act("press", pad(0, "6")));  // in range of her thrust again
+        while ((g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 110) step();
+        check(g.act("press", pad(0, "5")));
+        for (int i = 0; i < 12; ++i) step();  // let go a while: forward again would be a dash
+        press({"2", "3", "6", "2", "3", "6HK"});  // her level 3: the flash's sweep, the cinematic's hits
+        for (int i = 0; i < 280; ++i) step();
+        check(g.state().f[1].health < 11100 - 3000, std::format("the level 3 landed: Yue at {}", g.state().f[1].health));
+        check(first_contact > 0, "they met");
+        const auto at = [&](std::int32_t frame) { return static_cast<std::size_t>(2 * (frame - 1) * per); };
+        const auto quiet = audio::peak(std::span(all).first(at(first_contact)));
+        const auto loud = audio::peak(std::span(all).subspan(at(first_contact), static_cast<std::size_t>(2 * per * 6)));
+        check(quiet == 0 && loud > 0.2f, std::format("{} before the first contact (frame {}), {} after", quiet, first_contact, loud));
+        const auto w = audio::wav(all, sounds.mixer().rate());
+        std::ofstream(scratch_dir("fighting-sound") / "mo-and-yue.wav", std::ios::binary).write(reinterpret_cast<const char*>(w.data()), static_cast<std::streamsize>(w.size()));
+        std::println("    fight heard {:016x} ({:.1f} s)", audio::hash(all), static_cast<double>(all.size()) / 2 / sounds.mixer().rate());
+        check_eq(audio::hash(all), std::uint64_t{0x9a28e3538090e982});  // GCC and LLVM, every platform
     });
 
     s.test("frames pinned: versus and training (boxes and the meter) at a jab's active frame", [] {

@@ -12,6 +12,7 @@ import gongfu.training;
 import :stage_contract;
 import :roster;
 import :hud;
+import :sound;
 
 export namespace omui::fighting {
 
@@ -48,6 +49,8 @@ public:
     // The match being played, and training's readings of it (tests and tools read them).
     [[nodiscard]] const gongfu::Match& match() const noexcept { return *match_; }
     [[nodiscard]] const gongfu::training::Readout& readout() const noexcept { return readout_; }
+    // What the fight sounds like: a device pulls its mixer (the app's), or a test renders it offline.
+    [[nodiscard]] Sounds& sounds() noexcept { return sounds_; }
 
 private:
     void schedule();
@@ -64,6 +67,8 @@ private:
     std::set<Key>                         held_;
     std::array<std::optional<gongfu::Pad>, 2> agent_{};
     gongfu::training::Readout             readout_;
+    Sounds                                sounds_;
+    std::shared_ptr<void>                 heard_;  // the program's device on sounds_ (let go first)
     std::array<gongfu::training::Recorder, 2> dummies_{};
     struct Saved {
         gongfu::State              state;

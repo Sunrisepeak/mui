@@ -22,7 +22,7 @@ struct Game {
         : h{HeadlessOptions{.size = {960, 540}, .scale = scale}} {
         AppSpec spec = fighting::app();
         spec.setup(h.runtime());
-        if (mode == "versus") {
+        if (mode == "versus" && player1.empty() && player2.empty()) {
             h.mount("main", spec.view());
         } else {
             h.mount("main", fighting::stage({.id = "stage", .mode = std::string(mode), .player1 = std::string(player1), .player2 = std::string(player2),
@@ -335,6 +335,16 @@ int main(int argc, char** argv) {
                 check(defender - attacker == *want, std::format("{} on {}: {:+} measured, {:+} designed", row.move, block ? "block" : "hit", defender - attacker, *want));
             }
         }
+    });
+
+    s.test("墨's home, the study: the stage's art behind and before the fighters, lit by its window — pinned", [] {
+        Game g("versus", "mo", "ni");
+        g.h.advance(seconds(1.5));
+        const auto dir = scratch_dir("fighting-study");
+        check(g.h.save_png(dir / "study.png").has_value());
+        const auto px = g.pixels();
+        std::println("    study {:016x}", px);
+        check_eq(px, std::uint64_t{0xc52d59ba1b3c4e90});  // GCC and LLVM
     });
 
     s.test("the README's loop: 墨's level 3 from the flash to the seal, an animated PNG under 1 MB", [] {

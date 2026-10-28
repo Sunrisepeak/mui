@@ -31,9 +31,31 @@ const Roster& roster() {
             out.looks.push_back(std::move(*look));
             out.looks.push_back(std::move(right));
         }
+        for (const auto& [name, text] : std::array<std::pair<std::string_view, std::string_view>, 1>{{{"study", files::study_stage}}}) {
+            auto art = p2::read_stage(text, std::format("{}.stage.gongfu.toml", name));
+            if (!art) {
+                for (const auto& d : art.error()) out.problems.push_back(d.text());
+                continue;
+            }
+            out.stages.emplace(std::string(name), std::move(*art));
+        }
+        out.homes = {{"mo", "study"}};  // the rest's to come (quality design §5)
         return out;
     }();
     return r;
+}
+
+const p2::Stage* stage_art(std::string_view arena, std::string_view player1) {
+    const Roster& r = roster();
+    if (arena == "plain") return nullptr;
+    std::string_view name = arena;
+    if (name.empty()) {
+        const auto home = r.homes.find(player1.empty() ? std::string_view(r.names.empty() ? "" : r.names.front()) : player1);
+        if (home == r.homes.end()) return nullptr;
+        name = home->second;
+    }
+    const auto it = r.stages.find(name);
+    return it == r.stages.end() ? nullptr : &it->second;
 }
 
 std::size_t fighter_index(std::string_view name) {

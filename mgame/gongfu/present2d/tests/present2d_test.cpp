@@ -425,6 +425,79 @@ swap.body = [[0, 0], [8, 1], [12, 0]]
         check(!b3 && has(texts(b3.error()), "a follow has a `lag`"), b3 ? "read" : std::format("{}", texts(b3.error())));
     });
 
+    s.test("a stage's art: layers by parallax, generators from a seed, sway and flicker by the frame, the world's light; a file that reads back as itself", [&] {
+        const std::string text = R"(gongfu = "0.1"
+name = "test"
+sky = ["#f3eadb", "#e4d5bb"]
+floor = "#6d5240"
+line = "#2e2119"
+marks = false
+light = { from = [1, -1], shadow = "#000000" }
+
+[[layer]]
+name = "far"
+parallax = 0.2
+[[layer.lattice]]
+at = [-200, 100]
+size = [400, 260]
+cells = [4, 3]
+bar = 6
+color = "#5b3a24"
+paper = "#f7efe0"
+
+[[layer]]
+name = "bamboo"
+parallax = 0.5
+[[layer.bamboo]]
+seed = 7
+count = 5
+span = [-300, 300]
+height = [260, 360]
+width = 10
+color = "#6f7d5c"
+leaves = "#7f8f68"
+sway = 3
+
+[[layer]]
+name = "lamp"
+parallax = 1.2
+front = true
+[[layer.shape]]
+points = [[300, 0], [340, 0], [340, 60], [300, 60]]
+color = "#ffcc66"
+flicker = 0.4
+)";
+        auto stage = p2::read_stage(text, "test.stage.gongfu.toml");
+        check(stage.has_value(), stage ? "" : std::format("{}", texts(stage.error())));
+        if (!stage) return;
+        check(stage->layers.size() == 3 && stage->layers[0].shapes.size() == 1 + 5 + 4 && stage->layers[2].front, "a lattice's paper and bars; a front layer");
+        check(stage->layers[1].shapes.size() > 25, std::format("bamboo: {} shapes", stage->layers[1].shapes.size()));
+        auto again = p2::read_stage(text, "test.stage.gongfu.toml");
+        check(again && p2::write_stage(*again) == p2::write_stage(*stage), "a generator gives the same shapes from its seed");
+        const std::string written = p2::write_stage(*stage);
+        auto back = p2::read_stage(written, "written.stage.gongfu.toml");
+        check(back && p2::write_stage(*back) == written, back ? "written back as itself" : std::format("{}", texts(back.error())));
+        // Drawn: the bamboo sways over time; the far layer moves less than the near one as the camera pans.
+        Match m = close_match();
+        p2::Effects fx;
+        p2::Scene scene{.stage = &*stage};
+        auto hash_at = [&](std::int32_t frames) {
+            Match mm = m;
+            for (int f = 0; f < frames; ++f) mm.tick(pad(5), pad(5));
+            omui::render::DisplayList dl;
+            p2::draw(mm, ink, paper, fx, scene, dl);
+            return dl.hash();
+        };
+        check(hash_at(1) != hash_at(60), "swaying");
+        omui::render::DisplayList plain, art;
+        p2::draw(m, ink, paper, fx, {}, plain);
+        p2::draw(m, ink, paper, fx, scene, art);
+        check(plain.hash() != art.hash(), "the art is drawn");
+        // Problems at their place: a misspelt key, a generator's bad field.
+        auto bad = p2::read_stage(text + "\n[[layer]]\nname = \"x\"\nparalax = 1\n", "bad.stage.gongfu.toml");
+        check(!bad && has(texts(bad.error()), "a layer has no key `paralax`"), bad ? "read" : std::format("{}", texts(bad.error())));
+    });
+
     s.test("problems in a look at their line and column, with the nearest right word", [] {
         const std::string text = R"(gongfu = "0.1"
 name = "broken"

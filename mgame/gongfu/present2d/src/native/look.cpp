@@ -987,4 +987,287 @@ std::string write_look(const Look& look) {
     return s;
 }
 
+// ── stages (*.stage.gongfu.toml) ────────────────────────────────────────────
+//
+//     gongfu = "0.1"
+//     name = "study"
+//     sky = ["#f3eadb", "#e4d5bb"]          # top, bottom
+//     floor = "#6d5240"
+//     line = "#2e2119"
+//     marks = false
+//     light = { from = [-0.7, -0.7], shadow = "#2a1d14", rim_color = "#fff2d0aa" }
+//
+//     [[layer]]
+//     name = "window"
+//     parallax = 0.3                        # 0 still, 1 with the ground, more: in front
+//     repeat = 900                          # drawn again every 900 units across
+//     front = false                         # over the fighters
+//     [[layer.shape]]
+//     shape = "polygon"                     # or "curve"
+//     points = [[-300, 120], [300, 120], [300, 520], [-300, 520]]   # x along, y up from the ground
+//     color = "#f7efe0"
+//     color2 = "#efe2c8"                    # a gradient to it, top to bottom
+//     sway = { degrees = 3, period = 5, phase = 0.2, pivot = [0, 520] }
+//     flicker = 0.15
+//     [[layer.bamboo]]                      # generators: bamboo, lattice, planks
+//     seed = 7
+//     count = 9
+//     span = [-600, 600]
+//     height = [380, 520]
+//     width = 9
+//     color = "#6f7d5c"
+//     leaves = "#7f8f68"
+//     sway = 2.5
+
+namespace {
+
+constexpr std::array<std::string_view, 8> stage_keys{"gongfu", "name", "sky", "floor", "line", "marks", "light", "layer"};
+constexpr std::array<std::string_view, 3> stage_light_keys{"from", "shadow", "rim_color"};
+constexpr std::array<std::string_view, 10> layer_keys{"name", "parallax", "repeat", "opacity", "front", "clip", "shape", "bamboo", "lattice", "planks"};
+constexpr std::array<std::string_view, 6> stage_shape_keys{"shape", "points", "color", "color2", "sway", "flicker"};
+constexpr std::array<std::string_view, 4> sway_keys{"degrees", "period", "phase", "pivot"};
+constexpr std::array<std::string_view, 8> bamboo_keys{"seed", "count", "span", "height", "width", "color", "leaves", "sway"};
+constexpr std::array<std::string_view, 6> lattice_keys{"at", "size", "cells", "bar", "color", "paper"};
+constexpr std::array<std::string_view, 6> planks_keys{"span", "depth", "rows", "length", "color", "seed"};
+
+// splitmix64: a generator's randomness from its seed, the same everywhere.
+struct Draws {
+    std::uint64_t s;
+    double next() {
+        std::uint64_t z = (s += 0x9e3779b97f4a7c15ull);
+        z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ull;
+        z = (z ^ (z >> 27)) * 0x94d049bb133111ebull;
+        return static_cast<double>((z ^ (z >> 31)) >> 11) / 9007199254740992.0;  // [0, 1)
+    }
+    double between(double lo, double hi) { return lo + (hi - lo) * next(); }
+};
+
+StageShape quad(float x0, float y0, float x1, float y1, Color c) {
+    StageShape q;
+    q.points = {{x0, y0}, {x1, y0}, {x1, y1}, {x0, y1}};
+    q.color = c;
+    return q;
+}
+
+// Stalks of bamboo: segments with darker nodes, a lean, leaves in sprays at some nodes; swaying from the ground.
+void bamboo(StageLayer& layer, std::uint64_t seed, int count, std::array<double, 2> span, std::array<double, 2> height, float width, Color stalk, Color leaf,
+            float sway) {
+    Draws d{seed};
+    for (int i = 0; i < count; ++i) {
+        const float x = static_cast<float>(span[0] + (span[1] - span[0]) * (i + d.between(0.15, 0.85)) / count);
+        const float h = static_cast<float>(d.between(height[0], height[1]));
+        const float lean = static_cast<float>(d.between(-0.06, 0.06));  // across per unit up
+        const float w = width * static_cast<float>(d.between(0.8, 1.2));
+        const float period = static_cast<float>(d.between(4.5, 6.5)), phase = static_cast<float>(d.next());
+        const float deg = sway * static_cast<float>(d.between(0.7, 1.3));
+        const int segments = 5 + static_cast<int>(d.next() * 3);
+        for (int k = 0; k < segments; ++k) {
+            const float y0 = h * static_cast<float>(k) / segments, y1 = h * static_cast<float>(k + 1) / segments - 3;
+            StageShape seg;
+            seg.points = {{x + lean * y0 - w / 2, y0}, {x + lean * y1 - w / 2 * 0.9f, y1}, {x + lean * y1 + w / 2 * 0.9f, y1}, {x + lean * y0 + w / 2, y0}};
+            seg.color = stalk;
+            seg.sway = deg * y1 / h, seg.period = period, seg.phase = phase, seg.pivot = {x, 0};
+            layer.shapes.push_back(std::move(seg));
+            // A spray of three leaves at some nodes, pointing out and down.
+            if (k >= segments / 2 && d.next() < 0.6) {
+                const float nx = x + lean * y1, side = d.next() < 0.5 ? -1.0f : 1.0f;
+                for (int l = 0; l < 3; ++l) {
+                    const float len = w * static_cast<float>(d.between(4.5, 6.5)), droop = static_cast<float>(l) * 0.35f + 0.15f;
+                    const Point tip{nx + side * len, y1 - len * droop};
+                    StageShape lf;
+                    lf.shape = Shape::curve;
+                    lf.points = {{nx, y1}, {nx + side * len * 0.45f, y1 - len * droop * 0.45f + w * 0.55f}, tip, {nx + side * len * 0.45f, y1 - len * droop * 0.45f - w * 0.35f}};
+                    lf.color = leaf;
+                    lf.sway = deg * 1.6f, lf.period = period, lf.phase = phase, lf.pivot = {x, 0};
+                    layer.shapes.push_back(std::move(lf));
+                }
+            }
+        }
+    }
+}
+
+// A paper window: its frame and the bars of a lattice over paper.
+void lattice(StageLayer& layer, Point at, Point size, int cols, int rows, float bar, Color wood, Color paper) {
+    if (paper.a > 0) layer.shapes.push_back(quad(at.x, at.y, at.x + size.x, at.y + size.y, paper));  // transparent: the bars alone
+    for (int c = 0; c <= cols; ++c) {
+        const float x = at.x + size.x * static_cast<float>(c) / cols;
+        layer.shapes.push_back(quad(x - bar / 2, at.y, x + bar / 2, at.y + size.y, wood));
+    }
+    for (int r = 0; r <= rows; ++r) {
+        const float y = at.y + size.y * static_cast<float>(r) / rows;
+        layer.shapes.push_back(quad(at.x, y - bar / 2, at.x + size.x, y + bar / 2, wood));
+    }
+}
+
+// Floor planks below the ground line: rows of boards, their joints staggered.
+void planks(StageLayer& layer, std::uint64_t seed, std::array<double, 2> span, float depth, int rows, float length, Color seam) {
+    Draws d{seed};
+    for (int r = 1; r <= rows; ++r) {
+        const float y = -depth * static_cast<float>(r) / rows;
+        layer.shapes.push_back(quad(static_cast<float>(span[0]), y - 1, static_cast<float>(span[1]), y + 1, seam));
+        const float offset = static_cast<float>(d.between(0, length));
+        for (float x = static_cast<float>(span[0]) + offset; x < span[1]; x += length * static_cast<float>(d.between(0.8, 1.2)))
+            layer.shapes.push_back(quad(x - 1, y, x + 1, y + depth / rows, seam));
+    }
+}
+
+}  // namespace
+
+std::expected<Stage, std::vector<Diagnostic>> read_stage(std::string_view source, std::string_view file) {
+    std::vector<Diagnostic> out;
+    auto root = parse(source, file, out);
+    if (!root) return std::unexpected(std::move(out));
+    Reader r{std::string(file), out};
+    r.only(*root, stage_keys, "a stage file");
+    if (auto v = r.text(root->get("gongfu"), "`gongfu`")) {
+        if (*v != format_version) r.error(root->get("gongfu"), std::format("this reads gongfu {} files; the file says {}", format_version, *v));
+    } else if (!root->get("gongfu")) {
+        r.error(&*root, "the file does not say its format", std::format("gongfu = \"{}\" first", format_version));
+    }
+    Stage st;
+    if (auto n = r.text(root->get("name"), "`name`")) st.name = *n;
+    if (const toml::node* sky = root->get("sky")) {
+        const toml::array* a = sky->as_array();
+        if (a && a->size() == 2) {
+            if (auto c = r.colour(a->get(0), "the sky's top")) st.sky_top = *c;
+            if (auto c = r.colour(a->get(1), "the sky's bottom")) st.sky_bottom = *c;
+        } else {
+            r.error(sky, "`sky` is [top, bottom]", "sky = [\"#f3eadb\", \"#e4d5bb\"]");
+        }
+    }
+    if (auto c = r.colour(root->get("floor"), "`floor`")) st.floor = *c;
+    if (auto c = r.colour(root->get("line"), "`line`")) st.line = *c;
+    if (auto m = r.boolean(root->get("marks"), "`marks`")) st.marks = *m;
+    if (const toml::table* t = r.table_of(root->get("light"), "`light`")) {
+        r.only(*t, stage_light_keys, "a stage's `light`");
+        if (auto f = r.pair(t->get("from"), "a light's `from`", "from = [-0.7, -0.7]")) {
+            const double len = std::sqrt((*f)[0] * (*f)[0] + (*f)[1] * (*f)[1]);
+            if (len > 0) st.light_from = Point{static_cast<float>((*f)[0] / len), static_cast<float>((*f)[1] / len)};
+            else r.error(t->get("from"), "a light comes from somewhere: not [0, 0]");
+        }
+        if (auto c = r.colour(t->get("shadow"), "a light's `shadow`")) st.shadow = *c;
+        if (auto c = r.colour(t->get("rim_color"), "a light's `rim_color`")) st.rim_color = *c;
+    }
+    auto points_of = [&](const toml::node* n, std::string_view what) {
+        std::vector<Point> pts;
+        if (const toml::array* a = n ? n->as_array() : nullptr) {
+            for (const toml::node& q : *a)
+                if (auto xy = r.pair(&q, what, "[[0, 0], [100, 0], [100, 80]]")) pts.push_back({static_cast<float>((*xy)[0]), static_cast<float>((*xy)[1])});
+        } else if (n) {
+            r.error(n, std::format("{} are a list of [x, y]", what));
+        }
+        return pts;
+    };
+    r.tables(root->get("layer"), "layer", "[[layer]] name = \"window\" parallax = 0.3", [&](const toml::table& t) {
+        r.only(t, layer_keys, "a layer");
+        StageLayer layer;
+        if (auto n = r.text(t.get("name"), "a layer's `name`")) layer.name = *n;
+        if (auto v = r.number(t.get("parallax"), "a layer's `parallax`", 0, 4)) layer.parallax = static_cast<float>(*v);
+        if (auto v = r.number(t.get("repeat"), "a layer's `repeat`", 0, 100000)) layer.repeat = static_cast<float>(*v);
+        if (auto v = r.number(t.get("opacity"), "a layer's `opacity`", 0, 1)) layer.opacity = static_cast<float>(*v);
+        if (auto v = r.boolean(t.get("front"), "a layer's `front`")) layer.front = *v;
+        if (const toml::node* c = t.get("clip")) {
+            const toml::array* a = c->as_array();
+            std::array<float, 4> box{};
+            bool ok = a && a->size() == 4;
+            for (std::size_t i = 0; ok && i < 4; ++i) {
+                auto v = r.number(a->get(i), "a layer's `clip`");
+                ok = v.has_value();
+                if (v) box[i] = static_cast<float>(*v);
+            }
+            if (ok && box[2] > box[0] && box[3] > box[1]) layer.clip = box;
+            else r.error(c, "a layer's `clip` is [x0, y0, x1, y1], x1 > x0 and y1 > y0", "clip = [660, 150, 1260, 440]");
+        }
+        r.tables(t.get("shape"), "layer.shape", "[[layer.shape]] points = [[0, 0], [100, 0], [100, 80]] color = \"#000000\"", [&](const toml::table& u) {
+            r.only(u, stage_shape_keys, "a stage's shape");
+            StageShape sh;
+            if (auto k = r.choice(u.get("shape"), "a stage shape's `shape`", shape_names)) {
+                sh.shape = static_cast<Shape>(*k);
+                if (sh.shape != Shape::polygon && sh.shape != Shape::curve) r.error(u.get("shape"), "a stage's shape is a polygon or a curve");
+            }
+            sh.points = points_of(u.get("points"), "a shape's points");
+            if (sh.points.size() < 3) r.error(&u, "a shape has three points or more", "points = [[0, 0], [100, 0], [100, 80]]");
+            if (auto c = r.colour(u.get("color"), "a shape's `color`")) sh.color = *c;
+            else if (!u.get("color")) r.error(&u, "a shape has a `color`");
+            if (auto c = r.colour(u.get("color2"), "a shape's `color2`")) sh.color2 = *c;
+            if (const toml::table* w = r.table_of(u.get("sway"), "a shape's `sway`")) {
+                r.only(*w, sway_keys, "a `sway`");
+                if (auto v = r.number(w->get("degrees"), "a sway's `degrees`", 0, 90)) sh.sway = static_cast<float>(*v);
+                if (auto v = r.number(w->get("period"), "a sway's `period`", 0.1, 600)) sh.period = static_cast<float>(*v);
+                if (auto v = r.number(w->get("phase"), "a sway's `phase`", 0, 1)) sh.phase = static_cast<float>(*v);
+                if (auto xy = r.pair(w->get("pivot"), "a sway's `pivot`", "pivot = [0, 0]")) sh.pivot = {static_cast<float>((*xy)[0]), static_cast<float>((*xy)[1])};
+            }
+            if (auto v = r.number(u.get("flicker"), "a shape's `flicker`", 0, 1)) sh.flicker = static_cast<float>(*v);
+            layer.shapes.push_back(std::move(sh));
+        });
+        r.tables(t.get("bamboo"), "layer.bamboo", "[[layer.bamboo]] seed = 7 count = 9 span = [-600, 600] height = [380, 520]", [&](const toml::table& u) {
+            r.only(u, bamboo_keys, "a bamboo");
+            const auto seed = r.integer(u.get("seed"), "a bamboo's `seed`", 0, std::numeric_limits<std::int32_t>::max()).value_or(1);
+            const auto count = r.integer(u.get("count"), "a bamboo's `count`", 1, 200).value_or(6);
+            const auto span = r.pair(u.get("span"), "a bamboo's `span`", "span = [-600, 600]").value_or(std::array<double, 2>{-400, 400});
+            const auto height = r.pair(u.get("height"), "a bamboo's `height`", "height = [380, 520]").value_or(std::array<double, 2>{300, 450});
+            const float width = static_cast<float>(r.number(u.get("width"), "a bamboo's `width`", 1, 200).value_or(10));
+            const Color stalk = r.colour(u.get("color"), "a bamboo's `color`").value_or(Color::hex(0x6f7d5c));
+            const Color leaf = r.colour(u.get("leaves"), "a bamboo's `leaves`").value_or(stalk);
+            const float sway = static_cast<float>(r.number(u.get("sway"), "a bamboo's `sway`", 0, 30).value_or(0));
+            bamboo(layer, static_cast<std::uint64_t>(seed), count, span, height, width, stalk, leaf, sway);
+        });
+        r.tables(t.get("lattice"), "layer.lattice", "[[layer.lattice]] at = [-300, 120] size = [600, 400] cells = [6, 4]", [&](const toml::table& u) {
+            r.only(u, lattice_keys, "a lattice");
+            const auto at = r.pair(u.get("at"), "a lattice's `at`", "at = [-300, 120]").value_or(std::array<double, 2>{0, 0});
+            const auto size = r.pair(u.get("size"), "a lattice's `size`", "size = [600, 400]").value_or(std::array<double, 2>{100, 100});
+            const auto cells = r.pair(u.get("cells"), "a lattice's `cells`", "cells = [6, 4]").value_or(std::array<double, 2>{4, 4});
+            const float bar = static_cast<float>(r.number(u.get("bar"), "a lattice's `bar`", 0.5, 100).value_or(6));
+            const Color wood = r.colour(u.get("color"), "a lattice's `color`").value_or(Color::hex(0x5b3a24));
+            const Color paper = r.colour(u.get("paper"), "a lattice's `paper`").value_or(Color::hex(0xf7efe0));
+            lattice(layer, {static_cast<float>(at[0]), static_cast<float>(at[1])}, {static_cast<float>(size[0]), static_cast<float>(size[1])},
+                    std::max(1, static_cast<int>(cells[0])), std::max(1, static_cast<int>(cells[1])), bar, wood, paper);
+        });
+        r.tables(t.get("planks"), "layer.planks", "[[layer.planks]] span = [-1200, 1200] depth = 70 rows = 4 length = 240", [&](const toml::table& u) {
+            r.only(u, planks_keys, "planks");
+            const auto span = r.pair(u.get("span"), "planks' `span`", "span = [-1200, 1200]").value_or(std::array<double, 2>{-1000, 1000});
+            const float depth = static_cast<float>(r.number(u.get("depth"), "planks' `depth`", 1, 2000).value_or(70));
+            const auto rows = r.integer(u.get("rows"), "planks' `rows`", 1, 64).value_or(4);
+            const float length = static_cast<float>(r.number(u.get("length"), "planks' `length`", 10, 10000).value_or(240));
+            const Color seam = r.colour(u.get("color"), "planks' `color`").value_or(Color::hex(0x3b2a1e));
+            const auto seed = r.integer(u.get("seed"), "planks' `seed`", 0, std::numeric_limits<std::int32_t>::max()).value_or(1);
+            planks(layer, static_cast<std::uint64_t>(seed), span, depth, rows, length, seam);
+        });
+        st.layers.push_back(std::move(layer));
+    });
+    if (!out.empty()) return std::unexpected(std::move(out));
+    return st;
+}
+
+std::string write_stage(const Stage& st) {
+    std::string s = std::format("gongfu = \"{}\"\nname = \"{}\"\nsky = [{}, {}]\nfloor = {}\nline = {}\n", format_version, st.name, colour_text(st.sky_top),
+                                colour_text(st.sky_bottom), colour_text(st.floor), colour_text(st.line));
+    if (!st.marks) s += "marks = false\n";
+    if (st.light_from || st.shadow || st.rim_color) {
+        std::string parts;
+        if (st.light_from) parts += std::format("from = [{}, {}]", st.light_from->x, st.light_from->y);
+        if (st.shadow) parts += std::format("{}shadow = {}", parts.empty() ? "" : ", ", colour_text(*st.shadow));
+        if (st.rim_color) parts += std::format("{}rim_color = {}", parts.empty() ? "" : ", ", colour_text(*st.rim_color));
+        s += std::format("light = {{ {} }}\n", parts);
+    }
+    constexpr std::array<std::string_view, 4> shapes{"capsule", "ellipse", "polygon", "curve"};
+    for (const StageLayer& l : st.layers) {
+        s += std::format("\n[[layer]]\nname = \"{}\"\nparallax = {}\n", l.name, l.parallax);
+        if (l.repeat > 0) s += std::format("repeat = {}\n", l.repeat);
+        if (l.opacity != 1) s += std::format("opacity = {}\n", l.opacity);
+        if (l.front) s += "front = true\n";
+        if (l.clip) s += std::format("clip = [{}, {}, {}, {}]\n", (*l.clip)[0], (*l.clip)[1], (*l.clip)[2], (*l.clip)[3]);
+        for (const StageShape& sh : l.shapes) {
+            s += std::format("[[layer.shape]]\nshape = \"{}\"\npoints = [", shapes[static_cast<std::size_t>(sh.shape)]);
+            for (std::size_t i = 0; i < sh.points.size(); ++i) s += std::format("{}[{}, {}]", i ? ", " : "", sh.points[i].x, sh.points[i].y);
+            s += std::format("]\ncolor = {}\n", colour_text(sh.color));
+            if (sh.color2.a > 0) s += std::format("color2 = {}\n", colour_text(sh.color2));
+            if (sh.sway > 0)
+                s += std::format("sway = {{ degrees = {}, period = {}, phase = {}, pivot = [{}, {}] }}\n", sh.sway, sh.period, sh.phase, sh.pivot.x, sh.pivot.y);
+            if (sh.flicker > 0) s += std::format("flicker = {}\n", sh.flicker);
+        }
+    }
+    return s;
+}
+
 }  // namespace gongfu::present2d

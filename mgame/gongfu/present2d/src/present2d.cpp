@@ -647,7 +647,12 @@ void Painter::body(const Look& look, const Fighter& fighter, const FighterState&
     for (std::size_t a = 1; a < order_.size(); ++a)
         for (std::size_t b = a; b > 0 && look.parts[order_[b - 1]].depth > look.parts[order_[b]].depth; --b) std::swap(order_[b - 1], order_[b]);
     // The light's offsets on the picture: a shadow's (away from the light) and a rim's (toward it).
-    const float lx = look.light.from.x, ly = look.light.from.y;
+    // The stage's light, where it has one (the world's rules: both fighters lit alike); the look keeps its depths.
+    const Stage* world = scene.stage;
+    const float lx = world && world->light_from ? world->light_from->x : look.light.from.x;
+    const float ly = world && world->light_from ? world->light_from->y : look.light.from.y;
+    const Color shadow_colour = world && world->shadow ? *world->shadow : look.light.shadow;
+    const Color rim_colour = world && world->rim_color ? *world->rim_color : look.light.rim_color;
     const float lit = view.size(1);
     const bool shading = look.light.shade > 0 && !tint;
     // A glow (neon) behind the outline, then the outline, then the parts; a tinted afterimage is the parts alone, in one colour.
@@ -701,9 +706,9 @@ void Painter::body(const Look& look, const Fighter& fighter, const FighterState&
                 const float d = look.light.shade * lit, r = look.light.rim * lit;
                 // (Moved by transforms, so a frame allocates no path.)
                 out.push_clip(path, render::FillRule::nonzero);
-                out.fill_path(path, render::FillRule::nonzero, render::Paint::solid(mix(colour, look.light.shadow, look.light.darken)));
+                out.fill_path(path, render::FillRule::nonzero, render::Paint::solid(mix(colour, shadow_colour, look.light.darken)));
                 out.push_transform(Affine::translate(lx * d, ly * d));
-                out.fill_path(path, render::FillRule::nonzero, render::Paint::solid(r > 0 ? mix(colour, look.light.rim_color, look.light.rim_color.a) : colour));
+                out.fill_path(path, render::FillRule::nonzero, render::Paint::solid(r > 0 ? mix(colour, rim_colour, rim_colour.a) : colour));
                 out.pop_transform();
                 if (r > 0) {
                     out.push_transform(Affine::translate(-lx * r, -ly * r));
@@ -717,6 +722,70 @@ void Painter::body(const Look& look, const Fighter& fighter, const FighterState&
                 out.pop_clip();
             }
         }
+    }
+}
+
+void Painter::stage_layers(const Stage& art, bool front, const Scene& scene, const Camera& cam, double middle, std::int32_t frame, float alpha,
+                           render::DisplayList& out) {
+    const double seconds = frame / 60.0;
+    for (const StageLayer& layer : art.layers) {
+        if (layer.front != front || layer.shapes.empty()) continue;
+        // A layer at parallax p moves p of the camera's way and zooms p of its zoom.
+        const double p = layer.parallax, zoom = 1 + (cam.zoom - 1) * p, cx = middle + (cam.x - middle) * p, cy = cam.y * p;
+        auto at = [&](double x, double y) {
+            return Point{static_cast<float>(scene.width / 2 + (x - cx) * zoom), static_cast<float>(scene.ground - (y - cy) * zoom)};
+        };
+        if (layer.clip) {
+            const Point a = at((*layer.clip)[0], (*layer.clip)[3]), b = at((*layer.clip)[2], (*layer.clip)[1]);
+            out.push_clip(Rect{a.x, a.y, b.x - a.x, b.y - a.y});
+        }
+        std::int64_t first = 0, last = 0;
+        if (layer.repeat > 0) {
+            const double half = scene.width / 2 / zoom;
+            first = static_cast<std::int64_t>(std::floor((cx - half) / layer.repeat)) - 1;
+            last = static_cast<std::int64_t>(std::ceil((cx + half) / layer.repeat)) + 1;
+        }
+        for (std::int64_t k = first; k <= last; ++k) {
+            const double ox = static_cast<double>(k) * layer.repeat;
+            for (const StageShape& sh : layer.shapes) {
+                // Its sway at this frame: a turn about its pivot, a pure function of the frame.
+                const double turn = sh.sway > 0 ? sh.sway * dm::pi / 180 * dm::sin(2 * dm::pi * (seconds / sh.period + sh.phase)) : 0.0;
+                const double ca = dm::cos(turn), sa = dm::sin(turn);
+                auto placed = [&](Point q) {
+                    const double dx = q.x - sh.pivot.x, dy = q.y - sh.pivot.y;
+                    return at(ox + sh.pivot.x + dx * ca - dy * sa, sh.pivot.y + dx * sa + dy * ca);
+                };
+                path_.clear();
+                float top = std::numeric_limits<float>::max(), bottom = std::numeric_limits<float>::lowest();
+                if (sh.shape == Shape::curve) {
+                    curve(path_, sh.points, placed);
+                } else {
+                    for (std::size_t q = 0; q < sh.points.size(); ++q) {
+                        const Point pt = placed(sh.points[q]);
+                        if (q == 0) path_.move_to(pt);
+                        else path_.line_to(pt);
+                    }
+                    path_.close();
+                }
+                for (const Point& q : sh.points) {
+                    const Point pt = placed(q);
+                    top = std::min(top, pt.y), bottom = std::max(bottom, pt.y);
+                }
+                // A flicker: two slow waves out of step, so it never repeats too plainly.
+                double a = layer.opacity * alpha;
+                if (sh.flicker > 0) a *= 1 - sh.flicker * (0.5 + 0.25 * dm::sin(seconds * 7.3 + sh.phase * 11) + 0.25 * dm::sin(seconds * 2.9 + sh.phase * 5));
+                if (sh.color2.a > 0) {
+                    const std::array<render::GradientStop, 2> stops{{{0, fade(sh.color, a)}, {1, fade(sh.color2, a)}}};
+                    render::Paint paint;
+                    paint.kind = render::Paint::Kind::gradient;
+                    paint.gradient = {.kind = render::GradientKind::linear, .start = {0, top}, .end = {0, bottom}, .stops = stops};
+                    out.fill_path(path_, render::FillRule::nonzero, paint);
+                } else {
+                    out.fill_path(path_, render::FillRule::nonzero, render::Paint::solid(fade(sh.color, a)));
+                }
+            }
+        }
+        if (layer.clip) out.pop_clip();
     }
 }
 
@@ -846,19 +915,24 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
 
     const std::size_t first = out.size();  // where this picture's commands begin (a stop turns them grey)
 
-    // The stage: sky, floor, the ground line, and marks along it that move with the camera.
-    const std::array<render::GradientStop, 2> sky{{{0, scene.sky_top}, {1, scene.sky_bottom}}};
+    // The stage: sky, floor, the ground line, and marks along it that move with the camera; its art's layers behind the fighters.
+    const Stage* art = scene.stage;
+    const std::array<render::GradientStop, 2> sky{{{0, art ? art->sky_top : scene.sky_top}, {1, art ? art->sky_bottom : scene.sky_bottom}}};
     render::Paint sky_paint;
     sky_paint.kind = render::Paint::Kind::gradient;
     sky_paint.gradient = {.kind = render::GradientKind::linear, .start = {0, 0}, .end = {0, scene.ground}, .stops = sky};
     out.fill_rect({0, 0, scene.width, scene.ground}, sky_paint);
     const Point ground = view.at(0, 0);
-    out.fill_rect({0, ground.y, scene.width, scene.height - ground.y}, scene.floor);
-    out.fill_rect({0, ground.y, scene.width, 2}, scene.line);
-    for (int m = 0; m <= static_cast<int>(stage(match.system().stage_width)); m += 160) {
-        const Point p = view.at(m, 0);
-        if (p.x >= -4 && p.x <= scene.width + 4) out.fill_rect({p.x - 1, p.y, 2, view.size(14)}, fade(scene.line, 0.6));
-    }
+    const Color floor = art ? art->floor : scene.floor, line = art ? art->line : scene.line;
+    out.fill_rect({0, ground.y, scene.width, scene.height - ground.y}, floor);
+    const double middle = stage(match.system().stage_width) / 2;
+    if (art) stage_layers(*art, false, scene, view.cam, middle, st.frame, 1, out);
+    out.fill_rect({0, ground.y, scene.width, 2}, line);
+    if (!art || art->marks)
+        for (int m = 0; m <= static_cast<int>(stage(match.system().stage_width)); m += 160) {
+            const Point p = view.at(m, 0);
+            if (p.x >= -4 && p.x <= scene.width + 4) out.fill_rect({p.x - 1, p.y, 2, view.size(14)}, fade(line, 0.6));
+        }
 
     // A cinematic's backdrop over the stage, fading in and out.
     if (cine) {
@@ -981,6 +1055,17 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
                 }
         }
         body(i == 0 ? left : right, match.fighter(i), drawn, st.frame, scene, view.cam, out, clip, st.lock.frame);
+    }
+    // The stage's layers in front of the fighters (gone under a cinematic's backdrop).
+    if (art) {
+        double shown = 1;
+        if (cine) {
+            const std::int32_t t = st.lock.frame;
+            const double in = between(t, cine->backdrop_in[0], cine->backdrop_in[1]);
+            const double out_ = cine->backdrop_out[1] > cine->backdrop_out[0] ? 1 - between(t, cine->backdrop_out[0], cine->backdrop_out[1]) : 1.0;
+            shown = 1 - in * out_;
+        }
+        if (shown > 0) stage_layers(*art, true, scene, view.cam, stage(match.system().stage_width) / 2, st.frame, static_cast<float>(shown), out);
     }
 
     // Cracks across the picture: one for each of the cinematic's hits landed so far.

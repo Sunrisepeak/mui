@@ -159,7 +159,8 @@ Size Stage::measure(MeasureContext&, std::optional<float> width, std::optional<f
 void Stage::paint(PaintContext& ctx) const {
     if (!match_) return;
     const Roster& r = roster();
-    const p2::Scene scene;
+    p2::Scene scene;
+    scene.stage = stage_art(props.mode == "training" && props.arena.empty() ? std::string_view("plain") : std::string_view(props.arena), props.player1);
     render::DisplayList& frame = frame_;
     frame.clear();
     // Each side in its own palette: the first for the left, the second for the right.

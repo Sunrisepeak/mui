@@ -348,10 +348,59 @@ struct Camera {
     double x = 0, y = 0, zoom = 1;
 };
 
+// A stage's art (`*.stage.gongfu.toml`): layers of shapes behind the
+// fighters and in front of them, each moving with the camera by its
+// parallax (0 still, 1 with the ground, more in front), with motion that is
+// a pure function of the match's frame (a sway, a flicker), and the light
+// every fighter on it is lit by — the world's rules. Shapes are drawn by
+// hand or made by a generator (bamboo, a lattice window, planks, rain) from
+// a seed when the file is read: the same shapes every time.
+struct StageShape {
+    Shape              shape = Shape::polygon;  // polygon or curve
+    std::vector<Point> points;                  // the layer's units: x along the stage, y up from the ground
+    Color              color = Color::hex(0x000000);
+    Color              color2 = Color::transparent();  // not transparent: a gradient from `color` at its top to this at its bottom
+    float              sway = 0;                // degrees each way about `pivot`
+    float              period = 4;              // seconds a sway takes
+    float              phase = 0;               // 0–1 of a period
+    Point              pivot;
+    float              flicker = 0;             // how far its alpha dips (a lantern, a sign)
+};
+
+// A layer's shapes are placed in the stage's units (x along it, y up from the
+// ground): with the camera at the stage's middle, a point of any layer is
+// where a point of the ground would be; as the camera moves, a layer moves
+// `parallax` of the way.
+struct StageLayer {
+    std::string             name;
+    float                   parallax = 1;
+    float                   repeat = 0;    // > 0: drawn again every this many units across the picture
+    float                   opacity = 1;
+    bool                    front = false; // drawn over the fighters
+    std::optional<std::array<float, 4>> clip;  // drawn only inside [x0, y0, x1, y1] of the layer's units (a shadow on a window's paper)
+    std::vector<StageShape> shapes;
+};
+
+struct Stage {
+    std::string             name;
+    Color                   sky_top = Color::hex(0x1b1f2a), sky_bottom = Color::hex(0x3a3f52), floor = Color::hex(0x23252e), line = Color::hex(0x8a8fa3);
+    bool                    marks = true;  // the ground's distance marks
+    std::vector<StageLayer> layers;
+    // The world's light: where it comes from, the shadow's and the rim's colours; a fighter's look keeps its depths.
+    std::optional<Point>    light_from;
+    std::optional<Color>    shadow, rim_color;
+};
+
+// A stage file: every problem at once with its line and column; what
+// write_stage writes reads back as the same stage (generators' shapes written out).
+[[nodiscard]] std::expected<Stage, std::vector<data::Diagnostic>> read_stage(std::string_view source, std::string_view file);
+[[nodiscard]] std::string write_stage(const Stage& stage);
+
 struct Scene {
     float width = 960, height = 540;  // the picture, pixels
     float ground = 470;               // where the stage's ground lies on it
     Color sky_top = Color::hex(0x1b1f2a), sky_bottom = Color::hex(0x3a3f52), floor = Color::hex(0x23252e), line = Color::hex(0x8a8fa3);
+    const Stage* stage = nullptr;     // its art (none: the plain sky and floor above)
 };
 
 // Keeps both fighters in view, zoomed out as they part, following a jump.
@@ -409,6 +458,9 @@ public:
                          float size, Color color, omui::render::DisplayList& out);
 
 private:
+    // A stage's layers (behind the fighters, or in front of them), at the match's frame, `alpha` of their opacity.
+    void stage_layers(const Stage& stage, bool front, const Scene& scene, const Camera& camera, double middle, std::int32_t frame, float alpha,
+                      omui::render::DisplayList& out);
     Pose                     pose_, past_;
     std::vector<double>      follow_;  // each bone's secondary motion this frame, degrees
     std::vector<std::size_t> order_;

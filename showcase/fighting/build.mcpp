@@ -13,5 +13,8 @@ int main() {
     // What the fight sounds like (openmui.audio).
     const bool sounds = openmui::rules::embed({.module = "openmui.showcase.fighting", .ns = "omui::fighting::files", .dir = "sounds",
                                                .suffix = ".sound.omui.toml", .tag = "sound"});
-    return stage && fighters && sounds ? 0 : 1;
+    // The stages' art (gongfu.present2d's stage files).
+    const bool stages = openmui::rules::embed({.module = "openmui.showcase.fighting", .ns = "omui::fighting::files", .dir = "stages",
+                                               .suffix = ".stage.gongfu.toml", .tag = "stage"});
+    return stage && fighters && sounds && stages ? 0 : 1;
 }

@@ -61,7 +61,9 @@ Color tone(std::uint32_t hex, float alpha = 1) { return Color::hex(hex, alpha); 
 void Stage::start_round() {
     const Roster& r = roster();
     if (r.fighters.empty()) return;
-    match_ = std::make_unique<gongfu::Match>(r.system, r.fighters.front(), r.fighters.size() > 1 ? r.fighters[1] : r.fighters.front());
+    left_ = fighter_index(props.left);
+    right_ = fighter_index(props.right);
+    match_ = std::make_unique<gongfu::Match>(r.system, r.fighters[left_], r.fighters[right_]);
     effects_ = {};
     readout_.clear();
     over_reported_ = false;
@@ -92,8 +94,9 @@ void Stage::schedule() {
     });
 }
 
-void Stage::prop_changed(StageProp) {
+void Stage::prop_changed(StageProp p) {
     if (!attached()) return;
+    if (p == StageProp::left || p == StageProp::right) start_round();  // another fighter: a new round
     services().invalidate_paint(node());
     services().invalidate_semantics(node());
 }
@@ -155,8 +158,9 @@ void Stage::paint(PaintContext& ctx) const {
     const p2::Scene scene;
     render::DisplayList& frame = frame_;
     frame.clear();
-    const p2::Look& left = r.looks[0];
-    const p2::Look& right = r.looks.size() > 1 ? r.looks[1] : r.looks[0];
+    // Each side in its own palette: the first for the left, the second for the right.
+    const p2::Look& left = r.looks[2 * left_];
+    const p2::Look& right = r.looks[2 * right_ + 1];
     painter_.draw(*match_, left, right, effects_, scene, frame);
 
     hud::bars(frame, *match_);

@@ -55,4 +55,15 @@ struct EmbedOptions {
 };
 [[nodiscard]] std::expected<std::string, std::vector<std::string>> partition(const std::filesystem::path& dir, const EmbedOptions& options);
 
+// A contact sheet: every clip of a look, a cell each — its move's first
+// active frame solid (else the clip's middle), its first and last frames
+// faint, and on the solid one the hit boxes (red) and hurtboxes (blue). PNG
+// bytes, and the clips in the order of the cells.
+struct Sheet {
+    std::vector<std::uint8_t> png;
+    std::vector<std::string>  cells;
+    int                       width = 0, height = 0;
+};
+[[nodiscard]] std::expected<Sheet, std::string> sheet(const Fighter& fighter, const present2d::Look& look, int columns = 6);
+
 }  // namespace gongfu::studio

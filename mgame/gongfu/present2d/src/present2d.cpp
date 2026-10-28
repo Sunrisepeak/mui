@@ -119,7 +119,20 @@ Pose pose(const Look& look, const Fighter& fighter, const FighterState& s, std::
 }
 
 void pose(const Look& look, const Fighter& fighter, const FighterState& s, std::int32_t frame, Pose& out) {
-    auto it = look.clips.find(clip_name(fighter, s));
+    const std::string_view name = clip_name(fighter, s);
+    auto it = look.clips.find(name);
+    // One clip may serve a special's every strength: 236P plays for 236LP, 236MP and 236HP.
+    if (it == look.clips.end() && name.size() >= 2) {
+        const std::string_view tail = name.substr(name.size() - 2);
+        const char general = tail == "LP" || tail == "MP" || tail == "HP" ? 'P' : tail == "LK" || tail == "MK" || tail == "HK" ? 'K' : '\0';
+        if (general) {
+            std::array<char, 48> buffer{};
+            const std::size_t n = std::min(name.size() - 2, buffer.size() - 1);
+            std::copy_n(name.begin(), n, buffer.begin());
+            buffer[n] = general;
+            it = look.clips.find(std::string_view(buffer.data(), n + 1));
+        }
+    }
     if (it == look.clips.end() && s.mode == Mode::reset) it = look.clips.find(std::string_view("air"));  // an air reset falls as a jump does
     if (it == look.clips.end()) it = look.clips.find(std::string_view("idle"));
     const Clip* clip = it == look.clips.end() ? nullptr : &it->second;
@@ -214,6 +227,12 @@ std::size_t reach(const Look& look, const Pose& p, const Pose& rest, Box base, f
             if (look.bones[static_cast<std::size_t>(b)].limb) return b;
         return std::int32_t{-1};
     };
+    // A prop held (a brush) is not the body: a hit on it hits nothing.
+    auto held = [&](std::int32_t bone) {
+        for (std::int32_t b = bone; b >= 0; b = look.bones[static_cast<std::size_t>(b)].parent)
+            if (look.bones[static_cast<std::size_t>(b)].prop) return true;
+        return false;
+    };
     struct Bounds {
         std::int32_t limb = -1;
         double       left = 0, bottom = 0, right = 0, top = 0;
@@ -225,7 +244,7 @@ std::size_t reach(const Look& look, const Pose& p, const Pose& rest, Box base, f
         for (const Part& part : look.parts) {
             if (part.bone < 0 || static_cast<std::size_t>(part.bone) >= at.size()) continue;
             const std::int32_t limb = limb_of(part.bone);
-            if (limb < 0) continue;
+            if (limb < 0 || held(part.bone)) continue;
             const BonePlace& b = at[static_cast<std::size_t>(part.bone)];
             double l = std::min(b.joint.x, b.tip.x), r = std::max(b.joint.x, b.tip.x), lo = std::min(b.joint.y, b.tip.y), hi = std::max(b.joint.y, b.tip.y);
             if (part.shape == Shape::polygon) {
@@ -397,6 +416,52 @@ void spark(const Effects::Kept& k, const Impact& im, std::int32_t age, const Vie
 
 }  // namespace
 
+void Painter::body(const Look& look, const Fighter& fighter, const FighterState& s, std::int32_t frame, const Scene& scene, const Camera& camera,
+                   render::DisplayList& out) {
+    const View view{scene, camera};
+    // Outlines behind, parts back to front.
+    pose(look, fighter, s, frame, pose_);
+    const Pose& p = pose_;
+    order_.resize(look.parts.size());
+    std::iota(order_.begin(), order_.end(), std::size_t{0});
+    // Insertion sort by depth: stable, in place (std::stable_sort may take a buffer).
+    for (std::size_t a = 1; a < order_.size(); ++a)
+        for (std::size_t b = a; b > 0 && look.parts[order_[b - 1]].depth > look.parts[order_[b]].depth; --b) std::swap(order_[b - 1], order_[b]);
+    for (const bool outline : {true, false}) {
+        for (std::size_t k : order_) {
+            const Part& part = look.parts[k];
+            if (part.bone < 0 || static_cast<std::size_t>(part.bone) >= p.size()) continue;
+            const BonePlace& b = p[static_cast<std::size_t>(part.bone)];
+            const float grow = outline ? look.outline_width : 0;
+            render::Path& path = path_;
+            path.clear();
+            const Point j = view.at(b.joint.x, b.joint.y), t = view.at(b.tip.x, b.tip.y);
+            switch (part.shape) {
+                case Shape::capsule: capsule(path, j, t, view.size(part.start) + grow, view.size(part.end) + grow); break;
+                case Shape::ellipse:
+                    ellipse(path, {(j.x + t.x) / 2, (j.y + t.y) / 2}, -b.angle, view.size(part.start) + grow, view.size(part.end) + grow);
+                    break;
+                case Shape::polygon: {
+                    const double ca = dm::cos(b.angle), sa = dm::sin(b.angle), facing = s.facing < 0 ? -1.0 : 1.0;
+                    for (std::size_t q = 0; q < part.points.size(); ++q) {
+                        const double px = part.points[q].x, py = part.points[q].y * facing;
+                        const Point at = view.at(b.joint.x + px * ca - py * sa, b.joint.y + px * sa + py * ca);
+                        if (q == 0) path.move_to(at);
+                        else path.line_to(at);
+                    }
+                    path.close();
+                    break;
+                }
+            }
+            if (outline && part.shape == Shape::polygon) {
+                out.stroke_path(path, {.width = 2 * look.outline_width, .join = render::LineJoin::round}, render::Paint::solid(look.outline));
+            } else {
+                out.fill_path(path, render::FillRule::nonzero, render::Paint::solid(outline ? look.outline : part.color));
+            }
+        }
+    }
+}
+
 void Painter::draw(const Match& match, const Look& left, const Look& right, const Effects& effects, const Scene& scene, render::DisplayList& out) {
     const State& st = match.state();
     const View view{scene, view_camera(match, left, right, effects, scene)};
@@ -415,51 +480,9 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         if (p.x >= -4 && p.x <= scene.width + 4) out.fill_rect({p.x - 1, p.y, 2, view.size(14)}, fade(scene.line, 0.6));
     }
 
-    // The fighters: outlines behind, parts back to front.
-    for (std::int32_t i = 0; i < 2; ++i) {
-        const Look& look = i == 0 ? left : right;
-        const FighterState& s = st.f[static_cast<std::size_t>(i)];
-        pose(look, match.fighter(i), s, st.frame, pose_);
-        const Pose& p = pose_;
-        order_.resize(look.parts.size());
-        std::iota(order_.begin(), order_.end(), std::size_t{0});
-        // Insertion sort by depth: stable, in place (std::stable_sort may take a buffer).
-        for (std::size_t a = 1; a < order_.size(); ++a)
-            for (std::size_t b = a; b > 0 && look.parts[order_[b - 1]].depth > look.parts[order_[b]].depth; --b) std::swap(order_[b - 1], order_[b]);
-        for (const bool outline : {true, false}) {
-            for (std::size_t k : order_) {
-                const Part& part = look.parts[k];
-                if (part.bone < 0 || static_cast<std::size_t>(part.bone) >= p.size()) continue;
-                const BonePlace& b = p[static_cast<std::size_t>(part.bone)];
-                const float grow = outline ? look.outline_width : 0;
-                render::Path& path = path_;
-                path.clear();
-                const Point j = view.at(b.joint.x, b.joint.y), t = view.at(b.tip.x, b.tip.y);
-                switch (part.shape) {
-                    case Shape::capsule: capsule(path, j, t, view.size(part.start) + grow, view.size(part.end) + grow); break;
-                    case Shape::ellipse:
-                        ellipse(path, {(j.x + t.x) / 2, (j.y + t.y) / 2}, -b.angle, view.size(part.start) + grow, view.size(part.end) + grow);
-                        break;
-                    case Shape::polygon: {
-                        const double ca = dm::cos(b.angle), sa = dm::sin(b.angle), facing = s.facing < 0 ? -1.0 : 1.0;
-                        for (std::size_t q = 0; q < part.points.size(); ++q) {
-                            const double px = part.points[q].x, py = part.points[q].y * facing;
-                            const Point at = view.at(b.joint.x + px * ca - py * sa, b.joint.y + px * sa + py * ca);
-                            if (q == 0) path.move_to(at);
-                            else path.line_to(at);
-                        }
-                        path.close();
-                        break;
-                    }
-                }
-                if (outline && part.shape == Shape::polygon) {
-                    out.stroke_path(path, {.width = 2 * look.outline_width, .join = render::LineJoin::round}, render::Paint::solid(look.outline));
-                } else {
-                    out.fill_path(path, render::FillRule::nonzero, render::Paint::solid(outline ? look.outline : part.color));
-                }
-            }
-        }
-    }
+    // The fighters.
+    for (std::int32_t i = 0; i < 2; ++i)
+        body(i == 0 ? left : right, match.fighter(i), st.f[static_cast<std::size_t>(i)], st.frame, scene, view.cam, out);
 
     // Projectiles: a core and a halo.
     for (const ProjectileState& pr : st.p) {

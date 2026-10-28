@@ -58,6 +58,7 @@ private:
     [[nodiscard]] gongfu::Pad pad_of(std::int32_t player) const;
 
     std::unique_ptr<gongfu::Match>        match_;
+    std::size_t                           left_ = 0, right_ = 0;  // the fighters, by their place in the roster
     gongfu::present2d::Effects            effects_;
     std::set<Key>                         held_;
     std::array<std::optional<gongfu::Pad>, 2> agent_{};

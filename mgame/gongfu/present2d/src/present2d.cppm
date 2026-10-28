@@ -4,7 +4,8 @@
 // its parent and a length), vector parts on the bones (capsules, ellipses,
 // polygons, an outline drawn behind them), and clips — each bone's angle and
 // the body's rise, keyed by frame, with hanim's easing. Which clip plays is
-// what the fighter does: its move by name ("5LP", "236P"), else its mode
+// what the fighter does: its move by name ("5LP", "236P"; a clip 236P also
+// plays for 236LP, 236MP and 236HP), else its mode
 // ("idle", "walk_forward", "crouch", "hitstun", "knockdown", …); a move's
 // clip is read at the move's frame, a stun's at the frames it has taken, a
 // neutral clip at the match's frame, looping. So a pose is a pure function of
@@ -36,6 +37,7 @@ struct Bone {
     float        length = 0;   // pixels
     float        rest = 0;     // its angle to its parent, degrees counter-clockwise (the root's: to the stage's +x), when no clip turns it
     bool         limb = false; // a limb starts here (an arm, a leg): its parts can reach out of the body's hurtbox
+    bool         prop = false; // a thing held (a brush, a sword): its parts and its children's are never hurtboxes
 };
 
 enum class Shape : std::uint8_t { capsule, ellipse, polygon };
@@ -189,6 +191,10 @@ public:
     // The frame: the stage, both fighters, the sparks of recent events and the
     // shake of a heavy hit, into `out` (picture coordinates, y down).
     void draw(const Match& match, const Look& left, const Look& right, const Effects& effects, const Scene& scene, omui::render::DisplayList& out);
+    // One fighter's body as `draw` draws it, through `camera` (a studio's
+    // contact sheet, a character select).
+    void body(const Look& look, const Fighter& fighter, const FighterState& state, std::int32_t frame, const Scene& scene, const Camera& camera,
+              omui::render::DisplayList& out);
 
 private:
     Pose                     pose_;

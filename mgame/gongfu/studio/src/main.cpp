@@ -6,6 +6,8 @@
 //     gongfu-studio embed <dir> --module <m> --namespace <ns> --out <file>
 //                                   the fighters as the module partition <m>:gongfu_fighters,
 //                                   refused when a boxes file is stale (what gongfu.rules runs)
+//     gongfu-studio sheet <dir> <name> --out <png> [--palette <n>]
+//                                   every clip of <name>'s look with its boxes, as a contact sheet
 import std;
 import gongfu.studio;
 import nlohmann.json;
@@ -25,8 +27,53 @@ std::string read(const std::filesystem::path& p) {
 }
 
 int usage() {
-    std::println(std::cerr, "gongfu-studio bake <dir> | check <dir> | embed <dir> --module <m> --namespace <ns> --out <file>");
+    std::println(std::cerr, "gongfu-studio bake <dir> | check <dir> | embed <dir> --module <m> --namespace <ns> --out <file> | sheet <dir> <name> --out <png>");
     return 2;
+}
+
+int sheet(const std::filesystem::path& dir, int argc, char** argv) {
+    if (argc < 4) return usage();
+    const std::string name = argv[3];
+    std::filesystem::path out;
+    std::size_t palette = 0;
+    for (int i = 4; i + 1 < argc; ++i) {
+        const std::string_view a = argv[i];
+        if (a == "--out") out = path_of(argv[++i]);
+        else if (a == "--palette") palette = static_cast<std::size_t>(std::stoul(argv[++i]));
+    }
+    if (out.empty()) return usage();
+    const auto file = [&](std::string_view kind) { return dir / path_of(std::format("{}.{}.gongfu.toml", name, kind)); };
+    const std::string boxes = std::filesystem::exists(file("boxes")) ? read(file("boxes")) : std::string();
+    auto fighter = gongfu::data::read_fighter(read(file("fighter")), utf8(file("fighter").filename()), boxes, utf8(file("boxes").filename()));
+    auto look = gongfu::present2d::read_look(read(file("look")), utf8(file("look").filename()));
+    nlohmann::json report = {{"command", "sheet"}, {"fighter", name}};
+    if (!fighter || !look) {
+        std::vector<std::string> problems;
+        if (!fighter)
+            for (const auto& d : fighter.error()) problems.push_back(d.text());
+        if (!look)
+            for (const auto& d : look.error()) problems.push_back(d.text());
+        report["ok"] = false;
+        report["problems"] = problems;
+        std::println("{}", report.dump(2));
+        return 1;
+    }
+    gongfu::present2d::use_palette(*look, palette);
+    auto s = gongfu::studio::sheet(*fighter, *look);
+    if (!s) {
+        report["ok"] = false;
+        report["problems"] = {s.error()};
+        std::println("{}", report.dump(2));
+        return 1;
+    }
+    std::ofstream f(out, std::ios::binary);
+    f.write(reinterpret_cast<const char*>(s->png.data()), static_cast<std::streamsize>(s->png.size()));
+    report["ok"] = static_cast<bool>(f);
+    report["png"] = utf8(out);
+    report["size"] = {s->width, s->height};
+    report["cells"] = s->cells;
+    std::println("{}", report.dump(2));
+    return f ? 0 : 1;
 }
 
 int embed(const std::filesystem::path& dir, int argc, char** argv) {
@@ -58,6 +105,7 @@ int main(int argc, char** argv) {
     const std::string_view command = argv[1];
     const std::filesystem::path dir = path_of(argv[2]);
     if (command == "embed") return embed(dir, argc, argv);
+    if (command == "sheet") return sheet(dir, argc, argv);
     if (command != "bake" && command != "check") return usage();
 
     nlohmann::json report = {{"command", command}, {"dir", utf8(dir)}, {"fighters", nlohmann::json::array()}};

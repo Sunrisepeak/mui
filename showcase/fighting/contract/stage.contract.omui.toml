@@ -10,6 +10,8 @@ doc  = "A fighting game's stage: two fighters at 60 frames a second, from the ke
 [contract.stage.props]
 mode   = { type = "string", default = "versus", doc = "versus, or training (the boxes and the frame meter)." }
 paused = { type = "bool", default = false, doc = "Stand still: `step` plays one frame." }
+left   = { type = "string", default = "", doc = "Player 1's fighter, by its file's name (kata, mo); empty: the first." }
+right  = { type = "string", default = "", doc = "Player 2's fighter, by its file's name; empty: the first." }
 
 [contract.stage.events]
 round_over = { args = { winner = "i32" } }

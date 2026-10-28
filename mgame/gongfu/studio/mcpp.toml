@@ -28,6 +28,8 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 gongfu.data      = { path = "../data" }
 gongfu.present2d = { path = "../present2d" }
 nlohmann.json    = "3.12.0"
+openmui.raster   = { path = "../../../modules/gfx/raster" }
+openmui.image    = { path = "../../../modules/base/image" }
 
 [dev-dependencies]
 openmui.testing = { path = "../../../modules/base/testing" }

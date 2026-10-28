@@ -57,8 +57,9 @@ int main(int argc, char** argv) {
     s.test("the roster reads: the training fighter's file, every move compiled", [] {
         const auto& r = fighting::roster();
         check(r.problems.empty(), r.problems.empty() ? std::string() : r.problems.front());
-        check_eq(r.fighters.size(), std::size_t{1});
+        check(r.names == std::vector<std::string>{"kata", "mo"}, "Kata and Mo");
         check_eq(r.fighters[0].def.name, std::string("Kata"));
+        check_eq(r.fighters[1].def.name, std::string("Mo"));
         check(r.fighters[0].find("236P") >= 0 && r.fighters[0].find("623P") >= 0, "its specials");
         check_eq(r.looks.size(), 2 * r.fighters.size());  // a colour for each side
     });
@@ -185,6 +186,69 @@ int main(int argc, char** argv) {
         check_eq(g.seen().get("training")->get("dummy2")->as_string(), std::string_view("playing"));
         check(g.act("stop", Value{}.set("player", 1)));
         check(!g.act("replay", Value{}.set("player", 2)), "two players");
+    });
+
+    s.test("墨 as designed: every move's startup, and its advantage on hit and on block, measured in the simulation (characters design §3)", [] {
+        using gongfu::operator""_fx;
+        const gongfu::Fighter& mo = fighting::roster().fighters[fighting::fighter_index("mo")];
+        struct Row {
+            const char* move;
+            int         startup;
+            std::optional<int> hit, block;
+            bool        low = false;
+        };
+        // The design's table; the special's numbers are point blank.
+        const std::vector<Row> table{
+            {"5LP", 4, 4, -1},   {"5MP", 7, 2, -3},  {"5HP", 11, 1, -6},  {"5LK", 5, 3, -2},  {"5MK", 8, 1, -4},          {"5HK", 12, 0, -7},
+            {"2LP", 4, 3, -1},   {"2MP", 6, 2, -2},  {"2HP", 8, 2, -8},   {"2LK", 5, 2, -2, true}, {"2MK", 8, 1, -5, true}, {"2HK", 10, {}, -12, true},
+            {"236LP", 13, 1, -3}, {"236MP", 13, 0, -4}, {"236HP", 13, -2, -6}, {"623LP", 5, {}, -20}, {"623MP", 6, {}, -22}, {"623HP", 7, {}, -26},
+        };
+        // The pads that ask for a move, facing right: a motion's steps, then the press.
+        auto pads = [](const gongfu::Command& c) {
+            std::vector<gongfu::Pad> out;
+            for (std::size_t k = 0; k + 1 < c.motion.length; ++k) out.push_back(gongfu::pad(c.motion.steps[k]));
+            const int last = c.motion.length > 0 ? c.motion.steps[c.motion.length - 1] : c.direction != 0 ? c.direction : 5;
+            out.push_back(gongfu::pad(last, static_cast<std::uint16_t>(c.buttons & -c.buttons)));  // one of its buttons
+            return out;
+        };
+        for (const Row& row : table) {
+            const std::int32_t m = mo.find(row.move);
+            check(m >= 0, row.move);
+            if (m < 0) continue;
+            const gongfu::MoveDef& def = mo.def.moves[static_cast<std::size_t>(m)];
+            check_eq(mo.startup(m), std::int32_t{row.startup});
+            for (const bool block : {false, true}) {
+                const std::optional<int>& want = block ? row.block : row.hit;
+                if (!want) continue;
+                gongfu::SystemDef sys;
+                sys.round_frames = 1 << 20;
+                gongfu::Match match(sys, mo, mo);
+                gongfu::State st = match.state();
+                // Close enough that the move meets the body on its first active frame.
+                const gongfu::Box& reach = def.projectile ? gongfu::Box{def.projectile->offset.x, 0_fx, 0_fx, 0_fx} : def.hits[0].boxes[0];
+                const gongfu::Fixed gap = gongfu::max(reach.x + reach.w / 2, 60_fx);
+                st.f[0].pos.x = 900_fx;
+                st.f[1].pos.x = 900_fx + gap;
+                match.restore(st);
+                const gongfu::Pad guard = block ? gongfu::pad(row.low ? 3 : 6) : gongfu::pad(5);  // facing left: back is 6
+                for (const gongfu::Pad p : pads(def.command)) match.tick(p, guard);
+                int contact = -1;
+                for (int f = 0; f < 60 && contact < 0; ++f) {
+                    for (const gongfu::Event& e : match.events())
+                        if (e.attacker == 0 && (e.kind == gongfu::Event::Kind::hit || e.kind == gongfu::Event::Kind::block || e.kind == gongfu::Event::Kind::counter))
+                            contact = match.state().f[0].move_frame;
+                    if (contact < 0) match.tick(gongfu::pad(5), guard);
+                }
+                check(contact == row.startup, std::format("{} {}: contact on frame {}", row.move, block ? "blocked" : "hit", contact));
+                int attacker = -1, defender = -1;
+                for (int f = 1; f < 120 && (attacker < 0 || defender < 0); ++f) {
+                    match.tick(gongfu::pad(5), guard);
+                    if (attacker < 0 && match.recovered(0)) attacker = f;
+                    if (defender < 0 && match.recovered(1)) defender = f;
+                }
+                check(defender - attacker == *want, std::format("{} on {}: {:+} measured, {:+} designed", row.move, block ? "block" : "hit", defender - attacker, *want));
+            }
+        }
     });
 
     s.test("frames pinned: versus and training (boxes and the meter) at a jab's active frame", [] {

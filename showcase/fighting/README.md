@@ -1,6 +1,8 @@
 # 格斗游戏 — the fighting game
 
-`omui-fight` is gongfu's match (`mgame/gongfu`) on openmui's stage: two fighters at 60 frames a second, from the keyboard or an agent, drawn in 2D by `gongfu.present2d`, with a training mode that shows every box and a frame meter (D-85 §8.7). Its name will come later. For now it has one fighter: the training fighter, Kata.
+`omui-fight` is gongfu's match (`mgame/gongfu`) on openmui's stage: two fighters at 60 frames a second, from the keyboard or an agent, drawn in 2D by `gongfu.present2d`, with a training mode that shows every box and a frame meter (D-85 §8.7). Its name will come later. It has two fighters so far, chosen by the stage's `left` and `right` properties:
+- Kata, the training fighter;
+- 墨 (Mo), the calligrapher. She is the first of the five designed in the [characters design](../../.agents/docs/2026-10-28-gongfu-characters-design.md): keep-away with written glyphs at three speeds, a long brush and an anti-air.
 
 ```sh
 mcpp run -p openmui.showcase.fighting
@@ -41,4 +43,5 @@ mcpp run -p openmui.showcase.fighting -- --headless --png fight.png
 - an agent walking in and landing a jab, which the semantic value reports;
 - training's readings as an agent reads them (a blocked jab is +3, a jab cancelled into a fireball is a combo of 900);
 - a saved state coming back, and the dummy replaying a recorded walk exactly;
-- the versus and training frames at the jab's active frame, with pinned pixels.
+- the versus and training frames at the jab's active frame, with pinned pixels;
+- 墨 as designed: every normal's, glyph's and anti-air's startup and its advantage on hit and on block, measured in the simulation against the design's table.

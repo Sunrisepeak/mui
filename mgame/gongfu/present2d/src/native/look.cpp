@@ -16,6 +16,7 @@
 //     length = 10
 //     rest = 90                   # degrees, counter-clockwise
 //     limb = true                 # (on an upper arm, a thigh) its parts can reach out of the hurtbox
+//     prop = true                 # (on a brush, a sword) held, not the body: never a hurtbox
 //     [[bone]]
 //     name = "torso"
 //     parent = "hip"
@@ -60,7 +61,7 @@ using data::Diagnostic;
 constexpr std::string_view format_version = "0.1";
 constexpr std::array<std::string_view, 9> look_keys{"gongfu", "name", "outline", "palette", "bone", "part", "clip", "impact", "doc"};
 constexpr std::array<std::string_view, 2> outline_keys{"color", "width"};
-constexpr std::array<std::string_view, 6> bone_keys{"name", "parent", "joint", "length", "rest", "limb"};
+constexpr std::array<std::string_view, 7> bone_keys{"name", "parent", "joint", "length", "rest", "limb", "prop"};
 constexpr std::array<std::string_view, 7> part_keys{"bone", "shape", "size", "points", "color", "depth", "doc"};
 constexpr std::array<std::string_view, 6> clip_keys{"frames", "loop", "ease", "angle", "rise", "doc"};
 constexpr std::array<std::string_view, 8> impact_keys{"shake", "zoom", "flash", "spark", "sound", "rumble", "doc", "name"};
@@ -333,6 +334,7 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
         if (auto l = r.number(t.get("length"), "a bone's `length`", 0, 10000)) b.length = static_cast<float>(*l);
         if (auto a = r.number(t.get("rest"), "a bone's `rest`", -720, 720)) b.rest = static_cast<float>(*a);
         if (auto l = r.boolean(t.get("limb"), "a bone's `limb`")) b.limb = *l;
+        if (auto l = r.boolean(t.get("prop"), "a bone's `prop`")) b.prop = *l;
         look.bones.push_back(std::move(b));
     });
     auto bone_index = [&](const toml::node* n, std::string_view what) -> std::optional<std::int32_t> {
@@ -506,6 +508,7 @@ std::string write_look(const Look& look) {
         s += std::format("joint = [{}, {}]\nlength = {}\n", b.joint.x, b.joint.y, b.length);
         if (b.rest != 0) s += std::format("rest = {}\n", b.rest);
         if (b.limb) s += "limb = true\n";
+        if (b.prop) s += "prop = true\n";
     }
     constexpr std::array<std::string_view, 3> shapes{"capsule", "ellipse", "polygon"};
     for (const Part& p : look.parts) {

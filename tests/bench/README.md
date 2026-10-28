@@ -33,6 +33,8 @@ mcpp run -p openmui.bench -- --list                                  # what ther
 | `wall/stream-20` | 20 windows written into at 50 tokens a second |
 | `gongfu/frame` | one frame of the fighting game's simulation, two scripted players (and its allocations: none) |
 | `gongfu/rollback-8` | eight frames rolled back: the state restored, the frames simulated again, each saved (per frame) |
+| `breakout/step` | a step of the widget breakout's simulation over a full wall (many balls swept among 96 bricks, capsules) |
+| `breakout/seek` | a rewind of the widget breakout: the timeline seeking 0.5–30 s back |
 | `gongfu/present2d` | one frame's picture built as a display list by a `Painter`: the stage, two skeletons, effects (allocations: none) |
 | `wall/sharpen` | the camera stops over the wall: until every window on screen is sharp |
 | `canvas-kit/drag-100k` | 10 chosen windows of 100,000 dragged every frame with select, drag, snap, grid and minimap on |

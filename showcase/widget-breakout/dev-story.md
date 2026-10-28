@@ -41,7 +41,7 @@ The simulation knows nothing of openmui. The field knows the simulation only thr
 
 ## 4. Performance
 
-- The simulation's step is plain data with nothing allocated; the timeline's snapshot is one copy of the state. **Not yet benchmarked on its own**: a `tests/bench` entry with a budget is owed (see §5).
+- A step over a full wall (about 13 balls among 96 bricks, each swept): 0.013 ms at p95, nothing allocated (`breakout/step`, budget 0.1 ms). A rewind of 0.5–30 s: 0.002 ms at p95 (`breakout/seek`, budget 0.25 ms), so holding R rewinds smoothly.
 - The canvas level draws 160 notes as one instanced batch when far; the canvas's own benchmarks keep a frame of 1,000 windows under 1 ms of CPU.
 - The README loop is 144 KB: an animated PNG that stores only the rectangle that changed from frame to frame.
 
@@ -59,7 +59,7 @@ The simulation knows nothing of openmui. The field knows the simulation only thr
 - **TypeScript from an editor's text** needed a new entry point (`compile_typescript_source`); the player only compiled files. Editors are a normal place for code, so this is now general.
 - **Pinned pixels that include changing text** (level 2's checksum line) break whenever the simulation's state layout changes. A pinned frame should avoid text derived from unrelated state, or pin a region.
 - **Python gifts wait for an embeddable Python** (PocketPy, being published to mcpp-index). The CPython binding is host-mode only and cannot be embedded.
-- **No simulation benchmark yet**: add `breakout/step` and `breakout/seek` to `tests/bench` with budgets.
+- **The simulation had no benchmark.** Added: `breakout/step` and `breakout/seek` in `tests/bench`, with budgets.
 
 ## 6. Practices that generalise
 

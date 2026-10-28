@@ -1291,6 +1291,7 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
   - 作品的开发故事（维护者要求：每个作品一份 `dev-story.md`，从开发角度讲怎么用框架做出来的——连同资产——并借此自省，通用的经验汇总到通用文档；分层不能为了单点方便被打乱）：四个作品的 `dev-story.md`，和 `docs/{en,zh}/best-practices.md`（按层放置、按用途选语言——每帧跑的用 C++、反复调整的内容用数据文件、需要现场调的逻辑用 TS / Lua / Python 热重载、脚本只产出数据；确定性的做法；画面由状态算出；契约先行；资产由构建检查；脚本在边界校验；有意义的像素固定；性能要测；带一张图）。自省发现、排进后续的轮：① 契约动作的参数按字母序以 `Value` 传入，签名写反照样编译（生成器改为带类型的参数或参数结构）；② 作品的包名和目录不一致（`styles` 在 `style-gallery`、`wall` 在 `markdown-wall`），lint `layout` 没覆盖作品；③ 格斗游戏的美术靠手写 TOML 的关键帧数字，是最大的瓶颈——先做 `gongfu.studio` 的图形界面（时间线、洋葱皮、姿势编辑、替换图）；④ 角色文件没有开发时的热重载；⑤ 像素固定变了时只有 PNG 可看——`openmui.testing` 加和上次接受的帧的差异图；⑥ 打砖块的模拟还没有基准；⑦ 整个画面都在动的循环（风格切换、画布缩放）要视频而不是动画 PNG（S5）。
   - 自省 ① 解决：契约生成器给两个及以上参数的动作生成按名字的参数结构（`<Action>Args`），处理函数写 `ActResult name(ActContext&, const NameArgs& args)`，不会再取错顺序；一个参数的动作照旧。迁移了全部 6 个这样的动作（`text_box.set_selection`、`list.scroll_to`、`canvas.pan_to`、格斗的 `press`、打砖块的 `guard_to` 和 `set_rules`），基础组件的生成代码重新生成；组件绑定设计 §2.4 写明。
   - 自省 ② 解决：作品的包名跟目录一致——`openmui.showcase.style_gallery`（`showcase/style-gallery`）、`openmui.showcase.markdown_wall`（`showcase/markdown-wall`），可执行程序的短名不变；lint 规则 `layout` 覆盖 `showcase/`（示例的编号目录是有意的，不在内）。
+  - 自省 ⑥ 解决：打砖块模拟的基准——`breakout/step`（满墙 96 块砖、平均约 13 个球，p95 0.013 ms，不分配；预算 0.1 ms）和 `breakout/seek`（倒流 0.5–30 秒，p95 0.002 ms，不分配；预算 0.25 ms）。
   - 发现并修正：GCC 16 在导入时对默认的友元比较运算符内部崩溃（改成显式比较）；测试里两个实参的求值顺序未指定，曾让 GCC 和 Clang 生成不同的输入（拆成两条语句）。
 - M5：openmui-video、ui-timeline、MCP 服务器、skills、S3 / S4 / S5。
 - 契约⑦（插件与管线）写进规范；Inspector 的火焰图和动画检查器视图。

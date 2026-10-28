@@ -35,6 +35,7 @@ openmui.audio           = { path = "../../modules/media/audio" }
 openmui.showcase.markdown_wall   = { path = "../../showcase/markdown-wall" }
 openmui.showcase.style_gallery = { path = "../../showcase/style-gallery" }
 "openmui.showcase.fighting" = { path = "../../showcase/fighting" }
+"openmui.showcase.widget_breakout.sim" = { path = "../../showcase/widget-breakout/sim" }
 gongfu                  = { path = "../../mgame/gongfu" }
 "gongfu.present2d"      = { path = "../../mgame/gongfu/present2d" }
 openmui.theme.styles    = { path = "../../modules/ui/theme/styles" }

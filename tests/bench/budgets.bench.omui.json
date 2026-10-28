@@ -88,6 +88,14 @@
      "why": "a rollback restores bytes and simulates again: nothing allocated"},
     {"name": "gongfu/present2d", "metric": "p95_ms", "max": 0.25,
      "why": "building a frame's picture of two skeletons and their effects is a small part of a 120 Hz frame (about 30 µs measured)"},
+    {"name": "breakout/step", "metric": "p95_ms", "max": 0.1,
+     "why": "mgame S4 design: a step of the breakout (about 13 balls among 96 bricks, each swept) is a small part of its 8.3 ms at 120 Hz (about 0.013 ms measured at p95)"},
+    {"name": "breakout/step", "metric": "max_allocations", "max": 0,
+     "why": "the breakout's state is one block of plain data: a step allocates nothing"},
+    {"name": "breakout/seek", "metric": "p95_ms", "max": 0.25,
+     "why": "a rewind is a snapshot copied and at most 59 steps again: well inside a frame, so holding R rewinds smoothly (about 0.002 ms measured at p95)"},
+    {"name": "breakout/seek", "metric": "max_allocations", "max": 0,
+     "why": "the timeline's snapshots and inputs are rings made when it starts: seeking allocates nothing"},
     {"name": "gongfu/present2d", "metric": "max_allocations", "max": 0,
      "why": "D-85 §8.4: a picture is a pure function of the state, drawn by a Painter that reuses its poses and paths: nothing allocated each frame"}
   ]

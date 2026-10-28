@@ -5,6 +5,7 @@ import openmui.render.vector;
 import openmui.showcase.fighting;
 import gongfu;
 import gongfu.present2d;
+import openmui.showcase.widget_breakout.sim;
 
 namespace omui::bench {
 
@@ -58,9 +59,62 @@ struct Fight {
     void again() { match = gongfu::Match(fighting::roster().system, fighting::roster().fighters.at(0), fighting::roster().fighters.at(0)); }
 };
 
+namespace bo = omui::breakout;
+
+// The breakout's simulation over a full wall: twelve columns, eight rows of
+// bricks (the top two switches), a player under the lowest falling ball who
+// launches at once — the same every run.
+bo::Level breakout_wall() {
+    bo::Level l;
+    std::uint32_t id = 0;
+    for (std::uint32_t row = 0; row < 8; ++row)
+        for (int col = 0; col < 12; ++col)
+            l.bricks.push_back({mgame::Box{70.0 + col * 96, 80.0 + row * 36, 88, 28}, row < 2 ? bo::Kind::toggle : bo::Kind::button, row < 2 ? 2 : 1, id++, row});
+    l.rules.multi_balls = 4;  // capsules make it busy
+    l.rules.drop_one_in = 3;
+    return l;
+}
+
+bo::Input breakout_player(const bo::State& s) {
+    bo::Input in;
+    double x = bo::field_w / 2, lowest = -1;
+    s.world.each<bo::Ball>([&](mgame::Entity, const bo::Ball& b) {
+        if (b.on == 0 && b.at.y > lowest) lowest = b.at.y, x = b.at.x;
+    });
+    in.player.pointer_x = static_cast<std::int16_t>(std::lround(std::clamp(x, 0.0, bo::field_w) / bo::field_w * 32767));
+    if (s.frame % 30 == 0) in.player.pressed = in.player.held = 1u << bo::launch_button;
+    return in;
+}
+
 }  // namespace
 
 void add_game_benchmarks() {
+    add("breakout/step", "one step of the widget breakout's simulation over a full wall: paddles, swept balls (several), bricks, capsules (mgame S4 design §5)", [](State& s) {
+        bo::State st = bo::start(breakout_wall());
+        for (int i = 0; i < 600; ++i) bo::step(st, breakout_player(st));  // under way: balls in the wall
+        std::int64_t balls = 0, steps = 0;
+        while (s.next()) {
+            if (st.over) {
+                s.pause();
+                st = bo::start(breakout_wall());
+                s.resume();
+            }
+            bo::step(st, breakout_player(st));
+            st.world.each<bo::Ball>([&](mgame::Entity, const bo::Ball&) { ++balls; });
+            ++steps;
+        }
+        s.counter("balls_per_step", static_cast<double>(balls) / static_cast<double>(std::max<std::int64_t>(steps, 1)));
+    });
+    add("breakout/seek", "a rewind of the widget breakout: the timeline seeks 0.5–30 s back (the snapshot before, then the steps after it again)", [](State& s) {
+        mgame::Timeline<bo::Game> t(bo::start(breakout_wall()), 30 * bo::steps_per_second, 60);
+        for (int i = 0; i < 40 * bo::steps_per_second; ++i) t.step(breakout_player(t.state()));
+        std::uint64_t r = 7;
+        while (s.next()) {
+            r ^= r << 13, r ^= r >> 7, r ^= r << 17;
+            const std::int64_t back = 60 + static_cast<std::int64_t>(r % static_cast<std::uint64_t>(t.latest() - t.earliest() - 60));
+            (void)t.seek(t.latest() - back);
+        }
+    });
     add("gongfu/frame", "one frame of the fighting game's simulation: two fighters' input, moves, boxes, hits (D-85 §8.6)", [](State& s) {
         Fight f;
         for (int i = 0; i < 300; ++i) f.tick();  // past the opening: the fighters close in

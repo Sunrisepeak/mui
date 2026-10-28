@@ -1,4 +1,4 @@
-module openmui.render;
+module openmui.render.vector;
 
 import std;
 import openmui.raster;

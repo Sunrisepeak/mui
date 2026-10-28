@@ -10,7 +10,7 @@ import openmui.view;
 import openmui.viewdoc;
 import openmui.semantic;
 import openmui.agent;
-import openmui.render;
+import openmui.render.vector;
 import openmui.raster;
 import openmui.text;
 import openmui.trace;

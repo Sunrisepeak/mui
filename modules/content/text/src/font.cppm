@@ -9,7 +9,7 @@ export module openmui.text:font;
 
 import std;
 import openmui.geom;
-import openmui.render;
+import openmui.render.vector;
 
 export namespace omui::typeset {
 

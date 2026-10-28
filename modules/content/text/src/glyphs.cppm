@@ -10,7 +10,7 @@ export module openmui.text:glyphs;
 import std;
 import openmui.geom;
 import openmui.raster;
-import openmui.render;
+import openmui.render.vector;
 import :font;
 
 export namespace omui::typeset {

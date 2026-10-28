@@ -16,7 +16,7 @@
 //
 //     auto ref = render::effects().find("dissolve");
 //     list.push_layer(1, BlendMode::normal, *ref, params, bounds);
-export module openmui.render:effects;
+export module openmui.render.vector:effects;
 
 import std;
 import openmui.geom;

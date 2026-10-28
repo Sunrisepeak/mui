@@ -1,4 +1,4 @@
-module openmui.render;
+module openmui.render.vector;
 
 import std;
 import openmui.geom;
@@ -252,17 +252,11 @@ struct GpuRenderer::Impl {
     rhi::ComputePipeline  pixelate_pipeline;
     std::map<std::pair<std::uint32_t, std::uint64_t>, rhi::GraphicsPipeline> effect_pipelines;
 
-    // Textures by size, format and usage, reused from frame to frame; one not
-    // used for a while is released.
-    struct Pooled {
-        rhi::Texture      texture;
-        std::uint32_t     w, h;
-        rhi::Format       format;
-        rhi::TextureUsage usage;
-        bool              used = false;
-        std::uint64_t     last = 0;
-    };
-    std::vector<Pooled> pool;
+    // The frame's transient textures (layers, backdrops, effect surfaces):
+    // the pool's, reused from frame to frame (D-81); the graph the frame's
+    // passes are recorded through.
+    render::TexturePool pool;
+    render::Graph       graph{pool};
     std::uint64_t       frame_number = 0;
 
     std::array<rhi::VertexAttribute, 12> attributes{};
@@ -280,13 +274,12 @@ struct GpuRenderer::Impl {
     raster::Polygons                    polygons;
     raster::Rasterizer                  rasterizer;
 
-    explicit Impl(rhi::Device& device) : d(device) {
+    explicit Impl(rhi::Device& device) : d(device), pool(device) {
         for (std::uint32_t i = 0; i < 12; ++i) attributes[i] = {i, rhi::VertexFormat::float4, i * 16};
         layout[0] = {sizeof(Prim), true, attributes};
     }
     ~Impl() {
         static_cast<void>(d.wait_idle());
-        for (const Pooled& p : pool) d.destroy(p.texture);
         for (auto& [s, t] : images) d.destroy(t);
         for (auto& [id, st] : stored) d.destroy(st.texture);
         for (const Spare& sp : spares) d.destroy(sp.texture);
@@ -332,29 +325,16 @@ struct GpuRenderer::Impl {
 
     // ── per-frame resources ──────────────────────────────────────────────
 
+    // A texture for this frame only: the graph's, from the pool.
     rhi::Result<rhi::Texture> pooled(std::uint32_t w, std::uint32_t h, rhi::Format format, rhi::TextureUsage usage, std::string_view label) {
-        for (Pooled& p : pool)
-            if (!p.used && p.w == w && p.h == h && p.format == format && p.usage == usage) {
-                p.used = true;
-                p.last = frame_number;
-                return p.texture;
-            }
-        auto t = d.create(rhi::TextureDesc{format, w, h, usage, label});
-        if (!t) return std::unexpected(t.error());
-        pool.push_back({*t, w, h, format, usage, true, frame_number});
-        return *t;
+        return graph.transient({w, h, format, usage}, label);
     }
 
     // A frame begins: every pooled texture is free again, and one unused for
     // the last 120 frames goes (a size the window no longer has).
     void pool_frame() {
         ++frame_number;
-        std::erase_if(pool, [&](Pooled& p) {
-            p.used = false;
-            if (frame_number - p.last <= 120) return false;
-            d.destroy(p.texture);
-            return true;
-        });
+        pool.begin_frame();
         std::erase_if(spares, [&](const Spare& sp) {
             if (frame_number - sp.last <= 120) return false;
             d.destroy(sp.texture);
@@ -708,6 +688,7 @@ rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, rhi::Textur
     // the atlas emptied when this frame's masks did not fit what it held.
     auto encode = [&] {
         g.passes.clear();
+        g.graph.clear();
         g.ramp_rows.clear();
         g.rows.clear();
         g.atlas_overflow = false;
@@ -1334,7 +1315,7 @@ rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, rhi::Textur
     encode();
     if (!failed && g.atlas_overflow) {
         g.empty_atlas();
-        for (auto& p : g.pool) p.used = false;
+        g.pool.restart_frame();
         report = {};
         g.atlas_second_pass = true;
         encode();
@@ -1374,59 +1355,95 @@ rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, rhi::Textur
         g.list.upload(g.instances, 0, std::span<const Prim>(g.prims));
     }
 
-    // ── the passes ───────────────────────────────────────────────────────
+    // ── the passes, through the frame's graph (D-81) ─────────────────────
+    // Each pass says what it reads and writes; a layer nothing composites is
+    // left out, and each runs in its trace span. Instances lie in the
+    // passes' order whether or not a pass runs.
+    std::vector<rhi::Texture> textures;
+    auto add = [&](rhi::Texture t) {
+        if (t && std::ranges::find(textures, t) == textures.end()) textures.push_back(t);
+    };
     std::uint32_t first = 0;
     for (const Pass& s : g.passes) {
+        const std::uint32_t base = first;
+        first += static_cast<std::uint32_t>(s.draws.size());
         if (s.kind == Pass::Kind::effect) {
-            g.record_effect(s.effect);
+            const EffectStep& e = s.effect;
+            render::PassDesc desc{.name = "render.vector.effect"};
+            desc.reads = {e.source};
+            if (e.backdrop && e.parent) desc.reads.push_back(e.parent);
+            for (rhi::Texture t : {e.result, e.aux, e.scratch})
+                if (t) desc.writes.push_back(t);
+            g.graph.pass(std::move(desc), [&g, &s](rhi::CommandList&) { g.record_effect(s.effect); });
             continue;
         }
         if (s.kind == Pass::Kind::blend) {
             const BlendPass& b = s.blend;
-            const auto W = static_cast<float>(s.w), H = static_cast<float>(s.h);
-            g.list.copy(s.target, b.box, b.backdrop, b.box.x, b.box.y);
-            g.list.begin_render({s.target, rhi::LoadOp::load, {}});
-            const BlendParams params{{W, H, 0, 0},
-                                     {static_cast<float>(b.box.x), static_cast<float>(b.box.y), static_cast<float>(b.box.x + b.box.width),
-                                      static_cast<float>(b.box.y + b.box.height)},
-                                     {static_cast<float>(b.mode), static_cast<float>(b.opacity), b.mask ? 1.0f : 0.0f, 0},
-                                     b.clip};
-            g.list.set_pipeline(g.blend_pipeline);
-            g.list.push_uniforms(rhi::Stage::vertex, 0, params);
-            g.list.push_uniforms(rhi::Stage::fragment, 0, params);
-            g.list.bind_texture(rhi::Stage::fragment, 0, b.layer, g.nearest);
-            g.list.bind_texture(rhi::Stage::fragment, 1, b.backdrop, g.nearest);
-            g.list.bind_texture(rhi::Stage::fragment, 2, b.mask ? b.mask : g.white_mask, g.nearest);
-            g.list.draw(6);
-            g.list.end_render();
+            render::PassDesc desc{.name = "render.vector.blend", .reads = {s.target, b.layer}, .writes = {s.target, b.backdrop}};
+            if (b.mask) desc.reads.push_back(b.mask);
+            g.graph.pass(std::move(desc), [&g, &s](rhi::CommandList& list) {
+                const BlendPass& b = s.blend;
+                const auto W = static_cast<float>(s.w), H = static_cast<float>(s.h);
+                list.copy(s.target, b.box, b.backdrop, b.box.x, b.box.y);
+                list.begin_render({s.target, rhi::LoadOp::load, {}});
+                const BlendParams params{{W, H, 0, 0},
+                                         {static_cast<float>(b.box.x), static_cast<float>(b.box.y), static_cast<float>(b.box.x + b.box.width),
+                                          static_cast<float>(b.box.y + b.box.height)},
+                                         {static_cast<float>(b.mode), static_cast<float>(b.opacity), b.mask ? 1.0f : 0.0f, 0},
+                                         b.clip};
+                list.set_pipeline(g.blend_pipeline);
+                list.push_uniforms(rhi::Stage::vertex, 0, params);
+                list.push_uniforms(rhi::Stage::fragment, 0, params);
+                list.bind_texture(rhi::Stage::fragment, 0, b.layer, g.nearest);
+                list.bind_texture(rhi::Stage::fragment, 1, b.backdrop, g.nearest);
+                list.bind_texture(rhi::Stage::fragment, 2, b.mask ? b.mask : g.white_mask, g.nearest);
+                list.draw(6);
+                list.end_render();
+            });
             continue;
         }
         // A pass that only loads and draws nothing does nothing.
         if (s.draws.empty() && s.load == rhi::LoadOp::load) continue;
-        g.list.begin_render({s.target, s.load, s.clear});
-        if (!s.draws.empty()) {
-            const Frame frame{{static_cast<float>(s.w), static_cast<float>(s.h), static_cast<float>(g.atlas_w), static_cast<float>(g.atlas_h)},
-                              {static_cast<float>(g.ramp_capacity), 0, 0, 0}};
-            g.list.set_pipeline(g.pipeline);
-            g.list.push_uniforms(rhi::Stage::vertex, 0, frame);
-            g.list.push_uniforms(rhi::Stage::fragment, 0, frame);
-            g.list.bind_vertex_buffer(0, g.instances);
-            g.list.bind_texture(rhi::Stage::fragment, 0, g.ramps, g.nearest);
-            g.list.bind_texture(rhi::Stage::fragment, 1, g.atlas, g.nearest);
-            std::size_t i = 0;
-            while (i < s.draws.size()) {
-                const Draw& head = s.draws[i];
-                std::size_t j = i + 1;
-                while (j < s.draws.size() && s.draws[j].image == head.image && s.draws[j].mask == head.mask) ++j;
-                g.list.bind_texture(rhi::Stage::fragment, 2, head.image ? head.image : g.white, g.nearest);
-                g.list.bind_texture(rhi::Stage::fragment, 3, head.mask ? head.mask : g.white_mask, g.nearest);
-                g.list.draw(6, static_cast<std::uint32_t>(j - i), 0, first + static_cast<std::uint32_t>(i));
-                i = j;
-            }
-            first += static_cast<std::uint32_t>(s.draws.size());
+        textures.clear();
+        if (s.load == rhi::LoadOp::load) add(s.target);
+        for (const Draw& d : s.draws) {
+            add(d.image);
+            add(d.mask);
         }
-        g.list.end_render();
+        render::PassDesc desc{.name = "render.vector.draws", .reads = textures, .writes = {s.target}};
+        g.graph.pass(std::move(desc), [&g, &s, base](rhi::CommandList& list) {
+            list.begin_render({s.target, s.load, s.clear});
+            if (!s.draws.empty()) {
+                const Frame frame{{static_cast<float>(s.w), static_cast<float>(s.h), static_cast<float>(g.atlas_w), static_cast<float>(g.atlas_h)},
+                                  {static_cast<float>(g.ramp_capacity), 0, 0, 0}};
+                list.set_pipeline(g.pipeline);
+                list.push_uniforms(rhi::Stage::vertex, 0, frame);
+                list.push_uniforms(rhi::Stage::fragment, 0, frame);
+                list.bind_vertex_buffer(0, g.instances);
+                list.bind_texture(rhi::Stage::fragment, 0, g.ramps, g.nearest);
+                list.bind_texture(rhi::Stage::fragment, 1, g.atlas, g.nearest);
+                std::size_t i = 0;
+                while (i < s.draws.size()) {
+                    const Draw& head = s.draws[i];
+                    std::size_t j = i + 1;
+                    while (j < s.draws.size() && s.draws[j].image == head.image && s.draws[j].mask == head.mask) ++j;
+                    list.bind_texture(rhi::Stage::fragment, 2, head.image ? head.image : g.white, g.nearest);
+                    list.bind_texture(rhi::Stage::fragment, 3, head.mask ? head.mask : g.white_mask, g.nearest);
+                    list.draw(6, static_cast<std::uint32_t>(j - i), 0, base + static_cast<std::uint32_t>(i));
+                    i = j;
+                }
+            }
+            list.end_render();
+        });
     }
+    auto recorded = g.graph.record(g.list, std::span(&target, 1));
+    if (!recorded) {
+        std::string why;
+        for (const render::GraphProblem& p : recorded.error()) why += (why.empty() ? "" : "; ") + p.text;
+        return rhi::fail(rhi::Errc::invalid, "render: the frame's passes: " + why);
+    }
+    report.gpu_passes = recorded->recorded;
+    report.gpu_passes_culled = recorded->culled;
     for (const rhi::Command& c : g.list.commands()) {
         if (const auto* u = std::get_if<rhi::cmd::UploadTexture>(&c)) report.uploaded += u->data.size();
         else if (const auto* b = std::get_if<rhi::cmd::UploadBuffer>(&c)) report.uploaded += b->data.size();

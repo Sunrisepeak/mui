@@ -6,7 +6,7 @@ import openmui.view;
 import openmui.semantic;
 import openmui.agent;
 import openmui.raster;
-import openmui.render;
+import openmui.render.vector;
 import openmui.text;
 import openmui.image;
 import openmui.trace;

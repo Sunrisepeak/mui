@@ -3,7 +3,7 @@ module openmui.view;
 import std;
 import openmui.core;
 import hanim;
-import openmui.render;
+import openmui.render.vector;
 import :element;
 import :glyphs;
 

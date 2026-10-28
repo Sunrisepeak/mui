@@ -20,7 +20,7 @@ export module openmui.ui.canvas:view;
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.render;
+import openmui.render.vector;
 import hanim;
 import :canvas_contract;
 import :scene;

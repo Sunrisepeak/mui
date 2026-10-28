@@ -12,7 +12,7 @@ export module openmui.ui.liquid_glass:glass;
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.render;
+import openmui.render.vector;
 import :liquid_glass_contract;
 import :glass_group_contract;
 

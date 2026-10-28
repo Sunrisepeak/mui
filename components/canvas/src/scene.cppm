@@ -19,7 +19,7 @@ export module openmui.ui.canvas:scene;
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.render;
+import openmui.render.vector;
 import openmui.text;
 
 export namespace omui::world {

@@ -28,7 +28,7 @@ export module openmui.render.effect;
 
 import std;
 import openmui.rhi;
-import openmui.render;
+import openmui.render.vector;
 
 export namespace omui::effect {
 

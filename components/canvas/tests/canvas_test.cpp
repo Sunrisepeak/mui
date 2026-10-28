@@ -9,7 +9,7 @@ import std;
 
 import openmui.ui.canvas;
 import openmui.host.headless;
-import openmui.render;
+import openmui.render.vector;
 import openmui.raster;
 import openmui.testing;
 

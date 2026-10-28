@@ -1,36 +1,32 @@
-# openmui.render — the rendering abstraction: the display list of contract ⑤,
-# the renderer interface, and its CPU and GPU backends (D-57). Knows nothing
-# of nodes or views; anything that produces a display list can render it.
+# openmui.render — the rendering architecture (D-81): a frame as a graph of
+# passes over the device's textures, and the textures it makes, pooled from
+# frame to frame. Every rendering feature — 2D vector (render.vector), and
+# later sprites, meshes, particles — records its passes into one graph, so
+# 2D and 3D share the device, the pool, the order and the tracing.
 [package]
 namespace   = "openmui"
 name        = "render"
 version     = "0.1.0"
-description = "Display list, renderer interface, CPU and GPU backends for 2D UI rendering"
+description = "The rendering architecture: a frame as a checked graph of passes over device textures, transient textures pooled across frames, a trace span per pass"
 license     = "Apache-2.0"
 repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
-kind = "backend"
+kind = "module"
 
 [targets.openmui-render]
 kind = "lib"
 
 [build]
-sources  = ["src/*.cppm", "src/*.cpp", "src/generated/*.cppm"]
+sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
-[build-dependencies]
-openmui.shader.rules = { path = "../shader/rules", host-module = true }
-
 [dependencies]
-openmui.rhi    = { path = "../rhi" }
-openmui.geom   = { path = "../../base/geom" }
-openmui.memory = { path = "../../base/memory" }
-hanim          = { path = "../../base/hanim" }
-openmui.raster = { path = "../raster" }
+openmui.rhi   = { path = "../rhi" }
+openmui.trace = { path = "../../base/trace" }
 
 [dev-dependencies]
 openmui.testing = { path = "../../base/testing" }
-openmui.image   = { path = "../../base/image" }
 openmui.rhi.sdl = { path = "../rhi/sdl" }
+openmui.memory  = { path = "../../base/memory" }
 mcpplibs.os     = "0.1.2"

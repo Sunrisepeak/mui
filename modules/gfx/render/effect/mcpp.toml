@@ -23,7 +23,7 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 
 [dependencies]
-openmui.render = { path = ".." }
+openmui.render.vector = { path = "../vector" }
 openmui.rhi    = { path = "../../rhi" }
 openmui.shader = { path = "../../shader" }
 openmui.trace  = { path = "../../../base/trace" }

@@ -3,7 +3,7 @@ module openmui.ui.liquid_glass;
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.render;
+import openmui.render.vector;
 
 namespace omui {
 

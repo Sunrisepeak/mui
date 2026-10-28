@@ -13,7 +13,7 @@
 // is byte-for-byte the full render (raster::Canvas::restrict_rows). The
 // canvas and its buffers live as long as the renderer: a frame of the same
 // shape as the last allocates nothing.
-export module openmui.render:cpu;
+export module openmui.render.vector:cpu;
 
 import std;
 import openmui.geom;
@@ -40,6 +40,10 @@ struct RenderReport {
     std::size_t masks_made = 0;
     std::size_t masks_reused = 0;
     bool        atlas_emptied = false;
+    // GPU: the frame's passes (render::Graph) that ran, and those left out
+    // because nothing reads what they make.
+    std::size_t gpu_passes = 0;
+    std::size_t gpu_passes_culled = 0;
     // With CpuOptions::measure: per kind of command (the index of Command's
     // alternative, command_kind_name), how many and how long — where a
     // frame's raster time goes.

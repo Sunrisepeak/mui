@@ -4,7 +4,7 @@ module openmui.render.effect;
 
 import std;
 import openmui.rhi;
-import openmui.render;
+import openmui.render.vector;
 import openmui.shader;
 import openmui.trace;
 

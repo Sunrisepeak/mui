@@ -9,7 +9,7 @@
 // `begin_node`/`end_node` bracket what a node drew: the renderer can write an
 // object-id buffer from them, which is how devtools trace a pixel to the node
 // and the source line that produced it.
-export module openmui.render:display;
+export module openmui.render.vector:display;
 
 import std;
 import openmui.geom;

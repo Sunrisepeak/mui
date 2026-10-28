@@ -3,7 +3,7 @@
 // Images live in an ImageStore (premultiplied pixels, shared, immutable);
 // glyphs come from a GlyphSource the text engine implements, so this package
 // renders text without knowing fonts.
-export module openmui.render:resources;
+export module openmui.render.vector:resources;
 
 import std;
 import openmui.geom;

@@ -1,5 +1,5 @@
 import std;
-import openmui.render;
+import openmui.render.vector;
 import openmui.geom;
 import openmui.memory;
 import hanim;

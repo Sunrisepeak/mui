@@ -23,7 +23,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 openmui.geom    = { path = "../../base/geom" }
 openmui.unicode = { path = "../../base/unicode" }
 openmui.raster  = { path = "../../gfx/raster" }
-openmui.render  = { path = "../../gfx/render" }
+openmui.render.vector  = { path = "../../gfx/render/vector" }
 mcpplibs.os     = "0.1.2"
 mcpplibs.mwrap.harfbuzz = "14.3.0"
 mcpplibs.mwrap.sheenbidi = "3.0.0"

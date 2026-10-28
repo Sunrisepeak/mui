@@ -5,7 +5,7 @@ module openmui.inspector;
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.render;
+import openmui.render.vector;
 import openmui.ui.base;
 import openmui;
 

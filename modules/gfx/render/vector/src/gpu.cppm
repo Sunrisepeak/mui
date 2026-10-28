@@ -23,7 +23,7 @@
 // (GpuOptions::external), drawn over their rectangle like an image. Effects
 // without a GPU path are counted in effects_skipped. Object ids are the CPU
 // renderer's.
-export module openmui.render:gpu;
+export module openmui.render.vector:gpu;
 
 import std;
 import openmui.geom;

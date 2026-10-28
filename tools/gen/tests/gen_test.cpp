@@ -177,15 +177,15 @@ int main(int argc, char** argv) {
         check(seen >= 2, "default and compact at least");
     });
 
-    s.test("the effect template the renderer carries is current (modules/gfx/render)", [] {
-        const auto render = spec_dir().parent_path() / "modules" / "gfx" / "render";
+    s.test("the effect template the renderer carries is current (modules/gfx/render/vector)", [] {
+        const auto render = spec_dir().parent_path() / "modules" / "gfx" / "render" / "vector";
         std::ifstream in(render / "effects" / "lib" / "openmui_effect.slang", std::ios::binary);
         const std::string text{std::istreambuf_iterator<char>(in), {}};
         check(!text.empty(), "effects/lib/openmui_effect.slang");
         check(read(render / "src" / "generated" / "effect_template.cppm") ==
-                  gen::emit_embed(text, "openmui_effect.slang", "openmui.render", "omui::render", "effect_template"),
-              "modules/gfx/render: run omui-gen embed modules/gfx/render/effects/lib/openmui_effect.slang --module openmui.render --name effect_template "
-              "--namespace omui::render --out modules/gfx/render/src/generated");
+                  gen::emit_embed(text, "openmui_effect.slang", "openmui.render.vector", "omui::render", "effect_template"),
+              "modules/gfx/render/vector: run omui-gen embed modules/gfx/render/vector/effects/lib/openmui_effect.slang --module openmui.render.vector "
+              "--name effect_template --namespace omui::render --out modules/gfx/render/vector/src/generated");
     });
 
     return s.run(argc, argv);

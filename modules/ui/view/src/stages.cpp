@@ -6,7 +6,7 @@ module openmui.view;
 import std;
 import openmui.core;
 import openmui.layout;
-import openmui.render;
+import openmui.render.vector;
 import openmui.pipeline;
 import :impl;
 

@@ -6,7 +6,7 @@ import openmui.view;
 import hanim;
 import openmui.geom;
 import openmui.raster;
-import openmui.render;
+import openmui.render.vector;
 import openmui.text;
 import openmui.trace;
 

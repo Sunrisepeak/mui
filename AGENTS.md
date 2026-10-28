@@ -35,7 +35,7 @@
 - ID 不能依赖显示文本；可交互的节点要写显式 ID。
 - 视图代码优先（各语言原生的 builder）；数据文件一律命名为 `<名字>.<种类>.omui.{toml,json}`（逐行记录用 `.jsonl`，例如 `*.session.omui.jsonl`）；着色器用 `.slang`；逻辑代码保持原生后缀。builder 和数据文件都要让人和 agent 容易读懂（`view-data-files` 设计文档 §2）。
 - 仓库根目录就是 `openmui` 伞包；`mcpp/` 只放构建系统的代码；入口在 `src/entry/`。
-- 渲染器只写一次（`modules/gfx/render`），GPU 路径基于 `omui.rhi` 抽象层，各后端只依赖这个抽象层的接口。
+- 渲染器只写一次：`modules/gfx/render` 是渲染架构（渲染图和纹理池，D-81），2D 矢量渲染是它的渲染特性 `render/vector`，以后的 sprite、mesh、particle 也是；GPU 路径基于 `omui.rhi` 抽象层，各后端只依赖这个抽象层的接口；每个渲染特性的 pass 都记录进同一张渲染图。
 - **平台相关的代码一律经由 `mcpplibs.os`**（文件、目录、进程、管道、IPC）；窗口和输入经由 SDL3（D-57）。
 - **开发和分析工具都有两种界面**：命令行（JSON 输出、退出码，给 agent 和 CI）和用 openmui 自己写的界面（给人看）；两者读同一份数据（agent 协议、trace、bench 报告）。每个工具的界面都要突出框架的特色，工具本身就是展示（D-61）。
 - **作品双视角**（D-63）：示例和展示要做成真实可用的工具、组件或内容，同时展示一项框架特色，并且有能在 headless 下确定重现的招牌镜头；不做只为演示而存在的 demo。

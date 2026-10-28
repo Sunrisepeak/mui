@@ -6,7 +6,7 @@ import std;
 import tomlplusplus;
 import openmui.core;
 import openmui.view;
-import openmui.render;
+import openmui.render.vector;
 import hanim;
 
 namespace omui::theme {

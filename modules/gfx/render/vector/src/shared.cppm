@@ -3,7 +3,7 @@
 // drawn from (one placement for the CPU renderer, its glyph pass and the GPU
 // renderer, so all ask the glyph source the same questions and put the
 // answers in the same place).
-module openmui.render:shared;
+module openmui.render.vector:shared;
 
 import std;
 import openmui.geom;

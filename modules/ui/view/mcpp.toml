@@ -28,7 +28,7 @@ openmui.memory   = { path = "../../base/memory" }
 hanim            = { path = "../../base/hanim" }
 openmui.layout   = { path = "../../content/layout" }
 openmui.raster   = { path = "../../gfx/raster" }
-openmui.render   = { path = "../../gfx/render" }
+openmui.render.vector   = { path = "../../gfx/render/vector" }
 openmui.image    = { path = "../../base/image" }
 openmui.text     = { path = "../../content/text" }
 openmui.trace    = { path = "../../base/trace" }

@@ -3,7 +3,7 @@ module openmui.ui.window;
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.render;
+import openmui.render.vector;
 import openmui.ui.base;
 
 namespace omui {

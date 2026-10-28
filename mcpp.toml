@@ -28,6 +28,7 @@ members = [
     "modules/base/unicode",
     "modules/gfx/raster",
     "modules/gfx/render",
+    "modules/gfx/render/vector",
     "modules/gfx/render/effect",
     "modules/gfx/rhi",
     "modules/gfx/rhi/cts",

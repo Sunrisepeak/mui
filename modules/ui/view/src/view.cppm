@@ -6,7 +6,7 @@ export module openmui.view;
 
 export import openmui.core;
 export import openmui.layout;
-export import openmui.render;
+export import openmui.render.vector;
 export import openmui.pipeline;
 export import openmui.text;
 export import openmui.i18n;

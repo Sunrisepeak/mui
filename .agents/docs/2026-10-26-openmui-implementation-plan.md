@@ -1246,6 +1246,10 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
   - lint `licenses`：`tools/lint/licenses.toml` 列出工作区经由清单和 `mcpp.lock` 用到的每个 mcpp-index 包和它的许可（SPDX）；没有列出的包、GPL / AGPL、不在 `[dynamic]` 里的 LGPL 都会失败；有本地索引时，许可要和索引的描述一致。自测 14/14。
   - 双向文本从 fribidi 换成 SheenBidi 3.0.0（Apache-2.0，Unicode 17）：上游新增 `compat.sheenbidi`（mcpp-index #607）和 `mcpplibs.mwrap.sheenbidi`（mcpplibs/sheenbidi-m，mcpp-index #608），模块的测试在所有平台上跑 Unicode 的 BidiTest（770,241 例）和 BidiCharacterTest（91,707 例），0 错误。`openmui.text` 按 UBA P1 逐段解析（换行结束一段，下一段按自己的第一个强字符定方向，新测试），L1 的段落部分自己做，行尾部分仍在排版里；固定的像素哈希不变。
   - fribidi 只剩 SDL3 在 X11 上的可选用法：编译时用头文件，运行时 dlopen 系统的 `libfribidi.so.0`（消息框的 RTL 文本），登记在 `[dynamic]`。
+- ✅ 统一渲染的第一步（D-81 ①）：
+  - `openmui.render` 是渲染架构：`:pool`（瞬时纹理按尺寸、格式、用途从帧到帧复用，120 帧没人要的释放；帧重新编码时 `restart_frame`）和 `:graph`（一帧是 pass 的图：每个 pass 声明读写，瞬时纹理先写后读，否则报出两者的名字；写的东西到不了输出、外部纹理或之后运行的 pass 的 pass 被去掉；其余按描述的顺序记录，每个 pass 一个 trace span，类别 `render`）。
+  - 原来的 2D 渲染器成为它的渲染特性 `openmui.render.vector`（`modules/gfx/render/vector`，重新导出核心）；GPU 渲染器的每一帧经由渲染图记录：绘制、混合、效果三种 pass 各自声明读写，`RenderReport::gpu_passes` / `gpu_passes_culled`；纹理池换成核心的；CPU 参考和 GPU 的像素比较全部不变。
+  - 测试：`modules/gfx/render/tests/graph_test.cpp`（池的复用和释放、问题的措辞、计划、span，以及真实设备上没被读的 pass 不运行的字节）；vector 的 GPU 测试加一条：一帧的每个 pass 一个 span，同一帧再画一次 pass 相同。
 - M5：openmui-video、ui-timeline、MCP 服务器、skills、S3 / S4 / S5。
 - 契约⑦（插件与管线）写进规范；Inspector 的火焰图和动画检查器视图。
 

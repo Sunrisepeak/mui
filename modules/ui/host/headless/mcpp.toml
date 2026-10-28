@@ -26,7 +26,7 @@ openmui.view     = { path = "../../view" }
 openmui.semantic = { path = "../../semantic" }
 openmui.agent    = { path = "../../agent" }
 openmui.raster   = { path = "../../../gfx/raster" }
-openmui.render   = { path = "../../../gfx/render" }
+openmui.render.vector   = { path = "../../../gfx/render/vector" }
 openmui.text     = { path = "../../../content/text" }
 openmui.image    = { path = "../../../base/image" }
 openmui.trace    = { path = "../../../base/trace" }

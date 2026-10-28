@@ -20,11 +20,12 @@ import std;
 import mcpplibs.os;
 import openmui.geom;
 import openmui.raster;
-import openmui.render;
+import openmui.render.vector;
 import openmui.rhi;
 import openmui.rhi.sdl;
 import openmui.image;
 import openmui.testing;
+import openmui.trace;
 
 using namespace omui::testing;
 namespace render = omui::render;
@@ -506,6 +507,39 @@ int main(int argc, char** argv) {
         auto last = rig.gpu.render(few, *target, {&rig.images, &rig.glyphs}, {.scale = 1, .background = bg});
         check(last.has_value());
         if (last) check(last->masks_made + last->masks_reused == 30, "the first frame's masks, made again or kept");
+    });
+
+    s.test("a frame is the render graph's (D-81): each pass that runs a trace span, the same passes frame after frame", [] {
+        auto device = open_device();
+        if (!device) return;
+        auto gpu = render::GpuRenderer::create(*device);
+        if (!gpu) return;
+        auto target = device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, 64, 48, rhi::TextureUsage::color_target, "test.graph"});
+        if (!target) return;
+        render::DisplayList dl;
+        dl.push_layer(0.5f);
+        dl.fill_rect({4, 4, 40, 30}, geom::Color::hex(0xdc2626));
+        dl.push_layer(0.6f, render::BlendMode::multiply);
+        dl.fill_rect({20, 16, 40, 30}, geom::Color::hex(0x2563eb));
+        dl.pop_layer();
+        dl.pop_layer();
+        omui::trace::start();
+        auto first = gpu->render(dl, *target, {});
+        const auto t = omui::trace::stop();
+        check(first.has_value());
+        if (!first) return;
+        // The target's pass, each layer's, the multiply's composite, and the target and outer layer again after them.
+        check(first->gpu_passes >= 4 && first->gpu_passes_culled == 0, std::format("{} passes, {} left out", first->gpu_passes, first->gpu_passes_culled));
+        std::size_t spans = 0;
+        bool blend = false;
+        for (const auto& e : t.events)
+            if (e.kind == omui::trace::Kind::begin && std::string_view(e.category) == "render") {
+                ++spans;
+                blend = blend || std::string_view(e.name) == "render.vector.blend";
+            }
+        check(spans == first->gpu_passes && blend, std::format("{} spans of {} passes; the multiply composited", spans, first->gpu_passes));
+        auto second = gpu->render(dl, *target, {});
+        check(second && second->gpu_passes == first->gpu_passes, "the same frame again, the same passes");
     });
 
     s.test("what the GPU does not draw yet is counted, as the CPU counts what it skips", [] {

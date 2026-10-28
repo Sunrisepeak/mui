@@ -17,7 +17,7 @@ export module openmui.ui.canvas:behavior;
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.render;
+import openmui.render.vector;
 import :scene;
 import :camera;
 

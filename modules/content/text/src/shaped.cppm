@@ -5,7 +5,7 @@ module openmui.text:shaped;
 
 import std;
 import openmui.geom;
-import openmui.render;
+import openmui.render.vector;
 import openmui.unicode;
 import :font;
 import :paragraph;

@@ -5,7 +5,7 @@
 import std;
 import openmui.geom;
 import openmui.raster;
-import openmui.render;
+import openmui.render.vector;
 import openmui.memory;
 import openmui.testing;
 

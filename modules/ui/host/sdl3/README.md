@@ -24,10 +24,10 @@ int main() {
 }
 ```
 
-Frames are drawn by the GPU renderer (openmui.render's `GpuRenderer` on an
+Frames are drawn by the GPU renderer (openmui.render.vector's `GpuRenderer` on an
 omui.rhi device that claimed the window) into a texture the swapchain shows,
 or by the CPU renderer into a surface streamed to an SDL renderer's texture —
-the same pixels, which openmui.render's tests hold together.
+the same pixels, which openmui.render.vector's tests hold together.
 `DesktopOptions::renderer` says who: `automatic` (the default) uses the GPU
 when the machine has one and the CPU renderer when the only device is a
 software rasteriser (lavapipe, WARP), which the CPU renderer outruns; `cpu`

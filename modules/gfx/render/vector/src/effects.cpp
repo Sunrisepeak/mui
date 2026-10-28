@@ -2,7 +2,7 @@
 // pure function of its inputs: integer hashing for randomness, anim's
 // deterministic sine and cosine, no fused multiply-add — the same bytes on
 // every platform and compiler (spec R-2).
-module openmui.render;
+module openmui.render.vector;
 
 import std;
 import openmui.geom;

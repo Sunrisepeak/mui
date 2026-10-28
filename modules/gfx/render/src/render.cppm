@@ -1,19 +1,16 @@
-// openmui.render — the rendering abstraction (D-57).
+// openmui.render — the rendering architecture (D-81).
 //
-//   :display    the display list: paths, paints, strokes, clips, transforms,
-//               layers, glyph runs, images, node markers
-//   :resources  images by reference, glyphs from the text engine
-//   :damage     which rows a new list changes (incremental frames)
-//   :cpu        the CPU reference backend over openmui.raster
-//   :gpu        the GPU backend over omui.rhi (its shaders: :ui_shaders)
+//   :pool    textures by what they are, made once and handed out again in
+//            later frames; one nobody asked for in a while is released
+//   :graph   a frame as passes over the device's textures: each says what
+//            it reads and writes, a texture made for the frame is checked to
+//            be written before it is read, a pass whose work reaches no
+//            output is left out, and each runs in a trace span of its name
 //
-// Nothing in this package knows about nodes or views: anything that produces
-// a display list can render it.
+// The rendering features record into it: render.vector (the display list's
+// GPU renderer) today; sprites, meshes and particles share the same device,
+// pool and order (2D and 3D in one frame).
 export module openmui.render;
 
-export import :display;
-export import :resources;
-export import :damage;
-export import :cpu;
-export import :gpu;
-export import :effects;
+export import :pool;
+export import :graph;

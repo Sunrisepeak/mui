@@ -5,7 +5,7 @@ import std;
 import mcpplibs.os;
 import openmui.geom;
 import openmui.raster;
-import openmui.render;
+import openmui.render.vector;
 import openmui.rhi;
 import openmui.rhi.sdl;
 import openmui.render.effect;

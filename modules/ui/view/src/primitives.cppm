@@ -16,7 +16,7 @@ export module openmui.view:primitives;
 import std;
 import openmui.core;
 import openmui.layout;
-import openmui.render;
+import openmui.render.vector;
 import openmui.text;
 import :element;
 import :theme;

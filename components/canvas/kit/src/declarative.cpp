@@ -6,7 +6,7 @@ module openmui.ui.canvas.kit;
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.render;
+import openmui.render.vector;
 import openmui.expr;
 import openmui.ui.canvas;
 import :parts;

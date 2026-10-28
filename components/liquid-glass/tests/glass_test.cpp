@@ -7,7 +7,7 @@ import std;
 
 import openmui.ui.liquid_glass;
 import openmui.host.headless;
-import openmui.render;
+import openmui.render.vector;
 import openmui.testing;
 
 using namespace omui::testing;

@@ -4,7 +4,7 @@ import std;
 import openmui.core;
 import openmui.view;
 import openmui.semantic;
-import openmui.render;
+import openmui.render.vector;
 import openmui.raster;
 import openmui.text;
 import openmui.trace;

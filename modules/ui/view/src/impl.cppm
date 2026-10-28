@@ -7,7 +7,7 @@ import openmui.core;
 import openmui.layout;
 import hanim;
 import openmui.pipeline;
-import openmui.render;
+import openmui.render.vector;
 import openmui.text;
 import :element;
 import :glyphs;

@@ -18,7 +18,7 @@
 // band byte-for-byte as it renders the same rows of the whole surface
 // (raster::Canvas::restrict_rows), so an incremental frame is exactly the
 // frame a full render would give. Tests hold every backend to that.
-export module openmui.render:damage;
+export module openmui.render.vector:damage;
 
 import std;
 import openmui.geom;

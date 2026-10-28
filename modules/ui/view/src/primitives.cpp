@@ -3,7 +3,7 @@ module openmui.view;
 import std;
 import openmui.core;
 import openmui.layout;
-import openmui.render;
+import openmui.render.vector;
 import openmui.text;
 import openmui.image;
 import openmui.raster;

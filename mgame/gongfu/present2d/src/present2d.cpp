@@ -22,7 +22,8 @@ static_assert(std::ranges::none_of(mode_clips, &std::string_view::empty), "a cli
 
 double stage(Fixed f) { return f.to_double(); }
 
-void pose_at(const Look& look, const Clip* clip, std::int32_t t, const FighterState& s, Pose& out);
+void pose_at(const Look& look, const Clip* clip, std::int32_t t, const FighterState& s, Pose& out, std::span<const double> extra = {});
+std::pair<const Clip*, std::int32_t> resolve(const Look& look, const Fighter& fighter, const FighterState& s, std::int32_t frame);
 
 // Stage to picture: x right, y down; the camera's point at the middle, on the ground line.
 struct View {
@@ -129,6 +130,14 @@ Pose pose(const Look& look, const Fighter& fighter, const FighterState& s, std::
 }
 
 void pose(const Look& look, const Fighter& fighter, const FighterState& s, std::int32_t frame, Pose& out) {
+    const auto [clip, t] = resolve(look, fighter, s, frame);
+    pose_at(look, clip, t, s, out);
+}
+
+namespace {
+
+// The clip a fighter plays, and where in it.
+std::pair<const Clip*, std::int32_t> resolve(const Look& look, const Fighter& fighter, const FighterState& s, std::int32_t frame) {
     const std::string_view name = clip_name(fighter, s);
     auto it = look.clips.find(name);
     // One clip may serve a special's every strength: 236P plays for 236LP, 236MP and 236HP.
@@ -155,8 +164,10 @@ void pose(const Look& look, const Fighter& fighter, const FighterState& s, std::
         else if (s.mode == Mode::hitstun || s.mode == Mode::blockstun || s.mode == Mode::knockdown || s.mode == Mode::wakeup)
             t = std::max(0, clip->frames - s.stun);
     }
-    pose_at(look, clip, t, s, out);
+    return {clip, t};
 }
+
+}  // namespace
 
 void pose_clip(const Look& look, std::string_view name, std::int32_t t, const FighterState& s, Pose& out) {
     auto it = look.clips.find(name);
@@ -166,7 +177,7 @@ void pose_clip(const Look& look, std::string_view name, std::int32_t t, const Fi
 
 namespace {
 
-void pose_at(const Look& look, const Clip* clip, std::int32_t t, const FighterState& s, Pose& out) {
+void pose_at(const Look& look, const Clip* clip, std::int32_t t, const FighterState& s, Pose& out, std::span<const double> extra) {
     if (clip) {
         if (clip->loop && clip->frames > 0) t %= clip->frames;
         else t = std::min(t, clip->frames);
@@ -179,6 +190,7 @@ void pose_at(const Look& look, const Clip* clip, std::int32_t t, const FighterSt
         const Bone& bone = look.bones[b];
         double local = bone.rest;
         if (clip && b < clip->angles.size() && !clip->angles[b].empty()) local += clip->angles[b].value(at);
+        if (b < extra.size()) local += extra[b];
         local *= dm::pi / 180;  // a look's angles are degrees
         BonePlace& p = out[b];
         if (bone.parent < 0) {
@@ -574,18 +586,70 @@ std::pair<std::int32_t, double> flashing(const Match& match) {
 
 }  // namespace
 
+namespace {
+
+Color mix(Color a, Color b, float t) {
+    return {a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t, a.a + (b.a - a.a) * t};
+}
+
+// A closed curve through `points` (Catmull-Rom: through each point, smooth at each), as cubics.
+template <class At>
+void curve(render::Path& path, std::span<const Point> points, At at) {
+    const std::size_t n = points.size();
+    if (n < 3) return;
+    auto p = [&](std::size_t i) { return at(points[i % n]); };
+    path.move_to(p(0));
+    for (std::size_t i = 0; i < n; ++i) {
+        const Point p0 = p(i + n - 1), p1 = p(i), p2 = p(i + 1), p3 = p(i + 2);
+        path.cubic_to({p1.x + (p2.x - p0.x) / 6, p1.y + (p2.y - p0.y) / 6}, {p2.x - (p3.x - p1.x) / 6, p2.y - (p3.y - p1.y) / 6}, p2);
+    }
+    path.close();
+}
+
+}  // namespace
+
 void Painter::body(const Look& look, const Fighter& fighter, const FighterState& s, std::int32_t frame, const Scene& scene, const Camera& camera,
-                   render::DisplayList& out, std::string_view clip, std::int32_t t, std::optional<Color> tint) {
+                   render::DisplayList& out, std::string_view clip_name_, std::int32_t clip_t, std::optional<Color> tint) {
     const View view{scene, camera};
-    // Outlines behind, parts back to front.
-    if (clip.empty()) pose(look, fighter, s, frame, pose_);
-    else pose_clip(look, clip, t, s, pose_);
+    // The clip and its time; then each following bone's lag (secondary motion), from the same clip a few frames before.
+    const Clip* clip = nullptr;
+    std::int32_t t = 0;
+    if (clip_name_.empty()) {
+        std::tie(clip, t) = resolve(look, fighter, s, frame);
+    } else {
+        auto it = look.clips.find(clip_name_);
+        if (it == look.clips.end()) it = look.clips.find(std::string_view("idle"));
+        clip = it == look.clips.end() ? nullptr : &it->second;
+        t = clip_t;
+    }
+    follow_.assign(look.bones.size(), 0.0);
+    bool follows = false;
+    for (std::size_t b = 0; b < look.bones.size(); ++b) follows = follows || (look.bones[b].follow.lag > 0 && look.bones[b].follow.amount != 0);
+    if (follows) {
+        pose_at(look, clip, t, s, pose_);
+        const double facing = s.facing < 0 ? -1.0 : 1.0;
+        for (std::size_t b = 0; b < look.bones.size(); ++b) {
+            const Bone::Follow& f = look.bones[b].follow;
+            if (f.lag <= 0 || f.amount == 0) continue;
+            pose_at(look, clip, std::max(0, t - f.lag), s, past_);
+            double swung = (pose_[b].angle - past_[b].angle) * 180 / dm::pi;
+            while (swung > 180) swung -= 360;
+            while (swung < -180) swung += 360;
+            follow_[b] = std::clamp(-f.amount * swung, -static_cast<double>(f.max), static_cast<double>(f.max)) * facing;
+        }
+    }
+    pose_at(look, clip, t, s, pose_, follow_);
     const Pose& p = pose_;
+    const hanim::seconds at{(clip && clip->loop && clip->frames > 0 ? t % clip->frames : clip ? std::min(t, clip->frames) : t) / 60.0};
     order_.resize(look.parts.size());
     std::iota(order_.begin(), order_.end(), std::size_t{0});
     // Insertion sort by depth: stable, in place (std::stable_sort may take a buffer).
     for (std::size_t a = 1; a < order_.size(); ++a)
         for (std::size_t b = a; b > 0 && look.parts[order_[b - 1]].depth > look.parts[order_[b]].depth; --b) std::swap(order_[b - 1], order_[b]);
+    // The light's offsets on the picture: a shadow's (away from the light) and a rim's (toward it).
+    const float lx = look.light.from.x, ly = look.light.from.y;
+    const float lit = view.size(1);
+    const bool shading = look.light.shade > 0 && !tint;
     // A glow (neon) behind the outline, then the outline, then the parts; a tinted afterimage is the parts alone, in one colour.
     enum class Pass : std::uint8_t { glow, outline, fill };
     for (const Pass pass : {Pass::glow, Pass::outline, Pass::fill}) {
@@ -599,29 +663,58 @@ void Painter::body(const Look& look, const Fighter& fighter, const FighterState&
             const float grow = pass == Pass::glow ? look.outline_width + look.glow.width : outline ? look.outline_width : 0;
             render::Path& path = path_;
             path.clear();
-            const Point j = view.at(b.joint.x, b.joint.y), t = view.at(b.tip.x, b.tip.y);
+            const Point j = view.at(b.joint.x, b.joint.y), tip = view.at(b.tip.x, b.tip.y);
+            // The drawing a clip's swap chooses (0: its points).
+            const std::vector<Point>* points = &part.points;
+            if (clip && k < clip->swaps.size() && !clip->swaps[k].empty()) {
+                const auto v = static_cast<std::size_t>(std::max(0.0, std::floor(clip->swaps[k].value(at) + 0.5)));
+                if (v > 0 && v <= part.variants.size()) points = &part.variants[v - 1];
+            }
+            const double ca = dm::cos(b.angle), sa = dm::sin(b.angle), facing = s.facing < 0 ? -1.0 : 1.0;
+            auto on_bone = [&](Point q) {
+                const double px = q.x, py = q.y * facing;
+                return view.at(b.joint.x + px * ca - py * sa, b.joint.y + px * sa + py * ca);
+            };
             switch (part.shape) {
-                case Shape::capsule: capsule(path, j, t, view.size(part.start) + grow, view.size(part.end) + grow); break;
+                case Shape::capsule: capsule(path, j, tip, view.size(part.start) + grow, view.size(part.end) + grow); break;
                 case Shape::ellipse:
-                    ellipse(path, {(j.x + t.x) / 2, (j.y + t.y) / 2}, -b.angle, view.size(part.start) + grow, view.size(part.end) + grow);
+                    ellipse(path, {(j.x + tip.x) / 2, (j.y + tip.y) / 2}, -b.angle, view.size(part.start) + grow, view.size(part.end) + grow);
                     break;
-                case Shape::polygon: {
-                    const double ca = dm::cos(b.angle), sa = dm::sin(b.angle), facing = s.facing < 0 ? -1.0 : 1.0;
-                    for (std::size_t q = 0; q < part.points.size(); ++q) {
-                        const double px = part.points[q].x, py = part.points[q].y * facing;
-                        const Point at = view.at(b.joint.x + px * ca - py * sa, b.joint.y + px * sa + py * ca);
-                        if (q == 0) path.move_to(at);
-                        else path.line_to(at);
+                case Shape::polygon:
+                    for (std::size_t q = 0; q < points->size(); ++q) {
+                        if (q == 0) path.move_to(on_bone((*points)[q]));
+                        else path.line_to(on_bone((*points)[q]));
                     }
                     path.close();
                     break;
-                }
+                case Shape::curve: curve(path, *points, on_bone); break;
             }
             const Color colour = tint ? *tint : pass == Pass::glow ? fade(look.glow.color, 0.35) : outline ? look.outline : part.color;
-            if (outline && part.shape == Shape::polygon) {
+            const bool drawn = part.shape == Shape::polygon || part.shape == Shape::curve;
+            if (outline && drawn) {
                 out.stroke_path(path, {.width = 2 * grow, .join = render::LineJoin::round}, render::Paint::solid(colour));
-            } else {
+            } else if (outline || !shading || !part.shade) {
                 out.fill_path(path, render::FillRule::nonzero, render::Paint::solid(colour));
+            } else {
+                // Lit: inside the part, its shadow; the rim (toward the light, the shadow's depth back); and its colour
+                // where neither reaches — the part moved toward the light, and moved away by the rim's width.
+                const float d = look.light.shade * lit, r = look.light.rim * lit;
+                // (Moved by transforms, so a frame allocates no path.)
+                out.push_clip(path, render::FillRule::nonzero);
+                out.fill_path(path, render::FillRule::nonzero, render::Paint::solid(mix(colour, look.light.shadow, look.light.darken)));
+                out.push_transform(Affine::translate(lx * d, ly * d));
+                out.fill_path(path, render::FillRule::nonzero, render::Paint::solid(r > 0 ? mix(colour, look.light.rim_color, look.light.rim_color.a) : colour));
+                out.pop_transform();
+                if (r > 0) {
+                    out.push_transform(Affine::translate(-lx * r, -ly * r));
+                    out.push_clip(path, render::FillRule::nonzero);
+                    out.push_transform(Affine::translate(lx * (d + r), ly * (d + r)));
+                    out.fill_path(path, render::FillRule::nonzero, render::Paint::solid(colour));
+                    out.pop_transform();
+                    out.pop_clip();
+                    out.pop_transform();
+                }
+                out.pop_clip();
             }
         }
     }

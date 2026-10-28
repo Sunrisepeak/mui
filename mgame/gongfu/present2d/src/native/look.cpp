@@ -59,8 +59,10 @@ namespace {
 using data::Diagnostic;
 
 constexpr std::string_view format_version = "0.1";
-constexpr std::array<std::string_view, 19> look_keys{"gongfu", "name", "outline", "accent", "trail", "glow", "footfall", "pane", "clone", "rewind", "palette", "bone", "part", "clip", "impact",
-                                                     "glyph", "cinematic", "projectile", "doc"};
+constexpr std::array<std::string_view, 20> look_keys{"gongfu", "name", "outline", "accent", "trail", "glow", "footfall", "pane", "clone", "rewind", "palette", "bone", "part", "clip", "impact",
+                                                     "glyph", "cinematic", "projectile", "doc", "light"};
+constexpr std::array<std::string_view, 6> light_keys{"from", "shade", "darken", "shadow", "rim", "rim_color"};
+constexpr std::array<std::string_view, 3> follow_keys{"lag", "amount", "max"};
 constexpr std::array<std::string_view, 3> trail_keys{"color", "frames", "alpha"};
 constexpr std::array<std::string_view, 2> glow_keys{"color", "width"};
 constexpr std::array<std::string_view, 3> footfall_keys{"every", "dip", "frames"};
@@ -81,12 +83,12 @@ constexpr std::array<std::string_view, 3> clouds_keys{"color", "count", "between
 constexpr std::array<std::string_view, 6> written_keys{"name", "at", "size", "from", "ends", "color"};
 constexpr std::array<std::string_view, 4> seal_keys{"frame", "at", "size", "color"};
 constexpr std::array<std::string_view, 2> outline_keys{"color", "width"};
-constexpr std::array<std::string_view, 7> bone_keys{"name", "parent", "joint", "length", "rest", "limb", "prop"};
-constexpr std::array<std::string_view, 7> part_keys{"bone", "shape", "size", "points", "color", "depth", "doc"};
-constexpr std::array<std::string_view, 6> clip_keys{"frames", "loop", "ease", "angle", "rise", "doc"};
+constexpr std::array<std::string_view, 8> bone_keys{"name", "parent", "joint", "length", "rest", "limb", "prop", "follow"};
+constexpr std::array<std::string_view, 10> part_keys{"bone", "shape", "size", "points", "color", "depth", "doc", "name", "variants", "shade"};
+constexpr std::array<std::string_view, 7> clip_keys{"frames", "loop", "ease", "angle", "rise", "doc", "swap"};
 constexpr std::array<std::string_view, 8> impact_keys{"shake", "zoom", "flash", "spark", "sound", "rumble", "doc", "name"};
 constexpr std::array<std::string_view, 6> spark_keys{"style", "size", "count", "frames", "color", "counter"};
-constexpr std::array<std::string_view, 3> shape_names{"capsule", "ellipse", "polygon"};
+constexpr std::array<std::string_view, 4> shape_names{"capsule", "ellipse", "polygon", "curve"};
 constexpr std::array<std::string_view, 6> spark_names{"rays", "ring", "splash", "shards", "bolt", "cracks"};
 constexpr std::array<std::string_view, 3> flash_names{"none", "white", "invert"};
 
@@ -361,6 +363,13 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
         if (auto a = r.number(t.get("rest"), "a bone's `rest`", -720, 720)) b.rest = static_cast<float>(*a);
         if (auto l = r.boolean(t.get("limb"), "a bone's `limb`")) b.limb = *l;
         if (auto l = r.boolean(t.get("prop"), "a bone's `prop`")) b.prop = *l;
+        if (const toml::table* f = r.table_of(t.get("follow"), "a bone's `follow`")) {
+            r.only(*f, follow_keys, "a bone's `follow`");
+            if (auto v = r.integer(f->get("lag"), "a follow's `lag`", 1, 30)) b.follow.lag = *v;
+            if (auto v = r.number(f->get("amount"), "a follow's `amount`", -2, 2)) b.follow.amount = static_cast<float>(*v);
+            if (auto v = r.number(f->get("max"), "a follow's `max`", 0, 180)) b.follow.max = static_cast<float>(*v);
+            if (b.follow.lag <= 0) r.error(f, "a follow has a `lag` (frames)", "follow = { lag = 4, amount = 0.6 }");
+        }
         look.bones.push_back(std::move(b));
     });
     auto bone_index = [&](const toml::node* n, std::string_view what) -> std::optional<std::int32_t> {
@@ -377,6 +386,11 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
     r.tables(root->get("part"), "part", "[[part]] bone = \"torso\" shape = \"capsule\" size = [18, 15] color = \"body\"", [&](const toml::table& t) {
         r.only(t, part_keys, "a part");
         Part p;
+        if (auto n = r.text(t.get("name"), "a part's `name`")) {
+            p.name = *n;
+            if (std::ranges::any_of(look.parts, [&](const Part& o) { return o.name == p.name; }))
+                r.error(t.get("name"), std::format("two parts are called `{}`", p.name));
+        }
         if (auto b = bone_index(t.get("bone"), "a part's `bone`")) p.bone = *b;
         else if (!t.get("bone")) r.error(&t, "a part has no `bone`");
         if (auto s = r.choice(t.get("shape"), "a part's `shape`", shape_names)) p.shape = static_cast<Shape>(*s);
@@ -392,7 +406,24 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
                 r.error(pts, "`points` is a list of [x, y]");
             }
         }
-        if (p.shape == Shape::polygon && p.points.size() < 3) r.error(&t, "a polygon has three points or more", "points = [[0, -6], [30, -4], [30, 4]]");
+        if ((p.shape == Shape::polygon || p.shape == Shape::curve) && p.points.size() < 3)
+            r.error(&t, std::format("a {} has three points or more", p.shape == Shape::curve ? "curve" : "polygon"), "points = [[0, -6], [30, -4], [30, 4]]");
+        if (const toml::node* vs = t.get("variants")) {
+            const toml::array* a = vs->as_array();
+            if (!a || (p.shape != Shape::polygon && p.shape != Shape::curve)) {
+                r.error(vs, "`variants` are other drawings of a polygon or a curve: a list of point lists", "variants = [[[0, -6], [34, -2], [30, 6]]]");
+            } else {
+                for (const toml::node& v : *a) {
+                    std::vector<Point> pts;
+                    if (const toml::array* va = v.as_array())
+                        for (const toml::node& q : *va)
+                            if (auto xy = r.pair(&q, "a point of a variant", "[[0, -6], [30, -4], [30, 4]]")) pts.push_back({static_cast<float>((*xy)[0]), static_cast<float>((*xy)[1])});
+                    if (pts.size() < 3) r.error(&v, "a variant has three points or more");
+                    p.variants.push_back(std::move(pts));
+                }
+            }
+        }
+        if (auto sh = r.boolean(t.get("shade"), "a part's `shade`")) p.shade = *sh;
         if (auto c = r.text(t.get("color"), "a part's `color`")) {
             if (c->starts_with('#')) {
                 if (auto col = Color::parse(*c)) p.color = *col;
@@ -428,6 +459,30 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
                     else r.error(t->get("ease"), std::format("`{}` is not an ease", *e), "linear, out_cubic, in_out_sine, cubic-bezier(…), steps(…)");
                 }
                 if (auto rise = r.keys(t->get("rise"), std::format("{}'s `rise`", what), ease, c.frames)) c.rise = std::move(*rise);
+                if (const toml::node* sw = t->get("swap")) {
+                    if (const toml::table* st = sw->as_table()) {
+                        c.swaps.resize(look.parts.size());
+                        for (const auto& [part, keys] : *st) {
+                            auto it = std::ranges::find(look.parts, part.str(), &Part::name);
+                            if (it == look.parts.end()) {
+                                std::vector<std::string_view> names;
+                                for (const Part& o : look.parts)
+                                    if (!o.name.empty()) names.push_back(o.name);
+                                r.out.push_back({r.file, static_cast<int>(part.source().begin.line), static_cast<int>(part.source().begin.column),
+                                                 std::format("{} swaps `{}`, which is no part's name", what, part.str()), data::nearest_hint(part.str(), names)});
+                                continue;
+                            }
+                            if (auto k = r.keys(&keys, std::format("{}'s `swap.{}`", what, part.str()), hanim::Ease::stepped(1, hanim::StepPosition::jump_end), c.frames)) {
+                                for (const auto& key : k->keys())
+                                    if (key.value < 0 || key.value > static_cast<double>(it->variants.size()) || key.value != std::floor(key.value))
+                                        r.error(&keys, std::format("{}'s `swap.{}` chooses {}: `{}` has {} variant(s) (0: its points)", what, part.str(), key.value, part.str(), it->variants.size()));
+                                c.swaps[static_cast<std::size_t>(it - look.parts.begin())] = std::move(*k);
+                            }
+                        }
+                    } else {
+                        r.error(sw, std::format("{}'s `swap` is a table of parts", what), "swap.fist = [[0, 0], [4, 1], [10, 0]]");
+                    }
+                }
                 if (const toml::node* an = t->get("angle")) {
                     if (const toml::table* at = an->as_table()) {
                         c.angles.resize(look.bones.size());
@@ -521,6 +576,19 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
         if (const toml::array* a = t->get("frames") ? t->get("frames")->as_array() : nullptr)
             for (const toml::node& n : *a)
                 if (auto v = r.integer(&n, "a trail's frame", 1, 8)) look.trail.frames.push_back(*v);
+    }
+    if (const toml::table* t = r.table_of(root->get("light"), "`light`")) {
+        r.only(*t, light_keys, "`light`");
+        if (auto f = r.pair(t->get("from"), "a light's `from`", "from = [-0.6, -0.8]: where it comes from, on the picture (y down)")) {
+            const double len = std::sqrt((*f)[0] * (*f)[0] + (*f)[1] * (*f)[1]);
+            if (len > 0) look.light.from = {static_cast<float>((*f)[0] / len), static_cast<float>((*f)[1] / len)};
+            else r.error(t->get("from"), "a light comes from somewhere: not [0, 0]");
+        }
+        if (auto v = r.number(t->get("shade"), "a light's `shade`", 0, 64)) look.light.shade = static_cast<float>(*v);
+        if (auto v = r.number(t->get("darken"), "a light's `darken`", 0, 1)) look.light.darken = static_cast<float>(*v);
+        if (auto c = r.colour(t->get("shadow"), "a light's `shadow`")) look.light.shadow = *c;
+        if (auto v = r.number(t->get("rim"), "a light's `rim`", 0, 32)) look.light.rim = static_cast<float>(*v);
+        if (auto c = r.colour(t->get("rim_color"), "a light's `rim_color`")) look.light.rim_color = *c;
     }
     if (const toml::table* t = r.table_of(root->get("glow"), "`glow`")) {
         r.only(*t, glow_keys, "`glow`");
@@ -781,6 +849,9 @@ std::string write_look(const Look& look) {
         s += std::format("], alpha = {} }}\n", look.trail.alpha);
     }
     if (look.glow.width > 0) s += std::format("glow = {{ color = {}, width = {} }}\n", colour_text(look.glow.color), look.glow.width);
+    if (look.light.shade > 0)
+        s += std::format("light = {{ from = [{}, {}], shade = {}, darken = {}, shadow = {}, rim = {}, rim_color = {} }}\n", look.light.from.x, look.light.from.y,
+                         look.light.shade, look.light.darken, colour_text(look.light.shadow), look.light.rim, colour_text(look.light.rim_color));
     if (look.pane.glass != Look::Pane{}.glass || look.pane.edge != Look::Pane{}.edge || look.pane.shine != Look::Pane{}.shine || look.pane.reflect != Look::Pane{}.reflect)
         s += std::format("pane = {{ glass = {}, edge = {}, shine = {}, reflect = {} }}\n", colour_text(look.pane.glass), colour_text(look.pane.edge),
                          colour_text(look.pane.shine), colour_text(look.pane.reflect));
@@ -800,19 +871,31 @@ std::string write_look(const Look& look) {
         if (b.rest != 0) s += std::format("rest = {}\n", b.rest);
         if (b.limb) s += "limb = true\n";
         if (b.prop) s += "prop = true\n";
+        if (b.follow.lag > 0) s += std::format("follow = {{ lag = {}, amount = {}, max = {} }}\n", b.follow.lag, b.follow.amount, b.follow.max);
     }
-    constexpr std::array<std::string_view, 3> shapes{"capsule", "ellipse", "polygon"};
+    constexpr std::array<std::string_view, 4> shapes{"capsule", "ellipse", "polygon", "curve"};
+    auto points_text = [](const std::vector<Point>& pts) {
+        std::string t = "[";
+        for (std::size_t i = 0; i < pts.size(); ++i) t += std::format("{}[{}, {}]", i ? ", " : "", pts[i].x, pts[i].y);
+        return t + "]";
+    };
     for (const Part& p : look.parts) {
-        s += std::format("\n[[part]]\nbone = \"{}\"\nshape = \"{}\"\n", look.bones.at(static_cast<std::size_t>(p.bone)).name, shapes[static_cast<std::size_t>(p.shape)]);
-        if (p.shape == Shape::polygon) {
-            s += "points = [";
-            for (std::size_t i = 0; i < p.points.size(); ++i) s += std::format("{}[{}, {}]", i ? ", " : "", p.points[i].x, p.points[i].y);
-            s += "]\n";
+        s += "\n[[part]]\n";
+        if (!p.name.empty()) s += std::format("name = \"{}\"\n", p.name);
+        s += std::format("bone = \"{}\"\nshape = \"{}\"\n", look.bones.at(static_cast<std::size_t>(p.bone)).name, shapes[static_cast<std::size_t>(p.shape)]);
+        if (p.shape == Shape::polygon || p.shape == Shape::curve) {
+            s += std::format("points = {}\n", points_text(p.points));
+            if (!p.variants.empty()) {
+                s += "variants = [";
+                for (std::size_t v = 0; v < p.variants.size(); ++v) s += std::format("{}{}", v ? ", " : "", points_text(p.variants[v]));
+                s += "]\n";
+            }
         } else {
             s += std::format("size = [{}, {}]\n", p.start, p.end);
         }
         s += std::format("color = {}\n", p.slot >= 0 ? std::format("\"{}\"", look.slots.at(static_cast<std::size_t>(p.slot))) : colour_text(p.color));
         if (p.depth != 0) s += std::format("depth = {}\n", p.depth);
+        if (!p.shade) s += "shade = false\n";
     }
     for (const auto& [name, c] : look.clips) {
         const hanim::Ease ease = common_ease(c);
@@ -822,6 +905,8 @@ std::string write_look(const Look& look) {
         if (!c.rise.empty()) s += std::format("rise = {}\n", keys_text(c.rise, ease));
         for (std::size_t b = 0; b < c.angles.size() && b < look.bones.size(); ++b)
             if (!c.angles[b].empty()) s += std::format("angle.{} = {}\n", key_text(look.bones[b].name), keys_text(c.angles[b], ease));
+        for (std::size_t k = 0; k < c.swaps.size() && k < look.parts.size(); ++k)
+            if (!c.swaps[k].empty()) s += std::format("swap.{} = {}\n", key_text(look.parts[k].name), keys_text(c.swaps[k], hanim::Ease::stepped(1, hanim::StepPosition::jump_end)));
     }
     constexpr std::array<std::string_view, 6> sparks{"rays", "ring", "splash", "shards", "bolt", "cracks"};
     constexpr std::array<std::string_view, 3> flashes{"none", "white", "invert"};

@@ -38,18 +38,35 @@ struct Bone {
     float        rest = 0;     // its angle to its parent, degrees counter-clockwise (the root's: to the stage's +x), when no clip turns it
     bool         limb = false; // a limb starts here (an arm, a leg): its parts can reach out of the body's hurtbox
     bool         prop = false; // a thing held (a brush, a sword): its parts and its children's are never hurtboxes
+    // Secondary motion (a sleeve, hair, a sash): the bone lags its own swing,
+    // turned back by `amount` of how far it swung over the last `lag` frames
+    // (at most `max` degrees). Drawn only — hurtboxes never follow — and a
+    // pure function of the clip's time, like the rest of a pose.
+    struct Follow {
+        std::int32_t lag = 0;
+        float        amount = 0;
+        float        max = 60;
+    } follow;
 };
 
-enum class Shape : std::uint8_t { capsule, ellipse, polygon };
+// A curve is a closed, smooth shape through its points (Catmull-Rom): a
+// sleeve, a lock of hair, a fist drawn as it should look.
+enum class Shape : std::uint8_t { capsule, ellipse, polygon, curve };
 
 struct Part {
     std::int32_t       bone = 0;
     Shape              shape = Shape::capsule;
     float              start = 8, end = 8;  // a capsule's radius at the joint and at the tip; an ellipse's half-axes
-    std::vector<Point> points;              // a polygon, in the bone's frame
+    std::vector<Point> points;              // a polygon's or a curve's, in the bone's frame
     Color              color;
     std::int32_t       depth = 0;           // drawn back to front
     std::int32_t       slot = -1;           // its colour's slot in the look's palettes (−1: `color` as it is)
+    std::string        name;                // what a clip's swaps call it (none: unnamed)
+    // Drawings it can swap to (a polygon's or a curve's other points): a key
+    // pose drawn by hand where turning bones is not enough — a fist in
+    // perspective, a sleeve flung out. A clip's swaps choose (0: `points`).
+    std::vector<std::vector<Point>> variants;
+    bool               shade = true;        // lit by the look's light (when it has one)
 };
 
 // How a contact feels, drawn (D-85 §8.4). A fighter file's hits name a
@@ -88,6 +105,7 @@ struct Clip {
     bool                            loop = false;
     std::vector<hanim::Track<double>> angles;  // by bone; a missing one keeps its rest
     hanim::Track<double>            rise;
+    std::vector<hanim::Track<double>> swaps;   // by part: which drawing (0 its points, n its variant n), held between keys
 };
 
 // A brush stroke of a glyph: a path (in the glyph's 100 × 100 box, y up)
@@ -209,6 +227,18 @@ struct Look {
     std::map<std::string, Clip, std::less<>> clips;
     Color                       outline = Color::hex(0x101014);
     float                       outline_width = 3;
+    // Light (the world's rules: one light for every fighter on a stage): each
+    // part is its colour, a shadow on the side away from the light `shade`
+    // pixels deep (the colour toward `shadow` by `darken`), and a rim of
+    // `rim_color` `rim` pixels wide on the side toward it. 0 deep: flat.
+    struct Light {
+        Point from{-0.6f, -0.8f};  // where the light comes from (picture coordinates, y down; normalised)
+        float shade = 0;
+        float darken = 0.3f;
+        Color shadow = Color::hex(0x1a1430);
+        float rim = 0;
+        Color rim_color = Color::hex(0xfff4e0, 0.6f);
+    } light;
     // Colour schemes: each a colour per slot (`slots` names them); a part with
     // a slot takes its colour from the palette in use.
     std::vector<std::string>              slots;
@@ -379,7 +409,8 @@ public:
                          float size, Color color, omui::render::DisplayList& out);
 
 private:
-    Pose                     pose_;
+    Pose                     pose_, past_;
+    std::vector<double>      follow_;  // each bone's secondary motion this frame, degrees
     std::vector<std::size_t> order_;
     omui::render::Path       path_;
 };

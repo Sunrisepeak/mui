@@ -310,6 +310,121 @@ ring = [[158, 70, 0, 700, 30]]
               bad ? "read" : std::format("{}", texts(bad.error())));
     });
 
+    s.test("drawn as an artist would: curves, a light (shadow and rim), drawings swapped at a key, a sleeve that follows its swing", [] {
+        const std::string text = R"(gongfu = "0.1"
+name = "drawn"
+light = { from = [-0.6, -0.8], shade = 6, darken = 0.5, shadow = "#000000", rim = 3, rim_color = "#ffffff" }
+
+[[palette]]
+name = "ink"
+cloth = "#808080"
+
+[[bone]]
+name = "arm"
+joint = [0, 100]
+length = 60
+rest = 0
+
+[[bone]]
+name = "sleeve"
+parent = "arm"
+joint = [20, 0]
+length = 40
+rest = -90
+follow = { lag = 4, amount = 0.8, max = 50 }
+
+[[part]]
+name = "body"
+bone = "arm"
+shape = "curve"
+points = [[0, -24], [60, -24], [60, 24], [0, 24]]
+variants = [[[0, -40], [90, -30], [90, 30], [0, 40]]]
+color = "cloth"
+
+[[part]]
+name = "cuff"
+bone = "sleeve"
+shape = "capsule"
+size = [8, 6]
+color = "#c0392b"
+shade = false
+
+[clip.swing]
+frames = 20
+ease = "linear"
+angle.arm = [[0, 0], [8, 90], [20, 90]]
+swap.body = [[0, 0], [8, 1], [12, 0]]
+)";
+        auto look = p2::read_look(text, "drawn.look.gongfu.toml");
+        check(look.has_value(), look ? "" : std::format("{}", texts(look.error())));
+        if (!look) return;
+        check(look->light.shade == 6 && look->parts[0].shape == p2::Shape::curve && look->parts[0].variants.size() == 1 && !look->parts[1].shade, "read");
+        check(look->bones[1].follow.lag == 4 && look->clips.at("swing").swaps.size() == 2, "a follow and a swap");
+        const std::string written = p2::write_look(*look);
+        auto again = p2::read_look(written, "written.look.gongfu.toml");
+        check(again && p2::write_look(*again) == written, again ? written : std::format("{}", texts(again.error())));
+        p2::use_palette(*look, 0);
+        const Fighter f = *compile(body());
+        FighterState st;
+        st.facing = 1;
+        p2::Painter painter;
+        auto draw_at = [&](const p2::Look& l, std::int32_t t) {
+            omui::render::DisplayList dl;
+            dl.fill_rect({0, 0, 400, 300}, Color::hex(0xffffff));
+            painter.body(l, f, st, 0, p2::Scene{.width = 400, .height = 300, .ground = 280}, p2::Camera{0, 0, 1}, dl, "swing", t);
+            omui::raster::Surface px(400, 300);
+            omui::render::CpuRenderer{}.render(dl, px, {}, {.scale = 1});
+            return px;
+        };
+        // At rest (frame 0): the body's upper-left edge has the rim (lighter), its lower-right the shadow (darker), its middle its own grey.
+        const auto rest = draw_at(*look, 0);
+        save(rest, "drawn-rest");
+        auto grey = [&](const omui::raster::Surface& px, int x, int y) { return static_cast<int>(px.at(x, y).r); };
+        // The arm lies along +x from (0, 100) on the stage: on the picture, from the middle, 100 px above the ground line.
+        const int cx = 230, cy = 180;  // the body's middle
+        check(grey(rest, cx, cy) > 110 && grey(rest, cx, cy) < 150, std::format("the middle: {}", grey(rest, cx, cy)));
+        // Up and down the column from the middle to the outline (dark): the body's pixels just inside it.
+        int first = cy, last = cy;
+        while (first > cy - 45 && grey(rest, cx + 30, first - 1) > 40) --first;
+        while (last < cy + 45 && grey(rest, cx + 30, last + 1) > 40) ++last;
+        first += 1, last -= 1;  // inside the outline's antialiased edge
+        check(first > 0 && grey(rest, cx + 30, first) > grey(rest, cx, cy) + 20, std::format("the rim above: {} over {}", first > 0 ? grey(rest, cx + 30, first) : -1, grey(rest, cx, cy)));
+        check(last > 0 && grey(rest, cx + 30, last) + 20 < grey(rest, cx, cy), std::format("the shadow below: {} under {}", last > 0 ? grey(rest, cx + 30, last) : -1, grey(rest, cx, cy)));
+        // The swap: frames 8–11 draw the variant (bigger), 0–7 and 12– the points.
+        Hash h0, h7, h9, h12;
+        auto hash = [&](const omui::raster::Surface& px, Hash& h) {
+            for (int y = 0; y < px.height(); ++y) h.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
+        };
+        p2::Look still = *look;  // no follow: only the swap changes the picture between 8 and 12
+        still.bones[1].follow = {};
+        hash(draw_at(still, 9), h9);
+        hash(draw_at(still, 12), h12);
+        hash(draw_at(still, 13), h7);
+        check(h9.hex() != h12.hex(), "swapped at 8");
+        check(h12.hex() == h7.hex(), "back at 12: the arm still, the picture the same");
+        // The sleeve follows: while the arm swings (frame 6) it lags, so the picture differs from the one without; at rest it does not.
+        Hash with_swing, without_swing, with_rest, without_rest;
+        hash(draw_at(*look, 6), with_swing);
+        hash(draw_at(still, 6), without_swing);
+        hash(draw_at(*look, 18), with_rest);
+        hash(draw_at(still, 18), without_rest);
+        check(with_swing.hex() != without_swing.hex(), "lagging while it swings");
+        check(with_rest.hex() == without_rest.hex(), "hanging still once it stops");
+        // Problems: a swap of no part, a variant it does not have, a follow without a lag.
+        std::string bad = text;
+        bad.replace(bad.find("swap.body"), 9, "swap.bdy");
+        auto b1 = p2::read_look(bad, "bad.look.gongfu.toml");
+        check(!b1 && has(texts(b1.error()), "swaps `bdy`, which is no part's name"), b1 ? "read" : std::format("{}", texts(b1.error())));
+        bad = text;
+        bad.replace(bad.find("[8, 1], [12, 0]"), 6, "[8, 2]");
+        auto b2 = p2::read_look(bad, "bad.look.gongfu.toml");
+        check(!b2 && has(texts(b2.error()), "chooses 2"), b2 ? "read" : std::format("{}", texts(b2.error())));
+        bad = text;
+        bad.replace(bad.find("lag = 4, "), 9, "");
+        auto b3 = p2::read_look(bad, "bad.look.gongfu.toml");
+        check(!b3 && has(texts(b3.error()), "a follow has a `lag`"), b3 ? "read" : std::format("{}", texts(b3.error())));
+    });
+
     s.test("problems in a look at their line and column, with the nearest right word", [] {
         const std::string text = R"(gongfu = "0.1"
 name = "broken"

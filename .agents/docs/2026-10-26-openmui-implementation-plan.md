@@ -1292,6 +1292,7 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
   - 自省 ① 解决：契约生成器给两个及以上参数的动作生成按名字的参数结构（`<Action>Args`），处理函数写 `ActResult name(ActContext&, const NameArgs& args)`，不会再取错顺序；一个参数的动作照旧。迁移了全部 6 个这样的动作（`text_box.set_selection`、`list.scroll_to`、`canvas.pan_to`、格斗的 `press`、打砖块的 `guard_to` 和 `set_rules`），基础组件的生成代码重新生成；组件绑定设计 §2.4 写明。
   - 自省 ② 解决：作品的包名跟目录一致——`openmui.showcase.style_gallery`（`showcase/style-gallery`）、`openmui.showcase.markdown_wall`（`showcase/markdown-wall`），可执行程序的短名不变；lint 规则 `layout` 覆盖 `showcase/`（示例的编号目录是有意的，不在内）。
   - 自省 ⑥ 解决：打砖块模拟的基准——`breakout/step`（满墙 96 块砖、平均约 13 个球，p95 0.013 ms，不分配；预算 0.1 ms）和 `breakout/seek`（倒流 0.5–30 秒，p95 0.002 ms，不分配；预算 0.25 ms）。
+  - 格斗游戏纵切第 1 步（画面基础，质量设计 §3、§9）的第一部分：`gongfu.present2d` 能画出画师要的东西——部件可以是平滑的闭合曲线（`curve`，Catmull-Rom）；部件可以有手画的替换图（`variants`），片段的 `swap.<部件>` 在关键帧换图；骨骼的二次运动（`follow`：按它在最近 `lag` 帧里摆过的角度反向滞后，有上限，只影响画面、不影响受击框，仍是片段时间的纯函数）；外观的光（`light`：每个部件背光一侧的阴影和朝光一侧的边缘光，用裁剪和平移实现、每帧不分配；部件可以 `shade = false`）。外观文件读写这些，写出的读回是它自己；错误带位置（不存在的部件、没有的替换图、缺 `lag`）。测试：曲线部件上边是边缘光、下边是阴影、中间是本色；第 8 帧换图、第 12 帧换回；挥臂时袖子滞后、停下后垂直。原有的外观和它们固定的像素不变。
   - 发现并修正：GCC 16 在导入时对默认的友元比较运算符内部崩溃（改成显式比较）；测试里两个实参的求值顺序未指定，曾让 GCC 和 Clang 生成不同的输入（拆成两条语句）。
 - M5：openmui-video、ui-timeline、MCP 服务器、skills、S3 / S4 / S5。
 - 契约⑦（插件与管线）写进规范；Inspector 的火焰图和动画检查器视图。

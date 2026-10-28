@@ -16,6 +16,7 @@ mcpp run -p openmui.showcase.fighting -- --headless --png fight.png
 - **Fighters are files** built into the program, in the formats a mod will use:
   - `fighters/<name>.fighter.gongfu.toml` is what the fighter does (`gongfu.data`);
   - `fighters/<name>.look.gongfu.toml` is how it looks and how its hits feel (`gongfu.present2d`): palettes for the two sides, bones, parts, clips and impact profiles.
+  - `fighters/<name>.boxes.gongfu.toml` holds its hurtboxes, baked from the look's animation by `gongfu-studio bake`. The build (`gongfu.rules`) refuses a stale one, and training draws them: a jab's arm can be hit.
 
   A file that does not read appears in the stage's semantic value with the problem's line and column; the program doesn't crash.
 - **The match runs on the runtime's clock.** A timer plays every frame that is due: a late frame catches up, and a stall of more than four frames is skipped, not replayed. Headless, a second is exactly 60 frames. Pausing is a property. While paused, `step` plays one frame.

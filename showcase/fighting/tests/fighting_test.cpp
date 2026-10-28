@@ -204,7 +204,7 @@ int main(int argc, char** argv) {
         std::println("    fighting versus {:016x} training {:016x}", px[0], px[1]);
         check(px[0] != px[1], "training draws the boxes");
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
-        check(px == std::vector<std::uint64_t>{0x641fb19b539ee2a9ULL, 0x4e41359e45f64fffULL}, "pinned");
+        check(px == std::vector<std::uint64_t>{0x641fb19b539ee2a9ULL, 0x590a330bf5b0a370ULL}, "pinned");
     });
 
     return s.run(argc, argv);

@@ -60,6 +60,8 @@ members = [
     "mgame/gongfu",
     "mgame/gongfu/data",
     "mgame/gongfu/present2d",
+    "mgame/gongfu/rules",
+    "mgame/gongfu/studio",
     "mgame/gongfu/training",
     "mgame/net",
     "components/base",

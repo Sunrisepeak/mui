@@ -56,6 +56,11 @@ public:
     // has passed (cancels aside) — what frame advantage is measured by.
     [[nodiscard]] bool recovered(std::int32_t i) const noexcept;
 
+    // Fighter i's hurtboxes this frame, on the stage: its move's own on frames
+    // that say so, else the standing, crouching or air box. Answers how many.
+    // (What strikes are tested against; training draws the same.)
+    [[nodiscard]] std::size_t hurtboxes(std::int32_t i, std::array<Rect, 4>& out) const noexcept;
+
 private:
     struct Strike {
         std::int32_t attacker, move, hit;
@@ -76,9 +81,6 @@ private:
     void face();
     void resolve();
     void apply(const Strike& s, bool blocked, bool counter);
-    // Fighter i's hurtboxes this frame: its move's own on frames that say so,
-    // else the standing, crouching or air box. Answers how many.
-    [[nodiscard]] std::size_t hurt(std::int32_t i, std::array<Rect, 4>& out) const noexcept;
     // Whether fighter i lets pass what `to` names (to_strike, to_air, to_projectile, to_throw).
     [[nodiscard]] bool invulnerable(std::int32_t i, std::uint8_t to) const noexcept;
     [[nodiscard]] bool blocking(std::int32_t i, Level level) const noexcept;

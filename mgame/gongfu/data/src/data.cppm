@@ -40,4 +40,20 @@ struct Diagnostic {
 [[nodiscard]] std::expected<Fighter, std::vector<Diagnostic>> read_fighter(std::string_view source, std::string_view file);
 [[nodiscard]] std::expected<SystemDef, std::vector<Diagnostic>> read_system(std::string_view source, std::string_view file);
 
+// A fighter's baked hurtboxes, `<name>.boxes.gongfu.toml` (G-5): per move,
+// the frames on which its limbs reach out of its stance's box. gongfu.rules
+// writes it from the look and the fighter (`from` is their hash) and checks
+// at build time that it is what they make now; nobody edits it by hand.
+struct Baked {
+    std::string fighter;
+    std::string from;  // "fnv1a:<16 hex>" of the fighter's and the look's files
+    std::vector<std::pair<std::string, std::vector<HurtDef>>> moves;
+};
+[[nodiscard]] std::expected<Baked, std::vector<Diagnostic>> read_boxes(std::string_view source, std::string_view file);
+[[nodiscard]] std::string write_boxes(const Baked& baked);
+// The fighter with its baked hurtboxes: a move named there that the fighter
+// does not have, or that has hurtboxes written by hand, is a problem.
+[[nodiscard]] std::expected<Fighter, std::vector<Diagnostic>> read_fighter(std::string_view source, std::string_view file, std::string_view boxes,
+                                                                         std::string_view boxes_file);
+
 }  // namespace gongfu::data

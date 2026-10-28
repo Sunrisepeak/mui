@@ -206,6 +206,66 @@ const Impact& impact_for(const Look& look, const Event& e) noexcept {
     return default_impact(e.kind);
 }
 
+std::size_t reach(const Look& look, const Pose& p, const Pose& rest, Box base, float scale, float margin, std::array<Box, 4>& out) {
+    out[0] = base;
+    // Each part's limb: the nearest bone up its chain that starts one (−1: the body).
+    auto limb_of = [&](std::int32_t bone) {
+        for (std::int32_t b = bone; b >= 0; b = look.bones[static_cast<std::size_t>(b)].parent)
+            if (look.bones[static_cast<std::size_t>(b)].limb) return b;
+        return std::int32_t{-1};
+    };
+    struct Bounds {
+        std::int32_t limb = -1;
+        double       left = 0, bottom = 0, right = 0, top = 0;
+        void add(double l, double lo, double r, double hi) { left = std::min(left, l), bottom = std::min(bottom, lo), right = std::max(right, r), top = std::max(top, hi); }
+    };
+    // The bounds of each limb's parts at a pose.
+    auto limbs_at = [&](const Pose& at, std::array<Bounds, 8>& limbs) {
+        std::size_t n = 0;
+        for (const Part& part : look.parts) {
+            if (part.bone < 0 || static_cast<std::size_t>(part.bone) >= at.size()) continue;
+            const std::int32_t limb = limb_of(part.bone);
+            if (limb < 0) continue;
+            const BonePlace& b = at[static_cast<std::size_t>(part.bone)];
+            double l = std::min(b.joint.x, b.tip.x), r = std::max(b.joint.x, b.tip.x), lo = std::min(b.joint.y, b.tip.y), hi = std::max(b.joint.y, b.tip.y);
+            if (part.shape == Shape::polygon) {
+                const double ca = dm::cos(b.angle), sa = dm::sin(b.angle);
+                for (const Point& q : part.points) {
+                    const double x = b.joint.x + q.x * ca - q.y * sa, y = b.joint.y + q.x * sa + q.y * ca;
+                    l = std::min(l, x), r = std::max(r, x), lo = std::min(lo, y), hi = std::max(hi, y);
+                }
+            } else {
+                const double t = std::max(part.start, part.end) * scale;
+                l -= t, r += t, lo -= t, hi += t;
+            }
+            auto it = std::ranges::find(limbs.begin(), limbs.begin() + static_cast<std::ptrdiff_t>(n), limb, &Bounds::limb);
+            if (it != limbs.begin() + static_cast<std::ptrdiff_t>(n)) it->add(l, lo, r, hi);
+            else if (n < limbs.size()) limbs[n++] = {limb, l, lo, r, hi};
+        }
+        return n;
+    };
+    std::array<Bounds, 8> now{}, before{};
+    const std::size_t n = limbs_at(p, now), m = limbs_at(rest, before);
+    // How far a limb reaches out past the box and past where it lies at rest, in any direction.
+    const double bl = base.x.to_double(), bb = base.y.to_double(), br = bl + base.w.to_double(), bt = bb + base.h.to_double();
+    auto outside = [&](const Bounds& r) {
+        Bounds allowed{r.limb, bl, bb, br, bt};
+        for (std::size_t k = 0; k < m; ++k)
+            if (before[k].limb == r.limb) allowed.add(before[k].left, before[k].bottom, before[k].right, before[k].top);
+        return std::max({allowed.left - r.left, r.right - allowed.right, allowed.bottom - r.bottom, r.top - allowed.top, 0.0});
+    };
+    std::sort(now.begin(), now.begin() + static_cast<std::ptrdiff_t>(n), [&](const Bounds& a, const Bounds& b) {
+        return outside(a) != outside(b) ? outside(a) > outside(b) : a.limb < b.limb;
+    });
+    std::size_t count = 1;
+    const auto fx = [](double v) { return Fixed::raw(static_cast<std::int32_t>(std::llround(v * Fixed::one_bits))); };
+    for (std::size_t k = 0; k < n && count < out.size(); ++k) {
+        if (outside(now[k]) < std::max(margin, 1.0f)) break;  // within: nothing to add
+        out[count++] = {fx(now[k].left), fx(now[k].bottom), fx(now[k].right - now[k].left), fx(now[k].top - now[k].bottom)};
+    }
+    return count;
+}
+
 Camera frame_camera(const Match& match, const Scene& scene) {
     const auto& a = match.state().f[0];
     const auto& b = match.state().f[1];

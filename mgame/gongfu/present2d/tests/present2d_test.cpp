@@ -391,5 +391,52 @@ spark = { style = "rays", colour = "#ffd166" }
         check_eq(all.hex(), std::string("70dee2a51ce8143b"));
     });
 
+    s.test("the training fighter's look, every clip at three moments: a contact sheet (saved), its picture pinned", [] {
+        auto look = p2::read_look(read(here() / "data" / "kata.look.gongfu.toml"), "kata.look.gongfu.toml");
+        check(look.has_value());
+        if (!look) return;
+        // A fighter whose moves are named as the clips are, so pose() plays each.
+        FighterDef def = body();
+        def.moves.clear();
+        for (const auto& [name, clip] : look->clips) {
+            MoveDef m{.name = name, .command = {.buttons = LP}, .total = std::max(clip.frames, 1)};
+            def.moves.push_back(m);
+        }
+        const Fighter f = *compile(def);
+        const std::size_t columns = 6, rows = (look->clips.size() + columns - 1) / columns;
+        const float cell = 200;
+        omui::render::DisplayList dl;
+        dl.fill_rect({0, 0, cell * columns, cell * static_cast<float>(rows)}, Color::hex(0xf4f1ea));
+        p2::Pose pose;
+        std::size_t k = 0;
+        for (const auto& [name, clip] : look->clips) {
+            const float ox = cell * static_cast<float>(k % columns), oy = cell * static_cast<float>(k / columns);
+            dl.fill_rect({ox, oy + cell - 20, cell, 1}, Color::hex(0xb7aa90));
+            for (const double at : {0.0, 0.5, 1.0}) {
+                FighterState s;
+                s.mode = Mode::move;
+                s.move = f.find(name);
+                s.move_frame = 1 + static_cast<std::int32_t>(at * (std::max(clip.frames, 1) - 1));
+                s.facing = 1;
+                p2::pose(*look, f, s, 0, pose);
+                const float alpha = at == 0.5 ? 1.0f : 0.3f;
+                for (std::size_t b = 0; b < pose.size(); ++b) {
+                    omui::render::Path line;
+                    line.move_to({ox + cell / 2 + pose[b].joint.x * 0.8f, oy + cell - 20 - pose[b].joint.y * 0.8f});
+                    line.line_to({ox + cell / 2 + pose[b].tip.x * 0.8f, oy + cell - 20 - pose[b].tip.y * 0.8f});
+                    const bool front = look->bones[b].name.ends_with("front");
+                    dl.stroke_path(line, {.width = 4, .cap = omui::render::LineCap::round},
+                                   omui::render::Paint::solid(Color::hex(front ? 0xc0392b : 0x1f2430, alpha)));
+                }
+            }
+            ++k;
+        }
+        omui::raster::Surface px(static_cast<int>(cell * columns), static_cast<int>(cell * static_cast<float>(rows)));
+        omui::render::CpuRenderer{}.render(dl, px, {}, {.scale = 1});
+        save(px, "kata-clips");
+        std::println("    kata clips {:016x}", picture(px));
+        check_eq(picture(px), std::uint64_t{0x9bf4573b547b73eaULL});
+    });
+
     return s.run(argc, argv);
 }

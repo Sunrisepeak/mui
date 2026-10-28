@@ -12,11 +12,9 @@ const Roster& roster() {
     static const Roster r = [] {
         Roster out;
         out.system.round_frames = 99 * 60;
-        struct Files {
-            std::string_view name, fighter, look;
-        };
-        for (const Files& f : {Files{"kata", files::kata_fighter, files::kata_look}}) {
-            auto fighter = gongfu::data::read_fighter(f.fighter, std::format("{}.fighter.gongfu.toml", f.name));
+        for (const files::FighterFiles& f : files::fighters) {
+            auto fighter = gongfu::data::read_fighter(f.fighter, std::format("{}.fighter.gongfu.toml", f.name), f.boxes,
+                                                      std::format("{}.boxes.gongfu.toml", f.name));
             auto look = p2::read_look(f.look, std::format("{}.look.gongfu.toml", f.name));
             if (!fighter || !look) {
                 if (!fighter)

@@ -104,10 +104,11 @@ void boxes(render::DisplayList& out, const gongfu::Match& match, const p2::Scene
         const auto& f = st.f[static_cast<std::size_t>(i)];
         const auto& def = match.fighter(i).def;
         const gongfu::MoveDef* move = f.mode == gongfu::Mode::move ? &def.moves[static_cast<std::size_t>(f.move)] : nullptr;
-        const bool air = f.pos.y > gongfu::Fixed{}, low = f.mode == gongfu::Mode::crouch || (move && move->stance == gongfu::Stance::crouching);
-        const gongfu::Box& hurt = air ? def.hurt_air : low ? def.hurt_crouching : def.hurt_standing;
         outline(gongfu::place(def.push, f.pos, f.facing), tone(0x9aa0a6));
-        outline(gongfu::place(hurt, f.pos, f.facing), tone(0x4ea1f2));
+        // The hurtboxes the simulation tests strikes against: a limb baked out of the body shows.
+        std::array<gongfu::Rect, 4> hurt{};
+        const std::size_t n = match.hurtboxes(i, hurt);
+        for (std::size_t k = 0; k < n; ++k) outline(hurt[k], tone(0x4ea1f2));
         if (!move) continue;
         for (const auto& h : move->hits)
             if (h.active.contains(f.move_frame))

@@ -1,14 +1,14 @@
-// The stage's contract becomes code, and the fighters' files — what they do
-// and how they look — are carried in the program (openmui.rules).
+// The stage's contract becomes code (openmui.rules), and the fighters' files —
+// what they do, how they look, their baked hurtboxes — are carried in the
+// program (gongfu.rules).
 import std;
 import mcpp;
 import openmui.rules;
+import gongfu.rules;
 
 int main() {
     const bool stage = openmui::rules::components({.module = "openmui.showcase.fighting", .ns = "omui::fighting"});
-    const bool fighters = openmui::rules::embed(
-        {.module = "openmui.showcase.fighting", .ns = "omui::fighting::files", .dir = "fighters", .suffix = ".fighter.gongfu.toml", .tag = "fighter"});
-    const bool looks = openmui::rules::embed(
-        {.module = "openmui.showcase.fighting", .ns = "omui::fighting::files", .dir = "fighters", .suffix = ".look.gongfu.toml", .tag = "look"});
-    return stage && fighters && looks ? 0 : 1;
+    // The fighters, their looks and baked hurtboxes; a stale bake fails the build.
+    const bool fighters = gongfu::rules::fighters({.module = "openmui.showcase.fighting", .ns = "omui::fighting::files"});
+    return stage && fighters ? 0 : 1;
 }

@@ -82,4 +82,11 @@ It also plays 5,000 frames of all of these, rolled back every frame, against a s
   - a recorder that plays a player's pads back, looped (the dummy).
 
   It uses only the standard library and allocates nothing per frame.
+- [studio](studio) (`gongfu.studio`): making fighters. The library and the command line (`gongfu-studio`, JSON output and exit codes) for people, agents and CI:
+  - `bake` writes each fighter's hurtboxes from its look's animation (`<name>.boxes.gongfu.toml`): where a limb reaches out of the stance's box, frame by frame (G-5);
+  - `check` says whether those files are current;
+  - `embed` gives a program its fighters.
+
+  The graphical studio comes later, on the same library.
+- [rules](rules) (`gongfu.rules`): the build rule. A program's fighters (with their looks and baked hurtboxes) become a module partition it carries, and a stale bake fails the build, naming the command to run. The simulation never samples an animation.
 - [data](data) (`gongfu.data`): characters and rules as files — `*.fighter.gongfu.toml`, `*.system.gongfu.toml` — read with every problem at its line and column, moves in numpad notation (`236P`, `[4]6P`, `2LK`, `LP+LK`).

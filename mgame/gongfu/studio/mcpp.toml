@@ -1,0 +1,33 @@
+# gongfu.studio — making fighters (D-85 §8.5, D-61): the command line now,
+# the graphical studio on the same library later. `gongfu-studio bake` writes
+# each fighter's hurtboxes from its look's animation (`<name>.boxes.gongfu.toml`,
+# G-5); `gongfu-studio check` says, as JSON with an exit code, whether those
+# files are what the looks and moves make now; `gongfu-studio embed` gives a
+# program its fighters as a module partition, refusing stale hurtboxes (what
+# gongfu.rules runs in a build).
+[package]
+namespace   = "gongfu"
+name        = "studio"
+version     = "0.1.0"
+description = "Making gongfu fighters: hurtboxes baked from the animation, checked in the build; the command line (JSON and exit codes) for people, agents and CI"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[targets.gongfu-studio-core]
+kind = "lib"
+
+[targets.gongfu-studio]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+gongfu.data      = { path = "../data" }
+gongfu.present2d = { path = "../present2d" }
+nlohmann.json    = "3.12.0"
+
+[dev-dependencies]
+openmui.testing = { path = "../../../modules/base/testing" }

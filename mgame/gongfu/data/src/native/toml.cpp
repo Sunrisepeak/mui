@@ -450,6 +450,11 @@ void version(Reader& r, const toml::table& root) {
 std::string nearest_hint(std::string_view name, std::span<const std::string_view> keys) { return nearest(name, keys); }
 
 std::expected<Fighter, std::vector<Diagnostic>> read_fighter(std::string_view source, std::string_view file) {
+    return read_fighter(source, file, {}, {});
+}
+
+std::expected<Fighter, std::vector<Diagnostic>> read_fighter(std::string_view source, std::string_view file, std::string_view boxes,
+                                                           std::string_view boxes_file) {
     std::vector<Diagnostic> out;
     auto root = parse(source, file, out);
     if (!root) return std::unexpected(std::move(out));
@@ -493,6 +498,25 @@ std::expected<Fighter, std::vector<Diagnostic>> read_fighter(std::string_view so
         if (auto m = r.move(t, f.name)) f.moves.push_back(std::move(*m));
     });
     f.impacts = std::move(r.impacts);
+    if (!boxes.empty()) {
+        auto baked = read_boxes(boxes, boxes_file);
+        if (!baked) {
+            out.insert(out.end(), baked.error().begin(), baked.error().end());
+        } else {
+            if (baked->fighter != f.name)
+                out.push_back({std::string(boxes_file), 1, 1, std::format("baked for `{}`, not `{}`", baked->fighter, f.name), "bake it again"});
+            for (auto& [name, hurt] : baked->moves) {
+                auto it = std::ranges::find(f.moves, name, &MoveDef::name);
+                if (it == f.moves.end()) {
+                    out.push_back({std::string(boxes_file), 1, 1, std::format("`{}` has no move `{}`", f.name, name), "bake it again"});
+                } else if (!it->hurt.empty()) {
+                    out.push_back({std::string(boxes_file), 1, 1, std::format("`{}` has hurtboxes written by hand and baked; keep one", name), ""});
+                } else {
+                    it->hurt = std::move(hurt);
+                }
+            }
+        }
+    }
     if (!out.empty()) return std::unexpected(std::move(out));
     auto compiled = compile(std::move(f));
     if (!compiled) {
@@ -556,6 +580,73 @@ std::expected<SystemDef, std::vector<Diagnostic>> read_system(std::string_view s
         out.push_back({std::string(file), l, c, std::format("{}: {}", p.where, p.text), ""});
     }
     if (!out.empty()) return std::unexpected(std::move(out));
+    return s;
+}
+
+namespace {
+
+constexpr std::array<std::string_view, 5> boxes_keys{"gongfu", "fighter", "from", "move", "doc"};
+constexpr std::array<std::string_view, 2> baked_move_keys{"name", "hurt"};
+
+std::string number_text(Fixed f) { return std::format("{}", f.to_double()); }
+
+}  // namespace
+
+std::expected<Baked, std::vector<Diagnostic>> read_boxes(std::string_view source, std::string_view file) {
+    std::vector<Diagnostic> out;
+    auto root = parse(source, file, out);
+    if (!root) return std::unexpected(std::move(out));
+    Reader r{std::string(file), out, {}};
+    r.only(*root, boxes_keys, "a boxes file");
+    version(r, *root);
+    Baked b;
+    if (auto v = r.text(root->get("fighter"), "`fighter`")) b.fighter = *v;
+    if (auto v = r.text(root->get("from"), "`from`")) b.from = *v;
+    r.each_table(root->get("move"), "move", "[[move]] name = \"5LP\" hurt = [{ frames = [3, 5], boxes = [[…]] }]", [&](const toml::table& t, std::size_t) {
+        r.only(t, baked_move_keys, "a baked move");
+        auto name = r.text(t.get("name"), "a move's `name`");
+        std::vector<HurtDef> hurt;
+        if (const toml::node* h = t.get("hurt")) {
+            if (const toml::array* a = h->as_array()) {
+                for (const toml::node& e : *a) {
+                    const toml::table* et = e.as_table();
+                    if (!et) {
+                        r.error(&e, "a baked hurt is { frames, boxes }");
+                        continue;
+                    }
+                    HurtDef d;
+                    if (auto f = r.frames(et->get("frames"), "a baked hurt's `frames`")) d.frames = *f;
+                    if (const toml::array* bx = et->get("boxes") ? et->get("boxes")->as_array() : nullptr)
+                        for (const toml::node& one : *bx)
+                            if (auto x = r.box(&one, "a baked box")) d.boxes.push_back(*x);
+                    hurt.push_back(std::move(d));
+                }
+            }
+        }
+        if (name) b.moves.emplace_back(*name, std::move(hurt));
+    });
+    if (!out.empty()) return std::unexpected(std::move(out));
+    return b;
+}
+
+std::string write_boxes(const Baked& b) {
+    std::string s = std::format("# {}'s hurtboxes, baked by gongfu.rules from its look and its moves: what its limbs\n"
+                                "# reach out of its stance's box, frame by frame. Not edited by hand: `gongfu-studio bake`\n"
+                                "# writes it again, and the build checks it is what the files make now.\n"
+                                "gongfu = \"{}\"\nfighter = \"{}\"\nfrom = \"{}\"\n",
+                                b.fighter, format_version, b.fighter, b.from);
+    for (const auto& [name, hurt] : b.moves) {
+        s += std::format("\n[[move]]\nname = \"{}\"\nhurt = [\n", name);
+        for (const HurtDef& h : hurt) {
+            s += std::format("  {{ frames = [{}, {}], boxes = [", h.frames.from, h.frames.to);
+            for (std::size_t k = 0; k < h.boxes.size(); ++k) {
+                const Box& x = h.boxes[k];
+                s += std::format("{}[{}, {}, {}, {}]", k ? ", " : "", number_text(x.x), number_text(x.y), number_text(x.w), number_text(x.h));
+            }
+            s += "] },\n";
+        }
+        s += "]\n";
+    }
     return s;
 }
 

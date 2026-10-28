@@ -32,6 +32,13 @@ std::string generic_utf8(const std::filesystem::path& p) {
     return std::string(reinterpret_cast<const char*>(u.data()), u.size());
 }
 
+// This rule's own directory, by its qualified name: a build with another
+// package called `rules` (gongfu.rules) shares the bare name.
+std::string self_dir() {
+    const char* qualified = mcpp::dep_dir("openmui.rules");
+    return qualified && *qualified ? std::string(qualified) : std::string(mcpp::dep_dir("rules"));
+}
+
 }  // namespace openmui::rules
 
 export namespace openmui::rules {
@@ -89,7 +96,7 @@ inline std::vector<edge> plan(const options& opt) {
     }
     std::string registry = opt.registry;
     if (registry.empty()) {
-        const std::string self = std::string(mcpp::dep_dir("rules"));
+        const std::string self = self_dir();
         registry = utf8((std::filesystem::path(self) / ".." / ".." / "spec" / "registry").lexically_normal());
     }
     if (!std::filesystem::is_directory(registry)) {
@@ -213,7 +220,7 @@ inline std::vector<edge> plan_natives(const native_options& opt) {
     }
     std::string registry = opt.registry;
     if (registry.empty()) {
-        const std::string self = std::string(mcpp::dep_dir("rules"));
+        const std::string self = self_dir();
         registry = utf8((std::filesystem::path(self) / ".." / ".." / "spec" / "registry").lexically_normal());
     }
     std::string ns = opt.ns;

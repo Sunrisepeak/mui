@@ -35,6 +35,7 @@ struct Bone {
     Point        joint;        // where it attaches: on its parent, in the parent's frame (x along it); for the root, above the feet
     float        length = 0;   // pixels
     float        rest = 0;     // its angle to its parent, degrees counter-clockwise (the root's: to the stage's +x), when no clip turns it
+    bool         limb = false; // a limb starts here (an arm, a leg): its parts can reach out of the body's hurtbox
 };
 
 enum class Shape : std::uint8_t { capsule, ellipse, polygon };
@@ -131,6 +132,17 @@ void pose(const Look& look, const Fighter& fighter, const FighterState& state, s
 // write_look gives the file back; what it writes reads back as the same look.
 [[nodiscard]] std::expected<Look, std::vector<data::Diagnostic>> read_look(std::string_view source, std::string_view file);
 [[nodiscard]] std::string write_look(const Look& look);
+
+// Where the body is at a pose, for hurtboxes (gongfu.rules bakes these,
+// G-5): `base` (the stance's hurtbox, the fighter's own coordinates: x
+// forward, y up from its feet), then each limb whose parts reach out of it —
+// the bounds of the limb's parts, their thickness scaled by `scale` — up to
+// three, the farthest-reaching first. A limb counts only where it reaches
+// out by `margin` pixels or more past both the box and where it lies in
+// `rest` (the stance's resting pose: what the box was drawn around), so a
+// leg planted wide at rest does not count. The poses are of the fighter at
+// x 0 on the ground, facing right. Answers how many boxes (1: nothing reaches out).
+[[nodiscard]] std::size_t reach(const Look& look, const Pose& pose, const Pose& rest, Box base, float scale, float margin, std::array<Box, 4>& out);
 
 // The stage's view: what lies at the middle of the picture, and how large.
 struct Camera {

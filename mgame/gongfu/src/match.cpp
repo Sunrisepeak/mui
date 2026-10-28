@@ -410,7 +410,7 @@ void Match::face() {
     }
 }
 
-std::size_t Match::hurt(std::int32_t i, std::array<Rect, 4>& out) const noexcept {
+std::size_t Match::hurtboxes(std::int32_t i, std::array<Rect, 4>& out) const noexcept {
     const FighterState& s = state_.f[static_cast<std::size_t>(i)];
     const FighterDef& def = fighter(i).def;
     if (s.mode == Mode::move)
@@ -454,7 +454,7 @@ void Match::resolve() {
     std::size_t n = 0;
     std::array<bool, 2> throwing{false, false};
     std::array<std::array<Rect, 4>, 2> body{};
-    std::array<std::size_t, 2> bodies{hurt(0, body[0]), hurt(1, body[1])};
+    std::array<std::size_t, 2> bodies{hurtboxes(0, body[0]), hurtboxes(1, body[1])};
     // Where a box meets fighter d's body: the middle of the first overlap.
     auto meets = [&](const Rect& r, std::int32_t d) -> std::optional<Vec> {
         for (std::size_t k = 0; k < bodies[static_cast<std::size_t>(d)]; ++k)

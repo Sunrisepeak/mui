@@ -7,7 +7,7 @@ import std;
 import openmui;
 import openmui.theme;
 import openmui.theme.styles;
-import openmui.showcase.styles;
+import openmui.showcase.style_gallery;
 import openmui.testing;
 
 using namespace omui::testing;

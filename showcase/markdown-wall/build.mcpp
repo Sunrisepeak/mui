@@ -1,7 +1,7 @@
 // The wall's behaviours (behaviors/*.behavior.omui.toml) embedded in the
-// program: partitions openmui.showcase.wall:<name>_behavior, loaded when it starts.
+// program: partitions openmui.showcase.markdown_wall:<name>_behavior, loaded when it starts.
 import std;
 import mcpp;
 import openmui.rules;
 
-int main() { return openmui::rules::behaviors({.module = "openmui.showcase.wall", .ns = "omui::wall"}) ? 0 : 1; }
+int main() { return openmui::rules::behaviors({.module = "openmui.showcase.markdown_wall", .ns = "omui::wall"}) ? 0 : 1; }

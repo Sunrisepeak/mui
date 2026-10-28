@@ -1,5 +1,5 @@
 // The wall's documents: a folder's Markdown, or the benchmark's synthetic set.
-module openmui.showcase.wall;
+module openmui.showcase.markdown_wall;
 
 import std;
 import openmui;

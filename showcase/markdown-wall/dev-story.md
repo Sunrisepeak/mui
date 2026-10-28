@@ -31,7 +31,7 @@ The canvas's benchmarks hold a frame of panning or zooming 1,000 windows, or 100
 
 ## 5. Self-review
 
-- **The package name and the directory differ** (`wall` in `markdown-wall`), against D-80; see the style workshop's story. To be resolved together.
+- **The package name and the directory differed** (`wall` in `markdown-wall`), against D-80. Fixed with the style workshop's: the package is `openmui.showcase.markdown_wall`, and lint's `layout` now covers showcases.
 - **The README picture is a still.** The wall's point is the zoom from the whole wall to a live window, which is a full-frame change on every frame. That is a video, not an animated PNG: the same finding as the style workshop's.
 - **Three languages, one tour** worked because every language binding builds the same view documents and calls the same verbs. Writing the tour three times found binding gaps that a single language would have hidden, so new script-facing features should be tried in at least two languages.
 

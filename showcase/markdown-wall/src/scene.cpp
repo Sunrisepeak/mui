@@ -1,5 +1,5 @@
 // The wall as a scene: workspaces and windows, and how each looks at each size.
-module openmui.showcase.wall;
+module openmui.showcase.markdown_wall;
 
 import std;
 import openmui;

@@ -2,7 +2,7 @@
 // is openmui's (--dark, --headless --png …).
 import std;
 import openmui;
-import openmui.showcase.styles;
+import openmui.showcase.style_gallery;
 
 int main(int argc, char** argv) {
     std::vector<char*> rest{argv[0]};

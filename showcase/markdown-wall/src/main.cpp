@@ -3,7 +3,7 @@
 // windows. The rest of the line is openmui's (--dark, --headless --png …).
 import std;
 import openmui;
-import openmui.showcase.wall;
+import openmui.showcase.markdown_wall;
 
 int main(int argc, char** argv) {
     constexpr std::array<std::string_view, 8> valued{"--png", "--size", "--frames", "--level", "--agent-dir", "--debug", "--log", "--profile"};

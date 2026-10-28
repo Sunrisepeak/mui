@@ -1,5 +1,5 @@
 // The wall's model (live text, streaming), its HUD and the application.
-module openmui.showcase.wall;
+module openmui.showcase.markdown_wall;
 
 import std;
 import openmui;

@@ -1,4 +1,4 @@
-// openmui.showcase.styles — S2, the style workshop.
+// openmui.showcase.style_gallery — S2, the style workshop.
 //
 // One real interface — a settings panel and a dashboard over a wallpaper —
 // shown in a style pack (openmui.theme.styles); a sidebar to switch packs
@@ -6,7 +6,7 @@
 // of its effects' parameters, applied as they change; and an export that
 // writes the edited pack as a *.style.omui.toml. Agents get the same as the
 // person: `styles.show`, `styles.export`, every control by its id.
-export module openmui.showcase.styles;
+export module openmui.showcase.style_gallery;
 
 import std;
 import openmui;

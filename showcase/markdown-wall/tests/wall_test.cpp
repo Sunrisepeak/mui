@@ -7,7 +7,7 @@
 import std;
 import openmui;
 import openmui.ui.canvas;
-import openmui.showcase.wall;
+import openmui.showcase.markdown_wall;
 import openmui.testing;
 import openmui.abi;
 import openmui.lang;

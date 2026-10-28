@@ -7,9 +7,9 @@
 How it was made, layer by layer, and what making it taught: [dev story](dev-story.md).
 
 ```sh
-mcpp run -p openmui.showcase.styles
-mcpp run -p openmui.showcase.styles -- --style retro --headless --png retro.png
-mcpp run -p openmui.showcase.styles -- --export-dir my-styles
+mcpp run -p openmui.showcase.style_gallery
+mcpp run -p openmui.showcase.style_gallery -- --style retro --headless --png retro.png
+mcpp run -p openmui.showcase.style_gallery -- --export-dir my-styles
 ```
 
 - **A pack** is data (`theme::Style`): the theme it starts from, the tokens it changes, and the effects it puts on the window (`crt`, `paper`), on component types (`button`, `toggle`, `slider`) and on roles (`role:region` — the panels): `liquid_glass`, `neon`, `wobble`, `metaball`. Components say what surfaces they paint (`effect_shapes`: a switch's track and thumb), so neon lights them and metaball merges a slider's handle into its track.

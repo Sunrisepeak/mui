@@ -5,11 +5,11 @@
 # real program loads. The semantic tree is the same under every style: only
 # pixels change, and agents act the same.
 #
-#   mcpp run -p openmui.showcase.styles
-#   mcpp run -p openmui.showcase.styles -- --style neon --headless --png neon.png
+#   mcpp run -p openmui.showcase.style_gallery
+#   mcpp run -p openmui.showcase.style_gallery -- --style neon --headless --png neon.png
 [package]
 namespace   = "openmui.showcase"
-name        = "styles"
+name        = "style_gallery"
 version     = "0.1.0"
 description = "S2, the style workshop: one interface in five style packs, edited live and exported"
 license     = "Apache-2.0"
@@ -17,7 +17,7 @@ license     = "Apache-2.0"
 [package.metadata.openmui]
 kind = "showcase"
 
-[targets.openmui-showcase-styles]
+[targets.openmui-showcase-style-gallery]
 kind = "lib"
 
 [targets.omui-styles]

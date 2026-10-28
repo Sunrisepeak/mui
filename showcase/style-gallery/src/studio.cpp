@@ -1,4 +1,4 @@
-module openmui.showcase.styles;
+module openmui.showcase.style_gallery;
 
 import std;
 import openmui;

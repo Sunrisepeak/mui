@@ -316,7 +316,7 @@ def check_manifests(root: Path) -> list[Problem]:
 
 # Where the path-is-the-name rule (D-80) holds, and the directories whose
 # README lists the packages under them.
-LIBRARY_ROOTS = ("modules", "mgame", "components", "lang", "tools")
+LIBRARY_ROOTS = ("modules", "mgame", "components", "lang", "tools", "showcase")
 README_ROOTS = ("modules", "mgame", "components", "lang", "tools", "tests", "examples", "showcase")
 
 

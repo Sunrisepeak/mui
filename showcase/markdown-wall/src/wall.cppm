@@ -1,4 +1,4 @@
-// openmui.showcase.wall — S1, the Markdown wall (canvas-markdown §3).
+// openmui.showcase.markdown_wall — S1, the Markdown wall (canvas-markdown §3).
 //
 // Documents (a folder's *.md, or the benchmark's synthetic set) become a
 // scene: a workspace per folder — a backdrop with a label strip — and on it
@@ -17,7 +17,7 @@
 // views (1: one to one; 2: the overview). A HUD in immediate mode reads the
 // canvas's statistics; `stream` writes into windows at a language model's
 // pace, live windows every tick and textures at most four times a second.
-export module openmui.showcase.wall;
+export module openmui.showcase.markdown_wall;
 
 import std;
 import openmui;

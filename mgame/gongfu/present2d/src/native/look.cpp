@@ -59,8 +59,8 @@ namespace {
 using data::Diagnostic;
 
 constexpr std::string_view format_version = "0.1";
-constexpr std::array<std::string_view, 21> look_keys{"gongfu", "name", "outline", "accent", "trail", "glow", "footfall", "pane", "clone", "rewind", "palette", "bone", "part", "clip", "impact",
-                                                     "glyph", "cinematic", "projectile", "doc", "light", "picture"};
+constexpr std::array<std::string_view, 22> look_keys{"gongfu", "name", "outline", "accent", "trail", "glow", "footfall", "pane", "clone", "rewind", "palette", "bone", "part", "clip", "impact",
+                                                     "glyph", "cinematic", "projectile", "doc", "light", "picture", "art_scale"};
 constexpr std::array<std::string_view, 3> picture_keys{"name", "file", "size"};
 constexpr std::array<std::string_view, 6> light_keys{"from", "shade", "darken", "shadow", "rim", "rim_color"};
 constexpr std::array<std::string_view, 4> follow_keys{"lag", "amount", "max", "drag"};
@@ -85,8 +85,8 @@ constexpr std::array<std::string_view, 6> written_keys{"name", "at", "size", "fr
 constexpr std::array<std::string_view, 4> seal_keys{"frame", "at", "size", "color"};
 constexpr std::array<std::string_view, 2> outline_keys{"color", "width"};
 constexpr std::array<std::string_view, 9> bone_keys{"name", "parent", "joint", "length", "rest", "limb", "prop", "follow", "hang"};
-constexpr std::array<std::string_view, 17> part_keys{"bone", "shape", "size", "points", "color", "depth", "doc", "name", "variants", "shade",
-                                                    "picture", "source", "anchor", "tip", "mesh", "bend", "blend"};
+constexpr std::array<std::string_view, 18> part_keys{"bone", "shape", "size", "points", "color", "depth", "doc", "name", "variants", "shade",
+                                                    "picture", "source", "anchor", "tip", "mesh", "bend", "blend", "fit"};
 constexpr std::array<std::string_view, 7> clip_keys{"frames", "loop", "ease", "angle", "rise", "doc", "swap"};
 constexpr std::array<std::string_view, 8> impact_keys{"shake", "zoom", "flash", "spark", "sound", "rumble", "doc", "name"};
 constexpr std::array<std::string_view, 6> spark_keys{"style", "size", "count", "frames", "color", "counter"};
@@ -296,6 +296,7 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
     }
     Look look;
     if (auto n = r.text(root->get("name"), "`name`")) look.name = *n;
+    if (auto v = r.number(root->get("art_scale"), "`art_scale`", 0, 100)) look.art_scale = static_cast<float>(*v);
     if (const toml::node* o = root->get("outline")) {
         if (const toml::table* t = o->as_table()) {
             r.only(*t, outline_keys, "`outline`");
@@ -482,6 +483,7 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
                 r.error(t.get("bend"), "`bend` is a list of bones", "bend = [\"fore_front\"]");
             }
             if (auto v = r.number(t.get("blend"), "a part's `blend`", 0, 1000)) p.blend = static_cast<float>(*v);
+            if (auto v = r.boolean(t.get("fit"), "a part's `fit`")) p.fit = *v;
         }
         if (auto c = r.text(t.get("color"), "a part's `color`")) {
             if (c->starts_with('#')) {
@@ -908,6 +910,7 @@ std::string write_look(const Look& look) {
         s += std::format("], alpha = {} }}\n", look.trail.alpha);
     }
     if (look.glow.width > 0) s += std::format("glow = {{ color = {}, width = {} }}\n", colour_text(look.glow.color), look.glow.width);
+    if (look.art_scale > 0) s += std::format("art_scale = {}\n", look.art_scale);
     if (look.light.shade > 0)
         s += std::format("light = {{ from = [{}, {}], shade = {}, darken = {}, shadow = {}, rim = {}, rim_color = {} }}\n", look.light.from.x, look.light.from.y,
                          look.light.shade, look.light.darken, colour_text(look.light.shadow), look.light.rim, colour_text(look.light.rim_color));
@@ -961,6 +964,7 @@ std::string write_look(const Look& look) {
                 for (std::size_t i = 0; i < p.bend.size(); ++i) s += std::format("{}\"{}\"", i ? ", " : "", look.bones.at(static_cast<std::size_t>(p.bend[i])).name);
                 s += std::format("]\nblend = {}\n", p.blend);
             }
+            if (p.fit) s += "fit = true\n";
         } else {
             s += std::format("size = [{}, {}]\n", p.start, p.end);
         }

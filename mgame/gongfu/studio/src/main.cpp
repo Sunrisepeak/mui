@@ -6,6 +6,10 @@
 //     gongfu-studio embed <dir> --module <m> --namespace <ns> --out <file>
 //                                   the fighters as the module partition <m>:gongfu_fighters,
 //                                   refused when a boxes file is stale (what gongfu.rules runs)
+//     gongfu-studio cut <sheet.png> --out <dir> [--key r,g,b] [--gap px] [--min px] [--alpha a] [--scale s]
+//                                   a sheet of drawn or generated parts on a flat background: keyed out,
+//                                   each piece written as its own PNG (piece-NN.png) and listed with its
+//                                   region (JSON); a picture of the pieces numbered over the sheet
 //     gongfu-studio sheet <dir> <name> --out <png> [--palette <n>]
 //                                   every clip of <name>'s look with its boxes, as a contact sheet
 //     gongfu-studio versus <dir> [--rounds <n>] [--seed <s>] [--system <file>]
@@ -17,6 +21,7 @@ import gongfu.ai;
 import gongfu.data;
 import gongfu.studio;
 import nlohmann.json;
+import openmui.image;
 
 namespace {
 
@@ -33,9 +38,73 @@ std::string read(const std::filesystem::path& p) {
 }
 
 int usage() {
-    std::println(std::cerr, "gongfu-studio bake <dir> | check <dir> | embed <dir> --module <m> --namespace <ns> --out <file> | sheet <dir> <name> --out <png> | "
+    std::println(std::cerr, "gongfu-studio bake <dir> | check <dir> | embed <dir> --module <m> --namespace <ns> --out <file> | cut <sheet.png> --out <dir> | "
+                            "sheet <dir> <name> --out <png> | "
                             "versus <dir> [--rounds <n>] [--seed <s>] [--system <file>]");
     return 2;
+}
+
+int cut(const std::filesystem::path& file, int argc, char** argv) {
+    std::filesystem::path out = ".";
+    omui::imageio::Key key;
+    std::int32_t gap = 8;
+    std::int64_t min_area = 400;
+    std::uint8_t solid = 96;  // a piece's pixels: alpha above this (a sheet's noise stays below)
+    double scale = 1;         // the atlas's size: the pieces at this scale, packed
+    for (int i = 3; i + 1 < argc; ++i) {
+        const std::string_view a = argv[i];
+        if (a == "--out") out = path_of(argv[++i]);
+        else if (a == "--gap") gap = std::stoi(argv[++i]);
+        else if (a == "--min") min_area = std::stoll(argv[++i]);
+        else if (a == "--scale") scale = std::clamp(std::stod(argv[++i]), 0.05, 1.0);
+        else if (a == "--alpha") solid = static_cast<std::uint8_t>(std::clamp(std::stoi(argv[++i]), 0, 254));
+        else if (a == "--key") {
+            std::array<int, 3> c{};
+            if (std::sscanf(argv[++i], "%d,%d,%d", &c[0], &c[1], &c[2]) == 3)
+                key.r = static_cast<std::uint8_t>(c[0]), key.g = static_cast<std::uint8_t>(c[1]), key.b = static_cast<std::uint8_t>(c[2]);
+        }
+    }
+    nlohmann::json report = {{"command", "cut"}, {"sheet", utf8(file)}};
+    auto img = omui::imageio::load_png(file);
+    if (!img) {
+        report["error"] = img.error();
+        std::println("{}", report.dump(2));
+        return 1;
+    }
+    omui::imageio::key_out(*img, key);
+    std::array<std::int64_t, 4> alphas{};  // clear, faint, half, solid: how well the background keyed
+    for (std::size_t i = 3; i < img->rgba.size(); i += 4) ++alphas[img->rgba[i] == 0 ? 0 : img->rgba[i] <= solid ? 1 : img->rgba[i] < 255 ? 2 : 3];
+    report["alpha"] = {{"clear", alphas[0]}, {"faint", alphas[1]}, {"partial", alphas[2]}, {"solid", alphas[3]}};
+    std::vector<std::int32_t> labels;
+    const auto found = omui::imageio::pieces(*img, solid, gap, min_area, &labels);
+    std::error_code ec;
+    std::filesystem::create_directories(out, ec);
+    report["pieces"] = nlohmann::json::array();
+    // Each piece alone (its own pixels: a neighbour reaching into its bounds is left out), at the size asked, then packed.
+    std::vector<omui::imageio::Image> parts;
+    for (std::size_t k = 0; k < found.size(); ++k) {
+        const auto& p = found[k];
+        auto part = omui::imageio::crop(*img, p.x, p.y, p.width, p.height);
+        for (std::int32_t y = 0; y < p.height; ++y)
+            for (std::int32_t x = 0; x < p.width; ++x)
+                if (labels[static_cast<std::size_t>(p.y + y) * img->width + (p.x + x)] != static_cast<std::int32_t>(k))
+                    part.rgba[(static_cast<std::size_t>(y) * p.width + x) * 4 + 3] = 0;
+        const auto name = std::format("piece-{:02}.png", k);
+        if (auto saved = omui::imageio::save_png(out / name, omui::imageio::view(part)); !saved) report["error"] = saved.error();
+        if (scale < 1)
+            part = omui::imageio::scaled_down(part, std::max(1, static_cast<std::int32_t>(std::lround(p.width * scale))),
+                                              std::max(1, static_cast<std::int32_t>(std::lround(p.height * scale))));
+        parts.push_back(std::move(part));
+        report["pieces"].push_back({{"file", name}, {"region", {p.x, p.y, p.width, p.height}}, {"pixels", p.area}});
+    }
+    const auto packed = omui::imageio::pack(parts, static_cast<std::int32_t>(std::lround(2048 * scale)), 4);
+    (void)omui::imageio::save_png(out / "atlas.png", omui::imageio::view(packed.atlas));
+    report["atlas"] = {{"file", "atlas.png"}, {"size", {packed.atlas.width, packed.atlas.height}}};
+    for (std::size_t k = 0; k < found.size(); ++k)
+        report["pieces"][k]["atlas_region"] = {packed.at[k].x, packed.at[k].y, packed.at[k].width, packed.at[k].height};
+    report["ok"] = !report.contains("error");
+    std::println("{}", report.dump(2));
+    return report["ok"] ? 0 : 1;
 }
 
 int sheet(const std::filesystem::path& dir, int argc, char** argv) {
@@ -212,6 +281,7 @@ int main(int argc, char** argv) {
     const std::filesystem::path dir = path_of(argv[2]);
     if (command == "embed") return embed(dir, argc, argv);
     if (command == "sheet") return sheet(dir, argc, argv);
+    if (command == "cut") return cut(dir, argc, argv);
     if (command == "versus") return versus(dir, argc, argv);
     if (command != "bake" && command != "check") return usage();
 

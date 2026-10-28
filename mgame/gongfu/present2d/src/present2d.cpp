@@ -330,7 +330,9 @@ std::size_t reach(const Look& look, const Pose& p, const Pose& rest, Box base, f
                 // Drawn art: as thick as its region reaches across the bone, at the bone's scale.
                 double ix = part.tip.x - part.anchor.x, iy = -(part.tip.y - part.anchor.y);
                 const double len = dm::sqrt(ix * ix + iy * iy);
-                const double art = len > 0 ? look.bones[static_cast<std::size_t>(part.bone)].length / len : 1.0;
+                const double art = look.art_scale > 0 && !part.fit ? look.art_scale
+                                   : len > 0                        ? look.bones[static_cast<std::size_t>(part.bone)].length / len
+                                                                    : 1.0;
                 if (len <= 0) ix = 1, iy = 0;
                 const double c0 = len > 0 ? ix / len : 1.0, s0 = len > 0 ? iy / len : 0.0;
                 double across = 0;
@@ -761,7 +763,7 @@ void Painter::picture_part(const Look& look, const Part& part, const FighterStat
     // The art's own turn and size: anchor to tip along the bone (the picture's y runs down).
     double ix = part.tip.x - part.anchor.x, iy = -(part.tip.y - part.anchor.y);
     double len = dm::sqrt(ix * ix + iy * iy);
-    const double scale = len > 0 ? look.bones[b].length / len : 1.0;
+    const double scale = look.art_scale > 0 && !part.fit ? look.art_scale : len > 0 ? look.bones[b].length / len : 1.0;
     if (len <= 0) ix = 1, iy = 0, len = 1;
     const double c0 = ix / len, s0 = iy / len;
     auto place = [&](const BonePlace& bone, double along, double across) {

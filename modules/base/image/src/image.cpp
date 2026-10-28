@@ -209,4 +209,207 @@ std::expected<std::vector<std::uint8_t>, std::string> encode_apng(std::span<cons
     return out;
 }
 
+// ── cutting ─────────────────────────────────────────────────────────────────
+
+namespace {
+
+// BT.601's chroma, in 0–255 units (the same arithmetic everywhere: no libm).
+std::pair<float, float> chroma(float r, float g, float b) {
+    return {-0.168736f * r - 0.331264f * g + 0.5f * b, 0.5f * r - 0.418688f * g - 0.081312f * b};
+}
+
+}  // namespace
+
+void key_out(Image& img, Key key) {
+    if (img.alpha == Alpha::premultiplied) unpremultiply(img);
+    const auto [kcb, kcr] = chroma(key.r, key.g, key.b);
+    const float span = std::max(1.0f, key.outer - key.inner);
+    // Which channel the key is strongest in: what despill takes back.
+    const int strong = key.g >= key.r && key.g >= key.b ? 1 : key.b >= key.r ? 2 : 0;
+    for (std::size_t i = 0; i + 3 < img.rgba.size(); i += 4) {
+        const float r = img.rgba[i], g = img.rgba[i + 1], b = img.rgba[i + 2];
+        const auto [cb, cr] = chroma(r, g, b);
+        const float d = std::sqrt((cb - kcb) * (cb - kcb) + (cr - kcr) * (cr - kcr));
+        const float a = std::clamp((d - key.inner) / span, 0.0f, 1.0f);
+        img.rgba[i + 3] = static_cast<std::uint8_t>(std::lround(a * (img.rgba[i + 3] / 255.0f) * 255.0f));
+        // Despill: the key's channel no stronger than the other two's larger.
+        std::array<float, 3> c{r, g, b};
+        const float other = strong == 1 ? std::max(r, b) : strong == 2 ? std::max(r, g) : std::max(g, b);
+        if (c[static_cast<std::size_t>(strong)] > other) c[static_cast<std::size_t>(strong)] = other;
+        for (std::size_t k = 0; k < 3; ++k) img.rgba[i + k] = static_cast<std::uint8_t>(std::lround(c[k]));
+    }
+}
+
+std::vector<Piece> pieces(const Image& img, std::uint8_t alpha, std::int32_t gap, std::int64_t min_area, std::vector<std::int32_t>* labels) {
+    const std::int32_t w = img.width, h = img.height;
+    const auto n = static_cast<std::size_t>(w) * h;
+    std::vector<std::uint8_t> solid(n), near(n);
+    for (std::size_t i = 0; i < n; ++i) solid[i] = img.rgba[i * 4 + 3] > alpha ? 1 : 0;
+    // Pixels within gap/2 of a solid one (a box dilation, rows then columns): pieces closer than `gap` touch.
+    const std::int32_t r = std::max(0, gap / 2);
+    std::vector<std::uint8_t> rows(n);
+    for (std::int32_t y = 0; y < h; ++y) {
+        std::int32_t last = -1000000;  // the latest solid pixel at or left of x
+        for (std::int32_t x = 0; x < w; ++x) {
+            if (solid[static_cast<std::size_t>(y) * w + x]) last = x;
+            rows[static_cast<std::size_t>(y) * w + x] = x - last <= r;
+        }
+        last = 1000000;
+        for (std::int32_t x = w - 1; x >= 0; --x) {
+            if (solid[static_cast<std::size_t>(y) * w + x]) last = x;
+            if (last - x <= r) rows[static_cast<std::size_t>(y) * w + x] = 1;
+        }
+    }
+    for (std::int32_t x = 0; x < w; ++x) {
+        std::int32_t last = -1000000;
+        for (std::int32_t y = 0; y < h; ++y) {
+            if (rows[static_cast<std::size_t>(y) * w + x]) last = y;
+            near[static_cast<std::size_t>(y) * w + x] = y - last <= r;
+        }
+        last = 1000000;
+        for (std::int32_t y = h - 1; y >= 0; --y) {
+            if (rows[static_cast<std::size_t>(y) * w + x]) last = y;
+            if (last - y <= r) near[static_cast<std::size_t>(y) * w + x] = 1;
+        }
+    }
+    // Regions of the dilated mask; each piece's bounds and area from its solid pixels alone.
+    std::vector<std::int32_t> label(n, -1);
+    std::vector<Piece> found;
+    std::vector<std::int32_t> stack;
+    for (std::int32_t y = 0; y < h; ++y)
+        for (std::int32_t x = 0; x < w; ++x) {
+            const auto at0 = static_cast<std::size_t>(y) * w + x;
+            if (!solid[at0] || label[at0] >= 0) continue;
+            const auto id = static_cast<std::int32_t>(found.size());
+            Piece p{x, y, 1, 1, 0};
+            std::int32_t x1 = x, y1 = y;
+            stack.assign(1, y * w + x);
+            label[at0] = id;
+            while (!stack.empty()) {
+                const std::int32_t at = stack.back();
+                stack.pop_back();
+                const std::int32_t px = at % w, py = at / w;
+                if (solid[static_cast<std::size_t>(at)]) {
+                    ++p.area;
+                    p.x = std::min(p.x, px), p.y = std::min(p.y, py), x1 = std::max(x1, px), y1 = std::max(y1, py);
+                }
+                for (const auto [dx, dy] : {std::pair{1, 0}, std::pair{-1, 0}, std::pair{0, 1}, std::pair{0, -1}}) {
+                    const std::int32_t nx = px + dx, ny = py + dy;
+                    if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+                    auto& l = label[static_cast<std::size_t>(ny) * w + nx];
+                    if (l >= 0 || !near[static_cast<std::size_t>(ny) * w + nx]) continue;
+                    l = id;
+                    stack.push_back(ny * w + nx);
+                }
+            }
+            p.width = x1 - p.x + 1, p.height = y1 - p.y + 1;
+            found.push_back(p);
+        }
+    // Each found piece keeps its id (its index before filtering and ordering) to map labels at the end.
+    std::vector<std::int32_t> ids(found.size());
+    std::iota(ids.begin(), ids.end(), 0);
+    std::vector<std::pair<Piece, std::int32_t>> kept;
+    for (std::size_t i = 0; i < found.size(); ++i)
+        if (found[i].area >= min_area) kept.emplace_back(found[i], static_cast<std::int32_t>(i));
+    found.clear();
+    for (const auto& [p, id] : kept) found.push_back(p);
+    // Reading order: a piece belongs to the row of the first piece it overlaps vertically.
+    std::ranges::sort(kept, [](const auto& a, const auto& b) { return a.first.y != b.first.y ? a.first.y < b.first.y : a.first.x < b.first.x; });
+    std::vector<std::pair<Piece, std::int32_t>> ordered;
+    std::vector<bool> taken(kept.size(), false);
+    for (std::size_t i = 0; i < kept.size(); ++i) {
+        if (taken[i]) continue;
+        const Piece& head = kept[i].first;
+        const std::int32_t top = head.y, bottom = head.y + head.height;
+        std::vector<std::pair<Piece, std::int32_t>> row;
+        for (std::size_t j = i; j < kept.size(); ++j) {
+            const Piece& q = kept[j].first;
+            if (!taken[j] && q.y < bottom && q.y + q.height > top && q.y < top + head.height / 2) {
+                taken[j] = true;
+                row.push_back(kept[j]);
+            }
+        }
+        std::ranges::sort(row, [](const auto& a, const auto& b) { return a.first.x < b.first.x; });
+        ordered.insert(ordered.end(), row.begin(), row.end());
+    }
+    std::vector<Piece> out;
+    if (labels) {
+        std::vector<std::int32_t> remap(ids.size(), -1);
+        for (std::size_t k = 0; k < ordered.size(); ++k) remap[static_cast<std::size_t>(ordered[k].second)] = static_cast<std::int32_t>(k);
+        labels->assign(label.size(), -1);
+        for (std::size_t i = 0; i < label.size(); ++i)
+            if (solid[i] && label[i] >= 0) (*labels)[i] = remap[static_cast<std::size_t>(label[i])];
+    }
+    for (const auto& [p, id] : ordered) out.push_back(p);
+    return out;
+}
+
+Image scaled_down(const Image& in, std::int32_t width, std::int32_t height) {
+    Image img = in;
+    if (img.alpha == Alpha::straight) premultiply(img);  // averaged premultiplied: no fringe from clear pixels' colour
+    Image out;
+    out.width = std::max(1, std::min(width, img.width)), out.height = std::max(1, std::min(height, img.height));
+    out.alpha = Alpha::premultiplied;
+    out.rgba.assign(static_cast<std::size_t>(out.width) * out.height * 4, 0);
+    const double sx = static_cast<double>(img.width) / out.width, sy = static_cast<double>(img.height) / out.height;
+    for (std::int32_t y = 0; y < out.height; ++y)
+        for (std::int32_t x = 0; x < out.width; ++x) {
+            const double x0 = x * sx, x1 = (x + 1) * sx, y0 = y * sy, y1 = (y + 1) * sy;
+            std::array<double, 4> sum{};
+            double area = 0;
+            for (auto yy = static_cast<std::int32_t>(y0); yy < std::min(static_cast<double>(img.height), std::ceil(y1)); ++yy)
+                for (auto xx = static_cast<std::int32_t>(x0); xx < std::min(static_cast<double>(img.width), std::ceil(x1)); ++xx) {
+                    const double wx = std::min<double>(xx + 1, x1) - std::max<double>(xx, x0), wy = std::min<double>(yy + 1, y1) - std::max<double>(yy, y0);
+                    if (wx <= 0 || wy <= 0) continue;
+                    const double wgt = wx * wy;
+                    area += wgt;
+                    for (std::size_t c = 0; c < 4; ++c) sum[c] += wgt * img.rgba[(static_cast<std::size_t>(yy) * img.width + xx) * 4 + c];
+                }
+            for (std::size_t c = 0; c < 4; ++c)
+                out.rgba[(static_cast<std::size_t>(y) * out.width + x) * 4 + c] = static_cast<std::uint8_t>(std::lround(area > 0 ? sum[c] / area : 0));
+        }
+    if (in.alpha == Alpha::straight) unpremultiply(out);
+    return out;
+}
+
+Packed pack(std::span<const Image> images, std::int32_t width, std::int32_t padding) {
+    Packed out;
+    out.at.resize(images.size());
+    std::vector<std::size_t> order(images.size());
+    std::iota(order.begin(), order.end(), std::size_t{0});
+    std::ranges::stable_sort(order, [&](std::size_t a, std::size_t b) { return images[a].height > images[b].height; });
+    std::int32_t x = padding, y = padding, shelf = 0, used = 0;
+    for (const std::size_t i : order) {
+        const Image& img = images[i];
+        if (x + img.width + padding > width && x > padding) x = padding, y += shelf + padding, shelf = 0;
+        out.at[i] = {x, y, img.width, img.height, static_cast<std::int64_t>(img.width) * img.height};
+        x += img.width + padding;
+        shelf = std::max(shelf, img.height);
+        used = std::max(used, x);
+    }
+    out.atlas.width = std::max(1, std::min(width, used));
+    out.atlas.height = std::max(1, y + shelf + padding);
+    out.atlas.alpha = images.empty() ? Alpha::straight : images[0].alpha;
+    out.atlas.rgba.assign(static_cast<std::size_t>(out.atlas.width) * out.atlas.height * 4, 0);
+    for (std::size_t i = 0; i < images.size(); ++i) {
+        const Image& img = images[i];
+        for (std::int32_t r = 0; r < img.height; ++r)
+            std::memcpy(out.atlas.rgba.data() + (static_cast<std::size_t>(out.at[i].y + r) * out.atlas.width + out.at[i].x) * 4,
+                        img.rgba.data() + static_cast<std::size_t>(r) * img.width * 4, static_cast<std::size_t>(img.width) * 4);
+    }
+    return out;
+}
+
+Image crop(const Image& img, std::int32_t x, std::int32_t y, std::int32_t width, std::int32_t height) {
+    Image out;
+    x = std::clamp(x, 0, img.width), y = std::clamp(y, 0, img.height);
+    width = std::clamp(width, 0, img.width - x), height = std::clamp(height, 0, img.height - y);
+    out.width = width, out.height = height, out.alpha = img.alpha;
+    out.rgba.resize(static_cast<std::size_t>(width) * height * 4);
+    for (std::int32_t r = 0; r < height; ++r)
+        std::memcpy(out.rgba.data() + static_cast<std::size_t>(r) * width * 4, img.rgba.data() + (static_cast<std::size_t>(y + r) * img.width + x) * 4,
+                    static_cast<std::size_t>(width) * 4);
+    return out;
+}
+
 }  // namespace omui::imageio

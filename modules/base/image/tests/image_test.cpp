@@ -146,6 +146,36 @@ int main(int argc, char** argv) {
         check(!image::encode_apng(mixed).has_value(), "every frame the size of the first");
     });
 
+    s.test("cutting art out of a green sheet: keyed out without a fringe, its pieces found, joined across small gaps, in reading order", [] {
+        image::Image sheet;
+        sheet.width = 120, sheet.height = 80;
+        sheet.rgba.resize(120 * 80 * 4);
+        auto put = [&](int x, int y, std::array<std::uint8_t, 4> c) { std::copy(c.begin(), c.end(), sheet.rgba.begin() + (y * 120 + x) * 4); };
+        for (int y = 0; y < 80; ++y)
+            for (int x = 0; x < 120; ++x) put(x, y, {12, 250, 8, 255});  // a green screen, not quite pure
+        for (int y = 10; y < 40; ++y)
+            for (int x = 10; x < 40; ++x) put(x, y, {200, 30, 30, 255});  // a red piece
+        for (int y = 44; y < 46; ++y)
+            for (int x = 20; x < 24; ++x) put(x, y, {200, 30, 30, 255});  // its tassel, 4 px below
+        for (int y = 12; y < 30; ++y)
+            for (int x = 70; x < 110; ++x) put(x, y, {240, 240, 240, 255});  // a white piece
+        put(5, 70, {0, 0, 0, 255});  // a speck
+        for (int x = 70; x < 110; ++x) put(x, 30, {120, 200, 110, 255});  // an edge half green: keyed partly, despilled
+        image::key_out(sheet);
+        check(sheet.rgba[(0 * 120 + 0) * 4 + 3] == 0, "the screen clear");
+        check(sheet.rgba[(20 * 120 + 20) * 4 + 3] == 255 && sheet.rgba[(20 * 120 + 20) * 4] == 200, "a piece kept as it was");
+        const auto edge = std::span(sheet.rgba).subspan((30 * 120 + 80) * 4, 4);
+        check(edge[1] <= std::max(edge[0], edge[2]), std::format("despilled: {} {} {}", edge[0], edge[1], edge[2]));
+        const auto found = image::pieces(sheet, 8, 6, 20);
+        check_eq(found.size(), std::size_t{2});  // the tassel joined to its piece, the speck left out
+        if (found.size() == 2) {
+            check(found[0].x == 10 && found[0].y == 10 && found[0].height == 36, std::format("{} {} {} {}", found[0].x, found[0].y, found[0].width, found[0].height));
+            check(found[1].x == 70, "then the white one, right of it");
+            const auto part = image::crop(sheet, found[0].x, found[0].y, found[0].width, found[0].height);
+            check(part.width == 30 && part.height == 36 && part.rgba[3] == 255, "cropped");
+        }
+    });
+
     s.test("files and errors", [] {
         auto dir = scratch_dir("image");
         image::Image img;

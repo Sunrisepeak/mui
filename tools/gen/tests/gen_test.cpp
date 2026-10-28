@@ -76,6 +76,15 @@ int main(int argc, char** argv) {
         check(seen >= 5, std::format("{} component partitions", seen));
     });
 
+    s.test("embedding bytes (a picture, a sound): escaped, NULs kept, the length given", [] {
+        const std::string bytes("\x89PNG\r\n\x1a\n\0\xff", 10);
+        const std::string out = gen::emit_embed(bytes, "art.png", "m", "omui::files", "art_png");
+        check(out.find("\\x89\\x50\\x4e\\x47") != std::string::npos && out.find(", 10}") != std::string::npos, out);
+        check(out.find("R\"omui(") == std::string::npos, "not a raw string");
+        const std::string text = gen::emit_embed("plain text", "a.toml", "m", "omui::files", "a_toml");
+        check(text.find("R\"omui(plain text)omui\"") != std::string::npos, text);
+    });
+
     s.test("a contract's C++ base refuses a missing action", [] {
         gen::Diagnostics diags;
         auto reg = gen::read_registry(spec_dir() / "registry", diags);

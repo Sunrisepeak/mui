@@ -87,6 +87,7 @@ struct Part {
     std::array<std::int32_t, 2> mesh{1, 1};
     std::vector<std::int32_t> bend;
     float                     blend = 16;
+    bool                      fit = false;  // sized to its bone (anchor to tip = the bone's length) instead of the look's art scale (a prop)
 };
 
 // How a contact feels, drawn (D-85 §8.4). A fighter file's hits name a
@@ -253,6 +254,9 @@ struct Picture {
 struct Look {
     std::string                 name;
     std::vector<Picture>        pictures;
+    // Units of the stage a picture's pixel is (all of a fighter's art at one
+    // scale, as drawn); 0: each image part sized to its bone.
+    float                       art_scale = 0;
     std::vector<Bone>           bones;
     std::vector<Part>           parts;
     std::map<std::string, Clip, std::less<>> clips;

@@ -86,6 +86,15 @@ struct ThrowDef {
     std::int32_t damage = 0;
     std::int32_t tech_window = 7;  // frames the defender has to press throw back, from the frame it takes hold
     bool         swap = false;     // a back throw: the two change places as it takes hold
+    bool         air = false;      // an anti-air throw: it takes only a fighter in the air (jumping, or in an air move)
+};
+
+// Super armour (G-16): on these frames a move takes up to `hits` strikes or
+// projectiles without being stopped — their damage still taken, both
+// standing still for the hitstop. Throws and supers go through it.
+struct ArmorDef {
+    Frames       frames;
+    std::int32_t hits = 1;
 };
 
 struct ProjectileDef {
@@ -141,6 +150,7 @@ struct MoveDef {
     std::optional<ProjectileDef> projectile;
     std::optional<CinematicDef>  cinematic;  // a level-3 super's, on its first hit
     std::optional<Frames>        pass;       // frames it passes through the other fighter (no pushing apart)
+    std::optional<ArmorDef>      armor;
     std::int32_t                 meter_cost = 0;
     std::int32_t                 meter_gain = 0;    // on hit; half on block
     std::int32_t                 freeze = 0;        // frames both fighters stand still at its first frame (a super's flash)

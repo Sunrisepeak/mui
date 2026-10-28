@@ -56,7 +56,7 @@ struct Part {
 // profile (`impact = "heavy"`); the look says what it is: the shake, the
 // camera's punch in, a flash, the spark, the sounds (names a sound bank
 // resolves) and the rumble — a pure function of the event and its age.
-enum class Spark : std::uint8_t { rays, ring, splash, shards, bolt };
+enum class Spark : std::uint8_t { rays, ring, splash, shards, bolt, cracks };
 enum class Flash : std::uint8_t { none, white, invert };
 
 struct Impact {
@@ -108,6 +108,14 @@ struct CinematicLook {
     std::string attacker_clip, defender_clip = "hitstun";
     Color       backdrop = Color::hex(0xefe6d2);
     std::array<std::int32_t, 2> backdrop_in{0, 0}, backdrop_out{0, 0};  // frames it fades in over, and out over
+    // Clouds with the backdrop: puffs placed in the world above where the lock
+    // began, from `low` to `high` up, so a camera that rises passes them.
+    struct Clouds {
+        Color        color = Color::hex(0xffffff);
+        std::int32_t count = 0;
+        float        low = 200, high = 900;
+    };
+    Clouds clouds;
     struct CameraKey {
         std::int32_t frame = 0;
         float        zoom = 1;
@@ -131,6 +139,30 @@ struct CinematicLook {
     };
     std::vector<FlashKey> flashes;
     bool                  scanlines = false;  // a screen's lines over the picture while it plays
+    // Where each is drawn, from where the lock began (the attacker's feet;
+    // forward, up), keyed by frame: a lift, a leap off the top of the picture.
+    // Without one, a fighter stays where the simulation holds it.
+    struct PathKey {
+        std::int32_t frame = 0;
+        Point        at;
+    };
+    std::vector<PathKey> attacker_path, defender_path;
+    // Quakes (the picture shaken and swelling: a crash) and shock rings
+    // spreading from a point (from where the attacker began, forward and up).
+    struct Quake {
+        std::int32_t frame = 0;
+        float        strength = 10;
+        std::int32_t frames = 20;
+    };
+    std::vector<Quake> quakes;
+    struct Ring {
+        std::int32_t frame = 0;
+        Point        at;
+        float        size = 400;
+        std::int32_t frames = 24;
+        Color        color = Color::hex(0xf2e6c8);
+    };
+    std::vector<Ring> rings;
 };
 
 struct Look {
@@ -160,6 +192,13 @@ struct Look {
         Color color = Color::hex(0xff3ea5);
         float width = 0;
     } glow;
+    // A heavy fighter's footfalls (a giant): walking, the camera dips on each
+    // step (every `every` frames of its walk clip) by `dip`, back over `frames`.
+    struct Footfall {
+        std::int32_t every = 24;
+        float        dip = 0;
+        std::int32_t frames = 8;
+    } footfall;
     std::map<std::string, std::vector<Stroke>, std::less<>>  glyphs;      // by name: 永, 一, 人
     std::map<std::string, CinematicLook, std::less<>>        cinematics;  // by the level 3's move name
     // A projectile drawn as a glyph (G-11), by its move's name (236P serves

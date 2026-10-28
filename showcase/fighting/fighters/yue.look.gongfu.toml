@@ -1,0 +1,743 @@
+# 岳 (Yue), the giant: how he looks and how his hits feel (gongfu characters 2 design §3.4).
+# Broad, bronze and brown; long hitstops, heavy shakes; his level 3 leaps with his opponent into
+# the clouds and comes down like a mountain: the picture quakes and shock rings spread.
+gongfu = "0.1"
+name = "yue"
+outline = { color = "#1a0f08", width = 3.5 }
+accent = "#c9a227"
+footfall = { every = 24, dip = 3, frames = 10 }
+
+[[palette]]
+name = "bronze"
+body = "#5a3a22"
+limb = "#6e4a2c"
+skin = "#b07a52"
+belt = "#c9a227"
+dark = "#2a1a10"
+
+[[palette]]
+name = "stone"
+body = "#4a4f57"
+limb = "#5b616b"
+skin = "#b07a52"
+belt = "#9ad1ff"
+dark = "#1f2328"
+
+[[bone]]
+name = "hip"
+joint = [0, 100]
+length = 14
+rest = 90
+
+[[bone]]
+name = "torso"
+parent = "hip"
+joint = [14, 0]
+length = 64
+rest = 6
+
+[[bone]]
+name = "head"
+parent = "torso"
+joint = [66, 0]
+length = 22
+rest = -6
+
+[[bone]]
+name = "upper_back"
+parent = "torso"
+joint = [56, 14]
+length = 34
+rest = 164
+limb = true
+
+[[bone]]
+name = "fore_back"
+parent = "upper_back"
+joint = [34, 0]
+length = 30
+rest = 60
+
+[[bone]]
+name = "upper_front"
+parent = "torso"
+joint = [56, -14]
+length = 34
+rest = -166
+limb = true
+
+[[bone]]
+name = "fore_front"
+parent = "upper_front"
+joint = [34, 0]
+length = 30
+rest = 50
+
+[[bone]]
+name = "thigh_back"
+parent = "hip"
+joint = [0, 12]
+length = 48
+rest = 155
+limb = true
+
+[[bone]]
+name = "shin_back"
+parent = "thigh_back"
+joint = [48, 0]
+length = 52
+rest = 27
+
+[[bone]]
+name = "thigh_front"
+parent = "hip"
+joint = [0, -12]
+length = 48
+rest = -158
+limb = true
+
+[[bone]]
+name = "shin_front"
+parent = "thigh_front"
+joint = [48, 0]
+length = 52
+rest = -24
+
+[[part]]
+bone = "upper_back"
+shape = "capsule"
+size = [14, 12]
+color = "skin"
+
+[[part]]
+bone = "fore_back"
+shape = "capsule"
+size = [12, 11]
+color = "skin"
+
+[[part]]
+bone = "thigh_back"
+shape = "capsule"
+size = [16, 13]
+color = "dark"
+
+[[part]]
+bone = "shin_back"
+shape = "capsule"
+size = [13, 11]
+color = "dark"
+
+[[part]]
+bone = "torso"
+shape = "capsule"
+size = [28, 24]
+color = "skin"
+depth = 2
+
+[[part]]
+bone = "hip"
+shape = "capsule"
+size = [26, 24]
+color = "body"
+depth = 2
+
+[[part]]
+bone = "torso"
+shape = "polygon"
+points = [[-6, -30], [34, -26], [34, 26], [-6, 30]]
+color = "body"
+depth = 3
+
+[[part]]
+bone = "hip"
+shape = "polygon"
+points = [[6, -27], [16, -27], [16, 27], [6, 27]]
+color = "belt"
+depth = 3
+
+[[part]]
+bone = "head"
+shape = "ellipse"
+size = [15, 13]
+color = "skin"
+depth = 3
+
+[[part]]
+bone = "thigh_front"
+shape = "capsule"
+size = [16, 13]
+color = "dark"
+depth = 3
+
+[[part]]
+bone = "shin_front"
+shape = "capsule"
+size = [13, 11]
+color = "dark"
+depth = 3
+
+[[part]]
+bone = "upper_front"
+shape = "capsule"
+size = [14, 12]
+color = "skin"
+depth = 5
+
+[[part]]
+bone = "fore_front"
+shape = "capsule"
+size = [12, 11]
+color = "skin"
+depth = 5
+
+[clip.idle]
+frames = 80
+loop = true
+ease = "in_out_sine"
+rise = [[0, 0], [40, -3], [80, 0]]
+angle.torso = [[0, 0], [40, 2], [80, 0]]
+angle.head = [[0, 0], [40, -2], [80, 0]]
+angle.upper_back = [[0, 0], [40, -2], [80, 0]]
+angle.upper_front = [[0, 0], [40, -2], [80, 0]]
+
+[clip.walk_forward]
+frames = 48
+loop = true
+ease = "in_out_sine"
+rise = [[0, 0], [12, 2], [24, 0], [36, 2], [48, 0]]
+angle.thigh_back = [[0, 0], [12, 17], [24, 45], [36, 25], [48, 0]]
+angle.shin_back = [[0, 0], [12, -17], [24, -45], [36, -25], [48, 0]]
+angle.thigh_front = [[0, 8], [12, -17], [24, -42], [36, -22], [48, 8]]
+angle.shin_front = [[0, -8], [12, 17], [24, 42], [36, 22], [48, -8]]
+
+[clip.walk_back]
+frames = 48
+loop = true
+ease = "in_out_sine"
+rise = [[0, 0], [12, 2], [24, 0], [36, 2], [48, 0]]
+angle.thigh_back = [[0, 0], [12, 25], [24, 45], [36, 17], [48, 0]]
+angle.shin_back = [[0, 0], [12, -25], [24, -45], [36, -17], [48, 0]]
+angle.thigh_front = [[0, 8], [12, -22], [24, -42], [36, -17], [48, 8]]
+angle.shin_front = [[0, -8], [12, 22], [24, 42], [36, 17], [48, -8]]
+
+[clip.crouch]
+frames = 1
+loop = true
+ease = "out_cubic"
+rise = [[0, -34]]
+angle.torso = [[0, 4]]
+angle.head = [[0, -4]]
+angle.upper_back = [[0, -4]]
+angle.upper_front = [[0, -4]]
+angle.thigh_back = [[0, 17]]
+angle.shin_back = [[0, -89]]
+angle.thigh_front = [[0, 43]]
+angle.shin_front = [[0, -66]]
+
+[clip.prejump]
+frames = 1
+loop = true
+ease = "out_cubic"
+rise = [[0, -34]]
+angle.torso = [[0, 4]]
+angle.head = [[0, -4]]
+angle.upper_back = [[0, -4]]
+angle.upper_front = [[0, -4]]
+angle.thigh_back = [[0, 17]]
+angle.shin_back = [[0, -89]]
+angle.thigh_front = [[0, 43]]
+angle.shin_front = [[0, -66]]
+
+[clip.landing]
+frames = 1
+loop = true
+ease = "out_cubic"
+rise = [[0, -34]]
+angle.torso = [[0, 4]]
+angle.head = [[0, -4]]
+angle.upper_back = [[0, -4]]
+angle.upper_front = [[0, -4]]
+angle.thigh_back = [[0, 17]]
+angle.shin_back = [[0, -89]]
+angle.thigh_front = [[0, 43]]
+angle.shin_front = [[0, -66]]
+
+[clip.air]
+frames = 1
+loop = true
+ease = "out_cubic"
+angle.upper_back = [[0, -110]]
+angle.fore_back = [[0, -100]]
+angle.upper_front = [[0, 90]]
+angle.fore_front = [[0, -10]]
+angle.thigh_back = [[0, 5]]
+angle.shin_back = [[0, -67]]
+angle.thigh_front = [[0, 78]]
+angle.shin_front = [[0, -76]]
+
+[clip.hitstun]
+frames = 20
+ease = "out_cubic"
+angle.torso = [[0, 16], [20, 0]]
+angle.head = [[0, 9], [20, 0]]
+angle.upper_back = [[0, -16], [20, 0]]
+angle.upper_front = [[0, -16], [20, 0]]
+
+[clip.blockstun]
+frames = 16
+ease = "out_cubic"
+rise = [[0, -4], [16, 0]]
+angle.upper_back = [[0, 150], [16, 0]]
+angle.upper_front = [[0, 110], [16, 0]]
+angle.fore_front = [[0, 10], [16, 0]]
+
+[clip.knockdown]
+frames = 30
+ease = "out_cubic"
+rise = [[0, 0], [12, -94], [30, -94]]
+angle.hip = [[0, 0], [12, 80], [30, 80]]
+angle.torso = [[0, 44], [12, -4], [30, -4]]
+angle.head = [[0, -44], [12, 10], [30, 10]]
+angle.upper_back = [[0, -44], [12, -176], [30, -176]]
+angle.fore_back = [[0, 0], [12, -50], [30, -50]]
+angle.upper_front = [[0, -44], [12, -166], [30, -166]]
+angle.fore_front = [[0, 0], [12, -60], [30, -60]]
+angle.thigh_back = [[0, 0], [12, 20], [30, 20]]
+angle.shin_back = [[0, 0], [12, -2], [30, -2]]
+angle.thigh_front = [[0, 0], [12, -22], [30, -22]]
+angle.shin_front = [[0, 0], [12, 29], [30, 29]]
+
+[clip.ko]
+frames = 30
+ease = "out_cubic"
+rise = [[0, 0], [16, -94], [30, -94]]
+angle.hip = [[0, 0], [16, 80], [30, 80]]
+angle.torso = [[0, 44], [16, -4], [30, -4]]
+angle.head = [[0, -44], [16, 10], [30, 10]]
+angle.upper_back = [[0, -44], [16, -176], [30, -176]]
+angle.fore_back = [[0, 0], [16, -50], [30, -50]]
+angle.upper_front = [[0, -44], [16, -166], [30, -166]]
+angle.fore_front = [[0, 0], [16, -60], [30, -60]]
+angle.thigh_back = [[0, 0], [16, 20], [30, 20]]
+angle.shin_back = [[0, 0], [16, -2], [30, -2]]
+angle.thigh_front = [[0, 0], [16, -22], [30, -22]]
+angle.shin_front = [[0, 0], [16, 29], [30, 29]]
+
+[clip.wakeup]
+frames = 12
+ease = "out_cubic"
+rise = [[0, -94], [6, -40], [12, 0]]
+angle.hip = [[0, 80], [6, 0], [12, 0]]
+angle.torso = [[0, -4], [6, 4], [12, 0]]
+angle.head = [[0, 10], [6, -4], [12, 0]]
+angle.upper_back = [[0, -176], [6, -4], [12, 0]]
+angle.fore_back = [[0, -50], [6, 0], [12, 0]]
+angle.upper_front = [[0, -166], [6, -4], [12, 0]]
+angle.fore_front = [[0, -60], [6, 0], [12, 0]]
+angle.thigh_back = [[0, 20], [6, 17], [12, 0]]
+angle.shin_back = [[0, -2], [6, -89], [12, 0]]
+angle.thigh_front = [[0, -22], [6, 43], [12, 0]]
+angle.shin_front = [[0, 29], [6, -66], [12, 0]]
+
+[clip.thrown]
+frames = 30
+ease = "out_cubic"
+rise = [[0, 0], [15, 20], [30, -94]]
+angle.hip = [[0, 0], [15, 60], [30, 80]]
+angle.torso = [[0, 24], [15, 4], [30, -4]]
+angle.head = [[0, -24], [15, -64], [30, 10]]
+angle.upper_back = [[0, -24], [15, -64], [30, -176]]
+angle.fore_back = [[0, 0], [15, 0], [30, -50]]
+angle.upper_front = [[0, -24], [15, -64], [30, -166]]
+angle.fore_front = [[0, 0], [15, 0], [30, -60]]
+angle.thigh_back = [[0, 0], [15, -60], [30, 20]]
+angle.shin_back = [[0, 0], [15, 0], [30, -2]]
+angle.thigh_front = [[0, 0], [15, -60], [30, -22]]
+angle.shin_front = [[0, 0], [15, 0], [30, 29]]
+
+[clip.5LP]
+frames = 16
+ease = "out_cubic"
+angle.upper_front = [[0, 0], [3, 65], [8, 65], [15, 0]]
+angle.fore_front = [[0, 0], [3, -40], [8, -40], [15, 0]]
+
+[clip.5MP]
+frames = 26
+ease = "out_cubic"
+angle.torso = [[0, 0], [6, -10], [11, -10], [25, 0]]
+angle.head = [[0, 0], [6, 10], [11, 10], [25, 0]]
+angle.upper_back = [[0, 0], [6, 10], [11, 10], [25, 0]]
+angle.upper_front = [[0, 0], [6, 80], [11, 80], [25, 0]]
+angle.fore_front = [[0, 0], [6, -50], [11, -50], [25, 0]]
+
+[clip.5HP]
+frames = 39
+ease = "out_cubic"
+rise = [[0, 0], [10, -6], [15, -6], [38, 0]]
+angle.torso = [[0, 0], [10, -18], [15, -18], [38, 0]]
+angle.head = [[0, 0], [10, 18], [15, 18], [38, 0]]
+angle.upper_back = [[0, 0], [10, 128], [15, 128], [38, 0]]
+angle.fore_back = [[0, 0], [10, -60], [15, -60], [38, 0]]
+angle.upper_front = [[0, 0], [10, 18], [15, 18], [38, 0]]
+angle.thigh_back = [[0, 0], [10, -15], [15, -15], [38, 0]]
+angle.shin_back = [[0, 0], [10, 15], [15, 15], [38, 0]]
+
+[clip.5LK]
+frames = 19
+ease = "out_cubic"
+angle.thigh_front = [[0, 0], [4, 43], [9, 43], [18, 0]]
+angle.shin_front = [[0, 0], [4, 19], [9, 19], [18, 0]]
+
+[clip.5MK]
+frames = 29
+ease = "out_cubic"
+angle.torso = [[0, 0], [7, 12], [12, 12], [28, 0]]
+angle.head = [[0, 0], [7, -12], [12, -12], [28, 0]]
+angle.upper_back = [[0, 0], [7, -12], [12, -12], [28, 0]]
+angle.upper_front = [[0, 0], [7, -12], [12, -12], [28, 0]]
+angle.thigh_front = [[0, 0], [7, 68], [12, 68], [28, 0]]
+angle.shin_front = [[0, 0], [7, 19], [12, 19], [28, 0]]
+
+[clip.5HK]
+frames = 43
+ease = "out_cubic"
+rise = [[0, 0], [12, 2], [17, 2], [42, 0]]
+angle.torso = [[0, 0], [12, 19], [17, 19], [42, 0]]
+angle.head = [[0, 0], [12, -19], [17, -19], [42, 0]]
+angle.upper_back = [[0, 0], [12, -19], [17, -19], [42, 0]]
+angle.upper_front = [[0, 0], [12, -19], [17, -19], [42, 0]]
+angle.thigh_front = [[0, 0], [12, 88], [17, 88], [42, 0]]
+angle.shin_front = [[0, 0], [12, 14], [17, 14], [42, 0]]
+
+[clip.2LP]
+frames = 16
+ease = "out_cubic"
+rise = [[0, 0], [3, -34], [8, -34], [15, 0]]
+angle.torso = [[0, 0], [3, 4], [8, 4], [15, 0]]
+angle.head = [[0, 0], [3, -4], [8, -4], [15, 0]]
+angle.upper_back = [[0, 0], [3, -4], [8, -4], [15, 0]]
+angle.upper_front = [[0, 0], [3, 56], [8, 56], [15, 0]]
+angle.fore_front = [[0, 0], [3, -40], [8, -40], [15, 0]]
+angle.thigh_back = [[0, 0], [3, 17], [8, 17], [15, 0]]
+angle.shin_back = [[0, 0], [3, -89], [8, -89], [15, 0]]
+angle.thigh_front = [[0, 0], [3, 43], [8, 43], [15, 0]]
+angle.shin_front = [[0, 0], [3, -66], [8, -66], [15, 0]]
+
+[clip.2MP]
+frames = 26
+ease = "out_cubic"
+rise = [[0, 0], [6, -34], [11, -34], [25, 0]]
+angle.torso = [[0, 0], [6, -10], [11, -10], [25, 0]]
+angle.head = [[0, 0], [6, 10], [11, 10], [25, 0]]
+angle.upper_back = [[0, 0], [6, 10], [11, 10], [25, 0]]
+angle.upper_front = [[0, 0], [6, 80], [11, 80], [25, 0]]
+angle.fore_front = [[0, 0], [6, -50], [11, -50], [25, 0]]
+angle.thigh_back = [[0, 0], [6, 17], [11, 17], [25, 0]]
+angle.shin_back = [[0, 0], [6, -89], [11, -89], [25, 0]]
+angle.thigh_front = [[0, 0], [6, 43], [11, 43], [25, 0]]
+angle.shin_front = [[0, 0], [6, -66], [11, -66], [25, 0]]
+
+[clip.2HP]
+frames = 39
+ease = "out_cubic"
+rise = [[0, 0], [9, -20], [14, -20], [38, 0]]
+angle.torso = [[0, 0], [9, 4], [14, 4], [38, 0]]
+angle.head = [[0, 0], [9, -4], [14, -4], [38, 0]]
+angle.upper_back = [[0, 0], [9, -4], [14, -4], [38, 0]]
+angle.upper_front = [[0, 0], [9, 146], [14, 146], [38, 0]]
+angle.fore_front = [[0, 0], [9, -35], [14, -35], [38, 0]]
+angle.thigh_back = [[0, 0], [9, 17], [14, 17], [38, 0]]
+angle.shin_back = [[0, 0], [9, -89], [14, -89], [38, 0]]
+angle.thigh_front = [[0, 0], [9, 43], [14, 43], [38, 0]]
+angle.shin_front = [[0, 0], [9, -66], [14, -66], [38, 0]]
+
+[clip.2LK]
+frames = 18
+ease = "out_cubic"
+rise = [[0, 0], [4, -38], [9, -38], [17, 0]]
+angle.torso = [[0, 0], [4, 4], [9, 4], [17, 0]]
+angle.head = [[0, 0], [4, -4], [9, -4], [17, 0]]
+angle.upper_back = [[0, 0], [4, -4], [9, -4], [17, 0]]
+angle.upper_front = [[0, 0], [4, -4], [9, -4], [17, 0]]
+angle.thigh_back = [[0, 0], [4, 17], [9, 17], [17, 0]]
+angle.shin_back = [[0, 0], [4, -89], [9, -89], [17, 0]]
+angle.thigh_front = [[0, 0], [4, 38], [9, 38], [17, 0]]
+angle.shin_front = [[0, 0], [4, 24], [9, 24], [17, 0]]
+
+[clip.2MK]
+frames = 31
+ease = "out_cubic"
+rise = [[0, 0], [8, -42], [13, -42], [30, 0]]
+angle.torso = [[0, 0], [8, 12], [13, 12], [30, 0]]
+angle.head = [[0, 0], [8, -12], [13, -12], [30, 0]]
+angle.upper_back = [[0, 0], [8, -12], [13, -12], [30, 0]]
+angle.upper_front = [[0, 0], [8, -12], [13, -12], [30, 0]]
+angle.thigh_back = [[0, 0], [8, 17], [13, 17], [30, 0]]
+angle.shin_back = [[0, 0], [8, -89], [13, -89], [30, 0]]
+angle.thigh_front = [[0, 0], [8, 48], [13, 48], [30, 0]]
+angle.shin_front = [[0, 0], [8, 29], [13, 29], [30, 0]]
+
+[clip.2HK]
+frames = 44
+ease = "out_cubic"
+rise = [[0, 0], [11, -48], [16, -48], [43, 0]]
+angle.torso = [[0, 0], [11, 26], [16, 26], [43, 0]]
+angle.head = [[0, 0], [11, -26], [16, -26], [43, 0]]
+angle.upper_back = [[0, 0], [11, -26], [16, -26], [43, 0]]
+angle.upper_front = [[0, 0], [11, -26], [16, -26], [43, 0]]
+angle.thigh_back = [[0, 0], [11, 17], [16, 17], [43, 0]]
+angle.shin_back = [[0, 0], [11, -89], [16, -89], [43, 0]]
+angle.thigh_front = [[0, 0], [11, 53], [16, 53], [43, 0]]
+angle.shin_front = [[0, 0], [11, 34], [16, 34], [43, 0]]
+
+[clip.6HP]
+frames = 40
+ease = "out_cubic"
+rise = [[0, 0], [20, -10], [25, -10], [39, 0]]
+angle.torso = [[0, 0], [20, -46], [25, -46], [39, 0]]
+angle.head = [[0, 0], [20, -4], [25, -4], [39, 0]]
+angle.upper_back = [[0, 0], [20, 36], [25, 36], [39, 0]]
+angle.fore_back = [[0, 0], [20, 10], [25, 10], [39, 0]]
+angle.upper_front = [[0, 0], [20, -14], [25, -14], [39, 0]]
+angle.fore_front = [[0, 0], [20, 60], [25, 60], [39, 0]]
+
+[clip."j.LP"]
+frames = 24
+ease = "out_cubic"
+angle.upper_front = [[0, 0], [4, 55], [23, 55]]
+angle.fore_front = [[0, 0], [4, -55], [23, -55]]
+angle.thigh_back = [[0, 5], [4, 5], [23, 5]]
+angle.shin_back = [[0, -67], [4, -67], [23, -67]]
+angle.thigh_front = [[0, 78], [4, 78], [23, 78]]
+angle.shin_front = [[0, -76], [4, -76], [23, -76]]
+
+[clip."j.MP"]
+frames = 24
+ease = "out_cubic"
+angle.upper_front = [[0, 0], [7, 30], [23, 30]]
+angle.fore_front = [[0, 0], [7, -50], [23, -50]]
+angle.thigh_back = [[0, 5], [7, 5], [23, 5]]
+angle.shin_back = [[0, -67], [7, -67], [23, -67]]
+angle.thigh_front = [[0, 78], [7, 78], [23, 78]]
+angle.shin_front = [[0, -76], [7, -76], [23, -76]]
+
+[clip."j.HP"]
+frames = 24
+ease = "out_cubic"
+angle.torso = [[0, 0], [10, -26], [23, -26]]
+angle.head = [[0, 0], [10, 26], [23, 26]]
+angle.upper_back = [[0, 0], [10, 36], [23, 36]]
+angle.fore_back = [[0, 0], [10, -70], [23, -70]]
+angle.upper_front = [[0, 0], [10, 6], [23, 6]]
+angle.fore_front = [[0, 0], [10, -60], [23, -60]]
+angle.thigh_back = [[0, 5], [10, 5], [23, 5]]
+angle.shin_back = [[0, -67], [10, -67], [23, -67]]
+angle.thigh_front = [[0, 78], [10, 78], [23, 78]]
+angle.shin_front = [[0, -76], [10, -76], [23, -76]]
+
+[clip."j.LK"]
+frames = 24
+ease = "out_cubic"
+angle.thigh_back = [[0, 5], [4, 5], [23, 5]]
+angle.shin_back = [[0, -67], [4, -67], [23, -67]]
+angle.thigh_front = [[0, 78], [4, 38], [23, 38]]
+angle.shin_front = [[0, -76], [4, -36], [23, -36]]
+
+[clip."j.MK"]
+frames = 24
+ease = "out_cubic"
+angle.thigh_back = [[0, 5], [7, 5], [23, 5]]
+angle.shin_back = [[0, -67], [7, -67], [23, -67]]
+angle.thigh_front = [[0, 78], [7, 23], [23, 23]]
+angle.shin_front = [[0, -76], [7, 9], [23, 9]]
+
+[clip."j.HK"]
+frames = 24
+ease = "out_cubic"
+angle.thigh_back = [[0, 5], [10, 5], [23, 5]]
+angle.shin_back = [[0, -67], [10, -67], [23, -67]]
+angle.thigh_front = [[0, 78], [10, 28], [23, 28]]
+angle.shin_front = [[0, -76], [10, 34], [23, 34]]
+
+[clip.63214P]
+frames = 43
+ease = "out_cubic"
+rise = [[0, 0], [2, 0], [8, 0], [20, -10], [42, 0]]
+angle.torso = [[0, 0], [2, -12], [8, -4], [20, -36], [42, 0]]
+angle.head = [[0, 0], [2, 12], [8, 4], [20, 6], [42, 0]]
+angle.upper_back = [[0, 0], [2, 132], [8, -171], [20, -139], [42, 0]]
+angle.fore_back = [[0, 0], [2, -70], [8, -50], [20, -50], [42, 0]]
+angle.upper_front = [[0, 0], [2, 92], [8, 154], [20, -174], [42, 0]]
+angle.fore_front = [[0, 0], [2, -40], [8, -35], [20, -35], [42, 0]]
+
+[clip.214K]
+frames = 40
+ease = "out_cubic"
+rise = [[0, 0], [4, 0], [18, -4], [39, 0]]
+angle.torso = [[0, 0], [4, -16], [18, -24], [39, 0]]
+angle.head = [[0, 0], [4, 16], [18, 24], [39, 0]]
+angle.upper_back = [[0, 0], [4, 16], [18, 24], [39, 0]]
+angle.upper_front = [[0, 0], [4, 26], [18, 84], [39, 0]]
+angle.fore_front = [[0, 0], [4, 120], [18, 160], [39, 0]]
+
+[clip.236P]
+frames = 38
+ease = "out_cubic"
+rise = [[0, 0], [8, 10], [14, -20], [37, 0]]
+angle.torso = [[0, 0], [8, 0], [14, 4], [37, 0]]
+angle.head = [[0, 0], [8, 0], [14, -4], [37, 0]]
+angle.upper_back = [[0, 0], [8, 0], [14, -4], [37, 0]]
+angle.upper_front = [[0, 0], [8, 0], [14, -4], [37, 0]]
+angle.thigh_back = [[0, 0], [8, 0], [14, 17], [37, 0]]
+angle.shin_back = [[0, 0], [8, 0], [14, -89], [37, 0]]
+angle.thigh_front = [[0, 0], [8, 88], [14, 43], [37, 0]]
+angle.shin_front = [[0, 0], [8, -56], [14, -66], [37, 0]]
+
+[clip.623P]
+frames = 40
+ease = "out_cubic"
+rise = [[0, 0], [4, 4], [10, 0], [39, 0]]
+angle.torso = [[0, 0], [4, -4], [10, 14], [39, 0]]
+angle.head = [[0, 0], [4, 4], [10, -14], [39, 0]]
+angle.upper_back = [[0, 0], [4, -171], [10, 171], [39, 0]]
+angle.fore_back = [[0, 0], [4, -50], [10, -50], [39, 0]]
+angle.upper_front = [[0, 0], [4, 154], [10, 136], [39, 0]]
+angle.fore_front = [[0, 0], [4, -35], [10, -35], [39, 0]]
+
+[clip.360P]
+frames = 50
+ease = "out_cubic"
+rise = [[0, 0], [8, 6], [20, -12], [49, 0]]
+angle.torso = [[0, -12], [8, -4], [20, -36], [49, 0]]
+angle.head = [[0, 12], [8, 4], [20, 6], [49, 0]]
+angle.upper_back = [[0, 132], [8, -171], [20, -139], [49, 0]]
+angle.fore_back = [[0, -70], [8, -50], [20, -50], [49, 0]]
+angle.upper_front = [[0, 92], [8, 154], [20, -174], [49, 0]]
+angle.fore_front = [[0, -40], [8, -35], [20, -35], [49, 0]]
+
+[clip.214214P]
+frames = 62
+ease = "out_cubic"
+rise = [[0, 0], [6, 0], [24, -6], [32, -6], [61, 0]]
+angle.torso = [[0, 0], [6, -14], [24, -22], [32, -22], [61, 0]]
+angle.head = [[0, 0], [6, 14], [24, 22], [32, 22], [61, 0]]
+angle.upper_back = [[0, 0], [6, 14], [24, 122], [32, 22], [61, 0]]
+angle.fore_back = [[0, 0], [6, 0], [24, -60], [32, 0], [61, 0]]
+angle.upper_front = [[0, 0], [6, -6], [24, 92], [32, 92], [61, 0]]
+angle.fore_front = [[0, 0], [6, -40], [24, -50], [32, -50], [61, 0]]
+
+[clip.720K]
+frames = 60
+ease = "out_cubic"
+rise = [[0, 0], [10, 4], [59, 4]]
+angle.torso = [[0, -12], [10, -4], [59, -4]]
+angle.head = [[0, 12], [10, 4], [59, 4]]
+angle.upper_back = [[0, 132], [10, -171], [59, -171]]
+angle.fore_back = [[0, -70], [10, -50], [59, -50]]
+angle.upper_front = [[0, 92], [10, 154], [59, 154]]
+angle.fore_front = [[0, -40], [10, -35], [59, -35]]
+
+[clip."720K.cinematic"]
+frames = 210
+ease = "out_cubic"
+rise = [[0, 0], [20, 0], [60, 0], [70, -30], [80, 0], [140, 0], [156, -40], [190, -30], [209, 0]]
+angle.torso = [[0, -12], [20, -4], [60, -8], [70, 4], [80, -4], [140, -4], [156, 4], [190, 4], [209, 0]]
+angle.head = [[0, 12], [20, 4], [60, 8], [70, -4], [80, 4], [140, 4], [156, -4], [190, -4], [209, 0]]
+angle.upper_back = [[0, 132], [20, -171], [60, -167], [70, -179], [80, -171], [140, -171], [156, 46], [190, -4], [209, 0]]
+angle.fore_back = [[0, -70], [20, -50], [60, -50], [70, -50], [80, -50], [140, -50], [156, -70], [190, 0], [209, 0]]
+angle.upper_front = [[0, 92], [20, 154], [60, 158], [70, 146], [80, 154], [140, 154], [156, 6], [190, 6], [209, 0]]
+angle.fore_front = [[0, -40], [20, -35], [60, -35], [70, -35], [80, -35], [140, -35], [156, -50], [190, -30], [209, 0]]
+angle.thigh_back = [[0, 0], [20, 0], [60, 0], [70, 17], [80, 0], [140, 0], [156, 17], [190, 17], [209, 0]]
+angle.shin_back = [[0, 0], [20, 0], [60, 0], [70, -89], [80, 0], [140, 0], [156, -89], [190, -89], [209, 0]]
+angle.thigh_front = [[0, 0], [20, 0], [60, 0], [70, 43], [80, 38], [140, 28], [156, 43], [190, 43], [209, 0]]
+angle.shin_front = [[0, 0], [20, 0], [60, 0], [70, -66], [80, -66], [140, -46], [156, -66], [190, -66], [209, 0]]
+
+[clip.66]
+frames = 24
+ease = "out_cubic"
+rise = [[0, -4], [18, -2], [23, 0]]
+angle.torso = [[0, -18], [18, -10], [23, 0]]
+angle.head = [[0, 18], [18, 10], [23, 0]]
+angle.upper_back = [[0, 18], [18, 10], [23, 0]]
+angle.upper_front = [[0, 18], [18, 10], [23, 0]]
+
+[clip.44]
+frames = 26
+ease = "out_cubic"
+rise = [[0, 6], [13, 10], [25, 0]]
+angle.torso = [[0, 8], [13, 4], [25, 0]]
+angle.head = [[0, -8], [13, -4], [25, 0]]
+angle.upper_back = [[0, -8], [13, -4], [25, 0]]
+angle.upper_front = [[0, -8], [13, -4], [25, 0]]
+
+[clip.throw]
+frames = 30
+ease = "out_cubic"
+rise = [[0, 0], [4, 0], [8, 0], [20, -10], [29, 0]]
+angle.torso = [[0, 0], [4, -12], [8, -4], [20, -36], [29, 0]]
+angle.head = [[0, 0], [4, 12], [8, 4], [20, 36], [29, 0]]
+angle.upper_back = [[0, 0], [4, 132], [8, -171], [20, -139], [29, 0]]
+angle.fore_back = [[0, 0], [4, -70], [8, -50], [20, -50], [29, 0]]
+angle.upper_front = [[0, 0], [4, 92], [8, 154], [20, -174], [29, 0]]
+angle.fore_front = [[0, 0], [4, -40], [8, -35], [20, -35], [29, 0]]
+
+[clip."back throw"]
+frames = 30
+ease = "out_cubic"
+rise = [[0, 0], [4, 0], [8, 0], [20, -10], [29, 0]]
+angle.torso = [[0, 0], [4, -12], [8, -4], [20, 34], [29, 0]]
+angle.head = [[0, 0], [4, 12], [8, 4], [20, -34], [29, 0]]
+angle.upper_back = [[0, 0], [4, 132], [8, -171], [20, 151], [29, 0]]
+angle.fore_back = [[0, 0], [4, -70], [8, -50], [20, -50], [29, 0]]
+angle.upper_front = [[0, 0], [4, 92], [8, 154], [20, 116], [29, 0]]
+angle.fore_front = [[0, 0], [4, -40], [8, -35], [20, -35], [29, 0]]
+
+[impact.light]
+shake = [3, 6]
+spark = { style = "rays", size = 30, count = 6, frames = 12, color = "#f2e6c8", counter = "#ff7a3a" }
+
+[impact.medium]
+shake = [6, 10]
+spark = { style = "rays", size = 42, count = 8, frames = 14, color = "#f2e6c8", counter = "#ff7a3a" }
+rumble = [0.4, 8]
+
+[impact.heavy]
+shake = [12, 16]
+zoom = [0.05, 16]
+spark = { style = "rays", size = 60, count = 10, frames = 18, color = "#f2e6c8", counter = "#ff7a3a" }
+rumble = [0.8, 14]
+
+[impact.quake]
+shake = [18, 24]
+zoom = [0.07, 22]
+flash = ["white", 3]
+spark = { style = "cracks", size = 220, count = 8, frames = 50, color = "#e0c9a0", counter = "#ff9a5a" }
+rumble = [1, 24]
+
+[impact.throw]
+shake = [16, 22]
+zoom = [0.06, 20]
+spark = { style = "cracks", size = 160, count = 6, frames = 40, color = "#e0c9a0", counter = "#e0c9a0" }
+rumble = [1, 22]
+
+[impact.block]
+shake = [3, 6]
+spark = { style = "ring", size = 54, count = 1, frames = 14, color = "#c9a227", counter = "#c9a227" }
+
+[impact.ko]
+shake = [20, 30]
+zoom = [0.1, 34]
+flash = ["white", 8]
+spark = { style = "ring", size = 160, count = 1, frames = 30, color = "#f2e6c8", counter = "#f2e6c8" }
+rumble = [1, 34]
+
+[cinematic.720K]
+attacker = "720K.cinematic"
+defender = "knockdown"
+backdrop = { color = "#9cc3e6", in = [76, 92], out = [146, 152], clouds = { color = "#ffffff", count = 14, between = [260, 900] } }
+camera = [[0, 1, 70, 110], [20, 1.3, 40, 220], [62, 1.35, 40, 240], [86, 0.9, 40, 470], [102, 2.2, 10, 600], [132, 2.3, 10, 605], [142, 0.85, 60, 380], [156, 1.15, 70, 110], [166, 1.25, 80, 90], [210, 1, 70, 110]]
+attacker_path = [[0, 0, 0], [64, 0, 0], [92, 10, 420], [140, 10, 440], [156, 40, 0], [210, 40, 0]]
+defender_path = [[0, 80, 0], [20, 15, 195], [64, 15, 195], [92, 25, 615], [140, 25, 635], [156, 70, 30], [158, 70, 0], [168, 110, 40], [176, 140, 0], [210, 140, 0]]
+quake = [[158, 30, 40], [176, 18, 24]]
+ring = [[158, 70, 0, 700, 30], [164, 70, 0, 520, 26], [176, 140, 0, 400, 22]]
+flash = [[158, "white", 6]]

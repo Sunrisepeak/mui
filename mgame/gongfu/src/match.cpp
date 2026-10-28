@@ -49,7 +49,7 @@ Match::Match(SystemDef system, const Fighter& left, const Fighter& right) : syst
         // as 5HP; then in the order defined.
         auto particular = [&](std::int32_t m) {
             const Command& c = moves[static_cast<std::size_t>(m)].command;
-            return c.motion.length > 0 ? 3 : c.charge.from != 0 ? 2 : c.direction != 0 ? 1 : 0;
+            return c.motion.rotation > 0 ? 4 : c.motion.length > 0 ? 3 : c.charge.from != 0 ? 2 : c.direction != 0 ? 1 : 0;
         };
         std::ranges::stable_sort(order, [&](std::int32_t a, std::int32_t b) {
             const auto& ma = moves[static_cast<std::size_t>(a)];
@@ -101,6 +101,7 @@ void Match::start(std::int32_t i, std::int32_t move) {
     s.thrower = 0;
     s.super_scale = 0;
     s.clash_cancel = 0;
+    s.armored = 0;
     s.meter -= m.meter_cost;
     if (s.pos.y <= Fixed{}) s.vel = {};
     if (m.freeze > 0) state_.freeze = std::max(state_.freeze, m.freeze);
@@ -137,7 +138,10 @@ void Match::decide(std::int32_t i) {
     const std::size_t open_count = open_cancels(i, open);
     // A perfect clash's recovery, for a move that allows it: a special (not a super) may start.
     const bool clash_open = s.mode == Mode::clash && s.clash_cancel;
+    // A rotation passes up: its move may start from the frames before a jump leaves the ground (G-17).
+    const bool rotating = s.mode == Mode::prejump;
     auto is_open = [&](std::int32_t m) {
+        if (rotating && def.moves[static_cast<std::size_t>(m)].command.motion.rotation > 0) return true;
         if (clash_open) {
             const MoveDef& md = def.moves[static_cast<std::size_t>(m)];
             if (md.level == 0 && (md.command.motion.length > 0 || md.command.charge.from != 0)) return true;
@@ -148,12 +152,12 @@ void Match::decide(std::int32_t i) {
     if (s.queued >= 0) {
         const std::int32_t m = s.queued;
         s.queued = -1;
-        if ((free || ((s.mode == Mode::move || clash_open) && is_open(m))) && may_start(i, m)) {
+        if ((free || ((s.mode == Mode::move || clash_open || rotating) && is_open(m))) && may_start(i, m)) {
             start(i, m);
             return;
         }
     }
-    if (free || open_count > 0 || clash_open) {
+    if (free || open_count > 0 || clash_open || rotating) {
         for (std::int32_t m : order_[static_cast<std::size_t>(i)]) {
             if (!free && !is_open(m)) continue;
             if (!may_start(i, m)) continue;
@@ -508,7 +512,10 @@ void Match::resolve() {
         if (m.throw_ && m.throw_->active.contains(sa.move_frame) && !(sa.landed & throw_bit)) {
             const bool grounded = sd.pos.y <= Fixed{} && (neutral(sd.mode) || sd.mode == Mode::landing || sd.mode == Mode::prejump ||
                                                          sd.mode == Mode::move || sd.mode == Mode::broken);
-            if (grounded && sd.protect == 0 && !invulnerable(d, to_throw) && meets(place(m.throw_->range, sa.pos, sa.facing), d))
+            // An anti-air throw takes only a fighter in the air: jumping, or in an air move (G-18).
+            const bool airborne = sd.pos.y > Fixed{} && (sd.mode == Mode::air || sd.mode == Mode::move);
+            const bool takes = m.throw_->air ? airborne : grounded;
+            if (takes && sd.protect == 0 && !invulnerable(d, to_throw) && meets(place(m.throw_->range, sa.pos, sa.facing), d))
                 throwing[static_cast<std::size_t>(a)] = true;
         }
     }
@@ -575,11 +582,27 @@ void Match::resolve() {
         if (struck) continue;
         FighterState& sa = state_.f[static_cast<std::size_t>(a)];
         FighterState& sd = state_.f[static_cast<std::size_t>(1 - a)];
-        const ThrowDef& t = *fighter(a).def.moves[static_cast<std::size_t>(sa.move)].throw_;
+        const MoveDef& tm = fighter(a).def.moves[static_cast<std::size_t>(sa.move)];
+        const ThrowDef& t = *tm.throw_;
         sa.landed |= throw_bit;
         sa.contact = 1;
         sa.thrower = 1;
+        // A level 3 grab with a cinematic: the lock begins as it takes hold (P-5).
+        if (tm.cinematic) {
+            state_.lock = {a, sa.move, 0, sa.facing, sa.pos.x, sa.pos.y};
+            if (tm.level > 0 && sa.super_scale == 0) sa.super_scale = std::max(100, system_.super_scaling[static_cast<std::size_t>(std::min(tm.level, 3))]);
+            for (FighterState* f : {&sa, &sd}) {
+                f->mode = Mode::cinematic;
+                f->vel = {};
+                f->stop = 0;
+                f->queued = -1;
+            }
+            for (ProjectileState& p : state_.p) p.alive = 0;
+            events_.push_back({Event::Kind::cinematic, a, sa.move, 0, 0, 0, sd.pos});
+            continue;
+        }
         const bool staggered = sd.mode == Mode::broken;  // a guard break's throw is not broken
+        if (t.air) sd.pos.y = Fixed{};  // pulled down out of the air
         sd.mode = Mode::thrown;
         sd.move = -1;
         sd.tech = staggered ? 0 : t.tech_window;
@@ -734,6 +757,15 @@ void Match::apply(const Strike& s, bool blocked, bool counter) {
             const auto& per = fighter(s.attacker).posture[static_cast<std::size_t>(s.move)];
             take_posture(1 - s.attacker, s.projectile ? per.back() : per[static_cast<std::size_t>(s.hit)], at);
         }
+    } else if (const auto& armor = d.mode == Mode::move ? fighter(1 - s.attacker).def.moves[static_cast<std::size_t>(d.move)].armor : std::nullopt;
+               armor && armor->frames.contains(d.move_frame) && d.armored < armor->hits && m.level == 0) {
+        // Super armour (G-16): the damage taken, the move goes on; both stand still for the hitstop.
+        ++d.armored;
+        const std::int32_t damage = h.damage;
+        d.health -= damage;
+        d.meter = std::min(system_.meter_max, d.meter + damage / 10);
+        a.meter = std::min(system_.meter_max, a.meter + m.meter_gain);
+        events_.push_back({Event::Kind::armor, s.attacker, s.move, s.hit, damage, h.impact, at});
     } else {
         // The first hit on a broken guard: posture back to 0, steadied, and the combo from it scaled from 80%.
         if (d.mode == Mode::broken || d.posture >= fighter(1 - s.attacker).def.posture_max) {
@@ -902,6 +934,9 @@ void Match::tick(Pad left, Pad right) {
     }
     for (std::int32_t i = 0; i < 2; ++i)
         if (!still[static_cast<std::size_t>(i)]) decide(i);
+    // A super asked for: its flash begins on this frame and nothing moves on it;
+    // its first frame comes after the flash (a grab on frame 1 takes hold then).
+    if (state_.freeze > 0) return;
     for (std::int32_t i = 0; i < 2; ++i)
         if (!still[static_cast<std::size_t>(i)]) advance(i);
     for (ProjectileState& p : state_.p) {

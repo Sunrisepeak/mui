@@ -61,6 +61,7 @@ struct FighterState {
     std::int32_t scale_cap = 100;    // its combo's damage scaling at most this (percent): 80 for a combo from a guard break
     std::int32_t super_scale = 0;    // the scaling its super locked at its first hit (percent; 0: none yet)
     std::int32_t clash_cancel = 0;   // 1 while a perfect clash's recovery may be cancelled into a special
+    std::int32_t armored = 0;        // hits its move's armour has taken
     InputLog     log;
 };
 

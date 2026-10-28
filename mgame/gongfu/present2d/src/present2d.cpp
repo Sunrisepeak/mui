@@ -383,6 +383,13 @@ Camera view_camera(const Match& match, const Look& left, const Look& right, cons
             cam.zoom *= 1 + im.zoom * boost * falloff(age, im.zoom_frames);
         }
     }
+    // A heavy fighter's footfalls: walking, a dip on each step, back over its frames.
+    for (std::int32_t i = 0; i < 2; ++i) {
+        const Look& look = i == 0 ? left : right;
+        const Mode mode = match.state().f[static_cast<std::size_t>(i)].mode;
+        if (look.footfall.dip <= 0 || (mode != Mode::walk_forward && mode != Mode::walk_back)) continue;
+        cam.y -= look.footfall.dip * falloff(frame % look.footfall.every, look.footfall.frames) / cam.zoom;
+    }
     return cam;
 }
 
@@ -447,6 +454,24 @@ void spark(const Effects::Kept& k, const Impact& im, std::int32_t age, const Vie
                 out.fill_path(path_, render::FillRule::nonzero, render::Paint::solid(colour));
             }
             break;
+        case Spark::cracks: {
+            // The ground cracking: jagged lines out along the floor from below the contact, either way,
+            // opening at once and staying a while before they fade.
+            const Point g = view.at(stage(e.at.x), 0);
+            const Color dark = fade(e.kind == Event::Kind::counter ? im.counter_color : im.spark_color, 1 - t * t * t);
+            for (std::uint32_t d = 0; d < n; ++d) {
+                const double side = d % 2 == 0 ? 1.0 : -1.0, slope = 0.05 + 0.5 * scatter(k, d);  // into the floor, a little
+                const double length = im.spark_size * (0.6 + 0.4 * scatter(k, d + 31)) * std::min(1.0, 4 * t + 0.5);
+                path_.clear();
+                path_.move_to(g);
+                for (int seg = 1; seg <= 5; ++seg) {
+                    const double along = length * seg / 5, jag = (scatter(k, d * 8 + static_cast<std::uint32_t>(seg)) - 0.5) * im.spark_size * 0.12;
+                    path_.line_to({g.x + view.size(side * along), g.y + view.size(std::max(0.0, along * slope + jag))});
+                }
+                out.stroke_path(path_, {.width = view.size(3.5 * (1 - 0.5 * t)), .cap = render::LineCap::round, .join = render::LineJoin::round}, render::Paint::solid(dark));
+            }
+            break;
+        }
         case Spark::bolt:
             // Electric: jagged lines out from the contact, re-jagged every other frame.
             for (std::uint32_t d = 0; d < n; ++d) {
@@ -497,6 +522,17 @@ const Look::GlyphProjectile* projectile_of(const Look& look, std::string_view na
     buffer[n] = general;
     auto it = look.projectiles.find(std::string_view(buffer.data(), n + 1));
     return it == look.projectiles.end() ? nullptr : &it->second;
+}
+
+// A path's offset at a frame, between its keys (none: no offset).
+Point path_at(const std::vector<CinematicLook::PathKey>& keys, std::int32_t t) {
+    if (keys.empty()) return {};
+    std::size_t k = 0;
+    while (k + 1 < keys.size() && keys[k + 1].frame <= t) ++k;
+    const auto& a = keys[k];
+    const auto& b = k + 1 < keys.size() ? keys[k + 1] : keys[k];
+    const double u = between(t, a.frame, b.frame);
+    return {static_cast<float>(a.at.x + (b.at.x - a.at.x) * u), static_cast<float>(a.at.y + (b.at.y - a.at.y) * u)};
 }
 
 // The fighter in a super's flash, and how far into it (0 → 1); −1 when none.
@@ -674,6 +710,15 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         camera.x = stage(st.lock.x) + fx * (a.at.x + (b.at.x - a.at.x) * u);
         // The key's point at the picture's middle: the camera's y is the height the ground line shows.
         camera.y = stage(st.lock.y) + (a.at.y + (b.at.y - a.at.y) * u) - (scene.ground - scene.height / 2) / camera.zoom;
+        // Quakes: the picture shaken, and swelling for a moment.
+        for (const auto& q : cine->quakes) {
+            const std::int32_t age = t - q.frame;
+            if (age < 0 || age >= q.frames) continue;
+            const double fall = 1 - static_cast<double>(age) / q.frames;
+            camera.x += q.strength * fall * dm::sin(age * 2.9) / camera.zoom;
+            camera.y += q.strength * 0.7 * fall * dm::cos(age * 2.3) / camera.zoom;
+            camera.zoom *= 1 + 0.06 * fall * fall;
+        }
     } else if (flasher >= 0) {
         // A super's flash: the camera leans in on who flashes.
         const FighterState& f = st.f[static_cast<std::size_t>(flasher)];
@@ -703,6 +748,23 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         const double in = between(t, cine->backdrop_in[0], cine->backdrop_in[1]);
         const double out_ = cine->backdrop_out[1] > cine->backdrop_out[0] ? 1 - between(t, cine->backdrop_out[0], cine->backdrop_out[1]) : 1.0;
         out.fill_rect({0, 0, scene.width, scene.height}, fade(cine->backdrop, in * out_));
+        // Its clouds: each three puffs, where a number from its index puts it (the same everywhere).
+        auto unit = [](std::uint64_t z) {
+            z = (z + 0x9e3779b97f4a7c15ull) * 0xbf58476d1ce4e5b9ull;
+            z = (z ^ (z >> 27)) * 0x94d049bb133111ebull;
+            return static_cast<double>((z ^ (z >> 31)) >> 40) / static_cast<double>(1u << 24);
+        };
+        for (std::int32_t n = 0; n < cine->clouds.count; ++n) {
+            const auto k = static_cast<std::uint64_t>(n) * 4;
+            const double x = stage(st.lock.x) + (unit(k) * 2 - 1) * 700, y = stage(st.lock.y) + cine->clouds.low + unit(k + 1) * (cine->clouds.high - cine->clouds.low);
+            const float w = view.size(static_cast<float>(90 + 110 * unit(k + 2))), h = w * 0.32f;
+            const Point c = view.at(x, y);
+            const render::Paint paint = render::Paint::solid(fade(cine->clouds.color, (0.55 + 0.35 * unit(k + 3)) * in * out_));
+            for (const auto& [dx, dy, s] : {std::tuple{-0.32f, 0.f, 0.7f}, std::tuple{0.f, -0.25f, 1.f}, std::tuple{0.34f, 0.05f, 0.75f}}) {
+                const float pw = w * s, ph = h * s * 1.4f;
+                out.fill_round_rect({c.x + dx * w - pw / 2, c.y + dy * h - ph / 2, pw, ph}, omui::geom::CornerRadii::all(ph / 2), paint);
+            }
+        }
     }
 
     // Afterimages: during a move, the poses of a few frames before, fading (from the states the Effects keep).
@@ -722,8 +784,19 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
     // The fighters (in a cinematic, each plays the clip it says, at the lock's frame).
     for (std::int32_t i = 0; i < 2; ++i) {
         std::string_view clip;
-        if (cine) clip = i == st.lock.owner ? std::string_view(cine->attacker_clip) : std::string_view(cine->defender_clip);
-        body(i == 0 ? left : right, match.fighter(i), st.f[static_cast<std::size_t>(i)], st.frame, scene, view.cam, out, clip, st.lock.frame);
+        FighterState drawn = st.f[static_cast<std::size_t>(i)];
+        if (cine) {
+            const bool attacker = i == st.lock.owner;
+            clip = attacker ? std::string_view(cine->attacker_clip) : std::string_view(cine->defender_clip);
+            // A path places the fighter from where the lock began (the attacker's feet), whatever the gap.
+            const auto& path = attacker ? cine->attacker_path : cine->defender_path;
+            if (!path.empty()) {
+                const Point off = path_at(path, st.lock.frame);
+                drawn.pos.x = st.lock.x + Fixed::raw(static_cast<std::int32_t>(std::lround(off.x * st.lock.facing * Fixed::one_bits)));
+                drawn.pos.y = st.lock.y + Fixed::raw(static_cast<std::int32_t>(std::lround(off.y * Fixed::one_bits)));
+            }
+        }
+        body(i == 0 ? left : right, match.fighter(i), drawn, st.frame, scene, view.cam, out, clip, st.lock.frame);
     }
 
     // The cinematic's glyph, written stroke by stroke over the defender, and its seal.
@@ -807,6 +880,18 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
             }
         }
     }
+
+    // A cinematic's shock rings, spreading and fading.
+    if (cine)
+        for (const auto& r : cine->rings) {
+            const std::int32_t age = st.lock.frame - r.frame;
+            if (age < 0 || age >= r.frames) continue;
+            const double u = static_cast<double>(age) / r.frames;
+            const Point c = view.at(stage(st.lock.x) + st.lock.facing * r.at.x, stage(st.lock.y) + r.at.y);
+            path_.clear();
+            circle(path_, c, view.size(r.size * (0.15 + 0.85 * (1 - (1 - u) * (1 - u)))));
+            out.stroke_path(path_, {.width = view.size(10 * (1 - u) + 2)}, render::Paint::solid(fade(r.color, 1 - u)));
+        }
 
     // A cinematic's screen lines, as its backdrop shows.
     if (cine && cine->scanlines) {

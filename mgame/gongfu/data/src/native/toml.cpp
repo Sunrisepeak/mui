@@ -16,9 +16,10 @@ constexpr std::array<std::string_view, 10> fighter_keys{"gongfu", "name", "healt
 constexpr std::array<std::string_view, 2> walk_keys{"forward", "back"};
 constexpr std::array<std::string_view, 5> jump_keys{"prejump", "up", "forward", "gravity", "landing"};
 constexpr std::array<std::string_view, 3> hurt_keys{"standing", "crouching", "air"};
-constexpr std::array<std::string_view, 22> move_keys{"name", "input", "stance", "total", "priority", "hit", "cancel", "invulnerable",
+constexpr std::array<std::string_view, 23> move_keys{"name", "input", "stance", "total", "priority", "hit", "cancel", "invulnerable",
                                                      "hurt", "step", "throw", "projectile", "meter", "freeze", "level", "weight", "posture", "clash",
-                                                     "clash_cancel", "cinematic", "pass", "doc"};
+                                                     "clash_cancel", "cinematic", "pass", "armor", "doc"};
+constexpr std::array<std::string_view, 2> armor_keys{"frames", "hits"};
 constexpr std::array<std::string_view, 6> cinematic_keys{"frames", "hits", "attacker", "defender", "down", "recovery"};
 constexpr std::array<std::string_view, 15> hit_keys{"active", "boxes", "damage", "chip", "hitstun", "blockstun", "hitstop", "pushback",
                                                     "level", "knockdown", "launch", "impact", "down", "juggle", "juggle_cost"};
@@ -28,7 +29,7 @@ constexpr std::array<std::string_view, 4> invulnerable_kinds{"strike", "air", "p
 constexpr std::array<std::string_view, 2> move_hurt_keys{"frames", "boxes"};
 constexpr std::array<std::string_view, 3> cancel_keys{"frames", "into", "on_contact"};
 constexpr std::array<std::string_view, 2> step_keys{"frame", "velocity"};
-constexpr std::array<std::string_view, 5> throw_keys{"active", "range", "damage", "tech", "swap"};
+constexpr std::array<std::string_view, 6> throw_keys{"active", "range", "damage", "tech", "swap", "air"};
 constexpr std::array<std::string_view, 10> projectile_keys{"spawn", "offset", "speed", "velocity", "life", "hit", "hits", "interval", "strength", "limit"};
 constexpr std::array<std::string_view, 2> meter_keys{"cost", "gain"};
 constexpr std::array<std::string_view, 3> input_keys{"notation", "window", "buffer"};
@@ -388,6 +389,7 @@ struct Reader {
             if (auto v = integer(th->get("damage"), "a throw's `damage`")) td.damage = *v;
             if (auto v = integer(th->get("tech"), "a throw's `tech` window", 0, 30)) td.tech_window = *v;
             if (auto v = boolean(th->get("swap"), "a throw's `swap`")) td.swap = *v;
+            if (auto v = boolean(th->get("air"), "a throw's `air` (it takes only a fighter in the air)")) td.air = *v;
             m.throw_ = td;
         }
         if (const toml::table* pt = table(t.get("projectile"), "`projectile`")) {
@@ -424,6 +426,14 @@ struct Reader {
         if (auto v = boolean(t.get("clash"), "`clash`")) m.clash = *v;
         if (auto v = boolean(t.get("clash_cancel"), "`clash_cancel`")) m.clash_cancel = *v;
         if (auto f = frames(t.get("pass"), "`pass` (frames passing through the other fighter)")) m.pass = *f;
+        if (const toml::table* ar = table(t.get("armor"), "`armor`")) {
+            only(*ar, armor_keys, "an armour");
+            ArmorDef a;
+            if (auto f = frames(ar->get("frames"), "an armour's `frames`")) a.frames = *f;
+            if (auto v = integer(ar->get("hits"), "an armour's `hits`", 1, 10)) a.hits = *v;
+            m.armor = a;
+            mark(at + ".armor", ar);
+        }
         // A level 3's cinematic: [move.cinematic] frames, hits = [[frame, damage, "impact"], …], where each ends, down, recovery.
         if (const toml::table* ct = table(t.get("cinematic"), "`cinematic`")) {
             only(*ct, cinematic_keys, "a cinematic");

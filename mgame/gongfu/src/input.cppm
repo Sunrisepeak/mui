@@ -83,6 +83,7 @@ struct Motion {
     std::array<std::uint8_t, 6> steps{};  // relative numpad directions, in order
     std::uint8_t length = 0;
     std::uint8_t window = 12;  // frames from the first step to the button
+    std::uint8_t rotation = 0; // 360 (1) or 720 (2): the stick taken round, by the sides it passed (G-17)
 };
 [[nodiscard]] constexpr Motion motion(std::initializer_list<int> steps, int window = 12) noexcept {
     Motion m;
@@ -95,6 +96,14 @@ inline constexpr Motion quarter_back = motion({2, 1, 4});      // 214
 inline constexpr Motion dragon = motion({6, 2, 3});            // 623
 inline constexpr Motion half_back = motion({6, 3, 2, 1, 4}, 20);  // 63214
 inline constexpr Motion dash_forward = motion({6, 5, 6}, 10);   // 66: tapped twice
+// 360 and 720: up, down, back and forward all passed (a diagonal counts for
+// both its sides), any order, within 30 frames a turn of the button.
+[[nodiscard]] constexpr Motion rotation(int turns) noexcept {
+    Motion m;
+    m.rotation = static_cast<std::uint8_t>(turns);
+    m.window = static_cast<std::uint8_t>(30 * turns);
+    return m;
+}
 inline constexpr Motion dash_back = motion({4, 5, 4}, 10);      // 44
 
 // Back (1, 4 or 7) or down (1, 2, 3) held, then the other way.

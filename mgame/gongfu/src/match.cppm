@@ -21,7 +21,7 @@ import :state;
 export namespace gongfu {
 
 struct Event {
-    enum class Kind : std::uint8_t { hit, counter, block, throw_, tech, projectile_clash, ko, time_over, clash, deflect, guard_break, cinematic };
+    enum class Kind : std::uint8_t { hit, counter, block, throw_, tech, projectile_clash, ko, time_over, clash, deflect, guard_break, cinematic, armor };
     Kind          kind = Kind::hit;
     std::int32_t  attacker = 0;   // 0 or 1 (a clash: its winner, or −1 when even; a deflect: the one who struck)
     std::int32_t  move = -1;      // the attacker's move

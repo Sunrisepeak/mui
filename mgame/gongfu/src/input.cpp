@@ -98,6 +98,28 @@ std::optional<std::int32_t> recognise(const InputLog& log, const Command& c) noe
     if (!press) return std::nullopt;
     if (!held_class(log.direction(*press), c.direction)) return std::nullopt;
 
+    // A rotation (360, 720): the four sides passed, a turn for each, within the window back from the press.
+    if (c.motion.rotation > 0) {
+        int turns = 0;
+        std::uint8_t sides = 0;  // up 1, down 2, back 4, forward 8
+        for (std::int32_t age = *press + c.motion.window; age >= *press; --age) {
+            const int d = log.direction(age);
+            if (d >= 7) sides |= 1;
+            if (d <= 3) sides |= 2;
+            if (d == 1 || d == 4 || d == 7) sides |= 4;
+            if (d == 3 || d == 6 || d == 9) sides |= 8;
+            if (sides == 15) {
+                ++turns;
+                sides = 0;
+                // The side it is on starts the next turn.
+                if (d >= 7) sides |= 1;
+                if (d <= 3) sides |= 2;
+                if (d == 1 || d == 4 || d == 7) sides |= 4;
+                if (d == 3 || d == 6 || d == 9) sides |= 8;
+            }
+        }
+        if (turns < c.motion.rotation) return std::nullopt;
+    }
     // A motion: its steps in order, the last first, back from the press.
     if (c.motion.length > 0) {
         int k = c.motion.length - 1;

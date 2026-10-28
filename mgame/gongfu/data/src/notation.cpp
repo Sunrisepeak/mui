@@ -59,6 +59,11 @@ std::expected<Command, std::string> parse_command(std::string_view s) {
         if (i >= s.size() || s[i] != release) return fail(std::format("a [{}] charge is released {}", c.charge.from, release));
         ++i;
     }
+    // A rotation: 360 or 720, then the button.
+    if (s.substr(i).starts_with("360") || s.substr(i).starts_with("720")) {
+        c.motion = rotation(s[i] == '3' ? 1 : 2);
+        i += 3;
+    }
     // Directions: one held at the press, or several, a motion.
     std::string digits;
     while (i < s.size() && s[i] >= '1' && s[i] <= '9') digits += s[i++];
@@ -112,6 +117,7 @@ std::string notation(const Command& c) {
     // A dash: its direction twice.
     if (c.buttons == 0 && c.motion.length == 3 && c.motion.steps[1] == 5 && c.motion.steps[0] == c.motion.steps[2])
         return std::string(2, static_cast<char>('0' + c.motion.steps[0]));
+    if (c.motion.rotation > 0) out += c.motion.rotation == 1 ? "360" : "720";
     for (std::size_t k = 0; k < c.motion.length; ++k) out += static_cast<char>('0' + c.motion.steps[k]);
     if (c.direction != 0) out += static_cast<char>('0' + c.direction);
     std::string buttons;

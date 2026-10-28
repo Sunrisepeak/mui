@@ -58,7 +58,7 @@ int main(int argc, char** argv) {
     s.test("the roster reads: the training fighter's file, every move compiled", [] {
         const auto& r = fighting::roster();
         check(r.problems.empty(), r.problems.empty() ? std::string() : r.problems.front());
-        check(r.names == std::vector<std::string>{"kata", "mo", "ni"}, "Kata, Mo and Ni");
+        check(r.names == std::vector<std::string>{"kata", "mo", "ni", "yue"}, "Kata, Mo, Ni and Yue");
         check_eq(r.fighters[0].def.name, std::string("Kata"));
         check_eq(r.fighters[1].def.name, std::string("Mo"));
         check_eq(r.fighters[2].def.name, std::string("Ni"));
@@ -361,7 +361,7 @@ int main(int argc, char** argv) {
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    mo level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("342a69dba5b0073f"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("b6012d883ce64d00"));  // GCC and LLVM, every platform
     });
 
     s.test("墨's glyphs: 一, 人 and 永 written in front of her and thrown, and her level 2's stroke across the stage — frames pinned", [] {
@@ -393,7 +393,7 @@ int main(int argc, char** argv) {
         }
         check_eq(saved, 8);
         std::println("    mo glyphs {}", all.hex());
-        check_eq(all.hex(), std::string("d5b4e49388e17c72"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("35882e461c7819c7"));  // GCC and LLVM, every platform
     });
 
     s.test("霓's afterimages and her level 3, 「全频」: the neon city, the flurry, the uppercut — frames pinned", [] {
@@ -439,7 +439,116 @@ int main(int argc, char** argv) {
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    ni level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("b692d67c3650f078"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("b752039ae801b1db"));  // GCC and LLVM, every platform
+    });
+
+    s.test("岳 as designed: every normal's and elbow's startup and advantage, measured in the simulation (characters 2 design §3)", [] {
+        using gongfu::operator""_fx;
+        const gongfu::Fighter& yue = fighting::roster().fighters[fighting::fighter_index("yue")];
+        struct Row {
+            const char* move;
+            int         startup;
+            std::optional<int> hit, block;
+            bool        low = false;
+        };
+        const std::vector<Row> table{
+            {"5LP", 5, 3, -2},   {"5MP", 8, 2, -4},   {"5HP", 12, 1, -8},   {"5LK", 6, 2, -3},        {"5MK", 9, 1, -5},         {"5HK", 14, {}, -10},
+            {"2LP", 5, 2, -2},   {"2MP", 8, 2, -4},   {"2HP", 11, {}, -10}, {"2LK", 6, 1, -3, true},  {"2MK", 10, 0, -6, true}, {"2HK", 13, {}, -14, true},
+            {"6HP", 22, 3, -2},  {"214LK", 16, {}, -4}, {"214MK", 18, {}, -2}, {"214HK", 20, {}, 0},
+        };
+        auto pads = [](const gongfu::Command& c) {
+            std::vector<gongfu::Pad> out;
+            for (std::size_t k = 0; k + 1 < c.motion.length; ++k) out.push_back(gongfu::pad(c.motion.steps[k]));
+            const int last = c.motion.length > 0 ? c.motion.steps[c.motion.length - 1] : c.direction != 0 ? c.direction : 5;
+            out.push_back(gongfu::pad(last, static_cast<std::uint16_t>(c.buttons & -c.buttons)));
+            return out;
+        };
+        for (const Row& row : table) {
+            const std::int32_t m = yue.find(row.move);
+            check(m >= 0, row.move);
+            if (m < 0) continue;
+            const gongfu::MoveDef& def = yue.def.moves[static_cast<std::size_t>(m)];
+            check_eq(yue.startup(m), std::int32_t{row.startup});
+            for (const bool block : {false, true}) {
+                const std::optional<int>& want = block ? row.block : row.hit;
+                if (!want) continue;
+                gongfu::SystemDef sys;
+                sys.round_frames = 1 << 20;
+                gongfu::Match match(sys, yue, yue);
+                const gongfu::Pad guard = block ? gongfu::pad(row.low ? 3 : 6) : gongfu::pad(5);
+                for (int f = 0; f < 12; ++f) match.tick(gongfu::pad(5), guard);
+                gongfu::State st = match.state();
+                // The elbow walks in before it lands: started from farther away.
+                const gongfu::Fixed gap = gongfu::max(def.hits[0].boxes[0].x + def.hits[0].boxes[0].w / 2, 60_fx) + (def.steps.empty() ? 0_fx : 40_fx);
+                st.f[0].pos.x = 900_fx;
+                st.f[1].pos.x = 900_fx + gap;
+                st.f[1].mode = st.f[1].mode == gongfu::Mode::crouch ? gongfu::Mode::crouch : gongfu::Mode::idle;
+                match.restore(st);
+                for (const gongfu::Pad p : pads(def.command)) match.tick(p, guard);
+                int contact = -1;
+                for (int f = 0; f < 60 && contact < 0; ++f) {
+                    for (const gongfu::Event& e : match.events())
+                        if (e.attacker == 0 && (e.kind == gongfu::Event::Kind::hit || e.kind == gongfu::Event::Kind::block || e.kind == gongfu::Event::Kind::counter))
+                            contact = match.state().f[0].move_frame;
+                    if (contact < 0) match.tick(gongfu::pad(5), guard);
+                }
+                check(contact == row.startup, std::format("{} {}: contact on frame {}", row.move, block ? "blocked" : "hit", contact));
+                int attacker = -1, defender = -1;
+                for (int f = 1; f < 120 && (attacker < 0 || defender < 0); ++f) {
+                    match.tick(gongfu::pad(5), guard);
+                    if (attacker < 0 && match.recovered(0)) attacker = f;
+                    if (defender < 0 && match.recovered(1)) defender = f;
+                }
+                check(defender - attacker == *want, std::format("{} on {}: {:+} measured, {:+} designed", row.move, block ? "block" : "hit", defender - attacker, *want));
+            }
+        }
+    });
+
+    s.test("岳's level 3, 「泰山压顶」: a 720 out of blockstun, the leap into the clouds, the mountain coming down — frames pinned", [] {
+        Game g("training", "yue", "kata");
+        check(g.act("pause"));
+        check(g.act("fill"));
+        // Kata walks in; Yue guards a while (not a deflect), then blocks a heavy and turns the stick twice round in its blockstun.
+        check(g.act("press", pad(1, "4")));
+        for (int i = 0; i < 200 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 60; ++i) check(g.act("step"));
+        check(g.act("press", pad(0, "4")));
+        for (int i = 0; i < 12; ++i) check(g.act("step"));
+        check(g.act("press", pad(1, "5")));
+        check(g.act("press", pad(1, "5HP")));
+        check(g.act("step"));
+        check(g.act("press", pad(1, "5")));
+        for (int i = 0; i < 20 && g.state().f[0].mode != gongfu::Mode::blockstun; ++i) check(g.act("step"));
+        check(g.state().f[0].mode == gongfu::Mode::blockstun, std::format("Yue blocks the heavy: gap {}, mode {}", (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double(), static_cast<int>(g.state().f[0].mode)));
+        // Round and round until the blockstun is about to end, then a kick: the 720 comes out on the first frame he can act.
+        const std::array<std::string_view, 8> circle{"6", "3", "2", "1", "4", "7", "8", "9"};
+        std::size_t k = 0;
+        for (; k < 60 && (k < 15 || g.state().f[0].stun > 1); ++k) {
+            check(g.act("press", pad(0, circle[k % 8])));
+            check(g.act("step"));
+        }
+        check(g.act("press", pad(0, std::string(circle[k % 8]) + "LK")));
+        check(g.act("step"));
+        check(g.act("press", pad(0, "5")));
+        const auto dir = scratch_dir("fighting-yue-level3");
+        std::vector<std::uint64_t> px;
+        std::int32_t lock_from = -1;
+        for (int i = 0; i < 320; ++i) {
+            check(g.act("step"));
+            const auto& st = g.state();
+            if (st.lock.owner == 0 && lock_from < 0) lock_from = st.frame;
+            const std::int32_t lf = st.lock.owner == 0 ? st.lock.frame : -1;
+            if (st.freeze == 25 || lf == 30 || lf == 100 || lf == 124 || lf == 150 || lf == 162 || lf == 178) {
+                g.h.step();
+                px.push_back(g.pixels());
+                check(g.h.save_png(dir / std::format("{:02}-{}.png", px.size(), lf < 0 ? std::string("flash") : std::format("lock-{}", lf))).has_value());
+            }
+        }
+        check(lock_from > 0, "the grab took: the cinematic played");
+        check_eq(px.size(), std::size_t{7});
+        Hash all;
+        for (auto v : px) all.u64(v);
+        std::println("    yue level 3 {}", all.hex());
+        check_eq(all.hex(), std::string("f1f320982f5c4e96"));  // GCC and LLVM, every platform
     });
 
     s.test("training reads a perfect clash to an agent and shows it", [] {

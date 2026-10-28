@@ -71,6 +71,7 @@ std::expected<Fighter, std::vector<Problem>> compile(FighterDef def) {
         for (std::size_t j = 0; j < i; ++j) c.need(def.moves[j].name != m.name, at, std::format("two moves are called `{}`", m.name));
         c.need(m.total >= 1, at + ".total", "a move lasts at least 1 frame");
         c.need(m.command.buttons != 0 || m.command.motion.length > 0, at + ".command", "a move is asked for with a button, or a motion alone (66)");
+        c.need(m.command.motion.rotation == 0 || m.command.buttons != 0, at + ".command", "a rotation (360, 720) ends with a button");
         for (std::size_t h = 0; h < m.hits.size(); ++h) c.hit(m.hits[h], m.total, std::format("{}.hits[{}]", at, h));
         for (std::size_t k = 0; k < m.invulnerable.size(); ++k) {
             c.frames(m.invulnerable[k].frames, m.total, std::format("{}.invulnerable[{}]", at, k));
@@ -102,8 +103,12 @@ std::expected<Fighter, std::vector<Problem>> compile(FighterDef def) {
         c.need(m.meter_cost >= 0 && m.meter_gain >= 0 && m.freeze >= 0, at + ".meter", "meter and freeze are 0 or more");
         c.need(m.level >= 0 && m.level <= 3, at + ".level", "a super's level is 1, 2 or 3 (0: not a super)");
         if (m.pass) c.frames(*m.pass, m.total, at + ".pass");
+        if (m.armor) {
+            c.frames(m.armor->frames, m.total, at + ".armor.frames");
+            c.need(m.armor->hits >= 1, at + ".armor.hits", "armour takes at least one hit");
+        }
         if (m.cinematic) {
-            c.need(!m.hits.empty(), at + ".cinematic", "a cinematic starts when the move's first hit lands: it needs a hit");
+            c.need(!m.hits.empty() || m.throw_, at + ".cinematic", "a cinematic starts when the move's first hit lands or its throw takes hold: it needs one");
             c.need(m.cinematic->frames >= 1, at + ".cinematic.frames", "a cinematic lasts at least 1 frame");
             for (std::size_t k = 0; k < m.cinematic->hits.size(); ++k)
                 c.need(m.cinematic->hits[k].frame >= 1 && m.cinematic->hits[k].frame <= m.cinematic->frames && m.cinematic->hits[k].damage >= 0,

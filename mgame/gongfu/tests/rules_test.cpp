@@ -134,6 +134,21 @@ FighterDef body() {
                                     .recovery = 10};
     f.moves.push_back(finale);
 
+    // 岳's: command grabs by rotation, armour, an anti-air throw (G-16..G-18).
+    MoveDef spin{.name = "360P", .command = {.motion = rotation(1), .buttons = punches}, .total = 40, .priority = 30, .clash = false};
+    spin.throw_ = ThrowDef{.active = {1, 2}, .range = {0_fx, 0_fx, 95_fx, 150_fx}, .damage = 2200, .tech_window = 0};
+    f.moves.push_back(spin);
+    MoveDef spin2{.name = "720K", .command = {.motion = rotation(2), .buttons = kicks}, .total = 40, .priority = 31, .clash = false};
+    spin2.throw_ = ThrowDef{.active = {1, 2}, .range = {0_fx, 0_fx, 95_fx, 150_fx}, .damage = 3000, .tech_window = 0};
+    f.moves.push_back(spin2);
+    MoveDef elbow{.name = "6HK", .command = {.direction = 6, .buttons = HK}, .total = 34, .priority = 2};
+    elbow.armor = ArmorDef{.frames = {3, 15}, .hits = 1};
+    elbow.hits.push_back(strike({16, 18}, {20_fx, 90_fx, 90_fx, 50_fx}, 900, 24));
+    f.moves.push_back(elbow);
+    MoveDef catcher{.name = "623K", .command = {.motion = dragon, .buttons = kicks}, .total = 36, .priority = 11, .clash = false};
+    catcher.throw_ = ThrowDef{.active = {5, 8}, .range = {0_fx, 60_fx, 90_fx, 160_fx}, .damage = 1600, .tech_window = 0, .air = true};
+    f.moves.push_back(catcher);
+
     // Throws: forward and back.
     MoveDef grab{.name = "throw", .command = {.buttons = static_cast<std::uint16_t>(LP | LK), .together = true}, .total = 30, .priority = 20};
     grab.throw_ = ThrowDef{.active = {5, 6}, .range = {0_fx, 0_fx, 80_fx, 150_fx}, .damage = 1200};
@@ -469,6 +484,107 @@ int main(int argc, char** argv) {
         }
         check(hit, "the sweep hit");
         check_eq(down, 20);
+    });
+
+    s.test("G-16 armour: a strike on its frames does its damage and the move goes on; a second one stops it; a super goes through", [] {
+        // Fighter 2 in 6HK's armour; fighter 1's jab lands on it.
+        auto armoured = [](int jabs) {
+            Match m = apart(80_fx);
+            State st = m.state();
+            st.f[1].mode = Mode::move;
+            st.f[1].move = rule().find("6HK");
+            st.f[1].move_frame = 3;
+            st.f[1].facing = -1;
+            m.restore(st);
+            std::vector<Event> all;
+            for (int f = 0; f < 30; ++f) {
+                m.tick(f == 0 || (jabs > 1 && f == 6) ? pad(5, LP) : pad(5), pad(5));  // the second within the jab's cancel
+                all.insert(all.end(), m.events().begin(), m.events().end());
+            }
+            return std::pair{all, m.state()};
+        };
+        auto [one, after_one] = armoured(1);
+        check(std::ranges::count(one, Event::Kind::armor, &Event::kind) == 1 && after_one.f[1].health == 10000 - 300, "the jab's damage, taken");
+        check(std::ranges::any_of(one, [](const Event& e) { return e.kind == Event::Kind::hit && e.attacker == 1; }), "and the elbow still lands");
+        auto [two, after_two] = armoured(2);
+        check(std::ranges::any_of(two, [](const Event& e) { return (e.kind == Event::Kind::hit || e.kind == Event::Kind::counter) && e.attacker == 0; }),
+              "a second jab: the armour is spent, it is hit (a counter: the elbow is still starting)");
+    });
+
+    s.test("G-17 rotations: 360 by the four sides, 720 twice round, up not a jump; a half circle is not 360", [] {
+        // A long stick motion goes through up: done where a jump cannot start (here, blockstun), as players do a 720.
+        auto grabbed = [](std::vector<Pad> stick, int stun = 0) {
+            Match m = apart(80_fx);
+            if (stun > 0) {
+                State st = m.state();
+                st.f[0].mode = Mode::blockstun;
+                st.f[0].stun = stun;
+                m.restore(st);
+            }
+            std::vector<Event> all;
+            for (std::size_t f = 0; f < stick.size() + 10; ++f) {
+                m.tick(f < stick.size() ? stick[f] : pad(5), pad(5));
+                all.insert(all.end(), m.events().begin(), m.events().end());
+                if (std::ranges::any_of(m.events(), [](const Event& e) { return e.kind == Event::Kind::throw_; })) break;
+                if (m.state().f[1].mode == Mode::thrown) return std::string(rule().def.moves[static_cast<std::size_t>(m.state().f[0].move)].name);
+            }
+            return std::string("-");
+        };
+        check_eq(grabbed({pad(6), pad(3), pad(2), pad(1), pad(4), pad(7), pad(8), pad(9, LP)}), std::string("360P"));
+        check_eq(grabbed({pad(2), pad(1), pad(4), pad(7), pad(8), pad(9), pad(6, LP)}), std::string("360P"));
+        check(grabbed({pad(6), pad(3), pad(2), pad(1), pad(4, LP)}) != "360P", "a half circle is not 360");
+        check_eq(grabbed({pad(6), pad(3), pad(2), pad(1), pad(4), pad(7), pad(8), pad(9), pad(6), pad(3), pad(2), pad(1), pad(4), pad(7), pad(8), pad(9, LK)}, 15),
+                 std::string("720K"));
+        check(grabbed({pad(6), pad(3), pad(2), pad(1), pad(4), pad(7), pad(8), pad(9, LK)}, 7) != "720K", "once round is not 720");
+    });
+
+    s.test("G-17 a grab super on its first frame takes hold on the frame after its flash, never during it; a grounded opponent cannot walk out", [] {
+        FighterDef def = rule().def;
+        MoveDef& spin = def.moves[static_cast<std::size_t>(rule().find("360P"))];
+        spin.level = 1;
+        spin.meter_cost = 1000;
+        spin.freeze = 30;
+        const Fighter f = *compile(def);
+        Match m(rules(), f, f);
+        State st = m.state();
+        const Fixed mid = m.system().stage_width / 2;
+        st.f[0].pos.x = mid - 40_fx;
+        st.f[1].pos.x = mid + 40_fx;
+        st.f[0].mode = Mode::blockstun;  // where the stick may go round through up
+        st.f[0].stun = 7;
+        st.f[0].meter = 1000;
+        m.restore(st);
+        const std::array stick{pad(6), pad(3), pad(2), pad(1), pad(4), pad(7), pad(8), pad(9, LP)};
+        play(m, stick);
+        check(m.state().freeze == 30 && m.state().f[0].move_frame == 0, std::format("the flash on the frame it is asked for: freeze {}, frame {}", m.state().freeze, m.state().f[0].move_frame));
+        int during = 0;
+        while (m.state().freeze > 0) {
+            m.tick(pad(5), pad(4));  // the other walks away through the flash: it is kept for after
+            during += m.state().f[1].mode == Mode::thrown;
+        }
+        check_eq(during, 0);
+        m.tick(pad(5), pad(4));
+        check(m.state().f[1].mode == Mode::thrown && m.state().f[0].move_frame == 1, std::format("thrown on frame {}", m.state().f[0].move_frame));
+    });
+
+    s.test("G-18 an anti-air throw takes a jumping fighter, not a standing one", [] {
+        for (const bool jumping : {true, false}) {
+            Match m = apart(80_fx);
+            State st = m.state();
+            if (jumping) {
+                st.f[1].mode = Mode::air;
+                st.f[1].pos.y = 100_fx;
+                st.f[1].vel = {0_fx, -1_fx};
+            }
+            m.restore(st);
+            const std::array dp{pad(6), pad(2), pad(3, LK)};
+            bool thrown = false;
+            for (int f = 0; f < 20; ++f) {
+                m.tick(f < 3 ? dp[static_cast<std::size_t>(f)] : pad(5), pad(5));
+                thrown = thrown || m.state().f[1].mode == Mode::thrown;
+            }
+            check(thrown == jumping, std::format("{}: thrown {}", jumping ? "jumping" : "standing", thrown));
+        }
     });
 
     s.test("P-1 posture: a block costs the move's posture; full, a guard break; its first follow-up resets it, steadies and scales from 80%", [] {
@@ -895,7 +1011,7 @@ int main(int argc, char** argv) {
         std::println("    rules run: clashes {}, deflects {}, guard breaks {}, hits {}, blocks {} (posture up to {}); resets {}", events[0], events[1], events[2], events[3], blocks,
                      most_posture, seen[0]);
         std::println("    rules run hash {:016x}", hashes.back());
-        check(hashes.back() == 0x5ebf172e964842d7ULL, std::format("run hash {:016x}", hashes.back()));  // GCC, LLVM and wasm
+        check(hashes.back() == 0x387534c7595d8ff9ULL, std::format("run hash {:016x}", hashes.back()));  // GCC, LLVM and wasm
     });
 
     return s.run(argc, argv);

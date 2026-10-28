@@ -276,7 +276,7 @@ int main(int argc, char** argv) {
     });
 
     s.test("a look's glyphs and a level 3's cinematic read back as themselves; a cinematic naming no clip or glyph is a problem", [] {
-        std::string text = read(here() / "data" / "kata.look.gongfu.toml");
+        std::string text = "footfall = { every = 24, dip = 3, frames = 10 }\n" + read(here() / "data" / "kata.look.gongfu.toml");
         text += R"(
 [glyph."一"]
 strokes = [{ points = [[10, 50], [50, 52], [90, 50]], width = [8, 6, 10] }]
@@ -284,17 +284,24 @@ strokes = [{ points = [[10, 50], [50, 52], [90, 50]], width = [8, 6, 10] }]
 [cinematic.finale]
 attacker = "5HP"
 defender = "hitstun"
-backdrop = { color = "#efe6d2", in = [0, 16], out = [186, 200] }
+backdrop = { color = "#efe6d2", in = [0, 16], out = [186, 200], clouds = { color = "#ffffff", count = 6, between = [250, 900] } }
 camera = [[0, 1, 85, 110], [10, 3, 18, 182]]
 glyph = { name = "一", at = [175, 115], size = 280, from = 30, ends = [40], color = "#101114" }
 seal = { frame = 172, at = [270, 30], size = 56, color = "#c0392b" }
 flash = [[180, "white", 6]]
+attacker_path = [[0, 0, 0], [90, 10, 420]]
+defender_path = [[0, 80, 0], [20, 15, 195]]
+quake = [[158, 30, 40]]
+ring = [[158, 70, 0, 700, 30]]
 )";
         auto look = p2::read_look(text, "kata.look.gongfu.toml");
         check(look.has_value(), look ? "" : std::format("{}", texts(look.error())));
         if (!look) return;
         const auto& c = look->cinematics.at("finale");
         check(c.camera.size() == 2 && c.glyph == "一" && c.glyph_ends == std::vector<std::int32_t>{40} && c.seal_frame == 172 && c.flashes.size() == 1);
+        check(c.clouds.count == 6 && c.clouds.high == 900 && c.attacker_path.size() == 2 && c.defender_path.size() == 2 && c.quakes.size() == 1 && c.rings.size() == 1,
+              "clouds, paths, a quake and a ring");
+        check(look->footfall.dip == 3 && look->footfall.frames == 10, "a footfall");
         const std::string written = p2::write_look(*look);
         auto again = p2::read_look(written, "written.look.gongfu.toml");
         check(again && p2::write_look(*again) == written, "written back as itself");
@@ -390,10 +397,34 @@ spark = { style = "rays", colour = "#ffd166" }
         check(later.zoom == still.zoom && later.x == still.x && later.y == still.y, "the shake and the punch are over");
     });
 
+    s.test("a giant's footfalls: walking, the camera dips on each step and is back between them; standing, it never dips", [&] {
+        p2::Look heavy, light;
+        heavy.footfall = {.every = 24, .dip = 3, .frames = 8};
+        Match m = close_match();
+        p2::Effects fx;
+        const p2::Scene scene;
+        int dips = 0, level = 0;
+        for (int f = 0; f < 48; ++f) {
+            m.tick(pad(4), pad(5));  // walking back: still a step
+            const bool walking = m.state().f[0].mode == Mode::walk_back;
+            const double y = p2::view_camera(m, heavy, light, fx, scene).y, plain = p2::view_camera(m, light, light, fx, scene).y;
+            if (!walking) continue;
+            const std::int32_t phase = m.state().frame % 24;
+            if (phase == 0) dips += y < plain;
+            if (phase >= 8) level += y == plain;
+        }
+        check(dips == 2 && level == 32, std::format("dips {}, level {}", dips, level));
+        Match idle = close_match();
+        for (int f = 0; f < 30; ++f) {
+            idle.tick(pad(5), pad(5));
+            check(p2::view_camera(idle, heavy, light, fx, scene).y == p2::view_camera(idle, light, light, fx, scene).y, "standing: no dip");
+        }
+    });
+
     s.test("each spark style and flash draws its own picture, pinned", [&] {
         std::vector<std::uint64_t> lists;
         Hash all;
-        for (const p2::Spark style : {p2::Spark::rays, p2::Spark::ring, p2::Spark::splash, p2::Spark::shards, p2::Spark::bolt}) {
+        for (const p2::Spark style : {p2::Spark::rays, p2::Spark::ring, p2::Spark::splash, p2::Spark::shards, p2::Spark::bolt, p2::Spark::cracks}) {
             for (const p2::Flash flash : {p2::Flash::none, p2::Flash::invert}) {
                 if (flash == p2::Flash::invert && style != p2::Spark::bolt) continue;
                 p2::Look l = ink;
@@ -416,7 +447,7 @@ spark = { style = "rays", colour = "#ffd166" }
         }
         check_eq(std::set<std::uint64_t>(lists.begin(), lists.end()).size(), lists.size());
         std::println("    sparks {}", all.hex());
-        check_eq(all.hex(), std::string("70dee2a51ce8143b"));
+        check_eq(all.hex(), std::string("ddf03bff612ad757"));
     });
 
     s.test("the training fighter's look, every clip at three moments: a contact sheet (saved), its picture pinned", [] {

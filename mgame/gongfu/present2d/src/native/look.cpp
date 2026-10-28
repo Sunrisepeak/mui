@@ -59,14 +59,17 @@ namespace {
 using data::Diagnostic;
 
 constexpr std::string_view format_version = "0.1";
-constexpr std::array<std::string_view, 15> look_keys{"gongfu", "name", "outline", "accent", "trail", "glow", "palette", "bone", "part", "clip", "impact",
+constexpr std::array<std::string_view, 16> look_keys{"gongfu", "name", "outline", "accent", "trail", "glow", "footfall", "palette", "bone", "part", "clip", "impact",
                                                      "glyph", "cinematic", "projectile", "doc"};
 constexpr std::array<std::string_view, 3> trail_keys{"color", "frames", "alpha"};
 constexpr std::array<std::string_view, 2> glow_keys{"color", "width"};
+constexpr std::array<std::string_view, 3> footfall_keys{"every", "dip", "frames"};
 constexpr std::array<std::string_view, 4> projectile_look_keys{"glyph", "size", "color", "halo"};
 constexpr std::array<std::string_view, 2> stroke_keys{"points", "width"};
-constexpr std::array<std::string_view, 9> cinematic_keys{"attacker", "defender", "backdrop", "camera", "glyph", "seal", "flash", "scanlines", "doc"};
-constexpr std::array<std::string_view, 3> backdrop_keys{"color", "in", "out"};
+constexpr std::array<std::string_view, 13> cinematic_keys{"attacker", "defender", "backdrop", "camera", "glyph", "seal", "flash", "scanlines",
+                                                          "attacker_path", "defender_path", "quake", "ring", "doc"};
+constexpr std::array<std::string_view, 4> backdrop_keys{"color", "in", "out", "clouds"};
+constexpr std::array<std::string_view, 3> clouds_keys{"color", "count", "between"};
 constexpr std::array<std::string_view, 6> written_keys{"name", "at", "size", "from", "ends", "color"};
 constexpr std::array<std::string_view, 4> seal_keys{"frame", "at", "size", "color"};
 constexpr std::array<std::string_view, 2> outline_keys{"color", "width"};
@@ -76,7 +79,7 @@ constexpr std::array<std::string_view, 6> clip_keys{"frames", "loop", "ease", "a
 constexpr std::array<std::string_view, 8> impact_keys{"shake", "zoom", "flash", "spark", "sound", "rumble", "doc", "name"};
 constexpr std::array<std::string_view, 6> spark_keys{"style", "size", "count", "frames", "color", "counter"};
 constexpr std::array<std::string_view, 3> shape_names{"capsule", "ellipse", "polygon"};
-constexpr std::array<std::string_view, 5> spark_names{"rays", "ring", "splash", "shards", "bolt"};
+constexpr std::array<std::string_view, 6> spark_names{"rays", "ring", "splash", "shards", "bolt", "cracks"};
 constexpr std::array<std::string_view, 3> flash_names{"none", "white", "invert"};
 
 struct Reader {
@@ -516,6 +519,12 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
         if (auto c = r.colour(t->get("color"), "a glow's `color`")) look.glow.color = *c;
         if (auto v = r.number(t->get("width"), "a glow's `width`", 0, 64)) look.glow.width = static_cast<float>(*v);
     }
+    if (const toml::table* t = r.table_of(root->get("footfall"), "`footfall`")) {
+        r.only(*t, footfall_keys, "`footfall`");
+        if (auto v = r.integer(t->get("every"), "a footfall's `every`", 1, 600)) look.footfall.every = static_cast<std::int32_t>(*v);
+        if (auto v = r.number(t->get("dip"), "a footfall's `dip`", 0, 64)) look.footfall.dip = static_cast<float>(*v);
+        if (auto v = r.integer(t->get("frames"), "a footfall's `frames`", 1, 600)) look.footfall.frames = static_cast<std::int32_t>(*v);
+    }
 
     // Glyphs: strokes in a 100 × 100 box, y up, in the order they are written.
     if (const toml::node* gn = root->get("glyph")) {
@@ -572,6 +581,13 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
                     if (auto v = r.colour(b->get("color"), "a backdrop's `color`")) c.backdrop = *v;
                     if (auto v = r.pair(b->get("in"), "a backdrop's `in`", "in = [0, 20]: the frames it fades in over")) c.backdrop_in = {static_cast<std::int32_t>((*v)[0]), static_cast<std::int32_t>((*v)[1])};
                     if (auto v = r.pair(b->get("out"), "a backdrop's `out`", "out = [184, 200]")) c.backdrop_out = {static_cast<std::int32_t>((*v)[0]), static_cast<std::int32_t>((*v)[1])};
+                    if (const toml::table* cl = r.table_of(b->get("clouds"), "a backdrop's `clouds`")) {
+                        r.only(*cl, clouds_keys, "a backdrop's clouds");
+                        if (auto v = r.colour(cl->get("color"), "the clouds' `color`")) c.clouds.color = *v;
+                        if (auto v = r.integer(cl->get("count"), "the clouds' `count`", 0, 64)) c.clouds.count = static_cast<std::int32_t>(*v);
+                        if (auto v = r.pair(cl->get("between"), "the clouds' `between`", "between = [250, 900]: how high, from where the lock began"))
+                            c.clouds.low = static_cast<float>((*v)[0]), c.clouds.high = static_cast<float>((*v)[1]);
+                    }
                 }
                 if (const toml::node* cam = t->get("camera")) {
                     if (const toml::array* a = cam->as_array()) {
@@ -613,6 +629,33 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
                     if (auto v = r.colour(sl->get("color"), "the seal's `color`")) c.seal_color = *v;
                 }
                 if (auto v = r.boolean(t->get("scanlines"), "a cinematic's `scanlines`")) c.scanlines = *v;
+                // Paths: [[frame, forward, up], …]; quakes: [[frame, strength, frames], …]; rings: [[frame, forward, up, size, frames], …].
+                auto rows = [&](std::string_view key, std::size_t width, auto&& add) {
+                    const toml::node* n = t->get(key);
+                    if (!n) return;
+                    const toml::array* a = n->as_array();
+                    if (!a) {
+                        r.error(n, std::format("a cinematic's `{}` is a list", key));
+                        return;
+                    }
+                    for (const toml::node& e : *a) {
+                        const toml::array* row = e.as_array();
+                        if (!row || row->size() != width) {
+                            r.error(&e, std::format("a `{}` entry has {} numbers", key, width));
+                            continue;
+                        }
+                        std::vector<double> v;
+                        for (std::size_t k = 0; k < width; ++k)
+                            if (auto x = r.number(row->get(k), std::format("a `{}` number", key))) v.push_back(*x);
+                        if (v.size() == width) add(v);
+                    }
+                };
+                rows("attacker_path", 3, [&](const std::vector<double>& v) { c.attacker_path.push_back({static_cast<std::int32_t>(v[0]), {static_cast<float>(v[1]), static_cast<float>(v[2])}}); });
+                rows("defender_path", 3, [&](const std::vector<double>& v) { c.defender_path.push_back({static_cast<std::int32_t>(v[0]), {static_cast<float>(v[1]), static_cast<float>(v[2])}}); });
+                rows("quake", 3, [&](const std::vector<double>& v) { c.quakes.push_back({static_cast<std::int32_t>(v[0]), static_cast<float>(v[1]), static_cast<std::int32_t>(v[2])}); });
+                rows("ring", 5, [&](const std::vector<double>& v) {
+                    c.rings.push_back({static_cast<std::int32_t>(v[0]), {static_cast<float>(v[1]), static_cast<float>(v[2])}, static_cast<float>(v[3]), static_cast<std::int32_t>(v[4])});
+                });
                 if (const toml::node* fl = t->get("flash")) {
                     if (const toml::array* a = fl->as_array()) {
                         for (const toml::node& k : *a) {
@@ -679,6 +722,7 @@ std::string write_look(const Look& look) {
         s += std::format("], alpha = {} }}\n", look.trail.alpha);
     }
     if (look.glow.width > 0) s += std::format("glow = {{ color = {}, width = {} }}\n", colour_text(look.glow.color), look.glow.width);
+    if (look.footfall.dip > 0) s += std::format("footfall = {{ every = {}, dip = {}, frames = {} }}\n", look.footfall.every, look.footfall.dip, look.footfall.frames);
     for (std::size_t p = 0; p < look.palettes.size(); ++p) {
         s += std::format("\n[[palette]]\nname = \"{}\"\n", p < look.palette_names.size() ? look.palette_names[p] : std::string());
         for (std::size_t k = 0; k < look.slots.size() && k < look.palettes[p].size(); ++k)
@@ -714,7 +758,7 @@ std::string write_look(const Look& look) {
         for (std::size_t b = 0; b < c.angles.size() && b < look.bones.size(); ++b)
             if (!c.angles[b].empty()) s += std::format("angle.{} = {}\n", key_text(look.bones[b].name), keys_text(c.angles[b], ease));
     }
-    constexpr std::array<std::string_view, 5> sparks{"rays", "ring", "splash", "shards", "bolt"};
+    constexpr std::array<std::string_view, 6> sparks{"rays", "ring", "splash", "shards", "bolt", "cracks"};
     constexpr std::array<std::string_view, 3> flashes{"none", "white", "invert"};
     for (const Impact& im : look.impacts) {
         s += std::format("\n[impact.{}]\n", key_text(im.name));
@@ -744,8 +788,11 @@ std::string write_look(const Look& look) {
     constexpr std::array<std::string_view, 3> flash_text{"none", "white", "invert"};
     for (const auto& [name, c] : look.cinematics) {
         s += std::format("\n[cinematic.{}]\nattacker = \"{}\"\ndefender = \"{}\"\n", key_text(name), c.attacker_clip, c.defender_clip);
-        s += std::format("backdrop = {{ color = {}, in = [{}, {}], out = [{}, {}] }}\n", colour_text(c.backdrop), c.backdrop_in[0], c.backdrop_in[1], c.backdrop_out[0],
+        s += std::format("backdrop = {{ color = {}, in = [{}, {}], out = [{}, {}]", colour_text(c.backdrop), c.backdrop_in[0], c.backdrop_in[1], c.backdrop_out[0],
                          c.backdrop_out[1]);
+        if (c.clouds.count > 0)
+            s += std::format(", clouds = {{ color = {}, count = {}, between = [{}, {}] }}", colour_text(c.clouds.color), c.clouds.count, c.clouds.low, c.clouds.high);
+        s += " }\n";
         if (!c.camera.empty()) {
             s += "camera = [";
             for (std::size_t i = 0; i < c.camera.size(); ++i)
@@ -758,6 +805,16 @@ std::string write_look(const Look& look) {
             s += std::format("], color = {} }}\n", colour_text(c.glyph_color));
         }
         if (c.scanlines) s += "scanlines = true\n";
+        auto list = [&](std::string_view key, const auto& items, auto&& row) {
+            if (items.empty()) return;
+            s += std::format("{} = [", key);
+            for (std::size_t i = 0; i < items.size(); ++i) s += (i ? ", " : "") + row(items[i]);
+            s += "]\n";
+        };
+        list("attacker_path", c.attacker_path, [](const auto& k) { return std::format("[{}, {}, {}]", k.frame, k.at.x, k.at.y); });
+        list("defender_path", c.defender_path, [](const auto& k) { return std::format("[{}, {}, {}]", k.frame, k.at.x, k.at.y); });
+        list("quake", c.quakes, [](const auto& q) { return std::format("[{}, {}, {}]", q.frame, q.strength, q.frames); });
+        list("ring", c.rings, [](const auto& g) { return std::format("[{}, {}, {}, {}, {}]", g.frame, g.at.x, g.at.y, g.size, g.frames); });
         if (c.seal_frame >= 0)
             s += std::format("seal = {{ frame = {}, at = [{}, {}], size = {}, color = {} }}\n", c.seal_frame, c.seal_at.x, c.seal_at.y, c.seal_size, colour_text(c.seal_color));
         if (!c.flashes.empty()) {

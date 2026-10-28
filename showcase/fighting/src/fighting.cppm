@@ -5,10 +5,12 @@ export module openmui.showcase.fighting;
 
 export import openmui;
 export import gongfu.present2d;
+export import gongfu.training;
 export import :stage_contract;
 export import :kata_fighter;
 export import :kata_look;
 export import :roster;
+export import :hud;
 export import :stage;
 
 export namespace omui::fighting {

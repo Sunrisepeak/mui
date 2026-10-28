@@ -22,10 +22,15 @@ mcpp run -p openmui.showcase.fighting -- --headless --png fight.png
 - **An agent plays through the stage's actions:**
   - `press` holds a pad written in numpad notation (`6`, `2LK`, `5LP+LK`) until the next press; `release` gives the keyboard back.
   - The stage's semantic value is the match as an agent follows it: the frame, the seconds left, and each fighter's name, health, combo, position and what it is doing (`idle`, `walk_forward`, `5LP`, `hitstun`, …).
-- **Training** (`mode = "training"`) adds:
-  - the push, hurt and active hit boxes of the current frame, lined up with the picture's camera (shake included);
-  - the last 60 frames of each player: startup, active, recovery, stun or free.
-- **The HUD needs no font.** The health bars drain from the middle toward each player's side, and the timer is two seven-segment digits.
+- **Training** (`mode = "training"`) adds, from `gongfu.training`:
+  - the push, hurt, throw and active hit boxes of the current frame, lined up with the picture's camera (shake included);
+  - the frame meter: the last 80 frames of each player, hitstop not counted;
+  - each player's input history, with arrows, the buttons' colours and the frames each pad was held;
+  - the readings under the timer: player 1's startup, the frame advantage and the combo's hits and damage;
+  - actions to save and load a state, and to record a player and replay the recording looped (the dummy).
+
+  Agents read the same values in the semantic value's `training`.
+- **The HUD shapes almost no text.** The health bars drain from the middle toward each player's side, and numbers are seven-segment bars. The few words are shaped once and kept.
 
 `tests/fighting_test.cpp` covers:
 - the roster read;
@@ -33,4 +38,6 @@ mcpp run -p openmui.showcase.fighting -- --headless --png fight.png
 - the keyboard walking both players;
 - pause and step;
 - an agent walking in and landing a jab, which the semantic value reports;
+- training's readings as an agent reads them (a blocked jab is +3, a jab cancelled into a fireball is a combo of 900);
+- a saved state coming back, and the dummy replaying a recorded walk exactly;
 - the versus and training frames at the jab's active frame, with pinned pixels.

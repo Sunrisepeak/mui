@@ -21,3 +21,8 @@ resume  = { effect = "reversible" }
 step    = { effect = "reversible", doc = "One frame, while paused." }
 press   = { effect = "reversible", args = { player = "i32", pad = "string" }, doc = "Holds a pad for a player until the next press: a numpad direction and buttons (`6`, `2LK`, `5LP+LK`, `5` to let go)." }
 release = { effect = "reversible", args = { player = "i32" }, doc = "Gives the player back to the keyboard." }
+save    = { effect = "reversible", doc = "Keeps the match as it is now (training's state save)." }
+load    = { effect = "reversible", doc = "Back to the saved match." }
+record  = { effect = "reversible", args = { player = "i32" }, doc = "Starts recording what the player does (training's dummy)." }
+replay  = { effect = "reversible", args = { player = "i32" }, doc = "Plays the player's recording back, looped, in place of the player." }
+stop    = { effect = "reversible", args = { player = "i32" }, doc = "Stops the player's recording or replay." }

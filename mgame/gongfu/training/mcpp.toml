@@ -1,0 +1,27 @@
+# gongfu.training — what training mode shows, measured (D-85 §8.5): each
+# player's input history, the frame meter (startup, active, recovery, stun,
+# frame by frame), the frame advantage after a contact as both sides recover,
+# the combo's hits and damage, and a recorder that keeps a player's pads and
+# plays them back looped (the dummy). The standard library alone, no
+# allocation per frame; what draws it is the game's (showcase/fighting).
+[package]
+namespace   = "gongfu"
+name        = "training"
+version     = "0.1.0"
+description = "gongfu's training mode, measured: input history, frame meter, frame advantage, combo readout, a recording dummy"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[targets.gongfu-training]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+gongfu = { path = ".." }
+
+[dev-dependencies]
+openmui.testing = { path = "../../../modules/base/testing" }

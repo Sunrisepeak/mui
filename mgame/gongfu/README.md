@@ -23,5 +23,13 @@ for (const gongfu::Event& e : match.events()) { /* hits, blocks, throws, KO: wha
 
 ## Inside
 
-- [present2d](present2d) (`gongfu.present2d`): a match drawn in 2D — skeletons with vector parts posed by clips, the camera, sparks and shakes — every picture a pure function of the state and its events.
+- [present2d](present2d) (`gongfu.present2d`): a match drawn in 2D: skeletons with vector parts posed by clips, the camera, and impact profiles (shake, punch in, flash, sparks). Looks are files (`*.look.gongfu.toml`). Every picture is a pure function of the state and its events.
+- [training](training) (`gongfu.training`): what training mode shows, measured from the match after each frame:
+  - each player's input history;
+  - the frame meter: startup, active, recovery and stun, with hitstop not counted;
+  - the frame advantage once both sides recover;
+  - the combo's hits and damage;
+  - a recorder that plays a player's pads back, looped (the dummy).
+
+  It uses only the standard library and allocates nothing per frame.
 - [data](data) (`gongfu.data`): characters and rules as files — `*.fighter.gongfu.toml`, `*.system.gongfu.toml` — read with every problem at its line and column, moves in numpad notation (`236P`, `[4]6P`, `2LK`, `LP+LK`).

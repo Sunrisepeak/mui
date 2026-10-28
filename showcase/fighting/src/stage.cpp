@@ -19,7 +19,7 @@ namespace p2 = gongfu::present2d;
 using gongfu::Button;
 using gongfu::bit;
 
-constexpr float picture_w = 960, picture_h = 540;
+constexpr float picture_w = hud::width, picture_h = hud::height;
 constexpr double frame_period = 1.0 / 60.0;
 
 // The keyboard's two players.
@@ -55,16 +55,6 @@ std::optional<gongfu::Pad> parse_pad(std::string_view s) {
 
 Color tone(std::uint32_t hex, float alpha = 1) { return Color::hex(hex, alpha); }
 
-// What a fighter's frame is, for the meter: 0 free, 1 startup, 2 active, 3 recovery, 4 stun.
-std::uint8_t phase(const gongfu::Match& m, std::int32_t i) {
-    const auto& f = m.state().f[static_cast<std::size_t>(i)];
-    if (f.mode == gongfu::Mode::hitstun || f.mode == gongfu::Mode::blockstun) return 4;
-    if (f.mode != gongfu::Mode::move) return 0;
-    const auto& fighter = m.fighter(i);
-    const auto& move = fighter.def.moves[static_cast<std::size_t>(f.move)];
-    if (std::ranges::any_of(move.hits, [&](const auto& h) { return h.active.contains(f.move_frame); })) return 2;
-    return f.move_frame < fighter.startup(f.move) ? 1 : 3;
-}
 
 }  // namespace
 
@@ -73,7 +63,7 @@ void Stage::start_round() {
     if (r.fighters.empty()) return;
     match_ = std::make_unique<gongfu::Match>(r.system, r.fighters.front(), r.fighters.size() > 1 ? r.fighters[1] : r.fighters.front());
     effects_ = {};
-    meter_.clear();
+    readout_.clear();
     over_reported_ = false;
 }
 
@@ -125,11 +115,16 @@ gongfu::Pad Stage::pad_of(std::int32_t player) const {
     return agent ? *agent : keyboard(player);
 }
 
+void Stage::changed() {
+    services().invalidate_paint(node());
+    services().invalidate_semantics(node());
+}
+
 void Stage::advance() {
-    match_->tick(pad_of(0), pad_of(1));
+    const gongfu::Pad a = dummies_[0].step(pad_of(0)), b = dummies_[1].step(pad_of(1));
+    match_->tick(a, b);
     effects_.record(*match_);
-    meter_.push_back({phase(*match_, 0), phase(*match_, 1)});
-    if (meter_.size() > meter_frames) meter_.erase(meter_.begin());
+    readout_.record(*match_, a, b);
     if (match_->state().over && !over_reported_) {
         over_reported_ = true;
         emit_round_over(match_->state().winner);
@@ -164,61 +159,17 @@ void Stage::paint(PaintContext& ctx) const {
     const p2::Look& right = r.looks.size() > 1 ? r.looks[1] : r.looks[0];
     painter_.draw(*match_, left, right, effects_, scene, frame);
 
-    const gongfu::State& st = match_->state();
-    // The health bars and the timer, over the picture.
-    for (std::int32_t i = 0; i < 2; ++i) {
-        const float w = 380, h = 16, y = 24, x = i == 0 ? 40 : picture_w - 40 - w;
-        const double share = std::clamp(st.f[static_cast<std::size_t>(i)].health / static_cast<double>(match_->fighter(i).def.health), 0.0, 1.0);
-        frame.fill_round_rect({x, y, w, h}, CornerRadii::all(4), render::Paint::solid(tone(0x0b0d12, 0.8f)));
-        const float filled = static_cast<float>(w * share);
-        // Each bar drains from the middle toward its own side, as the genre's do.
-        frame.fill_round_rect({i == 0 ? x : x + w - filled, y, filled, h}, CornerRadii::all(4), render::Paint::solid(tone(i == 0 ? 0xf2c14e : 0x4ec9f2)));
-    }
-    const int seconds_left = (st.timer + 59) / 60;
-    for (int d = 0; d < 2; ++d) {
-        // Two digits as seven-segment bars: no font needed, the same everywhere.
-        const int digit = d == 0 ? seconds_left / 10 % 10 : seconds_left % 10;
-        constexpr std::array<std::uint8_t, 10> segments{0b1111110, 0b0110000, 0b1101101, 0b1111001, 0b0110011,
-                                                        0b1011011, 0b1011111, 0b1110000, 0b1111111, 0b1111011};
-        const float ox = picture_w / 2 - 22 + d * 24, oy = 16, sw = 16, sh = 30, t = 3;
-        const std::array<Rect, 7> bars{Rect{ox, oy, sw, t},          Rect{ox + sw - t, oy, t, sh / 2},     Rect{ox + sw - t, oy + sh / 2, t, sh / 2},
-                                       Rect{ox, oy + sh - t, sw, t},  Rect{ox, oy + sh / 2, t, sh / 2},     Rect{ox, oy, t, sh / 2},
-                                       Rect{ox, oy + sh / 2 - t / 2, sw, t}};
-        for (int s = 0; s < 7; ++s)
-            if (segments[static_cast<std::size_t>(digit)] & (1 << (6 - s))) frame.fill_rect(bars[static_cast<std::size_t>(s)], tone(0xf4f1ea));
-    }
-    // Training: the boxes of this frame (push grey, hurt blue, active hits
-    // red) lined up with the picture's camera, and the frame meter.
+    hud::bars(frame, *match_);
+    hud::timer(frame, (match_->state().timer + 59) / 60);
     if (props.mode == "training") {
-        const p2::Camera cam = p2::view_camera(*match_, left, right, effects_, scene);
-        auto outline = [&](const gongfu::Rect& b, Color c) {
-            const Point a = p2::on_picture(scene, cam, b.left.to_double(), b.top.to_double());
-            const Point z = p2::on_picture(scene, cam, b.right.to_double(), b.bottom.to_double());
-            const Rect r{a.x, a.y, z.x - a.x, z.y - a.y};
-            frame.fill_rect(r, c.with_alpha(0.18f));
-            frame.stroke_round_rect(r, {}, 1.5f, render::Paint::solid(c));
+        hud::boxes(frame, *match_, scene, p2::view_camera(*match_, left, right, effects_, scene));
+        hud::meter(frame, readout_);
+        hud::inputs(frame, readout_, 0);
+        hud::inputs(frame, readout_, 1);
+        auto dummy = [&](std::size_t i) {
+            return dummies_[i].recording() ? hud::Dummy::recording : dummies_[i].playing() ? hud::Dummy::playing : hud::Dummy::none;
         };
-        for (std::int32_t i = 0; i < 2; ++i) {
-            const auto& f = st.f[static_cast<std::size_t>(i)];
-            const auto& def = match_->fighter(i).def;
-            const gongfu::MoveDef* move = f.mode == gongfu::Mode::move ? &def.moves[static_cast<std::size_t>(f.move)] : nullptr;
-            const bool air = f.pos.y > gongfu::Fixed{}, low = f.mode == gongfu::Mode::crouch || (move && move->stance == gongfu::Stance::crouching);
-            const gongfu::Box& hurt = air ? def.hurt_air : low ? def.hurt_crouching : def.hurt_standing;
-            outline(gongfu::place(def.push, f.pos, f.facing), tone(0x9aa0a6));
-            outline(gongfu::place(hurt, f.pos, f.facing), tone(0x4ea1f2));
-            if (move)
-                for (const auto& h : move->hits)
-                    if (h.active.contains(f.move_frame))
-                        for (const auto& b : h.boxes) outline(gongfu::place(b, f.pos, f.facing), tone(0xf24e5a));
-        }
-        // The meter: each player's last frames, oldest left — startup green,
-        // active red, recovery blue, stun yellow, free grey.
-        constexpr std::array<std::uint32_t, 5> phase_tone{0x3a3f52, 0x4ef27a, 0xf24e5a, 0x4ea1f2, 0xf2c14e};
-        const float cell = 400.0f / meter_frames, left_edge = picture_w / 2 - 200;
-        for (std::size_t k = 0; k < meter_.size(); ++k)
-            for (std::size_t i = 0; i < 2; ++i)
-                frame.fill_rect({left_edge + static_cast<float>(k) * cell, picture_h - 40 + static_cast<float>(i) * 14, cell - 1, 10},
-                                tone(phase_tone[meter_[k][i]], 0.9f));
+        hud::readings(frame, readout_, words_, ctx.services.fonts(), {dummy(0), dummy(1)});
     }
 
     // Into the node's box: scaled to fit, centred, letterboxed.
@@ -263,6 +214,17 @@ void Stage::semantics(SemanticsContext&, spec::SemanticNode& node) const {
                                         .set("x", f.pos.x.to_double())
                                         .set("combo", f.combo));
     }
+    // Training's readings, as a person sees them.
+    Value training;
+    if (auto a = readout_.startup(0)) training.set("startup", *a);
+    if (auto a = readout_.advantage()) training.set("advantage", readout_.advantage_attacker() == 0 ? *a : -*a);  // player 1's side
+    const auto& c = readout_.combo();
+    if (c.attacker >= 0) training.set("combo", Value{}.set("by", c.attacker).set("hits", c.hits).set("damage", c.damage).set("going", c.going));
+    for (std::size_t i = 0; i < 2; ++i)
+        if (dummies_[i].recording() || dummies_[i].playing())
+            training.set(i == 0 ? "dummy1" : "dummy2", dummies_[i].recording() ? "recording" : "playing");
+    training.set("saved", saved_.has_value());
+    v.set("training", std::move(training));
     node.value = std::move(v);
 }
 
@@ -299,6 +261,59 @@ ActResult Stage::press(ActContext&, const Value& pad, const Value& player) {
     if (!parsed) return ActResult::fail(std::format("`{}` is not a pad: a numpad direction and buttons, `6`, `2LK`, `5LP+LK`", pad.as_string()));
     agent_[static_cast<std::size_t>(p)] = *parsed;
     return ActResult::done();
+}
+
+ActResult Stage::save(ActContext&) {
+    if (!match_) return ActResult::fail("no match: the roster did not read");
+    saved_ = Saved{match_->state(), effects_};
+    changed();
+    return ActResult::done(Value(match_->state().frame));
+}
+
+ActResult Stage::load(ActContext&) {
+    if (!match_ || !saved_) return ActResult::fail("nothing saved: `save` first");
+    match_->restore(saved_->state);
+    effects_ = saved_->effects;
+    readout_.clear();  // its history is of frames no longer played
+    over_reported_ = match_->state().over != 0;
+    changed();
+    return ActResult::done(Value(match_->state().frame));
+}
+
+namespace {
+
+std::expected<std::size_t, std::string> player_of(const Value& v) {
+    const auto p = v.as_int(-1);
+    if (p != 0 && p != 1) return std::unexpected(std::string("`player` is 0 or 1"));
+    return static_cast<std::size_t>(p);
+}
+
+}  // namespace
+
+ActResult Stage::record(ActContext&, const Value& player) {
+    auto p = player_of(player);
+    if (!p) return ActResult::fail(p.error());
+    dummies_[*p].start_recording();
+    changed();
+    return ActResult::done();
+}
+
+ActResult Stage::replay(ActContext&, const Value& player) {
+    auto p = player_of(player);
+    if (!p) return ActResult::fail(p.error());
+    if (dummies_[*p].recording()) dummies_[*p].stop();
+    dummies_[*p].start_playback();
+    if (!dummies_[*p].playing()) return ActResult::fail("nothing recorded for this player: `record` first");
+    changed();
+    return ActResult::done(Value(static_cast<std::int64_t>(dummies_[*p].length())));
+}
+
+ActResult Stage::stop(ActContext&, const Value& player) {
+    auto p = player_of(player);
+    if (!p) return ActResult::fail(p.error());
+    dummies_[*p].stop();
+    changed();
+    return ActResult::done(Value(static_cast<std::int64_t>(dummies_[*p].length())));
 }
 
 ActResult Stage::release(ActContext&, const Value& player) {

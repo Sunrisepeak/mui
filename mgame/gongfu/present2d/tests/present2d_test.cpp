@@ -275,6 +275,34 @@ int main(int argc, char** argv) {
         check(a.hash() == b.hash(), "the same picture");
     });
 
+    s.test("a look's glyphs and a level 3's cinematic read back as themselves; a cinematic naming no clip or glyph is a problem", [] {
+        std::string text = read(here() / "data" / "kata.look.gongfu.toml");
+        text += R"(
+[glyph."一"]
+strokes = [{ points = [[10, 50], [50, 52], [90, 50]], width = [8, 6, 10] }]
+
+[cinematic.finale]
+attacker = "5HP"
+defender = "hitstun"
+backdrop = { color = "#efe6d2", in = [0, 16], out = [186, 200] }
+camera = [[0, 1, 85, 110], [10, 3, 18, 182]]
+glyph = { name = "一", at = [175, 115], size = 280, from = 30, ends = [40], color = "#101114" }
+seal = { frame = 172, at = [270, 30], size = 56, color = "#c0392b" }
+flash = [[180, "white", 6]]
+)";
+        auto look = p2::read_look(text, "kata.look.gongfu.toml");
+        check(look.has_value(), look ? "" : std::format("{}", texts(look.error())));
+        if (!look) return;
+        const auto& c = look->cinematics.at("finale");
+        check(c.camera.size() == 2 && c.glyph == "一" && c.glyph_ends == std::vector<std::int32_t>{40} && c.seal_frame == 172 && c.flashes.size() == 1);
+        const std::string written = p2::write_look(*look);
+        auto again = p2::read_look(written, "written.look.gongfu.toml");
+        check(again && p2::write_look(*again) == written, "written back as itself");
+        auto bad = p2::read_look(read(here() / "data" / "kata.look.gongfu.toml") + "\n[cinematic.finale]\nattacker = \"5XP\"\nglyph = { name = \"永\" }\n", "bad.look.gongfu.toml");
+        check(!bad && has(texts(bad.error()), "plays `5XP`, which is no clip") && has(texts(bad.error()), "writes `永`, which is no glyph"),
+              bad ? "read" : std::format("{}", texts(bad.error())));
+    });
+
     s.test("problems in a look at their line and column, with the nearest right word", [] {
         const std::string text = R"(gongfu = "0.1"
 name = "broken"

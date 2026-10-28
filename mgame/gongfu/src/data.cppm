@@ -100,6 +100,25 @@ struct ProjectileDef {
     std::int32_t limit = 0;     // at most this many of its owner's limited projectiles at once (0: not limited); the move is not started past it
 };
 
+// A level-3 super's cinematic (system 0.3, P-5): when its first hit lands
+// (not blocked), both fighters are locked for `frames`; its hits land on
+// their frames of the lock (scaled as the super's first was); at the end
+// the two stand where it says (from where the attacker began, forward and
+// up), the defender down for `down` frames, the attacker recovering for
+// `recovery`. The timer stands still; projectiles on the stage are gone.
+struct CinematicHit {
+    std::int32_t  frame = 1;
+    std::int32_t  damage = 0;
+    std::uint16_t impact = 0;  // FighterDef::impacts
+};
+struct CinematicDef {
+    std::int32_t              frames = 0;
+    std::vector<CinematicHit> hits;
+    Vec                       attacker_at, defender_at;
+    std::int32_t              down = 60;
+    std::int32_t              recovery = 20;
+};
+
 // A step of a move's own movement: from this frame on, this velocity
 // (forward, up), until the next step or the move's end.
 struct StepDef {
@@ -120,6 +139,7 @@ struct MoveDef {
     std::vector<StepDef>         steps;
     std::optional<ThrowDef>      throw_;
     std::optional<ProjectileDef> projectile;
+    std::optional<CinematicDef>  cinematic;  // a level-3 super's, on its first hit
     std::int32_t                 meter_cost = 0;
     std::int32_t                 meter_gain = 0;    // on hit; half on block
     std::int32_t                 freeze = 0;        // frames both fighters stand still at its first frame (a super's flash)

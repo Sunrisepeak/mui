@@ -560,6 +560,60 @@ pushback = 1
 impact = "super"
 
 [[move]]
+name = "214214P"
+input = "214214P"
+total = 58
+priority = 20
+level = 2
+freeze = 40
+invulnerable = [{ frames = [1, 14], to = ["projectile"] }]
+meter = { cost = 2000 }
+[move.projectile]
+spawn = 12
+offset = [40, 30]
+speed = 14
+life = 90
+hits = 7
+interval = 3
+strength = 3
+[move.projectile.hit]
+active = [1, 90]
+boxes = [[-60, -25, 120, 50]]
+damage = 430
+chip = 60
+hitstun = 36
+blockstun = 30
+hitstop = 5
+pushback = 1
+impact = "super"
+
+[[move]]
+name = "236236K"
+input = "236236K"
+total = 46
+priority = 21
+level = 3
+freeze = 50
+invulnerable = [[1, 9]]
+meter = { cost = 3000 }
+[[move.hit]]
+active = [7, 9]
+boxes = [[20, 95, 120, 40]]
+damage = 300
+hitstun = 40
+blockstun = 28
+hitstop = 14
+pushback = 3
+impact = "heavy"
+[move.cinematic]
+frames = 200
+hits = [[40, 450, "stroke"], [55, 450, "stroke"], [70, 450, "stroke"], [85, 450, "stroke"], [100, 450, "stroke"], [115, 450, "stroke"], [130, 450, "stroke"], [150, 450, "stroke"], [180, 400, "seal"]]
+attacker = [0, 0]
+defender = [170, 0]
+down = 70
+recovery = 30
+
+[[move]]
 name = "66"
 input = "66"
 total = 20

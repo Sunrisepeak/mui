@@ -512,7 +512,7 @@ int main(int argc, char** argv) {
                      straight.state().f[1].health);
         check(straight.state().f[0].health < (1 << 24) && straight.state().f[1].health < (1 << 24), "both were hit");
         // Pinned: every platform and compiler plays these inputs into these bytes.
-        check(hashes.back() == 0x71b15c36ec8046a3ULL, std::format("run hash {:016x}", hashes.back()));
+        check(hashes.back() == 0x3b53896a607ea78aULL, std::format("run hash {:016x}", hashes.back()));
     });
 
     return s.run(argc, argv);

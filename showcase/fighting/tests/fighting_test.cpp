@@ -15,13 +15,14 @@ namespace {
 
 struct Game {
     Headless h{HeadlessOptions{.size = {960, 540}}};
-    explicit Game(std::string_view mode = "versus") {
+    explicit Game(std::string_view mode = "versus", std::string_view player1 = "", std::string_view player2 = "") {
         AppSpec spec = fighting::app();
         spec.setup(h.runtime());
         if (mode == "versus") {
             h.mount("main", spec.view());
         } else {
-            h.mount("main", fighting::stage({.id = "stage", .mode = std::string(mode), .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100))}));
+            h.mount("main", fighting::stage({.id = "stage", .mode = std::string(mode), .player1 = std::string(player1), .player2 = std::string(player2),
+                                             .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100))}));
         }
         h.step();
     }
@@ -258,6 +259,41 @@ int main(int argc, char** argv) {
                 check(defender - attacker == *want, std::format("{} on {}: {:+} measured, {:+} designed", row.move, block ? "block" : "hit", defender - attacker, *want));
             }
         }
+    });
+
+    s.test("墨's level 3, 「永字八法」: the flash and its close-up, then 永 written stroke by stroke on paper and sealed — frames pinned", [] {
+        Game g("training", "mo", "kata");
+        check(g.act("pause"));
+        check(g.act("fill"));
+        // In range of the thrust, then 236236K.
+        check(g.act("press", pad(0, "6")));
+        for (int i = 0; i < 120 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 110; ++i) check(g.act("step"));
+        for (std::string_view p : {"2", "3", "6", "2", "3", "6HK"}) {
+            check(g.act("press", pad(0, p)));
+            check(g.act("step"));
+        }
+        check(g.act("press", pad(0, "5")));
+        const auto dir = scratch_dir("fighting-mo-level3");
+        std::vector<std::uint64_t> px;
+        std::int32_t lock_from = -1;
+        for (int i = 0; i < 320; ++i) {
+            check(g.act("step"));
+            const auto& st = g.state();
+            const bool flash = st.freeze == 25;
+            if (st.lock.owner == 0 && lock_from < 0) lock_from = st.frame;
+            const std::int32_t lf = st.lock.owner == 0 ? st.lock.frame : -1;
+            if (flash || lf == 6 || lf == 16 || lf == 62 || lf == 125 || lf == 176 || lf == 182) {
+                g.h.step();
+                px.push_back(g.pixels());
+                check(g.h.save_png(dir / std::format("{:02}-{}.png", px.size(), flash ? std::string("flash") : std::format("lock-{}", lf))).has_value());
+            }
+        }
+        check(lock_from > 0, "the thrust hit: the cinematic played");
+        check_eq(px.size(), std::size_t{7});
+        Hash all;
+        for (auto v : px) all.u64(v);
+        std::println("    mo level 3 {}", all.hex());
+        check_eq(all.hex(), std::string("342a69dba5b0073f"));  // GCC and LLVM, every platform
     });
 
     s.test("frames pinned: versus and training (boxes and the meter) at a jab's active frame", [] {

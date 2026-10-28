@@ -20,6 +20,8 @@ constexpr std::array<std::string_view, 17> mode_clips{"idle",    "walk_forward",
 
 double stage(Fixed f) { return f.to_double(); }
 
+void pose_at(const Look& look, const Clip* clip, std::int32_t t, const FighterState& s, Pose& out);
+
 // Stage to picture: x right, y down; the camera's point at the middle, on the ground line.
 struct View {
     const Scene& scene;
@@ -145,6 +147,20 @@ void pose(const Look& look, const Fighter& fighter, const FighterState& s, std::
         if (s.mode == Mode::move) t = std::max(0, s.move_frame - 1);
         else if (s.mode == Mode::hitstun || s.mode == Mode::blockstun || s.mode == Mode::knockdown || s.mode == Mode::wakeup)
             t = std::max(0, clip->frames - s.stun);
+    }
+    pose_at(look, clip, t, s, out);
+}
+
+void pose_clip(const Look& look, std::string_view name, std::int32_t t, const FighterState& s, Pose& out) {
+    auto it = look.clips.find(name);
+    if (it == look.clips.end()) it = look.clips.find(std::string_view("idle"));
+    pose_at(look, it == look.clips.end() ? nullptr : &it->second, t, s, out);
+}
+
+namespace {
+
+void pose_at(const Look& look, const Clip* clip, std::int32_t t, const FighterState& s, Pose& out) {
+    if (clip) {
         if (clip->loop && clip->frames > 0) t %= clip->frames;
         else t = std::min(t, clip->frames);
     }
@@ -171,6 +187,8 @@ void pose(const Look& look, const Fighter& fighter, const FighterState& s, std::
         p.tip = {static_cast<float>(p.joint.x + bone.length * dm::cos(p.angle)), static_cast<float>(p.joint.y + bone.length * dm::sin(p.angle))};
     }
 }
+
+}  // namespace
 
 const Impact& default_impact(Event::Kind kind) noexcept {
     static const Impact hit{.name = "hit", .shake = 4, .shake_frames = 8, .spark = Spark::rays, .spark_size = 30, .spark_count = 8, .spark_frames = 16};
@@ -436,11 +454,47 @@ void spark(const Effects::Kept& k, const Impact& im, std::int32_t age, const Vie
 
 }  // namespace
 
+namespace {
+
+// Smooth 0 → 1 between two frames.
+double between(std::int32_t frame, std::int32_t from, std::int32_t to) {
+    if (to <= from) return frame >= to ? 1.0 : 0.0;
+    const double u = std::clamp(static_cast<double>(frame - from) / (to - from), 0.0, 1.0);
+    return u * u * (3 - 2 * u);
+}
+
+// The cinematic a lock plays, if the attacker's look has one for its move.
+const CinematicLook* cinematic_of(const Match& match, const Look& left, const Look& right) {
+    const Lock& l = match.state().lock;
+    if (l.owner < 0) return nullptr;
+    const Look& look = l.owner == 0 ? left : right;
+    const auto& name = match.fighter(l.owner).def.moves[static_cast<std::size_t>(l.move)].name;
+    auto it = look.cinematics.find(name);
+    return it == look.cinematics.end() ? nullptr : &it->second;
+}
+
+// The fighter in a super's flash, and how far into it (0 → 1); −1 when none.
+std::pair<std::int32_t, double> flashing(const Match& match) {
+    const State& st = match.state();
+    if (st.freeze <= 0) return {-1, 0};
+    for (std::int32_t i = 0; i < 2; ++i) {
+        const FighterState& f = st.f[static_cast<std::size_t>(i)];
+        if (f.mode != Mode::move || f.move_frame > 1) continue;  // the flash stands on the move's first frame
+        const MoveDef& m = match.fighter(i).def.moves[static_cast<std::size_t>(f.move)];
+        if (m.level <= 0 || m.freeze <= 0) continue;
+        return {i, 1.0 - static_cast<double>(st.freeze) / m.freeze};
+    }
+    return {-1, 0};
+}
+
+}  // namespace
+
 void Painter::body(const Look& look, const Fighter& fighter, const FighterState& s, std::int32_t frame, const Scene& scene, const Camera& camera,
-                   render::DisplayList& out) {
+                   render::DisplayList& out, std::string_view clip, std::int32_t t) {
     const View view{scene, camera};
     // Outlines behind, parts back to front.
-    pose(look, fighter, s, frame, pose_);
+    if (clip.empty()) pose(look, fighter, s, frame, pose_);
+    else pose_clip(look, clip, t, s, pose_);
     const Pose& p = pose_;
     order_.resize(look.parts.size());
     std::iota(order_.begin(), order_.end(), std::size_t{0});
@@ -482,9 +536,120 @@ void Painter::body(const Look& look, const Fighter& fighter, const FighterState&
     }
 }
 
+void Painter::glyph(const std::vector<Stroke>& strokes, double progress, Point centre, float size, Color color, render::DisplayList& out) {
+    double total = 0;
+    for (const Stroke& st : strokes)
+        for (std::size_t k = 1; k < st.points.size(); ++k) total += std::hypot(st.points[k].x - st.points[k - 1].x, st.points[k].y - st.points[k - 1].y);
+    double left = std::clamp(progress, 0.0, 1.0) * total;
+    std::vector<double> parts;
+    for (const Stroke& st : strokes) {
+        double len = 0;
+        for (std::size_t k = 1; k < st.points.size(); ++k) len += std::hypot(st.points[k].x - st.points[k - 1].x, st.points[k].y - st.points[k - 1].y);
+        parts.push_back(len <= 0 ? 1.0 : std::clamp(left / len, 0.0, 1.0));
+        left = std::max(0.0, left - len);
+    }
+    // As glyph_by_frames, each stroke to its fraction.
+    const float k = size / 100;
+    for (std::size_t n = 0; n < strokes.size(); ++n) {
+        const Stroke& st = strokes[n];
+        const double upto = parts[n];
+        if (upto <= 0 || st.points.size() < 2) continue;
+        double len = 0;
+        std::vector<double> at{0};
+        for (std::size_t q = 1; q < st.points.size(); ++q) at.push_back(len += std::hypot(st.points[q].x - st.points[q - 1].x, st.points[q].y - st.points[q - 1].y));
+        // Samples along the drawn part, each with its width (a press, a carry, a lift).
+        constexpr int samples = 14;
+        std::array<Point, samples + 1> centre_at{};
+        std::array<float, samples + 1> width_at{};
+        for (int i = 0; i <= samples; ++i) {
+            const double u = upto * i / samples, d = u * len;
+            std::size_t seg = 1;
+            while (seg + 1 < st.points.size() && at[seg] < d) ++seg;
+            const double span = at[seg] - at[seg - 1], f = span > 0 ? (d - at[seg - 1]) / span : 0;
+            const double x = st.points[seg - 1].x + (st.points[seg].x - st.points[seg - 1].x) * f;
+            const double y = st.points[seg - 1].y + (st.points[seg].y - st.points[seg - 1].y) * f;
+            centre_at[static_cast<std::size_t>(i)] = {centre.x + static_cast<float>((x - 50) * k), centre.y - static_cast<float>((y - 50) * k)};
+            const double c = 2 * st.width[1] - (st.width[0] + st.width[2]) / 2.0;
+            width_at[static_cast<std::size_t>(i)] =
+                static_cast<float>(((1 - u) * (1 - u) * st.width[0] + 2 * u * (1 - u) * c + u * u * st.width[2]) * k / 2);
+        }
+        for (const float bleed : {1.35f, 1.0f}) {  // the ink bleeding into the paper, then the stroke
+            path_.clear();
+            for (int i = 0; i <= samples; ++i) {
+                const Point a = centre_at[static_cast<std::size_t>(std::max(0, i - 1))], b = centre_at[static_cast<std::size_t>(std::min(samples, i + 1))];
+                const float dx = b.x - a.x, dy = b.y - a.y, l = std::max(1e-3f, std::sqrt(dx * dx + dy * dy));
+                const float w = width_at[static_cast<std::size_t>(i)] * bleed;
+                const Point p{centre_at[static_cast<std::size_t>(i)].x - dy / l * w, centre_at[static_cast<std::size_t>(i)].y + dx / l * w};
+                if (i == 0) path_.move_to(p);
+                else path_.line_to(p);
+            }
+            for (int i = samples; i >= 0; --i) {
+                const Point a = centre_at[static_cast<std::size_t>(std::max(0, i - 1))], b = centre_at[static_cast<std::size_t>(std::min(samples, i + 1))];
+                const float dx = b.x - a.x, dy = b.y - a.y, l = std::max(1e-3f, std::sqrt(dx * dx + dy * dy));
+                const float w = width_at[static_cast<std::size_t>(i)] * bleed;
+                path_.line_to({centre_at[static_cast<std::size_t>(i)].x + dy / l * w, centre_at[static_cast<std::size_t>(i)].y - dx / l * w});
+            }
+            path_.close();
+            circle(path_, centre_at[0], width_at[0] * bleed);
+            circle(path_, centre_at[samples], width_at[samples] * bleed);
+            Color c = color;
+            if (bleed > 1) c.a *= 0.22f;
+            out.fill_path(path_, render::FillRule::nonzero, render::Paint::solid(c));
+        }
+    }
+}
+
+void Painter::glyph_by_frames(const std::vector<Stroke>& strokes, std::span<const std::int32_t> ends, std::int32_t from, std::int32_t frame, Point centre,
+                              float size, Color color, render::DisplayList& out) {
+    // Stroke n is written between the previous one's end and ends[n]: as a share of the whole length.
+    double total = 0;
+    std::vector<double> lens;
+    for (const Stroke& st : strokes) {
+        double len = 0;
+        for (std::size_t k = 1; k < st.points.size(); ++k) len += std::hypot(st.points[k].x - st.points[k - 1].x, st.points[k].y - st.points[k - 1].y);
+        lens.push_back(len);
+        total += len;
+    }
+    if (total <= 0) return;
+    double written = 0;
+    std::int32_t start = from;
+    for (std::size_t n = 0; n < strokes.size(); ++n) {
+        const std::int32_t end = n < ends.size() ? ends[n] : start + 15;
+        const double f = end > start ? std::clamp(static_cast<double>(frame - start) / (end - start), 0.0, 1.0) : (frame >= end ? 1.0 : 0.0);
+        written += lens[n] * f;
+        if (f < 1) break;
+        start = end;
+    }
+    glyph(strokes, written / total, centre, size, color, out);
+}
+
 void Painter::draw(const Match& match, const Look& left, const Look& right, const Effects& effects, const Scene& scene, render::DisplayList& out) {
     const State& st = match.state();
-    const View view{scene, view_camera(match, left, right, effects, scene)};
+    Camera camera = view_camera(match, left, right, effects, scene);
+    const CinematicLook* cine = cinematic_of(match, left, right);
+    const auto [flasher, flash_progress] = flashing(match);
+    if (cine && !cine->camera.empty()) {
+        // The cinematic's camera, between its keys, from where the attacker stood.
+        const auto& keys = cine->camera;
+        const std::int32_t t = st.lock.frame;
+        std::size_t k = 0;
+        while (k + 1 < keys.size() && keys[k + 1].frame <= t) ++k;
+        const auto& a = keys[k];
+        const auto& b = k + 1 < keys.size() ? keys[k + 1] : keys[k];
+        const double u = between(t, a.frame, b.frame);
+        const double fx = st.lock.facing;
+        camera.zoom = a.zoom + (b.zoom - a.zoom) * u;
+        camera.x = stage(st.lock.x) + fx * (a.at.x + (b.at.x - a.at.x) * u);
+        // The key's point at the picture's middle: the camera's y is the height the ground line shows.
+        camera.y = stage(st.lock.y) + (a.at.y + (b.at.y - a.at.y) * u) - (scene.ground - scene.height / 2) / camera.zoom;
+    } else if (flasher >= 0) {
+        // A super's flash: the camera leans in on who flashes.
+        const FighterState& f = st.f[static_cast<std::size_t>(flasher)];
+        const double e = between(static_cast<std::int32_t>(flash_progress * 100), 0, 30);
+        camera.x += (stage(f.pos.x) - camera.x) * 0.5 * e;
+        camera.zoom *= 1 + 0.35 * e;
+    }
+    const View view{scene, camera};
 
     // The stage: sky, floor, the ground line, and marks along it that move with the camera.
     const std::array<render::GradientStop, 2> sky{{{0, scene.sky_top}, {1, scene.sky_bottom}}};
@@ -500,9 +665,39 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         if (p.x >= -4 && p.x <= scene.width + 4) out.fill_rect({p.x - 1, p.y, 2, view.size(14)}, fade(scene.line, 0.6));
     }
 
-    // The fighters.
-    for (std::int32_t i = 0; i < 2; ++i)
-        body(i == 0 ? left : right, match.fighter(i), st.f[static_cast<std::size_t>(i)], st.frame, scene, view.cam, out);
+    // A cinematic's backdrop over the stage, fading in and out.
+    if (cine) {
+        const std::int32_t t = st.lock.frame;
+        const double in = between(t, cine->backdrop_in[0], cine->backdrop_in[1]);
+        const double out_ = cine->backdrop_out[1] > cine->backdrop_out[0] ? 1 - between(t, cine->backdrop_out[0], cine->backdrop_out[1]) : 1.0;
+        out.fill_rect({0, 0, scene.width, scene.height}, fade(cine->backdrop, in * out_));
+    }
+
+    // The fighters (in a cinematic, each plays the clip it says, at the lock's frame).
+    for (std::int32_t i = 0; i < 2; ++i) {
+        std::string_view clip;
+        if (cine) clip = i == st.lock.owner ? std::string_view(cine->attacker_clip) : std::string_view(cine->defender_clip);
+        body(i == 0 ? left : right, match.fighter(i), st.f[static_cast<std::size_t>(i)], st.frame, scene, view.cam, out, clip, st.lock.frame);
+    }
+
+    // The cinematic's glyph, written stroke by stroke over the defender, and its seal.
+    if (cine) {
+        const Look& look = st.lock.owner == 0 ? left : right;
+        const double fx = st.lock.facing;
+        auto world = [&](Point at) { return view.at(stage(st.lock.x) + fx * at.x, stage(st.lock.y) + at.y); };
+        if (auto g = look.glyphs.find(cine->glyph); g != look.glyphs.end())
+            glyph_by_frames(g->second, cine->glyph_ends, cine->glyph_from, st.lock.frame, world(cine->glyph_at), view.size(cine->glyph_size), cine->glyph_color, out);
+        if (cine->seal_frame >= 0 && st.lock.frame >= cine->seal_frame) {
+            const Point c = world(cine->seal_at);
+            const float half = view.size(cine->seal_size) / 2 * static_cast<float>(0.7 + 0.3 * between(st.lock.frame, cine->seal_frame, cine->seal_frame + 4));
+            out.fill_round_rect({c.x - half, c.y - half, 2 * half, 2 * half}, omui::geom::CornerRadii::all(half * 0.12f), render::Paint::solid(cine->seal_color));
+            const float w = half * 0.14f;  // a seal's carved lines: a frame and a cross
+            for (const omui::geom::Rect r : {omui::geom::Rect{c.x - half * 0.7f, c.y - half * 0.7f, half * 1.4f, w}, omui::geom::Rect{c.x - half * 0.7f, c.y + half * 0.7f - w, half * 1.4f, w},
+                                             omui::geom::Rect{c.x - half * 0.7f, c.y - half * 0.7f, w, half * 1.4f}, omui::geom::Rect{c.x + half * 0.7f - w, c.y - half * 0.7f, w, half * 1.4f},
+                                             omui::geom::Rect{c.x - w / 2, c.y - half * 0.7f, w, half * 1.4f}, omui::geom::Rect{c.x - half * 0.7f, c.y - w / 2, half * 1.4f, w}})
+                out.fill_rect(r, Color::hex(0xf4ece0));
+        }
+    }
 
     // Projectiles: a core and a halo.
     for (const ProjectileState& pr : st.p) {
@@ -534,6 +729,48 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
                 out.pop_layer();
             }
         }
+    }
+
+    // A cinematic's flashes.
+    if (cine)
+        for (const auto& f : cine->flashes) {
+            const std::int32_t age = st.lock.frame - f.frame;
+            if (age < 0 || age >= f.frames) continue;
+            if (f.kind == Flash::white) {
+                out.fill_rect({0, 0, scene.width, scene.height}, Color::hex(0xffffff, static_cast<float>(0.8 * (1 - static_cast<double>(age) / f.frames))));
+            } else if (f.kind == Flash::invert) {
+                out.push_layer(1, render::BlendMode::difference);
+                out.fill_rect({0, 0, scene.width, scene.height}, Color::white());
+                out.pop_layer();
+            }
+        }
+
+    // A super's flash: the picture dimmed but for who flashes, a band of their colour, and for a level 3 a close-up in it.
+    if (flasher >= 0) {
+        const Look& look = flasher == 0 ? left : right;
+        const FighterState& f = st.f[static_cast<std::size_t>(flasher)];
+        const MoveDef& m = match.fighter(flasher).def.moves[static_cast<std::size_t>(f.move)];
+        const double in = between(static_cast<std::int32_t>(flash_progress * 100), 0, 20);
+        const double gone = 1 - between(static_cast<std::int32_t>(flash_progress * 100), 85, 100);
+        out.fill_rect({0, 0, scene.width, scene.height}, Color::hex(0x05060a, static_cast<float>(0.55 * in * gone)));
+        // The band: a slanted strip across the picture, sweeping in.
+        const float h = scene.height * 0.34f, y = scene.height * 0.18f, slant = 60;
+        const float reach = static_cast<float>(scene.width * (0.2 + 0.8 * in));
+        path_.clear();
+        path_.move_to({0, y + slant}).line_to({reach, y}).line_to({reach, y + h}).line_to({0, y + h + slant}).close();
+        out.fill_path(path_, render::FillRule::nonzero, render::Paint::solid(fade(look.accent, 0.85 * gone)));
+        if (m.level >= 3) {
+            // The close-up: the fighter three times as large, framed by the band.
+            out.push_clip(omui::geom::Rect{0, y + slant * 0.5f, reach, h});  // the band's middle
+            const Scene big{.width = scene.width, .height = scene.height, .ground = scene.ground};
+            // Centred on the head, which lands in the band's middle.
+            Camera c{stage(f.pos.x) - 40 * f.facing, 0, 3.0};
+            c.y = stage(f.pos.y) + 178 - (scene.ground - (y + h / 2)) / 3.0;
+            body(look, match.fighter(flasher), f, st.frame, big, c, out);
+            out.pop_clip();
+        }
+        // Who flashes, over the dimming.
+        body(look, match.fighter(flasher), f, st.frame, scene, view.cam, out);
     }
 }
 

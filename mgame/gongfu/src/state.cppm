@@ -29,6 +29,7 @@ enum class Mode : std::int32_t {
     reset,      // an air reset: falling untouchable, landing free
     clash,      // the recovery after a clash (`stun` frames)
     broken,     // a guard break: staggered, unable to block or act (`stun` frames)
+    cinematic,  // locked in a level-3 super's cinematic (State::lock)
 };
 
 struct FighterState {
@@ -76,6 +77,16 @@ struct ProjectileState {
     std::int32_t wait = 0;     // frames before it can hit again
 };
 
+// A level-3 super's cinematic under way: who, which move, its frame, and
+// where and which way the attacker stood when it began.
+struct Lock {
+    std::int32_t owner = -1;  // the attacker (−1: none)
+    std::int32_t move = -1;
+    std::int32_t frame = 0;   // frames of the lock played, from 1
+    std::int32_t facing = 1;
+    Fixed        x, y;
+};
+
 struct State {
     static constexpr std::size_t projectiles = 8;
     std::int32_t                             frame = 0;    // frames played
@@ -85,6 +96,7 @@ struct State {
     std::int32_t                             winner = -1;  // 0, 1, or 2 for a draw
     std::array<FighterState, 2>              f{};
     std::array<ProjectileState, projectiles> p{};
+    Lock                                     lock{};
 };
 
 static_assert(std::is_trivially_copyable_v<State>);

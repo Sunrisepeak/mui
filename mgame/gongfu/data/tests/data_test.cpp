@@ -124,6 +124,27 @@ hitstun = 16
 blockstun = 12
 
 [[move]]
+name = "236236K"
+input = "236236K"
+total = 40
+level = 3
+freeze = 50
+meter = { cost = 3000 }
+[[move.hit]]
+active = [7, 9]
+boxes = [[20, 80, 90, 60]]
+damage = 300
+hitstun = 30
+blockstun = 20
+[move.cinematic]
+frames = 200
+hits = [[40, 450, "stroke"], [55, 450]]
+attacker = [0, 0]
+defender = [180, 0]
+down = 60
+recovery = 20
+
+[[move]]
 name = "4throw"
 input = "4LP+LK"
 total = 30
@@ -146,7 +167,11 @@ swap = true
         check(f->weights[1] == 3 && f->posture[1] == std::vector<std::int32_t>{110}, "5HP by its kind: heavy");
         const ProjectileDef& p = *mv[3].projectile;
         check(p.velocity == Vec{5_fx, -5_fx} && p.hits == 2 && p.interval == 4 && p.strength == 2 && p.limit == 1);
-        check(mv[4].throw_->swap && mv[4].command.direction == 4 && mv[4].command.together && !mv[4].clash);
+        check(mv[5].throw_->swap && mv[5].command.direction == 4 && mv[5].command.together && !mv[5].clash);
+        const auto& cine = mv[4].cinematic;
+        check(mv[4].level == 3 && cine && cine->frames == 200 && cine->hits.size() == 2 && cine->hits[0].frame == 40 && cine->defender_at == Vec{180_fx, 0_fx} &&
+                  f->def.impacts[cine->hits[0].impact] == "stroke",
+              "a level 3's cinematic as written");
         auto bad = data::read_fighter(R"(gongfu = "0.1"
 name = "Bad"
 jump = { prejump = 4, up = 20, forward = 5, gravity = 1, landing = 3 }

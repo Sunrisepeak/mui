@@ -59,7 +59,12 @@ namespace {
 using data::Diagnostic;
 
 constexpr std::string_view format_version = "0.1";
-constexpr std::array<std::string_view, 9> look_keys{"gongfu", "name", "outline", "palette", "bone", "part", "clip", "impact", "doc"};
+constexpr std::array<std::string_view, 12> look_keys{"gongfu", "name", "outline", "accent", "palette", "bone", "part", "clip", "impact", "glyph", "cinematic", "doc"};
+constexpr std::array<std::string_view, 2> stroke_keys{"points", "width"};
+constexpr std::array<std::string_view, 8> cinematic_keys{"attacker", "defender", "backdrop", "camera", "glyph", "seal", "flash", "doc"};
+constexpr std::array<std::string_view, 3> backdrop_keys{"color", "in", "out"};
+constexpr std::array<std::string_view, 6> written_keys{"name", "at", "size", "from", "ends", "color"};
+constexpr std::array<std::string_view, 4> seal_keys{"frame", "at", "size", "color"};
 constexpr std::array<std::string_view, 2> outline_keys{"color", "width"};
 constexpr std::array<std::string_view, 7> bone_keys{"name", "parent", "joint", "length", "rest", "limb", "prop"};
 constexpr std::array<std::string_view, 7> part_keys{"bone", "shape", "size", "points", "color", "depth", "doc"};
@@ -148,6 +153,12 @@ struct Reader {
         if (auto it = std::ranges::find(names, *s); it != names.end()) return static_cast<std::size_t>(it - names.begin());
         error(n, std::format("{}: `{}` is not one", what, *s), data::nearest_hint(*s, names));
         return std::nullopt;
+    }
+    const toml::table* table_of(const toml::node* n, std::string_view what) {
+        if (!n) return nullptr;
+        if (const toml::table* t = n->as_table()) return t;
+        error(n, std::format("{} is a table", what));
+        return nullptr;
     }
     template <class F>
     void tables(const toml::node* n, std::string_view what, std::string_view example, F&& f) {
@@ -487,6 +498,127 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
         }
     }
 
+    if (auto c = r.colour(root->get("accent"), "`accent`")) look.accent = *c;
+
+    // Glyphs: strokes in a 100 × 100 box, y up, in the order they are written.
+    if (const toml::node* gn = root->get("glyph")) {
+        if (const toml::table* gt = gn->as_table()) {
+            for (const auto& [name, node] : *gt) {
+                const toml::table* t = node.as_table();
+                const std::string what = std::format("glyph `{}`", name.str());
+                if (!t) {
+                    r.error(&node, std::format("{} is a table", what), "[glyph.\"永\"] strokes = [{ points = [[48, 92], [54, 84]], width = [10, 14, 8] }]");
+                    continue;
+                }
+                std::vector<Stroke> strokes;
+                r.tables(t->get("strokes"), "strokes", "strokes = [{ points = [[48, 92], [54, 84]], width = [10, 14, 8] }]", [&](const toml::table& st) {
+                    r.only(st, stroke_keys, "a stroke");
+                    Stroke stroke;
+                    if (const toml::array* pts = st.get("points") ? st.get("points")->as_array() : nullptr) {
+                        for (const toml::node& q : *pts)
+                            if (auto xy = r.pair(&q, "a stroke's point", "[48, 92]")) stroke.points.push_back({static_cast<float>((*xy)[0]), static_cast<float>((*xy)[1])});
+                    }
+                    if (stroke.points.size() < 2) r.error(&st, std::format("a stroke of {} has two points or more", what));
+                    if (const toml::array* w = st.get("width") ? st.get("width")->as_array() : nullptr; w && w->size() == 3) {
+                        for (std::size_t k = 0; k < 3; ++k)
+                            if (auto v = r.number(w->get(k), "a stroke's width", 0, 200)) stroke.width[k] = static_cast<float>(*v);
+                    } else if (st.get("width")) {
+                        r.error(st.get("width"), "a stroke's `width` is [start, middle, end]");
+                    }
+                    strokes.push_back(std::move(stroke));
+                });
+                look.glyphs.insert_or_assign(std::string(name.str()), std::move(strokes));
+            }
+        } else {
+            r.error(gn, "`glyph` is a table of glyphs");
+        }
+    }
+
+    // Cinematics: a level 3's, by its move's name.
+    if (const toml::node* cn = root->get("cinematic")) {
+        if (const toml::table* ct = cn->as_table()) {
+            for (const auto& [name, node] : *ct) {
+                const toml::table* t = node.as_table();
+                const std::string what = std::format("cinematic `{}`", name.str());
+                if (!t) {
+                    r.error(&node, std::format("{} is a table", what));
+                    continue;
+                }
+                r.only(*t, cinematic_keys, what);
+                CinematicLook c;
+                if (auto v = r.text(t->get("attacker"), "a cinematic's `attacker` clip")) c.attacker_clip = *v;
+                if (auto v = r.text(t->get("defender"), "a cinematic's `defender` clip")) c.defender_clip = *v;
+                for (const auto* clip : {&c.attacker_clip, &c.defender_clip})
+                    if (!clip->empty() && !look.clips.contains(*clip)) r.error(t, std::format("{} plays `{}`, which is no clip", what, *clip));
+                if (const toml::table* b = r.table_of(t->get("backdrop"), "a cinematic's `backdrop`")) {
+                    r.only(*b, backdrop_keys, "a backdrop");
+                    if (auto v = r.colour(b->get("color"), "a backdrop's `color`")) c.backdrop = *v;
+                    if (auto v = r.pair(b->get("in"), "a backdrop's `in`", "in = [0, 20]: the frames it fades in over")) c.backdrop_in = {static_cast<std::int32_t>((*v)[0]), static_cast<std::int32_t>((*v)[1])};
+                    if (auto v = r.pair(b->get("out"), "a backdrop's `out`", "out = [184, 200]")) c.backdrop_out = {static_cast<std::int32_t>((*v)[0]), static_cast<std::int32_t>((*v)[1])};
+                }
+                if (const toml::node* cam = t->get("camera")) {
+                    if (const toml::array* a = cam->as_array()) {
+                        for (const toml::node& k : *a) {
+                            const toml::array* key = k.as_array();
+                            if (!key || key->size() != 4) {
+                                r.error(&k, "a camera key is [frame, zoom, forward, up]");
+                                continue;
+                            }
+                            auto f = r.integer(key->get(0), "a camera key's frame", 0, 1200);
+                            auto z = r.number(key->get(1), "a camera key's zoom", 0.1, 10);
+                            auto x = r.number(key->get(2), "a camera key's forward");
+                            auto y = r.number(key->get(3), "a camera key's up");
+                            if (f && z && x && y) c.camera.push_back({*f, static_cast<float>(*z), {static_cast<float>(*x), static_cast<float>(*y)}});
+                        }
+                    } else {
+                        r.error(cam, "a cinematic's `camera` is a list of keys", "camera = [[0, 1, 85, 110], [12, 2.6, 0, 160]]");
+                    }
+                }
+                if (const toml::table* g = r.table_of(t->get("glyph"), "a cinematic's `glyph`")) {
+                    r.only(*g, written_keys, "a written glyph");
+                    if (auto v = r.text(g->get("name"), "the glyph's `name`")) {
+                        c.glyph = *v;
+                        if (!look.glyphs.contains(*v)) r.error(g->get("name"), std::format("{} writes `{}`, which is no glyph of the look", what, *v));
+                    }
+                    if (auto v = r.pair(g->get("at"), "the glyph's `at`", "at = [170, 110]")) c.glyph_at = {static_cast<float>((*v)[0]), static_cast<float>((*v)[1])};
+                    if (auto v = r.number(g->get("size"), "the glyph's `size`", 1, 4000)) c.glyph_size = static_cast<float>(*v);
+                    if (auto v = r.integer(g->get("from"), "the glyph's `from`", 0, 1200)) c.glyph_from = *v;
+                    if (const toml::array* e = g->get("ends") ? g->get("ends")->as_array() : nullptr)
+                        for (const toml::node& n : *e)
+                            if (auto v = r.integer(&n, "a stroke's end frame", 0, 1200)) c.glyph_ends.push_back(*v);
+                    if (auto v = r.colour(g->get("color"), "the glyph's `color`")) c.glyph_color = *v;
+                }
+                if (const toml::table* sl = r.table_of(t->get("seal"), "a cinematic's `seal`")) {
+                    r.only(*sl, seal_keys, "a seal");
+                    if (auto v = r.integer(sl->get("frame"), "the seal's `frame`", 0, 1200)) c.seal_frame = *v;
+                    if (auto v = r.pair(sl->get("at"), "the seal's `at`", "at = [250, 40]")) c.seal_at = {static_cast<float>((*v)[0]), static_cast<float>((*v)[1])};
+                    if (auto v = r.number(sl->get("size"), "the seal's `size`", 1, 1000)) c.seal_size = static_cast<float>(*v);
+                    if (auto v = r.colour(sl->get("color"), "the seal's `color`")) c.seal_color = *v;
+                }
+                if (const toml::node* fl = t->get("flash")) {
+                    if (const toml::array* a = fl->as_array()) {
+                        for (const toml::node& k : *a) {
+                            const toml::array* key = k.as_array();
+                            if (!key || key->size() != 3) {
+                                r.error(&k, "a flash is [frame, kind, frames]");
+                                continue;
+                            }
+                            auto f = r.integer(key->get(0), "a flash's frame", 0, 1200);
+                            auto kind = r.choice(key->get(1), "a flash's kind", flash_names);
+                            auto n = r.integer(key->get(2), "a flash's frames", 1, 600);
+                            if (f && kind && n) c.flashes.push_back({*f, static_cast<Flash>(*kind), *n});
+                        }
+                    } else {
+                        r.error(fl, "a cinematic's `flash` is a list", "flash = [[180, \"white\", 6]]");
+                    }
+                }
+                look.cinematics.insert_or_assign(std::string(name.str()), std::move(c));
+            }
+        } else {
+            r.error(cn, "`cinematic` is a table of cinematics");
+        }
+    }
+
     for (const Bone& b : look.bones)
         if (b.parent < 0 && &b != &look.bones.front()) r.error(&*root, std::format("bone `{}` has no parent; only the first bone is the root", b.name));
     if (!out.empty()) return std::unexpected(std::move(out));
@@ -495,8 +627,8 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
 }
 
 std::string write_look(const Look& look) {
-    std::string s = std::format("gongfu = \"{}\"\nname = \"{}\"\noutline = {{ color = {}, width = {} }}\n", format_version, look.name,
-                                colour_text(look.outline), look.outline_width);
+    std::string s = std::format("gongfu = \"{}\"\nname = \"{}\"\noutline = {{ color = {}, width = {} }}\naccent = {}\n", format_version, look.name,
+                                colour_text(look.outline), look.outline_width, colour_text(look.accent));
     for (std::size_t p = 0; p < look.palettes.size(); ++p) {
         s += std::format("\n[[palette]]\nname = \"{}\"\n", p < look.palette_names.size() ? look.palette_names[p] : std::string());
         for (std::size_t k = 0; k < look.slots.size() && k < look.palettes[p].size(); ++k)
@@ -544,6 +676,40 @@ std::string write_look(const Look& look) {
         if (std::ranges::any_of(im.sound, [](const std::string& x) { return !x.empty(); }))
             s += std::format("sound = [\"{}\", \"{}\", \"{}\"]\n", im.sound[0], im.sound[1], im.sound[2]);
         if (im.rumble_frames) s += std::format("rumble = [{}, {}]\n", im.rumble, im.rumble_frames);
+    }
+    for (const auto& [name, strokes] : look.glyphs) {
+        s += std::format("\n[glyph.\"{}\"]\nstrokes = [\n", name);
+        for (const Stroke& st : strokes) {
+            s += "  { points = [";
+            for (std::size_t i = 0; i < st.points.size(); ++i) s += std::format("{}[{}, {}]", i ? ", " : "", st.points[i].x, st.points[i].y);
+            s += std::format("], width = [{}, {}, {}] }},\n", st.width[0], st.width[1], st.width[2]);
+        }
+        s += "]\n";
+    }
+    constexpr std::array<std::string_view, 3> flash_text{"none", "white", "invert"};
+    for (const auto& [name, c] : look.cinematics) {
+        s += std::format("\n[cinematic.{}]\nattacker = \"{}\"\ndefender = \"{}\"\n", key_text(name), c.attacker_clip, c.defender_clip);
+        s += std::format("backdrop = {{ color = {}, in = [{}, {}], out = [{}, {}] }}\n", colour_text(c.backdrop), c.backdrop_in[0], c.backdrop_in[1], c.backdrop_out[0],
+                         c.backdrop_out[1]);
+        if (!c.camera.empty()) {
+            s += "camera = [";
+            for (std::size_t i = 0; i < c.camera.size(); ++i)
+                s += std::format("{}[{}, {}, {}, {}]", i ? ", " : "", c.camera[i].frame, c.camera[i].zoom, c.camera[i].at.x, c.camera[i].at.y);
+            s += "]\n";
+        }
+        if (!c.glyph.empty()) {
+            s += std::format("glyph = {{ name = \"{}\", at = [{}, {}], size = {}, from = {}, ends = [", c.glyph, c.glyph_at.x, c.glyph_at.y, c.glyph_size, c.glyph_from);
+            for (std::size_t i = 0; i < c.glyph_ends.size(); ++i) s += std::format("{}{}", i ? ", " : "", c.glyph_ends[i]);
+            s += std::format("], color = {} }}\n", colour_text(c.glyph_color));
+        }
+        if (c.seal_frame >= 0)
+            s += std::format("seal = {{ frame = {}, at = [{}, {}], size = {}, color = {} }}\n", c.seal_frame, c.seal_at.x, c.seal_at.y, c.seal_size, colour_text(c.seal_color));
+        if (!c.flashes.empty()) {
+            s += "flash = [";
+            for (std::size_t i = 0; i < c.flashes.size(); ++i)
+                s += std::format("{}[{}, \"{}\", {}]", i ? ", " : "", c.flashes[i].frame, flash_text[static_cast<std::size_t>(c.flashes[i].kind)], c.flashes[i].frames);
+            s += "]\n";
+        }
     }
     return s;
 }

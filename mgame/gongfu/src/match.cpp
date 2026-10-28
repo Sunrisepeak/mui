@@ -449,7 +449,9 @@ std::size_t Match::hurtboxes(std::int32_t i, std::array<Rect, 4>& out) const noe
 
 bool Match::invulnerable(std::int32_t i, std::uint8_t to) const noexcept {
     const FighterState& s = state_.f[static_cast<std::size_t>(i)];
-    if (s.mode == Mode::knockdown || s.mode == Mode::wakeup || s.mode == Mode::ko || s.mode == Mode::thrown || s.mode == Mode::reset) return true;
+    if (s.mode == Mode::knockdown || s.mode == Mode::wakeup || s.mode == Mode::ko || s.mode == Mode::thrown || s.mode == Mode::reset ||
+        s.mode == Mode::cinematic)
+        return true;
     if (s.mode != Mode::move) return false;
     for (const Invulnerable& v : fighter(i).def.moves[static_cast<std::size_t>(s.move)].invulnerable)
         if ((v.to & to) && v.frames.contains(s.move_frame)) return true;
@@ -775,6 +777,18 @@ void Match::apply(const Strike& s, bool blocked, bool counter) {
         }
         if (m.level == 0) a.meter = std::min(system_.meter_max, a.meter + m.meter_gain);  // a super gives none back
         events_.push_back({counter ? Event::Kind::counter : Event::Kind::hit, s.attacker, s.move, s.hit, damage, h.impact, at});
+        // A level-3 super's first hit: the cinematic locks both (P-5).
+        if (m.cinematic && !s.projectile && s.hit == 0 && d.health > 0) {
+            state_.lock = {s.attacker, s.move, 0, a.facing, a.pos.x, a.pos.y};
+            for (FighterState* f : {&a, &d}) {
+                f->mode = Mode::cinematic;
+                f->vel = {};
+                f->stop = 0;
+                f->queued = -1;
+            }
+            for (ProjectileState& p : state_.p) p.alive = 0;
+            events_.push_back({Event::Kind::cinematic, s.attacker, s.move, 0, 0, h.impact, at});
+        }
     }
     // Each stands still for its own hitstop; a projectile's owner goes on.
     d.stop = std::max(d.stop, h.hitstop);
@@ -810,12 +824,54 @@ void Match::recover(const std::array<bool, 2>& still) {
     }
 }
 
+void Match::play_lock() {
+    Lock& l = state_.lock;
+    const std::int32_t ai = l.owner, di = 1 - l.owner;
+    FighterState& a = state_.f[static_cast<std::size_t>(ai)];
+    FighterState& d = state_.f[static_cast<std::size_t>(di)];
+    const MoveDef& m = fighter(ai).def.moves[static_cast<std::size_t>(l.move)];
+    const CinematicDef& c = *m.cinematic;
+    ++l.frame;
+    for (const CinematicHit& h : c.hits) {
+        if (h.frame != l.frame) continue;
+        const std::int32_t step = a.super_scale > 0 ? a.super_scale : 100;
+        const std::int32_t damage = h.damage * step / 100;
+        d.health = std::max(0, d.health - damage);
+        ++d.combo;
+        events_.push_back({Event::Kind::hit, ai, l.move, 0, damage, h.impact, {(a.pos.x + d.pos.x) / 2, d.pos.y + Fixed::of(90)}});
+    }
+    if (l.frame < c.frames) return;
+    // The end: where each stands, the defender down, the attacker recovering.
+    a.pos = {l.x + c.attacker_at.x * l.facing, max(Fixed{}, l.y + c.attacker_at.y)};
+    d.pos = {l.x + c.defender_at.x * l.facing, max(Fixed{}, l.y + c.defender_at.y)};
+    a.pos.x = min(max(a.pos.x, Fixed{}), system_.stage_width);
+    d.pos.x = min(max(d.pos.x, Fixed{}), system_.stage_width);
+    a.mode = Mode::landing;
+    a.stun = c.recovery;
+    a.move = -1;
+    d.mode = Mode::knockdown;
+    d.stun = c.down;
+    d.move = -1;
+    l = {};
+    if (d.health <= 0) {
+        d.mode = Mode::ko;
+        state_.over = 1;
+        state_.winner = ai;
+        events_.push_back({Event::Kind::ko, ai, -1, 0, 0, 0, d.pos});
+    }
+}
+
 void Match::tick(Pad left, Pad right) {
     events_.clear();
     if (state_.over) return;
     ++state_.frame;
     state_.f[0].log.record(left, state_.f[0].facing, system_.socd);
     state_.f[1].log.record(right, state_.f[1].facing, system_.socd);
+    // A cinematic: only it plays; the timer stands still.
+    if (state_.lock.owner >= 0) {
+        play_lock();
+        return;
+    }
     // A super's flash: everything stands still (its frames, its invulnerability,
     // the timer); what either side asks for is kept for the first frame after.
     if (state_.freeze > 0) {

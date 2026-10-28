@@ -61,8 +61,8 @@ Color tone(std::uint32_t hex, float alpha = 1) { return Color::hex(hex, alpha); 
 void Stage::start_round() {
     const Roster& r = roster();
     if (r.fighters.empty()) return;
-    left_ = fighter_index(props.left);
-    right_ = fighter_index(props.right);
+    left_ = fighter_index(props.player1);
+    right_ = fighter_index(props.player2);
     match_ = std::make_unique<gongfu::Match>(r.system, r.fighters[left_], r.fighters[right_]);
     effects_ = {};
     readout_.clear();
@@ -96,7 +96,7 @@ void Stage::schedule() {
 
 void Stage::prop_changed(StageProp p) {
     if (!attached()) return;
-    if (p == StageProp::left || p == StageProp::right) start_round();  // another fighter: a new round
+    if (p == StageProp::player1 || p == StageProp::player2) start_round();  // another fighter: a new round
     services().invalidate_paint(node());
     services().invalidate_semantics(node());
 }
@@ -165,7 +165,8 @@ void Stage::paint(PaintContext& ctx) const {
 
     hud::bars(frame, *match_);
     hud::timer(frame, (match_->state().timer + 59) / 60);
-    if (props.mode == "training") {
+    // Training's overlays, but not over a super's flash or a cinematic: those are the picture.
+    if (props.mode == "training" && match_->state().freeze == 0 && match_->state().lock.owner < 0) {
         hud::boxes(frame, *match_, scene, p2::view_camera(*match_, left, right, effects_, scene));
         hud::meter(frame, readout_);
         hud::inputs(frame, readout_, 0);
@@ -320,6 +321,19 @@ ActResult Stage::stop(ActContext&, const Value& player) {
     dummies_[*p].stop();
     changed();
     return ActResult::done(Value(static_cast<std::int64_t>(dummies_[*p].length())));
+}
+
+ActResult Stage::fill(ActContext&) {
+    if (props.mode != "training") return ActResult::fail("`fill` is training's: the stage's mode is not training");
+    if (!match_) return ActResult::fail("no match: the roster did not read");
+    gongfu::State st = match_->state();
+    for (auto& f : st.f) {
+        f.meter = match_->system().meter_max;
+        f.posture = 0;
+    }
+    match_->restore(st);
+    changed();
+    return ActResult::done();
 }
 
 ActResult Stage::release(ActContext&, const Value& player) {

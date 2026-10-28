@@ -43,6 +43,7 @@ public:
     ActResult record(ActContext& ctx, const Value& player);
     ActResult replay(ActContext& ctx, const Value& player);
     ActResult stop(ActContext& ctx, const Value& player);
+    ActResult fill(ActContext& ctx);
 
     // The match being played, and training's readings of it (tests and tools read them).
     [[nodiscard]] const gongfu::Match& match() const noexcept { return *match_; }

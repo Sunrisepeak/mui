@@ -1,6 +1,6 @@
 # 格斗游戏 — the fighting game
 
-`omui-fight` is gongfu's match (`mgame/gongfu`) on openmui's stage: two fighters at 60 frames a second, from the keyboard or an agent, drawn in 2D by `gongfu.present2d`, with a training mode that shows every box and a frame meter (D-85 §8.7). Its name will come later. It has two fighters so far, chosen by the stage's `left` and `right` properties:
+`omui-fight` is gongfu's match (`mgame/gongfu`) on openmui's stage: two fighters at 60 frames a second, from the keyboard or an agent, drawn in 2D by `gongfu.present2d`, with a training mode that shows every box and a frame meter (D-85 §8.7). Its name will come later. It has two fighters so far, chosen by the stage's `player1` and `player2` properties:
 - Kata, the training fighter;
 - 墨 (Mo), the calligrapher. She is the first of the five designed in the [characters design](../../.agents/docs/2026-10-28-gongfu-characters-design.md): keep-away with written glyphs at three speeds, a long brush and an anti-air.
 

@@ -16,9 +16,10 @@ constexpr std::array<std::string_view, 10> fighter_keys{"gongfu", "name", "healt
 constexpr std::array<std::string_view, 2> walk_keys{"forward", "back"};
 constexpr std::array<std::string_view, 5> jump_keys{"prejump", "up", "forward", "gravity", "landing"};
 constexpr std::array<std::string_view, 3> hurt_keys{"standing", "crouching", "air"};
-constexpr std::array<std::string_view, 20> move_keys{"name", "input", "stance", "total", "priority", "hit", "cancel", "invulnerable",
+constexpr std::array<std::string_view, 21> move_keys{"name", "input", "stance", "total", "priority", "hit", "cancel", "invulnerable",
                                                      "hurt", "step", "throw", "projectile", "meter", "freeze", "level", "weight", "posture", "clash",
-                                                     "clash_cancel", "doc"};
+                                                     "clash_cancel", "cinematic", "doc"};
+constexpr std::array<std::string_view, 6> cinematic_keys{"frames", "hits", "attacker", "defender", "down", "recovery"};
 constexpr std::array<std::string_view, 15> hit_keys{"active", "boxes", "damage", "chip", "hitstun", "blockstun", "hitstop", "pushback",
                                                     "level", "knockdown", "launch", "impact", "down", "juggle", "juggle_cost"};
 constexpr std::array<std::string_view, 2> hitstop_keys{"attacker", "defender"};
@@ -422,6 +423,43 @@ struct Reader {
         if (auto v = integer(t.get("posture"), "`posture`", 0, 10000)) m.posture = *v;
         if (auto v = boolean(t.get("clash"), "`clash`")) m.clash = *v;
         if (auto v = boolean(t.get("clash_cancel"), "`clash_cancel`")) m.clash_cancel = *v;
+        // A level 3's cinematic: [move.cinematic] frames, hits = [[frame, damage, "impact"], …], where each ends, down, recovery.
+        if (const toml::table* ct = table(t.get("cinematic"), "`cinematic`")) {
+            only(*ct, cinematic_keys, "a cinematic");
+            mark(at + ".cinematic", ct);
+            CinematicDef c;
+            if (auto v = integer(ct->get("frames"), "a cinematic's `frames`", 1, 1200)) c.frames = *v;
+            mark(at + ".cinematic.frames", ct->get("frames"));
+            if (auto v = vec(ct->get("attacker"), "where the attacker ends")) c.attacker_at = *v;
+            if (auto v = vec(ct->get("defender"), "where the defender ends")) c.defender_at = *v;
+            if (auto v = integer(ct->get("down"), "a cinematic's `down`", 0, 600)) c.down = *v;
+            if (auto v = integer(ct->get("recovery"), "a cinematic's `recovery`", 0, 600)) c.recovery = *v;
+            if (const toml::node* hs = ct->get("hits")) {
+                mark(at + ".cinematic.hits", hs);
+                if (const toml::array* a = hs->as_array()) {
+                    for (const toml::node& e : *a) {
+                        const toml::array* hit = e.as_array();
+                        if (!hit || hit->size() < 2 || hit->size() > 3) {
+                            error(&e, "a cinematic's hit is [frame, damage] or [frame, damage, \"impact\"]");
+                            continue;
+                        }
+                        CinematicHit h;
+                        if (auto v = integer(hit->get(0), "a cinematic hit's frame", 1, 1200)) h.frame = *v;
+                        if (auto v = integer(hit->get(1), "a cinematic hit's damage", 0, 100000)) h.damage = *v;
+                        if (hit->size() == 3)
+                            if (auto name = text(hit->get(2), "a cinematic hit's impact")) {
+                                auto it = std::ranges::find(impacts, *name);
+                                if (it == impacts.end()) it = impacts.insert(impacts.end(), *name);
+                                h.impact = static_cast<std::uint16_t>(it - impacts.begin());
+                            }
+                        c.hits.push_back(h);
+                    }
+                } else {
+                    error(hs, "a cinematic's `hits` is a list", "hits = [[40, 450, \"stroke\"], [55, 450, \"stroke\"]]");
+                }
+            }
+            m.cinematic = std::move(c);
+        }
         return m;
     }
 

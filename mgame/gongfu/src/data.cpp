@@ -101,6 +101,13 @@ std::expected<Fighter, std::vector<Problem>> compile(FighterDef def) {
         }
         c.need(m.meter_cost >= 0 && m.meter_gain >= 0 && m.freeze >= 0, at + ".meter", "meter and freeze are 0 or more");
         c.need(m.level >= 0 && m.level <= 3, at + ".level", "a super's level is 1, 2 or 3 (0: not a super)");
+        if (m.cinematic) {
+            c.need(!m.hits.empty(), at + ".cinematic", "a cinematic starts when the move's first hit lands: it needs a hit");
+            c.need(m.cinematic->frames >= 1, at + ".cinematic.frames", "a cinematic lasts at least 1 frame");
+            for (std::size_t k = 0; k < m.cinematic->hits.size(); ++k)
+                c.need(m.cinematic->hits[k].frame >= 1 && m.cinematic->hits[k].frame <= m.cinematic->frames && m.cinematic->hits[k].damage >= 0,
+                       std::format("{}.cinematic.hits[{}]", at, k), std::format("on a frame of the cinematic's {}, damage 0 or more", m.cinematic->frames));
+        }
         c.need(m.weight >= -1 && m.posture >= -1, at + ".weight", "weight and posture are 0 or more (or left to the move's kind)");
         for (std::size_t k = 0; k < m.cancels.size(); ++k) {
             const CancelDef& cd = m.cancels[k];

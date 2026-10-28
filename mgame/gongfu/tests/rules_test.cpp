@@ -122,6 +122,18 @@ FighterDef body() {
     rush.hits.push_back(strike({8, 12}, {20_fx, 80_fx, 120_fx, 60_fx}, 1500, 30, 12));
     f.moves.push_back(rush);
 
+    // A level-3 super with a cinematic: a thrust, then three hits in a 100-frame lock.
+    MoveDef finale{.name = "236236K", .command = {.motion = motion({2, 3, 6, 2, 3, 6}, 24), .buttons = kicks}, .total = 40, .priority = 21,
+                   .meter_cost = 3000, .freeze = 50, .level = 3};
+    finale.hits.push_back(strike({7, 9}, {20_fx, 80_fx, 90_fx, 60_fx}, 300, 30, 10));
+    finale.cinematic = CinematicDef{.frames = 100,
+                                    .hits = {{20, 1000, 0}, {40, 1000, 0}, {60, 1000, 0}},
+                                    .attacker_at = {0_fx, 0_fx},
+                                    .defender_at = {150_fx, 0_fx},
+                                    .down = 40,
+                                    .recovery = 10};
+    f.moves.push_back(finale);
+
     // Throws: forward and back.
     MoveDef grab{.name = "throw", .command = {.buttons = static_cast<std::uint16_t>(LP | LK), .together = true}, .total = 30, .priority = 20};
     grab.throw_ = ThrowDef{.active = {5, 6}, .range = {0_fx, 0_fx, 80_fx, 150_fx}, .damage = 1200};
@@ -691,7 +703,70 @@ int main(int argc, char** argv) {
         check_eq(m.state().f[0].meter, std::int32_t{0});
     });
 
-    s.test("all of it rolled back: 5,000 frames of motions, dashes, supers, juggles, throws, clashes, deflects and guard breaks, every rollback the bytes of a straight run; the hash pinned", [] {
+    s.test("P-5 a level-3 super's cinematic: its first hit locks both; its hits land on their frames; the timer stands; then each where it says", [] {
+        const std::array finale{pad(2), pad(3), pad(6), pad(2), pad(3), pad(6, LK)};
+        // On hit.
+        {
+            Match m = apart(120_fx);
+            State st = m.state();
+            st.f[0].meter = 3000;
+            m.restore(st);
+            std::vector<std::pair<std::int32_t, Event>> seen;
+            std::int32_t timer_at_lock = -1, lock_frames = 0;
+            Fixed start;
+            for (int f = 0; f < 260; ++f) {
+                m.tick(f < 6 ? finale[static_cast<std::size_t>(f)] : pad(5), pad(5));
+                if (has(m, Event::Kind::cinematic)) start = m.state().lock.x;
+                for (const Event& e : m.events()) seen.emplace_back(m.state().frame, e);
+                if (m.state().lock.owner == 0) {
+                    ++lock_frames;
+                    if (timer_at_lock < 0) timer_at_lock = m.state().timer;
+                    check(m.state().timer == timer_at_lock, "the timer stands still");
+                }
+            }
+            auto cine = std::ranges::find_if(seen, [](const auto& p) { return p.second.kind == Event::Kind::cinematic; });
+            check(cine != seen.end(), "the cinematic began");
+            std::vector<std::int32_t> after;
+            for (const auto& [frame, e] : seen)
+                if (cine != seen.end() && frame > cine->first && e.kind == Event::Kind::hit) after.push_back(frame - cine->first);
+            check(after == std::vector<std::int32_t>{20, 40, 60}, std::format("hits on the lock's frames {}", after));
+            check_eq(lock_frames, 100);  // the frame it begins on, then its frames 1–99; the 100th ends it
+            check_eq(m.state().f[1].health, 10000 - 300 - 3 * 1000);
+            check(m.state().f[1].pos.x == start + 150_fx && m.state().f[0].pos.x == start, "where it says");
+        }
+        // Blocked: no cinematic.
+        {
+            Match m = apart(120_fx);
+            guarding(m, 120_fx);
+            State st = m.state();
+            st.f[0].meter = 3000;
+            m.restore(st);
+            bool cinematic = false, blocked = false;
+            for (int f = 0; f < 120; ++f) {
+                m.tick(f < 6 ? finale[static_cast<std::size_t>(f)] : pad(5), pad(6));
+                cinematic = cinematic || has(m, Event::Kind::cinematic);
+                blocked = blocked || has(m, Event::Kind::block);
+            }
+            check(blocked && !cinematic, "a blocked level 3 is only a heavy block");
+        }
+        // A KO in the lock waits for its end.
+        {
+            Match m = apart(120_fx);
+            State st = m.state();
+            st.f[0].meter = 3000;
+            st.f[1].health = 1500;
+            m.restore(st);
+            std::int32_t over_at = -1, cine_at = -1;
+            for (int f = 0; f < 260 && over_at < 0; ++f) {
+                m.tick(f < 6 ? finale[static_cast<std::size_t>(f)] : pad(5), pad(5));
+                if (has(m, Event::Kind::cinematic)) cine_at = m.state().frame;
+                if (m.state().over) over_at = m.state().frame;
+            }
+            check(cine_at > 0 && over_at == cine_at + 100 && m.state().winner == 0, std::format("over at {} (lock from {})", over_at, cine_at));
+        }
+    });
+
+    s.test("all of it rolled back: 5,000 frames of motions, dashes, supers, juggles, throws, clashes, deflects, guard breaks and a cinematic, every rollback the bytes of a straight run; the hash pinned", [] {
         // Inputs a player could give this fighter: held directions, presses, and now and then a whole motion.
         struct Rng {
             std::uint64_t s;
@@ -743,15 +818,22 @@ int main(int argc, char** argv) {
         // First, scripted: a pressure string into a held guard until it breaks;
         // two 5HPs meeting; 5HPs met by timed back taps; a launcher and its
         // follow-ups into an air reset. Then the random rest.
-        for (int f = 0; f < 1600; ++f) {
+        for (int g = 0; g < 1800; ++g) {
             Pad pa = pad(6), pb = pad(5);
+            // The level 3 first, while they stand close; then the rest.
+            if (g < 200) {
+                a[static_cast<std::size_t>(g)] = g < 6 ? std::array{pad(2), pad(3), pad(6), pad(2), pad(3), pad(6, LK)}[static_cast<std::size_t>(g)] : pad(5);
+                b[static_cast<std::size_t>(g)] = pad(5);
+                continue;
+            }
+            const int f = g - 200;
             const int c = f % 40;  // a 40-frame cycle: a 5HP, then walking in again
             if (f < 900) pa = c == 0 ? pad(5, HP) : pad(6), pb = pad(6);  // the right one faces left: 6 is its back (to the wall, then guarding)
             else if (f < 1040) pa = c == 0 ? pad(5, HP) : pad(6), pb = c == 0 ? pad(5, HP) : pad(4);
             else if (f < 1360) pa = c == 0 ? pad(5, HP) : pad(6), pb = c >= 6 && c < 12 ? pad(6) : pad(4);  // back tapped as the 5HP comes
             else pa = f % 40 == 0 ? pad(2, HP) : f % 6 == 3 ? pad(8, LK) : pad(6), pb = pad(5);
-            a[static_cast<std::size_t>(f)] = pa;
-            b[static_cast<std::size_t>(f)] = pb;
+            a[static_cast<std::size_t>(g)] = pa;
+            b[static_cast<std::size_t>(g)] = pb;
         }
         FighterDef tough = body();
         tough.health = 1 << 24;
@@ -759,14 +841,14 @@ int main(int argc, char** argv) {
         const Fighter t = *compile(tough);
         Match straight(rules(), t, t);
         State st = straight.state();
-        st.f[0].meter = st.f[1].meter = 1000;  // supers from the start
+        st.f[0].meter = st.f[1].meter = 3000;  // supers from the start, the level 3 too
         st.f[0].pos.x = 900_fx;                 // close: they fight
         st.f[1].pos.x = 1020_fx;
         straight.restore(st);
         std::vector<std::uint64_t> hashes;
         std::array<int, 8> seen{};
         std::array<int, 4> events{};  // clashes, deflects, guard breaks, hits
-        int blocks = 0;
+        int blocks = 0, cinematics = 0;
         int most_posture = 0;
         for (int i = 0; i < frames; ++i) {
             straight.tick(a[static_cast<std::size_t>(i)], b[static_cast<std::size_t>(i)]);
@@ -787,6 +869,7 @@ int main(int argc, char** argv) {
                 if (e.kind == Event::Kind::guard_break) ++events[2];
                 if (e.kind == Event::Kind::hit || e.kind == Event::Kind::counter) ++events[3];
                 if (e.kind == Event::Kind::block) ++blocks;
+                if (e.kind == Event::Kind::cinematic) ++cinematics;
             }
         }
         Match rolled(rules(), t, t);
@@ -805,13 +888,14 @@ int main(int argc, char** argv) {
             if (rolled.checksum() != hashes[static_cast<std::size_t>(i)]) ++mismatches;
         }
         check_eq(mismatches, 0);
-        check(events[0] > 0 && events[1] > 0 && events[2] > 0, std::format("clashes {}, deflects {}, guard breaks {}", events[0], events[1], events[2]));
+        check(events[0] > 0 && events[1] > 0 && events[2] > 0 && cinematics > 0,
+              std::format("clashes {}, deflects {}, guard breaks {}, cinematics {}", events[0], events[1], events[2], cinematics));
         check(seen[0] > 0 && seen[1] > 0 && seen[2] > 0 && seen[3] > 0 && seen[4] > 0 && seen[5] > 0,
               std::format("resets {}, thrown {}, dashes {}, supers {}, flashes {}, projectiles {}", seen[0], seen[1], seen[2], seen[3], seen[4], seen[5]));
         std::println("    rules run: clashes {}, deflects {}, guard breaks {}, hits {}, blocks {} (posture up to {}); resets {}", events[0], events[1], events[2], events[3], blocks,
                      most_posture, seen[0]);
         std::println("    rules run hash {:016x}", hashes.back());
-        check(hashes.back() == 0x62ecca2c05caf4a5ULL, std::format("run hash {:016x}", hashes.back()));  // GCC, LLVM and wasm
+        check(hashes.back() == 0x5ebf172e964842d7ULL, std::format("run hash {:016x}", hashes.back()));  // GCC, LLVM and wasm
     });
 
     return s.run(argc, argv);

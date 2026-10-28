@@ -90,6 +90,48 @@ struct Clip {
     hanim::Track<double>            rise;
 };
 
+// A brush stroke of a glyph: a path (in the glyph's 100 × 100 box, y up)
+// and its width at the start, the middle and the end — a calligrapher's
+// press, carry and lift. Written along its length, frame by frame.
+struct Stroke {
+    std::vector<Point>   points;
+    std::array<float, 3> width{8, 8, 8};
+};
+
+// A level 3's cinematic as it is drawn (system 0.3, P-6): a timeline keyed
+// by the lock's frame. What it plays for each fighter; a backdrop fading in
+// and out; the camera's keys (zoom, and the point it centres, from where the
+// attacker stood, forward and up); a glyph written stroke by stroke (each
+// stroke ending on its frame) over the defender; a seal; flashes. Like
+// everything here, a pure function of the lock's frame.
+struct CinematicLook {
+    std::string attacker_clip, defender_clip = "hitstun";
+    Color       backdrop = Color::hex(0xefe6d2);
+    std::array<std::int32_t, 2> backdrop_in{0, 0}, backdrop_out{0, 0};  // frames it fades in over, and out over
+    struct CameraKey {
+        std::int32_t frame = 0;
+        float        zoom = 1;
+        Point        at;  // from the attacker's start: forward, up
+    };
+    std::vector<CameraKey> camera;
+    std::string               glyph;        // a glyph of the look, written over the defender
+    Point                     glyph_at;     // its centre, from the attacker's start
+    float                     glyph_size = 300;
+    std::int32_t              glyph_from = 0;
+    std::vector<std::int32_t> glyph_ends;   // the frame each stroke is finished on
+    Color                     glyph_color = Color::hex(0x101114);
+    std::int32_t              seal_frame = -1;  // a square seal stamped on the glyph (−1: none)
+    Point                     seal_at;
+    float                     seal_size = 60;
+    Color                     seal_color = Color::hex(0xc0392b);
+    struct FlashKey {
+        std::int32_t frame = 0;
+        Flash        kind = Flash::white;
+        std::int32_t frames = 6;
+    };
+    std::vector<FlashKey> flashes;
+};
+
 struct Look {
     std::string                 name;
     std::vector<Bone>           bones;
@@ -103,6 +145,9 @@ struct Look {
     std::vector<std::vector<Color>>       palettes;
     std::vector<std::string>              palette_names;
     std::vector<Impact>                   impacts;  // by name; "block" and "ko" for those contacts
+    Color                                 accent = Color::hex(0xf2c14e);  // a super's flash and close-up band
+    std::map<std::string, std::vector<Stroke>, std::less<>>  glyphs;      // by name: 永, 一, 人
+    std::map<std::string, CinematicLook, std::less<>>        cinematics;  // by the level 3's move name
     // Bound to a fighter (bind): its FighterDef::impacts index → impacts' (−1: none).
     std::vector<std::int32_t>             impact_of;
 };
@@ -126,6 +171,8 @@ using Pose = std::vector<BonePlace>;
 [[nodiscard]] Pose pose(const Look& look, const Fighter& fighter, const FighterState& state, std::int32_t frame);
 // The same into `out` (its storage reused: no allocation once it has the bones' room).
 void pose(const Look& look, const Fighter& fighter, const FighterState& state, std::int32_t frame, Pose& out);
+// A clip by name at frame `t` (looping or held at its end), for the fighter where and as it faces in `state`.
+void pose_clip(const Look& look, std::string_view clip, std::int32_t t, const FighterState& state, Pose& out);
 
 // A look as a file, `*.look.gongfu.toml` — what gongfu.studio writes and a
 // mod will carry: the palettes, the bones (angles in degrees), the parts, the
@@ -192,9 +239,14 @@ public:
     // shake of a heavy hit, into `out` (picture coordinates, y down).
     void draw(const Match& match, const Look& left, const Look& right, const Effects& effects, const Scene& scene, omui::render::DisplayList& out);
     // One fighter's body as `draw` draws it, through `camera` (a studio's
-    // contact sheet, a character select).
+    // contact sheet, a character select); `clip`/`t` to play a clip by name instead.
     void body(const Look& look, const Fighter& fighter, const FighterState& state, std::int32_t frame, const Scene& scene, const Camera& camera,
-              omui::render::DisplayList& out);
+              omui::render::DisplayList& out, std::string_view clip = {}, std::int32_t t = 0);
+    // A glyph written to `progress` (0–1 of its strokes' total length) at `centre`, `size` pixels square.
+    void glyph(const std::vector<Stroke>& strokes, double progress, Point centre, float size, Color color, omui::render::DisplayList& out);
+    // A glyph whose stroke k is written over the frames up to ends[k], from `from`, at `frame`.
+    void glyph_by_frames(const std::vector<Stroke>& strokes, std::span<const std::int32_t> ends, std::int32_t from, std::int32_t frame, Point centre,
+                         float size, Color color, omui::render::DisplayList& out);
 
 private:
     Pose                     pose_;

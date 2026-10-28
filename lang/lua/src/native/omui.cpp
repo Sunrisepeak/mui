@@ -75,6 +75,12 @@ struct Script::Impl {
     std::size_t                            next_signal = 0;
     std::map<std::string, abi::OmuiSignal> keyed;
     std::vector<int>                       refs;     // Lua functions the runtime may call (handlers, verbs)
+    // Their lifetimes: a mounted view's handlers until the slot is mounted again or
+    // unmounted; a watch until the next reload; a verb's until it is registered again.
+    std::vector<int>                                  pending;  // handlers built since the last mount
+    std::map<std::string, std::vector<int>>           slots;
+    std::vector<std::pair<std::uint64_t, int>>        watches;  // token, function
+    std::map<std::string, int, std::less<>>           verbs;
     int                                    depth = 0;  // nested omui.each, for the rows' names
 
     explicit Impl(Session& s) : session(s) {}
@@ -244,6 +250,12 @@ int keep_function(lua_State* L, Script::Impl& s, int index) {
     return ref;
 }
 
+// Lets a kept function go (its registry slot is free again).
+void release_function(Script::Impl& s, int ref) {
+    luaL_unref(s.L, LUA_REGISTRYINDEX, ref);
+    std::erase(s.refs, ref);
+}
+
 // Calls a kept function with one JSON argument, protected; an error goes to
 // the script's error handler. Answers the first result as JSON.
 std::optional<Json> call_kept(Script::Impl& s, int ref, const Json* arg) {
@@ -321,7 +333,8 @@ int l_signal_watch(lua_State* L, Script::Impl& s) {
     if (!b || lua_type(L, 2) != LUA_TFUNCTION) return raise(L, "signal:watch(fn): fn gets each new value");
     const int ref = keep_function(L, s, 2);
     Script::Impl* self = &s;
-    s.session.watch(b->handle, [self, ref](const Json& v) { (void)call_kept(*self, ref, &v); });
+    const std::uint64_t token = s.session.watch(b->handle, [self, ref](const Json& v) { (void)call_kept(*self, ref, &v); });
+    s.watches.emplace_back(token, ref);
     return 0;
 }
 
@@ -458,6 +471,7 @@ std::optional<std::string> fill(lua_State* L, Script::Impl& s, Element& e, int t
             else e.id = lua_tostring(L, -1);
         } else if (key.starts_with("on_") && lua_type(L, -1) == LUA_TFUNCTION) {
             const int ref = keep_function(L, s, -1);
+            s.pending.push_back(ref);  // the view's, once it is mounted
             Script::Impl* self = &s;
             e.on.emplace_back(key.substr(3), [self, ref](const Json& event) { (void)call_kept(*self, ref, &event); });
         } else if (key == "animate") {
@@ -587,16 +601,27 @@ int l_slot(lua_State* L, Script::Impl&) {
 int l_mount(lua_State* L, Script::Impl& s) {
     auto* e = as<ElementBox>(L, 2, element_type);
     if (lua_type(L, 1) != LUA_TSTRING || !e) return raise(L, "omui.mount(slot, element)");
-    auto r = s.session.mount(lua_tostring(L, 1), e->element);
-    if (!r) return failed(L, r.error().text());
+    const std::string slot = lua_tostring(L, 1);
+    auto r = s.session.mount(slot, e->element);
+    std::vector<int> handlers = std::move(s.pending);
+    s.pending.clear();
+    if (!r) {
+        for (int ref : handlers) release_function(s, ref);
+        return failed(L, r.error().text());
+    }
+    for (int ref : s.slots[slot]) release_function(s, ref);  // the view it replaced: its handlers are not called again
+    s.slots[slot] = std::move(handlers);
     lua_pushboolean(L, 1);
     return 1;
 }
 
 int l_unmount(lua_State* L, Script::Impl& s) {
     if (lua_type(L, 1) != LUA_TSTRING) return raise(L, "omui.unmount(slot)");
-    auto r = s.session.unmount(lua_tostring(L, 1));
+    const std::string slot = lua_tostring(L, 1);
+    auto r = s.session.unmount(slot);
     if (!r) return failed(L, r.error().text());
+    for (int ref : s.slots[slot]) release_function(s, ref);
+    s.slots.erase(slot);
     lua_pushboolean(L, 1);
     return 1;
 }
@@ -633,12 +658,19 @@ int l_verb(lua_State* L, Script::Impl& s) {
     }
     const int ref = keep_function(L, s, 3);
     Script::Impl* self = &s;
+    const std::string verb_name = spec.name;
     auto r = s.session.verb(std::move(spec), [self, ref](const Json& args) -> Result<Json> {
         auto out = call_kept(*self, ref, &args);
         if (!out) return std::unexpected(Error{abi::OMUI_ERROR_REFUSED, "the verb raised an error"});
         return std::move(*out);
     });
-    if (!r) return failed(L, r.error().text());
+    if (!r) {
+        release_function(s, ref);
+        return failed(L, r.error().text());
+    }
+    // Registered again (a reload): the function it replaced is not called again.
+    if (auto it = s.verbs.find(verb_name); it != s.verbs.end()) release_function(s, it->second);
+    s.verbs[verb_name] = ref;
     lua_pushboolean(L, 1);
     return 1;
 }
@@ -990,6 +1022,12 @@ std::future<Result<void>> Script::reload(std::string code, std::string name) {
     Impl* s = impl_.get();
     s->session.host().post([s, done, code = std::move(code), name = std::move(name)] {
         s->next_signal = 0;  // the chunk's signals are the last run's, in order
+        // The last run's watches go: this run makes its own again.
+        for (const auto& [token, ref] : s->watches) {
+            s->session.unwatch(token);
+            release_function(*s, ref);
+        }
+        s->watches.clear();
         done->set_value(run_chunk(*s, code, name));
     });
     return future;

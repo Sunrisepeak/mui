@@ -307,6 +307,30 @@ assert(not ok3 and err3:find("pattern"), err3)
         check_eq(r.name_of("main/text:0"), std::string("12 taps"));
     });
 
+    s.test("a watch sees each value once, in order: two writes in a row are not undone by their echoes; a reload's watches replace the last run's", [] {
+        Runtime r;
+        Lua lua(r);
+        constexpr std::string_view code = R"lua(
+seen = {}
+n = omui.signal(0, "n")
+n:watch(function(v) seen[#seen + 1] = v end)
+omui.verb("seen", { effect = "read" }, function() return { seen = seen } end)
+)lua";
+        check(lua.run(std::string(code)).has_value());
+        check(lua.run("n:set(1); n:set(2)").has_value());
+        r.settle(lua.host);
+        check_eq(invoke(r, "seen", Json::object()).dump(), std::string(R"({"seen":[1,2]})"));
+        auto again = r.wait(lua.host, lua.script.reload(std::string(code)));
+        check(again.has_value(), again ? "" : again.error().text());
+        check(lua.run("n:set(3)").has_value());
+        r.settle(lua.host);
+        check_eq(invoke(r, "seen", Json::object()).dump(), std::string(R"({"seen":[3]})"));  // one watch: the reload's
+        // A string that is not UTF-8 is replaced, not thrown on.
+        check(lua.run("n:set('a\xff' .. 'b')").has_value());
+        r.settle(lua.host);
+        check(invoke(r, "seen", Json::object()).dump().find("a\xef\xbf\xbd" "b") != std::string::npos, invoke(r, "seen", Json::object()).dump());
+    });
+
     s.test("a reload re-registers its verbs: the new function answers; another effect is refused", [] {
         Runtime r;
         Lua lua(r);

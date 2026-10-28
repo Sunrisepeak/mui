@@ -41,11 +41,15 @@ std::vector<Json> records(std::string_view ndjson) {
 
 Error failure(abi::OmuiResult r, std::string message = {}) { return Error{r, std::move(message)}; }
 
+// JSON text of a script's value: a string that is not valid UTF-8 has its bad
+// bytes replaced (U+FFFD) instead of throwing — a script's text is not trusted.
+std::string dump(const Json& v) { return v.dump(-1, ' ', false, Json::error_handler_t::replace); }
+
 }  // namespace
 
 // ── expressions ───────────────────────────────────────────────────────────
 
-Expr literal(const Json& value) { return {value.dump(), {}}; }
+Expr literal(const Json& value) { return {dump(value), {}}; }
 Expr signal_ref(abi::OmuiSignal s) { return {signal_name(s), {s}}; }
 Expr name_ref(std::string name) { return {std::move(name), {}}; }
 
@@ -353,7 +357,7 @@ Session::~Session() {
 }
 
 Result<abi::OmuiSignal> Session::signal(const Json& initial) {
-    const std::string text = initial.dump();
+    const std::string text = dump(initial);
     struct Watcher {
         Host*                 host;
         Session*              session;
@@ -395,24 +399,54 @@ const Json& Session::get(abi::OmuiSignal s) const {
     return it == signals_.end() ? null : it->second.value;
 }
 
+namespace {
+std::uint64_t next_watch = 0;  // tokens: the script thread's alone
+}  // namespace
+
 void Session::changed(abi::OmuiSignal s, Json value) {
     auto it = signals_.find(s);
-    if (it == signals_.end() || it->second.value == value) return;
-    it->second.value = std::move(value);
-    for (auto& fn : it->second.watchers) fn(it->second.value);
+    if (it == signals_.end()) return;
+    Mirror& m = it->second;
+    if (!m.inflight.empty() && m.inflight.front() == value) return;  // the script's own write, coming back
+    if (m.value == value) return;
+    m.value = std::move(value);
+    const Json now = m.value;  // a watcher may write again
+    for (std::size_t i = 0; i < m.watchers.size(); ++i) m.watchers[i].second(now);
 }
 
 void Session::set(abi::OmuiSignal s, Json value) {
-    const std::string text = value.dump();
-    changed(s, std::move(value));
+    const std::string text = dump(value);
+    Mirror& m = signals_[s];
+    m.inflight.push_back(value);
+    if (m.value != value) {
+        m.value = std::move(value);
+        const Json now = m.value;
+        for (std::size_t i = 0; i < m.watchers.size(); ++i) m.watchers[i].second(now);
+    }
     auto rt = host_.runtime();
-    host_.send([rt, s, text] {
+    Host* host = &host_;
+    std::weak_ptr<bool> alive = alive_;
+    host_.send([rt, s, text, host, alive, this] {
         const abi::OmuiValue v = json_value(text);
         (void)abi::omuiSignalSet(rt, s, &v);
+        // After the runtime's echo (posted while it set), the write is no longer on its way.
+        host->post([alive, this, s] {
+            if (auto a = alive.lock(); !a || !*a) return;
+            auto it = signals_.find(s);
+            if (it != signals_.end() && !it->second.inflight.empty()) it->second.inflight.pop_front();
+        });
     });
 }
 
-void Session::watch(abi::OmuiSignal s, std::function<void(const Json&)> fn) { signals_[s].watchers.push_back(std::move(fn)); }
+std::uint64_t Session::watch(abi::OmuiSignal s, std::function<void(const Json&)> fn) {
+    const std::uint64_t token = ++next_watch;
+    signals_[s].watchers.emplace_back(token, std::move(fn));
+    return token;
+}
+
+void Session::unwatch(std::uint64_t token) {
+    for (auto& [s, m] : signals_) std::erase_if(m.watchers, [&](const auto& w) { return w.first == token; });
+}
 
 namespace {
 
@@ -441,7 +475,7 @@ Json Session::document(const Element& root) const {
 
 Result<void> Session::mount(std::string slot, const Element& root) {
     std::map<std::string, Handler> handlers;
-    const std::string text = compile(root, handlers).dump();
+    const std::string text = dump(compile(root, handlers));
 
     struct Forward {
         Host*                 host;
@@ -506,7 +540,7 @@ Result<void> Session::unmount(std::string slot) {
 }
 
 Result<void> Session::splice(std::string_view model, std::size_t from, std::size_t remove, const Json& rows) {
-    const std::string text = rows.dump();
+    const std::string text = dump(rows);
     const abi::OmuiResult r = host_.ui([&] {
         return abi::omuiModelSplice(host_.runtime(), str(model), static_cast<std::uint32_t>(from), static_cast<std::uint32_t>(remove), str(text));
     });
@@ -541,7 +575,7 @@ Result<void> Session::set(abi::OmuiNode node, const std::vector<std::pair<std::s
     std::vector<std::string> names, values;
     for (const auto& [k, v] : props) {
         names.push_back(k);
-        values.push_back(v.dump());
+        values.push_back(dump(v));
     }
     const abi::OmuiResult r = host_.ui([&] {
         std::vector<abi::OmuiProp> batch(props.size());
@@ -555,7 +589,7 @@ Result<void> Session::set(abi::OmuiNode node, const std::vector<std::pair<std::s
 // ── themes ─────────────────────────────────────────────────────────────────
 
 Result<void> Session::theme(const std::vector<std::string>& layers) {
-    const std::string l = Json(layers).dump();
+    const std::string l = dump(Json(layers));
     std::string out;
     const abi::OmuiResult r = host_.ui([&] { return abi::omuiTheme(host_.runtime(), str(l), collect, &out); });
     for (const Json& rec : records(out))
@@ -581,7 +615,7 @@ Json Session::natives() {
 }
 
 Result<Json> Session::native(std::string_view module, std::string_view function, const Json& args) {
-    const std::string a = args.dump();
+    const std::string a = dump(args);
     std::string out;
     const abi::OmuiResult r = abi::omuiNativeCall(host_.runtime(), str(module), str(function), str(a), collect, &out);
     Json data = nullptr;
@@ -608,7 +642,7 @@ void Session::native_async(std::string module, std::string function, Json args, 
 }
 
 Result<std::vector<Json>> Session::snapshot(const Json& query) {
-    const std::string q = query.dump();
+    const std::string q = dump(query);
     std::string out;
     const abi::OmuiResult r = host_.ui([&] { return abi::omuiSnapshot(host_.runtime(), str(q), collect, &out); });
     if (r < 0 && out.empty()) return std::unexpected(failure(r, out));
@@ -616,7 +650,7 @@ Result<std::vector<Json>> Session::snapshot(const Json& query) {
 }
 
 Result<std::vector<Json>> Session::act(const Json& request) {
-    const std::string q = request.dump();
+    const std::string q = dump(request);
     std::string out;
     const abi::OmuiResult r = host_.ui([&] { return abi::omuiAct(host_.runtime(), str(q), collect, &out); });
     // A refusal is an answer (its error record says why: not-found,
@@ -626,7 +660,7 @@ Result<std::vector<Json>> Session::act(const Json& request) {
 }
 
 Result<std::vector<Json>> Session::invoke(std::string_view verb, const Json& args) {
-    const std::string a = args.dump();
+    const std::string a = dump(args);
     std::string out;
     const abi::OmuiResult r = host_.ui([&] { return abi::omuiInvoke(host_.runtime(), str(verb), str(a), collect, &out); });
     if (r < 0 && out.empty()) return std::unexpected(failure(r, out));
@@ -663,7 +697,7 @@ Result<void> Session::verb(VerbSpec spec, std::function<Result<Json>(const Json&
                 const Json a = Json::parse(std::string_view(args.data, args.size), nullptr, false);
                 // The runtime waits for the script, and answers it meanwhile.
                 Result<Json> out = b->host->script([&] { return b->fn(a); });
-                const std::string text = out ? out->dump() : out.error().text();
+                const std::string text = out ? dump(*out) : out.error().text();
                 sink(sink_user, text.data(), text.size());
                 return out ? abi::OMUI_SUCCESS : abi::OMUI_ERROR_REFUSED;
             },

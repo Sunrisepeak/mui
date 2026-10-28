@@ -31,6 +31,7 @@ struct Script::Impl {
     int                                         next_function = 1;
     std::map<std::string, std::vector<int>>     slot_functions;  // a mounted view's handlers
     std::vector<int>                            pending_slot;    // handlers of the mount in progress
+    std::vector<std::pair<std::uint64_t, int>>  watches;         // this run's watches (token, function): a reload lets them go
     std::shared_ptr<bool>                       alive = std::make_shared<bool>(true);  // false once the context is gone
 
     explicit Impl(Session& s) : session(s) {}
@@ -162,7 +163,9 @@ JSValue n_signal_watch(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
     if (!JS_IsFunction(ctx, argv[1])) return fail(ctx, "watch(fn)");
     const int id = s.keep(argv[1]);
     Script::Impl* self = &s;
-    s.session.watch(static_cast<abi::OmuiSignal>(integer(ctx, argv[0])), [self, id](const Json& v) { (void)self->call(id, v.dump(), false); });
+    const std::uint64_t token = s.session.watch(static_cast<abi::OmuiSignal>(integer(ctx, argv[0])),
+                                                [self, id](const Json& v) { (void)self->call(id, v.dump(-1, ' ', false, Json::error_handler_t::replace), false); });
+    s.watches.emplace_back(token, id);
     return JS_UNDEFINED;
 }
 
@@ -520,6 +523,11 @@ std::future<Result<void>> Script::reload(std::string code, std::string name) {
     Impl* s = impl_.get();
     s->session.host().post([s, done, code = std::move(code), name = std::move(name)]() mutable {
         s->next_signal = 0;  // the module's signals are the last run's, in order
+        for (const auto& [token, id] : s->watches) {  // the last run's watches go: this run makes its own again
+            s->session.unwatch(token);
+            s->release(id);
+        }
+        s->watches.clear();
         // A module of the same name is cached: the new text gets a name of its own.
         static int generation = 0;
         done->set_value(run_module(*s, code, std::format("{}#{}", name, ++generation)));

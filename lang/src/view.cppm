@@ -96,8 +96,10 @@ public:
     [[nodiscard]] Result<abi::OmuiSignal> signal(const Json& initial);
     [[nodiscard]] const Json& get(abi::OmuiSignal s) const;
     void set(abi::OmuiSignal s, Json value);
-    // Runs `fn` (on the script thread) after each change, from either side.
-    void watch(abi::OmuiSignal s, std::function<void(const Json&)> fn);
+    // Runs `fn` (on the script thread) after each change, from either side;
+    // answers a token for `unwatch` (a reload lets its last run's watches go).
+    std::uint64_t watch(abi::OmuiSignal s, std::function<void(const Json&)> fn);
+    void unwatch(std::uint64_t token);
 
     // ── views ──
     // The view document of an element tree (what mount sends; tests and
@@ -156,9 +158,13 @@ public:
 
 private:
     struct Mirror {
-        Json                                          value;
-        std::vector<std::function<void(const Json&)>> watchers;
-        abi::OmuiSubscription                         watch = 0;
+        Json                                                                  value;
+        std::vector<std::pair<std::uint64_t, std::function<void(const Json&)>>> watchers;
+        abi::OmuiSubscription                                                 watch = 0;
+        // The script's writes on their way to the runtime: the runtime's echo of
+        // each is the script's own value coming back, not a change (two writes
+        // in a row must not see the first come back over the second).
+        std::deque<Json>                                                      inflight;
     };
     struct Mounted {
         std::vector<abi::OmuiSubscription> subscriptions;
@@ -168,7 +174,7 @@ private:
     struct VerbBox;
     struct Workers;  // the threads async natives run on
 
-    void changed(abi::OmuiSignal s, Json value);
+    void changed(abi::OmuiSignal s, Json value);  // from the runtime: its echo of the script's write, or a change
 
     Host&                                    host_;
     std::map<abi::OmuiSignal, Mirror>        signals_;

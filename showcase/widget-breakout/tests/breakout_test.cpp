@@ -10,6 +10,7 @@ import openmui;
 import openmui.showcase.widget_breakout;
 import openmui.testing;
 import openmui.ui.canvas;
+import openmui.audio;
 
 using namespace omui::testing;
 using namespace omui;
@@ -197,6 +198,27 @@ int main(int argc, char** argv) {
         std::println("    played {:016x}, lens {:016x}", played, lens);
         check_eq(played, std::uint64_t{0xd5452912dbfc78ca});  // GCC and LLVM
         check_eq(lens, std::uint64_t{0x0f57ad26ce85e13d});
+    });
+
+    s.test("heard: each brick as its component, a pop higher with the combo, the paddle, a lost ball — on its step's sample, the same everywhere", [] {
+        Game g;
+        check(g.act("pause"));
+        g.play(1800);
+        auto& sounds = const_cast<bo::Field&>(g.component()).sounds();
+        const auto samples = audio::render(sounds.mixer(), g.state().frame * sounds.step_samples() + sounds.mixer().rate());
+        const auto begun = sounds.mixer().begun();
+        check(begun > 20, std::format("{} sounds", begun));
+        const auto heard = audio::hash(samples);
+        check(audio::peak(samples) > 0.05f && audio::peak(samples) <= 1.0f, std::format("peak {}", audio::peak(samples)));
+        std::println("    heard {:016x} ({} sounds)", heard, begun);
+        check_eq(heard, std::uint64_t{0x5cdc03eb0b49e7b7});  // GCC and LLVM
+        // Seeking back is silent; played on, the new branch is heard after what was.
+        check(g.act("rewind", Value{}.set("frames", 600)));
+        (void)audio::render(sounds.mixer(), sounds.mixer().rate());
+        check_eq(sounds.mixer().begun(), begun);
+        g.play(600);
+        (void)audio::render(sounds.mixer(), 600 * sounds.step_samples());
+        check(sounds.mixer().begun() > begun, "heard on");
     });
 
     s.test("level 2: each row cleared brings the next style pack; under every style the same play, the same hash, the same tree", [] {

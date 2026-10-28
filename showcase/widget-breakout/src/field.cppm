@@ -17,6 +17,7 @@ import mgame.ui;
 import openmui.showcase.widget_breakout.sim;
 import :field_contract;
 import :levels;
+import :sound;
 
 export namespace omui::breakout {
 
@@ -50,6 +51,8 @@ public:
     ActResult next(ActContext& ctx);
     ActResult next_style(ActContext& ctx);
 
+    // What it sounds like (tests render it offline).
+    [[nodiscard]] Sounds& sounds() noexcept { return *sounds_; }
     // The simulation as it stands (tests and tools read it); none before its first step.
     [[nodiscard]] const State* state() const noexcept { return timeline_ ? &timeline_->state() : nullptr; }
 
@@ -65,7 +68,7 @@ private:
     void restart_level();           // the level afresh: bricks, simulation, lens and style
     [[nodiscard]] std::string style_wanted() const;  // level 2: by the rows cleared, and the player's turns
     void show_style();              // asks for it when it changed
-    void show_gates();              // level 4: a gate's bar fills toward its opening; open, it is gone
+    void show_gates(bool heard = false);  // level 4: a gate's bar fills toward its opening; open, it is gone
     void show_camera();             // level 3: the canvas's camera where the simulation's is
 
     static constexpr std::size_t log_size = 8;
@@ -82,6 +85,8 @@ private:
     bool                                 rewinding_ = false;   // R held: back two frames a step
     std::optional<double>                guard_x_;             // level 5: where an agent sends the top paddle (0 … 1)
     std::deque<std::string>              agent_log_;           // level 5: its latest actions, with what it saw
+    std::unique_ptr<Sounds>              sounds_ = std::make_unique<Sounds>();
+    std::shared_ptr<void>                device_;              // what hears them (none headless); let go before them
     std::deque<std::string>              log_;                 // the lens's latest changes
     mutable std::map<std::string, typeset::Paragraph, std::less<>> words_;  // the lens's labels, shaped once
 };

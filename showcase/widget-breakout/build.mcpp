@@ -1,6 +1,12 @@
-// The field's contract becomes code (openmui.rules).
+// The field's contract becomes code (openmui.rules), and what the game sounds
+// like is carried in the program.
 import std;
 import mcpp;
 import openmui.rules;
 
-int main() { return openmui::rules::components({.module = "openmui.showcase.widget_breakout", .ns = "omui::breakout"}) ? 0 : 1; }
+int main() {
+    const bool field = openmui::rules::components({.module = "openmui.showcase.widget_breakout", .ns = "omui::breakout"});
+    const bool sounds = openmui::rules::embed({.module = "openmui.showcase.widget_breakout", .ns = "omui::breakout::files", .dir = "sounds",
+                                               .suffix = ".sound.omui.toml", .tag = "sound"});
+    return field && sounds ? 0 : 1;
+}

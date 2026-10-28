@@ -64,10 +64,14 @@ const char* role_of(Kind k) {
 
 Field::Field() : sampler_(bindings()) {}
 
-Field::~Field() { pacer_.stop(); }
+Field::~Field() {
+    pacer_.stop();
+    device_.reset();  // the device stops pulling before its mixer goes
+}
 
 void Field::mounted() {
     services().focus(node());
+    if (hearing()) device_ = hearing()(*sounds_);
     pacer_.start(services(), steps_per_second, [this](std::int32_t n) { run(n); });
 }
 
@@ -172,6 +176,7 @@ bool Field::begin() {
     }
     rows_ = static_cast<std::int32_t>(row) + 1;
     timeline_.emplace(start(l), keep, 60);
+    sounds_->restart();
     emit_level_began(props.level, services().path(node()));  // whoever plays along (level 5's agent) knows where
     return true;
 }
@@ -197,6 +202,7 @@ Input Field::input() {
 void Field::play(const Input& in) {
     timeline_->step(in);
     const State& s = timeline_->state();
+    sounds_->heard(s, level(props.level));
     if (level(props.level).canvas) {  // a broken note leaves the scene
         auto& scene = world::scene(wall_scene);
         for (std::uint32_t k = 0; k < s.events; ++k) {
@@ -243,10 +249,10 @@ void Field::play(const Input& in) {
         }
     }
     show_style();  // a row cleared: level 2's next pack
-    show_gates();
+    show_gates(true);
 }
 
-void Field::show_gates() {
+void Field::show_gates(bool heard) {
     if (!timeline_) return;
     const State& s = timeline_->state();
     const auto nodes = bricks();
@@ -257,6 +263,7 @@ void Field::show_gates() {
         if (open == shown) {
             services().set(nodes[i], "visible", Value(!open));
             note(std::format("{} progress · {}", brick_id(i), open ? "hidden (open)" : "shown (closed)"));
+            if (open && heard) sounds_->cue("gate");
         }
         if (open) continue;
         const double v = s.frame < s.gate_from ? static_cast<double>(s.frame) / static_cast<double>(s.gate_from) : 1.0;
@@ -510,6 +517,7 @@ bool Field::on_event(EventContext& ctx, const InputEvent& e) {
     // R held: rewinding.
     if (const auto* k = std::get_if<KeyEvent>(&e); k && k->key == Key::r) {
         if (!k->repeat) rewinding_ = k->kind == KeyKind::down;
+        if (rewinding_ && !k->repeat) sounds_->cue("rewind");
         if (!rewinding_ && timeline_) note(std::format("rewound to frame {}", timeline_->frame()));
         ctx.handled = true;
         return true;

@@ -7,6 +7,8 @@ export import openmui;
 export import openmui.showcase.widget_breakout.sim;
 export import :field_contract;
 export import :levels;
+export import :breakout_sound;
+export import :sound;
 export import :field;
 export import :copilot;
 

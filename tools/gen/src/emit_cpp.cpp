@@ -323,9 +323,40 @@ public:
     }
     out += "        return {};\n    }\n\n";
 
-    // Actions and commands.
+    // Actions and commands. An action of two or more arguments takes them
+    // as one struct of named members (`<Action>Args`), so they cannot be
+    // taken in the wrong order; one argument is passed as itself.
+    auto pascal = [](std::string_view name) {
+        std::string r;
+        bool up = true;
+        for (char ch : name) {
+            if (ch == '_' || ch == '.' || ch == '-') {
+                up = true;
+                continue;
+            }
+            r += up ? static_cast<char>(std::toupper(static_cast<unsigned char>(ch))) : ch;
+            up = false;
+        }
+        return r;
+    };
+    for (const ContractAction& a : c.actions) {
+        if (a.args.size() < 2) continue;
+        out += std::format("    // The arguments of the action `{}`, by name.\n    struct {}Args {{\n", a.name, pascal(a.name));
+        for (const Arg& x : a.args) out += std::format("        Value {};\n", ident(x.name));
+        out += "    };\n";
+    }
     out += "    ActResult act(ActContext& ctx, std::string_view action) {\n";
     for (const ContractAction& a : c.actions) {
+        if (a.args.size() >= 2) {
+            std::string fields;
+            for (const Arg& x : a.args) fields += std::format("{}arg(ctx, {})", fields.empty() ? "" : ", ", cpp_string(x.name));
+            const std::string args = pascal(a.name) + "Args";
+            out += std::format("        static_assert(requires(Derived& d, ActContext& c, const {0}& x) {{ {{ d.{1}(c, x) }} -> std::same_as<ActResult>; }},\n"
+                               "                      \"{2}: the contract's action `{3}` needs `ActResult {1}(ActContext&, const {0}& args)` (component-binding §2.4)\");\n",
+                               args, ident(a.name), c.name, a.name);
+            out += std::format("        if (action == {}) return self().{}(ctx, {}{{{}}});\n", cpp_string(a.name), ident(a.name), args, fields);
+            continue;
+        }
         std::string call_args, decl_args, probe_args;
         for (const Arg& x : a.args) {
             call_args += std::format(", arg(ctx, {})", cpp_string(x.name));

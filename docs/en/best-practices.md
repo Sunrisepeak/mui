@@ -38,7 +38,7 @@ Draw a frame as a pure function of (state, frame): particles seeded by their eve
 
 Write the component's contract (`*.contract.omui.toml`) first; the bindings are generated. A person, an agent and a test act through the same actions, and the semantic node states what an agent needs to play or use it. Ids are explicit and never depend on displayed text (fighting, widget breakout).
 
-Contract action arguments arrive in alphabetical order. Check a handler's parameter order against the generated signature; `Value` parameters compile in any order.
+An action of two or more arguments takes them as one generated struct, by name (`const GuardToArgs& args`, then `args.x`), so they cannot be taken in the wrong order. Positional `Value` parameters used to compile in any order; a breakout handler took `seen` for `x`.
 
 ## 6. Assets are data the build checks
 

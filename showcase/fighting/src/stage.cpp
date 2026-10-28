@@ -276,7 +276,8 @@ ActResult Stage::step(ActContext&) {
     return ActResult::done(Value(match_->state().frame));
 }
 
-ActResult Stage::press(ActContext&, const Value& pad, const Value& player) {
+ActResult Stage::press(ActContext&, const PressArgs& args) {
+    const Value &pad = args.pad, &player = args.player;
     const auto p = player.as_int(-1);
     if (p != 0 && p != 1) return ActResult::fail("`player` is 0 or 1");
     const auto parsed = parse_pad(pad.as_string());

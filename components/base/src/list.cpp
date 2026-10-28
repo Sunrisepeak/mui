@@ -223,8 +223,8 @@ bool List::reveal(std::string_view key) {
     return true;
 }
 
-ActResult List::scroll_to(ActContext&, const Value& x, const Value& y) {
-    (void)x;
+ActResult List::scroll_to(ActContext&, const ScrollToArgs& args) {
+    const Value& y = args.y;  // a list scrolls down only
     float to = offset_;
     if (y.is_number()) to = static_cast<float>(y.as_double());
     else if (y.as_string() == "end") to = total();

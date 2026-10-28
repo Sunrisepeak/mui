@@ -37,7 +37,7 @@ public:
     [[nodiscard]] std::vector<spec::SemanticNode> virtual_items(std::string_view path) const;
     bool reveal(std::string_view key);
 
-    ActResult scroll_to(ActContext& ctx, const Value& x, const Value& y);
+    ActResult scroll_to(ActContext& ctx, const ScrollToArgs& args);
     ActResult next(ActContext& ctx);
     ActResult previous(ActContext& ctx);
 

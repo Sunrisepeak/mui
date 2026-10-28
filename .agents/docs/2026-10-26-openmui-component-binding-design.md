@@ -117,6 +117,8 @@ public:
 
 生成的基类要求每个动作和方法都有实现，**漏掉一个就编译失败**。
 
+动作的参数（2026-10-29 起）：一个参数的动作写成 `ActResult name(ActContext&, const Value& arg)`；**两个及以上参数的动作收一个生成的结构** `ActResult name(ActContext&, const NameArgs& args)`，成员按参数名（`args.x`、`args.seen`）。原因：参数按名字的字母序传入，都是 `Value` 时签名写反照样编译（打砖块的 `guard_to(seen, x)` 就是这样错的，测试才发现）；按名字取就不会错。
+
 ---
 
 ## 3. 契约的两种来源，编译成同一种 IR

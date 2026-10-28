@@ -127,10 +127,15 @@ public:
         return {};
     }
 
+    // The arguments of the action `scroll_to`, by name.
+    struct ScrollToArgs {
+        Value x;
+        Value y;
+    };
     ActResult act(ActContext& ctx, std::string_view action) {
-        static_assert(requires(Derived& d, ActContext& c, const Value& x) { { d.scroll_to(c, x, x) } -> std::same_as<ActResult>; },
-                      "list: the contract's action `scroll_to` needs `ActResult scroll_to(ActContext&, const Value& x, const Value& y)` (component-binding §2.4)");
-        if (action == "scroll_to") return self().scroll_to(ctx, arg(ctx, "x"), arg(ctx, "y"));
+        static_assert(requires(Derived& d, ActContext& c, const ScrollToArgs& x) { { d.scroll_to(c, x) } -> std::same_as<ActResult>; },
+                      "list: the contract's action `scroll_to` needs `ActResult scroll_to(ActContext&, const ScrollToArgs& args)` (component-binding §2.4)");
+        if (action == "scroll_to") return self().scroll_to(ctx, ScrollToArgs{arg(ctx, "x"), arg(ctx, "y")});
         static_assert(requires(Derived& d, ActContext& c) { { d.next(c) } -> std::same_as<ActResult>; },
                       "list: the contract's command `next` needs `ActResult next(ActContext&)`");
         if (action == "next") return self().next(ctx);

@@ -729,8 +729,8 @@ bool Canvas::reveal(std::string_view key) {
 
 // ── the viewport's actions ───────────────────────────────────────────────
 
-ActResult Canvas::pan_to(ActContext&, const Value& x, const Value& y) {
-    animate_to({number_of(x, camera_.x), number_of(y, camera_.y), camera_.zoom});
+ActResult Canvas::pan_to(ActContext&, const PanToArgs& args) {
+    animate_to({number_of(args.x, camera_.x), number_of(args.y, camera_.y), camera_.zoom});
     return ActResult::done();
 }
 

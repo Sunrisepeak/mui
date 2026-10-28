@@ -47,9 +47,8 @@ public:
     ActResult step(ActContext& ctx);
     ActResult restart(ActContext& ctx);
     ActResult rewind(ActContext& ctx, const Value& frames);
-    ActResult guard_to(ActContext& ctx, const Value& seen, const Value& x);  // the contract's arguments, by name
-    ActResult set_rules(ActContext& ctx, const Value& drop_one_in, const Value& multi_balls, const Value& pierce_steps, const Value& slow_percent,
-                        const Value& slow_steps, const Value& wide_half, const Value& wide_steps);  // by name, alphabetically
+    ActResult guard_to(ActContext& ctx, const GuardToArgs& args);
+    ActResult set_rules(ActContext& ctx, const SetRulesArgs& args);
     ActResult workshop(ActContext& ctx);
     ActResult next(ActContext& ctx);
     ActResult next_style(ActContext& ctx);

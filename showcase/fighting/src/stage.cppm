@@ -37,7 +37,7 @@ public:
     ActResult pause(ActContext& ctx);
     ActResult resume(ActContext& ctx);
     ActResult step(ActContext& ctx);
-    ActResult press(ActContext& ctx, const Value& pad, const Value& player);  // the contract's arguments, by name
+    ActResult press(ActContext& ctx, const PressArgs& args);
     ActResult release(ActContext& ctx, const Value& player);
     ActResult save(ActContext& ctx);
     ActResult load(ActContext& ctx);

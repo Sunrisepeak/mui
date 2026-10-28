@@ -54,7 +54,7 @@ The simulation knows nothing of openmui. The field knows the simulation only thr
 
 **What was hard, and what it says to improve**
 
-- **Contract arguments are passed by name in alphabetical order, and a wrong signature still compiles** when every argument is a `Value`. `guard_to(x, seen)` received `seen` as `x`, and only a test caught it. The generator should make this impossible, for example with a generated argument struct (`GuardToArgs{.seen, .x}`) instead of positional `Value`s. That belongs in the contract generator, for every component.
+- **Contract arguments were passed by position in alphabetical order, and a wrong signature still compiled** when every argument was a `Value`. `guard_to(x, seen)` received `seen` as `x`, and only a test caught it. Fixed in the contract generator, for every component: an action of two or more arguments now takes a generated struct of named members (`const GuardToArgs& args`).
 - **Re-registering a script's verb on reload was refused.** Fixed in `openmui.lang`: a session re-registering its own verb now replaces the function. Hot reload means anything a script defines can be defined again.
 - **TypeScript from an editor's text** needed a new entry point (`compile_typescript_source`); the player only compiled files. Editors are a normal place for code, so this is now general.
 - **Pinned pixels that include changing text** (level 2's checksum line) break whenever the simulation's state layout changes. A pinned frame should avoid text derived from unrelated state, or pin a region.

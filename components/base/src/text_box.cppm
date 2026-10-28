@@ -38,7 +38,7 @@ public:
 
     ActResult focus(ActContext& ctx);
     ActResult set_value(ActContext& ctx, const Value& value);
-    ActResult set_selection(ActContext& ctx, const Value& anchor, const Value& focus);
+    ActResult set_selection(ActContext& ctx, const SetSelectionArgs& args);
     ActResult replace_selection(ActContext& ctx, const Value& text);
     ActResult submit(ActContext& ctx);
 

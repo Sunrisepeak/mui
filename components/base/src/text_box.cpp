@@ -440,7 +440,8 @@ ActResult TextBox::set_value(ActContext&, const Value& value) {
     return ActResult::done(Value(editor_.text()));
 }
 
-ActResult TextBox::set_selection(ActContext&, const Value& anchor, const Value& focus) {
+ActResult TextBox::set_selection(ActContext&, const SetSelectionArgs& args) {
+    const Value &anchor = args.anchor, &focus = args.focus;
     // Offsets in graphemes (the action's unit), clamped to the text.
     const std::vector<std::size_t> b = unicode::grapheme_boundaries(editor_.text());
     auto byte_of = [&](const Value& v) -> std::size_t {

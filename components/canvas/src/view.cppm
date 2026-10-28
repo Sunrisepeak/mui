@@ -55,7 +55,7 @@ public:
     bool reveal(std::string_view key);
     std::vector<Element> compose();
 
-    ActResult pan_to(ActContext& ctx, const Value& x, const Value& y);
+    ActResult pan_to(ActContext& ctx, const PanToArgs& args);
     ActResult zoom_to(ActContext& ctx, const Value& zoom);
     ActResult fit(ActContext& ctx, const Value& target);
     ActResult focus_node(ActContext& ctx, const Value& key);

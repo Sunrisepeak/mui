@@ -625,7 +625,8 @@ ActResult Field::restart(ActContext&) {
     return ActResult::done();
 }
 
-ActResult Field::guard_to(ActContext&, const Value& seen, const Value& x) {
+ActResult Field::guard_to(ActContext&, const GuardToArgs& args) {
+    const Value &seen = args.seen, &x = args.x;
     if (!level(props.level).second_paddle) return ActResult::fail("the top paddle is level 5's");
     guard_x_ = std::clamp(x.as_double(0.5), 0.0, 1.0);
     agent_log_.push_back(std::format("guard_to({:.3f}) · {}", *guard_x_, seen.as_string("—")));
@@ -634,17 +635,16 @@ ActResult Field::guard_to(ActContext&, const Value& seen, const Value& x) {
     return ActResult::done();
 }
 
-ActResult Field::set_rules(ActContext&, const Value& drop_one_in, const Value& multi_balls, const Value& pierce_steps, const Value& slow_percent,
-                           const Value& slow_steps, const Value& wide_half, const Value& wide_steps) {
+ActResult Field::set_rules(ActContext&, const SetRulesArgs& args) {
     if (!timeline_) return ActResult::fail("nothing is playing yet");
     Rules r = pending_rules_.value_or(timeline_->state().rules);
-    const std::array<std::pair<const Value*, std::int32_t*>, 7> given{{{&drop_one_in, &r.drop_one_in},
-                                                                       {&multi_balls, &r.multi_balls},
-                                                                       {&pierce_steps, &r.pierce_steps},
-                                                                       {&slow_percent, &r.slow_percent},
-                                                                       {&slow_steps, &r.slow_steps},
-                                                                       {&wide_half, &r.wide_half},
-                                                                       {&wide_steps, &r.wide_steps}}};
+    const std::array<std::pair<const Value*, std::int32_t*>, 7> given{{{&args.drop_one_in, &r.drop_one_in},
+                                                                       {&args.multi_balls, &r.multi_balls},
+                                                                       {&args.pierce_steps, &r.pierce_steps},
+                                                                       {&args.slow_percent, &r.slow_percent},
+                                                                       {&args.slow_steps, &r.slow_steps},
+                                                                       {&args.wide_half, &r.wide_half},
+                                                                       {&args.wide_steps, &r.wide_steps}}};
     for (const auto& [v, to] : given)
         if (!v->is_null()) *to = static_cast<std::int32_t>(v->as_int(*to));
     if (!(bounded(r) == r)) return ActResult::fail("a rule is outside its bounds: none changed");

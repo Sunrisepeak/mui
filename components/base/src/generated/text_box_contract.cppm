@@ -161,6 +161,11 @@ public:
         return {};
     }
 
+    // The arguments of the action `set_selection`, by name.
+    struct SetSelectionArgs {
+        Value anchor;
+        Value focus;
+    };
     ActResult act(ActContext& ctx, std::string_view action) {
         static_assert(requires(Derived& d, ActContext& c, const Value& x) { { d.focus(c) } -> std::same_as<ActResult>; },
                       "text_box: the contract's action `focus` needs `ActResult focus(ActContext&)` (component-binding §2.4)");
@@ -168,9 +173,9 @@ public:
         static_assert(requires(Derived& d, ActContext& c, const Value& x) { { d.replace_selection(c, x) } -> std::same_as<ActResult>; },
                       "text_box: the contract's action `replace_selection` needs `ActResult replace_selection(ActContext&, const Value& text)` (component-binding §2.4)");
         if (action == "replace_selection") return self().replace_selection(ctx, arg(ctx, "text"));
-        static_assert(requires(Derived& d, ActContext& c, const Value& x) { { d.set_selection(c, x, x) } -> std::same_as<ActResult>; },
-                      "text_box: the contract's action `set_selection` needs `ActResult set_selection(ActContext&, const Value& anchor, const Value& focus)` (component-binding §2.4)");
-        if (action == "set_selection") return self().set_selection(ctx, arg(ctx, "anchor"), arg(ctx, "focus"));
+        static_assert(requires(Derived& d, ActContext& c, const SetSelectionArgs& x) { { d.set_selection(c, x) } -> std::same_as<ActResult>; },
+                      "text_box: the contract's action `set_selection` needs `ActResult set_selection(ActContext&, const SetSelectionArgs& args)` (component-binding §2.4)");
+        if (action == "set_selection") return self().set_selection(ctx, SetSelectionArgs{arg(ctx, "anchor"), arg(ctx, "focus")});
         static_assert(requires(Derived& d, ActContext& c, const Value& x) { { d.set_value(c, x) } -> std::same_as<ActResult>; },
                       "text_box: the contract's action `set_value` needs `ActResult set_value(ActContext&, const Value& value)` (component-binding §2.4)");
         if (action == "set_value") return self().set_value(ctx, arg(ctx, "value"));

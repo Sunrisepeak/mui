@@ -212,6 +212,14 @@ public:
     void fill_path(const Path& path, FillRule rule, const Paint& p);
     void stroke_path(const Path& path, const StrokeStyle& style, const Paint& p);
     void draw_image(ImageRef image, const Rect& source, const Rect& dest, Sampling s = Sampling::linear, float opacity = 1);
+    // A textured mesh (2D skinning: a picture bent by bones): triangles of
+    // `indices` over `positions` (where each vertex is drawn) and `uvs` (where
+    // it is in the image, pixels). Each triangle is the image mapped onto it —
+    // its own affine — grown by `seam` pixels about its middle, so neighbours
+    // overlap and no crack shows between them. Recorded as fills, so every
+    // renderer draws it as it draws any image-painted path.
+    void draw_mesh(ImageRef image, std::span<const Point> positions, std::span<const Point> uvs, std::span<const std::uint16_t> indices,
+                   Sampling s = Sampling::linear, float opacity = 1, float seam = 0.5f);
     void draw_glyphs(FontRef font, float size, Point origin, std::span<const Glyph> glyphs, const Paint& p,
                      std::span<const GlyphStyle> styles = {});
     // Gives the DrawGlyphs command at `index` per-glyph styles (one per glyph),
@@ -266,6 +274,7 @@ public:
     }
 
 private:
+    Path mesh_scratch_;  // draw_mesh's triangle, reused
     Paint own(const Paint& p);
     PathView own(const Path& p);
     StrokeStyle own(const StrokeStyle& s);

@@ -81,6 +81,53 @@ int main(int argc, char** argv) {
         check_eq(report.missing_images, std::size_t{1});
     });
 
+    s.test("a textured mesh: a picture bent by its vertices — flat, it is the image drawn; bent, the same bytes every run", [] {
+        render::ImageStore images;
+        std::vector<raster::Rgba8> px(32 * 32);
+        for (int y = 0; y < 32; ++y)
+            for (int x = 0; x < 32; ++x)
+                px[static_cast<std::size_t>(y * 32 + x)] = {static_cast<std::uint8_t>(x * 8), static_cast<std::uint8_t>(y * 8), 160, 255};
+        const auto ref = images.add(32, 32, px);
+        // A 3 × 3 grid of vertices over the image, drawn at twice its size.
+        std::vector<geom::Point> uv, at;
+        std::vector<std::uint16_t> tri;
+        for (int j = 0; j <= 2; ++j)
+            for (int i = 0; i <= 2; ++i) {
+                uv.push_back({16.0f * i, 16.0f * j});
+                at.push_back({8 + 32.0f * i, 8 + 32.0f * j});
+            }
+        for (std::uint16_t j = 0; j < 2; ++j)
+            for (std::uint16_t i = 0; i < 2; ++i) {
+                const std::uint16_t k = static_cast<std::uint16_t>(j * 3 + i);
+                for (std::uint16_t v : {k, static_cast<std::uint16_t>(k + 1), static_cast<std::uint16_t>(k + 4), k, static_cast<std::uint16_t>(k + 4), static_cast<std::uint16_t>(k + 3)})
+                    tri.push_back(v);
+            }
+        render::CpuRenderer cpu;
+        render::DisplayList flat, image;
+        flat.draw_mesh(ref, at, uv, tri, render::Sampling::nearest);
+        image.draw_image(ref, {0, 0, 32, 32}, {8, 8, 64, 64}, render::Sampling::nearest);
+        raster::Surface a(80, 80), b(80, 80);
+        cpu.render(flat, a, {&images, nullptr});
+        cpu.render(image, b, {&images, nullptr});
+        int differ = 0;
+        for (int y = 10; y < 70; ++y)
+            for (int x = 10; x < 70; ++x) differ += !(a.at(x, y) == b.at(x, y));
+        check_eq(differ, 0);  // inside, where no edge's antialiasing reaches: the image itself, no cracks along the diagonals
+        // Bent: the middle row pushed right, as a bone would.
+        for (int i = 3; i < 6; ++i) at[static_cast<std::size_t>(i)].x += 10;
+        render::DisplayList bent;
+        bent.draw_mesh(ref, at, uv, tri);
+        raster::Surface c(90, 80);
+        cpu.render(bent, c, {&images, nullptr});
+        std::println("    bent {:016x}", c.hash());
+        check(c.at(50, 40) != b.at(50, 40), "moved");
+        check_eq(bent.hash(), [&] {
+            render::DisplayList again;
+            again.draw_mesh(ref, at, uv, tri);
+            return again.hash();
+        }());
+    });
+
     s.test("unregistered effects and external textures are skipped and counted (R-3)", [] {
         render::DisplayList dl;
         std::array<float, 1> params{0.5f};

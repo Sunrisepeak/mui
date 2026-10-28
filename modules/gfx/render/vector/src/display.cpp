@@ -221,6 +221,57 @@ void DisplayList::style_glyphs(std::size_t index, std::span<const GlyphStyle> st
     if (auto* g = std::get_if<DrawGlyphs>(&commands_[index]))
         g->styles = styles.size() == g->glyphs.size() ? arena_.copy(styles) : std::span<const GlyphStyle>{};
 }
+void DisplayList::draw_mesh(ImageRef image, std::span<const Point> positions, std::span<const Point> uvs, std::span<const std::uint16_t> indices,
+                            Sampling s, float opacity, float seam) {
+    if (positions.size() != uvs.size()) return;
+    for (std::size_t k = 0; k + 2 < indices.size(); k += 3) {
+        const std::size_t i0 = indices[k], i1 = indices[k + 1], i2 = indices[k + 2];
+        if (i0 >= positions.size() || i1 >= positions.size() || i2 >= positions.size()) continue;
+        const Point u0 = uvs[i0], u1 = uvs[i1], u2 = uvs[i2], p0 = positions[i0], p1 = positions[i1], p2 = positions[i2];
+        // The affine taking the triangle's image to its place: L·(u − u0) + p0.
+        const float du1x = u1.x - u0.x, du1y = u1.y - u0.y, du2x = u2.x - u0.x, du2y = u2.y - u0.y;
+        const float det = du1x * du2y - du2x * du1y;
+        if (det == 0) continue;  // a triangle with no area in the image
+        const float dp1x = p1.x - p0.x, dp1y = p1.y - p0.y, dp2x = p2.x - p0.x, dp2y = p2.y - p0.y;
+        if (dp1x * dp2y - dp2x * dp1y == 0) continue;  // nothing to draw
+        // L = [dp1 dp2] · [du1 du2]⁻¹
+        const float ia = du2y / det, ib = -du1y / det, ic = -du2x / det, id = du1x / det;
+        Affine m;
+        m.a = dp1x * ia + dp2x * ib;
+        m.b = dp1y * ia + dp2y * ib;
+        m.c = dp1x * ic + dp2x * id;
+        m.d = dp1y * ic + dp2y * id;
+        m.e = p0.x - (m.a * u0.x + m.c * u0.y);
+        m.f = p0.y - (m.b * u0.x + m.d * u0.y);
+        // The triangle with each edge moved out by `seam` pixels: its corners where the moved edges meet (a
+        // sharp corner's reach held to four times the seam), so a pixel on an edge two triangles share is
+        // wholly covered by each, and antialiasing leaves no crack between them.
+        const std::array<Point, 3> v{p0, p1, p2};
+        const float orient = (dp1x * dp2y - dp2x * dp1y) > 0 ? 1.0f : -1.0f;
+        std::array<Point, 3> grown{};
+        for (std::size_t q = 0; q < 3; ++q) {
+            const Point prev = v[(q + 2) % 3], cur = v[q], next = v[(q + 1) % 3];
+            auto normal = [&](Point from, Point to) {  // outward, unit
+                const float ex = to.x - from.x, ey = to.y - from.y, len = std::sqrt(ex * ex + ey * ey);
+                return len > 0 ? Point{ey / len * orient, -ex / len * orient} : Point{0, 0};
+            };
+            const Point n1 = normal(prev, cur), n2 = normal(cur, next);
+            const float bx = n1.x + n2.x, by = n1.y + n2.y, dot = 1 + (n1.x * n2.x + n1.y * n2.y);
+            const float k = dot > 1e-4f ? std::min(seam * 2 / dot, seam * 4 / std::max(1e-4f, std::sqrt(bx * bx + by * by))) : 0.0f;
+            grown[q] = {cur.x + bx * k, cur.y + by * k};
+        }
+        mesh_scratch_.clear();
+        mesh_scratch_.move_to(grown[0]).line_to(grown[1]).line_to(grown[2]).close();
+        Paint paint;
+        paint.kind = Paint::Kind::image;
+        paint.image = image;
+        paint.image_transform = m;
+        paint.sampling = s;
+        paint.color = Color{1, 1, 1, opacity};
+        fill_path(mesh_scratch_, FillRule::nonzero, paint);
+    }
+}
+
 void DisplayList::push_clip(const Rect& r, const CornerRadii& radii) { commands_.emplace_back(PushClipRect{r, radii}); }
 void DisplayList::push_clip(const Path& path, FillRule rule) { commands_.emplace_back(PushClipPath{own(path), rule}); }
 void DisplayList::pop_clip() { commands_.emplace_back(PopClip{}); }

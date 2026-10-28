@@ -416,6 +416,19 @@ const std::vector<Case>& cases() {
              dl.fill_rect({10, 80, 140, 32}, pattern);
          },
          {1, 0}},
+        {"mesh",
+         [](render::DisplayList& dl, Rig& r) {
+             std::vector<raster::Rgba8> px(16 * 16);
+             for (int y = 0; y < 16; ++y)
+                 for (int x = 0; x < 16; ++x) px[static_cast<std::size_t>(y * 16 + x)] = {static_cast<std::uint8_t>(x * 16), static_cast<std::uint8_t>(y * 16), 200, 255};
+             const render::ImageRef img = r.images.add(16, 16, std::move(px));
+             // A strip bent like an arm at its elbow.
+             std::array<geom::Point, 6> uv{{{0, 0}, {8, 0}, {16, 0}, {0, 16}, {8, 16}, {16, 16}}};
+             std::array<geom::Point, 6> at{{{10, 20}, {60, 30}, {100, 70}, {10, 60}, {50, 70}, {80, 100}}};
+             std::array<std::uint16_t, 12> tri{0, 1, 4, 0, 4, 3, 1, 2, 5, 1, 5, 4};
+             dl.draw_mesh(img, at, uv, tri);
+         },
+         {2, 60}},
         {"glyphs",
          [](render::DisplayList& dl, Rig&) {
              std::array<render::Glyph, 6> run{};

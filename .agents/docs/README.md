@@ -19,6 +19,8 @@
 | [2026-10-28-gongfu-posture-supers-design.md](2026-10-28-gongfu-posture-supers-design.md) | **格斗系统 0.3：架势与拼刀、一气二气三气与特写**（草案）：防御积累架势直到破势、攻击框相交的拼刀（新鲜度和分量决定输赢，完美拼刀双方不变）、完美格挡；三档超必杀、冻结与特写、三气命中后的超级动画（数据驱动的时间线，可回滚）；五个角色各自的一气二气三气；对核心的需求（P-1..P-8）、平衡要点、验收、codex 评审记录 |
 | [2026-10-29-mgame-s4-breakout-design.md](2026-10-29-mgame-s4-breakout-design.md) | **mgame 和 S4《组件打砖块》**：mgame 的世界、模拟、输入、物理（自写、确定性）；打砖块的模拟；六关各自展示一项能力（语义、风格、画布、时间、agent、多语言）和已经做出来的样子；codex 两次评审记录 |
 | [2026-10-29-fighting-indie-quality-design.md](2026-10-29-fighting-indie-quality-design.md) | **格斗游戏的顶级独立游戏水准**：标杆、现状的诚实评估、美术方向（墨线 + 剪纸的矢量，亲手定的关键姿势）、动画和打击感、五个人的完成清单、音乐和声音、界面和多视角、自动验收和分项评审、先做墨和霓的完整纵切；codex 评审记录 |
+| [2026-10-29-fighting-acceptance-rubric.md](2026-10-29-fighting-acceptance-rubric.md) | **格斗游戏的严格验收评分表**：维护者评 1/10 之后定的；11 项各 0–10 分的锚点、每项 ≥ 8 才过、总评取最低分；对照作品；每次评分要交的证据；codex 按它评分（一个独立来源） |
+| [2026-10-29-fighting-art-pipeline-design.md](2026-10-29-fighting-art-pipeline-design.md) | **格斗游戏的素材管线**：codex 生成的美术达到主视觉水准，所以美术来自生成的图（或画师的图），框架负责分件、网格蒙皮、关键姿势、导演式演出、特效、界面、每个人的语音集和代码作曲；各环节的工具都是 openmui 应用，agent（包括通过 MCP 的 codex）用它们做素材；基线评分 2/10 |
 | [2026-10-26-openmui-view-data-files-design.md](2026-10-26-openmui-view-data-files-design.md) | **视图与数据文件**：代码优先、可读性要求、`*.view.omui.json` 视图文档、表达式（组合函数 + CEL 字符串）、行为状态机、后缀体系 |
 
 `research/` 目录下是前期的调研和讨论稿。其中的命名（openui / mui）已经过时，一切以上面的设计文档为准。

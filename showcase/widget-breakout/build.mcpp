@@ -1,0 +1,6 @@
+// The field's contract becomes code (openmui.rules).
+import std;
+import mcpp;
+import openmui.rules;
+
+int main() { return openmui::rules::components({.module = "openmui.showcase.widget_breakout", .ns = "omui::breakout"}) ? 0 : 1; }

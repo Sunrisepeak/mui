@@ -1,0 +1,28 @@
+# The field: the breakout at 120 steps a second over a level whose bricks are
+# real components (its children, laid out in rows). A person plays it with
+# the pointer or the arrows and Space; an agent through its actions — the
+# same simulation, the same frames.
+[contract.field]
+role     = "canvas"
+spec     = "0.1"
+doc      = "A breakout's field: a paddle, balls and capsules over a level of real components as bricks; from the pointer, the keyboard or an agent."
+children = "any"
+
+[contract.field.props]
+level  = { type = "i32", default = 1, doc = "Which level (1–6): its bricks are the field's children, in order." }
+paused = { type = "bool", default = false, doc = "Stand still: `step` plays one frame." }
+lens   = { type = "bool", default = false, doc = "The semantic lens (level 1, Tab): every brick's role and id, the hidden ones too." }
+
+[contract.field.events]
+brick_broke = { args = { id = "string" } }
+level_over  = { args = { cleared = "bool", score = "i32" } }
+
+[contract.field.actions]
+launch  = { effect = "reversible", doc = "Sends the ball on the paddle up." }
+move_to = { effect = "reversible", args = { x = "f64" }, doc = "Moves the paddle toward x, 0 at the left to 1 at the right (as the pointer does)." }
+release = { effect = "reversible", doc = "Gives the paddle back to the pointer and the keyboard." }
+pause   = { effect = "reversible" }
+resume  = { effect = "reversible" }
+step    = { effect = "reversible", doc = "One frame, while paused." }
+restart = { effect = "reversible", doc = "The level from its start." }
+rewind  = { effect = "reversible", args = { frames = "i32" }, doc = "Back that many frames (120 a second, up to 30 s); playing on from there is a new branch." }

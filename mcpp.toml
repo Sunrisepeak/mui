@@ -107,6 +107,7 @@ members = [
     "showcase/fighting",
     "showcase/markdown-wall",
     "showcase/style-gallery",
+    "showcase/widget-breakout",
     "showcase/widget-breakout/sim",
 ]
 

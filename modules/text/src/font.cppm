@@ -58,6 +58,12 @@ public:
     // the executable, else the source tree's modules/text/fonts.
     [[nodiscard]] static std::filesystem::path default_directory();
 
+    // This collection's identity, never reused (an address is: a collection
+    // made where a freed one was would find caches keyed by the address and
+    // their fonts' ids, which mean other fonts there). Whether one is alive.
+    [[nodiscard]] std::uint64_t id() const noexcept;
+    [[nodiscard]] static bool alive(std::uint64_t id);
+
     // Loads the five default fonts (Inter, JetBrains Mono, Noto Sans SC,
     // Noto Sans Arabic, Twemoji) and makes them the fallback chain.
     std::expected<void, std::string> add_defaults(const std::filesystem::path& directory = default_directory());

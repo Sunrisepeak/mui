@@ -327,20 +327,23 @@ int main(int argc, char** argv) {
         round_trip("select(ok, 1, 2)", "ok ? 1 : 2");
         error("lookup(tags, 'a')", "int index");
 
-        is("tr('items', count)", "\"items\"");  // no catalog: the key is the pattern; a translation may leave arguments out
+        is("tr('items', {'count': count})", "\"items\"");  // no catalog: the key is the message; a translation may leave arguments out
         Context de;
-        de.translate = [](std::string_view key) -> std::string {
-            if (key == "items") return "{} Einträge";
+        de.translate = [](std::string_view key, const Value& args) -> std::string {
+            if (key == "items") return std::format("{} Einträge", args.get("count") ? args.get("count")->as_int() : 0);
             return std::string(key);
         };
-        Result r = run("tr('items', count)", de);
+        Result r = run("tr('items', {'count': count})", de);
         check(r.ok());
         check_eq(r.value.json(), std::string("\"3 Einträge\""));
+        error("tr('items', count)", "a map by name");
     });
 
-    s.test("tr() without a catalog formats the key", [] {
-        // The key is the pattern: tr('{} left', n) reads well untranslated.
-        is("tr('{} left', count)", "\"3 left\"");
+    s.test("tr() without a catalog formats the key as its message (MessageFormat 2)", [] {
+        // The key is the message: tr('{$n} left', {'n': n}) reads well untranslated.
+        is("tr('{$n} left', {'n': count})", "\"3 left\"");
+        // No locale's data: selection by exact value (no plural categories without a language).
+        is("tr('.input {$n :number}\\n.match $n\\n1 {{one left}}\\n* {{{$n} left}}', {'n': 1})", "\"one left\"");
     });
 
     s.test("animation functions", [] {
@@ -474,7 +477,7 @@ int main(int argc, char** argv) {
         same(in("a", ref("tags")), "'a' in tags");
         same(size(ref("tags")), "size(tags)");
         same(lookup(ref("m"), "k", 0), "lookup(m, 'k', 0)");
-        same(tr("hello", ref("name")), "tr('hello', name)");
+        same(tr("hello", {{"name", ref("name")}}), "tr('hello', {'name': name})");
         same(interpolate(ref("t"), list({0, 1}), list({0, 10}), "out_cubic"), "interpolate(t, [0, 1], [0, 10], 'out_cubic')");
         same(map({{"a", 1}}), "{'a': 1}");
         same(call("clamp", {ref("x"), 0, 1}), "clamp(x, 0, 1)");

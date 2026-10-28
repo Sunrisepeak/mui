@@ -164,8 +164,8 @@ Result<Element> element_of(const Json& j, const std::function<std::optional<Hand
             } else if (p.contains("t")) {
                 prop.kind = Prop::Kind::tr;
                 prop.value = p["t"];
-                if (p.contains("a"))
-                    for (const Json& a : p["a"]) prop.args.push_back(expr_of(a));
+                if (p.contains("a") && p["a"].is_object())
+                    for (auto a = p["a"].begin(); a != p["a"].end(); ++a) prop.args.emplace_back(a.key(), expr_of(a.value()));
             } else {
                 return bad(std::format("the property `{}` has no value", it.key()));
             }
@@ -216,10 +216,10 @@ struct Compiler {
                 merge(signals, {p.signal});
                 return Json{{"bind", signal_name(p.signal)}};
             case Prop::Kind::tr: {
-                Json args = Json::array();
-                for (const Expr& a : p.args) {
+                Json args = Json::object();
+                for (const auto& [name, a] : p.args) {
                     merge(signals, a.signals);
-                    args.push_back(a.text);
+                    args[name] = a.text;
                 }
                 Json t{{"tr", p.value}};
                 if (!args.empty()) t["args"] = std::move(args);

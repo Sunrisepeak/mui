@@ -9,6 +9,7 @@ import openmui.lang;
 import openmui.lang.js;
 import openmui.ui.base;
 import openmui.testing;
+import openmui.view;
 import openmui.cts;
 import openmui.native;
 import openmui.native.fuzzy;
@@ -185,6 +186,25 @@ if (a.value !== 1) throw new Error("the mirror has it");
         check_eq(r.name_of("main/sum"), std::string("8"));
         check_eq(r.name_of("main/who"), std::string("ADA"));
         check_eq(r.name_of("main/big"), std::string("small"));
+    });
+
+    s.test("tr: a message in the person's language, its arguments by name; a key no catalog has is its own message", [] {
+        (void)omui::languages().add_messages(*omui::i18n::Locale::parse("en"), "greeting = \"Hello, {$name}!\"\n", "en.messages.omui.toml");
+        omui::languages().request({*omui::i18n::Locale::parse("en")});
+        Runtime r;
+        Js js(r);
+        auto ran = js.run(R"js(
+import { signal, tr, column, text, mount } from "openmui";
+const name = signal("Ada");
+mount("main", column([
+  text({ id: "greeting", text: tr("greeting", { name }) }),
+  text({ id: "raw", text: tr("{$n} left", { n: 3 }) }),
+]));
+name.set("Grace");
+)js");
+        check(ran.has_value(), ran ? "" : ran.error().text());
+        check_eq(r.name_of("main/greeting"), std::string("Hello, Grace!"));
+        check_eq(r.name_of("main/raw"), std::string("3 left"));
     });
 
     s.test("loops over a model, handlers with their row, a verb in JavaScript, async handlers", [] {

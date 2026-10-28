@@ -30,6 +30,12 @@ struct AppSpec {
     // Whether what setup started (scripts on their threads) is done for now:
     // a headless run settles until it is.
     std::function<bool()> ready;
+    // The application's languages (D-74): the language its keys are written
+    // in, a directory of catalogs (`<tag>.messages.omui.toml`), and catalogs
+    // carried in the program (tag, text). CLDR's packs come with openmui.
+    std::string            source_language = "en";
+    std::filesystem::path  messages;
+    std::vector<std::pair<std::string, std::string_view>> catalogs;
 };
 
 // How to run, from the command line:
@@ -49,6 +55,7 @@ struct AppSpec {
 //   --debug LIST              overlays: bounds,repaints,inspector,hud (the runtime's DebugOptions)
 //   --log FILTER              log levels per category: layout=debug,*=info (also OMUI_LOG)
 //   --profile FILE            record a trace of the run (Chrome / Perfetto JSON)
+//   --lang TAGS               the person's languages, best first: zh-CN,en (default: the system's)
 struct RunOptions {
     bool                  headless = false;
     bool                  serve = false;
@@ -64,6 +71,7 @@ struct RunOptions {
     DebugOptions          debug;
     std::string           log;
     std::filesystem::path profile;
+    std::vector<std::string> languages;  // --lang
 
     [[nodiscard]] static std::expected<RunOptions, std::string> parse(std::span<const std::string_view> args);
 };

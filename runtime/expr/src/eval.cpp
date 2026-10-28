@@ -4,11 +4,44 @@ import std;
 import openmui.spec;
 import openmui.unicode;
 import openmui.anim;
+import openmui.i18n;
 import :ast;
 import :parse;
 import :eval;
 
 namespace omui::expr {
+
+namespace {
+
+// A message's argument as openmui.i18n takes it.
+i18n::Arg message_arg(const Value& v) {
+    switch (v.type()) {
+        case Value::Type::boolean: return v.as_bool();
+        case Value::Type::integer: return v.as_int();
+        case Value::Type::real: return v.as_double();
+        case Value::Type::text: return std::string(v.as_string());
+        case Value::Type::list: {
+            std::vector<std::string> items;
+            for (const Value& x : *v.list()) items.emplace_back(x.type() == Value::Type::text ? std::string(x.as_string()) : x.json());
+            return items;
+        }
+        default: return std::monostate{};
+    }
+}
+
+// No catalog: the key is the message, written with no locale's data.
+std::string untranslated(std::string_view key, const Value& args) {
+    auto m = i18n::Message::parse(key);
+    if (!m) return std::string(key);
+    i18n::Args a;
+    if (const auto* map = args.map())
+        for (const auto& [k, v] : *map) a.set(k, message_arg(v));
+    static const i18n::Formatter plain(std::make_shared<const i18n::LocaleData>());
+    return m->format(plain, a);
+}
+
+}  // namespace
+
 
 namespace {
 
@@ -416,11 +449,13 @@ struct Eval {
             return format(n, *p, std::span(a).subspan(1));
         }
         if (f == "tr") {
-            if (a.empty()) return fail(n, "tr() takes a message key");
+            if (a.empty() || a.size() > 2) return fail(n, "tr() takes a message key and a map of its arguments", "tr('inbox.count', {'count': count})");
             auto key = text(0);
             if (!key) return std::nullopt;
-            const std::string pattern = ctx.translate ? ctx.translate(*key) : std::string(*key);
-            return format(n, pattern, std::span(a).subspan(1), false);
+            const Value args = a.size() == 2 ? a[1] : Value(Value::Map{});
+            if (!args.map()) return fail(n, std::format("tr()'s arguments are a map by name, not a {}", type_name(args)), "tr('inbox.count', {'count': count})");
+            if (ctx.translate) return Value(ctx.translate(*key, args));
+            return Value(untranslated(*key, args));
         }
         if (f == "size" || f == "len") {
             if (!need(1, 1)) return std::nullopt;

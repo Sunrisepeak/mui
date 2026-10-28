@@ -346,4 +346,6 @@ std::expected<raster::Surface, std::string> Desktop::window_pixels() {
     return platform::read_back(*impl_->window);
 }
 
+std::vector<std::string> preferred_locales() { return platform::preferred_locales(); }
+
 }  // namespace omui

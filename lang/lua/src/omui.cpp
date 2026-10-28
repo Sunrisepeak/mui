@@ -40,8 +40,8 @@ struct ModelBox {
     std::string name;
 };
 struct TrBox {
-    std::string       key;
-    std::vector<Expr> args;
+    std::string                               key;
+    std::vector<std::pair<std::string, Expr>> args;  // by name
 };
 
 template <class T>
@@ -405,13 +405,27 @@ int l_tostring(lua_State* L, Script::Impl&) {
     return 1;
 }
 
+// omui.tr("inbox.count", {count = count}): a message, its arguments by name.
 int l_tr(lua_State* L, Script::Impl&) {
-    if (lua_type(L, 1) != LUA_TSTRING) return raise(L, "omui.tr(key, …): a message key");
+    if (lua_type(L, 1) != LUA_TSTRING) return raise(L, "omui.tr(key, {name = value}): a message key");
     TrBox t{lua_tostring(L, 1), {}};
-    for (int i = 2; i <= lua_gettop(L); ++i) {
-        auto e = to_expr(L, i);
-        if (!e) return raise(L, "omui.tr: an argument is not a signal, an expression or data");
-        t.args.push_back(std::move(*e));
+    if (lua_gettop(L) >= 2 && !lua_isnil(L, 2)) {
+        if (lua_type(L, 2) != LUA_TTABLE) return raise(L, "omui.tr(key, {name = value}): the arguments are a table by name");
+        std::vector<std::string> names;
+        lua_pushnil(L);
+        while (lua_next(L, 2) != 0) {
+            lua_pop(L, 1);
+            if (lua_type(L, -1) != LUA_TSTRING) return raise(L, "omui.tr: an argument's name is a string");
+            names.emplace_back(lua_tostring(L, -1));
+        }
+        std::ranges::sort(names);  // a table's order is not its writer's: the names' order is the same everywhere
+        for (const std::string& n : names) {
+            lua_getfield(L, 2, n.c_str());
+            auto e = to_expr(L, -1);
+            lua_pop(L, 1);
+            if (!e) return raise(L, "omui.tr: an argument is not a signal, an expression or data");
+            t.args.emplace_back(n, std::move(*e));
+        }
     }
     make(L, tr_type, std::move(t));
     return 1;

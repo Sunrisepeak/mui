@@ -205,16 +205,20 @@ int main(int argc, char** argv) {
 
     s.test("bindings: expressions follow signals and models; bind is two-way; tr reads the catalogue", [] {
         Headless h(options());
+        (void)languages().add_messages(*i18n::Locale::parse("de"), "search = \"Suchen\"\nfound = \"{$n :number} gefunden\"\n", "de.messages.omui.toml");
+        languages().request({*i18n::Locale::parse("de")});
         auto view = vd::View::load(h.runtime(), view_of(R"j({"type": "column", "children": [
             {"type": "text_box", "id": "q", "props": {"text": {"bind": "query"}, "label": {"tr": "search"}}},
+            {"type": "text", "id": "found", "props": {"label": {"tr": "found", "args": {"n": "size(notes)"}}}},
             {"type": "text", "id": "echo", "props": {"label": {"expr": "size(query) == 0 ? 'empty' : upper(query)"}}},
             {"type": "text", "id": "n", "props": {"label": {"expr": "format('{} notes', size(notes))"}}}
         ]})j", R"j("signals": {"query": {"type": "string"}}, "models": {"notes": "note"}, )j"),
-                                   {.translate = [](std::string_view k) { return k == "search" ? std::string("Suchen") : std::string(k); }});
+                                   {});
         check(view.has_value());
         view->mount(h.runtime(), "main");
         h.step();
         check_eq(name_of(h, "main/q"), std::string("Suchen"));
+        check_eq(name_of(h, "main/found"), std::string("0 gefunden"));
         check_eq(name_of(h, "main/echo"), std::string("empty"));
         check_eq(name_of(h, "main/n"), std::string("0 notes"));
         // A person types: the binding writes the signal, the expression follows.

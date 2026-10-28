@@ -21,4 +21,5 @@ export import openmui.viewdoc;
 export import openmui.ui.base;
 export import openmui.host.headless;
 export import openmui.host.sdl3;
+export import openmui.i18n;
 export import :app;

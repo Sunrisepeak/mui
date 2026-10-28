@@ -132,7 +132,7 @@
           "type": "object",
           "properties": {
             "tr": {"type": "string"},
-            "args": {"type": "array", "items": {"$ref": "#/$defs/expression"}}
+            "args": {"type": "object", "additionalProperties": {"$ref": "#/$defs/expression"}}
           },
           "required": ["tr"],
           "additionalProperties": false
@@ -157,7 +157,7 @@
           "type": "object",
           "properties": {
             "tr": {"type": "string"},
-            "args": {"type": "array", "items": {"$ref": "#/$defs/expression"}}
+            "args": {"type": "object", "additionalProperties": {"$ref": "#/$defs/expression"}}
           },
           "required": ["tr"],
           "additionalProperties": false

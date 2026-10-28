@@ -9,6 +9,7 @@ import openmui.lang;
 import openmui.lang.lua;
 import openmui.ui.base;
 import openmui.testing;
+import openmui.view;
 import openmui.cts;
 import openmui.native;
 import openmui.native.fuzzy;
@@ -190,6 +191,25 @@ assert(a:get() == 1, "reading never waits: the mirror has it")
         check_eq(r.name_of("main/who"), std::string("ADA"));
         check_eq(r.name_of("main/big"), std::string("small"));
         check_eq(r.name_of("main/neg"), std::string("-1"));
+    });
+
+    s.test("tr: a message in the person's language, its arguments by name; a key no catalog has is its own message", [] {
+        (void)omui::languages().add_messages(*omui::i18n::Locale::parse("en"), "greeting = \"Hello, {$name}!\"\n", "en.messages.omui.toml");
+        omui::languages().request({*omui::i18n::Locale::parse("en")});
+        Runtime r;
+        Lua lua(r);
+        auto ran = lua.run(R"lua(
+local name = omui.signal("Ada")
+assert(omui.mount("main", omui.Column {
+  omui.Text { id = "greeting", text = omui.tr("greeting", { name = name }) },
+  omui.Text { id = "raw", text = omui.tr("{$n} left", { n = 3 }) },
+}))
+name:set("Grace")
+)lua");
+        check(ran.has_value(), ran ? "" : ran.error().text());
+        check_eq(r.name_of("main/greeting"), std::string("Hello, Grace!"));
+        check_eq(r.name_of("main/raw"), std::string("3 left"));
+        check(!lua.run("omui.tr('k', 3)").has_value(), "the arguments are a table by name");
     });
 
     s.test("loops over a model, handlers with their row, a verb in Lua, regions", [] {

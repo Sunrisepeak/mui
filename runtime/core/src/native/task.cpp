@@ -11,6 +11,7 @@ module;
 module openmui.core;
 
 import std;
+import mcpplibs.os;
 
 namespace omui {
 
@@ -35,7 +36,15 @@ Tasks::~Tasks() {
 }
 
 Tasks& Tasks::shared() {
-    static Tasks pool;
+    // OMUI_THREADS caps the program's pool (a CI runner's cores, a host's budget).
+    static Tasks pool([] {
+        unsigned n = 0;
+        if (auto v = mcpplibs::os::env::get("OMUI_THREADS"); v && !v->empty()) {
+            const auto r = std::from_chars(v->data(), v->data() + v->size(), n);
+            if (r.ec != std::errc{} || n == 0 || n > 1024) n = 0;
+        }
+        return n;
+    }());
     return pool;
 }
 

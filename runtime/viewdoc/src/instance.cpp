@@ -87,7 +87,8 @@ std::optional<Value> lookup(const Env& env, std::string_view name) {
 
 std::optional<Value> eval(const Env& env, const expr::Expr& e, std::string_view pointer) {
     expr::Context ctx;
-    ctx.translate = env.st->options.translate;
+    // tr(): the person's language (openmui.view's languages), redone when it changes.
+    ctx.translate = [](std::string_view key, const Value& args) { return omui::translate(key, args); };
     auto r = expr::evaluate(e, [&env](std::string_view n) { return lookup(env, n); }, ctx);
     if (!r.ok()) {
         report(*env.st, pointer, r.errors[0].message, r.errors[0].hint);

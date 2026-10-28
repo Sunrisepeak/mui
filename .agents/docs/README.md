@@ -12,6 +12,7 @@
 | [2026-10-26-openmui-canvas-markdown-design.md](2026-10-26-openmui-canvas-markdown-design.md) | **画布、Markdown 与旗舰示例**：画布的机制和策略分离、Markdown 组件、markdown-wall 基准测试、示例目录 |
 | [2026-10-27-openmui-features-plugins-pipeline-design.md](2026-10-27-openmui-features-plugins-pipeline-design.md) | **特色、旗舰作品、可拔插架构与管线**：九项特色和各自的双视角旗舰作品（真实可用 + 展示 + 招牌镜头）、液态玻璃的原理和通用的背景效果能力、契约⑦（插件与管线）、插件种类、`*.pipeline.omui.toml` 管线编排 |
 | [2026-10-28-openmui-progressive-disclosure-design.md](2026-10-28-openmui-progressive-disclosure-design.md) | **渐进式披露**：每项能力分 L0–L3 四层；帧需求与帧节奏（ProMotion / VRR，按预测上屏时间求值）；画布晋升策略和预热；构建期标记（四种语言语法不同、语义对齐）；构建插件拆分和经 mcpp-index 分发 |
+| [2026-10-28-openmui-i18n-window-engine-design.md](2026-10-28-openmui-i18n-window-engine-design.md) | **国际化、自绘窗口与引擎分层**：i18n 引擎和数据分开（可独立发布，不用 ICU，从 CLDR 生成）、en / zh 的顶级支持（中文排版、格式、输入法）；框架自绘窗口外框为默认、原生可切换，窗口关闭时溶解且不阻塞输入；基础层、引擎服务、框架三层，openmui 作为游戏引擎的 UI 模块 |
 | [2026-10-26-openmui-view-data-files-design.md](2026-10-26-openmui-view-data-files-design.md) | **视图与数据文件**：代码优先、可读性要求、`*.view.omui.json` 视图文档、表达式（组合函数 + CEL 字符串）、行为状态机、后缀体系 |
 
 `research/` 目录下是前期的调研和讨论稿。其中的命名（openui / mui）已经过时，一切以上面的设计文档为准。

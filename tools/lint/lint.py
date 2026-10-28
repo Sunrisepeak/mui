@@ -60,6 +60,8 @@ LAYERS: list[tuple[str, set[str]]] = [
     # registered in the runtime's registry (openmui.native).
     ("natives/*", {"modules", "spec", "runtime", "natives"}),
     ("themes/*", {"modules", "spec", "runtime", "themes"}),
+    # Language data for openmui.i18n (D-74): packs over the engine, nothing else.
+    ("i18n/*", {"modules", "i18n"}),
     ("video", {"modules", "spec", "runtime", "hosts", "components", "themes"}),
     ("lang/*", {"spec", "runtime", "lang"}),
     ("tools/*", {"*"}),
@@ -73,7 +75,7 @@ LAYERS: list[tuple[str, set[str]]] = [
 
 # Members whose results are part of A-level conformance (identical bits).
 DETERMINISTIC = ["modules/fuzzy", "modules/anim", "modules/raster", "modules/layout", "modules/geom", "modules/render", "modules/text",
-                 "runtime/view"]
+                 "modules/i18n", "runtime/view"]
 
 # Operating-system headers: platform code goes through mcpplibs.os (D-57), so
 # none of ours includes them, native units included.

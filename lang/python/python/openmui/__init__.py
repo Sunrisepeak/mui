@@ -168,11 +168,12 @@ class _Tr:
     __slots__ = ("key", "args")
 
     def __init__(self, key, args):
-        self.key, self.args = key, [_operand(a) for a in args]
+        self.key, self.args = key, {name: _operand(a) for name, a in sorted(args.items())}
 
 
-def tr(key, *args):
-    """The message of a key in the current locale, formatted with the arguments."""
+def tr(key, **args):
+    """The message of a key in the person's language (MessageFormat 2), its arguments by name:
+    ``tr("inbox.count", count=count)``. A key no catalog has is shown as its own message."""
     return _Tr(key, args)
 
 
@@ -372,7 +373,7 @@ def _prop(type, name, v):
     if isinstance(v, Expr):
         return {"e": v.text, "s": _builtins.list(v.signals)}
     if isinstance(v, _Tr):
-        return {"t": v.key, "a": [{"e": a.text, "s": _builtins.list(a.signals)} for a in v.args]}
+        return {"t": v.key, "a": {n: {"e": a.text, "s": _builtins.list(a.signals)} for n, a in v.args.items()}}
     return {"c": v}
 
 

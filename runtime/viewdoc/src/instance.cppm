@@ -29,8 +29,6 @@ export namespace omui::viewdoc {
 
 struct LoadOptions {
     std::string file;  // for diagnostics
-    // tr(key, args…): the message of the key in the current locale.
-    std::function<std::string(std::string_view key)> translate;
     // The host's signals, for the document's `"provided": true` ones.
     std::function<std::optional<Signal<Value>>(std::string_view name)> provide;
 };

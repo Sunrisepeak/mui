@@ -23,6 +23,8 @@
 //       openmui.h's types and functions for the C++ that implements them, and
 //       the check that their layouts agree with the header
 //   omui-gen unicode <ucd-dir> --version <x.y.z> --out <dir> [--tests <dir>] [--check]
+//   omui-gen cldr <cldr-json-dir> --locales en,zh,zh-Hant --version <x.y.z> --out <dir> [--check]
+//       openmui.i18n's locale packs (*.locale.omui.json) and likely subtags
 //       openmui.unicode's tables (and a subset of the UCD's conformance tests)
 //
 // --check writes nothing and fails (exit 1) when an output differs from what
@@ -33,6 +35,7 @@ import openmui.gen.model;
 import openmui.gen.read;
 import openmui.gen.emit;
 import openmui.gen.unicode;
+import openmui.gen.cldr;
 
 using namespace omui::gen;
 
@@ -52,6 +55,7 @@ struct Options {
     std::string                        part;      // cpp: `contract` or `builder`; native: `cpp` or `stubs`
     std::string                        version;
     std::filesystem::path              tests;
+    std::vector<std::string>           locales;  // cldr: the CLDR locale ids to pack
     bool                               check = false;
     bool                               json = false;
 };
@@ -66,7 +70,8 @@ int usage() {
                             "       omui-gen embed <file> --module <name> --name <partition> --out <dir> [--namespace ns] [--check]\n"
                             "       omui-gen check <contract or native>... --registry <dir> [--json]\n"
                             "       omui-gen abi <registry-dir> --out <runtime/abi/src> [--check]\n"
-                            "       omui-gen unicode <ucd-dir> --version <x.y.z> --out <dir> [--tests <dir>] [--check]");
+                            "       omui-gen unicode <ucd-dir> --version <x.y.z> --out <dir> [--tests <dir>] [--check]\n"
+                            "       omui-gen cldr <cldr-json-dir> --locales <id,…> --version <x.y.z> --out <dir> [--check]");
     return 2;
 }
 
@@ -97,6 +102,15 @@ std::optional<Options> parse_args(int argc, char** argv) {
         }
         else if (a == "--version") { auto v = value(); if (!v) return std::nullopt; o.version = *v; }
         else if (a == "--tests") { auto v = value(); if (!v) return std::nullopt; o.tests = *v; }
+        else if (a == "--locales") {
+            auto v = value();
+            if (!v) return std::nullopt;
+            for (std::size_t from = 0; from <= v->size();) {
+                const std::size_t comma = std::min(v->find(',', from), v->size());
+                if (comma > from) o.locales.push_back(v->substr(from, comma - from));
+                from = comma + 1;
+            }
+        }
         else if (a.starts_with("--")) return std::nullopt;
         else o.inputs.emplace_back(a);
     }
@@ -172,6 +186,21 @@ int run_abi(const Options& o) {
                      generic_utf8(o.out));
         return 1;
     }
+    std::println("omui-gen: {} file(s) written", w.written);
+    return 0;
+}
+
+// CLDR's JSON to openmui.i18n's locale packs (D-74).
+int run_cldr(const Options& o) {
+    if (o.inputs.size() != 1 || o.out.empty() || o.version.empty() || o.locales.empty()) return usage();
+    auto packs = emit_cldr_packs(o.inputs[0], o.locales, o.version);
+    if (!packs) {
+        std::println(std::cerr, "omui-gen: {}", packs.error());
+        return 1;
+    }
+    Writer w{o.check};
+    for (const CldrPack& p : *packs) w.put(o.out / p.file, p.text);
+    if (o.check && w.stale) return 1;
     std::println("omui-gen: {} file(s) written", w.written);
     return 0;
 }
@@ -339,6 +368,7 @@ int main(int argc, char** argv) {
     if (options->command == "embed") return run_embed(*options);
     if (options->command == "check") return run_contracts(*options, false);
     if (options->command == "unicode") return run_unicode(*options);
+    if (options->command == "cldr") return run_cldr(*options);
     if (options->command == "abi") return run_abi(*options);
     return usage();
 }

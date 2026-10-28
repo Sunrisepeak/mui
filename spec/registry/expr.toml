@@ -182,8 +182,8 @@ doc = "An element by key or index, or the default (null) when absent."
 combinators = { cpp = "lookup", ts = "lookup", python = "lookup", lua = "lookup" }
 [[function]]
 name = "tr"
-signature = "tr(string key, any...) -> string"
-doc = "The translation of a message key in the current locale, formatted with the arguments."
+signature = "tr(string key, map args?) -> string"
+doc = "The message of a key in the person's language (MessageFormat 2), formatted with its arguments by name; a key no catalog has is the message itself."
 combinators = { cpp = "tr", ts = "tr", python = "tr", lua = "tr" }
 [[function]]
 name = "interpolate"

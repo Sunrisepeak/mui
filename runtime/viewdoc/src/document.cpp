@@ -491,14 +491,15 @@ private:
                 error(at(p, "tr"), "tr", "`tr` is a message key");
                 return b;
             }
-            std::vector<expr::Expr> args{expr::Expr(key.as_string())};
+            // Its arguments by name, each an expression (MessageFormat 2's).
+            std::vector<std::pair<std::string, expr::Expr>> args;
             if (const Value* a = v.get("args")) {
-                if (!a->list()) error(at(p, "args"), "tr", "`args` is a list of expressions");
+                if (!a->map()) error(at(p, "args"), "tr", "`args` names the message's arguments", R"({"tr": "inbox.count", "args": {"count": "count"}})");
                 else
-                    for (std::size_t i = 0; i < a->list()->size(); ++i)
-                        if (auto e = expression((*a->list())[i], at(at(p, "args"), i), scope)) args.push_back(std::move(*e));
+                    for (const auto& [name, e] : *a->map())
+                        if (auto x = expression(e, at(at(p, "args"), name), scope)) args.emplace_back(name, std::move(*x));
             }
-            b.expr = expr::call("tr", std::move(args));
+            b.expr = expr::tr(expr::Expr(key.as_string()), std::move(args));
             return b;
         }
         if (only({"value"})) {

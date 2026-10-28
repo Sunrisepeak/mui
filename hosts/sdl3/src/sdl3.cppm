@@ -103,4 +103,8 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
+// The person's languages as the system's settings state them, best first
+// (BCP 47 tags; empty when it says none).
+[[nodiscard]] std::vector<std::string> preferred_locales();
+
 }  // namespace omui

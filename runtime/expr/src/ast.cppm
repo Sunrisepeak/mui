@@ -104,9 +104,13 @@ template <class... A>
 [[nodiscard]] Expr fmt(Expr pattern, A&&... args) {
     return call("format", {std::move(pattern), Expr(std::forward<A>(args))...});
 }
-template <class... A>
-[[nodiscard]] Expr tr(Expr key, A&&... args) {
-    return call("tr", {std::move(key), Expr(std::forward<A>(args))...});
+// A message of the person's language (MessageFormat 2), its arguments by
+// name: tr("inbox.count", {{"count", ref("count")}}) is tr('inbox.count', {'count': count}).
+[[nodiscard]] inline Expr tr(Expr key, std::vector<std::pair<std::string, Expr>> args = {}) {
+    if (args.empty()) return call("tr", {std::move(key)});
+    std::vector<std::pair<Expr, Expr>> entries;
+    for (auto& [k, v] : args) entries.emplace_back(Expr(k), std::move(v));
+    return call("tr", {std::move(key), map(std::move(entries))});
 }
 [[nodiscard]] inline Expr lookup(Expr container, Expr key) { return call("lookup", {std::move(container), std::move(key)}); }
 [[nodiscard]] inline Expr lookup(Expr container, Expr key, Expr fallback) {

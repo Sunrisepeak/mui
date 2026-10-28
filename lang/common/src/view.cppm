@@ -42,7 +42,7 @@ struct Prop {
     Json              value;   // constant; tr: the key
     Expr              expr;    // expr
     abi::OmuiSignal   signal = 0;  // bind
-    std::vector<Expr> args;    // tr
+    std::vector<std::pair<std::string, Expr>> args;  // tr: the message's arguments by name
 };
 
 struct Element;

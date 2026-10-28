@@ -1,0 +1,33 @@
+# openmui.i18n — internationalisation as an engine without data (D-74): BCP 47
+# locales, their negotiation and fallback, CLDR plural rules, numbers, dates,
+# relative times and lists formatted from locale data, MessageFormat 2
+# messages, catalogs and pseudo-localisation. The data — CLDR's, generated
+# into *.locale.omui.json packs (i18n/cldr), and an application's
+# *.messages.omui.toml — is loaded, never compiled in, so the same input gives
+# the same text on every platform. An independent component (D-55): it knows
+# nothing of openmui and can be released as a library of its own.
+[package]
+namespace   = "openmui"
+name        = "i18n"
+version     = "0.1.0"
+description = "Internationalisation without ICU: locales, plural rules, number, date, relative-time and list formatting, MessageFormat 2, catalogs"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "module"
+
+[targets.openmui-i18n]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+# The same digits on every platform: no fused multiply-add, no fast math.
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+nlohmann.json       = "3.12.0"
+marzer.tomlplusplus = "3.4.0"
+
+[dev-dependencies]
+openmui.testing = { path = "../../tests/support" }

@@ -25,6 +25,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 openmui.spec    = { path = "../../spec" }
 openmui.unicode = { path = "../../modules/unicode" }
 openmui.anim    = { path = "../../modules/anim" }
+openmui.i18n    = { path = "../../modules/i18n" }
 
 [dev-dependencies]
 openmui.testing = { path = "../../tests/support" }

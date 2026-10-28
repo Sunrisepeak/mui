@@ -50,6 +50,24 @@ int main(int argc, char** argv) {
         check(f.find_family("monospace") == f.find_family("JetBrains Mono"));
     });
 
+    s.test("a collection's identity is never reused, as its address may be: caches keyed by it cannot meet a successor", [] {
+        std::uint64_t first = 0;
+        {
+            omui::typeset::FontCollection a;
+            first = a.id();
+            check(first != 0 && omui::typeset::FontCollection::alive(first));
+        }
+        check(!omui::typeset::FontCollection::alive(first), "gone with it");
+        std::set<std::uint64_t> ids{first};
+        for (int i = 0; i < 64; ++i) {
+            omui::typeset::FontCollection b;  // often where the last one was
+            check(ids.insert(b.id()).second, "a new id each time");
+        }
+        omui::typeset::FontCollection c;
+        omui::typeset::FontCollection moved = std::move(c);
+        check(omui::typeset::FontCollection::alive(moved.id()), "a move keeps the identity");
+    });
+
     s.test("shaping: advances, ligatures and kerning come from the font", [] {
         text::Paragraph p(fonts(), "Hello", style(20));
         check(p.lines().size() == 1);

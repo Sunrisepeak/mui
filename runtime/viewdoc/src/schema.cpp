@@ -122,7 +122,7 @@ Value defs(bool with_document_components) {
     d.set("runtime_event", object().set("enum", strings(runtime_events())));
 
     Value expr_binding = closed(object().set("expr", refer("expression")), {"expr"});
-    Value tr_binding = closed(object().set("tr", typed("string")).set("args", typed("array").set("items", refer("expression"))), {"tr"});
+    Value tr_binding = closed(object().set("tr", typed("string")).set("args", typed("object").set("additionalProperties", refer("expression"))), {"tr"});
     Value bind_binding = closed(object().set("bind", typed("string").set("description", "a signal, or a bindable interface property")), {"bind"});
     Value value_binding = closed(object().set("value", object()), {"value"});
     d.set("oneway", object().set("oneOf", list({expr_binding, tr_binding, value_binding})));

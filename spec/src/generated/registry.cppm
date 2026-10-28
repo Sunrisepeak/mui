@@ -537,7 +537,7 @@ inline constexpr std::array<FunctionInfo, 25> functions{{
     {"string", "string(any) -> string", {"", "", "", ""}, "The value's text (shortest round-trip form for doubles)."},
     {"has", "has(map.field) -> bool", {"", "", "", ""}, "Whether a map has a field (CEL's has macro)."},
     {"lookup", "lookup(map | list, key, default?) -> any", {"lookup", "lookup", "lookup", "lookup"}, "An element by key or index, or the default (null) when absent."},
-    {"tr", "tr(string key, any...) -> string", {"tr", "tr", "tr", "tr"}, "The translation of a message key in the current locale, formatted with the arguments."},
+    {"tr", "tr(string key, map args?) -> string", {"tr", "tr", "tr", "tr"}, "The message of a key in the person's language (MessageFormat 2), formatted with its arguments by name; a key no catalog has is the message itself."},
     {"interpolate", "interpolate(double x, list input, list output, string ease?) -> double", {"interpolate", "interpolate", "interpolate", "interpolate"}, "Maps x through piecewise-linear ranges, eased within each segment, clamped outside (video authoring)."},
     {"ease", "ease(string name, double t) -> double", {"", "", "", ""}, "An easing curve of registry/motion.toml at progress t."},
     {"spring", "spring(double t, double from, double to, double stiffness?, double damping?, double mass?) -> double", {"spring", "spring", "spring", "spring"}, "The closed-form spring of registry/motion.toml at time t (seconds), starting at rest."},

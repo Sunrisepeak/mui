@@ -1218,6 +1218,12 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
       - `Arena` 的大块分配按最合适的块复用，同样大小的帧不再分配。
     - 结果（i9-13900K + RTX 4080）：S2 五种风格每帧 0.24–0.64ms（p95 ≤ 0.92ms，原来 2.6–4.4ms）；S1 缩放扫描 p99 5.7ms（原来 p95 27.9ms）；玻璃 0.82ms。
   - ✅ 着色器在进程内编译（`openmui.slang`）：slangc 旁边有 Slang 的库时，加载一次，用 slangc 自己的参数编译，会话保留；输出、反射、依赖和诊断与 slangc 相同（测试两种方式对比）。热重载在本机从约 160ms 降到约 50ms（macOS CI 原来 540ms，超过 M4 的 500ms）。
+  - ✅ 国际化（D-74，`modules/i18n` + `i18n/cldr`）：
+    - 引擎只依赖标准库和 JSON / TOML 库，不内置任何语言：BCP 47 和 POSIX 标签、似然子标签、语言协商（同一书写系统优先，简繁互相回退）；CLDR 复数规则（按显示的数字选择）；数字、紧凑数字（1.2K、12万、12萬）、日期时间（各长度、骨架、灵活时段“下午”、时区偏移）、相对时间、列表；MessageFormat 2（函数和选项、声明、多选择器）；消息目录、翻译检查、伪本地化。测试结果与 CLDR 一致。
+    - `omui-gen cldr` 从 CLDR 49 生成 en、zh、zh-Hant 数据包和似然子标签；`openmui.i18n.cldr` 把它们嵌入程序。
+    - 框架接入：`languages()`（数据包和目录、请求的语言、翻译器）、`tr()`（语言或参数变化时原地更新，ID 不变）、视图文档的 `{"tr": …, "args": {…}}`、表达式 `tr(key, {…})`、Lua / TS / Python 的 `tr`（参数按名字）；`--lang`、SDL 的首选语言、`AppSpec` 的目录和源语言。没有翻译的键按 MessageFormat 2 显示它自己。
+    - 还没做：中文排版（避头尾、中西文留白、标点挤压）。
+  - ✅ 修复：画布纹理任务按线程缓存字形，原来以字体集合的地址为键；地址被复用时（macOS 上常见）会拿到上一个集合的字形，粗体变常规。字体集合现在有唯一 ID，缓存以 ID 为键，集合销毁后清除。
   - ✅ 规范 0.3（`spec/SPEC.md` §16）：
     - 扩展条款：K-1–K-6 画布（条目、`find`、视口动作、实例化条目、行为、声明式行为）；E-1–E-6 效果和背景输入；ST-1–ST-3 风格包；P-1–P-3 帧节奏；T-1、T-2 纹理档位和确定性；VD-1 视频。
     - 总线 `invoke`；registry 升到 0.3，新增扩展 `OMUI_EXT_backdrop_effect`、`OMUI_EXT_style_pack`、`OMUI_EXT_frame_pacing`；`openmui.h` 等由生成器重新生成。

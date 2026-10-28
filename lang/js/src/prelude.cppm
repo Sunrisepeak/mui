@@ -73,7 +73,8 @@ for (const m of ["add", "sub", "mul", "div", "mod", "eq", "ne", "lt", "le", "gt"
 export function signal(initial, key) { return new Signal(native(N.signalCreate, json(initial), key === undefined ? "" : String(key))); }
 
 class Tr { constructor(key, args) { this.key = key; this.args = args; } }
-export const tr = (key, ...args) => new Tr(key, args.map(operand));
+// tr("inbox.count", { count }): a message, its arguments by name (MessageFormat 2).
+export const tr = (key, args = {}) => new Tr(key, Object.keys(args).sort().map((n) => [n, operand(args[n])]));
 
 const catalog = JSON.parse(N.catalog());
 const snake = (s) => s.replace(/[A-Z]/g, (c) => "_" + c.toLowerCase());
@@ -125,7 +126,7 @@ export const slot = (name) => new Element({ region: { kind: "slot", name } });
 function prop(type, name, v) {
   if (v instanceof Signal) return bindable(type, name) ? { b: v.handle } : { e: v.expr.text, s: v.expr.signals };
   if (v instanceof Expr) return { e: v.text, s: v.signals };
-  if (v instanceof Tr) return { t: v.key, a: v.args.map((x) => ({ e: x.text, s: x.signals })) };
+  if (v instanceof Tr) return { t: v.key, a: Object.fromEntries(v.args.map(([n, x]) => [n, { e: x.text, s: x.signals }])) };
   return { c: v };
 }
 function serialize(el, handlers) {

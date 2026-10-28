@@ -193,6 +193,19 @@ std::expected<WindowPtr, std::string> open(const WindowOptions& o) {
     return w;
 }
 
+std::vector<std::string> preferred_locales() {
+    std::vector<std::string> out;
+    int count = 0;
+    SDL_Locale** locales = SDL_GetPreferredLocales(&count);
+    if (!locales) return out;
+    for (int i = 0; i < count; ++i) {
+        if (!locales[i] || !locales[i]->language) continue;
+        out.push_back(locales[i]->country ? std::format("{}-{}", locales[i]->language, locales[i]->country) : std::string(locales[i]->language));
+    }
+    SDL_free(locales);
+    return out;
+}
+
 double refresh_hz(Window& w) {
     const SDL_DisplayID display = SDL_GetDisplayForWindow(w.window);
     const SDL_DisplayMode* mode = display ? SDL_GetCurrentDisplayMode(display) : nullptr;

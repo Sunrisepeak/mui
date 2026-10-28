@@ -55,7 +55,29 @@ std::string name_of(hb_face_t* face, hb_ot_name_id_t id) {
 
 }  // namespace
 
+namespace {
+
+// The collections alive, by id (caches elsewhere drop the dead ones' entries).
+struct Registry {
+    std::mutex                   lock;
+    std::set<std::uint64_t>      alive;
+    std::uint64_t                next = 1;
+};
+Registry& registry() {
+    static Registry r;
+    return r;
+}
+
+}  // namespace
+
 struct FontCollection::Impl {
+    std::uint64_t                      id = [] {
+        Registry& r = registry();
+        std::scoped_lock g(r.lock);
+        const std::uint64_t id = r.next++;
+        r.alive.insert(id);
+        return id;
+    }();
     std::deque<std::unique_ptr<Face>>  faces;
     // Fonts are made while text is shaped (a new weight) and read by glyph
     // caches on other threads (a canvas's textures): the lists change under
@@ -84,6 +106,11 @@ struct FontCollection::Impl {
     }
 
     ~Impl() {
+        {
+            Registry& r = registry();
+            std::scoped_lock g(r.lock);
+            r.alive.erase(id);
+        }
         hb_set_destroy(none.unicodes);
         hb_face_destroy(none.face);
         for (Instance& i : instances) hb_font_destroy(i.font);
@@ -99,6 +126,14 @@ FontCollection::FontCollection() : impl_(std::make_unique<Impl>()) {}
 FontCollection::~FontCollection() = default;
 FontCollection::FontCollection(FontCollection&&) noexcept = default;
 FontCollection& FontCollection::operator=(FontCollection&&) noexcept = default;
+
+std::uint64_t FontCollection::id() const noexcept { return impl_ ? impl_->id : 0; }
+
+bool FontCollection::alive(std::uint64_t id) {
+    Registry& r = registry();
+    std::scoped_lock g(r.lock);
+    return r.alive.contains(id);
+}
 
 std::filesystem::path FontCollection::default_directory() {
     namespace os = mcpplibs::os;

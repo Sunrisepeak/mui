@@ -24,9 +24,10 @@ export namespace omui::expr {
 using Resolve = std::function<std::optional<Value>(std::string_view name)>;
 
 struct Context {
-    // tr(key, args…): the message of the key in the current locale (the key
-    // itself when there is none), formatted with the arguments.
-    std::function<std::string(std::string_view key)> translate;
+    // tr(key, {args}): the message of the key in the person's language,
+    // formatted with its named arguments (MessageFormat 2). Without one, the
+    // key is the message: tr('{$n} left', {'n': n}) reads well untranslated.
+    std::function<std::string(std::string_view key, const Value& args)> translate;
 };
 
 struct Result {

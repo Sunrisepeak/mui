@@ -189,6 +189,41 @@ int main(int argc, char** argv) {
         check_eq(idle.stats.bindings, std::size_t{0});
     });
 
+    s.test("languages (D-74): tr follows the language and its arguments, in place — the same node, the same id", [] {
+        Languages& l = languages();
+        const auto en = *i18n::Locale::parse("en"), zh = *i18n::Locale::parse("zh-Hans"), hant = *i18n::Locale::parse("zh-Hant");
+        check(l.add_messages(en, "greeting = \"Hello, {$name}!\"\nsave = \"Save\"\n", "en.messages.omui.toml").has_value());
+        check(l.add_messages(zh, "greeting = \"你好，{$name}！\"\nsave = \"保存\"\n", "zh-Hans.messages.omui.toml").has_value());
+        l.request({en});
+        Runtime rt(options());
+        auto name = signal(std::string("Ada"));
+        rt.mount("main", column({}, {
+                                        text({.id = "greeting", .text = tr("greeting", {{"name", name}})}),
+                                        text({.id = "save", .text = tr("save")}),
+                                        text({.id = "missing", .text = tr("no.such.key")}),
+                                    }));
+        rt.frame();
+        const NodeId greeting = rt.find("main/greeting"), save = rt.find("main/save");
+        check_eq(rt.get(greeting, "text").as_string(), std::string_view("Hello, Ada!"));
+        check_eq(rt.get(rt.find("main/missing"), "text").as_string(), std::string_view("no.such.key"));
+        l.request({zh});
+        rt.frame();
+        check(rt.find("main/greeting") == greeting && rt.find("main/save") == save, "the same nodes, the same ids (S-9)");
+        check_eq(rt.get(greeting, "text").as_string(), std::string_view("你好，Ada！"));
+        check_eq(rt.get(save, "text").as_string(), std::string_view("保存"));
+        name.set("小明");
+        rt.frame();
+        check_eq(rt.get(greeting, "text").as_string(), std::string_view("你好，小明！"));
+        // Traditional Chinese has no catalog here: Simplified before English.
+        l.request({hant});
+        rt.frame();
+        check_eq(rt.get(save, "text").as_string(), std::string_view("保存"));
+        check_eq(l.tag(), std::string("zh-Hant"));
+        l.request({en});
+        rt.frame();
+        check_eq(rt.get(save, "text").as_string(), std::string_view("Save"));
+    });
+
     s.test("regions: when switches its children, each reconciles by key", [] {
         Runtime rt(options());
         auto open = signal(false);

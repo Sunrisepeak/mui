@@ -33,6 +33,8 @@ openmui.image    = { path = "../../modules/image" }
 openmui.text     = { path = "../../modules/text" }
 openmui.trace    = { path = "../../modules/trace" }
 openmui.pipeline = { path = "../../modules/pipeline" }
+openmui.i18n     = { path = "../../modules/i18n" }
+mcpplibs.os      = "0.1.2"
 
 [dev-dependencies]
 openmui.testing = { path = "../../tests/support" }

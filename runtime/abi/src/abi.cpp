@@ -267,7 +267,7 @@ OmuiResult omuiMount(OmuiRuntime rt, OmuiString slot, OmuiString view_json) noex
         return OMUI_SUCCESS;
     }
     OmuiRuntime_T* self = rt;
-    viewdoc::LoadOptions o{.file = name, .translate = {}, .provide = [self](std::string_view n) -> std::optional<Signal<Value>> {
+    viewdoc::LoadOptions o{.file = name, .provide = [self](std::string_view n) -> std::optional<Signal<Value>> {
                                auto s = self->shared.find(n);
                                if (s == self->shared.end()) return std::nullopt;
                                return s->second;

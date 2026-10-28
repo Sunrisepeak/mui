@@ -122,13 +122,20 @@ void images_of(const render::DisplayList& dl, std::vector<render::ImageRef>& out
 }
 
 // A glyph cache per worker thread and font collection: glyph caches are not
-// shared between threads; the collection's fonts are.
+// shared between threads; the collection's fonts are. Keyed by the
+// collection's id, never its address: a collection made where a freed one
+// was must not find the freed one's glyphs (its fonts' ids mean other fonts);
+// the caches of collections gone are dropped.
 render::GlyphSource* glyphs_for(typeset::FontCollection* fonts) {
     if (!fonts) return nullptr;
-    thread_local std::map<typeset::FontCollection*, std::unique_ptr<typeset::GlyphCache>> caches;
-    auto& c = caches[fonts];
-    if (!c) c = std::make_unique<typeset::GlyphCache>(*fonts);
-    return c.get();
+    thread_local std::map<std::uint64_t, std::unique_ptr<typeset::GlyphCache>> caches;
+    const std::uint64_t id = fonts->id();
+    auto it = caches.find(id);
+    if (it == caches.end()) {
+        std::erase_if(caches, [](const auto& kv) { return !typeset::FontCollection::alive(kv.first); });
+        it = caches.emplace(id, std::make_unique<typeset::GlyphCache>(*fonts)).first;
+    }
+    return it->second.get();
 }
 
 }  // namespace

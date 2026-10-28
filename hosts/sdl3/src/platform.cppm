@@ -48,6 +48,9 @@ void cursor(Window& w, std::string_view shape);
 void set_clipboard(std::string_view text);
 // Wakes a poll that sleeps (from any thread).
 void wake();
+// The person's languages as the system states them, best first, as BCP 47
+// tags (SDL's preferred locales: the settings on Windows and macOS).
+[[nodiscard]] std::vector<std::string> preferred_locales();
 void synthesize(Window& w, std::span<const InputEvent> events);
 std::expected<raster::Surface, std::string> read_back(Window& w);
 

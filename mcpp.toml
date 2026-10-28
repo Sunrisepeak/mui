@@ -66,6 +66,8 @@ members = [
     "tools/gen",
     "tools/omui",
     "tools/mcp",
+    "modules/i18n",
+    "i18n/cldr",
     "tools/inspector",
     "mcpp/rules",
     "tests/rules",
@@ -130,6 +132,8 @@ openmui.trace         = { path = "modules/trace" }
 openmui.ui.base       = { path = "components/base" }
 openmui.host.headless = { path = "hosts/headless" }
 openmui.host.sdl3     = { path = "hosts/sdl3" }
+"openmui.i18n"        = { path = "modules/i18n" }
+"openmui.i18n.cldr"   = { path = "i18n/cldr" }
 mcpplibs.os           = "0.1.2"
 
 # The root package has no test programs of its own: tests/ holds members

@@ -8,6 +8,8 @@ import openmui.ui.base;
 import openmui.host.headless;
 import openmui.host.sdl3;
 import openmui.trace;
+import openmui.i18n;
+import openmui.i18n.cldr;
 import mcpplibs.os;
 
 namespace omui {
@@ -73,13 +75,23 @@ std::expected<RunOptions, std::string> RunOptions::parse(std::span<const std::st
             auto v = value();
             if (!v) return std::unexpected("--log takes a filter: layout=debug,*=info");
             o.log = std::string(*v);
+        } else if (a == "--lang") {
+            auto v = value();
+            if (!v) return std::unexpected("--lang takes language tags, best first: zh-CN,en");
+            for (std::string_view list = *v; !list.empty();) {
+                const auto comma = list.find(',');
+                const std::string_view item = list.substr(0, comma);
+                list = comma == std::string_view::npos ? std::string_view{} : list.substr(comma + 1);
+                if (!i18n::Locale::parse(item)) return std::unexpected(std::format("--lang: `{}` is not a language tag (zh-CN, en)", item));
+                o.languages.emplace_back(item);
+            }
         } else if (a == "--profile") {
             auto v = value();
             if (!v) return std::unexpected("--profile takes a file");
             o.profile = std::filesystem::path(*v);
         } else {
             return std::unexpected(std::format("unknown option `{}` (--headless, --frames N, --png FILE, --level hN, --serve, "
-                                               "--agent-dir DIR, --no-agent, --dark, --gpu, --cpu, --reduce-transparency, --size WxH, --debug LIST, --log FILTER, --profile FILE)",
+                                               "--agent-dir DIR, --no-agent, --dark, --gpu, --cpu, --reduce-transparency, --size WxH, --debug LIST, --log FILTER, --profile FILE, --lang TAGS)",
                                                a));
         }
     }
@@ -88,6 +100,43 @@ std::expected<RunOptions, std::string> RunOptions::parse(std::span<const std::st
 }
 
 namespace {
+
+// CLDR's packs, the application's catalogs, and the person's languages:
+// --lang, else what the host or the system says.
+void languages_of(const AppSpec& app, const RunOptions& o, std::vector<std::string> host) {
+    Languages& l = languages();
+    l.edit([](i18n::Library& lib) { i18n::cldr::add_to(lib); });
+    if (auto source = i18n::Locale::parse(app.source_language)) l.set_fallback(*source);
+    auto add = [&](std::string_view tag, std::string_view text, std::string_view file) {
+        auto locale = i18n::Locale::parse(tag);
+        if (!locale) {
+            warn("{}: `{}` is not a language tag", file, tag);
+            return;
+        }
+        if (auto r = l.add_messages(*locale, text, file); !r)
+            for (const auto& d : r.error()) warn("{}", d.text());
+    };
+    for (const auto& [tag, text] : app.catalogs) add(tag, text, std::format("{}.messages.omui.toml", tag));
+    if (!app.messages.empty()) {
+        std::error_code ec;
+        for (const auto& e : std::filesystem::directory_iterator(app.messages, ec)) {
+            const std::string name = utf8(e.path().filename());
+            constexpr std::string_view suffix = ".messages.omui.toml";
+            if (!name.ends_with(suffix)) continue;
+            auto text = mcpplibs::os::fs::read(e.path());
+            if (!text) {
+                warn("{}: {}", utf8(e.path()), text.error().message());
+                continue;
+            }
+            add(std::string_view(name).substr(0, name.size() - suffix.size()), *text, utf8(e.path()));
+        }
+    }
+    std::vector<i18n::Locale> requested;
+    for (const auto& t : o.languages.empty() ? host : o.languages)
+        if (auto loc = i18n::Locale::parse(t)) requested.push_back(*loc);
+    if (o.languages.empty() && requested.empty()) requested = system_locales();
+    l.request(std::move(requested));
+}
 
 void prepare(Runtime& rt, AppSpec& app) {
     for (VerbSpec& v : app.verbs)
@@ -161,6 +210,7 @@ int run(AppSpec app, const RunOptions& o) {
             else std::print(std::cerr, "{}", t.table());
         }
     } profile{o.profile};
+    languages_of(app, o, o.headless ? std::vector<std::string>{} : preferred_locales());
     if (o.headless) return headless(std::move(app), o);
     DesktopOptions d;
     d.title = app.title;

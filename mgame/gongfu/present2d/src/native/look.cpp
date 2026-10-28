@@ -59,8 +59,9 @@ namespace {
 using data::Diagnostic;
 
 constexpr std::string_view format_version = "0.1";
-constexpr std::array<std::string_view, 20> look_keys{"gongfu", "name", "outline", "accent", "trail", "glow", "footfall", "pane", "clone", "rewind", "palette", "bone", "part", "clip", "impact",
-                                                     "glyph", "cinematic", "projectile", "doc", "light"};
+constexpr std::array<std::string_view, 21> look_keys{"gongfu", "name", "outline", "accent", "trail", "glow", "footfall", "pane", "clone", "rewind", "palette", "bone", "part", "clip", "impact",
+                                                     "glyph", "cinematic", "projectile", "doc", "light", "picture"};
+constexpr std::array<std::string_view, 3> picture_keys{"name", "file", "size"};
 constexpr std::array<std::string_view, 6> light_keys{"from", "shade", "darken", "shadow", "rim", "rim_color"};
 constexpr std::array<std::string_view, 4> follow_keys{"lag", "amount", "max", "drag"};
 constexpr std::array<std::string_view, 3> trail_keys{"color", "frames", "alpha"};
@@ -84,11 +85,12 @@ constexpr std::array<std::string_view, 6> written_keys{"name", "at", "size", "fr
 constexpr std::array<std::string_view, 4> seal_keys{"frame", "at", "size", "color"};
 constexpr std::array<std::string_view, 2> outline_keys{"color", "width"};
 constexpr std::array<std::string_view, 9> bone_keys{"name", "parent", "joint", "length", "rest", "limb", "prop", "follow", "hang"};
-constexpr std::array<std::string_view, 10> part_keys{"bone", "shape", "size", "points", "color", "depth", "doc", "name", "variants", "shade"};
+constexpr std::array<std::string_view, 17> part_keys{"bone", "shape", "size", "points", "color", "depth", "doc", "name", "variants", "shade",
+                                                    "picture", "source", "anchor", "tip", "mesh", "bend", "blend"};
 constexpr std::array<std::string_view, 7> clip_keys{"frames", "loop", "ease", "angle", "rise", "doc", "swap"};
 constexpr std::array<std::string_view, 8> impact_keys{"shake", "zoom", "flash", "spark", "sound", "rumble", "doc", "name"};
 constexpr std::array<std::string_view, 6> spark_keys{"style", "size", "count", "frames", "color", "counter"};
-constexpr std::array<std::string_view, 4> shape_names{"capsule", "ellipse", "polygon", "curve"};
+constexpr std::array<std::string_view, 5> shape_names{"capsule", "ellipse", "polygon", "curve", "image"};
 constexpr std::array<std::string_view, 6> spark_names{"rays", "ring", "splash", "shards", "bolt", "cracks"};
 constexpr std::array<std::string_view, 3> flash_names{"none", "white", "invert"};
 
@@ -388,6 +390,21 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
         return std::nullopt;
     };
 
+    r.tables(root->get("picture"), "picture", "[[picture]] name = \"body\" file = \"mo/parts.webp\" size = [2048, 2048]", [&](const toml::table& t) {
+        r.only(t, picture_keys, "a picture");
+        Picture pic;
+        if (auto n = r.text(t.get("name"), "a picture's `name`")) pic.name = *n;
+        else r.error(&t, "a picture has a `name`");
+        if (auto f = r.text(t.get("file"), "a picture's `file`")) pic.file = *f;
+        else r.error(&t, "a picture has a `file`");
+        if (auto sz = r.pair(t.get("size"), "a picture's `size`", "size = [2048, 2048]: its pixels")) {
+            pic.width = static_cast<std::int32_t>((*sz)[0]);
+            pic.height = static_cast<std::int32_t>((*sz)[1]);
+        }
+        if (std::ranges::any_of(look.pictures, [&](const Picture& o) { return o.name == pic.name; })) r.error(t.get("name"), std::format("two pictures are called `{}`", pic.name));
+        look.pictures.push_back(std::move(pic));
+    });
+
     r.tables(root->get("part"), "part", "[[part]] bone = \"torso\" shape = \"capsule\" size = [18, 15] color = \"body\"", [&](const toml::table& t) {
         r.only(t, part_keys, "a part");
         Part p;
@@ -429,6 +446,43 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
             }
         }
         if (auto sh = r.boolean(t.get("shade"), "a part's `shade`")) p.shade = *sh;
+        if (p.shape == Shape::image) {
+            if (auto pn = r.text(t.get("picture"), "an image part's `picture`")) {
+                auto it = std::ranges::find(look.pictures, *pn, &Picture::name);
+                if (it == look.pictures.end()) {
+                    std::vector<std::string_view> names;
+                    for (const Picture& o : look.pictures) names.push_back(o.name);
+                    r.error(t.get("picture"), std::format("no picture is called `{}`", *pn), names.empty() ? "[[picture]] name = … first" : data::nearest_hint(*pn, names));
+                } else {
+                    p.picture = static_cast<std::int32_t>(it - look.pictures.begin());
+                }
+            } else {
+                r.error(&t, "an image part names its `picture`");
+            }
+            if (const toml::array* a = t.get("source") ? t.get("source")->as_array() : nullptr; a && a->size() == 4) {
+                std::array<double, 4> v{};
+                for (std::size_t i = 0; i < 4; ++i) v[i] = r.number(a->get(i), "a `source` value").value_or(0);
+                p.source = {static_cast<float>(v[0]), static_cast<float>(v[1]), static_cast<float>(v[2]), static_cast<float>(v[3])};
+                if (p.picture >= 0) {
+                    const Picture& pic = look.pictures[static_cast<std::size_t>(p.picture)];
+                    if (v[2] <= 0 || v[3] <= 0 || (pic.width > 0 && (v[0] < 0 || v[1] < 0 || v[0] + v[2] > pic.width || v[1] + v[3] > pic.height)))
+                        r.error(t.get("source"), std::format("`source` is not inside picture `{}` ({} × {})", pic.name, pic.width, pic.height));
+                }
+            } else {
+                r.error(&t, "an image part has a `source` = [x, y, width, height] in its picture");
+            }
+            if (auto xy = r.pair(t.get("anchor"), "a part's `anchor`", "anchor = [40, 12]: where the bone's joint is, in the picture")) p.anchor = {static_cast<float>((*xy)[0]), static_cast<float>((*xy)[1])};
+            if (auto xy = r.pair(t.get("tip"), "a part's `tip`", "tip = [40, 120]: where the bone ends, in the picture")) p.tip = {static_cast<float>((*xy)[0]), static_cast<float>((*xy)[1])};
+            if (auto m = r.pair(t.get("mesh"), "a part's `mesh`", "mesh = [1, 4]: columns, rows"))
+                p.mesh = {std::clamp(static_cast<std::int32_t>((*m)[0]), 1, 32), std::clamp(static_cast<std::int32_t>((*m)[1]), 1, 32)};
+            if (const toml::array* a = t.get("bend") ? t.get("bend")->as_array() : nullptr) {
+                for (const toml::node& n : *a)
+                    if (auto b = bone_index(&n, "a bone of `bend`")) p.bend.push_back(*b);
+            } else if (t.get("bend")) {
+                r.error(t.get("bend"), "`bend` is a list of bones", "bend = [\"fore_front\"]");
+            }
+            if (auto v = r.number(t.get("blend"), "a part's `blend`", 0, 1000)) p.blend = static_cast<float>(*v);
+        }
         if (auto c = r.text(t.get("color"), "a part's `color`")) {
             if (c->starts_with('#')) {
                 if (auto col = Color::parse(*c)) p.color = *col;
@@ -869,6 +923,8 @@ std::string write_look(const Look& look) {
         for (std::size_t k = 0; k < look.slots.size() && k < look.palettes[p].size(); ++k)
             s += std::format("{} = {}\n", key_text(look.slots[k]), colour_text(look.palettes[p][k]));
     }
+    for (const Picture& pic : look.pictures)
+        s += std::format("\n[[picture]]\nname = \"{}\"\nfile = \"{}\"\nsize = [{}, {}]\n", pic.name, pic.file, pic.width, pic.height);
     for (const Bone& b : look.bones) {
         s += std::format("\n[[bone]]\nname = \"{}\"\n", b.name);
         if (b.parent >= 0) s += std::format("parent = \"{}\"\n", look.bones[static_cast<std::size_t>(b.parent)].name);
@@ -879,7 +935,7 @@ std::string write_look(const Look& look) {
         if (b.hang) s += "hang = true\n";
         if (b.follow.lag > 0) s += std::format("follow = {{ lag = {}, amount = {}, max = {}, drag = {} }}\n", b.follow.lag, b.follow.amount, b.follow.max, b.follow.drag);
     }
-    constexpr std::array<std::string_view, 4> shapes{"capsule", "ellipse", "polygon", "curve"};
+    constexpr std::array<std::string_view, 5> shapes{"capsule", "ellipse", "polygon", "curve", "image"};
     auto points_text = [](const std::vector<Point>& pts) {
         std::string t = "[";
         for (std::size_t i = 0; i < pts.size(); ++i) t += std::format("{}[{}, {}]", i ? ", " : "", pts[i].x, pts[i].y);
@@ -895,6 +951,15 @@ std::string write_look(const Look& look) {
                 s += "variants = [";
                 for (std::size_t v = 0; v < p.variants.size(); ++v) s += std::format("{}{}", v ? ", " : "", points_text(p.variants[v]));
                 s += "]\n";
+            }
+        } else if (p.shape == Shape::image) {
+            s += std::format("picture = \"{}\"\nsource = [{}, {}, {}, {}]\nanchor = [{}, {}]\ntip = [{}, {}]\nmesh = [{}, {}]\n",
+                             p.picture >= 0 ? look.pictures.at(static_cast<std::size_t>(p.picture)).name : std::string(), p.source.x, p.source.y, p.source.width,
+                             p.source.height, p.anchor.x, p.anchor.y, p.tip.x, p.tip.y, p.mesh[0], p.mesh[1]);
+            if (!p.bend.empty()) {
+                s += "bend = [";
+                for (std::size_t i = 0; i < p.bend.size(); ++i) s += std::format("{}\"{}\"", i ? ", " : "", look.bones.at(static_cast<std::size_t>(p.bend[i])).name);
+                s += std::format("]\nblend = {}\n", p.blend);
             }
         } else {
             s += std::format("size = [{}, {}]\n", p.start, p.end);

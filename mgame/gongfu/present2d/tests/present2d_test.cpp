@@ -425,6 +425,96 @@ swap.body = [[0, 0], [8, 1], [12, 0]]
         check(!b3 && has(texts(b3.error()), "a follow has a `lag`"), b3 ? "read" : std::format("{}", texts(b3.error())));
     });
 
+    s.test("drawn art on bones: a picture's region skinned to a bone and bent at the next one's joint; a file that reads back as itself", [&] {
+        const std::string text = R"(gongfu = "0.1"
+name = "art"
+
+[[picture]]
+name = "arm"
+file = "arm.png"
+size = [40, 200]
+
+[[bone]]
+name = "upper"
+joint = [0, 160]
+length = 80
+rest = -90
+
+[[bone]]
+name = "fore"
+parent = "upper"
+joint = [80, 0]
+length = 80
+
+[[part]]
+name = "arm"
+bone = "upper"
+shape = "image"
+picture = "arm"
+source = [0, 0, 40, 200]
+anchor = [20, 20]
+tip = [20, 100]
+mesh = [1, 8]
+bend = ["fore"]
+blend = 20
+
+[clip.bend]
+frames = 10
+ease = "linear"
+angle.fore = [[0, 0], [10, 90]]
+)";
+        auto look = p2::read_look(text, "art.look.gongfu.toml");
+        check(look.has_value(), look ? "" : std::format("{}", texts(look.error())));
+        if (!look) return;
+        check(look->pictures.size() == 1 && look->parts[0].shape == p2::Shape::image && look->parts[0].bend.size() == 1, "read");
+        const std::string written = p2::write_look(*look);
+        auto again = p2::read_look(written, "written.look.gongfu.toml");
+        check(again && p2::write_look(*again) == written, again ? written : std::format("{}", texts(again.error())));
+        // The picture: a red upper half, a blue lower half (where the forearm's art is).
+        omui::render::ImageStore images;
+        std::vector<omui::raster::Rgba8> px(40 * 200);
+        for (int y = 0; y < 200; ++y)
+            for (int x = 4; x < 36; ++x) px[static_cast<std::size_t>(y * 40 + x)] = y < 100 ? omui::raster::Rgba8{220, 40, 40, 255} : omui::raster::Rgba8{40, 40, 220, 255};
+        look->pictures[0].ref = images.add(40, 200, std::move(px));
+        const Fighter f = *compile(body());
+        FighterState st;
+        st.facing = 1;
+        p2::Painter painter;
+        auto draw_at = [&](std::int32_t t) {
+            omui::render::DisplayList dl;
+            dl.fill_rect({0, 0, 400, 300}, Color::hex(0xffffff));
+            painter.body(*look, f, st, 0, p2::Scene{.width = 400, .height = 300, .ground = 200}, p2::Camera{0, 60, 1}, dl, "bend", t);
+            omui::raster::Surface out(400, 300);
+            omui::render::CpuRenderer{}.render(dl, out, {&images, nullptr}, {.scale = 1});
+            return out;
+        };
+        const auto straight = draw_at(0), bent = draw_at(10);
+        save(straight, "art-straight");
+        save(bent, "art-bent");
+        // Straight down, the blue lower half lies below the joint; bent 90° at the elbow, it goes out sideways.
+        auto blue = [](const omui::raster::Surface& s, int x, int y) { return s.at(x, y).b > 150 && s.at(x, y).r < 100; };
+        int below = 0, beside = 0;
+        for (int y = 0; y < 300; ++y)
+            for (int x = 0; x < 400; ++x) {
+                below += blue(straight, x, y);
+                beside += blue(bent, x, y);
+            }
+        check(below > 1500 && beside > 1500, std::format("the lower half drawn: {} straight, {} bent", below, beside));
+        int moved = 0;
+        for (int y = 0; y < 300; ++y)
+            for (int x = 0; x < 400; ++x) moved += blue(straight, x, y) != blue(bent, x, y);
+        check(moved > 1500, std::format("bent, the forearm's art moved: {} pixels", moved));
+        // Problems: a picture not declared, a source outside it.
+        std::string bad = text;
+        bad.replace(bad.find("picture = \"arm\""), 15, "picture = \"leg\"");
+        auto b1 = p2::read_look(bad, "bad.look.gongfu.toml");
+        check(!b1 && has(texts(b1.error()), "no picture is called `leg`"), b1 ? "read" : std::format("{}", texts(b1.error())));
+        bad = text;
+        bad.replace(bad.find("source = [0, 0, 40, 200]"), 24, "source = [0, 0, 40, 300]");
+        auto b2 = p2::read_look(bad, "bad.look.gongfu.toml");
+        check(!b2 && has(texts(b2.error()), "is not inside picture"), b2 ? "read" : std::format("{}", texts(b2.error())));
+    });
+
     s.test("a stage's art: layers by parallax, generators from a seed, sway and flicker by the frame, the world's light; a file that reads back as itself", [&] {
         const std::string text = R"(gongfu = "0.1"
 name = "test"

@@ -326,6 +326,22 @@ std::size_t reach(const Look& look, const Pose& p, const Pose& rest, Box base, f
                     const double x = b.joint.x + q.x * ca - q.y * sa, y = b.joint.y + q.x * sa + q.y * ca;
                     l = std::min(l, x), r = std::max(r, x), lo = std::min(lo, y), hi = std::max(hi, y);
                 }
+            } else if (part.shape == Shape::image) {
+                // Drawn art: as thick as its region reaches across the bone, at the bone's scale.
+                double ix = part.tip.x - part.anchor.x, iy = -(part.tip.y - part.anchor.y);
+                const double len = dm::sqrt(ix * ix + iy * iy);
+                const double art = len > 0 ? look.bones[static_cast<std::size_t>(part.bone)].length / len : 1.0;
+                if (len <= 0) ix = 1, iy = 0;
+                const double c0 = len > 0 ? ix / len : 1.0, s0 = len > 0 ? iy / len : 0.0;
+                double across = 0;
+                for (const auto& [cx, cy] : {std::pair{part.source.x, part.source.y}, std::pair{part.source.x + part.source.width, part.source.y},
+                                             std::pair{part.source.x, part.source.y + part.source.height},
+                                             std::pair{part.source.x + part.source.width, part.source.y + part.source.height}}) {
+                    const double dx = cx - part.anchor.x, dy = -(cy - part.anchor.y);
+                    across = std::max(across, std::abs(-dx * s0 + dy * c0));
+                }
+                const double t = across * art * scale;
+                l -= t, r += t, lo -= t, hi += t;
             } else {
                 const double t = std::max(part.start, part.end) * scale;
                 l -= t, r += t, lo -= t, hi += t;
@@ -667,6 +683,10 @@ void Painter::body(const Look& look, const Fighter& fighter, const FighterState&
         for (std::size_t k : order_) {
             const Part& part = look.parts[k];
             if (part.bone < 0 || static_cast<std::size_t>(part.bone) >= p.size()) continue;
+            if (part.shape == Shape::image) {  // drawn art: its own outline and light, no pass but the fill
+                if (pass == Pass::fill) picture_part(look, part, s, scene, camera, tint, out);
+                continue;
+            }
             const BonePlace& b = p[static_cast<std::size_t>(part.bone)];
             const float grow = pass == Pass::glow ? look.outline_width + look.glow.width : outline ? look.outline_width : 0;
             render::Path& path = path_;
@@ -696,6 +716,7 @@ void Painter::body(const Look& look, const Fighter& fighter, const FighterState&
                     path.close();
                     break;
                 case Shape::curve: curve(path, *points, on_bone); break;
+                case Shape::image: break;
             }
             const Color colour = tint ? *tint : pass == Pass::glow ? fade(look.glow.color, 0.35) : outline ? look.outline : part.color;
             const bool drawn = part.shape == Shape::polygon || part.shape == Shape::curve;
@@ -726,6 +747,62 @@ void Painter::body(const Look& look, const Fighter& fighter, const FighterState&
             }
         }
     }
+}
+
+void Painter::picture_part(const Look& look, const Part& part, const FighterState& s, const Scene& scene, const Camera& camera,
+                           std::optional<Color> tint, render::DisplayList& out) {
+    if (part.picture < 0 || static_cast<std::size_t>(part.picture) >= look.pictures.size()) return;
+    const Picture& pic = look.pictures[static_cast<std::size_t>(part.picture)];
+    if (pic.ref.id == 0 || part.source.width <= 0 || part.source.height <= 0) return;
+    const View view{scene, camera};
+    const double facing = s.facing < 0 ? -1.0 : 1.0;
+    pose_at(look, nullptr, 0, s, rest_);  // where the art was drawn: the bones at rest, where the fighter stands
+    const auto b = static_cast<std::size_t>(part.bone);
+    // The art's own turn and size: anchor to tip along the bone (the picture's y runs down).
+    double ix = part.tip.x - part.anchor.x, iy = -(part.tip.y - part.anchor.y);
+    double len = dm::sqrt(ix * ix + iy * iy);
+    const double scale = len > 0 ? look.bones[b].length / len : 1.0;
+    if (len <= 0) ix = 1, iy = 0, len = 1;
+    const double c0 = ix / len, s0 = iy / len;
+    auto place = [&](const BonePlace& bone, double along, double across) {
+        const double ca = dm::cos(bone.angle), sa = dm::sin(bone.angle);
+        return Point{static_cast<float>(bone.joint.x + along * ca - across * facing * sa), static_cast<float>(bone.joint.y + along * sa + across * facing * ca)};
+    };
+    const std::int32_t cols = std::max(1, part.mesh[0]), rows = std::max(1, part.mesh[1]);
+    mesh_at_.clear();
+    mesh_uv_.clear();
+    mesh_index_.clear();
+    for (std::int32_t j = 0; j <= rows; ++j)
+        for (std::int32_t i = 0; i <= cols; ++i) {
+            const double lx = part.source.x + part.source.width * i / cols, ly = part.source.y + part.source.height * j / rows;
+            const double dx = lx - part.anchor.x, dy = -(ly - part.anchor.y);
+            const double along = (dx * c0 + dy * s0) * scale, across = (-dx * s0 + dy * c0) * scale;
+            Point at = place(pose_[b], along, across);
+            if (!part.bend.empty()) {
+                // Skinning: from the rest pose, each bend bone takes the vertex over across `blend` about its joint.
+                const Point rest = place(rest_[b], along, across);
+                for (const std::int32_t cb : part.bend) {
+                    if (cb < 0 || static_cast<std::size_t>(cb) >= rest_.size()) continue;
+                    const BonePlace& rc = rest_[static_cast<std::size_t>(cb)];
+                    const double ca = dm::cos(rc.angle), sa = dm::sin(rc.angle);
+                    const double rx = rest.x - rc.joint.x, ry = rest.y - rc.joint.y;
+                    const double along_c = rx * ca + ry * sa, across_c = (-rx * sa + ry * ca) * facing;
+                    const double w = std::clamp(0.5 + along_c / std::max(1.0, part.blend * scale), 0.0, 1.0);
+                    const Point moved = place(pose_[static_cast<std::size_t>(cb)], along_c, across_c);
+                    at = {static_cast<float>(at.x + (moved.x - at.x) * w), static_cast<float>(at.y + (moved.y - at.y) * w)};
+                }
+            }
+            mesh_at_.push_back(view.at(at.x, at.y));
+            mesh_uv_.push_back({static_cast<float>(lx), static_cast<float>(ly)});
+        }
+    for (std::int32_t j = 0; j < rows; ++j)
+        for (std::int32_t i = 0; i < cols; ++i) {
+            const auto k = static_cast<std::uint16_t>(j * (cols + 1) + i), w = static_cast<std::uint16_t>(cols + 1);
+            for (const std::uint16_t v : {k, static_cast<std::uint16_t>(k + 1), static_cast<std::uint16_t>(k + w + 1), k, static_cast<std::uint16_t>(k + w + 1),
+                                          static_cast<std::uint16_t>(k + w)})
+                mesh_index_.push_back(v);
+        }
+    out.draw_mesh(pic.ref, mesh_at_, mesh_uv_, mesh_index_, render::Sampling::linear, tint ? tint->a : 1.0f);
 }
 
 void Painter::stage_layers(const Stage& art, bool front, const Scene& scene, const Camera& cam, double middle, std::int32_t frame, float alpha,

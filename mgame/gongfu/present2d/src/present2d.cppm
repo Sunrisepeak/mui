@@ -57,7 +57,9 @@ struct Bone {
 
 // A curve is a closed, smooth shape through its points (Catmull-Rom): a
 // sleeve, a lock of hair, a fist drawn as it should look.
-enum class Shape : std::uint8_t { capsule, ellipse, polygon, curve };
+// An image is a picture's region on a bone (drawn art: an artist's or a
+// generated part), bent by skinning over a grid of `mesh` cells.
+enum class Shape : std::uint8_t { capsule, ellipse, polygon, curve, image };
 
 struct Part {
     std::int32_t       bone = 0;
@@ -73,6 +75,18 @@ struct Part {
     // perspective, a sleeve flung out. A clip's swaps choose (0: `points`).
     std::vector<std::vector<Point>> variants;
     bool               shade = true;        // lit by the look's light (when it has one)
+    // An image part: a region of picture `picture` (pixels), its `anchor` on
+    // the bone's joint and its `tip` along the bone (they set its turn and its
+    // size: the bone's length from anchor to tip); a grid of `mesh` cells,
+    // skinned to its bone and to `bend` (the next bones along: an elbow, a
+    // knee, a hem), each vertex's weight going over to a bend bone across
+    // `blend` pixels about that bone's joint.
+    std::int32_t              picture = -1;
+    omui::geom::Rect          source;
+    Point                     anchor, tip;
+    std::array<std::int32_t, 2> mesh{1, 1};
+    std::vector<std::int32_t> bend;
+    float                     blend = 16;
 };
 
 // How a contact feels, drawn (D-85 §8.4). A fighter file's hits name a
@@ -226,8 +240,19 @@ struct CinematicLook {
     } fall;
 };
 
+// A picture a look's image parts are cut from: its file (resolved by
+// whoever carries the look's files), its size, and once registered with the
+// renderer's image store, its reference.
+struct Picture {
+    std::string                name;
+    std::string                file;
+    std::int32_t               width = 0, height = 0;
+    omui::render::ImageRef     ref;
+};
+
 struct Look {
     std::string                 name;
+    std::vector<Picture>        pictures;
     std::vector<Bone>           bones;
     std::vector<Part>           parts;
     std::map<std::string, Clip, std::less<>> clips;
@@ -470,7 +495,11 @@ private:
     // A stage's layers (behind the fighters, or in front of them), at the match's frame, `alpha` of their opacity.
     void stage_layers(const Stage& stage, bool front, const Scene& scene, const Camera& camera, double middle, std::int32_t frame, float alpha,
                       omui::render::DisplayList& out);
-    Pose                     pose_, past_;
+    void picture_part(const Look& look, const Part& part, const FighterState& s, const Scene& scene, const Camera& camera,
+                      std::optional<Color> tint, omui::render::DisplayList& out);
+    Pose                     pose_, past_, rest_;
+    std::vector<Point>       mesh_at_, mesh_uv_;
+    std::vector<std::uint16_t> mesh_index_;
     std::vector<double>      follow_;  // each bone's secondary motion this frame, degrees
     std::vector<std::size_t> order_;
     omui::render::Path       path_;

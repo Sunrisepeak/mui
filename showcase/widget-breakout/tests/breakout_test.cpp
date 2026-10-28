@@ -9,6 +9,7 @@ import std;
 import openmui;
 import openmui.showcase.widget_breakout;
 import openmui.testing;
+import openmui.ui.canvas;
 
 using namespace omui::testing;
 using namespace omui;
@@ -233,8 +234,8 @@ int main(int argc, char** argv) {
         const auto dir = scratch_dir("breakout-level2");  // to look at
         check(a.h.save_png(dir / std::format("{}.png", sa)).has_value() && b.h.save_png(dir / std::format("{}.png", sb)).has_value());
         std::println("    {} {:016x}, {} {:016x}", sa, pa, sb, pb);
-        check_eq(pa, std::uint64_t{0xfe35d19db7d4ac4c});  // neon, GCC and LLVM
-        check_eq(pb, std::uint64_t{0x47bbe4eba60522d4});  // liquid
+        check_eq(pa, std::uint64_t{0xfb380264fafce5f5});  // neon, GCC and LLVM
+        check_eq(pb, std::uint64_t{0x80211beef4c381d8});  // liquid
         check(!a.act("next") || a.state().over, "next: once over");
     });
 
@@ -252,6 +253,57 @@ int main(int argc, char** argv) {
         check_eq(g.component().props.level, over == 1 ? 2 : 1);
         check_eq(g.state().over, std::uint32_t{0});
         check_eq(g.state().bricks, static_cast<std::int32_t>(bo::level(g.component().props.level).bricks.size()));
+    });
+
+    s.test("level 3: the wall is a canvas's scene — live cards near, boxes far; the camera zooms out after the ball, or all the way while Z is held", [] {
+        Game g(3);
+        auto& scene = world::scene(bo::wall_scene);
+        const auto& def = bo::level(3);
+        check_eq(g.state().bricks, static_cast<std::int32_t>(def.bricks.size()));
+        check_eq(g.state().height, 4 * bo::field_h);
+        std::size_t notes = 0;
+        for (std::size_t i = 0; i < def.bricks.size(); ++i) notes += scene.find(bo::brick_id(i)).has_value();
+        check_eq(notes, def.bricks.size());
+        const NodeId wall = g.h.runtime().children(g.field()).at(0);
+        auto live = [&] { return g.h.runtime().children(wall).size(); };
+        g.h.step();
+        const auto near = live();
+        check(near > 5, std::format("{} live cards at the bottom", near));
+        const auto bottom = g.pixels();
+        check(g.h.save_png(scratch_dir("breakout-level3") / "bottom.png").has_value());
+        // Z held: the whole wall, every note a box.
+        g.h.runtime().focus(g.field());
+        g.h.step({KeyEvent{.kind = KeyKind::down, .key = Key::z}});
+        g.h.advance(seconds(1.5));
+        check(std::abs(g.state().zoom - 0.25) < 0.01, std::format("zoom {}", g.state().zoom));
+        check_eq(live(), std::size_t{0});
+        const auto far = g.pixels();
+        check(g.h.save_png(scratch_dir("breakout-level3-far") / "far.png").has_value());
+        g.h.step({KeyEvent{.kind = KeyKind::up, .key = Key::z}});
+        g.h.advance(seconds(1.5));
+        check(std::abs(g.state().zoom - 1) < 0.01, std::format("back: zoom {}", g.state().zoom));
+        // Played: the camera follows the ball up; a broken note leaves the scene; a rewind puts the scene back.
+        check(g.act("pause"));
+        double least = 1;
+        for (int k = 0; k < 3000 && !g.state().over; ++k) {
+            g.play(1);
+            least = std::min(least, g.state().zoom);
+        }
+        check(least < 0.8, std::format("zoomed out to {}", least));
+        auto agrees = [&] {
+            std::size_t wrong = 0;
+            std::vector<bool> standing(def.bricks.size(), false);
+            g.state().world.each<bo::Brick>([&](mgame::Entity, const bo::Brick& b) { standing[b.id] = true; });
+            for (std::size_t i = 0; i < def.bricks.size(); ++i) wrong += scene.find(bo::brick_id(i)).has_value() != standing[i];
+            return wrong;
+        };
+        check(g.state().bricks < static_cast<std::int32_t>(def.bricks.size()) - 5, std::format("{} left", g.state().bricks));
+        check_eq(agrees(), std::size_t{0});
+        check(g.act("rewind", Value{}.set("frames", 1500)));
+        check_eq(agrees(), std::size_t{0});
+        std::println("    bottom {:016x}, far {:016x}", bottom, far);
+        check_eq(bottom, std::uint64_t{0xe09e17ad71e4aa82});  // GCC and LLVM
+        check_eq(far, std::uint64_t{0x87dc6af66bd1757b});
     });
 
     s.test("level 4: a gate fills toward its moment, stands open three seconds, then closes for good; R held rewinds through it", [] {

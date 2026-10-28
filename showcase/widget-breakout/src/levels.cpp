@@ -7,6 +7,7 @@ module openmui.showcase.widget_breakout;
 import std;
 import openmui;
 import openmui.showcase.widget_breakout.sim;
+import openmui.ui.canvas;
 
 namespace omui::breakout {
 
@@ -76,6 +77,34 @@ LevelDef agents() {
     return l;
 }
 
+LevelDef canvas_level() {
+    LevelDef l;
+    l.number = 3;
+    l.title = "画布 · Canvas";
+    l.lesson = "The wall was an infinite canvas: far away its bricks were boxes drawn in one batch, near they became live cards — the same scene, the camera deciding how much of it is real.";
+    l.speed = 7;
+    l.seed = 3;
+    l.canvas = true;
+    l.height = 4 * field_h;
+    l.top = 0;
+    // A wall of notes four screens tall, its colours a gradient from the paddle up: a sentence about the canvas, a word a note.
+    const std::array<std::string_view, 24> words{"an", "infinite", "canvas", "a", "scene", "of", "nodes", "seen", "through", "a", "camera", "far",
+                                                 "boxes", "near", "cards", "one", "batch", "live", "when", "close", "the", "same", "wall", "zoom"};
+    constexpr int cols = 10, rows = 16;
+    constexpr double w = 104, h = 34, gap_x = 120, gap_y = 74, left = (field_w - (cols - 1) * gap_x - w) / 2, top = 1200;  // its lowest rows on the first screen
+    for (int r = 0; r < rows; ++r)
+        for (int c = 0; c < cols; ++c) {
+            const std::uint32_t t = static_cast<std::uint32_t>(r * 255 / (rows - 1));
+            const std::uint32_t fill = ((0x40 + t * 3 / 4) << 16) | ((0x90 - t / 3) << 8) | (0xf0 - t / 2);  // blue at the top, warm toward the paddle
+            BrickDef b{Kind::card, 1, std::string(words[static_cast<std::size_t>(r * cols + c) % words.size()]), static_cast<float>(w), static_cast<float>(h)};
+            b.x = left + c * gap_x;
+            b.y = top + r * gap_y + (c % 2) * 18;  // staggered: no straight lane up
+            b.fill = fill;
+            l.bricks.push_back(std::move(b));
+        }
+    return l;
+}
+
 // The rows a level's bricks are laid out in: a break before each change of kind (a hidden brick sits in its neighbours' row).
 std::vector<std::size_t> row_starts(const LevelDef& l) {
     if (!l.rows.empty()) return l.rows;
@@ -89,7 +118,7 @@ std::vector<std::size_t> row_starts(const LevelDef& l) {
 }  // namespace
 
 std::span<const LevelDef> levels() {
-    static const std::array<LevelDef, 4> all{semantics(), styles(), time_level(), agents()};
+    static const std::array<LevelDef, 5> all{semantics(), styles(), canvas_level(), time_level(), agents()};
     return all;
 }
 
@@ -127,10 +156,40 @@ Element brick_view(const BrickDef& b, std::size_t index) {
     return column({.id = id, .width = w, .height = h}, {text({.text = b.label})});
 }
 
+void fill_wall(const LevelDef& l) {
+    auto& scene = world::scene(wall_scene);
+    static const bool kinds = [&] {
+        // Far: a box of its colour. Near (60 px and up on screen): a live card, its word in it.
+        scene.kind("note", world::Kind{.tiers = {{0, world::Tier::Draw::box}, {60, world::Tier::Draw::promote}},
+                                       .promote = [](const world::Scene& s, world::NodeRef n) {
+                                           return column({.id = std::string(s.key(n)), .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)),
+                                                          .justify = "center", .align = "center",
+                                                          .background = s.fill(n), .radius = 8.0f},
+                                                         {text({.text = std::string(s.text(n, "title")), .style = "label", .color = Color::hex(0xffffff)})});
+                                       },
+                                       .role = Role::article});
+        return true;
+    }();
+    (void)kinds;
+    scene.clear();
+    for (std::size_t i = 0; i < l.bricks.size(); ++i) {
+        const BrickDef& b = l.bricks[i];
+        const std::string key = brick_id(i);
+        const world::NodeRef n = scene.add({.kind = "note", .x = b.x, .y = b.y, .width = b.width, .height = b.height, .key = key, .fill = Color::hex(b.fill), .radius = 6});
+        scene.set(n, "title", b.label);
+    }
+}
+
 // A level's bricks in rows: the field's children (each row a real flex row,
 // named by its level: a new level's rows are new nodes, laid out afresh).
 std::vector<Element> level_rows(const LevelDef& l) {
     std::vector<Element> rows;
+    if (l.canvas) {  // the scene's camera is the field's (it takes no pointer: that moves the paddle)
+        rows.push_back(std::move(canvas({.id = "wall", .inertia = false, .label = "The wall", .max_zoom = 4, .min_zoom = 0.05, .scene = std::string(wall_scene),
+                                         .x = field_w / 2, .y = l.height - field_h / 2, .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100))})
+                                      .prop("pointer_events", Source(Value("none")))));
+        return rows;
+    }
     const auto starts = row_starts(l);
     for (std::size_t r = 0; r < starts.size(); ++r) {
         const std::size_t from = starts[r], to = r + 1 < starts.size() ? starts[r + 1] : l.bricks.size();

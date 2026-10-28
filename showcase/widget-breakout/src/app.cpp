@@ -8,6 +8,7 @@ import std;
 import openmui;
 import openmui.theme;
 import openmui.theme.styles;
+import openmui.ui.canvas;
 
 namespace omui::breakout {
 
@@ -23,6 +24,7 @@ AppSpec app() {
     a.setup = [runtime](Runtime& rt) {
         *runtime = &rt;
         register_components();
+        register_canvas_component();  // level 3's wall
         if (auto r = themes::add_styles(); !r) warn("breakout: the style packs did not load");
     };
     auto copilot = std::make_shared<Copilot>();

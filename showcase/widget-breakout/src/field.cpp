@@ -6,6 +6,7 @@ import mgame.input;
 import mgame.ui;
 import openmui.showcase.widget_breakout.sim;
 import openmui.theme.styles;
+import openmui.ui.canvas;
 
 namespace omui::breakout {
 
@@ -18,6 +19,7 @@ mgame::Bindings bindings() {
     for (const Key k : {Key::left, Key::a}) b.key(mgame::ui::code(k), mgame::Axis{0, -1});
     for (const Key k : {Key::right, Key::d}) b.key(mgame::ui::code(k), mgame::Axis{0, 1});
     b.key(mgame::ui::code(Key::space), mgame::Button{launch_button});
+    b.key(mgame::ui::code(Key::z), mgame::Button{look_button});  // a tall field: all of it while held
     b.mouse(1, mgame::Button{launch_button});
     return b;
 }
@@ -129,6 +131,7 @@ void Field::style(const Theme&, layout::Style& s) const {
 
 std::vector<NodeId> Field::bricks() const {
     std::vector<NodeId> out;
+    if (level(props.level).canvas) return out;  // a canvas's scene holds them, not nodes
     for (const NodeId row : services().children(node()))
         for (const NodeId b : services().children(row)) out.push_back(b);
     return out;
@@ -138,9 +141,10 @@ bool Field::begin() {
     const LevelDef& def = level(props.level);
     const auto nodes = bricks();
     const Rect me = services().bounds(node());
-    if (me.width <= 0 || me.height <= 0 || nodes.size() != def.bricks.size()) return false;
+    if (me.width <= 0 || me.height <= 0 || (!def.canvas && nodes.size() != def.bricks.size())) return false;
     const double sx = field_w / me.width, sy = field_h / me.height;
     Level l;
+    l.height = def.height;
     l.speed = def.speed;
     l.lives = def.lives;
     l.seed = def.seed;
@@ -149,6 +153,15 @@ bool Field::begin() {
     l.second_paddle = def.second_paddle;
     std::uint32_t row = 0;
     double last_y = -1;
+    if (def.canvas) {  // placed by the scene: where the level says, in the field's units
+        fill_wall(def);
+        for (std::size_t i = 0; i < def.bricks.size(); ++i) {
+            const BrickDef& b = def.bricks[i];
+            if (last_y >= 0 && b.y != last_y) ++row;
+            last_y = b.y;
+            l.bricks.push_back({mgame::Box{b.x, b.y, b.width, b.height}, b.kind, b.durability, static_cast<std::uint32_t>(i), row});
+        }
+    }
     for (std::size_t i = 0; i < nodes.size(); ++i) {
         const Rect r = services().bounds(nodes[i]);
         if (r.width <= 0 || r.height <= 0) return false;  // not laid out yet
@@ -166,6 +179,11 @@ bool Field::begin() {
 Input Field::input() {
     Input in;
     in.player = sampler_.sample();
+    if (timeline_ && in.player.pointer_x >= 0 && timeline_->state().zoom != 1) {
+        // The pointer across the screen, to across the field: zoomed out, the field is the screen's middle.
+        const double z = timeline_->state().zoom, across = 0.5 + (in.player.pointer_x / 32767.0 - 0.5) / z;
+        in.player.pointer_x = static_cast<std::int16_t>(std::lround(std::clamp(across, 0.0, 1.0) * 32767));
+    }
     if (agent_x_) in.player.pointer_x = static_cast<std::int16_t>(std::lround(std::clamp(*agent_x_, 0.0, 1.0) * 32767));
     if (guard_x_) in.second.pointer_x = static_cast<std::int16_t>(std::lround(std::clamp(*guard_x_, 0.0, 1.0) * 32767));
     if (agent_launch_) {
@@ -179,6 +197,20 @@ Input Field::input() {
 void Field::play(const Input& in) {
     timeline_->step(in);
     const State& s = timeline_->state();
+    if (level(props.level).canvas) {  // a broken note leaves the scene
+        auto& scene = world::scene(wall_scene);
+        for (std::uint32_t k = 0; k < s.events; ++k) {
+            const Event& e = s.event[k];
+            if (e.what == Happened::broke) {
+                if (auto n = scene.find(brick_id(e.id))) scene.remove(*n);
+                note(std::format("{} article · removed", brick_id(e.id)));
+                emit_brick_broke(brick_id(e.id));
+            }
+            if (e.what == Happened::cleared || e.what == Happened::over) emit_level_over(e.what == Happened::cleared, static_cast<std::int32_t>(s.score));
+        }
+        show_camera();
+        return;
+    }
     const auto nodes = bricks();
     const LevelDef& def = level(props.level);
     for (std::uint32_t k = 0; k < s.events; ++k) {
@@ -233,9 +265,40 @@ void Field::show_gates() {
     }
 }
 
+void Field::show_camera() {
+    if (!timeline_ || !level(props.level).canvas) return;
+    const auto kids = services().children(node());
+    if (kids.empty()) return;
+    // The camera: the field's bottom on the screen's, at the simulation's zoom (in screen pixels a unit).
+    const State& s = timeline_->state();
+    const Rect me = services().bounds(node());
+    services().set(kids[0], "zoom", Value(s.zoom * me.width / field_w));
+    services().set(kids[0], "x", Value(field_w / 2));
+    services().set(kids[0], "y", Value(s.height - field_h / s.zoom / 2));
+}
+
 void Field::show_bricks() {
     if (!timeline_) return;
     const State& s = timeline_->state();
+    if (level(props.level).canvas) {  // the scene as the simulation has it
+        auto& scene = world::scene(wall_scene);
+        const LevelDef& def = level(props.level);
+        std::vector<bool> standing(def.bricks.size(), false);
+        s.world.each<Brick>([&](mgame::Entity, const Brick& b) {
+            if (b.id < standing.size()) standing[b.id] = true;
+        });
+        for (std::size_t i = 0; i < def.bricks.size(); ++i) {
+            const auto n = scene.find(brick_id(i));
+            if (n && !standing[i]) scene.remove(*n);
+            if (!n && standing[i]) {
+                const BrickDef& b = def.bricks[i];
+                const world::NodeRef added = scene.add({.kind = "note", .x = b.x, .y = b.y, .width = b.width, .height = b.height, .key = brick_id(i), .fill = Color::hex(b.fill), .radius = 6});
+                scene.set(added, "title", b.label);
+            }
+        }
+        show_camera();
+        return;
+    }
     const auto nodes = bricks();
     const LevelDef& def = level(props.level);
     std::vector<std::int32_t> left(nodes.size(), 0);
@@ -261,6 +324,7 @@ void Field::run(std::int32_t steps) {
     if (!timeline_) {
         if (!begin()) return;  // waiting for layout to place the bricks
         show_style();
+        show_camera();
         refresh();
     }
     if (props.paused) return;
@@ -347,21 +411,29 @@ void Field::paint_over(PaintContext& ctx) const {
     }
     if (!timeline_) return;
     const State& s = timeline_->state();
-    // Capsules, paddles, balls.
+    // Capsules, paddles, balls, under the camera (a tall field's: its bottom on the screen's, zoomed out to keep the balls in sight).
+    const float kx = sx * static_cast<float>(s.zoom), ky = sy * static_cast<float>(s.zoom);
+    out.push_transform(Affine::translate(ctx.size.width / 2 - static_cast<float>(field_w / 2) * kx,
+                                         ctx.size.height / 2 - static_cast<float>(s.height - field_h / s.zoom / 2) * ky));
+    if (s.zoom < 1) {  // the field's edges, once more than a screen of it shows
+        out.stroke_round_rect({0, 0, static_cast<float>(field_w) * kx, static_cast<float>(s.height) * ky}, CornerRadii::all(4), 1.5f,
+                              render::Paint::solid(ink.with_alpha(0.35f * static_cast<float>(std::min(1.0, (1 - s.zoom) * 8)))));
+    }
     s.world.each<Capsule>([&](mgame::Entity, const Capsule& k) {
-        const Rect r{static_cast<float>(k.at.x) * sx - 16 * sx, static_cast<float>(k.at.y) * sy - 7 * sy, 32 * sx, 14 * sy};
-        out.fill_round_rect(r, CornerRadii::all(7 * sy), render::Paint::solid(gift_color(k.gift)));
+        const Rect r{static_cast<float>(k.at.x) * kx - 16 * kx, static_cast<float>(k.at.y) * ky - 7 * ky, 32 * kx, 14 * ky};
+        out.fill_round_rect(r, CornerRadii::all(7 * ky), render::Paint::solid(gift_color(k.gift)));
     });
     for (const Paddle& p : s.paddles) {
         if (!p.active) continue;
-        const Rect r{static_cast<float>(p.x - p.half) * sx, static_cast<float>(p.y - 8) * sy, static_cast<float>(2 * p.half) * sx, 16 * sy};
-        out.fill_round_rect(r, CornerRadii::all(8 * sy), render::Paint::solid(p.wide > 0 ? Color::hex(0x4fc3f7) : ink));
+        const Rect r{static_cast<float>(p.x - p.half) * kx, static_cast<float>(p.y - 8) * ky, static_cast<float>(2 * p.half) * kx, 16 * ky};
+        out.fill_round_rect(r, CornerRadii::all(8 * ky), render::Paint::solid(p.wide > 0 ? Color::hex(0x4fc3f7) : ink));
     }
     s.world.each<Ball>([&](mgame::Entity, const Ball& b) {
         const float r = static_cast<float>(b.radius);
-        const Rect box{static_cast<float>(b.at.x - b.radius) * sx, static_cast<float>(b.at.y - b.radius) * sy, 2 * r * sx, 2 * r * sy};
-        out.fill_round_rect(box, CornerRadii::all(r * sx), render::Paint::solid(b.pierce > 0 ? Color::hex(0xff7043) : ink));
+        const Rect box{static_cast<float>(b.at.x - b.radius) * kx, static_cast<float>(b.at.y - b.radius) * ky, 2 * r * kx, 2 * r * ky};
+        out.fill_round_rect(box, CornerRadii::all(r * kx), render::Paint::solid(b.pierce > 0 ? Color::hex(0xff7043) : ink));
     });
+    out.pop_transform();
     // The score and the lives.
     const auto& score = label(std::format("{}", s.score), 22, ink);
     score.paint(out, {24, 18});
@@ -370,6 +442,11 @@ void Field::paint_over(PaintContext& ctx) const {
     // Level 2: the style, and the play's checksum — the same under every style.
     if (props.level == 2) {
         const auto& line = label(std::format("{}  ·  play {:016x}  ·  S: next style", style_shown_, checksum(s)), 12, ink.with_alpha(0.7f));
+        line.paint(out, {24, ctx.size.height - 26});
+    }
+    // Level 3: the camera.
+    if (level(props.level).canvas) {
+        const auto& line = label(std::format("zoom {:.2f}  ·  hold Z: the whole wall", s.zoom), 12, ink.with_alpha(0.7f));
         line.paint(out, {24, ctx.size.height - 26});
     }
     // Level 4: the clock, the gate's moment, and a rewind in progress; an open gate's place outlined.
@@ -462,7 +539,7 @@ void Field::semantics(SemanticsContext&, spec::SemanticNode& node) const {
     // The play's checksum: under every style the same (level 2 shows it).
     v.set("level", props.level).set("style", style_shown_).set("hash", std::format("{:016x}", checksum(s)));
     v.set("frame", s.frame).set("score", s.score).set("lives", s.lives).set("bricks", s.bricks).set("over", static_cast<std::int32_t>(s.over));
-    v.set("paddle", s.paddles[0].x / field_w);
+    v.set("paddle", s.paddles[0].x / field_w).set("zoom", s.zoom);
     Value::List balls;
     s.world.each<Ball>([&](mgame::Entity, const Ball& b) {
         balls.push_back(Value{}.set("x", b.at.x / field_w).set("y", b.at.y / field_h).set("vx", b.velocity.x).set("vy", b.velocity.y).set("on_paddle", b.on != 0));

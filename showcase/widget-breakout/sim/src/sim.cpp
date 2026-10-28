@@ -117,7 +117,7 @@ Contact first_contact(const State& s, const Ball& b, V2 d, double left) {
         }
     };
     // Walls: left, right and (unless a paddle guards it) the top.
-    const std::array<Box, 3> walls{Box{-100, -100, 100, field_h + 200}, Box{field_w, -100, 100, field_h + 200}, Box{-100, -100, field_w + 200, 100}};
+    const std::array<Box, 3> walls{Box{-100, -100, 100, s.height + 200}, Box{field_w, -100, 100, s.height + 200}, Box{-100, -100, field_w + 200, 100}};
     const std::size_t wall_count = s.paddles[1].active ? 2 : 3;
     for (std::size_t w = 0; w < wall_count; ++w)
         if (auto h = mgame::sweep(b.at, b.radius, d, walls[w])) meet(*h, [&] { c.wall = true; });
@@ -193,6 +193,17 @@ void fly(State& s, mgame::Entity e) {
     // Its collisions used up: it stays where the last left it (never through anything).
 }
 
+// The camera of a taller field: its bottom (the paddle) always on screen, zoomed
+// out just enough to keep the highest ball in sight — or the whole field while
+// the player looks — easing there a little each step.
+void aim_camera(State& s, bool look) {
+    if (s.height <= field_h) return;
+    double top = s.height;
+    s.world.each<Ball>([&](mgame::Entity, const Ball& b) { top = std::min(top, b.at.y - 4 * b.radius); });
+    const double want = look ? widest(s) : std::clamp(field_h / (s.height - top), widest(s), 1.0);
+    s.zoom += (want - s.zoom) * 0.08;
+}
+
 }  // namespace
 
 State start(const Level& level) {
@@ -202,6 +213,8 @@ State start(const Level& level) {
     s.speed = level.speed;
     s.paddles[1].active = level.second_paddle ? 1 : 0;
     s.paddles[1].y = 30;
+    s.height = std::max(level.height, field_h);
+    s.paddles[0].y = s.height - 30;
     s.gate_from = level.gate_from;
     s.gate_to = level.gate_to;
     for (const BrickSpec& b : level.bricks) {
@@ -224,6 +237,7 @@ void step(State& s, const Input& in) {
     if (s.paddles[1].active) move_paddle(s.paddles[1], in.second, 70);
     if (s.paddles[0].wide > 0) --s.paddles[0].wide;
     if (s.slow > 0) --s.slow;
+    aim_camera(s, in.player.down(look_button));
     // Balls on a paddle ride it; the launch sends them up (down from the top one), a little to the right.
     std::array<bool, 2> launch{in.player.went_down(launch_button), in.second.went_down(launch_button)};
     s.world.each<Ball>([&](mgame::Entity, Ball& b) {
@@ -248,7 +262,7 @@ void step(State& s, const Input& in) {
             fly(s, flying[i]);
             Ball& b = s.world.get<Ball>(flying[i]);
             if (b.pierce > 0) --b.pierce;
-            const bool out = b.at.y > field_h + b.radius || (s.paddles[1].active && b.at.y < -b.radius);
+            const bool out = b.at.y > s.height + b.radius || (s.paddles[1].active && b.at.y < -b.radius);
             if (out) {
                 happened(s, Happened::lost, 0, b.at);
                 s.world.destroy(flying[i]);
@@ -259,13 +273,13 @@ void step(State& s, const Input& in) {
     std::size_t c = 0;
     s.world.each<Capsule>([&](mgame::Entity e, Capsule& k) {
         k.at.y += 2.5;
-        if (mgame::overlaps(k.at, 10, paddle_box(s.paddles[0])) || k.at.y > field_h + 20)
+        if (mgame::overlaps(k.at, 10, paddle_box(s.paddles[0])) || k.at.y > s.height + 20)
             if (c < caught.size()) caught[c++] = e;
     });
     for (std::size_t i = 0; i < c; ++i) {
         const Capsule k = s.world.get<Capsule>(caught[i]);
         s.world.destroy(caught[i]);
-        if (k.at.y <= field_h + 20) {
+        if (k.at.y <= s.height + 20) {
             give(s, k.gift);
             happened(s, Happened::caught, static_cast<std::uint32_t>(k.gift), k.at);
         }
@@ -297,7 +311,7 @@ std::uint64_t checksum(const State& s) noexcept {
         for (std::size_t i = 0; i < sizeof(v); ++i) h = (h ^ p[i]) * 0x100000001b3ull;
     };
     for (const Paddle& p : s.paddles) bytes(p.x), bytes(p.y), bytes(p.half), bytes(p.moved), bytes(p.wide), bytes(p.active);
-    bytes(s.rng), bytes(s.frame), bytes(s.score), bytes(s.combo), bytes(s.lives), bytes(s.slow), bytes(s.bricks), bytes(s.speed), bytes(s.over), bytes(s.gate_from), bytes(s.gate_to);
+    bytes(s.rng), bytes(s.frame), bytes(s.score), bytes(s.combo), bytes(s.lives), bytes(s.slow), bytes(s.bricks), bytes(s.speed), bytes(s.over), bytes(s.gate_from), bytes(s.gate_to), bytes(s.height), bytes(s.zoom);
     bytes(s.events);
     for (std::uint32_t i = 0; i < s.events; ++i) bytes(s.event[i]);
     return h;

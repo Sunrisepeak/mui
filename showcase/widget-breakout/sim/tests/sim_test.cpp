@@ -158,6 +158,27 @@ int main(int argc, char** argv) {
         check(rise(100, 200) > 300, "not open yet: bounced");
     });
 
+    s.test("a taller field: the paddle at its bottom, the camera out to keep the highest ball in sight, or all of it while looking", [] {
+        bo::Level l;
+        l.height = 4 * bo::field_h;
+        l.bricks.push_back({Box{0, 0, 10, 10}, bo::Kind::button, 1, 0, 0});  // out of the way: the field is not cleared
+        bo::State st = bo::start(l);
+        check_eq(st.paddles[0].y, 4 * bo::field_h - 30);
+        check_eq(st.zoom, 1.0);
+        st.world.each<bo::Ball>([](mgame::Entity, bo::Ball& b) {
+            b.on = 0;
+            b.at = {640, 1000};
+            b.velocity = {0, -0.001};  // standing, near enough: high up the field
+        });
+        for (int f = 0; f < 120; ++f) bo::step(st, {});
+        const double fit = bo::field_h / (4 * bo::field_h - (1000 - 32));
+        check(std::abs(st.zoom - fit) < 1e-3, std::format("zoom {} for {}", st.zoom, fit));
+        bo::Input look;
+        look.player.held = 1u << bo::look_button;
+        for (int f = 0; f < 120; ++f) bo::step(st, look);
+        check(std::abs(st.zoom - bo::widest(st)) < 1e-3 && bo::widest(st) == 0.25, std::format("zoom {}", st.zoom));
+    });
+
     s.test("capsules give: wide, three balls for one, slow motion, piercing", [] {
         bo::State st = bo::start(wall_of_bricks());
         bo::step(st, {launch(), {}});
@@ -225,7 +246,7 @@ int main(int argc, char** argv) {
             all = (all ^ bo::checksum(st)) * 0x100000001b3ull;
         }
         std::println("    game {:016x} ({} frames, score {}, over {})", all, frames, st.score, st.over);
-        check_eq(all, std::uint64_t{0x89f9b5b31fc15e90});  // GCC, LLVM and wasm
+        check_eq(all, std::uint64_t{0xb8159eb49a9454cf});  // GCC, LLVM and wasm
     });
 
     return s.run(argc, argv);

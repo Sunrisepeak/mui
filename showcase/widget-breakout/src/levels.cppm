@@ -17,6 +17,8 @@ struct BrickDef {
     std::string  label;
     float        width = 150, height = 44;
     float        grow = 0;   // > 0: a share of its row's width instead (the row then spans the field, no gaps)
+    double       x = 0, y = 0;    // on a canvas level: where it is (the field's units)
+    std::uint32_t fill = 0;       // on a canvas level: its colour (0xRRGGBB)
 };
 
 struct LevelDef {
@@ -31,7 +33,15 @@ struct LevelDef {
     std::int64_t          gate_from = 0, gate_to = 0;  // the frames its gates stand open
     bool                  second_paddle = false;       // a paddle at the top: an agent's
     float                 top = 70;                    // where its bricks begin
+    double                height = field_h;            // taller than a screen: a canvas level
+    bool                  canvas = false;              // its bricks are nodes of a canvas's scene, placed by it (level 3)
 };
+
+// The scene a canvas level's bricks are in (openmui.ui.canvas): far, boxes
+// of their colour; near, live cards.
+inline constexpr std::string_view wall_scene = "breakout.wall";
+// The scene filled with the level's bricks (the kind registered once).
+void fill_wall(const LevelDef& l);
 
 // The levels made so far (of six), by number.
 [[nodiscard]] std::span<const LevelDef> levels();

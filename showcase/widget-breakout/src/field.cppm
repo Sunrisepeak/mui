@@ -66,6 +66,7 @@ private:
     [[nodiscard]] std::string style_wanted() const;  // level 2: by the rows cleared, and the player's turns
     void show_style();              // asks for it when it changed
     void show_gates();              // level 4: a gate's bar fills toward its opening; open, it is gone
+    void show_camera();             // level 3: the canvas's camera where the simulation's is
 
     static constexpr std::size_t log_size = 8;
 

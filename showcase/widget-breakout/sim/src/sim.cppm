@@ -23,7 +23,7 @@ export import mgame.sim;     // its Game is a timeline's
 
 export namespace omui::breakout {
 
-inline constexpr double field_w = 1280, field_h = 720;
+inline constexpr double field_w = 1280, field_h = 720;  // a screen of the field (a level may be taller: its height)
 inline constexpr std::int32_t steps_per_second = 120;
 
 // What a brick is (its component in the UI), and what a capsule gives.
@@ -82,13 +82,16 @@ struct State {
     double                 speed = 6.5;  // the balls', pixels a step
     std::uint32_t          events = 0, over = 0;  // over: 1 cleared, 2 out of lives
     std::int64_t           gate_from = 0, gate_to = 0;  // the frames the gates stand open: [from, to)
+    double                 height = field_h;  // the field's: taller than a screen, the camera shows part of it
+    double                 zoom = 1;          // the camera (level 3): 1 a screen of the field's bottom, less to see more of it
     std::array<Event, 32>  event{};
 };
 static_assert(std::is_trivially_copyable_v<State>, "a state is saved and restored as one block");
 
-// The actions: button 0 launches; axis 0 moves (−1 … 1); the pointer, when
-// present, is where the paddle goes. `second` is the second paddle's (an agent's, level 5).
-inline constexpr int launch_button = 0;
+// The actions: button 0 launches; button 1, held, looks at the whole field
+// (a taller one); axis 0 moves (−1 … 1); the pointer, when present, is where
+// the paddle goes. `second` is the second paddle's (an agent's, level 5).
+inline constexpr int launch_button = 0, look_button = 1;
 struct Input {
     mgame::Actions player{}, second{};
 };
@@ -106,7 +109,11 @@ struct Level {
     std::int32_t           lives = 3;
     std::uint64_t          seed = 1;
     std::int64_t           gate_from = 0, gate_to = 0;  // its gates open on these frames: [from, to)
+    double                 height = field_h;            // taller: the camera zooms out to keep the balls in sight
 };
+
+// The camera's zoom at most out: the whole field's height on a screen.
+[[nodiscard]] constexpr double widest(const State& s) noexcept { return field_h / s.height; }
 
 // Whether the gates stand open on the state's frame.
 [[nodiscard]] constexpr bool gates_open(const State& s) noexcept { return s.frame >= s.gate_from && s.frame < s.gate_to; }

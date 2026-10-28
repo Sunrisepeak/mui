@@ -31,6 +31,7 @@ mgame.input = { path = "../../mgame/input" }
 mgame.ui    = { path = "../../mgame/ui" }
 "openmui.theme" = { path = "../../modules/ui/theme" }
 openmui.theme.styles = { path = "../../modules/ui/theme/styles" }
+openmui.ui.canvas = { path = "../../components/canvas" }
 
 [build-dependencies]
 openmui.rules = { path = "../../mcpp/rules", host-module = true }

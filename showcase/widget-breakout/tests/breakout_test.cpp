@@ -19,13 +19,17 @@ namespace {
 struct Game {
     Headless h{HeadlessOptions{.size = {1280, 720}}};
     std::vector<std::string> broke;
-    Game() {
+    explicit Game(std::int32_t level = 1) {
         AppSpec spec = bo::app();
         h.runtime().set_theme(spec.theme);
         spec.setup(h.runtime());
         h.mount("main", spec.view());
         h.runtime().on(field(), "brick_broke", [this](const Value& a) { broke.emplace_back(a.get("id")->as_string()); });
         h.step();
+        if (level != 1) {
+            h.runtime().set(field(), "level", Value(static_cast<std::int64_t>(level)));
+            h.step();
+        }
         h.advance(seconds(0.25));  // laid out, and the simulation begun from it
     }
     NodeId field() { return h.runtime().find("main"); }
@@ -74,7 +78,7 @@ struct Game {
     // broken; a toggle flipped by each hit; a slider at what it has left.
     std::string disagreement() {
         const auto nodes = bricks();
-        const auto& def = bo::level(1);
+        const auto& def = bo::level(component().props.level);
         std::vector<std::int32_t> left(nodes.size(), 0);
         state().world.each<bo::Brick>([&](mgame::Entity, const bo::Brick& b) { left[b.id] = b.durability; });
         for (std::size_t i = 0; i < nodes.size(); ++i) {
@@ -189,8 +193,64 @@ int main(int argc, char** argv) {
         const auto lens = g.pixels();
         check(g.h.save_png(dir / "lens.png").has_value());
         std::println("    played {:016x}, lens {:016x}", played, lens);
-        check_eq(played, std::uint64_t{0xd9e1c0d4f237621c});  // GCC and LLVM
-        check_eq(lens, std::uint64_t{0x3703508c525a2a2a});
+        check_eq(played, std::uint64_t{0xd5452912dbfc78ca});  // GCC and LLVM
+        check_eq(lens, std::uint64_t{0x0f57ad26ce85e13d});
+    });
+
+    s.test("level 2: each row cleared brings the next style pack; under every style the same play, the same hash, the same tree", [] {
+        // Two games, one agent's play: one turns the style three times as it goes.
+        Game a(2), b(2);
+        check_eq(a.seen().get("level")->as_int(), std::int64_t{2});
+        check_eq(a.bricks().size(), bo::level(2).bricks.size());
+        check(a.act("pause") && b.act("pause"));
+        check_eq(std::string(a.seen().get("style")->as_string()), std::string("glass"));
+        std::int64_t differ = 0;
+        for (int f = 0; f < 3000 && !a.state().over; ++f) {
+            a.play(1);
+            b.play(1);
+            if (f == 300 || f == 900 || f == 1500) check(b.act("next_style"));
+            differ += bo::checksum(a.state()) != bo::checksum(b.state());
+        }
+        check_eq(differ, std::int64_t{0});
+        check_eq(a.disagreement(), std::string());
+        check_eq(b.disagreement(), std::string());
+        const std::string sa(a.seen().get("style")->as_string()), sb(b.seen().get("style")->as_string());
+        check(sa != sb, std::format("{} and {}", sa, sb));
+        check(std::string(a.seen().get("hash")->as_string()) == std::string(b.seen().get("hash")->as_string()), "the hash shown is the same");
+        // The bricks' semantic nodes are the same under both styles.
+        auto bricks_seen = [](Game& g) {
+            std::vector<std::string> out;
+            for (const auto& n : g.h.tree().snapshot({}).nodes)
+                if (n.id.find("brick.") != std::string::npos) out.push_back(std::format("{} {} {} {}", n.id, static_cast<int>(n.role), n.states.bits, n.value.json()));
+            return out;
+        };
+        check(bricks_seen(a) == bricks_seen(b), "the same tree");
+        a.h.advance(seconds(1));  // the cross-fades done
+        b.h.advance(seconds(1));
+        const auto pa = a.pixels(), pb = b.pixels();
+        check(pa != pb, "other pixels");
+        const auto dir = scratch_dir("breakout-level2");  // to look at
+        check(a.h.save_png(dir / std::format("{}.png", sa)).has_value() && b.h.save_png(dir / std::format("{}.png", sb)).has_value());
+        std::println("    {} {:016x}, {} {:016x}", sa, pa, sb, pb);
+        check_eq(pa, std::uint64_t{0xb7c31df5cb91e392});  // neon, GCC and LLVM
+        check_eq(pb, std::uint64_t{0xcd3a98b98e12ad4d});  // liquid
+        check(!a.act("next") || a.state().over, "next: once over");
+    });
+
+    s.test("a level over: the lesson, then Enter goes on (cleared: the next level; lost: this one again)", [] {
+        Game g;
+        check(!g.act("next"), "not before it is over");
+        check(g.act("pause"));
+        g.play(40000);
+        const auto over = g.state().over;
+        check(over != 0, "over");
+        std::println("    over {} at frame {}, score {}", over, g.state().frame, g.state().score);
+        g.h.key(Key::enter);
+        g.h.step();
+        g.h.advance(seconds(0.25));
+        check_eq(g.component().props.level, over == 1 ? 2 : 1);
+        check_eq(g.state().over, std::uint32_t{0});
+        check_eq(g.state().bricks, static_cast<std::int32_t>(bo::level(g.component().props.level).bricks.size()));
     });
 
     return s.run(argc, argv);

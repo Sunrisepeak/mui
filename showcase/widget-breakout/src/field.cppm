@@ -1,5 +1,5 @@
 // The field: the breakout over a level of real components. Its children
-// are the level's rows of bricks; on its first step it reads where layout put
+// are the level's rows of bricks (composed from the level); on its first step it reads where layout put
 // each brick into the simulation, and from then on every hit changes the
 // brick for real (a toggle flips, a slider loses a third, a broken brick goes
 // from the screen and the semantic tree), drawing the paddles, balls and
@@ -36,6 +36,7 @@ public:
     void paint_over(PaintContext& ctx) const;
     bool on_event(EventContext& ctx, const InputEvent& e);
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    std::vector<Element> compose();
 
     ActResult launch(ActContext& ctx);
     ActResult move_to(ActContext& ctx, const Value& x);
@@ -45,6 +46,8 @@ public:
     ActResult step(ActContext& ctx);
     ActResult restart(ActContext& ctx);
     ActResult rewind(ActContext& ctx, const Value& frames);
+    ActResult next(ActContext& ctx);
+    ActResult next_style(ActContext& ctx);
 
     // The simulation as it stands (tests and tools read it); none before its first step.
     [[nodiscard]] const State* state() const noexcept { return timeline_ ? &timeline_->state() : nullptr; }
@@ -57,6 +60,10 @@ private:
     [[nodiscard]] Input input();
     [[nodiscard]] std::vector<NodeId> bricks() const;  // the field's bricks, in order
     void note(std::string change);  // a change the semantic tree saw, for the lens
+    void refresh();                 // paint and semantics again
+    void restart_level();           // the level afresh: bricks, simulation, lens and style
+    [[nodiscard]] std::string style_wanted() const;  // level 2: by the rows cleared, and the player's turns
+    void show_style();              // asks for it when it changed
 
     static constexpr std::size_t log_size = 8;
 
@@ -66,6 +73,9 @@ private:
     std::optional<double>                agent_x_;     // an agent's paddle (0 … 1), while it holds it
     bool                                 agent_launch_ = false;
     bool                                 discovered_ = false;  // the lens has shown the hidden bricks
+    std::int32_t                         rows_ = 0;            // the level's rows of bricks
+    std::int32_t                         turns_ = 0;           // level 2: the styles the player turned on
+    std::string                          style_shown_;         // what the host was last asked for
     std::deque<std::string>              log_;                 // the lens's latest changes
     mutable std::map<std::string, typeset::Paragraph, std::less<>> words_;  // the lens's labels, shaped once
 };

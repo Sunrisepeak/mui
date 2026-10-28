@@ -28,7 +28,8 @@ struct LevelDef {
     std::uint64_t         seed = 1;
 };
 
-[[nodiscard]] const LevelDef& level(std::int32_t number);  // 1–6 (others: the first)
+inline constexpr std::int32_t levels = 2;  // made so far (of six)
+[[nodiscard]] const LevelDef& level(std::int32_t number);  // 1 … levels (others: the nearest)
 
 // A brick as its component: a button, a toggle, a slider, a card (text), or
 // a hidden one (nothing drawn: only the semantic tree knows it is there).

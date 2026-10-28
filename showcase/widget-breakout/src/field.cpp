@@ -5,6 +5,7 @@ import openmui;
 import mgame.input;
 import mgame.ui;
 import openmui.showcase.widget_breakout.sim;
+import openmui.theme.styles;
 
 namespace omui::breakout {
 
@@ -72,10 +73,48 @@ void Field::prop_changed(FieldProp p) {
     if (props.lens) discovered_ = true;
     if (!attached()) return;
     if (p == FieldProp::level) {
-        timeline_.reset();  // its bricks are new: read again on the next step
+        services().recompose(node());  // its bricks: read into a new simulation on the next step
+        restart_level();
     }
+    refresh();
+}
+
+std::vector<Element> Field::compose() { return level_rows(level(props.level)); }
+
+void Field::refresh() {
     services().invalidate_paint(node());
     services().invalidate_semantics(node());
+}
+
+void Field::restart_level() {
+    timeline_.reset();
+    log_.clear();
+    discovered_ = props.lens;
+    turns_ = 0;
+    for (const NodeId n : bricks()) services().set(n, "visible", Value(true));
+    if (begin()) show_bricks();
+    show_style();
+}
+
+std::string Field::style_wanted() const {
+    if (props.level != 2) return {};
+    std::int32_t cleared = 0;
+    if (timeline_) {
+        std::vector<bool> standing(static_cast<std::size_t>(rows_), false);
+        timeline_->state().world.each<Brick>([&](mgame::Entity, const Brick& b) {
+            if (b.row < standing.size()) standing[b.row] = true;
+        });
+        cleared = static_cast<std::int32_t>(std::ranges::count(standing, false));
+    }
+    return std::string(themes::style_names[static_cast<std::size_t>(cleared + turns_) % themes::style_names.size()]);
+}
+
+void Field::show_style() {
+    std::string want = style_wanted();
+    if (want == style_shown_) return;
+    note(std::format("style → {}", want.empty() ? "the app's" : want));
+    style_shown_ = want;
+    emit_style(std::move(want));
 }
 
 void Field::style(const Theme&, layout::Style& s) const {
@@ -112,6 +151,7 @@ bool Field::begin() {
         const BrickDef& b = def.bricks[i];
         l.bricks.push_back({mgame::Box{(r.x - me.x) * sx, (r.y - me.y) * sy, r.width * sx, r.height * sy}, b.kind, b.durability, static_cast<std::uint32_t>(i), row});
     }
+    rows_ = static_cast<std::int32_t>(row) + 1;
     timeline_.emplace(start(l), keep, 60);
     return true;
 }
@@ -162,6 +202,7 @@ void Field::play(const Input& in) {
             note(std::format("{} slider · value → {:.2f}", brick_id(e.id), static_cast<double>(left) / b.durability));
         }
     }
+    show_style();  // a row cleared: level 2's next pack
 }
 
 void Field::show_bricks() {
@@ -188,17 +229,19 @@ void Field::note(std::string change) {
 }
 
 void Field::run(std::int32_t steps) {
-    if (props.paused) return;
-    for (std::int32_t k = 0; k < steps; ++k) {
-        if (!timeline_ && !begin()) return;  // waiting for layout to place the bricks
-        play(input());
+    if (!timeline_) {
+        if (!begin()) return;  // waiting for layout to place the bricks
+        show_style();
+        refresh();
     }
-    services().invalidate_paint(node());
-    services().invalidate_semantics(node());
+    if (props.paused) return;
+    for (std::int32_t k = 0; k < steps; ++k) play(input());
+    refresh();
 }
 
 void Field::paint(PaintContext& ctx) const {
-    ctx.list.fill_rect({0, 0, ctx.size.width, ctx.size.height}, Color::hex(0x0d111c));
+    const Theme& theme = services().theme();
+    ctx.list.fill_rect({0, 0, ctx.size.width, ctx.size.height}, theme.color("background", Color::hex(0x0d111c)));
     // Each brick's plate under its component: where the ball meets it (a hidden one has none).
     const Rect me = services().bounds(node());
     const auto nodes = bricks();
@@ -206,7 +249,7 @@ void Field::paint(PaintContext& ctx) const {
     for (std::size_t i = 0; i < nodes.size() && i < def.bricks.size(); ++i) {
         if (def.bricks[i].kind == Kind::hidden || def.bricks[i].kind == Kind::button || !services().get(nodes[i], "visible").as_bool(true)) continue;
         const Rect r = services().bounds(nodes[i]);
-        ctx.list.fill_round_rect({r.x - me.x, r.y - me.y, r.width, r.height}, CornerRadii::all(10), render::Paint::solid(Color::hex(0x1b2235)));
+        ctx.list.fill_round_rect({r.x - me.x, r.y - me.y, r.width, r.height}, CornerRadii::all(10), render::Paint::solid(theme.color("surface_variant", Color::hex(0x1b2235))));
     }
 }
 
@@ -214,17 +257,19 @@ void Field::paint_over(PaintContext& ctx) const {
     const float sx = ctx.size.width / static_cast<float>(field_w), sy = ctx.size.height / static_cast<float>(field_h);
     auto& out = ctx.list;
     auto& fonts = services().fonts();
-    auto label = [&](std::string_view text, float size, Color color) -> const typeset::Paragraph& {
-        const std::string key = std::format("{}|{}|{},{},{},{}", text, size, color.r, color.g, color.b, color.a);
+    const Color ink = services().theme().color("text", Color::hex(0xe8eaf6));  // the paddles, balls and score: the style's text
+    // Text shaped once (`width`: wrapped to it).
+    auto label = [&](std::string_view text, float size, Color color, float width = 0) -> const typeset::Paragraph& {
+        const std::string key = std::format("{}|{}|{},{},{},{}|{}", text, size, color.r, color.g, color.b, color.a, width);
         auto it = words_.find(key);
         if (it == words_.end()) {
             typeset::ParagraphStyle ps;
             ps.style.size = size;
             ps.style.weight = 600;
             ps.style.color = color;
-            ps.wrap = false;
+            ps.wrap = width > 0;
             typeset::Paragraph p(fonts, std::string(text), std::move(ps));
-            p.layout(std::numeric_limits<float>::infinity());
+            p.layout(width > 0 ? width : std::numeric_limits<float>::infinity());
             it = words_.emplace(key, std::move(p)).first;
         }
         return it->second;
@@ -273,21 +318,33 @@ void Field::paint_over(PaintContext& ctx) const {
     for (const Paddle& p : s.paddles) {
         if (!p.active) continue;
         const Rect r{static_cast<float>(p.x - p.half) * sx, static_cast<float>(p.y - 8) * sy, static_cast<float>(2 * p.half) * sx, 16 * sy};
-        out.fill_round_rect(r, CornerRadii::all(8 * sy), render::Paint::solid(p.wide > 0 ? Color::hex(0x4fc3f7) : Color::hex(0xe8eaf6)));
+        out.fill_round_rect(r, CornerRadii::all(8 * sy), render::Paint::solid(p.wide > 0 ? Color::hex(0x4fc3f7) : ink));
     }
     s.world.each<Ball>([&](mgame::Entity, const Ball& b) {
         const float r = static_cast<float>(b.radius);
         const Rect box{static_cast<float>(b.at.x - b.radius) * sx, static_cast<float>(b.at.y - b.radius) * sy, 2 * r * sx, 2 * r * sy};
-        out.fill_round_rect(box, CornerRadii::all(r * sx), render::Paint::solid(b.pierce > 0 ? Color::hex(0xff7043) : Color::hex(0xffffff)));
+        out.fill_round_rect(box, CornerRadii::all(r * sx), render::Paint::solid(b.pierce > 0 ? Color::hex(0xff7043) : ink));
     });
     // The score and the lives.
-    const auto& score = label(std::format("{}", s.score), 22, Color::hex(0xe8eaf6));
+    const auto& score = label(std::format("{}", s.score), 22, ink);
     score.paint(out, {24, 18});
     for (std::int32_t i = 0; i < s.lives; ++i)
-        out.fill_round_rect({ctx.size.width - 30 - 20.0f * static_cast<float>(i), 26, 12, 12}, CornerRadii::all(6), render::Paint::solid(Color::hex(0xe8eaf6)));
+        out.fill_round_rect({ctx.size.width - 30 - 20.0f * static_cast<float>(i), 26, 12, 12}, CornerRadii::all(6), render::Paint::solid(ink));
+    // Level 2: the style, and the play's checksum — the same under every style.
+    if (props.level == 2) {
+        const auto& line = label(std::format("{}  ·  play {:016x}  ·  S: next style", style_shown_, checksum(s)), 12, ink.with_alpha(0.7f));
+        line.paint(out, {24, ctx.size.height - 26});
+    }
+    // Over: what the level showed (cleared), and what next.
     if (s.over) {
-        const auto& end = label(s.over == 1 ? level(props.level).lesson : std::string("Out of balls — restart to try again"), 18, Color::hex(0xffd54f));
-        end.paint(out, {ctx.size.width / 2 - end.size().width / 2, ctx.size.height - 120});
+        const float w = 640;
+        const auto& lesson = label(s.over == 1 ? level(props.level).lesson : std::string("Out of balls."), 18, Color::hex(0xf5f5f5), w);
+        const auto& hint = label(s.over == 1 && props.level < levels ? "Enter — the next level" : "Enter — this level again", 13, Color::hex(0xffd54f));
+        const float h = lesson.size().height + hint.size().height + 52, x = ctx.size.width / 2 - w / 2 - 24, y = ctx.size.height / 2 - h / 2 + 60;
+        out.fill_round_rect({x, y, w + 48, h}, CornerRadii::all(14), render::Paint::solid(Color::hex(0x0b0e17, 0.9f)));
+        out.stroke_round_rect({x, y, w + 48, h}, CornerRadii::all(14), 1.5f, render::Paint::solid(Color::hex(0xffd54f, 0.6f)));
+        lesson.paint(out, {x + 24, y + 20});
+        hint.paint(out, {x + 24, y + 32 + lesson.size().height});
     }
 }
 
@@ -296,6 +353,16 @@ bool Field::on_event(EventContext& ctx, const InputEvent& e) {
         if (k->kind == KeyKind::down && !k->repeat) {
             props.lens = !props.lens;
             prop_changed(FieldProp::lens);
+        }
+        ctx.handled = true;
+        return true;
+    }
+    // Enter: on from a level over; S: level 2's next style.
+    if (const auto* k = std::get_if<KeyEvent>(&e); k && (k->key == Key::enter || (k->key == Key::s && props.level == 2))) {
+        if (k->kind == KeyKind::down && !k->repeat) {
+            const Value nothing;
+            ActContext here{services(), node(), nothing};
+            (void)(k->key == Key::enter ? next(here) : next_style(here));
         }
         ctx.handled = true;
         return true;
@@ -312,6 +379,8 @@ void Field::semantics(SemanticsContext&, spec::SemanticNode& node) const {
     if (!timeline_) return;
     const State& s = timeline_->state();
     Value v;
+    // The play's checksum: under every style the same (level 2 shows it).
+    v.set("level", props.level).set("style", style_shown_).set("hash", std::format("{:016x}", checksum(s)));
     v.set("frame", s.frame).set("score", s.score).set("lives", s.lives).set("bricks", s.bricks).set("over", static_cast<std::int32_t>(s.over));
     v.set("paddle", s.paddles[0].x / field_w);
     Value::List balls;
@@ -361,13 +430,29 @@ ActResult Field::step(ActContext&) {
 }
 
 ActResult Field::restart(ActContext&) {
-    timeline_.reset();
-    log_.clear();
-    for (const NodeId n : bricks()) services().set(n, "visible", Value(true));
-    if (begin()) show_bricks();
-    services().invalidate_paint(node());
-    services().invalidate_semantics(node());
+    restart_level();
+    refresh();
     return ActResult::done();
+}
+
+ActResult Field::next(ActContext&) {
+    if (!timeline_ || !timeline_->state().over) return ActResult::fail("the level is not over yet");
+    if (timeline_->state().over == 1 && props.level < levels) {
+        props.level += 1;
+        prop_changed(FieldProp::level);
+    } else {
+        restart_level();
+        refresh();
+    }
+    return ActResult::done(Value(static_cast<std::int64_t>(props.level)));
+}
+
+ActResult Field::next_style(ActContext&) {
+    if (props.level != 2) return ActResult::fail("styles are level 2's");
+    ++turns_;
+    show_style();
+    refresh();
+    return ActResult::done(Value(style_shown_));
 }
 
 ActResult Field::rewind(ActContext&, const Value& frames) {

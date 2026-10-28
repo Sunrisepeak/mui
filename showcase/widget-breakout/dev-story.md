@@ -58,7 +58,7 @@ The simulation knows nothing of openmui. The field knows the simulation only thr
 - **Re-registering a script's verb on reload was refused.** Fixed in `openmui.lang`: a session re-registering its own verb now replaces the function. Hot reload means anything a script defines can be defined again.
 - **TypeScript from an editor's text** needed a new entry point (`compile_typescript_source`); the player only compiled files. Editors are a normal place for code, so this is now general.
 - **Pinned pixels that include changing text** (level 2's checksum line) break whenever the simulation's state layout changes. A pinned frame should avoid text derived from unrelated state, or pin a region.
-- **Python gifts wait for an embeddable Python** (PocketPy, being published to mcpp-index). The CPython binding is host-mode only and cannot be embedded.
+- **Python gifts needed an embeddable Python.** The CPython binding is host-mode only. PocketPy was published to mcpp-index (a new `mcpplibs/pocketpy-m` module wrapper) and became `openmui.lang.python.embedded`, the same `openmui` module as host mode, so one script reads the same in both; `multi.py` reloads in about 2 ms.
 - **The simulation had no benchmark.** Added: `breakout/step` and `breakout/seek` in `tests/bench`, with budgets.
 
 ## 6. Practices that generalise

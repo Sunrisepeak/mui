@@ -419,12 +419,15 @@ int main(int argc, char** argv) {
         check_eq(px, std::uint64_t{0xde486d848c705e36});  // GCC and LLVM
     });
 
-    s.test("level 6: the gifts' rules are scripts — TypeScript and Lua reloaded in place from the workshop, checked, held from the next step; a bad one keeps the rules", [] {
+    s.test("level 6: the gifts' rules are scripts — TypeScript, Lua and Python reloaded in place from the workshop, checked, held from the next step; a bad one keeps the rules", [] {
         Game g(6);
         auto& r = g.h.runtime();
         // The scripts loaded: their rules on the field.
-        const std::array<std::string_view, 3> gifts{"wide", "pierce", "slow"};
-        const auto status = [&](int i) { return std::string(r.get(r.find(std::format("main/workshop/status.{}", gifts[static_cast<std::size_t>(i)])), "text").as_string()); };
+        const std::array<std::string_view, 4> gifts{"wide", "pierce", "slow", "multi"};
+        const auto status = [&](int i) {
+            const auto g = gifts[static_cast<std::size_t>(i)];
+            return std::string(r.get(r.find(std::format("main/workshop/scripts/{}/status.{}", g, g)), "text").as_string());
+        };
         for (int k = 0; k < 600 && status(0) != "loaded"; ++k) g.h.step();
         check_eq(status(0), std::string("loaded"));
         check(g.act("workshop"), "E: open");
@@ -434,12 +437,14 @@ int main(int argc, char** argv) {
         auto edit = [&](std::string_view box, std::string text) {
             Invocation c;
             c.args = Value{}.set("value", text);
-            return r.act(r.find(std::format("main/workshop/{}", box)), "set_value", c).exit_code() == std::optional<int>(0);
+            return r.act(r.find(std::format("main/workshop/scripts/{}/{}", box.substr(box.find('.') + 1), box)), "set_value", c).exit_code() == std::optional<int>(0);
         };
-        auto source = [&](std::string_view box) { return std::string(r.get(r.find(std::format("main/workshop/{}", box)), "text").as_string()); };
+        auto source = [&](std::string_view box) {
+            return std::string(r.get(r.find(std::format("main/workshop/scripts/{}/{}", box.substr(box.find('.') + 1), box)), "text").as_string());
+        };
         check(bo::Workshop::tuned(source("script.wide")) == 110.0, source("script.wide"));
         check(edit("script.wide", bo::Workshop::retune(source("script.wide"), 220)));
-        check(g.h.click("main/workshop/tools.wide/apply.wide"));
+        check(g.h.click("main/workshop/scripts/wide/tools.wide/apply.wide"));
         auto wait = [&](int i) {
             for (int k = 0; k < 600 && (status(i).empty() || status(i).starts_with("reloading")); ++k) g.h.step();
             return status(i);
@@ -455,22 +460,34 @@ int main(int argc, char** argv) {
         // Lua, from a preset: slow motion at 25 % (the same 4 seconds saved: 4 / 0.75 = 5.33 s).
         check(g.act("workshop"));
         g.h.step();
-        check(g.h.click("main/workshop/tools.slow/preset.slow.a"));
+        check(g.h.click("main/workshop/scripts/slow/tools.slow/preset.slow.a"));
         const std::string slow = wait(2);
         check(slow.starts_with("reloaded in ") && std::stod(slow.substr(std::min<std::size_t>(12, slow.size()))) < 200, slow);
         check(g.act("workshop"));
         g.h.step();
         g.h.step();
         check(g.state().rules.slow_percent == 25 && g.state().rules.slow_steps == 640, std::format("slow {} % for {} steps", g.state().rules.slow_percent, g.state().rules.slow_steps));
+        // Python (PocketPy, embedded), from a preset: four extra balls.
+        check(g.act("workshop"));
+        g.h.step();
+        check(g.h.click("main/workshop/scripts/multi/tools.multi/preset.multi.b"));
+        const std::string multi = wait(3);
+        check(multi.starts_with("reloaded in ") && std::stod(multi.substr(std::min<std::size_t>(12, multi.size()))) < 200, multi);
+        g.h.step();
+        check(g.h.save_png(scratch_dir("breakout-level6") / "workshop.png").has_value());
+        check(g.act("workshop"));
+        g.h.step();
+        g.h.step();
+        check_eq(g.state().rules.multi_balls, std::int32_t{4});
         // Out of bounds, and a syntax error: the rules kept, the reason said.
         check(g.act("workshop"));
         g.h.step();
         check(edit("script.pierce", bo::Workshop::retune(source("script.pierce"), 40)));
-        check(g.h.click("main/workshop/tools.pierce/apply.pierce"));
+        check(g.h.click("main/workshop/scripts/pierce/tools.pierce/apply.pierce"));
         const std::string far = wait(1);
         check(far.starts_with("kept the rules") && far.find("outside") != std::string::npos, far);
         check(edit("script.slow", "omui.verb(\"gift.slow\", {effect = \"read\"}, function() return { slow_percent = } end)"));
-        check(g.h.click("main/workshop/tools.slow/apply.slow"));
+        check(g.h.click("main/workshop/scripts/slow/tools.slow/apply.slow"));
         const std::string broken = wait(2);
         check(broken.starts_with("kept the rules"), broken);
         check(g.act("workshop"));

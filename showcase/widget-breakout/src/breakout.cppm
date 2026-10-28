@@ -12,6 +12,7 @@ export import :sound;
 export import :wide_ts;
 export import :pierce_ts;
 export import :slow_lua;
+export import :multi_py;
 export import :workshop;
 export import :field;
 export import :copilot;

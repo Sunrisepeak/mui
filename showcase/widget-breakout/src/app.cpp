@@ -86,42 +86,49 @@ struct Bench {
 
 // The workshop: over the field's right side, while open.
 Element workshop_view(const std::shared_ptr<Bench>& b) {
-    std::vector<Element> parts;
-    parts.push_back(text({.text = "工坊 · Workshop", .style = "title"}));
-    parts.push_back(text({.text = "The gifts are scripts. Edit the value marked ← tune, Apply: the script reloads and its rules hold from the next step.",
-                          .style = "caption"}));
-    const std::array<std::array<std::string_view, 3>, 3> files{{{"wide.ts", "ts", "wide"}, {"pierce.ts", "ts", "pierce"}, {"slow.lua", "lua", "slow"}}};
+    std::vector<Element> cards;
+    const std::array<std::array<std::string_view, 3>, 4> files{{{"wide.ts", "ts", "wide"}, {"pierce.ts", "ts", "pierce"}, {"slow.lua", "lua", "slow"}, {"multi.py", "py", "multi"}}};
     for (std::size_t i = 0; i < files.size(); ++i) {
         const auto [file, language, gift] = files[i];
-        parts.push_back(text({.text = std::format("{} · {}", file, language_name(language)), .style = "label"}));
-        parts.push_back(text_box({.id = std::format("script.{}", gift), .label = std::string(file), .multiline = true, .text = b->text[i],
-                                  .on_changed = [b, i](std::string v) { b->text[i].set(std::move(v)); }, .height = Dim(150.0f)}));
         auto preset = [b, i](double value) {
             return [b, i, value] {
                 b->text[i].set(Workshop::retune(b->text[i].peek(), value));
                 b->apply(i);
             };
         };
-        const std::array<double, 2> presets = gift == "wide" ? std::array<double, 2>{80, 260} : gift == "pierce" ? std::array<double, 2>{2, 12} : std::array<double, 2>{25, 80};
-        parts.push_back(row({.id = std::format("tools.{}", gift), .gap = 8.0f},
-                            {button({.id = std::format("apply.{}", gift), .text = "Apply", .variant = ButtonVariant::primary, .on_activated = [b, i] { b->apply(i); }}),
-                             button({.id = std::format("undo.{}", gift), .text = "As shipped", .variant = ButtonVariant::ghost,
-                                     .on_activated = [b, i] {
-                                         if (!b->workshop) return;
-                                         b->text[i].set(b->workshop->scripts()[i].shipped);
-                                         b->apply(i);
-                                     }}),
-                             button({.id = std::format("preset.{}.a", gift), .text = std::format("← tune = {}", presets[0]), .variant = ButtonVariant::ghost, .on_activated = preset(presets[0])}),
-                             button({.id = std::format("preset.{}.b", gift), .text = std::format("← tune = {}", presets[1]), .variant = ButtonVariant::ghost, .on_activated = preset(presets[1])})}));
-        parts.push_back(text({.id = std::format("status.{}", gift), .text = b->status[i], .style = "caption"}));
+        const std::array<double, 2> presets = gift == "wide"     ? std::array<double, 2>{80, 260}
+                                              : gift == "pierce" ? std::array<double, 2>{2, 12}
+                                              : gift == "multi"  ? std::array<double, 2>{1, 4}
+                                                                 : std::array<double, 2>{25, 80};
+        // A script: its language, its text in a real text box, Apply, as shipped, two presets of its tuned value, and what came of the last.
+        cards.push_back(column(
+            {.id = std::string(gift), .gap = 6.0f},
+            {text({.text = std::format("{} · {}", file, language_name(language)), .style = "label"}),
+             text_box({.id = std::format("script.{}", gift), .label = std::string(file), .multiline = true, .text = b->text[i],
+                       .on_changed = [b, i](std::string v) { b->text[i].set(std::move(v)); }, .height = Dim(150.0f)}),
+             row({.id = std::format("tools.{}", gift), .gap = 6.0f},
+                 {button({.id = std::format("apply.{}", gift), .text = "Apply", .variant = ButtonVariant::primary, .on_activated = [b, i] { b->apply(i); }}),
+                  button({.id = std::format("undo.{}", gift), .text = "As shipped", .variant = ButtonVariant::ghost,
+                          .on_activated = [b, i] {
+                              if (!b->workshop) return;
+                              b->text[i].set(b->workshop->scripts()[i].shipped);
+                              b->apply(i);
+                          }}),
+                  button({.id = std::format("preset.{}.a", gift), .text = std::format("= {}", presets[0]), .variant = ButtonVariant::ghost, .on_activated = preset(presets[0])}),
+                  button({.id = std::format("preset.{}.b", gift), .text = std::format("= {}", presets[1]), .variant = ButtonVariant::ghost, .on_activated = preset(presets[1])})}),
+             text({.id = std::format("status.{}", gift), .text = b->status[i], .style = "caption"})}));
     }
-    parts.push_back(button({.id = "workshop.close", .text = "Play on (E)", .on_activated = [b] {
-                                Invocation call;
-                                (void)b->runtime->act(b->field, "workshop", call);
-                            }}));
-    return column({.id = "workshop", .width = Dim(560.0f), .height = Dim(layout::pct(100)), .padding = 18, .gap = 8.0f, .align_self = "end",
+    return column({.id = "workshop", .width = Dim(940.0f), .height = Dim(layout::pct(100)), .padding = 18, .gap = 10.0f, .align_self = "center",
                    .background = Color::hex(0x0b0e17, 0.94f), .visible = b->open},
-                  std::move(parts));
+                  {text({.text = "工坊 · Workshop", .style = "title"}),
+                   text({.text = "The gifts are scripts in three languages. Edit the value marked ← tune and Apply: the script reloads and its rules hold from the "
+                                 "next step.",
+                         .style = "caption"}),
+                   grid({.id = "scripts", .gap = 14.0f}, "1fr 1fr", std::move(cards)),
+                   button({.id = "workshop.close", .text = "Play on (E)", .on_activated = [b] {
+                               Invocation call;
+                               (void)b->runtime->act(b->field, "workshop", call);
+                           }})});
 }
 
 }  // namespace
@@ -135,7 +142,7 @@ AppSpec app() {
     a.size = {1280, 720};
     a.theme = Theme::dark_theme();
     auto b = std::make_shared<Bench>();
-    for (int i = 0; i < 3; ++i) b->text.push_back(signal(std::string())), b->status.push_back(signal(std::string()));
+    for (int i = 0; i < 4; ++i) b->text.push_back(signal(std::string())), b->status.push_back(signal(std::string()));
     a.setup = [b](Runtime& rt) {
         b->runtime = &rt;
         register_components();

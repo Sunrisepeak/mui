@@ -37,6 +37,7 @@ openmui.abi = { path = "../../modules/ui/abi" }
 "openmui.lang" = { path = "../../lang" }
 "openmui.lang.js" = { path = "../../lang/js" }
 "openmui.lang.lua" = { path = "../../lang/lua" }
+"openmui.lang.python.embedded" = { path = "../../lang/python/embedded" }
 "openmui.audio.device" = { path = "../../modules/media/audio/device" }
 
 [build-dependencies]

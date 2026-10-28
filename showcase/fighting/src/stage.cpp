@@ -174,7 +174,7 @@ void Stage::paint(PaintContext& ctx) const {
         auto dummy = [&](std::size_t i) {
             return dummies_[i].recording() ? hud::Dummy::recording : dummies_[i].playing() ? hud::Dummy::playing : hud::Dummy::none;
         };
-        hud::readings(frame, readout_, words_, ctx.services.fonts(), {dummy(0), dummy(1)});
+        hud::readings(frame, readout_, words_, ctx.services.fonts(), {dummy(0), dummy(1)}, match_->state().frame);
     }
 
     // Into the node's box: scaled to fit, centred, letterboxed.
@@ -231,6 +231,17 @@ void Stage::semantics(SemanticsContext&, spec::SemanticNode& node) const {
         if (dummies_[i].recording() || dummies_[i].playing())
             training.set(i == 0 ? "dummy1" : "dummy2", dummies_[i].recording() ? "recording" : "playing");
     training.set("saved", saved_.has_value());
+    // System 0.3's exchanges: the latest, and each player's counts.
+    if (const auto& x = readout_.exchange(); x.frame >= 0) {
+        const char* kind = x.kind == gongfu::Event::Kind::clash ? (x.by < 0 ? "perfect clash" : "clash")
+                         : x.kind == gongfu::Event::Kind::deflect ? "deflect"
+                                                                 : "guard break";
+        training.set("exchange", Value{}.set("kind", kind).set("by", x.by).set("frame", x.frame));
+    }
+    for (std::int32_t i = 0; i < 2; ++i) {
+        const auto& t = readout_.tally(i);
+        training.set(i == 0 ? "tally1" : "tally2", Value{}.set("clashes", t.clashes).set("won", t.clashes_won).set("perfect", t.perfect).set("deflects", t.deflects).set("breaks", t.breaks));
+    }
     v.set("training", std::move(training));
     node.value = std::move(v);
 }

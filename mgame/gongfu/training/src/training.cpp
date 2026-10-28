@@ -91,6 +91,20 @@ void Readout::record(const Match& match, Pad left, Pad right) noexcept {
         if (ph == Phase::active && side.move >= 0 && !side.startup) side.startup = s.move_frame;
     }
     for (const Event& e : match.events()) {
+        if (e.kind == Event::Kind::clash) {
+            exchange_ = {e.kind, e.attacker, st.frame};
+            for (auto& t : tally_) ++t.clashes;
+            if (e.attacker >= 0) ++tally_[static_cast<std::size_t>(e.attacker)].clashes_won;
+            else
+                for (auto& t : tally_) ++t.perfect;
+        } else if (e.kind == Event::Kind::deflect) {
+            const std::int32_t by = 1 - e.attacker;
+            exchange_ = {e.kind, by, st.frame};
+            ++tally_[static_cast<std::size_t>(by)].deflects;
+        } else if (e.kind == Event::Kind::guard_break) {
+            exchange_ = {e.kind, e.attacker, st.frame};
+            ++tally_[static_cast<std::size_t>(e.attacker)].breaks;
+        }
         const bool strike = e.kind == Event::Kind::hit || e.kind == Event::Kind::counter;
         if (strike || e.kind == Event::Kind::throw_) {
             if (!combo_.going || combo_.attacker != e.attacker) combo_ = {e.attacker, 0, 0, true};

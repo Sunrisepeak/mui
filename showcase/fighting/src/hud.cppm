@@ -39,6 +39,6 @@ private:
 enum class Dummy : std::uint8_t { none, recording, playing };
 
 void readings(render::DisplayList& out, const gongfu::training::Readout& readout, Words& words, typeset::FontCollection& fonts,
-              std::array<Dummy, 2> dummies);
+              std::array<Dummy, 2> dummies, std::int32_t frame);
 
 }  // namespace omui::fighting::hud

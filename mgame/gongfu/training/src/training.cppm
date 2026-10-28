@@ -43,6 +43,17 @@ public:
         bool         going = false;   // the defender is still in it
     };
 
+    // The latest clash, deflect or guard break (system 0.3): what, by whom
+    // (a clash's winner, −1 when even; who deflected; who broke a guard), when.
+    struct Exchange {
+        Event::Kind  kind = Event::Kind::time_over;  // time_over: none yet
+        std::int32_t by = -1;
+        std::int32_t frame = -1;
+    };
+    struct Tally {
+        std::int32_t clashes = 0, clashes_won = 0, perfect = 0, deflects = 0, breaks = 0;  // breaks: guards this fighter broke
+    };
+
     void record(const Match& match, Pad left, Pad right) noexcept;
     void clear() noexcept;
 
@@ -59,6 +70,8 @@ public:
     [[nodiscard]] const Combo& combo() const noexcept { return combo_; }
     // The startup of the last move each fighter began, as played: its first active frame.
     [[nodiscard]] std::optional<std::int32_t> startup(std::int32_t fighter) const noexcept;
+    [[nodiscard]] const Exchange& exchange() const noexcept { return exchange_; }
+    [[nodiscard]] const Tally& tally(std::int32_t fighter) const noexcept { return tally_[static_cast<std::size_t>(fighter)]; }
 
 private:
     struct Side {
@@ -76,6 +89,8 @@ private:
     std::int32_t                 waited_ = 0;             // frames since it
     std::array<std::int32_t, 2>  free_at_{-1, -1};        // the frame (counted from the contact) each recovered
     Combo                        combo_;
+    Exchange                     exchange_;
+    std::array<Tally, 2>         tally_{};
     std::array<bool, 2>          frozen_next_{};          // each fighter's next frame stands still (its hitstop, a flash)
 };
 

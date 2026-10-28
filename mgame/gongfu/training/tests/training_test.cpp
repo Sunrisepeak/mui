@@ -184,5 +184,33 @@ int main(int argc, char** argv) {
         check(!empty.playing(), "nothing recorded: nothing to play");
     });
 
+    s.test("the readout keeps the latest clash, deflect and guard break, and counts them", [] {
+        // Two 5HPs at once, out of each other's bodies' reach: a perfect clash.
+        Match m = close(180_fx);
+        tr::Readout r;
+        for (int f = 0; f < 30; ++f) {
+            const Pad p = f == 0 ? pad(5, HP) : pad(5);
+            m.tick(p, p);
+            r.record(m, p, p);
+        }
+        check(r.exchange().kind == Event::Kind::clash && r.exchange().by == -1, "a perfect clash, nobody's");
+        check(r.tally(0).clashes == 1 && r.tally(0).perfect == 1 && r.tally(1).perfect == 1);
+        // A fresh back tap just before a 5HP: a deflect, by player 2.
+        SystemDef with = rules();
+        with.deflect_window = 3;
+        Match d(with, drill(), drill());
+        State st = d.state();
+        st.f[0].pos.x = 900_fx;
+        st.f[1].pos.x = 1020_fx;
+        d.restore(st);
+        tr::Readout rd;
+        for (int f = 0; f < 30; ++f) {
+            const Pad a = f == 0 ? pad(5, HP) : pad(5), b = f >= 5 ? pad(6) : pad(5);
+            d.tick(a, b);
+            rd.record(d, a, b);
+        }
+        check(rd.exchange().kind == Event::Kind::deflect && rd.exchange().by == 1 && rd.tally(1).deflects == 1, "deflected by player 2");
+    });
+
     return s.run(argc, argv);
 }

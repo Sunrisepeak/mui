@@ -442,6 +442,80 @@ int main(int argc, char** argv) {
         check_eq(all.hex(), std::string("b692d67c3650f078"));  // GCC and LLVM, every platform
     });
 
+    s.test("training reads a perfect clash to an agent and shows it", [] {
+        Game g("training");
+        check(g.act("pause"));
+        check(g.act("press", pad(0, "6")));
+        for (int i = 0; i < 120 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 170; ++i) check(g.act("step"));
+        check(g.act("press", pad(0, "5HP")));
+        check(g.act("press", pad(1, "5HP")));
+        check(g.act("step"));
+        check(g.act("press", pad(0, "5")));
+        check(g.act("press", pad(1, "5")));
+        for (int i = 0; i < 20; ++i) check(g.act("step"));
+        Value seen = g.seen();
+        const Value* x = seen.get("training") ? seen.get("training")->get("exchange") : nullptr;
+        check(x && x->get("kind")->as_string() == "perfect clash", x ? std::string(x->get("kind")->as_string()) : std::string("none"));
+        check(seen.get("p1")->get("health")->as_int() == 10000 && seen.get("p2")->get("health")->as_int() == 10000, "nothing changed");
+        g.h.step();
+        check(g.h.save_png(scratch_dir("fighting-clash") / "perfect-clash.png").has_value());
+    });
+
+    s.test("balance checks (P-8): a guard that only guards is broken within a minute; no attacker keeps a cornered opponent stunned for 5 seconds", [] {
+        using gongfu::operator""_fx;
+        const auto& r = fighting::roster();
+        gongfu::SystemDef sys = r.system;
+        sys.round_frames = 1 << 20;
+        // Guard only: each fighter presses (a medium, a heavy, walking in) on each other, who holds back.
+        for (std::size_t a = 1; a < r.fighters.size(); ++a)
+            for (std::size_t d = 1; d < r.fighters.size(); ++d) {
+                gongfu::Match m(sys, r.fighters[a], r.fighters[d]);
+                int broken_at = -1;
+                for (int f = 0; f < 3600 && broken_at < 0; ++f) {
+                    const int c = f % 36;
+                    const gongfu::Pad press = c == 0 ? gongfu::pad(5, gongfu::bit(gongfu::Button::mp)) : c == 12 ? gongfu::pad(5, gongfu::bit(gongfu::Button::hp)) : gongfu::pad(6);
+                    m.tick(press, gongfu::pad(6));  // the right one faces left: 6 is its guard
+                    for (const gongfu::Event& e : m.events())
+                        if (e.kind == gongfu::Event::Kind::guard_break) broken_at = f;
+                }
+                check(broken_at >= 0, std::format("{} guarding {} for a minute: broken at frame {}", r.names[d], r.names[a], broken_at));
+            }
+        // Loops: random strings from every move a fighter has, in the corner against a defender who does nothing.
+        struct Rng {
+            std::uint64_t s;
+            std::uint32_t next() {
+                s ^= s << 13, s ^= s >> 7, s ^= s << 17;
+                return static_cast<std::uint32_t>(s >> 11);
+            }
+        };
+        for (std::size_t a = 0; a < r.fighters.size(); ++a) {
+            int longest = 0;
+            Rng rng{0x5eed + a};
+            for (int run = 0; run < 120; ++run) {
+                gongfu::Match m(sys, r.fighters[a], r.fighters[a]);
+                gongfu::State st = m.state();
+                st.f[1].pos.x = sys.stage_width - 40_fx;
+                st.f[0].pos.x = sys.stage_width - 120_fx;
+                st.f[0].meter = st.f[1].meter = 3000;
+                m.restore(st);
+                int stunned = 0;
+                for (int f = 0; f < 900; ++f) {
+                    const std::uint32_t v = rng.next();
+                    const int dirs[] = {5, 5, 6, 2, 3, 8};
+                    const std::uint16_t button = v % 3 == 0 ? static_cast<std::uint16_t>(1u << ((v >> 4) % 6)) : 0;
+                    m.tick(gongfu::pad(dirs[(v >> 8) % 6], button), gongfu::pad(5));
+                    const auto mode = m.state().f[1].mode;
+                    const bool held = mode == gongfu::Mode::hitstun || mode == gongfu::Mode::broken || mode == gongfu::Mode::cinematic || mode == gongfu::Mode::thrown;
+                    stunned = held ? stunned + 1 : 0;
+                    longest = std::max(longest, stunned);
+                    if (m.state().over) break;
+                }
+            }
+            check(longest < 300, std::format("{}: the longest the opponent stayed stunned was {} frames", r.names[a], longest));
+            std::println("    {} longest stun {} frames", r.names[a], longest);
+        }
+    });
+
     s.test("frames pinned: versus and training (boxes and the meter) at a jab's active frame", [] {
         std::vector<std::uint64_t> px;
         const auto dir = scratch_dir("fighting");

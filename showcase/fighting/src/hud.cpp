@@ -187,7 +187,8 @@ const typeset::Paragraph& Words::get(typeset::FontCollection& fonts, std::string
     return it->second;
 }
 
-void readings(render::DisplayList& out, const tr::Readout& readout, Words& words, typeset::FontCollection& fonts, std::array<Dummy, 2> dummies) {
+void readings(render::DisplayList& out, const tr::Readout& readout, Words& words, typeset::FontCollection& fonts, std::array<Dummy, 2> dummies,
+              std::int32_t frame) {
     // Under the timer: player 1's startup, the advantage, the combo.
     const float top = 60, label = 10, size = 18;
     const Color muted = ink.with_alpha(0.6f);
@@ -210,6 +211,17 @@ void readings(render::DisplayList& out, const tr::Readout& readout, Words& words
         const float end = number(out, width / 2 + 92, y, size, c.hits, false, c.going ? tone(0xf2c14e) : ink);
         (void)end;
         number(out, width / 2 + 160, y + 4, size * 0.7f, c.damage, false, muted);
+    }
+    // The latest clash, deflect or guard break, for a second and a half: what, and whose.
+    if (const auto& x = readout.exchange(); x.frame >= 0 && frame - x.frame < 90) {
+        const char* what = x.kind == gongfu::Event::Kind::clash ? (x.by < 0 ? "PERFECT CLASH" : "CLASH")
+                         : x.kind == gongfu::Event::Kind::deflect ? "DEFLECT"
+                                                                 : "GUARD BREAK";
+        const std::string text = x.by < 0 ? std::string(what) : std::format("{}  P{}", what, x.by + 1);
+        const float fade_out = 1 - static_cast<float>(std::max(0, frame - x.frame - 60)) / 30;
+        const std::uint32_t c = x.kind == gongfu::Event::Kind::guard_break ? 0xf24e5a : x.kind == gongfu::Event::Kind::deflect ? 0x7ad7ff : 0xf2c14e;
+        const auto& p = words.get(fonts, text, 14, tone(c, fade_out));
+        p.paint(out, {width / 2 - p.size().width / 2, height - 66});
     }
     // A dummy recording or playing: a mark under its side's bar.
     for (std::size_t i = 0; i < 2; ++i) {

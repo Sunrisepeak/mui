@@ -64,6 +64,7 @@ struct FighterState {
     std::int32_t super_scale = 0;    // the scaling its super locked at its first hit (percent; 0: none yet)
     std::int32_t clash_cancel = 0;   // 1 while a perfect clash's recovery may be cancelled into a special
     std::int32_t armored = 0;        // hits its move's armour has taken
+    std::int32_t stalled = 0;        // a stall's extra hitstun taken in this combo (G-22)
     InputLog     log;
 };
 
@@ -80,6 +81,8 @@ struct ProjectileState {
     std::int32_t stop = 0;     // frames it stands still after a hit
     std::int32_t wait = 0;     // frames before it can hit again
     std::int32_t reflected = 0;
+    std::int32_t turned = 0;   // coming back to its owner (G-19)
+    std::int32_t struck = 0;   // a coming-back one's hits: going 1, coming back 2
 };
 
 // A set piece standing (G-15): whose, where, how much more it takes, how
@@ -98,6 +101,29 @@ struct PieceState {
     std::int32_t shards = 0;
     std::int32_t touched = 0;
     std::int32_t placed = 0;   // the frame
+};
+
+// Each side's last 128 frames (G-20, G-21), by frame (frame & 127): its pad
+// (directions, and buttons held << 16) and where it stood at the frame's
+// start; and its mark.
+struct Spot {
+    Vec          pos;
+    std::int32_t facing = 1;
+};
+struct History {
+    static constexpr std::int32_t frames = 128;
+    std::array<std::uint32_t, frames> pads{};
+    std::array<Spot, frames>          where{};
+    std::int32_t                      marked = 0;
+    Spot                              mark{};
+};
+
+// A clone (G-21): a body of its own that plays its side's pads of 120 frames
+// before, frame by frame, by the side's moves; `left` frames to go.
+struct Clone {
+    FighterState body{};
+    std::int32_t alive = 0;
+    std::int32_t left = 0;
 };
 
 // A level-3 super's cinematic under way: who, which move, its frame, and
@@ -121,6 +147,8 @@ struct State {
     std::array<FighterState, 2>              f{};
     std::array<ProjectileState, projectiles> p{};
     std::array<PieceState, piece_slots>      pieces{};
+    std::array<History, 2>                   history{};
+    std::array<Clone, 2>                     clones{};  // each side's
     Lock                                     lock{};
 };
 

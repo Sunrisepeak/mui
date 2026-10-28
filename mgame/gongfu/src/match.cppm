@@ -26,7 +26,8 @@ struct Event {
     // it), `reflect` (attacker: the piece's owner), `shatter` (its owner).
     enum class Kind : std::uint8_t {
         hit, counter, block, throw_, tech, projectile_clash, ko, time_over, clash, deflect, guard_break, cinematic, armor,
-        piece, piece_hit, reflect, shatter
+        piece, piece_hit, reflect, shatter,
+        mark, rewind, clone, vanish  // time (G-20, G-21): a mark left, a rewind (at: where from), a clone out, a clone gone
     };
     Kind          kind = Kind::hit;
     std::int32_t  attacker = 0;   // 0 or 1 (a clash: its winner, or −1 when even; a deflect: the one who struck)
@@ -64,7 +65,8 @@ public:
 
     // Fighter i's hurtboxes this frame, on the stage: its move's own on frames
     // that say so, else the standing, crouching or air box. Answers how many.
-    // (What strikes are tested against; training draws the same.)
+    // (What strikes are tested against; training draws the same.) 2 and 3
+    // are the two sides' clones (G-21).
     [[nodiscard]] std::size_t hurtboxes(std::int32_t i, std::array<Rect, 4>& out) const noexcept;
 
 private:
@@ -74,7 +76,16 @@ private:
         std::int32_t slot;  // the projectile's
         Vec          at;    // the middle of where the box met the body
         std::int32_t from;  // whose move it is (a reflected projectile's thrower)
+        std::int32_t body;  // the body that struck: the attacker, or its clone (2 + side)
     };
+    // Bodies: 0 and 1 the fighters, 2 and 3 their clones (G-21); a body's side.
+    [[nodiscard]] FighterState& body(std::int32_t b) noexcept {
+        return b < 2 ? state_.f[static_cast<std::size_t>(b)] : state_.clones[static_cast<std::size_t>(b - 2)].body;
+    }
+    [[nodiscard]] const FighterState& body(std::int32_t b) const noexcept {
+        return b < 2 ? state_.f[static_cast<std::size_t>(b)] : state_.clones[static_cast<std::size_t>(b - 2)].body;
+    }
+    [[nodiscard]] static constexpr std::int32_t side(std::int32_t b) noexcept { return b & 1; }
     void decide(std::int32_t i);
     // While standing still (a hitstop, a super's flash): a move asked for is
     // kept, to start on the first frame it moves again.
@@ -96,6 +107,8 @@ private:
     // into its shards (toward the other fighter); against strikes and
     // projectiles, then their life.
     void act(std::int32_t i, const PieceDef& pd);
+    void act(std::int32_t i, const TimeDef& td);  // a mark, a rewind, a clone (G-20, G-21)
+    void vanish(std::int32_t side_of);           // a side's clone gone
     void place_piece(std::int32_t i, Fixed x, const PieceDef& pd);
     void shatter(std::size_t q, std::int32_t shard, std::int32_t shards);
     void pieces();

@@ -16,15 +16,17 @@ constexpr std::array<std::string_view, 10> fighter_keys{"gongfu", "name", "healt
 constexpr std::array<std::string_view, 2> walk_keys{"forward", "back"};
 constexpr std::array<std::string_view, 5> jump_keys{"prejump", "up", "forward", "gravity", "landing"};
 constexpr std::array<std::string_view, 3> hurt_keys{"standing", "crouching", "air"};
-constexpr std::array<std::string_view, 25> move_keys{"name", "input", "stance", "total", "priority", "hit", "cancel", "invulnerable",
+constexpr std::array<std::string_view, 26> move_keys{"name", "input", "stance", "total", "priority", "hit", "cancel", "invulnerable",
                                                      "hurt", "step", "throw", "projectile", "meter", "freeze", "level", "weight", "posture", "clash",
-                                                     "clash_cancel", "cinematic", "pass", "armor", "piece", "needs_piece", "doc"};
+                                                     "clash_cancel", "cinematic", "pass", "armor", "piece", "needs_piece", "time", "doc"};
+constexpr std::array<std::string_view, 5> time_keys{"act", "frame", "back", "recovery", "frames"};
+constexpr std::array<std::string_view, 3> time_acts{"mark", "rewind", "clone"};
 constexpr std::array<std::string_view, 10> piece_keys{"act", "frame", "at", "at_opponent", "life", "durability", "limit", "reflects", "shard", "shards"};
 constexpr std::array<std::string_view, 3> piece_acts{"place", "shatter", "warp"};
 constexpr std::array<std::string_view, 2> armor_keys{"frames", "hits"};
 constexpr std::array<std::string_view, 6> cinematic_keys{"frames", "hits", "attacker", "defender", "down", "recovery"};
-constexpr std::array<std::string_view, 15> hit_keys{"active", "boxes", "damage", "chip", "hitstun", "blockstun", "hitstop", "pushback",
-                                                    "level", "knockdown", "launch", "impact", "down", "juggle", "juggle_cost"};
+constexpr std::array<std::string_view, 16> hit_keys{"active", "boxes", "damage", "chip", "hitstun", "blockstun", "hitstop", "pushback",
+                                                    "level", "knockdown", "launch", "impact", "down", "juggle", "juggle_cost", "stall"};
 constexpr std::array<std::string_view, 2> hitstop_keys{"attacker", "defender"};
 constexpr std::array<std::string_view, 2> invulnerable_keys{"frames", "to"};
 constexpr std::array<std::string_view, 4> invulnerable_kinds{"strike", "air", "projectile", "throw"};
@@ -32,8 +34,8 @@ constexpr std::array<std::string_view, 2> move_hurt_keys{"frames", "boxes"};
 constexpr std::array<std::string_view, 3> cancel_keys{"frames", "into", "on_contact"};
 constexpr std::array<std::string_view, 2> step_keys{"frame", "velocity"};
 constexpr std::array<std::string_view, 6> throw_keys{"active", "range", "damage", "tech", "swap", "air"};
-constexpr std::array<std::string_view, 11> projectile_keys{"spawn", "offset", "speed", "velocity", "life", "hit", "hits", "interval", "strength", "limit",
-                                                          "reflectable"};
+constexpr std::array<std::string_view, 12> projectile_keys{"spawn", "offset", "speed", "velocity", "life", "hit", "hits", "interval", "strength", "limit",
+                                                          "reflectable", "turn"};
 constexpr std::array<std::string_view, 2> meter_keys{"cost", "gain"};
 constexpr std::array<std::string_view, 3> input_keys{"notation", "window", "buffer"};
 constexpr std::array<std::string_view, 15> system_keys{"gongfu", "scaling", "counter", "round", "stage", "meter", "knockdown", "wakeup",
@@ -231,6 +233,7 @@ struct Reader {
             else error(t.get("level"), std::format("`{}` is not a level", *l), "mid, low or overhead");
         }
         if (auto v = boolean(t.get("knockdown"), "`knockdown`")) h.knockdown = *v;
+        if (auto v = integer(t.get("stall"), "`stall` (extra hitstun, once a combo)", 0, 120)) h.stall = *v;
         if (auto v = vec(t.get("launch"), "`launch`")) h.launch = *v;
         if (const toml::node* n = t.get("impact")) {
             if (auto name = n->value<std::string>(); name && !name->empty()) {
@@ -414,6 +417,7 @@ struct Reader {
             if (auto v = integer(pt->get("strength"), "a projectile's `strength`", 1, 100)) pd.strength = *v;
             if (auto v = integer(pt->get("limit"), "a projectile's `limit`", 0, 8)) pd.limit = *v;
             if (auto v = boolean(pt->get("reflectable"), "a projectile's `reflectable`")) pd.reflectable = *v;
+            if (auto v = integer(pt->get("turn"), "a projectile's `turn` (the frame it comes back)", 1, 3600)) pd.turn = *v;
             if (const toml::table* h = table(pt->get("hit"), "a projectile's `hit`")) pd.hit = hit(*h, at + ".projectile.hit");
             else if (!pt->get("hit")) error(pt, "a projectile has no `hit`", "[move.projectile.hit] active = [1, 120] …");
             m.projectile = std::move(pd);
@@ -470,6 +474,22 @@ struct Reader {
             m.pieces.push_back(std::move(pd));
         });
         if (auto v = boolean(t.get("needs_piece"), "`needs_piece`")) m.needs_piece = *v;
+        // Time (G-20, G-21): [[move.time]] act = "mark" | "rewind" | "clone", on a frame.
+        each_table(t.get("time"), "time", "[[move.time]] act = \"mark\", frame = 6", [&](const toml::table& tt, std::size_t i) {
+            only(tt, time_keys, "a time");
+            mark(std::format("{}.time[{}]", at, i), &tt);
+            TimeDef td;
+            if (auto a = text(tt.get("act"), "a time's `act`")) {
+                const auto k = std::ranges::find(time_acts, *a);
+                if (k == time_acts.end()) error(tt.get("act"), std::format("`{}` is not what a move does with time", *a), nearest(*a, time_acts));
+                else td.act = static_cast<TimeAct>(k - time_acts.begin());
+            }
+            if (auto v = integer(tt.get("frame"), "a time's `frame`", 1, 600)) td.frame = *v;
+            if (auto v = integer(tt.get("back"), "a rewind's `back` (frames)", 1, 120)) td.back = *v;
+            if (auto v = integer(tt.get("recovery"), "a rewind's `recovery`", 0, 120)) td.recovery = *v;
+            if (auto v = integer(tt.get("frames"), "a clone's `frames`", 1, 120)) td.frames = *v;
+            m.time.push_back(td);
+        });
         // A level 3's cinematic: [move.cinematic] frames, hits = [[frame, damage, "impact"], …], where each ends, down, recovery.
         if (const toml::table* ct = table(t.get("cinematic"), "`cinematic`")) {
             only(*ct, cinematic_keys, "a cinematic");

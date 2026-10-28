@@ -315,6 +315,79 @@ shard = "shrad"
               unknown ? "read" : std::format("{}", texts(unknown.error())));
     });
 
+    s.test("time in a file (G-19..G-22): a hand that comes back, a stall, a mark, a rewind, a clone; a time that is none", [] {
+        const std::string head = R"(gongfu = "0.1"
+name = "Clock"
+jump = { prejump = 4, up = 20, forward = 5, gravity = 1, landing = 3 }
+push = [-30, 0, 60, 160]
+hurt = { standing = [-35, 0, 70, 180], crouching = [-35, 0, 70, 110], air = [-30, 40, 60, 130] }
+)";
+        const std::string text = head + R"(
+[[move]]
+name = "236P"
+input = "236P"
+total = 34
+[move.projectile]
+spawn = 10
+speed = 7
+life = 120
+turn = 40
+[move.projectile.hit]
+active = [1, 120]
+boxes = [[-25, -10, 50, 20]]
+damage = 350
+hitstun = 18
+blockstun = 14
+
+[[move]]
+name = "214K"
+input = "214K"
+total = 30
+[[move.hit]]
+active = [9, 10]
+boxes = [[10, 70, 90, 60]]
+damage = 500
+hitstun = 20
+blockstun = 14
+stall = 20
+
+[[move]]
+name = "22P"
+input = "22P"
+total = 20
+[[move.time]]
+act = "mark"
+frame = 6
+
+[[move.time]]
+act = "rewind"
+frame = 12
+back = 60
+recovery = 8
+
+[[move]]
+name = "214214P"
+input = "214214P"
+total = 30
+[[move.time]]
+act = "clone"
+frame = 1
+frames = 120
+)";
+        auto f = data::read_fighter(text, "clock.fighter.gongfu.toml");
+        check(f.has_value(), f ? "" : std::format("{}", texts(f.error())));
+        if (!f) return;
+        check(f->def.moves[static_cast<std::size_t>(f->find("236P"))].projectile->turn == 40, "the hand comes back on frame 40");
+        check(f->def.moves[static_cast<std::size_t>(f->find("214K"))].hits[0].stall == 20, "a stall of 20");
+        const auto& marks = f->def.moves[static_cast<std::size_t>(f->find("22P"))].time;
+        check(marks.size() == 2 && marks[0].act == TimeAct::mark && marks[1].act == TimeAct::rewind && marks[1].back == 60 && marks[1].recovery == 8);
+        check(f->def.moves[static_cast<std::size_t>(f->find("214214P"))].time[0].act == TimeAct::clone);
+        auto bad = data::read_fighter(head + "\n[[move]]\nname = \"22P\"\ninput = \"22P\"\ntotal = 20\n[[move.time]]\nact = \"rewnid\"\nframe = 6\n",
+                                      "bad.fighter.gongfu.toml");
+        check(!bad && std::ranges::any_of(texts(bad.error()), [](const std::string& e) { return e.find("`rewnid` is not what a move does with time (did you mean `rewind`?)") != std::string::npos; }),
+              bad ? "read" : std::format("{}", texts(bad.error())));
+    });
+
     s.test("problems at their line and column: the format's, with the nearest key, and the compiler's", [] {
         const std::string text = R"(gongfu = "0.1"
 name = "Broken"

@@ -108,6 +108,11 @@ std::expected<Fighter, std::vector<Problem>> compile(FighterDef def) {
             c.frames(m.armor->frames, m.total, at + ".armor.frames");
             c.need(m.armor->hits >= 1, at + ".armor.hits", "armour takes at least one hit");
         }
+        for (std::size_t k = 0; k < m.time.size(); ++k)
+            c.need(m.time[k].frame >= 1 && m.time[k].frame <= m.total && m.time[k].back >= 1 && m.time[k].back <= 120 && m.time[k].frames >= 1 &&
+                       m.time[k].frames <= 120 && m.time[k].recovery >= 0,
+                   std::format("{}.time[{}]", at, k), std::format("on a frame of the move's {}; back and frames 1–120", m.total));
+        if (m.projectile) c.need(m.projectile->turn >= 0, at + ".projectile.turn", "0 (it does not come back) or the frame it turns");
         for (std::size_t k = 0; k < m.pieces.size(); ++k) {
             const PieceDef& pd = m.pieces[k];
             const std::string where = std::format("{}.pieces[{}]", at, k);

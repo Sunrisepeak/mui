@@ -178,6 +178,27 @@ FighterDef body() {
     glints.pieces.push_back({.act = PieceAct::shatter, .frame = 10, .at = {60_fx}, .at_opponent = true, .shard = "glint", .shards = 3});
     f.moves.push_back(glints);
 
+    // 刻's: a hand that comes back, a stall, a mark, a rewind to it, a clone (G-19..G-22).
+    MoveDef hand{.name = "214P", .command = {.motion = quarter_back, .buttons = punches}, .total = 36, .priority = 10};
+    hand.projectile = ProjectileDef{.spawn = 10, .offset = {50_fx, 110_fx}, .velocity = {7_fx, 0_fx}, .life = 200, .limit = 1, .turn = 40};
+    hand.projectile->hit = strike({1, 200}, {-25_fx, -10_fx, 50_fx, 20_fx}, 350, 18, 6);
+    f.moves.push_back(hand);
+    MoveDef pendulum{.name = "6MK", .command = {.direction = 6, .buttons = MK}, .total = 26, .priority = 2};
+    pendulum.hits.push_back(strike({9, 10}, {10_fx, 70_fx, 100_fx, 60_fx}, 500, 20));
+    pendulum.hits[0].stall = 20;
+    f.moves.push_back(pendulum);
+    MoveDef engrave{.name = "4MK", .command = {.direction = 4, .buttons = MK}, .total = 20, .priority = 2};
+    engrave.time.push_back({.act = TimeAct::mark, .frame = 6});
+    f.moves.push_back(engrave);
+    MoveDef rewind{.name = "63214K", .command = {.motion = half_back, .buttons = kicks}, .total = 12, .priority = 25, .meter_cost = 1000, .freeze = 30,
+                   .level = 1};
+    rewind.time.push_back({.act = TimeAct::rewind, .frame = 1});
+    f.moves.push_back(rewind);
+    MoveDef echo{.name = "41236K", .command = {.motion = motion({4, 1, 2, 3, 6}, 20), .buttons = kicks}, .total = 30, .priority = 25,
+                 .meter_cost = 2000, .freeze = 40, .level = 2};
+    echo.time.push_back({.act = TimeAct::clone, .frame = 1});
+    f.moves.push_back(echo);
+
     // Throws: forward and back.
     MoveDef grab{.name = "throw", .command = {.buttons = static_cast<std::uint16_t>(LP | LK), .together = true}, .total = 30, .priority = 20};
     grab.throw_ = ThrowDef{.active = {5, 6}, .range = {0_fx, 0_fx, 80_fx, 150_fx}, .damage = 1200};
@@ -812,6 +833,125 @@ int main(int argc, char** argv) {
         check(std::ranges::all_of(full.state().p, [](const ProjectileState& p) { return p.from == 1; }), "the pool as it was");
     });
 
+    s.test("G-19 a hand that comes back: it hits going, turns on its frame, comes back to her wherever she has gone, hits again, and is caught", [] {
+        Match m = apart(300_fx);
+        play(m, std::array{pad(2), pad(1), pad(4, LP)});
+        int hits = 0;
+        bool turned = false, caught = false;
+        Fixed thrower;
+        for (int f = 0; f < 240 && !caught; ++f) {
+            m.tick(f < 50 ? pad(5) : pad(4), pad(5));  // she walks back as it comes: it follows her
+            hits += static_cast<int>(std::ranges::count_if(m.events(), [](const Event& e) { return e.kind == Event::Kind::hit && e.attacker == 0; }));
+            const bool flying = std::ranges::any_of(m.state().p, [](const ProjectileState& p) { return p.alive != 0; });
+            turned = turned || std::ranges::any_of(m.state().p, [](const ProjectileState& p) { return p.alive && p.turned; });
+            if (turned && !flying) caught = true, thrower = m.state().f[0].pos.x;
+        }
+        check(hits == 2 && turned && caught, std::format("hits {}, turned {}, caught {}", hits, turned, caught));
+    });
+
+    s.test("G-20 a mark, and a rewind to it (used up); with none, to where she stood 60 frames ago; on the ground, then 8 frames of landing", [] {
+        Match m = apart(500_fx);
+        State st = m.state();
+        st.f[0].meter = 3000;
+        m.restore(st);
+        const Fixed start = m.state().f[0].pos.x;
+        play(m, std::array{pad(4, MK)});
+        for (int f = 0; f < 25; ++f) m.tick(pad(5), pad(5));
+        check(m.state().history[0].marked == 1 && m.state().history[0].mark.pos.x == start, "marked where she stood");
+        for (int f = 0; f < 40; ++f) m.tick(pad(6), pad(5));
+        check(m.state().f[0].pos.x > start + 100_fx, "walked away from it");
+        std::map<std::int32_t, Fixed> after;  // where she was after each frame
+        auto rewind = [&] {
+            const std::array call{pad(6), pad(3), pad(2), pad(1), pad(4, LK)};
+            for (const Pad p : call) {
+                m.tick(p, pad(5));
+                after[m.state().frame] = m.state().f[0].pos.x;
+            }
+            std::int32_t at = -1;
+            for (int f = 0; f < 60 && at < 0; ++f) {
+                m.tick(pad(5), pad(5));
+                if (has(m, Event::Kind::rewind)) at = m.state().frame;
+                after[m.state().frame] = m.state().f[0].pos.x;
+            }
+            return at;
+        };
+        const std::int32_t first = rewind();
+        check(first > 0 && after[first] == start && m.state().history[0].marked == 0, std::format("back at the mark: {}", after[first].to_double()));
+        check(m.state().f[0].mode == Mode::landing || m.state().f[0].mode == Mode::idle, "landing after");
+        // No mark: where she stood at the start of the frame 60 before.
+        for (int f = 0; f < 90; ++f) {
+            m.tick(pad(6), pad(5));
+            after[m.state().frame] = m.state().f[0].pos.x;
+        }
+        const std::int32_t second = rewind();
+        check(second > 0 && after[second] == after[second - 61], std::format("{} then, {} now", after[second - 61].to_double(), after[second].to_double()));
+        int landing = 0;
+        while (m.state().f[0].mode == Mode::landing) m.tick(pad(5), pad(5)), ++landing;
+        check_eq(landing, 8);
+    });
+
+    s.test("G-21 a clone plays her last 120 frames again from where she stood: its jab lands; touched by the other side it is gone; so when she is hit; and after its frames", [] {
+        // She jabs, walks back, then calls the clone (its flash counts as time too): it starts
+        // where she stood 120 frames before and does it all again — the jab lands.
+        auto setup = [](Match& m) {
+            State st = m.state();
+            st.f[0].meter = 3000;
+            st.f[1].meter = 0;
+            m.restore(st);
+            for (int f = 0; f < 9; ++f) m.tick(pad(5), pad(5));
+            m.tick(pad(5, LP), pad(5));
+            for (int f = 0; f < 30; ++f) m.tick(pad(4), pad(5));
+            const std::array call{pad(4), pad(1), pad(2), pad(3), pad(6, LK)};
+            play(m, call);
+            while (m.state().freeze > 0 || !m.state().clones[0].alive) m.tick(pad(5), pad(5));
+        };
+        Match m = apart(80_fx);
+        const Fixed began = m.state().f[0].pos.x;
+        setup(m);
+        check(m.state().clones[0].alive && abs(m.state().clones[0].body.pos.x - began) < 10_fx,
+              std::format("out where she stood: {} (she began at {})", m.state().clones[0].body.pos.x.to_double(), began.to_double()));
+        int clone_hits = 0, frames = 0;
+        while (m.state().clones[0].alive && frames < 200) {
+            m.tick(pad(5), pad(5));
+            ++frames;
+            clone_hits += static_cast<int>(std::ranges::count_if(m.events(), [](const Event& e) { return e.kind == Event::Kind::hit && e.attacker == 0; }));
+        }
+        check(clone_hits == 1, std::format("its jab landed: {}", clone_hits));
+        check(frames > 100 && frames <= 120, std::format("gone after its frames: {}", frames));
+        // Touched by the other fighter's jab: gone.
+        Match t = apart(80_fx);
+        setup(t);
+        for (int f = 0; f < 40; ++f) t.tick(pad(5), f == 20 ? pad(5, LP) : pad(5));
+        check(!t.state().clones[0].alive, "struck, gone");
+        // She is hit: gone.
+        Match h = apart(80_fx);
+        setup(h);
+        State st = h.state();
+        st.f[1].pos.x = st.f[0].pos.x + 70_fx;  // the other walks up to her
+        h.restore(st);
+        for (int f = 0; f < 10; ++f) h.tick(pad(5), f == 0 ? pad(5, LP) : pad(5));
+        check(!h.state().clones[0].alive, "she was hit: gone");
+    });
+
+    s.test("G-22 a stall: twenty more frames of hitstun the first time in a combo, not the second", [] {
+        Match m = apart(90_fx);
+        const std::uint16_t hitstun = rule().def.moves[static_cast<std::size_t>(rule().find("6MK"))].hits[0].hitstun;
+        std::vector<std::int32_t> stuns;
+        m.tick(pad(6, MK), pad(5));
+        for (int f = 0; f < 80 && stuns.size() < 2; ++f) {
+            const bool again = f == 34;  // the first recovered (its hitstop too), the other still in its stall
+            m.tick(again ? pad(6, MK) : pad(5), pad(5));
+            if (std::ranges::any_of(m.events(), [](const Event& e) { return e.kind == Event::Kind::hit || e.kind == Event::Kind::counter; })) {
+                stuns.push_back(m.state().f[1].stun);
+                State st = m.state();
+                st.f[1].push = Fixed{};  // kept in reach: the rule, not the spacing, is tested
+                m.restore(st);
+            }
+        }
+        check(stuns.size() == 2 && stuns[0] == hitstun + 20 && stuns[1] == hitstun && m.state().f[1].combo == 2,
+              std::format("stuns {}", stuns));
+    });
+
     s.test("P-1 posture: a block costs the move's posture; full, a guard break; its first follow-up resets it, steadies and scales from 80%", [] {
         FighterDef small = body();
         small.posture_max = 300;
@@ -1107,7 +1247,7 @@ int main(int argc, char** argv) {
         }
     });
 
-    s.test("all of it rolled back: 5,000 frames of motions, dashes, supers, juggles, throws, clashes, deflects, guard breaks, a cinematic and panes, every rollback the bytes of a straight run; the hash pinned", [] {
+    s.test("all of it rolled back: 5,000 frames of motions, dashes, supers, juggles, throws, clashes, deflects, guard breaks, a cinematic, panes and time, every rollback the bytes of a straight run; the hash pinned", [] {
         // Inputs a player could give this fighter: held directions, presses, and now and then a whole motion.
         struct Rng {
             std::uint64_t s;
@@ -1141,6 +1281,10 @@ int main(int argc, char** argv) {
                     case 9: for (Pad p : {pad(2), pad(1), pad(4, LK)}) out.push_back(p); break;  // shattered
                     case 10: for (Pad p : {pad(2), pad(5), pad(2, LK)}) out.push_back(p); break;  // a step to it
                     case 11: for (Pad p : {pad(2), pad(5), pad(2, LP)}) out.push_back(p); break;  // the gallery
+                    case 12: for (Pad p : {pad(2), pad(1), pad(4, LP)}) out.push_back(p); break;  // a hand that comes back (G-19)
+                    case 13: out.push_back(pad(6, MK)); break;                                     // a stall (G-22)
+                    case 14: out.push_back(pad(4, MK)); break;                                     // a mark (G-20)
+                    case 15: for (Pad p : {pad(6), pad(3), pad(2), pad(1), pad(4, LK)}) out.push_back(p); break;  // back to it
                     default: {
                         constexpr std::array<int, 10> press{5, 6, 6, 6, 3, 3, 1, 9, 6, 2};  // mostly forward: they meet
                         constexpr std::array<int, 10> guard{4, 4, 4, 1, 1, 4, 6, 5, 1, 4};
@@ -1163,13 +1307,30 @@ int main(int argc, char** argv) {
         // First, scripted: a pressure string into a held guard until it breaks;
         // two 5HPs meeting; 5HPs met by timed back taps; a launcher and its
         // follow-ups into an air reset. Then the random rest.
-        for (int g = 0; g < 2000; ++g) {
+        for (int g = 0; g < 2400; ++g) {
             Pad pa = pad(6), pb = pad(5);
             // The level 3 first, while they stand close; then the rest; last,
             // the right one's gallery, and a glyph thrown into it.
             if (g < 200) {
                 a[static_cast<std::size_t>(g)] = g < 6 ? std::array{pad(2), pad(3), pad(6), pad(2), pad(3), pad(6, LK)}[static_cast<std::size_t>(g)] : pad(5);
                 b[static_cast<std::size_t>(g)] = pad(5);
+                continue;
+            }
+            if (g >= 2200) {  // the left one marks where it stands, walks off, rewinds to it; then a stall, and another in the combo
+                const int k = g - 2200;
+                b[static_cast<std::size_t>(g)] = pad(5);
+                a[static_cast<std::size_t>(g)] = k == 0                ? pad(4, MK)
+                                               : k >= 25 && k < 85    ? pad(6)
+                                               : k >= 90 && k < 95    ? std::array{pad(6), pad(3), pad(2), pad(1), pad(4, LK)}[static_cast<std::size_t>(k - 90)]
+                                               : k >= 140 && k < 150  ? pad(6)
+                                               : k == 150 || k == 184 ? pad(6, MK)
+                                                                      : pad(5);
+                continue;
+            }
+            if (g >= 2000) {  // the right one's clone (facing left: its 41236 is 63214 on the screen), the left one pressing
+                const int k = g - 2000;
+                b[static_cast<std::size_t>(g)] = k < 5 ? std::array{pad(6), pad(3), pad(2), pad(1), pad(4, LK)}[static_cast<std::size_t>(k)] : pad(5);
+                a[static_cast<std::size_t>(g)] = k % 24 == 12 ? pad(5, LP) : pad(6);
                 continue;
             }
             if (g >= 1800) {
@@ -1189,6 +1350,8 @@ int main(int argc, char** argv) {
         }
         FighterDef tough = body();
         tough.health = 1 << 24;
+        for (MoveDef& m : tough.moves)  // meter enough for supers, rewinds and clones as they come
+            if (m.level == 0) m.meter_gain = std::max(m.meter_gain, 250);
         tough.posture_max = 250;  // guards break often enough to be rolled back through
         const Fighter t = *compile(tough);
         Match straight(rules(), t, t);
@@ -1202,6 +1365,7 @@ int main(int argc, char** argv) {
         std::array<int, 4> events{};  // clashes, deflects, guard breaks, hits
         int blocks = 0, cinematics = 0;
         std::array<int, 4> panes{};  // placed, stopped or struck, turned back, shattered
+        std::array<int, 6> times{};  // marks, rewinds, clones, clones gone, hands coming back, stalls
         int most_posture = 0;
         for (int i = 0; i < frames; ++i) {
             straight.tick(a[static_cast<std::size_t>(i)], b[static_cast<std::size_t>(i)]);
@@ -1214,6 +1378,8 @@ int main(int argc, char** argv) {
                 seen[3] += f.mode == Mode::move && t.def.moves[static_cast<std::size_t>(f.move)].name == "236236P";
             }
             seen[4] += straight.state().freeze > 0;
+            times[4] += static_cast<int>(std::ranges::count_if(straight.state().p, [](const ProjectileState& p) { return p.alive && p.turned; }));
+            times[5] += straight.state().f[0].stalled + straight.state().f[1].stalled;
             seen[5] += static_cast<int>(std::ranges::count_if(straight.state().p, [](const ProjectileState& p) { return p.alive != 0; }));
             most_posture = std::max({most_posture, straight.state().f[0].posture, straight.state().f[1].posture});
             for (const Event& e : straight.events()) {
@@ -1227,6 +1393,10 @@ int main(int argc, char** argv) {
                 if (e.kind == Event::Kind::piece_hit) ++panes[1];
                 if (e.kind == Event::Kind::reflect) ++panes[2];
                 if (e.kind == Event::Kind::shatter) ++panes[3];
+                if (e.kind == Event::Kind::mark) ++times[0];
+                if (e.kind == Event::Kind::rewind) ++times[1];
+                if (e.kind == Event::Kind::clone) ++times[2];
+                if (e.kind == Event::Kind::vanish) ++times[3];
             }
         }
         Match rolled(rules(), t, t);
@@ -1253,8 +1423,10 @@ int main(int argc, char** argv) {
                      most_posture, seen[0]);
         std::println("    panes: placed {}, stopped or struck {}, turned back {}, shattered {}", panes[0], panes[1], panes[2], panes[3]);
         check(panes[0] > 0 && panes[1] > 0 && panes[2] > 0 && panes[3] > 0, "panes placed, struck, turning back, shattered");
+        std::println("    time: marks {}, rewinds {}, clones {} (gone {}), hands coming back {}, stalled {}", times[0], times[1], times[2], times[3], times[4], times[5]);
+        check(std::ranges::all_of(times, [](int n) { return n > 0; }), "marks, rewinds, a clone and its end, hands coming back, stalls");
         std::println("    rules run hash {:016x}", hashes.back());
-        check(hashes.back() == 0x3bca0667a5ed4cb8ULL, std::format("run hash {:016x}", hashes.back()));  // GCC, LLVM and wasm
+        check(hashes.back() == 0x0ea0dd0b34ab1704ULL, std::format("run hash {:016x}", hashes.back()));  // GCC, LLVM and wasm
     });
 
     return s.run(argc, argv);

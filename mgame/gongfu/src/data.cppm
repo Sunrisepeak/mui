@@ -53,6 +53,7 @@ struct HitDef {
     std::int32_t       down = 0;        // a knockdown's frames on the ground (0: the system's)
     std::int32_t       juggle = 0;      // a launch: the juggle points the defender is given
     std::int32_t       juggle_cost = 1; // on a juggled defender: the points this hit uses (too few left: an air reset)
+    std::int32_t       stall = 0;       // extra hitstun (G-22, 刻's 「停摆」), the first time in a combo only
 };
 
 // What invulnerability is to: a set of these bits.
@@ -110,6 +111,27 @@ struct ProjectileDef {
     // Whether a set piece may turn it back (G-15): left out, any but a
     // super's and one of strength 2 or more.
     std::optional<bool> reflectable;
+    // A projectile that comes back (G-19): on its `turn`-th frame (frames it
+    // stood still not counted) it heads for its owner, wherever the owner is
+    // now, and is gone within 40 of it; going and coming back it hits once
+    // each.
+    std::int32_t turn = 0;
+};
+
+// Time (刻, G-20 and G-21): what a move does on one of its frames. `mark`
+// leaves a mark where the fighter stands (a new one replaces it); `rewind`
+// takes the fighter back to the mark (used up), or without one to where it
+// stood `back` frames ago (or the earliest it has), standing on the ground,
+// then `recovery` frames of landing; `clone` brings out a clone that starts,
+// standing, where the fighter stood 120 frames ago and plays the fighter's
+// pads of the last 120 frames again, for `frames`.
+enum class TimeAct : std::uint8_t { mark, rewind, clone };
+struct TimeDef {
+    TimeAct      act = TimeAct::mark;
+    std::int32_t frame = 1;
+    std::int32_t back = 60;
+    std::int32_t recovery = 8;
+    std::int32_t frames = 120;
 };
 
 // Set pieces (G-15, 璃's panes): what a move does to its owner's pieces on
@@ -183,6 +205,7 @@ struct MoveDef {
     std::optional<Frames>        pass;       // frames it passes through the other fighter (no pushing apart)
     std::optional<ArmorDef>      armor;
     std::vector<PieceDef>        pieces;            // what it does to its owner's set pieces (G-15)
+    std::vector<TimeDef>         time;              // marks, rewinds, clones (G-20, G-21)
     bool                         needs_piece = false;  // only started with one of its owner's pieces standing
     bool                         asked = true;      // false: no input asks for it (a shard, started by a piece)
     std::int32_t                 meter_cost = 0;

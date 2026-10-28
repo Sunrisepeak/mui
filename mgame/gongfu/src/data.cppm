@@ -43,12 +43,34 @@ struct HitDef {
     std::int32_t       chip = 0;        // damage through a block
     std::int32_t       hitstun = 0;     // frames
     std::int32_t       blockstun = 0;   // frames
-    std::int32_t       hitstop = 0;     // frames both fighters freeze
+    std::int32_t       hitstop = 0;     // frames the defender stands still (and the attacker, unless hitstop_attacker says)
     Fixed              pushback;        // per frame of stun, against the defender
     Level              level = Level::mid;
     bool               knockdown = false;
     Vec                launch;          // an airborne defender's new velocity (forward, up)
     std::uint16_t      impact = 0;      // its impact profile: an index into FighterDef::impacts (D-85 §8.4)
+    std::int32_t       hitstop_attacker = -1;  // the attacker's own stop (−1: as `hitstop`); a projectile's owner never stops
+    std::int32_t       down = 0;        // a knockdown's frames on the ground (0: the system's)
+    std::int32_t       juggle = 0;      // a launch: the juggle points the defender is given
+    std::int32_t       juggle_cost = 1; // on a juggled defender: the points this hit uses (too few left: an air reset)
+};
+
+// What invulnerability is to: a set of these bits.
+inline constexpr std::uint8_t to_strike = 1, to_air = 2, to_projectile = 4, to_throw = 8, to_all = 15;
+
+// A move's frames something passes through: strikes from the ground, from
+// the air, projectiles, throws (all of them unless said).
+struct Invulnerable {
+    Frames       frames;
+    std::uint8_t to = to_all;
+};
+
+// A move's own hurtboxes on some of its frames (an arm stretched out can be
+// hit): in place of the standing or crouching box. gongfu.rules bakes them
+// from the animation.
+struct HurtDef {
+    Frames           frames;
+    std::vector<Box> boxes;
 };
 
 // A move can be cancelled into others on these frames — on hit or block, or always.
@@ -62,15 +84,20 @@ struct ThrowDef {
     Frames       active;
     Box          range;
     std::int32_t damage = 0;
-    std::int32_t tech_window = 7;  // frames the defender has to press throw back
+    std::int32_t tech_window = 7;  // frames the defender has to press throw back, from the frame it takes hold
+    bool         swap = false;     // a back throw: the two change places as it takes hold
 };
 
 struct ProjectileDef {
-    std::int32_t spawn = 0;  // the move's frame it appears on
-    Vec          offset;     // from the fighter, forward and up
-    Fixed        speed;      // forward, per frame
-    std::int32_t life = 120; // frames
-    HitDef       hit;        // its active frames count from its spawn
+    std::int32_t spawn = 0;     // the move's frame it appears on
+    Vec          offset;        // from the fighter, forward and up
+    Vec          velocity;      // forward and up, per frame (one coming down is gone where it meets the ground)
+    std::int32_t life = 120;    // frames
+    HitDef       hit;           // its active frames count from its spawn
+    std::int32_t hits = 1;      // how many times it hits before it is gone
+    std::int32_t interval = 0;  // frames after a hit before it can hit again
+    std::int32_t strength = 1;  // meeting another: the weaker is gone, the stronger goes on weakened by it; equal, both are gone
+    std::int32_t limit = 0;     // at most this many of its owner's limited projectiles at once (0: not limited); the move is not started past it
 };
 
 // A step of a move's own movement: from this frame on, this velocity
@@ -85,10 +112,11 @@ struct MoveDef {
     Command                      command;
     Stance                       stance = Stance::standing;
     std::int32_t                 total = 0;         // frames, startup to the last frame of recovery
-    std::int32_t                 priority = 0;      // the higher wins when two are asked for at once
+    std::int32_t                 priority = 0;      // the higher wins when two are asked for at once (equal: the more particular command)
     std::vector<HitDef>          hits;
     std::vector<CancelDef>       cancels;
-    std::vector<Frames>          invulnerable;      // strikes and projectiles pass through
+    std::vector<Invulnerable>    invulnerable;
+    std::vector<HurtDef>         hurt;              // its own hurtboxes on some frames
     std::vector<StepDef>         steps;
     std::optional<ThrowDef>      throw_;
     std::optional<ProjectileDef> projectile;

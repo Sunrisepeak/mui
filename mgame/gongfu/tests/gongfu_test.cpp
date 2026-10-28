@@ -58,7 +58,7 @@ FighterDef kata() {
     f.moves.push_back(heavy);
 
     MoveDef fireball{.name = "236P", .command = {.motion = quarter_forward, .buttons = punches}, .total = 40, .priority = 10};
-    fireball.projectile = ProjectileDef{.spawn = 8, .offset = {50_fx, 100_fx}, .speed = 8_fx, .life = 150};
+    fireball.projectile = ProjectileDef{.spawn = 8, .offset = {50_fx, 100_fx}, .velocity = {8_fx, 0_fx}, .life = 150};
     fireball.projectile->hit = {.active = {1, 150}, .boxes = {{-20_fx, -20_fx, 40_fx, 40_fx}}, .damage = 600, .chip = 60, .hitstun = 18,
                                 .blockstun = 14, .hitstop = 7, .pushback = 3_fx, .impact = 5};
     f.moves.push_back(fireball);
@@ -511,7 +511,7 @@ int main(int argc, char** argv) {
                      straight.state().f[1].health);
         check(straight.state().f[0].health < (1 << 24) && straight.state().f[1].health < (1 << 24), "both were hit");
         // Pinned: every platform and compiler plays these inputs into these bytes.
-        check(hashes.back() == 0x00b564a4105187dbULL, std::format("run hash {:016x}", hashes.back()));
+        check(hashes.back() == 0xe10f6a611b9c237cULL, std::format("run hash {:016x}", hashes.back()));
     });
 
     return s.run(argc, argv);

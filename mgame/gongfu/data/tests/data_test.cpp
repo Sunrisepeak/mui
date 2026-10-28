@@ -34,7 +34,7 @@ int main(int argc, char** argv) {
     Suite s{"gongfu.data"};
 
     s.test("numpad notation: read and written back", [] {
-        for (const char* n : {"LP", "2LK", "6HP", "236P", "623K", "63214HP", "[4]6P", "[2]8K", "[4:60]6HP", "LP+LK", "214MK", "K"}) {
+        for (const char* n : {"LP", "2LK", "6HP", "236P", "623K", "63214HP", "[4]6P", "[2]8K", "[4:60]6HP", "LP+LK", "214MK", "K", "66", "44", "4LP+LK", "236236P"}) {
             auto c = data::parse_command(n);
             check(c.has_value(), c ? std::string(n) : c.error());
             if (c) check_eq(data::notation(*c), std::string(n));
@@ -50,7 +50,112 @@ int main(int argc, char** argv) {
         check_eq(bad("[6]4P"), std::string("`[6]4P`: a charge is held back [4] or down [2]"));
         check_eq(bad("[4]8P"), std::string("`[4]8P`: a [4] charge is released 6"));
         check_eq(bad("5LP"), std::string("`5LP`: 5 is neutral: write the button alone"));
-        check_eq(bad("236"), std::string("`236`: no button"));
+        check_eq(bad("236"), std::string("`236`: no button (only a dash, 66 or 44, has none)"));
+        auto dash = *data::parse_command("66");
+        check(dash.buttons == 0 && dash.motion.length == 3 && dash.motion.steps[1] == 5, "66: forward, neutral, forward");
+    });
+
+    s.test("system 0.2 in a file: hitstop by side, invulnerability by kind, a move's hurtboxes, projectiles that fall and hit again, back throws", [] {
+        const std::string text = R"(gongfu = "0.1"
+name = "Brush"
+jump = { prejump = 4, up = 20, forward = 5, gravity = 1, landing = 3 }
+push = [-30, 0, 60, 160]
+hurt = { standing = [-35, 0, 70, 180], crouching = [-35, 0, 70, 110], air = [-30, 40, 60, 130] }
+
+[[move]]
+name = "66"
+input = "66"
+total = 18
+[[move.step]]
+frame = 1
+velocity = [8, 0]
+
+[[move]]
+name = "5HP"
+input = "HP"
+total = 30
+[[move.hurt]]
+frames = [6, 14]
+boxes = [[-35, 0, 70, 180], [35, 90, 70, 40]]
+[[move.hit]]
+active = [10, 12]
+boxes = [[20, 100, 90, 40]]
+damage = 900
+hitstun = 24
+blockstun = 18
+hitstop = { attacker = 9, defender = 13 }
+knockdown = true
+down = 24
+
+[[move]]
+name = "623P"
+input = "623P"
+total = 40
+invulnerable = [{ frames = [1, 7], to = ["air"] }, [1, 2]]
+[[move.hit]]
+active = [6, 9]
+boxes = [[0, 90, 70, 120]]
+damage = 1000
+hitstun = 30
+blockstun = 20
+launch = [1, 14]
+juggle = 2
+
+[[move]]
+name = "j.236P"
+input = "236P"
+stance = "air"
+total = 30
+[move.projectile]
+spawn = 12
+offset = [30, 0]
+velocity = [5, -5]
+hits = 2
+interval = 4
+strength = 2
+limit = 1
+[move.projectile.hit]
+active = [1, 120]
+boxes = [[-15, -15, 30, 30]]
+damage = 500
+hitstun = 16
+blockstun = 12
+
+[[move]]
+name = "4throw"
+input = "4LP+LK"
+total = 30
+[move.throw]
+active = [5, 6]
+range = [0, 0, 80, 150]
+damage = 1300
+swap = true
+)";
+        auto f = data::read_fighter(text, "brush.fighter.gongfu.toml");
+        check(f.has_value(), f ? "" : std::format("{}", texts(f.error())));
+        if (!f) return;
+        const auto& mv = f->def.moves;
+        check(mv[0].command.buttons == 0 && mv[0].command.motion.length == 3, "a dash");
+        const HitDef& hp = mv[1].hits[0];
+        check(hp.hitstop == 13 && hp.hitstop_attacker == 9 && hp.down == 24 && mv[1].hurt.size() == 1 && mv[1].hurt[0].boxes.size() == 2);
+        check(mv[2].invulnerable.size() == 2 && mv[2].invulnerable[0].to == to_air && mv[2].invulnerable[1].to == to_all && mv[2].hits[0].juggle == 2);
+        const ProjectileDef& p = *mv[3].projectile;
+        check(p.velocity == Vec{5_fx, -5_fx} && p.hits == 2 && p.interval == 4 && p.strength == 2 && p.limit == 1);
+        check(mv[4].throw_->swap && mv[4].command.direction == 4 && mv[4].command.together);
+        auto bad = data::read_fighter(R"(gongfu = "0.1"
+name = "Bad"
+jump = { prejump = 4, up = 20, forward = 5, gravity = 1, landing = 3 }
+push = [-30, 0, 60, 160]
+hurt = { standing = [-35, 0, 70, 180], crouching = [-35, 0, 70, 110], air = [-30, 40, 60, 130] }
+
+[[move]]
+name = "623P"
+input = "623P"
+total = 40
+invulnerable = [{ frames = [1, 7], to = ["airr"] }]
+)", "bad.fighter.gongfu.toml");
+        check(!bad.has_value() && contains(texts(bad.error()), "bad.fighter.gongfu.toml:11:42: `airr` is not what an invulnerability is to (did you mean `air`?)"),
+              bad ? "read" : std::format("{}", texts(bad.error())));
     });
 
     s.test("a fighter file plays: the jab cancelled into the fireball on hit, as the C++ definition does", [] {

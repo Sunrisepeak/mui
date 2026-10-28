@@ -26,6 +26,7 @@ enum class Mode : std::int32_t {
     wakeup,
     thrown,
     ko,
+    reset,      // an air reset: falling untouchable, landing free
 };
 
 struct FighterState {
@@ -45,7 +46,11 @@ struct FighterState {
     std::int32_t tech = 0;           // frames left to break the throw it is in
     std::int32_t thrower = 0;        // 1 when it is the fighter throwing (mode move) and the throw connected
     std::int32_t throw_damage = 0;   // what the throw it is in does when it is not broken
-    std::int32_t queued = -1;        // a cancel asked for during a hitstop: the move it starts when the hitstop ends
+    std::int32_t queued = -1;        // a move asked for while standing still (a hitstop, a super's flash): it starts when that ends
+    std::int32_t stop = 0;           // frames of hitstop left: it stands still
+    std::int32_t juggle = 0;         // juggle points left while launched
+    std::int32_t relaunched = 0;     // 1 once launched again in this juggle
+    std::int32_t protect = 0;        // it cannot be thrown while more than 0: 3 frames after waking up, 2 after hitstun or blockstun (counted down at each frame's start)
     InputLog     log;
 };
 
@@ -56,13 +61,16 @@ struct ProjectileState {
     std::int32_t frame = 0;    // frames since it spawned, from 1
     std::int32_t facing = 1;
     Vec          pos;
+    std::int32_t hits = 0;     // hits left
+    std::int32_t strength = 0;
+    std::int32_t stop = 0;     // frames it stands still after a hit
+    std::int32_t wait = 0;     // frames before it can hit again
 };
 
 struct State {
     static constexpr std::size_t projectiles = 8;
     std::int32_t                             frame = 0;    // frames played
     std::int32_t                             timer = 0;    // frames left in the round
-    std::int32_t                             hitstop = 0;  // frames both fighters stand frozen
     std::int32_t                             freeze = 0;   // frames of a super's flash
     std::int32_t                             over = 0;     // the round has ended
     std::int32_t                             winner = -1;  // 0, 1, or 2 for a draw

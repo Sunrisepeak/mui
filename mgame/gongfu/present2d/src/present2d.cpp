@@ -15,8 +15,8 @@ using omui::geom::Affine;
 using omui::geom::Rect;
 namespace render = omui::render;
 
-constexpr std::array<std::string_view, 14> mode_clips{"idle",    "walk_forward", "walk_back", "crouch", "prejump",   "air",    "landing",
-                                                      "move",    "hitstun",      "blockstun", "knockdown", "wakeup", "thrown", "ko"};
+constexpr std::array<std::string_view, 15> mode_clips{"idle",    "walk_forward", "walk_back", "crouch", "prejump", "air",    "landing", "move",
+                                                      "hitstun", "blockstun",    "knockdown", "wakeup", "thrown",  "ko",     "reset"};
 
 double stage(Fixed f) { return f.to_double(); }
 
@@ -120,6 +120,7 @@ Pose pose(const Look& look, const Fighter& fighter, const FighterState& s, std::
 
 void pose(const Look& look, const Fighter& fighter, const FighterState& s, std::int32_t frame, Pose& out) {
     auto it = look.clips.find(clip_name(fighter, s));
+    if (it == look.clips.end() && s.mode == Mode::reset) it = look.clips.find(std::string_view("air"));  // an air reset falls as a jump does
     if (it == look.clips.end()) it = look.clips.find(std::string_view("idle"));
     const Clip* clip = it == look.clips.end() ? nullptr : &it->second;
     // A move's clip at its frame; a stun's at the frames it has taken; the rest at the match's, looping.

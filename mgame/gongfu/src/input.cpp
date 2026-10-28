@@ -72,7 +72,15 @@ std::optional<std::int32_t> recognise(const InputLog& log, const Command& c) noe
     // The press: one of the buttons (or all, pressed within two frames of
     // each other and held together), at most `buffer` frames ago.
     std::optional<std::int32_t> press;
-    for (std::int32_t age = 0; age <= c.buffer && !press; ++age) {
+    // No button (a dash, 66): the press is the motion's last direction, newly
+    // entered, at most `buffer` frames ago.
+    if (c.buttons == 0) {
+        if (c.motion.length == 0) return std::nullopt;
+        const int last = c.motion.steps[static_cast<std::size_t>(c.motion.length - 1)];
+        for (std::int32_t age = 0; age <= c.buffer && !press; ++age)
+            if (log.direction(age) == last && log.direction(age + 1) != last) press = age;
+    }
+    for (std::int32_t age = 0; age <= c.buffer && !press && c.buttons != 0; ++age) {
         if (!(log.pressed(age) & c.buttons)) continue;
         if (c.together) {
             std::uint16_t seen = 0;

@@ -48,8 +48,8 @@ public:
 
     // The pads, newest last (a press is a new line; a held pad counts its frames).
     [[nodiscard]] std::span<const Input> inputs(std::int32_t fighter) const noexcept;
-    // The last frames' phases, oldest first; frames of hitstop and of a
-    // super's flash are not counted (they are not frames of the moves).
+    // The last frames' phases, oldest first; frames the fighter stood still
+    // (its hitstop, a super's flash) are not counted: they are not frames of its moves.
     [[nodiscard]] std::span<const Phase> meter(std::int32_t fighter) const noexcept;
     // The frames between the two sides' recovery after the last hit or block,
     // from the attacker's side (positive: it acts first); none until both recovered.
@@ -76,7 +76,7 @@ private:
     std::int32_t                 waited_ = 0;             // frames since it
     std::array<std::int32_t, 2>  free_at_{-1, -1};        // the frame (counted from the contact) each recovered
     Combo                        combo_;
-    bool                         frozen_next_ = false;    // the next frame stands still (hitstop, a flash)
+    std::array<bool, 2>          frozen_next_{};          // each fighter's next frame stands still (its hitstop, a flash)
 };
 
 // A player's pads, kept and played back looped: training's dummy.

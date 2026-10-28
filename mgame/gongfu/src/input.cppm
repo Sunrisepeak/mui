@@ -90,6 +90,8 @@ inline constexpr Motion quarter_forward = motion({2, 3, 6});   // 236
 inline constexpr Motion quarter_back = motion({2, 1, 4});      // 214
 inline constexpr Motion dragon = motion({6, 2, 3});            // 623
 inline constexpr Motion half_back = motion({6, 3, 2, 1, 4}, 20);  // 63214
+inline constexpr Motion dash_forward = motion({6, 5, 6}, 10);   // 66: tapped twice
+inline constexpr Motion dash_back = motion({4, 5, 4}, 10);      // 44
 
 // Back (1, 4 or 7) or down (1, 2, 3) held, then the other way.
 struct Charge {
@@ -102,7 +104,7 @@ struct Command {
     Motion        motion;          // none when its length is 0
     Charge        charge;          // none when `from` is 0
     std::uint8_t  direction = 0;   // held at the press: 0 any, 2 down (1, 2, 3), 6 forward, 4 back, 8 up
-    std::uint16_t buttons = 0;     // bit(Button): any of them, or all (`together`)
+    std::uint16_t buttons = 0;     // bit(Button): any of them, or all (`together`); none: the motion alone (a dash, 66)
     bool          together = false;
     std::uint8_t  buffer = 3;      // pressed within this many frames before now
 };

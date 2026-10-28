@@ -27,7 +27,8 @@ struct Checker {
         need(h.damage >= 0 && h.chip >= 0, where + ".damage", "damage is 0 or more");
         need(h.chip <= h.damage, where + ".chip", std::format("chip damage {} is more than the hit's {}", h.chip, h.damage));
         need(h.hitstun >= 1 && h.blockstun >= 1, where + ".hitstun", "hitstun and blockstun are at least 1 frame");
-        need(h.hitstop >= 0, where + ".hitstop", "hitstop is 0 or more frames");
+        need(h.hitstop >= 0 && h.hitstop_attacker >= -1, where + ".hitstop", "hitstop is 0 or more frames");
+        need(h.down >= 0 && h.juggle >= 0 && h.juggle_cost >= 0, where + ".juggle", "down, juggle and juggle_cost are 0 or more");
     }
 };
 
@@ -68,9 +69,17 @@ std::expected<Fighter, std::vector<Problem>> compile(FighterDef def) {
         c.need(!m.name.empty(), at, "a move has a name");
         for (std::size_t j = 0; j < i; ++j) c.need(def.moves[j].name != m.name, at, std::format("two moves are called `{}`", m.name));
         c.need(m.total >= 1, at + ".total", "a move lasts at least 1 frame");
-        c.need(m.command.buttons != 0, at + ".command", "a move is asked for with at least one button");
+        c.need(m.command.buttons != 0 || m.command.motion.length > 0, at + ".command", "a move is asked for with a button, or a motion alone (66)");
         for (std::size_t h = 0; h < m.hits.size(); ++h) c.hit(m.hits[h], m.total, std::format("{}.hits[{}]", at, h));
-        for (std::size_t k = 0; k < m.invulnerable.size(); ++k) c.frames(m.invulnerable[k], m.total, std::format("{}.invulnerable[{}]", at, k));
+        for (std::size_t k = 0; k < m.invulnerable.size(); ++k) {
+            c.frames(m.invulnerable[k].frames, m.total, std::format("{}.invulnerable[{}]", at, k));
+            c.need(m.invulnerable[k].to != 0 && m.invulnerable[k].to <= to_all, std::format("{}.invulnerable[{}].to", at, k), "invulnerable to something: strikes, air, projectiles, throws");
+        }
+        for (std::size_t k = 0; k < m.hurt.size(); ++k) {
+            c.frames(m.hurt[k].frames, m.total, std::format("{}.hurt[{}].frames", at, k));
+            c.need(!m.hurt[k].boxes.empty() && m.hurt[k].boxes.size() <= 4, std::format("{}.hurt[{}].boxes", at, k), "one to four hurtboxes");
+            for (std::size_t b = 0; b < m.hurt[k].boxes.size(); ++b) c.box(m.hurt[k].boxes[b], std::format("{}.hurt[{}].boxes[{}]", at, k, b));
+        }
         for (std::size_t s = 0; s < m.steps.size(); ++s) {
             c.need(m.steps[s].frame >= 1 && m.steps[s].frame <= m.total, std::format("{}.steps[{}]", at, s),
                    std::format("a step at frame {} of a move of {}", m.steps[s].frame, m.total));
@@ -85,6 +94,8 @@ std::expected<Fighter, std::vector<Problem>> compile(FighterDef def) {
             c.need(m.projectile->spawn >= 1 && m.projectile->spawn <= m.total, at + ".projectile.spawn",
                    std::format("spawned at frame {} of a move of {}", m.projectile->spawn, m.total));
             c.need(m.projectile->life >= 1, at + ".projectile.life", "a projectile lives at least 1 frame");
+            c.need(m.projectile->hits >= 1 && m.projectile->interval >= 0 && m.projectile->strength >= 1 && m.projectile->limit >= 0,
+                   at + ".projectile.hits", "a projectile hits at least once, with strength 1 or more; interval and limit 0 or more");
             c.hit(m.projectile->hit, m.projectile->life, at + ".projectile.hit");
         }
         c.need(m.meter_cost >= 0 && m.meter_gain >= 0 && m.freeze >= 0, at + ".meter", "meter and freeze are 0 or more");

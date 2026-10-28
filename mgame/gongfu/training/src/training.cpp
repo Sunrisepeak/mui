@@ -48,6 +48,7 @@ Phase phase(const Match& match, std::int32_t i) noexcept {
         case Mode::thrown: return Phase::thrown;
         case Mode::knockdown:
         case Mode::wakeup:
+        case Mode::reset:
         case Mode::ko: return Phase::down;
     }
     return Phase::free;
@@ -63,9 +64,10 @@ int direction(Pad p) noexcept {
 
 void Readout::record(const Match& match, Pad left, Pad right) noexcept {
     const State& st = match.state();
-    // A frame of hitstop or of a super's flash stood still: the meter skips it, as the frames of a move do.
-    const bool frozen = frozen_next_;
-    frozen_next_ = st.hitstop > 0 || st.freeze > 0;
+    // A frame a fighter stood still (its hitstop, a super's flash): its meter
+    // skips it, as the frames of its move do.
+    const std::array<bool, 2> frozen = frozen_next_;
+    for (std::size_t i = 0; i < 2; ++i) frozen_next_[i] = st.f[i].stop > 0 || st.freeze > 0;
     for (std::int32_t i = 0; i < 2; ++i) {
         Side& side = sides_[static_cast<std::size_t>(i)];
         const Pad p = i == 0 ? left : right;
@@ -76,7 +78,7 @@ void Readout::record(const Match& match, Pad left, Pad right) noexcept {
             push(side.inputs, side.input_count, Input{p, 1});
         }
         const Phase ph = phase(match, i);
-        if (!frozen) push(side.meter, side.meter_count, ph);
+        if (!frozen[static_cast<std::size_t>(i)]) push(side.meter, side.meter_count, ph);
         // A move begun: its startup is the first frame it is active.
         const FighterState& s = st.f[static_cast<std::size_t>(i)];
         if (s.mode == Mode::move && (s.move != side.move || s.move_frame == 1)) {

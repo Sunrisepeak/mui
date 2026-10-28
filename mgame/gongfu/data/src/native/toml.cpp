@@ -16,14 +16,18 @@ constexpr std::array<std::string_view, 9> fighter_keys{"gongfu", "name", "health
 constexpr std::array<std::string_view, 2> walk_keys{"forward", "back"};
 constexpr std::array<std::string_view, 5> jump_keys{"prejump", "up", "forward", "gravity", "landing"};
 constexpr std::array<std::string_view, 3> hurt_keys{"standing", "crouching", "air"};
-constexpr std::array<std::string_view, 14> move_keys{"name", "input", "stance", "total", "priority", "hit", "cancel", "invulnerable",
-                                                     "step", "throw", "projectile", "meter", "freeze", "doc"};
-constexpr std::array<std::string_view, 12> hit_keys{"active", "boxes", "damage", "chip", "hitstun", "blockstun",
-                                                    "hitstop", "pushback", "level", "knockdown", "launch", "impact"};
+constexpr std::array<std::string_view, 15> move_keys{"name", "input", "stance", "total", "priority", "hit", "cancel", "invulnerable",
+                                                     "hurt", "step", "throw", "projectile", "meter", "freeze", "doc"};
+constexpr std::array<std::string_view, 15> hit_keys{"active", "boxes", "damage", "chip", "hitstun", "blockstun", "hitstop", "pushback",
+                                                    "level", "knockdown", "launch", "impact", "down", "juggle", "juggle_cost"};
+constexpr std::array<std::string_view, 2> hitstop_keys{"attacker", "defender"};
+constexpr std::array<std::string_view, 2> invulnerable_keys{"frames", "to"};
+constexpr std::array<std::string_view, 4> invulnerable_kinds{"strike", "air", "projectile", "throw"};
+constexpr std::array<std::string_view, 2> move_hurt_keys{"frames", "boxes"};
 constexpr std::array<std::string_view, 3> cancel_keys{"frames", "into", "on_contact"};
 constexpr std::array<std::string_view, 2> step_keys{"frame", "velocity"};
-constexpr std::array<std::string_view, 4> throw_keys{"active", "range", "damage", "tech"};
-constexpr std::array<std::string_view, 5> projectile_keys{"spawn", "offset", "speed", "life", "hit"};
+constexpr std::array<std::string_view, 5> throw_keys{"active", "range", "damage", "tech", "swap"};
+constexpr std::array<std::string_view, 10> projectile_keys{"spawn", "offset", "speed", "velocity", "life", "hit", "hits", "interval", "strength", "limit"};
 constexpr std::array<std::string_view, 2> meter_keys{"cost", "gain"};
 constexpr std::array<std::string_view, 3> input_keys{"notation", "window", "buffer"};
 constexpr std::array<std::string_view, 11> system_keys{"gongfu", "scaling", "counter", "round", "stage", "meter", "knockdown", "wakeup",
@@ -196,8 +200,20 @@ struct Reader {
         if (auto v = integer(t.get("hitstun"), "`hitstun`", 0, 600)) h.hitstun = *v;
         mark(path + ".hitstun", t.get("hitstun"));
         if (auto v = integer(t.get("blockstun"), "`blockstun`", 0, 600)) h.blockstun = *v;
-        if (auto v = integer(t.get("hitstop"), "`hitstop`", 0, 120)) h.hitstop = *v;
+        // The same for both, or each its own: hitstop = { attacker = 4, defender = 10 }.
+        if (const toml::node* hs = t.get("hitstop")) {
+            if (const toml::table* ht = hs->as_table()) {
+                only(*ht, hitstop_keys, "a hitstop");
+                if (auto v = integer(ht->get("defender"), "the defender's `hitstop`", 0, 120)) h.hitstop = *v;
+                if (auto v = integer(ht->get("attacker"), "the attacker's `hitstop`", 0, 120)) h.hitstop_attacker = *v;
+            } else if (auto v = integer(hs, "`hitstop`", 0, 120)) {
+                h.hitstop = *v;
+            }
+        }
         mark(path + ".hitstop", t.get("hitstop"));
+        if (auto v = integer(t.get("down"), "`down` frames", 0, 600)) h.down = *v;
+        if (auto v = integer(t.get("juggle"), "`juggle` points", 0, 10)) h.juggle = *v;
+        if (auto v = integer(t.get("juggle_cost"), "`juggle_cost`", 0, 10)) h.juggle_cost = *v;
         if (auto v = number(t.get("pushback"), "`pushback`")) h.pushback = *v;
         if (auto l = text(t.get("level"), "`level`")) {
             if (*l == "mid") h.level = Level::mid;
@@ -297,16 +313,57 @@ struct Reader {
             if (auto v = boolean(c.get("on_contact"), "`on_contact`")) cd.on_contact = *v;
             m.cancels.push_back(std::move(cd));
         });
+        // Frame ranges invulnerable to everything, or tables saying to what.
         if (const toml::node* inv = t.get("invulnerable")) {
             if (const toml::array* a = inv->as_array()) {
                 for (std::size_t i = 0; i < a->size(); ++i) {
-                    mark(std::format("{}.invulnerable[{}]", at, i), &(*a)[i]);
-                    if (auto f = frames(&(*a)[i], "an invulnerable range")) m.invulnerable.push_back(*f);
+                    const toml::node* e = &(*a)[i];
+                    mark(std::format("{}.invulnerable[{}]", at, i), e);
+                    if (const toml::table* it = e->as_table()) {
+                        only(*it, invulnerable_keys, "an invulnerability");
+                        Invulnerable v{.to = 0};
+                        if (auto f = frames(it->get("frames"), "an invulnerability's `frames`")) v.frames = *f;
+                        if (const toml::node* to = it->get("to")) {
+                            if (const toml::array* kinds = to->as_array()) {
+                                for (const toml::node& k : *kinds)
+                                    if (auto name = text(&k, "what an invulnerability is to")) {
+                                        auto found = std::ranges::find(invulnerable_kinds, *name);
+                                        if (found == invulnerable_kinds.end()) error(&k, std::format("`{}` is not what an invulnerability is to", *name), nearest(*name, invulnerable_kinds));
+                                        else v.to |= static_cast<std::uint8_t>(1u << (found - invulnerable_kinds.begin()));
+                                    }
+                            } else {
+                                error(to, "`to` is a list", "to = [\"air\"] (strike, air, projectile, throw)");
+                            }
+                        } else {
+                            v.to = to_all;
+                        }
+                        m.invulnerable.push_back(v);
+                    } else if (auto f = frames(e, "an invulnerable range")) {
+                        m.invulnerable.push_back({*f, to_all});
+                    }
                 }
             } else {
-                error(inv, "`invulnerable` is a list of frame ranges", "invulnerable = [[1, 6]]");
+                error(inv, "`invulnerable` is a list of frame ranges", "invulnerable = [[1, 6]], or [{ frames = [1, 6], to = [\"air\"] }]");
             }
         }
+        each_table(t.get("hurt"), "hurt", "[[move.hurt]] frames = [6, 12], boxes = [[-35, 0, 70, 180], [35, 90, 70, 40]]",
+                   [&](const toml::table& h, std::size_t i) {
+                       only(h, move_hurt_keys, "a move's hurtboxes");
+                       mark(std::format("{}.hurt[{}]", at, i), &h);
+                       HurtDef hd;
+                       if (auto f = frames(h.get("frames"), "a move's hurtboxes' `frames`")) hd.frames = *f;
+                       mark(std::format("{}.hurt[{}].frames", at, i), h.get("frames"));
+                       if (const toml::node* b = h.get("boxes")) {
+                           if (const toml::array* a = b->as_array()) {
+                               for (std::size_t k = 0; k < a->size(); ++k)
+                                   if (auto bx = box(&(*a)[k], "a hurtbox")) hd.boxes.push_back(*bx);
+                           } else {
+                               error(b, "`boxes` is a list of boxes", "boxes = [[-35, 0, 70, 180]]");
+                           }
+                       }
+                       mark(std::format("{}.hurt[{}].boxes", at, i), h.get("boxes"));
+                       m.hurt.push_back(std::move(hd));
+                   });
         each_table(t.get("step"), "step", "[[move.step]] frame = 4, velocity = [2, 16]", [&](const toml::table& s, std::size_t i) {
             only(s, step_keys, "a step");
             mark(std::format("{}.steps[{}]", at, i), &s);
@@ -325,6 +382,7 @@ struct Reader {
             mark(at + ".throw.range", th->get("range"));
             if (auto v = integer(th->get("damage"), "a throw's `damage`")) td.damage = *v;
             if (auto v = integer(th->get("tech"), "a throw's `tech` window", 0, 30)) td.tech_window = *v;
+            if (auto v = boolean(th->get("swap"), "a throw's `swap`")) td.swap = *v;
             m.throw_ = td;
         }
         if (const toml::table* pt = table(t.get("projectile"), "`projectile`")) {
@@ -334,8 +392,15 @@ struct Reader {
             if (auto v = integer(pt->get("spawn"), "a projectile's `spawn` frame", 1, 600)) pd.spawn = *v;
             mark(at + ".projectile.spawn", pt->get("spawn"));
             if (auto v = vec(pt->get("offset"), "a projectile's `offset`")) pd.offset = *v;
-            if (auto v = number(pt->get("speed"), "a projectile's `speed`")) pd.speed = *v;
+            // Forward alone (speed = 8), or forward and up (velocity = [5, -5]).
+            if (pt->get("speed") && pt->get("velocity")) error(pt->get("velocity"), "a projectile has a `speed` or a `velocity`, not both");
+            if (auto v = number(pt->get("speed"), "a projectile's `speed`")) pd.velocity = {*v, Fixed{}};
+            if (auto v = vec(pt->get("velocity"), "a projectile's `velocity`")) pd.velocity = *v;
             if (auto v = integer(pt->get("life"), "a projectile's `life`", 1, 3600)) pd.life = *v;
+            if (auto v = integer(pt->get("hits"), "a projectile's `hits`", 1, 60)) pd.hits = *v;
+            if (auto v = integer(pt->get("interval"), "a projectile's `interval`", 0, 600)) pd.interval = *v;
+            if (auto v = integer(pt->get("strength"), "a projectile's `strength`", 1, 100)) pd.strength = *v;
+            if (auto v = integer(pt->get("limit"), "a projectile's `limit`", 0, 8)) pd.limit = *v;
             if (const toml::table* h = table(pt->get("hit"), "a projectile's `hit`")) pd.hit = hit(*h, at + ".projectile.hit");
             else if (!pt->get("hit")) error(pt, "a projectile has no `hit`", "[move.projectile.hit] active = [1, 120] …");
             m.projectile = std::move(pd);

@@ -38,7 +38,7 @@ FighterDef body() {
                           .pushback = 3_fx});
     f.moves.push_back(heavy);
     MoveDef fireball{.name = "236P", .command = {.motion = quarter_forward, .buttons = punches}, .total = 40, .priority = 10};
-    fireball.projectile = ProjectileDef{.spawn = 8, .offset = {50_fx, 100_fx}, .speed = 8_fx, .life = 150};
+    fireball.projectile = ProjectileDef{.spawn = 8, .offset = {50_fx, 100_fx}, .velocity = {8_fx, 0_fx}, .life = 150};
     fireball.projectile->hit = {.active = {1, 150}, .boxes = {{-20_fx, -20_fx, 40_fx, 40_fx}}, .damage = 600, .chip = 60, .hitstun = 18,
                                 .blockstun = 14, .hitstop = 7, .pushback = 3_fx};
     f.moves.push_back(fireball);

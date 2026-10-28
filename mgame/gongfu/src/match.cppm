@@ -64,7 +64,11 @@ private:
         Vec          at;    // the middle of where the box met the body
     };
     void decide(std::int32_t i);
+    // While standing still (a hitstop, a super's flash): a move asked for is
+    // kept, to start on the first frame it moves again.
     void queue(std::int32_t i);
+    // Whether fighter i may start move m now: its stance, its meter, its projectile limit.
+    [[nodiscard]] bool may_start(std::int32_t i, std::int32_t m) const noexcept;
     // The cancels open to fighter i now: the moves they allow.
     [[nodiscard]] std::size_t open_cancels(std::int32_t i, std::array<std::int32_t, 32>& out) const noexcept;
     void advance(std::int32_t i);
@@ -72,8 +76,11 @@ private:
     void face();
     void resolve();
     void apply(const Strike& s, bool blocked, bool counter);
-    [[nodiscard]] Rect hurt(std::int32_t i) const noexcept;
-    [[nodiscard]] bool invulnerable(std::int32_t i) const noexcept;
+    // Fighter i's hurtboxes this frame: its move's own on frames that say so,
+    // else the standing, crouching or air box. Answers how many.
+    [[nodiscard]] std::size_t hurt(std::int32_t i, std::array<Rect, 4>& out) const noexcept;
+    // Whether fighter i lets pass what `to` names (to_strike, to_air, to_projectile, to_throw).
+    [[nodiscard]] bool invulnerable(std::int32_t i, std::uint8_t to) const noexcept;
     [[nodiscard]] bool blocking(std::int32_t i, Level level) const noexcept;
     void start(std::int32_t i, std::int32_t move);
     [[nodiscard]] std::int32_t last_active(std::int32_t i) const noexcept;

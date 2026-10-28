@@ -72,9 +72,20 @@ std::expected<Command, std::string> parse_command(std::string_view s) {
         for (char d : digits) c.motion.steps[c.motion.length++] = static_cast<std::uint8_t>(d - '0');
         c.motion.window = static_cast<std::uint8_t>(default_window(digits.size()));
     }
-    // Buttons: one, or several together (+).
+    // Buttons: one, or several together (+); none for a dash (66, 44): a
+    // direction tapped twice, neutral between.
     const std::string_view rest = s.substr(i);
-    if (rest.empty()) return fail("no button");
+    if (rest.empty()) {
+        if (digits.size() == 2 && digits[0] == digits[1] && digits[0] != '5') {
+            c.motion = {};
+            c.motion.steps[0] = c.motion.steps[2] = static_cast<std::uint8_t>(digits[0] - '0');
+            c.motion.steps[1] = 5;
+            c.motion.length = 3;
+            c.motion.window = 10;
+            return c;
+        }
+        return fail("no button (only a dash, 66 or 44, has none)");
+    }
     std::size_t start = 0;
     int count = 0;
     while (start <= rest.size()) {
@@ -98,6 +109,9 @@ std::string notation(const Command& c) {
         if (c.charge.frames != Charge{}.frames) out += std::format(":{}", c.charge.frames);
         out += std::format("]{}", c.charge.from == 4 ? 6 : 8);
     }
+    // A dash: its direction twice.
+    if (c.buttons == 0 && c.motion.length == 3 && c.motion.steps[1] == 5 && c.motion.steps[0] == c.motion.steps[2])
+        return std::string(2, static_cast<char>('0' + c.motion.steps[0]));
     for (std::size_t k = 0; k < c.motion.length; ++k) out += static_cast<char>('0' + c.motion.steps[k]);
     if (c.direction != 0) out += static_cast<char>('0' + c.direction);
     std::string buttons;

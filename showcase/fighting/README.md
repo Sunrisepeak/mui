@@ -13,7 +13,11 @@ mcpp run -p openmui.showcase.fighting -- --headless --png fight.png
 | Player 1 | W A S D | U I O | J K L |
 | Player 2 | ← ↑ → ↓ | Insert Home PageUp | Delete End PageDown |
 
-- **Fighters are files.** `fighters/*.fighter.gongfu.toml` (the format of `gongfu.data`, the one a mod will use) is built into the program. A file that does not read appears in the stage's semantic value with the problem's line and column; the program doesn't crash.
+- **Fighters are files** built into the program, in the formats a mod will use:
+  - `fighters/<name>.fighter.gongfu.toml` is what the fighter does (`gongfu.data`);
+  - `fighters/<name>.look.gongfu.toml` is how it looks and how its hits feel (`gongfu.present2d`): palettes for the two sides, bones, parts, clips and impact profiles.
+
+  A file that does not read appears in the stage's semantic value with the problem's line and column; the program doesn't crash.
 - **The match runs on the runtime's clock.** A timer plays every frame that is due: a late frame catches up, and a stall of more than four frames is skipped, not replayed. Headless, a second is exactly 60 frames. Pausing is a property. While paused, `step` plays one frame.
 - **An agent plays through the stage's actions:**
   - `press` holds a pad written in numpad notation (`6`, `2LK`, `5LP+LK`) until the next press; `release` gives the keyboard back.

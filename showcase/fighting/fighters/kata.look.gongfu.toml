@@ -1,0 +1,379 @@
+# Kata, the training fighter: how it looks. Eleven bones, capsules and an
+# ellipse for a head, a clip for each thing it does, and how its hits feel.
+# Angles are degrees, counter-clockwise; lengths are pixels; keys are by frame.
+gongfu = "0.1"
+name = "kata"
+outline = { color = "#101014", width = 3 }
+
+[[palette]]
+name = "ink"
+body = "#1f2430"
+limb = "#3a4152"
+
+[[palette]]
+name = "paper"
+body = "#e8dcc4"
+limb = "#b7aa90"
+
+[[bone]]
+name = "hip"
+joint = [0, 92]
+length = 10
+rest = 90
+
+[[bone]]
+name = "torso"
+parent = "hip"
+joint = [10, 0]
+length = 56
+
+[[bone]]
+name = "head"
+parent = "torso"
+joint = [58, 0]
+length = 24
+
+[[bone]]
+name = "upper_back"
+parent = "torso"
+joint = [50, 7]
+length = 30
+rest = -143.2
+
+[[bone]]
+name = "fore_back"
+parent = "upper_back"
+joint = [30, 0]
+length = 28
+rest = 63
+
+[[bone]]
+name = "upper_front"
+parent = "torso"
+joint = [50, -7]
+length = 30
+rest = -131.8
+
+[[bone]]
+name = "fore_front"
+parent = "upper_front"
+joint = [30, 0]
+length = 28
+rest = 91.7
+
+[[bone]]
+name = "thigh_back"
+parent = "hip"
+joint = [0, 7]
+length = 46
+rest = 162.8
+
+[[bone]]
+name = "shin_back"
+parent = "thigh_back"
+joint = [46, 0]
+length = 48
+rest = -14.3
+
+[[bone]]
+name = "thigh_front"
+parent = "hip"
+joint = [0, -7]
+length = 46
+rest = 200.1
+
+[[bone]]
+name = "shin_front"
+parent = "thigh_front"
+joint = [46, 0]
+length = 48
+rest = 20.1
+
+[[part]]
+bone = "upper_back"
+shape = "capsule"
+size = [9, 7]
+color = "limb"
+
+[[part]]
+bone = "fore_back"
+shape = "capsule"
+size = [7, 6]
+color = "limb"
+
+[[part]]
+bone = "thigh_back"
+shape = "capsule"
+size = [11, 9]
+color = "limb"
+
+[[part]]
+bone = "shin_back"
+shape = "capsule"
+size = [9, 7]
+color = "limb"
+
+[[part]]
+bone = "torso"
+shape = "capsule"
+size = [18, 15]
+color = "body"
+depth = 1
+
+[[part]]
+bone = "hip"
+shape = "capsule"
+size = [16, 16]
+color = "body"
+depth = 1
+
+[[part]]
+bone = "head"
+shape = "ellipse"
+size = [15, 13]
+color = "body"
+depth = 2
+
+[[part]]
+bone = "thigh_front"
+shape = "capsule"
+size = [11, 9]
+color = "body"
+depth = 3
+
+[[part]]
+bone = "shin_front"
+shape = "capsule"
+size = [9, 7]
+color = "body"
+depth = 3
+
+[[part]]
+bone = "upper_front"
+shape = "capsule"
+size = [9, 7]
+color = "body"
+depth = 4
+
+[[part]]
+bone = "fore_front"
+shape = "capsule"
+size = [7, 6]
+color = "body"
+depth = 4
+
+[clip.idle]
+frames = 60
+loop = true
+ease = "out_cubic"
+rise = [[0, 0], [30, -2], [60, 0]]
+angle.torso = [[0, 0], [30, 2.3], [60, 0]]
+
+[clip.walk_forward]
+frames = 32
+loop = true
+ease = "out_cubic"
+rise = [[0, 0], [8, 2], [16, 0], [24, 2], [32, 0]]
+angle.thigh_front = [[0, 20.1], [16, -20.1], [32, 20.1]]
+angle.thigh_back = [[0, -20.1], [16, 20.1], [32, -20.1]]
+angle.shin_front = [[0, 0], [8, 22.9], [16, 0], [32, 0]]
+angle.shin_back = [[0, 0], [16, 0], [24, 22.9], [32, 0]]
+
+[clip.walk_back]
+frames = 32
+loop = true
+ease = "out_cubic"
+rise = [[0, 0], [8, 2], [16, 0], [24, 2], [32, 0]]
+angle.thigh_front = [[0, 20.1], [16, -20.1], [32, 20.1]]
+angle.thigh_back = [[0, -20.1], [16, 20.1], [32, -20.1]]
+angle.shin_front = [[0, 0], [8, 22.9], [16, 0], [32, 0]]
+angle.shin_back = [[0, 0], [16, 0], [24, 22.9], [32, 0]]
+
+[clip.crouch]
+frames = 1
+loop = true
+ease = "out_cubic"
+rise = [[0, -34]]
+angle.thigh_front = [[0, -51.6]]
+angle.shin_front = [[0, 85.9]]
+angle.thigh_back = [[0, -34.4]]
+angle.shin_back = [[0, 68.8]]
+angle.torso = [[0, -8.6]]
+
+[clip.prejump]
+frames = 1
+loop = true
+ease = "out_cubic"
+rise = [[0, -34]]
+angle.thigh_front = [[0, -51.6]]
+angle.shin_front = [[0, 85.9]]
+angle.thigh_back = [[0, -34.4]]
+angle.shin_back = [[0, 68.8]]
+angle.torso = [[0, -8.6]]
+
+[clip.air]
+frames = 1
+loop = true
+ease = "out_cubic"
+angle.thigh_front = [[0, -51.6]]
+angle.shin_front = [[0, 80.2]]
+angle.thigh_back = [[0, -11.5]]
+angle.shin_back = [[0, 51.6]]
+
+[clip.5LP]
+frames = 12
+ease = "out_cubic"
+angle.upper_front = [[0, 0], [3, 43], [5, 43], [11, 0]]
+angle.fore_front = [[0, 0], [3, -88.8], [5, -88.8], [11, 0]]
+angle.torso = [[0, 0], [3, -6.9], [11, 0]]
+
+[clip.5HP]
+frames = 24
+ease = "out_cubic"
+angle.upper_back = [[0, 0], [6, 108.9], [9, 108.9], [22, 0]]
+angle.fore_back = [[0, 0], [6, -57.3], [9, -57.3], [22, 0]]
+angle.torso = [[0, 0], [4, 8.6], [7, -14.3], [22, 0]]
+
+[clip.2LK]
+frames = 14
+ease = "out_cubic"
+rise = [[0, -34]]
+angle.thigh_front = [[0, -51.6], [4, -91.7], [7, -91.7], [13, -51.6]]
+angle.shin_front = [[0, 85.9], [4, 5.7], [7, 5.7], [13, 85.9]]
+angle.thigh_back = [[0, -34.4]]
+angle.shin_back = [[0, 68.8]]
+angle.torso = [[0, -11.5]]
+
+[clip.6HP]
+frames = 26
+ease = "out_cubic"
+rise = [[0, 0], [14, 8], [17, 0]]
+angle.upper_front = [[0, 0], [12, 149], [16, 34.4], [24, 0]]
+angle.fore_front = [[0, 0], [12, -22.9], [16, -68.8], [24, 0]]
+angle.torso = [[0, 0], [12, 17.2], [16, -20.1], [24, 0]]
+
+[clip.236P]
+frames = 40
+ease = "out_cubic"
+angle.upper_front = [[0, 0], [7, 57.3], [30, 57.3], [39, 0]]
+angle.upper_back = [[0, 0], [7, 74.5], [30, 74.5], [39, 0]]
+angle.fore_front = [[0, 0], [7, -80.2], [30, -80.2], [39, 0]]
+angle.fore_back = [[0, 0], [7, -68.8], [30, -68.8], [39, 0]]
+
+[clip.623P]
+frames = 48
+ease = "out_cubic"
+angle.upper_front = [[0, 0], [4, 166.2], [20, 166.2], [40, 0]]
+angle.fore_front = [[0, 0], [4, -17.2], [40, 0]]
+angle.thigh_back = [[0, 0], [6, 34.4], [24, 34.4], [34, 0]]
+
+[clip.throw]
+frames = 30
+ease = "out_cubic"
+angle.upper_front = [[0, 0], [3, 68.8], [12, 68.8], [20, -45.8], [29, 0]]
+angle.upper_back = [[0, 0], [3, 57.3], [12, 57.3], [29, 0]]
+
+[clip."j.HK"]
+frames = 20
+ease = "out_cubic"
+angle.thigh_front = [[0, -51.6], [5, 34.4], [12, 34.4], [19, -51.6]]
+angle.shin_front = [[0, 80.2], [5, 0], [12, 0], [19, 80.2]]
+
+[clip.hitstun]
+frames = 20
+ease = "out_cubic"
+angle.torso = [[0, 22.9], [20, 0]]
+angle.head = [[0, 20.1], [20, 0]]
+
+[clip.thrown]
+frames = 20
+ease = "out_cubic"
+angle.torso = [[0, 22.9], [20, 0]]
+angle.head = [[0, 20.1], [20, 0]]
+
+[clip.blockstun]
+frames = 16
+ease = "out_cubic"
+angle.upper_front = [[0, 68.8]]
+angle.fore_front = [[0, -114.6]]
+angle.torso = [[0, 6.9], [16, 0]]
+
+[clip.knockdown]
+frames = 30
+ease = "out_cubic"
+rise = [[0, -70]]
+angle.hip = [[0, 80.2]]
+angle.torso = [[0, 11.5]]
+
+[clip.ko]
+frames = 30
+ease = "out_cubic"
+rise = [[0, -70]]
+angle.hip = [[0, 80.2]]
+angle.torso = [[0, 11.5]]
+
+[clip.wakeup]
+frames = 10
+ease = "out_cubic"
+rise = [[0, -70], [10, 0]]
+angle.hip = [[0, 80.2], [10, 0]]
+
+[clip.landing]
+frames = 1
+loop = true
+ease = "out_cubic"
+rise = [[0, -34]]
+angle.thigh_front = [[0, -51.6]]
+angle.shin_front = [[0, 85.9]]
+angle.thigh_back = [[0, -34.4]]
+angle.shin_back = [[0, 68.8]]
+angle.torso = [[0, -8.6]]
+
+[impact.light]
+shake = [2, 6]
+spark = { style = "rays", size = 24, count = 6, frames = 12, color = "#ffd166", counter = "#ff4d5e" }
+
+[impact.low]
+shake = [2, 6]
+spark = { style = "rays", size = 22, count = 6, frames = 12, color = "#ffd166", counter = "#ff4d5e" }
+
+[impact.overhead]
+shake = [5, 10]
+zoom = [0.02, 8]
+spark = { style = "rays", size = 36, count = 8, frames = 16, color = "#ffd166", counter = "#ff4d5e" }
+
+[impact.heavy]
+shake = [7, 12]
+zoom = [0.04, 12]
+spark = { style = "rays", size = 44, count = 10, frames = 18, color = "#ffd166", counter = "#ff4d5e" }
+rumble = [0.6, 10]
+
+[impact.fireball]
+shake = [3, 8]
+spark = { style = "ring", size = 50, count = 1, frames = 16, color = "#6fd3ff", counter = "#ff4d5e" }
+
+[impact.rising]
+shake = [9, 14]
+zoom = [0.05, 16]
+flash = ["white", 3]
+spark = { style = "rays", size = 54, count = 12, frames = 20, color = "#ffd166", counter = "#ff4d5e" }
+rumble = [0.8, 14]
+
+[impact.air]
+shake = [4, 8]
+spark = { style = "rays", size = 32, count = 8, frames = 14, color = "#ffd166", counter = "#ff4d5e" }
+
+[impact.block]
+shake = [1, 4]
+spark = { style = "ring", size = 46, count = 1, frames = 14, color = "#7ad7ff", counter = "#7ad7ff" }
+
+[impact.throw]
+shake = [6, 10]
+spark = { style = "ring", size = 56, count = 1, frames = 16, color = "#f2f2f2", counter = "#f2f2f2" }
+
+[impact.ko]
+shake = [12, 20]
+zoom = [0.08, 30]
+flash = ["white", 12]
+spark = { style = "rays", size = 60, count = 12, frames = 24, color = "#ffd166", counter = "#ff4d5e" }
+rumble = [1, 24]

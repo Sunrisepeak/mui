@@ -19,6 +19,7 @@ export module gongfu.present2d;
 
 import std;
 export import gongfu;
+export import gongfu.data;
 import hanim;
 import openmui.geom;
 import openmui.render.vector;
@@ -33,7 +34,7 @@ struct Bone {
     std::int32_t parent = -1;  // the root's parent is the fighter's feet
     Point        joint;        // where it attaches: on its parent, in the parent's frame (x along it); for the root, above the feet
     float        length = 0;   // pixels
-    float        rest = 0;     // its angle to its parent, radians, when no clip turns it
+    float        rest = 0;     // its angle to its parent, degrees counter-clockwise (the root's: to the stage's +x), when no clip turns it
 };
 
 enum class Shape : std::uint8_t { capsule, ellipse, polygon };
@@ -45,10 +46,40 @@ struct Part {
     std::vector<Point> points;              // a polygon, in the bone's frame
     Color              color;
     std::int32_t       depth = 0;           // drawn back to front
+    std::int32_t       slot = -1;           // its colour's slot in the look's palettes (−1: `color` as it is)
 };
 
-// Each bone's angle (radians, to its parent; its rest added) and the body's
-// rise (pixels), keyed by frame.
+// How a contact feels, drawn (D-85 §8.4). A fighter file's hits name a
+// profile (`impact = "heavy"`); the look says what it is: the shake, the
+// camera's punch in, a flash, the spark, the sounds (names a sound bank
+// resolves) and the rumble — a pure function of the event and its age.
+enum class Spark : std::uint8_t { rays, ring, splash, shards, bolt };
+enum class Flash : std::uint8_t { none, white, invert };
+
+struct Impact {
+    std::string                name;
+    float                      shake = 0;         // pixels at contact, easing to nothing
+    std::int32_t               shake_frames = 0;
+    float                      zoom = 0;          // the camera closer by this fraction at contact
+    std::int32_t               zoom_frames = 0;
+    Flash                      flash = Flash::none;
+    std::int32_t               flash_frames = 0;
+    Spark                      spark = Spark::rays;
+    float                      spark_size = 28;   // pixels at full reach
+    std::int32_t               spark_count = 8;
+    std::int32_t               spark_frames = 16;
+    Color                      spark_color = Color::hex(0xffd166);
+    Color                      counter_color = Color::hex(0xff4d5e);  // the spark of a counter hit
+    std::array<std::string, 3> sound;             // attack, body, tail
+    float                      rumble = 0;        // 0–1
+    std::int32_t               rumble_frames = 0;
+};
+
+// What a contact without a profile of its own looks like: a hit's, a block's, a KO's.
+[[nodiscard]] const Impact& default_impact(Event::Kind kind) noexcept;
+
+// Each bone's angle (degrees, to its parent; its rest added) and the body's
+// rise (pixels), keyed by frame (a key at frame f is at f/60 s).
 struct Clip {
     std::int32_t                    frames = 1;
     bool                            loop = false;
@@ -63,7 +94,23 @@ struct Look {
     std::map<std::string, Clip, std::less<>> clips;
     Color                       outline = Color::hex(0x101014);
     float                       outline_width = 3;
+    // Colour schemes: each a colour per slot (`slots` names them); a part with
+    // a slot takes its colour from the palette in use.
+    std::vector<std::string>              slots;
+    std::vector<std::vector<Color>>       palettes;
+    std::vector<std::string>              palette_names;
+    std::vector<Impact>                   impacts;  // by name; "block" and "ko" for those contacts
+    // Bound to a fighter (bind): its FighterDef::impacts index → impacts' (−1: none).
+    std::vector<std::int32_t>             impact_of;
 };
+
+// Colours the parts from palette `index` (none: unchanged).
+void use_palette(Look& look, std::size_t index);
+// Matches the fighter's impact names to the look's profiles.
+void bind(Look& look, const Fighter& fighter);
+// The profile of a contact by the fighter this look draws: its hit's, the
+// look's "block" or "ko", else default_impact.
+[[nodiscard]] const Impact& impact_for(const Look& look, const Event& event) noexcept;
 
 // Where each bone lies on the stage at a frame: its joint and its tip.
 struct BonePlace {
@@ -76,6 +123,14 @@ using Pose = std::vector<BonePlace>;
 [[nodiscard]] Pose pose(const Look& look, const Fighter& fighter, const FighterState& state, std::int32_t frame);
 // The same into `out` (its storage reused: no allocation once it has the bones' room).
 void pose(const Look& look, const Fighter& fighter, const FighterState& state, std::int32_t frame, Pose& out);
+
+// A look as a file, `*.look.gongfu.toml` — what gongfu.studio writes and a
+// mod will carry: the palettes, the bones (angles in degrees), the parts, the
+// clips (keys by frame) and the impact profiles, by name. Every problem at
+// once with its line and column, a misspelt key with the nearest right one.
+// write_look gives the file back; what it writes reads back as the same look.
+[[nodiscard]] std::expected<Look, std::vector<data::Diagnostic>> read_look(std::string_view source, std::string_view file);
+[[nodiscard]] std::string write_look(const Look& look);
 
 // The stage's view: what lies at the middle of the picture, and how large.
 struct Camera {
@@ -107,8 +162,9 @@ private:
     std::vector<Kept> kept_;
 };
 
-// The camera a frame is drawn with: frame_camera's, shaken by a heavy hit.
-[[nodiscard]] Camera view_camera(const Match& match, const Effects& effects, const Scene& scene);
+// The camera a frame is drawn with: frame_camera's, punched in and shaken by
+// the latest contact as its impact profile says.
+[[nodiscard]] Camera view_camera(const Match& match, const Look& left, const Look& right, const Effects& effects, const Scene& scene);
 // A point of the stage (x along it, y up) on the picture (y down), through `camera`:
 // what an overlay (the boxes of training) lines up with.
 [[nodiscard]] Point on_picture(const Scene& scene, const Camera& camera, double x, double y) noexcept;

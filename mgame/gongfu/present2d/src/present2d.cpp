@@ -76,18 +76,33 @@ void ellipse(render::Path& p, Point centre, double angle, float along, float acr
     p.close();
 }
 
-// The shake of the most recent heavy contact.
-Point shake(const Effects& effects, std::int32_t frame) {
-    for (auto it = effects.kept().rbegin(); it != effects.kept().rend(); ++it) {
-        const std::int32_t age = frame - it->frame;
-        if (age < 0) continue;
-        if (age >= 10) break;
-        const Event& e = it->event;
-        if (e.kind != Event::Kind::hit && e.kind != Event::Kind::counter && e.kind != Event::Kind::ko) continue;
-        const double amp = std::min(14.0, e.damage / 70.0) * (1.0 - age / 10.0);
-        return {static_cast<float>(amp * dm::sin(age * 2.3 + e.impact)), static_cast<float>(amp * 0.5 * dm::cos(age * 1.7 + e.impact))};
-    }
-    return {};
+bool contact(Event::Kind k) noexcept {
+    return k == Event::Kind::hit || k == Event::Kind::counter || k == Event::Kind::block || k == Event::Kind::throw_ || k == Event::Kind::ko;
+}
+
+const Look& look_of(const Event& e, const Look& left, const Look& right) noexcept { return e.attacker == 1 ? right : left; }
+
+// 1 at contact, easing (quadratically) to 0 after `frames`.
+double falloff(std::int32_t age, std::int32_t frames) noexcept {
+    if (frames <= 0 || age < 0 || age >= frames) return 0;
+    const double u = 1 - static_cast<double>(age) / frames;
+    return u * u;
+}
+
+// A number in [0, 1) from an event and a counter: a spark's scatter, the
+// same on every machine and after every rollback.
+double scatter(const Effects::Kept& k, std::uint32_t i) noexcept {
+    // splitmix64's finaliser over each field in turn: every bit of the input moves every bit of the result.
+    auto mix = [](std::uint64_t z) {
+        z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ull;
+        z = (z ^ (z >> 27)) * 0x94d049bb133111ebull;
+        return z ^ (z >> 31);
+    };
+    std::uint64_t h = 0x9e3779b97f4a7c15ull;
+    for (const std::uint64_t v : {static_cast<std::uint64_t>(k.frame), static_cast<std::uint64_t>(k.event.attacker), static_cast<std::uint64_t>(k.event.move),
+                                  static_cast<std::uint64_t>(k.event.hit), static_cast<std::uint64_t>(i)})
+        h = mix(h + v + 0x9e3779b97f4a7c15ull);
+    return static_cast<double>(h >> 40) / static_cast<double>(1u << 24);
 }
 
 }  // namespace
@@ -124,6 +139,7 @@ void pose(const Look& look, const Fighter& fighter, const FighterState& s, std::
         const Bone& bone = look.bones[b];
         double local = bone.rest;
         if (clip && b < clip->angles.size() && !clip->angles[b].empty()) local += clip->angles[b].value(at);
+        local *= dm::pi / 180;  // a look's angles are degrees
         BonePlace& p = out[b];
         if (bone.parent < 0) {
             p.joint = {static_cast<float>(stage(s.pos.x) + bone.joint.x * facing), static_cast<float>(stage(s.pos.y) + bone.joint.y + rise)};
@@ -137,6 +153,56 @@ void pose(const Look& look, const Fighter& fighter, const FighterState& s, std::
         }
         p.tip = {static_cast<float>(p.joint.x + bone.length * dm::cos(p.angle)), static_cast<float>(p.joint.y + bone.length * dm::sin(p.angle))};
     }
+}
+
+const Impact& default_impact(Event::Kind kind) noexcept {
+    static const Impact hit{.name = "hit", .shake = 4, .shake_frames = 8, .spark = Spark::rays, .spark_size = 30, .spark_count = 8, .spark_frames = 16};
+    static const Impact block{.name = "block", .shake = 1, .shake_frames = 4, .spark = Spark::ring, .spark_size = 46, .spark_count = 1, .spark_frames = 14,
+                              .spark_color = Color::hex(0x7ad7ff)};
+    static const Impact grab{.name = "throw", .shake = 6, .shake_frames = 10, .spark = Spark::ring, .spark_size = 56, .spark_count = 1, .spark_frames = 16,
+                             .spark_color = Color::hex(0xf2f2f2)};
+    static const Impact ko{.name = "ko", .shake = 12, .shake_frames = 20, .zoom = 0.08f, .zoom_frames = 30, .flash = Flash::white, .flash_frames = 12,
+                           .spark = Spark::rays, .spark_size = 60, .spark_count = 12, .spark_frames = 24};
+    switch (kind) {
+        case Event::Kind::block: return block;
+        case Event::Kind::throw_:
+        case Event::Kind::tech: return grab;
+        case Event::Kind::ko: return ko;
+        default: return hit;
+    }
+}
+
+void use_palette(Look& look, std::size_t index) {
+    if (index >= look.palettes.size()) return;
+    const auto& colours = look.palettes[index];
+    for (Part& p : look.parts)
+        if (p.slot >= 0 && static_cast<std::size_t>(p.slot) < colours.size()) p.color = colours[static_cast<std::size_t>(p.slot)];
+}
+
+void bind(Look& look, const Fighter& fighter) {
+    look.impact_of.assign(fighter.def.impacts.size(), -1);
+    for (std::size_t i = 0; i < fighter.def.impacts.size(); ++i)
+        for (std::size_t k = 0; k < look.impacts.size(); ++k)
+            if (look.impacts[k].name == fighter.def.impacts[i]) look.impact_of[i] = static_cast<std::int32_t>(k);
+}
+
+const Impact& impact_for(const Look& look, const Event& e) noexcept {
+    auto named = [&](std::string_view name) -> const Impact* {
+        for (const Impact& i : look.impacts)
+            if (i.name == name) return &i;
+        return nullptr;
+    };
+    if (e.kind == Event::Kind::hit || e.kind == Event::Kind::counter || e.kind == Event::Kind::projectile_clash) {
+        if (e.impact < look.impact_of.size())
+            if (const std::int32_t k = look.impact_of[e.impact]; k >= 0) return look.impacts[static_cast<std::size_t>(k)];
+    } else if (e.kind == Event::Kind::block) {
+        if (const Impact* i = named("block")) return *i;
+    } else if (e.kind == Event::Kind::ko) {
+        if (const Impact* i = named("ko")) return *i;
+    } else if (e.kind == Event::Kind::throw_ || e.kind == Event::Kind::tech) {
+        if (const Impact* i = named("throw")) return *i;
+    }
+    return default_impact(e.kind);
 }
 
 Camera frame_camera(const Match& match, const Scene& scene) {
@@ -166,11 +232,28 @@ Point on_picture(const Scene& scene, const Camera& cam, double x, double y) noex
     return {static_cast<float>(scene.width / 2 + (x - cam.x) * cam.zoom), static_cast<float>(scene.ground - (y - cam.y) * cam.zoom)};
 }
 
-Camera view_camera(const Match& match, const Effects& effects, const Scene& scene) {
+Camera view_camera(const Match& match, const Look& left, const Look& right, const Effects& effects, const Scene& scene) {
     Camera cam = frame_camera(match, scene);
-    const Point jolt = shake(effects, match.state().frame);
-    cam.x -= jolt.x / cam.zoom;
-    cam.y += jolt.y / cam.zoom;
+    const std::int32_t frame = match.state().frame;
+    // The latest contact still shaking, and the latest still punching in.
+    bool shaken = false, punched = false;
+    for (auto it = effects.kept().rbegin(); it != effects.kept().rend() && !(shaken && punched); ++it) {
+        const std::int32_t age = frame - it->frame;
+        if (age < 0 || !contact(it->event.kind)) continue;
+        if (age >= 60) break;
+        const Impact& im = impact_for(look_of(it->event, left, right), it->event);
+        const double boost = it->event.kind == Event::Kind::counter ? 1.25 : 1.0;
+        if (!shaken && age < im.shake_frames) {
+            shaken = true;
+            const double amp = im.shake * boost * falloff(age, im.shake_frames);
+            cam.x -= amp * dm::sin(age * 2.3 + it->event.impact) / cam.zoom;
+            cam.y += amp * 0.5 * dm::cos(age * 1.7 + it->event.impact) / cam.zoom;
+        }
+        if (!punched && age < im.zoom_frames) {
+            punched = true;
+            cam.zoom *= 1 + im.zoom * boost * falloff(age, im.zoom_frames);
+        }
+    }
     return cam;
 }
 
@@ -178,9 +261,84 @@ void draw(const Match& match, const Look& left, const Look& right, const Effects
     Painter{}.draw(match, left, right, effects, scene, out);
 }
 
+namespace {
+
+// One contact's spark at its age, drawn with `path_` (a reused path).
+void spark(const Effects::Kept& k, const Impact& im, std::int32_t age, const View& view, render::Path& path_, render::DisplayList& out) {
+    const Event& e = k.event;
+    const Point c = view.at(stage(e.at.x), stage(e.at.y));
+    const double t = static_cast<double>(age) / im.spark_frames;  // 0 → 1 over its life
+    const double grow = 1 - (1 - t) * (1 - t);                     // ease out
+    const double alpha = 1 - t;
+    const Color colour = fade(e.kind == Event::Kind::counter ? im.counter_color : im.spark_color, alpha);
+    const double reach = im.spark_size * (0.35 + 0.65 * grow);     // already visible on the frame it lands
+    const auto n = static_cast<std::uint32_t>(std::max(1, im.spark_count));
+    auto from = [&](double angle, double r) {
+        return Point{c.x + view.size(r) * static_cast<float>(dm::cos(angle)), c.y + view.size(r) * static_cast<float>(dm::sin(angle))};
+    };
+    switch (im.spark) {
+        case Spark::rays:
+            for (std::uint32_t r = 0; r < n; ++r) {
+                const double a = dm::two_pi * r / n + e.impact * 0.37;
+                path_.clear();
+                path_.move_to(from(a, reach * 0.35)).line_to(from(a, reach));
+                out.stroke_path(path_, {.width = view.size(4 * (1 - t * 0.8)), .cap = render::LineCap::round}, render::Paint::solid(colour));
+            }
+            break;
+        case Spark::ring:
+            path_.clear();
+            circle(path_, c, view.size(reach * 0.55));
+            out.stroke_path(path_, {.width = view.size(3)}, render::Paint::solid(colour));
+            break;
+        case Spark::splash:
+            // Ink: a blot, and drops thrown out at scattered angles, shrinking as they fly.
+            path_.clear();
+            circle(path_, c, view.size(im.spark_size * 0.22 * (1 - 0.5 * t)));
+            out.fill_path(path_, render::FillRule::nonzero, render::Paint::solid(colour));
+            for (std::uint32_t d = 0; d < n; ++d) {
+                const double a = dm::two_pi * scatter(k, 2 * d), far = reach * (0.5 + 0.5 * scatter(k, 2 * d + 1));
+                path_.clear();
+                circle(path_, from(a, far), view.size((2 + 4 * scatter(k, 2 * d + 1)) * (1 - 0.7 * t)));
+                out.fill_path(path_, render::FillRule::nonzero, render::Paint::solid(colour));
+            }
+            break;
+        case Spark::shards:
+            // Glass: thin triangles flying out, turning.
+            for (std::uint32_t d = 0; d < n; ++d) {
+                const double a = dm::two_pi * (d + scatter(k, d)) / n, spin = (scatter(k, d + 97) - 0.5) * 6 * t;
+                const Point p = from(a, reach);
+                const double len = im.spark_size * 0.3 * (1 - 0.5 * t);
+                path_.clear();
+                path_.move_to({p.x + view.size(len) * static_cast<float>(dm::cos(a + spin)), p.y + view.size(len) * static_cast<float>(dm::sin(a + spin))});
+                path_.line_to({p.x + view.size(len * 0.25) * static_cast<float>(dm::cos(a + spin + 2.2)),
+                               p.y + view.size(len * 0.25) * static_cast<float>(dm::sin(a + spin + 2.2))});
+                path_.line_to({p.x + view.size(len * 0.25) * static_cast<float>(dm::cos(a + spin - 2.2)),
+                               p.y + view.size(len * 0.25) * static_cast<float>(dm::sin(a + spin - 2.2))});
+                path_.close();
+                out.fill_path(path_, render::FillRule::nonzero, render::Paint::solid(colour));
+            }
+            break;
+        case Spark::bolt:
+            // Electric: jagged lines out from the contact, re-jagged every other frame.
+            for (std::uint32_t d = 0; d < n; ++d) {
+                const double a = dm::two_pi * d / n + scatter(k, d) * 0.5;
+                path_.clear();
+                path_.move_to(c);
+                for (int seg = 1; seg <= 4; ++seg) {
+                    const double jag = (scatter(k, d * 8 + static_cast<std::uint32_t>(seg) + static_cast<std::uint32_t>(age / 2) * 64) - 0.5) * 0.9;
+                    path_.line_to(from(a + jag, reach * seg / 4.0));
+                }
+                out.stroke_path(path_, {.width = view.size(2.5), .join = render::LineJoin::miter}, render::Paint::solid(colour));
+            }
+            break;
+    }
+}
+
+}  // namespace
+
 void Painter::draw(const Match& match, const Look& left, const Look& right, const Effects& effects, const Scene& scene, render::DisplayList& out) {
     const State& st = match.state();
-    const View view{scene, view_camera(match, effects, scene)};
+    const View view{scene, view_camera(match, left, right, effects, scene)};
 
     // The stage: sky, floor, the ground line, and marks along it that move with the camera.
     const std::array<render::GradientStop, 2> sky{{{0, scene.sky_top}, {1, scene.sky_bottom}}};
@@ -254,33 +412,23 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         out.fill_path(path_, render::FillRule::nonzero, render::Paint::solid(Color::hex(0xe9fbff)));
     }
 
-    // Sparks: rays for a hit (red for a counter), a ring for a block or a throw; a KO flashes.
+    // Sparks and flashes, each contact as its impact profile says.
     for (const Effects::Kept& k : effects.kept()) {
         const std::int32_t age = st.frame - k.frame;
-        if (age < 0 || age >= 16) continue;
         const Event& e = k.event;
-        const Point c = view.at(stage(e.at.x), stage(e.at.y));
-        const double grow = 1 - (1 - age / 16.0) * (1 - age / 16.0);  // ease out
-        const double alpha = 1 - age / 16.0;
-        if (e.kind == Event::Kind::hit || e.kind == Event::Kind::counter) {
-            const Color colour = e.kind == Event::Kind::counter ? Color::hex(0xff4d5e) : Color::hex(0xffd166);
-            const double reach = (18 + e.damage / 30.0) * (0.35 + 0.65 * grow);  // already visible on the frame it lands
-            for (int r = 0; r < 8; ++r) {
-                const double a = dm::two_pi * r / 8 + e.impact * 0.37;
-                render::Path& ray = path_;
-                ray.clear();
-                ray.move_to({c.x + view.size(reach * 0.35) * static_cast<float>(dm::cos(a)), c.y + view.size(reach * 0.35) * static_cast<float>(dm::sin(a))});
-                ray.line_to({c.x + view.size(reach) * static_cast<float>(dm::cos(a)), c.y + view.size(reach) * static_cast<float>(dm::sin(a))});
-                out.stroke_path(ray, {.width = view.size(4 * (1 - age / 20.0)), .cap = render::LineCap::round}, render::Paint::solid(fade(colour, alpha)));
+        if (age < 0 || !contact(e.kind)) continue;
+        const Impact& im = impact_for(look_of(e, left, right), e);
+        if (age < im.spark_frames) spark(k, im, age, view, path_, out);
+        if (im.flash != Flash::none && age < im.flash_frames) {
+            if (im.flash == Flash::white) {
+                const float a = static_cast<float>(0.65 * (1 - static_cast<double>(age) / im.flash_frames));
+                out.fill_rect({0, 0, scene.width, scene.height}, Color::hex(0xffffff, a));
+            } else {
+                // The negative, whole, for its frames (a fading inversion is only grey): difference with white.
+                out.push_layer(1, render::BlendMode::difference);
+                out.fill_rect({0, 0, scene.width, scene.height}, Color::white());
+                out.pop_layer();
             }
-        } else if (e.kind == Event::Kind::block || e.kind == Event::Kind::throw_ || e.kind == Event::Kind::tech) {
-            render::Path& ring = path_;
-            ring.clear();
-            circle(ring, c, view.size(16 + 30 * grow));
-            const Color colour = e.kind == Event::Kind::block ? Color::hex(0x7ad7ff) : Color::hex(0xf2f2f2);
-            out.stroke_path(ring, {.width = view.size(3)}, render::Paint::solid(fade(colour, alpha)));
-        } else if (e.kind == Event::Kind::ko && age < 12) {
-            out.fill_rect({0, 0, scene.width, scene.height}, Color::hex(0xffffff, static_cast<float>(0.6 * (1 - age / 12.0))));
         }
     }
 }

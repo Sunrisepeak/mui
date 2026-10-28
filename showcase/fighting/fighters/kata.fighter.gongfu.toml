@@ -21,7 +21,7 @@ hitstun = 15
 blockstun = 11
 hitstop = 6
 pushback = 2
-impact = 1
+impact = "light"
 [[move.cancel]]
 frames = [4, 8]
 into = ["236P"]
@@ -41,7 +41,7 @@ blockstun = 10
 hitstop = 5
 pushback = 2
 level = "low"
-impact = 2
+impact = "low"
 
 [[move]]
 name = "6HP"
@@ -57,7 +57,7 @@ blockstun = 12
 hitstop = 9
 pushback = 3
 level = "overhead"
-impact = 3
+impact = "overhead"
 
 [[move]]
 name = "5HP"
@@ -71,7 +71,7 @@ hitstun = 20
 blockstun = 16
 hitstop = 10
 pushback = 3
-impact = 4
+impact = "heavy"
 
 [[move]]
 name = "236P"
@@ -92,7 +92,7 @@ hitstun = 18
 blockstun = 14
 hitstop = 7
 pushback = 3
-impact = 5
+impact = "fireball"
 
 [[move]]
 name = "623P"
@@ -116,7 +116,7 @@ hitstop = 12
 pushback = 2
 knockdown = true
 launch = [3, 14]
-impact = 6
+impact = "rising"
 
 [[move]]
 name = "throw"
@@ -139,4 +139,4 @@ blockstun = 14
 hitstop = 8
 pushback = 2
 level = "overhead"
-impact = 7
+impact = "air"

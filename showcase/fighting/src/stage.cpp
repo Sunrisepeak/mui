@@ -190,7 +190,7 @@ void Stage::paint(PaintContext& ctx) const {
     // Training: the boxes of this frame (push grey, hurt blue, active hits
     // red) lined up with the picture's camera, and the frame meter.
     if (props.mode == "training") {
-        const p2::Camera cam = p2::view_camera(*match_, effects_, scene);
+        const p2::Camera cam = p2::view_camera(*match_, left, right, effects_, scene);
         auto outline = [&](const gongfu::Rect& b, Color c) {
             const Point a = p2::on_picture(scene, cam, b.left.to_double(), b.top.to_double());
             const Point z = p2::on_picture(scene, cam, b.right.to_double(), b.bottom.to_double());

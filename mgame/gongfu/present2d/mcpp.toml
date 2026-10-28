@@ -17,11 +17,13 @@ repo        = "https://github.com/Sunrisepeak/mui"
 kind = "lib"
 
 [build]
-sources  = ["src/*.cppm", "src/*.cpp"]
+sources  = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
 gongfu                = { path = ".." }
+"gongfu.data"         = { path = "../data" }
+marzer.tomlplusplus   = "3.4.0"
 hanim                 = { path = "../../../modules/base/hanim" }
 openmui.geom          = { path = "../../../modules/base/geom" }
 openmui.render.vector = { path = "../../../modules/gfx/render/vector" }

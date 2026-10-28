@@ -48,7 +48,7 @@ struct HitDef {
     Level              level = Level::mid;
     bool               knockdown = false;
     Vec                launch;          // an airborne defender's new velocity (forward, up)
-    std::uint16_t      impact = 0;      // the impact profile what draws reads (D-85 §8.4)
+    std::uint16_t      impact = 0;      // its impact profile: an index into FighterDef::impacts (D-85 §8.4)
 };
 
 // A move can be cancelled into others on these frames — on hit or block, or always.
@@ -109,6 +109,9 @@ struct FighterDef {
     Box                  push;                     // standing and crouching: what keeps two fighters apart
     Box                  hurt_standing, hurt_crouching, hurt_air;
     std::vector<MoveDef> moves;
+    // The impact profiles its hits name, by HitDef::impact: what a picture
+    // draws for a hit (a look's `impact.<name>`); the simulation never reads them.
+    std::vector<std::string> impacts;
 };
 
 struct SystemDef {

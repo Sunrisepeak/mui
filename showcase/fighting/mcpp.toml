@@ -27,7 +27,6 @@ sources = ["src/*.cppm", "src/*.cpp"]
 openmui.sdk      = { path = "../.." }
 gongfu.data      = { path = "../../mgame/gongfu/data" }
 gongfu.present2d = { path = "../../mgame/gongfu/present2d" }
-hanim            = { path = "../../modules/base/hanim" }
 
 [build-dependencies]
 openmui.rules = { path = "../../mcpp/rules", host-module = true }

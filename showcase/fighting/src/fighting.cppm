@@ -7,6 +7,7 @@ export import openmui;
 export import gongfu.present2d;
 export import :stage_contract;
 export import :kata_fighter;
+export import :kata_look;
 export import :roster;
 export import :stage;
 

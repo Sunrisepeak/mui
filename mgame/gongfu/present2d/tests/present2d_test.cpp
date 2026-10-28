@@ -36,8 +36,9 @@ FighterDef body() {
     f.hurt_air = {-30_fx, 40_fx, 60_fx, 130_fx};
     MoveDef jab{.name = "5LP", .command = {.buttons = LP}, .total = 12};
     jab.hits.push_back({.active = {4, 5}, .boxes = {{20_fx, 110_fx, 70_fx, 30_fx}}, .damage = 300, .hitstun = 15, .blockstun = 11, .hitstop = 6,
-                        .pushback = 2_fx, .impact = 1});
+                        .pushback = 2_fx, .impact = 0});
     f.moves.push_back(jab);
+    f.impacts = {"light"};
     return f;
 }
 
@@ -48,11 +49,16 @@ const Fighter& fighter() {
 
 enum Bones : std::int32_t { hip, torso, head, upper_back, fore_back, upper_front, fore_front, thigh_back, shin_back, thigh_front, shin_front };
 
-hanim::Track<double> keys(std::initializer_list<std::pair<int, double>> frame_values) {
+hanim::Track<double> keys(std::initializer_list<std::pair<int, double>> frame_values, double scale = 1) {
     hanim::Track<double> t;
-    for (const auto& [frame, value] : frame_values) t.key(hanim::seconds(frame / 60.0), value, hanim::ease::out_cubic);
+    for (const auto& [frame, value] : frame_values) t.key(hanim::seconds(frame / 60.0), value * scale, hanim::ease::out_cubic);
     return t;
 }
+
+// A look's angles are degrees; these were written in radians.
+constexpr double to_deg = 180 / 3.141592653589793;
+hanim::Track<double> turn(std::initializer_list<std::pair<int, double>> frame_values) { return keys(frame_values, to_deg); }
+float deg(double radians) { return static_cast<float>(radians * to_deg); }
 
 // An ink-and-paper fighter: eleven bones, capsules and an ellipse head.
 p2::Look look(Color body_colour, Color limb_colour) {
@@ -60,17 +66,17 @@ p2::Look look(Color body_colour, Color limb_colour) {
     l.name = "shade";
     const double up = 1.5707963267948966, down = 3.141592653589793;
     l.bones = {
-        {"hip", -1, {0, 92}, 10, static_cast<float>(up)},
+        {"hip", -1, {0, 92}, 10, deg(up)},
         {"torso", hip, {10, 0}, 56, 0},
         {"head", torso, {58, 0}, 24, 0},
-        {"upper_back", torso, {50, 7}, 30, -2.5f},
-        {"fore_back", upper_back, {30, 0}, 28, 1.1f},
-        {"upper_front", torso, {50, -7}, 30, -2.3f},
-        {"fore_front", upper_front, {30, 0}, 28, 1.6f},
-        {"thigh_back", hip, {0, 7}, 46, static_cast<float>(down - 0.3)},
-        {"shin_back", thigh_back, {46, 0}, 48, -0.25f},
-        {"thigh_front", hip, {0, -7}, 46, static_cast<float>(down + 0.35)},
-        {"shin_front", thigh_front, {46, 0}, 48, 0.35f},
+        {"upper_back", torso, {50, 7}, 30, deg(-2.5)},
+        {"fore_back", upper_back, {30, 0}, 28, deg(1.1)},
+        {"upper_front", torso, {50, -7}, 30, deg(-2.3)},
+        {"fore_front", upper_front, {30, 0}, 28, deg(1.6)},
+        {"thigh_back", hip, {0, 7}, 46, deg(down - 0.3)},
+        {"shin_back", thigh_back, {46, 0}, 48, deg(-0.25)},
+        {"thigh_front", hip, {0, -7}, 46, deg(down + 0.35)},
+        {"shin_front", thigh_front, {46, 0}, 48, deg(0.35)},
     };
     l.parts = {
         {upper_back, p2::Shape::capsule, 9, 7, {}, limb_colour, 0},  {fore_back, p2::Shape::capsule, 7, 6, {}, limb_colour, 0},
@@ -83,18 +89,18 @@ p2::Look look(Color body_colour, Color limb_colour) {
     p2::Clip idle{.frames = 60, .loop = true};
     idle.rise = keys({{0, 0}, {30, -2}, {60, 0}});
     idle.angles.resize(l.bones.size());
-    idle.angles[torso] = keys({{0, 0}, {30, 0.04}, {60, 0}});
+    idle.angles[torso] = turn({{0, 0}, {30, 0.04}, {60, 0}});
     l.clips["idle"] = idle;
     p2::Clip jab{.frames = 12};
     jab.angles.resize(l.bones.size());
-    jab.angles[upper_front] = keys({{0, 0}, {3, 0.75}, {5, 0.75}, {11, 0}});  // the shoulder swings forward
-    jab.angles[fore_front] = keys({{0, 0}, {3, -1.55}, {5, -1.55}, {11, 0}});  // the elbow straightens
-    jab.angles[torso] = keys({{0, 0}, {3, -0.12}, {11, 0}});
+    jab.angles[upper_front] = turn({{0, 0}, {3, 0.75}, {5, 0.75}, {11, 0}});  // the shoulder swings forward
+    jab.angles[fore_front] = turn({{0, 0}, {3, -1.55}, {5, -1.55}, {11, 0}});  // the elbow straightens
+    jab.angles[torso] = turn({{0, 0}, {3, -0.12}, {11, 0}});
     l.clips["5LP"] = jab;
     p2::Clip hurt{.frames = 15};
     hurt.angles.resize(l.bones.size());
-    hurt.angles[torso] = keys({{0, 0.35}, {15, 0}});
-    hurt.angles[head] = keys({{0, 0.3}, {15, 0}});
+    hurt.angles[torso] = turn({{0, 0.35}, {15, 0}});
+    hurt.angles[head] = turn({{0, 0.3}, {15, 0}});
     l.clips["hitstun"] = hurt;
     return l;
 }
@@ -109,6 +115,33 @@ std::uint64_t picture(const omui::raster::Surface& s) {
     Hash h;
     for (int y = 0; y < s.height(); ++y) h.bytes(std::as_bytes(std::span(s.row(y), static_cast<std::size_t>(s.width()))));
     return h.value();
+}
+
+std::filesystem::path here() { return std::filesystem::path(std::source_location::current().file_name()).parent_path(); }
+
+std::string read(const std::filesystem::path& p) {
+    std::ifstream in(p, std::ios::binary);
+    return {std::istreambuf_iterator<char>(in), {}};
+}
+
+std::vector<std::string> texts(const std::vector<gongfu::data::Diagnostic>& ds) {
+    std::vector<std::string> out;
+    for (const auto& d : ds) out.push_back(d.text());
+    return out;
+}
+
+bool has(const std::vector<std::string>& texts, std::string_view piece) {
+    return std::ranges::any_of(texts, [&](const std::string& t) { return t.find(piece) != std::string::npos; });
+}
+
+// Two fighters close enough for the jab to land on its first active frame.
+Match close_match() {
+    Match m(rules(), fighter(), fighter());
+    State st = m.state();
+    st.f[0].pos.x = 915_fx;
+    st.f[1].pos.x = 1005_fx;
+    m.restore(st);
+    return m;
 }
 
 const std::filesystem::path& frames_dir() {
@@ -184,8 +217,8 @@ int main(int argc, char** argv) {
         check(std::ranges::any_of(fx.kept(), [](const p2::Effects::Kept& k) { return k.event.kind == Event::Kind::hit; }), "the jab landed");
         check(pixels[0] != pixels[1] && pixels[1] != pixels[2], "each frame differs");
         std::println("    present2d lists {:016x} {:016x} {:016x} pixels {:016x} {:016x} {:016x}", lists[0], lists[1], lists[2], pixels[0], pixels[1], pixels[2]);
-        check(lists == std::vector<std::uint64_t>{0x581a83c8888df0daULL, 0xc136c369528318afULL, 0x05a902b971dcebe3ULL}, "lists pinned");
-        check(pixels == std::vector<std::uint64_t>{0xe4f8cfc3c89e5a5eULL, 0x4494aef9121b6654ULL, 0xb28cb2532553bc57ULL}, "pixels pinned");
+        check(lists == std::vector<std::uint64_t>{0x8a625a353d3b0427ULL, 0xff0651146a403635ULL, 0xda408be667b5e60bULL}, "lists pinned");
+        check(pixels == std::vector<std::uint64_t>{0xe4f8cfc3c89e5a5eULL, 0x3403ad614b461442ULL, 0x7eb4597c5478690aULL}, "pixels pinned");
     });
 
     s.test("after a rollback the frame is drawn again the same: the picture is the state's", [&] {
@@ -216,6 +249,146 @@ int main(int argc, char** argv) {
         omui::render::DisplayList after;
         p2::draw(m, ink, paper, fx, scene, after);
         check(before.hash() == after.hash(), "the same display list");
+    });
+
+    s.test("a look file reads, writes back, and reads again the same: the same picture", [] {
+        auto look = p2::read_look(read(here() / "data" / "kata.look.gongfu.toml"), "kata.look.gongfu.toml");
+        check(look.has_value(), look ? "" : std::format("{}", texts(look.error())));
+        if (!look) return;
+        check_eq(look->bones.size(), std::size_t{11});
+        check(look->slots == std::vector<std::string>{"body", "limb"} && look->palettes.size() == 2, "two palettes of two slots");
+        check(look->clips.contains("j.HK") && look->clips.contains("5LP") && look->impacts.size() == 10);
+        const std::string text = p2::write_look(*look);
+        auto again = p2::read_look(text, "written.look.gongfu.toml");
+        check(again.has_value(), again ? "" : std::format("{}\n{}", texts(again.error()), text));
+        if (!again) return;
+        check(p2::write_look(*again) == text, "what is written reads back as itself");
+        Match m = close_match();
+        p2::Effects fx;
+        omui::render::DisplayList a, b;
+        for (int f = 0; f < 6; ++f) {
+            m.tick(f == 0 ? pad(5, LP) : pad(5), pad(5));
+            fx.record(m);
+        }
+        p2::draw(m, *look, *look, fx, {}, a);
+        p2::draw(m, *again, *again, fx, {}, b);
+        check(a.hash() == b.hash(), "the same picture");
+    });
+
+    s.test("problems in a look at their line and column, with the nearest right word", [] {
+        const std::string text = R"(gongfu = "0.1"
+name = "broken"
+
+[[palette]]
+name = "ink"
+body = "#1f2430"
+
+[[palette]]
+name = "paper"
+bdy = "#e8dcc4"
+
+[[bone]]
+name = "hip"
+joint = [0, 92]
+lenght = 10
+
+[[bone]]
+name = "torso"
+parent = "hips"
+joint = [10, 0]
+length = 56
+
+[[part]]
+bone = "torso"
+shape = "capsle"
+size = [18, 15]
+color = "bodi"
+
+[clip.idle]
+frames = 60
+ease = "out_cubik"
+angle.torso = [[0, 0], [30, 2], [20, 0]]
+angle.tail = [[0, 0]]
+
+[impact.light]
+shake = [2, 6]
+spark = { style = "rays", colour = "#ffd166" }
+)";
+        auto bad = p2::read_look(text, "broken.look.gongfu.toml");
+        check(!bad.has_value());
+        if (bad) return;
+        const auto t = texts(bad.error());
+        for (std::string_view want : {"broken.look.gongfu.toml:10:1: the first palette has no slot `bdy` (did you mean `body`?)",
+                                      "broken.look.gongfu.toml:8:1: palette `paper` has no colour for slot `body`",
+                                      "broken.look.gongfu.toml:15:1: a bone has no key `lenght` (did you mean `length`?)",
+                                      "broken.look.gongfu.toml:19:10: no bone before `torso` is called `hips` (did you mean `hip`?)",
+                                      "broken.look.gongfu.toml:25:9: a part's `shape`: `capsle` is not one (did you mean `capsule`?)",
+                                      "broken.look.gongfu.toml:27:9: no palette slot is called `bodi` (did you mean `body`?)",
+                                      "broken.look.gongfu.toml:31:8: `out_cubik` is not an ease",
+                                      "frame 20 comes after frame 30",
+                                      "clip `idle` turns `tail`, which is no bone",
+                                      "impact `light`'s spark has no key `colour` (did you mean `color`?)"})
+            check(has(t, want), std::format("{}: {}", want, t));
+    });
+
+    s.test("impacts: a hit's profile by its name, the block's and the KO's by theirs, the rest by default", [&] {
+        p2::Look l = ink;
+        l.impacts = {{.name = "light", .shake = 9, .shake_frames = 10, .zoom = 0.1f, .zoom_frames = 10, .spark = p2::Spark::bolt},
+                     {.name = "block", .spark = p2::Spark::shards}};
+        p2::bind(l, fighter());
+        check(l.impact_of == std::vector<std::int32_t>{0}, "the fighter's `light` is the look's first");
+        Event hit{.kind = Event::Kind::hit, .impact = 0}, block{.kind = Event::Kind::block, .impact = 0}, ko{.kind = Event::Kind::ko};
+        check(&p2::impact_for(l, hit) == &l.impacts[0] && &p2::impact_for(l, block) == &l.impacts[1]);
+        check(&p2::impact_for(l, ko) == &p2::default_impact(Event::Kind::ko), "no `ko` profile: the default");
+        // The camera: punched in and shaken at contact, as the profile says, and still again after.
+        Match m = close_match();
+        p2::Effects fx;
+        const p2::Scene scene;
+        m.tick(pad(5, LP), pad(5));
+        fx.record(m);
+        for (int f = 0; f < 3 && fx.kept().empty(); ++f) {
+            m.tick(pad(5), pad(5));
+            fx.record(m);
+        }
+        check(!fx.kept().empty(), "the jab landed");
+        const p2::Camera plain = p2::frame_camera(m, scene), punched = p2::view_camera(m, l, l, fx, scene);
+        check(punched.zoom > plain.zoom * 1.05 && (punched.x != plain.x || punched.y != plain.y),
+              std::format("zoom {} → {}, x {} → {}", plain.zoom, punched.zoom, plain.x, punched.x));
+        for (int f = 0; f < 12; ++f) {
+            m.tick(pad(5), pad(5));
+            fx.record(m);
+        }
+        const p2::Camera later = p2::view_camera(m, l, l, fx, scene), still = p2::frame_camera(m, scene);
+        check(later.zoom == still.zoom && later.x == still.x && later.y == still.y, "the shake and the punch are over");
+    });
+
+    s.test("each spark style and flash draws its own picture, pinned", [&] {
+        std::vector<std::uint64_t> lists;
+        Hash all;
+        for (const p2::Spark style : {p2::Spark::rays, p2::Spark::ring, p2::Spark::splash, p2::Spark::shards, p2::Spark::bolt}) {
+            for (const p2::Flash flash : {p2::Flash::none, p2::Flash::invert}) {
+                if (flash == p2::Flash::invert && style != p2::Spark::bolt) continue;
+                p2::Look l = ink;
+                l.impacts = {{.name = "light", .flash = flash, .flash_frames = 6, .spark = style, .spark_size = 50, .spark_count = 9, .spark_frames = 16}};
+                p2::bind(l, fighter());
+                Match m = close_match();
+                p2::Effects fx;
+                for (int f = 0; f < 6; ++f) {
+                    m.tick(f == 0 ? pad(5, LP) : pad(5), pad(5));
+                    fx.record(m);
+                }
+                omui::render::DisplayList dl;
+                p2::draw(m, l, paper, fx, {}, dl);
+                lists.push_back(dl.hash());
+                all.u64(dl.hash());
+                omui::raster::Surface px(960, 540);
+                omui::render::CpuRenderer{}.render(dl, px, {}, {.scale = 1});
+                save(px, std::format("spark-{}-{}", static_cast<int>(style), static_cast<int>(flash)));
+            }
+        }
+        check_eq(std::set<std::uint64_t>(lists.begin(), lists.end()).size(), lists.size());
+        std::println("    sparks {}", all.hex());
+        check_eq(all.hex(), std::string("70dee2a51ce8143b"));
     });
 
     return s.run(argc, argv);

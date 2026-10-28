@@ -61,6 +61,10 @@ int main(int argc, char** argv) {
         const MoveDef& dp = kata->def.moves[static_cast<std::size_t>(kata->find("623P"))];
         check(dp.command.motion.length == 3 && dp.invulnerable.size() == 1 && dp.steps.size() == 2 && dp.hits[0].launch == Vec{3_fx, 14_fx});
         check(kata->def.moves[static_cast<std::size_t>(kata->find("throw"))].throw_.has_value());
+        // Impacts are named (the look draws them), each name once, in the order first named.
+        check(kata->def.impacts == std::vector<std::string>{"light", "low", "overhead", "heavy", "fireball", "rising", "air"},
+              std::format("{}", kata->def.impacts));
+        check_eq(kata->def.impacts[dp.hits[0].impact], std::string("rising"));
         auto system = data::read_system(read(here() / "data" / "arcade.system.gongfu.toml"), "arcade.system.gongfu.toml");
         check(system.has_value(), system ? "" : std::format("{}", texts(system.error())));
         if (!system) return;
@@ -99,12 +103,14 @@ boxes = [[20, 110, 70, 30]]
 damgae = 300
 hitstun = 15
 blockstun = 11
+impact = 3
 )";
         auto bad = data::read_fighter(text, "broken.fighter.gongfu.toml");
         check(!bad.has_value());
         if (!bad) {
             const auto t = texts(bad.error());
             check(contains(t, "broken.fighter.gongfu.toml:16:1: a hit has no key `damgae` (did you mean `damage`?)"), std::format("{}", t));
+            check(contains(t, "broken.fighter.gongfu.toml:19:10: `impact` names a profile of the fighter's look"), std::format("{}", t));
         }
         // Well formed, but the compiler finds the frames outside the move: at the line of `active`.
         const std::string frames = R"(gongfu = "0.1"

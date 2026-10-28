@@ -65,6 +65,7 @@ struct Reader {
     std::string                                         file;
     std::vector<Diagnostic>&                            out;
     std::map<std::string, std::pair<int, int>, std::less<>> where;  // a compile() path: its line and column
+    std::vector<std::string>                            impacts{};  // the impact profiles hits name, in the order first named
 
     std::pair<int, int> at(const toml::node* n) const {
         if (!n) return {0, 0};
@@ -206,7 +207,15 @@ struct Reader {
         }
         if (auto v = boolean(t.get("knockdown"), "`knockdown`")) h.knockdown = *v;
         if (auto v = vec(t.get("launch"), "`launch`")) h.launch = *v;
-        if (auto v = integer(t.get("impact"), "`impact`", 0, 65535)) h.impact = static_cast<std::uint16_t>(*v);
+        if (const toml::node* n = t.get("impact")) {
+            if (auto name = n->value<std::string>(); name && !name->empty()) {
+                auto it = std::ranges::find(impacts, *name);
+                if (it == impacts.end()) it = impacts.insert(impacts.end(), *name);
+                h.impact = static_cast<std::uint16_t>(it - impacts.begin());
+            } else {
+                error(n, "`impact` names a profile of the fighter's look", "impact = \"light\" (the look's [impact.light] says how it is drawn)");
+            }
+        }
         return h;
     }
 
@@ -373,6 +382,8 @@ void version(Reader& r, const toml::table& root) {
 
 }  // namespace
 
+std::string nearest_hint(std::string_view name, std::span<const std::string_view> keys) { return nearest(name, keys); }
+
 std::expected<Fighter, std::vector<Diagnostic>> read_fighter(std::string_view source, std::string_view file) {
     std::vector<Diagnostic> out;
     auto root = parse(source, file, out);
@@ -416,6 +427,7 @@ std::expected<Fighter, std::vector<Diagnostic>> read_fighter(std::string_view so
     r.each_table(root->get("move"), "move", "[[move]] name = \"5LP\" …", [&](const toml::table& t, std::size_t) {
         if (auto m = r.move(t, f.name)) f.moves.push_back(std::move(*m));
     });
+    f.impacts = std::move(r.impacts);
     if (!out.empty()) return std::unexpected(std::move(out));
     auto compiled = compile(std::move(f));
     if (!compiled) {

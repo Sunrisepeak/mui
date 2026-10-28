@@ -138,7 +138,7 @@ int main(int argc, char** argv) {
         std::println("    fighting versus {:016x} training {:016x}", px[0], px[1]);
         check(px[0] != px[1], "training draws the boxes");
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
-        check(px == std::vector<std::uint64_t>{0x01624aebff91cf5eULL, 0x68ad61dfce6e9458ULL}, "pinned");
+        check(px == std::vector<std::uint64_t>{0xff7d41caa82865c1ULL, 0x2774a0b7c2a64a3aULL}, "pinned");
     });
 
     return s.run(argc, argv);

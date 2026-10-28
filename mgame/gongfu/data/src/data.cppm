@@ -29,6 +29,10 @@ struct Diagnostic {
     [[nodiscard]] std::string text() const;
 };
 
+// The hint for a key no table of its kind has: the nearest that is ("did you
+// mean `damage`?"), else all of them. Other gongfu formats (a look) use it too.
+[[nodiscard]] std::string nearest_hint(std::string_view name, std::span<const std::string_view> keys);
+
 // A move's input in numpad notation, and back.
 [[nodiscard]] std::expected<Command, std::string> parse_command(std::string_view notation);
 [[nodiscard]] std::string notation(const Command& command);

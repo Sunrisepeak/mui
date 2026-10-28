@@ -1,6 +1,6 @@
 # showcase
 
-Flagship works: each is a real tool, shows a feature of the framework, and has a signature shot that replays exactly under the headless host (D-63).
+Flagship works: each is a real tool, shows a feature of the framework, and has a signature shot that replays exactly under the headless host (D-63). Each README shows that shot, and each has a `dev-story.md`: how it was built with the framework (its assets too), and a self-review whose general lessons go into [best practices](../docs/en/best-practices.md).
 
 | Work | What it is | What it shows |
 |---|---|---|

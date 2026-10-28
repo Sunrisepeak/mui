@@ -4,6 +4,8 @@
 
 ![Level 1 played by an agent with the semantic lens open: every brick's role and id, the hidden ones, the tree's changes as they happen](media/level-1-lens.png)
 
+How it was made, layer by layer, and what making it taught: [dev story](dev-story.md).
+
 | Package | |
 |---|---|
 | `openmui.showcase.widget_breakout` (here) | The game: the field (`field.contract.omui.toml`) over a level's bricks — real buttons, switches, sliders and cards laid out by openmui and read into the simulation where they stand; every hit changes the brick for real; Tab's semantic lens shows each brick's role and id, the hidden ones, and the tree's latest changes; an agent plays it through the field's actions (`launch`, `move_to`, `step`, `rewind`…). `omui-breakout` runs it |

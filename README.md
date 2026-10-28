@@ -10,7 +10,7 @@
 [![C++23](https://img.shields.io/badge/C%2B%2B23-modules-informational)](https://github.com/mcpp-community/mcpp)
 [![code](https://img.shields.io/badge/code-Apache--2.0-green)](LICENSE)
 
-[中文](README.zh.md) · [Features](docs/en/features.md) · [Benchmarks](docs/en/benchmarks/README.md) · [Design](.agents/docs/README.md)
+[中文](README.zh.md) · [Features](docs/en/features.md) · [Best practices](docs/en/best-practices.md) · [Benchmarks](docs/en/benchmarks/README.md) · [Design](.agents/docs/README.md)
 
 </div>
 

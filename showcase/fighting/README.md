@@ -1,8 +1,10 @@
 # 格斗游戏 — the fighting game
 
-`omui-fight` is gongfu's match (`mgame/gongfu`) on openmui's stage: two fighters at 60 frames a second, from the keyboard or an agent, drawn in 2D by `gongfu.present2d`, with a training mode that shows every box and a frame meter (D-85 §8.7). Its name will come later. It has two fighters so far, chosen by the stage's `player1` and `player2` properties:
+`omui-fight` is gongfu's match (`mgame/gongfu`) on openmui's stage: two fighters at 60 frames a second, from the keyboard or an agent, drawn in 2D by `gongfu.present2d`, with a training mode that shows every box and a frame meter (D-85 §8.7). Its name will come later. Six fighters, chosen by the stage's `player1` and `player2` properties:
 - Kata, the training fighter;
-- 墨 (Mo), the calligrapher. She is the first of the five designed in the [characters design](../../.agents/docs/2026-10-28-gongfu-characters-design.md): keep-away with written glyphs at three speeds, a long brush and an anti-air.
+- the five designed ([characters design](../../.agents/docs/2026-10-28-gongfu-characters-design.md), [characters design 2](../../.agents/docs/2026-10-28-gongfu-characters-2-design.md)): 墨 (Mo), the calligrapher — keep-away with written glyphs; 霓 (Ni), the street fighter — rushdown; 璃 (Li), glass — set-ups with panes; 岳 (Yue), the giant — throws and armour; 刻 (Ke), time — rewinds and a clone.
+
+How it was made, layer by layer, and what making it taught: [dev story](dev-story.md). The bar it is held to: [quality design](../../.agents/docs/2026-10-29-fighting-indie-quality-design.md).
 
 ![墨's level-3 super, 「永字八法」: the flash, the close-up, 永 written stroke by stroke and sealed (drawn headless, the same on every platform)](media/mo-level-3.png)
 

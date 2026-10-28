@@ -4,6 +4,8 @@
 
 ![One interface in the five style packs: glass, neon, retro, ink, liquid — the same semantic tree in each](media/five-packs.png)
 
+How it was made, layer by layer, and what making it taught: [dev story](dev-story.md).
+
 ```sh
 mcpp run -p openmui.showcase.styles
 mcpp run -p openmui.showcase.styles -- --style retro --headless --png retro.png

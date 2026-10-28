@@ -4,6 +4,8 @@
 
 ![The handbook as a wall of live windows on the infinite canvas (drawn headless)](media/wall.png)
 
+How it was made, layer by layer, and what making it taught: [dev story](dev-story.md).
+
 ```sh
 mcpp run -p openmui.showcase.wall -- .agents/docs
 mcpp run -p openmui.showcase.wall -- --synthetic 1000 --stream 20

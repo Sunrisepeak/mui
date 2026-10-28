@@ -60,8 +60,16 @@ std::expected<Rules, std::string> read_rules(const Value& answer, Rules into, st
 }  // namespace
 
 struct Workshop::Impl {
+    // The C ABI's handle over the runtime, let go last (after the scripts, the session and the host).
+    struct Attached {
+        abi::OmuiRuntime handle;
+        explicit Attached(Runtime& rt) : handle(abi::attach(rt, "org.openmui.breakout")) {}
+        Attached(const Attached&) = delete;
+        Attached& operator=(const Attached&) = delete;
+        ~Attached() { abi::detach(handle); }
+    };
     Runtime&                                       runtime;
-    abi::OmuiRuntime                               handle;
+    Attached                                       attached;
     lang::Host                                     host;
     lang::Session                                  session;
     std::vector<std::unique_ptr<lang::js::Script>>  js;   // per script: one of these two
@@ -70,7 +78,7 @@ struct Workshop::Impl {
     std::vector<std::future<lang::Result<void>>>   loading;
     std::string                                    errors;  // raised in a verb
 
-    explicit Impl(Runtime& rt) : runtime(rt), handle(abi::attach(rt, "org.openmui.breakout")), host(handle), session(host) {}
+    explicit Impl(Runtime& rt) : runtime(rt), attached(rt), host(attached.handle), session(host) {}
 
     // Runs a script's text, the first time or again in place.
     std::expected<std::future<lang::Result<void>>, std::string> run(std::size_t i, const GiftScript& g, std::string_view text, bool again) {

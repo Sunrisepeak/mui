@@ -162,6 +162,30 @@ int main(int argc, char** argv) {
         check(b("main/a").width == 280);
     });
 
+    s.test("slots: one mounted beneath the others, one kept inside insets (a window's own frame)", [] {
+        Runtime rt(options({200, 100}));
+        rt.mount("main", column({}, {box({.id = "b", .height = 10})}));
+        rt.mount_beneath("window", box({.label = "Frame"}));
+        rt.set_slot_insets("main", {30, 8, 8, 8});
+        rt.frame({seconds(0), {}});
+        const std::vector<NodeId> top = rt.children(rt.root());
+        check(top.size() == 2 && rt.path(top[0]) == "window" && rt.path(top[1]) == "main", "the frame is beneath");
+        const Rect frame = rt.bounds(rt.find("window"));
+        const Rect main = rt.bounds(rt.find("main"));
+        check(frame.x == 0 && frame.y == 0 && frame.width == 200 && frame.height == 100, "the frame fills the window");
+        check(main.x == 8 && main.y == 30 && main.width == 184 && main.height == 62,
+              std::format("main inside the insets: {} {} {} {}", main.x, main.y, main.width, main.height));
+        check(rt.hit_test({100, 60}) != rt.find("window"), "the application is reached first");
+        check_eq(rt.hit_test({100, 10}), rt.find("window"));
+        // Mounted again, the view keeps its insets; without them it fills the window.
+        rt.mount("main", column({}, {}));
+        rt.frame({seconds(0.1), {}});
+        check(rt.bounds(rt.find("main")).y == 30);
+        rt.set_slot_insets("main", {});
+        rt.frame({seconds(0.2), {}});
+        check(rt.bounds(rt.find("main")).y == 0 && rt.bounds(rt.find("main")).height == 100);
+    });
+
     s.test("bound properties update their node alone", [] {
         Runtime rt(options());
         auto name = signal(std::string("Ada"));

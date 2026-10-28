@@ -19,7 +19,8 @@ bool operable(const spec::SemanticNode& n) {
 std::string_view name(WindowState s) noexcept { return state_names[static_cast<std::size_t>(s)]; }
 
 Window::Window()
-    : state_name(signal(std::string("normal"))), is_active(signal(true)), is_closing(signal(false)), is_framework(signal(false)) {}
+    : state_name(signal(std::string("normal"))), is_active(signal(true)), is_closing(signal(false)), is_framework(signal(false)),
+      is_transparent(signal(true)) {}
 
 void Window::attach(WindowHost* host, Verbs& verbs) {
     host_ = host;
@@ -38,11 +39,22 @@ void Window::attach(WindowHost* host, Verbs& verbs) {
         h.set_fullscreen(a.get("on") ? a.get("on")->as_bool(true) : true);
     });
     add("window.close", "Close the window (the application may keep it to save first)", [](WindowHost& h, const Value&) { h.request_close(); });
+    if (!verbs.find("window.frame"))
+        (void)verbs.add({"window.frame", "Draw the window's frame in the interface ({\"framework\": true}) or have the system draw it",
+                         Effect::reversible, "", {{"framework", "bool"}}},
+                        [this](const Value& args) -> VerbResult {
+                            if (!host_) return std::unexpected(std::string("no window: the interface is not shown in one"));
+                            const bool on = args.get("framework") ? args.get("framework")->as_bool(true) : !host_->framework_drawn();
+                            if (!host_->set_framework_drawn(on)) return std::unexpected(std::string("this window cannot change who draws its frame"));
+                            is_framework.set(host_->framework_drawn());
+                            return Value(host_->framework_drawn());
+                        });
 }
 
 void Window::set_state(WindowState s) { state_name.set(std::string(name(s))); }
 void Window::set_active(bool active) { is_active.set(active); }
 void Window::set_closing(bool closing) { is_closing.set(closing); }
+void Window::set_transparent(bool transparent) { is_transparent.set(transparent); }
 
 WindowState Window::state() const {
     const std::string s = state_name.peek();
@@ -53,6 +65,7 @@ WindowState Window::state() const {
 bool Window::active() const { return is_active.peek(); }
 bool Window::closing() const { return is_closing.peek(); }
 bool Window::framework_drawn() const { return is_framework.peek(); }
+bool Window::transparent() const { return is_transparent.peek(); }
 
 Window& window() {
     thread_local Window w;

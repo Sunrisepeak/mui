@@ -139,8 +139,42 @@ NodeId Runtime::mount(std::string_view slot, View view) {
     NodeId id = d.create(view, d.root);
     d.at(d.root).slots.push_back({id, {}});
     d.mounted.emplace_back(std::string(slot), id);
+    if (d.slot_insets.contains(slot)) d.sync_style(id);
     d.flatten(d.root);
     return id;
+}
+
+NodeId Runtime::mount_beneath(std::string_view slot, View view) {
+    Impl& d = *impl_;
+    const NodeId id = mount(slot, std::move(view));
+    if (!d.alive(id)) return id;
+    auto& slots = d.at(d.root).slots;
+    if (auto it = std::ranges::find(slots, id, &ChildSlot::node); it != slots.end() && it != slots.begin()) {
+        ChildSlot moved = std::move(*it);
+        slots.erase(it);
+        slots.insert(slots.begin(), std::move(moved));
+    }
+    if (auto it = std::ranges::find(d.mounted, slot, &std::pair<std::string, NodeId>::first); it != d.mounted.end() && it != d.mounted.begin())
+        std::rotate(d.mounted.begin(), it, it + 1);
+    d.flatten(d.root);
+    return id;
+}
+
+void Runtime::set_slot_insets(std::string_view slot, Insets insets) {
+    Impl& d = *impl_;
+    const bool none = insets.top == 0 && insets.right == 0 && insets.bottom == 0 && insets.left == 0;
+    if (none) {
+        if (auto it = d.slot_insets.find(slot); it != d.slot_insets.end()) d.slot_insets.erase(it);
+    } else {
+        d.slot_insets.insert_or_assign(std::string(slot), insets);
+    }
+    if (auto it = std::ranges::find(d.mounted, slot, &std::pair<std::string, NodeId>::first); it != d.mounted.end() && d.alive(it->second))
+        d.sync_style(it->second);
+}
+
+Insets Runtime::slot_insets(std::string_view slot) const {
+    const auto it = impl_->slot_insets.find(slot);
+    return it == impl_->slot_insets.end() ? Insets{} : it->second;
 }
 
 void Runtime::unmount(std::string_view slot) {
@@ -353,6 +387,7 @@ void Runtime::set_reduce_transparency(bool reduce) {
 }
 
 bool Runtime::reduce_transparency() const { return impl_->reduce_transparency; }
+bool Runtime::reduce_motion() const noexcept { return impl_->reduce_motion; }
 
 const Theme& Runtime::theme() const { return impl_->theme; }
 typeset::FontCollection& Runtime::fonts() { return *impl_->fonts; }

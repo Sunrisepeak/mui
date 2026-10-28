@@ -52,6 +52,20 @@ int main(int argc, char** argv) {
         run.png = png;
         check(omui::run(hello::app(state), run) == 0);
         check(std::filesystem::file_size(png) > 1000);
+        // The framework's own frame around it (D-75): --window framework.
+        std::array<std::string_view, 2> framed{"--window", "framework"};
+        auto f = omui::RunOptions::parse(framed);
+        check(f && f->window == "framework");
+        std::array<std::string_view, 2> wrong{"--window", "fancy"};
+        check(!omui::RunOptions::parse(wrong).has_value());
+        run.window = "framework";
+        run.png = scratch_dir("hello-im-framed") / "framed.png";
+        check(omui::run(hello::app(state), run) == 0);
+        check(std::filesystem::file_size(run.png) > 1000);
+        omui::AppSpec odd = hello::app(state);
+        odd.window = "fancy";
+        run.window.clear();
+        check(omui::run(std::move(odd), run) == 2, "an unknown frame mode is refused");
     });
 
     s.test("the development switches: overlays, log levels, a profile of the run", [] {

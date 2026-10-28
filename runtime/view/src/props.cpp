@@ -595,6 +595,17 @@ void Runtime::Impl::sync_style(NodeId id) {
     if (n.type->style) n.type->style(n.instance, theme, s);
     for (const auto& [k, v] : n.props)
         if (is_layout_prop(k)) apply_layout(s, k, v, theme);
+    if (n.parent == root && !slot_insets.empty()) {
+        // A slot kept from the window's edges (inside a window's own frame).
+        for (const auto& [slot, node] : mounted)
+            if (node == id)
+                if (auto it = slot_insets.find(slot); it != slot_insets.end()) {
+                    s.margin.top += it->second.top;
+                    s.margin.right += it->second.right;
+                    s.margin.bottom += it->second.bottom;
+                    s.margin.left += it->second.left;
+                }
+    }
     if (n.type->overlay) {
         // Laid out at the root's corner, then placed against its anchor.
         s.position = layout::Position::absolute;

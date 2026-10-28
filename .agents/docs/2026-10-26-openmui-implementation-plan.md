@@ -1227,6 +1227,13 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
   - ✅ 规范 0.3（`spec/SPEC.md` §16）：
     - 扩展条款：K-1–K-6 画布（条目、`find`、视口动作、实例化条目、行为、声明式行为）；E-1–E-6 效果和背景输入；ST-1–ST-3 风格包；P-1–P-3 帧节奏；T-1、T-2 纹理档位和确定性；VD-1 视频。
     - 总线 `invoke`；registry 升到 0.3，新增扩展 `OMUI_EXT_backdrop_effect`、`OMUI_EXT_style_pack`、`OMUI_EXT_frame_pacing`；`openmui.h` 等由生成器重新生成。
+  - ✅ 开放标准（D-78）：规范拆成 OpenLifa 的两个仓库，各一个 PR、全平台 CI：[openlifa/openmui](https://github.com/openlifa/openmui)（本仓库的 `spec/` 子模块，包 `openlifa.openmui` 0.3.0）和 [openlifa/openas](https://github.com/openlifa/openas)（openas 0.2：actor 文本形式、在场、人的动作、系统上限下的授权和单个请求的决定、退出码 3 和错误码）；两个包都已发布到 mcpp-index（#603、#604）。openmui 的信封字段、actor 写法、未知效果的读法与 openas 一致。
+  - ✅ agent 授权（S-11，D-79）：`openmui.core:access` 用 `openas::decide` 决定总线上的每个请求；`AppSpec::agent`（上限）和 `AppSpec::grants`，`agent_access().give` 由人在应用界面里授权；协议测试覆盖上限、授权链和其他 agent。
+  - ✅ 窗口（D-75）：
+    - `openmui.view:window`：窗口状态（正常、最大化、最小化、全屏、活动、关闭中、自绘、透明）是信号，操作是动词 `window.*`（含切换外框的 `window.frame`）；`window_area_at` 问组件各部分是什么（`ComponentType::window_area`、通用属性 `window_area`）。
+    - `openmui.ui.window`：`window_frame`（阴影、圆角边、标题栏、跟随状态）和 `caption_button`（标准和红绿灯两种风格，名称 en / zh-Hans / zh-Hant），契约优先；`FramedWindow` 把外框挂在应用下面（`mount_beneath`、`set_slot_insets`），应用的路径不变；两种风格的像素逐字节固定。
+    - SDL3 宿主：无系统外框的透明窗口，`SDL_SetWindowHitTest` 经 `window_area_at`，状态事件，运行时切换，关闭时立即在逻辑上关闭、不再接收输入、输入穿透（Windows 分层窗口、macOS `setIgnoresMouseEvents`、X11 输入形状；Wayland 没有客户端能用的办法），溶解只是呈现。
+    - `AppSpec::window`（native / framework / switchable）和 `--window`；headless 也画外框，用于确定的截图。
 - M5：openmui-video、ui-timeline、MCP 服务器、skills、S3 / S4 / S5。
 - 契约⑦（插件与管线）写进规范；Inspector 的火焰图和动画检查器视图。
 

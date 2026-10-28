@@ -5,6 +5,7 @@ import openmui.core;
 import openmui.view;
 import openmui.agent;
 import openmui.ui.base;
+import openmui.ui.window;
 import openmui.host.headless;
 import openmui.host.sdl3;
 import openmui.trace;
@@ -47,6 +48,10 @@ std::expected<RunOptions, std::string> RunOptions::parse(std::span<const std::st
             auto v = value();
             if (!v) return std::unexpected("--agent-dir takes a directory");
             o.agent_dir = std::filesystem::path(*v);
+        } else if (a == "--window") {
+            auto v = value();
+            if (!v || (*v != "native" && *v != "framework" && *v != "switchable")) return std::unexpected("--window is native, framework or switchable");
+            o.window = std::string(*v);
         } else if (a == "--size") {
             auto v = value();
             float w = 0, h = 0;
@@ -91,7 +96,7 @@ std::expected<RunOptions, std::string> RunOptions::parse(std::span<const std::st
             o.profile = std::filesystem::path(*v);
         } else {
             return std::unexpected(std::format("unknown option `{}` (--headless, --frames N, --png FILE, --level hN, --serve, "
-                                               "--agent-dir DIR, --no-agent, --dark, --gpu, --cpu, --reduce-transparency, --size WxH, --debug LIST, --log FILTER, --profile FILE, --lang TAGS)",
+                                               "--agent-dir DIR, --no-agent, --dark, --gpu, --cpu, --reduce-transparency, --size WxH, --debug LIST, --log FILTER, --profile FILE, --lang TAGS, --window MODE)",
                                                a));
         }
     }
@@ -159,6 +164,35 @@ bool agent_access_of(const AppSpec& app) {
     return true;
 }
 
+// Who draws the window's frame: --window, else the application's choice.
+std::string window_mode(const AppSpec& app, const RunOptions& o) { return o.window.empty() ? app.window : o.window; }
+
+// The framework's frame around the application, when it may show (D-75).
+std::unique_ptr<FramedWindow> frame_of(Runtime& rt, const AppSpec& app, std::string_view mode) {
+    if (mode == "native") return nullptr;
+    WindowFrameOptions f = app.frame;
+    if (!f.title.is_set()) f.title = app.title;
+    return std::make_unique<FramedWindow>(rt, std::move(f));
+}
+
+// A headless run's window (a frame drawn as it would be on a desktop, for
+// pictures and agents): its operations change its state, nothing else.
+struct HeadlessWindow final : WindowHost {
+    bool framework = true;
+    bool framework_drawn() const noexcept override { return framework; }
+    void minimize() override { window().set_state(WindowState::minimized); }
+    void toggle_maximize() override {
+        window().set_state(window().state() == WindowState::maximized ? WindowState::normal : WindowState::maximized);
+    }
+    void set_fullscreen(bool on) override { window().set_state(on ? WindowState::fullscreen : WindowState::normal); }
+    void request_close() override { window().set_closing(true); }
+    bool pass_through(bool) override { return false; }
+    bool set_framework_drawn(bool on) override {
+        framework = on;
+        return true;
+    }
+};
+
 void prepare(Runtime& rt, AppSpec& app) {
     for (VerbSpec& v : app.verbs)
         if (auto r = rt.verbs().add(std::move(v.desc), std::move(v.fn)); !r) warn("verb not added: {}", r.error());
@@ -177,7 +211,18 @@ int headless(AppSpec app, const RunOptions& o) {
     Headless host(h);
     host.runtime().set_debug(o.debug);
     host.runtime().set_reduce_transparency(o.reduce_transparency);
+    const std::string mode = window_mode(app, o);
+    HeadlessWindow shown;
+    shown.framework = mode == "framework";
+    if (mode != "native") window().attach(&shown, host.runtime().verbs());
+    struct Detach {
+        bool attached;
+        ~Detach() {
+            if (attached) window().detach();
+        }
+    } detach{mode != "native"};
     prepare(host.runtime(), app);
+    const auto framed = frame_of(host.runtime(), app, mode);
     if (o.frames) {
         for (int i = 0; i < *o.frames; ++i) host.step();
     } else {
@@ -217,6 +262,11 @@ int headless(AppSpec app, const RunOptions& o) {
 
 int run(AppSpec app, const RunOptions& o) {
     register_base_components();
+    register_window_components();
+    if (const std::string mode = window_mode(app, o); mode != "native" && mode != "framework" && mode != "switchable") {
+        error("AppSpec::window `{}` is native, framework or switchable", mode);
+        return 2;
+    }
     // Log levels: OMUI_LOG, then --log.
     for (const std::string& filter : {mcpplibs::os::env::get("OMUI_LOG").value_or(std::string{}), o.log})
         if (!filter.empty())
@@ -244,6 +294,8 @@ int run(AppSpec app, const RunOptions& o) {
     d.effects = app.effects;
     d.reduce_transparency = o.reduce_transparency;
     if (o.gpu) d.renderer = *o.gpu ? DesktopOptions::Renderer::gpu : DesktopOptions::Renderer::cpu;
+    const std::string mode = window_mode(app, o);
+    d.frame = mode == "framework" ? DesktopOptions::Frame::framework : DesktopOptions::Frame::native;
     Desktop desktop(d);
     if (auto r = desktop.open(); !r) {
         error("no window ({}); `--headless` runs without a display", r.error());
@@ -251,6 +303,7 @@ int run(AppSpec app, const RunOptions& o) {
     }
     desktop.runtime().set_debug(o.debug);
     prepare(desktop.runtime(), app);
+    const auto framed = frame_of(desktop.runtime(), app, mode);
     return desktop.run();
 }
 

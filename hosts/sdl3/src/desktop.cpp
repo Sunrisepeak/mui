@@ -18,7 +18,7 @@ import :platform;
 
 namespace omui {
 
-struct Desktop::Impl {
+struct Desktop::Impl final : WindowHost {
     DesktopOptions                           options;
     std::unique_ptr<typeset::FontCollection> own_fonts;
     std::unique_ptr<Runtime>                 own_runtime;
@@ -45,6 +45,70 @@ struct Desktop::Impl {
     rhi::Texture                             gpu_frame;
     std::uint32_t                            gpu_w = 0, gpu_h = 0;
     std::optional<effect::Library>           effects;
+
+    // The window as a window (D-75): who draws its frame, and its close.
+    bool                                     framework = false;
+    bool                                     close_requested = false;
+    std::optional<std::chrono::steady_clock::time_point> closed_at;  // closed, dissolving until then
+
+    bool framework_drawn() const noexcept override { return framework; }
+    void minimize() override {
+        if (window) platform::minimize(*window);
+    }
+    void toggle_maximize() override {
+        if (window) platform::toggle_maximize(*window);
+    }
+    void set_fullscreen(bool on) override {
+        if (window) platform::set_fullscreen(*window, on);
+    }
+    void request_close() override {
+        close_requested = true;
+        platform::wake();
+    }
+    bool pass_through(bool on) override { return window && platform::pass_through(*window, on); }
+    bool set_framework_drawn(bool on) override {
+        if (!window) return false;
+        if (on == framework) return true;
+        framework = on;
+        platform::set_framed(*window, !on);
+        hit_test();
+        window_state();
+        return true;
+    }
+
+    // The system asks what lies under a point of a frameless window.
+    void hit_test() {
+        if (!window) return;
+        if (!framework) {
+            (void)platform::set_hit_test(*window, {});
+            return;
+        }
+        if (!platform::set_hit_test(*window, [this](Point p) { return window_area_at(*runtime, p, runtime->size()); }))
+            debug("this system does not ask a frameless window what lies under the pointer: it cannot be moved or resized by its frame");
+    }
+
+    // What the system says of the window, for the interface.
+    void window_state() {
+        if (!window) return;
+        omui::window().set_transparent(framework && platform::transparent(*window));
+        omui::window().set_state(platform::state(*window));
+    }
+
+    // Closed at once, and gone when the dissolve ends: input from now on is
+    // not the application's (it goes to what is beneath, where the system
+    // can send it there), and the agent's requests see a closing window.
+    void begin_close() {
+        if (closed_at) return;
+        const double d = options.close_dissolve;
+        if (!framework || d <= 0 || runtime->reduce_motion()) {
+            quitting = true;
+            return;
+        }
+        omui::window().set_closing(true);
+        (void)pass_through(true);
+        runtime->set(runtime->root(), "pixel_effect", Value{}.set("name", "dissolve").set("duration", d));
+        closed_at = std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::duration<double>(d));
+    }
 
     // A device for the window, when the options and the machine say the GPU
     // draws: none for a software rasteriser unless the GPU is insisted on.
@@ -197,6 +261,7 @@ Desktop::Desktop(DesktopOptions options) : impl_(std::make_unique<Impl>()) {
 }
 
 Desktop::~Desktop() {
+    if (omui::window().host() == impl_.get()) omui::window().detach();
     if (impl_->endpoint) impl_->endpoint->stop();
     // The GPU's before the window it claimed.
     if (impl_->device && impl_->gpu_frame) impl_->device->destroy(impl_->gpu_frame);
@@ -210,8 +275,11 @@ std::expected<void, std::string> Desktop::open() {
     if (d.window) return {};
     // A window for the GPU first (when it may draw); the CPU's otherwise.
     const bool try_gpu = d.options.renderer != DesktopOptions::Renderer::cpu;
+    d.framework = d.options.frame == DesktopOptions::Frame::framework;
     platform::WindowOptions wo{d.options.title, d.options.size, d.options.resizable, d.options.vsync, d.options.video_driver,
-                               d.options.render_driver, try_gpu};
+                               d.options.render_driver, try_gpu, d.framework};
+    // Where the interface draws nothing, a frameless window shows what is behind it.
+    if (d.framework) d.options.background = Color::transparent();
     auto w = platform::open(wo);
     if (!w) return std::unexpected(w.error());
     d.window = std::move(*w);
@@ -233,6 +301,10 @@ std::expected<void, std::string> Desktop::open() {
         if (!d.gpu) warn("effects in {} are drawn by the GPU renderer; the CPU renderer draws their layers without them", mcpplibs::os::fs::utf8(d.options.effects));
     }
     d.runtime->resize(platform::logical_size(*d.window), platform::pixel_scale(*d.window));
+    // The window's operations are verbs (window.*), its state the interface's to read.
+    omui::window().attach(&d, d.runtime->verbs());
+    d.window_state();
+    d.hit_test();
     d.runtime->set_clipboard([] { return platform::clipboard(); }, [](std::string_view t) { platform::set_clipboard(t); });
     if (d.options.agent) {
         agent::EndpointOptions eo;
@@ -309,7 +381,23 @@ bool Desktop::step(bool wait) {
             timeout = std::chrono::milliseconds(static_cast<std::int64_t>(std::ceil(std::chrono::duration<double, std::milli>(due - now).count())));
         }
     }
+    if (d.closed_at) {
+        // Dissolving: frames as fast as the display shows them, until it is gone.
+        sleep = false;
+        timeout.reset();
+    }
     platform::Polled polled = platform::poll(*d.window, sleep, timeout);
+    if (polled.state) omui::window().set_state(*polled.state);
+    if (polled.quit || d.close_requested) {
+        d.close_requested = false;
+        polled.quit = false;
+        d.begin_close();
+    }
+    if (d.closed_at) {
+        // Closed: the application takes no more input.
+        polled.events.clear();
+        if (std::chrono::steady_clock::now() >= *d.closed_at) d.quitting = true;
+    }
     if (d.endpoint) d.endpoint->pump();
     d.reload_effects();
     FrameInput in;
@@ -324,12 +412,18 @@ bool Desktop::step(bool wait) {
     d.show();
     platform::text_input(*d.window, d.runtime->text_input_rect());
     platform::cursor(*d.window, d.runtime->cursor());
-    d.idle = !out.animating && out.demand.idle();
-    if (polled.quit) d.quitting = true;
+    d.idle = !out.animating && out.demand.idle() && !d.closed_at;
     return !d.quitting;
 }
 
 void Desktop::wake() { platform::wake(); }
+
+void Desktop::close() {
+    impl_->close_requested = true;
+    platform::wake();
+}
+
+bool Desktop::closing() const noexcept { return impl_->closed_at.has_value(); }
 
 int Desktop::run() {
     while (step(true)) {}

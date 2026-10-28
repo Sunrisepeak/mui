@@ -42,6 +42,10 @@ public:
     [[nodiscard]] float inset() const;
     // The title bar, in the node's coordinates (empty when not drawn).
     [[nodiscard]] Rect title_bar() const;
+    // What a frame with these properties keeps around the application, as
+    // the window is now: the shadow's reach (none when the window fills its
+    // screen or shows nothing behind it), and the title bar above.
+    [[nodiscard]] static Insets content_insets(const WindowFrameProps& props);
 
 private:
     [[nodiscard]] bool fills_screen() const;
@@ -67,6 +71,24 @@ public:
 
 private:
     mutable parts::Motion hover_;
+};
+
+// The framework's frame around an application (D-75): window_frame mounted
+// beneath `slot`'s view, as the slot `window`, and the view kept inside it
+// as the window changes (its state, framework-drawn or not). Dropping it
+// takes the frame away.
+class FramedWindow {
+public:
+    FramedWindow(Runtime& runtime, WindowFrameOptions options, std::string slot = "main");
+    ~FramedWindow();
+    FramedWindow(const FramedWindow&) = delete;
+    FramedWindow& operator=(const FramedWindow&) = delete;
+
+private:
+    Runtime*         runtime_;
+    std::string      slot_;
+    WindowFrameProps props_;
+    Watch            watch_;
 };
 
 // Registers window_frame and caption_button by name, and their texts in

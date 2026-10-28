@@ -78,6 +78,7 @@ void WindowFrame::mounted() {
         (void)window().state_name.get();
         (void)window().is_framework.get();
         (void)window().is_active.get();
+        (void)window().is_transparent.get();
         if (std::exchange(first, false)) return;
         untracked([this] {
             services().restyle(node());
@@ -109,7 +110,16 @@ bool WindowFrame::fills_screen() const {
     return s == WindowState::maximized || s == WindowState::fullscreen;
 }
 
-float WindowFrame::inset() const { return drawn() && !fills_screen() ? static_cast<float>(std::max(0.0, props.shadow)) : 0; }
+float WindowFrame::inset() const { return content_insets(props).left; }
+
+Insets WindowFrame::content_insets(const WindowFrameProps& p) {
+    if (!window().framework_drawn()) return {};
+    const WindowState s = window().state();
+    const bool fills = s == WindowState::maximized || s == WindowState::fullscreen;
+    const float i = !fills && window().transparent() ? static_cast<float>(std::max(0.0, p.shadow)) : 0;
+    const float bar = s == WindowState::fullscreen ? 0 : static_cast<float>(std::max(0.0, p.title_bar));
+    return {i + bar, i, i, i};
+}
 
 Rect WindowFrame::title_bar() const {
     if (!drawn() || window().state() == WindowState::fullscreen || !attached()) return {};
@@ -338,6 +348,27 @@ void CaptionButton::semantics(SemanticsContext&, spec::SemanticNode& node) const
 ActResult CaptionButton::activate(ActContext&) {
     emit_activated();
     return ActResult::done();
+}
+
+FramedWindow::FramedWindow(Runtime& runtime, WindowFrameOptions options, std::string slot) : runtime_(&runtime), slot_(std::move(slot)) {
+    // The properties the insets come from, as the frame will have them.
+    const auto number = [](const Prop<double>& p, double fallback) { return p.is_set() ? untracked([&] { return p.source().current(); }).as_double(fallback) : fallback; };
+    props_.shadow = number(options.shadow, props_.shadow);
+    props_.title_bar = number(options.title_bar, props_.title_bar);
+    runtime.mount_beneath("window", window_frame(std::move(options)));
+    watch_ = Watch([this] {
+        (void)window().state_name.get();
+        (void)window().is_framework.get();
+        (void)window().is_transparent.get();
+        const Insets insets = WindowFrame::content_insets(props_);
+        untracked([&] { runtime_->set_slot_insets(slot_, insets); });
+    });
+}
+
+FramedWindow::~FramedWindow() {
+    watch_.dispose();
+    runtime_->set_slot_insets(slot_, {});
+    runtime_->unmount("window");
 }
 
 void register_window_components() {

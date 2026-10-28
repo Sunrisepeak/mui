@@ -131,6 +131,7 @@ openmui.expr          = { path = "runtime/expr" }
 openmui.viewdoc       = { path = "runtime/viewdoc" }
 openmui.trace         = { path = "modules/trace" }
 openmui.ui.base       = { path = "components/base" }
+openmui.ui.window     = { path = "components/window" }
 openmui.host.headless = { path = "hosts/headless" }
 openmui.host.sdl3     = { path = "hosts/sdl3" }
 "openmui.i18n"        = { path = "modules/i18n" }

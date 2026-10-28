@@ -57,6 +57,16 @@ struct DesktopOptions {
     // Show a runtime that exists already rather than make one (the window
     // does not own it; it must outlive the desktop).
     Runtime*                runtime = nullptr;
+    // Who draws the window's frame (D-75): the system (native), or the
+    // interface (framework: no system frame; a window that shows what is
+    // behind where the interface draws nothing; its parts move and resize it
+    // through the system, window_area_at). window.frame switches at run time.
+    enum class Frame : std::uint8_t { native, framework };
+    Frame                   frame = Frame::native;
+    // Closing a framework-drawn window: the window is closed at once — it
+    // takes no more input, which goes to what is beneath — and dissolves for
+    // this long (0, or reduced motion: it simply goes).
+    double                  close_dissolve = 0.24;
 };
 
 class Desktop {
@@ -82,6 +92,11 @@ public:
     // Wakes a loop sleeping in step(true) — from any thread (after posting to
     // the runtime's queue, say).
     void wake();
+    // Closes the window as its close button does (window.close): at once,
+    // dissolving when the frame is the interface's.
+    void close();
+    // Whether the window is closing (closed, still dissolving).
+    [[nodiscard]] bool closing() const noexcept;
 
     // Events as the platform would deliver them: they go through the
     // window's event queue and the same translation as a person's input

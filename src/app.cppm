@@ -7,6 +7,7 @@ import std;
 import openmui.core;
 import openmui.view;
 import openmui.agent;
+import openmui.ui.window;
 
 export namespace omui {
 
@@ -43,6 +44,12 @@ struct AppSpec {
     // application's own interface: agent_access().give(…).
     std::string              agent = "external";
     std::vector<std::string> grants;
+    // Who draws the window's frame (D-75): "native" — the system (the
+    // default); "framework" — the interface (window_frame, its look in
+    // `frame`, its title `title` unless set); "switchable" — the system's,
+    // and the person may switch (the verb window.frame). --window overrides.
+    std::string              window = "native";
+    WindowFrameOptions       frame;
 };
 
 // How to run, from the command line:
@@ -63,6 +70,7 @@ struct AppSpec {
 //   --log FILTER              log levels per category: layout=debug,*=info (also OMUI_LOG)
 //   --profile FILE            record a trace of the run (Chrome / Perfetto JSON)
 //   --lang TAGS               the person's languages, best first: zh-CN,en (default: the system's)
+//   --window MODE             who draws the window's frame: native, framework, switchable (default: the application's)
 struct RunOptions {
     bool                  headless = false;
     bool                  serve = false;
@@ -79,6 +87,7 @@ struct RunOptions {
     std::string           log;
     std::filesystem::path profile;
     std::vector<std::string> languages;  // --lang
+    std::string           window;          // --window native|framework|switchable
 
     [[nodiscard]] static std::expected<RunOptions, std::string> parse(std::span<const std::string_view> args);
 };

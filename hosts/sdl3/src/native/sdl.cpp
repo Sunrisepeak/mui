@@ -7,6 +7,8 @@ import std;
 import mcpplibs.mwrap.sdl3;
 import openmui.core;
 import openmui.raster;
+import openmui.view;
+import mcpplibs.os;
 import :platform;
 using namespace mcpplibs::mwrap::sdl3::macros;
 
@@ -127,6 +129,7 @@ struct Window {
     std::string             shape = "default";
     bool                    typing = false;
     std::deque<std::string> synthesized_text;  // text of synthesized events, alive until polled
+    std::function<WindowArea(Point)> hit;      // a frameless window's parts (set_hit_test)
 
     // Window coordinates → logical pixels.
     [[nodiscard]] float to_logical() const {
@@ -166,6 +169,7 @@ std::expected<WindowPtr, std::string> open(const WindowOptions& o) {
     WindowPtr w(new Window);
     SDL_WindowFlags flags = SDL_WINDOW_HIGH_PIXEL_DENSITY;
     if (o.resizable) flags |= SDL_WINDOW_RESIZABLE;
+    if (o.framework) flags |= SDL_WINDOW_BORDERLESS | SDL_WINDOW_TRANSPARENT;
     // The software renderer draws into the window's surface and needs no GPU
     // context; saying so stops SDL on macOS from implying OpenGL for any
     // driver that has it — the offscreen driver's is EGL, which macOS lacks.
@@ -191,6 +195,117 @@ std::expected<WindowPtr, std::string> open(const WindowOptions& o) {
     if (!w->renderer) return std::unexpected(std::format("SDL_CreateRenderer: {}", SDL_GetError()));
     if (o.vsync) SDL_SetRenderVSync(w->renderer, 1);
     return w;
+}
+
+// ── the window as a window (D-75) ──
+
+WindowState state(Window& w) {
+    const SDL_WindowFlags f = SDL_GetWindowFlags(w.window);
+    if (f & SDL_WINDOW_FULLSCREEN) return WindowState::fullscreen;
+    if (f & SDL_WINDOW_MINIMIZED) return WindowState::minimized;
+    if (f & SDL_WINDOW_MAXIMIZED) return WindowState::maximized;
+    return WindowState::normal;
+}
+
+void minimize(Window& w) { SDL_MinimizeWindow(w.window); }
+
+void toggle_maximize(Window& w) {
+    if (SDL_GetWindowFlags(w.window) & SDL_WINDOW_MAXIMIZED) SDL_RestoreWindow(w.window);
+    else SDL_MaximizeWindow(w.window);
+}
+
+void set_fullscreen(Window& w, bool on) { SDL_SetWindowFullscreen(w.window, on); }
+
+void set_framed(Window& w, bool framed) {
+    SDL_SetWindowBordered(w.window, framed);
+    if (framed) (void)set_hit_test(w, {});
+}
+
+bool transparent(Window& w) { return (SDL_GetWindowFlags(w.window) & SDL_WINDOW_TRANSPARENT) != 0; }
+
+namespace {
+
+SDL_HitTestResult hit_area(SDL_Window*, const SDL_Point* area, void* data) {
+    Window& w = *static_cast<Window*>(data);
+    if (!w.hit) return SDL_HITTEST_NORMAL;
+    const float k = w.to_logical();
+    switch (w.hit({static_cast<float>(area->x) * k, static_cast<float>(area->y) * k})) {
+        case WindowArea::drag: return SDL_HITTEST_DRAGGABLE;
+        case WindowArea::resize_top_left: return SDL_HITTEST_RESIZE_TOPLEFT;
+        case WindowArea::resize_top: return SDL_HITTEST_RESIZE_TOP;
+        case WindowArea::resize_top_right: return SDL_HITTEST_RESIZE_TOPRIGHT;
+        case WindowArea::resize_right: return SDL_HITTEST_RESIZE_RIGHT;
+        case WindowArea::resize_bottom_right: return SDL_HITTEST_RESIZE_BOTTOMRIGHT;
+        case WindowArea::resize_bottom: return SDL_HITTEST_RESIZE_BOTTOM;
+        case WindowArea::resize_bottom_left: return SDL_HITTEST_RESIZE_BOTTOMLEFT;
+        case WindowArea::resize_left: return SDL_HITTEST_RESIZE_LEFT;
+        case WindowArea::client: break;
+    }
+    return SDL_HITTEST_NORMAL;
+}
+
+}  // namespace
+
+bool set_hit_test(Window& w, std::function<WindowArea(Point)> hit) {
+    w.hit = std::move(hit);
+    return SDL_SetWindowHitTest(w.window, w.hit ? &hit_area : nullptr, &w);
+}
+
+// Input to what lies beneath: what each system calls it, through its own
+// libraries, loaded when needed (no system header is included here).
+bool pass_through(Window& w, bool on) {
+    namespace library = mcpplibs::os::library;
+    const SDL_PropertiesID props = SDL_GetWindowProperties(w.window);
+    const char* name = SDL_GetCurrentVideoDriver();
+    const std::string_view driver = name ? name : "";
+    if (driver == "windows") {
+        // A layered window that is transparent to the mouse (WS_EX_LAYERED |
+        // WS_EX_TRANSPARENT), kept fully visible (SetLayeredWindowAttributes).
+        constexpr int gwl_exstyle = -20;
+        constexpr std::intptr_t ws_ex_transparent = 0x20, ws_ex_layered = 0x80000;
+        constexpr std::uint32_t lwa_alpha = 0x2;
+        static const auto user32 = library::open("user32.dll");
+        void* hwnd = SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr);
+        if (!hwnd || !user32) return false;
+        auto get = user32->function<std::intptr_t(void*, int)>("GetWindowLongPtrW");
+        auto set = user32->function<std::intptr_t(void*, int, std::intptr_t)>("SetWindowLongPtrW");
+        auto layered = user32->function<int(void*, std::uint32_t, std::uint8_t, std::uint32_t)>("SetLayeredWindowAttributes");
+        if (!get || !set || !layered) return false;
+        const std::intptr_t style = get(hwnd, gwl_exstyle);
+        if (on) {
+            set(hwnd, gwl_exstyle, style | ws_ex_layered | ws_ex_transparent);
+            layered(hwnd, 0, 255, lwa_alpha);
+        } else {
+            set(hwnd, gwl_exstyle, style & ~ws_ex_transparent);
+        }
+        return true;
+    }
+    if (driver == "cocoa") {
+        // [window setIgnoresMouseEvents:on]
+        void* window = SDL_GetPointerProperty(props, SDL_PROP_WINDOW_COCOA_WINDOW_POINTER, nullptr);
+        auto send = reinterpret_cast<void (*)(void*, void*, signed char)>(library::process_symbol("objc_msgSend"));
+        auto selector = reinterpret_cast<void* (*)(const char*)>(library::process_symbol("sel_registerName"));
+        if (!window || !send || !selector) return false;
+        send(window, selector("setIgnoresMouseEvents:"), on ? 1 : 0);
+        return true;
+    }
+    if (driver == "x11") {
+        // An empty input shape (the X Shape extension), or the default again.
+        constexpr int shape_input = 2, shape_set = 0, unsorted = 0;
+        static const auto xext = library::open("libXext.so.6");
+        void* display = SDL_GetPointerProperty(props, SDL_PROP_WINDOW_X11_DISPLAY_POINTER, nullptr);
+        const auto window = static_cast<unsigned long>(SDL_GetNumberProperty(props, SDL_PROP_WINDOW_X11_WINDOW_NUMBER, 0));
+        if (!display || !window || !xext) return false;
+        auto rectangles = xext->function<void(void*, unsigned long, int, int, int, void*, int, int, int)>("XShapeCombineRectangles");
+        auto mask = xext->function<void(void*, unsigned long, int, int, int, unsigned long, int)>("XShapeCombineMask");
+        auto flush = reinterpret_cast<int (*)(void*)>(library::process_symbol("XFlush"));
+        if (!rectangles || !mask) return false;
+        if (on) rectangles(display, window, shape_input, 0, 0, nullptr, 0, shape_set, unsorted);
+        else mask(display, window, shape_input, 0, 0, 0, shape_set);
+        if (flush) flush(display);
+        return true;
+    }
+    return false;  // Wayland has no way for a client to say it (SDL's protocols), offscreen nothing beneath
 }
 
 std::vector<std::string> preferred_locales() {
@@ -250,6 +365,11 @@ Polled poll(Window& w, bool wait, std::optional<std::chrono::milliseconds> timeo
             case SDL_EVENT_WINDOW_RESIZED:
                 out.events.push_back(ResizeEvent{logical_size(w), pixel_scale(w)});
                 break;
+            case SDL_EVENT_WINDOW_MAXIMIZED:
+            case SDL_EVENT_WINDOW_MINIMIZED:
+            case SDL_EVENT_WINDOW_RESTORED:
+            case SDL_EVENT_WINDOW_ENTER_FULLSCREEN:
+            case SDL_EVENT_WINDOW_LEAVE_FULLSCREEN: out.state = state(w); break;
             case SDL_EVENT_WINDOW_FOCUS_GAINED: out.events.push_back(FocusEvent{true}); break;
             case SDL_EVENT_WINDOW_FOCUS_LOST: out.events.push_back(FocusEvent{false}); break;
             case SDL_EVENT_WINDOW_MOUSE_LEAVE: {

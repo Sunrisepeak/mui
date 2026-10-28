@@ -33,6 +33,9 @@ public:
     // Input goes to what lies beneath the window (while it dissolves on
     // closing); false when the system cannot.
     virtual bool pass_through(bool on) = 0;
+    // Draws the frame itself (true) or has the system draw it; false when
+    // this host cannot switch.
+    virtual bool set_framework_drawn(bool) { return false; }
 };
 
 // The window of this thread's interface (one a UI thread).
@@ -50,16 +53,21 @@ public:
     void set_state(WindowState s);
     void set_active(bool active);
     void set_closing(bool closing);
+    // Whether what the interface leaves transparent shows what is behind the
+    // window (a frame's shadow needs it); true until a host says otherwise.
+    void set_transparent(bool transparent);
 
     // Read by views (signals: what reads them follows the window).
     [[nodiscard]] WindowState state() const;
     [[nodiscard]] bool active() const;
     [[nodiscard]] bool closing() const;
     [[nodiscard]] bool framework_drawn() const;
+    [[nodiscard]] bool transparent() const;
     Signal<std::string> state_name;  // "normal", "maximized", "minimized", "fullscreen"
     Signal<bool>        is_active;
     Signal<bool>        is_closing;
     Signal<bool>        is_framework;
+    Signal<bool>        is_transparent;
 
 private:
     WindowHost* host_ = nullptr;

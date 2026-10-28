@@ -66,6 +66,14 @@ Chinese typography follows CSS Text 4: autospace between Chinese and Latin text,
 
 **Evidence**: `modules/i18n`'s tests agree with CLDR's results; `tr()` means the same in every way of writing a view; `openmui.text`'s Chinese typography tests.
 
+## 11. Windows: the system's by default, the framework's own in depth
+
+**What**: a window has the system's frame unless the application asks for its own (`AppSpec::window = "framework"`, or `--window framework`; `switchable` lets the person choose, through the verb `window.frame`). The framework's frame (`openmui.ui.window`) is a component like any other: shadow, rounded edge, title bar, buttons in two looks, following the window's state; its title bar moves the window and its edges resize it through the system, so snapping still works. Every window operation is a verb (`window.minimize`, `window.toggle_maximize`, `window.fullscreen`, `window.close`), the same for a click, a shortcut and an agent. Closing is immediate: the window takes no more input, which goes to what is beneath it, while it dissolves.
+
+**Elsewhere**: custom title bars are per-platform work (Electron's `-webkit-app-region`, Flutter's window_manager plugins, WinUI's title bar customisation), rarely consistent across platforms, and none of them makes the window's operations part of an agent-readable model.
+
+**Evidence**: `components/window`'s tests (both looks pinned to the byte, the parts' hit areas, maximized and inactive states, buttons named in en / zh-Hans / zh-Hant, the application's paths unchanged inside the frame); `hosts/sdl3`'s tests (the verbs, switching, the close that dissolves and takes no input).
+
 ---
 
 ## Side by side

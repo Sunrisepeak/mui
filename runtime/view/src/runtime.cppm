@@ -179,7 +179,14 @@ public:
     // ── mounting ──
     // Mounts a view at a slot (a top-level id), replacing what was there.
     NodeId mount(std::string_view slot, View view);
+    // Mounts a view beneath every other slot: painted first, reached by the
+    // pointer last (a window's own frame, under the application).
+    NodeId mount_beneath(std::string_view slot, View view);
     void unmount(std::string_view slot);
+    // The slot's view keeps `insets` from the window's edges (the
+    // application inside a window's own frame); none by default.
+    void set_slot_insets(std::string_view slot, Insets insets);
+    [[nodiscard]] Insets slot_insets(std::string_view slot) const;
     [[nodiscard]] NodeId root() const noexcept;
 
     // ── the tree ──
@@ -287,6 +294,7 @@ public:
     // ── theme ──
     void set_theme(Theme theme);
     void set_reduce_motion(bool reduce);
+    [[nodiscard]] bool reduce_motion() const noexcept;
     void set_reduce_transparency(bool reduce);
 
     // ── Services ──

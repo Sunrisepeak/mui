@@ -181,6 +181,37 @@ int main(int argc, char** argv) {
         check_eq(name("close"), std::string("Close"));
     });
 
+    s.test("around an application: the frame beneath it, the application inside, the same paths", [] {
+        Headless h(options({480, 300}));
+        Attached a(h.runtime());
+        h.mount("main", column({}, {text({.id = "body", .text = "Milk"})}));
+        {
+            FramedWindow framed(h.runtime(), {.title = "Notes"});
+            h.settle();
+            check(h.tree().node("main/body").has_value(), "the application's paths are as they were");
+            check(h.tree().node("window/controls/close").has_value(), "the frame is the slot window");
+            const Rect main = h.runtime().bounds(h.runtime().find("main"));
+            check(main.x == 16 && main.y == 52 && main.width == 448, std::format("inside the frame: {} {} {}", main.x, main.y, main.width));
+            check(window_area_at(h.runtime(), {240, 30}, {480, 300}) == WindowArea::drag, "the frame's title bar moves the window");
+            window().set_state(WindowState::maximized);
+            h.settle();
+            check(h.runtime().bounds(h.runtime().find("main")).x == 0, "maximized: no shadow around it");
+            window().set_state(WindowState::normal);
+            window().set_transparent(false);
+            h.settle();
+            check(h.runtime().bounds(h.runtime().find("main")).x == 0, "nothing behind the window: no shadow either");
+            window().set_transparent(true);
+            // Switched to the system's frame at run time: the application fills the window.
+            window().attach(nullptr, h.runtime().verbs());
+            a.host.framework = false;
+            window().attach(&a.host, h.runtime().verbs());
+            h.settle();
+            check(h.runtime().bounds(h.runtime().find("main")).y == 0, "a native window: the application fills it");
+        }
+        h.settle();
+        check(!h.tree().node("window").has_value() && h.runtime().bounds(h.runtime().find("main")).y == 0, "gone with it");
+    });
+
     s.test("the two looks are the same pixels on every platform", [] {
         std::vector<std::uint64_t> got;
         for (auto [look, controls] : {std::pair{WindowFrameLook::standard, WindowFrameControls::end},

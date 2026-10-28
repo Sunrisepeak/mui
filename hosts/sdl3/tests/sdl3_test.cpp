@@ -218,6 +218,71 @@ float4 invert_fs(EffectPixel px) : SV_Target {
         check(!d.step(), "closing the window ends the loop");
     });
 
+    s.test("the interface's own frame (D-75): no system frame, the window.* verbs, the state, switching", [] {
+        DesktopOptions o = offscreen();
+        o.frame = DesktopOptions::Frame::framework;
+        Desktop d(o);
+        if (!d.open()) return;
+        d.mount("main", column({.padding = 10}, {text({.id = "t", .text = "Notes"})}));
+        d.step();
+        check(window().framework_drawn() && window().host() != nullptr, "the interface draws the frame");
+        check(window().state() == WindowState::normal);
+        for (const char* v : {"window.minimize", "window.toggle_maximize", "window.fullscreen", "window.close", "window.frame"})
+            check(d.runtime().verbs().find(v) != nullptr, v);
+        // To the system's frame and back, by its verb.
+        auto native = d.runtime().verbs().invoke("window.frame", Invocation{Value{}.set("framework", false), {}, {}, false});
+        check(native.exit_code() == 0 && !window().framework_drawn(), "the system's frame");
+        (void)d.runtime().verbs().invoke("window.frame", Invocation{Value{}.set("framework", true), {}, {}, false});
+        check(window().framework_drawn(), "the interface's again");
+        check(d.runtime().verbs().invoke("window.toggle_maximize", {}).exit_code() == 0);
+        d.step();
+    });
+
+    s.test("closing a framework-drawn window: closed at once, input not taken, gone when it has dissolved", [] {
+        DesktopOptions o = offscreen();
+        o.frame = DesktopOptions::Frame::framework;
+        o.close_dissolve = 0.2;
+        Desktop d(o);
+        if (!d.open()) return;
+        int presses = 0;
+        d.mount("main", column({.padding = 10}, {box({.id = "button", .width = 60, .height = 30, .label = "Go",
+                                                      .on = {{"press", [&](const Value&) { ++presses; }}}})}));
+        d.step();
+        const auto started = std::chrono::steady_clock::now();
+        check(d.runtime().verbs().invoke("window.close", {}).exit_code() == 0, "window.close");
+        check(d.step(), "still dissolving");
+        check(d.closing() && window().closing(), "closed at once");
+        const Rect b = d.runtime().bounds(d.runtime().find("main/button"));
+        PointerEvent down;
+        down.kind = PointerKind::down;
+        down.button = MouseButton::left;
+        down.position = b.center();
+        PointerEvent up = down;
+        up.kind = PointerKind::up;
+        std::array<InputEvent, 2> click{down, up};
+        d.synthesize(click);
+        (void)d.step();
+        check_eq(presses, 0);
+        while (d.step(true)) {}
+        const double took = std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count();
+        check(took >= 0.2 && took < 2.0, std::format("gone after its dissolve ({:.2f} s)", took));
+        window().set_closing(false);
+    });
+
+    s.test("a native window, or reduced motion, closes at once", [] {
+        for (const bool reduce : {false, true}) {
+            DesktopOptions o = offscreen();
+            o.frame = reduce ? DesktopOptions::Frame::framework : DesktopOptions::Frame::native;
+            o.reduce_motion = reduce;
+            Desktop d(o);
+            if (!d.open()) return;
+            d.mount("main", column({}, {}));
+            d.step();
+            d.close();
+            check(!d.step(), reduce ? "reduced motion" : "native");
+        }
+    });
+
     s.test("the clipboard is the system's", [] {
         Desktop d(offscreen());
         if (!d.open()) return;

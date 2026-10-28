@@ -209,6 +209,7 @@ struct Runtime::Impl {
     std::vector<NodeId>                   by_layout;  // layout node → node
     NodeId                                root;
     std::vector<std::pair<std::string, NodeId>> mounted;  // slot → node
+    std::map<std::string, Insets, std::less<>>  slot_insets;  // set_slot_insets
     // Outlets (Services::outlet): by name, what a slot region shows; the
     // views mounted under a name, kept to move between the top level and an
     // outlet as regions that claim the name come and go.

@@ -19,6 +19,7 @@ export import openmui.agent;
 export import openmui.expr;
 export import openmui.viewdoc;
 export import openmui.ui.base;
+export import openmui.ui.window;
 export import openmui.host.headless;
 export import openmui.host.sdl3;
 export import openmui.i18n;

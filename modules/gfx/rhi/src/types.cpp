@@ -44,8 +44,15 @@ std::string_view name(Format format) noexcept {
         case Format::rgba16_float: return "rgba16_float";
         case Format::r32_float: return "r32_float";
         case Format::r32_uint: return "r32_uint";
+        case Format::d32_float: return "d32_float";
+        case Format::d32_float_s8: return "d32_float_s8";
     }
     return "?";
+}
+
+std::string_view name(Compare compare) noexcept {
+    constexpr std::array<std::string_view, 8> names{"never", "less", "equal", "less_equal", "greater", "not_equal", "greater_equal", "always"};
+    return names[static_cast<std::size_t>(compare)];
 }
 
 std::uint32_t bytes_per_pixel(Format format) noexcept {
@@ -53,7 +60,9 @@ std::uint32_t bytes_per_pixel(Format format) noexcept {
         case Format::rgba8_unorm:
         case Format::bgra8_unorm:
         case Format::r32_float:
-        case Format::r32_uint: return 4;
+        case Format::r32_uint:
+        case Format::d32_float: return 4;
+        case Format::d32_float_s8: return 8;
         case Format::r8_unorm: return 1;
         case Format::rgba16_float: return 8;
     }
@@ -92,6 +101,22 @@ std::string check(const TextureDesc& d, const Caps& caps) {
     if (d.width > caps.max_texture_size || d.height > caps.max_texture_size)
         return std::format("a texture of {}×{}: this device's largest is {}", d.width, d.height, caps.max_texture_size);
     if (d.usage == TextureUsage::none) return "a texture with no usage";
+    if (d.samples != 1 && d.samples != 2 && d.samples != 4 && d.samples != 8) return std::format("{} samples a texel (1, 2, 4 or 8)", d.samples);
+    if (d.samples > caps.max_samples)
+        return std::format("{} samples a texel: this device multisamples to {} at most", d.samples, caps.max_samples);
+    const bool target = has(d.usage, TextureUsage::color_target) || has(d.usage, TextureUsage::depth_target);
+    if (d.samples > 1 && (!target || has(d.usage, TextureUsage::sampled) || has(d.usage, TextureUsage::storage_read) ||
+                          has(d.usage, TextureUsage::compute_read) || has(d.usage, TextureUsage::compute_write)))
+        return "a multisampled texture is only a render target (resolve it into one that is sampled)";
+    if (is_depth(d.format)) {
+        if (!caps.depth) return std::format("this device has no {} depth targets", name(d.format));
+        if (!has(d.usage, TextureUsage::depth_target)) return std::format("a {} texture is a depth target", name(d.format));
+        if (has(d.usage, TextureUsage::color_target) || has(d.usage, TextureUsage::storage_read) || has(d.usage, TextureUsage::compute_read) ||
+            has(d.usage, TextureUsage::compute_write))
+            return std::format("a {} texture is a depth target, and may be sampled; nothing else", name(d.format));
+    } else if (has(d.usage, TextureUsage::depth_target)) {
+        return std::format("{} is not a depth format (d32_float, d32_float_s8)", name(d.format));
+    }
     const bool storage = has(d.usage, TextureUsage::storage_read) || has(d.usage, TextureUsage::compute_read) ||
                          has(d.usage, TextureUsage::compute_write);
     if (storage && (d.format == Format::bgra8_unorm))
@@ -138,6 +163,10 @@ std::string check(const GraphicsPipelineDesc& d, ShaderFormats accepted) {
             locations.push_back(a.location);
         }
     }
+    if (is_depth(d.target)) return std::format("a pipeline's colour target cannot be {}", name(d.target));
+    if (d.depth_target && !is_depth(*d.depth_target)) return std::format("{} is not a depth format (d32_float, d32_float_s8)", name(*d.depth_target));
+    if ((d.depth.test || d.depth.write) && !d.depth_target) return "a depth test or write needs the pipeline's depth_target format";
+    if (d.samples != 1 && d.samples != 2 && d.samples != 4 && d.samples != 8) return std::format("{} samples a texel (1, 2, 4 or 8)", d.samples);
     return {};
 }
 

@@ -1249,6 +1249,7 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
 - ✅ 统一渲染的第一步（D-81 ①）：
   - `openmui.render` 是渲染架构：`:pool`（瞬时纹理按尺寸、格式、用途从帧到帧复用，120 帧没人要的释放；帧重新编码时 `restart_frame`）和 `:graph`（一帧是 pass 的图：每个 pass 声明读写，瞬时纹理先写后读，否则报出两者的名字；写的东西到不了输出、外部纹理或之后运行的 pass 的 pass 被去掉；其余按描述的顺序记录，每个 pass 一个 trace span，类别 `render`）。
   - 原来的 2D 渲染器成为它的渲染特性 `openmui.render.vector`（`modules/gfx/render/vector`，重新导出核心）；GPU 渲染器的每一帧经由渲染图记录：绘制、混合、效果三种 pass 各自声明读写，`RenderReport::gpu_passes` / `gpu_passes_culled`；纹理池换成核心的；CPU 参考和 GPU 的像素比较全部不变。
+  - rhi 补上渲染特性需要的（D-81 ②）：深度和模板目标（`d32_float`、`d32_float_s8`，`DepthTarget` 的清除、加载、保存），多重采样（`TextureDesc::samples` 到 `Caps::max_samples`，在 pass 结束时解析进 `ColorTarget::resolve`），每个管线一个深度测试（`DepthState`）；校验要求 pass 和它设置的管线采样数、深度格式一致；SDL_GPU 后端逐项映射；rhi.cts 加三例（`depth_test`、`depth_kept`、`multisample`，4× 的标准采样位置在三种 API 上相同），lavapipe 上逐像素通过。SDL_GPU 没有 GPU 时间戳查询，记为上游缺口 #3，渲染图暂时只在 CPU 端计时。
   - 测试：`modules/gfx/render/tests/graph_test.cpp`（池的复用和释放、问题的措辞、计划、span，以及真实设备上没被读的 pass 不运行的字节）；vector 的 GPU 测试加一条：一帧的每个 pass 一个 span，同一帧再画一次 pass 相同。
 - M5：openmui-video、ui-timeline、MCP 服务器、skills、S3 / S4 / S5。
 - 契约⑦（插件与管线）写进规范；Inspector 的火焰图和动画检查器视图。

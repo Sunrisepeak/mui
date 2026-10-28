@@ -21,6 +21,21 @@ struct ColorTarget {
     Texture              texture;
     LoadOp               load = LoadOp::clear;
     std::array<float, 4> clear{0, 0, 0, 0};  // premultiplied RGBA, 0–1
+    // A multisampled target's samples are averaged into `resolve` (one
+    // sample a texel, the same format and size) when the pass ends; the
+    // multisampled contents are not kept.
+    Texture              resolve;
+};
+
+// A render pass's depth (and stencil) attachment: same size and samples as
+// its colour target. `store`: the depths are kept for a later pass (which
+// loads them); otherwise they may be discarded when the pass ends.
+struct DepthTarget {
+    Texture       texture;
+    LoadOp        load = LoadOp::clear;
+    float         clear_depth = 1.0f;
+    std::uint8_t  clear_stencil = 0;
+    bool          store = false;
 };
 
 namespace cmd {
@@ -32,7 +47,7 @@ struct UploadTexture { Texture texture; Region region; std::span<const std::byte
 struct CopyTexture   { Texture from; Region region; Texture to; std::uint32_t x = 0, y = 0; };
 
 // Render passes.
-struct BeginRender   { ColorTarget target; };
+struct BeginRender   { ColorTarget target; DepthTarget depth; };
 struct EndRender     {};
 struct SetPipeline   { GraphicsPipeline pipeline; };
 struct SetViewport   { float x = 0, y = 0, width = 0, height = 0; };
@@ -88,7 +103,7 @@ public:
     }
     void copy(Texture from, Region region, Texture to, std::uint32_t x = 0, std::uint32_t y = 0);
 
-    void begin_render(const ColorTarget& target);
+    void begin_render(const ColorTarget& target, const DepthTarget& depth = {});
     void end_render();
     void set_pipeline(GraphicsPipeline pipeline);
     void set_viewport(float x, float y, float width, float height);

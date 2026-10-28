@@ -1,6 +1,6 @@
 # openmui.rhi
 
-The GPU abstraction openmui's renderer is written once on (`omui.rhi`, architecture §8.2, D-33, D-58). It is UI-scale: 2D colour targets, sampled and storage textures, vertex, index and storage buffers, uniforms pushed by value, one blend state per pipeline, and compute. It has no depth buffer, no multisampling and no bindless resources. Backends live in packages of their own (`modules/gfx/rhi/sdl` first); this one depends on no graphics library.
+The GPU abstraction openmui's renderer is written once on (`omui.rhi`, architecture §8.2, D-33, D-58). It has what the rendering features need (D-81): 2D colour targets, sampled and storage textures, depth and stencil targets (`d32_float`, `d32_float_s8`, `TextureUsage::depth_target`, a pass's `DepthTarget` with its clear, load and store), multisampled targets (`TextureDesc::samples` up to `Caps::max_samples`, resolved into `ColorTarget::resolve` when the pass ends), vertex, index and storage buffers, uniforms pushed by value, one blend state and one depth test (`DepthState`) per pipeline, and compute. Validation holds a pass and the pipelines it sets to the same samples and the same depth format. It has no bindless resources and no GPU timestamps — SDL_GPU has none ([#3](https://github.com/Sunrisepeak/mui/issues/3)); the render graph times its passes on the CPU. Backends live in packages of their own (`modules/gfx/rhi/sdl` first); this one depends on no graphics library.
 
 ```cpp
 import openmui.rhi;

@@ -17,6 +17,9 @@ struct V {  // fill's per-vertex data
 struct I {  // fill's per-instance offset
     float dx, dy;
 };
+struct Z {  // depth's vertex
+    float x, y, z, r, g, b, a;
+};
 struct T {  // textured's vertex
     float x, y, u, v;
 };
@@ -38,7 +41,7 @@ struct Bench {
     Texture          target;
     Buffer           one_instance;  // a single zero offset
     Sampler          nearest;
-    GraphicsPipeline fill, fill_blend, textured;
+    GraphicsPipeline fill, fill_blend, textured, depth, depth_msaa_fill;
     ComputePipeline  compute;
     std::vector<std::function<void()>> release;
     std::string      failure;  // the case's first problem ("" while it holds)
@@ -65,6 +68,8 @@ struct Bench {
                                                   VertexBufferLayout{sizeof(I), true, fill_instance}};
     std::array<VertexAttribute, 2> textured_vertex{VertexAttribute{0, VertexFormat::float2, 0}, VertexAttribute{1, VertexFormat::float2, 8}};
     std::array<VertexBufferLayout, 1> textured_layout{VertexBufferLayout{sizeof(T), false, textured_vertex}};
+    std::array<VertexAttribute, 2> depth_vertex{VertexAttribute{0, VertexFormat::float3, 0}, VertexAttribute{1, VertexFormat::float4, 12}};
+    std::array<VertexBufferLayout, 1> depth_layout{VertexBufferLayout{sizeof(Z), false, depth_vertex}};
 
     explicit Bench(Device& device) : d(device) {
         target = texture(Format::rgba8_unorm, W, H, TextureUsage::color_target | TextureUsage::sampled, "cts.target");
@@ -77,6 +82,11 @@ struct Bench {
                                .blend = Blend::premultiplied(), .label = "cts.fill_blend"});
         textured = pipeline({.vertex = &shaders::textured::textured_vs, .fragment = &shaders::textured::textured_fs,
                              .vertex_buffers = textured_layout, .blend = Blend::replace(), .label = "cts.textured"});
+        depth = pipeline({.vertex = &shaders::depth::depth_vs, .fragment = &shaders::depth::depth_fs, .vertex_buffers = depth_layout,
+                          .blend = Blend::replace(), .depth_target = Format::d32_float,
+                          .depth = {.test = true, .write = true, .compare = Compare::less}, .label = "cts.depth"});
+        depth_msaa_fill = pipeline({.vertex = &shaders::fill::fill_vs, .fragment = &shaders::fill::fill_fs, .vertex_buffers = fill_layout,
+                                    .blend = Blend::replace(), .samples = 4, .label = "cts.fill_msaa"});
         compute = must(d.create(ComputePipelineDesc{&shaders::compute::pattern, "cts.compute"}), "the compute pipeline");
         release.push_back([this] { d.destroy(compute); });
         CommandList l;
@@ -160,6 +170,80 @@ void expect(Bench& b, const std::vector<Rgba>& px, std::uint32_t w, const std::f
 constexpr Rgba black{0, 0, 0, 255}, red{255, 0, 0, 255}, green{0, 255, 0, 255}, blue{0, 0, 255, 255}, white{255, 255, 255, 255};
 
 // ── the cases ────────────────────────────────────────────────────────────
+
+Texture must_msaa(Bench& b) {
+    return b.must(b.d.create(TextureDesc{Format::rgba8_unorm, W, H, TextureUsage::color_target, "cts.msaa", 4}), "a 4-sample target");
+}
+
+// The two triangles of a rectangle at depth z (NDC).
+std::array<Z, 6> zquad(float x0, float y0, float x1, float y1, float z, Rgba c) {
+    const float r = c[0] / 255.0f, g = c[1] / 255.0f, b = c[2] / 255.0f, a = c[3] / 255.0f;
+    return {Z{x0, y0, z, r, g, b, a}, Z{x1, y0, z, r, g, b, a}, Z{x0, y1, z, r, g, b, a},
+            Z{x1, y0, z, r, g, b, a}, Z{x1, y1, z, r, g, b, a}, Z{x0, y1, z, r, g, b, a}};
+}
+
+// The depth test, in the order drawn: what lies behind is not drawn, what
+// lies in front is, whatever the order.
+void depth_test(Bench& b) {
+    const Texture z = b.texture(Format::d32_float, W, H, TextureUsage::depth_target, "cts.depth");
+    const Buffer middle = b.vertices(zquad(-1, -1, 1, 1, 0.5f, red));
+    const Buffer behind = b.vertices(zquad(-1, -1, 0, 1, 0.75f, blue));  // the left half, behind
+    const Buffer front = b.vertices(zquad(-1, 0, 1, 1, 0.25f, green));   // the top half, in front
+    CommandList l;
+    l.begin_render({b.target, LoadOp::clear, unit(black)}, {z, LoadOp::clear, 1.0f});
+    l.set_pipeline(b.depth);
+    for (Buffer q : {middle, behind, front}) {
+        l.bind_vertex_buffer(0, q);
+        l.draw(6);
+    }
+    l.end_render();
+    b.submit(l);
+    expect(b, b.pixels(), W, [](auto, auto y) { return y < 4 ? green : red; });
+}
+
+// Depths kept by one pass (store) and tested by the next (load).
+void depth_kept(Bench& b) {
+    const Texture z = b.texture(Format::d32_float, W, H, TextureUsage::depth_target, "cts.depth_kept");
+    const Buffer first = b.vertices(zquad(-1, -1, 1, 1, 0.5f, red));
+    const Buffer behind = b.vertices(zquad(-1, -1, 1, 1, 0.6f, blue));
+    const Buffer front = b.vertices(zquad(-1, -1, 0, 1, 0.4f, green));  // the left half
+    CommandList l;
+    l.begin_render({b.target, LoadOp::clear, unit(black)}, {z, LoadOp::clear, 1.0f, 0, true});
+    l.set_pipeline(b.depth);
+    l.bind_vertex_buffer(0, first);
+    l.draw(6);
+    l.end_render();
+    l.begin_render({b.target, LoadOp::load}, {z, LoadOp::load, 1.0f, 0, true});
+    l.set_pipeline(b.depth);
+    l.bind_vertex_buffer(0, behind);
+    l.draw(6);
+    l.bind_vertex_buffer(0, front);
+    l.draw(6);
+    l.end_render();
+    b.submit(l);
+    expect(b, b.pixels(), W, [](auto x, auto) { return x < 4 ? green : red; });
+}
+
+// Four samples a texel, resolved: a texel half inside an edge is half
+// covered — the standard 4× sample positions (the same on Vulkan, Metal and
+// Direct3D 12) put two of its samples left of the texel's middle.
+void multisample(Bench& b) {
+    if (b.d.caps().max_samples < 4) {
+        b.fail(std::format("the device multisamples to {}; every backend must take 4", b.d.caps().max_samples));
+        return;
+    }
+    const Texture msaa = must_msaa(b);
+    const Buffer q = b.vertices(quad(-1, -1, 0.125f, 1, red));  // to x = 4.5 texels
+    CommandList l;
+    l.begin_render({msaa, LoadOp::clear, unit(black), b.target});
+    l.set_pipeline(b.depth_msaa_fill);
+    l.bind_vertex_buffer(0, q);
+    l.bind_vertex_buffer(1, b.one_instance);
+    l.draw(6);
+    l.end_render();
+    b.submit(l);
+    expect(b, b.pixels(), W, [](auto x, auto) { return x < 4 ? red : x == 4 ? Rgba{128, 0, 0, 255} : black; }, 1);
+}
 
 void clear(Bench& b) {
     b.pass(LoadOp::clear, {51, 102, 153, 204});
@@ -377,7 +461,7 @@ struct Case {
     std::string_view name;
     void (*run)(Bench&);
 };
-constexpr std::array<Case, 15> all{{
+constexpr std::array<Case, 18> all{{
     {"clear", clear},
     {"orientation", orientation},
     {"instancing", instancing},
@@ -393,6 +477,9 @@ constexpr std::array<Case, 15> all{{
     {"formats", formats},
     {"ordering", ordering},
     {"buffers", buffers},
+    {"depth_test", depth_test},
+    {"depth_kept", depth_kept},
+    {"multisample", multisample},
 }};
 
 }  // namespace

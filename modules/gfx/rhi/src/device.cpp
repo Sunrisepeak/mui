@@ -99,6 +99,7 @@ std::string validate(const CommandList& list, const Device& device) {
     enum class Pass : std::uint8_t { none, render, compute };
     Pass                                 pass = Pass::none;
     std::optional<TextureDesc>           target;
+    std::optional<Format>                depth;  // the pass's depth attachment
     std::optional<GraphicsPipelineInfo>  graphics;
     std::optional<ComputePipelineInfo>   compute;
     std::uint32_t                        vertex_buffers = 0;
@@ -167,6 +168,24 @@ std::string validate(const CommandList& list, const Device& device) {
                     if (auto e = outside(); !e.empty()) return at("a render pass inside a pass");
                     auto d = texture(x.target.texture, TextureUsage::color_target, "a colour target");
                     if (!d) return d.error();
+                    if (x.target.resolve) {
+                        auto r = texture(x.target.resolve, TextureUsage::color_target, "a resolve target");
+                        if (!r) return r.error();
+                        if (d->samples == 1) return at("a resolve target for a target that is not multisampled");
+                        if (r->samples != 1) return at("the resolve target is multisampled");
+                        if (r->format != d->format || r->width != d->width || r->height != d->height)
+                            return at(std::format("resolving {} {}×{} into {} {}×{}", name(d->format), d->width, d->height, name(r->format), r->width,
+                                                  r->height));
+                    }
+                    depth.reset();
+                    if (x.depth.texture) {
+                        auto z = texture(x.depth.texture, TextureUsage::depth_target, "a depth target");
+                        if (!z) return z.error();
+                        if (z->width != d->width || z->height != d->height || z->samples != d->samples)
+                            return at(std::format("a depth target of {}×{} ({} samples) for a colour target of {}×{} ({} samples)", z->width, z->height,
+                                                  z->samples, d->width, d->height, d->samples));
+                        depth = z->format;
+                    }
                     pass = Pass::render;
                     target = *d;
                     graphics.reset();
@@ -182,6 +201,11 @@ std::string validate(const CommandList& list, const Device& device) {
                     if (!graphics) return at("a stale pipeline handle");
                     if (graphics->target != target->format)
                         return at(std::format("the pipeline renders {}; the pass's target is {}", name(graphics->target), name(target->format)));
+                    if (graphics->samples != target->samples)
+                        return at(std::format("the pipeline renders {} samples a texel; the pass's target has {}", graphics->samples, target->samples));
+                    if (graphics->depth != depth)
+                        return at(std::format("the pipeline renders with {}; the pass has {}", graphics->depth ? name(*graphics->depth) : "no depth",
+                                              depth ? name(*depth) : "no depth target"));
                 } else if constexpr (std::is_same_v<T, cmd::SetViewport>) {
                     if (auto e = in(Pass::render); !e.empty()) return e;
                     if (!(x.width > 0) || !(x.height > 0)) return at("an empty viewport");

@@ -67,7 +67,7 @@ void CommandList::copy(Texture from, Region region, Texture to, std::uint32_t x,
     commands_.emplace_back(cmd::CopyTexture{from, region, to, x, y});
 }
 
-void CommandList::begin_render(const ColorTarget& target) { commands_.emplace_back(cmd::BeginRender{target}); }
+void CommandList::begin_render(const ColorTarget& target, const DepthTarget& depth) { commands_.emplace_back(cmd::BeginRender{target, depth}); }
 void CommandList::end_render() { commands_.emplace_back(cmd::EndRender{}); }
 void CommandList::set_pipeline(GraphicsPipeline pipeline) { commands_.emplace_back(cmd::SetPipeline{pipeline}); }
 void CommandList::set_viewport(float x, float y, float width, float height) {
@@ -127,6 +127,11 @@ std::uint64_t CommandList::hash() const noexcept {
                     handle(f, x.from), region(f, x.region), handle(f, x.to), f.value(x.x), f.value(x.y);
                 } else if constexpr (std::is_same_v<T, cmd::BeginRender>) {
                     handle(f, x.target.texture), f.value(x.target.load), f.value(x.target.clear);
+                    // Only what a pass has: a list without them hashes as it always did.
+                    if (x.target.resolve) handle(f, x.target.resolve);
+                    if (x.depth.texture)
+                        handle(f, x.depth.texture), f.value(x.depth.load), f.value(x.depth.clear_depth), f.value(x.depth.clear_stencil),
+                            f.value(x.depth.store);
                 } else if constexpr (std::is_same_v<T, cmd::SetPipeline> || std::is_same_v<T, cmd::SetComputePipeline>) {
                     handle(f, x.pipeline);
                 } else if constexpr (std::is_same_v<T, cmd::SetViewport>) {

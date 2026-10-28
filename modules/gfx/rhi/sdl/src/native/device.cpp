@@ -66,8 +66,37 @@ SDL_GPUTextureFormat texture_format(Format f) {
         case Format::rgba16_float: return SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT;
         case Format::r32_float: return SDL_GPU_TEXTUREFORMAT_R32_FLOAT;
         case Format::r32_uint: return SDL_GPU_TEXTUREFORMAT_R32_UINT;
+        case Format::d32_float: return SDL_GPU_TEXTUREFORMAT_D32_FLOAT;
+        case Format::d32_float_s8: return SDL_GPU_TEXTUREFORMAT_D32_FLOAT_S8_UINT;
     }
     return SDL_GPU_TEXTUREFORMAT_INVALID;
+}
+
+SDL_GPUSampleCount sample_count(std::uint32_t n) {
+    switch (n) {
+        case 2: return SDL_GPU_SAMPLECOUNT_2;
+        case 4: return SDL_GPU_SAMPLECOUNT_4;
+        case 8: return SDL_GPU_SAMPLECOUNT_8;
+        default: return SDL_GPU_SAMPLECOUNT_1;
+    }
+}
+
+SDL_GPUCompareOp compare_op(Compare c) {
+    switch (c) {
+        case Compare::never: return SDL_GPU_COMPAREOP_NEVER;
+        case Compare::less: return SDL_GPU_COMPAREOP_LESS;
+        case Compare::equal: return SDL_GPU_COMPAREOP_EQUAL;
+        case Compare::less_equal: return SDL_GPU_COMPAREOP_LESS_OR_EQUAL;
+        case Compare::greater: return SDL_GPU_COMPAREOP_GREATER;
+        case Compare::not_equal: return SDL_GPU_COMPAREOP_NOT_EQUAL;
+        case Compare::greater_equal: return SDL_GPU_COMPAREOP_GREATER_OR_EQUAL;
+        case Compare::always: return SDL_GPU_COMPAREOP_ALWAYS;
+    }
+    return SDL_GPU_COMPAREOP_ALWAYS;
+}
+
+SDL_GPULoadOp load_op(LoadOp l) {
+    return l == LoadOp::clear ? SDL_GPU_LOADOP_CLEAR : l == LoadOp::load ? SDL_GPU_LOADOP_LOAD : SDL_GPU_LOADOP_DONT_CARE;
 }
 
 SDL_GPUTextureUsageFlags texture_usage(TextureUsage u) {
@@ -77,6 +106,7 @@ SDL_GPUTextureUsageFlags texture_usage(TextureUsage u) {
     if (has(u, TextureUsage::storage_read)) f |= SDL_GPU_TEXTUREUSAGE_GRAPHICS_STORAGE_READ;
     if (has(u, TextureUsage::compute_read)) f |= SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_READ;
     if (has(u, TextureUsage::compute_write)) f |= SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_WRITE;
+    if (has(u, TextureUsage::depth_target)) f |= SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET;
     return f;
 }
 
@@ -284,13 +314,15 @@ protected:
         info.height = d.height;
         info.layer_count_or_depth = 1;
         info.num_levels = 1;
-        info.sample_count = SDL_GPU_SAMPLECOUNT_1;
+        info.sample_count = sample_count(d.samples);
         if (!SDL_GPUTextureSupportsFormat(device_, info.format, info.type, info.usage))
             return fail(Errc::unsupported, std::format("{} cannot make a {} texture for that use", caps_.device, name(d.format)));
+        if (d.samples > 1 && !SDL_GPUTextureSupportsSampleCount(device_, info.format, info.sample_count))
+            return fail(Errc::unsupported, std::format("{} cannot make a {} texture of {} samples", caps_.device, name(d.format), d.samples));
         SDL_GPUTexture* t = SDL_CreateGPUTexture(device_, &info);
         if (!t) return fail(Errc::out_of_memory, sdl_error("creating a texture"));
         if (!d.label.empty()) SDL_SetGPUTextureName(device_, t, std::string(d.label).c_str());
-        return textures_.insert({t, {d.format, d.width, d.height, d.usage, {}}});
+        return textures_.insert({t, {d.format, d.width, d.height, d.usage, {}, d.samples}});
     }
 
     Result<Sampler> make(const SamplerDesc& d) override {
@@ -345,14 +377,22 @@ protected:
         info.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
         info.rasterizer_state.cull_mode = SDL_GPU_CULLMODE_NONE;
         info.rasterizer_state.front_face = SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE;
-        info.multisample_state.sample_count = SDL_GPU_SAMPLECOUNT_1;
+        info.multisample_state.sample_count = sample_count(d.samples);
         info.target_info.color_target_descriptions = &target;
         info.target_info.num_color_targets = 1;
+        if (d.depth_target) {
+            info.target_info.has_depth_stencil_target = true;
+            info.target_info.depth_stencil_format = texture_format(*d.depth_target);
+            info.depth_stencil_state.enable_depth_test = d.depth.test;
+            info.depth_stencil_state.enable_depth_write = d.depth.write;
+            info.depth_stencil_state.compare_op = compare_op(d.depth.compare);
+        }
         SDL_GPUGraphicsPipeline* p = SDL_CreateGPUGraphicsPipeline(device_, &info);
         SDL_ReleaseGPUShader(device_, *vs);
         SDL_ReleaseGPUShader(device_, *fs);
         if (!p) return fail(Errc::backend, sdl_error(std::format("creating the pipeline {}", d.label.empty() ? d.fragment->entry : d.label)));
-        return graphics_.insert({p, {counts(*d.vertex), counts(*d.fragment), static_cast<std::uint32_t>(d.vertex_buffers.size()), d.target}});
+        return graphics_.insert(
+            {p, {counts(*d.vertex), counts(*d.fragment), static_cast<std::uint32_t>(d.vertex_buffers.size()), d.target, d.depth_target, d.samples}});
     }
 
     Result<ComputePipeline> make(const ComputePipelineDesc& d) override {
@@ -612,7 +652,21 @@ Result<Submission> SdlDevice::run(const CommandList& list) {
                                      : x.target.load == LoadOp::load ? SDL_GPU_LOADOP_LOAD
                                                                      : SDL_GPU_LOADOP_DONT_CARE;
                     target.store_op = SDL_GPU_STOREOP_STORE;
-                    render = SDL_BeginGPURenderPass(cb, &target, 1, nullptr);
+                    if (x.target.resolve) {
+                        target.resolve_texture = textures_.get(x.target.resolve)->texture;
+                        target.store_op = SDL_GPU_STOREOP_RESOLVE;
+                    }
+                    SDL_GPUDepthStencilTargetInfo depth{};
+                    if (x.depth.texture) {
+                        depth.texture = textures_.get(x.depth.texture)->texture;
+                        depth.clear_depth = x.depth.clear_depth;
+                        depth.load_op = load_op(x.depth.load);
+                        depth.store_op = x.depth.store ? SDL_GPU_STOREOP_STORE : SDL_GPU_STOREOP_DONT_CARE;
+                        depth.stencil_load_op = load_op(x.depth.load);
+                        depth.stencil_store_op = x.depth.store ? SDL_GPU_STOREOP_STORE : SDL_GPU_STOREOP_DONT_CARE;
+                        depth.clear_stencil = x.depth.clear_stencil;
+                    }
+                    render = SDL_BeginGPURenderPass(cb, &target, 1, x.depth.texture ? &depth : nullptr);
                     if (!render) failure = sdl_error("beginning a render pass");
                 } else if constexpr (std::is_same_v<T, cmd::EndRender>) {
                     if (render) SDL_EndGPURenderPass(render), render = nullptr;
@@ -779,6 +833,15 @@ Result<std::unique_ptr<Device>> create(const Options& options) {
     caps.software = software_device(caps.device);
     caps.compute = true;
     caps.max_texture_size = 8192;
+    for (const auto& [n, count] : {std::pair{8u, SDL_GPU_SAMPLECOUNT_8}, std::pair{4u, SDL_GPU_SAMPLECOUNT_4}, std::pair{2u, SDL_GPU_SAMPLECOUNT_2}})
+        if (SDL_GPUTextureSupportsSampleCount(device, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, count)) {
+            caps.max_samples = n;
+            break;
+        }
+    caps.depth = SDL_GPUTextureSupportsFormat(device, SDL_GPU_TEXTUREFORMAT_D32_FLOAT, SDL_GPU_TEXTURETYPE_2D,
+                                              SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET) &&
+                 SDL_GPUTextureSupportsFormat(device, SDL_GPU_TEXTUREFORMAT_D32_FLOAT_S8_UINT, SDL_GPU_TEXTURETYPE_2D,
+                                              SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET);
     auto made = std::make_unique<SdlDevice>(device, std::move(caps));
     if (options.window != 0) {
         SDL_Window* window = SDL_GetWindowFromID(static_cast<SDL_WindowID>(options.window));

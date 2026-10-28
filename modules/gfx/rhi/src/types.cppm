@@ -1,11 +1,13 @@
 // openmui.rhi:types — what a GPU device is asked for: resources by
 // description, shaders by code and resource counts, pipelines by state.
 //
-// The vocabulary is UI-scale (architecture §8.2, D-33): 2D colour targets,
-// sampled and storage textures, vertex / index / storage buffers, uniforms
-// pushed by value, one blend state per pipeline, compute. No depth, no
-// multisampling, no bindless: what openmui's renderer, effects and canvas
-// need, mapped thinly onto a backend (SDL_GPU first).
+// The vocabulary is what the rendering features need (architecture §8.2,
+// D-33; D-81 widened it from UI scale): 2D colour targets, sampled and
+// storage textures, depth and stencil targets (d32), multisampled targets
+// resolved at the pass's end, vertex / index / storage buffers, uniforms
+// pushed by value, one blend state and one depth test per pipeline, compute.
+// No bindless, no GPU timestamps (SDL_GPU has none: issue #3). Mapped thinly
+// onto a backend (SDL_GPU first).
 export module openmui.rhi:types;
 
 import std;
@@ -76,6 +78,10 @@ struct Caps {
     bool          software = false;       // a CPU implementation (lavapipe, WARP)
     bool          compute = true;
     std::uint32_t max_texture_size = 8192;
+    // The most samples per texel an rgba8_unorm colour target (and a d32
+    // depth target) can have: 1 when the device cannot multisample.
+    std::uint32_t max_samples = 1;
+    bool          depth = false;  // d32_float and d32_float_s8 depth targets
 };
 
 // ── resources ────────────────────────────────────────────────────────────
@@ -98,8 +104,11 @@ enum class Format : std::uint8_t {
     rgba16_float,   // effects' intermediate layers
     r32_float,
     r32_uint,       // object ids (pixel provenance)
+    d32_float,      // depth
+    d32_float_s8,   // depth and an 8-bit stencil
 };
-inline constexpr std::size_t format_count = 6;
+inline constexpr std::size_t format_count = 8;
+[[nodiscard]] constexpr bool is_depth(Format format) noexcept { return format == Format::d32_float || format == Format::d32_float_s8; }
 [[nodiscard]] std::string_view name(Format format) noexcept;
 [[nodiscard]] std::uint32_t bytes_per_pixel(Format format) noexcept;
 
@@ -111,6 +120,7 @@ enum class TextureUsage : std::uint8_t {
     storage_read  = 1 << 2,  // read as a storage texture by vertex or fragment shaders
     compute_read  = 1 << 3,  // read as a storage texture by compute shaders
     compute_write = 1 << 4,  // written by compute shaders
+    depth_target  = 1 << 5,  // a render pass's depth (and stencil) attachment
 };
 enum class BufferUsage : std::uint8_t {
     none          = 0,
@@ -146,6 +156,9 @@ struct TextureDesc {
     std::uint32_t    height = 0;
     TextureUsage     usage = TextureUsage::sampled;
     std::string_view label;
+    // Samples per texel: 1, or 2, 4, 8 for a multisampled target (rendered
+    // to and resolved, never sampled; Caps::max_samples).
+    std::uint32_t    samples = 1;
 };
 
 enum class Filter : std::uint8_t { nearest, linear };
@@ -253,6 +266,18 @@ struct Blend {
 
 enum class Topology : std::uint8_t { triangle_list, triangle_strip, line_list };
 
+enum class Compare : std::uint8_t { never, less, equal, less_equal, greater, not_equal, greater_equal, always };
+[[nodiscard]] std::string_view name(Compare compare) noexcept;
+
+// The depth test: a fragment is kept when `compare(its depth, the target's)`
+// holds, and writes its depth when `write`.
+struct DepthState {
+    bool    test = false;
+    bool    write = false;
+    Compare compare = Compare::less_equal;
+    friend constexpr bool operator==(DepthState, DepthState) = default;
+};
+
 struct GraphicsPipelineDesc {
     const ShaderDesc*                   vertex = nullptr;
     const ShaderDesc*                   fragment = nullptr;
@@ -260,6 +285,11 @@ struct GraphicsPipelineDesc {
     Format                              target = Format::rgba8_unorm;
     Blend                               blend = Blend::premultiplied();
     Topology                            topology = Topology::triangle_list;
+    // The depth attachment's format the pipeline renders with (none: no
+    // depth), the test, and the samples per texel of its targets.
+    std::optional<Format>               depth_target;
+    DepthState                          depth;
+    std::uint32_t                       samples = 1;
     std::string_view                    label;
 };
 
@@ -282,9 +312,11 @@ struct Counts {
     return {d.samplers, d.storage_textures, d.storage_buffers, d.uniform_buffers, d.rw_storage_textures, d.rw_storage_buffers};
 }
 struct GraphicsPipelineInfo {
-    Counts        vertex, fragment;
-    std::uint32_t vertex_buffers = 0;
-    Format        target = Format::rgba8_unorm;
+    Counts                vertex, fragment;
+    std::uint32_t         vertex_buffers = 0;
+    Format                target = Format::rgba8_unorm;
+    std::optional<Format> depth;
+    std::uint32_t         samples = 1;
 };
 struct ComputePipelineInfo {
     Counts shader;

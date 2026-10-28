@@ -16,6 +16,7 @@ import openmui.rhi;
 export import :fill_shaders;
 export import :textured_shaders;
 export import :compute_shaders;
+export import :depth_shaders;
 
 export namespace omui::rhi::cts {
 

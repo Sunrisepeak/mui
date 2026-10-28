@@ -15,7 +15,8 @@ namespace {
 // Remembers resources; runs nothing.
 class Recorder final : public Device {
 public:
-    Caps caps_{.backend = Backend::vulkan, .device = "recorder", .formats = formats({ShaderFormat::spirv}), .max_texture_size = 4096};
+    Caps caps_{.backend = Backend::vulkan, .device = "recorder", .formats = formats({ShaderFormat::spirv}), .max_texture_size = 4096,
+               .max_samples = 4, .depth = true};
     std::vector<std::uint64_t> ran;
 
     const Caps& caps() const noexcept override { return caps_; }
@@ -46,10 +47,11 @@ public:
 
 protected:
     Result<Buffer> make(const BufferDesc& d) override { return buffers_.insert({d.size, d.usage, {}}); }
-    Result<Texture> make(const TextureDesc& d) override { return textures_.insert({d.format, d.width, d.height, d.usage, {}}); }
+    Result<Texture> make(const TextureDesc& d) override { return textures_.insert({d.format, d.width, d.height, d.usage, {}, d.samples}); }
     Result<Sampler> make(const SamplerDesc& d) override { return samplers_.insert(d); }
     Result<GraphicsPipeline> make(const GraphicsPipelineDesc& d) override {
-        return graphics_.insert({counts(*d.vertex), counts(*d.fragment), static_cast<std::uint32_t>(d.vertex_buffers.size()), d.target});
+        return graphics_.insert(
+            {counts(*d.vertex), counts(*d.fragment), static_cast<std::uint32_t>(d.vertex_buffers.size()), d.target, d.depth_target, d.samples});
     }
     Result<ComputePipeline> make(const ComputePipelineDesc& d) override { return compute_.insert({counts(*d.shader)}); }
     Result<Submission> run(const CommandList& list) override {
@@ -235,6 +237,77 @@ int main(int argc, char** argv) {
                  }),
                  std::string("invalid: command 1 (set_pipeline): the pipeline renders rgba8_unorm; the pass's target is rgba16_float"));
         check(sc.d.ran.empty(), "nothing invalid reached the backend");
+    });
+
+    s.test("depth and multisampling: formats, usages, samples, and passes that match their pipelines", [] {
+        Scene sc;
+        auto bad = [&](auto desc) {
+            auto r = sc.d.create(desc);
+            return r ? std::string("<made>") : r.error().message;
+        };
+        using U = TextureUsage;
+        check_eq(bad(TextureDesc{.format = Format::d32_float, .width = 4, .height = 4, .usage = U::sampled}),
+                 std::string("a d32_float texture is a depth target"));
+        check_eq(bad(TextureDesc{.format = Format::d32_float, .width = 4, .height = 4, .usage = U::depth_target | U::color_target}),
+                 std::string("a d32_float texture is a depth target, and may be sampled; nothing else"));
+        check_eq(bad(TextureDesc{.format = Format::rgba8_unorm, .width = 4, .height = 4, .usage = U::depth_target}),
+                 std::string("rgba8_unorm is not a depth format (d32_float, d32_float_s8)"));
+        check_eq(bad(TextureDesc{.width = 4, .height = 4, .usage = U::color_target, .samples = 3}), std::string("3 samples a texel (1, 2, 4 or 8)"));
+        check_eq(bad(TextureDesc{.width = 4, .height = 4, .usage = U::color_target, .samples = 8}),
+                 std::string("8 samples a texel: this device multisamples to 4 at most"));
+        check_eq(bad(TextureDesc{.width = 4, .height = 4, .usage = U::color_target | U::sampled, .samples = 4}),
+                 std::string("a multisampled texture is only a render target (resolve it into one that is sampled)"));
+        const ShaderDesc vs{.stage = Stage::vertex, .entry = "vs", .code = spirv};
+        const ShaderDesc fs{.stage = Stage::fragment, .entry = "fs", .code = spirv};
+        check_eq(bad(GraphicsPipelineDesc{.vertex = &vs, .fragment = &fs, .depth = {.test = true}}),
+                 std::string("a depth test or write needs the pipeline's depth_target format"));
+        check_eq(bad(GraphicsPipelineDesc{.vertex = &vs, .fragment = &fs, .depth_target = Format::r32_float}),
+                 std::string("r32_float is not a depth format (d32_float, d32_float_s8)"));
+
+        const Texture z = *sc.d.create(TextureDesc{.format = Format::d32_float, .width = 64, .height = 32, .usage = U::depth_target});
+        const Texture msaa = *sc.d.create(TextureDesc{.width = 64, .height = 32, .usage = U::color_target, .samples = 4});
+        const Texture big = *sc.d.create(TextureDesc{.width = 128, .height = 64, .usage = U::color_target});
+        const GraphicsPipeline deep = *sc.d.create(GraphicsPipelineDesc{.vertex = &vs, .fragment = &fs, .depth_target = Format::d32_float,
+                                                                        .depth = {.test = true, .write = true}});
+        auto list = [&](auto&& record) {
+            CommandList l;
+            record(l);
+            return invalid(sc, l);
+        };
+        check_eq(list([&](CommandList& l) {
+                     l.begin_render({sc.target}, {z});
+                     l.set_pipeline(sc.pipeline);
+                     l.end_render();
+                 }),
+                 std::string("invalid: command 1 (set_pipeline): the pipeline renders with no depth; the pass has d32_float"));
+        check_eq(list([&](CommandList& l) {
+                     l.begin_render({sc.target});
+                     l.set_pipeline(deep);
+                     l.end_render();
+                 }),
+                 std::string("invalid: command 1 (set_pipeline): the pipeline renders with d32_float; the pass has no depth target"));
+        check_eq(list([&](CommandList& l) {
+                     l.begin_render({msaa, LoadOp::clear, {}, sc.target});
+                     l.set_pipeline(sc.pipeline);
+                     l.end_render();
+                 }),
+                 std::string("invalid: command 1 (set_pipeline): the pipeline renders 1 samples a texel; the pass's target has 4"));
+        check_eq(list([&](CommandList& l) { l.begin_render({sc.target, LoadOp::clear, {}, big}); l.end_render(); }),
+                 std::string("invalid: command 0 (begin_render): a resolve target for a target that is not multisampled"));
+        check_eq(list([&](CommandList& l) { l.begin_render({msaa, LoadOp::clear, {}, big}); l.end_render(); }),
+                 std::string("invalid: command 0 (begin_render): resolving rgba8_unorm 64×32 into rgba8_unorm 128×64"));
+        check_eq(list([&](CommandList& l) { l.begin_render({big}, {z}); l.end_render(); }),
+                 std::string("invalid: command 0 (begin_render): a depth target of 64×32 (1 samples) for a colour target of 128×64 (1 samples)"));
+        CommandList ok;
+        ok.begin_render({sc.target}, {z, LoadOp::clear, 1.0f, 0, true});
+        ok.set_pipeline(deep);
+        ok.end_render();
+        check(sc.d.submit(ok).has_value(), "a pass and its pipeline with the same depth");
+        // A pass without depth or resolve hashes as it always did.
+        CommandList plain, again;
+        plain.begin_render({sc.target});
+        again.begin_render({sc.target}, {});
+        check(plain.hash() == again.hash());
     });
 
     s.test("compute passes: outputs declared, the shader's writes covered, reads bound", [] {

@@ -11,6 +11,7 @@ name        = "pipeline"
 version     = "0.1.0"
 description = "Pipelines of stage plugins over typed resources: checked builds, deterministic order, per-stage timing and tracing, hot replacement"
 license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
 repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]

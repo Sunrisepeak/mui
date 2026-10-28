@@ -103,6 +103,25 @@ cflags   = ["-fsanitize=address,undefined", "-fno-omit-frame-pointer", "-fno-san
 cxxflags = ["-fsanitize=address,undefined", "-fno-omit-frame-pointer", "-fno-sanitize-recover=all"]
 ldflags  = ["-fsanitize=address,undefined"]
 
+# The Web (D-84): wasm32-emscripten. Exceptions, as the libraries that throw
+# need them (JSON, TOML; the native units that catch); memory that grows; a
+# stack of 1 MiB (Emscripten's default, 64 KiB, is one buffer of
+# mcpplibs.os's reads).
+[workspace.target.'cfg(os = "emscripten")'.abi]
+exceptions = true
+
+[workspace.target.'cfg(os = "emscripten")'.build]
+ldflags = ["-sALLOW_MEMORY_GROWTH=1", "-sSTACK_SIZE=1048576"]
+
+# The test programs on the Web row run under node and read their fixtures
+# beside their sources, as on every other row: node's file system, not the
+# in-memory one a page has. CI's wasm row: `mcpp test --target
+# wasm32-emscripten --profile wasm-test`.
+[workspace.profile.wasm-test]
+opt     = 1
+debug   = false
+ldflags = ["-sNODERAWFS=1"]
+
 [workspace.package]
 standard = "c++23"
 mcpp     = ">=2026.10.26.1"

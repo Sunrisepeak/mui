@@ -9,6 +9,7 @@ name        = "fuzzy"
 version     = "0.1.0"
 description = "Fuzzy matching and ranking for finders and command palettes, with highlight positions"
 license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
 repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]

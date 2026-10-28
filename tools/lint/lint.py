@@ -20,6 +20,8 @@ Rules:
   licenses      every index package the workspace reaches is in tools/lint/licenses.toml; none is GPL
                 or AGPL; LGPL only under [dynamic] (optional, linked dynamically); the licences match
                 a local index's descriptors (D-83)
+  platforms     a package that says it runs on the Web (platforms lists "emscripten") depends only on
+                packages that say so too (dev-dependencies included) (D-84)
   thirdparty    a wrapped C library (`import mcpplibs.mwrap.*`) only in a native/ unit (D-83)
   exceptions    no `throw` / `try` in runtime and modules sources (errors are std::expected); a
                 native/ unit may catch what a third-party library throws, to answer std::expected
@@ -437,6 +439,39 @@ def check_licences(root: Path) -> list[Problem]:
     return problems
 
 
+# Platforms (D-84): a package that says it runs on the Web (`platforms` lists
+# "emscripten") depends — dev-dependencies included, its tests run there too —
+# only on packages of the workspace that say so as well. CI's Web row tests
+# exactly the packages that say it (tools/ci/web.sh).
+def check_platforms(root: Path) -> list[Problem]:
+    problems = []
+    members = workspace_members(root)
+    data: dict[str, dict] = {}
+    for m in members:
+        try:
+            data[m] = tomllib.loads((root / m / "mcpp.toml").read_text(encoding="utf-8"))
+        except (OSError, tomllib.TOMLDecodeError):
+            continue
+    web = {m for m, d in data.items() if "emscripten" in d.get("package", {}).get("platforms", [])}
+    for m in sorted(web):
+        d = data[m]
+        tables = [d.get(t, {}) for t in ("dependencies", "dev-dependencies")]
+        for target in d.get("target", {}).values():
+            if isinstance(target, dict):
+                tables += [target.get(t, {}) for t in ("dependencies", "dev-dependencies")]
+        for table in tables:
+            for name, spec in flatten_deps(table):
+                if not isinstance(spec, dict) or "path" not in spec:
+                    continue
+                try:
+                    dep = (root / m / spec["path"]).resolve().relative_to(root.resolve()).as_posix()
+                except ValueError:
+                    continue
+                if dep in data and dep not in web:
+                    problems.append(Problem("platforms", m, f"runs on the Web (emscripten) but depends on {dep} ({name}), which does not say it does"))
+    return problems
+
+
 def check_pins(root: Path) -> list[Problem]:
     problems = []
     manifest = root / "mcpp.toml"
@@ -557,7 +592,7 @@ def check_documents(root: Path) -> list[Problem]:
 
 
 def run(root: Path) -> list[Problem]:
-    return (check_sources(root) + check_manifests(root) + check_layout(root) + check_licences(root) + check_pins(root)
+    return (check_sources(root) + check_manifests(root) + check_layout(root) + check_licences(root) + check_platforms(root) + check_pins(root)
             + check_documents(root))
 
 
@@ -575,6 +610,7 @@ def self_test() -> int:
         "modules": None,
         "layout": None,
         "licenses": None,
+        "platforms": None,
         "thirdparty": ("modules/base/hanim/src/w.cpp", "module x;\nimport mcpplibs.mwrap.md4c;\n"),
         "manifest": None,
         "pins": None,
@@ -594,6 +630,8 @@ def self_test() -> int:
                      "spec": 'namespace = "openlifa"\nname = "openmui"'}
             if rule == "layout":
                 names["modules/base/hanim"] = 'name = "anim"'
+            if rule == "platforms":
+                names["modules/ui/core"] += '\nplatforms = ["linux", "emscripten"]'
             pin = ""
             if rule == "pins":
                 pin = ('[package]\nname = "root"\nversion = "0.1.0"\n[package.metadata.openmui.pins]\n"ns.kernel" = "ns.os"\n'
@@ -618,6 +656,8 @@ def self_test() -> int:
                     deps = '[dependencies.compat]\nsdl3 = "3.4.18"\n'
                 if rule == "pins" and m == "modules/ui/core":
                     deps = '[dependencies]\nns.os = "0.1.0"\n'  # reaches ns.os, does not pin ns.kernel
+                if rule == "platforms" and m == "modules/ui/core":
+                    deps = '[dependencies]\nhanim = { path = "../../base/hanim" }\n'
                 if rule == "licenses" and m == "modules/ui/core":
                     deps = '[dependencies]\nacme.copyleft = "1.0.0"\n'
                     with (root / "tools" / "lint" / "licenses.toml").open("a", encoding="utf-8") as f:

@@ -7,6 +7,7 @@ name        = "geom"
 version     = "0.1.0"
 description = "2D geometry for openmui's modules: points, rectangles, colours, affine transforms, pixel snapping"
 license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
 repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]

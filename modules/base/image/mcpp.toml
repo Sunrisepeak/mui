@@ -9,6 +9,7 @@ name        = "image"
 version     = "0.1.0"
 description = "Image buffers, premultiplication, PNG encode and decode"
 license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
 repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]

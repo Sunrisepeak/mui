@@ -9,6 +9,8 @@ name: CI
 #             macOS and Windows; the pinned determinism hashes in the tests are
 #             the same constants on every row, so a green matrix is the
 #             cross-platform determinism gate
+#   web       the members that say they run on the Web pass their tests on
+#             wasm32-emscripten under node, with the same pinned hashes
 
 on:
   push:
@@ -44,6 +46,35 @@ jobs:
         run: |
           gcc -std=c99 -Wall -Wextra -pedantic -Werror -Ispec/include -fsyntax-only tools/lint/abi_c99.c
           g++ -std=c++11 -Wall -Wextra -pedantic -Werror -Ispec/include -x c++ -fsyntax-only tools/lint/abi_c99.c
+
+  # The Web row (D-84): the members that say they run on the Web, built for
+  # wasm32-emscripten (emsdk and node from xlings, through mcpp) and tested
+  # under node; their pinned hashes are the other rows' constants.
+  web:
+    name: test web wasm32-emscripten
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Install xlings
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/openxlings/xlings/main/tools/other/quick_install.sh \
+            | bash -s "$XLINGS_VERSION"
+          echo "$HOME/.xlings/subos/current/bin" >> "$GITHUB_PATH"
+      - name: Install mcpp
+        run: |
+          for attempt in 1 2 3 4 5 6; do
+            xlings update > /dev/null 2>&1 || true
+            if xlings install mcpp -y -g; then break; fi
+            [ "$attempt" = 6 ] && { echo "::error::mcpp could not be installed"; exit 1; }
+            sleep 60
+          done
+          mcpp --version
+          mcpp self config --mirror GLOBAL
+      - name: The members that run on the Web, tested under node
+        run: tools/ci/web.sh
 
   test:
     name: test ${{ matrix.os }} ${{ matrix.toolchain }} ${{ matrix.profile }}

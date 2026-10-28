@@ -1251,6 +1251,12 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
   - 原来的 2D 渲染器成为它的渲染特性 `openmui.render.vector`（`modules/gfx/render/vector`，重新导出核心）；GPU 渲染器的每一帧经由渲染图记录：绘制、混合、效果三种 pass 各自声明读写，`RenderReport::gpu_passes` / `gpu_passes_culled`；纹理池换成核心的；CPU 参考和 GPU 的像素比较全部不变。
   - rhi 补上渲染特性需要的（D-81 ②）：深度和模板目标（`d32_float`、`d32_float_s8`，`DepthTarget` 的清除、加载、保存），多重采样（`TextureDesc::samples` 到 `Caps::max_samples`，在 pass 结束时解析进 `ColorTarget::resolve`），每个管线一个深度测试（`DepthState`）；校验要求 pass 和它设置的管线采样数、深度格式一致；SDL_GPU 后端逐项映射；rhi.cts 加三例（`depth_test`、`depth_kept`、`multisample`，4× 的标准采样位置在三种 API 上相同），lavapipe 上逐像素通过。SDL_GPU 没有 GPU 时间戳查询，记为上游缺口 #3，渲染图暂时只在 CPU 端计时。
   - 测试：`modules/gfx/render/tests/graph_test.cpp`（池的复用和释放、问题的措辞、计划、span，以及真实设备上没被读的 pass 不运行的字节）；vector 的 GPU 测试加一条：一帧的每个 pass 一个 span，同一帧再画一次 pass 相同。
+- ✅ Web 的第一步（D-84，W1 ①）：
+  - 工作区对 `wasm32-emscripten` 的设置：异常（JSON、TOML 和捕获它们的 native 单元需要）、可增长的内存、1 MiB 的栈；测试程序的配置 `wasm-test`（`-sNODERAWFS=1`：在 node 下读源码旁边的数据，和其他行一样）。
+  - 包用 mcpp 的 `[package] platforms` 声明自己能在 Web 上运行；lint `platforms`：这样的包只依赖同样声明了的包（开发依赖也算，测试也在那里跑），自测 15/15。
+  - 现在声明的 14 个：hanim、geom、memory、unicode、fuzzy、trace、pipeline、image、testing、raster、layout、i18n 和 cldr、markdown。CI 新增一行 `test web wasm32-emscripten`（`tools/ci/web.sh` 按清单选包，在 node 下跑测试）：21 个测试程序全部通过，固定的哈希——hanim 的数学位、raster 的像素、CommonMark 652/652——和桌面各行是同一组常量。
+  - 目标能做什么用分区常量表达，不用宏：`openmui.testing:target` 按目标选源文件（`threads`：Web 行没有线程）。
+  - 依赖 `mcpplibs.os` 的包（text、session、ui/*）等上游：mcpplibs/os#8 和 openkal-emscripten#8 已经就绪（CI 绿），os#8 建在另一项工作的 os#7 上；mcpp 的三个 Emscripten 缺口报在 mcpp#851。
 - M5：openmui-video、ui-timeline、MCP 服务器、skills、S3 / S4 / S5。
 - 契约⑦（插件与管线）写进规范；Inspector 的火焰图和动画检查器视图。
 

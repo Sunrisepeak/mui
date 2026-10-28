@@ -167,6 +167,24 @@ version = "0.0.2"
 source  = "index+mcpplibs@0.0.2"
 hash    = "fnv1a:aad61299abc2c4b7"
 
+[package."openkal"]
+namespace = "mcpplibs"
+version = "0.17.0"
+source  = "index+mcpplibs@0.17.0"
+hash    = "fnv1a:d9a6fe1043f0f4d5"
+
+[package."openkal-linux"]
+namespace = "mcpplibs"
+version = "0.18.0"
+source  = "index+mcpplibs@0.18.0"
+hash    = "fnv1a:2947b74ddbcf8b79"
+
+[package."mcpplibs.os"]
+namespace = "mcpplibs"
+version = "0.1.2"
+source  = "index+mcpplibs@0.1.2"
+hash    = "fnv1a:d94d45a50504951a"
+
 [package."mcpplibs.mwrap.concurrentqueue"]
 namespace = "mcpplibs.mwrap"
 version = "1.0.5"
@@ -215,29 +233,11 @@ version = "3.0.0"
 source  = "index+mcpplibs.mwrap@3.0.0"
 hash    = "fnv1a:c52f25d6e64707eb"
 
-[package."mcpplibs.os"]
-namespace = "mcpplibs"
-version = "0.1.2"
-source  = "index+mcpplibs@0.1.2"
-hash    = "fnv1a:d94d45a50504951a"
-
 [package."nlohmann.json"]
 namespace = "nlohmann"
 version = "3.12.0"
 source  = "index+nlohmann@3.12.0"
 hash    = "fnv1a:65af05f998b1b9d7"
-
-[package."openkal"]
-namespace = "mcpplibs"
-version = "0.17.0"
-source  = "index+mcpplibs@0.17.0"
-hash    = "fnv1a:d9a6fe1043f0f4d5"
-
-[package."openkal-linux"]
-namespace = "mcpplibs"
-version = "0.18.0"
-source  = "index+mcpplibs@0.18.0"
-hash    = "fnv1a:2947b74ddbcf8b79"
 
 [package."openlifa.openas"]
 namespace = "openlifa"

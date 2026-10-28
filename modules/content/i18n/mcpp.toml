@@ -12,6 +12,7 @@ name        = "i18n"
 version     = "0.1.0"
 description = "Internationalisation without ICU: locales, plural rules, number, date, relative-time and list formatting, MessageFormat 2, catalogs"
 license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
 repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]

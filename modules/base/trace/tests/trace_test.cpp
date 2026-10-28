@@ -47,7 +47,8 @@ int main(int argc, char** argv) {
         check(t.table().find("frame/frame") != std::string::npos);
     });
 
-    s.test("threads record into their own buffers", [] {
+    // A target without threads (the Web row) has one buffer to record into.
+    if (threads) s.test("threads record into their own buffers", [] {
         trace::start();
         std::vector<std::jthread> workers;
         for (int w = 0; w < 4; ++w)

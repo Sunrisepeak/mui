@@ -9,6 +9,7 @@ name        = "cldr"
 version     = "0.1.0"
 description = "CLDR 49 locale packs for openmui.i18n: en, zh (Simplified), zh-Hant, and likely subtags"
 license     = "Apache-2.0 AND Unicode-3.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
 repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]

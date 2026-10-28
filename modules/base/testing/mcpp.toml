@@ -7,9 +7,17 @@ name        = "testing"
 version     = "0.1.0"
 description = "Test checks, suites and determinism hashes for openmui test programs"
 license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
 
 [targets.openmui-testing]
 kind = "lib"
 
 [build]
 sources = ["src/*.cppm", "src/*.cpp"]
+
+# What the target can do, as constants (:target): the Web row runs no threads.
+[target.'cfg(not(os = "emscripten"))'.build]
+sources = ["src/targets/threads.cppm"]
+
+[target.'cfg(os = "emscripten")'.build]
+sources = ["src/targets/web.cppm"]

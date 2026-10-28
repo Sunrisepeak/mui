@@ -7,6 +7,7 @@
 export module openmui.testing;
 
 import std;
+export import :target;
 
 export namespace omui::testing {
 

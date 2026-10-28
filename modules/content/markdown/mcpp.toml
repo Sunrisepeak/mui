@@ -9,6 +9,7 @@ name        = "markdown"
 version     = "0.1.0"
 description = "Markdown to blocks and inline marks over md4c: CommonMark + GFM, HTML output, streaming append, anchors"
 license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
 repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]

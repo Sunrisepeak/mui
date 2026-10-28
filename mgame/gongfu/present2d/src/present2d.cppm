@@ -42,11 +42,17 @@ struct Bone {
     // turned back by `amount` of how far it swung over the last `lag` frames
     // (at most `max` degrees). Drawn only — hurtboxes never follow — and a
     // pure function of the clip's time, like the rest of a pose.
+    // `drag` (degrees a pixel) trails it behind where its joint went over those
+    // frames, the body's own travel included: cloth behind a running fighter.
     struct Follow {
         std::int32_t lag = 0;
         float        amount = 0;
         float        max = 60;
+        float        drag = 0;
     } follow;
+    // Hanging (cloth, hair, a sash's end): its angle is to the world, not to
+    // its parent — it hangs whichever way the parent turns (rest −90: straight down).
+    bool         hang = false;
 };
 
 // A curve is a closed, smooth shape through its points (Catmull-Rom): a

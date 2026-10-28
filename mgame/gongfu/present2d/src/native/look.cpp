@@ -62,7 +62,7 @@ constexpr std::string_view format_version = "0.1";
 constexpr std::array<std::string_view, 20> look_keys{"gongfu", "name", "outline", "accent", "trail", "glow", "footfall", "pane", "clone", "rewind", "palette", "bone", "part", "clip", "impact",
                                                      "glyph", "cinematic", "projectile", "doc", "light"};
 constexpr std::array<std::string_view, 6> light_keys{"from", "shade", "darken", "shadow", "rim", "rim_color"};
-constexpr std::array<std::string_view, 3> follow_keys{"lag", "amount", "max"};
+constexpr std::array<std::string_view, 4> follow_keys{"lag", "amount", "max", "drag"};
 constexpr std::array<std::string_view, 3> trail_keys{"color", "frames", "alpha"};
 constexpr std::array<std::string_view, 2> glow_keys{"color", "width"};
 constexpr std::array<std::string_view, 3> footfall_keys{"every", "dip", "frames"};
@@ -83,7 +83,7 @@ constexpr std::array<std::string_view, 3> clouds_keys{"color", "count", "between
 constexpr std::array<std::string_view, 6> written_keys{"name", "at", "size", "from", "ends", "color"};
 constexpr std::array<std::string_view, 4> seal_keys{"frame", "at", "size", "color"};
 constexpr std::array<std::string_view, 2> outline_keys{"color", "width"};
-constexpr std::array<std::string_view, 8> bone_keys{"name", "parent", "joint", "length", "rest", "limb", "prop", "follow"};
+constexpr std::array<std::string_view, 9> bone_keys{"name", "parent", "joint", "length", "rest", "limb", "prop", "follow", "hang"};
 constexpr std::array<std::string_view, 10> part_keys{"bone", "shape", "size", "points", "color", "depth", "doc", "name", "variants", "shade"};
 constexpr std::array<std::string_view, 7> clip_keys{"frames", "loop", "ease", "angle", "rise", "doc", "swap"};
 constexpr std::array<std::string_view, 8> impact_keys{"shake", "zoom", "flash", "spark", "sound", "rumble", "doc", "name"};
@@ -363,11 +363,16 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
         if (auto a = r.number(t.get("rest"), "a bone's `rest`", -720, 720)) b.rest = static_cast<float>(*a);
         if (auto l = r.boolean(t.get("limb"), "a bone's `limb`")) b.limb = *l;
         if (auto l = r.boolean(t.get("prop"), "a bone's `prop`")) b.prop = *l;
+        if (auto h = r.boolean(t.get("hang"), "a bone's `hang`")) {
+            b.hang = *h;
+            if (b.hang && b.parent < 0) r.error(t.get("hang"), "the root cannot hang: it is the body");
+        }
         if (const toml::table* f = r.table_of(t.get("follow"), "a bone's `follow`")) {
             r.only(*f, follow_keys, "a bone's `follow`");
             if (auto v = r.integer(f->get("lag"), "a follow's `lag`", 1, 30)) b.follow.lag = *v;
             if (auto v = r.number(f->get("amount"), "a follow's `amount`", -2, 2)) b.follow.amount = static_cast<float>(*v);
             if (auto v = r.number(f->get("max"), "a follow's `max`", 0, 180)) b.follow.max = static_cast<float>(*v);
+            if (auto v = r.number(f->get("drag"), "a follow's `drag`", -10, 10)) b.follow.drag = static_cast<float>(*v);
             if (b.follow.lag <= 0) r.error(f, "a follow has a `lag` (frames)", "follow = { lag = 4, amount = 0.6 }");
         }
         look.bones.push_back(std::move(b));
@@ -871,7 +876,8 @@ std::string write_look(const Look& look) {
         if (b.rest != 0) s += std::format("rest = {}\n", b.rest);
         if (b.limb) s += "limb = true\n";
         if (b.prop) s += "prop = true\n";
-        if (b.follow.lag > 0) s += std::format("follow = {{ lag = {}, amount = {}, max = {} }}\n", b.follow.lag, b.follow.amount, b.follow.max);
+        if (b.hang) s += "hang = true\n";
+        if (b.follow.lag > 0) s += std::format("follow = {{ lag = {}, amount = {}, max = {}, drag = {} }}\n", b.follow.lag, b.follow.amount, b.follow.max, b.follow.drag);
     }
     constexpr std::array<std::string_view, 4> shapes{"capsule", "ellipse", "polygon", "curve"};
     auto points_text = [](const std::vector<Point>& pts) {

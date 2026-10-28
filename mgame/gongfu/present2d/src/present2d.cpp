@@ -201,7 +201,7 @@ void pose_at(const Look& look, const Clip* clip, std::int32_t t, const FighterSt
             const double ca = dm::cos(q.angle), sa = dm::sin(q.angle);
             const double jx = bone.joint.x, jy = bone.joint.y * facing;
             p.joint = {static_cast<float>(q.joint.x + jx * ca - jy * sa), static_cast<float>(q.joint.y + jx * sa + jy * ca)};
-            p.angle = q.angle + facing * local;
+            p.angle = bone.hang ? (facing > 0 ? local : dm::pi - local) : q.angle + facing * local;
         }
         p.tip = {static_cast<float>(p.joint.x + bone.length * dm::cos(p.angle)), static_cast<float>(p.joint.y + bone.length * dm::sin(p.angle))};
     }
@@ -300,10 +300,10 @@ std::size_t reach(const Look& look, const Pose& p, const Pose& rest, Box base, f
             if (look.bones[static_cast<std::size_t>(b)].limb) return b;
         return std::int32_t{-1};
     };
-    // A prop held (a brush) is not the body: a hit on it hits nothing.
+    // A prop held (a brush) is not the body, nor is hanging cloth (a sleeve, a sash): a hit on it hits nothing.
     auto held = [&](std::int32_t bone) {
         for (std::int32_t b = bone; b >= 0; b = look.bones[static_cast<std::size_t>(b)].parent)
-            if (look.bones[static_cast<std::size_t>(b)].prop) return true;
+            if (look.bones[static_cast<std::size_t>(b)].prop || look.bones[static_cast<std::size_t>(b)].hang) return true;
         return false;
     };
     struct Bounds {
@@ -624,18 +624,21 @@ void Painter::body(const Look& look, const Fighter& fighter, const FighterState&
     }
     follow_.assign(look.bones.size(), 0.0);
     bool follows = false;
-    for (std::size_t b = 0; b < look.bones.size(); ++b) follows = follows || (look.bones[b].follow.lag > 0 && look.bones[b].follow.amount != 0);
+    for (std::size_t b = 0; b < look.bones.size(); ++b)
+        follows = follows || (look.bones[b].follow.lag > 0 && (look.bones[b].follow.amount != 0 || look.bones[b].follow.drag != 0));
     if (follows) {
         pose_at(look, clip, t, s, pose_);
         const double facing = s.facing < 0 ? -1.0 : 1.0;
         for (std::size_t b = 0; b < look.bones.size(); ++b) {
             const Bone::Follow& f = look.bones[b].follow;
-            if (f.lag <= 0 || f.amount == 0) continue;
+            if (f.lag <= 0 || (f.amount == 0 && f.drag == 0)) continue;
             pose_at(look, clip, std::max(0, t - f.lag), s, past_);
             double swung = (pose_[b].angle - past_[b].angle) * 180 / dm::pi;
             while (swung > 180) swung -= 360;
             while (swung < -180) swung += 360;
-            follow_[b] = std::clamp(-f.amount * swung, -static_cast<double>(f.max), static_cast<double>(f.max)) * facing;
+            // Where its joint went over the lag: the clip's motion and the body's own travel.
+            const double travel = (pose_[b].joint.x - past_[b].joint.x) + s.vel.x.to_double() * f.lag;
+            follow_[b] = std::clamp(-f.amount * swung - f.drag * travel, -static_cast<double>(f.max), static_cast<double>(f.max)) * facing;
         }
     }
     pose_at(look, clip, t, s, pose_, follow_);

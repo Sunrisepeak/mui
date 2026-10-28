@@ -193,6 +193,7 @@ public:
         return static_cast<C*>(instance_of(node, component_type<C>()));
     }
     [[nodiscard]] void* instance_of(NodeId node, const ComponentType& type) noexcept;
+    [[nodiscard]] const void* instance_of(NodeId node, const ComponentType& type) const noexcept;
     [[nodiscard]] std::string path(NodeId node) const override;
     [[nodiscard]] NodeId parent(NodeId node) const override;
     [[nodiscard]] std::vector<NodeId> children(NodeId node) const override;

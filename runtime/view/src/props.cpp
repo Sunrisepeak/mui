@@ -32,6 +32,10 @@ constexpr std::array<std::string_view, 11> semantic_props{
     "label", "description", "role", "origin", "focusable", "disabled", "verb", "verb_args", "effect", "answer", "person",
 };
 
+// What a node is to a framework-drawn window (D-75): `window_area: "drag"`
+// moves the window (window_area_at).
+constexpr std::array<std::string_view, 1> window_props{"window_area"};
+
 template <std::size_t N>
 constexpr bool in(const std::array<std::string_view, N>& set, std::string_view name) noexcept {
     return std::ranges::find(set, name) != set.end();
@@ -233,7 +237,8 @@ std::span<const std::string_view> runtime_properties() noexcept {
     static const auto all = [] {
         std::vector<std::string_view> v;
         for (auto set : {std::span<const std::string_view>(layout_props), std::span<const std::string_view>(visual_props),
-                         std::span<const std::string_view>(motion_props), std::span<const std::string_view>(semantic_props)})
+                         std::span<const std::string_view>(motion_props), std::span<const std::string_view>(semantic_props),
+                         std::span<const std::string_view>(window_props)})
             v.insert(v.end(), set.begin(), set.end());
         std::ranges::sort(v);
         v.erase(std::ranges::unique(v).begin(), v.end());

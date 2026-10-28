@@ -1,0 +1,39 @@
+# A window's own frame (D-75): drawn by the interface when the window is
+# framework-drawn — a shadow around it, its rounded edge, a title bar with
+# the title and the buttons — and nothing but its content in a native
+# window, whose system draws the frame. Its title bar moves the window and
+# its edges (the shadow's reach) resize it, through the system, so snapping
+# and fullscreen still work (window_area_at). It follows the window: no
+# shadow or corners when maximized or fullscreen, a muted title bar when
+# another window is active. Its actions are the window.* verbs, so a button,
+# a shortcut and an agent close it the same way.
+[contract.window_frame]
+role     = "window"
+spec     = "0.1"
+children = "any"
+doc      = "A window's own frame: shadow, edge, title bar and buttons, drawn by the interface."
+
+[contract.window_frame.props]
+title       = { type = "string", default = "", bindable = true, doc = "The title, shown in the title bar; also the window's accessible name." }
+controls    = { type = "enum", values = ["end", "start", "none"], default = "end", doc = "Where the buttons are: at the title bar's end (Windows, Linux), at its start (macOS), or nowhere." }
+look        = { type = "enum", values = ["standard", "traffic"], default = "standard", doc = "The buttons' look: square glyph buttons, or three coloured circles." }
+title_bar   = { type = "f64", default = 36, doc = "The title bar's height, logical pixels." }
+radius      = { type = "f64", default = 10, doc = "The frame's corner radius, logical pixels (none when maximized)." }
+shadow      = { type = "f64", default = 16, doc = "How far the shadow reaches around the frame, logical pixels; it is also where the frame resizes (none when maximized)." }
+resize      = { type = "f64", default = 6, doc = "How far in from the frame's edge resizing reaches, logical pixels." }
+minimizable = { type = "bool", default = true, doc = "Whether it has a minimize button." }
+maximizable = { type = "bool", default = true, doc = "Whether it has a maximize button, and a double click on the title bar maximizes." }
+
+[contract.window_frame.actions]
+minimize        = { effect = "reversible", doc = "Minimizes the window (window.minimize)." }
+toggle_maximize = { effect = "reversible", doc = "Maximizes the window, or restores it (window.toggle_maximize)." }
+close           = { effect = "reversible", doc = "Closes the window; the application may keep it open to save first (window.close)." }
+
+[contract.window_frame.parts]
+shadow    = {}
+edge      = {}
+title_bar = {}
+title     = {}
+
+[contract.window_frame.motion]
+active = "motion.fast"

@@ -19,14 +19,6 @@ export namespace omui {
 enum class WindowState : std::uint8_t { normal, maximized, minimized, fullscreen };
 [[nodiscard]] std::string_view name(WindowState s) noexcept;
 
-// What lies under a point of a framework-drawn window, for the system's own
-// moving and resizing (so snapping and fullscreen still work).
-enum class WindowArea : std::uint8_t {
-    client, drag,
-    resize_top_left, resize_top, resize_top_right, resize_right,
-    resize_bottom_right, resize_bottom, resize_bottom_left, resize_left,
-};
-
 // What a host does for the interface's window.
 class WindowHost {
 public:
@@ -75,10 +67,11 @@ private:
 
 [[nodiscard]] Window& window();
 
-// What lies under `p` (logical pixels) of a window `size` big: an edge
-// `margin` wide resizes (a normal window only), a node marked
-// `window_area: "drag"` moves it, unless what is under the point can be
-// operated (a button in the title bar is the interface's).
+// What lies under `p` (logical pixels) of a window `size` big, from the
+// deepest node out: what can be operated is the interface's (a button in the
+// title bar); a frame component says what its parts are (window_area); a
+// node marked `window_area: "drag"` moves the window. Failing all of them, an
+// edge `margin` wide resizes a normal window.
 [[nodiscard]] WindowArea window_area_at(const Runtime& rt, Point p, Size size, float margin = 6);
 
 }  // namespace omui

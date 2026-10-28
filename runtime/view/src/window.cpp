@@ -60,7 +60,26 @@ Window& window() {
 }
 
 WindowArea window_area_at(const Runtime& rt, Point p, Size size, float margin) {
-    if (window().state() == WindowState::normal && margin > 0) {
+    // From the deepest node out: whether something under the point can be
+    // operated, is marked to drag, or is a frame that says what it is.
+    bool operated = false, marked = false, framed = false;
+    std::optional<WindowArea> frame;
+    for (NodeId n = rt.hit_test(p); rt.valid(n); n = rt.parent(n)) {
+        const ComponentType& type = rt.type(n);
+        if (type.window_area && !framed) {
+            framed = true;
+            const Rect b = rt.bounds(n);
+            frame = type.window_area(rt.instance_of(n, type), {p.x - b.x, p.y - b.y}, {b.width, b.height});
+        }
+        if (framed) continue;
+        if (!operated && operable(rt.semantic_node(n))) operated = true;
+        if (!operated && rt.get(n, "window_area").as_string() == "drag") marked = true;
+    }
+    const auto resizing = [](WindowArea a) { return a != WindowArea::client && a != WindowArea::drag; };
+    if (window().state() != WindowState::normal && frame && resizing(*frame)) frame = WindowArea::client;
+    // A frame's edges resize, whatever reaches them; without a frame, the window's do.
+    if (frame && resizing(*frame)) return *frame;
+    if (!framed && window().state() == WindowState::normal && margin > 0) {
         const bool left = p.x < margin, right = p.x >= size.width - margin, top = p.y < margin, bottom = p.y >= size.height - margin;
         if (top && left) return WindowArea::resize_top_left;
         if (top && right) return WindowArea::resize_top_right;
@@ -71,11 +90,9 @@ WindowArea window_area_at(const Runtime& rt, Point p, Size size, float margin) {
         if (left) return WindowArea::resize_left;
         if (right) return WindowArea::resize_right;
     }
-    for (NodeId n = rt.hit_test(p); rt.valid(n); n = rt.parent(n)) {
-        if (operable(rt.semantic_node(n))) return WindowArea::client;
-        if (rt.get(n, "window_area").as_string() == "drag") return WindowArea::drag;
-    }
-    return WindowArea::client;
+    if (operated) return WindowArea::client;
+    if (frame) return *frame;
+    return marked ? WindowArea::drag : WindowArea::client;
 }
 
 }  // namespace omui

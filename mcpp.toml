@@ -61,6 +61,7 @@ members = [
     "lang/python",
     "components/markdown",
     "components/liquid-glass",
+    "components/window",
     "components/canvas",
     "components/canvas-kit",
     "tools/gen",

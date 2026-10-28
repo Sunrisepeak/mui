@@ -271,6 +271,12 @@ void* Runtime::instance_of(NodeId node, const ComponentType& type) noexcept {
     return n.type == &type ? n.instance : nullptr;
 }
 
+const void* Runtime::instance_of(NodeId node, const ComponentType& type) const noexcept {
+    if (!valid(node)) return nullptr;
+    const Node& n = impl_->at(node);
+    return n.type == &type ? n.instance : nullptr;
+}
+
 double Runtime::frame_rate() const noexcept {
     const auto now = std::chrono::steady_clock::now();
     return static_cast<double>(std::ranges::count_if(impl_->drawn, [&](auto t) {

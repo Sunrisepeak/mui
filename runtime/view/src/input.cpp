@@ -135,7 +135,7 @@ void Runtime::Impl::pointer_event(const PointerEvent& e) {
                 if (p.modal) {
                     if (outside && p.light_dismiss) {
                         Invocation call;
-                        call.actor = {"person", "user", {"input:pointer"}};
+                        call.actor = {"person", "user", {}};
                         (void)self.act(o, "dismiss", call);
                     }
                     swallowed = outside;
@@ -143,7 +143,7 @@ void Runtime::Impl::pointer_event(const PointerEvent& e) {
                 }
                 if (p.light_dismiss && !contains(on.parent, target)) {
                     Invocation call;
-                    call.actor = {"person", "user", {"input:pointer"}};
+                    call.actor = {"person", "user", {}};
                     (void)self.act(o, "dismiss", call);
                 }
             }
@@ -182,7 +182,7 @@ void Runtime::Impl::pointer_event(const PointerEvent& e) {
                     }
                 if (inside && !handled) {
                     Invocation call;
-                    call.actor = {"person", "user", {"input:pointer"}};
+                    call.actor = {"person", "user", {}};
                     call.answer = own_answer(p, "activate");
                     (void)self.act(p, "activate", call);
                 }
@@ -238,7 +238,7 @@ bool Runtime::Impl::key_binding(NodeId id, const KeyEvent& e) {
     if (n.state.disabled) return false;
     const spec::ContractInfo* contract = n.type->contract;
     Invocation call;
-    call.actor = {"person", "user", {"input:keyboard"}};
+    call.actor = {"person", "user", {}};
     if (contract) {
         for (const spec::KeyInfo& k : contract->keys) {
             auto chords = parse_chords(k.chord);

@@ -174,7 +174,7 @@ bool Headless::click(std::string_view id) {
         NodeId n = rt.find(id);
         if (!rt.valid(n)) return false;
         Invocation call;
-        call.actor = {"person", "user", {"input:pointer"}};
+        call.actor = {"person", "user", {}};
         (void)rt.act(n, "activate", call);
         step();
         return true;

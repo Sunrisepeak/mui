@@ -29,6 +29,8 @@ struct LevelDef {
     std::int32_t          lives = 3;
     std::uint64_t         seed = 1;
     std::int64_t          gate_from = 0, gate_to = 0;  // the frames its gates stand open
+    bool                  second_paddle = false;       // a paddle at the top: an agent's
+    float                 top = 70;                    // where its bricks begin
 };
 
 // The levels made so far (of six), by number.

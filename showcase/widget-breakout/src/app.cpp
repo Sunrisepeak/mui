@@ -1,6 +1,7 @@
 // The application: the field filling the window, from level 1 on; the style
-// pack a level asks for applied to the whole window (cross-faded); the field
-// registered by name for view documents, scripts and agents.
+// pack a level asks for applied to the whole window (cross-faded); level 5's
+// agent playing along; the field registered by name for view documents,
+// scripts and agents.
 module openmui.showcase.widget_breakout;
 
 import std;
@@ -24,7 +25,8 @@ AppSpec app() {
         register_components();
         if (auto r = themes::add_styles(); !r) warn("breakout: the style packs did not load");
     };
-    a.view = [runtime] {
+    auto copilot = std::make_shared<Copilot>();
+    a.view = [runtime, copilot] {
         return std::move(field({.id = "field", .level = 1, .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100))})
                              .on("style", [runtime](const Value& args) {
                                  Runtime* rt = *runtime;
@@ -36,6 +38,15 @@ AppSpec app() {
                                      rt->set_effect_rules({});
                                  } else if (auto r = theme::apply_style(*rt, name, true); !r) {
                                      warn("breakout: {}", r.error());
+                                 }
+                             })
+                             .on("level_began", [runtime, copilot](const Value& args) {
+                                 Runtime* rt = *runtime;
+                                 const Value* n = args.get("number");
+                                 if (rt && n && level(static_cast<std::int32_t>(n->as_int())).second_paddle) {
+                                     copilot->start(*rt, rt->find(args.get("path") ? args.get("path")->as_string() : ""));
+                                 } else {
+                                     copilot->stop();
                                  }
                              }));
     };

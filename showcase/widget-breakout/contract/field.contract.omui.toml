@@ -11,9 +11,11 @@ doc      = "A breakout's field: a paddle, balls and capsules over a level of rea
 level  = { type = "i32", default = 1, doc = "Which level (1–6): its bricks are the field's children, in order; a new level starts afresh." }
 paused = { type = "bool", default = false, doc = "Stand still: `step` plays one frame." }
 lens   = { type = "bool", default = false, doc = "The semantic lens (level 1, Tab): every brick's role and id, the hidden ones too." }
+copilot = { type = "bool", default = true, doc = "Level 5: the application's agent plays the top paddle; off, it leaves it to another agent." }
 
 [contract.field.events]
 brick_broke = { args = { id = "string" } }
+level_began = { args = { number = "i32", path = "string" } }
 level_over  = { args = { cleared = "bool", score = "i32" } }
 style       = { args = { name = "string" }, doc = "The style pack the level asks for now (level 2; empty: the application's own). Whoever hosts the field applies it." }
 
@@ -26,5 +28,6 @@ resume  = { effect = "reversible" }
 step    = { effect = "reversible", doc = "One frame, while paused." }
 restart = { effect = "reversible", doc = "The level from its start." }
 rewind  = { effect = "reversible", args = { frames = "i32" }, doc = "Back that many frames (120 a second, up to 30 s); playing on from there is a new branch." }
+guard_to = { effect = "reversible", args = { x = "f64", seen = "string" }, doc = "Level 5: moves the top paddle toward x (0 … 1) — an agent's lane; `seen`: what it saw, shown beside it." }
 next    = { effect = "reversible", doc = "The next level, once this one is over (cleared; lost: this one again)." }
 next_style = { effect = "reversible", doc = "Level 2: the next style pack, now — the play goes on, only pixels change." }

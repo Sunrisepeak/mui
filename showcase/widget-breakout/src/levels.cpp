@@ -61,6 +61,21 @@ LevelDef time_level() {
     return l;
 }
 
+LevelDef agents() {
+    LevelDef l;
+    l.number = 5;
+    l.title = "智能体 · Agents";
+    l.lesson = "Your teammate was an agent: it saw the field through the semantic tree and moved through the same actions you can call — no special API, no reading pixels.";
+    l.speed = 6.5;
+    l.seed = 5;
+    l.second_paddle = true;
+    l.top = 210;
+    for (const char* b : {"observe", "decide", "act", "observe", "decide", "act"}) l.bricks.push_back({Kind::button, 1, b});
+    for (const char* t : {"semantic tree", "actions", "effects", "envelopes", "actors"}) l.bricks.push_back({Kind::toggle, 2, t, 170});
+    for (const char* c : {"agent: guard_to(x)", "you: the pointer", "the same field"}) l.bricks.push_back({Kind::card, 1, c, 210});
+    return l;
+}
+
 // The rows a level's bricks are laid out in: a break before each change of kind (a hidden brick sits in its neighbours' row).
 std::vector<std::size_t> row_starts(const LevelDef& l) {
     if (!l.rows.empty()) return l.rows;
@@ -74,7 +89,7 @@ std::vector<std::size_t> row_starts(const LevelDef& l) {
 }  // namespace
 
 std::span<const LevelDef> levels() {
-    static const std::array<LevelDef, 3> all{semantics(), styles(), time_level()};
+    static const std::array<LevelDef, 4> all{semantics(), styles(), time_level(), agents()};
     return all;
 }
 

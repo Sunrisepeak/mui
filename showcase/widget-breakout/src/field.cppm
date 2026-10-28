@@ -46,6 +46,7 @@ public:
     ActResult step(ActContext& ctx);
     ActResult restart(ActContext& ctx);
     ActResult rewind(ActContext& ctx, const Value& frames);
+    ActResult guard_to(ActContext& ctx, const Value& seen, const Value& x);  // the contract's arguments, by name
     ActResult next(ActContext& ctx);
     ActResult next_style(ActContext& ctx);
 
@@ -78,6 +79,8 @@ private:
     std::int32_t                         turns_ = 0;           // level 2: the styles the player turned on
     std::string                          style_shown_;         // what the host was last asked for
     bool                                 rewinding_ = false;   // R held: back two frames a step
+    std::optional<double>                guard_x_;             // level 5: where an agent sends the top paddle (0 … 1)
+    std::deque<std::string>              agent_log_;           // level 5: its latest actions, with what it saw
     std::deque<std::string>              log_;                 // the lens's latest changes
     mutable std::map<std::string, typeset::Paragraph, std::less<>> words_;  // the lens's labels, shaped once
 };

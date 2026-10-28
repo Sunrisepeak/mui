@@ -74,6 +74,7 @@ void Field::prop_changed(FieldProp p) {
     if (!attached()) return;
     if (p == FieldProp::level) {
         services().recompose(node());  // its bricks: read into a new simulation on the next step
+        services().restyle(node());    // where they begin
         restart_level();
     }
     refresh();
@@ -91,6 +92,8 @@ void Field::restart_level() {
     log_.clear();
     discovered_ = props.lens;
     turns_ = 0;
+    guard_x_.reset();
+    agent_log_.clear();
     for (const NodeId n : bricks()) services().set(n, "visible", Value(true));
     if (begin()) show_bricks();
     show_style();
@@ -121,7 +124,7 @@ void Field::style(const Theme&, layout::Style& s) const {
     s.direction = layout::Direction::column;
     s.align_items = layout::Align::center;
     s.row_gap = 14;
-    s.padding.top = 70;
+    s.padding.top = level(props.level).top;
 }
 
 std::vector<NodeId> Field::bricks() const {
@@ -143,6 +146,7 @@ bool Field::begin() {
     l.seed = def.seed;
     l.gate_from = def.gate_from;
     l.gate_to = def.gate_to;
+    l.second_paddle = def.second_paddle;
     std::uint32_t row = 0;
     double last_y = -1;
     for (std::size_t i = 0; i < nodes.size(); ++i) {
@@ -155,6 +159,7 @@ bool Field::begin() {
     }
     rows_ = static_cast<std::int32_t>(row) + 1;
     timeline_.emplace(start(l), keep, 60);
+    emit_level_began(props.level, services().path(node()));  // whoever plays along (level 5's agent) knows where
     return true;
 }
 
@@ -162,6 +167,7 @@ Input Field::input() {
     Input in;
     in.player = sampler_.sample();
     if (agent_x_) in.player.pointer_x = static_cast<std::int16_t>(std::lround(std::clamp(*agent_x_, 0.0, 1.0) * 32767));
+    if (guard_x_) in.second.pointer_x = static_cast<std::int16_t>(std::lround(std::clamp(*guard_x_, 0.0, 1.0) * 32767));
     if (agent_launch_) {
         in.player.held |= 1u << launch_button;
         in.player.pressed |= 1u << launch_button;
@@ -392,6 +398,16 @@ void Field::paint_over(PaintContext& ctx) const {
             p.paint(out, {at.x + at.width / 2 - p.size().width / 2, open ? at.y + at.height / 2 - p.size().height / 2 : at.y + 3});
         }
     }
+    // Level 5: the agent's actions, each with what it saw.
+    if (level(props.level).second_paddle) {
+        const float x = 24, line = 18, top = ctx.size.height - 64 - line * static_cast<float>(log_size + 1);
+        out.fill_round_rect({x - 12, top - 10, 420, line * static_cast<float>(log_size + 1) + 16}, CornerRadii::all(8), render::Paint::solid(Color::hex(0x0b0e17, 0.7f)));
+        label(props.copilot ? "AGENT · copilot · ITS ACTIONS" : "AGENT · ITS ACTIONS", 11, Color::hex(0x64ffda, 0.8f)).paint(out, {x, top});
+        for (std::size_t k = 0; k < agent_log_.size(); ++k) {
+            const float alpha = 0.45f + 0.55f * static_cast<float>(k + 1) / static_cast<float>(agent_log_.size());
+            label(agent_log_[k], 11, Color::hex(0xe8eaf6, alpha)).paint(out, {x, top + line * static_cast<float>(k + 1)});
+        }
+    }
     // Over: what the level showed (cleared), and what next.
     if (s.over) {
         const float w = 640;
@@ -452,7 +468,8 @@ void Field::semantics(SemanticsContext&, spec::SemanticNode& node) const {
         balls.push_back(Value{}.set("x", b.at.x / field_w).set("y", b.at.y / field_h).set("vx", b.velocity.x).set("vy", b.velocity.y).set("on_paddle", b.on != 0));
     });
     v.set("balls", Value(std::move(balls)));
-    v.set("lens", props.lens);
+    v.set("lens", props.lens).set("copilot", props.copilot);
+    if (s.paddles[1].active) v.set("top", s.paddles[1].x / field_w).set("agent", Value(Value::List(agent_log_.begin(), agent_log_.end())));
     v.set("changes", Value(Value::List(log_.begin(), log_.end())));
     node.value = std::move(v);
 }
@@ -495,6 +512,15 @@ ActResult Field::step(ActContext&) {
 
 ActResult Field::restart(ActContext&) {
     restart_level();
+    refresh();
+    return ActResult::done();
+}
+
+ActResult Field::guard_to(ActContext&, const Value& seen, const Value& x) {
+    if (!level(props.level).second_paddle) return ActResult::fail("the top paddle is level 5's");
+    guard_x_ = std::clamp(x.as_double(0.5), 0.0, 1.0);
+    agent_log_.push_back(std::format("guard_to({:.3f}) · {}", *guard_x_, seen.as_string("—")));
+    while (agent_log_.size() > log_size) agent_log_.pop_front();
     refresh();
     return ActResult::done();
 }

@@ -17,9 +17,9 @@ namespace bo = omui::breakout;
 namespace {
 
 struct Game {
-    Headless h{HeadlessOptions{.size = {1280, 720}}};
+    Headless h;
     std::vector<std::string> broke;
-    explicit Game(std::int32_t level = 1) {
+    explicit Game(std::int32_t level = 1, HeadlessLevel up_to = HeadlessLevel::pixels) : h{HeadlessOptions{.level = up_to, .size = {1280, 720}}} {
         AppSpec spec = bo::app();
         h.runtime().set_theme(spec.theme);
         spec.setup(h.runtime());
@@ -293,6 +293,38 @@ int main(int argc, char** argv) {
         const auto open = g.pixels();
         std::println("    open {:016x}", open);
         check_eq(open, std::uint64_t{0xd4795f8821cca287});  // GCC and LLVM
+    });
+
+    s.test("level 5: an agent plays the top paddle from outside the field — the semantic tree in, guard_to out, journaled as its own; with a player below, they clear it", [] {
+        Game g(5, HeadlessLevel::layout);
+        check_eq(g.state().paddles[1].active, std::int32_t{1});
+        check(g.act("move_to", Value{}.set("x", 0.5)));
+        // The player below: under the lowest falling ball, launching when it can; the copilot above on its own.
+        std::int64_t frames = 0;
+        for (; frames < 60 * 240 && !g.state().over; ++frames) {
+            const Value v = g.seen();
+            double x = 0.5, lowest = -1;
+            for (const Value& b : *v.get("balls")->list())
+                if (b.get("vy")->as_double() > 0 && b.get("y")->as_double() > lowest) lowest = b.get("y")->as_double(), x = b.get("x")->as_double();
+            g.act("move_to", Value{}.set("x", x));
+            if (frames % 30 == 0) g.act("launch");
+            g.h.step();
+        }
+        std::println("    over {} after {} frames, score {}, lives {}", g.state().over, frames, g.state().score, g.state().lives);
+        check_eq(g.state().over, std::uint32_t{1});
+        std::size_t guards = 0;
+        for (const auto& e : g.h.runtime().action_journal()) guards += e.action == "guard_to" && e.actor.find("copilot") != std::string::npos && e.exit_code == 0;
+        check(guards > 20, std::format("{} guard_to calls by the copilot", guards));
+        check(!Game().act("guard_to", Value{}.set("x", 0.5)), "the top paddle is level 5's");
+        check(g.seen().get("agent")->list()->back().as_string().starts_with("guard_to("), "its actions, with what it saw, in the field's value");
+        // Seen: the agent's actions beside the play.
+        Game p(5);
+        check(p.act("launch"));
+        p.h.advance(seconds(3));
+        const auto px = p.pixels();
+        check(p.h.save_png(scratch_dir("breakout-level5") / "copilot.png").has_value());
+        std::println("    copilot {:016x}", px);
+        check_eq(px, std::uint64_t{0xde486d848c705e36});  // GCC and LLVM
     });
 
     return s.run(argc, argv);

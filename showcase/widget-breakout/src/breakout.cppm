@@ -8,6 +8,7 @@ export import openmui.showcase.widget_breakout.sim;
 export import :field_contract;
 export import :levels;
 export import :field;
+export import :copilot;
 
 export namespace omui::breakout {
 

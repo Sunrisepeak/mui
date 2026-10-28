@@ -1257,6 +1257,10 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
   - 现在声明的 14 个：hanim、geom、memory、unicode、fuzzy、trace、pipeline、image、testing、raster、layout、i18n 和 cldr、markdown。CI 新增一行 `test web wasm32-emscripten`（`tools/ci/web.sh` 按清单选包，在 node 下跑测试）：21 个测试程序全部通过，固定的哈希——hanim 的数学位、raster 的像素、CommonMark 652/652——和桌面各行是同一组常量。
   - 目标能做什么用分区常量表达，不用宏：`openmui.testing:target` 按目标选源文件（`threads`：Web 行没有线程）。
   - 依赖 `mcpplibs.os` 的包（text、session、ui/*）等上游：mcpplibs/os#8 和 openkal-emscripten#8 已经就绪（CI 绿），os#8 建在另一项工作的 os#7 上；mcpp 的三个 Emscripten 缺口报在 mcpp#851。
+- ✅ gongfu 的核心（D-85，第一部分；`mgame/gongfu`，包 `gongfu`，只依赖标准库，也在 Web 行上测试）：
+  - `:fixed` Q16.16 定点数（乘积向下取整、商向零截断，字面量在编译期转换）；`:input` 64 帧输入记录（相对朝向的方向、按住和按下、SOCD 三种）、指令（窗口内的搓招、蓄力、按下时的方向、同时按键、缓冲）；`:data` 角色、招式（帧、判定、伤害、削血、硬直、打击停顿、推开、上中下段、击倒、浮空、取消、无敌、位移、投技、飞行道具、能量、超必杀的冻结）和规则（连段补正、反击、回合、场地、近身防御、SOCD），`compile` 逐项检查并带位置；`:state` 一整块没有填充的纯数据（编译期检查），哈希就是它的字节；`:match` 两名角色从帧开始时同时决定、移动、推开、留在场上，所有攻击先判定后结算（同帧相抵），停顿期间按下的取消在停顿结束时开始。
+  - 测试 14 项：帧数据实测与声明一致（空挥的发生、持续、收招；命中和防御的帧优势 = 硬直 − 攻击方剩下的帧），防御的上中下段，取消连段和补正，反击，投技和拆投，飞行道具和相抵，无敌升龙；随机 10,000 帧上 10,000 次随机深度的回滚，每一帧的状态和不回滚时逐字节相同，哈希在 GCC、LLVM、wasm 上相同并固定。
+  - 发现并修正：GCC 16 在导入时对默认的友元比较运算符内部崩溃（改成显式比较）；测试里两个实参的求值顺序未指定，曾让 GCC 和 Clang 生成不同的输入（拆成两条语句）。
 - M5：openmui-video、ui-timeline、MCP 服务器、skills、S3 / S4 / S5。
 - 契约⑦（插件与管线）写进规范；Inspector 的火焰图和动画检查器视图。
 

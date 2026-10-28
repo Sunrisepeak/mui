@@ -1,0 +1,24 @@
+# gongfu — the fighting framework's core (D-85): a deterministic simulation
+# at 60 frames a second in fixed-point numbers, with rollback (the state is one
+# block of plain data, saved by a copy and checked by a hash), inputs read as a
+# fighting game reads them (motions, charges, buffers, SOCD), the rules of
+# hits, blocks, throws and combos, and characters as data. It depends on the
+# standard library alone, so that it can leave this repository unchanged; what
+# draws, sounds and reads devices lies outside it (mgame, openmui).
+[package]
+name        = "gongfu"
+version     = "0.1.0"
+description = "The fighting framework's core: a deterministic fixed-point 60 Hz simulation with rollback, fighting-game input, hits, blocks, throws and combos, characters as data"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[targets.gongfu]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dev-dependencies]
+openmui.testing = { path = "../../modules/base/testing" }

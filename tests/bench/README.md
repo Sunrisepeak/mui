@@ -31,6 +31,9 @@ mcpp run -p openmui.bench -- --list                                  # what ther
 | `wall/zoom-sweep-1000`, `wall/pan-1000` | S1's wall of 1000 pages: the wheel sweeping 1% ↔ 400%, a trackpad panning (the pool's work waited for outside the timed frame) |
 | `wall/workspace-drag-100`, `wall/selection-drag-1000` | moving many windows at once: a workspace of 100 by its label, 1000 chosen ones by a title |
 | `wall/stream-20` | 20 windows written into at 50 tokens a second |
+| `gongfu/frame` | one frame of the fighting game's simulation, two scripted players (and its allocations: none) |
+| `gongfu/rollback-8` | eight frames rolled back: the state restored, the frames simulated again, each saved (per frame) |
+| `gongfu/present2d` | one frame's picture built as a display list by a `Painter`: the stage, two skeletons, effects (allocations: none) |
 | `wall/sharpen` | the camera stops over the wall: until every window on screen is sharp |
 | `canvas-kit/drag-100k` | 10 chosen windows of 100,000 dragged every frame with select, drag, snap, grid and minimap on |
 

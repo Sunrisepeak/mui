@@ -53,6 +53,9 @@ private:
     std::array<std::optional<gongfu::Pad>, 2> agent_{};
     static constexpr std::size_t          meter_frames = 60;
     std::vector<std::array<std::uint8_t, 2>> meter_;  // per frame, each player's phase
+    // What painting reuses from frame to frame (paint is const; these are its scratch).
+    mutable gongfu::present2d::Painter    painter_;
+    mutable render::DisplayList           frame_;
     FrameDemandLease                      pace_;
     double                                start_ = 0;   // the clock's time of frame 0 of the playing (seconds)
     std::int64_t                          played_ = 0;  // frames played by the clock since start_

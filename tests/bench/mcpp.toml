@@ -33,6 +33,9 @@ openmui.markdown        = { path = "../../modules/content/markdown" }
 "openmui.ui.canvas.kit"   = { path = "../../components/canvas/kit" }
 openmui.showcase.wall   = { path = "../../showcase/markdown-wall" }
 openmui.showcase.styles = { path = "../../showcase/style-gallery" }
+"openmui.showcase.fighting" = { path = "../../showcase/fighting" }
+gongfu                  = { path = "../../mgame/gongfu" }
+"gongfu.present2d"      = { path = "../../mgame/gongfu/present2d" }
 openmui.theme.styles    = { path = "../../modules/ui/theme/styles" }
 "openmui.rhi"           = { path = "../../modules/gfx/rhi" }
 "openmui.rhi.sdl"       = { path = "../../modules/gfx/rhi/sdl" }

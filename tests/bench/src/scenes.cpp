@@ -229,6 +229,7 @@ void add_framework_benchmarks() {
     if (added) return;
     added = true;
     register_base_components();
+    add_game_benchmarks();
 
     // ── canvas-markdown §3.5: the canvas's frame while the camera moves ──
     register_canvas_component();

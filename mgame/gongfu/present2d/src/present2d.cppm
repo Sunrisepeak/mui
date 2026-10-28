@@ -74,6 +74,8 @@ using Pose = std::vector<BonePlace>;
 
 [[nodiscard]] std::string_view clip_name(const Fighter& fighter, const FighterState& state) noexcept;
 [[nodiscard]] Pose pose(const Look& look, const Fighter& fighter, const FighterState& state, std::int32_t frame);
+// The same into `out` (its storage reused: no allocation once it has the bones' room).
+void pose(const Look& look, const Fighter& fighter, const FighterState& state, std::int32_t frame, Pose& out);
 
 // The stage's view: what lies at the middle of the picture, and how large.
 struct Camera {
@@ -111,8 +113,22 @@ private:
 // what an overlay (the boxes of training) lines up with.
 [[nodiscard]] Point on_picture(const Scene& scene, const Camera& camera, double x, double y) noexcept;
 
-// The frame: the stage, both fighters, the sparks of recent events and the
-// shake of a heavy hit, into `out` (picture coordinates, y down).
+// Draws frames, keeping what a frame needs between them (poses, the parts'
+// order, a path): after the first frame, drawing one allocates nothing (the
+// display list's arena aside, itself reused when the list is cleared).
+class Painter {
+public:
+    // The frame: the stage, both fighters, the sparks of recent events and the
+    // shake of a heavy hit, into `out` (picture coordinates, y down).
+    void draw(const Match& match, const Look& left, const Look& right, const Effects& effects, const Scene& scene, omui::render::DisplayList& out);
+
+private:
+    Pose                     pose_;
+    std::vector<std::size_t> order_;
+    omui::render::Path       path_;
+};
+
+// One frame with a painter of its own (the same picture; allocates).
 void draw(const Match& match, const Look& left, const Look& right, const Effects& effects, const Scene& scene, omui::render::DisplayList& out);
 
 }  // namespace gongfu::present2d

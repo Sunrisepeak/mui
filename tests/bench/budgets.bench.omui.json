@@ -73,6 +73,18 @@
     {"name": "trace/span-on", "metric": "ns_per_item", "max": 100,
      "why": "recording a span takes no lock and no allocation (D-59)"},
     {"name": "log/filtered-out", "metric": "ns_per_item", "max": 5,
-     "why": "a log record the filter leaves out is not formatted (D-59): a branch on a relaxed load, a few cycles even on a shared CI runner"}
+     "why": "a log record the filter leaves out is not formatted (D-59): a branch on a relaxed load, a few cycles even on a shared CI runner"},
+    {"name": "gongfu/frame", "metric": "p95_ms", "max": 0.02,
+     "why": "D-85 §8.6: a frame of the fighting game's simulation is a rounding error of the frame (about 1 µs measured), so rollback never competes with drawing"},
+    {"name": "gongfu/frame", "metric": "max_allocations", "max": 0,
+     "why": "D-85: the match state is one block of plain data; a frame of simulation allocates nothing"},
+    {"name": "gongfu/rollback-8", "metric": "ns_per_item", "max": 2000,
+     "why": "D-85 §8.6: eight frames rolled back and played again (each state saved) cost under 16 µs, a thousandth of a 60 Hz frame (about 90 ns a frame measured)"},
+    {"name": "gongfu/rollback-8", "metric": "max_allocations", "max": 0,
+     "why": "a rollback restores bytes and simulates again: nothing allocated"},
+    {"name": "gongfu/present2d", "metric": "p95_ms", "max": 0.25,
+     "why": "building a frame's picture of two skeletons and their effects is a small part of a 120 Hz frame (about 30 µs measured)"},
+    {"name": "gongfu/present2d", "metric": "max_allocations", "max": 0,
+     "why": "D-85 §8.4: a picture is a pure function of the state, drawn by a Painter that reuses its poses and paths: nothing allocated each frame"}
   ]
 }

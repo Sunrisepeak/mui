@@ -98,6 +98,12 @@ std::string_view clip_name(const Fighter& fighter, const FighterState& s) noexce
 }
 
 Pose pose(const Look& look, const Fighter& fighter, const FighterState& s, std::int32_t frame) {
+    Pose out;
+    pose(look, fighter, s, frame, out);
+    return out;
+}
+
+void pose(const Look& look, const Fighter& fighter, const FighterState& s, std::int32_t frame, Pose& out) {
     auto it = look.clips.find(clip_name(fighter, s));
     if (it == look.clips.end()) it = look.clips.find(std::string_view("idle"));
     const Clip* clip = it == look.clips.end() ? nullptr : &it->second;
@@ -113,7 +119,7 @@ Pose pose(const Look& look, const Fighter& fighter, const FighterState& s, std::
     const hanim::seconds at{t / 60.0};
     const double rise = clip ? clip->rise.value(at) : 0.0;
     const double facing = s.facing < 0 ? -1.0 : 1.0;
-    Pose out(look.bones.size());
+    out.resize(look.bones.size());
     for (std::size_t b = 0; b < look.bones.size(); ++b) {
         const Bone& bone = look.bones[b];
         double local = bone.rest;
@@ -131,7 +137,6 @@ Pose pose(const Look& look, const Fighter& fighter, const FighterState& s, std::
         }
         p.tip = {static_cast<float>(p.joint.x + bone.length * dm::cos(p.angle)), static_cast<float>(p.joint.y + bone.length * dm::sin(p.angle))};
     }
-    return out;
 }
 
 Camera frame_camera(const Match& match, const Scene& scene) {
@@ -170,6 +175,10 @@ Camera view_camera(const Match& match, const Effects& effects, const Scene& scen
 }
 
 void draw(const Match& match, const Look& left, const Look& right, const Effects& effects, const Scene& scene, render::DisplayList& out) {
+    Painter{}.draw(match, left, right, effects, scene, out);
+}
+
+void Painter::draw(const Match& match, const Look& left, const Look& right, const Effects& effects, const Scene& scene, render::DisplayList& out) {
     const State& st = match.state();
     const View view{scene, view_camera(match, effects, scene)};
 
@@ -191,17 +200,21 @@ void draw(const Match& match, const Look& left, const Look& right, const Effects
     for (std::int32_t i = 0; i < 2; ++i) {
         const Look& look = i == 0 ? left : right;
         const FighterState& s = st.f[static_cast<std::size_t>(i)];
-        const Pose p = pose(look, match.fighter(i), s, st.frame);
-        std::vector<std::size_t> order(look.parts.size());
-        std::iota(order.begin(), order.end(), std::size_t{0});
-        std::ranges::stable_sort(order, {}, [&](std::size_t k) { return look.parts[k].depth; });
+        pose(look, match.fighter(i), s, st.frame, pose_);
+        const Pose& p = pose_;
+        order_.resize(look.parts.size());
+        std::iota(order_.begin(), order_.end(), std::size_t{0});
+        // Insertion sort by depth: stable, in place (std::stable_sort may take a buffer).
+        for (std::size_t a = 1; a < order_.size(); ++a)
+            for (std::size_t b = a; b > 0 && look.parts[order_[b - 1]].depth > look.parts[order_[b]].depth; --b) std::swap(order_[b - 1], order_[b]);
         for (const bool outline : {true, false}) {
-            for (std::size_t k : order) {
+            for (std::size_t k : order_) {
                 const Part& part = look.parts[k];
                 if (part.bone < 0 || static_cast<std::size_t>(part.bone) >= p.size()) continue;
                 const BonePlace& b = p[static_cast<std::size_t>(part.bone)];
                 const float grow = outline ? look.outline_width : 0;
-                render::Path path;
+                render::Path& path = path_;
+                path.clear();
                 const Point j = view.at(b.joint.x, b.joint.y), t = view.at(b.tip.x, b.tip.y);
                 switch (part.shape) {
                     case Shape::capsule: capsule(path, j, t, view.size(part.start) + grow, view.size(part.end) + grow); break;
@@ -233,11 +246,12 @@ void draw(const Match& match, const Look& left, const Look& right, const Effects
     for (const ProjectileState& pr : st.p) {
         if (!pr.alive) continue;
         const Point c = view.at(stage(pr.pos.x), stage(pr.pos.y));
-        render::Path halo, core;
-        circle(halo, c, view.size(26));
-        circle(core, c, view.size(14));
-        out.fill_path(halo, render::FillRule::nonzero, render::Paint::solid(Color::hex(0x6fd3ff, 0.35f)));
-        out.fill_path(core, render::FillRule::nonzero, render::Paint::solid(Color::hex(0xe9fbff)));
+        path_.clear();
+        circle(path_, c, view.size(26));
+        out.fill_path(path_, render::FillRule::nonzero, render::Paint::solid(Color::hex(0x6fd3ff, 0.35f)));
+        path_.clear();
+        circle(path_, c, view.size(14));
+        out.fill_path(path_, render::FillRule::nonzero, render::Paint::solid(Color::hex(0xe9fbff)));
     }
 
     // Sparks: rays for a hit (red for a counter), a ring for a block or a throw; a KO flashes.
@@ -253,13 +267,15 @@ void draw(const Match& match, const Look& left, const Look& right, const Effects
             const double reach = (18 + e.damage / 30.0) * (0.35 + 0.65 * grow);  // already visible on the frame it lands
             for (int r = 0; r < 8; ++r) {
                 const double a = dm::two_pi * r / 8 + e.impact * 0.37;
-                render::Path ray;
+                render::Path& ray = path_;
+                ray.clear();
                 ray.move_to({c.x + view.size(reach * 0.35) * static_cast<float>(dm::cos(a)), c.y + view.size(reach * 0.35) * static_cast<float>(dm::sin(a))});
                 ray.line_to({c.x + view.size(reach) * static_cast<float>(dm::cos(a)), c.y + view.size(reach) * static_cast<float>(dm::sin(a))});
                 out.stroke_path(ray, {.width = view.size(4 * (1 - age / 20.0)), .cap = render::LineCap::round}, render::Paint::solid(fade(colour, alpha)));
             }
         } else if (e.kind == Event::Kind::block || e.kind == Event::Kind::throw_ || e.kind == Event::Kind::tech) {
-            render::Path ring;
+            render::Path& ring = path_;
+            ring.clear();
             circle(ring, c, view.size(16 + 30 * grow));
             const Color colour = e.kind == Event::Kind::block ? Color::hex(0x7ad7ff) : Color::hex(0xf2f2f2);
             out.stroke_path(ring, {.width = view.size(3)}, render::Paint::solid(fade(colour, alpha)));

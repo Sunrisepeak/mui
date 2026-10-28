@@ -244,6 +244,9 @@ public:
     [[nodiscard]] std::uint64_t hash() const noexcept;
 
     void clear() noexcept;
+    // Room for `commands` commands: a list rebuilt every frame (clear, then
+    // draw) whose frames vary in size allocates nothing below it.
+    void reserve(std::size_t commands) { commands_.reserve(commands); }
 
 private:
     Paint own(const Paint& p);

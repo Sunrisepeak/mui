@@ -82,6 +82,7 @@ Stage::~Stage() {
 }
 
 void Stage::mounted() {
+    frame_.reserve(512);
     start_round();
     services().focus(node());  // the keyboard is the players'
     // A game shows every frame it plays: sixty a second while it is on screen.
@@ -157,10 +158,11 @@ void Stage::paint(PaintContext& ctx) const {
     if (!match_) return;
     const Roster& r = roster();
     const p2::Scene scene;
-    render::DisplayList frame;
+    render::DisplayList& frame = frame_;
+    frame.clear();
     const p2::Look& left = r.looks[0];
     const p2::Look& right = r.looks.size() > 1 ? r.looks[1] : r.looks[0];
-    p2::draw(*match_, left, right, effects_, scene, frame);
+    painter_.draw(*match_, left, right, effects_, scene, frame);
 
     const gongfu::State& st = match_->state();
     // The health bars and the timer, over the picture.

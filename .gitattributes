@@ -11,5 +11,5 @@
 *.webp binary
 *.ico  binary
 # Upstream conformance suites: kept exactly as published (their checksums are
-# in modules/markdown/tests/data/README.md).
-modules/markdown/tests/data/*.txt -text
+# in modules/content/markdown/tests/data/README.md).
+modules/content/markdown/tests/data/*.txt -text

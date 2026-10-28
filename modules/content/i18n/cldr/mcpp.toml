@@ -1,0 +1,30 @@
+# openmui.i18n.cldr — the locale data openmui.i18n reads (D-74), generated
+# from CLDR 49 by `omui-gen cldr` and embedded: English, Simplified and
+# Traditional Chinese, and the likely subtags of their languages. Data only:
+# the engine (modules/content/i18n) knows no language, and an application links the
+# packs it ships.
+[package]
+namespace   = "openmui.i18n"
+name        = "cldr"
+version     = "0.1.0"
+description = "CLDR 49 locale packs for openmui.i18n: en, zh (Simplified), zh-Hant, and likely subtags"
+license     = "Apache-2.0 AND Unicode-3.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "data"
+
+[targets.openmui-i18n-cldr]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+"openmui.i18n" = { path = ".." }
+
+[build-dependencies]
+openmui.rules = { path = "../../../../mcpp/rules", host-module = true }
+
+[dev-dependencies]
+openmui.testing = { path = "../../../base/testing" }

@@ -38,7 +38,7 @@ Compared with today's major UI frameworks: Qt (Widgets / QML), Flutter, SwiftUI,
 
 ## 5. Strong animation: every visual property, down to glyphs and pixels
 
-**What**: an independent animation engine (`openmui.anim`) whose clock can be injected, paused, stepped and reversed; any visual property transitions; effect parameters are animatable properties too.
+**What**: an independent animation engine (`hanim`) whose clock can be injected, paused, stepped and reversed; any visual property transitions; effect parameters are animatable properties too.
 
 ## 6. Rendering: a CPU reference and a GPU path; effects first-class
 
@@ -64,7 +64,7 @@ Compared with today's major UI frameworks: Qt (Widgets / QML), Flutter, SwiftUI,
 
 Chinese typography follows CSS Text 4: autospace between Chinese and Latin text, fullwidth punctuation set solid in pairs and at line starts, no closing mark starting a line.
 
-**Evidence**: `modules/i18n`'s tests agree with CLDR's results; `tr()` means the same in every way of writing a view; `openmui.text`'s Chinese typography tests.
+**Evidence**: `modules/content/i18n`'s tests agree with CLDR's results; `tr()` means the same in every way of writing a view; `openmui.text`'s Chinese typography tests.
 
 ## 11. Windows: the system's by default, the framework's own in depth
 
@@ -72,7 +72,7 @@ Chinese typography follows CSS Text 4: autospace between Chinese and Latin text,
 
 **Elsewhere**: custom title bars are per-platform work (Electron's `-webkit-app-region`, Flutter's window_manager plugins, WinUI's title bar customisation), rarely consistent across platforms, and none of them makes the window's operations part of an agent-readable model.
 
-**Evidence**: `components/window`'s tests (both looks pinned to the byte, the parts' hit areas, maximized and inactive states, buttons named in en / zh-Hans / zh-Hant, the application's paths unchanged inside the frame); `hosts/sdl3`'s tests (the verbs, switching, the close that dissolves and takes no input).
+**Evidence**: `components/window`'s tests (both looks pinned to the byte, the parts' hit areas, maximized and inactive states, buttons named in en / zh-Hans / zh-Hant, the application's paths unchanged inside the frame); `modules/ui/host/sdl3`'s tests (the verbs, switching, the close that dissolves and takes no input).
 
 ---
 

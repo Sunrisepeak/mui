@@ -11,7 +11,7 @@ export module openmui.ui.canvas:camera;
 
 import std;
 import openmui.core;
-import openmui.anim;
+import hanim;
 import :scene;
 
 export namespace omui::world {
@@ -42,19 +42,19 @@ struct Camera {
 class CameraMotion {
 public:
     CameraMotion() = default;
-    CameraMotion(Camera from, Camera to, anim::seconds start, anim::SpringParams params = anim::springs::standard,
+    CameraMotion(Camera from, Camera to, hanim::seconds start, hanim::SpringParams params = hanim::springs::standard,
                  std::array<double, 3> velocity = {});
-    [[nodiscard]] Camera at(anim::seconds t) const;
+    [[nodiscard]] Camera at(hanim::seconds t) const;
     // Its velocity at t (world units and log-zoom per second): a motion
     // retargeted mid-flight keeps it.
-    [[nodiscard]] std::array<double, 3> velocity(anim::seconds t) const;
-    [[nodiscard]] bool settled(anim::seconds t) const { return t >= end_; }
+    [[nodiscard]] std::array<double, 3> velocity(hanim::seconds t) const;
+    [[nodiscard]] bool settled(hanim::seconds t) const { return t >= end_; }
     [[nodiscard]] const Camera& target() const noexcept { return to_; }
 
 private:
     Camera                         to_;
-    anim::seconds                  start_{0}, end_{0};
-    std::array<anim::Oscillator, 3> lanes_{};
+    hanim::seconds                  start_{0}, end_{0};
+    std::array<hanim::Oscillator, 3> lanes_{};
 };
 
 // A fling: the camera keeps the pointer's last velocity (screen px/s),
@@ -62,14 +62,14 @@ private:
 class Inertia {
 public:
     Inertia() = default;
-    Inertia(Camera from, Point velocity, anim::seconds start, double decay = 6.0, double rest = 8.0);
-    [[nodiscard]] Camera at(anim::seconds t) const;
-    [[nodiscard]] bool settled(anim::seconds t) const { return t >= end_; }
+    Inertia(Camera from, Point velocity, hanim::seconds start, double decay = 6.0, double rest = 8.0);
+    [[nodiscard]] Camera at(hanim::seconds t) const;
+    [[nodiscard]] bool settled(hanim::seconds t) const { return t >= end_; }
 
 private:
     Camera        from_;
     Point         velocity_{};
-    anim::seconds start_{0}, end_{0};
+    hanim::seconds start_{0}, end_{0};
     double        decay_ = 6;
 };
 

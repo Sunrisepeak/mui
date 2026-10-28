@@ -3,7 +3,7 @@ module openmui.ui.canvas;
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.anim;
+import hanim;
 import openmui.geom;
 import openmui.raster;
 import openmui.render;
@@ -101,7 +101,7 @@ void paint_view(Runtime& rt, const Element& view, render::DisplayList& out) {
     rt.mount("content", view);
     FrameOutput f = rt.frame();
     for (int i = 0; i < 8 && f.animating; ++i) {
-        rt.step_time(anim::seconds(10));
+        rt.step_time(hanim::seconds(10));
         f = rt.frame();
     }
     out.append(rt.display_list());

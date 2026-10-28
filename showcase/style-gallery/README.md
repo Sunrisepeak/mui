@@ -1,6 +1,6 @@
 # S2 — the style workshop
 
-`omui-styles` is where a style pack is made and tried: one real interface — a settings panel (a name, switches, a checkbox, a slider, a select, Save and Cancel that work) and a dashboard (stat cards, a chart) over a wallpaper — shown in each of openmui's style packs (`themes/styles`: glass, neon, retro, ink, liquid), with an editor for the pack shown and an export that writes it as a `*.style.omui.toml` another program loads.
+`omui-styles` is where a style pack is made and tried: one real interface — a settings panel (a name, switches, a checkbox, a slider, a select, Save and Cancel that work) and a dashboard (stat cards, a chart) over a wallpaper — shown in each of openmui's style packs (`modules/ui/theme/styles`: glass, neon, retro, ink, liquid), with an editor for the pack shown and an export that writes it as a `*.style.omui.toml` another program loads.
 
 ```sh
 mcpp run -p openmui.showcase.styles

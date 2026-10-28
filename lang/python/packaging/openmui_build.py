@@ -104,7 +104,7 @@ def _stage(artifacts, into):
     env = dict(os.environ, PYTHONPATH=str(into), OMUI_HEADLESS="1")
     subprocess.run([sys.executable, "-m", f"{NAME}._stubs", str(package / "__init__.pyi")], cwd=into, env=env, check=True)
     (package / "py.typed").write_text("", encoding="utf-8")
-    # The official native modules' stubs (natives/*/stubs/<name>.pyi):
+    # The official native modules' stubs (modules/ui/native/*/stubs/<name>.pyi):
     # `from openmui.native import fuzzy` type-checks.
     for stub in sorted((ROOT / "natives").glob("*/stubs/*.pyi")):
         shutil.copy2(stub, package / "native" / stub.name)

@@ -2,7 +2,7 @@ module openmui.ui.canvas;
 
 import std;
 import openmui.core;
-import openmui.anim;
+import hanim;
 
 namespace omui::world {
 
@@ -50,7 +50,7 @@ Camera Camera::fit(const WorldRect& r, Size viewport, float margin, double min, 
 
 // ── a spring between views ───────────────────────────────────────────────
 
-CameraMotion::CameraMotion(Camera from, Camera to, anim::seconds start, anim::SpringParams params, std::array<double, 3> velocity)
+CameraMotion::CameraMotion(Camera from, Camera to, hanim::seconds start, hanim::SpringParams params, std::array<double, 3> velocity)
     : to_(to), start_(start) {
     const std::array<double, 3> a{from.x, from.y, std::log(std::max(from.zoom, 1e-12))};
     const std::array<double, 3> b{to.x, to.y, std::log(std::max(to.zoom, 1e-12))};
@@ -58,20 +58,20 @@ CameraMotion::CameraMotion(Camera from, Camera to, anim::seconds start, anim::Sp
     const double world = 0.01 / std::max(std::min(from.zoom, to.zoom), 1e-12);
     double settle = 0;
     for (std::size_t i = 0; i < 3; ++i) {
-        const anim::Rest rest = i < 2 ? anim::Rest{world, world} : anim::Rest{1e-4, 1e-4};
-        lanes_[i] = anim::Oscillator(a[i], velocity[i], b[i], params, rest);
+        const hanim::Rest rest = i < 2 ? hanim::Rest{world, world} : hanim::Rest{1e-4, 1e-4};
+        lanes_[i] = hanim::Oscillator(a[i], velocity[i], b[i], params, rest);
         settle = std::max(settle, lanes_[i].settle_time());
     }
-    end_ = start + anim::seconds(settle);
+    end_ = start + hanim::seconds(settle);
 }
 
-Camera CameraMotion::at(anim::seconds t) const {
+Camera CameraMotion::at(hanim::seconds t) const {
     if (t >= end_) return to_;
     const double local = std::max(0.0, (t - start_).count());
     return {lanes_[0].position(local), lanes_[1].position(local), std::exp(lanes_[2].position(local))};
 }
 
-std::array<double, 3> CameraMotion::velocity(anim::seconds t) const {
+std::array<double, 3> CameraMotion::velocity(hanim::seconds t) const {
     if (t >= end_) return {};
     const double local = std::max(0.0, (t - start_).count());
     return {lanes_[0].velocity(local), lanes_[1].velocity(local), lanes_[2].velocity(local)};
@@ -79,14 +79,14 @@ std::array<double, 3> CameraMotion::velocity(anim::seconds t) const {
 
 // ── inertia ──────────────────────────────────────────────────────────────
 
-Inertia::Inertia(Camera from, Point velocity, anim::seconds start, double decay, double rest)
+Inertia::Inertia(Camera from, Point velocity, hanim::seconds start, double decay, double rest)
     : from_(from), velocity_(velocity), start_(start), decay_(decay) {
     const double speed = std::sqrt(static_cast<double>(velocity.x) * velocity.x + static_cast<double>(velocity.y) * velocity.y);
     // speed · e^(−decay · t) = rest
-    end_ = start + anim::seconds(speed > rest ? std::log(speed / rest) / decay : 0.0);
+    end_ = start + hanim::seconds(speed > rest ? std::log(speed / rest) / decay : 0.0);
 }
 
-Camera Inertia::at(anim::seconds t) const {
+Camera Inertia::at(hanim::seconds t) const {
     const double local = std::clamp((t - start_).count(), 0.0, (end_ - start_).count());
     // ∫ v·e^(−kt) dt = v/k · (1 − e^(−kt)): screen pixels travelled.
     const double travelled = (1 - std::exp(-decay_ * local)) / decay_;

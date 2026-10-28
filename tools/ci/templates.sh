@@ -27,14 +27,14 @@ for f in src.rglob("*"):
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_bytes(text)
 # This checkout instead of the published packages.
-paths = {"openmui.sdk": ".", "openmui.entry.player": "src/entry/player", "openmui.player": "runtime/player",
-         "openmui.lang.js": "lang/js", "openmui.lang.lua": "lang/lua", "openmui.native": "runtime/native",
-         "openmui.theme.default": "themes/default"}
+paths = {"openmui.sdk": ".", "openmui.entry.player": "src/entry/player", "openmui.player": "modules/ui/player",
+         "openmui.lang.js": "lang/js", "openmui.lang.lua": "lang/lua", "openmui.native": "modules/ui/native",
+         "openmui.theme.default": "modules/ui/theme/default"}
 m = dst / "mcpp.toml"
 if m.exists():
     t = m.read_text()
     for pkg, rel in paths.items():
-        t = re.sub(r'^"?' + re.escape(pkg) + r'"? = "0\.1\.0"$', f'{pkg} = {{ path = "{root}/{rel}" }}', t, flags=re.M)
+        t = re.sub(r'^"?' + re.escape(pkg) + r'"?\s*=\s*"0\.1\.0"$', f'{pkg} = {{ path = "{root}/{rel}" }}', t, flags=re.M)
     t = t.replace('openmui.rules = { version = "0.1.0", host-module = true }', f'openmui.rules = {{ path = "{root}/mcpp/rules", host-module = true }}')
     m.write_text(t)
 PY

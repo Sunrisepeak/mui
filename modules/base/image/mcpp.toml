@@ -1,0 +1,27 @@
+# openmui.image — images in memory and PNG encoding and decoding (libpng's
+# simplified API, imported as the C++ module mcpplibs.mwrap.libpng over
+# compat.libpng and compat.zlib from mcpp-index).
+# libpng 1.6.43: the version compat.freetype (under HarfBuzz) requires, so
+# one libpng serves the whole graph.
+[package]
+namespace   = "openmui"
+name        = "image"
+version     = "0.1.0"
+description = "Image buffers, premultiplication, PNG encode and decode"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "runtime"
+
+[targets.openmui-image]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+
+[dependencies]
+mcpplibs.mwrap.libpng = "1.6.43"
+
+[dev-dependencies]
+openmui.testing = { path = "../testing" }

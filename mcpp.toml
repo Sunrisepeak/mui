@@ -15,67 +15,68 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [workspace]
 members = [
-    "tests/support",
-    "tests/cts",
     "spec",
-    "modules/geom",
-    "modules/memory",
-    "modules/anim",
-    "modules/layout",
-    "modules/unicode",
-    "modules/fuzzy",
-    "modules/raster",
-    "modules/image",
-    "modules/render",
-    "modules/rhi",
-    "modules/slang",
-    "modules/slang/rules",
-    "modules/effect",
-    "modules/rhi-sdl",
-    "modules/rhi-cts",
-    "modules/text",
-    "modules/record",
-    "modules/trace",
-    "modules/pipeline",
-    "modules/markdown",
-    "runtime/core",
-    "runtime/expr",
-    "runtime/view",
-    "runtime/viewdoc",
-    "runtime/semantic",
-    "runtime/agent",
-    "runtime/native",
-    "runtime/theme",
-    "runtime/reflect",
-    "themes/default",
-    "themes/compact",
-    "natives/fuzzy",
-    "runtime/abi",
-    "runtime/player",
-    "hosts/headless",
-    "hosts/sdl3",
+    "modules/base/fuzzy",
+    "modules/base/geom",
+    "modules/base/hanim",
+    "modules/base/image",
+    "modules/base/memory",
+    "modules/base/pipeline",
+    "modules/base/session",
+    "modules/base/testing",
+    "modules/base/trace",
+    "modules/base/unicode",
+    "modules/gfx/raster",
+    "modules/gfx/render",
+    "modules/gfx/render/effect",
+    "modules/gfx/rhi",
+    "modules/gfx/rhi/cts",
+    "modules/gfx/rhi/sdl",
+    "modules/gfx/shader",
+    "modules/gfx/shader/rules",
+    "modules/content/i18n",
+    "modules/content/i18n/cldr",
+    "modules/content/layout",
+    "modules/content/markdown",
+    "modules/content/text",
+    "modules/ui/abi",
+    "modules/ui/agent",
+    "modules/ui/core",
+    "modules/ui/expr",
+    "modules/ui/host/headless",
+    "modules/ui/host/sdl3",
+    "modules/ui/native",
+    "modules/ui/native/fuzzy",
+    "modules/ui/player",
+    "modules/ui/reflect",
+    "modules/ui/semantic",
+    "modules/ui/theme",
+    "modules/ui/theme/compact",
+    "modules/ui/theme/default",
+    "modules/ui/theme/styles",
+    "modules/ui/view",
+    "modules/ui/viewdoc",
     "components/base",
-    "lang/common",
-    "lang/lua",
-    "lang/js",
-    "lang/python",
-    "components/markdown",
-    "components/liquid-glass",
-    "components/window",
     "components/canvas",
-    "components/canvas-kit",
+    "components/canvas/kit",
+    "components/liquid-glass",
+    "components/markdown",
+    "components/window",
+    "lang",
+    "lang/js",
+    "lang/lua",
+    "lang/python",
+    "tools/cli",
     "tools/gen",
-    "tools/omui",
-    "tools/mcp",
-    "modules/i18n",
-    "i18n/cldr",
     "tools/inspector",
+    "tools/mcp",
     "mcpp/rules",
-    "tests/rules",
-    "tests/bench",
-    "tests/features",
     "src/entry/player",
     "src/entry/python",
+    "tests/bench",
+    "tests/cts",
+    "tests/features",
+    "tests/rules",
     "examples/01-hello-im",
     "examples/02-hello-ts",
     "examples/03-counter",
@@ -86,10 +87,9 @@ members = [
     "examples/08-markdown-viewer",
     "examples/09-markdown-stream",
     "examples/10-canvas-basics",
+    "examples/12-notes",
     "showcase/markdown-wall",
     "showcase/style-gallery",
-    "themes/styles",
-    "examples/12-notes",
 ]
 
 # Sanitizers (plan §19.1 "内存"): AddressSanitizer and UndefinedBehavior-
@@ -123,22 +123,22 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-openmui.core          = { path = "runtime/core" }
-openmui.view          = { path = "runtime/view" }
-openmui.semantic      = { path = "runtime/semantic" }
-openmui.agent         = { path = "runtime/agent" }
-openmui.expr          = { path = "runtime/expr" }
-openmui.viewdoc       = { path = "runtime/viewdoc" }
-openmui.trace         = { path = "modules/trace" }
+openmui.core          = { path = "modules/ui/core" }
+openmui.view          = { path = "modules/ui/view" }
+openmui.semantic      = { path = "modules/ui/semantic" }
+openmui.agent         = { path = "modules/ui/agent" }
+openmui.expr          = { path = "modules/ui/expr" }
+openmui.viewdoc       = { path = "modules/ui/viewdoc" }
+openmui.trace         = { path = "modules/base/trace" }
 openmui.ui.base       = { path = "components/base" }
 openmui.ui.window     = { path = "components/window" }
-openmui.host.headless = { path = "hosts/headless" }
-openmui.host.sdl3     = { path = "hosts/sdl3" }
-"openmui.i18n"        = { path = "modules/i18n" }
-"openmui.i18n.cldr"   = { path = "i18n/cldr" }
+openmui.host.headless = { path = "modules/ui/host/headless" }
+openmui.host.sdl3     = { path = "modules/ui/host/sdl3" }
+"openmui.i18n"        = { path = "modules/content/i18n" }
+"openmui.i18n.cldr"   = { path = "modules/content/i18n/cldr" }
 mcpplibs.os           = "0.1.2"
 
 # The root package has no test programs of its own: tests/ holds members
-# (tests/support, and the cross-member suites), each discovered by itself.
+# (modules/base/testing, and the cross-member suites), each discovered by itself.
 [test]
 discover = []

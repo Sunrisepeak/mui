@@ -29,4 +29,4 @@ openmui.sdk       = { path = "../.." }
 openmui.ui.canvas = { path = "../../components/canvas" }
 
 [dev-dependencies]
-openmui.testing = { path = "../../tests/support" }
+openmui.testing = { path = "../../modules/base/testing" }

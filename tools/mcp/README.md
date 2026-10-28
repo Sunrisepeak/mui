@@ -1,6 +1,6 @@
 # openmui.mcp
 
-An MCP server (the Model Context Protocol, 2025-06-18) for every openmui application running on the machine (plan §11, S3). An agent — Claude Code, or any MCP client — reads an application's semantic tree, finds nodes, acts, invokes verbs, waits and captures pixels, over the application's own agent endpoint (`openmui.tree@0.1`, [openmui.agent](../../runtime/agent)).
+An MCP server (the Model Context Protocol, 2025-06-18) for every openmui application running on the machine (plan §11, S3). An agent — Claude Code, or any MCP client — reads an application's semantic tree, finds nodes, acts, invokes verbs, waits and captures pixels, over the application's own agent endpoint (`openmui.tree@0.1`, [openmui.agent](../../modules/ui/agent)).
 
 ```sh
 claude mcp add openmui -- omui mcp          # or: omui-mcp

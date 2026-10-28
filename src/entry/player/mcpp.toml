@@ -25,12 +25,12 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-openmui.sdk         = { path = "../../.." }
-openmui.player      = { path = "../../../runtime/player" }
-openmui.lang.lua    = { path = "../../../lang/lua" }
-openmui.lang.js     = { path = "../../../lang/js" }
-openmui.ui.markdown = { path = "../../../components/markdown" }
-openmui.native.fuzzy = { path = "../../../natives/fuzzy" }
-openmui.theme.default = { path = "../../../themes/default" }
-openmui.theme.compact = { path = "../../../themes/compact" }
+openmui.sdk           = { path = "../../.." }
+openmui.player        = { path = "../../../modules/ui/player" }
+openmui.lang.lua      = { path = "../../../lang/lua" }
+openmui.lang.js       = { path = "../../../lang/js" }
+openmui.ui.markdown   = { path = "../../../components/markdown" }
+openmui.native.fuzzy  = { path = "../../../modules/ui/native/fuzzy" }
+openmui.theme.default = { path = "../../../modules/ui/theme/default" }
+openmui.theme.compact = { path = "../../../modules/ui/theme/compact" }
 marzer.tomlplusplus = "3.4.0"

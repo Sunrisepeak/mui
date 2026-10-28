@@ -24,10 +24,10 @@ sources  = ["src/*.cppm", "src/*.cpp", "src/generated/*.cppm", "src/generated/*.
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-openmui.core    = { path = "../../runtime/core" }
-openmui.view    = { path = "../../runtime/view" }
-openmui.unicode = { path = "../../modules/unicode" }
+openmui.core    = { path = "../../modules/ui/core" }
+openmui.view    = { path = "../../modules/ui/view" }
+openmui.unicode = { path = "../../modules/base/unicode" }
 
 [dev-dependencies]
-openmui.testing       = { path = "../../tests/support" }
-openmui.host.headless = { path = "../../hosts/headless" }
+openmui.testing       = { path = "../../modules/base/testing" }
+openmui.host.headless = { path = "../../modules/ui/host/headless" }

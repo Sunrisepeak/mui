@@ -14,7 +14,7 @@ export namespace omui::gen {
 // Reads LineBreak.txt, EastAsianWidth.txt, GraphemeBreakProperty.txt,
 // WordBreakProperty.txt, emoji-data.txt, DerivedCoreProperties.txt and
 // DerivedGeneralCategory.txt from `ucd`; answers the text of
-// modules/unicode/src/generated/tables.cppm, or what was missing.
+// modules/base/unicode/src/generated/tables.cppm, or what was missing.
 [[nodiscard]] std::expected<std::string, std::string> emit_unicode_tables(const std::filesystem::path& ucd,
                                                                           std::string_view version);
 

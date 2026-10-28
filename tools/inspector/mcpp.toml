@@ -31,4 +31,4 @@ openmui.sdk = { path = "../.." }
 mcpplibs.os = "0.1.2"
 
 [dev-dependencies]
-openmui.testing = { path = "../../tests/support" }
+openmui.testing = { path = "../../modules/base/testing" }

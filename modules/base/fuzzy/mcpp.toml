@@ -1,0 +1,30 @@
+# openmui.fuzzy — fuzzy matching as a finder does it: a query's characters in
+# order inside a candidate, scored so that what a person means comes first
+# (word starts, camel humps, path segments, runs), with the matched
+# characters to highlight. Deterministic; standard library and
+# openmui.unicode only (D-55: an independent module).
+[package]
+namespace   = "openmui"
+name        = "fuzzy"
+version     = "0.1.0"
+description = "Fuzzy matching and ranking for finders and command palettes, with highlight positions"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "runtime"
+
+[targets.openmui-fuzzy]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+# Integer arithmetic only, but in the deterministic set all the same
+# (lint rule `determinism`): no floating contraction can creep in.
+cxxflags = ["-ffp-contract=off"]
+
+[dependencies]
+openmui.unicode = { path = "../unicode" }
+
+[dev-dependencies]
+openmui.testing = { path = "../testing" }

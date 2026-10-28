@@ -1,0 +1,37 @@
+# openmui.ui.canvas.kit — what a canvas can do beyond panning and zooming
+# (canvas-markdown §1.1, the optional layer): select, drag, resize, snap
+# (alignment guides, a grid), connect, grid, minimap and delete, as
+# behaviours a canvas names in `behaviors`, each adding to the semantic tree
+# what it makes possible (a node's `move_to` exists because drag is on); and
+# declarative ones, statecharts in *.behavior.omui.toml run by C++.
+[package]
+namespace   = "openmui.ui.canvas"
+name        = "kit"
+version     = "0.1.0"
+description = "Canvas behaviours: selection with marquee, dragging, resize handles, snapping with guides, connectors, grid, minimap, delete; declarative statecharts"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "component"
+
+[targets.openmui-ui-canvas-kit]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+openmui.core      = { path = "../../../modules/ui/core" }
+openmui.view      = { path = "../../../modules/ui/view" }
+openmui.render    = { path = "../../../modules/gfx/render" }
+openmui.ui.canvas = { path = ".." }
+openmui.expr      = { path = "../../../modules/ui/expr" }
+hanim             = { path = "../../../modules/base/hanim" }
+openmui.raster    = { path = "../../../modules/gfx/raster" }
+marzer.tomlplusplus = "3.4.0"
+
+[dev-dependencies]
+openmui.testing       = { path = "../../../modules/base/testing" }
+openmui.host.headless = { path = "../../../modules/ui/host/headless" }

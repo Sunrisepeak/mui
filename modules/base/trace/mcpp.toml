@@ -1,0 +1,23 @@
+# openmui.trace — where the time goes: spans, counters and marks recorded per
+# thread into fixed buffers, near-free while off; exported as Chrome / Perfetto
+# trace JSON and summarised per span (count, total, p50, p95, p99, max).
+# An independent component (D-55): the standard library only.
+[package]
+namespace   = "openmui"
+name        = "trace"
+version     = "0.1.0"
+description = "Tracing and profiling: spans, counters, marks, Chrome trace JSON, per-span statistics; near-free while off"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "module"
+
+[targets.openmui-trace]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dev-dependencies]
+openmui.testing = { path = "../testing" }

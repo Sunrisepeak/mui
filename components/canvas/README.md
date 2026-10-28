@@ -1,6 +1,6 @@
 # openmui.ui.canvas
 
-An infinite canvas (module `openmui.ui.canvas`, canvas-markdown §1, `OMUI_EXT_canvas`): a scene of nodes in world space — thousands of windows, notes, shapes — seen through a camera. It is the mechanism; selection, dragging, handles, snapping, connectors and the minimap are behaviours canvas-kit registers (`components/canvas-kit`). Contract-first: `contract/canvas.contract.omui.toml` is its interface.
+An infinite canvas (module `openmui.ui.canvas`, canvas-markdown §1, `OMUI_EXT_canvas`): a scene of nodes in world space — thousands of windows, notes, shapes — seen through a camera. It is the mechanism; selection, dragging, handles, snapping, connectors and the minimap are behaviours canvas-kit registers (`components/canvas/kit`). Contract-first: `contract/canvas.contract.omui.toml` is its interface.
 
 ```cpp
 import openmui.ui.canvas;
@@ -21,3 +21,7 @@ omui::canvas({.id = "board", .scene = "wall", .zoom = zoom});   // x, y, zoom bi
 - **Behaviours** (§1.2–1.3, `world::Behavior`): what a canvas does beyond panning and zooming, named in its `behaviors` (`"select"`, `"grid:40"` — a name and what follows it). A press goes to them in a gesture arena, the highest priority first, until one takes it; that one has the pointer until it is released (a press no one takes pans; a click no one took is offered to them as a tap). They draw under the nodes and over them, add to each node's semantic item what they make possible (its states and actions) and carry those actions out; what they finish is told as the canvas's events (`moved`, `resized`, `connected`, `disconnected`, `deleted`, `selection_changed`). When the canvas lets one go it is told (`unmounted`), so what it put in the runtime goes too. A node whose kind was never registered keeps its kind's name and draws as a box until it is.
 - **Semantics** (`OMUI_EXT_canvas`): the canvas states the nodes on screen (and the focused and chosen ones) as its items — `<canvas>/<key>`, the kind's role, a name from its column, bounds — and keeps the rest a query away: `find` searches the whole scene by rectangle, nearness, name, kind and role. The viewport's actions: `pan_to`, `zoom_to`, `fit` (`all` or a key), `focus_node`, `camera_preset` (the scene's named views).
 - **Cost** (`tests/bench`, budgets in `budgets.bench.omui.json`): a frame of panning or zooming a wall of 1000 windows, or of 100,000, under 1 ms of CPU (raster aside); measured: about 0.02 ms. After the camera stops at a new level, the textures on screen are sharp again in about 1 ms on the CI machine (`canvas/sharpen`, budget 300 ms).
+
+## Inside
+
+- [kit](kit) (`openmui.ui.canvas.kit`): the canvas's behaviours — selection, dragging, resizing, snapping, connectors, grid, minimap, delete — and declarative statecharts.

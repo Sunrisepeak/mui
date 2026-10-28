@@ -1,0 +1,35 @@
+# openmui.host.headless — openmui without a display: a virtual surface, a
+# clock stepped frame by frame, input injected by point or by id, pixels from
+# the CPU renderer as PNG, and the agent endpoint served between frames. The
+# four headless levels (H0 semantics, H1 layout, H2 pixels, H3 a session an
+# agent can drive). CI, agents and video rendering all run on it.
+[package]
+namespace   = "openmui.host"
+name        = "headless"
+version     = "0.1.0"
+description = "openmui headless host: stepped virtual clock, injected input, CPU pixels and PNG, agent endpoint (H0-H3)"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "host"
+
+[targets.openmui-host-headless]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+openmui.core     = { path = "../../core" }
+openmui.view     = { path = "../../view" }
+openmui.semantic = { path = "../../semantic" }
+openmui.agent    = { path = "../../agent" }
+openmui.raster   = { path = "../../../gfx/raster" }
+openmui.render   = { path = "../../../gfx/render" }
+openmui.text     = { path = "../../../content/text" }
+openmui.image    = { path = "../../../base/image" }
+openmui.trace    = { path = "../../../base/trace" }
+
+[dev-dependencies]
+openmui.testing = { path = "../../../base/testing" }

@@ -24,7 +24,7 @@ struct AppSpec {
     std::vector<VerbSpec>  verbs;                // the application's verbs (S-1: their effects classify actions)
     Theme                  theme = Theme::light();
     // A directory of the application's own effects (*.effect.omui.toml):
-    // loaded with the window, loaded again when one changes (openmui.effect).
+    // loaded with the window, loaded again when one changes (openmui.render.effect).
     std::filesystem::path  effects;
     // Called once the runtime exists, before the view mounts (timers, more slots).
     std::function<void(Runtime&)> setup;

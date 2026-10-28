@@ -24,7 +24,7 @@ void Motion::to(double target, const Transition& t) {
     }
     if (target == target_) return;
     target_ = target;
-    anim::Set& set = services_->animations();
+    hanim::Set& set = services_->animations();
     const seconds start = services_->now() + t.delay;
     if (t.kind == Transition::Kind::spring) set.spring_to(channel_, start, target, t.spring);
     else set.tween_to(channel_, start, target, t.duration, t.ease);

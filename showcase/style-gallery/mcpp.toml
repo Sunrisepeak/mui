@@ -28,9 +28,9 @@ main = "src/main.cpp"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-openmui.sdk           = { path = "../.." }
-openmui.theme.styles  = { path = "../../themes/styles" }
-"openmui.theme"       = { path = "../../runtime/theme" }
+openmui.sdk          = { path = "../.." }
+openmui.theme.styles = { path = "../../modules/ui/theme/styles" }
+"openmui.theme"      = { path = "../../modules/ui/theme" }
 
 [dev-dependencies]
-openmui.testing = { path = "../../tests/support" }
+openmui.testing = { path = "../../modules/base/testing" }

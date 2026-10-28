@@ -92,7 +92,7 @@ struct FrameDemand {
 | Wayland | `wp_commit_timing`、`wp_fifo`、`wp_presentation` |
 | X11 / 其他 | 固定刷新率，只做“空闲不画”和按需降低提交频率 |
 
-SDL3 没有暴露这些接口，所以它们放在 `hosts/sdl3` 和 `modules/rhi-sdl` 的 native 分区，通过 SDL 拿到原生窗口句柄后调用。
+SDL3 没有暴露这些接口，所以它们放在 `modules/ui/host/sdl3` 和 `modules/gfx/rhi/sdl` 的 native 分区，通过 SDL 拿到原生窗口句柄后调用。
 
 ### 1.6 可观测与测试
 
@@ -179,7 +179,7 @@ local function new_note(title) … end
 
 - **只生成，不改源。** 生成物只写进 `out_dir`；`omui gen --explain <文件>` 打印展开结果，能单步调试。
 - **永远有显式写法。** 每个标记都对应一段可以手写的 L2 代码（例如 `verbs().add(VerbDesc{…}, fn)`），可以随时退回。
-- **扫描要便宜。** 按 token 找 `[[omui::`、`@verb`、`---@omui.` 这类标记，不做完整解析；参数类型以生成代码的编译结果为准。GCC 16 的反射稳定后，在 `runtime/reflect` 里做编译期交叉校验。
+- **扫描要便宜。** 按 token 找 `[[omui::`、`@verb`、`---@omui.` 这类标记，不做完整解析；参数类型以生成代码的编译结果为准。GCC 16 的反射稳定后，在 `modules/ui/reflect` 里做编译期交叉校验。
 - **编译器安静。** C++ 未知属性默认会警告：插件给编译加上 `-Wno-attributes=omui::`（GCC）和 `-Wno-unknown-attributes`（Clang）；MSVC ABI 下的 clang 同样处理。
 - **词汇只有一份。** 各语言的扫描器、校验和文档表格都由 `markers.toml` 生成，加一个字段时四种语言同时加。
 
@@ -205,7 +205,7 @@ AGENTS.md 规定组件和 native 模块“契约优先”。标记让契约可�
 | `openmui.build` | 共用基础：扫描 glob、计划 edge、`submit`、增量和依赖文件、诊断格式 | 内置 |
 | `openmui.build.contracts` | `*.contract.omui.toml`、`*.native.omui.toml` → C++ / C ABI / stub | 内置 |
 | `openmui.build.embed` | 主题、行为、任意文件 → 嵌入分区 | 内置 |
-| `openmui.build.slang` | `*.slang` → SPIR-V / MSL / DXIL + 反射（现在的 openmui.slang 规则） | 内置 |
+| `openmui.build.slang` | `*.slang` → SPIR-V / MSL / DXIL + 反射（现在的 openmui.shader 规则） | 内置 |
 | `openmui.build.markers` | 第 3 节的标记 | 内置 |
 | `openmui.build.i18n` | 提取 `tr("key")`，生成消息目录，检查缺失 | 可选，经 mcpp-index 发布 |
 | `openmui.build.assets` | 字体子集、图片烘焙、按目标裁剪 | 可选，经 mcpp-index 发布 |

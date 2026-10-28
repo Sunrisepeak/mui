@@ -176,7 +176,7 @@ on.pointer_up   = { to = "idle", do = ["commit('group.moved', hit.node)"] }     
 | 主题和 token | `.theme.omui.toml` | `default.theme.omui.toml` |
 | 效果着色器的元数据（可选） | `.effect.omui.toml` | `ripple.effect.omui.toml`（参数范围、说明；不写时由 Slang 反射得到） |
 | 时间轴叠加（视频预览里的修改，D-54） | `.timeline.omui.json` | `promo.timeline.omui.json`（属性、关键帧、镜头起点和长度的修改，叠加在代码之上） |
-| 会话录制（语义动作 + 输入 + 时钟，`modules/record`） | `.session.omui.jsonl` | `bug-1234.session.omui.jsonl`（第一行是头部，之后每行一条带时间戳的记录；可以流式写入、跳转、在 headless 下精确回放、转成测试） |
+| 会话录制（语义动作 + 输入 + 时钟，`modules/base/session`） | `.session.omui.jsonl` | `bug-1234.session.omui.jsonl`（第一行是头部，之后每行一条带时间戳的记录；可以流式写入、跳转、在 headless 下精确回放、转成测试） |
 | agent 脚本（openmui.tree@0.1 的请求，每行可带 `expect`：退出码、错误码、节点数） | `.agent.omui.jsonl` | `delete-all.agent.omui.jsonl`（测试里逐行发送并核对；见示例 07） |
 | agent 端点的描述（运行时写在端点目录里，退出时删除） | `.endpoint.omui.json` | `org.example.notes.endpoint.omui.json`（名字、应用 ID、接口 `openmui.tree@0.1`；`omui agent ls` 读取它） |
 | 应用包（播放器加载） | `.omuipkg` | `notes.omuipkg` |
@@ -199,7 +199,7 @@ on.pointer_up   = { to = "idle", do = ["commit('group.moved', hit.node)"] }     
 
 ---
 
-## 7A. 实现（`runtime/viewdoc`，2026-10-27）
+## 7A. 实现（`modules/ui/viewdoc`，2026-10-27）
 
 - **名字就是契约里的名字**（R1、R3）：组件类型写契约名（`column`、`text_box`），属性、事件、动作也一样；`Button`、`TextBox` 这样的写法会被拒绝，并提示正确的名字。
 - **检查**：所有名字都按运行时已注册的东西解析：组件和它的契约、运行时自己的属性和事件、文档的 signal / model / 接口。诊断带 JSON 指针、行列（表达式的错误定位到字符串内部）和修改建议，`omui check --json` 输出结构化记录；不认识的字段是警告（R7）。

@@ -21,7 +21,7 @@ struct Target {
                           text({.id = "title", .text = "Target", .style = "title"}),
                           button({.id = "go", .text = "Go", .on_activated = [w] { w.set(!w.peek()); }}),
                           box({.id = "bar", .width = Prop<Dim>(Source{std::nullopt, [w] { return Value(w.get() ? 300.0 : 100.0); }, {}}), .height = 12,
-                               .background = "accent", .radius = 6, .animate = {{"width", Transition::tween(seconds(1), anim::ease::linear)}}}),
+                               .background = "accent", .radius = 6, .animate = {{"width", Transition::tween(seconds(1), hanim::ease::linear)}}}),
                       });
     }
 };

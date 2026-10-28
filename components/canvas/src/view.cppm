@@ -21,7 +21,7 @@ import std;
 import openmui.core;
 import openmui.view;
 import openmui.render;
-import openmui.anim;
+import hanim;
 import :canvas_contract;
 import :scene;
 import :camera;
@@ -68,7 +68,7 @@ public:
     [[nodiscard]] world::Camera camera() const;
     void set_camera(const world::Camera& c);
     // Moving it on a spring.
-    void animate_to(const world::Camera& c, anim::SpringParams params = anim::springs::standard);
+    void animate_to(const world::Camera& c, hanim::SpringParams params = hanim::springs::standard);
     [[nodiscard]] Size viewport() const;
     // The nodes on screen in the last frame, bottom to top, and their tiers.
     [[nodiscard]] std::span<const world::NodeRef> visible() const noexcept { return visible_; }
@@ -133,7 +133,7 @@ private:
     Point                velocity_{};      // screen px/s, for the fling
     Point                pressed_at_{};    // where the press no behaviour took began (a tap ends there)
     bool                 travelled_ = false;
-    anim::seconds        last_move_{0};
+    hanim::seconds        last_move_{0};
     float                pinch_distance_ = 0;
     // The frame's view of the scene.
     mutable std::vector<world::NodeRef> visible_;
@@ -144,7 +144,7 @@ private:
     std::uint64_t                        tick_ = 0;   // the pending step's timer
     // Nodes go live once the camera has rested this long (seconds).
     static constexpr double              promote_after = 0.12;
-    anim::seconds                        last_motion_{-1e9};
+    hanim::seconds                        last_motion_{-1e9};
     std::uint64_t                        promote_timer_ = 0;
     FrameDemandLease                     pace_;
     bool                                 writing_ = false;

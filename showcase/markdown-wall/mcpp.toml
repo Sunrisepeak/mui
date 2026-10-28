@@ -33,16 +33,16 @@ sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
 openmui.sdk           = { path = "../.." }
-openmui.ui.canvas     = { path = "../../components/canvas" }
-openmui.ui.canvas_kit = { path = "../../components/canvas-kit" }
+"openmui.ui.canvas"     = { path = "../../components/canvas" }
+"openmui.ui.canvas.kit" = { path = "../../components/canvas/kit" }
 openmui.ui.markdown   = { path = "../../components/markdown" }
 
 [build-dependencies]
 openmui.rules = { path = "../../mcpp/rules", host-module = true }
 
 [dev-dependencies]
-openmui.testing  = { path = "../../tests/support" }
-openmui.abi      = { path = "../../runtime/abi" }
+openmui.testing  = { path = "../../modules/base/testing" }
+openmui.abi      = { path = "../../modules/ui/abi" }
 openmui.lang.lua = { path = "../../lang/lua" }
 openmui.lang.js  = { path = "../../lang/js" }
 mcpplibs.os      = "0.1.2"

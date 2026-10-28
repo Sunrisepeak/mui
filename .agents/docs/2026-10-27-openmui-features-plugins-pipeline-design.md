@@ -35,7 +35,7 @@
 | F1 | **统一语义层** | 像素、无障碍、agent、测试是同一棵语义树的四种渲染 | 语义树、紧凑树、查询、录制和回放、H0 到 H3 |
 | F2 | **Agent 原生** | 应用自带 agent 接口；动作分效果等级，不可逆的动作必须由人确认 | `openmui.tree@0.1`、`needs-answer`、动作日志、`omui agent` |
 | F3 | **确定性** | 同样的输入在三个平台上得到逐字节相同的像素；任何一帧都可以直接算出 | CPU 参考光栅器、固定哈希、精确的增量帧（D-62） |
-| F4 | **强动画** | 动画是时间的纯函数；所有可视属性都能动；粒度可以到字形和像素 | `openmui.anim`、OKLab、通用属性过渡（D-60） |
+| F4 | **强动画** | 动画是时间的纯函数；所有可视属性都能动；粒度可以到字形和像素 | `hanim`、OKLab、通用属性过渡（D-60） |
 | F5 | **性能和可观测性** | 增量帧精确且快；每一帧都可以测量、追踪和检查 | damage 行带、并行行带、trace、帧阶段耗时、bench 预算（D-59、D-62） |
 | F6 | **风格化 GPU 渲染** | Slang 效果是一等公民，参数就是可以动画的属性 | 显示列表的图层和效果参数；GPU 路径在 M4 |
 | F7 | **无限画布和富文本** | 上千个 Markdown 窗口，平滑缩放，LOD | 文本引擎、虚拟化；画布在 M4 |
@@ -94,7 +94,7 @@ Apple 在 2025 年发布的 Liquid Glass 不是简单的毛玻璃（背景模糊
 
 | 能力 | 内容 | 落在哪里 |
 |---|---|---|
-| **背景输入**（`OMUI_EXT_backdrop_effect`） | 效果的 `EffectInput` 多一张纹理：节点下方、范围外扩一圈之后已经画好的内容。渲染器在这个节点之前截断，把背景渲染到纹理里 | 规范契约⑤的扩展；`modules/render` |
+| **背景输入**（`OMUI_EXT_backdrop_effect`） | 效果的 `EffectInput` 多一张纹理：节点下方、范围外扩一圈之后已经画好的内容。渲染器在这个节点之前截断，把背景渲染到纹理里 | 规范契约⑤的扩展；`modules/gfx/render` |
 | **形状输入** | 效果拿到节点形状的 SDF（圆角矩形、胶囊、超椭圆，或者路径） | 契约⑤；`EffectInput.shape` |
 | **效果组** | 一组节点的形状在一次效果里合成（平滑最小值）：`glass_group` 容器 | 显示列表加一条 `PushEffectGroup` |
 | **模糊金字塔** | 背景的逐级模糊被同一帧里的多个效果共享 | render 的图层缓存 |
@@ -166,7 +166,7 @@ omui::glass_group({.smoothness = 18}, {
 | 种类 | 接口 | 现在的实现 | 可以替换成 |
 |---|---|---|---|
 | `component` | 契约（`*.contract.omui.toml`） | ui-base 的 14 个组件 | 第三方组件包 |
-| `animation-engine` | `omui.anim.engine`：通道的创建、目标、求值、是否稳定 | `openmui.anim`（解析解） | 物理模拟引擎、关键帧引擎、外部的动画系统 |
+| `animation-engine` | `omui.anim.engine`：通道的创建、目标、求值、是否稳定 | `hanim`（解析解） | 物理模拟引擎、关键帧引擎、外部的动画系统 |
 | `layout-engine` | `omui.layout.engine`：样式、测量回调、增量布局 | `openmui.layout`（flex、grid、stack） | Yoga 兼容引擎、约束布局 |
 | `text-engine` | `omui.text.engine`：排版、`GlyphSource` | `openmui.text`（HarfBuzz） | 系统文字栈（CoreText、DirectWrite） |
 | `damage` | `DisplayList` × 2 → 行带或矩形 | `render::DamageTracker` | 按图块的 damage、GPU 用的矩形 damage |
@@ -197,7 +197,7 @@ omui::glass_group({.smoothness = 18}, {
 name = "desktop"
 [[stage]]
 name = "animate"
-plugin = "openmui.anim"            # 动画引擎是一个插件
+plugin = "hanim"            # 动画引擎是一个插件
 [[stage]]
 name = "raster"
 plugin = "openmui.render.cpu"
@@ -230,7 +230,7 @@ plugin = "openmui.host.sdl3.present"
 
 已经落地（提前于 M2）：
 
-- `modules/pipeline`（`openmui.pipeline`）：资源、阶段、插件注册表、带位置的校验、确定的顺序（更新者在声明中的位置决定读者看到旧值还是新值）、按阶段计时和 trace、`replace` / `insert` / `remove`、`to_toml`。它不解析任何文件，所以不抛异常；`*.pipeline.omui.toml` 在边缘读取（生成器在构建时，工具通过 agent 协议发 JSON）。
+- `modules/base/pipeline`（`openmui.pipeline`）：资源、阶段、插件注册表、带位置的校验、确定的顺序（更新者在声明中的位置决定读者看到旧值还是新值）、按阶段计时和 trace、`replace` / `insert` / `remove`、`to_toml`。它不解析任何文件，所以不抛异常；`*.pipeline.omui.toml` 在边缘读取（生成器在构建时，工具通过 agent 协议发 JSON）。
 - 运行时的一帧就是一条管线：`openmui.view.{timers,input,regions,animations,layout,bounds,paint,debug}` 八个阶段插件；H0 / H1 / H2 是 `runtime_pipeline(Stages)` 给出的三条管线；`RuntimeOptions::pipeline` 和 `plugins` 可以加入自己的阶段（测试里在 paint 和 debug 之间插入一个更新显示列表的阶段）；不能构建的自定义管线回退到默认管线，并记录原因。
 - agent 操作 `pipeline`（查看、替换、插入、删除）和 `omui agent pipeline`；e2e 在一个单独的进程上执行这些操作。
 - 空闲帧仍然零分配，所有 bench 预算不变。

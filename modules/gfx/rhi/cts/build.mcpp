@@ -1,0 +1,7 @@
+// The suite's shaders (shaders/*.slang) become the partitions
+// openmui.rhi.cts:<stem>_shaders, for the formats this build's target takes.
+import std;
+import mcpp;
+import openmui.shader.rules;
+
+int main() { return openmui::shader::rules::shaders({.module = "openmui.rhi.cts", .ns = "omui::rhi::cts::shaders"}) ? 0 : 1; }

@@ -39,10 +39,10 @@ int main(int argc, char** argv) {
         same(spec_dir() / "stubs" / "core.pyi", gen::emit_pyi(reg.contracts, "the Core profile"));
         same(spec_dir() / "stubs" / "core.lua", gen::emit_lua(reg.contracts, "the Core profile"));
         same(spec_dir() / "schema" / "core.components.json", gen::emit_view_schema(reg.contracts, "the Core profile"));
-        // runtime/abi's view of the same ABI.
-        const auto abi = spec_dir().parent_path() / "runtime" / "abi" / "src";
+        // modules/ui/abi's view of the same ABI.
+        const auto abi = spec_dir().parent_path() / "modules" / "ui" / "abi" / "src";
         auto current = [](const std::filesystem::path& p, const std::string& now) {
-            check(read(p) == now, std::format("{} is out of date: run omui-gen abi spec/registry --out runtime/abi/src", p.generic_string()));
+            check(read(p) == now, std::format("{} is out of date: run omui-gen abi spec/registry --out modules/ui/abi/src", p.generic_string()));
         };
         current(abi / "generated" / "c.cppm", gen::emit_abi_types(reg));
         current(abi / "generated" / "api.cppm", gen::emit_abi_functions(reg));
@@ -123,10 +123,10 @@ int main(int argc, char** argv) {
         check(text.find("bad.native.omui.toml:10:") != std::string::npos, "diagnostics carry line numbers");
     });
 
-    s.test("the official native modules' generated code and stubs are current (natives/*)", [] {
+    s.test("the official native modules' generated code and stubs are current (modules/ui/native/*)", [] {
         gen::Diagnostics diags;
         auto reg = gen::read_registry(spec_dir() / "registry", diags);
-        const auto root = spec_dir().parent_path() / "natives";
+        const auto root = spec_dir().parent_path() / "modules" / "ui" / "native";
         std::error_code ec;
         int seen = 0;
         for (const auto& pkg : std::filesystem::directory_iterator(root, ec)) {
@@ -152,11 +152,11 @@ int main(int argc, char** argv) {
                 check(read(pkg.path() / "stubs" / (module + ".natives.lua")) == gen::emit_native_lua(modules, module), module + ".natives.lua");
             }
         }
-        check(seen >= 1, "natives/fuzzy at least");
+        check(seen >= 1, "modules/ui/native/fuzzy at least");
     });
 
-    s.test("the theme packages' embedded files are current (themes/*)", [] {
-        const auto root = spec_dir().parent_path() / "themes";
+    s.test("the theme packages' embedded files are current (modules/ui/theme/*)", [] {
+        const auto root = spec_dir().parent_path() / "modules" / "ui" / "theme";
         std::error_code ec;
         int seen = 0;
         for (const auto& pkg : std::filesystem::directory_iterator(root, ec)) {
@@ -170,22 +170,22 @@ int main(int argc, char** argv) {
             const std::string module = name == "default" ? "openmui.theme.default_theme" : "openmui.theme." + name;
             const std::string want = gen::emit_embed(text, name + ".theme.omui.toml", module, "omui::themes", name + "_theme");
             check(read(pkg.path() / "src" / "generated" / (name + "_theme.cppm")) == want,
-                  std::format("themes/{0}: run omui-gen embed themes/{0}/{0}.theme.omui.toml --module {1} --namespace omui::themes "
-                              "--name {0}_theme --out themes/{0}/src/generated",
+                  std::format("modules/ui/theme/{0}: run omui-gen embed modules/ui/theme/{0}/{0}.theme.omui.toml --module {1} --namespace omui::themes "
+                              "--name {0}_theme --out modules/ui/theme/{0}/src/generated",
                               name, module));
         }
         check(seen >= 2, "default and compact at least");
     });
 
-    s.test("the effect template the renderer carries is current (modules/render)", [] {
-        const auto render = spec_dir().parent_path() / "modules" / "render";
+    s.test("the effect template the renderer carries is current (modules/gfx/render)", [] {
+        const auto render = spec_dir().parent_path() / "modules" / "gfx" / "render";
         std::ifstream in(render / "effects" / "lib" / "openmui_effect.slang", std::ios::binary);
         const std::string text{std::istreambuf_iterator<char>(in), {}};
         check(!text.empty(), "effects/lib/openmui_effect.slang");
         check(read(render / "src" / "generated" / "effect_template.cppm") ==
                   gen::emit_embed(text, "openmui_effect.slang", "openmui.render", "omui::render", "effect_template"),
-              "modules/render: run omui-gen embed modules/render/effects/lib/openmui_effect.slang --module openmui.render --name effect_template "
-              "--namespace omui::render --out modules/render/src/generated");
+              "modules/gfx/render: run omui-gen embed modules/gfx/render/effects/lib/openmui_effect.slang --module openmui.render --name effect_template "
+              "--namespace omui::render --out modules/gfx/render/src/generated");
     });
 
     return s.run(argc, argv);

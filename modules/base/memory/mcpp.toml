@@ -1,0 +1,21 @@
+# openmui.memory — the frame arena, generational handles and slot maps, and
+# FunctionRef. Standard library only.
+[package]
+namespace   = "openmui"
+name        = "memory"
+version     = "0.1.0"
+description = "Frame arena, generational handles, slot maps and FunctionRef"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "runtime"
+
+[targets.openmui-memory]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dev-dependencies]
+openmui.testing = { path = "../testing" }

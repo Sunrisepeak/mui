@@ -37,8 +37,8 @@ sources = ["src/*.cpp"]
 openmui.entry.player = { path = "../../src/entry/player" }
 
 [dev-dependencies]
-openmui.testing  = { path = "../../tests/support" }
-openmui.player   = { path = "../../runtime/player" }
-openmui.lang.lua = { path = "../../lang/lua" }
-openmui.theme.default = { path = "../../themes/default" }
-openmui.theme.compact = { path = "../../themes/compact" }
+openmui.testing       = { path = "../../modules/base/testing" }
+openmui.player        = { path = "../../modules/ui/player" }
+openmui.lang.lua      = { path = "../../lang/lua" }
+openmui.theme.default = { path = "../../modules/ui/theme/default" }
+openmui.theme.compact = { path = "../../modules/ui/theme/compact" }

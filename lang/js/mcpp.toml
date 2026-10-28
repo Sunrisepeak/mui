@@ -17,20 +17,20 @@ kind = "lang"
 kind = "lib"
 
 [build]
-sources = ["src/*.cppm", "src/*.cpp"]
+sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 
 [dependencies]
-openmui.lang      = { path = "../common" }
-openmui.abi       = { path = "../../runtime/abi" }
-openmui.player    = { path = "../../runtime/player" }
+openmui.lang   = { path = ".." }
+openmui.abi    = { path = "../../modules/ui/abi" }
+openmui.player = { path = "../../modules/ui/player" }
 mcpplibs.os       = "0.1.2"
 nlohmann.json     = "3.12.0"
 mcpplibs.mwrap.quickjs_ng = "0.17.0"
 
 [dev-dependencies]
-openmui.testing = { path = "../../tests/support" }
-openmui.cts     = { path = "../../tests/cts" }
-openmui.native.fuzzy = { path = "../../natives/fuzzy" }
-openmui.theme.default = { path = "../../themes/default" }
-openmui.theme.compact = { path = "../../themes/compact" }
-openmui.ui.base = { path = "../../components/base" }
+openmui.testing       = { path = "../../modules/base/testing" }
+openmui.cts           = { path = "../../tests/cts" }
+openmui.native.fuzzy  = { path = "../../modules/ui/native/fuzzy" }
+openmui.theme.default = { path = "../../modules/ui/theme/default" }
+openmui.theme.compact = { path = "../../modules/ui/theme/compact" }
+openmui.ui.base       = { path = "../../components/base" }

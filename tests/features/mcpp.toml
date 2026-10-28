@@ -26,4 +26,4 @@ sink-stdout = { sources = ["src/sink/stdout.cppm"] }
 sink-memory = { sources = ["src/sink/memory.cppm"] }
 
 [dev-dependencies]
-openmui.testing = { path = "../support" }
+openmui.testing = { path = "../../modules/base/testing" }

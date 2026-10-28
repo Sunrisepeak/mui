@@ -39,9 +39,9 @@ sources = ["src/*.cpp"]
 openmui.entry.player = { path = "../../src/entry/player" }
 
 [dev-dependencies]
-openmui.testing      = { path = "../../tests/support" }
-openmui.player       = { path = "../../runtime/player" }
+openmui.testing      = { path = "../../modules/base/testing" }
+openmui.player       = { path = "../../modules/ui/player" }
 openmui.lang.js      = { path = "../../lang/js" }
 openmui.lang.lua     = { path = "../../lang/lua" }
 openmui.ui.markdown  = { path = "../../components/markdown" }
-openmui.native.fuzzy = { path = "../../natives/fuzzy" }
+openmui.native.fuzzy = { path = "../../modules/ui/native/fuzzy" }

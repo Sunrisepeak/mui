@@ -1,6 +1,6 @@
 # openmui.lang.lua
 
-openmui for Lua 5.4, embedded (component-binding §7) and imported as a module: [`mcpplibs.mwrap.lua`](https://github.com/mcpplibs/lua-m) over `compat.lua`, so no C header appears here. The script runs on [openmui.lang](../common)'s script thread. What it builds is a view document, so a view in Lua is the C++ builder's tree (CTS S level; `tests/lua_test.cpp`).
+openmui for Lua 5.4, embedded (component-binding §7) and imported as a module: [`mcpplibs.mwrap.lua`](https://github.com/mcpplibs/lua-m) over `compat.lua`, so no C header appears here. The script runs on [openmui.lang](..)'s script thread. What it builds is a view document, so a view in Lua is the C++ builder's tree (CTS S level; `tests/lua_test.cpp`).
 
 ```lua
 local count = omui.signal(0)

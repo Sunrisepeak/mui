@@ -1,0 +1,34 @@
+# omui — the openmui command line (plan §2.2): agent operations against any
+# running application today; check, fmt, add, video and bench as their
+# members land.
+[package]
+namespace   = "openmui"
+name        = "cli"
+version     = "0.1.0"
+description = "The openmui command line: omui agent (ls, describe, snapshot, act …), check, fmt, schema and mcp"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "tool"
+
+[targets.omui]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+openmui.core        = { path = "../../modules/ui/core" }
+openmui.agent       = { path = "../../modules/ui/agent" }
+openmui.mcp         = { path = "../mcp" }
+openmui.viewdoc     = { path = "../../modules/ui/viewdoc" }
+openmui.ui.base     = { path = "../../components/base" }
+openmui.ui.markdown = { path = "../../components/markdown" }
+mcpplibs.cmdline = "0.0.2"
+mcpplibs.os      = "0.1.2"
+
+[dev-dependencies]
+openmui.testing       = { path = "../../modules/base/testing" }
+openmui.host.headless = { path = "../../modules/ui/host/headless" }

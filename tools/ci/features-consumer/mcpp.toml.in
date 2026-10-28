@@ -19,4 +19,4 @@ sources = []
 openmui.features = { path = "{{repo}}/tests/features", default-features = false, features = ["sink-memory"] }
 
 [dev-dependencies]
-openmui.testing = { path = "{{repo}}/tests/support" }
+openmui.testing = { path = "{{repo}}/modules/base/testing" }

@@ -52,7 +52,7 @@ omui::Value fade_from(std::size_t begin) {
     m.begin = begin;
     m.from = {.y = 4, .opacity = 0};
     m.to = {};
-    m.transition = omui::Transition::tween(omui::seconds(0.28), omui::anim::ease::out_cubic);
+    m.transition = omui::Transition::tween(omui::seconds(0.28), hanim::ease::out_cubic);
     m.stagger = omui::seconds(0.012);
     return omui::to_value(m);
 }

@@ -39,7 +39,7 @@ python examples/03-counter/python/tally.py
 ## How it is made
 
 - **The extension** `_openmui` is `src/entry/python`: a shared library holding the runtime and the host, with its own C++ runtime. It is written against CPython's stable ABI, the limited API of 3.10, without CPython's headers and without linking libpython. Its functions are resolved in the interpreter that loads it (`src/capi.cppm`, through `mcpplibs.os.library`), so one build serves every CPython 3.10+ of a platform.
-- **Threads.** Python runs on [openmui.lang](../common)'s script thread. Every call releases the GIL and waits for the script thread. Every call from the runtime (a handler, a verb, a watch) takes the GIL there.
+- **Threads.** Python runs on [openmui.lang](..)'s script thread. Every call releases the GIL and waits for the script thread. Every call from the runtime (a handler, a verb, a watch) takes the GIL there.
 - **The Python half** is `python/openmui`: builders, expressions and `run`.
 - **The wheel** comes from `packaging/openmui_build.py`, a PEP 517 backend in the tree. It builds the extension with mcpp and takes it from mcpp's result record. It bundles the shared libraries beside it and the third parties' notices, and generates the stubs. Its archives are reproducible (`SOURCE_DATE_EPOCH`). Configuration:
   - `--config-settings profile=dev|release` (default `release`);

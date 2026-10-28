@@ -43,7 +43,7 @@ struct World {
         if (auto r = fonts->add_defaults(); !r) warn("the default fonts did not load: {}", r.error());
         RuntimeOptions o;
         o.fonts = fonts.get();
-        o.clock = anim::Clock::virtual_time();  // a window switches it to the interactive one
+        o.clock = hanim::Clock::virtual_time();  // a window switches it to the interactive one
         runtime = std::make_unique<Runtime>(std::move(o));
         handle = abi::attach(*runtime, "org.openmui.python");
         abi::set_wake(handle, [this] {

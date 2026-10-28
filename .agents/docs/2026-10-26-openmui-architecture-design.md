@@ -93,10 +93,10 @@
 |---|---|
 | spec | 标准库（MCU 上是 `mcpplibs.std.freestanding`） |
 | openmui（伞包，仓库根目录） | runtime、base 组件、默认主题；`rules` / `entry-*` 特性 |
-| runtime | spec、C 库、mcpp-index 中的包 |
-| **modules/***（独立组件） | **标准库、其他 `modules/*` 成员、第三方库；不允许依赖 openmui 的任何其他包**（D-55） |
-| modules/rhi-* | 只依赖 `modules/rhi`（`omui.rhi` 接口）和各自的图形库 |
-| modules/render | `modules/geom`、`modules/raster`、`modules/rhi`、`modules/image` |
+| modules/ui（runtime） | 独立组件、spec、C 库、mcpp-index 中的包；不依赖 mgame（D-82） |
+| **modules/{base,gfx,content,media}**（独立组件） | **标准库、这四组里更低层或同层的成员、第三方库；不允许依赖 openmui 的任何其他包**（D-55、D-80） |
+| modules/gfx/rhi/* | 只依赖 `modules/gfx/rhi`（`omui.rhi` 接口）和各自的图形库 |
+| modules/gfx/render | `modules/base/geom`、`modules/gfx/raster`、`modules/gfx/rhi`、`modules/base/image` |
 | runtime/platform | **mcpplibs.os**（平台相关的代码只在这里经由 mcpplibs.os 出现） |
 | host | runtime 的宿主接口 |
 | bridge | **只依赖 spec**（这样它才算第二个实现者） |
@@ -183,7 +183,7 @@ mui/                 # 根目录 = openmui 伞包 + workspace
 
 每个目录都是一个 workspace 成员，有独立的 `mcpp.toml`，只通过 `path` 依赖互相引用，**将来可以直接拆成独立仓库**。
 
-**为什么仓库根目录就是伞包**：mcpp 支持“带根包的 workspace”（`mcpp/docs/07-workspace.md` §2.2）。用户写的 `features = ["rules"]`、`--template openmui:app-ts` 都指向 `openmui` 这个包，所以 `rules` 特性、入口特性和 `templates/` 都必须属于它。**`mcpp/` 只放构建系统的代码**；入口是运行时代码，放在 `src/entry/`；播放器在 `runtime/player`（D-32）。
+**为什么仓库根目录就是伞包**：mcpp 支持“带根包的 workspace”（`mcpp/docs/07-workspace.md` §2.2）。用户写的 `features = ["rules"]`、`--template openmui:app-ts` 都指向 `openmui` 这个包，所以 `rules` 特性、入口特性和 `templates/` 都必须属于它。**`mcpp/` 只放构建系统的代码**；入口是运行时代码，放在 `src/entry/`；播放器在 `modules/ui/player`（D-32）。
 
 ### 6.3 包的种类（用 `[package.metadata.openmui] kind` 标注）
 
@@ -197,7 +197,7 @@ mui/                 # 根目录 = openmui 伞包 + workspace
 |---|---|
 | 伞包 | `openmui`（模块 `openmui`，再导出 runtime、base 组件和默认主题） |
 | 规范 | `openmui.spec`（模块 `openmui.spec`） |
-| 运行时 | `openmui-runtime`（模块 `openmui.core`、`openmui.im`、`openmui.rt`、`openmui.text`、`openmui.anim` …） |
+| 运行时 | `openmui-runtime`（模块 `openmui.core`、`openmui.im`、`openmui.rt`、`openmui.text`、`hanim` …） |
 | 渲染和宿主 | `openmui.render`（模块 `openmui.render`）、`openmui-rhi`、`openmui-rhi-*`（模块 `openmui.gpu`、命名空间 `omui::gpu`）、`openmui-host-*`、`openmui-bridge-*` |
 | 组件 | `openmui-ui-*`（模块 `openmui.ui.*`） |
 | 构建规则 | **`openmui` 包的 `rules` 特性**，模块 `openmui.rules` |
@@ -420,7 +420,7 @@ M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten，渲�
 | D-30 | 后缀体系：数据文件一律是 `<名字>.<种类>.omui.{toml,json}`（view / contract / native / behavior / theme / effect）；另有 `.omuipkg`；着色器 `.slang`；逻辑代码保持原生后缀 |
 | D-31 | **人和 agent 的可读性都要很高**：可读性主要由宿主语言保证；builder 和数据文件遵守 view-data-files §2 的八条要求（名字和契约一致、显式 ID、事件的后果可见、类型明确、诊断支持 `--json`、文件自带版本、JSON Schema、llms.txt） |
 
-| D-32 | **仓库根目录就是 `openmui` 伞包 + workspace**。`mcpp/` 只放构建系统的代码（`mcpp/rules` = `openmui.rules`）；入口是运行时代码，放在 `src/entry/`；播放器在 `runtime/player`；`templates/` 按 mcpp 的约定放在根目录 |
+| D-32 | **仓库根目录就是 `openmui` 伞包 + workspace**。`mcpp/` 只放构建系统的代码（`mcpp/rules` = `openmui.rules`）；入口是运行时代码，放在 `src/entry/`；播放器在 `modules/ui/player`；`templates/` 按 mcpp 的约定放在根目录 |
 | D-33 | **GPU 抽象层 `omui.rhi`**（UI 尺度）：UI 渲染器只写一次；后端顺序是 rhi-sdl → rhi-gles → rhi-webgpu / rhi-vk；CPU 参考光栅器和 MCU 不经过抽象层；抽象层是实现细节，不属于规范 |
 | D-34 | **着色器用 Slang**（`rules-slang`）；自定义渲染分四级（效果、材质、GPU 节点、原生句柄）；着色器参数就是带类型的属性；headless 下用 lavapipe 测试 GPU 后端；规范只规定效果着色器的接口（Slang 源码，SPIR-V 作为交换格式） |
 | D-35 | （原 Q-14）自动 ID：保留模式用结构化 ID（`<类型>:<序号>`），立即模式用 ID 栈 + 调用位置；**ID 永远不依赖显示文本**；可交互的节点必须写显式 ID（spec S-8、S-9） |
@@ -437,17 +437,17 @@ M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten，渲�
 | D-46 | Python 绑定用 CPython 的稳定 ABI（abi3）自己实现，不用 pybind11 |
 | D-47 | UAX#14 断行表由 `tools/gen` 从 Unicode 数据生成，不依赖 ICU |
 | D-48 | 默认字体通过 `openmui-fonts` 固定下来，作为渲染确定性的一部分 |
-| D-49 | 通用动画引擎 `openmui.anim`：独立的 workspace 成员 `modules/anim/`，只依赖标准库；UI、视频、游戏、画布共用；将来可以独立成仓库 |
+| D-49 | 通用动画引擎 `hanim`：独立的 workspace 成员 `modules/base/hanim/`，只依赖标准库；UI、视频、游戏、画布共用；将来可以独立成仓库 |
 | D-50 | S4《组件打砖块：openmui 巡礼》：六个关卡，每一关的玩法本身就是一项框架能力 |
 | D-51 | S5 openmui 宣传片：约 60 秒主片 + 15 秒短片，用 openmui-video 制作；对标三部播放量几百万到上千万的 agent 代码动画视频（promo-video 设计文档） |
 | D-52 | 协作流程：单个 PR，每一轮修改一个 commit 作为检查点 |
 | D-53 | 每个里程碑、展示、模块都有验收标准（实施计划 §19）；能自动检查的进 CI |
-| D-55 | **独立组件放在 `modules/` 下**（参考 mcpp 的 `modules/`）：anim、unicode、text、raster、gpu 和各个 gpu 后端。它们不依赖 openmui 的任何其他包，只依赖标准库、彼此和第三方库，所以随时可以拆成独立仓库；openmui 专用的包（spec、runtime、host、组件、video、lang）留在原来的位置 |
-| D-57 | 渲染层抽象（`modules/render`）、布局（`modules/layout`）、图像（`modules/image`）、录制回放（`modules/record`）、文件和视频输出（`modules/encode`）都是独立组件，共用几何模块 `modules/geom`；`gfx/` 取消；平台相关的代码一律经由 `mcpplibs.os`（实施计划 §21） |
+| D-55 | **独立组件放在 `modules/` 下**（参考 mcpp 的 `modules/`）：anim、unicode、text、raster、gpu 和各个 gpu 后端。它们不依赖 openmui 的任何其他包，只依赖标准库、彼此和第三方库，所以随时可以拆成独立仓库；openmui 专用的包（spec、runtime、host、组件、video、lang）留在原来的位置 **修订（D-80）**：独立组件是 `modules/{base,gfx,content,media}` 四组；`modules/ui` 是 openmui 本身。 |
+| D-57 | 渲染层抽象（`modules/gfx/render`）、布局（`modules/content/layout`）、图像（`modules/base/image`）、录制回放（`modules/base/session`）、文件和视频输出（`modules/encode`）都是独立组件，共用几何模块 `modules/base/geom`；`gfx/` 取消；平台相关的代码一律经由 `mcpplibs.os`（实施计划 §21） |
 | D-56 | mcpp-index 里已经有知名、跨平台的库时优先使用（JSON：nlohmann.json；TOML：tomlplusplus；任务：taskflow；队列：concurrentqueue；PNG：libpng；Markdown：md4c；排版：HarfBuzz / FreeType / fribidi）；只有生态里没有、或者确定性要求无法满足时才自己实现（实施计划 §21） |
 | D-54 | openmui-video 的渲染速度、增量渲染（四层缓存）、GPU 和硬件编码、预览和可再编辑性都作为指标，每一项都要优于业界最好的工具（实施计划 §12.6） |
-| D-58 | GPU 抽象层叫 RHI：`modules/gpu` 改名为 `modules/rhi`（后端 `rhi-sdl` 等）；`modules/render` 是渲染子系统，保持原名（实施计划 §21） |
-| D-59 | 可观测性是框架的一部分：`modules/trace`（span、计数器、Chrome trace、百分位汇总）、分类别的日志和过滤、每帧各阶段耗时和历史、调试叠加层（边界、重绘、检查器、HUD），agent 开发操作 `inspect` / `stats` / `profile` / `logs` / `debug`（实施计划 §21） |
+| D-58 | GPU 抽象层叫 RHI：`modules/gpu` 改名为 `modules/gfx/rhi`（后端 `rhi-sdl` 等）；`modules/gfx/render` 是渲染子系统，保持原名（实施计划 §21） **修订（D-80、D-81）**：rhi 在 `modules/gfx/rhi`（后端 `rhi/sdl`、一致性 `rhi/cts`）；范围不再限于 UI 规模，由渲染特性的需要决定。 |
+| D-59 | 可观测性是框架的一部分：`modules/base/trace`（span、计数器、Chrome trace、百分位汇总）、分类别的日志和过滤、每帧各阶段耗时和历史、调试叠加层（边界、重绘、检查器、HUD），agent 开发操作 `inspect` / `stats` / `profile` / `logs` / `debug`（实施计划 §21） |
 | D-60 | 所有可视属性都可以做动画；粒度分对象 / 属性、子对象（字形、路径弧长、实例）、像素（Slang 效果、图层、遮罩）三层，全部是时间的纯函数，可以跳转（实施计划 §6.3、§6.8） |
 | D-61 | 开发工具（检查器、帧时间、火焰图、日志、动画检查器、依赖图）用 openmui 自己写，经 agent 协议连接任何应用，同时作为示例（实施计划 §21） |
 | D-62 | 增量帧是精确的：`DamageTracker` 给出变化的整行带，CPU 光栅器保证行带和完整渲染逐字节相同，只画这些行（实施计划 §21） |
@@ -462,12 +462,19 @@ M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten，渲�
 | D-71 | 画布晋升策略分层；相机移动时不晋升；晋升复用离屏布局（同上 §2） |
 | D-72 | 构建期标记：各语言合法语法，字段语义按 `markers.toml` 对齐；库契约优先，应用内部允许代码优先（同上 §3） |
 | D-73 | 构建插件按功能拆包：`openmui.build` 基础 + 内置插件 + 经 mcpp-index 分发的可选插件；`openmui.rules` 是伞包（同上 §4） |
-| D-74 | i18n 引擎（`modules/i18n`，只依赖标准库，可独立发布）和语言数据（由 CLDR 生成的数据包）、应用消息目录分开，只通过数据格式相连；不用 ICU，结果只取决于数据版本；en / zh 做到顶级支持（2026-10-28 i18n 设计 §1） |
+| D-74 | i18n 引擎（`modules/content/i18n`，只依赖标准库，可独立发布）和语言数据（由 CLDR 生成的数据包）、应用消息目录分开，只通过数据格式相连；不用 ICU，结果只取决于数据版本；en / zh 做到顶级支持（2026-10-28 i18n 设计 §1） |
 | D-75 | 窗口默认用系统的；自绘窗口是完整的深度能力，分两层：`openmui.window`（去掉系统外框、命中测试区域、形状、阴影、状态、输入穿透、与系统的衔接）和 `openmui.ui.window`（框架默认的标题栏、布局、交互、动画、风格）；开发者一行切换，用户可在运行时切换；关闭时应用立即在逻辑上关闭、整窗输入透明，溶解只是呈现（2026-10-28 i18n 设计 §2） |
-| D-76 | 三层：基础（不知道 UI）、引擎服务、框架；openmui 可以作为游戏引擎的 UI 模块嵌入，主循环、时钟、设备、输入都可注入；lint 检查分层（同上 §3） |
+| D-76 | 三层：基础（不知道 UI）、引擎服务、框架；openmui 可以作为游戏引擎的 UI 模块嵌入，主循环、时钟、设备、输入都可注入；lint 检查分层（同上 §3） **修订（D-82）**：引擎服务就是 mgame（`mgame/`），openmui 是它的 UI 模块；openmui 永远不依赖 mgame。 |
 | D-77 | 宿主是插件（D-65）：SDL3 是默认的桌面宿主，不是框架的依赖；运行时、渲染、rhi 抽象和 C ABI 都不依赖它（headless 宿主、引擎嵌入、以后的 Web / 原生宿主）。SDL 缺的窗口系统能力在宿主自己的原生单元里实现，上游缺口用 `upstream` 标签的 issue 记录，不改上游 |
 | D-78 | 规范是 OpenLifa 的开放标准，各自一个仓库：`openlifa/openmui`（本仓库的 `spec/`，git 子模块，和实现一起演进）和 `openlifa/openas`（经 mcpp-index 依赖 `openlifa.openas`）；包名 `openlifa.<标准>`，模块名不变（`openmui.spec`、`openas`）；代码 Apache-2.0，规范文本 CC BY-SA 4.0；每个标准仓库单 PR、全平台 CI。D-04 不变：openmui 规范的 C++ 代码仍只依赖标准库，文本上引用 openas 0.2；actor、效果、信封、授权以 openas 为准 |
 | D-79 | agent 授权（S-11，openas §5）：应用的上限（`AppSpec::agent` / 清单 `agent`，默认 `external`）在构建时定，运行时不能提高；授权由在场的人通过应用自己的界面给出（`agent_access().give`），总线上的请求不能给；`person` 动作任何授权都够不到；决定由运行时调用 `openas::decide` 做出。总线上的读（snapshot、find）不是动词，不受上限约束；不要 agent 的构建去掉总线（`--no-agent`） |
+| D-80 | 目录与命名：路径就是包名，`modules/` 按层分组（base、gfx、content、media、ui，宿主在 `ui/host`），按角色命名，动画引擎叫 hanim，有包的目录都有 README（[structure-render-web-game](2026-10-28-openmui-structure-render-web-game-design.md) §3） |
+| D-81 | 统一渲染：rhi → shader → render（渲染图）→ 渲染特性，2D 和 3D 同一套架构（同上 §4） |
+| D-82 | 产品分层：基础组件、openmui、mgame、gongfu、作品，依赖只向下；openmui 不依赖 mgame；gongfu 核心只依赖标准库（同上 §2） |
+| D-83 | 第三方库：compat + mwrap，只在 native/ 单元使用；不用 GPL，LGPL 只能可选、动态链接（同上 §5） |
+| D-84 | Web 与 Toy：wasm 单线程、host.web、WebGPU / WebGL2 / CPU、Toy 能力映射、官网（同上 §6） |
+| D-85 | mgame 与 gongfu：引擎服务；确定性回滚格斗框架，模拟和画面分离，2D 先验证、3D 同一核心（同上 §7、§8） |
+| D-86 | 媒体：音频图、视频导出、时间线、撤销和事务（同上 §9） |
 
 ---
 

@@ -8,11 +8,16 @@ Rules:
   macros        no `#define` in our sources (spec/include/openmui.h is the one exception)
   headers       no header files but spec/include/openmui.h; `#include` only in `native/` units
   naming        no bare `mui` identifier: the identity is `openmui`, the abbreviation `omui`
-  layering      a member depends only on the layers below it (dependency table)
+  layering      a member depends only on the layers below it (D-82: the independent components,
+                openmui, mgame; gongfu's core on the standard library alone)
   manifest      namespaced dependencies are dotted keys (`compat.sdl3 = "…"`) of [dependencies]
   pins          a graph-wide pin of the root ([package.metadata.openmui.pins]) is declared, the same,
                 by every member whose graph reaches the package it is for
-  modules       a member of modules/ depends on no openmui package outside modules/
+  modules       an independent component (modules/{base,gfx,content,media}) depends on no openmui
+                package outside them (D-55)
+  layout        a library's directory is its package's name, a package inside another is named after it,
+                and every directory with packages under it has a README.md that links each (D-80)
+  thirdparty    a wrapped C library (`import mcpplibs.mwrap.*`) only in a native/ unit (D-83)
   exceptions    no `throw` / `try` in runtime and modules sources (errors are std::expected); a
                 native/ unit may catch what a third-party library throws, to answer std::expected
   paths         no std::filesystem::path::string() / generic_string() outside tests: on Windows
@@ -46,36 +51,43 @@ HEADER_SUFFIXES = {".h", ".hpp", ".hh", ".hxx", ".inl"}
 THE_HEADER = Path("spec/include/openmui.h")
 SKIP_DIRS = {"target", ".git", ".cache", "build", "node_modules", "fixtures", ".venv", "__pycache__"}
 
-# Layer of a member, by its directory. A member may depend on members of the
-# same or a lower layer, as listed here (the dependency table of the
-# architecture design, §2).
-LAYERS: list[tuple[str, set[str]]] = [
-    ("tests/support", set()),
-    ("modules/*", {"modules"}),
-    ("spec", set()),
-    ("runtime/*", {"modules", "spec", "runtime"}),
-    ("hosts/*", {"modules", "spec", "runtime", "hosts"}),
-    ("components/*", {"modules", "spec", "runtime", "components", "themes"}),
-    # Native modules (component-binding §8): a contract and C++ over modules,
-    # registered in the runtime's registry (openmui.native).
-    ("natives/*", {"modules", "spec", "runtime", "natives"}),
-    ("themes/*", {"modules", "spec", "runtime", "themes"}),
-    # Language data for openmui.i18n (D-74): packs over the engine, nothing else.
-    ("i18n/*", {"modules", "i18n"}),
-    ("video", {"modules", "spec", "runtime", "hosts", "components", "themes"}),
-    ("lang/*", {"spec", "runtime", "lang"}),
-    ("tools/*", {"*"}),
-    ("mcpp/*", {"tools"}),  # build code only: the rule and the generator it runs
-    ("src/entry/*", {"*"}),  # entries: the composition roots (component-binding §10.2)
-    ("examples/*", {"*"}),
-    ("showcase/*", {"*"}),
-    ("tests/*", {"*"}),
-    (".", {"*"}),
-]
+# Layers (D-80, D-82). A member's layer is the most specific group its
+# directory lies in; it may depend on the layers listed for it (path
+# dependencies in [dependencies] and target dependencies). The independent
+# components (modules/{base,gfx,content,media}) know nothing of openmui
+# (D-55); openmui (modules/ui) never depends on the game engine (mgame); the
+# fighting framework's core (mgame/gongfu) depends on the standard library
+# alone, so that it can leave the repository unchanged.
+GROUPS = ["modules/base/testing", "modules/base", "modules/gfx", "modules/content", "modules/media", "modules/ui/host", "modules/ui",
+          "spec", "components", "lang", "mgame/gongfu", "mgame", "tools", "mcpp", "src", "tests", "examples", "showcase", "site", "."]
+INDEPENDENT = ["modules/base", "modules/gfx", "modules/content", "modules/media"]
+_BELOW_UI = {"modules/base", "modules/gfx", "modules/content", "modules/media", "spec"}
+LAYERS: dict[str, set[str]] = {
+    "modules/base/testing": set(),
+    "modules/base": {"modules/base"},
+    "modules/gfx": {"modules/base", "modules/gfx"},
+    "modules/content": {"modules/base", "modules/gfx", "modules/content"},
+    "modules/media": {"modules/base", "modules/gfx", "modules/content", "modules/media"},
+    "spec": set(),
+    "modules/ui": _BELOW_UI | {"modules/ui"},
+    "modules/ui/host": _BELOW_UI | {"modules/ui", "modules/ui/host"},
+    "components": _BELOW_UI | {"modules/ui", "components"},
+    "lang": {"spec", "modules/ui", "components", "lang"},
+    "mgame/gongfu": set(),
+    "mgame": _BELOW_UI | {"modules/ui", "modules/ui/host", "components", "mgame", "mgame/gongfu"},
+    "tools": {"*"},
+    "mcpp": {"tools"},  # build code only: the rule and the generator it runs
+    "src": {"*"},  # entries: the composition roots (component-binding §10.2)
+    "tests": {"*"},
+    "examples": {"*"},
+    "showcase": {"*"},
+    "site": {"*"},
+    ".": {"*"},
+}
 
 # Members whose results are part of A-level conformance (identical bits).
-DETERMINISTIC = ["modules/fuzzy", "modules/anim", "modules/raster", "modules/layout", "modules/geom", "modules/render", "modules/text",
-                 "modules/i18n", "runtime/view"]
+DETERMINISTIC = ["modules/base/fuzzy", "modules/base/hanim", "modules/gfx/raster", "modules/content/layout", "modules/base/geom", "modules/gfx/render", "modules/content/text",
+                 "modules/content/i18n", "modules/ui/view"]
 
 # Operating-system headers: platform code goes through mcpplibs.os (D-57), so
 # none of ours includes them, native units included.
@@ -97,14 +109,19 @@ class Problem:
 
 
 def layer_of(member: str) -> str:
-    return member.split("/")[0] if "/" in member else member
+    """The most specific group a directory lies in ("mgame/gongfu" is the core alone)."""
+    if member == "mgame/gongfu":
+        return member
+    for g in GROUPS:
+        if g in ("mgame/gongfu", "."):
+            continue
+        if member == g or member.startswith(g + "/"):
+            return g
+    return "."
 
 
 def rule_for(member: str) -> set[str] | None:
-    for pattern, allowed in LAYERS:
-        if fnmatch.fnmatch(member, pattern):
-            return allowed
-    return None
+    return LAYERS.get(layer_of(member))
 
 
 def source_files(root: Path):
@@ -189,12 +206,15 @@ def check_sources(root: Path) -> list[Problem]:
                 problems.append(Problem("platform", f"{rel_s}:{no}", "an operating-system header; use mcpplibs.os"))
             if re.match(r"#\s*include\b", stripped) and not in_native and not is_the_header:
                 problems.append(Problem("headers", f"{rel_s}:{no}", "#include outside a native/ unit; import a module instead"))
+            if re.match(r"(export\s+)?import\s+mcpplibs\.mwrap\.", stripped) and not in_native and "tests" not in rel.parts:
+                problems.append(Problem("thirdparty", f"{rel_s}:{no}",
+                                        "a wrapped C library (mcpplibs.mwrap.*) is used only in a native/ unit (D-83)"))
             if re.search(r"\bmui(::|_[a-z])|\bMUI_|\bnamespace\s+mui\b|\bmodule\s+mui\b|import\s+mui\b", line):
                 problems.append(Problem("naming", f"{rel_s}:{no}", "bare `mui`; write `openmui` (identity) or `omui` (abbreviation)"))
 
         top = rel.parts[0] if rel.parts else ""
         is_test = "tests" in rel.parts
-        if top in ("runtime", "modules") and not is_test:
+        if top in ("modules", "mgame") and not is_test:
             # A native/ unit adapts a third-party library as it adapts its
             # macros: it may catch what the library throws, to answer
             # std::expected. Nothing in core code throws.
@@ -216,7 +236,7 @@ def check_sources(root: Path) -> list[Problem]:
                     m = TRANSCENDENTAL.search(line)
                     if m:
                         problems.append(Problem("determinism", f"{rel_s}:{no}",
-                                                f"std::{m.group(1)} differs between platforms' libm; use omui::anim::dm"))
+                                                f"std::{m.group(1)} differs between platforms' libm; use hanim::dm"))
     return problems
 
 
@@ -271,19 +291,71 @@ def check_manifests(root: Path) -> list[Problem]:
                 except ValueError:
                     continue
                 dep_layer = layer_of(dep_rel) if dep_rel != "" else "."
-                if dep_rel.startswith("tests/support"):
+                if dep_rel == "modules/base/testing":
                     problems.append(Problem("layering", member, f"`{name}`: openmui.testing belongs in [dev-dependencies]"))
                     continue
                 if "*" in allowed:
                     continue
                 if dep_layer not in allowed:
-                    problems.append(Problem("layering" if not member.startswith("modules/") else "modules",
+                    problems.append(Problem("modules" if layer_of(member) in INDEPENDENT else "layering",
                                             member, f"depends on {dep_rel} ({name}); allowed layers: {sorted(allowed) or 'std only'}"))
 
         if member in DETERMINISTIC:
             flags = " ".join(data.get("build", {}).get("cxxflags", []))
             if "-ffp-contract=off" not in flags:
                 problems.append(Problem("determinism", f"{member}/mcpp.toml", "missing -ffp-contract=off in [build] cxxflags"))
+    return problems
+
+
+# Where the path-is-the-name rule (D-80) holds, and the directories whose
+# README lists the packages under them.
+LIBRARY_ROOTS = ("modules", "mgame", "components", "lang", "tools")
+README_ROOTS = ("modules", "mgame", "components", "lang", "tools", "tests", "examples", "showcase")
+
+
+def package_name(data: dict) -> str:
+    p = data.get("package", {})
+    return f"{p['namespace']}.{p.get('name', '')}" if p.get("namespace") else p.get("name", "")
+
+
+def check_layout(root: Path) -> list[Problem]:
+    """A path is its package's name; every directory with packages under it says what they are."""
+    problems = []
+    members = workspace_members(root)
+    names: dict[str, str] = {}
+    for m in members:
+        try:
+            names[m] = package_name(tomllib.loads((root / m / "mcpp.toml").read_text(encoding="utf-8")))
+        except (OSError, tomllib.TOMLDecodeError):
+            continue
+    for m, full in names.items():
+        if m.split("/")[0] not in LIBRARY_ROOTS:
+            continue
+        leaf = Path(m).name.replace("-", "_")
+        if leaf != full.split(".")[-1]:
+            problems.append(Problem("layout", m, f"the directory is `{Path(m).name}` but the package is {full}: "
+                                                 "a library's path is its name (D-80)"))
+        parent = Path(m).parent.as_posix()
+        if parent in names and not full.startswith(names[parent] + "."):
+            problems.append(Problem("layout", m, f"{full} lies in {parent} ({names[parent]}): a package inside another "
+                                                 f"is named after it ({names[parent]}.{Path(m).name.replace('-', '_')})"))
+    # Each directory with members below it lists its children in its README.
+    children: dict[str, set[str]] = {}
+    for m in members:
+        parts = m.split("/")
+        if parts[0] not in README_ROOTS:
+            continue
+        for i in range(1, len(parts)):
+            children.setdefault("/".join(parts[:i]), set()).add(parts[i])
+    for d, kids in sorted(children.items()):
+        readme = root / d / "README.md"
+        if not readme.exists():
+            problems.append(Problem("layout", d, "a directory with packages under it has a README.md that lists them"))
+            continue
+        text = readme.read_text(encoding="utf-8")
+        for k in sorted(kids):
+            if not re.search(r"\]\(" + re.escape(k) + r"(/[^)]*)?\)", text):
+                problems.append(Problem("layout", f"{d}/README.md", f"does not list `{k}` (a link `]({k})`)"))
     return problems
 
 
@@ -407,21 +479,23 @@ def check_documents(root: Path) -> list[Problem]:
 
 
 def run(root: Path) -> list[Problem]:
-    return check_sources(root) + check_manifests(root) + check_pins(root) + check_documents(root)
+    return check_sources(root) + check_manifests(root) + check_layout(root) + check_pins(root) + check_documents(root)
 
 
 def self_test() -> int:
     """Each rule must reject a violation planted in a copy of a minimal tree."""
     cases = {
-        "macros": ("modules/anim/src/bad.cpp", "module x;\n#define BAD 1\n"),
-        "headers": ("runtime/core/src/util.h", "int f();\n"),
-        "naming": ("runtime/core/src/a.cpp", "namespace mui { }\n"),
-        "exceptions": ("modules/anim/src/e.cpp", "void f() { throw 1; }\n"),
-        "paths": ("runtime/core/src/p.cpp", "std::string f(const std::filesystem::path& p) { return p.string(); }\n"),
-        "determinism": ("modules/anim/src/d.cpp", "double f(double x) { return std::sin(x); }\n"),
-        "platform": ("runtime/core/src/native/io.cpp", "module;\n#include <unistd.h>\nmodule x;\n"),
+        "macros": ("modules/base/hanim/src/bad.cpp", "module x;\n#define BAD 1\n"),
+        "headers": ("modules/ui/core/src/util.h", "int f();\n"),
+        "naming": ("modules/ui/core/src/a.cpp", "namespace mui { }\n"),
+        "exceptions": ("modules/base/hanim/src/e.cpp", "void f() { throw 1; }\n"),
+        "paths": ("modules/ui/core/src/p.cpp", "std::string f(const std::filesystem::path& p) { return p.string(); }\n"),
+        "determinism": ("modules/base/hanim/src/d.cpp", "double f(double x) { return std::sin(x); }\n"),
+        "platform": ("modules/ui/core/src/native/io.cpp", "module;\n#include <unistd.h>\nmodule x;\n"),
         "layering": None,
         "modules": None,
+        "layout": None,
+        "thirdparty": ("modules/base/hanim/src/w.cpp", "module x;\nimport mcpplibs.mwrap.md4c;\n"),
         "manifest": None,
         "pins": None,
         "documents": ("examples/x/ui/bad.view.omui.json", '{"omui": "0.1", "view": {"root": {"typ": "text"}}}'),
@@ -435,26 +509,34 @@ def self_test() -> int:
     for rule, planted in cases.items():
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            members = ["modules/anim", "runtime/core", "spec"]
+            members = ["modules/base/hanim", "modules/ui/core", "spec"]
+            names = {"modules/base/hanim": 'name = "hanim"', "modules/ui/core": 'namespace = "openmui"\nname = "core"',
+                     "spec": 'namespace = "openlifa"\nname = "openmui"'}
+            if rule == "layout":
+                names["modules/base/hanim"] = 'name = "anim"'
             pin = ""
             if rule == "pins":
                 pin = ('[package]\nname = "root"\nversion = "0.1.0"\n[package.metadata.openmui.pins]\n"ns.kernel" = "ns.os"\n'
                        '[dependencies]\nns.kernel = "1.0.0"\n')
             (root / "mcpp.toml").write_text(
                 pin + "[workspace]\nmembers = [" + ", ".join(f'"{m}"' for m in members) + "]\n", encoding="utf-8")
+            readmes = {"modules": "[base](base) [ui](ui)", "modules/base": "[hanim](hanim)", "modules/ui": "[core](core)"}
+            for d, text in readmes.items():
+                (root / d).mkdir(parents=True, exist_ok=True)
+                (root / d / "README.md").write_text(text + "\n", encoding="utf-8")
             for m in members:
-                (root / m / "src").mkdir(parents=True)
+                (root / m / "src").mkdir(parents=True, exist_ok=True)
                 deps = ""
                 if rule == "layering" and m == "spec":
-                    deps = '[dependencies]\ncore = { path = "../runtime/core" }\n'
-                if rule == "modules" and m == "modules/anim":
-                    deps = '[dependencies]\ncore = { path = "../../runtime/core" }\n'
-                if rule == "manifest" and m == "runtime/core":
+                    deps = '[dependencies]\ncore = { path = "../modules/ui/core" }\n'
+                if rule == "modules" and m == "modules/base/hanim":
+                    deps = '[dependencies]\ncore = { path = "../../ui/core" }\n'
+                if rule == "manifest" and m == "modules/ui/core":
                     deps = '[dependencies.compat]\nsdl3 = "3.4.18"\n'
-                if rule == "pins" and m == "runtime/core":
+                if rule == "pins" and m == "modules/ui/core":
                     deps = '[dependencies]\nns.os = "0.1.0"\n'  # reaches ns.os, does not pin ns.kernel
-                flags = '[build]\ncxxflags = ["-ffp-contract=off"]\n' if m == "modules/anim" else ""
-                (root / m / "mcpp.toml").write_text(f'[package]\nname = "{m}"\nversion = "0.1.0"\n{flags}{deps}',
+                flags = '[build]\ncxxflags = ["-ffp-contract=off"]\n' if m == "modules/base/hanim" else ""
+                (root / m / "mcpp.toml").write_text(f'[package]\n{names[m]}\nversion = "0.1.0"\n{flags}{deps}',
                                                     encoding="utf-8")
             if rule == "documents":
                 (root / "spec" / "schema").mkdir(parents=True, exist_ok=True)

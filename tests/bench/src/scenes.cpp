@@ -10,10 +10,10 @@ import openmui.text;
 import openmui.trace;
 import openmui.ui.base;
 import openmui.host.headless;
-import openmui.anim;
+import hanim;
 import openmui.markdown;
 import openmui.ui.canvas;
-import openmui.ui.canvas_kit;
+import openmui.ui.canvas.kit;
 import openmui.showcase.wall;
 import openmui.showcase.styles;
 import openmui.theme.styles;
@@ -49,7 +49,7 @@ struct Dashboard {
             const Signal<std::int64_t> t = tick;
             cards.push_back(column({.id = std::format("c{}", i), .padding = 6, .gap = 3, .background = "surface", .border_color = "border",
                                     .border_width = 1, .radius = 6, .translate_y = lift,
-                                    .animate = {{"translate_y", Transition::tween(seconds(0.5), anim::ease::linear)}}},
+                                    .animate = {{"translate_y", Transition::tween(seconds(0.5), hanim::ease::linear)}}},
                                    {
                                        row({.id = "head", .gap = 4, .align = "center"},
                                            {
@@ -735,7 +735,7 @@ void add_framework_benchmarks() {
         s.items(n);
         double t = 0;
         while (s.next()) {
-            const GlyphFrame f = glyph_frame(m, anim::seconds(t += 0.016), runs);
+            const GlyphFrame f = glyph_frame(m, hanim::seconds(t += 0.016), runs);
             s.counter("moving", f.moving ? 1 : 0);
         }
     });

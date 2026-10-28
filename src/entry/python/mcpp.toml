@@ -26,16 +26,16 @@ sources = ["src/*.cppm", "src/*.cpp"]
 shared = "self-contained"
 
 [dependencies]
-openmui.sdk         = { path = "../../.." }
-openmui.abi         = { path = "../../../runtime/abi" }
-openmui.lang.python = { path = "../../../lang/python" }  # and openmui.lang, through it (a TOML key cannot be both)
-openmui.ui.markdown = { path = "../../../components/markdown" }
-openmui.image       = { path = "../../../modules/image" }
-openmui.native.fuzzy = { path = "../../../natives/fuzzy" }
-openmui.theme.default = { path = "../../../themes/default" }
-openmui.theme.compact = { path = "../../../themes/compact" }
+openmui.sdk           = { path = "../../.." }
+openmui.abi           = { path = "../../../modules/ui/abi" }
+openmui.lang.python   = { path = "../../../lang/python" }  # and openmui.lang, through it (a TOML key cannot be both)
+openmui.ui.markdown   = { path = "../../../components/markdown" }
+openmui.image         = { path = "../../../modules/base/image" }
+openmui.native.fuzzy  = { path = "../../../modules/ui/native/fuzzy" }
+openmui.theme.default = { path = "../../../modules/ui/theme/default" }
+openmui.theme.compact = { path = "../../../modules/ui/theme/compact" }
 nlohmann.json       = "3.12.0"
 mcpplibs.os         = "0.1.2"
 
 [dev-dependencies]
-openmui.testing = { path = "../../../tests/support" }
+openmui.testing = { path = "../../../modules/base/testing" }

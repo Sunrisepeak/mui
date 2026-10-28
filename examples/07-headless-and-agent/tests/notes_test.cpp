@@ -116,7 +116,7 @@ int main(int argc, char** argv) {
     });
 
     s.test("a recorded session replays exactly", [] {
-        record::Session session;
+        session::Session session;
         std::uint64_t end = 0;
         {
             App a(HeadlessLevel::pixels);

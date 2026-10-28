@@ -1,0 +1,31 @@
+# openmui.theme — themes as data (view-data-files §3, component-binding §11):
+# `*.theme.omui.toml` files declare themes (light, dark) and overlays
+# (density, reduced motion); a library composes layers into the runtime's
+# Theme, with every mistake reported where it is. Theme packages
+# (modules/ui/theme/default, modules/ui/theme/compact) are such files, embedded.
+[package]
+namespace   = "openmui"
+name        = "theme"
+version     = "0.1.0"
+description = "Themes as data: *.theme.omui.toml read, checked and composed into openmui's design tokens"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "runtime"
+
+[targets.openmui-theme]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+
+[dependencies]
+openmui.core   = { path = "../core" }
+openmui.view   = { path = "../view" }
+hanim          = { path = "../../base/hanim" }
+openmui.render = { path = "../../gfx/render" }
+marzer.tomlplusplus = "3.4.0"
+
+[dev-dependencies]
+openmui.testing = { path = "../../base/testing" }

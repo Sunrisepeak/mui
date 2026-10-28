@@ -121,15 +121,15 @@ int main(int argc, char** argv) {
         const auto f = world::Camera::fit({0, 0, 1600, 600}, vp, 0, 0.01, 100);
         check(f.zoom == 0.5 && f.x == 800 && f.y == 300);
         // A spring arrives exactly, and is between before.
-        const world::CameraMotion m({0, 0, 1}, {1000, 500, 4}, anim::seconds(1));
-        check(m.at(anim::seconds(1)) == world::Camera{0, 0, 1});
-        const auto mid = m.at(anim::seconds(1.1));
+        const world::CameraMotion m({0, 0, 1}, {1000, 500, 4}, hanim::seconds(1));
+        check(m.at(hanim::seconds(1)) == world::Camera{0, 0, 1});
+        const auto mid = m.at(hanim::seconds(1.1));
         check(mid.x > 0 && mid.x < 1000 && mid.zoom > 1 && mid.zoom < 4);
-        check(m.settled(anim::seconds(10)) && m.at(anim::seconds(10)) == world::Camera{1000, 500, 4});
+        check(m.settled(hanim::seconds(10)) && m.at(hanim::seconds(10)) == world::Camera{1000, 500, 4});
         // A fling glides the way it was thrown and stops.
-        const world::Inertia fling({0, 0, 2}, {-600, 0}, anim::seconds(0));
-        const auto later = fling.at(anim::seconds(0.2)), end = fling.at(anim::seconds(5));
-        check(later.x > 0 && end.x > later.x && fling.settled(anim::seconds(5)));
+        const world::Inertia fling({0, 0, 2}, {-600, 0}, hanim::seconds(0));
+        const auto later = fling.at(hanim::seconds(0.2)), end = fling.at(hanim::seconds(5));
+        check(later.x > 0 && end.x > later.x && fling.settled(hanim::seconds(5)));
         check(std::abs(end.x - 600.0 / 6.0 / 2.0) < 2, std::format("a fling of 600 px/s at zoom 2 glides ~50 world units, not {}", end.x));
     });
 
@@ -386,7 +386,7 @@ int main(int argc, char** argv) {
         h.step({PointerEvent{.kind = PointerKind::move, .position = {280, 300}, .buttons = 1}});
         h.step({PointerEvent{.kind = PointerKind::up, .position = {280, 300}, .button = MouseButton::left}});
         const double released = x.get();
-        h.advance(anim::seconds(0.2));
+        h.advance(hanim::seconds(0.2));
         const double gliding = x.get();
         h.settle();
         check(gliding > released && x.get() > gliding, std::format("glides: {} → {} → {}", released, gliding, x.get()));

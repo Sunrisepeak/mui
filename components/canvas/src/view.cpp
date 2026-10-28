@@ -5,7 +5,7 @@ import openmui.core;
 import openmui.view;
 import openmui.render;
 import openmui.raster;
-import openmui.anim;
+import hanim;
 import openmui.trace;
 
 namespace omui {
@@ -113,7 +113,7 @@ void Canvas::set_camera(const Camera& c) {
     changed();
 }
 
-void Canvas::animate_to(const Camera& c, anim::SpringParams params) {
+void Canvas::animate_to(const Camera& c, hanim::SpringParams params) {
     refit_ = false;
     const Camera to{c.x, c.y, std::clamp(c.zoom, props.min_zoom, props.max_zoom)};
     // Retargeted mid-flight, it keeps its velocity.
@@ -153,7 +153,7 @@ void Canvas::changed() {
 // layout), so the promoted nodes move with the camera in the same frame.
 void Canvas::schedule() {
     if (tick_) return;
-    tick_ = services().after(anim::seconds(0), [this] {
+    tick_ = services().after(hanim::seconds(0), [this] {
         tick_ = 0;
         step();
     });
@@ -170,7 +170,7 @@ void Canvas::step() {
         if (textures_.busy()) schedule();
         return;
     }
-    const anim::seconds t = services().now();
+    const hanim::seconds t = services().now();
     if (motion_) {
         camera_ = motion_->at(t);
         if (motion_->settled(t)) motion_.reset();
@@ -279,7 +279,7 @@ void Canvas::place() {
         }
     }
     if (deferred && !promote_timer_)
-        promote_timer_ = services().after(anim::seconds(promote_after), [this] {
+        promote_timer_ = services().after(hanim::seconds(promote_after), [this] {
             promote_timer_ = 0;
             place();
             services().invalidate_paint(node());
@@ -618,7 +618,7 @@ bool Canvas::on_event(EventContext& ctx, const InputEvent& e) {
                 if (!travelled_) return true;  // a tap's jitter does not pan
                 camera_.pan(delta);
                 // The pointer's velocity, smoothed, for the fling.
-                const anim::seconds now = services().now();
+                const hanim::seconds now = services().now();
                 const double dt = std::max(1e-3, (now - last_move_).count());
                 last_move_ = now;
                 velocity_ = {static_cast<float>(velocity_.x * 0.5 + delta.x / dt * 0.5), static_cast<float>(velocity_.y * 0.5 + delta.y / dt * 0.5)};

@@ -12,7 +12,7 @@ export namespace omui::gen {
 
 // spec/include/openmui.h — the C ABI.
 [[nodiscard]] std::string emit_c_header(const Registry& reg);
-// openmui.h's types, functions and their layout check, for runtime/abi.
+// openmui.h's types, functions and their layout check, for modules/ui/abi.
 [[nodiscard]] std::string emit_abi_types(const Registry& reg);
 [[nodiscard]] std::string emit_abi_functions(const Registry& reg);
 [[nodiscard]] std::string emit_abi_layout(const Registry& reg);

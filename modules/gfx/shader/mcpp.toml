@@ -1,0 +1,38 @@
+# openmui.shader — Slang shaders to omui.rhi shader descriptions (D-34): every
+# entry point compiled by slangc to the formats a target's backends take,
+# resources from Slang's reflection checked against rhi's binding convention,
+# the result as a C++ module partition (omui-shader, which openmui.shader.rules
+# runs in a build) or in memory (a shader edited while the program runs).
+# slangc is mcpp's to provision (xim:slang); build.mcpp hands its path to the
+# library, so neither a build nor a test needs it on PATH.
+[package]
+namespace   = "openmui"
+name        = "shader"
+version     = "0.1.0"
+description = "Slang shaders to omui.rhi shader descriptions: compiled per backend format, bindings checked, emitted as C++"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "backend"
+
+[targets.openmui-shader]
+kind = "lib"
+
+[targets.omui-shader]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[xlings.workspace]
+"xim:slang" = ">=2026.14.1"
+
+[dependencies]
+openmui.rhi   = { path = "../rhi" }
+mcpplibs.os   = "0.1.2"
+nlohmann.json = "3.12.0"
+
+[dev-dependencies]
+openmui.testing = { path = "../../base/testing" }

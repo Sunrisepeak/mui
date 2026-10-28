@@ -4,7 +4,7 @@ module openmui.showcase.wall;
 import std;
 import openmui;
 import openmui.ui.canvas;
-import openmui.ui.canvas_kit;
+import openmui.ui.canvas.kit;
 import openmui.ui.markdown;
 
 namespace omui::wall {

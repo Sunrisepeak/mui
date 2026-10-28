@@ -32,7 +32,7 @@ public:
 
 private:
     Services*          services_ = nullptr;
-    anim::Set::Channel channel_;
+    hanim::Set::Channel channel_;
     double             target_ = 0;
 };
 

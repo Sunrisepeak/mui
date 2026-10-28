@@ -177,6 +177,22 @@ struct CinematicLook {
         bool  on = false;
         Color color = Color::hex(0xffffff, 0.8f);
     } cracks;
+    // Time standing still (刻's): over the frames [from, to) the picture is
+    // drawn grey (toward `tint`), and sparks of hits in it stop where they
+    // are; from `to` (the bell) they go on, and the colour is back.
+    struct Stop {
+        std::int32_t from = -1, to = -1;
+        Color        tint = Color::hex(0xc9c3b6);
+    } stop;
+    // A clock's face over [from, to]: from where the lock began (forward, up),
+    // `size` across; its hands go round while time runs and stand while it
+    // stands.
+    struct ClockFace {
+        std::int32_t from = -1, to = -1;
+        Point        at;
+        float        size = 200;
+        Color        color = Color::hex(0xd4af37);
+    } clock;
     // The picture falling apart: from `frame`, `count` pieces of it fall,
     // turning and fading.
     struct Fall {
@@ -222,6 +238,16 @@ struct Look {
         Color shine = Color::hex(0xffffff, 0.5f);
         Color reflect = Color::hex(0xffd36b, 0.9f);
     } pane;
+    // Time (刻): its clone drawn in a tint; a rewind leaving `ghosts` along
+    // the way back, fading over `frames`.
+    struct CloneLook {
+        Color tint = Color::hex(0xd4af37, 0.45f);
+    } clone;
+    struct Rewind {
+        Color        color = Color::hex(0xd4af37, 0.5f);
+        std::int32_t ghosts = 0;
+        std::int32_t frames = 16;
+    } rewind;
     // A heavy fighter's footfalls (a giant): walking, the camera dips on each
     // step (every `every` frames of its walk clip) by `dip`, back over `frames`.
     struct Footfall {
@@ -239,6 +265,7 @@ struct Look {
         float       size = 60;
         Color       color = Color::hex(0x101114);
         Color       halo = Color::transparent();  // a glow behind it, to read on a dark stage (transparent: none)
+        float       spin = 0;                      // degrees a frame it turns as it flies (a clock's hand)
     };
     std::map<std::string, GlyphProjectile, std::less<>>      projectiles;
     // Bound to a fighter (bind): its FighterDef::impacts index → impacts' (−1: none).

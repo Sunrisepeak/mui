@@ -248,6 +248,23 @@ public:
     // draw) whose frames vary in size allocates nothing below it.
     void reserve(std::size_t commands) { commands_.reserve(commands); }
 
+    // Recolours the commands [from, to): `f` maps each solid paint's colour
+    // and each shadow's (a picture drawn, then turned grey, tinted, faded —
+    // whoever drew it). Gradients and images keep theirs.
+    template <class F>
+    void recolor(std::size_t from, std::size_t to, F&& f) {
+        for (std::size_t i = from; i < std::min(to, commands_.size()); ++i)
+            std::visit(
+                [&](auto& c) {
+                    if constexpr (requires { c.paint; }) {
+                        if (c.paint.kind == Paint::Kind::solid) c.paint.color = f(c.paint.color);
+                    } else if constexpr (requires { c.color; }) {
+                        c.color = f(c.color);
+                    }
+                },
+                commands_[i]);
+    }
+
 private:
     Paint own(const Paint& p);
     PathView own(const Path& p);

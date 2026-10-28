@@ -45,6 +45,28 @@ int main(int argc, char** argv) {
         check(moved.bounds() == geom::Rect{5, 5, 100, 40});
     });
 
+    s.test("a range of a list recoloured: its solid paints and shadows, not the commands around it", [] {
+        render::DisplayList dl;
+        dl.fill_rect({0, 0, 10, 10}, render::Paint::solid(geom::Color::hex(0xff0000)));
+        dl.fill_rect({0, 0, 10, 10}, render::Paint::solid(geom::Color::hex(0x00ff00)));
+        dl.box_shadow({0, 0, 10, 10}, {}, {2, 2}, 4, 0, geom::Color::hex(0x0000ff), false);
+        dl.fill_rect({0, 0, 10, 10}, render::Paint::solid(geom::Color::hex(0xffff00)));
+        const auto grey = [](geom::Color c) {
+            const float y = 0.2126f * c.r + 0.7152f * c.g + 0.0722f * c.b;
+            return geom::Color{y, y, y, c.a};
+        };
+        dl.recolor(1, 3, grey);
+        auto colour = [&](std::size_t i) {
+            return std::visit([](const auto& c) -> geom::Color {
+                if constexpr (requires { c.paint; }) return c.paint.color;
+                else if constexpr (requires { c.color; }) return c.color;
+                else return {};
+            }, dl.commands()[i]);
+        };
+        check(colour(0) == geom::Color::hex(0xff0000) && colour(3) == geom::Color::hex(0xffff00), "outside the range: as drawn");
+        check(colour(1).r == colour(1).g && colour(1).g == colour(1).b && colour(2).r == colour(2).b, "inside: grey");
+    });
+
     s.test("lists hash by content and stay balanced", [] {
         auto build = [](render::DisplayList& dl, float x) {
             dl.begin_node(1);

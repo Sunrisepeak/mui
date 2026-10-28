@@ -59,16 +59,20 @@ namespace {
 using data::Diagnostic;
 
 constexpr std::string_view format_version = "0.1";
-constexpr std::array<std::string_view, 17> look_keys{"gongfu", "name", "outline", "accent", "trail", "glow", "footfall", "pane", "palette", "bone", "part", "clip", "impact",
+constexpr std::array<std::string_view, 19> look_keys{"gongfu", "name", "outline", "accent", "trail", "glow", "footfall", "pane", "clone", "rewind", "palette", "bone", "part", "clip", "impact",
                                                      "glyph", "cinematic", "projectile", "doc"};
 constexpr std::array<std::string_view, 3> trail_keys{"color", "frames", "alpha"};
 constexpr std::array<std::string_view, 2> glow_keys{"color", "width"};
 constexpr std::array<std::string_view, 3> footfall_keys{"every", "dip", "frames"};
 constexpr std::array<std::string_view, 4> pane_keys{"glass", "edge", "shine", "reflect"};
-constexpr std::array<std::string_view, 4> projectile_look_keys{"glyph", "size", "color", "halo"};
+constexpr std::array<std::string_view, 1> clone_keys{"tint"};
+constexpr std::array<std::string_view, 3> rewind_keys{"color", "ghosts", "frames"};
+constexpr std::array<std::string_view, 3> stop_keys{"from", "to", "tint"};
+constexpr std::array<std::string_view, 5> clock_keys{"from", "to", "at", "size", "color"};
+constexpr std::array<std::string_view, 5> projectile_look_keys{"glyph", "size", "color", "halo", "spin"};
 constexpr std::array<std::string_view, 2> stroke_keys{"points", "width"};
-constexpr std::array<std::string_view, 16> cinematic_keys{"attacker", "defender", "backdrop", "camera", "glyph", "seal", "flash", "scanlines",
-                                                          "attacker_path", "defender_path", "quake", "ring", "prism", "cracks", "fall", "doc"};
+constexpr std::array<std::string_view, 18> cinematic_keys{"attacker", "defender", "backdrop", "camera", "glyph", "seal", "flash", "scanlines",
+                                                          "attacker_path", "defender_path", "quake", "ring", "prism", "cracks", "fall", "stop", "clock", "doc"};
 constexpr std::array<std::string_view, 5> prism_keys{"images", "spread", "from", "to", "tint"};
 constexpr std::array<std::string_view, 1> cracks_keys{"color"};
 constexpr std::array<std::string_view, 3> fall_keys{"frame", "count", "color"};
@@ -530,6 +534,16 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
         if (auto c = r.colour(t->get("shine"), "a pane's `shine`")) look.pane.shine = *c;
         if (auto c = r.colour(t->get("reflect"), "a pane's `reflect`")) look.pane.reflect = *c;
     }
+    if (const toml::table* t = r.table_of(root->get("clone"), "`clone`")) {
+        r.only(*t, clone_keys, "`clone`");
+        if (auto c = r.colour(t->get("tint"), "a clone's `tint`")) look.clone.tint = *c;
+    }
+    if (const toml::table* t = r.table_of(root->get("rewind"), "`rewind`")) {
+        r.only(*t, rewind_keys, "`rewind`");
+        if (auto c = r.colour(t->get("color"), "a rewind's `color`")) look.rewind.color = *c;
+        if (auto v = r.integer(t->get("ghosts"), "a rewind's `ghosts`", 0, 12)) look.rewind.ghosts = static_cast<std::int32_t>(*v);
+        if (auto v = r.integer(t->get("frames"), "a rewind's `frames`", 1, 120)) look.rewind.frames = static_cast<std::int32_t>(*v);
+    }
     if (const toml::table* t = r.table_of(root->get("footfall"), "`footfall`")) {
         r.only(*t, footfall_keys, "`footfall`");
         if (auto v = r.integer(t->get("every"), "a footfall's `every`", 1, 600)) look.footfall.every = static_cast<std::int32_t>(*v);
@@ -612,6 +626,20 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
                     r.only(*cr, cracks_keys, "cracks");
                     c.cracks.on = true;
                     if (auto v = r.colour(cr->get("color"), "the cracks' `color`")) c.cracks.color = *v;
+                }
+                if (const toml::table* st = r.table_of(t->get("stop"), "a cinematic's `stop`")) {
+                    r.only(*st, stop_keys, "a stop");
+                    if (auto v = r.integer(st->get("from"), "a stop's `from`", 0, 1200)) c.stop.from = static_cast<std::int32_t>(*v);
+                    if (auto v = r.integer(st->get("to"), "a stop's `to`", 0, 1200)) c.stop.to = static_cast<std::int32_t>(*v);
+                    if (auto v = r.colour(st->get("tint"), "a stop's `tint`")) c.stop.tint = *v;
+                }
+                if (const toml::table* ck = r.table_of(t->get("clock"), "a cinematic's `clock`")) {
+                    r.only(*ck, clock_keys, "a clock");
+                    if (auto v = r.integer(ck->get("from"), "a clock's `from`", 0, 1200)) c.clock.from = static_cast<std::int32_t>(*v);
+                    if (auto v = r.integer(ck->get("to"), "a clock's `to`", 0, 1200)) c.clock.to = static_cast<std::int32_t>(*v);
+                    if (auto v = r.pair(ck->get("at"), "a clock's `at`", "at = [120, 300]: forward and up")) c.clock.at = {static_cast<float>((*v)[0]), static_cast<float>((*v)[1])};
+                    if (auto v = r.number(ck->get("size"), "a clock's `size`", 10, 2000)) c.clock.size = static_cast<float>(*v);
+                    if (auto v = r.colour(ck->get("color"), "a clock's `color`")) c.clock.color = *v;
                 }
                 if (const toml::table* fa = r.table_of(t->get("fall"), "a cinematic's `fall`")) {
                     r.only(*fa, fall_keys, "a fall");
@@ -729,6 +757,7 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
                 if (auto v = r.number(t->get("size"), "a projectile's `size`", 1, 2000)) g.size = static_cast<float>(*v);
                 if (auto v = r.colour(t->get("color"), "a projectile's `color`")) g.color = *v;
                 if (auto v = r.colour(t->get("halo"), "a projectile's `halo`")) g.halo = *v;
+                if (auto v = r.number(t->get("spin"), "a projectile's `spin` (degrees a frame)", -90, 90)) g.spin = static_cast<float>(*v);
                 look.projectiles.insert_or_assign(std::string(name.str()), std::move(g));
             }
         } else {
@@ -755,6 +784,9 @@ std::string write_look(const Look& look) {
     if (look.pane.glass != Look::Pane{}.glass || look.pane.edge != Look::Pane{}.edge || look.pane.shine != Look::Pane{}.shine || look.pane.reflect != Look::Pane{}.reflect)
         s += std::format("pane = {{ glass = {}, edge = {}, shine = {}, reflect = {} }}\n", colour_text(look.pane.glass), colour_text(look.pane.edge),
                          colour_text(look.pane.shine), colour_text(look.pane.reflect));
+    if (look.clone.tint != Look::CloneLook{}.tint) s += std::format("clone = {{ tint = {} }}\n", colour_text(look.clone.tint));
+    if (look.rewind.ghosts > 0)
+        s += std::format("rewind = {{ color = {}, ghosts = {}, frames = {} }}\n", colour_text(look.rewind.color), look.rewind.ghosts, look.rewind.frames);
     if (look.footfall.dip > 0) s += std::format("footfall = {{ every = {}, dip = {}, frames = {} }}\n", look.footfall.every, look.footfall.dip, look.footfall.frames);
     for (std::size_t p = 0; p < look.palettes.size(); ++p) {
         s += std::format("\n[[palette]]\nname = \"{}\"\n", p < look.palette_names.size() ? look.palette_names[p] : std::string());
@@ -817,6 +849,7 @@ std::string write_look(const Look& look) {
     {
         s += std::format("\n[projectile.{}]\nglyph = \"{}\"\nsize = {}\ncolor = {}\n", key_text(name), g.glyph, g.size, colour_text(g.color));
         if (g.halo.a > 0) s += std::format("halo = {}\n", colour_text(g.halo));
+        if (g.spin != 0) s += std::format("spin = {}\n", g.spin);
     }
     constexpr std::array<std::string_view, 3> flash_text{"none", "white", "invert"};
     for (const auto& [name, c] : look.cinematics) {
@@ -852,6 +885,10 @@ std::string write_look(const Look& look) {
             s += std::format("prism = {{ images = {}, spread = {}, from = {}, to = {}, tint = {} }}\n", c.prism.images, c.prism.spread, c.prism.from, c.prism.to,
                              colour_text(c.prism.tint));
         if (c.cracks.on) s += std::format("cracks = {{ color = {} }}\n", colour_text(c.cracks.color));
+        if (c.stop.from >= 0) s += std::format("stop = {{ from = {}, to = {}, tint = {} }}\n", c.stop.from, c.stop.to, colour_text(c.stop.tint));
+        if (c.clock.from >= 0)
+            s += std::format("clock = {{ from = {}, to = {}, at = [{}, {}], size = {}, color = {} }}\n", c.clock.from, c.clock.to, c.clock.at.x, c.clock.at.y,
+                             c.clock.size, colour_text(c.clock.color));
         if (c.fall.frame >= 0) s += std::format("fall = {{ frame = {}, count = {}, color = {} }}\n", c.fall.frame, c.fall.count, colour_text(c.fall.color));
         if (c.seal_frame >= 0)
             s += std::format("seal = {{ frame = {}, at = [{}, {}], size = {}, color = {} }}\n", c.seal_frame, c.seal_at.x, c.seal_at.y, c.seal_size, colour_text(c.seal_color));

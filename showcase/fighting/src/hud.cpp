@@ -133,7 +133,7 @@ void boxes(render::DisplayList& out, const gongfu::Match& match, const p2::Scene
     }
     for (const auto& p : st.p) {
         if (!p.alive) continue;
-        const auto& m = match.fighter(p.owner).def.moves[static_cast<std::size_t>(p.move)];
+        const auto& m = match.fighter(p.from).def.moves[static_cast<std::size_t>(p.move)];  // its thrower's, turned back or not
         for (const auto& b : m.projectile->hit.boxes) outline(gongfu::place(b, p.pos, p.facing), tone(0xf24e5a));
     }
 }

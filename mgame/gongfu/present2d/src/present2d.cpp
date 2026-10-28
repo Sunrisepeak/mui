@@ -370,7 +370,7 @@ void Effects::record(const Match& match) {
     slot.f = match.state().f;
     for (const Event& e : match.events()) kept_.push_back({match.state().frame, e});
     // A few seconds is all a picture reads.
-    const std::int32_t keep_from = match.state().frame - 120;
+    const std::int32_t keep_from = match.state().frame - 240;  // a cinematic's sparks may stand still a while
     std::erase_if(kept_, [&](const Kept& k) { return k.frame < keep_from; });
 }
 
@@ -751,6 +751,8 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
     }
     const View view{scene, camera};
 
+    const std::size_t first = out.size();  // where this picture's commands begin (a stop turns them grey)
+
     // The stage: sky, floor, the ground line, and marks along it that move with the camera.
     const std::array<render::GradientStop, 2> sky{{{0, scene.sky_top}, {1, scene.sky_bottom}}};
     render::Paint sky_paint;
@@ -790,6 +792,39 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         }
     }
 
+    // A clock's face: its hands go round while time runs, and stand while it stands.
+    if (cine && cine->clock.from >= 0 && st.lock.frame >= cine->clock.from && st.lock.frame <= cine->clock.to) {
+        const auto& ck = cine->clock;
+        const double in = std::min({1.0, (st.lock.frame - ck.from) / 8.0, (ck.to - st.lock.frame) / 8.0 + 0.0001});
+        const Color colour = fade(ck.color, std::max(0.0, in));
+        const Point c = view.at(stage(st.lock.x) + st.lock.facing * ck.at.x, stage(st.lock.y) + ck.at.y);
+        const float r = view.size(ck.size / 2);
+        path_.clear();
+        circle(path_, c, r);
+        out.fill_path(path_, render::FillRule::nonzero, render::Paint::solid(fade(Color::hex(0x101014), 0.55 * std::max(0.0, in))));
+        out.stroke_path(path_, {.width = view.size(4)}, render::Paint::solid(colour));
+        for (int h = 0; h < 12; ++h) {
+            const double a = dm::two_pi * h / 12;
+            const float inner = h % 3 == 0 ? 0.78f : 0.86f;
+            path_.clear();
+            path_.move_to({c.x + r * inner * static_cast<float>(dm::sin(a)), c.y - r * inner * static_cast<float>(dm::cos(a))})
+                .line_to({c.x + r * 0.95f * static_cast<float>(dm::sin(a)), c.y - r * 0.95f * static_cast<float>(dm::cos(a))});
+            out.stroke_path(path_, {.width = view.size(h % 3 == 0 ? 4.f : 2.f), .cap = render::LineCap::round}, render::Paint::solid(colour));
+        }
+        // Time on its face: running, standing over the stop, then running again.
+        std::int32_t t = st.lock.frame;
+        if (cine->stop.from >= 0 && t >= cine->stop.from) t = cine->stop.from + std::max(0, t - cine->stop.to);
+        for (const auto& [turn, length, width] : {std::tuple{t * 6.0, 0.82f, 2.5f}, std::tuple{330 + t * 0.5, 0.6f, 5.f}}) {
+            const double a = turn * dm::pi / 180;
+            path_.clear();
+            path_.move_to(c).line_to({c.x + r * length * static_cast<float>(dm::sin(a)), c.y - r * length * static_cast<float>(dm::cos(a))});
+            out.stroke_path(path_, {.width = view.size(width), .cap = render::LineCap::round}, render::Paint::solid(colour));
+        }
+        path_.clear();
+        circle(path_, c, view.size(6));
+        out.fill_path(path_, render::FillRule::nonzero, render::Paint::solid(colour));
+    }
+
     // Afterimages: during a move, the poses of a few frames before, fading (from the states the Effects keep).
     if (!cine)
         for (std::int32_t i = 0; i < 2; ++i) {
@@ -803,6 +838,27 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
                 body(look, match.fighter(i), *then, st.frame - look.trail.frames[n], scene, view.cam, out, {}, 0, fade(look.trail.color, a));
             }
         }
+
+    // Clones (G-21), in their side's tint; a rewind's ghosts along the way back (G-20).
+    for (std::int32_t i = 0; i < 2; ++i) {
+        const Look& look = i == 0 ? left : right;
+        const Clone& c = st.clones[static_cast<std::size_t>(i)];
+        if (c.alive) body(look, match.fighter(i), c.body, st.frame, scene, view.cam, out, {}, 0, look.clone.tint);
+        if (look.rewind.ghosts <= 0) continue;
+        for (const Effects::Kept& k : effects.kept()) {
+            const std::int32_t age = st.frame - k.frame;
+            if (k.event.kind != Event::Kind::rewind || k.event.attacker != i || age < 0 || age >= look.rewind.frames) continue;
+            const FighterState& now = st.f[static_cast<std::size_t>(i)];
+            for (std::int32_t g = 1; g <= look.rewind.ghosts; ++g) {
+                const double u = static_cast<double>(g) / (look.rewind.ghosts + 1);
+                FighterState ghost = now;
+                ghost.pos.x = k.event.at.x + Fixed::raw(static_cast<std::int32_t>(std::lround((now.pos.x - k.event.at.x).to_double() * u * Fixed::one_bits)));
+                ghost.pos.y = Fixed{};
+                const double a = (1 - static_cast<double>(age) / look.rewind.frames) * (0.4 + 0.6 * u);
+                body(look, match.fighter(i), ghost, st.frame - g * 3, scene, view.cam, out, {}, 0, fade(look.rewind.color, a));
+            }
+        }
+    }
 
     // The fighters (in a cinematic, each plays the clip it says, at the lock's frame).
     for (std::int32_t i = 0; i < 2; ++i) {
@@ -911,11 +967,15 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
             if (auto strokes = look.glyphs.find(g->glyph); strokes != look.glyphs.end()) {
                 // Flying, the ink bleeds a little more each frame (into its halo, if it has one).
                 const double spread = 1.0 + std::min(0.25, pr.frame * 0.004);
+                if (g->spin != 0)  // turning about its middle as it flies
+                    out.push_transform(omui::geom::Affine::translate(c.x, c.y) * render::rotate(g->spin * pr.frame * dm::pi / 180 * pr.facing) *
+                                       omui::geom::Affine::translate(-c.x, -c.y));
                 if (g->halo.a > 0) glyph(strokes->second, 1.0, c, view.size(g->size), g->halo, out, 2.4f);
                 Color bleed = g->color;
                 bleed.a *= 0.18f;
                 glyph(strokes->second, 1.0, c, view.size(g->size * static_cast<float>(spread)), bleed, out);
                 glyph(strokes->second, 1.0, c, view.size(g->size), g->color, out);
+                if (g->spin != 0) out.pop_transform();
                 continue;
             }
         }
@@ -971,13 +1031,27 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         }
     }
 
-    // Sparks and flashes, each contact as its impact profile says.
+    // Sparks and flashes, each contact as its impact profile says. A spark of
+    // a hit while time stands still (a cinematic's stop) stands still a few
+    // frames in, and goes on from the bell.
+    const std::int32_t stop_from = cine && cine->stop.from >= 0 ? st.frame - st.lock.frame + cine->stop.from : 0;
+    const std::int32_t stop_to = cine && cine->stop.from >= 0 ? st.frame - st.lock.frame + cine->stop.to : 0;
     for (const Effects::Kept& k : effects.kept()) {
         const std::int32_t age = st.frame - k.frame;
         const Event& e = k.event;
         if (age < 0 || !contact(e.kind)) continue;
         const Impact& im = impact_for(look_of(e, left, right), e);
-        if (age < im.spark_frames) spark(k, im, age, view, path_, out);
+        std::int32_t spark_age = age;
+        if (k.frame >= stop_from && k.frame < stop_to) {
+            // Held in the air: each where its own number puts it about the hit, so the hits hang apart.
+            spark_age = std::min(std::min(st.frame, stop_to) - k.frame, 3) + std::max(0, st.frame - stop_to);
+            Effects::Kept held = k;
+            held.event.at.x += Fixed::raw(static_cast<std::int32_t>(std::lround((scatter(k, 7) - 0.5) * 140 * Fixed::one_bits)));
+            held.event.at.y += Fixed::raw(static_cast<std::int32_t>(std::lround((scatter(k, 8) - 0.5) * 140 * Fixed::one_bits)));
+            if (spark_age < im.spark_frames) spark(held, im, spark_age, view, path_, out);
+        } else if (spark_age < im.spark_frames) {
+            spark(k, im, spark_age, view, path_, out);
+        }
         if (im.flash != Flash::none && age < im.flash_frames) {
             if (im.flash == Flash::white) {
                 const float a = static_cast<float>(0.65 * (1 - static_cast<double>(age) / im.flash_frames));
@@ -1079,6 +1153,16 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         }
         // Who flashes, over the dimming.
         body(look, match.fighter(flasher), f, st.frame, scene, view.cam, out);
+    }
+
+    // Time standing still: the whole picture grey, toward the stop's tint (its brightness kept).
+    if (cine && cine->stop.from >= 0 && st.lock.frame >= cine->stop.from && st.lock.frame < cine->stop.to) {
+        const Color tint = cine->stop.tint;
+        const float top = std::max({tint.r, tint.g, tint.b, 1e-3f});
+        out.recolor(first, out.size(), [&](Color c) {
+            const float y = 0.2126f * c.r + 0.7152f * c.g + 0.0722f * c.b;
+            return Color{std::min(1.f, y * tint.r / top), std::min(1.f, y * tint.g / top), std::min(1.f, y * tint.b / top), c.a};
+        });
     }
 }
 

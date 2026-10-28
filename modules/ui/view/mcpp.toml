@@ -34,7 +34,7 @@ openmui.text     = { path = "../../content/text" }
 openmui.trace    = { path = "../../base/trace" }
 openmui.pipeline = { path = "../../base/pipeline" }
 openmui.i18n     = { path = "../../content/i18n" }
-mcpplibs.os      = "0.1.2"
+mcpplibs.os      = "0.2.2"
 
 [dev-dependencies]
 openmui.testing = { path = "../../base/testing" }

@@ -36,4 +36,4 @@ openmui.testing = { path = "../../../base/testing" }
 openmui.image   = { path = "../../../base/image" }
 openmui.rhi.sdl = { path = "../../rhi/sdl" }
 openmui.trace   = { path = "../../../base/trace" }
-mcpplibs.os     = "0.1.2"
+mcpplibs.os     = "0.2.2"

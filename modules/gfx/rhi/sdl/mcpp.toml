@@ -27,4 +27,4 @@ mcpplibs.mwrap.sdl3 = "3.4.18"
 [dev-dependencies]
 openmui.testing = { path = "../../../base/testing" }
 openmui.rhi.cts = { path = "../cts" }
-mcpplibs.os     = "0.1.2"
+mcpplibs.os     = "0.2.2"

@@ -1,0 +1,25 @@
+# mgame.physics — swept collision for games that rewind and roll back (S4
+# design G-2): when a moving circle first touches a box, from which side,
+# and what it bounces off with — exact times, so a ball moves from one
+# collision to the next (event by event) and is where it is at any instant
+# by a formula, not by a sampled step. Doubles with only the operations IEEE
+# rounds exactly (+ − × ÷ √), no contraction, no fast math, no libm: the same
+# bits on every platform. The standard library alone.
+[package]
+namespace   = "mgame"
+name        = "physics"
+version     = "0.1.0"
+description = "Swept circles against boxes: exact times of impact, sides and bounces, the same bits on every platform"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[targets.mgame-physics]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dev-dependencies]
+openmui.testing = { path = "../../modules/base/testing" }

@@ -67,6 +67,11 @@ members = [
     "mgame/gongfu/training",
     "mgame/gongfu/ai",
     "mgame/net",
+    "mgame/world",
+    "mgame/sim",
+    "mgame/input",
+    "mgame/physics",
+    "mgame/ui",
     "components/base",
     "components/canvas",
     "components/canvas/kit",
@@ -102,6 +107,7 @@ members = [
     "showcase/fighting",
     "showcase/markdown-wall",
     "showcase/style-gallery",
+    "showcase/widget-breakout/sim",
 ]
 
 # Sanitizers (plan §19.1 "内存"): AddressSanitizer and UndefinedBehavior-
@@ -167,7 +173,7 @@ openmui.host.headless = { path = "modules/ui/host/headless" }
 openmui.host.sdl3     = { path = "modules/ui/host/sdl3" }
 "openmui.i18n"        = { path = "modules/content/i18n" }
 "openmui.i18n.cldr"   = { path = "modules/content/i18n/cldr" }
-mcpplibs.os           = "0.1.2"
+mcpplibs.os           = "0.2.2"
 
 # The root package has no test programs of its own: tests/ holds members
 # (modules/base/testing, and the cross-member suites), each discovered by itself.

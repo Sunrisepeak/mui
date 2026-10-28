@@ -29,4 +29,4 @@ openmui.trace = { path = "../../base/trace" }
 openmui.testing = { path = "../../base/testing" }
 openmui.rhi.sdl = { path = "../rhi/sdl" }
 openmui.memory  = { path = "../../base/memory" }
-mcpplibs.os     = "0.1.2"
+mcpplibs.os     = "0.2.2"

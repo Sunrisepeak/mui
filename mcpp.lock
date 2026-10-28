@@ -5,30 +5,6 @@
 # file must not change depending on which command ran last.
 version = 2
 
-[package."openkal"]
-namespace = "mcpplibs"
-version = "0.17.0"
-source  = "index+mcpplibs@0.17.0"
-hash    = "fnv1a:d9a6fe1043f0f4d5"
-
-[package."openkal-linux"]
-namespace = "mcpplibs"
-version = "0.18.0"
-source  = "index+mcpplibs@0.18.0"
-hash    = "fnv1a:2947b74ddbcf8b79"
-
-[package."mcpplibs.os"]
-namespace = "mcpplibs"
-version = "0.1.2"
-source  = "index+mcpplibs@0.1.2"
-hash    = "fnv1a:d94d45a50504951a"
-
-[package."nlohmann.json"]
-namespace = "nlohmann"
-version = "3.12.0"
-source  = "index+nlohmann@3.12.0"
-hash    = "fnv1a:65af05f998b1b9d7"
-
 [package."compat.concurrentqueue"]
 namespace = "compat"
 version = "1.0.5"
@@ -76,6 +52,12 @@ namespace = "compat"
 version = "0.5.3"
 source  = "index+compat@0.5.3"
 hash    = "fnv1a:dcc5c2d1d2b47bd3"
+
+[package."compat.miniaudio"]
+namespace = "compat"
+version = "0.11.25"
+source  = "index+compat@0.11.25"
+hash    = "fnv1a:6c8ae057496981a3"
 
 [package."compat.quickjs-ng"]
 namespace = "compat"
@@ -191,6 +173,24 @@ version = "0.0.2"
 source  = "index+mcpplibs@0.0.2"
 hash    = "fnv1a:aad61299abc2c4b7"
 
+[package."openkal"]
+namespace = "mcpplibs"
+version = "0.17.1"
+source  = "index+mcpplibs@0.17.1"
+hash    = "fnv1a:d9a6fd1043f0f322"
+
+[package."openkal-linux"]
+namespace = "mcpplibs"
+version = "0.18.2"
+source  = "index+mcpplibs@0.18.2"
+hash    = "fnv1a:2947b54ddbcf8813"
+
+[package."mcpplibs.os"]
+namespace = "mcpplibs"
+version = "0.2.2"
+source  = "index+mcpplibs@0.2.2"
+hash    = "fnv1a:d0be96a5003305cb"
+
 [package."mcpplibs.mwrap.concurrentqueue"]
 namespace = "mcpplibs.mwrap"
 version = "1.0.5"
@@ -221,6 +221,12 @@ version = "0.5.3"
 source  = "index+mcpplibs.mwrap@0.5.3"
 hash    = "fnv1a:23e80030c05427e1"
 
+[package."mcpplibs.mwrap.miniaudio"]
+namespace = "mcpplibs.mwrap"
+version = "0.11.25"
+source  = "index+mcpplibs.mwrap@0.11.25"
+hash    = "fnv1a:638898a9cc007151"
+
 [package."mcpplibs.mwrap.quickjs_ng"]
 namespace = "mcpplibs.mwrap"
 version = "0.17.0"
@@ -238,6 +244,12 @@ namespace = "mcpplibs.mwrap"
 version = "3.0.0"
 source  = "index+mcpplibs.mwrap@3.0.0"
 hash    = "fnv1a:c52f25d6e64707eb"
+
+[package."nlohmann.json"]
+namespace = "nlohmann"
+version = "3.12.0"
+source  = "index+nlohmann@3.12.0"
+hash    = "fnv1a:65af05f998b1b9d7"
 
 [package."openlifa.openas"]
 namespace = "openlifa"

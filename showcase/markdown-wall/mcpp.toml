@@ -45,4 +45,4 @@ openmui.testing  = { path = "../../modules/base/testing" }
 openmui.abi      = { path = "../../modules/ui/abi" }
 openmui.lang.lua = { path = "../../lang/lua" }
 openmui.lang.js  = { path = "../../lang/js" }
-mcpplibs.os      = "0.1.2"
+mcpplibs.os      = "0.2.2"

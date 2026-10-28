@@ -91,7 +91,8 @@ int main(int argc, char** argv) {
         if (!sounds) return;
         auto named = [&](std::string_view n) { return *std::ranges::find(*sounds, n, &audio::Sound::name); };  // by name: a file's sounds come in name order
         check(sounds->size() == 2 && named("punch").layers.size() == 2 && named("bell").bus == "music");
-        const audio::Layer& thump = named("punch").layers[1];
+        const audio::Sound punch = named("punch");  // a copy: kept while its layer is read
+        const audio::Layer& thump = punch.layers[1];
         check(thump.pitch[0] == 170 && thump.pitch[1] == 55 && thump.drive == 0.3f, "the thump falls from 170 to 55 Hz");
         check_near(named("punch").length(), 0.16, 1e-6);
         const std::string written = audio::write_sounds(*sounds);

@@ -40,7 +40,7 @@ gongfu                  = { path = "../../mgame/gongfu" }
 openmui.theme.styles    = { path = "../../modules/ui/theme/styles" }
 "openmui.rhi"           = { path = "../../modules/gfx/rhi" }
 "openmui.rhi.sdl"       = { path = "../../modules/gfx/rhi/sdl" }
-mcpplibs.os           = "0.1.2"
+mcpplibs.os           = "0.2.2"
 
 [dev-dependencies]
 openmui.testing = { path = "../../modules/base/testing" }

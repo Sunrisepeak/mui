@@ -1,0 +1,27 @@
+# mgame.ui — a game inside openmui (structure, render, web and game design §7):
+# its steps paced on the runtime's clock (a timer at the next step due, every
+# step due taken, a stall not owed, frames asked for while it runs), and
+# openmui's keys and pointer given to mgame.input — what the interface does not
+# use, the game gets (D-76). The only mgame package that knows openmui.
+[package]
+namespace   = "mgame"
+name        = "ui"
+version     = "0.1.0"
+description = "A game inside openmui: its steps paced on the runtime's clock, openmui's keys and pointer given to its actions"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[targets.mgame-ui]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+openmui.core = { path = "../../modules/ui/core" }
+openmui.view = { path = "../../modules/ui/view" }
+mgame.input = { path = "../input" }
+mgame.sim   = { path = "../sim" }
+
+[dev-dependencies]
+openmui.testing = { path = "../../modules/base/testing" }

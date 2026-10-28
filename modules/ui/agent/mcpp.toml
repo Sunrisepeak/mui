@@ -26,7 +26,7 @@ openmui.view     = { path = "../view" }
 openmui.semantic = { path = "../semantic" }
 openmui.trace    = { path = "../../base/trace" }
 openmui.pipeline = { path = "../../base/pipeline" }
-mcpplibs.os      = "0.1.2"
+mcpplibs.os      = "0.2.2"
 
 [dev-dependencies]
 openmui.testing = { path = "../../base/testing" }

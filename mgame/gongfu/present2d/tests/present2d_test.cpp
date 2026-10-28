@@ -515,6 +515,124 @@ angle.fore = [[0, 0], [10, 90]]
         check(!b2 && has(texts(b2.error()), "is not inside picture"), b2 ? "read" : std::format("{}", texts(b2.error())));
     });
 
+    s.test("a grip (two-bone IK): the back hand stays on the staff wherever the front arm swings it; let go, the arm hangs as the clip has it; a file that reads back as itself", [] {
+        const std::string text = R"(gongfu = "0.1"
+name = "grip"
+
+[[bone]]
+name = "body"
+joint = [0, 100]
+length = 60
+rest = 90
+
+[[bone]]
+name = "front"
+parent = "body"
+joint = [50, -6]
+length = 40
+rest = -120
+
+[[bone]]
+name = "staff"
+parent = "front"
+joint = [40, 0]
+length = 120
+rest = 60
+
+[[bone]]
+name = "upper"
+parent = "body"
+joint = [50, 6]
+length = 40
+rest = 180
+
+[[bone]]
+name = "lower"
+parent = "upper"
+joint = [40, 0]
+length = 40
+
+[[bone]]
+name = "thigh"
+parent = "body"
+joint = [0, 0]
+length = 55
+rest = 180
+
+[[bone]]
+name = "shin"
+parent = "thigh"
+joint = [55, 0]
+length = 55
+
+[[grip]]
+name = "hands"
+upper = "upper"
+lower = "lower"
+target = "staff"
+at = 20
+bend = -1
+
+[[grip]]
+name = "foot"
+upper = "thigh"
+lower = "shin"
+target = "ground"
+at = 10
+
+[clip.aimed]
+frames = 10
+ease = "linear"
+aim.front = [[0, -30], [10, 10]]
+grip_at.foot = [[0, 10], [10, 30]]
+
+[clip.swing]
+frames = 20
+ease = "linear"
+angle.front = [[0, 0], [20, 80]]
+grip.hands = [[0, 1], [10, 1], [20, 0]]
+)";
+        auto look = p2::read_look(text, "grip.look.gongfu.toml");
+        check(look.has_value(), look ? "" : std::format("{}", texts(look.error())));
+        if (!look) return;
+        const std::string written = p2::write_look(*look);
+        auto again = p2::read_look(written, "written.look.gongfu.toml");
+        check(again && p2::write_look(*again) == written, again ? written : std::format("{}", texts(again.error())));
+        for (const std::int32_t facing : {1, -1}) {
+            FighterState st;
+            st.facing = facing;
+            p2::Pose pose;
+            for (const std::int32_t t : {0, 5, 10}) {
+                p2::pose_clip(*look, "swing", t, st, pose);
+                const p2::BonePlace& staff = pose[2];
+                const double hx = staff.joint.x + 20 * std::cos(staff.angle), hy = staff.joint.y + 20 * std::sin(staff.angle);
+                const double miss = std::hypot(pose[4].tip.x - hx, pose[4].tip.y - hy);
+                check(miss < 0.01, std::format("facing {}, frame {}: the hand is {} from its place on the staff", facing, t, miss));
+                check(std::hypot(pose[4].joint.x - pose[3].tip.x, pose[4].joint.y - pose[3].tip.y) < 0.01, "the forearm hangs from the elbow");
+            }
+            // The foot on the ground where the fighter stands, `at` ahead (stepping in clip `aimed`).
+            for (const auto& [clip, t, ahead] : {std::tuple{"swing", 0, 10.0}, std::tuple{"aimed", 5, 20.0}, std::tuple{"aimed", 10, 30.0}}) {
+                p2::pose_clip(*look, clip, t, st, pose);
+                check(std::hypot(pose[6].tip.x - ahead * facing, pose[6].tip.y) < 0.01, std::format("facing {}: the foot at ({}, {})", facing, pose[6].tip.x, pose[6].tip.y));
+            }
+            // Aimed: the arm's angle to the world, whatever the body does (mirrored facing left).
+            p2::pose_clip(*look, "aimed", 0, st, pose);
+            const double want = facing > 0 ? -std::numbers::pi / 6 : std::numbers::pi + std::numbers::pi / 6;
+            check(std::abs(std::remainder(pose[1].angle - want, 2 * std::numbers::pi)) < 1e-9, std::format("aimed: {}", pose[1].angle));
+            p2::pose_clip(*look, "swing", 20, st, pose);  // let go: the arm as the clip has it (straight down the back)
+            check(std::abs(std::remainder(pose[3].angle + std::numbers::pi / 2, 2 * std::numbers::pi)) < 1e-6,
+                  std::format("let go, the upper arm hangs straight down: {}", pose[3].angle));
+        }
+        std::string bad = text;
+        bad.replace(bad.find("lower = \"lower\""), 15, "lower = \"staff\"");
+        auto b1 = p2::read_look(bad, "bad.look.gongfu.toml");
+        check(!b1 && has(texts(b1.error()), "is not a child of `upper`"), b1 ? "read" : std::format("{}", texts(b1.error())));
+        bad = text;
+        bad.replace(bad.find("grip.hands"), 10, "grip.hand");
+        auto b2 = p2::read_look(bad, "bad.look.gongfu.toml");
+        check(!b2 && has(texts(b2.error()), "holds `hand`, which is no grip"), b2 ? "read" : std::format("{}", texts(b2.error())));
+    });
+
     s.test("a stage's art: layers by parallax, generators from a seed, sway and flicker by the frame, the world's light; a file that reads back as itself", [&] {
         const std::string text = R"(gongfu = "0.1"
 name = "test"

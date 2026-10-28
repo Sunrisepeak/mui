@@ -257,18 +257,37 @@ bool Rasterizer::prepare(const Polygons& polygons, PixelRect clip) {
     width_ = x1 - x0;
     height_ = y1 - y0;
 
-    // Edges left of the clip keep their winding in the first column; edges
-    // right of it fall in the extra column and change no visible pixel.
-    std::int32_t max_sub = width_ * one;
-    auto sx = [&](float v) { return std::clamp(to_sub(v) - min_x_ * one, 0, max_sub); };
-    auto sy = [&](float v) { return to_sub(v) - min_y_ * one; };
+    // An edge is cut where it crosses the clip's sides: what lies left of the
+    // clip runs down its first column (keeping its winding), what lies right
+    // of it down the extra column (changing no visible pixel), and the part
+    // between is the edge itself — not a line to its clamped end, which
+    // would tilt it.
+    const std::int64_t max_sub = static_cast<std::int64_t>(width_) * one;
+    auto sx = [&](float v) { return static_cast<std::int64_t>(to_sub(v)) - static_cast<std::int64_t>(min_x_) * one; };
+    auto sy = [&](float v) { return static_cast<std::int64_t>(to_sub(v)) - static_cast<std::int64_t>(min_y_) * one; };
+    auto piece = [&](std::int64_t x1, std::int64_t y1, std::int64_t x2, std::int64_t y2) {
+        line(static_cast<std::int32_t>(std::clamp<std::int64_t>(x1, 0, max_sub)), static_cast<std::int32_t>(y1),
+             static_cast<std::int32_t>(std::clamp<std::int64_t>(x2, 0, max_sub)), static_cast<std::int32_t>(y2));
+    };
+    auto edge = [&](std::int64_t ax, std::int64_t ay, std::int64_t cx, std::int64_t cy) {
+        std::array<std::int64_t, 2> sides{0, max_sub};
+        if (cx < ax) std::swap(sides[0], sides[1]);  // crossed in the order the edge runs
+        std::int64_t px = ax, py = ay;
+        for (const std::int64_t side : sides)
+            if ((px < side && side < cx) || (cx < side && side < px)) {
+                const std::int64_t y = ay + floor_div((side - ax) * (cy - ay), cx - ax);
+                piece(px, py, side, y);
+                px = side, py = y;
+            }
+        piece(px, py, cx, cy);
+    };
     for (std::size_t pg = 0; pg < polygons.count(); ++pg) {
         auto poly = polygons.polygon(pg);
         if (poly.size() < 2) continue;
         for (std::size_t i = 0; i < poly.size(); ++i) {
             const Point& a = poly[i];
             const Point& c = poly[(i + 1) % poly.size()];
-            line(sx(a.x), sy(a.y), sx(c.x), sy(c.y));
+            edge(sx(a.x), sy(a.y), sx(c.x), sy(c.y));
         }
     }
     // By row, then column; the same cell from several edges adds up.

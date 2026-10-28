@@ -31,6 +31,7 @@ gongfu.present2d = { path = "../present2d" }
 nlohmann.json    = "3.12.0"
 openmui.raster   = { path = "../../../modules/gfx/raster" }
 openmui.image    = { path = "../../../modules/base/image" }
+openmui.render.vector = { path = "../../../modules/gfx/render/vector" }
 
 [dev-dependencies]
 openmui.testing = { path = "../../../modules/base/testing" }

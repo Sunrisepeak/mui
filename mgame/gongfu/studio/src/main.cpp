@@ -22,6 +22,8 @@ import gongfu.data;
 import gongfu.studio;
 import nlohmann.json;
 import openmui.image;
+import openmui.raster;
+import openmui.render.vector;
 
 namespace {
 
@@ -39,7 +41,7 @@ std::string read(const std::filesystem::path& p) {
 
 int usage() {
     std::println(std::cerr, "gongfu-studio bake <dir> | check <dir> | embed <dir> --module <m> --namespace <ns> --out <file> | cut <sheet.png> --out <dir> | "
-                            "sheet <dir> <name> --out <png> | "
+                            "sheet <dir> <name> --out <png> [--clips a,b] [--frames 0,12] [--cell px] [--columns n] [--boxes false] [--palette i] | "
                             "versus <dir> [--rounds <n>] [--seed <s>] [--system <file>]");
     return 2;
 }
@@ -112,10 +114,22 @@ int sheet(const std::filesystem::path& dir, int argc, char** argv) {
     const std::string name = argv[3];
     std::filesystem::path out;
     std::size_t palette = 0;
+    gongfu::studio::SheetOptions options;
+    auto list = [](std::string_view text) {
+        std::vector<std::string> out;
+        for (auto part : text | std::views::split(',')) out.emplace_back(part.begin(), part.end());
+        return out;
+    };
     for (int i = 4; i + 1 < argc; ++i) {
         const std::string_view a = argv[i];
         if (a == "--out") out = path_of(argv[++i]);
         else if (a == "--palette") palette = static_cast<std::size_t>(std::stoul(argv[++i]));
+        else if (a == "--clips") options.clips = list(argv[++i]);
+        else if (a == "--frames")
+            for (const std::string& n : list(argv[++i])) options.frames.push_back(std::stoi(n));
+        else if (a == "--cell") options.cell = std::stof(argv[++i]);
+        else if (a == "--columns") options.columns = std::stoi(argv[++i]);
+        else if (a == "--boxes") options.boxes = std::string_view(argv[++i]) != "false";
     }
     if (out.empty()) return usage();
     const auto file = [&](std::string_view kind) { return dir / path_of(std::format("{}.{}.gongfu.toml", name, kind)); };
@@ -135,7 +149,23 @@ int sheet(const std::filesystem::path& dir, int argc, char** argv) {
         return 1;
     }
     gongfu::present2d::use_palette(*look, palette);
-    auto s = gongfu::studio::sheet(*fighter, *look);
+    // The look's drawn art: its pictures, from beside the look file.
+    omui::render::ImageStore images;
+    for (gongfu::present2d::Picture& pic : look->pictures) {
+        auto img = omui::imageio::load_png(dir / path_of(pic.file));
+        if (!img) {
+            report["ok"] = false;
+            report["problems"] = {std::format("picture `{}` ({}): {}", pic.name, pic.file, img.error())};
+            std::println("{}", report.dump(2));
+            return 1;
+        }
+        omui::imageio::premultiply(*img);
+        std::vector<omui::raster::Rgba8> px(static_cast<std::size_t>(img->width) * static_cast<std::size_t>(img->height));
+        std::memcpy(px.data(), img->rgba.data(), img->rgba.size());
+        pic.ref = images.add(img->width, img->height, std::move(px));
+    }
+    options.images = &images;
+    auto s = gongfu::studio::sheet(*fighter, *look, options);
     if (!s) {
         report["ok"] = false;
         report["problems"] = {s.error()};

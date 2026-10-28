@@ -177,6 +177,30 @@ void pose_clip(const Look& look, std::string_view name, std::int32_t t, const Fi
 
 namespace {
 
+// Bone b placed from its parent's place and its own local angle (out[b].local).
+void place_bone(const Look& look, std::size_t b, const FighterState& s, double rise, double facing, Pose& out) {
+    const Bone& bone = look.bones[b];
+    BonePlace& p = out[b];
+    const double local = p.local;
+    if (bone.parent < 0) {
+        p.joint = {static_cast<float>(stage(s.pos.x) + bone.joint.x * facing), static_cast<float>(stage(s.pos.y) + bone.joint.y + rise)};
+        p.angle = facing > 0 ? local : dm::pi - local;
+    } else {
+        const BonePlace& q = out[static_cast<std::size_t>(bone.parent)];
+        const double ca = dm::cos(q.angle), sa = dm::sin(q.angle);
+        const double jx = bone.joint.x, jy = bone.joint.y * facing;
+        p.joint = {static_cast<float>(q.joint.x + jx * ca - jy * sa), static_cast<float>(q.joint.y + jx * sa + jy * ca)};
+        p.angle = bone.hang ? (facing > 0 ? local : dm::pi - local) : q.angle + facing * local;
+    }
+    p.tip = {static_cast<float>(p.joint.x + bone.length * dm::cos(p.angle)), static_cast<float>(p.joint.y + bone.length * dm::sin(p.angle))};
+}
+
+// The way from angle a to angle b, the short way round (radians, −π to π).
+double turn(double a, double b) noexcept {
+    const double d = b - a;
+    return d - 2 * dm::pi * std::round(d / (2 * dm::pi));
+}
+
 void pose_at(const Look& look, const Clip* clip, std::int32_t t, const FighterState& s, Pose& out, std::span<const double> extra) {
     if (clip) {
         if (clip->loop && clip->frames > 0) t %= clip->frames;
@@ -189,21 +213,53 @@ void pose_at(const Look& look, const Clip* clip, std::int32_t t, const FighterSt
     for (std::size_t b = 0; b < look.bones.size(); ++b) {
         const Bone& bone = look.bones[b];
         double local = bone.rest;
-        if (clip && b < clip->angles.size() && !clip->angles[b].empty()) local += clip->angles[b].value(at);
-        if (b < extra.size()) local += extra[b];
-        local *= dm::pi / 180;  // a look's angles are degrees
-        BonePlace& p = out[b];
-        if (bone.parent < 0) {
-            p.joint = {static_cast<float>(stage(s.pos.x) + bone.joint.x * facing), static_cast<float>(stage(s.pos.y) + bone.joint.y + rise)};
-            p.angle = facing > 0 ? local : dm::pi - local;
-        } else {
-            const BonePlace& q = out[static_cast<std::size_t>(bone.parent)];
-            const double ca = dm::cos(q.angle), sa = dm::sin(q.angle);
-            const double jx = bone.joint.x, jy = bone.joint.y * facing;
-            p.joint = {static_cast<float>(q.joint.x + jx * ca - jy * sa), static_cast<float>(q.joint.y + jx * sa + jy * ca)};
-            p.angle = bone.hang ? (facing > 0 ? local : dm::pi - local) : q.angle + facing * local;
+        if (clip && b < clip->aims.size() && !clip->aims[b].empty()) {
+            // Aimed: to the world as drawn facing right, so to its parent the
+            // difference (a root's and a hanging bone's angle is already the world's).
+            local = clip->aims[b].value(at);
+            if (bone.parent >= 0 && !bone.hang) {
+                const double q = out[static_cast<std::size_t>(bone.parent)].angle;
+                local -= (facing > 0 ? q : dm::pi - q) * 180 / dm::pi;
+            }
+        } else if (clip && b < clip->angles.size() && !clip->angles[b].empty()) {
+            local += clip->angles[b].value(at);
         }
-        p.tip = {static_cast<float>(p.joint.x + bone.length * dm::cos(p.angle)), static_cast<float>(p.joint.y + bone.length * dm::sin(p.angle))};
+        if (b < extra.size()) local += extra[b];
+        out[b].local = local * dm::pi / 180;  // a look's angles are degrees
+        place_bone(look, b, s, rise, facing, out);
+    }
+    // The grips, in order: each chain turned to reach its target (law of
+    // cosines), as much as the clip holds it; what hangs from the chain follows.
+    for (std::size_t g = 0; g < look.grips.size(); ++g) {
+        const Grip& grip = look.grips[g];
+        double weight = 1;
+        if (clip && g < clip->grips.size() && !clip->grips[g].empty()) weight = std::clamp(clip->grips[g].value(at), 0.0, 1.0);
+        if (weight <= 0) continue;
+        const auto u = static_cast<std::size_t>(grip.upper), l = static_cast<std::size_t>(grip.lower);
+        double along_t = grip.at, across_t = grip.across;
+        if (clip && g < clip->grip_at.size() && !clip->grip_at[g].empty()) along_t = clip->grip_at[g].value(at);
+        if (clip && g < clip->grip_across.size() && !clip->grip_across[g].empty()) across_t = clip->grip_across[g].value(at);
+        double tx = 0, ty = 0;
+        if (grip.target < 0) {  // the ground where the fighter stands
+            tx = stage(s.pos.x) + along_t * facing;
+            ty = stage(s.pos.y) + across_t;
+        } else {
+            const BonePlace& tg = out[static_cast<std::size_t>(grip.target)];
+            const double ct = dm::cos(tg.angle), st = dm::sin(tg.angle), across = across_t * facing;
+            tx = tg.joint.x + along_t * ct - across * st, ty = tg.joint.y + along_t * st + across * ct;
+        }
+        const double a = look.bones[u].length, len = look.bones[l].length;
+        const double dx = tx - out[u].joint.x, dy = ty - out[u].joint.y;
+        const double d = std::clamp(dm::sqrt(dx * dx + dy * dy), std::abs(a - len) + 1e-6, a + len - 1e-6);
+        const double c = std::clamp((a * a + d * d - len * len) / (2 * a * d), -1.0, 1.0);
+        const double upper = dm::atan2(dy, dx) + grip.bend * facing * dm::atan2(dm::sqrt(1 - c * c), c);
+        const double ex = out[u].joint.x + a * dm::cos(upper), ey = out[u].joint.y + a * dm::sin(upper);
+        const double lower = dm::atan2(ty - ey, tx - ex);
+        const double up = out[u].angle + weight * turn(out[u].angle, upper);
+        const double low = out[l].angle + weight * turn(out[l].angle, lower);
+        out[u].local += turn(out[u].angle, up) * facing;
+        out[l].local += (turn(out[l].angle, low) - turn(out[u].angle, up)) * facing;
+        for (std::size_t b = u; b < look.bones.size(); ++b) place_bone(look, b, s, rise, facing, out);
     }
 }
 

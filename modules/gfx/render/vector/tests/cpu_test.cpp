@@ -128,6 +128,44 @@ int main(int argc, char** argv) {
         }());
     });
 
+    s.test("a long mesh turned and running out of its clip: drawn whole up to the clip, one quad or many", [] {
+        render::ImageStore images;
+        const auto ref = images.add(400, 200, std::vector<raster::Rgba8>(400 * 200, raster::Rgba8{200, 60, 40, 255}));
+        // A strip of the picture (300 × 40 at 20, 100), turned −25° and scaled 0.6, its far end past the clip.
+        auto strip = [&](int cols, float clip) {
+            std::vector<geom::Point> uv, at;
+            std::vector<std::uint16_t> tri;
+            const float c = std::cos(-0.436f), s = std::sin(-0.436f);
+            for (int j = 0; j <= 1; ++j)
+                for (int i = 0; i <= cols; ++i) {
+                    const float u = 20 + 300.0f * i / cols, v = 100 + 40.0f * j;
+                    uv.push_back({u, v});
+                    const float x = (u - 20) * 0.6f, y = (v - 100) * 0.6f;
+                    at.push_back({20 + x * c - y * s, 120 - (x * s + y * c)});
+                }
+            for (int i = 0; i < cols; ++i) {
+                const auto k = static_cast<std::uint16_t>(i), w = static_cast<std::uint16_t>(cols + 1);
+                for (std::uint16_t v : {k, static_cast<std::uint16_t>(k + 1), static_cast<std::uint16_t>(k + w + 1), k, static_cast<std::uint16_t>(k + w + 1),
+                                        static_cast<std::uint16_t>(k + w)})
+                    tri.push_back(v);
+            }
+            render::DisplayList dl;
+            dl.push_clip({0, 0, clip, 160});
+            dl.draw_mesh(ref, at, uv, tri);
+            dl.pop_clip();
+            raster::Surface out(200, 160);
+            render::CpuRenderer{}.render(dl, out, {&images, nullptr});
+            int painted = 0;
+            for (int y = 0; y < 160; ++y)
+                for (int x = 0; x < 200; ++x) painted += out.at(x, y).a > 128;
+            return painted;
+        };
+        const int whole = strip(1, 400), whole8 = strip(8, 400);
+        const int one = strip(1, 120), many = strip(8, 120);
+        // Eight quads cover a little more (their seams grown half a pixel); no more than that unclipped.
+        check(one > 2000 && std::abs(many - one) <= whole8 - whole, std::format("{} pixels drawn by one quad, {} by eight", one, many));
+    });
+
     s.test("unregistered effects and external textures are skipped and counted (R-3)", [] {
         render::DisplayList dl;
         std::array<float, 1> params{0.5f};

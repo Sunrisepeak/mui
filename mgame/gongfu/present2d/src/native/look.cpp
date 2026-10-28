@@ -59,8 +59,9 @@ namespace {
 using data::Diagnostic;
 
 constexpr std::string_view format_version = "0.1";
-constexpr std::array<std::string_view, 22> look_keys{"gongfu", "name", "outline", "accent", "trail", "glow", "footfall", "pane", "clone", "rewind", "palette", "bone", "part", "clip", "impact",
-                                                     "glyph", "cinematic", "projectile", "doc", "light", "picture", "art_scale"};
+constexpr std::array<std::string_view, 23> look_keys{"gongfu", "name", "outline", "accent", "trail", "glow", "footfall", "pane", "clone", "rewind", "palette", "bone", "part", "clip", "impact",
+                                                     "glyph", "cinematic", "projectile", "doc", "light", "picture", "art_scale", "grip"};
+constexpr std::array<std::string_view, 7> grip_keys{"name", "upper", "lower", "target", "at", "across", "bend"};
 constexpr std::array<std::string_view, 3> picture_keys{"name", "file", "size"};
 constexpr std::array<std::string_view, 6> light_keys{"from", "shade", "darken", "shadow", "rim", "rim_color"};
 constexpr std::array<std::string_view, 4> follow_keys{"lag", "amount", "max", "drag"};
@@ -87,7 +88,7 @@ constexpr std::array<std::string_view, 2> outline_keys{"color", "width"};
 constexpr std::array<std::string_view, 9> bone_keys{"name", "parent", "joint", "length", "rest", "limb", "prop", "follow", "hang"};
 constexpr std::array<std::string_view, 18> part_keys{"bone", "shape", "size", "points", "color", "depth", "doc", "name", "variants", "shade",
                                                     "picture", "source", "anchor", "tip", "mesh", "bend", "blend", "fit"};
-constexpr std::array<std::string_view, 7> clip_keys{"frames", "loop", "ease", "angle", "rise", "doc", "swap"};
+constexpr std::array<std::string_view, 11> clip_keys{"frames", "loop", "ease", "angle", "rise", "doc", "swap", "grip", "aim", "grip_at", "grip_across"};
 constexpr std::array<std::string_view, 8> impact_keys{"shake", "zoom", "flash", "spark", "sound", "rumble", "doc", "name"};
 constexpr std::array<std::string_view, 6> spark_keys{"style", "size", "count", "frames", "color", "counter"};
 constexpr std::array<std::string_view, 5> shape_names{"capsule", "ellipse", "polygon", "curve", "image"};
@@ -273,6 +274,10 @@ hanim::Ease common_ease(const Clip& c) {
         }
     };
     for (const auto& t : c.angles) count(t);
+    for (const auto& t : c.grips) count(t);
+    for (const auto& t : c.aims) count(t);
+    for (const auto& t : c.grip_at) count(t);
+    for (const auto& t : c.grip_across) count(t);
     count(c.rise);
     hanim::Ease best = hanim::ease::linear;
     std::size_t most = 0;
@@ -390,6 +395,38 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
         r.error(n, std::format("no bone is called `{}`", *name), data::nearest_hint(*name, names));
         return std::nullopt;
     };
+
+    // Grips: a two-bone chain whose lower bone ends on a point of another bone.
+    r.tables(root->get("grip"), "grip", "[[grip]] name = \"hands\" upper = \"upper_back\" lower = \"fore_back\" target = \"brush\" at = 12", [&](const toml::table& t) {
+        r.only(t, grip_keys, "a grip");
+        Grip g;
+        if (auto n = r.text(t.get("name"), "a grip's `name`")) g.name = *n;
+        else r.error(&t, "a grip has a `name`");
+        if (std::ranges::any_of(look.grips, [&](const Grip& o) { return o.name == g.name; })) r.error(t.get("name"), std::format("two grips are called `{}`", g.name));
+        if (auto b = bone_index(t.get("upper"), "a grip's `upper`")) g.upper = *b;
+        if (auto b = bone_index(t.get("lower"), "a grip's `lower`")) g.lower = *b;
+        if (const toml::node* tn = t.get("target"); tn && tn->value<std::string>() == "ground") g.target = -1;
+        else if (auto b = bone_index(tn, "a grip's `target`")) g.target = *b;
+        if (!t.get("upper") || !t.get("lower") || !t.get("target")) r.error(&t, "a grip has an `upper`, a `lower` and a `target` bone");
+        if (auto v = r.number(t.get("at"), "a grip's `at`", -10000, 10000)) g.at = static_cast<float>(*v);
+        if (auto v = r.number(t.get("across"), "a grip's `across`", -10000, 10000)) g.across = static_cast<float>(*v);
+        if (auto v = r.number(t.get("bend"), "a grip's `bend`", -1, 1)) {
+            if (*v != 1 && *v != -1) r.error(t.get("bend"), "a grip's `bend` is 1 or -1: the way its middle joint points");
+            else g.bend = static_cast<float>(*v);
+        }
+        if (g.upper >= 0 && g.lower >= 0) {
+            const Bone& up = look.bones[static_cast<std::size_t>(g.upper)];
+            const Bone& low = look.bones[static_cast<std::size_t>(g.lower)];
+            if (low.parent != g.upper) r.error(t.get("lower"), std::format("grip `{}`: `{}` is not a child of `{}`", g.name, low.name, up.name));
+            if (up.hang || low.hang) r.error(&t, std::format("grip `{}`: a hanging bone cannot grip", g.name));
+            for (std::int32_t b = g.target; b >= 0; b = look.bones[static_cast<std::size_t>(b)].parent)
+                if (b == g.upper) {
+                    r.error(t.get("target"), std::format("grip `{}` reaches for `{}`, which hangs from its own chain", g.name, look.bones[static_cast<std::size_t>(g.target)].name));
+                    break;
+                }
+        }
+        look.grips.push_back(std::move(g));
+    });
 
     r.tables(root->get("picture"), "picture", "[[picture]] name = \"body\" file = \"mo/parts.webp\" size = [2048, 2048]", [&](const toml::table& t) {
         r.only(t, picture_keys, "a picture");
@@ -544,25 +581,64 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
                         r.error(sw, std::format("{}'s `swap` is a table of parts", what), "swap.fist = [[0, 0], [4, 1], [10, 0]]");
                     }
                 }
-                if (const toml::node* an = t->get("angle")) {
-                    if (const toml::table* at = an->as_table()) {
-                        c.angles.resize(look.bones.size());
-                        for (const auto& [bone, keys] : *at) {
-                            auto it = std::ranges::find(look.bones, bone.str(), &Bone::name);
-                            if (it == look.bones.end()) {
-                                std::vector<std::string_view> names;
-                                for (const Bone& o : look.bones) names.push_back(o.name);
-                                r.out.push_back({r.file, static_cast<int>(bone.source().begin.line), static_cast<int>(bone.source().begin.column),
-                                                 std::format("{} turns `{}`, which is no bone", what, bone.str()), data::nearest_hint(bone.str(), names)});
-                                continue;
-                            }
-                            if (auto k = r.keys(&keys, std::format("{}'s `angle.{}`", what, bone.str()), ease, c.frames))
-                                c.angles[static_cast<std::size_t>(it - look.bones.begin())] = std::move(*k);
-                        }
-                    } else {
-                        r.error(an, std::format("{}'s `angle` is a table of bones", what), "angle.torso = [[0, 0], [6, 10]]");
+                // Tracks by grip (`grip.<name>`: how much it holds; `grip_at.<name>`, `grip_across.<name>`: where).
+                auto grip_tracks = [&](std::string_view key, std::vector<hanim::Track<double>>& tracks, bool weight) {
+                    const toml::node* gn = t->get(key);
+                    if (!gn) return;
+                    const toml::table* gt = gn->as_table();
+                    if (!gt) {
+                        r.error(gn, std::format("{}'s `{}` is a table of grips", what, key), std::format("{}.hands = [[0, 1], [4, 0]]", key));
+                        return;
                     }
-                }
+                    tracks.resize(look.grips.size());
+                    for (const auto& [grip, keys] : *gt) {
+                        auto it = std::ranges::find(look.grips, grip.str(), &Grip::name);
+                        if (it == look.grips.end()) {
+                            std::vector<std::string_view> names;
+                            for (const Grip& o : look.grips) names.push_back(o.name);
+                            r.out.push_back({r.file, static_cast<int>(grip.source().begin.line), static_cast<int>(grip.source().begin.column),
+                                             std::format("{} holds `{}`, which is no grip", what, grip.str()), data::nearest_hint(grip.str(), names)});
+                            continue;
+                        }
+                        if (auto k = r.keys(&keys, std::format("{}'s `{}.{}`", what, key, grip.str()), ease, c.frames)) {
+                            if (weight)
+                                for (const auto& kk : k->keys())
+                                    if (kk.value < 0 || kk.value > 1) r.error(&keys, std::format("{}'s `{}.{}` holds {}: 0 (let go) to 1 (held)", what, key, grip.str(), kk.value));
+                            tracks[static_cast<std::size_t>(it - look.grips.begin())] = std::move(*k);
+                        }
+                    }
+                };
+                grip_tracks("grip", c.grips, true);
+                grip_tracks("grip_at", c.grip_at, false);
+                grip_tracks("grip_across", c.grip_across, false);
+                // Tracks by bone (`angle.<bone>`: to its parent, from its rest; `aim.<bone>`: to the world).
+                auto bone_tracks = [&](std::string_view key, std::vector<hanim::Track<double>>& tracks) {
+                    const toml::node* an = t->get(key);
+                    if (!an) return;
+                    const toml::table* at = an->as_table();
+                    if (!at) {
+                        r.error(an, std::format("{}'s `{}` is a table of bones", what, key), std::format("{}.torso = [[0, 0], [6, 10]]", key));
+                        return;
+                    }
+                    tracks.resize(look.bones.size());
+                    for (const auto& [bone, keys] : *at) {
+                        auto it = std::ranges::find(look.bones, bone.str(), &Bone::name);
+                        if (it == look.bones.end()) {
+                            std::vector<std::string_view> names;
+                            for (const Bone& o : look.bones) names.push_back(o.name);
+                            r.out.push_back({r.file, static_cast<int>(bone.source().begin.line), static_cast<int>(bone.source().begin.column),
+                                             std::format("{} turns `{}`, which is no bone", what, bone.str()), data::nearest_hint(bone.str(), names)});
+                            continue;
+                        }
+                        if (auto k = r.keys(&keys, std::format("{}'s `{}.{}`", what, key, bone.str()), ease, c.frames))
+                            tracks[static_cast<std::size_t>(it - look.bones.begin())] = std::move(*k);
+                    }
+                };
+                bone_tracks("angle", c.angles);
+                bone_tracks("aim", c.aims);
+                for (std::size_t b = 0; b < c.aims.size() && b < c.angles.size(); ++b)
+                    if (!c.aims[b].empty() && !c.angles[b].empty())
+                        r.error(t, std::format("{} both turns and aims `{}`: one or the other", what, look.bones[b].name));
                 look.clips.insert_or_assign(std::string(name.str()), std::move(c));
             }
         } else {
@@ -972,6 +1048,12 @@ std::string write_look(const Look& look) {
         if (p.depth != 0) s += std::format("depth = {}\n", p.depth);
         if (!p.shade) s += "shade = false\n";
     }
+    for (const Grip& g : look.grips) {
+        s += std::format("\n[[grip]]\nname = \"{}\"\nupper = \"{}\"\nlower = \"{}\"\ntarget = \"{}\"\nat = {}\n", g.name, look.bones.at(static_cast<std::size_t>(g.upper)).name,
+                         look.bones.at(static_cast<std::size_t>(g.lower)).name, g.target < 0 ? std::string("ground") : look.bones.at(static_cast<std::size_t>(g.target)).name, g.at);
+        if (g.across != 0) s += std::format("across = {}\n", g.across);
+        if (g.bend != 1) s += std::format("bend = {}\n", g.bend);
+    }
     for (const auto& [name, c] : look.clips) {
         const hanim::Ease ease = common_ease(c);
         s += std::format("\n[clip.{}]\nframes = {}\n", key_text(name), c.frames);
@@ -982,6 +1064,12 @@ std::string write_look(const Look& look) {
             if (!c.angles[b].empty()) s += std::format("angle.{} = {}\n", key_text(look.bones[b].name), keys_text(c.angles[b], ease));
         for (std::size_t k = 0; k < c.swaps.size() && k < look.parts.size(); ++k)
             if (!c.swaps[k].empty()) s += std::format("swap.{} = {}\n", key_text(look.parts[k].name), keys_text(c.swaps[k], hanim::Ease::stepped(1, hanim::StepPosition::jump_end)));
+        for (std::size_t b = 0; b < c.aims.size() && b < look.bones.size(); ++b)
+            if (!c.aims[b].empty()) s += std::format("aim.{} = {}\n", key_text(look.bones[b].name), keys_text(c.aims[b], ease));
+        for (const auto& [key, tracks] : {std::pair<std::string_view, const std::vector<hanim::Track<double>>*>{"grip", &c.grips}, {"grip_at", &c.grip_at},
+                                          {"grip_across", &c.grip_across}})
+            for (std::size_t g = 0; g < tracks->size() && g < look.grips.size(); ++g)
+                if (!(*tracks)[g].empty()) s += std::format("{}.{} = {}\n", key, key_text(look.grips[g].name), keys_text((*tracks)[g], ease));
     }
     constexpr std::array<std::string_view, 6> sparks{"rays", "ring", "splash", "shards", "bolt", "cracks"};
     constexpr std::array<std::string_view, 3> flashes{"none", "white", "invert"};

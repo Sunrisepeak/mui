@@ -92,6 +92,17 @@ int main(int argc, char** argv) {
         check_eq(c.bounds.x, 0);
     });
 
+    s.test("a slanted edge running out of the clip, either side, is the same edge inside it", [] {
+        raster::PathBuilder pb;  // a long thin triangle across the clip's both sides
+        pb.move_to({-40, 50}).line_to({110, 10}).line_to({100, 40}).close();
+        const auto whole = fill(pb, raster::FillRule::nonzero, {-64, 0, 256, 64});
+        const auto cut = fill(pb, raster::FillRule::nonzero, {0, 0, 64, 64});
+        int differ = 0;
+        for (int y = 0; y < 64; ++y)
+            for (int x = 0; x < 64; ++x) differ += std::abs(at(whole, x, y) - at(cut, x, y)) > 1;
+        check_eq(differ, 0);
+    });
+
     s.test("source-over is exact", [] {
         raster::Surface surf(4, 4);
         surf.clear({0, 0, 255, 255});

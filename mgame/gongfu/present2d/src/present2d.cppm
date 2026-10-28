@@ -127,6 +127,27 @@ struct Clip {
     std::vector<hanim::Track<double>> angles;  // by bone; a missing one keeps its rest
     hanim::Track<double>            rise;
     std::vector<hanim::Track<double>> swaps;   // by part: which drawing (0 its points, n its variant n), held between keys
+    std::vector<hanim::Track<double>> grips;   // by grip: how much it holds, 0–1 (a missing one: fully)
+    // By bone: its angle to the world (degrees, as drawn facing right), not to
+    // its parent — a key pose as an animator sets it, the body turning under it.
+    std::vector<hanim::Track<double>> aims;
+    std::vector<hanim::Track<double>> grip_at, grip_across;  // by grip: where on its target, moving (a foot stepping)
+};
+
+// A grip (two-bone IK): the chain `upper` → `lower` (a shoulder and an elbow,
+// a hip and a knee) turned so the lower bone's tip reaches a point on bone
+// `target` — `at` along it, `across` it — whatever the clip did to them: the
+// back hand stays on the brush wherever the front hand swings it. With no
+// target bone (`target = "ground"`) the point is on the fighter's ground, `at`
+// ahead of where it stands and `across` up: a planted foot. `bend`: the way
+// the middle joint points (+1 or −1, as drawn facing right). A clip's
+// `grip.<name>` keys let go (0) and take hold again (1); its `grip_at.<name>`
+// and `grip_across.<name>` keys move the point (a step).
+struct Grip {
+    std::string  name;
+    std::int32_t upper = -1, lower = -1, target = -1;
+    float        at = 0, across = 0;
+    float        bend = 1;
 };
 
 // A brush stroke of a glyph: a path (in the glyph's 100 × 100 box, y up)
@@ -259,6 +280,7 @@ struct Look {
     float                       art_scale = 0;
     std::vector<Bone>           bones;
     std::vector<Part>           parts;
+    std::vector<Grip>           grips;
     std::map<std::string, Clip, std::less<>> clips;
     Color                       outline = Color::hex(0x101014);
     float                       outline_width = 3;
@@ -349,6 +371,7 @@ void bind(Look& look, const Fighter& fighter);
 struct BonePlace {
     Point  joint, tip;
     double angle = 0;  // on the stage, radians, counter-clockwise from +x
+    double local = 0;  // to its parent (to the world: the root, a hanging bone), radians, as drawn facing right
 };
 using Pose = std::vector<BonePlace>;
 

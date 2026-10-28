@@ -1,0 +1,11 @@
+# The rules of an arcade round.
+gongfu = "0.1"
+scaling = [100, 100, 80, 70, 60, 50, 40, 30]
+counter = { damage = 120, hitstun = 2 }
+round = 99
+stage = { width = 1920, start = 400 }
+meter = 1000
+knockdown = 30
+wakeup = 10
+proximity_guard = 300
+socd = "up_wins"

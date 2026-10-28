@@ -20,3 +20,7 @@ for (const gongfu::Event& e : match.events()) { /* hits, blocks, throws, KO: wha
 - **The state** (`:state`): one block of plain data without padding (checked at compile time); `checksum` is the hash of its bytes.
 
 `tests/gongfu_test.cpp` holds the numbers, the input reading, the data's problems, movement, frame data measured as declared (startup, active, recovery on whiff; advantage on hit and block = stun − what the attacker has left), blocking, cancels and combo scaling, counter hits, throws and breaks, projectiles and clashes, invulnerability — and 10,000 rollbacks of random depth over 10,000 random frames leaving every frame's state the bytes of a run without them. The run's hash is pinned: GCC, LLVM and wasm32-emscripten play those inputs into the same bytes.
+
+## Inside
+
+- [data](data) (`gongfu.data`): characters and rules as files — `*.fighter.gongfu.toml`, `*.system.gongfu.toml` — read with every problem at its line and column, moves in numpad notation (`236P`, `[4]6P`, `2LK`, `LP+LK`).

@@ -78,6 +78,43 @@ int main(int argc, char** argv) {
         check_eq(p.max_intrinsic_width(), w);
     });
 
+    s.test("Chinese typography (CSS Text 4): autospace, punctuation set solid in pairs and at line starts, no 。 starting a line", [] {
+        auto width = [](std::string_view t, bool autospace = true, bool trim = true) {
+            text::ParagraphStyle st = style(20);
+            st.style.autospace = autospace;
+            st.style.trim_punctuation = trim;
+            text::Paragraph p(fonts(), std::string(t), st);
+            return p.max_intrinsic_width();
+        };
+        // 1/8 em between ideographs and Latin letters or digits, on either side.
+        check(std::abs(width("中文Inter") - (width("中文") + width("Inter") + 20.0f / 8)) < 0.01f, "ideograph, then letters");
+        check(std::abs(width("版本2") - (width("版本") + width("2") + 20.0f / 8)) < 0.01f, "ideographs, then a digit");
+        check(std::abs(width("A中") - (width("A") + width("中") + 20.0f / 8)) < 0.01f, "a letter, then an ideograph");
+        check(std::abs(width("中文Inter", false) - (width("中文") + width("Inter"))) < 0.01f, "autospace off");
+        check(std::abs(width("中文，Inter") - (width("中文，") + width("Inter"))) < 0.01f, "punctuation is neither");
+        // A closing mark before another closing mark gives up its empty half: 。」 is 1.5 em, not 2.
+        check(std::abs(width("。」") - 30.0f) < 0.05f, std::format("。」 is {}", width("。」")));
+        check(std::abs(width("。」", true, false) - 40.0f) < 0.05f, "trimming off");
+        // An opening mark after another opening mark: 「（ is 1.5 em.
+        check(std::abs(width("「（") - 30.0f) < 0.05f, std::format("「（ is {}", width("「（")));
+        // One mark alone keeps its full width.
+        check(std::abs(width("（") - 20.0f) < 0.05f);
+        // A line after the first that starts with an opening mark sets it solid at the edge.
+        text::Paragraph quote(fonts(), "一二三四五六七八九十（甲乙丙丁戊己）", style(20));
+        quote.layout(200);  // ten ideographs fill the first line exactly
+        check(quote.lines().size() >= 2, "it wraps");
+        if (quote.lines().size() >= 2) {
+            const auto& second = quote.lines()[1];
+            check(quote.text().substr(second.begin, 3) == "（", "the second line starts with the opening mark");
+            check(!second.runs.empty() && !second.runs.front().glyphs.empty() && second.runs.front().glyphs.front().position.x < -9.0f,
+                  "its empty half lies before the line's edge");
+        }
+        // No closing mark starts a line (UAX #14): 。 stays with the ideograph before it.
+        text::Paragraph sentence(fonts(), "一二三四五六七八九十。甲乙丙丁戊", style(20));
+        sentence.layout(200);
+        for (const auto& line : sentence.lines()) check(sentence.text().substr(line.begin, 3) != "。", "no line starts with 。");
+    });
+
     s.test("wrapping at word boundaries, and inside an overlong word", [] {
         text::Paragraph p(fonts(), "The quick brown fox jumps over the lazy dog", style(16));
         p.layout(120);

@@ -62,7 +62,9 @@ Compared with today's major UI frameworks: Qt (Widgets / QML), Flutter, SwiftUI,
 
 **What**: the i18n engine and its data are separate, and the engine can be released alone; the data is generated from CLDR; messages are MessageFormat 2; English and Chinese are first-class; a language change updates text in place with the same ids.
 
-**Evidence**: `modules/i18n`'s tests agree with CLDR's results; `tr()` means the same in every way of writing a view.
+Chinese typography follows CSS Text 4: autospace between Chinese and Latin text, fullwidth punctuation set solid in pairs and at line starts, no closing mark starting a line.
+
+**Evidence**: `modules/i18n`'s tests agree with CLDR's results; `tr()` means the same in every way of writing a view; `openmui.text`'s Chinese typography tests.
 
 ---
 

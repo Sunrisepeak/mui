@@ -43,6 +43,13 @@ struct TextStyle {
     std::string              language;            // BCP 47, e.g. "zh-Hans", "ar"
     bool                     underline = false;
     bool                     strikethrough = false;
+    // CJK spacing (CSS Text 4, as browsers' defaults): 1/8 em between
+    // ideographs and Latin letters or digits (`text-autospace: normal`); a
+    // fullwidth punctuation mark's empty half set solid beside another mark,
+    // and an opening mark's at the start of a line after the first
+    // (`text-spacing-trim: normal`). Off for text that must keep its columns.
+    bool                     autospace = true;
+    bool                     trim_punctuation = true;
 };
 
 // A style over a byte range; ranges must not overlap.

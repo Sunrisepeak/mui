@@ -120,8 +120,11 @@ void Paragraph::layout(float width) {
                 pending += g.advance;
                 continue;
             }
-            float next = w + pending + g.advance;
-            if (wrap && next > width + 0.001f && i > start) {
+            // An opening mark that starts a line after the first is set solid;
+            // autospace after the line's last grapheme is not there.
+            const float trim = i == start && start > 0 ? g.line_start_trim : 0;
+            float next = w + pending + g.advance - trim;
+            if (wrap && next - g.gap_after > width + 0.001f && i > start) {
                 if (last_break > start) i = last_break;  // the last opportunity in this line
                 break;                                   // else: an overflow break inside the word
             }
@@ -235,11 +238,16 @@ void Paragraph::layout(float width) {
         line.height = height;
         line.baseline = top + ascent;
 
-        // Widths: content (hanging spaces excluded).
+        // Widths: content (hanging spaces excluded); an opening mark's
+        // empty half at the start of a line after the first set solid, no
+        // autospace after the content's last grapheme.
+        const float start_trim = r.begin > 0 && r.begin < vis_end && !rtl ? s.graphemes[r.begin].line_start_trim : 0;
         float content = 0;
         for (std::size_t g = r.begin; g < content_end; ++g) content += s.graphemes[g].advance;
         float full = 0;
         for (std::size_t g = r.begin; g < vis_end; ++g) full += s.graphemes[g].advance;
+        if (content_end > r.begin) content -= start_trim + s.graphemes[content_end - 1].gap_after;
+        full -= start_trim;
         if (line.ellipsized) content += s.ellipsis_width;
 
         // Alignment.
@@ -310,6 +318,7 @@ void Paragraph::layout(float width) {
             // Glyphs of this sub-run, in visual order; letter spacing and
             // justification after each cluster.
             float px = pen;
+            if (start_trim > 0 && sb.g0 == r.begin) px -= start_trim;  // the mark's empty half before the line's edge
             std::uint32_t prev_cluster = std::numeric_limits<std::uint32_t>::max();
             for (std::size_t gi = 0; gi < run.glyphs.size(); ++gi) {
                 const ShapedGlyph& g = run.glyphs[gi];
@@ -333,6 +342,7 @@ void Paragraph::layout(float width) {
             float bx = pen;
             auto place = [&](std::size_t gidx) {
                 float a = s.graphemes[gidx].advance;
+                if (gidx == r.begin) a -= start_trim;
                 if (stretch > 0 && s.graphemes[gidx].space && gidx < content_end) a += stretch;
                 line.graphemes.push_back({s.graphemes[gidx].begin, s.graphemes[gidx].end, bx, bx + a, gr.rtl});
                 bx += a;

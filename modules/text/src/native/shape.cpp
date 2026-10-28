@@ -99,6 +99,8 @@ void shape(Paragraph::Shaped& s) {
         std::uint8_t level;
         hb_script_t  script;
         bool         space, newline;
+        char32_t     first;
+        bool         single;  // one code point
     };
     std::vector<G> gs;
     for (std::size_t i = 0; i + 1 < bounds.size(); ++i) {
@@ -107,7 +109,7 @@ void shape(Paragraph::Shaped& s) {
         std::size_t style = style_at(s, b);
         char32_t first = cluster.empty() ? U' ' : cluster.front();
         FaceId face = s.fonts->select(s.styles[style].families, cluster);
-        gs.push_back({b, e, style, face, level_at[b], script_of(first), is_space(first), is_newline(first)});
+        gs.push_back({b, e, style, face, level_at[b], script_of(first), is_space(first), is_newline(first), first, cluster.size() == 1});
     }
     // Weak scripts (punctuation, digits, marks) join their neighbours' script.
     hb_script_t prev = HB_SCRIPT_COMMON;
@@ -129,6 +131,7 @@ void shape(Paragraph::Shaped& s) {
     s.graphemes.clear();
     s.runs.clear();
     std::vector<hb_script_t> run_scripts;
+    std::vector<std::size_t> run_of(gs.size(), 0);
     for (std::size_t i = 0; i < gs.size();) {
         std::size_t j = i + 1;
         while (j < gs.size() && gs[j].style == gs[i].style && gs[j].face == gs[i].face && gs[j].level == gs[i].level &&
@@ -142,9 +145,91 @@ void shape(Paragraph::Shaped& s) {
         const TextStyle& st = s.styles[run.style];
         run.font = s.fonts->font(gs[i].face, st.weight, st.slant);
         shape_run(s, run, gs[i].script, buf, text);
+        for (std::size_t k = i; k < j; ++k) run_of[k] = s.runs.size();
         s.runs.push_back(std::move(run));
         run_scripts.push_back(gs[i].script);
         i = j;
+    }
+
+    // ── CJK spacing (CSS Text 4): punctuation trimming, then autospace ──
+    // A grapheme's glyphs in its run (left to right: CJK is never RTL here).
+    auto glyphs_of = [&](std::size_t i) -> std::pair<std::size_t, std::size_t> {
+        const ShapedRun& run = s.runs[run_of[i]];
+        std::size_t lo = run.glyphs.size(), hi = 0;
+        for (std::size_t k = 0; k < run.glyphs.size(); ++k)
+            if (run.glyphs[k].cluster >= gs[i].begin && run.glyphs[k].cluster < gs[i].end) {
+                lo = std::min(lo, k);
+                hi = k + 1;
+            }
+        return {lo, hi};
+    };
+    enum class Mark : std::uint8_t { none, opening, closing, middle };
+    std::vector<Mark> mark(gs.size(), Mark::none);
+    std::vector<float> half(gs.size(), 0);
+    hb_unicode_funcs_t* ufuncs = hb_unicode_funcs_get_default();
+    for (std::size_t i = 0; i < gs.size(); ++i) {
+        const G& g = gs[i];
+        if (!g.single || (g.level & 1) || !s.styles[g.style].trim_punctuation) continue;
+        const auto gc = hb_unicode_general_category(ufuncs, g.first);
+        const bool punctuation = gc == HB_UNICODE_GENERAL_CATEGORY_OPEN_PUNCTUATION || gc == HB_UNICODE_GENERAL_CATEGORY_CLOSE_PUNCTUATION ||
+                                 gc == HB_UNICODE_GENERAL_CATEGORY_OTHER_PUNCTUATION || gc == HB_UNICODE_GENERAL_CATEGORY_INITIAL_PUNCTUATION ||
+                                 gc == HB_UNICODE_GENERAL_CATEGORY_FINAL_PUNCTUATION;
+        const auto ea = unicode::east_asian_width(g.first);
+        if (!punctuation || (ea != unicode::Ea::F && ea != unicode::Ea::W)) continue;
+        auto [lo, hi] = glyphs_of(i);
+        if (hi != lo + 1) continue;
+        const ShapedRun& run = s.runs[run_of[i]];
+        const ShapedGlyph& glyph = run.glyphs[lo];
+        const float size = s.styles[g.style].size;
+        if (glyph.advance < size * 0.9f) continue;  // not set fullwidth by this font
+        // Which half the ink is in — the font's design, Simplified or
+        // Traditional (。 sits low left in one, centred in the other).
+        hb_glyph_extents_t ext{};
+        if (!hb_font_get_glyph_extents(static_cast<hb_font_t*>(s.fonts->hb_font(run.font)), glyph.id, &ext)) continue;
+        const float k = size / static_cast<float>(s.fonts->face(s.fonts->face_of(run.font)).units_per_em);
+        const float left = static_cast<float>(ext.x_bearing) * k + glyph.x_offset, right = left + static_cast<float>(ext.width) * k;
+        const float mid = glyph.advance / 2, slack = glyph.advance * 0.05f;
+        mark[i] = right <= mid + slack ? Mark::closing : left >= mid - slack ? Mark::opening : Mark::middle;
+        half[i] = mid;
+    }
+    std::vector<float> line_start(gs.size(), 0);
+    for (std::size_t i = 0; i < gs.size(); ++i) {
+        if (mark[i] == Mark::none) continue;
+        auto [lo, hi] = glyphs_of(i);
+        ShapedGlyph& glyph = s.runs[run_of[i]].glyphs[lo];
+        const Mark next = i + 1 < gs.size() ? mark[i + 1] : Mark::none, prev = i > 0 ? mark[i - 1] : Mark::none;
+        if (mark[i] == Mark::closing && (next == Mark::closing || next == Mark::middle)) {
+            glyph.advance -= half[i];  // its empty right half
+        } else if (mark[i] == Mark::opening && (prev == Mark::opening || prev == Mark::middle)) {
+            glyph.advance -= half[i];  // its empty left half
+            glyph.x_offset -= half[i];
+        } else if (mark[i] == Mark::opening) {
+            line_start[i] = half[i];
+        }
+    }
+    // Autospace: 1/8 em between an ideograph and a Latin letter or digit.
+    auto kind_of = [&](const G& g) -> int {  // 1 ideograph, 2 letter or digit, 0 other
+        if (g.space || g.newline) return 0;
+        const hb_script_t sc = script_of(g.first);
+        const auto gc = hb_unicode_general_category(ufuncs, g.first);
+        const bool letter = gc == HB_UNICODE_GENERAL_CATEGORY_UPPERCASE_LETTER || gc == HB_UNICODE_GENERAL_CATEGORY_LOWERCASE_LETTER ||
+                            gc == HB_UNICODE_GENERAL_CATEGORY_TITLECASE_LETTER || gc == HB_UNICODE_GENERAL_CATEGORY_MODIFIER_LETTER ||
+                            gc == HB_UNICODE_GENERAL_CATEGORY_OTHER_LETTER;
+        const bool digit = gc == HB_UNICODE_GENERAL_CATEGORY_DECIMAL_NUMBER;
+        if (sc == HB_SCRIPT_HAN || sc == HB_SCRIPT_HIRAGANA || sc == HB_SCRIPT_KATAKANA || sc == HB_SCRIPT_BOPOMOFO) return letter ? 1 : 0;
+        const auto ea = unicode::east_asian_width(g.first);
+        return (letter || digit) && ea != unicode::Ea::F && ea != unicode::Ea::W ? 2 : 0;
+    };
+    std::vector<float> gap(gs.size(), 0);
+    for (std::size_t i = 0; i + 1 < gs.size(); ++i) {
+        const G& a = gs[i];
+        const G& b = gs[i + 1];
+        if ((a.level & 1) || (b.level & 1) || !s.styles[a.style].autospace || !s.styles[b.style].autospace) continue;
+        const int ka = kind_of(a), kb = kind_of(b);
+        if (ka == 0 || kb == 0 || ka == kb) continue;
+        gap[i] = s.styles[ka == 1 ? a.style : b.style].size / 8;
+        auto [lo, hi] = glyphs_of(i);
+        if (hi > lo) s.runs[run_of[i]].glyphs[hi - 1].advance += gap[i];
     }
 
     // ── grapheme advances: each cluster's glyphs shared by the graphemes it covers ──
@@ -187,6 +272,10 @@ void shape(Paragraph::Shaped& s) {
     }
     for (Grapheme& g : s.graphemes)
         if (g.newline) g.advance = 0;
+    for (std::size_t i = 0; i < gs.size(); ++i) {
+        s.graphemes[i].gap_after = gap[i];
+        s.graphemes[i].line_start_trim = line_start[i];
+    }
 
     // ── break opportunities before each grapheme ──
     s.break_before.assign(gs.size(), 0);

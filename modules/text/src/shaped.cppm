@@ -35,6 +35,8 @@ struct Grapheme {
     std::size_t run = 0;
     bool        space = false;    // white space (hangs at line ends, stretches when justified)
     bool        newline = false;
+    float       gap_after = 0;        // autospace after it (in `advance`; not at a line's end)
+    float       line_start_trim = 0;  // an opening mark's empty half, set solid when it starts a line after the first
 };
 
 struct Paragraph::Shaped {

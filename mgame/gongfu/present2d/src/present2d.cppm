@@ -105,6 +105,12 @@ private:
     std::vector<Kept> kept_;
 };
 
+// The camera a frame is drawn with: frame_camera's, shaken by a heavy hit.
+[[nodiscard]] Camera view_camera(const Match& match, const Effects& effects, const Scene& scene);
+// A point of the stage (x along it, y up) on the picture (y down), through `camera`:
+// what an overlay (the boxes of training) lines up with.
+[[nodiscard]] Point on_picture(const Scene& scene, const Camera& camera, double x, double y) noexcept;
+
 // The frame: the stage, both fighters, the sparks of recent events and the
 // shake of a heavy hit, into `out` (picture coordinates, y down).
 void draw(const Match& match, const Look& left, const Look& right, const Effects& effects, const Scene& scene, omui::render::DisplayList& out);

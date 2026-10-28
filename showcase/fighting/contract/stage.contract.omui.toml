@@ -1,0 +1,23 @@
+# The stage: a gongfu match played at 60 frames a second, drawn in 2D. A
+# person plays it from the keyboard (P1: W A S D, U I O, J K L; P2: the
+# arrows, Insert Home PageUp, Delete End PageDown); an agent through its actions — the same match, the
+# same frames.
+[contract.stage]
+role = "canvas"
+spec = "0.1"
+doc  = "A fighting game's stage: two fighters at 60 frames a second, from the keyboard or an agent; a training mode's tools."
+
+[contract.stage.props]
+mode   = { type = "string", default = "versus", doc = "versus, or training (the boxes and the frame meter)." }
+paused = { type = "bool", default = false, doc = "Stand still: `step` plays one frame." }
+
+[contract.stage.events]
+round_over = { args = { winner = "i32" } }
+
+[contract.stage.actions]
+restart = { effect = "reversible", doc = "A new round from the start." }
+pause   = { effect = "reversible" }
+resume  = { effect = "reversible" }
+step    = { effect = "reversible", doc = "One frame, while paused." }
+press   = { effect = "reversible", args = { player = "i32", pad = "string" }, doc = "Holds a pad for a player until the next press: a numpad direction and buttons (`6`, `2LK`, `5LP+LK`, `5` to let go)." }
+release = { effect = "reversible", args = { player = "i32" }, doc = "Gives the player back to the keyboard." }

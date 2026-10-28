@@ -24,9 +24,7 @@ double stage(Fixed f) { return f.to_double(); }
 struct View {
     const Scene& scene;
     Camera       cam;
-    [[nodiscard]] Point at(double x, double y) const {
-        return {static_cast<float>(scene.width / 2 + (x - cam.x) * cam.zoom), static_cast<float>(scene.ground - (y - cam.y) * cam.zoom)};
-    }
+    [[nodiscard]] Point at(double x, double y) const { return on_picture(scene, cam, x, y); }
     [[nodiscard]] float size(double s) const { return static_cast<float>(s * cam.zoom); }
 };
 
@@ -159,13 +157,21 @@ void Effects::rewind(std::int32_t frame) {
     std::erase_if(kept_, [&](const Kept& k) { return k.frame >= frame; });
 }
 
-void draw(const Match& match, const Look& left, const Look& right, const Effects& effects, const Scene& scene, render::DisplayList& out) {
-    const State& st = match.state();
+Point on_picture(const Scene& scene, const Camera& cam, double x, double y) noexcept {
+    return {static_cast<float>(scene.width / 2 + (x - cam.x) * cam.zoom), static_cast<float>(scene.ground - (y - cam.y) * cam.zoom)};
+}
+
+Camera view_camera(const Match& match, const Effects& effects, const Scene& scene) {
     Camera cam = frame_camera(match, scene);
-    const Point jolt = shake(effects, st.frame);
+    const Point jolt = shake(effects, match.state().frame);
     cam.x -= jolt.x / cam.zoom;
     cam.y += jolt.y / cam.zoom;
-    const View view{scene, cam};
+    return cam;
+}
+
+void draw(const Match& match, const Look& left, const Look& right, const Effects& effects, const Scene& scene, render::DisplayList& out) {
+    const State& st = match.state();
+    const View view{scene, view_camera(match, effects, scene)};
 
     // The stage: sky, floor, the ground line, and marks along it that move with the camera.
     const std::array<render::GradientStop, 2> sky{{{0, scene.sky_top}, {1, scene.sky_bottom}}};

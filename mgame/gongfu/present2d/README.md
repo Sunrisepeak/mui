@@ -16,3 +16,5 @@ gongfu::present2d::draw(match, left_look, right_look, effects, scene, frame);
 - **The camera** keeps both fighters in view, zooming out as they part and following a jump. **Effects** are drawn from the events kept by frame: rays where a hit lands (red for a counter), a ring for a block or a throw, a flash for a KO, and the shake of a heavy hit.
 
 Every picture is a pure function of the match's state and the kept events, its trigonometry hanim's deterministic functions: `tests/present2d_test.cpp` pins the display lists and the CPU pixels of three frames (the same on GCC and LLVM), checks the jab's reach on its active frames and the mirrored pose, and draws a frame after a rollback the same bytes as before it.
+
+An overlay drawn over the frame (training's boxes) lines up with it through `view_camera` (the camera the frame was drawn with, shake included) and `on_picture` (a point of the stage on the picture).

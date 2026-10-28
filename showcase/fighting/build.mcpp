@@ -1,0 +1,12 @@
+// The stage's contract becomes code, and the fighters' files are carried in
+// the program (openmui.rules).
+import std;
+import mcpp;
+import openmui.rules;
+
+int main() {
+    const bool stage = openmui::rules::components({.module = "openmui.showcase.fighting", .ns = "omui::fighting"});
+    const bool fighters = openmui::rules::embed(
+        {.module = "openmui.showcase.fighting", .ns = "omui::fighting::files", .dir = "fighters", .suffix = ".fighter.gongfu.toml", .tag = "fighter"});
+    return stage && fighters ? 0 : 1;
+}

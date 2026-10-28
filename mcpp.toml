@@ -93,6 +93,7 @@ members = [
     "examples/09-markdown-stream",
     "examples/10-canvas-basics",
     "examples/12-notes",
+    "showcase/fighting",
     "showcase/markdown-wall",
     "showcase/style-gallery",
 ]

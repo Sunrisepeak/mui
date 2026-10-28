@@ -651,7 +651,7 @@ int answer(lua_State* L, const Result<std::vector<Json>>& r) {
     std::string error;
     for (const Json& rec : *r) {
         if (rec.value("kind", "") == "data" && rec.contains("data")) data = &rec["data"];
-        if (rec.value("kind", "") == "error" && error.empty()) error = rec.value("code", "error") + ": " + rec.value("message", "");
+        if (rec.value("kind", "") == "error" && error.empty()) error = rec.value("code", "error") + ": " + rec.value("text", "");
     }
     if (!error.empty()) return failed(L, error);
     if (data) push_json(L, *data);

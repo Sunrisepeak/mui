@@ -105,7 +105,11 @@ void InProcess::give_up() noexcept { impl_->broken.store(true, std::memory_order
 
 InProcess* InProcess::beside(const std::filesystem::path& slangc) {
     static std::mutex lock;
-    static std::map<std::filesystem::path, std::unique_ptr<InProcess>> loaded;  // nullptr: none there
+    // Loaded once and kept for the life of the process, never torn down at
+    // exit: unloading the compiler gains nothing, and once it is unloaded what
+    // it still holds is no longer reachable — a leak checker reports Slang's
+    // own caches as ours.
+    static auto& loaded = *new std::map<std::filesystem::path, std::unique_ptr<InProcess>>();  // nullptr: none there
     if (auto off = os::env::get("OMUI_SLANGC_PROCESS"); off && !off->empty() && *off != "0") return nullptr;
     if (!os::library::supported()) return nullptr;
     std::scoped_lock g(lock);

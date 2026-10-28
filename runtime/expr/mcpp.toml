@@ -22,7 +22,7 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-openmui.spec    = { path = "../../spec" }
+openlifa.openmui = { path = "../../spec" }
 openmui.unicode = { path = "../../modules/unicode" }
 openmui.anim    = { path = "../../modules/anim" }
 openmui.i18n    = { path = "../../modules/i18n" }

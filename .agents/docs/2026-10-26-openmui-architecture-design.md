@@ -466,6 +466,8 @@ M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten，渲�
 | D-75 | 窗口默认用系统的；自绘窗口是完整的深度能力，分两层：`openmui.window`（去掉系统外框、命中测试区域、形状、阴影、状态、输入穿透、与系统的衔接）和 `openmui.ui.window`（框架默认的标题栏、布局、交互、动画、风格）；开发者一行切换，用户可在运行时切换；关闭时应用立即在逻辑上关闭、整窗输入透明，溶解只是呈现（2026-10-28 i18n 设计 §2） |
 | D-76 | 三层：基础（不知道 UI）、引擎服务、框架；openmui 可以作为游戏引擎的 UI 模块嵌入，主循环、时钟、设备、输入都可注入；lint 检查分层（同上 §3） |
 | D-77 | 宿主是插件（D-65）：SDL3 是默认的桌面宿主，不是框架的依赖；运行时、渲染、rhi 抽象和 C ABI 都不依赖它（headless 宿主、引擎嵌入、以后的 Web / 原生宿主）。SDL 缺的窗口系统能力在宿主自己的原生单元里实现，上游缺口用 `upstream` 标签的 issue 记录，不改上游 |
+| D-78 | 规范是 OpenLifa 的开放标准，各自一个仓库：`openlifa/openmui`（本仓库的 `spec/`，git 子模块，和实现一起演进）和 `openlifa/openas`（经 mcpp-index 依赖 `openlifa.openas`）；包名 `openlifa.<标准>`，模块名不变（`openmui.spec`、`openas`）；代码 Apache-2.0，规范文本 CC BY-SA 4.0；每个标准仓库单 PR、全平台 CI。D-04 不变：openmui 规范的 C++ 代码仍只依赖标准库，文本上引用 openas 0.2；actor、效果、信封、授权以 openas 为准 |
+| D-79 | agent 授权（S-11，openas §5）：应用的上限（`AppSpec::agent` / 清单 `agent`，默认 `external`）在构建时定，运行时不能提高；授权由在场的人通过应用自己的界面给出（`agent_access().give`），总线上的请求不能给；`person` 动作任何授权都够不到；决定由运行时调用 `openas::decide` 做出。总线上的读（snapshot、find）不是动词，不受上限约束；不要 agent 的构建去掉总线（`--no-agent`） |
 
 ---
 

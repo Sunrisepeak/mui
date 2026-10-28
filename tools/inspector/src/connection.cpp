@@ -83,7 +83,7 @@ void Connection::call(Value request, Reply reply, std::chrono::milliseconds time
                 records = s->client.call(request, timeout);
             } else {
                 Value e;
-                e.set("kind", "error").set("code", "not-connected").set("message", "no application is connected");
+                e.set("kind", "error").set("code", "not-connected").set("text", "no application is connected");
                 records.push_back(std::move(e));
             }
         }
@@ -116,7 +116,7 @@ bool succeeded(const std::vector<Value>& records) noexcept {
 std::string error_of(const std::vector<Value>& records) {
     for (const Value& r : records)
         if (const Value* k = r.get("kind"); k && k->as_string() == "error")
-            return std::string(r.get("message") ? r.get("message")->as_string() : "an error");
+            return std::string(r.get("text") ? r.get("text")->as_string() : "an error");
     return succeeded(records) ? std::string() : std::string("no answer");
 }
 

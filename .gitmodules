@@ -1,0 +1,4 @@
+[submodule "spec"]
+	path = spec
+	url = https://github.com/openlifa/openmui.git
+	branch = openmui-design

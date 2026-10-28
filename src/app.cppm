@@ -36,6 +36,13 @@ struct AppSpec {
     std::string            source_language = "en";
     std::filesystem::path  messages;
     std::vector<std::pair<std::string, std::string_view>> catalogs;
+    // What agents may do over the bus (spec S-11, openas §5): the cap —
+    // "none", "read", "reversible", "irreversible" or "external" — and the
+    // grants the person gave before (openas's text form, from the
+    // application's settings). The person gives more through the
+    // application's own interface: agent_access().give(…).
+    std::string              agent = "external";
+    std::vector<std::string> grants;
 };
 
 // How to run, from the command line:

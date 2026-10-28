@@ -131,7 +131,7 @@ Json invoke(Runtime& r, std::string_view verb, const Json& args) {
     for (auto line : out | std::views::split('\n')) {
         Json rec = Json::parse(std::string_view(line.begin(), line.end()), nullptr, false);
         if (!rec.is_object()) continue;
-        if (rec.value("kind", "") == "error") return Json{{"runner-error", rec.value("code", "") + ": " + rec.value("message", "")}};
+        if (rec.value("kind", "") == "error") return Json{{"runner-error", rec.value("code", "") + ": " + rec.value("text", "")}};
         if (rec.value("kind", "") == "data" && rec.contains("data")) data = rec["data"];
     }
     return data;

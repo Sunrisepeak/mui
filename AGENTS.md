@@ -12,10 +12,11 @@
   - 依赖写 `openmui.core = { path = "…" }`，命令行写 `mcpp test -p openmui.core`。
   - 库的 target 名（产物名）保持 `openmui-…`，保证产物不重名。
 - 第一阶段不修改 xdesk 或 xlings 仓库。
+- **规范是 OpenLifa 的标准**（D-78）：`spec/` 是 [`openlifa/openmui`](https://github.com/openlifa/openmui) 的 git 子模块（包 `openlifa.openmui`，模块 `openmui.spec`），改规范就在子模块里提交并推到它的单 PR 分支 `openmui-design`，再更新本仓库的子模块指针；openas 是 [`openlifa/openas`](https://github.com/openlifa/openas)，经 mcpp-index 依赖 `openlifa.openas`。标准仓库的提交用 `Sunrisepeak <speakshen@outlook.com>` 并加 `-s`；代码 Apache-2.0，规范文本 CC BY-SA 4.0。本仓库是第一个直接使用这两个标准的实现。
 
 ## 规则（会随着代码落地逐步改成 lint）
 
-- 规范（`spec/`）只依赖标准库。实现层负责把 openmui 和 Luban 的规范（opensal / openas / openbus）连接起来。
+- 规范（`spec/`）只依赖标准库。实现层负责把 openmui 和其他规范（openas / opensal / openbus）连接起来：actor、效果、信封、授权以 openas 0.2 为准，运行时用 `openas::decide` 决定总线上的请求（S-11）。
 - 依赖只能向下：modules ← spec ← runtime ← host；component 只使用 runtime 的公开 API；bridge 只依赖 spec；lang 只依赖 `openmui.h`。
 - **C++23 是基线**；C++26（反射等）只在 `runtime/reflect` 里使用（GCC 16，`-freflection`）。
 - **不用宏，用 constexpr**：平台和特性用清单选择的模块分区 + `inline constexpr` 常量 + `if constexpr`；编译期校验用 `consteval`；断言和日志用函数加 `std::source_location`。唯一的例外是生成的 `openmui.h`。

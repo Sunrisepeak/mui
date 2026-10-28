@@ -228,7 +228,7 @@ std::vector<Value> Client::call(const Value& request, std::chrono::milliseconds 
     line += '\n';
     auto fail = [&](std::string what) {
         Value e;
-        e.set("kind", "error").set("code", spec::error_code::internal).set("message", std::move(what));
+        e.set("kind", "error").set("code", spec::error_code::internal).set("text", std::move(what));
         out.push_back(std::move(e));
         out.push_back(Value{}.set("kind", "result").set("exitCode", spec::exit_code::failure));
         return out;
@@ -250,7 +250,7 @@ std::vector<Value> Client::call(const Value& request, std::chrono::milliseconds 
         const auto left = std::chrono::duration_cast<std::chrono::milliseconds>(deadline - std::chrono::steady_clock::now());
         if (left.count() <= 0) {
             Value e;
-            e.set("kind", "error").set("code", spec::error_code::timeout).set("message", "no answer in time");
+            e.set("kind", "error").set("code", spec::error_code::timeout).set("text", "no answer in time");
             out.push_back(std::move(e));
             out.push_back(Value{}.set("kind", "result").set("exitCode", spec::exit_code::not_ready));
             return out;

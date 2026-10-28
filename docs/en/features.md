@@ -16,11 +16,11 @@ Compared with today's major UI frameworks: Qt (Widgets / QML), Flutter, SwiftUI,
 
 ## 2. Agent-native, and safe
 
-**What**: every application has an agent interface (`openmui.tree@0.1`) and an MCP server (`omui mcp`): Claude Code and other agents read the tree, find nodes, act and wait for the interface to settle. Actions have effect tiers: irreversible and external ones are confirmed by a person (S-1); an action marked `person` is the person's own — only they perform it, at the machine, and no agent can pass as them (S-10).
+**What**: every application has an agent interface (`openmui.tree@0.1`) and an MCP server (`omui mcp`): Claude Code and other agents read the tree, find nodes, act and wait for the interface to settle. Actions have effect tiers: irreversible and external ones are confirmed by a person (S-1); an action marked `person` is the person's own — only they perform it, at the machine, and no agent can pass as them (S-10). The developer sets the application's cap (`AppSpec::agent`, fixed when it is built); the person grants an agent an effect tier over a scope of verbs, through the application's own interface, and what a grant covers needs no confirmation (S-11). The rules are the open standard [openas](https://github.com/openlifa/openas) §5's, decided by `openas::decide`.
 
 **Elsewhere**: no built-in agent interface; screenshots and clicks, or accessibility-API scripting, with no effect tiers and nothing stopping an agent from approving its own request.
 
-**Evidence**: `tools/mcp`'s tests and a real-process end-to-end run in CI; confirmation by MCP elicitation; S-10's protocol tests (a request claiming to be the person is refused).
+**Evidence**: `tools/mcp`'s tests and a real-process end-to-end run in CI; confirmation by MCP elicitation; S-10's protocol tests (a request claiming to be the person is refused); S-11's (beyond the cap refused, an agent in a grant's chain not asked again, any other agent asked as before).
 
 ## 3. Determinism: three platforms, two compilers, the same bytes
 
@@ -75,6 +75,7 @@ Chinese typography follows CSS Text 4: autospace between Chinese and Latin text,
 | Semantic tree as the primary model | ✅ | partly (a11y) | partly (Semantics) | partly | partly | partly (ARIA) | ✗ |
 | Built-in agent interface / MCP | ✅ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
 | Effect tiers, a person's confirmation | ✅ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| Agent grants under a developer's cap (an open standard) | ✅ (openas) | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
 | Byte-identical pixels across platforms | ✅ | ✗ | close (Skia/Impeller; system fonts) | ✗ | ✗ | ✗ | ✗ |
 | Exact record and replay | ✅ | ✗ | ✗ | ✗ | ✗ | partly (tools) | ✗ |
 | Several languages, one tree | ✅ (4 + documents) | C++ / QML / Python | Dart | Swift | Kotlin | JS | C++ |

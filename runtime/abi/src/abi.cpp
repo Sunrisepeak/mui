@@ -187,7 +187,7 @@ OmuiRuntime attach(Runtime& runtime, std::string app_id) {
     r->glyphs = std::make_unique<typeset::GlyphCache>(runtime.fonts());
     agent::ProtocolOptions po;
     po.app = r->app_id;
-    po.default_actor = "script:binding";
+    po.default_actor = "program:binding";
     po.remote = false;  // the program's own scripts, not the bus (S-10)
     r->protocol = std::make_unique<agent::Protocol>(runtime, std::move(po));
     return r.release();
@@ -228,7 +228,7 @@ OmuiResult omuiCreateRuntime(const OmuiRuntimeCreateInfo* info, OmuiRuntime* out
     r->glyphs = std::make_unique<typeset::GlyphCache>(*r->fonts);
     agent::ProtocolOptions po;
     po.app = r->app_id;
-    po.default_actor = "script:binding";
+    po.default_actor = "program:binding";
     po.remote = false;  // the program's own scripts, not the bus (S-10)
     r->protocol = std::make_unique<agent::Protocol>(*r->rt, std::move(po));
     *out = r.release();
@@ -466,7 +466,7 @@ OmuiResult omuiInvoke(OmuiRuntime rt, OmuiString verb, OmuiString args_json, PFN
     if (!args) return OMUI_ERROR_INVALID_ARGUMENT;
     Invocation call;
     call.args = std::move(*args);
-    call.actor = {"script", "binding", {}};
+    call.actor = {"program", "binding", {}};
     const Envelope e = rt->rt->verbs().invoke(text(verb), call);
     send(sink, user, e.ndjson());
     return result_of(e.exit_code().value_or(1), error_code_of(e));

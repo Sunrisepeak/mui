@@ -93,7 +93,9 @@ int main(int argc, char** argv) {
         bench::add_framework_benchmarks();
         const bench::Report report = bench::run({.min_time_ms = 0, .min_iterations = 1, .max_iterations = 1, .warmup = 0});
         check(report.results.size() == bench::cases().size() && report.results.size() >= 12);
-        for (const bench::Result& r : report.results) check(r.iterations == 1 && r.max_ms > 0, r.name);
+        // A benchmark that cannot run here (no GPU) says why; every other runs once.
+        for (const bench::Result& r : report.results)
+            check(r.skipped.empty() ? r.iterations == 1 && r.max_ms > 0 : r.iterations == 0, std::format("{} {}", r.name, r.skipped));
         const bench::Result* frame = report.find("ui/frame/one-label");
         check(frame && frame->metric("nodes").value_or(0) >= 1000 && frame->metric("painted").value_or(0) > 0);
     });

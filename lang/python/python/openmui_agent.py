@@ -178,7 +178,7 @@ class Agent:
                 code = int(record.get("exitCode", 1))
                 if code == 0:
                     return data
-                message = error.get("message", "") if error else f"{op} failed"
+                message = error.get("text", "") if error else f"{op} failed"
                 raise AgentError(message, error.get("code", "") if error else "", code, error.get("data") if error else None)
 
     def _line(self) -> dict[str, Any]:

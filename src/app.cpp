@@ -138,6 +138,27 @@ void languages_of(const AppSpec& app, const RunOptions& o, std::vector<std::stri
     l.request(std::move(requested));
 }
 
+// The application's cap and the grants it starts with (S-11).
+bool agent_access_of(const AppSpec& app) {
+    const auto cap = parse_cap(app.agent);
+    if (!cap) {
+        error("AppSpec::agent `{}` is not a cap (none, read, reversible, irreversible, external)", app.agent);
+        return false;
+    }
+    AgentAccess& access = agent_access();
+    access.set_cap(*cap);
+    access.revoke_all();
+    for (const std::string& text : app.grants) {
+        auto g = openas::parse_grant(text);
+        if (!g) {
+            error("AppSpec::grants `{}` is not a grant (actor=effect[@scope,…], openas §5.5)", text);
+            return false;
+        }
+        access.give(std::move(*g));
+    }
+    return true;
+}
+
 void prepare(Runtime& rt, AppSpec& app) {
     for (VerbSpec& v : app.verbs)
         if (auto r = rt.verbs().add(std::move(v.desc), std::move(v.fn)); !r) warn("verb not added: {}", r.error());
@@ -211,6 +232,7 @@ int run(AppSpec app, const RunOptions& o) {
         }
     } profile{o.profile};
     languages_of(app, o, o.headless ? std::vector<std::string>{} : preferred_locales());
+    if (!agent_access_of(app)) return 2;
     if (o.headless) return headless(std::move(app), o);
     DesktopOptions d;
     d.title = app.title;

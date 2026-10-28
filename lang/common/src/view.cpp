@@ -558,7 +558,7 @@ Result<void> Session::theme(const std::vector<std::string>& layers) {
     std::string out;
     const abi::OmuiResult r = host_.ui([&] { return abi::omuiTheme(host_.runtime(), str(l), collect, &out); });
     for (const Json& rec : records(out))
-        if (rec.value("kind", "") == "error") return std::unexpected(failure(r, rec.value("code", "error") + ": " + rec.value("message", "")));
+        if (rec.value("kind", "") == "error") return std::unexpected(failure(r, rec.value("code", "error") + ": " + rec.value("text", "")));
     if (r < 0) return std::unexpected(failure(r, out));
     return {};
 }
@@ -585,7 +585,7 @@ Result<Json> Session::native(std::string_view module, std::string_view function,
     const abi::OmuiResult r = abi::omuiNativeCall(host_.runtime(), str(module), str(function), str(a), collect, &out);
     Json data = nullptr;
     for (const Json& rec : records(out)) {
-        if (rec.value("kind", "") == "error") return std::unexpected(failure(r, rec.value("code", "error") + ": " + rec.value("message", "")));
+        if (rec.value("kind", "") == "error") return std::unexpected(failure(r, rec.value("code", "error") + ": " + rec.value("text", "")));
         if (rec.value("kind", "") == "data" && rec.contains("data")) data = rec["data"];
     }
     if (r < 0) return std::unexpected(failure(r, out));

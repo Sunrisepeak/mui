@@ -29,7 +29,7 @@ The agent endpoint of an openmui application (spec §9, plan §11):
 → {"op":"find","q":{"role":"button","name":"Delete*"}}
 ← {"kind":"data","data":{"nodes":[{"id":"notes/delete","role":"button","actions":[{"name":"activate","effect":"irreversible","answer":"yes"}]}]}}
 → {"op":"act","node":"notes/delete","action":"activate","actor":"agent:planner;via=person:alice"}
-← {"kind":"error","code":"needs-answer","message":"…","answer":["yes"],"hint":"call again with \"answer\": \"yes\""}
+← {"kind":"error","code":"needs-answer","text":"…","answer":["yes"],"hint":"call again with \"answer\": \"yes\""}
 ← {"kind":"result","exitCode":2}
 ```
 

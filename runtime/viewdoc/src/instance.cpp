@@ -144,7 +144,7 @@ Value evaluated_args(const Env& env, const Op& op) {
 std::string envelope_error(const Envelope& e) {
     for (const spec::Record& r : e.records())
         if (r.kind == spec::RecordKind::error)
-            if (const Value* m = r.body.get("message")) return std::string(m->as_string());
+            if (const Value* m = r.body.get("text")) return std::string(m->as_string());
     return std::format("exit code {}", e.exit_code().value_or(1));
 }
 

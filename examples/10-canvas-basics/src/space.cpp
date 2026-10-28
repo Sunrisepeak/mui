@@ -317,7 +317,7 @@ void Model::go(std::string_view key) const {
     if (!runtime) return;
     omui::Invocation call;
     call.args = omui::Value{}.set("key", omui::Value(key));
-    call.actor = {"user", "space", {}};
+    call.actor = {"program", "space", {}};
     (void)runtime->act(runtime->find("main/map"), "focus_node", call);
 }
 

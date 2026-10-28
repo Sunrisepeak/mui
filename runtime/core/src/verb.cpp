@@ -1,6 +1,7 @@
 module openmui.core;
 
 import std;
+import openas;
 
 namespace omui {
 
@@ -81,7 +82,12 @@ Envelope Verbs::invoke(std::string_view name, const Invocation& call) {
         record(spec::exit_code::failure);
         return person_only(std::format("`{}`", name));
     }
-    if (spec::requires_answer(it->desc.effect) && call.answer != it->desc.answer) {
+    const openas::Decision clear = clearance(name, it->desc.effect, it->desc.person, call);
+    if (clear == openas::Decision::refuse) {
+        record(spec::exit_code::failure);
+        return above_cap(std::format("`{}` ({})", name, spec::name(it->desc.effect)));
+    }
+    if (clear != openas::Decision::run && spec::requires_answer(it->desc.effect) && call.answer != it->desc.answer) {
         record(spec::exit_code::needs_answer);
         return needs_answer(std::format("`{}` ({})", name, spec::name(it->desc.effect)), it->desc.answer);
     }

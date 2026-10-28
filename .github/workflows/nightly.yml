@@ -35,6 +35,8 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Install xlings
         run: |

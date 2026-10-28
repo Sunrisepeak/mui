@@ -27,7 +27,7 @@ sources = ["src/*.cppm", "src/*.cpp", "src/generated/*.cppm", "src/native/*.cpp"
 discover = ["tests/**/*.cpp", "tests/**/*.c"]
 
 [dependencies]
-openmui.spec     = { path = "../../spec" }
+openlifa.openmui = { path = "../../spec" }
 openmui.core     = { path = "../core" }
 openmui.view     = { path = "../view" }
 openmui.viewdoc  = { path = "../viewdoc" }

@@ -19,3 +19,4 @@ export import :primitives;
 export import :immediate;
 export import :glyphs;
 export import :i18n;
+export import :window;

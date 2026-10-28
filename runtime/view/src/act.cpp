@@ -204,7 +204,10 @@ Envelope Runtime::Impl::perform(NodeId id, std::string_view action, const Invoca
         return env;
     }
     if (a && a->person && call.remote) return person_only(std::format("{} on '{}'", action, where));
-    if (a && spec::requires_answer(effect) && call.answer != a->answer)
+    // Over the bus, an action is decided by the verb it invokes, or by its own name (S-11).
+    const openas::Decision clear = clearance(a && !a->verb.empty() ? std::string_view(a->verb) : action, effect, a && a->person, call);
+    if (clear == openas::Decision::refuse) return above_cap(std::format("{} on '{}' ({})", action, where, spec::name(effect)));
+    if (a && clear != openas::Decision::run && spec::requires_answer(effect) && call.answer != a->answer)
         return needs_answer(std::format("{} on '{}' ({})", action, where, spec::name(effect)), a->answer);
     if (a && !a->args.empty())
         if (auto wrong = invalid_arguments(*a, call.args); !wrong.empty()) {
@@ -317,7 +320,9 @@ Envelope Runtime::act_item(NodeId holder, std::string_view key, std::string_view
         return finish(std::move(env));
     }
     if (a->person && call.remote) return finish(person_only(std::format("{} on '{}'", action, where)));
-    if (spec::requires_answer(a->effect) && call.answer != a->answer)
+    const openas::Decision clear = clearance(!a->verb.empty() ? std::string_view(a->verb) : action, a->effect, a->person, call);
+    if (clear == openas::Decision::refuse) return finish(above_cap(std::format("{} on '{}' ({})", action, where, spec::name(a->effect))));
+    if (clear != openas::Decision::run && spec::requires_answer(a->effect) && call.answer != a->answer)
         return finish(needs_answer(std::format("{} on '{}' ({})", action, where, spec::name(a->effect)), a->answer));
     if (!a->args.empty())
         if (auto wrong = invalid_arguments(*a, call.args); !wrong.empty()) {

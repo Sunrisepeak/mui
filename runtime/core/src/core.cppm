@@ -16,6 +16,7 @@ export import :diag;
 export import :json;
 export import :signal;
 export import :verb;
+export import :access;
 export import :keys;
 export import :event;
 export import :task;

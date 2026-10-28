@@ -111,7 +111,7 @@ Answer read_records(const std::vector<Value>& records) {
             if (const Value* d = r.get("data")) a.data = *d;
         } else if (kind == "error") {
             a.code = std::string(str(r, "code"));
-            a.message = std::string(str(r, "message"));
+            a.message = std::string(str(r, "text"));
             if (const Value* d = r.get("data")) a.detail = *d;
         } else if (kind == "result") {
             a.delivered = true;

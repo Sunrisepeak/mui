@@ -55,6 +55,8 @@ std::vector<Value> talk(agent::Protocol& p, std::string_view line) {
     return out;
 }
 
+int exit_of_env(const Envelope& e) { return e.exit_code().value_or(-100); }
+
 std::string_view kind(const Value& v) { return v.get("kind") ? v.get("kind")->as_string() : ""; }
 std::int64_t exit_of(const std::vector<Value>& r) {
     return r.empty() || kind(r.back()) != "result" ? -100 : r.back().get("exitCode")->as_int(-100);
@@ -139,7 +141,7 @@ int main(int argc, char** argv) {
         check(!tree.empty() && tree.front().json().contains(R"("verb":"cockpit.allow","person":true)"), tree.empty() ? "" : tree.front().json());
         // Over the bus, as an agent or claiming to be the person: refused, nothing done.
         for (std::string_view line : {R"({"op":"act","node":"cockpit/allow","action":"activate","actor":"agent:sly"})",
-                                      R"({"op":"act","node":"cockpit/allow","action":"activate","actor":"person:user;via=input:pointer"})",
+                                      R"({"op":"act","node":"cockpit/allow","action":"activate","actor":"person:user;via=service:input"})",
                                       R"({"op":"invoke","verb":"cockpit.allow","actor":"person:user"})",
                                       R"({"op":"act","node":"cockpit/deny","action":"activate"})"}) {
             auto r = talk(p, line);
@@ -153,6 +155,35 @@ int main(int argc, char** argv) {
         app.rt.frame({seconds(0.2), {PointerEvent{.kind = PointerKind::down, .position = c, .button = MouseButton::left, .buttons = 1},
                                      PointerEvent{.kind = PointerKind::up, .position = c, .button = MouseButton::left}}});
         check_eq(allowed, 1);
+    });
+
+    s.test("grants under the cap (S-11, openas §5): beyond the cap refused, within a grant no answer asked", [] {
+        Notes app;
+        agent::Protocol p(app.rt);
+        AgentAccess& access = agent_access();
+        access.give(openas::parse_grant("agent:planner;via=person:alice=irreversible@notes.*").value());
+        // The agent the person granted, and what it started, delete without the answer.
+        auto granted = talk(p, R"({"op":"act","node":"notes/delete","action":"activate","actor":"agent:planner;via=person:alice"})");
+        check(exit_of(granted) == 0 && app.deleted == 1, granted.empty() ? "" : granted.front().json());
+        auto helper = talk(p, R"({"op":"invoke","verb":"notes.delete","actor":"agent:reader;via=person:alice,agent:planner"})");
+        check(exit_of(helper) == 0 && app.deleted == 2, helper.empty() ? "" : helper.front().json());
+        // Another agent, or the same name without the person behind it, is asked as before.
+        check(exit_of(talk(p, R"({"op":"act","node":"notes/delete","action":"activate","actor":"agent:tidy"})")) == 2);
+        check(exit_of(talk(p, R"({"op":"act","node":"notes/delete","action":"activate","actor":"agent:planner"})")) == 2);
+        check_eq(app.deleted, 2);
+        // A cap of read: an edit is refused even when granted; reading goes on.
+        access.set_cap({openas::Effect::read});
+        auto beyond = talk(p, R"({"op":"act","node":"notes/save","action":"activate","actor":"agent:planner;via=person:alice"})");
+        check(exit_of(beyond) == 1 && !beyond.empty() && beyond.front().get("code")->as_string() == "refused", beyond.empty() ? "" : beyond.front().json());
+        check(exit_of(talk(p, R"({"op":"invoke","verb":"notes.delete","actor":"agent:planner;via=person:alice","answer":"yes"})")) == 1);
+        check(!app.saved.peek() && app.deleted == 2);
+        check(exit_of(talk(p, R"({"op":"snapshot"})")) == 0);
+        // The program's own requests are not the bus: the cap does not apply to them.
+        Invocation own;
+        own.actor = {"program", "test", {}};
+        check(exit_of_env(app.rt.act(app.rt.find("notes/save"), "activate", own)) == 0);
+        access.set_cap({});
+        access.revoke_all();
     });
 
     s.test("wait: answered when the condition holds, between frames", [] {

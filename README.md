@@ -1,6 +1,6 @@
 # openmui（暂时放在私有仓库）
 
-一套开放的 UI 规范，加上一个用 C++ Modules 写的参考实现：**Agent 原生、可以 headless 测试的现代 C++ UI**。
+一套开放的 UI 规范，加上一个用 C++ Modules 写的参考实现：**Agent 原生、可以 headless 测试的现代 C++ UI**。规范是 OpenLifa 的开放标准：[openmui](https://github.com/openlifa/openmui)（本仓库的 `spec/`）和 [openas](https://github.com/openlifa/openas)（actor、效果、授权、信封）。
 
 - 一个语义层：像素、无障碍、agent、测试都来自同一棵语义树
 - 立即模式和保留模式产出同一棵树；视图代码优先，直接用 C++ / TS / Python / Lua 写，布局和逻辑在一起；`*.view.omui.json` 是给工具和 agent 用的可选数据格式
@@ -12,7 +12,7 @@
 ## 核心特色（详见 [docs/zh/features.md](docs/zh/features.md) · [English](docs/en/features.md)）
 
 1. **统一语义树**：像素、无障碍、agent、测试读的是同一棵树；节点 ID 稳定，不依赖显示文字
-2. **Agent 原生且安全**：每个应用自带 agent 接口和 MCP 服务器；不可逆动作由人确认，“人的动作”任何 agent 都无法冒充
+2. **Agent 原生且安全**：每个应用自带 agent 接口和 MCP 服务器；不可逆动作由人确认，“人的动作”任何 agent 都无法冒充；开发者定上限，人按 agent、效果等级和范围授权（openas §5）
 3. **确定性**：三个平台、两种编译器，逐字节相同的像素；会话可以精确回放
 4. **一棵树，四种语言**：C++ / TS / Python / Lua 和视图文档得到同一棵树，绑定由契约生成
 5. **强动画**：动画是时间的纯函数，所有可视属性都能动，粒度到字形和像素

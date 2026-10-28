@@ -1,0 +1,24 @@
+# mgame.net — rollback netcode, independent of any transport (D-85): two
+# peers each run the whole game, send only their inputs, predict the other's,
+# and when a real input differs from the prediction roll back to that frame
+# and play forward again. Any game whose state saves by a copy and whose
+# frames are deterministic plugs in (gongfu's match does); the bytes are the
+# application's to carry (UDP, WebRTC, a loopback in tests).
+[package]
+namespace   = "mgame"
+name        = "net"
+version     = "0.1.0"
+description = "Rollback netcode for two peers, independent of the transport: input delay, prediction, rollback, time sync, desync detection"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[targets.mgame-net]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dev-dependencies]
+openmui.testing = { path = "../../modules/base/testing" }
+gongfu          = { path = "../gongfu" }

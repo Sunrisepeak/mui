@@ -6,4 +6,5 @@ Depends on: [modules](../modules) (the independent components and openmui). Its 
 
 | Package | |
 |---|---|
+| [net](net) | Rollback netcode for two peers, independent of the transport: input delay, prediction, rollback, waiting, desync detection |
 | [gongfu](gongfu) | The fighting framework's core: a deterministic fixed-point 60 Hz simulation with rollback, fighting-game input, hits, blocks, throws and combos, characters as data |

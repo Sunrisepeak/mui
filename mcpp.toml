@@ -59,6 +59,7 @@ members = [
     "modules/ui/viewdoc",
     "mgame/gongfu",
     "mgame/gongfu/data",
+    "mgame/net",
     "components/base",
     "components/canvas",
     "components/canvas/kit",

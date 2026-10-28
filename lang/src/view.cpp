@@ -301,6 +301,7 @@ struct Compiler {
 struct Session::VerbBox {
     Host*                                           host;
     std::function<Result<Json>(const Json&)>        fn;
+    VerbSpec                                        spec;  // as registered
 };
 
 // The threads async natives run on: a queue, and a few workers.
@@ -633,7 +634,17 @@ Result<std::vector<Json>> Session::invoke(std::string_view verb, const Json& arg
 }
 
 Result<void> Session::verb(VerbSpec spec, std::function<Result<Json>(const Json& args)> fn) {
-    auto box = std::make_unique<VerbBox>(VerbBox{&host_, std::move(fn)});
+    // Registered by this session before (a script run again, hot reload): the
+    // new function answers from now on, under the same description.
+    for (auto& b : verbs_)
+        if (b->spec.name == spec.name) {
+            if (b->spec.effect != spec.effect || b->spec.answer != spec.answer || b->spec.person != spec.person)
+                return std::unexpected(failure(abi::OMUI_ERROR_REFUSED, std::format("the verb `{}` is registered already, with another effect or answer", spec.name)));
+            b->fn = std::move(fn);  // on the script thread, where it is called
+            b->spec.summary = spec.summary;
+            return {};
+        }
+    auto box = std::make_unique<VerbBox>(VerbBox{&host_, std::move(fn), spec});
     const abi::OmuiResult r = host_.ui([&] {
         abi::OmuiVerbDesc d{};
         d.type = abi::OMUI_STRUCTURE_TYPE_VERB_DESC;

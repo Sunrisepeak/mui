@@ -123,6 +123,8 @@ public:
     [[nodiscard]] Result<std::vector<Json>> invoke(std::string_view verb, const Json& args);
     // A verb implemented by the script: it runs on the script thread while
     // the runtime waits (the runtime keeps answering the script meanwhile).
+    // Registered again by this session (a reload), the new function replaces
+    // the old under the same effect and answer.
     struct VerbSpec {
         std::string name, summary;
         abi::OmuiEffect effect = abi::OMUI_EFFECT_REVERSIBLE;

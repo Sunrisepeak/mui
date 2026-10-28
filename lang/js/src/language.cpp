@@ -55,6 +55,21 @@ std::expected<std::string, std::string> compile_typescript(const std::filesystem
     return std::move(r->out);
 }
 
+std::expected<std::string, std::string> compile_typescript_source(std::string_view source, std::string_view name) {
+    const auto chosen = mcpplibs::os::env::get("OMUI_ESBUILD");
+    const auto esbuild = chosen && !chosen->empty() ? std::optional(mcpplibs::os::fs::from_utf8(*chosen))
+                                                    : mcpplibs::os::env::find_executable("esbuild");
+    if (!esbuild) return std::unexpected(std::string("TypeScript needs esbuild (xlings install esbuild, or OMUI_ESBUILD=/path/to/esbuild)"));
+    mcpplibs::os::process::spawn_options o;
+    o.program = *esbuild;
+    o.args = {"--loader=ts", "--format=esm", "--platform=neutral", std::format("--sourcefile={}", name), "--log-level=error", "--charset=utf8"};
+    o.in = mcpplibs::os::process::stdio::pipe;
+    auto r = mcpplibs::os::process::run(std::move(o), source);
+    if (!r) return std::unexpected(std::format("esbuild did not run: {}", r.error().message()));
+    if (!r->status.success()) return std::unexpected(r->err.empty() ? std::format("esbuild failed ({})", r->status.code) : r->err);
+    return std::move(r->out);
+}
+
 player::Language javascript() { return {"js", {".js", ".mjs"}, make, {}}; }
 
 player::Language typescript() { return {"ts", {".ts", ".tsx"}, make, compile_typescript}; }

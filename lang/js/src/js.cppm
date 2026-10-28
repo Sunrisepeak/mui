@@ -54,5 +54,8 @@ private:
 [[nodiscard]] player::Language typescript();
 // What esbuild makes of a TypeScript file: one ES module.
 [[nodiscard]] std::expected<std::string, std::string> compile_typescript(const std::filesystem::path& file);
+// What esbuild makes of TypeScript source (an editor's text, `name` in its
+// messages): the module transformed, its imports left as they are.
+[[nodiscard]] std::expected<std::string, std::string> compile_typescript_source(std::string_view source, std::string_view name = "main.ts");
 
 }  // namespace omui::lang::js

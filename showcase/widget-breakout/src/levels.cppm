@@ -19,6 +19,7 @@ struct BrickDef {
     float        grow = 0;   // > 0: a share of its row's width instead (the row then spans the field, no gaps)
     double       x = 0, y = 0;    // on a canvas level: where it is (the field's units)
     std::uint32_t fill = 0;       // on a canvas level: its colour (0xRRGGBB)
+    Gift         gift = Gift::none;  // what it always drops, broken
 };
 
 struct LevelDef {
@@ -35,6 +36,7 @@ struct LevelDef {
     float                 top = 70;                    // where its bricks begin
     double                height = field_h;            // taller than a screen: a canvas level
     bool                  canvas = false;              // its bricks are nodes of a canvas's scene, placed by it (level 3)
+    bool                  workshop = false;            // its gifts' rules are scripts, edited while it plays (level 6)
 };
 
 // The scene a canvas level's bricks are in (openmui.ui.canvas): far, boxes

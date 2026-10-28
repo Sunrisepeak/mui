@@ -105,6 +105,24 @@ LevelDef canvas_level() {
     return l;
 }
 
+LevelDef workshop_level() {
+    LevelDef l;
+    l.number = 6;
+    l.title = "多语言 · Languages";
+    l.lesson = "The gifts' rules came from scripts — TypeScript, Lua and Python — reloaded while the game ran; the simulation stayed exact: a rewind across a reload replays it without running a script.";
+    l.speed = 7;
+    l.seed = 6;
+    l.workshop = true;
+    for (int i = 0; i < 7; ++i) l.bricks.push_back({Kind::slider, 4, "steel", 150});  // four hits each: piercing helps
+    for (const Gift g : {Gift::wide, Gift::pierce, Gift::slow, Gift::wide, Gift::pierce, Gift::slow}) {
+        BrickDef b{Kind::button, 1, g == Gift::wide ? "wide.ts" : g == Gift::pierce ? "pierce.ts" : "slow.lua"};
+        b.gift = g;  // always: a gift guaranteed, not a drop by chance
+        l.bricks.push_back(std::move(b));
+    }
+    for (const char* c : {"E: the workshop", "edit ← tune, Apply", "rules, not frames", "rewind across it"}) l.bricks.push_back({Kind::card, 1, c, 190});
+    return l;
+}
+
 // The rows a level's bricks are laid out in: a break before each change of kind (a hidden brick sits in its neighbours' row).
 std::vector<std::size_t> row_starts(const LevelDef& l) {
     if (!l.rows.empty()) return l.rows;
@@ -118,7 +136,7 @@ std::vector<std::size_t> row_starts(const LevelDef& l) {
 }  // namespace
 
 std::span<const LevelDef> levels() {
-    static const std::array<LevelDef, 5> all{semantics(), styles(), canvas_level(), time_level(), agents()};
+    static const std::array<LevelDef, 6> all{semantics(), styles(), canvas_level(), time_level(), agents(), workshop_level()};
     return all;
 }
 

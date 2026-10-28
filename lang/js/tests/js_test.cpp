@@ -364,6 +364,19 @@ mount("main", column({ gap: 8 }, [
         check(!broken && !broken.error().empty());
     });
 
+    s.test("TypeScript from an editor's text: transformed, its types gone, openmui an import; an error names the line", [] {
+        auto js = lang::js::compile_typescript_source(R"ts(
+import { verb } from "openmui";
+const half: number = 110;
+verb("gift.wide", { effect: "read" }, (): { half: number } => ({ half }));
+)ts", "wide.ts");
+        check(js.has_value(), js ? "" : js.error());
+        if (!js) return;
+        check(js->find("from \"openmui\"") != std::string::npos && js->find(": number") == std::string::npos, *js);
+        auto broken = lang::js::compile_typescript_source("const x: number = ;\n", "broken.ts");
+        check(!broken && broken.error().find("broken.ts") != std::string::npos, broken ? *broken : broken.error());
+    });
+
     s.test("CTS level S: every scenario records its pinned trace (spec/conformance/S, tests/cts.js)", [] {
         if (!omui::native::find("fuzzy")) check(omui::natives::fuzzy::define().has_value(), "the official native module");
         check(omui::themes::add_default().has_value() && omui::themes::add_compact().has_value(), "the official themes");

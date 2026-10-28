@@ -48,6 +48,9 @@ public:
     ActResult restart(ActContext& ctx);
     ActResult rewind(ActContext& ctx, const Value& frames);
     ActResult guard_to(ActContext& ctx, const Value& seen, const Value& x);  // the contract's arguments, by name
+    ActResult set_rules(ActContext& ctx, const Value& drop_one_in, const Value& multi_balls, const Value& pierce_steps, const Value& slow_percent,
+                        const Value& slow_steps, const Value& wide_half, const Value& wide_steps);  // by name, alphabetically
+    ActResult workshop(ActContext& ctx);
     ActResult next(ActContext& ctx);
     ActResult next_style(ActContext& ctx);
 
@@ -85,6 +88,8 @@ private:
     bool                                 rewinding_ = false;   // R held: back two frames a step
     std::optional<double>                guard_x_;             // level 5: where an agent sends the top paddle (0 … 1)
     std::deque<std::string>              agent_log_;           // level 5: its latest actions, with what it saw
+    std::optional<Rules>                 pending_rules_;       // to the simulation at the next step's start
+    bool                                 workshop_open_ = false;
     std::unique_ptr<Sounds>              sounds_ = std::make_unique<Sounds>();
     std::shared_ptr<void>                device_;              // what hears them (none headless); let go before them
     std::deque<std::string>              log_;                 // the lens's latest changes

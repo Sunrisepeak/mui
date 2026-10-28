@@ -100,6 +100,7 @@ void Field::restart_level() {
     turns_ = 0;
     guard_x_.reset();
     agent_log_.clear();
+    pending_rules_.reset();
     for (const NodeId n : bricks()) services().set(n, "visible", Value(true));
     if (begin()) show_bricks();
     show_style();
@@ -163,7 +164,7 @@ bool Field::begin() {
             const BrickDef& b = def.bricks[i];
             if (last_y >= 0 && b.y != last_y) ++row;
             last_y = b.y;
-            l.bricks.push_back({mgame::Box{b.x, b.y, b.width, b.height}, b.kind, b.durability, static_cast<std::uint32_t>(i), row});
+            l.bricks.push_back({mgame::Box{b.x, b.y, b.width, b.height}, b.kind, b.durability, static_cast<std::uint32_t>(i), row, b.gift});
         }
     }
     for (std::size_t i = 0; i < nodes.size(); ++i) {
@@ -172,7 +173,7 @@ bool Field::begin() {
         if (last_y >= 0 && r.y != last_y) ++row;
         last_y = r.y;
         const BrickDef& b = def.bricks[i];
-        l.bricks.push_back({mgame::Box{(r.x - me.x) * sx, (r.y - me.y) * sy, r.width * sx, r.height * sy}, b.kind, b.durability, static_cast<std::uint32_t>(i), row});
+        l.bricks.push_back({mgame::Box{(r.x - me.x) * sx, (r.y - me.y) * sy, r.width * sx, r.height * sy}, b.kind, b.durability, static_cast<std::uint32_t>(i), row, b.gift});
     }
     rows_ = static_cast<std::int32_t>(row) + 1;
     timeline_.emplace(start(l), keep, 60);
@@ -191,6 +192,11 @@ Input Field::input() {
     }
     if (agent_x_) in.player.pointer_x = static_cast<std::int16_t>(std::lround(std::clamp(*agent_x_, 0.0, 1.0) * 32767));
     if (guard_x_) in.second.pointer_x = static_cast<std::int16_t>(std::lround(std::clamp(*guard_x_, 0.0, 1.0) * 32767));
+    if (pending_rules_) {  // at this step's start, all at once
+        in.rules = *pending_rules_;
+        in.new_rules = 1;
+        pending_rules_.reset();
+    }
     if (agent_launch_) {
         in.player.held |= 1u << launch_button;
         in.player.pressed |= 1u << launch_button;
@@ -522,6 +528,16 @@ bool Field::on_event(EventContext& ctx, const InputEvent& e) {
         ctx.handled = true;
         return true;
     }
+    // E: level 6's workshop.
+    if (const auto* k = std::get_if<KeyEvent>(&e); k && k->key == Key::e && level(props.level).workshop) {
+        if (k->kind == KeyKind::down && !k->repeat) {
+            const Value nothing;
+            ActContext here{services(), node(), nothing};
+            (void)workshop(here);
+        }
+        ctx.handled = true;
+        return true;
+    }
     // Enter: on from a level over; S: level 2's next style.
     if (const auto* k = std::get_if<KeyEvent>(&e); k && (k->key == Key::enter || (k->key == Key::s && props.level == 2))) {
         if (k->kind == KeyKind::down && !k->repeat) {
@@ -553,7 +569,15 @@ void Field::semantics(SemanticsContext&, spec::SemanticNode& node) const {
         balls.push_back(Value{}.set("x", b.at.x / field_w).set("y", b.at.y / field_h).set("vx", b.velocity.x).set("vy", b.velocity.y).set("on_paddle", b.on != 0));
     });
     v.set("balls", Value(std::move(balls)));
-    v.set("lens", props.lens).set("copilot", props.copilot);
+    v.set("lens", props.lens).set("copilot", props.copilot).set("workshop", workshop_open_);
+    v.set("rules", Value{}
+                       .set("wide_steps", s.rules.wide_steps)
+                       .set("wide_half", s.rules.wide_half)
+                       .set("multi_balls", s.rules.multi_balls)
+                       .set("slow_steps", s.rules.slow_steps)
+                       .set("slow_percent", s.rules.slow_percent)
+                       .set("pierce_steps", s.rules.pierce_steps)
+                       .set("drop_one_in", s.rules.drop_one_in));
     if (s.paddles[1].active) v.set("top", s.paddles[1].x / field_w).set("agent", Value(Value::List(agent_log_.begin(), agent_log_.end())));
     v.set("changes", Value(Value::List(log_.begin(), log_.end())));
     node.value = std::move(v);
@@ -608,6 +632,34 @@ ActResult Field::guard_to(ActContext&, const Value& seen, const Value& x) {
     while (agent_log_.size() > log_size) agent_log_.pop_front();
     refresh();
     return ActResult::done();
+}
+
+ActResult Field::set_rules(ActContext&, const Value& drop_one_in, const Value& multi_balls, const Value& pierce_steps, const Value& slow_percent,
+                           const Value& slow_steps, const Value& wide_half, const Value& wide_steps) {
+    if (!timeline_) return ActResult::fail("nothing is playing yet");
+    Rules r = pending_rules_.value_or(timeline_->state().rules);
+    const std::array<std::pair<const Value*, std::int32_t*>, 7> given{{{&drop_one_in, &r.drop_one_in},
+                                                                       {&multi_balls, &r.multi_balls},
+                                                                       {&pierce_steps, &r.pierce_steps},
+                                                                       {&slow_percent, &r.slow_percent},
+                                                                       {&slow_steps, &r.slow_steps},
+                                                                       {&wide_half, &r.wide_half},
+                                                                       {&wide_steps, &r.wide_steps}}};
+    for (const auto& [v, to] : given)
+        if (!v->is_null()) *to = static_cast<std::int32_t>(v->as_int(*to));
+    if (!(bounded(r) == r)) return ActResult::fail("a rule is outside its bounds: none changed");
+    pending_rules_ = r;
+    note("rules → from the next step");
+    return ActResult::done();
+}
+
+ActResult Field::workshop(ActContext&) {
+    if (!level(props.level).workshop) return ActResult::fail("the workshop is level 6's");
+    workshop_open_ = !workshop_open_;
+    props.paused = workshop_open_;
+    prop_changed(FieldProp::paused);
+    emit_workshop(workshop_open_);
+    return ActResult::done(Value(workshop_open_));
 }
 
 ActResult Field::next(ActContext&) {

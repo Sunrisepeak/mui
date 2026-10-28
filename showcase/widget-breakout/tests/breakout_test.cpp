@@ -34,7 +34,7 @@ struct Game {
         }
         h.advance(seconds(0.25));  // laid out, and the simulation begun from it
     }
-    NodeId field() { return h.runtime().find("main"); }
+    NodeId field() { return h.runtime().find("main/field"); }  // over it, level 6's workshop
     const bo::Field& component() { return *h.runtime().component<bo::Field>(field()); }
     const bo::State& state() { return *component().state(); }
     std::vector<NodeId> bricks() {
@@ -45,7 +45,7 @@ struct Game {
     }
     Value seen() {
         for (const auto& n : h.tree().snapshot({}).nodes)
-            if (n.id == "main") return n.value;
+            if (n.id == "main/field") return n.value;
         return {};
     }
     // An agent's action on the field: whether it was done.
@@ -53,7 +53,7 @@ struct Game {
         Invocation c;
         c.actor = {"agent", "test", {}};
         c.args = std::move(args);
-        return h.tree().act("main", action, c).exit_code() == std::optional<int>(0);
+        return h.tree().act("main/field", action, c).exit_code() == std::optional<int>(0);
     }
     // An agent that plays paused, a frame at a time: the paddle under the
     // lowest flying ball (a little off-centre now and then), launching at once.
@@ -399,6 +399,69 @@ int main(int argc, char** argv) {
         check(p.h.save_png(scratch_dir("breakout-level5") / "copilot.png").has_value());
         std::println("    copilot {:016x}", px);
         check_eq(px, std::uint64_t{0xde486d848c705e36});  // GCC and LLVM
+    });
+
+    s.test("level 6: the gifts' rules are scripts — TypeScript and Lua reloaded in place from the workshop, checked, held from the next step; a bad one keeps the rules", [] {
+        Game g(6);
+        auto& r = g.h.runtime();
+        // The scripts loaded: their rules on the field.
+        const std::array<std::string_view, 3> gifts{"wide", "pierce", "slow"};
+        const auto status = [&](int i) { return std::string(r.get(r.find(std::format("main/workshop/status.{}", gifts[static_cast<std::size_t>(i)])), "text").as_string()); };
+        for (int k = 0; k < 600 && status(0) != "loaded"; ++k) g.h.step();
+        check_eq(status(0), std::string("loaded"));
+        check(g.act("workshop"), "E: open");
+        g.h.step();  // the panel shown
+        check(g.seen().get("workshop")->as_bool() && g.component().props.paused, "open and paused");
+        // An edit applied: wide.ts with its tuned half-width 220 (its power fixed: 1100 / 220 = 5 seconds).
+        auto edit = [&](std::string_view box, std::string text) {
+            Invocation c;
+            c.args = Value{}.set("value", text);
+            return r.act(r.find(std::format("main/workshop/{}", box)), "set_value", c).exit_code() == std::optional<int>(0);
+        };
+        auto source = [&](std::string_view box) { return std::string(r.get(r.find(std::format("main/workshop/{}", box)), "text").as_string()); };
+        check(bo::Workshop::tuned(source("script.wide")) == 110.0, source("script.wide"));
+        check(edit("script.wide", bo::Workshop::retune(source("script.wide"), 220)));
+        check(g.h.click("main/workshop/tools.wide/apply.wide"));
+        auto wait = [&](int i) {
+            for (int k = 0; k < 600 && (status(i).empty() || status(i).starts_with("reloading")); ++k) g.h.step();
+            return status(i);
+        };
+        const std::string wide = wait(0);
+        check(wide.starts_with("reloaded in "), wide);
+        const double ms = wide.starts_with("reloaded in ") ? std::stod(wide.substr(12)) : 1e9;
+        check(ms < 200, std::format("{} ms", ms));
+        check(g.act("workshop"), "E: closed, the game goes on");
+        g.h.step();
+        g.h.step();
+        check(g.state().rules.wide_half == 220 && g.state().rules.wide_steps == 600, std::format("wide {} for {} steps", g.state().rules.wide_half, g.state().rules.wide_steps));
+        // Lua, from a preset: slow motion at 25 % (the same 4 seconds saved: 4 / 0.75 = 5.33 s).
+        check(g.act("workshop"));
+        g.h.step();
+        check(g.h.click("main/workshop/tools.slow/preset.slow.a"));
+        const std::string slow = wait(2);
+        check(slow.starts_with("reloaded in ") && std::stod(slow.substr(std::min<std::size_t>(12, slow.size()))) < 200, slow);
+        check(g.act("workshop"));
+        g.h.step();
+        g.h.step();
+        check(g.state().rules.slow_percent == 25 && g.state().rules.slow_steps == 640, std::format("slow {} % for {} steps", g.state().rules.slow_percent, g.state().rules.slow_steps));
+        // Out of bounds, and a syntax error: the rules kept, the reason said.
+        check(g.act("workshop"));
+        g.h.step();
+        check(edit("script.pierce", bo::Workshop::retune(source("script.pierce"), 40)));
+        check(g.h.click("main/workshop/tools.pierce/apply.pierce"));
+        const std::string far = wait(1);
+        check(far.starts_with("kept the rules") && far.find("outside") != std::string::npos, far);
+        check(edit("script.slow", "omui.verb(\"gift.slow\", {effect = \"read\"}, function() return { slow_percent = } end)"));
+        check(g.h.click("main/workshop/tools.slow/apply.slow"));
+        const std::string broken = wait(2);
+        check(broken.starts_with("kept the rules"), broken);
+        check(g.act("workshop"));
+        g.h.step();
+        check(g.state().rules.pierce_steps == 600 && g.state().rules.slow_percent == 25, "kept");
+        // A rewind to before the reloads: the rules then in force.
+        check(g.act("pause"));
+        check(g.act("rewind", Value{}.set("frames", std::min<std::int64_t>(g.state().frame - 1, 30 * 120))));
+        check(g.state().rules.wide_half == 110, std::format("wide {} after the rewind", g.state().rules.wide_half));
     });
 
     return s.run(argc, argv);

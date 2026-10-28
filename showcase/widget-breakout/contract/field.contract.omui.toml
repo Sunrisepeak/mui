@@ -17,6 +17,7 @@ copilot = { type = "bool", default = true, doc = "Level 5: the application's age
 brick_broke = { args = { id = "string" } }
 level_began = { args = { number = "i32", path = "string" } }
 level_over  = { args = { cleared = "bool", score = "i32" } }
+workshop    = { args = { open = "bool" } }
 style       = { args = { name = "string" }, doc = "The style pack the level asks for now (level 2; empty: the application's own). Whoever hosts the field applies it." }
 
 [contract.field.actions]
@@ -29,5 +30,7 @@ step    = { effect = "reversible", doc = "One frame, while paused." }
 restart = { effect = "reversible", doc = "The level from its start." }
 rewind  = { effect = "reversible", args = { frames = "i32" }, doc = "Back that many frames (120 a second, up to 30 s); playing on from there is a new branch." }
 guard_to = { effect = "reversible", args = { x = "f64", seen = "string" }, doc = "Level 5: moves the top paddle toward x (0 … 1) — an agent's lane; `seen`: what it saw, shown beside it." }
+set_rules = { effect = "reversible", args = { drop_one_in = "i32", multi_balls = "i32", pierce_steps = "i32", slow_percent = "i32", slow_steps = "i32", wide_half = "i32", wide_steps = "i32" }, doc = "What the gifts do from the next step on (level 6: the workshop's scripts answer them); each within its bounds, or none is changed." }
+workshop = { effect = "reversible", doc = "Level 6: opens the workshop (the game paused) or closes it (the game goes on)." }
 next    = { effect = "reversible", doc = "The next level, once this one is over (cleared; lost: this one again)." }
 next_style = { effect = "reversible", doc = "Level 2: the next style pack, now — the play goes on, only pixels change." }

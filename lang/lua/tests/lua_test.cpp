@@ -307,6 +307,25 @@ assert(not ok3 and err3:find("pattern"), err3)
         check_eq(r.name_of("main/text:0"), std::string("12 taps"));
     });
 
+    s.test("a reload re-registers its verbs: the new function answers; another effect is refused", [] {
+        Runtime r;
+        Lua lua(r);
+        constexpr std::string_view v1 = R"lua(omui.verb("gift.slow", { effect = "read" }, function() return { slow_percent = 50 } end))lua";
+        check(lua.run(std::string(v1)).has_value());
+        check_eq(invoke(r, "gift.slow", Json::object()).dump(), std::string(R"({"slow_percent":50})"));
+        std::string v2(v1);
+        v2.replace(v2.find("50"), 2, "25");
+        auto again = r.wait(lua.host, lua.script.reload(v2));
+        check(again.has_value(), again ? "" : again.error().text());
+        check_eq(invoke(r, "gift.slow", Json::object()).dump(), std::string(R"({"slow_percent":25})"));
+        std::string v3(v2);
+        v3.replace(v3.find("\"read\""), 6, "\"reversible\"");
+        v3 = "assert(" + v3 + ")";  // errors are values: asserted, the reload fails with it
+        auto other = r.wait(lua.host, lua.script.reload(v3));
+        check(!other && other.error().text().find("another effect") != std::string::npos, other ? "reloaded" : other.error().text());
+        check_eq(invoke(r, "gift.slow", Json::object()).dump(), std::string(R"({"slow_percent":25})"));
+    });
+
     s.test("CTS level S: every scenario records its pinned trace (spec/conformance/S, tests/cts.lua)", [] {
         if (!omui::native::find("fuzzy")) check(omui::natives::fuzzy::define().has_value(), "the official native module");
         check(omui::themes::add_default().has_value() && omui::themes::add_compact().has_value(), "the official themes");

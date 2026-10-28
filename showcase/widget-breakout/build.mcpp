@@ -1,5 +1,5 @@
-// The field's contract becomes code (openmui.rules), and what the game sounds
-// like is carried in the program.
+// The field's contract becomes code (openmui.rules); what the game sounds like
+// and level 6's gift scripts are carried in the program.
 import std;
 import mcpp;
 import openmui.rules;
@@ -8,5 +8,10 @@ int main() {
     const bool field = openmui::rules::components({.module = "openmui.showcase.widget_breakout", .ns = "omui::breakout"});
     const bool sounds = openmui::rules::embed({.module = "openmui.showcase.widget_breakout", .ns = "omui::breakout::files", .dir = "sounds",
                                                .suffix = ".sound.omui.toml", .tag = "sound"});
-    return field && sounds ? 0 : 1;
+    // Level 6's gift scripts, as shipped (the workshop edits copies).
+    bool gifts = true;
+    for (const char* language : {"ts", "lua"})
+        gifts = openmui::rules::embed({.module = "openmui.showcase.widget_breakout", .ns = "omui::breakout::files", .dir = "gifts",
+                                       .suffix = std::format(".{}", language), .tag = language}) && gifts;
+    return field && sounds && gifts ? 0 : 1;
 }

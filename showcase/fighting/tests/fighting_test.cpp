@@ -17,8 +17,9 @@ namespace audio = omui::audio;
 namespace {
 
 struct Game {
-    Headless h{HeadlessOptions{.size = {960, 540}}};
-    explicit Game(std::string_view mode = "versus", std::string_view player1 = "", std::string_view player2 = "") {
+    Headless h;
+    explicit Game(std::string_view mode = "versus", std::string_view player1 = "", std::string_view player2 = "", float scale = 1)
+        : h{HeadlessOptions{.size = {960, 540}, .scale = scale}} {
         AppSpec spec = fighting::app();
         spec.setup(h.runtime());
         if (mode == "versus") {
@@ -334,6 +335,31 @@ int main(int argc, char** argv) {
                 check(defender - attacker == *want, std::format("{} on {}: {:+} measured, {:+} designed", row.move, block ? "block" : "hit", defender - attacker, *want));
             }
         }
+    });
+
+    s.test("the README's loop: 墨's level 3 from the flash to the seal, an animated PNG under 1 MB", [] {
+        Game g("training", "mo", "kata", 0.5f);  // 480 × 270: a README's width
+        check(g.act("pause"));
+        check(g.act("fill"));
+        check(g.act("press", pad(0, "6")));
+        for (int i = 0; i < 120 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 110; ++i) check(g.act("step"));
+        for (std::string_view p : {"2", "3", "6", "2", "3", "6HK"}) {
+            check(g.act("press", pad(0, p)));
+            check(g.act("step"));
+        }
+        check(g.act("press", pad(0, "5")));
+        for (int i = 0; i < 260; ++i) {
+            check(g.act("step"));
+            if (i % 4 == 0) {  // 15 frames a second of the match's 60
+                g.h.step();
+                g.h.record();
+            }
+        }
+        const auto file = scratch_dir("readme-fighting") / "mo-level-3.png";
+        check(g.h.save_recording(file, {.delay_num = 1, .delay_den = 15}).has_value());
+        const auto size = std::filesystem::file_size(file);
+        std::println("    the loop: {} KB", size / 1024);
+        check(size < 1024 * 1024, std::format("{} bytes", size));
     });
 
     s.test("墨's level 3, 「永字八法」: the flash and its close-up, then 永 written stroke by stroke on paper and sealed — frames pinned", [] {

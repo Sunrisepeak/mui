@@ -4,6 +4,8 @@
 - Kata, the training fighter;
 - 墨 (Mo), the calligrapher. She is the first of the five designed in the [characters design](../../.agents/docs/2026-10-28-gongfu-characters-design.md): keep-away with written glyphs at three speeds, a long brush and an anti-air.
 
+![墨's level-3 super, 「永字八法」: the flash, the close-up, 永 written stroke by stroke and sealed (drawn headless, the same on every platform)](media/mo-level-3.png)
+
 ```sh
 mcpp run -p openmui.showcase.fighting
 mcpp run -p openmui.showcase.fighting -- --training

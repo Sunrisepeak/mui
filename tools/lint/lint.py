@@ -22,6 +22,8 @@ Rules:
                 a local index's descriptors (D-83)
   platforms     a package that says it runs on the Web (platforms lists "emscripten") depends only on
                 packages that say so too (dev-dependencies included) (D-84)
+  media         a picture in the repository (.png .gif .jpg .webp) is under 1 MB, and every showcase's
+                README shows its signature shot from its media/ (tools/ci/readme-media.sh makes them)
   thirdparty    a wrapped C library (`import mcpplibs.mwrap.*`) only in a native/ unit (D-83)
   exceptions    no `throw` / `try` in runtime and modules sources (errors are std::expected); a
                 native/ unit may catch what a third-party library throws, to answer std::expected
@@ -591,9 +593,33 @@ def check_documents(root: Path) -> list[Problem]:
     return problems
 
 
+MEDIA_LIMIT = 1024 * 1024
+MEDIA_SUFFIXES = {".png", ".gif", ".jpg", ".jpeg", ".webp", ".apng"}
+
+
+def check_media(root: Path) -> list[Problem]:
+    problems = []
+    for f in sorted(root.rglob("*")):
+        rel = f.relative_to(root)
+        if f.suffix.lower() not in MEDIA_SUFFIXES or set(rel.parts) & SKIP_DIRS or not f.is_file():
+            continue
+        if f.stat().st_size > MEDIA_LIMIT:
+            problems.append(Problem("media", rel.as_posix(), f"{f.stat().st_size // 1024} KB: a picture stays under 1 MB (smaller, fewer frames)"))
+    showcase = root / "showcase"
+    for d in sorted(showcase.iterdir()) if showcase.is_dir() else []:
+        if not (d / "mcpp.toml").exists():
+            continue
+        readme = d / "README.md"
+        text = readme.read_text(encoding="utf-8") if readme.exists() else ""
+        shown = [m for m in re.findall(r"!\[[^\]]*\]\((media/[^)\s]+)\)", text) if (d / m).exists()]
+        if not shown:
+            problems.append(Problem("media", f"{d.relative_to(root).as_posix()}/README.md", "shows no picture of its own from media/ (tools/ci/readme-media.sh)"))
+    return problems
+
+
 def run(root: Path) -> list[Problem]:
     return (check_sources(root) + check_manifests(root) + check_layout(root) + check_licences(root) + check_platforms(root) + check_pins(root)
-            + check_documents(root))
+            + check_documents(root) + check_media(root))
 
 
 def self_test() -> int:
@@ -612,6 +638,7 @@ def self_test() -> int:
         "licenses": None,
         "platforms": None,
         "thirdparty": ("modules/base/hanim/src/w.cpp", "module x;\nimport mcpplibs.mwrap.md4c;\n"),
+        "media": ("docs/huge.png", "x" * (1024 * 1024 + 1)),
         "manifest": None,
         "pins": None,
         "documents": ("examples/x/ui/bad.view.omui.json", '{"omui": "0.1", "view": {"root": {"typ": "text"}}}'),

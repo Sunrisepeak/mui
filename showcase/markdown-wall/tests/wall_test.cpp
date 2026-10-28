@@ -363,6 +363,8 @@ int main(int argc, char** argv) {
         const auto& px = a.h.pixels();
         for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
         check(a.h.save_png(scratch_dir("wall-pixels") / "handbook.png").has_value());
+        const auto still = scratch_dir("readme-markdown-wall") / "wall.png";  // the README's
+        check(a.h.save_png(still).has_value() && std::filesystem::file_size(still) < 1024 * 1024);
         std::println("    pixels {}", hash.hex());
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
         check_eq(hash.hex(), std::string("e756bc33972b1f35"));

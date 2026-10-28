@@ -1,4 +1,4 @@
-// openmui.image — images in memory, and PNG.
+// openmui.image — images in memory, PNG, and animated PNG.
 //
 // An Image is 8-bit RGBA, rows top to bottom, either straight or
 // premultiplied alpha (the renderer works premultiplied; files are straight).
@@ -51,6 +51,19 @@ struct PngOptions {
 [[nodiscard]] std::expected<Image, std::string> decode_png(std::span<const std::uint8_t> bytes);
 
 [[nodiscard]] std::expected<void, std::string> save_png(const std::filesystem::path& file, const View& pixels);
+
+// An animated PNG (APNG): every frame the size of the first, shown `delay`
+// seconds (num / den) each; `loops` 0 plays forever. Each frame after the
+// first is stored as the rectangle that changed from the one before (the rest
+// kept), and a frame equal to the one before lengthens it instead: a loop
+// over a still background costs what moves. Viewers without APNG show the
+// first frame. Deterministic like encode_png.
+struct ApngOptions {
+    std::uint16_t delay_num = 1, delay_den = 12;
+    std::uint32_t loops = 0;
+};
+[[nodiscard]] std::expected<std::vector<std::uint8_t>, std::string> encode_apng(std::span<const View> frames, ApngOptions options = {});
+[[nodiscard]] std::expected<void, std::string> save_apng(const std::filesystem::path& file, std::span<const View> frames, ApngOptions options = {});
 [[nodiscard]] std::expected<Image, std::string> load_png(const std::filesystem::path& file);
 
 }  // namespace omui::imageio

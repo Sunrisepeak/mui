@@ -16,9 +16,9 @@ using namespace omui;
 namespace {
 
 struct App {
-    Headless       h{HeadlessOptions{.size = {1440, 900}}};
+    Headless       h;
     styles::Studio studio;
-    explicit App(std::string_view first = "glass") {
+    explicit App(std::string_view first = "glass", float scale = 1) : h{HeadlessOptions{.size = {1440, 900}, .scale = scale}} {
         AppSpec spec = styles::app(studio, first);
         spec.setup(h.runtime());
         for (auto& v : spec.verbs) (void)h.runtime().verbs().add(v.desc, v.fn);
@@ -76,6 +76,20 @@ int main(int argc, char** argv) {
         check_eq(looks.size(), std::size_t{5});
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
         check_eq(all.hex(), std::string("f8d70fea1afe1ef2"));
+    });
+
+    s.test("the README's loop: the five packs in turn — an animated PNG under 1 MB", [] {
+        App a("glass", 0.4f);  // 576 × 360
+        for (std::string_view n : themes::style_names) {  // each pack held a second and a half (a cross-fade changes every pixel: too heavy for a loop)
+            check(a.studio.show(n, false).has_value(), std::string(n));
+            a.h.settle();
+            a.h.record();
+        }
+        const auto file = scratch_dir("readme-style-gallery") / "five-packs.png";
+        check(a.h.save_recording(file, {.delay_num = 3, .delay_den = 2}).has_value());
+        const auto size = std::filesystem::file_size(file);
+        std::println("    the loop: {} KB", size / 1024);
+        check(size < 1024 * 1024, std::format("{} bytes", size));
     });
 
     s.test("switching is a cross-fade; a person's click and an agent's verb do the same", [] {

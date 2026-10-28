@@ -113,6 +113,27 @@ int main(int argc, char** argv) {
         check(!h1.png().has_value(), "no pixels at H1");
     });
 
+    s.test("a recording: frames kept, written as an animated PNG whose first frame is the first kept", [] {
+        Headless h(at(HeadlessLevel::pixels));
+        Counter c;
+        h.mount("main", c.view());
+        h.step();
+        h.record();
+        for (int k = 0; k < 3; ++k) {
+            check(h.click("main/inc"));
+            h.step();
+            h.record();
+        }
+        h.record();  // the same again: one frame, shown longer
+        check_eq(h.recorded(), std::size_t{5});
+        const auto file = scratch_dir("headless-recording") / "counter.png";
+        check(h.save_recording(file, {.delay_num = 1, .delay_den = 4}).has_value());
+        check_eq(h.recorded(), std::size_t{0});
+        auto back = imageio::load_png(file);  // a viewer without APNG: the first frame
+        check(back.has_value() && back->width == 240 && back->height == 120);
+        check(!h.save_recording(file).has_value(), "nothing recorded");
+    });
+
     s.test("H3: an agent drives the session over the endpoint", [] {
         auto dir = scratch_dir("headless-h3");
         HeadlessOptions o = at(HeadlessLevel::session);

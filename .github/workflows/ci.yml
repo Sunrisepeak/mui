@@ -155,6 +155,12 @@ jobs:
           mcpp test --workspace --profile '${{ matrix.profile }}' --exclude openmui.entry.python --exclude openmui.reflect 2>&1 | tee tests.log
           grep -q "workspace result ok" tests.log || { echo "::error::workspace tests failed"; exit 1; }
 
+      # The showcases' README pictures are what their tests draw (deterministic:
+      # tools/ci/readme-media.sh makes them again after a change in the picture).
+      - name: The showcases' README media are up to date
+        if: runner.os == 'Linux' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'dev'
+        run: tools/ci/readme-media.sh --check
+
       # A pinned picture that differs on one platform is looked at, not
       # guessed at: every test's pictures, kept when a test failed.
       - name: Keep the tests' pictures (on failure)

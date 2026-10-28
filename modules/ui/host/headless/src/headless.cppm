@@ -20,6 +20,7 @@ export import openmui.view;
 export import openmui.semantic;
 export import openmui.agent;
 export import openmui.raster;
+export import openmui.image;  // recordings: imageio::ApngOptions
 
 export namespace omui {
 
@@ -84,6 +85,12 @@ public:
     [[nodiscard]] const raster::Surface& pixels();
     [[nodiscard]] std::expected<std::vector<std::uint8_t>, std::string> png(std::optional<Rect> region = {});
     std::expected<void, std::string> save_png(const std::filesystem::path& file, std::optional<Rect> region = {});
+    // A recording for an animated PNG (a README's loop, a bug report): each
+    // `record()` keeps the current frame (of `region`, the first's for the
+    // rest); `save_recording` writes them (imageio::encode_apng) and starts afresh.
+    void record(std::optional<Rect> region = {});
+    [[nodiscard]] std::size_t recorded() const noexcept;
+    std::expected<void, std::string> save_recording(const std::filesystem::path& file, imageio::ApngOptions options = {});
     // The node that drew a pixel (logical coordinates), through the object-id buffer.
     [[nodiscard]] NodeId node_at_pixel(Point p);
     // A capture function for the agent protocol.

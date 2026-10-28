@@ -14,7 +14,7 @@ Depends on: the standard library and third-party libraries. Used by: every other
 | [trace](trace) | Spans, counters and marks; Chrome trace JSON; near-free while off |
 | [session](session) | Recorded sessions (`*.session.omui.jsonl`): timestamped, seekable, mergeable |
 | [pipeline](pipeline) | Pipelines of stage plugins over typed resources: checked, deterministic, traced, replaceable while running |
-| [image](image) | Image buffers, premultiplication, PNG |
+| [image](image) | Image buffers, premultiplication, PNG and animated PNG |
 | [testing](testing) | Checks, suites and determinism hashes for test programs |
 
 Start with [hanim](hanim/README.md).

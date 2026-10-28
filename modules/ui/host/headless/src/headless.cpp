@@ -29,6 +29,8 @@ Stages stages_of(HeadlessLevel level) {
 
 struct Headless::Impl {
     HeadlessOptions                             options;
+    std::vector<imageio::Image>                 recording;  // record()'s frames, premultiplied
+    std::optional<Rect>                         recording_region;
     std::unique_ptr<typeset::FontCollection>    own_fonts;
     std::unique_ptr<Runtime>                    runtime;
     std::unique_ptr<semantic::Tree>             tree;
@@ -248,6 +250,35 @@ std::expected<void, std::string> Headless::save_png(const std::filesystem::path&
     auto v = view_of(d.surface, d.options.scale, region);
     if (!v) return std::unexpected(v.error());
     return imageio::save_png(file, *v);
+}
+
+void Headless::record(std::optional<Rect> region) {
+    Impl& d = *impl_;
+    if (d.options.level < HeadlessLevel::pixels) return;
+    d.render_now();
+    if (d.recording.empty()) d.recording_region = region;
+    auto v = view_of(d.surface, d.options.scale, d.recording_region);
+    if (!v) return;
+    imageio::Image img;
+    img.width = v->width;
+    img.height = v->height;
+    img.alpha = imageio::Alpha::premultiplied;
+    img.rgba.resize(static_cast<std::size_t>(v->width) * v->height * 4);
+    for (int y = 0; y < v->height; ++y)
+        std::memcpy(img.rgba.data() + static_cast<std::size_t>(y) * v->width * 4, v->rgba + static_cast<std::size_t>(y) * v->stride, static_cast<std::size_t>(v->width) * 4);
+    d.recording.push_back(std::move(img));
+}
+
+std::size_t Headless::recorded() const noexcept { return impl_->recording.size(); }
+
+std::expected<void, std::string> Headless::save_recording(const std::filesystem::path& file, imageio::ApngOptions options) {
+    Impl& d = *impl_;
+    if (d.recording.empty()) return std::unexpected("nothing recorded");
+    std::vector<imageio::View> views;
+    for (const auto& img : d.recording) views.push_back(imageio::view(img));
+    auto r = imageio::save_apng(file, views, options);
+    d.recording.clear();
+    return r;
 }
 
 NodeId Headless::node_at_pixel(Point p) {

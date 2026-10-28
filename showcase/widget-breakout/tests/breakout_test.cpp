@@ -21,7 +21,8 @@ namespace {
 struct Game {
     Headless h;
     std::vector<std::string> broke;
-    explicit Game(std::int32_t level = 1, HeadlessLevel up_to = HeadlessLevel::pixels) : h{HeadlessOptions{.level = up_to, .size = {1280, 720}}} {
+    explicit Game(std::int32_t level = 1, HeadlessLevel up_to = HeadlessLevel::pixels, float scale = 1)
+        : h{HeadlessOptions{.level = up_to, .size = {1280, 720}, .scale = scale}} {
         AppSpec spec = bo::app();
         h.runtime().set_theme(spec.theme);
         spec.setup(h.runtime());
@@ -219,6 +220,23 @@ int main(int argc, char** argv) {
         g.play(600);
         (void)audio::render(sounds.mixer(), 600 * sounds.step_samples());
         check(sounds.mixer().begun() > begun, "heard on");
+    });
+
+    s.test("the README's loop: an agent plays level 1 with the semantic lens open — an animated PNG under 1 MB", [] {
+        Game g(1, HeadlessLevel::pixels, 0.5f);  // 640 × 360
+        check(g.act("pause"));
+        g.h.key(Key::tab);
+        g.play(240);  // under way: some bricks gone, the changes listed
+        for (int k = 0; k < 60; ++k) {
+            g.play(8);  // 15 frames a second of the game's 120
+            g.h.step();
+            g.h.record();
+        }
+        const auto file = scratch_dir("readme-widget-breakout") / "level-1-lens.png";
+        check(g.h.save_recording(file, {.delay_num = 1, .delay_den = 15}).has_value());
+        const auto size = std::filesystem::file_size(file);
+        std::println("    the loop: {} KB", size / 1024);
+        check(size < 1024 * 1024, std::format("{} bytes", size));
     });
 
     s.test("level 2: each row cleared brings the next style pack; under every style the same play, the same hash, the same tree", [] {

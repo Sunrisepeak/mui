@@ -2,15 +2,19 @@
 # single-threaded; a <canvas> sized by the page, at the device's pixel ratio;
 # the frame loop on requestAnimationFrame (emscripten's main loop), frames
 # only when something wants one; pointer, touch, wheel, keyboard and the
-# Gamepad API's standard pads as openmui's input; frames drawn by the CPU
-# renderer and put on the canvas (WebGL2 and WebGPU later); the page's
-# visibility as the window's focus. Off the Web it builds with no page: the
-# same loop, stepped by hand, for its tests.
+# Gamepad API's standard pads as openmui's input; a hidden textarea at the
+# caret for input methods; the clipboard (Async Clipboard API); the semantic
+# tree mirrored into a hidden DOM (ARIA roles, states, focus, a live region);
+# window.omui for the page's agents (openmui.tree@0.1, decided by openas);
+# the program's store on localStorage; frames drawn by the CPU renderer and
+# put on the canvas (WebGL2 and WebGPU later); the page's visibility as the
+# window's focus. Off the Web it builds with no page: the same loop, stepped
+# by hand, for its tests.
 [package]
 namespace   = "openmui.host"
 name        = "web"
 version     = "0.1.0"
-description = "openmui in the browser: a canvas, requestAnimationFrame, pointer, touch, keys and gamepads, CPU frames on the canvas"
+description = "openmui in the browser: a canvas, requestAnimationFrame, pointer, touch, keys, gamepads, input methods, the clipboard, a semantic DOM mirror, window.omui, localStorage"
 license     = "Apache-2.0"
 repo        = "https://github.com/Sunrisepeak/mui"
 
@@ -35,10 +39,15 @@ sources = ["src/native/elsewhere/*.cpp"]
 openmui.core     = { path = "../../core" }
 openmui.view     = { path = "../../view" }
 openmui.semantic = { path = "../../semantic" }
+openmui.agent    = { path = "../../agent" }
+# Quoted: a package and its subpackage in one table (TOML).
+"openmui.native"       = { path = "../../native" }
+"openmui.native.store" = { path = "../../native/store" }
 openmui.raster   = { path = "../../../gfx/raster" }
 openmui.render.vector = { path = "../../../gfx/render/vector" }
 openmui.text     = { path = "../../../content/text" }
 openmui.trace    = { path = "../../../base/trace" }
+openmui.image    = { path = "../../../base/image" }
 mcpplibs.os      = "0.2.2"
 
 [dev-dependencies]

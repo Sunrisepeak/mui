@@ -27,3 +27,4 @@ async   = true
 ## Inside
 
 - [fuzzy](fuzzy) (`openmui.native.fuzzy`): fuzzy matching for scripts, `openmui.fuzzy` behind a native-module contract.
+- [store](store) (`openmui.native.store`): the program's own small storage, the `Store` plugin a host gives (the page's localStorage on the Web, memory elsewhere), for C++ and scripts.

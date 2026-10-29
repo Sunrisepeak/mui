@@ -374,7 +374,8 @@ D-66 的帧管线决定“一帧有哪些阶段”（输入 → 动画 → 布�
 - 已有：`host.web`（canvas、requestAnimationFrame、按需出帧、指针/触摸/滚轮/键盘、Gamepad API 标准手柄、CPU 渲染贴到 canvas、页面可见性即窗口焦点）；`omui::run` 在 wasm 上自动用它（伞包的 `openmui:host` 分区由清单按目标选择）；`host.web.toy`（isSupport、云存储按检查点批量写、排行榜、错误映射到 openas，307044 在页面里退避重试）；`dist-toy` 打包格式（`mcpp pack --pkg-format dist-toy`）；`tools/ci/toy.sh` 打包格斗游戏和打砖块并用固定版本的 `toy_doctor.py` 检查，两者都通过、无警告。
 - 体积（release）：index.html 2.4 KB；格斗 13.9 MiB（wasm 8.8 MiB、字体 4.8 MiB），打砖块 14.5 MiB；zip 后 6.9 / 6.2 MiB。字体是大头，子集化（§6.4）是下一步。
 - 发现：Toy 没有清单文件（标题、slug、封面是 `toy create` 的参数），打包时在包旁边写 `<target>.toy.omui.json`；SDK 由页面自己用 script 标签加载；index 包外的上限按账号而定。mcpp-index 里有些包的 `linux` 链接参数（taskflow 的 `-pthread`、harfbuzz/libwebp 的 `-lpthread`）也落到 emscripten 行，用 `-sUSE_PTHREADS=0` 抵消；QuickJS-ng 的 mwrap 只支持 64 位，Web 上 `lang.js` 暂时回答“不可用”。
-- 还没有：WebGL2/WebGPU、输入法的隐藏 textarea、语义 DOM 镜像、`window.omui`、剪贴板、`Store` 插件（localStorage）、Toy 的 navigate/profile/容器状态；脚本（Lua/Python/JS）在 Web 上需要单线程执行（`lang::Host` 现在起线程）；Web 行（node）还不包括 core/view/host.web 的测试。
+- 已有（2026-10-30，T4）：输入法的隐藏 textarea（组合事件接到 `PreeditEvent` / `TextEvent`）；剪贴板（页面最后知道的内容，写入走 Async Clipboard API）；语义 DOM 镜像（`DomMirror`：ARIA 角色、名字、值、状态、焦点、框，只发变化，polite / assertive 两个 live region，读屏的焦点和激活回到运行时）；`window.omui`（openmui.tree@0.1，经 `openas::decide`，不可信的 DOM 事件不算人的输入）；`Store` 插件（新包 `openmui.native.store`，Web 上是 localStorage，键在 `omui/<app>/` 下）。Web 行跑 host.web 的 wasm 测试、页面一半在模拟 DOM 下的测试，以及 wasm 程序放进模拟页面的端到端测试。
+- 还没有：WebGL2/WebGPU、IndexedDB（比 localStorage 大的存储）、Toy 的 navigate/profile/容器状态；脚本（Lua/Python/JS）在 Web 上需要单线程执行（`lang::Host` 现在起线程）；core/view 的依赖链还没有声明 `platforms`，host.web 在 Web 行里是显式加上的。
 
 ### 6.1 构建
 

@@ -11,8 +11,20 @@
 // a lease asks while something does), draws it with the CPU renderer (only
 // the rows that changed) and puts it on the canvas. One thread: the page's.
 //
+// The page hears more than the canvas (src/js/omui_web.js): a hidden
+// textarea at the caret, where input methods compose (their composition is
+// openmui's preedit, their result its text); the clipboard, as the page last
+// knew it, written through the Async Clipboard API; the semantic tree as a
+// hidden DOM after each batch of changes (DomMirror: ARIA roles, names,
+// values, states, focus, a live region), which a screen reader reads and
+// moves the focus in; window.omui, through which the page's agents use
+// openmui.tree@0.1 as the desktop's agents do — over the bus, so openas
+// decides (S-11), and never as the person: the person is present only in
+// the page's own input (isTrusted events; openas §2.7). The program's store
+// is the page's localStorage.
+//
 // Off the Web the host has no page: no input arrives and nothing is shown,
-// but step() and synthesize() run the same loop (its tests).
+// but step(), synthesize() and request() run the same loop (its tests).
 export module openmui.host.web;
 
 import std;
@@ -20,6 +32,8 @@ export import openmui.core;
 export import openmui.view;
 export import openmui.semantic;
 export import openmui.raster;
+export import openmui.native.store;
+export import :mirror;
 
 export namespace omui {
 
@@ -62,6 +76,26 @@ public:
 
     // Events as the page would give them, taken at the next step (tests, automation).
     void synthesize(std::span<const InputEvent> events);
+
+    // What a person did in the page's hidden DOM, through assistive
+    // technology: moved the focus to a node, or activated it (as a press of
+    // its middle). Taken at the next step, as the page's are.
+    struct PageAction {
+        enum class Kind : std::uint8_t { focus, activate };
+        Kind        kind = Kind::activate;
+        std::string node;
+    };
+    void synthesize(std::span<const PageAction> actions);
+
+    // A request as window.omui makes it (openmui.tree@0.1, one JSON line),
+    // served at the next step, between frames, with its records to `reply`.
+    // It comes over the bus: openas decides it (S-11), and a person's own
+    // action is refused to it whatever actor it names (S-10).
+    void request(std::string_view line, std::function<void(std::string_view record)> reply);
+
+    // The program's store (omui::store() while this host lives): the page's
+    // localStorage, under the application's id; memory without a page.
+    [[nodiscard]] Store& store() noexcept;
     // Called with true when the page is hidden (another tab, the app in the
     // background) and false when it shows again — before the runtime hears
     // it as the window's focus. Toy's lifecycle hangs here.

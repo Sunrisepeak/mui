@@ -1,6 +1,9 @@
 // The page for openmui.host.web:platform: Emscripten's HTML5 API (its
 // macros become the constants below, here and nowhere else) and the
-// host's library, src/js/omui_web.js. Everything leaves as openmui's types.
+// host's library, src/js/omui_web.js — the hidden textarea, the semantic
+// DOM mirror, window.omui, the clipboard and localStorage are its; what they
+// hear comes back through on_page(), in order with the canvas's events.
+// Everything leaves as openmui's types.
 module;
 #include <emscripten/emscripten.h>
 #include <emscripten/html5.h>
@@ -18,6 +21,18 @@ int  omui_web_hidden();
 int  omui_web_page();
 void omui_web_title(const char* text);
 char* omui_web_languages();
+void omui_web_open(const char* selector, void (*on_page)(int kind, int a, int b, char* text));
+int  omui_web_trusted();
+void omui_web_text_input(float x, float y, float width, float height, const char* label);
+void omui_web_mirror(const char* batch);
+void omui_web_agent_reply(const char* line);
+char* omui_web_clipboard();
+void omui_web_set_clipboard(const char* text);
+int  omui_web_store();
+char* omui_web_store_get(const char* key);
+int  omui_web_store_set(const char* key, const char* value);
+int  omui_web_store_remove(const char* key);
+char* omui_web_store_keys(const char* prefix);
 }
 
 namespace omui::page {
@@ -31,6 +46,7 @@ constexpr float   wheel_line = 40;  // logical pixels per line, as the desktop's
 
 std::string               selector;  // the canvas's, alive for the callbacks
 std::vector<InputEvent>   queue;     // what the page gave since the last take
+std::vector<Request>      asked;     // what the hidden DOM and window.omui asked since
 std::uint32_t             held = 0;  // mouse buttons held (bit i: button i + 1)
 
 // KeyboardEvent.code (the key's place, whatever the layout says) to openmui's keys.
@@ -93,7 +109,21 @@ std::uint32_t buttons_of(unsigned short b) {
     return out;
 }
 
+// What the page's library says (src/js/omui_web.js: the same numbers).
+constexpr int page_text = 1, page_preedit = 2, page_key = 3, page_activate = 4, page_focus = 5, page_agent = 6;
+// KeyboardEvent.keyCode while an input method composes.
+constexpr unsigned composing = 229;
+
+// Only the person's own input is input (openas §2.7): an event a script of
+// the page made (isTrusted false) is not, and is left to the page.
+bool trusted() { return omui_web_trusted() != 0; }
+
 bool on_key(int type, const EmscriptenKeyboardEvent* e, void*) {
+    if (!trusted()) return false;
+    // An input method composing, a dead key, a phone's keyboard: the text
+    // comes from the hidden textarea, and the key stays the page's.
+    if (const std::string_view key = e->key; e->keyCode == composing || key == "Process" || key == "Dead" || key == "Unidentified")
+        return false;
     KeyEvent k;
     k.kind = type == EMSCRIPTEN_EVENT_KEYDOWN ? KeyKind::down : KeyKind::up;
     k.key = key_of(e->code);
@@ -101,7 +131,7 @@ bool on_key(int type, const EmscriptenKeyboardEvent* e, void*) {
     k.repeat = e->repeat;
     if (k.key != Key::unknown) queue.push_back(k);
     // Text as typed: one character, not a chord (an input method's text is
-    // the hidden textarea's, later).
+    // the hidden textarea's).
     const std::string_view key = e->key;
     const bool chord = e->ctrlKey || e->metaKey;
     if (k.kind == KeyKind::down && !chord && !key.empty() && key.size() <= 4 &&
@@ -112,6 +142,7 @@ bool on_key(int type, const EmscriptenKeyboardEvent* e, void*) {
 }
 
 bool on_mouse(int type, const EmscriptenMouseEvent* e, void*) {
+    if (!trusted()) return false;
     PointerEvent p;
     p.position = {static_cast<float>(e->targetX), static_cast<float>(e->targetY)};
     p.mods = mods(e->shiftKey, e->ctrlKey, e->altKey, e->metaKey);
@@ -129,6 +160,7 @@ bool on_mouse(int type, const EmscriptenMouseEvent* e, void*) {
 }
 
 bool on_wheel(int, const EmscriptenWheelEvent* e, void*) {
+    if (!trusted()) return false;
     WheelEvent w;
     w.position = {static_cast<float>(e->mouse.targetX), static_cast<float>(e->mouse.targetY)};
     const float unit = e->deltaMode == static_cast<unsigned>(pixel_lines) ? wheel_line
@@ -143,6 +175,7 @@ bool on_wheel(int, const EmscriptenWheelEvent* e, void*) {
 }
 
 bool on_touch(int type, const EmscriptenTouchEvent* e, void*) {
+    if (!trusted()) return false;
     for (int i = 0; i < e->numTouches && i < 32; ++i) {
         const EmscriptenTouchPoint& t = e->touches[i];
         if (!t.isChanged) continue;
@@ -158,6 +191,34 @@ bool on_touch(int type, const EmscriptenTouchEvent* e, void*) {
         queue.push_back(p);
     }
     return true;  // no scrolling, no zooming, no mouse events made up from touches
+}
+
+// What the page's library heard: the hidden textarea's text and composition
+// (offsets in bytes), a key a phone's keyboard gave only as an edit, and
+// what the hidden DOM and window.omui ask. The text is the caller's to free.
+void on_page(int kind, int a, int b, char* text) {
+    std::string t = text ? text : "";
+    std::free(text);
+    switch (kind) {
+        case page_text: if (!t.empty()) queue.push_back(TextEvent{std::move(t)}); break;
+        case page_preedit: queue.push_back(PreeditEvent{std::move(t), a, b}); break;
+        case page_key:
+            if (const Key k = key_of(t); k != Key::unknown) {
+                queue.push_back(KeyEvent{.kind = KeyKind::down, .key = k});
+                queue.push_back(KeyEvent{.kind = KeyKind::up, .key = k});
+            }
+            break;
+        case page_activate: asked.push_back({Request::Kind::activate, std::move(t)}); break;
+        case page_focus: asked.push_back({Request::Kind::focus, std::move(t)}); break;
+        case page_agent: asked.push_back({Request::Kind::agent, std::move(t)}); break;
+        default: break;
+    }
+}
+
+std::string taken(char* text) {
+    std::string out = text ? text : "";
+    std::free(text);
+    return out;
 }
 
 // ── gamepads: the Gamepad API's standard mapping, sampled once a frame ──
@@ -214,6 +275,9 @@ bool open(std::string_view canvas, std::string_view title) {
     if (!exists()) return false;
     selector = std::string(canvas);
     const char* c = selector.c_str();
+    // The library's listeners first: whether an event is the person's is
+    // known before the canvas's and the keys' callbacks below hear it.
+    omui_web_open(c, &on_page);
     emscripten_set_keydown_callback_on_thread(window_target, nullptr, true, on_key, calling_thread);
     emscripten_set_keyup_callback_on_thread(window_target, nullptr, true, on_key, calling_thread);
     emscripten_set_mousedown_callback_on_thread(c, nullptr, true, on_mouse, calling_thread);
@@ -236,10 +300,48 @@ Canvas canvas(std::string_view sel) {
     return {{v[0], v[1]}, v[2] > 0 ? v[2] : 1.0f};
 }
 
-void take(std::vector<InputEvent>& out) {
+void take(std::vector<InputEvent>& out, std::vector<Request>& requests) {
     out.insert(out.end(), std::make_move_iterator(queue.begin()), std::make_move_iterator(queue.end()));
     queue.clear();
+    requests.insert(requests.end(), std::make_move_iterator(asked.begin()), std::make_move_iterator(asked.end()));
+    asked.clear();
     sample_gamepads(out);
+}
+
+void text_input(std::optional<Rect> caret, std::string_view label) {
+    const std::string l(label);
+    if (!caret) omui_web_text_input(0, 0, -1, -1, l.c_str());
+    else omui_web_text_input(caret->x, caret->y, caret->width, caret->height, l.c_str());
+}
+
+void mirror(std::string_view batch) { omui_web_mirror(std::string(batch).c_str()); }
+
+void agent_reply(std::string_view line) { omui_web_agent_reply(std::string(line).c_str()); }
+
+std::string clipboard() { return taken(omui_web_clipboard()); }
+
+void set_clipboard(std::string_view text) { omui_web_set_clipboard(std::string(text).c_str()); }
+
+bool storage() { return omui_web_store() != 0; }
+
+std::optional<std::string> storage_get(std::string_view key) {
+    char* v = omui_web_store_get(std::string(key).c_str());
+    if (!v) return std::nullopt;
+    return taken(v);
+}
+
+bool storage_set(std::string_view key, std::string_view value) {
+    return omui_web_store_set(std::string(key).c_str(), std::string(value).c_str()) != 0;
+}
+
+bool storage_remove(std::string_view key) { return omui_web_store_remove(std::string(key).c_str()) != 0; }
+
+std::vector<std::string> storage_keys(std::string_view prefix) {
+    std::vector<std::string> out;
+    const auto list = parse_json(taken(omui_web_store_keys(std::string(prefix).c_str())));
+    if (list && list->list())
+        for (const Value& k : *list->list()) out.emplace_back(k.as_string());
+    return out;
 }
 
 void present(std::string_view sel, const raster::Surface& frame) {

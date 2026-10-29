@@ -1,0 +1,30 @@
+# openmui.native.store — a program's own small storage (D-84 §6.2): the
+# `Store` plugin interface a host gives its storage through (the Web host:
+# the page's localStorage; where none does, memory), and its face for
+# scripts, the contract native/store.native.omui.toml (the partition and the
+# TS / Python / Lua stubs are generated: `omui-gen native`; tools/gen's test
+# keeps them current).
+[package]
+namespace   = "openmui.native"
+name        = "store"
+version     = "0.1.0"
+description = "A program's small key-value storage: the Store plugin a host gives (localStorage on the Web, memory elsewhere), for C++ and scripts"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind      = "native"
+contracts = ["native/*.native.omui.toml"]
+
+[targets.openmui-native-store]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/generated/*.cppm"]
+
+[dependencies]
+openmui.native = { path = ".." }
+nlohmann.json  = "3.12.0"
+
+[dev-dependencies]
+openmui.testing = { path = "../../../base/testing" }

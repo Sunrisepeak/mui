@@ -12,40 +12,6 @@ namespace omui::rhi::webgpu {
 
 namespace {
 
-constexpr std::uint32_t none = wire::none;
-
-// A graphics pipeline for the page (src/js/omui_webgpu.js reads the same
-// positions): the stages' counts, the target and its blend, the topology,
-// the depth, the samples, then the vertex buffers' layouts.
-//
-//   0–3   vertex: samplers, storage textures, storage buffers, uniform buffers
-//   4–7   fragment: the same
-//   8     target format          9–15  blend: enabled, src/dst colour, op, src/dst alpha, op
-//   16    topology               17    depth format (none: no depth)
-//   18–20 depth test, write, compare
-//   21    samples                22    buffers, then each: stride, per instance, attributes, then each: location, format, offset
-void graphics_words(const GraphicsPipelineDesc& d, std::vector<std::uint32_t>& w) {
-    auto counts = [&](const ShaderDesc& s) { w.insert(w.end(), {s.samplers, s.storage_textures, s.storage_buffers, s.uniform_buffers}); };
-    auto u = [](auto e) { return static_cast<std::uint32_t>(e); };
-    counts(*d.vertex);
-    counts(*d.fragment);
-    w.insert(w.end(), {u(d.target), d.blend.enabled ? 1u : 0u, u(d.blend.src_color), u(d.blend.dst_color), u(d.blend.color_op),
-                       u(d.blend.src_alpha), u(d.blend.dst_alpha), u(d.blend.alpha_op)});
-    w.insert(w.end(), {u(d.topology), d.depth_target ? u(*d.depth_target) : none, d.depth.test ? 1u : 0u, d.depth.write ? 1u : 0u,
-                       u(d.depth.compare), d.samples});
-    w.push_back(static_cast<std::uint32_t>(d.vertex_buffers.size()));
-    for (const VertexBufferLayout& b : d.vertex_buffers) {
-        w.insert(w.end(), {b.stride, b.per_instance ? 1u : 0u, static_cast<std::uint32_t>(b.attributes.size())});
-        for (const VertexAttribute& a : b.attributes) w.insert(w.end(), {a.location, u(a.format), a.offset});
-    }
-}
-
-// A compute pipeline's counts: samplers, storage textures, storage buffers,
-// uniform buffers, read-write textures, read-write buffers.
-void compute_words(const ShaderDesc& s, std::vector<std::uint32_t>& w) {
-    w.insert(w.end(), {s.samplers, s.storage_textures, s.storage_buffers, s.uniform_buffers, s.rw_storage_textures, s.rw_storage_buffers});
-}
-
 bool live = false;  // one device in a page at a time: the page's tables are its
 
 class WebGpuDevice final : public Device {
@@ -145,7 +111,7 @@ protected:
         const ShaderCode* vs = d.vertex->code_for(ShaderFormat::wgsl);
         const ShaderCode* fs = d.fragment->code_for(ShaderFormat::wgsl);
         words_.clear();
-        graphics_words(d, words_);
+        wire::encode(d, words_);
         const GraphicsPipeline p = graphics_.insert(
             {counts(*d.vertex), counts(*d.fragment), static_cast<std::uint32_t>(d.vertex_buffers.size()), d.target, d.depth_target, d.samples});
         const std::string_view label = d.label.empty() ? d.fragment->entry : d.label;
@@ -159,7 +125,7 @@ protected:
     Result<ComputePipeline> make(const ComputePipelineDesc& d) override {
         const ShaderCode* cs = d.shader->code_for(ShaderFormat::wgsl);
         words_.clear();
-        compute_words(*d.shader, words_);
+        wire::encode(d, words_);
         const ComputePipeline p = compute_.insert({counts(*d.shader)});
         const std::string_view label = d.label.empty() ? d.shader->entry : d.label;
         if (!page::compute(p.index, words_, cs->bytes, d.shader->entry, label)) {

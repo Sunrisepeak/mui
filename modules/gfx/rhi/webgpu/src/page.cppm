@@ -27,7 +27,7 @@ bool buffer(std::uint32_t id, std::uint32_t size, std::uint32_t usage, std::stri
 bool texture(std::uint32_t id, std::uint32_t format, std::uint32_t width, std::uint32_t height, std::uint32_t usage, std::uint32_t samples,
              std::string_view label);
 bool sampler(std::uint32_t id, std::uint32_t min, std::uint32_t mag, std::uint32_t u, std::uint32_t v);
-// `words`: device.cpp's graphics_words / compute_words; the code WGSL.
+// `words`: the pipeline's (rhi::wire::encode); the code WGSL.
 bool graphics(std::uint32_t id, std::span<const std::uint32_t> words, std::span<const std::byte> vs, std::string_view vs_entry,
               std::span<const std::byte> fs, std::string_view fs_entry, std::string_view label);
 bool compute(std::uint32_t id, std::span<const std::uint32_t> words, std::span<const std::byte> cs, std::string_view entry, std::string_view label);

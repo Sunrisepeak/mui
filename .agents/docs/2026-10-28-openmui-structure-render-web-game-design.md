@@ -347,7 +347,7 @@ D-66 的帧管线决定“一帧有哪些阶段”（输入 → 动画 → 布�
 
 | 用途 | 库 | 许可 | 依赖 | 索引里 | 什么时候引入 |
 |---|---|---|---|---|---|
-| WebGL2 的着色器 | SPIRV-Cross | Apache-2.0 | 无 | 没有 | `rhi.webgl`（如果 Slang 的 GLSL ES 输出不够，Q-21） |
+| WebGL2 的着色器 | SPIRV-Cross | Apache-2.0 | 无 | 没有 | 不需要（Q-21 已定：`openmui.shader` 改写 Slang 的 GLSL） |
 | 压缩纹理 | basis_universal（Web 只需转码器） | Apache-2.0 | 无 | 没有 | Web 和格斗游戏的资源 |
 | glTF | cgltf 或 fastgltf | MIT | 无 | 没有 | `render.mesh` |
 | 网格优化 | meshoptimizer | MIT | 无 | 没有 | `render.mesh` |
@@ -375,8 +375,8 @@ D-66 的帧管线决定“一帧有哪些阶段”（输入 → 动画 → 布�
 - 体积（release）：index.html 2.4 KB；格斗 13.9 MiB（wasm 8.8 MiB、字体 4.8 MiB），打砖块 14.5 MiB；zip 后 6.9 / 6.2 MiB。字体是大头，子集化（§6.4）是下一步。
 - 发现：Toy 没有清单文件（标题、slug、封面是 `toy create` 的参数），打包时在包旁边写 `<target>.toy.omui.json`；SDK 由页面自己用 script 标签加载；index 包外的上限按账号而定。mcpp-index 里有些包的 `linux` 链接参数（taskflow 的 `-pthread`、harfbuzz/libwebp 的 `-lpthread`）也落到 emscripten 行，用 `-sUSE_PTHREADS=0` 抵消；QuickJS-ng 的 mwrap 只支持 64 位，Web 上 `lang.js` 暂时回答“不可用”。
 - 已有（2026-10-30，T4）：输入法的隐藏 textarea（组合事件接到 `PreeditEvent` / `TextEvent`）；剪贴板（页面最后知道的内容，写入走 Async Clipboard API）；语义 DOM 镜像（`DomMirror`：ARIA 角色、名字、值、状态、焦点、框，只发变化，polite / assertive 两个 live region，读屏的焦点和激活回到运行时）；`window.omui`（openmui.tree@0.1，经 `openas::decide`，不可信的 DOM 事件不算人的输入）；`Store` 插件（新包 `openmui.native.store`，Web 上是 localStorage，键在 `omui/<app>/` 下）。Web 行跑 host.web 的 wasm 测试、页面一半在模拟 DOM 下的测试，以及 wasm 程序放进模拟页面的端到端测试。
-- 已有（2026-10-30，T6 前半）：`rhi.webgpu`（`omui.rhi` 在页面的 WebGPU 上；Slang 经 `openmui.shader` 输出 WGSL，绑定改写成 WebGPU 的布局；一次提交一次调用，命令列表按 `openmui.rhi:wire` 编成 32 位字）；rhi.cts 的全部用例在 headless Chromium 的 WebGPU（SwiftShader）上通过，Web 构建写出的每个 WGSL 入口都经浏览器编译（`tools/ci/browser.sh`）。回读要程序能挂起（`-sASYNCIFY`；JSPI 和异常的 `invoke_*` 冲突），呈现不需要。
-- 还没有：WebGL2、`host.web` 用 GPU 画（现在仍是 CPU 渲染器）、IndexedDB（比 localStorage 大的存储）、Toy 的 navigate/profile/容器状态；脚本（Lua/Python/JS）在 Web 上需要单线程执行（`lang::Host` 现在起线程）；core/view 的依赖链还没有声明 `platforms`，host.web 在 Web 行里是显式加上的。
+- 已有（2026-10-30，T6）：`rhi.webgpu`（`omui.rhi` 在页面的 WebGPU 上；Slang 经 `openmui.shader` 输出 WGSL，绑定改写成 WebGPU 的布局；一次提交一次调用，命令列表按 `openmui.rhi:wire` 编成 32 位字）和 `rhi.webgl`（WebGL2；GLSL ES 3.00 由 Slang 的 Vulkan GLSL 改写而来，Q-21；同样的 wire，GL 的状态在页面一侧维护）；rhi.cts 的全部用例在 headless Chromium 的 WebGPU（SwiftShader）和 WebGL2（ANGLE 上的 SwiftShader）上通过（WebGL2 没有 compute，用例检查它拒绝），Web 构建写出的每个 WGSL 和 ESSL 入口都经浏览器编译（`tools/ci/browser.sh`）。WebGPU 的回读要程序能挂起（`-sASYNCIFY`；JSPI 和异常的 `invoke_*` 冲突），呈现不需要；WebGL2 全是同步的。
+- 还没有：`host.web` 用 GPU 画（现在仍是 CPU 渲染器；后端已就绪，接上是下一步）、IndexedDB（比 localStorage 大的存储）、Toy 的 navigate/profile/容器状态；脚本（Lua/Python/JS）在 Web 上需要单线程执行（`lang::Host` 现在起线程）；core/view 的依赖链还没有声明 `platforms`，host.web 在 Web 行里是显式加上的。
 
 ### 6.1 构建
 
@@ -402,7 +402,7 @@ D-66 的帧管线决定“一帧有哪些阶段”（输入 → 动画 → 布�
 ### 6.3 GPU
 
 - `rhi.webgpu`：主路径；Slang 输出 WGSL；emscripten 的 WebGPU 接口；
-- `rhi.webgl`（WebGL2）：兼容路径。格斗游戏要全屏 60 帧加特效，B 站 App 的 WebView 不一定有 WebGPU（Q-22），所以 Toy 需要它；
+- `rhi.webgl`（WebGL2）：兼容路径。格斗游戏要全屏 60 帧加特效，B 站 App 的 WebView 不一定有 WebGPU（Q-22），所以 Toy 需要它；着色器是 `openmui.shader` 从 Slang 的 Vulkan GLSL 改写成的 GLSL ES 3.00（资源和变量按 rhi 的槽位和 location 命名，顶点阶段最后换成 GL 的裁剪空间，Q-21）；没有 compute 和存储；
 - CPU 渲染器：最后的兜底，结果画到 canvas 上；输出和 CI 金图逐字节相同。
 
 ### 6.4 体积
@@ -650,7 +650,7 @@ mgame 是一组引擎服务，以 openmui 作为 UI 模块。第一个用户是 
 | 编号 | 问题 | 什么时候定 |
 |---|---|---|
 | Q-20 | 对外品牌：mgame、gongfu、格斗游戏的正式名字；基础组件是否换中性命名空间（现在用 `openmui.`）；hanim 发布到 mcpp-index 时的包名 | 公开发布前 |
-| Q-21 | WebGL2 的着色器：Slang 直接输出 GLSL ES，还是 SPIR-V 经 SPIRV-Cross 转换 | 第 7 轮 |
+| Q-21 | WebGL2 的着色器：Slang 直接输出 GLSL ES，还是 SPIR-V 经 SPIRV-Cross 转换 | 已定（2026-10-30，T6）：都不是。Slang 不能输出 GLSL ES（没有 ES 的 profile），`openmui.shader` 把 Slang 的 Vulkan GLSL 改写成 GLSL ES 3.00（§6.3）；不引入 SPIRV-Cross |
 | Q-22 | B 站 App 内 WebView（iOS / Android）的 WebGPU 覆盖率 | 第 5 轮实测 |
 | Q-23 | wasm 的体积预算（hello、文档墙、格斗游戏） | 第 4 轮测出后 |
 | Q-24 | gongfu 定点数的精度和单位（例如 1/256 像素）、公式的表达能力 | 第 9 轮之前 |
@@ -679,7 +679,7 @@ R1 目录与命名（D-80，一轮完成搬目录 + 改名 + README + lint）
 可以和主线并行的上游工作（在 mcpplibs / mcpp-index 的独立 worktree 里，由子代理完成，最多 3 个）：
   U1 wasm32-emscripten 上的依赖：mcpplibs.os、compat.harfbuzz / fribidi / libpng / md4c 等在 emscripten 上构建和测试 → W1
   U2 mwrap：miniaudio（已有 compat）、Box2D v3、libopus、dr_libs → R8
-  U3 mwrap：basis_universal、SPIRV-Cross（视 Q-21）→ R7 / R9
+  U3 mwrap：basis_universal（SPIRV-Cross 不需要，Q-21）→ R7 / R9
 ```
 
 ### 13.2 每轮的内容和本地验证
@@ -705,7 +705,7 @@ R1 目录与命名（D-80，一轮完成搬目录 + 改名 + README + lint）
 
 T5 的第一部分已完成（2026-10-30）：`site/` 的地方、四档镜头、树哈希对照、中英文、可用的时间线编辑器、构建时预渲染、Pages 工作流；其余部分列为 T5b。T5b 已完成 agent 面板（S-10、S-11 的演示）、链接（`Runtime::open_url`）、镜头的淡入、切换语言的字形过渡（字形动画作用于子树）和无限画布上的地方（全景、飞入）。剩下：可运行的作品（文档墙、风格工坊、示例 01、格斗出招表）、页面底部的时间轴和逐帧哈希。
 
-T6 的前半已完成（2026-10-30）：`rhi.webgpu`，rhi.cts 在浏览器的 WebGPU 上全部通过（§6 的现状）；后半是 `rhi.webgl`。
+T6 已完成（2026-10-30）：`rhi.webgpu` 和 `rhi.webgl`，rhi.cts（新增 `firsts`：从第几个顶点、第几个实例画起）在浏览器的 WebGPU 和 WebGL2 上全部通过（§6 的现状）；Q-21 已定。接下来是 `host.web` 用这两个后端画（WebGPU 为主、WebGL2 兼容、CPU 兜底）。
 
 剩下的按依赖拆成七项，T1–T4 互不依赖，可以并行（子代理最多 3 个）：
 

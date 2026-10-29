@@ -7,6 +7,7 @@ import std;
 import openmui.rhi;
 import openmui.shader;
 import openmui.testing;
+import mcpplibs.os;
 
 using namespace omui::testing;
 using namespace omui;
@@ -227,13 +228,85 @@ int main(int argc, char** argv) {
         check_eq(refusal("unformatted.slang"), std::string("<compiled>"));
     });
 
+    s.test("ESSL: GLSL ES 3.00 with rhi's slots and locations by name, GL's clip space, nothing ES lacks", [] {
+        const auto formats = rhi::formats({rhi::ShaderFormat::spirv, rhi::ShaderFormat::essl});
+        std::vector<std::pair<std::string, std::string>> written;  // name, text: what glslang is given below
+        auto essl = [&](const shader::Entry* e) {
+            const auto* c = e ? e->code_for(rhi::ShaderFormat::essl) : nullptr;
+            if (!c) return std::string();
+            written.emplace_back(e->name, text(c->bytes));
+            return written.back().second;
+        };
+        auto quad = shader::compile(data("quad.slang"), {.formats = formats});
+        check(quad.has_value(), quad ? "" : quad.error());
+        if (!quad) return;
+        const std::string vs = essl(quad->entry("quad_vs")), fs = essl(quad->entry("quad_fs"));
+        check(vs.starts_with("#version 300 es\n") && fs.starts_with("#version 300 es\nprecision highp float;"), vs);
+        check(vs.contains("layout(std140) uniform omui_vs_uniform0"), vs);
+        check(vs.contains("out vec2 omui_v0;") && fs.contains("in vec2 omui_v0;"), "a varying by its location");
+        check(vs.contains("void omui_main()") && vs.contains("gl_Position.y = -gl_Position.y;") &&
+                  vs.contains("gl_Position.z = 2.0 * gl_Position.z - gl_Position.w;"),
+              "the vertex stage ends in GL's clip space");
+        check(fs.contains("uniform sampler2D omui_fs_sampler0;") && fs.contains("texture((omui_fs_sampler0)"), fs);
+        check(fs.contains("layout(std140) uniform omui_fs_uniform0"), fs);
+        for (const std::string& t : {vs, fs}) check(!t.contains("layout(binding") && !t.contains("#line") && !t.contains("#extension"), t);
+        // Flat varyings, `precise` gone.
+        auto flat = shader::compile(data("flat.slang"), {.formats = formats});
+        check(flat.has_value(), flat ? "" : flat.error());
+        if (flat) {
+            const std::string fv = essl(flat->entry("flat_vs")), ff = essl(flat->entry("flat_fs"));
+            check(fv.contains("flat out vec4 omui_v0;") && ff.contains("flat in vec4 omui_v0;"), fv);
+            check(!ff.contains("precise"), ff);
+        }
+        // Draw parameters through omui_base; a name GLSL reserves renamed.
+        auto drawn = shader::compile(data("drawn.slang"), {.formats = formats});
+        check(drawn.has_value(), drawn ? "" : drawn.error());
+        if (drawn) {
+            const std::string dv = essl(drawn->entry("drawn_vs"));
+            check(dv.contains("uniform highp ivec4 omui_base;") && dv.contains("gl_VertexID + omui_base.x") && dv.contains("gl_InstanceID + omui_base.z"),
+                  dv);
+            check(!dv.contains("gl_VertexIndex") && !dv.contains("gl_InstanceIndex") && !dv.contains("gl_BaseVertex"), dv);
+            check(dv.contains("omui_gl_0") && !dv.contains(" gl_0"), dv);
+            check(essl(drawn->entry("drawn_fs")).contains("flat in uint omui_v0;"));
+        }
+        // No compute and no storage in ES 3.00: such entries have none.
+        auto layers = shader::compile(data("layers.slang"), {.formats = formats});
+        check(layers.has_value(), layers ? "" : layers.error());
+        if (layers) {
+            check(!layers->entry("layers_fs")->code_for(rhi::ShaderFormat::essl), "a storage buffer: no ESSL");
+            check(!layers->entry("layers_cs")->code_for(rhi::ShaderFormat::essl), "compute: no ESSL");
+            check(layers->entry("layers_fs")->code_for(rhi::ShaderFormat::spirv) != nullptr);
+        }
+        // What glslang (OMUI_GLSLANG, or glslangValidator on PATH) says of it all.
+        std::optional<std::filesystem::path> glslang;
+        if (auto g = mcpplibs::os::env::get("OMUI_GLSLANG"); g && !g->empty()) glslang = mcpplibs::os::fs::from_utf8(*g);
+        else if (auto p = mcpplibs::os::env::find_executable("glslangValidator")) glslang = *p;
+        if (!glslang) {
+            std::println("  no glslangValidator (OMUI_GLSLANG): the ESSL is not compiled here; tools/ci/browser.sh compiles it in the browser");
+            return;
+        }
+        const auto dir = std::filesystem::temp_directory_path() / "omui-essl-test";
+        std::filesystem::create_directories(dir);
+        for (const auto& [name, t] : written) {
+            const auto file = dir / (name + (name.ends_with("_vs") ? ".vert" : ".frag"));
+            std::ofstream(file, std::ios::binary) << t;
+            mcpplibs::os::process::spawn_options o;
+            o.program = *glslang;
+            o.args = {mcpplibs::os::fs::utf8(file)};
+            auto r = mcpplibs::os::process::run(std::move(o));
+            check(r && r->status.success(), std::format("glslang on {}: {}", name, r ? r->out : r.error().message()));
+        }
+        std::error_code ec;
+        std::filesystem::remove_all(dir, ec);
+    });
+
     s.test("the formats a build compiles to, by target and host", [] {
         using enum rhi::ShaderFormat;
         check(shader::formats_for("linux", "linux") == rhi::formats({spirv}));
         check(shader::formats_for("macos", "macos") == rhi::formats({msl}));
         check(shader::formats_for("windows", "windows") == rhi::formats({spirv, dxbc}));
         check(shader::formats_for("windows", "linux") == rhi::formats({spirv}), "DXBC needs the Windows host's compiler");
-        check(shader::formats_for("emscripten", "linux") == rhi::formats({wgsl}), "the Web: WebGPU's");
+        check(shader::formats_for("emscripten", "linux") == rhi::formats({wgsl, essl}), "the Web: WebGPU's and WebGL2's");
     });
 
     return s.run(argc, argv);

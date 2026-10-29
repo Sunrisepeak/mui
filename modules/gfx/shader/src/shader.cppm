@@ -1,6 +1,6 @@
 // openmui.shader — Slang shaders to what an omui.rhi device takes
 // (architecture §8.3, D-34): every entry point of a `.slang` file compiled by
-// slangc to each shader format asked for (SPIR-V, MSL, DXBC, DXIL, WGSL), its
+// slangc to each shader format asked for (SPIR-V, MSL, DXBC, DXIL, WGSL, ESSL), its
 // resources read from Slang's reflection and checked against the binding
 // convention rhi backends share (SDL_GPU's), and the result written as a C++
 // module partition of rhi::ShaderDesc constants — or kept in memory, which is
@@ -105,7 +105,7 @@ struct EmitOptions {
 // MCPP_TARGET_OS spelling: linux, windows, macos, ios, android, emscripten …)
 // on a host: SPIR-V for Vulkan everywhere but Apple and the Web, MSL on
 // Apple, DXBC for D3D12 when the host is Windows (its d3dcompiler compiles
-// it), and on the Web WGSL for WebGPU.
+// it), and on the Web WGSL for WebGPU and ESSL (GLSL ES 3.00) for WebGL2.
 [[nodiscard]] rhi::ShaderFormats formats_for(std::string_view target_os, std::string_view host_os) noexcept;
 
 // The prerequisites of a Make-syntax depfile (slangc's): after the first

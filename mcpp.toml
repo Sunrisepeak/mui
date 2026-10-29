@@ -34,6 +34,7 @@ members = [
     "modules/gfx/rhi/cts",
     "modules/gfx/rhi/sdl",
     "modules/gfx/rhi/webgpu",
+    "modules/gfx/rhi/webgl",
     "modules/gfx/shader",
     "modules/gfx/shader/rules",
     "modules/content/i18n",

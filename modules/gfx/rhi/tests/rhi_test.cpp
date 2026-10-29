@@ -383,7 +383,7 @@ int main(int argc, char** argv) {
         check(!none && none.error().code == Errc::unsupported, none ? "" : none.error().message);
     });
 
-    s.test("the wire: a list as words, each command its op, its length and its fields, payloads where they lie", [] {
+    s.test("the wire: a list as words, each command its op, its length and its fields, payloads where they lie; a pipeline's state", [] {
         Scene sc;
         CommandList l;
         sc.frame(l);
@@ -435,6 +435,19 @@ int main(int argc, char** argv) {
         words.clear();
         wire::encode(l, words);
         check_eq(words.size(), n);
+        // A pipeline: the stages' counts, the target and blend, topology, depth, samples, the vertex layout.
+        std::vector<std::uint32_t> p;
+        wire::encode(GraphicsPipelineDesc{.vertex = &sc.vs, .fragment = &sc.fs, .vertex_buffers = sc.layout, .depth_target = Format::d32_float,
+                                          .depth = {.test = true, .write = true, .compare = Compare::less}},
+                     p);
+        const std::vector<std::uint32_t> want{0, 0, 0, 1,  1, 0, 0, 0,  static_cast<std::uint32_t>(Format::rgba8_unorm), 1, 1, 7, 0, 1, 7, 0,
+                                              0, static_cast<std::uint32_t>(Format::d32_float), 1, 1, 1, 1,
+                                              1, 16, 0, 2, 0, 1, 0, 1, 1, 8};
+        check(p == want, std::format("{}", p));
+        p.clear();
+        const ShaderDesc cs{.stage = Stage::compute, .entry = "cs", .code = spirv, .uniform_buffers = 1, .rw_storage_textures = 2};
+        wire::encode(ComputePipelineDesc{&cs}, p);
+        check(p == std::vector<std::uint32_t>{0, 0, 0, 1, 2, 0}, std::format("{}", p));
     });
 
     return s.run(argc, argv);

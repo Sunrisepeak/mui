@@ -271,6 +271,7 @@ std::vector<std::string> target_args(rhi::ShaderFormat f) {
         case rhi::ShaderFormat::dxbc: return {"-target", "dxbc", "-profile", "sm_5_1"};
         case rhi::ShaderFormat::dxil: return {"-target", "dxil", "-profile", "sm_6_0"};
         case rhi::ShaderFormat::wgsl: return {"-target", "wgsl"};
+        case rhi::ShaderFormat::essl: return {"-target", "glsl"};  // Vulkan's GLSL, then essl_for_rhi
     }
     return {};
 }
@@ -358,6 +359,140 @@ std::expected<std::string, std::string> wgsl_for_rhi(std::string_view text, rhi:
         l.replace(l.find(", read_write>"), 13, ", write>");
     }
     return joined(lines);
+}
+
+// ── ESSL ─────────────────────────────────────────────────────────────────
+
+// `text` with every identifier that `names` holds replaced, token by token
+// (as the preprocessor would): declarations and uses alike, a struct's
+// member of the same name too, so the program stays what it was. A name of
+// the program's own that GLSL reserves — `gl_` and a small letter or a
+// digit (Slang's `gl_0` for a variable `gl`; GLSL's own are `gl_` and a
+// capital) — becomes `omui_gl_…`.
+std::string renamed(std::string_view text, const std::map<std::string, std::string, std::less<>>& names) {
+    std::string out;
+    out.reserve(text.size() + text.size() / 8);
+    auto word = [](char c) { return std::isalnum(static_cast<unsigned char>(c)) || c == '_'; };
+    for (std::size_t i = 0; i < text.size();) {
+        const char c = text[i];
+        if (std::isdigit(static_cast<unsigned char>(c))) {  // a number, suffixes and exponents with it
+            const std::size_t j = i;
+            while (i < text.size() && (word(text[i]) || text[i] == '.' ||
+                                       ((text[i] == '-' || text[i] == '+') && (text[i - 1] == 'e' || text[i - 1] == 'E'))))
+                ++i;
+            out += text.substr(j, i - j);
+        } else if (word(c)) {
+            const std::size_t j = i;
+            while (i < text.size() && word(text[i])) ++i;
+            const std::string_view id = text.substr(j, i - j);
+            const auto it = names.find(id);
+            if (it != names.end()) out += it->second;
+            else if (id.size() > 3 && id.starts_with("gl_") && !std::isupper(static_cast<unsigned char>(id[3]))) out += std::format("omui_{}", id);
+            else out += id;
+        } else {
+            out += c;
+            ++i;
+        }
+    }
+    return out;
+}
+
+// Slang's GLSL (Vulkan's) as GLSL ES 3.00, as rhi.webgl reads it. ES 3.00
+// binds nothing by number, so what is bound is named for rhi's slot: a
+// stage's sampled texture i is `omui_vs_sampler<i>` / `omui_fs_sampler<i>`,
+// its uniform buffer i the block `omui_vs_uniform<i>` / `omui_fs_uniform<i>`;
+// and it matches the stages' varyings by name, so the one at location n is
+// `omui_v<n>`. Vulkan's draw parameters become what WebGL2 has and the
+// uniform `omui_base` (the base vertex the backend draws from, the base
+// vertex as the draw gave it, the first instance twice). The vertex stage
+// ends by mapping rhi's clip space to GL's: y flipped (rhi.webgl renders
+// upside down, so row 0 of a texture is its top, as everywhere else) and
+// depth from 0–1 to −1–1. `precise` goes (ES 3.00 has no such qualifier).
+// Storage has no place here: an entry point with storage, or a compute one,
+// has no ESSL.
+std::expected<std::string, std::string> essl_for_rhi(std::string_view text, rhi::Stage stage) {
+    std::string body;
+    for (const std::string& l : lines_of(text)) {
+        const std::string_view t = l;
+        // The version, extensions and line markers are Vulkan GLSL's, and a
+        // default layout for buffers (`layout(row_major) buffer;`) is not ES's.
+        if (t.starts_with("#version") || t.starts_with("#extension") || t.starts_with("#line") ||
+            (t.starts_with("layout(") && t.ends_with(") buffer;")))
+            continue;
+        body += l + "\n";
+    }
+    const std::string_view st = stage == rhi::Stage::vertex ? "vs" : "fs";
+    std::map<std::string, std::string, std::less<>> names;
+    auto rewrite = [&](const std::regex& pattern, auto&& replace) -> std::string {
+        std::string out, problem;
+        auto it = std::sregex_iterator(body.begin(), body.end(), pattern);
+        std::size_t at = 0;
+        for (; it != std::sregex_iterator(); ++it) {
+            const std::smatch& m = *it;
+            out.append(body, at, static_cast<std::size_t>(m.position(0)) - at);
+            auto r = replace(m);
+            if (!r) {
+                if (problem.empty()) problem = r.error();
+                r = m.str(0);
+            }
+            out += *r;
+            at = static_cast<std::size_t>(m.position(0) + m.length(0));
+        }
+        out.append(body, at);
+        body = std::move(out);
+        return problem;
+    };
+    using Replaced = std::expected<std::string, std::string>;
+    // Sampled textures: named for their slot.
+    static const std::regex texture(R"(layout\(binding = (\d+)(?:, set = \d+)?\)\s*\n\s*uniform\s+(\w+)\s+(\w+)\s*;)");
+    if (auto e = rewrite(texture, [&](const std::smatch& m) -> Replaced {
+            const std::string type = m[2].str();
+            if (!type.contains("sampler"))
+                return std::unexpected(std::format("`{}` is a {}: GLSL ES 3.00 has no storage images", m[3].str(), type));
+            const std::string name = std::format("omui_{}_sampler{}", st, m[1].str());
+            names[m[3].str()] = name;
+            return std::format("uniform {} {};", type, name);
+        });
+        !e.empty())
+        return std::unexpected(e);
+    // Uniform buffers: the block named for its slot (its instance keeps its name).
+    static const std::regex block(R"(layout\(binding = (\d+)(?:, set = \d+)?\)\s*\n\s*layout\(std140\)\s*uniform\s+(\w+))");
+    rewrite(block, [&](const std::smatch& m) -> Replaced { return std::format("layout(std140) uniform omui_{}_uniform{}", st, m[1].str()); });
+    if (body.contains(" buffer ") || body.contains("buffer\n") || body.contains("image2D"))
+        return std::unexpected(std::string("storage (a buffer or an image) has no place in GLSL ES 3.00"));
+    // Varyings: matched by name in ES, so named for their location.
+    static const std::regex varying(R"((?:(flat|smooth|noperspective|centroid)\s+)?layout\(location = (\d+)\)\s*\n\s*(in|out)\s+(\w+)\s+(\w+)\s*;)");
+    const std::string_view crossing = stage == rhi::Stage::vertex ? "out" : "in";
+    if (auto e = rewrite(varying, [&](const std::smatch& m) -> Replaced {
+            if (m[3].str() != crossing) return m.str(0);  // a vertex input, a fragment output: by location in ES too
+            if (m[1].str() == "noperspective") return std::unexpected(std::format("`{}` is noperspective, which GLSL ES 3.00 lacks", m[5].str()));
+            const std::string name = std::format("omui_v{}", m[2].str());
+            names[m[5].str()] = name;
+            return std::format("{}{} {} {};", m[1].matched ? m[1].str() + " " : std::string(), m[3].str(), m[4].str(), name);
+        });
+        !e.empty())
+        return std::unexpected(e);
+    bool base = false;
+    if (stage == rhi::Stage::vertex) {
+        for (const auto& [vulkan, es] : {std::pair{"gl_VertexIndex", "(gl_VertexID + omui_base.x)"}, std::pair{"gl_BaseVertex", "omui_base.y"},
+                                         std::pair{"gl_InstanceIndex", "(gl_InstanceID + omui_base.z)"}, std::pair{"gl_BaseInstance", "omui_base.w"}})
+            if (body.contains(vulkan)) {
+                names[vulkan] = es;
+                base = true;
+            }
+        names["main"] = "omui_main";
+    }
+    names["precise"] = "";  // HLSL's, and GLSL ES 3.20's: not 3.00's
+    std::string out =
+        "#version 300 es\n"
+        "precision highp float;\nprecision highp int;\nprecision highp sampler2D;\nprecision highp isampler2D;\n"
+        "precision highp usampler2D;\nprecision highp sampler3D;\nprecision highp samplerCube;\nprecision highp sampler2DArray;\n"
+        "precision highp sampler2DShadow;\n";
+    if (base) out += "uniform highp ivec4 omui_base;\n";
+    out += renamed(body, names);
+    if (stage == rhi::Stage::vertex)
+        out += "void main()\n{\n    omui_main();\n    gl_Position.y = -gl_Position.y;\n    gl_Position.z = 2.0 * gl_Position.z - gl_Position.w;\n}\n";
+    return out;
 }
 
 std::filesystem::path scratch_dir() {
@@ -509,6 +644,7 @@ std::expected<Program, std::string> compile(const std::filesystem::path& source,
             const auto format = static_cast<rhi::ShaderFormat>(f);
             // SPIR-V always: what an entry point uses is read from it.
             if (format != rhi::ShaderFormat::spirv && !options.formats.has(format)) continue;
+            if (format == rhi::ShaderFormat::essl && wanted[i].stage == rhi::Stage::compute) continue;  // ES 3.00 has no compute
             std::vector<std::string> args{"-entry", wanted[i].name, "-stage", std::string(name(wanted[i].stage))};
             const auto target = target_args(format);
             args.insert(args.end(), target.begin(), target.end());
@@ -517,6 +653,7 @@ std::expected<Program, std::string> compile(const std::filesystem::path& source,
                   run.file(format == rhi::ShaderFormat::spirv  ? ".spv"
                            : format == rhi::ShaderFormat::msl  ? ".metal"
                            : format == rhi::ShaderFormat::wgsl ? ".wgsl"
+                           : format == rhi::ShaderFormat::essl ? ".glsl"
                                                                : ".bin"),
                   reflect ? run.file(".json") : std::filesystem::path{});
         }
@@ -608,6 +745,11 @@ std::expected<Program, std::string> compile(const std::filesystem::path& source,
                 entry.code.push_back({format, *spirv});
                 continue;
             }
+            // GLSL ES 3.00 has no compute and no storage: no ESSL for such an entry.
+            const rhi::Counts& c = entry.counts;
+            if (format == rhi::ShaderFormat::essl &&
+                (entry.stage == rhi::Stage::compute || c.storage_textures || c.storage_buffers || c.rw_storage_textures || c.rw_storage_buffers))
+                continue;
             const auto job = std::ranges::find_if(jobs, [&](const Job& j) { return j.entry == i && j.format == format; });
             auto bytes = read_bytes(job->out);
             if (!bytes) return std::unexpected(bytes.error());
@@ -623,9 +765,10 @@ std::expected<Program, std::string> compile(const std::filesystem::path& source,
                 const auto head = std::as_bytes(std::span(precise));
                 bytes->insert(bytes->begin(), head.begin(), head.end());
             }
-            if (format == rhi::ShaderFormat::wgsl) {
-                auto text = wgsl_for_rhi(std::string_view(reinterpret_cast<const char*>(bytes->data()), bytes->size()), entry.stage);
-                if (!text) return std::unexpected(std::format("{} ({} for wgsl): {}", file_name, entry.name, text.error()));
+            if (format == rhi::ShaderFormat::wgsl || format == rhi::ShaderFormat::essl) {
+                const std::string_view source_text(reinterpret_cast<const char*>(bytes->data()), bytes->size());
+                auto text = format == rhi::ShaderFormat::wgsl ? wgsl_for_rhi(source_text, entry.stage) : essl_for_rhi(source_text, entry.stage);
+                if (!text) return std::unexpected(std::format("{} ({} for {}): {}", file_name, entry.name, name(format), text.error()));
                 const auto b = std::as_bytes(std::span(*text));
                 bytes->assign(b.begin(), b.end());
             }
@@ -659,7 +802,7 @@ rhi::ShaderDesc desc(const Entry& e, std::vector<rhi::ShaderCode>& codes, std::s
 }
 
 rhi::ShaderFormats formats_for(std::string_view target_os, std::string_view host_os) noexcept {
-    if (target_os == "emscripten") return rhi::formats({rhi::ShaderFormat::wgsl});
+    if (target_os == "emscripten") return rhi::formats({rhi::ShaderFormat::wgsl, rhi::ShaderFormat::essl});
     if (target_os == "macos" || target_os == "ios" || target_os == "tvos" || target_os == "visionos")
         return rhi::formats({rhi::ShaderFormat::msl});
     rhi::ShaderFormats f = rhi::formats({rhi::ShaderFormat::spirv});

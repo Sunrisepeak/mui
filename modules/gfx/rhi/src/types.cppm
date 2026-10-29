@@ -41,14 +41,16 @@ using Result = std::expected<T, Error>;
 // ── devices ──────────────────────────────────────────────────────────────
 
 // The GPU API a device drives: SDL_GPU's three (rhi.sdl), and a page's
-// WebGPU (rhi.webgpu).
-enum class Backend : std::uint8_t { vulkan, metal, d3d12, webgpu };
+// WebGPU (rhi.webgpu) and WebGL2 (rhi.webgl).
+enum class Backend : std::uint8_t { vulkan, metal, d3d12, webgpu, webgl };
 [[nodiscard]] std::string_view name(Backend backend) noexcept;
 
-// Shader code a device accepts, one format per backend family (WGSL for
-// WebGPU).
-enum class ShaderFormat : std::uint8_t { spirv, msl, metallib, dxbc, dxil, wgsl };
-inline constexpr std::size_t shader_format_count = 6;
+// Shader code a device accepts, one format per backend family: WGSL for
+// WebGPU, and ESSL — GLSL ES 3.00 as rhi.webgl reads it (openmui.shader
+// writes it: resources and varyings named for rhi's slots and locations,
+// the clip space mapped to GL's at the vertex stage's end).
+enum class ShaderFormat : std::uint8_t { spirv, msl, metallib, dxbc, dxil, wgsl, essl };
+inline constexpr std::size_t shader_format_count = 7;
 [[nodiscard]] std::string_view name(ShaderFormat format) noexcept;
 [[nodiscard]] std::optional<ShaderFormat> shader_format(std::string_view name) noexcept;
 
@@ -189,7 +191,7 @@ enum class Stage : std::uint8_t { vertex, fragment, compute };
 
 struct ShaderCode {
     ShaderFormat              format = ShaderFormat::spirv;
-    std::span<const std::byte> bytes;  // MSL and WGSL are text, the others binary
+    std::span<const std::byte> bytes;  // MSL, WGSL and ESSL are text, the others binary
 };
 
 // One entry point: its code in every format it was compiled to, and the

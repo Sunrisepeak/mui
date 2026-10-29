@@ -45,6 +45,7 @@ struct Bench {
     ComputePipeline  compute;
     std::vector<std::function<void()>> release;
     std::string      failure;  // the case's first problem ("" while it holds)
+    std::string      note;     // what a case that holds says of how (a device without what it checks)
 
     [[nodiscard]] bool failed() const noexcept { return !failure.empty(); }
     void fail(std::string why) {
@@ -87,8 +88,10 @@ struct Bench {
                           .depth = {.test = true, .write = true, .compare = Compare::less}, .label = "cts.depth"});
         depth_msaa_fill = pipeline({.vertex = &shaders::fill::fill_vs, .fragment = &shaders::fill::fill_fs, .vertex_buffers = fill_layout,
                                     .blend = Blend::replace(), .samples = 4, .label = "cts.fill_msaa"});
-        compute = must(d.create(ComputePipelineDesc{&shaders::compute::pattern, "cts.compute"}), "the compute pipeline");
-        release.push_back([this] { d.destroy(compute); });
+        if (d.caps().compute) {  // a device without (WebGL2) refuses it: the compute case checks that
+            compute = must(d.create(ComputePipelineDesc{&shaders::compute::pattern, "cts.compute"}), "the compute pipeline");
+            release.push_back([this] { d.destroy(compute); });
+        }
         CommandList l;
         const I zero{0, 0};
         l.upload(one_instance, 0, std::span<const I>(&zero, 1));
@@ -135,11 +138,11 @@ struct Bench {
         submit(l);
     }
     void fill_with(CommandList& l, Buffer quad_vertices, std::uint32_t count, std::uint32_t instances = 1, Buffer instance = {},
-                   bool blend = false) {
+                   bool blend = false, std::uint32_t first_vertex = 0, std::uint32_t first_instance = 0) {
         l.set_pipeline(blend ? fill_blend : fill);
         l.bind_vertex_buffer(0, quad_vertices);
         l.bind_vertex_buffer(1, instance ? instance : one_instance);
-        l.draw(count, instances);
+        l.draw(count, instances, first_vertex, first_instance);
     }
 
     std::vector<Rgba> pixels(Texture t = {}, std::uint32_t w = W, std::uint32_t h = H) {
@@ -265,6 +268,20 @@ void instancing(Bench& b) {
     expect(b, b.pixels(), W, [](auto x, auto y) { return (x % 4) < 2 && (y % 4) < 2 ? green : black; });
 }
 
+// A draw from its first vertex and its first instance: the buffer's second
+// quad (green, the first red), moved by the second and third offsets (the
+// first would put it at the top right).
+void firsts(Bench& b) {
+    const auto skipped = quad(-1, 0.5f, -0.5f, 1, red), drawn = quad(-1, 0.5f, -0.5f, 1, green);  // the 2×2 block at the top left
+    std::array<V, 12> v{};
+    std::ranges::copy(skipped, v.begin());
+    std::ranges::copy(drawn, v.begin() + 6);
+    const Buffer vb = b.vertices(v);
+    const Buffer inst = b.vertices(std::array<I, 3>{I{1.5f, 0}, I{0, -1}, I{1, -1}});
+    b.pass(LoadOp::clear, black, [&](CommandList& l) { b.fill_with(l, vb, 6, 2, inst, false, 6, 1); });
+    expect(b, b.pixels(), W, [](auto x, auto y) { return (x < 2 || (x >= 4 && x < 6)) && y >= 4 && y < 6 ? green : black; });
+}
+
 // 16-bit indices on the left half; 32-bit ones, with a first index and a
 // vertex offset, on the right.
 void indexed(Bench& b) {
@@ -380,7 +397,21 @@ void copy(Bench& b) {
 }
 
 // A compute pass writes every texel and element; the uniforms say how many.
+// A device that says it has no compute (Caps::compute: WebGL2) refuses a
+// compute pipeline as unsupported, which is what holds for it.
 void compute(Bench& b) {
+    if (!b.d.caps().compute) {
+        auto p = b.d.create(ComputePipelineDesc{&shaders::compute::pattern, "cts.compute"});
+        if (p) {
+            b.d.destroy(*p);
+            b.fail("the device says it has no compute (Caps::compute), and made a compute pipeline");
+        } else if (p.error().code != Errc::unsupported) {
+            b.fail(std::format("no compute: the pipeline is refused as {}, not unsupported ({})", name(p.error().code), p.error().message));
+        } else {
+            b.note = "no compute on this device (Caps::compute): its pipeline refused as unsupported";
+        }
+        return;
+    }
     const Texture out = b.texture(Format::rgba8_unorm, W, H, TextureUsage::compute_write | TextureUsage::sampled, "cts.compute_out");
     const Buffer values = b.buffer(W * H * 4, BufferUsage::compute_write, "cts.compute_values");
     const std::array<std::uint32_t, 4> params{W, H, 0, 0};
@@ -461,10 +492,11 @@ struct Case {
     std::string_view name;
     void (*run)(Bench&);
 };
-constexpr std::array<Case, 18> all{{
+constexpr std::array<Case, 19> all{{
     {"clear", clear},
     {"orientation", orientation},
     {"instancing", instancing},
+    {"firsts", firsts},
     {"indexed", indexed},
     {"blending", blending},
     {"scissor", scissor},
@@ -501,8 +533,9 @@ std::vector<Outcome> run(Device& device) {
     }
     for (const Case& c : all) {
         bench.failure.clear();
+        bench.note.clear();
         c.run(bench);
-        out.push_back({std::string(c.name), !bench.failed(), bench.failure});
+        out.push_back({std::string(c.name), !bench.failed(), bench.failed() ? bench.failure : bench.note});
     }
     return out;
 }

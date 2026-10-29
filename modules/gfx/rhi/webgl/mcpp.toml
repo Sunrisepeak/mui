@@ -1,0 +1,38 @@
+# openmui.rhi.webgl — omui.rhi on the page's WebGL2 (D-84 §6.3, the Web's
+# compatibility path): ESSL shaders, the context made with the device, one
+# call into the page a resource and one a submission (rhi's wire words). The
+# page's half is src/js/omui_webgl.js, which build.mcpp gives the link; off
+# the Web (src/native/elsewhere) there is no WebGL2 and create() says so.
+[package]
+namespace   = "openmui.rhi"
+name        = "webgl"
+version     = "0.1.0"
+description = "omui.rhi on the page's WebGL2: ESSL shaders, one call into the page a submission"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+
+[package.metadata.openmui]
+kind = "backend"
+
+[targets.openmui-rhi-webgl]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+# The page (src/js/omui_webgl.js, through Emscripten), or no page.
+[target.'cfg(os = "emscripten")'.build]
+sources = ["src/native/browser/*.cpp"]
+
+[target.'cfg(not(os = "emscripten"))'.build]
+sources = ["src/native/elsewhere/*.cpp"]
+
+[dependencies]
+openmui.rhi    = { path = ".." }
+openmui.memory = { path = "../../../base/memory" }
+
+[dev-dependencies]
+openmui.testing = { path = "../../../base/testing" }
+openmui.rhi.cts = { path = "../cts" }
+mcpplibs.os     = "0.2.2"

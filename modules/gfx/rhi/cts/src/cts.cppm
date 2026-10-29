@@ -23,7 +23,8 @@ export namespace omui::rhi::cts {
 struct Outcome {
     std::string name;
     bool        passed = false;
-    std::string detail;  // the first difference, or why it could not run
+    std::string detail;  // the first difference, or why it could not run; for a case that holds, a note
+                         // ("" or how: a device without compute refusing it)
 };
 
 // Every case, in order, on `device`.

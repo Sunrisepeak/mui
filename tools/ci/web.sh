@@ -10,8 +10,9 @@
 # (src/js/omui_web.js: the hidden textarea, the semantic DOM mirror,
 # window.omui, the clipboard, localStorage) under node's test runner with a
 # fake DOM — alone, and with the program: tests/page_test.cpp in a fake page;
-# so is openmui.rhi.webgpu's page half (src/js/omui_webgpu.js) with a fake
-# WebGPU. Last, tools/ci/browser.sh runs what needs a real page in headless
+# so are openmui.rhi.webgpu's and openmui.rhi.webgl's page halves
+# (src/js/omui_webgpu.js, src/js/omui_webgl.js) with a fake WebGPU and a fake
+# WebGL2. Last, tools/ci/browser.sh runs what needs a real page in headless
 # Chromium, where one is found.
 #
 #   tools/ci/web.sh [profile]     default: wasm-test (tests read their fixtures through node)
@@ -44,9 +45,9 @@ page_test=$(ls -t target/wasm32-emscripten/*/bin/web/page_test.js 2>/dev/null | 
 [ -n "$page_test" ] || { echo "::error::host.web's page_test was not built"; exit 1; }
 OMUI_PAGE_TEST="$page_test" "$node_bin" --test modules/ui/host/web/tests/js/page.test.mjs modules/ui/host/web/tests/js/wasm.test.mjs \
   || { echo "::error::the page's half of host.web failed its tests"; exit 1; }
-"$node_bin" --test modules/gfx/rhi/webgpu/tests/js/webgpu.test.mjs \
-  || { echo "::error::the page's half of rhi.webgpu failed its tests"; exit 1; }
+"$node_bin" --test modules/gfx/rhi/webgpu/tests/js/webgpu.test.mjs modules/gfx/rhi/webgl/tests/js/webgl.test.mjs \
+  || { echo "::error::the page's halves of rhi.webgpu and rhi.webgl failed their tests"; exit 1; }
 
-# What only a real page can check (WebGPU's conformance, the browser's WGSL
-# compiler), where a headless Chromium is found.
+# What only a real page can check (WebGPU's and WebGL2's conformance, the
+# browser's shader compilers), where a headless Chromium is found.
 tools/ci/browser.sh || { echo "::error::the browser's checks failed"; exit 1; }

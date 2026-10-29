@@ -177,7 +177,7 @@ addToLibrary({
       return { samplers: w[at], storageTextures: w[at + 1], storageBuffers: w[at + 2], uniforms: w[at + 3] };
     },
 
-    // A graphics pipeline from its words (page.cpp: graphics_words).
+    // A graphics pipeline from its words (openmui.rhi:wire's).
     graphics: function (w, vs, vsEntry, fs, fsEntry, label) {
       var G = omuiGpu;
       var vertex = G.counts(w, 0), fragment = G.counts(w, 4);

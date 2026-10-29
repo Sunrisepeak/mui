@@ -1,6 +1,7 @@
 // openmui.rhi:wire — a command list as 32-bit words, for a device on the
-// other side of a boundary: a page's WebGPU (rhi.webgpu), where one call
-// carries a whole submission out of WebAssembly instead of one call a draw.
+// other side of a boundary: a page's WebGPU or WebGL2 (rhi.webgpu,
+// rhi.webgl), where one call carries a whole submission out of WebAssembly
+// instead of one call a draw.
 //
 // Each command is a header word — its Op in the low 8 bits, the number of
 // words that follow in the rest — then its fields in the order below.
@@ -31,6 +32,18 @@
 //   set_compute_pipeline  pipeline
 //   dispatch              x y z
 //   push_uniforms         stage slot addr.lo addr.hi length
+//
+// A pipeline crosses the same way, its state as words (the shaders' code
+// beside them):
+//
+//   graphics  0–3   the vertex shader's samplers, storage textures, storage buffers, uniform buffers
+//             4–7   the fragment shader's, the same
+//             8     the target's Format       9–15  Blend: enabled, src/dst colour, colour op, src/dst alpha, alpha op
+//             16    Topology                  17    the depth target's Format (none: no depth)
+//             18–20 DepthState: test, write, Compare
+//             21    samples                   22    vertex buffers, then each: stride, per instance,
+//                                                   attributes, then each: location, VertexFormat, offset
+//   compute   0–5   samplers, storage textures, storage buffers, uniform buffers, read-write textures, read-write buffers
 export module openmui.rhi:wire;
 
 import std;
@@ -56,5 +69,9 @@ inline constexpr std::uint32_t none = 0xffffffffu;
 // The words of `list`'s commands, appended to `out` (which keeps its
 // capacity: a list of the same shape as the last allocates nothing).
 void encode(const CommandList& list, std::vector<std::uint32_t>& out);
+
+// A pipeline's words, appended to `out`.
+void encode(const GraphicsPipelineDesc& d, std::vector<std::uint32_t>& out);
+void encode(const ComputePipelineDesc& d, std::vector<std::uint32_t>& out);
 
 }  // namespace omui::rhi::wire

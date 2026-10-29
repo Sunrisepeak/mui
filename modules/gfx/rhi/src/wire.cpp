@@ -99,4 +99,23 @@ void encode(const CommandList& list, std::vector<std::uint32_t>& out) {
     }
 }
 
+void encode(const GraphicsPipelineDesc& d, std::vector<std::uint32_t>& w) {
+    auto u = [](auto e) { return static_cast<std::uint32_t>(e); };
+    for (const ShaderDesc* s : {d.vertex, d.fragment}) w.insert(w.end(), {s->samplers, s->storage_textures, s->storage_buffers, s->uniform_buffers});
+    w.insert(w.end(), {u(d.target), d.blend.enabled ? 1u : 0u, u(d.blend.src_color), u(d.blend.dst_color), u(d.blend.color_op),
+                       u(d.blend.src_alpha), u(d.blend.dst_alpha), u(d.blend.alpha_op)});
+    w.insert(w.end(), {u(d.topology), d.depth_target ? u(*d.depth_target) : none, d.depth.test ? 1u : 0u, d.depth.write ? 1u : 0u,
+                       u(d.depth.compare), d.samples});
+    w.push_back(static_cast<std::uint32_t>(d.vertex_buffers.size()));
+    for (const VertexBufferLayout& b : d.vertex_buffers) {
+        w.insert(w.end(), {b.stride, b.per_instance ? 1u : 0u, static_cast<std::uint32_t>(b.attributes.size())});
+        for (const VertexAttribute& a : b.attributes) w.insert(w.end(), {a.location, u(a.format), a.offset});
+    }
+}
+
+void encode(const ComputePipelineDesc& d, std::vector<std::uint32_t>& w) {
+    const ShaderDesc& s = *d.shader;
+    w.insert(w.end(), {s.samplers, s.storage_textures, s.storage_buffers, s.uniform_buffers, s.rw_storage_textures, s.rw_storage_buffers});
+}
+
 }  // namespace omui::rhi::wire

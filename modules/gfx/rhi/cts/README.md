@@ -14,6 +14,7 @@ for (const auto& o : omui::rhi::cts::run(**device)) check(o.passed, o.name + ": 
 | `clear` | a clear colour, byte for byte |
 | `orientation` | NDC +y is the top row and x −1 the left column, on every backend |
 | `instancing` | a per-instance vertex buffer moves four copies of a quad |
+| `firsts` | a draw from its first vertex and its first instance: the right vertices, moved by the right offsets |
 | `indexed` | 16-bit and 32-bit indices, a first index and a vertex offset |
 | `blending` | premultiplied source-over (±1) |
 | `scissor`, `viewport` | only the rectangle given is drawn |
@@ -21,7 +22,7 @@ for (const auto& o : omui::rhi::cts::run(**device)) check(o.passed, o.name + ": 
 | `uniforms` | a fragment uniform multiplies the texture |
 | `load_keeps` | a pass that loads keeps the previous pass's pixels |
 | `copy` | a texture region copied to another position |
-| `compute` | a compute pass writes every texel of a storage texture and every element of a storage buffer, its size from uniforms |
+| `compute` | a compute pass writes every texel of a storage texture and every element of a storage buffer, its size from uniforms; a device that says it has no compute (`Caps::compute`, WebGL2) refuses the pipeline as `unsupported` (the outcome's note says so) |
 | `formats` | `r8_unorm` uploaded and `rgba16_float` cleared, read back byte for byte |
 | `ordering` | a submission sees what an earlier one wrote |
 | `buffers` | a buffer upload at an offset, read back |

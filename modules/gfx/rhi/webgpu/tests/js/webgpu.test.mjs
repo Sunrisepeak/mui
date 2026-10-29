@@ -110,7 +110,7 @@ function wire(G) {
   return api;
 }
 
-// The graphics words device.cpp writes (graphics_words): a textured quad's.
+// A pipeline's words (openmui.rhi:wire's): a textured quad's.
 function quadWords({ blend = [0, 1, 0, 0, 1, 0, 0], depth = NONE, samples = 1, vertex = [0, 0, 0, 1], fragment = [1, 0, 0, 1] } = {}) {
   return [...vertex, ...fragment, 0, ...blend, 0, depth, depth === NONE ? 0 : 1, depth === NONE ? 0 : 1, 1, samples,
           1, 16, 0, 2, 0, 1, 0, 1, 1, 8];

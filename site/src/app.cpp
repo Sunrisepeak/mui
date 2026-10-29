@@ -74,6 +74,7 @@ struct Site {
     Signal<std::string> agent = signal(std::string()), test = signal(std::string()), hash = signal(std::string());
 
     Signal<bool>        panel = signal(false);  // the agent panel open
+    Signal<int>         switches = signal(0);   // the language switched this many times
     std::unique_ptr<Guide> guide;
 
     std::uint64_t       seen = ~0ull;    // the semantic revision last read
@@ -124,6 +125,29 @@ Element fades_in(Element e, std::function<bool()> cond) {
     e.prop("opacity", derive([cond] { return cond() ? 1.0f : 0.0f; }));
     e.animate("opacity", Transition::tween(seconds(0.28), hanim::ease::out_cubic));
     return only_when(std::move(e), std::move(cond));
+}
+
+// Text arriving in the other language (D-68's glyph motion, restarted with
+// each switch): a label's letters gather into place; a document's lines rise
+// in, in reading order.
+enum class Arrival : std::uint8_t { letters, lines };
+Element retyped(Element e, const std::shared_ptr<Site>& s, Arrival how = Arrival::letters) {
+    e.prop("glyph_motion", derive([s, how] {
+        const int n = s->switches.get();
+        if (n == 0) return Value{};
+        GlyphMotion m = GlyphMotion::gather(static_cast<std::uint64_t>(n));
+        m.stagger = hanim::seconds(0.018);
+        if (how == Arrival::lines) {
+            m = GlyphMotion{};
+            m.domain = GlyphDomain::line;
+            m.from = {.y = 10, .opacity = 0};
+            m.transition = Transition::tween(seconds(0.32), hanim::ease::out_cubic);
+            m.stagger = hanim::seconds(0.025);
+            m.seed = static_cast<std::uint64_t>(n);  // a new value each switch: the motion starts again
+        }
+        return to_value(m);
+    }));
+    return e;
 }
 
 // Where a document's link goes: another place of the site, or outside.
@@ -333,8 +357,9 @@ AppSpec app(std::string_view place, std::string_view lang) {
         // The bar: the name, the lens, the language.
         Element bar = row({.id = "bar", .padding = Edges(10.0f, 16.0f), .gap = 6, .align = "center", .background = "surface"},
                           {text({.id = "mark", .text = "openmui", .style = "title"}),
-                           text({.id = "motto", .text = computed([s] { return std::string(s->lang.get() == "zh" ? "一棵树，多种呈现" : "one tree, many renderings"); }),
-                                 .style = "caption", .grow = 1}),
+                           retyped(text({.id = "motto", .text = computed([s] { return std::string(s->lang.get() == "zh" ? "一棵树，多种呈现" : "one tree, many renderings"); }),
+                                         .style = "caption", .grow = 1}),
+                                   s),
                            lens_button(s, "pixels", "Pixels"), lens_button(s, "tree", "Tree"), lens_button(s, "agent", "Agent"), lens_button(s, "test", "Test"),
                            button({.id = "guide_toggle",
                                    .text = computed([s] { return std::string(s->lang.get() == "zh" ? "让 agent 来" : "Ask an agent"); }),
@@ -345,19 +370,21 @@ AppSpec app(std::string_view place, std::string_view lang) {
                                    .variant = ButtonVariant::secondary,
                                    .on_activated = [s] {
                                        s->lang.set(s->lang.get() == "zh" ? "en" : "zh");
+                                       s->switches.set(s->switches.get() + 1);
                                        s->soon();
                                    }})});
         // The places down the side.
         std::vector<Element> nav;
         for (const Place& p : all) {
             const std::string id(p.id);
-            nav.push_back(button({.id = "to_" + id,
-                                  .text = computed([s, p] { return std::string(s->lang.get() == "zh" ? p.zh : p.en); }),
-                                  .variant = computed([s, id] { return s->place.get() == id ? ButtonVariant::primary : ButtonVariant::ghost; }),
-                                  .on_activated = [s, id] {
-                                      s->place.set(id);
-                                      s->soon();
-                                  }}));
+            nav.push_back(retyped(button({.id = "to_" + id,
+                                          .text = computed([s, p] { return std::string(s->lang.get() == "zh" ? p.zh : p.en); }),
+                                          .variant = computed([s, id] { return s->place.get() == id ? ButtonVariant::primary : ButtonVariant::ghost; }),
+                                          .on_activated = [s, id] {
+                                              s->place.set(id);
+                                              s->soon();
+                                          }}),
+                                  s));
         }
         // The places: one shown at a time (the others out of the layout and
         // the tree's reach, kept as they were: the editor's history, a scroll).
@@ -371,9 +398,10 @@ AppSpec app(std::string_view place, std::string_view lang) {
                 editor.prop("undo_scope", Source{Value(true), {}, {}});
                 editor.on("edited", [s](const Value&) { s->soon(); });
                 shown.push_back(only_when(column({.id = id, .min_width = Dim(0.0f), .padding = Edges(32.0f, 40.0f), .gap = 12},
-                                                 {text({.id = "timeline_title",
-                                                        .text = computed([s] { return std::string(s->lang.get() == "zh" ? "时间线编辑器" : "A timeline editor"); }),
-                                                        .style = "title"}),
+                                                 {retyped(text({.id = "timeline_title",
+                                                                .text = computed([s] { return std::string(s->lang.get() == "zh" ? "时间线编辑器" : "A timeline editor"); }),
+                                                                .style = "title"}),
+                                                          s),
                                                   text({.id = "timeline_how",
                                                         .text = computed([s] {
                                                             return std::string(s->lang.get() == "zh"
@@ -385,11 +413,12 @@ AppSpec app(std::string_view place, std::string_view lang) {
                                           here));
             } else {
                 shown.push_back(only_when(scroll({.id = id, .padding = Edges(32.0f, 40.0f)},
-                                                 {markdown({.id = id + "_doc",
-                                                            .origin = MarkdownOrigin::app,
-                                                            .source = computed([s, p] { return std::string(document(p.id, s->lang.get())); }),
-                                                            .on_link_activated = [s](std::string href) { follow(*s, href); },
-                                                            .max_width = Dim(860.0f)})}),
+                                                 {retyped(markdown({.id = id + "_doc",
+                                                                    .origin = MarkdownOrigin::app,
+                                                                    .source = computed([s, p] { return std::string(document(p.id, s->lang.get())); }),
+                                                                    .on_link_activated = [s](std::string href) { follow(*s, href); },
+                                                                    .max_width = Dim(860.0f)}),
+                                                          s, Arrival::lines)}),
                                           here));
             }
         }

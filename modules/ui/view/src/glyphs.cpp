@@ -196,21 +196,26 @@ Element animate_glyphs(Element e, const GlyphMotion& m) {
 }
 
 GlyphFrame glyph_frame(const GlyphMotion& m, hanim::seconds elapsed, std::span<const std::span<const render::Glyph>> commands,
-                       bool reduce_motion) {
+                       bool reduce_motion, std::span<const std::uint32_t> paragraphs) {
     GlyphFrame f;
     f.styles.resize(commands.size());
+    // An element's key: its paragraph above, its place in the paragraph below.
+    auto keyed = [&](std::size_t command, const render::Glyph& g, std::uint32_t sequence) {
+        const std::uint64_t paragraph = command < paragraphs.size() ? paragraphs[command] : 0;
+        return (paragraph << 32) | key_of(m.domain, g, sequence);
+    };
     // The elements in range, by key: their rank is their place in reading order.
-    std::vector<std::uint32_t> keys;
+    std::vector<std::uint64_t> keys;
     std::uint32_t sequence = 0;
-    for (const auto& glyphs : commands)
-        for (const render::Glyph& g : glyphs) {
-            if (g.cluster >= m.begin && g.cluster < m.end) keys.push_back(key_of(m.domain, g, sequence));
+    for (std::size_t ci = 0; ci < commands.size(); ++ci)
+        for (const render::Glyph& g : commands[ci]) {
+            if (g.cluster >= m.begin && g.cluster < m.end) keys.push_back(keyed(ci, g, sequence));
             ++sequence;
         }
     std::ranges::sort(keys);
     keys.erase(std::ranges::unique(keys).begin(), keys.end());
     const std::size_t n = keys.size();
-    auto rank = [&](std::uint32_t k) { return static_cast<std::size_t>(std::ranges::lower_bound(keys, k) - keys.begin()); };
+    auto rank = [&](std::uint64_t k) { return static_cast<std::size_t>(std::ranges::lower_bound(keys, k) - keys.begin()); };
     // Each element's place in time.
     std::vector<std::size_t> slot(n);
     for (std::size_t r = 0; r < n; ++r) {
@@ -257,7 +262,7 @@ GlyphFrame glyph_frame(const GlyphMotion& m, hanim::seconds elapsed, std::span<c
         for (std::size_t gi = 0; gi < commands[ci].size(); ++gi, ++sequence) {
             const render::Glyph& g = commands[ci][gi];
             if (g.cluster < m.begin || g.cluster >= m.end) continue;
-            const std::uint32_t key = key_of(m.domain, g, sequence);
+            const std::uint64_t key = keyed(ci, g, sequence);
             const std::size_t r = rank(key);
             const double delay = static_cast<double>(slot[r]) * m.stagger.count();
             GlyphPose from = m.from, to = m.to;

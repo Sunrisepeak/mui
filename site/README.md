@@ -26,7 +26,7 @@ The site shows openmui's thesis instead of describing it: **the interface is a s
   - It leaves out what follows the window: boxes, how far a view scrolls, and what is off screen. It also leaves out the pointer's hover and press, and motion under way.
   - So any window size gives the same hash.
   - A stage of the frame's pipeline reads the place again whenever its tree changes.
-- **Both languages.** English and 中文. The node ids are the structure's, not the text's, so the tree keeps its ids when the language changes.
+- **Both languages.** English and 中文. The node ids are the structure's, not the text's, so the tree keeps its ids when the language changes. On a switch, the labels' letters gather into the other language and the document's lines rise in, in reading order. This is glyph motion (D-68) applied to whole components, which do nothing for it. The tree is the other language's from the first frame, and at rest the pixels are those of the page opened in that language.
 - **Hash routes.** `#/features` or `#/zh/timeline` open a place in a language. They are the program's flags (`--zh --timeline`), as dist-toy's page passes them.
 
 ## How it is built
@@ -48,6 +48,7 @@ python3 -m http.server -d target/site            # and look at it
 
 `tests/site_test.cpp`:
 - every place, in both languages, one at a time;
+- the language switch: letters on their way, the tree already switched, at rest the very pixels of the page opened in Chinese;
 - links: to another place, or out through the host (never a script);
 - the agent panel: real requests, a person's answer once and for the visit, the S-10 refusal, a revoked grant asking again;
 - the lens's four renderings of the same nodes;

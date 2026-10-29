@@ -2,10 +2,12 @@
 // glyph, grapheme, word or line (D-60 sub-object tier, D-68).
 //
 // A component paints its text as it always does; the runtime then restyles
-// the glyphs that node recorded (render::DisplayList::style_glyphs). So every
-// text in every component — a label, a button, a paragraph of a Markdown
-// document, a third party's widget — can be typed out, raised word by word,
-// scattered and gathered, without the component doing anything.
+// the glyphs that node and its descendants recorded
+// (render::DisplayList::style_glyphs) — each descendant's text a paragraph
+// of its own, a descendant with a motion of its own keeping it. So every
+// text in every component — a label, a button, a whole Markdown document, a
+// third party's widget — can be typed out, raised line by line, scattered
+// and gathered, without the component doing anything.
 //
 // Each element (a glyph, grapheme, word or line inside the byte range) goes
 // from `from` to `to` by the transition, delayed by its place in the order
@@ -78,13 +80,16 @@ struct GlyphMotion {
 
 // The styles of a node's glyphs at `elapsed` seconds into the motion: the
 // glyphs of every command of the node, in recording order; `styles[i]` is
-// glyph i's. Answers when the motion ends (infinity when it repeats forever).
+// glyph i's. `paragraphs` says which paragraph each command's glyphs are of
+// (their graphemes, words and lines are counted per paragraph; empty: all one
+// paragraph); elements go in paragraph order, then reading order. Answers
+// when the motion ends (infinity when it repeats forever).
 struct GlyphFrame {
     std::vector<std::vector<render::GlyphStyle>> styles;  // per command
     hanim::seconds                                ends{0};
     bool                                         moving = false;
 };
 [[nodiscard]] GlyphFrame glyph_frame(const GlyphMotion& m, hanim::seconds elapsed, std::span<const std::span<const render::Glyph>> commands,
-                                     bool reduce_motion = false);
+                                     bool reduce_motion = false, std::span<const std::uint32_t> paragraphs = {});
 
 }  // namespace omui

@@ -1065,6 +1065,35 @@ int main(int argc, char** argv) {
         check(draw(plain, glyphs).hash() == rest);
     });
 
+    s.test("glyph motion on a container: its descendants' text, each a paragraph; one with its own motion keeps it", [] {
+        typeset::GlyphCache glyphs(fonts());
+        auto first = [] { return text({.id = "a", .text = "First paragraph"}); };
+        auto second = [] { return text({.id = "b", .text = "Second paragraph"}); };
+        auto at = [&](Element tree, double t) {
+            Runtime rt(options({260, 80}));
+            rt.mount("main", column({.padding = 8}, {std::move(tree)}));
+            rt.frame({seconds(0), {}});
+            if (t > 0) rt.frame({seconds(t), {}});
+            return draw(rt, glyphs).hash();
+        };
+        const auto rest = at(column({.id = "c", .gap = 4}, {first(), second()}), 0);
+        Element hidden = second();
+        hidden.prop("opacity", Source{Value(0.0), {}, {}});
+        const auto first_only = at(column({.id = "c", .gap = 4}, {first(), std::move(hidden)}), 0);
+        // Line by line, a second apart: each paragraph's first line is its own element.
+        GlyphMotion m;
+        m.domain = GlyphDomain::line;
+        m.from = {.opacity = 0};
+        m.transition = Transition::tween(seconds(0.2), hanim::ease::linear);
+        m.stagger = seconds(1);
+        check(at(animate_glyphs(column({.id = "c", .gap = 4}, {first(), second()}), m), 0.5) == first_only, "the first paragraph in, the second still to come");
+        check(at(animate_glyphs(column({.id = "c", .gap = 4}, {first(), second()}), m), 2) == rest, "both in");
+        // The second has its own motion: it keeps it, the container's takes the rest.
+        const GlyphMotion typed = GlyphMotion::typewriter(seconds(0.05));
+        const auto own = at(column({.id = "c", .gap = 4}, {first(), animate_glyphs(second(), typed)}), 0.5);
+        check(at(animate_glyphs(column({.id = "c", .gap = 4}, {first(), animate_glyphs(second(), typed)}), m), 0.5) == own, "its own typewriter, not the container's lines");
+    });
+
     s.test("pixel effects on any node: its whole drawing, driven by time (D-68)", [] {
         typeset::GlyphCache glyphs(fonts());
         auto card = [] {

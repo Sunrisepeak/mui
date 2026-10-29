@@ -17,8 +17,8 @@ namespace {
 
 struct Site {
     Headless h;
-    Site() : h{HeadlessOptions{.size = {1280, 800}}} {
-        AppSpec spec = site::app();
+    explicit Site(std::string_view place = "home", std::string_view lang = "en") : h{HeadlessOptions{.size = {1280, 800}}} {
+        AppSpec spec = site::app(place, lang);
         h.runtime().set_theme(spec.theme);
         spec.setup(h.runtime());
         h.mount("main", spec.view());
@@ -116,6 +116,21 @@ int main(int argc, char** argv) {
         std::size_t kept = 0;
         for (const auto& id : zh) kept += was.contains(id);
         check(kept * 10 >= zh.size() * 9, std::format("{} of {} ids the same", kept, zh.size()));
+    });
+
+    s.test("switching the language: the letters gather into the other language, and end as the page drawn in it", [] {
+        Site a, zh("home", "zh");
+        zh.h.move({4, 796});
+        zh.h.settle();
+        const auto direct = zh.pixels();
+        check(a.h.click("main/bar/lang"));
+        a.h.move({4, 796});
+        a.h.advance(seconds(0.12));
+        const auto moving = a.pixels();
+        check(moving != direct, "under way: the letters still gathering");
+        check(site::tree_hash(a.snapshot("home")) == site::tree_hash(zh.snapshot("home")), "the tree is already the other language's: the motion is only paint");
+        a.h.settle(seconds(3));
+        check(a.pixels() == direct, "at rest: the very pixels of the page opened in Chinese");
     });
 
     s.test("the lens: pixels, the tree's wireframe, an agent's JSON, a test's assertions — of the same nodes", [] {

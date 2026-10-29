@@ -449,6 +449,7 @@ void Runtime::Impl::compute_bounds(NodeId id, Point origin, const Affine& parent
 
 void Runtime::Impl::paint() {
     list.clear();
+    glyph_movers.clear();
     paint_node(root);
     // What was on screen before a style's change, fading out over what comes.
     if (fading) {
@@ -544,11 +545,10 @@ void Runtime::Impl::paint_node(NodeId id) {
     const ComponentType& type = *n.type;
     const bool clip = v.clip || type.clips;
     if (clip) list.push_clip(box, radii);
+    const std::size_t first_glyphs = list.commands().size();
     if (type.paint) {
-        const std::size_t first = list.commands().size();
         PaintContext ctx{self, list, id, size, content, n.state, theme};
         type.paint(n.instance, ctx);
-        if (at(id).glyph_motion) restyle_glyphs(id, first);
     }
     const Point off = n.content_offset;
     const bool shifted = off.x != 0 || off.y != 0;
@@ -563,6 +563,12 @@ void Runtime::Impl::paint_node(NodeId id) {
     if (type.paint_over) {
         PaintContext ctx{self, list, id, size, content, again.state, theme};
         type.paint_over(again.instance, ctx);
+    }
+    // The node's glyph motion takes the text of its whole drawing (D-68): its
+    // own, and its descendants' that have none of their own.
+    if (at(id).glyph_motion) {
+        restyle_glyphs(id, first_glyphs);
+        glyph_movers.push_back(at(id).index);
     }
     if (clip) list.pop_clip();
 
@@ -585,20 +591,34 @@ void Runtime::Impl::paint_node(NodeId id) {
 }
 
 void Runtime::Impl::restyle_glyphs(NodeId id, std::size_t first) {
-    // Every glyph command the component just recorded, styled by the node's
-    // glyph motion at this frame's time (D-68): the component did nothing.
+    // Every glyph command recorded since `first` — the node's own and its
+    // descendants', each descendant a paragraph of its own — styled by the
+    // node's glyph motion at this frame's time (D-68): the components did
+    // nothing. A descendant with a motion of its own keeps it.
     Node& n = at(id);
     std::vector<std::size_t> at_index;
     std::vector<std::span<const render::Glyph>> runs;
+    std::vector<std::uint32_t> paragraphs;
+    std::vector<std::uint32_t> open;  // the paragraphs of the descendants begun and not ended
+    std::uint32_t next = 0;
+    std::size_t kept = 0;  // the depth at which a descendant with its own motion began (0: none)
     const auto& commands = list.commands();
-    for (std::size_t i = first; i < commands.size(); ++i)
-        if (const auto* g = std::get_if<render::DrawGlyphs>(&commands[i])) {
+    for (std::size_t i = first; i < commands.size(); ++i) {
+        if (const auto* b = std::get_if<render::BeginNode>(&commands[i])) {
+            open.push_back(++next);
+            if (!kept && std::ranges::contains(glyph_movers, b->node)) kept = open.size();
+        } else if (std::holds_alternative<render::EndNode>(commands[i])) {
+            if (kept == open.size()) kept = 0;
+            if (!open.empty()) open.pop_back();
+        } else if (const auto* g = std::get_if<render::DrawGlyphs>(&commands[i]); g && !kept) {
             at_index.push_back(i);
             runs.push_back(g->glyphs);
+            paragraphs.push_back(open.empty() ? 0 : open.back());
         }
+    }
     if (runs.empty()) return;
     auto& state = *n.glyph_motion;
-    const GlyphFrame f = glyph_frame(state.motion, now() - state.start, runs, reduce_motion);
+    const GlyphFrame f = glyph_frame(state.motion, now() - state.start, runs, reduce_motion, paragraphs);
     state.ends = f.ends;
     for (std::size_t k = 0; k < at_index.size(); ++k) list.style_glyphs(at_index[k], f.styles[k]);
 }

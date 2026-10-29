@@ -394,6 +394,7 @@ struct Runtime::Impl {
     [[nodiscard]] NodeId activatable_ancestor(NodeId id) const;
     // Styles the glyph commands recorded since `first` by the node's glyph motion.
     void restyle_glyphs(NodeId id, std::size_t first);
+    std::vector<std::uint32_t> glyph_movers;  // the display-list markers of this paint's nodes with a glyph motion
     // A person pressing the node itself (pointer or keyboard) is that
     // person's answer to an external action (spec S-2a); irreversible ones ask.
     [[nodiscard]] std::string own_answer(NodeId id, std::string_view action) const;

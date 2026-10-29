@@ -702,7 +702,7 @@ R1 目录与命名（D-80，一轮完成搬目录 + 改名 + README + lint）
 
 已完成：R1、R2、W1、`host.web` 的第一部分（画布、帧节奏、输入、手柄、CPU 渲染）、`host.web.toy` 和 `dist-toy`、R8（`media.audio`、mgame 核心、S4）、R9 和 R10（gongfu、训练模式、工具、六个角色全部换成生成的画，三气、胜利姿势、语音、主题曲和场景、三局两胜、Toy 版）；T1（撤销、事务和 dry-run，规范 S-12、S-13）；T3（`media.video`：按样本精确的帧和声轨、内置 PNG 序列 / Y4M / WAV、`*.video.omui.toml`、`omui video`；WebM 插件 `openmui.video.webm`：VP9 + Opus，上游 compat.libvpx、compat.libwebm、mcpplibs.mwrap.libvpx 已发布进 mcpp-index）。
 
-T5 的第一部分已完成（2026-10-30）：`site/` 的地方、四档镜头、树哈希对照、中英文、可用的时间线编辑器、构建时预渲染、Pages 工作流；其余部分列为 T5b。T5b 已完成 agent 面板（S-10、S-11 的演示）、链接（`Runtime::open_url`）和镜头的淡入。
+T5 的第一部分已完成（2026-10-30）：`site/` 的地方、四档镜头、树哈希对照、中英文、可用的时间线编辑器、构建时预渲染、Pages 工作流；其余部分列为 T5b。T5b 已完成 agent 面板（S-10、S-11 的演示）、链接（`Runtime::open_url`）、镜头的淡入和切换语言的字形过渡（字形动画作用于子树）。
 
 剩下的按依赖拆成七项，T1–T4 互不依赖，可以并行（子代理最多 3 个）：
 

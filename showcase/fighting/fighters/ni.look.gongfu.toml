@@ -994,6 +994,40 @@ poses = [
     [30, "down"],
 ]
 
+# Held (a cinematic's taken reaction): taken by the collar, lifted onto the toes, the arms clawing at the hand.
+[clip.held]
+frames = 1
+loop = true
+ease = "in_out_sine"
+poses = [
+    [0, "hit", { aim = { torso = 116, head = 126, upper_front = -40, fore_front = 30, upper_back = -30, fore_back = 40, thigh_front = -80, shin_front = -100, thigh_back = -100, shin_back = -112, foot_front = -40, foot_back = -50 }, rise = 8, grip = { foot_front = 0, foot_back = 0 }, grip_at = { foot_front = 0, foot_back = 0 }, grip_across = { foot_front = 0, foot_back = 0 } }],
+]
+
+# Launched (a cinematic's taken reaction): the blow taken on the feet, arched back; then off them, spun up and over, flat on the back as it comes down (the path is the cinematic's).
+[clip.launched]
+frames = 48
+ease = "linear"
+poses = [
+    [0, "flung", "in_quad", { aim = { hip = 114, torso = 128, head = 144, upper_front = -126, fore_front = -86, upper_back = 164, fore_back = 144, thigh_front = -46, shin_front = -86, thigh_back = -76, shin_back = -106, foot_front = -36, foot_back = -46 }, rise = -6, grip = { foot_front = 1, foot_back = 1 }, grip_at = { foot_front = 34, foot_back = -50 } }],
+    [4, "flung", "linear", { aim = { hip = 140, torso = 154, head = 170, upper_front = -100, fore_front = -60, upper_back = 190, fore_back = 170, thigh_front = -20, shin_front = -60, thigh_back = -50, shin_back = -80, foot_front = -10, foot_back = -20 }, rise = -8, grip = { foot_front = 0, foot_back = 0 }, grip_at = { foot_front = 0, foot_back = 0 }, grip_across = { foot_front = 0, foot_back = 0 } }],
+    [15, "flung", "out_sine", { aim = { hip = 436, torso = 450, head = 466, upper_front = 196, fore_front = 236, upper_back = 486, fore_back = 466, thigh_front = 276, shin_front = 236, thigh_back = 246, shin_back = 216, foot_front = 286, foot_back = 276 }, rise = -20, grip = { foot_front = 0, foot_back = 0 }, grip_at = { foot_front = 0, foot_back = 0 }, grip_across = { foot_front = 0, foot_back = 0 } }],
+    [30, "flung", "in_out_sine", { aim = { hip = 490, torso = 504, head = 520, upper_front = 250, fore_front = 290, upper_back = 540, fore_back = 520, thigh_front = 330, shin_front = 290, thigh_back = 300, shin_back = 270, foot_front = 340, foot_back = 330 }, rise = -45, grip = { foot_front = 0, foot_back = 0 }, grip_at = { foot_front = 0, foot_back = 0 }, grip_across = { foot_front = 0, foot_back = 0 } }],
+    [48, "flung", { aim = { hip = 530, torso = 544, head = 560, upper_front = 290, fore_front = 330, upper_back = 580, fore_back = 560, thigh_front = 370, shin_front = 330, thigh_back = 340, shin_back = 310, foot_front = 380, foot_back = 370 }, rise = -70, grip = { foot_front = 0, foot_back = 0 }, grip_at = { foot_front = 0, foot_back = 0 }, grip_across = { foot_front = 0, foot_back = 0 } }],
+]
+
+# Slammed (a cinematic's taken reaction): flat into the floor, the limbs thrown up, a bounce, and still.
+[clip.slammed]
+frames = 36
+ease = "linear"
+poses = [
+    [0, "down", "out_quad", { aim = { hip = 184, torso = 184, head = 178, upper_front = 120, fore_front = 160, upper_back = 170, fore_back = 180, thigh_front = 46, shin_front = 36, thigh_back = 38, shin_back = 42, foot_front = 60, foot_back = 70 }, rise = -76 }],
+    [5, "down", "in_quad", { aim = { hip = 190, torso = 190, head = 190, upper_front = 120, fore_front = 160, upper_back = 170, fore_back = 180, thigh_front = 46, shin_front = 36, thigh_back = 38, shin_back = 42, foot_front = 60, foot_back = 70 }, rise = -62 }],
+    [11, "down", "out_quad", { rise = -82 }],
+    [16, "down", "in_out_sine", { rise = -77 }],
+    [22, "down"],
+    [36, "down"],
+]
+
 [clip.reset]
 frames = 20
 ease = "out_cubic"

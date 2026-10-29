@@ -500,6 +500,42 @@ int main(int argc, char** argv) {
         check_eq(all.hex(), std::string("03892ce45ed9729c"));  // GCC and LLVM, every platform
     });
 
+    s.test("坤's level 3: the ball spun on a finger, the bounce pass into the gut, the glide and 铁山靠, the catch behind his back as they crash down behind him — frames pinned", [] {
+        Game g("training", "kun", "mo");
+        check(g.act("pause"));
+        check(g.act("fill"));
+        check(g.act("press", pad(0, "6")));
+        for (int i = 0; i < 120 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 110; ++i) check(g.act("step"));
+        for (std::string_view p : {"2", "3", "6", "2", "3", "6HK"}) {
+            check(g.act("press", pad(0, p)));
+            check(g.act("step"));
+        }
+        check(g.act("press", pad(0, "5")));
+        const auto dir = scratch_dir("fighting-kun-level3");
+        // Each beat at the frame that tells it.
+        const std::vector<std::pair<std::int32_t, std::string_view>> beats{{24, "spin"},  {51, "coil"},   {57, "bounce"}, {63, "gut"},   {92, "stamp"},
+                                                                           {95, "kao"},   {111, "launched"}, {141, "catch"},  {147, "crash"}, {159, "finisher"}};
+        std::vector<std::uint64_t> px;
+        std::int32_t lock_from = -1;
+        for (int i = 0; i < 300; ++i) {
+            check(g.act("step"));
+            const auto& st = g.state();
+            if (st.lock.owner == 0 && lock_from < 0) lock_from = st.frame;
+            const std::int32_t lf = st.lock.owner == 0 ? st.lock.frame : -1;
+            const auto beat = std::ranges::find(beats, lf, &std::pair<std::int32_t, std::string_view>::first);
+            if (beat == beats.end()) continue;
+            g.h.step();
+            px.push_back(g.pixels());
+            check(g.h.save_png(dir / std::format("{:02}-{}-{}.png", px.size(), lf, beat->second)).has_value());
+        }
+        check(lock_from > 0, "the elbow hit: the cinematic played");
+        check_eq(px.size(), beats.size());
+        Hash all;
+        for (auto v : px) all.u64(v);
+        std::println("    kun level 3 {}", all.hex());
+        check_eq(all.hex(), std::string("17d871bfe903d0e0"));  // GCC and LLVM, every platform
+    });
+
     s.test("岳 as designed: every normal's and elbow's startup and advantage, measured in the simulation (characters 2 design §3)", [] {
         using gongfu::operator""_fx;
         const gongfu::Fighter& yue = fighting::roster().fighters[fighting::fighter_index("yue")];

@@ -684,9 +684,9 @@ pushback = 3
 impact = "heavy"
 [move.cinematic]
 frames = 180
-hits = [[30, 220, "beat"], [37, 220, "beat"], [44, 220, "beat"], [51, 220, "beat"], [58, 220, "beat"], [65, 220, "beat"], [72, 220, "beat"], [79, 220, "beat"], [86, 220, "beat"], [93, 220, "beat"], [100, 220, "beat"], [107, 220, "beat"], [114, 220, "beat"], [121, 220, "beat"], [128, 220, "beat"], [135, 220, "beat"], [160, 480, "super"]]
-attacker = [0, 0]
-defender = [200, 0]
+hits = [[62, 900, "pass"], [94, 1900, "kao"], [144, 1200, "crash"]]
+attacker = [98, 0]
+defender = [300, 0]
 down = 70
 recovery = 26
 

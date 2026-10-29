@@ -437,6 +437,59 @@ rise = -6
 grip_at = { foot_front = 42, foot_back = -50 }
 swap = { head = 4, hand_back = 4 }
 
+# His level 3's key poses: the ball spun on a finger, looking away; the bounce
+# pass wound up and thrown; a dancer's glide; the spin; 铁山靠 (drawn turned, his
+# back driven into them); the catch behind his back.
+[pose.spin]
+from = "stance"
+aim = { hip = 92, torso = 94, head = 104, upper_front = -60, fore_front = 82, hand_front = 90, upper_back = -100, fore_back = -80, hand_back = -80 }
+rise = -2
+grip_at = { foot_front = 28, foot_back = -36 }
+swap = { head = 4, hand_front = 6, hand_back = 4 }
+
+[pose.coil]
+from = "stance"
+aim = { hip = 88, torso = 102, head = 86, upper_front = -150, fore_front = -170, hand_front = -170, upper_back = -40, fore_back = 30, hand_back = 30 }
+rise = -14
+grip_at = { foot_front = 48, foot_back = -40 }
+swap = { head = 2, hand_front = 7, hand_back = 3 }
+show = { ball = 1 }
+
+[pose.pass]
+from = "stance"
+aim = { hip = 84, torso = 70, head = 76, upper_front = -25, fore_front = -45, hand_front = -50, upper_back = -150, fore_back = -130, hand_back = -130 }
+rise = -18
+grip_at = { foot_front = 62, foot_back = -36 }
+swap = { head = 2, hand_front = 2, hand_back = 3 }
+
+[pose.glide]
+from = "stance"
+aim = { hip = 90, torso = 78, head = 88, upper_front = -150, fore_front = -165, hand_front = -165, upper_back = -170, fore_back = -178, hand_back = -178 }
+rise = -20
+grip_at = { foot_front = 64, foot_back = -50 }
+swap = { head = 4, hand_front = 3, hand_back = 3 }
+
+[pose.tuck]
+from = "stance"
+aim = { hip = 90, torso = 90, head = 90, upper_front = -100, fore_front = 150, hand_front = 150, upper_back = -80, fore_back = 30, hand_back = 30 }
+rise = -6
+grip_at = { foot_front = 14, foot_back = -14 }
+swap = { head = 2, hand_front = 1, hand_back = 1 }
+
+[pose.kao]
+from = "stance"
+aim = { hip = 102, torso = 122, head = 84, upper_back = -110, fore_back = 75, hand_back = 75, upper_front = -32, fore_front = -34, hand_front = -34 }
+rise = -30
+grip_at = { foot_front = 40, foot_back = -40 }
+swap = { head = 2, hand_front = 1, hand_back = 1 }
+
+[pose.catch]
+from = "stance"
+aim = { hip = 92, torso = 86, head = 74, upper_back = -100, fore_back = 175, hand_back = 182, upper_front = -84, fore_front = -76, hand_front = -76 }
+rise = -6
+grip_at = { foot_front = 30, foot_back = -36 }
+swap = { head = 4, hand_front = 4, hand_back = 7 }
+
 [clip.idle]
 frames = 80
 loop = true
@@ -829,45 +882,36 @@ poses = [
 ]
 
 [clip."236236K.cinematic"]
-frames = 179
+frames = 180
 ease = "in_out_sine"
 poses = [
-    [0, "stance"],
-    [28, "stance", "out_quad", { aim = { torso = 90, upper_front = -110, fore_front = 40, hand_front = 40 } }],
-    [30, "stance", "linear", { aim = { hip = 84, torso = 72, head = 76, upper_front = 0, fore_front = 2, hand_front = 2 }, grip_at = { foot_front = 52 }, swap = { head = 2, hand_front = 0 } }],
-    [35, "stance", "out_quad", { aim = { torso = 90, upper_front = -110, fore_front = 40, hand_front = 40 } }],
-    [37, "stance", "linear", { aim = { hip = 84, torso = 72, head = 76, upper_front = -4, fore_front = 172, hand_front = 172 }, grip_at = { foot_front = 52 }, swap = { head = 2, hand_front = 0 } }],
-    [42, "stance", "out_quad", { aim = { torso = 90, upper_front = -110, fore_front = 40, hand_front = 40 } }],
-    [44, "stance", "linear", { aim = { hip = 84, torso = 72, head = 76, upper_front = 0, fore_front = 2, hand_front = 2 }, grip_at = { foot_front = 52 }, swap = { head = 2, hand_front = 0 } }],
-    [49, "stance", "out_quad", { aim = { torso = 90, upper_front = -110, fore_front = 40, hand_front = 40 } }],
-    [51, "stance", "linear", { aim = { hip = 84, torso = 72, head = 76, upper_front = -4, fore_front = 172, hand_front = 172 }, grip_at = { foot_front = 52 }, swap = { head = 2, hand_front = 0 } }],
-    [56, "stance", "out_quad", { aim = { torso = 90, upper_front = -110, fore_front = 40, hand_front = 40 } }],
-    [58, "stance", "linear", { aim = { hip = 84, torso = 72, head = 76, upper_front = 0, fore_front = 2, hand_front = 2 }, grip_at = { foot_front = 52 }, swap = { head = 2, hand_front = 0 } }],
-    [63, "stance", "out_quad", { aim = { torso = 90, upper_front = -110, fore_front = 40, hand_front = 40 } }],
-    [65, "stance", "linear", { aim = { hip = 84, torso = 72, head = 76, upper_front = -4, fore_front = 172, hand_front = 172 }, grip_at = { foot_front = 52 }, swap = { head = 2, hand_front = 0 } }],
-    [70, "stance", "out_quad", { aim = { torso = 90, upper_front = -110, fore_front = 40, hand_front = 40 } }],
-    [72, "stance", "linear", { aim = { hip = 84, torso = 72, head = 76, upper_front = 0, fore_front = 2, hand_front = 2 }, grip_at = { foot_front = 52 }, swap = { head = 2, hand_front = 0 } }],
-    [77, "stance", "out_quad", { aim = { torso = 90, upper_front = -110, fore_front = 40, hand_front = 40 } }],
-    [79, "stance", "linear", { aim = { hip = 84, torso = 72, head = 76, upper_front = -4, fore_front = 172, hand_front = 172 }, grip_at = { foot_front = 52 }, swap = { head = 2, hand_front = 0 } }],
-    [84, "stance", "out_quad", { aim = { torso = 90, upper_front = -110, fore_front = 40, hand_front = 40 } }],
-    [86, "stance", "linear", { aim = { hip = 84, torso = 72, head = 76, upper_front = 0, fore_front = 2, hand_front = 2 }, grip_at = { foot_front = 52 }, swap = { head = 2, hand_front = 0 } }],
-    [91, "stance", "out_quad", { aim = { torso = 90, upper_front = -110, fore_front = 40, hand_front = 40 } }],
-    [93, "stance", "linear", { aim = { hip = 84, torso = 72, head = 76, upper_front = -4, fore_front = 172, hand_front = 172 }, grip_at = { foot_front = 52 }, swap = { head = 2, hand_front = 0 } }],
-    [98, "stance", "out_quad", { aim = { torso = 90, upper_front = -110, fore_front = 40, hand_front = 40 } }],
-    [100, "stance", "linear", { aim = { hip = 84, torso = 72, head = 76, upper_front = 0, fore_front = 2, hand_front = 2 }, grip_at = { foot_front = 52 }, swap = { head = 2, hand_front = 0 } }],
-    [105, "stance", "out_quad", { aim = { torso = 90, upper_front = -110, fore_front = 40, hand_front = 40 } }],
-    [107, "stance", "linear", { aim = { hip = 84, torso = 72, head = 76, upper_front = -4, fore_front = 172, hand_front = 172 }, grip_at = { foot_front = 52 }, swap = { head = 2, hand_front = 0 } }],
-    [112, "stance", "out_quad", { aim = { torso = 90, upper_front = -110, fore_front = 40, hand_front = 40 } }],
-    [114, "stance", "linear", { aim = { hip = 84, torso = 72, head = 76, upper_front = 0, fore_front = 2, hand_front = 2 }, grip_at = { foot_front = 52 }, swap = { head = 2, hand_front = 0 } }],
-    [119, "stance", "out_quad", { aim = { torso = 90, upper_front = -110, fore_front = 40, hand_front = 40 } }],
-    [121, "stance", "linear", { aim = { hip = 84, torso = 72, head = 76, upper_front = -4, fore_front = 172, hand_front = 172 }, grip_at = { foot_front = 52 }, swap = { head = 2, hand_front = 0 } }],
-    [126, "stance", "out_quad", { aim = { torso = 90, upper_front = -110, fore_front = 40, hand_front = 40 } }],
-    [128, "stance", "linear", { aim = { hip = 84, torso = 72, head = 76, upper_front = 0, fore_front = 2, hand_front = 2 }, grip_at = { foot_front = 52 }, swap = { head = 2, hand_front = 0 } }],
-    [133, "stance", "out_quad", { aim = { torso = 90, upper_front = -110, fore_front = 40, hand_front = 40 } }],
-    [135, "stance", "linear", { aim = { hip = 84, torso = 72, head = 76, upper_front = -4, fore_front = 172, hand_front = 172 }, grip_at = { foot_front = 52 }, swap = { head = 2, hand_front = 0 } }],
-    [146, "crouch", { aim = { torso = 66, upper_front = -150, fore_front = -110, upper_back = -140, fore_back = -120, hand_front = -110, hand_back = -120 }, rise = -36 }],
-    [150, "stance", "out_expo", { aim = { hip = 80, torso = 64, head = 74, upper_front = -150, fore_front = -110, upper_back = -140, fore_back = -120, hand_front = -110, hand_back = -120 }, rise = -14, grip_at = { foot_front = 56, foot_back = -30 }, swap = { head = 3 } }],
-    [179, "stance"],
+    [0, "stance", "linear", { aim = { hip = 84, torso = 70, head = 74, upper_front = -4, fore_front = 172, hand_front = 172 }, grip_at = { foot_front = 58 }, swap = { head = 3, hand_front = 0 } }],
+    [4, "stance", "out_quad", { aim = { hip = 84, torso = 71, head = 74, upper_front = -4, fore_front = 170, hand_front = 170 }, grip_at = { foot_front = 58 }, swap = { head = 3, hand_front = 0 } }],
+    [8, "stance", "out_quad", { aim = { torso = 90, upper_front = -50, fore_front = 40, hand_front = 40, upper_back = -150, fore_back = -120, hand_back = -120 }, rise = -6, grip_at = { foot_front = 40 }, swap = { head = 0, hand_back = 3 } }],
+    [13, "spin", "out_quad", { aim = { head = 96, upper_front = -50, fore_front = 70, hand_front = 80, upper_back = -60, fore_back = 20, hand_back = 30 } }],
+    [17, "spin", "linear"],
+    [29, "spin", { aim = { torso = 95, head = 106 }, rise = -3 }],
+    [40, "spin", "in_quad"],
+    [42, "spin", "out_quad", { aim = { fore_front = 72, hand_front = 82 }, rise = -4, swap = { head = 2, hand_front = 7 }, show = { ball = 1 } }],
+    [52, "coil", "in_quad"],
+    [54, "pass", "out_quad"],
+    [60, "pass", { aim = { torso = 66, upper_front = -45, fore_front = -60, hand_front = -60 }, rise = -20 }],
+    [68, "stance", { aim = { torso = 82, head = 100, upper_front = -70, fore_front = -40, hand_front = -40 }, rise = -8, swap = { head = 4 } }],
+    [74, "stance", "in_quad", { aim = { torso = 86, head = 104 }, rise = -6, swap = { head = 4 } }],
+    [78, "glide", "linear"],
+    [84, "glide", "in_quad", { aim = { torso = 84 }, rise = -16, grip_at = { foot_front = 50, foot_back = -30 } }],
+    [87, "tuck", "linear"],
+    [90, "kao", "linear", { aim = { hip = 96, torso = 104, thigh_back = 205, shin_back = 255 }, rise = -16, grip = { foot_back = 0 }, grip_at = { foot_back = 0 } }],
+    [92, "kao", "linear", { aim = { hip = 100, torso = 116 }, rise = -27 }],
+    [94, "kao", "linear"],
+    [102, "kao", "out_quad"],
+    [110, "kao", "in_out_sine", { aim = { hip = 106, torso = 128 }, rise = -32 }],
+    [126, "stance", "out_quad", { aim = { torso = 90, head = 86, upper_back = -90, fore_back = -80, hand_back = -80, upper_front = -80, fore_front = -70, hand_front = -70 }, rise = -4, grip_at = { foot_front = 30, foot_back = -36 }, swap = { head = 4, hand_front = 4, hand_back = 4 } }],
+    [134, "catch", "in_quad"],
+    [139, "catch", "out_quad"],
+    [143, "catch", "in_out_sine", { aim = { fore_back = 168, hand_back = 176 }, rise = -9 }],
+    [150, "catch"],
+    [179, "catch", { aim = { head = 76 } }],
 ]
 
 [clip.throw]
@@ -992,6 +1036,31 @@ poses = [
     [0, "hit", { aim = { torso = 120, head = 130, upper_front = -60, fore_front = 0, upper_back = -40, fore_back = 20, thigh_front = -80, thigh_back = -100, shin_back = -110, hand_front = 0, hand_back = 20 }, rise = 10, grip = { foot_front = 0, foot_back = 0 }, grip_at = { foot_front = 0, foot_back = 0 }, grip_across = { foot_front = 0, foot_back = 0 }, swap = { head = 5, hand_front = 5, hand_back = 5 } }],
 ]
 
+# Launched (a cinematic's taken reaction): the blow taken on the feet, arched back; then off them, spun up and over, flat on the back as it comes down (the path is the cinematic's).
+[clip.launched]
+frames = 48
+ease = "linear"
+poses = [
+    [0, "flung", "in_quad", { aim = { hip = 114, torso = 128, head = 144, upper_front = -126, fore_front = -86, upper_back = 164, fore_back = 144, thigh_front = -46, shin_front = -86, thigh_back = -76, shin_back = -106, foot_front = -36, foot_back = -46, hand_front = -86, hand_back = 144 }, rise = -6, grip = { foot_front = 1, foot_back = 1 }, grip_at = { foot_front = 34, foot_back = -50 }, swap = { head = 5, hand_front = 4, hand_back = 4 } }],
+    [4, "flung", "linear", { aim = { hip = 140, torso = 154, head = 170, upper_front = -100, fore_front = -60, upper_back = 190, fore_back = 170, thigh_front = -20, shin_front = -60, thigh_back = -50, shin_back = -80, foot_front = -10, foot_back = -20, hand_front = -60, hand_back = 170 }, rise = -8, grip = { foot_front = 0, foot_back = 0 }, grip_at = { foot_front = 0, foot_back = 0 }, grip_across = { foot_front = 0, foot_back = 0 }, swap = { head = 5, hand_front = 4, hand_back = 4 } }],
+    [15, "flung", "out_sine", { aim = { hip = 436, torso = 450, head = 466, upper_front = 196, fore_front = 236, upper_back = 486, fore_back = 466, thigh_front = 276, shin_front = 236, thigh_back = 246, shin_back = 216, foot_front = 286, foot_back = 276, hand_front = 236, hand_back = 466 }, rise = -20, grip = { foot_front = 0, foot_back = 0 }, grip_at = { foot_front = 0, foot_back = 0 }, grip_across = { foot_front = 0, foot_back = 0 }, swap = { head = 5, hand_front = 4, hand_back = 4 } }],
+    [30, "flung", "in_out_sine", { aim = { hip = 490, torso = 504, head = 520, upper_front = 250, fore_front = 290, upper_back = 540, fore_back = 520, thigh_front = 330, shin_front = 290, thigh_back = 300, shin_back = 270, foot_front = 340, foot_back = 330, hand_front = 290, hand_back = 520 }, rise = -47, grip = { foot_front = 0, foot_back = 0 }, grip_at = { foot_front = 0, foot_back = 0 }, grip_across = { foot_front = 0, foot_back = 0 }, swap = { head = 5, hand_front = 4, hand_back = 4 } }],
+    [48, "flung", { aim = { hip = 530, torso = 544, head = 560, upper_front = 290, fore_front = 330, upper_back = 580, fore_back = 560, thigh_front = 370, shin_front = 330, thigh_back = 340, shin_back = 310, foot_front = 380, foot_back = 370, hand_front = 330, hand_back = 560 }, rise = -74, grip = { foot_front = 0, foot_back = 0 }, grip_at = { foot_front = 0, foot_back = 0 }, grip_across = { foot_front = 0, foot_back = 0 }, swap = { head = 5, hand_front = 4, hand_back = 4 } }],
+]
+
+# Slammed (a cinematic's taken reaction): flat into the floor, the limbs thrown up, a bounce, and still.
+[clip.slammed]
+frames = 36
+ease = "linear"
+poses = [
+    [0, "down", "out_quad", { aim = { hip = 184, torso = 184, head = 178, upper_front = 120, fore_front = 160, upper_back = 170, fore_back = 180, thigh_front = 46, shin_front = 36, thigh_back = 38, shin_back = 42, foot_front = 60, foot_back = 70, hand_front = 160, hand_back = 180 }, rise = -80, swap = { head = 5, hand_front = 4, hand_back = 4 } }],
+    [5, "down", "in_quad", { aim = { hip = 190, torso = 190, head = 190, upper_front = 120, fore_front = 160, upper_back = 170, fore_back = 180, thigh_front = 46, shin_front = 36, thigh_back = 38, shin_back = 42, foot_front = 60, foot_back = 70, hand_front = 160, hand_back = 180 }, rise = -66, swap = { head = 5, hand_front = 4, hand_back = 4 } }],
+    [11, "down", "out_quad", { rise = -86, swap = { head = 5, hand_front = 4, hand_back = 4 } }],
+    [16, "down", "in_out_sine", { rise = -81 }],
+    [22, "down"],
+    [36, "down"],
+]
+
 [clip.reset]
 frames = 20
 ease = "out_cubic"
@@ -1044,6 +1113,27 @@ shake = [6, 10]
 spark = { style = "ring", size = 56, count = 1, frames = 16, color = "#f2c75c", counter = "#f2c75c" }
 sound = ["", "thud_heavy", "slam_tail"]
 
+# His level 3's blows: their sparks are the cinematic's own (rings and the
+# ball where it lands), so these are the feel only.
+[impact.pass]
+shake = [6, 10]
+spark = { style = "ring", size = 1, count = 1, frames = 0, color = "#e07a2e", counter = "#ffffff" }
+rumble = [0.5, 8]
+sound = ["thud_medium", "", ""]
+
+[impact.kao]
+shake = [14, 22]
+zoom = [0.05, 18]
+spark = { style = "ring", size = 1, count = 1, frames = 0, color = "#f2c75c", counter = "#ffffff" }
+rumble = [1, 22]
+sound = ["crack", "thud_heavy", "tail_long"]
+
+[impact.crash]
+shake = [10, 18]
+spark = { style = "ring", size = 1, count = 1, frames = 0, color = "#f2c75c", counter = "#ffffff" }
+rumble = [0.8, 16]
+sound = ["", "thud_heavy", "slam_tail"]
+
 [impact.ko]
 shake = [12, 22]
 zoom = [0.08, 32]
@@ -1068,26 +1158,39 @@ size = 60
 fx = "ball_low"
 size = 60
 
+# His level 3 (the hardcore combat design §4): the elbow lands; the ball pops
+# out from behind him and he spins it on a finger, looking away; drops it into
+# his palm, winds up and bounce-passes it hard off the floor into their gut —
+# they fold, and it rebounds high out of the picture; he glides in on a
+# dancer's step, spins, stamps inside their stance and drives his back into
+# them (铁山靠) — they are launched, turning over; standing with his back to
+# them, he holds a hand behind him without looking and the ball drops into it;
+# they crash down behind him. Not a word, not a look.
 [cinematic.236236K]
 attacker = "236236K.cinematic"
 defender = "hitstun"
-backdrop = { color = "#0e0e12", in = [0, 12], out = [168, 180] }
-camera = [[0, 1, 80, 110], [12, 1.4, 120, 120], [40, 1.1, 120, 110], [80, 1.35, 160, 105], [120, 1.1, 130, 110], [150, 1.4, 170, 100], [160, 1.2, 160, 110], [180, 1, 100, 120]]
-flash = [[160, "white", 5]]
-quake = [[160, 14, 22]]
+backdrop = { color = "#0e0e12d4", in = [0, 12], out = [168, 180] }
+camera = [[0, 1.15, 70, 110], [14, 1.15, 90, 110], [22, 1.75, 30, 135], [40, 1.85, 36, 140], [50, 1.3, 90, 105], [62, 1.45, 125, 100], [74, 1.1, 110, 165], [84, 1.25, 110, 110], [94, 1.6, 145, 105], [102, 1.55, 150, 108], [110, 1.15, 190, 150], [120, 1.05, 200, 165], [130, 1.3, 150, 130], [140, 1.6, 130, 110], [144, 1.15, 195, 105], [150, 1, 175, 140], [176, 1, 175, 135], [180, 1, 170, 120]]
+quake = [[62, 6, 10], [92, 6, 8], [94, 18, 26], [144, 14, 22]]
+ring = [[57, 118, 6, 34, 8], [62, 146, 100, 80, 10], [92, 138, 4, 120, 14], [94, 150, 104, 240, 18], [144, 300, 8, 220, 18]]
+attacker_path = [[0, 0, 0], [76, 0, 0], [91, 98, 0, "in_out_sine"], [180, 98, 0]]
+defender_path = [[0, 90, 0], [12, 170, 0, "out_quad"], [68, 170, 0], [80, 180, 0, "out_quad"], [102, 180, 0], [121, 280, 200, "out_quad"], [144, 300, 0, "in_quad"], [180, 300, 0]]
+attacker_turn = [[87, 181]]
+afterimages = [[78, 93]]
+hitstop = [[62, 4], [94, 8], [144, 6]]
 hide = [150, 176]
-reactions = ["hitstun.body", "hitstun.head", "hitstun.body", "hitstun.head", "hitstun.low", "hitstun.body", "hitstun.head", "hitstun.body", "hitstun.head", "hitstun.low", "hitstun.body", "hitstun.head", "hitstun.body", "hitstun.head", "hitstun.body", "hitstun.heavy", "hitstun.heavy"]
-fx = [[150, "finisher_in", 30, 0]]
+reactions = ["hitstun.body", "launched", "slammed"]
+fx = [[8, "kun_toss", 0, 0], [17, "kun_spin", 0, 0], [40, "kun_drop", 0, 0], [54, "kun_pass", 0, 0], [120, "kun_fall", 0, 0], [140, "kun_caught", 0, 0], [147, "finisher_in", 70, -10]]
 
 [[cinematic.236236K.panel]]
 picture = "strike"
-source = [0, 40, 1100, 330]
-from = 96
-to = 124
-in = 6
-out = 6
-y = 0.66
-height = 0.44
+source = [0, 60, 1100, 220]
+from = 36
+to = 55
+in = 5
+out = 4
+y = 0.21
+height = 0.34
 slant = 0.07
 pan = [-0.5, 0]
 band = "#0b0b0d"
@@ -1172,3 +1275,135 @@ size = [300, 324]
 turn = [0, 0]
 alpha = [1, 0]
 ease = "out_cubic"
+
+# The ball in his level 3: popped from behind him onto a finger, spun, dropped
+# into his palm; the bounce pass off the floor into the gut, pressed there
+# through the hitstop, rebounding high; falling into his hand behind his back.
+[[fx.kun_toss.sprite]]
+picture = "parts"
+source = [893, 4, 96, 93]
+at = [-40, 80]
+to = [32, 174]
+lift = 34
+from = 0
+frames = 9
+size = [28, 30]
+turn = [0, -420]
+alpha = [1, 1]
+ease = "out_quad"
+
+[[fx.kun_spin.sprite]]
+picture = "parts"
+source = [893, 4, 96, 93]
+at = [32, 174]
+from = 0
+frames = 23
+size = [30, 30]
+turn = [0, -2160]
+alpha = [1, 1]
+ease = "linear"
+
+[[fx.kun_drop.sprite]]
+picture = "parts"
+source = [893, 4, 96, 93]
+at = [32, 174]
+to = [32, 154]
+from = 0
+frames = 3
+size = [30, 30]
+turn = [0, -150]
+alpha = [1, 1]
+ease = "in_quad"
+
+[[fx.kun_pass.sprite]]
+picture = "parts"
+source = [893, 4, 96, 93]
+at = [86, 60]
+to = [118, 15]
+from = 0
+frames = 3
+size = [30, 30]
+turn = [0, -90]
+alpha = [1, 1]
+ease = "linear"
+
+[[fx.kun_pass.sprite]]
+picture = "parts"
+source = [893, 4, 96, 93]
+at = [121, 24]
+to = [137, 100]
+from = 3
+frames = 5
+size = [30, 30]
+turn = [-90, -300]
+alpha = [1, 1]
+ease = "out_quad"
+
+[[fx.kun_pass.sprite]]
+picture = "parts"
+source = [893, 4, 96, 93]
+at = [143, 100]
+from = 8
+frames = 4
+size = [25, 27]
+turn = [-300, -320]
+alpha = [1, 1]
+ease = "linear"
+
+[[fx.kun_pass.sprite]]
+picture = "parts"
+source = [893, 4, 96, 93]
+at = [143, 100]
+to = [118, 480]
+from = 12
+frames = 20
+size = [30, 30]
+turn = [-320, -1100]
+alpha = [1, 1]
+ease = "out_quad"
+
+[[fx.kun_fall.sprite]]
+picture = "parts"
+source = [893, 4, 96, 93]
+at = [160, 480]
+to = [165, 113]
+from = 0
+frames = 20
+size = [30, 30]
+turn = [0, -600]
+alpha = [1, 1]
+ease = "in_quad"
+
+[[fx.kun_caught.sprite]]
+picture = "parts"
+source = [893, 4, 96, 93]
+at = [165, 113]
+to = [165, 109]
+from = 0
+frames = 4
+size = [30, 30]
+turn = [-600, -610]
+alpha = [1, 1]
+ease = "out_quad"
+
+[[fx.kun_caught.sprite]]
+picture = "parts"
+source = [893, 4, 96, 93]
+at = [165, 109]
+from = 4
+frames = 6
+size = [30, 30]
+turn = [-610, -610]
+alpha = [1, 1]
+ease = "linear"
+
+[[fx.kun_caught.sprite]]
+picture = "parts"
+source = [893, 4, 96, 93]
+at = [165, 109]
+from = 36
+frames = 8
+size = [30, 30]
+turn = [-610, -610]
+alpha = [1, 1]
+ease = "linear"

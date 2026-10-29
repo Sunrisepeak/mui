@@ -73,7 +73,23 @@ Each fighter is three files in `fighters/` — what they do (`*.fighter.gongfu.t
 
 ### 坤 (Kun) — in progress
 
-An original character built on an internet meme's signs — a clean centre part, a white shirt with rolled sleeves, grey suspender trousers, white-and-gold high-tops, a basketball — played completely straight: cold, quiet, precise. Bajiquan close-range bursts (铁山靠, the shoulder driven in with a step; 顶肘, the elbow) on a dancer's footwork; the ball appears only in his specials and supers. His fighter file is drafted; his art is generated (a second pass for the centre part and separate hands); rig and clips follow the same workflow. Research and the reasons for the contrast are in the hardcore design §5.
+An original character built on an internet meme's signs — a clean centre part, a white shirt with rolled sleeves, grey suspender trousers, white-and-gold high-tops, a basketball — played completely straight: cold, quiet, precise. Bajiquan close-range bursts (铁山靠, the shoulder driven in with a step; 顶肘, the elbow) on a dancer's footwork; the ball appears only in his specials and supers. Research and the reasons for the contrast are in the hardcore design §5.
+
+**Super (level 3).** The first version was a stance with one arm pumping seventeen times — the formula the maintainer had asked us to leave. It is now one exchange in which the bodies and the ball really meet, and every contact is a frame of the cinematic, not an effect laid over it:
+
+| Frames | Beat |
+|---|---|
+| 0–17 | The elbow lands; she staggers back. The ball pops out from behind him and arcs onto one finger |
+| 17–42 | He spins it, chin up, looking away (the eyes cut-in was the flash) |
+| 42–54 | It drops into his palm; he winds up low behind his hip as the strike cut-in slides across the top |
+| 54–62 | The bounce pass: off the floor and into her gut; she folds over it in a hitstop |
+| 62–86 | It rebounds high out of the picture while he watches it go |
+| 76–94 | He glides in on a dancer's step, arms trailing, afterimages behind him; spins (drawn turned from here, his back to her), lifts the near foot and stamps it down inside her stance |
+| 94–104 | 铁山靠: his back driven into her, the far arm thrust away for the line of force; she takes it on her feet, arched, then leaves them |
+| 104–144 | She spins up and over; he stands, his back to her, and holds a hand behind him without looking. The ball drops into it |
+| 144–180 | She crashes down behind him; his finishing illustration; he is still standing with the ball |
+
+Three hits carry the same 4000 damage as before (900, 1900, 1200). The engine pieces it needed are general and went into `gongfu.present2d` first: path keys with an ease (a body flung up and falling instead of stopping at every key), turns, hitstops for the struck, cinematic afterimages, and the taken reactions (`launched`, `slammed`) that every rebuilt look now has. What it still lacks: there is no drawing of his back, so "turned" reads as facing away rather than showing it, and the impacts are rings and quakes — there is no dust or force art for him yet.
 
 ### 璃, 岳, 刻 and Kata
 

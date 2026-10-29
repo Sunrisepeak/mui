@@ -359,6 +359,18 @@ struct CinematicLook {
     // The defender's reaction to each of the cinematic's hits, in turn (a
     // reaction clip's name — see hit reactions below; empty: by default).
     std::vector<std::string> reactions;
+    // Held (a grab anchor): over [from, to) the defender is where a bone of
+    // the attacker is — `along` that bone from its joint — by its own point
+    // `body` (from its feet: forward, up), playing `clip` (an agreed reaction,
+    // `held` by default): taken by the collar, lifted, thrown down.
+    struct Hold {
+        std::int32_t from = 0, to = 0;
+        std::int32_t bone = -1;
+        float        along = 0;
+        Point        body{0, 110};
+        std::string  clip = "held";
+    };
+    std::vector<Hold> holds;
 };
 
 // Hit reactions: a look's hitstun clips by where and how hard the latest
@@ -366,6 +378,8 @@ struct CinematicLook {
 // `hitstun.heavy` — each falling back to `hitstun`. Every look may have them
 // (the name is the convention), so a cinematic can ask any defender for one.
 inline constexpr std::array<std::string_view, 4> hit_reactions{"hitstun.head", "hitstun.body", "hitstun.low", "hitstun.heavy"};
+// And what a cinematic or a throw asks of the one it takes: held, launched (spinning up), slammed (into the floor).
+inline constexpr std::array<std::string_view, 3> taken_reactions{"held", "launched", "slammed"};
 
 // A picture a look's image parts are cut from: its file (resolved by
 // whoever carries the look's files), its size, and once registered with the
@@ -640,7 +654,7 @@ private:
                       omui::render::DisplayList& out);
     void picture_part(const Look& look, const Part& part, std::size_t drawing, const FighterState& s, const Scene& scene, const Camera& camera,
                       std::optional<Color> tint, omui::render::DisplayList& out);
-    Pose                     pose_, past_, rest_;
+    Pose                     pose_, past_, rest_, held_;
     std::vector<Point>       mesh_at_, mesh_uv_;
     std::vector<std::uint16_t> mesh_index_;
     std::vector<double>      follow_;  // each bone's secondary motion this frame, degrees

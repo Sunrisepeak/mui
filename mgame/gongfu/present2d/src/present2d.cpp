@@ -1218,6 +1218,26 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
                 drawn.pos.x = st.lock.x + Fixed::raw(static_cast<std::int32_t>(std::lround(off.x * st.lock.facing * Fixed::one_bits)));
                 drawn.pos.y = st.lock.y + Fixed::raw(static_cast<std::int32_t>(std::lround(off.y * Fixed::one_bits)));
             }
+            // Held: where the attacker's hand (or shoulder) is this frame, by the defender's own point.
+            for (const auto& h : cine->holds) {
+                if (attacker || st.lock.frame < h.from || st.lock.frame >= h.to || h.bone < 0) continue;
+                const Look& by = st.lock.owner == 0 ? left : right;
+                FighterState holder = st.f[static_cast<std::size_t>(st.lock.owner)];
+                if (!cine->attacker_path.empty()) {
+                    const Point off = path_at(cine->attacker_path, st.lock.frame);
+                    holder.pos.x = st.lock.x + Fixed::raw(static_cast<std::int32_t>(std::lround(off.x * st.lock.facing * Fixed::one_bits)));
+                    holder.pos.y = st.lock.y + Fixed::raw(static_cast<std::int32_t>(std::lround(off.y * Fixed::one_bits)));
+                }
+                pose_clip(by, cine->attacker_clip, st.lock.frame, holder, held_);
+                if (static_cast<std::size_t>(h.bone) >= held_.size()) continue;
+                const BonePlace& b = held_[static_cast<std::size_t>(h.bone)];
+                const double hx = b.joint.x + h.along * dm::cos(b.angle), hy = b.joint.y + h.along * dm::sin(b.angle);
+                const double facing = drawn.facing < 0 ? -1.0 : 1.0;
+                drawn.pos.x = Fixed::raw(static_cast<std::int32_t>(std::lround((hx - h.body.x * facing) * Fixed::one_bits)));
+                drawn.pos.y = Fixed::raw(static_cast<std::int32_t>(std::lround((hy - h.body.y) * Fixed::one_bits)));
+                const Look& own = i == 0 ? left : right;
+                if (own.clips.contains(h.clip)) clip = h.clip;
+            }
         }
         // A prism: the defender again either side, faint, as through cut glass.
         if (cine && i != st.lock.owner && cine->prism.images > 0 && st.lock.frame >= cine->prism.from && st.lock.frame <= cine->prism.to) {

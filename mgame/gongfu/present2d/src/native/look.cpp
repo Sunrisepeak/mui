@@ -74,6 +74,7 @@ constexpr std::array<std::string_view, 3> rewind_keys{"color", "ghosts", "frames
 constexpr std::array<std::string_view, 3> stop_keys{"from", "to", "tint"};
 constexpr std::array<std::string_view, 5> clock_keys{"from", "to", "at", "size", "color"};
 constexpr std::array<std::string_view, 6> projectile_look_keys{"glyph", "size", "color", "halo", "spin", "fx"};
+constexpr std::array<std::string_view, 6> hold_keys{"from", "to", "bone", "along", "body", "clip"};
 constexpr std::array<std::string_view, 8> pose_keys{"from", "aim", "rise", "grip", "grip_at", "grip_across", "swap", "doc"};
 constexpr std::array<std::string_view, 3> fx_keys{"sprite", "stroke", "spray"};
 constexpr std::array<std::string_view, 9> fx_sprite_keys{"picture", "source", "at", "from", "frames", "size", "turn", "alpha", "ease"};
@@ -81,8 +82,8 @@ constexpr std::array<std::string_view, 8> fx_stroke_keys{"picture", "source", "p
 constexpr std::array<std::string_view, 11> fx_spray_keys{"picture", "sources", "at", "from", "frames", "count", "speed", "angle", "size", "gravity", "seed"};
 constexpr std::array<std::string_view, 11> panel_keys{"picture", "source", "from", "to", "in", "out", "y", "height", "slant", "pan", "band"};
 constexpr std::array<std::string_view, 2> stroke_keys{"points", "width"};
-constexpr std::array<std::string_view, 22> cinematic_keys{"attacker", "defender", "backdrop", "camera", "glyph", "seal", "flash", "scanlines",
-                                                          "attacker_path", "defender_path", "quake", "ring", "prism", "cracks", "fall", "stop", "clock", "doc", "panel", "fx", "hide", "reactions"};
+constexpr std::array<std::string_view, 23> cinematic_keys{"attacker", "defender", "backdrop", "camera", "glyph", "seal", "flash", "scanlines",
+                                                          "attacker_path", "defender_path", "quake", "ring", "prism", "cracks", "fall", "stop", "clock", "doc", "panel", "fx", "hide", "reactions", "hold"};
 constexpr std::array<std::string_view, 5> prism_keys{"images", "spread", "from", "to", "tint"};
 constexpr std::array<std::string_view, 1> cracks_keys{"color"};
 constexpr std::array<std::string_view, 3> fall_keys{"frame", "count", "color"};
@@ -1337,6 +1338,19 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
                         r.error(rn, "a cinematic's `reactions` is a list of hit reactions", "reactions = [\"hitstun.body\", \"hitstun.head\"]");
                     }
                 }
+                r.tables(t->get("hold"), "hold", "hold = [{ from = 40, to = 80, bone = \"fore_front\", along = 30, body = [0, 120] }]", [&](const toml::table& e) {
+                    r.only(e, hold_keys, std::format("a hold of {}", what));
+                    CinematicLook::Hold h;
+                    if (auto v = r.integer(e.get("from"), "a hold's `from`", 0, 6000)) h.from = *v;
+                    if (auto v = r.integer(e.get("to"), "a hold's `to`", 0, 6000)) h.to = *v;
+                    if (auto b = bone_index(e.get("bone"), "a hold's `bone`")) h.bone = *b;
+                    else if (!e.get("bone")) r.error(&e, "a hold names the attacker's `bone` that holds");
+                    if (auto v = r.number(e.get("along"), "a hold's `along`")) h.along = static_cast<float>(*v);
+                    if (auto xy = r.pair(e.get("body"), "a hold's `body`", "body = [0, 120]: the defender's point held (forward, up)")) h.body = {static_cast<float>((*xy)[0]), static_cast<float>((*xy)[1])};
+                    if (auto v = r.text(e.get("clip"), "a hold's `clip`")) h.clip = *v;
+                    if (h.to <= h.from) r.error(&e, "a hold ends (`to`) after it begins (`from`)");
+                    c.holds.push_back(std::move(h));
+                });
                 if (auto h = r.pair(t->get("hide"), "a cinematic's `hide`", "hide = [160, 196]: frames the attacker is not drawn"))
                     c.hide = {static_cast<std::int32_t>((*h)[0]), static_cast<std::int32_t>((*h)[1])};
                 look.cinematics.insert_or_assign(std::string(name.str()), std::move(c));
@@ -1651,6 +1665,15 @@ std::string write_look(const Look& look) {
         }
         if (!c.fx.empty()) s += fx_rows_text(c.fx);
         if (c.hide[0] >= 0) s += std::format("hide = [{}, {}]\n", c.hide[0], c.hide[1]);
+        if (!c.holds.empty()) {
+            s += "hold = [";
+            for (std::size_t i = 0; i < c.holds.size(); ++i) {
+                const auto& h = c.holds[i];
+                s += std::format("{}{{ from = {}, to = {}, bone = \"{}\", along = {}, body = [{}, {}], clip = \"{}\" }}", i ? ", " : "", h.from, h.to,
+                                 look.bones.at(static_cast<std::size_t>(h.bone)).name, h.along, h.body.x, h.body.y, h.clip);
+            }
+            s += "]\n";
+        }
         if (!c.reactions.empty()) {
             s += "reactions = [";
             for (std::size_t i = 0; i < c.reactions.size(); ++i) s += std::format("{}\"{}\"", i ? ", " : "", c.reactions[i]);

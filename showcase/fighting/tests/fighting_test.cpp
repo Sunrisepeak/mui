@@ -63,13 +63,9 @@ int main(int argc, char** argv) {
     s.test("the roster reads: the training fighter's file, every move compiled", [] {
         const auto& r = fighting::roster();
         check(r.problems.empty(), r.problems.empty() ? std::string() : r.problems.front());
-        check(r.names == std::vector<std::string>{"kata", "ke", "li", "mo", "ni", "yue"}, std::format("{}", r.names));
-        check_eq(r.fighters[0].def.name, std::string("Kata"));
-        check_eq(r.fighters[1].def.name, std::string("Ke"));
-        check_eq(r.fighters[2].def.name, std::string("Li"));
-        check_eq(r.fighters[3].def.name, std::string("Mo"));
-        check_eq(r.fighters[4].def.name, std::string("Ni"));
-        check_eq(r.fighters[5].def.name, std::string("Yue"));
+        check(r.names == std::vector<std::string>{"kata", "ke", "kun", "li", "mo", "ni", "yue"}, std::format("{}", r.names));
+        for (const auto& [i, name] : {std::pair{0, "Kata"}, {1, "Ke"}, {2, "Kun"}, {3, "Li"}, {4, "Mo"}, {5, "Ni"}, {6, "Yue"}})
+            check_eq(r.fighters[static_cast<std::size_t>(i)].def.name, std::string(name));
         check(r.fighters[0].find("236P") >= 0 && r.fighters[0].find("623P") >= 0, "its specials");
         check_eq(r.looks.size(), 2 * r.fighters.size());  // a colour for each side
     });
@@ -1044,7 +1040,7 @@ int main(int argc, char** argv) {
             check(rate >= 0.38 && rate <= 0.62, std::format("{} wins {:.2f} of its rounds", r.names[i], rate));
         }
         std::println("    rounds {}", all.hex());
-        check_eq(all.hex(), std::string("e4077b3d57950c45"));  // the same rounds on GCC and LLVM
+        check_eq(all.hex(), std::string("4748eb44a1b3d35e"));  // the same rounds on GCC and LLVM
     });
 
     s.test("a stage's music: the study's piece plays from the round's start, louder as the round gets close; none in training's plain room", [] {

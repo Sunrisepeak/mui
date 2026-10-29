@@ -27,6 +27,12 @@ export import :ni_parts_art;
 export import :ni_cutin_eyes_art;
 export import :ni_cutin_strike_art;
 export import :ni_finisher_art;
+export import :kun_parts_art;
+export import :kun_arms_art;
+export import :kun_faces_art;
+export import :kun_cutin_eyes_art;
+export import :kun_cutin_strike_art;
+export import :kun_finisher_art;
 export import :stage;
 
 export namespace omui::fighting {

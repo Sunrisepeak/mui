@@ -68,6 +68,8 @@ private:
     // The two fighters' looks (the left's first palette, the right's second),
     // their pictures registered with this stage's renderer (art_: by file).
     std::array<gongfu::present2d::Look, 2> looks_;
+    // The stage's art with its pictures registered (none: the plain room).
+    std::optional<gongfu::present2d::Stage> stage_;
     std::map<std::string, render::ImageRef, std::less<>> art_;
     std::map<std::string, render::ImageRef, std::less<>> normals_;  // their reliefs, by the same file
     gongfu::present2d::Effects            effects_;

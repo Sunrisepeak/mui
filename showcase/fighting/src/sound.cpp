@@ -44,8 +44,9 @@ Sounds::Sounds() : mixer_(std::make_unique<audio::Mixer>()) {
     if (sounds)
         for (const auto& s : *sounds) mixer_->add(s);
     mixer_->add_effect("sfx", audio::echo(0.11f, 0.22f, 0.18f, mixer_->rate()));  // the hall the stage stands in
-    for (const auto& [name, text] : std::array<std::pair<std::string_view, std::string_view>, 2>{{{"study", files::study_music}, {"street", files::street_music}}}) {
-        auto music = audio::read_music(text, std::format("{}.music.omui.toml", name));
+    for (const auto& [file, text] : files::music_files) {  // each stage's theme, by the stage's name
+        const std::string_view name = file.substr(0, file.find('.'));
+        auto music = audio::read_music(text, file);
         if (!music) continue;
         if (auto seq = audio::Sequencer::attach(*music, *mixer_)) themes_.emplace(std::string(name), std::move(*seq));
     }

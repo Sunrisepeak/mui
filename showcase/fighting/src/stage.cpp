@@ -102,6 +102,13 @@ void Stage::start_round() {
                 pic.ref = it->second;
                 if (const auto n = normals_.find(pic.file); n != normals_.end()) pic.normal = n->second;
             }
+    // The stage's art, its painted layers' pictures registered.
+    stage_.reset();
+    if (const p2::Stage* art = stage_art(props.mode == "training" && props.arena.empty() ? std::string_view("plain") : std::string_view(props.arena), props.player1)) {
+        stage_ = *art;
+        for (p2::Picture& pic : stage_->pictures)
+            if (const auto it = art_.find(std::format("stages/{}", pic.file)); it != art_.end()) pic.ref = it->second;
+    }
     effects_ = {};
     readout_.clear();
     // The stage's music: the arena's, else player 1's home's (none in training's plain room).
@@ -262,7 +269,7 @@ void Stage::paint(PaintContext& ctx) const {
     if (!match_) return;
     const Roster& r = roster();
     p2::Scene scene;
-    scene.stage = stage_art(props.mode == "training" && props.arena.empty() ? std::string_view("plain") : std::string_view(props.arena), props.player1);
+    scene.stage = stage_ ? &*stage_ : nullptr;
     render::DisplayList& frame = frame_;
     frame.clear();
     // Each side in its own palette: the first for the left, the second for the right.
@@ -277,7 +284,7 @@ void Stage::paint(PaintContext& ctx) const {
     hud::versus(frame, *match_, effects_, {art("hud/frames.webp"), art("hud/type.webp"), art("hud/names.webp"), art("hud/fill.webp")}, {&left, &right},
                 {r.names[left_], r.names[right_]});
     // Training's overlays, but not over a super's flash or a cinematic: those are the picture.
-    if (props.mode == "training" && match_->state().freeze == 0 && match_->state().lock.owner < 0) {
+    if (props.mode == "training" && props.overlays && match_->state().freeze == 0 && match_->state().lock.owner < 0) {
         hud::boxes(frame, *match_, scene, p2::view_camera(*match_, left, right, effects_, scene));
         hud::meter(frame, readout_);
         hud::inputs(frame, readout_, 0);

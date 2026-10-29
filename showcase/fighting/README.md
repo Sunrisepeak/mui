@@ -42,7 +42,19 @@ mcpp run -p openmui.showcase.fighting -- --headless --png fight.png
   - actions to save and load a state, and to record a player and replay the recording looped (the dummy).
 
   Agents read the same values in the semantic value's `training`.
-- **The HUD shapes almost no text.** The health bars drain from the middle toward each player's side, and numbers are seven-segment bars. The few words are shaped once and kept.
+- **The HUD is black lacquer, gold leaf and a red seal.** Generated art is cut by `gongfu-studio` into frames, lettering, the names' calligraphy and fills (`hud/`). It shows:
+  - portraits and brush-textured health with the recent damage draining in red;
+  - posture, the super meter's three chambers and its level;
+  - the timer in a medallion;
+  - combo counts, COUNTER and PUNISH COUNTER, K.O.
+
+  It is a pure function of the match, so a rollback draws it again the same. Training's tools still use seven-segment numbers and a few words shaped once.
+- **Stages are painted in layers.** Each home stage has five generated, keyed layers (`stages/art/`) placed by parallax in its stage file: far, the back wall, the floor, the props at its ends, and the foreground.
+  - 墨's study at night: a moon gate open on ink-wash mountains.
+  - 霓's neon alley in the rain.
+  - 坤's rooftop at blue hour.
+
+  `gongfu-studio stage` previews a stage with two fighters for scale.
 
 `tests/fighting_test.cpp` covers:
 - the roster read;

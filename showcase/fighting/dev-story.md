@@ -115,6 +115,8 @@ Throwaway scripts were used once — to turn world-angle key poses into tracks b
 | `gongfu-studio sheet` | Contact sheets of clips at chosen frames, with boxes, the look's drawn art included | same |
 | `gongfu-studio bake` / `check` | Hurtboxes from the animation; checks that bakes are current | same |
 | `gongfu-studio versus` | Every pair played by bots: win rates and where damage comes from | same |
+| `gongfu-studio stage` | A stage file's painted layers as a frame, with two fighters for scale, framed as the game frames them | same |
+| `openmui.rules` `embed(.index = true)` | Every embedded file of a tag in one generated table by name (`<tag>_files`), so a program finds its art without a list kept by hand | `mcpp/rules`, `tools/gen` |
 | `omui-music check / render / stats / fmt` | A piece checked, rendered to WAV at an intensity, measured (loudness, bands, per instrument) | `modules/media/audio` |
 | `tools/ci/readme-media.sh` | Copies what the tests drew into each showcase's `media/`; in CI, checks they match | `tools/ci` |
 | `openmui.image` | PNG, WebP (still and animated), key out, pieces, pack, crop, scale, principal axis | `modules/base/image` |
@@ -137,6 +139,29 @@ The tools' openmui interfaces (a rig editor, a pose editor with IK handles, a ti
   - Faces and hands use a softer, warmer `skin`.
 
   The renderer's lit mesh fill turns each normal with the part, so a mirrored or rotated arm still faces the light. The CPU reference and the GPU agree to 0 levels.
+- **Stages** are painted in layers. Each home stage was generated as five layers meant to stack, judged together:
+  - the far view;
+  - the back wall, keyed;
+  - the floor;
+  - the props at the stage's ends;
+  - the foreground.
+
+  `gongfu-studio picture` keys and encodes them. A stage file places each picture region in a layer by its parallax (`[[layer.image]]`: `at`, `width`, an optional `height` to stretch a floor, `flip`, `flicker` for a lantern). The procedural layers stay over them, such as the street's rain.
+
+  Three rules came from previewing with `gongfu-studio stage` at the middle, a corner and fully zoomed out:
+  - keep the band where the fighters stand calm;
+  - size props to the fighters (a desk at about half their height);
+  - keep foreground pieces out of the fighters' zone (never over their legs at a corner).
+
+  A narrow back wall is extended by mirrored copies at its sides, so it covers the widest zoom.
+- **The HUD** (black lacquer, gold leaf, a red seal) is generated art cut into frames, lettering, the names' calligraphy and fills. Its parts:
+  - portraits (each look's head);
+  - health with the brush texture and the recent damage draining;
+  - the posture, the meter and the level;
+  - the timer;
+  - combos, COUNTER and PUNISH COUNTER, K.O.
+
+  It is all a pure function of the match and its kept events. Calligraphy and coloured digits sit on lacquer plates or ink edges, so they read on paper and on night scenes alike.
 - **Afterimages and clones** are the part's shape in one colour (`draw_mesh_mask`), not a faded copy, so 霓's trail reads as neon.
 - **Hit feel**, the five parts (hardcore design §2.6), each checked by a test:
   - **Hitstop:** light < medium < heavy for every fighter's normals. A counter adds 2 frames and a punish counter 4, for both fighters.

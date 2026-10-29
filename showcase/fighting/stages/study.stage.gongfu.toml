@@ -1,201 +1,100 @@
-# 墨's study (书斋), the fighting game quality design §5: dark wooden walls (so
-# both a white robe and a black jacket read against them), a lattice window
-# glowing with the afternoon behind the fighters, bamboo swaying on its paper,
-# a hanging scroll and a shelf of scrolls; wooden boards underfoot; a low desk
-# with a brush pot at the edge of the picture. The light comes in through the
-# window, from the upper left: every fighter here is lit by it.
+# 墨's study (书斋), the hardcore combat design's stages: a scholar's pavilion
+# at night, painted in layers (stages/art, generated and keyed by
+# gongfu-studio): far off, moonlit mountains in ink-wash mist; the study's
+# back wall — a moon gate open to the night, paper lattices glowing warm,
+# hanging scrolls, red lacquer pillars, lanterns; polished floorboards
+# catching the lanterns, spilled ink and loose sheets; at the walls' ends a
+# low desk with its ink stone and brushes, a blue-and-white vase with a plum
+# branch beside a standing lantern; bamboo blinds hanging in front. The
+# fighters stand in the calm middle band; the light comes from the lanterns
+# and the moon, upper left.
 gongfu = "0.1"
 name = "study"
-sky = ["#4f3d2f", "#3f3126"]
-floor = "#6a4e3b"
-line = "#3a281c"
+sky = ["#0e1422", "#1b2233"]
+floor = "#2a1c14"
+line = "#1a110b"
 marks = false
-light = { from = [-0.62, -0.78], shadow = "#3a2a1f", rim_color = "#fff3d6cc" }
+light = { from = [-0.7071068, -0.7071068], shadow = "#1d1424", rim_color = "#ffe2b0aa" }
 
-# The far wall's beams, still and dim.
-[[layer]]
-name = "beams"
-parallax = 0.25
-[[layer.shape]]
-points = [[-800, 470], [2720, 470], [2720, 500], [-800, 500]]
-color = "#33261d"
-[[layer.shape]]
-points = [[-800, 30], [2720, 30], [2720, 44], [-800, 44]]
-color = "#5b4535"
-[[layer.shape]]
-points = [[520, 44], [546, 44], [546, 470], [520, 470]]
-color = "#5b4535"
-[[layer.shape]]
-points = [[1374, 44], [1400, 44], [1400, 470], [1374, 470]]
-color = "#5b4535"
+[[picture]]
+name = "far"
+file = "art/study-far.webp"
+size = [1152, 768]
 
-# The window: glowing paper,
-[[layer]]
-name = "window paper"
-parallax = 0.35
-[[layer.shape]]
-points = [[760, 200], [1160, 200], [1160, 420], [760, 420]]
-color = "#fff6e2"
-color2 = "#f6e7c6"
+[[picture]]
+name = "mid"
+file = "art/study-mid.webp"
+size = [1152, 768]
 
-# the bamboo outside, a shadow on the paper, swaying,
-[[layer]]
-name = "bamboo shadows"
-parallax = 0.35
-opacity = 0.32
-clip = [760, 200, 1160, 420]
-[[layer.bamboo]]
-seed = 11
-count = 6
-span = [770, 1150]
-height = [330, 450]
-width = 11
-color = "#5f6b4e"
-leaves = "#6b7858"
-sway = 2.2
+[[picture]]
+name = "floor"
+file = "art/study-floor.webp"
+size = [1152, 300]
 
-# and the lattice over it, in front of the bamboo's shadow.
-[[layer]]
-name = "window lattice"
-parallax = 0.35
-[[layer.lattice]]
-at = [760, 200]
-size = [400, 220]
-cells = [6, 3]
-bar = 7
-color = "#5b3d28"
-paper = "#00000000"
-[[layer.shape]]
-points = [[744, 188], [1176, 188], [1176, 202], [744, 202]]
-color = "#4a3120"
-[[layer.shape]]
-points = [[744, 418], [1176, 418], [1176, 434], [744, 434]]
-color = "#4a3120"
+[[picture]]
+name = "near"
+file = "art/study-near.webp"
+size = [1152, 768]
 
-# The light falling in from the window: a soft wash across the floor.
-[[layer]]
-name = "window light"
-parallax = 0.7
-opacity = 0.16
-[[layer.shape]]
-points = [[780, 0], [1140, 0], [1360, -120], [640, -120]]
-color = "#fff3d6"
+[[picture]]
+name = "front"
+file = "art/study-front.webp"
+size = [1152, 768]
 
-# A hanging scroll on the right: paper, rods, three strokes of ink and a red seal.
 [[layer]]
-name = "scroll"
-parallax = 0.55
-[[layer.shape]]
-points = [[1560, 150], [1720, 150], [1720, 450], [1560, 450]]
-color = "#f4ecdc"
-color2 = "#e8dcc4"
-sway = { degrees = 0.4, period = 7, phase = 0.3, pivot = [1640, 460] }
-[[layer.shape]]
-points = [[1548, 446], [1732, 446], [1732, 458], [1548, 458]]
-color = "#3a281c"
-[[layer.shape]]
-points = [[1548, 140], [1732, 140], [1732, 152], [1548, 152]]
-color = "#3a281c"
-sway = { degrees = 0.4, period = 7, phase = 0.3, pivot = [1640, 460] }
-[[layer.shape]]
-shape = "curve"
-points = [[1600, 410], [1652, 418], [1690, 404], [1688, 396], [1650, 404], [1602, 398]]
-color = "#1a1512"
-sway = { degrees = 0.4, period = 7, phase = 0.3, pivot = [1640, 460] }
-[[layer.shape]]
-shape = "curve"
-points = [[1640, 400], [1650, 398], [1648, 300], [1660, 220], [1640, 228], [1632, 310]]
-color = "#1a1512"
-sway = { degrees = 0.4, period = 7, phase = 0.3, pivot = [1640, 460] }
-[[layer.shape]]
-shape = "curve"
-points = [[1598, 320], [1612, 330], [1638, 300], [1690, 250], [1686, 240], [1630, 290]]
-color = "#1a1512"
-sway = { degrees = 0.4, period = 7, phase = 0.3, pivot = [1640, 460] }
-[[layer.shape]]
-points = [[1676, 190], [1700, 190], [1700, 214], [1676, 214]]
-color = "#b8322a"
-sway = { degrees = 0.4, period = 7, phase = 0.3, pivot = [1640, 460] }
+name = "mountains"
+parallax = 0.15
+[[layer.image]]
+picture = "far"
+source = [0, 0, 1152, 768]
+at = [370, -250]
+width = 1180
 
-# A shelf of scrolls on the left.
 [[layer]]
-name = "shelf"
-parallax = 0.55
-[[layer.shape]]
-points = [[150, 0], [430, 0], [430, 300], [150, 300]]
-color = "#6e4f38"
-[[layer.shape]]
-points = [[164, 14], [416, 14], [416, 286], [164, 286]]
-color = "#4f3727"
-[[layer.shape]]
-points = [[164, 100], [416, 100], [416, 108], [164, 108]]
-color = "#6e4f38"
-[[layer.shape]]
-points = [[164, 196], [416, 196], [416, 204], [164, 204]]
-color = "#6e4f38"
-[[layer.shape]]
-shape = "curve"
-points = [[176, 108], [236, 108], [240, 128], [236, 148], [176, 148], [172, 128]]
-color = "#efe3cb"
-[[layer.shape]]
-shape = "curve"
-points = [[246, 108], [300, 108], [304, 126], [300, 144], [246, 144], [242, 126]]
-color = "#e3d2b0"
-[[layer.shape]]
-shape = "curve"
-points = [[312, 108], [400, 108], [404, 130], [400, 152], [312, 152], [308, 130]]
-color = "#f0e6d2"
-[[layer.shape]]
-points = [[180, 204], [212, 204], [212, 270], [180, 270]]
-color = "#8b2e24"
-[[layer.shape]]
-points = [[216, 204], [244, 204], [244, 262], [216, 262]]
-color = "#2e3a4f"
-[[layer.shape]]
-points = [[248, 204], [282, 204], [282, 274], [248, 274]]
-color = "#c49a4a"
-[[layer.shape]]
-shape = "curve"
-points = [[320, 204], [352, 204], [376, 228], [352, 252], [320, 252], [300, 228]]
-color = "#e8dcc4"
+name = "floor"
+parallax = 0.9
+[[layer.image]]
+picture = "floor"
+source = [0, 0, 1152, 300]
+at = [-400, -150]
+width = 2720
+height = 230
 
-# The floor: boards, their seams and joints, moving with the ground.
 [[layer]]
-name = "boards"
-parallax = 1
-[[layer.planks]]
-span = [-900, 2820]
-depth = 80
-rows = 4
-length = 260
-color = "#5e4332"
-seed = 5
+name = "back wall"
+parallax = 0.5
+[[layer.image]]
+picture = "mid"
+source = [0, 0, 1152, 493]
+at = [10, 70]
+width = 1900
 
-# At the picture's edges, nearer than the fighters: a low desk with a brush pot (left), an ink stone (right).
 [[layer]]
-name = "desk"
-parallax = 1.35
+name = "desk and vase"
+parallax = 0.92
+[[layer.image]]
+picture = "near"
+source = [0, 85, 379, 563]
+at = [-60, 0]
+width = 250
+[[layer.image]]
+picture = "near"
+source = [813, 85, 331, 563]
+at = [1720, 0]
+width = 216
+flicker = 0.12
+
+[[layer]]
+name = "blinds"
+parallax = 1.3
 front = true
-[[layer.shape]]
-points = [[-260, -70], [80, -70], [80, -40], [-260, -40]]
-color = "#4a3120"
-[[layer.shape]]
-points = [[-240, -40], [-220, -40], [-220, -120], [-240, -120]]
-color = "#3a281c"
-[[layer.shape]]
-shape = "curve"
-points = [[-60, -40], [-10, -40], [-4, 30], [-66, 30]]
-color = "#d9cdb4"
-[[layer.shape]]
-points = [[-46, 30], [-40, 30], [-26, 110], [-32, 112]]
-color = "#3a281c"
-[[layer.shape]]
-points = [[-30, 30], [-24, 30], [-4, 96], [-10, 98]]
-color = "#5b3d28"
-[[layer.shape]]
-points = [[1850, -70], [2200, -70], [2200, -40], [1850, -40]]
-color = "#4a3120"
-[[layer.shape]]
-shape = "curve"
-points = [[1880, -40], [1990, -40], [1994, -18], [1876, -18]]
-color = "#1f1a17"
+[[layer.image]]
+picture = "front"
+source = [0, 0, 333, 357]
+at = [-260, 300]
+width = 330
+[[layer.image]]
+picture = "front"
+source = [904, 0, 248, 357]
+at = [1920, 300]
+width = 246

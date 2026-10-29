@@ -18,15 +18,16 @@ namespace {
 
 struct Game {
     Headless h;
-    explicit Game(std::string_view mode = "versus", std::string_view player1 = "", std::string_view player2 = "", float scale = 1)
+    explicit Game(std::string_view mode = "versus", std::string_view player1 = "", std::string_view player2 = "", float scale = 1, std::string_view arena = "",
+                  bool overlays = true)
         : h{HeadlessOptions{.size = {960, 540}, .scale = scale}} {
         AppSpec spec = fighting::app();
         spec.setup(h.runtime());
         if (mode == "versus" && player1.empty() && player2.empty()) {
             h.mount("main", spec.view());
         } else {
-            h.mount("main", fighting::stage({.id = "stage", .mode = std::string(mode), .player1 = std::string(player1), .player2 = std::string(player2),
-                                             .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100))}));
+            h.mount("main", fighting::stage({.id = "stage", .arena = std::string(arena), .mode = std::string(mode), .overlays = overlays, .player1 = std::string(player1),
+                                             .player2 = std::string(player2), .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100))}));
         }
         h.step();
     }
@@ -333,27 +334,36 @@ int main(int argc, char** argv) {
         }
     });
 
-    s.test("墨's home, the study: the stage's art behind and before the fighters, lit by its window — pinned", [] {
+    s.test("墨's home, the study: painted layers by parallax — moonlit mountains through a moon gate, the study's wall, floorboards catching the lanterns, a desk and a vase at its ends, blinds in front — pinned", [] {
         Game g("versus", "mo", "ni");
         g.h.advance(seconds(1.5));
         const auto dir = scratch_dir("fighting-study");
         check(g.h.save_png(dir / "study.png").has_value());
         const auto px = g.pixels();
         std::println("    study {:016x}", px);
-        check_eq(px, std::uint64_t{0x229d84eccb017b84});  // GCC and LLVM
+        check_eq(px, std::uint64_t{0xbc25e34e37788c52});  // GCC and LLVM
     });
 
-    s.test("霓's home, the street: rain in front and behind, signs humming, the wet road giving them back — pinned", [] {
+    s.test("霓's home, the street: a neon skyline, the alley's shopfronts and a noodle stall, the wet road giving the neon back, rain in front and behind — pinned", [] {
         Game g("versus", "ni", "mo");
         g.h.advance(seconds(1.5));
         check(g.h.save_png(scratch_dir("fighting-street") / "street.png").has_value());
         const auto px = g.pixels();
         std::println("    street {:016x}", px);
-        check_eq(px, std::uint64_t{0x7fd69cfaac6e3018});  // GCC and LLVM
+        check_eq(px, std::uint64_t{0x9511a7f9470f0900});  // GCC and LLVM
     });
 
-    s.test("the README's loop: 墨's level 3 from the flash's cut-in to the finishing blow, an animated WebP under 1 MB", [] {
-        Game g("training", "mo", "kata", 0.5f);  // 480 × 270: a README's width
+    s.test("坤's home, the rooftop: a dusk sky over the skyline, a water tower, a billboard and a fence hung with string lights, court lines on wet concrete — pinned", [] {
+        Game g("versus", "kun", "mo");
+        g.h.advance(seconds(1.5));
+        check(g.h.save_png(scratch_dir("fighting-rooftop") / "rooftop.png").has_value());
+        const auto px = g.pixels();
+        std::println("    rooftop {:016x}", px);
+        check_eq(px, std::uint64_t{0xcd6fb3879929b1b3});  // GCC and LLVM
+    });
+
+    s.test("the README's loop: 墨's level 3 in her study, from the flash's cut-in to the finishing blow, an animated WebP under 1 MB", [] {
+        Game g("training", "mo", "ni", 0.5f, "study", false);  // 480 × 270: a README's width; training's meter, not its overlays
         check(g.act("pause"));
         check(g.act("fill"));
         check(g.act("press", pad(0, "6")));
@@ -1071,9 +1081,9 @@ int main(int argc, char** argv) {
         check_eq(all.hex(), std::string("dc2d41f4688d3cf4"));  // the same rounds on GCC and LLVM
     });
 
-    s.test("a stage's music: the study's piece plays from the round's start, louder as the round gets close; none in training's plain room", [] {
-        auto loud = [](std::string_view mode, bool hurt) {
-            Game g(mode, "mo", "ni");
+    s.test("a stage's music: the study's piece plays from the round's start, louder as the round gets close; the rooftop's for 坤; none in training's plain room", [] {
+        auto loud = [](std::string_view mode, bool hurt, std::string_view player1 = "mo") {
+            Game g(mode, player1, "ni");
             check(g.act("pause"));
             auto& sounds = g.stage_mut().sounds();
             std::vector<float> one(static_cast<std::size_t>(2 * sounds.frame_samples()));
@@ -1093,9 +1103,10 @@ int main(int argc, char** argv) {
             }
             return std::sqrt(sum / static_cast<double>(std::max<std::size_t>(n, 1)));
         };
-        const double calm = loud("versus", false), close = loud("versus", true), plain = loud("training", false);
-        std::println("    music rms: {:.4f} calm, {:.4f} close, {:.4f} training", calm, close, plain);
+        const double calm = loud("versus", false), close = loud("versus", true), plain = loud("training", false), rooftop = loud("versus", false, "kun");
+        std::println("    music rms: {:.4f} calm, {:.4f} close, {:.4f} training, {:.4f} the rooftop", calm, close, plain, rooftop);
         check(calm > 0.01, "the study's piece is heard");
+        check(rooftop > 0.01, "the rooftop's piece is heard");
         check(close > calm * 1.15, "more of it when the round is close");
         check(plain < 1e-4, "training's room is quiet until someone is hit");
     });

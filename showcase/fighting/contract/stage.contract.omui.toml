@@ -13,6 +13,7 @@ paused = { type = "bool", default = false, doc = "Stand still: `step` plays one 
 player1 = { type = "string", default = "", doc = "Player 1's fighter, by its file's name (kata, mo); empty: the first." }
 player2 = { type = "string", default = "", doc = "Player 2's fighter, by its file's name; empty: the first." }
 arena  = { type = "string", default = "", doc = "The stage's art by name (study …); empty: player 1's home in versus, the plain room in training; plain: none." }
+overlays = { type = "bool", default = true, doc = "Training: the boxes, the frame meter, the inputs and the readings drawn over the match (off: the picture alone, the training tools still at hand)." }
 
 [contract.stage.events]
 round_over = { args = { winner = "i32" } }

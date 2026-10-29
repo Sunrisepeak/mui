@@ -15,20 +15,23 @@ int main() {
                                                .suffix = ".sound.omui.toml", .tag = "sound"});
     // The stages' art (gongfu.present2d's stage files).
     const bool stages = openmui::rules::embed({.module = "openmui.showcase.fighting", .ns = "omui::fighting::files", .dir = "stages",
-                                               .suffix = ".stage.gongfu.toml", .tag = "stage"});
+                                               .suffix = ".stage.gongfu.toml", .tag = "stage", .index = true});
+    // Their painted layers (the pictures the stage files name).
+    const bool stage_art = openmui::rules::embed({.module = "openmui.showcase.fighting", .ns = "omui::fighting::files", .dir = "stages/art",
+                                                  .suffix = ".webp", .tag = "stage_art", .index = true});
     // The fighters' drawn art (pictures their looks' image parts are cut from).
     const bool art = openmui::rules::embed({.module = "openmui.showcase.fighting", .ns = "omui::fighting::files", .dir = "fighters/art",
-                                            .suffix = ".webp", .tag = "art"});
+                                            .suffix = ".webp", .tag = "art", .index = true});
     // The HUD's art: its frames, its lettering, the names' calligraphy, its fills.
     const bool hud = openmui::rules::embed({.module = "openmui.showcase.fighting", .ns = "omui::fighting::files", .dir = "hud",
-                                            .suffix = ".webp", .tag = "hud"});
+                                            .suffix = ".webp", .tag = "hud", .index = true});
     // The stages' music (openmui.audio's pieces).
     const bool music = openmui::rules::embed({.module = "openmui.showcase.fighting", .ns = "omui::fighting::files", .dir = "music",
-                                              .suffix = ".music.omui.toml", .tag = "music"});
+                                              .suffix = ".music.omui.toml", .tag = "music", .index = true});
     // What a gamepad's buttons do (controls/*.controls.omui.json): data, so it can be remapped.
     const bool controls = openmui::rules::embed({.module = "openmui.showcase.fighting", .ns = "omui::fighting::files", .dir = "controls",
                                                  .suffix = ".controls.omui.json", .tag = "controls"});
     // On the Web, a Bilibili Toy package (D-84 §8.9): mcpp pack --target wasm32-emscripten --pkg-format dist-toy.
     const bool toy = openmui::rules::dist_toy({.target = "omui-fight", .title = "格斗游戏", .fonts = {"Inter", "NotoSansSC"}, .background = "#0b0d12"});
-    return stage && fighters && sounds && stages && art && hud && music && controls && toy ? 0 : 1;
+    return stage && fighters && sounds && stages && stage_art && art && hud && music && controls && toy ? 0 : 1;
 }

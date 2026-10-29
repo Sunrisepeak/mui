@@ -702,6 +702,8 @@ R1 目录与命名（D-80，一轮完成搬目录 + 改名 + README + lint）
 
 已完成：R1、R2、W1、`host.web` 的第一部分（画布、帧节奏、输入、手柄、CPU 渲染）、`host.web.toy` 和 `dist-toy`、R8（`media.audio`、mgame 核心、S4）、R9 和 R10（gongfu、训练模式、工具、六个角色全部换成生成的画，三气、胜利姿势、语音、主题曲和场景、三局两胜、Toy 版）；T1（撤销、事务和 dry-run，规范 S-12、S-13）；T3（`media.video`：按样本精确的帧和声轨、内置 PNG 序列 / Y4M / WAV、`*.video.omui.toml`、`omui video`；WebM 插件 `openmui.video.webm`：VP9 + Opus，上游 compat.libvpx、compat.libwebm、mcpplibs.mwrap.libvpx 已发布进 mcpp-index）。
 
+T5 的第一部分已完成（2026-10-30）：`site/` 的地方、四档镜头、树哈希对照、中英文、可用的时间线编辑器、构建时预渲染、Pages 工作流；其余部分列为 T5b。
+
 剩下的按依赖拆成七项，T1–T4 互不依赖，可以并行（子代理最多 3 个）：
 
 | 项 | 内容 | 依赖 | 本地验证 |
@@ -711,6 +713,7 @@ R1 目录与命名（D-80，一轮完成搬目录 + 改名 + README + lint）
 | T3 | `media.video`：帧管线把呈现换成编码；内置 PNG 序列和 Y4M、WAV 音轨；WebM（libwebm）+ VP9（libvpx）经 mwrap 作为插件（上游先做）；和音频按样本同步 | — | 离线导出逐位确定（哈希固定）；编码后解码回来对照 |
 | T4 | W2 剩下的：输入法的隐藏 textarea、剪贴板、语义 DOM 镜像、`window.omui`（经 `openas::decide`）、`Store`（localStorage） | — | Web 行（node）里用模拟的 DOM 测；本机浏览器 |
 | T5 | W3：`site/`、构建时预渲染、Pages 部署 | T4 | 本机浏览器；Pages |
+| T5b | §6.6 的其余部分：无限画布上的“地方”（全景、缩放进入）；镜头的连续过渡；页面底部的时间轴（拖动、倒放，这一帧的哈希和 CI 对照）；切换语言时的字形过渡；可运行的作品（文档墙、风格工坊、示例 01、格斗出招表）；agent 面板（S-11：未授权被拒，授权后运行） | T5 | 本机浏览器；Pages |
 | T6 | `rhi.webgpu`（Slang → WGSL），然后 `rhi.webgl` | R2 | rhi.cts；浏览器 |
 | T7 | S5 宣传片 | T1、T2、T3 | S5 的验收 |
 

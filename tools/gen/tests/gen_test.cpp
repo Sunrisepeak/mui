@@ -107,6 +107,16 @@ int main(int argc, char** argv) {
             check(cpp.find(expect) != std::string::npos, expect);
     });
 
+    s.test("a property of any type is data as it is: a Value, read and handed back whole", [] {
+        gen::Diagnostics diags;
+        auto reg = gen::read_registry(spec_dir() / "registry", diags);
+        auto lens = gen::read_contracts(spec_dir().parent_path() / "site" / "contract" / "lens.contract.omui.toml", reg, diags);
+        check(!diags.has_errors(), diags.text());
+        const std::string cpp = gen::emit_cpp_contract(lens.at(0), reg, {"x.site", "x::site", false});
+        for (auto expect : {"::omui::Value nodes;", "::omui::Prop<::omui::Value> nodes;", "props.nodes = v.is_null() ? LensProps{}.nodes : v;"})
+            check(cpp.find(expect) != std::string::npos, expect);
+    });
+
     s.test("a broken contract is reported line by line", [] {
         gen::Diagnostics diags;
         auto reg = gen::read_registry(spec_dir() / "registry", diags);

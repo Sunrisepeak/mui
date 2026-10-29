@@ -1,0 +1,86 @@
+name: Pages
+
+# openmui's website (D-84 §6.6, W3): site/ built for the Web, its places
+# pre-rendered, published to GitHub Pages (tools/ci/site.sh) at
+# https://sunrisepeak.github.io/mui/. A pull request that touches the site or
+# the documents it shows builds it (the built site kept as an artifact); a
+# push to main or to the design branch, or a run by hand, publishes it — where
+# the github-pages environment's deployment branches allow (§13.3 of the
+# structure design: main, and openmui-design once added); a branch it does
+# not allow leaves the run green and the site unpublished.
+
+on:
+  push:
+    branches: [main, openmui-design]
+  pull_request:
+    paths:
+      - 'site/**'
+      - 'docs/**'
+      - 'components/markdown/**'
+      - 'components/timeline/**'
+      - 'tools/gen/src/dist_toy.cpp'
+      - 'tools/ci/site.sh'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  XLINGS_VERSION: v2026.10.26.1
+  XLINGS_NON_INTERACTIVE: '1'
+
+jobs:
+  build:
+    # The design branch's pull request is built by its pushes (once).
+    if: github.event_name != 'pull_request' || github.head_ref != 'openmui-design'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Install xlings
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/openxlings/xlings/main/tools/other/quick_install.sh \
+            | bash -s "$XLINGS_VERSION"
+          echo "$HOME/.xlings/subos/current/bin" >> "$GITHUB_PATH"
+      - name: Install mcpp
+        run: |
+          MCPP_VERSION="$(sed -n 's/.*"mcpp": *"\([^"]*\)".*/\1/p' .xlings.json)"
+          for attempt in 1 2 3 4 5 6; do
+            xlings update > /dev/null 2>&1 || true
+            if xlings install "mcpp@$MCPP_VERSION" -y -g; then break; fi
+            [ "$attempt" = 6 ] && { echo "::error::mcpp could not be installed"; exit 1; }
+            sleep 60
+          done
+          version="$(mcpp --version)"
+          echo "$version"
+          case "$version" in *"$MCPP_VERSION"*) ;; *) echo "::error::not mcpp $MCPP_VERSION"; exit 1 ;; esac
+          mcpp self config --mirror GLOBAL
+      - name: The native toolchain (the pre-renderer)
+        run: |
+          mcpp toolchain install gcc 16.1.0
+          mcpp toolchain default gcc@16.1.0
+      - name: The site, packed for the Web and pre-rendered
+        run: tools/ci/site.sh
+      - name: Keep the site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: target/site
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    continue-on-error: true
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

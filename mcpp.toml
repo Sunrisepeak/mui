@@ -117,6 +117,7 @@ members = [
     "showcase/style-gallery",
     "showcase/widget-breakout",
     "showcase/widget-breakout/sim",
+    "site",
 ]
 
 # Sanitizers (plan §19.1 "内存"): AddressSanitizer and UndefinedBehavior-

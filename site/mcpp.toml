@@ -1,0 +1,45 @@
+# openmui's website (D-84 §6.6): the framework's thesis shown, not told —
+# one semantic tree, many renderings. Places (the home, the docs in English
+# and 中文, a live timeline editor); a lens moving the same page from its
+# pixels to the semantic tree's wireframe, the JSON an agent reads and the
+# assertions a test writes; the tree's hash in your browser beside CI's.
+# Built for the Web (dist-toy's package, which a Pages subpath serves as it
+# is), its places pre-rendered to static HTML from the same documents so a
+# reader without JavaScript and a search engine see them.
+#
+#   mcpp run -p openmui.site                       the site in a window
+#   mcpp run -p openmui.site -- --prerender out/index.html   its places into a packed page
+[package]
+namespace   = "openmui"
+name        = "site"
+version     = "0.1.0"
+description = "openmui's website: one semantic tree, many renderings — places, a lens, the docs, a live work"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind      = "site"
+contracts = ["contract/*.contract.omui.toml"]
+
+[targets.openmui-site]
+kind = "lib"
+
+[targets.omui-site]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+openmui.sdk         = { path = ".." }
+openmui.ui.markdown = { path = "../components/markdown" }
+openmui.ui.timeline = { path = "../components/timeline" }
+openmui.semantic    = { path = "../modules/ui/semantic" }
+
+[build-dependencies]
+openmui.rules = { path = "../mcpp/rules", host-module = true }
+
+[dev-dependencies]
+openmui.testing = { path = "../modules/base/testing" }

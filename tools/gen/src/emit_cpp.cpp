@@ -41,6 +41,7 @@ TypeInfo type_of(const Contract& c, const Prop& p) {
     if (p.type == "f64") return {"double", "double", "v.as_double({d})"};
     if (p.type == "color") return {"std::string", "Fill", "std::string(v.as_string({d}))"};
     if (p.type == "list<string>") return {"std::vector<std::string>", "std::vector<std::string>", "ValueOf<std::vector<std::string>>::from(v)"};
+    if (p.type == "any") return {"Value", "Value", "v"};  // data as it is (a list, a table …)
     if (p.type == "enum") {
         const std::string e = enum_name(c, p);
         return {e, e, std::format("parse_{}(v.as_string()).value_or({{d}})", c.name + "_" + p.name)};

@@ -75,6 +75,10 @@ jobs:
           mcpp self config --mirror GLOBAL
       - name: The members that run on the Web, tested under node
         run: tools/ci/web.sh
+      # D-84 §6.5: the games packed for Bilibili Toy (dist-toy) and checked by
+      # Toy's own toy_doctor.py, pinned; nothing is published.
+      - name: The games packaged for Toy, checked by Toy's doctor
+        run: tools/ci/toy.sh
 
   test:
     name: test ${{ matrix.os }} ${{ matrix.toolchain }} ${{ matrix.profile }}

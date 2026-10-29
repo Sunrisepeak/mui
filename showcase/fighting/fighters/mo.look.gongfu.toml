@@ -567,6 +567,14 @@ aim = { torso = 100, head = 94, upper_front = 60, fore_front = 96, brush = 140, 
 rise = -2
 grip_at = { foot_front = 44, foot_back = -44 }
 
+# Her level 3's hold: the front hand takes the wrist, the back hand free to strike.
+[pose.seize]
+from = "stance"
+aim = { torso = 86, head = 84, upper_front = -20, fore_front = 10, hand_front = 10, upper_back = -100, fore_back = 60, hand_back = 60 }
+rise = -6
+grip_at = { foot_front = 46, foot_back = -40 }
+swap = { hand_front = 5, hand_back = 4 }
+
 [clip.idle]
 frames = 72
 loop = true
@@ -991,29 +999,35 @@ poses = [
 frames = 200
 ease = "in_out_sine"
 poses = [
-    [0, "stance", { aim = { upper_front = -4, fore_front = 2, hand_front = 22 }, swap = { hand_front = 2 } }],
-    [10, "stance", { aim = { torso = 96, upper_front = 110, fore_front = 160, hand_front = 170 }, swap = { hand_front = 7 } }],
-    [14, "cut"],
-    [30, "cut", { aim = { torso = 90, upper_front = -30, brush = -14 } }],
-    [34, "up", "in_quad"],
-    [40, "low", "out_expo", { swap = { head = 2 } }],
-    [49, "low", "in_quad"],
-    [55, "high", "out_expo", { swap = { head = 2 } }],
-    [64, "up", "in_quad"],
-    [70, "low", "out_expo", { swap = { head = 2 } }],
-    [79, "low", "in_quad"],
-    [85, "high", "out_expo", { swap = { head = 2 } }],
-    [94, "up", "in_quad"],
-    [100, "low", "out_expo", { swap = { head = 2 } }],
-    [109, "low", "in_quad"],
-    [115, "high", "out_expo", { swap = { head = 2 } }],
-    [124, "up", "in_quad"],
-    [130, "low", "out_expo", { swap = { head = 2 } }],
-    [144, "low", "in_quad"],
-    [150, "high", "out_expo", { swap = { head = 2 } }],
-    [160, "drawn", "in_quad", { aim = { torso = 108, head = 100, upper_front = 80, fore_front = 110, brush = 95, hand_front = 110 }, rise = 6, grip_at = { foot_front = 40, foot_back = -44 } }],
-    [176, "drawn", "out_expo", { aim = { torso = 66, head = 76, upper_front = -64, fore_front = -82, brush = -88, hand_front = -82 }, rise = -30, grip_at = { foot_front = 66, foot_back = -50 }, swap = { head = 2 } }],
-    [199, "drawn", { aim = { torso = 68, head = 78, upper_front = -64, fore_front = -82, brush = -88, hand_front = -82 }, rise = -30, grip_at = { foot_front = 66, foot_back = -50 } }],
+    [0, "stance", "linear", { aim = { torso = 76, head = 80, upper_front = -4, fore_front = 2, upper_back = -140, fore_back = -90, hand_front = 22, hand_back = -80 }, rise = -10, grip_at = { foot_front = 62, foot_back = -34 }, swap = { head = 2, hand_front = 2 } }],
+    [5, "stance", "out_quad", { aim = { torso = 77, head = 80, upper_front = -2, fore_front = 4, upper_back = -140, fore_back = -90, hand_front = 24, hand_back = -80 }, rise = -10, grip_at = { foot_front = 62, foot_back = -34 }, swap = { head = 2, hand_front = 2 } }],
+    [11, "seize", "out_quad", { swap = { hand_front = 5 } }],
+    [18, "seize", "in_out_sine", { aim = { torso = 94, head = 88, upper_front = -50, fore_front = 30, hand_front = 30 }, rise = -4, grip_at = { foot_front = 40, foot_back = -44 } }],
+    [25, "seize", "in_quad", { aim = { torso = 92, upper_back = -150, fore_back = 30, hand_back = 30 }, swap = { hand_back = 2 } }],
+    [28, "seize", "out_expo", { aim = { torso = 80, upper_back = -25, fore_back = -5, hand_back = 82 }, rise = -8, grip_at = { foot_front = 52, foot_back = -36 }, swap = { hand_back = 2 } }],
+    [32, "seize", "in_out_sine", { aim = { torso = 81, upper_back = -25, fore_back = -4, hand_back = 82 }, rise = -8, grip_at = { foot_front = 52, foot_back = -36 }, swap = { hand_back = 2 } }],
+    [37, "seize", "in_quad", { aim = { torso = 94, head = 90, upper_back = -130, fore_back = 60, hand_back = 60 }, swap = { hand_back = 6 } }],
+    [40, "seize", "out_expo", { aim = { torso = 82, head = 84, upper_back = 0, fore_back = 30, hand_back = 30 }, rise = -6, grip_at = { foot_front = 52, foot_back = -36 }, swap = { hand_back = 6 } }],
+    [44, "seize", "in_out_sine", { aim = { torso = 83, head = 84, upper_back = 0, fore_back = 28, hand_back = 28 }, rise = -6, grip_at = { foot_front = 52, foot_back = -36 }, swap = { hand_back = 6 } }],
+    [49, "seize", "in_quad", { aim = { torso = 98, head = 92, upper_back = -150, fore_back = 70, hand_back = 80 }, rise = -2, swap = { hand_back = 3 } }],
+    [52, "seize", "out_expo", { aim = { torso = 78, head = 82, upper_back = -15, fore_back = 8, hand_back = 8 }, rise = -8, grip_at = { foot_front = 54, foot_back = -36 }, swap = { hand_back = 3 } }],
+    [56, "seize", "in_out_sine", { aim = { torso = 79, head = 82, upper_back = -16, fore_back = 6, hand_back = 6 }, rise = -8, grip_at = { foot_front = 54, foot_back = -36 }, swap = { hand_back = 3 } }],
+    [61, "seize", "in_quad", { aim = { torso = 98, head = 94, upper_back = 10, fore_back = 100, hand_back = 110 }, rise = 4, swap = { hand_back = 3 } }],
+    [64, "seize", "out_expo", { aim = { torso = 74, head = 78, upper_back = 6, fore_back = -36, hand_back = -36 }, rise = -12, grip_at = { foot_front = 56, foot_back = -36 }, swap = { hand_back = 3 } }],
+    [68, "seize", "in_out_sine", { aim = { torso = 75, head = 78, upper_back = 5, fore_back = -38, hand_back = -38 }, rise = -12, grip_at = { foot_front = 56, foot_back = -36 }, swap = { hand_back = 3 } }],
+    [73, "stance", "in_quad", { aim = { torso = 98, head = 90, upper_front = -110, fore_front = 40, hand_front = 70, upper_back = -120, fore_back = 40, hand_back = 70 }, rise = -14, grip_at = { foot_front = 40, foot_back = -44 }, swap = { hand_front = 2, hand_back = 2 } }],
+    [76, "stance", "out_expo", { aim = { torso = 72, head = 78, upper_front = -6, fore_front = 0, hand_front = 80, upper_back = -10, fore_back = 0, hand_back = 80 }, rise = -16, grip_at = { foot_front = 66, foot_back = -34 }, swap = { head = 2, hand_front = 2, hand_back = 2 } }],
+    [82, "stance", "in_out_sine", { aim = { torso = 74, head = 78, upper_front = -8, fore_front = 0, hand_front = 80, upper_back = -12, fore_back = 0, hand_back = 80 }, rise = -16, grip_at = { foot_front = 66, foot_back = -34 }, swap = { hand_front = 2, hand_back = 2 } }],
+    [88, "stance", "in_quad", { aim = { torso = 96, head = 90, upper_front = 110, fore_front = 160, hand_front = 170 }, rise = -4, grip_at = { foot_front = 44, foot_back = -40 }, swap = { hand_front = 7 } }],
+    [93, "drawn", "out_quad", { aim = { torso = 100, head = 92, upper_front = 70, fore_front = 120, brush = 110, hand_front = 120 } }],
+    [104, "drawn", "in_quad", { aim = { torso = 106, head = 88, upper_front = -150, fore_front = -165, brush = -178, hand_front = -165 }, rise = -28, grip_at = { foot_front = 64, foot_back = -44 } }],
+    [110, "drawn", "in_quad", { aim = { torso = 102, head = 86, upper_front = -160, fore_front = -170, brush = -182, hand_front = -170 }, rise = -30, grip_at = { foot_front = 66, foot_back = -44 } }],
+    [116, "drawn", "out_expo", { aim = { torso = 68, head = 76, upper_front = -12, fore_front = -4, brush = 4, hand_front = -4 }, rise = -26, grip_at = { foot_front = 74, foot_back = -40 }, swap = { head = 2 } }],
+    [126, "drawn", "in_out_sine", { aim = { torso = 66, head = 76, upper_front = 12, fore_front = 22, brush = 26, hand_front = 22 }, rise = -24, grip_at = { foot_front = 74, foot_back = -40 }, swap = { head = 2 } }],
+    [146, "drawn", "in_out_sine", { aim = { torso = 88, head = 84, upper_front = -30, fore_front = -10, brush = -40, hand_front = -10 }, rise = -8, grip_at = { foot_front = 50, foot_back = -40 } }],
+    [186, "drawn", "in_quad", { aim = { torso = 90, head = 84, upper_front = -30, fore_front = -10, brush = -40, hand_front = -10 }, rise = -6 }],
+    [192, "stance", "out_quad", { aim = { torso = 96, upper_front = 110, fore_front = 160, hand_front = 170 }, swap = { hand_front = 7 } }],
+    [199, "stance"],
 ]
 
 [clip.hitstun]
@@ -1199,6 +1213,26 @@ rumble = [1, 30]
 sound = ["crack", "boom", "tail_long"]
 fx = "ink_finish"
 
+# Her level 3's blows: the feel only (her ink is drawn where they land).
+[impact.palm]
+shake = [6, 8]
+spark = { style = "splash", size = 1, count = 1, frames = 0, color = "#101114", counter = "#c0392b" }
+rumble = [0.5, 8]
+sound = ["ink_splash", "thud_medium", ""]
+
+[impact.great]
+shake = [16, 24]
+zoom = [0.06, 22]
+spark = { style = "splash", size = 1, count = 1, frames = 0, color = "#101114", counter = "#c0392b" }
+rumble = [1, 24]
+sound = ["ink_splash", "thud_heavy", "tail_long"]
+
+[impact.fall]
+shake = [12, 20]
+spark = { style = "splash", size = 1, count = 1, frames = 0, color = "#101114", counter = "#c0392b" }
+rumble = [0.8, 16]
+sound = ["", "thud_heavy", "slam_tail"]
+
 [impact.block]
 shake = [1, 4]
 spark = { style = "splash", size = 30, count = 6, frames = 14, color = "#101114", counter = "#c0392b" }
@@ -1244,26 +1278,36 @@ size = 60
 fx = "tide"
 size = 60
 
+# Her level 3 (the hardcore combat design §4): her palm lands on the chest; her
+# front hand takes the wrist and turns them in; her free hand strikes four times
+# — palm to the chest, two fingers to the throat, the knife of the hand across
+# the ribs, a chop down on the collarbone — each blow leaving its stroke of ink
+# where it lands; both palms drive them off. She draws the brush from her back,
+# sinks low and sweeps one great horizontal stroke, 一, across the picture,
+# through them: they are thrown up along it and fall.
 [cinematic.236236K]
 attacker = "236236K.cinematic"
 defender = "hitstun"
-backdrop = { color = "#efe6d2", in = [0, 16], out = [186, 200] }
-camera = [[0, 1, 85, 110], [10, 1.5, 120, 120], [30, 1.15, 140, 110], [52, 1.35, 165, 100], [78, 1.05, 150, 110], [104, 1.45, 172, 98], [128, 1.1, 150, 108], [150, 1.3, 168, 100], [166, 0.9, 110, 130], [180, 1.25, 150, 95], [200, 1, 85, 100]]
-flash = [[180, "white", 6]]
-quake = [[180, 16, 24]]
-hide = [161, 196]
-reactions = ["hitstun.head", "hitstun.body", "hitstun.head", "hitstun.low", "hitstun.body", "hitstun.heavy", "hitstun.head", "hitstun.heavy", "hitstun.heavy"]
-fx = [[37, "slash_a", 170, 95], [52, "slash_b", 170, 95], [67, "slash_c", 170, 95], [82, "slash_d", 170, 95], [97, "slash_a", 170, 95], [112, "slash_b", 170, 95], [127, "slash_c", 170, 95], [147, "slash_d", 170, 95], [158, "plume", 170, 60], [160, "finisher_in", 30, 0], [176, "slam", 70, 0], [180, "ink_finish", 170, 80]]
+backdrop = { color = "#efe6d2e6", in = [0, 16], out = [186, 200] }
+camera = [[0, 1.4, 50, 120], [12, 1.85, 55, 125], [26, 2.0, 62, 124], [64, 2.05, 64, 126], [74, 1.6, 75, 120], [86, 1.45, 35, 128], [100, 1.55, 40, 110], [110, 1.5, 50, 108], [116, 0.9, 140, 130], [134, 0.95, 190, 170], [150, 1.15, 230, 100], [158, 1.0, 150, 140], [186, 1.0, 140, 130], [200, 1, 120, 120]]
+quake = [[28, 4, 6], [40, 4, 6], [52, 4, 6], [64, 6, 8], [76, 9, 12], [116, 18, 26], [152, 14, 22]]
+defender_path = [[0, 78, 0], [76, 82, 0], [90, 140, 0, "out_quad"], [116, 140, 0], [136, 235, 210, "out_quad"], [152, 265, 0, "in_quad"], [200, 265, 0]]
+hold = [{ from = 11, to = 28, bone = "hand_front", along = 10, body = [22, 112], clip = "held" }, { from = 28, to = 40, bone = "hand_front", along = 10, body = [22, 112], clip = "hitstun.body" }, { from = 40, to = 52, bone = "hand_front", along = 10, body = [22, 112], clip = "hitstun.head" }, { from = 52, to = 64, bone = "hand_front", along = 10, body = [22, 112], clip = "hitstun.body" }, { from = 64, to = 76, bone = "hand_front", along = 10, body = [22, 112], clip = "hitstun.head" }]
+in_front = [[11, 78]]
+hitstop = [[28, 4], [40, 4], [52, 4], [64, 5], [76, 6], [116, 10], [152, 6]]
+hide = [158, 186]
+reactions = ["hitstun.body", "hitstun.head", "hitstun.body", "hitstun.head", "hitstun.heavy", "launched", "slammed"]
+fx = [[28, "ink_palm", 80, 112], [40, "ink_point", 86, 138], [52, "ink_knife", 88, 118], [64, "ink_chop", 82, 108], [76, "ink_push", 92, 110], [113, "ink_great", 0, 0], [116, "ink_burst", 150, 112], [152, "slam", 265, 0], [152, "splash_floor", 265, 0], [155, "finisher_in", 110, -20, 1.3]]
 
 [[cinematic.236236K.panel]]
 picture = "strike"
 source = [0, 30, 1100, 300]
-from = 86
-to = 116
-in = 6
-out = 6
-y = 0.64
-height = 0.46
+from = 94
+to = 112
+in = 5
+out = 4
+y = 0.15
+height = 0.28
 slant = 0.07
 pan = [-0.4, 0]
 band = "#0b0b0d"
@@ -1827,3 +1871,221 @@ angle = [20, 160]
 size = [8, 16]
 gravity = 0.35
 seed = 29
+
+# Her level 3's ink: each blow's stroke where her hand lands (撇, 点, 横, 竖), the push's burst, the great stroke 一 across the picture.
+[[fx.ink_palm.stroke]]
+picture = "fx"
+source = [565, 142, 131, 59]
+points = [[-34, 34], [0, 2], [40, -36]]
+width = 34
+from = 0
+draw = 3
+hold = 10
+fade = 14
+
+[[fx.ink_palm.sprite]]
+picture = "fx"
+source = [651, 4, 124, 126]
+at = [4, 0]
+from = 0
+frames = 16
+size = [20, 58]
+turn = [0, 30]
+alpha = [1, 0]
+ease = "out_cubic"
+
+[[fx.ink_palm.spray]]
+picture = "fx"
+sources = [[228, 142, 29, 79], [304, 142, 25, 64], [852, 142, 26, 56], [198, 142, 26, 80], [367, 142, 32, 61], [1046, 142, 37, 47], [333, 142, 30, 64], [261, 142, 39, 71]]
+at = [0, 0]
+from = 0
+frames = 20
+count = 7
+speed = [2, 7]
+angle = [-30, 60]
+size = [5, 10]
+gravity = 0.35
+seed = 71
+
+[[fx.ink_point.sprite]]
+picture = "fx"
+source = [779, 4, 121, 126]
+at = [0, 0]
+from = 0
+frames = 16
+size = [16, 44]
+turn = [0, 20]
+alpha = [1, 0]
+ease = "out_cubic"
+
+[[fx.ink_point.sprite]]
+picture = "fx"
+source = [456, 4, 191, 127]
+at = [14, 4]
+from = 0
+frames = 18
+size = [14, 34]
+turn = [10, 16]
+alpha = [0.9, 0]
+ease = "out_cubic"
+
+[[fx.ink_point.spray]]
+picture = "fx"
+sources = [[228, 142, 29, 79], [304, 142, 25, 64], [852, 142, 26, 56], [198, 142, 26, 80], [367, 142, 32, 61], [1046, 142, 37, 47], [333, 142, 30, 64], [261, 142, 39, 71]]
+at = [0, 0]
+from = 0
+frames = 20
+count = 6
+speed = [2, 6]
+angle = [-10, 70]
+size = [4, 9]
+gravity = 0.35
+seed = 73
+
+[[fx.ink_knife.stroke]]
+picture = "fx"
+source = [700, 142, 148, 58]
+points = [[-50, 6], [4, 0], [62, -4]]
+width = 30
+from = 0
+draw = 3
+hold = 10
+fade = 14
+
+[[fx.ink_knife.sprite]]
+picture = "fx"
+source = [904, 4, 119, 126]
+at = [6, 0]
+from = 0
+frames = 16
+size = [18, 52]
+turn = [0, 30]
+alpha = [1, 0]
+ease = "out_cubic"
+
+[[fx.ink_knife.spray]]
+picture = "fx"
+sources = [[228, 142, 29, 79], [304, 142, 25, 64], [852, 142, 26, 56], [198, 142, 26, 80], [367, 142, 32, 61], [1046, 142, 37, 47], [333, 142, 30, 64], [261, 142, 39, 71]]
+at = [0, 0]
+from = 0
+frames = 20
+count = 7
+speed = [2, 7]
+angle = [-20, 40]
+size = [5, 10]
+gravity = 0.35
+seed = 79
+
+[[fx.ink_chop.stroke]]
+picture = "fx"
+source = [882, 142, 160, 55]
+points = [[4, 54], [0, 4], [-2, -46]]
+width = 32
+from = 0
+draw = 3
+hold = 10
+fade = 14
+
+[[fx.ink_chop.sprite]]
+picture = "fx"
+source = [651, 4, 124, 126]
+at = [0, 0]
+from = 0
+frames = 16
+size = [20, 60]
+turn = [90, 120]
+alpha = [1, 0]
+ease = "out_cubic"
+
+[[fx.ink_chop.spray]]
+picture = "fx"
+sources = [[228, 142, 29, 79], [304, 142, 25, 64], [852, 142, 26, 56], [198, 142, 26, 80], [367, 142, 32, 61], [1046, 142, 37, 47], [333, 142, 30, 64], [261, 142, 39, 71]]
+at = [0, 0]
+from = 0
+frames = 20
+count = 8
+speed = [2, 7]
+angle = [-60, 30]
+size = [5, 10]
+gravity = 0.35
+seed = 83
+
+[[fx.ink_push.sprite]]
+picture = "fx"
+source = [279, 4, 173, 127]
+at = [10, 0]
+from = 0
+frames = 26
+size = [30, 110]
+turn = [0, 0]
+alpha = [0.7, 0]
+ease = "out_cubic"
+
+[[fx.ink_push.sprite]]
+picture = "fx"
+source = [904, 4, 119, 126]
+at = [0, 0]
+from = 0
+frames = 18
+size = [30, 96]
+turn = [0, 40]
+alpha = [1, 0]
+ease = "out_cubic"
+
+[[fx.ink_push.spray]]
+picture = "fx"
+sources = [[228, 142, 29, 79], [304, 142, 25, 64], [852, 142, 26, 56], [198, 142, 26, 80], [367, 142, 32, 61], [1046, 142, 37, 47], [333, 142, 30, 64], [261, 142, 39, 71]]
+at = [0, 0]
+from = 0
+frames = 20
+count = 12
+speed = [3, 9]
+angle = [-30, 60]
+size = [6, 13]
+gravity = 0.35
+seed = 89
+
+[[fx.ink_great.stroke]]
+picture = "fx"
+source = [403, 142, 158, 59]
+points = [[-150, 104], [10, 112], [170, 110], [330, 118], [470, 114]]
+width = 60
+from = 0
+draw = 6
+hold = 14
+fade = 12
+
+[[fx.ink_burst.sprite]]
+picture = "fx"
+source = [904, 4, 119, 126]
+at = [0, 0]
+from = 0
+frames = 22
+size = [40, 150]
+turn = [0, 30]
+alpha = [1, 0]
+ease = "out_cubic"
+
+[[fx.ink_burst.sprite]]
+picture = "fx"
+source = [279, 4, 173, 127]
+at = [20, 0]
+from = 0
+frames = 30
+size = [40, 160]
+turn = [0, 0]
+alpha = [0.6, 0]
+ease = "out_cubic"
+
+[[fx.ink_burst.spray]]
+picture = "fx"
+sources = [[228, 142, 29, 79], [304, 142, 25, 64], [852, 142, 26, 56], [198, 142, 26, 80], [367, 142, 32, 61], [1046, 142, 37, 47], [333, 142, 30, 64], [261, 142, 39, 71]]
+at = [0, 0]
+from = 0
+frames = 24
+count = 16
+speed = [4, 12]
+angle = [-20, 80]
+size = [7, 15]
+gravity = 0.35
+seed = 97

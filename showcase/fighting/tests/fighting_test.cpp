@@ -414,11 +414,11 @@ int main(int argc, char** argv) {
         check(size < 1024 * 1024, std::format("{} bytes", size));
     });
 
-    s.test("墨's level 3: the flash's cut-in, eight cuts of ink from every side, the strike's cut-in, her finishing picture and the slam — frames pinned", [] {
-        Game g("training", "mo", "kata");
+    s.test("墨's level 3: her palm, the wrist taken, four strikes of the free hand each leaving its stroke of ink, both palms; the brush drawn for one great stroke, 一, through them, and the fall — frames pinned", [] {
+        Game g("training", "mo", "ni");
         check(g.act("pause"));
         check(g.act("fill"));
-        // In range of the thrust, then 236236K.
+        // In range of the palm, then 236236K.
         check(g.act("press", pad(0, "6")));
         for (int i = 0; i < 120 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 110; ++i) check(g.act("step"));
         for (std::string_view p : {"2", "3", "6", "2", "3", "6HK"}) {
@@ -427,26 +427,28 @@ int main(int argc, char** argv) {
         }
         check(g.act("press", pad(0, "5")));
         const auto dir = scratch_dir("fighting-mo-level3");
+        // Each beat at the frame that tells it.
+        const std::vector<std::pair<std::int32_t, std::string_view>> beats{{14, "wrist"}, {29, "palm"},  {41, "fingers"}, {53, "knife"},  {65, "chop"},  {77, "both-palms"},
+                                                                           {92, "draw"},  {108, "coil"}, {117, "great-stroke"}, {136, "thrown"}, {153, "fall"}, {170, "finisher"}};
         std::vector<std::uint64_t> px;
         std::int32_t lock_from = -1;
         for (int i = 0; i < 320; ++i) {
             check(g.act("step"));
             const auto& st = g.state();
-            const bool flash = st.freeze == 25;
             if (st.lock.owner == 0 && lock_from < 0) lock_from = st.frame;
             const std::int32_t lf = st.lock.owner == 0 ? st.lock.frame : -1;
-            if (flash || lf == 6 || lf == 16 || lf == 62 || lf == 125 || lf == 176 || lf == 182) {
-                g.h.step();
-                px.push_back(g.pixels());
-                check(g.h.save_png(dir / std::format("{:02}-{}.png", px.size(), flash ? std::string("flash") : std::format("lock-{}", lf))).has_value());
-            }
+            const auto beat = std::ranges::find(beats, lf, &std::pair<std::int32_t, std::string_view>::first);
+            if (beat == beats.end()) continue;
+            g.h.step();
+            px.push_back(g.pixels());
+            check(g.h.save_png(dir / std::format("{:02}-{}-{}.png", px.size(), lf, beat->second)).has_value());
         }
-        check(lock_from > 0, "the thrust hit: the cinematic played");
-        check_eq(px.size(), std::size_t{7});
+        check(lock_from > 0, "the palm hit: the cinematic played");
+        check_eq(px.size(), beats.size());
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    mo level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("663ed3b3f5c835ab"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("7e9829427e6efed5"));  // GCC and LLVM, every platform
     });
 
     s.test("墨's ink: waves of three sizes flung from the brush, and her level 2's tide along the floor — frames pinned", [] {
@@ -1226,7 +1228,7 @@ int main(int argc, char** argv) {
         const auto w = audio::wav(all, sounds.mixer().rate());
         std::ofstream(scratch_dir("fighting-sound") / "mo-and-yue.wav", std::ios::binary).write(reinterpret_cast<const char*>(w.data()), static_cast<std::streamsize>(w.size()));
         std::println("    fight heard {:016x} ({:.1f} s)", audio::hash(all), static_cast<double>(all.size()) / 2 / sounds.mixer().rate());
-        check_eq(audio::hash(all), std::uint64_t{0x24e5f02439ebbe61});  // GCC and LLVM, every platform
+        check_eq(audio::hash(all), std::uint64_t{0x78ce47dee4b6f6f1});  // GCC and LLVM, every platform
     });
 
     s.test("frames pinned: versus and training (boxes and the meter) at a jab's active frame", [] {

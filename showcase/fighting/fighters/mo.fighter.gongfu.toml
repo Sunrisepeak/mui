@@ -609,9 +609,9 @@ pushback = 3
 impact = "heavy"
 [move.cinematic]
 frames = 200
-hits = [[40, 450, "stroke"], [55, 450, "stroke"], [70, 450, "stroke"], [85, 450, "stroke"], [100, 450, "stroke"], [115, 450, "stroke"], [130, 450, "stroke"], [150, 450, "stroke"], [180, 400, "finish"]]
+hits = [[28, 450, "palm"], [40, 450, "palm"], [52, 450, "palm"], [64, 450, "palm"], [76, 500, "palm"], [116, 1200, "great"], [152, 500, "fall"]]
 attacker = [0, 0]
-defender = [170, 0]
+defender = [265, 0]
 down = 70
 recovery = 30
 

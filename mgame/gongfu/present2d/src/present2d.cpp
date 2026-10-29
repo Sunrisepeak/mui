@@ -1204,7 +1204,18 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
                          fade(cine->prism.tint, in / k));
                 }
         }
-        body(i == 0 ? left : right, match.fighter(i), drawn, st.frame, scene, view.cam, out, clip, st.lock.frame);
+        // Struck by a cinematic's hits, the defender's hitstun starts again at each (its first keys the blow).
+        std::int32_t clip_t = st.lock.frame;
+        if (cine && i != st.lock.owner && clip == "hitstun") {
+            const MoveDef& md = match.fighter(st.lock.owner).def.moves[static_cast<std::size_t>(st.lock.move)];
+            std::int32_t last = -1;
+            if (md.cinematic)
+                for (const CinematicHit& h : md.cinematic->hits)
+                    if (h.frame <= st.lock.frame) last = std::max(last, h.frame);
+            if (last >= 0) clip_t = st.lock.frame - last;
+        }
+        if (cine && i == st.lock.owner && st.lock.frame >= cine->hide[0] && st.lock.frame < cine->hide[1]) continue;
+        body(i == 0 ? left : right, match.fighter(i), drawn, st.frame, scene, view.cam, out, clip, clip_t);
     }
     // The stage's layers in front of the fighters (gone under a cinematic's backdrop).
     if (art) {
@@ -1216,6 +1227,39 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
             shown = 1 - in * out_;
         }
         if (shown > 0) stage_layers(*art, true, scene, view.cam, stage(match.system().stage_width) / 2, st.frame, static_cast<float>(shown), out);
+    }
+
+    // The effects of the clips being played (a slash's stroke, ink from the brush), from each fighter's feet.
+    for (std::int32_t i = 0; i < 2; ++i) {
+        const Look& look = i == 0 ? left : right;
+        const FighterState& f = st.f[static_cast<std::size_t>(i)];
+        const Clip* clip = nullptr;
+        std::int32_t t = 0;
+        if (cine) {
+            const auto it = look.clips.find(i == st.lock.owner ? std::string_view(cine->attacker_clip) : std::string_view(cine->defender_clip));
+            if (it != look.clips.end()) clip = &it->second, t = st.lock.frame;
+        } else {
+            std::tie(clip, t) = resolve(look, match.fighter(i), f, st.frame);
+        }
+        if (!clip) continue;
+        for (const FxAt& a : clip->fx) {
+            const auto fx = look.fx.find(a.name);
+            if (fx == look.fx.end() || t < a.frame || t >= a.frame + fx->second.length()) continue;
+            const double facing = f.facing < 0 ? -1.0 : 1.0;
+            this->fx(look, fx->second, t - a.frame, {static_cast<float>(stage(f.pos.x) + facing * a.at.x), static_cast<float>(stage(f.pos.y) + a.at.y)}, facing, a.scale,
+                     scene, view.cam, out);
+        }
+    }
+    // A cinematic's effects, from where the lock began.
+    if (cine) {
+        const Look& look = st.lock.owner == 0 ? left : right;
+        for (const FxAt& a : cine->fx) {
+            const auto fx = look.fx.find(a.name);
+            if (fx == look.fx.end() || st.lock.frame < a.frame || st.lock.frame >= a.frame + fx->second.length()) continue;
+            this->fx(look, fx->second, st.lock.frame - a.frame,
+                     {static_cast<float>(stage(st.lock.x) + st.lock.facing * a.at.x), static_cast<float>(stage(st.lock.y) + a.at.y)}, st.lock.facing < 0 ? -1.0 : 1.0, a.scale,
+                     scene, view.cam, out);
+        }
     }
 
     // Cracks across the picture: one for each of the cinematic's hits landed so far.
@@ -1276,7 +1320,7 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         if (!m.projectile || f.move_frame >= m.projectile->spawn) continue;
         const Look& look = i == 0 ? left : right;
         const auto* g = projectile_of(look, m.name);
-        if (!g) continue;
+        if (!g || !g->fx.empty()) continue;
         auto strokes = look.glyphs.find(g->glyph);
         if (strokes == look.glyphs.end()) continue;
         const Point at = view.at(stage(f.pos.x + m.projectile->offset.x * f.facing), stage(f.pos.y + m.projectile->offset.y));
@@ -1292,6 +1336,12 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         const Look& look = pr.from == 0 ? left : right;  // drawn as its thrower draws it, turned back or not
         const auto& name = match.fighter(pr.from).def.moves[static_cast<std::size_t>(pr.move)].name;
         if (const auto* g = projectile_of(look, name)) {
+            if (const auto fx = g->fx.empty() ? look.fx.end() : look.fx.find(g->fx); fx != look.fx.end()) {
+                const std::int32_t length = std::max(1, fx->second.length());
+                this->fx(look, fx->second, pr.frame % length, {static_cast<float>(stage(pr.pos.x)), static_cast<float>(stage(pr.pos.y))}, pr.facing < 0 ? -1.0 : 1.0, 1, scene,
+                         view.cam, out);
+                continue;
+            }
             if (auto strokes = look.glyphs.find(g->glyph); strokes != look.glyphs.end()) {
                 // Flying, the ink bleeds a little more each frame (into its halo, if it has one).
                 const double spread = 1.0 + std::min(0.25, pr.frame * 0.004);
@@ -1370,7 +1420,13 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         if (age < 0 || !contact(e.kind)) continue;
         const Impact& im = impact_for(look_of(e, left, right), e);
         std::int32_t spark_age = age;
-        if (k.frame >= stop_from && k.frame < stop_to) {
+        if (const auto fx = im.fx.empty() ? look_of(e, left, right).fx.end() : look_of(e, left, right).fx.find(im.fx); fx != look_of(e, left, right).fx.end()) {
+            // The look's own effect for the contact, facing the way the attacker faces.
+            const FighterState& by = st.f[static_cast<std::size_t>(std::clamp(e.attacker, 0, 1))];
+            if (age < fx->second.length())
+                this->fx(look_of(e, left, right), fx->second, age, {static_cast<float>(stage(e.at.x)), static_cast<float>(stage(e.at.y))}, by.facing < 0 ? -1.0 : 1.0, 1,
+                         scene, view.cam, out);
+        } else if (k.frame >= stop_from && k.frame < stop_to) {
             // Held in the air: each where its own number puts it about the hit, so the hits hang apart.
             spark_age = std::min(std::min(st.frame, stop_to) - k.frame, 3) + std::max(0, st.frame - stop_to);
             Effects::Kept held = k;
@@ -1455,6 +1511,12 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
             }
         }
 
+    // A cinematic's cut-ins, over everything.
+    if (cine) {
+        const Look& look = st.lock.owner == 0 ? left : right;
+        for (const auto& p : cine->panels) panel(look, p, st.lock.frame, st.lock.facing < 0 ? -1.0 : 1.0, scene, out);
+    }
+
     // A super's flash: the picture dimmed but for who flashes, a band of their colour, and for a level 3 a close-up in it.
     if (flasher >= 0) {
         const Look& look = flasher == 0 ? left : right;
@@ -1463,6 +1525,12 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         const double in = between(static_cast<std::int32_t>(flash_progress * 100), 0, 20);
         const double gone = 1 - between(static_cast<std::int32_t>(flash_progress * 100), 85, 100);
         out.fill_rect({0, 0, scene.width, scene.height}, Color::hex(0x05060a, static_cast<float>(0.55 * in * gone)));
+        if (const auto cut = look.cutins.find(m.name); cut != look.cutins.end()) {
+            // The look's cut-in over the freeze; who flashes over the dimming, beneath it.
+            body(look, match.fighter(flasher), f, st.frame, scene, view.cam, out);
+            panel(look, cut->second, static_cast<std::int32_t>(std::lround(flash_progress * m.freeze)), f.facing < 0 ? -1.0 : 1.0, scene, out);
+            return;
+        }
         // The band: a slanted strip across the picture, sweeping in.
         const float h = scene.height * 0.34f, y = scene.height * 0.18f, slant = 60;
         const float reach = static_cast<float>(scene.width * (0.2 + 0.8 * in));

@@ -165,7 +165,7 @@ int main(int argc, char** argv) {
         for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
         std::println("example.rating pixels {}", hash.hex());
         check(h.save_png(scratch_dir("example-rating") / "shelf.png").has_value());
-        check_eq(hash.hex(), std::string("739540b564420dff"));
+        check_eq(hash.hex(), std::string("315c92ec83910b60"));
     });
 
     return s.run(argc, argv);

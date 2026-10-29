@@ -5,6 +5,7 @@ export module openmui.showcase.fighting:roster;
 import std;
 import gongfu.data;
 import gongfu.present2d;
+import openmui.raster;
 
 export namespace omui::fighting {
 
@@ -17,6 +18,13 @@ struct Roster {
     // The stages' art, by name (stages/*.stage.gongfu.toml), and each fighter's home: the stage a versus plays on.
     std::map<std::string, gongfu::present2d::Stage, std::less<>> stages;
     std::map<std::string, std::string, std::less<>>              homes;
+    // The fighters' pictures by their file (fighters/art/*.png), decoded once
+    // (premultiplied): a stage registers them with its renderer's images.
+    struct Art {
+        int                              width = 0, height = 0;
+        std::vector<omui::raster::Rgba8> pixels;
+    };
+    std::map<std::string, Art, std::less<>> art;
 };
 
 // The art of the stage named (empty: player 1's home; "plain": none); none when there is none.

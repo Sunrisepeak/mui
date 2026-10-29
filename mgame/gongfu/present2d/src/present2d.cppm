@@ -97,6 +97,53 @@ struct Part {
 enum class Spark : std::uint8_t { rays, ring, splash, shards, bolt, cracks };
 enum class Flash : std::uint8_t { none, white, invert };
 
+// Effects drawn from a look's pictures — an ink splash, a slash's stroke,
+// droplets thrown — each a pure function of its age in frames, so a rollback
+// draws it again the same. Named in the look ([fx.<name>]); an impact, a
+// projectile, a clip and a cinematic name the ones they play. Places are
+// from the effect's origin, forward and up (mirrored with the facing).
+struct FxSprite {  // a picture's region at a point, growing, turning, fading
+    std::int32_t         picture = -1;
+    omui::geom::Rect     source;
+    Point                at;
+    std::int32_t         from = 0, frames = 12;
+    std::array<float, 2> size{40, 40};   // its height, stage units: from → to
+    std::array<float, 2> turn{0, 0};     // degrees, counter-clockwise
+    std::array<float, 2> alpha{1, 0};
+    hanim::Ease          ease = hanim::ease::out_cubic;
+};
+struct FxStroke {  // a picture's long region (a brush stroke) laid along a curve: drawn out, held, faded
+    std::int32_t       picture = -1;
+    omui::geom::Rect   source;
+    std::vector<Point> points;  // the curve (Catmull-Rom) through them
+    float              width = 30;
+    std::int32_t       from = 0, draw = 4, hold = 6, fade = 10;
+};
+struct FxSpray {  // droplets thrown from a point, falling (each one's own from a seed)
+    std::int32_t                  picture = -1;
+    std::vector<omui::geom::Rect> sources;
+    Point                         at;
+    std::int32_t                  from = 0, frames = 24, count = 8;
+    std::array<float, 2>          speed{2, 8};   // stage units a frame
+    std::array<float, 2>          angle{-30, 60};  // degrees: 0 forward, 90 up
+    std::array<float, 2>          size{4, 12};
+    float                         gravity = 0.4f;
+    std::uint32_t                 seed = 1;
+};
+struct Fx {
+    std::vector<FxSprite> sprites;
+    std::vector<FxStroke> strokes;
+    std::vector<FxSpray>  sprays;
+    [[nodiscard]] std::int32_t length() const noexcept;  // frames until every part is gone
+};
+// An effect played at a frame (of a clip, of a cinematic), from a place (forward, up).
+struct FxAt {
+    std::string  name;
+    std::int32_t frame = 0;
+    Point        at;
+    float        scale = 1;
+};
+
 struct Impact {
     std::string                name;
     float                      shake = 0;         // pixels at contact, easing to nothing
@@ -114,6 +161,7 @@ struct Impact {
     std::array<std::string, 3> sound;             // attack, body, tail
     float                      rumble = 0;        // 0–1
     std::int32_t               rumble_frames = 0;
+    std::string                fx;                // an effect of the look's played at the contact instead of the spark
 };
 
 // What a contact without a profile of its own looks like: a hit's, a block's, a KO's.
@@ -132,6 +180,7 @@ struct Clip {
     // its parent — a key pose as an animator sets it, the body turning under it.
     std::vector<hanim::Track<double>> aims;
     std::vector<hanim::Track<double>> grip_at, grip_across;  // by grip: where on its target, moving (a foot stepping)
+    std::vector<FxAt>                 fx;  // effects played from the fighter's feet as the clip reaches their frames
 };
 
 // A grip (two-bone IK): the chain `upper` → `lower` (a shoulder and an elbow,
@@ -260,6 +309,22 @@ struct CinematicLook {
         std::int32_t count = 48;
         Color        color = Color::hex(0xe8f6ff, 0.9f);
     } fall;
+    // Cut-ins: a picture's region shown across the screen in a slanted band
+    // over the frames [from, to], sliding in from the attacker's side and
+    // closing; its art drifting slowly (`pan`: source pixels a frame).
+    struct Panel {
+        std::int32_t     picture = -1;
+        omui::geom::Rect source;
+        std::int32_t     from = 0, to = 0, in = 6, out = 6;
+        float            y = 0.5f, height = 0.42f;  // the band's middle and height, of the screen's
+        float            slant = 0.08f;             // its ends leaning, of the screen's width
+        Point            pan;
+        Color            band = Color::hex(0x0b0b0d);
+    };
+    std::vector<Panel> panels;
+    std::vector<FxAt>  fx;  // effects from where the lock began
+    // Frames [from, to) the attacker is not drawn (a picture of them stands in: a finishing pose).
+    std::array<std::int32_t, 2> hide{-1, -1};
 };
 
 // A picture a look's image parts are cut from: its file (resolved by
@@ -344,6 +409,10 @@ struct Look {
     } footfall;
     std::map<std::string, std::vector<Stroke>, std::less<>>  glyphs;      // by name: 永, 一, 人
     std::map<std::string, CinematicLook, std::less<>>        cinematics;  // by the level 3's move name
+    std::map<std::string, Fx, std::less<>>                   fx;          // effects, by name
+    // A super's flash, by its move's name: a cut-in over the freeze (frames of
+    // it), instead of the band of the accent colour.
+    std::map<std::string, CinematicLook::Panel, std::less<>> cutins;
     // A projectile drawn as a glyph (G-11), by its move's name (236P serves
     // 236LP, 236MP and 236HP): written in front of the fighter over the
     // move's frames before it flies, then flying whole, its ink bleeding.
@@ -353,6 +422,7 @@ struct Look {
         Color       color = Color::hex(0x101114);
         Color       halo = Color::transparent();  // a glow behind it, to read on a dark stage (transparent: none)
         float       spin = 0;                      // degrees a frame it turns as it flies (a clock's hand)
+        std::string fx;                            // an effect of the look's, played over and over as it flies (instead of a glyph)
     };
     std::map<std::string, GlyphProjectile, std::less<>>      projectiles;
     // Bound to a fighter (bind): its FighterDef::impacts index → impacts' (−1: none).
@@ -515,6 +585,11 @@ public:
     void glyph(const std::vector<Stroke>& strokes, double progress, Point centre, float size, Color color, omui::render::DisplayList& out,
                float thicken = 1);
     // A glyph whose stroke k is written over the frames up to ends[k], from `from`, at `frame`.
+    // An effect of `look` at `age` frames, from `origin` (stage units), mirrored by `facing`.
+    void fx(const Look& look, const Fx& fx, double age, Point origin, double facing, float scale, const Scene& scene, const Camera& camera,
+            omui::render::DisplayList& out, float alpha = 1);
+    // A cut-in panel of `look` at the cinematic's frame `t`; `facing` the attacker's (it enters from behind them).
+    void panel(const Look& look, const CinematicLook::Panel& p, std::int32_t t, double facing, const Scene& scene, omui::render::DisplayList& out);
     void glyph_by_frames(const std::vector<Stroke>& strokes, std::span<const std::int32_t> ends, std::int32_t from, std::int32_t frame, Point centre,
                          float size, Color color, omui::render::DisplayList& out);
 

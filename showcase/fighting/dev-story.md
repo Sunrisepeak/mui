@@ -74,15 +74,22 @@ What made it fast is mostly what made it deterministic: plain data, no allocatio
 
 ## 5. Assets, and how they were made
 
-| Asset | How it was made today | What it should be made with |
+After the maintainer rated the first version 1/10, 墨 was rebuilt on a new art pipeline ([design](../../.agents/docs/2026-10-29-fighting-art-pipeline-design.md)): generated art goes in, and the framework does the rest — cutting it up, skinning it, animating it, directing it — to deterministic frames.
+
+| Asset | How it was made | With which part of the framework |
 |---|---|---|
-| Fighters' moves and frame data | TOML by hand (an agent and the maintainer), checked by `gongfu.rules` with located diagnostics | the same, plus `gongfu.studio`'s graphical move editor |
-| Animation (bones, keyframes, cinematics) | **keyframe numbers in TOML by hand**, judged from contact sheets (`gongfu-studio sheet`) and the tests' PNGs | `gongfu.studio`'s timeline with onion skins and pose editing, an openmui application |
-| Hurtboxes | baked from the animation (`gongfu-studio bake`) | — (done) |
-| Sounds | synthesised sounds as TOML data | a sound editor on `openmui.audio` with instant preview |
-| Music | none yet | a tracker on `openmui.audio` (the quality design §6) |
-| The README loop | recorded headless (`Headless::record` → animated PNG) | — (done) |
-| The promo video | not yet | a deterministic replay exported through openmui-video (S5) |
+| 墨's art: concept, side view, a parts sheet on green | codex's image generation, from prompts recorded in the design notes, judged against the rubric | — (an input, as an artist's layers would be) |
+| Her parts | `gongfu-studio cut` keys out the green, finds each part (pixels joined across a gap), masks it, packs an atlas; `gongfu-studio picture` scales and encodes to WebP | `openmui.image` (key out, pieces, pack, WebP through `mcpplibs.mwrap.libwebp`) |
+| Her rig | each part on a bone (`anchor`, `tip`, one `art_scale` for the whole picture), a grid mesh bent at the elbows and knees, the back hand gripping the brush and the feet planted by two-bone IK | `gongfu.present2d` image parts and grips; `DisplayList::draw_mesh` (CPU reference and GPU, the same pixels) |
+| Key poses | every clip re-keyed in world angles (`aim.<bone>`), feet stepping by `grip_at`; judged in contact sheets at any frame and size (`gongfu-studio sheet --clips --frames --cell`); hit boxes set to where the brush's head actually is, then the balance gates re-run | `gongfu.present2d` clips; `gongfu.studio`; the bots' balance report |
+| Ink effects | a generated sheet of strokes, slashes, splashes, droplets, cut into an atlas; effects defined as data — sprites that grow and fade, brush strokes laid along a curve and drawn out, sprays of droplets — played by impacts, projectiles, clips and cinematics | `[fx.<name>]` in the look; `Painter::fx` |
+| The level 3 | a directed cinematic: the eyes cut-in in the flash, eight cuts of ink from every side as the camera pushes and pulls, a strike cut-in, her finishing illustration in place of the rig, the slam | cut-in panels (`[cutin]`, `[[cinematic.X.panel]]`), cinematic effects and `hide` |
+| Hurtboxes | baked from the animation (`gongfu-studio bake`); the brush is now part of her hurtbox, so a whiffed poke can be punished | `gongfu.studio` |
+| Sounds | synthesised sounds as TOML data (voices from CC0 packs to come) | `openmui.audio` |
+| Music | none yet | a sequencer on `openmui.audio` (the art pipeline §2) |
+| The README loop | recorded headless as animated WebP (494 KB for 52 frames; the same as an APNG was over 1 MB) | `Headless::record`, `openmui.image` |
+
+Along the way the work found a framework bug, fixed where it lived: an edge running out of a clip was drawn tilted toward its clamped end (`openmui.raster`), so a long textured triangle lost half of itself in a contact sheet's cell.
 
 ## 6. Self-review
 
@@ -94,7 +101,9 @@ What made it fast is mostly what made it deterministic: plain data, no allocatio
 
 **What was hard, and what it says to improve**
 
-- **Making the art is the bottleneck.** Every pose of every fighter is numbers in a TOML file, judged by rendering a PNG and looking at it. That is slow, and it is why the fighters still look like mannequins (the quality design grades art 1.5/5). This is the clearest finding: the graphical `gongfu.studio` (timeline, onion skins, pose editing, swap drawings) is the next tool to build. It belongs in `mgame/gongfu/studio` as an openmui application (D-61), not inside the game.
+- **Making the art was the bottleneck, and code alone could not reach the bar.** Geometric parts posed by numbers stayed mannequins however long they were tuned. Generated art plus framework tools changed that in a day. What is still slow: placing each part (anchor, tip, depth) and keying poses is numbers in a file, judged from a contact sheet — this round a throwaway script turned world-angle poses into keys before `aim` keys existed. The graphical `gongfu.studio` (drag a part's pivot, pose by dragging bones with IK, a timeline with onion skins) is the next tool, as an openmui application (D-61).
+- **Generated art has seams the rig must hide.** Parts came with skin-coloured cut ends at every joint; overlap, depth order and cropping the source region hide them. The parts prompt should ask for joints covered by cloth, and the cut tool could find and trim cut ends itself.
+- **Black ink disappears on a dark stage.** Effects need a light rim or a "colour by alpha" image paint (an image used as a mask, coloured) — a renderer capability both paths should get.
 - **No hot reload for fighters.** A changed look needs a rebuild because the files are embedded. Tuning wants the opposite: a development mode where the stage watches the files and reloads them in place. The rollback design makes this safe, because the state does not hold presentation data.
 - **Debugging rendering with pinned hashes is coarse.** When a pin changes, the PNG in `/tmp/openmui-tests` is the only clue. Pixel diffs against the last accepted frame, with the regions that changed highlighted, would make pin updates reviewable. That is a `openmui.testing` capability, not a game feature.
 - **Two bugs came from looking a projectile up by its owner** (a segfault on LLVM, silent on GCC). Identity should be explicit (`from`) wherever an entity can change hands; this belongs in gongfu's design notes.

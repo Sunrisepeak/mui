@@ -16,5 +16,8 @@ int main() {
     // The stages' art (gongfu.present2d's stage files).
     const bool stages = openmui::rules::embed({.module = "openmui.showcase.fighting", .ns = "omui::fighting::files", .dir = "stages",
                                                .suffix = ".stage.gongfu.toml", .tag = "stage"});
-    return stage && fighters && sounds && stages ? 0 : 1;
+    // The fighters' drawn art (pictures their looks' image parts are cut from).
+    const bool art = openmui::rules::embed({.module = "openmui.showcase.fighting", .ns = "omui::fighting::files", .dir = "fighters/art",
+                                            .suffix = ".webp", .tag = "art"});
+    return stage && fighters && sounds && stages && art ? 0 : 1;
 }

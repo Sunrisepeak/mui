@@ -14,6 +14,11 @@ export import :sound;
 export import :fight_sound;
 export import :study_stage;
 export import :street_stage;
+export import :mo_parts_art;
+export import :mo_fx_art;
+export import :mo_cutin_eyes_art;
+export import :mo_cutin_strike_art;
+export import :mo_finisher_art;
 export import :stage;
 
 export namespace omui::fighting {

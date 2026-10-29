@@ -1,5 +1,5 @@
 # 墨 (Mo), the calligrapher: keep-away (gongfu characters design §3).
-# Three speeds of a written glyph hold the ground; a brush that reaches far
+# Three speeds of a flung wave of ink hold the ground; a brush that reaches far
 # pokes; 「挑」 takes jumpers out of the air (and only the air); an ink step
 # slips back or forward, but can be thrown. Close up she is slow: her
 # fastest buttons are 4 frames and few of them cancel.
@@ -21,7 +21,7 @@ total = 13
 meter = { gain = 20 }
 [[move.hit]]
 active = [4, 5]
-boxes = [[15, 115, 65, 25]]
+boxes = [[30, 125, 92, 37]]
 damage = 300
 hitstun = 13
 blockstun = 8
@@ -39,7 +39,7 @@ total = 23
 meter = { gain = 40 }
 [[move.hit]]
 active = [7, 9]
-boxes = [[20, 95, 110, 35]]
+boxes = [[30, 102, 132, 26]]
 damage = 600
 hitstun = 18
 blockstun = 13
@@ -57,7 +57,7 @@ total = 36
 meter = { gain = 60 }
 [[move.hit]]
 active = [11, 14]
-boxes = [[30, 100, 120, 40]]
+boxes = [[30, 40, 132, 80]]
 damage = 900
 hitstun = 26
 blockstun = 19
@@ -105,7 +105,7 @@ total = 36
 meter = { gain = 60 }
 [[move.hit]]
 active = [12, 16]
-boxes = [[0, 140, 110, 90]]
+boxes = [[0, 140, 100, 90]]
 damage = 900
 hitstun = 24
 blockstun = 17
@@ -121,7 +121,7 @@ total = 13
 meter = { gain = 20 }
 [[move.hit]]
 active = [4, 5]
-boxes = [[15, 70, 60, 25]]
+boxes = [[30, 82, 105, 30]]
 damage = 250
 hitstun = 12
 blockstun = 8
@@ -140,7 +140,7 @@ total = 21
 meter = { gain = 40 }
 [[move.hit]]
 active = [6, 8]
-boxes = [[20, 60, 90, 30]]
+boxes = [[30, 105, 126, 44]]
 damage = 550
 hitstun = 17
 blockstun = 13
@@ -159,7 +159,7 @@ total = 32
 meter = { gain = 60 }
 [[move.hit]]
 active = [8, 12]
-boxes = [[0, 110, 80, 120]]
+boxes = [[0, 110, 85, 120]]
 damage = 900
 hitstun = 26
 blockstun = 16
@@ -198,7 +198,7 @@ total = 27
 meter = { gain = 40 }
 [[move.hit]]
 active = [8, 10]
-boxes = [[20, 0, 115, 25]]
+boxes = [[30, 5, 120, 36]]
 damage = 600
 hitstun = 20
 blockstun = 14
@@ -218,7 +218,7 @@ total = 38
 meter = { gain = 60 }
 [[move.hit]]
 active = [10, 12]
-boxes = [[15, 0, 125, 30]]
+boxes = [[15, 0, 130, 32]]
 damage = 900
 hitstun = 20
 blockstun = 16
@@ -351,7 +351,7 @@ hitstun = 25
 blockstun = 21
 hitstop = 8
 pushback = 3
-impact = "glyph"
+impact = "ink"
 
 [[move]]
 name = "236MP"
@@ -374,7 +374,7 @@ hitstun = 25
 blockstun = 21
 hitstop = 8
 pushback = 3
-impact = "glyph"
+impact = "ink"
 
 [[move]]
 name = "236HP"
@@ -397,7 +397,7 @@ hitstun = 25
 blockstun = 21
 hitstop = 8
 pushback = 3
-impact = "glyph"
+impact = "ink"
 
 [[move]]
 name = "j.236P"
@@ -422,7 +422,7 @@ blockstun = 12
 hitstop = 7
 pushback = 2
 level = "overhead"
-impact = "glyph"
+impact = "ink"
 
 [[move]]
 name = "623LP"
@@ -439,7 +439,7 @@ frame = 9
 velocity = [0, 0]
 [[move.hit]]
 active = [5, 8]
-boxes = [[0, 90, 75, 130]]
+boxes = [[0, 90, 80, 130]]
 damage = 1000
 hitstun = 30
 blockstun = 9
@@ -466,7 +466,7 @@ frame = 10
 velocity = [0, 0]
 [[move.hit]]
 active = [6, 9]
-boxes = [[0, 90, 75, 130]]
+boxes = [[0, 90, 80, 130]]
 damage = 1100
 hitstun = 30
 blockstun = 9
@@ -493,7 +493,7 @@ frame = 11
 velocity = [0, 0]
 [[move.hit]]
 active = [7, 10]
-boxes = [[0, 90, 75, 130]]
+boxes = [[0, 90, 80, 130]]
 damage = 1300
 hitstun = 30
 blockstun = 9
@@ -598,7 +598,7 @@ invulnerable = [[1, 9]]
 meter = { cost = 3000 }
 [[move.hit]]
 active = [7, 9]
-boxes = [[20, 95, 120, 40]]
+boxes = [[30, 100, 130, 26]]
 damage = 300
 hitstun = 40
 blockstun = 28
@@ -607,7 +607,7 @@ pushback = 3
 impact = "heavy"
 [move.cinematic]
 frames = 200
-hits = [[40, 450, "stroke"], [55, 450, "stroke"], [70, 450, "stroke"], [85, 450, "stroke"], [100, 450, "stroke"], [115, 450, "stroke"], [130, 450, "stroke"], [150, 450, "stroke"], [180, 400, "seal"]]
+hits = [[40, 450, "stroke"], [55, 450, "stroke"], [70, 450, "stroke"], [85, 450, "stroke"], [100, 450, "stroke"], [115, 450, "stroke"], [130, 450, "stroke"], [150, 450, "stroke"], [180, 400, "finish"]]
 attacker = [0, 0]
 defender = [170, 0]
 down = 70

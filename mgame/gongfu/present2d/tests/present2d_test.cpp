@@ -633,6 +633,100 @@ grip.hands = [[0, 1], [10, 1], [20, 0]]
         check(!b2 && has(texts(b2.error()), "holds `hand`, which is no grip"), b2 ? "read" : std::format("{}", texts(b2.error())));
     });
 
+    s.test("effects from a look's pictures: a sprite grows and fades, a stroke is drawn out along its curve, droplets fly and fall; a cut-in band slides in — files read back as themselves", [] {
+        const std::string text = R"(gongfu = "0.1"
+name = "ink"
+
+[[picture]]
+name = "fx"
+file = "fx.png"
+size = [64, 32]
+
+[[bone]]
+name = "body"
+joint = [0, 80]
+length = 60
+rest = 90
+
+[impact.hit]
+fx = "splash"
+
+[cutin.L3]
+picture = "fx"
+source = [0, 0, 64, 32]
+from = 0
+to = 30
+y = 0.5
+height = 0.4
+
+[[fx.splash.sprite]]
+picture = "fx"
+source = [0, 0, 32, 32]
+frames = 10
+size = [10, 60]
+alpha = [1, 0]
+
+[[fx.splash.spray]]
+picture = "fx"
+sources = [[0, 0, 32, 32]]
+count = 6
+frames = 20
+speed = [2, 4]
+angle = [0, 180]
+size = [4, 6]
+
+[[fx.slash.stroke]]
+picture = "fx"
+source = [32, 0, 32, 32]
+points = [[-80, 0], [0, 40], [80, 0]]
+width = 24
+draw = 4
+hold = 4
+fade = 4
+)";
+        auto look = p2::read_look(text, "ink.look.gongfu.toml");
+        check(look.has_value(), look ? "" : std::format("{}", texts(look.error())));
+        if (!look) return;
+        const std::string written = p2::write_look(*look);
+        auto again = p2::read_look(written, "written.look.gongfu.toml");
+        check(again && p2::write_look(*again) == written, again ? written : std::format("{}", texts(again.error())));
+        check(look->fx.at("splash").length() == 20 && look->fx.at("slash").length() == 12, "lengths");
+        check(look->impacts.size() == 1 && look->impacts[0].fx == "splash" && look->cutins.contains("L3"), "named");
+        omui::render::ImageStore images;
+        look->pictures[0].ref = images.add(64, 32, std::vector<omui::raster::Rgba8>(64 * 32, omui::raster::Rgba8{20, 20, 20, 255}));
+        p2::Painter painter;
+        const p2::Scene scene{.width = 400, .height = 300, .ground = 250};
+        const p2::Camera cam{0, 0, 1};
+        auto inked = [&](std::string_view name, double age) {
+            omui::render::DisplayList dl;
+            dl.fill_rect({0, 0, 400, 300}, Color::hex(0xffffff));
+            painter.fx(*look, look->fx.at(std::string(name)), age, {0, 100}, 1, 1, scene, cam, dl);
+            omui::raster::Surface out(400, 300);
+            omui::render::CpuRenderer{}.render(dl, out, {&images, nullptr}, {.scale = 1});
+            int n = 0;
+            for (int y = 0; y < 300; ++y)
+                for (int x = 0; x < 400; ++x) n += out.at(x, y).r < 128;
+            return std::pair{n, out.hash()};
+        };
+        const auto s0 = inked("splash", 0), s5 = inked("splash", 5), s12 = inked("splash", 12), s30 = inked("splash", 30);
+        check(s0.first > 0 && s5.first > s0.first, std::format("the splash grows: {} then {} pixels", s0.first, s5.first));
+        check(s12.first > 0 && s30.first == 0, std::format("droplets fly on after the splash, then nothing: {}, {}", s12.first, s30.first));
+        const auto k0 = inked("slash", 0), k3 = inked("slash", 3), k7 = inked("slash", 7);
+        check(k0.first > 0 && k3.first > 2 * k0.first && k7.first == k3.first, std::format("drawn out along its curve, then held: {}, {}, {}", k0.first, k3.first, k7.first));
+        check(inked("slash", 3).second == k3.second, "the same picture every time");
+        // The cut-in: sliding in, then across the band (the middle 40%).
+        omui::render::DisplayList dl;
+        dl.fill_rect({0, 0, 400, 300}, Color::hex(0xffffff));
+        painter.panel(*look, look->cutins.at("L3"), 10, 1, scene, dl);
+        omui::raster::Surface out(400, 300);
+        omui::render::CpuRenderer{}.render(dl, out, {&images, nullptr}, {.scale = 1});
+        check(out.at(200, 150).r < 60 && out.at(200, 20).r > 200 && out.at(200, 280).r > 200, "a band across the middle");
+        std::string bad = text;
+        bad.replace(bad.find("fx = \"splash\""), 14, "fx = \"splosh\"");
+        auto b1 = p2::read_look(bad, "bad.look.gongfu.toml");
+        check(!b1 && has(texts(b1.error()), "plays `splosh`, which is no effect of the look"), b1 ? "read" : std::format("{}", texts(b1.error())));
+    });
+
     s.test("a stage's art: layers by parallax, generators from a seed, sway and flicker by the frame, the world's light; a file that reads back as itself", [&] {
         const std::string text = R"(gongfu = "0.1"
 name = "test"

@@ -63,6 +63,10 @@ private:
 
     std::unique_ptr<gongfu::Match>        match_;
     std::size_t                           left_ = 0, right_ = 0;  // the fighters, by their place in the roster
+    // The two fighters' looks (the left's first palette, the right's second),
+    // their pictures registered with this stage's renderer (art_: by file).
+    std::array<gongfu::present2d::Look, 2> looks_;
+    std::map<std::string, render::ImageRef, std::less<>> art_;
     gongfu::present2d::Effects            effects_;
     std::set<Key>                         held_;
     std::array<std::optional<gongfu::Pad>, 2> agent_{};

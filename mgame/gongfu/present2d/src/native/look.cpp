@@ -59,8 +59,8 @@ namespace {
 using data::Diagnostic;
 
 constexpr std::string_view format_version = "0.1";
-constexpr std::array<std::string_view, 23> look_keys{"gongfu", "name", "outline", "accent", "trail", "glow", "footfall", "pane", "clone", "rewind", "palette", "bone", "part", "clip", "impact",
-                                                     "glyph", "cinematic", "projectile", "doc", "light", "picture", "art_scale", "grip"};
+constexpr std::array<std::string_view, 25> look_keys{"gongfu", "name", "outline", "accent", "trail", "glow", "footfall", "pane", "clone", "rewind", "palette", "bone", "part", "clip", "impact",
+                                                     "glyph", "cinematic", "projectile", "doc", "light", "picture", "art_scale", "grip", "fx", "cutin"};
 constexpr std::array<std::string_view, 7> grip_keys{"name", "upper", "lower", "target", "at", "across", "bend"};
 constexpr std::array<std::string_view, 3> picture_keys{"name", "file", "size"};
 constexpr std::array<std::string_view, 6> light_keys{"from", "shade", "darken", "shadow", "rim", "rim_color"};
@@ -73,10 +73,15 @@ constexpr std::array<std::string_view, 1> clone_keys{"tint"};
 constexpr std::array<std::string_view, 3> rewind_keys{"color", "ghosts", "frames"};
 constexpr std::array<std::string_view, 3> stop_keys{"from", "to", "tint"};
 constexpr std::array<std::string_view, 5> clock_keys{"from", "to", "at", "size", "color"};
-constexpr std::array<std::string_view, 5> projectile_look_keys{"glyph", "size", "color", "halo", "spin"};
+constexpr std::array<std::string_view, 6> projectile_look_keys{"glyph", "size", "color", "halo", "spin", "fx"};
+constexpr std::array<std::string_view, 3> fx_keys{"sprite", "stroke", "spray"};
+constexpr std::array<std::string_view, 9> fx_sprite_keys{"picture", "source", "at", "from", "frames", "size", "turn", "alpha", "ease"};
+constexpr std::array<std::string_view, 8> fx_stroke_keys{"picture", "source", "points", "width", "from", "draw", "hold", "fade"};
+constexpr std::array<std::string_view, 11> fx_spray_keys{"picture", "sources", "at", "from", "frames", "count", "speed", "angle", "size", "gravity", "seed"};
+constexpr std::array<std::string_view, 11> panel_keys{"picture", "source", "from", "to", "in", "out", "y", "height", "slant", "pan", "band"};
 constexpr std::array<std::string_view, 2> stroke_keys{"points", "width"};
-constexpr std::array<std::string_view, 18> cinematic_keys{"attacker", "defender", "backdrop", "camera", "glyph", "seal", "flash", "scanlines",
-                                                          "attacker_path", "defender_path", "quake", "ring", "prism", "cracks", "fall", "stop", "clock", "doc"};
+constexpr std::array<std::string_view, 21> cinematic_keys{"attacker", "defender", "backdrop", "camera", "glyph", "seal", "flash", "scanlines",
+                                                          "attacker_path", "defender_path", "quake", "ring", "prism", "cracks", "fall", "stop", "clock", "doc", "panel", "fx", "hide"};
 constexpr std::array<std::string_view, 5> prism_keys{"images", "spread", "from", "to", "tint"};
 constexpr std::array<std::string_view, 1> cracks_keys{"color"};
 constexpr std::array<std::string_view, 3> fall_keys{"frame", "count", "color"};
@@ -88,8 +93,8 @@ constexpr std::array<std::string_view, 2> outline_keys{"color", "width"};
 constexpr std::array<std::string_view, 9> bone_keys{"name", "parent", "joint", "length", "rest", "limb", "prop", "follow", "hang"};
 constexpr std::array<std::string_view, 18> part_keys{"bone", "shape", "size", "points", "color", "depth", "doc", "name", "variants", "shade",
                                                     "picture", "source", "anchor", "tip", "mesh", "bend", "blend", "fit"};
-constexpr std::array<std::string_view, 11> clip_keys{"frames", "loop", "ease", "angle", "rise", "doc", "swap", "grip", "aim", "grip_at", "grip_across"};
-constexpr std::array<std::string_view, 8> impact_keys{"shake", "zoom", "flash", "spark", "sound", "rumble", "doc", "name"};
+constexpr std::array<std::string_view, 12> clip_keys{"frames", "loop", "ease", "angle", "rise", "doc", "swap", "grip", "aim", "grip_at", "grip_across", "fx"};
+constexpr std::array<std::string_view, 9> impact_keys{"shake", "zoom", "flash", "spark", "sound", "rumble", "doc", "name", "fx"};
 constexpr std::array<std::string_view, 6> spark_keys{"style", "size", "count", "frames", "color", "counter"};
 constexpr std::array<std::string_view, 5> shape_names{"capsule", "ellipse", "polygon", "curve", "image"};
 constexpr std::array<std::string_view, 6> spark_names{"rays", "ring", "splash", "shards", "bolt", "cracks"};
@@ -189,6 +194,26 @@ struct Reader {
             return;
         }
         for (const toml::node& e : *a) f(*e.as_table());
+    }
+    // [x, y, width, height] of numbers.
+    std::optional<omui::geom::Rect> rect(const toml::node* n, std::string_view what) {
+        if (!n) return std::nullopt;
+        const toml::array* a = n->as_array();
+        if (!a || a->size() != 4) {
+            error(n, std::format("{} is [x, y, width, height]", what));
+            return std::nullopt;
+        }
+        std::array<double, 4> v{};
+        for (std::size_t i = 0; i < 4; ++i) {
+            auto x = number(a->get(i), what);
+            if (!x) return std::nullopt;
+            v[i] = *x;
+        }
+        if (v[2] <= 0 || v[3] <= 0) {
+            error(n, std::format("{} has a width and a height", what));
+            return std::nullopt;
+        }
+        return omui::geom::Rect{static_cast<float>(v[0]), static_cast<float>(v[1]), static_cast<float>(v[2]), static_cast<float>(v[3])};
     }
     // [[frame, value(, ease)], …] with the clip's ease by default.
     std::optional<hanim::Track<double>> keys(const toml::node* n, std::string_view what, hanim::Ease ease, std::int32_t frames) {
@@ -443,6 +468,168 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
         look.pictures.push_back(std::move(pic));
     });
 
+    auto picture_index = [&](const toml::node* n, std::string_view what) -> std::int32_t {
+        auto pn = r.text(n, what);
+        if (!pn) return -1;
+        auto it = std::ranges::find(look.pictures, *pn, &Picture::name);
+        if (it != look.pictures.end()) return static_cast<std::int32_t>(it - look.pictures.begin());
+        std::vector<std::string_view> names;
+        for (const Picture& o : look.pictures) names.push_back(o.name);
+        r.error(n, std::format("no picture is called `{}`", *pn), names.empty() ? "[[picture]] name = … first" : data::nearest_hint(*pn, names));
+        return -1;
+    };
+    auto inside = [&](const toml::node* n, std::int32_t picture, const omui::geom::Rect& src) {
+        if (picture < 0) return;
+        const Picture& pic = look.pictures[static_cast<std::size_t>(picture)];
+        if (pic.width > 0 && (src.x < 0 || src.y < 0 || src.x + src.width > static_cast<float>(pic.width) || src.y + src.height > static_cast<float>(pic.height)))
+            r.error(n, std::format("`source` is not inside picture `{}` ({} × {})", pic.name, pic.width, pic.height));
+    };
+    auto point = [&](const toml::node* n, std::string_view what, Point& out) {
+        if (auto xy = r.pair(n, what, "[forward, up]")) out = {static_cast<float>((*xy)[0]), static_cast<float>((*xy)[1])};
+    };
+    auto range = [&](const toml::node* n, std::string_view what, std::array<float, 2>& out) {
+        if (auto v = r.pair(n, what, "[from, to]")) out = {static_cast<float>((*v)[0]), static_cast<float>((*v)[1])};
+    };
+
+    // Effects: sprites, strokes and sprays of the look's pictures.
+    if (const toml::node* fn = root->get("fx")) {
+        if (const toml::table* ft = fn->as_table()) {
+            for (const auto& [name, node] : *ft) {
+                const toml::table* t = node.as_table();
+                const std::string what = std::format("effect `{}`", name.str());
+                if (!t) {
+                    r.error(&node, std::format("{} is a table", what), "[[fx.splash.sprite]] picture = \"fx\" source = [0, 0, 64, 64]");
+                    continue;
+                }
+                r.only(*t, fx_keys, what);
+                Fx fx;
+                r.tables(t->get("sprite"), "sprite", "[[fx.splash.sprite]] picture = \"fx\" source = [0, 0, 64, 64] size = [20, 90]", [&](const toml::table& e) {
+                    r.only(e, fx_sprite_keys, std::format("a sprite of {}", what));
+                    FxSprite sp;
+                    sp.picture = picture_index(e.get("picture"), "a sprite's `picture`");
+                    if (auto v = r.rect(e.get("source"), "a sprite's `source`")) sp.source = *v, inside(e.get("source"), sp.picture, *v);
+                    point(e.get("at"), "a sprite's `at`", sp.at);
+                    if (auto v = r.integer(e.get("from"), "a sprite's `from`", 0, 6000)) sp.from = *v;
+                    if (auto v = r.integer(e.get("frames"), "a sprite's `frames`", 1, 6000)) sp.frames = *v;
+                    range(e.get("size"), "a sprite's `size`", sp.size);
+                    range(e.get("turn"), "a sprite's `turn`", sp.turn);
+                    range(e.get("alpha"), "a sprite's `alpha`", sp.alpha);
+                    if (auto v = r.text(e.get("ease"), "a sprite's `ease`")) {
+                        if (auto parsed = hanim::parse_ease(*v)) sp.ease = *parsed;
+                        else r.error(e.get("ease"), std::format("`{}` is not an ease", *v));
+                    }
+                    if (sp.picture < 0 && !e.get("picture")) r.error(&e, "a sprite names its `picture`");
+                    fx.sprites.push_back(sp);
+                });
+                r.tables(t->get("stroke"), "stroke", "[[fx.slash.stroke]] picture = \"fx\" source = [0, 0, 400, 60] points = [[0, 0], [60, 40], [120, 0]]", [&](const toml::table& e) {
+                    r.only(e, fx_stroke_keys, std::format("a stroke of {}", what));
+                    FxStroke st;
+                    st.picture = picture_index(e.get("picture"), "a stroke's `picture`");
+                    if (auto v = r.rect(e.get("source"), "a stroke's `source`")) st.source = *v, inside(e.get("source"), st.picture, *v);
+                    if (const toml::array* a = e.get("points") ? e.get("points")->as_array() : nullptr) {
+                        for (const toml::node& q : *a) {
+                            Point pt;
+                            point(&q, "a stroke's point", pt);
+                            st.points.push_back(pt);
+                        }
+                    }
+                    if (st.points.size() < 2) r.error(&e, "a stroke has two `points` or more", "points = [[0, 0], [60, 40], [120, 0]]");
+                    if (auto v = r.number(e.get("width"), "a stroke's `width`", 0, 2000)) st.width = static_cast<float>(*v);
+                    if (auto v = r.integer(e.get("from"), "a stroke's `from`", 0, 6000)) st.from = *v;
+                    if (auto v = r.integer(e.get("draw"), "a stroke's `draw`", 0, 600)) st.draw = *v;
+                    if (auto v = r.integer(e.get("hold"), "a stroke's `hold`", 0, 6000)) st.hold = *v;
+                    if (auto v = r.integer(e.get("fade"), "a stroke's `fade`", 0, 600)) st.fade = *v;
+                    fx.strokes.push_back(std::move(st));
+                });
+                r.tables(t->get("spray"), "spray", "[[fx.drops.spray]] picture = \"fx\" sources = [[0, 0, 16, 16]] count = 8", [&](const toml::table& e) {
+                    r.only(e, fx_spray_keys, std::format("a spray of {}", what));
+                    FxSpray sp;
+                    sp.picture = picture_index(e.get("picture"), "a spray's `picture`");
+                    if (const toml::array* a = e.get("sources") ? e.get("sources")->as_array() : nullptr) {
+                        for (const toml::node& q : *a)
+                            if (auto v = r.rect(&q, "a spray's source")) sp.sources.push_back(*v), inside(&q, sp.picture, *v);
+                    }
+                    if (sp.sources.empty()) r.error(&e, "a spray has `sources` = [[x, y, width, height], …]");
+                    point(e.get("at"), "a spray's `at`", sp.at);
+                    if (auto v = r.integer(e.get("from"), "a spray's `from`", 0, 6000)) sp.from = *v;
+                    if (auto v = r.integer(e.get("frames"), "a spray's `frames`", 1, 6000)) sp.frames = *v;
+                    if (auto v = r.integer(e.get("count"), "a spray's `count`", 1, 256)) sp.count = *v;
+                    range(e.get("speed"), "a spray's `speed`", sp.speed);
+                    range(e.get("angle"), "a spray's `angle`", sp.angle);
+                    range(e.get("size"), "a spray's `size`", sp.size);
+                    if (auto v = r.number(e.get("gravity"), "a spray's `gravity`", -100, 100)) sp.gravity = static_cast<float>(*v);
+                    if (auto v = r.integer(e.get("seed"), "a spray's `seed`", 0, 0x7fffffff)) sp.seed = static_cast<std::uint32_t>(*v);
+                    fx.sprays.push_back(std::move(sp));
+                });
+                look.fx.insert_or_assign(std::string(name.str()), std::move(fx));
+            }
+        } else {
+            r.error(fn, "`fx` is a table of effects", "[[fx.splash.sprite]] …");
+        }
+    }
+    auto fx_name = [&](const toml::node* n, std::string_view what) -> std::optional<std::string> {
+        auto v = r.text(n, what);
+        if (!v) return std::nullopt;
+        if (look.fx.contains(*v)) return v;
+        std::vector<std::string_view> names;
+        for (const auto& [k, _] : look.fx) names.push_back(k);
+        r.error(n, std::format("{} plays `{}`, which is no effect of the look", what, *v), names.empty() ? "[fx.<name>] … first" : data::nearest_hint(*v, names));
+        return std::nullopt;
+    };
+    // [[frame, "name", forward, up(, scale)], …]
+    auto fx_rows = [&](const toml::node* n, std::string_view what, std::vector<FxAt>& out) {
+        if (!n) return;
+        const toml::array* a = n->as_array();
+        if (!a) {
+            r.error(n, std::format("{}'s `fx` is a list", what), "fx = [[4, \"slash\", 40, 100]]: frame, effect, forward, up(, scale)");
+            return;
+        }
+        for (const toml::node& e : *a) {
+            const toml::array* row = e.as_array();
+            if (!row || row->size() < 4 || row->size() > 5) {
+                r.error(&e, std::format("an effect of {} is [frame, \"name\", forward, up(, scale)]", what));
+                continue;
+            }
+            FxAt at;
+            auto f = r.integer(row->get(0), "an effect's frame", 0, 6000);
+            auto name = fx_name(row->get(1), std::format("{}", what));
+            auto x = r.number(row->get(2), "an effect's place"), y = r.number(row->get(3), "an effect's place");
+            if (row->size() == 5)
+                if (auto k = r.number(row->get(4), "an effect's scale", 0.01, 100)) at.scale = static_cast<float>(*k);
+            if (!f || !name || !x || !y) continue;
+            at.frame = *f, at.name = *name, at.at = {static_cast<float>(*x), static_cast<float>(*y)};
+            out.push_back(std::move(at));
+        }
+    };
+    auto panel_of = [&](const toml::table& e, std::string_view what) {
+        r.only(e, panel_keys, what);
+        CinematicLook::Panel p;
+        p.picture = picture_index(e.get("picture"), std::format("{}'s `picture`", what));
+        if (!e.get("picture")) r.error(&e, std::format("{} names its `picture`", what));
+        if (auto v = r.rect(e.get("source"), std::format("{}'s `source`", what))) p.source = *v, inside(e.get("source"), p.picture, *v);
+        if (auto v = r.integer(e.get("from"), "a panel's `from`", 0, 6000)) p.from = *v;
+        if (auto v = r.integer(e.get("to"), "a panel's `to`", 0, 6000)) p.to = *v;
+        if (auto v = r.integer(e.get("in"), "a panel's `in`", 0, 600)) p.in = *v;
+        if (auto v = r.integer(e.get("out"), "a panel's `out`", 0, 600)) p.out = *v;
+        if (auto v = r.number(e.get("y"), "a panel's `y`", 0, 1)) p.y = static_cast<float>(*v);
+        if (auto v = r.number(e.get("height"), "a panel's `height`", 0, 1)) p.height = static_cast<float>(*v);
+        if (auto v = r.number(e.get("slant"), "a panel's `slant`", -1, 1)) p.slant = static_cast<float>(*v);
+        if (auto v = r.pair(e.get("pan"), "a panel's `pan`", "pan = [0.5, 0]: source pixels a frame")) p.pan = {static_cast<float>((*v)[0]), static_cast<float>((*v)[1])};
+        if (auto c = r.colour(e.get("band"), "a panel's `band`")) p.band = *c;
+        if (p.to < p.from) r.error(&e, std::format("{} ends (`to`) before it begins (`from`)", what));
+        return p;
+    };
+    if (const toml::node* cn = root->get("cutin")) {
+        if (const toml::table* ct = cn->as_table()) {
+            for (const auto& [name, node] : *ct) {
+                if (const toml::table* t = node.as_table()) look.cutins.insert_or_assign(std::string(name.str()), panel_of(*t, std::format("cut-in `{}`", name.str())));
+                else r.error(&node, std::format("cut-in `{}` is a table", name.str()));
+            }
+        } else {
+            r.error(cn, "`cutin` is a table of cut-ins, by a super's move");
+        }
+    }
+
     r.tables(root->get("part"), "part", "[[part]] bone = \"torso\" shape = \"capsule\" size = [18, 15] color = \"body\"", [&](const toml::table& t) {
         r.only(t, part_keys, "a part");
         Part p;
@@ -639,6 +826,7 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
                 for (std::size_t b = 0; b < c.aims.size() && b < c.angles.size(); ++b)
                     if (!c.aims[b].empty() && !c.angles[b].empty())
                         r.error(t, std::format("{} both turns and aims `{}`: one or the other", what, look.bones[b].name));
+                fx_rows(t->get("fx"), what, c.fx);
                 look.clips.insert_or_assign(std::string(name.str()), std::move(c));
             }
         } else {
@@ -667,6 +855,7 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
                 amount_frames("shake", 200, im.shake, im.shake_frames);
                 amount_frames("zoom", 1, im.zoom, im.zoom_frames);
                 amount_frames("rumble", 1, im.rumble, im.rumble_frames);
+                if (auto v = fx_name(t->get("fx"), what)) im.fx = *v;
                 if (const toml::node* f = t->get("flash")) {
                     const toml::array* a = f->as_array();
                     if (a && a->size() == 2) {
@@ -936,6 +1125,11 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
                         r.error(fl, "a cinematic's `flash` is a list", "flash = [[180, \"white\", 6]]");
                     }
                 }
+                r.tables(t->get("panel"), "panel", "[[cinematic.236236K.panel]] picture = \"cutins\" source = [0, 0, 1536, 512] from = 20 to = 60",
+                         [&](const toml::table& e) { c.panels.push_back(panel_of(e, std::format("a panel of {}", what))); });
+                fx_rows(t->get("fx"), what, c.fx);
+                if (auto h = r.pair(t->get("hide"), "a cinematic's `hide`", "hide = [160, 196]: frames the attacker is not drawn"))
+                    c.hide = {static_cast<std::int32_t>((*h)[0]), static_cast<std::int32_t>((*h)[1])};
                 look.cinematics.insert_or_assign(std::string(name.str()), std::move(c));
             }
         } else {
@@ -963,6 +1157,8 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
                 if (auto v = r.colour(t->get("color"), "a projectile's `color`")) g.color = *v;
                 if (auto v = r.colour(t->get("halo"), "a projectile's `halo`")) g.halo = *v;
                 if (auto v = r.number(t->get("spin"), "a projectile's `spin` (degrees a frame)", -90, 90)) g.spin = static_cast<float>(*v);
+                if (auto v = fx_name(t->get("fx"), what)) g.fx = *v;
+                if (g.glyph.empty() && g.fx.empty()) r.error(t, std::format("{} is drawn as a `glyph` or an `fx`", what));
                 look.projectiles.insert_or_assign(std::string(name.str()), std::move(g));
             }
         } else {
@@ -975,6 +1171,25 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
     if (!out.empty()) return std::unexpected(std::move(out));
     use_palette(look, 0);
     return look;
+}
+
+std::string fx_rows_text(const std::vector<FxAt>& rows) {
+    std::string s = "fx = [";
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        const FxAt& a = rows[i];
+        s += std::format("{}[{}, \"{}\", {}, {}", i ? ", " : "", a.frame, a.name, a.at.x, a.at.y);
+        if (a.scale != 1) s += std::format(", {}", a.scale);
+        s += "]";
+    }
+    return s + "]\n";
+}
+
+std::string rect_text(const omui::geom::Rect& r) { return std::format("[{}, {}, {}, {}]", r.x, r.y, r.width, r.height); }
+
+std::string panel_text(const Look& look, const CinematicLook::Panel& p, std::string_view sep) {
+    return std::format("picture = \"{}\"{}source = {}{}from = {}{}to = {}{}in = {}{}out = {}{}y = {}{}height = {}{}slant = {}{}pan = [{}, {}]{}band = {}",
+                       p.picture >= 0 ? look.pictures.at(static_cast<std::size_t>(p.picture)).name : std::string(), sep, rect_text(p.source), sep, p.from, sep, p.to, sep,
+                       p.in, sep, p.out, sep, p.y, sep, p.height, sep, p.slant, sep, p.pan.x, p.pan.y, sep, colour_text(p.band));
 }
 
 std::string write_look(const Look& look) {
@@ -1070,6 +1285,7 @@ std::string write_look(const Look& look) {
                                           {"grip_across", &c.grip_across}})
             for (std::size_t g = 0; g < tracks->size() && g < look.grips.size(); ++g)
                 if (!(*tracks)[g].empty()) s += std::format("{}.{} = {}\n", key, key_text(look.grips[g].name), keys_text((*tracks)[g], ease));
+        if (!c.fx.empty()) s += fx_rows_text(c.fx);
     }
     constexpr std::array<std::string_view, 6> sparks{"rays", "ring", "splash", "shards", "bolt", "cracks"};
     constexpr std::array<std::string_view, 3> flashes{"none", "white", "invert"};
@@ -1083,6 +1299,7 @@ std::string write_look(const Look& look) {
         if (std::ranges::any_of(im.sound, [](const std::string& x) { return !x.empty(); }))
             s += std::format("sound = [\"{}\", \"{}\", \"{}\"]\n", im.sound[0], im.sound[1], im.sound[2]);
         if (im.rumble_frames) s += std::format("rumble = [{}, {}]\n", im.rumble, im.rumble_frames);
+        if (!im.fx.empty()) s += std::format("fx = \"{}\"\n", im.fx);
     }
     for (const auto& [name, strokes] : look.glyphs) {
         s += std::format("\n[glyph.\"{}\"]\nstrokes = [\n", name);
@@ -1095,7 +1312,10 @@ std::string write_look(const Look& look) {
     }
     for (const auto& [name, g] : look.projectiles)
     {
-        s += std::format("\n[projectile.{}]\nglyph = \"{}\"\nsize = {}\ncolor = {}\n", key_text(name), g.glyph, g.size, colour_text(g.color));
+        s += std::format("\n[projectile.{}]\n", key_text(name));
+        if (!g.glyph.empty()) s += std::format("glyph = \"{}\"\n", g.glyph);
+        if (!g.fx.empty()) s += std::format("fx = \"{}\"\n", g.fx);
+        s += std::format("size = {}\ncolor = {}\n", g.size, colour_text(g.color));
         if (g.halo.a > 0) s += std::format("halo = {}\n", colour_text(g.halo));
         if (g.spin != 0) s += std::format("spin = {}\n", g.spin);
     }
@@ -1145,6 +1365,28 @@ std::string write_look(const Look& look) {
             for (std::size_t i = 0; i < c.flashes.size(); ++i)
                 s += std::format("{}[{}, \"{}\", {}]", i ? ", " : "", c.flashes[i].frame, flash_text[static_cast<std::size_t>(c.flashes[i].kind)], c.flashes[i].frames);
             s += "]\n";
+        }
+        if (!c.fx.empty()) s += fx_rows_text(c.fx);
+        if (c.hide[0] >= 0) s += std::format("hide = [{}, {}]\n", c.hide[0], c.hide[1]);
+        for (const auto& p : c.panels) s += std::format("\n[[cinematic.{}.panel]]\n{}\n", key_text(name), panel_text(look, p, "\n"));
+    }
+    for (const auto& [name, p] : look.cutins) s += std::format("\n[cutin.{}]\n{}\n", key_text(name), panel_text(look, p, "\n"));
+    auto pic = [&](std::int32_t i) { return i >= 0 ? look.pictures.at(static_cast<std::size_t>(i)).name : std::string(); };
+    for (const auto& [name, fx] : look.fx) {
+        for (const FxSprite& e : fx.sprites)
+            s += std::format("\n[[fx.{}.sprite]]\npicture = \"{}\"\nsource = {}\nat = [{}, {}]\nfrom = {}\nframes = {}\nsize = [{}, {}]\nturn = [{}, {}]\nalpha = [{}, {}]\nease = \"{}\"\n",
+                             key_text(name), pic(e.picture), rect_text(e.source), e.at.x, e.at.y, e.from, e.frames, e.size[0], e.size[1], e.turn[0], e.turn[1], e.alpha[0],
+                             e.alpha[1], hanim::to_string(e.ease));
+        for (const FxStroke& e : fx.strokes) {
+            s += std::format("\n[[fx.{}.stroke]]\npicture = \"{}\"\nsource = {}\npoints = [", key_text(name), pic(e.picture), rect_text(e.source));
+            for (std::size_t i = 0; i < e.points.size(); ++i) s += std::format("{}[{}, {}]", i ? ", " : "", e.points[i].x, e.points[i].y);
+            s += std::format("]\nwidth = {}\nfrom = {}\ndraw = {}\nhold = {}\nfade = {}\n", e.width, e.from, e.draw, e.hold, e.fade);
+        }
+        for (const FxSpray& e : fx.sprays) {
+            s += std::format("\n[[fx.{}.spray]]\npicture = \"{}\"\nsources = [", key_text(name), pic(e.picture));
+            for (std::size_t i = 0; i < e.sources.size(); ++i) s += (i ? ", " : "") + rect_text(e.sources[i]);
+            s += std::format("]\nat = [{}, {}]\nfrom = {}\nframes = {}\ncount = {}\nspeed = [{}, {}]\nangle = [{}, {}]\nsize = [{}, {}]\ngravity = {}\nseed = {}\n", e.at.x,
+                             e.at.y, e.from, e.frames, e.count, e.speed[0], e.speed[1], e.angle[0], e.angle[1], e.size[0], e.size[1], e.gravity, e.seed);
         }
     }
     return s;

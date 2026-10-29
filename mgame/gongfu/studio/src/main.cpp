@@ -53,9 +53,11 @@ int cut(const std::filesystem::path& file, int argc, char** argv) {
     std::int64_t min_area = 400;
     std::uint8_t solid = 96;  // a piece's pixels: alpha above this (a sheet's noise stays below)
     double scale = 1;         // the atlas's size: the pieces at this scale, packed
+    float webp = 0;           // > 0: the atlas as lossy WebP at this quality, else PNG
     for (int i = 3; i + 1 < argc; ++i) {
         const std::string_view a = argv[i];
         if (a == "--out") out = path_of(argv[++i]);
+        else if (a == "--webp") webp = std::clamp(std::stof(argv[++i]), 1.0f, 100.0f);
         else if (a == "--gap") gap = std::stoi(argv[++i]);
         else if (a == "--min") min_area = std::stoll(argv[++i]);
         else if (a == "--scale") scale = std::clamp(std::stod(argv[++i]), 0.05, 1.0);
@@ -67,7 +69,7 @@ int cut(const std::filesystem::path& file, int argc, char** argv) {
         }
     }
     nlohmann::json report = {{"command", "cut"}, {"sheet", utf8(file)}};
-    auto img = omui::imageio::load_png(file);
+    auto img = omui::imageio::load(file);
     if (!img) {
         report["error"] = img.error();
         std::println("{}", report.dump(2));
@@ -100,13 +102,70 @@ int cut(const std::filesystem::path& file, int argc, char** argv) {
         report["pieces"].push_back({{"file", name}, {"region", {p.x, p.y, p.width, p.height}}, {"pixels", p.area}});
     }
     const auto packed = omui::imageio::pack(parts, static_cast<std::int32_t>(std::lround(2048 * scale)), 4);
-    (void)omui::imageio::save_png(out / "atlas.png", omui::imageio::view(packed.atlas));
-    report["atlas"] = {{"file", "atlas.png"}, {"size", {packed.atlas.width, packed.atlas.height}}};
+    const std::string atlas = webp > 0 ? "atlas.webp" : "atlas.png";
+    const auto saved = webp > 0 ? omui::imageio::save_webp(out / atlas, omui::imageio::view(packed.atlas), {.quality = webp})
+                                : omui::imageio::save_png(out / atlas, omui::imageio::view(packed.atlas));
+    if (!saved) report["error"] = saved.error();
+    report["atlas"] = {{"file", atlas}, {"size", {packed.atlas.width, packed.atlas.height}}};
     for (std::size_t k = 0; k < found.size(); ++k)
         report["pieces"][k]["atlas_region"] = {packed.at[k].x, packed.at[k].y, packed.at[k].width, packed.at[k].height};
     report["ok"] = !report.contains("error");
     std::println("{}", report.dump(2));
     return report["ok"] ? 0 : 1;
+}
+
+// A picture made ready for a look: keyed out (a plain background), trimmed to
+// what it shows, scaled down to a width, written as PNG or WebP by its name.
+int picture(const std::filesystem::path& file, int argc, char** argv) {
+    std::filesystem::path out;
+    std::optional<omui::imageio::Key> key;
+    bool trim = false;
+    std::int32_t width = 0;
+    float quality = 85;
+    for (int i = 3; i < argc; ++i) {
+        const std::string_view a = argv[i];
+        if (a == "--trim") trim = true;
+        else if (i + 1 >= argc) break;
+        else if (a == "--out") out = path_of(argv[++i]);
+        else if (a == "--width") width = std::max(1, std::stoi(argv[++i]));
+        else if (a == "--quality") quality = std::clamp(std::stof(argv[++i]), 1.0f, 100.0f);
+        else if (a == "--key") {
+            std::array<int, 3> c{};
+            if (std::sscanf(argv[++i], "%d,%d,%d", &c[0], &c[1], &c[2]) == 3)
+                key = omui::imageio::Key{}, key->r = static_cast<std::uint8_t>(c[0]), key->g = static_cast<std::uint8_t>(c[1]), key->b = static_cast<std::uint8_t>(c[2]);
+        }
+    }
+    if (out.empty()) return usage();
+    nlohmann::json report = {{"command", "picture"}, {"from", utf8(file)}};
+    auto img = omui::imageio::load(file);
+    if (!img) {
+        report["ok"] = false;
+        report["error"] = img.error();
+        std::println("{}", report.dump(2));
+        return 1;
+    }
+    report["source_size"] = {img->width, img->height};
+    if (key) omui::imageio::key_out(*img, *key);
+    if (trim) {
+        std::int32_t x0 = img->width, y0 = img->height, x1 = -1, y1 = -1;
+        for (std::int32_t y = 0; y < img->height; ++y)
+            for (std::int32_t x = 0; x < img->width; ++x)
+                if (img->rgba[(static_cast<std::size_t>(y) * img->width + x) * 4 + 3] > 8)
+                    x0 = std::min(x0, x), y0 = std::min(y0, y), x1 = std::max(x1, x), y1 = std::max(y1, y);
+        if (x1 >= x0) *img = omui::imageio::crop(*img, x0, y0, x1 - x0 + 1, y1 - y0 + 1);
+    }
+    if (width > 0 && width < img->width)
+        *img = omui::imageio::scaled_down(*img, width, std::max(1, static_cast<std::int32_t>(std::lround(static_cast<double>(img->height) * width / img->width))));
+    const bool webp = out.extension() == ".webp";
+    const auto saved = webp ? omui::imageio::save_webp(out, omui::imageio::view(*img), {.quality = quality}) : omui::imageio::save_png(out, omui::imageio::view(*img));
+    report["ok"] = saved.has_value();
+    if (!saved) report["error"] = saved.error();
+    report["file"] = utf8(out);
+    report["size"] = {img->width, img->height};
+    std::error_code ec;
+    report["bytes"] = std::filesystem::file_size(out, ec);
+    std::println("{}", report.dump(2));
+    return saved ? 0 : 1;
 }
 
 int sheet(const std::filesystem::path& dir, int argc, char** argv) {
@@ -152,7 +211,7 @@ int sheet(const std::filesystem::path& dir, int argc, char** argv) {
     // The look's drawn art: its pictures, from beside the look file.
     omui::render::ImageStore images;
     for (gongfu::present2d::Picture& pic : look->pictures) {
-        auto img = omui::imageio::load_png(dir / path_of(pic.file));
+        auto img = omui::imageio::load(dir / path_of(pic.file));
         if (!img) {
             report["ok"] = false;
             report["problems"] = {std::format("picture `{}` ({}): {}", pic.name, pic.file, img.error())};
@@ -312,6 +371,7 @@ int main(int argc, char** argv) {
     if (command == "embed") return embed(dir, argc, argv);
     if (command == "sheet") return sheet(dir, argc, argv);
     if (command == "cut") return cut(dir, argc, argv);
+    if (command == "picture") return picture(dir, argc, argv);
     if (command == "versus") return versus(dir, argc, argv);
     if (command != "bake" && command != "check") return usage();
 

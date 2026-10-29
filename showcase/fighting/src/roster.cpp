@@ -3,6 +3,8 @@ module openmui.showcase.fighting;
 import std;
 import gongfu.data;
 import gongfu.present2d;
+import openmui.image;
+import openmui.raster;
 
 namespace omui::fighting {
 
@@ -39,6 +41,22 @@ const Roster& roster() {
                 continue;
             }
             out.stages.emplace(std::string(name), std::move(*art));
+        }
+        for (const auto& [file, bytes] : std::array<std::pair<std::string_view, std::string_view>, 5>{{{"art/mo-parts.webp", files::mo_parts_art},
+                                                                     {"art/mo-fx.webp", files::mo_fx_art},
+                                                                     {"art/mo-cutin-eyes.webp", files::mo_cutin_eyes_art},
+                                                                     {"art/mo-cutin-strike.webp", files::mo_cutin_strike_art},
+                                                                     {"art/mo-finisher.webp", files::mo_finisher_art}}}) {
+            auto img = omui::imageio::decode({reinterpret_cast<const std::uint8_t*>(bytes.data()), bytes.size()});
+            if (!img) {
+                out.problems.push_back(std::format("{}: {}", file, img.error()));
+                continue;
+            }
+            omui::imageio::premultiply(*img);  // the renderer's pixels are premultiplied
+            Roster::Art a{img->width, img->height, {}};
+            a.pixels.resize(static_cast<std::size_t>(img->width) * static_cast<std::size_t>(img->height));
+            std::memcpy(a.pixels.data(), img->rgba.data(), img->rgba.size());
+            out.art.emplace(std::string(file), std::move(a));
         }
         out.homes = {{"mo", "study"}, {"ni", "street"}};  // the rest's to come (quality design §5)
         return out;

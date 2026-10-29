@@ -28,6 +28,8 @@ openmui.sdk      = { path = "../.." }
 gongfu.data      = { path = "../../mgame/gongfu/data" }
 gongfu.present2d = { path = "../../mgame/gongfu/present2d" }
 gongfu.training  = { path = "../../mgame/gongfu/training" }
+openmui.image    = { path = "../../modules/base/image" }
+"openmui.raster" = { path = "../../modules/gfx/raster" }
 "openmui.audio"  = { path = "../../modules/media/audio" }
 "openmui.audio.device" = { path = "../../modules/media/audio/device" }
 

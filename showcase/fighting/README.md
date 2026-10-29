@@ -2,11 +2,11 @@
 
 `omui-fight` is gongfu's match (`mgame/gongfu`) on openmui's stage: two fighters at 60 frames a second, from the keyboard or an agent, drawn in 2D by `gongfu.present2d`, with a training mode that shows every box and a frame meter (D-85 §8.7). Its name will come later. Six fighters, chosen by the stage's `player1` and `player2` properties:
 - Kata, the training fighter;
-- the five designed ([characters design](../../.agents/docs/2026-10-28-gongfu-characters-design.md), [characters design 2](../../.agents/docs/2026-10-28-gongfu-characters-2-design.md)): 墨 (Mo), the calligrapher — keep-away with written glyphs; 霓 (Ni), the street fighter — rushdown; 璃 (Li), glass — set-ups with panes; 岳 (Yue), the giant — throws and armour; 刻 (Ke), time — rewinds and a clone.
+- the five designed ([characters design](../../.agents/docs/2026-10-28-gongfu-characters-design.md), [characters design 2](../../.agents/docs/2026-10-28-gongfu-characters-2-design.md)): 墨 (Mo), the ink brush-staff fighter — keep-away with waves of ink and a long reach (her art generated and skinned on bones: the [art pipeline](../../.agents/docs/2026-10-29-fighting-art-pipeline-design.md)); 霓 (Ni), the street fighter — rushdown; 璃 (Li), glass — set-ups with panes; 岳 (Yue), the giant — throws and armour; 刻 (Ke), time — rewinds and a clone.
 
 How it was made, layer by layer, and what making it taught: [dev story](dev-story.md). The bar it is held to: [quality design](../../.agents/docs/2026-10-29-fighting-indie-quality-design.md).
 
-![墨's level-3 super, 「永字八法」: the flash, the close-up, 永 written stroke by stroke and sealed (drawn headless, the same on every platform)](media/mo-level-3.png)
+![墨's level-3 super: the eyes cut-in, eight cuts of ink from every side, the strike cut-in, her finishing picture and the slam (drawn headless, the same on every platform)](media/mo-level-3.webp)
 
 ```sh
 mcpp run -p openmui.showcase.fighting
@@ -53,4 +53,4 @@ mcpp run -p openmui.showcase.fighting -- --headless --png fight.png
 - training's readings as an agent reads them (a blocked jab is +3, a jab cancelled into a fireball is a combo of 900);
 - a saved state coming back, and the dummy replaying a recorded walk exactly;
 - the versus and training frames at the jab's active frame, with pinned pixels;
-- 墨 as designed: every normal's, glyph's and anti-air's startup and its advantage on hit and on block, measured in the simulation against the design's table.
+- 墨 as designed: every normal's, ink wave's and anti-air's startup and its advantage on hit and on block, measured in the simulation against the design's table.

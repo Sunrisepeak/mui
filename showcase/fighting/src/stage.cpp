@@ -64,6 +64,10 @@ void Stage::start_round() {
     left_ = fighter_index(props.player1);
     right_ = fighter_index(props.player2);
     match_ = std::make_unique<gongfu::Match>(r.system, r.fighters[left_], r.fighters[right_]);
+    looks_ = {r.looks[2 * left_], r.looks[2 * right_ + 1]};
+    for (p2::Look& look : looks_)
+        for (p2::Picture& pic : look.pictures)
+            if (const auto it = art_.find(pic.file); it != art_.end()) pic.ref = it->second;
     effects_ = {};
     readout_.clear();
     sounds_.restart();
@@ -71,11 +75,15 @@ void Stage::start_round() {
 }
 
 Stage::~Stage() {
-    if (attached() && timer_) services().cancel(timer_);
+    if (!attached()) return;
+    if (timer_) services().cancel(timer_);
+    for (const auto& [file, ref] : art_) services().images().remove(ref);
 }
 
 void Stage::mounted() {
     frame_.reserve(512);
+    for (const auto& [file, a] : roster().art)
+        if (!art_.contains(file)) art_.emplace(file, services().images().add(a.width, a.height, a.pixels));
     start_round();
     if (hearing() && !heard_) heard_ = hearing()(sounds_);  // the program hears the fight (a device on its mixer)
     services().focus(node());  // the keyboard is the players'
@@ -130,8 +138,7 @@ void Stage::advance() {
     match_->tick(a, b);
     effects_.record(*match_);
     readout_.record(*match_, a, b);
-    const Roster& r = roster();
-    sounds_.heard(*match_, r.looks[2 * left_], r.looks[2 * right_ + 1]);
+    sounds_.heard(*match_, looks_[0], looks_[1]);
     if (match_->state().over && !over_reported_) {
         over_reported_ = true;
         emit_round_over(match_->state().winner);
@@ -164,8 +171,8 @@ void Stage::paint(PaintContext& ctx) const {
     render::DisplayList& frame = frame_;
     frame.clear();
     // Each side in its own palette: the first for the left, the second for the right.
-    const p2::Look& left = r.looks[2 * left_];
-    const p2::Look& right = r.looks[2 * right_ + 1];
+    const p2::Look& left = looks_[0];
+    const p2::Look& right = looks_[1];
     painter_.draw(*match_, left, right, effects_, scene, frame);
 
     hud::bars(frame, *match_);

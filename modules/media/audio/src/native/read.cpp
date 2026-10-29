@@ -37,12 +37,12 @@ std::string detail::nearest(std::string_view name, std::span<const std::string_v
 namespace {
 
 constexpr std::array<std::string_view, 4> sound_keys{"gain", "bus", "layer", "doc"};
-constexpr std::array<std::string_view, 12> layer_keys{"wave", "at", "length", "pitch", "envelope", "filter", "gain", "pan", "drive", "seed", "doc", "name"};
+constexpr std::array<std::string_view, 14> layer_keys{"wave", "at", "length", "pitch", "envelope", "filter", "gain", "pan", "drive", "seed", "recording", "speed", "doc", "name"};
 constexpr std::array<std::string_view, 5> envelope_keys{"attack", "hold", "decay", "sustain", "release"};
 constexpr std::array<std::string_view, 3> filter_keys{"kind", "cutoff", "q"};
 using detail::filters;
 using detail::nearest;
-using detail::waves;
+using detail::layer_waves;
 
 struct Reader {
     std::string          file;
@@ -116,8 +116,22 @@ struct Reader {
     Layer layer(const toml::table& t, std::string_view where) {
         only(t, layer_keys, std::format("{}'s layer", where));
         Layer l;
-        if (auto k = choice(t.get("wave"), "a wave (sine, triangle, square, saw, noise)", waves)) l.wave = static_cast<Wave>(*k);
+        if (auto k = choice(t.get("wave"), "a wave (sine, triangle, square, saw, noise, recording)", layer_waves)) l.wave = static_cast<Wave>(*k);
         if (auto v = number(t.get("at"), "a layer's `at` (seconds)", 0, 60)) l.at = static_cast<float>(*v);
+        if (l.wave == Wave::recording) {  // a recording plays to its end unless cut short, held at its level
+            l.length = 0;
+            l.envelope.sustain = 1;
+            if (const toml::node* rn = t.get("recording")) {
+                if (auto name = rn->value_exact<std::string>(); name && !name->empty()) l.recording = *name;
+                else error(rn, "a layer's `recording` is a recording's name", "recording = \"fight\"");
+            } else {
+                error(&t, "a recording's layer names its recording", "wave = \"recording\", recording = \"fight\"");
+            }
+            if (auto v = glide(t.get("speed"), "a layer's `speed` (1: as recorded)", 0.05, 8)) l.speed = *v;
+        } else {
+            for (std::string_view k : {"recording", "speed"})
+                if (const toml::node* n = t.get(k)) error(n, std::format("`{}` is a recording's layer's", k), "wave = \"recording\"");
+        }
         if (auto v = number(t.get("length"), "a layer's `length` (seconds)", 0.001, 60)) l.length = static_cast<float>(*v);
         if (auto v = glide(t.get("pitch"), "a layer's `pitch` (Hz)", 1, 20000)) l.pitch = *v;
         if (const toml::node* en = t.get("envelope")) {
@@ -224,10 +238,14 @@ std::string write_sounds(std::span<const Sound> sounds) {
         if (sound.gain != 1) s += std::format("gain = {}\n", num(sound.gain));
         if (sound.bus != "sfx") s += std::format("bus = \"{}\"\n", sound.bus);
         for (const Layer& l : sound.layers) {
-            s += std::format("\n[[sound.{}.layer]]\nwave = \"{}\"\n", sound.name, waves[static_cast<std::size_t>(l.wave)]);
+            s += std::format("\n[[sound.{}.layer]]\nwave = \"{}\"\n", sound.name, layer_waves[static_cast<std::size_t>(l.wave)]);
+            if (l.wave == Wave::recording) {
+                s += std::format("recording = \"{}\"\n", l.recording);
+                if (l.speed != std::array<float, 2>{1, 1}) s += std::format("speed = [{}, {}]\n", num(l.speed[0]), num(l.speed[1]));
+            }
             if (l.at != 0) s += std::format("at = {}\n", num(l.at));
-            s += std::format("length = {}\n", num(l.length));
-            s += std::format("pitch = [{}, {}]\n", num(l.pitch[0]), num(l.pitch[1]));
+            if (l.wave != Wave::recording || l.length > 0) s += std::format("length = {}\n", num(l.length));
+            if (l.wave != Wave::recording) s += std::format("pitch = [{}, {}]\n", num(l.pitch[0]), num(l.pitch[1]));
             const Envelope& e = l.envelope;
             s += std::format("envelope = {{ attack = {}, hold = {}, decay = {}, sustain = {}, release = {} }}\n", num(e.attack), num(e.hold), num(e.decay),
                              num(e.sustain), num(e.release));

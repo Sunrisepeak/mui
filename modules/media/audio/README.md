@@ -19,6 +19,7 @@ mixer.render(block);                                                      // on 
   - Its pitch glides exponentially from one value to another over its length. Its filter (low, high or band pass) has a cutoff that glides too.
   - An envelope (attack, hold, decay, sustain, release) shapes it, then soft clipping, gain and an equal-power pan.
   - A punch is a burst of low-passed noise over a falling sine; a bell is a sine and its overtone.
+  - A layer can also play a recording (`wave = "recording"`, `recording = "<name>"`): a voice or a foley take that the program adds with `Mixer::add_recording` (mono samples at their rate; `read_wav` reads 8-, 16- and 24-bit PCM or 32-bit float, mixing the channels down). It is read between its samples at its `speed` (2: twice as fast, an octave up; a glide too), held for its length unless the file gives an envelope, and filtered, driven and panned like any layer. A fighting game's announcer is the pack's takes, a touch lower, darker and doubled.
   - `write_sounds` writes them so they read back as themselves.
 - **The mix** (`Mixer`):
   - Voices start on their exact sample. Past the most at once, the oldest gives way.

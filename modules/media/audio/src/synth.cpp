@@ -228,6 +228,7 @@ void sound(Voice& v, const Tone& t, std::int64_t clock, std::int32_t frames, flo
                         case Wave::triangle: x = 1 - 4 * std::abs(ph - 0.5); break;
                         case Wave::sine: x = sine(ph); break;
                         case Wave::noise: x = noise(v.noise); break;
+                        case Wave::recording: break;  // a sound layer's, never an oscillator's (the piece's reader takes none)
                     }
                     v.phase[u] = wrap(ph + dt);
                     l += x * t.left[u];

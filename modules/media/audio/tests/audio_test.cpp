@@ -113,9 +113,61 @@ int main(int argc, char** argv) {
         std::vector<std::string> texts;
         for (const auto& p : bad.error()) texts.push_back(p.text());
         auto has = [&](std::string_view t) { return std::ranges::any_of(texts, [&](const std::string& x) { return x == t; }); };
-        check(has("bad.sound.omui.toml:3:8: `sqaure` is not a wave (sine, triangle, square, saw, noise) (did you mean `square`?)"), std::format("{}", texts));
+        check(has("bad.sound.omui.toml:3:8: `sqaure` is not a wave (sine, triangle, square, saw, noise, recording) (did you mean `square`?)"), std::format("{}", texts));
         check(has("bad.sound.omui.toml:4:1: sound `x`'s layer has no key `ptich` (did you mean `pitch`?)"), std::format("{}", texts));
         check(has("bad.sound.omui.toml:5:10: a layer's `length` (seconds) is 0.001–60, not -1"), std::format("{}", texts));
+    });
+
+    s.test("a recording plays as recorded, faster and slower, at another rate; a WAV read back; a recording's layer read and written back", [] {
+        std::vector<float> r(1000);
+        for (std::size_t i = 0; i < r.size(); ++i) r[i] = 0.5f * static_cast<float>(std::sin(static_cast<double>(i) * 0.05));
+        // Held for its whole length: what is heard is the recording, sample for sample, until its release.
+        auto heard = [&](std::int32_t rate, std::array<float, 2> speed) {
+            audio::Mixer m;
+            m.add_recording("take", r, rate);
+            audio::Sound s{.name = "voice"};
+            s.layers.push_back({.wave = audio::Wave::recording, .length = 0, .envelope = {.attack = 0, .hold = 10, .decay = 0.001f, .sustain = 1, .release = 0.0001f},
+                                .recording = "take", .speed = speed});
+            check(m.play(m.add(s), 0));
+            return audio::render(m, 4000);
+        };
+        auto at = [&](double place) {  // the recording between two samples
+            const auto n = static_cast<std::size_t>(place);
+            return n + 1 < r.size() ? r[n] + (r[n + 1] - r[n]) * (place - static_cast<double>(n)) : 0.0;
+        };
+        auto follows = [&](const std::vector<float>& out, double step, std::size_t frames) {
+            double worst = 0;
+            for (std::size_t i = 1; i + 8 < frames; ++i) worst = std::max(worst, std::abs(out[2 * i] - at(static_cast<double>(i) * step)));
+            const bool ends = out[2 * (frames + 2)] == 0 && out[2 * (frames + 2) + 1] == 0;
+            return worst < 1e-6 && ends;
+        };
+        check(follows(heard(48000, {1, 1}), 1, 1000), "as recorded: the same samples, then silence");
+        check(follows(heard(48000, {2, 2}), 2, 500), "twice as fast: every other sample, half as long");
+        check(follows(heard(24000, {1, 1}), 0.5, 2000), "recorded at 24 kHz: read between its samples, twice as long");
+        // A WAV of it, 16-bit and float, read back: its two channels mixed to one.
+        std::vector<float> stereo;
+        for (float v : r) stereo.push_back(v), stereo.push_back(v * 0.5f);
+        const auto f32 = audio::read_wav(audio::wav(stereo, 22050, true));
+        const auto i16 = audio::read_wav(audio::wav(stereo, 22050));
+        check(f32 && i16 && f32->rate == 22050 && f32->samples.size() == r.size() && i16->samples.size() == r.size(), "both read");
+        if (!f32 || !i16) return;
+        double f_err = 0, i_err = 0;
+        for (std::size_t i = 0; i < r.size(); ++i) {
+            f_err = std::max(f_err, std::abs(f32->samples[i] - r[i] * 0.75));
+            i_err = std::max(i_err, std::abs(i16->samples[i] - r[i] * 0.75));
+        }
+        check(f_err < 1e-7 && i_err < 1.0 / 32768, std::format("float off by {}, 16-bit by {}", f_err, i_err));
+        check(!audio::read_wav(std::as_bytes(std::span(std::string_view("not a wave file at all")))).has_value(), "not a WAV");
+        // The file's words for it.
+        const std::string_view text = "[sound.voice]\n[[sound.voice.layer]]\nwave = \"recording\"\nrecording = \"fight\"\nspeed = [1, 0.9]\nfilter = { kind = \"highpass\", cutoff = 120 }\n";
+        auto voice = audio::read_sounds(text, "voice.sound.omui.toml");
+        check(voice && voice->front().layers[0].recording == "fight" && voice->front().layers[0].speed[1] == 0.9f && voice->front().layers[0].length == 0, "read");
+        if (!voice) return;
+        const std::string written = audio::write_sounds(*voice);
+        auto again = audio::read_sounds(written, "written.sound.omui.toml");
+        check(again && audio::write_sounds(*again) == written, written);
+        auto bad = audio::read_sounds("[sound.x]\n[[sound.x.layer]]\nwave = \"recording\"\n[[sound.x.layer]]\nwave = \"sine\"\nspeed = 2\n", "bad.sound.omui.toml");
+        check(!bad.has_value() && bad.error().size() == 2, "a recording's layer without its recording; speed on a sine");
     });
 
     s.test("a sine plays at its pitch; a sound starts on its sample, to the sample", [] {

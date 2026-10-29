@@ -33,7 +33,8 @@ std::int32_t read_lane(std::string_view text, std::int32_t step, std::int32_t ba
 [[nodiscard]] std::string note_name(std::int32_t key);
 [[nodiscard]] std::int32_t note_key(std::string_view name) noexcept;
 
-inline constexpr std::array<std::string_view, 5> waves{"sine", "triangle", "square", "saw", "noise"};
+inline constexpr std::array<std::string_view, 5> waves{"sine", "triangle", "square", "saw", "noise"};  // an oscillator's
+inline constexpr std::array<std::string_view, 6> layer_waves{"sine", "triangle", "square", "saw", "noise", "recording"};  // a sound layer's
 inline constexpr std::array<std::string_view, 4> filters{"none", "lowpass", "highpass", "bandpass"};
 inline constexpr std::array<std::string_view, 4> engines{"analog", "fm", "pluck", "drum"};
 inline constexpr std::array<std::string_view, 6> effects{"lowpass", "highpass", "bandpass", "echo", "reverb", "chorus"};

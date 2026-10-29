@@ -24,11 +24,18 @@ namespace {
 
 // A layer as samples: where it starts in the sound and for how long, its
 // envelope's corners, and its glides as a factor a sample.
+struct Recorded {
+    std::vector<float> samples;
+    std::int32_t       rate = 48000;
+};
+
 struct Prepared {
     Layer        layer;
     std::int64_t start = 0, frames = 1;
     double       attack = 1, hold = 0, decay = 1, release = 1;
-    double       pitch_step = 1, cutoff_step = 1;  // × a sample
+    double       pitch_step = 1, cutoff_step = 1;  // × a sample (a recording's: its speed's)
+    std::shared_ptr<const Recorded> recorded;      // a recording's layer: what it plays (none: silent)
+    double       step = 1;                         // its samples a sample of the mixer, at speed 1
 };
 
 struct PreparedSound {
@@ -100,6 +107,7 @@ struct Mixer::Impl {
     std::vector<std::int32_t>  order;  // the buses, each after those routed into it and its key
     std::vector<BusBlock>      views;  // what sources add into
     std::vector<std::shared_ptr<Source>> sources;
+    std::vector<std::pair<std::string, std::shared_ptr<const Recorded>>> recordings;
 
     std::int32_t bus_index(std::string_view name) {
         for (std::size_t i = 0; i < buses.size(); ++i)
@@ -157,7 +165,7 @@ struct Mixer::Impl {
             const Prepared& p = s.layers[l];
             LayerState& st = states[slot * layers_per_voice + l];
             st = {};
-            st.freq = p.layer.pitch[0] * c.pitch;
+            st.freq = (p.layer.wave == Wave::recording ? p.layer.speed[0] : p.layer.pitch[0]) * c.pitch;
             st.cutoff = p.layer.cutoff[0];
             st.noise = (p.layer.seed * 2654435761u) ^ static_cast<std::uint32_t>(voice.serial * 40503u) ^ 0x9e3779b9u;
             if (st.noise == 0) st.noise = 1;
@@ -206,9 +214,22 @@ struct Mixer::Impl {
                         x = static_cast<double>(static_cast<std::int32_t>(st.noise)) / 2147483648.0;
                         break;
                     }
+                    case Wave::recording: {  // the phase is the place in the recording (its samples), read between two
+                        if (!p.recorded) break;
+                        const std::vector<float>& r = p.recorded->samples;
+                        const auto n = static_cast<std::size_t>(st.phase);
+                        const double f = st.phase - static_cast<double>(n);
+                        if (n + 1 < r.size()) x = r[n] + (r[n + 1] - r[n]) * f;
+                        else if (n < r.size()) x = r[n] * (1 - f);
+                        break;
+                    }
                 }
-                st.phase += dt;
-                if (st.phase >= 1) st.phase -= std::floor(st.phase);
+                if (p.layer.wave == Wave::recording) {
+                    st.phase += st.freq * p.step;
+                } else {
+                    st.phase += dt;
+                    if (st.phase >= 1) st.phase -= std::floor(st.phase);
+                }
                 st.freq *= p.pitch_step;
                 // The filter, its cutoff gliding (coefficients every few samples).
                 if (p.layer.filter != FilterKind::none) {
@@ -322,8 +343,20 @@ std::int32_t Mixer::add(const Sound& sound) {
         q.hold = std::max(0.0, static_cast<double>(l.envelope.hold) * rate);
         q.decay = std::max(1.0, static_cast<double>(l.envelope.decay) * rate);
         q.release = std::max(1.0, static_cast<double>(l.envelope.release) * rate);
+        if (l.wave == Wave::recording) {
+            const auto r = std::ranges::find(m.recordings, l.recording, &std::pair<std::string, std::shared_ptr<const Recorded>>::first);
+            if (r != m.recordings.end()) {
+                q.recorded = r->second;
+                q.step = static_cast<double>(r->second->rate) / rate;
+                // Length 0: as long as the recording lasts at its speed (the mean of a glide's).
+                if (l.length <= 0) {
+                    const double speed = dm::sqrt(static_cast<double>(l.speed[0]) * l.speed[1]);
+                    q.frames = std::max<std::int64_t>(1, std::llround(static_cast<double>(r->second->samples.size()) / (q.step * speed)));
+                }
+            }
+        }
         const auto glide = [&](float a, float b) { return a > 0 && b > 0 ? dm::exp(dm::log(static_cast<double>(b) / a) / static_cast<double>(q.frames)) : 1.0; };
-        q.pitch_step = glide(l.pitch[0], l.pitch[1]);
+        q.pitch_step = l.wave == Wave::recording ? glide(l.speed[0], l.speed[1]) : glide(l.pitch[0], l.pitch[1]);
         q.cutoff_step = glide(l.cutoff[0], l.cutoff[1]);
         p.frames = std::max(p.frames, q.start + q.frames);
         p.layers.push_back(q);
@@ -341,6 +374,16 @@ std::int32_t Mixer::add(const Sound& sound) {
         }
     m.sounds.push_back(std::move(p));
     return static_cast<std::int32_t>(m.sounds.size() - 1);
+}
+
+void Mixer::add_recording(std::string_view name, std::span<const float> samples, std::int32_t rate) {
+    auto r = std::make_shared<Recorded>(Recorded{{samples.begin(), samples.end()}, std::max(1, rate)});
+    for (auto& [n, kept] : impl_->recordings)
+        if (n == name) {
+            kept = std::move(r);
+            return;
+        }
+    impl_->recordings.emplace_back(std::string(name), std::move(r));
 }
 
 std::int32_t Mixer::find(std::string_view name) const noexcept {
@@ -433,6 +476,54 @@ float peak(std::span<const float> samples) noexcept {
     float p = 0;
     for (const float s : samples) p = std::max(p, std::abs(s));
     return p;
+}
+
+std::expected<Recording, std::string> read_wav(std::span<const std::byte> file) {
+    auto u = [&](std::size_t at, int bytes) {
+        std::uint32_t v = 0;
+        for (int b = 0; b < bytes; ++b) v |= static_cast<std::uint32_t>(file[at + static_cast<std::size_t>(b)]) << (8 * b);
+        return v;
+    };
+    auto is = [&](std::size_t at, std::string_view tag) {
+        if (at + 4 > file.size()) return false;
+        for (std::size_t i = 0; i < 4; ++i)
+            if (static_cast<char>(file[at + i]) != tag[i]) return false;
+        return true;
+    };
+    if (!is(0, "RIFF") || !is(8, "WAVE")) return std::unexpected(std::string("not a WAV file (no RIFF/WAVE header)"));
+    std::uint32_t format = 0, channels = 0, rate = 0, bits = 0;
+    std::span<const std::byte> data;
+    for (std::size_t at = 12; at + 8 <= file.size();) {  // the chunks: fmt and data, the rest passed over
+        const std::size_t size = u(at + 4, 4), body = at + 8;
+        if (body + size > file.size()) return std::unexpected(std::format("a chunk runs past the file's end (at byte {})", at));
+        if (is(at, "fmt ") && size >= 16) {
+            format = u(body, 2), channels = u(body + 2, 2), rate = u(body + 4, 4), bits = u(body + 14, 2);
+            if (format == 0xfffe && size >= 26) format = u(body + 24, 2);  // extensible: its sub-format's first two bytes
+        } else if (is(at, "data")) {
+            data = file.subspan(body, size);
+        }
+        at = body + size + (size & 1);
+    }
+    if (channels == 0 || rate == 0) return std::unexpected(std::string("no fmt chunk"));
+    if (!((format == 1 && (bits == 8 || bits == 16 || bits == 24)) || (format == 3 && bits == 32)))
+        return std::unexpected(std::format("format {} at {} bits: 8-, 16-, 24-bit PCM or 32-bit float is read", format, bits));
+    const std::size_t width = bits / 8, frame = width * channels, frames = data.size() / frame;
+    Recording r;
+    r.rate = static_cast<std::int32_t>(rate);
+    r.samples.resize(frames);
+    const std::size_t base = static_cast<std::size_t>(data.data() - file.data());
+    for (std::size_t i = 0; i < frames; ++i) {
+        double sum = 0;
+        for (std::size_t c = 0; c < channels; ++c) {
+            const std::size_t at = base + i * frame + c * width;
+            if (format == 3) sum += std::bit_cast<float>(u(at, 4));
+            else if (bits == 8) sum += (static_cast<double>(u(at, 1)) - 128) / 128;
+            else if (bits == 16) sum += static_cast<std::int16_t>(u(at, 2)) / 32768.0;
+            else sum += static_cast<double>(static_cast<std::int32_t>(u(at, 3) << 8) >> 8) / 8388608.0;
+        }
+        r.samples[i] = static_cast<float>(sum / channels);
+    }
+    return r;
 }
 
 std::vector<std::byte> wav(std::span<const float> interleaved, std::int32_t rate, bool float32) {

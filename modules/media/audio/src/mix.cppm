@@ -16,7 +16,7 @@ export namespace omui::audio {
 
 inline constexpr std::int32_t block_frames = 128;  // samples a block, each channel
 
-enum class Wave : std::uint8_t { sine, triangle, square, saw, noise };
+enum class Wave : std::uint8_t { sine, triangle, square, saw, noise, recording };
 enum class FilterKind : std::uint8_t { none, lowpass, highpass, bandpass };
 
 // A layer's loudness over its length (seconds; straight lines between): up
@@ -43,6 +43,12 @@ struct Layer {
     float                pan = 0;           // −1 left … 1 right
     float                drive = 0;         // soft clipping: 0 clean … 1 hard
     std::uint32_t        seed = 1;          // the noise's
+    // wave = recording: the recording it plays (by its name, Mixer::add_recording)
+    // at `speed` (2: twice as quick, an octave up; start → end, an exponential
+    // glide) — a voice, a foley take; length 0 lasts as long as the recording
+    // (a file's recording layer is 0 and held, sustain 1, unless it says).
+    std::string          recording;
+    std::array<float, 2> speed{1, 1};
 };
 
 struct Sound {
@@ -154,6 +160,10 @@ public:
     // while it plays. Answers its index (a sound of the same name replaces it).
     std::int32_t add(const Sound& sound);
     [[nodiscard]] std::int32_t find(std::string_view name) const noexcept;  // −1: none
+    // A recording (mono samples at `rate` a second) for the layers that name
+    // it to play; added before the sounds that do (a recording of the same
+    // name replaces it, for sounds added after).
+    void add_recording(std::string_view name, std::span<const float> samples, std::int32_t rate);
     // A bus by name (made on first use; "sfx" and "music" exist): its gain
     // and its effects, in order, before the master.
     void bus_gain(std::string_view bus, float gain);
@@ -191,6 +201,13 @@ private:
 [[nodiscard]] std::vector<float> render(Mixer& mixer, std::int64_t frames);
 // A WAV file of interleaved stereo: 16-bit PCM, or 32-bit float.
 [[nodiscard]] std::vector<std::byte> wav(std::span<const float> interleaved, std::int32_t rate, bool float32 = false);
+// A recording read from a WAV file: 8-, 16-, 24-bit PCM or 32-bit float, its
+// channels mixed down to one.
+struct Recording {
+    std::vector<float> samples;
+    std::int32_t       rate = 48000;
+};
+[[nodiscard]] std::expected<Recording, std::string> read_wav(std::span<const std::byte> file);
 // FNV-1a over the samples' bits: what a test pins.
 [[nodiscard]] std::uint64_t hash(std::span<const float> samples) noexcept;
 // The loudest sample's magnitude.

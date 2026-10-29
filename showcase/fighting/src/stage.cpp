@@ -270,8 +270,12 @@ void Stage::paint(PaintContext& ctx) const {
     const p2::Look& right = looks_[1];
     painter_.draw(*match_, left, right, effects_, scene, frame);
 
-    hud::bars(frame, *match_);
-    hud::timer(frame, (match_->state().timer + 59) / 60);
+    const auto art = [&](std::string_view file) {
+        const auto it = art_.find(file);
+        return it == art_.end() ? render::ImageRef{} : it->second;
+    };
+    hud::versus(frame, *match_, effects_, {art("hud/frames.webp"), art("hud/type.webp"), art("hud/names.webp"), art("hud/fill.webp")}, {&left, &right},
+                {r.names[left_], r.names[right_]});
     // Training's overlays, but not over a super's flash or a cinematic: those are the picture.
     if (props.mode == "training" && match_->state().freeze == 0 && match_->state().lock.owner < 0) {
         hud::boxes(frame, *match_, scene, p2::view_camera(*match_, left, right, effects_, scene));

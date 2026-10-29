@@ -1,4 +1,4 @@
-// What is drawn over the match: the health bars and the timer, and in
+// What is drawn over the match: the versus HUD (hud/*.webp's art), and in
 // training the boxes, the frame meter, each player's input history and the
 // readings (startup, frame advantage, the combo). Numbers are seven-segment
 // bars, so they cost no shaping and look the same everywhere; the few words
@@ -15,8 +15,17 @@ export namespace omui::fighting::hud {
 
 inline constexpr float width = 960, height = 540;  // the picture
 
-void bars(render::DisplayList& out, const gongfu::Match& match);
-void timer(render::DisplayList& out, std::int32_t seconds);
+// The HUD's pictures, registered with the stage's renderer.
+struct Art {
+    render::ImageRef frames, type, names, fill;
+};
+
+// The versus HUD over the match: each side's portrait (its look's head),
+// health with the recent damage draining, posture, super meter and level,
+// its name in calligraphy (by its files' name); the timer; a combo's count
+// and damage; COUNTER and PUNISH COUNTER; K.O.; FIGHT! as the round begins.
+void versus(render::DisplayList& out, const gongfu::Match& match, const gongfu::present2d::Effects& effects, const Art& art,
+            const std::array<const gongfu::present2d::Look*, 2>& looks, const std::array<std::string_view, 2>& names);
 // A number in seven segments of `size` height ending at `right` (its top at
 // `top`); `sign`: a + or − before it. Answers where it begins.
 float number(render::DisplayList& out, float right, float top, float size, std::int32_t value, bool sign, Color color);

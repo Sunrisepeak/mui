@@ -34,6 +34,10 @@ export import :kun_faces_art;
 export import :kun_cutin_eyes_art;
 export import :kun_cutin_strike_art;
 export import :kun_finisher_art;
+export import :frames_hud;
+export import :type_hud;
+export import :names_hud;
+export import :fill_hud;
 export import :stage;
 
 export namespace omui::fighting {

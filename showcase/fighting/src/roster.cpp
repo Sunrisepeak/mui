@@ -42,7 +42,7 @@ const Roster& roster() {
             }
             out.stages.emplace(std::string(name), std::move(*art));
         }
-        const std::array<std::pair<std::string_view, std::string_view>, 17> files_of_art{{{"art/mo-parts.webp", files::mo_parts_art},
+        const std::array<std::pair<std::string_view, std::string_view>, 21> files_of_art{{{"art/mo-parts.webp", files::mo_parts_art},
                                                                      {"art/mo-faces.webp", files::mo_faces_art},
                                                                      {"art/mo-arms.webp", files::mo_arms_art},
                                                                      {"art/ni-parts.webp", files::ni_parts_art},
@@ -58,7 +58,11 @@ const Roster& roster() {
                                                                      {"art/mo-fx.webp", files::mo_fx_art},
                                                                      {"art/mo-cutin-eyes.webp", files::mo_cutin_eyes_art},
                                                                      {"art/mo-cutin-strike.webp", files::mo_cutin_strike_art},
-                                                                     {"art/mo-finisher.webp", files::mo_finisher_art}}};
+                                                                     {"art/mo-finisher.webp", files::mo_finisher_art},
+                                                                     {"hud/frames.webp", files::frames_hud},
+                                                                     {"hud/type.webp", files::type_hud},
+                                                                     {"hud/names.webp", files::names_hud},
+                                                                     {"hud/fill.webp", files::fill_hud}}};
         // Each picture decoded, and its relief made where a look asks for one, a file to a thread (their results the same however they run).
         std::map<std::string_view, p2::Picture::Relief> reliefs;
         for (const p2::Look& look : out.looks)

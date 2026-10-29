@@ -861,7 +861,7 @@ void Painter::picture_part(const Look& look, const Part& own, std::size_t drawin
         for (std::int32_t i = 0; i <= cols; ++i) {
             const double lx = d.source.x + d.source.width * i / cols, ly = d.source.y + d.source.height * j / rows;
             const double dx = lx - d.anchor.x, dy = -(ly - d.anchor.y);
-            const double along = (dx * c0 + dy * s0) * scale, across = (-dx * s0 + dy * c0) * scale;
+            const double along = (dx * c0 + dy * s0) * scale, across = (-dx * s0 + dy * c0) * scale * (part.mirror ? -1 : 1);
             Point at = place(pose_[b], along, across);
             if (!part.bend.empty()) {
                 // Skinning: from the rest pose, each bend bone takes the vertex over across `blend` about its joint.

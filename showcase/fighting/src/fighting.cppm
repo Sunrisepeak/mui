@@ -19,6 +19,11 @@ export import :mo_fx_art;
 export import :mo_cutin_eyes_art;
 export import :mo_cutin_strike_art;
 export import :mo_finisher_art;
+export import :mo_faces_art;
+export import :ni_parts_art;
+export import :ni_cutin_eyes_art;
+export import :ni_cutin_strike_art;
+export import :ni_finisher_art;
 export import :stage;
 
 export namespace omui::fighting {

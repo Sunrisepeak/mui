@@ -91,8 +91,8 @@ constexpr std::array<std::string_view, 6> written_keys{"name", "at", "size", "fr
 constexpr std::array<std::string_view, 4> seal_keys{"frame", "at", "size", "color"};
 constexpr std::array<std::string_view, 2> outline_keys{"color", "width"};
 constexpr std::array<std::string_view, 9> bone_keys{"name", "parent", "joint", "length", "rest", "limb", "prop", "follow", "hang"};
-constexpr std::array<std::string_view, 19> part_keys{"bone", "shape", "size", "points", "color", "depth", "doc", "name", "variants", "shade",
-                                                    "picture", "source", "anchor", "tip", "mesh", "bend", "blend", "fit", "drawings"};
+constexpr std::array<std::string_view, 20> part_keys{"bone", "shape", "size", "points", "color", "depth", "doc", "name", "variants", "shade",
+                                                    "picture", "source", "anchor", "tip", "mesh", "bend", "blend", "fit", "drawings", "mirror"};
 constexpr std::array<std::string_view, 12> clip_keys{"frames", "loop", "ease", "angle", "rise", "doc", "swap", "grip", "aim", "grip_at", "grip_across", "fx"};
 constexpr std::array<std::string_view, 9> impact_keys{"shake", "zoom", "flash", "spark", "sound", "rumble", "doc", "name", "fx"};
 constexpr std::array<std::string_view, 6> spark_keys{"style", "size", "count", "frames", "color", "counter"};
@@ -698,6 +698,7 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
             }
             if (auto xy = r.pair(t.get("anchor"), "a part's `anchor`", "anchor = [40, 12]: where the bone's joint is, in the picture")) p.anchor = {static_cast<float>((*xy)[0]), static_cast<float>((*xy)[1])};
             if (auto xy = r.pair(t.get("tip"), "a part's `tip`", "tip = [40, 120]: where the bone ends, in the picture")) p.tip = {static_cast<float>((*xy)[0]), static_cast<float>((*xy)[1])};
+            if (auto v = r.boolean(t.get("mirror"), "a part's `mirror`")) p.mirror = *v;
             if (const toml::node* dn = t.get("drawings")) {
                 const toml::array* a = dn->as_array();
                 if (!a || !a->is_array_of_tables()) r.error(dn, "an image part's `drawings` is a list of { picture, source, anchor, tip }");
@@ -1289,6 +1290,7 @@ std::string write_look(const Look& look) {
                 s += std::format("]\nblend = {}\n", p.blend);
             }
             if (p.fit) s += "fit = true\n";
+            if (p.mirror) s += "mirror = true\n";
             if (!p.drawings.empty()) {
                 s += "drawings = [";
                 for (std::size_t i = 0; i < p.drawings.size(); ++i) {

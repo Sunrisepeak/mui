@@ -344,7 +344,7 @@ int main(int argc, char** argv) {
         check(g.h.save_png(dir / "study.png").has_value());
         const auto px = g.pixels();
         std::println("    study {:016x}", px);
-        check_eq(px, std::uint64_t{0xa4786840888ccd24});  // GCC and LLVM
+        check_eq(px, std::uint64_t{0x1b283de00fc9bf30});  // GCC and LLVM
     });
 
     s.test("霓's home, the street: rain in front and behind, signs humming, the wet road giving them back — pinned", [] {
@@ -353,7 +353,7 @@ int main(int argc, char** argv) {
         check(g.h.save_png(scratch_dir("fighting-street") / "street.png").has_value());
         const auto px = g.pixels();
         std::println("    street {:016x}", px);
-        check_eq(px, std::uint64_t{0x7e3a92c974c8444f});  // GCC and LLVM
+        check_eq(px, std::uint64_t{0xa4470757e07a9358});  // GCC and LLVM
     });
 
     s.test("the README's loop: 墨's level 3 from the flash's cut-in to the finishing blow, an animated WebP under 1 MB", [] {
@@ -413,7 +413,7 @@ int main(int argc, char** argv) {
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    mo level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("41e58d82397e6f8b"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("326ab1bc0aa0307a"));  // GCC and LLVM, every platform
     });
 
     s.test("墨's ink: waves of three sizes flung from the brush, and her level 2's tide along the floor — frames pinned", [] {
@@ -445,10 +445,10 @@ int main(int argc, char** argv) {
         }
         check_eq(saved, 8);
         std::println("    mo glyphs {}", all.hex());
-        check_eq(all.hex(), std::string("affe21fdd13c95ba"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("03795e4ecc137799"));  // GCC and LLVM, every platform
     });
 
-    s.test("霓's afterimages and her level 3, 「全频」: the neon city, the flurry, the uppercut — frames pinned", [] {
+    s.test("霓's afterimages and her level 3: the eyes cut-in, the neon city, the flurry, the strike cut-in, her finishing picture — frames pinned", [] {
         Game g("training", "ni", "kata");
         check(g.act("pause"));
         check(g.act("fill"));
@@ -491,7 +491,7 @@ int main(int argc, char** argv) {
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    ni level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("334115d4fc1b64e2"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("73766a12ad675578"));  // GCC and LLVM, every platform
     });
 
     s.test("岳 as designed: every normal's and elbow's startup and advantage, measured in the simulation (characters 2 design §3)", [] {
@@ -1044,7 +1044,7 @@ int main(int argc, char** argv) {
             check(rate >= 0.38 && rate <= 0.62, std::format("{} wins {:.2f} of its rounds", r.names[i], rate));
         }
         std::println("    rounds {}", all.hex());
-        check_eq(all.hex(), std::string("01e72146b46f0629"));  // the same rounds on GCC and LLVM
+        check_eq(all.hex(), std::string("d0f429d4807dc95e"));  // the same rounds on GCC and LLVM
     });
 
     s.test("the fight heard, offline: silence until the first contact, its sounds on its frame, the same bits every run — and a WAV of it", [] {

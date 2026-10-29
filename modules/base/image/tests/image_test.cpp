@@ -155,6 +155,21 @@ std::vector<image::View> views_of(const std::vector<image::Image>& frames) {
 int main(int argc, char** argv) {
     Suite s{"image"};
 
+    s.test("a piece's long axis: a slanted bar's ends and its half thickness", [] {
+        omui::imageio::Image img{.width = 100, .height = 100, .alpha = omui::imageio::Alpha::straight, .rgba = std::vector<std::uint8_t>(100 * 100 * 4, 0)};
+        // A bar 60 long and 10 thick, from (20, 20) toward (62, 62) (45°).
+        for (int y = 0; y < 100; ++y)
+            for (int x = 0; x < 100; ++x) {
+                const double u = ((x + 0.5 - 20) + (y + 0.5 - 20)) / std::sqrt(2.0), v = std::abs((x + 0.5 - 20) - (y + 0.5 - 20)) / std::sqrt(2.0);
+                if (u >= 0 && u <= 60 && v <= 5) img.rgba[(static_cast<std::size_t>(y) * 100 + x) * 4 + 3] = 255;
+            }
+        const auto a = omui::imageio::principal_axis(img);
+        const bool forward = a.from_x < a.to_x;
+        const double fx = forward ? a.from_x : a.to_x, fy = forward ? a.from_y : a.to_y, tx = forward ? a.to_x : a.from_x, ty = forward ? a.to_y : a.from_y;
+        check(std::hypot(fx - 21.3, fy - 21.3) < 3 && std::hypot(tx - 60.7, ty - 60.7) < 3, std::format("ends ({:.1f}, {:.1f}) and ({:.1f}, {:.1f})", fx, fy, tx, ty));
+        check(a.half_width > 3.5 && a.half_width < 5.5, std::format("half width {:.1f}", a.half_width));
+    });
+
     s.test("PNG round trip keeps every pixel", [] {
         image::Image img;
         img.width = 37;

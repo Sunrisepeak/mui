@@ -98,8 +98,12 @@ int cut(const std::filesystem::path& file, int argc, char** argv) {
         if (scale < 1)
             part = omui::imageio::scaled_down(part, std::max(1, static_cast<std::int32_t>(std::lround(p.width * scale))),
                                               std::max(1, static_cast<std::int32_t>(std::lround(p.height * scale))));
+        const auto ax = omui::imageio::principal_axis(part, solid);
         parts.push_back(std::move(part));
-        report["pieces"].push_back({{"file", name}, {"region", {p.x, p.y, p.width, p.height}}, {"pixels", p.area}});
+        // Its long axis (the piece's own pixels, as packed): a limb's joint lies near one end, its tip near the other.
+        report["pieces"].push_back({{"file", name}, {"region", {p.x, p.y, p.width, p.height}}, {"pixels", p.area},
+                                    {"axis_local", {std::lround(ax.from_x), std::lround(ax.from_y), std::lround(ax.to_x), std::lround(ax.to_y)}},
+                                    {"half_width", std::lround(ax.half_width)}});
     }
     const auto packed = omui::imageio::pack(parts, static_cast<std::int32_t>(std::lround(2048 * scale)), 4);
     const std::string atlas = webp > 0 ? "atlas.webp" : "atlas.png";
@@ -108,7 +112,11 @@ int cut(const std::filesystem::path& file, int argc, char** argv) {
     if (!saved) report["error"] = saved.error();
     report["atlas"] = {{"file", atlas}, {"size", {packed.atlas.width, packed.atlas.height}}};
     for (std::size_t k = 0; k < found.size(); ++k)
+    {
         report["pieces"][k]["atlas_region"] = {packed.at[k].x, packed.at[k].y, packed.at[k].width, packed.at[k].height};
+        const auto& l = report["pieces"][k]["axis_local"];
+        report["pieces"][k]["axis"] = {packed.at[k].x + l[0].get<long>(), packed.at[k].y + l[1].get<long>(), packed.at[k].x + l[2].get<long>(), packed.at[k].y + l[3].get<long>()};
+    }
     report["ok"] = !report.contains("error");
     std::println("{}", report.dump(2));
     return report["ok"] ? 0 : 1;

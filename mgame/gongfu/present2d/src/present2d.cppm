@@ -97,6 +97,7 @@ struct Part {
         Point            anchor, tip;
     };
     std::vector<Drawing> drawings;
+    bool                 mirror = false;  // the art reflected across its anchor-to-tip line (drawn facing the other way)
 };
 
 // How a contact feels, drawn (D-85 §8.4). A fighter file's hits name a

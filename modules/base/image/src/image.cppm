@@ -148,6 +148,15 @@ struct Piece {
 // `labels` (when given): each pixel's piece, an index into the answer (−1: none).
 [[nodiscard]] std::vector<Piece> pieces(const Image& img, std::uint8_t alpha = 8, std::int32_t gap = 6, std::int64_t min_area = 64,
                                         std::vector<std::int32_t>* labels = nullptr);
+// A piece's long axis (its pixels' principal axis, alpha above `alpha`): the
+// line through its middle it is drawn along, from end to end (the 3rd and
+// 97th percentiles of its pixels along it, so a stray wisp does not stretch
+// it) and its half thickness — where a limb's joint and tip lie.
+struct Axis {
+    double from_x = 0, from_y = 0, to_x = 0, to_y = 0;
+    double half_width = 0;
+};
+[[nodiscard]] Axis principal_axis(const Image& img, std::uint8_t alpha = 96);
 // A picture made smaller (each new pixel the area-weighted mean of the old
 // ones it covers, alpha-weighted so edges keep no dark fringe): art drawn
 // large, carried at the size it is shown.

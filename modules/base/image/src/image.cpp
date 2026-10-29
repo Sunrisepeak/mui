@@ -459,4 +459,47 @@ Image crop(const Image& img, std::int32_t x, std::int32_t y, std::int32_t width,
     return out;
 }
 
+Axis principal_axis(const Image& img, std::uint8_t alpha) {
+    // The mean and the covariance of the solid pixels; the axis is the
+    // covariance's larger eigenvector (closed form for 2 × 2).
+    double n = 0, mx = 0, my = 0;
+    for (std::int32_t y = 0; y < img.height; ++y)
+        for (std::int32_t x = 0; x < img.width; ++x)
+            if (img.rgba[(static_cast<std::size_t>(y) * img.width + x) * 4 + 3] > alpha) n += 1, mx += x + 0.5, my += y + 0.5;
+    Axis a;
+    if (n < 2) return a;
+    mx /= n, my /= n;
+    double sxx = 0, syy = 0, sxy = 0;
+    for (std::int32_t y = 0; y < img.height; ++y)
+        for (std::int32_t x = 0; x < img.width; ++x)
+            if (img.rgba[(static_cast<std::size_t>(y) * img.width + x) * 4 + 3] > alpha) {
+                const double dx = x + 0.5 - mx, dy = y + 0.5 - my;
+                sxx += dx * dx, syy += dy * dy, sxy += dx * dy;
+            }
+    const double tr = sxx + syy, det = sxx * syy - sxy * sxy, l1 = tr / 2 + std::sqrt(std::max(0.0, tr * tr / 4 - det));
+    double ux = sxy != 0 ? l1 - syy : (sxx >= syy ? 1.0 : 0.0), uy = sxy != 0 ? sxy : (sxx >= syy ? 0.0 : 1.0);
+    const double len = std::sqrt(ux * ux + uy * uy);
+    ux /= len, uy /= len;
+    std::vector<double> along, across;
+    along.reserve(static_cast<std::size_t>(n));
+    across.reserve(static_cast<std::size_t>(n));
+    for (std::int32_t y = 0; y < img.height; ++y)
+        for (std::int32_t x = 0; x < img.width; ++x)
+            if (img.rgba[(static_cast<std::size_t>(y) * img.width + x) * 4 + 3] > alpha) {
+                const double dx = x + 0.5 - mx, dy = y + 0.5 - my;
+                along.push_back(dx * ux + dy * uy);
+                across.push_back(std::abs(-dx * uy + dy * ux));
+            }
+    auto at = [](std::vector<double>& v, double q) {
+        const auto k = static_cast<std::size_t>(q * static_cast<double>(v.size() - 1));
+        std::ranges::nth_element(v, v.begin() + static_cast<std::ptrdiff_t>(k));
+        return v[k];
+    };
+    const double lo = at(along, 0.03), hi = at(along, 0.97);
+    a.from_x = mx + ux * lo, a.from_y = my + uy * lo, a.to_x = mx + ux * hi, a.to_y = my + uy * hi;
+    a.half_width = at(across, 0.9);
+    return a;
+}
+
 }  // namespace omui::imageio
+

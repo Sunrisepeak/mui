@@ -42,7 +42,12 @@ const Roster& roster() {
             }
             out.stages.emplace(std::string(name), std::move(*art));
         }
-        for (const auto& [file, bytes] : std::array<std::pair<std::string_view, std::string_view>, 5>{{{"art/mo-parts.webp", files::mo_parts_art},
+        for (const auto& [file, bytes] : std::array<std::pair<std::string_view, std::string_view>, 10>{{{"art/mo-parts.webp", files::mo_parts_art},
+                                                                     {"art/mo-faces.webp", files::mo_faces_art},
+                                                                     {"art/ni-parts.webp", files::ni_parts_art},
+                                                                     {"art/ni-cutin-eyes.webp", files::ni_cutin_eyes_art},
+                                                                     {"art/ni-cutin-strike.webp", files::ni_cutin_strike_art},
+                                                                     {"art/ni-finisher.webp", files::ni_finisher_art},
                                                                      {"art/mo-fx.webp", files::mo_fx_art},
                                                                      {"art/mo-cutin-eyes.webp", files::mo_cutin_eyes_art},
                                                                      {"art/mo-cutin-strike.webp", files::mo_cutin_strike_art},

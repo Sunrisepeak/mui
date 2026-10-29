@@ -85,9 +85,10 @@ constexpr std::array<std::string_view, 9> fx_stroke_keys{"picture", "source", "p
 constexpr std::array<std::string_view, 12> fx_spray_keys{"picture", "sources", "at", "from", "frames", "count", "speed", "angle", "size", "gravity", "seed", "color"};
 constexpr std::array<std::string_view, 11> panel_keys{"picture", "source", "from", "to", "in", "out", "y", "height", "slant", "pan", "band"};
 constexpr std::array<std::string_view, 2> stroke_keys{"points", "width"};
-constexpr std::array<std::string_view, 27> cinematic_keys{"attacker", "defender", "backdrop", "camera", "glyph", "seal", "flash", "scanlines", "attacker_path",
+constexpr std::array<std::string_view, 28> cinematic_keys{"attacker", "defender", "backdrop", "camera", "glyph", "seal", "flash", "scanlines", "attacker_path",
                                                           "defender_path", "quake", "ring", "prism", "cracks", "fall", "stop", "clock", "doc", "panel", "fx",
-                                                          "hide", "reactions", "hold", "attacker_turn", "defender_turn", "hitstop", "afterimages"};
+                                                          "hide", "reactions", "hold", "attacker_turn", "defender_turn", "hitstop", "afterimages",
+                                                          "in_front"};
 constexpr std::array<std::string_view, 5> prism_keys{"images", "spread", "from", "to", "tint"};
 constexpr std::array<std::string_view, 1> cracks_keys{"color"};
 constexpr std::array<std::string_view, 3> fall_keys{"frame", "count", "color"};
@@ -1436,6 +1437,7 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
                 spans("defender_turn", "defender_turn = [[60, 90]]: frames the defender faces the other way", c.defender_turn);
                 spans("hitstop", "hitstop = [[40, 8]]: from frame 40, 8 frames the struck stands", c.hitstops);
                 spans("afterimages", "afterimages = [[60, 120]]: frames the attacker leaves afterimages", c.afterimages);
+                spans("in_front", "in_front = [[28, 44]]: frames the attacker is drawn over the defender", c.in_front);
                 rows("quake", 3, [&](const std::vector<double>& v) { c.quakes.push_back({static_cast<std::int32_t>(v[0]), static_cast<float>(v[1]), static_cast<std::int32_t>(v[2])}); });
                 rows("ring", 5, [&](const std::vector<double>& v) {
                     c.rings.push_back({static_cast<std::int32_t>(v[0]), {static_cast<float>(v[1]), static_cast<float>(v[2])}, static_cast<float>(v[3]), static_cast<std::int32_t>(v[4])});
@@ -1806,6 +1808,7 @@ std::string write_look(const Look& look) {
         list("defender_turn", c.defender_turn, span);
         list("hitstop", c.hitstops, span);
         list("afterimages", c.afterimages, span);
+        list("in_front", c.in_front, span);
         list("quake", c.quakes, [](const auto& q) { return std::format("[{}, {}, {}]", q.frame, q.strength, q.frames); });
         list("ring", c.rings, [](const auto& g) { return std::format("[{}, {}, {}, {}, {}]", g.frame, g.at.x, g.at.y, g.size, g.frames); });
         if (c.prism.images > 0)

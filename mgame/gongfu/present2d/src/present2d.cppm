@@ -315,6 +315,9 @@ struct CinematicLook {
     // Frames [from, to) the attacker leaves afterimages: drawn again as it was
     // its look's trail frames before, in the trail's colour, fading.
     std::vector<std::array<std::int32_t, 2>> afterimages;
+    // Frames [from, to) the attacker is drawn over the defender (a knee driven
+    // into a body, a heel on a chest), not by side.
+    std::vector<std::array<std::int32_t, 2>> in_front;
     // Quakes (the picture shaken and swelling: a crash) and shock rings
     // spreading from a point (from where the attacker began, forward and up).
     struct Quake {

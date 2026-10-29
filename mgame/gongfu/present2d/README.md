@@ -28,7 +28,7 @@ gongfu::present2d::draw(match, left_look, right_look, effects, scene, frame);
   - turns draw a fighter facing the other way (a shoulder driven in backwards, a catch behind the back);
   - holds keep the defender at a bone of the attacker, playing each hold's clip from its first frame, so holds in a row show a held body reacting to each blow;
   - each hit asks the defender for a reaction (`hitstun.head` … or `held`, `launched`, `slammed`; a look without `launched` or `slammed` gives its heavy hit's), and in a hitstop the struck shakes and its reaction waits;
-  - afterimages trail the attacker over the frames they say.
+  - afterimages trail the attacker over the frames they say, and `in_front` draws the attacker over the defender (a knee driven into a body).
 - **Looks are files**, `*.look.gongfu.toml` (`read_look` / `write_look`):
   - palettes of named slots (the left side's and the right's);
   - bones, with angles in degrees;

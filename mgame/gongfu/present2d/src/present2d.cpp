@@ -1278,7 +1278,10 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         for (const auto& h : cine->hitstops) own -= std::clamp(t - h[0], 0, h[1]);
         return own;
     };
-    for (std::int32_t i = 0; i < 2; ++i) {
+    // The first side under the second; in a cinematic's frames that say so, the attacker over the defender.
+    const bool attacker_over = cine && turned(cine->in_front, st.lock.frame);
+    for (std::int32_t k = 0; k < 2; ++k) {
+        const std::int32_t i = attacker_over ? (k == 0 ? 1 - st.lock.owner : st.lock.owner) : k;
         std::string_view clip;
         FighterState drawn = st.f[static_cast<std::size_t>(i)];
         std::int32_t hold_from = -1;  // held, the hold's clip plays from its first frame

@@ -322,6 +322,7 @@ attacker_turn = [[20, 40]]
 defender_turn = [[45, 60]]
 hitstop = [[10, 6], [30, 8]]
 afterimages = [[12, 40]]
+in_front = [[10, 20]]
 reactions = ["hitstun.body", "launched", "slammed"]
 )";
         auto read_back = p2::read_look(text, "kata.look.gongfu.toml");
@@ -329,7 +330,7 @@ reactions = ["hitstun.body", "launched", "slammed"]
         if (read_back) {
             const auto& c = read_back->cinematics.at("finale");
             check(c.attacker_path.size() == 3 && !c.attacker_path[0].ease && c.attacker_path[1].ease && c.defender_path[2].ease, "a path key's ease");
-            check(c.attacker_turn.size() == 1 && c.defender_turn.size() == 1 && c.hitstops.size() == 2 && c.hitstops[1][1] == 8 && c.afterimages.size() == 1);
+            check(c.attacker_turn.size() == 1 && c.defender_turn.size() == 1 && c.hitstops.size() == 2 && c.hitstops[1][1] == 8 && c.afterimages.size() == 1 && c.in_front.size() == 1);
             check(c.reactions.size() == 3 && c.reactions[1] == "launched", "taken reactions are reactions");
             const std::string written = p2::write_look(*read_back);
             auto again = p2::read_look(written, "written.look.gongfu.toml");
@@ -422,6 +423,10 @@ reactions = ["hitstun.body", "launched", "slammed"]
         kept.reactions = {"launched", "hitstun"};
         check(drawn(juggled, 29, launchable) == drawn(kept, 29, launchable) && drawn(juggled, 33, launchable) != drawn(restarted, 33, launchable),
               "launched twice: one turn going on");
+        // In front: the attacker drawn over the defender — the same picture as with the sides swapped.
+        p2::CinematicLook over = plain;
+        over.in_front = {{0, 50}};
+        check(drawn(over, 20, d) != drawn(plain, 20, d) && drawn(over, 50, d) == drawn(plain, 50, d), "the attacker over the defender over its frames only");
         // Afterimages: the attacker again as it was its trail's frames before.
         p2::Look trailing = a;
         trailing.trail.frames = {3, 6};

@@ -44,6 +44,11 @@ Sounds::Sounds() : mixer_(std::make_unique<audio::Mixer>()) {
     if (sounds)
         for (const auto& s : *sounds) mixer_->add(s);
     mixer_->add_effect("sfx", audio::echo(0.11f, 0.22f, 0.18f, mixer_->rate()));  // the hall the stage stands in
+    for (const auto& [name, text] : std::array<std::pair<std::string_view, std::string_view>, 2>{{{"study", files::study_music}, {"street", files::street_music}}}) {
+        auto music = audio::read_music(text, std::format("{}.music.omui.toml", name));
+        if (!music) continue;
+        if (auto seq = audio::Sequencer::attach(*music, *mixer_)) themes_.emplace(std::string(name), std::move(*seq));
+    }
 }
 
 namespace {
@@ -56,9 +61,16 @@ std::function<std::shared_ptr<void>(Sounds&)>& hook() {
 void hear_with(std::function<std::shared_ptr<void>(Sounds&)> open) { hook() = std::move(open); }
 const std::function<std::shared_ptr<void>(Sounds&)>& hearing() { return hook(); }
 
-void Sounds::restart() {
+void Sounds::restart(std::string_view theme) {
     base_ = mixer_->clock();
     freeze_ = 0;
+    if (theme == theme_) return;  // the same stage: its music goes on
+    if (const auto old = themes_.find(theme_); old != themes_.end()) old->second->finish();
+    theme_ = theme;
+    if (const auto now = themes_.find(theme_); now != themes_.end()) {
+        now->second->set_intensity(0.25f);
+        now->second->start(base_);
+    }
 }
 
 void Sounds::play(std::string_view name, std::int64_t at, float gain, float pan) {
@@ -68,6 +80,13 @@ void Sounds::play(std::string_view name, std::int64_t at, float gain, float pan)
 
 void Sounds::heard(const gongfu::Match& match, const p2::Look& left, const p2::Look& right) {
     const gongfu::State& st = match.state();
+    // The music rises as the round gets close: with the lower health, and all of it under a super.
+    if (const auto it = themes_.find(theme_); it != themes_.end()) {
+        float low = 1;
+        for (std::int32_t i = 0; i < 2; ++i)
+            low = std::min(low, static_cast<float>(st.f[static_cast<std::size_t>(i)].health) / static_cast<float>(std::max(1, match.fighter(i).def.health)));
+        it->second->set_intensity(st.freeze > 0 || st.lock.owner >= 0 ? 1.0f : std::clamp(0.25f + 0.75f * (1 - low), 0.0f, 1.0f));
+    }
     const std::int64_t at = live_ ? mixer_->clock() + audio::block_frames : base_ + static_cast<std::int64_t>(st.frame) * frame_samples();
     const double half = match.system().stage_width.to_double() / 2;
     for (const gongfu::Event& e : match.events()) {

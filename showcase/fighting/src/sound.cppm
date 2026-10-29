@@ -21,8 +21,9 @@ public:
     Sounds();
     // After each frame of the match: its events' sounds, and a flash's.
     void heard(const gongfu::Match& match, const gongfu::present2d::Look& left, const gongfu::present2d::Look& right);
-    // A new round: frame 0 is the mixer's clock now.
-    void restart();
+    // A new round: frame 0 is the mixer's clock now; `theme` the stage's music
+    // (its name: "study", "street"; empty: none), from its intro if it is not playing already.
+    void restart(std::string_view theme = {});
     // Heard live (a device pulls the mixer): sounds start just ahead of its clock instead of on their frame's sample.
     void live(bool on) noexcept { live_ = on; }
 
@@ -34,6 +35,9 @@ private:
     void play(std::string_view name, std::int64_t at, float gain, float pan);
 
     std::unique_ptr<audio::Mixer> mixer_;
+    // The stages' music, attached before anything plays; the one playing.
+    std::map<std::string, std::shared_ptr<audio::Sequencer>, std::less<>> themes_;
+    std::string                   theme_;
     std::int64_t                  base_ = 0;   // the mixer's sample of frame 0
     std::int32_t                  freeze_ = 0; // the last frame's
     bool                          live_ = false;

@@ -1047,6 +1047,35 @@ int main(int argc, char** argv) {
         check_eq(all.hex(), std::string("d0f429d4807dc95e"));  // the same rounds on GCC and LLVM
     });
 
+    s.test("a stage's music: the study's piece plays from the round's start, louder as the round gets close; none in training's plain room", [] {
+        auto loud = [](std::string_view mode, bool hurt) {
+            Game g(mode, "mo", "ni");
+            check(g.act("pause"));
+            auto& sounds = g.stage_mut().sounds();
+            std::vector<float> one(static_cast<std::size_t>(2 * sounds.frame_samples()));
+            double sum = 0;
+            std::size_t n = 0;
+            for (int i = 0; i < 60 * 13; ++i) {
+                if (hurt && i == 0) {  // a round nearly over
+                    auto& match = const_cast<gongfu::Match&>(g.stage().match());
+                    gongfu::State st = match.state();
+                    st.f[1].health = 900;
+                    match.restore(st);
+                }
+                check(g.act("step"));
+                sounds.mixer().render(one);
+                if (i >= 60 * 9)  // past the intro (4 bars at 128), the intensity a bar old
+                    for (float v : one) sum += static_cast<double>(v) * v, ++n;
+            }
+            return std::sqrt(sum / static_cast<double>(std::max<std::size_t>(n, 1)));
+        };
+        const double calm = loud("versus", false), close = loud("versus", true), plain = loud("training", false);
+        std::println("    music rms: {:.4f} calm, {:.4f} close, {:.4f} training", calm, close, plain);
+        check(calm > 0.01, "the study's piece is heard");
+        check(close > calm * 1.15, "more of it when the round is close");
+        check(plain < 1e-4, "training's room is quiet until someone is hit");
+    });
+
     s.test("the fight heard, offline: silence until the first contact, its sounds on its frame, the same bits every run — and a WAV of it", [] {
         Game g("training", "mo", "yue");
         check(g.act("pause"));

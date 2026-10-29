@@ -19,5 +19,8 @@ int main() {
     // The fighters' drawn art (pictures their looks' image parts are cut from).
     const bool art = openmui::rules::embed({.module = "openmui.showcase.fighting", .ns = "omui::fighting::files", .dir = "fighters/art",
                                             .suffix = ".webp", .tag = "art"});
-    return stage && fighters && sounds && stages && art ? 0 : 1;
+    // The stages' music (openmui.audio's pieces).
+    const bool music = openmui::rules::embed({.module = "openmui.showcase.fighting", .ns = "omui::fighting::files", .dir = "music",
+                                              .suffix = ".music.omui.toml", .tag = "music"});
+    return stage && fighters && sounds && stages && art && music ? 0 : 1;
 }

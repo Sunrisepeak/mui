@@ -70,7 +70,13 @@ void Stage::start_round() {
             if (const auto it = art_.find(pic.file); it != art_.end()) pic.ref = it->second;
     effects_ = {};
     readout_.clear();
-    sounds_.restart();
+    // The stage's music: the arena's, else player 1's home's (none in training's plain room).
+    std::string_view theme = props.arena;
+    if (theme.empty() && props.mode != "training") {
+        const auto home = r.homes.find(props.player1);
+        theme = home == r.homes.end() ? std::string_view() : std::string_view(home->second);
+    }
+    sounds_.restart(theme == "plain" ? std::string_view() : theme);
     over_reported_ = false;
 }
 

@@ -14,6 +14,8 @@ export import :sound;
 export import :fight_sound;
 export import :study_stage;
 export import :street_stage;
+export import :study_music;
+export import :street_music;
 export import :mo_parts_art;
 export import :mo_fx_art;
 export import :mo_cutin_eyes_art;

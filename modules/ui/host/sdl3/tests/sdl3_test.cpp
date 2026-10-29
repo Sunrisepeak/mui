@@ -7,6 +7,7 @@
 // runs, shows on the next frame.
 import std;
 import mcpplibs.os;
+import mcpplibs.mwrap.sdl3;  // a virtual gamepad (the gamepad test)
 import openmui.host.sdl3;
 import openmui.testing;
 
@@ -216,6 +217,61 @@ float4 invert_fs(EffectPixel px) : SV_Target {
         std::array<InputEvent, 1> close{CloseRequestEvent{}};
         d.synthesize(close);
         check(!d.step(), "closing the window ends the loop");
+    });
+
+    s.test("gamepads through SDL: plugged in while it runs, its standard mapping, the dead zone, unplugged", [] {
+        using namespace mcpplibs::mwrap::sdl3::macros;
+        Desktop d(offscreen());
+        if (!d.open()) return;
+        std::vector<std::string> seen;
+        d.mount("main", column({}, {painter({.id = "pad", .width = 100, .height = 60, .focusable = true,
+                                 .on_event = [&](EventContext&, const InputEvent& e) {
+                                     if (!std::holds_alternative<GamepadEvent>(e)) return false;
+                                     Value v = to_value(e);
+                                     seen.push_back(std::format("{} {}{}", v.get("kind")->as_string(),
+                                                                v.get("button") ? v.get("button")->as_string() : "",
+                                                                v.get("axis") ? std::format("{}={}", v.get("axis")->as_string(),
+                                                                                            v.get("value")->as_double())
+                                                                              : std::string()));
+                                     return true;
+                                 }})}));
+        d.step();
+        d.runtime().focus(d.runtime().find("main/pad"));
+        // A device SDL makes itself (a virtual gamepad): the same path a real one's events take.
+        SDL_VirtualJoystickDesc desc{};
+        SDL_INIT_INTERFACE(&desc);
+        desc.type = SDL_JOYSTICK_TYPE_GAMEPAD;
+        desc.naxes = SDL_GAMEPAD_AXIS_COUNT;
+        desc.nbuttons = SDL_GAMEPAD_BUTTON_COUNT;
+        desc.name = "openmui virtual pad";
+        const SDL_JoystickID id = SDL_AttachVirtualJoystick(&desc);
+        check(id != 0, SDL_GetError());
+        if (id == 0) return;
+        SDL_Joystick* j = SDL_OpenJoystick(id);
+        d.step();
+        SDL_SetJoystickVirtualButton(j, SDL_GAMEPAD_BUTTON_WEST, true);
+        SDL_SetJoystickVirtualAxis(j, SDL_GAMEPAD_AXIS_LEFTX, 4000);   // inside the dead zone: nothing
+        d.step();
+        SDL_SetJoystickVirtualAxis(j, SDL_GAMEPAD_AXIS_LEFTX, -32768);  // full left
+        SDL_SetJoystickVirtualAxis(j, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER, 32767);
+        d.step();
+        SDL_SetJoystickVirtualButton(j, SDL_GAMEPAD_BUTTON_WEST, false);
+        d.step();
+        SDL_CloseJoystick(j);
+        SDL_DetachVirtualJoystick(id);
+        d.step();
+        d.step();
+        const std::vector<std::string> want{
+            "connected ", "down west", "axis leftX=-1", "axis rightTrigger=1", "down rightTrigger", "up west",
+            "axis leftX=0", "axis rightTrigger=0", "up rightTrigger", "disconnected ",  // SDL recentres a device going
+        };
+        check(seen == want, std::format("{}", seen));
+        // A gamepad's events synthesized as a test or an agent gives them: delivered as given.
+        seen.clear();
+        std::array<InputEvent, 1> south{GamepadEvent{.kind = GamepadKind::down, .device = 42, .button = GamepadButton::south}};
+        d.synthesize(south);
+        d.step();
+        check(seen == std::vector<std::string>{"down south"}, std::format("{}", seen));
     });
 
     s.test("the interface's own frame (D-75): no system frame, the window.* verbs, the state, switching", [] {

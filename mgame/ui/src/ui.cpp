@@ -19,6 +19,12 @@ bool feed(Sampler& in, const omui::InputEvent& e, omui::Rect area) {
         if (p->kind == omui::PointerKind::down || p->kind == omui::PointerKind::up) in.mouse(static_cast<std::int32_t>(p->button), p->kind == omui::PointerKind::down);
         return true;
     }
+    if (const auto* g = std::get_if<omui::GamepadEvent>(&e)) {
+        // Any gamepad: its buttons and axes by their place in the standard set.
+        if (g->kind == omui::GamepadKind::down || g->kind == omui::GamepadKind::up) in.pad_button(pad(g->button), g->kind == omui::GamepadKind::down);
+        else if (g->kind == omui::GamepadKind::axis) in.pad_axis(pad(g->axis), g->value);
+        return true;
+    }
     if (const auto* f = std::get_if<omui::FocusEvent>(&e); f && !f->gained) {
         in.clear();
         return true;

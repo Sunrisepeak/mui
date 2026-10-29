@@ -7,7 +7,8 @@
 // The pacer wakes at the next step due on the runtime's clock (virtual
 // headless, so a headless second is exactly 120 steps), takes every step due
 // (a stall past its catch-up is not owed) and asks for frames while it runs.
-// Keys reach the sampler by their code (`code(Key)` for bindings); the
+// Keys reach the sampler by their code (`code(Key)` for bindings), any
+// gamepad's buttons and axes by their place (`pad(GamepadButton)`); the
 // pointer within the game's area (0 … 1 across and down).
 export module mgame.ui;
 
@@ -20,6 +21,9 @@ import mgame.sim;
 export namespace mgame::ui {
 
 [[nodiscard]] constexpr std::uint32_t code(omui::Key k) noexcept { return static_cast<std::uint32_t>(k); }
+// A gamepad's button and axis by their place in the standard set (spec §6.1), for bindings.
+[[nodiscard]] constexpr std::int32_t pad(omui::GamepadButton b) noexcept { return static_cast<std::int32_t>(b); }
+[[nodiscard]] constexpr std::int32_t pad(omui::GamepadAxis a) noexcept { return static_cast<std::int32_t>(a); }
 
 // An openmui event for the game: a key by its code, the pointer within
 // `area` (window coordinates); focus lost lets everything go. Whether it took it.

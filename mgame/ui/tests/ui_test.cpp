@@ -36,5 +36,23 @@ int main(int argc, char** argv) {
         check(!mgame::ui::feed(in, omui::TextEvent{"x"}, area), "text is the interface's");
     });
 
+    s.test("a gamepad: its buttons and axes by their place in the standard set", [] {
+        using omui::GamepadAxis, omui::GamepadButton, omui::GamepadEvent, omui::GamepadKind;
+        mgame::Bindings b;
+        b.pad_button(mgame::ui::pad(GamepadButton::south), mgame::Button{0});
+        b.pad_button(mgame::ui::pad(GamepadButton::dpad_left), mgame::Axis{0, -1});
+        b.pad_axis(mgame::ui::pad(GamepadAxis::left_x), mgame::Axis{1, 1});
+        mgame::Sampler in(b);
+        const omui::Rect area{0, 0, 100, 100};
+        check(mgame::ui::feed(in, GamepadEvent{.kind = GamepadKind::connected, .device = 1}, area));
+        mgame::ui::feed(in, GamepadEvent{.kind = GamepadKind::down, .device = 1, .button = GamepadButton::south}, area);
+        mgame::ui::feed(in, GamepadEvent{.kind = GamepadKind::down, .device = 1, .button = GamepadButton::dpad_left}, area);
+        mgame::ui::feed(in, GamepadEvent{.kind = GamepadKind::axis, .device = 1, .axis = GamepadAxis::left_x, .value = 0.5f}, area);
+        const auto a = in.sample();
+        check(a.went_down(0) && a.axes[0] == -32767 && a.axes[1] == 16384, std::format("{} {}", a.axes[0], a.axes[1]));
+        mgame::ui::feed(in, GamepadEvent{.kind = GamepadKind::up, .device = 1, .button = GamepadButton::dpad_left}, area);
+        check_eq(in.sample().axes[0], std::int16_t{0});
+    });
+
     return s.run(argc, argv);
 }

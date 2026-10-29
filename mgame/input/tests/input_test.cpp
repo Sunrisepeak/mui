@@ -66,6 +66,27 @@ int main(int argc, char** argv) {
         check(gone.held == 0 && gone.axes[0] == 0, "focus lost: nothing held");
     });
 
+    s.test("a gamepad: a button presses, a d-pad pushes an axis as keys do, a repeat changes nothing", [&] {
+        mgame::Bindings b;
+        b.pad_button(15, mgame::Axis{0, -1});  // d-pad left
+        b.pad_button(16, mgame::Axis{0, 1});   // d-pad right
+        b.pad_button(0, mgame::Button{2});     // south
+        mgame::Sampler in(b);
+        in.pad_button(15, true);
+        in.pad_button(15, true);
+        check_eq(in.sample().axes[0], std::int16_t{-32767});
+        in.pad_button(16, true);
+        check_eq(in.sample().axes[0], std::int16_t{0});
+        in.pad_button(15, false);
+        in.pad_button(0, true);
+        const auto a = in.sample();
+        check(a.axes[0] == 32767 && a.went_down(2), std::format("{}", a.axes[0]));
+        in.clear();
+        check_eq(in.sample().axes[0], std::int16_t{0});
+        in.pad_button(16, true);  // after a clear, a press counts again
+        check_eq(in.sample().axes[0], std::int16_t{32767});
+    });
+
     s.test("a recording as text reads back as itself", [&] {
         mgame::Sampler in(bindings());
         std::vector<mgame::Actions> frames;

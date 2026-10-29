@@ -22,5 +22,8 @@ int main() {
     // The stages' music (openmui.audio's pieces).
     const bool music = openmui::rules::embed({.module = "openmui.showcase.fighting", .ns = "omui::fighting::files", .dir = "music",
                                               .suffix = ".music.omui.toml", .tag = "music"});
-    return stage && fighters && sounds && stages && art && music ? 0 : 1;
+    // What a gamepad's buttons do (controls/*.controls.omui.json): data, so it can be remapped.
+    const bool controls = openmui::rules::embed({.module = "openmui.showcase.fighting", .ns = "omui::fighting::files", .dir = "controls",
+                                                 .suffix = ".controls.omui.json", .tag = "controls"});
+    return stage && fighters && sounds && stages && art && music && controls ? 0 : 1;
 }

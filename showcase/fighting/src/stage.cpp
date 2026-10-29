@@ -33,6 +33,37 @@ constexpr std::array<Layout, 2> layouts{{
     {Key::up, Key::down, Key::left, Key::right, {Key::insert, Key::home, Key::page_up, Key::delete_, Key::end, Key::page_down}},
 }};
 
+// What a gamepad does (controls/pad.controls.omui.json): its buttons to the
+// fighting game's, and which of the d-pad and the left stick are directions.
+struct Controls {
+    std::vector<std::pair<GamepadButton, Button>> buttons;
+    bool  dpad = true, stick = true;
+    float threshold = 0.5f;  // how far the stick goes before it is a direction
+};
+
+const Controls& controls() {
+    static const Controls c = [] {
+        Controls out;
+        const auto v = parse_json(files::pad_controls);
+        if (!v) return out;
+        constexpr std::array<std::pair<std::string_view, Button>, 6> names{
+            {{"LP", Button::lp}, {"MP", Button::mp}, {"HP", Button::hp}, {"LK", Button::lk}, {"MK", Button::mk}, {"HK", Button::hk}}};
+        if (const Value* b = v->get("buttons"); b && b->map())
+            for (const auto& [pad, what] : *b->map()) {
+                const auto button = parse_gamepad_button(pad);
+                const auto it = std::ranges::find(names, what.as_string(), &std::pair<std::string_view, Button>::first);
+                if (button && it != names.end()) out.buttons.emplace_back(*button, it->second);
+            }
+        if (const Value* d = v->get("directions")) {
+            if (const Value* x = d->get("dpad")) out.dpad = x->as_bool(true);
+            if (const Value* x = d->get("leftStick")) out.stick = x->as_bool(true);
+            if (const Value* x = d->get("stick")) out.threshold = static_cast<float>(x->as_double(0.5));
+        }
+        return out;
+    }();
+    return c;
+}
+
 // A pad written as the notation writes it: a numpad direction, then buttons
 // (`6`, `2LK`, `5LP+LK`, `HP`).
 std::optional<gongfu::Pad> parse_pad(std::string_view s) {
@@ -135,9 +166,61 @@ gongfu::Pad Stage::keyboard(std::int32_t player) const {
     return p;
 }
 
+// The player's gamepad: opposite directions held together go to gongfu as
+// they are, and its SOCD rule decides, as for the keyboard.
+gongfu::Pad Stage::gamepad(std::int32_t player) const {
+    const Gamepad& g = gamepads_[static_cast<std::size_t>(player)];
+    gongfu::Pad p;
+    if (!g.device) return p;
+    const Controls& c = controls();
+    auto held = [&](GamepadButton b) { return g.held[static_cast<std::size_t>(b)]; };
+    if (c.dpad) {
+        if (held(GamepadButton::dpad_up)) p.directions |= gongfu::Pad::up;
+        if (held(GamepadButton::dpad_down)) p.directions |= gongfu::Pad::down;
+        if (held(GamepadButton::dpad_left)) p.directions |= gongfu::Pad::left;
+        if (held(GamepadButton::dpad_right)) p.directions |= gongfu::Pad::right;
+    }
+    if (c.stick) {
+        if (g.y <= -c.threshold) p.directions |= gongfu::Pad::up;  // y is down, as the screen's
+        if (g.y >= c.threshold) p.directions |= gongfu::Pad::down;
+        if (g.x <= -c.threshold) p.directions |= gongfu::Pad::left;
+        if (g.x >= c.threshold) p.directions |= gongfu::Pad::right;
+    }
+    for (const auto& [pad, button] : c.buttons)
+        if (held(pad)) p.buttons |= bit(button);
+    return p;
+}
+
 gongfu::Pad Stage::pad_of(std::int32_t player) const {
     const auto& agent = agent_[static_cast<std::size_t>(player)];
-    return agent ? *agent : keyboard(player);
+    if (agent) return *agent;
+    // The keyboard and the gamepad together: what either holds.
+    const gongfu::Pad k = keyboard(player), g = gamepad(player);
+    return {static_cast<std::uint16_t>(k.directions | g.directions), static_cast<std::uint16_t>(k.buttons | g.buttons)};
+}
+
+bool Stage::on_gamepad(const GamepadEvent& e) {
+    auto seat = std::ranges::find_if(gamepads_, [&](const Gamepad& g) { return g.device == e.device; });
+    if (e.kind == GamepadKind::connected) {
+        if (seat != gamepads_.end()) return true;
+        // The first free seat: the first two connected play; one plugged in again takes the seat it left.
+        const auto free = std::ranges::find_if(gamepads_, [](const Gamepad& g) { return !g.device; });
+        if (free == gamepads_.end()) return false;
+        *free = Gamepad{.device = e.device};
+        return true;
+    }
+    if (seat == gamepads_.end()) return false;
+    switch (e.kind) {
+        case GamepadKind::disconnected: *seat = Gamepad{}; break;
+        case GamepadKind::down:
+        case GamepadKind::up: seat->held[static_cast<std::size_t>(e.button)] = e.kind == GamepadKind::down; break;
+        case GamepadKind::axis:
+            if (e.axis == GamepadAxis::left_x) seat->x = e.value;
+            if (e.axis == GamepadAxis::left_y) seat->y = e.value;
+            break;
+        case GamepadKind::connected: break;
+    }
+    return true;
 }
 
 void Stage::changed() {
@@ -213,6 +296,11 @@ void Stage::paint(PaintContext& ctx) const {
 }
 
 bool Stage::on_event(EventContext& ctx, const InputEvent& e) {
+    if (const auto* g = std::get_if<GamepadEvent>(&e)) {
+        if (!on_gamepad(*g)) return false;
+        ctx.handled = true;
+        return true;
+    }
     const auto* k = std::get_if<KeyEvent>(&e);
     if (!k) return false;
     bool ours = false;

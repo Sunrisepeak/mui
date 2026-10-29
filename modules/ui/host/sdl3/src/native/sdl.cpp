@@ -118,6 +118,54 @@ std::uint32_t buttons_of(SDL_MouseButtonFlags state) {
 
 constexpr float wheel_line = 40;  // logical pixels per wheel notch
 
+// ── gamepads: SDL's standard mapping (its database of devices) to the spec's set ──
+std::optional<GamepadButton> pad_button_of(std::uint8_t b) {
+    switch (static_cast<SDL_GamepadButton>(b)) {
+        case SDL_GAMEPAD_BUTTON_SOUTH: return GamepadButton::south;
+        case SDL_GAMEPAD_BUTTON_EAST: return GamepadButton::east;
+        case SDL_GAMEPAD_BUTTON_WEST: return GamepadButton::west;
+        case SDL_GAMEPAD_BUTTON_NORTH: return GamepadButton::north;
+        case SDL_GAMEPAD_BUTTON_BACK: return GamepadButton::back;
+        case SDL_GAMEPAD_BUTTON_GUIDE: return GamepadButton::guide;
+        case SDL_GAMEPAD_BUTTON_START: return GamepadButton::start;
+        case SDL_GAMEPAD_BUTTON_LEFT_STICK: return GamepadButton::left_stick;
+        case SDL_GAMEPAD_BUTTON_RIGHT_STICK: return GamepadButton::right_stick;
+        case SDL_GAMEPAD_BUTTON_LEFT_SHOULDER: return GamepadButton::left_shoulder;
+        case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER: return GamepadButton::right_shoulder;
+        case SDL_GAMEPAD_BUTTON_DPAD_UP: return GamepadButton::dpad_up;
+        case SDL_GAMEPAD_BUTTON_DPAD_DOWN: return GamepadButton::dpad_down;
+        case SDL_GAMEPAD_BUTTON_DPAD_LEFT: return GamepadButton::dpad_left;
+        case SDL_GAMEPAD_BUTTON_DPAD_RIGHT: return GamepadButton::dpad_right;
+        default: return std::nullopt;  // paddles, touchpad, misc: not in the standard set
+    }
+}
+
+std::optional<GamepadAxis> pad_axis_of(std::uint8_t a) {
+    switch (static_cast<SDL_GamepadAxis>(a)) {
+        case SDL_GAMEPAD_AXIS_LEFTX: return GamepadAxis::left_x;
+        case SDL_GAMEPAD_AXIS_LEFTY: return GamepadAxis::left_y;
+        case SDL_GAMEPAD_AXIS_RIGHTX: return GamepadAxis::right_x;
+        case SDL_GAMEPAD_AXIS_RIGHTY: return GamepadAxis::right_y;
+        case SDL_GAMEPAD_AXIS_LEFT_TRIGGER: return GamepadAxis::left_trigger;
+        case SDL_GAMEPAD_AXIS_RIGHT_TRIGGER: return GamepadAxis::right_trigger;
+        default: return std::nullopt;
+    }
+}
+
+// The open gamepads (SDL's joystick instance id is the event's device: one
+// connection, never reused) and what the reader made of them.
+struct Pads {
+    std::vector<std::pair<SDL_JoystickID, SDL_Gamepad*>> open;
+    GamepadReader                                         reader;
+
+    void close_all() {
+        for (auto& [id, pad] : open) SDL_CloseGamepad(pad);
+        open.clear();
+        reader = {};
+    }
+};
+Pads pads;
+
 }  // namespace
 
 struct Window {
@@ -129,6 +177,7 @@ struct Window {
     std::string             shape = "default";
     bool                    typing = false;
     std::deque<std::string> synthesized_text;  // text of synthesized events, alive until polled
+    std::vector<InputEvent> synthesized_pads;  // gamepad events as given, delivered at the next poll
     std::function<WindowArea(Point)> hit;      // a frameless window's parts (set_hit_test)
 
     // Window coordinates → logical pixels.
@@ -148,6 +197,7 @@ void WindowDeleter::operator()(Window* w) const noexcept {
     delete w;
     if (--windows_open == 0) {
         sdl_ready = false;
+        pads.close_all();
         SDL_Quit();
     }
 }
@@ -163,6 +213,9 @@ std::expected<WindowPtr, std::string> open(const WindowOptions& o) {
         if (!o.video_driver.empty()) SDL_ResetHint(SDL_HINT_VIDEO_DRIVER);
         if (!initialised) return std::unexpected(std::format("SDL_Init: {}", SDL_GetError()));
         wake_event = SDL_RegisterEvents(1);
+        // Gamepads, hot-plugged, through SDL's mapping database; a machine
+        // without the subsystem (or without permission) simply has none.
+        (void)SDL_InitSubSystem(SDL_INIT_GAMEPAD);
         sdl_ready = true;
     }
     ++windows_open;
@@ -463,12 +516,41 @@ Polled poll(Window& w, bool wait, std::optional<std::chrono::milliseconds> timeo
                 out.events.push_back(pe);
                 break;
             }
+            case SDL_EVENT_GAMEPAD_ADDED:
+                if (SDL_Gamepad* pad = SDL_OpenGamepad(e.gdevice.which)) {
+                    pads.open.emplace_back(e.gdevice.which, pad);
+                    const char* n = SDL_GetGamepadName(pad);
+                    pads.reader.connect(e.gdevice.which, n ? n : "", out.events);
+                }
+                break;
+            case SDL_EVENT_GAMEPAD_REMOVED:
+                pads.reader.disconnect(e.gdevice.which, out.events);
+                for (auto it = pads.open.begin(); it != pads.open.end(); ++it)
+                    if (it->first == e.gdevice.which) {
+                        SDL_CloseGamepad(it->second);
+                        pads.open.erase(it);
+                        break;
+                    }
+                break;
+            case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
+            case SDL_EVENT_GAMEPAD_BUTTON_UP:
+                if (const auto b = pad_button_of(e.gbutton.button)) pads.reader.button(e.gbutton.which, *b, e.gbutton.down, out.events);
+                break;
+            case SDL_EVENT_GAMEPAD_AXIS_MOTION:
+                // Sticks −32768 … 32767 (y down, as the spec's), triggers 0 … 32767.
+                if (const auto a = pad_axis_of(e.gaxis.axis))
+                    pads.reader.axis(e.gaxis.which, *a, std::max(-1.0f, static_cast<float>(e.gaxis.value) / 32767.0f), out.events);
+                break;
             default:
                 break;  // the wake event, and what openmui does not use
         }
         have = SDL_PollEvent(&e);
     }
     w.synthesized_text.clear();
+    if (!w.synthesized_pads.empty()) {
+        out.events.insert(out.events.end(), w.synthesized_pads.begin(), w.synthesized_pads.end());
+        w.synthesized_pads.clear();
+    }
     return out;
 }
 
@@ -588,6 +670,10 @@ void synthesize(Window& w, std::span<const InputEvent> events) {
                 } else if constexpr (std::same_as<T, CloseRequestEvent>) {
                     e.type = SDL_EVENT_WINDOW_CLOSE_REQUESTED;
                     e.window.windowID = id;
+                } else if constexpr (std::same_as<T, GamepadEvent>) {
+                    // No device of SDL's: delivered at the next poll as given; the wake makes a sleeping loop poll.
+                    w.synthesized_pads.push_back(x);
+                    e.type = wake_event;
                 } else {
                     push = false;
                 }

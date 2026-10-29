@@ -29,7 +29,16 @@ std::string_view handler_name(const InputEvent& e) {
             else if constexpr (std::same_as<T, TextEvent>) return "text_input";
             else if constexpr (std::same_as<T, PreeditEvent>) return "preedit";
             else if constexpr (std::same_as<T, FocusEvent>) return x.gained ? "focus" : "blur";
-            else return {};
+            else if constexpr (std::same_as<T, GamepadEvent>) {
+                switch (x.kind) {
+                    case GamepadKind::connected:    return "gamepad_connect";
+                    case GamepadKind::disconnected: return "gamepad_disconnect";
+                    case GamepadKind::down:         return "gamepad_down";
+                    case GamepadKind::up:           return "gamepad_up";
+                    case GamepadKind::axis:         return "gamepad_axis";
+                }
+                return "gamepad_axis";
+            } else return {};
         },
         e);
 }
@@ -43,8 +52,9 @@ bool is_pointer_kind(const InputEvent& e, PointerKind k) {
 
 std::span<const std::string_view> runtime_events() noexcept {
     // handler_name's events, the root's close request, and the activation handlers.
-    static constexpr std::array<std::string_view, 16> events{
-        "activate", "blur", "close_request", "focus", "key_down", "key_up", "pointer_cancel", "pointer_down", "pointer_enter",
+    static constexpr std::array<std::string_view, 21> events{
+        "activate", "blur", "close_request", "focus", "gamepad_axis", "gamepad_connect", "gamepad_disconnect", "gamepad_down",
+        "gamepad_up", "key_down", "key_up", "pointer_cancel", "pointer_down", "pointer_enter",
         "pointer_leave", "pointer_move", "pointer_up", "preedit", "press", "text_input", "wheel"};
     return events;
 }
@@ -75,8 +85,8 @@ void Runtime::Impl::dispatch(const InputEvent& e) {
             if constexpr (std::same_as<T, PointerEvent>) pointer_event(x);
             else if constexpr (std::same_as<T, WheelEvent>) wheel_event(x);
             else if constexpr (std::same_as<T, KeyEvent>) key_event(x);
-            else if constexpr (std::same_as<T, TextEvent> || std::same_as<T, PreeditEvent>)
-                deliver(alive(focus) ? focus : root, e, pointer, true);
+            else if constexpr (std::same_as<T, TextEvent> || std::same_as<T, PreeditEvent> || std::same_as<T, GamepadEvent>)
+                deliver(alive(focus) ? focus : root, e, pointer, true);  // a gamepad, as the keyboard: to the focus
             else if constexpr (std::same_as<T, FocusEvent>) {
                 if (!x.gained) {
                     // The window lost focus: nothing stays pressed or captured.

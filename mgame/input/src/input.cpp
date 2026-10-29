@@ -30,8 +30,15 @@ void Sampler::key(std::uint32_t code, bool down) {
 }
 
 void Sampler::pad_button(std::int32_t index, bool down) {
+    if (index < 0 || index >= 64) return;
+    const std::uint64_t bit = std::uint64_t{1} << index;
+    if (down == ((pads_down_ & bit) != 0)) return;  // nothing changed
+    pads_down_ = down ? pads_down_ | bit : pads_down_ & ~bit;
     for (const auto& p : b_.pads_)
-        if (p.source == static_cast<std::uint32_t>(index)) button(p.button, down);
+        if (p.source == static_cast<std::uint32_t>(index)) {
+            if (p.button >= 0) button(p.button, down);
+            if (p.axis >= 0 && p.axis < 4) key_axes_[static_cast<std::size_t>(p.axis)] += down ? p.sign : -p.sign;
+        }
 }
 
 void Sampler::mouse(std::int32_t button, bool down) {
@@ -57,6 +64,7 @@ void Sampler::wheel(std::int32_t notches) { wheel_ += notches; }
 void Sampler::clear() {
     for (std::int32_t i = 0; i < 32; ++i) button(i, false);
     keys_down_.clear();
+    pads_down_ = 0;
     key_axes_ = {};
     pad_axes_ = {};
 }

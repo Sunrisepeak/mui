@@ -59,7 +59,9 @@ private:
     void changed();  // repaint, and tell agents
     void start_round();
     [[nodiscard]] gongfu::Pad keyboard(std::int32_t player) const;
+    [[nodiscard]] gongfu::Pad gamepad(std::int32_t player) const;
     [[nodiscard]] gongfu::Pad pad_of(std::int32_t player) const;
+    bool on_gamepad(const GamepadEvent& g);
 
     std::unique_ptr<gongfu::Match>        match_;
     std::size_t                           left_ = 0, right_ = 0;  // the fighters, by their place in the roster
@@ -70,6 +72,13 @@ private:
     std::map<std::string, render::ImageRef, std::less<>> normals_;  // their reliefs, by the same file
     gongfu::present2d::Effects            effects_;
     std::set<Key>                         held_;
+    // The players' gamepads: the first two connected, each in the seat it took.
+    struct Gamepad {
+        std::optional<std::uint32_t>             device;
+        std::array<bool, gamepad_buttons>        held{};
+        float                                    x = 0, y = 0;  // the left stick
+    };
+    std::array<Gamepad, 2>                    gamepads_{};
     std::array<std::optional<gongfu::Pad>, 2> agent_{};
     gongfu::training::Readout             readout_;
     Sounds                                sounds_;

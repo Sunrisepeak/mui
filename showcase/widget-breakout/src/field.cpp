@@ -24,6 +24,11 @@ mgame::Bindings bindings() {
     b.key(mgame::ui::code(Key::space), mgame::Button{launch_button});
     b.key(mgame::ui::code(Key::z), mgame::Button{look_button});  // a tall room: all of it while held
     b.mouse(1, mgame::Button{launch_button});
+    // Any gamepad: the left stick and the d-pad move the paddle, south (A, Cross) launches.
+    b.pad_axis(mgame::ui::pad(GamepadAxis::left_x), mgame::Axis{0, 1});
+    b.pad_button(mgame::ui::pad(GamepadButton::dpad_left), mgame::Axis{0, -1});
+    b.pad_button(mgame::ui::pad(GamepadButton::dpad_right), mgame::Axis{0, 1});
+    b.pad_button(mgame::ui::pad(GamepadButton::south), mgame::Button{launch_button});
     return b;
 }
 

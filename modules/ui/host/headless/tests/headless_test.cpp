@@ -91,6 +91,31 @@ int main(int argc, char** argv) {
         check(h.settle() == 1, "already settled: one frame");
     });
 
+    s.test("a gamepad, injected: to the focus as the keyboard's keys go, its handlers by name, from its JSON form", [] {
+        Headless h(at(HeadlessLevel::layout));
+        std::vector<std::string> got;
+        auto log = [&](std::string what) { return [&got, what](const Value& v) { got.push_back(what + " " + v.json()); }; };
+        Element player = painter({.id = "player", .width = 40, .height = 40, .focusable = true});
+        for (std::string_view e : {"connect", "down", "up", "axis", "disconnect"}) player.on(std::format("gamepad_{}", e), log(std::string(e)));
+        h.mount("main", column({}, {std::move(player)}));
+        h.step();
+        h.runtime().focus(h.runtime().find("main/player"));
+        std::vector<InputEvent> events;
+        for (std::string_view json : {R"({"type":"gamepad","kind":"connected","device":2,"name":"pad"})",
+                                      R"({"type":"gamepad","kind":"down","device":2,"button":"south"})",
+                                      R"({"type":"gamepad","kind":"axis","device":2,"axis":"leftX","value":-0.5})",
+                                      R"({"type":"gamepad","kind":"up","device":2,"button":"south"})",
+                                      R"({"type":"gamepad","kind":"disconnected","device":2})"})
+            events.push_back(*event_from_value(*parse_json(json)));
+        h.step(events);
+        check(got.size() == 5, std::format("{}", got));
+        if (got.size() != 5) return;
+        check(got[0].starts_with("connect ") && got[0].contains(R"("name":"pad")"), got[0]);
+        check(got[1].starts_with("down ") && got[1].contains(R"("button":"south")"), got[1]);
+        check(got[2].starts_with("axis ") && got[2].contains(R"("value":-0.5)"), got[2]);
+        check(got[3].starts_with("up ") && got[4].starts_with("disconnect "), got[4]);
+    });
+
     s.test("pixels, PNG, regions, and the node behind a pixel", [] {
         Headless h(at(HeadlessLevel::pixels));
         Counter c;

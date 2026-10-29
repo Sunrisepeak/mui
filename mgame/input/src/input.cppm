@@ -50,6 +50,7 @@ public:
     void key(std::uint32_t code, Button b) { keys_.push_back({code, b.index, -1, 0}); }
     void key(std::uint32_t code, Axis a) { keys_.push_back({code, -1, a.index, a.sign}); }
     void pad_button(std::int32_t index, Button b) { pads_.push_back({static_cast<std::uint32_t>(index), b.index, -1, 0}); }
+    void pad_button(std::int32_t index, Axis a) { pads_.push_back({static_cast<std::uint32_t>(index), -1, a.index, a.sign}); }  // a d-pad
     void pad_axis(std::int32_t index, Axis a) { axes_.push_back({static_cast<std::uint32_t>(index), -1, a.index, a.sign}); }
     void mouse(std::int32_t button, Button b) { mice_.push_back({static_cast<std::uint32_t>(button), b.index, -1, 0}); }  // 1 left, 2 right, 3 middle
     void pointer_x(Axis a) { pointer_x_ = a; }
@@ -83,6 +84,7 @@ private:
     Bindings                          b_;
     std::uint32_t                     held_ = 0, pressed_ = 0, released_ = 0;
     std::vector<std::uint32_t>        keys_down_;
+    std::uint64_t                     pads_down_ = 0;  // pad buttons held (by index < 64)
     std::array<double, 8>             pad_axes_{};
     std::array<std::int32_t, 4>       key_axes_{};
     std::int16_t                      px_ = -1, py_ = -1;

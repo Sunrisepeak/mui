@@ -387,6 +387,8 @@ int main(int argc, char** argv) {
 
     s.test("the site's pixels pinned on every platform: home, the overview, the wireframe, the agent's JSON, the works, an agent asking, Chinese, the page's time dragged back", [] {
         Site a;
+        // Fixed spans of time, not "until quiet": how many frames a platform
+        // takes to settle differs a little, and the foot draws the page's time.
         const auto dir = scratch_dir("site");
         Hash all;
         // Each picture's own hash said too: a platform that differs shows which.
@@ -400,28 +402,28 @@ int main(int argc, char** argv) {
         // The overview: every place a window on the atlas, the camera flown out.
         check(a.h.click("main/body/nav/to_overview"));
         a.h.move({4, 796});
-        a.h.settle(seconds(3));
+        a.h.advance(seconds(3));
         shot("overview.png");
         check(a.h.click("main/body/nav/to_home"));
         a.h.move({4, 796});
-        a.h.settle(seconds(3));
+        a.h.advance(seconds(3));
         check(a.h.click("main/bar/lens_tree"));
         a.h.advance(seconds(0.3));
-        a.h.settle(seconds(0.1));
+        a.h.advance(seconds(0.1));
         shot("tree.png");
         check(a.h.click("main/bar/lens_agent"));
         a.h.advance(seconds(0.3));
-        a.h.settle(seconds(0.1));
+        a.h.advance(seconds(0.1));
         shot("agent.png");
         check(a.h.click("main/bar/lens_pixels"));
         check(a.h.click("main/body/nav/to_timeline"));
         a.h.move({4, 796});
-        a.h.settle();
+        a.h.advance(seconds(2));
         shot("timeline.png");
         for (std::string_view work : {"wall", "hello"}) {
             check(a.h.click(std::format("main/body/nav/to_{}", work)));
             a.h.move({4, 796});
-            a.h.settle(seconds(3));
+            a.h.advance(seconds(3));
             shot(std::format("{}.png", work));
         }
         // The agent asks before something external (S-11), the answer the person's alone (S-10).
@@ -430,25 +432,25 @@ int main(int argc, char** argv) {
         check(a.h.click("main/body/guide/tasks/task_link"));
         a.h.advance(seconds(3));
         a.h.move({4, 796});
-        a.h.settle(seconds(1));
+        a.h.advance(seconds(1));
         shot("agent-asks.png");
         check(a.h.click("main/body/guide/asking/answer/deny"));
         check(a.h.click("main/bar/guide_toggle"));
         check(a.h.click("main/body/nav/to_home"));
-        a.h.settle(seconds(3));
+        a.h.advance(seconds(3));
         const double switched = a.h.runtime().now().count();
         check(a.h.click("main/bar/lang"));
         a.h.move({4, 796});
-        a.h.settle();
+        a.h.advance(seconds(2));
         shot("zh.png");
         // The page's time dragged back into the switch: the letters gathering again, paused.
         Invocation person;
         person.args = Value{}.set("value", Value(switched + 0.15));
         check(a.h.tree().act("main/foot/time", "set_value", person).exit_code() == std::optional<int>(0));
-        a.h.settle(seconds(1));
+        a.h.advance(seconds(1));
         shot("time.png");
         std::println("    pixels {}", all.hex());
-        check_eq(all.hex(), std::string("31b4de93c48e4152"));
+        check_eq(all.hex(), std::string("d1a5dd468937b95b"));
     });
 
     s.test("the static page: every place's HTML, md4c-html's bytes, in a page that hides it once the program runs", [] {

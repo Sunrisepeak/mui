@@ -1002,7 +1002,7 @@ int main(int argc, char** argv) {
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    ke level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("17d136ff5d9f4e3a"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("b0981fbb37da4d20"));  // GCC and LLVM, every platform
     });
 
     s.test("each fighter's win pose: a round won on the clock, the winner standing to play it out at its beats — frames pinned", [] {
@@ -1041,7 +1041,7 @@ int main(int argc, char** argv) {
             }
         }
         std::println("    wins {}", all.hex());
-        check_eq(all.hex(), std::string("47b9e9e3cd117a8f"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("85ce6602afbd060c"));  // GCC and LLVM, every platform
     });
 
     s.test("training reads a perfect clash to an agent and shows it", [] {

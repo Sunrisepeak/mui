@@ -217,8 +217,8 @@ int main(int argc, char** argv) {
         check(std::ranges::any_of(fx.kept(), [](const p2::Effects::Kept& k) { return k.event.kind == Event::Kind::hit; }), "the jab landed");
         check(pixels[0] != pixels[1] && pixels[1] != pixels[2], "each frame differs");
         std::println("    present2d lists {:016x} {:016x} {:016x} pixels {:016x} {:016x} {:016x}", lists[0], lists[1], lists[2], pixels[0], pixels[1], pixels[2]);
-        check(lists == std::vector<std::uint64_t>{0x8a625a353d3b0427ULL, 0xcc7114f61e4e9585ULL, 0x196d8fbba48340b1ULL}, "lists pinned");
-        check(pixels == std::vector<std::uint64_t>{0xe4f8cfc3c89e5a5eULL, 0xa7e8888a4081dbdfULL, 0x7f55413f890348b2ULL}, "pixels pinned");
+        check(lists == std::vector<std::uint64_t>{0x2bc57d3dbc61c26bULL, 0x80e98231d906210aULL, 0x60ca589059e2ffb2ULL}, "lists pinned");
+        check(pixels == std::vector<std::uint64_t>{0x63cbb3e2c177a1bcULL, 0x94b2608af7e6ac66ULL, 0xa8ef2d37eb4b6200ULL}, "pixels pinned");
     });
 
     s.test("after a rollback the frame is drawn again the same: the picture is the state's", [&] {
@@ -1086,6 +1086,9 @@ width = 400
         const std::string written = p2::write_stage(*st);
         auto again = p2::read_stage(written, "written.stage.gongfu.toml");
         check(again && p2::write_stage(*again) == written, again ? written : std::format("{}", texts(again.error())));
+        // The fighters' contact shadows in the stage's colour: read, and written back.
+        auto shaded = p2::read_stage(text.substr(0, text.find("\n[[picture]]")) + "contact = \"#10203080\"\n", "shaded.stage.gongfu.toml");
+        check(shaded && std::abs(shaded->contact.a - 128 / 255.0f) < 1e-6f && p2::write_stage(*shaded).contains("contact = "), "contact read and written");
         // A picture: its left half red, its right half blue.
         omui::render::ImageStore images;
         std::vector<omui::raster::Rgba8> px(64 * 32);
@@ -1339,7 +1342,7 @@ spark = { style = "rays", colour = "#ffd166" }
         Hash h;
         h.u64(dl.hash());
         std::println("    panes {}", h.hex());
-        check_eq(h.hex(), std::string("62e5a7979533bae1"));
+        check_eq(h.hex(), std::string("50533a6966aaed3f"));
         // A pane's colours read back from a look file.
         auto look = p2::read_look("pane = { glass = \"#9fd8ff4c\", edge = \"#ffffffcc\", shine = \"#ffffff80\", reflect = \"#ffd36be6\" }\n" +
                                       read(here() / "data" / "kata.look.gongfu.toml"),
@@ -1447,7 +1450,7 @@ spark = { style = "rays", colour = "#ffd166" }
         }
         check_eq(std::set<std::uint64_t>(lists.begin(), lists.end()).size(), lists.size());
         std::println("    sparks {}", all.hex());
-        check_eq(all.hex(), std::string("4430d1e7d6e9b010"));
+        check_eq(all.hex(), std::string("bf3e3b2b5499bef8"));
     });
 
     s.test("the training fighter's look, every clip at three moments: a contact sheet (saved), its picture pinned", [] {

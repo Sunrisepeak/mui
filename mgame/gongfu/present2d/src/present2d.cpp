@@ -436,8 +436,8 @@ Camera frame_camera(const Match& match, const Scene& scene) {
     const auto& a = match.state().f[0];
     const auto& b = match.state().f[1];
     const double x0 = stage(a.pos.x), x1 = stage(b.pos.x);
-    const double apart = std::abs(x1 - x0) + 420;  // room for both bodies
-    const double zoom = std::clamp(scene.width / apart, 0.55, 1.15);
+    const double apart = std::abs(x1 - x0) + 380;  // room for both bodies
+    const double zoom = std::clamp(scene.width / apart, 0.55, 1.35);  // close in: the fighters about 43% of the picture's height
     const double half = scene.width / 2 / zoom, width = stage(match.system().stage_width);
     const double x = std::clamp((x0 + x1) / 2, half, std::max(half, width - half));
     const double high = std::max(stage(a.pos.y), stage(b.pos.y));
@@ -1164,6 +1164,22 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
             const Point p = view.at(m, 0);
             if (p.x >= -4 && p.x <= scene.width + 4) out.fill_rect({p.x - 1, p.y, 2, view.size(14)}, fade(line, 0.6));
         }
+    // Each fighter's contact shadow on the floor: soft (rings, darkest in the middle), smaller and fainter
+    // the higher it is off the ground. Not in a cinematic: its bodies stand where its path puts them.
+    if (const Color contact = art ? art->contact : Stage{}.contact; contact.a > 0 && !cine) {
+        render::Path ring;
+        for (const FighterState& f : st.f) {
+            const double up = std::max(0.0, stage(f.pos.y));
+            const double k = std::clamp(1 - up / 260, 0.35, 1.0);
+            const Point c = view.at(stage(f.pos.x), 0);
+            for (int r = 0; r < 4; ++r) {
+                const double s = 1.0 - 0.2 * r;
+                ring.clear();
+                ellipse(ring, c, 0, view.size(static_cast<float>(52 * k * s)), view.size(static_cast<float>(9 * k * s)));
+                out.fill_path(ring, render::FillRule::nonzero, render::Paint::solid(fade(contact, contact.a * k * 0.3)));
+            }
+        }
+    }
 
     // A cinematic's backdrop over the stage, fading in and out.
     if (cine) {

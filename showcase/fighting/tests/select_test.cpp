@@ -124,7 +124,7 @@ int main(int argc, char** argv) {
         a.h.advance(seconds(5));
         check(a.select().phase() == std::string_view("fighters") && a.stage().props.paused, "back to the select screen");
         std::println("    rounds {:016x}", won);
-        check_eq(won, std::uint64_t{0x5517773ec85c6199});  // GCC and LLVM
+        check_eq(won, std::uint64_t{0xaa8cb9f6a0fff7df});  // GCC and LLVM
     });
 
     s.test("the title and the select screen, pinned: the logo over the study, the modes; the roster, both fighters' previews, VS", [] {

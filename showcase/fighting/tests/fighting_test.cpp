@@ -341,7 +341,7 @@ int main(int argc, char** argv) {
         check(g.h.save_png(dir / "study.png").has_value());
         const auto px = g.pixels();
         std::println("    study {:016x}", px);
-        check_eq(px, std::uint64_t{0xbc25e34e37788c52});  // GCC and LLVM
+        check_eq(px, std::uint64_t{0x51c1b1390d24617f});  // GCC and LLVM
     });
 
     s.test("霓's home, the street: a neon skyline, the alley's shopfronts and a noodle stall, the wet road giving the neon back, rain in front and behind — pinned", [] {
@@ -350,7 +350,7 @@ int main(int argc, char** argv) {
         check(g.h.save_png(scratch_dir("fighting-street") / "street.png").has_value());
         const auto px = g.pixels();
         std::println("    street {:016x}", px);
-        check_eq(px, std::uint64_t{0x9511a7f9470f0900});  // GCC and LLVM
+        check_eq(px, std::uint64_t{0x68ac847b5a5b78c7});  // GCC and LLVM
     });
 
     s.test("坤's home, the rooftop: a dusk sky over the skyline, a water tower, a billboard and a fence hung with string lights, court lines on wet concrete — pinned", [] {
@@ -359,7 +359,7 @@ int main(int argc, char** argv) {
         check(g.h.save_png(scratch_dir("fighting-rooftop") / "rooftop.png").has_value());
         const auto px = g.pixels();
         std::println("    rooftop {:016x}", px);
-        check_eq(px, std::uint64_t{0xcd6fb3879929b1b3});  // GCC and LLVM
+        check_eq(px, std::uint64_t{0x77157dfc59f370be});  // GCC and LLVM
     });
 
     s.test("璃's home, the greenhouse: a misty garden through bending panes, white iron arches with palms and hanging ferns, wet tile catching the light, a fountain and a stand of terrariums — pinned with 墨 and 霓 on it", [] {
@@ -368,7 +368,7 @@ int main(int argc, char** argv) {
         check(g.h.save_png(scratch_dir("fighting-greenhouse") / "greenhouse.png").has_value());
         const auto px = g.pixels();
         std::println("    greenhouse {:016x}", px);
-        check_eq(px, std::uint64_t{0xbde17fee5c1c1cee});  // GCC and LLVM
+        check_eq(px, std::uint64_t{0x74a48383d8e5ebff});  // GCC and LLVM
     });
 
     s.test("岳's home, the gate: a sea of clouds at sunset framed by a stone gateway, guardian lions and banners, worn granite, an incense cauldron and a great bell — pinned with 墨 and 霓 on it", [] {
@@ -377,7 +377,7 @@ int main(int argc, char** argv) {
         check(g.h.save_png(scratch_dir("fighting-gate") / "gate.png").has_value());
         const auto px = g.pixels();
         std::println("    gate {:016x}", px);
-        check_eq(px, std::uint64_t{0xa26f78bceff397e6});  // GCC and LLVM
+        check_eq(px, std::uint64_t{0x2a041dbda6e6ae29});  // GCC and LLVM
     });
 
     s.test("刻's home, the clock: the back of a glowing dial, gears and a pendulum over a catwalk, a brass compass in the floorboards, a clockmaker's bench and a grandfather clock — pinned with 墨 and 霓 on it", [] {
@@ -386,7 +386,7 @@ int main(int argc, char** argv) {
         check(g.h.save_png(scratch_dir("fighting-clock") / "clock.png").has_value());
         const auto px = g.pixels();
         std::println("    clock {:016x}", px);
-        check_eq(px, std::uint64_t{0x9c3bed58ab0048f6});  // GCC and LLVM
+        check_eq(px, std::uint64_t{0x1082c78df8ec6766});  // GCC and LLVM
     });
 
     s.test("the README's loop: 墨's level 3 in her study, from the flash's cut-in to the finishing blow, an animated WebP under 1 MB", [] {
@@ -448,7 +448,7 @@ int main(int argc, char** argv) {
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    mo level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("7e9829427e6efed5"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("19235ebe402ee533"));  // GCC and LLVM, every platform
     });
 
     s.test("墨's ink: waves of three sizes flung from the brush, and her level 2's tide along the floor — frames pinned", [] {
@@ -480,7 +480,7 @@ int main(int argc, char** argv) {
         }
         check_eq(saved, 8);
         std::println("    mo glyphs {}", all.hex());
-        check_eq(all.hex(), std::string("39f676ed6bde0dd6"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("6b7db49871f74060"));  // GCC and LLVM, every platform
     });
 
     s.test("霓's afterimages and her level 3: the collar taken, two knees to the gut and a headbutt while held, heaved overhead, four kicks in the air, the axe kick into the street — frames pinned", [] {
@@ -529,7 +529,7 @@ int main(int argc, char** argv) {
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    ni level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("819f3b4fc843cce0"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("7b451696a6e5a1e6"));  // GCC and LLVM, every platform
     });
 
     s.test("坤's level 3: the ball spun on a finger, the bounce pass into the gut, the glide and 铁山靠, the catch behind his back as they crash down behind him — frames pinned", [] {
@@ -565,7 +565,7 @@ int main(int argc, char** argv) {
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    kun level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("ca7cfad7334fb6f9"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("4f53a8510723272a"));  // GCC and LLVM, every platform
     });
 
     s.test("岳 as designed: every normal's and elbow's startup and advantage, measured in the simulation (characters 2 design §3)", [] {
@@ -674,7 +674,7 @@ int main(int argc, char** argv) {
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    yue level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("6a3886b1bc134346"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("e6e10769896fdb3d"));  // GCC and LLVM, every platform
     });
 
     s.test("璃 as designed: every normal's and 「棱光」's startup and advantage, measured in the simulation (characters 2 design §2)", [] {
@@ -805,7 +805,7 @@ int main(int argc, char** argv) {
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    li panes {}", all.hex());
-        check_eq(all.hex(), std::string("0358f2ed96ae81a0"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("4eeb2102a9cc3279"));  // GCC and LLVM, every platform
     });
 
     s.test("璃's level 3, 「琉璃界」: her eyes through cracking glass; panes about them as the world turns to glass; strikes from in front and from behind through her panes, each breaking glass and leaving a crack; the palm through the last pane, everything falling, her finishing picture — frames pinned", [] {
@@ -838,7 +838,7 @@ int main(int argc, char** argv) {
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    li level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("ab8994efcfa9dd1a"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("77c216e082c09f43"));  // GCC and LLVM, every platform
     });
 
     s.test("刻 as designed: every normal's, 「停摆」's and 「拨针」's startup and advantage, measured in the simulation (characters 2 design §4)", [] {
@@ -969,7 +969,7 @@ int main(int argc, char** argv) {
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    ke time {}", all.hex());
-        check_eq(all.hex(), std::string("badfece8179e67be"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("ece7223b3c45b615"));  // GCC and LLVM, every platform
     });
 
     s.test("刻's level 3, 「零时」: time stops — the picture grey, a clock's hands standing, ten hits' sparks hanging — then the bell — frames pinned", [] {
@@ -1002,7 +1002,7 @@ int main(int argc, char** argv) {
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    ke level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("6d73dda6ee9eb009"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("17d136ff5d9f4e3a"));  // GCC and LLVM, every platform
     });
 
     s.test("training reads a perfect clash to an agent and shows it", [] {
@@ -1248,7 +1248,7 @@ int main(int argc, char** argv) {
         std::println("    fighting versus {:016x} training {:016x}", px[0], px[1]);
         check(px[0] != px[1], "training draws the boxes");
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
-        check(px == std::vector<std::uint64_t>{0xff94fc0ee5607f40ULL, 0xfcd9a7a670224250ULL}, "pinned");
+        check(px == std::vector<std::uint64_t>{0x82097ed0a940b732ULL, 0x5233bbaccdac3381ULL}, "pinned");
     });
 
     return s.run(argc, argv);

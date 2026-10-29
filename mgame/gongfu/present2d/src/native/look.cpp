@@ -1897,6 +1897,7 @@ std::string write_look(const Look& look) {
 //     line = "#2e2119"
 //     marks = false
 //     light = { from = [-0.7, -0.7], shadow = "#2a1d14", rim_color = "#fff2d0aa" }
+//     contact = "#00000080"                 # the fighters' contact shadows (transparent: none)
 //
 //     [[layer]]
 //     name = "window"
@@ -1922,7 +1923,7 @@ std::string write_look(const Look& look) {
 
 namespace {
 
-constexpr std::array<std::string_view, 9> stage_keys{"gongfu", "name", "sky", "floor", "line", "marks", "light", "layer", "picture"};
+constexpr std::array<std::string_view, 10> stage_keys{"gongfu", "name", "sky", "floor", "line", "marks", "light", "contact", "layer", "picture"};
 constexpr std::array<std::string_view, 7> stage_image_keys{"picture", "source", "at", "width", "height", "flip", "flicker"};
 constexpr std::array<std::string_view, 3> stage_light_keys{"from", "shadow", "rim_color"};
 constexpr std::array<std::string_view, 12> layer_keys{"name", "parallax", "repeat", "opacity", "front", "clip", "shape", "bamboo", "lattice", "planks", "rain", "image"};
@@ -2061,6 +2062,7 @@ std::expected<Stage, std::vector<Diagnostic>> read_stage(std::string_view source
     if (auto c = r.colour(root->get("floor"), "`floor`")) st.floor = *c;
     if (auto c = r.colour(root->get("line"), "`line`")) st.line = *c;
     if (auto m = r.boolean(root->get("marks"), "`marks`")) st.marks = *m;
+    if (auto c = r.colour(root->get("contact"), "`contact` (the fighters' shadows)")) st.contact = *c;
     if (const toml::table* t = r.table_of(root->get("light"), "`light`")) {
         r.only(*t, stage_light_keys, "a stage's `light`");
         if (auto f = r.pair(t->get("from"), "a light's `from`", "from = [-0.7, -0.7]")) {
@@ -2227,6 +2229,8 @@ std::string write_stage(const Stage& st) {
     std::string s = std::format("gongfu = \"{}\"\nname = \"{}\"\nsky = [{}, {}]\nfloor = {}\nline = {}\n", format_version, st.name, colour_text(st.sky_top),
                                 colour_text(st.sky_bottom), colour_text(st.floor), colour_text(st.line));
     if (!st.marks) s += "marks = false\n";
+    if (const Color d = Stage{}.contact; st.contact.r != d.r || st.contact.g != d.g || st.contact.b != d.b || st.contact.a != d.a)
+        s += std::format("contact = {}\n", colour_text(st.contact));
     if (st.light_from || st.shadow || st.rim_color) {
         std::string parts;
         if (st.light_from) parts += std::format("from = [{}, {}]", st.light_from->x, st.light_from->y);

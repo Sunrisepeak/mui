@@ -462,9 +462,16 @@ void versus(render::DisplayList& out, const gongfu::Match& match, const p2::Effe
         // Unmirrored things: the meter's level, the name.
         const auto x_of = [&](float x) { return i == 0 ? x : width - x; };
         {
+            // The level, bright gold over a cyan glow that breathes while a super is ready; a dim zero otherwise.
             const std::int32_t level = std::clamp(f.meter / 1000, 0, 3);
-            const float pulse = level > 0 ? 0.75f + 0.25f * static_cast<float>(hanim::dm::sin(frame * 0.2)) : 0.45f;
-            digits(out, art.type, level, {x_of(meter_x + plate.x * meter_scale), meter_y + plate.y * meter_scale}, 22, tone(level > 0 ? 0xffd36b : 0x8a7a55), pulse);
+            const Point at{x_of(meter_x + plate.x * meter_scale), meter_y + plate.y * meter_scale};
+            if (level > 0) {
+                const float pulse = 0.5f + 0.5f * static_cast<float>(hanim::dm::sin(frame * 0.2));
+                const float r = 13;
+                out.box_shadow({at.x - r, at.y - r, 2 * r, 2 * r}, CornerRadii::all(r), {0, 0}, 8 + 6 * pulse, 1,
+                               tone(0x7fe3ff, (level == 3 ? 0.55f : 0.35f) + 0.25f * pulse));
+            }
+            digits(out, art.type, level, at, 28, tone(level > 0 ? 0xffe6a0 : 0x8a7a55), level > 0 ? 1.0f : 0.6f);
         }
         const auto nm = std::ranges::find(region::name, names[static_cast<std::size_t>(i)], &std::pair<std::string_view, Rect>::first);
         if (nm != region::name.end()) {

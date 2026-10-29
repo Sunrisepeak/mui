@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The Toy row (D-84 §6.5, §8.9): the games built for wasm32-emscripten and
-# packaged for Bilibili Toy (`mcpp pack --pkg-format dist-toy`, openmui.rules'
+# packaged for Bilibili Toy (`mcpp pack --format dist-toy` — `--pkg-format` in newer mcpp, openmui.rules'
 # dist_toy()), each checked by Toy's own toy_doctor.py — pinned to
 # github.com/bilibili/toy at ae156ec (MIT), downloaded into the build
 # directory and held to its sha256. Every package's sizes are printed; Toy's
@@ -35,7 +35,7 @@ failed=0
 for p in "${packages[@]}"; do
     echo "toy: $p"
     envelope="$out/$p.pack.json"
-    if ! "$mcpp" pack -p "$p" --target wasm32-emscripten --release --pkg-format dist-toy --message-format json > "$envelope"; then
+    if ! "$mcpp" pack -p "$p" --target wasm32-emscripten --release --format dist-toy --message-format json > "$envelope"; then
         echo "::error::$p did not pack for Toy"
         failed=1
         continue

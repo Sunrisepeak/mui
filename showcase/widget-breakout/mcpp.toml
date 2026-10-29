@@ -24,7 +24,9 @@ kind = "bin"
 main = "src/main.cpp"
 
 [build]
-sources = ["src/*.cppm", "src/*.cpp"]
+sources  = ["src/*.cppm", "src/*.cpp"]
+# Its pictures are pinned on every platform: no fused multiply-adds (arm64 would fuse them).
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
 openmui.sdk = { path = "../.." }

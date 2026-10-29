@@ -23,10 +23,6 @@ concurrency:
 
 env:
   XLINGS_VERSION: v2026.10.26.1
-  # The mcpp every row builds with — the one the work was checked with
-  # locally (an index that lags would otherwise give an older one, without
-  # the Toy pack format's staging).
-  MCPP_VERSION: '2026.10.27.1'
   XLINGS_NON_INTERACTIVE: '1'
 
 jobs:
@@ -50,6 +46,9 @@ jobs:
 
       - name: Install mcpp
         run: |
+          # The mcpp every row builds with is the project's (.xlings.json), the one
+          # the work is checked with locally; xlings refuses to use another here.
+          MCPP_VERSION="$(sed -n 's/.*"mcpp": *"\([^"]*\)".*/\1/p' .xlings.json)"
           for attempt in 1 2 3 4 5 6; do
             xlings update > /dev/null 2>&1 || true
             if xlings install "mcpp@$MCPP_VERSION" -y -g && xlings use mcpp "$MCPP_VERSION"; then break; fi

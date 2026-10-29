@@ -98,6 +98,7 @@ struct Part {
     };
     std::vector<Drawing> drawings;
     bool                 mirror = false;  // the art reflected across its anchor-to-tip line (drawn facing the other way)
+    bool                 shown = true;    // drawn unless a clip says (a brush in the hand only while it is drawn)
 };
 
 // How a contact feels, drawn (D-85 §8.4). A fighter file's hits name a
@@ -188,6 +189,7 @@ struct KeyPose {
     std::optional<double>          rise;
     std::map<std::int32_t, double> grip, grip_at, grip_across;     // by grip
     std::map<std::int32_t, double> swap;                           // by part
+    std::map<std::int32_t, double> show;                           // by part: 1 drawn, 0 not
 };
 struct PoseKey {
     std::int32_t               frame = 0;
@@ -212,6 +214,7 @@ struct Clip {
     std::vector<FxAt>                 fx;  // effects played from the fighter's feet as the clip reaches their frames
     std::vector<PoseKey>              keys;  // keyed by poses (its tracks made from them when read)
     std::optional<hanim::Ease>        ease;  // its keys' way to the next, unless a key says (as its file said)
+    std::vector<hanim::Track<double>> shows;  // by part: drawn (1) or not (0), held between keys
 };
 
 // A grip (two-bone IK): the chain `upper` → `lower` (a shoulder and an elbow,

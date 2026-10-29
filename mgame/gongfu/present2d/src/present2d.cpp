@@ -762,6 +762,7 @@ void Painter::body(const Look& look, const Fighter& fighter, const FighterState&
         for (std::size_t k : order_) {
             const Part& part = look.parts[k];
             if (part.bone < 0 || static_cast<std::size_t>(part.bone) >= p.size()) continue;
+            if (clip && k < clip->shows.size() && !clip->shows[k].empty() ? clip->shows[k].value(at) < 0.5 : !part.shown) continue;
             if (part.shape == Shape::image) {  // drawn art: its own outline and light, no pass but the fill
                 std::size_t drawing = 0;  // the drawing a clip's swap chooses (0: its own)
                 if (clip && k < clip->swaps.size() && !clip->swaps[k].empty())

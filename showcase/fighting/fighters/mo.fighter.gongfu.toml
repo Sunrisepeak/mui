@@ -1,8 +1,10 @@
-# 墨 (Mo), the calligrapher: keep-away (gongfu characters design §3).
-# Three speeds of a flung wave of ink hold the ground; a brush that reaches far
-# pokes; 「挑」 takes jumpers out of the air (and only the air); an ink step
-# slips back or forward, but can be thrown. Close up she is slow: her
-# fastest buttons are 4 frames and few of them cancel.
+# 墨 (Mo), the calligrapher: keep-away (gongfu characters design §3; the
+# hardcore combat design §3). Her hands are her brush strokes — two fingers to
+# the face, a knife hand swept across, a palm brought straight down — with long
+# kicks; three speeds of a flung wave of ink hold the ground (the brush drawn
+# from her back for them); 「挑」, a palm swept up, takes jumpers out of the air;
+# an ink step slips back or forward, but can be thrown. Close up she is slow:
+# her fastest buttons are 4 frames and few of them cancel.
 # Units are pixels and frames (1/60 s); every number here is the design's
 # (characters design §3; her supers: posture and supers design §6).
 gongfu = "0.1"
@@ -21,7 +23,7 @@ total = 13
 meter = { gain = 20 }
 [[move.hit]]
 active = [4, 5]
-boxes = [[30, 125, 92, 37]]
+boxes = [[15, 110, 58, 28]]
 damage = 300
 hitstun = 13
 blockstun = 8
@@ -39,7 +41,7 @@ total = 23
 meter = { gain = 40 }
 [[move.hit]]
 active = [7, 9]
-boxes = [[30, 102, 132, 26]]
+boxes = [[20, 100, 65, 30]]
 damage = 600
 hitstun = 18
 blockstun = 13
@@ -57,7 +59,7 @@ total = 36
 meter = { gain = 60 }
 [[move.hit]]
 active = [11, 14]
-boxes = [[30, 40, 132, 80]]
+boxes = [[25, 90, 70, 45]]
 damage = 900
 hitstun = 26
 blockstun = 19
@@ -105,7 +107,7 @@ total = 36
 meter = { gain = 60 }
 [[move.hit]]
 active = [12, 16]
-boxes = [[0, 140, 100, 90]]
+boxes = [[0, 120, 95, 80]]
 damage = 900
 hitstun = 24
 blockstun = 17
@@ -121,7 +123,7 @@ total = 13
 meter = { gain = 20 }
 [[move.hit]]
 active = [4, 5]
-boxes = [[30, 82, 105, 30]]
+boxes = [[15, 70, 55, 25]]
 damage = 250
 hitstun = 12
 blockstun = 8
@@ -140,7 +142,7 @@ total = 21
 meter = { gain = 40 }
 [[move.hit]]
 active = [6, 8]
-boxes = [[30, 105, 126, 44]]
+boxes = [[15, 80, 60, 40]]
 damage = 550
 hitstun = 17
 blockstun = 13
@@ -159,7 +161,7 @@ total = 32
 meter = { gain = 60 }
 [[move.hit]]
 active = [8, 12]
-boxes = [[0, 110, 85, 120]]
+boxes = [[0, 110, 80, 120]]
 damage = 900
 hitstun = 26
 blockstun = 16
@@ -198,7 +200,7 @@ total = 27
 meter = { gain = 40 }
 [[move.hit]]
 active = [8, 10]
-boxes = [[30, 5, 120, 36]]
+boxes = [[20, 0, 100, 25]]
 damage = 600
 hitstun = 20
 blockstun = 14
@@ -218,7 +220,7 @@ total = 38
 meter = { gain = 60 }
 [[move.hit]]
 active = [10, 12]
-boxes = [[15, 0, 130, 32]]
+boxes = [[15, 0, 108, 28]]
 damage = 900
 hitstun = 20
 blockstun = 16
@@ -598,7 +600,7 @@ invulnerable = [[1, 9]]
 meter = { cost = 3000 }
 [[move.hit]]
 active = [7, 9]
-boxes = [[30, 100, 130, 26]]
+boxes = [[20, 95, 90, 40]]
 damage = 300
 hitstun = 40
 blockstun = 28

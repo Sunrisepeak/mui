@@ -344,7 +344,7 @@ int main(int argc, char** argv) {
         check(g.h.save_png(dir / "study.png").has_value());
         const auto px = g.pixels();
         std::println("    study {:016x}", px);
-        check_eq(px, std::uint64_t{0x1b283de00fc9bf30});  // GCC and LLVM
+        check_eq(px, std::uint64_t{0xb8b13b999593507e});  // GCC and LLVM
     });
 
     s.test("霓's home, the street: rain in front and behind, signs humming, the wet road giving them back — pinned", [] {
@@ -353,7 +353,7 @@ int main(int argc, char** argv) {
         check(g.h.save_png(scratch_dir("fighting-street") / "street.png").has_value());
         const auto px = g.pixels();
         std::println("    street {:016x}", px);
-        check_eq(px, std::uint64_t{0xa4470757e07a9358});  // GCC and LLVM
+        check_eq(px, std::uint64_t{0x2ffeecc044927aa4});  // GCC and LLVM
     });
 
     s.test("the README's loop: 墨's level 3 from the flash's cut-in to the finishing blow, an animated WebP under 1 MB", [] {
@@ -413,7 +413,7 @@ int main(int argc, char** argv) {
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    mo level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("326ab1bc0aa0307a"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("caee33e0740e92be"));  // GCC and LLVM, every platform
     });
 
     s.test("墨's ink: waves of three sizes flung from the brush, and her level 2's tide along the floor — frames pinned", [] {
@@ -445,7 +445,7 @@ int main(int argc, char** argv) {
         }
         check_eq(saved, 8);
         std::println("    mo glyphs {}", all.hex());
-        check_eq(all.hex(), std::string("03795e4ecc137799"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("5ea9f6e5959f2242"));  // GCC and LLVM, every platform
     });
 
     s.test("霓's afterimages and her level 3: the eyes cut-in, the neon city, the flurry, the strike cut-in, her finishing picture — frames pinned", [] {
@@ -1044,7 +1044,7 @@ int main(int argc, char** argv) {
             check(rate >= 0.38 && rate <= 0.62, std::format("{} wins {:.2f} of its rounds", r.names[i], rate));
         }
         std::println("    rounds {}", all.hex());
-        check_eq(all.hex(), std::string("d0f429d4807dc95e"));  // the same rounds on GCC and LLVM
+        check_eq(all.hex(), std::string("e4077b3d57950c45"));  // the same rounds on GCC and LLVM
     });
 
     s.test("a stage's music: the study's piece plays from the round's start, louder as the round gets close; none in training's plain room", [] {
@@ -1125,7 +1125,7 @@ int main(int argc, char** argv) {
         const auto w = audio::wav(all, sounds.mixer().rate());
         std::ofstream(scratch_dir("fighting-sound") / "mo-and-yue.wav", std::ios::binary).write(reinterpret_cast<const char*>(w.data()), static_cast<std::streamsize>(w.size()));
         std::println("    fight heard {:016x} ({:.1f} s)", audio::hash(all), static_cast<double>(all.size()) / 2 / sounds.mixer().rate());
-        check_eq(audio::hash(all), std::uint64_t{0x1f80c046a0932523});  // GCC and LLVM, every platform
+        check_eq(audio::hash(all), std::uint64_t{0x24e5f02439ebbe61});  // GCC and LLVM, every platform
     });
 
     s.test("frames pinned: versus and training (boxes and the meter) at a jab's active frame", [] {

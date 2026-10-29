@@ -203,6 +203,8 @@ The tools' openmui interfaces (a rig editor, a pose editor with IK handles, a ti
   - The previews are the fighters' own looks drawn by `gongfu.present2d`'s painter at 1.75× in the banners (their materials under the default light), so a look change shows here at once.
   - The roster's pictures are registered once per image store (`Registered`) and shared by the stage and the menus.
   - It is a pure function of its frame and its choices, so `tests/select_test.cpp` pins its pixels like the fight's.
+- **Rounds**: the match is best of three, kept by the stage, not the simulation. gongfu's match is one round and stands still once it is over, so the stage counts its own frames to the next round. It keeps the wins, starts a new match with the same fighters, and lets the theme play on. Draws count for both, and a match ends after five rounds at most. The semantic value carries the round, the wins and whether the match is decided, so an agent can follow a whole match.
+  - Not yet: the K.O. itself stands still too. The loser does not fall and the winner does not pose, because the simulation stops at the K.O. frame. A finish phase in gongfu (physics on, inputs off) and win poses in the looks are next.
 - **Afterimages and clones** are the part's shape in one colour (`draw_mesh_mask`), not a faded copy, so 霓's trail reads as neon.
 - **Hit feel**, the five parts (hardcore design §2.6), each checked by a test:
   - **Hitstop:** light < medium < heavy for every fighter's normals. A counter adds 2 frames and a punish counter 4, for both fighters.

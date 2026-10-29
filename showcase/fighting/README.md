@@ -41,6 +41,7 @@ mcpp run -p openmui.showcase.fighting -- --headless --png fight.png
   - The fighters have voices (CC0 takes processed into each, in `voice/`): the struck cry out under a heavy blow or a counter, a breath apart; 坤 strains with his heavy blows; a K.O. is a fall.
   - An announcer calls the round: "fight", "time", the winner, a flawless victory or a tie (Kenney's CC0 Voiceover Pack: Fighter, in `voice/`, played through `openmui.audio`'s recording layers).
   - Offline, each sound starts on its frame's very sample, so a match's sound is as determined as its pixels: the tests pin a fight's audio and write it as a WAV.
+- **Versus is best of three** (the stage's `rounds`, 2 by default). A K.O. or the clock ends a round; the next begins three seconds later with the theme playing on, and the announcer calls each one ("round one", "final round"). The rounds won show as red seals beside each name, and `match_over` sends the players back to the select screen.
 - **The match runs on the runtime's clock.** A timer plays every frame that is due: a late frame catches up, and a stall of more than four frames is skipped, not replayed. Headless, a second is exactly 60 frames. Pausing is a property. While paused, `step` plays one frame.
 - **An agent plays through the stage's actions:**
   - `press` holds a pad written in numpad notation (`6`, `2LK`, `5LP+LK`) until the next press; `release` gives the keyboard back.

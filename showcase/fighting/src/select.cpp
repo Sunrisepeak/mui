@@ -365,15 +365,16 @@ void Select::paint(PaintContext& ctx) const {
     }
 
     if (phase_ == "title") {
-        const float lw = 560, lh = lw * region::logo.height / region::logo.width;
+        // The logo high, with room under it before the modes.
+        const float lw = 520, lh = lw * region::logo.height / region::logo.width;
         const float breathe = 1 + 0.012f * static_cast<float>(hanim::dm::sin(t * 1.3));
-        picture(out, title_art, region::logo, {picture_w / 2 - lw * breathe / 2, 40 + lh * (1 - breathe) / 2, lw * breathe, lh * breathe});
+        picture(out, title_art, region::logo, {picture_w / 2 - lw * breathe / 2, 28 + lh * (1 - breathe) / 2, lw * breathe, lh * breathe});
         // The modes: a lacquer bar each, the one under the cursor lit, its Chinese and its word.
         for (std::int32_t m = 0; m < 2; ++m) {
             const bool lit = m == item_;
             const Rect& bar_src = lit ? region::bar_lit : region::bar;
             const float bw = 430, bh = bw * bar_src.height / bar_src.width;
-            const float x = picture_w / 2 - bw / 2 + (lit ? 0.0f : 12.0f), y = 318 + static_cast<float>(m) * 74;
+            const float x = picture_w / 2 - bw / 2 + (lit ? 0.0f : 12.0f), y = 334 + static_cast<float>(m) * 72;
             picture(out, frames, bar_src, {x, y, bw, bh}, lit ? 1.0f : 0.75f);
             const Rect& zh = m == 0 ? region::duizhan : region::xunlian;
             const Rect& en = m == 0 ? region::versus : region::training;
@@ -384,8 +385,8 @@ void Select::paint(PaintContext& ctx) const {
     } else {
         picture(out, type, region::select, {picture_w / 2 - 210, 12, 420, 420 * region::select.height / region::select.width});
         // The roster: three across, two down; each tile its fighter's face (or their name), the players' cursors lit.
-        constexpr float tw = 104, th = tw * 217 / 245, gap = 10;
-        const float gx = picture_w / 2 - (3 * tw + 2 * gap) / 2, gy = 92;
+        constexpr float tw = 126, th = tw * 217 / 245, gap = 12;
+        const float gx = picture_w / 2 - (3 * tw + 2 * gap) / 2, gy = 84;
         for (std::size_t i = 0; i < c.size(); ++i) {
             const float x = gx + static_cast<float>(i % 3) * (tw + gap), y = gy + static_cast<float>(i / 3) * (th + gap);
             const Rect inner{x + tw * 0.12f, y + th * 0.1f, tw * 0.76f, th * 0.8f};
@@ -402,13 +403,23 @@ void Select::paint(PaintContext& ctx) const {
                 shape(out, names, n->second, {inner.x + inner.width / 2 - w / 2, inner.y + inner.height / 2 - h / 2, w, h}, tone(0xe8dcc4));
             }
             out.pop_clip();
-            const bool on = static_cast<std::int32_t>(i) == cursor_[0] || static_cast<std::int32_t>(i) == cursor_[1];
-            picture(out, frames, on ? region::tile_lit : region::tile, {x, y, tw, th});
+            const bool mine[2] = {static_cast<std::int32_t>(i) == cursor_[0], static_cast<std::int32_t>(i) == cursor_[1]};
+            // Each player's cursor in their colour (player 1 crimson, player 2 azure; both on one tile, one inside the other), glowing.
+            for (std::int32_t p = 0; p < 2; ++p) {
+                if (!mine[p]) continue;
+                const Color pc = p == 0 ? tone(0xe8403c) : tone(0x3aa0ff);
+                const float o = mine[0] && mine[1] ? (p == 0 ? 6.0f : 2.0f) : 3.0f;
+                const Rect ring{inner.x - o, inner.y - o, inner.width + 2 * o, inner.height + 2 * o};
+                out.box_shadow(ring, CornerRadii::all(3), {0, 0}, 12, 1, tone(p == 0 ? 0xe8403c : 0x3aa0ff, ready_[static_cast<std::size_t>(p)] ? 0.85f : 0.55f));
+                out.stroke_round_rect(ring, CornerRadii::all(3), 2.5f, render::Paint::solid(pc));
+            }
+            picture(out, frames, mine[0] || mine[1] ? region::tile_lit : region::tile, {x, y, tw, th});
+            // The players' badges set on the tile's top corners: player 1 left, player 2 right.
             for (std::int32_t p = 0; p < 2; ++p)
-                if (static_cast<std::int32_t>(i) == cursor_[static_cast<std::size_t>(p)]) {
+                if (mine[p]) {
                     const Rect& badge = p == 0 ? region::p1 : region::p2;
-                    const float bh = 22, bw = wide(badge, bh);
-                    picture(out, type, badge, {p == 0 ? x - 6 : x + tw - bw + 6, y - 12, bw, bh});
+                    const float bh = 28, bw = wide(badge, bh);
+                    picture(out, type, badge, {p == 0 ? x - 4 : x + tw - bw + 4, y - 10, bw, bh});
                 }
         }
         // Each side's fighter in a tall banner: their idle, lit, facing the other; their name under it.

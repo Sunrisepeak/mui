@@ -110,8 +110,8 @@ int main(int argc, char** argv) {
         const std::uint64_t select = a.pixels();
         std::println("    menus title {:016x} select {:016x}", title, select);
         check(title != select, "two screens");
-        check_eq(title, std::uint64_t{0x3ab841bcfbc8c66c});   // GCC and LLVM
-        check_eq(select, std::uint64_t{0xf0289556acac5436});  // GCC and LLVM
+        check_eq(title, std::uint64_t{0x643fb24c0ef4dddf});   // GCC and LLVM
+        check_eq(select, std::uint64_t{0x4c627c654ea0cfc7});  // GCC and LLVM
     });
 
     return s.run(argc, argv);

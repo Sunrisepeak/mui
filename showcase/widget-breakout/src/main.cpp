@@ -1,8 +1,9 @@
 // `omui-breakout [--quiet]` — the rest of the line is openmui's (--headless
 // --png …); headless or --quiet, nothing is heard. The pointer or ← → (A D)
-// move the paddle, Space or a click launches, Tab opens the semantic lens,
-// S turns level 2's style, R held rewinds, Z held shows a tall wall whole,
-// Enter goes on from a level over.
+// move the paddle, Space or a click launches along the aim, R held rewinds
+// (100 sparks), X scans, Z held shows a tall room whole, 1–4 direct the
+// copilot (room 5) or, between rooms, 1 and 2 take a contraption, Tab opens
+// the inspector, Enter goes on from a room over.
 import std;
 import openmui;
 import openmui.audio;

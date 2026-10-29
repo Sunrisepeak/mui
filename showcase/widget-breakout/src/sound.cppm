@@ -1,28 +1,30 @@
 // openmui.showcase.widget_breakout:sound — what the breakout sounds like
 // (sounds/breakout.sound.omui.toml). Each brick sounds as the component it
-// is — a button's click, a switch's flip, a slider's tick — a broken one pops
-// higher the longer the combo; the paddle knocks, the walls tap, a capsule
-// chimes and its catch rises, a lost ball falls, a cleared level plays its
-// arpeggio. They play on the step the simulation made them, panned by where
-// across the field: offline (tests, a video's track) on the step's very
-// sample, live a block ahead of the device. Seeking back is silent; played
-// on from there, the new branch is heard after what was (the sound's time
-// only goes forward).
+// is — a button's click, a switch's snap, a capacitor charging a step higher
+// each hit and its beam's roar; a broken brick pops a note further up a
+// pentatonic scale the longer the chain, so a chain is a run of notes; a
+// banked chain is a chord, a lost one slides down; the core knocks and,
+// broken, the panel powers down. The paddle knocks, the walls tap, kickers
+// thump, a capsule chimes and its catch rises, a lost ball falls. They play
+// on the step the simulation made them, panned by where across the field:
+// offline (tests, a video's track) on the step's very sample, live a block
+// ahead of the device. Seeking back is silent; played on from there, the new
+// branch is heard after what was (the sound's time only goes forward).
 export module openmui.showcase.widget_breakout:sound;
 
 import std;
 import openmui.audio;
 import openmui.showcase.widget_breakout.sim;
-import :levels;
+import :rooms;
 
 export namespace omui::breakout {
 
 class Sounds {
 public:
     Sounds();
-    // After a step played forward: its events' sounds (`level`: what its bricks are).
-    void heard(const State& s, const LevelDef& level);
-    // A sound of the program's own (a gate opening, a rewind), now.
+    // After a step played forward: its events' sounds (`room`: what its bricks are).
+    void heard(const State& s, const RoomDef& room);
+    // A sound of the program's own (a gate opening, a rewind, a scan), now.
     void cue(std::string_view name, float pan = 0);
     // A new level: its step 0 is the mixer's clock now.
     void restart();

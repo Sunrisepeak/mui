@@ -1,13 +1,15 @@
-# 《组件打砖块：openmui 巡礼》 (S4, D-50; mgame S4 design): a breakout whose
-# bricks are real openmui components — buttons, toggles, sliders, cards —
-# laid out by openmui and read into the simulation; every hit changes the
-# brick for real, an agent plays it through the field's actions, and Tab's
-# semantic lens shows the bricks the screen does not.
+# 《组件打砖块：闹鬼的设置》 (S4, D-50; mgame S4 design §8): the Settings panel
+# is haunted, and every control works — a breakout whose bricks are real
+# openmui components (switches that rewire the room, sliders that charge and
+# fire, a core to shut down), placed by openmui's layout and read into the
+# simulation; a run of five rooms, chains banked as sparks that pay for
+# rewinds, contraptions between rooms whose scripts you can open; an agent
+# plays it through the field's actions, and the inspector shows the rest.
 [package]
 namespace   = "openmui.showcase"
 name        = "widget_breakout"
 version     = "0.1.0"
-description = "A breakout over real openmui components, played by a person or an agent, rewindable, with a semantic lens"
+description = "A breakout over a haunted Settings panel of real openmui components: circuits, capacitors, a core; rewindable for sparks, played by a person or an agent"
 license     = "Apache-2.0"
 
 [package.metadata.openmui]

@@ -1,12 +1,13 @@
-// openmui.showcase.widget_breakout:workshop — level 6's gifts as scripts
-// (gifts/*): wide.ts and pierce.ts in TypeScript, slow.lua in Lua, multi.py in
-// Python (PocketPy, embedded). Each
-// script registers a verb `gift.<name>` answering its gift's rules; the
-// workshop runs them on openmui's script host (openmui.lang), and applying an
-// edited one reloads it in place (hot), asks its verb again, checks what it
-// answers and hands the rules over — a script never runs in a step: the
-// rules reach the simulation as a step's input. What did not load, answer or
-// pass keeps the rules there were, and says why.
+// openmui.showcase.widget_breakout:workshop — the contraptions' scripts
+// (gifts/*), what is inside their casings: wide.ts and pierce.ts in
+// TypeScript, slow.lua and magnet.lua in Lua, multi.py in Python (PocketPy,
+// embedded). Each script registers a verb `gift.<name>` answering its gift's
+// rules; the workshop runs them on openmui's script host (openmui.lang), and
+// applying an edited one (a preset, or the player's own edit) reloads it in
+// place (hot), asks its verb again, checks what it answers and hands the
+// rules over — a script never runs in a step: the rules reach the
+// simulation as a step's input. What did not load, answer or pass keeps the
+// rules there were, and says why.
 export module openmui.showcase.widget_breakout:workshop;
 
 import std;

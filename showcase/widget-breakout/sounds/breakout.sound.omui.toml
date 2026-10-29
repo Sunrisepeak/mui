@@ -1,8 +1,11 @@
 doc = """What the breakout sounds like (openmui.audio): each brick as the component
-it is — a button's click, a switch's two-tone flip, a slider's tick down — a
-pop when one breaks (higher with the combo, the program pitches it), the
-paddle's knock, the walls', a capsule's chime and its catch, a ball lost, a
-level cleared, a launch, a gate opening, a rewind."""
+it is — a button's click, a switch's snap, a capacitor's charge (pitched up
+a step a hit), its fuse and its beam — a pop when one breaks (the program
+pitches it up a pentatonic scale along the chain), a banked chain's chord and
+a lost one's slide, the core's knock and the panel powering down; the
+paddle's knock, the walls', a kicker's thump, a breakthrough's rush, the
+magnet's clunk, a capsule's chime and its catch, a ball lost, a room
+cleared, a launch, a gate opening, a rewind, a scan, a refusal."""
 
 [sound.paddle]
 [[sound.paddle.layer]]
@@ -183,3 +186,234 @@ pitch = [1200, 300]
 envelope = { attack = 0.01, decay = 0.25, sustain = 0, release = 0.04 }
 filter = { kind = "lowpass", cutoff = [5000, 800], q = 1.2 }
 gain = 0.35
+
+[sound.denied]
+[[sound.denied.layer]]
+wave = "square"
+length = 0.16
+pitch = [140, 120]
+envelope = { attack = 0.002, decay = 0.14, sustain = 0, release = 0.02 }
+filter = { kind = "lowpass", cutoff = [1200, 800], q = 0.8 }
+gain = 0.3
+
+[sound.scan]
+[[sound.scan.layer]]
+wave = "sine"
+length = 0.5
+pitch = [400, 2400]
+envelope = { attack = 0.02, decay = 0.45, sustain = 0, release = 0.04 }
+gain = 0.25
+
+[[sound.scan.layer]]
+wave = "noise"
+length = 0.4
+envelope = { attack = 0.05, decay = 0.33, sustain = 0, release = 0.03 }
+filter = { kind = "bandpass", cutoff = [800, 6000], q = 2 }
+gain = 0.15
+seed = 23
+
+[sound.order]
+[[sound.order.layer]]
+wave = "sine"
+length = 0.08
+pitch = [880, 1100]
+envelope = { attack = 0.002, decay = 0.07, sustain = 0, release = 0.01 }
+gain = 0.3
+
+[sound.snap]
+[[sound.snap.layer]]
+wave = "noise"
+length = 0.012
+envelope = { attack = 0.0002, decay = 0.011, sustain = 0, release = 0.001 }
+filter = { kind = "highpass", cutoff = [5000, 3500], q = 0.9 }
+gain = 0.6
+seed = 29
+
+[[sound.snap.layer]]
+wave = "square"
+at = 0.008
+length = 0.05
+pitch = [740, 980]
+envelope = { attack = 0.0005, decay = 0.045, sustain = 0, release = 0.005 }
+filter = { kind = "lowpass", cutoff = [4000, 3000], q = 0.7 }
+gain = 0.25
+
+[sound.wire]
+[[sound.wire.layer]]
+wave = "saw"
+length = 0.12
+pitch = [1800, 600]
+envelope = { attack = 0.002, decay = 0.11, sustain = 0, release = 0.01 }
+filter = { kind = "bandpass", cutoff = [3000, 1200], q = 2.5 }
+gain = 0.2
+
+[sound.charge]
+[[sound.charge.layer]]
+wave = "sine"
+length = 0.12
+pitch = [520, 780]
+envelope = { attack = 0.002, decay = 0.11, sustain = 0, release = 0.01 }
+gain = 0.45
+
+[[sound.charge.layer]]
+wave = "square"
+length = 0.05
+pitch = [1560, 1560]
+envelope = { attack = 0.001, decay = 0.045, sustain = 0, release = 0.004 }
+filter = { kind = "lowpass", cutoff = [4000, 3000], q = 0.7 }
+gain = 0.08
+
+[sound.armed]
+[[sound.armed.layer]]
+wave = "saw"
+length = 0.09
+pitch = [600, 1800]
+envelope = { attack = 0.004, decay = 0.08, sustain = 0, release = 0.01 }
+filter = { kind = "lowpass", cutoff = [2000, 6000], q = 1.5 }
+gain = 0.3
+
+[sound.beam]
+[[sound.beam.layer]]
+wave = "saw"
+length = 0.45
+pitch = [220, 110]
+envelope = { attack = 0.003, decay = 0.4, sustain = 0, release = 0.05 }
+filter = { kind = "lowpass", cutoff = [6000, 600], q = 1.1 }
+drive = 0.35
+gain = 0.45
+
+[[sound.beam.layer]]
+wave = "noise"
+length = 0.35
+envelope = { attack = 0.002, decay = 0.32, sustain = 0, release = 0.03 }
+filter = { kind = "bandpass", cutoff = [7000, 900], q = 1.2 }
+gain = 0.35
+seed = 31
+
+[sound.kick]
+[[sound.kick.layer]]
+wave = "sine"
+length = 0.09
+pitch = [180, 70]
+envelope = { attack = 0.001, decay = 0.08, sustain = 0, release = 0.01 }
+drive = 0.3
+gain = 0.7
+
+[[sound.kick.layer]]
+wave = "noise"
+length = 0.12
+envelope = { attack = 0.01, decay = 0.1, sustain = 0, release = 0.01 }
+filter = { kind = "bandpass", cutoff = [900, 3500], q = 1.2 }
+gain = 0.25
+seed = 37
+
+[sound.core]
+[[sound.core.layer]]
+wave = "sine"
+length = 0.3
+pitch = [110, 92]
+envelope = { attack = 0.001, decay = 0.28, sustain = 0, release = 0.02 }
+drive = 0.4
+gain = 0.7
+
+[[sound.core.layer]]
+wave = "square"
+length = 0.06
+pitch = [660, 440]
+envelope = { attack = 0.001, decay = 0.05, sustain = 0, release = 0.01 }
+filter = { kind = "lowpass", cutoff = [3000, 1500], q = 0.8 }
+gain = 0.2
+
+[sound.shutdown]
+[[sound.shutdown.layer]]
+wave = "saw"
+length = 1.2
+pitch = [440, 40]
+envelope = { attack = 0.005, decay = 1.1, sustain = 0, release = 0.1 }
+filter = { kind = "lowpass", cutoff = [5000, 200], q = 1.3 }
+drive = 0.3
+gain = 0.5
+
+[[sound.shutdown.layer]]
+wave = "noise"
+length = 0.6
+envelope = { attack = 0.001, decay = 0.55, sustain = 0, release = 0.05 }
+filter = { kind = "lowpass", cutoff = [8000, 300], q = 0.8 }
+gain = 0.4
+seed = 41
+
+[sound.breach]
+[[sound.breach.layer]]
+wave = "noise"
+length = 0.6
+envelope = { attack = 0.05, decay = 0.5, sustain = 0, release = 0.05 }
+filter = { kind = "bandpass", cutoff = [400, 5000], q = 1.6 }
+gain = 0.45
+seed = 43
+
+[[sound.breach.layer]]
+wave = "sine"
+at = 0.05
+length = 0.5
+pitch = [330, 990]
+envelope = { attack = 0.01, decay = 0.45, sustain = 0, release = 0.04 }
+gain = 0.3
+
+[sound.whoosh]
+[[sound.whoosh.layer]]
+wave = "noise"
+length = 0.25
+envelope = { attack = 0.03, decay = 0.2, sustain = 0, release = 0.02 }
+filter = { kind = "bandpass", cutoff = [500, 3000], q = 1.4 }
+gain = 0.3
+seed = 47
+
+[sound.bank]
+[[sound.bank.layer]]
+wave = "sine"
+length = 0.45
+pitch = [523.25, 523.25]
+envelope = { attack = 0.004, decay = 0.4, sustain = 0, release = 0.05 }
+gain = 0.3
+
+[[sound.bank.layer]]
+wave = "sine"
+at = 0.03
+length = 0.45
+pitch = [659.25, 659.25]
+envelope = { attack = 0.004, decay = 0.4, sustain = 0, release = 0.05 }
+gain = 0.28
+
+[[sound.bank.layer]]
+wave = "sine"
+at = 0.06
+length = 0.5
+pitch = [783.99, 783.99]
+envelope = { attack = 0.004, decay = 0.45, sustain = 0, release = 0.05 }
+gain = 0.28
+
+[sound.chain_lost]
+[[sound.chain_lost.layer]]
+wave = "square"
+length = 0.4
+pitch = [660, 220]
+envelope = { attack = 0.004, decay = 0.36, sustain = 0, release = 0.04 }
+filter = { kind = "lowpass", cutoff = [3000, 600], q = 0.9 }
+gain = 0.3
+
+[sound.magnet]
+[[sound.magnet.layer]]
+wave = "square"
+length = 0.08
+pitch = [300, 260]
+envelope = { attack = 0.001, decay = 0.07, sustain = 0, release = 0.01 }
+filter = { kind = "lowpass", cutoff = [1500, 900], q = 1.5 }
+gain = 0.45
+
+[sound.duet]
+[[sound.duet.layer]]
+wave = "sine"
+length = 0.12
+pitch = [990, 990]
+envelope = { attack = 0.002, decay = 0.11, sustain = 0, release = 0.01 }
+gain = 0.25

@@ -23,7 +23,7 @@ std::vector<GiftScript> shipped() {
         return GiftScript{std::move(gift), std::move(language), std::move(file), std::string(text), std::string(text)};
     };
     return {one("wide", "ts", "wide.ts", files::wide_ts), one("pierce", "ts", "pierce.ts", files::pierce_ts), one("slow", "lua", "slow.lua", files::slow_lua),
-            one("multi", "py", "multi.py", files::multi_py)};
+            one("multi", "py", "multi.py", files::multi_py), one("magnet", "lua", "magnet.lua", files::magnet_lua)};
 }
 
 // A rule a script may answer: its name, where it goes, its bounds.
@@ -33,13 +33,14 @@ struct RuleField {
     std::int32_t lo, hi;
 };
 constexpr std::int32_t s = steps_per_second;
-constexpr std::array<RuleField, 7> fields{{{"wide_steps", &Rules::wide_steps, 1 * s, 30 * s},
+constexpr std::array<RuleField, 8> fields{{{"wide_steps", &Rules::wide_steps, 1 * s, 30 * s},
                                        {"wide_half", &Rules::wide_half, 80, 300},
                                        {"multi_balls", &Rules::multi_balls, 1, 4},
                                        {"slow_steps", &Rules::slow_steps, 1 * s, 20 * s},
                                        {"slow_percent", &Rules::slow_percent, 25, 90},
                                        {"pierce_steps", &Rules::pierce_steps, 1 * s, 20 * s},
-                                       {"drop_one_in", &Rules::drop_one_in, 2, 20}}};
+                                       {"drop_one_in", &Rules::drop_one_in, 2, 20},
+                                       {"magnet_catches", &Rules::magnet_catches, 1, 8}}};
 
 // A verb's answer as rules over `into`: every field known, a whole number, within its bounds — or why not.
 std::expected<Rules, std::string> read_rules(const Value& answer, Rules into, std::string_view gift) {

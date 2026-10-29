@@ -1,15 +1,16 @@
-# The breakout's simulation (S4, mgame S4 design §5): a pure function of the
-# state and the frame's actions at 120 steps a second — paddles, balls moving
-# from one collision to the next (mgame.physics), bricks with durability,
-# capsules with gifts, score and lives — in one block of plain data
-# (mgame.world), so a timeline (mgame.sim) rewinds and replays it exactly and
-# its checksum is the same on every platform. The UI (the bricks as openmui
-# components) reads its events; it knows nothing of openmui.
+# The breakout's simulation (S4, mgame S4 design §5, §8): a pure function of
+# the state and the frame's actions at 120 steps a second — paddles, balls
+# moving from one collision to the next (mgame.physics) with spin, switches
+# and their circuits, capacitors and their beams, kickers, cores, chains
+# banked as sparks, capsules with gifts, score and lives — in one block of
+# plain data (mgame.world), so a timeline (mgame.sim) rewinds and replays it
+# exactly and its checksum is the same on every platform. The UI (the bricks
+# as openmui components) reads its events; it knows nothing of openmui.
 [package]
 namespace   = "openmui.showcase.widget_breakout"
 name        = "sim"
 version     = "0.1.0"
-description = "The breakout's deterministic simulation: paddles, swept balls, bricks, gifts, score and lives, rewindable"
+description = "The breakout's deterministic simulation: swept balls with spin, circuits, capacitors and beams, kickers, cores, chains and sparks, gifts; rewindable"
 license     = "Apache-2.0"
 platforms   = ["linux", "macos", "windows", "emscripten"]
 repo        = "https://github.com/Sunrisepeak/mui"

@@ -31,4 +31,4 @@ for (const auto& o : omui::rhi::cts::run(**device)) check(o.passed, o.name + ": 
 
 A failure names the first difference (`pixel (0, 0) is (255, 0, 0, 255); it should be (0, 0, 0, 255)`).
 
-The shaders are the suite's own (`shaders/*.slang`: `fill`, `textured`, `compute`). [openmui.shader.rules](../../shader/rules) compiles them at build time for the target's formats, so the package exports them as `omui::rhi::cts::shaders::*` constants, and `shader_formats()` says which formats a device must take. [openmui.rhi.sdl](../sdl)'s tests run the suite on lavapipe (Linux, Windows) and Metal (macOS) in CI.
+The shaders are the suite's own (`shaders/*.slang`: `fill`, `textured`, `compute`, `depth`). [openmui.shader.rules](../../shader/rules) compiles them at build time for the target's formats (WGSL on the Web), so the package exports them as `omui::rhi::cts::shaders::*` constants, and `shader_formats()` says which formats a device must take. [openmui.rhi.sdl](../sdl)'s tests run the suite on lavapipe (Linux, Windows) and Metal (macOS) in CI; [openmui.rhi.webgpu](../webgpu)'s run it on the page's WebGPU in headless Chromium (`tools/ci/browser.sh`).

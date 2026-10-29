@@ -186,12 +186,54 @@ int main(int argc, char** argv) {
         check(depfile_prerequisites("no rule here").empty());
     });
 
+    s.test("WGSL: each sampled texture and its sampler a pair of bindings, storage after them, write-only where only written", [] {
+        auto p = shader::compile(data("layers.slang"), {.formats = rhi::formats({rhi::ShaderFormat::spirv, rhi::ShaderFormat::wgsl})});
+        check(p.has_value(), p ? "" : p.error());
+        if (!p) return;
+        const shader::Entry* fs = p->entry("layers_fs");
+        const shader::Entry* cs = p->entry("layers_cs");
+        check(fs && cs && fs->code_for(rhi::ShaderFormat::wgsl) && cs->code_for(rhi::ShaderFormat::wgsl));
+        if (!fs || !cs) return;
+        check(fs->counts == rhi::Counts{.samplers = 2, .storage_buffers = 1, .uniform_buffers = 1});
+        const std::string f = text(fs->code_for(rhi::ShaderFormat::wgsl)->bytes);
+        // Slang wrote base's sampler and over's texture both at binding 1.
+        check(f.contains("@binding(0) @group(2) var base_texture_0 : texture_2d<f32>;"), f);
+        check(f.contains("@binding(1) @group(2) var base_sampler_0 : sampler;"), f);
+        check(f.contains("@binding(2) @group(2) var over_texture_0 : texture_2d<f32>;"), f);
+        check(f.contains("@binding(3) @group(2) var over_sampler_0 : sampler;"), f);
+        check(f.contains("@binding(4) @group(2) var<storage, read> weights_0"), f);
+        check(f.contains("@binding(0) @group(3) var<uniform> mix_0"), f);
+        const std::string c = text(cs->code_for(rhi::ShaderFormat::wgsl)->bytes);
+        check(c.contains("@binding(0) @group(1) var written_0 : texture_storage_2d<rgba8unorm, write>;"), c);
+        check(c.contains("@binding(1) @group(1) var summed_0 : texture_storage_2d<r32float, read_write>;"), c);
+        check(fs->code_for(rhi::ShaderFormat::spirv) != nullptr, "SPIR-V beside it, unchanged");
+        // What Slang writes that is not WGSL: `precise var`, and @interpolate
+        // on a struct the fragment stage copies (no @location there).
+        auto flat = shader::compile(data("flat.slang"), {.formats = rhi::formats({rhi::ShaderFormat::spirv, rhi::ShaderFormat::wgsl})});
+        check(flat.has_value(), flat ? "" : flat.error());
+        if (flat)
+            for (const shader::Entry& e : flat->entries) {
+                const std::string w = text(e.code_for(rhi::ShaderFormat::wgsl)->bytes);
+                check(!w.contains("precise"), w);
+                for (auto line : std::views::split(w, '\n')) {
+                    const std::string_view l(line.begin(), line.end());
+                    check(!l.contains("@interpolate(") || l.contains("@location("), std::string(l));
+                }
+                if (e.stage == rhi::Stage::fragment) check(w.contains("@location(0) @interpolate(flat)") || w.contains("@interpolate(flat) @location(0)"), w);
+            }
+        // A storage texture with no format: WGSL needs one.
+        const std::string m = refusal("unformatted.slang", rhi::formats({rhi::ShaderFormat::spirv, rhi::ShaderFormat::wgsl}));
+        check(m.contains("`target` is a read-write storage texture with no format") && m.contains("[format(\"rgba8\")]"), m);
+        check_eq(refusal("unformatted.slang"), std::string("<compiled>"));
+    });
+
     s.test("the formats a build compiles to, by target and host", [] {
         using enum rhi::ShaderFormat;
         check(shader::formats_for("linux", "linux") == rhi::formats({spirv}));
         check(shader::formats_for("macos", "macos") == rhi::formats({msl}));
         check(shader::formats_for("windows", "windows") == rhi::formats({spirv, dxbc}));
         check(shader::formats_for("windows", "linux") == rhi::formats({spirv}), "DXBC needs the Windows host's compiler");
+        check(shader::formats_for("emscripten", "linux") == rhi::formats({wgsl}), "the Web: WebGPU's");
     });
 
     return s.run(argc, argv);

@@ -14,7 +14,7 @@ auto p = device.create(GraphicsPipelineDesc{.vertex = &acme::render::shaders::qu
                                             .fragment = &acme::render::shaders::quad::quad_fs, …});
 ```
 
-- **Formats per target** (`formats_for`): SPIR-V for Vulkan, MSL on Apple, and DXBC for D3D12 when the host is Windows (its `d3dcompiler` compiles it). `--formats` names others (`dxil` with DXC present).
+- **Formats per target** (`formats_for`): SPIR-V for Vulkan, MSL on Apple, DXBC for D3D12 when the host is Windows (its `d3dcompiler` compiles it), and WGSL for WebGPU on the Web (`emscripten`). `--formats` names others (`dxil` with DXC present).
 - **The binding convention** (SDL_GPU's), written `[[vk::binding(index, set)]]` with the matching `register(…, space<set>)`:
 
   | stage | read-only resources | read-write resources | constant buffers |
@@ -32,11 +32,12 @@ auto p = device.create(GraphicsPipelineDesc{.vertex = &acme::render::shaders::qu
   ```
 
   A Vulkan binding and an HLSL register that disagree are refused the same way. So are separate `SamplerState`s, resource arrays, loose global uniforms, and an entry point named `main` (Metal reserves it).
+- **WGSL is bound as [rhi.webgpu](../rhi/webgpu) binds it.** Slang splits a `Sampler2D` into a texture at its Vulkan binding and a sampler at the next one, so two of them overlap; the WGSL written instead holds, in a stage's read-only group, sampled texture *i* at binding 2*i* and its sampler at 2*i* + 1, then the storage textures and buffers. A read-write storage texture says its format (`[format("rgba8")]`: WGSL declares it, and WebGPU binds only a texture of it) — one without is refused with the attribute to write — and one the entry only writes is declared write-only. What Slang writes that is not WGSL is mended: HLSL's `precise` before a variable, and `@interpolate` on the members of a struct that is no stage's input or output. `tools/ci/browser.sh` compiles every WGSL entry point a Web build wrote in Chromium.
 - **The output is deterministic** for the same program, and the depfile names every file the shader read.
 - **slangc is mcpp's to provision** (`[xlings.workspace] "xim:slang"`). The build program writes its path into the library as `provisioned_slangc`, so a build or a test needs nothing on `PATH`. `OMUI_SLANGC` overrides it.
 - **Compiled in the process when it can be** (`Options::in_process`, on by default): Slang's library beside that slangc (`libslang-compiler`) is loaded once and given slangc's own arguments, its sessions kept. Most of a slangc run is starting the program and loading Slang's core module (130 of 160 ms on a desktop, about three times that on a CI Mac), so a warm compile of SPIR-V and MSL takes about 20 ms and a reloaded effect about 50. The files written, the reflection, the dependencies and the diagnostics are slangc's (a test compiles both ways and compares). Without the library, or with `OMUI_SLANGC_PROCESS=1`, slangc runs.
 
-The tests (`tests/slang_test.cpp`) compile real shaders with the provisioned slangc: a quad's vertex and fragment shaders in SPIR-V and MSL, a compute blur, every kind of refusal, the emitted C++, and the formats per target.
+The tests (`tests/shader_test.cpp`) compile real shaders with the provisioned slangc: a quad's vertex and fragment shaders in SPIR-V and MSL, a compute blur, WGSL's bindings, write-only storage and mended output, every kind of refusal, the emitted C++, and the formats per target.
 
 ## Inside
 

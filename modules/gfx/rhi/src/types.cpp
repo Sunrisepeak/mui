@@ -20,12 +20,13 @@ std::string_view name(Backend backend) noexcept {
         case Backend::vulkan: return "vulkan";
         case Backend::metal: return "metal";
         case Backend::d3d12: return "d3d12";
+        case Backend::webgpu: return "webgpu";
     }
     return "?";
 }
 
 namespace {
-constexpr std::array<std::string_view, shader_format_count> shader_format_names{"spirv", "msl", "metallib", "dxbc", "dxil"};
+constexpr std::array<std::string_view, shader_format_count> shader_format_names{"spirv", "msl", "metallib", "dxbc", "dxil", "wgsl"};
 }
 
 std::string_view name(ShaderFormat format) noexcept { return shader_format_names[static_cast<std::size_t>(format)]; }

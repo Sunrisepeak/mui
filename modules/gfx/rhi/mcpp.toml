@@ -9,6 +9,7 @@ version     = "0.1.0"
 description = "A UI-scale GPU abstraction: descriptions, recorded command lists, a validating device interface"
 license     = "Apache-2.0"
 repo        = "https://github.com/Sunrisepeak/mui"
+platforms   = ["linux", "macos", "windows", "emscripten"]
 
 [package.metadata.openmui]
 kind = "backend"

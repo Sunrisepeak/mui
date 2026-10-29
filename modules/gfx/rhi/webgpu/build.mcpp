@@ -1,0 +1,11 @@
+// On the Web, what every program using the backend needs at its link: the
+// page's half (src/js/omui_webgpu.js) as an Emscripten library.
+import std;
+import mcpp;
+
+int main() {
+    mcpp::rerun_if_changed("src/js/omui_webgpu.js");
+    if (std::string_view(mcpp::target_os()) == "emscripten")
+        mcpp::link_flag(std::format("--js-library={}/src/js/omui_webgpu.js", mcpp::manifest_dir()).c_str());
+    return 0;
+}

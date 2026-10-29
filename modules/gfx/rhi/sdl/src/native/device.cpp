@@ -21,7 +21,8 @@ std::string sdl_error(std::string_view what) {
 
 // ── vocabulary ───────────────────────────────────────────────────────────
 
-constexpr std::array<std::pair<ShaderFormat, SDL_GPUShaderFormat>, shader_format_count> shader_formats{{
+// The formats SDL_GPU takes (WGSL is the page's WebGPU's).
+constexpr std::array<std::pair<ShaderFormat, SDL_GPUShaderFormat>, 5> shader_formats{{
     {ShaderFormat::spirv, SDL_GPU_SHADERFORMAT_SPIRV},
     {ShaderFormat::msl, SDL_GPU_SHADERFORMAT_MSL},
     {ShaderFormat::metallib, SDL_GPU_SHADERFORMAT_METALLIB},
@@ -54,6 +55,7 @@ const char* driver_of(Backend b) {
         case Backend::vulkan: return "vulkan";
         case Backend::metal: return "metal";
         case Backend::d3d12: return "direct3d12";
+        case Backend::webgpu: return "";  // a page's, not SDL's
     }
     return "";
 }
@@ -222,6 +224,7 @@ public:
             case Backend::vulkan: preference_ = {ShaderFormat::spirv}; break;
             case Backend::metal: preference_ = {ShaderFormat::metallib, ShaderFormat::msl}; break;
             case Backend::d3d12: preference_ = {ShaderFormat::dxil, ShaderFormat::dxbc}; break;
+            case Backend::webgpu: break;  // never SDL's
         }
     }
 

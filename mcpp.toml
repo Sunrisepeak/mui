@@ -33,6 +33,7 @@ members = [
     "modules/gfx/rhi",
     "modules/gfx/rhi/cts",
     "modules/gfx/rhi/sdl",
+    "modules/gfx/rhi/webgpu",
     "modules/gfx/shader",
     "modules/gfx/shader/rules",
     "modules/content/i18n",
@@ -154,6 +155,17 @@ ldflags = ["-sALLOW_MEMORY_GROWTH=1", "-sSTACK_SIZE=1048576", "-sUSE_PTHREADS=0"
 opt     = 1
 debug   = false
 ldflags = ["-sNODERAWFS=1"]
+
+# The test programs that need a browser (tools/ci/browser.sh runs them in
+# headless Chromium): linked to suspend for the page's promises — what
+# waiting for WebGPU and reading its textures back take — and to say their
+# exit code to the page. Asyncify, not JSPI: JSPI makes the exceptions'
+# invoke_ imports suspending, and a static constructor that reaches a try
+# block then fails outside WebAssembly.promising.
+[workspace.profile.wasm-browser]
+opt     = 1
+debug   = false
+ldflags = ["-sASYNCIFY=1", "-sEXIT_RUNTIME=1"]
 
 [workspace.package]
 standard = "c++23"

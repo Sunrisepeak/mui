@@ -8,7 +8,7 @@
 //
 // Without --formats, the formats are formats_for(target OS, host OS): what a
 // build for that target compiles to (SPIR-V; MSL on Apple; DXBC on Windows
-// when the host is Windows). Neither given: SPIR-V.
+// when the host is Windows; WGSL on the Web). Neither given: SPIR-V.
 // The depfile names every file the shader read, so editing one it imports
 // rebuilds what uses it. Exit 1 with slangc's diagnostics, or the binding
 // that breaks the convention, on stderr.
@@ -24,7 +24,7 @@ namespace {
 int usage(std::string_view why) {
     std::println(std::cerr, "omui-shader: {}", why);
     std::println(std::cerr, "usage: omui-shader FILE.slang --out FILE.cppm --module M --partition P --namespace NS "
-                            "[--formats spirv,msl,dxbc,dxil | --target-os OS --host-os OS] [--slangc PATH] [-I DIR] [-D NAME] [--depfile FILE]");
+                            "[--formats spirv,msl,dxbc,dxil,wgsl | --target-os OS --host-os OS] [--slangc PATH] [-I DIR] [-D NAME] [--depfile FILE]");
     return 2;
 }
 
@@ -87,7 +87,7 @@ int main(int argc, char** argv) {
                 for (auto part : std::views::split(*v, ',')) {
                     const std::string_view f(part.begin(), part.end());
                     const auto format = omui::rhi::shader_format(f);
-                    if (!format) return usage(std::format("`{}` is not a shader format (spirv, msl, metallib, dxbc, dxil)", f));
+                    if (!format) return usage(std::format("`{}` is not a shader format (spirv, msl, metallib, dxbc, dxil, wgsl)", f));
                     options.formats.add(*format);
                 }
             }

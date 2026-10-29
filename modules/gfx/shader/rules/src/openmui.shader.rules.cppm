@@ -22,6 +22,7 @@ std::string os_of(std::string_view triple) {
     if (triple.contains("windows") || triple.contains("mingw")) return "windows";
     if (triple.contains("apple") || triple.contains("darwin") || triple.contains("macos")) return "macos";
     if (triple.contains("android")) return "android";
+    if (triple.contains("emscripten")) return "emscripten";
     return "linux";
 }
 

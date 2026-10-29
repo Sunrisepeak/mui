@@ -9,6 +9,7 @@ version     = "0.1.0"
 description = "The omui.rhi backend conformance suite: shaders and cases with exact expected pixels"
 license     = "Apache-2.0"
 repo        = "https://github.com/Sunrisepeak/mui"
+platforms   = ["linux", "macos", "windows", "emscripten"]
 
 [package.metadata.openmui]
 kind = "backend"

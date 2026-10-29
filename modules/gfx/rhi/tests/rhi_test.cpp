@@ -383,5 +383,59 @@ int main(int argc, char** argv) {
         check(!none && none.error().code == Errc::unsupported, none ? "" : none.error().message);
     });
 
+    s.test("the wire: a list as words, each command its op, its length and its fields, payloads where they lie", [] {
+        Scene sc;
+        CommandList l;
+        sc.frame(l);
+        const std::array<Texture, 1> writes{sc.image};
+        l.begin_compute(writes);
+        l.dispatch(2, 3);
+        l.end_compute();
+        std::vector<std::uint32_t> words;
+        wire::encode(l, words);
+        // Walk it: every header's length lands on the next header.
+        std::vector<wire::Op> ops;
+        std::vector<std::size_t> at;
+        for (std::size_t i = 0; i < words.size(); i += 1 + wire::length(words[i])) {
+            ops.push_back(wire::op(words[i]));
+            at.push_back(i);
+        }
+        using enum wire::Op;
+        check(ops == std::vector{upload_buffer, begin_render, set_pipeline, bind_vertex_buffer, bind_texture, push_uniforms, draw, end_render,
+                                 begin_compute, dispatch, end_compute},
+              std::format("{} commands", ops.size()));
+        if (ops.size() != 11) return;
+        auto field = [&](std::size_t command, std::size_t k) { return words[at[command] + 1 + k]; };
+        // upload_buffer: buffer, offset, the payload's address and length — the list's own copy.
+        const auto& up = std::get<cmd::UploadBuffer>(l.commands()[0]);
+        check_eq(field(0, 0), sc.quad.index);
+        check_eq(field(0, 1), 0u);
+        const auto address = static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(up.data.data()));
+        check(field(0, 2) == static_cast<std::uint32_t>(address) && field(0, 3) == static_cast<std::uint32_t>(address >> 32), "the address");
+        check_eq(field(0, 4), 64u);
+        // begin_render: the clear colour as floats, no resolve, no depth.
+        check_eq(wire::length(words[at[1]]), 12u);
+        check_eq(field(1, 0), sc.target.index);
+        check_eq(field(1, 1), static_cast<std::uint32_t>(LoadOp::clear));
+        check_eq(std::bit_cast<float>(field(1, 5)), 1.0f);
+        check_eq(field(1, 6), wire::none);
+        check_eq(field(1, 7), wire::none);
+        check_eq(field(1, 9), std::bit_cast<std::uint32_t>(1.0f));
+        // bind_texture: stage, slot, texture, sampler.
+        check(field(4, 0) == static_cast<std::uint32_t>(Stage::fragment) && field(4, 1) == 0 && field(4, 2) == sc.image.index &&
+              field(4, 3) == sc.sampler.index);
+        // push_uniforms: 16 bytes for the vertex stage's slot 0.
+        check(field(5, 0) == static_cast<std::uint32_t>(Stage::vertex) && field(5, 1) == 0 && field(5, 4) == 16);
+        check(field(6, 0) == 4 && field(6, 1) == 1 && field(6, 2) == 0 && field(6, 3) == 0, "draw(4)");
+        // begin_compute: one texture, no buffers.
+        check(wire::length(words[at[8]]) == 3 && field(8, 0) == 1 && field(8, 1) == sc.image.index && field(8, 2) == 0);
+        check(field(9, 0) == 2 && field(9, 1) == 3 && field(9, 2) == 1, "dispatch(2, 3)");
+        // Appended, the capacity kept.
+        const std::size_t n = words.size();
+        words.clear();
+        wire::encode(l, words);
+        check_eq(words.size(), n);
+    });
+
     return s.run(argc, argv);
 }

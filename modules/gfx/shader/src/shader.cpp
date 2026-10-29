@@ -134,6 +134,7 @@ struct Parameter {
     std::string name;
     Kind        kind = Kind::uniform;
     Binding     binding;
+    std::string format;  // a storage texture's [format("…")], when the source gives one
 };
 
 std::expected<Kind, std::string> kind_of(const std::string& name, const Json& type) {
@@ -169,7 +170,7 @@ std::expected<std::map<std::string, Parameter>, std::string> parameters(const Js
         const std::string name = p.value("name", "");
         auto k = kind_of(name, p.value("type", Json::object()));
         if (!k) return std::unexpected(k.error());
-        out[name] = {name, *k, binding_of(p)};
+        out[name] = {name, *k, binding_of(p), p.value("format", "")};
     }
     return out;
 }
@@ -269,8 +270,94 @@ std::vector<std::string> target_args(rhi::ShaderFormat f) {
         case rhi::ShaderFormat::metallib: return {"-target", "metallib"};
         case rhi::ShaderFormat::dxbc: return {"-target", "dxbc", "-profile", "sm_5_1"};
         case rhi::ShaderFormat::dxil: return {"-target", "dxil", "-profile", "sm_6_0"};
+        case rhi::ShaderFormat::wgsl: return {"-target", "wgsl"};
     }
     return {};
+}
+
+// ── WGSL ─────────────────────────────────────────────────────────────────
+
+std::vector<std::string> lines_of(std::string_view text) {
+    std::vector<std::string> out;
+    for (auto part : std::views::split(text, '\n')) out.emplace_back(part.begin(), part.end());
+    if (!out.empty() && out.back().empty()) out.pop_back();
+    for (auto& l : out)
+        if (!l.empty() && l.back() == '\r') l.pop_back();
+    return out;
+}
+
+std::string joined(const std::vector<std::string>& lines) {
+    std::string out;
+    for (const auto& l : lines) out += l + "\n";
+    return out;
+}
+
+// Slang's WGSL, bound as rhi.webgpu binds it. Slang splits a Sampler2D into
+// a texture at its Vulkan binding and a sampler at the next binding, so two
+// of them overlap; here a stage's read-only group (the vertex stage's 0, the
+// fragment stage's 2, the compute stage's 0) holds sampled texture i at
+// binding 2i and its sampler at 2i + 1, then the storage textures and
+// buffers in their order from 2 × samplers. The other groups keep their
+// bindings. A storage texture the entry only writes is declared write-only:
+// WebGPU's read-write storage takes few formats.
+std::expected<std::string, std::string> wgsl_for_rhi(std::string_view text, rhi::Stage stage) {
+    auto lines = lines_of(text);
+    struct Var {
+        std::size_t   line;
+        std::uint32_t binding, group;
+        std::string   name, type;
+    };
+    static const std::regex declaration(R"(^@binding\((\d+)\) @group\((\d+)\) var(<[^>]*>)? (\w+) : (.+);\s*$)");
+    std::vector<Var> vars;
+    for (std::size_t i = 0; i < lines.size(); ++i) {
+        std::smatch m;
+        if (std::regex_match(lines[i], m, declaration))
+            vars.push_back({i, static_cast<std::uint32_t>(std::stoul(m[1].str())), static_cast<std::uint32_t>(std::stoul(m[2].str())), m[4].str(),
+                            m[5].str()});
+    }
+    const std::uint32_t read = stage == rhi::Stage::fragment ? 2 : 0;
+    static const std::regex sampler_name(R"(^(\w+)_sampler_(\d+)$)");
+    std::map<std::size_t, std::uint32_t> rebound;  // index in vars → its binding here
+    std::uint32_t samplers = 0;
+    for (std::size_t i = 0; i < vars.size(); ++i) {
+        const Var& v = vars[i];
+        if (v.group != read || !v.type.starts_with("sampler")) continue;
+        std::smatch m;
+        if (!std::regex_match(v.name, m, sampler_name))
+            return std::unexpected(std::format("Slang's WGSL has a sampler `{}` that is not a Sampler2D's half (name_sampler_N)", v.name));
+        const std::string texture = std::format("{}_texture_{}", m[1].str(), m[2].str());
+        const auto partner = std::ranges::find_if(vars, [&](const Var& t) { return t.group == read && t.name == texture; });
+        if (partner == vars.end())
+            return std::unexpected(std::format("Slang's WGSL has the sampler `{}` without its texture `{}`", v.name, texture));
+        const std::uint32_t slot = partner->binding;  // the Sampler2D's Vulkan binding: rhi's slot
+        rebound[static_cast<std::size_t>(partner - vars.begin())] = 2 * slot;
+        rebound[i] = 2 * slot + 1;
+        ++samplers;
+    }
+    for (std::size_t i = 0; i < vars.size(); ++i)
+        if (vars[i].group == read && !rebound.contains(i)) rebound[i] = vars[i].binding + samplers;
+    static const std::regex binding_attr(R"(^@binding\(\d+\))");
+    for (const auto& [i, b] : rebound) lines[vars[i].line] = std::regex_replace(lines[vars[i].line], binding_attr, std::format("@binding({})", b),
+                                                                                 std::regex_constants::format_first_only);
+    // What Slang writes that is not WGSL (Chrome's compiler refuses it):
+    // HLSL's `precise` before a variable (WGSL has no such qualifier), and
+    // `@interpolate` on the members of a struct that is no stage's input or
+    // output (a copy of one the fragment stage makes, without @location).
+    static const std::regex precise(R"(\bprecise var\b)");
+    static const std::regex interpolate(R"(@interpolate\([^)]*\)\s*)");
+    for (auto& l : lines) {
+        if (l.contains("precise var")) l = std::regex_replace(l, precise, "var");
+        if (l.contains("@interpolate(") && !l.contains("@location(")) l = std::regex_replace(l, interpolate, "");
+    }
+    // Write-only storage where the entry never loads from it.
+    for (const Var& v : vars) {
+        if (!v.type.starts_with("texture_storage_") || !v.type.contains(", read_write>")) continue;
+        const std::regex load(std::format(R"(textureLoad\(\s*\(?\s*{}\b)", v.name));
+        if (std::regex_search(text.begin(), text.end(), load)) continue;
+        auto& l = lines[v.line];
+        l.replace(l.find(", read_write>"), 13, ", write>");
+    }
+    return joined(lines);
 }
 
 std::filesystem::path scratch_dir() {
@@ -427,7 +514,10 @@ std::expected<Program, std::string> compile(const std::filesystem::path& source,
             args.insert(args.end(), target.begin(), target.end());
             const bool reflect = format == rhi::ShaderFormat::spirv && options.entries.size() > 0;
             start(i, format, std::move(args),
-                  run.file(format == rhi::ShaderFormat::spirv ? ".spv" : format == rhi::ShaderFormat::msl ? ".metal" : ".bin"),
+                  run.file(format == rhi::ShaderFormat::spirv  ? ".spv"
+                           : format == rhi::ShaderFormat::msl  ? ".metal"
+                           : format == rhi::ShaderFormat::wgsl ? ".wgsl"
+                                                               : ".bin"),
                   reflect ? run.file(".json") : std::filesystem::path{});
         }
     if (registers) start(registers_job, rhi::ShaderFormat::spirv, {"-target", "hlsl"}, {}, run.file(".json"));
@@ -497,6 +587,15 @@ std::expected<Program, std::string> compile(const std::filesystem::path& source,
             if (reached.contains({p.binding.space, p.binding.index})) used.push_back(p);
         auto counts = check_entry(entry.name, entry.stage, used, source);
         if (!counts) return std::unexpected(counts.error());
+        // WGSL declares a storage texture's format, and WebGPU binds only a
+        // texture of that format: the source says which.
+        if (options.formats.has(rhi::ShaderFormat::wgsl))
+            for (const Parameter& p : used)
+                if (p.kind == Kind::rw_texture && p.format.empty())
+                    return std::unexpected(std::format("{} ({}, the {} entry point `{}`): `{}` is a read-write storage texture with no format; WGSL "
+                                                       "declares one and WebGPU binds only a texture of it — write [format(\"rgba8\")] (rgba8_unorm), "
+                                                       "\"rgba16f\", \"r32f\" or \"r32ui\" before it",
+                                                       file_name, name(entry.stage), name(entry.stage), entry.name, p.name));
         entry.counts = *counts;
         if (entry.stage == rhi::Stage::compute) {
             const Json size = wanted[i].reflection.value("threadGroupSize", Json::array());
@@ -523,6 +622,12 @@ std::expected<Program, std::string> compile(const std::filesystem::path& source,
                 constexpr std::string_view precise = "#pragma METAL fp math_mode(safe)\n#pragma METAL fp contract(off)\n";
                 const auto head = std::as_bytes(std::span(precise));
                 bytes->insert(bytes->begin(), head.begin(), head.end());
+            }
+            if (format == rhi::ShaderFormat::wgsl) {
+                auto text = wgsl_for_rhi(std::string_view(reinterpret_cast<const char*>(bytes->data()), bytes->size()), entry.stage);
+                if (!text) return std::unexpected(std::format("{} ({} for wgsl): {}", file_name, entry.name, text.error()));
+                const auto b = std::as_bytes(std::span(*text));
+                bytes->assign(b.begin(), b.end());
             }
             entry.code.push_back({format, std::move(*bytes)});
         }
@@ -554,6 +659,7 @@ rhi::ShaderDesc desc(const Entry& e, std::vector<rhi::ShaderCode>& codes, std::s
 }
 
 rhi::ShaderFormats formats_for(std::string_view target_os, std::string_view host_os) noexcept {
+    if (target_os == "emscripten") return rhi::formats({rhi::ShaderFormat::wgsl});
     if (target_os == "macos" || target_os == "ios" || target_os == "tvos" || target_os == "visionos")
         return rhi::formats({rhi::ShaderFormat::msl});
     rhi::ShaderFormats f = rhi::formats({rhi::ShaderFormat::spirv});

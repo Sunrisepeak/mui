@@ -1,6 +1,6 @@
 # openmui.rhi
 
-The GPU abstraction openmui's renderer is written once on (`omui.rhi`, architecture §8.2, D-33, D-58). It has what the rendering features need (D-81): 2D colour targets, sampled and storage textures, depth and stencil targets (`d32_float`, `d32_float_s8`, `TextureUsage::depth_target`, a pass's `DepthTarget` with its clear, load and store), multisampled targets (`TextureDesc::samples` up to `Caps::max_samples`, resolved into `ColorTarget::resolve` when the pass ends), vertex, index and storage buffers, uniforms pushed by value, one blend state and one depth test (`DepthState`) per pipeline, and compute. Validation holds a pass and the pipelines it sets to the same samples and the same depth format. It has no bindless resources and no GPU timestamps — SDL_GPU has none ([#3](https://github.com/Sunrisepeak/mui/issues/3)); the render graph times its passes on the CPU. Backends live in packages of their own (`modules/gfx/rhi/sdl` first); this one depends on no graphics library.
+The GPU abstraction openmui's renderer is written once on (`omui.rhi`, architecture §8.2, D-33, D-58). It has what the rendering features need (D-81): 2D colour targets, sampled and storage textures, depth and stencil targets (`d32_float`, `d32_float_s8`, `TextureUsage::depth_target`, a pass's `DepthTarget` with its clear, load and store), multisampled targets (`TextureDesc::samples` up to `Caps::max_samples`, resolved into `ColorTarget::resolve` when the pass ends), vertex, index and storage buffers, uniforms pushed by value, one blend state and one depth test (`DepthState`) per pipeline, and compute. Validation holds a pass and the pipelines it sets to the same samples and the same depth format. It has no bindless resources and no GPU timestamps — SDL_GPU has none ([#3](https://github.com/Sunrisepeak/mui/issues/3)); the render graph times its passes on the CPU. Backends live in packages of their own (`modules/gfx/rhi/sdl`, `modules/gfx/rhi/webgpu`); this one depends on no graphics library.
 
 ```cpp
 import openmui.rhi;
@@ -24,6 +24,7 @@ auto pixels = device.read(*target, {0, 0, 256, 256});
 
 - **Descriptions are checked before a backend sees them** (`check`): sizes and usages, a shader's stage and its code in a format the device takes, vertex attributes inside their stride, read-write storage only in compute shaders.
 - **A frame's work is data.** A `CommandList` records uploads, render passes and their draws, compute passes and their dispatches, and copies. The bytes a command carries are copied into the list's arena, so a list of the same shape as the last allocates nothing. Lists hash by content, which is what tests and the trace compare.
+- **A list crosses a boundary as words** (`openmui.rhi:wire`): each command its op, its length and its fields, a payload by where it lies in memory. A page's backend takes a whole submission in one call out of WebAssembly this way, not one call a draw.
 - **The device validates every command** (`validate`) against the resources it names before the backend runs anything:
   - passes balanced and not nested, each command in the kind of pass it belongs to;
   - handles live, usages declared, regions and ranges inside their resources;
@@ -34,11 +35,12 @@ auto pixels = device.read(*target, {0, 0, 256, 256});
 
 **Presenting.** A device made for a window (a backend's option: `rhi::sdl::Options::window`) shows a frame with `present(texture)`: a sampled rgba8 or bgra8 texture, scaled to the window's swapchain after every submission so far; false when nothing could be shown (a minimised window). The check is rhi's, the showing the backend's protected `show`; a device made for no window answers `Errc::unsupported`.
 
-Shaders reach a device as `ShaderDesc`: one entry point, its code in each format it was compiled to, and the resources it binds by kind. Slots follow one convention for every backend (SDL_GPU's); [openmui.shader](../shader) compiles Slang to it and checks it.
+Shaders reach a device as `ShaderDesc`: one entry point, its code in each format it was compiled to (SPIR-V, MSL, metallib, DXBC, DXIL; WGSL for WebGPU), and the resources it binds by kind. Slots follow one convention for every backend (SDL_GPU's); [openmui.shader](../shader) compiles Slang to it and checks it.
 
 The tests (`tests/rhi_test.cpp`) run against a device that only remembers what it created: description checks, lists as data, every kind of validation failure, compute passes, readback bounds, what present() takes.
 
 ## Inside
 
 - [sdl](sdl) (`openmui.rhi.sdl`): `omui.rhi` on SDL_GPU — Vulkan, Metal, Direct3D 12.
+- [webgpu](webgpu) (`openmui.rhi.webgpu`): `omui.rhi` on the page's WebGPU — the Web's main path, WGSL shaders.
 - [cts](cts) (`openmui.rhi.cts`): the backend conformance suite, shaders and cases with exact expected pixels.

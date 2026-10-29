@@ -375,7 +375,8 @@ D-66 的帧管线决定“一帧有哪些阶段”（输入 → 动画 → 布�
 - 体积（release）：index.html 2.4 KB；格斗 13.9 MiB（wasm 8.8 MiB、字体 4.8 MiB），打砖块 14.5 MiB；zip 后 6.9 / 6.2 MiB。字体是大头，子集化（§6.4）是下一步。
 - 发现：Toy 没有清单文件（标题、slug、封面是 `toy create` 的参数），打包时在包旁边写 `<target>.toy.omui.json`；SDK 由页面自己用 script 标签加载；index 包外的上限按账号而定。mcpp-index 里有些包的 `linux` 链接参数（taskflow 的 `-pthread`、harfbuzz/libwebp 的 `-lpthread`）也落到 emscripten 行，用 `-sUSE_PTHREADS=0` 抵消；QuickJS-ng 的 mwrap 只支持 64 位，Web 上 `lang.js` 暂时回答“不可用”。
 - 已有（2026-10-30，T4）：输入法的隐藏 textarea（组合事件接到 `PreeditEvent` / `TextEvent`）；剪贴板（页面最后知道的内容，写入走 Async Clipboard API）；语义 DOM 镜像（`DomMirror`：ARIA 角色、名字、值、状态、焦点、框，只发变化，polite / assertive 两个 live region，读屏的焦点和激活回到运行时）；`window.omui`（openmui.tree@0.1，经 `openas::decide`，不可信的 DOM 事件不算人的输入）；`Store` 插件（新包 `openmui.native.store`，Web 上是 localStorage，键在 `omui/<app>/` 下）。Web 行跑 host.web 的 wasm 测试、页面一半在模拟 DOM 下的测试，以及 wasm 程序放进模拟页面的端到端测试。
-- 还没有：WebGL2/WebGPU、IndexedDB（比 localStorage 大的存储）、Toy 的 navigate/profile/容器状态；脚本（Lua/Python/JS）在 Web 上需要单线程执行（`lang::Host` 现在起线程）；core/view 的依赖链还没有声明 `platforms`，host.web 在 Web 行里是显式加上的。
+- 已有（2026-10-30，T6 前半）：`rhi.webgpu`（`omui.rhi` 在页面的 WebGPU 上；Slang 经 `openmui.shader` 输出 WGSL，绑定改写成 WebGPU 的布局；一次提交一次调用，命令列表按 `openmui.rhi:wire` 编成 32 位字）；rhi.cts 的全部用例在 headless Chromium 的 WebGPU（SwiftShader）上通过，Web 构建写出的每个 WGSL 入口都经浏览器编译（`tools/ci/browser.sh`）。回读要程序能挂起（`-sASYNCIFY`；JSPI 和异常的 `invoke_*` 冲突），呈现不需要。
+- 还没有：WebGL2、`host.web` 用 GPU 画（现在仍是 CPU 渲染器）、IndexedDB（比 localStorage 大的存储）、Toy 的 navigate/profile/容器状态；脚本（Lua/Python/JS）在 Web 上需要单线程执行（`lang::Host` 现在起线程）；core/view 的依赖链还没有声明 `platforms`，host.web 在 Web 行里是显式加上的。
 
 ### 6.1 构建
 
@@ -703,6 +704,8 @@ R1 目录与命名（D-80，一轮完成搬目录 + 改名 + README + lint）
 已完成：R1、R2、W1、`host.web` 的第一部分（画布、帧节奏、输入、手柄、CPU 渲染）、`host.web.toy` 和 `dist-toy`、R8（`media.audio`、mgame 核心、S4）、R9 和 R10（gongfu、训练模式、工具、六个角色全部换成生成的画，三气、胜利姿势、语音、主题曲和场景、三局两胜、Toy 版）；T1（撤销、事务和 dry-run，规范 S-12、S-13）；T3（`media.video`：按样本精确的帧和声轨、内置 PNG 序列 / Y4M / WAV、`*.video.omui.toml`、`omui video`；WebM 插件 `openmui.video.webm`：VP9 + Opus，上游 compat.libvpx、compat.libwebm、mcpplibs.mwrap.libvpx 已发布进 mcpp-index）。
 
 T5 的第一部分已完成（2026-10-30）：`site/` 的地方、四档镜头、树哈希对照、中英文、可用的时间线编辑器、构建时预渲染、Pages 工作流；其余部分列为 T5b。T5b 已完成 agent 面板（S-10、S-11 的演示）、链接（`Runtime::open_url`）、镜头的淡入和切换语言的字形过渡（字形动画作用于子树）。
+
+T6 的前半已完成（2026-10-30）：`rhi.webgpu`，rhi.cts 在浏览器的 WebGPU 上全部通过（§6 的现状）；后半是 `rhi.webgl`。
 
 剩下的按依赖拆成七项，T1–T4 互不依赖，可以并行（子代理最多 3 个）：
 

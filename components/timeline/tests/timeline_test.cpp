@@ -71,7 +71,8 @@ struct Editor {
         o.fonts = &fonts();
         return o;
     }()) {
-        Element e = timeline_editor({.id = "edit", .document = std::string(document), .zoom = 120});
+        // Its own history (S-12): undo and redo are its actions, Ctrl+Z inside it undoes its edits.
+        Element e = timeline_editor({.id = "edit", .document = std::string(document), .zoom = 120}).prop("undo_scope", Source{Value(true), {}, {}});
         e.on("edited", [this](const Value& args) { documents.emplace_back(args.get("document") ? args.get("document")->as_string() : ""); });
         h.mount("main", std::move(e));
         h.step();
@@ -127,7 +128,7 @@ int main(int argc, char** argv) {
               "the fight at frame 90 for 90 frames");
     });
 
-    s.test("an agent edits: select, split at the playhead, move, trim, remove — each handing out the document, each undone and redone exactly", [] {
+    s.test("an agent edits: select, split at the playhead, move, trim, remove — each handing out the document, each undone and redone exactly through the history (S-12)", [] {
         Editor e;
         const std::string original = e.text();
         check(e.act("select", clip(0, 1)) && e.act("seek", Value{}.set("frame", 120)) && e.act("split"), "the fight split at frame 120");
@@ -136,11 +137,11 @@ int main(int argc, char** argv) {
         check(e.act("trim", Value{}.set("track", 0).set("clip", 0).set("frame", 5).set("frames", 40)), "the title trimmed");
         check(e.act("select", clip(1, 0)) && e.act("remove", Value{}.set("ripple", false)), "the theme removed");
         check(!e.act("move", Value{}.set("track", 0).set("clip", 0).set("to_track", 1).set("frame", 0)), "a picture onto the music track refused");
-        check_eq(e.seen().get("undo")->as_int(0), std::int64_t{4});
+        check_eq(std::string(e.seen().get("last")->as_string()), std::string("remove `theme`"));
         const std::string edited = e.text();
         for (int i = 0; i < 4; ++i) check(e.act("undo"), "undo");
         check_eq(e.text(), original);
-        check(!e.act("undo"), "nothing more to undo");
+        check(!e.act("undo"), "nothing more to undo: the window's history offers no undo now");
         for (int i = 0; i < 4; ++i) check(e.act("redo"), "redo");
         check_eq(e.text(), edited);
         check_eq(e.documents.back(), edited);

@@ -382,6 +382,7 @@ public:
     void focus(NodeId node) override;
     void capture_pointer(NodeId node) override;
     void release_pointer() override;
+    bool perform(NodeId node, std::string_view action, const Value& args) override;
     void text_input(NodeId node, std::optional<Rect> caret) override;
     [[nodiscard]] std::string clipboard_text() override;
     void set_clipboard_text(std::string_view text) override;

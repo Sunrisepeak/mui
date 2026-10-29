@@ -1,7 +1,8 @@
 # The timeline every editor shares, to look at and edit (D-86): tracks of
 # clips in exact time (openmui.timeline), a ruler, markers and a playhead.
 # A person selects, drags, trims and splits with the pointer and the keys;
-# an agent does the same through the actions; every edit undoes exactly.
+# an agent does the same through the actions; every edit undoes exactly,
+# through the window's history (or the editor's, as an undo_scope).
 [contract.timeline_editor]
 role = "canvas"
 spec = "0.1"
@@ -23,10 +24,7 @@ move   = { effect = "reversible", args = { track = "i32", clip = "i32", to_track
 trim   = { effect = "reversible", args = { track = "i32", clip = "i32", frame = "i32", frames = "i32" }, doc = "Gives a clip a new start and length (its source stays under its time)." }
 split  = { effect = "reversible", doc = "Cuts the selected clip in two at the playhead." }
 remove = { effect = "reversible", args = { ripple = "bool" }, doc = "Removes the selected clip; with ripple, later clips on its track move back by its length." }
-undo   = { effect = "reversible", doc = "Undoes the last edit." }
-redo   = { effect = "reversible", doc = "Makes the last undone edit again." }
+revert = { effect = "reversible", args = { change = "i64" }, doc = "Makes a change an earlier edit kept: its inverse, as the window's history undoes and redoes it (S-12)." }
 
 [contract.timeline_editor.keys]
-"S"           = "split"
-"Ctrl+Z"      = "undo"
-"Ctrl+Shift+Z" = "redo"
+"S" = "split"

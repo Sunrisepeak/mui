@@ -28,14 +28,12 @@ public:
     ActResult trim(ActContext& ctx, const TrimArgs& args);
     ActResult split(ActContext& ctx);
     ActResult remove(ActContext& ctx, const Value& ripple);
-    ActResult undo(ActContext& ctx);
-    ActResult redo(ActContext& ctx);
+    ActResult revert(ActContext& ctx, const Value& change);
 
     // The timeline as it is now (after the edits), and what its document said was wrong (empty: nothing).
     [[nodiscard]] const timeline::Timeline& model() const noexcept { return model_; }
     [[nodiscard]] const std::vector<std::string>& problems() const noexcept { return problems_; }
     [[nodiscard]] std::optional<std::pair<std::size_t, std::size_t>> selection() const noexcept { return selected_; }
-    [[nodiscard]] std::size_t undoable() const noexcept { return undo_.size(); }
 
     // The layout, in the node's coordinates: the ruler's height, a track's, the headers' width.
     static constexpr float ruler = 26, track_height = 46, header = 112;
@@ -62,7 +60,11 @@ private:
 
     timeline::Timeline                 model_;
     std::vector<std::string>           problems_;
-    std::vector<timeline::Change>      undo_, redo_;
+    // The inverses of the edits made, by the id the window's history holds (S-12): each made once, then
+    // replaced by its own inverse; a document read again clears them (and the window's history).
+    std::map<std::int64_t, timeline::Change> kept_;
+    std::int64_t                       next_ = 1;
+    std::string                        last_;  // the last edit made, undone or redone
     std::optional<std::pair<std::size_t, std::size_t>> selected_;
     Drag                               drag_;
     float                              scroll_ = 0;  // seconds off the left edge

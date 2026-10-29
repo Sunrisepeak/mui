@@ -165,6 +165,11 @@ public:
     virtual void focus(NodeId node) = 0;
     virtual void capture_pointer(NodeId node) = 0;
     virtual void release_pointer() = 0;
+    // Performs one of the node's own actions as the person whose input it is
+    // handling — a drag's end, a key its contract does not bind — through the
+    // same checks, journal and history (S-12) as any call: what a pointer
+    // gesture does is undone as a key's or an agent's is. False when refused or failed.
+    virtual bool perform(NodeId node, std::string_view action, const Value& args) = 0;
     // Text input (input methods): where the caret is, so the candidate
     // window follows it.
     virtual void text_input(NodeId node, std::optional<Rect> caret) = 0;

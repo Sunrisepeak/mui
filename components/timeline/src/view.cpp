@@ -37,7 +37,7 @@ void TimelineEditor::prop_changed(TimelineEditorProp p) {
 }
 
 void TimelineEditor::read() {
-    undo_.clear(), redo_.clear(), selected_.reset();
+    kept_.clear(), selected_.reset(), last_.clear();  // the window's history may still name them: undoing those is refused
     problems_.clear();
     if (props.document.empty()) {
         model_ = {};
@@ -93,12 +93,14 @@ ActResult TimelineEditor::edit(std::expected<tl::Change, std::string> change) {
     if (!change) return ActResult::fail(change.error());
     auto undo = tl::apply(model_, *change);
     if (!undo) return ActResult::fail(undo.error());
-    undo_.push_back(std::move(*undo));
-    redo_.clear();
     names_.clear();
+    last_ = change->what;
     if (attached()) emit_edited(tl::write_timeline(model_), change->what);
     changed();
-    return ActResult::done(Value(change->what));
+    // Its inverse kept here; the window's history holds the action that makes it.
+    const std::int64_t id = next_++;
+    kept_.emplace(id, std::move(*undo));
+    return ActResult::done(Value(change->what)).undo_by("revert", Value{}.set("change", id));
 }
 
 // ── Actions ─────────────────────────────────────────────────────────────
@@ -155,32 +157,13 @@ ActResult TimelineEditor::remove(ActContext&, const Value& ripple) {
     return r;
 }
 
-ActResult TimelineEditor::undo(ActContext&) {
-    if (undo_.empty()) return ActResult::fail("nothing to undo");
-    auto redo = tl::apply(model_, undo_.back());
-    if (!redo) return ActResult::fail(redo.error());
-    const std::string what = undo_.back().what;
-    undo_.pop_back();
-    redo_.push_back(std::move(*redo));
+ActResult TimelineEditor::revert(ActContext&, const Value& change) {
+    const auto it = kept_.find(change.as_int(0));
+    if (it == kept_.end()) return ActResult::fail("that change is no longer kept (the document was read again)");
+    tl::Change c = std::move(it->second);
+    kept_.erase(it);
     selected_.reset();
-    names_.clear();
-    if (attached()) emit_edited(tl::write_timeline(model_), "undo " + what);
-    changed();
-    return ActResult::done(Value(what));
-}
-
-ActResult TimelineEditor::redo(ActContext&) {
-    if (redo_.empty()) return ActResult::fail("nothing to redo");
-    auto undo = tl::apply(model_, redo_.back());
-    if (!undo) return ActResult::fail(undo.error());
-    const std::string what = redo_.back().what;
-    redo_.pop_back();
-    undo_.push_back(std::move(*undo));
-    selected_.reset();
-    names_.clear();
-    if (attached()) emit_edited(tl::write_timeline(model_), what);
-    changed();
-    return ActResult::done(Value(what));
+    return edit(std::move(c));
 }
 
 // ── Pointer and keys ────────────────────────────────────────────────────
@@ -193,9 +176,7 @@ bool TimelineEditor::on_event(EventContext& ctx, const InputEvent& e) {
         else if (k->key == Key::home) set_frame(0);
         else if (k->key == Key::end) set_frame(tl::frame_at(model_.rate, model_.duration()));
         else if (k->key == Key::delete_ || k->key == Key::backspace) {
-            const Value none;
-            ActContext a{services(), node(), none};
-            (void)remove(a, Value(k->mods.has(Modifier::shift)));
+            (void)services().perform(node(), "remove", Value{}.set("ripple", k->mods.has(Modifier::shift)));  // as the person: into the history
         } else {
             return false;
         }
@@ -268,19 +249,16 @@ bool TimelineEditor::on_event(EventContext& ctx, const InputEvent& e) {
         const Drag d = std::exchange(drag_, {});
         services().release_pointer();
         if (p->kind == PointerKind::up && d.grip != Grip::playhead && (d.shift != 0 || d.to_track != d.track)) {
+            // The gesture's edit made as the person's action, so it joins the history (S-12) as a key's or an agent's would.
             const tl::Clip& c = model_.tracks[d.track].clips[d.clip];
-            const Value none;
-            ActContext a{services(), node(), none};
-            const auto frame = [&](tl::Flicks t) { return Value(static_cast<std::int64_t>(tl::frame_at(model_.rate, t))); };
+            const auto frame = [&](tl::Flicks t) { return static_cast<std::int64_t>(tl::frame_at(model_.rate, t)); };
+            const auto track = static_cast<std::int64_t>(d.track), clip = static_cast<std::int64_t>(d.clip);
             if (d.grip == Grip::clip)
-                (void)move(a, MoveArgs{.clip = Value(static_cast<std::int64_t>(d.clip)), .frame = frame(c.at + d.shift), .to_track = Value(static_cast<std::int64_t>(d.to_track)),
-                                       .track = Value(static_cast<std::int64_t>(d.track))});
+                (void)services().perform(node(), "move", Value{}.set("track", track).set("clip", clip).set("to_track", static_cast<std::int64_t>(d.to_track)).set("frame", frame(c.at + d.shift)));
             else if (d.grip == Grip::start)
-                (void)trim(a, TrimArgs{.clip = Value(static_cast<std::int64_t>(d.clip)), .frame = frame(c.at + d.shift), .frames = frame(c.length - d.shift),
-                                       .track = Value(static_cast<std::int64_t>(d.track))});
+                (void)services().perform(node(), "trim", Value{}.set("track", track).set("clip", clip).set("frame", frame(c.at + d.shift)).set("frames", frame(c.length - d.shift)));
             else
-                (void)trim(a, TrimArgs{.clip = Value(static_cast<std::int64_t>(d.clip)), .frame = frame(c.at), .frames = frame(c.length + d.shift),
-                                       .track = Value(static_cast<std::int64_t>(d.track))});
+                (void)services().perform(node(), "trim", Value{}.set("track", track).set("clip", clip).set("frame", frame(c.at)).set("frames", frame(c.length + d.shift)));
         }
         changed();
         ctx.handled = true;
@@ -406,8 +384,7 @@ void TimelineEditor::semantics(SemanticsContext&, spec::SemanticNode& node) cons
     const tl::Rate rate = model_.rate;
     v.set("frame", props.frame).set("rate", std::format("{}/{}", rate.num, rate.den)).set("frames", tl::frame_at(rate, model_.duration()));
     if (selected_) v.set("selected", Value{}.set("track", static_cast<std::int64_t>(selected_->first)).set("clip", static_cast<std::int64_t>(selected_->second)));
-    v.set("undo", static_cast<std::int64_t>(undo_.size())).set("redo", static_cast<std::int64_t>(redo_.size()));
-    if (!undo_.empty()) v.set("last", undo_.back().what);
+    if (!last_.empty()) v.set("last", last_);
     Value::List tracks;
     for (const tl::Track& track : model_.tracks) {
         Value::List clips;

@@ -488,6 +488,13 @@ void Runtime::focus(NodeId node) { impl_->set_focus(node, impl_->focus_visible);
 void Runtime::capture_pointer(NodeId node) { impl_->capture = node; }
 void Runtime::release_pointer() { impl_->capture = {}; }
 
+bool Runtime::perform(NodeId node, std::string_view action, const Value& args) {
+    Invocation call;
+    call.actor = {"person", "user", {}};  // the input being handled is a person's (openas §2.7)
+    call.args = args;
+    return act(node, action, call).exit_code() == std::optional<int>(0);
+}
+
 void Runtime::text_input(NodeId node, std::optional<Rect> caret) {
     Impl& d = *impl_;
     if (!caret) {

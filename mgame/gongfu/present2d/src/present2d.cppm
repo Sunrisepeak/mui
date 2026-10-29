@@ -748,6 +748,7 @@ private:
     std::vector<double>      follow_;  // each bone's secondary motion this frame, degrees
     std::vector<std::size_t> order_;
     omui::render::Path       path_;
+    omui::render::Path       ring_;  // the contact shadows' rings
 };
 
 // One frame with a painter of its own (the same picture; allocates).

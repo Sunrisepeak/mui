@@ -1177,7 +1177,7 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
     // Each fighter's contact shadow on the floor: soft (rings, darkest in the middle), smaller and fainter
     // the higher it is off the ground. Not in a cinematic: its bodies stand where its path puts them.
     if (const Color contact = art ? art->contact : Stage{}.contact; contact.a > 0 && !cine) {
-        render::Path ring;
+        render::Path& ring = ring_;  // kept: nothing allocated each frame
         for (const FighterState& f : st.f) {
             const double up = std::max(0.0, stage(f.pos.y));
             const double k = std::clamp(1 - up / 260, 0.35, 1.0);

@@ -115,8 +115,10 @@ void images_of(const render::DisplayList& dl, std::vector<render::ImageRef>& out
             [&](const auto& cmd) {
                 using T = std::decay_t<decltype(cmd)>;
                 if constexpr (std::same_as<T, render::DrawImage>) out.push_back(cmd.image);
-                if constexpr (requires { cmd.paint; })
-                    if (cmd.paint.kind == render::Paint::Kind::image) out.push_back(cmd.paint.image);
+                if constexpr (requires { cmd.paint; }) {
+                    if (cmd.paint.kind == render::Paint::Kind::image || cmd.paint.kind == render::Paint::Kind::image_mask) out.push_back(cmd.paint.image);
+                    if (cmd.paint.material && cmd.paint.material->normal.id != 0) out.push_back(cmd.paint.material->normal);  // its normal map
+                }
             },
             c);
 }

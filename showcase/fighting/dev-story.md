@@ -57,6 +57,7 @@ Each fighter is three files in `fighters/` — what they do (`*.fighter.gongfu.t
 | **Animation** | 48 clips keyed by 11 named key poses (`[pose.stance]`, `crouch`, `air`, `hit`, `guard`, `down`…), each key changing only what it names; four hit reactions (head, body, low, heavy) |
 | **Effects** | Ink cut from a generated sheet: splash bursts, crescent slashes, dry-brush strokes laid along curves, droplets — played by her impacts, her projectiles and her clips |
 | **Super (level 3)** | Unarmed until the last stroke, and every blow lands on her. Her palm strikes the chest; her front hand takes the wrist and turns them in (a hold: the defender is wherever her hand is), and her free hand strikes four times — palm to the chest, two fingers to the throat, the knife of the hand across the ribs, a chop down on the collarbone — each leaving its stroke of ink where it lands (撇, 点, 横, 竖, laid along the hand's path from her generated ink sheet), the held body reacting to each; both palms drive them off. Only then does she draw the brush from her back, sink low, and sweep one great horizontal stroke, 一, across the picture and through them: they are thrown up along it and fall. Seven hits, the same 4000 damage; no glyph is written over anyone |
+| **Win pose** | She draws the brush over her shoulder, writes one slow circle in the air and holds it upright before her face, the free palm raised beside it; slings it back and stands still, the fist in the palm before her chest, a small bow and a smile |
 | **Music** | The study: guzheng in D minor pentatonic, 128 BPM, 4-bar intro and 32-bar loop, layers by intensity |
 
 ### 霓 (Ni)
@@ -69,6 +70,7 @@ Each fighter is three files in `fighters/` — what they do (`*.fighter.gongfu.t
 | **Rig** | 16 bones; her head drawn facing left, so its part is mirrored across its axis; her fringe and her jacket's flap trail her; an open-hand drawing swaps in for the front fist |
 | **Animation** | 48 clips by 7 named poses (a boxer's guard as the stance) |
 | **Super (level 3)** | One brawl in close-up, then in the air. Her straight lands and her front hand takes the collar (a hold: the defender is wherever her hand is). She yanks them down onto a knee to the gut, then a knee to the face, and hauls them up into a headbutt; each blow is a new hold, so the body in her hand reacts to it. She heaves them overhead, turning over, leaps after them and kicks them higher four times — a snap kick, a roundhouse, a high kick, a spinning back kick (drawn turned) — her neon trail behind her. Above them, her heel comes down like an axe and drives them into the street. Ten hits, the same 4000 damage. Her effects are generated art: an effects sheet painted as light on black, its brightness made its alpha, cut by `gongfu-studio cut` into slash arcs, bursts, streaks, a heel's drop and a street shockwave (`art/ni-fx.webp`); they sit where each blow lands, and in the clinch she is drawn over the body she strikes (`in_front`) |
+| **Win pose** | Chin up, she smacks her lit knuckles into her open palm twice, flicks a thumb across her nose, and leans back on her heels, the back hand on her hip, the front fist hanging loose |
 | **Music** | The street: drum and bass in F minor, 168 BPM, 8-bar intro and 40-bar loop |
 
 ### 坤 (Kun) — in progress
@@ -91,6 +93,8 @@ An original character built on an internet meme's signs — a clean centre part,
 
 Three hits carry the same 4000 damage as before (900, 1900, 1200). The engine pieces it needed are general and went into `gongfu.present2d` first: path keys with an ease (a body flung up and falling instead of stopping at every key), turns, hitstops for the struck, cinematic afterimages, and the taken reactions (`launched`, `slammed`) that every rebuilt look now has. His force is drawn art, generated as light on black and cut by `gongfu-studio cut` (`art/kun-fx.webp`): a burst and dust where the ball hits the floor, a spark and a push at the gut, the stamp's floor burst, 铁山靠's force wave running on past her, the crash's burst and dust; the camera pushes close on the gut and goes low for 铁山靠. What it still lacks: there is no drawing of his back, so "turned" reads as facing away rather than showing it.
 
+**Win pose.** He straightens out of his stance, runs a thumb down his suspender and lets it go, then stands with his arms at his sides, chin up and eyes closed, turned from the fallen. No ball: it is the specials' and supers' alone.
+
 ### 璃 (Li)
 
 | | |
@@ -102,12 +106,13 @@ Three hits carry the same 4000 damage as before (900, 1900, 1200). The engine pi
 | **Animation** | 52 clips keyed by 13 named poses (`stance`, `crouch`, `air`, `thrust`, `palm`, `gather`, `set`, `side_kick`, `high_kick`, `guard`, `hit`, `down`, `flung`); every hit reaction, and `held`, `launched`, `slammed` |
 | **Effects** | Her glass, cut from the effects sheet: bursts, crescent cuts, cracks and glints by weight; shards thrown and falling; the panes themselves are drawn art — whole, cracked once worn, breaking when struck — and her shards fly as slivers of glass |
 | **Super (level 3)** | The eyes cut-in through cracking glass; the palm lands and the world turns to glass, a pane standing either side; she darts through her panes and strikes twelve times from in front and from behind (knife-hand, palm, low kick, cut, side kick), each blow breaking glass at the struck and leaving a crack in the world, the struck reacting to each; the strike cut-in as she gathers the light; the palm through the last pane, shards raining over the picture, the struck thrown up; her finishing picture |
+| **Win pose** | She draws her feet together and stands tall, sets the prism pin in her hair with two fingers of the far hand, then raises the near hand's sword fingers before her face and is still |
 
 Making her taught three things. The parts sheet came back twice: the first with a sleeve drawn onto the torso (a third arm whenever the front arm moved), the second with an open armhole; the second's armhole was closed by filling it with the jacket beside it, so its piping reads as a seam under the front arm. The generated boots were drawn larger than the legs, so they were scaled down in the sheet before cutting rather than given a scale of their own (the lesson of one art scale). And the first cinematic's prism doubled the training dummy into a row of ghosts and its fall was flat vector triangles; the prism was toned down to one faint image and the fall became her own shards raining from the top of the picture. The panes needed one general capability, which went into `gongfu.present2d`: a pane drawn from a picture's regions.
 
 ### 岳, 刻 and Kata
 
-The first two still use the original geometric looks; they will be rebuilt with the same workflow. Kata, the training dummy, stays deliberately plain, but acts: it has the four hit reactions, so a super's cuts land visibly on it.
+The first two still use the original geometric looks; they will be rebuilt with the same workflow. Kata, the training dummy, stays deliberately plain, but acts: it has the four hit reactions, so a super's cuts land visibly on it. Their win poses: 岳 a sumo's stomp, the knee raised high and the foot driven down into a deep squat, then he rises and folds his arms, chin up; 刻 reads the time in her open hand, head bowed, snaps the hand shut to her chest and raises the clock's gold hand behind her to twelve; Kata comes to attention and bows from the hip.
 
 ## 4. Combat systems
 

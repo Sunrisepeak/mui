@@ -371,6 +371,22 @@ angle.thigh_front = [[0, 49.9]]
 angle.shin_front = [[0, -118.3]]
 angle.thigh_back = [[0, 7.2]]
 angle.shin_back = [[0, -50.3]]
+# The round won: the training dummy straightens, arms to its sides, and bows; then stands at rest.
+[clip.win]
+frames = 100
+ease = "in_out_sine"
+rise = [[0, 0], [14, 1], [36, -2], [58, -2], [78, 1], [100, 1]]
+angle.torso = [[0, 0], [14, 2], [36, -38], [58, -38], [78, 2], [100, 2]]
+angle.head = [[0, 0], [14, 0], [36, -16], [58, -16], [78, 0], [100, 0]]
+angle.upper_back = [[0, 0], [14, -38], [36, -42], [58, -42], [78, -38], [100, -38]]
+angle.fore_back = [[0, 0], [14, -58], [36, -60], [58, -60], [78, -58], [100, -58]]
+angle.upper_front = [[0, 0], [14, -44], [36, -38], [58, -38], [78, -44], [100, -44]]
+angle.fore_front = [[0, 0], [14, -86], [36, -88], [58, -88], [78, -86], [100, -86]]
+angle.thigh_front = [[0, 0], [14, -10], [100, -10]]
+angle.shin_front = [[0, 0], [14, -10], [100, -10]]
+angle.thigh_back = [[0, 0], [14, 10], [100, 10]]
+angle.shin_back = [[0, 0], [14, 6], [100, 6]]
+
 [impact.light]
 shake = [0, 0]
 spark = { style = "rays", size = 24, count = 6, frames = 12, color = "#ffd166", counter = "#ff4d5e" }

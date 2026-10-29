@@ -1086,6 +1086,30 @@ poses = [
     [20, "air"],
 ]
 
+# The round won: chin up, the fist smacked into the open palm twice; a thumb
+# across the nose; then her weight back, chin high, the front fist loose: next.
+[clip.win]
+frames = 120
+ease = "in_out_sine"
+poses = [
+    [0, "stance"],
+    [8, "stance", "out_quad", { aim = { torso = 90, head = 94, upper_front = -74, fore_front = 26, upper_back = -150, fore_back = -150 }, rise = -2, swap = { fore_front = 1 } }],
+    [13, "stance", "in_quad", { aim = { torso = 86, head = 90, upper_front = -74, fore_front = 26, upper_back = -100, fore_back = -40 }, rise = -1, swap = { fore_front = 1 } }],
+    [15, "stance", "out_quad", { aim = { torso = 80, head = 84, upper_front = -74, fore_front = 28, upper_back = -66, fore_back = 60 }, rise = -4, swap = { fore_front = 1 } }],
+    [21, "stance", "in_quad", { aim = { torso = 88, head = 92, upper_front = -74, fore_front = 26, upper_back = -145, fore_back = -140 }, rise = -1, swap = { fore_front = 1 } }],
+    [26, "stance", "out_quad", { aim = { torso = 78, head = 82, upper_front = -76, fore_front = 26, upper_back = -66, fore_back = 58 }, rise = -5, swap = { fore_front = 1 } }],
+    [38, "stance", { aim = { torso = 80, head = 84, upper_front = -74, fore_front = 28, upper_back = -66, fore_back = 59 }, rise = -4, swap = { fore_front = 1 } }],
+    [41, "stance", { aim = { torso = 80, head = 84, upper_front = -74, fore_front = 28, upper_back = -66, fore_back = 59 }, rise = -4, swap = { fore_front = 0 } }],
+    [46, "stance", { aim = { torso = 92, head = 96, upper_front = -32, fore_front = 102, upper_back = -100, fore_back = 40 }, rise = -2, swap = { fore_front = 0 } }],
+    [50, "stance", "out_quad", { aim = { torso = 92, head = 96, upper_front = -26, fore_front = 128, upper_back = -100, fore_back = 40 }, rise = -2 }],
+    [58, "stance", { aim = { hip = 94, torso = 101, head = 100, upper_front = -60, fore_front = 30, upper_back = -135, fore_back = -20 }, rise = -1, grip_at = { foot_front = 46, foot_back = -46 } }],
+    [66, "stance", { aim = { hip = 94, torso = 100, head = 100, upper_front = -62, fore_front = 26, upper_back = -135, fore_back = -20 }, rise = -5, grip_at = { foot_front = 46, foot_back = -46 } }],
+    [74, "stance", { aim = { hip = 94, torso = 101, head = 100, upper_front = -60, fore_front = 30, upper_back = -135, fore_back = -20 }, rise = -1, grip_at = { foot_front = 46, foot_back = -46 } }],
+    [82, "stance", { aim = { hip = 94, torso = 100, head = 100, upper_front = -62, fore_front = 26, upper_back = -135, fore_back = -20 }, rise = -5, grip_at = { foot_front = 46, foot_back = -46 } }],
+    [100, "stance", { aim = { hip = 94, torso = 101, head = 99, upper_front = -60, fore_front = 30, upper_back = -135, fore_back = -20 }, rise = -2, grip_at = { foot_front = 46, foot_back = -46 } }],
+    [120, "stance", { aim = { hip = 94, torso = 101, head = 99, upper_front = -60, fore_front = 30, upper_back = -135, fore_back = -20 }, rise = -2, grip_at = { foot_front = 46, foot_back = -46 } }],
+]
+
 [impact.light]
 shake = [0, 0]
 spark = { style = "bolt", size = 26, count = 5, frames = 10, color = "#3ef2ff", counter = "#ff3ea5" }

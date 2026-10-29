@@ -1005,6 +1005,45 @@ int main(int argc, char** argv) {
         check_eq(all.hex(), std::string("17d136ff5d9f4e3a"));  // GCC and LLVM, every platform
     });
 
+    s.test("each fighter's win pose: a round won on the clock, the winner standing to play it out at its beats — frames pinned", [] {
+        // Who wins, against whom, and the win clip's frames (from the round's end) that tell it.
+        struct Win {
+            std::string_view           who, against;
+            std::vector<std::int32_t>  beats;
+        };
+        const std::vector<Win> wins{{"mo", "kata", {12, 30, 52, 110}}, {"ni", "kata", {9, 27, 48, 110}}, {"kun", "kata", {13, 25, 34, 110}},
+                                    {"li", "kata", {12, 34, 70, 110}},  {"yue", "kata", {18, 25, 62, 110}}, {"ke", "kata", {30, 48, 80, 110}},
+                                    {"kata", "mo", {14, 40, 100}}};
+        const auto dir = scratch_dir("fighting-wins");
+        Hash all;
+        for (const Win& w : wins) {
+            Game g("versus", w.who, w.against);
+            check(g.act("pause"));
+            for (int i = 0; i < 100; ++i) check(g.act("step"));
+            // The clock at its last frames, player 2 behind on health: the round to player 1 when it runs out.
+            auto& match = const_cast<gongfu::Match&>(g.stage().match());
+            gongfu::State st = match.state();
+            st.timer = 2, st.f[1].health = 5000;
+            match.restore(st);
+            std::int32_t ended = -1;
+            for (int i = 0; i < 20 && ended < 0; ++i) {
+                check(g.act("step"));
+                if (g.state().over) ended = g.state().frame;
+            }
+            check(ended > 0 && g.state().winner == 0, std::format("{}: the round to player 1", w.who));
+            for (const std::int32_t beat : w.beats) {
+                for (int i = 0; i < 400 && g.state().frame - ended < beat; ++i) check(g.act("step"));
+                check_eq(g.state().frame - ended, beat);
+                g.h.step();
+                const std::uint64_t px = g.pixels();
+                all.u64(px);
+                check(g.h.save_png(dir / std::format("{}-{:03}.png", w.who, beat)).has_value());
+            }
+        }
+        std::println("    wins {}", all.hex());
+        check_eq(all.hex(), std::string("47b9e9e3cd117a8f"));  // GCC and LLVM, every platform
+    });
+
     s.test("training reads a perfect clash to an agent and shows it", [] {
         Game g("training");
         check(g.act("pause"));

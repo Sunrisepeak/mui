@@ -1161,6 +1161,26 @@ poses = [
     [20, "air"],
 ]
 
+# The round won: the brush drawn over the shoulder, one slow circle written in the air,
+# held upright before her face a moment and slung back; then still, the fist in the palm before her chest, a small bow.
+[clip.win]
+frames = 120
+ease = "in_out_sine"
+poses = [
+    [0, "stance"],
+    [10, "stance", "out_quad", { aim = { torso = 96, head = 88, upper_front = 110, fore_front = 160, hand_front = 170 }, swap = { hand_front = 7 } }],
+    [16, "drawn", { aim = { torso = 100, head = 92, upper_front = 70, fore_front = 120, brush = 110, hand_front = 120 }, grip = { hands = 0 }, swap = { head = 6 } }],
+    [28, "drawn", { aim = { torso = 90, head = 88, upper_front = 0, fore_front = 20, brush = 30, hand_front = 20 }, rise = -6, grip = { hands = 0 }, grip_at = { foot_front = 50 }, swap = { head = 6 } }],
+    [38, "drawn", { aim = { torso = 84, head = 84, upper_front = -40, fore_front = -30, brush = -60, hand_front = -30 }, rise = -10, grip = { hands = 0 }, grip_at = { foot_front = 52 }, swap = { head = 6 } }],
+    [48, "drawn", "out_quad", { aim = { torso = 94, head = 88, upper_front = -36, fore_front = 30, brush = 86, hand_front = 70 }, rise = -2, grip = { hands = 0 }, swap = { head = 6 } }],
+    [56, "drawn", { aim = { torso = 94, head = 87, upper_front = -37, fore_front = 29, brush = 85, hand_front = 69 }, rise = -2, grip = { hands = 0 }, swap = { head = 6 } }],
+    [64, "stance", "in_quad", { aim = { torso = 96, head = 90, upper_front = 110, fore_front = 160, hand_front = 170 }, swap = { head = 6, hand_front = 7 } }],
+    [67, "stance", { aim = { torso = 95, head = 89, upper_front = 100, fore_front = 150, hand_front = 150 }, swap = { head = 6, hand_front = 4 } }],
+    [76, "stance", { aim = { torso = 92, head = 86, upper_front = -40, fore_front = 22, upper_back = -92, fore_back = 60, hand_front = 12, hand_back = 30 }, swap = { head = 6, hand_front = 2, hand_back = 0 } }],
+    [90, "stance", { aim = { torso = 84, head = 74, upper_front = -42, fore_front = 18, upper_back = -94, fore_back = 56, hand_front = 8, hand_back = 26 }, rise = -2, swap = { head = 5, hand_front = 2, hand_back = 0 } }],
+    [120, "stance", { aim = { torso = 85, head = 76, upper_front = -42, fore_front = 18, upper_back = -94, fore_back = 56, hand_front = 8, hand_back = 26 }, rise = -2, swap = { head = 5, hand_front = 2, hand_back = 0 } }],
+]
+
 [impact.light]
 shake = [0, 0]
 spark = { style = "splash", size = 30, count = 6, frames = 14, color = "#101114", counter = "#c0392b" }

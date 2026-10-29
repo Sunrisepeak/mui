@@ -1076,6 +1076,25 @@ poses = [
     [20, "air"],
 ]
 
+# The round won: he straightens out of his stance, eyes lowered; a thumb under
+# the suspender, run down it and let go; then he stands, chin up, looking away.
+[clip.win]
+frames = 120
+ease = "in_out_sine"
+poses = [
+    [0, "stance"],
+    [12, "stance", { aim = { torso = 90, head = 92, upper_front = -80, fore_front = -70, hand_front = -70, upper_back = -95, fore_back = -80, hand_back = -80 }, rise = -1, grip_at = { foot_front = 20, foot_back = -24 }, swap = { head = 4, hand_front = 4, hand_back = 4 } }],
+    [18, "stance", { aim = { torso = 91, head = 90, upper_front = -112, fore_front = 6, hand_front = -50, upper_back = -95, fore_back = -80, hand_back = -80 }, rise = -1, grip_at = { foot_front = 20, foot_back = -24 }, swap = { head = 2, hand_front = 4, hand_back = 4 } }],
+    [23, "stance", { aim = { torso = 91, head = 88, upper_front = -132, fore_front = 74, hand_front = -70, upper_back = -95, fore_back = -80, hand_back = -80 }, rise = -1, grip_at = { foot_front = 20, foot_back = -24 }, swap = { head = 2, hand_front = 4, hand_back = 4 } }],
+    [32, "stance", "in_out_sine", { aim = { torso = 92, head = 86, upper_front = -126, fore_front = 58, hand_front = -80, upper_back = -95, fore_back = -80, hand_back = -80 }, rise = -2, grip_at = { foot_front = 20, foot_back = -24 }, swap = { head = 2, hand_front = 4, hand_back = 4 } }],
+    [37, "stance", "in_quad", { aim = { torso = 92, head = 88, upper_front = -125, fore_front = 54, hand_front = -82, upper_back = -95, fore_back = -80, hand_back = -80 }, rise = -2, grip_at = { foot_front = 20, foot_back = -24 }, swap = { head = 0, hand_front = 4, hand_back = 4 } }],
+    [41, "stance", { aim = { torso = 92, head = 92, upper_front = -100, fore_front = -30, hand_front = -60, upper_back = -95, fore_back = -82, hand_back = -82 }, rise = -2, grip_at = { foot_front = 20, foot_back = -24 }, swap = { head = 0, hand_front = 4, hand_back = 4 } }],
+    [47, "stance", { aim = { torso = 93, head = 98, upper_front = -84, fore_front = -76, hand_front = -76, upper_back = -96, fore_back = -84, hand_back = -84 }, rise = -2, grip_at = { foot_front = 20, foot_back = -24 }, swap = { head = 4, hand_front = 4, hand_back = 4 } }],
+    [56, "stance", { aim = { torso = 93, head = 99, upper_front = -84, fore_front = -76, hand_front = -76, upper_back = -96, fore_back = -84, hand_back = -84 }, rise = -3, grip_at = { foot_front = 20, foot_back = -24 }, swap = { head = 4, hand_front = 4, hand_back = 4 } }],
+    [90, "stance", { aim = { torso = 94, head = 100, upper_front = -84, fore_front = -77, hand_front = -77, upper_back = -96, fore_back = -85, hand_back = -85 }, rise = -2, grip_at = { foot_front = 20, foot_back = -24 }, swap = { head = 4, hand_front = 4, hand_back = 4 } }],
+    [120, "stance", { aim = { torso = 94, head = 100, upper_front = -84, fore_front = -77, hand_front = -77, upper_back = -96, fore_back = -85, hand_back = -85 }, rise = -2, grip_at = { foot_front = 20, foot_back = -24 }, swap = { head = 4, hand_front = 4, hand_back = 4 } }],
+]
+
 [impact.light]
 shake = [0, 0]
 spark = { style = "rays", size = 26, count = 6, frames = 12, color = "#f2c75c", counter = "#ffffff" }

@@ -387,6 +387,7 @@ struct CinematicLook {
     };
     std::vector<Panel> panels;
     std::vector<FxAt>  fx;  // effects from where the lock began
+    std::vector<FxAt>  behind;  // and effects drawn behind the fighters (a dial standing behind them)
     // Frames [from, to) the attacker is not drawn (a picture of them stands in: a finishing pose).
     std::array<std::int32_t, 2> hide{-1, -1};
     // The defender's reaction to each of the cinematic's hits, in turn (a

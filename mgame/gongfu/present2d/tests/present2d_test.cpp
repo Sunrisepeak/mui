@@ -770,6 +770,96 @@ stop = { from = 10, to = 30, tint = "#ffffff" }
         check(s2[0] == 0, std::format("all grey while it stands: {} coloured pixels", s2[0]));
     });
 
+    s.test("a cinematic's effects behind the fighters: drawn under the bodies (a dial standing behind them), over them as `fx`; read back as themselves", [&] {
+        const std::string base = R"(gongfu = "0.1"
+name = "art"
+
+[[picture]]
+name = "arm"
+file = "arm.png"
+size = [40, 200]
+
+[[bone]]
+name = "upper"
+joint = [0, 160]
+length = 80
+rest = -90
+
+[[part]]
+name = "arm"
+bone = "upper"
+shape = "image"
+picture = "arm"
+source = [0, 0, 40, 200]
+anchor = [20, 20]
+tip = [20, 100]
+material = "none"
+
+[clip.still]
+frames = 1
+loop = true
+
+[[fx.disc.sprite]]
+picture = "arm"
+source = [0, 0, 40, 100]
+frames = 30
+size = [120, 120]
+alpha = [1, 1]
+color = "#00ff00"
+
+[cinematic.236236K]
+attacker = "still"
+defender = "still"
+)";
+        auto behind = p2::read_look(base + "behind = [[0, \"disc\", 0, 120]]\n", "behind.look.gongfu.toml");
+        auto over = p2::read_look(base + "fx = [[0, \"disc\", 0, 120]]\n", "over.look.gongfu.toml");
+        check(behind && over, behind ? (over ? "" : std::format("{}", texts(over.error()))) : std::format("{}", texts(behind.error())));
+        if (!behind || !over) return;
+        const std::string written = p2::write_look(*behind);
+        auto again = p2::read_look(written, "written.look.gongfu.toml");
+        check(again && again->cinematics.at("236236K").behind.size() == 1 && p2::write_look(*again) == written, written);
+        omui::render::ImageStore images;
+        std::vector<omui::raster::Rgba8> px(40 * 200, omui::raster::Rgba8{220, 40, 40, 255});
+        const auto ref = images.add(40, 200, std::move(px));
+        behind->pictures[0].ref = over->pictures[0].ref = ref;
+        static const Fighter super = [] {
+            FighterDef f = body();
+            MoveDef m{.name = "236236K", .command = {.buttons = bit(Button::hk)}, .total = 30};
+            m.level = 3;
+            m.hits.push_back({.active = {4, 5}, .boxes = {{20_fx, 110_fx, 70_fx, 30_fx}}, .damage = 100, .hitstun = 20, .blockstun = 10, .hitstop = 6,
+                              .pushback = 2_fx, .impact = 0});
+            m.cinematic = CinematicDef{.frames = 40, .hits = {{20, 100, 0}}};
+            f.moves.push_back(m);
+            return *compile(f);
+        }();
+        auto red = [&](const p2::Look& look) {
+            Match m(rules(), super, super);
+            State st = m.state();
+            st.f[0].pos.x = 915_fx;
+            st.f[1].pos.x = 1005_fx;
+            st.f[0].facing = 1;
+            st.f[1].facing = -1;
+            for (auto& f : st.f) f.mode = Mode::cinematic;
+            st.lock = {0, super.find("236236K"), 5, 1, 915_fx, 0_fx};
+            m.restore(st);
+            omui::render::DisplayList dl;
+            p2::draw(m, look, look, p2::Effects{}, {}, dl);
+            omui::raster::Surface out(960, 540);
+            omui::render::CpuRenderer{}.render(dl, out, {&images, nullptr}, {.scale = 1});
+            std::array<int, 2> n{};
+            for (int y = 0; y < out.height(); ++y)
+                for (int x = 0; x < out.width(); ++x) {
+                    const auto c = out.at(x, y);
+                    n[0] += c.r > 150 && c.g < 90;
+                    n[1] += c.g > 200 && c.r < 60;
+                }
+            return n;
+        };
+        const auto under = red(*behind), on = red(*over);
+        check(under[1] > 500 && on[1] > 500, std::format("the disc drawn: {} and {}", under[1], on[1]));
+        check(under[0] > on[0] + 200, std::format("behind, the arm over it: {} red pixels, over it {}", under[0], on[0]));
+    });
+
     s.test("lit drawn art: a picture's relief and a material light a part from the stage's side; an afterimage is the part's shape in its tint; files read back as themselves", [&] {
         const std::string text = R"(gongfu = "0.1"
 name = "lit"

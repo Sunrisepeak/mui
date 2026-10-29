@@ -23,7 +23,7 @@ gongfu::present2d::draw(match, left_look, right_look, effects, scene, frame);
     - the sounds and the rumble.
   - Blocks, throws and KOs use the look's `block`, `throw` and `ko` profiles. Anything without a profile gets a default.
   - Effects are drawn from the events kept by frame. Their scatter is a hash of the event, so a spark is the same after a rollback.
-- **A level 3's cinematic** (`[cinematic.<move>]`) is a timeline keyed by the lock's frame: what each fighter plays; the camera's keys; a backdrop, flashes, quakes and rings; cut-in panels; effects at places. The bodies really meet:
+- **A level 3's cinematic** (`[cinematic.<move>]`) is a timeline keyed by the lock's frame: what each fighter plays; the camera's keys; a backdrop, flashes, quakes and rings; cut-in panels; effects at places, over the fighters or `behind` them (a dial standing behind the bodies). The bodies really meet:
   - paths place each fighter, a key's ease the way to it (`out_quad` up, `in_quad` down: a body flung and falling);
   - turns draw a fighter facing the other way (a shoulder driven in backwards, a catch behind the back);
   - holds keep the defender at a bone of the attacker, playing each hold's clip from its first frame, so holds in a row show a held body reacting to each blow;
@@ -52,6 +52,7 @@ Every picture is a pure function of the match's state and the kept events, and i
 - pins each spark style and the negative flash;
 - draws panes as glass and from a picture (whole, then cracked);
 - draws a cinematic's bodies turned, eased along a path, held, in a hitstop, launched and with afterimages, each against the picture it should equal;
-- stands time still: drawn art grey in a stop, the struck standing and a blow's effect hanging until the bell.
+- stands time still: drawn art grey in a stop, the struck standing and a blow's effect hanging until the bell;
+- draws a cinematic's effects behind the fighters, and over them.
 
 An overlay drawn over the frame (training's boxes) lines up with it through `view_camera` (the camera the frame was drawn with, shake included) and `on_picture` (a point of the stage on the picture).

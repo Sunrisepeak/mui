@@ -1249,6 +1249,18 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         out.fill_path(path_, render::FillRule::nonzero, render::Paint::solid(colour));
     }
 
+    // A cinematic's effects behind the fighters, from where the lock began.
+    if (cine) {
+        const Look& look = st.lock.owner == 0 ? left : right;
+        for (const FxAt& a : cine->behind) {
+            const auto fx = look.fx.find(a.name);
+            if (fx == look.fx.end() || st.lock.frame < a.frame || st.lock.frame >= a.frame + fx->second.length()) continue;
+            this->fx(look, fx->second, st.lock.frame - a.frame,
+                     {static_cast<float>(stage(st.lock.x) + st.lock.facing * a.at.x), static_cast<float>(stage(st.lock.y) + a.at.y)}, st.lock.facing < 0 ? -1.0 : 1.0, a.scale,
+                     scene, view.cam, out);
+        }
+    }
+
     // Afterimages: during a move, the poses of a few frames before, fading (from the states the Effects keep).
     if (!cine)
         for (std::int32_t i = 0; i < 2; ++i) {

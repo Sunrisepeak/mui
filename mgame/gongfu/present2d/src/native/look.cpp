@@ -85,10 +85,10 @@ constexpr std::array<std::string_view, 9> fx_stroke_keys{"picture", "source", "p
 constexpr std::array<std::string_view, 12> fx_spray_keys{"picture", "sources", "at", "from", "frames", "count", "speed", "angle", "size", "gravity", "seed", "color"};
 constexpr std::array<std::string_view, 11> panel_keys{"picture", "source", "from", "to", "in", "out", "y", "height", "slant", "pan", "band"};
 constexpr std::array<std::string_view, 2> stroke_keys{"points", "width"};
-constexpr std::array<std::string_view, 28> cinematic_keys{"attacker", "defender", "backdrop", "camera", "glyph", "seal", "flash", "scanlines", "attacker_path",
+constexpr std::array<std::string_view, 29> cinematic_keys{"attacker", "defender", "backdrop", "camera", "glyph", "seal", "flash", "scanlines", "attacker_path",
                                                           "defender_path", "quake", "ring", "prism", "cracks", "fall", "stop", "clock", "doc", "panel", "fx",
                                                           "hide", "reactions", "hold", "attacker_turn", "defender_turn", "hitstop", "afterimages",
-                                                          "in_front"};
+                                                          "in_front", "behind"};
 constexpr std::array<std::string_view, 5> prism_keys{"images", "spread", "from", "to", "tint"};
 constexpr std::array<std::string_view, 1> cracks_keys{"color"};
 constexpr std::array<std::string_view, 3> fall_keys{"frame", "count", "color"};
@@ -1469,6 +1469,7 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
                 r.tables(t->get("panel"), "panel", "[[cinematic.236236K.panel]] picture = \"cutins\" source = [0, 0, 1536, 512] from = 20 to = 60",
                          [&](const toml::table& e) { c.panels.push_back(panel_of(e, std::format("a panel of {}", what))); });
                 fx_rows(t->get("fx"), what, c.fx);
+                fx_rows(t->get("behind"), what, c.behind);
                 if (const toml::node* rn = t->get("reactions")) {
                     if (const toml::array* a = rn->as_array()) {
                         for (const toml::node& e : *a)
@@ -1543,8 +1544,8 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
     return look;
 }
 
-std::string fx_rows_text(const std::vector<FxAt>& rows) {
-    std::string s = "fx = [";
+std::string fx_rows_text(const std::vector<FxAt>& rows, std::string_view key = "fx") {
+    std::string s = std::format("{} = [", key);
     for (std::size_t i = 0; i < rows.size(); ++i) {
         const FxAt& a = rows[i];
         s += std::format("{}[{}, \"{}\", {}, {}", i ? ", " : "", a.frame, a.name, a.at.x, a.at.y);
@@ -1840,6 +1841,7 @@ std::string write_look(const Look& look) {
             s += "]\n";
         }
         if (!c.fx.empty()) s += fx_rows_text(c.fx);
+        if (!c.behind.empty()) s += fx_rows_text(c.behind, "behind");
         if (c.hide[0] >= 0) s += std::format("hide = [{}, {}]\n", c.hide[0], c.hide[1]);
         if (!c.holds.empty()) {
             s += "hold = [";

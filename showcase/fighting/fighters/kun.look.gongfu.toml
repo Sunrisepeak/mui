@@ -54,6 +54,13 @@ name = "finisher"
 file = "art/kun-finisher.webp"
 size = [640, 973]
 
+# His effects (generated on black as light, its brightness made its alpha, cut by
+# gongfu-studio): force waves, bursts, a stamp's floor burst, dust, the ball's streaks.
+[[picture]]
+name = "fx"
+file = "art/kun-fx.webp"
+size = [1011, 315]
+
 [material.body]
 doc = "clean cel: two crisp bands, a cool blue-grey shadow, a warm rim"
 bands = 2
@@ -1170,9 +1177,8 @@ size = 60
 attacker = "236236K.cinematic"
 defender = "hitstun"
 backdrop = { color = "#0e0e12d4", in = [0, 12], out = [168, 180] }
-camera = [[0, 1.15, 70, 110], [14, 1.15, 90, 110], [22, 1.75, 30, 135], [40, 1.85, 36, 140], [50, 1.3, 90, 105], [62, 1.45, 125, 100], [74, 1.1, 110, 165], [84, 1.25, 110, 110], [94, 1.6, 145, 105], [102, 1.55, 150, 108], [110, 1.15, 190, 150], [120, 1.05, 200, 165], [130, 1.3, 150, 130], [140, 1.6, 130, 110], [144, 1.15, 195, 105], [150, 1, 175, 140], [176, 1, 175, 135], [180, 1, 170, 120]]
+camera = [[0, 1.15, 70, 110], [14, 1.15, 90, 110], [22, 1.75, 30, 135], [40, 1.85, 36, 140], [50, 1.3, 90, 105], [58, 1.6, 120, 92], [62, 1.95, 136, 100], [70, 1.45, 125, 130], [76, 1.1, 110, 160], [84, 1.3, 105, 100], [90, 1.6, 135, 70], [94, 1.75, 150, 72], [102, 1.65, 152, 78], [110, 1.15, 190, 150], [120, 1.05, 200, 165], [130, 1.3, 150, 130], [140, 1.6, 130, 110], [144, 1.0, 200, 120], [150, 0.95, 175, 150], [176, 0.95, 175, 145], [180, 1, 170, 120]]
 quake = [[62, 6, 10], [92, 6, 8], [94, 18, 26], [144, 14, 22]]
-ring = [[57, 118, 6, 34, 8], [62, 146, 100, 80, 10], [92, 138, 4, 120, 14], [94, 150, 104, 240, 18], [144, 300, 8, 220, 18]]
 attacker_path = [[0, 0, 0], [76, 0, 0], [91, 98, 0, "in_out_sine"], [180, 98, 0]]
 defender_path = [[0, 90, 0], [12, 170, 0, "out_quad"], [68, 170, 0], [80, 180, 0, "out_quad"], [102, 180, 0], [121, 280, 200, "out_quad"], [144, 300, 0, "in_quad"], [180, 300, 0]]
 attacker_turn = [[87, 181]]
@@ -1180,7 +1186,7 @@ afterimages = [[78, 93]]
 hitstop = [[62, 4], [94, 8], [144, 6]]
 hide = [150, 176]
 reactions = ["hitstun.body", "launched", "slammed"]
-fx = [[8, "kun_toss", 0, 0], [17, "kun_spin", 0, 0], [40, "kun_drop", 0, 0], [54, "kun_pass", 0, 0], [120, "kun_fall", 0, 0], [140, "kun_caught", 0, 0], [147, "finisher_in", 70, -10]]
+fx = [[8, "kun_toss", 0, 0], [17, "kun_spin", 0, 0], [40, "kun_drop", 0, 0], [54, "kun_pass", 0, 0], [54, "kun_pass_trail", 0, 0], [57, "kun_bounce", 118, 0], [62, "kun_gut", 146, 100], [92, "kun_stamp", 138, 0], [94, "kun_kao", 158, 104], [144, "kun_crash", 300, 0], [120, "kun_fall", 0, 0], [140, "kun_caught", 0, 0], [147, "finisher_in", 70, -10]]
 
 [[cinematic.236236K.panel]]
 picture = "strike"
@@ -1407,3 +1413,160 @@ size = [30, 30]
 turn = [-610, -610]
 alpha = [1, 1]
 ease = "linear"
+
+# His level 3's force: the bounce's floor burst, the gut's spark and push, the stamp, 铁山靠's wave, the crash's burst and dust; a fan of speed behind the pass.
+[[fx.kun_bounce.sprite]]
+picture = "fx"
+source = [436, 4, 152, 123]
+at = [0, 6]
+from = 0
+frames = 6
+size = [14, 26]
+turn = [0, 0]
+alpha = [1, 0]
+ease = "out_cubic"
+
+[[fx.kun_bounce.sprite]]
+picture = "fx"
+source = [4, 250, 145, 61]
+at = [6, 4]
+from = 0
+frames = 16
+size = [12, 20]
+turn = [0, 0]
+alpha = [0.8, 0]
+ease = "out_cubic"
+
+[[fx.kun_pass_trail.sprite]]
+picture = "fx"
+source = [307, 250, 114, 45]
+at = [76, 70]
+to = [108, 24]
+from = 0
+frames = 3
+size = [12, 16]
+turn = [-55, -55]
+alpha = [0.9, 0.4]
+ease = "linear"
+
+[[fx.kun_pass_trail.sprite]]
+picture = "fx"
+source = [307, 250, 114, 45]
+at = [114, 10]
+to = [130, 86]
+from = 3
+frames = 5
+size = [12, 16]
+turn = [70, 70]
+alpha = [0.9, 0.2]
+ease = "out_quad"
+
+[[fx.kun_gut.sprite]]
+picture = "fx"
+source = [436, 4, 152, 123]
+at = [6, 0]
+from = 0
+frames = 7
+size = [18, 36]
+turn = [0, 0]
+alpha = [1, 0]
+ease = "out_cubic"
+
+[[fx.kun_gut.sprite]]
+picture = "fx"
+source = [774, 147, 107, 63]
+at = [26, 0]
+from = 4
+frames = 10
+size = [26, 44]
+turn = [0, 0]
+alpha = [1, 0]
+ease = "out_quad"
+
+[[fx.kun_stamp.sprite]]
+picture = "fx"
+source = [4, 147, 292, 99]
+at = [0, 18]
+from = 0
+frames = 16
+size = [30, 46]
+turn = [0, 0]
+alpha = [1, 0]
+ease = "out_cubic"
+
+[[fx.kun_stamp.sprite]]
+picture = "fx"
+source = [300, 147, 229, 76]
+at = [4, 12]
+from = 0
+frames = 26
+size = [18, 30]
+turn = [0, 0]
+alpha = [0.9, 0]
+ease = "out_cubic"
+
+[[fx.kun_kao.sprite]]
+picture = "fx"
+source = [254, 4, 178, 137]
+at = [0, 0]
+from = 0
+frames = 6
+size = [20, 40]
+turn = [0, 0]
+alpha = [1, 0]
+ease = "out_cubic"
+
+[[fx.kun_kao.sprite]]
+picture = "fx"
+source = [4, 4, 246, 139]
+at = [40, 4]
+from = 1
+frames = 16
+size = [56, 104]
+turn = [0, 0]
+alpha = [1, 0]
+ease = "out_quad"
+
+[[fx.kun_kao.sprite]]
+picture = "fx"
+source = [767, 4, 162, 102]
+at = [30, -20]
+from = 3
+frames = 12
+size = [30, 60]
+turn = [-10, -10]
+alpha = [0.8, 0]
+ease = "out_quad"
+
+[[fx.kun_crash.sprite]]
+picture = "fx"
+source = [4, 147, 292, 99]
+at = [0, 20]
+from = 0
+frames = 18
+size = [36, 54]
+turn = [0, 0]
+alpha = [1, 0]
+ease = "out_cubic"
+
+[[fx.kun_crash.sprite]]
+picture = "fx"
+source = [592, 4, 171, 108]
+at = [-6, 34]
+from = 2
+frames = 34
+size = [36, 70]
+turn = [0, 0]
+alpha = [0.9, 0]
+ease = "out_quad"
+
+[[fx.kun_crash.sprite]]
+picture = "fx"
+source = [300, 147, 229, 76]
+at = [10, 12]
+from = 0
+frames = 30
+size = [22, 36]
+turn = [0, 0]
+alpha = [0.8, 0]
+ease = "out_cubic"

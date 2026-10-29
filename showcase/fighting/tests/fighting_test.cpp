@@ -565,7 +565,7 @@ int main(int argc, char** argv) {
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    kun level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("17d871bfe903d0e0"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("ca7cfad7334fb6f9"));  // GCC and LLVM, every platform
     });
 
     s.test("岳 as designed: every normal's and elbow's startup and advantage, measured in the simulation (characters 2 design §3)", [] {

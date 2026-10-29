@@ -89,7 +89,7 @@ An original character built on an internet meme's signs — a clean centre part,
 | 104–144 | She spins up and over; he stands, his back to her, and holds a hand behind him without looking. The ball drops into it |
 | 144–180 | She crashes down behind him; his finishing illustration; he is still standing with the ball |
 
-Three hits carry the same 4000 damage as before (900, 1900, 1200). The engine pieces it needed are general and went into `gongfu.present2d` first: path keys with an ease (a body flung up and falling instead of stopping at every key), turns, hitstops for the struck, cinematic afterimages, and the taken reactions (`launched`, `slammed`) that every rebuilt look now has. What it still lacks: there is no drawing of his back, so "turned" reads as facing away rather than showing it, and the impacts are rings and quakes — there is no dust or force art for him yet.
+Three hits carry the same 4000 damage as before (900, 1900, 1200). The engine pieces it needed are general and went into `gongfu.present2d` first: path keys with an ease (a body flung up and falling instead of stopping at every key), turns, hitstops for the struck, cinematic afterimages, and the taken reactions (`launched`, `slammed`) that every rebuilt look now has. His force is drawn art, generated as light on black and cut by `gongfu-studio cut` (`art/kun-fx.webp`): a burst and dust where the ball hits the floor, a spark and a push at the gut, the stamp's floor burst, 铁山靠's force wave running on past her, the crash's burst and dust; the camera pushes close on the gut and goes low for 铁山靠. What it still lacks: there is no drawing of his back, so "turned" reads as facing away rather than showing it.
 
 ### 璃 (Li)
 

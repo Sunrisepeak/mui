@@ -11,11 +11,12 @@ root=$(pwd)
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
-# The CPython the extension is built for: the toolchain's (xlings' python, which
-# mcpp fetches for the extension's headers). The toolchains link against their own
-# glibc (2.43), which the runner's system CPython (glibc 2.39) refuses to load; a
-# wheel for older systems' glibc is a manylinux build, a separate matter.
-base=$(ls -d "$HOME"/.xlings/data/xpkgs/xim-x-python/*/bin/python3 2>/dev/null | sort -V | tail -1)
+# The CPython the extension is built for: the one mcpp fetches into its registry
+# for the extension's headers (and `mcpp test` runs). The toolchains link against
+# their own glibc (2.43), which the runner's system CPython (glibc 2.39) refuses to
+# load; a wheel for older systems' glibc is a manylinux build, a separate matter.
+base=$(ls -d "$HOME"/.mcpp/registry/data/xpkgs/xim-x-python/*/bin/python3 2>/dev/null | sort -V | tail -1 || true)
+[ -n "$base" ] || base=$(ls -d "$HOME"/.xlings/data/xpkgs/xim-x-python/*/bin/python3 2>/dev/null | sort -V | tail -1 || true)
 base=${base:-python3}
 echo "python: $base ($("$base" --version))"
 "$base" -m venv "$work/venv"

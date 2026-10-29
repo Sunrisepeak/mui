@@ -303,7 +303,14 @@ void Canvas::place() {
     }
     // The same nodes: only their transforms follow the camera.
     if (promoted_.empty() || !s) return;
-    for (const NodeId child : services().children(node())) {
+    const auto live = services().children(node());
+    if (live.size() < promoted_.size()) {
+        // Composed and not built yet (the camera moved in the same frame, as
+        // a start view does): composed again where the camera is now.
+        services().recompose(node());
+        return;
+    }
+    for (const NodeId child : live) {
         const std::string path = services().path(child);
         const std::string_view key = std::string_view(path).substr(path.rfind('/') + 1);
         const auto n = s->find(key);

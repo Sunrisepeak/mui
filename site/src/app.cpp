@@ -8,6 +8,7 @@ import std;
 import openmui;
 import openmui.ui.markdown;
 import openmui.ui.timeline;
+import openmui.ui.canvas;
 import openmui.semantic;
 import openmui.trace;
 
@@ -17,8 +18,10 @@ namespace {
 
 constexpr Log site_log{"site"};
 
-// Where the places are in the tree (the window mounts the site as "main").
-constexpr std::string_view place_root = "main/body/view/";
+// Where the places are in the tree (the window mounts the site as "main";
+// the places are the atlas canvas's live windows).
+constexpr std::string_view atlas_path = "main/body/view/atlas";
+constexpr std::string_view place_root = "main/body/view/atlas/";
 
 constexpr std::array<Place, 4> all{{{"home", "Home", "首页"}, {"features", "Features", "特性"}, {"practices", "Practices", "实践"}, {"timeline", "Timeline", "时间线"}}};
 
@@ -75,7 +78,40 @@ struct Site {
 
     Signal<bool>        panel = signal(false);  // the agent panel open
     Signal<int>         switches = signal(0);   // the language switched this many times
+    double              switched_at = -1;       // when it last did (the runtime's seconds)
+    Signal<std::string> timeline = signal(std::string(sample));  // the timeline as last edited
     std::unique_ptr<Guide> guide;
+
+    // The atlas: its scene (by a name of this site's own) and its layout.
+    std::string         scene_name;
+    AtlasLayout         layout;
+    std::function<void()> kinds;  // registers the atlas's kinds again (their tiers follow the layout)
+
+    [[nodiscard]] Canvas* atlas() const { return runtime ? runtime->component<Canvas>(runtime->find(atlas_path)) : nullptr; }
+    [[nodiscard]] world::Scene& scene() const { return world::scene(scene_name); }
+    // Where the tree is read: the place's window while it is live, else the whole atlas.
+    [[nodiscard]] std::string root() const {
+        const std::string place_path = std::string(place_root) + place.get() + "/page";
+        return runtime && runtime->find(place_path) ? place_path : std::string(atlas_path);
+    }
+    // The camera flies to a place (or the overview), as the person's own request of the canvas.
+    void fly(std::string_view to) {
+        place.set(std::string(to));
+        if (const auto c = runtime ? runtime->find(atlas_path) : NodeId{}) {
+            Invocation call;
+            call.args = Value{}.set("name", Value(std::string(to)));
+            (void)runtime->act(c, "camera_preset", call);
+        }
+        soon();
+    }
+    // Windows the size of the view (a place read at zoom 1); laid out again when the view's size changes.
+    void relayout(Size view) {
+        layout = atlas_layout(all, view);
+        lay_out(scene(), layout, all, lang.get());
+        if (kinds) kinds();
+        if (Canvas* c = atlas())
+            if (const auto p = scene().preset(place.get())) c->set_camera({p->x, p->y, p->zoom});
+    }
 
     std::uint64_t       seen = ~0ull;    // the semantic revision last read
     bool                watching = false;
@@ -86,7 +122,7 @@ struct Site {
         seen = runtime->semantic_revision();
         trace::Span span("look", "site");
         semantic::Tree tree(*runtime);
-        const Value snapshot = tree.snapshot({.root = std::string(place_root) + place.get()}).to_value();
+        const Value snapshot = tree.snapshot({.root = root()}).to_value();
         nodes.set(snapshot.get("nodes") ? *snapshot.get("nodes") : Value{});
         agent.set(agent_text(snapshot));
         test.set(test_text(snapshot));
@@ -134,7 +170,8 @@ enum class Arrival : std::uint8_t { letters, lines };
 Element retyped(Element e, const std::shared_ptr<Site>& s, Arrival how = Arrival::letters) {
     e.prop("glyph_motion", derive([s, how] {
         const int n = s->switches.get();
-        if (n == 0) return Value{};
+        // Only right after a switch: a window made live later shows its text at rest.
+        if (n == 0 || !s->runtime || s->runtime->now().count() - s->switched_at > 0.25) return Value{};
         GlyphMotion m = GlyphMotion::gather(static_cast<std::uint64_t>(n));
         m.stagger = hanim::seconds(0.018);
         if (how == Arrival::lines) {
@@ -154,8 +191,7 @@ Element retyped(Element e, const std::shared_ptr<Site>& s, Arrival how = Arrival
 void follow(Site& s, std::string_view href) {
     for (const auto& [file, place] : {std::pair{"features.md", "features"}, std::pair{"best-practices.md", "practices"}})
         if (href.ends_with(file)) {
-            s.place.set(place);
-            s.soon();
+            s.fly(place);
             return;
         }
     if (s.runtime) (void)s.runtime->open_url(href);
@@ -170,6 +206,17 @@ public:
     [[nodiscard]] std::vector<pipeline::Port> reads() const override { return {}; }
     [[nodiscard]] std::vector<pipeline::Port> writes() const override { return {}; }
     std::expected<void, std::string> run(pipeline::Context&) override {
+        // The atlas's windows follow the view's size (a resized window, a phone turned).
+        if (const Canvas* c = site_.atlas(); c && !resizing_) {
+            const Size v = c->viewport();
+            if (v.width > 0 && v.height > 0 && (std::ceil(v.width) != site_.layout.view.width || std::ceil(v.height) != site_.layout.view.height)) {
+                resizing_ = true;
+                (void)site_.runtime->after(seconds(0.0), [this, v] {
+                    resizing_ = false;
+                    site_.relayout(v);
+                });
+            }
+        }
         if (site_.runtime && site_.runtime->semantic_revision() != site_.seen && !queued_) {
             queued_ = true;
             (void)site_.runtime->after(seconds(0.0), [this] {
@@ -182,7 +229,7 @@ public:
 
 private:
     Site& site_;
-    bool  queued_ = false;
+    bool  queued_ = false, resizing_ = false;
 };
 
 // A lens's button: highlighted when it is the lens.
@@ -330,6 +377,98 @@ Element guide_panel(const std::shared_ptr<Site>& s) {
                 {text({.id = "transcript", .text = computed([s] { return s->guide ? s->guide->transcript.get() : std::string(); }), .style = "code"})})});
 }
 
+// Shaped labels, kept per text (shaping is not per frame).
+struct Labels {
+    std::map<std::string, typeset::Paragraph, std::less<>> shaped;
+    bool                                                   dark = false;
+    const typeset::Paragraph& get(world::DrawContext& d, std::string_view text, float size, Color colour) {
+        if (d.theme.dark != dark) {
+            shaped.clear();
+            dark = d.theme.dark;
+        }
+        auto it = shaped.find(text);
+        if (it == shaped.end()) {
+            typeset::ParagraphStyle ps;
+            ps.style.size = size;
+            ps.style.weight = 650;
+            ps.style.color = colour;
+            ps.style.families = d.theme.text_style("title").families;
+            ps.wrap = false;
+            typeset::Paragraph p(*d.fonts, std::string(text), ps);
+            p.layout(std::numeric_limits<float>::infinity());
+            it = shaped.emplace(std::string(text), std::move(p)).first;
+        }
+        return it->second;
+    }
+};
+
+// A place's window: what it shows, at the view's size. Live, it is bound to
+// the site (the language, the timeline as edited, links); as a texture
+// (drawn away from the UI thread) it holds values only.
+Element place_window(const std::shared_ptr<Site>& s, const std::string& id, bool live) {
+    const Size v = s->layout.view;
+    const bool zh = s->lang.peek() == "zh";
+    if (id == "timeline") {
+        Element editor = timeline_editor({.id = "editor", .document = s->timeline.peek(), .zoom = 60});
+        if (live) {
+            // The live work: its own history (S-12); an edit is kept for the next time it is live, and changes the tree a lens shows.
+            editor.prop("undo_scope", Source{Value(true), {}, {}});
+            editor.on("edited", [s](const Value& e) {
+                if (const Value* d = e.get("document")) s->timeline.set(std::string(d->as_string()));
+                s->soon();
+            });
+        }
+        auto words = [s, live, zh](std::string_view en, std::string_view han) -> Prop<std::string> {
+            if (!live) return std::string(zh ? han : en);
+            return computed([s, en, han] { return std::string(s->lang.get() == "zh" ? han : en); });
+        };
+        Element title = text({.id = "title", .text = words("A timeline editor", "时间线编辑器"), .style = "title"});
+        return column({.id = "page", .width = Dim(v.width), .height = Dim(v.height), .padding = Edges(32.0f, 40.0f), .gap = 12, .background = "background"},
+                      {live ? retyped(std::move(title), s) : std::move(title),
+                       text({.id = "how",
+                             .text = words("Drag a clip, trim its edge, press S to split it at the playhead, Ctrl+Z to undo. Every edit has its exact inverse; switch the lens to see the same timeline as an agent reads it.",
+                                           "拖动片段、拖边修剪、按 S 在播放头处切开，Ctrl+Z 撤销。每次编辑都有它精确的反向；切换镜头，看 agent 读到的同一份时间线。"),
+                             .style = "body"}),
+                       std::move(editor)});
+    }
+    Element doc = live ? retyped(markdown({.id = "doc",
+                                           .origin = MarkdownOrigin::app,
+                                           .source = computed([s, id] { return std::string(document(id, s->lang.get())); }),
+                                           .on_link_activated = [s](std::string href) { follow(*s, href); },
+                                           .max_width = Dim(860.0f)}),
+                                 s, Arrival::lines)
+                       : markdown({.id = "doc", .origin = MarkdownOrigin::app, .source = std::string(document(id, zh ? "zh" : "en")), .max_width = Dim(860.0f)});
+    return scroll({.id = "page", .width = Dim(v.width), .height = Dim(v.height), .padding = Edges(32.0f, 40.0f), .background = "background"}, {std::move(doc)});
+}
+
+// The atlas's kinds: a place's window (a block far away, its texture nearer,
+// live when it nearly fills the view) and its label (drawn at a size fixed
+// on screen, above its window).
+void atlas_kinds(const std::shared_ptr<Site>& s) {
+    world::Scene& scene = s->scene();
+    using world::Tier;
+    auto labels = std::make_shared<Labels>();
+    scene.kind("place", world::Kind{.tiers = {{0, Tier::Draw::custom}, {48, Tier::Draw::texture}, {live_from(s->layout), Tier::Draw::promote}},
+                                    .draw =
+                                        [](world::DrawContext& d) {
+                                            const float r = static_cast<float>(14 * d.zoom);
+                                            d.list.fill_round_rect(d.screen, CornerRadii::all(r), render::Paint::solid(d.theme.color("surface")));
+                                        },
+                                    .promote = [s](const world::Scene& sc, world::NodeRef n) { return place_window(s, std::string(sc.key(n)), true); },
+                                    .view = [s](const world::Scene& sc, world::NodeRef n) { return place_window(s, std::string(sc.key(n)), false); },
+                                    .role = Role::article});
+    scene.kind("label", world::Kind{.tiers = {{0, Tier::Draw::custom}},
+                                    .draw =
+                                        [labels](world::DrawContext& d) {
+                                            if (!d.fonts || d.screen.height < 6) return;
+                                            const float size = std::clamp(d.screen.height * 0.42f, 13.0f, 26.0f);
+                                            const auto& p = labels->get(d, d.scene.text(d.node, "title"), size, d.theme.color("text"));
+                                            const Size t = p.size();
+                                            p.paint(d.list, {d.screen.x + 4, d.screen.y + d.screen.height - t.height - 6});
+                                        },
+                                    .role = Role::heading});
+}
+
 }  // namespace
 
 AppSpec app(std::string_view place, std::string_view lang) {
@@ -339,11 +478,18 @@ AppSpec app(std::string_view place, std::string_view lang) {
     a.size = {1280, 800};
     a.theme = Theme::dark_theme();
     auto s = std::make_shared<Site>();
-    if (std::ranges::any_of(all, [&](const Place& p) { return p.id == place; })) s->place.set(std::string(place));
+    if (place == "overview" || std::ranges::any_of(all, [&](const Place& p) { return p.id == place; })) s->place.set(std::string(place));
     s->lang.set(lang == "zh" ? "zh" : "en");
     a.setup = [s](Runtime& rt) {
         s->runtime = &rt;
         register_type(component_type<Lens>());
+        // The atlas: a scene of this site's own, laid out for the window's size until the canvas has its own.
+        static std::atomic<int> sites{0};
+        s->scene_name = std::format("openmui.site.{}", sites++);
+        s->kinds = [site = std::weak_ptr<Site>(s)] {
+            if (auto p = site.lock()) atlas_kinds(p);
+        };
+        s->relayout({rt.size().width - 188, rt.size().height - 56 - 28});
         s->guide = std::make_unique<Guide>(rt, [site = s.get()] { return site->place.get(); });
         rt.stage_plugins().add({.name = "openmui.site.tree_watch", .kind = "stage", .description = "the site's place read again when its tree changed"},
                                [site = s.get()](const pipeline::Config&) -> std::expected<std::unique_ptr<pipeline::Stage>, std::string> {
@@ -369,59 +515,39 @@ AppSpec app(std::string_view place, std::string_view lang) {
                                    .text = computed([s] { return std::string(s->lang.get() == "zh" ? "English" : "中文"); }),
                                    .variant = ButtonVariant::secondary,
                                    .on_activated = [s] {
+                                       s->switched_at = s->runtime ? s->runtime->now().count() : 0;
                                        s->lang.set(s->lang.get() == "zh" ? "en" : "zh");
                                        s->switches.set(s->switches.get() + 1);
+                                       // The labels in the other language, the windows' textures drawn again.
+                                       s->relayout(s->layout.view);
+                                       for (const Place& p : all)
+                                           if (auto n = s->scene().find(p.id)) s->scene().touch(*n);
                                        s->soon();
                                    }})});
         // The places down the side.
         std::vector<Element> nav;
-        for (const Place& p : all) {
-            const std::string id(p.id);
+        auto go = [&nav, s](std::string id, std::string_view en, std::string_view zh) {
             nav.push_back(retyped(button({.id = "to_" + id,
-                                          .text = computed([s, p] { return std::string(s->lang.get() == "zh" ? p.zh : p.en); }),
+                                          .text = computed([s, en, zh] { return std::string(s->lang.get() == "zh" ? zh : en); }),
                                           .variant = computed([s, id] { return s->place.get() == id ? ButtonVariant::primary : ButtonVariant::ghost; }),
-                                          .on_activated = [s, id] {
-                                              s->place.set(id);
-                                              s->soon();
-                                          }}),
+                                          .on_activated = [s, id] { s->fly(id); }}),
                                   s));
-        }
-        // The places: one shown at a time (the others out of the layout and
-        // the tree's reach, kept as they were: the editor's history, a scroll).
+        };
+        go("overview", "Overview", "全景");
+        for (const Place& p : all) go(std::string(p.id), p.en, p.zh);
+        // The places: windows on one canvas, the camera flying between them.
         std::vector<Element> shown;
-        for (const Place& p : all) {
-            const std::string id(p.id);
-            auto here = [s, id] { return s->place.get() == id; };
-            if (id == "timeline") {
-                // The live work: a timeline editor with its own history (S-12); an edit changes the tree a lens shows.
-                Element editor = timeline_editor({.id = "editor", .document = std::string(sample), .zoom = 60});
-                editor.prop("undo_scope", Source{Value(true), {}, {}});
-                editor.on("edited", [s](const Value&) { s->soon(); });
-                shown.push_back(only_when(column({.id = id, .min_width = Dim(0.0f), .padding = Edges(32.0f, 40.0f), .gap = 12},
-                                                 {retyped(text({.id = "timeline_title",
-                                                                .text = computed([s] { return std::string(s->lang.get() == "zh" ? "时间线编辑器" : "A timeline editor"); }),
-                                                                .style = "title"}),
-                                                          s),
-                                                  text({.id = "timeline_how",
-                                                        .text = computed([s] {
-                                                            return std::string(s->lang.get() == "zh"
-                                                                                   ? "拖动片段、拖边修剪、按 S 在播放头处切开，Ctrl+Z 撤销。每次编辑都有它精确的反向；切换镜头，看 agent 读到的同一份时间线。"
-                                                                                   : "Drag a clip, trim its edge, press S to split it at the playhead, Ctrl+Z to undo. Every edit has its exact inverse; switch the lens to see the same timeline as an agent reads it.");
-                                                        }),
-                                                        .style = "body"}),
-                                                  std::move(editor)}),
-                                          here));
-            } else {
-                shown.push_back(only_when(scroll({.id = id, .padding = Edges(32.0f, 40.0f)},
-                                                 {retyped(markdown({.id = id + "_doc",
-                                                                    .origin = MarkdownOrigin::app,
-                                                                    .source = computed([s, p] { return std::string(document(p.id, s->lang.get())); }),
-                                                                    .on_link_activated = [s](std::string href) { follow(*s, href); },
-                                                                    .max_width = Dim(860.0f)}),
-                                                          s, Arrival::lines)}),
-                                          here));
-            }
-        }
+        Element atlas = canvas({.id = "atlas",
+                                .background = Fill(Color::hex(0x05070b)),  // between the windows, darker than any page
+                                .label = "openmui's places",
+                                .scene = s->scene_name,
+                                .start = std::format("preset:{}", s->place.peek())});
+        atlas.on("activated", [s](const Value& e) {
+            std::string key(e.get("key") ? e.get("key")->as_string() : "");
+            if (key.ends_with("-label")) key.resize(key.size() - 6);
+            if (std::ranges::any_of(all, [&](const Place& p) { return p.id == key; })) s->fly(key);
+        });
+        shown.push_back(std::move(atlas));
         // Over the place, as the lens says.
         shown.push_back(fades_in(lens({.id = "wireframe", .nodes = s->nodes}), [s] { return s->lens.get() == "tree"; }));
         for (const std::string_view which : {"agent", "test"}) {

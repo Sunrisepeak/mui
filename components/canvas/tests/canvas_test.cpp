@@ -232,6 +232,23 @@ int main(int argc, char** argv) {
         check(renamed && renamed->name == "Renamed", "the touched node composed again");
     });
 
+    s.test("a live node at the start view: placed by the camera it starts at, not the one before", [] {
+        auto& sc = world::scene("started");
+        sc.clear();
+        sc.kind("page", world::Kind{.tiers = {{0, world::Tier::Draw::promote}},
+                                    .promote = [](const world::Scene&, world::NodeRef) -> Element { return text({.id = "t", .text = "a page"}); }});
+        sc.add({.kind = "page", .x = 0, .y = 64, .width = 800, .height = 300, .key = "p"});
+        sc.preset("p", {400, 214, 1});  // the page filling the view
+        Headless h({.size = {800, 300}});
+        h.mount("main", canvas({.id = "c", .scene = "started", .start = "preset:p", .width = 800, .height = 300}));
+        h.settle();
+        const auto box = h.runtime().find("main/p");  // a mounted element is its mount
+        check(box != NodeId{}, "live");
+        check(std::abs(h.runtime().get(box, "translate_x").as_double(-1)) < 1e-3 && std::abs(h.runtime().get(box, "translate_y").as_double(-1)) < 1e-3,
+              std::format("at the view's corner: {} {}", h.runtime().get(box, "translate_x").json(), h.runtime().get(box, "translate_y").json()));
+        world::drop_scene("started");
+    });
+
     s.test("texture tiers: rasterised in the background, the nearest ready level stretched meanwhile, stale content kept until the new one is in", [] {
         auto& sc = world::scene("textures");
         sc.clear();

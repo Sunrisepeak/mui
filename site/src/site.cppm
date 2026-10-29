@@ -12,3 +12,4 @@ export import :en_files;
 export import :zh_files;
 export import :guide;
 export import :app;
+export import :atlas;

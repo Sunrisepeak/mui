@@ -53,6 +53,7 @@ public:
 private:
     void next();
     void send(const std::string& line);
+    void answer_of(const std::string& line);
     void say(std::string line, bool begins = false);
     void show_grants();
 
@@ -63,6 +64,7 @@ private:
     std::string                    waiting_;  // the request that asked the person
     std::string                    answer_;   // the answer it asked for
     std::int64_t                   last_exit_ = 0;
+    bool                           answered_ = false;
     seconds                        pace_{0.45};
     std::vector<std::string>       exchanges_;
 };

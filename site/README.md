@@ -8,7 +8,17 @@ The site shows openmui's thesis instead of describing it: **the interface is a s
 
 ## What is on it
 
-- **Places, not pages.** The home page, the framework's documents (`docs/en`, `docs/zh`: features and practices) rendered by `openmui.ui.markdown`, and a live work: a timeline editor (`openmui.ui.timeline`) with its own undo history (S-12).
+- **Places, not pages.** The places are:
+  - the home page;
+  - the framework's documents (`docs/en`, `docs/zh`: features and practices), rendered by `openmui.ui.markdown`;
+  - a live work: a timeline editor (`openmui.ui.timeline`) with its own undo history (S-12).
+
+  Each place is a window on one infinite canvas (`openmui.ui.canvas`, S1's approach; `src/atlas.*`). A window is the size of the view, so a place is read at zoom 1, like a page.
+  - **Overview** flies the camera out to show every place whole.
+  - Choosing a place, from the side, from a link or by tapping its window, flies the camera out and in again.
+  - Far away, a window is a texture of its page, drawn offscreen at the resolution the screen asks for. Near enough to read, it is live.
+  - The camera's positions are the scene's named views, so an agent moves it as a person does (`camera_preset`).
+  - The windows follow the view's size, through the same stage of the frame that watches the tree.
 - **The lens.** One switch moves the page you are reading between four renderings of the same nodes:
   - **Pixels**: the page as drawn.
   - **Tree**: the semantic tree's wireframe over the pixels. Each node gets its box and role; nodes that an agent or a person can change are outlined in amber.
@@ -42,19 +52,19 @@ python3 -m http.server -d target/site            # and look at it
 - uses the program's own fonts;
 - is hidden once the program runs.
 
-`.github/workflows/pages.yml` publishes `target/site` to GitHub Pages.
+`.github/workflows/pages.yml` publishes `target/site` to GitHub Pages. `tools/ci/drive-page.mjs` loads the page in a real browser (headless Chromium, in real time) and can drive it through `window.omui`. That is how the packed site was checked: the same tree hash as CI at three window sizes, the overview's textures, the hash routes, and a flight started by a page agent.
 
 ## Tests
 
 `tests/site_test.cpp`:
-- every place, in both languages, one at a time;
+- every place, in both languages, one live at a time;
 - the language switch: letters on their way, the tree already switched, at rest the very pixels of the page opened in Chinese;
 - links: to another place, or out through the host (never a script);
 - the agent panel: real requests, a person's answer once and for the visit, the S-10 refusal, a revoked grant asking again;
 - the lens's four renderings of the same nodes;
 - the home tree's hash, pinned, and the same in a narrower window;
 - the timeline editor: an agent's edit followed by the tree, then undone;
-- the pixels of home, the wireframe, the agent's JSON, the timeline, the agent asking and the Chinese page, pinned on every platform;
+- the pixels of home, the overview, the wireframe, the agent's JSON, the timeline, the agent asking and the Chinese page, pinned on every platform;
 - the static HTML and its injection into dist-toy's page.
 
 Changing a document changes the pinned hashes. Look at the pictures (`$TMPDIR/openmui-tests/site/`), then update the pins.

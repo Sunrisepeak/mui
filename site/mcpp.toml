@@ -36,6 +36,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 openmui.sdk         = { path = ".." }
 openmui.ui.markdown = { path = "../components/markdown" }
 openmui.ui.timeline = { path = "../components/timeline" }
+openmui.ui.canvas   = { path = "../components/canvas" }
 openmui.semantic    = { path = "../modules/ui/semantic" }
 openmui.trace       = { path = "../modules/base/trace" }
 

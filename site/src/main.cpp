@@ -14,7 +14,8 @@ int main(int argc, char** argv) {
         if (a == "--prerender" && i + 1 < argc) prerender = argv[++i];
         else if (a == "--lang" && i + 1 < argc) lang = argv[++i];
         else if (a == "--zh" || a == "--en") lang = a.substr(2);
-        else if (std::ranges::any_of(omui::site::places(), [&](const omui::site::Place& p) { return a == std::format("--{}", p.id); })) place = a.substr(2);
+        else if (a == "--overview" || std::ranges::any_of(omui::site::places(), [&](const omui::site::Place& p) { return a == std::format("--{}", p.id); }))
+            place = a.substr(2);
         else rest.push_back(argv[i]);
     }
     if (!prerender.empty()) {

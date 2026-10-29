@@ -15,7 +15,7 @@ constexpr std::array<GuideTask, 5> tasks{{
     {"self", "Answer for the person (S-10)", "替人回答（S-10）"},
 }};
 
-constexpr std::string_view editor = "main/body/view/timeline/editor";
+constexpr std::string_view editor = "main/body/view/atlas/timeline/page/editor";
 constexpr std::string_view openas_url = "https://github.com/openlifa/openas";
 
 std::string act(std::string_view node, std::string_view action, std::string_view args = {}) {
@@ -57,14 +57,19 @@ Guide::Guide(Runtime& runtime, std::function<std::string()> place)
       }()) {}
 
 std::vector<std::string> Guide::steps(std::string_view task) const {
-    if (task == "read") return {std::format(R"({{"op":"snapshot","actor":"{}","root":"main/body/view/{}","depth":2}})", guide_actor, place_())};
-    if (task == "tour") return {act("main/bar/lang", "activate"), act("main/body/nav/to_features", "activate")};
+    // A place's window is live once the camera has flown to it: an agent waits for what it will act on, as any agent does.
+    auto wait = [](std::string_view node) { return std::format(R"({{"op":"wait","actor":"{}","q":{{"id":"{}"}},"timeout":5}})", guide_actor, node); };
+    if (task == "read") {
+        const std::string at = place_() == "overview" ? std::string("main/body/view/atlas") : std::format("main/body/view/atlas/{}/page", place_());
+        return {std::format(R"({{"op":"snapshot","actor":"{}","root":"{}","depth":2}})", guide_actor, at)};
+    }
+    if (task == "tour") return {act("main/bar/lang", "activate"), act("main/body/nav/to_features", "activate"), wait("main/body/view/atlas/features/page/doc")};
     if (task == "edit")
-        return {act("main/body/nav/to_timeline", "activate"), act(editor, "seek", R"({"frame":30})"), act(editor, "select", R"({"track":0,"clip":0})"),
+        return {act("main/body/nav/to_timeline", "activate"), wait(editor), act(editor, "seek", R"({"frame":30})"), act(editor, "select", R"({"track":0,"clip":0})"),
                 act(editor, "split"), std::format(R"({{"op":"undo","actor":"{}","scope":"{}"}})", guide_actor, editor)};
     if (task == "link")
-        return {act("main/body/nav/to_home", "activate"),
-                act("main/body/view/home/home_doc", "open_link", std::format(R"({{"href":"{}"}})", openas_url))};
+        return {act("main/body/nav/to_home", "activate"), wait("main/body/view/atlas/home/page/doc"),
+                act("main/body/view/atlas/home/page/doc", "open_link", std::format(R"({{"href":"{}"}})", openas_url))};
     if (task == "self") return {act("main/body/guide/asking/answer/allow_once", "activate")};
     return {};
 }
@@ -88,13 +93,16 @@ void Guide::show_grants() {
 
 void Guide::send(const std::string& line) {
     say("→ " + line, true);
-    last_exit_ = 0;
+    answered_ = false;
     protocol_.request(line, [this](std::string_view record) {
         say("← " + brief(record));
         auto v = parse_json(record);
         if (!v) return;
-        if (v->get("kind") && v->get("kind")->as_string() == "result") last_exit_ = v->get("exitCode") ? v->get("exitCode")->as_int() : 0;
         if (auto a = asked_answer(*v); !a.empty()) answer_ = std::move(a);
+        if (v->get("kind") && v->get("kind")->as_string() == "result") {
+            last_exit_ = v->get("exitCode") ? v->get("exitCode")->as_int() : 0;
+            answered_ = true;
+        }
     });
 }
 
@@ -116,6 +124,18 @@ void Guide::next() {
     const std::string line = std::move(queue_.front());
     queue_.pop_front();
     send(line);
+    answer_of(line);
+}
+
+// After a request: its answer now, or (a wait) when the protocol gives it.
+void Guide::answer_of(const std::string& line) {
+    if (!answered_) {
+        (void)runtime_.after(seconds(0.05), [this, line] {
+            protocol_.poll();
+            answer_of(line);
+        });
+        return;
+    }
     if (last_exit_ == spec::exit_code::needs_answer) {
         // It asks the person (openas §3.3): the rest waits for the answer.
         waiting_ = line;

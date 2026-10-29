@@ -8,6 +8,7 @@ import std;
 import openmui;
 import openmui.site;
 import openmui.ui.markdown;  // openmui.markdown with it
+import openmui.ui.canvas;
 import openmui.testing;
 
 using namespace omui::testing;
@@ -24,7 +25,7 @@ struct Site {
         h.mount("main", spec.view());
         h.settle();
     }
-    Value snapshot(std::string_view place) { return h.tree().snapshot({.root = std::format("main/body/view/{}", place)}).to_value(); }
+    Value snapshot(std::string_view place) { return h.tree().snapshot({.root = std::format("main/body/view/atlas/{}/page", place)}).to_value(); }
     std::string text(std::string_view id) {
         const auto n = h.tree().node(id);
         return n ? n->name : std::string();
@@ -39,6 +40,8 @@ struct Site {
         const auto n = h.tree().node(id);
         return n && !n->states.has(State::hidden);
     }
+    // A place is shown when its window is live (not a texture on the atlas).
+    bool shown(std::string_view place) { return h.tree().node(std::format("main/body/view/atlas/{}/page", place)).has_value(); }
 };
 
 std::uint64_t fnv(std::string_view s) {
@@ -86,13 +89,13 @@ int main(int argc, char** argv) {
 
     s.test("each place shown in turn: one at a time, its tree under the view", [] {
         Site a;
-        check(a.visible("main/body/view/home"), "home first");
-        check(!a.visible("main/body/view/features"), "one place at a time");
+        check(a.shown("home"), "home first");
+        check(!a.shown("features"), "one place at a time");
         for (const site::Place& p : site::places()) {
             check(a.h.click(std::format("main/body/nav/to_{}", p.id)), std::format("the nav's {}", p.id));
             a.h.settle();
             for (const site::Place& q : site::places())
-                check(a.visible(std::format("main/body/view/{}", q.id)) == (p.id == q.id), std::format("{} shown: {}", p.id, q.id));
+                check(a.shown(q.id) == (p.id == q.id), std::format("{} shown: {}", p.id, q.id));
             const std::size_t nodes = a.snapshot(p.id).get("nodes")->list()->size();
             check(nodes >= (p.id == "timeline" ? 3u : 5u), std::format("{}: its tree ({} nodes)", p.id, nodes));
         }
@@ -130,6 +133,7 @@ int main(int argc, char** argv) {
         check(moving != direct, "under way: the letters still gathering");
         check(site::tree_hash(a.snapshot("home")) == site::tree_hash(zh.snapshot("home")), "the tree is already the other language's: the motion is only paint");
         a.h.settle(seconds(3));
+        (void)a.h.save_png(scratch_dir("site-sw") / "a.png");
         check(a.pixels() == direct, "at rest: the very pixels of the page opened in Chinese");
     });
 
@@ -151,7 +155,7 @@ int main(int argc, char** argv) {
         a.h.advance(seconds(0.3));
         a.h.settle(seconds(0.1));
         const std::string json = a.text("main/body/view/agent/agent_text");
-        check(json.find("\"id\":\"main/body/view/home") != std::string::npos || json.find("\"id\": \"main/body/view/home") != std::string::npos,
+        check(json.find("\"id\":\"main/body/view/atlas/home") != std::string::npos || json.find("\"id\": \"main/body/view/atlas/home") != std::string::npos,
               "the nodes as an agent reads them");
         for (const Value& n : *home.get("nodes")->list()) check(json.find(n.get("id")->json()) != std::string::npos, std::format("{} in the agent's JSON", n.get("id")->json()));
 
@@ -159,8 +163,8 @@ int main(int argc, char** argv) {
         a.h.advance(seconds(0.3));
         a.h.settle(seconds(0.1));
         const std::string lines = a.text("main/body/view/test/test_text");
-        check(lines.find("check_eq(node(\"main/body/view/home") != std::string::npos, "assertions of the same nodes");
-        check(lines.find("check_eq(node(\"main/body/view/home/home_doc/b0\").role, \"heading\");") != std::string::npos, "the title's role asserted");
+        check(lines.find("check_eq(node(\"main/body/view/atlas/home") != std::string::npos, "assertions of the same nodes");
+        check(lines.find("check_eq(node(\"main/body/view/atlas/home/page/doc/b0\").role, \"heading\");") != std::string::npos, "the title's role asserted");
 
         check(a.h.click("main/bar/lens_pixels"));
         a.h.move({4, 796});  // the pointer off the buttons (no hover)
@@ -180,7 +184,7 @@ int main(int argc, char** argv) {
         spec.setup(narrow.runtime());
         narrow.mount("main", spec.view());
         narrow.settle();
-        check(site::tree_hash(narrow.tree().snapshot({.root = "main/body/view/home"}).to_value()) == h, "the same tree, another window");
+        check(site::tree_hash(narrow.tree().snapshot({.root = "main/body/view/atlas/home/page"}).to_value()) == h, "the same tree, another window");
         // The Chinese page is another tree.
         check(a.h.click("main/bar/lang"));
         a.h.settle();
@@ -191,7 +195,7 @@ int main(int argc, char** argv) {
         Site a;
         check(a.h.click("main/body/nav/to_timeline"));
         a.h.settle();
-        constexpr std::string_view editor = "main/body/view/timeline/editor";
+        constexpr std::string_view editor = "main/body/view/atlas/timeline/page/editor";
         const auto before = site::tree_hash(a.snapshot("timeline"));
         auto tracks = [&] { return a.h.tree().node(editor)->value.get("tracks")->json(); };
         const std::string was = tracks();
@@ -212,14 +216,14 @@ int main(int argc, char** argv) {
         Invocation person;  // the person at the machine (not over the bus)
         person.args = Value{}.set("href", Value("features.md"));
         person.answer = "yes";
-        check(a.h.tree().act("main/body/view/home/home_doc", "open_link", person).exit_code() == std::optional<int>(0), "a link to the features");
+        check(a.h.tree().act("main/body/view/atlas/home/page/doc", "open_link", person).exit_code() == std::optional<int>(0), "a link to the features");
         a.h.settle();
-        check(a.visible("main/body/view/features"), "the features shown");
+        check(a.shown("features"), "the features shown");
         check(a.h.runtime().opened().empty(), "nothing opened outside");
         check(a.h.click("main/body/nav/to_home"));
         a.h.settle();
         person.args = Value{}.set("href", Value("https://github.com/openlifa/openmui"));
-        check(a.h.tree().act("main/body/view/home/home_doc", "open_link", person).exit_code() == std::optional<int>(0), "the spec's repository");
+        check(a.h.tree().act("main/body/view/atlas/home/page/doc", "open_link", person).exit_code() == std::optional<int>(0), "the spec's repository");
         check(a.h.runtime().opened() == std::vector<std::string>{"https://github.com/openlifa/openmui"}, "opened by the host");
         check(!a.h.runtime().open_url("javascript:alert(1)"), "never a script");
     });
@@ -237,18 +241,18 @@ int main(int argc, char** argv) {
         const auto said = [&] { return a.text("main/body/guide/said/transcript"); };
 
         run("read");
-        check(said().find(R"(→ {"op":"snapshot","actor":"agent:guide","root":"main/body/view/home","depth":2})") != std::string::npos, said());
+        check(said().find(R"(→ {"op":"snapshot","actor":"agent:guide","root":"main/body/view/atlas/home/page","depth":2})") != std::string::npos, said());
         check(said().find(R"(← {"kind":"result","exitCode":0})") != std::string::npos, "read: it runs");
 
         run("tour");
         check(a.text("main/body/nav/to_features") == "特性", "the language switched by the agent");
-        check(a.visible("main/body/view/features"), "and the features open");
+        check(a.shown("features"), "and the features open");
         check(a.h.click("main/bar/lang"));
         a.h.settle();
 
         run("edit");
-        check(a.visible("main/body/view/timeline"), "the timeline");
-        const Value ed = a.h.tree().node("main/body/view/timeline/editor")->value;
+        check(a.shown("timeline"), "the timeline");
+        const Value ed = a.h.tree().node("main/body/view/atlas/timeline/page/editor")->value;
         check(ed.get("tracks") && ed.get("tracks")->list()->front().get("clips")->list()->size() == 2, std::format("split, then undone: {}\n{}", ed.json(), said()));
         check(said().find(R"("action":"split")") != std::string::npos && said().find(R"("op":"undo")") != std::string::npos, "split and undo, as requests");
 
@@ -294,6 +298,15 @@ int main(int argc, char** argv) {
         Hash all;
         all.u64(a.pixels());
         check(a.h.save_png(dir / "home.png").has_value());
+        // The overview: every place a window on the atlas, the camera flown out.
+        check(a.h.click("main/body/nav/to_overview"));
+        a.h.move({4, 796});
+        a.h.settle(seconds(3));
+        all.u64(a.pixels());
+        check(a.h.save_png(dir / "overview.png").has_value());
+        check(a.h.click("main/body/nav/to_home"));
+        a.h.move({4, 796});
+        a.h.settle(seconds(3));
         check(a.h.click("main/bar/lens_tree"));
         a.h.advance(seconds(0.3));
         a.h.settle(seconds(0.1));
@@ -328,7 +341,7 @@ int main(int argc, char** argv) {
         all.u64(a.pixels());
         check(a.h.save_png(dir / "zh.png").has_value());
         std::println("    pixels {}", all.hex());
-        check_eq(all.hex(), std::string("e3b5d795708d59e9"));
+        check_eq(all.hex(), std::string("609d3bc06e26b5b2"));
     });
 
     s.test("the static page: every place's HTML, md4c-html's bytes, in a page that hides it once the program runs", [] {

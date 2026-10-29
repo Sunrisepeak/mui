@@ -29,6 +29,7 @@ gongfu::present2d::draw(match, left_look, right_look, effects, scene, frame);
   - holds keep the defender at a bone of the attacker, playing each hold's clip from its first frame, so holds in a row show a held body reacting to each blow;
   - each hit asks the defender for a reaction (`hitstun.head` … or `held`, `launched`, `slammed`; a look without `launched` or `slammed` gives its heavy hit's), and in a hitstop the struck shakes and its reaction waits;
   - afterimages trail the attacker over the frames they say, and `in_front` draws the attacker over the defender (a knee driven into a body).
+  - a stop stands time still: the picture grey toward its tint (shapes and drawn art alike), the struck as it was, the sparks and effects of blows landing in it hanging in the air; the blows take effect when time runs again.
 - **Set pieces** (G-15, panes) are drawn by their owner's look: glass, an edge and a shine, cracks as they wear, or drawn art (`pane = { …, picture = "fx", whole = [x, y, w, h], cracked = [x, y, w, h] }`: the region standing where the pane stands, the cracked one once it has lost durability), with a gold edge on a pane that turns projectiles back.
 - **Looks are files**, `*.look.gongfu.toml` (`read_look` / `write_look`):
   - palettes of named slots (the left side's and the right's);
@@ -50,6 +51,7 @@ Every picture is a pure function of the match's state and the kept events, and i
 - resolves impacts by name and checks the camera's shake and punch in;
 - pins each spark style and the negative flash;
 - draws panes as glass and from a picture (whole, then cracked);
-- draws a cinematic's bodies turned, eased along a path, held, in a hitstop, launched and with afterimages, each against the picture it should equal.
+- draws a cinematic's bodies turned, eased along a path, held, in a hitstop, launched and with afterimages, each against the picture it should equal;
+- stands time still: drawn art grey in a stop, the struck standing and a blow's effect hanging until the bell.
 
 An overlay drawn over the frame (training's boxes) lines up with it through `view_camera` (the camera the frame was drawn with, shake included) and `on_picture` (a point of the stage on the picture).

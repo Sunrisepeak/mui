@@ -1298,11 +1298,24 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         if (turned(attacker ? cine->attacker_turn : cine->defender_turn, t)) f.facing = -f.facing;
         return f;
     };
-    // The struck's own time: the lock's, less the frames it has stood in hitstops.
+    // Frames of a cinematic's stop gone by at its frame t: time standing still.
+    auto stood = [&](std::int32_t t) { return cine && cine->stop.from >= 0 ? std::clamp(t, cine->stop.from, cine->stop.to) - cine->stop.from : 0; };
+    // The struck's own time: the lock's, less the frames it has stood in hitstops and in the stop
+    // (as it was when time stopped; a hitstop inside the stop counted once).
     auto struck_time = [&](std::int32_t t) {
-        std::int32_t own = t;
-        for (const auto& h : cine->hitstops) own -= std::clamp(t - h[0], 0, h[1]);
+        std::int32_t own = t - stood(t);
+        for (const auto& h : cine->hitstops) {
+            own -= std::clamp(t - h[0], 0, h[1]);
+            if (cine->stop.from >= 0) {
+                const std::int32_t a = std::max(h[0], cine->stop.from), b = std::min({h[0] + h[1], cine->stop.to, t});
+                own += std::max(0, b - a);
+            }
+        }
         return own;
+    };
+    // A blow landing while time stands takes effect when it runs again.
+    auto felt = [&](std::int32_t hit, std::int32_t t) {
+        return hit <= t && !(cine->stop.from >= 0 && hit >= cine->stop.from && hit < cine->stop.to && t < cine->stop.to);
     };
     // The first side under the second; in a cinematic's frames that say so, the attacker over the defender.
     const bool attacker_over = cine && turned(cine->in_front, st.lock.frame);
@@ -1363,13 +1376,14 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         // Struck by a cinematic's hits, the defender's reaction starts again at
         // each (its first keys are the blow): the cinematic's for that hit, if the look has it.
         std::int32_t clip_t = hold_from >= 0 ? struck_time(st.lock.frame) - struck_time(hold_from) : st.lock.frame;
+        if (cine && i != st.lock.owner && hold_from < 0) clip_t -= stood(st.lock.frame);  // standing as it was while time stands
         const Look& own = i == 0 ? left : right;
         if (cine && i != st.lock.owner && clip == "hitstun" && hold_from < 0) {
             const MoveDef& md = match.fighter(st.lock.owner).def.moves[static_cast<std::size_t>(st.lock.move)];
             std::int32_t last = -1, landed = 0;
             if (md.cinematic)
                 for (const CinematicHit& h : md.cinematic->hits)
-                    if (h.frame <= st.lock.frame) last = std::max(last, h.frame), ++landed;
+                    if (felt(h.frame, st.lock.frame)) last = std::max(last, h.frame), ++landed;
             if (last >= 0) {
                 clip_t = struck_time(st.lock.frame) - struck_time(last);
                 if (!cine->reactions.empty()) {
@@ -1383,7 +1397,7 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
                         while (first > 0 && cine->reactions[static_cast<std::size_t>(first - 1) % n] == r) --first;
                         std::int32_t k = 0;
                         for (const CinematicHit& h : md.cinematic->hits)
-                            if (h.frame <= st.lock.frame && k++ == first) clip_t = struck_time(st.lock.frame) - struck_time(h.frame);
+                            if (felt(h.frame, st.lock.frame) && k++ == first) clip_t = struck_time(st.lock.frame) - struck_time(h.frame);
                     }
                 }
             }
@@ -1640,20 +1654,24 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         const bool own_tier = tier != im.fx;
         const float tier_scale = own_tier ? 1.0f : e.punish ? 1.4f : countered ? 1.2f : 1.0f;
         const std::optional<Color> tier_paint = countered && !own_tier ? std::optional<Color>(im.counter_color) : std::nullopt;
-        if (const auto fx = tier.empty() ? by_look.fx.end() : by_look.fx.find(tier); fx != by_look.fx.end()) {
-            const FighterState& by = st.f[static_cast<std::size_t>(std::clamp(e.attacker, 0, 1))];
-            const Point at{static_cast<float>(stage(e.at.x)), static_cast<float>(stage(e.at.y))};
-            const double facing = by.facing < 0 ? -1.0 : 1.0;
-            if (e.punish && !own_tier && age >= 3 && age - 3 < fx->second.length())
-                this->fx(by_look, fx->second, age - 3, at, -facing, tier_scale * 1.25f, scene, view.cam, out, 0.55f, tier_paint);
-            if (age < fx->second.length()) this->fx(by_look, fx->second, age, at, facing, tier_scale, scene, view.cam, out, 1, tier_paint);
-            if (e.punish && age < 3) out.fill_rect({0, 0, scene.width, scene.height}, Color::hex(0xffffff, 0.35f * static_cast<float>(3 - age) / 3));
-        } else if (k.frame >= stop_from && k.frame < stop_to) {
-            // Held in the air: each where its own number puts it about the hit, so the hits hang apart.
+        // A contact while time stands still hangs in the air a few frames in, each where its own
+        // number puts it about the hit (so the hits hang apart), and goes on from the bell.
+        const bool hung = k.frame >= stop_from && k.frame < stop_to;
+        Effects::Kept held = k;
+        if (hung) {
             spark_age = std::min(std::min(st.frame, stop_to) - k.frame, 3) + std::max(0, st.frame - stop_to);
-            Effects::Kept held = k;
             held.event.at.x += Fixed::raw(static_cast<std::int32_t>(std::lround((scatter(k, 7) - 0.5) * 140 * Fixed::one_bits)));
             held.event.at.y += Fixed::raw(static_cast<std::int32_t>(std::lround((scatter(k, 8) - 0.5) * 140 * Fixed::one_bits)));
+        }
+        if (const auto fx = tier.empty() ? by_look.fx.end() : by_look.fx.find(tier); fx != by_look.fx.end()) {
+            const FighterState& by = st.f[static_cast<std::size_t>(std::clamp(e.attacker, 0, 1))];
+            const Point at{static_cast<float>(stage(held.event.at.x)), static_cast<float>(stage(held.event.at.y))};
+            const double facing = by.facing < 0 ? -1.0 : 1.0;
+            if (e.punish && !own_tier && spark_age >= 3 && spark_age - 3 < fx->second.length())
+                this->fx(by_look, fx->second, spark_age - 3, at, -facing, tier_scale * 1.25f, scene, view.cam, out, 0.55f, tier_paint);
+            if (spark_age < fx->second.length()) this->fx(by_look, fx->second, spark_age, at, facing, tier_scale, scene, view.cam, out, 1, tier_paint);
+            if (e.punish && age < 3) out.fill_rect({0, 0, scene.width, scene.height}, Color::hex(0xffffff, 0.35f * static_cast<float>(3 - age) / 3));
+        } else if (hung) {
             if (spark_age < im.spark_frames) spark(held, im, spark_age, view, path_, out);
         } else if (spark_age < im.spark_frames) {
             spark(k, im, spark_age, view, path_, out);

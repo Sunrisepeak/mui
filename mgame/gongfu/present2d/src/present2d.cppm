@@ -349,8 +349,10 @@ struct CinematicLook {
         Color color = Color::hex(0xffffff, 0.8f);
     } cracks;
     // Time standing still (刻's): over the frames [from, to) the picture is
-    // drawn grey (toward `tint`), and sparks of hits in it stop where they
-    // are; from `to` (the bell) they go on, and the colour is back.
+    // drawn grey (toward `tint`, openmui.render's `tone`), the struck stands
+    // as it was when time stopped, and the sparks and effects of hits in it
+    // hang where they are, a few frames in; blows landing in it take effect
+    // from `to` (the bell), when everything goes on and the colour is back.
     struct Stop {
         std::int32_t from = -1, to = -1;
         Color        tint = Color::hex(0xc9c3b6);

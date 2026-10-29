@@ -671,9 +671,24 @@ material = "none"
 frames = 1
 loop = true
 
+[clip.hitstun]
+frames = 40
+ease = "linear"
+angle.upper = [[0, 0], [40, 90]]
+
+[impact.light]
+fx = "spark"
+
+[[fx.spark.sprite]]
+picture = "arm"
+source = [0, 0, 40, 100]
+frames = 16
+size = [10, 60]
+alpha = [1, 0.2]
+
 [cinematic.236236K]
 attacker = "still"
-defender = "still"
+defender = "hitstun"
 stop = { from = 10, to = 30, tint = "#ffffff" }
 )";
         auto look = p2::read_look(text, "stop.look.gongfu.toml");
@@ -723,6 +738,31 @@ stop = { from = 10, to = 30, tint = "#ffffff" }
                 }
             return n;
         };
+        // Played: the cinematic's blow at frame 20 lands while time stands — the struck stands as it was,
+        // its reaction waiting, and the blow's effect hangs a few frames in; from 30 both go on.
+        p2::bind(*look, stopper);
+        auto played = [&](std::int32_t to) {
+            Match m(rules(), stopper, stopper);
+            State st = m.state();
+            st.f[0].pos.x = 915_fx;
+            st.f[1].pos.x = 1005_fx;
+            st.f[0].facing = 1;
+            st.f[1].facing = -1;
+            for (auto& f : st.f) f.mode = Mode::cinematic;
+            st.lock = {0, move, 5, 1, 915_fx, 0_fx};
+            m.restore(st);
+            p2::Effects fx;
+            while (m.state().lock.frame < to) {
+                m.tick(Pad{}, Pad{});
+                fx.record(m);
+            }
+            omui::render::DisplayList dl;
+            p2::draw(m, *look, *look, fx, {}, dl);
+            return dl.hash();
+        };
+        check(played(13) == played(17) && played(17) != played(8), "before the blow, the struck stands as it was when time stopped");
+        check(played(24) == played(28) && played(24) != played(17), "the blow's effect hangs, the struck stands");
+        check(played(31) != played(33), "from the bell, both go on");
         const auto before = at(5), still = at(20), after = at(35);
         save(still, "stop-grey");
         const auto b = count(before), s2 = count(still), a = count(after);

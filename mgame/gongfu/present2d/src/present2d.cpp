@@ -654,7 +654,11 @@ bool turned(const std::vector<std::array<std::int32_t, 2>>& turns, std::int32_t 
 // (empty: the look has no such clip).
 std::string_view taken_clip(const Look& look, std::string_view name) {
     if (look.clips.contains(name)) return name;
-    if ((name == taken_reactions[1] || name == taken_reactions[2]) && look.clips.contains(hit_reactions[3])) return hit_reactions[3];
+    // Launched or slammed without a drawing of its own: the knockdown (a body going to the floor; a path lifts it), else the heavy hit.
+    if (name == taken_reactions[1] || name == taken_reactions[2]) {
+        if (look.clips.contains(std::string_view("knockdown"))) return "knockdown";
+        if (look.clips.contains(hit_reactions[3])) return hit_reactions[3];
+    }
     return {};
 }
 

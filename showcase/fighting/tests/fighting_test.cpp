@@ -674,7 +674,7 @@ int main(int argc, char** argv) {
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    yue level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("03ab6661b684af00"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("83a7f1ffefd53276"));  // GCC and LLVM, every platform
     });
 
     s.test("璃 as designed: every normal's and 「棱光」's startup and advantage, measured in the simulation (characters 2 design §2)", [] {
@@ -838,7 +838,7 @@ int main(int argc, char** argv) {
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    li level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("e9b6ee70fe77f672"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("cd1fe0d0f6456ea4"));  // GCC and LLVM, every platform
     });
 
     s.test("刻 as designed: every normal's, 「停摆」's and 「拨针」's startup and advantage, measured in the simulation (characters 2 design §4)", [] {
@@ -1002,7 +1002,7 @@ int main(int argc, char** argv) {
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    ke level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("1a09f81eb569ffb6"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("bca0788e2687eae9"));  // GCC and LLVM, every platform
     });
 
     s.test("each fighter's win pose: a round won on the clock, the winner standing to play it out at its beats — frames pinned", [] {
@@ -1267,7 +1267,7 @@ int main(int argc, char** argv) {
         const auto w = audio::wav(all, sounds.mixer().rate());
         std::ofstream(scratch_dir("fighting-sound") / "mo-and-yue.wav", std::ios::binary).write(reinterpret_cast<const char*>(w.data()), static_cast<std::streamsize>(w.size()));
         std::println("    fight heard {:016x} ({:.1f} s)", audio::hash(all), static_cast<double>(all.size()) / 2 / sounds.mixer().rate());
-        check_eq(audio::hash(all), std::uint64_t{0x78ce47dee4b6f6f1});  // GCC and LLVM, every platform
+        check_eq(audio::hash(all), std::uint64_t{0xe7676c6f74275c56});  // GCC and LLVM, every platform
     });
 
     s.test("frames pinned: versus and training (boxes and the meter) at a jab's active frame", [] {

@@ -116,3 +116,104 @@ wave = "recording"
 recording = "strain_3"
 speed = 0.92
 filter = { kind = "lowpass", cutoff = 5500 }
+
+# ── 璃: clear — lighter and quicker, the low end gone (highpass 300 Hz), a touch of air ────────
+
+[sound.li_hurt_1]
+gain = 0.5
+[[sound.li_hurt_1.layer]]
+wave = "recording"
+recording = "female_3"
+speed = 1.12
+filter = { kind = "highpass", cutoff = 300 }
+
+[sound.li_hurt_2]
+gain = 0.5
+[[sound.li_hurt_2.layer]]
+wave = "recording"
+recording = "female_1"
+speed = 1.12
+filter = { kind = "highpass", cutoff = 300 }
+
+[sound.li_ko]
+gain = 0.6
+[[sound.li_ko.layer]]
+wave = "recording"
+recording = "female_4"
+speed = 1.12
+filter = { kind = "highpass", cutoff = 300 }
+
+
+# ── 岳: a mountain — the lowest takes slowed to three quarters, darker (lowpass 3.2 kHz), driven ────────
+
+[sound.yue_hurt_1]
+gain = 0.5
+[[sound.yue_hurt_1.layer]]
+wave = "recording"
+recording = "strain_9"
+speed = 0.76
+filter = { kind = "lowpass", cutoff = 3200 }
+drive = 0.2
+
+[sound.yue_hurt_2]
+gain = 0.5
+[[sound.yue_hurt_2.layer]]
+wave = "recording"
+recording = "strain_13"
+speed = 0.76
+filter = { kind = "lowpass", cutoff = 3200 }
+drive = 0.2
+
+[sound.yue_ko]
+gain = 0.6
+[[sound.yue_ko.layer]]
+wave = "recording"
+recording = "pain_1"
+speed = 0.76
+filter = { kind = "lowpass", cutoff = 3200 }
+drive = 0.2
+
+[sound.yue_effort_1]
+gain = 0.45
+[[sound.yue_effort_1.layer]]
+wave = "recording"
+recording = "strain_5"
+speed = 0.76
+filter = { kind = "lowpass", cutoff = 3200 }
+drive = 0.2
+
+[sound.yue_effort_2]
+gain = 0.45
+[[sound.yue_effort_2.layer]]
+wave = "recording"
+recording = "strain_12"
+speed = 0.76
+filter = { kind = "lowpass", cutoff = 3200 }
+drive = 0.2
+
+
+# ── 刻: measured — lower and slower, softened (lowpass 4.5 kHz) ────────
+
+[sound.ke_hurt_1]
+gain = 0.5
+[[sound.ke_hurt_1.layer]]
+wave = "recording"
+recording = "female_2"
+speed = 0.9
+filter = { kind = "lowpass", cutoff = 4500 }
+
+[sound.ke_hurt_2]
+gain = 0.5
+[[sound.ke_hurt_2.layer]]
+wave = "recording"
+recording = "female_6"
+speed = 0.9
+filter = { kind = "lowpass", cutoff = 4500 }
+
+[sound.ke_ko]
+gain = 0.6
+[[sound.ke_ko.layer]]
+wave = "recording"
+recording = "female_5"
+speed = 0.9
+filter = { kind = "lowpass", cutoff = 4500 }

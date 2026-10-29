@@ -66,15 +66,15 @@ jobs:
       - name: Install mcpp
         run: |
           # The mcpp every row builds with is the project's (.xlings.json), the one
-          # the work is checked with locally; xlings refuses to use another here.
+          # the work is checked with locally; in the project, xlings runs that one.
           MCPP_VERSION="$(sed -n 's/.*"mcpp": *"\([^"]*\)".*/\1/p' .xlings.json)"
           for attempt in 1 2 3 4 5 6; do
             xlings update > /dev/null 2>&1 || true
-            if xlings install "mcpp@$MCPP_VERSION" -y -g && xlings use mcpp "$MCPP_VERSION"; then break; fi
+            if xlings install "mcpp@$MCPP_VERSION" -y -g; then break; fi
             [ "$attempt" = 6 ] && { echo "::error::mcpp could not be installed"; exit 1; }
             sleep 60
           done
-          mcpp --version
+          mcpp --version | tee /dev/stderr | grep -q "$MCPP_VERSION" || { echo "::error::not mcpp $MCPP_VERSION"; exit 1; }
           mcpp self config --mirror GLOBAL
       - name: The members that run on the Web, tested under node
         run: tools/ci/web.sh
@@ -125,15 +125,15 @@ jobs:
       - name: Install mcpp
         run: |
           # The mcpp every row builds with is the project's (.xlings.json), the one
-          # the work is checked with locally; xlings refuses to use another here.
+          # the work is checked with locally; in the project, xlings runs that one.
           MCPP_VERSION="$(sed -n 's/.*"mcpp": *"\([^"]*\)".*/\1/p' .xlings.json)"
           for attempt in 1 2 3 4 5 6; do
             xlings update > /dev/null 2>&1 || true
-            if xlings install "mcpp@$MCPP_VERSION" -y -g && xlings use mcpp "$MCPP_VERSION"; then break; fi
+            if xlings install "mcpp@$MCPP_VERSION" -y -g; then break; fi
             [ "$attempt" = 6 ] && { echo "::error::mcpp could not be installed"; exit 1; }
             sleep 60
           done
-          mcpp --version
+          mcpp --version | tee /dev/stderr | grep -q "$MCPP_VERSION" || { echo "::error::not mcpp $MCPP_VERSION"; exit 1; }
           mcpp self config --mirror GLOBAL
 
       - name: Install esbuild (TypeScript is compiled to JavaScript; lang/js, example 03)

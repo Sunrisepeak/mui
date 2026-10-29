@@ -633,6 +633,68 @@ grip.hands = [[0, 1], [10, 1], [20, 0]]
         check(!b2 && has(texts(b2.error()), "holds `hand`, which is no grip"), b2 ? "read" : std::format("{}", texts(b2.error())));
     });
 
+    s.test("key poses by name: a clip keyed by poses makes the tracks they say, a key may change its pose; files read back as themselves", [] {
+        const std::string text = R"(gongfu = "0.1"
+name = "poses"
+
+[[bone]]
+name = "body"
+joint = [0, 80]
+length = 60
+rest = 90
+
+[[bone]]
+name = "arm"
+parent = "body"
+joint = [50, 0]
+length = 40
+rest = -90
+
+[[part]]
+name = "torso"
+bone = "body"
+shape = "capsule"
+size = [10, 10]
+
+[pose.stance]
+aim = { body = 90, arm = -60 }
+rise = 0
+
+[pose.jab]
+from = "stance"
+aim = { arm = 0 }
+
+[clip.punch]
+frames = 12
+ease = "linear"
+poses = [[0, "stance"], [4, "jab", "out_expo"], [6, "jab", { aim = { body = 80 }, rise = -4 }], [12, "stance"]]
+)";
+        auto look = p2::read_look(text, "poses.look.gongfu.toml");
+        check(look.has_value(), look ? "" : std::format("{}", texts(look.error())));
+        if (!look) return;
+        const std::string written = p2::write_look(*look);
+        auto again = p2::read_look(written, "written.look.gongfu.toml");
+        check(again && p2::write_look(*again) == written, again ? written : std::format("{}", texts(again.error())));
+        FighterState st;
+        st.facing = 1;
+        p2::Pose pose;
+        p2::pose_clip(*look, "punch", 4, st, pose);
+        check(std::abs(pose[1].angle) < 1e-9, std::format("the jab's arm straight out: {}", pose[1].angle));
+        p2::pose_clip(*look, "punch", 6, st, pose);
+        check(std::abs(pose[0].angle - 80 * std::numbers::pi / 180) < 1e-9 && std::abs(pose[0].joint.y - 76) < 1e-4, "the key's change: the body leaning, lower");
+        p2::pose_clip(*look, "punch", 0, st, pose);
+        check(std::abs(pose[1].angle + 60 * std::numbers::pi / 180) < 1e-9, "the stance's arm");
+        auto bad = [&](std::string_view from, std::string_view to, std::string_view want) {
+            std::string b = text;
+            b.replace(b.find(from), from.size(), to);
+            auto r = p2::read_look(b, "bad.look.gongfu.toml");
+            check(!r && has(texts(r.error()), want), r ? std::string("read") : std::format("{}", texts(r.error())));
+        };
+        bad("[4, \"jab\"", "[4, \"jbb\"", "no pose is called `jbb`");
+        bad("from = \"stance\"", "from = \"jab\"", "is built on itself");
+        bad("aim = { body = 90, arm = -60 }", "aim = { arm = -60 }", "does not aim `body`");
+    });
+
     s.test("effects from a look's pictures: a sprite grows and fades, a stroke is drawn out along its curve, droplets fly and fall; a cut-in band slides in — files read back as themselves", [] {
         const std::string text = R"(gongfu = "0.1"
 name = "ink"

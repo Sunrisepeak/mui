@@ -177,6 +177,25 @@ struct Impact {
 // What a contact without a profile of its own looks like: a hit's, a block's, a KO's.
 [[nodiscard]] const Impact& default_impact(Event::Kind kind) noexcept;
 
+// A key pose, by name (`[pose.<name>]`): what a clip's key sets — bones'
+// angles to the world (`aim`), the body's rise, grips' hold and places, the
+// drawings parts swap to — built on another pose (`from`) and changing only
+// what it names. A clip keyed by poses (`poses = [[frame, "name"], …]`)
+// becomes the tracks they make: a key pose written once, used by every clip.
+struct KeyPose {
+    std::string                    from;
+    std::map<std::int32_t, double> aim;                            // by bone, degrees
+    std::optional<double>          rise;
+    std::map<std::int32_t, double> grip, grip_at, grip_across;     // by grip
+    std::map<std::int32_t, double> swap;                           // by part
+};
+struct PoseKey {
+    std::int32_t               frame = 0;
+    std::string                pose;
+    std::optional<hanim::Ease> ease;    // its way to the next key (none: the clip's)
+    KeyPose                    change;  // what this key changes of the pose
+};
+
 // Each bone's angle (degrees, to its parent; its rest added) and the body's
 // rise (pixels), keyed by frame (a key at frame f is at f/60 s).
 struct Clip {
@@ -191,6 +210,8 @@ struct Clip {
     std::vector<hanim::Track<double>> aims;
     std::vector<hanim::Track<double>> grip_at, grip_across;  // by grip: where on its target, moving (a foot stepping)
     std::vector<FxAt>                 fx;  // effects played from the fighter's feet as the clip reaches their frames
+    std::vector<PoseKey>              keys;  // keyed by poses (its tracks made from them when read)
+    std::optional<hanim::Ease>        ease;  // its keys' way to the next, unless a key says (as its file said)
 };
 
 // A grip (two-bone IK): the chain `upper` → `lower` (a shoulder and an elbow,
@@ -365,6 +386,7 @@ struct Look {
     std::vector<Bone>           bones;
     std::vector<Part>           parts;
     std::vector<Grip>           grips;
+    std::map<std::string, KeyPose, std::less<>> poses;
     std::map<std::string, Clip, std::less<>> clips;
     Color                       outline = Color::hex(0x101014);
     float                       outline_width = 3;

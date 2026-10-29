@@ -7,11 +7,12 @@ import openmui.agent;
 import openmui.ui.base;
 import openmui.ui.window;
 import openmui.host.headless;
-import openmui.host.sdl3;
 import openmui.trace;
 import openmui.i18n;
 import openmui.i18n.cldr;
 import mcpplibs.os;
+import :app;
+import :shown;
 
 namespace omui {
 
@@ -281,30 +282,15 @@ int run(AppSpec app, const RunOptions& o) {
             else std::print(std::cerr, "{}", t.table());
         }
     } profile{o.profile};
-    languages_of(app, o, o.headless ? std::vector<std::string>{} : preferred_locales());
+    languages_of(app, o, o.headless ? std::vector<std::string>{} : detail::host_locales());
     if (!agent_access_of(app)) return 2;
     if (o.headless) return headless(std::move(app), o);
-    DesktopOptions d;
-    d.title = app.title;
-    d.size = o.size.value_or(app.size);
-    d.app = app.id;
-    d.agent = o.agent;
-    d.agent_directory = o.agent_dir;
-    d.theme = o.dark ? Theme::dark_theme() : app.theme;
-    d.effects = app.effects;
-    d.reduce_transparency = o.reduce_transparency;
-    if (o.gpu) d.renderer = *o.gpu ? DesktopOptions::Renderer::gpu : DesktopOptions::Renderer::cpu;
+    // A window on the desktop, the page's canvas on the Web (src/host/<where>/shown.cpp).
     const std::string mode = window_mode(app, o);
-    d.frame = mode == "framework" ? DesktopOptions::Frame::framework : DesktopOptions::Frame::native;
-    Desktop desktop(d);
-    if (auto r = desktop.open(); !r) {
-        error("no window ({}); `--headless` runs without a display", r.error());
-        return 1;
-    }
-    desktop.runtime().set_debug(o.debug);
-    prepare(desktop.runtime(), app);
-    const auto framed = frame_of(desktop.runtime(), app, mode);
-    return desktop.run();
+    return detail::shown(app, o, [&](Runtime& rt) -> std::shared_ptr<void> {
+        prepare(rt, app);
+        return std::shared_ptr<FramedWindow>(frame_of(rt, app, mode));
+    });
 }
 
 int run(AppSpec app, int argc, char** argv) {

@@ -1,0 +1,45 @@
+# openmui.host.web — openmui in the browser (D-84 §6.2): wasm32-emscripten,
+# single-threaded; a <canvas> sized by the page, at the device's pixel ratio;
+# the frame loop on requestAnimationFrame (emscripten's main loop), frames
+# only when something wants one; pointer, touch, wheel, keyboard and the
+# Gamepad API's standard pads as openmui's input; frames drawn by the CPU
+# renderer and put on the canvas (WebGL2 and WebGPU later); the page's
+# visibility as the window's focus. Off the Web it builds with no page: the
+# same loop, stepped by hand, for its tests.
+[package]
+namespace   = "openmui.host"
+name        = "web"
+version     = "0.1.0"
+description = "openmui in the browser: a canvas, requestAnimationFrame, pointer, touch, keys and gamepads, CPU frames on the canvas"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "host"
+
+[targets.openmui-host-web]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+# The page (emscripten's HTML5 API and src/js/omui_web.js, which build.mcpp
+# gives the link), or no page.
+[target.'cfg(os = "emscripten")'.build]
+sources = ["src/native/browser/*.cpp"]
+
+[target.'cfg(not(os = "emscripten"))'.build]
+sources = ["src/native/elsewhere/*.cpp"]
+
+[dependencies]
+openmui.core     = { path = "../../core" }
+openmui.view     = { path = "../../view" }
+openmui.semantic = { path = "../../semantic" }
+openmui.raster   = { path = "../../../gfx/raster" }
+openmui.render.vector = { path = "../../../gfx/render/vector" }
+openmui.text     = { path = "../../../content/text" }
+openmui.trace    = { path = "../../../base/trace" }
+mcpplibs.os      = "0.2.2"
+
+[dev-dependencies]
+openmui.testing = { path = "../../../base/testing" }

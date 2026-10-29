@@ -48,6 +48,7 @@ members = [
     "modules/ui/expr",
     "modules/ui/host/headless",
     "modules/ui/host/sdl3",
+    "modules/ui/host/web",
     "modules/ui/native",
     "modules/ui/native/fuzzy",
     "modules/ui/player",
@@ -129,8 +130,14 @@ ldflags  = ["-fsanitize=address,undefined"]
 [workspace.target.'cfg(os = "emscripten")'.abi]
 exceptions = true
 
+#
+# Single-threaded (D-84: no SharedArrayBuffer on Pages or Toy): some index
+# packages' `linux` link flags (taskflow's -pthread, harfbuzz's and libwebp's
+# -lpthread) reach the emscripten row too, and -pthread would make the
+# program's memory shared — which these objects, built without atomics,
+# cannot link into. USE_PTHREADS=0 (applied after the flags) undoes it.
 [workspace.target.'cfg(os = "emscripten")'.build]
-ldflags = ["-sALLOW_MEMORY_GROWTH=1", "-sSTACK_SIZE=1048576"]
+ldflags = ["-sALLOW_MEMORY_GROWTH=1", "-sSTACK_SIZE=1048576", "-sUSE_PTHREADS=0"]
 
 # The test programs on the Web row run under node and read their fixtures
 # beside their sources, as on every other row: node's file system, not the
@@ -172,10 +179,24 @@ openmui.trace         = { path = "modules/base/trace" }
 openmui.ui.base       = { path = "components/base" }
 openmui.ui.window     = { path = "components/window" }
 openmui.host.headless = { path = "modules/ui/host/headless" }
-openmui.host.sdl3     = { path = "modules/ui/host/sdl3" }
 "openmui.i18n"        = { path = "modules/content/i18n" }
 "openmui.i18n.cldr"   = { path = "modules/content/i18n/cldr" }
 mcpplibs.os           = "0.2.2"
+
+# Where `omui::run` shows an application (D-84): a desktop window, or on the
+# Web the page's canvas — the host, and the partition (openmui:host) and unit
+# (src/host/<where>/shown.cpp) that name it.
+[target.'cfg(not(os = "emscripten"))'.dependencies]
+openmui.host.sdl3 = { path = "modules/ui/host/sdl3" }
+
+[target.'cfg(os = "emscripten")'.dependencies]
+openmui.host.web = { path = "modules/ui/host/web" }
+
+[target.'cfg(not(os = "emscripten"))'.build]
+sources = ["src/host/desktop/*.cppm", "src/host/desktop/*.cpp"]
+
+[target.'cfg(os = "emscripten")'.build]
+sources = ["src/host/web/*.cppm", "src/host/web/*.cpp"]
 
 # The root package has no test programs of its own: tests/ holds members
 # (modules/base/testing, and the cross-member suites), each discovered by itself.

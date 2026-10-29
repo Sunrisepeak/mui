@@ -5,4 +5,5 @@ Hosts run a runtime: they bring the clock, the input and the surface (D-77: a ho
 | Package | |
 |---|---|
 | [headless](headless) | A stepped virtual clock, injected input, CPU pixels and PNG, the agent endpoint: tests, agents and video |
-| [sdl3](sdl3) | The desktop over SDL3: windows (system- or framework-drawn), input, IME, clipboard, GPU or CPU frames, effect reloading |
+| [sdl3](sdl3) | The desktop over SDL3: windows (system- or framework-drawn), input, IME, clipboard, gamepads (SDL's mapping database), GPU or CPU frames, effect reloading |
+| [web](web) | The browser (wasm32-emscripten, one thread): a canvas, requestAnimationFrame, pointer, touch, keys and gamepads, CPU frames on the canvas; Toy's SDK in [web/toy](web/toy) |

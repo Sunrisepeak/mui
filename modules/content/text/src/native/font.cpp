@@ -154,6 +154,9 @@ std::filesystem::path FontCollection::default_directory() {
         }
         return std::nullopt;
     };
+    // On the Web, the page's file system: the page puts the fonts in /fonts before the program starts.
+    if constexpr (os::is_emscripten)
+        if (has_fonts("/fonts")) return "/fonts";
     const auto exe = os::env::image();
     if (exe && has_fonts(exe->parent_path() / "fonts")) return exe->parent_path() / "fonts";
     if (exe)

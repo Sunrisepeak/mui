@@ -21,6 +21,6 @@ export import openmui.viewdoc;
 export import openmui.ui.base;
 export import openmui.ui.window;
 export import openmui.host.headless;
-export import openmui.host.sdl3;
+export import :host;  // the desktop's window (openmui.host.sdl3), or the page's canvas (openmui.host.web)
 export import openmui.i18n;
 export import :app;

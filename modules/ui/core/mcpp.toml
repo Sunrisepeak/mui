@@ -18,6 +18,15 @@ kind = "lib"
 [build]
 sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 
+# The pool (D-84): taskflow's threads where there are threads; on the Web
+# (single-threaded: no SharedArrayBuffer without COOP/COEP) the same
+# interface run on the calling thread.
+[target.'cfg(not(os = "emscripten"))'.build]
+sources = ["src/native/pool/*.cpp"]
+
+[target.'cfg(os = "emscripten")'.build]
+sources = ["src/native/web/*.cpp"]
+
 [dependencies]
 openlifa.openmui = { path = "../../../spec" }
 hanim            = { path = "../../base/hanim" }

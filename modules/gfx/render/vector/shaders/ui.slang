@@ -19,8 +19,8 @@ struct Prim {
     float4 radii : TEXCOORD3;    // rrect: top-left, top-right, bottom-right, bottom-left; axis-aligned rect, image: the device rectangle's edges left, top, right, bottom
     float4 shape : TEXCOORD4;    // rring: the stroke's width (local); a byte the result is scaled by (a layered glyph's opacity), a layer's opacity byte, -
     float4 color : TEXCOORD5;    // solid: premultiplied bytes / 255; image paint: w the byte its texels are scaled by
-    float4 paint : TEXCOORD6;    // paint kind, ramp row, spread, conic start angle
-    float4 pgeo : TEXCOORD7;     // gradient start.xy, end.xy (radial: end.x is the radius)
+    float4 paint : TEXCOORD6;    // paint kind (0 solid, 1–3 gradients, 4 image, 5 image mask), ramp row, spread, conic start angle
+    float4 pgeo : TEXCOORD7;     // gradient start.xy, end.xy (radial: end.x is the radius); a lit image: its rotation into device space (r00, r01, r10, r11)
     float4 pinv0 : TEXCOORD8;    // device → paint: a, b, c, d
     float4 pinv1 : TEXCOORD9;    // e, f, image width, image height
     float4 clip : TEXCOORD10;    // device clip rectangle: x0, y0, x1, y1
@@ -297,6 +297,7 @@ uint4 paint_at(VOut i, float2 p, int flags) {
     if (kind == 0) return bytes(i.color);
     const float2 q = inverse_at(i, p);
     if (kind == 4) return mul255(image_at(q, i.pinv1.zw, (flags & FLAG_LINEAR) != 0), uint(i.color.w));
+    if (kind == 5) return mul255(bytes(i.color), image_at(q, i.pinv1.zw, (flags & FLAG_LINEAR) != 0).a);  // an image as a mask of the colour
     float t = 0;
     if (kind == 1) {
         precise const float dx = i.pgeo.z - i.pgeo.x, dy = i.pgeo.w - i.pgeo.y;
@@ -316,13 +317,8 @@ uint4 paint_at(VOut i, float2 p, int flags) {
     return bytes(ramps.SampleLevel(float2((index + 0.5) / 256.0, (i.paint.y + 0.5) / fframe.ramps.x), 0));
 }
 
-[shader("fragment")]
-float4 ui_fs(VOut i) : SV_Target {
-    const float2 p = i.pos.xy;  // the pixel's centre, device space
-    const int2 px = int2(p);
-    const int kind = int(i.m1.z);
-    const int flags = int(i.m1.w);
-    // The coverage as a byte, as the CPU has it.
+// The coverage of the pixel as a byte, as the CPU has it (the clip's included).
+uint coverage_at(VOut i, float2 p, int2 px, int kind, int flags) {
     uint k;
     if ((flags & FLAG_LAYER) != 0) {
         k = uint(i.shape.z);
@@ -359,8 +355,136 @@ float4 ui_fs(VOut i) : SV_Target {
     const uint clip = rect_coverage(px, i.clip);
     if (clip != 255) k = mul255(k, clip);
     if ((flags & FLAG_CLIP_MASK) != 0) k = mul255(k, bytes(clip_mask.SampleLevel(p / fframe.size.xy, 0)).r);
+    return k;
+}
+
+[shader("fragment")]
+float4 ui_fs(VOut i) : SV_Target {
+    const float2 p = i.pos.xy;  // the pixel's centre, device space
+    const int2 px = int2(p);
+    const int kind = int(i.m1.z);
+    const int flags = int(i.m1.w);
+    const uint k = coverage_at(i, p, px, kind, flags);
     if (k == 0) discard;
     uint4 s = (flags & FLAG_LAYER) != 0 ? texel(px, i.pinv1.zw) : paint_at(i, p, flags);
+    s = mul255(s, k);
+    s = mul255(s, uint(i.shape.y));
+    if (all(s == 0)) discard;
+    return float4(s) / 255.0;
+}
+
+// ── a lit image (render's Material; raster's Shader::lit) ──────────────
+//
+// The same draw with the image's normal map beside it and the material's
+// constants (raster's MaterialSetup, made by the CPU so both shade with the
+// same numbers); the instance's pgeo is its rotation into device space.
+// Only image and image-mask paints are drawn with it.
+
+struct Lit {
+    float4 light;   // toward the light, unit: x, y, z; bands
+    float4 face;    // its direction in the screen's plane, unit: x, y; 1 / softness (0: hard), rim width
+    float4 shadow;  // r, g, b, strength
+    float4 rim;     // r, g, b (premultiplied by its alpha), strength
+    float4 nsize;   // the normal map's width, height; 1 / bands, 1 / (bands − 1)
+};
+[[vk::binding(4, 2)]] Sampler2D normals : register(t4, space2) : register(s4, space2);
+[[vk::binding(1, 3)]] ConstantBuffer<Lit> lit : register(b1, space3);
+
+uint4 normal_texel(int2 t, float2 size) {
+    const int2 n = int2(size);
+    t = clamp(t, int2(0, 0), n - 1);
+    return bytes(normals.SampleLevel((float2(t) + 0.5) / size, 0));
+}
+
+uint4 normal_at(float2 q, float2 size, bool bilinear) {
+    if (!bilinear) return normal_texel(int2(floor(q)), size);
+    const float2 f = q - 0.5;
+    const float2 f0 = floor(f);
+    const int2 i0 = int2(f0);
+    const uint wx = min(256u, uint(int((f.x - f0.x) * 256.0 + 0.5))), wy = min(256u, uint(int((f.y - f0.y) * 256.0 + 0.5)));
+    const uint4 a = normal_texel(i0, size), b = normal_texel(i0 + int2(1, 0), size), c = normal_texel(i0 + int2(0, 1), size),
+                d = normal_texel(i0 + int2(1, 1), size);
+    const uint4 top = a * (256 - wx) + b * wx, bottom = c * (256 - wx) + d * wx;
+    return (top * (256 - wy) + bottom * wy + 32768) >> 16;
+}
+
+uint lit_channel(uint v, float k, float rc, float rim, float a) {
+    precise const float o = clamp(float(v) * k + rc * rim * a, 0.0, a);
+    return uint(int(o + 0.5));
+}
+
+// raster's Shader::lit, step by step.
+uint4 shade_lit(uint4 c, uint4 n, float4 r) {
+    if (c.a == 0) return c;
+    const float unit = 1.0 / 127.0;
+    precise const float nx = (float(n.r) - 128.0) * unit;
+    precise const float ny = (float(n.g) - 128.0) * unit;
+    precise const float nz = (float(n.b) - 128.0) * unit;
+    precise float tx = r.x * nx + r.y * ny;
+    precise float ty = r.z * nx + r.w * ny;
+    precise float tz = nz;
+    precise const float len2 = tx * tx + ty * ty + tz * tz;
+    if (len2 > 0) {
+        precise const float inv = 1.0 / sqrt(len2);
+        tx = tx * inv;
+        ty = ty * inv;
+        tz = tz * inv;
+    } else {
+        tz = 1;
+    }
+    precise const float lambert = max(tx * lit.light.x + ty * lit.light.y + tz * lit.light.z, 0.0);
+    precise float light = lambert;
+    const int bands = int(lit.light.w);
+    const float inv_soft = lit.face.z;
+    if (bands >= 2) {
+        precise float sum = 0;
+        for (int b = 1; b < bands; ++b) {
+            precise const float t = float(b) * lit.nsize.z;
+            sum += inv_soft > 0 ? saturate((lambert - t) * inv_soft + 0.5) : (lambert >= t ? 1.0 : 0.0);
+        }
+        light = sum * lit.nsize.w;
+    }
+    precise const float shade = (1.0 - light) * lit.shadow.w;
+    precise const float kr = 1.0 - shade + shade * lit.shadow.x;
+    precise const float kg = 1.0 - shade + shade * lit.shadow.y;
+    precise const float kb = 1.0 - shade + shade * lit.shadow.z;
+    precise float rim = 0;
+    const float width = lit.face.w;
+    if (lit.rim.w > 0 && width > 0) {
+        precise const float past = (1.0 - max(tz, 0.0)) - (1.0 - width);
+        precise const float e = inv_soft > 0 ? saturate(past * inv_soft + 0.5) : (past >= 0 ? 1.0 : 0.0);
+        rim = lit.rim.w * e * max(tx * lit.face.x + ty * lit.face.y, 0.0);
+    }
+    const float a = float(c.a);
+    return uint4(lit_channel(c.r, kr, lit.rim.x, rim, a), lit_channel(c.g, kg, lit.rim.y, rim, a), lit_channel(c.b, kb, lit.rim.z, rim, a), c.a);
+}
+
+// raster's Shader::shaded_at: the texel (as a mask, the colour by its
+// alpha), lit by its normal, then the tint's byte.
+uint4 lit_paint_at(VOut i, float2 p, int flags) {
+    if (int(i.paint.x) < 4) return paint_at(i, p, flags);  // only images are lit (the renderer draws nothing else with this shader)
+    const float2 q = inverse_at(i, p);
+    const bool bilinear = (flags & FLAG_LINEAR) != 0;
+    uint4 c = image_at(q, i.pinv1.zw, bilinear);
+    uint k = uint(i.color.w);
+    if (int(i.paint.x) == 5) {
+        c = mul255(bytes(i.color), c.a);
+        k = 255;
+    }
+    const float2 qn = all(lit.nsize.xy == i.pinv1.zw) ? q : float2(q.x * (lit.nsize.x / i.pinv1.z), q.y * (lit.nsize.y / i.pinv1.w));
+    c = shade_lit(c, normal_at(qn, lit.nsize.xy, bilinear), i.pgeo);
+    return mul255(c, k);
+}
+
+[shader("fragment")]
+float4 ui_lit_fs(VOut i) : SV_Target {
+    const float2 p = i.pos.xy;
+    const int2 px = int2(p);
+    const int kind = int(i.m1.z);
+    const int flags = int(i.m1.w);
+    const uint k = coverage_at(i, p, px, kind, flags);
+    if (k == 0) discard;
+    uint4 s = lit_paint_at(i, p, flags);
     s = mul255(s, k);
     s = mul255(s, uint(i.shape.y));
     if (all(s == 0)) discard;

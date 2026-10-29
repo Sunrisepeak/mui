@@ -116,14 +116,51 @@ struct EffectRef {
 
 enum class Sampling : std::uint8_t { nearest, linear };
 
+// Stylised (cel) lighting of a picture: how a skinned fighter's cloth, skin
+// and hands answer the stage's light as they move, or a UI picture a light
+// passing over it. `normal` is a tangent-space normal map aligned with the
+// picture (openmui.image's normal_map: R = x right, G = y down, B = out of
+// the picture; 128 is zero), sampled where the colour is. Its xy turns with
+// the rotation — and the mirror — of whatever maps the picture to the
+// screen (a triangle's affine, the list's transforms), so a part keeps
+// facing the light, not its picture, as it turns or flips.
+//
+// The light is a direction toward it in screen space (device pixels, y
+// down: light {-1, -1} with light_z 0.7 is the upper left, a little in
+// front), the same for every part of a figure however the parts are
+// transformed.
+// Lambert n·l, cut into `bands` levels (0 or 1: smooth) whose edges are
+// `softness` wide, multiplies the colour toward `shadow` by
+// `shadow_strength` where it is unlit; where the normal grazes (n·z below
+// `rim_width`) and faces the light in the screen's plane, `rim` is added
+// (by its alpha and `rim_strength`). Premultiplied alpha is kept: the alpha
+// never changes, no channel exceeds it.
+struct Material {
+    ImageRef normal;
+    Point    light{-0.6f, -0.6f};  // toward the light, screen space (y down)
+    float    light_z = 0.5f;       // its part out of the screen, toward the viewer
+    Color    shadow{0.35f, 0.3f, 0.5f, 1};
+    float    shadow_strength = 0.6f;
+    int      bands = 2;            // ≤ 16
+    float    softness = 0.08f;     // a band's edge, in lambert (0: hard; the GPU may then put a pixel on the edge in the other band)
+    Color    rim{1, 1, 1, 1};
+    float    rim_strength = 0.6f;
+    float    rim_width = 0.35f;
+    friend constexpr bool operator==(const Material&, const Material&) noexcept = default;
+};
+
 struct Paint {
-    enum class Kind : std::uint8_t { solid, gradient, image };
+    // image_mask: the image's alpha as coverage of `color` (a black ink
+    // stroke's silhouette as a rim of light, a picture as a stencil).
+    enum class Kind : std::uint8_t { solid, gradient, image, image_mask };
     Kind     kind = Kind::solid;
-    Color    color;              // solid; also the tint of an image paint
+    Color    color;              // solid, image_mask; the tint (alpha) of an image paint
     Gradient gradient;
     ImageRef image;
     Affine   image_transform;    // image space to paint space
     Sampling sampling = Sampling::linear;
+    // Lit by a material (image and image_mask; arena-owned in a list).
+    const Material* material = nullptr;
 
     [[nodiscard]] static Paint solid(Color c) noexcept {
         Paint p;
@@ -218,8 +255,15 @@ public:
     // its own affine — grown by `seam` pixels about its middle, so neighbours
     // overlap and no crack shows between them. Recorded as fills, so every
     // renderer draws it as it draws any image-painted path.
+    //
+    // With a material, each triangle is lit (Material): the normal map
+    // sampled with the colour's uvs, turned by the triangle's own affine.
     void draw_mesh(ImageRef image, std::span<const Point> positions, std::span<const Point> uvs, std::span<const std::uint16_t> indices,
-                   Sampling s = Sampling::linear, float opacity = 1, float seam = 0.5f);
+                   Sampling s = Sampling::linear, float opacity = 1, float seam = 0.5f, const Material* material = nullptr);
+    // The same mesh with the picture as a mask: its alpha in `color` (lit too,
+    // with a material).
+    void draw_mesh_mask(ImageRef image, std::span<const Point> positions, std::span<const Point> uvs, std::span<const std::uint16_t> indices,
+                        Color color, Sampling s = Sampling::linear, float seam = 0.5f, const Material* material = nullptr);
     void draw_glyphs(FontRef font, float size, Point origin, std::span<const Glyph> glyphs, const Paint& p,
                      std::span<const GlyphStyle> styles = {});
     // Gives the DrawGlyphs command at `index` per-glyph styles (one per glyph),
@@ -256,16 +300,16 @@ public:
     // draw) whose frames vary in size allocates nothing below it.
     void reserve(std::size_t commands) { commands_.reserve(commands); }
 
-    // Recolours the commands [from, to): `f` maps each solid paint's colour
-    // and each shadow's (a picture drawn, then turned grey, tinted, faded —
-    // whoever drew it). Gradients and images keep theirs.
+    // Recolours the commands [from, to): `f` maps each solid (and image
+    // mask) paint's colour and each shadow's (a picture drawn, then turned
+    // grey, tinted, faded — whoever drew it). Gradients and images keep theirs.
     template <class F>
     void recolor(std::size_t from, std::size_t to, F&& f) {
         for (std::size_t i = from; i < std::min(to, commands_.size()); ++i)
             std::visit(
                 [&](auto& c) {
                     if constexpr (requires { c.paint; }) {
-                        if (c.paint.kind == Paint::Kind::solid) c.paint.color = f(c.paint.color);
+                        if (c.paint.kind == Paint::Kind::solid || c.paint.kind == Paint::Kind::image_mask) c.paint.color = f(c.paint.color);
                     } else if constexpr (requires { c.color; }) {
                         c.color = f(c.color);
                     }
@@ -275,6 +319,19 @@ public:
 
 private:
     Path mesh_scratch_;  // draw_mesh's triangle, reused
+    // The material copied last into the arena: the triangles of a mesh (and a
+    // run of commands appended) share one copy.
+    struct LastMaterial {
+        const Material* at = nullptr;
+        LastMaterial() = default;
+        LastMaterial(LastMaterial&& o) noexcept : at(std::exchange(o.at, nullptr)) {}
+        LastMaterial& operator=(LastMaterial&& o) noexcept {
+            at = std::exchange(o.at, nullptr);
+            return *this;
+        }
+    } material_;
+    const Material* own(const Material* m);
+    void mesh(const Paint& base, std::span<const Point> positions, std::span<const Point> uvs, std::span<const std::uint16_t> indices, float seam);
     Paint own(const Paint& p);
     PathView own(const Path& p);
     StrokeStyle own(const StrokeStyle& s);

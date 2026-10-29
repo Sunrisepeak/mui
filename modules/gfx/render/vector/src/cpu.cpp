@@ -12,8 +12,31 @@ static_assert(static_cast<int>(PathVerb::close) == static_cast<int>(raster::Verb
 static_assert(static_cast<int>(BlendMode::erase) == static_cast<int>(raster::Blend::erase),
               "render and raster list the blend modes in the same order");
 
+// A render material as raster's: its normal map found (missing: unlit, and counted).
+const raster::Material* material_of(const Material* m, const Resources& res, RenderReport& report, raster::Material& out) {
+    if (!m) return nullptr;
+    const raster::Surface* normal = res.images ? res.images->get(m->normal) : nullptr;
+    if (!normal) {
+        ++report.missing_images;
+        return nullptr;
+    }
+    out = {.normal = normal->view(),
+           .light_x = m->light.x,
+           .light_y = m->light.y,
+           .light_z = m->light_z,
+           .shadow = m->shadow,
+           .shadow_strength = m->shadow_strength,
+           .bands = m->bands,
+           .softness = m->softness,
+           .rim = m->rim,
+           .rim_strength = m->rim_strength,
+           .rim_width = m->rim_width};
+    return &out;
+}
+
 struct PaintConv {
     std::vector<raster::Stop> stops;
+    raster::Material          material;  // the converted paint's (one paint is drawn at a time)
     raster::Paint convert(const Paint& p, const Resources& res, RenderReport& report) {
         raster::Paint out;
         switch (p.kind) {
@@ -32,18 +55,20 @@ struct PaintConv {
                 out.stops = stops;
                 break;
             }
-            case Paint::Kind::image: {
+            case Paint::Kind::image:
+            case Paint::Kind::image_mask: {
                 const raster::Surface* img = res.images ? res.images->get(p.image) : nullptr;
                 if (!img) {
                     ++report.missing_images;
                     out = raster::Paint::solid(Color::transparent());
                     break;
                 }
-                out.kind = raster::Paint::Kind::image;
+                out.kind = p.kind == Paint::Kind::image ? raster::Paint::Kind::image : raster::Paint::Kind::image_mask;
                 out.image = img->view();
                 out.color = p.color;
                 out.sampling = static_cast<raster::Sampling>(p.sampling);
                 out.transform = p.image_transform;
+                out.material = material_of(p.material, res, report, material);
                 break;
             }
         }

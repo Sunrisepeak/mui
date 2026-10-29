@@ -172,6 +172,28 @@ struct Packed {
 [[nodiscard]] Image crop(const Image& img, std::int32_t x, std::int32_t y, std::int32_t width, std::int32_t height);
 [[nodiscard]] std::expected<Image, std::string> load_png(const std::filesystem::path& file);
 
+// ── a picture's volume ──────────────────────────────────────────────────
+
+// A tangent-space normal map of a picture (a painted part, a UI picture),
+// aligned with it and the same size, for render's Material: R is the
+// normal's x (right), G its y (down, as the picture's rows), B its part out
+// of the picture, each 128 + 127·n rounded; A is 255. The height it is the
+// slope of is a rounded bevel — a quarter circle `bevel` pixels wide (and
+// high) rising from the edge of the pixels whose alpha is at least `alpha`
+// (the picture's border counts as an edge) — so a part reads as a volume,
+// plus `detail` pixels of height per unit of luminance (darker is deeper:
+// painted folds and creases), smoothed by a box of radius `smooth` twice,
+// its slopes scaled by `strength`. Integers only (an exact distance
+// transform, integer square roots): the same bytes everywhere.
+struct NormalOptions {
+    float        bevel = 12;       // pixels
+    float        detail = 0;       // pixels of height from black to white; 0: the silhouette alone
+    std::int32_t smooth = 2;       // pixels; 0: none
+    float        strength = 1;     // the slopes' scale (< 1 flatter)
+    std::uint8_t alpha = 128;      // inside: alpha at least this
+};
+[[nodiscard]] Image normal_map(const Image& img, NormalOptions options = {});
+
 }  // namespace omui::imageio
 
 namespace omui::imageio {

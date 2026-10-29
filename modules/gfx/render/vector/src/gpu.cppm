@@ -15,6 +15,12 @@
 // rectangle is a mask texture. Draws are batched in list order, a batch
 // breaking only where a texture or the target changes.
 //
+// An image lit by a Material is drawn by the same shader's second fragment
+// entry (ui_lit_fs): its normal map beside the image, the material's
+// constants as raster's material_setup makes them in a uniform buffer, so
+// the shading is the CPU's arithmetic; the pipeline switches only where a
+// run of lit draws begins or ends.
+//
 // A layer under a blend mode other than normal is composited by a second
 // shader (shaders/blend.slang) over a copy of what lies under it, with the
 // CPU's arithmetic.

@@ -178,9 +178,17 @@ Rect Path::bounds() const noexcept {
 
 // ── DisplayList ───────────────────────────────────────────────────────────
 
+const Material* DisplayList::own(const Material* m) {
+    if (!m) return nullptr;
+    if (material_.at && (material_.at == m || *material_.at == *m)) return material_.at;
+    material_.at = arena_.copy(std::span<const Material>(m, 1)).data();
+    return material_.at;
+}
+
 Paint DisplayList::own(const Paint& p) {
     Paint out = p;
     if (p.kind == Paint::Kind::gradient) out.gradient.stops = arena_.copy(p.gradient.stops);
+    out.material = p.kind == Paint::Kind::image || p.kind == Paint::Kind::image_mask ? own(p.material) : nullptr;
     return out;
 }
 
@@ -222,8 +230,32 @@ void DisplayList::style_glyphs(std::size_t index, std::span<const GlyphStyle> st
         g->styles = styles.size() == g->glyphs.size() ? arena_.copy(styles) : std::span<const GlyphStyle>{};
 }
 void DisplayList::draw_mesh(ImageRef image, std::span<const Point> positions, std::span<const Point> uvs, std::span<const std::uint16_t> indices,
-                            Sampling s, float opacity, float seam) {
+                            Sampling s, float opacity, float seam, const Material* material) {
+    Paint paint;
+    paint.kind = Paint::Kind::image;
+    paint.image = image;
+    paint.sampling = s;
+    paint.color = Color{1, 1, 1, opacity};
+    paint.material = material;
+    mesh(paint, positions, uvs, indices, seam);
+}
+
+void DisplayList::draw_mesh_mask(ImageRef image, std::span<const Point> positions, std::span<const Point> uvs,
+                                 std::span<const std::uint16_t> indices, Color color, Sampling s, float seam, const Material* material) {
+    Paint paint;
+    paint.kind = Paint::Kind::image_mask;
+    paint.image = image;
+    paint.sampling = s;
+    paint.color = color;
+    paint.material = material;
+    mesh(paint, positions, uvs, indices, seam);
+}
+
+void DisplayList::mesh(const Paint& base, std::span<const Point> positions, std::span<const Point> uvs, std::span<const std::uint16_t> indices,
+                       float seam) {
     if (positions.size() != uvs.size()) return;
+    Paint paint = base;
+    paint.material = own(base.material);  // copied once for every triangle
     for (std::size_t k = 0; k + 2 < indices.size(); k += 3) {
         const std::size_t i0 = indices[k], i1 = indices[k + 1], i2 = indices[k + 2];
         if (i0 >= positions.size() || i1 >= positions.size() || i2 >= positions.size()) continue;
@@ -262,13 +294,8 @@ void DisplayList::draw_mesh(ImageRef image, std::span<const Point> positions, st
         }
         mesh_scratch_.clear();
         mesh_scratch_.move_to(grown[0]).line_to(grown[1]).line_to(grown[2]).close();
-        Paint paint;
-        paint.kind = Paint::Kind::image;
-        paint.image = image;
         paint.image_transform = m;
-        paint.sampling = s;
-        paint.color = Color{1, 1, 1, opacity};
-        fill_path(mesh_scratch_, FillRule::nonzero, paint);
+        commands_.emplace_back(FillPath{own(mesh_scratch_), FillRule::nonzero, paint});  // the paint already the list's own
     }
 }
 
@@ -368,7 +395,12 @@ struct Hasher {
             put(p.gradient.kind); put(p.gradient.start); put(p.gradient.end); put(p.gradient.radius); put(p.gradient.spread);
             for (const auto& s : p.gradient.stops) { put(s.offset); put(s.color); }
         }
-        if (p.kind == Paint::Kind::image) { put(p.image.id); put(p.image_transform); put(p.sampling); }
+        if (p.kind == Paint::Kind::image || p.kind == Paint::Kind::image_mask) { put(p.image.id); put(p.image_transform); put(p.sampling); }
+        if (p.material) {  // only when lit: an unlit paint hashes as it always has
+            const Material& m = *p.material;
+            put(m.normal.id); put(m.light); put(m.light_z); put(m.shadow); put(m.shadow_strength); put(m.bands); put(m.softness);
+            put(m.rim); put(m.rim_strength); put(m.rim_width);
+        }
     }
     void put(const StrokeStyle& s) {
         put(s.width); put(s.cap); put(s.join); put(s.miter_limit); put(s.dash_offset);
@@ -420,6 +452,7 @@ std::uint64_t DisplayList::hash() const noexcept {
 void DisplayList::clear() noexcept {
     commands_.clear();
     arena_.reset();
+    material_.at = nullptr;
 }
 
 }  // namespace omui::render

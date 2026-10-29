@@ -240,6 +240,47 @@ int main(int argc, char** argv) {
         check_eq(canvas.object_ids()[5], std::uint32_t{7});
     });
 
+    s.test("an image as a mask; a lit image: shading by a normal turned with the paint, the light in device space", [] {
+        // A mask: the image's alpha as coverage of the colour.
+        std::array<raster::Rgba8, 2> alphas{{{0, 0, 0, 255}, {10, 20, 30, 128}}};
+        raster::Surface surf(2, 1);
+        raster::Canvas canvas(surf);
+        raster::Paint mask;
+        mask.kind = raster::Paint::Kind::image_mask;
+        mask.image = {alphas.data(), 2, 1, 2};
+        mask.sampling = raster::Sampling::nearest;
+        mask.color = geom::Color{1, 0.5f, 0, 1};
+        canvas.fill_rect({0, 0, 2, 1}, mask);
+        check(surf.at(0, 0) == raster::Rgba8{255, 128, 0, 255});
+        check(surf.at(1, 0) == raster::Rgba8{128, 64, 0, 128});
+        // The orthogonal part of a map: a rotation, a mirror, a scale ignored.
+        const auto turn = raster::orthogonal_part(geom::Affine::rotation(0, 1) * geom::Affine::scale(3, 3));
+        check(turn == std::array<float, 4>{0, -1, 1, 0});
+        const auto flip = raster::orthogonal_part(geom::Affine::scale(-2, 1));
+        check(flip == std::array<float, 4>{-1, 0, 0, 1});
+        // Lighting one colour: light from the right, two hard bands, a full-strength shadow of black.
+        raster::Material m{.light_x = 1, .light_y = 0, .light_z = 0, .shadow = geom::Color{0, 0, 0, 1}, .shadow_strength = 1, .bands = 2,
+                           .softness = 0, .rim_strength = 0};
+        const raster::Rgba8 c{200, 100, 50, 255};
+        const raster::Rgba8 right{255, 128, 128, 255}, left{1, 128, 128, 255}, out{128, 128, 255, 255};  // normals: +x, −x, out of the picture
+        const auto setup = raster::material_setup(m, {});
+        check(raster::Shader::lit(c, right, setup) == c, "facing the light: the colour");
+        check(raster::Shader::lit(c, left, setup) == raster::Rgba8{0, 0, 0, 255}, "facing away: the shadow");
+        check(raster::Shader::lit(c, out, setup) == raster::Rgba8{0, 0, 0, 255}, "facing the viewer, the light from the side: unlit");
+        // Mirrored, the normal's x flips: the part facing right in the picture faces left on screen.
+        const auto mirrored = raster::material_setup(m, geom::Affine::scale(-1, 1));
+        check(raster::Shader::lit(c, right, mirrored) == raster::Rgba8{0, 0, 0, 255});
+        check(raster::Shader::lit(c, left, mirrored) == c);
+        // A rim where the normal grazes toward the light adds its colour, never past the alpha.
+        m.rim = geom::Color{1, 1, 1, 1};
+        m.rim_strength = 1;
+        m.rim_width = 0.5f;
+        const auto rimmed = raster::material_setup(m, {});
+        check(raster::Shader::lit(c, right, rimmed) == raster::Rgba8{255, 255, 255, 255});
+        check(raster::Shader::lit({100, 50, 25, 128}, right, rimmed) == raster::Rgba8{128, 128, 128, 128}, "premultiplied: no channel past the alpha");
+        check(raster::Shader::lit({0, 0, 0, 0}, right, rimmed) == raster::Rgba8{}, "clear stays clear");
+    });
+
     s.test("pinned scene", [] {
         raster::Surface surf(256, 256);
         surf.clear({250, 250, 252, 255});

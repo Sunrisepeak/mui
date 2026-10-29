@@ -202,6 +202,61 @@ void effect_scene(render::DisplayList& dl, std::string_view name, std::vector<st
     dl.pop_layer();
 }
 
+// cpu_test's lit scene: a bevelled disc's picture and normal map, six lit
+// copies (upright, turned 90°, mirrored; turned 30°, a mask of ink, smooth).
+void lit_meshes(render::DisplayList& dl, Rig& r) {
+    const raster::Rgba8 base{210, 160, 130, 255};
+    omui::imageio::Image disc;
+    disc.width = disc.height = 48;
+    disc.rgba.assign(48 * 48 * 4, 0);
+    std::vector<raster::Rgba8> px(48 * 48);
+    for (int y = 0; y < 48; ++y)
+        for (int x = 0; x < 48; ++x) {
+            const int dx = 2 * x + 1 - 48, dy = 2 * y + 1 - 48;
+            if (dx * dx + dy * dy > 40 * 40) continue;
+            px[static_cast<std::size_t>(y * 48 + x)] = base;
+            std::uint8_t* p = disc.rgba.data() + (y * 48 + x) * 4;
+            p[0] = base.r, p[1] = base.g, p[2] = base.b, p[3] = 255;
+        }
+    const render::ImageRef picture = r.images.add(48, 48, px);
+    const omui::imageio::Image n = omui::imageio::normal_map(disc, {.bevel = 12, .smooth = 2});
+    std::vector<raster::Rgba8> npx(48 * 48);
+    std::memcpy(npx.data(), n.rgba.data(), n.rgba.size());
+    // A list keeps its own copy of a material.
+    render::Material material, ink, smooth;
+    material = {.normal = r.images.add(48, 48, std::move(npx)), .light = {-1, -1}, .light_z = 0.8f, .shadow = geom::Color::hex(0x5b4a8a),
+                .shadow_strength = 0.55f, .bands = 3, .softness = 0.06f, .rim = geom::Color{1, 0.95f, 0.85f, 1}, .rim_strength = 0.9f,
+                .rim_width = 0.45f};
+    ink = material;
+    ink.shadow_strength = 0;
+    ink.rim = geom::Color{0.75f, 0.9f, 1, 1};
+    ink.rim_strength = 1;
+    smooth = material;
+    smooth.bands = 0;
+    const std::array<geom::Point, 4> uv{{{0, 0}, {48, 0}, {48, 48}, {0, 48}}};
+    const std::array<std::uint16_t, 6> tri{0, 1, 2, 0, 2, 3};
+    auto placed = [&](const geom::Affine& m) {
+        std::array<geom::Point, 4> at{};
+        for (std::size_t i = 0; i < 4; ++i) at[i] = m.apply(uv[i]);
+        return at;
+    };
+    const geom::Affine centred = geom::Affine::translate(-24, -24);
+    const auto mesh = [&](const geom::Affine& m, const render::Material& mat) {
+        dl.draw_mesh(picture, placed(m * centred), uv, tri, render::Sampling::linear, 1, 0.5f, &mat);
+    };
+    mesh(geom::Affine::translate(32, 32), material);
+    // Unlit draws between lit ones: the pipelines switch and switch back.
+    dl.fill_rect({56, 4, 48, 8}, geom::Color{0.2f, 0.5f, 0.9f, 0.6f});
+    dl.draw_mesh_mask(picture, placed(geom::Affine::translate(80, 60) * geom::Affine::scale(0.5f, 0.5f) * centred), uv, tri,
+                      geom::Color{0.9f, 0.2f, 0.3f, 0.8f});
+    mesh(geom::Affine::translate(80, 32) * geom::Affine::rotation(0, 1), material);
+    mesh(geom::Affine::translate(128, 32) * geom::Affine::scale(-1, 1), material);
+    mesh(geom::Affine::translate(32, 88) * render::rotate(0.5235988f), material);
+    dl.draw_mesh_mask(picture, placed(geom::Affine::translate(80, 88) * centred), uv, tri, geom::Color{0.04f, 0.04f, 0.07f, 1},
+                      render::Sampling::linear, 0.5f, &ink);
+    mesh(geom::Affine::translate(128, 88), smooth);
+}
+
 using Scene = std::function<void(render::DisplayList&, Rig&)>;
 struct Case {
     std::string_view name;
@@ -429,6 +484,10 @@ const std::vector<Case>& cases() {
              dl.draw_mesh(img, at, uv, tri);
          },
          {2, 60}},
+        // Lit meshes (Material): the shading's float arithmetic is the CPU's, step
+        // for step, but a GPU's division and square root need not round as
+        // IEEE does, so a channel may land a level apart.
+        {"lit meshes", lit_meshes, {2, 40}},
         {"glyphs",
          [](render::DisplayList& dl, Rig&) {
              std::array<render::Glyph, 6> run{};

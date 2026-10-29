@@ -14,6 +14,71 @@ namespace geom = omui::geom;
 
 namespace {
 
+// A picture of a disc (48 × 48, radius 20, one warm colour), its normal map
+// (a rounded bevel) and six lit copies of it as meshes, light from the upper
+// left: upright, turned 90°, mirrored (top row, centres 32, 80, 128 at
+// y 32); turned 30°, as a mask of dark ink, smooth (bands 0) (bottom row,
+// y 88). gpu_test draws the same.
+struct LitScene {
+    render::DisplayList        list;
+    render::ImageRef           picture, normal;
+    render::Material           material;
+    raster::Rgba8              base;
+    std::vector<geom::Point>   uv, at;
+    std::vector<std::uint16_t> tri;
+};
+
+LitScene lit_scene(render::ImageStore& images) {
+    LitScene s;
+    s.base = {210, 160, 130, 255};
+    omui::imageio::Image disc;
+    disc.width = disc.height = 48;
+    disc.alpha = omui::imageio::Alpha::premultiplied;
+    disc.rgba.assign(48 * 48 * 4, 0);
+    std::vector<raster::Rgba8> px(48 * 48);
+    for (int y = 0; y < 48; ++y)
+        for (int x = 0; x < 48; ++x) {
+            const int dx = 2 * x + 1 - 48, dy = 2 * y + 1 - 48;
+            if (dx * dx + dy * dy > 40 * 40) continue;
+            px[static_cast<std::size_t>(y * 48 + x)] = s.base;
+            std::uint8_t* p = disc.rgba.data() + (y * 48 + x) * 4;
+            p[0] = s.base.r, p[1] = s.base.g, p[2] = s.base.b, p[3] = 255;
+        }
+    s.picture = images.add(48, 48, px);
+    const omui::imageio::Image n = omui::imageio::normal_map(disc, {.bevel = 12, .smooth = 2});
+    std::vector<raster::Rgba8> npx(48 * 48);
+    std::memcpy(npx.data(), n.rgba.data(), n.rgba.size());
+    s.normal = images.add(48, 48, std::move(npx));
+    s.material = {.normal = s.normal, .light = {-1, -1}, .light_z = 0.8f, .shadow = geom::Color::hex(0x5b4a8a), .shadow_strength = 0.55f,
+                  .bands = 3, .softness = 0.06f, .rim = geom::Color{1, 0.95f, 0.85f, 1}, .rim_strength = 0.9f, .rim_width = 0.45f};
+    s.uv = {{0, 0}, {48, 0}, {48, 48}, {0, 48}};
+    s.tri = {0, 1, 2, 0, 2, 3};
+    auto placed = [&](const geom::Affine& m) {
+        std::vector<geom::Point> at;
+        for (const geom::Point& p : s.uv) at.push_back(m.apply(p));
+        return at;
+    };
+    const geom::Affine centred = geom::Affine::translate(-24, -24);
+    s.at = placed(geom::Affine::translate(32, 32) * centred);
+    s.list.draw_mesh(s.picture, s.at, s.uv, s.tri, render::Sampling::linear, 1, 0.5f, &s.material);
+    s.list.draw_mesh(s.picture, placed(geom::Affine::translate(80, 32) * geom::Affine::rotation(0, 1) * centred), s.uv, s.tri,
+                     render::Sampling::linear, 1, 0.5f, &s.material);
+    s.list.draw_mesh(s.picture, placed(geom::Affine::translate(128, 32) * geom::Affine::scale(-1, 1) * centred), s.uv, s.tri,
+                     render::Sampling::linear, 1, 0.5f, &s.material);
+    s.list.draw_mesh(s.picture, placed(geom::Affine::translate(32, 88) * render::rotate(0.5235988f) * centred), s.uv, s.tri,
+                     render::Sampling::linear, 1, 0.5f, &s.material);
+    render::Material ink = s.material;
+    ink.shadow_strength = 0;
+    ink.rim = geom::Color{0.75f, 0.9f, 1, 1};
+    ink.rim_strength = 1;
+    s.list.draw_mesh_mask(s.picture, placed(geom::Affine::translate(80, 88) * centred), s.uv, s.tri, geom::Color{0.04f, 0.04f, 0.07f, 1},
+                          render::Sampling::linear, 0.5f, &ink);
+    render::Material smooth = s.material;
+    smooth.bands = 0;
+    s.list.draw_mesh(s.picture, placed(geom::Affine::translate(128, 88) * centred), s.uv, s.tri, render::Sampling::linear, 1, 0.5f, &smooth);
+    return s;
+}
+
 void card(render::DisplayList& dl) {
     dl.begin_node(1);
     dl.box_shadow({20, 20, 160, 100}, geom::CornerRadii::all(12), {0, 4}, 16, 0, {0, 0, 0, 0.25f});
@@ -164,6 +229,91 @@ int main(int argc, char** argv) {
         const int one = strip(1, 120), many = strip(8, 120);
         // Eight quads cover a little more (their seams grown half a pixel); no more than that unclipped.
         check(one > 2000 && std::abs(many - one) <= whole8 - whole, std::format("{} pixels drawn by one quad, {} by eight", one, many));
+    });
+
+    s.test("lit meshes: a bevelled disc under a light from the upper left — bands, a rim on the lit edge; turned and mirrored copies lit by the light, not the picture", [] {
+        render::ImageStore images;
+        const LitScene scene = lit_scene(images);
+        raster::Surface out(160, 120);
+        render::CpuRenderer cpu;
+        const auto report = cpu.render(scene.list, out, {&images, nullptr});
+        check_eq(report.missing_images, std::size_t{0});
+        const auto lum = [&](int x, int y) {
+            const raster::Rgba8 p = out.at(x, y);
+            return 2 * p.r + 5 * p.g + p.b;
+        };
+        // The upright copy (centre 32, 32): the upper left in the top band with the rim on it, the
+        // middle (facing the viewer) in the middle band, the lower right in shadow.
+        const int ul = lum(32 - 13, 32 - 13), mid = lum(32, 32), lr = lum(32 + 12, 32 + 12);
+        check(ul > mid && mid > lr, std::format("upper left {}, middle {}, lower right {}", ul, mid, lr));
+        // The brightest pixel toward the light, and toward the shadow, along the diagonal's outer part.
+        const auto brightest = [&](int cx, int cy, int from, int to) {
+            raster::Rgba8 best{};
+            for (int t = from; t <= to; ++t)
+                if (const raster::Rgba8 p = out.at(cx + t, cy + t); p.a == 255 && p.r + p.g + p.b > best.r + best.g + best.b) best = p;
+            return best;
+        };
+        const raster::Rgba8 base = scene.base, centre = out.at(32, 32), lit_edge = brightest(32, 32, -15, -10), dark = out.at(32 + 12, 32 + 12);
+        check(lit_edge.r > base.r + 20 && lit_edge.g > base.g + 20, std::format("the rim brightens the lit edge: {} {} {}", lit_edge.r, lit_edge.g, lit_edge.b));
+        const raster::Rgba8 far_edge = brightest(32, 32, 10, 15);
+        check(far_edge.r < base.r, "no rim away from the light");
+        check(dark.r < centre.r && dark.b * 255 / dark.r > base.b * 255 / base.r, "the shadow is darker and toward its (purple) colour");
+        // Three bands: along the diagonal the colour holds still between steps (plateaus).
+        std::set<std::uint32_t> levels;
+        for (int t = -8; t <= 8; ++t) {
+            const raster::Rgba8 p = out.at(32 + t, 32 + t);
+            levels.insert(static_cast<std::uint32_t>(p.r) << 16 | static_cast<std::uint32_t>(p.g) << 8 | p.b);
+        }
+        check(levels.size() <= 8, std::format("{} colours along 17 pixels of the diagonal: banded", levels.size()));
+        // The copy turned 90° (centre 80, 32) and the mirrored copy (centre 128, 32) shade as the
+        // upright one, pixel for pixel: the light stays where it is as the picture turns or flips.
+        int turned = 0, mirrored = 0, opaque = 0;
+        for (int dy = -22; dy < 22; ++dy)
+            for (int dx = -22; dx < 22; ++dx) {
+                const raster::Rgba8 a = out.at(32 + dx, 32 + dy), b = out.at(80 + dx, 32 + dy), c = out.at(128 + dx, 32 + dy);
+                if (a.a != 255 || b.a != 255 || c.a != 255) continue;
+                ++opaque;
+                turned = std::max({turned, std::abs(a.r - b.r), std::abs(a.g - b.g), std::abs(a.b - b.b)});
+                mirrored = std::max({mirrored, std::abs(a.r - c.r), std::abs(a.g - c.g), std::abs(a.b - c.b)});
+            }
+        check(opaque > 1000);
+        check_eq(turned, 0);
+        check_eq(mirrored, 0);
+        // Turned 30° (centre 32, 88): still lit from the upper left.
+        check(lum(32 - 13, 88 - 13) > lum(32 + 12, 88 + 12));
+        // The picture as a mask (centre 80, 88): dark ink, its alpha the disc's, a rim of light on its upper left only.
+        const raster::Rgba8 ink_lit = brightest(80, 88, -15, -10), ink_dark = brightest(80, 88, 10, 15), ink_mid = out.at(80, 88);
+        check(ink_mid.a == 255 && ink_mid.r < 40 && ink_dark.r < 40 && ink_lit.r > 100, std::format("ink {} {} {}", ink_mid.r, ink_dark.r, ink_lit.r));
+        check(out.at(80, 88 - 23).a == 0 && out.at(80 + 23, 88).a == 0, "outside the disc, nothing");
+        // Smooth (bands 0, centre 128, 88): more distinct colours along the diagonal than banded.
+        std::set<std::uint32_t> smooth;
+        for (int t = -8; t <= 8; ++t) smooth.insert(out.at(128 + t, 88 + t).r);
+        check(smooth.size() > levels.size(), std::format("smooth: {} levels", smooth.size()));
+        // Premultiplied everywhere; the same bytes every run (pinned for every platform).
+        for (const raster::Rgba8 p : out.pixels()) check(p.r <= p.a && p.g <= p.a && p.b <= p.a);
+        raster::Surface again(160, 120);
+        render::CpuRenderer{}.render(scene.list, again, {&images, nullptr});
+        check(again.bytes().size() == out.bytes().size() && std::ranges::equal(again.bytes(), out.bytes()));
+        std::println("    lit {:016x}", out.hash());
+        const omui::imageio::View view{reinterpret_cast<const std::uint8_t*>(out.pixels().data()), 160, 120, 160 * 4};
+        check(omui::imageio::save_png(scratch_dir("render-cpu") / "lit.png", view).has_value());  // to look at
+        check_eq(out.hash(), 0x27807ca9fb71b7c2ull);
+        // A list with a material hashes apart from the same without one; copied lists keep it.
+        render::DisplayList plain, copy;
+        plain.draw_mesh(scene.picture, scene.at, scene.uv, scene.tri);
+        check(plain.hash() != scene.list.hash());
+        copy.append(scene.list);
+        check_eq(copy.hash(), scene.list.hash());
+        // A missing normal map draws unlit, and is counted.
+        render::Material lost = scene.material;
+        lost.normal = {999};
+        render::DisplayList missing, unlit;
+        missing.draw_mesh(scene.picture, scene.at, scene.uv, scene.tri, render::Sampling::linear, 1, 0.5f, &lost);
+        unlit.draw_mesh(scene.picture, scene.at, scene.uv, scene.tri);
+        raster::Surface m1(160, 120), m2(160, 120);
+        check_eq(cpu.render(missing, m1, {&images, nullptr}).missing_images, std::size_t{1 * 2});
+        cpu.render(unlit, m2, {&images, nullptr});
+        check(std::ranges::equal(m1.bytes(), m2.bytes()));
     });
 
     s.test("unregistered effects and external textures are skipped and counted (R-3)", [] {

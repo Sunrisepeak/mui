@@ -29,9 +29,25 @@ void edges(std::array<float, 4>& v, const Rect& r) { v = {r.x, r.y, r.right(), r
 
 struct Draw {
     Prim         prim;
-    rhi::Texture image;  // the image slot's texture (none: white)
-    rhi::Texture mask;   // the clip mask (none: white)
+    rhi::Texture image;   // the image slot's texture (none: white)
+    rhi::Texture mask;    // the clip mask (none: white)
+    rhi::Texture normal;  // a lit image's normal map
+    std::int32_t lit = -1;  // a lit image: its material's uniforms (Impl::lits), drawn by ui_lit_fs
 };
+
+// ui.slang's Lit: a material's constants, as raster's MaterialSetup has them.
+struct LitUniforms {
+    std::array<float, 4> light, face, shadow, rim, nsize;
+    friend bool operator==(const LitUniforms&, const LitUniforms&) = default;
+};
+
+LitUniforms lit_uniforms(const raster::MaterialSetup& m, float normal_w, float normal_h) {
+    return {{m.lx, m.ly, m.lz, static_cast<float>(m.bands)},
+            {m.fx, m.fy, m.inv_softness, m.rim_width},
+            {m.shadow_r, m.shadow_g, m.shadow_b, m.shadow_strength},
+            {m.rim_r, m.rim_g, m.rim_b, m.rim_strength},
+            {normal_w, normal_h, m.inv_levels, m.inv_steps}};
+}
 
 // A layer composited under a blend mode other than normal (shaders/
 // blend.slang): the target's box is copied to the backdrop, and the layer
@@ -193,6 +209,7 @@ private:
 struct GpuRenderer::Impl {
     rhi::Device&          d;
     rhi::GraphicsPipeline pipeline, blend_pipeline;
+    rhi::GraphicsPipeline lit_pipeline;  // ui_lit_fs: images lit by a material
     rhi::Sampler          nearest;  // every texture is read texel by texel; bilinear images are weighed in the shader
     rhi::Texture          white, white_mask, zero_row;
     rhi::Texture          ramps;
@@ -266,6 +283,7 @@ struct GpuRenderer::Impl {
     std::uint32_t                       width = 0, height = 0;
     std::vector<Pass>                   passes;
     std::vector<std::array<raster::Rgba8, 256>> ramp_rows;
+    std::vector<LitUniforms>            lits;     // the frame's materials (Draw::lit)
     raster::Coverage                    scratch;  // a mask being made (uploaded, then reused)
     std::deque<std::vector<float>>      rows;   // the frame's effect rows (uploads point into them)
     std::vector<const raster::Surface*> images_used;
@@ -288,7 +306,7 @@ struct GpuRenderer::Impl {
         for (rhi::Texture t : {white, white_mask, zero_row, ramps, atlas}) d.destroy(t);
         d.destroy(instances);
         d.destroy(nearest);
-        for (rhi::GraphicsPipeline p : {pipeline, blend_pipeline, blur_pipeline, particles_pipeline}) d.destroy(p);
+        for (rhi::GraphicsPipeline p : {pipeline, lit_pipeline, blend_pipeline, blur_pipeline, particles_pipeline}) d.destroy(p);
         for (auto& [k, p] : effect_pipelines) d.destroy(p);
         d.destroy(pixelate_pipeline);
     }
@@ -298,6 +316,10 @@ struct GpuRenderer::Impl {
                                                     .blend = rhi::Blend::premultiplied(), .label = "render.ui"});
         if (!p) return std::unexpected(p.error());
         pipeline = *p;
+        auto lp = d.create(rhi::GraphicsPipelineDesc{.vertex = &ui::ui_vs, .fragment = &ui::ui_lit_fs, .vertex_buffers = layout,
+                                                     .blend = rhi::Blend::premultiplied(), .label = "render.ui.lit"});
+        if (!lp) return std::unexpected(lp.error());
+        lit_pipeline = *lp;
         auto bp = d.create(rhi::GraphicsPipelineDesc{.vertex = &blend::blend_vs, .fragment = &blend::blend_fs, .blend = rhi::Blend::replace(),
                                                      .label = "render.blend"});
         if (!bp) return std::unexpected(bp.error());
@@ -690,6 +712,7 @@ rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, rhi::Textur
         g.passes.clear();
         g.graph.clear();
         g.ramp_rows.clear();
+        g.lits.clear();
         g.rows.clear();
         g.atlas_overflow = false;
         g.masks_made = g.masks_reused = 0;
@@ -742,6 +765,36 @@ rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, rhi::Textur
                 d.mask = c.mask;
             }
         };
+        // A material's normal map and constants (raster's, so both renderers
+        // shade with the same numbers); a missing normal map draws unlit, counted.
+        auto lit_into = [&](Prim& p, Draw& d, const Material& mat, const Affine& to_device) {
+            const raster::Surface* normal = res.images ? res.images->get(mat.normal) : nullptr;
+            if (!normal) {
+                ++report.missing_images;
+                return;
+            }
+            auto t = g.stored_texture(mat.normal.id, *normal);
+            if (!t) {
+                fail(t.error());
+                return;
+            }
+            const raster::Material rm{.light_x = mat.light.x,
+                                      .light_y = mat.light.y,
+                                      .light_z = mat.light_z,
+                                      .shadow = mat.shadow,
+                                      .shadow_strength = mat.shadow_strength,
+                                      .bands = mat.bands,
+                                      .softness = mat.softness,
+                                      .rim = mat.rim,
+                                      .rim_strength = mat.rim_strength,
+                                      .rim_width = mat.rim_width};
+            const raster::MaterialSetup setup = raster::material_setup(rm, to_device);
+            set(p.pgeo, setup.r00, setup.r01, setup.r10, setup.r11);
+            const LitUniforms u = lit_uniforms(setup, static_cast<float>(normal->width()), static_cast<float>(normal->height()));
+            if (g.lits.empty() || !(g.lits.back() == u)) g.lits.push_back(u);
+            d.lit = static_cast<std::int32_t>(g.lits.size() - 1);
+            d.normal = *t;
+        };
         // The paint's colour fields; false when it cannot be drawn (a missing image).
         // The shader works in the CPU's bytes: a solid colour premultiplied as
         // raster premultiplies it, an image paint's tint as a byte.
@@ -777,7 +830,8 @@ rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, rhi::Textur
                     inverse(p, m());
                     return true;
                 }
-                case Paint::Kind::image: {
+                case Paint::Kind::image:
+                case Paint::Kind::image_mask: {
                     const raster::Surface* img = res.images ? res.images->get(paint.image) : nullptr;
                     if (!img) {
                         ++report.missing_images;
@@ -790,11 +844,14 @@ rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, rhi::Textur
                     }
                     d.image = *t;
                     if (paint.sampling == Sampling::linear) flags |= flag_linear;
-                    p.color = {0, 0, 0, byte_of(paint.color.a)};
-                    p.paint = {4, 0, 0, 0};
-                    inverse(p, m() * paint.image_transform);
+                    const bool as_mask = paint.kind == Paint::Kind::image_mask;
+                    p.color = as_mask ? premultiplied(paint.color) : std::array<float, 4>{0, 0, 0, byte_of(paint.color.a)};
+                    p.paint = {as_mask ? 5.0f : 4.0f, 0, 0, 0};
+                    const Affine to_device = m() * paint.image_transform;
+                    inverse(p, to_device);
                     p.pinv1[2] = static_cast<float>(img->width());
                     p.pinv1[3] = static_cast<float>(img->height());
+                    if (paint.material) lit_into(p, d, *paint.material, to_device);
                     return true;
                 }
             }
@@ -1409,6 +1466,7 @@ rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, rhi::Textur
         for (const Draw& d : s.draws) {
             add(d.image);
             add(d.mask);
+            add(d.normal);
         }
         render::PassDesc desc{.name = "render.vector.draws", .reads = textures, .writes = {s.target}};
         g.graph.pass(std::move(desc), [&g, &s, base](rhi::CommandList& list) {
@@ -1416,17 +1474,36 @@ rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, rhi::Textur
             if (!s.draws.empty()) {
                 const Frame frame{{static_cast<float>(s.w), static_cast<float>(s.h), static_cast<float>(g.atlas_w), static_cast<float>(g.atlas_h)},
                                   {static_cast<float>(g.ramp_capacity), 0, 0, 0}};
-                list.set_pipeline(g.pipeline);
-                list.push_uniforms(rhi::Stage::vertex, 0, frame);
-                list.push_uniforms(rhi::Stage::fragment, 0, frame);
-                list.bind_vertex_buffer(0, g.instances);
-                list.bind_texture(rhi::Stage::fragment, 0, g.ramps, g.nearest);
-                list.bind_texture(rhi::Stage::fragment, 1, g.atlas, g.nearest);
+                // The pipeline and what every draw binds; again when a run of lit
+                // images begins or ends (ui_lit_fs).
+                auto use = [&](rhi::GraphicsPipeline pipeline) {
+                    list.set_pipeline(pipeline);
+                    list.push_uniforms(rhi::Stage::vertex, 0, frame);
+                    list.push_uniforms(rhi::Stage::fragment, 0, frame);
+                    list.bind_vertex_buffer(0, g.instances);
+                    list.bind_texture(rhi::Stage::fragment, 0, g.ramps, g.nearest);
+                    list.bind_texture(rhi::Stage::fragment, 1, g.atlas, g.nearest);
+                };
+                use(g.pipeline);
+                bool lit = false;
+                std::int32_t lit_pushed = -1;
                 std::size_t i = 0;
                 while (i < s.draws.size()) {
                     const Draw& head = s.draws[i];
                     std::size_t j = i + 1;
-                    while (j < s.draws.size() && s.draws[j].image == head.image && s.draws[j].mask == head.mask) ++j;
+                    while (j < s.draws.size() && s.draws[j].image == head.image && s.draws[j].mask == head.mask && s.draws[j].lit == head.lit &&
+                           s.draws[j].normal == head.normal)
+                        ++j;
+                    if ((head.lit >= 0) != lit) {
+                        lit = head.lit >= 0;
+                        use(lit ? g.lit_pipeline : g.pipeline);
+                        lit_pushed = -1;
+                    }
+                    if (lit) {
+                        if (head.lit != lit_pushed) list.push_uniforms(rhi::Stage::fragment, 1, g.lits[static_cast<std::size_t>(head.lit)]);
+                        lit_pushed = head.lit;
+                        list.bind_texture(rhi::Stage::fragment, 4, head.normal, g.nearest);
+                    }
                     list.bind_texture(rhi::Stage::fragment, 2, head.image ? head.image : g.white, g.nearest);
                     list.bind_texture(rhi::Stage::fragment, 3, head.mask ? head.mask : g.white_mask, g.nearest);
                     list.draw(6, static_cast<std::uint32_t>(j - i), 0, base + static_cast<std::uint32_t>(i));

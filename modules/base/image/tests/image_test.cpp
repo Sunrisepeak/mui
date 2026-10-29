@@ -609,5 +609,66 @@ int main(int argc, char** argv) {
         check(!image::load_animated_webp(dir / "missing.webp").has_value());
     });
 
+    s.test("a normal map: a disc reads as a dome, a fold as a crease, the same bytes everywhere", [] {
+        // A 48 × 48 disc of radius 20 (alpha by the pixel's centre), grey,
+        // with a dark painted line down its middle.
+        image::Image disc;
+        disc.width = disc.height = 48;
+        disc.rgba.assign(48 * 48 * 4, 0);
+        for (int y = 0; y < 48; ++y)
+            for (int x = 0; x < 48; ++x) {
+                const int dx = 2 * x + 1 - 48, dy = 2 * y + 1 - 48;  // twice the offset from the centre
+                if (dx * dx + dy * dy > 40 * 40) continue;
+                std::uint8_t* p = disc.rgba.data() + (y * 48 + x) * 4;
+                const std::uint8_t v = x == 24 ? 40 : 200;
+                p[0] = p[1] = p[2] = v;
+                p[3] = 255;
+            }
+        const auto at = [](const image::Image& m, int x, int y) {
+            const std::uint8_t* p = m.rgba.data() + (y * m.width + x) * 4;
+            return std::array<int, 4>{p[0] - 128, p[1] - 128, p[2] - 128, p[3]};
+        };
+        const image::Image dome = image::normal_map(disc, {.bevel = 10, .smooth = 1});
+        check(dome.width == 48 && dome.height == 48 && dome.rgba.size() == 48 * 48 * 4);
+        // The middle faces out of the picture; each edge faces away from the middle; it is symmetric.
+        const auto mid = at(dome, 24, 24), left = at(dome, 6, 24), right = at(dome, 41, 24), top = at(dome, 24, 6), bottom = at(dome, 24, 41);
+        check(mid[0] == 0 && mid[1] == 0 && mid[2] == 127 && mid[3] == 255, std::format("middle {} {} {}", mid[0], mid[1], mid[2]));
+        check(left[0] < -60 && right[0] > 60 && top[1] < -60 && bottom[1] > 60, std::format("edges {} {} {} {}", left[0], right[0], top[1], bottom[1]));
+        // Symmetric exactly: mirrored, and turned a quarter (the disc's normal at (x, y) turned is the one at (47 − y, x)).
+        bool mirrored = true, turned = true;
+        for (int y = 0; y < 48; ++y)
+            for (int x = 0; x < 48; ++x) {
+                const auto n = at(dome, x, y), m = at(dome, 47 - x, y), t = at(dome, 47 - y, x);
+                mirrored = mirrored && m[0] == -n[0] && m[1] == n[1] && m[2] == n[2];
+                turned = turned && t[0] == -n[1] && t[1] == n[0] && t[2] == n[2];
+            }
+        check(mirrored, "mirror symmetric");
+        check(turned, "turn symmetric");
+        for (int y = 0; y < 48; ++y)
+            for (int x = 0; x < 48; ++x) {
+                const auto n = at(dome, x, y);
+                const int len2 = n[0] * n[0] + n[1] * n[1] + n[2] * n[2];
+                check(n[2] > 0 && len2 > 124 * 124 && len2 < 130 * 130, std::format("unit and facing out at {} {}", x, y));
+            }
+        // Folds: the dark line is a groove — its sides slope toward it.
+        const image::Image folds = image::normal_map(disc, {.bevel = 10, .detail = 4, .smooth = 1});
+        check(at(folds, 22, 24)[0] > 10 && at(folds, 26, 24)[0] < -10, std::format("groove {} {}", at(folds, 22, 24)[0], at(folds, 26, 24)[0]));
+        check(at(dome, 22, 24)[0] == 0 || std::abs(at(dome, 22, 24)[0]) < 4, "without detail, no groove");
+        // Premultiplied input gives the same map (luminance of the straight colour).
+        image::Image pm = disc;
+        image::premultiply(pm);
+        check(image::normal_map(pm, {.bevel = 10, .detail = 4, .smooth = 1}).rgba == folds.rgba);
+        // A picture opaque to its border is bevelled at the border; an empty one is empty.
+        image::Image card;
+        card.width = 16, card.height = 8;
+        card.rgba.assign(16 * 8 * 4, 255);
+        const image::Image card_n = image::normal_map(card, {.bevel = 3, .smooth = 0});
+        check(at(card_n, 0, 4)[0] < -40 && at(card_n, 15, 4)[0] > 40 && at(card_n, 8, 4)[0] == 0);
+        check(image::normal_map(image::Image{}).empty());
+        std::println("normal map pins: dome {:#018x}, folds {:#018x}", fnv(dome.rgba), fnv(folds.rgba));
+        check_eq(fnv(dome.rgba), 0x0019b8211cd1a2a5ull);
+        check_eq(fnv(folds.rgba), 0xa9643c1106092cbbull);
+    });
+
     return s.run(argc, argv);
 }

@@ -386,6 +386,7 @@ struct Lit {
     float4 shadow;  // r, g, b, strength
     float4 rim;     // r, g, b (premultiplied by its alpha), strength
     float4 nsize;   // the normal map's width, height; 1 / bands, 1 / (bands − 1)
+    float4 key;     // the light's colour: r, g, b (white: as painted)
 };
 [[vk::binding(4, 2)]] Sampler2D normals : register(t4, space2) : register(s4, space2);
 [[vk::binding(1, 3)]] ConstantBuffer<Lit> lit : register(b1, space3);
@@ -445,9 +446,9 @@ uint4 shade_lit(uint4 c, uint4 n, float4 r) {
         light = sum * lit.nsize.w;
     }
     precise const float shade = (1.0 - light) * lit.shadow.w;
-    precise const float kr = 1.0 - shade + shade * lit.shadow.x;
-    precise const float kg = 1.0 - shade + shade * lit.shadow.y;
-    precise const float kb = 1.0 - shade + shade * lit.shadow.z;
+    precise const float kr = (1.0 - shade) * lit.key.x + shade * lit.shadow.x;
+    precise const float kg = (1.0 - shade) * lit.key.y + shade * lit.shadow.y;
+    precise const float kb = (1.0 - shade) * lit.key.z + shade * lit.shadow.z;
     precise float rim = 0;
     const float width = lit.face.w;
     if (lit.rim.w > 0 && width > 0) {

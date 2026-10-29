@@ -42,6 +42,7 @@ struct Material {
     Color     rim{1, 1, 1, 1};        // straight; its alpha scales it
     float     rim_strength = 0.6f;
     float     rim_width = 0.35f;      // where n·z (the normal toward the viewer) is below this
+    Color     key{1, 1, 1, 1};        // straight; the light's colour, multiplied into the lit part (white: none)
 };
 
 // What the lighting computes with, once per fill (the light normalised, the
@@ -57,6 +58,7 @@ struct MaterialSetup {
     float inv_softness = 0;           // 1 / softness (0: hard edges)
     int   bands = 0;                  // 0: smooth
     float inv_levels = 0, inv_steps = 0;  // 1 / bands, 1 / (bands − 1)
+    float key_r = 1, key_g = 1, key_b = 1;  // the light's colour
 };
 [[nodiscard]] MaterialSetup material_setup(const Material& m, const Affine& transform) noexcept;
 // The orthogonal part of a linear map (polar decomposition, 2 × 2): a

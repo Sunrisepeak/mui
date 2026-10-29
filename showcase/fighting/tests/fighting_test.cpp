@@ -341,7 +341,7 @@ int main(int argc, char** argv) {
         check(g.h.save_png(dir / "study.png").has_value());
         const auto px = g.pixels();
         std::println("    study {:016x}", px);
-        check_eq(px, std::uint64_t{0x51c1b1390d24617f});  // GCC and LLVM
+        check_eq(px, std::uint64_t{0x2e7e5f4cf7ac822f});  // GCC and LLVM
     });
 
     s.test("霓's home, the street: a neon skyline, the alley's shopfronts and a noodle stall, the wet road giving the neon back, rain in front and behind — pinned", [] {
@@ -350,7 +350,7 @@ int main(int argc, char** argv) {
         check(g.h.save_png(scratch_dir("fighting-street") / "street.png").has_value());
         const auto px = g.pixels();
         std::println("    street {:016x}", px);
-        check_eq(px, std::uint64_t{0x68ac847b5a5b78c7});  // GCC and LLVM
+        check_eq(px, std::uint64_t{0x7db5b021a0092483});  // GCC and LLVM
     });
 
     s.test("坤's home, the rooftop: a dusk sky over the skyline, a water tower, a billboard and a fence hung with string lights, court lines on wet concrete — pinned", [] {
@@ -359,7 +359,7 @@ int main(int argc, char** argv) {
         check(g.h.save_png(scratch_dir("fighting-rooftop") / "rooftop.png").has_value());
         const auto px = g.pixels();
         std::println("    rooftop {:016x}", px);
-        check_eq(px, std::uint64_t{0x77157dfc59f370be});  // GCC and LLVM
+        check_eq(px, std::uint64_t{0xc14da58397c88742});  // GCC and LLVM
     });
 
     s.test("璃's home, the greenhouse: a misty garden through bending panes, white iron arches with palms and hanging ferns, wet tile catching the light, a fountain and a stand of terrariums — pinned with 墨 and 霓 on it", [] {
@@ -368,7 +368,7 @@ int main(int argc, char** argv) {
         check(g.h.save_png(scratch_dir("fighting-greenhouse") / "greenhouse.png").has_value());
         const auto px = g.pixels();
         std::println("    greenhouse {:016x}", px);
-        check_eq(px, std::uint64_t{0x74a48383d8e5ebff});  // GCC and LLVM
+        check_eq(px, std::uint64_t{0xc42c1b08be02b5d3});  // GCC and LLVM
     });
 
     s.test("岳's home, the gate: a sea of clouds at sunset framed by a stone gateway, guardian lions and banners, worn granite, an incense cauldron and a great bell — pinned with 墨 and 霓 on it", [] {
@@ -377,7 +377,7 @@ int main(int argc, char** argv) {
         check(g.h.save_png(scratch_dir("fighting-gate") / "gate.png").has_value());
         const auto px = g.pixels();
         std::println("    gate {:016x}", px);
-        check_eq(px, std::uint64_t{0x2a041dbda6e6ae29});  // GCC and LLVM
+        check_eq(px, std::uint64_t{0x6ea25c8b53fdc4dc});  // GCC and LLVM
     });
 
     s.test("刻's home, the clock: the back of a glowing dial, gears and a pendulum over a catwalk, a brass compass in the floorboards, a clockmaker's bench and a grandfather clock — pinned with 墨 and 霓 on it", [] {
@@ -386,7 +386,7 @@ int main(int argc, char** argv) {
         check(g.h.save_png(scratch_dir("fighting-clock") / "clock.png").has_value());
         const auto px = g.pixels();
         std::println("    clock {:016x}", px);
-        check_eq(px, std::uint64_t{0x1082c78df8ec6766});  // GCC and LLVM
+        check_eq(px, std::uint64_t{0x36396d0061ab4b08});  // GCC and LLVM
     });
 
     s.test("the README's loop: 墨's level 3 in her study, from the flash's cut-in to the finishing blow, an animated WebP under 1 MB", [] {

@@ -146,6 +146,7 @@ struct Material {
     Color    rim{1, 1, 1, 1};
     float    rim_strength = 0.6f;
     float    rim_width = 0.35f;
+    Color    key{1, 1, 1, 1};      // the light's colour on the lit side (white: the picture as painted)
     friend constexpr bool operator==(const Material&, const Material&) noexcept = default;
 };
 

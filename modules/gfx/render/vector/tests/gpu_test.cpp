@@ -204,7 +204,7 @@ void effect_scene(render::DisplayList& dl, std::string_view name, std::vector<st
 
 // cpu_test's lit scene: a bevelled disc's picture and normal map, six lit
 // copies (upright, turned 90°, mirrored; turned 30°, a mask of ink, smooth).
-void lit_meshes(render::DisplayList& dl, Rig& r) {
+void lit_meshes(render::DisplayList& dl, Rig& r, geom::Color key = {1, 1, 1, 1}) {
     const raster::Rgba8 base{210, 160, 130, 255};
     omui::imageio::Image disc;
     disc.width = disc.height = 48;
@@ -226,7 +226,7 @@ void lit_meshes(render::DisplayList& dl, Rig& r) {
     render::Material material, ink, smooth;
     material = {.normal = r.images.add(48, 48, std::move(npx)), .light = {-1, -1}, .light_z = 0.8f, .shadow = geom::Color::hex(0x5b4a8a),
                 .shadow_strength = 0.55f, .bands = 3, .softness = 0.06f, .rim = geom::Color{1, 0.95f, 0.85f, 1}, .rim_strength = 0.9f,
-                .rim_width = 0.45f};
+                .rim_width = 0.45f, .key = key};
     ink = material;
     ink.shadow_strength = 0;
     ink.rim = geom::Color{0.75f, 0.9f, 1, 1};
@@ -488,7 +488,9 @@ const std::vector<Case>& cases() {
         // Lit meshes (Material): the shading's float arithmetic is the CPU's, step
         // for step, but a GPU's division and square root need not round as
         // IEEE does, so a channel may land a level apart.
-        {"lit meshes", lit_meshes, {2, 40}},
+        {"lit meshes", [](render::DisplayList& dl, Rig& r) { lit_meshes(dl, r); }, {2, 40}},
+        // The same in a coloured light (a stage's sunset): the lit side warmed, the shade its own.
+        {"lit meshes, a coloured light", [](render::DisplayList& dl, Rig& r) { lit_meshes(dl, r, geom::Color::hex(0xffb070)); }, {2, 40}},
         {"glyphs",
          [](render::DisplayList& dl, Rig&) {
              std::array<render::Glyph, 6> run{};

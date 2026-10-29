@@ -649,6 +649,7 @@ struct Stage {
     // The world's light: where it comes from, the shadow's and the rim's colours; a fighter's look keeps its depths.
     std::optional<Point>    light_from;
     std::optional<Color>    shadow, rim_color;
+    std::optional<Color>    light_color;  // the light's own colour on the fighters' lit side (a sunset's warmth; none: as painted)
     // The fighters' contact shadows on its floor (transparent: none).
     Color                   contact = Color::hex(0x000000, 0.5f);
     // The painted pictures its layers' images are cut from (registered by

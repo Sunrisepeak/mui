@@ -200,6 +200,9 @@ MaterialSetup material_setup(const Material& m, const Affine& transform) noexcep
     s.rim_b = std::clamp(m.rim.b, 0.0f, 1.0f) * ra;
     s.rim_strength = std::max(m.rim_strength, 0.0f);
     s.rim_width = std::clamp(m.rim_width, 0.0f, 1.0f);
+    s.key_r = std::clamp(m.key.r, 0.0f, 1.0f);
+    s.key_g = std::clamp(m.key.g, 0.0f, 1.0f);
+    s.key_b = std::clamp(m.key.b, 0.0f, 1.0f);
     s.inv_softness = m.softness > 0 ? 1.0f / m.softness : 0.0f;
     s.bands = m.bands >= 2 ? std::min(m.bands, 16) : 0;
     if (s.bands >= 2) {
@@ -248,9 +251,10 @@ Rgba8 Shader::lit(Rgba8 c, Rgba8 n, const MaterialSetup& m) noexcept {
         light = sum * m.inv_steps;
     }
     const float shade = (1.0f - light) * m.shadow_strength;
-    const float kr = 1.0f - shade + shade * m.shadow_r;
-    const float kg = 1.0f - shade + shade * m.shadow_g;
-    const float kb = 1.0f - shade + shade * m.shadow_b;
+    // The lit part in the light's colour, the shaded part toward the shadow's (a white light: exactly the painted colour).
+    const float kr = (1.0f - shade) * m.key_r + shade * m.shadow_r;
+    const float kg = (1.0f - shade) * m.key_g + shade * m.shadow_g;
+    const float kb = (1.0f - shade) * m.key_b + shade * m.shadow_b;
     float rim = 0;
     if (m.rim_strength > 0 && m.rim_width > 0) {
         const float past = (1.0f - std::max(tz, 0.0f)) - (1.0f - m.rim_width);  // how far the grazing is past the rim's edge

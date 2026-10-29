@@ -1175,8 +1175,10 @@ width = 400
         auto again = p2::read_stage(written, "written.stage.gongfu.toml");
         check(again && p2::write_stage(*again) == written, again ? written : std::format("{}", texts(again.error())));
         // The fighters' contact shadows in the stage's colour: read, and written back.
-        auto shaded = p2::read_stage(text.substr(0, text.find("\n[[picture]]")) + "contact = \"#10203080\"\n", "shaded.stage.gongfu.toml");
+        auto shaded = p2::read_stage(text.substr(0, text.find("\n[[picture]]")) + "contact = \"#10203080\"\nlight = { color = \"#ffb070\" }\n",
+                                     "shaded.stage.gongfu.toml");
         check(shaded && std::abs(shaded->contact.a - 128 / 255.0f) < 1e-6f && p2::write_stage(*shaded).contains("contact = "), "contact read and written");
+        check(shaded && shaded->light_color && p2::write_stage(*shaded).contains("color = "), "the light's colour read and written");
         // A picture: its left half red, its right half blue.
         omui::render::ImageStore images;
         std::vector<omui::raster::Rgba8> px(64 * 32);

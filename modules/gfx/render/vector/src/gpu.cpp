@@ -37,7 +37,7 @@ struct Draw {
 
 // ui.slang's Lit: a material's constants, as raster's MaterialSetup has them.
 struct LitUniforms {
-    std::array<float, 4> light, face, shadow, rim, nsize;
+    std::array<float, 4> light, face, shadow, rim, nsize, key;
     friend bool operator==(const LitUniforms&, const LitUniforms&) = default;
 };
 
@@ -46,7 +46,8 @@ LitUniforms lit_uniforms(const raster::MaterialSetup& m, float normal_w, float n
             {m.fx, m.fy, m.inv_softness, m.rim_width},
             {m.shadow_r, m.shadow_g, m.shadow_b, m.shadow_strength},
             {m.rim_r, m.rim_g, m.rim_b, m.rim_strength},
-            {normal_w, normal_h, m.inv_levels, m.inv_steps}};
+            {normal_w, normal_h, m.inv_levels, m.inv_steps},
+            {m.key_r, m.key_g, m.key_b, 0}};
 }
 
 // A layer composited under a blend mode other than normal (shaders/
@@ -787,7 +788,8 @@ rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, rhi::Textur
                                       .softness = mat.softness,
                                       .rim = mat.rim,
                                       .rim_strength = mat.rim_strength,
-                                      .rim_width = mat.rim_width};
+                                      .rim_width = mat.rim_width,
+                                      .key = mat.key};
             const raster::MaterialSetup setup = raster::material_setup(rm, to_device);
             set(p.pgeo, setup.r00, setup.r01, setup.r10, setup.r11);
             const LitUniforms u = lit_uniforms(setup, static_cast<float>(normal->width()), static_cast<float>(normal->height()));

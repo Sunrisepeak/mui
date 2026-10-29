@@ -13,7 +13,7 @@ sky = ["#101a3a", "#2a2440"]
 floor = "#1c1e26"
 line = "#0e1016"
 marks = false
-light = { from = [-0.6, -0.8], shadow = "#141a33", rim_color = "#ffb070bb" }
+light = { from = [-0.6, -0.8], shadow = "#141a33", rim_color = "#ffb070bb", color = "#ffd2a6" }
 
 [[picture]]
 name = "far"

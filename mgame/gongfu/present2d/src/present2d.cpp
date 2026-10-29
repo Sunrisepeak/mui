@@ -920,6 +920,7 @@ void Painter::picture_part(const Look& look, const Part& own, std::size_t drawin
             material.light = world && world->light_from ? *world->light_from : look.light.from;
             if (world && world->shadow) material.shadow = *world->shadow;
             if (world && world->rim_color) material.rim = *world->rim_color;
+            if (world && world->light_color) material.key = *world->light_color;
             lit = &material;
         }
     }

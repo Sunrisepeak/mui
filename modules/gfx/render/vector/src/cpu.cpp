@@ -30,7 +30,8 @@ const raster::Material* material_of(const Material* m, const Resources& res, Ren
            .softness = m->softness,
            .rim = m->rim,
            .rim_strength = m->rim_strength,
-           .rim_width = m->rim_width};
+           .rim_width = m->rim_width,
+           .key = m->key};
     return &out;
 }
 

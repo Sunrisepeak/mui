@@ -1896,7 +1896,7 @@ std::string write_look(const Look& look) {
 //     floor = "#6d5240"
 //     line = "#2e2119"
 //     marks = false
-//     light = { from = [-0.7, -0.7], shadow = "#2a1d14", rim_color = "#fff2d0aa" }
+//     light = { from = [-0.7, -0.7], shadow = "#2a1d14", rim_color = "#fff2d0aa", color = "#ffe8c8" }   # color: the light's own, on the fighters' lit side
 //     contact = "#00000080"                 # the fighters' contact shadows (transparent: none)
 //
 //     [[layer]]
@@ -1925,7 +1925,7 @@ namespace {
 
 constexpr std::array<std::string_view, 10> stage_keys{"gongfu", "name", "sky", "floor", "line", "marks", "light", "contact", "layer", "picture"};
 constexpr std::array<std::string_view, 7> stage_image_keys{"picture", "source", "at", "width", "height", "flip", "flicker"};
-constexpr std::array<std::string_view, 3> stage_light_keys{"from", "shadow", "rim_color"};
+constexpr std::array<std::string_view, 4> stage_light_keys{"from", "shadow", "rim_color", "color"};
 constexpr std::array<std::string_view, 12> layer_keys{"name", "parallax", "repeat", "opacity", "front", "clip", "shape", "bamboo", "lattice", "planks", "rain", "image"};
 constexpr std::array<std::string_view, 9> stage_shape_keys{"shape", "points", "color", "color2", "sway", "flicker", "drift", "wrap", "glow"};
 constexpr std::array<std::string_view, 8> rain_keys{"seed", "count", "span", "height", "length", "speed", "slant", "color"};
@@ -2072,6 +2072,7 @@ std::expected<Stage, std::vector<Diagnostic>> read_stage(std::string_view source
         }
         if (auto c = r.colour(t->get("shadow"), "a light's `shadow`")) st.shadow = *c;
         if (auto c = r.colour(t->get("rim_color"), "a light's `rim_color`")) st.rim_color = *c;
+        if (auto c = r.colour(t->get("color"), "a light's `color`")) st.light_color = *c;
     }
     auto points_of = [&](const toml::node* n, std::string_view what) {
         std::vector<Point> pts;
@@ -2231,11 +2232,12 @@ std::string write_stage(const Stage& st) {
     if (!st.marks) s += "marks = false\n";
     if (const Color d = Stage{}.contact; st.contact.r != d.r || st.contact.g != d.g || st.contact.b != d.b || st.contact.a != d.a)
         s += std::format("contact = {}\n", colour_text(st.contact));
-    if (st.light_from || st.shadow || st.rim_color) {
+    if (st.light_from || st.shadow || st.rim_color || st.light_color) {
         std::string parts;
         if (st.light_from) parts += std::format("from = [{}, {}]", st.light_from->x, st.light_from->y);
         if (st.shadow) parts += std::format("{}shadow = {}", parts.empty() ? "" : ", ", colour_text(*st.shadow));
         if (st.rim_color) parts += std::format("{}rim_color = {}", parts.empty() ? "" : ", ", colour_text(*st.rim_color));
+        if (st.light_color) parts += std::format("{}color = {}", parts.empty() ? "" : ", ", colour_text(*st.light_color));
         s += std::format("light = {{ {} }}\n", parts);
     }
     for (const Picture& pic : st.pictures) s += std::format("\n[[picture]]\nname = \"{}\"\nfile = \"{}\"\nsize = [{}, {}]\n", pic.name, pic.file, pic.width, pic.height);

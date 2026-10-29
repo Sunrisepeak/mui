@@ -82,8 +82,28 @@ struct Script::Impl {
     std::vector<std::pair<std::uint64_t, int>>        watches;  // token, function
     std::map<std::string, int, std::less<>>           verbs;
     int                                    depth = 0;  // nested omui.each, for the rows' names
+    std::shared_ptr<bool>                  alive = std::make_shared<bool>(true);  // false once the script is destroyed
+    int                                    active = 0;  // its Lua on the script thread's stack
 
     explicit Impl(Session& s) : session(s) {}
+
+    // The state let go: once, never while its Lua is on the stack
+    // (Script::~Script waits for that, or the outermost Inside lets it go
+    // when it returns).
+    void close() {
+        if (L) lua_close(L);
+        L = nullptr;
+    }
+    // Around the script's Lua: what a teardown waits for.
+    struct Inside {
+        Impl& s;
+        explicit Inside(Impl& i) : s(i) { ++s.active; }
+        ~Inside() {
+            if (--s.active == 0 && !*s.alive) s.close();  // destroyed while it ran (from its own thread): it goes now
+        }
+        Inside(const Inside&) = delete;
+        Inside& operator=(const Inside&) = delete;
+    };
 
     bool bindable(std::string_view type, std::string_view prop) {
         if (!catalog) {
@@ -259,6 +279,7 @@ void release_function(Script::Impl& s, int ref) {
 // Calls a kept function with one JSON argument, protected; an error goes to
 // the script's error handler. Answers the first result as JSON.
 std::optional<Json> call_kept(Script::Impl& s, int ref, const Json* arg) {
+    Script::Impl::Inside in(s);
     lua_State* L = s.L;
     lua_rawgeti(L, LUA_REGISTRYINDEX, ref);
     if (arg) push_json(L, *arg);
@@ -333,7 +354,9 @@ int l_signal_watch(lua_State* L, Script::Impl& s) {
     if (!b || lua_type(L, 2) != LUA_TFUNCTION) return raise(L, "signal:watch(fn): fn gets each new value");
     const int ref = keep_function(L, s, 2);
     Script::Impl* self = &s;
-    const std::uint64_t token = s.session.watch(b->handle, [self, ref](const Json& v) { (void)call_kept(*self, ref, &v); });
+    const std::uint64_t token = s.session.watch(b->handle, [self, alive = std::weak_ptr<bool>(s.alive), ref](const Json& v) {
+        if (auto a = alive.lock(); a && *a) (void)call_kept(*self, ref, &v);
+    });
     s.watches.emplace_back(token, ref);
     return 0;
 }
@@ -473,7 +496,9 @@ std::optional<std::string> fill(lua_State* L, Script::Impl& s, Element& e, int t
             const int ref = keep_function(L, s, -1);
             s.pending.push_back(ref);  // the view's, once it is mounted
             Script::Impl* self = &s;
-            e.on.emplace_back(key.substr(3), [self, ref](const Json& event) { (void)call_kept(*self, ref, &event); });
+            e.on.emplace_back(key.substr(3), [self, alive = std::weak_ptr<bool>(s.alive), ref](const Json& event) {
+                if (auto a = alive.lock(); a && *a) (void)call_kept(*self, ref, &event);
+            });
         } else if (key == "animate") {
             auto t = to_json(L, -1);
             if (!t || !t->is_object()) err = std::format("{}: animate is a table: property → transition", e.type);
@@ -659,7 +684,8 @@ int l_verb(lua_State* L, Script::Impl& s) {
     const int ref = keep_function(L, s, 3);
     Script::Impl* self = &s;
     const std::string verb_name = spec.name;
-    auto r = s.session.verb(std::move(spec), [self, ref](const Json& args) -> Result<Json> {
+    auto r = s.session.verb(std::move(spec), [self, alive = std::weak_ptr<bool>(s.alive), ref](const Json& args) -> Result<Json> {
+        if (auto a = alive.lock(); !a || !*a) return std::unexpected(Error{abi::OMUI_ERROR_REFUSED, "the script is gone"});
         auto out = call_kept(*self, ref, &args);
         if (!out) return std::unexpected(Error{abi::OMUI_ERROR_REFUSED, "the verb raised an error"});
         return std::move(*out);
@@ -963,7 +989,7 @@ int open_module(lua_State* L) {
 
 }  // namespace
 
-Script::Script(Session& session) : impl_(std::make_unique<Impl>(session)) {
+Script::Script(Session& session) : impl_(std::make_shared<Impl>(session)) {
     Impl* s = impl_.get();
     session.host().script([s] {
         s->L = luaL_newstate();
@@ -982,11 +1008,16 @@ Script::Script(Session& session) : impl_(std::make_unique<Impl>(session)) {
     });
 }
 
+// Safe while it loads: its Lua on the script thread's stack (a run waiting on
+// this thread for the runtime) finishes before the state goes; the runs still
+// queued, and what the runtime calls later, find it gone.
 Script::~Script() {
     Impl* s = impl_.get();
-    s->session.host().script([s] {
-        if (s->L) lua_close(s->L);
-        s->L = nullptr;
+    s->session.host().retire([s] {
+        *s->alive = false;
+        if (s->active > 0) return false;
+        s->close();
+        return true;
     });
 }
 
@@ -994,7 +1025,11 @@ void Script::on_error(std::function<void(std::string_view)> fn) { impl_->errors 
 
 namespace {
 
+Error gone() { return Error{abi::OMUI_ERROR_REFUSED, "the script is gone"}; }
+
 Result<void> run_chunk(Script::Impl& s, const std::string& code, const std::string& name) {
+    if (!*s.alive) return std::unexpected(gone());
+    Script::Impl::Inside in(s);
     lua_State* L = s.L;
     if (luaL_loadbufferx(L, code.data(), code.size(), name.c_str(), "t") != LUA_OK || lua_pcall(L, 0, 0, 0) != LUA_OK) {
         std::size_t n = 0;
@@ -1011,7 +1046,9 @@ Result<void> run_chunk(Script::Impl& s, const std::string& code, const std::stri
 std::future<Result<void>> Script::run(std::string code, std::string name) {
     auto done = std::make_shared<std::promise<Result<void>>>();
     auto future = done->get_future();
-    Impl* s = impl_.get();
+    // The script's state is shared with the run queued: one queued when the
+    // script is destroyed finds it gone, not freed.
+    std::shared_ptr<Impl> s = impl_;
     s->session.host().post([s, done, code = std::move(code), name = std::move(name)] { done->set_value(run_chunk(*s, code, name)); });
     return future;
 }
@@ -1019,8 +1056,12 @@ std::future<Result<void>> Script::run(std::string code, std::string name) {
 std::future<Result<void>> Script::reload(std::string code, std::string name) {
     auto done = std::make_shared<std::promise<Result<void>>>();
     auto future = done->get_future();
-    Impl* s = impl_.get();
+    std::shared_ptr<Impl> s = impl_;
     s->session.host().post([s, done, code = std::move(code), name = std::move(name)] {
+        if (!*s->alive) {
+            done->set_value(std::unexpected(gone()));
+            return;
+        }
         s->next_signal = 0;  // the chunk's signals are the last run's, in order
         // The last run's watches go: this run makes its own again.
         for (const auto& [token, ref] : s->watches) {

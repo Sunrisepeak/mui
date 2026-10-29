@@ -144,7 +144,8 @@ public:
     void resize(NodeRef n, float width, float height);
     void set_fill(NodeRef n, Color fill, float radius);
     void raise(NodeRef n);  // above every other node
-    // What the node's kind draws from it changed: its textures are stale.
+    // What the node's kind draws from it changed: its textures are stale,
+    // and its live component (a promoted node) is composed again.
     void touch(NodeRef n);
     [[nodiscard]] std::uint64_t content_revision(NodeRef n) const;
 

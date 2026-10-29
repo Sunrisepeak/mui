@@ -183,6 +183,55 @@ int main(int argc, char** argv) {
         check(moved && moved->bounds && at && at->bounds && std::abs((moved->bounds->x - at->bounds->x) - 50) < 1, "moved 50 px with the pan");
     });
 
+    s.test("live nodes of a scene made or filled after the canvas mounted: placed, and composed again when touched", [] {
+        // Kinds always live: a node is a card from its first pixel.
+        const auto card = [](world::Scene& sc) {
+            sc.kind("live", world::Kind{.tiers = {{0, world::Tier::Draw::promote}},
+                                        .promote = [](const world::Scene& s, world::NodeRef n) -> Element {
+                                            return text({.id = "title", .text = std::string(s.text(n, "title"))});
+                                        }});
+        };
+        const auto add = [](world::Scene& sc, std::string_view key, double x, std::string title) {
+            const auto n = sc.add({.kind = "live", .x = x, .y = 0, .width = 200, .height = 100, .key = key});
+            sc.set(n, "title", std::move(title));
+            return n;
+        };
+        Headless h({.size = {800, 600}});
+        // Named before anything made it: the canvas watches it from mount.
+        world::drop_scene("late");
+        h.mount("main", column({.width = 800, .height = 600},
+                               {canvas({.id = "made", .scene = "late", .x = 100, .y = 50, .width = 800, .height = 300}),
+                                canvas({.id = "filled", .scene = "filled", .x = 100, .y = 50, .width = 800, .height = 300})}));
+        auto& filled = world::scene("filled");
+        filled.clear();
+        card(filled);
+        h.settle();
+        check(!h.tree().node("main/made/a"), "nothing live yet");
+        auto& late = world::scene("late");
+        card(late);
+        add(late, "a", 0, "Made later");
+        h.settle();
+        const auto made = h.tree().node("main/made/a/title");
+        check(made && made->name == "Made later", "the scene made after mount: its node live");
+        // Filled from a timer: in a frame before its paint, which must not
+        // swallow the change the next frame's step places.
+        h.runtime().after(hanim::seconds(0), [&] { add(filled, "b", 0, "From a timer"); });
+        h.settle();
+        const auto timed = h.tree().node("main/filled/b/title");
+        check(timed && timed->name == "From a timer", "the node a timer added: live");
+        // A node gone goes; a touched one is composed again from its columns.
+        filled.remove(*filled.find("b"));
+        add(filled, "c", 0, "Third");
+        h.settle();
+        check(!h.tree().node("main/filled/b") && h.tree().node("main/filled/c/title"), "the removed node gone, the added one live");
+        const auto c = *filled.find("c");
+        filled.set(c, "title", std::string("Renamed"));
+        filled.touch(c);
+        h.settle();
+        const auto renamed = h.tree().node("main/filled/c/title");
+        check(renamed && renamed->name == "Renamed", "the touched node composed again");
+    });
+
     s.test("texture tiers: rasterised in the background, the nearest ready level stretched meanwhile, stale content kept until the new one is in", [] {
         auto& sc = world::scene("textures");
         sc.clear();

@@ -470,6 +470,33 @@ omui.verb("gift.slow", lambda args: {"slow_percent": 50}, effect="read")
         check_eq(rb.name_of("main/t"), std::string("20"));
     });
 
+    s.test("a script destroyed while it loads: its run finishes first, its queued runs are refused, its verbs answer that it is gone", [] {
+        // Each omui.verb waits on the runtime's thread, which is the one
+        // destroying the script: the teardown arrives while its Python is on
+        // the script thread's stack.
+        const std::string busy = "import openmui as omui\nfor i in range(200):\n    omui.verb('load.v' + str(i % 4), lambda args: {'i': 1}, effect='read')\n";
+        for (int round = 0; round < 8; ++round) {
+            Runtime r;
+            lang::Host host(r.rt);
+            lang::Session session(host);
+            auto a = std::make_unique<py::Script>(session);
+            auto b = std::make_unique<py::Script>(session);
+            auto first = a->run(busy, "a.py");
+            auto queued_b = b->run(busy, "b.py");
+            auto queued_a = a->run(busy, "a2.py");
+            std::this_thread::sleep_for(std::chrono::milliseconds(round % 2 ? 2 : 0));
+            a.reset();
+            b.reset();
+            (void)first.get();
+            const auto rb = queued_b.get(), ra = queued_a.get();
+            // b's run may start while a's teardown waits (b is not destroyed yet); if not, it is refused.
+            check(rb || rb.error().message.contains("gone"), rb ? "" : rb.error().message);
+            check(!ra && ra.error().message.contains("gone"), ra ? "a's queued run ran after a was destroyed" : ra.error().message);
+            const Json answer = invoke(r, "load.v0", Json::object());
+            check(answer.is_null() || answer.contains("runner-error"), std::format("a verb of a destroyed script answers nothing: {}", answer.dump()));
+        }
+    });
+
     s.test("the player's language: lang = \"py\", *.py; its engine runs and reloads a script", [] {
         const omui::player::Language l = py::language();
         check_eq(l.name, std::string("py"));

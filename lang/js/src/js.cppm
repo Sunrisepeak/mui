@@ -43,7 +43,7 @@ public:
     struct Impl;
 
 private:
-    std::unique_ptr<Impl> impl_;
+    std::shared_ptr<Impl> impl_;  // shared with the runs queued for it (they find it gone, not freed)
 };
 
 // JavaScript for the player: `lang = "js"`, *.js and *.mjs.

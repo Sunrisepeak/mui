@@ -271,11 +271,6 @@ void Field::play(const Input& in) {
         if (!all) show_brick(e.id, b);
     }
     if (all) show_bricks();
-    if (def.canvas && s.events > 0) {  // the scene changed: the canvas's live nodes composed again from it
-        bool touched = false;
-        for (std::uint32_t k = 0; k < s.events && !touched; ++k) touched = s.event[k].what == Happened::broke || s.event[k].what == Happened::flipped;
-        if (const auto kids = services().children(node()); touched && !kids.empty()) services().recompose(kids.front());
-    }
     if (scanning())  // what the X-ray shows stays found
         for (std::size_t i = 0; i < def.bricks.size() && i < discovered_.size(); ++i)
             if (def.bricks[i].kind == Kind::hidden) discovered_[i] = true;
@@ -301,7 +296,8 @@ void Field::show_brick(std::size_t i, const Brick* b) {
             scene.set(added, "title", d.label);
             scene.set(added, "on", static_cast<double>(b->on));
         } else if (kind == Kind::toggle && scene.number(*n, "on") != b->on) {
-            scene.set(*n, "on", static_cast<double>(b->on));  // its live toggle, composed again, reads it
+            scene.set(*n, "on", static_cast<double>(b->on));
+            scene.touch(*n);  // its live toggle composed again, reading it
         }
         return;
     }
@@ -330,7 +326,6 @@ void Field::show_bricks() {
         if (b.id < by_id.size()) by_id[b.id] = &b;
     });
     for (std::size_t i = 0; i < def.bricks.size(); ++i) show_brick(i, by_id[i]);
-    if (const auto kids = services().children(node()); def.canvas && !kids.empty()) services().recompose(kids.front());  // its live nodes, from the scene
     show_gates();
     show_camera();
 }

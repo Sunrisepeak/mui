@@ -155,14 +155,30 @@ struct Script::Impl {
 
 namespace {
 
-// The watchdog, around the outermost Python of a script.
+// The script's VM let go, empty for the next Script: once, and never while
+// its Python is on the stack (Script::~Script waits for that, or the
+// outermost Running lets it go when it returns).
+void close(Script::Impl& s) {
+    if (s.vm < 0) return;
+    Enter in(s.vm);
+    py_resetvm();
+    taken[static_cast<std::size_t>(s.vm)] = false;
+    s.vm = -1;
+    s.broken = "the script is gone";
+}
+
+// The watchdog, around the outermost Python of a script; it also counts the
+// script's Python on the stack, which a teardown waits for.
 class Running {
 public:
     explicit Running(Script::Impl& s) : s_(s) {
         if (s_.running++ == 0 && s_.limit.count() > 0) py_watchdog_begin(static_cast<py_i64>(s_.limit.count()));
     }
     ~Running() {
-        if (--s_.running == 0) py_watchdog_end();
+        if (--s_.running == 0) {
+            py_watchdog_end();
+            if (!*s_.alive) close(s_);  // destroyed while it ran (from its own thread): it goes now
+        }
     }
     Running(const Running&) = delete;
     Running& operator=(const Running&) = delete;
@@ -785,19 +801,21 @@ void start(Script::Impl& s) {
 
 }  // namespace
 
-Script::Script(Session& session) : impl_(std::make_unique<Impl>(session)) {
+Script::Script(Session& session) : impl_(std::make_shared<Impl>(session)) {
     Impl* s = impl_.get();
     session.host().script([s] { start(*s); });
 }
 
+// Safe while it loads: its Python on the script thread's stack (a run waiting
+// on this thread for the runtime) finishes before the VM goes; the runs still
+// queued, and what the runtime calls later, find it gone.
 Script::~Script() {
     Impl* s = impl_.get();
-    s->session.host().script([s] {
-        *s->alive = false;  // what the runtime calls later finds no script
-        if (s->vm < 0) return;
-        Enter in(s->vm);
-        py_resetvm();  // empty, for the next Script
-        taken[static_cast<std::size_t>(s->vm)] = false;
+    s->session.host().retire([s] {
+        *s->alive = false;
+        if (s->running > 0) return false;
+        close(*s);
+        return true;
     });
 }
 
@@ -810,7 +828,10 @@ void Script::budget(std::chrono::milliseconds limit) {
 
 namespace {
 
+Error gone() { return Error{abi::OMUI_ERROR_REFUSED, "the script is gone"}; }
+
 Result<void> run_code(Script::Impl& s, const std::string& code, const std::string& name) {
+    if (!*s.alive) return std::unexpected(gone());
     if (s.vm < 0) return std::unexpected(Error{abi::OMUI_ERROR_INTERNAL, s.broken});
     Enter in(s.vm);
     Running r(s);
@@ -836,7 +857,9 @@ Result<void> run_code(Script::Impl& s, const std::string& code, const std::strin
 std::future<Result<void>> Script::run(std::string code, std::string name) {
     auto done = std::make_shared<std::promise<Result<void>>>();
     auto future = done->get_future();
-    Impl* s = impl_.get();
+    // The script's state is shared with the run queued: one queued when the
+    // script is destroyed finds it gone, not freed.
+    std::shared_ptr<Impl> s = impl_;
     s->session.host().post([s, done, code = std::move(code), name = std::move(name)] { done->set_value(run_code(*s, code, name)); });
     return future;
 }
@@ -844,8 +867,12 @@ std::future<Result<void>> Script::run(std::string code, std::string name) {
 std::future<Result<void>> Script::reload(std::string code, std::string name) {
     auto done = std::make_shared<std::promise<Result<void>>>();
     auto future = done->get_future();
-    Impl* s = impl_.get();
+    std::shared_ptr<Impl> s = impl_;
     s->session.host().post([s, done, code = std::move(code), name = std::move(name)] {
+        if (!*s->alive) {
+            done->set_value(std::unexpected(gone()));
+            return;
+        }
         s->next_signal = 0;  // the script's signals are the last run's, in order
         if (s->vm >= 0) {
             // Its watches are made again by the run: the last run's go.

@@ -311,6 +311,35 @@ p.then((best) => {
         check(!missing && missing.error().text().find("no native module `nope`") != std::string::npos, missing ? "" : missing.error().text());
     });
 
+    s.test("a script destroyed while it loads: its run finishes first, its queued runs are refused, its verbs answer that it is gone", [] {
+        // Each verb registration waits on the runtime's thread, which is the
+        // one destroying the script: the teardown arrives while the script's
+        // code is on the script thread's stack.
+        const std::string busy = R"js(import { verb } from "openmui";
+for (let i = 0; i < 200; i++) verb("load.v" + (i % 4), { effect: "read" }, () => ({ i: 1 }));
+)js";
+        for (int round = 0; round < 8; ++round) {
+            Runtime r;
+            lang::Host host(r.rt);
+            lang::Session session(host);
+            auto a = std::make_unique<lang::js::Script>(session);
+            auto b = std::make_unique<lang::js::Script>(session);
+            auto first = a->run(busy, "a.js");
+            auto queued_b = b->run(busy, "b.js");
+            auto queued_a = a->run(busy, "a2.js");
+            std::this_thread::sleep_for(std::chrono::milliseconds(round % 2 ? 2 : 0));
+            a.reset();
+            b.reset();
+            (void)first.get();
+            const auto rb = queued_b.get(), ra = queued_a.get();
+            // b's run may start while a's teardown waits (b is not destroyed yet); if not, it is refused.
+            check(rb || rb.error().message.contains("gone"), rb ? "" : rb.error().message);
+            check(!ra && ra.error().message.contains("gone"), ra ? "a's queued run ran after a was destroyed" : ra.error().message);
+            const Json answer = invoke(r, "load.v0", Json::object());
+            check(answer.is_null() || answer.contains("runner-error"), std::format("a verb of a destroyed script answers nothing: {}", answer.dump()));
+        }
+    });
+
     s.test("a reload keeps the state, the nodes, and replaces the handlers", [] {
         Runtime r;
         Js js(r);

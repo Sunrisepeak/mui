@@ -286,6 +286,33 @@ assert(not ok3 and err3:find("pattern"), err3)
         check(!raised && raised.error().text().find("omui.mount(slot, element)") != std::string::npos, raised ? "" : raised.error().text());
     });
 
+    s.test("a script destroyed while it loads: its run finishes first, its queued runs are refused, its verbs answer that it is gone", [] {
+        // Each verb registration waits on the runtime's thread, which is the
+        // one destroying the script: the teardown arrives while the script's
+        // code is on the script thread's stack.
+        const std::string busy = R"lua(for i = 0, 199 do omui.verb("load.v" .. (i % 4), { effect = "read" }, function() return { i = 1 } end) end)lua";
+        for (int round = 0; round < 8; ++round) {
+            Runtime r;
+            lang::Host host(r.rt);
+            lang::Session session(host);
+            auto a = std::make_unique<lang::lua::Script>(session);
+            auto b = std::make_unique<lang::lua::Script>(session);
+            auto first = a->run(busy, "=a");
+            auto queued_b = b->run(busy, "=b");
+            auto queued_a = a->run(busy, "=a2");
+            std::this_thread::sleep_for(std::chrono::milliseconds(round % 2 ? 2 : 0));
+            a.reset();
+            b.reset();
+            (void)first.get();
+            const auto rb = queued_b.get(), ra = queued_a.get();
+            // b's run may start while a's teardown waits (b is not destroyed yet); if not, it is refused.
+            check(rb || rb.error().message.contains("gone"), rb ? "" : rb.error().message);
+            check(!ra && ra.error().message.contains("gone"), ra ? "a's queued run ran after a was destroyed" : ra.error().message);
+            const Json answer = invoke(r, "load.v0", Json::object());
+            check(answer.is_null() || answer.contains("runner-error"), std::format("a verb of a destroyed script answers nothing: {}", answer.dump()));
+        }
+    });
+
     s.test("a reload keeps the state, the nodes, and replaces the handlers", [] {
         Runtime r;
         Lua lua(r);

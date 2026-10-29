@@ -78,6 +78,17 @@ public:
         }
     }
 
+    // A script's interpreter torn down on the script thread, whatever the
+    // script is doing (a language's Script::~Script, from the runtime's
+    // thread). `down` runs there and answers false while the script's own
+    // code is on that thread's stack — a run or a handler waiting on the
+    // runtime's thread, the caller, which got there while it waits — and is
+    // asked again, what the script asks of the runtime done meanwhile, until
+    // that code has returned and `down` has torn it down. From the script
+    // thread `down` is asked once: the script's code beneath it tears the
+    // interpreter down when it returns.
+    void retire(const std::function<bool()>& down);
+
     // Nothing queued or running on the script thread and nothing in flight
     // to the runtime: what a test (or a frame loop) waits for.
     [[nodiscard]] bool idle() const noexcept;

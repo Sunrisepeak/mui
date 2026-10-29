@@ -138,6 +138,7 @@ private:
     // The frame's view of the scene.
     mutable std::vector<world::NodeRef> visible_;
     std::vector<std::string>             promoted_;   // keys composed as live components
+    std::vector<std::uint64_t>           promoted_revisions_;  // their content revisions when composed (Scene::touch)
     mutable Stats                        stats_;
     mutable std::uint64_t                drawn_revision_ = 0;
     std::string                          focused_;
@@ -152,11 +153,13 @@ private:
     Size                                 placed_for_{};     // the viewport the live nodes were placed for
     bool                                 refit_ = false;    // fitted by `start`, untouched since: fits again when its size changes
     Canvas*                              self_ = nullptr;  // for the steps the painting (const) schedules
-    // The scene observed: its changes are drawn (coalesced to one repaint).
+    // The scene observed: its changes are drawn (coalesced to one repaint)
+    // and its live nodes placed again at the next step.
     void                                 observe();
     std::string                          observed_;
+    world::Scene*                        watched_ = nullptr;  // the scene `observer_` is on (a scene dropped and made again is another)
     std::uint64_t                        observer_ = 0;
-    mutable bool                         scene_dirty_ = false;
+    bool                                 resync_ = false;     // changed since the step last placed the live nodes
     mutable world::Textures              textures_;
     mutable std::uint64_t                frame_ = 0;
 };

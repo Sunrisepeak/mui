@@ -165,6 +165,17 @@ void Host::run_on_script(std::function<void()> fn) {
     drain();
 }
 
+void Host::retire(const std::function<bool()>& down) {
+    if (on_script_thread()) {
+        (void)down();
+        return;
+    }
+    // Each time `down` answers false, the script's code goes on (its wait for
+    // this thread answered by run_on_script's draining) toward its return.
+    while (!script([&] { return down(); })) {
+    }
+}
+
 bool Host::idle() const noexcept {
     std::scoped_lock lock(mutex_);
     return queue_.empty() && urgent_.empty() && !running_ && inbox_->in_flight.load() == 0;

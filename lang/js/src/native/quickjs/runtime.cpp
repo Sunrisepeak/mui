@@ -32,9 +32,33 @@ struct Script::Impl {
     std::map<std::string, std::vector<int>>     slot_functions;  // a mounted view's handlers
     std::vector<int>                            pending_slot;    // handlers of the mount in progress
     std::vector<std::pair<std::uint64_t, int>>  watches;         // this run's watches (token, function): a reload lets them go
-    std::shared_ptr<bool>                       alive = std::make_shared<bool>(true);  // false once the context is gone
+    std::shared_ptr<bool>                       alive = std::make_shared<bool>(true);  // false once the script is destroyed
+    int                                         active = 0;  // its JavaScript on the script thread's stack
 
     explicit Impl(Session& s) : session(s) {}
+
+    // The context and the runtime let go: once, never while its JavaScript
+    // is on the stack (Script::~Script waits for that, or the outermost
+    // Inside lets them go when it returns).
+    void close() {
+        if (!rt) return;
+        for (auto& [id, f] : functions) JS_FreeValue(ctx, f);
+        functions.clear();
+        JS_FreeContext(ctx);
+        JS_FreeRuntime(rt);
+        ctx = nullptr;
+        rt = nullptr;
+    }
+    // Around the script's JavaScript: what a teardown waits for.
+    struct Inside {
+        Impl& s;
+        explicit Inside(Impl& i) : s(i) { ++s.active; }
+        ~Inside() {
+            if (--s.active == 0 && !*s.alive) s.close();  // destroyed while it ran (from its own thread): it goes now
+        }
+        Inside(const Inside&) = delete;
+        Inside& operator=(const Inside&) = delete;
+    };
 
     int keep(JSValueConst f) {
         const int id = next_function++;
@@ -80,6 +104,7 @@ struct Script::Impl {
     // string); answers its result as text (JSON.stringify'd by the prelude for
     // verbs), or nothing when it threw.
     std::optional<std::string> call(int id, std::string_view arg, bool parse) {
+        Inside in(*this);
         auto it = functions.find(id);
         if (it == functions.end()) return std::nullopt;
         JSValue a = parse ? JS_ParseJSON(ctx, arg.data(), arg.size(), "<event>") : JS_NewStringLen(ctx, arg.data(), arg.size());
@@ -164,7 +189,10 @@ JSValue n_signal_watch(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
     const int id = s.keep(argv[1]);
     Script::Impl* self = &s;
     const std::uint64_t token = s.session.watch(static_cast<abi::OmuiSignal>(integer(ctx, argv[0])),
-                                                [self, id](const Json& v) { (void)self->call(id, v.dump(-1, ' ', false, Json::error_handler_t::replace), false); });
+                                                [self, alive = std::weak_ptr<bool>(s.alive), id](const Json& v) {
+                                                    if (auto a = alive.lock(); a && *a)
+                                                        (void)self->call(id, v.dump(-1, ' ', false, Json::error_handler_t::replace), false);
+                                                });
     s.watches.emplace_back(token, id);
     return JS_UNDEFINED;
 }
@@ -197,7 +225,9 @@ JSValue n_mount(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
     auto root = element_from_json(tree, [&](std::size_t index) -> std::optional<Handler> {
         if (index >= handlers.size()) return std::nullopt;
         const int id = handlers[index];
-        return [self, id](const Json& event) { (void)self->call(id, event.dump(), true); };
+        return [self, alive = std::weak_ptr<bool>(s.alive), id](const Json& event) {
+            if (auto a = alive.lock(); a && *a) (void)self->call(id, event.dump(), true);
+        };
     });
     Result<void> r = root ? s.session.mount(slot, *root) : Result<void>(std::unexpected(root.error()));
     if (!r) {
@@ -243,7 +273,8 @@ JSValue n_verb(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
                            o.value("person", false)};
     const int id = s.keep(argv[2]);
     Script::Impl* self = &s;
-    auto r = s.session.verb(std::move(spec), [self, id](const Json& args) -> Result<Json> {
+    auto r = s.session.verb(std::move(spec), [self, alive = std::weak_ptr<bool>(s.alive), id](const Json& args) -> Result<Json> {
+        if (auto a = alive.lock(); !a || !*a) return std::unexpected(Error{abi::OMUI_ERROR_REFUSED, "the script is gone"});
         auto out = self->call(id, args.dump(), false);
         if (!out) return std::unexpected(Error{abi::OMUI_ERROR_REFUSED, "the verb threw"});
         Json v = Json::parse(*out, nullptr, false);
@@ -345,6 +376,7 @@ JSValue n_native_async(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
                            [impl = &s, alive = std::weak_ptr<bool>(s.alive), resolve, reject](lang::Result<Json> r) {
                                auto live = alive.lock();
                                if (!live || !*live) return;
+                               Script::Impl::Inside in(*impl);
                                const std::string out = r ? r->dump() : r.error().text();
                                JSValue arg = JS_NewStringLen(impl->ctx, out.data(), out.size());
                                JSValue f = impl->functions.at(r ? resolve : reject);
@@ -432,7 +464,7 @@ JSModuleDef* load_module(JSContext* ctx, const char* name, void*) {
 
 }  // namespace
 
-Script::Script(Session& session) : impl_(std::make_unique<Impl>(session)) {
+Script::Script(Session& session) : impl_(std::make_shared<Impl>(session)) {
     Impl* s = impl_.get();
     session.host().script([s] {
         s->rt = JS_NewRuntime();
@@ -473,14 +505,17 @@ Script::Script(Session& session) : impl_(std::make_unique<Impl>(session)) {
     });
 }
 
+// Safe while it loads: its JavaScript on the script thread's stack (a run
+// waiting on this thread for the runtime) finishes before the context goes;
+// the runs still queued, an async native's answer and what the runtime calls
+// later find it gone.
 Script::~Script() {
     Impl* s = impl_.get();
-    s->session.host().script([s] {
-        *s->alive = false;  // an async native's answer arriving later finds no context
-        for (auto& [id, f] : s->functions) JS_FreeValue(s->ctx, f);
-        s->functions.clear();
-        JS_FreeContext(s->ctx);
-        JS_FreeRuntime(s->rt);
+    s->session.host().retire([s] {
+        *s->alive = false;
+        if (s->active > 0) return false;
+        s->close();
+        return true;
     });
 }
 
@@ -488,7 +523,11 @@ void Script::on_error(std::function<void(std::string_view)> fn) { impl_->errors 
 
 namespace {
 
+Error gone() { return Error{abi::OMUI_ERROR_REFUSED, "the script is gone"}; }
+
 Result<void> run_module(Script::Impl& s, const std::string& code, const std::string& name) {
+    if (!*s.alive) return std::unexpected(gone());
+    Script::Impl::Inside in(s);
     JSValue r = JS_Eval(s.ctx, code.data(), code.size(), name.c_str(), JS_EVAL_TYPE_MODULE);
     if (JS_IsException(r)) return std::unexpected(Error{abi::OMUI_ERROR_INVALID_ARGUMENT, s.exception_text()});
     s.run_jobs();
@@ -512,7 +551,9 @@ Result<void> run_module(Script::Impl& s, const std::string& code, const std::str
 std::future<Result<void>> Script::run(std::string code, std::string name) {
     auto done = std::make_shared<std::promise<Result<void>>>();
     auto future = done->get_future();
-    Impl* s = impl_.get();
+    // The script's state is shared with the run queued: one queued when the
+    // script is destroyed finds it gone, not freed.
+    std::shared_ptr<Impl> s = impl_;
     s->session.host().post([s, done, code = std::move(code), name = std::move(name)] { done->set_value(run_module(*s, code, name)); });
     return future;
 }
@@ -520,8 +561,12 @@ std::future<Result<void>> Script::run(std::string code, std::string name) {
 std::future<Result<void>> Script::reload(std::string code, std::string name) {
     auto done = std::make_shared<std::promise<Result<void>>>();
     auto future = done->get_future();
-    Impl* s = impl_.get();
+    std::shared_ptr<Impl> s = impl_;
     s->session.host().post([s, done, code = std::move(code), name = std::move(name)]() mutable {
+        if (!*s->alive) {
+            done->set_value(std::unexpected(gone()));
+            return;
+        }
         s->next_signal = 0;  // the module's signals are the last run's, in order
         for (const auto& [token, id] : s->watches) {  // the last run's watches go: this run makes its own again
             s->session.unwatch(token);

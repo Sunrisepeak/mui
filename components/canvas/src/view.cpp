@@ -37,19 +37,23 @@ Size Canvas::viewport() const {
 
 Camera Canvas::camera() const { return camera_; }
 
+// The scene watched from mount on: one named and not made yet is made (empty)
+// here, so whoever fills it later fills the one this canvas watches.
 void Canvas::observe() {
     if (!observed_.empty())
-        if (world::Scene* old = world::find_scene(observed_)) old->unobserve(observer_);
+        if (world::Scene* old = world::find_scene(observed_); old && old == watched_) old->unobserve(observer_);
     observed_ = props.scene;
     observer_ = 0;
-    world::Scene* s = scene();
-    if (!s) return;
-    observer_ = s->observe([this] {
-        if (scene_dirty_) return;
-        scene_dirty_ = true;
+    watched_ = props.scene.empty() ? nullptr : &world::scene(props.scene);
+    if (!watched_) return;
+    observer_ = watched_->observe([this] {
+        if (resync_) return;
+        resync_ = true;
         services().invalidate_paint(node());
         services().invalidate_semantics(node());
-        // The live nodes: placed again when the frame starts.
+        // The live nodes: placed again when the next frame starts (the flag
+        // is the step's to clear, never the painting's: a change made before
+        // this frame's paint is still placed by the next frame's step).
         schedule();
     });
 }
@@ -162,7 +166,10 @@ void Canvas::schedule() {
 
 void Canvas::step() {
     if (!started_ && !props.start.empty()) laid_out();  // the scene was empty when it was laid out
-    if (scene_dirty_) place();  // the scene changed: its live nodes again
+    if (resync_) {  // the scene changed: its live nodes again
+        resync_ = false;
+        place();
+    }
     // Textures that came back: drawn this frame.
     if (textures_.collect(services().images(), frame_, services().deterministic())) services().invalidate_paint(node());
     const bool moving = motion_ || glide_;
@@ -186,7 +193,7 @@ Canvas::~Canvas() {
     if (attached())
         for (const auto& b : behaviors_) b->unmounted(host_);
     if (!observed_.empty())
-        if (world::Scene* s = world::find_scene(observed_)) s->unobserve(observer_);
+        if (world::Scene* s = world::find_scene(observed_); s && s == watched_) s->unobserve(observer_);
     if (tick_ && attached()) services().cancel(tick_);
     if (promote_timer_ && attached()) services().cancel(promote_timer_);
     if (attached()) textures_.clear(services().images());
@@ -260,6 +267,7 @@ void Canvas::place() {
     world::Scene* s = scene();
     const Size vp = viewport();
     std::vector<std::string> keys;
+    std::vector<std::uint64_t> revisions;  // each one's content revision: a touched node is composed again
     // While the camera moves, no node goes live (a live node is laid out on
     // the UI thread: a zoom through a wall would stall on each one); those
     // already live stay, the focused one goes at once, the rest when it rests.
@@ -275,7 +283,10 @@ void Canvas::place() {
             const std::size_t t = tier_of(k, camera_.to_screen(s->rect(n), vp), key == focused_);
             if (k.tiers[t].draw != world::Tier::Draw::promote) continue;
             if (moving && key != focused_ && std::ranges::find(promoted_, key) == promoted_.end()) deferred = true;
-            else keys.emplace_back(key);
+            else {
+                keys.emplace_back(key);
+                revisions.push_back(s->content_revision(n));
+            }
         }
     }
     if (deferred && !promote_timer_)
@@ -284,8 +295,9 @@ void Canvas::place() {
             place();
             services().invalidate_paint(node());
         });
-    if (keys != promoted_) {
+    if (keys != promoted_ || revisions != promoted_revisions_) {
         promoted_ = std::move(keys);
+        promoted_revisions_ = std::move(revisions);
         services().recompose(node());
         return;
     }
@@ -387,7 +399,6 @@ void Canvas::paint(PaintContext& ctx) const {
     trace::Span span("canvas.paint", "canvas");
     const auto from = std::chrono::steady_clock::now();
     const Size vp = ctx.size;
-    scene_dirty_ = false;
     ctx.list.fill_rect({0, 0, vp.width, vp.height}, ctx.theme.color(props.background, ctx.theme.color("background")));
     stats_ = {};
     visible_.clear();

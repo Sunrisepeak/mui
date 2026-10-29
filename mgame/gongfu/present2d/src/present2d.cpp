@@ -1540,6 +1540,22 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         const omui::geom::Rect r{std::min(lo.x, hi.x), std::min(lo.y, hi.y), std::abs(hi.x - lo.x), std::abs(hi.y - lo.y)};
         // Fading in over its first frames.
         const double in = std::min(1.0, (st.frame - piece.placed + 1) / 6.0);
+        // Drawn art: its region standing on the pane's middle, as tall as the pane (whole, or cracked once worn).
+        if (const Picture* pic = look.pane.picture >= 0 && static_cast<std::size_t>(look.pane.picture) < look.pictures.size()
+                                     ? &look.pictures[static_cast<std::size_t>(look.pane.picture)]
+                                     : nullptr;
+            pic && pic->ref.id != 0) {
+            const omui::geom::Rect& src = piece.durability >= 2 ? look.pane.whole : look.pane.cracked;
+            const float w = src.height > 0 ? r.height * src.width / src.height : r.width;
+            out.draw_image(pic->ref, src, {r.x + (r.width - w) / 2, r.y, w, r.height}, render::Sampling::linear, static_cast<float>(in));
+            if (piece.reflects > 0) {
+                path_.clear();
+                path_.move_to({r.x + (r.width - w) / 2, r.y}).line_to({r.x + (r.width + w) / 2, r.y}).line_to({r.x + (r.width + w) / 2, r.y + r.height})
+                    .line_to({r.x + (r.width - w) / 2, r.y + r.height}).close();
+                out.stroke_path(path_, {.width = view.size(2.f)}, render::Paint::solid(fade(look.pane.reflect, in)));
+            }
+            continue;
+        }
         out.fill_rect(r, fade(look.pane.glass, in));
         path_.clear();
         path_.move_to({r.x + r.width * 0.15f, r.y + r.height * 0.55f}).line_to({r.x + r.width * 0.85f, r.y + r.height * 0.3f}).line_to({r.x + r.width * 0.85f, r.y + r.height * 0.38f})

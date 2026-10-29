@@ -488,12 +488,16 @@ struct Look {
     } glow;
     // Its set pieces (G-15, panes): the glass, its edge (a pane that turns
     // projectiles back: `reflect`), the shine across it; cracks as it loses
-    // durability.
+    // durability. Or drawn art: a picture's region standing where the pane
+    // stands (`whole`; `cracked` once it has lost durability), the edge of
+    // one that turns projectiles back drawn over it.
     struct Pane {
-        Color glass = Color::hex(0xcfe8ff, 0.22f);
-        Color edge = Color::hex(0xe8f6ff, 0.85f);
-        Color shine = Color::hex(0xffffff, 0.5f);
-        Color reflect = Color::hex(0xffd36b, 0.9f);
+        Color            glass = Color::hex(0xcfe8ff, 0.22f);
+        Color            edge = Color::hex(0xe8f6ff, 0.85f);
+        Color            shine = Color::hex(0xffffff, 0.5f);
+        Color            reflect = Color::hex(0xffd36b, 0.9f);
+        std::int32_t     picture = -1;
+        omui::geom::Rect whole, cracked;
     } pane;
     // Time (刻): its clone drawn in a tint; a rewind leaving `ghosts` along
     // the way back, fading over `frames`.

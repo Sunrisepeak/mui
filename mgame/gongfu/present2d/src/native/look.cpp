@@ -71,7 +71,7 @@ constexpr std::array<std::string_view, 4> follow_keys{"lag", "amount", "max", "d
 constexpr std::array<std::string_view, 3> trail_keys{"color", "frames", "alpha"};
 constexpr std::array<std::string_view, 2> glow_keys{"color", "width"};
 constexpr std::array<std::string_view, 3> footfall_keys{"every", "dip", "frames"};
-constexpr std::array<std::string_view, 4> pane_keys{"glass", "edge", "shine", "reflect"};
+constexpr std::array<std::string_view, 7> pane_keys{"glass", "edge", "shine", "reflect", "picture", "whole", "cracked"};
 constexpr std::array<std::string_view, 1> clone_keys{"tint"};
 constexpr std::array<std::string_view, 3> rewind_keys{"color", "ghosts", "frames"};
 constexpr std::array<std::string_view, 3> stop_keys{"from", "to", "tint"};
@@ -1221,6 +1221,13 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
         if (auto c = r.colour(t->get("edge"), "a pane's `edge`")) look.pane.edge = *c;
         if (auto c = r.colour(t->get("shine"), "a pane's `shine`")) look.pane.shine = *c;
         if (auto c = r.colour(t->get("reflect"), "a pane's `reflect`")) look.pane.reflect = *c;
+        if (t->get("picture")) {
+            look.pane.picture = picture_index(t->get("picture"), "a pane's `picture`");
+            if (auto v = r.rect(t->get("whole"), "a pane's `whole`")) look.pane.whole = *v, inside(t->get("whole"), look.pane.picture, *v);
+            else r.error(t, "a pane drawn from a picture has its `whole` region", "pane = { picture = \"fx\", whole = [x, y, w, h], cracked = [x, y, w, h] }");
+            look.pane.cracked = look.pane.whole;
+            if (auto v = r.rect(t->get("cracked"), "a pane's `cracked`")) look.pane.cracked = *v, inside(t->get("cracked"), look.pane.picture, *v);
+        }
     }
     if (const toml::table* t = r.table_of(root->get("clone"), "`clone`")) {
         r.only(*t, clone_keys, "`clone`");
@@ -1618,9 +1625,13 @@ std::string write_look(const Look& look) {
     if (look.light.shade > 0)
         s += std::format("light = {{ from = [{}, {}], shade = {}, darken = {}, shadow = {}, rim = {}, rim_color = {} }}\n", look.light.from.x, look.light.from.y,
                          look.light.shade, look.light.darken, colour_text(look.light.shadow), look.light.rim, colour_text(look.light.rim_color));
-    if (look.pane.glass != Look::Pane{}.glass || look.pane.edge != Look::Pane{}.edge || look.pane.shine != Look::Pane{}.shine || look.pane.reflect != Look::Pane{}.reflect)
-        s += std::format("pane = {{ glass = {}, edge = {}, shine = {}, reflect = {} }}\n", colour_text(look.pane.glass), colour_text(look.pane.edge),
-                         colour_text(look.pane.shine), colour_text(look.pane.reflect));
+    if (look.pane.glass != Look::Pane{}.glass || look.pane.edge != Look::Pane{}.edge || look.pane.shine != Look::Pane{}.shine || look.pane.reflect != Look::Pane{}.reflect ||
+        look.pane.picture >= 0)
+        s += std::format("pane = {{ glass = {}, edge = {}, shine = {}, reflect = {}{} }}\n", colour_text(look.pane.glass), colour_text(look.pane.edge),
+                         colour_text(look.pane.shine), colour_text(look.pane.reflect),
+                         look.pane.picture >= 0 ? std::format(", picture = \"{}\", whole = {}, cracked = {}", look.pictures.at(static_cast<std::size_t>(look.pane.picture)).name,
+                                                              rect_text(look.pane.whole), rect_text(look.pane.cracked))
+                                                : std::string());
     if (look.clone.tint != Look::CloneLook{}.tint) s += std::format("clone = {{ tint = {} }}\n", colour_text(look.clone.tint));
     if (look.rewind.ghosts > 0)
         s += std::format("rewind = {{ color = {}, ghosts = {}, frames = {} }}\n", colour_text(look.rewind.color), look.rewind.ghosts, look.rewind.frames);

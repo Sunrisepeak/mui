@@ -1348,6 +1348,46 @@ spark = { style = "rays", colour = "#ffd166" }
               "the pane's colours, written back");
     });
 
+    s.test("set pieces drawn from a picture: the whole region standing on a pane, the cracked one once worn, a gold edge on one that turns projectiles back; read back", [&] {
+        auto look = p2::read_look("pane = { glass = \"#9fd8ff4c\", edge = \"#ffffffcc\", shine = \"#ffffff80\", reflect = \"#ffd36be6\", picture = \"fx\", "
+                                  "whole = [0, 0, 10, 30], cracked = [10, 0, 10, 30] }\n" +
+                                      read(here() / "data" / "kata.look.gongfu.toml") + "\n[[picture]]\nname = \"fx\"\nfile = \"fx.webp\"\nsize = [20, 30]\n",
+                                  "kata.look.gongfu.toml");
+        check(look.has_value(), look ? "" : std::format("{}", texts(look.error())));
+        if (!look) return;
+        const std::string written = p2::write_look(*look);
+        auto again = p2::read_look(written, "w.look.gongfu.toml");
+        check(again && again->pane.picture == 0 && again->pane.cracked.x == 10 && p2::write_look(*again) == written, "the pane's picture, written back");
+        // The picture: its left half blue (whole), its right half red (cracked).
+        std::vector<omui::raster::Rgba8> px(20 * 30);
+        for (int y = 0; y < 30; ++y)
+            for (int x = 0; x < 20; ++x) px[static_cast<std::size_t>(y * 20 + x)] = x < 10 ? omui::raster::Rgba8{0, 0, 255, 255} : omui::raster::Rgba8{255, 0, 0, 255};
+        omui::render::ImageStore images;
+        look->pictures[0].ref = images.add(20, 30, std::move(px));
+        Match m = close_match();
+        State st = m.state();
+        const Fixed mid = m.system().stage_width / 2;
+        st.pieces[0] = {1, 0, {mid - 150_fx, 0_fx}, 2, 300, 0, -1, 0, 0, 0};
+        st.pieces[1] = {1, 0, {mid + 150_fx, 0_fx}, 1, 300, 0, -1, 0, 0, 0};
+        st.frame = 40;
+        m.restore(st);
+        p2::Effects fx;
+        omui::render::DisplayList dl;
+        p2::draw(m, *look, paper, fx, {}, dl);
+        omui::raster::Surface out(960, 540);
+        omui::render::CpuRenderer{}.render(dl, out, {&images, nullptr}, {.scale = 1});
+        save(out, "panes-drawn");
+        const p2::Camera cam = p2::frame_camera(m, {});
+        const auto at = [&](Fixed x) {
+            const Box& box = m.system().piece_box;
+            const p2::Point p = p2::on_picture(p2::Scene{}, cam, (x + box.x).to_double() + box.w.to_double() / 2, (box.y + box.h / 2).to_double());
+            return out.at(static_cast<int>(p.x), static_cast<int>(p.y));
+        };
+        const auto whole = at(mid - 150_fx), cracked = at(mid + 150_fx);
+        check(whole.b > 200 && whole.r < 60 && cracked.r > 200 && cracked.b < 60,
+              std::format("whole {} {} {}, cracked {} {} {}", whole.r, whole.g, whole.b, cracked.r, cracked.g, cracked.b));
+    });
+
     s.test("hit feel: the struck shakes through the hitstop; the camera shakes only where the impact asks", [&] {
         const auto play = [&](float shake) {
             p2::Look l = ink;

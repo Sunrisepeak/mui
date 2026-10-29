@@ -68,6 +68,8 @@ void text_input(Window& w, std::optional<Rect> caret);
 void cursor(Window& w, std::string_view shape);
 [[nodiscard]] std::string clipboard();
 void set_clipboard(std::string_view text);
+// The system's handler of an address (the browser, the mail program).
+bool open_url(std::string_view url);
 // Wakes a poll that sleeps (from any thread).
 void wake();
 // The person's languages as the system states them, best first, as BCP 47

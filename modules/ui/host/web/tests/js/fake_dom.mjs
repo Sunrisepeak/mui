@@ -188,6 +188,13 @@ export class Window extends Target {
     super();
     this.devicePixelRatio = 2;
     this.document = new Document(this);
+    this.opened = [];     // window.open's: [url, target, features]
+    this.assigned = [];   // the addresses this tab went to
+    this.location = { assign: (url) => this.assigned.push(url) };
+  }
+  open(url, target, features) {
+    this.opened.push([url, target, features]);
+    return null;  // noopener: a browser gives no handle
   }
   dispatchEvent(event) {
     event.target = this;

@@ -1152,6 +1152,21 @@ int main(int argc, char** argv) {
         check(GlyphMotion::wave().repeat == 0 && glyph_frame(GlyphMotion::wave(), seconds(100), one).moving, "a wave never ends");
     });
 
+    s.test("an address outside the program: only http, https and mailto; the host opens it; every one kept", [] {
+        Runtime rt(options());
+        check(!rt.open_url("https://example.org/a"), "no host: nothing opens it");
+        std::vector<std::string> host;
+        rt.set_url_opener([&](std::string_view url) {
+            host.emplace_back(url);
+            return true;
+        });
+        check(rt.open_url("mailto:someone@example.org"));
+        check(!rt.open_url("javascript:alert(1)"), "a script is not an address");
+        check(!rt.open_url("file:///etc/passwd"), "nor a file");
+        check(host == std::vector<std::string>{"mailto:someone@example.org"});
+        check(rt.opened() == std::vector<std::string>{"https://example.org/a", "mailto:someone@example.org"}, "what was asked for, in order");
+    });
+
     s.test("history (S-12): undo and redo, barriers, scopes, the keyboard", [] {
         Runtime rt(options());
         int changes = 0;

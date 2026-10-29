@@ -19,7 +19,7 @@ const library = readFileSync(here('../../src/js/omui_web.js'), 'utf8');
 
 // A page with a canvas at (100, 50), 200×160 CSS pixels, and the library
 // opened on it: what the program was told, in order, in `heard`.
-function page({ storage = new Storage(), clipboard = null, permissions = null } = {}) {
+function page({ storage = new Storage(), clipboard = null, permissions = null, activation = undefined } = {}) {
   const window = new Window();
   const document = window.document;
   const canvas = document.createElement('canvas');
@@ -34,6 +34,7 @@ function page({ storage = new Storage(), clipboard = null, permissions = null } 
       readText: () => Promise.resolve('from the system'),
     },
     permissions: permissions ?? { query: () => Promise.resolve({ state: 'granted' }) },
+    userActivation: activation,
   };
   const context = {
     window, document, navigator, Module: {}, console,
@@ -182,6 +183,18 @@ const first = JSON.stringify({
     { id: 'main/status', set: { 'aria-label': 'Ready', 'aria-live': 'off', role: 'status' }, box: [10, 88, 100, 16] },
   ],
   revision: 17,
+});
+
+test('an address: a new tab inside the person\'s activation, else this tab; never a script', () => {
+  const p = page({ activation: { isActive: true } });
+  assert.equal(p.context.omui_web_open_url('https://github.com/openlifa/openmui'), 1);
+  assert.deepEqual(plain(p.window.opened), [['https://github.com/openlifa/openmui', '_blank', 'noopener,noreferrer']]);
+  assert.equal(p.context.omui_web_open_url('javascript:alert(1)'), 0, 'not an address');
+  assert.equal(p.context.omui_web_open_url('data:text/html,hi'), 0);
+  const late = page({ activation: { isActive: false } });
+  assert.equal(late.context.omui_web_open_url('mailto:speakshen@outlook.com'), 1);
+  assert.deepEqual(plain(late.window.opened), [], 'no window without the person\'s activation');
+  assert.deepEqual(plain(late.window.assigned), ['mailto:speakshen@outlook.com']);
 });
 
 test('the semantic DOM mirror: elements made, then only what changed', () => {

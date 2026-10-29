@@ -159,8 +159,8 @@ int main(int argc, char** argv) {
         std::println("    home tree {:016x}", h);
         check(h == site::pinned_home_hash, "the hash the footer compares");
         check(a.text("main/foot/hash").find("✓") != std::string::npos, a.text("main/foot/hash"));
-        // A narrower window moves every box, not the tree.
-        Headless narrow{HeadlessOptions{.size = {900, 700}}};
+        // A narrower window moves every box, scrolls further and leaves some of the page off screen: not the tree.
+        Headless narrow{HeadlessOptions{.size = {820, 640}}};
         AppSpec spec = site::app();
         spec.setup(narrow.runtime());
         narrow.mount("main", spec.view());
@@ -192,7 +192,88 @@ int main(int argc, char** argv) {
         check(tracks() == was, "the very timeline again");
     });
 
-    s.test("the site's pixels pinned on every platform: home, the wireframe, the agent's JSON, the timeline, Chinese", [] {
+    s.test("a document's links: another place of the site, or outside through the host", [] {
+        Site a;
+        Invocation person;  // the person at the machine (not over the bus)
+        person.args = Value{}.set("href", Value("features.md"));
+        person.answer = "yes";
+        check(a.h.tree().act("main/body/view/home/home_doc", "open_link", person).exit_code() == std::optional<int>(0), "a link to the features");
+        a.h.settle();
+        check(a.visible("main/body/view/features"), "the features shown");
+        check(a.h.runtime().opened().empty(), "nothing opened outside");
+        check(a.h.click("main/body/nav/to_home"));
+        a.h.settle();
+        person.args = Value{}.set("href", Value("https://github.com/openlifa/openmui"));
+        check(a.h.tree().act("main/body/view/home/home_doc", "open_link", person).exit_code() == std::optional<int>(0), "the spec's repository");
+        check(a.h.runtime().opened() == std::vector<std::string>{"https://github.com/openlifa/openmui"}, "opened by the host");
+        check(!a.h.runtime().open_url("javascript:alert(1)"), "never a script");
+    });
+
+    s.test("an agent on the page: real requests, openas deciding — it asks first, the person answers, and only the person", [] {
+        Site a;
+        auto run = [&](std::string_view task) {
+            check(a.h.click(std::format("main/body/guide/tasks/task_{}", task)), std::format("the task {}", task));
+            a.h.advance(seconds(4));
+            a.h.settle(seconds(1));
+        };
+        check(a.h.click("main/bar/guide_toggle"));
+        a.h.settle();
+        check(a.visible("main/body/guide"), "the panel");
+        const auto said = [&] { return a.text("main/body/guide/said/transcript"); };
+
+        run("read");
+        check(said().find(R"(→ {"op":"snapshot","actor":"agent:guide","root":"main/body/view/home","depth":2})") != std::string::npos, said());
+        check(said().find(R"(← {"kind":"result","exitCode":0})") != std::string::npos, "read: it runs");
+
+        run("tour");
+        check(a.text("main/body/nav/to_features") == "特性", "the language switched by the agent");
+        check(a.visible("main/body/view/features"), "and the features open");
+        check(a.h.click("main/bar/lang"));
+        a.h.settle();
+
+        run("edit");
+        check(a.visible("main/body/view/timeline"), "the timeline");
+        const Value ed = a.h.tree().node("main/body/view/timeline/editor")->value;
+        check(ed.get("tracks") && ed.get("tracks")->list()->front().get("clips")->list()->size() == 2, std::format("split, then undone: {}\n{}", ed.json(), said()));
+        check(said().find(R"("action":"split")") != std::string::npos && said().find(R"("op":"undo")") != std::string::npos, "split and undo, as requests");
+
+        // External: it asks the person first (exit code 2), and waits.
+        run("link");
+        check(a.visible("main/body/guide/asking"), "the agent asks");
+        check(said().find(R"("exitCode":2)") != std::string::npos, "needs the person's answer");
+        check(a.h.runtime().opened().empty(), "nothing opened yet");
+        // It cannot answer for the person (S-10), whatever it claims.
+        run("self");
+        check(said().find("person-only") != std::string::npos || said().find("person's own") != std::string::npos, said());
+        check(a.visible("main/body/guide/asking"), "still asking");
+        // The person allows it once: the request again with the answer.
+        check(a.h.click("main/body/guide/asking/answer/allow_once"));
+        a.h.advance(seconds(1));
+        a.h.settle(seconds(1));
+        check(a.h.runtime().opened() == std::vector<std::string>{"https://github.com/openlifa/openas"}, "opened, once");
+        check(!a.visible("main/body/guide/asking"), "nothing asked now");
+        // Once was once; for this visit is a grant.
+        run("link");
+        check(a.visible("main/body/guide/asking"), "asks again");
+        check(a.h.click("main/body/guide/asking/answer/allow"));
+        a.h.advance(seconds(1));
+        a.h.settle(seconds(1));
+        check(a.h.runtime().opened().size() == 2, "opened");
+        check(a.text("main/body/guide/held/grants") == "Grants: agent:guide=external@open_link", a.text("main/body/guide/held/grants"));
+        run("link");
+        check(!a.visible("main/body/guide/asking") && a.h.runtime().opened().size() == 3, "within the grant: it runs without asking");
+        check(a.h.click("main/body/guide/held/revoke"));
+        a.h.settle();
+        check(a.text("main/body/guide/held/grants") == "Grants: none");
+        run("link");
+        check(a.visible("main/body/guide/asking"), "revoked: it asks again");
+        check(a.h.click("main/body/guide/asking/answer/deny"));
+        a.h.settle();
+        check(a.h.runtime().opened().size() == 3 && !a.visible("main/body/guide/asking"), "no");
+        agent_access().revoke_all();
+    });
+
+    s.test("the site's pixels pinned on every platform: home, the wireframe, the agent's JSON, the timeline, an agent asking, Chinese", [] {
         Site a;
         const auto dir = scratch_dir("site");
         Hash all;
@@ -214,6 +295,17 @@ int main(int argc, char** argv) {
         a.h.settle();
         all.u64(a.pixels());
         check(a.h.save_png(dir / "timeline.png").has_value());
+        // The agent asks before something external (S-11), the answer the person's alone (S-10).
+        check(a.h.click("main/body/nav/to_home"));
+        check(a.h.click("main/bar/guide_toggle"));
+        check(a.h.click("main/body/guide/tasks/task_link"));
+        a.h.advance(seconds(3));
+        a.h.move({4, 796});
+        a.h.settle(seconds(1));
+        all.u64(a.pixels());
+        check(a.h.save_png(dir / "agent-asks.png").has_value());
+        check(a.h.click("main/body/guide/asking/answer/deny"));
+        check(a.h.click("main/bar/guide_toggle"));
         check(a.h.click("main/body/nav/to_home"));
         check(a.h.click("main/bar/lang"));
         a.h.move({4, 796});
@@ -221,7 +313,7 @@ int main(int argc, char** argv) {
         all.u64(a.pixels());
         check(a.h.save_png(dir / "zh.png").has_value());
         std::println("    pixels {}", all.hex());
-        check_eq(all.hex(), std::string("80318215987b091b"));
+        check_eq(all.hex(), std::string("e3b5d795708d59e9"));
     });
 
     s.test("the static page: every place's HTML, md4c-html's bytes, in a page that hides it once the program runs", [] {
@@ -236,8 +328,8 @@ int main(int argc, char** argv) {
         // The site's own part pinned (the docs change with the framework; they are held to md4c-html's bytes above).
         auto own = [](const std::string& html) { return html.substr(0, html.find("<section id=\"/", html.find("<section id=\"/") + 1)); };
         std::println("    static en {:016x} zh {:016x}", fnv(own(en)), fnv(own(site::static_html("zh"))));
-        check_eq(std::format("{:016x}", fnv(own(en))), std::string("2428f5e0d3fc0fb1"));
-        check_eq(std::format("{:016x}", fnv(own(site::static_html("zh")))), std::string("97de02995b1706cf"));
+        check_eq(std::format("{:016x}", fnv(own(en))), std::string("b9a7917262a78ce0"));
+        check_eq(std::format("{:016x}", fnv(own(site::static_html("zh")))), std::string("32c1727fd259c0e2"));
 
         const auto out = site::inject(page, en, "zh");
         check(out.has_value(), "dist-toy's page");

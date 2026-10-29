@@ -11,7 +11,11 @@ This site is built with openmui. Switch the **lens** above to see the page you a
 
 ## What is here
 
-- **Features** and **Practices**: the framework's documents, in English and 中文.
+- **Features** and **Practices**: the framework's documents, in English and 中文. Read [what sets openmui apart](features.md) first.
 - **Timeline**: a working timeline editor. Drag a clip, trim its edge, press S to split it at the playhead, then Ctrl+Z. Every edit is one exact change with its exact inverse.
+
+- **An agent on this page**: ask it to read the page, edit the timeline or open a link. Each step is a real request on the bus, decided by [openas](https://github.com/openlifa/openas). What is external asks you first, and the buttons that answer are yours alone.
+
+The specification is an open standard, [openlifa/openmui](https://github.com/openlifa/openmui) (CC BY-SA 4.0).
 
 The footer shows the semantic tree's hash as your browser computed it. Determinism is part of the design: the same tree on every machine.

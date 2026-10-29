@@ -9,10 +9,13 @@ import openmui;
 import openmui.ui.markdown;
 import openmui.ui.timeline;
 import openmui.semantic;
+import openmui.trace;
 
 namespace omui::site {
 
 namespace {
+
+constexpr Log site_log{"site"};
 
 // Where the places are in the tree (the window mounts the site as "main").
 constexpr std::string_view place_root = "main/body/view/";
@@ -70,6 +73,9 @@ struct Site {
     Signal<Value>       nodes = signal(Value{});
     Signal<std::string> agent = signal(std::string()), test = signal(std::string()), hash = signal(std::string());
 
+    Signal<bool>        panel = signal(false);  // the agent panel open
+    std::unique_ptr<Guide> guide;
+
     std::uint64_t       seen = ~0ull;    // the semantic revision last read
     bool                watching = false;
 
@@ -77,6 +83,7 @@ struct Site {
     void look() {
         if (!runtime || runtime->semantic_revision() == seen) return;
         seen = runtime->semantic_revision();
+        trace::Span span("look", "site");
         semantic::Tree tree(*runtime);
         const Value snapshot = tree.snapshot({.root = std::string(place_root) + place.get()}).to_value();
         nodes.set(snapshot.get("nodes") ? *snapshot.get("nodes") : Value{});
@@ -110,6 +117,49 @@ Element only_when(Element e, std::function<bool()> cond) {
     e.prop("display", derive([cond = std::move(cond)] { return std::string(cond() ? "flex" : "none"); }));
     return e;
 }
+
+// The same, fading in over the page when it comes (a lens's rendering
+// arrives over the pixels rather than replacing them at once).
+Element fades_in(Element e, std::function<bool()> cond) {
+    e.prop("opacity", derive([cond] { return cond() ? 1.0f : 0.0f; }));
+    e.animate("opacity", Transition::tween(seconds(0.28), hanim::ease::out_cubic));
+    return only_when(std::move(e), std::move(cond));
+}
+
+// Where a document's link goes: another place of the site, or outside.
+void follow(Site& s, std::string_view href) {
+    for (const auto& [file, place] : {std::pair{"features.md", "features"}, std::pair{"best-practices.md", "practices"}})
+        if (href.ends_with(file)) {
+            s.place.set(place);
+            s.soon();
+            return;
+        }
+    if (s.runtime) (void)s.runtime->open_url(href);
+}
+
+// A stage of the window's frame (D-66) after paint: when the tree changed
+// (a resize, the fonts arriving, an agent's edit), the place is read again
+// once the frame is done. The check is one comparison a frame.
+class TreeWatch final : public pipeline::Stage {
+public:
+    explicit TreeWatch(Site& site) : site_(site) {}
+    [[nodiscard]] std::vector<pipeline::Port> reads() const override { return {}; }
+    [[nodiscard]] std::vector<pipeline::Port> writes() const override { return {}; }
+    std::expected<void, std::string> run(pipeline::Context&) override {
+        if (site_.runtime && site_.runtime->semantic_revision() != site_.seen && !queued_) {
+            queued_ = true;
+            (void)site_.runtime->after(seconds(0.0), [this] {
+                queued_ = false;
+                site_.look();
+            });
+        }
+        return {};
+    }
+
+private:
+    Site& site_;
+    bool  queued_ = false;
+};
 
 // A lens's button: highlighted when it is the lens.
 Element lens_button(const std::shared_ptr<Site>& s, std::string_view id, std::string_view label) {
@@ -170,12 +220,93 @@ std::uint64_t tree_hash(const Value& snapshot) {
     if (!nodes) return h;
     for (const Value& n : *nodes) {
         Value kept;  // what the tree says, not where the window put it
-        for (std::string_view key : {"id", "role", "name", "description", "value", "state"})
-            if (const Value* v = n.get(key)) kept.set(key, *v);
+        const bool viewport = n.get("role") && n.get("role")->as_string() == "scroll_view";  // its value is how far it scrolls: the window's
+        for (std::string_view key : {"id", "role", "name", "description", "value"})
+            if (const Value* v = n.get(key); v && !(viewport && key == "value")) kept.set(key, *v);
+        // Its states, but not those of the moment: where the window cuts it, the pointer, a motion.
+        if (const Value* states = n.get("state"); states && states->list()) {
+            Value::List lasting;
+            for (const Value& st : *states->list())
+                if (const std::string_view x = st.as_string(); x != "offscreen" && x != "hovered" && x != "pressed" && x != "animating") lasting.push_back(st);
+            if (!lasting.empty()) kept.set("state", Value(std::move(lasting)));
+        }
         for (const char c : kept.json()) h = (h ^ static_cast<unsigned char>(c)) * 1099511628211ull;
     }
     return h;
 }
+
+namespace {
+
+// The agent panel: what a visitor can ask the agent, what it asks the person,
+// the grants it holds, and every request and record it exchanged.
+Element guide_panel(const std::shared_ptr<Site>& s) {
+    auto zh = [s] { return s->lang.get() == "zh"; };
+    std::vector<Element> asks;
+    for (const GuideTask& t : guide_tasks()) {
+        const std::string id(t.id);
+        asks.push_back(button({.id = "task_" + id,
+                               .disabled = computed([s, id] { return s->guide && (s->guide->busy.get() || (!s->guide->asking.get().empty() && id != "self")); }),
+                               .text = computed([zh, t] { return std::string(zh() ? t.zh : t.en); }),
+                               .variant = ButtonVariant::secondary,
+                               .on_activated = [s, id] {
+                                   if (s->guide) s->guide->run(id);
+                               }}));
+    }
+    // The person's own answers (S-10): an agent pressing them is refused, whatever it claims to be.
+    auto mine = [](Element e) {
+        e.prop("person", Source{Value(true), {}, {}});
+        return e;
+    };
+    Element answer = row({.id = "answer", .gap = 6, .wrap = "wrap"},
+                         {mine(button({.id = "allow_once",
+                                       .text = computed([zh] { return std::string(zh() ? "允许这一次" : "Allow once"); }),
+                                       .variant = ButtonVariant::primary,
+                                       .on_activated = [s] { s->guide->allow_once(); }})),
+                          mine(button({.id = "allow",
+                                       .text = computed([zh] { return std::string(zh() ? "本次访问都允许" : "Allow for this visit"); }),
+                                       .variant = ButtonVariant::secondary,
+                                       .on_activated = [s] { s->guide->allow(); }})),
+                          mine(button({.id = "deny",
+                                       .text = computed([zh] { return std::string(zh() ? "不允许" : "No"); }),
+                                       .variant = ButtonVariant::ghost,
+                                       .on_activated = [s] { s->guide->deny(); }}))});
+    return column(
+        {.id = "guide", .width = Dim(380.0f), .padding = Edges(20.0f, 16.0f), .gap = 10, .background = "surface"},
+        {text({.id = "guide_title", .text = computed([zh] { return std::string(zh() ? "这一页上的 agent" : "An agent on this page"); }), .style = "heading"}),
+         text({.id = "guide_about",
+               .text = computed([zh] {
+                   return std::string(zh() ? "一个按脚本行动的 agent：它像 Claude Code 经 omui mcp 那样，用 openmui.tree@0.1 经总线发请求，每一个都由 openas 决定。"
+                                           : "A scripted agent. It sends openmui.tree@0.1 requests over the bus, as Claude Code does through omui mcp, and openas decides each one.");
+               }),
+               .style = "caption"}),
+         column({.id = "tasks", .gap = 4}, std::move(asks)),
+         only_when(column({.id = "asking", .padding = Edges(10.0f), .gap = 6, .background = "background"},
+                          {text({.id = "question",
+                                 .text = computed([s, zh] {
+                                     const std::string what = s->guide ? s->guide->asking.get() : std::string();
+                                     return zh() ? std::format("agent 请求：{}。这是外部的动作，要先问你。", what)
+                                                 : std::format("The agent asks: {}. It is external, so it asks you first.", what);
+                                 }),
+                                 .style = "body"}),
+                           std::move(answer)}),
+                   [s] { return s->guide && !s->guide->asking.get().empty(); }),
+         row({.id = "held", .gap = 8, .align = "center"},
+             {text({.id = "grants",
+                    .text = computed([s, zh] {
+                        const std::string g = s->guide ? s->guide->grants.get() : std::string();
+                        return g.empty() ? std::string(zh() ? "授权：无" : "Grants: none") : std::string(zh() ? "授权：" : "Grants: ") + g;
+                    }),
+                    .style = "caption",
+                    .grow = 1}),
+              mine(button({.id = "revoke",
+                           .text = computed([zh] { return std::string(zh() ? "收回" : "Revoke"); }),
+                           .variant = ButtonVariant::ghost,
+                           .on_activated = [s] { s->guide->revoke(); }}))}),
+         scroll({.id = "said", .grow = 1, .padding = Edges(10.0f), .background = "background"},
+                {text({.id = "transcript", .text = computed([s] { return s->guide ? s->guide->transcript.get() : std::string(); }), .style = "code"})})});
+}
+
+}  // namespace
 
 AppSpec app(std::string_view place, std::string_view lang) {
     AppSpec a;
@@ -189,6 +320,13 @@ AppSpec app(std::string_view place, std::string_view lang) {
     a.setup = [s](Runtime& rt) {
         s->runtime = &rt;
         register_type(component_type<Lens>());
+        s->guide = std::make_unique<Guide>(rt, [site = s.get()] { return site->place.get(); });
+        rt.stage_plugins().add({.name = "openmui.site.tree_watch", .kind = "stage", .description = "the site's place read again when its tree changed"},
+                               [site = s.get()](const pipeline::Config&) -> std::expected<std::unique_ptr<pipeline::Stage>, std::string> {
+                                   return std::make_unique<TreeWatch>(*site);
+                               });
+        if (auto in = rt.frame_pipeline().insert({"tree_watch", "openmui.site.tree_watch", {"paint"}, {}}, rt.stage_plugins()); !in)
+            site_log.warn("the tree watch is not in the frame: {}", pipeline::to_text(in.error()));
         s->soon();
     };
     a.view = [s] {
@@ -198,6 +336,10 @@ AppSpec app(std::string_view place, std::string_view lang) {
                            text({.id = "motto", .text = computed([s] { return std::string(s->lang.get() == "zh" ? "一棵树，多种呈现" : "one tree, many renderings"); }),
                                  .style = "caption", .grow = 1}),
                            lens_button(s, "pixels", "Pixels"), lens_button(s, "tree", "Tree"), lens_button(s, "agent", "Agent"), lens_button(s, "test", "Test"),
+                           button({.id = "guide_toggle",
+                                   .text = computed([s] { return std::string(s->lang.get() == "zh" ? "让 agent 来" : "Ask an agent"); }),
+                                   .variant = computed([s] { return s->panel.get() ? ButtonVariant::primary : ButtonVariant::secondary; }),
+                                   .on_activated = [s] { s->panel.set(!s->panel.get()); }}),
                            button({.id = "lang",
                                    .text = computed([s] { return std::string(s->lang.get() == "zh" ? "English" : "中文"); }),
                                    .variant = ButtonVariant::secondary,
@@ -246,21 +388,23 @@ AppSpec app(std::string_view place, std::string_view lang) {
                                                  {markdown({.id = id + "_doc",
                                                             .origin = MarkdownOrigin::app,
                                                             .source = computed([s, p] { return std::string(document(p.id, s->lang.get())); }),
+                                                            .on_link_activated = [s](std::string href) { follow(*s, href); },
                                                             .max_width = Dim(860.0f)})}),
                                           here));
             }
         }
         // Over the place, as the lens says.
-        shown.push_back(only_when(lens({.id = "wireframe", .nodes = s->nodes}), [s] { return s->lens.get() == "tree"; }));
+        shown.push_back(fades_in(lens({.id = "wireframe", .nodes = s->nodes}), [s] { return s->lens.get() == "tree"; }));
         for (const std::string_view which : {"agent", "test"}) {
             const std::string key(which);
-            shown.push_back(only_when(scroll({.id = key, .padding = Edges(24.0f, 32.0f), .background = "background"},
+            shown.push_back(fades_in(scroll({.id = key, .padding = Edges(24.0f, 32.0f), .background = "background"},
                                              {text({.id = key + "_text", .text = key == "agent" ? s->agent : s->test, .style = "code"})}),
                                       [s, key] { return s->lens.get() == key; }));
         }
         Element body = row({.id = "body", .min_height = Dim(0.0f), .align = "stretch", .grow = 1},
                            {column({.id = "nav", .width = Dim(188.0f), .padding = Edges(20.0f, 12.0f), .gap = 4, .background = "surface"}, std::move(nav)),
-                            stack({.id = "view", .min_width = Dim(0.0f), .min_height = Dim(0.0f), .grow = 1}, std::move(shown))});
+                            stack({.id = "view", .min_width = Dim(0.0f), .min_height = Dim(0.0f), .grow = 1}, std::move(shown)),
+                            only_when(guide_panel(s), [s] { return s->panel.get(); })});
         Element foot = row({.id = "foot", .padding = Edges(6.0f, 16.0f), .background = "surface"}, {text({.id = "hash", .text = s->hash, .style = "caption"})});
         return column({.id = "site", .grow = 1, .background = "background"}, {std::move(bar), std::move(body), std::move(foot)});
     };

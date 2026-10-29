@@ -521,6 +521,17 @@ void Runtime::set_clipboard(std::function<std::string()> read, std::function<voi
     impl_->clipboard_write = std::move(write);
 }
 
+bool Runtime::open_url(std::string_view url) {
+    const bool allowed = url.starts_with("https://") || url.starts_with("http://") || url.starts_with("mailto:");
+    if (!allowed) return false;
+    impl_->opened.emplace_back(url);
+    return impl_->url_opener && impl_->url_opener(url);
+}
+
+void Runtime::set_url_opener(std::function<bool(std::string_view)> open) { impl_->url_opener = std::move(open); }
+
+const std::vector<std::string>& Runtime::opened() const noexcept { return impl_->opened; }
+
 std::string_view Runtime::cursor() const {
     const Impl& d = *impl_;
     for (NodeId id : d.hover_chain) {

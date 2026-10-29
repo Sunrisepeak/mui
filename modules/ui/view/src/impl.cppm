@@ -249,6 +249,8 @@ struct Runtime::Impl {
     std::string          clipboard;
     std::function<std::string()>            clipboard_read;
     std::function<void(std::string_view)>   clipboard_write;
+    std::function<bool(std::string_view)>   url_opener;
+    std::vector<std::string>                opened;
 
     std::uint64_t        semantic_revision = 1;
     std::uint64_t        next_token = 1;

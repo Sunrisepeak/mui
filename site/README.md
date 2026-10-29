@@ -14,7 +14,18 @@ The site shows openmui's thesis instead of describing it: **the interface is a s
   - **Tree**: the semantic tree's wireframe over the pixels. Each node gets its box and role; nodes that an agent or a person can change are outlined in amber.
   - **Agent**: the JSON an agent receives, one node per line.
   - **Test**: the assertions a test would write.
-- **The tree's hash.** The footer shows a hash of the home page's semantic tree as your browser computed it (ids, roles, names, values and states; not the boxes, which follow the window), next to the value CI pins in `tests/site_test.cpp`.
+- **An agent on this page.** The agent is scripted, since no model runs in the page, but every step it takes is a real `openmui.tree@0.1` request on the bus. Claude Code sends the same requests through `omui mcp`, and a page's script through `window.omui`. Because of that, openas decides each step (S-11):
+  - Reading, switching places and editing the timeline (then undoing it) run.
+  - Opening a link is external, so the agent asks the person first.
+  - The person answers in the panel: once, for this visit (a grant openas records), or no.
+  - The answer buttons are the person's own (S-10). When the agent tries to press them, it is refused whatever actor it names.
+  - The panel shows each request and its records.
+- **Links.** A document's link to another document moves to that place. Any other link is opened by the host: the system's browser on the desktop, a new tab on the Web. This goes through `Runtime::open_url`, which accepts only http, https and mailto.
+- **The tree's hash.** The footer shows a hash of the home page's semantic tree as your browser computed it, next to the value CI pins in `tests/site_test.cpp`.
+  - It covers ids, roles, names, values and lasting states.
+  - It leaves out what follows the window: boxes, how far a view scrolls, and what is off screen. It also leaves out the pointer's hover and press, and motion under way.
+  - So any window size gives the same hash.
+  - A stage of the frame's pipeline reads the place again whenever its tree changes.
 - **Both languages.** English and 中文. The node ids are the structure's, not the text's, so the tree keeps its ids when the language changes.
 - **Hash routes.** `#/features` or `#/zh/timeline` open a place in a language. They are the program's flags (`--zh --timeline`), as dist-toy's page passes them.
 
@@ -37,10 +48,12 @@ python3 -m http.server -d target/site            # and look at it
 
 `tests/site_test.cpp`:
 - every place, in both languages, one at a time;
+- links: to another place, or out through the host (never a script);
+- the agent panel: real requests, a person's answer once and for the visit, the S-10 refusal, a revoked grant asking again;
 - the lens's four renderings of the same nodes;
 - the home tree's hash, pinned, and the same in a narrower window;
 - the timeline editor: an agent's edit followed by the tree, then undone;
-- the pixels of home, the wireframe, the agent's JSON, the timeline and the Chinese page, pinned on every platform;
+- the pixels of home, the wireframe, the agent's JSON, the timeline, the agent asking and the Chinese page, pinned on every platform;
 - the static HTML and its injection into dist-toy's page.
 
 Changing a document changes the pinned hashes. Look at the pictures (`$TMPDIR/openmui-tests/site/`), then update the pins.

@@ -27,11 +27,13 @@ struct Place {
 [[nodiscard]] std::string agent_text(const Value& snapshot);
 [[nodiscard]] std::string test_text(const Value& snapshot);
 // The tree's hash: its nodes' ids, roles, names, values and states (not their
-// boxes, which follow the window), FNV-1a over their JSON — the same tree, the
-// same hash, in any browser and on any machine.
+// boxes, how far a scroll view can scroll or what is off screen: those follow
+// the window; nor the pointer's hover and press, nor a motion under way),
+// FNV-1a over their JSON — the same tree, the same hash, in any browser and
+// on any machine.
 [[nodiscard]] std::uint64_t tree_hash(const Value& snapshot);
 // The home page's tree hash in English, as CI pins it (tests/site_test.cpp).
-inline constexpr std::uint64_t pinned_home_hash = 0x2d962daf63325a3f;
+inline constexpr std::uint64_t pinned_home_hash = 0xeebf42d5c906eff9;
 
 // Every place as static HTML (the documents through openmui.markdown's
 // to_html, byte for byte md4c-html's), in a <main id="omui-static"> that a

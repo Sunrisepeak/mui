@@ -37,6 +37,7 @@ openmui.sdk         = { path = ".." }
 openmui.ui.markdown = { path = "../components/markdown" }
 openmui.ui.timeline = { path = "../components/timeline" }
 openmui.semantic    = { path = "../modules/ui/semantic" }
+openmui.trace       = { path = "../modules/base/trace" }
 
 [build-dependencies]
 openmui.rules = { path = "../mcpp/rules", host-module = true }

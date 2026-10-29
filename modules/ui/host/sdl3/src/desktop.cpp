@@ -306,6 +306,7 @@ std::expected<void, std::string> Desktop::open() {
     d.window_state();
     d.hit_test();
     d.runtime->set_clipboard([] { return platform::clipboard(); }, [](std::string_view t) { platform::set_clipboard(t); });
+    d.runtime->set_url_opener([](std::string_view url) { return platform::open_url(url); });
     if (d.options.agent) {
         agent::EndpointOptions eo;
         eo.name = d.options.app;

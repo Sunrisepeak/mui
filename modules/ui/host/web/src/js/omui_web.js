@@ -234,6 +234,20 @@ addToLibrary({
       var c = typeof navigator !== 'undefined' && navigator.clipboard;
       if (c && c.writeText) c.writeText(text).catch(function () {});
     },
+    // An address outside the program: a new tab while the person's last
+    // input still allows one (the program answers it a frame later, inside
+    // the browser's transient activation), else this tab. Only http, https
+    // and mailto (never javascript:).
+    openUrl: function (url) {
+      if (!/^(https?:\/\/|mailto:)/i.test(url)) return false;
+      var a = typeof navigator !== 'undefined' && navigator.userActivation;
+      if (!a || a.isActive) {
+        window.open(url, '_blank', 'noopener,noreferrer');
+        return true;
+      }
+      window.location.assign(url);
+      return true;
+    },
 
     // ── the semantic DOM mirror ──
 
@@ -402,6 +416,11 @@ addToLibrary({
   omui_web_set_clipboard__deps: ['$omuiPage', '$UTF8ToString'],
   omui_web_set_clipboard: function (text) {
     omuiPage.writeClipboard(UTF8ToString(text));
+  },
+
+  omui_web_open_url__deps: ['$omuiPage', '$UTF8ToString'],
+  omui_web_open_url: function (url) {
+    return omuiPage.openUrl(UTF8ToString(url)) ? 1 : 0;
   },
 
   // localStorage, where the page has it (reading it throws where the person

@@ -398,6 +398,13 @@ public:
     // Where the clipboard is (a host's system clipboard); without one the
     // runtime keeps its own.
     void set_clipboard(std::function<std::string()> read, std::function<void(std::string_view)> write);
+    // Opens an address outside the program (a document's link) where the
+    // host can: the desktop's browser, a new tab on the Web. Only http,
+    // https and mailto; false when refused or nothing opens it. Every
+    // address asked for is kept, in order (`opened`: what a test reads).
+    bool open_url(std::string_view url);
+    void set_url_opener(std::function<bool(std::string_view)> open);
+    [[nodiscard]] const std::vector<std::string>& opened() const noexcept;
 
     struct Impl;  // defined by the implementation (openmui.view:impl)
 

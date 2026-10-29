@@ -19,6 +19,7 @@ void mirror(std::string_view) {}
 void agent_reply(std::string_view) {}
 std::string clipboard() { return {}; }
 void set_clipboard(std::string_view) {}
+bool open_url(std::string_view) { return false; }
 bool storage() { return false; }
 std::optional<std::string> storage_get(std::string_view) { return std::nullopt; }
 bool storage_set(std::string_view, std::string_view) { return false; }

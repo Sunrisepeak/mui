@@ -28,6 +28,7 @@ void omui_web_mirror(const char* batch);
 void omui_web_agent_reply(const char* line);
 char* omui_web_clipboard();
 void omui_web_set_clipboard(const char* text);
+int  omui_web_open_url(const char* url);
 int  omui_web_store();
 char* omui_web_store_get(const char* key);
 int  omui_web_store_set(const char* key, const char* value);
@@ -321,6 +322,8 @@ void agent_reply(std::string_view line) { omui_web_agent_reply(std::string(line)
 std::string clipboard() { return taken(omui_web_clipboard()); }
 
 void set_clipboard(std::string_view text) { omui_web_set_clipboard(std::string(text).c_str()); }
+
+bool open_url(std::string_view url) { return omui_web_open_url(std::string(url).c_str()) != 0; }
 
 bool storage() { return omui_web_store() != 0; }
 

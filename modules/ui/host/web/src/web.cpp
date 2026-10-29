@@ -101,6 +101,7 @@ struct Web::Impl {
     void attach() {
         if (!opened) return;
         runtime->set_clipboard([] { return page::clipboard(); }, [](std::string_view t) { page::set_clipboard(t); });
+        runtime->set_url_opener([](std::string_view url) { return page::open_url(url); });
         mirror = std::make_unique<DomMirror>(*runtime);
         if (page::storage()) {
             page_store = std::make_unique<PageStore>(options.app);

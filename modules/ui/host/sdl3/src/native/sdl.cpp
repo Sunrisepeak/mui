@@ -612,6 +612,8 @@ std::string clipboard() {
 
 void set_clipboard(std::string_view text) { SDL_SetClipboardText(std::string(text).c_str()); }
 
+bool open_url(std::string_view url) { return SDL_OpenURL(std::string(url).c_str()); }
+
 void wake() {
     if (!sdl_ready) return;
     SDL_Event e{};

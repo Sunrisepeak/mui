@@ -47,6 +47,9 @@ void agent_reply(std::string_view line);
 // writing goes to the Async Clipboard API as well.
 [[nodiscard]] std::string clipboard();
 void set_clipboard(std::string_view text);
+// An address in a new tab (where the person's last input still allows a
+// window), else in this one.
+bool open_url(std::string_view url);
 
 // localStorage, where the page has it (keys as given: the caller prefixes them).
 [[nodiscard]] bool storage();

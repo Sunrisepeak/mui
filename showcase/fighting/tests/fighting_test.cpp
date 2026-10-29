@@ -663,18 +663,18 @@ int main(int argc, char** argv) {
             const auto& st = g.state();
             if (st.lock.owner == 0 && lock_from < 0) lock_from = st.frame;
             const std::int32_t lf = st.lock.owner == 0 ? st.lock.frame : -1;
-            if (st.freeze == 25 || lf == 30 || lf == 100 || lf == 124 || lf == 150 || lf == 162 || lf == 178) {
+            if (st.freeze == 25 || lf == 30 || lf == 66 || lf == 108 || lf == 140 || lf == 166 || lf == 178 || lf == 196) {
                 g.h.step();
                 px.push_back(g.pixels());
                 check(g.h.save_png(dir / std::format("{:02}-{}.png", px.size(), lf < 0 ? std::string("flash") : std::format("lock-{}", lf))).has_value());
             }
         }
         check(lock_from > 0, "the grab took: the cinematic played");
-        check_eq(px.size(), std::size_t{7});
+        check_eq(px.size(), std::size_t{8});
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    yue level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("e6e10769896fdb3d"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("03ab6661b684af00"));  // GCC and LLVM, every platform
     });
 
     s.test("璃 as designed: every normal's and 「棱光」's startup and advantage, measured in the simulation (characters 2 design §2)", [] {
@@ -1041,7 +1041,7 @@ int main(int argc, char** argv) {
             }
         }
         std::println("    wins {}", all.hex());
-        check_eq(all.hex(), std::string("85ce6602afbd060c"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("46e5094130745471"));  // GCC and LLVM, every platform
     });
 
     s.test("training reads a perfect clash to an agent and shows it", [] {
@@ -1185,7 +1185,7 @@ int main(int argc, char** argv) {
             check(rate >= 0.38 && rate <= 0.62, std::format("{} wins {:.2f} of its rounds", r.names[i], rate));
         }
         std::println("    rounds {}", all.hex());
-        check_eq(all.hex(), std::string("b89249a4decd0985"));  // the same rounds on GCC and LLVM
+        check_eq(all.hex(), std::string("54f2cbf92a52e6e1"));  // the same rounds on GCC and LLVM
     });
 
     s.test("a stage's music: the study's piece plays from the round's start, louder as the round gets close; the rooftop's for 坤; none in training's plain room", [] {

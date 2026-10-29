@@ -25,6 +25,15 @@ void operator delete(void* p) noexcept { std::free(p); }
 void operator delete[](void* p) noexcept { std::free(p); }
 void operator delete(void* p, std::size_t) noexcept { std::free(p); }
 void operator delete[](void* p, std::size_t) noexcept { std::free(p); }
+// The nothrow forms too (a library's temporary buffer asks for them): every
+// form this program's delete frees comes from this program's malloc.
+void* operator new(std::size_t size, const std::nothrow_t&) noexcept {
+    allocations.fetch_add(1, std::memory_order_relaxed);
+    return std::malloc(size ? size : 1);
+}
+void* operator new[](std::size_t size, const std::nothrow_t& t) noexcept { return ::operator new(size, t); }
+void operator delete(void* p, const std::nothrow_t&) noexcept { std::free(p); }
+void operator delete[](void* p, const std::nothrow_t&) noexcept { std::free(p); }
 
 namespace {
 

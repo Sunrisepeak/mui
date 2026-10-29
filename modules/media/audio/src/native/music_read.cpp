@@ -1053,11 +1053,7 @@ std::expected<Music, std::vector<Problem>> read_music(std::string_view source, s
         }
     }
     if (!r.out.empty()) {
-        // By line and column, in the order found where they tie: an insertion sort, in place (libc++'s
-        // stable_sort takes a buffer it frees unlike it allocated — the sanitizers' build reports it).
-        for (std::size_t a = 1; a < r.out.size(); ++a)
-            for (std::size_t b = a; b > 0 && std::pair(r.out[b].line, r.out[b].column) < std::pair(r.out[b - 1].line, r.out[b - 1].column); --b)
-                std::swap(r.out[b - 1], r.out[b]);
+        std::ranges::stable_sort(r.out, [](const Problem& a, const Problem& b) { return std::pair(a.line, a.column) < std::pair(b.line, b.column); });
         return std::unexpected(std::move(r.out));
     }
     return m;

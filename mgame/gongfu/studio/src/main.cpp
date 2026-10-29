@@ -12,6 +12,10 @@
 //                                   region (JSON); a picture of the pieces numbered over the sheet
 //     gongfu-studio sheet <dir> <name> --out <png> [--palette <n>]
 //                                   every clip of <name>'s look with its boxes, as a contact sheet
+//     gongfu-studio stage <dir> <name> --out <png> [--fighters <dir> a,b] [--at x] [--apart u] [--frame n]
+//                                   a stage (<dir>/<name>.stage.gongfu.toml, its pictures beside it) as a
+//                                   frame: two fighters for scale `apart` units apart about `at`, the
+//                                   camera framing them as the game's does (none: the layers alone)
 //     gongfu-studio versus <dir> [--rounds <n>] [--seed <s>] [--system <file>]
 //                                   every pair of its fighters played by bots, <n> rounds each
 //                                   (sides swapped every other): wins, damage, round length
@@ -42,6 +46,7 @@ std::string read(const std::filesystem::path& p) {
 int usage() {
     std::println(std::cerr, "gongfu-studio bake <dir> | check <dir> | embed <dir> --module <m> --namespace <ns> --out <file> | cut <sheet.png> --out <dir> | "
                             "sheet <dir> <name> --out <png> [--clips a,b] [--frames 0,12] [--cell px] [--columns n] [--boxes false] [--palette i] | "
+                            "stage <dir> <name> --out <png> [--fighters <dir> a,b] [--at x] [--apart u] [--frame n] | "
                             "versus <dir> [--rounds <n>] [--seed <s>] [--system <file>]");
     return 2;
 }
@@ -176,6 +181,29 @@ int picture(const std::filesystem::path& file, int argc, char** argv) {
     return saved ? 0 : 1;
 }
 
+// A look's or a stage's pictures, from beside its file, registered with
+// `images` (premultiplied), each with its relief when it has one, as the
+// game makes it.
+std::expected<void, std::string> load_pictures(std::vector<gongfu::present2d::Picture>& pictures, const std::filesystem::path& dir,
+                                               omui::render::ImageStore& images) {
+    auto pixels = [](const omui::imageio::Image& i) {
+        std::vector<omui::raster::Rgba8> px(static_cast<std::size_t>(i.width) * static_cast<std::size_t>(i.height));
+        std::memcpy(px.data(), i.rgba.data(), i.rgba.size());
+        return px;
+    };
+    for (gongfu::present2d::Picture& pic : pictures) {
+        auto img = omui::imageio::load(dir / path_of(pic.file));
+        if (!img) return std::unexpected(std::format("picture `{}` ({}): {}", pic.name, pic.file, img.error()));
+        if (const auto& r = pic.relief) {
+            const auto n = omui::imageio::normal_map(*img, {.bevel = r->bevel, .detail = r->detail, .smooth = r->smooth, .strength = r->strength});
+            pic.normal = images.add(n.width, n.height, pixels(n));
+        }
+        omui::imageio::premultiply(*img);
+        pic.ref = images.add(img->width, img->height, pixels(*img));
+    }
+    return {};
+}
+
 int sheet(const std::filesystem::path& dir, int argc, char** argv) {
     if (argc < 4) return usage();
     const std::string name = argv[3];
@@ -218,25 +246,11 @@ int sheet(const std::filesystem::path& dir, int argc, char** argv) {
     gongfu::present2d::use_palette(*look, palette);
     // The look's drawn art: its pictures, from beside the look file.
     omui::render::ImageStore images;
-    for (gongfu::present2d::Picture& pic : look->pictures) {
-        auto img = omui::imageio::load(dir / path_of(pic.file));
-        if (!img) {
-            report["ok"] = false;
-            report["problems"] = {std::format("picture `{}` ({}): {}", pic.name, pic.file, img.error())};
-            std::println("{}", report.dump(2));
-            return 1;
-        }
-        auto pixels = [](const omui::imageio::Image& i) {
-            std::vector<omui::raster::Rgba8> px(static_cast<std::size_t>(i.width) * static_cast<std::size_t>(i.height));
-            std::memcpy(px.data(), i.rgba.data(), i.rgba.size());
-            return px;
-        };
-        if (const auto& r = pic.relief) {  // its relief, as the game makes it
-            const auto n = omui::imageio::normal_map(*img, {.bevel = r->bevel, .detail = r->detail, .smooth = r->smooth, .strength = r->strength});
-            pic.normal = images.add(n.width, n.height, pixels(n));
-        }
-        omui::imageio::premultiply(*img);
-        pic.ref = images.add(img->width, img->height, pixels(*img));
+    if (auto loaded = load_pictures(look->pictures, dir, images); !loaded) {
+        report["ok"] = false;
+        report["problems"] = {loaded.error()};
+        std::println("{}", report.dump(2));
+        return 1;
     }
     options.images = &images;
     auto s = gongfu::studio::sheet(*fighter, *look, options);
@@ -279,6 +293,88 @@ int embed(const std::filesystem::path& dir, int argc, char** argv) {
 }
 
 // Every pair of a directory's fighters, played by bots.
+int stage(const std::filesystem::path& dir, int argc, char** argv) {
+    if (argc < 4) return usage();
+    const std::string name = argv[3];
+    std::filesystem::path out, fighters_dir;
+    std::vector<std::string> who;
+    double at = 960, apart = 300;
+    std::int32_t frame = 0;
+    for (int i = 4; i + 1 < argc; ++i) {
+        const std::string_view a = argv[i];
+        if (a == "--out") out = path_of(argv[++i]);
+        else if (a == "--at") at = std::stod(argv[++i]);
+        else if (a == "--apart") apart = std::stod(argv[++i]);
+        else if (a == "--frame") frame = std::stoi(argv[++i]);
+        else if (a == "--fighters" && i + 2 < argc) {
+            fighters_dir = path_of(argv[++i]);
+            for (auto part : std::string_view(argv[++i]) | std::views::split(',')) who.emplace_back(part.begin(), part.end());
+        }
+    }
+    if (out.empty()) return usage();
+    nlohmann::json report = {{"command", "stage"}, {"stage", name}};
+    auto fail = [&](std::vector<std::string> problems) {
+        report["ok"] = false;
+        report["problems"] = problems;
+        std::println("{}", report.dump(2));
+        return 1;
+    };
+    const auto file = dir / path_of(std::format("{}.stage.gongfu.toml", name));
+    auto st = gongfu::present2d::read_stage(read(file), utf8(file.filename()));
+    if (!st) {
+        std::vector<std::string> problems;
+        for (const auto& d : st.error()) problems.push_back(d.text());
+        return fail(problems);
+    }
+    omui::render::ImageStore images;
+    if (auto loaded = load_pictures(st->pictures, dir, images); !loaded) return fail({loaded.error()});
+    // Two fighters for scale (each its first palette), else the first fighter twice, standing.
+    std::vector<gongfu::Fighter> fighters;
+    std::vector<gongfu::present2d::Look> looks;
+    for (const std::string& f : who) {
+        const auto path = [&](std::string_view kind) { return fighters_dir / path_of(std::format("{}.{}.gongfu.toml", f, kind)); };
+        const std::string boxes = std::filesystem::exists(path("boxes")) ? read(path("boxes")) : std::string();
+        auto fighter = gongfu::data::read_fighter(read(path("fighter")), utf8(path("fighter").filename()), boxes, utf8(path("boxes").filename()));
+        auto look = gongfu::present2d::read_look(read(path("look")), utf8(path("look").filename()));
+        if (!fighter || !look) return fail({std::format("fighter `{}` does not read", f)});
+        gongfu::present2d::bind(*look, *fighter);
+        if (auto loaded = load_pictures(look->pictures, fighters_dir, images); !loaded) return fail({loaded.error()});
+        fighters.push_back(std::move(*fighter));
+        looks.push_back(std::move(*look));
+    }
+    omui::render::DisplayList dl;
+    gongfu::present2d::Scene scene{.stage = &*st};
+    gongfu::present2d::Painter painter;
+    if (!fighters.empty()) {
+        const std::size_t b = fighters.size() > 1 ? 1 : 0;
+        gongfu::SystemDef system;
+        gongfu::Match m(system, fighters[0], fighters[b]);
+        gongfu::State s = m.state();
+        s.f[0].pos.x = gongfu::Fixed::of(static_cast<std::int32_t>(std::lround(at - apart / 2)));
+        s.f[1].pos.x = gongfu::Fixed::of(static_cast<std::int32_t>(std::lround(at + apart / 2)));
+        s.frame = frame;
+        m.restore(s);
+        gongfu::present2d::Effects effects;
+        painter.draw(m, looks[0], looks[b], effects, scene, dl);
+    } else {
+        const gongfu::present2d::Camera cam{at, 0, 1};
+        dl.fill_rect({0, 0, scene.width, scene.height}, st->sky_bottom);
+        painter.stage_layers(*st, false, scene, cam, 960, frame, 1, dl);
+        painter.stage_layers(*st, true, scene, cam, 960, frame, 1, dl);
+    }
+    omui::raster::Surface px(static_cast<int>(scene.width), static_cast<int>(scene.height));
+    omui::render::CpuRenderer{}.render(dl, px, {&images, nullptr}, {.scale = 1});
+    const omui::imageio::View v{reinterpret_cast<const std::uint8_t*>(px.row(0)), px.width(), px.height(), px.width() * 4, omui::imageio::Alpha::premultiplied};
+    auto png = omui::imageio::encode_png(v);
+    if (!png) return fail({"the frame did not encode as PNG"});
+    std::ofstream f(out, std::ios::binary);
+    f.write(reinterpret_cast<const char*>(png->data()), static_cast<std::streamsize>(png->size()));
+    report["ok"] = static_cast<bool>(f);
+    report["png"] = utf8(out);
+    std::println("{}", report.dump(2));
+    return f ? 0 : 1;
+}
+
 int versus(const std::filesystem::path& dir, int argc, char** argv) {
     std::int32_t rounds = 200;
     std::uint64_t seed = 1;
@@ -388,6 +484,7 @@ int main(int argc, char** argv) {
     if (command == "cut") return cut(dir, argc, argv);
     if (command == "picture") return picture(dir, argc, argv);
     if (command == "versus") return versus(dir, argc, argv);
+    if (command == "stage") return stage(dir, argc, argv);
     if (command != "bake" && command != "check") return usage();
 
     nlohmann::json report = {{"command", command}, {"dir", utf8(dir)}, {"fighters", nlohmann::json::array()}};

@@ -916,7 +916,7 @@ void Painter::stage_layers(const Stage& art, bool front, const Scene& scene, con
                            render::DisplayList& out) {
     const double seconds = frame / 60.0;
     for (const StageLayer& layer : art.layers) {
-        if (layer.front != front || layer.shapes.empty()) continue;
+        if (layer.front != front || (layer.shapes.empty() && layer.images.empty())) continue;
         // A layer at parallax p moves p of the camera's way and zooms p of its zoom.
         const double p = layer.parallax, zoom = 1 + (cam.zoom - 1) * p, cx = middle + (cam.x - middle) * p, cy = cam.y * p;
         auto at = [&](double x, double y) {
@@ -934,6 +934,24 @@ void Painter::stage_layers(const Stage& art, bool front, const Scene& scene, con
         }
         for (std::int64_t k = first; k <= last; ++k) {
             const double ox = static_cast<double>(k) * layer.repeat;
+            // Painted pictures first, then the shapes over them.
+            for (std::size_t n = 0; n < layer.images.size(); ++n) {
+                const StageImage& im = layer.images[n];
+                if (im.picture < 0 || static_cast<std::size_t>(im.picture) >= art.pictures.size()) continue;
+                const Picture& pic = art.pictures[static_cast<std::size_t>(im.picture)];
+                if (pic.ref.id == 0 || im.source.width <= 0 || im.source.height <= 0) continue;
+                const double h = im.height > 0 ? static_cast<double>(im.height) : static_cast<double>(im.width) * im.source.height / im.source.width;
+                const Point a = at(ox + im.at.x, im.at.y + h), b = at(ox + im.at.x + im.width, im.at.y);
+                if (b.x < 0 || a.x > scene.width || b.y < 0 || a.y > scene.height) continue;
+                double opacity = layer.opacity * alpha;
+                if (im.flicker > 0) opacity *= 1 - im.flicker * (0.5 + 0.25 * dm::sin(seconds * 7.3 + static_cast<double>(n) * 11) + 0.25 * dm::sin(seconds * 2.9 + static_cast<double>(n) * 5));
+                const Rect& src = im.source;
+                const float u0 = im.flip ? src.x + src.width : src.x, u1 = im.flip ? src.x : src.x + src.width;
+                mesh_at_.assign({a, {b.x, a.y}, b, {a.x, b.y}});
+                mesh_uv_.assign({{u0, src.y}, {u1, src.y}, {u1, src.y + src.height}, {u0, src.y + src.height}});
+                mesh_index_.assign({0, 1, 2, 0, 2, 3});
+                out.draw_mesh(pic.ref, mesh_at_, mesh_uv_, mesh_index_, render::Sampling::linear, static_cast<float>(opacity));
+            }
             for (const StageShape& sh : layer.shapes) {
                 // Its sway at this frame: a turn about its pivot, a pure function of the frame.
                 const double turn = sh.sway > 0 ? sh.sway * dm::pi / 180 * dm::sin(2 * dm::pi * (seconds / sh.period + sh.phase)) : 0.0;

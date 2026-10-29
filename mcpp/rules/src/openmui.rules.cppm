@@ -408,11 +408,14 @@ struct embed_options {
     std::string dir;                                      // where the files are
     std::string suffix;                                   // which: ".style.omui.toml"
     std::string tag;                                      // the partitions' and constants' suffix: <stem>_<tag>
+    bool        index = false;                            // and <tag>_files, a table of them all (the module exports it)
     std::string out_dir = std::string(mcpp::out_dir());
 };
 
 // Each file `<stem><suffix>` in `dir` as a partition `<module>:<stem>_<tag>`
-// holding its text (`-` in the stem becomes `_`): a program carries its data
+// holding its text (`-` in the stem becomes `_`), and with `index`,
+// `<module>:<tag>_files` a table of them all by file name (the module's
+// interface exports it, as it does the others): a program carries its data
 // files and reads none to have them.
 inline std::vector<edge> plan_embed(const embed_options& opt) {
     const std::string root = mcpp::manifest_dir();
@@ -446,6 +449,24 @@ inline std::vector<edge> plan_embed(const embed_options& opt) {
         e.provides = {opt.module + ":" + name};
         e.imports = {"std"};
         edges.push_back(std::move(e));
+    }
+    // And, asked for, one table of them all, `<module>:<tag>_files`: (the file's name, its text).
+    if (opt.index && !edges.empty()) {
+        edge index;
+        index.id = std::format("openmui:{}:index", opt.tag);
+        index.description = std::format("{} files → {}_files.cppm ({})", opt.tag, opt.tag, opt.module);
+        index.command = {gen, "embed-index", "--module", opt.module, "--namespace", ns, "--name", opt.tag + "_files", "--out", out};
+        index.inputs = {gen};
+        index.imports = {"std"};
+        for (const edge& e : edges) {
+            const std::string part = e.provides.front().substr(opt.module.size() + 1);
+            index.command.push_back(utf8(std::filesystem::path(e.inputs.front()).filename()) + "=" + part);
+            index.inputs.push_back(e.inputs.front());
+            index.imports.push_back(e.provides.front());
+        }
+        index.outputs = {out + "/" + opt.tag + "_files.cppm"};
+        index.provides = {opt.module + ":" + opt.tag + "_files"};
+        edges.push_back(std::move(index));
     }
     return edges;
 }

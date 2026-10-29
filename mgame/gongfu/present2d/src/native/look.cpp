@@ -1848,9 +1848,10 @@ std::string write_look(const Look& look) {
 
 namespace {
 
-constexpr std::array<std::string_view, 8> stage_keys{"gongfu", "name", "sky", "floor", "line", "marks", "light", "layer"};
+constexpr std::array<std::string_view, 9> stage_keys{"gongfu", "name", "sky", "floor", "line", "marks", "light", "layer", "picture"};
+constexpr std::array<std::string_view, 7> stage_image_keys{"picture", "source", "at", "width", "height", "flip", "flicker"};
 constexpr std::array<std::string_view, 3> stage_light_keys{"from", "shadow", "rim_color"};
-constexpr std::array<std::string_view, 11> layer_keys{"name", "parallax", "repeat", "opacity", "front", "clip", "shape", "bamboo", "lattice", "planks", "rain"};
+constexpr std::array<std::string_view, 12> layer_keys{"name", "parallax", "repeat", "opacity", "front", "clip", "shape", "bamboo", "lattice", "planks", "rain", "image"};
 constexpr std::array<std::string_view, 9> stage_shape_keys{"shape", "points", "color", "color2", "sway", "flicker", "drift", "wrap", "glow"};
 constexpr std::array<std::string_view, 8> rain_keys{"seed", "count", "span", "height", "length", "speed", "slant", "color"};
 constexpr std::array<std::string_view, 4> sway_keys{"degrees", "period", "phase", "pivot"};
@@ -2006,6 +2007,20 @@ std::expected<Stage, std::vector<Diagnostic>> read_stage(std::string_view source
         }
         return pts;
     };
+    r.tables(root->get("picture"), "picture", "[[picture]] name = \"far\" file = \"art/study-far.webp\" size = [1536, 1024]", [&](const toml::table& t) {
+        r.only(t, picture_keys, "a picture");
+        Picture pic;
+        if (auto n = r.text(t.get("name"), "a picture's `name`")) pic.name = *n;
+        else r.error(&t, "a picture has a `name`");
+        if (auto f = r.text(t.get("file"), "a picture's `file`")) pic.file = *f;
+        else r.error(&t, "a picture has a `file`");
+        if (auto sz = r.pair(t.get("size"), "a picture's `size`", "size = [1536, 1024]: its pixels")) {
+            pic.width = static_cast<std::int32_t>((*sz)[0]);
+            pic.height = static_cast<std::int32_t>((*sz)[1]);
+        }
+        if (std::ranges::any_of(st.pictures, [&](const Picture& o) { return o.name == pic.name; })) r.error(t.get("name"), std::format("two pictures are called `{}`", pic.name));
+        st.pictures.push_back(std::move(pic));
+    });
     r.tables(root->get("layer"), "layer", "[[layer]] name = \"window\" parallax = 0.3", [&](const toml::table& t) {
         r.only(t, layer_keys, "a layer");
         StageLayer layer;
@@ -2026,6 +2041,38 @@ std::expected<Stage, std::vector<Diagnostic>> read_stage(std::string_view source
             if (ok && box[2] > box[0] && box[3] > box[1]) layer.clip = box;
             else r.error(c, "a layer's `clip` is [x0, y0, x1, y1], x1 > x0 and y1 > y0", "clip = [660, 150, 1260, 440]");
         }
+        r.tables(t.get("image"), "layer.image", "[[layer.image]] picture = \"far\" source = [0, 0, 1536, 1024] at = [-200, -40] width = 2400", [&](const toml::table& u) {
+            r.only(u, stage_image_keys, "a layer's image");
+            StageImage im;
+            if (auto pn = r.text(u.get("picture"), "an image's `picture`")) {
+                const auto it = std::ranges::find(st.pictures, *pn, &Picture::name);
+                if (it == st.pictures.end()) {
+                    std::vector<std::string_view> names;
+                    for (const Picture& o : st.pictures) names.push_back(o.name);
+                    r.error(u.get("picture"), std::format("no picture is called `{}`", *pn), names.empty() ? "[[picture]] name = … first" : data::nearest_hint(*pn, names));
+                } else {
+                    im.picture = static_cast<std::int32_t>(it - st.pictures.begin());
+                }
+            } else {
+                r.error(&u, "an image names its `picture`");
+            }
+            if (auto v = r.rect(u.get("source"), "an image's `source`")) {
+                im.source = *v;
+                if (im.picture >= 0) {
+                    const Picture& pic = st.pictures[static_cast<std::size_t>(im.picture)];
+                    if (pic.width > 0 && (v->x < 0 || v->y < 0 || v->x + v->width > static_cast<float>(pic.width) || v->y + v->height > static_cast<float>(pic.height)))
+                        r.error(u.get("source"), std::format("`source` is not inside picture `{}` ({} × {})", pic.name, pic.width, pic.height));
+                }
+            } else {
+                r.error(&u, "an image has a `source` = [x, y, width, height] in its picture");
+            }
+            if (auto xy = r.pair(u.get("at"), "an image's `at`", "at = [-200, -40]: its bottom left, along and up")) im.at = {static_cast<float>((*xy)[0]), static_cast<float>((*xy)[1])};
+            if (auto v = r.number(u.get("width"), "an image's `width`", 1, 100000)) im.width = static_cast<float>(*v);
+            if (auto v = r.number(u.get("height"), "an image's `height`", 0, 100000)) im.height = static_cast<float>(*v);
+            if (auto v = r.boolean(u.get("flip"), "an image's `flip`")) im.flip = *v;
+            if (auto v = r.number(u.get("flicker"), "an image's `flicker`", 0, 1)) im.flicker = static_cast<float>(*v);
+            layer.images.push_back(im);
+        });
         r.tables(t.get("shape"), "layer.shape", "[[layer.shape]] points = [[0, 0], [100, 0], [100, 80]] color = \"#000000\"", [&](const toml::table& u) {
             r.only(u, stage_shape_keys, "a stage's shape");
             StageShape sh;
@@ -2113,6 +2160,7 @@ std::string write_stage(const Stage& st) {
         if (st.rim_color) parts += std::format("{}rim_color = {}", parts.empty() ? "" : ", ", colour_text(*st.rim_color));
         s += std::format("light = {{ {} }}\n", parts);
     }
+    for (const Picture& pic : st.pictures) s += std::format("\n[[picture]]\nname = \"{}\"\nfile = \"{}\"\nsize = [{}, {}]\n", pic.name, pic.file, pic.width, pic.height);
     constexpr std::array<std::string_view, 4> shapes{"capsule", "ellipse", "polygon", "curve"};
     for (const StageLayer& l : st.layers) {
         s += std::format("\n[[layer]]\nname = \"{}\"\nparallax = {}\n", l.name, l.parallax);
@@ -2120,6 +2168,13 @@ std::string write_stage(const Stage& st) {
         if (l.opacity != 1) s += std::format("opacity = {}\n", l.opacity);
         if (l.front) s += "front = true\n";
         if (l.clip) s += std::format("clip = [{}, {}, {}, {}]\n", (*l.clip)[0], (*l.clip)[1], (*l.clip)[2], (*l.clip)[3]);
+        for (const StageImage& im : l.images) {
+            s += std::format("[[layer.image]]\npicture = \"{}\"\nsource = {}\nat = [{}, {}]\nwidth = {}\n",
+                             im.picture >= 0 ? st.pictures.at(static_cast<std::size_t>(im.picture)).name : std::string(), rect_text(im.source), im.at.x, im.at.y, im.width);
+            if (im.height > 0) s += std::format("height = {}\n", im.height);
+            if (im.flip) s += "flip = true\n";
+            if (im.flicker > 0) s += std::format("flicker = {}\n", im.flicker);
+        }
         for (const StageShape& sh : l.shapes) {
             s += std::format("[[layer.shape]]\nshape = \"{}\"\npoints = [", shapes[static_cast<std::size_t>(sh.shape)]);
             for (std::size_t i = 0; i < sh.points.size(); ++i) s += std::format("{}[{}, {}]", i ? ", " : "", sh.points[i].x, sh.points[i].y);

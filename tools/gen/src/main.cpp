@@ -16,6 +16,7 @@
 //       a native module's C++ (records, the functions to implement, define())
 //       and its TS / Python / Lua stubs (component-binding §8)
 //   omui-gen embed <file> --module <m> --name <partition> --out <dir> [--namespace ns] [--check]
+//   omui-gen embed-index <file>=<partition>… --module <m> --name <partition> --out <dir> [--namespace ns] [--check]
 //       a data file (a theme) as a partition holding its text
 //   omui-gen check <file.contract.omui.toml or .native.omui.toml>... --registry <dir> [--json]
 //       diagnostics only
@@ -72,6 +73,7 @@ int usage() {
                             "       omui-gen native <native>... --registry <dir> --module <name> --out <dir> [--namespace ns]\n"
                             "                    [--native name] [--part cpp|stubs] [--check]\n"
                             "       omui-gen embed <file> --module <name> --name <partition> --out <dir> [--namespace ns] [--check]\n"
+                            "       omui-gen embed-index <file>=<partition>... --module <name> --name <partition> --out <dir> [--namespace ns] [--check]\n"
                             "       omui-gen check <contract or native>... --registry <dir> [--json]\n"
                             "       omui-gen abi <registry-dir> --out <modules/ui/abi/src> [--check]\n"
                             "       omui-gen unicode <ucd-dir> --version <x.y.z> --out <dir> [--tests <dir>] [--check]\n"
@@ -310,6 +312,33 @@ int run_native(const Options& o) {
     return 0;
 }
 
+// The files embedded under a tag as one table, partition <module>:<name>;
+// each input `<file>=<partition>`.
+int run_embed_index(const Options& o) {
+    if (o.inputs.empty() || o.module.empty() || o.name.empty() || o.out.empty()) return usage();
+    std::vector<std::pair<std::string, std::string>> files;
+    for (const auto& in : o.inputs) {
+        const std::string pair = generic_utf8(in);
+        const auto eq = pair.find('=');
+        if (eq == std::string::npos) return usage();
+        files.emplace_back(pair.substr(0, eq), pair.substr(eq + 1));
+    }
+    std::string ns = o.ns;
+    if (ns == "omui::ui") {
+        ns.clear();
+        for (char c : o.module) ns += c == '.' ? std::string("::") : std::string(1, c);
+    }
+    Writer w{o.check};
+    w.put(o.out / (o.name + ".cppm"), emit_embed_index(files, o.module, ns, o.name));
+    if (o.check) {
+        if (w.stale) return 1;
+        std::println("omui-gen: generated files are current");
+    } else {
+        std::println("omui-gen: {} file(s) written", w.written);
+    }
+    return 0;
+}
+
 // A data file as a partition <module>:<name> with its text (a theme a
 // package carries, a document).
 int run_embed(const Options& o) {
@@ -371,6 +400,7 @@ int main(int argc, char** argv) {
     if (options->command == "cpp") return run_cpp(*options);
     if (options->command == "native") return run_native(*options);
     if (options->command == "embed") return run_embed(*options);
+    if (options->command == "embed-index") return run_embed_index(*options);
     if (options->command == "check") return run_contracts(*options, false);
     if (options->command == "unicode") return run_unicode(*options);
     if (options->command == "cldr") return run_cldr(*options);

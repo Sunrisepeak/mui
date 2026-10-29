@@ -900,6 +900,84 @@ fade = 4
         check(!b1 && has(texts(b1.error()), "plays `splosh`, which is no effect of the look"), b1 ? "read" : std::format("{}", texts(b1.error())));
     });
 
+    s.test("a stage's painted layers: a picture's region standing in a layer, moving by its parallax, mirrored when flipped; files read back as themselves", [&] {
+        const std::string text = R"(gongfu = "0.1"
+name = "painted"
+sky = ["#000000", "#000000"]
+floor = "#000000"
+line = "#000000"
+marks = false
+
+[[picture]]
+name = "far"
+file = "far.webp"
+size = [64, 32]
+
+[[layer]]
+name = "far"
+parallax = 0.25
+[[layer.image]]
+picture = "far"
+source = [0, 0, 64, 32]
+at = [760, 100]
+width = 400
+)";
+        auto st = p2::read_stage(text, "painted.stage.gongfu.toml");
+        check(st.has_value(), st ? "" : std::format("{}", texts(st.error())));
+        if (!st) return;
+        check(st->pictures.size() == 1 && st->layers[0].images.size() == 1 && st->layers[0].images[0].width == 400, "read");
+        const std::string written = p2::write_stage(*st);
+        auto again = p2::read_stage(written, "written.stage.gongfu.toml");
+        check(again && p2::write_stage(*again) == written, again ? written : std::format("{}", texts(again.error())));
+        // A picture: its left half red, its right half blue.
+        omui::render::ImageStore images;
+        std::vector<omui::raster::Rgba8> px(64 * 32);
+        for (int y = 0; y < 32; ++y)
+            for (int x = 0; x < 64; ++x) px[static_cast<std::size_t>(y * 64 + x)] = x < 32 ? omui::raster::Rgba8{230, 30, 30, 255} : omui::raster::Rgba8{30, 30, 230, 255};
+        st->pictures[0].ref = images.add(64, 32, std::move(px));
+        auto draw = [&](const p2::Stage& stage, double camera_x) {
+            Match m(rules(), fighter(), fighter());
+            const p2::Scene scene{.stage = &stage};
+            omui::render::DisplayList dl;
+            p2::Painter painter;
+            painter.stage_layers(stage, false, scene, p2::Camera{camera_x, 0, 1}, 960, 0, 1, dl);
+            omui::raster::Surface out(960, 540);
+            omui::render::CpuRenderer{}.render(dl, out, {&images, nullptr}, {.scale = 1});
+            return out;
+        };
+        // Where its red half's left edge is on the picture's row through it.
+        auto red_from = [](const omui::raster::Surface& s) {
+            for (int x = 0; x < 960; ++x)
+                if (s.at(x, 300).r > 150 && s.at(x, 300).b < 100) return x;
+            return -1;
+        };
+        auto blue_from = [](const omui::raster::Surface& s) {
+            for (int x = 0; x < 960; ++x)
+                if (s.at(x, 300).b > 150 && s.at(x, 300).r < 100) return x;
+            return -1;
+        };
+        const auto middle = draw(*st, 960), moved = draw(*st, 1360);
+        save(middle, "painted-middle");
+        // Bottom left at 760 along: 280 px left of the middle (480 − 200), 100 up from the ground.
+        check(std::abs(red_from(middle) - 280) <= 1, std::format("its left edge at {}", red_from(middle)));  // within its edge's smoothing
+        check(blue_from(middle) > red_from(middle), "red, then blue");
+        // The camera 400 units on: a layer at parallax 0.25 goes 100 the other way.
+        check(std::abs(red_from(moved) - 180) <= 1, std::format("moved by its parallax to {}", red_from(moved)));
+        p2::Stage flipped = *st;
+        flipped.layers[0].images[0].flip = true;
+        const auto mirror = draw(flipped, 960);
+        check(std::abs(blue_from(mirror) - 280) <= 1 && red_from(mirror) > blue_from(mirror) + 100, std::format("flipped: blue from {}, then red from {}", blue_from(mirror), red_from(mirror)));
+        // Problems: a picture not declared, a source outside it.
+        std::string bad = text;
+        bad.replace(bad.find("picture = \"far\"\nsource"), 15, "picture = \"fur\"");
+        auto b1 = p2::read_stage(bad, "bad.stage.gongfu.toml");
+        check(!b1 && has(texts(b1.error()), "no picture is called `fur`"), b1 ? "read" : std::format("{}", texts(b1.error())));
+        bad = text;
+        bad.replace(bad.find("source = [0, 0, 64, 32]"), 23, "source = [0, 0, 64, 64]");
+        auto b2 = p2::read_stage(bad, "bad.stage.gongfu.toml");
+        check(!b2 && has(texts(b2.error()), "is not inside picture"), b2 ? "read" : std::format("{}", texts(b2.error())));
+    });
+
     s.test("a stage's art: layers by parallax, generators from a seed, sway and flicker by the frame, the world's light; a file that reads back as itself", [&] {
         const std::string text = R"(gongfu = "0.1"
 name = "test"

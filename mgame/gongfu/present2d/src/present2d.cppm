@@ -586,6 +586,20 @@ struct StageShape {
 // ground): with the camera at the stage's middle, a point of any layer is
 // where a point of the ground would be; as the camera moves, a layer moves
 // `parallax` of the way.
+// A painted picture's region standing in a stage's layer: its bottom left at
+// `at` (x along the stage, y up from the ground; the layer's units),
+// `width` wide (its height by the region's proportions, or `height`),
+// mirrored when `flip`; its opacity can flicker (a lantern).
+struct StageImage {
+    std::int32_t     picture = -1;  // the stage's pictures
+    omui::geom::Rect source;
+    Point            at;
+    float            width = 100;
+    float            height = 0;    // 0: by the region's proportions (else stretched: a floor drawn long)
+    bool             flip = false;
+    float            flicker = 0;   // its opacity breathing (a lantern), 0–1
+};
+
 struct StageLayer {
     std::string             name;
     float                   parallax = 1;
@@ -594,6 +608,7 @@ struct StageLayer {
     bool                    front = false; // drawn over the fighters
     std::optional<std::array<float, 4>> clip;  // drawn only inside [x0, y0, x1, y1] of the layer's units (a shadow on a window's paper)
     std::vector<StageShape> shapes;
+    std::vector<StageImage> images;  // drawn under its shapes
 };
 
 struct Stage {
@@ -604,6 +619,9 @@ struct Stage {
     // The world's light: where it comes from, the shadow's and the rim's colours; a fighter's look keeps its depths.
     std::optional<Point>    light_from;
     std::optional<Color>    shadow, rim_color;
+    // The painted pictures its layers' images are cut from (registered by
+    // whoever carries the stage's files, as a look's are).
+    std::vector<Picture>    pictures;
 };
 
 // A stage file: every problem at once with its line and column; what
@@ -678,10 +696,14 @@ public:
     void glyph_by_frames(const std::vector<Stroke>& strokes, std::span<const std::int32_t> ends, std::int32_t from, std::int32_t frame, Point centre,
                          float size, Color color, omui::render::DisplayList& out);
 
-private:
-    // A stage's layers (behind the fighters, or in front of them), at the match's frame, `alpha` of their opacity.
+    // A stage's layers (behind the fighters, or in front of them) through
+    // `camera`, at the match's frame, `alpha` of their opacity; `middle` the
+    // stage's (a layer moves `parallax` of the camera's way from it). A
+    // stage editor's view, and a frame's.
     void stage_layers(const Stage& stage, bool front, const Scene& scene, const Camera& camera, double middle, std::int32_t frame, float alpha,
                       omui::render::DisplayList& out);
+
+private:
     void picture_part(const Look& look, const Part& part, std::size_t drawing, const FighterState& s, const Scene& scene, const Camera& camera,
                       std::optional<Color> tint, omui::render::DisplayList& out);
     Pose                     pose_, past_, rest_, held_;

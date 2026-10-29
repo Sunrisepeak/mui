@@ -66,6 +66,12 @@ struct CppOptions {
 // copied by hand.
 [[nodiscard]] std::string emit_embed(std::string_view text, std::string_view source, std::string_view module, std::string_view ns,
                                      std::string_view name);
+// The files embedded under one tag as one table, partition `<module>:<name>`:
+// an exported array `<name>` of (the file's name, its text), so a program
+// finds its embedded files by name — no list kept by hand beside them.
+// `files`: each file's name and its partition's (and constant's) name.
+[[nodiscard]] std::string emit_embed_index(std::span<const std::pair<std::string, std::string>> files, std::string_view module, std::string_view ns,
+                                           std::string_view name);
 
 // The JSON Schema fragment of view documents for a contract set: one
 // definition per component type with its properties and events.

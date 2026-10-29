@@ -76,6 +76,16 @@ int main(int argc, char** argv) {
         check(seen >= 5, std::format("{} component partitions", seen));
     });
 
+    s.test("an embedded tag's table: every file by name with its text, its partitions exported through it", [] {
+        const std::vector<std::pair<std::string, std::string>> files{{"b-two.webp", "b_two_art"}, {"a-one.webp", "a_one_art"}};
+        const std::string out = gen::emit_embed_index(files, "m", "omui::files", "art_files");
+        check(out.find("export module m:art_files;") != std::string::npos, out);
+        check(out.find("export import :a_one_art;\nexport import :b_two_art;") != std::string::npos, "its partitions, sorted, exported");
+        check(out.find("std::array<std::pair<std::string_view, std::string_view>, 2> art_files{{\n    {\"a-one.webp\", a_one_art},\n    {\"b-two.webp\", b_two_art},\n}};") !=
+                  std::string::npos,
+              out);
+    });
+
     s.test("embedding bytes (a picture, a sound): escaped, NULs kept, the length given", [] {
         const std::string bytes("\x89PNG\r\n\x1a\n\0\xff", 10);
         const std::string out = gen::emit_embed(bytes, "art.png", "m", "omui::files", "art_png");

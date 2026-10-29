@@ -288,7 +288,7 @@ int takes(const std::filesystem::path& file, int argc, char** argv) {
         j["take"] = n + 1;
         j["at"] = static_cast<double>(t.begin) / r->rate;
         j["seconds"] = static_cast<double>(t.end - t.begin) / r->rate;
-        j["peak_db"] = t.peak > 0 ? 20 * std::log10(static_cast<double>(t.peak)) : -200.0;
+        j["peak_db"] = t.peak > 0 ? 20 * hanim::dm::log(static_cast<double>(t.peak)) / hanim::dm::log(10.0) : -200.0;
         j["rms_db"] = t.rms;
         j["pitch_hz"] = t.pitch;
         j["voiced"] = t.voiced;

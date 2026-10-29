@@ -27,7 +27,8 @@ openmui.mcp         = { path = "../mcp" }
 openmui.viewdoc     = { path = "../../modules/ui/viewdoc" }
 openmui.ui.base     = { path = "../../components/base" }
 openmui.ui.markdown = { path = "../../components/markdown" }
-openmui.video       = { path = "../../modules/media/video" }
+"openmui.video"      = { path = "../../modules/media/video" }
+"openmui.video.webm" = { path = "../../modules/media/video/webm" }
 openmui.audio       = { path = "../../modules/media/audio" }
 openmui.host.headless = { path = "../../modules/ui/host/headless" }
 mcpplibs.cmdline = "0.0.2"

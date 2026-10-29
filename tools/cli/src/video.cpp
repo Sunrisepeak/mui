@@ -2,16 +2,18 @@
 // an exit code — 0 done, 1 failed, 2 a wrong command line — for people,
 // agents and CI alike).
 //
-//     omui video render FILE --out OUT [--format y4m|png|wav] [--size WxH] [--fps R] [--seconds S | --frames N]
+//     omui video render FILE --out OUT [--format webm|y4m|png|wav] [--size WxH] [--fps R] [--seconds S | --frames N]
+//                       [--quality Q | --bitrate KBPS] [--speed N] [--realtime] [--lossless] [--threads N]
 //     omui video still  FILE (--frame N | --at SECONDS) --out x.png
 //     omui video check  FILE
-//     omui video probe  FILE.y4m | FILE.wav
+//     omui video probe  FILE.webm | FILE.y4m | FILE.wav
 //     omui video timing --fps R [--rate HZ] [--frames N]
 //
 // FILE is a video description (`*.video.omui.toml`: the sync card, PNG files
 // or a view, with its sound track) or a view document (`*.view.omui.json`,
 // rendered on the headless host's clock, a frame a step). OUT's name says
-// the format: `x.y4m` (and `x.wav` beside it when there is sound), `x.wav`,
+// the format: `x.webm` (VP9 and Opus, through openmui.video.webm), `x.y4m`
+// (and `x.wav` beside it when there is sound), `x.wav`,
 // a pattern `shots/{:05}.png`, or a directory `shots/` (frame-00000.png …
 // and audio.wav).
 module openmui.cli;
@@ -23,6 +25,7 @@ import openmui.core;
 import openmui.viewdoc;
 import openmui.host.headless;
 import openmui.video;
+import openmui.video.webm;
 import openmui.audio;
 
 namespace omui::cli {
@@ -230,16 +233,29 @@ int render(const cmd::ParsedArgs& p, std::ostream& out, std::ostream& err) {
         else if (std::error_code ec; target.ends_with('/') || target.find('{') != std::string::npos || std::filesystem::is_directory(path_of(target), ec))
             format = "png";
     }
-    if (format != "y4m" && format != "wav" && format != "png") {
-        if (format == "webm") return failed(out, report, "WebM (VP9 and Opus) is the openmui.video.webm plugin, which this build does not have");
-        err << "omui video render: the format is y4m, png or wav (from --out's name, or --format)\n";
+    if (format != "webm" && format != "y4m" && format != "wav" && format != "png") {
+        err << "omui video render: the format is webm, y4m, png or wav (from --out's name, or --format)\n";
         return 2;
     }
+    vid::WebmOptions webm;
+    for (auto [name, field] : {std::pair{"quality", &webm.quality}, std::pair{"bitrate", &webm.bitrate}, std::pair{"speed", &webm.speed},
+                               std::pair{"threads", &webm.threads}, std::pair{"audio-bitrate", &webm.audio_bitrate}})
+        if (auto v = p.value(name)) {
+            const auto [q, e] = std::from_chars(v->data(), v->data() + v->size(), *field);
+            if (e != std::errc{} || q != v->data() + v->size()) {
+                err << "omui video render: --" << name << " is a whole number\n";
+                return 2;
+            }
+        }
+    webm.realtime = p.is_flag_set("realtime");
+    webm.lossless = p.is_flag_set("lossless");
     // Where the files go, and what writes them.
     const std::filesystem::path out_path = path_of(target);
     std::filesystem::path dir = out_path.parent_path();
     std::vector<std::unique_ptr<vid::Encoder>> encoders;
-    if (format == "y4m") {
+    if (format == "webm") {
+        encoders.push_back(vid::webm_encoder(utf8(out_path.filename()), webm));
+    } else if (format == "y4m") {
         encoders.push_back(vid::y4m_encoder(utf8(out_path.filename())));
         if (l->d.audio) encoders.push_back(vid::wav_encoder(utf8(out_path.stem()) + ".wav"));
     } else if (format == "wav") {
@@ -340,6 +356,17 @@ int probe(const cmd::ParsedArgs& p, std::ostream& out) {
         report.set("frames", static_cast<std::int64_t>(y->frames.size())).set("seconds", seconds).set("colour", y->colour);
         return print(out, report, 0);
     }
+    if (bytes.size() >= 4 && text->starts_with("\x1a\x45\xdf\xa3")) {
+        auto w = vid::decode_webm(bytes);
+        if (!w) return failed(out, report, w.error());
+        report.set("ok", true).set("format", "webm").set("width", w->width).set("height", w->height).set("video", w->video_codec);
+        report.set("frames", static_cast<std::int64_t>(w->frames.size())).set("seconds", static_cast<double>(w->duration_ns) / 1e9);
+        report.set("bt709", w->bt709).set("limited_range", w->limited_range);
+        if (!w->audio_codec.empty())
+            report.set("audio", w->audio_codec).set("rate", w->rate).set("channels", w->channels)
+                .set("samples", static_cast<std::int64_t>(w->samples.size() / static_cast<std::size_t>(std::max(1, w->channels))));
+        return print(out, report, 0);
+    }
     if (text->starts_with("RIFF")) {
         auto w = audio::read_wav(bytes);
         if (!w) return failed(out, report, w.error());
@@ -347,7 +374,7 @@ int probe(const cmd::ParsedArgs& p, std::ostream& out) {
         report.set("seconds", static_cast<double>(w->samples.size()) / w->rate);
         return print(out, report, 0);
     }
-    return failed(out, report, "neither Y4M nor WAV");
+    return failed(out, report, "neither WebM, Y4M nor WAV");
 }
 
 int timing(const cmd::ParsedArgs& p, std::ostream& out, std::ostream& err) {
@@ -379,9 +406,16 @@ int timing(const cmd::ParsedArgs& p, std::ostream& out, std::ostream& err) {
 cmd::App video_command() {
     cmd::App a{"video"};
     (void)a.description("Videos: frames and a sound track on exact frame and sample counts (openmui.video)");
-    cmd::App r = with_file("render", "Render to files: Y4M (and a WAV beside it), a PNG sequence, or a WAV");
-    r.option("out").takes_value().value_name("OUT").help("x.y4m, x.wav, shots/{:05}.png or shots/");
-    r.option("format").takes_value().value_name("FORMAT").help("y4m, png or wav (default: from --out)");
+    cmd::App r = with_file("render", "Render to files: WebM (VP9 and Opus), Y4M (and a WAV beside it), a PNG sequence, or a WAV");
+    r.option("out").takes_value().value_name("OUT").help("x.webm, x.y4m, x.wav, shots/{:05}.png or shots/");
+    r.option("format").takes_value().value_name("FORMAT").help("webm, y4m, png or wav (default: from --out)");
+    r.option("quality").takes_value().value_name("Q").help("WebM: VP9 at constant quality, 0 (best) … 63 (default 24)");
+    r.option("bitrate").takes_value().value_name("KBPS").help("WebM: a target bit rate instead of a quality");
+    r.option("speed").takes_value().value_name("N").help("WebM: libvpx's speed, 0 (smallest) … 9 (fastest) (default 5)");
+    r.option("realtime").help("WebM: libvpx's real-time mode (the fastest encodes)");
+    r.option("lossless").help("WebM: every Y'CbCr sample kept");
+    r.option("threads").takes_value().value_name("N").help("WebM: encoder threads (1, the default, gives the same bytes everywhere)");
+    r.option("audio-bitrate").takes_value().value_name("KBPS").help("WebM: Opus (default 128)");
     (void)a.subcommand(std::move(r));
     cmd::App s = with_file("still", "One frame as a PNG");
     s.option("frame").takes_value().value_name("N").help("the frame");
@@ -390,8 +424,8 @@ cmd::App video_command() {
     (void)a.subcommand(std::move(s));
     (void)a.subcommand(with_file("check", "Whether a description reads: its problems, or its size, rate, frames and samples"));
     cmd::App pr{"probe"};
-    (void)pr.description("What a Y4M or WAV file holds");
-    pr.arg("file").required().help("a .y4m or .wav file");
+    (void)pr.description("What a WebM, Y4M or WAV file holds (a WebM decoded: its frames and samples counted)");
+    pr.arg("file").required().help("a .webm, .y4m or .wav file");
     (void)a.subcommand(std::move(pr));
     cmd::App t{"timing"};
     (void)t.description("Each frame's first sample and length, and its start in nanoseconds");

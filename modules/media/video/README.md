@@ -24,7 +24,7 @@ auto done = video::encode(format, card, track, encoders, out);   // each file's 
   - `png_encoder`: a PNG a frame, named by a pattern (`"frame-{:05}.png"`);
   - `wav_encoder`: the sound track, 16-bit PCM or 32-bit float.
 
-  A compressed format is a package of its own that implements `Encoder` (WebM with VP9 and Opus: `openmui.video.webm`, coming once its libraries are published).
+  A compressed format is a package of its own that implements `Encoder`: WebM with VP9 and Opus is [webm](webm).
 - **Outputs** (`Output`): where the files go — `DirectoryOutput`, or `MemoryOutput` (tests; a tool that hashes what it would write). A file can be gone back into (a container writes its sizes and index last); every closed file is reported with its size and FNV-1a hash.
 - **The driver** (`encode`): asks the source for each frame and hands each encoder the frame and its samples; the track is cut, or filled with silence, to the frames' length. A span `video.encode` per encode and `video.frame` per frame, a span `video.soundtrack` per sound track, in category `video`.
 
@@ -59,9 +59,15 @@ beeps = true
 
 `soundtrack` renders it offline through `openmui.audio`'s mixer and limiter — the music with its intensity cued, each cue's sound from its exact sample (a cue on a frame from that frame's first sample) — then adds the card's beeps. `frame_source` gives the card or the PNG files.
 
+## Packages
+
+| Package | |
+|---|---|
+| [webm](webm) | WebM: VP9 video (libvpx) and Opus sound (libopus) muxed by libwebm, through mwrap; an encoder plugin, and a decoder for round trips. One thread: the video's bytes are the same everywhere |
+
 ## omui video
 
-The command line is `omui video` ([tools/cli](../../../tools/cli)), which renders descriptions and view documents alike (a view needs the headless host, which this package does not know): `render` to Y4M (with a WAV beside it), a PNG sequence or a WAV; `still`; `check`; `probe`; `timing`. One JSON object out and an exit code (D-61).
+The command line is `omui video` ([tools/cli](../../../tools/cli)), which renders descriptions and view documents alike (a view needs the headless host, which this package does not know): `render` to WebM (VP9 and Opus), Y4M (with a WAV beside it), a PNG sequence or a WAV; `still`; `check`; `probe`; `timing`. One JSON object out and an exit code (D-61).
 
 ## Tests
 

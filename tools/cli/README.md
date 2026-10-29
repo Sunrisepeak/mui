@@ -37,15 +37,17 @@ Actions are recorded with their actor (`agent:omui-cli` unless `--actor`).
 
 Videos from descriptions (`*.video.omui.toml`) and view documents
 (`*.view.omui.json`, rendered on the headless host's clock, a step a frame),
-through [openmui.video](../../modules/media/video): one JSON object out and an
-exit code (0 done, 1 failed, 2 a wrong command line).
+through [openmui.video](../../modules/media/video) and its WebM plugin: one
+JSON object out and an exit code (0 done, 1 failed, 2 a wrong command line).
 
 ```text
-omui video render FILE --out OUT [--format y4m|png|wav] [--size WxH] [--fps R] [--seconds S | --frames N]
-                       OUT: x.y4m (and x.wav beside it when there is sound), x.wav, shots/{:05}.png or shots/
+omui video render FILE --out OUT [--format webm|y4m|png|wav] [--size WxH] [--fps R] [--seconds S | --frames N]
+                       [--quality Q | --bitrate KBPS] [--speed N] [--realtime] [--lossless] [--threads N]
+                       OUT: x.webm (VP9 and Opus), x.y4m (and x.wav beside it when there is sound), x.wav,
+                       shots/{:05}.png or shots/
 omui video still  FILE (--frame N | --at SECONDS) --out x.png
 omui video check  FILE                          its problems, or its size, rate, frames and samples a frame
-omui video probe  FILE.y4m | FILE.wav           what it holds
+omui video probe  FILE.webm | FILE.y4m | FILE.wav   what it holds (a WebM decoded: frames and samples counted)
 omui video timing --fps R [--rate HZ] [--frames N]   each frame's first sample, length and start
 ```
 

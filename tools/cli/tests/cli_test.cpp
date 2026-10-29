@@ -197,6 +197,14 @@ int main(int argc, char** argv) {
         r = omui_cmd({"video", "probe", utf8(dir / "out" / "card.wav")});
         v = parse_json(r.out);
         check(r.code == 0 && v && v->get("samples")->as_int() == 48000, r.out);
+        // WebM: VP9 and Opus, read back.
+        r = omui_cmd({"video", "render", utf8(dir / "card.video.omui.toml"), "--out", utf8(dir / "out" / "card.webm"), "--speed", "8"});
+        check(r.code == 0, r.out + r.err);
+        r = omui_cmd({"video", "probe", utf8(dir / "out" / "card.webm")});
+        v = parse_json(r.out);
+        check(r.code == 0 && v && v->get("frames")->as_int() == 30 && v->get("samples")->as_int() == 48000 && v->get("video")->as_string() == "V_VP9" &&
+                  v->get("audio")->as_string() == "A_OPUS" && v->get("bt709")->as_bool(),
+              r.out);
         r = omui_cmd({"video", "still", utf8(dir / "card.video.omui.toml"), "--at", "0.5", "--out", utf8(dir / "f15.png")});
         v = parse_json(r.out);
         check(r.code == 0 && v && v->get("frame")->as_int() == 15 && std::filesystem::exists(dir / "f15.png"), r.out + r.err);

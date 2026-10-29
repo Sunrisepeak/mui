@@ -1,0 +1,33 @@
+# openmui.video.webm — an openmui.video encoder plugin: WebM with VP9 video
+# (libvpx) and Opus sound (libopus), muxed by libwebm, and the decoder that
+# reads one back (for round trips and tools). The libraries come through
+# mwrap (D-83): mcpplibs.mwrap.libvpx (libvpx 1.17.0 and libwebm 1.0.0.32
+# over compat.libvpx and compat.libwebm) and mcpplibs.mwrap.opus (libopus
+# 1.6.1), imported only in the native unit. All BSD-3-Clause, royalty-free
+# formats. One thread: the video's bytes are the same everywhere.
+[package]
+namespace   = "openmui.video"
+name        = "webm"
+version     = "0.1.0"
+description = "WebM (VP9 and Opus) for openmui.video: an encoder plugin, and a decoder for round trips"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "runtime"
+
+[targets.openmui-video-webm]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/native/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+openmui.video         = { path = ".." }
+mcpplibs.mwrap.libvpx = "1.17.0"
+mcpplibs.mwrap.opus   = "1.6.1"
+
+[dev-dependencies]
+openmui.testing = { path = "../../../base/testing" }

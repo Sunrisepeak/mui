@@ -18,7 +18,7 @@
 export module openmui.video:encode;
 
 import std;
-import openmui.image;
+export import openmui.image;  // the pictures it takes and gives: imageio::View, imageio::Image
 import :timing;
 
 export namespace omui::video {

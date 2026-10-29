@@ -9,4 +9,4 @@ Every tool has two faces that read the same records: a command line (JSON, exit 
 | [mcp](mcp) | An MCP server for any running openmui application |
 | [inspector](inspector) | The Inspector: semantic tree, node details, frame times, pipeline and time control |
 
-[lint](lint) checks the repository's rules; [ci](ci) holds the scripts CI runs.
+[lint](lint) checks the repository's rules; [ci](ci) holds the scripts CI runs. [repin.py](repin.py) re-pins hashes from a test run's "expected …, got …" failures, on the very lines, once the pictures have been looked at (`mcpp test … 2>&1 | python3 tools/repin.py`).

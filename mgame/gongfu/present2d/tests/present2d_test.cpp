@@ -415,6 +415,13 @@ reactions = ["hitstun.body", "launched", "slammed"]
         heavy.reactions = {"hitstun.heavy"};
         check(drawn(launched, 14, d) == drawn(heavy, 14, d), "no `launched`: the heavy hit");
         check(drawn(launched, 14, launchable) != drawn(heavy, 14, launchable), "its own `launched`");
+        // Launched again (a juggle): it goes on from the first, not again from its start.
+        p2::CinematicLook juggled = plain, restarted = plain, kept = plain;
+        juggled.reactions = {"launched", "launched"};
+        restarted.reactions = {"hitstun.heavy", "launched"};
+        kept.reactions = {"launched", "hitstun"};
+        check(drawn(juggled, 29, launchable) == drawn(kept, 29, launchable) && drawn(juggled, 33, launchable) != drawn(restarted, 33, launchable),
+              "launched twice: one turn going on");
         // Afterimages: the attacker again as it was its trail's frames before.
         p2::Look trailing = a;
         trailing.trail.frames = {3, 6};

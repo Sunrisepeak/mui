@@ -387,7 +387,8 @@ struct CinematicLook {
     // The defender's reaction to each of the cinematic's hits, in turn (a
     // reaction clip's name — a hit reaction or a taken one, see below; empty:
     // by default). A taken reaction the defender's look has not falls back to
-    // `hitstun.heavy`, then `hitstun`.
+    // `hitstun.heavy`, then `hitstun`; one asked for again in a row goes on
+    // from where it began (kicked while launched, a body keeps turning over).
     std::vector<std::string> reactions;
     // Held (a grab anchor): over [from, to) the defender is where a bone of
     // the attacker is — `along` that bone from its joint — by its own point

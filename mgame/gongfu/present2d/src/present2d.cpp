@@ -1344,8 +1344,18 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
             if (last >= 0) {
                 clip_t = struck_time(st.lock.frame) - struck_time(last);
                 if (!cine->reactions.empty()) {
-                    const std::string& r = cine->reactions[static_cast<std::size_t>(landed - 1) % cine->reactions.size()];
+                    const std::size_t n = cine->reactions.size();
+                    const std::string& r = cine->reactions[static_cast<std::size_t>(landed - 1) % n];
                     if (const std::string_view c = taken_clip(own, r); !c.empty()) clip = c;
+                    // A taken reaction asked again goes on from where it began: kicked while
+                    // launched, a body keeps turning over (each blow stands it still in its hitstop).
+                    if (std::ranges::contains(taken_reactions, std::string_view(r))) {
+                        std::int32_t first = landed - 1;
+                        while (first > 0 && cine->reactions[static_cast<std::size_t>(first - 1) % n] == r) --first;
+                        std::int32_t k = 0;
+                        for (const CinematicHit& h : md.cinematic->hits)
+                            if (h.frame <= st.lock.frame && k++ == first) clip_t = struck_time(st.lock.frame) - struck_time(h.frame);
+                    }
                 }
             }
         } else if (!cine && drawn.mode == Mode::hitstun) {

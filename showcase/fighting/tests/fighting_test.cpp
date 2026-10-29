@@ -805,10 +805,10 @@ int main(int argc, char** argv) {
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    li panes {}", all.hex());
-        check_eq(all.hex(), std::string("98b709d3860ce29c"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("0358f2ed96ae81a0"));  // GCC and LLVM, every platform
     });
 
-    s.test("璃's level 3, 「琉璃界」: the world of glass, Kata seen through a prism, a crack for each hit, and the picture falling apart — frames pinned", [] {
+    s.test("璃's level 3, 「琉璃界」: her eyes through cracking glass; panes about them as the world turns to glass; strikes from in front and from behind through her panes, each breaking glass and leaving a crack; the palm through the last pane, everything falling, her finishing picture — frames pinned", [] {
         Game g("training", "li", "kata");
         check(g.act("pause"));
         check(g.act("fill"));
@@ -827,18 +827,18 @@ int main(int argc, char** argv) {
             const auto& st = g.state();
             if (st.lock.owner == 0 && lock_from < 0) lock_from = st.frame;
             const std::int32_t lf = st.lock.owner == 0 ? st.lock.frame : -1;
-            if (st.freeze == 25 || lf == 14 || lf == 50 || lf == 110 || lf == 146 || lf == 156 || lf == 166) {
+            if (st.freeze == 25 || lf == 24 || lf == 51 || lf == 110 || lf == 141 || lf == 152 || lf == 158 || lf == 168) {
                 g.h.step();
                 px.push_back(g.pixels());
                 check(g.h.save_png(dir / std::format("{:02}-{}.png", px.size(), lf < 0 ? std::string("flash") : std::format("lock-{}", lf))).has_value());
             }
         }
         check(lock_from > 0, "the palm hit: the cinematic played");
-        check_eq(px.size(), std::size_t{7});
+        check_eq(px.size(), std::size_t{8});
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    li level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("e3f38388b6815fa8"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("ab8994efcfa9dd1a"));  // GCC and LLVM, every platform
     });
 
     s.test("刻 as designed: every normal's, 「停摆」's and 「拨针」's startup and advantage, measured in the simulation (characters 2 design §4)", [] {
@@ -1146,7 +1146,7 @@ int main(int argc, char** argv) {
             check(rate >= 0.38 && rate <= 0.62, std::format("{} wins {:.2f} of its rounds", r.names[i], rate));
         }
         std::println("    rounds {}", all.hex());
-        check_eq(all.hex(), std::string("dc2d41f4688d3cf4"));  // the same rounds on GCC and LLVM
+        check_eq(all.hex(), std::string("b89249a4decd0985"));  // the same rounds on GCC and LLVM
     });
 
     s.test("a stage's music: the study's piece plays from the round's start, louder as the round gets close; the rooftop's for 坤; none in training's plain room", [] {

@@ -91,9 +91,23 @@ An original character built on an internet meme's signs — a clean centre part,
 
 Three hits carry the same 4000 damage as before (900, 1900, 1200). The engine pieces it needed are general and went into `gongfu.present2d` first: path keys with an ease (a body flung up and falling instead of stopping at every key), turns, hitstops for the struck, cinematic afterimages, and the taken reactions (`launched`, `slammed`) that every rebuilt look now has. What it still lacks: there is no drawing of his back, so "turned" reads as facing away rather than showing it, and the impacts are rings and quakes — there is no dust or force art for him yet.
 
-### 璃, 岳, 刻 and Kata
+### 璃 (Li)
 
-The first three still use the original geometric looks; they will be rebuilt with the same workflow. Kata, the training dummy, stays deliberately plain, but acts: it has the four hit reactions, so a super's cuts land visibly on it.
+| | |
+|---|---|
+| **Concept** | A glass artisan who fights: composed, precise, cold. A pale blue-grey jacket with a mandarin collar, frosted-glass toggles and an ice-crackle print (crackle-glaze porcelain) on its panels; a slate sash with a trailing end and a tassel of glass beads; wide sleeve cuffs over faceted glass bracers; slate trousers in pale wraps, soft grey boots; a silver bob with a prism hairpin |
+| **Fighting style** | Unarmed and exact: the knife-hand thrust (贯手) and level cut, the rear palm driven through on a long step, a snap kick, a side kick, a high crescent kick against jumps; the overhead 「裂」 is a hop and a knife-hand brought straight down. Panes are her set-up, raised and broken by gestures of the hands, not by a weapon |
+| **Art** | codex generated a concept (raised once to the cast's detail: the crackle print, the beads, the hem's glass facets), a side view, a parts sheet, a sheet of eight hands, six expressions, two cut-ins, a finishing picture and an effects sheet. Cut into a 1040 × 242 parts atlas (53 KB WebP), 428 × 208 faces (30 KB) and 396 × 86 hands (9 KB); the effects, painted as light on black, keyed by brightness and cut into 955 × 278 (108 KB) |
+| **Rig** | 19 bones at one art scale (0.4 stage units per pixel): grid meshes bent at elbows and knees; the jacket's two panels, the sash's end and the bead tassel on trailing bones; both feet planted by two-bone IK; each hand swaps between eight drawings (open, fist, fist toward the viewer, knife-hand, palm, sword fingers, claw, palm up); the head between six expressions. Three materials: porcelain cloth, hard-faceted glass for the bracers and beads (a bright cold rim: her thin white outline), soft skin |
+| **Animation** | 52 clips keyed by 13 named poses (`stance`, `crouch`, `air`, `thrust`, `palm`, `gather`, `set`, `side_kick`, `high_kick`, `guard`, `hit`, `down`, `flung`); every hit reaction, and `held`, `launched`, `slammed` |
+| **Effects** | Her glass, cut from the effects sheet: bursts, crescent cuts, cracks and glints by weight; shards thrown and falling; the panes themselves are drawn art — whole, cracked once worn, breaking when struck — and her shards fly as slivers of glass |
+| **Super (level 3)** | The eyes cut-in through cracking glass; the palm lands and the world turns to glass, a pane standing either side; she darts through her panes and strikes twelve times from in front and from behind (knife-hand, palm, low kick, cut, side kick), each blow breaking glass at the struck and leaving a crack in the world, the struck reacting to each; the strike cut-in as she gathers the light; the palm through the last pane, shards raining over the picture, the struck thrown up; her finishing picture |
+
+Making her taught three things. The parts sheet came back twice: the first with a sleeve drawn onto the torso (a third arm whenever the front arm moved), the second with an open armhole; the second's armhole was closed by filling it with the jacket beside it, so its piping reads as a seam under the front arm. The generated boots were drawn larger than the legs, so they were scaled down in the sheet before cutting rather than given a scale of their own (the lesson of one art scale). And the first cinematic's prism doubled the training dummy into a row of ghosts and its fall was flat vector triangles; the prism was toned down to one faint image and the fall became her own shards raining from the top of the picture. The panes needed one general capability, which went into `gongfu.present2d`: a pane drawn from a picture's regions.
+
+### 岳, 刻 and Kata
+
+The first two still use the original geometric looks; they will be rebuilt with the same workflow. Kata, the training dummy, stays deliberately plain, but acts: it has the four hit reactions, so a super's cuts land visibly on it.
 
 ## 4. Combat systems
 

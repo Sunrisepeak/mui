@@ -15,8 +15,6 @@ namespace omui::cli {
 namespace cmd = mcpplibs::cmdline;
 namespace vd = omui::viewdoc;
 
-namespace {
-
 // The components every document may use: the official ones.
 void register_components() {
     static const bool done = [] {
@@ -26,6 +24,8 @@ void register_components() {
     }();
     (void)done;
 }
+
+namespace {
 
 std::optional<std::string> read_text(const std::string& file, std::ostream& err) {
     auto text = mcpplibs::os::fs::read(mcpplibs::os::fs::from_utf8(file));

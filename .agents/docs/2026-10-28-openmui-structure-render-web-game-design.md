@@ -596,7 +596,7 @@ mgame 是一组引擎服务，以 openmui 作为 UI 模块。第一个用户是 
 | 包 | 内容 |
 |---|---|
 | `media.audio` | 设备输入输出（miniaudio：桌面和 Web Audio）；音频图（混音、声部、效果，和帧管线同一种描述方式，在音频线程按块运行，每块零分配）；和模拟 / 动画事件采样精确对齐；**离线渲染逐位确定**（视频导出和测试用，各平台同一个哈希）；Opus、WAV、FLAC |
-| `media.video` | 帧管线把“呈现”换成“编码”；帧之间独立，可以并行；编解码是插件：内置 PNG 序列，可选 ffmpeg（LGPL、动态链接），系统编码器，Web 上用 WebCodecs；容器 libwebm / minimp4；和音频同步 |
+| `media.video` | 帧管线把“呈现”换成“编码”；帧之间独立，可以并行；和音频按样本同步（第 i 帧的样本是 ⌊i·rate·den/num⌋ 起，全是整数）；编解码是插件：内置 PNG 序列、Y4M（BT.709 4:2:0，整数转换）和 WAV，不带第三方代码；压缩格式是单独的插件包：WebM（libwebm）里的 VP9（libvpx）和 Opus（libopus），都是 BSD、经 mwrap 引入（`openmui.video.webm`）；以后可选 ffmpeg（LGPL、动态链接）、系统编码器、Web 上的 WebCodecs；`*.video.omui.toml` 描述一个视频；命令行是 `omui video` |
 | `media.timeline` | 轨道、片段、时间映射、关键帧（hanim 的曲线）的数据模型；剪辑软件、编曲软件、动画编辑、`gongfu.studio` 共用；界面组件是 `components/timeline` |
 | 运行时：撤销和事务 | reversible 的动作提供逆操作；事务把一组动作合成一个；agent 的 dry-run（之前计划里的待办） |
 

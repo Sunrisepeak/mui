@@ -30,4 +30,23 @@ the envelope's: 0 done, 1 failed, 2 needs an answer (an irreversible or
 external action: call again with `--answer`), 3 not ready (a wait timed out).
 Actions are recorded with their actor (`agent:omui-cli` unless `--actor`).
 
-`check`, `fmt`, `add`, `video` and `bench` join as their members land.
+## omui video
+
+Videos from descriptions (`*.video.omui.toml`) and view documents
+(`*.view.omui.json`, rendered on the headless host's clock, a step a frame),
+through [openmui.video](../../modules/media/video): one JSON object out and an
+exit code (0 done, 1 failed, 2 a wrong command line).
+
+```text
+omui video render FILE --out OUT [--format y4m|png|wav] [--size WxH] [--fps R] [--seconds S | --frames N]
+                       OUT: x.y4m (and x.wav beside it when there is sound), x.wav, shots/{:05}.png or shots/
+omui video still  FILE (--frame N | --at SECONDS) --out x.png
+omui video check  FILE                          its problems, or its size, rate, frames and samples a frame
+omui video probe  FILE.y4m | FILE.wav           what it holds
+omui video timing --fps R [--rate HZ] [--frames N]   each frame's first sample, length and start
+```
+
+`render` answers each file's name, size and hash and how many times faster
+than real time it ran.
+
+`add` and `bench` join as their members land.

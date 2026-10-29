@@ -307,6 +307,7 @@ cmd::App app() {
     (void)a.subcommand(check_command());
     (void)a.subcommand(fmt_command());
     (void)a.subcommand(schema_command());
+    (void)a.subcommand(video_command());
     cmd::App mcp{"mcp"};
     (void)mcp.description("An MCP server on standard input and output: agents (Claude Code …) operate running applications with ui_* tools");
     mcp.option("app").takes_value().value_name("NAME").help("the application a call names none of (default: the one running)");
@@ -418,6 +419,7 @@ int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err)
                "  omui check FILE…     view documents: names, types, ids, expressions (--json)\n"
                "  omui fmt FILE…       the canonical format (--check)\n"
                "  omui schema          the JSON Schema of view documents\n"
+               "  omui video render | still | check | probe | timing   videos: frames and sound on exact counts\n"
                "  omui mcp             an MCP server: agents operate running applications (claude mcp add openmui -- omui mcp)\n\n"
                "Run `omui <command> --help` for its options.\n";
         return 0;
@@ -426,6 +428,7 @@ int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err)
     if (parsed->subcommand_name() == "check") return check(parsed->subcommand()->get(), out, err);
     if (parsed->subcommand_name() == "fmt") return fmt(parsed->subcommand()->get(), out, err);
     if (parsed->subcommand_name() == "schema") return schema(parsed->subcommand()->get(), out, err);
+    if (parsed->subcommand_name() == "video") return video(parsed->subcommand()->get(), out, err);
     if (parsed->subcommand_name() == "mcp") {
         // The protocol is this process's standard streams, whatever `out` is.
         const cmd::ParsedArgs& m = parsed->subcommand()->get();

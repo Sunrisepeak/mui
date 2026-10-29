@@ -34,5 +34,11 @@ namespace omui::cli {
 int check(const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ostream& err);
 int fmt(const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ostream& err);
 int schema(const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ostream& err);
+// The official components, registered once (documents and views use them).
+void register_components();
+
+// omui video (video.cpp).
+[[nodiscard]] mcpplibs::cmdline::App video_command();
+int video(const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ostream& err);
 
 }  // namespace omui::cli

@@ -24,7 +24,7 @@ import openmui;
 import openmui.ui.canvas;
 import openmui.ui.canvas.kit;
 import openmui.ui.markdown;
-// behaviors/*.behavior.omui.toml, embedded by build.mcpp (openmui.rules).
+// behaviors/*.behavior.omui.toml, embedded by build.mcpp (openmui.build.embed).
 export import :group_drag_behavior;
 export import :views_behavior;
 

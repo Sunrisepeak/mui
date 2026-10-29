@@ -1,6 +1,6 @@
 // openmui.gen.dist_toy — a program built for wasm32-emscripten, packaged for
 // Bilibili Toy (D-84 §6.5): what `mcpp pack --pkg-format dist-toy` runs
-// (openmui.rules' dist_toy(), the format's provider).
+// (openmui.build.toy's dist_toy(), the format's provider).
 //
 //   omui-gen dist-toy <staged tree> --target <name> --out <dir> [--title T]
 //                     [--fonts Inter,NotoSansSC | all] [--fonts-dir <dir>]

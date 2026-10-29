@@ -196,23 +196,24 @@ AGENTS.md 规定组件和 native 模块“契约优先”。标记让契约可�
 
 ### 4.1 现状和问题
 
-现在所有构建期能力都在 `mcpp/rules` 一个包里：contracts、natives、themes、behaviors。继续往里加（Slang、标记、i18n、资源烘焙），会让每个应用的构建依赖越来越重，也无法单独发布和升级。
+拆分之前，所有构建期能力都在 `mcpp/rules` 一个包里：contracts、natives、themes、behaviors、embed、dist-toy。继续往里加（Slang、标记、i18n、资源烘焙），会让每个应用的构建依赖越来越重，也无法单独发布和升级。2026-10-30 已按下表拆分（`mcpp/README.md`）。
 
 ### 4.2 拆分
 
 | 包 | 内容 | 类型 |
 |---|---|---|
-| `openmui.build` | 共用基础：扫描 glob、计划 edge、`submit`、增量和依赖文件、诊断格式 | 内置 |
-| `openmui.build.contracts` | `*.contract.omui.toml`、`*.native.omui.toml` → C++ / C ABI / stub | 内置 |
-| `openmui.build.embed` | 主题、行为、任意文件 → 嵌入分区 | 内置 |
-| `openmui.build.slang` | `*.slang` → SPIR-V / MSL / DXIL + 反射（现在的 openmui.shader 规则） | 内置 |
+| `openmui.build.plan`（`mcpp/plan`） | 共用基础：扫描文件、计划 edge、`submit`、生成器、路径文本（目录不叫 `build/`：那是全仓库忽略的输出目录名） | 内置，已完成 |
+| `openmui.build.contracts`（`mcpp/contracts`） | `*.contract.omui.toml`、`*.native.omui.toml` → C++ / C ABI / stub | 内置，已完成 |
+| `openmui.build.embed`（`mcpp/embed`） | 主题、行为、任意文件 → 嵌入分区 | 内置，已完成 |
+| `openmui.build.toy`（`mcpp/toy`） | dist-toy 打包格式：B 站小游戏包，或不带 SDK 的静态页面（官网） | 内置，已完成 |
+| `openmui.shader.rules`（`modules/gfx/shader/rules`） | `*.slang` → SPIR-V / MSL / DXIL / WGSL / ESSL + 反射。它跟着独立组件 openmui.shader 走（D-55：组件随时能拆成独立仓库，构建插件也一起带走），不搬进 `mcpp/` | 内置 |
 | `openmui.build.markers` | 第 3 节的标记 | 内置 |
 | `openmui.build.i18n` | 提取 `tr("key")`，生成消息目录，检查缺失 | 可选，经 mcpp-index 发布 |
 | `openmui.build.assets` | 字体子集、图片烘焙、按目标裁剪 | 可选，经 mcpp-index 发布 |
 
-- 每个插件都是一个 `host-module = true` 的 mcpp 包，只依赖 `openmui.build`，互相不依赖。
+- 每个插件都是一个 `host-module = true` 的 mcpp 包，只依赖 `openmui.build.plan`（和它调用的生成器），互相不依赖。
 - 应用在 `build.mcpp` 里只组合自己需要的插件。
-- `openmui.rules` 保留为“内置插件全集”的伞包，现有工程不用改。
+- 不设伞包：每个包在 `[build-dependencies]` 里只写自己用到的插件（组件包写 contracts，主题包写 embed，B 站小游戏再加 toy）。原来设想保留 `openmui.rules` 作伞包，但那样大家还是会依赖全集，拆分就失去意义；仓库里没有外部用户，所以一次迁移完。
 - 第三方也可以写插件（例如公司内部的代码规范检查），通过 mcpp-index 分发。
 
 ### 4.3 插件契约
@@ -224,7 +225,7 @@ AGENTS.md 规定组件和 native 模块“契约优先”。标记让契约可�
   - 增量：每个 edge 声明全部输入；
   - 诊断：使用 `文件:行:列: 信息 (提示)` 格式；
   - 可观测：每个插件一个 trace 类别 `build.<插件>`。
-- 每个插件有自己的测试（`tests/rules` 的拆分版）。可选插件进 mcpp-index 时，必须有独立仓库的 CI。
+- 每个插件有自己的测试：`tests/plugins/contracts`、`tests/plugins/embed` 各是一个第三方包的夹具；toy 由 `tools/ci/toy.sh` 和 `tools/ci/site.sh` 检查打出的包。可选插件进 mcpp-index 时，必须有独立仓库的 CI。
 
 ---
 
@@ -232,7 +233,7 @@ AGENTS.md 规定组件和 native 模块“契约优先”。标记让契约可�
 
 1. 帧需求 L0–L2 和 `frame.pacer` 默认插件、按预测上屏时间求值、HUD 和 trace。先接 macOS ProMotion（`CAMetalDisplayLink`）和 Windows VRR，再接 Wayland 和 Android。
 2. 晋升 L1 属性、L2 策略、预热（复用离屏布局），以及“晋升那一帧耗时”基准。
-3. 构建插件拆分：`openmui.build` 基础加四个内置插件，`openmui.rules` 改为伞包。
+3. 构建插件拆分：`openmui.build.plan` 基础加 contracts、embed、toy 三个内置插件，不设伞包（已完成，2026-10-30）。
 4. 标记试点：先做 C++ 的 `[[omui::verb]]`，四种语言的 `verb` 一起对齐；再做 `model`、`embed`。
 
 ## 6. 决策记录
@@ -243,4 +244,4 @@ AGENTS.md 规定组件和 native 模块“契约优先”。标记让契约可�
 | D-70 | 帧需求与帧节奏：运行时合并各来源的 FrameDemand，交给 `frame.pacer` 插件，按预测上屏时间求值；宿主映射到 ProMotion / VRR / setFrameRate / Wayland 时序协议；空闲不画 |
 | D-71 | 晋升策略分层（阈值 → 属性 → 策略函数 → 档位插件）；相机移动时不晋升；晋升复用离屏布局（预热） |
 | D-72 | 构建期标记：各语言用合法语法（属性、装饰器、注解注释），字段语义按 `markers.toml` 对齐；只生成不改源；库契约优先，应用内部允许代码优先 |
-| D-73 | 构建插件按功能拆成多个包：`openmui.build` 基础 + 内置插件 + 经 mcpp-index 分发的可选插件；`openmui.rules` 是伞包 |
+| D-73 | 构建插件按功能拆成多个包：`openmui.build.plan` 基础 + 内置插件 + 经 mcpp-index 分发的可选插件；不设伞包，每个包只依赖自己用到的插件 |

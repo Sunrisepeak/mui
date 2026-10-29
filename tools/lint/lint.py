@@ -83,7 +83,7 @@ LAYERS: dict[str, set[str]] = {
     "mgame/gongfu": set(),
     "mgame": _BELOW_UI | {"modules/ui", "modules/ui/host", "components", "mgame", "mgame/gongfu"},
     "tools": {"*"},
-    "mcpp": {"tools"},  # build code only: the rule and the generator it runs
+    "mcpp": {"tools", "mcpp"},  # build code only: the plugins, their shared base and the generator they run
     "src": {"*"},  # entries: the composition roots (component-binding §10.2)
     "tests": {"*"},
     "examples": {"*"},
@@ -316,8 +316,8 @@ def check_manifests(root: Path) -> list[Problem]:
 
 # Where the path-is-the-name rule (D-80) holds, and the directories whose
 # README lists the packages under them.
-LIBRARY_ROOTS = ("modules", "mgame", "components", "lang", "tools", "showcase")
-README_ROOTS = ("modules", "mgame", "components", "lang", "tools", "tests", "examples", "showcase")
+LIBRARY_ROOTS = ("modules", "mgame", "components", "lang", "tools", "showcase", "mcpp")
+README_ROOTS = ("modules", "mgame", "components", "lang", "tools", "tests", "examples", "showcase", "mcpp")
 
 
 def package_name(data: dict) -> str:

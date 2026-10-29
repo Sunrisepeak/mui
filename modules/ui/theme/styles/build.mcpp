@@ -2,10 +2,10 @@
 // partitions openmui.theme.styles:<name>_style.
 import std;
 import mcpp;
-import openmui.rules;
+import openmui.build.embed;
 
 int main() {
-    return openmui::rules::embed({.module = "openmui.theme.styles", .ns = "omui::themes", .dir = "styles", .suffix = ".style.omui.toml", .tag = "style"})
+    return openmui::build::embed({.module = "openmui.theme.styles", .ns = "omui::themes", .dir = "styles", .suffix = ".style.omui.toml", .tag = "style"})
                ? 0
                : 1;
 }

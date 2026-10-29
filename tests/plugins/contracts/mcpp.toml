@@ -1,0 +1,29 @@
+# A third-party component package built through openmui.build.contracts: its contract
+# is all it writes about the interface; the partition, the builder, the
+# stubs and the schema are made at build time (component-binding §2).
+[package]
+namespace   = "acme"
+name        = "ui"
+version     = "0.1.0"
+description = "A component package whose bindings openmui.build.contracts generates at build time"
+license     = "Apache-2.0"
+
+[package.metadata.openmui]
+kind = "component"
+
+[targets.openmui-contracts-fixture]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+openmui.core = { path = "../../../modules/ui/core" }
+openmui.view = { path = "../../../modules/ui/view" }
+
+[build-dependencies]
+openmui.build.contracts = { path = "../../../mcpp/contracts", host-module = true }
+
+[dev-dependencies]
+openmui.testing       = { path = "../../../modules/base/testing" }
+openmui.host.headless = { path = "../../../modules/ui/host/headless" }

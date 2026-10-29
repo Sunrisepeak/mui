@@ -1,7 +1,7 @@
 # Example 04 — a custom component (canvas-markdown §5; component-binding §2):
 # the reading list, whose rows are rated with this application's own
 # component, `rating`. Its interface is a contract
-# (contract/rating.contract.omui.toml); openmui.rules generates the C++
+# (contract/rating.contract.omui.toml); openmui.build.contracts generates the C++
 # partition, the builder and the TypeScript / Python / Lua stubs when the
 # package builds; src/rating.cpp is its behaviour. Registered once, it is a
 # component like any other: the TypeScript interface (logic/main.ts), Lua,
@@ -39,7 +39,7 @@ openmui.entry.player = { path = "../../src/entry/player" }
 openmui.ui.base      = { path = "../../components/base" }
 
 [build-dependencies]
-openmui.rules = { path = "../../mcpp/rules", host-module = true }
+openmui.build.contracts = { path = "../../mcpp/contracts", host-module = true }
 
 [dev-dependencies]
 openmui.testing  = { path = "../../modules/base/testing" }

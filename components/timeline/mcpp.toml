@@ -3,7 +3,7 @@
 # and a playhead; clips selected, moved, trimmed, split and removed by the
 # pointer, the keys or an agent's actions, every edit undone exactly.
 # Contract-first: contract/timeline.contract.omui.toml becomes the base,
-# builders, stubs and schema when it builds (openmui.rules).
+# builders, stubs and schema when it builds (openmui.build.contracts).
 [package]
 namespace   = "openmui.ui"
 name        = "timeline"
@@ -30,7 +30,7 @@ openmui.ui.base       = { path = "../base" }
 openmui.timeline      = { path = "../../modules/media/timeline" }
 
 [build-dependencies]
-openmui.rules = { path = "../../mcpp/rules", host-module = true }
+openmui.build.contracts = { path = "../../mcpp/contracts", host-module = true }
 
 [dev-dependencies]
 openmui.testing       = { path = "../../modules/base/testing" }

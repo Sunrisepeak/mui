@@ -1,6 +1,6 @@
 # The application's own native module (component-binding §8): colour science
 # in C++, called from logic/main.ts as `import { contrast } from
-# "openmui:native/contrast"`. openmui.rules generates the C++ partition and
+# "openmui:native/contrast"`. openmui.build.contracts generates the C++ partition and
 # the TypeScript / Python / Lua stubs from this file when the package builds.
 [native.contrast]
 spec = "0.1"

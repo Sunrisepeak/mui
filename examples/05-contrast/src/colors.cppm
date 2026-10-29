@@ -1,5 +1,5 @@
 // The application's module: its native module `contrast`, whose interface
-// openmui.rules generates from native/contrast.native.omui.toml into the
+// openmui.build.contracts generates from native/contrast.native.omui.toml into the
 // partition :contrast_native (src/contrast.cpp implements it).
 export module colors;
 

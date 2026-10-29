@@ -10,7 +10,7 @@ returns = "Match[]"
 async   = true
 ```
 
-- **The contract is the interface.** `omui-gen native` (or `openmui.rules`' `natives()` in a build) generates a partition with the records, the declarations of the functions the package implements, their conversions, and `define()`.
+- **The contract is the interface.** `omui-gen native` (or `openmui.build.contracts`' `natives()` in a build) generates a partition with the records, the declarations of the functions the package implements, their conversions, and `define()`.
 - **`define()` registers the module here, once.** A host calls it before scripts run. A second definition of a name is refused.
 - **Scripts call it through the C ABI.** `omuiNativeCatalog` lists the modules; `omuiNativeCall` calls a function with JSON arguments, positional in the contract's order or by name. The bindings are made from the catalogue:
   - JavaScript/TypeScript: `import { fuzzy } from "openmui:native/fuzzy"`. An `async` function returns a promise and also has a `…Sync` form.

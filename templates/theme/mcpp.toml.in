@@ -17,4 +17,4 @@ openmui.theme.default = "{{self.version}}"
 
 # The rule that embeds themes/ in the package when this builds.
 [build-dependencies]
-openmui.rules = { version = "{{self.version}}", host-module = true }
+openmui.build.embed = { version = "{{self.version}}", host-module = true }

@@ -40,7 +40,7 @@ openmui.native       = { path = "../../modules/ui/native" }
 nlohmann.json        = "3.12.0"
 
 [build-dependencies]
-openmui.rules = { path = "../../mcpp/rules", host-module = true }
+openmui.build.contracts = { path = "../../mcpp/contracts", host-module = true }
 
 [dev-dependencies]
 openmui.testing = { path = "../../modules/base/testing" }

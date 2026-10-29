@@ -18,4 +18,4 @@ nlohmann.json  = "3.12.0"
 
 # The rule that makes the C++ partition and the stubs from native/ when this builds.
 [build-dependencies]
-openmui.rules = { version = "{{self.version}}", host-module = true }
+openmui.build.contracts = { version = "{{self.version}}", host-module = true }

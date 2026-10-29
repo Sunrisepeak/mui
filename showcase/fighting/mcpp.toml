@@ -36,8 +36,10 @@ openmui.image    = { path = "../../modules/base/image" }
 "openmui.audio.device" = { path = "../../modules/media/audio/device" }
 
 [build-dependencies]
-openmui.rules = { path = "../../mcpp/rules", host-module = true }
-gongfu.rules  = { path = "../../mgame/gongfu/rules", host-module = true }
+openmui.build.contracts = { path = "../../mcpp/contracts", host-module = true }
+openmui.build.embed     = { path = "../../mcpp/embed", host-module = true }
+openmui.build.toy       = { path = "../../mcpp/toy", host-module = true }
+gongfu.rules            = { path = "../../mgame/gongfu/rules", host-module = true }
 
 [dev-dependencies]
 openmui.testing = { path = "../../modules/base/testing" }

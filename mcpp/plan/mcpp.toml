@@ -1,0 +1,17 @@
+# openmui.build.plan — what openmui's build plugins share: a planned edge,
+# submitting it, the generator, the files a plugin reads (mcpp/README.md).
+# Only build-system code lives under mcpp/ (AGENTS.md).
+[package]
+name        = "plan"
+namespace   = "openmui.build"
+version     = "0.1.0"
+description = "What openmui's build plugins share: planned edges, the generator, the files a plugin reads"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "rules"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+

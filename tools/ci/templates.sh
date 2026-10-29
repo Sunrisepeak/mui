@@ -35,7 +35,9 @@ if m.exists():
     t = m.read_text()
     for pkg, rel in paths.items():
         t = re.sub(r'^"?' + re.escape(pkg) + r'"?\s*=\s*"0\.1\.0"$', f'{pkg} = {{ path = "{root}/{rel}" }}', t, flags=re.M)
-    t = t.replace('openmui.rules = { version = "0.1.0", host-module = true }', f'openmui.rules = {{ path = "{root}/mcpp/rules", host-module = true }}')
+    for plugin in ("contracts", "embed", "toy"):
+        t = t.replace(f'openmui.build.{plugin} = {{ version = "0.1.0", host-module = true }}',
+                      f'openmui.build.{plugin} = {{ path = "{root}/mcpp/{plugin}", host-module = true }}')
     m.write_text(t)
 PY
 }
@@ -61,7 +63,7 @@ for t in app-cpp:demo app-ts:tsdemo app-lua:luademo component:widgets native:wor
             python3 - "$root/mcpp.toml" "$name" <<'PY'
 import sys
 p, name = sys.argv[1], sys.argv[2]; s = open(p).read()
-s = s.replace('    "tests/rules",\n', f'    "tests/rules",\n    ".template-check/{name}",\n')
+s = s.replace('    "tests/plugins/embed",\n', f'    "tests/plugins/embed",\n    ".template-check/{name}",\n')
 open(p, "w").write(s)
 PY
             sed -i "s|path = \"$root/|path = \"../../|g; s|path = \"$root\" }|path = \"../..\" }|g" "$check/$name/mcpp.toml"

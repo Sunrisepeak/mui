@@ -2,6 +2,6 @@
 // builders, the stubs and the schema (component-binding §2).
 import std;
 import mcpp;
-import openmui.rules;
+import openmui.build.contracts;
 
-int main() { return openmui::rules::components({.module = "openmui.ui.timeline", .ns = "omui"}) ? 0 : 1; }
+int main() { return openmui::build::components({.module = "openmui.ui.timeline", .ns = "omui"}) ? 0 : 1; }

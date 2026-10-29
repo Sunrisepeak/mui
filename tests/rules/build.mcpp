@@ -1,6 +1,0 @@
-// The package's build program: its contracts become code.
-import std;
-import mcpp;
-import openmui.rules;
-
-int main() { return openmui::rules::components({.module = "acme.ui", .ns = "acme::ui"}) ? 0 : 1; }

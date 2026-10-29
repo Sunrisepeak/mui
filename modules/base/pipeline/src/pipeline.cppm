@@ -21,7 +21,7 @@
 //
 // An independent component (D-55): the standard library and openmui.trace.
 // `<name>.pipeline.omui.toml` is read at the edges: omui-gen (and the
-// openmui.rules build plugin) turns it into a C++ Description at build time,
+// a build plugin under mcpp/) turns it into a C++ Description at build time,
 // and tools send changes as JSON over the agent protocol; this package parses
 // nothing, so it throws nothing.
 export module openmui.pipeline;

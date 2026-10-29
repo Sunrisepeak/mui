@@ -1,0 +1,21 @@
+# A third-party package whose data files are carried in it by
+# openmui.build.embed: a tag's files with their table, a theme and a
+# behaviour, each a partition holding its file's text.
+[package]
+namespace   = "acme"
+name        = "data"
+version     = "0.1.0"
+description = "A package whose data files openmui.build.embed carries in the program at build time"
+license     = "Apache-2.0"
+
+[targets.openmui-embed-fixture]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm"]
+
+[build-dependencies]
+openmui.build.embed = { path = "../../../mcpp/embed", host-module = true }
+
+[dev-dependencies]
+openmui.testing = { path = "../../../modules/base/testing" }

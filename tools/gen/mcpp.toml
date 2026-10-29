@@ -2,7 +2,7 @@
 # openmui.h, the openmui.spec partitions, component partitions, script
 # builders, schemas and reference tables (implementation plan §4.2).
 #
-# A build-machine tool: openmui.rules runs it from component and application
+# A build-machine tool: openmui's build plugins (mcpp/) run it from component and application
 # builds; spec/ commits its outputs and CI checks they are current.
 [package]
 namespace   = "openmui"

@@ -25,7 +25,7 @@ sources = ["src/*.cppm", "src/*.cpp"]
 "openmui.i18n" = { path = ".." }
 
 [build-dependencies]
-openmui.rules = { path = "../../../../mcpp/rules", host-module = true }
+openmui.build.embed = { path = "../../../../mcpp/embed", host-module = true }
 
 [dev-dependencies]
 openmui.testing = { path = "../../../base/testing" }

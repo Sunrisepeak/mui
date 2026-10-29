@@ -3,13 +3,15 @@
 // static page (the shape a Pages subpath serves as it is).
 import std;
 import mcpp;
-import openmui.rules;
+import openmui.build.contracts;
+import openmui.build.embed;
+import openmui.build.toy;
 
 int main() {
-    const bool lens = openmui::rules::components({.module = "openmui.site", .ns = "omui::site"});
-    const bool content = openmui::rules::embed({.module = "openmui.site", .ns = "omui::site::files", .dir = "content", .suffix = ".md", .tag = "content", .index = true});
-    const bool en = openmui::rules::embed({.module = "openmui.site", .ns = "omui::site::files", .dir = "../docs/en", .suffix = ".md", .tag = "en", .index = true});
-    const bool zh = openmui::rules::embed({.module = "openmui.site", .ns = "omui::site::files", .dir = "../docs/zh", .suffix = ".md", .tag = "zh", .index = true});
-    const bool page = openmui::rules::dist_toy({.target = "omui-site", .title = "openmui", .fonts = {"Inter", "JetBrainsMono", "NotoSansSC"}, .background = "#0b0f16", .sdk = false});
+    const bool lens = openmui::build::components({.module = "openmui.site", .ns = "omui::site"});
+    const bool content = openmui::build::embed({.module = "openmui.site", .ns = "omui::site::files", .dir = "content", .suffix = ".md", .tag = "content", .index = true});
+    const bool en = openmui::build::embed({.module = "openmui.site", .ns = "omui::site::files", .dir = "../docs/en", .suffix = ".md", .tag = "en", .index = true});
+    const bool zh = openmui::build::embed({.module = "openmui.site", .ns = "omui::site::files", .dir = "../docs/zh", .suffix = ".md", .tag = "zh", .index = true});
+    const bool page = openmui::build::dist_toy({.target = "omui-site", .title = "openmui", .fonts = {"Inter", "JetBrainsMono", "NotoSansSC"}, .background = "#0b0f16", .sdk = false});
     return lens && content && en && zh && page ? 0 : 1;
 }

@@ -5,7 +5,7 @@
 # fling, named views on springs, and semantics that state what is on screen
 # and find anything in the scene. Mechanism only: selection, dragging,
 # handles, snapping, connectors and the minimap are canvas-kit's.
-# Contract-first (openmui.rules).
+# Contract-first (openmui.build.contracts).
 [package]
 namespace   = "openmui.ui"
 name        = "canvas"
@@ -35,7 +35,7 @@ hanim          = { path = "../../modules/base/hanim" }
 openmui.trace  = { path = "../../modules/base/trace" }
 
 [build-dependencies]
-openmui.rules = { path = "../../mcpp/rules", host-module = true }
+openmui.build.contracts = { path = "../../mcpp/contracts", host-module = true }
 
 [dev-dependencies]
 openmui.testing       = { path = "../../modules/base/testing" }

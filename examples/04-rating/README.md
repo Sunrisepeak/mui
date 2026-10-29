@@ -13,7 +13,7 @@ An agent can rate a book through the `books.rate` verb, or through any rating's 
 The rows are rated with **this application's own component, `rating`**, which goes from contract to every language:
 
 - [`contract/rating.contract.omui.toml`](contract/rating.contract.omui.toml) is its interface: properties (`value`, bindable both ways; `max`; `half`; `readonly` …), the `changed` event, the actions (`set_value`, `increment`, `decrement`, `clear`) with their effects, the keys that perform them, and a part with its motion token.
-- [`build.mcpp`](build.mcpp) runs `openmui.rules`' `components()`. When the package builds, it generates the C++ partition `shelf:rating_contract`, the builder `shelf::rating({...})`, and the TypeScript, Python and Lua stubs.
+- [`build.mcpp`](build.mcpp) runs `openmui.build.contracts`' `components()`. When the package builds, it generates the C++ partition `shelf:rating_contract`, the builder `shelf::rating({...})`, and the TypeScript, Python and Lua stubs.
 - [`src/rating.cpp`](src/rating.cpp) is the behaviour:
   - stars that fill to the rating on the theme's spring;
   - a preview under the pointer;

@@ -169,7 +169,7 @@ openmui 沿用同样的约定：
 
 ```
 mui/                 # 根目录 = openmui 伞包 + workspace
-├── mcpp.toml  src/{openmui.cppm, entry/}  mcpp/rules/  templates/
+├── mcpp.toml  src/{openmui.cppm, entry/}  mcpp/{plan,contracts,embed,toy}/  templates/
 ├── spec/                                  # 规范；全仓库唯一的头文件 include/openmui.h
 ├── modules/{geom,anim,layout,unicode,text,raster,image,render,rhi,rhi-sdl,rhi-gles,record,encode,trace,pipeline}/
 │                                          # 独立组件：不依赖 openmui 的任何包，将来可以直接独立成仓库（D-55、D-57）
@@ -200,7 +200,7 @@ mui/                 # 根目录 = openmui 伞包 + workspace
 | 运行时 | `openmui-runtime`（模块 `openmui.core`、`openmui.im`、`openmui.rt`、`openmui.text`、`hanim` …） |
 | 渲染和宿主 | `openmui.render`（模块 `openmui.render`）、`openmui-rhi`、`openmui-rhi-*`（模块 `openmui.gpu`、命名空间 `omui::gpu`）、`openmui-host-*`、`openmui-bridge-*` |
 | 组件 | `openmui-ui-*`（模块 `openmui.ui.*`） |
-| 构建规则 | **`openmui` 包的 `rules` 特性**，模块 `openmui.rules` |
+| 构建插件 | `mcpp/` 下按功能拆分的包 `openmui.build.*`，每个包只依赖自己用到的（D-73） |
 | 入口 | `openmui` 包的 `entry-player` / `entry-app` 特性；源码在 `src/entry/`（D-26、D-32） |
 | 模板 | `openmui` 包的 `templates/`：`mcpp new <名字> --template openmui:<模板>`（D-27） |
 | 命令行工具 | `openmui`，短名 `omui`（可选的便利工具：fmt / check / add / inspect；**只读写 mcpp.toml，不引入新的工程文件**） |
@@ -227,10 +227,11 @@ mui/                 # 根目录 = openmui 伞包 + workspace
 
 ```toml
 [build-dependencies]
-openmui = { version = "0.1", features = ["rules"], host-module = true }
+openmui.build.contracts = { version = "0.1", host-module = true }   # 契约 → 代码
+openmui.build.embed     = { version = "0.1", host-module = true }   # 数据文件嵌入程序
 ```
 
-`openmui.rules` 负责：
+构建插件按功能拆成多个包（D-73，`mcpp/README.md`）：`openmui.build.contracts`（契约和 native 模块）、`openmui.build.embed`（数据文件、主题、行为）、`openmui.build.toy`（dist-toy 打包格式），共用基础 `openmui.build.plan`。下面是构建插件整体要负责的事，每件事落在对应的插件里：
 1. 收集依赖图上每个包的 `[package.metadata.openmui]`；
 2. 把契约编译成 IR，再生成各种产物；
 3. 检查 `*.view.omui.json` 视图文档（schema、名字、类型、ID、语义），发布时嵌入成二进制格式；开发时由运行时直接加载，可以热重载；
@@ -247,7 +248,7 @@ openmui = { version = "0.1", features = ["rules"], host-module = true }
 |---|---|
 | mcpp | 工程文件、构建、运行、测试、打包；交叉编译；执行规则包；`mcpp emit xpkg` |
 | xlings | 安装 mcpp、工具链、SDK、node / esbuild / python / uv 等外部工具（xim 索引中已有；**还没有 luarocks**）；以后提供预编译播放器；隔离环境；应用分发（`xlings install <app>`） |
-| openmui.rules | 见 §7.2 |
+| openmui.build.* | 见 §7.2 |
 | mcpp-index | 库级生态：runtime、组件、主题、后端、语言运行时 |
 | xpkg 索引 | 应用和运行时插件的分发 |
 | npm / PyPI | 只用于“Node 作为宿主”或“Python 作为宿主”的模式；包本身仍然由 mcpp 构建 |
@@ -256,7 +257,7 @@ openmui = { version = "0.1", features = ["rules"], host-module = true }
 
 | 类型 | 载体 | 例子 |
 |---|---|---|
-| 构建插件 | mcpp 规则包（特性 + `rule_module`） | `openmui.rules`、着色器和字体的烘焙 |
+| 构建插件 | mcpp 规则包（host module，按功能各一个包） | `openmui.build.contracts`、`openmui.build.embed`、`openmui.shader.rules`、字体的烘焙 |
 | 库插件 | mcpp-index 中的包 | 组件、主题、后端、宿主、语言运行时、跨框架桥 |
 | 运行时插件 | xpkg，运行时加载 | 脚本插件、Wasm 插件；权限受效果分级约束 |
 
@@ -416,11 +417,11 @@ M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten，渲�
 | D-26 | （原 Q-05）入口由框架提供，用 `openmui` 的特性控制：`entry-player`（脚本应用）/ `entry-app`（C++ 应用实现 `omui_app()` 回调，类似 SDL3 的 main callbacks）/ 都不启用（自己写 `main`）。在 mcpp#845 落地之前，模板生成一行的 `src/main.cpp` |
 | D-27 | `openmui` 包通过 `templates/` 提供 `mcpp new` 模板：`app-cpp`（默认）、`app-ts`、`app-py`、`app-lua`、`app-mixed`、`component`、`native`、`theme` |
 | D-28 | **视图文件完全可选**，只有视图 IR 是必需的。保留模式**代码优先**：原生 builder（C++ / TS，可选 TSX / Python / Lua），布局和逻辑写在一起；`*.view.omui.json` 视图文档是可选的数据格式，可以和代码混用；立即模式不使用视图文件 |
-| D-29 | 非 C++ 依赖写在 `[package.metadata.openmui.deps.<lang>]`，由 `openmui.rules` 处理：生成各语言原生的清单，锁文件放在 `lock/`；Lua 的 C 模块由 mcpp 编译；`manifest = "…"` 作为逃生口 |
+| D-29 | 非 C++ 依赖写在 `[package.metadata.openmui.deps.<lang>]`，由构建插件处理：生成各语言原生的清单，锁文件放在 `lock/`；Lua 的 C 模块由 mcpp 编译；`manifest = "…"` 作为逃生口 |
 | D-30 | 后缀体系：数据文件一律是 `<名字>.<种类>.omui.{toml,json}`（view / contract / native / behavior / theme / effect）；另有 `.omuipkg`；着色器 `.slang`；逻辑代码保持原生后缀 |
 | D-31 | **人和 agent 的可读性都要很高**：可读性主要由宿主语言保证；builder 和数据文件遵守 view-data-files §2 的八条要求（名字和契约一致、显式 ID、事件的后果可见、类型明确、诊断支持 `--json`、文件自带版本、JSON Schema、llms.txt） |
 
-| D-32 | **仓库根目录就是 `openmui` 伞包 + workspace**。`mcpp/` 只放构建系统的代码（`mcpp/rules` = `openmui.rules`）；入口是运行时代码，放在 `src/entry/`；播放器在 `modules/ui/player`；`templates/` 按 mcpp 的约定放在根目录 |
+| D-32 | **仓库根目录就是 `openmui` 伞包 + workspace**。`mcpp/` 只放构建系统的代码（按功能拆分的构建插件，D-73）；入口是运行时代码，放在 `src/entry/`；播放器在 `modules/ui/player`；`templates/` 按 mcpp 的约定放在根目录 |
 | D-33 | **GPU 抽象层 `omui.rhi`**（UI 尺度）：UI 渲染器只写一次；后端顺序是 rhi-sdl → rhi-gles → rhi-webgpu / rhi-vk；CPU 参考光栅器和 MCU 不经过抽象层；抽象层是实现细节，不属于规范 |
 | D-34 | **着色器用 Slang**（`rules-slang`）；自定义渲染分四级（效果、材质、GPU 节点、原生句柄）；着色器参数就是带类型的属性；headless 下用 lavapipe 测试 GPU 后端；规范只规定效果着色器的接口（Slang 源码，SPIR-V 作为交换格式） |
 | D-35 | （原 Q-14）自动 ID：保留模式用结构化 ID（`<类型>:<序号>`），立即模式用 ID 栈 + 调用位置；**ID 永远不依赖显示文本**；可交互的节点必须写显式 ID（spec S-8、S-9） |
@@ -461,7 +462,7 @@ M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten，渲�
 | D-70 | 帧需求与帧节奏：合并各来源的 FrameDemand，`frame.pacer` 插件按预测上屏时间求值，宿主映射到 ProMotion / VRR 等平台机制；空闲不画（同上 §1） |
 | D-71 | 画布晋升策略分层；相机移动时不晋升；晋升复用离屏布局（同上 §2） |
 | D-72 | 构建期标记：各语言合法语法，字段语义按 `markers.toml` 对齐；库契约优先，应用内部允许代码优先（同上 §3） |
-| D-73 | 构建插件按功能拆包：`openmui.build` 基础 + 内置插件 + 经 mcpp-index 分发的可选插件；`openmui.rules` 是伞包（同上 §4） |
+| D-73 | 构建插件按功能拆包：共用基础 `openmui.build.plan` + 内置插件（`contracts`、`embed`、`toy`）+ 经 mcpp-index 分发的可选插件；不设伞包，每个包只依赖自己用到的插件（同上 §4；2026-10-30 落地） |
 | D-74 | i18n 引擎（`modules/content/i18n`，只依赖标准库，可独立发布）和语言数据（由 CLDR 生成的数据包）、应用消息目录分开，只通过数据格式相连；不用 ICU，结果只取决于数据版本；en / zh 做到顶级支持（2026-10-28 i18n 设计 §1） |
 | D-75 | 窗口默认用系统的；自绘窗口是完整的深度能力，分两层：`openmui.window`（去掉系统外框、命中测试区域、形状、阴影、状态、输入穿透、与系统的衔接）和 `openmui.ui.window`（框架默认的标题栏、布局、交互、动画、风格）；开发者一行切换，用户可在运行时切换；关闭时应用立即在逻辑上关闭、整窗输入透明，溶解只是呈现（2026-10-28 i18n 设计 §2） |
 | D-76 | 三层：基础（不知道 UI）、引擎服务、框架；openmui 可以作为游戏引擎的 UI 模块嵌入，主循环、时钟、设备、输入都可注入；lint 检查分层（同上 §3） **修订（D-82）**：引擎服务就是 mgame（`mgame/`），openmui 是它的 UI 模块；openmui 永远不依赖 mgame。 |

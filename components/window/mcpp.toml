@@ -2,7 +2,7 @@
 # the shadow, rounded edge, title bar and buttons of a framework-drawn window
 # (only its content in a native one), and `caption_button`, its minimize,
 # maximize, restore and close buttons. Contract-first: contract/*.contract.omui.toml
-# become the bases, builders, stubs and schema when it builds (openmui.rules).
+# become the bases, builders, stubs and schema when it builds (openmui.build.contracts).
 # The window's state and operations are openmui.view's (`window()`, the
 # window.* verbs); a host makes them real.
 [package]
@@ -30,7 +30,7 @@ openmui.render.vector  = { path = "../../modules/gfx/render/vector" }
 openmui.ui.base = { path = "../base" }
 
 [build-dependencies]
-openmui.rules = { path = "../../mcpp/rules", host-module = true }
+openmui.build.contracts = { path = "../../mcpp/contracts", host-module = true }
 
 [dev-dependencies]
 openmui.testing       = { path = "../../modules/base/testing" }

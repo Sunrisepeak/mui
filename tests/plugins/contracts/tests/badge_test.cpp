@@ -8,7 +8,7 @@ import openmui.testing;
 using namespace omui::testing;
 
 int main(int argc, char** argv) {
-    Suite s{"rules.fixture"};
+    Suite s{"plugins.contracts"};
 
     s.test("the generated badge is a component like any other", [] {
         omui::Headless h({.size = {200, 100}});

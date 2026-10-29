@@ -42,7 +42,7 @@ An action of two or more arguments takes them as one generated struct, by name (
 
 ## 6. Assets are data the build checks
 
-Embed data files at build time (`openmui::rules::embed`). Let the build refuse what is stale: gongfu's baked hurtboxes record the hash of what they came from. Diagnostics name the file, the line and a fix (fighting).
+Embed data files at build time (`openmui::build::embed`). Let the build refuse what is stale: gongfu's baked hurtboxes record the hash of what they came from. Diagnostics name the file, the line and a fix (fighting).
 
 ## 7. Validate scripts at the boundary
 

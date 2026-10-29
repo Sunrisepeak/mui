@@ -2,7 +2,7 @@
 # document of semantic nodes over openmui.markdown's model, with block nodes
 # keyed by content so streaming re-lays out only the tail. Contract-first:
 # contract/markdown.contract.omui.toml becomes the base class, the builder,
-# the stubs and the schema when it builds (openmui.rules). An official
+# the stubs and the schema when it builds (openmui.build.contracts). An official
 # component package, not in the umbrella's defaults.
 [package]
 namespace   = "openmui.ui"
@@ -28,7 +28,7 @@ openmui.view     = { path = "../../modules/ui/view" }
 openmui.markdown = { path = "../../modules/content/markdown" }
 
 [build-dependencies]
-openmui.rules = { path = "../../mcpp/rules", host-module = true }
+openmui.build.contracts = { path = "../../mcpp/contracts", host-module = true }
 
 [dev-dependencies]
 openmui.testing       = { path = "../../modules/base/testing" }

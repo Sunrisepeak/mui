@@ -38,7 +38,7 @@ openmui.sdk           = { path = "../.." }
 openmui.ui.markdown   = { path = "../../components/markdown" }
 
 [build-dependencies]
-openmui.rules = { path = "../../mcpp/rules", host-module = true }
+openmui.build.embed = { path = "../../mcpp/embed", host-module = true }
 
 [dev-dependencies]
 openmui.testing  = { path = "../../modules/base/testing" }

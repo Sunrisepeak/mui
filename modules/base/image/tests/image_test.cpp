@@ -271,14 +271,16 @@ int main(int argc, char** argv) {
     s.test("WebP: the first use from many threads at once (libwebp's setup made once)", [] {
         const auto img = test_picture(48, 32);
         std::array<std::uint64_t, 8> got{};
-        {
+        auto one = [&](std::size_t t) {
+            auto bytes = image::encode_webp(image::view(img), {.lossless = t % 2 == 1});
+            auto back = bytes ? image::decode_webp(*bytes) : std::unexpected(bytes.error());
+            got[t] = back ? fnv(back->rgba) : 0;
+        };
+        if constexpr (omui::testing::threads) {
             std::vector<std::jthread> threads;
-            for (std::size_t t = 0; t < got.size(); ++t)
-                threads.emplace_back([&, t] {
-                    auto bytes = image::encode_webp(image::view(img), {.lossless = t % 2 == 1});
-                    auto back = bytes ? image::decode_webp(*bytes) : std::unexpected(bytes.error());
-                    got[t] = back ? fnv(back->rgba) : 0;
-                });
+            for (std::size_t t = 0; t < got.size(); ++t) threads.emplace_back(one, t);
+        } else {
+            for (std::size_t t = 0; t < got.size(); ++t) one(t);  // the Web row starts no threads
         }
         for (std::size_t t = 2; t < got.size(); ++t) check(got[t] == got[t % 2], std::format("thread {}", t));
         check(got[0] != 0 && got[1] != 0);

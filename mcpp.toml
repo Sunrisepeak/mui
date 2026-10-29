@@ -49,6 +49,7 @@ members = [
     "modules/ui/host/headless",
     "modules/ui/host/sdl3",
     "modules/ui/host/web",
+    "modules/ui/host/web/toy",
     "modules/ui/native",
     "modules/ui/native/fuzzy",
     "modules/ui/player",

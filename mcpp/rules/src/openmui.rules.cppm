@@ -460,4 +460,59 @@ inline bool embed(embed_options opt) {
     return submit(edges);
 }
 
+// ── dist-toy: a program packaged for Bilibili Toy (D-84 §6.5) ───────────────
+//
+// The pack format `dist-toy` (mcpp's pack_format mechanism): a program built
+// for wasm32-emscripten becomes a Toy package — a small index.html, the
+// program and the fonts under content-hashed names, relative paths, hash
+// routes as the program's flags (omui-gen dist-toy says the rest).
+//
+//     // build.mcpp
+//     openmui::rules::dist_toy({.target = "omui-fight", .title = "格斗"});
+//
+//     mcpp pack -p <package> --target wasm32-emscripten --release --pkg-format dist-toy
+//
+// The package lands in <out_dir>/toy/<target>/, what is in it beside it in
+// <target>.toy.omui.json. Checking it with Toy's toy_doctor.py is
+// tools/ci/toy.sh's; publishing is the maintainer's (`toy create`).
+
+struct toy_options {
+    std::string              target;                 // the program target
+    std::string              title;                  // the page's <title>
+    std::vector<std::string> fonts;                  // openmui.text's default fonts by stem (Inter, NotoSansSC); empty: all
+    std::string              background = "#000000"; // behind the canvas while it loads
+    bool                     sdk = true;             // the page loads Toy's SDK (window.toy)
+    std::string              out_dir = std::string(mcpp::out_dir());
+};
+
+// Declares the format (always: so `--pkg-format` can name what is
+// available) and, when the pack asks for it, the edge that makes the package.
+inline bool dist_toy(toy_options opt) {
+    mcpp::provides_pack_format("dist-toy");
+    if (std::string_view(mcpp::pack_format()) != "dist-toy") return true;
+    const std::string gen = std::string(mcpp::dep_bin("openmui.gen", "omui-gen"));
+    if (opt.target.empty() || gen.empty()) {
+        std::println(std::cerr, "openmui.rules: dist_toy() names the program target, and needs omui-gen built for the build");
+        return false;
+    }
+    const std::string out = opt.out_dir + "/toy/" + opt.target;
+    std::string fonts;
+    for (const std::string& f : opt.fonts) fonts += (fonts.empty() ? "" : ",") + f;
+    mcpp::action a;
+    a.id = "dist-toy";
+    a.role = mcpp::roles::artifact;
+    a.description = "a Toy package";
+    for (const std::string& arg : {gen, std::string("dist-toy"), std::string("${mcpp.stage_dir}"), std::string("--target"), opt.target,
+                                   std::string("--out"), out, std::string("--title"), opt.title, std::string("--background"), opt.background,
+                                   std::string("--graph"), std::string(mcpp::graph_file())})
+        a.arg(arg.c_str());
+    if (!fonts.empty()) a.arg("--fonts").arg(fonts.c_str());
+    if (!opt.sdk) a.arg("--no-sdk");
+    a.input(("${mcpp.target_file:" + opt.target + "}").c_str());
+    a.input(gen.c_str());
+    a.output((out + "/index.html").c_str());
+    a.submit();
+    return true;
+}
+
 }  // namespace openmui::rules

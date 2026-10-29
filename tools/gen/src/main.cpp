@@ -24,6 +24,9 @@
 //       the check that their layouts agree with the header
 //   omui-gen unicode <ucd-dir> --version <x.y.z> --out <dir> [--tests <dir>] [--check]
 //   omui-gen cldr <cldr-json-dir> --locales en,zh,zh-Hant --version <x.y.z> --out <dir> [--check]
+//   omui-gen dist-toy <staged tree> --target <name> --out <dir> [--title T] [--fonts a,b|all] …
+//       a wasm32-emscripten program packaged for Bilibili Toy (openmui.gen.dist_toy;
+//       what `mcpp pack --pkg-format dist-toy` runs)
 //       openmui.i18n's locale packs (*.locale.omui.json) and likely subtags
 //       openmui.unicode's tables (and a subset of the UCD's conformance tests)
 //
@@ -36,6 +39,7 @@ import openmui.gen.read;
 import openmui.gen.emit;
 import openmui.gen.unicode;
 import openmui.gen.cldr;
+import openmui.gen.dist_toy;
 
 using namespace omui::gen;
 
@@ -359,6 +363,7 @@ int run_contracts(const Options& o, bool emit) {
 }  // namespace
 
 int main(int argc, char** argv) {
+    if (argc >= 2 && std::string_view(argv[1]) == "dist-toy") return dist_toy_main(argc, argv);
     auto options = parse_args(argc, argv);
     if (!options) return usage();
     if (options->command == "registry") return run_registry(*options);

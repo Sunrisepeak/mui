@@ -222,6 +222,10 @@ std::expected<FaceId, std::string> FontCollection::add_file(const std::filesyste
 std::expected<void, std::string> FontCollection::add_defaults(const std::filesystem::path& directory) {
     std::vector<FaceId> chain;
     for (auto name : {"Inter.ttf", "NotoSansSC.ttf", "NotoSansArabic.ttf", "TwemojiMozilla.ttf", "JetBrainsMono.ttf"}) {
+        // A page may carry fewer than five (a Toy package takes the scripts it
+        // shows): the ones there, in this order; Inter at least.
+        std::error_code ec;
+        if (chain.size() > 0 && !std::filesystem::exists(directory / name, ec)) continue;
         auto id = add_file(directory / name);
         if (!id) return std::unexpected(id.error());
         chain.push_back(*id);

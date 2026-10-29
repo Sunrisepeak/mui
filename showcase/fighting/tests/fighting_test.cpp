@@ -969,10 +969,10 @@ int main(int argc, char** argv) {
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    ke time {}", all.hex());
-        check_eq(all.hex(), std::string("ece7223b3c45b615"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("c621ca9fb73086b1"));  // GCC and LLVM, every platform
     });
 
-    s.test("刻's level 3, 「零时」: time stops — the picture grey, a clock's hands standing, ten hits' sparks hanging — then the bell — frames pinned", [] {
+    s.test("刻's level 3, 「零时」: the stab, the watch clicked and time stops — the picture grey, a dial's hands standing, the struck still, ten blows' sweeps and sparks hanging — then the bell, every blow at once, her finishing picture — frames pinned", [] {
         Game g("training", "ke", "kata");
         check(g.act("pause"));
         check(g.act("fill"));
@@ -991,18 +991,18 @@ int main(int argc, char** argv) {
             const auto& st = g.state();
             if (st.lock.owner == 0 && lock_from < 0) lock_from = st.frame;
             const std::int32_t lf = st.lock.owner == 0 ? st.lock.frame : -1;
-            if (st.freeze == 25 || lf == 24 || lf == 75 || lf == 135 || lf == 151 || lf == 160 || lf == 180) {
+            if (st.freeze == 25 || lf == 14 || lf == 42 || lf == 75 || lf == 112 || lf == 140 || lf == 152 || lf == 166 || lf == 186) {
                 g.h.step();
                 px.push_back(g.pixels());
                 check(g.h.save_png(dir / std::format("{:02}-{}.png", px.size(), lf < 0 ? std::string("flash") : std::format("lock-{}", lf))).has_value());
             }
         }
         check(lock_from > 0, "the stab hit: the cinematic played");
-        check_eq(px.size(), std::size_t{7});
+        check_eq(px.size(), std::size_t{9});
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    ke level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("b0981fbb37da4d20"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("1a09f81eb569ffb6"));  // GCC and LLVM, every platform
     });
 
     s.test("each fighter's win pose: a round won on the clock, the winner standing to play it out at its beats — frames pinned", [] {

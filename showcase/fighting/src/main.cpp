@@ -1,6 +1,7 @@
 // `omui-fight [--training] [--quiet]` — the rest of the line is openmui's
 // (--headless --png …); headless or --quiet, nothing is heard. Keys: player 1 WASD and U I O (punches) J K L (kicks); player 2
-// the arrows and Insert Home PageUp (punches) Delete End PageDown (kicks).
+// the arrows and Insert Home PageUp (punches) Delete End PageDown (kicks). Gamepads: the
+// first two connected, beside the keyboard (controls/pad.controls.omui.json).
 import std;
 import openmui;
 import openmui.audio;

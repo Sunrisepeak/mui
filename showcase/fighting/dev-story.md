@@ -194,3 +194,9 @@ Collected in [best practices](../../docs/en/best-practices.md):
 - Give every production step a command line with JSON before its graphical tool: agents and CI can use it the day it exists.
 - Bring art in as pictures and let the framework do the rest; ask the generator for what the rig needs (separate parts, covered joints, one scale).
 - Write performance-critical code (simulation, mixing, rendering) in C++; tunable content in data files that can be reloaded; scripts (TS, Lua) only where logic itself needs tuning live — never in a frame.
+
+## Playing it
+
+- **Keyboard**: player 1 WASD, U I O (punches) J K L (kicks); player 2 the arrows, Insert Home PageUp, Delete End PageDown.
+- **Gamepad**: the first two connected are players 1 and 2, beside the keyboard. The d-pad and the left stick are directions (opposites held together go to gongfu's SOCD rule, as keys do); the buttons are the six-button layout — west LP, north MP, R1 HP, south LK, east MK, R2 HK — written as data in `controls/pad.controls.omui.json`, so it can be remapped. The host reads any pad through SDL's mapping database (the browser's standard mapping on the Web) and applies the dead zones; `tests/gamepad_test.cpp` injects pads headless and checks that a press arrives as the move.
+- **Web and Bilibili Toy**: `tools/ci/toy.sh openmui.showcase.fighting` builds it for wasm32-emscripten, packs it with `dist-toy` and checks it with Toy's `toy_doctor.py`; serve `target/toy/omui-fight/` and open it. `#/training` opens training mode (a hash route is the program's flag). Publishing is the maintainer's (`toy create`).

@@ -7,6 +7,10 @@ openmui on the desktop, through SDL3 (`compat.sdl3` from mcpp-index):
   keyboard (layout keycodes, so shortcuts follow the layout; Command is the
   primary modifier on macOS), text and input methods (the preedit drawn by
   openmui, the candidates at the caret);
+- gamepads, plugged in and out while it runs, through SDL's mapping
+  database to the spec's standard set (§6.1: south/east/west/north,
+  shoulders, triggers as axes and buttons, d-pad, sticks; the dead zones by
+  `GamepadReader`; the device's events released before it goes);
 - the system clipboard and cursors (an I-beam over text fields);
 - the CPU renderer's frames streamed into a texture, presented only when the
   display list changed (the GPU renderer replaces it at M4);

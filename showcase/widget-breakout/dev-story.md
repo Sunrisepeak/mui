@@ -78,3 +78,9 @@ See [best practices](../../docs/en/best-practices.md). From this version:
 - Use bots as a design instrument, with fun-shaped checks (clearable, no unavoidable loss, no idle orbits, skill pays), not only as regression tests.
 - Key composed children by the document they belong to, and verify that generation before reading layout.
 - Keep cues readable across styles: fixed gameplay colours, rims, darker variants on light grounds.
+
+## Playing it
+
+- **Keyboard and pointer**: ← → (A D) or the pointer move the paddle; Space or a click launches.
+- **Gamepad** (any): the left stick or the d-pad moves the paddle and south (A, Cross) launches. They are bound through `mgame.input` like the keys, and `tests/gamepad_test.cpp` plays it headless.
+- **Web and Bilibili Toy**: `tools/ci/toy.sh openmui.showcase.widget_breakout` builds it for wasm32-emscripten, packs it with `dist-toy` and checks it with Toy's `toy_doctor.py`; serve `target/toy/omui-breakout/` and open it. The contraptions' scripts do not run on the Web yet: they need a single-threaded script host there, and JavaScript also needs a 32-bit QuickJS wrap.

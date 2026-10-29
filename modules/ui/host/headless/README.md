@@ -12,6 +12,10 @@ object-id buffer, and — at H3 — the agent endpoint served between frames.
 | H2 `pixels` | plus CPU raster, PNG | golden images |
 | H3 `session` | plus the agent endpoint | end-to-end tests, agents |
 
+Input is anything a host gives (`step(events)`, or their JSON form in a
+recorded session) — a gamepad's too: `GamepadEvent{.kind =
+GamepadKind::down, .device = 1, .button = GamepadButton::south}`.
+
 Every level gives the same semantic tree (ids, roles, names, values,
 actions); pixels are the same on every platform.
 

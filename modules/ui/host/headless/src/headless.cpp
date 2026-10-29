@@ -86,6 +86,7 @@ Headless::Headless(HeadlessOptions options) : impl_(std::make_unique<Impl>()) {
     ro.scale = d.options.scale;
     ro.reduce_motion = d.options.reduce_motion;
     ro.stages = stages_of(d.options.level);
+    ro.complete_frames = d.options.complete_frames;
     d.runtime = std::make_unique<Runtime>(std::move(ro));
     d.tree = std::make_unique<semantic::Tree>(*d.runtime);
     d.glyphs = std::make_unique<typeset::GlyphCache>(*fonts);

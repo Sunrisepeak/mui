@@ -58,13 +58,36 @@ void Tasks::parallel_for(std::size_t count, std::size_t grain, FunctionRef<void(
         for (std::size_t c = 0; c < chunks; ++c) body(c * grain, std::min(count, (c + 1) * grain));
         return;
     }
-    tf::Taskflow flow;
-    flow.for_each_index(std::size_t{0}, chunks, std::size_t{1}, [&](std::size_t c) {
-        body(c * grain, std::min(count, (c + 1) * grain));
-    });
     // corun: a worker thread that calls parallel_for keeps working instead of blocking.
-    if (impl_->executor.this_worker_id() >= 0) impl_->executor.corun(flow);
-    else impl_->executor.run(flow).wait();
+    if (impl_->executor.this_worker_id() >= 0) {
+        tf::Taskflow flow;
+        flow.for_each_index(std::size_t{0}, chunks, std::size_t{1}, [&](std::size_t c) {
+            body(c * grain, std::min(count, (c + 1) * grain));
+        });
+        impl_->executor.corun(flow);
+        return;
+    }
+    // Another thread: a task a chunk, the calling thread taking the first.
+    // Not `run(flow).wait()` on a taskflow of this frame: the executor may
+    // still be tearing that run down (locking the taskflow's own mutex) after
+    // the wait returns and the taskflow is gone with the frame — which wrote
+    // over the caller's stack when several threads drew at once. What the
+    // tasks hold is theirs; the body is not touched once the last is counted.
+    struct Done {
+        std::atomic<std::size_t> left;
+        std::promise<void>       all;
+        explicit Done(std::size_t n) : left(n) {}
+    };
+    auto done = std::make_shared<Done>(chunks);
+    auto finished = done->all.get_future();
+    for (std::size_t c = 1; c < chunks; ++c)
+        impl_->executor.silent_async([done, c, grain, count, &body] {
+            body(c * grain, std::min(count, (c + 1) * grain));
+            if (done->left.fetch_sub(1) == 1) done->all.set_value();
+        });
+    body(0, std::min(count, grain));
+    if (done->left.fetch_sub(1) == 1) done->all.set_value();
+    finished.wait();
 }
 
 std::future<void> Tasks::spawn(std::function<void(std::stop_token)> fn, Priority) {

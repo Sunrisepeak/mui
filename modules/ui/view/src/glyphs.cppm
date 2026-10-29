@@ -11,7 +11,9 @@
 //
 // Each element (a glyph, grapheme, word or line inside the byte range) goes
 // from `from` to `to` by the transition, delayed by its place in the order
-// times `stagger`. Everything is a pure function of time since the motion
+// times `stagger` — and all of them by the transition's own `delay`: a
+// motion set when its node mounts begins at its moment (a film's title typed
+// in on its beat), every frame still a function of the time since. Everything is a pure function of time since the motion
 // started: it seeks, pauses and steps with the runtime's clock, and renders
 // the same pixels for any frame rendered directly.
 //

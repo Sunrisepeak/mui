@@ -1191,6 +1191,19 @@ int main(int argc, char** argv) {
         check(draw(rt, glyphs).hash() == rest, "and back");
     });
 
+    s.test("a node's box as drawn: through its own and its ancestors' visual transforms", [] {
+        Runtime rt(options({400, 300}));
+        rt.mount("main", stack({.id = "frame", .width = 400, .height = 300, .align = "start"},
+                               {box({.id = "card", .width = 200, .height = 100, .translate_x = 50, .translate_y = 20, .scale = 2},
+                                    {box({.id = "dot", .width = 10, .height = 10})})}));
+        rt.frame({seconds(0), {}});
+        const NodeId card = rt.find("main/card"), dot = rt.find("main/card/dot");
+        check(rt.bounds(card) == Rect{0, 0, 200, 100}, "the layout's box, before the transforms");
+        // Scaled twice about its centre (100, 50), then moved by (50, 20).
+        check(rt.drawn_bounds(card) == Rect{-50, -30, 400, 200}, "as drawn");
+        check(rt.drawn_bounds(dot) == Rect{-50, -30, 20, 20}, "a child under its parent's transforms");
+    });
+
     s.test("glyph motion: domains, ranges, orders, randomness, round trips", [] {
         std::vector<render::Glyph> g;
         for (std::uint32_t i = 0; i < 6; ++i) g.push_back({1, {static_cast<float>(i) * 10, 0}, i, i, i / 3, 0});
@@ -1223,6 +1236,19 @@ int main(int argc, char** argv) {
             check(back && *back == p, to_value(p).json());
         }
         check(GlyphMotion::wave().repeat == 0 && glyph_frame(GlyphMotion::wave(), seconds(100), one).moving, "a wave never ends");
+        // The transition's delay holds every element at `from` until it has passed; it survives the trip too.
+        GlyphMotion later = m;
+        later.begin = 0;
+        later.transition.delay = seconds(2);
+        const auto held = glyph_frame(later, seconds(1.9), one), going = glyph_frame(later, seconds(2.1), one);
+        GlyphMotion now = later;
+        now.transition.delay = seconds(0);
+        const auto plain = glyph_frame(now, seconds(0.1), one);
+        check(std::abs(y(held, 0) - 10) < 1e-4 && held.moving, "held at its start before the delay");
+        check(going.styles[0][0].transform == plain.styles[0][0].transform, "then as the undelayed motion, the delay later");
+        check(std::abs(going.ends.count() - 2.3) < 1e-9);
+        const auto back = glyph_motion_from(to_value(later));
+        check(back && *back == later && back->transition.delay.count() == 2, to_value(later).json());
     });
 
     s.test("an address outside the program: only http, https and mailto; the host opens it; every one kept", [] {

@@ -138,6 +138,13 @@ public:
     // frame, so a frame shows what the frames before asked for, never what
     // the threads happened to finish (a canvas's textures).
     [[nodiscard]] virtual bool deterministic() const { return false; }
+    // Every frame is drawn as it would be at rest: what would stream in over
+    // the frames after (a canvas's textures at the screen's resolution, its
+    // nodes that go live once the camera stops) is made before the frame is
+    // drawn. So any frame rendered directly is the frame the ones before it
+    // would have led to — what an offline render needs (a video rendered out
+    // of order, in parallel or seeking back; a still).
+    [[nodiscard]] virtual bool complete_frames() const { return false; }
     // Frames at this rate while the lease lives (D-70, L2): a camera on a
     // spring asks for the display's fastest, a stream for 60.
     [[nodiscard]] virtual FrameDemandLease demand_frames(FrameDemand d) { (void)d; return {}; }

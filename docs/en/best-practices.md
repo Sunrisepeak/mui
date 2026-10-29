@@ -59,3 +59,7 @@ Every performance claim has a benchmark in `tests/bench` and a budget in `budget
 ## 10. Ship a picture
 
 Every showcase's README shows its signature shot, drawn headless by its tests: a still, or an animated PNG under 1 MB. Animated PNG stores only what changed between frames, so it suits interface loops; for full-frame motion use video.
+
+## 11. A scene meant to be seekable: what its time says, and its moments
+
+A scene that must render any frame on its own (a video's shot, a test's still, a replay) sets what is continuous from the time before each frame — a camera from keys, a reveal, a value — and makes what changes in a step at *moments*, each on a frame: before a moment the frame before it is drawn, after it its own frame, whichever way the frame asked for is reached. Then drawing a frame directly is mounting the scene and replaying its moments, and frames can be drawn in parallel. Pin motion to its moment rather than to when it was set (a glyph motion's transition `delay`); draw frames complete (`complete_frames`: nothing that would stream in over later frames); and check where text is with `drawn_bounds`, through the visual transforms. The film proves each with its tests: a frame drawn directly is the frame played to (promo video).

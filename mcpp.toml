@@ -120,6 +120,7 @@ members = [
     "examples/12-notes",
     "showcase/fighting",
     "showcase/markdown-wall",
+    "showcase/promo-video",
     "showcase/style-gallery",
     "showcase/widget-breakout",
     "showcase/widget-breakout/sim",

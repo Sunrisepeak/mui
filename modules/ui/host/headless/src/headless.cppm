@@ -50,6 +50,10 @@ struct HeadlessOptions {
     std::string             app = "openmui-app";  // the application id (endpoint name, descriptor)
     std::filesystem::path   endpoint_directory;   // H3; default: agent::default_directory()
     bool                    parallel_raster = true;  // bands of rows at the same time (the same bytes)
+    // Every frame as it would be at rest (Services::complete_frames): any
+    // frame rendered directly is the one the frames before it lead to —
+    // a video's frames rendered out of order, a still.
+    bool                    complete_frames = false;
 };
 
 class Headless {

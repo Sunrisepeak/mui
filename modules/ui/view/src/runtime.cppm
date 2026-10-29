@@ -48,6 +48,7 @@ struct RuntimeOptions {
     bool                  reduce_motion = false;
     bool                  reduce_transparency = false;  // see-through materials (glass) drawn opaque
     Stages                stages = Stages::paint;
+    bool                  complete_frames = false;  // every frame as at rest (Services::complete_frames): offline renders
     DebugOptions          debug;
     // The frame's pipeline (D-66): nullopt is runtime_pipeline(stages). A
     // custom one may replace, add or leave out stages; `plugins` adds the
@@ -345,6 +346,7 @@ public:
     [[nodiscard]] bool reduce_transparency() const override;
     [[nodiscard]] float pixel_scale() const override { return scale(); }
     [[nodiscard]] bool deterministic() const override;
+    [[nodiscard]] bool complete_frames() const override;
     [[nodiscard]] FrameDemandLease demand_frames(FrameDemand d) override;
     void release_frames(std::uint64_t token) noexcept override;
     // What the last frame found frames are wanted for: animations, input in
@@ -363,6 +365,12 @@ public:
     [[nodiscard]] hanim::seconds now() const override;
     [[nodiscard]] bool time_paused() const override;
     [[nodiscard]] Rect bounds(NodeId node) const override;
+    // The node's box as it is drawn: through its own and its ancestors'
+    // visual transforms (translate, scale, rotation), the smallest rectangle
+    // round it — where `bounds`, the layout's box, is before them. What a
+    // check of where things are on screen reads (a film's titles in the
+    // safe area).
+    [[nodiscard]] Rect drawn_bounds(NodeId node) const;
     [[nodiscard]] Size content_size(NodeId node) const override;
     [[nodiscard]] Insets content_insets(NodeId node) const override;
     [[nodiscard]] NodeState state(NodeId node) const override;

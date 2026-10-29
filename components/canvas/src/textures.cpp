@@ -145,9 +145,20 @@ render::GlyphSource* glyphs_for(typeset::FontCollection* fonts) {
 Textures::Textures() : inbox_(std::make_shared<Inbox>()), offscreen_(std::make_shared<Offscreen>()) {}
 
 Textures::~Textures() {
-    std::unique_lock g(inbox_->lock);
-    inbox_->closed = true;
-    inbox_->idle.wait(g, [&] { return inbox_->running == 0; });
+    {
+        std::unique_lock g(inbox_->lock);
+        inbox_->closed = true;
+        inbox_->idle.wait(g, [&] { return inbox_->running == 0; });
+    }
+    // The offscreen runtimes go now, while what they use (the canvas's fonts)
+    // is alive: a finished job's last hold on them may be let go on the pool
+    // later, when the fonts are gone (a video's player drawn and dropped).
+    std::vector<std::unique_ptr<Runtime>> idle;
+    {
+        std::scoped_lock g(offscreen_->lock);
+        idle.swap(offscreen_->idle);
+        ++offscreen_->generation;  // and none comes back to it
+    }
 }
 
 int Textures::level_for(double texels_per_unit) noexcept {
@@ -320,6 +331,16 @@ bool Textures::collect(render::ImageStore& images, std::uint64_t frame, bool wai
     }
     std::erase_if(entries_, [](const auto& kv) { return kv.second.levels.empty(); });
     return changed;
+}
+
+void Textures::complete(const Scene& scene, render::ImageStore& images, typeset::FontCollection* fonts, const Theme& theme, std::uint64_t frame) {
+    if (candidates_.empty()) return;
+    const Options kept = options_;
+    options_.jobs = std::max<std::size_t>(1, candidates_.size() + in_flight_.size());
+    options_.upload = std::numeric_limits<std::size_t>::max();
+    issue(scene, images, fonts, theme);
+    (void)collect(images, frame, true);
+    options_ = kept;
 }
 
 void Textures::clear(render::ImageStore& images) {

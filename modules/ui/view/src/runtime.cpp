@@ -53,6 +53,7 @@ Runtime::Runtime(RuntimeOptions options) : impl_(std::make_unique<Impl>(*this)) 
     Impl& d = *impl_;
     d.theme = std::move(options.theme);
     d.clock = options.clock;
+    d.complete_frames = options.complete_frames;
     d.size = options.size;
     d.scale = options.scale;
     d.reduce_motion = options.reduce_motion;
@@ -358,6 +359,7 @@ void Runtime::crossfade(seconds length) {
 double Runtime::display_hz() const noexcept { return impl_->display_hz; }
 
 bool Runtime::deterministic() const { return impl_->clock.kind() != hanim::ClockKind::interactive; }
+bool Runtime::complete_frames() const { return impl_->complete_frames; }
 NodeId Runtime::focused() const noexcept { return impl_->focus; }
 Verbs& Runtime::verbs() noexcept { return impl_->verbs; }
 UiQueue& Runtime::queue() noexcept { return impl_->queue; }
@@ -395,6 +397,11 @@ typeset::FontCollection& Runtime::fonts() { return *impl_->fonts; }
 render::ImageStore& Runtime::images() { return impl_->images; }
 hanim::seconds Runtime::now() const { return impl_->now(); }
 Rect Runtime::bounds(NodeId node) const { return valid(node) ? impl_->at(node).bounds : Rect{}; }
+Rect Runtime::drawn_bounds(NodeId node) const {
+    if (!valid(node)) return {};
+    const auto& n = impl_->at(node);
+    return n.world.map({0, 0, n.frame.width, n.frame.height});
+}
 NodeState Runtime::state(NodeId node) const { return valid(node) ? impl_->at(node).state : NodeState{}; }
 
 void Runtime::emit(NodeId node, std::string_view event, const Value& args) { impl_->call_handlers(node, event, args); }

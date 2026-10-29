@@ -366,6 +366,59 @@ int main(int argc, char** argv) {
               "the card's surface follows the theme");
     });
 
+    s.test("frames drawn complete: any frame rendered directly is the one playing to it gives — textures at their level, live nodes at once", [] {
+        auto& sc = world::scene("complete");
+        sc.clear();
+        auto card = [](const world::Scene& s, world::NodeRef n) {
+            return column({.width = Dim(static_cast<float>(s.rect(n).width)), .height = Dim(static_cast<float>(s.rect(n).height)), .background = Fill("surface")},
+                          {box({.height = 30, .background = Fill(Color::hex(static_cast<std::uint32_t>(s.number(n, "band", 0x7c3aed))))}),
+                           text({.text = std::string(s.text(n, "title")), .style = "heading"})});
+        };
+        sc.kind("card", world::Kind{.tiers = {{0, world::Tier::Draw::box}, {40, world::Tier::Draw::texture}, {500, world::Tier::Draw::promote}},
+                                    .promote = card,
+                                    .view = card});
+        for (int i = 0; i < 40; ++i) {
+            const auto n = sc.add({.kind = "card", .x = (i % 8) * 300.0, .y = (i / 8) * 240.0, .width = 260, .height = 200, .key = std::format("k{}", i),
+                                   .fill = Color::hex(0x94a3b8)});
+            sc.set(n, "title", std::format("Card {}", i));
+            sc.set(n, "band", 0x0ea5e9 + static_cast<double>(i * 0x0b0503));
+        }
+        // A camera path, a function of time: out from one card to the whole scene, then in to another.
+        auto camera = [](double t) {
+            const double u = std::clamp(t / 1.5, 0.0, 1.0);
+            const double zoom = std::exp2(std::lerp(1.2, -2.6, u < 0.5 ? u * 2 : 2 - u * 2));
+            return world::Camera{std::lerp(130.0, 2030.0, u), std::lerp(100.0, 1060.0, u), zoom};
+        };
+        auto frame = [&](Headless& h, std::int64_t i) {
+            const world::Camera c = camera(static_cast<double>(i) / 60);
+            const NodeId b = h.runtime().find("main/board");
+            h.runtime().set(b, "x", Value(c.x));
+            h.runtime().set(b, "y", Value(c.y));
+            h.runtime().set(b, "zoom", Value(c.zoom));
+            h.runtime().frame({seconds(static_cast<double>(i) / 60), {}});
+            Hash hash;
+            const auto& px = h.pixels();
+            for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
+            return hash.value();
+        };
+        auto made = [&] {
+            auto h = std::make_unique<Headless>(HeadlessOptions{.size = {640, 360}, .complete_frames = true});
+            h->mount("main", column({.width = 640, .height = 360}, {canvas({.id = "board", .scene = "complete", .zoom = 2.3, .width = 640, .height = 360})}));
+            h->runtime().frame({seconds(0), {}});
+            return h;
+        };
+        auto played = made();
+        std::map<std::int64_t, std::uint64_t> seen;
+        for (std::int64_t i = 0; i <= 90; ++i) seen[i] = frame(*played, i);
+        const Canvas* c = played->runtime().component<Canvas>(played->runtime().find("main/board"));
+        check(c && c->stats().stretched == 0 && c->stats().promoted >= 1, "the last frame: no stretched texture, the card it reached live");
+        for (std::int64_t i : {90, 7, 45, 0, 23, 66, 89}) {
+            auto direct = made();
+            const auto direct_hash = frame(*direct, i);
+            check(direct_hash == seen[i], std::format("frame {} rendered directly: {:016x}, played: {:016x}", i, direct_hash, seen[i]));
+        }
+    });
+
     s.test("semantics: what is on screen, the viewport's actions, and find over the whole scene", [] {
         auto& sc = world::scene("search");
         sc.clear();

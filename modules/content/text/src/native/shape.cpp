@@ -96,7 +96,28 @@ void shape_run(Paragraph::Shaped& s, ShapedRun& run, hb_script_t script, hb_buff
 
 }  // namespace
 
+// SheenBidi's own allocator keeps scratch buffers on a lock-free stack that
+// is not safe when paragraphs are shaped on many threads at once (a canvas's
+// textures laid out on the pool): two threads came away with one buffer and
+// resolved each other's levels. Its default, from the first paragraph on, is
+// plain blocks — the stack is never touched.
+void plain_bidi_allocator() {
+    static std::once_flag once;
+    std::call_once(once, [] {
+        static const SBAllocatorProtocol plain{
+            [](SBUInteger size, void*) { return std::malloc(size); },
+            [](void* p, SBUInteger size, void*) { return std::realloc(p, size); },
+            [](void* p, void*) { std::free(p); },
+            nullptr,
+            nullptr,
+            nullptr,
+        };
+        SBAllocatorSetDefault(SBAllocatorCreate(&plain, nullptr));
+    });
+}
+
 void shape(Paragraph::Shaped& s) {
+    plain_bidi_allocator();
     const std::string& text = s.text;
 
     // ── bidi levels per byte ──

@@ -384,14 +384,22 @@ std::vector<std::string> Scene::presets() const {
 
 // ── scenes by name ───────────────────────────────────────────────────────
 
+// Runtimes on several threads (a video's frames drawn at once) each name
+// their own scenes: the table of them is shared, under a lock; a scene
+// itself is its runtime's.
 namespace {
 std::map<std::string, std::unique_ptr<Scene>, std::less<>>& registry() {
     static std::map<std::string, std::unique_ptr<Scene>, std::less<>> r;
     return r;
 }
+std::mutex& registry_lock() {
+    static std::mutex m;
+    return m;
+}
 }  // namespace
 
 Scene& scene(std::string_view name) {
+    std::scoped_lock g(registry_lock());
     auto& r = registry();
     auto it = r.find(name);
     if (it == r.end()) it = r.emplace(std::string(name), std::make_unique<Scene>()).first;
@@ -399,12 +407,14 @@ Scene& scene(std::string_view name) {
 }
 
 Scene* find_scene(std::string_view name) {
+    std::scoped_lock g(registry_lock());
     auto& r = registry();
     const auto it = r.find(name);
     return it == r.end() ? nullptr : it->second.get();
 }
 
 void drop_scene(std::string_view name) {
+    std::scoped_lock g(registry_lock());
     auto& r = registry();
     if (auto it = r.find(name); it != r.end()) r.erase(it);
 }

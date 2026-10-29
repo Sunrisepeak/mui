@@ -618,7 +618,11 @@ struct PainterNode {
     bool on_event(EventContext& ctx, const InputEvent& e) { return handle ? handle(ctx, e) : false; }
 };
 
+// Read while views are built and written as packages register their
+// components, by runtimes on any thread (a video's frames drawn at once):
+// under a lock that readers share.
 struct Registry {
+    std::shared_mutex                                        lock;
     std::map<std::string, const ComponentType*, std::less<>> types;
     Registry() {
         for (const ComponentType* t :
@@ -678,15 +682,22 @@ const ComponentType& root_type() { return component_type<RootNode>(); }
 
 const ComponentType* find_type(std::string_view name) {
     auto& r = registry();
+    std::shared_lock g(r.lock);
     auto it = r.types.find(name);
     return it == r.types.end() ? nullptr : it->second;
 }
 
-void register_type(const ComponentType& type) { registry().types.insert_or_assign(std::string(type.name), &type); }
+void register_type(const ComponentType& type) {
+    auto& r = registry();
+    std::unique_lock g(r.lock);
+    r.types.insert_or_assign(std::string(type.name), &type);
+}
 
 std::vector<const ComponentType*> registered_types() {
     std::vector<const ComponentType*> out;
-    for (const auto& [name, type] : registry().types) out.push_back(type);
+    auto& r = registry();
+    std::shared_lock g(r.lock);
+    for (const auto& [name, type] : r.types) out.push_back(type);
     std::ranges::sort(out, {}, &ComponentType::name);
     return out;
 }

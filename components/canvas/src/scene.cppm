@@ -252,7 +252,8 @@ private:
 };
 
 // Scenes by name, as models are: a view names its canvas's scene, the
-// program (or a script) fills it.
+// program (or a script) fills it. The table of names is safe from any
+// thread (runtimes drawing a video's frames at once each name their own).
 [[nodiscard]] Scene& scene(std::string_view name);
 [[nodiscard]] Scene* find_scene(std::string_view name);
 void drop_scene(std::string_view name);

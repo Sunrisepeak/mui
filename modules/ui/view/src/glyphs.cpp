@@ -143,6 +143,7 @@ Value to_value(const GlyphMotion& m) {
         t.set("kind", "spring").set("stiffness", m.transition.spring.stiffness).set("damping", m.transition.spring.damping);
         t.set("mass", m.transition.spring.mass);
     }
+    if (m.transition.delay.count() != 0) t.set("delay", m.transition.delay.count());
     v.set("transition", std::move(t));
     v.set("stagger", m.stagger.count()).set("order", std::string(order_names[static_cast<std::size_t>(m.order)]));
     v.set("seed", static_cast<std::int64_t>(m.seed)).set("repeat", static_cast<std::int64_t>(m.repeat)).set("alternate", m.alternate);
@@ -176,6 +177,7 @@ std::optional<GlyphMotion> glyph_motion_from(const Value& v) {
                 if (auto pe = hanim::parse_ease(x->as_string())) e = *pe;
             m.transition = Transition::tween(hanim::seconds(t->get("duration") ? t->get("duration")->as_double(0.45) : 0.45), e);
         }
+        if (const Value* d = t->get("delay")) m.transition.delay = hanim::seconds(d->as_double(0));
     } else if (const Value* t2 = v.get("transition"); t2 && t2->type() == Value::Type::text) {
         if (auto tok = Transition::token(t2->as_string())) m.transition = *tok;
     }
@@ -241,8 +243,9 @@ GlyphFrame glyph_frame(const GlyphMotion& m, hanim::seconds elapsed, std::span<c
     const double cycle = spring ? osc.settle_time() : std::max(1e-6, m.transition.duration.count());
     const std::size_t last_slot = n ? *std::ranges::max_element(slot) : 0;
     const double spread = static_cast<double>(last_slot) * m.stagger.count();
+    const double begins = m.transition.delay.count();  // every element held at `from` until then
     f.ends = m.repeat == 0 ? hanim::seconds(std::numeric_limits<double>::infinity())
-                           : hanim::seconds(spread + cycle * m.repeat);
+                           : hanim::seconds(begins + spread + cycle * m.repeat);
     f.moving = !reduce_motion && elapsed < f.ends;
     auto progress = [&](double u) -> float {
         if (reduce_motion) return m.alternate && m.repeat % 2 == 0 && m.repeat > 0 ? 0.0f : 1.0f;
@@ -274,7 +277,7 @@ GlyphFrame glyph_frame(const GlyphMotion& m, hanim::seconds elapsed, std::span<c
                 j.rotate += m.jitter.rotate * signed_unit(m.seed, key, 3);
                 j.opacity += m.jitter.opacity * signed_unit(m.seed, key, 4);
             }
-            const render::GlyphStyle s = style_of(lerp(from, to, progress(elapsed.count() - delay)));
+            const render::GlyphStyle s = style_of(lerp(from, to, progress(elapsed.count() - begins - delay)));
             out[gi] = s;
             any = any || !s.plain();
         }

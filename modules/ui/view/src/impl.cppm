@@ -199,6 +199,7 @@ struct Runtime::Impl {
     typeset::FontCollection*                 fonts = nullptr;
     render::ImageStore                    images;
     hanim::Clock                           clock;
+    bool                                   complete_frames = false;
     hanim::Set                             anims;
     layout::Engine                        layout;
     Verbs                                 verbs;

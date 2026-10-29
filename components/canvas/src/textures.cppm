@@ -61,6 +61,10 @@ public:
     // the budget of bytes kept; true when something new can be drawn. `wait`
     // (a deterministic run): every job issued is waited for first.
     bool collect(render::ImageStore& images, std::uint64_t frame, bool wait = false);
+    // Every candidate made now, however many (frames drawn complete,
+    // Services::complete_frames): issued at once, waited for, and entered
+    // whatever the frame's upload budget.
+    void complete(const Scene& scene, render::ImageStore& images, typeset::FontCollection* fonts, const Theme& theme, std::uint64_t frame);
     // Every texture out of the store (the canvas goes, its scene or its theme changes).
     void clear(render::ImageStore& images);
 

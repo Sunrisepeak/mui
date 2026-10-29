@@ -325,7 +325,8 @@ void Canvas::place() {
     // While the camera moves, no node goes live (a live node is laid out on
     // the UI thread: a zoom through a wall would stall on each one); those
     // already live stay, the focused one goes at once, the rest when it rests.
-    const bool moving = (services().now() - last_motion_).count() < promote_after;
+    // Frames drawn complete (an offline render) never wait for the camera to rest.
+    const bool moving = !services().complete_frames() && (services().now() - last_motion_).count() < promote_after;
     bool deferred = false;
     if (s && vp.width > 0) {
         std::vector<NodeRef> seen;
@@ -470,12 +471,29 @@ void Canvas::paint(PaintContext& ctx) const {
     for (const auto& b : behaviors_) b->paint_under(host_, ctx.list);
     paint_edges(*s, ctx.list, vp);
     stats_.visible = visible_.size();
-    for (const NodeRef n : visible_) {
-        const world::Kind& k = s->kind_of(n);
-        const Rect screen = camera_.to_screen(s->rect(n), vp);
+    const int level = world::Textures::level_for(camera_.zoom * services().pixel_scale());
+    auto tier = [&](NodeRef n, const world::Kind& k, Rect screen) {
         std::size_t t = tier_of(k, screen, s->key(n) == focused_);
         // Not live yet (the camera is moving): the tier below it meanwhile.
         if (k.tiers[t].draw == world::Tier::Draw::promote && t > 0 && std::ranges::find(promoted_, s->key(n)) == promoted_.end()) --t;
+        return t;
+    };
+    // Drawn complete (Services::complete_frames): every texture the frame
+    // shows made at its level first, so the frame is what it would be at rest.
+    if (services().complete_frames()) {
+        for (const NodeRef n : visible_) {
+            const world::Kind& k = s->kind_of(n);
+            const Rect screen = camera_.to_screen(s->rect(n), vp);
+            if (k.tiers[tier(n, k, screen)].draw != world::Tier::Draw::texture) continue;
+            const std::uint64_t rev = s->content_revision(n);
+            if (const auto pick = textures_.pick(s->key(n), rev, level, frame_); !pick || !pick->exact) textures_.want(s->key(n), rev, level, n, 1);
+        }
+        textures_.complete(*s, ctx.services.images(), &ctx.services.fonts(), ctx.theme, frame_);
+    }
+    for (const NodeRef n : visible_) {
+        const world::Kind& k = s->kind_of(n);
+        const Rect screen = camera_.to_screen(s->rect(n), vp);
+        const std::size_t t = tier(n, k, screen);
         switch (k.tiers[t].draw) {
             case world::Tier::Draw::box: {
                 const Color fill = s->fill(n);
@@ -499,7 +517,6 @@ void Canvas::paint(PaintContext& ctx) const {
                 // ready one meanwhile, a box before any is.
                 const std::string_view key = s->key(n);
                 const std::uint64_t rev = s->content_revision(n);
-                const int level = world::Textures::level_for(camera_.zoom * services().pixel_scale());
                 const auto pick = textures_.pick(key, rev, level, frame_);
                 if (!pick || !pick->exact) {
                     const float cx = screen.x + screen.width / 2 - vp.width / 2, cy = screen.y + screen.height / 2 - vp.height / 2;

@@ -78,7 +78,7 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
-// Whether this program runs in a page (wasm32-emscripten).
+// Whether this program runs in a page (wasm32-emscripten, with a document: not node).
 [[nodiscard]] bool in_browser() noexcept;
 
 // The person's languages as the browser states them (navigator.languages).

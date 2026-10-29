@@ -15,6 +15,7 @@ extern "C" {
 void omui_web_present(const char* selector, const std::uint8_t* pixels, int width, int height);
 void omui_web_canvas(const char* selector, float* out);
 int  omui_web_hidden();
+int  omui_web_page();
 void omui_web_title(const char* text);
 char* omui_web_languages();
 }
@@ -207,7 +208,10 @@ void sample_gamepads(std::vector<InputEvent>& out) {
 
 }  // namespace
 
+bool exists() { return omui_web_page() != 0; }
+
 bool open(std::string_view canvas, std::string_view title) {
+    if (!exists()) return false;
     selector = std::string(canvas);
     const char* c = selector.c_str();
     emscripten_set_keydown_callback_on_thread(window_target, nullptr, true, on_key, calling_thread);

@@ -25,7 +25,7 @@ typeset::FontCollection& fonts() {
 int main(int argc, char** argv) {
     Suite s{"host.web"};
 
-    s.test("off the Web: no page, the loop stepped by hand", [] {
+    s.test("no page (a native target, or node): the loop stepped by hand", [] {
         check(!in_browser());
         Web w({.size = {200, 100}, .fonts = &fonts()});
         auto color = signal(std::string("#ff0000"));

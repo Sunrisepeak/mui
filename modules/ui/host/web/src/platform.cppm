@@ -6,11 +6,11 @@ module openmui.host.web:platform;
 import std;
 import openmui.core;
 import openmui.raster;
-import mcpplibs.os;
 
 namespace omui::page {
 
-inline constexpr bool here = mcpplibs::os::is_emscripten;
+// Whether the program runs in a page (not node, not a native target).
+[[nodiscard]] bool exists();
 
 // Listens to the page's input on the canvas (keys on the window); false
 // where there is no page.

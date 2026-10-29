@@ -25,5 +25,7 @@ int main() {
     // What a gamepad's buttons do (controls/*.controls.omui.json): data, so it can be remapped.
     const bool controls = openmui::rules::embed({.module = "openmui.showcase.fighting", .ns = "omui::fighting::files", .dir = "controls",
                                                  .suffix = ".controls.omui.json", .tag = "controls"});
-    return stage && fighters && sounds && stages && art && music && controls ? 0 : 1;
+    // On the Web, a Bilibili Toy package (D-84 §8.9): mcpp pack --target wasm32-emscripten --pkg-format dist-toy.
+    const bool toy = openmui::rules::dist_toy({.target = "omui-fight", .title = "格斗游戏", .fonts = {"Inter", "NotoSansSC"}, .background = "#0b0d12"});
+    return stage && fighters && sounds && stages && art && music && controls && toy ? 0 : 1;
 }

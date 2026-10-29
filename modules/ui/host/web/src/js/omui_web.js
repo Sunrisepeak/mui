@@ -36,6 +36,11 @@ addToLibrary({
     HEAPF32[(out >> 2) + 2] = window.devicePixelRatio || 1;
   },
 
+  // Whether there is a page at all (node runs the Web row's tests without one).
+  omui_web_page: function () {
+    return typeof document !== 'undefined' ? 1 : 0;
+  },
+
   // Whether the page is hidden (another tab, the app in the background).
   omui_web_hidden: function () {
     return document.hidden ? 1 : 0;

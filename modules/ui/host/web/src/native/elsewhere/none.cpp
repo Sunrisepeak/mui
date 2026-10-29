@@ -9,6 +9,7 @@ import :platform;
 
 namespace omui::page {
 
+bool exists() { return false; }
 bool open(std::string_view, std::string_view) { return false; }
 Canvas canvas(std::string_view) { return {}; }
 void take(std::vector<InputEvent>&) {}

@@ -58,14 +58,14 @@ struct Web::Impl {
             if (!rows.empty()) (void)renderer.render(list, frame, resources, o);
         }
         trace::Span span("present", "host");
-        page::present(options.canvas, frame);
+        if (opened) page::present(options.canvas, frame);
         shown = h;
         ++frames_shown;
     }
 
     // The canvas's size and the device's ratio, as the page has them now.
     void follow_canvas() {
-        if (!page::here) return;
+        if (!opened) return;
         const page::Canvas c = page::canvas(options.canvas);
         if (c.size.width <= 0 || c.size.height <= 0) return;
         if (c.size.width == size.width && c.size.height == size.height && c.scale == scale) return;
@@ -129,8 +129,8 @@ Web::Web(WebOptions options) : impl_(std::make_unique<Impl>()) {
     Impl& d = *impl_;
     d.options = std::move(options);
     d.size = d.options.size;
-    if constexpr (page::here) {
-        d.opened = page::open(d.options.canvas, d.options.title);
+    d.opened = page::open(d.options.canvas, d.options.title);
+    if (d.opened) {
         const page::Canvas c = page::canvas(d.options.canvas);
         if (c.size.width > 0 && c.size.height > 0) d.size = c.size, d.scale = c.scale;
     }
@@ -187,15 +187,15 @@ int Web::run() {
     Impl& d = *impl_;
     // The page's loop: on the Web this does not return (the stack, and this
     // host on it, stay as they are while the page runs).
-    if (page::loop(&tick, &d)) return d.exit_code;
+    if (d.opened && page::loop(&tick, &d)) return d.exit_code;
     while (!d.quitting) {
         if (!d.step(true)) std::this_thread::sleep_for(std::chrono::milliseconds(4));
     }
     return d.exit_code;
 }
 
-bool in_browser() noexcept { return page::here; }
+bool in_browser() noexcept { return page::exists(); }
 
-std::vector<std::string> browser_locales() { return page::locales(); }
+std::vector<std::string> browser_locales() { return page::exists() ? page::locales() : std::vector<std::string>{}; }
 
 }  // namespace omui

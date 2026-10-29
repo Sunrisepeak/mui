@@ -13,5 +13,8 @@ int main() {
     for (const char* language : {"ts", "lua", "py"})
         gifts = openmui::rules::embed({.module = "openmui.showcase.widget_breakout", .ns = "omui::breakout::files", .dir = "gifts",
                                        .suffix = std::format(".{}", language), .tag = language}) && gifts;
-    return field && sounds && gifts ? 0 : 1;
+    // On the Web, a Bilibili Toy package: mcpp pack --target wasm32-emscripten --pkg-format dist-toy.
+    const bool toy = openmui::rules::dist_toy({.target = "omui-breakout", .title = "组件打砖块",
+                                               .fonts = {"Inter", "NotoSansSC", "TwemojiMozilla", "JetBrainsMono"}, .background = "#0b0f1a"});
+    return field && sounds && gifts && toy ? 0 : 1;
 }

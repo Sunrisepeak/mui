@@ -166,7 +166,7 @@ int main(int argc, char** argv) {
         check(f.stage->match().state().over != 0, "the match over");
         save(f.all, mixer.rate(), "fighting-announcer", "announcer.wav");
         std::println("    announcer heard {:016x} ({:.1f} s)", audio::hash(f.all), static_cast<double>(f.all.size()) / 2 / mixer.rate());
-        check_eq(audio::hash(f.all), std::uint64_t{0x5ffe577d554cbd81});  // GCC and LLVM, every platform
+        check_eq(audio::hash(f.all), std::uint64_t{0xdfbc9b084826ed99});  // GCC and LLVM, every platform
     });
 
     s.test("the fighters' voices: 坤 strains with his heavy blow and 墨 cries out under it, not again for a breath; at her K.O. she falls with a cry of her own, not two", [] {
@@ -200,6 +200,15 @@ int main(int argc, char** argv) {
         check(f.state().over != 0, "the K.O.");
         const float fall = f.step(60);
         check_eq(said.spoken(), std::int64_t{4});  // his strain, her fall
+        // The round's end plays on in slow motion: she has fallen (not frozen mid-blow) and he stands.
+        f.h.step();
+        check(f.h.save_png(scratch_dir("fighting-ko") / "ko.png").has_value());
+        check(f.state().f[1].pos.y.to_double() <= 0 && f.state().frame > 0, "she is down");
+        Hash ko;
+        const auto& px = f.h.pixels();
+        for (int y = 0; y < px.height(); ++y) ko.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
+        std::println("    ko {}", ko.hex());
+        check_eq(ko.hex(), std::string("437613f2c4f032d9"));  // GCC and LLVM
         check(fall > 0.05f, std::format("heard ({})", fall));
         save(f.all, mixer.rate(), "fighting-voices", "voices.wav");
         std::println("    voices heard {:016x} ({:.1f} s)", audio::hash(f.all), static_cast<double>(f.all.size()) / 2 / mixer.rate());

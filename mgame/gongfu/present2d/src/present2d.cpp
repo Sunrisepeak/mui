@@ -1386,6 +1386,13 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
             } else {
                 clip = {};
             }
+        } else if (!cine && st.over && st.winner == i && drawn.mode == Mode::idle && own.clips.contains("win")) {
+            // The round won: once standing, the look's win pose, from the round's end (its K.O. or its clock).
+            std::int32_t ended = st.frame;
+            for (const auto& k : effects.kept())
+                if (k.event.kind == Event::Kind::ko || k.event.kind == Event::Kind::time_over) ended = std::min(ended, k.frame);
+            clip = "win";
+            clip_t = st.frame - ended;
         }
         if (cine && i == st.lock.owner && st.lock.frame >= cine->hide[0] && st.lock.frame < cine->hide[1]) continue;
         // Struck and held in the hitstop: shaking hard along the line of the blow, a little less each frame.

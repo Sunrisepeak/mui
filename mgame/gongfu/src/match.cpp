@@ -1163,7 +1163,9 @@ void Match::play_lock() {
 
 void Match::tick(Pad left, Pad right) {
     events_.clear();
-    if (state_.over) return;
+    // A round over plays on as its finish: the fallen falls, the winner's move runs out and it stands;
+    // nobody's pad is read, nothing lands (contacts and clashes skip an ended round) and the clock stays.
+    if (state_.over) left = right = Pad{};
     ++state_.frame;
     // The history (G-20, G-21): each side's pad, and where it stood at this frame's start.
     const std::array<Pad, 2> pads{left, right};

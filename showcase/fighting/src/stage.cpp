@@ -246,6 +246,11 @@ void Stage::changed() {
 }
 
 void Stage::advance() {
+    // A round's end in slow motion: its first 90 frames played at half speed (the fall seen), then on as it was.
+    if (over_reported_ && ++over_for_ <= 90 && over_for_ % 2 == 1) {
+        services().invalidate_paint(node());
+        return;
+    }
     const gongfu::Pad a = dummies_[0].step(pad_of(0)), b = dummies_[1].step(pad_of(1));
     match_->tick(a, b);
     effects_.record(*match_);
@@ -274,7 +279,7 @@ void Stage::advance() {
         if (versus && decided_) emit_match_over(wins_[0] > wins_[1] ? 0 : wins_[1] > wins_[0] ? 1 : 2);
     }
     // Three seconds after a round's K.O., the next (counted here: an ended match's frame stands still).
-    if (versus && over_reported_ && !decided_ && ++over_for_ >= 180) start_round(true);
+    if (versus && over_reported_ && !decided_ && over_for_ >= 180) start_round(true);
     services().invalidate_paint(node());
     services().invalidate_semantics(node());
 }

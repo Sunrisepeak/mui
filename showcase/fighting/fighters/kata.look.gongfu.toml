@@ -372,12 +372,12 @@ angle.shin_front = [[0, -118.3]]
 angle.thigh_back = [[0, 7.2]]
 angle.shin_back = [[0, -50.3]]
 [impact.light]
-shake = [2, 6]
+shake = [0, 0]
 spark = { style = "rays", size = 24, count = 6, frames = 12, color = "#ffd166", counter = "#ff4d5e" }
 sound = ["snap", "thud_light", ""]
 
 [impact.low]
-shake = [2, 6]
+shake = [0, 0]
 spark = { style = "rays", size = 22, count = 6, frames = 12, color = "#ffd166", counter = "#ff4d5e" }
 sound = ["snap", "thud_medium", ""]
 
@@ -408,7 +408,7 @@ rumble = [0.8, 14]
 sound = ["crack", "thud_heavy", ""]
 
 [impact.air]
-shake = [4, 8]
+shake = [6, 10]
 spark = { style = "rays", size = 32, count = 8, frames = 14, color = "#ffd166", counter = "#ff4d5e" }
 sound = ["snap", "thud_medium", ""]
 

@@ -480,7 +480,7 @@ Camera view_camera(const Match& match, const Look& left, const Look& right, cons
         if (age < 0 || !contact(it->event.kind)) continue;
         if (age >= 60) break;
         const Impact& im = impact_for(look_of(it->event, left, right), it->event);
-        const double boost = it->event.kind == Event::Kind::counter ? 1.25 : 1.0;
+        const double boost = it->event.punish ? 1.5 : it->event.kind == Event::Kind::counter ? 1.25 : 1.0;
         if (!shaken && age < im.shake_frames) {
             shaken = true;
             const double amp = im.shake * boost * falloff(age, im.shake_frames);
@@ -1280,6 +1280,11 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
             }
         }
         if (cine && i == st.lock.owner && st.lock.frame >= cine->hide[0] && st.lock.frame < cine->hide[1]) continue;
+        // Struck and held in the hitstop: shaking hard along the line of the blow, a little less each frame.
+        if (!cine && drawn.stop > 0 && (drawn.mode == Mode::hitstun || drawn.mode == Mode::blockstun || drawn.mode == Mode::knockdown)) {
+            const double amp = (drawn.mode == Mode::blockstun ? 1.2 : 2.5) + 0.35 * drawn.stop;
+            drawn.pos.x += Fixed::raw(static_cast<std::int32_t>(std::lround(((st.frame & 1) ? amp : -amp) * Fixed::one_bits)));
+        }
         body(i == 0 ? left : right, match.fighter(i), drawn, st.frame, scene, view.cam, out, clip, clip_t);
     }
     // The stage's layers in front of the fighters (gone under a cinematic's backdrop).
@@ -1485,12 +1490,16 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         if (age < 0 || !contact(e.kind)) continue;
         const Impact& im = impact_for(look_of(e, left, right), e);
         std::int32_t spark_age = age;
-        if (const auto fx = im.fx.empty() ? look_of(e, left, right).fx.end() : look_of(e, left, right).fx.find(im.fx); fx != look_of(e, left, right).fx.end()) {
-            // The look's own effect for the contact, facing the way the attacker faces.
+        // The look's own effect for the contact — its counter's or its punish's tier when it was one — facing the way the attacker faces.
+        const Look& by_look = look_of(e, left, right);
+        const std::string& tier = e.punish && !im.fx_punish.empty() ? im.fx_punish : e.kind == Event::Kind::counter && !im.fx_counter.empty() ? im.fx_counter : im.fx;
+        const float tier_scale = e.punish ? 1.4f : e.kind == Event::Kind::counter ? 1.2f : 1.0f;
+        if (const auto fx = tier.empty() ? by_look.fx.end() : by_look.fx.find(tier); fx != by_look.fx.end()) {
             const FighterState& by = st.f[static_cast<std::size_t>(std::clamp(e.attacker, 0, 1))];
             if (age < fx->second.length())
-                this->fx(look_of(e, left, right), fx->second, age, {static_cast<float>(stage(e.at.x)), static_cast<float>(stage(e.at.y))}, by.facing < 0 ? -1.0 : 1.0, 1,
-                         scene, view.cam, out);
+                this->fx(by_look, fx->second, age, {static_cast<float>(stage(e.at.x)), static_cast<float>(stage(e.at.y))}, by.facing < 0 ? -1.0 : 1.0,
+                         tier == im.fx ? tier_scale : 1.0f, scene, view.cam, out);
+            if (e.punish && age < 3) out.fill_rect({0, 0, scene.width, scene.height}, Color::hex(0xffffff, 0.35f * static_cast<float>(3 - age) / 3));
         } else if (k.frame >= stop_from && k.frame < stop_to) {
             // Held in the air: each where its own number puts it about the hit, so the hits hang apart.
             spark_age = std::min(std::min(st.frame, stop_to) - k.frame, 3) + std::max(0, st.frame - stop_to);

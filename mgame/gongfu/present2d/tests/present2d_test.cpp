@@ -217,8 +217,8 @@ int main(int argc, char** argv) {
         check(std::ranges::any_of(fx.kept(), [](const p2::Effects::Kept& k) { return k.event.kind == Event::Kind::hit; }), "the jab landed");
         check(pixels[0] != pixels[1] && pixels[1] != pixels[2], "each frame differs");
         std::println("    present2d lists {:016x} {:016x} {:016x} pixels {:016x} {:016x} {:016x}", lists[0], lists[1], lists[2], pixels[0], pixels[1], pixels[2]);
-        check(lists == std::vector<std::uint64_t>{0x8a625a353d3b0427ULL, 0xff0651146a403635ULL, 0xda408be667b5e60bULL}, "lists pinned");
-        check(pixels == std::vector<std::uint64_t>{0xe4f8cfc3c89e5a5eULL, 0x3403ad614b461442ULL, 0x7eb4597c5478690aULL}, "pixels pinned");
+        check(lists == std::vector<std::uint64_t>{0x8a625a353d3b0427ULL, 0xcc7114f61e4e9585ULL, 0x196d8fbba48340b1ULL}, "lists pinned");
+        check(pixels == std::vector<std::uint64_t>{0xe4f8cfc3c89e5a5eULL, 0xa7e8888a4081dbdfULL, 0x7f55413f890348b2ULL}, "pixels pinned");
     });
 
     s.test("after a rollback the frame is drawn again the same: the picture is the state's", [&] {
@@ -1002,6 +1002,39 @@ spark = { style = "rays", colour = "#ffd166" }
               "the pane's colours, written back");
     });
 
+    s.test("hit feel: the struck shakes through the hitstop; the camera shakes only where the impact asks", [&] {
+        const auto play = [&](float shake) {
+            p2::Look l = ink;
+            l.impacts = {{.name = "light", .shake = shake, .shake_frames = 8, .spark_count = 0, .spark_frames = 0}};
+            p2::bind(l, fighter());
+            Match m = close_match();
+            p2::Effects fx;
+            std::vector<std::uint64_t> lists;
+            std::vector<bool> moved;
+            std::vector<std::int32_t> stops;
+            for (int f = 0; f < 12; ++f) {
+                m.tick(f == 0 ? pad(5, LP) : pad(5), pad(5));
+                fx.record(m);
+                omui::render::DisplayList dl;
+                p2::draw(m, l, paper, fx, {}, dl);
+                lists.push_back(dl.hash());
+                const p2::Camera seen = p2::view_camera(m, l, l, fx, {}), framed = p2::frame_camera(m, {});
+                moved.push_back(seen.x != framed.x || seen.y != framed.y);
+                stops.push_back(m.state().f[1].stop);
+            }
+            return std::tuple{lists, moved, stops};
+        };
+        const auto [still_lists, still_moved, stops] = play(0);
+        const auto [shaken_lists, shaken_moved, _] = play(6);
+        check(std::ranges::none_of(still_moved, std::identity{}), "a light impact (shake 0) leaves the camera alone");
+        check(std::ranges::any_of(shaken_moved, std::identity{}), "an impact that shakes moves it");
+        // Both stand still in the hitstop: frame to frame, only the struck's shake changes the picture.
+        int stopped = 0, changed = 0;
+        for (std::size_t f = 1; f < stops.size(); ++f)
+            if (stops[f - 1] > 1 && stops[f] > 0) ++stopped, changed += still_lists[f] != still_lists[f - 1];
+        check(stopped >= 3 && changed == stopped, std::format("{} of {} stopped frames shaken", changed, stopped));
+    });
+
     s.test("each spark style and flash draws its own picture, pinned", [&] {
         std::vector<std::uint64_t> lists;
         Hash all;
@@ -1028,7 +1061,7 @@ spark = { style = "rays", colour = "#ffd166" }
         }
         check_eq(std::set<std::uint64_t>(lists.begin(), lists.end()).size(), lists.size());
         std::println("    sparks {}", all.hex());
-        check_eq(all.hex(), std::string("ddf03bff612ad757"));
+        check_eq(all.hex(), std::string("4430d1e7d6e9b010"));
     });
 
     s.test("the training fighter's look, every clip at three moments: a contact sheet (saved), its picture pinned", [] {

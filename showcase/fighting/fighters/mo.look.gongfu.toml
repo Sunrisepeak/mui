@@ -1095,13 +1095,13 @@ poses = [
 ]
 
 [impact.light]
-shake = [2, 6]
+shake = [0, 0]
 spark = { style = "splash", size = 30, count = 6, frames = 14, color = "#101114", counter = "#c0392b" }
 sound = ["ink_splash", "thud_light", ""]
 fx = "ink_light"
 
 [impact.medium]
-shake = [4, 8]
+shake = [2, 6]
 spark = { style = "splash", size = 30, count = 6, frames = 14, color = "#101114", counter = "#c0392b" }
 sound = ["ink_splash", "thud_medium", ""]
 fx = "ink_medium"

@@ -49,6 +49,15 @@ std::int32_t Fighter::startup(std::int32_t move) const noexcept {
     return first;
 }
 
+std::int32_t Fighter::recovery(std::int32_t move) const noexcept {
+    const MoveDef& m = def.moves[static_cast<std::size_t>(move)];
+    std::int32_t last = 0;
+    for (const HitDef& h : m.hits) last = std::max(last, h.active.to);
+    if (m.throw_) last = std::max(last, m.throw_->active.to);
+    if (m.projectile) last = std::max(last, m.projectile->spawn);
+    return last + 1;
+}
+
 std::expected<Fighter, std::vector<Problem>> compile(FighterDef def) {
     Checker c;
     c.prefix = def.name.empty() ? std::string("?") : def.name;
@@ -196,6 +205,9 @@ std::vector<Problem> check(const SystemDef& s) {
         c.need(s.scaling[i] >= 1 && s.scaling[i] <= 100, std::format(".scaling[{}]", i), "a step is 1–100 percent");
     c.need(s.counter_damage >= 100, ".counter_damage", "a counter hit does at least the damage of a hit (100 percent)");
     c.need(s.counter_hitstun >= 0, ".counter_hitstun", "0 or more frames");
+    c.need(s.counter_hitstop >= 0 && s.punish_hitstop >= s.counter_hitstop, ".punish_hitstop", "0 or more frames, a punish's at least a counter's");
+    c.need(s.punish_damage >= s.counter_damage, ".punish_damage", "a punish counter does at least a counter's damage");
+    c.need(s.punish_hitstun >= s.counter_hitstun, ".punish_hitstun", "a punish counter's hitstun at least a counter's");
     c.need(s.round_frames >= 1, ".round_frames", "a round lasts at least 1 frame");
     c.need(s.start_distance > Fixed{} && s.start_distance < s.stage_width, ".start_distance", "the fighters start apart, inside the stage");
     c.need(s.meter_max >= 0 && s.knockdown >= 1 && s.wakeup >= 0, ".knockdown", "meter 0 or more; down at least 1 frame");

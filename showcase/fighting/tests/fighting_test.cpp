@@ -891,7 +891,7 @@ int main(int argc, char** argv) {
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    ke time {}", all.hex());
-        check_eq(all.hex(), std::string("6329ffff43e303a7"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("f56e301a303fa803"));  // GCC and LLVM, every platform
     });
 
     s.test("刻's level 3, 「零时」: time stops — the picture grey, a clock's hands standing, ten hits' sparks hanging — then the bell — frames pinned", [] {
@@ -1005,6 +1005,34 @@ int main(int argc, char** argv) {
         }
     });
 
+    s.test("hit feel (the hardcore combat design §2.6): per fighter, light < medium < heavy in hitstop; a light hit leaves the camera still, a heavy one shakes it", [] {
+        const auto& r = fighting::roster();
+        for (std::size_t i = 0; i < r.fighters.size(); ++i) {
+            const gongfu::FighterDef& def = r.fighters[i].def;
+            const gongfu::present2d::Look& look = r.looks[2 * i];
+            const auto find = [&](const std::string& name) -> const gongfu::MoveDef* {
+                const auto it = std::ranges::find(def.moves, name, &gongfu::MoveDef::name);
+                return it != def.moves.end() && !it->hits.empty() ? &*it : nullptr;
+            };
+            const auto shake = [&](const gongfu::MoveDef& m) {
+                const std::int32_t at = m.hits.front().impact < look.impact_of.size() ? look.impact_of[m.hits.front().impact] : -1;
+                return at >= 0 ? look.impacts[static_cast<std::size_t>(at)].shake : -1.0f;
+            };
+            for (const std::string stance : {"5", "2", "j."})
+                for (const std::string limb : {"P", "K"}) {
+                    const gongfu::MoveDef *l = find(stance + "L" + limb), *m = find(stance + "M" + limb), *h = find(stance + "H" + limb);
+                    const std::string what = std::format("{}'s {}·{}", r.names[i], stance, limb);
+                    if (l && h) check(l->hits.front().hitstop < h->hits.front().hitstop, what + ": light stops less than heavy");
+                    if (l && m && h)
+                        check(l->hits.front().hitstop < m->hits.front().hitstop && m->hits.front().hitstop < h->hits.front().hitstop,
+                              what + ": light < medium < heavy");
+                    if (l) check(shake(*l) == 0, std::format("{}: a light hit shakes {}", what, shake(*l)));
+                    if (h) check(shake(*h) >= 6, std::format("{}: a heavy hit shakes {}", what, shake(*h)));
+                    if (m && h) check(shake(*m) > 0 && shake(*m) < shake(*h), std::format("{}: medium shakes {}", what, shake(*m)));
+                }
+        }
+    });
+
     s.test("balance gates (characters 2 design §7): bots play every pair, sides swapped; each fighter wins 38–62% of its rounds, no pair beyond 25–75", [] {
         const auto& r = fighting::roster();
         constexpr std::int32_t rounds = 100;
@@ -1040,7 +1068,7 @@ int main(int argc, char** argv) {
             check(rate >= 0.38 && rate <= 0.62, std::format("{} wins {:.2f} of its rounds", r.names[i], rate));
         }
         std::println("    rounds {}", all.hex());
-        check_eq(all.hex(), std::string("4748eb44a1b3d35e"));  // the same rounds on GCC and LLVM
+        check_eq(all.hex(), std::string("dc2d41f4688d3cf4"));  // the same rounds on GCC and LLVM
     });
 
     s.test("a stage's music: the study's piece plays from the round's start, louder as the round gets close; none in training's plain room", [] {
@@ -1141,7 +1169,7 @@ int main(int argc, char** argv) {
         std::println("    fighting versus {:016x} training {:016x}", px[0], px[1]);
         check(px[0] != px[1], "training draws the boxes");
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
-        check(px == std::vector<std::uint64_t>{0x3c81960329342c09ULL, 0x5229bae93a6af80fULL}, "pinned");
+        check(px == std::vector<std::uint64_t>{0x8a0ae4c0fac6e8afULL, 0x4bc7fa1fe3e3c66eULL}, "pinned");
     });
 
     return s.run(argc, argv);

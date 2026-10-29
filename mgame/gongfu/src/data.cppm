@@ -248,6 +248,12 @@ struct SystemDef {
     std::vector<std::int32_t> scaling{100, 100, 80, 70, 60, 50, 40, 30};
     std::int32_t counter_damage = 120;  // percent, a hit during the defender's startup
     std::int32_t counter_hitstun = 2;   // extra frames
+    std::int32_t counter_hitstop = 2;   // extra frames of hitstop, both
+    // A punish counter: a hit during the defender's recovery (a whiffed move's
+    // last frames) — more of everything than a counter.
+    std::int32_t punish_damage = 130;   // percent
+    std::int32_t punish_hitstun = 4;    // extra frames
+    std::int32_t punish_hitstop = 4;    // extra frames of hitstop, both
     std::int32_t round_frames = 99 * 60;
     Fixed        stage_width = 1920_fx;
     Box          piece_box{-8_fx, 0_fx, 16_fx, 170_fx};  // a set piece's, from where it stands (G-15)
@@ -301,6 +307,8 @@ struct Fighter {
     [[nodiscard]] std::int32_t find(std::string_view move) const noexcept;
     // The first frame any of a move's hits (or its throw, or its projectile) is active.
     [[nodiscard]] std::int32_t startup(std::int32_t move) const noexcept;
+    // The first frame after a move's last active one (its recovery's first).
+    [[nodiscard]] std::int32_t recovery(std::int32_t move) const noexcept;
 };
 
 [[nodiscard]] std::expected<Fighter, std::vector<Problem>> compile(FighterDef def);

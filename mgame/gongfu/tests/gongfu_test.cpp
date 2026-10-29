@@ -400,6 +400,38 @@ int main(int argc, char** argv) {
         check(counter && dealt == 360, std::format("counter {} for {}", counter, dealt));
     });
 
+    s.test("punish counters: a hit in a whiffed move's recovery does more than a counter, and each tier stops both longer", [] {
+        // 150 apart the defender's heavy (reach 110) whiffs; the attacker steps
+        // in and lands its own heavy in the whiff's recovery (frames 10–24).
+        struct Landed {
+            Event::Kind kind = Event::Kind::block;
+            std::uint8_t punish = 0;
+            std::int32_t damage = 0, stop = 0, attacker_stop = 0;
+        };
+        const auto land = [](bool whiff) {
+            const Fighter& k = kata_fighter();
+            Match m(long_round(), k, k);
+            place_at(m, 150_fx);
+            Landed got;
+            for (int f = 0; f < 40 && got.damage == 0; ++f) {
+                const Pad a = f == 9 || f == 10 ? pad(6) : f == 11 ? pad(5, HP) : pad(5);  // in after the whiff's active frames
+                const Pad d = whiff && f == 0 ? pad(5, HP) : pad(5);
+                m.tick(a, d);
+                for (const Event& e : m.events())
+                    if (e.attacker == 0 && (e.kind == Event::Kind::hit || e.kind == Event::Kind::counter))
+                        got = {e.kind, e.punish, e.damage, m.state().f[1].stop, m.state().f[0].stop};
+            }
+            return got;
+        };
+        const Landed plain = land(false), punish = land(true);
+        check(plain.kind == Event::Kind::hit && plain.damage == 800, std::format("a plain hit for {}", plain.damage));
+        check(punish.kind == Event::Kind::counter && punish.punish == 1, "the whiff's recovery is punished");
+        check_eq(punish.damage, 1040);  // 130 %, over a counter's 120 %
+        check_eq(punish.stop - plain.stop, SystemDef{}.punish_hitstop);
+        check_eq(punish.attacker_stop - plain.attacker_stop, SystemDef{}.punish_hitstop);
+        check(SystemDef{}.punish_hitstop > SystemDef{}.counter_hitstop && SystemDef{}.counter_hitstop > 0, "punish > counter > hit");
+    });
+
     s.test("throws: a throw takes hold and does its damage; pressed back in time, it is broken", [] {
         const Fighter& k = kata_fighter();
         const Pad grab = pad(5, static_cast<std::uint16_t>(LP | LK));
@@ -512,7 +544,7 @@ int main(int argc, char** argv) {
                      straight.state().f[1].health);
         check(straight.state().f[0].health < (1 << 24) && straight.state().f[1].health < (1 << 24), "both were hit");
         // Pinned: every platform and compiler plays these inputs into these bytes.
-        check(hashes.back() == 0x87101b9a2e950fd4ULL, std::format("run hash {:016x}", hashes.back()));
+        check(hashes.back() == 0xef0c4d224f72d97fULL, std::format("run hash {:016x}", hashes.back()));
     });
 
     return s.run(argc, argv);

@@ -3,7 +3,7 @@
 # writes it again, and the build checks it is what the files make now.
 gongfu = "0.1"
 fighter = "Kun"
-from = "fnv1a:4a151f7a33b34d1c"
+from = "fnv1a:8c74a56db998fbc0"
 
 [[move]]
 name = "5LP"

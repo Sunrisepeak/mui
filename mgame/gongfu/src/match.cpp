@@ -614,7 +614,8 @@ void Match::resolve() {
         throwing = {false, false};
     }
     // Decided before any is applied: a trade is two hits on one frame.
-    std::array<bool, 16> blocked{}, counter{};
+    std::array<bool, 16> blocked{};
+    std::array<std::int32_t, 16> counter{};
     for (std::size_t k = 0; k < n; ++k) {
         const Strike& s = strikes[k];
         const MoveDef& m = fighter(s.from).def.moves[static_cast<std::size_t>(s.move)];
@@ -622,7 +623,9 @@ void Match::resolve() {
         const std::int32_t d = 1 - s.attacker;
         const FighterState& sd = state_.f[static_cast<std::size_t>(d)];
         blocked[k] = blocking(d, hd.level);
-        counter[k] = !blocked[k] && sd.mode == Mode::move && sd.move_frame < fighter(d).startup(sd.move);
+        // A counter catches a startup; a punish counter, a recovery.
+        if (!blocked[k] && sd.mode == Mode::move)
+            counter[k] = sd.move_frame < fighter(d).startup(sd.move) ? 1 : sd.move_frame >= fighter(d).recovery(sd.move) ? 2 : 0;
     }
     for (std::int32_t a = 0; a < 2; ++a) {
         if (!throwing[static_cast<std::size_t>(a)]) continue;
@@ -772,7 +775,7 @@ bool Match::deflects(std::int32_t i) const noexcept {
     return false;
 }
 
-void Match::apply(const Strike& s, bool blocked, bool counter) {
+void Match::apply(const Strike& s, bool blocked, std::int32_t counter) {
     FighterState& a = body(s.body);  // a clone's strike: its own body stands still and keeps the meter (none for its side)
     FighterState& d = state_.f[static_cast<std::size_t>(1 - s.attacker)];
     const MoveDef& m = fighter(s.from).def.moves[static_cast<std::size_t>(s.move)];
@@ -835,7 +838,7 @@ void Match::apply(const Strike& s, bool blocked, bool counter) {
             step = a.super_scale;
         }
         std::int32_t damage = h.damage * step / 100;
-        if (counter) damage = damage * system_.counter_damage / 100;
+        if (counter) damage = damage * (counter == 2 ? system_.punish_damage : system_.counter_damage) / 100;
         d.health -= damage;
         if (own) d.meter = std::min(system_.meter_max, d.meter + damage / 10);
         ++d.combo;
@@ -864,7 +867,7 @@ void Match::apply(const Strike& s, bool blocked, bool counter) {
             d.vel = {};
         } else {
             d.mode = Mode::hitstun;
-            d.stun = h.hitstun + (counter ? system_.counter_hitstun : 0);
+            d.stun = h.hitstun + (counter == 2 ? system_.punish_hitstun : counter ? system_.counter_hitstun : 0);
             d.push = h.pushback * sign;
         }
         // A stall (G-22): its extra hitstun the first time in a combo only.
@@ -874,7 +877,7 @@ void Match::apply(const Strike& s, bool blocked, bool counter) {
         }
         vanish(1 - s.attacker);  // hit, its clone is gone (G-21)
         if (m.level == 0 && own) a.meter = std::min(system_.meter_max, a.meter + m.meter_gain);  // a super gives none back
-        events_.push_back({counter ? Event::Kind::counter : Event::Kind::hit, s.attacker, s.move, s.hit, damage, h.impact, at});
+        events_.push_back({counter ? Event::Kind::counter : Event::Kind::hit, s.attacker, s.move, s.hit, damage, h.impact, at, static_cast<std::uint8_t>(counter == 2)});
         // A level-3 super's first hit: the cinematic locks both (P-5).
         if (m.cinematic && !s.projectile && s.hit == 0 && d.health > 0) {
             state_.lock = {s.attacker, s.move, 0, a.facing, a.pos.x, a.pos.y};
@@ -889,8 +892,10 @@ void Match::apply(const Strike& s, bool blocked, bool counter) {
         }
     }
     // Each stands still for its own hitstop; a projectile's owner goes on.
-    d.stop = std::max(d.stop, h.hitstop);
-    if (!s.projectile) a.stop = std::max(a.stop, h.hitstop_attacker >= 0 ? h.hitstop_attacker : h.hitstop);
+    // A counter stops both a little longer; a punish counter longer still.
+    const std::int32_t extra = blocked ? 0 : counter == 2 ? system_.punish_hitstop : counter ? system_.counter_hitstop : 0;
+    d.stop = std::max(d.stop, h.hitstop + extra);
+    if (!s.projectile) a.stop = std::max(a.stop, (h.hitstop_attacker >= 0 ? h.hitstop_attacker : h.hitstop) + extra);
     if (d.health <= 0) {
         d.health = 0;
         d.mode = Mode::ko;

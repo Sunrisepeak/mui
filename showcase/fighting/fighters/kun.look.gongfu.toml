@@ -973,12 +973,12 @@ poses = [
 ]
 
 [impact.light]
-shake = [2, 6]
+shake = [0, 0]
 spark = { style = "rays", size = 26, count = 6, frames = 12, color = "#f2c75c", counter = "#ffffff" }
 sound = ["thud_light", "", ""]
 
 [impact.medium]
-shake = [4, 8]
+shake = [2, 6]
 spark = { style = "rays", size = 36, count = 8, frames = 14, color = "#f2c75c", counter = "#ffffff" }
 sound = ["thud_medium", "", ""]
 

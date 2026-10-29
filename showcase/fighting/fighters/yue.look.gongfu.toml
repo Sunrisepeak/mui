@@ -693,12 +693,12 @@ angle.upper_front = [[0, 0], [4, 92], [8, 154], [20, 116], [29, 0]]
 angle.fore_front = [[0, 0], [4, -40], [8, -35], [20, -35], [29, 0]]
 
 [impact.light]
-shake = [3, 6]
+shake = [0, 0]
 spark = { style = "rays", size = 30, count = 6, frames = 12, color = "#f2e6c8", counter = "#ff7a3a" }
 sound = ["snap", "thud_light", ""]
 
 [impact.medium]
-shake = [6, 10]
+shake = [2, 6]
 spark = { style = "rays", size = 42, count = 8, frames = 14, color = "#f2e6c8", counter = "#ff7a3a" }
 rumble = [0.4, 8]
 sound = ["snap", "thud_medium", ""]

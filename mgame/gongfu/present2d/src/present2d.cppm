@@ -173,6 +173,7 @@ struct Impact {
     float                      rumble = 0;        // 0–1
     std::int32_t               rumble_frames = 0;
     std::string                fx;                // an effect of the look's played at the contact instead of the spark
+    std::string                fx_counter, fx_punish;  // its stronger tiers (a counter hit, a punish counter; empty: `fx`, larger)
 };
 
 // What a contact without a profile of its own looks like: a hit's, a block's, a KO's.

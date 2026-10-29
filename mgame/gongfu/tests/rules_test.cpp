@@ -1426,7 +1426,7 @@ int main(int argc, char** argv) {
         std::println("    time: marks {}, rewinds {}, clones {} (gone {}), hands coming back {}, stalled {}", times[0], times[1], times[2], times[3], times[4], times[5]);
         check(std::ranges::all_of(times, [](int n) { return n > 0; }), "marks, rewinds, a clone and its end, hands coming back, stalls");
         std::println("    rules run hash {:016x}", hashes.back());
-        check(hashes.back() == 0x0ea0dd0b34ab1704ULL, std::format("run hash {:016x}", hashes.back()));  // GCC, LLVM and wasm
+        check(hashes.back() == 0x4188338a43cb05c1ULL, std::format("run hash {:016x}", hashes.back()));  // GCC, LLVM and wasm
     });
 
     return s.run(argc, argv);

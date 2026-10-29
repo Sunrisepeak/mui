@@ -96,7 +96,7 @@ constexpr std::array<std::string_view, 9> bone_keys{"name", "parent", "joint", "
 constexpr std::array<std::string_view, 21> part_keys{"bone", "shape", "size", "points", "color", "depth", "doc", "name", "variants", "shade",
                                                     "picture", "source", "anchor", "tip", "mesh", "bend", "blend", "fit", "drawings", "mirror", "shown"};
 constexpr std::array<std::string_view, 14> clip_keys{"frames", "loop", "ease", "angle", "rise", "doc", "swap", "grip", "aim", "grip_at", "grip_across", "fx", "poses", "show"};
-constexpr std::array<std::string_view, 9> impact_keys{"shake", "zoom", "flash", "spark", "sound", "rumble", "doc", "name", "fx"};
+constexpr std::array<std::string_view, 11> impact_keys{"shake", "zoom", "flash", "spark", "sound", "rumble", "doc", "name", "fx", "fx_counter", "fx_punish"};
 constexpr std::array<std::string_view, 6> spark_keys{"style", "size", "count", "frames", "color", "counter"};
 constexpr std::array<std::string_view, 5> shape_names{"capsule", "ellipse", "polygon", "curve", "image"};
 constexpr std::array<std::string_view, 6> spark_names{"rays", "ring", "splash", "shards", "bolt", "cracks"};
@@ -1088,6 +1088,8 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
                 amount_frames("zoom", 1, im.zoom, im.zoom_frames);
                 amount_frames("rumble", 1, im.rumble, im.rumble_frames);
                 if (auto v = fx_name(t->get("fx"), what)) im.fx = *v;
+                if (auto v = fx_name(t->get("fx_counter"), what)) im.fx_counter = *v;
+                if (auto v = fx_name(t->get("fx_punish"), what)) im.fx_punish = *v;
                 if (const toml::node* f = t->get("flash")) {
                     const toml::array* a = f->as_array();
                     if (a && a->size() == 2) {
@@ -1637,6 +1639,8 @@ std::string write_look(const Look& look) {
             s += std::format("sound = [\"{}\", \"{}\", \"{}\"]\n", im.sound[0], im.sound[1], im.sound[2]);
         if (im.rumble_frames) s += std::format("rumble = [{}, {}]\n", im.rumble, im.rumble_frames);
         if (!im.fx.empty()) s += std::format("fx = \"{}\"\n", im.fx);
+        if (!im.fx_counter.empty()) s += std::format("fx_counter = \"{}\"\n", im.fx_counter);
+        if (!im.fx_punish.empty()) s += std::format("fx_punish = \"{}\"\n", im.fx_punish);
     }
     for (const auto& [name, strokes] : look.glyphs) {
         s += std::format("\n[glyph.\"{}\"]\nstrokes = [\n", name);

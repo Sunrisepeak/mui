@@ -36,6 +36,7 @@ struct Event {
     std::int32_t  damage = 0;
     std::uint16_t impact = 0;     // what draws and sounds read
     Vec           at;             // where on the stage
+    std::uint8_t  punish = 0;     // a counter (kind counter) that caught a recovery: a punish counter
 };
 
 class Match {
@@ -113,7 +114,7 @@ private:
     void shatter(std::size_t q, std::int32_t shard, std::int32_t shards);
     void pieces();
     [[nodiscard]] bool has_piece(std::int32_t i) const noexcept;
-    void apply(const Strike& s, bool blocked, bool counter);
+    void apply(const Strike& s, bool blocked, std::int32_t counter);  // counter: 0 no, 1 a counter hit, 2 a punish counter
     // Whether fighter i lets pass what `to` names (to_strike, to_air, to_projectile, to_throw).
     [[nodiscard]] bool invulnerable(std::int32_t i, std::uint8_t to) const noexcept;
     [[nodiscard]] bool blocking(std::int32_t i, Level level) const noexcept;

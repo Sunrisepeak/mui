@@ -48,6 +48,11 @@ file = "art/mo-parts.webp"
 size = [987, 440]
 
 [[picture]]
+name = "faces"
+file = "art/mo-faces.webp"
+size = [490, 279]
+
+[[picture]]
 name = "fx"
 file = "art/mo-fx.webp"
 size = [1170, 310]
@@ -376,6 +381,7 @@ source = [865, 4, 118, 127]
 anchor = [912, 112]
 tip = [925, 50]
 depth = 1
+drawings = [{ picture = "faces", source = [4, 4, 115, 134], anchor = [48.9, 122], tip = [61.9, 60] }, { picture = "faces", source = [123, 4, 118, 134], anchor = [169.0, 122], tip = [182.0, 60] }, { picture = "faces", source = [366, 4, 120, 133], anchor = [412.8, 121], tip = [425.8, 59] }, { picture = "faces", source = [4, 142, 121, 133], anchor = [51.2, 259], tip = [64.2, 197] }, { picture = "faces", source = [129, 142, 119, 133], anchor = [175.4, 259], tip = [188.4, 197] }, { picture = "faces", source = [245, 4, 117, 133], anchor = [290.6, 121], tip = [303.6, 59] }]
 
 [[part]]
 name = "brush"
@@ -440,6 +446,7 @@ aim.foot_front = [[0, -12], [36, -12], [72, -12]]
 grip_at.foot_back = [[0, -40], [36, -40], [72, -40]]
 grip_across.foot_back = [[0, 18.5], [36, 18.5], [72, 18.5]]
 aim.foot_back = [[0, -15], [36, -15], [72, -15]]
+swap.head = [[0, 1], [36, 1], [72, 1]]
 
 [clip.walk_forward]
 frames = 36
@@ -457,6 +464,7 @@ aim.foot_front = [[0, -12], [9, -12], [18, -12], [27, -12], [36, -12]]
 grip_at.foot_back = [[0, -30], [9, -40], [18, -46], [27, -38], [36, -30]]
 grip_across.foot_back = [[0, 18.5], [9, 26], [18, 18.5], [27, 18.5], [36, 18.5]]
 aim.foot_back = [[0, -15], [9, -15], [18, -15], [27, -15], [36, -15]]
+swap.head = [[0, 1], [9, 1], [18, 1], [27, 1], [36, 1]]
 
 [clip.walk_back]
 frames = 36
@@ -474,6 +482,7 @@ aim.foot_front = [[0, -12], [9, -12], [18, -12], [27, -12], [36, -12]]
 grip_at.foot_back = [[0, -48], [9, -40], [18, -32], [27, -40], [36, -48]]
 grip_across.foot_back = [[0, 18.5], [9, 18.5], [18, 18.5], [27, 28], [36, 18.5]]
 aim.foot_back = [[0, -15], [9, -15], [18, -15], [27, -15], [36, -15]]
+swap.head = [[0, 1], [9, 1], [18, 1], [27, 1], [36, 1]]
 
 [clip.crouch]
 frames = 1
@@ -491,6 +500,7 @@ aim.foot_front = [[0, -12]]
 grip_at.foot_back = [[0, -44]]
 grip_across.foot_back = [[0, 18.5]]
 aim.foot_back = [[0, -15]]
+swap.head = [[0, 1]]
 
 [clip.prejump]
 frames = 1
@@ -508,6 +518,7 @@ aim.foot_front = [[0, -12]]
 grip_at.foot_back = [[0, -44]]
 grip_across.foot_back = [[0, 18.5]]
 aim.foot_back = [[0, -15]]
+swap.head = [[0, 1]]
 
 [clip.landing]
 frames = 1
@@ -525,6 +536,7 @@ aim.foot_front = [[0, -12]]
 grip_at.foot_back = [[0, -44]]
 grip_across.foot_back = [[0, 18.5]]
 aim.foot_back = [[0, -15]]
+swap.head = [[0, 1]]
 
 [clip.air]
 frames = 40
@@ -546,6 +558,7 @@ grip.foot_back = [[0, 0], [12, 0], [40, 0]]
 grip_at.foot_back = [[0, 0], [12, 0], [40, 0]]
 grip_across.foot_back = [[0, 0], [12, 0], [40, 0]]
 aim.foot_back = [[0, -80], [12, -80], [40, -80]]
+swap.head = [[0, 1], [12, 1], [40, 1]]
 
 [clip.5LP]
 frames = 13
@@ -561,6 +574,7 @@ aim.foot_front = [[0, -12], [1, -12, "out_quad"], [3, -12, "linear"], [4, -12, "
 grip_at.foot_back = [[0, -40], [1, -40, "out_quad"], [3, -40, "linear"], [4, -40, "in_out_sine"], [8, -40], [12, -40]]
 grip_across.foot_back = [[0, 18.5], [1, 18.5, "out_quad"], [3, 18.5, "linear"], [4, 18.5, "in_out_sine"], [8, 18.5], [12, 18.5]]
 aim.foot_back = [[0, -15], [1, -15, "out_quad"], [3, -15, "linear"], [4, -15, "in_out_sine"], [8, -15], [12, -15]]
+swap.head = [[0, 1], [1, 1], [3, 1], [4, 1], [8, 1], [12, 1]]
 
 [clip.5MP]
 frames = 23
@@ -576,6 +590,7 @@ aim.foot_front = [[0, -12], [3, -12, "out_expo"], [6, -12, "linear"], [8, -12], 
 grip_at.foot_back = [[0, -40], [3, -40, "out_expo"], [6, -34, "linear"], [8, -34], [15, -40], [22, -40]]
 grip_across.foot_back = [[0, 18.5], [3, 18.5, "out_expo"], [6, 18.5, "linear"], [8, 18.5], [15, 18.5], [22, 18.5]]
 aim.foot_back = [[0, -15], [3, -15, "out_expo"], [6, -15, "linear"], [8, -15], [15, -15], [22, -15]]
+swap.head = [[0, 1], [3, 1], [6, 2], [8, 1], [15, 1], [22, 1]]
 fx = [[6, "thrust", 0, 0]]
 
 [clip.5HP]
@@ -593,6 +608,7 @@ aim.foot_front = [[0, -12], [6, -12, "in_quad"], [9, -12, "out_expo"], [10, -12,
 grip_at.foot_back = [[0, -40], [6, -40, "in_quad"], [9, -40, "out_expo"], [10, -36, "linear"], [13, -36, "out_quad"], [23, -36], [35, -40]]
 grip_across.foot_back = [[0, 18.5], [6, 18.5, "in_quad"], [9, 18.5, "out_expo"], [10, 18.5, "linear"], [13, 18.5, "out_quad"], [23, 18.5], [35, 18.5]]
 aim.foot_back = [[0, -15], [6, -15, "in_quad"], [9, -15, "out_expo"], [10, -15, "linear"], [13, -15, "out_quad"], [23, -15], [35, -15]]
+swap.head = [[0, 1], [6, 1], [9, 1], [10, 2], [13, 2], [23, 1], [35, 1]]
 fx = [[9, "slash_down", 0, 0]]
 
 [clip.5LK]
@@ -612,6 +628,7 @@ aim.foot_front = [[0, -12], [2, -40, "out_quad"], [4, -8, "linear"], [5, -8], [9
 grip_at.foot_back = [[0, -40], [2, -40, "out_quad"], [4, -40, "linear"], [5, -40], [9, -40], [15, -40]]
 grip_across.foot_back = [[0, 18.5], [2, 18.5, "out_quad"], [4, 18.5, "linear"], [5, 18.5], [9, 18.5], [15, 18.5]]
 aim.foot_back = [[0, -15], [2, -15, "out_quad"], [4, -15, "linear"], [5, -15], [9, -15], [15, -15]]
+swap.head = [[0, 1], [2, 1], [4, 1], [5, 1], [9, 1], [15, 1]]
 
 [clip.5MK]
 frames = 26
@@ -630,6 +647,7 @@ aim.foot_front = [[0, -12], [4, -20, "out_quad"], [7, 72, "linear"], [9, 72], [1
 grip_at.foot_back = [[0, -40], [4, -40, "out_quad"], [7, -46, "linear"], [9, -46], [16, -40], [25, -40]]
 grip_across.foot_back = [[0, 18.5], [4, 18.5, "out_quad"], [7, 18.5, "linear"], [9, 18.5], [16, 18.5], [25, 18.5]]
 aim.foot_back = [[0, -15], [4, -15, "out_quad"], [7, -15, "linear"], [9, -15], [16, -15], [25, -15]]
+swap.head = [[0, 1], [4, 1], [7, 1], [9, 1], [16, 1], [25, 1]]
 
 [clip.5HK]
 frames = 36
@@ -649,6 +667,7 @@ aim.foot_front = [[0, -12], [6, -12, "in_quad"], [11, 80, "out_expo"], [15, 60],
 grip_at.foot_back = [[0, -40], [6, -40, "in_quad"], [11, -36, "out_expo"], [15, -36], [25, -40], [35, -40]]
 grip_across.foot_back = [[0, 18.5], [6, 18.5, "in_quad"], [11, 18.5, "out_expo"], [15, 18.5], [25, 18.5], [35, 18.5]]
 aim.foot_back = [[0, -15], [6, -15, "in_quad"], [11, -15, "out_expo"], [15, -15], [25, -15], [35, -15]]
+swap.head = [[0, 1], [6, 1], [11, 1], [15, 1], [25, 1], [35, 1]]
 
 [clip.2LP]
 frames = 13
@@ -665,6 +684,7 @@ aim.foot_front = [[0, -12], [1, -12, "out_quad"], [3, -12, "linear"], [4, -12], 
 grip_at.foot_back = [[0, -44], [1, -44, "out_quad"], [3, -44, "linear"], [4, -44], [8, -44], [12, -44]]
 grip_across.foot_back = [[0, 18.5], [1, 18.5, "out_quad"], [3, 18.5, "linear"], [4, 18.5], [8, 18.5], [12, 18.5]]
 aim.foot_back = [[0, -15], [1, -15, "out_quad"], [3, -15, "linear"], [4, -15], [8, -15], [12, -15]]
+swap.head = [[0, 1], [1, 1], [3, 1], [4, 1], [8, 1], [12, 1]]
 
 [clip.2MP]
 frames = 21
@@ -681,6 +701,7 @@ aim.foot_front = [[0, -12], [2, -12, "out_expo"], [5, -12, "linear"], [7, -12], 
 grip_at.foot_back = [[0, -44], [2, -44, "out_expo"], [5, -44, "linear"], [7, -44], [13, -44], [20, -44]]
 grip_across.foot_back = [[0, 18.5], [2, 18.5, "out_expo"], [5, 18.5, "linear"], [7, 18.5], [13, 18.5], [20, 18.5]]
 aim.foot_back = [[0, -15], [2, -15, "out_expo"], [5, -15, "linear"], [7, -15], [13, -15], [20, -15]]
+swap.head = [[0, 1], [2, 1], [5, 1], [7, 1], [13, 1], [20, 1]]
 
 [clip.2HP]
 frames = 32
@@ -697,6 +718,7 @@ aim.foot_front = [[0, -12], [4, -12, "in_quad"], [7, -12, "out_expo"], [11, -12]
 grip_at.foot_back = [[0, -44], [4, -44, "in_quad"], [7, -44, "out_expo"], [11, -44], [21, -44], [31, -44]]
 grip_across.foot_back = [[0, 18.5], [4, 18.5, "in_quad"], [7, 18.5, "out_expo"], [11, 18.5], [21, 18.5], [31, 18.5]]
 aim.foot_back = [[0, -15], [4, -15, "in_quad"], [7, -15, "out_expo"], [11, -15], [21, -15], [31, -15]]
+swap.head = [[0, 1], [4, 1], [7, 1], [11, 1], [21, 1], [31, 1]]
 fx = [[7, "rise", -20, -20, 0.9]]
 
 [clip.2LK]
@@ -717,6 +739,7 @@ aim.foot_front = [[0, -12], [2, -30, "out_quad"], [4, -8, "linear"], [5, -8], [9
 grip_at.foot_back = [[0, -44], [2, -44, "out_quad"], [4, -44, "linear"], [5, -44], [9, -44], [15, -44]]
 grip_across.foot_back = [[0, 18.5], [2, 18.5, "out_quad"], [4, 18.5, "linear"], [5, 18.5], [9, 18.5], [15, 18.5]]
 aim.foot_back = [[0, -15], [2, -15, "out_quad"], [4, -15, "linear"], [5, -15], [9, -15], [15, -15]]
+swap.head = [[0, 1], [2, 1], [4, 1], [5, 1], [9, 1], [15, 1]]
 
 [clip.2MK]
 frames = 27
@@ -733,6 +756,7 @@ aim.foot_front = [[0, -12], [3, -12, "out_quad"], [7, -12, "linear"], [9, -12], 
 grip_at.foot_back = [[0, -44], [3, -44, "out_quad"], [7, -40, "linear"], [9, -40], [17, -44], [26, -44]]
 grip_across.foot_back = [[0, 18.5], [3, 18.5, "out_quad"], [7, 18.5, "linear"], [9, 18.5], [17, 18.5], [26, 18.5]]
 aim.foot_back = [[0, -15], [3, -15, "out_quad"], [7, -15, "linear"], [9, -15], [17, -15], [26, -15]]
+swap.head = [[0, 1], [3, 1], [7, 1], [9, 1], [17, 1], [26, 1]]
 
 [clip.2HK]
 frames = 38
@@ -749,6 +773,7 @@ aim.foot_front = [[0, -12], [5, -12, "in_quad"], [9, -12, "out_expo"], [11, -12]
 grip_at.foot_back = [[0, -44], [5, -30, "in_quad"], [9, -46, "out_expo"], [11, -46], [23, -46], [37, -44]]
 grip_across.foot_back = [[0, 18.5], [5, 18.5, "in_quad"], [9, 18.5, "out_expo"], [11, 18.5], [23, 18.5], [37, 18.5]]
 aim.foot_back = [[0, -15], [5, -15, "in_quad"], [9, -15, "out_expo"], [11, -15], [23, -15], [37, -15]]
+swap.head = [[0, 1], [5, 1], [9, 2], [11, 2], [23, 1], [37, 1]]
 fx = [[9, "sweep", 0, 0]]
 
 [clip."j.LP"]
@@ -771,6 +796,7 @@ grip.foot_back = [[0, 0], [1, 0, "out_quad"], [3, 0, "linear"], [8, 0], [14, 0],
 grip_at.foot_back = [[0, 0], [1, 0, "out_quad"], [3, 0, "linear"], [8, 0], [14, 0], [20, 0]]
 grip_across.foot_back = [[0, 0], [1, 0, "out_quad"], [3, 0, "linear"], [8, 0], [14, 0], [20, 0]]
 aim.foot_back = [[0, -80], [1, -80, "out_quad"], [3, -80, "linear"], [8, -80], [14, -80], [20, -80]]
+swap.head = [[0, 1], [1, 1], [3, 1], [8, 1], [14, 1], [20, 1]]
 
 [clip."j.MP"]
 frames = 21
@@ -792,6 +818,7 @@ grip.foot_back = [[0, 0], [3, 0, "in_quad"], [5, 0, "out_expo"], [8, 0], [14, 0]
 grip_at.foot_back = [[0, 0], [3, 0, "in_quad"], [5, 0, "out_expo"], [8, 0], [14, 0], [20, 0]]
 grip_across.foot_back = [[0, 0], [3, 0, "in_quad"], [5, 0, "out_expo"], [8, 0], [14, 0], [20, 0]]
 aim.foot_back = [[0, -80], [3, -80, "in_quad"], [5, -80, "out_expo"], [8, -80], [14, -80], [20, -80]]
+swap.head = [[0, 1], [3, 1], [5, 1], [8, 1], [14, 1], [20, 1]]
 
 [clip."j.HP"]
 frames = 23
@@ -813,6 +840,7 @@ grip.foot_back = [[0, 0], [5, 0, "in_quad"], [8, 0, "out_expo"], [10, 0], [16, 0
 grip_at.foot_back = [[0, 0], [5, 0, "in_quad"], [8, 0, "out_expo"], [10, 0], [16, 0], [22, 0]]
 grip_across.foot_back = [[0, 0], [5, 0, "in_quad"], [8, 0, "out_expo"], [10, 0], [16, 0], [22, 0]]
 aim.foot_back = [[0, -80], [5, -80, "in_quad"], [8, -80, "out_expo"], [10, -80], [16, -80], [22, -80]]
+swap.head = [[0, 1], [5, 1], [8, 1], [10, 1], [16, 1], [22, 1]]
 
 [clip."j.LK"]
 frames = 22
@@ -834,6 +862,7 @@ grip.foot_back = [[0, 0], [2, 0, "out_quad"], [4, 0, "linear"], [9, 0], [15, 0],
 grip_at.foot_back = [[0, 0], [2, 0, "out_quad"], [4, 0, "linear"], [9, 0], [15, 0], [21, 0]]
 grip_across.foot_back = [[0, 0], [2, 0, "out_quad"], [4, 0, "linear"], [9, 0], [15, 0], [21, 0]]
 aim.foot_back = [[0, -80], [2, -80, "out_quad"], [4, -80, "linear"], [9, -80], [15, -80], [21, -80]]
+swap.head = [[0, 1], [2, 1], [4, 1], [9, 1], [15, 1], [21, 1]]
 
 [clip."j.MK"]
 frames = 22
@@ -855,6 +884,7 @@ grip.foot_back = [[0, 0], [3, 0, "out_quad"], [6, 0, "linear"], [9, 0], [15, 0],
 grip_at.foot_back = [[0, 0], [3, 0, "out_quad"], [6, 0, "linear"], [9, 0], [15, 0], [21, 0]]
 grip_across.foot_back = [[0, 0], [3, 0, "out_quad"], [6, 0, "linear"], [9, 0], [15, 0], [21, 0]]
 aim.foot_back = [[0, -80], [3, -80, "out_quad"], [6, -80, "linear"], [9, -80], [15, -80], [21, -80]]
+swap.head = [[0, 1], [3, 1], [6, 1], [9, 1], [15, 1], [21, 1]]
 
 [clip."j.HK"]
 frames = 24
@@ -876,6 +906,7 @@ grip.foot_back = [[0, 0], [4, 0, "in_quad"], [8, 0, "out_expo"], [11, 0], [17, 0
 grip_at.foot_back = [[0, 0], [4, 0, "in_quad"], [8, 0, "out_expo"], [11, 0], [17, 0], [23, 0]]
 grip_across.foot_back = [[0, 0], [4, 0, "in_quad"], [8, 0, "out_expo"], [11, 0], [17, 0], [23, 0]]
 aim.foot_back = [[0, -80], [4, -80, "in_quad"], [8, -60, "out_expo"], [11, -60], [17, -80], [23, -80]]
+swap.head = [[0, 1], [4, 1], [8, 1], [11, 1], [17, 1], [23, 1]]
 
 [clip.236P]
 frames = 48
@@ -892,6 +923,7 @@ aim.foot_front = [[0, -12], [6, -12, "in_quad"], [10, -12, "out_expo"], [12, -12
 grip_at.foot_back = [[0, -40], [6, -40, "in_quad"], [10, -40, "out_expo"], [12, -36, "out_quad"], [17, -36], [31, -40], [44, -40]]
 grip_across.foot_back = [[0, 18.5], [6, 18.5, "in_quad"], [10, 18.5, "out_expo"], [12, 18.5, "out_quad"], [17, 18.5], [31, 18.5], [44, 18.5]]
 aim.foot_back = [[0, -15], [6, -15, "in_quad"], [10, -15, "out_expo"], [12, -15, "out_quad"], [17, -15], [31, -15], [44, -15]]
+swap.head = [[0, 1], [6, 1], [10, 1], [12, 2], [17, 1], [31, 1], [44, 1]]
 fx = [[10, "fling", 0, 0]]
 
 [clip."j.236P"]
@@ -914,6 +946,7 @@ grip.foot_back = [[0, 0], [5, 0, "in_quad"], [8, 0, "out_expo"], [13, 0], [23, 0
 grip_at.foot_back = [[0, 0], [5, 0, "in_quad"], [8, 0, "out_expo"], [13, 0], [23, 0], [31, 0]]
 grip_across.foot_back = [[0, 0], [5, 0, "in_quad"], [8, 0, "out_expo"], [13, 0], [23, 0], [31, 0]]
 aim.foot_back = [[0, -80], [5, -80, "in_quad"], [8, -80, "out_expo"], [13, -80], [23, -80], [31, -80]]
+swap.head = [[0, 1], [5, 1], [8, 1], [13, 1], [23, 1], [31, 1]]
 
 [clip.623P]
 frames = 42
@@ -933,6 +966,7 @@ aim.foot_front = [[0, -12], [3, -12, "out_expo"], [4, -30, "linear"], [7, -30], 
 grip_at.foot_back = [[0, -44], [3, -44, "out_expo"], [4, -40, "linear"], [7, -40], [17, -40], [27, -44], [33, -40]]
 grip_across.foot_back = [[0, 18.5], [3, 18.5, "out_expo"], [4, 18.5, "linear"], [7, 18.5], [17, 18.5], [27, 18.5], [33, 18.5]]
 aim.foot_back = [[0, -15], [3, -15, "out_expo"], [4, -15, "linear"], [7, -15], [17, -15], [27, -15], [33, -15]]
+swap.head = [[0, 1], [3, 1], [4, 2], [7, 2], [17, 1], [27, 1], [33, 1]]
 fx = [[4, "rise", 0, 0]]
 
 [clip.214K]
@@ -950,6 +984,7 @@ aim.foot_front = [[0, -12], [2, -12, "out_quad"], [13, -12], [19, -12], [25, -12
 grip_at.foot_back = [[0, -40], [2, -46, "out_quad"], [13, -46], [19, -40], [25, -40]]
 grip_across.foot_back = [[0, 18.5], [2, 18.5, "out_quad"], [13, 18.5], [19, 18.5], [25, 18.5]]
 aim.foot_back = [[0, -15], [2, -15, "out_quad"], [13, -15], [19, -15], [25, -15]]
+swap.head = [[0, 1], [2, 1], [13, 1], [19, 1], [25, 1]]
 
 [clip.66]
 frames = 20
@@ -972,6 +1007,7 @@ grip.foot_back = [[0, 1], [2, 0, "out_quad"], [11, 1, "in_out_sine"], [19, 1]]
 grip_at.foot_back = [[0, -40], [2, 0, "out_quad"], [11, -50, "in_out_sine"], [19, -40]]
 grip_across.foot_back = [[0, 18.5], [2, 0, "out_quad"], [11, 18.5, "in_out_sine"], [19, 18.5]]
 aim.foot_back = [[0, -15], [2, 40, "out_quad"], [11, -15, "in_out_sine"], [19, -15]]
+swap.head = [[0, 1], [2, 1], [11, 1], [19, 1]]
 
 [clip.44]
 frames = 24
@@ -994,6 +1030,7 @@ grip.foot_back = [[0, 1], [2, 0, "out_quad"], [15, 0], [23, 1]]
 grip_at.foot_back = [[0, -40], [2, 0, "out_quad"], [15, 0], [23, -40]]
 grip_across.foot_back = [[0, 18.5], [2, 0, "out_quad"], [15, 0], [23, 18.5]]
 aim.foot_back = [[0, -15], [2, -15, "out_quad"], [15, -15], [23, -15]]
+swap.head = [[0, 1], [2, 1], [15, 1], [23, 1]]
 
 [clip.throw]
 frames = 29
@@ -1012,6 +1049,7 @@ aim.foot_front = [[0, -12], [3, -12, "out_quad"], [5, -12, "linear"], [13, -12],
 grip_at.foot_back = [[0, -40], [3, -40, "out_quad"], [5, -40, "linear"], [13, -40], [21, -40], [28, -40]]
 grip_across.foot_back = [[0, 18.5], [3, 18.5, "out_quad"], [5, 18.5, "linear"], [13, 18.5], [21, 18.5], [28, 18.5]]
 aim.foot_back = [[0, -15], [3, -15, "out_quad"], [5, -15, "linear"], [13, -15], [21, -15], [28, -15]]
+swap.head = [[0, 1], [3, 1], [5, 1], [13, 1], [21, 1], [28, 1]]
 grip.hands = [[0, 1], [3, 0, "out_quad"], [5, 0, "linear"], [13, 0], [21, 0], [28, 1]]
 
 [clip."back throw"]
@@ -1031,6 +1069,7 @@ aim.foot_front = [[0, -12], [3, -12, "out_quad"], [5, -12, "linear"], [13, -12],
 grip_at.foot_back = [[0, -40], [3, -40, "out_quad"], [5, -40, "linear"], [13, -56], [21, -40], [28, -40]]
 grip_across.foot_back = [[0, 18.5], [3, 18.5, "out_quad"], [5, 18.5, "linear"], [13, 18.5], [21, 18.5], [28, 18.5]]
 aim.foot_back = [[0, -15], [3, -15, "out_quad"], [5, -15, "linear"], [13, -15], [21, -15], [28, -15]]
+swap.head = [[0, 1], [3, 1], [5, 1], [13, 1], [21, 1], [28, 1]]
 grip.hands = [[0, 1], [3, 0, "out_quad"], [5, 0, "linear"], [13, 0], [21, 0], [28, 1]]
 
 [clip.236236P]
@@ -1048,6 +1087,7 @@ aim.foot_front = [[0, -12], [7, -12, "in_quad"], [9, -12, "out_expo"], [15, -12]
 grip_at.foot_back = [[0, -40], [7, -40, "in_quad"], [9, -38, "out_expo"], [15, -38], [35, -38], [49, -40]]
 grip_across.foot_back = [[0, 18.5], [7, 18.5, "in_quad"], [9, 18.5, "out_expo"], [15, 18.5], [35, 18.5], [49, 18.5]]
 aim.foot_back = [[0, -15], [7, -15, "in_quad"], [9, -15, "out_expo"], [15, -15], [35, -15], [49, -15]]
+swap.head = [[0, 1], [7, 1], [9, 2], [15, 1], [35, 1], [49, 1]]
 fx = [[8, "slash_down", 0, 0, 1.3]]
 
 [clip.214214P]
@@ -1065,6 +1105,7 @@ aim.foot_front = [[0, -12], [7, -12, "in_quad"], [11, -12, "out_expo"], [39, -12
 grip_at.foot_back = [[0, -40], [7, -40, "in_quad"], [11, -48, "out_expo"], [39, -48], [57, -40]]
 grip_across.foot_back = [[0, 18.5], [7, 18.5, "in_quad"], [11, 18.5, "out_expo"], [39, 18.5], [57, 18.5]]
 aim.foot_back = [[0, -15], [7, -15, "in_quad"], [11, -15, "out_expo"], [39, -15], [57, -15]]
+swap.head = [[0, 1], [7, 1], [11, 2], [39, 1], [57, 1]]
 fx = [[11, "splash_floor", 90, 0]]
 
 [clip.236236K]
@@ -1082,6 +1123,7 @@ aim.foot_front = [[0, -12], [4, -12, "in_quad"], [6, -12, "out_expo"], [8, -12],
 grip_at.foot_back = [[0, -40], [4, -40, "in_quad"], [6, -34, "out_expo"], [8, -34], [29, -40], [45, -40]]
 grip_across.foot_back = [[0, 18.5], [4, 18.5, "in_quad"], [6, 18.5, "out_expo"], [8, 18.5], [29, 18.5], [45, 18.5]]
 aim.foot_back = [[0, -15], [4, -15, "in_quad"], [6, -15, "out_expo"], [8, -15], [29, -15], [45, -15]]
+swap.head = [[0, 1], [4, 1], [6, 2], [8, 1], [29, 1], [45, 1]]
 
 [clip.hitstun]
 frames = 24
@@ -1100,23 +1142,110 @@ aim.foot_front = [[0, -12, "linear"], [11, -12, "in_out_sine"], [24, -12]]
 grip_at.foot_back = [[0, -46, "linear"], [11, -46, "in_out_sine"], [24, -40]]
 grip_across.foot_back = [[0, 18.5, "linear"], [11, 18.5, "in_out_sine"], [24, 18.5]]
 aim.foot_back = [[0, -15, "linear"], [11, -15, "in_out_sine"], [24, -15]]
+swap.head = [[0, 3], [11, 3], [24, 1]]
 grip.hands = [[0, 0, "linear"], [11, 0, "in_out_sine"], [24, 1]]
 
 [clip.blockstun]
 frames = 16
 ease = "out_cubic"
-rise = [[0, -6, "out_quad"], [8, -4], [16, 0]]
-aim.torso = [[0, 104, "out_quad"], [8, 100], [16, 92]]
-aim.head = [[0, 92, "out_quad"], [8, 92], [16, 86]]
-aim.upper_front = [[0, -30, "out_quad"], [8, -30], [16, -40]]
-aim.fore_front = [[0, 70, "out_quad"], [8, 70], [16, -5]]
-aim.brush = [[0, 86, "out_quad"], [8, 86], [16, -25]]
-grip_at.foot_front = [[0, 32, "out_quad"], [8, 32], [16, 38]]
-grip_across.foot_front = [[0, 18.5, "out_quad"], [8, 18.5], [16, 18.5]]
-aim.foot_front = [[0, -12, "out_quad"], [8, -12], [16, -12]]
-grip_at.foot_back = [[0, -46, "out_quad"], [8, -46], [16, -40]]
-grip_across.foot_back = [[0, 18.5, "out_quad"], [8, 18.5], [16, 18.5]]
-aim.foot_back = [[0, -15, "out_quad"], [8, -15], [16, -15]]
+rise = [[0, -16, "out_quad"], [5, -12], [16, 0]]
+aim.hip = [[0, 96, "out_quad"], [5, 96], [16, 90]]
+aim.torso = [[0, 108, "out_quad"], [5, 102], [16, 92]]
+aim.head = [[0, 84, "out_quad"], [5, 80], [16, 86]]
+aim.upper_front = [[0, -26, "out_quad"], [5, -20], [16, -40]]
+aim.fore_front = [[0, 54, "out_quad"], [5, 60], [16, -5]]
+aim.brush = [[0, 70, "out_quad"], [5, 74], [16, -25]]
+grip_at.foot_front = [[0, 30, "out_quad"], [5, 30], [16, 38]]
+grip_across.foot_front = [[0, 18.5, "out_quad"], [5, 18.5], [16, 18.5]]
+aim.foot_front = [[0, -12, "out_quad"], [5, -12], [16, -12]]
+grip_at.foot_back = [[0, -50, "out_quad"], [5, -50], [16, -40]]
+grip_across.foot_back = [[0, 18.5, "out_quad"], [5, 18.5], [16, 18.5]]
+aim.foot_back = [[0, -15, "out_quad"], [5, -15], [16, -15]]
+swap.head = [[0, 1], [5, 1], [16, 1]]
+
+[clip."hitstun.head"]
+frames = 24
+ease = "out_cubic"
+rise = [[0, -4, "linear"], [6, -4], [24, 0]]
+aim.torso = [[0, 112, "linear"], [6, 116], [24, 92]]
+aim.head = [[0, 138, "linear"], [6, 142], [24, 86]]
+aim.upper_front = [[0, -130, "linear"], [6, -140], [24, -40]]
+aim.fore_front = [[0, -90, "linear"], [6, -100], [24, -5]]
+aim.brush = [[0, -20, "linear"], [6, -14], [24, -25]]
+aim.upper_back = [[0, -150, "linear"], [6, -150], [24, -110]]
+aim.fore_back = [[0, -130, "linear"], [6, -130], [24, -40]]
+grip_at.foot_front = [[0, 44, "linear"], [6, 44], [24, 38]]
+grip_across.foot_front = [[0, 18.5, "linear"], [6, 18.5], [24, 18.5]]
+aim.foot_front = [[0, -12, "linear"], [6, -12], [24, -12]]
+grip_at.foot_back = [[0, -46, "linear"], [6, -46], [24, -40]]
+grip_across.foot_back = [[0, 18.5, "linear"], [6, 18.5], [24, 18.5]]
+aim.foot_back = [[0, -15, "linear"], [6, -15], [24, -15]]
+swap.head = [[0, 4], [6, 4], [24, 1]]
+grip.hands = [[0, 0, "linear"], [6, 0], [24, 1]]
+
+[clip."hitstun.body"]
+frames = 24
+ease = "out_cubic"
+rise = [[0, -10, "linear"], [6, -12], [24, 0]]
+aim.hip = [[0, 100, "linear"], [6, 102], [24, 90]]
+aim.torso = [[0, 68, "linear"], [6, 64], [24, 92]]
+aim.head = [[0, 56, "linear"], [6, 52], [24, 86]]
+aim.upper_front = [[0, -110, "linear"], [6, -114], [24, -40]]
+aim.fore_front = [[0, -80, "linear"], [6, -84], [24, -5]]
+aim.brush = [[0, -28, "linear"], [6, -32], [24, -25]]
+aim.upper_back = [[0, -100, "linear"], [6, -104], [24, -110]]
+aim.fore_back = [[0, -30, "linear"], [6, -34], [24, -40]]
+grip_at.foot_front = [[0, 40, "linear"], [6, 40], [24, 38]]
+grip_across.foot_front = [[0, 18.5, "linear"], [6, 18.5], [24, 18.5]]
+aim.foot_front = [[0, -12, "linear"], [6, -12], [24, -12]]
+grip_at.foot_back = [[0, -50, "linear"], [6, -50], [24, -40]]
+grip_across.foot_back = [[0, 18.5, "linear"], [6, 18.5], [24, 18.5]]
+aim.foot_back = [[0, -15, "linear"], [6, -15], [24, -15]]
+swap.head = [[0, 4], [6, 4], [24, 1]]
+grip.hands = [[0, 0, "linear"], [6, 0], [24, 1]]
+
+[clip."hitstun.low"]
+frames = 24
+ease = "out_cubic"
+rise = [[0, -18, "linear"], [6, -20], [24, 0]]
+aim.torso = [[0, 80, "linear"], [6, 78], [24, 92]]
+aim.head = [[0, 74, "linear"], [6, 72], [24, 86]]
+aim.upper_front = [[0, -70, "linear"], [6, -72], [24, -40]]
+aim.fore_front = [[0, -40, "linear"], [6, -42], [24, -5]]
+aim.brush = [[0, -30, "linear"], [6, -32], [24, -25]]
+grip_at.foot_front = [[0, 26, "linear"], [6, 24], [24, 38]]
+grip_across.foot_front = [[0, 18.5, "linear"], [6, 18.5], [24, 18.5]]
+aim.foot_front = [[0, -12, "linear"], [6, -12], [24, -12]]
+grip_at.foot_back = [[0, -46, "linear"], [6, -46], [24, -40]]
+grip_across.foot_back = [[0, 18.5, "linear"], [6, 18.5], [24, 18.5]]
+aim.foot_back = [[0, -15, "linear"], [6, -15], [24, -15]]
+swap.head = [[0, 3], [6, 3], [24, 1]]
+
+[clip."hitstun.heavy"]
+frames = 24
+ease = "out_cubic"
+rise = [[0, -2, "linear"], [8, -6], [24, 0]]
+aim.hip = [[0, 112, "linear"], [8, 108], [24, 90]]
+aim.torso = [[0, 128, "linear"], [8, 122], [24, 92]]
+aim.head = [[0, 140, "linear"], [8, 132], [24, 86]]
+aim.upper_front = [[0, -160, "linear"], [8, -150], [24, -40]]
+aim.fore_front = [[0, -120, "linear"], [8, -110], [24, -5]]
+aim.brush = [[0, -10, "linear"], [8, -20], [24, -25]]
+aim.upper_back = [[0, 170, "linear"], [8, 180], [24, -110]]
+aim.fore_back = [[0, 150, "linear"], [8, 160], [24, -40]]
+aim.thigh_front = [[0, -30, "linear"], [8, -50], [24, -55]]
+aim.shin_front = [[0, -90, "linear"], [8, -100], [24, -95]]
+grip.foot_front = [[0, 0, "linear"], [8, 0], [24, 1]]
+grip_at.foot_front = [[0, 0, "linear"], [8, 0], [24, 38]]
+grip_across.foot_front = [[0, 0, "linear"], [8, 0], [24, 18.5]]
+aim.foot_front = [[0, -12, "linear"], [8, -12], [24, -12]]
+grip_at.foot_back = [[0, -62, "linear"], [8, -62], [24, -40]]
+grip_across.foot_back = [[0, 18.5, "linear"], [8, 18.5], [24, 18.5]]
+aim.foot_back = [[0, -15, "linear"], [8, -15], [24, -15]]
+aim.skirt_back = [[0, -73, "linear"], [8, -83], [24, -96]]
+aim.skirt_front = [[0, -67, "linear"], [8, -77], [24, -84]]
+swap.head = [[0, 4], [8, 4], [24, 1]]
+grip.hands = [[0, 0, "linear"], [8, 0], [24, 1]]
 
 [clip.knockdown]
 frames = 30
@@ -1144,6 +1273,7 @@ grip_across.foot_back = [[0, 0], [10, 0, "out_quad"], [30, 0]]
 aim.foot_back = [[0, -40], [10, 70, "out_quad"], [30, 70]]
 aim.skirt_back = [[0, -43], [10, 1, "out_quad"], [30, 1]]
 aim.skirt_front = [[0, -37], [10, 7, "out_quad"], [30, 7]]
+swap.head = [[0, 4], [10, 4], [30, 4]]
 grip.hands = [[0, 0], [10, 0, "out_quad"], [30, 0]]
 
 [clip.ko]
@@ -1172,6 +1302,7 @@ grip_across.foot_back = [[0, 0], [14, 0, "out_bounce"], [30, 0]]
 aim.foot_back = [[0, -40], [14, 70, "out_bounce"], [30, 70]]
 aim.skirt_back = [[0, -43], [14, 1, "out_bounce"], [30, 1]]
 aim.skirt_front = [[0, -37], [14, 7, "out_bounce"], [30, 7]]
+swap.head = [[0, 4], [14, 4], [30, 4]]
 grip.hands = [[0, 0], [14, 0, "out_bounce"], [30, 0]]
 
 [clip.wakeup]
@@ -1200,6 +1331,7 @@ grip_across.foot_back = [[0, 0], [5, 18.5, "out_quad"], [10, 18.5]]
 aim.foot_back = [[0, 70], [5, -15, "out_quad"], [10, -15]]
 aim.skirt_back = [[0, 1], [5, -96, "out_quad"], [10, -96]]
 aim.skirt_front = [[0, 7], [5, -84, "out_quad"], [10, -84]]
+swap.head = [[0, 4], [5, 1], [10, 1]]
 grip.hands = [[0, 0], [5, 1, "out_quad"], [10, 1]]
 
 [clip.thrown]
@@ -1228,6 +1360,7 @@ grip_across.foot_back = [[0, 18.5], [15, 0], [30, 0]]
 aim.foot_back = [[0, -15], [15, -40], [30, 70]]
 aim.skirt_back = [[0, -96], [15, -43], [30, 1]]
 aim.skirt_front = [[0, -84], [15, -37], [30, 7]]
+swap.head = [[0, 3], [15, 4], [30, 4]]
 grip.hands = [[0, 0], [15, 0], [30, 0]]
 
 [clip.reset]
@@ -1251,6 +1384,7 @@ grip.foot_back = [[0, 0], [20, 0]]
 grip_at.foot_back = [[0, 0], [20, 0]]
 grip_across.foot_back = [[0, 0], [20, 0]]
 aim.foot_back = [[0, -80], [20, -80]]
+swap.head = [[0, 1], [20, 1]]
 
 [clip."236236K.cinematic"]
 frames = 200
@@ -1267,6 +1401,7 @@ aim.foot_front = [[0, -12], [14, -12], [30, -12], [34, -12, "in_quad"], [40, -12
 grip_at.foot_back = [[0, -36], [14, -36], [30, -36], [34, -44, "in_quad"], [40, -46, "out_expo"], [49, -46, "in_quad"], [55, -40, "out_expo"], [64, -44, "in_quad"], [70, -46, "out_expo"], [79, -46, "in_quad"], [85, -40, "out_expo"], [94, -44, "in_quad"], [100, -46, "out_expo"], [109, -46, "in_quad"], [115, -40, "out_expo"], [124, -44, "in_quad"], [130, -46, "out_expo"], [144, -46, "in_quad"], [150, -40, "out_expo"], [160, -44, "in_quad"], [176, -50, "out_expo"], [199, -50]]
 grip_across.foot_back = [[0, 18.5], [14, 18.5], [30, 18.5], [34, 18.5, "in_quad"], [40, 18.5, "out_expo"], [49, 18.5, "in_quad"], [55, 18.5, "out_expo"], [64, 18.5, "in_quad"], [70, 18.5, "out_expo"], [79, 18.5, "in_quad"], [85, 18.5, "out_expo"], [94, 18.5, "in_quad"], [100, 18.5, "out_expo"], [109, 18.5, "in_quad"], [115, 18.5, "out_expo"], [124, 18.5, "in_quad"], [130, 18.5, "out_expo"], [144, 18.5, "in_quad"], [150, 18.5, "out_expo"], [160, 18.5, "in_quad"], [176, 18.5, "out_expo"], [199, 18.5]]
 aim.foot_back = [[0, -15], [14, -15], [30, -15], [34, -15, "in_quad"], [40, -15, "out_expo"], [49, -15, "in_quad"], [55, -15, "out_expo"], [64, -15, "in_quad"], [70, -15, "out_expo"], [79, -15, "in_quad"], [85, -15, "out_expo"], [94, -15, "in_quad"], [100, -15, "out_expo"], [109, -15, "in_quad"], [115, -15, "out_expo"], [124, -15, "in_quad"], [130, -15, "out_expo"], [144, -15, "in_quad"], [150, -15, "out_expo"], [160, -15, "in_quad"], [176, -15, "out_expo"], [199, -15]]
+swap.head = [[0, 1], [14, 1], [30, 1], [34, 1], [40, 2], [49, 1], [55, 2], [64, 1], [70, 2], [79, 1], [85, 2], [94, 1], [100, 2], [109, 1], [115, 2], [124, 1], [130, 2], [144, 1], [150, 2], [160, 1], [176, 2], [199, 1]]
 
 [impact.light]
 shake = [2, 6]
@@ -1373,6 +1508,7 @@ camera = [[0, 1, 85, 110], [10, 1.5, 120, 120], [30, 1.15, 140, 110], [52, 1.35,
 flash = [[180, "white", 6]]
 quake = [[180, 16, 24]]
 hide = [161, 196]
+reactions = ["hitstun.head", "hitstun.body", "hitstun.head", "hitstun.low", "hitstun.body", "hitstun.heavy", "hitstun.head", "hitstun.heavy", "hitstun.heavy"]
 fx = [[37, "slash_a", 170, 95], [52, "slash_b", 170, 95], [67, "slash_c", 170, 95], [82, "slash_d", 170, 95], [97, "slash_a", 170, 95], [112, "slash_b", 170, 95], [127, "slash_c", 170, 95], [147, "slash_d", 170, 95], [158, "plume", 170, 60], [160, "finisher_in", 30, 0], [176, "slam", 70, 0], [180, "ink_finish", 170, 80]]
 
 [[cinematic.236236K.panel]]

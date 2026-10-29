@@ -21,6 +21,7 @@
 | [2026-10-29-fighting-indie-quality-design.md](2026-10-29-fighting-indie-quality-design.md) | **格斗游戏的顶级独立游戏水准**：标杆、现状的诚实评估、美术方向（墨线 + 剪纸的矢量，亲手定的关键姿势）、动画和打击感、五个人的完成清单、音乐和声音、界面和多视角、自动验收和分项评审、先做墨和霓的完整纵切；codex 评审记录 |
 | [2026-10-29-fighting-acceptance-rubric.md](2026-10-29-fighting-acceptance-rubric.md) | **格斗游戏的严格验收评分表**：维护者评 1/10 之后定的；11 项各 0–10 分的锚点、每项 ≥ 8 才过、总评取最低分；对照作品；每次评分要交的证据；codex 按它评分（一个独立来源） |
 | [2026-10-29-fighting-art-pipeline-design.md](2026-10-29-fighting-art-pipeline-design.md) | **格斗游戏的素材管线**：codex 生成的美术达到主视觉水准，所以美术来自生成的图（或画师的图），框架负责分件、网格蒙皮、关键姿势、导演式演出、特效、界面、每个人的语音集和代码作曲；各环节的工具都是 openmui 应用，agent（包括通过 MCP 的 codex）用它们做素材；基线评分 2/10 |
+| [2026-10-29-math-fighter-tech-design.md](2026-10-29-math-fighter-tech-design.md) | **数学库与格斗人物的表现技术**：`modules/base/math` 统一全仓库的数学（确定性分级，SIMD、多线程、GPU compute、可选 CUDA 按标量参考实现验收）；`openmui.rig`、`render.mesh`、表现物理的分层；精细模型（自动网格和权重、形变器、法线图光照）、姿态的表现力（叠加层、弹簧链、拖影、静止画面动感的量化指标）、多通道同步的打击感、物理的回滚处理、简洁的原则；D-87、D-88 |
 | [2026-10-26-openmui-view-data-files-design.md](2026-10-26-openmui-view-data-files-design.md) | **视图与数据文件**：代码优先、可读性要求、`*.view.omui.json` 视图文档、表达式（组合函数 + CEL 字符串）、行为状态机、后缀体系 |
 
 `research/` 目录下是前期的调研和讨论稿。其中的命名（openui / mui）已经过时，一切以上面的设计文档为准。

@@ -88,6 +88,15 @@ struct Part {
     std::vector<std::int32_t> bend;
     float                     blend = 16;
     bool                      fit = false;  // sized to its bone (anchor to tip = the bone's length) instead of the look's art scale (a prop)
+    // An image part's other drawings (a face's expressions, a fist in
+    // perspective), each its own region, anchor and tip; a clip's swaps
+    // choose (0: its own).
+    struct Drawing {
+        std::int32_t     picture = -1;
+        omui::geom::Rect source;
+        Point            anchor, tip;
+    };
+    std::vector<Drawing> drawings;
 };
 
 // How a contact feels, drawn (D-85 §8.4). A fighter file's hits name a
@@ -325,7 +334,16 @@ struct CinematicLook {
     std::vector<FxAt>  fx;  // effects from where the lock began
     // Frames [from, to) the attacker is not drawn (a picture of them stands in: a finishing pose).
     std::array<std::int32_t, 2> hide{-1, -1};
+    // The defender's reaction to each of the cinematic's hits, in turn (a
+    // reaction clip's name — see hit reactions below; empty: by default).
+    std::vector<std::string> reactions;
 };
+
+// Hit reactions: a look's hitstun clips by where and how hard the latest
+// blow landed — `hitstun.head`, `hitstun.body`, `hitstun.low`,
+// `hitstun.heavy` — each falling back to `hitstun`. Every look may have them
+// (the name is the convention), so a cinematic can ask any defender for one.
+inline constexpr std::array<std::string_view, 4> hit_reactions{"hitstun.head", "hitstun.body", "hitstun.low", "hitstun.heavy"};
 
 // A picture a look's image parts are cut from: its file (resolved by
 // whoever carries the look's files), its size, and once registered with the
@@ -597,7 +615,7 @@ private:
     // A stage's layers (behind the fighters, or in front of them), at the match's frame, `alpha` of their opacity.
     void stage_layers(const Stage& stage, bool front, const Scene& scene, const Camera& camera, double middle, std::int32_t frame, float alpha,
                       omui::render::DisplayList& out);
-    void picture_part(const Look& look, const Part& part, const FighterState& s, const Scene& scene, const Camera& camera,
+    void picture_part(const Look& look, const Part& part, std::size_t drawing, const FighterState& s, const Scene& scene, const Camera& camera,
                       std::optional<Color> tint, omui::render::DisplayList& out);
     Pose                     pose_, past_, rest_;
     std::vector<Point>       mesh_at_, mesh_uv_;

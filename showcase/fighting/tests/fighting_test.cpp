@@ -344,7 +344,7 @@ int main(int argc, char** argv) {
         check(g.h.save_png(dir / "study.png").has_value());
         const auto px = g.pixels();
         std::println("    study {:016x}", px);
-        check_eq(px, std::uint64_t{0xe470c29a0b0c7154});  // GCC and LLVM
+        check_eq(px, std::uint64_t{0xa4786840888ccd24});  // GCC and LLVM
     });
 
     s.test("霓's home, the street: rain in front and behind, signs humming, the wet road giving them back — pinned", [] {
@@ -353,7 +353,7 @@ int main(int argc, char** argv) {
         check(g.h.save_png(scratch_dir("fighting-street") / "street.png").has_value());
         const auto px = g.pixels();
         std::println("    street {:016x}", px);
-        check_eq(px, std::uint64_t{0x2e3d92a0191c2d8c});  // GCC and LLVM
+        check_eq(px, std::uint64_t{0x7e3a92c974c8444f});  // GCC and LLVM
     });
 
     s.test("the README's loop: 墨's level 3 from the flash's cut-in to the finishing blow, an animated WebP under 1 MB", [] {
@@ -413,7 +413,7 @@ int main(int argc, char** argv) {
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    mo level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("8bcd245d6d9c0776"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("41e58d82397e6f8b"));  // GCC and LLVM, every platform
     });
 
     s.test("墨's ink: waves of three sizes flung from the brush, and her level 2's tide along the floor — frames pinned", [] {
@@ -445,7 +445,7 @@ int main(int argc, char** argv) {
         }
         check_eq(saved, 8);
         std::println("    mo glyphs {}", all.hex());
-        check_eq(all.hex(), std::string("79dba02e03451a4f"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("affe21fdd13c95ba"));  // GCC and LLVM, every platform
     });
 
     s.test("霓's afterimages and her level 3, 「全频」: the neon city, the flurry, the uppercut — frames pinned", [] {
@@ -895,7 +895,7 @@ int main(int argc, char** argv) {
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    ke time {}", all.hex());
-        check_eq(all.hex(), std::string("06ccd5ed4c1ea303"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("6329ffff43e303a7"));  // GCC and LLVM, every platform
     });
 
     s.test("刻's level 3, 「零时」: time stops — the picture grey, a clock's hands standing, ten hits' sparks hanging — then the bell — frames pinned", [] {
@@ -1116,7 +1116,7 @@ int main(int argc, char** argv) {
         std::println("    fighting versus {:016x} training {:016x}", px[0], px[1]);
         check(px[0] != px[1], "training draws the boxes");
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
-        check(px == std::vector<std::uint64_t>{0x6673067c5af529f5ULL, 0x6fd3faab68e6d24cULL}, "pinned");
+        check(px == std::vector<std::uint64_t>{0x3c81960329342c09ULL, 0x5229bae93a6af80fULL}, "pinned");
     });
 
     return s.run(argc, argv);

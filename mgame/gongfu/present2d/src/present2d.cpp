@@ -645,6 +645,25 @@ Point path_at(const std::vector<CinematicLook::PathKey>& keys, std::int32_t t) {
 }
 
 // The fighter in a super's flash, and how far into it (0 → 1); −1 when none.
+// The hit reaction a fighter in hitstun plays: by the latest blow it took —
+// heavy (its impact shakes the picture, or does 800 or more), else where it
+// landed on the body (head above 72% of its standing height, low under 38%).
+std::string_view reaction(const Match& match, std::int32_t i, const Look& look, const Look& by, const Effects& effects) {
+    const FighterState& f = match.state().f[static_cast<std::size_t>(i)];
+    for (auto k = effects.kept().size(); k-- > 0;) {
+        const Event& e = effects.kept()[k].event;
+        if ((e.kind != Event::Kind::hit && e.kind != Event::Kind::counter) || e.attacker == i) continue;
+        const Impact& im = impact_for(by, e);
+        auto has = [&](std::string_view n) { return look.clips.contains(n); };
+        if ((im.shake >= 8 || e.damage >= 800) && has(hit_reactions[3])) return hit_reactions[3];
+        const double tall = std::max(1.0, match.fighter(i).def.hurt_standing.h.to_double());
+        const double h = (e.at.y - f.pos.y).to_double() / tall;
+        const std::string_view part = h >= 0.72 ? hit_reactions[0] : h < 0.38 ? hit_reactions[2] : hit_reactions[1];
+        return has(part) ? part : std::string_view("hitstun");
+    }
+    return "hitstun";
+}
+
 std::pair<std::int32_t, double> flashing(const Match& match) {
     const State& st = match.state();
     if (st.freeze <= 0) return {-1, 0};
@@ -733,6 +752,8 @@ void Painter::body(const Look& look, const Fighter& fighter, const FighterState&
     const float lit = view.size(1);
     const bool shading = look.light.shade > 0 && !tint;
     // A glow (neon) behind the outline, then the outline, then the parts; a tinted afterimage is the parts alone, in one colour.
+    // Where drawn art was drawn: the bones at rest, where the fighter stands (once for all its image parts).
+    if (std::ranges::any_of(look.parts, [](const Part& q) { return q.shape == Shape::image; })) pose_at(look, nullptr, 0, s, rest_);
     enum class Pass : std::uint8_t { glow, outline, fill };
     for (const Pass pass : {Pass::glow, Pass::outline, Pass::fill}) {
         if (pass == Pass::glow && (look.glow.width <= 0 || tint)) continue;
@@ -742,7 +763,10 @@ void Painter::body(const Look& look, const Fighter& fighter, const FighterState&
             const Part& part = look.parts[k];
             if (part.bone < 0 || static_cast<std::size_t>(part.bone) >= p.size()) continue;
             if (part.shape == Shape::image) {  // drawn art: its own outline and light, no pass but the fill
-                if (pass == Pass::fill) picture_part(look, part, s, scene, camera, tint, out);
+                std::size_t drawing = 0;  // the drawing a clip's swap chooses (0: its own)
+                if (clip && k < clip->swaps.size() && !clip->swaps[k].empty())
+                    drawing = static_cast<std::size_t>(std::max(0.0, std::floor(clip->swaps[k].value(at) + 0.5)));
+                if (pass == Pass::fill) picture_part(look, part, drawing <= part.drawings.size() ? drawing : 0, s, scene, camera, tint, out);
                 continue;
             }
             const BonePlace& b = p[static_cast<std::size_t>(part.bone)];
@@ -807,17 +831,20 @@ void Painter::body(const Look& look, const Fighter& fighter, const FighterState&
     }
 }
 
-void Painter::picture_part(const Look& look, const Part& part, const FighterState& s, const Scene& scene, const Camera& camera,
+void Painter::picture_part(const Look& look, const Part& own, std::size_t drawing, const FighterState& s, const Scene& scene, const Camera& camera,
                            std::optional<Color> tint, render::DisplayList& out) {
-    if (part.picture < 0 || static_cast<std::size_t>(part.picture) >= look.pictures.size()) return;
-    const Picture& pic = look.pictures[static_cast<std::size_t>(part.picture)];
-    if (pic.ref.id == 0 || part.source.width <= 0 || part.source.height <= 0) return;
+    // Another drawing: its region, anchor and tip in place of the part's own.
+    const Part::Drawing self{own.picture, own.source, own.anchor, own.tip};
+    const Part::Drawing& d = drawing > 0 && drawing <= own.drawings.size() ? own.drawings[drawing - 1] : self;
+    const Part& part = own;
+    if (d.picture < 0 || static_cast<std::size_t>(d.picture) >= look.pictures.size()) return;
+    const Picture& pic = look.pictures[static_cast<std::size_t>(d.picture)];
+    if (pic.ref.id == 0 || d.source.width <= 0 || d.source.height <= 0) return;
     const View view{scene, camera};
     const double facing = s.facing < 0 ? -1.0 : 1.0;
-    pose_at(look, nullptr, 0, s, rest_);  // where the art was drawn: the bones at rest, where the fighter stands
     const auto b = static_cast<std::size_t>(part.bone);
     // The art's own turn and size: anchor to tip along the bone (the picture's y runs down).
-    double ix = part.tip.x - part.anchor.x, iy = -(part.tip.y - part.anchor.y);
+    double ix = d.tip.x - d.anchor.x, iy = -(d.tip.y - d.anchor.y);
     double len = dm::sqrt(ix * ix + iy * iy);
     const double scale = look.art_scale > 0 && !part.fit ? look.art_scale : len > 0 ? look.bones[b].length / len : 1.0;
     if (len <= 0) ix = 1, iy = 0, len = 1;
@@ -832,8 +859,8 @@ void Painter::picture_part(const Look& look, const Part& part, const FighterStat
     mesh_index_.clear();
     for (std::int32_t j = 0; j <= rows; ++j)
         for (std::int32_t i = 0; i <= cols; ++i) {
-            const double lx = part.source.x + part.source.width * i / cols, ly = part.source.y + part.source.height * j / rows;
-            const double dx = lx - part.anchor.x, dy = -(ly - part.anchor.y);
+            const double lx = d.source.x + d.source.width * i / cols, ly = d.source.y + d.source.height * j / rows;
+            const double dx = lx - d.anchor.x, dy = -(ly - d.anchor.y);
             const double along = (dx * c0 + dy * s0) * scale, across = (-dx * s0 + dy * c0) * scale;
             Point at = place(pose_[b], along, across);
             if (!part.bend.empty()) {
@@ -1204,15 +1231,32 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
                          fade(cine->prism.tint, in / k));
                 }
         }
-        // Struck by a cinematic's hits, the defender's hitstun starts again at each (its first keys the blow).
+        // Struck by a cinematic's hits, the defender's reaction starts again at
+        // each (its first keys are the blow): the cinematic's for that hit, if the look has it.
         std::int32_t clip_t = st.lock.frame;
+        const Look& own = i == 0 ? left : right;
         if (cine && i != st.lock.owner && clip == "hitstun") {
             const MoveDef& md = match.fighter(st.lock.owner).def.moves[static_cast<std::size_t>(st.lock.move)];
-            std::int32_t last = -1;
+            std::int32_t last = -1, landed = 0;
             if (md.cinematic)
                 for (const CinematicHit& h : md.cinematic->hits)
-                    if (h.frame <= st.lock.frame) last = std::max(last, h.frame);
-            if (last >= 0) clip_t = st.lock.frame - last;
+                    if (h.frame <= st.lock.frame) last = std::max(last, h.frame), ++landed;
+            if (last >= 0) {
+                clip_t = st.lock.frame - last;
+                if (!cine->reactions.empty()) {
+                    const std::string& r = cine->reactions[static_cast<std::size_t>(landed - 1) % cine->reactions.size()];
+                    if (own.clips.contains(r)) clip = r;
+                }
+            }
+        } else if (!cine && drawn.mode == Mode::hitstun) {
+            // An ordinary hit: the reaction to where and how hard it landed, at its stun's time.
+            clip = reaction(match, i, own, i == 0 ? right : left, effects);
+            if (clip != "hitstun") {
+                const auto it = own.clips.find(clip);
+                clip_t = std::max(0, it->second.frames - drawn.stun);
+            } else {
+                clip = {};
+            }
         }
         if (cine && i == st.lock.owner && st.lock.frame >= cine->hide[0] && st.lock.frame < cine->hide[1]) continue;
         body(i == 0 ? left : right, match.fighter(i), drawn, st.frame, scene, view.cam, out, clip, clip_t);

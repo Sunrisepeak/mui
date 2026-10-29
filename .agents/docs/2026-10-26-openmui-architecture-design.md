@@ -475,6 +475,8 @@ M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten，渲�
 | D-84 | Web 与 Toy：wasm 单线程、host.web、WebGPU / WebGL2 / CPU、Toy 能力映射、官网（同上 §6） |
 | D-85 | mgame 与 gongfu：引擎服务；确定性回滚格斗框架，模拟和画面分离，2D 先验证、3D 同一核心（同上 §7、§8） |
 | D-86 | 媒体：音频图、视频导出、时间线、撤销和事务（同上 §9） |
+| D-87 | `modules/base/math`（`openmui.math`）统一全仓库的数学：确定性函数、定点数、向量矩阵、曲线、几何、随机、噪声、数值方法、批量计算；确定性分级写在命名空间上；批量计算有标量参考实现，SIMD、多线程、GPU compute（`openmui.compute`）、可选 CUDA 按它验收；模拟只走确定的 CPU 路径（同上 §3） |
+| D-88 | 人物技术分层：`openmui.rig`（骨架、蒙皮网格、约束、混合）、`render.mesh`、表现物理（`mgame.physics`、`openmui.compute`）、gongfu.present2d 只留格斗专有部分；打击是一个档案驱动的多通道同步反馈；角色差异来自数据组合通用原语（[数学与人物技术](2026-10-29-math-fighter-tech-design.md) §4–§8） |
 
 ---
 
@@ -501,3 +503,5 @@ M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten，渲�
 | Q-17 | 管线描述只允许应用级配置，还是允许组件在子树里插入阶段 | M2（管线落地时） |
 | Q-18 | 多个液态玻璃元素的背景截断：按效果组合并，还是允许用上一帧的背景 | M4 |
 | Q-19 | ~~关闭动画期间让窗口输入透明，SDL3 没有接口~~ **已定**：不改 SDL 上游，在 SDL 宿主的原生单元里按平台实现（宿主报告能力，不支持时淡出后立即隐藏）；`mcpplibs.os` 只做系统层，不放窗口能力；上游缺口记在 issue #2（`upstream` 标签） | — |
+| Q-30 | gongfu 核心能否依赖 `openmui.math`（同样只依赖标准库），统一定点数和确定性函数？倾向允许，拆仓时一起（[数学与人物技术](2026-10-29-math-fighter-tech-design.md) §3） |
+| Q-31 | 表现物理的大系统：自写的 `mgame.physics`，还是引入 Box2D v3 / Jolt 作为可选后端？倾向先自写（[数学与人物技术](2026-10-29-math-fighter-tech-design.md) §7） |

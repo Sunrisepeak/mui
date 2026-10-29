@@ -80,8 +80,8 @@ constexpr std::array<std::string_view, 8> fx_stroke_keys{"picture", "source", "p
 constexpr std::array<std::string_view, 11> fx_spray_keys{"picture", "sources", "at", "from", "frames", "count", "speed", "angle", "size", "gravity", "seed"};
 constexpr std::array<std::string_view, 11> panel_keys{"picture", "source", "from", "to", "in", "out", "y", "height", "slant", "pan", "band"};
 constexpr std::array<std::string_view, 2> stroke_keys{"points", "width"};
-constexpr std::array<std::string_view, 21> cinematic_keys{"attacker", "defender", "backdrop", "camera", "glyph", "seal", "flash", "scanlines",
-                                                          "attacker_path", "defender_path", "quake", "ring", "prism", "cracks", "fall", "stop", "clock", "doc", "panel", "fx", "hide"};
+constexpr std::array<std::string_view, 22> cinematic_keys{"attacker", "defender", "backdrop", "camera", "glyph", "seal", "flash", "scanlines",
+                                                          "attacker_path", "defender_path", "quake", "ring", "prism", "cracks", "fall", "stop", "clock", "doc", "panel", "fx", "hide", "reactions"};
 constexpr std::array<std::string_view, 5> prism_keys{"images", "spread", "from", "to", "tint"};
 constexpr std::array<std::string_view, 1> cracks_keys{"color"};
 constexpr std::array<std::string_view, 3> fall_keys{"frame", "count", "color"};
@@ -91,8 +91,8 @@ constexpr std::array<std::string_view, 6> written_keys{"name", "at", "size", "fr
 constexpr std::array<std::string_view, 4> seal_keys{"frame", "at", "size", "color"};
 constexpr std::array<std::string_view, 2> outline_keys{"color", "width"};
 constexpr std::array<std::string_view, 9> bone_keys{"name", "parent", "joint", "length", "rest", "limb", "prop", "follow", "hang"};
-constexpr std::array<std::string_view, 18> part_keys{"bone", "shape", "size", "points", "color", "depth", "doc", "name", "variants", "shade",
-                                                    "picture", "source", "anchor", "tip", "mesh", "bend", "blend", "fit"};
+constexpr std::array<std::string_view, 19> part_keys{"bone", "shape", "size", "points", "color", "depth", "doc", "name", "variants", "shade",
+                                                    "picture", "source", "anchor", "tip", "mesh", "bend", "blend", "fit", "drawings"};
 constexpr std::array<std::string_view, 12> clip_keys{"frames", "loop", "ease", "angle", "rise", "doc", "swap", "grip", "aim", "grip_at", "grip_across", "fx"};
 constexpr std::array<std::string_view, 9> impact_keys{"shake", "zoom", "flash", "spark", "sound", "rumble", "doc", "name", "fx"};
 constexpr std::array<std::string_view, 6> spark_keys{"style", "size", "count", "frames", "color", "counter"};
@@ -698,6 +698,26 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
             }
             if (auto xy = r.pair(t.get("anchor"), "a part's `anchor`", "anchor = [40, 12]: where the bone's joint is, in the picture")) p.anchor = {static_cast<float>((*xy)[0]), static_cast<float>((*xy)[1])};
             if (auto xy = r.pair(t.get("tip"), "a part's `tip`", "tip = [40, 120]: where the bone ends, in the picture")) p.tip = {static_cast<float>((*xy)[0]), static_cast<float>((*xy)[1])};
+            if (const toml::node* dn = t.get("drawings")) {
+                const toml::array* a = dn->as_array();
+                if (!a || !a->is_array_of_tables()) r.error(dn, "an image part's `drawings` is a list of { picture, source, anchor, tip }");
+                else
+                    for (const toml::node& e : *a) {
+                        const toml::table& dt = *e.as_table();
+                        Part::Drawing d;
+                        d.picture = p.picture;
+                        if (dt.get("picture")) {
+                            auto it = std::ranges::find(look.pictures, dt.get("picture")->value_or(std::string()), &Picture::name);
+                            if (it == look.pictures.end()) r.error(dt.get("picture"), "a drawing's `picture` is no picture of the look");
+                            else d.picture = static_cast<std::int32_t>(it - look.pictures.begin());
+                        }
+                        if (auto v = r.rect(dt.get("source"), "a drawing's `source`")) d.source = *v;
+                        else if (!dt.get("source")) r.error(&dt, "a drawing has a `source`");
+                        if (auto xy = r.pair(dt.get("anchor"), "a drawing's `anchor`", "anchor = [40, 12]")) d.anchor = {static_cast<float>((*xy)[0]), static_cast<float>((*xy)[1])};
+                        if (auto xy = r.pair(dt.get("tip"), "a drawing's `tip`", "tip = [40, 120]")) d.tip = {static_cast<float>((*xy)[0]), static_cast<float>((*xy)[1])};
+                        p.drawings.push_back(d);
+                    }
+            }
             if (auto m = r.pair(t.get("mesh"), "a part's `mesh`", "mesh = [1, 4]: columns, rows"))
                 p.mesh = {std::clamp(static_cast<std::int32_t>((*m)[0]), 1, 32), std::clamp(static_cast<std::int32_t>((*m)[1]), 1, 32)};
             if (const toml::array* a = t.get("bend") ? t.get("bend")->as_array() : nullptr) {
@@ -759,8 +779,9 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
                             }
                             if (auto k = r.keys(&keys, std::format("{}'s `swap.{}`", what, part.str()), hanim::Ease::stepped(1, hanim::StepPosition::jump_end), c.frames)) {
                                 for (const auto& key : k->keys())
-                                    if (key.value < 0 || key.value > static_cast<double>(it->variants.size()) || key.value != std::floor(key.value))
-                                        r.error(&keys, std::format("{}'s `swap.{}` chooses {}: `{}` has {} variant(s) (0: its points)", what, part.str(), key.value, part.str(), it->variants.size()));
+                                    if (const std::size_t n = it->shape == Shape::image ? it->drawings.size() : it->variants.size();
+                                        key.value < 0 || key.value > static_cast<double>(n) || key.value != std::floor(key.value))
+                                        r.error(&keys, std::format("{}'s `swap.{}` chooses {}: `{}` has {} other drawing(s) (0: its own)", what, part.str(), key.value, part.str(), n));
                                 c.swaps[static_cast<std::size_t>(it - look.parts.begin())] = std::move(*k);
                             }
                         }
@@ -1128,6 +1149,18 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
                 r.tables(t->get("panel"), "panel", "[[cinematic.236236K.panel]] picture = \"cutins\" source = [0, 0, 1536, 512] from = 20 to = 60",
                          [&](const toml::table& e) { c.panels.push_back(panel_of(e, std::format("a panel of {}", what))); });
                 fx_rows(t->get("fx"), what, c.fx);
+                if (const toml::node* rn = t->get("reactions")) {
+                    if (const toml::array* a = rn->as_array()) {
+                        for (const toml::node& e : *a)
+                            if (auto v = r.text(&e, "a cinematic's reaction")) {
+                                if (*v != "hitstun" && std::ranges::find(hit_reactions, *v) == hit_reactions.end())
+                                    r.error(&e, std::format("`{}` is not a hit reaction", *v), data::nearest_hint(*v, hit_reactions));
+                                c.reactions.push_back(*v);
+                            }
+                    } else {
+                        r.error(rn, "a cinematic's `reactions` is a list of hit reactions", "reactions = [\"hitstun.body\", \"hitstun.head\"]");
+                    }
+                }
                 if (auto h = r.pair(t->get("hide"), "a cinematic's `hide`", "hide = [160, 196]: frames the attacker is not drawn"))
                     c.hide = {static_cast<std::int32_t>((*h)[0]), static_cast<std::int32_t>((*h)[1])};
                 look.cinematics.insert_or_assign(std::string(name.str()), std::move(c));
@@ -1256,6 +1289,15 @@ std::string write_look(const Look& look) {
                 s += std::format("]\nblend = {}\n", p.blend);
             }
             if (p.fit) s += "fit = true\n";
+            if (!p.drawings.empty()) {
+                s += "drawings = [";
+                for (std::size_t i = 0; i < p.drawings.size(); ++i) {
+                    const Part::Drawing& d = p.drawings[i];
+                    s += std::format("{}{{ picture = \"{}\", source = {}, anchor = [{}, {}], tip = [{}, {}] }}", i ? ", " : "", look.pictures.at(static_cast<std::size_t>(d.picture)).name,
+                                     rect_text(d.source), d.anchor.x, d.anchor.y, d.tip.x, d.tip.y);
+                }
+                s += "]\n";
+            }
         } else {
             s += std::format("size = [{}, {}]\n", p.start, p.end);
         }
@@ -1368,6 +1410,11 @@ std::string write_look(const Look& look) {
         }
         if (!c.fx.empty()) s += fx_rows_text(c.fx);
         if (c.hide[0] >= 0) s += std::format("hide = [{}, {}]\n", c.hide[0], c.hide[1]);
+        if (!c.reactions.empty()) {
+            s += "reactions = [";
+            for (std::size_t i = 0; i < c.reactions.size(); ++i) s += std::format("{}\"{}\"", i ? ", " : "", c.reactions[i]);
+            s += "]\n";
+        }
         for (const auto& p : c.panels) s += std::format("\n[[cinematic.{}.panel]]\n{}\n", key_text(name), panel_text(look, p, "\n"));
     }
     for (const auto& [name, p] : look.cutins) s += std::format("\n[cutin.{}]\n{}\n", key_text(name), panel_text(look, p, "\n"));

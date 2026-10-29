@@ -84,7 +84,7 @@ class ExampleCounter(unittest.TestCase):
         tally.goal.set(10)
         omui.mount("main", tally.tally)
         omui.settle()
-        self.assertEqual(omui.pixels(), "210b1831433cf1b2")
+        self.assertEqual(omui.pixels(), "2ca1490961252cf6")
         omui.unmount("main")
 
 

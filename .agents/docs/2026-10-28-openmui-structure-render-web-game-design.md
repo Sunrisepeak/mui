@@ -697,6 +697,22 @@ R1 目录与命名（D-80，一轮完成搬目录 + 改名 + README + lint）
 
 每轮一个 commit 推到 PR #1；等 CI 的时候做下一轮里不依赖这次结果的部分（例如上游的 U1–U3、下一轮的设计细节和测试）。主观的设计问题（官网创意、角色设计、README）在定稿前请 codex 给一次评价，作为参考之一，和本文的规则、已有的设计一起权衡。
 
+### 13.2a 进度和剩下的拆分（2026-10-30）
+
+已完成：R1、R2、W1、`host.web` 的第一部分（画布、帧节奏、输入、手柄、CPU 渲染）、`host.web.toy` 和 `dist-toy`、R8（`media.audio`、mgame 核心、S4）、R9 和 R10（gongfu、训练模式、工具、六个角色全部换成生成的画，三气、胜利姿势、语音、主题曲和场景、三局两胜、Toy 版）。
+
+剩下的按依赖拆成七项，T1–T4 互不依赖，可以并行（子代理最多 3 个）：
+
+| 项 | 内容 | 依赖 | 本地验证 |
+|---|---|---|---|
+| T1 | 运行时的撤销和事务：reversible 的动作带逆操作，事务把一组动作合成一个（一起成功或一起撤回），agent 的 dry-run（只算结果不提交） | — | core / view 的测试；agent 协议的测试 |
+| T2 | `media.timeline`：轨道、片段、时间映射、关键帧（hanim 的曲线）的数据模型，读写 `*.timeline.omui.toml`；之后 `components/timeline` | — | 读写回自身、求值确定、wasm 上同样的结果 |
+| T3 | `media.video`：帧管线把呈现换成编码；内置 PNG 序列和 Y4M、WAV 音轨；WebM（libwebm）+ VP9（libvpx）经 mwrap 作为插件（上游先做）；和音频按样本同步 | — | 离线导出逐位确定（哈希固定）；编码后解码回来对照 |
+| T4 | W2 剩下的：输入法的隐藏 textarea、剪贴板、语义 DOM 镜像、`window.omui`（经 `openas::decide`）、`Store`（localStorage） | — | Web 行（node）里用模拟的 DOM 测；本机浏览器 |
+| T5 | W3：`site/`、构建时预渲染、Pages 部署 | T4 | 本机浏览器；Pages |
+| T6 | `rhi.webgpu`（Slang → WGSL），然后 `rhi.webgl` | R2 | rhi.cts；浏览器 |
+| T7 | S5 宣传片 | T1、T2、T3 | S5 的验收 |
+
 ### 13.3 GitHub Pages
 
 仓库的 Pages 已经开启（`build_type: workflow`，地址 `https://sunrisepeak.github.io/mui/`）。`github-pages` 环境现在只允许 `main` 部署；W2 起在环境的部署分支规则里加上 `openmui-design`，PR 分支上的 Pages 工作流就能部署测试页：W2 的浏览器测试页（示例 01、S1 缩小版、帧哈希对照）、W3 的官网、R7 的 WebGL2 和模拟 Toy 环境。

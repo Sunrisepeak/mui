@@ -1,0 +1,9 @@
+// Example 01's build program: its own source carried in the program
+// (`hello::hello_source`), so whoever shows it running can show it written.
+import std;
+import mcpp;
+import openmui.rules;
+
+int main() {
+    return openmui::rules::embed({.module = "hello", .ns = "hello", .dir = "src", .suffix = ".cppm", .tag = "source"}) ? 0 : 1;
+}

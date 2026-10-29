@@ -15,6 +15,11 @@ license     = "Apache-2.0"
 [package.metadata.openmui]
 kind = "example"
 
+# The application as a library too: openmui's site runs it live in a place,
+# beside its own source (`hello::hello_source`, embedded by build.mcpp).
+[targets.openmui-example-hello-im]
+kind = "lib"
+
 [targets.hello-im]
 kind = "bin"
 main = "src/main.cpp"
@@ -24,6 +29,9 @@ sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
 openmui.sdk = { path = "../.." }
+
+[build-dependencies]
+openmui.rules = { path = "../../mcpp/rules", host-module = true }
 
 [dev-dependencies]
 openmui.testing = { path = "../../modules/base/testing" }

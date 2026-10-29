@@ -9,6 +9,8 @@ import openmui;
 import openmui.ui.markdown;
 import openmui.ui.timeline;
 import openmui.ui.canvas;
+import openmui.showcase.markdown_wall;
+import hello;
 import openmui.semantic;
 import openmui.trace;
 
@@ -23,7 +25,12 @@ constexpr Log site_log{"site"};
 constexpr std::string_view atlas_path = "main/body/view/atlas";
 constexpr std::string_view place_root = "main/body/view/atlas/";
 
-constexpr std::array<Place, 4> all{{{"home", "Home", "首页"}, {"features", "Features", "特性"}, {"practices", "Practices", "实践"}, {"timeline", "Timeline", "时间线"}}};
+constexpr std::array<Place, 6> all{{{"home", "Home", "首页"},
+                                     {"features", "Features", "特性"},
+                                     {"practices", "Practices", "实践"},
+                                     {"timeline", "Timeline", "时间线"},
+                                     {"wall", "Document wall", "文档墙"},
+                                     {"hello", "Example 01", "示例 01"}}};
 
 std::string_view embedded(std::span<const std::pair<std::string_view, std::string_view>> table, std::string_view file) {
     for (const auto& [name, text] : table)
@@ -80,12 +87,25 @@ struct Site {
     Signal<int>         switches = signal(0);   // the language switched this many times
     double              switched_at = -1;       // when it last did (the runtime's seconds)
     Signal<std::string> timeline = signal(std::string(sample));  // the timeline as last edited
+    hello::State        hello;                 // example 01's, as the person left it
+    std::unique_ptr<wall::Model> wall;         // S1's wall of the site's documents
     std::unique_ptr<Guide> guide;
 
     // The atlas: its scene (by a name of this site's own) and its layout.
     std::string         scene_name;
     AtlasLayout         layout;
     std::function<void()> kinds;  // registers the atlas's kinds again (their tiers follow the layout)
+
+    Site() = default;
+    Site(const Site&) = delete;
+    Site& operator=(const Site&) = delete;
+    // What the pool still draws of the windows (and of the wall's) is done
+    // before what it reads goes; then the atlas's scene goes too.
+    ~Site() {
+        Tasks::shared().wait_idle();
+        wall.reset();
+        if (!scene_name.empty()) world::drop_scene(scene_name);
+    }
 
     [[nodiscard]] Canvas* atlas() const { return runtime ? runtime->component<Canvas>(runtime->find(atlas_path)) : nullptr; }
     [[nodiscard]] world::Scene& scene() const { return world::scene(scene_name); }
@@ -379,28 +399,79 @@ Element guide_panel(const std::shared_ptr<Site>& s) {
 
 // Shaped labels, kept per text (shaping is not per frame).
 struct Labels {
-    std::map<std::string, typeset::Paragraph, std::less<>> shaped;
-    bool                                                   dark = false;
-    const typeset::Paragraph& get(world::DrawContext& d, std::string_view text, float size, Color colour) {
+    // By text and size: a label is drawn at the size the camera gives it, in whole pixels.
+    std::map<std::pair<std::string, int>, typeset::Paragraph, std::less<>> shaped;
+    bool                                                                  dark = false;
+    const typeset::Paragraph& get(world::DrawContext& d, std::string_view text, int size, Color colour) {
         if (d.theme.dark != dark) {
             shaped.clear();
             dark = d.theme.dark;
         }
-        auto it = shaped.find(text);
+        std::pair<std::string, int> key{std::string(text), size};
+        auto it = shaped.find(key);
         if (it == shaped.end()) {
             typeset::ParagraphStyle ps;
-            ps.style.size = size;
+            ps.style.size = static_cast<float>(size);
             ps.style.weight = 650;
             ps.style.color = colour;
             ps.style.families = d.theme.text_style("title").families;
             ps.wrap = false;
             typeset::Paragraph p(*d.fonts, std::string(text), ps);
             p.layout(std::numeric_limits<float>::infinity());
-            it = shaped.emplace(std::string(text), std::move(p)).first;
+            it = shaped.emplace(std::move(key), std::move(p)).first;
         }
         return it->second;
     }
 };
+
+// A work's window: the work itself, running, when the window is live; far
+// away (a texture, drawn away from the UI thread, values only) what it is.
+Element work_window(const std::shared_ptr<Site>& s, const std::string& id, bool live) {
+    const Size v = s->layout.view;
+    const bool zh = s->lang.peek() == "zh";
+    auto say = [zh](std::string_view en, std::string_view han) { return std::string(zh ? han : en); };
+    auto later = [&](std::string_view what) {
+        return box({.id = "later", .justify = "center", .align = "center", .grow = 1, .background = "surface", .radius = 12},
+                   {text({.text = std::string(what), .style = "caption", .color = "text_muted"})});
+    };
+    if (id == "hello") {
+        // Example 01, the shortest openmui program, running beside its own source (embedded by its build).
+        Element run = live ? hello::app(s->hello).view() : later(say("It runs here, close up.", "走近，它就在这里运行。"));
+        return row({.id = "page", .width = Dim(v.width), .height = Dim(v.height), .padding = Edges(32.0f, 40.0f), .gap = 32, .align = "stretch", .background = "background"},
+                   {column({.width = Dim(440.0f), .gap = 14},
+                           {text({.id = "title", .text = say("Example 01 — hello, immediate mode", "示例 01：你好，立即模式"), .style = "title"}),
+                            text({.id = "about",
+                                  .text = say("A whole openmui program, running here: type a name, click the button. Its interface is declared each frame "
+                                              "in plain C++; an agent finds the field by its role, and renaming the button keeps its id.",
+                                              "一个完整的 openmui 程序，就在这里运行：输入名字，点按钮。界面每一帧用普通的 C++ 声明；agent 按角色找到输入框，"
+                                              "按钮改名后 id 不变。"),
+                                  .style = "body"}),
+                            box({.id = "run", .width = Dim(420.0f), .height = Dim(280.0f), .background = "surface", .border_color = "border", .border_width = 1, .radius = 12,
+                                 .clip = true},
+                                {std::move(run)})}),
+                    scroll({.id = "code", .grow = 1, .padding = Edges(16.0f, 20.0f), .background = "surface"},
+                           {text({.id = "source", .text = std::string(hello::hello_source), .style = "code"})})});
+    }
+    // S1's wall, small: the site's documents in both languages and the benchmark's, on a canvas of their own.
+    Element wall = live && s->wall ? canvas({.id = "wall",
+                                             .behaviors = std::vector<std::string>{"select", "drag", "snap", "minimap", "group-drag", "views"},
+                                             .label = say("openmui's documents as a wall", "openmui 的文档墙"),
+                                             .max_zoom = 8,
+                                             .min_zoom = 0.004,
+                                             .scene = s->wall->scene,
+                                             .start = "fit",
+                                             .grow = 1})
+                                   : later(say("A wall of documents, live close up.", "一面文档墙，走近就是活的。"));
+    return column({.id = "page", .width = Dim(v.width), .height = Dim(v.height), .padding = Edges(24.0f, 32.0f), .gap = 12, .background = "background"},
+                  {text({.id = "title", .text = say("The document wall (S1)", "文档墙（S1）"), .style = "title"}),
+                   text({.id = "about",
+                         .text = say("Every document on one infinite canvas: far away a block, nearer a texture drawn offscreen, close up a live document. "
+                                     "Drag a workspace by its label, a window by its title bar; 2 shows them all, 1 is one to one.",
+                                     "所有文档在一块无限画布上：远处是色块，近一些是离屏画好的纹理，再近就是活的文档。拖工作区的标签、窗口的标题栏；"
+                                     "按 2 看全部，按 1 回到一比一。"),
+                         .style = "body"}),
+                   std::move(wall)});
+}
 
 // A place's window: what it shows, at the view's size. Live, it is bound to
 // the site (the language, the timeline as edited, links); as a texture
@@ -431,6 +502,7 @@ Element place_window(const std::shared_ptr<Site>& s, const std::string& id, bool
                              .style = "body"}),
                        std::move(editor)});
     }
+    if (id == "hello" || id == "wall") return work_window(s, id, live);
     Element doc = live ? retyped(markdown({.id = "doc",
                                            .origin = MarkdownOrigin::app,
                                            .source = computed([s, id] { return std::string(document(id, s->lang.get())); }),
@@ -454,14 +526,23 @@ void atlas_kinds(const std::shared_ptr<Site>& s) {
                                             const float r = static_cast<float>(14 * d.zoom);
                                             d.list.fill_round_rect(d.screen, CornerRadii::all(r), render::Paint::solid(d.theme.color("surface")));
                                         },
-                                    .promote = [s](const world::Scene& sc, world::NodeRef n) { return place_window(s, std::string(sc.key(n)), true); },
-                                    .view = [s](const world::Scene& sc, world::NodeRef n) { return place_window(s, std::string(sc.key(n)), false); },
+                                    // The scene is the process's (by name): what it holds of the site is a weak reference, the site its owner.
+                                    .promote =
+                                        [w = std::weak_ptr<Site>(s)](const world::Scene& sc, world::NodeRef n) {
+                                            const auto p = w.lock();
+                                            return p ? place_window(p, std::string(sc.key(n)), true) : box({});
+                                        },
+                                    .view =
+                                        [w = std::weak_ptr<Site>(s)](const world::Scene& sc, world::NodeRef n) {
+                                            const auto p = w.lock();
+                                            return p ? place_window(p, std::string(sc.key(n)), false) : box({});
+                                        },
                                     .role = Role::article});
     scene.kind("label", world::Kind{.tiers = {{0, Tier::Draw::custom}},
                                     .draw =
                                         [labels](world::DrawContext& d) {
                                             if (!d.fonts || d.screen.height < 6) return;
-                                            const float size = std::clamp(d.screen.height * 0.42f, 13.0f, 26.0f);
+                                            const int size = static_cast<int>(std::lround(std::clamp(d.screen.height * 0.42f, 13.0f, 26.0f)));
                                             const auto& p = labels->get(d, d.scene.text(d.node, "title"), size, d.theme.color("text"));
                                             const Size t = p.size();
                                             p.paint(d.list, {d.screen.x + 4, d.screen.y + d.screen.height - t.height - 6});
@@ -483,6 +564,7 @@ AppSpec app(std::string_view place, std::string_view lang) {
     a.setup = [s](Runtime& rt) {
         s->runtime = &rt;
         register_type(component_type<Lens>());
+        register_base_components();  // example 01's immediate controls ask for them by name
         // The atlas: a scene of this site's own, laid out for the window's size until the canvas has its own.
         static std::atomic<int> sites{0};
         s->scene_name = std::format("openmui.site.{}", sites++);
@@ -490,6 +572,25 @@ AppSpec app(std::string_view place, std::string_view lang) {
             if (auto p = site.lock()) atlas_kinds(p);
         };
         s->relayout({rt.size().width - 188, rt.size().height - 56 - 28});
+        // S1's wall: the site's documents in both languages, and the benchmark's set beside them.
+        s->wall = std::make_unique<wall::Model>();
+        s->wall->title = "openmui's documents";
+        s->wall->scene = s->scene_name + ".wall";
+        s->wall->runtime = &rt;
+        for (const std::string_view lang : {"en", "zh"})
+            for (const Place& p : all)
+                if (const std::string_view src = document(p.id, lang); !src.empty()) {
+                    const std::string path = std::format("{}/{}.md", lang, p.id);
+                    std::string title(lang == "zh" ? p.zh : p.en);
+                    if (src.starts_with("# ")) title = std::string(src.substr(2, src.find('\n') - 2));
+                    s->wall->docs.push_back({wall::key_of(path), std::move(title), path, std::string(lang), std::string(src)});
+                }
+        for (wall::Document& d : wall::synthetic(18, 7, 2)) {
+            d.group = "benchmark/" + d.group;
+            s->wall->docs.push_back(std::move(d));
+        }
+        wall::register_all();
+        wall::build(*s->wall, world::scene(s->wall->scene));
         s->guide = std::make_unique<Guide>(rt, [site = s.get()] { return site->place.get(); });
         rt.stage_plugins().add({.name = "openmui.site.tree_watch", .kind = "stage", .description = "the site's place read again when its tree changed"},
                                [site = s.get()](const pipeline::Config&) -> std::expected<std::unique_ptr<pipeline::Stage>, std::string> {
@@ -566,15 +667,43 @@ AppSpec app(std::string_view place, std::string_view lang) {
     return a;
 }
 
+namespace {
+
+// Text as HTML: its markup characters escaped.
+std::string escaped(std::string_view text) {
+    std::string out;
+    for (const char c : text) {
+        switch (c) {
+            case '&': out += "&amp;"; break;
+            case '<': out += "&lt;"; break;
+            case '>': out += "&gt;"; break;
+            case '"': out += "&quot;"; break;
+            default: out += c;
+        }
+    }
+    return out;
+}
+
+}  // namespace
+
 std::string static_html(std::string_view lang) {
     std::string out = std::format("<main id=\"omui-static\" lang=\"{}\">\n<nav>", lang == "zh" ? "zh-CN" : "en");
     for (const Place& p : all) out += std::format("<a href=\"#/{}{}\">{}</a> ", lang == "zh" ? "zh/" : "", p.id, lang == "zh" ? p.zh : p.en);
     out += "</nav>\n";
     for (const Place& p : all) {
         out += std::format("<section id=\"/{}{}\">\n", lang == "zh" ? "zh/" : "", p.id);
+        const bool zh = lang == "zh";
         if (const std::string_view doc = document(p.id, lang); !doc.empty()) out += md::to_html(md::parse(doc));
-        else out += lang == "zh" ? "<h1>时间线编辑器</h1>\n<p>一个可用的时间线编辑器：拖动、修剪、切开，每次编辑都能精确撤销。需要 JavaScript。</p>\n"
-                                 : "<h1>A timeline editor</h1>\n<p>A working timeline editor: drag, trim and split clips, every edit undone exactly. It needs JavaScript.</p>\n";
+        else if (p.id == "timeline")
+            out += zh ? "<h1>时间线编辑器</h1>\n<p>一个可用的时间线编辑器：拖动、修剪、切开，每次编辑都能精确撤销。需要 JavaScript。</p>\n"
+                      : "<h1>A timeline editor</h1>\n<p>A working timeline editor: drag, trim and split clips, every edit undone exactly. It needs JavaScript.</p>\n";
+        else if (p.id == "wall")
+            out += zh ? "<h1>文档墙（S1）</h1>\n<p>所有文档在一块无限画布上：远处是色块，近一些是离屏画好的纹理，再近就是活的文档。需要 JavaScript。</p>\n"
+                      : "<h1>The document wall (S1)</h1>\n<p>Every document on one infinite canvas: far away a block, nearer a texture drawn offscreen, close up a live document. It needs JavaScript.</p>\n";
+        else if (p.id == "hello")
+            out += std::format("<h1>{}</h1>\n<p>{}</p>\n<pre><code>{}</code></pre>\n", zh ? "示例 01：你好，立即模式" : "Example 01 — hello, immediate mode",
+                               zh ? "一个完整的 openmui 程序。运行它需要 JavaScript；它的全部源码如下。" : "A whole openmui program. Running it needs JavaScript; here is all of its source.",
+                               escaped(hello::hello_source));
         out += "</section>\n";
     }
     out += "</main>\n";

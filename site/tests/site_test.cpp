@@ -73,8 +73,8 @@ int main(int argc, char** argv) {
 
     s.test("every place has its document in both languages; the content is what the docs say", [] {
         for (const site::Place& p : site::places()) {
-            if (p.id == "timeline") {
-                check(site::document(p.id, "en").empty(), "the timeline is a live work, not a document");
+            if (p.id == "timeline" || p.id == "wall" || p.id == "hello") {
+                check(site::document(p.id, "en").empty(), std::format("{} is a live work, not a document", p.id));
                 continue;
             }
             for (std::string_view lang : {"en", "zh"}) {
@@ -97,7 +97,7 @@ int main(int argc, char** argv) {
             for (const site::Place& q : site::places())
                 check(a.shown(q.id) == (p.id == q.id), std::format("{} shown: {}", p.id, q.id));
             const std::size_t nodes = a.snapshot(p.id).get("nodes")->list()->size();
-            check(nodes >= (p.id == "timeline" ? 3u : 5u), std::format("{}: its tree ({} nodes)", p.id, nodes));
+            check(nodes >= 3u, std::format("{}: its tree ({} nodes)", p.id, nodes));
         }
     });
 
@@ -209,6 +209,38 @@ int main(int argc, char** argv) {
         check(a.h.tree().act(editor, "undo", agent).exit_code().value_or(-1) == std::int64_t{0}, "undone in the editor's own history");
         a.h.settle();
         check(tracks() == was, "the very timeline again");
+    });
+
+    s.test("the works run in their places: example 01 typed into and clicked, S1's wall live with the site's documents", [] {
+        Site a;
+        check(a.h.click("main/body/nav/to_hello"));
+        a.h.settle(seconds(3));
+        constexpr std::string_view run = "main/body/view/atlas/hello/page";
+        const auto field = a.h.tree().find({.under = std::string(run), .role = Role::text_box});
+        check(!field.empty(), "example 01's field, found by its role");
+        check(!field.empty() && a.h.click(field.front().id), "its field focused");
+        a.h.type("Ada");
+        a.h.settle();
+        const auto button = a.h.tree().find({.under = std::string(run), .role = Role::button});
+        Invocation agent;
+        agent.actor = {"agent", "visitor", {}};
+        check(!button.empty() && a.h.tree().act(button.front().id, "activate", agent).exit_code() == std::optional<int>(0), "its button activated by an agent");
+        a.h.settle();
+        bool greeted = false, counted = false;
+        for (const auto& n : a.h.tree().snapshot({.root = std::string(run)}).nodes) {
+            greeted = greeted || n.name == "Nice to meet you, Ada!";
+            counted = counted || n.name == "Clicked 1 times";
+        }
+        check(greeted, "the program ran: greeted");
+        check(counted, "the program ran: counted");
+        check(a.text("main/body/view/atlas/hello/page/code/source").contains("export module hello;"), "its source beside it");
+
+        check(a.h.click("main/body/nav/to_wall"));
+        a.h.settle(seconds(3));
+        const auto wall = a.h.tree().node("main/body/view/atlas/wall/page/wall");
+        check(wall && wall->role == Role::canvas, "the wall's canvas, live");
+        const auto windows = a.h.tree().find({.under = "main/body/view/atlas/wall/page/wall", .role = Role::window});
+        check(windows.size() >= 6, std::format("its windows: {}", windows.size()));
     });
 
     s.test("a document's links: another place of the site, or outside through the host", [] {
@@ -323,6 +355,13 @@ int main(int argc, char** argv) {
         a.h.settle();
         all.u64(a.pixels());
         check(a.h.save_png(dir / "timeline.png").has_value());
+        for (std::string_view work : {"wall", "hello"}) {
+            check(a.h.click(std::format("main/body/nav/to_{}", work)));
+            a.h.move({4, 796});
+            a.h.settle(seconds(3));
+            all.u64(a.pixels());
+            check(a.h.save_png(dir / std::format("{}.png", work)).has_value());
+        }
         // The agent asks before something external (S-11), the answer the person's alone (S-10).
         check(a.h.click("main/body/nav/to_home"));
         check(a.h.click("main/bar/guide_toggle"));
@@ -341,7 +380,7 @@ int main(int argc, char** argv) {
         all.u64(a.pixels());
         check(a.h.save_png(dir / "zh.png").has_value());
         std::println("    pixels {}", all.hex());
-        check_eq(all.hex(), std::string("609d3bc06e26b5b2"));
+        check_eq(all.hex(), std::string("f140e8ef22457117"));
     });
 
     s.test("the static page: every place's HTML, md4c-html's bytes, in a page that hides it once the program runs", [] {
@@ -356,8 +395,8 @@ int main(int argc, char** argv) {
         // The site's own part pinned (the docs change with the framework; they are held to md4c-html's bytes above).
         auto own = [](const std::string& html) { return html.substr(0, html.find("<section id=\"/", html.find("<section id=\"/") + 1)); };
         std::println("    static en {:016x} zh {:016x}", fnv(own(en)), fnv(own(site::static_html("zh"))));
-        check_eq(std::format("{:016x}", fnv(own(en))), std::string("b9a7917262a78ce0"));
-        check_eq(std::format("{:016x}", fnv(own(site::static_html("zh")))), std::string("32c1727fd259c0e2"));
+        check_eq(std::format("{:016x}", fnv(own(en))), std::string("394c40dd2e8bb39e"));
+        check_eq(std::format("{:016x}", fnv(own(site::static_html("zh")))), std::string("d7781b73d6a9e364"));
 
         const auto out = site::inject(page, en, "zh");
         check(out.has_value(), "dist-toy's page");

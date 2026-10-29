@@ -11,7 +11,10 @@ The site shows openmui's thesis instead of describing it: **the interface is a s
 - **Places, not pages.** The places are:
   - the home page;
   - the framework's documents (`docs/en`, `docs/zh`: features and practices), rendered by `openmui.ui.markdown`;
-  - a live work: a timeline editor (`openmui.ui.timeline`) with its own undo history (S-12).
+  - live works:
+    - a timeline editor (`openmui.ui.timeline`) with its own undo history (S-12);
+    - the document wall, S1 small: the site's documents in both languages and the benchmark's set, on a canvas of their own (select, drag, snap, minimap, group drag, named views);
+    - example 01 (`examples/01-hello-im`), the shortest openmui program, running in a frame beside its own source. A person or an agent types into it and clicks it.
 
   Each place is a window on one infinite canvas (`openmui.ui.canvas`, S1's approach; `src/atlas.*`). A window is the size of the view, so a place is read at zoom 1, like a page.
   - **Overview** flies the camera out to show every place whole.
@@ -64,7 +67,8 @@ python3 -m http.server -d target/site            # and look at it
 - the lens's four renderings of the same nodes;
 - the home tree's hash, pinned, and the same in a narrower window;
 - the timeline editor: an agent's edit followed by the tree, then undone;
-- the pixels of home, the overview, the wireframe, the agent's JSON, the timeline, the agent asking and the Chinese page, pinned on every platform;
+- the works: example 01 typed into and clicked, the wall's canvas live with the site's documents;
+- the pixels of home, the overview, the wireframe, the agent's JSON, the timeline, the wall, example 01, the agent asking and the Chinese page, pinned on every platform;
 - the static HTML and its injection into dist-toy's page.
 
 Changing a document changes the pinned hashes. Look at the pictures (`$TMPDIR/openmui-tests/site/`), then update the pins.

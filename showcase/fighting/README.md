@@ -1,6 +1,6 @@
 # 格斗游戏 — the fighting game
 
-`omui-fight` is gongfu's match (`mgame/gongfu`) on openmui's stage: two fighters at 60 frames a second, from the keyboard or an agent, drawn in 2D by `gongfu.present2d`, with a training mode that shows every box and a frame meter (D-85 §8.7). Its name will come later. Six fighters, chosen by the stage's `player1` and `player2` properties:
+`omui-fight` is gongfu's match (`mgame/gongfu`) on openmui's stage: two fighters at 60 frames a second, from the keyboard or an agent, drawn in 2D by `gongfu.present2d`, with a training mode that shows every box and a frame meter (D-85 §8.7). Its working title is 拳意. It opens on a title and a select screen. Six fighters, chosen there or by the stage's `player1` and `player2` properties:
 - Kata, the training fighter;
 - the five designed ([characters design](../../.agents/docs/2026-10-28-gongfu-characters-design.md), [characters design 2](../../.agents/docs/2026-10-28-gongfu-characters-2-design.md)): 墨 (Mo), the ink brush-staff fighter — keep-away with waves of ink and a long reach (her art generated and skinned on bones: the [art pipeline](../../.agents/docs/2026-10-29-fighting-art-pipeline-design.md)); 霓 (Ni), the street fighter — rushdown; 璃 (Li), glass — set-ups with panes; 岳 (Yue), the giant — throws and armour; 刻 (Ke), time — rewinds and a clone.
 
@@ -19,6 +19,13 @@ mcpp run -p openmui.showcase.fighting -- --headless --png fight.png
 | Player 1 | W A S D | U I O | J K L |
 | Player 2 | ← ↑ → ↓ | Insert Home PageUp | Delete End PageDown |
 
+- **The title and the select screen** come before the fight (the `select` component, `src/select.cpp`):
+  - the title offers 对战 (versus) and 训练 (training);
+  - on the select screen each player's cursor moves over the roster's tiles; a big lit preview of whom it rests on plays their idle, under their name in calligraphy;
+  - behind it all, the home stage of whom player 1 is on pans slowly;
+  - both ready, VS has its moment and the fight starts on player 1's home. A round over, the select screen comes back with the same fighters under the cursors.
+
+  The keys are the fight's (player 1 U confirms and J goes back, player 2 Insert and Delete), and a gamepad's south confirms and east goes back. An agent uses the same screen through its `move`, `confirm` and `back` actions. Its art (`hud/menu-*.webp`) was generated and keyed like the HUD's.
 - **Fighters are files** built into the program, in the formats a mod will use:
   - `fighters/<name>.fighter.gongfu.toml` is what the fighter does (`gongfu.data`);
   - `fighters/<name>.look.gongfu.toml` is how it looks and how its hits feel (`gongfu.present2d`): palettes for the two sides, bones, parts, clips and impact profiles.
@@ -56,7 +63,7 @@ mcpp run -p openmui.showcase.fighting -- --headless --png fight.png
 
   `gongfu-studio stage` previews a stage with two fighters for scale.
 
-`tests/fighting_test.cpp` covers:
+`tests/select_test.cpp` covers the menus: the title's modes, choosing by keys and by gamepad, and the title and the select screen with pinned pixels. `tests/fighting_test.cpp` covers:
 - the roster read;
 - 60 frames a second on the clock, exactly;
 - the keyboard walking both players;

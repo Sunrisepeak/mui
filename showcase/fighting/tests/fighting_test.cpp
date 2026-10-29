@@ -23,7 +23,7 @@ struct Game {
         : h{HeadlessOptions{.size = {960, 540}, .scale = scale}} {
         AppSpec spec = fighting::app();
         spec.setup(h.runtime());
-        if (mode == "versus" && player1.empty() && player2.empty()) {
+        if (mode == "app") {  // the whole application: the title first
             h.mount("main", spec.view());
         } else {
             h.mount("main", fighting::stage({.id = "stage", .arena = std::string(arena), .mode = std::string(mode), .overlays = overlays, .player1 = std::string(player1),

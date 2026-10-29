@@ -162,6 +162,11 @@ The tools' openmui interfaces (a rig editor, a pose editor with IK handles, a ti
   - combos, COUNTER and PUNISH COUNTER, K.O.
 
   It is all a pure function of the match and its kept events. Calligraphy and coloured digits sit on lacquer plates or ink edges, so they read on paper and on night scenes alike.
+- **The menus** (the title and the select screen) are a component of their own beside the stage, with the same keys and pads. The application keeps what was chosen in signals: the stage's `player1`, `player2`, `mode` and `arena` follow them, and the two screens' `visible` and `active` are computed from whether a fight is on. The select screen's `chosen` event starts the fight, and the stage's `round_over` brings the select screen back.
+  - Its art is generated lacquer and gold like the HUD's: the logo, the mode bars, tiles, banners and their lit versions, 对战 and 训练 in calligraphy. The regions are named in code.
+  - The previews are the fighters' own looks drawn by `gongfu.present2d`'s painter at 1.75× in the banners (their materials under the default light), so a look change shows here at once.
+  - The roster's pictures are registered once per image store (`Registered`) and shared by the stage and the menus.
+  - It is a pure function of its frame and its choices, so `tests/select_test.cpp` pins its pixels like the fight's.
 - **Afterimages and clones** are the part's shape in one colour (`draw_mesh_mask`), not a faded copy, so 霓's trail reads as neon.
 - **Hit feel**, the five parts (hardcore design §2.6), each checked by a test:
   - **Hitstop:** light < medium < heavy for every fighter's normals. A counter adds 2 frames and a punish counter 4, for both fighters.

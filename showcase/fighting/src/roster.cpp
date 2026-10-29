@@ -5,6 +5,7 @@ import gongfu.data;
 import gongfu.present2d;
 import openmui.image;
 import openmui.raster;
+import openmui.render.vector;
 
 namespace omui::fighting {
 
@@ -101,6 +102,37 @@ const p2::Stage* stage_art(std::string_view arena, std::string_view player1) {
     }
     const auto it = r.stages.find(name);
     return it == r.stages.end() ? nullptr : &it->second;
+}
+
+Registered::~Registered() {
+    if (!store) return;
+    for (const auto& [file, ref] : art) store->remove(ref);
+    for (const auto& [file, ref] : normals) store->remove(ref);
+}
+
+omui::render::ImageRef Registered::picture(std::string_view file) const {
+    const auto it = art.find(file);
+    return it == art.end() ? omui::render::ImageRef{} : it->second;
+}
+
+void Registered::bind(std::vector<p2::Picture>& pictures, std::string_view prefix) const {
+    for (p2::Picture& pic : pictures) {
+        const std::string file = std::format("{}{}", prefix, pic.file);
+        pic.ref = picture(file);
+        if (const auto n = normals.find(file); n != normals.end()) pic.normal = n->second;
+    }
+}
+
+std::shared_ptr<const Registered> registered(omui::render::ImageStore& store) {
+    // By store: one registration while anything holds it (the UI thread's, like the store).
+    static std::map<omui::render::ImageStore*, std::weak_ptr<const Registered>> held;
+    if (auto alive = held[&store].lock()) return alive;
+    auto r = std::make_shared<Registered>();
+    r->store = &store;
+    for (const auto& [file, a] : roster().art) r->art.emplace(file, store.add(a.width, a.height, a.pixels));
+    for (const auto& [file, a] : roster().normals) r->normals.emplace(file, store.add(a.width, a.height, a.pixels));
+    held[&store] = r;
+    return r;
 }
 
 std::size_t fighter_index(std::string_view name) {

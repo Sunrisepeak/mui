@@ -7,6 +7,7 @@ export import openmui;
 export import gongfu.present2d;
 export import gongfu.training;
 export import :stage_contract;
+export import :select_contract;
 export import :gongfu_fighters;
 export import :roster;
 export import :hud;
@@ -19,6 +20,7 @@ export import :pad_controls;
 export import :art_files;
 export import :hud_files;
 export import :stage;
+export import :select;
 
 export namespace omui::fighting {
 

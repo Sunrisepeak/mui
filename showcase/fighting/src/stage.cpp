@@ -96,18 +96,13 @@ void Stage::start_round() {
     right_ = fighter_index(props.player2);
     match_ = std::make_unique<gongfu::Match>(r.system, r.fighters[left_], r.fighters[right_]);
     looks_ = {r.looks[2 * left_], r.looks[2 * right_ + 1]};
-    for (p2::Look& look : looks_)
-        for (p2::Picture& pic : look.pictures)
-            if (const auto it = art_.find(pic.file); it != art_.end()) {
-                pic.ref = it->second;
-                if (const auto n = normals_.find(pic.file); n != normals_.end()) pic.normal = n->second;
-            }
+    if (art_)
+        for (p2::Look& look : looks_) art_->bind(look.pictures);
     // The stage's art, its painted layers' pictures registered.
     stage_.reset();
     if (const p2::Stage* art = stage_art(props.mode == "training" && props.arena.empty() ? std::string_view("plain") : std::string_view(props.arena), props.player1)) {
         stage_ = *art;
-        for (p2::Picture& pic : stage_->pictures)
-            if (const auto it = art_.find(std::format("stages/{}", pic.file)); it != art_.end()) pic.ref = it->second;
+        if (art_) art_->bind(stage_->pictures, "stages/");
     }
     effects_ = {};
     readout_.clear();
@@ -124,16 +119,11 @@ void Stage::start_round() {
 Stage::~Stage() {
     if (!attached()) return;
     if (timer_) services().cancel(timer_);
-    for (const auto& [file, ref] : art_) services().images().remove(ref);
-    for (const auto& [file, ref] : normals_) services().images().remove(ref);
 }
 
 void Stage::mounted() {
     frame_.reserve(512);
-    for (const auto& [file, a] : roster().art)
-        if (!art_.contains(file)) art_.emplace(file, services().images().add(a.width, a.height, a.pixels));
-    for (const auto& [file, a] : roster().normals)
-        if (!normals_.contains(file)) normals_.emplace(file, services().images().add(a.width, a.height, a.pixels));
+    art_ = registered(services().images());
     start_round();
     if (hearing() && !heard_) heard_ = hearing()(sounds_);  // the program hears the fight (a device on its mixer)
     services().focus(node());  // the keyboard is the players'
@@ -156,7 +146,12 @@ void Stage::schedule() {
 
 void Stage::prop_changed(StageProp p) {
     if (!attached()) return;
-    if (p == StageProp::player1 || p == StageProp::player2) start_round();  // another fighter: a new round
+    // Another fighter, another mode or another stage: a new round.
+    if (p == StageProp::player1 || p == StageProp::player2 || p == StageProp::mode || p == StageProp::arena) start_round();
+    if (p == StageProp::paused && !props.paused) {  // playing again: the keyboard is the players'; a finished round, a new one
+        if (match_ && match_->state().over) start_round();
+        services().focus(node());
+    }
     services().invalidate_paint(node());
     services().invalidate_semantics(node());
 }
@@ -215,6 +210,11 @@ bool Stage::on_gamepad(const GamepadEvent& e) {
         if (free == gamepads_.end()) return false;
         *free = Gamepad{.device = e.device};
         return true;
+    }
+    if (seat == gamepads_.end() && e.kind != GamepadKind::disconnected) {
+        // A pad connected while another screen had the keyboard (the select): it takes a free seat now.
+        seat = std::ranges::find_if(gamepads_, [](const Gamepad& g) { return !g.device; });
+        if (seat != gamepads_.end()) *seat = Gamepad{.device = e.device};
     }
     if (seat == gamepads_.end()) return false;
     switch (e.kind) {
@@ -277,10 +277,7 @@ void Stage::paint(PaintContext& ctx) const {
     const p2::Look& right = looks_[1];
     painter_.draw(*match_, left, right, effects_, scene, frame);
 
-    const auto art = [&](std::string_view file) {
-        const auto it = art_.find(file);
-        return it == art_.end() ? render::ImageRef{} : it->second;
-    };
+    const auto art = [&](std::string_view file) { return art_ ? art_->picture(file) : render::ImageRef{}; };
     hud::versus(frame, *match_, effects_, {art("hud/frames.webp"), art("hud/type.webp"), art("hud/names.webp"), art("hud/fill.webp")}, {&left, &right},
                 {r.names[left_], r.names[right_]});
     // Training's overlays, but not over a super's flash or a cinematic: those are the picture.

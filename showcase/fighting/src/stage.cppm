@@ -70,8 +70,7 @@ private:
     std::array<gongfu::present2d::Look, 2> looks_;
     // The stage's art with its pictures registered (none: the plain room).
     std::optional<gongfu::present2d::Stage> stage_;
-    std::map<std::string, render::ImageRef, std::less<>> art_;
-    std::map<std::string, render::ImageRef, std::less<>> normals_;  // their reliefs, by the same file
+    std::shared_ptr<const Registered>     art_;
     gongfu::present2d::Effects            effects_;
     std::set<Key>                         held_;
     // The players' gamepads: the first two connected, each in the seat it took.

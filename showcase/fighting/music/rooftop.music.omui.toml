@@ -247,9 +247,28 @@ gain = 0.8
 pan = 0.4
 humanize = 0.5
 
+# ── the air (the city: a low hum under the beat) ────────
+
+[patch.hum]
+engine = "analog"
+gain = 0.2
+osc = { wave = "noise" }
+amp = { attack = 2, decay = 1, sustain = 1, release = 2 }
+filter = { kind = "lowpass", cutoff = 420, q = 0.6 }
+
+[instrument.hum]
+patch = "hum"
+bus = "air"
+gain = 2.2
+legato = 1
+voices = 2
+
 # ── buses ────────────────────────────────────────────────────────────────
 
 # Open air: a short, dark reverb off the city's walls.
+[bus.air]
+effects = [{ kind = "highpass", cutoff = 120 }]
+
 [bus.roof]
 effects = [
     { kind = "reverb", size = 0.62, damping = 0.55, predelay = 0.02, wet = 1, dry = 0 },
@@ -647,6 +666,11 @@ step = "1/16"
 kick  = "x............... | ................"
 crash = "X............... | ................"
 
+[pattern.air]
+instrument = "hum"
+step = "1/16"
+notes = "C3:16"
+
 # ── sections ─────────────────────────────────────────────────────────────
 
 [section.intro]
@@ -658,6 +682,7 @@ layers = [
     { pattern = "intro_sub", at = 2 },
     { pattern = "rise", at = 3 },
     { pattern = "scratch", at = 3 },
+    { pattern = "air" },
 ]
 
 [section.a]
@@ -683,6 +708,7 @@ layers = [
     { pattern = "keys_hold_a", instrument = "pad", intensity = [0.85, 1] },
     { pattern = "shaker", intensity = [0.85, 1] },
     { pattern = "roll", at = 3, times = 1, intensity = [0.85, 1] },
+    { pattern = "air" },
 ]
 
 [section.b]
@@ -709,6 +735,7 @@ layers = [
     { pattern = "keys_hold_b", instrument = "pad", intensity = [0.85, 1] },
     { pattern = "shaker", intensity = [0.85, 1] },
     { pattern = "roll", at = 3, times = 1, intensity = [0.85, 1] },
+    { pattern = "air" },
 ]
 
 [section.c]
@@ -735,6 +762,7 @@ layers = [
     { pattern = "keys_hold_c", instrument = "pad", intensity = [0.85, 1] },
     { pattern = "shaker", times = 7, intensity = [0.85, 1] },
     { pattern = "roll", at = 3, times = 1, intensity = [0.85, 1] },
+    { pattern = "air" },
 ]
 
 [section.end]

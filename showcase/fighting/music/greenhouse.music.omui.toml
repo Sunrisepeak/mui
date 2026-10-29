@@ -115,7 +115,41 @@ bus = "drums"
 gain = 0.3
 sends = { hall = 0.2 }
 
+# ── the air (the glass house: a fountain trickling and a bird now and then) ────────
+
+[patch.trickle]
+engine = "analog"
+gain = 0.18
+osc = { wave = "noise" }
+amp = { attack = 1, decay = 1, sustain = 1, release = 1.5 }
+filter = { kind = "bandpass", cutoff = 3200, q = 0.8 }
+
+[patch.bird]
+engine = "fm"
+gain = 0.22
+fm = { ratio = 2, index = 0.6, decay = 0.08 }
+amp = { attack = 0.004, decay = 0.09, sustain = 0, release = 0.04 }
+glide = 0.04
+
+[instrument.trickle]
+patch = "trickle"
+bus = "air"
+gain = 0.55
+pan = -0.4
+legato = 1
+voices = 2
+
+[instrument.bird]
+patch = "bird"
+bus = "air"
+gain = 0.7
+pan = 0.4
+humanize = 0.4
+
 # ── buses ────────────────────────────────────────────────────────────────
+
+[bus.air]
+effects = [{ kind = "highpass", cutoff = 120 }]
 
 [bus.hall]
 effects = [
@@ -297,6 +331,16 @@ instrument = "pad"
 step = "1/1"
 notes = "F#3+A3+C#4+F#4:2"
 
+[pattern.air]
+instrument = "trickle"
+step = "1/16"
+notes = "C4:16"
+
+[pattern.air_birds]
+instrument = "bird"
+step = "1/16"
+notes = ". . . . . . . . . . . . . . . . | . . . . . . . . . . . . . . . . | E7>G7? . G7? . . . . . . . . . . . . . | . . . . . . . . . . . . . . . ."
+
 # ── sections ─────────────────────────────────────────────────────────────
 
 [section.intro]
@@ -305,6 +349,8 @@ layers = [
     { pattern = "intro_lead" },
     { pattern = "intro_pad" },
     { pattern = "intro_drums" },
+    { pattern = "air" },
+    { pattern = "air_birds" },
 ]
 
 [section.a]
@@ -321,6 +367,8 @@ layers = [
     { pattern = "strings_a", intensity = [0.6, 1] },
     { pattern = "theme_a", instrument = "answer", transpose = -12, intensity = [0.85, 1] },
     { pattern = "crash", times = 1, intensity = [0.85, 1] },
+    { pattern = "air" },
+    { pattern = "air_birds" },
 ]
 
 [section.b]
@@ -337,6 +385,8 @@ layers = [
     { pattern = "strings_b", intensity = [0.6, 1] },
     { pattern = "theme_b", instrument = "lead", intensity = [0.85, 1] },
     { pattern = "crash", times = 1, intensity = [0.85, 1] },
+    { pattern = "air" },
+    { pattern = "air_birds" },
 ]
 
 [section.end]

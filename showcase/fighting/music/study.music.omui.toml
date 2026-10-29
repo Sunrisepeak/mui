@@ -140,7 +140,39 @@ bus = "drums"
 gain = 0.35
 sends = { hall = 0.2 }
 
+# ── the air (the night: crickets in the bamboo and a low breath of air) ────────
+
+[patch.cricket]
+engine = "fm"
+gain = 0.25
+fm = { ratio = 1.5, index = 0.8, decay = 0.05 }
+amp = { attack = 0.003, decay = 0.05, sustain = 0, release = 0.03 }
+
+[patch.night_air]
+engine = "analog"
+gain = 0.18
+osc = { wave = "noise" }
+amp = { attack = 2, decay = 1, sustain = 1, release = 2 }
+filter = { kind = "lowpass", cutoff = 900, q = 0.5 }
+
+[instrument.cricket]
+patch = "cricket"
+bus = "air"
+gain = 0.8
+pan = 0.45
+humanize = 0.5
+
+[instrument.night_air]
+patch = "night_air"
+bus = "air"
+gain = 1.4
+legato = 1
+voices = 2
+
 # ── buses ────────────────────────────────────────────────────────────────
+
+[bus.air]
+effects = [{ kind = "highpass", cutoff = 120 }]
 
 [bus.hall]
 effects = [
@@ -474,6 +506,16 @@ step = "1/16"
 [pattern.end_drums.lanes]
 taiko = "X............... | ................"
 
+[pattern.air]
+instrument = "night_air"
+step = "1/16"
+notes = "C4:16"
+
+[pattern.air_crickets]
+instrument = "cricket"
+step = "1/32"
+notes = "E7? E7? E7? . . . . . . . . . . . . . E7? E7? E7? . . . . . . . . . . . . . | . . . . . . . . E7? E7? E7? E7? . . . . . . . . . . . . . . . . . . . ."
+
 # ── sections ─────────────────────────────────────────────────────────────
 
 [section.intro]
@@ -483,6 +525,8 @@ layers = [
     { pattern = "intro_zheng" },
     { pattern = "intro_pad" },
     { pattern = "intro_drums", at = 2 },
+    { pattern = "air" },
+    { pattern = "air_crickets" },
 ]
 
 [section.a]
@@ -501,6 +545,8 @@ layers = [
     { pattern = "bass_a", intensity = [0.35, 1] },
     { pattern = "arp_a", intensity = [0.6, 1] },
     { pattern = "crash", times = 1, intensity = [0.85, 1] },
+    { pattern = "air" },
+    { pattern = "air_crickets" },
 ]
 
 [section.a2]
@@ -519,6 +565,8 @@ layers = [
     { pattern = "arp_a", intensity = [0.6, 1] },
     { pattern = "strings_a2", intensity = [0.6, 1] },
     { pattern = "crash", times = 1, intensity = [0.85, 1] },
+    { pattern = "air" },
+    { pattern = "air_crickets" },
 ]
 
 [section.b]
@@ -536,6 +584,8 @@ layers = [
     { pattern = "arp_b", intensity = [0.6, 1] },
     { pattern = "strings_b", intensity = [0.35, 1] },
     { pattern = "crash", times = 1, intensity = [0.85, 1] },
+    { pattern = "air" },
+    { pattern = "air_crickets" },
 ]
 
 [section.c]
@@ -556,6 +606,8 @@ layers = [
     { pattern = "arp_c", intensity = [0.6, 1] },
     { pattern = "strings_c", intensity = [0.6, 1] },
     { pattern = "crash", times = 1, intensity = [0.85, 1] },
+    { pattern = "air" },
+    { pattern = "air_crickets" },
 ]
 
 [section.end]

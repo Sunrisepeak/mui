@@ -124,7 +124,26 @@ bus = "drums"
 gain = 0.32
 sends = { hall = 0.25 }
 
+# ── the air (the wind: gusts of lowpassed noise over the cloud sea) ────────
+
+[patch.wind]
+engine = "analog"
+gain = 0.22
+osc = { wave = "noise" }
+amp = { attack = 1.8, decay = 1, sustain = 0.8, release = 2.5 }
+filter = { kind = "lowpass", cutoff = 500, q = 1.6, envelope = 1.5, attack = 2, decay = 2, sustain = 0.3, release = 2 }
+
+[instrument.wind]
+patch = "wind"
+bus = "air"
+gain = 1.6
+pan = -0.2
+voices = 3
+
 # ── buses ────────────────────────────────────────────────────────────────
+
+[bus.air]
+effects = [{ kind = "highpass", cutoff = 120 }]
 
 [bus.hall]
 effects = [
@@ -295,6 +314,11 @@ step = "1/16"
 [pattern.end_drums.lanes]
 great = "X............... | ................"
 
+[pattern.air]
+instrument = "wind"
+step = "1/8"
+notes = "C4:6 . . | C4:4 . . . . | C4:7 . | . . C4:6"
+
 # ── sections ─────────────────────────────────────────────────────────────
 
 [section.intro]
@@ -303,6 +327,7 @@ layers = [
     { pattern = "intro_bell" },
     { pattern = "intro_pad" },
     { pattern = "intro_drums" },
+    { pattern = "air" },
 ]
 
 [section.a]
@@ -319,6 +344,7 @@ layers = [
     { pattern = "strings_a", intensity = [0.6, 1] },
     { pattern = "theme_a", instrument = "horn2", transpose = 12, intensity = [0.85, 1] },
     { pattern = "crash", times = 1, intensity = [0.85, 1] },
+    { pattern = "air" },
 ]
 
 [section.b]
@@ -335,6 +361,7 @@ layers = [
     { pattern = "strings_b", intensity = [0.6, 1] },
     { pattern = "theme_b", instrument = "horn2", transpose = -12, intensity = [0.85, 1] },
     { pattern = "crash", times = 1, intensity = [0.85, 1] },
+    { pattern = "air" },
 ]
 
 [section.end]

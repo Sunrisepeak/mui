@@ -206,7 +206,33 @@ gain = 0.3
 pan = -0.2
 sends = { space = 0.2 }
 
+# ── the air (the rain: a hiss through a highpass and drops on the awnings) ────────
+
+[patch.rain]
+engine = "analog"
+gain = 0.2
+osc = { wave = "noise" }
+amp = { attack = 1.5, decay = 1, sustain = 1, release = 2 }
+filter = { kind = "highpass", cutoff = 1800, q = 0.5 }
+
+[instrument.rain]
+patch = "rain"
+bus = "air"
+gain = 0.45
+legato = 1
+voices = 2
+
+[instrument.drops]
+patch = "hat"
+bus = "air"
+gain = 0.45
+pan = -0.3
+humanize = 0.9
+
 # ── buses ────────────────────────────────────────────────────────────────
+
+[bus.air]
+effects = [{ kind = "highpass", cutoff = 120 }]
 
 [bus.space]
 effects = [
@@ -545,6 +571,17 @@ step = "1/16"
 kick  = "x............... | ................"
 crash = "X............... | ................"
 
+[pattern.air]
+step = "1/16"
+notes = "C5:16"
+instrument = "rain"
+
+[pattern.air_drops]
+step = "1/16"
+
+[pattern.air_drops.lanes]
+drops = "o..o.x...o..x.o. | .o...o.x..o...ox"
+
 # ── sections ─────────────────────────────────────────────────────────────
 
 [section.intro]
@@ -555,6 +592,8 @@ layers = [
     { pattern = "intro_sub", at = 4 },
     { pattern = "intro_drums", at = 4 },
     { pattern = "rise", at = 6 },
+    { pattern = "air" },
+    { pattern = "air_drops" },
 ]
 
 [section.a]
@@ -572,6 +611,8 @@ layers = [
     { pattern = "arp_a", intensity = [0.6, 1] },
     { pattern = "pads_a", instrument = "stab", intensity = [0.85, 1] },
     { pattern = "crash", times = 1, intensity = [0.6, 1] },
+    { pattern = "air" },
+    { pattern = "air_drops" },
 ]
 
 [section.b]
@@ -590,6 +631,8 @@ layers = [
     { pattern = "arp_a", intensity = [0.6, 1] },
     { pattern = "pads_a", instrument = "stab", intensity = [0.85, 1] },
     { pattern = "crash", times = 1, intensity = [0.6, 1] },
+    { pattern = "air" },
+    { pattern = "air_drops" },
 ]
 
 [section.breakdown]
@@ -602,6 +645,8 @@ layers = [
     { pattern = "break_beat", times = 6, intensity = [0.35, 1] },
     { pattern = "rise", at = 6 },
     { pattern = "build", at = 7, intensity = [0.35, 1] },
+    { pattern = "air" },
+    { pattern = "air_drops" },
 ]
 
 [section.a2]
@@ -621,6 +666,8 @@ layers = [
     { pattern = "arp_a", intensity = [0.6, 1] },
     { pattern = "pads_a", instrument = "stab", intensity = [0.6, 1] },
     { pattern = "crash", times = 1, intensity = [0.6, 1] },
+    { pattern = "air" },
+    { pattern = "air_drops" },
 ]
 
 [section.c]
@@ -641,6 +688,8 @@ layers = [
     { pattern = "pads_c", instrument = "stab", intensity = [0.85, 1] },
     { pattern = "crash", times = 1, intensity = [0.6, 1] },
     { pattern = "crash", at = 4, times = 1, intensity = [0.85, 1] },
+    { pattern = "air" },
+    { pattern = "air_drops" },
 ]
 
 [section.end]

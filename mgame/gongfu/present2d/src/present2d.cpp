@@ -768,6 +768,15 @@ void Painter::body(const Look& look, const Fighter& fighter, const FighterState&
     // A glow (neon) behind the outline, then the outline, then the parts; a tinted afterimage is the parts alone, in one colour.
     // Where drawn art was drawn: the bones at rest, where the fighter stands (once for all its image parts).
     if (std::ranges::any_of(look.parts, [](const Part& q) { return q.shape == Shape::image; })) pose_at(look, nullptr, 0, s, rest_);
+    // A translucent tint (an afterimage, a clone, a rewind's ghost) is one silhouette at the tint's
+    // opacity: its parts, and the triangles of their meshes, drawn opaque in a layer, so where they
+    // overlap (a seam, an arm over the body) it is no darker.
+    std::optional<Color> paint = tint;
+    const bool layered = tint && tint->a < 1;
+    if (layered) {
+        out.push_layer(tint->a);
+        paint->a = 1;
+    }
     enum class Pass : std::uint8_t { glow, outline, fill };
     for (const Pass pass : {Pass::glow, Pass::outline, Pass::fill}) {
         if (pass == Pass::glow && (look.glow.width <= 0 || tint)) continue;
@@ -781,7 +790,7 @@ void Painter::body(const Look& look, const Fighter& fighter, const FighterState&
                 std::size_t drawing = 0;  // the drawing a clip's swap chooses (0: its own)
                 if (clip && k < clip->swaps.size() && !clip->swaps[k].empty())
                     drawing = static_cast<std::size_t>(std::max(0.0, std::floor(clip->swaps[k].value(at) + 0.5)));
-                if (pass == Pass::fill) picture_part(look, part, drawing <= part.drawings.size() ? drawing : 0, s, scene, camera, tint, out);
+                if (pass == Pass::fill) picture_part(look, part, drawing <= part.drawings.size() ? drawing : 0, s, scene, camera, paint, out);
                 continue;
             }
             const BonePlace& b = p[static_cast<std::size_t>(part.bone)];
@@ -815,7 +824,7 @@ void Painter::body(const Look& look, const Fighter& fighter, const FighterState&
                 case Shape::curve: curve(path, *points, on_bone); break;
                 case Shape::image: break;
             }
-            const Color colour = tint ? *tint : pass == Pass::glow ? fade(look.glow.color, 0.35) : outline ? look.outline : part.color;
+            const Color colour = paint ? *paint : pass == Pass::glow ? fade(look.glow.color, 0.35) : outline ? look.outline : part.color;
             const bool drawn = part.shape == Shape::polygon || part.shape == Shape::curve;
             if (outline && drawn) {
                 out.stroke_path(path, {.width = 2 * grow, .join = render::LineJoin::round}, render::Paint::solid(colour));
@@ -844,6 +853,7 @@ void Painter::body(const Look& look, const Fighter& fighter, const FighterState&
             }
         }
     }
+    if (layered) out.pop_layer();
 }
 
 void Painter::picture_part(const Look& look, const Part& own, std::size_t drawing, const FighterState& s, const Scene& scene, const Camera& camera,

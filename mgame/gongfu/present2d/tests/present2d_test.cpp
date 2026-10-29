@@ -860,6 +860,88 @@ defender = "still"
         check(under[0] > on[0] + 200, std::format("behind, the arm over it: {} red pixels, over it {}", under[0], on[0]));
     });
 
+    s.test("an afterimage is one silhouette: parts that overlap, and the triangles of their meshes, no darker where they meet (their edges aside)", [&] {
+        const std::string one = R"(gongfu = "0.1"
+name = "art"
+
+[[picture]]
+name = "arm"
+file = "arm.png"
+size = [40, 200]
+
+[[bone]]
+name = "upper"
+joint = [0, 160]
+length = 80
+rest = -90
+
+[[part]]
+name = "arm"
+bone = "upper"
+shape = "image"
+picture = "arm"
+source = [0, 0, 40, 200]
+anchor = [20, 20]
+tip = [20, 100]
+mesh = [1, 6]
+
+[clip.still]
+frames = 1
+loop = true
+)";
+        const std::string two = one + R"(
+[[part]]
+name = "again"
+bone = "upper"
+shape = "image"
+picture = "arm"
+source = [0, 0, 40, 200]
+anchor = [20, 20]
+tip = [20, 100]
+mesh = [1, 6]
+)";
+        auto a = p2::read_look(one, "one.look.gongfu.toml"), b = p2::read_look(two, "two.look.gongfu.toml");
+        check(a && b, "read");
+        if (!a || !b) return;
+        omui::render::ImageStore images;
+        const auto ref = images.add(40, 200, std::vector<omui::raster::Rgba8>(40 * 200, omui::raster::Rgba8{220, 40, 40, 255}));
+        a->pictures[0].ref = b->pictures[0].ref = ref;
+        const Fighter f = *compile(body());
+        FighterState st;
+        st.facing = 1;
+        p2::Painter painter;
+        auto drawn = [&](const p2::Look& look) {
+            omui::render::DisplayList dl;
+            dl.fill_rect({0, 0, 400, 300}, Color::hex(0xffffff));
+            painter.body(look, f, st, 0, p2::Scene{.width = 400, .height = 300, .ground = 200}, p2::Camera{0, 60, 1}, dl, "still", 0, Color::hex(0xd4af37, 0.45f));
+            omui::raster::Surface out(400, 300);
+            omui::render::CpuRenderer{}.render(dl, out, {&images, nullptr}, {.scale = 1});
+            return out;
+        };
+        const auto single = drawn(*a), doubled = drawn(*b);
+        save(doubled, "afterimage-overlap");
+        // Two parts over each other: the same silhouette as one (only antialiased edges, covered twice, may differ).
+        int tinted = 0, differ = 0;
+        for (int y = 0; y < 300; ++y)
+            for (int x = 0; x < 400; ++x) {
+                const auto c = single.at(x, y), d = doubled.at(x, y);
+                tinted += c.r != 255 || c.g != 255 || c.b != 255;
+                differ += c.r != d.r || c.g != d.g || c.b != d.b;
+            }
+        check(tinted > 1000 && differ * 10 < tinted, std::format("{} pixels differ of {}", differ, tinted));
+        // And within one part, no lines where its mesh's triangles meet: every tinted pixel inside is the same colour.
+        std::map<std::uint32_t, int> colours;
+        for (int y = 0; y < 300; ++y)
+            for (int x = 0; x < 400; ++x) {
+                const auto c = single.at(x, y);
+                if (c.r != 255 || c.g != 255 || c.b != 255) ++colours[(static_cast<std::uint32_t>(c.r) << 16) | (c.g << 8) | c.b];
+            }
+        const auto most = std::ranges::max_element(colours, {}, [](const auto& e) { return e.second; });
+        int off = 0;
+        for (const auto& [c, n] : colours) off += c != most->first && n > 0 ? n : 0;
+        check(most->second > 1000 && off < most->second / 10, std::format("{} pixels of the tint, {} others (edges)", most->second, off));
+    });
+
     s.test("lit drawn art: a picture's relief and a material light a part from the stage's side; an afterimage is the part's shape in its tint; files read back as themselves", [&] {
         const std::string text = R"(gongfu = "0.1"
 name = "lit"

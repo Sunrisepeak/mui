@@ -208,7 +208,7 @@ int main(int argc, char** argv) {
         const auto& px = f.h.pixels();
         for (int y = 0; y < px.height(); ++y) ko.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
         std::println("    ko {}", ko.hex());
-        check_eq(ko.hex(), std::string("437613f2c4f032d9"));  // GCC and LLVM
+        check_eq(ko.hex(), std::string("e535568cd8918599"));  // GCC and LLVM
         check(fall > 0.05f, std::format("heard ({})", fall));
         save(f.all, mixer.rate(), "fighting-voices", "voices.wav");
         std::println("    voices heard {:016x} ({:.1f} s)", audio::hash(f.all), static_cast<double>(f.all.size()) / 2 / mixer.rate());

@@ -529,7 +529,7 @@ int main(int argc, char** argv) {
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    ni level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("7b451696a6e5a1e6"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("9ac81538947d52cb"));  // GCC and LLVM, every platform
     });
 
     s.test("坤's level 3: the ball spun on a finger, the bounce pass into the gut, the glide and 铁山靠, the catch behind his back as they crash down behind him — frames pinned", [] {
@@ -565,7 +565,7 @@ int main(int argc, char** argv) {
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    kun level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("4f53a8510723272a"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("03b0a14d935948bc"));  // GCC and LLVM, every platform
     });
 
     s.test("岳 as designed: every normal's and elbow's startup and advantage, measured in the simulation (characters 2 design §3)", [] {
@@ -805,7 +805,7 @@ int main(int argc, char** argv) {
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    li panes {}", all.hex());
-        check_eq(all.hex(), std::string("4eeb2102a9cc3279"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("aaa62737d9a41e84"));  // GCC and LLVM, every platform
     });
 
     s.test("璃's level 3, 「琉璃界」: her eyes through cracking glass; panes about them as the world turns to glass; strikes from in front and from behind through her panes, each breaking glass and leaving a crack; the palm through the last pane, everything falling, her finishing picture — frames pinned", [] {
@@ -838,7 +838,7 @@ int main(int argc, char** argv) {
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    li level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("77c216e082c09f43"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("e9b6ee70fe77f672"));  // GCC and LLVM, every platform
     });
 
     s.test("刻 as designed: every normal's, 「停摆」's and 「拨针」's startup and advantage, measured in the simulation (characters 2 design §4)", [] {

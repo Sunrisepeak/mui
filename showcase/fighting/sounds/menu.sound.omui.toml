@@ -1,0 +1,126 @@
+doc = """What the menus sound like (openmui.audio): a cursor moving, a choice made,
+a step back, a player ready and the VS before a fight — pitched in the main
+theme's E minor so they sit in its music."""
+
+# A cursor moving: a small pluck on B5 and a paper tick.
+[sound.menu_move]
+[[sound.menu_move.layer]]
+wave = "triangle"
+length = 0.08
+pitch = [988, 980]
+envelope = { attack = 0.0005, decay = 0.07, sustain = 0, release = 0.008 }
+gain = 0.35
+
+[[sound.menu_move.layer]]
+wave = "noise"
+length = 0.02
+envelope = { attack = 0.0003, decay = 0.018, sustain = 0, release = 0.002 }
+filter = { kind = "highpass", cutoff = [5000, 3000], q = 0.7 }
+gain = 0.25
+seed = 61
+
+# A choice made: E6 and B6 struck together, bright, with a snap.
+[sound.menu_confirm]
+[[sound.menu_confirm.layer]]
+wave = "sine"
+length = 0.45
+pitch = 1319
+envelope = { attack = 0.001, decay = 0.42, sustain = 0, release = 0.03 }
+gain = 0.28
+
+[[sound.menu_confirm.layer]]
+wave = "sine"
+length = 0.35
+pitch = 1976
+envelope = { attack = 0.001, decay = 0.32, sustain = 0, release = 0.03 }
+gain = 0.16
+pan = 0.15
+
+[[sound.menu_confirm.layer]]
+wave = "noise"
+length = 0.03
+envelope = { attack = 0.0005, decay = 0.025, sustain = 0, release = 0.004 }
+filter = { kind = "highpass", cutoff = [3500, 2000], q = 0.7 }
+gain = 0.25
+seed = 67
+
+# A step back: a soft fall from E5 to B4.
+[sound.menu_back]
+[[sound.menu_back.layer]]
+wave = "triangle"
+length = 0.16
+pitch = [659, 494]
+envelope = { attack = 0.001, decay = 0.14, sustain = 0, release = 0.015 }
+filter = { kind = "lowpass", cutoff = [3000, 1200], q = 0.7 }
+gain = 0.4
+
+# A player ready: a low gong on E3, its fifth ringing over it, a struck edge.
+[sound.menu_ready]
+[[sound.menu_ready.layer]]
+wave = "sine"
+length = 1.1
+pitch = [168, 164]
+envelope = { attack = 0.002, decay = 1.05, sustain = 0, release = 0.05 }
+drive = 0.25
+gain = 0.22
+
+[[sound.menu_ready.layer]]
+wave = "sine"
+length = 0.8
+pitch = 494
+envelope = { attack = 0.004, decay = 0.75, sustain = 0, release = 0.05 }
+gain = 0.1
+pan = -0.1
+
+[[sound.menu_ready.layer]]
+wave = "sine"
+length = 0.5
+pitch = 1319
+envelope = { attack = 0.002, decay = 0.48, sustain = 0, release = 0.02 }
+gain = 0.09
+pan = 0.1
+
+[[sound.menu_ready.layer]]
+wave = "noise"
+length = 0.05
+envelope = { attack = 0.0005, decay = 0.045, sustain = 0, release = 0.005 }
+filter = { kind = "bandpass", cutoff = [2500, 1200], q = 1.2 }
+gain = 0.22
+seed = 71
+
+# Both ready, the VS: a rising sweep into a deep boom and a long wash.
+[sound.menu_vs]
+[[sound.menu_vs.layer]]
+wave = "saw"
+length = 0.3
+pitch = [220, 1760]
+envelope = { attack = 0.05, hold = 0.15, decay = 0.08, sustain = 0, release = 0.02 }
+filter = { kind = "lowpass", cutoff = [500, 6000], q = 2 }
+gain = 0.22
+
+[[sound.menu_vs.layer]]
+wave = "sine"
+at = 0.28
+length = 0.8
+pitch = [110, 36]
+envelope = { attack = 0.002, decay = 0.75, sustain = 0, release = 0.05 }
+drive = 0.6
+gain = 0.24
+
+[[sound.menu_vs.layer]]
+wave = "noise"
+at = 0.28
+length = 0.5
+envelope = { attack = 0.001, decay = 0.45, sustain = 0, release = 0.05 }
+filter = { kind = "lowpass", cutoff = [5000, 200], q = 0.8 }
+gain = 0.2
+seed = 73
+
+[[sound.menu_vs.layer]]
+wave = "noise"
+at = 0.32
+length = 1.4
+envelope = { attack = 0.03, decay = 1.2, sustain = 0, release = 0.15 }
+filter = { kind = "lowpass", cutoff = [1800, 150], q = 0.7 }
+gain = 0.14
+seed = 79

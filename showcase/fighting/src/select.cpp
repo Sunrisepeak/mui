@@ -100,6 +100,7 @@ void Select::mounted() {
                 stages_.emplace(home->second, std::move(s));
             }
     }
+    if (hearing() && !heard_) heard_ = hearing()(sounds_);  // the program hears the menus (a device on their mixer)
     begin(props.phase);
     services().focus(node());
     pace_ = services().demand_frames({.min_hz = 60, .max_hz = 60, .preferred_hz = 60, .reason = "menu"});
@@ -114,6 +115,7 @@ void Select::schedule() {
             return;
         }
         ++frame_;
+        if (both_ready_ >= 0) music();  // the theme gives way to the VS
         if (both_ready_ >= 0 && frame_ - both_ready_ == chosen_after) {
             const auto& c = choices();
             const std::string& a = c[static_cast<std::size_t>(cursor_[0])];
@@ -131,12 +133,36 @@ void Select::begin(std::string_view phase) {
     ready_ = {};
     both_ready_ = -1;
     if (attached()) services().focus(node());
+    music();
     changed();
+}
+
+// The main theme while the menus are up: from its intro when they come up,
+// calm on the title, the beat on the select screen, all of it once a player
+// is ready; fading under the VS; finished behind the fight.
+void Select::music() {
+    if (!attached()) return;
+    if (!props.active) {
+        sounds_.finish();
+        return;
+    }
+    if (sounds_.playing() != "menu") {
+        sounds_.restart("menu");
+        heard_from_ = frame_;
+    }
+    const float intensity = phase_ == "title" ? 0.25f : ready_[0] || ready_[1] ? 0.9f : 0.6f;
+    const float gain = both_ready_ < 0 ? 1.0f : 1.0f - static_cast<float>(std::min(frame_ - both_ready_, chosen_after)) / static_cast<float>(chosen_after);
+    sounds_.theme(intensity, gain);
+}
+
+void Select::cue(std::string_view name, float pan) {
+    if (attached() && props.active) sounds_.cue(name, frame_ - heard_from_, 1, pan);
 }
 
 void Select::prop_changed(SelectProp p) {
     if (!attached()) return;
     if (p == SelectProp::phase || (p == SelectProp::active && props.active)) begin(props.phase);
+    else if (p == SelectProp::active) music();
 }
 
 void Select::changed() {
@@ -158,17 +184,25 @@ void Select::step(std::int32_t player, std::int32_t by) {
         const auto n = static_cast<std::int32_t>(choices().size());
         if (n > 0) cursor_[p] = ((cursor_[p] + by) % n + n) % n;
     }
+    if (by != 0) cue("menu_move", phase_ == "title" ? 0.0f : player == 0 ? -0.4f : 0.4f);
     changed();
 }
 
 void Select::press(std::int32_t player) {
     if (phase_ == "title") {
         mode_ = item_ == 0 ? "versus" : "training";
+        cue("menu_confirm");
         begin("fighters");
         return;
     }
+    if (ready_[static_cast<std::size_t>(player & 1)]) return;
     ready_[static_cast<std::size_t>(player & 1)] = true;
-    if (ready_[0] && ready_[1] && both_ready_ < 0) both_ready_ = frame_;
+    cue("menu_ready", player == 0 ? -0.4f : 0.4f);
+    if (ready_[0] && ready_[1] && both_ready_ < 0) {
+        both_ready_ = frame_;
+        cue("menu_vs");
+    }
+    music();
     changed();
 }
 
@@ -176,8 +210,10 @@ void Select::unpress(std::int32_t player) {
     if (phase_ == "title") return;
     const auto p = static_cast<std::size_t>(player & 1);
     if (both_ready_ >= 0) both_ready_ = -1;
+    cue("menu_back", p == 0 ? -0.4f : 0.4f);
     if (ready_[p]) ready_[p] = false;
     else if (!ready_[1 - p]) begin("title");
+    music();
     changed();
 }
 

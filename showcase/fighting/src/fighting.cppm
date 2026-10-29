@@ -13,6 +13,7 @@ export import :roster;
 export import :hud;
 export import :sound;
 export import :fight_sound;
+export import :menu_sound;
 export import :stage_files;
 export import :stage_art_files;
 export import :music_files;
@@ -27,7 +28,7 @@ export namespace omui::fighting {
 // Registers the stage: scripts, view documents and agents reach it by name.
 void register_components();
 
-// The application: the stage, filling the window.
+// The application: the title and the select screen, then the fight filling the window.
 [[nodiscard]] AppSpec app();
 
 }  // namespace omui::fighting

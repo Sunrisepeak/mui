@@ -1,4 +1,4 @@
-# The fighting game (D-85 §8.7; its name to come): gongfu's match on
+# The fighting game (D-85 §8.7; 拳意, its working title): gongfu's match on
 # openmui's stage — played from the keyboard or by an agent, drawn in 2D by
 # gongfu.present2d, with a training mode's tools. Fighters are data files
 # (fighters/*.fighter.gongfu.toml), carried in the program.

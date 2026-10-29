@@ -40,9 +40,9 @@ bool audible(gongfu::Event::Kind k) {
 }  // namespace
 
 Sounds::Sounds() : mixer_(std::make_unique<audio::Mixer>()) {
-    auto sounds = audio::read_sounds(files::fight_sound, "fight.sound.omui.toml");
-    if (sounds)
-        for (const auto& s : *sounds) mixer_->add(s);
+    for (const auto& [text, file] : {std::pair{files::fight_sound, "fight.sound.omui.toml"}, std::pair{files::menu_sound, "menu.sound.omui.toml"}})
+        if (auto sounds = audio::read_sounds(text, file))
+            for (const auto& s : *sounds) mixer_->add(s);
     mixer_->add_effect("sfx", audio::echo(0.11f, 0.22f, 0.18f, mixer_->rate()));  // the hall the stage stands in
     for (const auto& [file, text] : files::music_files) {  // each stage's theme, by the stage's name
         const std::string_view name = file.substr(0, file.find('.'));
@@ -70,8 +70,25 @@ void Sounds::restart(std::string_view theme) {
     theme_ = theme;
     if (const auto now = themes_.find(theme_); now != themes_.end()) {
         now->second->set_intensity(0.25f);
+        now->second->set_gain(1);
         now->second->start(base_);
     }
+}
+
+void Sounds::finish() {
+    if (const auto it = themes_.find(theme_); it != themes_.end()) it->second->finish();
+    theme_.clear();
+}
+
+void Sounds::theme(float intensity, float gain) {
+    if (const auto it = themes_.find(theme_); it != themes_.end()) {
+        it->second->set_intensity(std::clamp(intensity, 0.0f, 1.0f));
+        it->second->set_gain(std::clamp(gain, 0.0f, 1.0f));
+    }
+}
+
+void Sounds::cue(std::string_view name, std::int32_t frame, float gain, float pan) {
+    play(name, live_ ? mixer_->clock() + audio::block_frames : base_ + static_cast<std::int64_t>(frame) * frame_samples(), gain, pan);
 }
 
 void Sounds::play(std::string_view name, std::int64_t at, float gain, float pan) {

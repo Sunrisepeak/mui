@@ -243,6 +243,7 @@ void Stage::advance() {
     sounds_.heard(*match_, looks_[0], looks_[1]);
     if (match_->state().over && !over_reported_) {
         over_reported_ = true;
+        sounds_.finish();  // the K.O.: the theme's outro over the finish, then quiet for the menus' own
         emit_round_over(match_->state().winner);
     }
     services().invalidate_paint(node());

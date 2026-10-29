@@ -177,7 +177,11 @@ The tools' openmui interfaces (a rig editor, a pose editor with IK handles, a ti
 ## 8. Sound and music
 
 - **Sounds**: synthesised sounds as data (`sounds/fight.sound.omui.toml`), named by each impact (attack, body, tail), mixed sample-accurately; an offline render of a match is the same bits on GCC and LLVM. Voices per fighter (CC0 packs, processed per character) are next.
-- **Music**: `music/*.music.omui.toml` pieces — patches, patterns as readable note text, sections, an arrangement, and layers by intensity — played by `openmui.audio`'s sequencer. The stage starts its home's piece with the round; the music rises as the lower health falls, and plays fully under a super.
+- **Music**: `music/*.music.omui.toml` pieces — patches, patterns as readable note text, sections, an arrangement, and layers by intensity — played by `openmui.audio`'s sequencer. The stage starts its home's piece with the round; the music rises as the lower health falls, and plays fully under a super. The round over, the piece goes to its outro over the finish.
+- **The menus' music**: the main theme (`music/menu.music.omui.toml`, E minor at 96) gathers the three homes: 墨's dizi and guzheng, 坤's sub bass and boom-bap kit, 霓's wide saw at the top. The select screen drives its intensity as a match drives a stage's: calm on the title, the beat on the select screen, all of it once a player is ready. It fades under the VS and is finished behind the fight, so the menus and the fight never play over each other.
+  - The cues (`sounds/menu.sound.omui.toml`: a move, a choice, a step back, a player ready, the VS) are pitched in the theme's key and panned to the player's side.
+  - The first renders put the VS 17 dB over the music, since two players ready on one frame sum into one loud gong. The levels were set by rendering the menus offline and reading their loudness every quarter second, the way `omui-music stats` reads a piece. The VS now stands about 10 dB over the music for a moment.
+  - `tests/select_test.cpp` renders the menus' sound frame by frame and pins its bits.
 
 ## 9. Performance
 

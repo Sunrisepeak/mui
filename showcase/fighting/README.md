@@ -25,6 +25,8 @@ mcpp run -p openmui.showcase.fighting -- --headless --png fight.png
   - behind it all, the home stage of whom player 1 is on pans slowly;
   - both ready, VS has its moment and the fight starts on player 1's home. A round over, the select screen comes back with the same fighters under the cursors.
 
+  The main theme plays under them, rising as the players choose, with a cue for each move and choice. It fades under the VS; the fight's theme ends with its round.
+
   The keys are the fight's (player 1 U confirms and J goes back, player 2 Insert and Delete), and a gamepad's south confirms and east goes back. An agent uses the same screen through its `move`, `confirm` and `back` actions. Its art (`hud/menu-*.webp`) was generated and keyed like the HUD's.
 - **Fighters are files** built into the program, in the formats a mod will use:
   - `fighters/<name>.fighter.gongfu.toml` is what the fighter does (`gongfu.data`);

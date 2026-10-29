@@ -7,9 +7,12 @@ import std;
 import openmui;
 import openmui.showcase.fighting;
 import openmui.testing;
+import openmui.audio;
+import gongfu;
 
 using namespace omui::testing;
 using namespace omui;
+namespace audio = omui::audio;
 
 namespace {
 
@@ -33,6 +36,8 @@ struct App {
         return {};
     }
     const fighting::Select& select() { return *h.runtime().component<fighting::Select>(h.runtime().find("main/select")); }
+    fighting::Select& select_mut() { return *h.runtime().component<fighting::Select>(h.runtime().find("main/select")); }
+    fighting::Stage& stage_mut() { return *h.runtime().component<fighting::Stage>(h.runtime().find("main/stage")); }
     const fighting::Stage& stage() { return *h.runtime().component<fighting::Stage>(h.runtime().find("main/stage")); }
     std::uint64_t pixels() {
         Hash hash;
@@ -96,6 +101,57 @@ int main(int argc, char** argv) {
         check(!a.select().ready(0), "not ready");
         a.h.step({GamepadEvent{.kind = GamepadKind::down, .device = 3, .button = GamepadButton::east}});
         check_eq(a.select().phase(), std::string_view("title"));
+    });
+
+    s.test("the menus heard: the main theme calm on the title, the beat on the select screen, a cue for each move and choice; fading under the VS, and the fight's own theme ending with the round — the same bits every run", [] {
+        App a;
+        audio::Mixer& mixer = a.select_mut().sounds().mixer();
+        const std::int64_t per = a.select_mut().sounds().frame_samples();
+        std::vector<float> all, one(static_cast<std::size_t>(2 * per));
+        // A frame of the menus, then its sound: the mixer's clock keeps the screen's.
+        auto play = [&](double s) {
+            const std::size_t from = all.size();
+            for (int i = 0; i < static_cast<int>(s * 60); ++i) {
+                a.h.advance(seconds(1.0 / 60));
+                mixer.render(one);
+                all.insert(all.end(), one.begin(), one.end());
+            }
+            double sum = 0;
+            for (std::size_t i = from; i < all.size(); ++i) sum += static_cast<double>(all[i]) * all[i];
+            return std::sqrt(sum / static_cast<double>(std::max<std::size_t>(all.size() - from, 1)));
+        };
+        check_eq(a.select_mut().sounds().playing(), std::string_view("menu"));
+        play(5);                       // the intro (two bars at 96)
+        const double title = play(5);  // the loop, calm
+        check(a.act("main/select", "move", player(0).set("by", 1)) && a.act("main/select", "move", player(0).set("by", -1)), "down and up");
+        check(a.act("main/select", "confirm", player(0)), "versus");
+        play(2.5);                      // the beat comes in at the bar
+        const double select = play(5);
+        check(a.act("main/select", "move", player(0).set("by", 2)) && a.act("main/select", "confirm", player(0)), "player 1 ready");
+        play(0.5);
+        check(a.act("main/select", "confirm", player(1)), "both ready");
+        play(0.75);                     // the VS: the theme fades under it, and the fight starts
+        check(!a.stage().props.paused, "the fight plays");
+        check(a.select_mut().sounds().playing().empty(), "the menus' theme finished");
+        check_eq(a.stage_mut().sounds().playing(), std::string_view("rooftop"));
+        play(1.5);                      // the VS's tail
+        const double after = play(2);
+        std::println("    menu music rms: {:.4f} title, {:.4f} select, {:.5f} under the fight", title, select, after);
+        check(title > 0.01, "the theme is heard on the title");
+        check(select > title * 1.15, "more of it on the select screen");
+        check(after < 2e-3, "quiet behind the fight");
+        // The round over (the clock run out here, as a K.O. would end it): the stage's theme goes to its outro.
+        auto& match = const_cast<gongfu::Match&>(a.stage().match());
+        gongfu::State st = match.state();
+        st.timer = 2;
+        match.restore(st);
+        a.h.advance(seconds(0.2));
+        check(a.stage().match().state().over != 0, "the round is over");
+        check(a.stage_mut().sounds().playing().empty(), "the fight's theme finished with the round");
+        const auto w = audio::wav(all, mixer.rate());
+        std::ofstream(scratch_dir("fighting-menus-heard") / "menus.wav", std::ios::binary).write(reinterpret_cast<const char*>(w.data()), static_cast<std::streamsize>(w.size()));
+        std::println("    menus heard {:016x} ({:.1f} s)", audio::hash(all), static_cast<double>(all.size()) / 2 / mixer.rate());
+        check_eq(audio::hash(all), std::uint64_t{0x239e3e83dc47eb87});  // GCC and LLVM, every platform
     });
 
     s.test("the title and the select screen, pinned: the logo over the study, the modes; the roster, both fighters' previews, VS", [] {

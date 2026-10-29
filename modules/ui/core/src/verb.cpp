@@ -89,6 +89,8 @@ Envelope dry_run_of(const Envelope& stopped, Effect effect) {
         if (const Value* a = r.body.get("answer"); a && a->list() && !a->list()->empty()) more.set("answer", a->list()->front());
         break;
     }
+    // What it would do, where known before it is done: an irreversible or external action is not taken back.
+    if (spec::requires_answer(effect)) more.set("undoable", false);
     const Value* code_text = more.get("error") ? more.get("error")->get("code") : nullptr;
     const std::string_view outcome = code == spec::exit_code::needs_answer                                   ? "needs-answer"
                                      : code_text && code_text->as_string() == spec::error_code::refused ? "refused"

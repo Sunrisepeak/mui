@@ -888,7 +888,28 @@ void Painter::picture_part(const Look& look, const Part& own, std::size_t drawin
                                           static_cast<std::uint16_t>(k + w)})
                 mesh_index_.push_back(v);
         }
-    out.draw_mesh(pic.ref, mesh_at_, mesh_uv_, mesh_index_, render::Sampling::linear, tint ? tint->a : 1.0f);
+    // An afterimage or a clone: the part's shape in its tint. Else lit by its
+    // material where its picture has a relief: the stage's light (the
+    // world's rules), the material's bands and strengths.
+    if (tint) {
+        out.draw_mesh_mask(pic.ref, mesh_at_, mesh_uv_, mesh_index_, *tint, render::Sampling::linear);
+        return;
+    }
+    const render::Material* lit = nullptr;
+    render::Material material;
+    if (pic.normal.id != 0 && part.material != "none") {
+        const auto m = look.materials.find(part.material.empty() ? std::string_view("body") : std::string_view(part.material));
+        if (m != look.materials.end()) {
+            const Stage* world = scene.stage;
+            material = m->second;
+            material.normal = pic.normal;
+            material.light = world && world->light_from ? *world->light_from : look.light.from;
+            if (world && world->shadow) material.shadow = *world->shadow;
+            if (world && world->rim_color) material.rim = *world->rim_color;
+            lit = &material;
+        }
+    }
+    out.draw_mesh(pic.ref, mesh_at_, mesh_uv_, mesh_index_, render::Sampling::linear, 1.0f, 0.5f, lit);
 }
 
 void Painter::stage_layers(const Stage& art, bool front, const Scene& scene, const Camera& cam, double middle, std::int32_t frame, float alpha,
@@ -1492,13 +1513,19 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         std::int32_t spark_age = age;
         // The look's own effect for the contact — its counter's or its punish's tier when it was one — facing the way the attacker faces.
         const Look& by_look = look_of(e, left, right);
-        const std::string& tier = e.punish && !im.fx_punish.empty() ? im.fx_punish : e.kind == Event::Kind::counter && !im.fx_counter.empty() ? im.fx_counter : im.fx;
-        const float tier_scale = e.punish ? 1.4f : e.kind == Event::Kind::counter ? 1.2f : 1.0f;
+        // Without a tier's own effect, the hit's: larger, in the counter's colour, a punish's stamped twice.
+        const bool countered = e.kind == Event::Kind::counter;
+        const std::string& tier = e.punish && !im.fx_punish.empty() ? im.fx_punish : countered && !im.fx_counter.empty() ? im.fx_counter : im.fx;
+        const bool own_tier = tier != im.fx;
+        const float tier_scale = own_tier ? 1.0f : e.punish ? 1.4f : countered ? 1.2f : 1.0f;
+        const std::optional<Color> tier_paint = countered && !own_tier ? std::optional<Color>(im.counter_color) : std::nullopt;
         if (const auto fx = tier.empty() ? by_look.fx.end() : by_look.fx.find(tier); fx != by_look.fx.end()) {
             const FighterState& by = st.f[static_cast<std::size_t>(std::clamp(e.attacker, 0, 1))];
-            if (age < fx->second.length())
-                this->fx(by_look, fx->second, age, {static_cast<float>(stage(e.at.x)), static_cast<float>(stage(e.at.y))}, by.facing < 0 ? -1.0 : 1.0,
-                         tier == im.fx ? tier_scale : 1.0f, scene, view.cam, out);
+            const Point at{static_cast<float>(stage(e.at.x)), static_cast<float>(stage(e.at.y))};
+            const double facing = by.facing < 0 ? -1.0 : 1.0;
+            if (e.punish && !own_tier && age >= 3 && age - 3 < fx->second.length())
+                this->fx(by_look, fx->second, age - 3, at, -facing, tier_scale * 1.25f, scene, view.cam, out, 0.55f, tier_paint);
+            if (age < fx->second.length()) this->fx(by_look, fx->second, age, at, facing, tier_scale, scene, view.cam, out, 1, tier_paint);
             if (e.punish && age < 3) out.fill_rect({0, 0, scene.width, scene.height}, Color::hex(0xffffff, 0.35f * static_cast<float>(3 - age) / 3));
         } else if (k.frame >= stop_from && k.frame < stop_to) {
             // Held in the air: each where its own number puts it about the hit, so the hits hang apart.

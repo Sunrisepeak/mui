@@ -99,6 +99,10 @@ struct Part {
     std::vector<Drawing> drawings;
     bool                 mirror = false;  // the art reflected across its anchor-to-tip line (drawn facing the other way)
     bool                 shown = true;    // drawn unless a clip says (a brush in the hand only while it is drawn)
+    // An image part's material, lit by the stage's light where its picture
+    // has a relief (a normal map): the look's `material.<name>` (empty: its
+    // `body`, when it has one; "none": unlit).
+    std::string          material;
 };
 
 // How a contact feels, drawn (D-85 §8.4). A fighter file's hits name a
@@ -122,6 +126,7 @@ struct FxSprite {  // a picture's region at a point, growing, turning, fading
     std::array<float, 2> turn{0, 0};     // degrees, counter-clockwise
     std::array<float, 2> alpha{1, 0};
     hanim::Ease          ease = hanim::ease::out_cubic;
+    std::optional<Color> color;          // drawn as the region's shape in this colour, not its own
 };
 struct FxStroke {  // a picture's long region (a brush stroke) laid along a curve: drawn out, held, faded
     std::int32_t       picture = -1;
@@ -129,6 +134,7 @@ struct FxStroke {  // a picture's long region (a brush stroke) laid along a curv
     std::vector<Point> points;  // the curve (Catmull-Rom) through them
     float              width = 30;
     std::int32_t       from = 0, draw = 4, hold = 6, fade = 10;
+    std::optional<Color> color;  // drawn as the region's shape in this colour, not its own
 };
 struct FxSpray {  // droplets thrown from a point, falling (each one's own from a seed)
     std::int32_t                  picture = -1;
@@ -140,6 +146,7 @@ struct FxSpray {  // droplets thrown from a point, falling (each one's own from 
     std::array<float, 2>          size{4, 12};
     float                         gravity = 0.4f;
     std::uint32_t                 seed = 1;
+    std::optional<Color>          color;  // drawn as the regions' shapes in this colour, not their own
 };
 struct Fx {
     std::vector<FxSprite> sprites;
@@ -388,11 +395,24 @@ inline constexpr std::array<std::string_view, 3> taken_reactions{"held", "launch
 // A picture a look's image parts are cut from: its file (resolved by
 // whoever carries the look's files), its size, and once registered with the
 // renderer's image store, its reference.
+//
+// Its relief: the shape the light reads its parts by — each region's
+// silhouette rounded `bevel` pixels in, folds `detail` pixels deep where it
+// is drawn darker (openmui.image's normal_map) — made once by whoever
+// carries the pictures, registered as `normal`.
 struct Picture {
     std::string                name;
     std::string                file;
     std::int32_t               width = 0, height = 0;
     omui::render::ImageRef     ref;
+    struct Relief {
+        float        bevel = 12, detail = 0;
+        std::int32_t smooth = 2;
+        float        strength = 1;
+        friend constexpr bool operator==(const Relief&, const Relief&) noexcept = default;
+    };
+    std::optional<Relief>      relief;
+    omui::render::ImageRef     normal;
 };
 
 struct Look {
@@ -469,6 +489,11 @@ struct Look {
     std::map<std::string, std::vector<Stroke>, std::less<>>  glyphs;      // by name: 永, 一, 人
     std::map<std::string, CinematicLook, std::less<>>        cinematics;  // by the level 3's move name
     std::map<std::string, Fx, std::less<>>                   fx;          // effects, by name
+    // Materials of image parts (`[material.<name>]`): how a part is lit — its
+    // bands, their edges' softness, the shadow's and the rim's strengths (the
+    // light's place and colours are the stage's, else these). Stylised per
+    // fighter: ink's two soft washes, neon's hard bands and a bright rim.
+    std::map<std::string, omui::render::Material, std::less<>> materials;
     // A super's flash, by its move's name: a cut-in over the freeze (frames of
     // it), instead of the band of the accent colour.
     std::map<std::string, CinematicLook::Panel, std::less<>> cutins;
@@ -645,8 +670,9 @@ public:
                float thicken = 1);
     // A glyph whose stroke k is written over the frames up to ends[k], from `from`, at `frame`.
     // An effect of `look` at `age` frames, from `origin` (stage units), mirrored by `facing`.
+    // `paint`: every piece drawn as its shape in that colour (a counter's tier).
     void fx(const Look& look, const Fx& fx, double age, Point origin, double facing, float scale, const Scene& scene, const Camera& camera,
-            omui::render::DisplayList& out, float alpha = 1);
+            omui::render::DisplayList& out, float alpha = 1, std::optional<Color> paint = std::nullopt);
     // A cut-in panel of `look` at the cinematic's frame `t`; `facing` the attacker's (it enters from behind them).
     void panel(const Look& look, const CinematicLook::Panel& p, std::int32_t t, double facing, const Scene& scene, omui::render::DisplayList& out);
     void glyph_by_frames(const std::vector<Stroke>& strokes, std::span<const std::int32_t> ends, std::int32_t from, std::int32_t frame, Point centre,

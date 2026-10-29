@@ -50,6 +50,7 @@ import gongfu;
 import gongfu.data;
 import hanim;
 import openmui.geom;
+import openmui.render.vector;
 import tomlplusplus;
 
 namespace gongfu::present2d {
@@ -59,10 +60,12 @@ namespace {
 using data::Diagnostic;
 
 constexpr std::string_view format_version = "0.1";
-constexpr std::array<std::string_view, 26> look_keys{"gongfu", "name", "outline", "accent", "trail", "glow", "footfall", "pane", "clone", "rewind", "palette", "bone", "part", "clip", "impact",
-                                                     "glyph", "cinematic", "projectile", "doc", "light", "picture", "art_scale", "grip", "fx", "cutin", "pose"};
+constexpr std::array<std::string_view, 27> look_keys{"gongfu", "name", "outline", "accent", "trail", "glow", "footfall", "pane", "clone", "rewind", "palette", "bone", "part", "clip", "impact",
+                                                     "glyph", "cinematic", "projectile", "doc", "light", "picture", "art_scale", "grip", "fx", "cutin", "pose", "material"};
 constexpr std::array<std::string_view, 7> grip_keys{"name", "upper", "lower", "target", "at", "across", "bend"};
-constexpr std::array<std::string_view, 3> picture_keys{"name", "file", "size"};
+constexpr std::array<std::string_view, 4> picture_keys{"name", "file", "size", "relief"};
+constexpr std::array<std::string_view, 4> relief_keys{"bevel", "detail", "smooth", "strength"};
+constexpr std::array<std::string_view, 9> material_keys{"bands", "softness", "shadow", "shadow_strength", "rim", "rim_strength", "rim_width", "light_z", "doc"};
 constexpr std::array<std::string_view, 6> light_keys{"from", "shade", "darken", "shadow", "rim", "rim_color"};
 constexpr std::array<std::string_view, 4> follow_keys{"lag", "amount", "max", "drag"};
 constexpr std::array<std::string_view, 3> trail_keys{"color", "frames", "alpha"};
@@ -77,9 +80,9 @@ constexpr std::array<std::string_view, 6> projectile_look_keys{"glyph", "size", 
 constexpr std::array<std::string_view, 6> hold_keys{"from", "to", "bone", "along", "body", "clip"};
 constexpr std::array<std::string_view, 9> pose_keys{"from", "aim", "rise", "grip", "grip_at", "grip_across", "swap", "show", "doc"};
 constexpr std::array<std::string_view, 3> fx_keys{"sprite", "stroke", "spray"};
-constexpr std::array<std::string_view, 9> fx_sprite_keys{"picture", "source", "at", "from", "frames", "size", "turn", "alpha", "ease"};
-constexpr std::array<std::string_view, 8> fx_stroke_keys{"picture", "source", "points", "width", "from", "draw", "hold", "fade"};
-constexpr std::array<std::string_view, 11> fx_spray_keys{"picture", "sources", "at", "from", "frames", "count", "speed", "angle", "size", "gravity", "seed"};
+constexpr std::array<std::string_view, 10> fx_sprite_keys{"picture", "source", "at", "from", "frames", "size", "turn", "alpha", "ease", "color"};
+constexpr std::array<std::string_view, 9> fx_stroke_keys{"picture", "source", "points", "width", "from", "draw", "hold", "fade", "color"};
+constexpr std::array<std::string_view, 12> fx_spray_keys{"picture", "sources", "at", "from", "frames", "count", "speed", "angle", "size", "gravity", "seed", "color"};
 constexpr std::array<std::string_view, 11> panel_keys{"picture", "source", "from", "to", "in", "out", "y", "height", "slant", "pan", "band"};
 constexpr std::array<std::string_view, 2> stroke_keys{"points", "width"};
 constexpr std::array<std::string_view, 23> cinematic_keys{"attacker", "defender", "backdrop", "camera", "glyph", "seal", "flash", "scanlines",
@@ -93,8 +96,8 @@ constexpr std::array<std::string_view, 6> written_keys{"name", "at", "size", "fr
 constexpr std::array<std::string_view, 4> seal_keys{"frame", "at", "size", "color"};
 constexpr std::array<std::string_view, 2> outline_keys{"color", "width"};
 constexpr std::array<std::string_view, 9> bone_keys{"name", "parent", "joint", "length", "rest", "limb", "prop", "follow", "hang"};
-constexpr std::array<std::string_view, 21> part_keys{"bone", "shape", "size", "points", "color", "depth", "doc", "name", "variants", "shade",
-                                                    "picture", "source", "anchor", "tip", "mesh", "bend", "blend", "fit", "drawings", "mirror", "shown"};
+constexpr std::array<std::string_view, 22> part_keys{"bone", "shape", "size", "points", "color", "depth", "doc", "name", "variants", "shade",
+                                                    "picture", "source", "anchor", "tip", "mesh", "bend", "blend", "fit", "drawings", "mirror", "shown", "material"};
 constexpr std::array<std::string_view, 14> clip_keys{"frames", "loop", "ease", "angle", "rise", "doc", "swap", "grip", "aim", "grip_at", "grip_across", "fx", "poses", "show"};
 constexpr std::array<std::string_view, 11> impact_keys{"shake", "zoom", "flash", "spark", "sound", "rumble", "doc", "name", "fx", "fx_counter", "fx_punish"};
 constexpr std::array<std::string_view, 6> spark_keys{"style", "size", "count", "frames", "color", "counter"};
@@ -466,6 +469,15 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
             pic.width = static_cast<std::int32_t>((*sz)[0]);
             pic.height = static_cast<std::int32_t>((*sz)[1]);
         }
+        if (const toml::table* rt = r.table_of(t.get("relief"), "a picture's `relief`")) {
+            r.only(*rt, relief_keys, "a picture's `relief`");
+            Picture::Relief rel;
+            if (auto v = r.number(rt->get("bevel"), "a relief's `bevel`", 0, 256)) rel.bevel = static_cast<float>(*v);
+            if (auto v = r.number(rt->get("detail"), "a relief's `detail`", 0, 256)) rel.detail = static_cast<float>(*v);
+            if (auto v = r.integer(rt->get("smooth"), "a relief's `smooth`", 0, 32)) rel.smooth = *v;
+            if (auto v = r.number(rt->get("strength"), "a relief's `strength`", 0, 8)) rel.strength = static_cast<float>(*v);
+            pic.relief = rel;
+        }
         if (std::ranges::any_of(look.pictures, [&](const Picture& o) { return o.name == pic.name; })) r.error(t.get("name"), std::format("two pictures are called `{}`", pic.name));
         look.pictures.push_back(std::move(pic));
     });
@@ -521,6 +533,7 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
                         else r.error(e.get("ease"), std::format("`{}` is not an ease", *v));
                     }
                     if (sp.picture < 0 && !e.get("picture")) r.error(&e, "a sprite names its `picture`");
+                    if (e.get("color")) sp.color = r.colour(e.get("color"), "a sprite's `color`");
                     fx.sprites.push_back(sp);
                 });
                 r.tables(t->get("stroke"), "stroke", "[[fx.slash.stroke]] picture = \"fx\" source = [0, 0, 400, 60] points = [[0, 0], [60, 40], [120, 0]]", [&](const toml::table& e) {
@@ -541,6 +554,7 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
                     if (auto v = r.integer(e.get("draw"), "a stroke's `draw`", 0, 600)) st.draw = *v;
                     if (auto v = r.integer(e.get("hold"), "a stroke's `hold`", 0, 6000)) st.hold = *v;
                     if (auto v = r.integer(e.get("fade"), "a stroke's `fade`", 0, 600)) st.fade = *v;
+                    if (e.get("color")) st.color = r.colour(e.get("color"), "a stroke's `color`");
                     fx.strokes.push_back(std::move(st));
                 });
                 r.tables(t->get("spray"), "spray", "[[fx.drops.spray]] picture = \"fx\" sources = [[0, 0, 16, 16]] count = 8", [&](const toml::table& e) {
@@ -561,6 +575,7 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
                     range(e.get("size"), "a spray's `size`", sp.size);
                     if (auto v = r.number(e.get("gravity"), "a spray's `gravity`", -100, 100)) sp.gravity = static_cast<float>(*v);
                     if (auto v = r.integer(e.get("seed"), "a spray's `seed`", 0, 0x7fffffff)) sp.seed = static_cast<std::uint32_t>(*v);
+                    if (e.get("color")) sp.color = r.colour(e.get("color"), "a spray's `color`");
                     fx.sprays.push_back(std::move(sp));
                 });
                 look.fx.insert_or_assign(std::string(name.str()), std::move(fx));
@@ -629,6 +644,34 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
             }
         } else {
             r.error(cn, "`cutin` is a table of cut-ins, by a super's move");
+        }
+    }
+
+    // Materials: how image parts are lit, by name.
+    if (const toml::node* mn = root->get("material")) {
+        if (const toml::table* mt = mn->as_table()) {
+            for (const auto& [name, node] : *mt) {
+                const std::string what = std::format("material `{}`", name.str());
+                const toml::table* t = node.as_table();
+                if (!t) {
+                    r.error(&node, std::format("{} is a table", what), "[material.body] bands = 2 softness = 0.1 shadow_strength = 0.5");
+                    continue;
+                }
+                r.only(*t, material_keys, what);
+                omui::render::Material m;
+                if (auto v = r.integer(t->get("bands"), std::format("{}'s `bands`", what), 0, 16)) m.bands = *v;
+                if (auto v = r.number(t->get("softness"), std::format("{}'s `softness`", what), 0, 1)) m.softness = static_cast<float>(*v);
+                if (auto c = r.colour(t->get("shadow"), std::format("{}'s `shadow`", what))) m.shadow = *c;
+                if (auto v = r.number(t->get("shadow_strength"), std::format("{}'s `shadow_strength`", what), 0, 1)) m.shadow_strength = static_cast<float>(*v);
+                if (auto c = r.colour(t->get("rim"), std::format("{}'s `rim`", what))) m.rim = *c;
+                if (auto v = r.number(t->get("rim_strength"), std::format("{}'s `rim_strength`", what), 0, 4)) m.rim_strength = static_cast<float>(*v);
+                if (auto v = r.number(t->get("rim_width"), std::format("{}'s `rim_width`", what), 0, 1)) m.rim_width = static_cast<float>(*v);
+                if (auto v = r.number(t->get("light_z"), std::format("{}'s `light_z`", what), 0, 8)) m.light_z = static_cast<float>(*v);
+                if (name.str() == "none") r.error(&node, "a material cannot be called `none`: a part's `material = \"none\"` is unlit");
+                look.materials.insert_or_assign(std::string(name.str()), m);
+            }
+        } else {
+            r.error(mn, "`material` is a table of materials", "[material.body] bands = 2 softness = 0.1");
         }
     }
 
@@ -745,6 +788,15 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
         }
         if (auto d = r.integer(t.get("depth"), "a part's `depth`", -1000, 1000)) p.depth = *d;
         if (auto v = r.boolean(t.get("shown"), "a part's `shown`")) p.shown = *v;
+        if (auto m = r.text(t.get("material"), "a part's `material`")) {
+            p.material = *m;
+            if (p.shape != Shape::image) r.error(t.get("material"), "a `material` lights an image part (its picture's relief)");
+            if (*m != "none" && !look.materials.contains(*m)) {
+                std::vector<std::string_view> names{"none"};
+                for (const auto& [k, v] : look.materials) names.push_back(k);
+                r.error(t.get("material"), std::format("no material is called `{}`", *m), data::nearest_hint(*m, names));
+            }
+        }
         look.parts.push_back(std::move(p));
     });
 
@@ -1526,8 +1578,15 @@ std::string write_look(const Look& look) {
         for (std::size_t k = 0; k < look.slots.size() && k < look.palettes[p].size(); ++k)
             s += std::format("{} = {}\n", key_text(look.slots[k]), colour_text(look.palettes[p][k]));
     }
-    for (const Picture& pic : look.pictures)
+    for (const Picture& pic : look.pictures) {
         s += std::format("\n[[picture]]\nname = \"{}\"\nfile = \"{}\"\nsize = [{}, {}]\n", pic.name, pic.file, pic.width, pic.height);
+        if (pic.relief)
+            s += std::format("relief = {{ bevel = {}, detail = {}, smooth = {}, strength = {} }}\n", pic.relief->bevel, pic.relief->detail, pic.relief->smooth,
+                             pic.relief->strength);
+    }
+    for (const auto& [name, m] : look.materials)
+        s += std::format("\n[material.{}]\nbands = {}\nsoftness = {}\nshadow = {}\nshadow_strength = {}\nrim = {}\nrim_strength = {}\nrim_width = {}\nlight_z = {}\n",
+                         key_text(name), m.bands, m.softness, colour_text(m.shadow), m.shadow_strength, colour_text(m.rim), m.rim_strength, m.rim_width, m.light_z);
     for (const Bone& b : look.bones) {
         s += std::format("\n[[bone]]\nname = \"{}\"\n", b.name);
         if (b.parent >= 0) s += std::format("parent = \"{}\"\n", look.bones[static_cast<std::size_t>(b.parent)].name);
@@ -1581,6 +1640,7 @@ std::string write_look(const Look& look) {
         s += std::format("color = {}\n", p.slot >= 0 ? std::format("\"{}\"", look.slots.at(static_cast<std::size_t>(p.slot))) : colour_text(p.color));
         if (p.depth != 0) s += std::format("depth = {}\n", p.depth);
         if (!p.shown) s += "shown = false\n";
+        if (!p.material.empty()) s += std::format("material = \"{}\"\n", p.material);
         if (!p.shade) s += "shade = false\n";
     }
     for (const Grip& g : look.grips) {
@@ -1728,20 +1788,27 @@ std::string write_look(const Look& look) {
     for (const auto& [name, p] : look.cutins) s += std::format("\n[cutin.{}]\n{}\n", key_text(name), panel_text(look, p, "\n"));
     auto pic = [&](std::int32_t i) { return i >= 0 ? look.pictures.at(static_cast<std::size_t>(i)).name : std::string(); };
     for (const auto& [name, fx] : look.fx) {
-        for (const FxSprite& e : fx.sprites)
+        auto colour_line = [&](const std::optional<Color>& c) {
+            if (c) s += std::format("color = {}\n", colour_text(*c));
+        };
+        for (const FxSprite& e : fx.sprites) {
             s += std::format("\n[[fx.{}.sprite]]\npicture = \"{}\"\nsource = {}\nat = [{}, {}]\nfrom = {}\nframes = {}\nsize = [{}, {}]\nturn = [{}, {}]\nalpha = [{}, {}]\nease = \"{}\"\n",
                              key_text(name), pic(e.picture), rect_text(e.source), e.at.x, e.at.y, e.from, e.frames, e.size[0], e.size[1], e.turn[0], e.turn[1], e.alpha[0],
                              e.alpha[1], hanim::to_string(e.ease));
+            colour_line(e.color);
+        }
         for (const FxStroke& e : fx.strokes) {
             s += std::format("\n[[fx.{}.stroke]]\npicture = \"{}\"\nsource = {}\npoints = [", key_text(name), pic(e.picture), rect_text(e.source));
             for (std::size_t i = 0; i < e.points.size(); ++i) s += std::format("{}[{}, {}]", i ? ", " : "", e.points[i].x, e.points[i].y);
             s += std::format("]\nwidth = {}\nfrom = {}\ndraw = {}\nhold = {}\nfade = {}\n", e.width, e.from, e.draw, e.hold, e.fade);
+            colour_line(e.color);
         }
         for (const FxSpray& e : fx.sprays) {
             s += std::format("\n[[fx.{}.spray]]\npicture = \"{}\"\nsources = [", key_text(name), pic(e.picture));
             for (std::size_t i = 0; i < e.sources.size(); ++i) s += (i ? ", " : "") + rect_text(e.sources[i]);
             s += std::format("]\nat = [{}, {}]\nfrom = {}\nframes = {}\ncount = {}\nspeed = [{}, {}]\nangle = [{}, {}]\nsize = [{}, {}]\ngravity = {}\nseed = {}\n", e.at.x,
                              e.at.y, e.from, e.frames, e.count, e.speed[0], e.speed[1], e.angle[0], e.angle[1], e.size[0], e.size[1], e.gravity, e.seed);
+            colour_line(e.color);
         }
     }
     return s;

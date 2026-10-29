@@ -43,6 +43,7 @@ sole = "#e6efe0"
 name = "parts"
 file = "art/ni-parts.webp"
 size = [1017, 438]
+relief = { bevel = 12, detail = 2, smooth = 2, strength = 1 }
 
 [[picture]]
 name = "eyes"
@@ -58,6 +59,28 @@ size = [1100, 550]
 name = "finisher"
 file = "art/ni-finisher.webp"
 size = [640, 1014]
+
+[material.body]
+doc = "neon: hard bands, deep violet shadows, a hot rim on the lit edge"
+bands = 2
+softness = 0.04
+shadow = "#20103a"
+shadow_strength = 0.6
+rim = "#ff3ea5"
+rim_strength = 0.9
+rim_width = 0.45
+light_z = 1.1
+
+[material.skin]
+doc = "her face and hands: two bands, the rim kept"
+bands = 2
+softness = 0.08
+shadow = "#4a2350"
+shadow_strength = 0.4
+rim = "#ff3ea5"
+rim_strength = 0.7
+rim_width = 0.4
+light_z = 1.3
 
 [[bone]]
 name = "hip"
@@ -322,6 +345,7 @@ anchor = [614, 276]
 tip = [609, 226]
 depth = -1
 
+material = "skin"
 [[part]]
 name = "torso"
 bone = "torso"
@@ -344,6 +368,7 @@ tip = [47, 245]
 depth = 1
 mirror = true
 
+material = "skin"
 [[part]]
 name = "upper_front"
 bone = "upper_front"

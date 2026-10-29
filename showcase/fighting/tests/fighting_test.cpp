@@ -340,7 +340,7 @@ int main(int argc, char** argv) {
         check(g.h.save_png(dir / "study.png").has_value());
         const auto px = g.pixels();
         std::println("    study {:016x}", px);
-        check_eq(px, std::uint64_t{0xb8b13b999593507e});  // GCC and LLVM
+        check_eq(px, std::uint64_t{0x63e09dbb88a99c5c});  // GCC and LLVM
     });
 
     s.test("霓's home, the street: rain in front and behind, signs humming, the wet road giving them back — pinned", [] {
@@ -349,7 +349,7 @@ int main(int argc, char** argv) {
         check(g.h.save_png(scratch_dir("fighting-street") / "street.png").has_value());
         const auto px = g.pixels();
         std::println("    street {:016x}", px);
-        check_eq(px, std::uint64_t{0x2ffeecc044927aa4});  // GCC and LLVM
+        check_eq(px, std::uint64_t{0xa81cd1fb7630bcef});  // GCC and LLVM
     });
 
     s.test("the README's loop: 墨's level 3 from the flash's cut-in to the finishing blow, an animated WebP under 1 MB", [] {
@@ -409,7 +409,7 @@ int main(int argc, char** argv) {
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    mo level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("caee33e0740e92be"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("b4b0b9455695ee3d"));  // GCC and LLVM, every platform
     });
 
     s.test("墨's ink: waves of three sizes flung from the brush, and her level 2's tide along the floor — frames pinned", [] {
@@ -441,7 +441,7 @@ int main(int argc, char** argv) {
         }
         check_eq(saved, 8);
         std::println("    mo glyphs {}", all.hex());
-        check_eq(all.hex(), std::string("5ea9f6e5959f2242"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("28636019fc700c13"));  // GCC and LLVM, every platform
     });
 
     s.test("霓's afterimages and her level 3: the eyes cut-in, the neon city, the flurry, the strike cut-in, her finishing picture — frames pinned", [] {
@@ -487,7 +487,7 @@ int main(int argc, char** argv) {
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    ni level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("73766a12ad675578"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("7d2877e4e748bc57"));  // GCC and LLVM, every platform
     });
 
     s.test("岳 as designed: every normal's and elbow's startup and advantage, measured in the simulation (characters 2 design §3)", [] {

@@ -83,6 +83,8 @@ The first three still use the original geometric looks; they will be rebuilt wit
 
 The match is a pure step `step(state, pads) → state` over one plain struct in Q16.16 fixed point: no clocks, no allocation, no virtual calls, so rolling back 8 frames is copying and stepping again, and a whole recorded match hashes the same on GCC, LLVM, ARM and wasm. The rules arrived as numbered requirements (G-1 … G-22, P-1 … P-8), each with a test. Frame data is measured, not trusted: the tests play every move and compare startup, active, recovery and advantage with the file.
 
+A hit during the defender's startup is a counter: 120 % damage and 2 more frames of stun. A hit during a whiffed move's recovery is a punish counter: 130 % and 4 more frames. The tests check this by punishing a whiffed heavy.
+
 The hardcore design lists every detail with its rule, its look and its acceptance: high, mid and low; light, medium and heavy; attacks and reactions; combos; the three levels of super; knockdowns; defence; neutral; whiff punishes (limbs' hurtboxes are baked from the animation, so an extended limb can be hit); jumps; cross-ups (inputs are recorded relative to facing, so blocking a cross-up means holding the other way); throws. The bots (`gongfu.ai`) play every pair for hundreds of rounds; the tests hold each fighter to 38–62 % wins.
 
 ## 5. How a fighter is made: the workflow
@@ -128,6 +130,19 @@ The tools' openmui interfaces (a rig editor, a pose editor with IK handles, a ti
 - **Reactions.** The latest blow's height and weight choose `hitstun.head`, `.body`, `.low` or `.heavy`; a cinematic names a reaction for each of its hits; a grab anchor holds the defender at the attacker's hand, playing `held`.
 - **Effects.** `[fx.<name>]`: sprites that grow, turn and fade; brush strokes laid along a curve and drawn out; sprays of droplets from a seed — named by impacts, projectiles, clips and cinematics.
 - **Cut-ins.** `[cutin.<move>]` over a super's flash; panels in a cinematic; a cinematic can hide its attacker while an illustration stands in.
+- **Materials.** A picture may have a `relief`: each region's silhouette rounded in, with folds where it is painted darker. `openmui.image`'s `normal_map` makes it once at load, in integers, so it is the same everywhere. A look's `[material.<name>]` sets how its image parts take the stage's light: the bands, how soft their edges are, and the shadow's and the rim's strengths. The light's direction and colours are the stage's, so both fighters are lit alike. Each fighter has a style:
+  - 墨: two soft washes toward a cool ink.
+  - 霓: hard bands with a hot pink rim.
+  - 坤: clean cel shading with a warm rim.
+  - Faces and hands use a softer, warmer `skin`.
+
+  The renderer's lit mesh fill turns each normal with the part, so a mirrored or rotated arm still faces the light. The CPU reference and the GPU agree to 0 levels.
+- **Afterimages and clones** are the part's shape in one colour (`draw_mesh_mask`), not a faded copy, so 霓's trail reads as neon.
+- **Hit feel**, the five parts (hardcore design §2.6), each checked by a test:
+  - **Hitstop:** light < medium < heavy for every fighter's normals. A counter adds 2 frames and a punish counter 4, for both fighters.
+  - **The struck shakes:** every frame of the hitstop moves the struck fighter's picture, and the shaking stops when the hitstop ends.
+  - **Effects by tier:** a counter's effect is the hit's own, larger and drawn in the counter colour. A punish's is stamped twice and flashes white, unless the look gives `fx_counter` / `fx_punish` effects of its own.
+  - **Camera:** it shakes only for medium and heavier hits (a light hit's shake is 0), and harder for a counter or a punish.
 
 ## 8. Sound and music
 

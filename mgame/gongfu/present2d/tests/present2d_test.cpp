@@ -515,6 +515,117 @@ angle.fore = [[0, 0], [10, 90]]
         check(!b2 && has(texts(b2.error()), "is not inside picture"), b2 ? "read" : std::format("{}", texts(b2.error())));
     });
 
+    s.test("lit drawn art: a picture's relief and a material light a part from the stage's side; an afterimage is the part's shape in its tint; files read back as themselves", [&] {
+        const std::string text = R"(gongfu = "0.1"
+name = "lit"
+
+[[picture]]
+name = "torso"
+file = "torso.png"
+size = [80, 160]
+relief = { bevel = 24, detail = 0, smooth = 2, strength = 1 }
+
+[material.body]
+bands = 2
+softness = 0.1
+shadow = "#1a1430"
+shadow_strength = 0.7
+rim = "#ffffff"
+rim_strength = 0
+rim_width = 0.3
+light_z = 0.4
+
+[[bone]]
+name = "torso"
+joint = [0, 40]
+length = 120
+rest = 90
+
+[[part]]
+name = "torso"
+bone = "torso"
+shape = "image"
+picture = "torso"
+source = [0, 0, 80, 160]
+anchor = [40, 150]
+tip = [40, 10]
+mesh = [1, 1]
+)";
+        auto look = p2::read_look(text, "lit.look.gongfu.toml");
+        check(look.has_value(), look ? "" : std::format("{}", texts(look.error())));
+        if (!look) return;
+        check(look->pictures[0].relief && look->pictures[0].relief->bevel == 24 && look->materials.contains("body") && look->materials.at("body").bands == 2, "read");
+        const std::string written = p2::write_look(*look);
+        auto again = p2::read_look(written, "written.look.gongfu.toml");
+        check(again && p2::write_look(*again) == written, again ? written : std::format("{}", texts(again.error())));
+        // A grey slab; its relief (a bevel) made as a stage's carrier makes it, once.
+        omui::imageio::Image slab{.width = 80, .height = 160, .alpha = omui::imageio::Alpha::straight, .rgba = std::vector<std::uint8_t>(80 * 160 * 4, 0)};
+        for (int y = 6; y < 154; ++y)
+            for (int x = 6; x < 74; ++x)
+                for (int c = 0; c < 4; ++c) slab.rgba[static_cast<std::size_t>((y * 80 + x) * 4 + c)] = c == 3 ? 255 : 180;
+        const omui::imageio::Image normal = omui::imageio::normal_map(slab, {.bevel = 24});
+        auto pixels = [](const omui::imageio::Image& img) {
+            std::vector<omui::raster::Rgba8> px(static_cast<std::size_t>(img.width * img.height));
+            std::memcpy(px.data(), img.rgba.data(), img.rgba.size());
+            return px;
+        };
+        omui::render::ImageStore images;
+        look->pictures[0].ref = images.add(80, 160, pixels(slab));
+        const Fighter f = *compile(body());
+        FighterState st;
+        st.facing = 1;
+        p2::Painter painter;
+        auto draw = [&](const p2::Stage* world, std::optional<Color> tint = std::nullopt) {
+            omui::render::DisplayList dl;
+            dl.fill_rect({0, 0, 300, 300}, Color::hex(0x000000));
+            painter.body(*look, f, st, 0, p2::Scene{.width = 300, .height = 300, .ground = 260, .stage = world}, p2::Camera{0, 100, 1}, dl, "", 0, tint);
+            omui::raster::Surface out(300, 300);
+            omui::render::CpuRenderer{}.render(dl, out, {&images, nullptr}, {.scale = 1});
+            return out;
+        };
+        // Brightness of the slab's left and right thirds.
+        auto sides = [](const omui::raster::Surface& s) {
+            std::array<long, 2> sum{};
+            for (int y = 0; y < 300; ++y)
+                for (int x = 0; x < 300; ++x)
+                    if (s.at(x, y).a > 0 && s.at(x, y).g > 20) sum[x < 150 ? 0 : 1] += s.at(x, y).g;
+            return sum;
+        };
+        const auto flat = draw(nullptr);
+        look->pictures[0].normal = images.add(80, 160, pixels(normal));
+        p2::Stage from_left, from_right;
+        from_left.light_from = p2::Point{-1, 0};
+        from_right.light_from = p2::Point{1, 0};
+        const auto left = draw(&from_left), right = draw(&from_right);
+        save(flat, "lit-flat");
+        save(left, "lit-left");
+        save(right, "lit-right");
+        const auto [fl, fr] = sides(flat);
+        const auto [ll, lr] = sides(left);
+        const auto [rl, rr] = sides(right);
+        check(std::abs(fl - fr) * 100 < fl, std::format("unlit, both sides alike: {} {}", fl, fr));
+        check(ll > lr * 11 / 10 && rr > rl * 11 / 10, std::format("lit from the left {} > {}; from the right {} > {}", ll, lr, rr, rl));
+        // An afterimage: the part's shape, all in its tint.
+        const auto ghost = draw(&from_left, Color::hex(0xff3ea5));
+        int pink = 0, other = 0;
+        for (int y = 0; y < 300; ++y)
+            for (int x = 0; x < 300; ++x) {
+                const auto p = ghost.at(x, y);
+                if (p.r + p.g + p.b == 0) continue;
+                (p.r > 200 && p.g < 90 && p.b > 130 ? pink : other) += 1;
+            }
+        check(pink > 5000 && other < pink / 10, std::format("the afterimage in its tint: {} pink, {} other", pink, other));
+        // Problems: a material not declared; a material on a shape that is not drawn art.
+        std::string bad = text;
+        bad += "material = \"skin\"\n";
+        auto b1 = p2::read_look(bad, "bad.look.gongfu.toml");
+        check(!b1 && has(texts(b1.error()), "no material is called `skin`"), b1 ? "read" : std::format("{}", texts(b1.error())));
+        bad = text;
+        bad += "\n[[part]]\nbone = \"torso\"\nshape = \"capsule\"\nmaterial = \"body\"\n";
+        auto b2 = p2::read_look(bad, "bad.look.gongfu.toml");
+        check(!b2 && has(texts(b2.error()), "lights an image part"), b2 ? "read" : std::format("{}", texts(b2.error())));
+    });
+
     s.test("a grip (two-bone IK): the back hand stays on the staff wherever the front arm swings it; let go, the arm hangs as the clip has it; a file that reads back as itself", [] {
         const std::string text = R"(gongfu = "0.1"
 name = "grip"

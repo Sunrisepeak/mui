@@ -67,7 +67,10 @@ void Stage::start_round() {
     looks_ = {r.looks[2 * left_], r.looks[2 * right_ + 1]};
     for (p2::Look& look : looks_)
         for (p2::Picture& pic : look.pictures)
-            if (const auto it = art_.find(pic.file); it != art_.end()) pic.ref = it->second;
+            if (const auto it = art_.find(pic.file); it != art_.end()) {
+                pic.ref = it->second;
+                if (const auto n = normals_.find(pic.file); n != normals_.end()) pic.normal = n->second;
+            }
     effects_ = {};
     readout_.clear();
     // The stage's music: the arena's, else player 1's home's (none in training's plain room).
@@ -84,12 +87,15 @@ Stage::~Stage() {
     if (!attached()) return;
     if (timer_) services().cancel(timer_);
     for (const auto& [file, ref] : art_) services().images().remove(ref);
+    for (const auto& [file, ref] : normals_) services().images().remove(ref);
 }
 
 void Stage::mounted() {
     frame_.reserve(512);
     for (const auto& [file, a] : roster().art)
         if (!art_.contains(file)) art_.emplace(file, services().images().add(a.width, a.height, a.pixels));
+    for (const auto& [file, a] : roster().normals)
+        if (!normals_.contains(file)) normals_.emplace(file, services().images().add(a.width, a.height, a.pixels));
     start_round();
     if (hearing() && !heard_) heard_ = hearing()(sounds_);  // the program hears the fight (a device on its mixer)
     services().focus(node());  // the keyboard is the players'

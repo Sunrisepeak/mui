@@ -51,7 +51,7 @@ std::int32_t Fx::length() const noexcept {
 }
 
 void Painter::fx(const Look& look, const Fx& fx, double age, Point origin, double facing, float scale, const Scene& scene, const Camera& camera,
-                 render::DisplayList& out, float alpha) {
+                 render::DisplayList& out, float alpha, std::optional<Color> paint) {
     auto picture = [&](std::int32_t p) -> const Picture* {
         if (p < 0 || static_cast<std::size_t>(p) >= look.pictures.size()) return nullptr;
         const Picture& pic = look.pictures[static_cast<std::size_t>(p)];
@@ -60,8 +60,16 @@ void Painter::fx(const Look& look, const Fx& fx, double age, Point origin, doubl
     // A place of the effect (forward, up; stage units) on the picture.
     auto at = [&](double x, double y) { return on_picture(scene, camera, origin.x + facing * x * scale, origin.y + y * scale); };
     const float zoom = static_cast<float>(camera.zoom * scale);
+    // The mesh drawn: in the picture's own colours, or as its shape in one (the effect's `paint`, else the piece's own).
+    auto draw = [&](const Picture& pic, const std::optional<Color>& own, float opacity) {
+        if (const std::optional<Color> c = paint ? paint : own) {
+            out.draw_mesh_mask(pic.ref, mesh_at_, mesh_uv_, mesh_index_, Color{c->r, c->g, c->b, c->a * opacity}, render::Sampling::linear);
+        } else {
+            out.draw_mesh(pic.ref, mesh_at_, mesh_uv_, mesh_index_, render::Sampling::linear, opacity);
+        }
+    };
     // A region drawn as a quad about `centre` (picture pixels), `h` high, turned, mirrored with the facing.
-    auto quad = [&](const Picture& pic, const Rect& src, Point centre, double h, double turn, float opacity) {
+    auto quad = [&](const Picture& pic, const Rect& src, Point centre, double h, double turn, float opacity, const std::optional<Color>& own) {
         if (opacity <= 0 || src.height <= 0 || h <= 0) return;
         const double k = h / src.height, hw = src.width * k / 2, hh = h / 2;
         const double a = -turn * dm::pi / 180 * facing, ca = dm::cos(a), sa = dm::sin(a);
@@ -72,7 +80,7 @@ void Painter::fx(const Look& look, const Fx& fx, double age, Point origin, doubl
         mesh_at_.assign({corner(-hw, -hh), corner(hw, -hh), corner(hw, hh), corner(-hw, hh)});
         mesh_uv_.assign({{src.x, src.y}, {src.x + src.width, src.y}, {src.x + src.width, src.y + src.height}, {src.x, src.y + src.height}});
         mesh_index_.assign({0, 1, 2, 0, 2, 3});
-        out.draw_mesh(pic.ref, mesh_at_, mesh_uv_, mesh_index_, render::Sampling::linear, opacity);
+        draw(pic, own, opacity);
     };
 
     for (const FxStroke& s : fx.strokes) {
@@ -119,7 +127,7 @@ void Painter::fx(const Look& look, const Fx& fx, double age, Point origin, doubl
                                           static_cast<std::uint16_t>(k + 2)})
                 mesh_index_.push_back(v);
         }
-        if (!mesh_index_.empty()) out.draw_mesh(pic->ref, mesh_at_, mesh_uv_, mesh_index_, render::Sampling::linear, static_cast<float>(fading * alpha));
+        if (!mesh_index_.empty()) draw(*pic, s.color, static_cast<float>(fading * alpha));
     }
 
     for (const FxSprite& s : fx.sprites) {
@@ -127,7 +135,7 @@ void Painter::fx(const Look& look, const Fx& fx, double age, Point origin, doubl
         const double t = age - s.from;
         if (!pic || t < 0 || t >= s.frames) continue;
         const double u = s.ease(s.frames > 1 ? t / (s.frames - 1) : 1.0);
-        quad(*pic, s.source, at(s.at.x, s.at.y), mix(s.size, u) * zoom, mix(s.turn, u), static_cast<float>(mix(s.alpha, u) * alpha));
+        quad(*pic, s.source, at(s.at.x, s.at.y), mix(s.size, u) * zoom, mix(s.turn, u), static_cast<float>(mix(s.alpha, u) * alpha), s.color);
     }
 
     for (const FxSpray& s : fx.sprays) {
@@ -142,7 +150,7 @@ void Painter::fx(const Look& look, const Fx& fx, double age, Point origin, doubl
             const double size = mix(s.size, unit(s.seed, k + 2)) * zoom;
             const Rect& src = s.sources[static_cast<std::size_t>(unit(s.seed, k + 3) * static_cast<double>(s.sources.size())) % s.sources.size()];
             const double x = s.at.x + speed * dm::cos(angle) * t, y = s.at.y + speed * dm::sin(angle) * t - 0.5 * s.gravity * t * t;
-            quad(*pic, src, at(x, y), size, unit(s.seed, k + 4) * 360 + t * (unit(s.seed, k + 5) - 0.5) * 20, opacity);
+            quad(*pic, src, at(x, y), size, unit(s.seed, k + 4) * 360 + t * (unit(s.seed, k + 5) - 0.5) * 20, opacity, s.color);
         }
     }
 }

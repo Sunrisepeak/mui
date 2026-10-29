@@ -25,6 +25,8 @@ struct Roster {
         std::vector<omui::raster::Rgba8> pixels;
     };
     std::map<std::string, Art, std::less<>> art;
+    // Their reliefs (normal maps), by the same file, for pictures a look gives one.
+    std::map<std::string, Art, std::less<>> normals;
 };
 
 // The art of the stage named (empty: player 1's home; "plain": none); none when there is none.

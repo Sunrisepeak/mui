@@ -42,7 +42,7 @@ const Roster& roster() {
             }
             out.stages.emplace(std::string(name), std::move(*art));
         }
-        for (const auto& [file, bytes] : std::array<std::pair<std::string_view, std::string_view>, 17>{{{"art/mo-parts.webp", files::mo_parts_art},
+        const std::array<std::pair<std::string_view, std::string_view>, 17> files_of_art{{{"art/mo-parts.webp", files::mo_parts_art},
                                                                      {"art/mo-faces.webp", files::mo_faces_art},
                                                                      {"art/mo-arms.webp", files::mo_arms_art},
                                                                      {"art/ni-parts.webp", files::ni_parts_art},
@@ -58,17 +58,43 @@ const Roster& roster() {
                                                                      {"art/mo-fx.webp", files::mo_fx_art},
                                                                      {"art/mo-cutin-eyes.webp", files::mo_cutin_eyes_art},
                                                                      {"art/mo-cutin-strike.webp", files::mo_cutin_strike_art},
-                                                                     {"art/mo-finisher.webp", files::mo_finisher_art}}}) {
-            auto img = omui::imageio::decode({reinterpret_cast<const std::uint8_t*>(bytes.data()), bytes.size()});
-            if (!img) {
-                out.problems.push_back(std::format("{}: {}", file, img.error()));
+                                                                     {"art/mo-finisher.webp", files::mo_finisher_art}}};
+        // Each picture decoded, and its relief made where a look asks for one, a file to a thread (their results the same however they run).
+        std::map<std::string_view, p2::Picture::Relief> reliefs;
+        for (const p2::Look& look : out.looks)
+            for (const p2::Picture& pic : look.pictures)
+                if (pic.relief) reliefs.emplace(pic.file, *pic.relief);
+        struct Decoded {
+            std::expected<omui::imageio::Image, std::string> image = std::unexpected(std::string());
+            std::optional<omui::imageio::Image>              normal;
+        };
+        std::vector<Decoded> decoded(files_of_art.size());
+        omui::Tasks::shared().parallel_for(files_of_art.size(), 1, [&](std::size_t from, std::size_t to) {
+            for (std::size_t i = from; i < to; ++i) {
+                const auto [file, bytes] = files_of_art[i];
+                Decoded& d = decoded[i];
+                d.image = omui::imageio::decode({reinterpret_cast<const std::uint8_t*>(bytes.data()), bytes.size()});
+                if (!d.image) continue;
+                if (const auto r = reliefs.find(file); r != reliefs.end())
+                    d.normal = omui::imageio::normal_map(*d.image, {.bevel = r->second.bevel, .detail = r->second.detail, .smooth = r->second.smooth,
+                                                                     .strength = r->second.strength});
+                omui::imageio::premultiply(*d.image);  // the renderer's pixels are premultiplied
+            }
+        });
+        auto art_of = [](const omui::imageio::Image& img) {
+            Roster::Art a{img.width, img.height, {}};
+            a.pixels.resize(static_cast<std::size_t>(img.width) * static_cast<std::size_t>(img.height));
+            std::memcpy(a.pixels.data(), img.rgba.data(), img.rgba.size());
+            return a;
+        };
+        for (std::size_t i = 0; i < files_of_art.size(); ++i) {
+            const std::string_view file = files_of_art[i].first;
+            if (!decoded[i].image) {
+                out.problems.push_back(std::format("{}: {}", file, decoded[i].image.error()));
                 continue;
             }
-            omui::imageio::premultiply(*img);  // the renderer's pixels are premultiplied
-            Roster::Art a{img->width, img->height, {}};
-            a.pixels.resize(static_cast<std::size_t>(img->width) * static_cast<std::size_t>(img->height));
-            std::memcpy(a.pixels.data(), img->rgba.data(), img->rgba.size());
-            out.art.emplace(std::string(file), std::move(a));
+            out.art.emplace(std::string(file), art_of(*decoded[i].image));
+            if (decoded[i].normal) out.normals.emplace(std::string(file), art_of(*decoded[i].normal));
         }
         out.homes = {{"mo", "study"}, {"ni", "street"}};  // the rest's to come (quality design §5)
         return out;

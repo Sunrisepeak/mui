@@ -25,16 +25,19 @@ gold = "#7fb2ff"
 name = "parts"
 file = "art/kun-parts.webp"
 size = [1000, 243]
+relief = { bevel = 12, detail = 2, smooth = 2, strength = 1 }
 
 [[picture]]
 name = "arms"
 file = "art/kun-arms.webp"
 size = [585, 172]
+relief = { bevel = 10, detail = 1, smooth = 2, strength = 1 }
 
 [[picture]]
 name = "faces"
 file = "art/kun-faces.webp"
 size = [525, 244]
+relief = { bevel = 10, detail = 1, smooth = 2, strength = 1 }
 
 [[picture]]
 name = "eyes"
@@ -50,6 +53,28 @@ size = [1100, 550]
 name = "finisher"
 file = "art/kun-finisher.webp"
 size = [640, 973]
+
+[material.body]
+doc = "clean cel: two crisp bands, a cool blue-grey shadow, a warm rim"
+bands = 2
+softness = 0.06
+shadow = "#3b4766"
+shadow_strength = 0.45
+rim = "#fff2c8"
+rim_strength = 0.6
+rim_width = 0.35
+light_z = 1.1
+
+[material.skin]
+doc = "his face and hands: the shadow warmer and lighter"
+bands = 2
+softness = 0.1
+shadow = "#7a4b45"
+shadow_strength = 0.32
+rim = "#fff2c8"
+rim_strength = 0.45
+rim_width = 0.35
+light_z = 1.3
 
 [[bone]]
 name = "hip"
@@ -213,6 +238,7 @@ tip = [88, 143]
 depth = -9
 drawings = [{ picture = "arms", source = [4, 127, 38, 41], anchor = [10, 138], tip = [36, 156] }, { picture = "arms", source = [378, 4, 36, 69], anchor = [390, 69], tip = [409, 11] }, { picture = "arms", source = [95, 127, 58, 36], anchor = [98, 157], tip = [149, 132] }, { picture = "arms", source = [535, 4, 46, 44], anchor = [541, 7], tip = [576, 39] }, { picture = "arms", source = [475, 4, 56, 45], anchor = [481, 41], tip = [526, 17] }, { picture = "arms", source = [335, 4, 39, 72], anchor = [345, 74], tip = [365, 14] }, { picture = "arms", source = [418, 4, 53, 56], anchor = [427, 56], tip = [461, 8] }]
 
+material = "skin"
 [[part]]
 name = "foot_back"
 bone = "foot_back"
@@ -303,6 +329,7 @@ tip = [50, 15]
 depth = 1
 drawings = [{ picture = "faces", source = [108, 4, 100, 116], anchor = [142, 100], tip = [154, 15] }, { picture = "faces", source = [212, 4, 100, 116], anchor = [246, 100], tip = [258, 15] }, { picture = "faces", source = [316, 4, 100, 116], anchor = [350, 100], tip = [362, 15] }, { picture = "faces", source = [420, 4, 100, 116], anchor = [454, 100], tip = [466, 15] }, { picture = "faces", source = [4, 124, 100, 116], anchor = [38, 220], tip = [50, 135] }]
 
+material = "skin"
 [[part]]
 name = "upper_front"
 bone = "upper_front"
@@ -338,6 +365,7 @@ tip = [88, 143]
 depth = 5
 drawings = [{ picture = "arms", source = [4, 127, 38, 41], anchor = [10, 138], tip = [36, 156] }, { picture = "arms", source = [378, 4, 36, 69], anchor = [390, 69], tip = [409, 11] }, { picture = "arms", source = [95, 127, 58, 36], anchor = [98, 157], tip = [149, 132] }, { picture = "arms", source = [535, 4, 46, 44], anchor = [541, 7], tip = [576, 39] }, { picture = "arms", source = [475, 4, 56, 45], anchor = [481, 41], tip = [526, 17] }, { picture = "arms", source = [335, 4, 39, 72], anchor = [345, 74], tip = [365, 14] }, { picture = "arms", source = [418, 4, 53, 56], anchor = [427, 56], tip = [461, 8] }]
 
+material = "skin"
 [[part]]
 name = "ball"
 bone = "hand_front"

@@ -226,10 +226,17 @@ int sheet(const std::filesystem::path& dir, int argc, char** argv) {
             std::println("{}", report.dump(2));
             return 1;
         }
+        auto pixels = [](const omui::imageio::Image& i) {
+            std::vector<omui::raster::Rgba8> px(static_cast<std::size_t>(i.width) * static_cast<std::size_t>(i.height));
+            std::memcpy(px.data(), i.rgba.data(), i.rgba.size());
+            return px;
+        };
+        if (const auto& r = pic.relief) {  // its relief, as the game makes it
+            const auto n = omui::imageio::normal_map(*img, {.bevel = r->bevel, .detail = r->detail, .smooth = r->smooth, .strength = r->strength});
+            pic.normal = images.add(n.width, n.height, pixels(n));
+        }
         omui::imageio::premultiply(*img);
-        std::vector<omui::raster::Rgba8> px(static_cast<std::size_t>(img->width) * static_cast<std::size_t>(img->height));
-        std::memcpy(px.data(), img->rgba.data(), img->rgba.size());
-        pic.ref = images.add(img->width, img->height, std::move(px));
+        pic.ref = images.add(img->width, img->height, pixels(*img));
     }
     options.images = &images;
     auto s = gongfu::studio::sheet(*fighter, *look, options);

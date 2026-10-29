@@ -15,6 +15,7 @@ export import :sound;
 export import :fight_sound;
 export import :menu_sound;
 export import :voice_sound;
+export import :fighters_sound;
 export import :voice_files;
 export import :stage_files;
 export import :stage_art_files;

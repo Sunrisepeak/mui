@@ -38,13 +38,25 @@ public:
     void live(bool on) noexcept { live_ = on; }
 
     [[nodiscard]] audio::Mixer& mixer() noexcept { return *mixer_; }
+    // The fighters' voices played so far (a cry, a strain, a fall): what a test or an agent counts.
+    [[nodiscard]] std::int64_t spoken() const noexcept { return spoken_; }
     // Samples a frame of the match lasts (rate / 60).
     [[nodiscard]] std::int64_t frame_samples() const noexcept { return mixer_->rate() / 60; }
 
 private:
     void play(std::string_view name, std::int64_t at, float gain, float pan);
 
+    // A fighter's voice (sounds/fighters.sound.omui.toml, by its look's name): what it says hurt, falling, striking.
+    struct Voice {
+        std::vector<std::int32_t> hurt, effort;
+        std::int32_t              ko = -1;
+    };
+    void voice(const Voice* v, std::span<const std::int32_t> takes, std::int32_t pick, std::int64_t at, float pan);
+
     std::unique_ptr<audio::Mixer> mixer_;
+    std::map<std::string, Voice, std::less<>> voices_;
+    std::array<std::int32_t, 2>   hurt_at_{-1000, -1000}, effort_at_{-1000, -1000};
+    std::int64_t                  spoken_ = 0;  // the frame each side last cried out, last strained
     // The stages' music, attached before anything plays; the one playing.
     std::map<std::string, std::shared_ptr<audio::Sequencer>, std::less<>> themes_;
     std::string                   theme_;

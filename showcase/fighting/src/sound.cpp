@@ -44,9 +44,20 @@ Sounds::Sounds() : mixer_(std::make_unique<audio::Mixer>()) {
         if (auto r = audio::read_wav(std::as_bytes(std::span(data.data(), data.size()))))
             mixer_->add_recording(file.substr(0, file.find('.')), r->samples, r->rate);
     for (const auto& [text, file] : {std::pair{files::fight_sound, "fight.sound.omui.toml"}, std::pair{files::menu_sound, "menu.sound.omui.toml"},
-                                     std::pair{files::voice_sound, "voice.sound.omui.toml"}})
+                                     std::pair{files::voice_sound, "voice.sound.omui.toml"}, std::pair{files::fighters_sound, "fighters.sound.omui.toml"}})
         if (auto sounds = audio::read_sounds(text, file))
-            for (const auto& s : *sounds) mixer_->add(s);
+            for (const auto& s : *sounds) {
+                const std::int32_t id = mixer_->add(s);
+                // A fighter's voice by its name: <fighter>_hurt_<n>, <fighter>_ko, <fighter>_effort_<n>.
+                const std::string_view n = s.name;
+                const auto cut = n.find('_');
+                if (std::string_view(file) != "fighters.sound.omui.toml" || cut == std::string_view::npos) continue;
+                Voice& v = voices_[std::string(n.substr(0, cut))];
+                const std::string_view kind = n.substr(cut + 1);
+                if (kind == "ko") v.ko = id;
+                else if (kind.starts_with("hurt_")) v.hurt.push_back(id);
+                else if (kind.starts_with("effort_")) v.effort.push_back(id);
+            }
     mixer_->add_effect("sfx", audio::echo(0.11f, 0.22f, 0.18f, mixer_->rate()));  // the hall the stage stands in
     for (const auto& [file, text] : files::music_files) {  // each stage's theme, by the stage's name
         const std::string_view name = file.substr(0, file.find('.'));
@@ -69,6 +80,7 @@ const std::function<std::shared_ptr<void>(Sounds&)>& hearing() { return hook(); 
 void Sounds::restart(std::string_view theme) {
     base_ = mixer_->clock();
     freeze_ = 0;
+    hurt_at_ = effort_at_ = {-1000, -1000};
     if (theme == theme_) return;  // the same stage: its music goes on
     if (const auto old = themes_.find(theme_); old != themes_.end()) old->second->finish();
     theme_ = theme;
@@ -94,6 +106,11 @@ void Sounds::theme(float intensity, float gain) {
 void Sounds::cue(std::string_view name, std::int32_t frame, std::int32_t later, float gain, float pan) {
     const std::int64_t now = live_ ? mixer_->clock() + audio::block_frames : base_ + static_cast<std::int64_t>(frame) * frame_samples();
     play(name, now + static_cast<std::int64_t>(later) * frame_samples(), gain, pan);
+}
+
+void Sounds::voice(const Voice* v, std::span<const std::int32_t> takes, std::int32_t pick, std::int64_t at, float pan) {
+    if (!v || takes.empty()) return;
+    if (mixer_->play(takes[static_cast<std::size_t>(pick) % takes.size()], at, 1, pan)) ++spoken_;
 }
 
 void Sounds::play(std::string_view name, std::int64_t at, float gain, float pan) {
@@ -125,6 +142,39 @@ void Sounds::heard(const gongfu::Match& match, const p2::Look& left, const p2::L
                            : e.kind == gongfu::Event::Kind::ko ? 1.0f
                                                               : static_cast<float>(std::clamp(0.55 + e.damage / 2400.0, 0.4, 1.0));
         for (std::size_t k = 0; k < 3; ++k) play(named ? std::string_view(im.sound[k]) : kind[k], at, gain, pan);
+    }
+    // The fighters' voices: a cry from whom a heavy blow or a counter lands on
+    // (not every blow of a combo: a breath between), a strain with one's own
+    // heavy blows, and the fall at a K.O. Which take, from the frame: the same
+    // fight says the same.
+    std::array<bool, 2> falls{};  // a K.O. this frame: the fall, not a cry as well
+    for (const gongfu::Event& e : match.events())
+        if (e.kind == gongfu::Event::Kind::ko && (e.attacker == 0 || e.attacker == 1)) falls[static_cast<std::size_t>(1 - e.attacker)] = true;
+    for (const gongfu::Event& e : match.events()) {
+        using K = gongfu::Event::Kind;
+        if (e.kind != K::hit && e.kind != K::counter && e.kind != K::ko) continue;
+        if (e.attacker != 0 && e.attacker != 1) continue;
+        const auto a = static_cast<std::size_t>(e.attacker), d = 1 - a;
+        const auto by = [&](std::size_t side) {
+            const auto it = voices_.find((side == 1 ? right : left).name);
+            return it == voices_.end() ? nullptr : &it->second;
+        };
+        const float pan = static_cast<float>(std::clamp((e.at.x.to_double() - half) / half, -1.0, 1.0) * 0.7);
+        const std::int64_t later = 3 * frame_samples();  // the voice just after the blow's crack
+        if (e.kind == K::ko) {
+            if (const Voice* v = by(d); v && v->ko >= 0 && mixer_->play(v->ko, at + later, 1, pan)) ++spoken_;
+            hurt_at_[d] = st.frame;
+            continue;
+        }
+        const bool heavy = e.damage >= 800;
+        if ((heavy || e.kind == K::counter) && !falls[d] && (st.frame - hurt_at_[d] >= 36 || st.frame < hurt_at_[d])) {  // (a state loaded: earlier again)
+            voice(by(d), by(d) ? std::span(by(d)->hurt) : std::span<const std::int32_t>{}, st.frame, at + later, pan);
+            hurt_at_[d] = st.frame;
+        }
+        if (heavy && (st.frame - effort_at_[a] >= 30 || st.frame < effort_at_[a])) {
+            voice(by(a), by(a) ? std::span(by(a)->effort) : std::span<const std::int32_t>{}, st.frame, at, pan);
+            effort_at_[a] = st.frame;
+        }
     }
     // A super's flash: its sweep, from the side that flashed.
     if (st.freeze > 0 && freeze_ == 0) play("super_flash", at, 0.8f, 0.0f);

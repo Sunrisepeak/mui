@@ -38,6 +38,7 @@ mcpp run -p openmui.showcase.fighting -- --headless --png fight.png
   - The library has shared thuds, cracks, blocks and booms, and each fighter's own: ink for 墨, neon for 霓, glass for 璃, the mountain for 岳, the clock for 刻.
   - Sounds play on the frame the simulation made them, panned by where on the stage and louder for more damage. A super's flash has its sweep.
   - `omui-fight` hears them through the system's output (`openmui.audio.device`); headless or with `--quiet`, nothing is heard.
+  - The fighters have voices (CC0 takes processed into each, in `voice/`): the struck cry out under a heavy blow or a counter, a breath apart; 坤 strains with his heavy blows; a K.O. is a fall.
   - An announcer calls the round: "fight", "time", the winner, a flawless victory or a tie (Kenney's CC0 Voiceover Pack: Fighter, in `voice/`, played through `openmui.audio`'s recording layers).
   - Offline, each sound starts on its frame's very sample, so a match's sound is as determined as its pixels: the tests pin a fight's audio and write it as a WAV.
 - **The match runs on the runtime's clock.** A timer plays every frame that is due: a late frame catches up, and a stall of more than four frames is skipped, not replayed. Headless, a second is exactly 60 frames. Pausing is a property. While paused, `step` plays one frame.
@@ -66,7 +67,7 @@ mcpp run -p openmui.showcase.fighting -- --headless --png fight.png
 
   `gongfu-studio stage` previews a stage with two fighters for scale.
 
-`tests/select_test.cpp` covers the menus: the title's modes, choosing by keys and by gamepad, the title and the select screen with pinned pixels, the menus' music and cues and the announcer's calls with pinned sound. `tests/fighting_test.cpp` covers:
+`tests/select_test.cpp` covers the menus: the title's modes, choosing by keys and by gamepad, and the title and the select screen with pinned pixels. `tests/sound_test.cpp` covers what the game sounds like, each with pinned sound: the menus' music and cues, the announcer's calls, and the fighters' voices. `tests/fighting_test.cpp` covers:
 - the roster read;
 - 60 frames a second on the clock, exactly;
 - the keyboard walking both players;

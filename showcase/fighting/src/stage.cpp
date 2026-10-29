@@ -89,9 +89,19 @@ Color tone(std::uint32_t hex, float alpha = 1) { return Color::hex(hex, alpha); 
 
 }  // namespace
 
-void Stage::start_round() {
+std::int32_t Stage::to_win() const noexcept { return std::max(1, props.rounds); }
+
+void Stage::start_round(bool next) {
     const Roster& r = roster();
     if (r.fighters.empty()) return;
+    if (next) {
+        ++round_;
+    } else {
+        round_ = 1;
+        wins_ = {};
+    }
+    decided_ = false;
+    over_for_ = 0;
     left_ = fighter_index(props.player1);
     right_ = fighter_index(props.player2);
     match_ = std::make_unique<gongfu::Match>(r.system, r.fighters[left_], r.fighters[right_]);
@@ -147,9 +157,9 @@ void Stage::schedule() {
 void Stage::prop_changed(StageProp p) {
     if (!attached()) return;
     // Another fighter, another mode or another stage: a new round.
-    if (p == StageProp::player1 || p == StageProp::player2 || p == StageProp::mode || p == StageProp::arena) start_round();
-    if (p == StageProp::paused && !props.paused) {  // playing again: the keyboard is the players'; a finished round, a new one
-        if (match_ && match_->state().over) start_round();
+    if (p == StageProp::player1 || p == StageProp::player2 || p == StageProp::mode || p == StageProp::arena || p == StageProp::rounds) start_round();
+    if (p == StageProp::paused && !props.paused) {  // playing again: the keyboard is the players'; a finished match, a new one
+        if (match_ && match_->state().over && (decided_ || props.mode == "training")) start_round();
         services().focus(node());
     }
     services().invalidate_paint(node());
@@ -241,13 +251,30 @@ void Stage::advance() {
     effects_.record(*match_);
     readout_.record(*match_, a, b);
     sounds_.heard(*match_, looks_[0], looks_[1]);
-    if (props.mode != "training" && match_->state().frame == 20) sounds_.cue("call_fight", 20);  // the announcer, as the round gets going
-    if (match_->state().over && !over_reported_) {
-        over_reported_ = true;
-        sounds_.finish();  // the K.O.: the theme's outro over the finish, then quiet for the menus' own
-        if (props.mode != "training") announce();
-        emit_round_over(match_->state().winner);
+    const gongfu::State& st = match_->state();
+    const bool versus = props.mode != "training";
+    // The announcer as a round begins: which round (the final one when either could take the match), then "fight".
+    if (versus && st.frame == 1) {
+        const bool last = wins_[0] == to_win() - 1 && wins_[1] == to_win() - 1 && to_win() > 1;
+        const std::string_view call = last ? "call_final_round" : round_ == 1 ? "call_round_1" : round_ == 2 ? "call_round_2" : "call_round_3";
+        if (to_win() > 1) sounds_.cue(call, 1);
     }
+    if (versus && st.frame == (to_win() > 1 ? 80 : 20)) sounds_.cue("call_fight", st.frame);
+    if (st.over && !over_reported_) {
+        over_reported_ = true;
+        if (versus) {
+            // The round to its winner (a draw to both); the match to whoever has won enough, or after five rounds to the one ahead.
+            if (st.winner == 0 || st.winner == 1) ++wins_[static_cast<std::size_t>(st.winner)];
+            else ++wins_[0], ++wins_[1];
+            decided_ = std::max(wins_[0], wins_[1]) >= to_win() || round_ >= 2 * to_win() + 1;
+        }
+        if (!versus || decided_) sounds_.finish();  // the K.O.: the theme's outro over the finish, then quiet for the menus' own
+        if (versus) announce();
+        emit_round_over(st.winner);
+        if (versus && decided_) emit_match_over(wins_[0] > wins_[1] ? 0 : wins_[1] > wins_[0] ? 1 : 2);
+    }
+    // Three seconds after a round's K.O., the next (counted here: an ended match's frame stands still).
+    if (versus && over_reported_ && !decided_ && ++over_for_ >= 180) start_round(true);
     services().invalidate_paint(node());
     services().invalidate_semantics(node());
 }
@@ -259,6 +286,7 @@ void Stage::announce() {
     const gongfu::State& st = match_->state();
     const bool time = std::ranges::any_of(match_->events(), [](const gongfu::Event& e) { return e.kind == gongfu::Event::Kind::time_over; });
     if (time) sounds_.cue("call_time", st.frame);
+    if (!decided_) return;  // a round: the next one calls itself
     constexpr std::int32_t after = 75, name = 72;  // frames: the K.O.'s moment, then "player 1" said
     if (st.winner != 0 && st.winner != 1) {
         sounds_.cue("call_tie", st.frame, after);
@@ -300,7 +328,7 @@ void Stage::paint(PaintContext& ctx) const {
 
     const auto art = [&](std::string_view file) { return art_ ? art_->picture(file) : render::ImageRef{}; };
     hud::versus(frame, *match_, effects_, {art("hud/frames.webp"), art("hud/type.webp"), art("hud/names.webp"), art("hud/fill.webp")}, {&left, &right},
-                {r.names[left_], r.names[right_]});
+                {r.names[left_], r.names[right_]}, props.mode == "training" ? std::array<std::int32_t, 2>{} : wins_, to_win());
     // Training's overlays, but not over a super's flash or a cinematic: those are the picture.
     if (props.mode == "training" && props.overlays && match_->state().freeze == 0 && match_->state().lock.owner < 0) {
         hud::boxes(frame, *match_, scene, p2::view_camera(*match_, left, right, effects_, scene));
@@ -350,6 +378,8 @@ void Stage::semantics(SemanticsContext&, spec::SemanticNode& node) const {
     const gongfu::State& st = match_->state();
     Value v;
     v.set("frame", st.frame).set("seconds", (st.timer + 59) / 60).set("over", st.over != 0).set("winner", st.winner);
+    if (props.mode != "training")
+        v.set("round", round_).set("wins", Value(Value::List{Value(wins_[0]), Value(wins_[1])})).set("to_win", to_win()).set("decided", decided_);
     if (!roster().problems.empty()) v.set("problems", Value(Value::List(roster().problems.begin(), roster().problems.end())));
     for (std::int32_t i = 0; i < 2; ++i) {
         const auto& f = st.f[static_cast<std::size_t>(i)];

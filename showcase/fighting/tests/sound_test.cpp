@@ -81,7 +81,7 @@ void save(const std::vector<float>& all, std::int32_t rate, std::string_view dir
 int main(int argc, char** argv) {
     Suite s{"showcase.fighting.sound"};
 
-    s.test("the menus heard: the main theme calm on the title, the beat on the select screen, a cue for each move and choice; fading under the VS, and the fight's own theme ending with the round — the same bits every run", [] {
+    s.test("the menus heard: the main theme calm on the title, the beat on the select screen, a cue for each move and choice; fading under the VS, and the fight's own theme playing on between rounds and ending with the match — the same bits every run", [] {
         App a;
         audio::Mixer& mixer = a.select_mut().sounds().mixer();
         const std::int64_t per = a.select_mut().sounds().frame_samples();
@@ -118,37 +118,55 @@ int main(int argc, char** argv) {
         check(title > 0.01, "the theme is heard on the title");
         check(select > title * 1.15, "more of it on the select screen");
         check(after < 2e-3, "quiet behind the fight");
-        // The round over (the clock run out here, as a K.O. would end it): the stage's theme goes to its outro.
-        auto& match = const_cast<gongfu::Match&>(a.stage().match());
-        gongfu::State st = match.state();
-        st.timer = 2;
-        match.restore(st);
-        a.h.advance(seconds(0.2));
-        check(a.stage().match().state().over != 0, "the round is over");
-        check(a.stage_mut().sounds().playing().empty(), "the fight's theme finished with the round");
+        // A round over (the clock run out here, player 2 hurt): the theme plays on into the next round, which
+        // begins three seconds later; the second round player 1's too, the match is over and the theme goes to its outro.
+        for (int round = 1; round <= 2; ++round) {
+            auto& match = const_cast<gongfu::Match&>(a.stage().match());
+            gongfu::State st = match.state();
+            st.timer = 2, st.f[1].health = 5000;
+            match.restore(st);
+            a.h.advance(seconds(0.2));
+            check(a.stage().match().state().over != 0, std::format("round {} over", round));
+            if (round == 1) {
+                check_eq(a.stage_mut().sounds().playing(), std::string_view("rooftop"));
+                a.h.advance(seconds(3.1));
+                check(a.stage().match().state().over == 0, "the second round");
+            }
+        }
+        check(a.stage_mut().sounds().playing().empty(), "the fight's theme finished with the match");
         const auto w = audio::wav(all, mixer.rate());
         std::ofstream(scratch_dir("fighting-menus-heard") / "menus.wav", std::ios::binary).write(reinterpret_cast<const char*>(w.data()), static_cast<std::streamsize>(w.size()));
         std::println("    menus heard {:016x} ({:.1f} s)", audio::hash(all), static_cast<double>(all.size()) / 2 / mixer.rate());
         check_eq(audio::hash(all), std::uint64_t{0x626cba52de69bc95});  // GCC and LLVM, every platform
     });
 
-    s.test("the announcer: \"fight\" as a round begins; the clock run out, \"time\", then whose round it was — player 2, never touched: a flawless victory", [] {
+    s.test("the announcer: \"round one\", \"fight\"; the clock run out, \"time\"; \"round two\", \"fight\"; at the match's end whose it was — player 2, never touched: a flawless victory", [] {
         Fight f("plain", "versus", "mo", "ni");  // the plain room has no music: what is heard is the announcer
         audio::Mixer& mixer = f.stage->sounds().mixer();
-        const float before = f.step(19), fight = f.step(60);
-        check(before == 0 && fight > 0.05f, std::format("silent ({}), then \"fight\" ({})", before, fight));
-        gongfu::State st = f.state();
-        st.timer = 3, st.f[0].health = 5000;  // the clock nearly out, player 1 hurt: player 2's round
-        f.restore(st);
         const std::int64_t begun = mixer.begun();
-        f.step(3);
-        check(f.state().over != 0 && f.state().winner == 1, "time: player 2's round");
-        const float time = f.step(70), name = f.step(72), flawless = f.step(140);
-        check(time > 0.05f && name > 0.05f && flawless > 0.05f, std::format("\"time\" {}, \"player 2\" {}, \"flawless victory\" {}", time, name, flawless));
-        check_eq(mixer.begun() - begun, std::int64_t{3});
+        const float round_one = f.step(78), fight = f.step(60);
+        check(round_one > 0.05f && fight > 0.05f, std::format("\"round one\" {}, then \"fight\" {}", round_one, fight));
+        check_eq(mixer.begun() - begun, std::int64_t{2});
+        // Two rounds to player 2 on the clock, player 1 hurt.
+        float time = 0;
+        for (int round = 1; round <= 2; ++round) {
+            gongfu::State st = f.state();
+            st.timer = 3, st.f[0].health = 5000;
+            f.restore(st);
+            f.step(3);
+            check(f.state().over != 0 && f.state().winner == 1, std::format("round {}: player 2's on time", round));
+            time = std::max(time, f.step(60));
+            if (round == 1) f.step(200);  // the next round, called and begun
+        }
+        check(time > 0.05f, std::format("\"time\" {}", time));
+        const float name = f.step(80), flawless = f.step(140);
+        check(name > 0.05f && flawless > 0.05f, std::format("\"player 2\" {}, \"flawless victory\" {}", name, flawless));
+        // round one, fight; time; round two, fight; time, player 2, flawless victory
+        check_eq(mixer.begun() - begun, std::int64_t{8});
+        check(f.stage->match().state().over != 0, "the match over");
         save(f.all, mixer.rate(), "fighting-announcer", "announcer.wav");
         std::println("    announcer heard {:016x} ({:.1f} s)", audio::hash(f.all), static_cast<double>(f.all.size()) / 2 / mixer.rate());
-        check_eq(audio::hash(f.all), std::uint64_t{0x200738cca43d3a91});  // GCC and LLVM, every platform
+        check_eq(audio::hash(f.all), std::uint64_t{0x5ffe577d554cbd81});  // GCC and LLVM, every platform
     });
 
     s.test("the fighters' voices: 坤 strains with his heavy blow and 墨 cries out under it, not again for a breath; at her K.O. she falls with a cry of her own, not two", [] {
@@ -185,7 +203,7 @@ int main(int argc, char** argv) {
         check(fall > 0.05f, std::format("heard ({})", fall));
         save(f.all, mixer.rate(), "fighting-voices", "voices.wav");
         std::println("    voices heard {:016x} ({:.1f} s)", audio::hash(f.all), static_cast<double>(f.all.size()) / 2 / mixer.rate());
-        check_eq(audio::hash(f.all), std::uint64_t{0x0d2f508a19a8c669});  // GCC and LLVM, every platform
+        check_eq(audio::hash(f.all), std::uint64_t{0x0d4a6d6f5e7bb97f});  // GCC and LLVM, every platform
     });
 
     return s.run(argc, argv);

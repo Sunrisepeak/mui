@@ -342,7 +342,8 @@ String latest_string(const p2::Effects& effects, std::int32_t attacker) {
 }  // namespace
 
 void versus(render::DisplayList& out, const gongfu::Match& match, const p2::Effects& effects, const Art& art,
-            const std::array<const p2::Look*, 2>& looks, const std::array<std::string_view, 2>& names) {
+            const std::array<const p2::Look*, 2>& looks, const std::array<std::string_view, 2>& names, std::array<std::int32_t, 2> wins,
+            std::int32_t to_win) {
     const gongfu::State& st = match.state();
     const std::int32_t frame = st.frame;
     for (std::int32_t i = 0; i < 2; ++i) {
@@ -477,6 +478,17 @@ void versus(render::DisplayList& out, const gongfu::Match& match, const p2::Effe
             out.fill_path(plate, render::FillRule::nonzero, render::Paint::solid(tone(0x07080b, 0.88f)));
             out.stroke_path(plate, {.width = 1.2f}, render::Paint::solid(tone(0xc9a24a, 0.9f)));
             shape(out, art.names, nm->second, dest, tone(0xf6ecd6));
+            // The rounds won, once there are any: a red seal for each, an empty one for each to go, beside the name toward the middle.
+            if (wins[0] > 0 || wins[1] > 0)
+                for (std::int32_t n = 0; n < to_win; ++n) {
+                    const float r = 7, gap = 20, c = i == 0 ? px + pw + 16 + static_cast<float>(n) * gap : px - 16 - static_cast<float>(n) * gap;
+                    const Point m{c, py + ph / 2};
+                    render::Path seal;  // a diamond: a seal stood on its corner
+                    seal.move_to({m.x, m.y - r}).line_to({m.x + r, m.y}).line_to({m.x, m.y + r}).line_to({m.x - r, m.y}).close();
+                    const bool won = n < wins[static_cast<std::size_t>(i)];
+                    out.fill_path(seal, render::FillRule::nonzero, render::Paint::solid(won ? tone(0xc8282a) : tone(0x07080b, 0.85f)));
+                    out.stroke_path(seal, {.width = 1.4f}, render::Paint::solid(tone(0xd9b25a, won ? 1.0f : 0.7f)));
+                }
         }
     }
 

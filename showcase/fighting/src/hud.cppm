@@ -23,9 +23,12 @@ struct Art {
 // The versus HUD over the match: each side's portrait (its look's head),
 // health with the recent damage draining, posture, super meter and level,
 // its name in calligraphy (by its files' name); the timer; a combo's count
-// and damage; COUNTER and PUNISH COUNTER; K.O.; FIGHT! as the round begins.
+// and damage; COUNTER and PUNISH COUNTER; K.O.; FIGHT! as the round begins;
+// once a round is won, each side's rounds as red seals beside its name (of
+// `to_win`).
 void versus(render::DisplayList& out, const gongfu::Match& match, const gongfu::present2d::Effects& effects, const Art& art,
-            const std::array<const gongfu::present2d::Look*, 2>& looks, const std::array<std::string_view, 2>& names);
+            const std::array<const gongfu::present2d::Look*, 2>& looks, const std::array<std::string_view, 2>& names,
+            std::array<std::int32_t, 2> wins = {}, std::int32_t to_win = 2);
 // A number in seven segments of `size` height ending at `right` (its top at
 // `top`); `sign`: a + or − before it. Answers where it begins.
 float number(render::DisplayList& out, float right, float top, float size, std::int32_t value, bool sign, Color color);

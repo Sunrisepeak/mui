@@ -4,7 +4,7 @@ Recordings played by `openmui.audio`'s recording layers, all CC0 ([CC0 1.0](http
 
 | Files | From |
 |---|---|
-| `fight`, `time`, `player_1`, `player_2`, `winner`, `flawless_victory`, `tie`, `choose_your_character` | Kenney's [Voiceover Pack: Fighter](https://opengameart.org/content/voiceover-pack-fighter-40-taunts) ([kenney.nl](https://kenney.nl)); `tie` is its `it's_a_tie` |
+| `fight`, `round_1`–`round_3`, `final_round`, `time`, `player_1`, `player_2`, `winner`, `flawless_victory`, `tie`, `choose_your_character` | Kenney's [Voiceover Pack: Fighter](https://opengameart.org/content/voiceover-pack-fighter-40-taunts) ([kenney.nl](https://kenney.nl)); `tie` is its `it's_a_tie` |
 | `female_1`–`female_7` (no 4) | [Female Hurt Grunts & Groans](https://opengameart.org/content/female-hurt-grunts-groans), its takes |
 | `strain_1`, `strain_3`, `strain_6`, `strain_8`, `strain_11`, `strain_14` | [15 vocal male strain/hurt/pain/jump sounds](https://opengameart.org/content/15-vocal-male-strainhurtpainjump-sounds) (`slightscream-NN`) |
 | `pain_12` | [grunts of male death and pain](https://opengameart.org/content/grunts-male-death-and-pain), its twelfth take |

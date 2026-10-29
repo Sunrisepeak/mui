@@ -138,3 +138,71 @@ at = 0.014
 speed = 0.95
 filter = { kind = "lowpass", cutoff = 1800 }
 gain = 0.3
+
+[sound.call_round_1]
+gain = 0.5
+[[sound.call_round_1.layer]]
+wave = "recording"
+recording = "round_1"
+speed = 0.95
+filter = { kind = "highpass", cutoff = 90 }
+drive = 0.12
+
+[[sound.call_round_1.layer]]
+wave = "recording"
+recording = "round_1"
+at = 0.014
+speed = 0.95
+filter = { kind = "lowpass", cutoff = 1800 }
+gain = 0.3
+
+[sound.call_round_2]
+gain = 0.5
+[[sound.call_round_2.layer]]
+wave = "recording"
+recording = "round_2"
+speed = 0.95
+filter = { kind = "highpass", cutoff = 90 }
+drive = 0.12
+
+[[sound.call_round_2.layer]]
+wave = "recording"
+recording = "round_2"
+at = 0.014
+speed = 0.95
+filter = { kind = "lowpass", cutoff = 1800 }
+gain = 0.3
+
+[sound.call_round_3]
+gain = 0.5
+[[sound.call_round_3.layer]]
+wave = "recording"
+recording = "round_3"
+speed = 0.95
+filter = { kind = "highpass", cutoff = 90 }
+drive = 0.12
+
+[[sound.call_round_3.layer]]
+wave = "recording"
+recording = "round_3"
+at = 0.014
+speed = 0.95
+filter = { kind = "lowpass", cutoff = 1800 }
+gain = 0.3
+
+[sound.call_final_round]
+gain = 0.5
+[[sound.call_final_round.layer]]
+wave = "recording"
+recording = "final_round"
+speed = 0.95
+filter = { kind = "highpass", cutoff = 90 }
+drive = 0.12
+
+[[sound.call_final_round.layer]]
+wave = "recording"
+recording = "final_round"
+at = 0.014
+speed = 0.95
+filter = { kind = "lowpass", cutoff = 1800 }
+gain = 0.3

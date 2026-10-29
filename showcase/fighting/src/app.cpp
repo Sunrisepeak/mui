@@ -1,5 +1,5 @@
 // The application: the title and the select screen, then the fight filling
-// the window; the round over, back to the select screen (the same fighters
+// the window, best of three; the match over, back to the select screen (the same fighters
 // under the cursors) for the next. The stage and the select screen are
 // registered by name for view documents, scripts and agents.
 module openmui.showcase.fighting;
@@ -49,8 +49,8 @@ AppSpec app() {
                                .width = Dim(layout::pct(100)),
                                .height = Dim(layout::pct(100)),
                                .visible = l->fighting});
-        // The round over: a few seconds for the K.O. and the finish, then the select screen again.
-        fight.on("round_over", [l](const Value&) {
+        // The match over (its last round): a few seconds for the K.O. and the finish, then the select screen again.
+        fight.on("match_over", [l](const Value&) {
             Runtime* rt = l->runtime;
             if (!rt || l->back) return;
             l->back = rt->after(seconds(4.5), [l] {

@@ -58,7 +58,8 @@ private:
     void advance();  // one frame: the dummies, the match, its effects, the readings
     void announce();  // the round over: the announcer's calls
     void changed();  // repaint, and tell agents
-    void start_round();
+    void start_round(bool next = false);  // a new match (next: its next round, the rounds won kept)
+    [[nodiscard]] std::int32_t to_win() const noexcept;
     [[nodiscard]] gongfu::Pad keyboard(std::int32_t player) const;
     [[nodiscard]] gongfu::Pad gamepad(std::int32_t player) const;
     [[nodiscard]] gongfu::Pad pad_of(std::int32_t player) const;
@@ -100,6 +101,11 @@ private:
     std::int64_t                          played_ = 0;  // frames played by the clock since start_
     std::uint64_t                         timer_ = 0;
     bool                                  over_reported_ = false;
+    // Versus is played in rounds (best of three by default): the round, each side's rounds won, the frame this one ended on.
+    std::int32_t                          round_ = 1;
+    std::array<std::int32_t, 2>           wins_{};
+    std::int32_t                          over_for_ = 0;  // frames played since this round ended (the match stands still then)
+    bool                                  decided_ = false;  // the match is over (its last round's K.O.)
 };
 
 }  // namespace omui::fighting

@@ -7,6 +7,7 @@ import std;
 import openmui;
 import openmui.showcase.fighting;
 import openmui.testing;
+import gongfu;
 
 using namespace omui::testing;
 using namespace omui;
@@ -96,6 +97,34 @@ int main(int argc, char** argv) {
         check(!a.select().ready(0), "not ready");
         a.h.step({GamepadEvent{.kind = GamepadKind::down, .device = 3, .button = GamepadButton::east}});
         check_eq(a.select().phase(), std::string_view("title"));
+    });
+
+    s.test("best of three: a round to player 1, a red seal beside her name and the second round three seconds later; the second hers too, the match over and the select screen again", [] {
+        App a;
+        check(a.act("main/select", "confirm", player(0)) && a.act("main/select", "confirm", player(0)) && a.act("main/select", "confirm", player(1)), "both ready");
+        a.h.advance(seconds(3));  // past the round's call and FIGHT!
+        check(!a.stage().props.paused, "the fight plays");
+        auto round_to_player_1 = [&] {
+            auto& match = const_cast<gongfu::Match&>(a.stage().match());
+            gongfu::State st = match.state();
+            st.timer = 2, st.f[1].health = 5000;
+            match.restore(st);
+            a.h.advance(seconds(0.3));
+        };
+        round_to_player_1();
+        const Value seen = a.seen("main/stage");
+        check(seen.get("round") && seen.get("round")->as_int(0) == 1 && seen.get("wins") && seen.get("wins")->list() && (*seen.get("wins")->list())[0].as_int(0) == 1,
+              "round 1 to player 1");
+        check(a.h.save_png(scratch_dir("fighting-rounds") / "round-1-won.png").has_value());
+        const std::uint64_t won = a.pixels();
+        a.h.advance(seconds(3));
+        check(a.stage().match().state().over == 0 && a.seen("main/stage").get("round")->as_int(0) == 2, "the second round");
+        round_to_player_1();
+        check(a.seen("main/stage").get("decided")->as_bool(false), "the match decided");
+        a.h.advance(seconds(5));
+        check(a.select().phase() == std::string_view("fighters") && a.stage().props.paused, "back to the select screen");
+        std::println("    rounds {:016x}", won);
+        check_eq(won, std::uint64_t{0x5517773ec85c6199});  // GCC and LLVM
     });
 
     s.test("the title and the select screen, pinned: the logo over the study, the modes; the roster, both fighters' previews, VS", [] {

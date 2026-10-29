@@ -12,6 +12,10 @@
 //                       work — and each instrument's alone
 //     omui-music fmt <file>
 //                       the file as write_music writes it (the one way it is written)
+//     omui-music takes <recording.wav> [--threshold -40] [--gap 0.12] [--out dir] [--name take]
+//                       the takes in a recording (a pack's grunts, a session's lines) and what
+//                       each is like — its length, peak, RMS, pitch, how voiced, how bright —
+//                       to choose by; with --out, each written as <name>-<n>.wav (mono, its rate)
 import std;
 import nlohmann.json;
 import openmui.audio;
@@ -36,7 +40,7 @@ std::optional<std::string> read(const std::filesystem::path& p) {
 
 int usage() {
     std::println(std::cerr, "omui-music check <file> | render <file> --out <x.wav> [--seconds s] [--intensity x | x@s,y@s] [--solo a,b] [--float] | "
-                            "stats <file> [--seconds s] [--intensity …] | fmt <file>");
+                            "stats <file> [--seconds s] [--intensity …] | fmt <file> | takes <recording.wav> [--threshold dB] [--gap s] [--out dir] [--name n]");
     return 2;
 }
 
@@ -246,6 +250,64 @@ int stats(const std::filesystem::path& file, const RenderArgs& a) {
     return 0;
 }
 
+int takes(const std::filesystem::path& file, int argc, char** argv) {
+    double threshold = -40, gap = 0.12;
+    std::filesystem::path out;
+    std::string name = "take";
+    for (int i = 3; i + 1 < argc; i += 2) {
+        const std::string_view k = argv[i], v = argv[i + 1];
+        auto number = [&](double& to) { return std::from_chars(v.data(), v.data() + v.size(), to).ec == std::errc{}; };
+        if (k == "--threshold" && number(threshold)) continue;
+        if (k == "--gap" && number(gap)) continue;
+        if (k == "--out") { out = path_of(v); continue; }
+        if (k == "--name") { name = std::string(v); continue; }
+        return usage();
+    }
+    if (argc % 2 == 0) return usage();
+    nlohmann::ordered_json report;
+    report["command"] = "takes";
+    report["file"] = utf8(file);
+    const auto bytes = read(file);
+    auto r = bytes ? audio::read_wav(std::as_bytes(std::span(bytes->data(), bytes->size())))
+                   : std::expected<audio::Recording, std::string>(std::unexpected(std::string("cannot read it")));
+    if (!r) {
+        report["ok"] = false;
+        report["error"] = r.error();
+        std::println("{}", report.dump(2));
+        return 1;
+    }
+    if (!out.empty()) std::filesystem::create_directories(out);
+    report["ok"] = true;
+    report["rate"] = r->rate;
+    report["seconds"] = static_cast<double>(r->samples.size()) / r->rate;
+    nlohmann::ordered_json list = nlohmann::ordered_json::array();
+    const auto found = audio::takes(*r, threshold, gap);
+    for (std::size_t n = 0; n < found.size(); ++n) {
+        const audio::Take& t = found[n];
+        nlohmann::ordered_json j;
+        j["take"] = n + 1;
+        j["at"] = static_cast<double>(t.begin) / r->rate;
+        j["seconds"] = static_cast<double>(t.end - t.begin) / r->rate;
+        j["peak_db"] = t.peak > 0 ? 20 * std::log10(static_cast<double>(t.peak)) : -200.0;
+        j["rms_db"] = t.rms;
+        j["pitch_hz"] = t.pitch;
+        j["voiced"] = t.voiced;
+        j["brightness_hz"] = t.brightness;
+        if (!out.empty()) {
+            const auto part = std::span(r->samples).subspan(static_cast<std::size_t>(t.begin), static_cast<std::size_t>(t.end - t.begin));
+            const auto w = audio::wav(part, r->rate, false, 1);
+            const auto to = out / std::format("{}-{}.wav", name, n + 1);
+            std::ofstream f(to, std::ios::binary);
+            f.write(reinterpret_cast<const char*>(w.data()), static_cast<std::streamsize>(w.size()));
+            j["out"] = utf8(to);
+        }
+        list.push_back(j);
+    }
+    report["takes"] = list;
+    std::println("{}", report.dump(2));
+    return 0;
+}
+
 int fmt(const std::filesystem::path& file) {
     const auto text = read(file);
     if (!text) return usage();
@@ -266,6 +328,7 @@ int main(int argc, char** argv) {
     const auto file = path_of(argv[2]);
     if (command == "check" && argc == 3) return check(file);
     if (command == "fmt" && argc == 3) return fmt(file);
+    if (command == "takes") return takes(file, argc, argv);
     if (command == "render" || command == "stats") {
         const auto a = args(argc, argv, 3);
         if (!a) return usage();

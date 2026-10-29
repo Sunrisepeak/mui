@@ -170,6 +170,23 @@ int main(int argc, char** argv) {
         check(!bad.has_value() && bad.error().size() == 2, "a recording's layer without its recording; speed on a sine");
     });
 
+    s.test("a recording's takes: a sung note and a hiss apart by silence, found where they are, the note's pitch heard and the hiss bright and unvoiced", [] {
+        audio::Recording r{.samples = std::vector<float>(48000), .rate = 48000};
+        for (std::size_t i = 4800; i < 19200; ++i) r.samples[i] = 0.4f * static_cast<float>(std::sin(2 * 3.141592653589793 * 220 * static_cast<double>(i) / 48000));
+        std::uint32_t noise = 7;
+        for (std::size_t i = 33600; i < 43200; ++i) {
+            noise ^= noise << 13, noise ^= noise >> 17, noise ^= noise << 5;
+            r.samples[i] = 0.3f * static_cast<float>(static_cast<std::int32_t>(noise)) / 2147483648.0f;
+        }
+        const auto t = audio::takes(r);
+        check_eq(t.size(), std::size_t{2});
+        if (t.size() != 2) return;
+        check(std::abs(t[0].begin - 4320) <= 480 && std::abs(t[0].end - 19680) <= 480, std::format("the note at {}–{}", t[0].begin, t[0].end));
+        check(std::abs(t[1].begin - 33120) <= 480 && std::abs(t[1].end - 43680) <= 480, std::format("the hiss at {}–{}", t[1].begin, t[1].end));
+        check(std::abs(t[0].pitch - 220) < 3 && t[0].voiced > 0.9, std::format("the note at {} Hz, {} voiced", t[0].pitch, t[0].voiced));
+        check(t[1].voiced < 0.2 && t[1].brightness > 10 * t[0].brightness, std::format("the hiss {} voiced, {} against {} crossings a second", t[1].voiced, t[1].brightness, t[0].brightness));
+    });
+
     s.test("a sine plays at its pitch; a sound starts on its sample, to the sample", [] {
         audio::Mixer m;
         const auto a = m.add(tone(440, 1.0f));

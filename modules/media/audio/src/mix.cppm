@@ -199,8 +199,8 @@ private:
 
 // `frames` of a mixer rendered at once (offline: a video's track, a test's).
 [[nodiscard]] std::vector<float> render(Mixer& mixer, std::int64_t frames);
-// A WAV file of interleaved stereo: 16-bit PCM, or 32-bit float.
-[[nodiscard]] std::vector<std::byte> wav(std::span<const float> interleaved, std::int32_t rate, bool float32 = false);
+// A WAV file of interleaved samples (stereo, or `channels` of them): 16-bit PCM, or 32-bit float.
+[[nodiscard]] std::vector<std::byte> wav(std::span<const float> interleaved, std::int32_t rate, bool float32 = false, std::int32_t channels = 2);
 // A recording read from a WAV file: 8-, 16-, 24-bit PCM or 32-bit float, its
 // channels mixed down to one.
 struct Recording {
@@ -208,6 +208,23 @@ struct Recording {
     std::int32_t       rate = 48000;
 };
 [[nodiscard]] std::expected<Recording, std::string> read_wav(std::span<const std::byte> file);
+
+// The takes in a recording (a pack's file of grunts, a session's lines): the
+// stretches louder than `threshold` (dBFS over 10 ms) apart by more than
+// `gap` seconds, each with `pad` seconds kept around it — and what each is
+// like, to choose by: its peak and RMS, its pitch (the median of its voiced
+// 40 ms windows by normalised autocorrelation, 70–700 Hz; 0 when unvoiced: a
+// breath, a hiss) and its brightness (its zero crossings a second: a grunt
+// low, a scream high).
+struct Take {
+    std::int64_t begin = 0, end = 0;  // samples
+    float        peak = 0;            // linear
+    double       rms = -200;          // dBFS
+    double       pitch = 0;           // Hz
+    double       voiced = 0;          // of its windows, those with a pitch (0–1)
+    double       brightness = 0;      // zero crossings a second
+};
+[[nodiscard]] std::vector<Take> takes(const Recording& recording, double threshold = -40, double gap = 0.12, double pad = 0.01);
 // FNV-1a over the samples' bits: what a test pins.
 [[nodiscard]] std::uint64_t hash(std::span<const float> samples) noexcept;
 // The loudest sample's magnitude.

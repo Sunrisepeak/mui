@@ -526,7 +526,7 @@ std::expected<Recording, std::string> read_wav(std::span<const std::byte> file) 
     return r;
 }
 
-std::vector<std::byte> wav(std::span<const float> interleaved, std::int32_t rate, bool float32) {
+std::vector<std::byte> wav(std::span<const float> interleaved, std::int32_t rate, bool float32, std::int32_t channels) {
     std::vector<std::byte> out;
     auto put = [&](std::uint32_t v, int bytes) {
         for (int b = 0; b < bytes; ++b) out.push_back(static_cast<std::byte>((v >> (8 * b)) & 0xff));
@@ -540,11 +540,12 @@ std::vector<std::byte> wav(std::span<const float> interleaved, std::int32_t rate
     tag("WAVE");
     tag("fmt ");
     put(16, 4);
+    const auto n = static_cast<std::uint32_t>(std::max(1, channels));
     put(float32 ? 3 : 1, 2);  // IEEE float, or PCM
-    put(2, 2);
+    put(n, 2);
     put(static_cast<std::uint32_t>(rate), 4);
-    put(static_cast<std::uint32_t>(rate) * 2 * bytes_per, 4);
-    put(2 * bytes_per, 2);
+    put(static_cast<std::uint32_t>(rate) * n * bytes_per, 4);
+    put(n * bytes_per, 2);
     put(bytes_per * 8, 2);
     tag("data");
     put(data, 4);

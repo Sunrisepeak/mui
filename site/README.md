@@ -34,6 +34,11 @@ The site shows openmui's thesis instead of describing it: **the interface is a s
   - The answer buttons are the person's own (S-10). When the agent tries to press them, it is refused whatever actor it names.
   - The panel shows each request and its records.
 - **Links.** A document's link to another document moves to that place. Any other link is opened by the host: the system's browser on the desktop, a new tab on the Web. This goes through `Runtime::open_url`, which accepts only http, https and mailto.
+- **The page's time.** The footer is a strip of the page's last 20 seconds, with what happened marked where it did: a place reached, a language, a lens.
+  - Drag the playhead back, or let an agent set it (the strip is a slider on the bus), and the page is drawn as it was: the camera mid-flight, the letters of a language switch gathering, a lens fading in.
+  - Play it forwards or backwards. **Live** returns to the present.
+  - Animations are functions of time, so every moment can be drawn again. The runtime re-evaluates what it holds (D-60), and components that animate on their own are told the time (`retimed`): the canvas keeps its camera's past for this.
+  - Only the drawing goes back; the tree stays as it is now.
 - **The tree's hash.** The footer shows a hash of the home page's semantic tree as your browser computed it, next to the value CI pins in `tests/site_test.cpp`.
   - It covers ids, roles, names, values and lasting states.
   - It leaves out what follows the window: boxes, how far a view scrolls, and what is off screen. It also leaves out the pointer's hover and press, and motion under way.
@@ -67,8 +72,9 @@ python3 -m http.server -d target/site            # and look at it
 - the lens's four renderings of the same nodes;
 - the home tree's hash, pinned, and the same in a narrower window;
 - the timeline editor: an agent's edit followed by the tree, then undone;
+- the page's time: an agent dragging it back to before a flight (the view exactly as it was), live again, played backwards to the strip's start and forwards to live;
 - the works: example 01 typed into and clicked, the wall's canvas live with the site's documents;
-- the pixels of home, the overview, the wireframe, the agent's JSON, the timeline, the wall, example 01, the agent asking and the Chinese page, pinned on every platform;
+- the pixels of home, the overview, the wireframe, the agent's JSON, the timeline, the wall, example 01, the agent asking, the Chinese page and the page's time dragged back into a language switch, pinned on every platform (each picture's own hash printed, so a platform that differs shows which);
 - the static HTML and its injection into dist-toy's page.
 
 Changing a document changes the pinned hashes. Look at the pictures (`$TMPDIR/openmui-tests/site/`), then update the pins.

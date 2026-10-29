@@ -325,6 +325,7 @@ struct Runtime::Impl {
     void        take_time_control();
     void        apply_time_control();
     void        retime();  // every live channel re-evaluated at now()
+    void        tell_retimed();  // components that animate on their own: the time moved, paused or went on
     void        touch(std::uint8_t what) {
         dirty |= what;
         frame_requested = true;

@@ -50,6 +50,7 @@ public:
     [[nodiscard]] std::array<double, 3> velocity(hanim::seconds t) const;
     [[nodiscard]] bool settled(hanim::seconds t) const { return t >= end_; }
     [[nodiscard]] const Camera& target() const noexcept { return to_; }
+    [[nodiscard]] hanim::seconds start() const noexcept { return start_; }
 
 private:
     Camera                         to_;
@@ -65,6 +66,7 @@ public:
     Inertia(Camera from, Point velocity, hanim::seconds start, double decay = 6.0, double rest = 8.0);
     [[nodiscard]] Camera at(hanim::seconds t) const;
     [[nodiscard]] bool settled(hanim::seconds t) const { return t >= end_; }
+    [[nodiscard]] hanim::seconds start() const noexcept { return start_; }
 
 private:
     Camera        from_;

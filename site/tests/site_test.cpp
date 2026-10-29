@@ -36,6 +36,22 @@ struct Site {
         for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
         return std::stoull(hash.hex(), nullptr, 16);
     }
+    // The pixels of one node's box (the view, say).
+    std::uint64_t pixels_of(std::string_view id) { return pixels_in(h.runtime().bounds(h.runtime().find(id))); }
+    // The page above its foot: what it shows, not the history of its time the foot draws.
+    std::uint64_t page() { return pixels_in({0, 0, 1280, h.runtime().bounds(h.runtime().find("main/foot")).y}); }
+    std::uint64_t pixels_in(Rect r) {
+        const auto& px = h.pixels();
+        const int x0 = std::max(0, static_cast<int>(r.x)), x1 = std::min(px.width(), static_cast<int>(r.x + r.width));
+        Hash hash;
+        for (int y = std::max(0, static_cast<int>(r.y)); y < std::min(px.height(), static_cast<int>(r.y + r.height)); ++y)
+            hash.bytes(std::as_bytes(std::span(px.row(y) + x0, static_cast<std::size_t>(std::max(0, x1 - x0)))));
+        return std::stoull(hash.hex(), nullptr, 16);
+    }
+    double value(std::string_view id, std::string_view field = "value") {
+        const auto n = h.tree().node(id);
+        return n && n->value.get(field) ? n->value.get(field)->as_double(-1) : -1;
+    }
     bool visible(std::string_view id) {
         const auto n = h.tree().node(id);
         return n && !n->states.has(State::hidden);
@@ -125,21 +141,21 @@ int main(int argc, char** argv) {
         Site a, zh("home", "zh");
         zh.h.move({4, 796});
         zh.h.settle();
-        const auto direct = zh.pixels();
+        const auto direct = zh.page();
         check(a.h.click("main/bar/lang"));
         a.h.move({4, 796});
         a.h.advance(seconds(0.12));
-        const auto moving = a.pixels();
+        const auto moving = a.page();
         check(moving != direct, "under way: the letters still gathering");
         check(site::tree_hash(a.snapshot("home")) == site::tree_hash(zh.snapshot("home")), "the tree is already the other language's: the motion is only paint");
         a.h.settle(seconds(3));
         (void)a.h.save_png(scratch_dir("site-sw") / "a.png");
-        check(a.pixels() == direct, "at rest: the very pixels of the page opened in Chinese");
+        check(a.page() == direct, "at rest: the very pixels of the page opened in Chinese (above the foot, where the switch is marked)");
     });
 
     s.test("the lens: pixels, the tree's wireframe, an agent's JSON, a test's assertions — of the same nodes", [] {
         Site a;
-        const auto plain = a.pixels();
+        const auto plain = a.page();
         check(!a.visible("main/body/view/wireframe") && !a.visible("main/body/view/agent"), "only the pixels");
         check(a.h.click("main/bar/lens_tree"));
         a.h.advance(seconds(0.3));
@@ -169,7 +185,7 @@ int main(int argc, char** argv) {
         check(a.h.click("main/bar/lens_pixels"));
         a.h.move({4, 796});  // the pointer off the buttons (no hover)
         a.h.settle(seconds(1));
-        check(a.pixels() == plain, "back to the pixels, the same pixels");
+        check(a.page() == plain, "back to the pixels, the same pixels (above the foot, where the lenses are marked)");
     });
 
     s.test("the home page's tree: pinned, the same in a browser as here; boxes do not count", [] {
@@ -209,6 +225,51 @@ int main(int argc, char** argv) {
         check(a.h.tree().act(editor, "undo", agent).exit_code().value_or(-1) == std::int64_t{0}, "undone in the editor's own history");
         a.h.settle();
         check(tracks() == was, "the very timeline again");
+    });
+
+    s.test("the page's time: dragged back, the page is drawn as it was; played backwards and forwards; live again", [] {
+        Site a;
+        constexpr std::string_view view = "main/body/view", bar = "main/foot/time";
+        const auto at_home = a.pixels_of(view);
+        const double before = a.h.runtime().now().count();
+        a.h.advance(seconds(0.5));
+        check(a.h.click("main/body/nav/to_features"));
+        a.h.settle(seconds(4));
+        const auto at_features = a.pixels_of(view);
+        check(at_features != at_home, "flown to Features");
+        check(a.h.tree().node(bar) && a.h.tree().node(bar)->role == Role::slider, "the page's time, a slider");
+        check(a.text("main/foot/clock") == "now", "live");
+
+        // An agent drags the playhead to before the flight: the page as it was then.
+        Invocation agent;
+        agent.actor = {"agent", "visitor", {}};
+        agent.args = Value{}.set("value", Value(before + 0.25));
+        check(a.h.tree().act(bar, "set_value", agent).exit_code() == std::optional<int>(0), "set by an agent, as a person drags it");
+        a.h.settle(seconds(2));
+        check(a.pixels_of(view) == at_home, "the camera back where it was: Home, at rest, live");
+        check(a.text("main/foot/clock").starts_with("−"), "seconds before the newest");
+        check(a.h.tree().node("main/body/nav/to_features") && a.value(bar) < a.value(bar, "max"), "the playhead before the strip's end");
+
+        // Live again: the page as it is.
+        check(a.h.click("main/foot/time_live"));
+        a.h.settle(seconds(2));
+        check(a.pixels_of(view) == at_features && a.text("main/foot/clock") == "now", "live: Features, as it is");
+
+        // Backwards: the playhead earlier each frame, the camera flying back, until the strip's start.
+        check(a.h.click("main/foot/time_back"));
+        const double from = a.value(bar);
+        for (int i = 0; i < 20; ++i) a.h.step();
+        check(a.value(bar) < from, "earlier each frame");
+        a.h.advance(seconds(30));
+        check(a.value(bar) == a.value(bar, "min"), "stopped at the strip's start");
+        check(a.pixels_of(view) == at_home, "back at Home, where the page began");
+
+        // Played forwards from there: the flight again, and at the end, live.
+        check(a.h.click("main/foot/time_play"));
+        a.h.advance(seconds(30));
+        a.h.settle(seconds(2));
+        check(a.text("main/foot/clock") == "now", "live at the end");
+        check(a.pixels_of(view) == at_features, "Features, as the flight left it");
     });
 
     s.test("the works run in their places: example 01 typed into and clicked, S1's wall live with the site's documents", [] {
@@ -324,43 +385,44 @@ int main(int argc, char** argv) {
         agent_access().revoke_all();
     });
 
-    s.test("the site's pixels pinned on every platform: home, the wireframe, the agent's JSON, the timeline, an agent asking, Chinese", [] {
+    s.test("the site's pixels pinned on every platform: home, the overview, the wireframe, the agent's JSON, the works, an agent asking, Chinese, the page's time dragged back", [] {
         Site a;
         const auto dir = scratch_dir("site");
         Hash all;
-        all.u64(a.pixels());
-        check(a.h.save_png(dir / "home.png").has_value());
+        // Each picture's own hash said too: a platform that differs shows which.
+        auto shot = [&](const std::string& name) {
+            const std::uint64_t p = a.pixels();
+            all.u64(p);
+            std::println("    {} {:016x}", name, p);
+            check(a.h.save_png(dir / name).has_value());
+        };
+        shot("home.png");
         // The overview: every place a window on the atlas, the camera flown out.
         check(a.h.click("main/body/nav/to_overview"));
         a.h.move({4, 796});
         a.h.settle(seconds(3));
-        all.u64(a.pixels());
-        check(a.h.save_png(dir / "overview.png").has_value());
+        shot("overview.png");
         check(a.h.click("main/body/nav/to_home"));
         a.h.move({4, 796});
         a.h.settle(seconds(3));
         check(a.h.click("main/bar/lens_tree"));
         a.h.advance(seconds(0.3));
         a.h.settle(seconds(0.1));
-        all.u64(a.pixels());
-        check(a.h.save_png(dir / "tree.png").has_value());
+        shot("tree.png");
         check(a.h.click("main/bar/lens_agent"));
         a.h.advance(seconds(0.3));
         a.h.settle(seconds(0.1));
-        all.u64(a.pixels());
-        check(a.h.save_png(dir / "agent.png").has_value());
+        shot("agent.png");
         check(a.h.click("main/bar/lens_pixels"));
         check(a.h.click("main/body/nav/to_timeline"));
         a.h.move({4, 796});
         a.h.settle();
-        all.u64(a.pixels());
-        check(a.h.save_png(dir / "timeline.png").has_value());
+        shot("timeline.png");
         for (std::string_view work : {"wall", "hello"}) {
             check(a.h.click(std::format("main/body/nav/to_{}", work)));
             a.h.move({4, 796});
             a.h.settle(seconds(3));
-            all.u64(a.pixels());
-            check(a.h.save_png(dir / std::format("{}.png", work)).has_value());
+            shot(std::format("{}.png", work));
         }
         // The agent asks before something external (S-11), the answer the person's alone (S-10).
         check(a.h.click("main/body/nav/to_home"));
@@ -369,18 +431,24 @@ int main(int argc, char** argv) {
         a.h.advance(seconds(3));
         a.h.move({4, 796});
         a.h.settle(seconds(1));
-        all.u64(a.pixels());
-        check(a.h.save_png(dir / "agent-asks.png").has_value());
+        shot("agent-asks.png");
         check(a.h.click("main/body/guide/asking/answer/deny"));
         check(a.h.click("main/bar/guide_toggle"));
         check(a.h.click("main/body/nav/to_home"));
+        a.h.settle(seconds(3));
+        const double switched = a.h.runtime().now().count();
         check(a.h.click("main/bar/lang"));
         a.h.move({4, 796});
         a.h.settle();
-        all.u64(a.pixels());
-        check(a.h.save_png(dir / "zh.png").has_value());
+        shot("zh.png");
+        // The page's time dragged back into the switch: the letters gathering again, paused.
+        Invocation person;
+        person.args = Value{}.set("value", Value(switched + 0.15));
+        check(a.h.tree().act("main/foot/time", "set_value", person).exit_code() == std::optional<int>(0));
+        a.h.settle(seconds(1));
+        shot("time.png");
         std::println("    pixels {}", all.hex());
-        check_eq(all.hex(), std::string("f140e8ef22457117"));
+        check_eq(all.hex(), std::string("31b4de93c48e4152"));
     });
 
     s.test("the static page: every place's HTML, md4c-html's bytes, in a page that hides it once the program runs", [] {
@@ -395,8 +463,8 @@ int main(int argc, char** argv) {
         // The site's own part pinned (the docs change with the framework; they are held to md4c-html's bytes above).
         auto own = [](const std::string& html) { return html.substr(0, html.find("<section id=\"/", html.find("<section id=\"/") + 1)); };
         std::println("    static en {:016x} zh {:016x}", fnv(own(en)), fnv(own(site::static_html("zh"))));
-        check_eq(std::format("{:016x}", fnv(own(en))), std::string("394c40dd2e8bb39e"));
-        check_eq(std::format("{:016x}", fnv(own(site::static_html("zh")))), std::string("d7781b73d6a9e364"));
+        check_eq(std::format("{:016x}", fnv(own(en))), std::string("edb0b05ed45415b7"));
+        check_eq(std::format("{:016x}", fnv(own(site::static_html("zh")))), std::string("775d0fea9f057ab6"));
 
         const auto out = site::inject(page, en, "zh");
         check(out.has_value(), "dist-toy's page");

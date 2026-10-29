@@ -145,6 +145,9 @@ public:
     [[nodiscard]] virtual typeset::FontCollection& fonts() = 0;
     [[nodiscard]] virtual render::ImageStore& images() = 0;
     [[nodiscard]] virtual hanim::seconds now() const = 0;
+    // The page's time stands still (a time tool paused it): what animates on
+    // its own waits for retimed() rather than asking for frames.
+    [[nodiscard]] virtual bool time_paused() const { return false; }
     [[nodiscard]] virtual Rect bounds(NodeId node) const = 0;        // window coordinates
     // The extent of the node's children (a scroll view's scroll range).
     [[nodiscard]] virtual Size content_size(NodeId node) const = 0;
@@ -316,6 +319,10 @@ struct ComponentType {
     // After each layout pass, with bounds known (measured sizes, keeping
     // something in view): changes made here show at the next frame.
     void (*laid_out)(void*) = nullptr;
+    // The page's time was moved, paused or let go (a time tool, D-60): what
+    // the component animates on its own (a canvas's camera) is shown as it
+    // was at `t`, as the runtime does for the animations it holds.
+    void (*retimed)(void*, hanim::seconds) = nullptr;
     // A component that shows a model's rows (a list) takes the view of a row
     // from whoever builds it: a builder, or a view document's `for`.
     void (*set_item)(void*, std::function<Element(const Row&, std::size_t)>) = nullptr;
@@ -350,6 +357,8 @@ template <class C>
             x.reveal = [](void* p, std::string_view key) { return static_cast<C*>(p)->reveal(key); };
         if constexpr (requires(C& c) { c.laid_out(); })
             x.laid_out = [](void* p) { static_cast<C*>(p)->laid_out(); };
+        if constexpr (requires(C& c, hanim::seconds t) { c.retimed(t); })
+            x.retimed = [](void* p, hanim::seconds t) { static_cast<C*>(p)->retimed(t); };
         if constexpr (requires(const C& c) { { c.placement() } -> std::same_as<Placement>; })
             x.placement = [](const void* p) { return static_cast<const C*>(p)->placement(); };
         if constexpr (requires { C::contract(); }) x.contract = &C::contract();

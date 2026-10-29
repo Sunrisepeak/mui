@@ -86,6 +86,7 @@ void Canvas::prop_changed(CanvasProp p) {
             glide_.reset();
             refit_ = false;
             camera_ = c;
+            remember();
             place();
             break;
         }
@@ -124,8 +125,57 @@ void Canvas::animate_to(const Camera& c, hanim::SpringParams params) {
     const auto v = motion_ ? motion_->velocity(services().now()) : std::array<double, 3>{};
     glide_.reset();
     motion_.emplace(camera_, to, services().now(), params, v);
+    remember();
     pace();
     schedule();
+}
+
+void Canvas::remember() {
+    const hanim::seconds now = services().now();
+    // A course taken from now on: what lay ahead of now (the page's time
+    // taken back, then the camera moved) is no longer its past.
+    while (!past_.empty() && past_.back().from > now) past_.pop_back();
+    if (!past_.empty()) {
+        Course& last = past_.back();
+        const bool same = motion_ ? last.motion && last.motion->start() == motion_->start()
+                        : glide_  ? last.glide && last.glide->start() == glide_->start()
+                                  : !last.motion && !last.glide && last.at == camera_;
+        if (same) return;
+        if (last.from == now) {  // two changes in one instant: the later one
+            last = {now, camera_, motion_, glide_};
+            return;
+        }
+    }
+    past_.push_back({now, camera_, motion_, glide_});
+    // 30 s back, as the runtime's channels keep theirs (the oldest kept answers for before it).
+    const auto old = std::ranges::find_if(past_, [&](const Course& c) { return c.from >= now - hanim::seconds(30); });
+    if (old - past_.begin() > 1) past_.erase(past_.begin(), old - 1);
+}
+
+const Canvas::Course* Canvas::course_at(hanim::seconds t) const {
+    if (past_.empty()) return nullptr;
+    const auto after = std::ranges::upper_bound(past_, t, {}, &Course::from);
+    return after == past_.begin() ? &past_.front() : &*(after - 1);
+}
+
+void Canvas::retimed(hanim::seconds t) {
+    const Course* c = course_at(t);
+    if (!c) return;
+    // Before its course began (the oldest kept answers for earlier), where it began.
+    const bool begun = t >= c->from;
+    camera_ = !begun ? c->at : c->motion ? c->motion->at(t) : c->glide ? c->glide->at(t) : c->at;
+    motion_.reset();
+    glide_.reset();
+    if (begun && c->motion && !c->motion->settled(t)) motion_ = c->motion;
+    else if (begun && c->glide && !c->glide->settled(t)) glide_ = c->glide;
+    // At rest there, it has rested: a jump in time is not a movement, so the live nodes are placed now.
+    const bool moving = motion_ || glide_;
+    changed(false);
+    if (!moving) {
+        last_motion_ = t - hanim::seconds(2 * promote_after);
+        place();
+    }
+    if (moving && !services().time_paused()) schedule();
 }
 
 // The camera after input or an animation step: the promoted nodes placed, the
@@ -133,12 +183,14 @@ void Canvas::animate_to(const Camera& c, hanim::SpringParams params) {
 // While the camera moves on its own (a spring, a fling), frames as fast as
 // the display goes (D-70); none asked for once it rests.
 void Canvas::pace() {
-    const bool moving = motion_.has_value() || glide_.has_value();
+    // Not while the page's time stands still: the camera stands with it.
+    const bool moving = (motion_.has_value() || glide_.has_value()) && !services().time_paused();
     if (moving && !pace_) pace_ = services().demand_frames(FrameDemand::fastest(motion_ ? "camera spring" : "camera fling"));
     else if (!moving && pace_) pace_.release();
 }
 
-void Canvas::changed() {
+void Canvas::changed(bool record) {
+    if (record) remember();
     last_motion_ = services().now();
     pace();
     place();
@@ -177,6 +229,8 @@ void Canvas::step() {
         if (textures_.busy()) schedule();
         return;
     }
+    // The page's time stands still: the camera with it, until it goes on (retimed).
+    if (services().time_paused()) return;
     const hanim::seconds t = services().now();
     if (motion_) {
         camera_ = motion_->at(t);
@@ -665,6 +719,7 @@ bool Canvas::on_event(EventContext& ctx, const InputEvent& e) {
             const bool recent = (services().now() - last_move_).count() < 0.1;
             if (props.inertia && recent && p->kind == PointerKind::up && std::hypot(velocity_.x, velocity_.y) > 50) {
                 glide_.emplace(camera_, velocity_, services().now());
+                remember();
                 pace();
                 schedule();
             }

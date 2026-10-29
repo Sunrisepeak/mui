@@ -18,4 +18,4 @@ This site is built with openmui. Switch the **lens** above to see the page you a
 
 The specification is an open standard, [openlifa/openmui](https://github.com/openlifa/openmui) (CC BY-SA 4.0).
 
-The footer shows the semantic tree's hash as your browser computed it. Determinism is part of the design: the same tree on every machine.
+The footer is the page's time. Drag it back and the page is drawn as it was: the camera's flights, the letters of a language switch and the lenses' fades, played backwards. Animations are functions of time, so any moment can be shown again. Only the drawing goes back; the tree stays as it is now. Beside the time is the semantic tree's hash as your browser computed it. Determinism is part of the design: the same tree on every machine.

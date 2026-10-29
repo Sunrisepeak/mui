@@ -361,6 +361,7 @@ public:
     [[nodiscard]] typeset::FontCollection& fonts() override;
     [[nodiscard]] render::ImageStore& images() override;
     [[nodiscard]] hanim::seconds now() const override;
+    [[nodiscard]] bool time_paused() const override;
     [[nodiscard]] Rect bounds(NodeId node) const override;
     [[nodiscard]] Size content_size(NodeId node) const override;
     [[nodiscard]] Insets content_insets(NodeId node) const override;

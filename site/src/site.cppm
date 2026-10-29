@@ -7,6 +7,8 @@ export module openmui.site;
 export import openmui;
 export import :lens_contract;
 export import :lens;
+export import :timebar_contract;
+export import :timebar;
 export import :content_files;
 export import :en_files;
 export import :zh_files;

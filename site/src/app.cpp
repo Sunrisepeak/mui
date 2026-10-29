@@ -116,6 +116,11 @@ struct Site {
     }
     // The camera flies to a place (or the overview), as the person's own request of the canvas.
     void fly(std::string_view to) {
+        if (to != place.peek()) {
+            const auto it = std::ranges::find_if(all, [&](const Place& p) { return p.id == to; });
+            const bool zh = lang.peek() == "zh";
+            mark(it != all.end() ? std::string(zh ? it->zh : it->en) : std::string(zh ? "全景" : "Overview"));
+        }
         place.set(std::string(to));
         if (const auto c = runtime ? runtime->find(atlas_path) : NodeId{}) {
             Invocation call;
@@ -131,6 +136,98 @@ struct Site {
         if (kinds) kinds();
         if (Canvas* c = atlas())
             if (const auto p = scene().preset(place.get())) c->set_camera({p->x, p->y, p->zoom});
+    }
+
+    // The page's time (the timebar, D-60): live, it is the host's; dragged,
+    // paused, played or played backwards, the runtime's time control. What
+    // happened is marked where it did (the channels keep 30 s of history).
+    Signal<Value>       marks = signal(Value{});
+    Signal<double>      time_start = signal(0.0), time_end = signal(0.0), playhead = signal(0.0);
+    Signal<std::string> time_mode = signal(std::string("live"));  // live, paused, playing, backwards
+    double              host_last = 0;  // the host's time at the last frame (playing backwards)
+    static constexpr double time_window = 20;
+
+    [[nodiscard]] double page_time() const { return runtime ? runtime->now().count() : 0; }
+    // The strip ends at `end`, and reaches back `time_window` (never before the page began).
+    void strip_to(double end) {
+        time_end.set(end);
+        time_start.set(std::max(0.0, end - time_window));
+    }
+    void mark(std::string label) {
+        if (!runtime) return;
+        const double at = page_time();
+        Value::List kept;
+        if (const Value::List* old = marks.peek().list())
+            for (const Value& m : *old)
+                if (m.get("at") && m.get("at")->as_double(0) > at - 30) kept.push_back(m);
+        kept.push_back(Value{}.set("at", at).set("label", std::move(label)));
+        marks.set(Value(std::move(kept)));
+        if (time_mode.peek() == "live") {
+            strip_to(at);
+            playhead.set(at);
+        }
+    }
+    // The playhead dragged (or set by an agent): the page shown as it was then.
+    void scrub(double t) {
+        if (!runtime) return;
+        if (time_mode.peek() == "live") strip_to(page_time());
+        runtime->pause_time(true);
+        runtime->seek_time(seconds(t));
+        playhead.set(t);
+        time_mode.set("paused");
+    }
+    void pause() {
+        if (!runtime || time_mode.peek() == "live") return;
+        runtime->pause_time(true);
+        playhead.set(page_time());
+        time_mode.set("paused");
+    }
+    // From the playhead on, at its own pace; at the strip's end, live again.
+    void play() {
+        if (!runtime || time_mode.peek() == "live") return;
+        runtime->set_time_rate(1);
+        runtime->pause_time(false);
+        time_mode.set("playing");
+    }
+    // The page's time run backwards: the frame stage seeks a little earlier each frame.
+    void backwards() {
+        if (!runtime) return;
+        if (time_mode.peek() == "live") {
+            strip_to(page_time());
+            playhead.set(page_time());
+        }
+        runtime->pause_time(true);
+        host_last = runtime->time_state().host.count();
+        time_mode.set("backwards");
+        runtime->request_frame();
+    }
+    void live() {
+        if (!runtime) return;
+        runtime->release_time();
+        strip_to(page_time());
+        playhead.set(page_time());
+        time_mode.set("live");
+    }
+    // Each frame (the tree-watch stage): the playhead follows the time being played.
+    void tick_time() {
+        if (!runtime) return;
+        const std::string mode = time_mode.peek();
+        if (mode == "backwards") {
+            const double host = runtime->time_state().host.count();
+            const double t = std::max(time_start.peek(), playhead.peek() - std::max(0.0, host - host_last));
+            host_last = host;
+            runtime->seek_time(seconds(t));
+            playhead.set(t);
+            if (t <= time_start.peek()) time_mode.set("paused");
+            else runtime->request_frame();
+        } else if (mode == "playing") {
+            const double t = page_time();
+            if (t >= time_end.peek()) live();
+            else {
+                playhead.set(t);
+                runtime->request_frame();
+            }
+        }
     }
 
     std::uint64_t       seen = ~0ull;    // the semantic revision last read
@@ -237,6 +334,7 @@ public:
                 });
             }
         }
+        site_.tick_time();
         if (site_.runtime && site_.runtime->semantic_revision() != site_.seen && !queued_) {
             queued_ = true;
             (void)site_.runtime->after(seconds(0.0), [this] {
@@ -253,12 +351,13 @@ private:
 };
 
 // A lens's button: highlighted when it is the lens.
-Element lens_button(const std::shared_ptr<Site>& s, std::string_view id, std::string_view label) {
-    const std::string key(id);
+Element lens_button(const std::shared_ptr<Site>& s, std::string_view id, std::string_view name) {
+    const std::string key(id), label(name);
     return button({.id = "lens_" + key,
                    .text = std::string(label),
                    .variant = computed([s, key] { return s->lens.get() == key ? ButtonVariant::primary : ButtonVariant::ghost; }),
-                   .on_activated = [s, key] {
+                   .on_activated = [s, key, label] {
+                       if (s->lens.peek() != key) s->mark(std::format("{} {}", s->lang.peek() == "zh" ? "镜头" : "Lens", label));
                        s->lens.set(key);
                        s->soon();
                    }});
@@ -571,7 +670,7 @@ AppSpec app(std::string_view place, std::string_view lang) {
         s->kinds = [site = std::weak_ptr<Site>(s)] {
             if (auto p = site.lock()) atlas_kinds(p);
         };
-        s->relayout({rt.size().width - 188, rt.size().height - 56 - 28});
+        s->relayout({rt.size().width - 188, rt.size().height - 56 - 44});
         // S1's wall: the site's documents in both languages, and the benchmark's set beside them.
         s->wall = std::make_unique<wall::Model>();
         s->wall->title = "openmui's documents";
@@ -592,6 +691,12 @@ AppSpec app(std::string_view place, std::string_view lang) {
         wall::register_all();
         wall::build(*s->wall, world::scene(s->wall->scene));
         s->guide = std::make_unique<Guide>(rt, [site = s.get()] { return site->place.get(); });
+        register_type(component_type<Timebar>());
+        {
+            const auto it = std::ranges::find_if(all, [&](const Place& p) { return p.id == s->place.peek(); });
+            const bool zh = s->lang.peek() == "zh";
+            s->mark(it != all.end() ? std::string(zh ? it->zh : it->en) : std::string(zh ? "全景" : "Overview"));
+        }
         rt.stage_plugins().add({.name = "openmui.site.tree_watch", .kind = "stage", .description = "the site's place read again when its tree changed"},
                                [site = s.get()](const pipeline::Config&) -> std::expected<std::unique_ptr<pipeline::Stage>, std::string> {
                                    return std::make_unique<TreeWatch>(*site);
@@ -616,6 +721,7 @@ AppSpec app(std::string_view place, std::string_view lang) {
                                    .text = computed([s] { return std::string(s->lang.get() == "zh" ? "English" : "中文"); }),
                                    .variant = ButtonVariant::secondary,
                                    .on_activated = [s] {
+                                       s->mark(s->lang.peek() == "zh" ? "English" : "中文");
                                        s->switched_at = s->runtime ? s->runtime->now().count() : 0;
                                        s->lang.set(s->lang.get() == "zh" ? "en" : "zh");
                                        s->switches.set(s->switches.get() + 1);
@@ -661,7 +767,47 @@ AppSpec app(std::string_view place, std::string_view lang) {
                            {column({.id = "nav", .width = Dim(188.0f), .padding = Edges(20.0f, 12.0f), .gap = 4, .background = "surface"}, std::move(nav)),
                             stack({.id = "view", .min_width = Dim(0.0f), .min_height = Dim(0.0f), .grow = 1}, std::move(shown)),
                             only_when(guide_panel(s), [s] { return s->panel.get(); })});
-        Element foot = row({.id = "foot", .padding = Edges(6.0f, 16.0f), .background = "surface"}, {text({.id = "hash", .text = s->hash, .style = "caption"})});
+        // The foot: the page's time (drag it, play it, play it backwards) and the tree's hash.
+        auto say = [s](std::string_view en, std::string_view han) {
+            return computed([s, en = std::string(en), han = std::string(han)] { return s->lang.get() == "zh" ? han : en; });
+        };
+        auto mode_is = [s](std::string_view m) { return s->time_mode.get() == m; };
+        Element foot = row({.id = "foot", .padding = Edges(4.0f, 12.0f), .gap = 6, .align = "center", .background = "surface"},
+                           {button({.id = "time_back",
+                                    .text = say("Backwards", "倒放"),
+                                    .variant = computed([mode_is] { return mode_is("backwards") ? ButtonVariant::primary : ButtonVariant::ghost; }),
+                                    .on_activated = [s] { s->time_mode.peek() == "backwards" ? s->pause() : s->backwards(); }}),
+                            button({.id = "time_play",
+                                    .disabled = computed([mode_is] { return mode_is("live"); }),
+                                    .text = computed([s] {
+                                        const bool zh = s->lang.get() == "zh";
+                                        return std::string(s->time_mode.get() == "playing" ? (zh ? "暂停" : "Pause") : (zh ? "播放" : "Play"));
+                                    }),
+                                    .variant = ButtonVariant::ghost,
+                                    .on_activated = [s] { s->time_mode.peek() == "playing" ? s->pause() : s->play(); }}),
+                            button({.id = "time_live",
+                                    .text = say("Live", "实时"),
+                                    .variant = computed([mode_is] { return mode_is("live") ? ButtonVariant::primary : ButtonVariant::ghost; }),
+                                    .on_activated = [s] { s->live(); }}),
+                            timebar({.id = "time",
+                                     .end = s->time_end,
+                                     .label = say("The page's time", "页面的时间"),
+                                     .live = computed([mode_is] { return mode_is("live"); }),
+                                     .marks = s->marks,
+                                     .start = s->time_start,
+                                     .time = s->playhead,
+                                     .window = Site::time_window,
+                                     .on_scrubbed = [s](double t) { s->scrub(t); },
+                                     .grow = 1}),
+                            text({.id = "clock",
+                                  .text = computed([s] {
+                                      if (s->time_mode.get() == "live") return std::string(s->lang.get() == "zh" ? "现在" : "now");
+                                      std::string t = std::format("{:.1f} s", s->playhead.get() - s->time_end.get());
+                                      if (t.starts_with('-')) t.replace(0, 1, "−");
+                                      return t;
+                                  }),
+                                  .style = "caption"}),
+                            text({.id = "hash", .text = s->hash, .style = "caption"})});
         return column({.id = "site", .grow = 1, .background = "background"}, {std::move(bar), std::move(body), std::move(foot)});
     };
     return a;

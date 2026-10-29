@@ -429,6 +429,55 @@ int main(int argc, char** argv) {
         check(h.runtime().frame_demand().idle(), "settled: none");
     });
 
+    s.test("the page's time taken back (D-60): the camera as it was — before a flight, during it, after; paused, it waits", [] {
+        auto& sc = world::scene("retimed");
+        sc.clear();
+        sc.add({.kind = "box", .x = 0, .y = 0, .width = 100, .height = 100, .key = "a", .fill = Color::hex(0x16a34a)});
+        sc.add({.kind = "box", .x = 3000, .y = 2000, .width = 100, .height = 100, .key = "b", .fill = Color::hex(0x2563eb)});
+        sc.preset("far", {3050, 2050, 1});
+        Headless h({.size = {800, 600}});
+        h.mount("main", column({.width = 800, .height = 600}, {canvas({.id = "board", .scene = "retimed", .x = 50, .y = 50, .zoom = 1, .width = 800, .height = 600})}));
+        h.settle();
+        Runtime& rt = h.runtime();
+        const Canvas* c = rt.component<Canvas>(rt.find("main/board"));
+        const world::Camera home = c->camera();
+        h.advance(seconds(1));
+        const double flew = rt.now().count();
+        check_eq(act(h, "main/board", "camera_preset", Value(Value::Map{{"name", Value("far")}})), std::int64_t{0});
+        h.advance(seconds(0.2));
+        const world::Camera mid = c->camera();
+        const double mid_t = rt.now().count();
+        h.settle();
+        const world::Camera far = c->camera();
+        check(far.x == 3050 && far.y == 2050, "flown there");
+        check(mid.x > home.x && mid.x < far.x, "under way at 0.2 s");
+
+        rt.pause_time(true);
+        rt.seek_time(seconds(flew - 0.5));
+        h.step();
+        check(c->camera() == home, "before the flight: where it was");
+        rt.seek_time(seconds(mid_t));
+        h.step();
+        check(c->camera() == mid, "during it: the very camera of that frame");
+        for (int i = 0; i < 30; ++i) h.step();
+        check(c->camera() == mid, "paused: it waits");
+        check(rt.frame_demand().idle(), "and asks for no frames");
+        rt.pause_time(false);
+        h.settle();
+        check(c->camera() == far, "played on: where the flight ends");
+
+        // Taken back again, then moved by a person: a new course from there (what lay ahead is gone).
+        rt.pause_time(true);
+        rt.seek_time(seconds(flew - 0.5));
+        h.step();
+        rt.release_time();
+        h.step();
+        check(c->camera() == far, "let go: the time is the host's again, after the flight");
+        check_eq(act(h, "main/board", "pan_to", Value(Value::Map{{"x", Value(500.0)}, {"y", Value(400.0)}})), std::int64_t{0});
+        h.settle();
+        check(c->camera().x == 500 && c->camera().y == 400, "moved on from there");
+    });
+
     s.test("input: the wheel zooms about the cursor, a drag pans, a fling glides", [] {
         auto& sc = world::scene("input");
         sc.clear();

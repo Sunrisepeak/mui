@@ -45,6 +45,8 @@ public:
     void style(const Theme& theme, layout::Style& s) const;
     void restyle();
     void laid_out();
+    // The page's time moved (D-60): the camera as it was at `t`, from its past.
+    void retimed(hanim::seconds t);
     void paint(PaintContext& ctx) const;
     void paint_over(PaintContext& ctx) const;  // the behaviours' overlays, above the live nodes too
     bool on_event(EventContext& ctx, const InputEvent& e);
@@ -86,7 +88,18 @@ public:
     [[nodiscard]] world::Behavior* behavior(std::string_view name) const;
 
 private:
-    void changed();   // after the camera moved: placed, redrawn, told
+    void changed(bool record = true);   // after the camera moved: placed, redrawn, told (and remembered)
+    // The camera's past (D-60): from when it rested where, or moved how — the
+    // last 30 s, so a page whose time is taken back shows it as it was.
+    struct Course {
+        hanim::seconds                     from{0};
+        world::Camera                      at;
+        std::optional<world::CameraMotion> motion;
+        std::optional<world::Inertia>      glide;
+    };
+    std::vector<Course> past_;
+    void remember();
+    [[nodiscard]] const Course* course_at(hanim::seconds t) const;
     void schedule();  // the next frame's animation step
     void step();
     void pace();      // the frame demand while the camera moves on its own

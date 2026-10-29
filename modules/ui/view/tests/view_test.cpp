@@ -118,6 +118,20 @@ struct Tally {
     }
 };
 
+// A component that animates on its own (as a canvas's camera does): told
+// when the page's time is moved, paused or let go, and at what time.
+struct Clocked {
+    static constexpr std::string_view name = "clocked";
+    std::vector<double>* told = nullptr;
+    std::vector<bool>*   paused = nullptr;
+    Services*            services = nullptr;
+    void mount(Services& s, NodeId) { services = &s; }
+    void retimed(hanim::seconds t) {
+        if (told) told->push_back(t.count());
+        if (paused) paused->push_back(services->time_paused());
+    }
+};
+
 Element tally(std::string id, Handler changed = {}) {
     Element e;
     e.type = &component_type<Tally>();
@@ -642,6 +656,36 @@ int main(int argc, char** argv) {
         rt.release_time();
         rt.frame({seconds(4), {}});
         check(!rt.time_state().controlled && rt.now() == seconds(4));
+    });
+
+    s.test("time control reaches components that animate on their own: retimed at a seek, a step, a pause and when let go", [] {
+        Runtime rt(options());
+        std::vector<double> told;
+        std::vector<bool>   paused;
+        Element e;
+        e.type = &component_type<Clocked>();
+        e.id = "clock";
+        rt.mount("main", column({}, {std::move(e)}));
+        rt.frame({seconds(0), {}});
+        auto* c = rt.component<Clocked>(rt.find("main/clock"));
+        check(c != nullptr);
+        if (!c) return;
+        c->told = &told;
+        c->paused = &paused;
+        rt.frame({seconds(1), {}});
+        check(told.empty(), "the host's time going on is no news");
+        rt.pause_time(true);
+        check(told.size() == 1 && told.back() == 1.0 && paused.back(), "paused at 1 s");
+        rt.seek_time(seconds(0.25));
+        rt.frame({seconds(2), {}});
+        check(told.size() == 2 && told.back() == 0.25, "sought back to 0.25 s");
+        rt.step_time(seconds(0.5));
+        rt.frame({seconds(2), {}});
+        check(told.size() == 3 && told.back() == 0.75, "stepped");
+        rt.pause_time(false);
+        check(told.size() == 4 && !paused.back(), "going on");
+        rt.release_time();
+        check(told.size() == 5 && told.back() == 2.0 && !paused.back(), "let go: the host's time");
     });
 
     s.test("transitions: tweens follow the clock, interruptions continue from where they are", [] {

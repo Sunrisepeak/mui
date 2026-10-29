@@ -184,19 +184,34 @@ void Runtime::Impl::retime() {
     }
     for (const auto& [id, name, value] : rested)
         if (alive(id)) apply_now(id, name, value);
+    tell_retimed();
     touch(dirty_paint | dirty_layout);
     frame_requested = true;
 }
 
+void Runtime::Impl::tell_retimed() {
+    const seconds t = now();
+    std::vector<NodeId> told;  // first gathered: a component may build or remove nodes
+    for (std::size_t index = 1; index < by_index.size(); ++index)
+        if (const NodeId id = by_index[index]; alive(id) && at(id).type && at(id).type->retimed && at(id).instance) told.push_back(id);
+    for (const NodeId id : told)
+        if (alive(id) && at(id).instance) at(id).type->retimed(at(id).instance, t);
+    frame_requested = true;
+}
+
+bool Runtime::time_paused() const { return impl_->time_control.controlled && impl_->time_control.paused; }
+
 void Runtime::pause_time(bool paused) {
     impl_->take_time_control();
     impl_->time_control.paused = paused;
+    impl_->tell_retimed();
     impl_->frame_requested = true;
 }
 
 void Runtime::set_time_rate(double rate) {
     impl_->take_time_control();
     impl_->time_control.rate = std::max(0.0, rate);
+    impl_->tell_retimed();
     impl_->frame_requested = true;
 }
 

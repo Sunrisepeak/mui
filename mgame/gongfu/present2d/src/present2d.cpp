@@ -1144,7 +1144,16 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
     }
     const View view{scene, camera};
 
-    const std::size_t first = out.size();  // where this picture's commands begin (a stop turns them grey)
+    // Time standing still (a cinematic's stop): the whole picture drawn in a layer turned grey toward the
+    // stop's tint, its brightness kept (openmui.render's `tone`: shapes and pictures alike).
+    const bool stopped = cine && cine->stop.from >= 0 && st.lock.frame >= cine->stop.from && st.lock.frame < cine->stop.to;
+    if (stopped) {
+        static const std::optional<render::EffectRef> tone = render::effects().find("tone");
+        const Color tint = cine->stop.tint;
+        const std::array<float, 4> params{tint.r, tint.g, tint.b, 1};
+        if (tone) out.push_layer(1, render::BlendMode::normal, *tone, params, {0, 0, scene.width, scene.height});
+        else out.push_layer(1);
+    }
 
     // The stage: sky, floor, the ground line, and marks along it that move with the camera; its art's layers behind the fighters.
     const Stage* art = scene.stage;
@@ -1763,15 +1772,7 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         body(look, match.fighter(flasher), f, st.frame, scene, view.cam, out);
     }
 
-    // Time standing still: the whole picture grey, toward the stop's tint (its brightness kept).
-    if (cine && cine->stop.from >= 0 && st.lock.frame >= cine->stop.from && st.lock.frame < cine->stop.to) {
-        const Color tint = cine->stop.tint;
-        const float top = std::max({tint.r, tint.g, tint.b, 1e-3f});
-        out.recolor(first, out.size(), [&](Color c) {
-            const float y = 0.2126f * c.r + 0.7152f * c.g + 0.0722f * c.b;
-            return Color{std::min(1.f, y * tint.r / top), std::min(1.f, y * tint.g / top), std::min(1.f, y * tint.b / top), c.a};
-        });
-    }
+    if (stopped) out.pop_layer();  // the stop's grey
 }
 
 }  // namespace gongfu::present2d

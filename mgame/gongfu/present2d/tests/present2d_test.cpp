@@ -642,6 +642,94 @@ angle.fore = [[0, 0], [10, 90]]
         check(!b2 && has(texts(b2.error()), "is not inside picture"), b2 ? "read" : std::format("{}", texts(b2.error())));
     });
 
+    s.test("time standing still: a cinematic's stop draws the whole picture grey toward its tint, drawn art too; before and after it, in colour", [&] {
+        const std::string text = R"(gongfu = "0.1"
+name = "art"
+
+[[picture]]
+name = "arm"
+file = "arm.png"
+size = [40, 200]
+
+[[bone]]
+name = "upper"
+joint = [0, 160]
+length = 80
+rest = -90
+
+[[part]]
+name = "arm"
+bone = "upper"
+shape = "image"
+picture = "arm"
+source = [0, 0, 40, 200]
+anchor = [20, 20]
+tip = [20, 100]
+material = "none"
+
+[clip.still]
+frames = 1
+loop = true
+
+[cinematic.236236K]
+attacker = "still"
+defender = "still"
+stop = { from = 10, to = 30, tint = "#ffffff" }
+)";
+        auto look = p2::read_look(text, "stop.look.gongfu.toml");
+        check(look.has_value(), look ? "" : std::format("{}", texts(look.error())));
+        if (!look) return;
+        // The picture: red and blue halves.
+        omui::render::ImageStore images;
+        std::vector<omui::raster::Rgba8> px(40 * 200);
+        for (int y = 0; y < 200; ++y)
+            for (int x = 4; x < 36; ++x) px[static_cast<std::size_t>(y * 40 + x)] = y < 100 ? omui::raster::Rgba8{220, 40, 40, 255} : omui::raster::Rgba8{40, 40, 220, 255};
+        look->pictures[0].ref = images.add(40, 200, std::move(px));
+        static const Fighter stopper = [] {
+            FighterDef f = body();
+            MoveDef m{.name = "236236K", .command = {.buttons = bit(Button::hk)}, .total = 30};
+            m.level = 3;
+            m.hits.push_back({.active = {4, 5}, .boxes = {{20_fx, 110_fx, 70_fx, 30_fx}}, .damage = 100, .hitstun = 20, .blockstun = 10, .hitstop = 6,
+                              .pushback = 2_fx, .impact = 0});
+            m.cinematic = CinematicDef{.frames = 40, .hits = {{20, 100, 0}}};
+            f.moves.push_back(m);
+            return *compile(f);
+        }();
+        const std::int32_t move = stopper.find("236236K");
+        auto at = [&](std::int32_t frame) {
+            Match m(rules(), stopper, stopper);
+            State st = m.state();
+            st.f[0].pos.x = 915_fx;
+            st.f[1].pos.x = 1005_fx;
+            st.f[0].facing = 1;
+            st.f[1].facing = -1;
+            for (auto& f : st.f) f.mode = Mode::cinematic;
+            st.lock = {0, move, frame, 1, 915_fx, 0_fx};
+            m.restore(st);
+            omui::render::DisplayList dl;
+            p2::draw(m, *look, *look, p2::Effects{}, {}, dl);
+            omui::raster::Surface out(960, 540);
+            omui::render::CpuRenderer{}.render(dl, out, {&images, nullptr}, {.scale = 1});
+            return out;
+        };
+        // How many pixels are coloured (not grey), and how many are the picture's red.
+        auto count = [](const omui::raster::Surface& s) {
+            std::array<int, 2> n{};
+            for (int y = 0; y < s.height(); ++y)
+                for (int x = 0; x < s.width(); ++x) {
+                    const auto c = s.at(x, y);
+                    n[0] += c.r != c.g || c.g != c.b;
+                    n[1] += c.r > 150 && c.g < 90;
+                }
+            return n;
+        };
+        const auto before = at(5), still = at(20), after = at(35);
+        save(still, "stop-grey");
+        const auto b = count(before), s2 = count(still), a = count(after);
+        check(b[1] > 1000 && a[1] > 1000, std::format("in colour before and after: {} and {} red", b[1], a[1]));
+        check(s2[0] == 0, std::format("all grey while it stands: {} coloured pixels", s2[0]));
+    });
+
     s.test("lit drawn art: a picture's relief and a material light a part from the stage's side; an afterimage is the part's shape in its tint; files read back as themselves", [&] {
         const std::string text = R"(gongfu = "0.1"
 name = "lit"

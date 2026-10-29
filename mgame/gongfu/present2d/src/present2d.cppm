@@ -503,7 +503,8 @@ struct Look {
         omui::geom::Rect whole, cracked;
     } pane;
     // Time (刻): its clone drawn in a tint; a rewind leaving `ghosts` along
-    // the way back, fading over `frames`.
+    // the way back, fading over `frames`; where its mark stands (G-20), the
+    // look's effect `mark` played over and over on the floor.
     struct CloneLook {
         Color tint = Color::hex(0xd4af37, 0.45f);
     } clone;
@@ -511,6 +512,7 @@ struct Look {
         Color        color = Color::hex(0xd4af37, 0.5f);
         std::int32_t ghosts = 0;
         std::int32_t frames = 16;
+        std::string  mark;
     } rewind;
     // A heavy fighter's footfalls (a giant): walking, the camera dips on each
     // step (every `every` frames of its walk clip) by `dip`, back over `frames`.

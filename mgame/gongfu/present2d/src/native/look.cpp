@@ -73,7 +73,7 @@ constexpr std::array<std::string_view, 2> glow_keys{"color", "width"};
 constexpr std::array<std::string_view, 3> footfall_keys{"every", "dip", "frames"};
 constexpr std::array<std::string_view, 7> pane_keys{"glass", "edge", "shine", "reflect", "picture", "whole", "cracked"};
 constexpr std::array<std::string_view, 1> clone_keys{"tint"};
-constexpr std::array<std::string_view, 3> rewind_keys{"color", "ghosts", "frames"};
+constexpr std::array<std::string_view, 4> rewind_keys{"color", "ghosts", "frames", "mark"};
 constexpr std::array<std::string_view, 3> stop_keys{"from", "to", "tint"};
 constexpr std::array<std::string_view, 5> clock_keys{"from", "to", "at", "size", "color"};
 constexpr std::array<std::string_view, 6> projectile_look_keys{"glyph", "size", "color", "halo", "spin", "fx"};
@@ -1238,6 +1238,8 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
         if (auto c = r.colour(t->get("color"), "a rewind's `color`")) look.rewind.color = *c;
         if (auto v = r.integer(t->get("ghosts"), "a rewind's `ghosts`", 0, 12)) look.rewind.ghosts = static_cast<std::int32_t>(*v);
         if (auto v = r.integer(t->get("frames"), "a rewind's `frames`", 1, 120)) look.rewind.frames = static_cast<std::int32_t>(*v);
+        if (const toml::node* m = t->get("mark"))
+            if (auto v = fx_name(m, "a rewind's `mark`")) look.rewind.mark = *v;
     }
     if (const toml::table* t = r.table_of(root->get("footfall"), "`footfall`")) {
         r.only(*t, footfall_keys, "`footfall`");
@@ -1634,8 +1636,9 @@ std::string write_look(const Look& look) {
                                                               rect_text(look.pane.whole), rect_text(look.pane.cracked))
                                                 : std::string());
     if (look.clone.tint != Look::CloneLook{}.tint) s += std::format("clone = {{ tint = {} }}\n", colour_text(look.clone.tint));
-    if (look.rewind.ghosts > 0)
-        s += std::format("rewind = {{ color = {}, ghosts = {}, frames = {} }}\n", colour_text(look.rewind.color), look.rewind.ghosts, look.rewind.frames);
+    if (look.rewind.ghosts > 0 || !look.rewind.mark.empty())
+        s += std::format("rewind = {{ color = {}, ghosts = {}, frames = {}{} }}\n", colour_text(look.rewind.color), look.rewind.ghosts, look.rewind.frames,
+                         look.rewind.mark.empty() ? std::string() : std::format(", mark = \"{}\"", look.rewind.mark));
     if (look.footfall.dip > 0) s += std::format("footfall = {{ every = {}, dip = {}, frames = {} }}\n", look.footfall.every, look.footfall.dip, look.footfall.frames);
     for (std::size_t p = 0; p < look.palettes.size(); ++p) {
         s += std::format("\n[[palette]]\nname = \"{}\"\n", p < look.palette_names.size() ? look.palette_names[p] : std::string());

@@ -1285,6 +1285,16 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
             }
         }
 
+    // A mark (G-20) where it stands: its look's effect, over and over, on the floor.
+    for (std::int32_t i = 0; i < 2; ++i) {
+        const Look& look = i == 0 ? left : right;
+        const History& h = st.history[static_cast<std::size_t>(i)];
+        if (look.rewind.mark.empty() || !h.marked) continue;
+        const auto fx = look.fx.find(look.rewind.mark);
+        if (fx == look.fx.end()) continue;
+        this->fx(look, fx->second, st.frame % std::max(1, fx->second.length()), {static_cast<float>(stage(h.mark.pos.x)), 0.f}, h.mark.facing < 0 ? -1.0 : 1.0, 1, scene,
+                 view.cam, out);
+    }
     // Clones (G-21), in their side's tint; a rewind's ghosts along the way back (G-20).
     for (std::int32_t i = 0; i < 2; ++i) {
         const Look& look = i == 0 ? left : right;

@@ -942,6 +942,74 @@ mesh = [1, 6]
         check(most->second > 1000 && off < most->second / 10, std::format("{} pixels of the tint, {} others (edges)", most->second, off));
     });
 
+    s.test("a mark (G-20) where it stands: the look's effect played on the floor there while it stands, and not after; read back as itself", [&] {
+        const std::string text = R"(gongfu = "0.1"
+name = "art"
+rewind = { color = "#d4af37", ghosts = 3, frames = 16, mark = "dial" }
+
+[[picture]]
+name = "arm"
+file = "arm.png"
+size = [40, 200]
+
+[[bone]]
+name = "upper"
+joint = [0, 160]
+length = 80
+rest = -90
+
+[[part]]
+name = "arm"
+bone = "upper"
+shape = "image"
+picture = "arm"
+source = [0, 0, 40, 200]
+anchor = [20, 20]
+tip = [20, 100]
+
+[[fx.dial.sprite]]
+picture = "arm"
+source = [0, 0, 40, 100]
+frames = 20
+size = [20, 40]
+alpha = [1, 0.5]
+)";
+        auto look = p2::read_look(text, "mark.look.gongfu.toml");
+        check(look.has_value(), look ? "" : std::format("{}", texts(look.error())));
+        if (!look) return;
+        check(look->rewind.mark == "dial", "read");
+        const std::string written = p2::write_look(*look);
+        auto again = p2::read_look(written, "written.look.gongfu.toml");
+        check(again && again->rewind.mark == "dial" && p2::write_look(*again) == written, written);
+        auto bad = p2::read_look(text.substr(0, text.find("mark = \"dial\"")) + "mark = \"dail\" }\n" + text.substr(text.find("}\n") + 2), "bad.look.gongfu.toml");
+        check(!bad, "an effect the look has not");
+        omui::render::ImageStore images;
+        look->pictures[0].ref = images.add(40, 200, std::vector<omui::raster::Rgba8>(40 * 200, omui::raster::Rgba8{220, 40, 40, 255}));
+        auto drawn = [&](bool marked) {
+            Match m(rules(), fighter(), fighter());
+            State st = m.state();
+            st.history[0].marked = marked ? 1 : 0;
+            st.history[0].mark = {{900_fx, 0_fx}, 1};
+            m.restore(st);
+            omui::render::DisplayList dl;
+            p2::draw(m, *look, *look, p2::Effects{}, {}, dl);
+            return dl.hash();
+        };
+        check(drawn(true) != drawn(false), "drawn while it stands");
+        p2::Look plain = *look;
+        plain.rewind.mark.clear();
+        Match m(rules(), fighter(), fighter());
+        State st = m.state();
+        st.history[0].marked = 1;
+        m.restore(st);
+        omui::render::DisplayList a, b;
+        p2::draw(m, plain, plain, p2::Effects{}, {}, a);
+        st.history[0].marked = 0;
+        m.restore(st);
+        p2::draw(m, plain, plain, p2::Effects{}, {}, b);
+        check(a.hash() == b.hash(), "a look without a mark's effect draws none");
+    });
+
     s.test("lit drawn art: a picture's relief and a material light a part from the stage's side; an afterimage is the part's shape in its tint; files read back as themselves", [&] {
         const std::string text = R"(gongfu = "0.1"
 name = "lit"

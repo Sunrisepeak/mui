@@ -310,6 +310,121 @@ ring = [[158, 70, 0, 700, 30]]
               bad ? "read" : std::format("{}", texts(bad.error())));
     });
 
+    s.test("a cinematic's bodies: turned, eased along a path, held reacting from each hold's start, standing in a blow's hitstop, launched (the heavy hit where a look has none), afterimages — files read back as themselves", [&] {
+        // The keys read and write back.
+        const std::string text = read(here() / "data" / "kata.look.gongfu.toml") + R"(
+[cinematic.finale]
+attacker = "5HP"
+defender = "hitstun"
+attacker_path = [[0, 0, 0], [20, 60, 0, "linear"], [40, 60, 200, "out_quad"]]
+defender_path = [[0, 80, 0], [30, 80, 300, "out_quad"], [50, 120, 0, "in_quad"]]
+attacker_turn = [[20, 40]]
+defender_turn = [[45, 60]]
+hitstop = [[10, 6], [30, 8]]
+afterimages = [[12, 40]]
+reactions = ["hitstun.body", "launched", "slammed"]
+)";
+        auto read_back = p2::read_look(text, "kata.look.gongfu.toml");
+        check(read_back.has_value(), read_back ? "" : std::format("{}", texts(read_back.error())));
+        if (read_back) {
+            const auto& c = read_back->cinematics.at("finale");
+            check(c.attacker_path.size() == 3 && !c.attacker_path[0].ease && c.attacker_path[1].ease && c.defender_path[2].ease, "a path key's ease");
+            check(c.attacker_turn.size() == 1 && c.defender_turn.size() == 1 && c.hitstops.size() == 2 && c.hitstops[1][1] == 8 && c.afterimages.size() == 1);
+            check(c.reactions.size() == 3 && c.reactions[1] == "launched", "taken reactions are reactions");
+            const std::string written = p2::write_look(*read_back);
+            auto again = p2::read_look(written, "written.look.gongfu.toml");
+            check(again && p2::write_look(*again) == written, "written back as itself");
+        }
+        auto bad = p2::read_look(read(here() / "data" / "kata.look.gongfu.toml") + "\n[cinematic.finale]\nattacker = \"5HP\"\nreactions = [\"lanched\"]\n"
+                                                                                       "defender_path = [[0, 0, 0, \"bouncy\"]]\nattacker_turn = [[40, 20]]\n",
+                                 "bad.look.gongfu.toml");
+        check(!bad && has(texts(bad.error()), "`lanched` is not a hit reaction") && has(texts(bad.error()), "`bouncy` is not an ease") &&
+                  has(texts(bad.error()), "`attacker_turn` ends after it begins"),
+              bad ? "read" : std::format("{}", texts(bad.error())));
+
+        // Drawn: a fighter whose level 3 lands twice in its cinematic (frames 10 and 30).
+        static const Fighter super = [] {
+            FighterDef f = body();
+            MoveDef m{.name = "236236K", .command = {.buttons = bit(Button::hk)}, .total = 30};
+            m.level = 3;
+            m.hits.push_back({.active = {4, 5}, .boxes = {{20_fx, 110_fx, 70_fx, 30_fx}}, .damage = 100, .hitstun = 20, .blockstun = 10, .hitstop = 6,
+                              .pushback = 2_fx, .impact = 0});
+            m.cinematic = CinematicDef{.frames = 60, .hits = {{10, 100, 0}, {30, 100, 0}}};
+            f.moves.push_back(m);
+            return *compile(f);
+        }();
+        const std::int32_t move = super.find("236236K");
+        check(move >= 0);
+        p2::Look a = ink, d = paper;
+        a.clips["still"] = p2::Clip{.frames = 1, .loop = true};
+        for (p2::Look* l : {&a, &d}) {
+            p2::Clip heavy{.frames = 24};
+            heavy.angles.resize(l->bones.size());
+            heavy.angles[torso] = turn({{0, 0.6}, {24, 0}});
+            l->clips["hitstun.heavy"] = heavy;
+        }
+        p2::Look launchable = d;
+        p2::Clip up{.frames = 24};
+        up.angles.resize(d.bones.size());
+        up.angles[hip] = turn({{0, 1.2}, {24, 2.4}});
+        launchable.clips["launched"] = up;
+        // The lock at a frame, drawn by a cinematic (the attacker facing `facing`): its display list.
+        auto drawn = [&](const p2::CinematicLook& c, std::int32_t frame, const p2::Look& defender, std::int32_t facing = 1, const p2::Look* attacker = nullptr) {
+            p2::Look by = attacker ? *attacker : a;
+            by.cinematics["236236K"] = c;
+            Match m(rules(), super, super);
+            State st = m.state();
+            st.f[0].pos.x = 915_fx;
+            st.f[1].pos.x = 1005_fx;
+            st.f[0].facing = facing;
+            st.f[1].facing = -1;
+            for (auto& f : st.f) f.mode = Mode::cinematic;
+            st.lock = {0, move, frame, 1, 915_fx, 0_fx};
+            m.restore(st);
+            omui::render::DisplayList dl;
+            p2::draw(m, by, defender, p2::Effects{}, {}, dl);
+            return dl.hash();
+        };
+        p2::CinematicLook plain{.attacker_clip = "still", .defender_clip = "hitstun"};
+        // Turned: drawn as if it faced the other way.
+        p2::CinematicLook turned = plain;
+        turned.attacker_turn = {{0, 50}};
+        check(drawn(turned, 20, d) == drawn(plain, 20, d, -1) && drawn(turned, 20, d) != drawn(plain, 20, d), "a turn faces the attacker the other way");
+        check(drawn(turned, 50, d) == drawn(plain, 50, d), "and back after it");
+        // A path key's ease: linear, a quarter of the way at a quarter of the time (eased in and out, less).
+        p2::CinematicLook linear = plain, smooth = plain, there = plain;
+        linear.defender_path = {{0, {0, 0}, {}}, {20, {100, 0}, hanim::ease::linear}};
+        smooth.defender_path = {{0, {0, 0}, {}}, {20, {100, 0}, {}}};
+        there.defender_path = {{0, {25, 0}, {}}, {20, {25, 0}, {}}};
+        check(drawn(linear, 5, d) == drawn(there, 5, d) && drawn(smooth, 5, d) != drawn(there, 5, d), "linear along the path");
+        // Held, the hold's clip plays from the hold's first frame.
+        p2::CinematicLook early = plain, late = plain;
+        early.holds = {{.from = 10, .to = 30, .bone = fore_front, .along = 28, .body = {0, 110}, .clip = "5LP"}};
+        late.holds = {{.from = 20, .to = 40, .bone = fore_front, .along = 28, .body = {0, 110}, .clip = "5LP"}};
+        p2::Look jabbing = d;
+        jabbing.clips["5LP"] = ink.clips.at("5LP");
+        check(drawn(early, 13, jabbing) == drawn(late, 23, jabbing) && drawn(early, 13, jabbing) != drawn(early, 16, jabbing), "a hold's clip from its start");
+        // A hitstop: the struck shakes in it, and its reaction waits till it is over.
+        p2::CinematicLook stopped = plain;
+        stopped.hitstops = {{10, 6}};
+        check(drawn(stopped, 19, d) == drawn(plain, 13, d), "the reaction three frames in, after the six stood");
+        check(drawn(stopped, 12, d) != drawn(plain, 12, d), "in the hitstop the struck stands and shakes");
+        // Launched: the look's own, or the heavy hit's where it has none.
+        p2::CinematicLook launched = plain, heavy = plain;
+        launched.reactions = {"launched"};
+        heavy.reactions = {"hitstun.heavy"};
+        check(drawn(launched, 14, d) == drawn(heavy, 14, d), "no `launched`: the heavy hit");
+        check(drawn(launched, 14, launchable) != drawn(heavy, 14, launchable), "its own `launched`");
+        // Afterimages: the attacker again as it was its trail's frames before.
+        p2::Look trailing = a;
+        trailing.trail.frames = {3, 6};
+        p2::CinematicLook jab = plain, ghosts = plain;
+        jab.attacker_clip = ghosts.attacker_clip = "5LP";
+        ghosts.afterimages = {{0, 30}};
+        check(drawn(ghosts, 8, d, 1, &trailing) != drawn(jab, 8, d, 1, &trailing) && drawn(ghosts, 40, d, 1, &trailing) == drawn(jab, 40, d, 1, &trailing),
+              "afterimages over their frames only");
+    });
+
     s.test("drawn as an artist would: curves, a light (shadow and rim), drawings swapped at a key, a sleeve that follows its swing", [] {
         const std::string text = R"(gongfu = "0.1"
 name = "drawn"

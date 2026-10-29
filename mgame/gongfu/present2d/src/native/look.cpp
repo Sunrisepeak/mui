@@ -85,8 +85,9 @@ constexpr std::array<std::string_view, 9> fx_stroke_keys{"picture", "source", "p
 constexpr std::array<std::string_view, 12> fx_spray_keys{"picture", "sources", "at", "from", "frames", "count", "speed", "angle", "size", "gravity", "seed", "color"};
 constexpr std::array<std::string_view, 11> panel_keys{"picture", "source", "from", "to", "in", "out", "y", "height", "slant", "pan", "band"};
 constexpr std::array<std::string_view, 2> stroke_keys{"points", "width"};
-constexpr std::array<std::string_view, 23> cinematic_keys{"attacker", "defender", "backdrop", "camera", "glyph", "seal", "flash", "scanlines",
-                                                          "attacker_path", "defender_path", "quake", "ring", "prism", "cracks", "fall", "stop", "clock", "doc", "panel", "fx", "hide", "reactions", "hold"};
+constexpr std::array<std::string_view, 27> cinematic_keys{"attacker", "defender", "backdrop", "camera", "glyph", "seal", "flash", "scanlines", "attacker_path",
+                                                          "defender_path", "quake", "ring", "prism", "cracks", "fall", "stop", "clock", "doc", "panel", "fx",
+                                                          "hide", "reactions", "hold", "attacker_turn", "defender_turn", "hitstop", "afterimages"};
 constexpr std::array<std::string_view, 5> prism_keys{"images", "spread", "from", "to", "tint"};
 constexpr std::array<std::string_view, 1> cracks_keys{"color"};
 constexpr std::array<std::string_view, 3> fall_keys{"frame", "count", "color"};
@@ -1394,8 +1395,47 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
                         if (v.size() == width) add(v);
                     }
                 };
-                rows("attacker_path", 3, [&](const std::vector<double>& v) { c.attacker_path.push_back({static_cast<std::int32_t>(v[0]), {static_cast<float>(v[1]), static_cast<float>(v[2])}}); });
-                rows("defender_path", 3, [&](const std::vector<double>& v) { c.defender_path.push_back({static_cast<std::int32_t>(v[0]), {static_cast<float>(v[1]), static_cast<float>(v[2])}}); });
+                // Paths: [[frame, forward, up(, "ease")], …], each key's ease the way to it.
+                auto path = [&](std::string_view key, std::vector<CinematicLook::PathKey>& out) {
+                    const toml::node* n = t->get(key);
+                    if (!n) return;
+                    const toml::array* a = n->as_array();
+                    if (!a) {
+                        r.error(n, std::format("a cinematic's `{}` is a list", key), std::format("{} = [[0, 0, 0], [20, 60, 180, \"out_quad\"]]", key));
+                        return;
+                    }
+                    for (const toml::node& e : *a) {
+                        const toml::array* row = e.as_array();
+                        if (!row || row->size() < 3 || row->size() > 4) {
+                            r.error(&e, std::format("a `{}` key is [frame, forward, up] or [frame, forward, up, \"ease\"]", key));
+                            continue;
+                        }
+                        auto f = r.integer(row->get(0), std::format("a `{}` key's frame", key), 0, 6000);
+                        auto x = r.number(row->get(1), std::format("a `{}` key's forward", key));
+                        auto y = r.number(row->get(2), std::format("a `{}` key's up", key));
+                        if (!f || !x || !y) continue;
+                        CinematicLook::PathKey k{static_cast<std::int32_t>(*f), {static_cast<float>(*x), static_cast<float>(*y)}, {}};
+                        if (row->size() == 4)
+                            if (auto name = r.text(row->get(3), "a path key's ease")) {
+                                if (auto parsed = hanim::parse_ease(*name)) k.ease = *parsed;
+                                else r.error(row->get(3), std::format("`{}` is not an ease", *name), "linear, out_quad, in_quad, in_out_sine, cubic-bezier(…)");
+                            }
+                        out.push_back(k);
+                    }
+                };
+                path("attacker_path", c.attacker_path);
+                path("defender_path", c.defender_path);
+                // Spans of frames: [[from, to], …].
+                auto spans = [&](std::string_view key, std::string_view hint, std::vector<std::array<std::int32_t, 2>>& out) {
+                    rows(key, 2, [&](const std::vector<double>& v) {
+                        if (key == "hitstop" ? v[1] < 0 : v[1] < v[0]) r.error(t->get(key), std::format("a `{}` ends after it begins", key), std::string(hint));
+                        out.push_back({static_cast<std::int32_t>(v[0]), static_cast<std::int32_t>(v[1])});
+                    });
+                };
+                spans("attacker_turn", "attacker_turn = [[120, 170]]: frames the attacker faces the other way", c.attacker_turn);
+                spans("defender_turn", "defender_turn = [[60, 90]]: frames the defender faces the other way", c.defender_turn);
+                spans("hitstop", "hitstop = [[40, 8]]: from frame 40, 8 frames the struck stands", c.hitstops);
+                spans("afterimages", "afterimages = [[60, 120]]: frames the attacker leaves afterimages", c.afterimages);
                 rows("quake", 3, [&](const std::vector<double>& v) { c.quakes.push_back({static_cast<std::int32_t>(v[0]), static_cast<float>(v[1]), static_cast<std::int32_t>(v[2])}); });
                 rows("ring", 5, [&](const std::vector<double>& v) {
                     c.rings.push_back({static_cast<std::int32_t>(v[0]), {static_cast<float>(v[1]), static_cast<float>(v[2])}, static_cast<float>(v[3]), static_cast<std::int32_t>(v[4])});
@@ -1424,8 +1464,12 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
                     if (const toml::array* a = rn->as_array()) {
                         for (const toml::node& e : *a)
                             if (auto v = r.text(&e, "a cinematic's reaction")) {
-                                if (*v != "hitstun" && std::ranges::find(hit_reactions, *v) == hit_reactions.end())
-                                    r.error(&e, std::format("`{}` is not a hit reaction", *v), data::nearest_hint(*v, hit_reactions));
+                                if (*v != "hitstun" && std::ranges::find(hit_reactions, *v) == hit_reactions.end() &&
+                                    std::ranges::find(taken_reactions, *v) == taken_reactions.end()) {
+                                    std::vector<std::string_view> known(hit_reactions.begin(), hit_reactions.end());
+                                    known.insert(known.end(), taken_reactions.begin(), taken_reactions.end());
+                                    r.error(&e, std::format("`{}` is not a hit reaction", *v), data::nearest_hint(*v, known));
+                                }
                                 c.reactions.push_back(*v);
                             }
                     } else {
@@ -1752,8 +1796,16 @@ std::string write_look(const Look& look) {
             for (std::size_t i = 0; i < items.size(); ++i) s += (i ? ", " : "") + row(items[i]);
             s += "]\n";
         };
-        list("attacker_path", c.attacker_path, [](const auto& k) { return std::format("[{}, {}, {}]", k.frame, k.at.x, k.at.y); });
-        list("defender_path", c.defender_path, [](const auto& k) { return std::format("[{}, {}, {}]", k.frame, k.at.x, k.at.y); });
+        auto path_key = [](const auto& k) {
+            return k.ease ? std::format("[{}, {}, {}, \"{}\"]", k.frame, k.at.x, k.at.y, hanim::to_string(*k.ease)) : std::format("[{}, {}, {}]", k.frame, k.at.x, k.at.y);
+        };
+        list("attacker_path", c.attacker_path, path_key);
+        list("defender_path", c.defender_path, path_key);
+        auto span = [](const auto& v) { return std::format("[{}, {}]", v[0], v[1]); };
+        list("attacker_turn", c.attacker_turn, span);
+        list("defender_turn", c.defender_turn, span);
+        list("hitstop", c.hitstops, span);
+        list("afterimages", c.afterimages, span);
         list("quake", c.quakes, [](const auto& q) { return std::format("[{}, {}, {}]", q.frame, q.strength, q.frames); });
         list("ring", c.rings, [](const auto& g) { return std::format("[{}, {}, {}, {}, {}]", g.frame, g.at.x, g.at.y, g.size, g.frames); });
         if (c.prism.images > 0)

@@ -640,8 +640,22 @@ Point path_at(const std::vector<CinematicLook::PathKey>& keys, std::int32_t t) {
     while (k + 1 < keys.size() && keys[k + 1].frame <= t) ++k;
     const auto& a = keys[k];
     const auto& b = k + 1 < keys.size() ? keys[k + 1] : keys[k];
-    const double u = between(t, a.frame, b.frame);
+    const double u = b.ease && b.frame > a.frame ? (*b.ease)(std::clamp(static_cast<double>(t - a.frame) / (b.frame - a.frame), 0.0, 1.0)) : between(t, a.frame, b.frame);
     return {static_cast<float>(a.at.x + (b.at.x - a.at.x) * u), static_cast<float>(a.at.y + (b.at.y - a.at.y) * u)};
+}
+
+// Whether a cinematic's turns have a fighter facing the other way at a frame.
+bool turned(const std::vector<std::array<std::int32_t, 2>>& turns, std::int32_t t) {
+    return std::ranges::any_of(turns, [t](const auto& r) { return t >= r[0] && t < r[1]; });
+}
+
+// The clip a cinematic asks of the one it struck or took, as its look has it:
+// launched or slammed, where the look has neither, the heavy hit's reaction
+// (empty: the look has no such clip).
+std::string_view taken_clip(const Look& look, std::string_view name) {
+    if (look.clips.contains(name)) return name;
+    if ((name == taken_reactions[1] || name == taken_reactions[2]) && look.clips.contains(hit_reactions[3])) return hit_reactions[3];
+    return {};
 }
 
 // The fighter in a super's flash, and how far into it (0 → 1); −1 when none.
@@ -1245,30 +1259,39 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
     }
 
     // The fighters (in a cinematic, each plays the clip it says, at the lock's frame).
+    // Where a cinematic draws a fighter at a frame of the lock: by its path, turned as its turns say.
+    auto placed = [&](std::int32_t i, std::int32_t t) {
+        FighterState f = st.f[static_cast<std::size_t>(i)];
+        const bool attacker = i == st.lock.owner;
+        const auto& path = attacker ? cine->attacker_path : cine->defender_path;
+        if (!path.empty()) {
+            const Point off = path_at(path, t);
+            f.pos.x = st.lock.x + Fixed::raw(static_cast<std::int32_t>(std::lround(off.x * st.lock.facing * Fixed::one_bits)));
+            f.pos.y = st.lock.y + Fixed::raw(static_cast<std::int32_t>(std::lround(off.y * Fixed::one_bits)));
+        }
+        if (turned(attacker ? cine->attacker_turn : cine->defender_turn, t)) f.facing = -f.facing;
+        return f;
+    };
+    // The struck's own time: the lock's, less the frames it has stood in hitstops.
+    auto struck_time = [&](std::int32_t t) {
+        std::int32_t own = t;
+        for (const auto& h : cine->hitstops) own -= std::clamp(t - h[0], 0, h[1]);
+        return own;
+    };
     for (std::int32_t i = 0; i < 2; ++i) {
         std::string_view clip;
         FighterState drawn = st.f[static_cast<std::size_t>(i)];
+        std::int32_t hold_from = -1;  // held, the hold's clip plays from its first frame
         if (cine) {
             const bool attacker = i == st.lock.owner;
             clip = attacker ? std::string_view(cine->attacker_clip) : std::string_view(cine->defender_clip);
             // A path places the fighter from where the lock began (the attacker's feet), whatever the gap.
-            const auto& path = attacker ? cine->attacker_path : cine->defender_path;
-            if (!path.empty()) {
-                const Point off = path_at(path, st.lock.frame);
-                drawn.pos.x = st.lock.x + Fixed::raw(static_cast<std::int32_t>(std::lround(off.x * st.lock.facing * Fixed::one_bits)));
-                drawn.pos.y = st.lock.y + Fixed::raw(static_cast<std::int32_t>(std::lround(off.y * Fixed::one_bits)));
-            }
+            drawn = placed(i, st.lock.frame);
             // Held: where the attacker's hand (or shoulder) is this frame, by the defender's own point.
             for (const auto& h : cine->holds) {
                 if (attacker || st.lock.frame < h.from || st.lock.frame >= h.to || h.bone < 0) continue;
                 const Look& by = st.lock.owner == 0 ? left : right;
-                FighterState holder = st.f[static_cast<std::size_t>(st.lock.owner)];
-                if (!cine->attacker_path.empty()) {
-                    const Point off = path_at(cine->attacker_path, st.lock.frame);
-                    holder.pos.x = st.lock.x + Fixed::raw(static_cast<std::int32_t>(std::lround(off.x * st.lock.facing * Fixed::one_bits)));
-                    holder.pos.y = st.lock.y + Fixed::raw(static_cast<std::int32_t>(std::lround(off.y * Fixed::one_bits)));
-                }
-                pose_clip(by, cine->attacker_clip, st.lock.frame, holder, held_);
+                pose_clip(by, cine->attacker_clip, st.lock.frame, placed(st.lock.owner, st.lock.frame), held_);
                 if (static_cast<std::size_t>(h.bone) >= held_.size()) continue;
                 const BonePlace& b = held_[static_cast<std::size_t>(h.bone)];
                 const double hx = b.joint.x + h.along * dm::cos(b.angle), hy = b.joint.y + h.along * dm::sin(b.angle);
@@ -1276,8 +1299,25 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
                 drawn.pos.x = Fixed::raw(static_cast<std::int32_t>(std::lround((hx - h.body.x * facing) * Fixed::one_bits)));
                 drawn.pos.y = Fixed::raw(static_cast<std::int32_t>(std::lround((hy - h.body.y) * Fixed::one_bits)));
                 const Look& own = i == 0 ? left : right;
-                if (own.clips.contains(h.clip)) clip = h.clip;
+                if (const std::string_view c = taken_clip(own, h.clip); !c.empty()) clip = c, hold_from = h.from;
             }
+            // In a blow's hitstop the struck shakes along its line, a little less each frame.
+            if (!attacker)
+                for (const auto& h : cine->hitstops) {
+                    const std::int32_t age = st.lock.frame - h[0];
+                    if (age < 0 || age >= h[1]) continue;
+                    const double amp = 2.5 + 0.35 * (h[1] - age);
+                    drawn.pos.x += Fixed::raw(static_cast<std::int32_t>(std::lround(((st.frame & 1) ? amp : -amp) * Fixed::one_bits)));
+                }
+            // Afterimages: the attacker as it was the look's trail frames before, in its trail colour, fading.
+            const Look& own = i == 0 ? left : right;
+            if (attacker && !own.trail.frames.empty() && turned(cine->afterimages, st.lock.frame))
+                for (std::size_t n = own.trail.frames.size(); n-- > 0;) {
+                    const std::int32_t then = st.lock.frame - own.trail.frames[n];
+                    if (then < 0 || (then >= cine->hide[0] && then < cine->hide[1])) continue;
+                    const double a = own.trail.alpha * (1 - static_cast<double>(n) / static_cast<double>(own.trail.frames.size()));
+                    body(own, match.fighter(i), placed(i, then), st.frame, scene, view.cam, out, clip, then, fade(own.trail.color, a));
+                }
         }
         // A prism: the defender again either side, faint, as through cut glass.
         if (cine && i != st.lock.owner && cine->prism.images > 0 && st.lock.frame >= cine->prism.from && st.lock.frame <= cine->prism.to) {
@@ -1293,19 +1333,19 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         }
         // Struck by a cinematic's hits, the defender's reaction starts again at
         // each (its first keys are the blow): the cinematic's for that hit, if the look has it.
-        std::int32_t clip_t = st.lock.frame;
+        std::int32_t clip_t = hold_from >= 0 ? struck_time(st.lock.frame) - struck_time(hold_from) : st.lock.frame;
         const Look& own = i == 0 ? left : right;
-        if (cine && i != st.lock.owner && clip == "hitstun") {
+        if (cine && i != st.lock.owner && clip == "hitstun" && hold_from < 0) {
             const MoveDef& md = match.fighter(st.lock.owner).def.moves[static_cast<std::size_t>(st.lock.move)];
             std::int32_t last = -1, landed = 0;
             if (md.cinematic)
                 for (const CinematicHit& h : md.cinematic->hits)
                     if (h.frame <= st.lock.frame) last = std::max(last, h.frame), ++landed;
             if (last >= 0) {
-                clip_t = st.lock.frame - last;
+                clip_t = struck_time(st.lock.frame) - struck_time(last);
                 if (!cine->reactions.empty()) {
                     const std::string& r = cine->reactions[static_cast<std::size_t>(landed - 1) % cine->reactions.size()];
-                    if (own.clips.contains(r)) clip = r;
+                    if (const std::string_view c = taken_clip(own, r); !c.empty()) clip = c;
                 }
             }
         } else if (!cine && drawn.mode == Mode::hitstun) {
@@ -1351,10 +1391,11 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
             std::tie(clip, t) = resolve(look, match.fighter(i), f, st.frame);
         }
         if (!clip) continue;
+        const bool away = cine && turned(i == st.lock.owner ? cine->attacker_turn : cine->defender_turn, t);
         for (const FxAt& a : clip->fx) {
             const auto fx = look.fx.find(a.name);
             if (fx == look.fx.end() || t < a.frame || t >= a.frame + fx->second.length()) continue;
-            const double facing = f.facing < 0 ? -1.0 : 1.0;
+            const double facing = (f.facing < 0) != away ? -1.0 : 1.0;
             this->fx(look, fx->second, t - a.frame, {static_cast<float>(stage(f.pos.x) + facing * a.at.x), static_cast<float>(stage(f.pos.y) + a.at.y)}, facing, a.scale,
                      scene, view.cam, out);
         }

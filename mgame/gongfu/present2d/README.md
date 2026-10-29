@@ -23,6 +23,12 @@ gongfu::present2d::draw(match, left_look, right_look, effects, scene, frame);
     - the sounds and the rumble.
   - Blocks, throws and KOs use the look's `block`, `throw` and `ko` profiles. Anything without a profile gets a default.
   - Effects are drawn from the events kept by frame. Their scatter is a hash of the event, so a spark is the same after a rollback.
+- **A level 3's cinematic** (`[cinematic.<move>]`) is a timeline keyed by the lock's frame: what each fighter plays; the camera's keys; a backdrop, flashes, quakes and rings; cut-in panels; effects at places. The bodies really meet:
+  - paths place each fighter, a key's ease the way to it (`out_quad` up, `in_quad` down: a body flung and falling);
+  - turns draw a fighter facing the other way (a shoulder driven in backwards, a catch behind the back);
+  - holds keep the defender at a bone of the attacker, playing each hold's clip from its first frame, so holds in a row show a held body reacting to each blow;
+  - each hit asks the defender for a reaction (`hitstun.head` … or `held`, `launched`, `slammed`; a look without `launched` or `slammed` gives its heavy hit's), and in a hitstop the struck shakes and its reaction waits;
+  - afterimages trail the attacker over the frames they say.
 - **Looks are files**, `*.look.gongfu.toml` (`read_look` / `write_look`):
   - palettes of named slots (the left side's and the right's);
   - bones, with angles in degrees;
@@ -41,6 +47,7 @@ Every picture is a pure function of the match's state and the kept events, and i
 - reads the training fighter's look file, writes it back and reads it again (the same picture);
 - reports a broken look's problems at their places;
 - resolves impacts by name and checks the camera's shake and punch in;
-- pins each spark style and the negative flash.
+- pins each spark style and the negative flash;
+- draws a cinematic's bodies turned, eased along a path, held, in a hitstop, launched and with afterimages, each against the picture it should equal.
 
 An overlay drawn over the frame (training's boxes) lines up with it through `view_camera` (the camera the frame was drawn with, shake included) and `on_picture` (a point of the stage on the picture).

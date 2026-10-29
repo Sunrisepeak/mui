@@ -294,12 +294,27 @@ struct CinematicLook {
     bool                  scanlines = false;  // a screen's lines over the picture while it plays
     // Where each is drawn, from where the lock began (the attacker's feet;
     // forward, up), keyed by frame: a lift, a leap off the top of the picture.
-    // Without one, a fighter stays where the simulation holds it.
+    // Without one, a fighter stays where the simulation holds it. A key's
+    // ease is the way there from the key before (none: eased in and out, a
+    // stop at every key; out_quad up to a height and in_quad down from it: a
+    // body flung and falling).
     struct PathKey {
-        std::int32_t frame = 0;
-        Point        at;
+        std::int32_t               frame = 0;
+        Point                      at;
+        std::optional<hanim::Ease> ease;
     };
     std::vector<PathKey> attacker_path, defender_path;
+    // Frames [from, to) each is drawn facing the other way — a spin, the back
+    // turned to the other (a shoulder driven in backwards, a catch behind the
+    // back) — its clip's forward then away from where it faced.
+    std::vector<std::array<std::int32_t, 2>> attacker_turn, defender_turn;
+    // Hitstops: from a blow's `frame`, for `frames`, the struck stands in it —
+    // shaking along its line, its reaction waiting till the hitstop is over
+    // (the attacker holds its contact by its clip's keys).
+    std::vector<std::array<std::int32_t, 2>> hitstops;
+    // Frames [from, to) the attacker leaves afterimages: drawn again as it was
+    // its look's trail frames before, in the trail's colour, fading.
+    std::vector<std::array<std::int32_t, 2>> afterimages;
     // Quakes (the picture shaken and swelling: a crash) and shock rings
     // spreading from a point (from where the attacker began, forward and up).
     struct Quake {
@@ -370,12 +385,17 @@ struct CinematicLook {
     // Frames [from, to) the attacker is not drawn (a picture of them stands in: a finishing pose).
     std::array<std::int32_t, 2> hide{-1, -1};
     // The defender's reaction to each of the cinematic's hits, in turn (a
-    // reaction clip's name — see hit reactions below; empty: by default).
+    // reaction clip's name — a hit reaction or a taken one, see below; empty:
+    // by default). A taken reaction the defender's look has not falls back to
+    // `hitstun.heavy`, then `hitstun`.
     std::vector<std::string> reactions;
     // Held (a grab anchor): over [from, to) the defender is where a bone of
     // the attacker is — `along` that bone from its joint — by its own point
-    // `body` (from its feet: forward, up), playing `clip` (an agreed reaction,
-    // `held` by default): taken by the collar, lifted, thrown down.
+    // `body` (from its feet: forward, up), playing `clip` from the hold's
+    // first frame (an agreed reaction, `held` by default): taken by the
+    // collar, lifted, thrown down. Holds one after another on the same bone
+    // keep the body in hand while it reacts to each blow (`held`, then
+    // `hitstun.body` from a knee's contact, …).
     struct Hold {
         std::int32_t from = 0, to = 0;
         std::int32_t bone = -1;

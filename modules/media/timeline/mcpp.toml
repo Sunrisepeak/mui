@@ -1,0 +1,33 @@
+# openmui.timeline — the timeline every editor shares (D-86): tracks of clips
+# (a video, a view, a sound, an animation) placed in exact time, each with
+# where in its source it begins, its speed, its level and fades, and
+# properties keyed with hanim's curves; markers; what plays at any moment;
+# edits (insert, remove, move, trim, split, ripple) that each give back their
+# inverse, so undo is exact; and the readable file, *.timeline.omui.toml.
+# An independent component (D-55): the standard library, hanim (its eases
+# and keyed tracks) and toml++.
+[package]
+namespace   = "openmui"
+name        = "timeline"
+version     = "0.1.0"
+description = "Tracks of clips in exact time, keyed properties, edits that undo exactly, and a readable file"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "runtime"
+
+[targets.openmui-timeline]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+hanim               = { path = "../../base/hanim" }
+marzer.tomlplusplus = "3.4.0"
+
+[dev-dependencies]
+openmui.testing = { path = "../../base/testing" }

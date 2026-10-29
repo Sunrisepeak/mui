@@ -154,7 +154,7 @@ class Runner:
             if "tree" in st:
                 return {"step": i, "tree": omui.snapshot(root=st["tree"])["nodes"]}
             if "act" in st:
-                omui.act(node=st["act"], action=st["action"], args=st.get("args", {}))
+                omui.act(node=st["act"], action=st["action"], args=st.get("args", {}), **({"dry_run": True} if st.get("dry_run") else {}))
                 return {"step": i, "act": "ok"}
             if "invoke" in st:
                 return {"step": i, "invoke": omui.invoke(st["invoke"], st.get("args", {}))}

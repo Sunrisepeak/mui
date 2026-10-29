@@ -41,10 +41,13 @@ public:
     ActResult set_selection(ActContext& ctx, const SetSelectionArgs& args);
     ActResult replace_selection(ActContext& ctx, const Value& text);
     ActResult submit(ActContext& ctx);
+    // A dry run (S-13): the text it would hold, worked out on a copy of the editor.
+    ActResult preview(ActContext& ctx, std::string_view action) const;
 
     [[nodiscard]] const typeset::TextEditor& editor() const noexcept { return editor_; }
 
 private:
+    [[nodiscard]] ActResult taken_back_by(ActResult r, const std::string& text, std::size_t anchor, std::size_t focus) const;
     // After the editor's text changed: the property, the event, layout.
     void edited();
     void caret_moved();

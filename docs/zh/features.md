@@ -16,7 +16,7 @@
 
 ## 2. Agent 原生，而且安全
 
-**是什么**：每个应用自带 agent 接口（`openmui.tree@0.1`）和 MCP 服务器（`omui mcp`），Claude Code 等 agent 直接读树、找节点、执行动作、等待界面稳定。动作分效果等级：不可逆和对外的动作必须由人确认（S-1）；标为 `person` 的动作只有人在本机能做，任何 agent 都无法冒充（S-10）。开发者给应用定上限（`AppSpec::agent`，构建时定，运行时不能提高）；人在应用自己的界面里按 agent、效果等级和动词范围授权，授权内的动作不必再确认（S-11）。这些规则来自开放标准 [openas](https://github.com/openlifa/openas) §5，由 `openas::decide` 判定。
+**是什么**：每个应用自带 agent 接口（`openmui.tree@0.1`）和 MCP 服务器（`omui mcp`），Claude Code 等 agent 直接读树、找节点、执行动作、等待界面稳定。动作分效果等级：不可逆和对外的动作必须由人确认（S-1）；标为 `person` 的动作只有人在本机能做，任何 agent 都无法冒充（S-10）。开发者给应用定上限（`AppSpec::agent`，构建时定，运行时不能提高）；人在应用自己的界面里按 agent、效果等级和动词范围授权，授权内的动作不必再确认（S-11）。可逆的动作能撤回：组件说明怎么撤回（开关再拨一次，文本框拿回原来的文字），窗口保存历史，`undo` / `redo` 本身也是 agent 看得见、能执行的动作；几个动作可以合成一个事务，一起成功或一起撤回；agent 还可以先问一个动作会做什么（dry-run 不改变任何东西）（S-12、S-13）。这些规则来自开放标准 [openas](https://github.com/openlifa/openas) §5，由 `openas::decide` 判定。
 
 **别的框架**：没有内建的 agent 接口；常见做法是截图加坐标点击，或者基于无障碍 API 的脚本，没有效果等级，也没有防止 agent 自己批准自己的机制。
 

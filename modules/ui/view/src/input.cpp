@@ -241,6 +241,17 @@ void Runtime::Impl::key_event(const KeyEvent& e) {
     if (!handled && e.kind == KeyKind::down && e.key == Key::tab && !e.mods.has(Modifier::ctrl) &&
         !e.mods.has(Modifier::alt) && !e.mods.has(Modifier::meta))
         self.focus_next(e.mods.has(Modifier::shift));
+    // Undo and redo of the history around the focus (S-12), when nothing
+    // focused took the chord itself (a text field undoes its own typing).
+    const bool command = (e.mods.has(Modifier::ctrl) || e.mods.has(Modifier::meta)) && !e.mods.has(Modifier::alt);
+    if (!handled && e.kind == KeyKind::down && command && (e.key == Key::z || e.key == Key::y)) {
+        Invocation call;
+        call.actor = {"person", "user", {}};
+        const bool redo = e.key == Key::y || e.mods.has(Modifier::shift);
+        const NodeId scope = scope_of(target);
+        if (const ScopeHistory* h = find_history(scope); h && !(redo ? h->redo : h->undo).empty())
+            (void)self.act(scope, redo ? "redo" : "undo", call);
+    }
 }
 
 bool Runtime::Impl::key_binding(NodeId id, const KeyEvent& e) {

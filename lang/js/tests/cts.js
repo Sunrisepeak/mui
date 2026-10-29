@@ -111,7 +111,7 @@ omui.verb("cts.step", { summary: "Do a step of the loaded CTS scenario" }, ({ st
   try {
     if ("tree" in st) return { step: i, tree: omui.snapshot({ root: st.tree }).nodes };
     if ("act" in st) {
-      omui.act({ node: st.act, action: st.action, ...(st.args && Object.keys(st.args).length ? { args: st.args } : {}) });
+      omui.act({ node: st.act, action: st.action, ...(st.args && Object.keys(st.args).length ? { args: st.args } : {}), ...(st.dry_run ? { dry_run: true } : {}) });
       return { step: i, act: "ok" };
     }
     if ("invoke" in st) return { step: i, invoke: omui.invoke(st.invoke, st.args ?? {}) };

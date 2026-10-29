@@ -183,6 +183,8 @@ def step(args):
             request = {"node": st["act"], "action": st["action"]}
             if isinstance(st.get("args"), dict) and st["args"]:
                 request["args"] = st["args"]
+            if st.get("dry_run"):
+                request["dry_run"] = True  # only what would happen (S-13)
             omui.act(request)  # the action's data, or OmuiError
             return {"step": i, "act": "ok"}
         if "invoke" in st:

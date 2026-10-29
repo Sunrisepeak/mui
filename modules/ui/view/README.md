@@ -15,6 +15,15 @@ The retained and immediate view runtime (plan §3–§5):
   node markers, hit testing through transforms, pointer capture, hover,
   focus and Tab order, contract key bindings, actions under S-1/S-2 with an
   audit journal, and each node's semantics;
+- **history and transactions** (S-12, S-13): an action's implementation gives
+  its inverse (`ActResult::undo_by("set_value", {value: old})`); the runtime
+  keeps a history per scope (the window, or a node with `undo_scope`), whose
+  node offers `undo` and `redo` as actions (Ctrl/Cmd+Z, Shift for redo); an
+  irreversible or external action is a barrier. `begin_transaction` …
+  `commit_transaction` makes one step of history, `rollback_transaction`
+  takes it all back. `Invocation::dry_run` checks a call as it would be
+  performed and answers its outcome (a component's optional `preview` adds
+  the value after), changing nothing;
 - **primitives**: box, column, row, stack, grid, spacer, text, image, scroll
   view, painter, and their builders with designated-initializer options;
 - **models**: named, keyed rows that lists show and scripts and agents push

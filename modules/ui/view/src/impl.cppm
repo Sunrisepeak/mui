@@ -400,8 +400,60 @@ struct Runtime::Impl {
     // actions and semantics (act.cpp)
     void call_handlers(NodeId id, std::string_view event, const Value& args);
     [[nodiscard]] bool has_handler(NodeId id, std::string_view event) const;
-    Envelope perform(NodeId id, std::string_view action, const Invocation& call, bool command);
+    // What performing did, for the history: its effect, whether it ran,
+    // and the inverse its implementation gave.
+    struct Outcome {
+        Effect               effect = Effect::read;
+        bool                 ran = false;
+        std::vector<Inverse> undo;
+    };
+    Envelope perform(NodeId id, std::string_view action, const Invocation& call, bool command, Outcome* out = nullptr);
+    Envelope perform_item(NodeId holder, std::string_view key, std::string_view action, const Invocation& call, Outcome* out = nullptr);
     [[nodiscard]] spec::SemanticNode semantics(NodeId id) const;
+
+    // history and transactions (history.cpp, S-12, S-13)
+    struct UndoStep {
+        NodeId               node;   // the node, or the holder of an item
+        std::string          path;   // its path, should the node be built again
+        std::string          key;    // an item's key; empty: the node's own action
+        std::string          action;
+        Value                args;
+        std::vector<Inverse> inverse;
+        std::string          label;
+    };
+    struct UndoEntry {
+        std::string           label;
+        std::vector<UndoStep> steps;  // in the order they were performed
+        bool                  barrier = false;
+        std::string           path;   // a barrier's node
+    };
+    struct ScopeHistory {
+        NodeId                 scope;
+        std::vector<UndoEntry> undo, redo;
+    };
+    struct Transaction {
+        std::string           label;
+        std::vector<UndoStep> steps;
+        NodeId                scope;
+        bool                  mixed = false;  // steps in more than one scope: the window's history takes it
+        std::string           unrevertible;   // the first step that gave no inverse
+        int                   depth = 1;
+    };
+    std::vector<ScopeHistory>  histories;
+    std::optional<Transaction> transaction;
+    int                        replaying = 0;  // undoing, redoing, rolling back: nothing is recorded
+    [[nodiscard]] bool is_scope(NodeId id) const;
+    [[nodiscard]] NodeId scope_of(NodeId id) const;
+    [[nodiscard]] const ScopeHistory* find_history(NodeId scope) const;
+    ScopeHistory& history_of(NodeId scope);
+    void record(NodeId scope, UndoStep step, Effect effect);
+    // A slot unmounted: the steps done in it, and the barriers it set, go.
+    void forget_history(std::string_view slot);
+    Envelope history_action(NodeId scope, bool redo, const Invocation& call);
+    // Performs the steps' inverses, last step first; answers the steps that
+    // take them back again (each inverse's own inverse, else the step).
+    // On a failure, what it already took back is put forward again.
+    std::expected<std::vector<UndoStep>, Envelope> take_back(const std::vector<UndoStep>& steps, const Invocation& call);
 };
 
 // Pointer position in a node's local coordinates.
@@ -416,6 +468,9 @@ struct KeyTarget {
     std::vector<std::string> args;
 };
 [[nodiscard]] KeyTarget parse_key_target(std::string_view text);
+
+// A transaction holds only what can be taken back (S-13): the refusal of what cannot.
+[[nodiscard]] Envelope not_in_transaction(std::string_view what, Effect effect);
 
 // The property names the runtime itself interprets.
 [[nodiscard]] bool is_layout_prop(std::string_view name) noexcept;

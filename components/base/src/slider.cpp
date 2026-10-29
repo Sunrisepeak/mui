@@ -148,24 +148,54 @@ void Slider::semantics(SemanticsContext&, spec::SemanticNode& node) const {
     node.value = Value{}.set("value", props.value).set("min", props.min).set("max", props.max).set("step", props.step);
 }
 
+namespace {
+
+// What an action asks the value to become (before snapping), or why not.
+std::expected<double, std::string> slider_target(const SliderProps& p, std::string_view action, const Value& args) {
+    const double step = p.step > 0 ? p.step : (p.max - p.min) / 100;
+    if (action == "increment") return p.value + step;
+    if (action == "decrement") return p.value - step;
+    if (action == "set_value") {
+        const Value* given = args.get("value");
+        const Value value = given ? *given : Value{};
+        if (value.is_number()) return value.as_double();
+        if (value.as_string() == "min") return p.min;
+        if (value.as_string() == "max") return p.max;
+        return std::unexpected(std::format("set_value takes a number (or min, max), not {}", value.json()));
+    }
+    return p.value;
+}
+
+}  // namespace
+
+// Each step is taken back by setting the value it replaced (S-12).
 ActResult Slider::increment(ActContext&) {
+    const double old = props.value;
     change(props.value + (props.step > 0 ? props.step : (props.max - props.min) / 100), true, true);
-    return ActResult::done(Value(props.value));
+    return ActResult::done(Value(props.value)).undo_by("set_value", Value{}.set("value", old));
 }
 
 ActResult Slider::decrement(ActContext&) {
+    const double old = props.value;
     change(props.value - (props.step > 0 ? props.step : (props.max - props.min) / 100), true, true);
-    return ActResult::done(Value(props.value));
+    return ActResult::done(Value(props.value)).undo_by("set_value", Value{}.set("value", old));
 }
 
 ActResult Slider::set_value(ActContext&, const Value& value) {
+    const double old = props.value;
     double v = props.value;
     if (value.is_number()) v = value.as_double();
     else if (value.as_string() == "min") v = props.min;
     else if (value.as_string() == "max") v = props.max;
     else return ActResult::fail(std::format("set_value takes a number (or min, max), not {}", value.json()));
     change(v, true, true);
-    return ActResult::done(Value(props.value));
+    return ActResult::done(Value(props.value)).undo_by("set_value", Value{}.set("value", old));
+}
+
+ActResult Slider::preview(ActContext& ctx, std::string_view action) const {
+    auto to = slider_target(props, action, ctx.args);
+    if (!to) return ActResult::fail(to.error());
+    return ActResult::done(Value(snap(*to))).undo_by("set_value", Value{}.set("value", props.value));
 }
 
 }  // namespace omui

@@ -62,6 +62,54 @@ std::int64_t exit_of(const std::vector<Value>& r) {
     return r.empty() || kind(r.back()) != "result" ? -100 : r.back().get("exitCode")->as_int(-100);
 }
 
+// A counter that gives its inverse (S-12) and previews (S-13): increment is
+// taken back by set_value with the value it replaced.
+struct Count {
+    static constexpr std::string_view name = "count";
+    static constexpr Role             role = Role::spin_button;
+    std::int64_t value = 0;
+    Services*    services = nullptr;
+    NodeId       node;
+
+    void mount(Services& s, NodeId n) {
+        services = &s;
+        node = n;
+    }
+    void semantics(SemanticsContext&, spec::SemanticNode& n) const {
+        n.name = "count";
+        n.value = Value(value);
+        n.actions.push_back({"increment", Effect::reversible, {}, {}, {}});
+        n.actions.push_back({"set_value", Effect::reversible, {}, {}, {{"value", "i64"}}});
+    }
+    std::expected<std::int64_t, std::string> target(const ActContext& ctx, std::string_view a) const {
+        if (a == "increment") return value + 1;
+        if (value < 0) return std::unexpected("broken");
+        const std::int64_t v = ctx.args.get("value") ? ctx.args.get("value")->as_int() : 0;
+        if (v > 9) return std::unexpected("at most 9");
+        return v;
+    }
+    ActResult act(ActContext& ctx, std::string_view a) {
+        auto to = target(ctx, a);
+        if (!to) return ActResult::fail(to.error());
+        const std::int64_t old = value;
+        value = *to;
+        services->invalidate_semantics(node);
+        return ActResult::done(Value(value)).undo_by("set_value", Value{}.set("value", old));
+    }
+    ActResult preview(ActContext& ctx, std::string_view a) const {
+        auto to = target(ctx, a);
+        if (!to) return ActResult::fail(to.error());
+        return ActResult::done(Value(*to)).undo_by("set_value", Value{}.set("value", value));
+    }
+};
+
+Element count(std::string id) {
+    Element e;
+    e.type = &component_type<Count>();
+    e.id = std::move(id);
+    return e;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -184,6 +232,63 @@ int main(int argc, char** argv) {
         check(exit_of_env(app.rt.act(app.rt.find("notes/save"), "activate", own)) == 0);
         access.set_cap({});
         access.revoke_all();
+    });
+
+    s.test("undo, redo, history, transactions and dry runs over the bus (S-12, S-13)", [] {
+        Notes app;
+        app.rt.mount("counts", row({.gap = 4}, {count("a"), count("b")}));
+        app.rt.frame({seconds(0.1), {}});
+        agent::Protocol p(app.rt);
+        auto value = [&](std::string_view id) { return app.rt.semantic_node(app.rt.find(id)).value.as_int(); };
+        auto d = talk(p, R"({"op":"describe"})");
+        check(d[0].get("data")->json().contains(R"("undo","redo","transaction","history")"), d[0].json());
+        // A dry run: the outcome and the value it would have; nothing else.
+        const auto journal = app.rt.action_journal().size();
+        auto dry = talk(p, R"({"op":"act","node":"counts/a","action":"increment","dry_run":true})");
+        check(exit_of(dry) == 0, dry.empty() ? "" : dry.front().json());
+        const Value* dd = dry[0].get("data");
+        check(dd->get("outcome")->as_string() == "run" && dd->get("value")->get("after")->as_int() == 1 && dd->get("undoable")->as_bool(), dry[0].json());
+        auto ask = talk(p, R"({"op":"act","node":"notes/delete","action":"activate","dry_run":true})");
+        check(exit_of(ask) == 0 && ask[0].get("data")->get("outcome")->as_string() == "needs-answer", ask[0].json());
+        auto verb = talk(p, R"({"op":"invoke","verb":"notes.delete","answer":"yes","dry_run":true})");
+        check(exit_of(verb) == 0 && verb[0].get("data")->get("outcome")->as_string() == "run" && app.deleted == 0, verb[0].json());
+        check(value("counts/a") == 0 && app.rt.action_journal().size() == journal, "no trace");
+        // Done, then undone and redone; the history says what.
+        check(exit_of(talk(p, R"({"op":"act","node":"counts/a","action":"increment","actor":"agent:planner"})")) == 0);
+        check(exit_of(talk(p, R"({"op":"act","node":"counts/a","action":"increment","actor":"agent:planner"})")) == 0);
+        auto h = talk(p, R"({"op":"history"})");
+        check(h[0].get("data")->get("undo")->list()->size() == 2 && h[0].get("data")->get("scope")->as_string() == "app", h[0].json());
+        auto u = talk(p, R"({"op":"undo","actor":"agent:planner"})");
+        check(exit_of(u) == 0 && value("counts/a") == 1 && u[0].get("data")->get("undone")->as_string() == "increment on 'counts/a'", u[0].json());
+        check(exit_of(talk(p, R"({"op":"redo"})")) == 0 && value("counts/a") == 2);
+        check(app.rt.action_journal().back().action == "redo" && app.rt.action_journal().back().actor == "agent:anonymous");
+        // A transaction that fails midway is taken back.
+        auto t = talk(p, R"({"op":"transaction","label":"both","steps":[{"node":"counts/a","action":"increment"},{"node":"counts/b","action":"set_value","args":{"value":5}},{"node":"counts/b","action":"set_value","args":{"value":12}}]})");
+        check(exit_of(t) == 1 && t[0].get("code")->as_string() == "refused" && t[0].get("rolled_back")->as_int() == 2 && t[0].get("step")->as_int() == 2,
+              t.empty() ? "" : t[0].json());
+        check(value("counts/a") == 2 && value("counts/b") == 0, "rolled back");
+        // An irreversible step is refused before it asks: no answer would let it be taken back.
+        auto needs = talk(p, R"({"op":"transaction","steps":[{"node":"counts/a","action":"increment"},{"node":"notes/delete","action":"activate"}]})");
+        check(exit_of(needs) == 1 && needs[0].json().contains("S-13") && value("counts/a") == 2, needs.empty() ? "" : needs[0].json());
+        // Planned first, then done: one step of history.
+        constexpr std::string_view good = R"({"op":"transaction","label":"both","steps":[{"node":"counts/a","action":"increment"},{"node":"counts/b","action":"set_value","args":{"value":5}}]})";
+        std::string plan(good);
+        plan.insert(plan.size() - 1, R"(,"dry_run":true)");
+        auto pl = talk(p, plan);
+        check(exit_of(pl) == 0 && pl[0].get("data")->get("outcome")->as_string() == "run" && pl[0].get("data")->get("steps")->list()->size() == 2 &&
+                  value("counts/b") == 0,
+              pl[0].json());
+        auto ok = talk(p, good);
+        check(exit_of(ok) == 0 && value("counts/a") == 3 && value("counts/b") == 5, ok.empty() ? "" : ok[0].json());
+        check(exit_of(talk(p, R"({"op":"undo"})")) == 0 && value("counts/a") == 2 && value("counts/b") == 0, "undone as one");
+        // An irreversible verb ends what can be undone.
+        check(exit_of(talk(p, R"({"op":"invoke","verb":"notes.delete","answer":"yes"})")) == 0 && app.deleted == 1);
+        auto refused = talk(p, R"({"op":"undo"})");
+        check(exit_of(refused) == 1 && refused[0].json().contains("cannot be taken back") && value("counts/a") == 2, refused[0].json());
+        auto plan_undo = talk(p, R"({"op":"undo","dry_run":true})");
+        check(exit_of(plan_undo) == 0 && plan_undo[0].get("data")->get("outcome")->as_string() == "refused", plan_undo[0].json());
+        check(exit_of(talk(p, R"({"op":"transaction","steps":[]})")) == 1, "a transaction needs steps");
+        check(exit_of(talk(p, R"({"op":"history","scope":"nowhere"})")) == 1);
     });
 
     s.test("wait: answered when the condition holds, between frames", [] {

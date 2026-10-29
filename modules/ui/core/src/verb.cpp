@@ -67,30 +67,58 @@ Envelope person_only(std::string_view what) {
     return e;
 }
 
+Envelope dry_run_answer(std::string_view outcome, Effect effect, Value more) {
+    Value d;
+    d.set("dry_run", true).set("outcome", outcome).set("effect", spec::name(effect));
+    if (const Value::Map* m = more.map())
+        for (const auto& [k, v] : *m) d.set(k, v);
+    Envelope e;
+    e.data(std::move(d)).result(spec::exit_code::success);
+    return e;
+}
+
+Envelope dry_run_of(const Envelope& stopped, Effect effect) {
+    const int code = stopped.exit_code().value_or(spec::exit_code::failure);
+    Value more;
+    for (const spec::Record& r : stopped.records()) {
+        if (r.kind != spec::RecordKind::error) continue;
+        Value err;
+        for (std::string_view k : {"code", "text"})
+            if (const Value* v = r.body.get(k)) err.set(k, *v);
+        more.set("error", std::move(err));
+        if (const Value* a = r.body.get("answer"); a && a->list() && !a->list()->empty()) more.set("answer", a->list()->front());
+        break;
+    }
+    const Value* code_text = more.get("error") ? more.get("error")->get("code") : nullptr;
+    const std::string_view outcome = code == spec::exit_code::needs_answer                                   ? "needs-answer"
+                                     : code_text && code_text->as_string() == spec::error_code::refused ? "refused"
+                                                                                                         : "fails";
+    return dry_run_answer(outcome, effect, std::move(more));
+}
+
 Envelope Verbs::invoke(std::string_view name, const Invocation& call) {
     auto record = [&](int code) {
-        journal_.push_back({std::string(name), call.actor.text(), call.args, code});
+        if (!call.dry_run) journal_.push_back({std::string(name), call.actor.text(), call.args, code});
     };
     auto it = std::ranges::find_if(verbs_, [&](const Slot& s) { return s.desc.name == name; });
+    auto stop = [&](Envelope e, Effect effect) {
+        record(e.exit_code().value_or(spec::exit_code::failure));
+        return call.dry_run ? dry_run_of(e, effect) : e;
+    };
     if (it == verbs_.end()) {
         Envelope e;
         e.error(spec::error_code::not_found, std::format("no verb `{}`", name)).result(spec::exit_code::failure);
-        record(spec::exit_code::failure);
-        return e;
+        return stop(std::move(e), Effect::external);
     }
-    if (it->desc.person && call.remote) {
-        record(spec::exit_code::failure);
-        return person_only(std::format("`{}`", name));
-    }
-    const openas::Decision clear = clearance(name, it->desc.effect, it->desc.person, call);
-    if (clear == openas::Decision::refuse) {
-        record(spec::exit_code::failure);
-        return above_cap(std::format("`{}` ({})", name, spec::name(it->desc.effect)));
-    }
-    if (clear != openas::Decision::run && spec::requires_answer(it->desc.effect) && call.answer != it->desc.answer) {
-        record(spec::exit_code::needs_answer);
-        return needs_answer(std::format("`{}` ({})", name, spec::name(it->desc.effect)), it->desc.answer);
-    }
+    const Effect effect = it->desc.effect;
+    if (it->desc.person && call.remote) return stop(person_only(std::format("`{}`", name)), effect);
+    const openas::Decision clear = clearance(name, effect, it->desc.person, call);
+    if (clear == openas::Decision::refuse) return stop(above_cap(std::format("`{}` ({})", name, spec::name(effect))), effect);
+    if (clear != openas::Decision::run && spec::requires_answer(effect) && call.answer != it->desc.answer)
+        return stop(needs_answer(std::format("`{}` ({})", name, spec::name(effect)), it->desc.answer), effect);
+    // A verb states no inverse: a reversible one is not in the history, so
+    // it cannot be undone by the runtime (S-12).
+    if (call.dry_run) return dry_run_answer("run", effect, Value{}.set("undoable", false));
     Envelope e;
     auto result = it->fn(call.args);
     if (result) {

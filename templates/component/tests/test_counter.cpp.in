@@ -11,7 +11,12 @@ int main() {
     auto n = h.tree().node("main/n");
     if (!n || n->role != omui::Role::spin_button || n->name != "Copies") return 1;
     if (h.tree().act("main/n", "increment").exit_code() != std::optional<int>(0) || value.peek() != 4) return 1;
+    // Undone by the window's history; a dry run changes nothing.
+    if (h.tree().act("app", "undo").exit_code() != std::optional<int>(0) || value.peek() != 3) return 1;
+    omui::Invocation dry;
+    dry.dry_run = true;
+    if (h.tree().act("main/n", "increment", dry).exit_code() != std::optional<int>(0) || value.peek() != 3) return 1;
     h.focus_next();
     h.key(omui::Key::down);
-    return value.peek() == 3 ? 0 : 1;
+    return value.peek() == 2 ? 0 : 1;
 }

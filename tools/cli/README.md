@@ -6,7 +6,10 @@ omui agent describe <app>                       interface, spec, operations
 omui agent snapshot <app> [--root ID] [--depth N] [--interactive] [--offset N] [--limit N]
 omui agent changes <app>
 omui agent find <app> ['{"role":"button"}'] [--role R] [--name GLOB] [--state S] [--limit N]
-omui agent act <app> <node> <action> [--args JSON] [--answer TEXT] [--actor ACTOR]
+omui agent act <app> <node> <action> [--args JSON] [--answer TEXT] [--actor ACTOR] [--dry-run]
+omui agent undo|redo <app> [--scope ID] [--actor ACTOR] [--dry-run]      the history (S-12)
+omui agent history <app> [--scope ID]           what can be undone and redone
+omui agent transaction <app> '<steps JSON>' [--label TEXT] [--actor ACTOR] [--dry-run]   all or nothing (S-13)
 omui agent wait <app> [--q JSON] [--absent] [--settled] [--timeout SECONDS]
 omui agent capture <app> [--node ID] [--out FILE.png]
 omui agent call <app> '<request JSON>'

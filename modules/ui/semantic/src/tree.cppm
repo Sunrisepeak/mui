@@ -34,6 +34,14 @@ struct Snapshot {
     [[nodiscard]] Value to_value() const;
 };
 
+// One action of a transaction, by id.
+struct Step {
+    std::string id;
+    std::string action;
+    Value       args;
+    std::string answer;  // empty: the transaction's
+};
+
 struct WaitState {
     bool        satisfied = false;
     std::string why;  // what is still missing
@@ -51,6 +59,13 @@ public:
     // Performs an action by id: the runtime's act, with S-1/S-2/S-4 (and an
     // error envelope for an id that names nothing).
     Envelope act(std::string_view id, std::string_view action, const Invocation& call = {});
+    // A transaction (S-13): the steps performed in order, as `call` would
+    // perform each, and kept as one step of history. The first that fails
+    // ends it: those done are taken back, last first, and its error is the
+    // answer (with its exit code: 2 when it needs an answer). An irreversible
+    // or external step is refused before it runs. A dry run checks each step
+    // against the tree as it is now and answers their outcomes.
+    Envelope transaction(std::span<const Step> steps, const Invocation& call = {}, std::string label = {});
     [[nodiscard]] WaitState check(const Condition& condition);
     // Every node against the spec's clauses.
     [[nodiscard]] std::vector<spec::Violation> violations();

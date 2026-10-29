@@ -60,5 +60,24 @@ int main(int argc, char** argv) {
         check(verbs.remove("x.fail") && verbs.find("x.fail") == nullptr);
     });
 
+    s.test("S-13: a dry run is checked as the call would be, answers its outcome, and runs nothing", [] {
+        omui::Verbs verbs;
+        int ran = 0;
+        check(verbs.add({.name = "note.delete", .effect = omui::Effect::irreversible, .answer = "yes"}, [&](const omui::Value&) -> omui::VerbResult {
+                        ++ran;
+                        return omui::Value{};
+                    }).has_value());
+        auto outcome = [](const omui::Envelope& e) { return std::string(e.data_value()->get("outcome")->as_string()); };
+        auto asks = verbs.invoke("note.delete", {.dry_run = true});
+        check(asks.exit_code() == 0 && outcome(asks) == "needs-answer" && asks.data_value()->get("answer")->as_string() == "yes", asks.ndjson());
+        auto runs = verbs.invoke("note.delete", {.answer = "yes", .dry_run = true});
+        check(outcome(runs) == "run" && runs.data_value()->get("effect")->as_string() == "irreversible" &&
+                  !runs.data_value()->get("undoable")->as_bool(),
+              runs.ndjson());
+        auto none = verbs.invoke("note.nothing", {.dry_run = true});
+        check(none.exit_code() == 0 && outcome(none) == "fails" && none.data_value()->get("error")->get("code")->as_string() == "not-found", none.ndjson());
+        check(ran == 0 && verbs.journal().empty(), "nothing ran, nothing journaled");
+    });
+
     return s.run(argc, argv);
 }

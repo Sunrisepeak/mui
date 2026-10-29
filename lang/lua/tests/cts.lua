@@ -175,6 +175,7 @@ assert(omui.verb("cts.step", { summary = "Do a step of the loaded CTS scenario" 
   elseif st.act then
     local request = { node = st.act, action = st.action }
     if is_map(st.args) then request.args = st.args end
+    if st.dry_run then request.dry_run = true end  -- only what would happen (S-13)
     local r, err = omui.act(request)  -- nil and why, or the action's data (false is data)
     if r == nil then return { step = i, error = code_of(err) } end
     return { step = i, act = "ok" }

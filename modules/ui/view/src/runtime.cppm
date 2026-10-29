@@ -159,6 +159,20 @@ struct ActionEntry {
     int         exit_code = 0;
 };
 
+// What a history holds (S-12), for tools and agents: oldest first.
+struct HistoryItem {
+    std::string label;          // "toggle on 'main/dark'", or a transaction's own
+    std::size_t steps = 1;      // the actions in it (a transaction's several)
+    bool        barrier = false;  // irreversible or external: nothing before it can be undone
+};
+struct History {
+    std::string              scope;  // the scope's path ("app": the window)
+    std::vector<HistoryItem> undo, redo;
+};
+
+// How many steps a scope's history keeps; the oldest go first.
+inline constexpr std::size_t history_limit = 200;
+
 // The process's task pool (Tasks::shared) as the CPU renderer's Parallel:
 // hosts draw bands of rows at the same time, with the bytes of a serial render.
 [[nodiscard]] render::Parallel& raster_parallel() noexcept;
@@ -280,6 +294,35 @@ public:
     [[nodiscard]] std::span<const ActionEntry> action_journal() const noexcept;
     // The actions a node offers now, with their effects.
     [[nodiscard]] std::vector<spec::ActionDesc> actions(NodeId node) const;
+    // An application verb, as `act` performs an action: its checks (S-1,
+    // S-10, S-11), a dry run, the journal; an irreversible or external one
+    // ends what the window's history can undo (S-12).
+    Envelope invoke(std::string_view verb, const Invocation& call = {});
+
+    // ── history and transactions (S-12, S-13) ──
+    // A reversible action whose implementation gives its inverse
+    // (ActResult::undo) joins the history of its scope: the nearest node
+    // around it (or itself) with `undo_scope`, else the window (the root).
+    // `undo` and `redo` are actions of the scope's node, offered while there
+    // is something to undo or redo; undoing performs the inverses as the one
+    // undoing would perform them. An irreversible or external action is a
+    // barrier: undo stops there (refused). A read action is not recorded; an
+    // action that gives no inverse is not recorded either. Any new change
+    // clears what could be redone.
+    [[nodiscard]] NodeId undo_scope(NodeId node) const;
+    [[nodiscard]] History history(NodeId scope) const;
+    void clear_history(NodeId scope);
+    Envelope undo(NodeId scope, const Invocation& call = {});
+    Envelope redo(NodeId scope, const Invocation& call = {});
+    // A transaction: the actions performed until it ends are one step of
+    // history, all done or all taken back. Inside one, an irreversible or
+    // external action is refused before it runs (nothing could take it
+    // back), and so are undo and redo. Rolling back takes every step back,
+    // last first. Transactions nest: the outermost one decides.
+    void begin_transaction(std::string label);
+    Envelope commit_transaction();
+    Envelope rollback_transaction(const Invocation& call = {});
+    [[nodiscard]] bool in_transaction() const noexcept;
     [[nodiscard]] NodeId focused() const noexcept;
     void focus_next(bool backward = false);
     [[nodiscard]] Verbs& verbs() noexcept override;

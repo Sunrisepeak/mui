@@ -54,7 +54,27 @@ cmd::App agent_command() {
     act.option("args").takes_value().value_name("JSON").help("the action's arguments");
     act.option("answer").takes_value().value_name("TEXT").help("the answer an irreversible or external action asks for");
     act.option("actor").takes_value().value_name("ACTOR").help("who acts: agent:name;via=person:name");
+    act.option("dry-run").help("only what would happen (its effect, whether it can be undone, the value after); nothing is done");
     (void)a.subcommand(std::move(act));
+
+    for (std::string_view which : {"undo", "redo"}) {
+        cmd::App h = with_app(which, which == "undo" ? "Take back the last step of the history (S-12)" : "Put forward again what was undone");
+        h.option("scope").takes_value().value_name("ID").help("a node with its own history (default: the window)");
+        h.option("actor").takes_value().value_name("ACTOR").help("who acts: agent:name;via=person:name");
+        h.option("dry-run").help("only what it would do");
+        (void)a.subcommand(std::move(h));
+    }
+
+    cmd::App history = with_app("history", "What can be undone and redone, oldest first");
+    history.option("scope").takes_value().value_name("ID").help("a node (its scope's history; default: the window)");
+    (void)a.subcommand(std::move(history));
+
+    cmd::App txn = with_app("transaction", "Several actions as one step: all done, or all taken back (S-13)");
+    txn.arg("steps").required().help(R"(a JSON list: '[{"node":"main/a","action":"toggle"},{"node":"main/b","action":"set_value","args":{"value":3}}]')");
+    txn.option("label").takes_value().value_name("TEXT").help("what the step is called in the history");
+    txn.option("actor").takes_value().value_name("ACTOR").help("who acts: agent:name;via=person:name");
+    txn.option("dry-run").help("only what each step would do");
+    (void)a.subcommand(std::move(txn));
 
     cmd::App wait = with_app("wait", "Wait until a condition holds");
     wait.option("q").takes_value().value_name("JSON").help("a query that must match");
@@ -199,6 +219,27 @@ std::expected<std::string, std::string> agent_request(const cmd::ParsedArgs& p) 
         if (!args->is_null()) req.set("args", *args);
         if (auto v = a.value("answer")) req.set("answer", *v);
         req.set("actor", a.value("actor").value_or("agent:omui-cli"));
+        if (a.is_flag_set("dry-run")) req.set("dry_run", true);
+        return req.json();
+    }
+    if (op == "undo" || op == "redo") {
+        if (auto v = a.value("scope")) req.set("scope", *v);
+        req.set("actor", a.value("actor").value_or("agent:omui-cli"));
+        if (a.is_flag_set("dry-run")) req.set("dry_run", true);
+        return req.json();
+    }
+    if (op == "history") {
+        if (auto v = a.value("scope")) req.set("scope", *v);
+        return req.json();
+    }
+    if (op == "transaction") {
+        auto steps = parse_json(a.positional(1));
+        if (!steps) return std::unexpected(std::format("the steps: {}", steps.error().text()));
+        if (!steps->list()) return std::unexpected("the steps are a JSON list of {node, action, args}");
+        req.set("steps", *steps);
+        if (auto v = a.value("label")) req.set("label", *v);
+        req.set("actor", a.value("actor").value_or("agent:omui-cli"));
+        if (a.is_flag_set("dry-run")) req.set("dry_run", true);
         return req.json();
     }
     if (op == "wait") {
@@ -333,7 +374,7 @@ std::optional<std::string> global(const cmd::ParsedArgs& p, std::string_view nam
 
 int agent(const cmd::ParsedArgs& p, std::optional<std::string> dir_option, std::ostream& out, std::ostream& err) {
     if (!p.has_subcommand()) {
-        err << "usage: omui agent <ls|describe|snapshot|changes|find|act|wait|capture|inspect|stats|profile|logs|debug|pipeline|clock|call> …\n";
+        err << "usage: omui agent <ls|describe|snapshot|changes|find|act|undo|redo|history|transaction|wait|capture|inspect|stats|profile|logs|debug|pipeline|clock|call> …\n";
         return 2;
     }
     const cmd::ParsedArgs& sub = p.subcommand()->get();

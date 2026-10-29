@@ -11,8 +11,9 @@ namespace omui::agent {
 
 namespace {
 
-constexpr std::array<std::string_view, 15> operations{"describe", "snapshot", "changes", "find", "act", "invoke", "wait", "capture",
-                                                       "inspect", "stats", "profile", "logs", "debug", "pipeline", "clock"};
+constexpr std::array<std::string_view, 19> operations{"describe", "snapshot", "changes", "find",     "act",   "invoke",  "undo",
+                                                       "redo",     "transaction", "history", "wait", "capture", "inspect", "stats",
+                                                       "profile",  "logs",     "debug",   "pipeline", "clock"};
 
 // A stage's configuration from a request's JSON object.
 pipeline::Config config_of(const Value* v) {
@@ -98,6 +99,22 @@ std::string_view text_of(const Value& req, std::string_view key) {
     return v ? v->as_string() : std::string_view{};
 }
 
+Value history_value(const History& h) {
+    auto items = [](const std::vector<HistoryItem>& from) {
+        Value::List out;
+        for (const HistoryItem& i : from) {
+            Value x;
+            x.set("label", i.label).set("steps", static_cast<std::int64_t>(i.steps));
+            if (i.barrier) x.set("barrier", true);
+            out.push_back(std::move(x));
+        }
+        return Value(std::move(out));
+    };
+    Value v;
+    v.set("scope", h.scope).set("undo", items(h.undo)).set("redo", items(h.redo));
+    return v;
+}
+
 }  // namespace
 
 std::vector<std::string> lines(const Envelope& envelope, const Value& re) {
@@ -179,35 +196,72 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
         for (const spec::SemanticNode& n : tree_.find(*query)) nodes.push_back(spec::to_value(n));
         return e.data(Value{}.set("nodes", Value(std::move(nodes)))).result(spec::exit_code::success);
     }
+    // Who asks, with what: the actor, the answer, the arguments, a dry run.
+    auto invocation = [&](const Value& from) -> std::expected<Invocation, Envelope> {
+        Invocation call;
+        if (const Value* a = from.get("args")) call.args = *a;
+        call.answer = std::string(text_of(from, "answer"));
+        if (call.answer.empty()) call.answer = std::string(text_of(req, "answer"));
+        const std::string_view actor = text_of(req, "actor");
+        auto parsed = Actor::parse(actor.empty() ? std::string_view(options_.default_actor) : actor);
+        if (!parsed)
+            return std::unexpected(invalid(std::format("`{}` is not an actor", actor), "kind:name[;via=kind:name], e.g. agent:planner;via=person:alice"));
+        call.actor = std::move(*parsed);
+        call.remote = options_.remote;  // over the bus: whatever actor it names (S-10)
+        if (const Value* d = req.get("dry_run")) call.dry_run = d->as_bool();  // only what would happen (S-13)
+        return call;
+    };
     if (op == "act") {
         const std::string_view node = text_of(req, "node");
         const std::string_view action = text_of(req, "action");
         if (node.empty() || action.empty())
-            return invalid("`act` needs `node` and `action`", R"({"op":"act","node":"main/save","action":"activate"})");
-        Invocation call;
-        if (const Value* a = req.get("args")) call.args = *a;
-        call.answer = std::string(text_of(req, "answer"));
-        const std::string_view actor = text_of(req, "actor");
-        auto parsed = Actor::parse(actor.empty() ? std::string_view(options_.default_actor) : actor);
-        if (!parsed) return invalid(std::format("`{}` is not an actor", actor), "kind:name[;via=kind:name], e.g. agent:planner;via=person:alice");
-        call.actor = std::move(*parsed);
-        call.remote = options_.remote;  // over the bus: whatever actor it names (S-10)
-        return tree_.act(node, action, call);
+            return invalid("`act` needs `node` and `action`", R"({"op":"act","node":"main/save","action":"activate","dry_run":false})");
+        auto call = invocation(req);
+        if (!call) return call.error();
+        return tree_.act(node, action, *call);
     }
     if (op == "invoke") {
         // An application verb (S-1 as for a person's: an irreversible or
         // external one needs its answer).
         const std::string_view verb = text_of(req, "verb");
         if (verb.empty()) return invalid("`invoke` needs a `verb`", R"({"op":"invoke","verb":"notes.new","args":{"title":"Today"}})");
-        Invocation call;
-        if (const Value* a = req.get("args")) call.args = *a;
-        call.answer = std::string(text_of(req, "answer"));
-        const std::string_view actor = text_of(req, "actor");
-        auto parsed = Actor::parse(actor.empty() ? std::string_view(options_.default_actor) : actor);
-        if (!parsed) return invalid(std::format("`{}` is not an actor", actor), "kind:name[;via=kind:name], e.g. agent:planner;via=person:alice");
-        call.actor = std::move(*parsed);
-        call.remote = options_.remote;  // over the bus: whatever actor it names (S-10)
-        return runtime_.verbs().invoke(verb, call);
+        auto call = invocation(req);
+        if (!call) return call.error();
+        return runtime_.invoke(verb, *call);
+    }
+    if (op == "undo" || op == "redo") {
+        // The history of a scope (S-12): the window's, or a node's with `undo_scope`.
+        const std::string_view scope = text_of(req, "scope");
+        auto call = invocation(req);
+        if (!call) return call.error();
+        call->args = {};
+        return tree_.act(scope.empty() ? std::string_view("app") : scope, op, *call);
+    }
+    if (op == "history") {
+        const std::string_view scope = text_of(req, "scope");
+        NodeId n = scope.empty() ? runtime_.root() : runtime_.find(scope);
+        if (!runtime_.valid(n)) {
+            e.error(spec::error_code::not_found, std::format("no node '{}'", scope)).result(spec::exit_code::failure);
+            return e;
+        }
+        // A node's own history is its scope's: the nearest around it.
+        return e.data(history_value(runtime_.history(runtime_.undo_scope(n)))).result(spec::exit_code::success);
+    }
+    if (op == "transaction") {
+        // Steps performed as one (S-13): all done, or all taken back.
+        const Value* steps = req.get("steps");
+        constexpr std::string_view example =
+            R"({"op":"transaction","label":"rename","steps":[{"node":"main/title","action":"set_value","args":{"value":"Plan"}},{"node":"main/done","action":"toggle"}]})";
+        if (!steps || !steps->list() || steps->list()->empty()) return invalid("`transaction` needs `steps`: a list of {node, action, args, answer}", example);
+        std::vector<semantic::Step> list;
+        for (const Value& st : *steps->list()) {
+            if (!st.map() || text_of(st, "node").empty() || text_of(st, "action").empty()) return invalid("each step names its `node` and `action`", example);
+            list.push_back({std::string(text_of(st, "node")), std::string(text_of(st, "action")), st.get("args") ? *st.get("args") : Value{},
+                            std::string(text_of(st, "answer"))});
+        }
+        auto call = invocation(Value{});
+        if (!call) return call.error();
+        return tree_.transaction(list, *call, std::string(text_of(req, "label")));
     }
     if (op == "wait") {
         // The condition's fields sit in the request itself: q, absent, settled.

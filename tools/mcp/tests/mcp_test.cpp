@@ -7,6 +7,7 @@ import std;
 import openmui.core;
 import openmui.mcp;
 import openmui.host.headless;
+import openmui.ui.base;
 import openmui.testing;
 
 using namespace omui::testing;
@@ -152,14 +153,15 @@ int main(int argc, char** argv) {
             check_eq(std::string(r.get("serverInfo")->get("name")->as_string()), std::string("openmui"));
         }
         const Value* tools = c.reply(2) ? c.reply(2)->get("result")->get("tools") : nullptr;
-        check(tools && tools->list() && tools->list()->size() == 7, "seven tools");
+        check(tools && tools->list() && tools->list()->size() == 9, "nine tools");
         if (tools && tools->list()) {
             std::set<std::string> names;
             for (const Value& t : *tools->list()) {
                 names.insert(std::string(t.get("name")->as_string()));
                 check(t.get("inputSchema") && t.get("inputSchema")->get("type")->as_string() == "object", "an object schema");
             }
-            check((names == std::set<std::string>{"ui_apps", "ui_snapshot", "ui_find", "ui_act", "ui_invoke", "ui_wait", "ui_capture"}));
+            check((names == std::set<std::string>{"ui_apps", "ui_snapshot", "ui_find", "ui_act", "ui_invoke", "ui_undo", "ui_transaction", "ui_wait",
+                                                  "ui_capture"}));
         }
         check(c.reply(3) && c.reply(3)->get("result"), "ping");
         check(c.reply(4) && c.reply(4)->get("error")->get("code")->as_int() == -32601, "an unknown method");
@@ -239,6 +241,45 @@ int main(int argc, char** argv) {
         const auto actions = notes.h.runtime().action_journal();
         const bool by_person = std::ranges::any_of(actions, [](const auto& a) { return a.actor == "agent:claude-code;via=person:user"; });
         check(by_person, "the person's yes is in the actor");
+    });
+
+    s.test("dry runs, undo and transactions (S-12, S-13): planned, done, taken back", [] {
+        const auto dir = scratch_dir("mcp-undo");
+        Notes notes(dir);
+        if (!notes.h.endpoint()) return;
+        auto pinned = signal(false);
+        auto volume = signal(30.0);
+        notes.h.mount("prefs", column({.gap = 4}, {toggle({.id = "pinned", .checked = pinned, .label = "Pinned"}),
+                                                    slider({.id = "volume", .label = "Volume", .step = 5.0, .value = volume, .width = 120})}));
+        notes.h.step();
+        mcp::Server server({.directory = dir});
+        Client c;
+        const Value steps = Value(Value::List{Value{}.set("node", "prefs/pinned").set("action", "toggle"),
+                                              Value{}.set("node", "prefs/volume").set("action", "set_value").set("args", Value{}.set("value", 60.0)),
+                                              Value{}.set("node", "prefs/volume").set("action", "set_value").set("args", Value{}.set("value", "loud"))});
+        c.in = {initialize(1, false),
+                call(2, "ui_act", Value{}.set("node", "prefs/pinned").set("action", "toggle").set("dry_run", true)),
+                call(3, "ui_act", Value{}.set("node", "prefs/pinned").set("action", "toggle")),
+                call(4, "ui_undo", Value{}.set("dry_run", true)),
+                call(5, "ui_undo"),
+                call(6, "ui_undo", Value{}.set("redo", true)),
+                call(7, "ui_transaction", Value{}.set("steps", steps).set("dry_run", true)),
+                call(8, "ui_transaction", Value{}.set("steps", steps)),
+                call(9, "ui_transaction", Value{}.set("steps", Value(Value::List{(*steps.list())[0], (*steps.list())[1]})).set("label", "quiet")),
+                call(10, "ui_act", Value{}.set("node", "notes/delete").set("action", "activate").set("dry_run", true))};
+        serve(notes.h, server, c);
+        check(!c.error(2) && c.text(2).contains("it would run (reversible); value false → true; it can be undone"), c.text(2));
+        check(!c.error(3), c.text(3));
+        check(!c.error(4) && c.text(4).contains("it would undo toggle on 'prefs/pinned'"), c.text(4));
+        check(!c.error(5) && c.text(5).starts_with("undone: toggle on 'prefs/pinned'"), c.text(5));
+        check(!c.error(6) && c.text(6).starts_with("redone"), c.text(6));
+        check(!c.error(7) && c.text(7).starts_with("dry run: 3 steps — it would fail (reversible)") && c.text(7).contains("- set_value on prefs/volume: it would fail: "), c.text(7));
+        check(c.error(8) && c.text(8).contains("step 3") && c.text(8).contains("nothing of it stays"), c.text(8));
+        check(!c.error(9) && c.text(9).contains("as one step (quiet)"), c.text(9));
+        check(!c.error(10) && c.text(10).contains("confirmation") && notes.deleted == 0, c.text(10));
+        check(!pinned.peek() && volume.peek() == 60, std::format("{} {}", pinned.peek(), volume.peek()));
+        const History h = notes.h.runtime().history(notes.h.runtime().root());
+        check(!h.undo.empty() && h.undo.back().label == "quiet" && h.undo.back().steps == 2);
     });
 
     s.test("the outline: one node a line, children under their parent, states, values, effects and bounds", [] {

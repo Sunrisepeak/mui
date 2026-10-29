@@ -26,6 +26,8 @@ public:
     ActResult increment(ActContext& ctx);
     ActResult decrement(ActContext& ctx);
     ActResult set_value(ActContext& ctx, const Value& value);
+    // A dry run (S-13): the value it would land on (snapped, clamped).
+    ActResult preview(ActContext& ctx, std::string_view action) const;
 
     // The value a raw number becomes: in range, on a step.
     [[nodiscard]] double snap(double v) const noexcept;

@@ -117,8 +117,10 @@ ActResult Toggle::toggle(ActContext&) {
     thumb_.to(props.checked ? 1 : 0, services().theme().transition("motion.spring.snappy"));
     emit_changed(props.checked);
     services().invalidate_paint(node());
-    return ActResult::done(Value(props.checked));
+    return ActResult::done(Value(props.checked)).undo_by("toggle");  // toggling again takes it back (S-12)
 }
+
+ActResult Toggle::preview(ActContext&, std::string_view) const { return ActResult::done(Value(!props.checked)).undo_by("toggle"); }
 
 // ── checkbox ──
 
@@ -218,12 +220,22 @@ void Checkbox::semantics(SemanticsContext&, spec::SemanticNode& node) const {
 ActResult Checkbox::toggle(ActContext&) {
     // Indeterminate goes to checked, as platforms do.
     const bool next = props.indeterminate ? true : !props.checked;
+    const bool was_indeterminate = props.indeterminate;
     if (props.indeterminate) props.indeterminate = false;
     write_checked(next);
     mark_.to(next ? 1 : 0, services().theme().transition("motion.fast"));
     emit_changed(next);
     services().invalidate_paint(node());
-    return ActResult::done(Value(next));
+    // Toggling again takes it back — unless it was indeterminate, which no action restores.
+    ActResult r = ActResult::done(Value(next));
+    if (!was_indeterminate) r.undo_by("toggle");
+    return r;
+}
+
+ActResult Checkbox::preview(ActContext&, std::string_view) const {
+    ActResult r = ActResult::done(Value(props.indeterminate ? true : !props.checked));
+    if (!props.indeterminate) r.undo_by("toggle");
+    return r;
 }
 
 }  // namespace omui

@@ -56,6 +56,19 @@ int main(int argc, char** argv) {
         auto act = a.parse_from(mcpplibs::cmdline::Argv{"omui", "agent", "act", "notes", "notes/delete", "activate", "--answer", "yes"});
         auto ra = cli::agent_request(act->subcommand()->get());
         check(ra && *ra == R"({"op":"act","node":"notes/delete","action":"activate","answer":"yes","actor":"agent:omui-cli"})", ra.value_or(ra.error()));
+        auto dry = a.parse_from(mcpplibs::cmdline::Argv{"omui", "agent", "act", "notes", "main/dark", "toggle", "--dry-run"});
+        auto rd = cli::agent_request(dry->subcommand()->get());
+        check(rd && *rd == R"({"op":"act","node":"main/dark","action":"toggle","actor":"agent:omui-cli","dry_run":true})", rd.value_or(rd.error()));
+        auto undo = a.parse_from(mcpplibs::cmdline::Argv{"omui", "agent", "undo", "notes", "--scope", "main/panel"});
+        auto ru = cli::agent_request(undo->subcommand()->get());
+        check(ru && *ru == R"({"op":"undo","scope":"main/panel","actor":"agent:omui-cli"})", ru.value_or(ru.error()));
+        auto txn = a.parse_from(mcpplibs::cmdline::Argv{"omui", "agent", "transaction", "notes", R"([{"node":"main/a","action":"toggle"}])", "--label",
+                                                         "both", "--dry-run"});
+        auto rt = cli::agent_request(txn->subcommand()->get());
+        check(rt && *rt == R"({"op":"transaction","steps":[{"node":"main/a","action":"toggle"}],"label":"both","actor":"agent:omui-cli","dry_run":true})",
+              rt.value_or(rt.error()));
+        auto not_list = a.parse_from(mcpplibs::cmdline::Argv{"omui", "agent", "transaction", "notes", R"({"node":"main/a"})"});
+        check(!cli::agent_request(not_list->subcommand()->get()).has_value(), "the steps are a list");
         auto wait = a.parse_from(mcpplibs::cmdline::Argv{"omui", "agent", "wait", "notes"});
         check(!cli::agent_request(wait->subcommand()->get()).has_value(), "wait for what?");
         auto bad = a.parse_from(mcpplibs::cmdline::Argv{"omui", "agent", "act", "notes", "x", "y", "--args", "{oops"});
@@ -100,8 +113,13 @@ int main(int argc, char** argv) {
                                  {"agent", "act", "notes-cli", "notes/delete", "activate", "--answer", "yes", "--dir", d},
                                  {"agent", "wait", "notes-cli", "--settled", "--timeout", "2", "--dir", d},
                                  {"agent", "capture", "notes-cli", "--node", "notes/delete", "--out", png.string(), "--dir", d},
+                                 // The delete ends what can be undone (S-12); a dry run says so, and changes nothing.
+                                 {"agent", "undo", "notes-cli", "--dry-run", "--dir", d},
+                                 {"agent", "undo", "notes-cli", "--dir", d},
+                                 {"agent", "history", "notes-cli", "--dir", d},
+                                 {"agent", "transaction", "notes-cli", R"([{"node":"notes/delete","action":"activate","answer":"yes"}])", "--dir", d},
                              });
-        check(r.size() == 7);
+        check(r.size() == 11);
         check(r[0].code == 0 && r[0].out.starts_with("notes-cli\tnotes-cli\topenmui.tree@0.1"), r[0].out + r[0].err);
         check(r[1].code == 0 && r[1].out.find("notes/delete") != std::string::npos && r[1].out.find("notes/title") == std::string::npos);
         check(r[2].code == 0 && r[2].out.find(R"("effect":"irreversible")") != std::string::npos, r[2].out);
@@ -109,8 +127,13 @@ int main(int argc, char** argv) {
         check(r[4].code == 0 && deleted == 1, r[4].out + r[4].err);
         check(r[5].code == 0, r[5].out + r[5].err);
         check(r[6].code == 0 && std::filesystem::exists(png) && std::filesystem::file_size(png) > 50, r[6].out + r[6].err);
+        check(r[7].code == 0 && r[7].out.find(R"("outcome":"refused")") != std::string::npos, r[7].out + r[7].err);
+        check(r[8].code == 1 && r[8].out.find("cannot be taken back") != std::string::npos, r[8].out + r[8].err);
+        check(r[9].code == 0 && r[9].out.find(R"("barrier":true)") != std::string::npos, r[9].out + r[9].err);
+        check(r[10].code == 1 && r[10].out.find("S-13") != std::string::npos && deleted == 1, r[10].out + r[10].err);
         auto journal = h.runtime().action_journal();
-        check(journal.size() >= 2 && journal[journal.size() - 2].actor == "agent:planner;via=person:alice");
+        check(std::ranges::count(journal, std::string("agent:planner;via=person:alice"), &ActionEntry::actor) == 1);
+        check(!journal.empty() && journal.back().action == "activate" && journal.back().actor == "agent:omui-cli", "the transaction's step");
     });
 
     s.test("omui check: located diagnostics, as text and as JSON", [] {

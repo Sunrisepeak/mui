@@ -27,6 +27,8 @@ public:
 
     ActResult toggle(ActContext& ctx);
     ActResult activate(ActContext& ctx) { return toggle(ctx); }
+    // A dry run (S-13): the state it would have, and toggling back undoes it.
+    ActResult preview(ActContext& ctx, std::string_view action) const;
 
 private:
     mutable parts::Label  label_;
@@ -48,6 +50,7 @@ public:
 
     ActResult toggle(ActContext& ctx);
     ActResult activate(ActContext& ctx) { return toggle(ctx); }
+    ActResult preview(ActContext& ctx, std::string_view action) const;
 
 private:
     mutable parts::Label  label_;

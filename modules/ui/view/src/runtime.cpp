@@ -179,6 +179,7 @@ Insets Runtime::slot_insets(std::string_view slot) const {
 
 void Runtime::unmount(std::string_view slot) {
     Impl& d = *impl_;
+    d.forget_history(slot);  // what was done in it goes with it (S-12)
     if (auto v = d.mounted_views.find(slot); v != d.mounted_views.end()) d.mounted_views.erase(v);
     if (auto o = d.in_outlet.find(slot); o != d.in_outlet.end()) {
         d.in_outlet.erase(o);

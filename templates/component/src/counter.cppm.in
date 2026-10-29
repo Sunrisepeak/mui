@@ -24,13 +24,20 @@ public:
     }
     omui::ActResult increment(omui::ActContext&) { return set(props.value + props.step); }
     omui::ActResult decrement(omui::ActContext&) { return set(props.value - props.step); }
+    // What an action would do, for a dry run: the value it would have.
+    omui::ActResult preview(omui::ActContext&, std::string_view action) const {
+        const std::int32_t v = action == "increment" ? props.value + props.step : props.value - props.step;
+        return omui::ActResult::done(omui::Value(v)).undo_by(action == "increment" ? "decrement" : "increment");
+    }
 
 private:
+    // Each step says how it is taken back, so undo and transactions can.
     omui::ActResult set(std::int32_t v) {
+        const bool up = v > props.value;
         write_value(v);
         emit_changed(v);
         services().invalidate_semantics(node());
-        return omui::ActResult::done(omui::Value(v));
+        return omui::ActResult::done(omui::Value(v)).undo_by(up ? "decrement" : "increment");
     }
 };
 

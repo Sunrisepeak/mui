@@ -285,6 +285,31 @@ struct Server::Impl {
                            true);
     }
 
+    // A dry run (S-13): what it would do, said plainly; nothing is asked or done.
+    Value plan(const std::string& app, Value request, std::string_view what) {
+        request.set("actor", actor).set("dry_run", true);
+        Answer a = call(app, request, options.timeout);
+        if (a.exit != 0) return tool_result(std::format("{}: {}", a.code.empty() ? "failed" : a.code, a.message), true);
+        return tool_result(std::format("dry run: {} — {}", what, outcome_text(a.data)), false, Value{}.set("data", a.data));
+    }
+
+    static std::string outcome_text(const Value& d) {
+        const std::string_view outcome = str(d, "outcome");
+        std::string out;
+        if (outcome == "run") out = "it would run";
+        else if (outcome == "needs-answer") out = std::format("it would need the user's confirmation (answer \"{}\")", str(d, "answer"));
+        else out = outcome == "refused" ? "it would be refused" : "it would fail";
+        if (const Value* e = d.get("error")) out += std::format(": {}", str(*e, "text"));
+        if (auto effect = str(d, "effect"); !effect.empty()) out += std::format(" ({})", effect);
+        if (const Value* v = d.get("value")) out += std::format("; value {} → {}", v->get("before") ? v->get("before")->json() : "null", v->get("after") ? v->get("after")->json() : "null");
+        if (const Value* u = d.get("undoable")) out += u->as_bool() ? "; it can be undone" : "; it cannot be undone";
+        for (std::string_view k : {"undo", "redo"})
+            if (auto l = str(d, k); !l.empty()) out += std::format("; it would {} {}", k, l);
+        if (const Value* st = d.get("steps"); st && st->list())
+            for (const Value& x : *st->list()) out += std::format("\n- {} on {}: {}", str(x, "action"), str(x, "id"), outcome_text(x));
+        return out;
+    }
+
     Value run_tool(std::string_view name, const Value& args, Transport& t) {
         if (name == "ui_apps") {
             const auto apps = running();
@@ -334,6 +359,7 @@ struct Server::Impl {
             req.set("op", "act").set("node", node).set("action", action);
             if (const Value* v = args.get("args")) req.set("args", *v);
             if (auto v = str(args, "answer"); !v.empty()) req.set("answer", v);
+            if (const Value* d = args.get("dry_run"); d && d->as_bool()) return plan(*app, std::move(req), std::format("{} on {}", action, node));
             return perform(t, *app, std::move(req), std::format("{} on {}", action, node));
         }
         if (name == "ui_invoke") {
@@ -343,7 +369,32 @@ struct Server::Impl {
             req.set("op", "invoke").set("verb", verb);
             if (const Value* v = args.get("args")) req.set("args", *v);
             if (auto v = str(args, "answer"); !v.empty()) req.set("answer", v);
+            if (const Value* d = args.get("dry_run"); d && d->as_bool()) return plan(*app, std::move(req), verb);
             return perform(t, *app, std::move(req), verb);
+        }
+        if (name == "ui_undo") {
+            const bool again = args.get("redo") && args.get("redo")->as_bool();
+            Value req;
+            req.set("op", again ? "redo" : "undo");
+            if (auto v = str(args, "scope"); !v.empty()) req.set("scope", v);
+            if (const Value* d = args.get("dry_run"); d && d->as_bool()) return plan(*app, std::move(req), again ? "redo" : "undo");
+            req.set("actor", actor);
+            Answer a = call(*app, req, options.timeout);
+            if (a.exit != 0) return tool_result(std::format("{}: {}", a.code.empty() ? "failed" : a.code, a.message), true);
+            return tool_result(std::format("{}: {}", again ? "redone" : "undone", str(a.data, again ? "redone" : "undone")), false, Value{}.set("data", a.data));
+        }
+        if (name == "ui_transaction") {
+            const Value* steps = args.get("steps");
+            if (!steps || !steps->list() || steps->list()->empty()) return tool_result("ui_transaction needs `steps`: [{node, action, args}]", true);
+            Value req;
+            req.set("op", "transaction").set("steps", *steps);
+            if (auto v = str(args, "label"); !v.empty()) req.set("label", v);
+            const std::string what = std::format("{} steps", steps->list()->size());
+            if (const Value* d = args.get("dry_run"); d && d->as_bool()) return plan(*app, std::move(req), what);
+            req.set("actor", actor);
+            Answer a = call(*app, req, options.timeout);
+            if (a.exit != 0) return tool_result(std::format("{}: {} — nothing of it stays", a.code.empty() ? "failed" : a.code, a.message), true);
+            return tool_result(std::format("done: {} as one step ({})", what, str(a.data, "committed")), false, Value{}.set("data", a.data));
         }
         if (name == "ui_wait") {
             Value req;
@@ -407,21 +458,41 @@ Value::List Server::tools() {
              true, false),
         tool("ui_act", "Act on a node",
              "Performs an action a node offers (activate, toggle, set_value with args {\"value\": …}, focus, scroll …), as a person "
-             "would. An irreversible or external action is put to the user first; never pass `answer` unless the user gave it.",
+             "would. An irreversible or external action is put to the user first; never pass `answer` unless the user gave it. "
+             "dry_run: only say what it would do (its effect, whether it can be undone, the value after) and change nothing.",
              object_schema({app_prop,
                             {"node", s("the node's id")},
                             {"action", s("an action the node lists")},
                             {"args", o("the action's arguments")},
-                            {"answer", s("the user's answer to a confirmation they were asked for")}},
+                            {"answer", s("the user's answer to a confirmation they were asked for")},
+                            {"dry_run", b("only what would happen; nothing is done")}},
                            {"node", "action"}),
              false, true),
         tool("ui_invoke", "Invoke a verb", "Invokes an application verb (its describe lists them), e.g. notes.new with {\"title\": …}.",
              object_schema({app_prop,
                             {"verb", s("the verb's name")},
                             {"args", o("its arguments")},
-                            {"answer", s("the user's answer to a confirmation they were asked for")}},
+                            {"answer", s("the user's answer to a confirmation they were asked for")},
+                            {"dry_run", b("only what would happen; nothing is done")}},
                            {"verb"}),
              false, true),
+        tool("ui_undo", "Undo or redo",
+             "Takes back the last step of the application's history (the window's, or a scope's), or with redo puts it forward again. "
+             "Reversible actions that say how are in the history; an irreversible or external one ends it — undo stops there.",
+             object_schema({app_prop,
+                            {"redo", b("redo instead of undo")},
+                            {"scope", s("a node with its own history (default: the window)")},
+                            {"dry_run", b("only say what it would undo")}}),
+             false, false),
+        tool("ui_transaction", "Several actions as one",
+             "Performs actions in order as one step of history: if one fails, those done are taken back and nothing stays. Only "
+             "reversible and read actions may be in it. dry_run checks every step first.",
+             object_schema({app_prop,
+                            {"steps", prop("array", "[{\"node\": id, \"action\": name, \"args\": {…}}, …]").set("items", prop("object", "a step"))},
+                            {"label", s("what the step is called in the history")},
+                            {"dry_run", b("only what each step would do")}},
+                           {"steps"}),
+             false, false),
         tool("ui_wait", "Wait for the interface",
              "Waits until nodes matching a query appear (or, absent, are gone) and/or the interface has settled (nothing animating).",
              object_schema({app_prop,

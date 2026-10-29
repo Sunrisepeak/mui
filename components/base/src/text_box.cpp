@@ -431,13 +431,32 @@ ActResult TextBox::focus(ActContext&) {
     return ActResult::done();
 }
 
+namespace {
+
+// The grapheme offset of a byte offset (the unit of set_selection).
+std::int64_t grapheme_at(std::string_view text, std::size_t byte) {
+    const std::vector<std::size_t> b = unicode::grapheme_boundaries(text);
+    return static_cast<std::int64_t>(std::ranges::lower_bound(b, byte) - b.begin());
+}
+
+}  // namespace
+
+// What takes an edit back (S-12): the text it replaced, then the selection there was.
+ActResult TextBox::taken_back_by(ActResult r, const std::string& text, std::size_t anchor, std::size_t focus) const {
+    r.undo_by("set_value", Value{}.set("value", text));
+    r.undo_by("set_selection", Value{}.set("anchor", grapheme_at(text, anchor)).set("focus", grapheme_at(text, focus)));
+    return r;
+}
+
 ActResult TextBox::set_value(ActContext&, const Value& value) {
     if (props.readonly) return ActResult::fail("the field is read-only");
+    const std::string before = editor_.text();
+    const auto sel = editor_.selection();
     std::string text = value.type() == Value::Type::text ? std::string(value.as_string()) : value.json();
     editor_.select_all();
     editor_.insert(text);
     edited();
-    return ActResult::done(Value(editor_.text()));
+    return taken_back_by(ActResult::done(Value(editor_.text())), before, sel.anchor, sel.focus);
 }
 
 ActResult TextBox::set_selection(ActContext&, const SetSelectionArgs& args) {
@@ -456,9 +475,30 @@ ActResult TextBox::set_selection(ActContext&, const SetSelectionArgs& args) {
 
 ActResult TextBox::replace_selection(ActContext&, const Value& text) {
     if (props.readonly) return ActResult::fail("the field is read-only");
+    const std::string before = editor_.text();
+    const auto sel = editor_.selection();
     if (!editor_.insert(text.as_string())) return ActResult::fail("the text does not fit (max_length)");
     edited();
-    return ActResult::done(Value(editor_.text()));
+    return taken_back_by(ActResult::done(Value(editor_.text())), before, sel.anchor, sel.focus);
+}
+
+ActResult TextBox::preview(ActContext& ctx, std::string_view action) const {
+    if (action != "set_value" && action != "replace_selection") return ActResult::done();
+    if (props.readonly) return ActResult::fail("the field is read-only");
+    typeset::TextEditor copy = editor_;
+    if (action == "set_value") {
+        const Value* v = ctx.args.get("value");
+        const Value value = v ? *v : Value{};
+        copy.select_all();
+        copy.insert(value.type() == Value::Type::text ? std::string(value.as_string()) : value.json());
+    } else {
+        const Value* t = ctx.args.get("text");
+        if (!copy.insert(t ? t->as_string() : std::string_view{})) return ActResult::fail("the text does not fit (max_length)");
+    }
+    const auto sel = editor_.selection();
+    // A password field's text is not shown, nor what it would become.
+    ActResult r = props.password ? ActResult::done() : ActResult::done(Value(copy.text()));
+    return taken_back_by(std::move(r), editor_.text(), sel.anchor, sel.focus);
 }
 
 ActResult TextBox::submit(ActContext&) {

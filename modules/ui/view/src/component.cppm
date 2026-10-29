@@ -206,13 +206,34 @@ struct EventContext {
     void relayout() { services.invalidate_layout(node); }
 };
 
+// How to take an action back (spec S-12): an action of the same node — or,
+// for an item a node holds, of the same item — with its arguments.
+struct Inverse {
+    std::string action;
+    Value       args;
+};
+
 struct ActResult {
     bool        ok = true;
     Value       data;
     std::string error;  // refused or failed: why
+    // A reversible action that changed something and can be taken back: the
+    // actions that take it back, in order — `toggle` for a toggle,
+    // `set_value` with the value it replaced. The runtime keeps them in the
+    // history (S-12); empty: it gives none, and is not in the history.
+    std::vector<Inverse> undo;
 
-    [[nodiscard]] static ActResult done(Value v = {}) { return {true, std::move(v), {}}; }
-    [[nodiscard]] static ActResult fail(std::string why) { return {false, {}, std::move(why)}; }
+    [[nodiscard]] static ActResult done(Value v = {}) { return {true, std::move(v), {}, {}}; }
+    [[nodiscard]] static ActResult fail(std::string why) { return {false, {}, std::move(why), {}}; }
+    // done(v).undo_by("set_value", Value{}.set("value", old))
+    [[nodiscard]] ActResult&& undo_by(std::string action, Value args = {}) && {
+        undo.push_back({std::move(action), std::move(args)});
+        return std::move(*this);
+    }
+    ActResult& undo_by(std::string action, Value args = {}) & {
+        undo.push_back({std::move(action), std::move(args)});
+        return *this;
+    }
 };
 
 struct ActContext {
@@ -263,6 +284,10 @@ struct ComponentType {
     std::optional<WindowArea> (*window_area)(const void*, Point local, Size) = nullptr;
     bool (*event)(void*, EventContext&, const InputEvent&) = nullptr;
     ActResult (*act)(void*, ActContext&, std::string_view) = nullptr;
+    // What an action would do, changing nothing (a dry run, S-13): `data`
+    // the value the node would have, `undo` the inverse it would give, or a
+    // failure and why. Optional; without it a dry run states only the checks.
+    ActResult (*preview)(const void*, ActContext&, std::string_view) = nullptr;
     void (*semantics)(const void*, SemanticsContext&, spec::SemanticNode&) = nullptr;
     // A scroll container: its children are offset by this (and clipped).
     Point (*scroll_offset)(const void*) = nullptr;
@@ -354,6 +379,8 @@ template <class C>
             x.event = [](void* p, EventContext& ctx, const InputEvent& e) { return static_cast<C*>(p)->on_event(ctx, e); };
         if constexpr (requires(C& c, ActContext& ctx) { { c.act(ctx, std::string_view{}) } -> std::same_as<ActResult>; })
             x.act = [](void* p, ActContext& ctx, std::string_view a) { return static_cast<C*>(p)->act(ctx, a); };
+        if constexpr (requires(const C& c, ActContext& ctx) { { c.preview(ctx, std::string_view{}) } -> std::same_as<ActResult>; })
+            x.preview = [](const void* p, ActContext& ctx, std::string_view a) { return static_cast<const C*>(p)->preview(ctx, a); };
         if constexpr (requires(const C& c, SemanticsContext& ctx, spec::SemanticNode& n) { c.semantics(ctx, n); })
             x.semantics = [](const void* p, SemanticsContext& ctx, spec::SemanticNode& n) { static_cast<const C*>(p)->semantics(ctx, n); };
         if constexpr (requires(const C& c) { { c.scroll_offset() } -> std::same_as<Point>; })

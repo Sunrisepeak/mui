@@ -214,6 +214,108 @@ int main(int argc, char** argv) {
         check(submitted.size() == 1);
     });
 
+    s.test("undo and redo of the real components; transactions and dry runs (S-12, S-13)", [] {
+        Headless h(options());
+        auto wifi = signal(false);
+        auto volume = signal(30.0);
+        int toggled = 0;
+        int deleted = 0;
+        check(h.runtime().verbs().add({"doc.delete", "Delete it", Effect::irreversible, "yes", {}}, [&](const Value&) -> VerbResult {
+            ++deleted;
+            return Value{};
+        }).has_value());
+        h.mount("main", column({.padding = 12, .gap = 8}, {
+                                   toggle({.id = "wifi", .checked = wifi, .label = "Wi-Fi", .on_changed = [&](bool) { ++toggled; }}),
+                                   slider({.id = "volume", .label = "Volume", .step = 5.0, .value = volume, .width = 200}),
+                                   text_box({.id = "msg", .label = "Message"}),
+                                   button({.id = "delete", .text = "Delete", .verb = "doc.delete"}),
+                               }));
+        h.step();
+        semantic::Tree& tree = h.tree();
+        auto text = [&] { return std::string(sem(h, "main/msg").value.as_string()); };
+        auto undoes = [&](std::string_view action) { return act(h, "app", action); };
+        // A toggle, a stepped value, a text box: each says how it is taken back.
+        check(act(h, "main/wifi", "toggle") == 0 && wifi.peek());
+        check(act(h, "main/volume", "increment") == 0 && volume.peek() == 35);
+        check(act(h, "main/msg", "set_value", Value{}.set("value", "hello world")) == 0);
+        check(act(h, "main/msg", "set_selection", Value{}.set("anchor", 6).set("focus", 11)) == 0);  // read: not recorded
+        check(act(h, "main/msg", "replace_selection", Value{}.set("text", "there")) == 0 && text() == "hello there");
+        check_eq(h.runtime().history(h.runtime().root()).undo.size(), std::size_t{4});
+        check(undoes("undo") == 0 && text() == "hello world", "the replaced text is back");
+        const auto& ed = h.runtime().component<TextBox>(h.runtime().find("main/msg"))->editor();
+        check(ed.selection().begin() == 6 && ed.selection().end() == 11, "and the selection there was");
+        check(undoes("undo") == 0 && text().empty());
+        check(undoes("undo") == 0 && volume.peek() == 30, "the bound signal learns the undo");
+        const int before = toggled;
+        check(undoes("undo") == 0 && !wifi.peek() && toggled == before + 1, "the switch's own event follows");
+        check(undoes("undo") == 1, "nothing left");
+        // Redo puts each back, in order.
+        for (int i = 0; i < 4; ++i) check(undoes("redo") == 0);
+        check(wifi.peek() && volume.peek() == 35 && text() == "hello there");
+
+        // A dry run: what it would do, and nothing else.
+        const std::uint64_t digest = tree.digest();
+        const std::size_t journal = h.runtime().action_journal().size();
+        Invocation dry;
+        dry.actor = {"agent", "test", {}};
+        dry.dry_run = true;
+        dry.args = Value{}.set("value", 42.0);
+        auto d = tree.act("main/volume", "set_value", dry);
+        check(d.data_value() && d.data_value()->get("value")->get("after")->as_double() == 40 && d.data_value()->get("undoable")->as_bool(),
+              d.ndjson());
+        dry.args = Value{}.set("text", "!");
+        auto t = tree.act("main/msg", "replace_selection", dry);
+        check(t.data_value()->get("value")->get("after")->as_string() == "hello there!", t.ndjson());
+        dry.args = {};
+        auto w = tree.act("main/wifi", "toggle", dry);
+        check(w.data_value()->get("value")->get("after")->as_bool() == false && w.data_value()->get("value")->get("before")->as_bool(), w.ndjson());
+        auto del = tree.act("main/delete", "activate", dry);
+        check(del.data_value()->get("outcome")->as_string() == "needs-answer" && del.data_value()->get("effect")->as_string() == "irreversible",
+              del.ndjson());
+        h.step();
+        check(tree.digest() == digest && h.runtime().action_journal().size() == journal && volume.peek() == 35 && wifi.peek() && deleted == 0,
+              "a dry run leaves no trace");
+
+        // A transaction that fails midway is taken back, last first.
+        Invocation agent;
+        agent.actor = {"agent", "test", {}};
+        const std::vector<semantic::Step> steps{
+            {"main/wifi", "toggle", {}, {}},
+            {"main/volume", "set_value", Value{}.set("value", 80.0), {}},
+            {"main/msg", "set_value", Value{}.set("value", "draft"), {}},
+            {"main/volume", "set_value", Value{}.set("value", "loud"), {}},  // refused: not a number
+        };
+        auto failed = tree.transaction(steps, agent, "settings");
+        h.step();
+        check(failed.exit_code() == 1 && failed.ndjson().find("step 4") != std::string::npos &&
+                  failed.ndjson().find("\"rolled_back\":3") != std::string::npos,
+              failed.ndjson());
+        check(wifi.peek() && volume.peek() == 35 && text() == "hello there", "nothing of it stays");
+        check_eq(h.runtime().history(h.runtime().root()).undo.size(), std::size_t{4});
+        // The same without the bad step: one step of history, undone as one.
+        auto done = tree.transaction(std::span(steps).first(3), agent, "settings");
+        h.step();
+        check(done.exit_code() == 0 && !wifi.peek() && volume.peek() == 80 && text() == "draft", done.ndjson());
+        check_eq(h.runtime().history(h.runtime().root()).undo.back().label, std::string("settings"));
+        check(undoes("undo") == 0 && wifi.peek() && volume.peek() == 35 && text() == "hello there", "undone as one");
+        // A dry run of a transaction states each step's outcome.
+        Invocation plan = agent;
+        plan.dry_run = true;
+        const std::vector<semantic::Step> risky{{"main/wifi", "toggle", {}, {}}, {"main/delete", "activate", {}, "yes"}};
+        auto p = tree.transaction(risky, plan);
+        check(p.data_value() && p.data_value()->get("outcome")->as_string() == "refused" &&
+                  p.data_value()->get("steps")->list()->at(1).get("outcome")->as_string() == "refused",
+              p.ndjson());
+        check(tree.transaction(risky, agent).exit_code() == 1 && wifi.peek() && deleted == 0, "an irreversible step is refused before it runs");
+
+        // An irreversible action ends what can be undone: undo is refused there.
+        check(act(h, "main/delete", "activate", {}, "yes") == 0 && deleted == 1);
+        auto refused = tree.act("app", "undo", agent);
+        check(refused.exit_code() == 1 && refused.ndjson().find("cannot be taken back") != std::string::npos, refused.ndjson());
+        check(wifi.peek() && volume.peek() == 35, "and changes nothing");
+        h.settle();
+    });
+
     s.test("text box: input methods, passwords, limits, and actions in graphemes", [] {
         Headless h(options());
         h.mount("main", column({.padding = 12, .gap = 8}, {

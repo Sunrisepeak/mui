@@ -28,8 +28,9 @@ constexpr std::array<std::string_view, 15> visual_props{
 // Animation the runtime applies to whatever the node draws (D-68).
 constexpr std::array<std::string_view, 2> motion_props{"glyph_motion", "pixel_effect"};
 
-constexpr std::array<std::string_view, 11> semantic_props{
-    "label", "description", "role", "origin", "focusable", "disabled", "verb", "verb_args", "effect", "answer", "person",
+// `undo_scope`: the node keeps its own history of what is done inside it (S-12).
+constexpr std::array<std::string_view, 12> semantic_props{
+    "label", "description", "role", "origin", "focusable", "disabled", "verb", "verb_args", "effect", "answer", "person", "undo_scope",
 };
 
 // What a node is to a framework-drawn window (D-75): `window_area: "drag"`

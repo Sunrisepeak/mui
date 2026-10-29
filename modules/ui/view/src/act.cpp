@@ -162,6 +162,12 @@ spec::SemanticNode Runtime::Impl::semantics(NodeId id) const {
         add("focus", Effect::read);
         add("blur", Effect::read);
     }
+    // A history's scope offers undo and redo while there is something to take (S-12).
+    if (is_scope(id))
+        if (const ScopeHistory* h = find_history(id)) {
+            if (!h->undo.empty() && !h->undo.back().barrier) add("undo", Effect::reversible);
+            if (!h->redo.empty()) add("redo", Effect::reversible);
+        }
     for (NodeId c = n.parent; alive(c); c = at(c).parent)
         if (at(c).type->scroll_offset) {
             add("scroll_into_view", Effect::read);
@@ -177,17 +183,23 @@ spec::SemanticNode Runtime::Impl::semantics(NodeId id) const {
     return s;
 }
 
-Envelope Runtime::Impl::perform(NodeId id, std::string_view action, const Invocation& call, bool command) {
+Envelope Runtime::Impl::perform(NodeId id, std::string_view action, const Invocation& call, bool command, Outcome* out) {
     Envelope env;
+    // A dry run answers where the checks stopped as its outcome (S-13).
+    Effect effect = Effect::external;  // until known: the safe reading
+    auto stop = [&](Envelope e) { return call.dry_run ? dry_run_of(e, effect) : e; };
     if (!alive(id)) {
         env.error(spec::error_code::not_found, "no such node (it was removed)").result(spec::exit_code::failure);
-        return env;
+        return stop(std::move(env));
     }
     const std::string where = self.path(id);
     if (at(id).state.removing) {
         env.error(spec::error_code::refused, std::format("'{}' is being removed (spec S-4)", where)).result(spec::exit_code::failure);
-        return env;
+        return stop(std::move(env));
     }
+    // A history's own actions, unless the component's contract has its own.
+    if ((action == "undo" || action == "redo") && is_scope(id) && !(at(id).type->contract && at(id).type->contract->action(action)))
+        return history_action(id, action == "redo", call);
     const spec::SemanticNode sem = semantics(id);
     const spec::ActionDesc* a = sem.action(action);
     if (!a && !command) {
@@ -196,19 +208,23 @@ Envelope Runtime::Impl::perform(NodeId id, std::string_view action, const Invoca
         env.error(spec::error_code::not_found, std::format("'{}' has no action '{}'", where, action),
                   Value{}.set("actions", Value(std::move(names))))
             .result(spec::exit_code::failure);
-        return env;
+        return stop(std::move(env));
     }
-    const Effect effect = a ? a->effect : Effect::reversible;
+    effect = a ? a->effect : Effect::reversible;
+    if (out) out->effect = effect;
     if (at(id).state.disabled && effect != Effect::read) {
         env.error(spec::error_code::refused, std::format("'{}' is disabled", where)).result(spec::exit_code::failure);
-        return env;
+        return stop(std::move(env));
     }
-    if (a && a->person && call.remote) return person_only(std::format("{} on '{}'", action, where));
+    if (a && a->person && call.remote) return stop(person_only(std::format("{} on '{}'", action, where)));
     // Over the bus, an action is decided by the verb it invokes, or by its own name (S-11).
     const openas::Decision clear = clearance(a && !a->verb.empty() ? std::string_view(a->verb) : action, effect, a && a->person, call);
-    if (clear == openas::Decision::refuse) return above_cap(std::format("{} on '{}' ({})", action, where, spec::name(effect)));
+    if (clear == openas::Decision::refuse) return stop(above_cap(std::format("{} on '{}' ({})", action, where, spec::name(effect))));
+    // Refused before it asks: no answer would let a transaction take it back.
+    if (transaction && !replaying && spec::requires_answer(effect))
+        return stop(not_in_transaction(std::format("{} on '{}'", action, where), effect));
     if (a && clear != openas::Decision::run && spec::requires_answer(effect) && call.answer != a->answer)
-        return needs_answer(std::format("{} on '{}' ({})", action, where, spec::name(effect)), a->answer);
+        return stop(needs_answer(std::format("{} on '{}' ({})", action, where, spec::name(effect)), a->answer));
     if (a && !a->args.empty())
         if (auto wrong = invalid_arguments(*a, call.args); !wrong.empty()) {
             Value::Map takes;
@@ -216,8 +232,33 @@ Envelope Runtime::Impl::perform(NodeId id, std::string_view action, const Invoca
             env.error(spec::error_code::invalid_argument, std::format("{} on '{}': {}", action, where, wrong),
                       Value{}.set("args", Value(std::move(takes))))
                 .result(spec::exit_code::failure);
-            return env;
+            return stop(std::move(env));
         }
+    const bool invokes_verb = action == "activate" && a && !a->verb.empty();
+    if (call.dry_run && invokes_verb && !verbs.find(a->verb)) {
+        env.error(spec::error_code::not_found, std::format("no verb `{}`", a->verb)).result(spec::exit_code::failure);
+        return stop(std::move(env));
+    }
+
+    if (call.dry_run) {
+        // What it would do: the component's preview where it has one (the
+        // value after, the inverse it would give); a verb gives no inverse.
+        Value more;
+        if (spec::requires_answer(effect) || invokes_verb) more.set("undoable", false);
+        if (effect != Effect::read && !invokes_verb && at(id).type->preview) {
+            ActContext ctx{self, id, call.args};
+            ActResult r = at(id).type->preview(at(id).instance, ctx, action);
+            if (!r.ok) {
+                Envelope failed;
+                failed.error(spec::error_code::refused, r.error.empty() ? std::format("'{}' would refuse '{}'", where, action) : r.error)
+                    .result(spec::exit_code::failure);
+                return stop(std::move(failed));
+            }
+            if (effect == Effect::reversible) more.set("undoable", !r.undo.empty());
+            if (!r.data.is_null()) more.set("value", Value{}.set("before", sem.value).set("after", std::move(r.data)));
+        }
+        return dry_run_answer("run", effect, std::move(more));
+    }
 
     if (action == "focus") {
         set_focus(id, true);
@@ -265,10 +306,16 @@ Envelope Runtime::Impl::perform(NodeId id, std::string_view action, const Invoca
             .result(spec::exit_code::failure);
         return env;
     }
+    if (out) {
+        out->ran = true;
+        out->undo = std::move(r.undo);
+    }
     if (action == "activate") {
         call_handlers(id, "press", call.args);
         call_handlers(id, "activate", call.args);
         if (a && !a->verb.empty()) {
+            // A verb gives no inverse: the action as a whole cannot be taken back.
+            if (out) out->undo.clear();
             // The node's own arguments (a row's delete button names its row)
             // win over the caller's: an action cannot be pointed elsewhere.
             Invocation with = call;
@@ -276,7 +323,9 @@ Envelope Runtime::Impl::perform(NodeId id, std::string_view action, const Invoca
                 if (!with.args.map()) with.args = Value(Value::Map{});
                 for (const auto& [k, v] : *own->second.map()) with.args.set(k, v);
             }
-            return verbs.invoke(a->verb, with);
+            Envelope e = verbs.invoke(a->verb, with);
+            if (out) out->ran = e.exit_code() == spec::exit_code::success;
+            return e;
         }
     }
     if (!r.data.is_null()) env.data(std::move(r.data));
@@ -287,29 +336,30 @@ Envelope Runtime::Impl::perform(NodeId id, std::string_view action, const Invoca
 
 Envelope Runtime::act(NodeId node, std::string_view action, const Invocation& call) {
     Impl& d = *impl_;
+    if (call.dry_run) return d.perform(node, action, call, false);  // no trace: no journal, no history
     std::string where = d.alive(node) ? path(node) : std::string{};
-    Envelope e = batch([&] { return d.perform(node, action, call, false); });
+    const NodeId scope = d.scope_of(node);
+    Impl::Outcome out;
+    Envelope e = batch([&] { return d.perform(node, action, call, false, &out); });
+    if (out.ran) d.record(scope, {node, where, {}, std::string(action), call.args, std::move(out.undo), std::format("{} on '{}'", action, where)}, out.effect);
     d.journal.push_back({std::move(where), std::string(action), call.actor.text(), e.exit_code().value_or(0)});
     return e;
 }
 
-Envelope Runtime::act_item(NodeId holder, std::string_view key, std::string_view action, const Invocation& call) {
-    Impl& d = *impl_;
+Envelope Runtime::Impl::perform_item(NodeId holder, std::string_view key, std::string_view action, const Invocation& call, Outcome* out) {
     Envelope env;
-    const std::string where = d.alive(holder) ? std::format("{}/{}", path(holder), key) : std::string(key);
-    auto finish = [&](Envelope e) {
-        d.journal.push_back({where, std::string(action), call.actor.text(), e.exit_code().value_or(0)});
-        return e;
-    };
-    if (!d.alive(holder) || !d.at(holder).type->act_item || !d.at(holder).type->virtual_item) {
+    const std::string where = alive(holder) ? std::format("{}/{}", self.path(holder), key) : std::string(key);
+    Effect effect = Effect::external;
+    auto stop = [&](Envelope e) { return call.dry_run ? dry_run_of(e, effect) : e; };
+    if (!alive(holder) || !at(holder).type->act_item || !at(holder).type->virtual_item) {
         env.error(spec::error_code::not_found, std::format("no node '{}'", where)).result(spec::exit_code::failure);
-        return finish(std::move(env));
+        return stop(std::move(env));
     }
-    const Node& h = d.at(holder);
-    const auto item = h.type->virtual_item(h.instance, path(holder), key);
+    const Node& h = at(holder);
+    const auto item = h.type->virtual_item(h.instance, self.path(holder), key);
     if (!item) {
         env.error(spec::error_code::not_found, std::format("no node '{}'", where)).result(spec::exit_code::failure);
-        return finish(std::move(env));
+        return stop(std::move(env));
     }
     const spec::ActionDesc* a = item->action(action);
     if (!a) {
@@ -317,33 +367,61 @@ Envelope Runtime::act_item(NodeId holder, std::string_view key, std::string_view
         for (const spec::ActionDesc& x : item->actions) names.emplace_back(x.name);
         env.error(spec::error_code::not_found, std::format("'{}' has no action '{}'", where, action), Value{}.set("actions", Value(std::move(names))))
             .result(spec::exit_code::failure);
-        return finish(std::move(env));
+        return stop(std::move(env));
     }
-    if (a->person && call.remote) return finish(person_only(std::format("{} on '{}'", action, where)));
+    effect = a->effect;
+    if (out) out->effect = effect;
+    if (a->person && call.remote) return stop(person_only(std::format("{} on '{}'", action, where)));
     const openas::Decision clear = clearance(!a->verb.empty() ? std::string_view(a->verb) : action, a->effect, a->person, call);
-    if (clear == openas::Decision::refuse) return finish(above_cap(std::format("{} on '{}' ({})", action, where, spec::name(a->effect))));
+    if (clear == openas::Decision::refuse) return stop(above_cap(std::format("{} on '{}' ({})", action, where, spec::name(a->effect))));
+    if (transaction && !replaying && spec::requires_answer(effect))
+        return stop(not_in_transaction(std::format("{} on '{}'", action, where), effect));
     if (clear != openas::Decision::run && spec::requires_answer(a->effect) && call.answer != a->answer)
-        return finish(needs_answer(std::format("{} on '{}' ({})", action, where, spec::name(a->effect)), a->answer));
+        return stop(needs_answer(std::format("{} on '{}' ({})", action, where, spec::name(a->effect)), a->answer));
     if (!a->args.empty())
         if (auto wrong = invalid_arguments(*a, call.args); !wrong.empty()) {
             Value::Map takes;
             for (const auto& [name, type] : a->args) takes.emplace_back(name, Value(type));
             env.error(spec::error_code::invalid_argument, std::format("{} on '{}': {}", action, where, wrong), Value{}.set("args", Value(std::move(takes))))
                 .result(spec::exit_code::failure);
-            return finish(std::move(env));
+            return stop(std::move(env));
         }
-    const ActResult r = batch([&] {
-        ActContext ctx{*this, holder, call.args};
-        return d.at(holder).type->act_item(d.at(holder).instance, ctx, key, action);
+    if (call.dry_run) {
+        Value more;
+        if (spec::requires_answer(effect)) more.set("undoable", false);
+        return dry_run_answer("run", effect, std::move(more));
+    }
+    ActResult r = batch([&] {
+        ActContext ctx{self, holder, call.args};
+        return at(holder).type->act_item(at(holder).instance, ctx, key, action);
     });
     if (!r.ok) {
         env.error(spec::error_code::refused, r.error.empty() ? std::format("'{}' refused '{}'", where, action) : r.error).result(spec::exit_code::failure);
-        return finish(std::move(env));
+        return env;
     }
-    if (!r.data.is_null()) env.data(r.data);
+    if (out) {
+        out->ran = true;
+        out->undo = std::move(r.undo);
+    }
+    if (!r.data.is_null()) env.data(std::move(r.data));
     env.result(spec::exit_code::success);
-    d.touch(dirty_semantics | dirty_paint);
-    return finish(std::move(env));
+    touch(dirty_semantics | dirty_paint);
+    return env;
+}
+
+Envelope Runtime::act_item(NodeId holder, std::string_view key, std::string_view action, const Invocation& call) {
+    Impl& d = *impl_;
+    if (call.dry_run) return d.perform_item(holder, key, action, call);
+    const std::string path_of = d.alive(holder) ? path(holder) : std::string{};
+    const std::string where = d.alive(holder) ? std::format("{}/{}", path_of, key) : std::string(key);
+    const NodeId scope = d.scope_of(holder);
+    Impl::Outcome out;
+    Envelope e = d.perform_item(holder, key, action, call, &out);
+    if (out.ran)
+        d.record(scope, {holder, path_of, std::string(key), std::string(action), call.args, std::move(out.undo), std::format("{} on '{}'", action, where)},
+                 out.effect);
+    d.journal.push_back({where, std::string(action), call.actor.text(), e.exit_code().value_or(0)});
+    return e;
 }
 
 std::optional<spec::SemanticNode> Runtime::virtual_item(NodeId holder, std::string_view key) const {

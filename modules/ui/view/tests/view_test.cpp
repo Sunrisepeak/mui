@@ -58,6 +58,74 @@ raster::Surface draw(Runtime& rt, typeset::GlyphCache& glyphs) {
     return s;
 }
 
+// A tally that says how to take its steps back (S-12): increment's inverse is
+// set_value with the value it replaced; `wipe` is irreversible; `nudge`
+// gives no inverse; set_value refuses what is not a whole number.
+struct Tally {
+    static constexpr std::string_view name = "tally";
+    static constexpr Role             role = Role::spin_button;
+    int       value = 0;
+    Services* services = nullptr;
+    NodeId    node;
+
+    void mount(Services& s, NodeId n) {
+        services = &s;
+        node = n;
+    }
+    void semantics(SemanticsContext&, spec::SemanticNode& n) const {
+        n.name = "tally";
+        n.value = Value(static_cast<std::int64_t>(value));
+        n.actions.push_back({"increment", Effect::reversible, {}, {}, {}});
+        n.actions.push_back({"set_value", Effect::reversible, {}, {}, {{"value", "any"}}});
+        n.actions.push_back({"nudge", Effect::reversible, {}, {}, {}});
+        n.actions.push_back({"wipe", Effect::irreversible, {}, "yes", {}});
+    }
+    ActResult set(int to) {
+        const int old = value;
+        value = to;
+        services->emit(node, "changed", Value(static_cast<std::int64_t>(value)));
+        services->invalidate_semantics(node);
+        return ActResult::done(Value(static_cast<std::int64_t>(value))).undo_by("set_value", Value{}.set("value", static_cast<std::int64_t>(old)));
+    }
+    ActResult act(ActContext& ctx, std::string_view a) {
+        if (a == "increment") return set(value + 1);
+        if (a == "set_value") {
+            const Value* v = ctx.args.get("value");
+            if (!v || v->type() != Value::Type::integer) return ActResult::fail("a whole number");
+            return set(static_cast<int>(v->as_int()));
+        }
+        if (a == "nudge") {
+            ++value;
+            return ActResult::done();
+        }
+        if (a == "wipe") {
+            value = 0;
+            return ActResult::done();
+        }
+        return ActResult::fail("no such action");
+    }
+    ActResult preview(ActContext& ctx, std::string_view a) const {
+        auto would = [&](int to) {
+            return ActResult::done(Value(static_cast<std::int64_t>(to))).undo_by("set_value", Value{}.set("value", static_cast<std::int64_t>(value)));
+        };
+        if (a == "increment") return would(value + 1);
+        if (a == "set_value") {
+            const Value* v = ctx.args.get("value");
+            if (!v || v->type() != Value::Type::integer) return ActResult::fail("a whole number");
+            return would(static_cast<int>(v->as_int()));
+        }
+        return ActResult::done();
+    }
+};
+
+Element tally(std::string id, Handler changed = {}) {
+    Element e;
+    e.type = &component_type<Tally>();
+    e.id = std::move(id);
+    if (changed) e.on("changed", std::move(changed));
+    return e;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -1082,6 +1150,159 @@ int main(int argc, char** argv) {
             check(back && *back == p, to_value(p).json());
         }
         check(GlyphMotion::wave().repeat == 0 && glyph_frame(GlyphMotion::wave(), seconds(100), one).moving, "a wave never ends");
+    });
+
+    s.test("history (S-12): undo and redo, barriers, scopes, the keyboard", [] {
+        Runtime rt(options());
+        int changes = 0;
+        rt.mount("main", column({}, {tally("a", [&](const Value&) { ++changes; }), box({.id = "panel"}, {tally("b")}).prop("undo_scope", Source{Value(true), {}, {}})}));
+        rt.frame();
+        const NodeId a = rt.find("main/a"), b = rt.find("main/panel/b"), panel = rt.find("main/panel");
+        auto value = [&](NodeId n) { return rt.semantic_node(n).value.as_int(); };
+        auto offers = [&](NodeId n, std::string_view what) {
+            const auto acts = rt.actions(n);
+            return std::ranges::find(acts, what, &spec::ActionDesc::name) != acts.end();
+        };
+        auto exit_of = [](const Envelope& e) { return e.exit_code().value_or(-1); };
+        check(!offers(rt.root(), "undo") && !offers(rt.root(), "redo"), "nothing to undo yet");
+        check_eq(exit_of(rt.act(a, "increment")), 0);
+        check_eq(exit_of(rt.act(a, "increment")), 0);
+        check_eq(value(a), 2);
+        check(offers(rt.root(), "undo") && !offers(rt.root(), "redo"));
+        check_eq(rt.history(rt.root()).undo.size(), std::size_t{2});
+        check_eq(rt.history(rt.root()).undo.back().label, std::string("increment on 'main/a'"));
+        // Undo performs the inverse as an action: the component's event follows.
+        const int before = changes;
+        auto u = rt.undo(rt.root());
+        check_eq(exit_of(u), 0);
+        check_eq(value(a), 1);
+        check(changes == before + 1, "the inverse is an action: its event is emitted");
+        check(offers(rt.root(), "redo"));
+        check_eq(exit_of(rt.act(rt.root(), "redo")), 0);
+        check_eq(value(a), 2);
+        check_eq(exit_of(rt.undo({})), 0);
+        check_eq(exit_of(rt.undo({})), 0);
+        check_eq(value(a), 0);
+        auto empty = rt.undo({});
+        check(exit_of(empty) == 1 && empty.records().front().json().find("nothing to undo") != std::string::npos, empty.ndjson());
+        check_eq(exit_of(rt.redo({})), 0);
+        check_eq(value(a), 1);
+        // A new change: what was undone stays undone.
+        check_eq(exit_of(rt.act(a, "increment")), 0);
+        check(rt.history(rt.root()).redo.empty() && !offers(rt.root(), "redo"));
+        // An action that gives no inverse is not in the history.
+        const std::size_t kept = rt.history(rt.root()).undo.size();
+        check_eq(exit_of(rt.act(a, "nudge")), 0);
+        check_eq(rt.history(rt.root()).undo.size(), kept);
+        // A scope keeps its own history; the window's is untouched.
+        check(rt.undo_scope(b) == panel && rt.undo_scope(a) == rt.root());
+        check_eq(exit_of(rt.act(b, "increment")), 0);
+        check_eq(rt.history(panel).undo.size(), std::size_t{1});
+        check_eq(rt.history(rt.root()).undo.size(), kept);
+        check(offers(panel, "undo"));
+        check_eq(exit_of(rt.act(panel, "undo")), 0);
+        check_eq(value(b), 0);
+        // The keyboard: Ctrl+Z undoes the window's (nothing focused), Ctrl+Shift+Z redoes.
+        // (The inverse sets the value the increment replaced: the nudge after it is undone with it.)
+        const auto at = value(a);
+        rt.frame({std::nullopt, {key(Key::z, Modifier::ctrl)}});
+        check_eq(value(a), std::int64_t{1});
+        rt.frame({std::nullopt, {key(Key::z, Modifiers(Modifier::ctrl) | Modifier::shift)}});
+        check_eq(value(a), at);
+        // An irreversible action is a barrier: undo across it is refused and changes nothing.
+        Invocation yes;
+        yes.answer = "yes";
+        check_eq(exit_of(rt.act(a, "wipe", yes)), 0);
+        check(rt.history(rt.root()).undo.back().barrier && !offers(rt.root(), "undo"));
+        auto refused = rt.undo({});
+        check(exit_of(refused) == 1 && refused.ndjson().find("cannot be taken back") != std::string::npos, refused.ndjson());
+        check_eq(value(a), 0);
+        // After it, new steps undo again, down to the barrier.
+        check_eq(exit_of(rt.act(a, "increment")), 0);
+        check_eq(exit_of(rt.undo({})), 0);
+        check_eq(exit_of(rt.undo({})), 1);
+        rt.clear_history(rt.root());
+        check(rt.history(rt.root()).undo.empty());
+        // What was done in a slot goes with it.
+        check_eq(exit_of(rt.act(a, "increment")), 0);
+        rt.unmount("main");
+        check(rt.history(rt.root()).undo.empty() && !offers(rt.root(), "undo"), "unmounted, forgotten");
+        const auto j = rt.action_journal();
+        check(std::ranges::count(j, std::string("undo"), &ActionEntry::action) >= 4, "undo is journaled as an action");
+    });
+
+    s.test("transactions (S-13): one step of history, all or nothing; dry runs leave no trace", [] {
+        Runtime rt(options());
+        int changes = 0;
+        rt.mount("main", column({}, {tally("a", [&](const Value&) { ++changes; }), tally("b")}));
+        rt.frame();
+        const NodeId a = rt.find("main/a"), b = rt.find("main/b");
+        auto value = [&](NodeId n) { return rt.semantic_node(n).value.as_int(); };
+        auto exit_of = [](const Envelope& e) { return e.exit_code().value_or(-1); };
+        // Committed: one step, undone as one.
+        rt.begin_transaction("both up");
+        check(rt.in_transaction());
+        check_eq(exit_of(rt.act(a, "increment")), 0);
+        check_eq(exit_of(rt.act(b, "increment")), 0);
+        check_eq(exit_of(rt.undo({})), 1);  // not inside a transaction
+        auto c = rt.commit_transaction();
+        check(exit_of(c) == 0 && c.data_value()->get("undoable")->as_bool(), c.ndjson());
+        check_eq(rt.history(rt.root()).undo.size(), std::size_t{1});
+        check_eq(rt.history(rt.root()).undo.back().label, std::string("both up"));
+        check_eq(rt.history(rt.root()).undo.back().steps, std::size_t{2});
+        check_eq(exit_of(rt.undo({})), 0);
+        check(value(a) == 0 && value(b) == 0, "undone together");
+        check_eq(exit_of(rt.redo({})), 0);
+        check(value(a) == 1 && value(b) == 1, "redone together");
+        // Rolled back: the steps done are taken back, last first.
+        rt.begin_transaction("half");
+        check_eq(exit_of(rt.act(a, "increment")), 0);
+        check_eq(exit_of(rt.act(b, "increment")), 0);
+        check_eq(exit_of(rt.act(b, "set_value", {Value{}.set("value", "many")})), 1);
+        auto r = rt.rollback_transaction();
+        check(exit_of(r) == 0 && r.data_value()->get("rolled_back")->as_int() == 2, r.ndjson());
+        check(value(a) == 1 && value(b) == 1 && !rt.in_transaction());
+        check_eq(rt.history(rt.root()).undo.size(), std::size_t{1});
+        check_eq(rt.action_journal().back().action, std::string("rollback"));
+        // An irreversible action is refused inside one, before it runs.
+        rt.begin_transaction("wipe");
+        Invocation yes;
+        yes.answer = "yes";
+        auto w = rt.act(a, "wipe", yes);
+        check(exit_of(w) == 1 && w.ndjson().find("S-13") != std::string::npos && value(a) == 1, w.ndjson());
+        (void)rt.rollback_transaction();
+        // Nested: the outermost decides.
+        rt.begin_transaction("outer");
+        rt.begin_transaction("inner");
+        check_eq(exit_of(rt.act(a, "increment")), 0);
+        check(rt.commit_transaction().data_value()->get("nested")->as_bool() && rt.in_transaction());
+        check_eq(exit_of(rt.commit_transaction()), 0);
+        check_eq(rt.history(rt.root()).undo.back().label, std::string("outer"));
+
+        // A dry run: the outcome, the value before and after, and no trace.
+        const std::size_t journal = rt.action_journal().size(), undo = rt.history(rt.root()).undo.size();
+        const std::uint64_t revision = rt.semantic_revision();
+        const int events = changes;
+        Invocation dry;
+        dry.dry_run = true;
+        auto d = rt.act(a, "increment", dry);
+        const Value* v = d.data_value();
+        check(exit_of(d) == 0 && v && v->get("dry_run")->as_bool() && v->get("outcome")->as_string() == "run", d.ndjson());
+        check(v->get("effect")->as_string() == "reversible" && v->get("undoable")->as_bool(), d.ndjson());
+        check(v->get("value")->get("before")->as_int() == 2 && v->get("value")->get("after")->as_int() == 3, d.ndjson());
+        auto wipe = rt.act(a, "wipe", dry);
+        check(wipe.data_value()->get("outcome")->as_string() == "needs-answer" && wipe.data_value()->get("answer")->as_string() == "yes" &&
+                  !wipe.data_value()->get("undoable")->as_bool(),
+              wipe.ndjson());
+        auto bad = rt.act(a, "set_value", {Value{}.set("value", "many"), {}, {"person", "user", {}}, false, true});
+        check(bad.data_value()->get("outcome")->as_string() == "refused", bad.ndjson());
+        auto missing = rt.act(a, "fly", dry);
+        check(exit_of(missing) == 0 && missing.data_value()->get("outcome")->as_string() == "fails", missing.ndjson());
+        auto u = rt.act(rt.root(), "undo", dry);
+        check(u.data_value()->get("outcome")->as_string() == "run" && u.data_value()->get("undo")->as_string() == "outer", u.ndjson());
+        check(value(a) == 2 && changes == events, "nothing changed, no event");
+        check(rt.action_journal().size() == journal && rt.history(rt.root()).undo.size() == undo, "no journal entry, no history");
+        check(rt.semantic_revision() == revision, "the tree did not move");
     });
 
     return s.run(argc, argv);

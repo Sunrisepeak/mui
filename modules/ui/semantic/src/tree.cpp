@@ -214,6 +214,82 @@ Envelope Tree::act(std::string_view id, std::string_view action, const Invocatio
     return runtime_.act(n, action, call);
 }
 
+Envelope Tree::transaction(std::span<const Step> steps, const Invocation& call, std::string label) {
+    auto first_error = [](const Envelope& e) -> std::pair<std::string, std::string> {
+        for (const spec::Record& r : e.records())
+            if (r.kind == spec::RecordKind::error)
+                return {std::string(r.body.get("code") ? r.body.get("code")->as_string() : spec::error_code::failed),
+                        std::string(r.body.get("text") ? r.body.get("text")->as_string() : std::string_view{})};
+        return {std::string(spec::error_code::failed), {}};
+    };
+    auto label_of = [](const Step& s) { return std::format("{} on '{}'", s.action, s.id); };
+    auto call_of = [&](const Step& s) {
+        Invocation c = call;
+        c.args = s.args;
+        if (!s.answer.empty()) c.answer = s.answer;
+        return c;
+    };
+    Envelope e;
+    if (steps.empty()) {
+        e.error(spec::error_code::invalid_argument, "a transaction needs steps").result(spec::exit_code::failure);
+        return e;
+    }
+    if (call.dry_run) {
+        // Each step against the tree as it is now: what it would do, and
+        // whether a transaction may hold it.
+        Value::List outcomes;
+        std::string outcome = "run";
+        Effect strongest = Effect::read;
+        for (const Step& s : steps) {
+            Envelope d = act(s.id, s.action, call_of(s));
+            Value v = d.data_value() ? *d.data_value() : Value{};
+            v.set("id", s.id).set("action", s.action);
+            const std::string_view effect = v.get("effect") ? v.get("effect")->as_string() : std::string_view{};
+            const Effect fx = spec::parse_effect(effect).value_or(Effect::external);
+            strongest = std::max(strongest, fx);
+            if (v.get("outcome") && v.get("outcome")->as_string() == "run" && spec::requires_answer(fx)) {
+                v.set("outcome", "refused");
+                v.set("error", Value{}.set("code", spec::error_code::refused)
+                                   .set("text", std::format("{} is {}: a transaction holds only actions that can be taken back (S-13)",
+                                                               label_of(s), effect)));
+            }
+            if (outcome == "run" && v.get("outcome") && v.get("outcome")->as_string() != "run") outcome = std::string(v.get("outcome")->as_string());
+            outcomes.push_back(std::move(v));
+        }
+        return dry_run_answer(outcome, strongest, Value{}.set("steps", Value(std::move(outcomes))));
+    }
+    runtime_.begin_transaction(std::move(label));
+    Value::List results;
+    for (std::size_t i = 0; i < steps.size(); ++i) {
+        Envelope r = act(steps[i].id, steps[i].action, call_of(steps[i]));
+        if (r.exit_code() != spec::exit_code::success) {
+            Envelope back = runtime_.rollback_transaction(call);
+            auto [code, message] = first_error(r);
+            Value extra;
+            extra.set("step", static_cast<std::int64_t>(i)).set("id", steps[i].id).set("action", steps[i].action);
+            if (const Value* d = back.data_value()) {
+                if (const Value* n = d->get("rolled_back")) extra.set("rolled_back", *n);
+                if (const Value* k = d->get("kept")) extra.set("kept", *k);
+            }
+            // The step's own options (the answer it asks for) stay with it.
+            for (const spec::Record& rec : r.records())
+                if (rec.kind == spec::RecordKind::error)
+                    for (std::string_view k : {"answer", "hint", "args", "actions"})
+                        if (const Value* v = rec.body.get(k)) extra.set(k, *v);
+            std::string why = std::format("step {} ({}): {}", i + 1, label_of(steps[i]), message);
+            if (back.exit_code() != spec::exit_code::success) why += std::format("; taking back the steps before it failed: {}", first_error(back).second);
+            else if (i > 0) why += std::format("; the {} step{} before it {} taken back", i, i == 1 ? "" : "s", i == 1 ? "was" : "were");
+            e.error(code, why, std::move(extra)).result(r.exit_code().value_or(spec::exit_code::failure));
+            return e;
+        }
+        results.push_back(r.data_value() ? *r.data_value() : Value{});
+    }
+    Envelope done = runtime_.commit_transaction();
+    Value data = done.data_value() ? *done.data_value() : Value{};
+    data.set("results", Value(std::move(results)));
+    return e.data(std::move(data)).result(spec::exit_code::success);
+}
+
 WaitState Tree::check(const Condition& c) {
     refresh();
     if (c.query) {

@@ -807,9 +807,9 @@ pushback = 3
 impact = "heavy"
 [move.cinematic]
 frames = 180
-hits = [[30, 220, "neon"], [37, 220, "neon"], [44, 220, "neon"], [51, 220, "neon"], [58, 220, "neon"], [65, 220, "neon"], [72, 220, "neon"], [79, 220, "neon"], [86, 220, "neon"], [93, 220, "neon"], [100, 220, "neon"], [107, 220, "neon"], [114, 220, "neon"], [121, 220, "neon"], [128, 220, "neon"], [135, 220, "neon"], [160, 480, "super"]]
-attacker = [0, 0]
-defender = [200, 0]
+hits = [[28, 400, "knee"], [42, 450, "knee"], [56, 550, "butt"], [64, 300, "heave"], [100, 250, "air"], [106, 250, "air"], [112, 250, "air"], [118, 250, "air"], [138, 700, "axe"], [146, 600, "street"]]
+attacker = [105, 0]
+defender = [168, 0]
 down = 70
 recovery = 26
 

@@ -454,8 +454,8 @@ int main(int argc, char** argv) {
         check_eq(all.hex(), std::string("39f676ed6bde0dd6"));  // GCC and LLVM, every platform
     });
 
-    s.test("霓's afterimages and her level 3: the eyes cut-in, the neon city, the flurry, the strike cut-in, her finishing picture — frames pinned", [] {
-        Game g("training", "ni", "kata");
+    s.test("霓's afterimages and her level 3: the collar taken, two knees to the gut and a headbutt while held, heaved overhead, four kicks in the air, the axe kick into the street — frames pinned", [] {
+        Game g("training", "ni", "kun");
         check(g.act("pause"));
         check(g.act("fill"));
         check(g.act("press", pad(0, "6")));
@@ -480,24 +480,27 @@ int main(int argc, char** argv) {
             check(g.act("step"));
         }
         check(g.act("press", pad(0, "5")));
+        // Each beat at the frame that tells it.
+        const std::vector<std::pair<std::int32_t, std::string_view>> beats{{14, "collar"},  {29, "knee"},       {43, "knee-face"},  {59, "headbutt"}, {72, "heave"},  {101, "kick"},
+                                                                           {113, "kick-high"}, {119, "spin-kick"}, {133, "axe-raised"}, {141, "axe"}, {148, "street"}, {162, "finisher"}};
         std::int32_t lock_from = -1;
         for (int i = 0; i < 300; ++i) {
             check(g.act("step"));
             const auto& st = g.state();
             if (st.lock.owner == 0 && lock_from < 0) lock_from = st.frame;
             const std::int32_t lf = st.lock.owner == 0 ? st.lock.frame : -1;
-            if (st.freeze == 25 || lf == 16 || lf == 80 || lf == 162) {
-                g.h.step();
-                px.push_back(g.pixels());
-                check(g.h.save_png(dir / std::format("{:02}-{}.png", px.size(), lf < 0 ? std::string("flash") : std::format("lock-{}", lf))).has_value());
-            }
+            const auto beat = std::ranges::find(beats, lf, &std::pair<std::int32_t, std::string_view>::first);
+            if (beat == beats.end()) continue;
+            g.h.step();
+            px.push_back(g.pixels());
+            check(g.h.save_png(dir / std::format("{:02}-{}-{}.png", px.size() - 1, lf, beat->second)).has_value());
         }
-        check(lock_from > 0, "the knee hit: the cinematic played");
-        check_eq(px.size(), std::size_t{5});
+        check(lock_from > 0, "the straight hit: the cinematic played");
+        check_eq(px.size(), beats.size() + 1);
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    ni level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("03892ce45ed9729c"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("819f3b4fc843cce0"));  // GCC and LLVM, every platform
     });
 
     s.test("坤's level 3: the ball spun on a finger, the bounce pass into the gut, the glide and 铁山靠, the catch behind his back as they crash down behind him — frames pinned", [] {

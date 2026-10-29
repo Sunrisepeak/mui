@@ -135,7 +135,13 @@ void Painter::fx(const Look& look, const Fx& fx, double age, Point origin, doubl
         const double t = age - s.from;
         if (!pic || t < 0 || t >= s.frames) continue;
         const double u = s.ease(s.frames > 1 ? t / (s.frames - 1) : 1.0);
-        quad(*pic, s.source, at(s.at.x, s.at.y), mix(s.size, u) * zoom, mix(s.turn, u), static_cast<float>(mix(s.alpha, u) * alpha), s.color);
+        // Where it is: at its place, or along the arc to its destination by the same eased time.
+        Point p = s.at;
+        if (s.to) {
+            const double k = u, arc = 4 * s.lift * k * (1 - k);
+            p = {static_cast<float>(s.at.x + (s.to->x - s.at.x) * k), static_cast<float>(s.at.y + (s.to->y - s.at.y) * k + arc)};
+        }
+        quad(*pic, s.source, at(p.x, p.y), mix(s.size, u) * zoom, mix(s.turn, u), static_cast<float>(mix(s.alpha, u) * alpha), s.color);
     }
 
     for (const FxSpray& s : fx.sprays) {

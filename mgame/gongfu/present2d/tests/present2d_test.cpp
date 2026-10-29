@@ -856,6 +856,17 @@ width = 24
 draw = 4
 hold = 4
 fade = 4
+
+[[fx.pass.sprite]]
+picture = "fx"
+source = [0, 0, 32, 32]
+at = [-100, 0]
+to = [100, 0]
+lift = 60
+frames = 11
+size = [20, 20]
+alpha = [1, 1]
+ease = "linear"
 )";
         auto look = p2::read_look(text, "ink.look.gongfu.toml");
         check(look.has_value(), look ? "" : std::format("{}", texts(look.error())));
@@ -887,6 +898,25 @@ fade = 4
         const auto k0 = inked("slash", 0), k3 = inked("slash", 3), k7 = inked("slash", 7);
         check(k0.first > 0 && k3.first > 2 * k0.first && k7.first == k3.first, std::format("drawn out along its curve, then held: {}, {}, {}", k0.first, k3.first, k7.first));
         check(inked("slash", 3).second == k3.second, "the same picture every time");
+        // A sprite travelling: from its place to its destination along an arc `lift` high at the middle.
+        auto centre = [&](double age) {
+            omui::render::DisplayList dl;
+            dl.fill_rect({0, 0, 400, 300}, Color::hex(0xffffff));
+            painter.fx(*look, look->fx.at("pass"), age, {0, 100}, 1, 1, scene, cam, dl);
+            omui::raster::Surface out(400, 300);
+            omui::render::CpuRenderer{}.render(dl, out, {&images, nullptr}, {.scale = 1});
+            double sx = 0, sy = 0, n = 0;
+            for (int y = 0; y < 300; ++y)
+                for (int x = 0; x < 400; ++x)
+                    if (out.at(x, y).r < 128) sx += x, sy += y, ++n;
+            return std::pair{n > 0 ? sx / n : -1.0, n > 0 ? sy / n : -1.0};
+        };
+        const auto [x0, y0] = centre(0);
+        const auto [x5, y5] = centre(5);
+        const auto [x10, y10] = centre(10);
+        // The picture's middle is x 200; the stage's 100 up is y 150 (ground 250).
+        check(std::abs(x0 - 100) < 2 && std::abs(x10 - 300) < 2 && std::abs(x5 - 200) < 2, std::format("along: {:.1f} {:.1f} {:.1f}", x0, x5, x10));
+        check(std::abs(y0 - y10) < 1 && std::abs((y0 - y5) - 60) < 2, std::format("over the arc: {:.1f} {:.1f} {:.1f}", y0, y5, y10));
         // The cut-in: sliding in, then across the band (the middle 40%).
         omui::render::DisplayList dl;
         dl.fill_rect({0, 0, 400, 300}, Color::hex(0xffffff));

@@ -80,7 +80,7 @@ constexpr std::array<std::string_view, 6> projectile_look_keys{"glyph", "size", 
 constexpr std::array<std::string_view, 6> hold_keys{"from", "to", "bone", "along", "body", "clip"};
 constexpr std::array<std::string_view, 9> pose_keys{"from", "aim", "rise", "grip", "grip_at", "grip_across", "swap", "show", "doc"};
 constexpr std::array<std::string_view, 3> fx_keys{"sprite", "stroke", "spray"};
-constexpr std::array<std::string_view, 10> fx_sprite_keys{"picture", "source", "at", "from", "frames", "size", "turn", "alpha", "ease", "color"};
+constexpr std::array<std::string_view, 12> fx_sprite_keys{"picture", "source", "at", "to", "lift", "from", "frames", "size", "turn", "alpha", "ease", "color"};
 constexpr std::array<std::string_view, 9> fx_stroke_keys{"picture", "source", "points", "width", "from", "draw", "hold", "fade", "color"};
 constexpr std::array<std::string_view, 12> fx_spray_keys{"picture", "sources", "at", "from", "frames", "count", "speed", "angle", "size", "gravity", "seed", "color"};
 constexpr std::array<std::string_view, 11> panel_keys{"picture", "source", "from", "to", "in", "out", "y", "height", "slant", "pan", "band"};
@@ -523,6 +523,12 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
                     sp.picture = picture_index(e.get("picture"), "a sprite's `picture`");
                     if (auto v = r.rect(e.get("source"), "a sprite's `source`")) sp.source = *v, inside(e.get("source"), sp.picture, *v);
                     point(e.get("at"), "a sprite's `at`", sp.at);
+                    if (e.get("to")) {
+                        Point to;
+                        point(e.get("to"), "a sprite's `to`", to);
+                        sp.to = to;
+                    }
+                    if (auto v = r.number(e.get("lift"), "a sprite's `lift`", -10000, 10000)) sp.lift = static_cast<float>(*v);
                     if (auto v = r.integer(e.get("from"), "a sprite's `from`", 0, 6000)) sp.from = *v;
                     if (auto v = r.integer(e.get("frames"), "a sprite's `frames`", 1, 6000)) sp.frames = *v;
                     range(e.get("size"), "a sprite's `size`", sp.size);
@@ -1795,6 +1801,8 @@ std::string write_look(const Look& look) {
             s += std::format("\n[[fx.{}.sprite]]\npicture = \"{}\"\nsource = {}\nat = [{}, {}]\nfrom = {}\nframes = {}\nsize = [{}, {}]\nturn = [{}, {}]\nalpha = [{}, {}]\nease = \"{}\"\n",
                              key_text(name), pic(e.picture), rect_text(e.source), e.at.x, e.at.y, e.from, e.frames, e.size[0], e.size[1], e.turn[0], e.turn[1], e.alpha[0],
                              e.alpha[1], hanim::to_string(e.ease));
+            if (e.to) s += std::format("to = [{}, {}]\n", e.to->x, e.to->y);
+            if (e.lift != 0) s += std::format("lift = {}\n", e.lift);
             colour_line(e.color);
         }
         for (const FxStroke& e : fx.strokes) {

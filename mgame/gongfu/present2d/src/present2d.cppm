@@ -117,10 +117,12 @@ enum class Flash : std::uint8_t { none, white, invert };
 // draws it again the same. Named in the look ([fx.<name>]); an impact, a
 // projectile, a clip and a cinematic name the ones they play. Places are
 // from the effect's origin, forward and up (mirrored with the facing).
-struct FxSprite {  // a picture's region at a point, growing, turning, fading
+struct FxSprite {  // a picture's region at a point (or travelling to another along an arc), growing, turning, fading
     std::int32_t         picture = -1;
     omui::geom::Rect     source;
     Point                at;
+    std::optional<Point> to;             // where it travels to over its frames (a ball passed, a blade thrown)
+    float                lift = 0;       // the arc's height at the middle of the way (stage units; negative: a dip)
     std::int32_t         from = 0, frames = 12;
     std::array<float, 2> size{40, 40};   // its height, stage units: from → to
     std::array<float, 2> turn{0, 0};     // degrees, counter-clockwise

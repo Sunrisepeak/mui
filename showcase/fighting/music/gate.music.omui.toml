@@ -1,0 +1,351 @@
+doc = """岳 Yue's mountain gate: an ancient stone gateway above a sea of clouds at
+sunset. Horns carry a broad theme in D minor over a low string ostinato, taiko
+and a great drum shake the ground, a bell marks the sections — slow, heavy and
+unshakeable, like him.
+
+Intensity (0–1) adds parts at the next bar: below 0.35 the horns, the pad,
+the ostinato and the great drum on the downbeats; from 0.35 the taiko groove
+and the sub bass; from 0.6 the full drums and the high strings; from 0.85 the
+crash and a second horn an octave up.
+
+96 beats a minute; a two-bar intro, then a loop of 16 bars (A, B) — A over
+Dm Bb C Dm, B rising over F C Dm Bb and landing on A for the return."""
+
+[music]
+name = "gate"
+tempo = 96
+meter = [4, 4]
+gain = 0.42
+
+# ── patches: the built-ins, shaded ───────────────────────────────────────
+
+[patch.horn]
+base = "saw_lead"
+amp = { attack = 0.06, decay = 0.4, sustain = 0.85, release = 0.35 }
+filter = { cutoff = 1100, q = 0.7, envelope = 1.4, attack = 0.08, decay = 0.5, sustain = 0.45 }
+vibrato = { depth = 8, delay = 0.5 }
+
+[patch.low_pad]
+base = "pad"
+filter = { cutoff = 600, envelope = 1 }
+
+[patch.cello]
+base = "strings"
+amp = { attack = 0.01, decay = 0.25, sustain = 0.5, release = 0.15 }
+filter = { cutoff = 1300 }
+
+# ── instruments ──────────────────────────────────────────────────────────
+
+[instrument.lead]
+patch = "horn"
+gain = 1
+pan = 0.05
+legato = 1
+voices = 6
+sends = { hall = 0.35 }
+
+[instrument.horn2]
+patch = "horn"
+gain = 0.6
+pan = -0.2
+legato = 1
+voices = 6
+sends = { hall = 0.4 }
+
+[instrument.pad]
+patch = "low_pad"
+bus = "pads"
+gain = 0.36
+legato = 1
+voices = 8
+sends = { hall = 0.4 }
+
+[instrument.ostinato]
+patch = "cello"
+gain = 1.1
+pan = -0.25
+humanize = 0.2
+voices = 8
+sends = { hall = 0.25 }
+
+[instrument.strings]
+patch = "strings"
+gain = 0.42
+pan = 0.3
+legato = 1
+sends = { hall = 0.4 }
+
+[instrument.bell]
+patch = "bell"
+gain = 0.45
+pan = 0.2
+transpose = -12
+legato = 1
+sends = { hall = 0.6 }
+
+[instrument.bass]
+patch = "sub_bass"
+bus = "low"
+gain = 0.85
+legato = 0.8
+
+[instrument.great]
+patch = "taiko"
+bus = "drums"
+gain = 0.85
+transpose = -7
+sends = { hall = 0.3 }
+
+[instrument.taiko]
+patch = "taiko"
+bus = "drums"
+gain = 0.62
+humanize = 0.15
+sends = { hall = 0.2 }
+
+[instrument.taiko_hi]
+patch = "tom"
+bus = "drums"
+gain = 0.55
+pan = 0.2
+transpose = 5
+humanize = 0.2
+sends = { hall = 0.15 }
+
+[instrument.snare]
+patch = "snare"
+bus = "drums"
+gain = 0.45
+sends = { hall = 0.3 }
+
+[instrument.crash]
+patch = "crash"
+bus = "drums"
+gain = 0.32
+sends = { hall = 0.25 }
+
+# ── buses ────────────────────────────────────────────────────────────────
+
+[bus.hall]
+effects = [
+    { kind = "reverb", size = 0.92, damping = 0.5, predelay = 0.04, wet = 1, dry = 0 },
+    { kind = "highpass", cutoff = 180 },
+]
+
+[bus.pads]
+effects = [{ kind = "chorus", delay = 0.016, depth = 0.003, rate = 0.2, wet = 0.4 }]
+
+[bus.drums]
+
+[bus.low]
+duck = { key = "drums", depth = 0.3, threshold = 0.35, attack = 0.002, release = 0.12 }
+
+# ── the intro ────────────────────────────────────────────────────────────
+
+[pattern.intro_bell]
+instrument = "bell"
+step = "1/1"
+notes = "D5 | A4"
+
+[pattern.intro_pad]
+instrument = "pad"
+step = "1/1"
+notes = "D2+F2+A2+D3 | A2+Db3+E3+A3"
+
+[pattern.intro_drums]
+step = "1/16"
+
+[pattern.intro_drums.lanes]
+great = "X............... | X.......X......."
+taiko = "................ | ........x.x.xxXX"
+
+# ── the theme (horns) ────────────────────────────────────────────────────
+
+[pattern.theme_a]
+instrument = "lead"
+notes = """D4:3! F4 A4:4 |
+Bb4:4! A4:2 G4:2 |
+G4:3! A4 C5:4 |
+D5:6! C5? A4? |
+D4:3! F4 A4:2 D5:2 |
+F5:4! D5:2 Bb4:2 |
+G4:3! Bb4 D5:2 C5:2 |
+A4:8! |
+"""
+
+[pattern.theme_b]
+instrument = "lead"
+notes = """A5:3! G5 F5:2 C5:2 |
+E5:4! G5:4 |
+F5:3! E5 D5:2 A4:2 |
+D5:8! |
+G5:3! F5 D5:2 Bb4:2 |
+C5:3! D5 E5:2 G5:2 |
+A5:4! G5:2 E5:2 |
+C#5:4! E5:4 |
+"""
+
+[pattern.bell_d]
+instrument = "bell"
+step = "1/1"
+notes = "D5"
+
+# ── harmony ──────────────────────────────────────────────────────────────
+
+[pattern.pad_a]
+instrument = "pad"
+step = "1/1"
+notes = "D2+F2+A2+D3 | Bb2+D3+F3+Bb3 | C3+E3+G3+C4 | D2+F2+A2+D3 | D2+F2+A2+D3 | Bb2+D3+F3+Bb3 | G2+Bb2+D3+G3 | A2+Db3+E3+A3"
+
+[pattern.pad_b]
+instrument = "pad"
+step = "1/1"
+notes = "F2+A2+C3+F3 | C3+E3+G3+C4 | D2+F2+A2+D3 | Bb2+D3+F3+Bb3 | G2+Bb2+D3+G3 | C3+E3+G3+C4 | A2+Db3+E3+A3 | A2+Db3+E3+A3"
+
+[pattern.ost_a]
+instrument = "ostinato"
+notes = """
+D2! D3? A3 D3? D2! D3? A3 D3? | Bb2! Bb3? F4 Bb3? Bb2! Bb3? F4 Bb3? |
+C3! C4? G4 C4? C3! C4? G4 C4? | D2! D3? A3 D3? D2! D3? A3 D3? |
+D2! D3? A3 D3? D2! D3? A3 D3? | Bb2! Bb3? F4 Bb3? Bb2! Bb3? F4 Bb3? |
+G2! G3? D4 G3? G2! G3? D4 G3? | A2! A3? E4 A3? A2! A3? E4 A3? |
+"""
+
+[pattern.ost_b]
+instrument = "ostinato"
+notes = """
+F2! F3? C4 F3? F2! F3? C4 F3? | C3! C4? G4 C4? C3! C4? G4 C4? |
+D2! D3? A3 D3? D2! D3? A3 D3? | Bb2! Bb3? F4 Bb3? Bb2! Bb3? F4 Bb3? |
+G2! G3? D4 G3? G2! G3? D4 G3? | C3! C4? G4 C4? C3! C4? G4 C4? |
+A2! A3? E4 A3? A2! A3? E4 A3? | A2! A3? E4 A3? A2! A3? E4 A3? |
+"""
+
+[pattern.strings_a]
+instrument = "strings"
+step = "1/2"
+notes = "F5:2 | F5 D5 | E5:2 | F5 A5 | A5:2 | D6 Bb5 | Bb5 G5 | A5 C#6"
+
+[pattern.strings_b]
+instrument = "strings"
+step = "1/2"
+notes = "C6:2 | G5 C6 | A5:2 | F5 D5 | D5 Bb5 | G5 E5 | E5 C#6 | E6:2"
+
+[pattern.bass_a]
+instrument = "bass"
+notes = """
+D1:4! D1:3 D2? | Bb1:4! Bb1:3 Bb2? |
+C2:4! C2:3 C3? | D1:4! D1:3 D2? |
+D1:4! D1:3 D2? | Bb1:4! Bb1:3 Bb2? |
+G1:4! G1:3 G2? | A1:4! A1:3 A2? |
+"""
+
+[pattern.bass_b]
+instrument = "bass"
+notes = """
+F1:4! F1:3 F2? | C2:4! C2:3 C3? |
+D1:4! D1:3 D2? | Bb1:4! Bb1:3 Bb2? |
+G1:4! G1:3 G2? | C2:4! C2:3 C3? |
+A1:4! A1:3 A2? | A1:4! A1:3 A2? |
+"""
+
+# ── drums (sixteenths) ───────────────────────────────────────────────────
+
+[pattern.drums_soft]
+step = "1/16"
+
+[pattern.drums_soft.lanes]
+great = "X.......x......."
+
+[pattern.drums_mid]
+step = "1/16"
+
+[pattern.drums_mid.lanes]
+great = "X............... | X.......X......."
+taiko = "....x.x.X...x.x. | ....x.x.X.x.xxXX"
+
+[pattern.drums_full]
+step = "1/16"
+
+[pattern.drums_full.lanes]
+great    = "X.......X....... | X.......X...X..."
+taiko    = "..x.x.x.X.x.x.x. | ..x.x.x.X.x.xxXX"
+taiko_hi = "......x.......x. | ...x..x...x.x.xx"
+snare    = "....X.......X... | ....X.......X..X"
+
+[pattern.crash]
+step = "1/16"
+
+[pattern.crash.lanes]
+crash = "X..............."
+
+# ── the outro ────────────────────────────────────────────────────────────
+
+[pattern.end_lead]
+instrument = "lead"
+notes = "A4:2! F4 E4 D4:4! | .:8"
+
+[pattern.end_pad]
+instrument = "pad"
+step = "1/1"
+notes = "D2+F2+A2+D3:2"
+
+[pattern.end_drums]
+step = "1/16"
+
+[pattern.end_drums.lanes]
+great = "X............... | ................"
+
+# ── sections ─────────────────────────────────────────────────────────────
+
+[section.intro]
+bars = 2
+layers = [
+    { pattern = "intro_bell" },
+    { pattern = "intro_pad" },
+    { pattern = "intro_drums" },
+]
+
+[section.a]
+bars = 8
+layers = [
+    { pattern = "theme_a" },
+    { pattern = "pad_a" },
+    { pattern = "ost_a" },
+    { pattern = "bell_d", times = 1, intensity = [0, 0.6] },
+    { pattern = "drums_soft", intensity = [0, 0.35] },
+    { pattern = "drums_mid", intensity = [0.35, 0.6] },
+    { pattern = "drums_full", intensity = [0.6, 1] },
+    { pattern = "bass_a", intensity = [0.35, 1] },
+    { pattern = "strings_a", intensity = [0.6, 1] },
+    { pattern = "theme_a", instrument = "horn2", transpose = 12, intensity = [0.85, 1] },
+    { pattern = "crash", times = 1, intensity = [0.85, 1] },
+]
+
+[section.b]
+bars = 8
+layers = [
+    { pattern = "theme_b" },
+    { pattern = "pad_b" },
+    { pattern = "ost_b" },
+    { pattern = "bell_d", times = 1, intensity = [0, 0.6] },
+    { pattern = "drums_soft", intensity = [0, 0.35] },
+    { pattern = "drums_mid", intensity = [0.35, 0.6] },
+    { pattern = "drums_full", intensity = [0.6, 1] },
+    { pattern = "bass_b", intensity = [0.35, 1] },
+    { pattern = "strings_b", intensity = [0.6, 1] },
+    { pattern = "theme_b", instrument = "horn2", transpose = -12, intensity = [0.85, 1] },
+    { pattern = "crash", times = 1, intensity = [0.85, 1] },
+]
+
+[section.end]
+bars = 2
+layers = [
+    { pattern = "end_lead" },
+    { pattern = "end_pad" },
+    { pattern = "end_drums" },
+]
+
+[arrangement]
+intro = ["intro"]
+loop = ["a", "b"]
+outro = ["end"]

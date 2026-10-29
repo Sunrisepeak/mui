@@ -85,7 +85,7 @@ const Roster& roster() {
             out.art.emplace(std::string(file), art_of(*decoded[i].image));
             if (decoded[i].normal) out.normals.emplace(std::string(file), art_of(*decoded[i].normal));
         }
-        out.homes = {{"mo", "study"}, {"ni", "street"}, {"kun", "rooftop"}};  // the rest's to come (quality design §5)
+        out.homes = {{"mo", "study"}, {"ni", "street"}, {"kun", "rooftop"}, {"li", "greenhouse"}, {"yue", "gate"}, {"ke", "clock"}};  // the quality design §5
         return out;
     }();
     return r;

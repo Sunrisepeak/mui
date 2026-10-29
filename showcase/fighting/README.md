@@ -64,6 +64,11 @@ mcpp run -p openmui.showcase.fighting -- --headless --png fight.png
   - 墨's study at night: a moon gate open on ink-wash mountains.
   - 霓's neon alley in the rain.
   - 坤's rooftop at blue hour.
+  - 璃's glass greenhouse in morning light.
+  - 岳's stone mountain gate above a sea of clouds at sunset.
+  - 刻's clock tower: gears and a pendulum behind a glowing dial at dusk.
+
+  Each home has its own theme in `music/`, layered by intensity: the study, the street, the rooftop, the greenhouse (a glockenspiel and a harp), the gate (horns over taiko) and the clock (a tick, pizzicato and a reed).
 
   `gongfu-studio stage` previews a stage with two fighters for scale.
 

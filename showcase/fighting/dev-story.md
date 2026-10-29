@@ -170,6 +170,12 @@ The tools' openmui interfaces (a rig editor, a pose editor with IK handles, a ti
   - keep foreground pieces out of the fighters' zone (never over their legs at a corner).
 
   A narrow back wall is extended by mirrored copies at its sides, so it covers the widest zoom.
+
+  The second set (璃's greenhouse, 岳's mountain gate, 刻's clock tower) was generated with the first two sheets and a frame of the game as references, so it matches them. Previewing caught two more problems:
+  - the gate's wall at the first set's scale cut off the paifang's roof, so it is drawn smaller;
+  - the clock tower's catwalk ran behind the fighters' heads, its girders busying their band, so its wall is cropped at the deck and raised above them.
+
+  A front layer generated with a balustrade across its whole bottom was redrawn sparse; the rule "nothing in the middle" has to be checked, not only asked for.
 - **The HUD** (black lacquer, gold leaf, a red seal) is generated art cut into frames, lettering, the names' calligraphy and fills. Its parts:
   - portraits (each look's head);
   - health with the brush texture and the recent damage draining;
@@ -200,7 +206,15 @@ The tools' openmui interfaces (a rig editor, a pose editor with IK handles, a ti
   - `sounds/fighters.sound.omui.toml` processes them into each fighter, and the names say what each take is (`<fighter>_hurt_<n>`, `<fighter>_ko`, `<fighter>_effort_<n>`). 墨's takes are a touch slower and softened. 霓's are quicker and higher, driven, the low end thinned. 坤's are lower and darker.
   - What is said follows the match's events. A heavy blow (800 damage and up) or a counter makes the struck one cry out 3 frames after the crack, with a breath (36 frames) before the next cry, so a combo is not a chorus. The striker strains with a heavy blow. A K.O. is the fall alone, without a cry as well. The take comes from the frame, so the same fight says the same; `Sounds::spoken()` counts them for tests and agents.
   - Not yet: 墨 and 霓 share one actress, told apart only by processing; 璃, 岳 and 刻 are silent; efforts come at contact rather than at a move's start.
-- **Music**: `music/*.music.omui.toml` pieces — patches, patterns as readable note text, sections, an arrangement, and layers by intensity — played by `openmui.audio`'s sequencer. The stage starts its home's piece with the round; the music rises as the lower health falls, and plays fully under a super. The round over, the piece goes to its outro over the finish.
+- **Music**: `music/*.music.omui.toml` pieces — patches, patterns as readable note text, sections, an arrangement, and layers by intensity — played by `openmui.audio`'s sequencer. The stage starts its home's piece with the round; the music rises as the lower health falls, and plays fully under a super. The round over, the piece goes to its outro over the finish. Six homes, six pieces:
+  - the study: guzheng in D minor, 128 BPM;
+  - the street: drum and bass in F minor, 168 BPM;
+  - the rooftop: boom-bap in C minor, 92 BPM;
+  - the greenhouse: a glockenspiel theme and a harp's answer over glassy pads and a celesta arpeggio, in F-sharp minor, 132 BPM;
+  - the gate: horns over a low string ostinato, taiko and a great drum, in D minor, 96 BPM;
+  - the clock: a woodblock tick and tock under pizzicato turning like gears, a reedy lead and chimes, in G minor, 120 BPM.
+
+  Each is balanced with `omui-music stats`, at each intensity, against the others: about −20 LUFS calm and −16 under a super, no instrument buried. The gate's cello ostinato first measured −36 LUFS and was doubled.
 - **The menus' music**: the main theme (`music/menu.music.omui.toml`, E minor at 96) gathers the three homes: 墨's dizi and guzheng, 坤's sub bass and boom-bap kit, 霓's wide saw at the top. The select screen drives its intensity as a match drives a stage's: calm on the title, the beat on the select screen, all of it once a player is ready. It fades under the VS and is finished behind the fight, so the menus and the fight never play over each other.
   - The cues (`sounds/menu.sound.omui.toml`: a move, a choice, a step back, a player ready, the VS) are pitched in the theme's key and panned to the player's side.
   - The first renders put the VS 17 dB over the music, since two players ready on one frame sum into one loud gong. The levels were set by rendering the menus offline and reading their loudness every quarter second, the way `omui-music stats` reads a piece. The VS now stands about 10 dB over the music for a moment.

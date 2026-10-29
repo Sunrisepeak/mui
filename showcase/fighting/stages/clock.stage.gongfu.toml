@@ -1,0 +1,110 @@
+# 刻's clock tower (the quality design's §5): the inside of a great clock
+# at dusk, painted in layers (stages/art, generated and keyed by
+# gongfu-studio): the back of the huge glowing dial, rooftops and a teal
+# sky beyond it; brass and iron gears meshing at their depths, the long
+# pendulum, chains and weights, a catwalk and lamps; old floorboards with a
+# brass compass inlaid, long gear shadows; a clockmaker's bench with an
+# orrery, and a grandfather clock with ledgers and an hourglass; gears and
+# a chain in front. The light comes from the dial behind, amber, and the
+# lamps.
+gongfu = "0.1"
+name = "clock"
+sky = ["#10222a", "#3a2a1e"]
+floor = "#2a1e16"
+line = "#120c08"
+marks = false
+light = { from = [0.0, -1.0], shadow = "#0c1a20", rim_color = "#ffb860cc" }
+
+[[picture]]
+name = "far"
+file = "art/clock-far.webp"
+size = [1152, 768]
+
+[[picture]]
+name = "mid"
+file = "art/clock-mid.webp"
+size = [1152, 768]
+
+[[picture]]
+name = "floor"
+file = "art/clock-floor.webp"
+size = [1152, 300]
+
+[[picture]]
+name = "near"
+file = "art/clock-near.webp"
+size = [1152, 768]
+
+[[picture]]
+name = "front"
+file = "art/clock-front.webp"
+size = [1152, 768]
+
+[[layer]]
+name = "the dial and the sky"
+parallax = 0.15
+[[layer.image]]
+picture = "far"
+source = [0, 0, 1152, 768]
+at = [370, -250]
+width = 1180
+
+[[layer]]
+name = "floorboards"
+parallax = 0.9
+[[layer.image]]
+picture = "floor"
+source = [0, 0, 1152, 300]
+at = [-400, -150]
+width = 2720
+height = 230
+
+[[layer]]
+name = "gears, pendulum and catwalk"
+parallax = 0.5
+[[layer.image]]
+picture = "mid"
+source = [0, 0, 1152, 555]
+at = [210, 190]
+width = 1500
+[[layer.image]]
+picture = "mid"
+source = [0, 0, 1152, 555]
+at = [-1290, 190]
+width = 1500
+flip = true
+[[layer.image]]
+picture = "mid"
+source = [0, 0, 1152, 555]
+at = [1710, 190]
+width = 1500
+flip = true
+
+[[layer]]
+name = "bench and clock"
+parallax = 0.92
+[[layer.image]]
+picture = "near"
+source = [0, 104, 463, 659]
+at = [-80, 0]
+width = 290
+[[layer.image]]
+picture = "near"
+source = [775, 0, 376, 753]
+at = [1700, 0]
+width = 250
+
+[[layer]]
+name = "gears and chain"
+parallax = 1.3
+front = true
+[[layer.image]]
+picture = "front"
+source = [0, 0, 262, 640]
+at = [-200, -60]
+width = 170
+[[layer.image]]
+picture = "front"
+source = [923, 0, 229, 197]
+at = [1920, 330]
+width = 180

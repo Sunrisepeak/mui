@@ -362,6 +362,33 @@ int main(int argc, char** argv) {
         check_eq(px, std::uint64_t{0xcd6fb3879929b1b3});  // GCC and LLVM
     });
 
+    s.test("璃's home, the greenhouse: a misty garden through bending panes, white iron arches with palms and hanging ferns, wet tile catching the light, a fountain and a stand of terrariums — pinned with 墨 and 霓 on it", [] {
+        Game g("versus", "mo", "ni", 1, "greenhouse");
+        g.h.advance(seconds(1.5));
+        check(g.h.save_png(scratch_dir("fighting-greenhouse") / "greenhouse.png").has_value());
+        const auto px = g.pixels();
+        std::println("    greenhouse {:016x}", px);
+        check_eq(px, std::uint64_t{0xbde17fee5c1c1cee});  // GCC and LLVM
+    });
+
+    s.test("岳's home, the gate: a sea of clouds at sunset framed by a stone gateway, guardian lions and banners, worn granite, an incense cauldron and a great bell — pinned with 墨 and 霓 on it", [] {
+        Game g("versus", "mo", "ni", 1, "gate");
+        g.h.advance(seconds(1.5));
+        check(g.h.save_png(scratch_dir("fighting-gate") / "gate.png").has_value());
+        const auto px = g.pixels();
+        std::println("    gate {:016x}", px);
+        check_eq(px, std::uint64_t{0xa26f78bceff397e6});  // GCC and LLVM
+    });
+
+    s.test("刻's home, the clock: the back of a glowing dial, gears and a pendulum over a catwalk, a brass compass in the floorboards, a clockmaker's bench and a grandfather clock — pinned with 墨 and 霓 on it", [] {
+        Game g("versus", "mo", "ni", 1, "clock");
+        g.h.advance(seconds(1.5));
+        check(g.h.save_png(scratch_dir("fighting-clock") / "clock.png").has_value());
+        const auto px = g.pixels();
+        std::println("    clock {:016x}", px);
+        check_eq(px, std::uint64_t{0x9c3bed58ab0048f6});  // GCC and LLVM
+    });
+
     s.test("the README's loop: 墨's level 3 in her study, from the flash's cut-in to the finishing blow, an animated WebP under 1 MB", [] {
         Game g("training", "mo", "ni", 0.5f, "study", false);  // 480 × 270: a README's width; training's meter, not its overlays
         check(g.act("pause"));

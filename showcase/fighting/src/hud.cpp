@@ -544,13 +544,16 @@ void versus(render::DisplayList& out, const gongfu::Match& match, const p2::Effe
         picture(out, art.type, src, {x, 186, w, h}, fade);
         break;
     }
-    // K.O.: stamped down in the middle, and held.
+    // K.O.: stamped down in the middle for the blow's moment, then up under the timer, smaller, so the
+    // winner and the fallen are seen while the round plays out.
     for (auto it = kept.rbegin(); it != kept.rend(); ++it) {
         if (it->event.kind != gongfu::Event::Kind::ko) continue;
         const std::int32_t age = frame - it->frame;
         const float t = static_cast<float>(hanim::ease::out_cubic(std::min(1.0, (age + 1) / 8.0)));
-        const float h = 150 * (1.7f - 0.7f * t), w = placed(region::ko, h);
-        picture(out, art.type, region::ko, {width / 2 - w / 2, 230 - h / 2, w, h}, std::min(1.0f, t * 1.5f));
+        const float up = static_cast<float>(hanim::ease::in_out_cubic(std::clamp((age - 45) / 20.0, 0.0, 1.0)));
+        const float h = 150 * (1.7f - 0.7f * t) * (1 - 0.45f * up), w = placed(region::ko, h);
+        const float y = 230 - 80 * up;
+        picture(out, art.type, region::ko, {width / 2 - w / 2, y - h / 2, w, h}, std::min(1.0f, t * 1.5f));
         break;
     }
     // FIGHT! as the round begins.

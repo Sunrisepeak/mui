@@ -421,6 +421,7 @@ const std::vector<Case>& cases() {
         {"effect neon", [](render::DisplayList& dl, Rig&) { effect_scene(dl, "neon", {{"radius", 10}, {"intensity", 1.2f}, {"sweep", 0.35f}}); }, {1, 0}},
         {"effect crt", [](render::DisplayList& dl, Rig&) { effect_scene(dl, "crt", {{"curvature", 0.12f}, {"scanlines", 0.6f}, {"mask", 0.4f}}); }, {1, 0}},
         {"effect paper", [](render::DisplayList& dl, Rig&) { effect_scene(dl, "paper", {{"grain", 0.6f}, {"warmth", 0.8f}, {"grain_size", 2}}); }, {1, 0}},
+        {"effect tone", [](render::DisplayList& dl, Rig&) { effect_scene(dl, "tone", {{"color_r", 0.85f}, {"color_g", 0.81f}, {"color_b", 0.74f}, {"amount", 0.8f}}); }, {1, 0}},
         {"effect wobble", [](render::DisplayList& dl, Rig&) { effect_scene(dl, "wobble", {{"amount", 3}, {"size", 14}, {"ink", 0.8f}}); }, {1, 0}},
         {"effect metaball",
          [](render::DisplayList& dl, Rig&) {

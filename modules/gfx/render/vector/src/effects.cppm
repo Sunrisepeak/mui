@@ -40,6 +40,7 @@ export import :crt_shaders;
 export import :paper_shaders;
 export import :wobble_shaders;
 export import :metaball_shaders;
+export import :tone_shaders;
 // The template's text (effects/lib/openmui_effect.slang), for a program's
 // effects compiled while it runs (openmui.render.effect).
 export import :effect_template;

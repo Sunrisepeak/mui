@@ -502,6 +502,26 @@ void paper(const EffectInput& in) {
     });
 }
 
+// tone: the layer in one colour — each pixel's brightness (Rec. 709 luma)
+// kept, its hue the tint's (the tint's brightest channel at full), mixed by
+// `amount`: a world gone grey while time stands still, a memory, a page
+// that is not in use.
+void tone(const EffectInput& in) {
+    const float tr = clamp01(in.params[0]), tg = clamp01(in.params[1]), tb = clamp01(in.params[2]), amount = clamp01(in.params[3]);
+    const float top = std::max({tr, tg, tb, 0.001f});
+    const float kr = tr / top, kg = tg / top, kb = tb / top;
+    each_pixel(in, [&](int, int, Rgba8 s) {
+        if (s.a == 0) return s;
+        const float a = static_cast<float>(s.a);
+        const float y = 0.2126f * static_cast<float>(s.r) + 0.7152f * static_cast<float>(s.g) + 0.0722f * static_cast<float>(s.b);
+        auto ch = [&](std::uint8_t c, float k) {
+            const float v = static_cast<float>(c);
+            return q8(v + (std::min(y * k, a) - v) * amount);
+        };
+        return Rgba8{ch(s.r, kr), ch(s.g, kg), ch(s.b, kb), s.a};
+    });
+}
+
 // wobble: lines as if drawn by hand — the layer pushed about by a smooth
 // noise (`amount` logical pixels, features `size` wide; a new `seed`, a new
 // drawing: animate it in steps for a hand-drawn boil), inked at its edges.
@@ -702,6 +722,12 @@ void register_builtins(EffectRegistry& r) {
         glass.backdrop_blur = [](std::span<const float> p) { return p[2]; };
         r.add(std::move(glass));
     }
+    r.add(local({"tone", "The layer in one colour: each pixel's brightness kept, its hue the tint's (a world grey while time stands still).",
+           {{"color_r", 0.79f, 0, 1, "the tint, red"},
+            {"color_g", 0.76f, 0, 1, "green"},
+            {"color_b", 0.71f, 0, 1, "blue"},
+            {"amount", 1, 0, 1, "how far toward the tint (0: as it is)"}},
+           no_reach, tone, pixel(fx::tone::tone_fs)}));
 }
 
 }  // namespace

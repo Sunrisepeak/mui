@@ -232,6 +232,36 @@ int main(int argc, char** argv) {
         check_eq(all.hex(), std::string("40df5182c5755cb0"));
     });
 
+    s.test("tone: the layer in one colour, its brightness kept; amount 0 is the layer as it is — pinned", [] {
+        render::DisplayList dl;
+        scene(dl, std::nullopt);
+        const auto plain = draw(dl);
+        using P = std::vector<std::pair<std::string_view, float>>;
+        scene(dl, std::pair{std::string_view("tone"), P{{"amount", 0}}});
+        check(draw(dl).hash() == plain.hash(), "amount 0: as it is");
+        // A neutral tint: every pixel grey, as bright as it was.
+        scene(dl, std::pair{std::string_view("tone"), P{{"color_r", 1}, {"color_g", 1}, {"color_b", 1}}});
+        const auto grey = draw(dl);
+        save(grey, "tone-grey");
+        // Inside the card's rounded corners (beyond them the backdrop shows, which the layer does not hold).
+        for (int y = static_cast<int>(layer.y) + 14; y < static_cast<int>(layer.bottom()) - 14; y += 7)
+            for (int x = static_cast<int>(layer.x) + 14; x < static_cast<int>(layer.right()) - 14; x += 7) {
+                const auto c = grey.at(x, y), o = plain.at(x, y);
+                check(c.r == c.g && c.g == c.b, std::format("grey at {},{}: {} {} {}", x, y, c.r, c.g, c.b));
+                const float luma = 0.2126f * o.r + 0.7152f * o.g + 0.0722f * o.b;
+                check(std::abs(static_cast<float>(c.r) - luma) <= 1.5f, std::format("as bright at {},{}: {} for {}", x, y, c.r, luma));
+            }
+        // A warm tint, half way: the stop of a clock.
+        scene(dl, std::pair{std::string_view("tone"), P{{"color_r", 0.85f}, {"color_g", 0.81f}, {"color_b", 0.74f}, {"amount", 0.8f}}});
+        const auto warm = draw(dl);
+        save(warm, "tone-warm");
+        Hash all;
+        all.u64(grey.hash());
+        all.u64(warm.hash());
+        std::println("    tone {}", all.hex());
+        check_eq(all.hex(), std::string("b05e4b5bbb0ecfb2"));  // GCC and LLVM, every platform
+    });
+
     s.test("progress 0 is the layer as it is (1 for reveal)", [] {
         render::DisplayList dl;
         scene(dl, std::nullopt);

@@ -28,10 +28,13 @@ int main() {
     // The stages' music (openmui.audio's pieces).
     const bool music = openmui::rules::embed({.module = "openmui.showcase.fighting", .ns = "omui::fighting::files", .dir = "music",
                                               .suffix = ".music.omui.toml", .tag = "music", .index = true});
+    // The announcer's recordings (voice/*.wav, Kenney's CC0 Voiceover Pack: Fighter).
+    const bool voice = openmui::rules::embed({.module = "openmui.showcase.fighting", .ns = "omui::fighting::files", .dir = "voice",
+                                              .suffix = ".wav", .tag = "voice", .index = true});
     // What a gamepad's buttons do (controls/*.controls.omui.json): data, so it can be remapped.
     const bool controls = openmui::rules::embed({.module = "openmui.showcase.fighting", .ns = "omui::fighting::files", .dir = "controls",
                                                  .suffix = ".controls.omui.json", .tag = "controls"});
     // On the Web, a Bilibili Toy package (D-84 §8.9): mcpp pack --target wasm32-emscripten --pkg-format dist-toy.
     const bool toy = openmui::rules::dist_toy({.target = "omui-fight", .title = "格斗游戏", .fonts = {"Inter", "NotoSansSC"}, .background = "#0b0d12"});
-    return stage && fighters && sounds && stages && stage_art && art && hud && music && controls && toy ? 0 : 1;
+    return stage && fighters && sounds && stages && stage_art && art && hud && music && voice && controls && toy ? 0 : 1;
 }

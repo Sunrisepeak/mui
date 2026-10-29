@@ -40,7 +40,11 @@ bool audible(gongfu::Event::Kind k) {
 }  // namespace
 
 Sounds::Sounds() : mixer_(std::make_unique<audio::Mixer>()) {
-    for (const auto& [text, file] : {std::pair{files::fight_sound, "fight.sound.omui.toml"}, std::pair{files::menu_sound, "menu.sound.omui.toml"}})
+    for (const auto& [file, data] : files::voice_files)  // the announcer's recordings, by their files' names, before the sounds that play them
+        if (auto r = audio::read_wav(std::as_bytes(std::span(data.data(), data.size()))))
+            mixer_->add_recording(file.substr(0, file.find('.')), r->samples, r->rate);
+    for (const auto& [text, file] : {std::pair{files::fight_sound, "fight.sound.omui.toml"}, std::pair{files::menu_sound, "menu.sound.omui.toml"},
+                                     std::pair{files::voice_sound, "voice.sound.omui.toml"}})
         if (auto sounds = audio::read_sounds(text, file))
             for (const auto& s : *sounds) mixer_->add(s);
     mixer_->add_effect("sfx", audio::echo(0.11f, 0.22f, 0.18f, mixer_->rate()));  // the hall the stage stands in
@@ -87,8 +91,9 @@ void Sounds::theme(float intensity, float gain) {
     }
 }
 
-void Sounds::cue(std::string_view name, std::int32_t frame, float gain, float pan) {
-    play(name, live_ ? mixer_->clock() + audio::block_frames : base_ + static_cast<std::int64_t>(frame) * frame_samples(), gain, pan);
+void Sounds::cue(std::string_view name, std::int32_t frame, std::int32_t later, float gain, float pan) {
+    const std::int64_t now = live_ ? mixer_->clock() + audio::block_frames : base_ + static_cast<std::int64_t>(frame) * frame_samples();
+    play(name, now + static_cast<std::int64_t>(later) * frame_samples(), gain, pan);
 }
 
 void Sounds::play(std::string_view name, std::int64_t at, float gain, float pan) {

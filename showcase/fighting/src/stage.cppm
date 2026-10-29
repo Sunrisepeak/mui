@@ -56,6 +56,7 @@ private:
     void schedule();
     void tick();
     void advance();  // one frame: the dummies, the match, its effects, the readings
+    void announce();  // the round over: the announcer's calls
     void changed();  // repaint, and tell agents
     void start_round();
     [[nodiscard]] gongfu::Pad keyboard(std::int32_t player) const;

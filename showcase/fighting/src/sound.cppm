@@ -31,8 +31,9 @@ public:
     void finish();
     // The theme's intensity (0–1, its layers changing at the next bar) and its level (0–1, at once), for music no match drives.
     void theme(float intensity, float gain = 1);
-    // A sound by its name (a menu's cue) on frame `frame` since the last restart (live: just ahead of the device).
-    void cue(std::string_view name, std::int32_t frame, float gain = 1, float pan = 0);
+    // A sound by its name (a menu's cue, an announcer's call) `later` frames after
+    // frame `frame` since the last restart (live: after just ahead of the device).
+    void cue(std::string_view name, std::int32_t frame, std::int32_t later = 0, float gain = 1, float pan = 0);
     // Heard live (a device pulls the mixer): sounds start just ahead of its clock instead of on their frame's sample.
     void live(bool on) noexcept { live_ = on; }
 

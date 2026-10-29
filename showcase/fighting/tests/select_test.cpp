@@ -151,7 +151,47 @@ int main(int argc, char** argv) {
         const auto w = audio::wav(all, mixer.rate());
         std::ofstream(scratch_dir("fighting-menus-heard") / "menus.wav", std::ios::binary).write(reinterpret_cast<const char*>(w.data()), static_cast<std::streamsize>(w.size()));
         std::println("    menus heard {:016x} ({:.1f} s)", audio::hash(all), static_cast<double>(all.size()) / 2 / mixer.rate());
-        check_eq(audio::hash(all), std::uint64_t{0x239e3e83dc47eb87});  // GCC and LLVM, every platform
+        check_eq(audio::hash(all), std::uint64_t{0x626cba52de69bc95});  // GCC and LLVM, every platform
+    });
+
+    s.test("the announcer: \"fight\" as a round begins; the clock run out, \"time\", then whose round it was — player 2, never touched: a flawless victory", [] {
+        Headless h{HeadlessOptions{.size = {960, 540}}};
+        AppSpec spec = fighting::app();
+        spec.setup(h.runtime());
+        // The plain room has no music: what is heard is the announcer.
+        h.mount("main", fighting::stage({.id = "stage", .arena = std::string("plain"), .mode = std::string("versus"), .paused = true, .player1 = std::string("mo"),
+                                         .player2 = std::string("ni")}));
+        h.step();
+        auto& stage = *h.runtime().component<fighting::Stage>(h.runtime().find("main"));  // the mount is the stage
+        audio::Mixer& mixer = stage.sounds().mixer();
+        std::vector<float> all, one(static_cast<std::size_t>(2 * stage.sounds().frame_samples()));
+        auto step = [&](int frames) {
+            const std::size_t from = all.size();
+            for (int i = 0; i < frames; ++i) {
+                Invocation c;
+                c.actor = {"agent", "test", {}};
+                check(h.tree().act("main", "step", c).exit_code() == std::optional<int>(0));
+                mixer.render(one);
+                all.insert(all.end(), one.begin(), one.end());
+            }
+            return audio::peak(std::span(all).subspan(from));
+        };
+        const float before = step(19), fight = step(60);
+        check(before == 0 && fight > 0.05f, std::format("silent ({}), then \"fight\" ({})", before, fight));
+        auto& match = const_cast<gongfu::Match&>(stage.match());
+        gongfu::State st = match.state();
+        st.timer = 3, st.f[0].health = 5000;  // the clock nearly out, player 1 hurt: player 2's round
+        match.restore(st);
+        const std::int64_t begun = mixer.begun();
+        step(3);
+        check(stage.match().state().over != 0 && stage.match().state().winner == 1, "time: player 2's round");
+        const float time = step(70), name = step(72), flawless = step(140);
+        check(time > 0.05f && name > 0.05f && flawless > 0.05f, std::format("\"time\" {}, \"player 2\" {}, \"flawless victory\" {}", time, name, flawless));
+        check_eq(mixer.begun() - begun, std::int64_t{3});
+        const auto w = audio::wav(all, mixer.rate());
+        std::ofstream(scratch_dir("fighting-announcer") / "announcer.wav", std::ios::binary).write(reinterpret_cast<const char*>(w.data()), static_cast<std::streamsize>(w.size()));
+        std::println("    announcer heard {:016x} ({:.1f} s)", audio::hash(all), static_cast<double>(all.size()) / 2 / mixer.rate());
+        check_eq(audio::hash(all), std::uint64_t{0x200738cca43d3a91});  // GCC and LLVM, every platform
     });
 
     s.test("the title and the select screen, pinned: the logo over the study, the modes; the roster, both fighters' previews, VS", [] {

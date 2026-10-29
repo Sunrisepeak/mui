@@ -134,6 +134,7 @@ void Select::begin(std::string_view phase) {
     both_ready_ = -1;
     if (attached()) services().focus(node());
     music();
+    if (phase_ == "fighters") cue("call_choose");  // the announcer: choose your character
     changed();
 }
 
@@ -156,7 +157,7 @@ void Select::music() {
 }
 
 void Select::cue(std::string_view name, float pan) {
-    if (attached() && props.active) sounds_.cue(name, frame_ - heard_from_, 1, pan);
+    if (attached() && props.active) sounds_.cue(name, frame_ - heard_from_, 0, 1, pan);
 }
 
 void Select::prop_changed(SelectProp p) {

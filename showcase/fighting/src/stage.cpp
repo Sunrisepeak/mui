@@ -241,13 +241,33 @@ void Stage::advance() {
     effects_.record(*match_);
     readout_.record(*match_, a, b);
     sounds_.heard(*match_, looks_[0], looks_[1]);
+    if (props.mode != "training" && match_->state().frame == 20) sounds_.cue("call_fight", 20);  // the announcer, as the round gets going
     if (match_->state().over && !over_reported_) {
         over_reported_ = true;
         sounds_.finish();  // the K.O.: the theme's outro over the finish, then quiet for the menus' own
+        if (props.mode != "training") announce();
         emit_round_over(match_->state().winner);
     }
     services().invalidate_paint(node());
     services().invalidate_semantics(node());
+}
+
+// The round over, the announcer: "time" when the clock ran out; then, the
+// K.O.'s moment past, whose round it was — "player 1 … winner", "flawless
+// victory" when the winner was never touched — or a tie.
+void Stage::announce() {
+    const gongfu::State& st = match_->state();
+    const bool time = std::ranges::any_of(match_->events(), [](const gongfu::Event& e) { return e.kind == gongfu::Event::Kind::time_over; });
+    if (time) sounds_.cue("call_time", st.frame);
+    constexpr std::int32_t after = 75, name = 72;  // frames: the K.O.'s moment, then "player 1" said
+    if (st.winner != 0 && st.winner != 1) {
+        sounds_.cue("call_tie", st.frame, after);
+        return;
+    }
+    const auto w = static_cast<std::size_t>(st.winner);
+    const bool flawless = st.f[w].health == match_->fighter(st.winner).def.health;
+    sounds_.cue(st.winner == 0 ? "call_player_1" : "call_player_2", st.frame, after);
+    sounds_.cue(flawless ? "call_flawless" : "call_winner", st.frame, after + name);
 }
 
 void Stage::tick() {

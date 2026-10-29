@@ -5,20 +5,11 @@ module openmui.audio;
 
 import std;
 import tomlplusplus;
+import :detail;
 
 namespace omui::audio {
 
-namespace {
-
-constexpr std::array<std::string_view, 4> sound_keys{"gain", "bus", "layer", "doc"};
-constexpr std::array<std::string_view, 12> layer_keys{"wave", "at", "length", "pitch", "envelope", "filter", "gain", "pan", "drive", "seed", "doc", "name"};
-constexpr std::array<std::string_view, 5> envelope_keys{"attack", "hold", "decay", "sustain", "release"};
-constexpr std::array<std::string_view, 3> filter_keys{"kind", "cutoff", "q"};
-constexpr std::array<std::string_view, 5> waves{"sine", "triangle", "square", "saw", "noise"};
-constexpr std::array<std::string_view, 4> filters{"none", "lowpass", "highpass", "bandpass"};
-
-// Edits between two words, two letters swapped counting as one (`ptich` is one from `pitch`).
-std::size_t distance(std::string_view a, std::string_view b) {
+std::size_t detail::distance(std::string_view a, std::string_view b) {
     const std::size_t w = b.size() + 1;
     std::vector<std::size_t> d((a.size() + 1) * w);
     for (std::size_t i = 0; i <= a.size(); ++i) d[i * w] = i;
@@ -32,7 +23,7 @@ std::size_t distance(std::string_view a, std::string_view b) {
     return d[a.size() * w + b.size()];
 }
 
-std::string nearest(std::string_view name, std::span<const std::string_view> options) {
+std::string detail::nearest(std::string_view name, std::span<const std::string_view> options) {
     std::string_view best;
     std::size_t d = std::min(std::max<std::size_t>(1, name.size() / 3) + 1, name.size());
     for (std::string_view o : options)
@@ -42,6 +33,16 @@ std::string nearest(std::string_view name, std::span<const std::string_view> opt
     for (std::string_view o : options) all += std::format("{}`{}`", all.empty() ? "" : ", ", o);
     return std::format("one of {}", all);
 }
+
+namespace {
+
+constexpr std::array<std::string_view, 4> sound_keys{"gain", "bus", "layer", "doc"};
+constexpr std::array<std::string_view, 12> layer_keys{"wave", "at", "length", "pitch", "envelope", "filter", "gain", "pan", "drive", "seed", "doc", "name"};
+constexpr std::array<std::string_view, 5> envelope_keys{"attack", "hold", "decay", "sustain", "release"};
+constexpr std::array<std::string_view, 3> filter_keys{"kind", "cutoff", "q"};
+using detail::filters;
+using detail::nearest;
+using detail::waves;
 
 struct Reader {
     std::string          file;

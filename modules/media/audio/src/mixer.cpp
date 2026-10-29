@@ -3,18 +3,15 @@ module openmui.audio;
 import std;
 import hanim;
 import openmui.trace;
+import :dsp;
 
 namespace omui::audio {
 
 namespace dm = hanim::dm;
 
-namespace {
+using namespace dsp;
 
-constexpr std::int32_t table_size = 4096;
-constexpr std::int32_t control = 16;  // samples between a filter's coefficients
-
-// One sine period, sampled once (dm: the same bits everywhere).
-const std::array<float, table_size + 1>& sine_table() {
+const std::array<float, table_size + 1>& dsp::sine_table() {
     static const auto t = [] {
         std::array<float, table_size + 1> v{};
         for (std::int32_t i = 0; i <= table_size; ++i) v[static_cast<std::size_t>(i)] = static_cast<float>(dm::sin(dm::two_pi * i / table_size));
@@ -23,47 +20,7 @@ const std::array<float, table_size + 1>& sine_table() {
     return t;
 }
 
-// A step's aliasing taken off where the phase wraps (polyBLEP).
-double blep(double t, double dt) noexcept {
-    if (t < dt) {
-        t /= dt;
-        return t + t - t * t - 1;
-    }
-    if (t > 1 - dt) {
-        t = (t - 1) / dt;
-        return t * t + t + t + 1;
-    }
-    return 0;
-}
-
-struct Biquad {
-    double b0 = 1, b1 = 0, b2 = 0, a1 = 0, a2 = 0;
-    void set(FilterKind kind, double cutoff, double q, double rate) noexcept {
-        const double fc = std::clamp(cutoff, 20.0, rate * 0.45);
-        const double w = dm::two_pi * fc / rate;
-        const double c = dm::cos(w), s = dm::sin(w);
-        const double alpha = s / (2 * std::max(q, 0.05));
-        const double a0 = 1 + alpha;
-        switch (kind) {
-            case FilterKind::lowpass: b0 = (1 - c) / 2, b1 = 1 - c, b2 = (1 - c) / 2; break;
-            case FilterKind::highpass: b0 = (1 + c) / 2, b1 = -(1 + c), b2 = (1 + c) / 2; break;
-            case FilterKind::bandpass: b0 = alpha, b1 = 0, b2 = -alpha; break;
-            case FilterKind::none: b0 = a0, b1 = 0, b2 = 0; break;
-        }
-        b0 /= a0, b1 /= a0, b2 /= a0;
-        a1 = -2 * c / a0;
-        a2 = (1 - alpha) / a0;
-    }
-};
-
-struct BiquadState {
-    double x1 = 0, x2 = 0, y1 = 0, y2 = 0;
-    double run(const Biquad& f, double x) noexcept {
-        const double y = f.b0 * x + f.b1 * x1 + f.b2 * x2 - f.a1 * y1 - f.a2 * y2;
-        x2 = x1, x1 = x, y2 = y1, y1 = y;
-        return y;
-    }
-};
+namespace {
 
 // A layer as samples: where it starts in the sound and for how long, its
 // envelope's corners, and its glides as a factor a sample.
@@ -109,50 +66,13 @@ struct Bus {
     float                                gain = 1;
     std::vector<std::unique_ptr<Effect>> effects;
     std::array<float, block_frames>      left{}, right{};
-};
-
-class FilterEffect final : public Effect {
-public:
-    FilterEffect(FilterKind kind, float cutoff, float q) : kind_(kind), cutoff_(cutoff), q_(q) {}
-    void process(std::span<float> left, std::span<float> right, std::int32_t rate) noexcept override {
-        if (rate != rate_) coefficients_.set(kind_, cutoff_, q_, rate), rate_ = rate;
-        for (float& x : left) x = static_cast<float>(l_.run(coefficients_, x));
-        for (float& x : right) x = static_cast<float>(r_.run(coefficients_, x));
-    }
-
-private:
-    FilterKind  kind_;
-    float       cutoff_, q_;
-    std::int32_t rate_ = 0;
-    Biquad      coefficients_;
-    BiquadState l_, r_;
-};
-
-class EchoEffect final : public Effect {
-public:
-    EchoEffect(float time, float feedback, float wet, std::int32_t rate)
-        : line_(static_cast<std::size_t>(std::max<std::int64_t>(1, std::lround(time * rate)))), feedback_(feedback), wet_(wet) {}
-    void process(std::span<float> left, std::span<float> right, std::int32_t) noexcept override {
-        for (std::size_t i = 0; i < left.size(); ++i) {
-            auto& d = line_[at_];
-            const float l = left[i], r = right[i];
-            left[i] = l + wet_ * d[0];
-            right[i] = r + wet_ * d[1];
-            d = {l + feedback_ * d[0], r + feedback_ * d[1]};
-            at_ = at_ + 1 == line_.size() ? 0 : at_ + 1;
-        }
-    }
-
-private:
-    std::vector<std::array<float, 2>> line_;
-    std::size_t                       at_ = 0;
-    float                             feedback_, wet_;
+    std::int32_t                         to = -1;   // routed into this bus (−1: the master)
+    std::int32_t                         key = -1;  // ducked under this bus (−1: never)
+    Duck                                 duck;
+    double                               attack = 0, release = 0, level = 0;  // the ducking's follower
 };
 
 }  // namespace
-
-std::unique_ptr<Effect> filter(FilterKind kind, float cutoff, float q) { return std::make_unique<FilterEffect>(kind, cutoff, q); }
-std::unique_ptr<Effect> echo(float time, float feedback, float wet, std::int32_t rate) { return std::make_unique<EchoEffect>(time, feedback, wet, rate); }
 
 float Sound::length() const noexcept {
     float end = 0;
@@ -176,12 +96,48 @@ struct Mixer::Impl {
     std::size_t                waiting = 0;
     std::array<float, block_frames> master_left{}, master_right{};
     double                     limit = 1, release = 0;
+    LimiterStats               limited;
+    std::vector<std::int32_t>  order;  // the buses, each after those routed into it and its key
+    std::vector<BusBlock>      views;  // what sources add into
+    std::vector<std::shared_ptr<Source>> sources;
 
     std::int32_t bus_index(std::string_view name) {
         for (std::size_t i = 0; i < buses.size(); ++i)
             if (buses[i].name == name) return static_cast<std::int32_t>(i);
         buses.push_back({std::string(name), 1, {}, {}, {}});
+        views.clear();
+        for (Bus& b : buses) views.push_back({b.left, b.right});
+        reorder();
         return static_cast<std::int32_t>(buses.size() - 1);
+    }
+
+    // The buses in an order where every bus comes after those routed into it
+    // and after its key (with no routes, their own order). One caught in a
+    // loop goes last, as it is.
+    void reorder() {
+        const std::size_t n = buses.size();
+        std::vector<std::int32_t> waits(n, 0);
+        for (const Bus& b : buses) {
+            if (b.to >= 0) ++waits[static_cast<std::size_t>(b.to)];
+        }
+        for (std::size_t i = 0; i < n; ++i)
+            if (buses[i].key >= 0) ++waits[i];
+        std::vector<bool> done(n, false);
+        order.clear();
+        for (bool more = true; more;) {
+            more = false;
+            for (std::size_t i = 0; i < n; ++i) {
+                if (done[i] || waits[i] != 0) continue;
+                done[i] = true, more = true;
+                order.push_back(static_cast<std::int32_t>(i));
+                if (buses[i].to >= 0) --waits[static_cast<std::size_t>(buses[i].to)];
+                for (std::size_t j = 0; j < n; ++j)
+                    if (buses[j].key == static_cast<std::int32_t>(i)) --waits[j];
+                break;  // from the first again: the lowest ready index next
+            }
+        }
+        for (std::size_t i = 0; i < n; ++i)
+            if (!done[i]) order.push_back(static_cast<std::int32_t>(i));
     }
 
     void start(const Command& c) {
@@ -297,17 +253,39 @@ struct Mixer::Impl {
         }
         for (std::size_t v = 0; v < voices.size(); ++v)
             if (voices[v].active) sound(v, clock, to);
+        for (const auto& source : sources) source->render(clock, static_cast<std::int32_t>(frames), views);
         master_left.fill(0), master_right.fill(0);
         const auto n = static_cast<std::size_t>(frames);
-        for (Bus& b : buses) {
+        for (const std::int32_t index : order) {
+            Bus& b = buses[static_cast<std::size_t>(index)];
             for (const auto& e : b.effects) e->process(std::span(b.left).first(n), std::span(b.right).first(n), options.rate);
-            for (std::size_t i = 0; i < n; ++i) master_left[i] += b.left[i] * b.gain, master_right[i] += b.right[i] * b.gain;
+            if (b.key >= 0) {
+                // Down while its key sounds: a peak follower on the key (after its effects, before its gain), the gain falling with it.
+                const Bus& k = buses[static_cast<std::size_t>(b.key)];
+                const double depth = b.duck.depth, over = 1.0 / std::max(1e-6, static_cast<double>(b.duck.threshold));
+                for (std::size_t i = 0; i < n; ++i) {
+                    const double x = std::max(std::abs(static_cast<double>(k.left[i])), std::abs(static_cast<double>(k.right[i])));  // its own level, before its gain
+                    b.level += (x - b.level) * (x > b.level ? b.attack : b.release);
+                    const auto g = static_cast<float>(1 - depth * std::min(1.0, b.level * over));
+                    b.left[i] *= g, b.right[i] *= g;
+                }
+            }
+            if (b.to >= 0) {
+                Bus& into = buses[static_cast<std::size_t>(b.to)];
+                for (std::size_t i = 0; i < n; ++i) into.left[i] += b.left[i] * b.gain, into.right[i] += b.right[i] * b.gain;
+            } else {
+                for (std::size_t i = 0; i < n; ++i) master_left[i] += b.left[i] * b.gain, master_right[i] += b.right[i] * b.gain;
+            }
         }
         // The limiter: down at once to hold a peak under the ceiling, back up slowly.
         for (std::size_t i = 0; i < n; ++i) {
             const double peak = std::max(std::abs(static_cast<double>(master_left[i])), std::abs(static_cast<double>(master_right[i])));
             const double want = peak > options.ceiling ? options.ceiling / peak : 1.0;  // the most this peak allows
             limit = want < limit ? want : limit + (want - limit) * release;
+            if (limit < 0.999) {  // turned down by more than 0.01 dB
+                ++limited.frames;
+                limited.deepest = std::min(limited.deepest, static_cast<float>(limit));
+            }
             out[2 * i] = static_cast<float>(master_left[i] * limit);
             out[2 * i + 1] = static_cast<float>(master_right[i] * limit);
         }
@@ -376,6 +354,31 @@ void Mixer::bus_gain(std::string_view bus, float gain) { impl_->buses[static_cas
 void Mixer::add_effect(std::string_view bus, std::unique_ptr<Effect> effect) {
     impl_->buses[static_cast<std::size_t>(impl_->bus_index(bus))].effects.push_back(std::move(effect));
 }
+
+std::int32_t Mixer::bus(std::string_view name) { return impl_->bus_index(name); }
+
+void Mixer::route(std::string_view bus, std::string_view to) {
+    const std::int32_t from = impl_->bus_index(bus), into = impl_->bus_index(to);
+    impl_->buses[static_cast<std::size_t>(from)].to = from == into ? -1 : into;
+    impl_->reorder();
+}
+
+void Mixer::duck(std::string_view bus, const Duck& duck) {
+    const std::int32_t b = impl_->bus_index(bus), key = impl_->bus_index(duck.key);
+    Bus& d = impl_->buses[static_cast<std::size_t>(b)];
+    d.key = key == b ? -1 : key;
+    d.duck = duck;
+    const double rate = impl_->options.rate;
+    d.attack = 1 - dm::exp(-1.0 / std::max(1.0, static_cast<double>(duck.attack) * rate));
+    d.release = 1 - dm::exp(-1.0 / std::max(1.0, static_cast<double>(duck.release) * rate));
+    impl_->reorder();
+}
+
+void Mixer::add_source(std::shared_ptr<Source> source) {
+    if (source) impl_->sources.push_back(std::move(source));
+}
+
+LimiterStats Mixer::limiter() const noexcept { return impl_->limited; }
 
 bool Mixer::play(std::int32_t sound, std::int64_t at, float gain, float pan, float pitch) noexcept {
     Impl& m = *impl_;

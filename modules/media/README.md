@@ -6,6 +6,6 @@ Depends on: [base](../base) (hanim's deterministic math, trace). Used by: [ui](.
 
 | Package | |
 |---|---|
-| [audio](audio) | Sounds as data (`*.sound.omui.toml`), voices mixed into buses through their effects, a block at a time with nothing allocated; offline renders the same bits everywhere |
+| [audio](audio) | Sounds and music as data (`*.sound.omui.toml`, `*.music.omui.toml`: synthesised instruments, patterns as text, layers by intensity), voices mixed into buses through their effects, a block at a time with nothing allocated; offline renders the same bits everywhere; the `omui-music` tool |
 
 Start with [audio](audio/README.md).

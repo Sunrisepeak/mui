@@ -1,0 +1,657 @@
+doc = """霓 Ni's street: rain at night, neon on wet asphalt. Drum and bass at 168 under
+synthwave colours in F minor: a detuned saw lead with a gliding hook, a reese
+bass rolling over a sine sub, wide pads pumping under the kick, a plucked
+square arpeggio thrown from side to side by the echo, gated saw chords at the
+top of the fight, an e-piano for the rain-lit breakdown.
+
+Intensity (0–1) adds parts at the next bar: below 0.35 the lead, the pads, the
+sub and a kick with offbeat hats; from 0.35 the reese and a half-time beat;
+from 0.6 the two-step beat with ghost snares, the arpeggio, the counter-line
+and the crashes; from 0.85 the gated chords and the lead doubled an octave up.
+
+An eight-bar intro (the e-piano and pads, then hats, a riser and a snare roll),
+then a loop of 40 bars: the drop (A), its answer (B), the breakdown, the drop
+again (A2, everything) and the climax (C), which stops on a bar's breath
+before the drop comes round."""
+
+[music]
+name = "street"
+tempo = 168
+meter = [4, 4]
+gain = 0.5
+
+# ── patches ──────────────────────────────────────────────────────────────
+
+[patch.lead]
+base = "saw_lead"
+osc = { unison = 3, detune = 14, spread = 0.5 }
+filter = { cutoff = 3800, envelope = 1.4 }
+vibrato = { depth = 18, delay = 0.3 }
+glide = 0.05
+
+[patch.octave]
+base = "pulse_lead"
+osc = { width = 0.22 }
+filter = { cutoff = 5000 }
+
+[patch.counter]
+base = "pulse_lead"
+osc = { width = 0.4, pwm = 0.2, pwm_rate = 0.7 }
+amp = { attack = 0.06, release = 0.3 }
+filter = { cutoff = 1800 }
+vibrato = { depth = 8 }
+
+[patch.reese]
+base = "saw_bass"
+osc = { detune = 26, sub = 0 }
+filter = { cutoff = 420, q = 1.3, envelope = 1.6 }
+drive = 0.4
+
+[patch.wide]
+base = "pad"
+osc = { detune = 26 }
+amp = { attack = 0.25, release = 0.8 }
+filter = { cutoff = 1300 }
+
+[patch.stab]
+base = "supersaw"
+amp = { attack = 0.003, decay = 0.6, sustain = 0.9, release = 0.12 }
+filter = { cutoff = 3200, envelope = 0.5 }
+
+[patch.blip]
+base = "arp"
+filter = { cutoff = 900, envelope = 3, decay = 0.12 }
+
+[patch.rain_keys]
+base = "epiano"
+fm = { index = 1.8 }
+amp = { decay = 2.6 }
+
+[patch.riser]
+engine = "analog"
+osc = { wave = "noise" }
+amp = { attack = 2.6, decay = 1, sustain = 1, release = 0.08 }
+filter = { kind = "bandpass", cutoff = 300, q = 1.5, envelope = 5, attack = 2.7, decay = 1, sustain = 1, release = 0.1 }
+gain = 0.6
+
+[patch.dnb_kick]
+base = "kick"
+drum = { pitch = 52, from = 5, sweep = 0.025, decay = 0.3, click = 0.45 }
+drive = 0.35
+
+[patch.dnb_snare]
+base = "snare"
+drum = { pitch = 205, decay = 0.1, noise = 1, noise_decay = 0.15, click = 0.25 }
+filter = { cutoff = 1600 }
+
+# ── instruments ──────────────────────────────────────────────────────────
+
+[instrument.lead]
+patch = "lead"
+bus = "leads"
+gain = 1.0
+legato = 0.95
+voices = 12
+sends = { space = 0.2, echo = 0.18 }
+
+[instrument.octave]
+patch = "octave"
+bus = "leads"
+gain = 0.25
+pan = 0.2
+legato = 0.9
+voices = 4
+sends = { space = 0.25, echo = 0.2 }
+
+[instrument.counter]
+patch = "counter"
+gain = 0.35
+pan = -0.35
+legato = 0.98
+voices = 4
+sends = { space = 0.3 }
+
+[instrument.keys]
+patch = "rain_keys"
+gain = 0.4
+pan = 0.15
+legato = 1
+voices = 8
+sends = { space = 0.4, echo = 0.25 }
+
+[instrument.pads]
+patch = "wide"
+bus = "pads"
+gain = 0.33
+legato = 1
+voices = 10
+sends = { space = 0.3 }
+
+[instrument.stab]
+patch = "stab"
+bus = "pads"
+gain = 0.28
+legato = 1
+voices = 10
+gate = "x.xx.x.xx.x.xx.x"
+sends = { space = 0.15 }
+
+[instrument.arp]
+patch = "blip"
+gain = 0.4
+pan = -0.2
+humanize = 0.2
+voices = 6
+sends = { echo = 0.35, space = 0.15 }
+
+[instrument.reese]
+patch = "reese"
+bus = "low"
+gain = 0.8
+legato = 0.92
+voices = 2
+
+[instrument.sub]
+patch = "sub_bass"
+bus = "low"
+gain = 0.7
+legato = 1
+voices = 2
+
+[instrument.riser]
+patch = "riser"
+gain = 0.3
+legato = 1
+voices = 1
+sends = { space = 0.4 }
+
+[instrument.kick]
+patch = "dnb_kick"
+bus = "kick"
+gain = 1.0
+
+[instrument.snare]
+patch = "dnb_snare"
+bus = "drums"
+gain = 0.5
+humanize = 0.15
+sends = { space = 0.2 }
+
+[instrument.clap]
+patch = "clap"
+bus = "drums"
+gain = 0.35
+pan = 0.1
+sends = { space = 0.3 }
+
+[instrument.hat]
+patch = "hat"
+bus = "drums"
+gain = 0.55
+pan = 0.25
+humanize = 0.35
+choke = "hats"
+
+[instrument.open]
+patch = "open_hat"
+bus = "drums"
+gain = 0.28
+pan = 0.25
+choke = "hats"
+
+[instrument.crash]
+patch = "crash"
+bus = "drums"
+gain = 0.3
+pan = -0.2
+sends = { space = 0.2 }
+
+# ── buses ────────────────────────────────────────────────────────────────
+
+[bus.space]
+effects = [
+    { kind = "reverb", size = 0.9, damping = 0.3, predelay = 0.03, wet = 1, dry = 0 },
+    { kind = "highpass", cutoff = 250 },
+]
+
+[bus.echo]
+effects = [
+    { kind = "echo", beats = 0.75, feedback = 0.4, pingpong = true, wet = 1, dry = 0 },
+    { kind = "highpass", cutoff = 350 },
+    { kind = "lowpass", cutoff = 6000 },
+]
+
+[bus.leads]
+effects = [{ kind = "chorus", delay = 0.009, depth = 0.002, rate = 0.8, wet = 0.35 }]
+
+[bus.pads]
+effects = [{ kind = "chorus", delay = 0.015, depth = 0.004, rate = 0.25, wet = 0.4 }]
+duck = { key = "kick", depth = 0.7, threshold = 0.3, attack = 0.003, release = 0.22 }
+
+[bus.low]
+duck = { key = "kick", depth = 0.55, threshold = 0.3, attack = 0.002, release = 0.12 }
+
+[bus.kick]
+
+[bus.drums]
+
+# ── the intro ────────────────────────────────────────────────────────────
+
+[pattern.intro_keys]
+instrument = "keys"
+step = "1/16"
+notes = """
+C5:4 Eb5:4 F5:8 | Db5:4 F5:4 Ab5:8 | C5:4 Eb5:4 Ab5:8 | Bb4:4 Eb5:4 G5:8 |
+C5:4 Eb5:4 F5:8 | Db5:4 F5:4 Ab5:8 | Db5:4 F5:4 Bb5:8 | C5:4 E5:4 G5:8 |
+"""
+
+# Fm9 | Dbadd9 | Ab | Eb | Fm9 | Dbadd9 | Bbm7 | C7
+[pattern.intro_pads]
+instrument = "pads"
+step = "1/1"
+notes = """
+F3+Ab3+C4+Eb4+G4 | Db3+Ab3+C4+F4 | Ab3+Bb3+C4+Eb4 | Eb3+G3+Bb3+F4 |
+F3+Ab3+C4+Eb4+G4 | Db3+Ab3+C4+F4 | Bb3+Db4+F4+Ab4 | Bb3+C4+E4+G4 |
+"""
+
+[pattern.intro_sub]
+instrument = "sub"
+step = "1/1"
+notes = "F1 | Db2 | Bb1 | C2"
+
+[pattern.intro_drums]
+step = "1/16"
+
+[pattern.intro_drums.lanes]
+kick = "x............... | x............... | x............... | x.......x.x.x.x."
+hat  = "..o...o...o...o. | ..x...x...x...x. | o.x.o.x.o.x.o.x. | x.x.x.x.x.x.xxxx"
+snare = "................ | ................ | ................ | x.x.x.x.xxxxXXXX"
+
+[pattern.rise]
+instrument = "riser"
+step = "1/16"
+notes = "F4:32"
+
+# ── the lead ─────────────────────────────────────────────────────────────
+
+[pattern.hook_a]
+instrument = "lead"
+step = "1/16"
+notes = """
+C5:3! Ab4:3 F4:2 C5:2 Eb5:2 F5:4 |
+Eb5:3! Db5:3 C5:2 Ab4:8 |
+C5:3! Eb5:3 Ab5:2 G5:2 F5:2 Eb5:4 |
+G5:6! F5:2 Eb5:4 Bb4:4 |
+C5:3! Ab4:3 F4:2 C5:2 Eb5:2 F5:4 |
+Ab5:3! G5:3 F5:2 Eb5:2 F5:2 Db5:4 |
+F5:3! Db5:3 Bb4:2 Db5:2 F5:2 Ab5:4 |
+G5>C6:8! Bb5:4 G5:2 E5:2 |
+"""
+
+[pattern.hook_b]
+instrument = "lead"
+step = "1/16"
+notes = """
+F5:3! Eb5:3 C5:2 Eb5:2 F5:2 Ab5:4 |
+G5:3! F5:3 Eb5:2 F5:8 |
+Eb5:3! F5:3 Ab5:2 C6:4 Bb5:2 Ab5:2 |
+Bb5:8! G5:4 Eb5:4 |
+C6:3! Bb5:3 Ab5:2 G5:2 Ab5:2 F5:4 |
+Ab5:3! G5:3 F5:2 Db5:8 |
+Db5:2! F5:2 Bb5:4 Ab5:2 F5:2 Db6:4 |
+C6:8! E5:2 G5:2 Bb5:2 C6:2 |
+"""
+
+[pattern.hook_c]
+instrument = "lead"
+step = "1/16"
+notes = """
+Ab5:3! F5:3 Db5:2 F5:2 Ab5:2 C6:4 |
+Bb5:3! G5:3 Eb5:2 G5:2 Bb5:2 Eb6:4 |
+C6:3! Ab5:3 F5:2 Ab5:2 C6:2 F6:4 |
+Eb6:6! C6:2 Ab5:4 Eb5:4 |
+F6:3! Eb6:3 Db6:2 C6:2 Ab5:2 F5:4 |
+G5:3! Bb5:3 Eb6:2 G6:8 |
+E6:4! C6:4 G5:4 E5:4 |
+C6:8! . . . . . . . . |
+"""
+
+[pattern.counter_a]
+instrument = "counter"
+step = "1/2"
+notes = "Ab4 G4 | F4:2 | Eb4 C4 | Bb3:2 | Ab4 C5 | Ab4:2 | F4 Db4 | E4:2"
+
+[pattern.counter_c]
+instrument = "counter"
+step = "1/2"
+notes = "F4 Ab4 | G4 Bb4 | Ab4 C5 | Eb5 C5 | Db5 Ab4 | Bb4 G4 | G4 E4 | E4:2"
+
+# ── the breakdown's e-piano ──────────────────────────────────────────────
+
+[pattern.keys_break]
+instrument = "keys"
+step = "1/16"
+notes = """
+Ab5:6! F5:2 Eb5:4 F5:4 |
+G5:6! Bb5:2 Ab5:4 G5:4 |
+F5:12! Eb5? F5:3 |
+C5:8! . . . . Ab4? C5 Eb5 F5 |
+Ab5:6! F5:2 Db6:4 C6:4 |
+Bb5:6! G5:2 Eb5:4 Bb5:4 |
+C6:8! Bb5:4 G5:4 |
+E5:8! G5:4 C6:4 |
+"""
+
+# ── harmony ──────────────────────────────────────────────────────────────
+
+# Fm9 | Dbadd9 | Ab | Eb | Fm9 | Dbadd9 | Bbm7 | C7
+[pattern.pads_a]
+instrument = "pads"
+step = "1/1"
+notes = """
+F3+Ab3+C4+Eb4+G4 | Db3+Ab3+C4+F4 | Ab3+Bb3+C4+Eb4 | Eb3+G3+Bb3+F4 |
+F3+Ab3+C4+Eb4+G4 | Db3+Ab3+C4+F4 | Bb3+Db4+F4+Ab4 | Bb3+C4+E4+G4 |
+"""
+
+# Dbadd9 | Eb | Fm | Fm | Dbadd9 | Eb | C7 | C7
+[pattern.pads_break]
+instrument = "pads"
+step = "1/1"
+notes = """
+Db3+Ab3+C4+F4 | Eb3+G3+Bb3+F4 | F3+Ab3+C4+Eb4 | F3+Ab3+C4+Eb4 |
+Db3+Ab3+C4+F4 | Eb3+G3+Bb3+F4 | Bb3+C4+E4+G4 | Bb3+C4+E4+G4 |
+"""
+
+# Dbadd9 | Eb | Fm9 | Ab | Dbadd9 | Eb | C7 | C7
+[pattern.pads_c]
+instrument = "pads"
+step = "1/1"
+notes = """
+Db3+Ab3+C4+F4 | Eb3+G3+Bb3+F4 | F3+Ab3+C4+Eb4+G4 | Ab3+Bb3+C4+Eb4 |
+Db3+Ab3+C4+F4 | Eb3+G3+Bb3+F4 | Bb3+C4+E4+G4 | Bb3+C4+E4+G4 |
+"""
+
+# ── the arpeggio (sixteenths, thrown by the echo) ────────────────────────
+
+[pattern.arp_a]
+instrument = "arp"
+step = "1/16"
+notes = """
+F3! C4 F4 Ab4 C5! Ab4 F4 C4 F3! C4 F4 Ab4 C5! Ab4 F4 C4 |
+Db3! Ab3 Db4 F4 Ab4! F4 Db4 Ab3 Db3! Ab3 Db4 F4 Ab4! F4 Db4 Ab3 |
+Ab3! Eb4 Ab4 C5 Eb5! C5 Ab4 Eb4 Ab3! Eb4 Ab4 C5 Eb5! C5 Ab4 Eb4 |
+Eb3! Bb3 Eb4 G4 Bb4! G4 Eb4 Bb3 Eb3! Bb3 Eb4 G4 Bb4! G4 Eb4 Bb3 |
+F3! C4 F4 Ab4 C5! Ab4 F4 C4 F3! C4 F4 Ab4 C5! Ab4 F4 C4 |
+Db3! Ab3 Db4 F4 Ab4! F4 Db4 Ab3 Db3! Ab3 Db4 F4 Ab4! F4 Db4 Ab3 |
+Bb3! F4 Bb4 Db5 F5! Db5 Bb4 F4 Bb3! F4 Bb4 Db5 F5! Db5 Bb4 F4 |
+C3! G3 C4 E4 G4! E4 C4 G3 C3! G3 C4 E4 G4! Bb4 C5 E5 |
+"""
+
+[pattern.arp_break]
+instrument = "arp"
+step = "1/16"
+notes = """
+Db4! . Ab4 . F4 . Ab4 . C5! . Ab4 . F4 . Ab4 . |
+Eb4! . Bb4 . G4 . Bb4 . F5! . Bb4 . G4 . Bb4 . |
+F4! . C5 . Ab4 . C5 . Eb5! . C5 . Ab4 . C5 . |
+F4! . C5 . Ab4 . C5 . G5! . Eb5 . C5 . Ab4 . |
+Db4! . Ab4 . F4 . Ab4 . C5! . Ab4 . F4 . Ab4 . |
+Eb4! . Bb4 . G4 . Bb4 . F5! . Bb4 . G4 . Bb4 . |
+C4! . G4 . E4 . G4 . Bb4! . G4 . E4 . G4 . |
+C4! . G4 . E4 . G4 . C5! . Bb4 . G4 . E4 . |
+"""
+
+[pattern.arp_c]
+instrument = "arp"
+step = "1/16"
+notes = """
+Db3! Ab3 Db4 F4 Ab4! F4 Db4 Ab3 Db3! Ab3 Db4 F4 Ab4! F4 Db4 Ab3 |
+Eb3! Bb3 Eb4 G4 Bb4! G4 Eb4 Bb3 Eb3! Bb3 Eb4 G4 Bb4! G4 Eb4 Bb3 |
+F3! C4 F4 Ab4 C5! Ab4 F4 C4 F3! C4 F4 Ab4 C5! Ab4 F4 C4 |
+Ab3! Eb4 Ab4 C5 Eb5! C5 Ab4 Eb4 Ab3! Eb4 Ab4 C5 Eb5! C5 Ab4 Eb4 |
+Db3! Ab3 Db4 F4 Ab4! F4 Db4 Ab3 Db3! Ab3 Db4 F4 Ab4! F4 Db4 Ab3 |
+Eb3! Bb3 Eb4 G4 Bb4! G4 Eb4 Bb3 Eb3! Bb3 Eb4 G4 Bb4! G4 Eb4 Bb3 |
+C3! G3 C4 E4 G4! E4 C4 G3 C3! G3 C4 E4 G4! E4 C4 G3 |
+C3! G3 C4 E4 G4! Bb4 C5 E5 G5! . . . . . . . |
+"""
+
+# ── the bass: a reese rolling over a sine sub ────────────────────────────
+
+[pattern.reese_a]
+instrument = "reese"
+step = "1/16"
+notes = """
+F2:4! . . F2:2 F2:3 . Eb2:2 F2:2 | Db2:4! . . Db2:2 Db2:3 . C2:2 Db2:2 |
+Ab2:4! . . Ab2:2 Ab2:3 . G2:2 Ab2:2 | Eb2:4! . . Eb2:2 Eb2:3 . F2:2 G2:2 |
+F2:4! . . F2:2 F2:3 . Eb2:2 F2:2 | Db2:4! . . Db2:2 Db2:3 . Eb2:2 F2:2 |
+Bb2:4! . . Bb2:2 Bb2:3 . Ab2:2 F2:2 | C3:4! . . C3:2 C3:3 . Bb2:2 G2:2 |
+"""
+
+[pattern.reese_c]
+instrument = "reese"
+step = "1/16"
+notes = """
+Db2:4! . . Db2:2 Db2:3 . C2:2 Db2:2 | Eb2:4! . . Eb2:2 Eb2:3 . F2:2 G2:2 |
+F2:4! . . F2:2 F2:3 . Eb2:2 F2:2 | Ab2:4! . . Ab2:2 Ab2:3 . G2:2 Eb2:2 |
+Db2:4! . . Db2:2 Db2:3 . C2:2 Db2:2 | Eb2:4! . . Eb2:2 Eb2:3 . F2:2 G2:2 |
+C3:4! . . C3:2 C3:3 . Bb2:2 G2:2 | C3:4! . . C3:2 C2:2 C2:2 C2:2 . . |
+"""
+
+[pattern.sub_a]
+instrument = "sub"
+step = "1/1"
+notes = "F1 | Db2 | Ab1 | Eb2 | F1 | Db2 | Bb1 | C2"
+
+[pattern.sub_break]
+instrument = "sub"
+step = "1/1"
+notes = "Db2 | Eb2 | F1 | F1 | Db2 | Eb2 | C2 | C2"
+
+[pattern.sub_c]
+instrument = "sub"
+step = "1/1"
+notes = "Db2 | Eb2 | F1 | Ab1 | Db2 | Eb2 | C2 | C2"
+
+# ── drums (sixteenths) ───────────────────────────────────────────────────
+
+[pattern.beat_soft]
+step = "1/16"
+
+[pattern.beat_soft.lanes]
+kick = "x.........x....."
+hat  = "..o...o...x...o."
+
+[pattern.beat_half]
+step = "1/16"
+
+[pattern.beat_half.lanes]
+kick  = "x.........x....."
+snare = "........X......."
+clap  = "........x......."
+hat   = "x.o.x.o.x.o.x.o."
+open  = "..............x."
+
+[pattern.beat_full]
+step = "1/16"
+
+[pattern.beat_full.lanes]
+kick  = "x.........x..... | x.........x..x.."
+snare = "....X..o.o..X..o | ....X..o.o..X.oo"
+clap  = "....x.......x... | ....x.......x..."
+hat   = "x.x.x.xox.x.x.x. | x.x.x.x.x.x.xox."
+open  = "..............x. | ......x.......x."
+
+[pattern.beat_one]
+step = "1/16"
+
+[pattern.beat_one.lanes]
+kick  = "x.........x....."
+snare = "....X..o.o..X..o"
+clap  = "....x.......x..."
+hat   = "x.x.x.xox.x.x.x."
+open  = "..............x."
+
+[pattern.fill]
+step = "1/16"
+
+[pattern.fill.lanes]
+kick  = "x.........x....."
+snare = "....X...X.X.XXXX"
+hat   = "x.x.x.x.x.x....."
+
+[pattern.build]
+step = "1/16"
+
+[pattern.build.lanes]
+snare = "x...x...x.x.xxXX"
+kick  = "x.......x.x.x.x."
+
+[pattern.break_beat]
+step = "1/16"
+
+[pattern.break_beat.lanes]
+kick = "x..............."
+hat  = "o.o.o.o.o.o.o.o."
+
+[pattern.stop]
+step = "1/16"
+
+[pattern.stop.lanes]
+kick  = "x..............."
+crash = "X..............."
+
+[pattern.crash]
+step = "1/16"
+
+[pattern.crash.lanes]
+crash = "X..............."
+
+# ── the outro ────────────────────────────────────────────────────────────
+
+[pattern.end_lead]
+instrument = "lead"
+step = "1/16"
+notes = "C5:3! Ab4:3 F4:10 | .:16"
+
+[pattern.end_pads]
+instrument = "pads"
+step = "1/1"
+notes = "F3+Ab3+C4+Eb4+G4:2"
+
+[pattern.end_hit]
+step = "1/16"
+
+[pattern.end_hit.lanes]
+kick  = "x............... | ................"
+crash = "X............... | ................"
+
+# ── sections ─────────────────────────────────────────────────────────────
+
+[section.intro]
+bars = 8
+layers = [
+    { pattern = "intro_keys" },
+    { pattern = "intro_pads" },
+    { pattern = "intro_sub", at = 4 },
+    { pattern = "intro_drums", at = 4 },
+    { pattern = "rise", at = 6 },
+]
+
+[section.a]
+bars = 8
+layers = [
+    { pattern = "hook_a" },
+    { pattern = "pads_a" },
+    { pattern = "sub_a" },
+    { pattern = "reese_a", intensity = [0.35, 1] },
+    { pattern = "beat_soft", intensity = [0, 0.35] },
+    { pattern = "beat_half", times = 7, intensity = [0.35, 0.6] },
+    { pattern = "beat_full", times = 3, intensity = [0.6, 1] },
+    { pattern = "beat_one", at = 6, intensity = [0.6, 1] },
+    { pattern = "fill", at = 7, intensity = [0.35, 1] },
+    { pattern = "arp_a", intensity = [0.6, 1] },
+    { pattern = "pads_a", instrument = "stab", intensity = [0.85, 1] },
+    { pattern = "crash", times = 1, intensity = [0.6, 1] },
+]
+
+[section.b]
+bars = 8
+layers = [
+    { pattern = "hook_b" },
+    { pattern = "counter_a", intensity = [0.6, 1] },
+    { pattern = "pads_a" },
+    { pattern = "sub_a" },
+    { pattern = "reese_a", intensity = [0.35, 1] },
+    { pattern = "beat_soft", intensity = [0, 0.35] },
+    { pattern = "beat_half", times = 7, intensity = [0.35, 0.6] },
+    { pattern = "beat_full", times = 3, intensity = [0.6, 1] },
+    { pattern = "beat_one", at = 6, intensity = [0.6, 1] },
+    { pattern = "fill", at = 7, intensity = [0.35, 1] },
+    { pattern = "arp_a", intensity = [0.6, 1] },
+    { pattern = "pads_a", instrument = "stab", intensity = [0.85, 1] },
+    { pattern = "crash", times = 1, intensity = [0.6, 1] },
+]
+
+[section.breakdown]
+bars = 8
+layers = [
+    { pattern = "keys_break" },
+    { pattern = "pads_break" },
+    { pattern = "sub_break" },
+    { pattern = "arp_break", intensity = [0.35, 1] },
+    { pattern = "break_beat", times = 6, intensity = [0.35, 1] },
+    { pattern = "rise", at = 6 },
+    { pattern = "build", at = 7, intensity = [0.35, 1] },
+]
+
+[section.a2]
+bars = 8
+layers = [
+    { pattern = "hook_a" },
+    { pattern = "hook_a", instrument = "octave", transpose = 12, intensity = [0.85, 1] },
+    { pattern = "counter_a", intensity = [0.6, 1] },
+    { pattern = "pads_a" },
+    { pattern = "sub_a" },
+    { pattern = "reese_a", intensity = [0.35, 1] },
+    { pattern = "beat_soft", intensity = [0, 0.35] },
+    { pattern = "beat_half", times = 7, intensity = [0.35, 0.6] },
+    { pattern = "beat_full", times = 3, intensity = [0.6, 1] },
+    { pattern = "beat_one", at = 6, intensity = [0.6, 1] },
+    { pattern = "fill", at = 7, intensity = [0.35, 1] },
+    { pattern = "arp_a", intensity = [0.6, 1] },
+    { pattern = "pads_a", instrument = "stab", intensity = [0.6, 1] },
+    { pattern = "crash", times = 1, intensity = [0.6, 1] },
+]
+
+[section.c]
+bars = 8
+layers = [
+    { pattern = "hook_c" },
+    { pattern = "hook_c", instrument = "octave", transpose = 12, intensity = [0.85, 1] },
+    { pattern = "counter_c", intensity = [0.6, 1] },
+    { pattern = "pads_c" },
+    { pattern = "sub_c" },
+    { pattern = "reese_c", intensity = [0.35, 1] },
+    { pattern = "beat_soft", times = 7, intensity = [0, 0.35] },
+    { pattern = "beat_half", times = 7, intensity = [0.35, 0.6] },
+    { pattern = "beat_full", times = 3, intensity = [0.6, 1] },
+    { pattern = "beat_one", at = 6, intensity = [0.6, 1] },
+    { pattern = "stop", at = 7 },
+    { pattern = "arp_c", intensity = [0.6, 1] },
+    { pattern = "pads_c", instrument = "stab", intensity = [0.85, 1] },
+    { pattern = "crash", times = 1, intensity = [0.6, 1] },
+    { pattern = "crash", at = 4, times = 1, intensity = [0.85, 1] },
+]
+
+[section.end]
+bars = 2
+layers = [
+    { pattern = "end_lead" },
+    { pattern = "end_pads" },
+    { pattern = "end_hit" },
+]
+
+[arrangement]
+intro = ["intro"]
+loop = ["a", "b", "breakdown", "a2", "c"]
+outro = ["end"]

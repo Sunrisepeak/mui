@@ -33,6 +33,9 @@ constexpr std::array<std::string_view, 12> semantic_props{
     "label", "description", "role", "origin", "focusable", "disabled", "verb", "verb_args", "effect", "answer", "person", "undo_scope",
 };
 
+// The theme scope a node and its subtree are drawn in (Runtime::set_scope).
+constexpr std::array<std::string_view, 1> scope_props{"theme_scope"};
+
 // What a node is to a framework-drawn window (D-75): `window_area: "drag"`
 // moves the window (window_area_at).
 constexpr std::array<std::string_view, 1> window_props{"window_area"};
@@ -239,7 +242,7 @@ std::span<const std::string_view> runtime_properties() noexcept {
         std::vector<std::string_view> v;
         for (auto set : {std::span<const std::string_view>(layout_props), std::span<const std::string_view>(visual_props),
                          std::span<const std::string_view>(motion_props), std::span<const std::string_view>(semantic_props),
-                         std::span<const std::string_view>(window_props)})
+                         std::span<const std::string_view>(window_props), std::span<const std::string_view>(scope_props)})
             v.insert(v.end(), set.begin(), set.end());
         std::ranges::sort(v);
         v.erase(std::ranges::unique(v).begin(), v.end());
@@ -363,7 +366,7 @@ bool Runtime::Impl::animate_prop(NodeId id, std::string_view name, const Value& 
     if (scalar_field(name) || name == "background" || name == "border_color" || name == "radius") return false;
     Node& n = at(id);
     const Transition* t = n.shown && !value.is_null() ? transition_for(n, name) : nullptr;
-    const auto to = t ? lanes_of(value, theme) : std::nullopt;
+    const auto to = t ? lanes_of(value, theme_of(id)) : std::nullopt;
     auto running = std::ranges::find(n.prop_animations, name, &PropAnimation::name);
     if (!to) {
         if (running != n.prop_animations.end()) stop_prop(id, name);
@@ -379,7 +382,7 @@ bool Runtime::Impl::animate_prop(NodeId id, std::string_view name, const Value& 
         if (running != n.prop_animations.end()) stop_prop(id, name);
         auto shown = n.props.find(name);
         if (shown == n.props.end()) return false;
-        const auto f = lanes_of(shown->second, theme);
+        const auto f = lanes_of(shown->second, theme_of(id));
         if (!f || f->kind != to->kind || f->count != to->count) return false;
         if (shown->second == value) return false;
         from = f->v;
@@ -448,7 +451,7 @@ void Runtime::Impl::apply_now(NodeId id, std::string_view name, const Value& val
     if (is_layout_prop(name)) sync_style(id);
     if (is_visual_prop(name)) {
         Node& m = at(id);
-        const Theme& t = theme;
+        const Theme& t = theme_of(id);
         if (auto f = scalar_field(name)) {
             float target = value.is_null() ? scalar_default(*f) : static_cast<float>(value.as_double(scalar_default(*f)));
             animate_field(id, name, *f, target);
@@ -486,7 +489,12 @@ void Runtime::Impl::apply_now(NodeId id, std::string_view name, const Value& val
             m.visual.hit = value.as_string() != "none";
         }
     }
-    if (name == "role" && !effect_rules.empty()) apply_rules(id);  // a rule may name its role
+    if (name == "role" && !rules_of(id).empty()) apply_rules(id);  // a rule may name its role
+    if (name == "theme_scope") {
+        // It joins the scope it names (or its parent's again), its subtree with it.
+        const NodeId parent = at(id).parent;
+        rescope(id, alive(parent) ? at(parent).scope : 0);
+    }
     if (in(semantic_props, name)) {
         Node& m = at(id);
         if (name == "disabled") {
@@ -533,6 +541,7 @@ void Runtime::Impl::apply_now(NodeId id, std::string_view name, const Value& val
     // layout name a component also means (text's `align`, a stage's `left`)
     // reaches both the layout and the component, never only the layout.
     {
+        auto use = use_theme(id);
         if (m.type->set_prop && m.type->set_prop(m.instance, name, value)) {
             what |= dirty_semantics;
             if (m.type->style) sync_style(id);  // its default style may follow the property
@@ -571,23 +580,26 @@ std::optional<Node::PixelEffectState> Runtime::Impl::effect_state(const Value& v
     return st;
 }
 
-// The style's rule for a node: the window's for the root, else its type's,
-// else its role's (D-69).
+// The style's rule for a node: the window's for the root (or for the node
+// that joins a theme scope: the scope's window), else its type's, else its
+// role's (D-69) — from its scope's rules.
 void Runtime::Impl::apply_rules(NodeId id) {
     Node& n = at(id);
     n.styled_effect.reset();
+    const std::vector<EffectRule>& effect_rules = rules_of(id);
     if (effect_rules.empty()) return;
+    const bool window = id == root || scope_root(id);
     Role r = n.type->contract ? n.type->contract->role : n.type->role;
     if (auto it = n.props.find("role"); it != n.props.end())
         if (auto parsed = spec::parse_role(it->second.as_string())) r = *parsed;
     const std::string role = std::format("role:{}", spec::name(r));
     const EffectRule* best = nullptr;
     for (const EffectRule& r : effect_rules) {
-        if (id == root ? r.selector == "window" : r.selector == n.type->name) {
+        if (window ? r.selector == "window" : r.selector == n.type->name) {
             best = &r;
             break;
         }
-        if (id != root && !best && r.selector == role) best = &r;
+        if (!window && !best && r.selector == role) best = &r;
     }
     if (best) n.styled_effect = effect_state(best->effect, std::format("the style's `{}`", best->selector));
 }
@@ -596,6 +608,7 @@ void Runtime::Impl::sync_style(NodeId id) {
     Node& n = at(id);
     if (n.state.removing) return;
     layout::Style s;
+    const Theme& theme = theme_of(id);
     if (n.type->style) n.type->style(n.instance, theme, s);
     for (const auto& [k, v] : n.props)
         if (is_layout_prop(k)) apply_layout(s, k, v, theme);

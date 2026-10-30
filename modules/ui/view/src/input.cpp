@@ -107,7 +107,10 @@ bool Runtime::Impl::deliver(NodeId target, const InputEvent& e, Point window, bo
         Node& n = at(cur);
         if (n.state.disabled && !is_pointer_kind(e, PointerKind::move)) break;  // a disabled node swallows input
         EventContext ctx{self, cur, local_point(n, window)};
-        if (n.type->event && n.type->event(n.instance, ctx, e)) ctx.handled = true;
+        if (n.type->event) {
+            auto use = use_theme(cur);
+            if (n.type->event(n.instance, ctx, e)) ctx.handled = true;
+        }
         if (alive(cur) && !name.empty() && has_handler(cur, name)) {
             Value args = to_value(e);
             args.set("x", ctx.local.x).set("y", ctx.local.y);
@@ -231,7 +234,10 @@ void Runtime::Impl::key_event(const KeyEvent& e) {
     for (NodeId cur = target; alive(cur) && !handled;) {
         Node& n = at(cur);
         EventContext ctx{self, cur, {}};
-        if (!n.state.disabled && n.type->event && n.type->event(n.instance, ctx, InputEvent(e))) ctx.handled = true;
+        if (!n.state.disabled && n.type->event) {
+            auto use = use_theme(cur);
+            if (n.type->event(n.instance, ctx, InputEvent(e))) ctx.handled = true;
+        }
         if (alive(cur) && has_handler(cur, handler_name(InputEvent(e)))) call_handlers(cur, handler_name(InputEvent(e)), to_value(InputEvent(e)));
         handled = ctx.handled || ctx.stopped;
         if (!handled && e.kind == KeyKind::down && alive(cur) && key_binding(cur, e)) handled = true;
@@ -331,6 +337,7 @@ void Runtime::Impl::set_focus(NodeId id, bool keyboard) {
         o.state.focused = o.state.focus_visible = false;
         if (o.type->event) {
             EventContext ctx{self, old, {}};
+            auto use = use_theme(old);
             o.type->event(o.instance, ctx, FocusEvent{false});
         }
         call_handlers(old, "blur", {});
@@ -345,6 +352,7 @@ void Runtime::Impl::set_focus(NodeId id, bool keyboard) {
         n.state.focus_visible = keyboard;
         if (n.type->event) {
             EventContext ctx{self, id, {}};
+            auto use = use_theme(id);
             n.type->event(n.instance, ctx, FocusEvent{true});
         }
         call_handlers(id, "focus", {});

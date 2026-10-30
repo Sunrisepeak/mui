@@ -23,6 +23,7 @@ struct Site {
         AppSpec spec = site::app(place, lang);
         h.runtime().set_theme(spec.theme);
         spec.setup(h.runtime());
+        for (auto& v : spec.verbs) (void)h.runtime().verbs().add(v.desc, v.fn);
         h.mount("main", spec.view());
         h.settle();
     }
@@ -90,7 +91,7 @@ int main(int argc, char** argv) {
 
     s.test("every place has its document in both languages; the content is what the docs say", [] {
         for (const site::Place& p : site::places()) {
-            if (p.id == "timeline" || p.id == "wall" || p.id == "hello" || p.id == "moves") {
+            if (p.id == "timeline" || p.id == "wall" || p.id == "styles" || p.id == "hello" || p.id == "moves") {
                 check(site::document(p.id, "en").empty(), std::format("{} is a live work, not a document", p.id));
                 continue;
             }
@@ -419,7 +420,7 @@ int main(int argc, char** argv) {
         agent_access().revoke_all();
     });
 
-    s.test("the site's pixels pinned on every platform: home, the overview, the wireframe, the agent's JSON, the works (the wall, example 01, the move list), an agent asking, Chinese, the page's time dragged back", [] {
+    s.test("the site's pixels pinned on every platform: home, the overview, the wireframe, the agent's JSON, the works (the wall, the style workshop, example 01, the move list), an agent asking, Chinese, the page's time dragged back", [] {
         Site a;
         // Fixed spans of time, not "until quiet": how many frames a platform
         // takes to settle differs a little, and the foot draws the page's time.
@@ -454,7 +455,7 @@ int main(int argc, char** argv) {
         a.h.move({4, 796});
         a.h.advance(seconds(2));
         shot("timeline.png");
-        for (std::string_view work : {"wall", "hello", "moves"}) {
+        for (std::string_view work : {"wall", "styles", "hello", "moves"}) {
             check(a.h.click(std::format("main/body/nav/to_{}", work)));
             a.h.move({4, 796});
             a.h.advance(seconds(3));
@@ -484,7 +485,42 @@ int main(int argc, char** argv) {
         a.h.advance(seconds(1));
         shot("time.png");
         std::println("    pixels {}", all.hex());
-        check_eq(all.hex(), std::string("a1e71b47acd65907"));
+        check_eq(all.hex(), std::string("80289b91e50ce4f2"));
+    });
+
+    s.test("the style workshop runs in its place, a theme scope: a pack styles it alone, the site keeps its theme, the tree is the same in every pack", [] {
+        Site a;
+        check(a.h.click("main/body/nav/to_styles"));
+        a.h.move({4, 796});
+        a.h.advance(seconds(3));
+        const std::string work = "main/body/view/atlas/styles/page/workshop/studio";
+        check(a.visible(work + "/preview"), "the workshop, live close up");
+        check(!a.h.tree().node(work + "/sidebar/export"), "no Export: a page has nowhere to write");
+        // The workshop's tree: what an agent reads of it, the same whatever the pack.
+        auto tree = [&] {
+            std::vector<std::string> out;
+            for (const auto& n : a.h.tree().snapshot({.root = work + "/preview"}).nodes) out.push_back(std::format("{} {} {}", n.id, spec::name(n.role), n.name));
+            return out;
+        };
+        const auto glass = tree();
+        const std::uint64_t chrome = a.pixels_in({0, 0, 1280, 56});  // the site's bar, in the site's theme
+        const std::uint64_t shown = a.pixels_of(work);
+        Invocation agent;
+        agent.actor = {"agent", "visitor", {}};
+        agent.args = Value{}.set("name", Value("retro"));
+        check(a.h.runtime().verbs().invoke("styles.show", agent).exit_code() == std::optional<std::int64_t>(0), "an agent shows the retro pack");
+        a.h.advance(seconds(1));
+        check(a.pixels_of(work) != shown, "the workshop in another pack");
+        check(a.pixels_in({0, 0, 1280, 56}) == chrome, "the site around it as it was");
+        check(a.h.runtime().theme_of(a.h.runtime().find("main/body/view/atlas/styles/page/title")).color("surface") == Theme::dark_theme().color("surface"),
+              "the place's own title in the site's theme");
+        check(tree() == glass, "only pixels change");
+        // A person edits the pack: its corners, at once.
+        Invocation person;
+        person.args = Value{}.set("value", Value(20.0));
+        check(a.h.tree().act(work + "/editor/corners", "set_value", person).exit_code() == std::optional<int>(0), "the corners slider");
+        a.h.advance(seconds(0.5));
+        check(a.h.runtime().scope_theme("workshop") && a.h.runtime().scope_theme("workshop")->corner("medium", 0) == 20.0f, "the corners edited");
     });
 
     s.test("the reference run: each sampled frame's pixels hashed as a browser hashes them, pinned (reference/ci.frames.omui.json)", [] {
@@ -549,8 +585,8 @@ int main(int argc, char** argv) {
         // The site's own part pinned (the docs change with the framework; they are held to md4c-html's bytes above).
         auto own = [](const std::string& html) { return html.substr(0, html.find("<section id=\"/", html.find("<section id=\"/") + 1)); };
         std::println("    static en {:016x} zh {:016x}", fnv(own(en)), fnv(own(site::static_html("zh"))));
-        check_eq(std::format("{:016x}", fnv(own(en))), std::string("c0d64009c52cbcb9"));
-        check_eq(std::format("{:016x}", fnv(own(site::static_html("zh")))), std::string("d617080771a513b3"));
+        check_eq(std::format("{:016x}", fnv(own(en))), std::string("204dbdae45bacdce"));
+        check_eq(std::format("{:016x}", fnv(own(site::static_html("zh")))), std::string("a752fb5e438266de"));
 
         const auto out = site::inject(page, en, "zh");
         check(out.has_value(), "dist-toy's page");

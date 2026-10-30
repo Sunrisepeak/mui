@@ -178,6 +178,7 @@ spec::SemanticNode Runtime::Impl::semantics(NodeId id) const {
     for (NodeId c : n.children) s.children.push_back(self.path(c));
     if (n.type->semantics) {
         SemanticsContext ctx{self, id, n.state};
+        auto use = use_theme(id);
         n.type->semantics(n.instance, ctx, s);
     }
     return s;
@@ -247,6 +248,7 @@ Envelope Runtime::Impl::perform(NodeId id, std::string_view action, const Invoca
         if (spec::requires_answer(effect) || invokes_verb) more.set("undoable", false);
         if (effect != Effect::read && !invokes_verb && at(id).type->preview) {
             ActContext ctx{self, id, call.args};
+            auto use = use_theme(id);
             ActResult r = at(id).type->preview(at(id).instance, ctx, action);
             if (!r.ok) {
                 Envelope failed;
@@ -299,6 +301,7 @@ Envelope Runtime::Impl::perform(NodeId id, std::string_view action, const Invoca
     ActResult r = ActResult::done();
     if (at(id).type->act) {
         ActContext ctx{self, id, call.args};
+        auto use = use_theme(id);
         r = at(id).type->act(at(id).instance, ctx, action);
     }
     if (!r.ok) {
@@ -393,6 +396,7 @@ Envelope Runtime::Impl::perform_item(NodeId holder, std::string_view key, std::s
     }
     ActResult r = batch([&] {
         ActContext ctx{self, holder, call.args};
+        auto use = use_theme(holder);
         return at(holder).type->act_item(at(holder).instance, ctx, key, action);
     });
     if (!r.ok) {

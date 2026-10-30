@@ -351,10 +351,25 @@ void Runtime::crossfade(seconds length) {
     render::DisplayList before;
     before.append(d.list);
     d.fading = std::move(before);
+    d.fade_clip.reset();
     d.fade_start = d.now();
     d.fade_length = length;
     d.frame_requested = true;
     d.touch(dirty_paint);
+}
+
+void Runtime::crossfade(seconds length, std::string_view scope) {
+    Impl& d = *impl_;
+    const std::uint32_t s = d.scope_named(scope);
+    if (s == 0) return;
+    // The area of the nodes that join the scope, as last laid out.
+    std::optional<Rect> area;
+    walk([&](NodeId id, int) {
+        if (d.at(id).scope == s && d.scope_root(id)) area = area ? area->united(d.at(id).bounds) : d.at(id).bounds;
+    });
+    if (!area) return;
+    crossfade(length);
+    if (d.fading) d.fade_clip = area;
 }
 double Runtime::display_hz() const noexcept { return impl_->display_hz; }
 
@@ -369,15 +384,101 @@ void Runtime::set_theme(Theme theme) {
     d.theme = std::move(theme);
     std::vector<NodeId> all;
     walk([&](NodeId id, int) { all.push_back(id); });
-    for (NodeId id : all) {
-        Node& n = d.at(id);
-        if (n.type->restyle) n.type->restyle(n.instance);
-        if (n.type->measure) d.layout.mark_dirty(n.layout);
-        d.sync_style(id);
-        d.resolve_visual(id);
-    }
+    for (NodeId id : all)
+        if (d.at(id).scope == 0) d.restyle(id);  // a scope's nodes keep their own
     d.touch(dirty_layout | dirty_paint | dirty_semantics);
 }
+
+// ── theme scopes ──
+
+const Theme& Runtime::Impl::theme_of(NodeId id) const {
+    const std::uint32_t s = alive(id) ? at(id).scope : 0;
+    return s == 0 ? theme : scopes[s].theme;
+}
+
+const std::vector<EffectRule>& Runtime::Impl::rules_of(NodeId id) const {
+    const std::uint32_t s = alive(id) ? at(id).scope : 0;
+    return s == 0 ? effect_rules : scopes[s].rules;
+}
+
+std::uint32_t Runtime::Impl::scope_named(std::string_view name) const noexcept {
+    if (name.empty()) return 0;
+    for (std::uint32_t i = 1; i < scopes.size(); ++i)
+        if (scopes[i].name == name) return i;
+    return 0;
+}
+
+bool Runtime::Impl::scope_root(NodeId id) const {
+    const Node& n = at(id);
+    return n.scope != 0 && (!alive(n.parent) || at(n.parent).scope != n.scope);
+}
+
+void Runtime::Impl::restyle(NodeId id) {
+    Node& n = at(id);
+    {
+        auto use = use_theme(id);
+        if (n.type->restyle) n.type->restyle(n.instance);
+    }
+    if (n.type->measure) layout.mark_dirty(n.layout);
+    sync_style(id);
+    resolve_visual(id);
+}
+
+void Runtime::Impl::rescope(NodeId id, std::uint32_t inherited, std::uint32_t restyle_scope) {
+    if (!alive(id)) return;
+    std::uint32_t mine = inherited;
+    if (auto it = at(id).props.find("theme_scope"); it != at(id).props.end())
+        if (const std::uint32_t named = scope_named(it->second.as_string()); named != 0) mine = named;
+    const bool changed = at(id).scope != mine;
+    at(id).scope = mine;
+    if (changed || (restyle_scope != 0 && mine == restyle_scope)) {
+        restyle(id);
+        apply_rules(id);  // the scope's rules, or the runtime's again
+    }
+    const std::vector<NodeId> children = at(id).children;
+    for (NodeId c : children) rescope(c, mine, restyle_scope);
+}
+
+void Runtime::set_scope(std::string_view name, Theme theme, std::vector<EffectRule> rules) {
+    Impl& d = *impl_;
+    if (name.empty()) return;
+    std::uint32_t s = d.scope_named(name);
+    if (s == 0) {
+        s = static_cast<std::uint32_t>(d.scopes.size());
+        for (std::uint32_t i = 1; i < d.scopes.size(); ++i)
+            if (d.scopes[i].name.empty()) {
+                s = i;
+                break;
+            }
+        if (s == d.scopes.size()) d.scopes.emplace_back();
+        d.scopes[s].name = std::string(name);
+    }
+    d.scopes[s].theme = std::move(theme);
+    d.scopes[s].rules = std::move(rules);
+    if (d.alive(d.root)) d.rescope(d.root, 0, s);
+    d.touch(dirty_layout | dirty_paint | dirty_semantics);
+}
+
+void Runtime::remove_scope(std::string_view name) {
+    Impl& d = *impl_;
+    const std::uint32_t s = d.scope_named(name);
+    if (s == 0) return;
+    d.scopes[s] = {};
+    if (d.alive(d.root)) d.rescope(d.root, 0);
+    d.touch(dirty_layout | dirty_paint | dirty_semantics);
+}
+
+const Theme* Runtime::scope_theme(std::string_view name) const {
+    const std::uint32_t s = impl_->scope_named(name);
+    return s == 0 ? nullptr : &impl_->scopes[s].theme;
+}
+
+const std::vector<EffectRule>* Runtime::scope_rules(std::string_view name) const {
+    const std::uint32_t s = impl_->scope_named(name);
+    return s == 0 ? nullptr : &impl_->scopes[s].rules;
+}
+
+const Theme& Runtime::theme_of(NodeId node) const { return impl_->theme_of(node); }
 
 void Runtime::set_reduce_motion(bool reduce) {
     impl_->reduce_motion = reduce;
@@ -392,7 +493,7 @@ void Runtime::set_reduce_transparency(bool reduce) {
 bool Runtime::reduce_transparency() const { return impl_->reduce_transparency; }
 bool Runtime::reduce_motion() const noexcept { return impl_->reduce_motion; }
 
-const Theme& Runtime::theme() const { return impl_->theme; }
+const Theme& Runtime::theme() const { return impl_->current_theme ? *impl_->current_theme : impl_->theme; }
 typeset::FontCollection& Runtime::fonts() { return *impl_->fonts; }
 render::ImageStore& Runtime::images() { return impl_->images; }
 hanim::seconds Runtime::now() const { return impl_->now(); }
@@ -480,7 +581,10 @@ void Runtime::recompose(NodeId node) {
     Impl& d = *impl_;
     if (!d.alive(node) || !d.at(node).composed) return;
     RegionState& rs = *d.at(node).composed;
-    rs.pending = untracked([&] { return d.at(node).type->compose(d.at(node).instance); });
+    rs.pending = untracked([&] {
+        auto use = d.use_theme(node);
+        return d.at(node).type->compose(d.at(node).instance);
+    });
     if (!rs.dirty) {
         rs.dirty = true;
         d.dirty_regions.push_back(d.at(node).composed);

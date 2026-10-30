@@ -18,7 +18,7 @@ std::expected<void, std::string> Studio::show(std::string_view name, bool crossf
     current_ = std::string(name);
     draft_ = *st;
     if (runtime)
-        if (auto r = theme::apply_style(*runtime, name, crossfade); !r) return r;
+        if (auto r = scope.empty() ? theme::apply_style(*runtime, name, crossfade) : theme::apply_style(*runtime, name, scope, crossfade); !r) return r;
     revision.set(revision.peek() + 1);
     return {};
 }
@@ -34,7 +34,7 @@ std::expected<void, std::string> Studio::apply_draft() {
         return std::unexpected(why);
     }
     if (runtime)
-        if (auto r = theme::apply_style(*runtime, draft_.name, false); !r) return r;
+        if (auto r = scope.empty() ? theme::apply_style(*runtime, draft_.name, false) : theme::apply_style(*runtime, draft_.name, scope, false); !r) return r;
     revision.set(revision.peek() + 1);
     return {};
 }
@@ -135,7 +135,7 @@ Element preview(Studio& s) {
                                   {button({.id = "cancel", .text = "Cancel", .variant = ButtonVariant::secondary}),
                                    button({.id = "save", .text = "Save", .variant = ButtonVariant::primary,
                                            .on_activated = [&s] { s.saved.set(s.saved.peek() + 1); }})})});
-    Element dashboard = column({.id = "dashboard", .min_width = 0, .gap = 16, .grow = 1},
+    Element dashboard = column({.id = "dashboard", .min_width = 380, .gap = 16, .grow = 1},
                                {row({.gap = 16}, {stat("users", "Active users", "12,408", 0.72), stat("revenue", "Revenue", "$84.2k", 0.54)}),
                                 panel("activity", "This week",
                                       {painter({.id = "chart",
@@ -154,9 +154,14 @@ Element preview(Studio& s) {
                                                     }
                                                 }}),
                                        text({.text = "Saturday was the best day yet.", .style = "caption", .color = "text_muted"})})});
+    // The panels scroll over the wallpaper; where the preview is narrow (the
+    // workshop inside a page) the dashboard goes below the settings. A basis
+    // of 0: a line breaks by its least width, not its content's.
+    dashboard.prop("basis", Source(Value(0.0)));
     return stack({.id = "preview", .min_width = 0, .align = "start", .grow = 1, .clip = true},
-                 {wallpaper(), row({.id = "panels", .width = Dim(layout::pct(100)), .padding = 32, .gap = 24},
-                                   {column({.width = 380}, {std::move(settings)}), std::move(dashboard)})});
+                 {wallpaper(), scroll({.id = "content", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100))},
+                                      {row({.id = "panels", .width = Dim(layout::pct(100)), .padding = 32, .gap = 24, .wrap = "wrap"},
+                                           {column({.width = 380}, {std::move(settings)}), std::move(dashboard)})})});
 }
 
 // The sidebar: the packs, and the export.
@@ -174,7 +179,7 @@ Element sidebar(Studio& s) {
                 });
             }
             ui.spacer();
-            if (ui.button("Export", {.id = "export", .variant = "secondary", .verb = "styles.export"})) {}
+            if (s.can_export && ui.button("Export", {.id = "export", .variant = "secondary", .verb = "styles.export"})) {}
         },
         {.id = "sidebar", .width = 220, .padding = 16, .gap = 10, .shrink = 0, .background = "surface", .border_color = "border", .border_width = 1});
 }
@@ -188,7 +193,8 @@ Element editor(Studio& s) {
             ui.text(std::format("Editing {}", d.name), {.style = "heading"});
             std::string accent = [&] {
                 const auto it = d.tokens.colors.find("accent");
-                const Color c = it != d.tokens.colors.end() ? it->second : s.runtime ? s.runtime->theme().color("accent") : Color::black();
+                const Theme* shown = !s.runtime ? nullptr : s.scope.empty() ? &s.runtime->theme() : s.runtime->scope_theme(s.scope);
+                const Color c = it != d.tokens.colors.end() ? it->second : shown ? shown->color("accent") : Color::black();
                 auto b = [](float v) { return static_cast<int>(std::lround(std::clamp(v, 0.0f, 1.0f) * 255)); };
                 return std::format("#{:02x}{:02x}{:02x}", b(c.r), b(c.g), b(c.b));
             }();
@@ -236,6 +242,19 @@ AppSpec app(Studio& s, std::string_view first) {
         s.runtime = &rt;
         if (auto r = s.show(first, false); !r) warn("styles: {}", r.error());
     };
+    add_verbs(a, s);
+    a.view = [&s] { return view(s); };
+    return a;
+}
+
+Element view(Studio& s) {
+    Element e = row({.id = "studio", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .align = "stretch", .background = "background"},
+                    {sidebar(s), preview(s), editor(s)});
+    if (!s.scope.empty()) e.prop("theme_scope", Source(Value(s.scope)));
+    return e;
+}
+
+void add_verbs(AppSpec& a, Studio& s) {
     a.verbs.push_back({{"styles.show", "Shows the interface in a style pack (a cross-fade from the last).", Effect::reversible, {}, {{"name", "string"}}},
                        [&s](const Value& args) -> VerbResult {
                            const Value* n = args.get("name");
@@ -243,17 +262,13 @@ AppSpec app(Studio& s, std::string_view first) {
                            if (auto r = s.show(n->as_string()); !r) return std::unexpected(r.error());
                            return Value(s.current());
                        }});
+    if (!s.can_export) return;  // a page: nowhere to write
     a.verbs.push_back({{"styles.export", "Writes the edited style pack as a *.style.omui.toml.", Effect::external, "yes", {}},
                        [&s](const Value&) -> VerbResult {
                            auto r = s.export_style();
                            if (!r) return std::unexpected(r.error());
                            return Value(generic_utf8(*r));
                        }});
-    a.view = [&s] {
-        return row({.id = "studio", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .align = "stretch", .background = "background"},
-                   {sidebar(s), preview(s), editor(s)});
-    };
-    return a;
 }
 
 }  // namespace omui::styles

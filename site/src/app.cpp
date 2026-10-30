@@ -10,6 +10,7 @@ import openmui.ui.markdown;
 import openmui.ui.timeline;
 import openmui.ui.canvas;
 import openmui.showcase.markdown_wall;
+import openmui.showcase.style_gallery;
 import openmui.showcase.fighting;
 import hello;
 import openmui.semantic;
@@ -26,11 +27,12 @@ constexpr Log site_log{"site"};
 constexpr std::string_view atlas_path = "main/body/view/atlas";
 constexpr std::string_view place_root = "main/body/view/atlas/";
 
-constexpr std::array<Place, 7> all{{{"home", "Home", "首页"},
+constexpr std::array<Place, 8> all{{{"home", "Home", "首页"},
                                      {"features", "Features", "特性"},
                                      {"practices", "Practices", "实践"},
                                      {"timeline", "Timeline", "时间线"},
                                      {"wall", "Document wall", "文档墙"},
+                                     {"styles", "Style workshop", "风格工坊"},
                                      {"hello", "Example 01", "示例 01"},
                                      {"moves", "Move list", "出招表"}}};
 
@@ -91,6 +93,7 @@ struct Site {
     Signal<std::string> timeline = signal(std::string(sample));  // the timeline as last edited
     hello::State        hello;                 // example 01's, as the person left it
     std::unique_ptr<wall::Model> wall;         // S1's wall of the site's documents
+    styles::Studio      studio;                // S2's workshop: its packs in a theme scope, the site in its own theme
     // The reference run (the foot's check against CI): played here, on a
     // headless runtime of its own, when asked; the frame shown, its hash as
     // this machine drew it, and CI's.
@@ -850,6 +853,28 @@ Element work_window(const std::shared_ptr<Site>& s, const std::string& id, bool 
                    std::move(wall)});
 }
 
+// S2's workshop: one real interface in a style pack, the pack edited live.
+// The place is a theme scope (styles::Studio::scope): the pack styles it
+// alone, and the site around it keeps its own theme.
+Element styles_window(const std::shared_ptr<Site>& s, bool live) {
+    const Size v = s->layout.view;
+    const bool zh = s->lang.peek() == "zh";
+    auto say = [zh](std::string_view en, std::string_view han) { return std::string(zh ? han : en); };
+    Element work = live ? styles::view(s->studio)
+                        : box({.id = "later", .justify = "center", .align = "center", .grow = 1, .background = "surface", .radius = 12},
+                              {text({.text = say("Close up, the workshop runs here.", "走近，工坊就在这里运行。"), .style = "caption", .color = "text_muted"})});
+    return column({.id = "page", .width = Dim(v.width), .height = Dim(v.height), .padding = Edges(24.0f, 32.0f), .gap = 12, .background = "background"},
+                  {text({.id = "title", .text = say("The style workshop (S2)", "风格工坊（S2）"), .style = "title"}),
+                   text({.id = "about",
+                         .text = say("One real interface in each of openmui's style packs — glass, neon, retro, ink, liquid — and the pack shown edited "
+                                     "as you go. Only pixels change: the semantic tree is the same in every pack. The pack styles this place alone; "
+                                     "the site around it keeps its own theme.",
+                                     "同一个真实的界面，放进 openmui 的每个风格包：玻璃、霓虹、复古、水墨、液态；当前的风格包可以边看边改。"
+                                     "变的只有像素：每个风格包下语义树都一样。风格包只作用于这个地方，周围的网站保持自己的主题。"),
+                         .style = "body"}),
+                   box({.id = "workshop", .grow = 1, .radius = 12, .clip = true}, {std::move(work)})});
+}
+
 // The check against CI: the reference run's frame as this browser drew it,
 // its pixels' hash, and the hash CI pinned for the same frame.
 Element check_panel(const std::shared_ptr<Site>& s) {
@@ -937,6 +962,7 @@ Element place_window(const std::shared_ptr<Site>& s, const std::string& id, bool
     }
     if (id == "hello" || id == "wall") return work_window(s, id, live);
     if (id == "moves") return moves_window(s, live);
+    if (id == "styles") return styles_window(s, live);
     Element doc = live ? retyped(markdown({.id = "doc",
                                            .origin = MarkdownOrigin::app,
                                            .source = computed([s, id] { return std::string(document(id, s->lang.get())); }),
@@ -995,6 +1021,7 @@ AppSpec app(std::string_view place, std::string_view lang) {
     auto s = std::make_shared<Site>();
     if (place == "overview" || std::ranges::any_of(all, [&](const Place& p) { return p.id == place; })) s->place.set(std::string(place));
     s->lang.set(lang == "zh" ? "zh" : "en");
+    styles::add_verbs(a, s->studio);  // styles.show: an agent switches the workshop's pack as a person does
     a.setup = [s](Runtime& rt) {
         s->runtime = &rt;
         register_type(component_type<Lens>());
@@ -1025,6 +1052,11 @@ AppSpec app(std::string_view place, std::string_view lang) {
         }
         wall::register_all();
         wall::build(*s->wall, world::scene(s->wall->scene));
+        // S2's workshop: a pack styles its place alone (a theme scope); the site keeps its own.
+        s->studio.scope = "workshop";
+        s->studio.can_export = false;  // a page has nowhere to write the file
+        s->studio.runtime = &rt;
+        if (auto r = s->studio.show("glass", false); !r) warn("site: {}", r.error());
         s->guide = std::make_unique<Guide>(rt, [site = s.get()] { return site->place.get(); });
         register_type(component_type<Timebar>());
         fighting::register_components();  // the move list's stage is the game's own
@@ -1213,7 +1245,11 @@ std::string static_html(std::string_view lang) {
                 }
                 out += "</table>\n";
             }
-        } else if (p.id == "hello")
+        } else if (p.id == "styles")
+            out += zh ? "<h1>风格工坊（S2）</h1>\n<p>同一个真实的界面，放进 openmui 的每个风格包：玻璃、霓虹、复古、水墨、液态；当前的风格包可以边看边改。变的只有像素：每个风格包下语义树都一样。需要 JavaScript。</p>\n"
+                      : "<h1>The style workshop (S2)</h1>\n<p>One real interface in each of openmui's style packs — glass, neon, retro, ink, liquid — and the pack shown edited as you go. "
+                        "Only pixels change: the semantic tree is the same in every pack. It needs JavaScript.</p>\n";
+        else if (p.id == "hello")
             out += std::format("<h1>{}</h1>\n<p>{}</p>\n<pre><code>{}</code></pre>\n", zh ? "示例 01：你好，立即模式" : "Example 01 — hello, immediate mode",
                                zh ? "一个完整的 openmui 程序。运行它需要 JavaScript；它的全部源码如下。" : "A whole openmui program. Running it needs JavaScript; here is all of its source.",
                                escaped(hello::hello_source));

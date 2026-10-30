@@ -17,6 +17,7 @@ Size measure_trampoline(void* context, layout::NodeId lnode, std::optional<float
     NodeId id = impl->by_layout[lnode];
     Node& n = impl->at(id);
     MeasureContext m{impl->self, id};
+    auto use = impl->use_theme(id);
     return n.type->measure(n.instance, m, width, height, aw, ah);
 }
 
@@ -25,6 +26,7 @@ float baseline_trampoline(void* context, layout::NodeId lnode, Size content) {
     NodeId id = impl->by_layout[lnode];
     Node& n = impl->at(id);
     MeasureContext m{impl->self, id};
+    auto use = impl->use_theme(id);
     return n.type->baseline(n.instance, m, content);
 }
 
@@ -40,6 +42,7 @@ NodeId Runtime::Impl::create(Element& e, NodeId parent) {
     n.type = &type;
     n.instance = type.create_in ? type.create_in(type.context) : type.create();
     n.parent = parent;
+    n.scope = alive(parent) ? at(parent).scope : 0;  // its parent's theme scope, until its own theme_scope says otherwise
     n.where = e.where;
     if (!e.id.empty()) {
         if (e.generated_id ? !spec::valid_segment(e.id) : !spec::valid_explicit_segment(e.id))
@@ -71,7 +74,10 @@ NodeId Runtime::Impl::create(Element& e, NodeId parent) {
     if (type.measure) layout.set_measure(lnode, &measure_trampoline, this, type.baseline ? &baseline_trampoline : nullptr);
     if (type.overlay) overlays.push_back(id);
     if (type.laid_out) watchers.push_back(id);
-    if (type.mount) type.mount(at(id).instance, self, id);
+    if (type.mount) {
+        auto use = use_theme(id);
+        type.mount(at(id).instance, self, id);
+    }
 
     for (auto& [name, source] : e.props) {
         at(id).element_props.push_back(name);
@@ -88,6 +94,7 @@ NodeId Runtime::Impl::create(Element& e, NodeId parent) {
         rs->parent = id;
         rs->region = std::make_shared<Region>(Region{[this, id] {
             Node& n = at(id);
+            auto use = use_theme(id);
             return n.type->compose(n.instance);
         }});
         run_region(rs);

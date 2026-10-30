@@ -195,7 +195,10 @@ void Runtime::Impl::tell_retimed() {
     for (std::size_t index = 1; index < by_index.size(); ++index)
         if (const NodeId id = by_index[index]; alive(id) && at(id).type && at(id).type->retimed && at(id).instance) told.push_back(id);
     for (const NodeId id : told)
-        if (alive(id) && at(id).instance) at(id).type->retimed(at(id).instance, t);
+        if (alive(id) && at(id).instance) {
+            auto use = use_theme(id);
+            at(id).type->retimed(at(id).instance, t);
+        }
     frame_requested = true;
 }
 
@@ -471,9 +474,11 @@ void Runtime::Impl::paint() {
         const double u = reduce_motion ? 1.0 : (now() - fade_start).count() / std::max(1e-6, fade_length.count());
         if (u >= 1) fading.reset();
         else {
+            if (fade_clip) list.push_clip(*fade_clip);  // a scope's: only its area
             list.push_layer(static_cast<float>(1 - hanim::ease::standard(u)), render::BlendMode::normal);
             list.append(*fading);
             list.pop_layer();
+            if (fade_clip) list.pop_clip();
         }
     }
     // Overlays above everything, bottom to top; a modal one darkens what is below.
@@ -481,7 +486,7 @@ void Runtime::Impl::paint() {
         if (!alive(id) || !displayed(id)) continue;
         const Node& n = at(id);
         if (n.type->placement && n.type->placement(n.instance).scrim) {
-            const Color scrim = theme.color("scrim", Color::hex(0x0f172a, 0.45f));
+            const Color scrim = theme_of(id).color("scrim", Color::hex(0x0f172a, 0.45f));
             list.fill_rect({0, 0, size.width, size.height}, scrim.with_alpha(scrim.a * std::clamp(n.visual[Field::opacity], 0.0f, 1.0f)));
         }
         paint_node(id);
@@ -490,6 +495,9 @@ void Runtime::Impl::paint() {
 
 void Runtime::Impl::paint_node(NodeId id) {
     Node& n = at(id);
+    // Its scope's theme: what it draws with, and what its hooks are told.
+    const Theme& theme = theme_of(id);
+    auto use = use_theme(id);
     const Visual& v = n.visual;
     const Size size = n.frame.size();
     const Affine local = n.local;

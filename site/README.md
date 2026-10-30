@@ -14,6 +14,7 @@ The site shows openmui's thesis instead of describing it: **the interface is a s
   - live works:
     - a timeline editor (`openmui.ui.timeline`) with its own undo history (S-12);
     - the document wall, S1 small: the site's documents in both languages and the benchmark's set, on a canvas of their own (select, drag, snap, minimap, group drag, named views);
+    - S2's style workshop (`showcase/style-gallery`): one real interface in each of openmui's style packs, the pack shown edited as you go. The place is a theme scope (D-89), so a pack styles it alone and the site keeps its own theme; an agent switches packs with `styles.show`;
     - example 01 (`examples/01-hello-im`), the shortest openmui program, running in a frame beside its own source. A person or an agent types into it and clicks it.
     - the fighting game's move list, a real frame-data station:
       - for each fighter, every move's startup, active and recovery frames, its advantage on hit and on block, and its damage;
@@ -84,8 +85,8 @@ python3 -m http.server -d target/site            # and look at it
 - the home tree's hash, pinned, and the same in a narrower window;
 - the timeline editor: an agent's edit followed by the tree, then undone;
 - the page's time: an agent dragging it back to before a flight (the view exactly as it was), live again, played backwards to the strip's start and forwards to live;
-- the works: example 01 typed into and clicked, the wall's canvas live with the site's documents; the move list's rows equal to what the game measures, a move picked by an agent, on block, shown at its first active frame;
-- the pixels of home, the overview, the wireframe, the agent's JSON, the timeline, the wall, example 01, the move list, the agent asking, the Chinese page and the page's time dragged back into a language switch, pinned on every platform (each picture's own hash printed, so a platform that differs shows which);
+- the works: example 01 typed into and clicked, the wall's canvas live with the site's documents; the style workshop in its place, an agent switching its pack, the site's bar unchanged, the tree the same in every pack, its corners edited; the move list's rows equal to what the game measures, a move picked by an agent, on block, shown at its first active frame;
+- the pixels of home, the overview, the wireframe, the agent's JSON, the timeline, the wall, the style workshop, example 01, the move list, the agent asking, the Chinese page and the page's time dragged back into a language switch, pinned on every platform (each picture's own hash printed, so a platform that differs shows which);
 - the reference run: every sampled frame pinned (`reference/ci.frames.omui.json`; when they differ the run's own table is written to `$TMPDIR/openmui-tests/site-reference/`, with three of its frames beside it), a frame played to again the same; the panel in the page: an agent picks frame 9, and the hash drawn here is a fresh replay's and CI's;
 - the static HTML and its injection into dist-toy's page.
 

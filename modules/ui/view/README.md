@@ -9,6 +9,12 @@ The retained and immediate view runtime (plan §3–§5):
 - **components**: a C++ class whose function table `component_type<C>()`
   derives at compile time (paint, measure, events, actions, semantics …);
 - **theme tokens**: colours, text styles, spacing, radii, shadows, motion;
+  and **theme scopes** (D-89): a subtree with a theme and effect rules of its
+  own (`Runtime::set_scope(name, theme, rules)`; a node joins with its
+  `theme_scope` property, its descendants and the overlays it opens with it).
+  The nearest scope wins, whole. A component's hooks are told their scope's
+  theme by `Services::theme()`; "window" rules apply to the node that joins;
+  `crossfade(length, scope)` fades that area only;
 - **the runtime**: nodes with structural and explicit ids (S-8), fine-grained
   bindings, transitions on animation channels (enter, exit with S-4), timers
   on the injected clock, incremental layout, painting into a display list with

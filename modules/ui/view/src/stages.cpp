@@ -92,7 +92,10 @@ std::vector<Plugin> plugins() {
                  d.place_overlays();
                  d.trap_focus();
                  for (NodeId w : std::vector<NodeId>(d.watchers))
-                     if (d.alive(w)) d.at(w).type->laid_out(d.at(w).instance);
+                     if (d.alive(w)) {
+                         auto use = d.use_theme(w);
+                         d.at(w).type->laid_out(d.at(w).instance);
+                     }
                  d.bounds_ran = true;
              }
              c.resources.put(res::bounds, &d.bounds_token);

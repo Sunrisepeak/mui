@@ -337,6 +337,19 @@ public:
 
     // ── theme ──
     void set_theme(Theme theme);
+    // Theme scopes: a subtree with a theme and effect rules of its own — a
+    // style pack previewed inside a page that keeps its own. A node joins the
+    // scope its `theme_scope` property names, and its descendants with it
+    // (overlays it opens too); the nearest scope wins, whole: its theme and
+    // its rules replace the runtime's, nothing merges. A name not registered
+    // leaves the node in its parent's. "window" rules apply to the node that
+    // joins the scope. Setting a registered scope again restyles its nodes.
+    void set_scope(std::string_view name, Theme theme, std::vector<EffectRule> rules = {});
+    void remove_scope(std::string_view name);
+    [[nodiscard]] const Theme* scope_theme(std::string_view name) const;
+    [[nodiscard]] const std::vector<EffectRule>* scope_rules(std::string_view name) const;
+    // The theme the node is drawn in: its scope's, else the runtime's.
+    [[nodiscard]] const Theme& theme_of(NodeId node) const;
     void set_reduce_motion(bool reduce);
     [[nodiscard]] bool reduce_motion() const noexcept;
     void set_reduce_transparency(bool reduce);
@@ -357,6 +370,8 @@ public:
     void set_effect_rules(std::vector<EffectRule> rules);
     [[nodiscard]] const std::vector<EffectRule>& effect_rules() const noexcept;
     void crossfade(seconds length);
+    // Only the scope's nodes' area (a scoped style's change).
+    void crossfade(seconds length, std::string_view scope);
     [[nodiscard]] const FrameDemand& frame_demand() const noexcept;
     // The display's refresh rate, as the host last said (0: unknown).
     [[nodiscard]] double display_hz() const noexcept;

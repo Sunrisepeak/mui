@@ -140,21 +140,81 @@ int main(int argc, char** argv) {
 
     s.test("the interface works under every pack: a switch, the slider, saving", [] {
         App a("ink");
-        check_eq(a.h.tree().act("main/preview/panels/column:0/settings/cellular", "toggle", as_agent()).exit_code().value_or(-1), std::int64_t{0});
+        check_eq(a.h.tree().act("main/preview/content/panels/column:0/settings/cellular", "toggle", as_agent()).exit_code().value_or(-1), std::int64_t{0});
         a.h.settle();
         check(a.studio.cellular.peek(), "switched on");
-        check_eq(a.h.tree().act("main/preview/panels/column:0/settings/volume", "set_value", as_agent(Value{}.set("value", Value(0.25)))).exit_code().value_or(-1),
+        check_eq(a.h.tree().act("main/preview/content/panels/column:0/settings/volume", "set_value", as_agent(Value{}.set("value", Value(0.25)))).exit_code().value_or(-1),
                  std::int64_t{0});
         a.h.settle();
         check(std::abs(a.studio.volume.peek() - 0.25) < 1e-9, "the volume");
-        const auto save = a.h.tree().node("main/preview/panels/column:0/settings/row:0/save");
+        const auto save = a.h.tree().node("main/preview/content/panels/column:0/settings/row:0/save");
         check(save && save->bounds, "the save button");
-        check(a.h.click("main/preview/panels/column:0/settings/row:0/save"), "clicked");
+        check(a.h.click("main/preview/content/panels/column:0/settings/row:0/save"), "clicked");
         a.h.settle();
         check_eq(a.studio.saved.peek(), std::int64_t{1});
         const auto v = a.h.tree().violations();
         for (const auto& x : v) std::println("    {} {} {}", x.clause, x.id, x.message);
         check(v.empty());
+    });
+
+    s.test("inside another program: the workshop is a theme scope — a pack draws it as in its own window, the page around keeps its theme, a menu it opens is in the pack", [] {
+        // The host: a dark page, a strip of its own above the workshop.
+        Headless h{HeadlessOptions{.size = {1440, 1000}}};
+        h.runtime().set_theme(Theme::dark_theme());
+        register_base_components();
+        styles::Studio studio;
+        studio.scope = "workshop";
+        studio.can_export = false;
+        studio.runtime = &h.runtime();
+        check(studio.show("glass", false).has_value());
+        AppSpec host;
+        styles::add_verbs(host, studio);
+        for (auto& v : host.verbs) (void)h.runtime().verbs().add(v.desc, v.fn);
+        check(std::ranges::none_of(host.verbs, [](const auto& v) { return v.desc.name == "styles.export"; }), "no export: nowhere to write");
+        h.mount("main", column({}, {box({.id = "strip", .width = 1440, .height = 100, .background = "surface"}),
+                                    box({.id = "frame", .width = 1440, .height = 900}, {styles::view(studio)})}));
+        h.settle();
+        // The workshop's area beside the same pack in a window of its own:
+        // every pixel within one level (the glass's frost grain follows the
+        // screen, so 100 pixels down it falls a level apart here and there),
+        // but for the sidebar's foot, where the window has its Export.
+        auto off = [&](std::string_view pack) {
+            App a(pack);
+            const auto& mine = h.pixels();
+            const auto& theirs = a.h.pixels();
+            std::size_t apart = 0;
+            for (int y = 0; y < 900; ++y)
+                for (int x = 0; x < 1440; ++x) {
+                    if (x < 220 && y > 800) continue;
+                    const auto p = mine.at(x, y + 100), q = theirs.at(x, y);
+                    if (std::abs(p.r - q.r) > 1 || std::abs(p.g - q.g) > 1 || std::abs(p.b - q.b) > 1 || std::abs(p.a - q.a) > 1) ++apart;
+                }
+            return apart;
+        };
+        const auto strip = h.pixels().at(700, 50);
+        check(strip.r == 0x11 && strip.g == 0x18 && strip.b == 0x27, "the page's own surface");
+        check_eq(off("glass"), std::size_t{0});
+        check(!h.tree().node("main/frame/studio/sidebar/export"), "no Export button");
+        // An agent switches packs: the workshop changes, the page does not.
+        check(h.runtime().verbs().invoke("styles.show", as_agent(Value{}.set("name", Value("neon")))).exit_code() == std::optional<std::int64_t>(0));
+        h.settle();
+        check_eq(off("neon"), std::size_t{0});
+        const auto after = h.pixels().at(700, 50);
+        check(after.r == strip.r && after.g == strip.g && after.b == strip.b, "the page kept its theme");
+        // A select's menu: an overlay above everything, drawn in the pack it was opened from.
+        std::string select;
+        for (const auto& n : h.tree().snapshot({}).nodes)
+            if (n.id.ends_with("/region")) select = n.id;
+        check(!select.empty() && h.tree().act(select, "expand", as_agent()).exit_code() == std::optional<int>(0), select);
+        h.settle();
+        NodeId popup{};
+        for (const auto& n : h.tree().snapshot({}).nodes)
+            if (n.id.starts_with(select + "/") && n.role == Role::list_box) popup = h.runtime().find(n.id);
+        check(popup != NodeId{}, "the menu is open");
+        const Theme* pack = h.runtime().scope_theme("workshop");
+        check(pack && h.runtime().theme_of(popup).color("surface") == pack->color("surface") &&
+                  pack->color("surface") != Theme::dark_theme().color("surface"),
+              "in the pack's theme, not the page's");
     });
 
     return s.run(argc, argv);

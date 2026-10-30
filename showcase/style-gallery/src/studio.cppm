@@ -6,6 +6,10 @@
 // of its effects' parameters, applied as they change; and an export that
 // writes the edited pack as a *.style.omui.toml. Agents get the same as the
 // person: `styles.show`, `styles.export`, every control by its id.
+//
+// In a window of its own (app()) a pack styles the whole runtime; inside
+// another program (the site) it is a theme scope (Runtime::set_scope): the
+// workshop in the pack shown, the program around it in its own theme.
 export module openmui.showcase.style_gallery;
 
 import std;
@@ -22,6 +26,8 @@ public:
 
     omui::Runtime*        runtime = nullptr;
     std::filesystem::path export_dir;  // where exports go (default: the working directory)
+    std::string           scope;       // the theme scope packs go to (empty: the whole runtime)
+    bool                  can_export = true;  // the Export button (a page has nowhere to write)
 
     // The pack shown, and its draft (what the editor changed).
     [[nodiscard]] const std::string& current() const noexcept { return current_; }
@@ -51,5 +57,9 @@ private:
 };
 
 [[nodiscard]] omui::AppSpec app(Studio& studio, std::string_view first = "glass");
+// The workshop itself — the packs, the interface, the editor — for a program
+// to place (in the studio's scope, when it has one), and its verbs.
+[[nodiscard]] omui::Element view(Studio& studio);
+void add_verbs(omui::AppSpec& spec, Studio& studio);
 
 }  // namespace omui::styles

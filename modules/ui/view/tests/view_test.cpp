@@ -1128,6 +1128,89 @@ int main(int argc, char** argv) {
         check(draw(plain, glyphs).hash() == rest);
     });
 
+    s.test("theme scopes: a subtree drawn in a theme of its own, its hooks told it, the rest in the runtime's; set again, the runtime's changed, removed", [] {
+        typeset::GlyphCache glyphs(fonts());
+        Runtime rt(options({200, 60}));  // the light theme
+        Color seen_ctx, seen_services;
+        auto panel = [](std::string id, std::vector<Element> kids) {
+            return box({.id = std::move(id), .width = 100, .height = 60, .background = "surface"}, std::move(kids)).prop("padding", Source{Value("l"), {}, {}});
+        };
+        rt.mount("main", row({}, {panel("out", {box({.id = "o", .width = 4, .height = 4})}),
+                                  panel("in", {painter({.id = "p", .width = 4, .height = 4, .paint = [&](PaintContext& c) {
+                                                            seen_ctx = c.theme.color("surface");
+                                                            seen_services = c.services.theme().color("surface");
+                                                        }})})
+                                      .prop("theme_scope", Source{Value("preview"), {}, {}})}));
+        rt.frame();
+        auto px = [&](int x) {
+            const auto s = draw(rt, glyphs);
+            const auto c = s.at(x, 50);
+            return (static_cast<std::uint32_t>(c.r) << 16) | (static_cast<std::uint32_t>(c.g) << 8) | c.b;
+        };
+        check(rt.bounds(rt.find("main/in/p")).x == 116 && px(150) == 0xffffff, "a scope not registered: the runtime's theme");
+        Theme dark = Theme::dark_theme();
+        dark.spacing["l"] = 30;
+        rt.set_scope("preview", dark);
+        rt.frame();
+        check(rt.bounds(rt.find("main/in/p")).x == 130, "its spacing");
+        check(rt.bounds(rt.find("main/out/o")).x == 16, "the rest keeps the runtime's");
+        check_eq(px(150), 0x111827u);
+        check_eq(px(50), 0xffffffu);
+        check(seen_ctx == Color::hex(0x111827) && seen_services == Color::hex(0x111827), "a hook asking the services is told its scope's theme");
+        check(rt.theme_of(rt.find("main/in/p")).color("surface") == Color::hex(0x111827) && rt.theme().color("surface") == Color::hex(0xffffff),
+              "and outside a hook, the runtime's");
+        dark.colors["surface"] = Color::hex(0x224466);
+        rt.set_scope("preview", dark);
+        rt.frame();
+        check_eq(px(150), 0x224466u);
+        rt.set_theme(Theme::dark_theme());
+        rt.frame();
+        check(px(50) == 0x111827 && px(150) == 0x224466, "the runtime's theme changes the rest only");
+        rt.remove_scope("preview");
+        rt.frame();
+        check(px(150) == 0x111827 && rt.bounds(rt.find("main/in/p")).x == 116, "removed: the runtime's again");
+        check(rt.scope_theme("preview") == nullptr);
+    });
+
+    s.test("theme scopes: their own effect rules (\"window\" is the node that joins), and a cross-fade of their area only", [] {
+        typeset::GlyphCache glyphs(fonts());
+        auto make = [](Runtime& rt) {
+            rt.mount("main", row({}, {box({.id = "out", .width = 100, .height = 60, .background = "accent"}, {box({.width = 30, .height = 30, .background = "surface"})}),
+                                      box({.id = "in", .width = 100, .height = 60, .background = "accent"}, {box({.width = 30, .height = 30, .background = "surface"})})
+                                          .prop("theme_scope", Source{Value("preview"), {}, {}})}));
+        };
+        auto half = [&](Runtime& rt, bool right) {
+            const auto s = draw(rt, glyphs);
+            Hash h;
+            // The left 90 columns, or the right half: a blur reaches a few pixels past its node.
+            for (int y = 0; y < 60; ++y) h.bytes(std::as_bytes(std::span(s.row(y) + (right ? 100 : 0), right ? 100 : 90)));
+            return h.hex();
+        };
+        Runtime plain(options({200, 60}));
+        make(plain);
+        plain.set_scope("preview", Theme::light());
+        plain.frame({seconds(0), {}});
+        Value blur;
+        blur.set("name", "blur").set("radius", 3.0);
+        Runtime rt(options({200, 60}));
+        make(rt);
+        rt.set_scope("preview", Theme::light(), {EffectRule{"window", blur}});
+        rt.frame({seconds(0), {}});
+        check(half(rt, false) == half(plain, false), "outside: no effect");
+        check(half(rt, true) != half(plain, true), "the scope's window rule on the node that joins it");
+        // A cross-fade of the scope's area: the rest is never touched.
+        rt.set_scope("preview", Theme::light());
+        rt.frame({seconds(1), {}});
+        const auto before_out = half(rt, false), before_in = half(rt, true);
+        rt.crossfade(seconds(1), "preview");
+        rt.set_scope("preview", Theme::dark_theme());
+        rt.frame({seconds(1.5), {}});
+        const auto mid_out = half(rt, false), mid_in = half(rt, true);
+        rt.frame({seconds(3), {}});
+        check(mid_out == before_out && half(rt, false) == before_out, "outside the scope: as it was, throughout");
+        check(mid_in != before_in && mid_in != half(rt, true), "inside: on its way from the one to the other");
+    });
+
     s.test("glyph motion takes the text's decorations along: an underline under the glyphs moves and fades with them, a background taller than a line and a fill beside them stay", [] {
         static const render::Glyph word[] = {{.id = 1, .position = {0, 0}}, {.id = 2, .position = {9, 0}}, {.id = 3, .position = {18, 0}}};
         GlyphMotion m;

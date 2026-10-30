@@ -166,6 +166,7 @@ struct Node {
     Affine               world;         // node → window
     std::source_location where;
     std::uint32_t        index = 0;     // display-list node marker; 0 is none
+    std::uint32_t        scope = 0;     // its theme scope (Impl::scopes); 0: the runtime's theme
     std::shared_ptr<RegionState> composed;  // a composite component's own children
 };
 
@@ -288,6 +289,37 @@ struct Runtime::Impl {
     std::vector<EffectRule>                               effect_rules;
     std::optional<render::DisplayList>                    fading;
     seconds                                               fade_start{0}, fade_length{0};
+    std::optional<Rect>                                   fade_clip;  // a scope's cross-fade: its area only
+    // Theme scopes (Runtime::set_scope): [0] is unused (the runtime's own
+    // theme and rules); a removed scope keeps its slot, nameless.
+    struct Scope {
+        std::string             name;
+        Theme                   theme;
+        std::vector<EffectRule> rules;
+    };
+    std::vector<Scope> scopes = std::vector<Scope>(1);
+    // The theme Services::theme() answers with: the scope of the node whose
+    // hook is running (ThemeUse), else the runtime's.
+    mutable const Theme* current_theme = nullptr;
+    struct ThemeUse {
+        const Theme*& slot;
+        const Theme*  saved;
+        ThemeUse(const Theme*& s, const Theme* t) noexcept : slot(s), saved(s) { slot = t; }
+        ~ThemeUse() { slot = saved; }
+        ThemeUse(const ThemeUse&) = delete;
+        ThemeUse& operator=(const ThemeUse&) = delete;
+    };
+    [[nodiscard]] const Theme& theme_of(NodeId id) const;
+    [[nodiscard]] const std::vector<EffectRule>& rules_of(NodeId id) const;
+    // Around a node's hooks: what it asks the services for is its scope's theme.
+    [[nodiscard]] ThemeUse use_theme(NodeId id) const { return ThemeUse(current_theme, &theme_of(id)); }
+    [[nodiscard]] std::uint32_t scope_named(std::string_view name) const noexcept;
+    // The node joins the scope its theme_scope property names (or its
+    // parent's), and its subtree with it; a node whose scope changed — or all
+    // of `restyle_scope`'s — is styled again.
+    void rescope(NodeId id, std::uint32_t inherited, std::uint32_t restyle_scope = 0);
+    void restyle(NodeId id);
+    [[nodiscard]] bool scope_root(NodeId id) const;
     // The frame as a pipeline of stage plugins (stages.cpp, D-66).
     pipeline::Registry                 registry;
     std::optional<pipeline::Pipeline>  frames;

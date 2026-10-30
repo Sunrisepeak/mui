@@ -321,4 +321,13 @@ std::expected<void, std::string> apply_style(Runtime& rt, std::string_view name,
     return {};
 }
 
+std::expected<void, std::string> apply_style(Runtime& rt, std::string_view name, std::string_view scope, bool crossfade) {
+    auto t = library().compose_style(name);
+    if (!t) return std::unexpected(t.error());
+    const auto st = library().find_style(name);
+    if (crossfade && st->crossfade > 0) rt.crossfade(seconds(st->crossfade), scope);
+    rt.set_scope(scope, std::move(*t), st->effects);
+    return {};
+}
+
 }  // namespace omui::theme

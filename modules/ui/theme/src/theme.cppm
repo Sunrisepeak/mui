@@ -140,5 +140,9 @@ std::expected<void, std::string> apply(Runtime& rt, std::span<const std::string>
 // A style: its theme and its effects to the runtime, seen as a cross-fade
 // from what was on screen (unless `crossfade` is false: a first frame).
 std::expected<void, std::string> apply_style(Runtime& rt, std::string_view name, bool crossfade = true);
+// A style for a theme scope only (Runtime::set_scope): the nodes whose
+// theme_scope is `scope` take it, the cross-fade covers their area, and the
+// rest of the window keeps its own.
+std::expected<void, std::string> apply_style(Runtime& rt, std::string_view name, std::string_view scope, bool crossfade = true);
 
 }  // namespace omui::theme

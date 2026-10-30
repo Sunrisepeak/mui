@@ -37,8 +37,9 @@ openmui.sdk         = { path = ".." }
 openmui.ui.markdown = { path = "../components/markdown" }
 openmui.ui.timeline = { path = "../components/timeline" }
 openmui.ui.canvas   = { path = "../components/canvas" }
-# The works the site runs in its places: S1's wall, example 01.
+# The works the site runs in its places: S1's wall, S2's workshop, example 01, the move list.
 openmui.showcase.markdown_wall = { path = "../showcase/markdown-wall" }
+openmui.showcase.style_gallery = { path = "../showcase/style-gallery" }
 openmui.example.hello-im       = { path = "../examples/01-hello-im" }
 openmui.showcase.fighting      = { path = "../showcase/fighting" }
 openmui.semantic    = { path = "../modules/ui/semantic" }

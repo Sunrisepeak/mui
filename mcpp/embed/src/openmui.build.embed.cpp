@@ -16,7 +16,7 @@ std::vector<edge> plan_embed(const embed_options& opt) {
     const std::string ns = opt.ns.empty() ? namespace_of(opt.module) : opt.ns;
     const std::string out = utf8(std::filesystem::path(opt.out_dir) / "openmui");
     std::vector<edge> edges;
-    for (const auto& f : files_ending(std::filesystem::path(root) / opt.dir, opt.suffix)) {
+    for (const auto& f : opt.left_out ? std::vector<std::filesystem::path>{} : files_ending(std::filesystem::path(root) / opt.dir, opt.suffix)) {
         std::string stem = utf8(f.filename());
         stem = stem.substr(0, stem.size() - opt.suffix.size());
         for (char& c : stem)
@@ -33,7 +33,7 @@ std::vector<edge> plan_embed(const embed_options& opt) {
         edges.push_back(std::move(e));
     }
     // And, asked for, one table of them all, `<module>:<tag>_files`: (the file's name, its text).
-    if (opt.index && !edges.empty()) {
+    if (opt.index && (!edges.empty() || opt.left_out)) {
         edge index;
         index.id = std::format("openmui:{}:index", opt.tag);
         index.description = std::format("{} files → {}_files.cppm ({})", opt.tag, opt.tag, opt.module);
@@ -57,6 +57,7 @@ bool embed(embed_options opt) {
     mcpp::rerun_if_changed_glob((opt.dir + "/**").c_str());
     auto edges = plan_embed(opt);
     if (edges.empty()) {
+        if (opt.left_out) return true;  // nothing asked for
         std::println(std::cerr, "openmui.build.embed: no {} file in {}/", opt.suffix, opt.dir);
         return false;
     }

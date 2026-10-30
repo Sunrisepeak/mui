@@ -18,6 +18,10 @@ struct embed_options {
     std::string suffix;                                   // which: ".style.omui.toml"
     std::string tag;                                      // the partitions' and constants' suffix: <stem>_<tag>
     bool        index = false;                            // and <tag>_files, a table of them all (the module exports it)
+    // The files left out (a feature the build does not have): no partition
+    // a file, and with `index` an empty table, so the code reading it builds
+    // the same and finds nothing.
+    bool        left_out = false;
     std::string out_dir = std::string(mcpp::out_dir());   // generated files go under out_dir/openmui
 };
 

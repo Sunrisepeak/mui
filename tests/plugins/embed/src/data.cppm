@@ -5,5 +5,6 @@ export module acme.data;
 export import :first_note;
 export import :second_part_two_note;
 export import :note_files;
+export import :left_files;  // left out: empty
 export import :dusk_theme;
 export import :pan_zoom_behavior;

@@ -9,6 +9,10 @@ import openmui.build.toy;
 import gongfu.rules;
 
 int main() {
+    // The arenas (feature `arenas`, on by default): the stages and their
+    // layers, their music, the announcer. Left out, their tables are empty —
+    // training's plain room needs none (the site's move list).
+    const bool arenas = mcpp::has_feature("arenas");
     const bool stage = openmui::build::components({.module = "openmui.showcase.fighting", .ns = "omui::fighting"});
     // The fighters, their looks and baked hurtboxes; a stale bake fails the build.
     const bool fighters = gongfu::rules::fighters({.module = "openmui.showcase.fighting", .ns = "omui::fighting::files"});
@@ -17,10 +21,10 @@ int main() {
                                                .suffix = ".sound.omui.toml", .tag = "sound"});
     // The stages' art (gongfu.present2d's stage files).
     const bool stages = openmui::build::embed({.module = "openmui.showcase.fighting", .ns = "omui::fighting::files", .dir = "stages",
-                                               .suffix = ".stage.gongfu.toml", .tag = "stage", .index = true});
+                                               .suffix = ".stage.gongfu.toml", .tag = "stage", .index = true, .left_out = !arenas});
     // Their painted layers (the pictures the stage files name).
     const bool stage_art = openmui::build::embed({.module = "openmui.showcase.fighting", .ns = "omui::fighting::files", .dir = "stages/art",
-                                                  .suffix = ".webp", .tag = "stage_art", .index = true});
+                                                  .suffix = ".webp", .tag = "stage_art", .index = true, .left_out = !arenas});
     // The fighters' drawn art (pictures their looks' image parts are cut from).
     const bool art = openmui::build::embed({.module = "openmui.showcase.fighting", .ns = "omui::fighting::files", .dir = "fighters/art",
                                             .suffix = ".webp", .tag = "art", .index = true});
@@ -29,10 +33,10 @@ int main() {
                                             .suffix = ".webp", .tag = "hud", .index = true});
     // The stages' music (openmui.audio's pieces).
     const bool music = openmui::build::embed({.module = "openmui.showcase.fighting", .ns = "omui::fighting::files", .dir = "music",
-                                              .suffix = ".music.omui.toml", .tag = "music", .index = true});
+                                              .suffix = ".music.omui.toml", .tag = "music", .index = true, .left_out = !arenas});
     // The announcer's recordings (voice/*.wav, Kenney's CC0 Voiceover Pack: Fighter).
     const bool voice = openmui::build::embed({.module = "openmui.showcase.fighting", .ns = "omui::fighting::files", .dir = "voice",
-                                              .suffix = ".wav", .tag = "voice", .index = true});
+                                              .suffix = ".wav", .tag = "voice", .index = true, .left_out = !arenas});
     // What a gamepad's buttons do (controls/*.controls.omui.json): data, so it can be remapped.
     const bool controls = openmui::build::embed({.module = "openmui.showcase.fighting", .ns = "omui::fighting::files", .dir = "controls",
                                                  .suffix = ".controls.omui.json", .tag = "controls"});

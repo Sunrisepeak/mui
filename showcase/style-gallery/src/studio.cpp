@@ -184,9 +184,11 @@ Element sidebar(Studio& s) {
         {.id = "sidebar", .width = 220, .padding = 16, .gap = 10, .shrink = 0, .background = "surface", .border_color = "border", .border_width = 1});
 }
 
-// The editor: the shown pack's accent, its corners, its effects' parameters.
+// The editor: the shown pack's accent, its corners, its effects' parameters
+// — scrolling, as a pack of several effects has more of them than a window
+// is tall.
 Element editor(Studio& s) {
-    return immediate(
+    Element fields = immediate(
         [&s](Ui& ui) {
             (void)s.revision.get();
             const theme::Style& d = s.draft();
@@ -227,7 +229,9 @@ Element editor(Studio& s) {
                     }
             }
         },
-        {.id = "editor", .width = 300, .padding = 16, .gap = 8, .shrink = 0, .background = "surface", .border_color = "border", .border_width = 1});
+        {.id = "fields", .padding = 16, .gap = 8});
+    return box({.id = "editor", .width = 300, .shrink = 0, .background = "surface", .border_color = "border", .border_width = 1},
+               {scroll({.id = "scroll", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100))}, {std::move(fields)})});
 }
 
 }  // namespace

@@ -315,7 +315,7 @@ int run_native(const Options& o) {
 // The files embedded under a tag as one table, partition <module>:<name>;
 // each input `<file>=<partition>`.
 int run_embed_index(const Options& o) {
-    if (o.inputs.empty() || o.module.empty() || o.name.empty() || o.out.empty()) return usage();
+    if (o.module.empty() || o.name.empty() || o.out.empty()) return usage();  // no files: an empty table (a feature left out)
     std::vector<std::pair<std::string, std::string>> files;
     for (const auto& in : o.inputs) {
         const std::string pair = generic_utf8(in);

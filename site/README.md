@@ -20,7 +20,8 @@ The site shows openmui's thesis instead of describing it: **the interface is a s
       - for each fighter, every move's startup, active and recovery frames, its advantage on hit and on block, and its damage;
       - every number is measured by the game itself (`gongfu.training::frame_data`);
       - the chosen move plays on the game's own training stage, with its boxes and frame meter. Drag its frames one at a time, on hit or on block, with the move's details in words beside it;
-      - the static page carries every fighter's table for readers without JavaScript.
+      - the static page carries every fighter's table for readers without JavaScript;
+      - the site takes the game without its arenas (`default-features = false`: no stage art, music or announcer, about 4 MB the page does not load).
 
   Each place is a window on one infinite canvas (`openmui.ui.canvas`, S1's approach; `src/atlas.*`). A window is the size of the view, so a place is read at zoom 1, like a page.
   - **Overview** flies the camera out to show every place whole.

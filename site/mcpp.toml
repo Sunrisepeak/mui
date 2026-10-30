@@ -41,7 +41,7 @@ openmui.ui.canvas   = { path = "../components/canvas" }
 openmui.showcase.markdown_wall = { path = "../showcase/markdown-wall" }
 openmui.showcase.style_gallery = { path = "../showcase/style-gallery" }
 openmui.example.hello-im       = { path = "../examples/01-hello-im" }
-openmui.showcase.fighting      = { path = "../showcase/fighting" }
+openmui.showcase.fighting      = { path = "../showcase/fighting", default-features = false }  # its move list: no arenas
 openmui.semantic    = { path = "../modules/ui/semantic" }
 openmui.trace       = { path = "../modules/base/trace" }
 

@@ -20,6 +20,13 @@ kind = "lib"
 kind = "bin"
 main = "src/main.cpp"
 
+# The arenas: the stages and their painted layers, their music, the
+# announcer (about 4 MB of the program). Training's plain room needs none:
+# openmui's site, showing the move list, depends with default-features = false.
+[features]
+default = ["arenas"]
+arenas  = []
+
 [build]
 sources  = ["src/*.cppm", "src/*.cpp"]
 # Its pictures are pinned on every platform: no fused multiply-adds (arm64 would fuse them).

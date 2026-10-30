@@ -33,6 +33,13 @@ int main(int argc, char** argv) {
         check(names == std::vector<std::string>{"first.txt", "second-part.two.txt"}, "ignored.md is not a note");
     });
 
+    s.test("files left out: no partition a file, and an empty table the same code reads", [] {
+        check(acme::data::left_files.empty(), "nothing embedded");
+        std::size_t n = 0;
+        for (const auto& [name, text] : acme::data::left_files) n += name.size() + text.size();
+        check(n == 0);
+    });
+
     s.test("themes() and behaviors(): embed() for their directories", [] {
         check(acme::data::dusk_theme == file("themes/dusk.theme.omui.toml"));
         check(acme::data::pan_zoom_behavior == file("behaviors/pan-zoom.behavior.omui.toml"));

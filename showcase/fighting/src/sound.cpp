@@ -45,7 +45,8 @@ Sounds::Sounds() : mixer_(std::make_unique<audio::Mixer>()) {
             mixer_->add_recording(file.substr(0, file.find('.')), r->samples, r->rate);
     for (const auto& [text, file] : {std::pair{files::fight_sound, "fight.sound.omui.toml"}, std::pair{files::menu_sound, "menu.sound.omui.toml"},
                                      std::pair{files::voice_sound, "voice.sound.omui.toml"}, std::pair{files::fighters_sound, "fighters.sound.omui.toml"}})
-        if (auto sounds = audio::read_sounds(text, file))
+        if (std::string_view(file) == "voice.sound.omui.toml" && files::voice_files.empty()) continue;  // no announcer without the arenas
+        else if (auto sounds = audio::read_sounds(text, file))
             for (const auto& s : *sounds) {
                 const std::int32_t id = mixer_->add(s);
                 // A fighter's voice by its name: <fighter>_hurt_<n>, <fighter>_ko, <fighter>_effort_<n>.

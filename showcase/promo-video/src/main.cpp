@@ -151,8 +151,8 @@ private:
         o.fonts = &fonts;
         o.store = store_;
         // Several players are the parallelism: each draws its frames' rows in one band
-        // (the bands' own parallelism, beside other players, let two pixels of an effect
-        // layer differ now and then: dev-story §6).
+        // (bands on top cost more than they give: 360 frames in 20.4 s with 8 players,
+        // 23.3 s with their bands too — the same bytes either way, dev-story §6).
         o.parallel_raster = n_ == 1;
         promo::Player player(l_->film, l_->cut, o);
         for (std::int64_t f = from_ + w; f < to_; f += n_) {

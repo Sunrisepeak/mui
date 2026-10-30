@@ -12,6 +12,6 @@ int main() {
 }
 ```
 
-- `embed()`: each `<stem><suffix>` in `dir` becomes `<module>:<stem>_<tag>` (`-` and `.` in the stem become `_`). With `.index = true`, `<module>:<tag>_files` is also made: a table of every file by name with its text.
+- `embed()`: each `<stem><suffix>` in `dir` becomes `<module>:<stem>_<tag>` (`-` and `.` in the stem become `_`). With `.index = true`, `<module>:<tag>_files` is also made: a table of every file by name with its text. With `.left_out = true` (a feature the build does not have) no file is embedded and the table is empty, so the code that reads it builds the same.
 - `themes()`: for theme packages (`kind = "theme"`). Each `themes/*.theme.omui.toml` becomes `<module>:<stem>_theme`, which the package adds to the program's theme library.
 - `behaviors()`: for canvas programs. Each `behaviors/*.behavior.omui.toml` becomes `<module>:<stem>_behavior`, which the program loads with `omui::world::load_behaviors`.

@@ -14,6 +14,8 @@ mcpp run -p openmui.showcase.fighting -- --training
 mcpp run -p openmui.showcase.fighting -- --headless --png fight.png
 ```
 
+The feature `arenas` (on by default) carries the stages and their painted layers, their music and the announcer, about 4 MB of the program. Without it those tables are empty and training's plain room still works: openmui's site depends on the game with `default-features = false` to show its move list.
+
 | | Directions | Punches (L M H) | Kicks (L M H) |
 |---|---|---|---|
 | Player 1 | W A S D | U I O | J K L |

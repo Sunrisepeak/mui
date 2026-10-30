@@ -485,7 +485,7 @@ int main(int argc, char** argv) {
         a.h.advance(seconds(1));
         shot("time.png");
         std::println("    pixels {}", all.hex());
-        check_eq(all.hex(), std::string("80289b91e50ce4f2"));
+        check_eq(all.hex(), std::string("e59bf018009266c5"));
     });
 
     s.test("the style workshop runs in its place, a theme scope: a pack styles it alone, the site keeps its theme, the tree is the same in every pack", [] {
@@ -518,7 +518,7 @@ int main(int argc, char** argv) {
         // A person edits the pack: its corners, at once.
         Invocation person;
         person.args = Value{}.set("value", Value(20.0));
-        check(a.h.tree().act(work + "/editor/corners", "set_value", person).exit_code() == std::optional<int>(0), "the corners slider");
+        check(a.h.tree().act(work + "/editor/scroll/fields/corners", "set_value", person).exit_code() == std::optional<int>(0), "the corners slider");
         a.h.advance(seconds(0.5));
         check(a.h.runtime().scope_theme("workshop") && a.h.runtime().scope_theme("workshop")->corner("medium", 0) == 20.0f, "the corners edited");
     });

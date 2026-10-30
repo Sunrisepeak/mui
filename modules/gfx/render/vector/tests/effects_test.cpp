@@ -1,7 +1,8 @@
 // Pixel effects (D-68): the registry, every built-in's pixels pinned for every
 // platform, progress 0 being the layer as it is, banded and incremental
-// rendering being the whole render byte for byte, an effect reaching outside
-// its layer, and an effect a program registers itself.
+// rendering being the whole render byte for byte (also with several
+// renderers drawing in bands at once), an effect reaching outside its layer,
+// and an effect a program registers itself.
 import std;
 import openmui.geom;
 import openmui.memory;
@@ -272,6 +273,70 @@ int main(int argc, char** argv) {
         }
         scene(dl, std::pair{std::string_view("reveal"), std::vector<std::pair<std::string_view, float>>{{"progress", 1}}});
         check(draw(dl).hash() == plain.hash(), "reveal at 1");
+    });
+
+    s.test("under contention: several renderers at once, each in parallel bands, draw what one thread alone draws", [] {
+        // The promo's tape: a picture drawn small inside a chromatic layer,
+        // beside a blur and a dissolve; every frame a little different.
+        raster::Surface pic(320, 200);
+        for (int y = 0; y < pic.height(); ++y)
+            for (int x = 0; x < pic.width(); ++x)
+                pic.row(y)[x] = raster::Rgba8{static_cast<std::uint8_t>(x * 255 / 320), static_cast<std::uint8_t>(y * 255 / 200),
+                                              static_cast<std::uint8_t>(((x / 8 + y / 8) % 2) * 200), 255};
+        auto build = [](render::DisplayList& dl, render::ImageRef img, int f) {
+            dl.clear();
+            dl.begin_node(1);
+            dl.fill_rect({0, 0, W, H}, geom::Color::hex(0xf8fafc));
+            auto layer_of = [&](std::string_view name, std::vector<std::pair<std::string_view, float>> v, geom::Rect at) {
+                const auto ref = render::effects().find(name);
+                dl.push_layer(1, render::BlendMode::normal, *ref, render::effects().params(*ref, v), at);
+            };
+            layer_of("chromatic", {{"amount", 1.5f + static_cast<float>(f % 5)}, {"angle", static_cast<float>(f * 17)}}, layer);
+            dl.draw_image(img, {0, 0, 320, 200}, {layer.x + 6.5f, layer.y + 4.25f, 127.3f, 79.6f});
+            content(dl);
+            dl.pop_layer();
+            layer_of("blur", {{"radius", 2.0f + static_cast<float>(f % 3)}}, {4, 4, 40, 150});
+            dl.fill_round_rect({8, 10, 30, 130}, geom::CornerRadii::all(6), render::Paint::solid(geom::Color::hex(0x0ea5e9)));
+            dl.pop_layer();
+            layer_of("dissolve", {{"progress", 0.1f * static_cast<float>(f % 8)}, {"seed", 3}}, {196, 10, 40, 150});
+            dl.fill_rect({198, 12, 36, 146}, geom::Color::hex(0xdb2777));
+            dl.pop_layer();
+            dl.end_node();
+        };
+        constexpr int frames = 12, players = 6, rounds = 4;
+        std::vector<std::uint64_t> want(frames);
+        {
+            render::ImageStore store;
+            const auto img = store.add(std::make_shared<const raster::Surface>(pic));
+            render::CpuRenderer r;
+            render::DisplayList dl;
+            for (int f = 0; f < frames; ++f) {
+                build(dl, img, f);
+                raster::Surface out(W, H);
+                (void)r.render(dl, out, {&store, nullptr}, {.background = geom::Color::white()});
+                want[static_cast<std::size_t>(f)] = out.hash();
+            }
+        }
+        std::atomic<int> wrong{0};
+        for (int round = 0; round < rounds; ++round) {
+            std::vector<std::jthread> each;
+            for (int p = 0; p < players; ++p)
+                each.emplace_back([&, p] {
+                    render::ImageStore store;
+                    const auto img = store.add(std::make_shared<const raster::Surface>(pic));
+                    render::CpuRenderer r;
+                    render::DisplayList dl;
+                    Threads pool;
+                    for (int k = 0; k < frames; ++k) {
+                        const int f = (k + p) % frames;
+                        build(dl, img, f);
+                        raster::Surface out(W, H);
+                        (void)r.render(dl, out, {&store, nullptr}, {.background = geom::Color::white(), .parallel = &pool, .rows_per_task = 8});
+                        if (out.hash() != want[static_cast<std::size_t>(f)]) wrong.fetch_add(1);
+                    }
+                });
+        }
+        check_eq(wrong.load(), 0);
     });
 
     s.test("bands at the same time render the whole layer's effect exactly", [] {

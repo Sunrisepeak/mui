@@ -45,6 +45,7 @@ public:
     ActResult replay(ActContext& ctx, const Value& player);
     ActResult stop(ActContext& ctx, const Value& player);
     ActResult fill(ActContext& ctx);
+    ActResult demo_frame(ActContext& ctx, const Value& frame);
 
     // The match being played, and training's readings of it (tests and tools read them).
     [[nodiscard]] const gongfu::Match& match() const noexcept { return *match_; }
@@ -56,6 +57,8 @@ private:
     void schedule();
     void tick();
     void advance();  // one frame: the dummies, the match, its effects, the readings
+    void start_demo();  // the `demo` move from its beginning (none: the match as it was)
+    void demo_from_start();  // the demonstration's first frame again: its match, readings and effects
     void announce();  // the round over: the announcer's calls
     void changed();  // repaint, and tell agents
     void start_round(bool next = false);  // a new match (next: its next round, the rounds won kept)
@@ -66,6 +69,12 @@ private:
     bool on_gamepad(const GamepadEvent& g);
 
     std::unique_ptr<gongfu::Match>        match_;
+    // Training's demonstration of a move (`demo`): its match at the move's
+    // beginning, its pads, and the frame of it being played.
+    std::optional<gongfu::training::Demo> demo_;
+    std::int32_t                          demo_at_ = 0;
+    bool                                  quiet_ = false;  // frames played to reach a frame (demo_frame): not heard
+    static constexpr std::int32_t         demo_rest = 40;  // frames at rest before it plays again
     std::size_t                           left_ = 0, right_ = 0;  // the fighters, by their place in the roster
     // The two fighters' looks (the left's first palette, the right's second),
     // their pictures registered with this stage's renderer (art_: by file).

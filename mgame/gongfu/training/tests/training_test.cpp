@@ -125,6 +125,50 @@ int main(int argc, char** argv) {
         }
     });
 
+    s.test("frame data, as a move list shows it: the frames from the data, the advantage as played from where the move reaches", [] {
+        for (const char* move : {"5LP", "5HP"}) {
+            const std::int32_t i = drill().find(move);
+            const MoveDef& m_def = drill().def.moves[static_cast<std::size_t>(i)];
+            const HitDef& h = m_def.hits[0];
+            const tr::FrameData d = tr::frame_data(rules(), drill(), i);
+            check(d.startup == h.active.from && d.active == h.active.to - h.active.from + 1 && d.recovery == m_def.total - h.active.to && d.total == m_def.total,
+                  std::format("{}: {} / {} / {} of {}", move, d.startup, d.active, d.recovery, d.total));
+            check(d.startup + d.active + d.recovery - 1 == d.total, "startup, active and recovery make the whole (the first active frame counted in startup)");
+            check(d.damage == h.damage && !d.knockdown && !d.air && !d.projectile);
+            // Played: walked in from the round's start until it reached, against a dummy standing, then guarding.
+            check(d.on_hit == std::optional<std::int32_t>(h.hitstun - (m_def.total - h.active.from)),
+                  std::format("{} on hit {}", move, d.on_hit.value_or(-99)));
+            check(d.on_block == std::optional<std::int32_t>(h.blockstun - (m_def.total - h.active.from)),
+                  std::format("{} on block {}", move, d.on_block.value_or(-99)));
+        }
+        // With deflects on (the system's own rules): the dummy guards from before the attack, so a block is a block.
+        SystemDef real;
+        real.round_frames = 1 << 20;
+        const std::int32_t jab = drill().find("5LP");
+        const HitDef& jh = drill().def.moves[static_cast<std::size_t>(jab)].hits[0];
+        check(tr::frame_data(real, drill(), jab).on_block == std::optional<std::int32_t>(jh.blockstun - (12 - jh.active.from)),
+              "a block, not a deflect, under deflects");
+        // A projectile: from where it was thrown, its hit and chip.
+        const tr::FrameData f = tr::frame_data(rules(), drill(), drill().find("236P"));
+        check(f.projectile && f.startup == 8 && f.damage == 600 && f.chip == 60, std::format("236P: {} {} {}", f.startup, f.damage, f.chip));
+        check(f.on_hit.has_value() && f.on_block.has_value(), "it reached, and was measured");
+    });
+
+    s.test("a move's demonstration: the match as it begins, in reach, and its pads — played again, the same advantage", [] {
+        const std::int32_t heavy = drill().find("5HP");
+        const tr::Demo d = tr::demo(rules(), drill(), drill(), heavy, true);
+        check(d.contact && d.advantage == tr::frame_data(rules(), drill(), heavy).on_block, "the demonstration is what frame data measured");
+        check(d.frames > drill().def.moves[static_cast<std::size_t>(heavy)].total, "until both are free again");
+        Match m = d.start;
+        tr::Readout r;
+        for (std::int32_t f = 0; f < d.frames; ++f) {
+            const Pad a = f < static_cast<std::int32_t>(d.attacker.size()) ? d.attacker[static_cast<std::size_t>(f)] : pad(5);
+            m.tick(a, d.dummy);
+            r.record(m, a, d.dummy);
+        }
+        check(r.advantage() == d.advantage, "played again from its start: the same frames");
+    });
+
     s.test("a combo's hits and damage: a jab cancelled into a fireball", [] {
         Match m = close();
         tr::Readout r;

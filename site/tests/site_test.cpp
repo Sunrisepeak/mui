@@ -9,6 +9,7 @@ import openmui;
 import openmui.site;
 import openmui.ui.markdown;  // openmui.markdown with it
 import openmui.ui.canvas;
+import openmui.showcase.fighting;
 import openmui.testing;
 
 using namespace omui::testing;
@@ -89,7 +90,7 @@ int main(int argc, char** argv) {
 
     s.test("every place has its document in both languages; the content is what the docs say", [] {
         for (const site::Place& p : site::places()) {
-            if (p.id == "timeline" || p.id == "wall" || p.id == "hello") {
+            if (p.id == "timeline" || p.id == "wall" || p.id == "hello" || p.id == "moves") {
                 check(site::document(p.id, "en").empty(), std::format("{} is a live work, not a document", p.id));
                 continue;
             }
@@ -304,6 +305,39 @@ int main(int argc, char** argv) {
         check(windows.size() >= 6, std::format("its windows: {}", windows.size()));
     });
 
+    s.test("the move list: frame data the game measured, a move chosen by an agent, shown on the game's own stage at a frame", [] {
+        Site a;
+        check(a.h.click("main/body/nav/to_moves"));
+        a.h.advance(seconds(3));
+        constexpr std::string_view page = "main/body/view/atlas/moves/page";
+        const auto& r = fighting::roster();
+        const gongfu::Fighter& mo = r.fighters[fighting::fighter_index("mo")];
+        // Every row is what gongfu.training measured for it.
+        const std::int32_t heavy = mo.find("5HP");
+        const gongfu::training::FrameData d = gongfu::training::frame_data(r.system, mo, heavy);
+        const std::string row = std::format("{}/list/moves/table/move_5hp", page);
+        check(a.h.tree().node(row + "/name/pick").has_value(), "a row for 5HP");
+        std::vector<std::string> cells;
+        for (const auto& n : a.h.tree().snapshot({.root = row}).nodes)
+            if (n.role == Role::text && !n.id.contains("/pick")) cells.push_back(n.name);
+        check(cells.size() >= 6 && cells[0] == std::format("{}", d.startup) && cells[1] == std::format("{}", d.active) && cells[2] == std::format("{}", d.recovery),
+              cells.empty() ? std::string("no cells") : cells[0]);
+        // An agent picks it, on block, and drags the frame to its first active one.
+        Invocation agent;
+        agent.actor = {"agent", "visitor", {}};
+        check(a.h.tree().act(row + "/name/pick", "activate", agent).exit_code() == std::optional<int>(0), "picked by an agent");
+        check(a.h.tree().act(std::format("{}/show/controls/on_block", page), "activate", agent).exit_code() == std::optional<int>(0));
+        a.h.advance(seconds(0.2));
+        agent.args = Value{}.set("value", Value(static_cast<double>(d.startup)));
+        check(a.h.tree().act(std::format("{}/show/controls/frame", page), "set_value", agent).exit_code() == std::optional<int>(0));
+        a.h.advance(seconds(0.2));
+        const auto stage = a.h.tree().node(std::format("{}/show/frame_box/stage", page));
+        const Value* demo = stage && stage->value.get("training") ? stage->value.get("training")->get("demo") : nullptr;
+        check(demo && demo->get("move")->as_string() == "5HP" && demo->get("guard")->as_bool() && demo->get("frame")->as_int() == d.startup,
+              demo ? demo->json() : std::string("no demonstration"));
+        (void)a.h.save_png(scratch_dir("site-moves") / "moves.png");
+    });
+
     s.test("a document's links: another place of the site, or outside through the host", [] {
         Site a;
         Invocation person;  // the person at the machine (not over the bus)
@@ -385,7 +419,7 @@ int main(int argc, char** argv) {
         agent_access().revoke_all();
     });
 
-    s.test("the site's pixels pinned on every platform: home, the overview, the wireframe, the agent's JSON, the works, an agent asking, Chinese, the page's time dragged back", [] {
+    s.test("the site's pixels pinned on every platform: home, the overview, the wireframe, the agent's JSON, the works (the wall, example 01, the move list), an agent asking, Chinese, the page's time dragged back", [] {
         Site a;
         // Fixed spans of time, not "until quiet": how many frames a platform
         // takes to settle differs a little, and the foot draws the page's time.
@@ -420,7 +454,7 @@ int main(int argc, char** argv) {
         a.h.move({4, 796});
         a.h.advance(seconds(2));
         shot("timeline.png");
-        for (std::string_view work : {"wall", "hello"}) {
+        for (std::string_view work : {"wall", "hello", "moves"}) {
             check(a.h.click(std::format("main/body/nav/to_{}", work)));
             a.h.move({4, 796});
             a.h.advance(seconds(3));
@@ -450,7 +484,7 @@ int main(int argc, char** argv) {
         a.h.advance(seconds(1));
         shot("time.png");
         std::println("    pixels {}", all.hex());
-        check_eq(all.hex(), std::string("d1a5dd468937b95b"));
+        check_eq(all.hex(), std::string("f51de304275db69b"));
     });
 
     s.test("the static page: every place's HTML, md4c-html's bytes, in a page that hides it once the program runs", [] {
@@ -462,11 +496,18 @@ int main(int argc, char** argv) {
         }
         const std::string en = site::static_html("en");
         check(en.find("<h1>One tree, many renderings</h1>") != std::string::npos, "the thesis, readable without JavaScript");
+        {  // The move list without the program: every fighter's frame data, as measured.
+            const auto& r = fighting::roster();
+            const gongfu::Fighter& mo = r.fighters[fighting::fighter_index("mo")];
+            const auto d = gongfu::training::frame_data(r.system, mo, mo.find("5HP"));
+            check(en.find("<h2>Mo</h2>") != std::string::npos && site::static_html("zh").find("<h2>墨</h2>") != std::string::npos, "each fighter, in both languages");
+            check(en.find(std::format("<tr><td>5HP</td><td>{}</td><td>{}</td><td>{}</td>", d.startup, d.active, d.recovery)) != std::string::npos, "its moves' measured frames");
+        }
         // The site's own part pinned (the docs change with the framework; they are held to md4c-html's bytes above).
         auto own = [](const std::string& html) { return html.substr(0, html.find("<section id=\"/", html.find("<section id=\"/") + 1)); };
         std::println("    static en {:016x} zh {:016x}", fnv(own(en)), fnv(own(site::static_html("zh"))));
-        check_eq(std::format("{:016x}", fnv(own(en))), std::string("edb0b05ed45415b7"));
-        check_eq(std::format("{:016x}", fnv(own(site::static_html("zh")))), std::string("775d0fea9f057ab6"));
+        check_eq(std::format("{:016x}", fnv(own(en))), std::string("c0d64009c52cbcb9"));
+        check_eq(std::format("{:016x}", fnv(own(site::static_html("zh")))), std::string("d617080771a513b3"));
 
         const auto out = site::inject(page, en, "zh");
         check(out.has_value(), "dist-toy's page");

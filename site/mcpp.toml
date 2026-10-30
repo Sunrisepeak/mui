@@ -40,6 +40,7 @@ openmui.ui.canvas   = { path = "../components/canvas" }
 # The works the site runs in its places: S1's wall, example 01.
 openmui.showcase.markdown_wall = { path = "../showcase/markdown-wall" }
 openmui.example.hello-im       = { path = "../examples/01-hello-im" }
+openmui.showcase.fighting      = { path = "../showcase/fighting" }
 openmui.semantic    = { path = "../modules/ui/semantic" }
 openmui.trace       = { path = "../modules/base/trace" }
 

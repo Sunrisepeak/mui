@@ -51,7 +51,8 @@ mcpp run -p openmui.showcase.fighting -- --headless --png fight.png
   - the frame meter: the last 80 frames of each player, hitstop not counted;
   - each player's input history, with arrows, the buttons' colours and the frames each pad was held;
   - the readings under the timer: player 1's startup, the frame advantage and the combo's hits and damage;
-  - actions to save and load a state, and to record a player and replay the recording looped (the dummy).
+  - actions to save and load a state, and to record a player and replay the recording looped (the dummy);
+  - a move's demonstration, as a move list shows it (`demo = "5HP"`, `demo_guard`). Player 1's fighter walks in to where the move reaches and plays it, again and again, against player 2 standing or guarding. `demo_frame` shows any frame of it, paused. The readings it shows are the move's frame data from `gongfu.training`, and the test checks this for every row. openmui's site uses it for its move list.
 
   Agents read the same values in the semantic value's `training`.
 - **The HUD is black lacquer, gold leaf and a red seal.** Generated art is cut by `gongfu-studio` into frames, lettering, the names' calligraphy and fills (`hud/`). It shows:

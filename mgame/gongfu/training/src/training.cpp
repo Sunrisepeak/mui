@@ -2,6 +2,7 @@ module gongfu.training;
 
 import std;
 import gongfu;
+import gongfu.ai;
 
 namespace gongfu::training {
 
@@ -177,4 +178,105 @@ Pad Recorder::step(Pad given) noexcept {
     return given;
 }
 
+namespace {
+
+// The pads that ask for a move: a move from the air jumps first, and asks at its jump's height.
+std::vector<Pad> pads_asking(const MoveDef& md, std::int32_t facing) {
+    std::vector<Pad> out;
+    if (md.stance == Stance::air) {
+        out.push_back(pad(8));
+        for (int i = 0; i < 9; ++i) out.push_back(pad(5));
+    }
+    for (const Pad p : ai::pads_for(md.command, facing)) out.push_back(p);
+    return out;
+}
+
+// The match at the move's beginning, after `walk` frames of walking in and,
+// guarding, the dummy holding `guard` long enough that a block is not a deflect.
+Match approach(const SystemDef& system, const Fighter& attacker, const Fighter& dummy, std::int32_t walk, Pad guard) {
+    Match m(system, attacker, dummy);
+    const std::int32_t facing = m.state().f[0].facing;
+    for (std::int32_t i = 0; i < walk; ++i) m.tick(pad(facing > 0 ? 6 : 4), pad(5));
+    for (std::int32_t i = 0; i < 30 && !(m.actionable(0) && m.recovered(0)); ++i) m.tick(pad(5), pad(5));
+    if (guard != pad(5))
+        for (std::int32_t i = 0; i < system.deflect_fresh + system.deflect_window + 2; ++i) m.tick(pad(5), guard);
+    return m;
+}
+
+}  // namespace
+
+Demo demo(const SystemDef& system, const Fighter& attacker, const Fighter& dummy, std::int32_t move, bool guard) {
+    const MoveDef& md = attacker.def.moves[static_cast<std::size_t>(move)];
+    const Level level = !md.hits.empty() ? md.hits.front().level : md.projectile ? md.projectile->hit.level : Level::mid;
+    // The dummy faces the attacker: back is away from it (screen right for the right side), and down too for a low.
+    const Pad held = guard ? pad(level == Level::low ? 3 : 6) : pad(5);
+    // Played from `walk` frames of walking in: what it does there.
+    const auto from = [&](std::int32_t walk) {
+        Demo d{.start = approach(system, attacker, dummy, walk, held), .attacker = {}, .dummy = held};
+        d.attacker = pads_asking(md, d.start.state().f[0].facing);
+        Match m = d.start;
+        Readout r;
+        for (std::int32_t f = 0; f < 600; ++f) {
+            const Pad a = f < static_cast<std::int32_t>(d.attacker.size()) ? d.attacker[static_cast<std::size_t>(f)] : pad(5);
+            m.tick(a, held);
+            r.record(m, a, held);
+            for (const Event& e : m.events())
+                if (e.attacker == 0 && (e.kind == Event::Kind::hit || e.kind == Event::Kind::counter || e.kind == Event::Kind::block)) d.contact = true;
+            d.frames = f + 1;
+            if (d.contact && r.advantage() && r.advantage_attacker() == 0) {
+                d.advantage = r.advantage();
+                break;
+            }
+            // Nothing reached it, and the attacker is free again: not from here.
+            if (!d.contact && f >= static_cast<std::int32_t>(d.attacker.size()) && m.recovered(0) && m.actionable(0)) break;
+        }
+        return d;
+    };
+    if (md.stance == Stance::air || md.throw_ || (md.hits.empty() && !md.projectile)) return from(0);  // shown from the start; never measured
+    // The farthest it reaches from: walked in 8 frames at a time, then back 2 at a time to the first that still reaches.
+    constexpr std::int32_t coarse = 8, fine = 2, furthest = 160;
+    for (std::int32_t walk = 0; walk <= furthest; walk += coarse) {
+        Demo d = from(walk);
+        if (!d.contact) continue;
+        for (std::int32_t closer = std::max(0, walk - coarse + fine); closer < walk; closer += fine)
+            if (Demo e = from(closer); e.contact) return e;
+        return d;
+    }
+    return from(0);
+}
+
+FrameData frame_data(const SystemDef& system, const Fighter& fighter, std::int32_t move) {
+    const MoveDef& md = fighter.def.moves[static_cast<std::size_t>(move)];
+    FrameData d;
+    d.total = md.total;
+    d.startup = fighter.startup(move);
+    const std::int32_t after = fighter.recovery(move);  // the first frame after the last active one
+    d.active = std::max(0, after - d.startup);
+    d.recovery = std::max(0, md.total - after + 1);
+    for (const HitDef& h : md.hits) {
+        d.damage += h.damage;
+        d.chip += h.chip;
+        d.knockdown = d.knockdown || h.knockdown;
+        d.launch = d.launch || h.launch.y > Fixed{};
+    }
+    if (md.projectile) {  // its hit, as many times as it hits
+        d.damage += md.projectile->hit.damage * md.projectile->hits;
+        d.chip += md.projectile->hit.chip * md.projectile->hits;
+        d.knockdown = d.knockdown || md.projectile->hit.knockdown;
+    }
+    d.air = md.stance == Stance::air;
+    d.throw_ = md.throw_.has_value();
+    d.projectile = md.projectile.has_value();
+    d.meter_cost = md.meter_cost;
+    d.level = md.level;
+    const Demo hit = demo(system, fighter, fighter, move, false), block = demo(system, fighter, fighter, move, true);
+    d.shown_on_hit = hit.frames;
+    d.shown_on_block = block.frames;
+    if (!md.asked || d.air || d.throw_ || (md.hits.empty() && !d.projectile)) return d;
+    if (hit.contact) d.on_hit = hit.advantage;
+    if (block.contact) d.on_block = block.advantage;
+    return d;
+}
+
 }  // namespace gongfu::training
+

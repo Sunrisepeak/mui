@@ -116,6 +116,7 @@ void Stage::start_round(bool next) {
     }
     effects_ = {};
     readout_.clear();
+    if (!props.demo.empty()) start_demo();
     // The stage's music: the arena's, else player 1's home's (none in training's plain room).
     std::string_view theme = props.arena;
     if (theme.empty() && props.mode != "training") {
@@ -158,6 +159,7 @@ void Stage::prop_changed(StageProp p) {
     if (!attached()) return;
     // Another fighter, another mode or another stage: a new round.
     if (p == StageProp::player1 || p == StageProp::player2 || p == StageProp::mode || p == StageProp::arena || p == StageProp::rounds) start_round();
+    if (p == StageProp::demo || p == StageProp::demo_guard) start_demo();
     if (p == StageProp::paused && !props.paused) {  // playing again: the keyboard is the players'; a finished match, a new one
         if (match_ && match_->state().over && (decided_ || props.mode == "training")) start_round();
         services().focus(node());
@@ -251,11 +253,18 @@ void Stage::advance() {
         services().invalidate_paint(node());
         return;
     }
-    const gongfu::Pad a = dummies_[0].step(pad_of(0)), b = dummies_[1].step(pad_of(1));
+    // A demonstration plays its own pads, and again from its start after a rest.
+    if (demo_ && demo_at_ >= demo_->frames + demo_rest) demo_from_start();
+    const auto demo_pad = [&](std::int32_t player) {
+        if (player == 1) return demo_->dummy;
+        return demo_at_ < static_cast<std::int32_t>(demo_->attacker.size()) ? demo_->attacker[static_cast<std::size_t>(demo_at_)] : gongfu::pad(5);
+    };
+    const gongfu::Pad a = demo_ ? demo_pad(0) : dummies_[0].step(pad_of(0)), b = demo_ ? demo_pad(1) : dummies_[1].step(pad_of(1));
+    if (demo_) ++demo_at_;
     match_->tick(a, b);
     effects_.record(*match_);
     readout_.record(*match_, a, b);
-    sounds_.heard(*match_, looks_[0], looks_[1]);
+    if (!quiet_) sounds_.heard(*match_, looks_[0], looks_[1]);
     const gongfu::State& st = match_->state();
     const bool versus = props.mode != "training";
     // The announcer as a round begins: which round (the final one when either could take the match), then "fight".
@@ -399,6 +408,7 @@ void Stage::semantics(SemanticsContext&, spec::SemanticNode& node) const {
     }
     // Training's readings, as a person sees them.
     Value training;
+    if (demo_) training.set("demo", Value{}.set("move", props.demo).set("frame", demo_at_).set("frames", demo_->frames).set("guard", props.demo_guard));
     if (auto a = readout_.startup(0)) training.set("startup", *a);
     if (auto a = readout_.advantage()) training.set("advantage", readout_.advantage_attacker() == 0 ? *a : -*a);  // player 1's side
     const auto& c = readout_.combo();
@@ -427,6 +437,38 @@ ActResult Stage::restart(ActContext&) {
     services().invalidate_paint(node());
     services().invalidate_semantics(node());
     return ActResult::done();
+}
+
+void Stage::start_demo() {
+    demo_.reset();
+    demo_at_ = 0;
+    if (!match_ || props.mode != "training" || props.demo.empty()) return;
+    const Roster& r = roster();
+    const std::int32_t move = r.fighters[left_].find(props.demo);
+    if (move < 0) return;
+    demo_ = gongfu::training::demo(match_->system(), r.fighters[left_], r.fighters[right_], move, props.demo_guard);
+    demo_from_start();
+}
+
+void Stage::demo_from_start() {
+    match_->restore(demo_->start.state());
+    demo_at_ = 0;
+    effects_ = {};
+    readout_.clear();
+    services().invalidate_paint(node());
+    services().invalidate_semantics(node());
+}
+
+ActResult Stage::demo_frame(ActContext&, const Value& frame) {
+    if (!demo_) return ActResult::fail("no demonstration: set `demo` to a move of player 1's fighter, in training");
+    const std::int32_t to = std::clamp(static_cast<std::int32_t>(frame.as_int(0)), 0, demo_->frames);
+    const std::int32_t was = demo_at_;
+    props.paused = true;
+    demo_from_start();
+    quiet_ = true;
+    for (std::int32_t i = 0; i < to; ++i) advance();
+    quiet_ = false;
+    return ActResult::done(Value(demo_at_)).undo_by("demo_frame", Value{}.set("frame", was));
 }
 
 ActResult Stage::pause(ActContext&) {

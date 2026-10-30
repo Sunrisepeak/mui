@@ -10,6 +10,7 @@ import openmui.ui.markdown;
 import openmui.ui.timeline;
 import openmui.ui.canvas;
 import openmui.showcase.markdown_wall;
+import openmui.showcase.fighting;
 import hello;
 import openmui.semantic;
 import openmui.trace;
@@ -25,12 +26,13 @@ constexpr Log site_log{"site"};
 constexpr std::string_view atlas_path = "main/body/view/atlas";
 constexpr std::string_view place_root = "main/body/view/atlas/";
 
-constexpr std::array<Place, 6> all{{{"home", "Home", "首页"},
+constexpr std::array<Place, 7> all{{{"home", "Home", "首页"},
                                      {"features", "Features", "特性"},
                                      {"practices", "Practices", "实践"},
                                      {"timeline", "Timeline", "时间线"},
                                      {"wall", "Document wall", "文档墙"},
-                                     {"hello", "Example 01", "示例 01"}}};
+                                     {"hello", "Example 01", "示例 01"},
+                                     {"moves", "Move list", "出招表"}}};
 
 std::string_view embedded(std::span<const std::pair<std::string_view, std::string_view>> table, std::string_view file) {
     for (const auto& [name, text] : table)
@@ -89,6 +91,33 @@ struct Site {
     Signal<std::string> timeline = signal(std::string(sample));  // the timeline as last edited
     hello::State        hello;                 // example 01's, as the person left it
     std::unique_ptr<wall::Model> wall;         // S1's wall of the site's documents
+    // The fighting game's move list: the fighter, the move shown, how the
+    // dummy meets it (standing or guarding); each fighter's moves measured once.
+    Signal<std::string> fighter = signal(std::string("mo")), move = signal(std::string("5LP"));
+    Signal<bool>        guard = signal(false);
+    Signal<double>      demo_at = signal(0.0);
+    std::map<std::string, std::vector<gongfu::training::FrameData>, std::less<>> measured;
+    [[nodiscard]] const std::vector<gongfu::training::FrameData>& moves_of(const std::string& name) {
+        auto it = measured.find(name);
+        if (it == measured.end()) {
+            trace::Span span("frame data", "site");
+            const fighting::Roster& r = fighting::roster();
+            const gongfu::Fighter& f = r.fighters[fighting::fighter_index(name)];
+            std::vector<gongfu::training::FrameData> rows;
+            for (std::size_t m = 0; m < f.def.moves.size(); ++m) rows.push_back(gongfu::training::frame_data(r.system, f, static_cast<std::int32_t>(m)));
+            it = measured.emplace(name, std::move(rows)).first;
+        }
+        return it->second;
+    }
+    // The move list's stage, told to show its demonstration at a frame (paused) or to play.
+    void stage_act(std::string_view action, Value args = {}) {
+        if (!runtime) return;
+        if (const NodeId n = runtime->find(std::string(place_root) + "moves/page/show/frame_box/stage")) {
+            Invocation call;
+            call.args = std::move(args);
+            (void)runtime->act(n, action, call);
+        }
+    }
     std::unique_ptr<Guide> guide;
 
     // The atlas: its scene (by a name of this site's own) and its layout.
@@ -525,6 +554,215 @@ struct Labels {
 
 // A work's window: the work itself, running, when the window is live; far
 // away (a texture, drawn away from the UI thread, values only) what it is.
+// A fighter's name as the game writes it: its calligraphy's characters in Chinese.
+std::string fighter_name(std::string_view file, std::string_view en, bool zh) {
+    static constexpr std::array<std::pair<std::string_view, std::string_view>, 7> han{
+        {{"kata", "型"}, {"ke", "刻"}, {"kun", "坤"}, {"li", "璃"}, {"mo", "墨"}, {"ni", "霓"}, {"yue", "岳"}}};
+    if (zh)
+        for (const auto& [f, h] : han)
+            if (f == file) return std::string(h);
+    return std::string(en);
+}
+
+// Frames of advantage as a move list writes them: +3, −2, 0; a knockdown's
+// counts the getting up; none measured: a dash.
+std::string advantage(const std::optional<std::int32_t>& a, bool down, bool zh) {
+    if (!a) return "—";
+    std::string n = *a > 0 ? std::format("+{}", *a) : *a < 0 ? std::format("−{}", -*a) : std::string("0");
+    return down ? std::format("{} {}", zh ? "倒地" : "KD", n) : n;
+}
+
+// An id of a move by its name (5LP → move_5lp, j.HK → move_j_hk): the data's key, not its display.
+std::string move_id(std::string_view name) {
+    std::string id = "move_";
+    for (const char c : name) id += std::isalnum(static_cast<unsigned char>(c)) ? static_cast<char>(std::tolower(static_cast<unsigned char>(c))) : '_';
+    return id;
+}
+
+// The fighting game's move list, a real frame-data station: every number
+// measured by the game itself — each move played against a dummy standing
+// still, then guarding, from where it reaches (gongfu.training) — and the
+// move chosen shown on the game's own training stage, frame by frame.
+Element moves_window(const std::shared_ptr<Site>& s, bool live) {
+    const Size v = s->layout.view;
+    const bool zh = s->lang.peek() == "zh";
+    auto say = [zh](std::string_view en, std::string_view han) { return std::string(zh ? han : en); };
+    Element title = text({.id = "title", .text = say("Move list — frame data, measured", "出招表：帧数据，实测"), .style = "title"});
+    Element about = text({.id = "about",
+                          .text = say("Every number here is measured: the game plays each move against a dummy standing still, then guarding, from where it "
+                                      "reaches. Choose a move to see it on the game's own training stage, frame by frame, with its boxes.",
+                                      "这里的每个数字都是实测的：游戏自己把每个招式对着站立的、再对着防御的木桩出一遍，从刚好够得着的距离出。"
+                                      "选一个招式，在游戏自己的训练场上逐帧看它，连同判定框。"),
+                          .style = "body"});
+    if (!live)  // far away (a texture, drawn away from the UI thread): what it is, values only
+        return column({.id = "page", .width = Dim(v.width), .height = Dim(v.height), .padding = Edges(32.0f, 40.0f), .gap = 14, .background = "background"},
+                      {std::move(title), std::move(about),
+                       box({.id = "later", .justify = "center", .align = "center", .grow = 1, .background = "surface", .radius = 12},
+                           {text({.text = say("Close up, the game measures and plays every move.", "走近，游戏会实测并演示每个招式。"), .style = "caption",
+                                  .color = "text_muted"})})});
+    const fighting::Roster& r = fighting::roster();
+    std::vector<Element> tabs;
+    for (std::size_t i = 0; i < r.names.size(); ++i) {
+        const std::string file = r.names[i];
+        tabs.push_back(button({.id = "fighter_" + file,
+                               .text = fighter_name(file, r.fighters[i].def.name, zh),
+                               .variant = computed([s, file] { return s->fighter.get() == file ? ButtonVariant::primary : ButtonVariant::ghost; }),
+                               .on_activated = [s, file] {
+                                   s->fighter.set(file);
+                                   // Its first move with a strike, shown from its beginning.
+                                   const gongfu::Fighter& f = fighting::roster().fighters[fighting::fighter_index(file)];
+                                   const auto first = std::ranges::find_if(f.def.moves, [](const gongfu::MoveDef& m) { return !m.hits.empty() && m.asked; });
+                                   s->move.set(first != f.def.moves.end() ? first->name : f.def.moves.front().name);
+                                   s->demo_at.set(0);
+                               }}));
+    }
+    // The table: a header, then a row a move (rebuilt for another fighter, or another move chosen).
+    constexpr std::array<float, 7> widths{64, 56, 48, 68, 64, 72, 56};
+    auto cells = [&](std::vector<std::string> values, std::string_view style) {
+        std::vector<Element> out;
+        for (std::size_t c = 1; c < values.size(); ++c)
+            out.push_back(text({.text = std::move(values[c]), .style = std::string(style), .width = Dim(widths[c])}));
+        return out;
+    };
+    std::vector<Element> head{text({.text = say("Move", "招式"), .style = "label", .width = Dim(widths[0])})};
+    for (Element& e : cells({"", say("Startup", "发生"), say("Active", "持续"), say("Recovery", "收招"), say("On hit", "命中"), say("On block", "被防"),
+                             say("Damage", "伤害")},
+                            "label"))
+        head.push_back(std::move(e));
+    Element table = column({.id = "table", .gap = 2},
+                           {row({.id = "head", .padding = Edges(4.0f, 8.0f), .gap = 6, .align = "center"}, std::move(head)),
+                            dynamic([s, zh, cells, widths] {
+                                const std::string who = s->fighter.get();
+                                const std::string chosen = s->move.get();
+                                const gongfu::Fighter& f = fighting::roster().fighters[fighting::fighter_index(who)];
+                                std::vector<Element> rows;
+                                untracked([&] {
+                                    const auto& data = s->moves_of(who);
+                                    for (std::size_t m = 0; m < f.def.moves.size() && m < data.size(); ++m) {
+                                        const gongfu::MoveDef& md = f.def.moves[m];
+                                        if (!md.asked) continue;  // started by something else (a piece's shard): not a move to ask for
+                                        const gongfu::training::FrameData& d = data[m];
+                                        const std::string name = md.name;
+                                        std::vector<Element> line{box({.id = "name", .width = Dim(widths[0])},
+                                                                      {button({.id = "pick",
+                                                                               .text = name,
+                                                                               .variant = name == chosen ? ButtonVariant::primary : ButtonVariant::ghost,
+                                                                               .on_activated = [s, name] {
+                                                                                   s->move.set(name);
+                                                                                   s->demo_at.set(0);
+                                                                               }})})};
+                                        const std::string kind = d.throw_ ? (zh ? "投" : "throw") : d.air ? (zh ? "空中" : "air") : "";
+                                        for (Element& e : cells({"", std::format("{}", d.startup), std::format("{}", d.active), std::format("{}", d.recovery),
+                                                                 kind.empty() ? advantage(d.on_hit, d.knockdown, zh) : kind,
+                                                                 kind.empty() ? advantage(d.on_block, false, zh) : "—", std::format("{}", d.damage)},
+                                                                "code"))
+                                            line.push_back(std::move(e));
+                                        Element e = row({.id = move_id(name), .padding = Edges(2.0f, 8.0f), .gap = 6, .align = "center",
+                                                         .background = name == chosen ? "surface_variant" : "transparent", .radius = 6},
+                                                        std::move(line));
+                                        e.key = move_id(name);
+                                        rows.push_back(std::move(e));
+                                    }
+                                });
+                                return rows;
+                            })});
+    // The stage: the game's training mode demonstrating the move chosen, its boxes and frame meter over it.
+    auto frames = [s] {
+        const auto& data = s->moves_of(s->fighter.get());
+        const gongfu::Fighter& f = fighting::roster().fighters[fighting::fighter_index(s->fighter.get())];
+        const std::int32_t m = f.find(s->move.get());
+        if (m < 0 || static_cast<std::size_t>(m) >= data.size()) return 0.0;
+        return static_cast<double>(s->guard.get() ? data[static_cast<std::size_t>(m)].shown_on_block : data[static_cast<std::size_t>(m)].shown_on_hit);
+    };
+    Element stage = fighting::stage({.id = "stage",
+                                     .arena = "plain",
+                                     .demo = s->move,
+                                     .demo_guard = s->guard,
+                                     .mode = "training",
+                                     .player1 = s->fighter,
+                                     .player2 = s->fighter,
+                                     .width = Dim(512.0f),
+                                     .height = Dim(288.0f)});
+    Element controls = row({.id = "controls", .gap = 6, .align = "center"},
+                           {button({.id = "on_hit",
+                                    .text = say("On hit", "命中"),
+                                    .variant = computed([s] { return s->guard.get() ? ButtonVariant::ghost : ButtonVariant::primary; }),
+                                    .on_activated = [s] { s->guard.set(false), s->demo_at.set(0); }}),
+                            button({.id = "on_block",
+                                    .text = say("On block", "被防"),
+                                    .variant = computed([s] { return s->guard.get() ? ButtonVariant::primary : ButtonVariant::ghost; }),
+                                    .on_activated = [s] { s->guard.set(true), s->demo_at.set(0); }}),
+                            button({.id = "play", .text = say("Play", "播放"), .variant = ButtonVariant::ghost, .on_activated = [s] { s->stage_act("resume"); }}),
+                            slider({.id = "frame",
+                                    .label = say("Frame", "帧"),
+                                    .max = computed(frames),
+                                    .min = 0,
+                                    .step = 1,
+                                    .value = s->demo_at,
+                                    .on_changed = [s](double f) { s->stage_act("demo_frame", Value{}.set("frame", static_cast<std::int64_t>(f))); },
+                                    .grow = 1}),
+                            text({.id = "frame_of",
+                                  .text = computed([s, frames, zh] { return std::format("{} {} / {}", zh ? "帧" : "frame", static_cast<int>(s->demo_at.get()), static_cast<int>(frames())); }),
+                                  .style = "caption",
+                                  .width = Dim(96.0f)})});
+    // The move chosen, in words: what it is, what it costs and does, what it cancels into, what it passes through.
+    // (Its sentences in the reader's language: the format chosen at run time.)
+    const auto say_f = [zh](std::string_view en, std::string_view han, const auto&... args) { return std::vformat(zh ? han : en, std::make_format_args(args...)); };
+    Element details = dynamic([s, zh, say_f] {
+        const gongfu::Fighter& f = fighting::roster().fighters[fighting::fighter_index(s->fighter.get())];
+        const std::int32_t m = f.find(s->move.get());
+        std::vector<Element> out;
+        if (m < 0) return out;
+        const gongfu::MoveDef& md = f.def.moves[static_cast<std::size_t>(m)];
+        const auto& data = untracked([&] { return s->moves_of(s->fighter.peek()); });
+        const gongfu::training::FrameData& d = data[static_cast<std::size_t>(m)];
+        std::vector<std::string> lines;
+        // Its first strike's height: how it must be guarded.
+        const std::optional<gongfu::Level> height = !md.hits.empty() ? std::optional(md.hits.front().level)
+                                                  : md.projectile ? std::optional(md.projectile->hit.level) : std::nullopt;
+        const std::string guarded = !height ? std::string()
+                                  : *height == gongfu::Level::low      ? std::string(zh ? "（下段）" : " (low)")
+                                  : *height == gongfu::Level::overhead ? std::string(zh ? "（中段，须站防）" : " (overhead)")
+                                                                       : std::string(zh ? "（上段）" : " (mid)");
+        std::string what = md.level > 0 ? say_f("Level {} super", "{} 级超必杀", md.level)
+                         : d.throw_ ? (zh ? "投技" : "Throw") : d.projectile ? (zh ? "飞行道具" : "Projectile") : d.air ? (zh ? "空中技" : "Air move")
+                                                                                                                : (zh ? "打击" : "Strike");
+        what += guarded;
+        if (md.meter_cost > 0) what += say_f(", {} meter", "，消耗 {} 能量", md.meter_cost);
+        lines.push_back(std::format("{}{}{}", md.name, zh ? "：" : " — ", what));
+        lines.push_back(say_f("Damage {}, chip {}; {} frames in all", "伤害 {}，削血 {}；共 {} 帧", d.damage, d.chip, d.total));
+        if (d.knockdown) lines.push_back(zh ? "命中后对手倒地（命中一栏含起身）" : "Knocks down on hit (on hit counts the getting up)");
+        if (d.launch) lines.push_back(zh ? "命中后把对手打上空中" : "Launches on hit");
+        for (const gongfu::CancelDef& c : md.cancels) {
+            std::string into;
+            for (const std::string& i : c.into) into += (into.empty() ? "" : ", ") + i;
+            const std::string_view after = c.on_contact ? (zh ? "接触后" : " after contact") : "";
+            lines.push_back(say_f("Cancels into {3} on frames {0}–{1}{2}", "第 {}–{} 帧{}可取消为 {}", c.frames.from, c.frames.to, after, into));
+        }
+        for (const gongfu::Invulnerable& i : md.invulnerable) {
+            std::string to;
+            const auto add = [&](std::uint8_t bit, std::string_view en, std::string_view han) {
+                if (i.to & bit) to += (to.empty() ? "" : (zh ? "、" : ", ")) + std::string(zh ? han : en);
+            };
+            add(gongfu::to_strike, "strikes", "打击");
+            add(gongfu::to_air, "air attacks", "空中攻击");
+            add(gongfu::to_projectile, "projectiles", "飞行道具");
+            add(gongfu::to_throw, "throws", "投技");
+            lines.push_back(say_f("Invulnerable to {2} on frames {0}–{1}", "第 {}–{} 帧无敌：{}", i.frames.from, i.frames.to, to));
+        }
+        for (std::size_t i = 0; i < lines.size(); ++i)
+            out.push_back(text({.id = std::format("line{}", i), .text = lines[i], .style = i == 0 ? "label" : "body"}));
+        return out;
+    });
+    return row({.id = "page", .width = Dim(v.width), .height = Dim(v.height), .padding = Edges(28.0f, 32.0f), .gap = 28, .align = "stretch", .background = "background"},
+               {column({.id = "list", .min_width = Dim(0.0f), .gap = 12, .grow = 1},
+                       {std::move(title), std::move(about), row({.id = "fighters", .gap = 4, .wrap = "wrap"}, std::move(tabs)),
+                        scroll({.id = "moves", .grow = 1, .background = "surface"}, {std::move(table)})}),
+                column({.id = "show", .width = Dim(512.0f), .gap = 10},
+                       {box({.id = "frame_box", .radius = 12, .clip = true}, {std::move(stage)}), std::move(controls),
+                        column({.id = "details", .gap = 4}, {std::move(details)})})});
+}
+
 Element work_window(const std::shared_ptr<Site>& s, const std::string& id, bool live) {
     const Size v = s->layout.view;
     const bool zh = s->lang.peek() == "zh";
@@ -602,6 +840,7 @@ Element place_window(const std::shared_ptr<Site>& s, const std::string& id, bool
                        std::move(editor)});
     }
     if (id == "hello" || id == "wall") return work_window(s, id, live);
+    if (id == "moves") return moves_window(s, live);
     Element doc = live ? retyped(markdown({.id = "doc",
                                            .origin = MarkdownOrigin::app,
                                            .source = computed([s, id] { return std::string(document(id, s->lang.get())); }),
@@ -692,6 +931,7 @@ AppSpec app(std::string_view place, std::string_view lang) {
         wall::build(*s->wall, world::scene(s->wall->scene));
         s->guide = std::make_unique<Guide>(rt, [site = s.get()] { return site->place.get(); });
         register_type(component_type<Timebar>());
+        fighting::register_components();  // the move list's stage is the game's own
         {
             const auto it = std::ranges::find_if(all, [&](const Place& p) { return p.id == s->place.peek(); });
             const bool zh = s->lang.peek() == "zh";
@@ -846,7 +1086,29 @@ std::string static_html(std::string_view lang) {
         else if (p.id == "wall")
             out += zh ? "<h1>文档墙（S1）</h1>\n<p>所有文档在一块无限画布上：远处是色块，近一些是离屏画好的纹理，再近就是活的文档。需要 JavaScript。</p>\n"
                       : "<h1>The document wall (S1)</h1>\n<p>Every document on one infinite canvas: far away a block, nearer a texture drawn offscreen, close up a live document. It needs JavaScript.</p>\n";
-        else if (p.id == "hello")
+        else if (p.id == "moves") {
+            // The move list for readers without the program (and search engines): every fighter's frame data, measured here as the page is.
+            out += zh ? "<h1>出招表：帧数据，实测</h1>\n<p>每个数字都是游戏自己实测的：每个招式对着站立的、再对着防御的木桩，从刚好够得着的距离出一遍。逐帧演示需要 JavaScript。</p>\n"
+                      : "<h1>Move list — frame data, measured</h1>\n<p>Every number is measured by the game itself: each move played against a dummy standing still, then guarding, "
+                        "from where it reaches. Seeing a move frame by frame needs JavaScript.</p>\n";
+            const fighting::Roster& r = fighting::roster();
+            for (std::size_t i = 0; i < r.names.size(); ++i) {
+                const gongfu::Fighter& f = r.fighters[i];
+                out += std::format("<h2>{}</h2>\n<table>\n<tr><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th></tr>\n",
+                                   escaped(fighter_name(r.names[i], f.def.name, zh)), zh ? "招式" : "Move", zh ? "发生" : "Startup", zh ? "持续" : "Active",
+                                   zh ? "收招" : "Recovery", zh ? "命中" : "On hit", zh ? "被防" : "On block", zh ? "伤害" : "Damage");
+                for (std::size_t m = 0; m < f.def.moves.size(); ++m) {
+                    const gongfu::MoveDef& md = f.def.moves[m];
+                    if (!md.asked) continue;
+                    const auto d = gongfu::training::frame_data(r.system, f, static_cast<std::int32_t>(m));
+                    const std::string kind = d.throw_ ? (zh ? "投" : "throw") : d.air ? (zh ? "空中" : "air") : "";
+                    out += std::format("<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>\n", escaped(md.name), d.startup,
+                                       d.active, d.recovery, kind.empty() ? advantage(d.on_hit, d.knockdown, zh) : kind,
+                                       kind.empty() ? advantage(d.on_block, false, zh) : "—", d.damage);
+                }
+                out += "</table>\n";
+            }
+        } else if (p.id == "hello")
             out += std::format("<h1>{}</h1>\n<p>{}</p>\n<pre><code>{}</code></pre>\n", zh ? "示例 01：你好，立即模式" : "Example 01 — hello, immediate mode",
                                zh ? "一个完整的 openmui 程序。运行它需要 JavaScript；它的全部源码如下。" : "A whole openmui program. Running it needs JavaScript; here is all of its source.",
                                escaped(hello::hello_source));

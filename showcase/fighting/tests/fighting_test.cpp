@@ -1044,6 +1044,45 @@ int main(int argc, char** argv) {
         check_eq(all.hex(), std::string("46e5094130745471"));  // GCC and LLVM, every platform
     });
 
+    s.test("training's move demonstration: walked in to where it reaches, played over and over; its frame data is what it does here", [] {
+        Game g("training", "kata", "kata");
+        Runtime& rt = g.h.runtime();
+        const NodeId stage = rt.find("main");
+        const gongfu::Fighter& kata = fighting::roster().fighters[fighting::fighter_index("kata")];
+        for (const char* move : {"5LP", "2LK", "5HP"})
+            for (const bool guard : {false, true}) {
+                rt.set(stage, "demo", Value(move));
+                rt.set(stage, "demo_guard", Value(guard));
+                g.h.step();
+                const gongfu::training::FrameData d = gongfu::training::frame_data(fighting::roster().system, kata, kata.find(move));
+                Value seen = g.seen();
+                const Value* demo = seen.get("training") ? seen.get("training")->get("demo") : nullptr;
+                check(demo && demo->get("move")->as_string() == move, std::format("{}: demonstrated", move));
+                if (!demo) continue;
+                const std::int64_t frames = demo->get("frames")->as_int();
+                // Shown at its last frame, paused: the readings a player would see are the move list's.
+                check(g.act("demo_frame", Value{}.set("frame", frames)));
+                seen = g.seen();
+                const Value* t = seen.get("training");
+                check(t && t->get("startup") && t->get("startup")->as_int() == d.startup, std::format("{}: startup {}", move, d.startup));
+                const auto want = guard ? d.on_block : d.on_hit;
+                check(want && t && t->get("advantage") && t->get("advantage")->as_int() == *want,
+                      std::format("{} on {}: {} shown, {} listed", move, guard ? "block" : "hit",
+                                  t && t->get("advantage") ? t->get("advantage")->as_int() : -99, want.value_or(-99)));
+                // At its beginning again: both at rest, in reach.
+                check(g.act("demo_frame", Value{}.set("frame", 0)));
+                check(g.seen().get("training")->get("demo")->get("frame")->as_int() == 0);
+            }
+        // Played on: after its frames and a rest, from its beginning again.
+        check(g.act("resume"));
+        const std::int64_t frames = g.seen().get("training")->get("demo")->get("frames")->as_int();
+        for (std::int64_t i = 0; i < frames + 45; ++i) g.h.step();
+        const std::int64_t at = g.seen().get("training")->get("demo")->get("frame")->as_int();
+        check(at < 10, std::format("looped: frame {}", at));
+        g.h.step();
+        check(g.h.save_png(scratch_dir("fighting-demo") / "demo.png").has_value());
+    });
+
     s.test("training reads a perfect clash to an agent and shows it", [] {
         Game g("training");
         check(g.act("pause"));

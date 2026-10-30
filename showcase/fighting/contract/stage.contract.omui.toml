@@ -14,6 +14,8 @@ player1 = { type = "string", default = "", doc = "Player 1's fighter, by its fil
 player2 = { type = "string", default = "", doc = "Player 2's fighter, by its file's name; empty: the first." }
 arena  = { type = "string", default = "", doc = "The stage's art by name (study …); empty: player 1's home in versus, the plain room in training; plain: none." }
 rounds = { type = "i32", default = 2, doc = "Versus: the rounds a player wins the match by (2: best of three); a K.O. or the clock ends a round, and the next begins three seconds later." }
+demo   = { type = "string", default = "", doc = "Training: a move of player 1's fighter by name (5LP, 236P), demonstrated over and over as a move list shows it — walked in to where it reaches, player 2 standing still (or guarding: `demo_guard`); its frame data is what it does here. Empty: none." }
+demo_guard = { type = "bool", default = false, doc = "The demonstration's player 2 guards (low for a low), from before the move begins." }
 overlays = { type = "bool", default = true, doc = "Training: the boxes, the frame meter, the inputs and the readings drawn over the match (off: the picture alone, the training tools still at hand)." }
 
 [contract.stage.events]
@@ -33,3 +35,4 @@ record  = { effect = "reversible", args = { player = "i32" }, doc = "Starts reco
 replay  = { effect = "reversible", args = { player = "i32" }, doc = "Plays the player's recording back, looped, in place of the player." }
 stop    = { effect = "reversible", args = { player = "i32" }, doc = "Stops the player's recording or replay." }
 fill    = { effect = "reversible", doc = "Training: both players' meter full and posture empty." }
+demo_frame = { effect = "reversible", args = { frame = "i32" }, doc = "Training: the demonstration paused at a frame (0: as the move begins), played there from its start." }

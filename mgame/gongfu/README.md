@@ -92,7 +92,8 @@ A round ends at a K.O. or when the clock runs out (`over`, `winner`). It then pl
   - the frame meter: startup, active, recovery and stun, with hitstop not counted;
   - the frame advantage once both sides recover;
   - the combo's hits and damage;
-  - a recorder that plays a player's pads back, looped (the dummy).
+  - a recorder that plays a player's pads back, looped (the dummy);
+  - a move's frame data, measured by playing it from where it reaches against a dummy standing and guarding, and the demonstration it was measured from (a move list's).
 
   It uses only the standard library and allocates nothing per frame.
 - [ai](ai) (`gongfu.ai`): a computer opponent, and fighters measured against each other.

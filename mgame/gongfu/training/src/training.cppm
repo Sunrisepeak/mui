@@ -94,6 +94,49 @@ private:
     std::array<bool, 2>          frozen_next_{};          // each fighter's next frame stands still (its hitstop, a flash)
 };
 
+// A move's frame data, the way a move list shows it: its frames from the
+// data, and what it leaves the two sides at when it lands, measured by
+// playing it — against a copy of its fighter standing still, then guarding
+// (low for a low hit) — from where its first strike reaches.
+struct FrameData {
+    std::int32_t startup = 0;   // its first active frame (the press is frame 1)
+    std::int32_t active = 0;    // frames from the first active one to the last (a gap between hits included)
+    std::int32_t recovery = 0;  // frames after the last active one
+    std::int32_t total = 0;
+    std::int32_t damage = 0, chip = 0;  // its strikes', summed (a projectile's hits too)
+    // The frames between the two sides recovering, from the attacker's side,
+    // as played; none when it was not measured (an air move, a throw, a move
+    // with no strike) or did not land within reach.
+    std::optional<std::int32_t> on_hit, on_block;
+    bool knockdown = false;  // a hit of it knocks down (on_hit then counts the defender's getting up)
+    bool launch = false;     // a hit of it sends the defender into the air
+    bool air = false, throw_ = false, projectile = false;
+    std::int32_t meter_cost = 0, level = 0;
+    // How long its demonstrations run (demo()'s frames), standing and guarding: what a move list's frame slider spans.
+    std::int32_t shown_on_hit = 0, shown_on_block = 0;
+};
+
+// Measured on a match of `fighter` against itself under `system`: a few
+// hundred frames of the simulation, no drawing.
+[[nodiscard]] FrameData frame_data(const SystemDef& system, const Fighter& fighter, std::int32_t move);
+
+// A move as a move list demonstrates it (and frame_data measures it): the
+// attacker walked in from the round's start to where its first strike
+// reaches, the dummy at rest, standing or already guarding (low for a low,
+// and long enough that its block is not a deflect). `start` is the match as
+// the move begins; the attacker's pads ask for it, one a frame, then let go;
+// the dummy holds `dummy`. `frames`: until both sides are free again (and
+// the advantage read), or a few seconds.
+struct Demo {
+    Match                       start;
+    std::vector<Pad>            attacker;
+    Pad                         dummy = pad(5);
+    std::int32_t                frames = 0;
+    bool                        contact = false;  // its strikes reached the dummy
+    std::optional<std::int32_t> advantage;        // as measured, from the attacker's side
+};
+[[nodiscard]] Demo demo(const SystemDef& system, const Fighter& attacker, const Fighter& dummy, std::int32_t move, bool guard);
+
 // A player's pads, kept and played back looped: training's dummy.
 class Recorder {
 public:

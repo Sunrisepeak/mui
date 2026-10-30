@@ -15,6 +15,11 @@ The site shows openmui's thesis instead of describing it: **the interface is a s
     - a timeline editor (`openmui.ui.timeline`) with its own undo history (S-12);
     - the document wall, S1 small: the site's documents in both languages and the benchmark's set, on a canvas of their own (select, drag, snap, minimap, group drag, named views);
     - example 01 (`examples/01-hello-im`), the shortest openmui program, running in a frame beside its own source. A person or an agent types into it and clicks it.
+    - the fighting game's move list, a real frame-data station:
+      - for each fighter, every move's startup, active and recovery frames, its advantage on hit and on block, and its damage;
+      - every number is measured by the game itself (`gongfu.training::frame_data`);
+      - the chosen move plays on the game's own training stage, with its boxes and frame meter. Drag its frames one at a time, on hit or on block, with the move's details in words beside it;
+      - the static page carries every fighter's table for readers without JavaScript.
 
   Each place is a window on one infinite canvas (`openmui.ui.canvas`, S1's approach; `src/atlas.*`). A window is the size of the view, so a place is read at zoom 1, like a page.
   - **Overview** flies the camera out to show every place whole.
@@ -73,8 +78,8 @@ python3 -m http.server -d target/site            # and look at it
 - the home tree's hash, pinned, and the same in a narrower window;
 - the timeline editor: an agent's edit followed by the tree, then undone;
 - the page's time: an agent dragging it back to before a flight (the view exactly as it was), live again, played backwards to the strip's start and forwards to live;
-- the works: example 01 typed into and clicked, the wall's canvas live with the site's documents;
-- the pixels of home, the overview, the wireframe, the agent's JSON, the timeline, the wall, example 01, the agent asking, the Chinese page and the page's time dragged back into a language switch, pinned on every platform (each picture's own hash printed, so a platform that differs shows which);
+- the works: example 01 typed into and clicked, the wall's canvas live with the site's documents; the move list's rows equal to what the game measures, a move picked by an agent, on block, shown at its first active frame;
+- the pixels of home, the overview, the wireframe, the agent's JSON, the timeline, the wall, example 01, the move list, the agent asking, the Chinese page and the page's time dragged back into a language switch, pinned on every platform (each picture's own hash printed, so a platform that differs shows which);
 - the static HTML and its injection into dist-toy's page.
 
 Changing a document changes the pinned hashes. Look at the pictures (`$TMPDIR/openmui-tests/site/`), then update the pins.

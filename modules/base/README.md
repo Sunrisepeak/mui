@@ -15,6 +15,7 @@ Depends on: the standard library and third-party libraries. Used by: every other
 | [session](session) | Recorded sessions (`*.session.omui.jsonl`): timestamped, seekable, mergeable |
 | [pipeline](pipeline) | Pipelines of stage plugins over typed resources: checked, deterministic, traced, replaceable while running |
 | [image](image) | Image buffers, premultiplication, PNG, animated PNG and WebP |
+| [math](math) | Deterministic mathematics: elementary functions with the same bits everywhere (`det`), splitmix64 (`random`) |
 | [hash](hash) | FNV-1a (64 and 32 bit): determinism hashes, content hashes, cache keys, generated ids |
 | [testing](testing) | Checks, suites and determinism hashes for test programs |
 

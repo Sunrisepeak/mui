@@ -15,6 +15,7 @@ using namespace omui;
 namespace {
 
 Renderer wanted = Renderer::automatic;  // --webgpu, --webgl
+bool     offscreen = false;              // --offscreen: drawn, not shown (a browser whose GPU cannot present)
 
 View page(Runtime& rt) {
     // A picture: a gradient with a checker, stored in the runtime's images.
@@ -40,6 +41,7 @@ int main(int argc, char** argv) {
     std::vector<char*> args(argv, argv + argc);
     if (std::erase_if(args, [](const char* a) { return std::string_view(a) == "--webgpu"; }) > 0) wanted = Renderer::webgpu;
     if (std::erase_if(args, [](const char* a) { return std::string_view(a) == "--webgl"; }) > 0) wanted = Renderer::webgl;
+    offscreen = std::erase_if(args, [](const char* a) { return std::string_view(a) == "--offscreen"; }) > 0;
     Suite s{"host.web.drawing"};
 
     s.test("without a page the CPU draws, and what is read back is its frame", [] {
@@ -55,7 +57,7 @@ int main(int argc, char** argv) {
     s.test("in a page with the device asked for, it draws: its frame within the renderer's tolerances of the CPU's", [] {
         if (!in_browser() || wanted == Renderer::automatic) return;
         const std::string_view name = wanted == Renderer::webgpu ? "webgpu" : "webgl";
-        Web w({.renderer = wanted});
+        Web w({.renderer = wanted, .present = !offscreen});
         check_eq(std::string(w.renderer()), std::string(name));
         if (w.renderer() != name) return;
         w.mount("main", page(w.runtime()));
@@ -86,7 +88,8 @@ int main(int argc, char** argv) {
                 if (d > 1) ++off;
             }
         const std::size_t pixels = static_cast<std::size_t>(ref.width()) * static_cast<std::size_t>(ref.height());
-        std::println("    {} {}×{}: max diff {}, {} of {} pixels off by more than 1 ({} pixels of text)", name, ref.width(), ref.height(), worst, off, pixels, ink);
+        std::println("    {} {}{}×{}: max diff {}, {} of {} pixels off by more than 1 ({} pixels of text)", name, offscreen ? "offscreen " : "", ref.width(), ref.height(), worst,
+                     off, pixels, ink);
         check(worst <= 10, std::format("max diff {}", worst));
         check(off * 100 <= pixels, std::format("{} pixels off", off));
         check(w.frames_shown() >= 1, "shown");

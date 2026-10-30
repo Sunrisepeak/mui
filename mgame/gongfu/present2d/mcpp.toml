@@ -21,6 +21,7 @@ sources  = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
+openmui.math = { path = "../../../modules/base/math" }
 gongfu                = { path = ".." }
 "gongfu.data"         = { path = "../data" }
 marzer.tomlplusplus   = "3.4.0"

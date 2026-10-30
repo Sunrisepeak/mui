@@ -1,7 +1,8 @@
 # hanim — a general animation engine.
 #
-# Standard library only, and no openmui package (D-49, D-55): it can leave this
-# repository unchanged. Every animation is a pure function of time, and its
+# The standard library and openmui.math only (D-49, D-55, D-87: its
+# deterministic functions moved there, an independent component too): the two
+# can leave this repository unchanged. Every animation is a pure function of time, and its
 # results are the same bits on every platform (A-level conformance), which is
 # why the floating-point flags below are not optional.
 [package]
@@ -24,6 +25,9 @@ sources = ["src/*.cppm", "src/*.cpp"]
 # ISO mode and Clang fuses within an expression, either of which changes the
 # last bit of a spring or a colour on one platform and not another.
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+openmui.math = { path = "../math" }
 
 [dev-dependencies]
 openmui.testing = { path = "../testing" }

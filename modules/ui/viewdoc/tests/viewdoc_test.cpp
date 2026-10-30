@@ -4,6 +4,7 @@
 // reloads that keep state, components defined by documents, the schema and
 // the canonical format, and random documents that never crash the reader.
 import std;
+import openmui.math;
 import openmui.viewdoc;
 import openmui.ui.base;
 import openmui.host.headless;
@@ -526,10 +527,8 @@ int main(int argc, char** argv) {
         // splitmix64: the same documents on every platform.
         std::uint64_t seed = 0x766965776463;
         auto next = [&] {
-            std::uint64_t z = (seed += 0x9e3779b97f4a7c15ull);
-            z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ull;
-            z = (z ^ (z >> 27)) * 0x94d049bb133111ebull;
-            return z ^ (z >> 31);
+            seed += omui::math::golden;
+            return omui::math::finalize(seed);
         };
         auto below = [&](std::size_t n) { return static_cast<std::size_t>(next() % n); };
         static constexpr std::array<std::string_view, 14> atoms{

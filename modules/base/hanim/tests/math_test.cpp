@@ -24,10 +24,8 @@ std::int64_t ulps(double a, double b) {
 struct Sequence {
     std::uint64_t s;
     std::uint64_t next() {
-        std::uint64_t z = (s += 0x9e3779b97f4a7c15ull);
-        z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ull;
-        z = (z ^ (z >> 27)) * 0x94d049bb133111ebull;
-        return z ^ (z >> 31);
+        s += omui::math::golden;
+        return omui::math::finalize(s);
     }
     double uniform(double lo, double hi) { return lo + (hi - lo) * static_cast<double>(next() >> 11) * 0x1.0p-53; }
 };

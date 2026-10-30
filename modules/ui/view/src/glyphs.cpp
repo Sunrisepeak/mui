@@ -1,6 +1,7 @@
 module openmui.view;
 
 import std;
+import openmui.math;
 import openmui.hash;
 import openmui.core;
 import hanim;
@@ -14,10 +15,7 @@ namespace {
 
 // splitmix64: a seeded, platform-independent stream.
 std::uint64_t mix(std::uint64_t x) noexcept {
-    x += 0x9e3779b97f4a7c15ull;
-    x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ull;
-    x = (x ^ (x >> 27)) * 0x94d049bb133111ebull;
-    return x ^ (x >> 31);
+    return math::mix64(x);
 }
 // A number in [-1, 1] for (seed, element, component), the same everywhere.
 float signed_unit(std::uint64_t seed, std::uint64_t key, std::uint64_t component) noexcept {

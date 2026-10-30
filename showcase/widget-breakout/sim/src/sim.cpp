@@ -1,6 +1,7 @@
 module openmui.showcase.widget_breakout.sim;
 
 import std;
+import openmui.math;
 import openmui.hash;
 import mgame.world;
 import mgame.input;
@@ -37,10 +38,8 @@ constexpr std::int32_t cooldown = 60;            // a capacitor that fired takes
 constexpr double finisher_half = 36;             // the finisher's beam: half its width
 
 std::uint64_t next(std::uint64_t& s) noexcept {  // splitmix64
-    std::uint64_t z = (s += 0x9e3779b97f4a7c15ull);
-    z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ull;
-    z = (z ^ (z >> 27)) * 0x94d049bb133111ebull;
-    return z ^ (z >> 31);
+    s += omui::math::golden;
+    return omui::math::finalize(s);
 }
 
 void happened(State& s, Happened what, std::uint32_t id, V2 at, std::int32_t n = 0, V2 to = {}) {

@@ -57,6 +57,10 @@ struct WebOptions {
     bool                    reduce_transparency = false;
     Color                   background = Color::white();
     Renderer                renderer = Renderer::automatic;
+    // A GPU's frames shown on the canvas; false: drawn on a device made
+    // without it and kept, for read_frame (a capture, a page whose GPU cannot
+    // show them — headless Chromium's software WebGPU sometimes cannot).
+    bool                    present = true;
     // Show a runtime that exists already (the host does not own it).
     Runtime*                runtime = nullptr;
 };

@@ -199,7 +199,8 @@ struct Web::Impl {
                 auto probe = kind == Renderer::webgpu ? rhi::webgpu::create({}) : rhi::webgl::create({});
                 if (!probe || (*probe)->caps().software) return false;
             }
-            auto made = kind == Renderer::webgpu ? rhi::webgpu::create({.canvas = options.canvas}) : rhi::webgl::create({.canvas = options.canvas});
+            const std::string canvas = options.present ? options.canvas : std::string();
+            auto made = kind == Renderer::webgpu ? rhi::webgpu::create({.canvas = canvas}) : rhi::webgl::create({.canvas = canvas});
             const std::string_view name = kind == Renderer::webgpu ? "WebGPU" : "WebGL2";
             if (!made) {
                 if (want == kind) warn("host.web: {} was asked for and the page has none ({}): the CPU draws", name, made.error().message);
@@ -236,6 +237,7 @@ struct Web::Impl {
             const render::Resources resources{&runtime->images(), glyphs.get()};
             if (auto r = gpu->render(list, target, resources, {.scale = scale, .clear = true, .background = options.background}); !r) return gpu_failed(r.error().message);
         }
+        if (!options.present) return true;
         trace::Span span("present", "host");
         page::backing(options.canvas, w, hgt);  // shown pixel for pixel, as the CPU's frame is
         if (auto r = device->present(target); !r) return gpu_failed(r.error().message);

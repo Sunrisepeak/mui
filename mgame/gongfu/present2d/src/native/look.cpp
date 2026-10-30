@@ -46,6 +46,7 @@
 module gongfu.present2d;
 
 import std;
+import openmui.math;
 import gongfu;
 import gongfu.data;
 import hanim;
@@ -1943,10 +1944,8 @@ constexpr std::array<std::string_view, 6> planks_keys{"span", "depth", "rows", "
 struct Draws {
     std::uint64_t s;
     double next() {
-        std::uint64_t z = (s += 0x9e3779b97f4a7c15ull);
-        z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ull;
-        z = (z ^ (z >> 27)) * 0x94d049bb133111ebull;
-        return static_cast<double>((z ^ (z >> 31)) >> 11) / 9007199254740992.0;  // [0, 1)
+        s += omui::math::golden;
+        return omui::math::unit53(omui::math::finalize(s));  // [0, 1)
     }
     double between(double lo, double hi) { return lo + (hi - lo) * next(); }
 };

@@ -65,10 +65,16 @@ drawing=$(ls -t target/wasm32-emscripten/*/bin/web/drawing_test.js 2>/dev/null |
 # takes the default switches, else the Vulkan ones; the test is the same.
 # The fonts as dist-toy's page gives them: so the page draws its text.
 fonts="--preload modules/content/text/fonts:/fonts"
-"$node_bin" tools/ci/browser.mjs --chrome "$chrome" $fonts "$drawing" --webgpu \
-  || "$node_bin" tools/ci/browser.mjs --chrome "$chrome" --flag --enable-features=Vulkan --flag --use-vulkan=swiftshader --flag --use-angle=vulkan \
-       $fonts "$drawing" --webgpu \
-  || { echo "::error::host.web did not draw on WebGPU in the browser"; exit 1; }
+# A browser whose WebGPU can do neither presents nothing: there the page's
+# frames are drawn offscreen and compared all the same (said in the log).
+if "$node_bin" tools/ci/browser.mjs --chrome "$chrome" $fonts "$drawing" --webgpu \
+   || "$node_bin" tools/ci/browser.mjs --chrome "$chrome" --flag --enable-features=Vulkan --flag --use-vulkan=swiftshader --flag --use-angle=vulkan \
+        $fonts "$drawing" --webgpu; then :
+else
+  echo "::notice::this browser's WebGPU cannot present to a canvas headless: host.web's WebGPU frames checked offscreen"
+  "$node_bin" tools/ci/browser.mjs --chrome "$chrome" $fonts "$drawing" --webgpu --offscreen \
+    || { echo "::error::host.web did not draw on WebGPU in the browser"; exit 1; }
+fi
 "$node_bin" tools/ci/browser.mjs --chrome "$chrome" $fonts "$drawing" --webgl \
   || { echo "::error::host.web did not draw on WebGL2 in the browser"; exit 1; }
 

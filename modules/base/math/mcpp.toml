@@ -1,0 +1,29 @@
+# openmui.math — the repository's mathematics, one implementation each (D-87):
+# elementary functions with the same bits everywhere (:det) and the
+# randomness that must be the same everywhere (:random). It grows only with
+# users: curves, vectors, fixed point and batches come when something uses
+# them (the math-fighter design, §3.1).
+# An independent component (D-55): the standard library only.
+[package]
+namespace   = "openmui"
+name        = "math"
+version     = "0.1.0"
+description = "Deterministic mathematics: elementary functions with the same bits everywhere, splitmix64 randomness"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "module"
+
+[targets.openmui-math]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+# No fused multiply-add the source did not write, no fast-math: what keeps the
+# five correctly rounded operations exactly what the source says.
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dev-dependencies]
+openmui.testing = { path = "../testing" }

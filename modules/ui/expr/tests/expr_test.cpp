@@ -1,4 +1,5 @@
 import std;
+import openmui.math;
 import openmui.expr;
 import openmui.testing;
 
@@ -126,10 +127,8 @@ void round_trip(std::string_view text, std::string_view canonical = {}, std::sou
 struct Rng {
     std::uint64_t s;
     std::uint64_t next() noexcept {
-        std::uint64_t z = (s += 0x9e3779b97f4a7c15ull);
-        z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ull;
-        z = (z ^ (z >> 27)) * 0x94d049bb133111ebull;
-        return z ^ (z >> 31);
+        s += omui::math::golden;
+        return omui::math::finalize(s);
     }
     std::size_t below(std::size_t n) noexcept { return static_cast<std::size_t>(next() % n); }
 };

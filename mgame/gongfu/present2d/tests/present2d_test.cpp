@@ -1712,7 +1712,7 @@ spark = { style = "rays", colour = "#ffd166" }
         Hash h;
         h.u64(dl.hash());
         std::println("    panes {}", h.hex());
-        check_eq(h.hex(), std::string("50533a6966aaed3f"));
+        check_eq(h.hex(), std::string("fe59333316dc82e9"));
         // A pane's colours read back from a look file.
         auto look = p2::read_look("pane = { glass = \"#9fd8ff4c\", edge = \"#ffffffcc\", shine = \"#ffffff80\", reflect = \"#ffd36be6\" }\n" +
                                       read(here() / "data" / "kata.look.gongfu.toml"),

@@ -24,6 +24,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 openmui.shader.rules = { path = "../../shader/rules", host-module = true }
 
 [dependencies]
+openmui.math = { path = "../../../base/math" }
 openmui.hash = { path = "../../../base/hash" }
 openmui.render = { path = ".." }
 openmui.rhi    = { path = "../../rhi" }

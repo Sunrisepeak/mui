@@ -68,11 +68,8 @@ int main(int argc, char** argv) {
         // Seeked: the finished channel asked about any time — its segments are its history.
         std::uint64_t state = 20261027;
         auto next_random = [&] {
-            state += 0x9e3779b97f4a7c15ull;
-            std::uint64_t z = state;
-            z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ull;
-            z = (z ^ (z >> 27)) * 0x94d049bb133111ebull;
-            return z ^ (z >> 31);
+            state += omui::math::golden;
+            return omui::math::finalize(state);
         };
         int differing = 0;
         for (int i = 0; i < 1000; ++i) {

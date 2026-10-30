@@ -22,6 +22,7 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
+openmui.math = { path = "../../base/math" }
 openmui.hash = { path = "../../base/hash" }
 openmui.core     = { path = "../core" }
 openmui.geom     = { path = "../../base/geom" }

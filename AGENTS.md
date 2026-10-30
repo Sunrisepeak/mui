@@ -27,7 +27,7 @@
 - **路径就是包名**（D-80，lint `layout`）：库的叶子目录名是包名的最后一段（下划线写成连字符），包里面的包以它命名（`openmui.rhi.sdl` 在 `modules/gfx/rhi/sdl`）；分组目录只做归类；有包的目录都有 README，列出下面的每个包。按角色命名，不按实现命名（`shader` 不叫 slang）；动画引擎叫 `hanim`（`import hanim;`，命名空间 `hanim::`）。父包和子包同时出现在一个依赖表里时，键要加引号（`"openmui.rhi"`、`"openmui.rhi.sdl"`），否则不是合法的 TOML。
 - **优先使用 mcpp 生态**：mcpp-index 里已经有知名、跨平台的库时直接使用（JSON 用 `nlohmann.json`，TOML 用 `marzer.tomlplusplus`，任务用 `taskflow`……），不自己实现；只有生态里没有、或者无法满足确定性要求时才自己写（D-56）。
 - **第三方 C 库经 mwrap 使用**（D-83，lint `thirdparty`）：`compat.<库>` 加 `mcpplibs.mwrap.<库>`，只在 `native/` 单元里 `import mcpplibs.mwrap.<库>;`；上游先做好、发布，再在本仓库使用。选高质量、跨平台、依赖少、高性能的库；**不用 GPL / AGPL（动态链接也不行）**，LGPL 只能作为可选插件动态链接，MPL 不修改即可；默认用免版税的格式。
-- 动画引擎 `modules/base/hanim/` 只依赖标准库，不允许依赖任何 UI 模块；动画是时间的纯函数（可以任意跳转、结果确定）；动画、布局、光栅器模块不允许使用 fast-math 和浮点收缩。
+- 动画引擎 `modules/base/hanim/` 只依赖标准库和 `openmui.math`（D-87：它的确定性函数在那里），不允许依赖任何 UI 模块；全仓库的数学（确定性函数、随机数）在 `openmui.math`，FNV-1a 在 `openmui.hash`，不自己再写一份（lint 规则 `math`、`hash`）；动画是时间的纯函数（可以任意跳转、结果确定）；动画、布局、光栅器模块不允许使用 fast-math 和浮点收缩。
 - 协作：当前的工作都放在同一个 PR（分支 `openmui-design`）里，每一轮修改提交一个 commit 作为检查点。
 - 验收标准见实施计划 §19；能自动检查的都要进 CI。
 - 组件和 native 模块都是“契约优先”：先写 `*.contract.omui.toml` / `*.native.omui.toml`，绑定由生成器产出，不手写。

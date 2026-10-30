@@ -36,6 +36,8 @@ Rules:
                 compile with -ffp-contract=off
   hash          no private FNV-1a (its offset bases and primes) outside modules/base/hash: one
                 implementation, openmui.hash, so a pinned hash means the same thing everywhere
+  math          no private splitmix64 (its finaliser's constants) or fdlibm (its constants)
+                outside modules/base/math: one implementation, openmui.math (D-87)
   members       every directory listed as a workspace member has an mcpp.toml, and every
                 mcpp.toml under the tree is listed
   documents     every view document (*.view.omui.json) is valid against the committed schema,
@@ -100,7 +102,7 @@ for _allowed in LAYERS.values():
         _allowed.add("modules/base/hash")
 
 # Members whose results are part of A-level conformance (identical bits).
-DETERMINISTIC = ["modules/base/fuzzy", "modules/media/audio", "modules/media/video", "mgame/physics", "showcase/widget-breakout/sim", "modules/base/hanim", "modules/gfx/raster", "modules/content/layout", "modules/base/geom", "modules/gfx/render", "modules/gfx/render/vector", "modules/content/text",
+DETERMINISTIC = ["modules/base/math", "modules/base/fuzzy", "modules/media/audio", "modules/media/video", "mgame/physics", "showcase/widget-breakout/sim", "modules/base/hanim", "modules/gfx/raster", "modules/content/layout", "modules/base/geom", "modules/gfx/render", "modules/gfx/render/vector", "modules/content/text",
                  "modules/content/i18n", "modules/ui/view", "showcase/promo-video"]
 
 # Operating-system headers: platform code goes through mcpplibs.os (D-57), so
@@ -110,6 +112,9 @@ OS_HEADERS = re.compile(
     r"CoreFoundation/[^>\"]+|Cocoa/[^>\"]+|AppKit/[^>\"]+|linux/[^>\"]+)[>\"]")
 # FNV-1a's offset bases and primes, 64- and 32-bit: only openmui.hash has them.
 FNV_CONSTANTS = re.compile(r"0x100000001b3|0xcbf29ce484222325|\b16777619u?\b|\b2166136261u?\b", re.IGNORECASE)
+
+# splitmix64's finaliser and fdlibm's exp/log constants: only openmui.math has them.
+MATH_CONSTANTS = re.compile(r"0xbf58476d1ce4e5b9|0x94d049bb133111eb|6\.93147180369123816490e-01|1\.66666666666666019037e-01", re.IGNORECASE)
 
 TRANSCENDENTAL = re.compile(
     r"\bstd::(exp|exp2|expm1|log|log2|log10|log1p|pow|sin|cos|tan|asin|acos|atan|atan2|sinh|cosh|tanh|cbrt|hypot|lerp)\s*\(")
@@ -253,13 +258,19 @@ def check_sources(root: Path) -> list[Problem]:
                 if FNV_CONSTANTS.search(line):
                     problems.append(Problem("hash", f"{rel_s}:{no}", "a private FNV-1a; use openmui.hash (omui::hash::Fnv1a, fnv1a, fnv1a32)"))
 
+        # One splitmix64, one fdlibm: openmui.math.
+        if not rel_s.startswith("modules/base/math/"):
+            for no, line in enumerate(lines, 1):
+                if MATH_CONSTANTS.search(line):
+                    problems.append(Problem("math", f"{rel_s}:{no}", "a private splitmix64 or fdlibm; use openmui.math (math::mix64, SplitMix64, det::)"))
+
         for member in DETERMINISTIC:
             if rel_s.startswith(member + "/src/"):
                 for no, line in enumerate(lines, 1):
                     m = TRANSCENDENTAL.search(line)
                     if m:
                         problems.append(Problem("determinism", f"{rel_s}:{no}",
-                                                f"std::{m.group(1)} differs between platforms' libm; use hanim::dm"))
+                                                f"std::{m.group(1)} differs between platforms' libm; use openmui.math's det (hanim::dm)"))
     return problems
 
 
@@ -648,6 +659,7 @@ def self_test() -> int:
         "paths": ("modules/ui/core/src/p.cpp", "std::string f(const std::filesystem::path& p) { return p.string(); }\n"),
         "determinism": ("modules/base/hanim/src/d.cpp", "double f(double x) { return std::sin(x); }\n"),
         "hash": ("modules/ui/core/src/h.cpp", "std::uint64_t h = 0xcbf29ce484222325ull;\n"),
+        "math": ("modules/ui/core/src/m.cpp", "z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ull;\n"),
         "platform": ("modules/ui/core/src/native/io.cpp", "module;\n#include <unistd.h>\nmodule x;\n"),
         "layering": None,
         "modules": None,

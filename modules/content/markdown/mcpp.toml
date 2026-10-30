@@ -27,4 +27,5 @@ openmui.trace       = { path = "../../base/trace" }
 mcpplibs.mwrap.md4c = "0.5.3"
 
 [dev-dependencies]
+openmui.math = { path = "../../base/math" }
 openmui.testing = { path = "../../base/testing" }

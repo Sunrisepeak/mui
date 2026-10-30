@@ -1,6 +1,7 @@
 module gongfu.present2d;
 
 import std;
+import openmui.math;
 import gongfu;
 import hanim;
 import openmui.geom;
@@ -103,16 +104,11 @@ double falloff(std::int32_t age, std::int32_t frames) noexcept {
 // A number in [0, 1) from an event and a counter: a spark's scatter, the
 // same on every machine and after every rollback.
 double scatter(const Effects::Kept& k, std::uint32_t i) noexcept {
-    // splitmix64's finaliser over each field in turn: every bit of the input moves every bit of the result.
-    auto mix = [](std::uint64_t z) {
-        z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ull;
-        z = (z ^ (z >> 27)) * 0x94d049bb133111ebull;
-        return z ^ (z >> 31);
-    };
-    std::uint64_t h = 0x9e3779b97f4a7c15ull;
+    // splitmix64 over each field in turn: every bit of the input moves every bit of the result.
+    std::uint64_t h = omui::math::golden;
     for (const std::uint64_t v : {static_cast<std::uint64_t>(k.frame), static_cast<std::uint64_t>(k.event.attacker), static_cast<std::uint64_t>(k.event.move),
                                   static_cast<std::uint64_t>(k.event.hit), static_cast<std::uint64_t>(i)})
-        h = mix(h + v + 0x9e3779b97f4a7c15ull);
+        h = omui::math::mix64(h + v);
     return static_cast<double>(h >> 40) / static_cast<double>(1u << 24);
 }
 
@@ -1212,11 +1208,7 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         const double out_ = cine->backdrop_out[1] > cine->backdrop_out[0] ? 1 - between(t, cine->backdrop_out[0], cine->backdrop_out[1]) : 1.0;
         out.fill_rect({0, 0, scene.width, scene.height}, fade(cine->backdrop, in * out_));
         // Its clouds: each three puffs, where a number from its index puts it (the same everywhere).
-        auto unit = [](std::uint64_t z) {
-            z = (z + 0x9e3779b97f4a7c15ull) * 0xbf58476d1ce4e5b9ull;
-            z = (z ^ (z >> 27)) * 0x94d049bb133111ebull;
-            return static_cast<double>((z ^ (z >> 31)) >> 40) / static_cast<double>(1u << 24);
-        };
+        auto unit = [](std::uint64_t z) { return omui::math::unit24(omui::math::mix64(z)); };
         for (std::int32_t n = 0; n < cine->clouds.count; ++n) {
             const auto k = static_cast<std::uint64_t>(n) * 4;
             const double x = stage(st.lock.x) + (unit(k) * 2 - 1) * 700, y = stage(st.lock.y) + cine->clouds.low + unit(k + 1) * (cine->clouds.high - cine->clouds.low);
@@ -1514,11 +1506,7 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         std::int32_t landed = 0;
         if (md.cinematic)
             for (const CinematicHit& h : md.cinematic->hits) landed += h.frame <= st.lock.frame;
-        auto unit = [](std::uint64_t z) {
-            z = (z + 0x9e3779b97f4a7c15ull) * 0xbf58476d1ce4e5b9ull;
-            z = (z ^ (z >> 27)) * 0x94d049bb133111ebull;
-            return static_cast<double>((z ^ (z >> 31)) >> 40) / static_cast<double>(1u << 24);
-        };
+        auto unit = [](std::uint64_t z) { return omui::math::unit24(omui::math::mix64(z)); };
         for (std::int32_t n = 0; n < landed; ++n) {
             const auto k = static_cast<std::uint64_t>(n) * 64;
             const Point c{scene.width * static_cast<float>(0.12 + 0.76 * unit(k)), scene.height * static_cast<float>(0.12 + 0.7 * unit(k + 1))};
@@ -1651,10 +1639,8 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         // Cracks: none whole; four at one left; from a point its slot and placing frame choose.
         const std::int32_t cracks = 4 * std::max(0, 2 - piece.durability);
         auto unit = [&](std::uint32_t i) {
-            std::uint64_t z = (static_cast<std::uint64_t>(q) << 40) ^ (static_cast<std::uint64_t>(piece.placed) << 8) ^ i;
-            z = (z + 0x9e3779b97f4a7c15ull) * 0xbf58476d1ce4e5b9ull;
-            z = (z ^ (z >> 27)) * 0x94d049bb133111ebull;
-            return static_cast<double>((z ^ (z >> 31)) >> 40) / static_cast<double>(1u << 24);
+            const std::uint64_t z = (static_cast<std::uint64_t>(q) << 40) ^ (static_cast<std::uint64_t>(piece.placed) << 8) ^ i;
+            return omui::math::unit24(omui::math::mix64(z));
         };
         const Point from{r.x + r.width * static_cast<float>(0.3 + 0.4 * unit(0)), r.y + r.height * static_cast<float>(0.3 + 0.4 * unit(1))};
         for (std::int32_t c = 0; c < cracks; ++c) {
@@ -1740,11 +1726,7 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
     // The picture falling apart: pieces of it, turning, falling and fading.
     if (cine && cine->fall.frame >= 0 && st.lock.frame >= cine->fall.frame) {
         const double t = st.lock.frame - cine->fall.frame;
-        auto unit = [](std::uint64_t z) {
-            z = (z + 0x9e3779b97f4a7c15ull) * 0xbf58476d1ce4e5b9ull;
-            z = (z ^ (z >> 27)) * 0x94d049bb133111ebull;
-            return static_cast<double>((z ^ (z >> 31)) >> 40) / static_cast<double>(1u << 24);
-        };
+        auto unit = [](std::uint64_t z) { return omui::math::unit24(omui::math::mix64(z)); };
         const double alpha = std::max(0.0, 1 - t / 30);
         for (std::int32_t n = 0; n < cine->fall.count && alpha > 0; ++n) {
             const auto k = 1000 + static_cast<std::uint64_t>(n) * 8;

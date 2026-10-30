@@ -5,6 +5,7 @@
 module gongfu.present2d;
 
 import std;
+import openmui.math;
 import gongfu;
 import hanim;
 import openmui.geom;
@@ -20,10 +21,7 @@ using omui::geom::Rect;
 
 // A number in [0, 1) from a seed and an index (splitmix64).
 double unit(std::uint64_t seed, std::uint64_t i) {
-    std::uint64_t z = seed * 0x9e3779b97f4a7c15ull + i;
-    z = (z + 0x9e3779b97f4a7c15ull) * 0xbf58476d1ce4e5b9ull;
-    z = (z ^ (z >> 27)) * 0x94d049bb133111ebull;
-    return static_cast<double>((z ^ (z >> 31)) >> 40) / static_cast<double>(1u << 24);
+    return omui::math::unit24(omui::math::mix64(seed * omui::math::golden + i));
 }
 
 double mix(std::array<float, 2> r, double u) { return r[0] + (r[1] - r[0]) * u; }

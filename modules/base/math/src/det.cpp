@@ -2,11 +2,11 @@
 // modify, and distribute this software is freely granted, provided that this
 // notice is preserved"), transcribed to C++ with the words of a double read and
 // written through `std::bit_cast` instead of pointer punning.
-module hanim;
+module openmui.math;
 
 import std;
 
-namespace hanim::dm {
+namespace omui::math::det {
 
 namespace {
 
@@ -389,4 +389,4 @@ double pow(double x, double y) noexcept {
     return exp(y * log(x));
 }
 
-}  // namespace hanim::dm
+}  // namespace omui::math::det

@@ -5,6 +5,7 @@
 module openmui.render.vector;
 
 import std;
+import openmui.math;
 import openmui.geom;
 import openmui.raster;
 import hanim;
@@ -20,10 +21,7 @@ using raster::Rgba8;
 using raster::Surface;
 
 std::uint64_t mix(std::uint64_t x) noexcept {
-    x += 0x9e3779b97f4a7c15ull;
-    x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ull;
-    x = (x ^ (x >> 27)) * 0x94d049bb133111ebull;
-    return x ^ (x >> 31);
+    return math::mix64(x);
 }
 // A number in [0, 1) for (seed, x, y, salt), the same everywhere.
 float hash01(float seed, std::int64_t x, std::int64_t y, std::uint64_t salt = 0) noexcept {

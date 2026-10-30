@@ -9,6 +9,7 @@
 module openmui.audio;
 
 import std;
+import openmui.math;
 import hanim;
 import openmui.trace;
 import :dsp;
@@ -57,10 +58,7 @@ struct Player {
 // A note's own number: where it is in the piece, so that it is the same
 // whatever else plays (a layer coming in leaves the others' noise as it was).
 std::uint64_t mixed(std::uint64_t x) noexcept {
-    x += 0x9e3779b97f4a7c15ull;
-    x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ull;
-    x = (x ^ (x >> 27)) * 0x94d049bb133111ebull;
-    return x ^ (x >> 31);
+    return math::mix64(x);
 }
 
 std::int64_t floor_div(std::int64_t a, std::int64_t b) noexcept {

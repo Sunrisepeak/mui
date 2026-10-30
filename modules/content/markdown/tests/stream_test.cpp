@@ -4,6 +4,7 @@
 // every piece; and a long document freezes, so what an append re-parses stays
 // small (the point of streaming).
 import std;
+import openmui.math;
 import openmui.markdown;
 import openmui.testing;
 
@@ -47,11 +48,8 @@ std::vector<std::string> sources(const std::filesystem::path& file) {
 struct Rng {
     std::uint64_t s;
     std::uint64_t next() noexcept {
-        s += 0x9e3779b97f4a7c15ull;
-        std::uint64_t z = s;
-        z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ull;
-        z = (z ^ (z >> 27)) * 0x94d049bb133111ebull;
-        return z ^ (z >> 31);
+        s += omui::math::golden;
+        return omui::math::finalize(s);
     }
     std::size_t below(std::size_t n) noexcept { return static_cast<std::size_t>(next() % n); }
 };

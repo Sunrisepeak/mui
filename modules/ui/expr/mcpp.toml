@@ -28,4 +28,5 @@ hanim            = { path = "../../base/hanim" }
 openmui.i18n     = { path = "../../content/i18n" }
 
 [dev-dependencies]
+openmui.math = { path = "../../base/math" }
 openmui.testing = { path = "../../base/testing" }

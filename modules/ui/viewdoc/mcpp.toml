@@ -28,6 +28,7 @@ openmui.expr  = { path = "../expr" }
 openmui.trace = { path = "../../base/trace" }
 
 [dev-dependencies]
+openmui.math = { path = "../../base/math" }
 openmui.testing       = { path = "../../base/testing" }
 openmui.ui.base       = { path = "../../../components/base" }
 openmui.host.headless = { path = "../host/headless" }

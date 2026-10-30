@@ -14,6 +14,7 @@
 // stretch of one, from its start: any frame renders on its own), handed to
 // the encoder in order. --dir reads edited copies of the film's files.
 import std;
+import openmui.hash;
 import mcpplibs.cmdline;
 import mcpplibs.os;
 import openmui;
@@ -42,6 +43,9 @@ int failed(Value report, std::string message) {
 }
 
 std::string hex(std::uint64_t h) { return std::format("{:016x}", h); }
+
+// The program's own file (argv[0]): its bytes are part of what every frame depends on.
+std::filesystem::path self;
 
 struct Loaded {
     promo::Film          film;
@@ -205,10 +209,9 @@ public:
         return {};
     }
     std::expected<void, std::string> frame(std::int64_t index, const omui::imageio::View& px, std::span<const float>) override {
-        std::uint64_t h = 0xcbf29ce484222325ull;
-        for (int y = 0; y < px.height; ++y)
-            for (int i = 0; i < px.width * 4; ++i) h = (h ^ px.rgba[static_cast<std::size_t>(y) * static_cast<std::size_t>(px.stride) + static_cast<std::size_t>(i)]) * 0x100000001b3ull;
-        const std::string line = std::format("{} {:016x}\n", index + first_, h);
+        omui::hash::Fnv1a h;
+        for (int y = 0; y < px.height; ++y) h.bytes(std::span(px.rgba + static_cast<std::size_t>(y) * static_cast<std::size_t>(px.stride), static_cast<std::size_t>(px.width) * 4));
+        const std::string line = std::format("{} {}\n", index + first_, h.hex());
         if (!file_->write(std::as_bytes(std::span(line.data(), line.size())))) return std::unexpected("cannot write the hashes");
         return {};
     }
@@ -272,6 +275,40 @@ int render(const cmd::ParsedArgs& p) {
         return 2;
     }
     vid::DirectoryOutput output(dir.empty() ? std::filesystem::path(".") : dir);
+    // A WebM put together from cached chunks (--cache): only the chunks whose frames' inputs changed are drawn.
+    if (auto cache = p.value("cache"); cache && name.ends_with(".webm")) {
+        vid::WebmOptions w;
+        w.quality = static_cast<int>(number(p, "quality", 24));
+        w.speed = static_cast<int>(number(p, "speed", 6));
+        w.realtime = p.is_flag_set("realtime");
+        w.bitrate = static_cast<int>(number(p, "bitrate", 0));
+        w.threads = static_cast<int>(number(p, "threads", 1));
+        const auto t_digest = std::chrono::steady_clock::now();
+        promo::Digests digests(l->film, l->cut, l->options, promo::file_digest(self));
+        for (std::int64_t i = from; i < to; ++i) (void)digests.frame(i);
+        const double digest_took = std::chrono::duration<double>(std::chrono::steady_clock::now() - t_digest).count();
+        vid::ChunkPlan plan;
+        plan.frames = std::max<std::int64_t>(1, number(p, "chunk", 120));
+        plan.directory = mcpplibs::os::fs::from_utf8(*cache);
+        plan.key = [&](std::int64_t first, std::int64_t count) { return digests.frames(from + first, count); };
+        // `workers` chunks at once, each encoded by its own VP9 encoder and drawn by
+        // its share of the players (a few changed chunks: several players each).
+        plan.at_once = workers;
+        plan.draw = [&](std::int64_t first, std::int64_t count, int threads) -> std::expected<std::unique_ptr<vid::FrameSource>, std::string> {
+            return std::make_unique<Parallel>(*l, from + first, from + first + count, threads);
+        };
+        auto done = vid::encode_webm_chunked(format, samples, plan, output, name, w);
+        if (!done) return failed(report, done.error());
+        const double took = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+        Value files{Value::List{}};
+        files.list()->push_back(Value{}.set("name", omui::utf8(output.directory() / mcpplibs::os::fs::from_utf8(done->file.name))).set("bytes", done->file.bytes)
+                                    .set("hash", hex(done->file.hash)));
+        report.set("ok", true).set("width", format.width).set("height", format.height).set("fps", 60).set("frames", to - from).set("from", from);
+        report.set("seconds", format.seconds()).set("workers", workers).set("files", std::move(files));
+        report.set("chunks", done->chunks).set("reused", done->reused).set("drawn", done->drawn).set("digest_seconds", digest_took);
+        report.set("took_seconds", took).set("sound_seconds", sound_took).set("realtime", took > 0 ? format.seconds() / took : 0.0);
+        return print(report, 0);
+    }
     std::vector<vid::Encoder*> list;
     for (auto& e : encoders) list.push_back(e.get());
     Parallel frames(*l, from, to, workers);
@@ -408,6 +445,12 @@ cmd::App with_cut(std::string_view name, std::string_view what) {
 }  // namespace
 
 int main(int argc, char** argv) {
+    if (argc > 0) {
+        self = mcpplibs::os::fs::from_utf8(argv[0]);
+        std::error_code ec;
+        if (!std::filesystem::exists(self, ec))
+            if (auto found = mcpplibs::os::env::find_executable(argv[0])) self = *found;
+    }
     cmd::App app{"omui-promo"};
     (void)app.description("openmui's film: render it, draw a frame, hear it, check it");
     cmd::App r = with_cut("render", "Render a cut: WebM (VP9 and Opus), Y4M and WAV, or PNG files and a WAV");
@@ -420,6 +463,8 @@ int main(int argc, char** argv) {
     r.option("realtime").help("WebM: libvpx's real-time mode");
     r.option("bitrate").takes_value().value_name("KBPS").help("WebM: a target bit rate instead of a quality");
     r.option("threads").takes_value().value_name("N").help("WebM: encoder threads (1, the default, gives the same bytes everywhere)");
+    r.option("cache").takes_value().value_name("DIR").help("WebM: keep the encoded chunks here; draw again only those whose frames' inputs changed");
+    r.option("chunk").takes_value().value_name("N").help("WebM with --cache: frames a chunk, each begun with a key frame (default 120: 2 s)");
     (void)app.subcommand(std::move(r));
     cmd::App s = with_cut("still", "One frame as a PNG");
     s.option("frame").takes_value().value_name("N").help("the frame");

@@ -25,6 +25,7 @@ sources  = ["src/*.cppm", "src/native/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
+openmui.hash = { path = "../../../base/hash" }
 openmui.video         = { path = ".." }
 mcpplibs.mwrap.libvpx = "1.17.0"
 mcpplibs.mwrap.opus   = "1.6.1"

@@ -34,6 +34,8 @@ Rules:
   platform      no operating-system header anywhere: platform code goes through mcpplibs.os
   determinism   deterministic members do not call <cmath>'s transcendental functions and
                 compile with -ffp-contract=off
+  hash          no private FNV-1a (its offset bases and primes) outside modules/base/hash: one
+                implementation, openmui.hash, so a pinned hash means the same thing everywhere
   members       every directory listed as a workspace member has an mcpp.toml, and every
                 mcpp.toml under the tree is listed
   documents     every view document (*.view.omui.json) is valid against the committed schema,
@@ -106,6 +108,9 @@ DETERMINISTIC = ["modules/base/fuzzy", "modules/media/audio", "modules/media/vid
 OS_HEADERS = re.compile(
     r"#\s*include\s*[<\"](windows\.h|winsock2?\.h|unistd\.h|pthread\.h|dlfcn\.h|fcntl\.h|sys/[^>\"]+|mach/[^>\"]+|"
     r"CoreFoundation/[^>\"]+|Cocoa/[^>\"]+|AppKit/[^>\"]+|linux/[^>\"]+)[>\"]")
+# FNV-1a's offset bases and primes, 64- and 32-bit: only openmui.hash has them.
+FNV_CONSTANTS = re.compile(r"0x100000001b3|0xcbf29ce484222325|\b16777619u?\b|\b2166136261u?\b", re.IGNORECASE)
+
 TRANSCENDENTAL = re.compile(
     r"\bstd::(exp|exp2|expm1|log|log2|log10|log1p|pow|sin|cos|tan|asin|acos|atan|atan2|sinh|cosh|tanh|cbrt|hypot|lerp)\s*\(")
 
@@ -241,6 +246,12 @@ def check_sources(root: Path) -> list[Problem]:
                 if re.search(r"\.(generic_)?string\(\)", line) and "NARROW-OK:" not in line:
                     problems.append(Problem("paths", f"{rel_s}:{no}",
                                             "path::string() narrows through the code page on Windows; use utf8() / generic_utf8()"))
+
+        # One FNV-1a: openmui.hash.
+        if not rel_s.startswith("modules/base/hash/"):
+            for no, line in enumerate(lines, 1):
+                if FNV_CONSTANTS.search(line):
+                    problems.append(Problem("hash", f"{rel_s}:{no}", "a private FNV-1a; use openmui.hash (omui::hash::Fnv1a, fnv1a, fnv1a32)"))
 
         for member in DETERMINISTIC:
             if rel_s.startswith(member + "/src/"):
@@ -636,6 +647,7 @@ def self_test() -> int:
         "exceptions": ("modules/base/hanim/src/e.cpp", "void f() { throw 1; }\n"),
         "paths": ("modules/ui/core/src/p.cpp", "std::string f(const std::filesystem::path& p) { return p.string(); }\n"),
         "determinism": ("modules/base/hanim/src/d.cpp", "double f(double x) { return std::sin(x); }\n"),
+        "hash": ("modules/ui/core/src/h.cpp", "std::uint64_t h = 0xcbf29ce484222325ull;\n"),
         "platform": ("modules/ui/core/src/native/io.cpp", "module;\n#include <unistd.h>\nmodule x;\n"),
         "layering": None,
         "modules": None,

@@ -235,5 +235,42 @@ int main(int argc, char** argv) {
         check(size < 1024 * 1024, std::format("{} bytes", size));
     });
 
+    s.test("what a frame depends on (D-54's frame cache): an edit changes exactly the frames that read it", [] {
+        const promo::Cut c = cut("short");
+        const promo::PlayerOptions o;
+        promo::Digests a(film(), c, o, 1), again(film(), c, o, 1), other_program(film(), c, o, 2);
+        check(a.frame(300) == again.frame(300) && a.frames(0, c.frames()) == again.frames(0, c.frames()), "the same inputs, the same digests");
+        check(a.frame(300) != other_program.frame(300), "another program: every frame another");
+        // One line edited, in a copy of the files: the frames it is up on change, no other.
+        const auto dir = scratch_dir("promo-digests");
+        auto text = film().files.read("promo.subtitles.omui.toml");
+        check(text.has_value());
+        if (!text) return;
+        const std::string from = "A thousand windows, one unbroken shot", to = "A thousand windows in one unbroken shot";
+        const auto at = text->find(from);
+        check(at != std::string::npos, "the line to edit");
+        if (at == std::string::npos) return;
+        std::string edited = *text;
+        edited.replace(at, from.size(), to);
+        std::ofstream(dir / "promo.subtitles.omui.toml", std::ios::binary) << edited;
+        auto changed_film = promo::load_film(promo::Files(dir));
+        check(changed_film.has_value());
+        if (!changed_film) return;
+        auto changed_cut = promo::load_cut(changed_film->files, "short", changed_film->subtitles);
+        check(changed_cut.has_value());
+        if (!changed_cut) return;
+        promo::Digests b(*changed_film, *changed_cut, o, 1);
+        std::int64_t differ = 0, wrong = 0;
+        for (std::int64_t i = 0; i < c.frames(); ++i) {
+            bool up = false;
+            for (const auto& l : promo::lines_at(c, film().subtitles, i)) up = up || (l.line && l.line->en == from);
+            const bool changed = a.frame(i) != b.frame(i);
+            differ += changed;
+            wrong += changed != up;
+        }
+        std::println("    {} of {} frames changed by the line", differ, c.frames());
+        check(differ > 0 && wrong == 0, std::format("exactly the frames the line is up on ({} wrong)", wrong));
+    });
+
     return s.run(argc, argv);
 }

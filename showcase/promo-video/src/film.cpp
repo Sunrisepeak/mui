@@ -2,6 +2,7 @@
 module openmui.showcase.promo_video;
 
 import std;
+import openmui.hash;
 import openmui.timeline;
 
 namespace omui::promo {
@@ -26,6 +27,16 @@ Files::Files() {
 }
 
 Files::Files(std::filesystem::path directory) : Files() { directory_ = std::move(directory); }
+
+std::uint64_t Files::digest(std::span<const std::string_view> leaving_out) const {
+    hash::Fnv1a h;
+    for (const auto& [name, carried] : carried_) {
+        if (std::ranges::any_of(leaving_out, [&](std::string_view end) { return std::string_view(name).ends_with(end); })) continue;
+        h.str(name);
+        if (auto text = read(name)) h.str(*text);
+    }
+    return h.value();
+}
 
 std::expected<std::string, std::string> Files::read(std::string_view path) const {
     if (!directory_.empty()) {

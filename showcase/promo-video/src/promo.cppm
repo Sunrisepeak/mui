@@ -21,6 +21,7 @@ export import :overlay;
 export import :player;
 export import :sound;
 export import :checks;
+export import :cache;
 
 // The files the program carries (openmui.build.embed).
 export import :timeline_files;

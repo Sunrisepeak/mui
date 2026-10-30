@@ -3,6 +3,7 @@
 module openmui.showcase.promo_video;
 
 import std;
+import openmui.hash;
 import hanim;
 import openmui;
 import openmui.video;
@@ -267,12 +268,9 @@ std::expected<imageio::View, std::string> Frames::frame(std::int64_t index) {
 }
 
 std::uint64_t pixel_hash(const raster::Surface& s) noexcept {
-    std::uint64_t h = 0xcbf29ce484222325ull;
-    for (int y = 0; y < s.height(); ++y) {
-        const auto* p = reinterpret_cast<const unsigned char*>(s.row(y));
-        for (std::size_t i = 0; i < static_cast<std::size_t>(s.width()) * 4; ++i) h = (h ^ p[i]) * 0x100000001b3ull;
-    }
-    return h;
+    hash::Fnv1a h;
+    for (int y = 0; y < s.height(); ++y) h.bytes(std::as_bytes(std::span(s.row(y), static_cast<std::size_t>(s.width()))));
+    return h.value();
 }
 
 }  // namespace omui::promo

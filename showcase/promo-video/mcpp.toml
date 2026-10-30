@@ -31,6 +31,7 @@ sources  = ["src/*.cppm", "src/*.cpp", "src/shots/*.cpp", "src/native/*.cpp", "c
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
+openmui.hash = { path = "../../modules/base/hash" }
 openmui.sdk                         = { path = "../.." }
 "openmui.theme"                     = { path = "../../modules/ui/theme" }
 openmui.theme.styles                = { path = "../../modules/ui/theme/styles" }

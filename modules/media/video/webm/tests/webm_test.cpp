@@ -42,10 +42,91 @@ double worst_psnr(const video::Format& f, const video::DecodedWebm& d) {
     return worst;
 }
 
+// The card's frames from `first` on, asked for from 0 (a chunk's), or their
+// negative (a chunk changed by an edit).
+class Part final : public video::FrameSource {
+public:
+    Part(const video::Format& f, std::int64_t first, bool inverted) : card_(f), first_(first), inverted_(inverted) {}
+    std::expected<omui::imageio::View, std::string> frame(std::int64_t index) override {
+        auto v = card_.frame(first_ + index);
+        if (!v || !inverted_) return v;
+        pixels_.assign(v->rgba, v->rgba + static_cast<std::size_t>(v->stride) * static_cast<std::size_t>(v->height));
+        for (std::size_t i = 0; i < pixels_.size(); i += 4)
+            for (std::size_t c = 0; c < 3; ++c) pixels_[i + c] = static_cast<std::uint8_t>(255 - pixels_[i + c]);
+        omui::imageio::View out = *v;
+        out.rgba = pixels_.data();
+        return out;
+    }
+
+private:
+    video::Card               card_;
+    std::int64_t              first_;
+    bool                      inverted_;
+    std::vector<std::uint8_t> pixels_;
+};
+
+struct ChunkRun {
+    video::Chunked         done;
+    std::vector<std::byte> bytes;
+    std::int64_t           draws = 0;
+};
+
+// The card in chunks of 30 frames, kept in `dir`; chunk `edited` (−1: none) drawn inverted, its key changed.
+ChunkRun chunked(const video::Format& f, const std::filesystem::path& dir, std::int64_t edited = -1, int at_once = 1) {
+    ChunkRun run;
+    std::mutex counting;
+    video::ChunkPlan plan;
+    plan.frames = 30;
+    plan.at_once = at_once;
+    plan.directory = dir;
+    plan.key = [&](std::int64_t first, std::int64_t count) {
+        return static_cast<std::uint64_t>(first) * 1000003u + static_cast<std::uint64_t>(count) + (first / 30 == edited ? 77u : 0u);
+    };
+    plan.draw = [&](std::int64_t first, std::int64_t, int) -> std::expected<std::unique_ptr<video::FrameSource>, std::string> {
+        std::scoped_lock g(counting);
+        ++run.draws;
+        return std::make_unique<Part>(f, first, first / 30 == edited);
+    };
+    video::MemoryOutput out;
+    auto done = video::encode_webm_chunked(f, video::card_track(f), plan, out, "chunks.webm");
+    check(done.has_value(), done ? "" : done.error());
+    if (!done) return run;
+    run.done = *done;
+    const auto b = out.bytes("chunks.webm");
+    run.bytes.assign(b.begin(), b.end());
+    return run;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
     Suite s("openmui.video.webm");
+
+    s.test("chunks (D-54's fourth cache layer): drawn and encoded once, found after and never drawn again — the same file; an edited chunk alone drawn again; several at once the same", [] {
+        const video::Format f{.width = 160, .height = 90, .timing = {{30, 1}, 48000}, .frames = 90, .channels = 2};
+        const auto dir = scratch_dir("webm-chunks");
+        const ChunkRun first = chunked(f, dir);
+        check(first.done.chunks == 3 && first.done.reused == 0 && first.done.drawn == 90 && first.draws == 3, "every chunk drawn the first time");
+        const auto d = video::decode_webm(first.bytes);
+        check(d.has_value(), d ? "" : d.error());
+        if (!d) return;
+        check_eq(d->frames.size(), std::size_t{90});
+        check(worst_psnr(f, *d) > 38, std::format("every frame within 38 dB (worst {:.1f})", worst_psnr(f, *d)));
+        const auto track = video::card_track(f);
+        check_eq(d->samples.size(), track.size());
+        const ChunkRun again = chunked(f, dir);
+        check(again.done.reused == 3 && again.done.drawn == 0 && again.draws == 0, "the second time, every chunk found: no frame drawn");
+        check(again.bytes == first.bytes, "the same file");
+        // An edit to the middle chunk's frames: that chunk alone drawn, the file what a run from nothing writes.
+        const ChunkRun edited = chunked(f, dir, 1);
+        check(edited.done.reused == 2 && edited.done.drawn == 30 && edited.draws == 1, std::format("one chunk drawn again ({} reused)", edited.done.reused));
+        const ChunkRun fresh = chunked(f, scratch_dir("webm-chunks-fresh"), 1);
+        check(fresh.done.reused == 0 && fresh.bytes == edited.bytes, "the same file as one encoded from nothing");
+        check(fresh.bytes != first.bytes, "and not the unedited one");
+        // Three chunks at once, each its own encoder: the same bytes.
+        const ChunkRun parallel = chunked(f, scratch_dir("webm-chunks-parallel"), -1, 3);
+        check(parallel.done.drawn == 90 && parallel.draws == 3 && parallel.bytes == first.bytes, "three at once: the same file");
+    });
 
     s.test("pictures only: every frame back at its time, BT.709 limited range said, the bytes pinned and the same twice", [] {
         const video::Format f{.width = 160, .height = 90, .timing = {{30, 1}, 48000}, .frames = 30, .channels = 0};

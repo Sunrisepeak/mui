@@ -3,6 +3,7 @@
 module openmui.showcase.promo_video;
 
 import std;
+import openmui.hash;
 import openmui;
 import openmui.theme;
 import openmui.theme.styles;
@@ -265,14 +266,10 @@ void paint_line(render::DisplayList& list, Point a, Point b, Color c, float widt
 
 const typeset::Paragraph& Labels::get(typeset::FontCollection& fonts, std::string_view text, float size, Color color, float weight,
                                       std::string_view family, float width) {
-    std::uint64_t h = 0xcbf29ce484222325ull;
-    auto mixin = [&](std::string_view s) {
-        for (unsigned char c : s) h = (h ^ c) * 0x100000001b3ull;
-        h = (h ^ 0xff) * 0x100000001b3ull;
-    };
-    mixin(text);
-    mixin(family);
-    for (float f : {size, color.r, color.g, color.b, color.a, weight, width}) mixin(std::string_view(reinterpret_cast<const char*>(&f), sizeof f));
+    hash::Fnv1a key;
+    key.text(text).byte(0xff).text(family).byte(0xff);
+    for (float f : {size, color.r, color.g, color.b, color.a, weight, width}) key.object(f).byte(0xff);
+    const std::uint64_t h = key.value();
     auto it = cache_.find(h);
     if (it == cache_.end()) {
         if (cache_.size() > 2048) cache_.clear();

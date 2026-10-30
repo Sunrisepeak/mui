@@ -7,6 +7,7 @@
 module openmui.showcase.promo_video;
 
 import std;
+import openmui.hash;
 import hanim;
 import openmui;
 import openmui.theme;
@@ -121,11 +122,8 @@ public:
             if (segments()[k].first <= t + 1e-9) now = k;
         for (std::size_t k = 0; k < names_.size(); ++k) rt.set(names_[k], "visible", Value(k == now));
         // The preview's semantic tree, hashed: what an agent sees of the interface, under whatever pack.
-        std::uint64_t h = 0xcbf29ce484222325ull;
-        auto mixin = [&](std::string_view s) {
-            for (unsigned char ch : s) h = (h ^ ch) * 0x100000001b3ull;
-            h = (h ^ 0x1f) * 0x100000001b3ull;
-        };
+        hash::Fnv1a tree_hash;
+        auto mixin = [&](std::string_view s) { tree_hash.text(s).byte(0x1f); };
         std::size_t nodes = 0;
         std::function<void(NodeId)> walk = [&](NodeId n) {
             const spec::SemanticNode sn = rt.semantic_node(n);
@@ -135,7 +133,7 @@ public:
             for (const NodeId c : rt.children(n)) walk(c);
         };
         if (preview_) walk(preview_);
-        rt.set(tree_, "text", Value(std::format("semantic tree {:016x} · {} nodes · unchanged ✓", h, nodes)));
+        rt.set(tree_, "text", Value(std::format("semantic tree {} · {} nodes · unchanged ✓", tree_hash.hex(), nodes)));
         rt.invalidate_paint(rt.find("main/backdrop"));
     }
 

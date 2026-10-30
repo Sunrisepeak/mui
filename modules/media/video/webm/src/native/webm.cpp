@@ -3,6 +3,7 @@
 module openmui.video.webm;
 
 import std;
+import openmui.hash;
 import openmui.video;
 import mcpplibs.mwrap.libvpx;
 import mcpplibs.mwrap.opus;
@@ -41,6 +42,7 @@ struct Packet {
     std::uint64_t              time = 0;  // ns
     bool                       key = false, audio = false;
     std::uint64_t              discard = 0;  // ns of padding at its end (the last sound packet)
+    std::int64_t               pts = 0;      // a picture's frame
 };
 
 std::array<unsigned char, 19> opus_head(std::int32_t channels, std::int32_t pre_skip) {
@@ -59,31 +61,7 @@ public:
         out_ = &out;
         if (format.channels > 0 && (format.timing.rate != opus_rate || format.channels > 2))
             return std::unexpected(std::format("Opus takes 48 kHz mono or stereo sound, not {} Hz × {}", format.timing.rate, format.channels));
-        vpx_codec_enc_cfg_t cfg;
-        if (vpx_codec_enc_config_default(vpx_codec_vp9_cx(), &cfg, 0) != VPX_CODEC_OK) return std::unexpected("libvpx: no VP9 encoder");
-        cfg.g_w = static_cast<unsigned>(format.width);
-        cfg.g_h = static_cast<unsigned>(format.height);
-        cfg.g_timebase = {static_cast<int>(format.timing.fps.den), static_cast<int>(format.timing.fps.num)};
-        cfg.g_threads = static_cast<unsigned>(std::max(1, options_.threads));
-        if (options_.realtime) cfg.g_lag_in_frames = 0;
-        if (options_.bitrate > 0) {
-            cfg.rc_end_usage = VPX_VBR;
-            cfg.rc_target_bitrate = static_cast<unsigned>(options_.bitrate);
-        } else cfg.rc_end_usage = VPX_Q;
-        if (options_.keyframes > 0) cfg.kf_max_dist = static_cast<unsigned>(options_.keyframes);
-        if (vm::vpx_codec_enc_init(&vpx_, vpx_codec_vp9_cx(), &cfg, 0) != VPX_CODEC_OK)
-            return std::unexpected(std::format("libvpx: {}", vpx_codec_error(&vpx_)));
-        vpx_open_ = true;
-        vpx::vpx_codec_control_VP8E_SET_CPUUSED(&vpx_, VP8E_SET_CPUUSED, std::clamp(options_.speed, 0, 9));
-        if (options_.bitrate <= 0) vpx::vpx_codec_control_VP8E_SET_CQ_LEVEL(&vpx_, VP8E_SET_CQ_LEVEL, static_cast<unsigned>(std::clamp(options_.quality, 0, 63)));
-        vpx::vpx_codec_control_VP9E_SET_COLOR_SPACE(&vpx_, VP9E_SET_COLOR_SPACE, VPX_CS_BT_709);
-        vpx::vpx_codec_control_VP9E_SET_COLOR_RANGE(&vpx_, VP9E_SET_COLOR_RANGE, static_cast<int>(VPX_CR_STUDIO_RANGE));
-        if (options_.lossless) vpx::vpx_codec_control_VP9E_SET_LOSSLESS(&vpx_, VP9E_SET_LOSSLESS, 1u);
-        if (options_.threads > 1) {
-            vpx::vpx_codec_control_VP9E_SET_TILE_COLUMNS(&vpx_, VP9E_SET_TILE_COLUMNS, std::min(6, std::bit_width(static_cast<unsigned>(options_.threads)) - 1));
-            vpx::vpx_codec_control_VP9E_SET_ROW_MT(&vpx_, VP9E_SET_ROW_MT, 1u);
-        }
-        deadline_ = options_.realtime ? vm::VPX_DL_REALTIME : vm::VPX_DL_GOOD_QUALITY;
+        if (auto r = open_vp9(); !r) return r;
         if (format.channels > 0) {
             int error = 0;
             opus_ = opus_encoder_create(opus_rate, format.channels, om::OPUS_APPLICATION_AUDIO, &error);
@@ -113,23 +91,50 @@ public:
         img.stride[vm::VPX_PLANE_U] = img.stride[vm::VPX_PLANE_V] = picture_.chroma_width();
         img.cs = VPX_CS_BT_709;
         img.range = VPX_CR_STUDIO_RANGE;
-        if (vpx_codec_encode(&vpx_, &img, index, 1, 0, deadline_) != VPX_CODEC_OK) return std::unexpected(std::format("libvpx: {}", vpx_codec_error(&vpx_)));
+        const vpx_enc_frame_flags_t flags = force_key_ ? vm::VPX_EFLAG_FORCE_KF : 0;
+        force_key_ = false;
+        if (vpx_codec_encode(&vpx_, &img, index, 1, flags, deadline_) != VPX_CODEC_OK) return std::unexpected(std::format("libvpx: {}", vpx_codec_error(&vpx_)));
         drain_video();
-        if (opus_) {
-            pending_.insert(pending_.end(), samples.begin(), samples.end());
-            samples_in_ += static_cast<std::int64_t>(samples.size()) / format_.channels;
-            if (auto r = encode_sound(false); !r) return r;
+        return sound(samples);
+    }
+
+    // ── chunks (encode_webm_chunked) ──
+    // A chunk begins: what the VP9 encoder holds drained, a fresh one, its
+    // first frame a key frame — so the chunk decodes on its own.
+    std::expected<void, std::string> start_chunk() {
+        if (auto r = flush_video(); !r) return r;
+        if (vpx_open_) vpx_codec_destroy(&vpx_);
+        vpx_open_ = false;
+        if (auto r = open_vp9(); !r) return r;
+        force_key_ = true;
+        chunk_from_ = packets_.size();
+        return {};
+    }
+    // The chunk's pictures, once its last frame went in: every packet since start_chunk.
+    std::expected<std::vector<Packet>, std::string> end_chunk() {
+        if (auto r = flush_video(); !r) return std::unexpected(r.error());
+        std::vector<Packet> out;
+        for (std::size_t i = chunk_from_; i < packets_.size(); ++i)
+            if (!packets_[i].audio) out.push_back(packets_[i]);
+        return out;
+    }
+    // A chunk encoded before: its pictures as they were, its frames' sound encoded now.
+    std::expected<void, std::string> reuse(std::vector<Packet> pictures) {
+        for (Packet& p : pictures) {
+            p.time = static_cast<std::uint64_t>(format_.timing.time_of(p.pts, ns));
+            packets_.push_back(std::move(p));
         }
         return {};
     }
+    std::expected<void, std::string> sound(std::span<const float> samples) {
+        if (!opus_) return {};
+        pending_.insert(pending_.end(), samples.begin(), samples.end());
+        samples_in_ += static_cast<std::int64_t>(samples.size()) / format_.channels;
+        return encode_sound(false);
+    }
 
     std::expected<void, std::string> finish() override {
-        // What libvpx's look-ahead still holds.
-        for (std::size_t before = std::numeric_limits<std::size_t>::max(); before != packets_.size();) {
-            before = packets_.size();
-            if (vpx_codec_encode(&vpx_, nullptr, -1, 1, 0, deadline_) != VPX_CODEC_OK) return std::unexpected(std::format("libvpx: {}", vpx_codec_error(&vpx_)));
-            drain_video();
-        }
+        if (auto r = flush_video(); !r) return r;
         if (opus_) {
             // The look-ahead's worth of silence pushes the last samples out; the
             // last packet is filled to its 20 ms, and says how much of it to drop.
@@ -148,14 +153,55 @@ public:
         return write();
     }
 
+    // The VP9 encoder for the format and the options.
+    std::expected<void, std::string> open_vp9() {
+        vpx_codec_enc_cfg_t cfg;
+        if (vpx_codec_enc_config_default(vpx_codec_vp9_cx(), &cfg, 0) != VPX_CODEC_OK) return std::unexpected("libvpx: no VP9 encoder");
+        cfg.g_w = static_cast<unsigned>(format_.width);
+        cfg.g_h = static_cast<unsigned>(format_.height);
+        cfg.g_timebase = {static_cast<int>(format_.timing.fps.den), static_cast<int>(format_.timing.fps.num)};
+        cfg.g_threads = static_cast<unsigned>(std::max(1, options_.threads));
+        if (options_.realtime) cfg.g_lag_in_frames = 0;
+        if (options_.bitrate > 0) {
+            cfg.rc_end_usage = VPX_VBR;
+            cfg.rc_target_bitrate = static_cast<unsigned>(options_.bitrate);
+        } else cfg.rc_end_usage = VPX_Q;
+        if (options_.keyframes > 0) cfg.kf_max_dist = static_cast<unsigned>(options_.keyframes);
+        if (vm::vpx_codec_enc_init(&vpx_, vpx_codec_vp9_cx(), &cfg, 0) != VPX_CODEC_OK)
+            return std::unexpected(std::format("libvpx: {}", vpx_codec_error(&vpx_)));
+        vpx_open_ = true;
+        vpx::vpx_codec_control_VP8E_SET_CPUUSED(&vpx_, VP8E_SET_CPUUSED, std::clamp(options_.speed, 0, 9));
+        if (options_.bitrate <= 0) vpx::vpx_codec_control_VP8E_SET_CQ_LEVEL(&vpx_, VP8E_SET_CQ_LEVEL, static_cast<unsigned>(std::clamp(options_.quality, 0, 63)));
+        vpx::vpx_codec_control_VP9E_SET_COLOR_SPACE(&vpx_, VP9E_SET_COLOR_SPACE, VPX_CS_BT_709);
+        vpx::vpx_codec_control_VP9E_SET_COLOR_RANGE(&vpx_, VP9E_SET_COLOR_RANGE, static_cast<int>(VPX_CR_STUDIO_RANGE));
+        if (options_.lossless) vpx::vpx_codec_control_VP9E_SET_LOSSLESS(&vpx_, VP9E_SET_LOSSLESS, 1u);
+        if (options_.threads > 1) {
+            vpx::vpx_codec_control_VP9E_SET_TILE_COLUMNS(&vpx_, VP9E_SET_TILE_COLUMNS, std::min(6, std::bit_width(static_cast<unsigned>(options_.threads)) - 1));
+            vpx::vpx_codec_control_VP9E_SET_ROW_MT(&vpx_, VP9E_SET_ROW_MT, 1u);
+        }
+        deadline_ = options_.realtime ? vm::VPX_DL_REALTIME : vm::VPX_DL_GOOD_QUALITY;
+        return {};
+    }
+
 private:
+    // What libvpx's look-ahead still holds.
+    std::expected<void, std::string> flush_video() {
+        if (!vpx_open_) return {};
+        for (std::size_t before = std::numeric_limits<std::size_t>::max(); before != packets_.size();) {
+            before = packets_.size();
+            if (vpx_codec_encode(&vpx_, nullptr, -1, 1, 0, deadline_) != VPX_CODEC_OK) return std::unexpected(std::format("libvpx: {}", vpx_codec_error(&vpx_)));
+            drain_video();
+        }
+        return {};
+    }
+
     void drain_video() {
         vpx_codec_iter_t it = nullptr;
         while (const vpx_codec_cx_pkt_t* p = vpx_codec_get_cx_data(&vpx_, &it)) {
             if (p->kind != VPX_CODEC_CX_FRAME_PKT) continue;
             const auto* b = static_cast<const unsigned char*>(p->data.frame.buf);
             packets_.push_back({{b, b + p->data.frame.sz}, static_cast<std::uint64_t>(format_.timing.time_of(p->data.frame.pts, ns)),
-                                (p->data.frame.flags & vm::VPX_FRAME_IS_KEY) != 0, false, 0});
+                                (p->data.frame.flags & vm::VPX_FRAME_IS_KEY) != 0, false, 0, static_cast<std::int64_t>(p->data.frame.pts)});
         }
     }
 
@@ -248,7 +294,40 @@ private:
     std::int64_t        sound_packets_ = 0, samples_in_ = 0;
     std::vector<Packet> packets_;
     Yuv420              picture_;
+    bool                force_key_ = false;
+    std::size_t         chunk_from_ = 0;
 };
+
+// A chunk's pictures in its file: "omui-vp9-chunk 1", then a packet a line's
+// worth of header (its frame, whether a key frame, its size) and its bytes.
+std::vector<char> chunk_bytes(std::span<const Packet> packets) {
+    std::string head = std::format("omui-vp9-chunk 1 {}\n", packets.size());
+    std::vector<char> out(head.begin(), head.end());
+    for (const Packet& p : packets) {
+        const std::string h = std::format("{} {} {}\n", p.pts, p.key ? 1 : 0, p.data.size());
+        out.insert(out.end(), h.begin(), h.end());
+        out.insert(out.end(), p.data.begin(), p.data.end());
+    }
+    return out;
+}
+
+std::optional<std::vector<Packet>> read_chunk(const std::filesystem::path& file) {
+    std::ifstream in(file, std::ios::binary);
+    if (!in) return std::nullopt;
+    std::string magic, version;
+    std::size_t count = 0;
+    if (!(in >> magic >> version >> count) || magic != "omui-vp9-chunk" || version != "1" || in.get() != '\n') return std::nullopt;
+    std::vector<Packet> out(count);
+    for (Packet& p : out) {
+        int key = 0;
+        std::size_t size = 0;
+        if (!(in >> p.pts >> key >> size) || in.get() != '\n') return std::nullopt;
+        p.key = key != 0;
+        p.data.resize(size);
+        if (!in.read(reinterpret_cast<char*>(p.data.data()), static_cast<std::streamsize>(size))) return std::nullopt;
+    }
+    return out;
+}
 
 class Reader final : public mkvparser::IMkvReader {
 public:
@@ -271,6 +350,112 @@ private:
 }  // namespace
 
 std::unique_ptr<Encoder> webm_encoder(std::string name, WebmOptions options) { return std::make_unique<WebmEncoder>(std::move(name), options); }
+
+std::expected<Chunked, std::string> encode_webm_chunked(const Format& format, std::span<const float> track, const ChunkPlan& plan, Output& out,
+                                                        std::string name, WebmOptions options) {
+    if (format.width <= 0 || format.height <= 0 || format.frames <= 0 || !format.timing.valid()) return std::unexpected("a video has a size, a frame rate and frames");
+    if (plan.frames <= 0 || !plan.key || !plan.draw) return std::unexpected("a chunk plan has a length, a key and a way to draw");
+    // What a chunk's bytes depend on besides its frames: the format and the options.
+    const std::uint64_t settings = hash::fnv1a(std::format("{}x{} {}/{} q{} b{} s{} r{} l{} k{} t{} chunk{}", format.width, format.height, format.timing.fps.num, format.timing.fps.den,
+                                    options.quality, options.bitrate, options.speed, options.realtime, options.lossless, options.keyframes, options.threads, plan.frames));
+    std::error_code ec;
+    if (!plan.directory.empty()) std::filesystem::create_directories(plan.directory, ec);
+    // The chunks, and which are found.
+    struct Chunk {
+        std::int64_t                      first = 0, count = 0;
+        std::filesystem::path             file;
+        std::optional<std::vector<Packet>> pictures;
+    };
+    std::vector<Chunk> chunks;
+    for (std::int64_t first = 0; first < format.frames; first += plan.frames) {
+        Chunk c{first, std::min(plan.frames, format.frames - first), {}, std::nullopt};
+        const std::uint64_t key = plan.key(c.first, c.count) ^ (settings * 0x9e3779b97f4a7c15ull);
+        if (!plan.directory.empty()) {
+            c.file = plan.directory / std::format("{:016x}.vp9chunk", key);
+            // Found: as many pictures as frames, the first a key frame at the chunk's first.
+            if (auto kept = read_chunk(c.file); kept && static_cast<std::int64_t>(kept->size()) == c.count && kept->front().key && kept->front().pts == c.first)
+                c.pictures = std::move(*kept);
+        }
+        chunks.push_back(std::move(c));
+    }
+    Chunked done;
+    done.chunks = static_cast<std::int64_t>(chunks.size());
+    // The rest drawn and encoded, `at_once` at a time, each by a VP9 encoder of its own.
+    std::vector<std::size_t> todo;
+    for (std::size_t c = 0; c < chunks.size(); ++c)
+        if (!chunks[c].pictures) todo.push_back(c);
+        else ++done.reused;
+    const auto drawing = std::min<std::size_t>(todo.size(), static_cast<std::size_t>(std::max(1, plan.at_once)));
+    const int share = drawing == 0 ? 1 : std::max(1, plan.at_once / static_cast<int>(drawing));
+    std::atomic<std::size_t> next{0};
+    std::mutex failing;
+    std::string failure;
+    Format pictures_only = format;
+    pictures_only.channels = 0;
+    auto work = [&] {
+        for (std::size_t t = next++; t < todo.size(); t = next++) {
+            Chunk& c = chunks[todo[t]];
+            auto fail = [&](std::string why) {
+                std::scoped_lock g(failing);
+                if (failure.empty()) failure = std::move(why);
+            };
+            {
+                std::scoped_lock g(failing);
+                if (!failure.empty()) return;
+            }
+            auto source = plan.draw(c.first, c.count, share);
+            if (!source) return fail(std::format("frames {}–{}: {}", c.first, c.first + c.count - 1, source.error()));
+            MemoryOutput none;
+            WebmEncoder vp9("chunk", options);
+            if (auto r = vp9.begin(pictures_only, none); !r) return fail(r.error());
+            if (auto r = vp9.start_chunk(); !r) return fail(r.error());
+            for (std::int64_t k = 0; k < c.count; ++k) {
+                auto pixels = (*source)->frame(k);
+                if (!pixels) return fail(std::format("frame {}: {}", c.first + k, pixels.error()));
+                if (auto r = vp9.frame(c.first + k, *pixels, {}); !r) return fail(std::format("frame {}: {}", c.first + k, r.error()));
+            }
+            auto pictures = vp9.end_chunk();
+            if (!pictures) return fail(pictures.error());
+            if (!c.file.empty()) {
+                const auto bytes = chunk_bytes(*pictures);
+                const auto part = std::filesystem::path(c.file).concat(".part");
+                { std::ofstream(part, std::ios::binary).write(bytes.data(), static_cast<std::streamsize>(bytes.size())); }
+                std::error_code e;
+                std::filesystem::rename(part, c.file, e);  // whole or not at all
+            }
+            c.pictures = std::move(*pictures);
+        }
+    };
+    {
+        std::vector<std::jthread> workers;
+        for (std::size_t w = 1; w < drawing; ++w) workers.emplace_back(work);
+        if (!todo.empty()) work();
+    }
+    if (!failure.empty()) return std::unexpected(failure);
+    for (const std::size_t c : todo) done.drawn += chunks[c].count;
+    // Put together in order: each chunk's pictures, the sound of its frames.
+    WebmEncoder enc(std::move(name), options);
+    if (auto r = enc.begin(format, out); !r) return std::unexpected(r.error());
+    const auto channels = static_cast<std::size_t>(std::max(0, format.channels));
+    std::vector<float> silence;
+    auto samples_of = [&](std::int64_t i) {
+        const auto first = static_cast<std::size_t>(format.timing.sample_of(i)) * channels;
+        const auto count = static_cast<std::size_t>(format.timing.samples_in(i)) * channels;
+        if (channels == 0) return std::span<const float>{};
+        if (first + count <= track.size()) return track.subspan(first, count);
+        silence.assign(count, 0.0f);
+        if (first < track.size()) std::ranges::copy(track.subspan(first), silence.begin());
+        return std::span<const float>(silence);
+    };
+    for (Chunk& c : chunks) {
+        if (auto r = enc.reuse(std::move(*c.pictures)); !r) return std::unexpected(r.error());
+        for (std::int64_t i = c.first; i < c.first + c.count; ++i)
+            if (auto r = enc.sound(samples_of(i)); !r) return std::unexpected(r.error());
+    }
+    if (auto r = enc.finish(); !r) return std::unexpected(r.error());
+    if (!out.written().empty()) done.file = out.written().back();
+    return done;
+}
 
 std::expected<DecodedWebm, std::string> decode_webm(std::span<const std::byte> file) {
     Reader reader(file);

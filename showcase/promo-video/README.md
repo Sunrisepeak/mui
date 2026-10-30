@@ -17,9 +17,18 @@ $P still promo --at 6.5 --out wordmark.png             # one frame
 $P sound promo --out promo.wav                         # the sound track
 $P check promo                                         # the acceptance, as JSON
 $P render promo --dir showcase/promo-video --out x.webm  # an edited copy of the data
+$P render promo --out promo.webm --cache .omui-cache --realtime --speed 8   # again after an edit: only what it changed
 ```
 
 `--workers N` draws N frames at once (default: a quarter of the cores, at most 8); `--threads N --realtime --speed 7 --bitrate 10000` trades the WebM's bytes being the same everywhere for a faster encode.
+
+**Rendering again after an edit** (`--cache DIR`, D-54's frame and chunk caches). Every frame has a digest of what it depends on (`:cache`, `Digests`):
+- the program's own bytes (the shots' code, the fonts and art it carries) and the player's options;
+- the files the shots read (all but the cuts and the lines, which are taken frame by frame);
+- the clip it shows (its whole definition, as the timeline file writes it) and where in it, a played-back frame's own digest;
+- the lines up at it, and what the overlay draws from the whole cut.
+
+The WebM is put together from 2-second chunks (`--chunk N` frames), each begun with a key frame and encoded on its own, kept in `DIR` by their frames' digests (`openmui.video.webm`'s `encode_webm_chunked`). A chunk whose frames' inputs did not change is copied and never drawn; the rest are drawn and encoded `--workers` at a time. The file is the same bytes whichever chunks were found.
 
 ## The film
 
@@ -64,13 +73,14 @@ The data, every file carried in the program (`openmui.build.embed`) and read fro
 | Reading time | each line up long enough | ≥ 1 s, ≤ 9 Chinese / 17 English characters a second; the tightest line has 1.45 s to spare |
 | Beats | cuts and hits within a frame | 0.00 frames off by the score's beat; onsets heard in the track within 0.36 frames |
 | Lines | Chinese and English | all of them |
-| Rendering | 60 s 1080p60: ≤ 15 s (GPU), ≤ 60 s (CPU) | CPU only, a shared 32-core machine: the frames alone in 36 s (8 workers, 2.9 GB) or 85 s (one, 1.2 GB); with VP9 in real-time mode 68 s, at libvpx's default quality on one thread (the same bytes everywhere) far longer; 4K frames 212 s; GPU not yet (below) |
+| Rendering | 60 s 1080p60: ≤ 15 s (GPU), ≤ 60 s (CPU) | CPU only, a shared 32-core machine: the frames alone in 36 s (8 workers, 2.9 GB) or 85 s (one, 1.2 GB); in chunks, 8 at once, VP9 real-time at speed 8, 61 s (one thread an encoder: the same bytes everywhere); the 15 s cut at libvpx's good quality 72 s in chunks (307 s in one stream); 4K frames 212 s; GPU not yet (below) |
+| Rendering after an edit | one shot changed: ≤ 3 s; unchanged chunks 100 % reused | the film after one line of the wall's chapter edited: 3 of 30 chunks drawn again, 10 s (real-time VP9; the wall's frames are what takes it); nothing changed: 2 s, every chunk found; the line's 324 frames of the short exactly the frames whose digest changed |
 
-Not yet: rendering on the GPU and with hardware encoding (the video pipeline draws on the CPU reference renderer), the four-layer cache that re-renders only what an edit touches, the preview with hot reload and edits written back (§12.6), the comparison with the benchmarks and the outside viewers (§5.2) — and the benchmarks' shot-by-shot breakdown (§2.3) needs their files.
+Not yet: rendering on the GPU and with hardware encoding (the video pipeline draws on the CPU reference renderer: what an edit's 3 s needs), the cache's second layer (static subtrees' rasters kept between frames) — its first, third and fourth are above —, the preview with hot reload and edits written back (§12.6), the comparison with the benchmarks and the outside viewers (§5.2) — and the benchmarks' shot-by-shot breakdown (§2.3) needs their files.
 
 ## Tests
 
-`tests/promo_test.cpp`: both cuts read, and mistakes in them are found (an unknown shot, an unknown line, a rewind into the future); the data checks above for both cuts, the sound pinned; a frame of each chapter pinned, one at 1080p, one at 4K; frames drawn directly the frames played to; the rewind plays back the film's own frames and the replay is the first play's very frames; the typography of sampled frames at 16:9 and 9:16; the README's loop.
+`tests/promo_test.cpp`: both cuts read, and mistakes in them are found (an unknown shot, an unknown line, a rewind into the future); the data checks above for both cuts, the sound pinned; a frame of each chapter pinned, one at 1080p, one at 4K; frames drawn directly the frames played to; the rewind plays back the film's own frames and the replay is the first play's very frames; the typography of sampled frames at 16:9 and 9:16; the README's loop; what a frame depends on — the same inputs the same digests, another program every frame another, one line edited exactly the frames it is up on.
 
 ## Make your own
 

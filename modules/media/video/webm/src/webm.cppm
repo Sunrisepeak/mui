@@ -42,6 +42,33 @@ struct WebmOptions {
 // format has one: 48 kHz, one or two channels).
 [[nodiscard]] std::unique_ptr<Encoder> webm_encoder(std::string name = "video.webm", WebmOptions options = {});
 
+// A WebM put together from chunks (D-54's fourth cache layer): runs of
+// `frames` frames, each begun with a key frame and encoded on its own, kept
+// in `directory` by their key — what their frames depend on, as the caller
+// knows it (key(first, count)), with the format and the options. A chunk
+// found there is copied and its frames are never drawn; the rest are drawn
+// (draw(first, count, threads): a source of their frames, asked for from 0 in
+// order, which may draw with `threads` threads — at_once shared among the
+// chunks drawn, so a few changed chunks are drawn with all of them), encoded
+// and kept. The file is the same whichever chunks were found.
+struct ChunkPlan {
+    std::int64_t          frames = 120;  // a chunk's: 2 s at 60 fps
+    std::filesystem::path directory;
+    std::function<std::uint64_t(std::int64_t first, std::int64_t count)> key;
+    std::function<std::expected<std::unique_ptr<FrameSource>, std::string>(std::int64_t first, std::int64_t count, int threads)> draw;
+    // Chunks drawn and encoded at the same time, each by its own VP9 encoder
+    // (draw() is then called from that many threads): the same bytes however
+    // many.
+    int at_once = 1;
+};
+struct Chunked {
+    std::int64_t chunks = 0, reused = 0;  // reused: found in the directory
+    std::int64_t drawn = 0;               // frames drawn and encoded
+    Written      file;
+};
+[[nodiscard]] std::expected<Chunked, std::string> encode_webm_chunked(const Format& format, std::span<const float> track, const ChunkPlan& plan,
+                                                                      Output& out, std::string name = "video.webm", WebmOptions options = {});
+
 // A WebM file read back: its pictures (VP9, 8-bit 4:2:0), each one's time,
 // and its sound (Opus, interleaved, the codec delay and the discard padding
 // taken off: the samples that went in).

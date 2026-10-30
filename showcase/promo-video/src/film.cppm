@@ -33,6 +33,9 @@ public:
     explicit Files(std::filesystem::path directory);
     [[nodiscard]] std::expected<std::string, std::string> read(std::string_view path) const;
     [[nodiscard]] std::vector<std::string> list(std::string_view directory) const;  // the carried files under a directory, by name
+    // Every carried file's text as read now (an edited copy where there is
+    // one), but for those whose names end in one of `leaving_out`, hashed.
+    [[nodiscard]] std::uint64_t digest(std::span<const std::string_view> leaving_out) const;
     [[nodiscard]] const std::filesystem::path& directory() const noexcept { return directory_; }
 
 private:

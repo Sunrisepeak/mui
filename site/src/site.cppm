@@ -9,6 +9,8 @@ export import :lens_contract;
 export import :lens;
 export import :timebar_contract;
 export import :timebar;
+export import :frame_meter_contract;
+export import :frame_meter;
 export import :reference;
 export import :ci_frames;
 export import :content_files;

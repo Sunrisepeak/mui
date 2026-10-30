@@ -3,6 +3,7 @@ module openmui.semantic;
 import std;
 import openmui.core;
 import openmui.view;
+import openmui.hash;
 
 namespace omui::semantic {
 
@@ -19,14 +20,6 @@ bool meaningless(const spec::SemanticNode& n) {
 bool interactive(const spec::SemanticNode& n) {
     if (n.states.has(State::focusable)) return true;
     return std::ranges::any_of(n.actions, [](const spec::ActionDesc& a) { return a.effect != Effect::read; });
-}
-
-std::uint64_t fnv(std::string_view s, std::uint64_t h = 14695981039346656037ull) noexcept {
-    for (unsigned char c : s) {
-        h ^= c;
-        h *= 1099511628211ull;
-    }
-    return h;
 }
 
 }  // namespace
@@ -315,9 +308,9 @@ std::vector<spec::Violation> Tree::violations() {
 
 std::uint64_t Tree::digest() {
     refresh();
-    std::uint64_t h = 14695981039346656037ull;
-    for (const spec::SemanticNode& n : nodes_) h = fnv(spec::to_value(n).json(), h);
-    return h;
+    hash::Fnv1a h;
+    for (const spec::SemanticNode& n : nodes_) h.text(spec::to_value(n).json());
+    return h.value();
 }
 
 }  // namespace omui::semantic

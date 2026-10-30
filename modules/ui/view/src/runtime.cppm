@@ -265,6 +265,13 @@ public:
     [[nodiscard]] double frame_rate() const noexcept;
     // The last frames' statistics, oldest first (up to 240).
     [[nodiscard]] std::vector<FrameStats> frame_history() const;
+    // A frame the host showed: after presenting it, the host says when and
+    // what it cost (D-59). A frame with nothing new to show is not one.
+    void frame_shown(ShownFrame f) noexcept;
+    [[nodiscard]] const ShownFrames& shown_frames() const noexcept override;
+    // Who draws the frames, as the host says ("cpu", "webgpu", "webgl", "vulkan"…).
+    void set_renderer(std::string name);
+    [[nodiscard]] std::string_view renderer() const noexcept override;
     // The frame's pipeline and the stage plugins it is built from: tools
     // read them, and replace, add or remove stages between frames.
     [[nodiscard]] pipeline::Pipeline& frame_pipeline() noexcept;

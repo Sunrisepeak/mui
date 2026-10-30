@@ -116,9 +116,9 @@ public:
 
 private:
     [[nodiscard]] Rgba8 gradient_at(float px, float py) const;
-    [[nodiscard]] Rgba8 image_at(float px, float py) const;
     [[nodiscard]] Rgba8 texel_at(const ImageView& img, Point q) const;
     [[nodiscard]] Rgba8 shaded_at(float px, float py) const;  // image_mask, or a material
+    void shade_image(int x, int y, int count, Rgba8* out) const;
 
     const Paint*          paint_;
     std::optional<MaterialSetup> material_;
@@ -127,6 +127,8 @@ private:
     std::optional<Affine> inverse_;
     std::array<Rgba8, 256> lut_{};
     std::uint32_t         opacity8_ = 255;
+    std::uint32_t         image_k_ = 255;  // an image's tint times the opacity, in 1/255
+    std::uint64_t         serial_ = 0;     // this shader's own number (its columns' cache, below)
 };
 
 }  // namespace omui::raster

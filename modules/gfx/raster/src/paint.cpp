@@ -21,6 +21,21 @@ float spread_t(float t, Spread s) {
 
 }  // namespace
 
+namespace {
+
+// An axis-aligned image's columns, the same for every row of one fill: each
+// pixel column's two source columns and its weight. Kept per thread (grown,
+// never freed: no allocation a frame), for the shader whose serial it holds.
+struct Columns {
+    std::uint64_t              serial = 0;
+    int                        x = 0, count = 0;
+    std::vector<std::uint32_t> taps;  // per column: xa, xb, wx
+};
+thread_local Columns columns;
+std::atomic<std::uint64_t> serials{0};
+
+}  // namespace
+
 Shader::Shader(const Paint& paint) : paint_(&paint) {
     opacity8_ = static_cast<std::uint32_t>(std::clamp(paint.opacity, 0.0f, 1.0f) * 255.0f + 0.5f);
     if (paint.kind == Paint::Kind::solid) {
@@ -31,6 +46,8 @@ Shader::Shader(const Paint& paint) : paint_(&paint) {
         return;
     }
     inverse_ = paint.transform.inverse();
+    if (paint.kind == Paint::Kind::image) serial_ = ++serials;
+    image_k_ = mul255(static_cast<std::uint32_t>(std::clamp(paint.color.a, 0.0f, 1.0f) * 255.0f + 0.5f), opacity8_);
     if (paint.kind == Paint::Kind::image_mask) solid_color_ = premultiply(paint.color);  // the mask's colour (not a solid paint)
     if (paint.material && (paint.kind == Paint::Kind::image || paint.kind == Paint::Kind::image_mask))
         material_ = material_setup(*paint.material, paint.transform);
@@ -116,7 +133,7 @@ Rgba8 Shader::texel_at(const ImageView& img, Point q) const {
 
 namespace {
 
-Rgba8 scaled8(Rgba8 c, std::uint32_t k) noexcept {
+[[gnu::always_inline]] inline Rgba8 scaled8(Rgba8 c, std::uint32_t k) noexcept {
     if (k == 255) return c;
     return {static_cast<std::uint8_t>(mul255(c.r, k)), static_cast<std::uint8_t>(mul255(c.g, k)), static_cast<std::uint8_t>(mul255(c.b, k)),
             static_cast<std::uint8_t>(mul255(c.a, k))};
@@ -124,16 +141,82 @@ Rgba8 scaled8(Rgba8 c, std::uint32_t k) noexcept {
 
 }  // namespace
 
-Rgba8 Shader::image_at(float px, float py) const {
+// An image's row of pixels: the texel under each pixel's centre, tinted. When the transform neither
+// rotates nor skews (b = c = 0, a page's pictures and the atlas's textures
+// as a camera flies over them), a pixel's source column depends on its column
+// alone and its source row on its row alone: the rows and their weight are
+// found once, a column's texels read without clamping where they are inside
+// — the same bytes as the general path.
+void Shader::shade_image(int x, int y, int count, Rgba8* out) const {
     const ImageView& img = paint_->image;
-    if (!img.pixels || img.width <= 0 || img.height <= 0) return {};
-    Point q = inverse_->apply({px, py});
-    Rgba8 c = texel_at(img, q);
-    std::uint32_t tint = static_cast<std::uint32_t>(std::clamp(paint_->color.a, 0.0f, 1.0f) * 255.0f + 0.5f);
-    std::uint32_t k = mul255(tint, opacity8_);
-    if (k != 255) c = {static_cast<std::uint8_t>(mul255(c.r, k)), static_cast<std::uint8_t>(mul255(c.g, k)),
-                       static_cast<std::uint8_t>(mul255(c.b, k)), static_cast<std::uint8_t>(mul255(c.a, k))};
-    return c;
+    if (!img.pixels || img.width <= 0 || img.height <= 0) {
+        std::fill_n(out, count, Rgba8{});
+        return;
+    }
+    const Affine& m = *inverse_;
+    const float py = static_cast<float>(y) + 0.5f;
+    if (m.b != 0 || m.c != 0) {
+        for (int i = 0; i < count; ++i) out[i] = scaled8(texel_at(img, m.apply({static_cast<float>(x + i) + 0.5f, py})), image_k_);
+        return;
+    }
+    // q = (a·px + c·py + e, b·px + d·py + f) with b = c = 0: the zero terms add
+    // nothing, so these are the same floats apply() computes.
+    const float qy = m.d * py + m.f;
+    const int   last_x = img.width - 1, last_y = img.height - 1;
+    if (paint_->sampling == Sampling::nearest) {
+        const Rgba8* row = img.pixels + static_cast<std::size_t>(std::clamp(static_cast<int>(std::floor(qy)), 0, last_y)) * img.stride;
+        for (int i = 0; i < count; ++i) {
+            const float qx = m.a * (static_cast<float>(x + i) + 0.5f) + m.e;
+            out[i] = scaled8(row[std::clamp(static_cast<int>(std::floor(qx)), 0, last_x)], image_k_);
+        }
+        return;
+    }
+    const float fy = qy - 0.5f;
+    const int   y0 = static_cast<int>(std::floor(fy));
+    const std::uint32_t wy = std::min(static_cast<std::uint32_t>(static_cast<int>((fy - static_cast<float>(y0)) * 256.0f + 0.5f)), 256u);
+    const Rgba8* top = img.pixels + static_cast<std::size_t>(std::clamp(y0, 0, last_y)) * img.stride;
+    const Rgba8* bottom = img.pixels + static_cast<std::size_t>(std::clamp(y0 + 1, 0, last_y)) * img.stride;
+    // The columns: found on this fill's first row, read on the others.
+    Columns& cols = columns;
+    if (cols.serial != serial_ || cols.x != x || cols.count != count) {
+        cols.serial = serial_;
+        cols.x = x;
+        cols.count = count;
+        cols.taps.resize(static_cast<std::size_t>(count) * 3);
+        for (int i = 0; i < count; ++i) {
+            const float fx = (m.a * (static_cast<float>(x + i) + 0.5f) + m.e) - 0.5f;
+            const int   x0 = static_cast<int>(std::floor(fx));
+            cols.taps[static_cast<std::size_t>(i) * 3] = static_cast<std::uint32_t>(std::clamp(x0, 0, last_x));
+            cols.taps[static_cast<std::size_t>(i) * 3 + 1] = static_cast<std::uint32_t>(std::clamp(x0 + 1, 0, last_x));
+            cols.taps[static_cast<std::size_t>(i) * 3 + 2] =
+                std::min(static_cast<std::uint32_t>(static_cast<int>((fx - static_cast<float>(x0)) * 256.0f + 0.5f)), 256u);
+        }
+    }
+    const std::uint32_t* tap = cols.taps.data();
+    const auto lerp = [](std::uint32_t wx, std::uint8_t va, std::uint8_t vb) { return va * (256 - wx) + vb * wx; };
+    const auto put = [&](int i, auto channel) {
+        out[i] = scaled8({channel(0), channel(1), channel(2), channel(3)}, image_k_);
+    };
+    if (wy == 0) {
+        // On a source row: the bottom row's weight is 0, (t·256 + 32768) >> 16 as the general mix.
+        for (int i = 0; i < count; ++i, tap += 3) {
+            const auto* a = reinterpret_cast<const std::uint8_t*>(top + tap[0]);
+            const auto* b = reinterpret_cast<const std::uint8_t*>(top + tap[1]);
+            const std::uint32_t wx = tap[2];
+            put(i, [&](int k) { return static_cast<std::uint8_t>((lerp(wx, a[k], b[k]) * 256 + 32768) >> 16); });
+        }
+        return;
+    }
+    for (int i = 0; i < count; ++i, tap += 3) {
+        const auto* a = reinterpret_cast<const std::uint8_t*>(top + tap[0]);
+        const auto* b = reinterpret_cast<const std::uint8_t*>(top + tap[1]);
+        const auto* c = reinterpret_cast<const std::uint8_t*>(bottom + tap[0]);
+        const auto* d = reinterpret_cast<const std::uint8_t*>(bottom + tap[1]);
+        const std::uint32_t wx = tap[2];
+        put(i, [&](int k) {
+            return static_cast<std::uint8_t>((lerp(wx, a[k], b[k]) * (256 - wy) + lerp(wx, c[k], d[k]) * wy + 32768) >> 16);
+        });
+    }
 }
 
 // An image_mask's or a lit image's pixel: the texel (as a mask, the colour
@@ -283,10 +366,11 @@ void Shader::shade(int x, int y, int count, Rgba8* out) const {
         for (int i = 0; i < count; ++i) out[i] = shaded_at(static_cast<float>(x + i) + 0.5f, py);
         return;
     }
-    for (int i = 0; i < count; ++i) {
-        float px = static_cast<float>(x + i) + 0.5f;
-        out[i] = paint_->kind == Paint::Kind::gradient ? gradient_at(px, py) : image_at(px, py);
+    if (paint_->kind == Paint::Kind::image) {
+        shade_image(x, y, count, out);
+        return;
     }
+    for (int i = 0; i < count; ++i) out[i] = gradient_at(static_cast<float>(x + i) + 0.5f, py);
 }
 
 }  // namespace omui::raster

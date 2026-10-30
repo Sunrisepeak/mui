@@ -38,6 +38,7 @@ struct Headless::Impl {
     render::CpuRenderer                         renderer;
     raster::Surface                             surface;
     std::uint64_t                               rendered = 0;   // the list hash the surface shows
+    std::uint64_t                               shown_list = 0; // the list hash of the last frame shown (frame_shown)
     bool                                        have_pixels = false;
     render::DamageTracker                       damage;         // what the next list changes
     std::unique_ptr<agent::Endpoint>            endpoint;
@@ -88,6 +89,7 @@ Headless::Headless(HeadlessOptions options) : impl_(std::make_unique<Impl>()) {
     ro.stages = stages_of(d.options.level);
     ro.complete_frames = d.options.complete_frames;
     d.runtime = std::make_unique<Runtime>(std::move(ro));
+    d.runtime->set_renderer("cpu");
     d.tree = std::make_unique<semantic::Tree>(*d.runtime);
     d.glyphs = std::make_unique<typeset::GlyphCache>(*fonts);
     if (d.options.level == HeadlessLevel::session) {
@@ -125,7 +127,16 @@ FrameOutput Headless::step(std::vector<InputEvent> events) {
     FrameInput in;
     in.time = d.options.fps.time_of(d.frame);
     in.events = std::move(events);
-    return d.runtime->frame(in);
+    FrameOutput out = d.runtime->frame(in);
+    // A frame with something new to show is shown (as a window's host shows
+    // it), at its virtual time; its cost is not measured (it would make the
+    // pixels differ from run to run).
+    if (out.repainted)
+        if (const std::uint64_t h = d.runtime->display_list().hash(); h != d.shown_list) {
+            d.shown_list = h;
+            d.runtime->frame_shown({*in.time});
+        }
+    return out;
 }
 
 FrameOutput Headless::advance(seconds duration) {

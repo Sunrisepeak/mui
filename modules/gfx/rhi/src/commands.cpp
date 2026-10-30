@@ -1,6 +1,7 @@
 module openmui.rhi;
 
 import std;
+import openmui.hash;
 
 namespace omui::rhi {
 
@@ -12,23 +13,17 @@ constexpr std::array<std::string_view, std::variant_size_v<Command>> command_nam
     "draw", "draw_indexed", "begin_compute", "end_compute", "set_compute_pipeline", "dispatch", "push_uniforms",
 };
 
+// FNV-1a (openmui.hash) of a value's own bytes, a span's length and bytes.
 struct Fnv {
-    std::uint64_t h = 1469598103934665603ull;
-    void bytes(const void* p, std::size_t n) noexcept {
-        const auto* b = static_cast<const unsigned char*>(p);
-        for (std::size_t i = 0; i < n; ++i) {
-            h ^= b[i];
-            h *= 1099511628211ull;
-        }
-    }
+    hash::Fnv1a h;
     template <class T>
         requires std::is_trivially_copyable_v<T>
     void value(const T& v) noexcept {
-        bytes(&v, sizeof v);
+        h.object(v);
     }
     void span(std::span<const std::byte> s) noexcept {
         value(s.size());
-        bytes(s.data(), s.size());
+        h.bytes(s);
     }
 };
 
@@ -165,7 +160,7 @@ std::uint64_t CommandList::hash() const noexcept {
             },
             c);
     }
-    return f.h;
+    return f.h.value();
 }
 
 }  // namespace omui::rhi

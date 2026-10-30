@@ -320,6 +320,14 @@ double Runtime::frame_rate() const noexcept {
     }));
 }
 
+void Runtime::frame_shown(ShownFrame f) noexcept { impl_->shown.push(f); }
+
+const ShownFrames& Runtime::shown_frames() const noexcept { return impl_->shown; }
+
+void Runtime::set_renderer(std::string name) { impl_->renderer = std::move(name); }
+
+std::string_view Runtime::renderer() const noexcept { return impl_->renderer; }
+
 FrameDemandLease Runtime::demand_frames(FrameDemand d) {
     const std::uint64_t token = impl_->next_lease++;
     impl_->leases.emplace_back(token, std::move(d));

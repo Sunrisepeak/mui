@@ -182,14 +182,14 @@ std::shared_ptr<Mask> Canvas::take_mask() {
 namespace {
 
 // A premultiplied colour scaled by coverage k (0…255), exactly as composite does it.
-Rgba8 scaled(Rgba8 s, std::uint32_t k) noexcept {
+[[gnu::always_inline]] inline Rgba8 scaled(Rgba8 s, std::uint32_t k) noexcept {
     if (k == 255) return s;
     return {static_cast<std::uint8_t>(mul255(s.r, k)), static_cast<std::uint8_t>(mul255(s.g, k)),
             static_cast<std::uint8_t>(mul255(s.b, k)), static_cast<std::uint8_t>(mul255(s.a, k))};
 }
 
 // Source-over of s onto d; an opaque source replaces (s + d·0 = s exactly).
-Rgba8 over(Rgba8 d, Rgba8 s) noexcept {
+[[gnu::always_inline]] inline Rgba8 over(Rgba8 d, Rgba8 s) noexcept {
     if (s.a == 255) return s;
     const std::uint32_t inv = 255u - s.a;
     return {static_cast<std::uint8_t>(s.r + mul255(d.r, inv)), static_cast<std::uint8_t>(s.g + mul255(d.g, inv)),
@@ -227,23 +227,33 @@ void Canvas::composite(const Coverage& cov, const Shader& shader, int dx, int dy
         return;
     }
     row_.resize(static_cast<std::size_t>(box.width));
-    bool ids = !ids_.empty();  // a node drawn into a layer still owns its pixels
+    const bool ids = !ids_.empty() && object_id_;  // a node drawn into a layer still owns its pixels
     for (std::int32_t y = box.y; y < box.y + box.height; ++y) {
         const std::uint8_t* cv = cov.values.data() + static_cast<std::size_t>(y - placed.y) * placed.width + (box.x - placed.x);
         const std::uint8_t* mk = c.mask ? c.mask->row(y) + box.x : nullptr;
         shader.shade(box.x, y, box.width, row_.data());
         Rgba8* out = dst.row(y) + box.x;
+        const Rgba8* in = row_.data();
+        std::uint32_t* id = ids ? ids_.data() + static_cast<std::size_t>(y) * base_->width() + box.x : nullptr;
+        if (!mk) {
+            // No mask: the coverage alone (255 inside a rectangle: the shaded colour itself).
+            for (std::int32_t i = 0; i < box.width; ++i) {
+                const std::uint32_t k = cv[i];
+                if (k == 0) continue;
+                const Rgba8 s = scaled(in[i], k);
+                if (s == Rgba8{}) continue;
+                out[i] = over(out[i], s);
+                if (id && k >= 128) id[i] = object_id_;
+            }
+            continue;
+        }
         for (std::int32_t i = 0; i < box.width; ++i) {
-            std::uint32_t k = cv[i];
-            if (mk) k = mul255(k, mk[i]);
+            const std::uint32_t k = mul255(cv[i], mk[i]);
             if (k == 0) continue;
-            Rgba8 s = row_[static_cast<std::size_t>(i)];
-            if (k != 255)
-                s = {static_cast<std::uint8_t>(mul255(s.r, k)), static_cast<std::uint8_t>(mul255(s.g, k)),
-                     static_cast<std::uint8_t>(mul255(s.b, k)), static_cast<std::uint8_t>(mul255(s.a, k))};
-            if (s.a == 0 && s.r == 0 && s.g == 0 && s.b == 0) continue;
-            out[i] = composite_pixel(out[i], s, Blend::normal);
-            if (ids && k >= 128 && object_id_) ids_[static_cast<std::size_t>(y) * base_->width() + box.x + i] = object_id_;
+            const Rgba8 s = scaled(in[i], k);
+            if (s == Rgba8{}) continue;
+            out[i] = over(out[i], s);
+            if (id && k >= 128) id[i] = object_id_;
         }
     }
 }

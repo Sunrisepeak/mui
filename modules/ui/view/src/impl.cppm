@@ -272,6 +272,8 @@ struct Runtime::Impl {
     std::vector<ActionEntry>    journal;
     FrameStats                  stats;
     FrameRing                   history;
+    ShownFrames                 shown;     // the frames the host showed (frame_shown)
+    std::string                 renderer;  // who draws them, as the host says
     // When the last drawn frames were drawn (real time), a ring: the frame
     // rate, up to 512 a second, with no allocation per frame.
     std::array<std::chrono::steady_clock::time_point, 512> drawn{};

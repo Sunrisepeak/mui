@@ -2,6 +2,7 @@ module openmui.site;
 
 import std;
 import openmui;
+import openmui.hash;
 
 namespace omui::site {
 
@@ -24,12 +25,9 @@ std::span<const ReferenceStep> reference_script() { return script; }
 std::int32_t reference_frames() { return static_cast<std::int32_t>(std::lround((script.back().at + tail) * reference_fps)) + 1; }
 
 std::uint64_t frame_hash(const raster::Surface& px) noexcept {
-    std::uint64_t h = 1469598103934665603ull;
-    for (int y = 0; y < px.height(); ++y) {
-        const auto* bytes = reinterpret_cast<const unsigned char*>(px.row(y));
-        for (std::size_t i = 0; i < static_cast<std::size_t>(px.width()) * 4; ++i) h = (h ^ bytes[i]) * 1099511628211ull;
-    }
-    return h;
+    hash::Fnv1a h;
+    for (int y = 0; y < px.height(); ++y) h.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
+    return h.value();
 }
 
 std::span<const std::uint64_t> reference_pinned() {

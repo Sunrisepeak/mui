@@ -31,6 +31,7 @@ FrameOutput Runtime::frame(const FrameInput& input) {
     trace::Span whole("frame", "frame");
     if (input.time) d.clock.set(*input.time);
     else if (d.clock.kind() == hanim::ClockKind::interactive) d.clock.begin_frame(input.present_at.value_or(started));
+    d.shown.now = d.clock.now();
     d.apply_time_control();
     if (input.display_hz > 0) d.display_hz = input.display_hz;
     if (d.fading) d.touch(dirty_paint);  // the cross-fade moves every frame

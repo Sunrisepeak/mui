@@ -42,12 +42,22 @@ struct Site {
     std::uint64_t pixels_of(std::string_view id) { return pixels_in(h.runtime().bounds(h.runtime().find(id))); }
     // The page above its foot: what it shows, not the history of its time the foot draws.
     std::uint64_t page() { return pixels_in({0, 0, 1280, h.runtime().bounds(h.runtime().find("main/foot")).y}); }
+    // A region's pixels, the bar's frame meter left out: a live readout of
+    // the frames shown so far, as the foot's strip is of the page's time.
     std::uint64_t pixels_in(Rect r) {
         const auto& px = h.pixels();
         const int x0 = std::max(0, static_cast<int>(r.x)), x1 = std::min(px.width(), static_cast<int>(r.x + r.width));
+        const Rect m = h.runtime().bounds(h.runtime().find("main/bar/frames"));
+        const int mx0 = std::clamp(static_cast<int>(std::floor(m.x)), x0, x1), mx1 = std::clamp(static_cast<int>(std::ceil(m.x + m.width)), mx0, x1);
+        const int my0 = static_cast<int>(std::floor(m.y)), my1 = static_cast<int>(std::ceil(m.y + m.height));
         Hash hash;
-        for (int y = std::max(0, static_cast<int>(r.y)); y < std::min(px.height(), static_cast<int>(r.y + r.height)); ++y)
-            hash.bytes(std::as_bytes(std::span(px.row(y) + x0, static_cast<std::size_t>(std::max(0, x1 - x0)))));
+        for (int y = std::max(0, static_cast<int>(r.y)); y < std::min(px.height(), static_cast<int>(r.y + r.height)); ++y) {
+            const auto part = [&](int from, int to) { hash.bytes(std::as_bytes(std::span(px.row(y) + from, static_cast<std::size_t>(std::max(0, to - from))))); };
+            if (y >= my0 && y < my1) {
+                part(x0, mx0);
+                part(mx1, x1);
+            } else part(x0, x1);
+        }
         return std::stoull(hash.hex(), nullptr, 16);
     }
     double value(std::string_view id, std::string_view field = "value") {
@@ -62,11 +72,7 @@ struct Site {
     bool shown(std::string_view place) { return h.tree().node(std::format("main/body/view/atlas/{}/page", place)).has_value(); }
 };
 
-std::uint64_t fnv(std::string_view s) {
-    std::uint64_t h = 1469598103934665603ull;
-    for (const char c : s) h = (h ^ static_cast<unsigned char>(c)) * 1099511628211ull;
-    return h;
-}
+std::uint64_t fnv(std::string_view s) { return hash::fnv1a(s); }
 
 constexpr std::string_view page = R"(<!doctype html>
 <html lang="en">
@@ -485,7 +491,7 @@ int main(int argc, char** argv) {
         a.h.advance(seconds(1));
         shot("time.png");
         std::println("    pixels {}", all.hex());
-        check_eq(all.hex(), std::string("e59bf018009266c5"));
+        check_eq(all.hex(), std::string("4acc06a87693b94c"));
     });
 
     s.test("the style workshop runs in its place, a theme scope: a pack styles it alone, the site keeps its theme, the tree is the same in every pack", [] {
@@ -585,8 +591,8 @@ int main(int argc, char** argv) {
         // The site's own part pinned (the docs change with the framework; they are held to md4c-html's bytes above).
         auto own = [](const std::string& html) { return html.substr(0, html.find("<section id=\"/", html.find("<section id=\"/") + 1)); };
         std::println("    static en {:016x} zh {:016x}", fnv(own(en)), fnv(own(site::static_html("zh"))));
-        check_eq(std::format("{:016x}", fnv(own(en))), std::string("204dbdae45bacdce"));
-        check_eq(std::format("{:016x}", fnv(own(site::static_html("zh")))), std::string("a752fb5e438266de"));
+        check_eq(std::format("{:016x}", fnv(own(en))), std::string("f48ec0aeaaa69b40"));
+        check_eq(std::format("{:016x}", fnv(own(site::static_html("zh")))), std::string("299ed69645827f98"));
 
         const auto out = site::inject(page, en, "zh");
         check(out.has_value(), "dist-toy's page");

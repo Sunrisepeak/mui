@@ -73,6 +73,39 @@ struct FrameDemand {
 // wanted rate, at least its minimum, at most the display's (0: no frame).
 [[nodiscard]] double frame_interval(const FrameDemand& d, double display_hz) noexcept;
 
+// A frame a host showed (D-59): when, on the runtime's clock (the host's
+// time; the headless host's virtual one), and what it cost the host — the
+// frame's stages, drawing it (the CPU's raster or recording the GPU's
+// commands) and presenting it — in milliseconds; negative where it is not
+// measured (the headless host: its times are virtual, and a measured cost
+// would make its pixels differ from run to run).
+struct ShownFrame {
+    hanim::seconds at{0};
+    double         cost_ms = -1;
+};
+
+// The last frames shown, oldest first: a ring that never allocates — what a
+// frame meter reads as it paints.
+struct ShownFrames {
+    static constexpr std::size_t capacity = 120;
+    std::array<ShownFrame, capacity> items{};
+    std::size_t                      head = 0;  // the oldest
+    std::size_t                      count = 0;
+    std::uint64_t                    total = 0;  // every frame shown since the runtime began
+    hanim::seconds                   now{0};     // the clock as the frame being made began (frames' `at` are on it)
+
+    void push(const ShownFrame& f) noexcept {
+        items[(head + count) % capacity] = f;
+        if (count < capacity) ++count;
+        else head = (head + 1) % capacity;
+        ++total;
+    }
+    [[nodiscard]] bool empty() const noexcept { return count == 0; }
+    [[nodiscard]] std::size_t size() const noexcept { return count; }
+    [[nodiscard]] const ShownFrame& operator[](std::size_t i) const noexcept { return items[(head + i) % capacity]; }
+    [[nodiscard]] const ShownFrame& back() const noexcept { return (*this)[count - 1]; }
+};
+
 class Services;
 
 // A demand while it lasts (RAII): released when it goes — or when the
@@ -152,6 +185,10 @@ public:
     [[nodiscard]] virtual typeset::FontCollection& fonts() = 0;
     [[nodiscard]] virtual render::ImageStore& images() = 0;
     [[nodiscard]] virtual hanim::seconds now() const = 0;
+    // The frames the host showed, and who draws them ("cpu", "webgpu",
+    // "webgl", "vulkan"…; empty: not said): what a frame meter shows.
+    [[nodiscard]] virtual const ShownFrames& shown_frames() const = 0;
+    [[nodiscard]] virtual std::string_view renderer() const { return {}; }
     // The page's time stands still (a time tool paused it): what animates on
     // its own waits for retimed() rather than asking for frames.
     [[nodiscard]] virtual bool time_paused() const { return false; }

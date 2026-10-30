@@ -189,8 +189,8 @@ int main(int argc, char** argv) {
         if (!t) return;
         std::vector<tl::Playing> now;
         now.reserve(8);
-        std::uint64_t h = 1469598103934665603ull;
-        auto mix = [&](std::uint64_t v) { h = (h ^ v) * 1099511628211ull; };
+        Hash f;
+        auto mix = [&](std::uint64_t v) { f.word(v); };
         for (std::int64_t f = 0; f < 3600; ++f) {
             const tl::Flicks at = tl::frame_time(t->rate, f);
             tl::playing(*t, at, now);
@@ -199,8 +199,9 @@ int main(int argc, char** argv) {
                 mix(std::bit_cast<std::uint64_t>(t->tracks[p.track].clips[p.clip].value("y", at)));
             }
         }
+        const std::uint64_t h = f.value();
         std::println("    timeline playing {:016x}", h);
-        check_eq(h, std::uint64_t{0xc00cf3d87babbff7});  // GCC, LLVM and wasm
+        check_eq(h, std::uint64_t{0x5a03a531488aa519});  // GCC, LLVM and wasm
     });
 
     return s.run(argc, argv);

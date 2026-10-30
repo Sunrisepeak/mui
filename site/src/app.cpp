@@ -6,6 +6,7 @@ module openmui.site;
 
 import std;
 import openmui;
+import openmui.hash;
 import openmui.ui.markdown;
 import openmui.ui.timeline;
 import openmui.ui.canvas;
@@ -476,9 +477,9 @@ std::string test_text(const Value& snapshot) {
 }
 
 std::uint64_t tree_hash(const Value& snapshot) {
-    std::uint64_t h = 1469598103934665603ull;
+    hash::Fnv1a h;
     const Value::List* nodes = snapshot.get("nodes") ? snapshot.get("nodes")->list() : nullptr;
-    if (!nodes) return h;
+    if (!nodes) return h.value();
     for (const Value& n : *nodes) {
         Value kept;  // what the tree says, not where the window put it
         const bool viewport = n.get("role") && n.get("role")->as_string() == "scroll_view";  // its value is how far it scrolls: the window's
@@ -491,9 +492,9 @@ std::uint64_t tree_hash(const Value& snapshot) {
                 if (const std::string_view x = st.as_string(); x != "offscreen" && x != "hovered" && x != "pressed" && x != "animating") lasting.push_back(st);
             if (!lasting.empty()) kept.set("state", Value(std::move(lasting)));
         }
-        for (const char c : kept.json()) h = (h ^ static_cast<unsigned char>(c)) * 1099511628211ull;
+        h.text(kept.json());
     }
-    return h;
+    return h.value();
 }
 
 namespace {
@@ -1018,10 +1019,13 @@ AppSpec app(std::string_view place, std::string_view lang) {
     a.title = "openmui — one tree, many renderings";
     a.size = {1280, 800};
     a.theme = Theme::dark_theme();
-    // Drawn by the CPU, on the desktop and in a page: its pixels are the
-    // reference, the same bytes on every machine (what the home page says,
-    // what the check against CI shows); a GPU's are within tolerances of them.
-    a.renderer = "cpu";
+    // Drawn by the machine's GPU where it has one (WebGPU, else WebGL 2; a
+    // software adapter counts as none), else by the CPU: a camera's flight at
+    // the display's rate. The CPU's pixels are the reference, the same bytes
+    // on every machine — the check against CI draws its frames with the CPU
+    // whoever draws the page — and a GPU's are within tolerances of them.
+    // The bar's meter says who draws, and how fast.
+    a.renderer = "automatic";
     auto s = std::make_shared<Site>();
     if (place == "overview" || std::ranges::any_of(all, [&](const Place& p) { return p.id == place; })) s->place.set(std::string(place));
     s->lang.set(lang == "zh" ? "zh" : "en");
@@ -1063,6 +1067,7 @@ AppSpec app(std::string_view place, std::string_view lang) {
         if (auto r = s->studio.show("glass", false); !r) warn("site: {}", r.error());
         s->guide = std::make_unique<Guide>(rt, [site = s.get()] { return site->place.get(); });
         register_type(component_type<Timebar>());
+        register_type(component_type<FrameMeter>());
         fighting::register_components();  // the move list's stage is the game's own
         {
             const auto it = std::ranges::find_if(all, [&](const Place& p) { return p.id == s->place.peek(); });
@@ -1084,6 +1089,7 @@ AppSpec app(std::string_view place, std::string_view lang) {
                            retyped(text({.id = "motto", .text = computed([s] { return std::string(s->lang.get() == "zh" ? "一棵树，多种呈现" : "one tree, many renderings"); }),
                                          .style = "caption", .grow = 1}),
                                    s),
+                           frame_meter({.id = "frames", .label = computed([s] { return std::string(s->lang.get() == "zh" ? "帧率" : "Frame rate"); })}),
                            lens_button(s, "pixels", "Pixels"), lens_button(s, "tree", "Tree"), lens_button(s, "agent", "Agent"), lens_button(s, "test", "Test"),
                            button({.id = "guide_toggle",
                                    .text = computed([s] { return std::string(s->lang.get() == "zh" ? "让 agent 来" : "Ask an agent"); }),

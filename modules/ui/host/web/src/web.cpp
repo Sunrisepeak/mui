@@ -109,6 +109,7 @@ struct Web::Impl {
 
     // Joins the runtime to the page: its clipboard, the store, the mirror.
     void attach() {
+        runtime->set_renderer(std::string(drawn_by));
         if (!opened) return;
         runtime->set_clipboard([] { return page::clipboard(); }, [](std::string_view t) { page::set_clipboard(t); });
         runtime->set_url_opener([](std::string_view url) { return page::open_url(url); });
@@ -335,7 +336,11 @@ struct Web::Impl {
         FrameOutput out = runtime->frame(in);
         events = std::move(in.events);
         demand = out.demand;
+        const std::size_t before = frames_shown;
         show();
+        // A frame shown: when, and what it cost from taking the input to presenting it (D-59).
+        if (frames_shown != before)
+            runtime->frame_shown({runtime->clock().now(), std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - now).count()});
         sync_page();
         // An agent waiting for a condition: checked after each frame, frames until it holds or times out.
         if (protocol) {

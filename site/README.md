@@ -29,6 +29,10 @@ The site shows openmui's thesis instead of describing it: **the interface is a s
   - Far away, a window is a texture of its page, drawn offscreen at the resolution the screen asks for. Near enough to read, it is live.
   - The camera's positions are the scene's named views, so an agent moves it as a person does (`camera_preset`).
   - The windows follow the view's size, through the same stage of the frame that watches the tree.
+- **Who draws, and how fast.** The page is drawn by the machine's GPU where it has one (WebGPU, else WebGL 2; a software adapter counts as none), else by the CPU. The CPU's pixels stay the reference: the check against CI draws its frames with the CPU whoever draws the page. The bar's **frame meter** (`frame_meter`, `src/frame_meter.*`) shows:
+  - who draws: CPU, WebGPU or WebGL 2;
+  - the frame rate and a frame's median cost, with the last frames as bars against a 60 Hz display's budget;
+  - **idle** once nothing moves: the page then draws nothing (D-70), and the meter asks for no frame of its own. It reads the frames the host reports (`Runtime::frame_shown`), and an agent reads the same numbers with its `reading` action.
 - **The lens.** One switch moves the page you are reading between four renderings of the same nodes:
   - **Pixels**: the page as drawn.
   - **Tree**: the semantic tree's wireframe over the pixels. Each node gets its box and role; nodes that an agent or a person can change are outlined in amber.

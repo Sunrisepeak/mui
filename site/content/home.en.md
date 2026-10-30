@@ -2,7 +2,7 @@
 
 openmui is a UI framework and an open specification built around one idea: **the interface is a semantic tree**, and everything else is a rendering of it.
 
-- The **pixels** you see are one rendering, drawn the same on every platform, bit for bit.
+- The **pixels** you see are one rendering. Your GPU draws them where it can; the CPU draws the reference, the same on every platform, bit for bit. The meter in the bar says who draws, and how fast.
 - **Assistive technology** reads another, the tree's roles, names and states.
 - An **agent** reads the tree as data and acts through the same actions a person's input reaches, with the same checks and the same undo.
 - A **test** asserts on the tree and pins the pixels.

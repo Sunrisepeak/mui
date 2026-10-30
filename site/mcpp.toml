@@ -44,6 +44,7 @@ openmui.example.hello-im       = { path = "../examples/01-hello-im" }
 openmui.showcase.fighting      = { path = "../showcase/fighting", default-features = false }  # its move list: no arenas
 openmui.semantic    = { path = "../modules/ui/semantic" }
 openmui.trace       = { path = "../modules/base/trace" }
+openmui.hash        = { path = "../modules/base/hash" }
 
 [build-dependencies]
 openmui.build.contracts = { path = "../mcpp/contracts", host-module = true }

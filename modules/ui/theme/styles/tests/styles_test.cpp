@@ -51,9 +51,9 @@ int main(int argc, char** argv) {
             check(theme::apply_style(rt, n, false).has_value(), std::string(n));
             rt.frame();
             check(tree() == first, std::format("{}: the same tree", n));
-            std::uint64_t h = 1469598103934665603ull;
-            for (const auto& c : rt.display_list().commands()) h = (h ^ c.index()) * 1099511628211ull;
-            h ^= static_cast<std::uint64_t>(rt.display_list().commands().size()) << 32;
+            Hash f;
+            for (const auto& c : rt.display_list().commands()) f.word(c.index());
+            std::uint64_t h = f.value() ^ (static_cast<std::uint64_t>(rt.display_list().commands().size()) << 32);
             looks.insert(h ^ std::hash<std::string>{}(rt.theme().name));
         }
         check_eq(looks.size(), std::size_t{5});

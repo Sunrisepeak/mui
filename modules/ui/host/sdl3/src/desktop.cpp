@@ -301,6 +301,7 @@ std::expected<void, std::string> Desktop::open() {
         if (!d.gpu) warn("effects in {} are drawn by the GPU renderer; the CPU renderer draws their layers without them", mcpplibs::os::fs::utf8(d.options.effects));
     }
     d.runtime->resize(platform::logical_size(*d.window), platform::pixel_scale(*d.window));
+    d.runtime->set_renderer(d.gpu ? std::string(rhi::name(d.device->caps().backend)) : std::string("cpu"));
     // The window's operations are verbs (window.*), its state the interface's to read.
     omui::window().attach(&d, d.runtime->verbs());
     d.window_state();
@@ -410,7 +411,11 @@ bool Desktop::step(bool wait) {
     d.last_frame = start;
     FrameOutput out = d.runtime->frame(in);
     d.demand = out.demand;
+    const std::size_t before = d.frames_shown;
     d.show();
+    // A frame shown: when, and what it cost from taking the input to presenting it (D-59).
+    if (d.frames_shown != before)
+        d.runtime->frame_shown({d.runtime->clock().now(), std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count()});
     platform::text_input(*d.window, d.runtime->text_input_rect());
     platform::cursor(*d.window, d.runtime->cursor());
     d.idle = !out.animating && out.demand.idle() && !d.closed_at;

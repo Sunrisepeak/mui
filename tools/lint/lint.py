@@ -110,8 +110,14 @@ DETERMINISTIC = ["modules/base/math", "modules/base/fuzzy", "modules/media/audio
 OS_HEADERS = re.compile(
     r"#\s*include\s*[<\"](windows\.h|winsock2?\.h|unistd\.h|pthread\.h|dlfcn\.h|fcntl\.h|sys/[^>\"]+|mach/[^>\"]+|"
     r"CoreFoundation/[^>\"]+|Cocoa/[^>\"]+|AppKit/[^>\"]+|linux/[^>\"]+)[>\"]")
-# FNV-1a's offset bases and primes, 64- and 32-bit: only openmui.hash has them.
-FNV_CONSTANTS = re.compile(r"0x100000001b3|0xcbf29ce484222325|\b16777619u?\b|\b2166136261u?\b", re.IGNORECASE)
+# FNV-1a's offset bases and primes, 64- and 32-bit, in hex and in decimal
+# (and the 64-bit basis with its last digit lost, as copies had it): only
+# openmui.hash has them.
+FNV_CONSTANTS = re.compile(r"0x100000001b3|0xcbf29ce484222325|\b1469598103934665603[0-9]?|\b1099511628211\b|\b16777619u?\b|\b2166136261u?\b",
+                           re.IGNORECASE)
+# What may keep its own: gongfu's core takes the standard library alone (D-82),
+# so its world checksum is written there.
+FNV_OWN = ("modules/base/hash/", "mgame/gongfu/src/")
 
 # splitmix64's finaliser and fdlibm's exp/log constants: only openmui.math has them.
 MATH_CONSTANTS = re.compile(r"0xbf58476d1ce4e5b9|0x94d049bb133111eb|6\.93147180369123816490e-01|1\.66666666666666019037e-01", re.IGNORECASE)
@@ -253,7 +259,7 @@ def check_sources(root: Path) -> list[Problem]:
                                             "path::string() narrows through the code page on Windows; use utf8() / generic_utf8()"))
 
         # One FNV-1a: openmui.hash.
-        if not rel_s.startswith("modules/base/hash/"):
+        if not rel_s.startswith(FNV_OWN):
             for no, line in enumerate(lines, 1):
                 if FNV_CONSTANTS.search(line):
                     problems.append(Problem("hash", f"{rel_s}:{no}", "a private FNV-1a; use openmui.hash (omui::hash::Fnv1a, fnv1a, fnv1a32)"))

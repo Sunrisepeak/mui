@@ -19,6 +19,7 @@ constexpr std::string_view command = "$ mcpp new hello --template openmui";
 
 struct State {
     double t = 0, zoom = 1, typed = 0, close = 0, caret = 0;  // caret: 0 the pixel, 1 the cursor
+    float  caret_away = 0;  // the cursor going with the command
     Point  look, at;
     Rect   cursor;     // the cursor's place at the end of the typed text
     float  advance = 20;  // a character of the command's font
@@ -67,25 +68,29 @@ public:
                                           .height = 210,
                                           .label = "This cut's timeline"});
         (void)frame0;
-        Element type_layer = column(
-            {.id = "type", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .padding = Edges(Insets{portrait ? 360.0f : 210.0f, 0, 0, 0}), .gap = 18,
-             .align = "center"},
+        // First the command and the film as data; then they give way to a clean card.
+        Element first = column(
+            {.id = "first", .width = Dim(layout::pct(100)), .padding = Edges(Insets{portrait ? 420.0f : 260.0f, 0, 0, 0}), .gap = 30, .align = "center"},
             {animate_glyphs(text({.id = "command", .text = std::string(command), .style = "code", .color = Fill(hex(ink::ice)), .wrap = false, .size = size,
                                   .weight = 500.0f}),
                             type),
              column({.id = "data", .gap = 8, .align = "start", .opacity = 0.0f},
                     {text({.id = "caption", .text = "this film is data — promo.timeline.omui.toml, and scenes in C++", .style = "code",
                            .color = Fill(hex(ink::muted)), .wrap = false, .size = 15.0f}),
-                     std::move(editor)}),
-             animate_glyphs(text({.id = "wordmark", .text = "OPENMUI", .style = "display", .color = Fill(hex(ink::cyan)), .wrap = false, .size = portrait ? 76.0f : 88.0f,
-                                  .weight = 800.0f}),
+                     std::move(editor)})});
+        Element card = column(
+            {.id = "card", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .gap = 14, .justify = "center", .align = "center"},
+            {animate_glyphs(text({.id = "wordmark", .text = "OPENMUI", .style = "display", .color = Fill(hex(ink::cyan)), .wrap = false,
+                                  .size = portrait ? 110.0f : 150.0f, .weight = 800.0f}),
                             gather),
              animate_glyphs(text({.id = "zh", .text = "这部片子由 agent 用 openmui 制作 · 源码见仓库", .style = "title", .color = Fill(hex(ink::ice)), .wrap = false,
-                                  .size = portrait ? 30.0f : 34.0f, .weight = 600.0f}),
+                                  .size = portrait ? 30.0f : 36.0f, .weight = 600.0f}),
                             rise),
-             animate_glyphs(text({.id = "en", .text = "Made by an agent with openmui · the source is in the repository: showcase/promo-video", .style = "body",
-                                  .color = Fill(hex(ink::muted)), .wrap = portrait, .size = portrait ? 20.0f : 22.0f, .max_width = Dim(screen.width * 0.86f)}),
+             animate_glyphs(text({.id = "en", .text = "Made by an agent with openmui · the source: showcase/promo-video", .style = "body",
+                                  .color = Fill(hex(ink::muted)), .wrap = portrait, .size = portrait ? 20.0f : 24.0f, .max_width = Dim(screen.width * 0.86f)}),
                             rise2)});
+        Element type_layer = stack({.id = "type", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .align = "start"},
+                                   {std::move(first), std::move(card)});
         return stack({.id = "end", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .align = "start"}, {std::move(back), std::move(type_layer)});
     }
 
@@ -93,12 +98,13 @@ public:
         const PanelPicture& panel = panel_picture();
         s_->refs = {rt.images().add(panel.x1), rt.images().add(panel.x2)};
         rt.frame({hanim::seconds(0), {}});
-        const Rect cmd = rt.drawn_bounds(rt.find("main/type/command"));
+        const Rect cmd = rt.drawn_bounds(rt.find("main/type/first/command"));
         s_->line = {cmd.x, cmd.y};
         s_->line_height = cmd.height;
         s_->advance = cmd.width / static_cast<float>(text_length(command));
         back_ = rt.find("main/backdrop");
-        data_ = rt.find("main/type/data");
+        data_ = rt.find("main/type/first/data");
+        first_ = rt.find("main/type/first");
     }
 
     void at(Runtime& rt, double t) override {
@@ -121,7 +127,10 @@ public:
         rt.set(data_, "opacity", Value(smooth(t, typed_from_ + 0.5, typed_from_ + 0.9)));
         rt.set(data_, "translate_y", Value((1 - smooth(t, typed_from_ + 0.5, typed_from_ + 0.9)) * 18));
         frame.set(static_cast<std::int32_t>(tl::frame_at(c_.cut->timeline.rate, c_.clip->at) + std::llround((t - tl::to_seconds(c_.clip->in)) * c_.rate())));
-        (void)close_from;
+        // The command and the editor give way as the card comes.
+        const double away = smooth(t, close_from - 0.2, close_from + 0.15);
+        rt.set(first_, "opacity", Value(1 - away));
+        s.caret_away = static_cast<float>(away);
         rt.invalidate_paint(back_);
     }
 
@@ -146,7 +155,7 @@ private:
     std::shared_ptr<State>       s_;
     double                       typed_from_ = 1.6, stagger_ = 0.025;
     Signal<std::int32_t>         frame = signal(std::int32_t{0});
-    NodeId                       back_{}, data_{};
+    NodeId                       back_{}, data_{}, first_{};
 };
 
 void End::paint(PaintContext& p, State& s) {
@@ -170,7 +179,7 @@ void End::paint(PaintContext& p, State& s) {
                      static_cast<float>(mix(pix.height, s.cursor.height, u))};
         // A cursor blinks twice a second once it has landed.
         const bool on = s.caret < 1 || std::fmod(s.t * 2, 1.0) < 0.62;
-        if (on) list.fill_rect(r, hex(ink::cyan));
+        if (on && s.caret_away < 1) list.fill_rect(r, hex(ink::cyan, 1 - s.caret_away));
     }
 }
 

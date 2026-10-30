@@ -47,6 +47,7 @@ struct PlayerOptions {
     float scale = 1;    // physical pixels a logical one: 2 draws 4K from 1920 × 1080
     bool  subtitles = true;
     bool  timebar = true;
+    bool  chapters = true;
     // Shared by every host this player makes (one thread's); none: its own.
     typeset::FontCollection* fonts = nullptr;
     // Where the frames `film` clips play back are kept (none: its own).

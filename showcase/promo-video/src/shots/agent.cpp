@@ -105,7 +105,7 @@ public:
             s.tree_area = {54, 880, screen.width / 2 - 70, 760};
             s.log_area = {screen.width / 2 + 16, 880, screen.width / 2 - 70, 760};
         } else {
-            s.app_at = {110, 190};
+            s.app_at = {130, 190};
             s.tree_area = {760, 150, 520, 760};
             s.log_area = {1310, 150, 514, 760};
         }
@@ -142,7 +142,10 @@ public:
                                row({.id = "answers", .gap = 10, .justify = "end"},
                                    {button({.id = "keep", .text = "Keep them", .variant = ButtonVariant::secondary}),
                                     button({.id = "delete", .text = "Delete", .variant = ButtonVariant::danger})})});
-        Element type = stack({.id = "type", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .align = "start"}, {std::move(card)});
+        // What the last step was, as large as the point it makes.
+        Element status = text({.id = "status", .text = "", .style = "title", .color = Fill(hex(ink::ice)), .wrap = false, .size = 32.0f, .weight = 700.0f});
+        Element type = stack({.id = "type", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .align = "start"},
+                             {std::move(card), box({.id = "head", .translate_x = s_->app_at.x + 20, .translate_y = s_->app_at.y - 74}, {std::move(status)})});
         return stack({.id = "agent", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .align = "start"},
                      {std::move(back), std::move(app), std::move(front), std::move(type)});
     }
@@ -182,7 +185,7 @@ public:
         auto records = [&](const Envelope& e, std::uint32_t colour) {
             for (const auto& r : e.records()) {
                 std::string line = r.json();
-                if (line.size() > 58) line = line.substr(0, 57) + "…";
+                if (line.size() > 52) line = line.substr(0, 51) + "…";
                 s.log.push_back({at + 0.18, "← " + line, colour});
             }
         };
@@ -250,8 +253,25 @@ public:
         rt.set(card, "visible", Value(up));
         rt.set(card, "opacity", Value(up ? smooth(t, s.asked, s.asked + 0.25) * (s.answered >= 0 ? 1 - smooth(t, s.answered + 0.1, s.answered + 0.35) : 1.0) : 0.0));
         rt.set(card, "translate_y", Value(static_cast<double>(s.app_at.y + 330 * s.app_scale) + (1 - smooth(t, s.asked, s.asked + 0.3)) * 24));
+        // The headline: what the agent's last step means.
+        {
+            int last = 0;
+            for (const auto& [f, k] : steps_)
+                if (static_cast<double>(f) / c_.rate() <= t + 1e-9) last = k;
+            constexpr std::array<std::pair<std::string_view, std::uint32_t>, 7> said{{{"", ink::ice},
+                                                                                      {"An agent reads the tree", ink::ice},
+                                                                                      {"Reversible: it can be undone", ink::mint},
+                                                                                      {"…and it is", ink::mint},
+                                                                                      {"Irreversible: stopped, needs an answer", ink::amber},
+                                                                                      {"A person answers", ink::ice},
+                                                                                      {"Every step in the journal", ink::cyan}}};
+            const auto& [words, colour] = said[static_cast<std::size_t>(std::clamp(last, 0, 6))];
+            const NodeId status = rt.find("main/type/head/status");
+            rt.set(status, "text", Value(std::string(words)));
+            rt.set(status, "color", Value(std::format("#{:06x}", colour)));
+        }
         // The camera leans in, slowly, as the stakes rise.
-        rt.set(rt.find("main"), "scale", Value(1 + 0.04 * smooth(t, 0.0, 9.5)));
+        rt.set(rt.find("main"), "scale", Value(1 + 0.025 * smooth(t, 0.0, 9.5)));
         rt.invalidate_paint(rt.find("main/front"));
         rt.invalidate_paint(rt.find("main/backdrop"));
     }
@@ -318,11 +338,11 @@ void Agent::paint_front(PaintContext& p, State& s) {
         const float x = ta.x + 18 + static_cast<float>(r.depth) * 16;
         if (r.depth > 0) list.fill_rect({x - 10, y + 9, 6, 1}, hex(ink::line));
         if (r.lit) list.fill_round_rect({ta.x + 8, y - 3, ta.width - 16, 24}, CornerRadii::all(4), render::Paint::solid(hex(ink::cyan, 0.16f)));
-        const auto& l = s.labels.get(fonts, r.label, 13.5f, hex(r.lit ? ink::ice : ink::muted), r.lit ? 600 : 450, "JetBrains Mono");
+        const auto& l = s.labels.get(fonts, r.label, 15.5f, hex(r.lit ? ink::ice : ink::muted), r.lit ? 600 : 450, "JetBrains Mono");
         list.push_clip({x, y - 4, ta.x + ta.width - 14 - x, 26});
         l.paint(list, {x, y});
         list.pop_clip();
-        y += 25;
+        y += 28;
     }
     // The protocol's records, each written out as it comes.
     const Rect la = s.log_area;
@@ -332,7 +352,7 @@ void Agent::paint_front(PaintContext& p, State& s) {
     y = la.y + 46;
     std::size_t shown = 0;
     for (const LogLine& l : s.log) shown += l.at <= s.t;
-    const std::size_t room = static_cast<std::size_t>((la.height - 60) / 23);
+    const std::size_t room = static_cast<std::size_t>((la.height - 60) / 25);
     std::size_t skip = shown > room ? shown - room : 0;
     for (const LogLine& l : s.log) {
         if (l.at > s.t) continue;
@@ -344,11 +364,11 @@ void Agent::paint_front(PaintContext& p, State& s) {
         const std::size_t n = static_cast<std::size_t>(static_cast<double>(l.text.size()) * typed);
         std::size_t cut = n;
         while (cut < l.text.size() && (static_cast<unsigned char>(l.text[cut]) & 0xC0) == 0x80) ++cut;
-        const auto& p2 = s.labels.get(fonts, l.text.substr(0, cut), 13, hex(l.colour), 450, "JetBrains Mono");
-        list.push_clip({la.x + 12, y - 4, la.width - 24, 24});
+        const auto& p2 = s.labels.get(fonts, l.text.substr(0, cut), 14.5f, hex(l.colour), 450, "JetBrains Mono");
+        list.push_clip({la.x + 12, y - 4, la.width - 24, 26});
         p2.paint(list, {la.x + 18, y});
         list.pop_clip();
-        y += 23;
+        y += 25;
     }
     // The agent's cursor: a reticle gliding to each node it acts on.
     if (!s.path.empty() && s.t >= s.path.front().first - 0.6) {

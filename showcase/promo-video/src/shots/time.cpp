@@ -12,6 +12,7 @@ import hanim;
 import openmui;
 import openmui.showcase.widget_breakout;
 import openmui.showcase.widget_breakout.sim;
+import openmui.timeline;
 
 namespace omui::promo {
 
@@ -180,15 +181,22 @@ public:
                                  .role = Role::none,
                                  .paint = [st](PaintContext& p) { paint_ticks(p.list, {st->field.x - 10, st->field.y - 10, st->field.width + 20, st->field.height + 20}, hex(ink::cyan, 0.6f), 18, 1.5f, 0); }});
         const float side = c_.portrait() ? 54 : 96;
-        Element type = column({.id = "type", .width = Dim(layout::pct(100)), .padding = Edges(Insets{r.y - 30, side, 0, side}), .align = "end"},
-                              {text({.id = "sim", .text = "", .style = "code", .color = Fill(hex(ink::ice)), .wrap = false, .size = 16.0f})});
+        Element type = stack({.id = "type", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .align = "start"},
+                             {column({.id = "hud", .width = Dim(layout::pct(100)), .padding = Edges(Insets{r.y - 30, side, 0, side}), .align = "end"},
+                                     {text({.id = "sim", .text = "", .style = "code", .color = Fill(hex(ink::ice)), .wrap = false, .size = 16.0f})}),
+                              column({.id = "stamp", .width = Dim(layout::pct(100)), .padding = Edges(Insets{r.y + r.height * 0.36f, side, 0, side}),
+                                      .gap = 6, .align = "center", .opacity = 0.0f},
+                                     {text({.id = "match", .text = "", .style = "display", .color = Fill(hex(ink::mint)), .wrap = false, .size = 64.0f, .weight = 800.0f}),
+                                      text({.id = "against", .text = "", .style = "code", .color = Fill(hex(ink::ice)), .wrap = false, .size = 18.0f})})});
         return stack({.id = "time", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .align = "start"},
                      {std::move(back), std::move(game), std::move(front), std::move(type)});
     }
 
     void mounted(Runtime& rt) override {
         start(rt, game_);
-        sim_ = rt.find("main/type/sim");
+        sim_ = rt.find("main/type/hud/sim");
+        // Played again: the first play's checksums, from a run of its own, to set beside these.
+        if (c_.value("compare", 0, 0) > 0.5) first_ = first_play(static_cast<std::int64_t>(std::llround(tl::to_seconds(c_.clip->length) * c_.rate())));
     }
 
     bool simulates() const override { return true; }
@@ -199,9 +207,37 @@ public:
 
     void at(Runtime& rt, double t) override {
         s_->t = t;
-        if (const bo::State* s = game_.state())
-            rt.set(sim_, "text", Value(std::format("room 1 · step {} · checksum {:016x}", s->frame, bo::checksum(*s))));
+        if (const bo::State* s = game_.state()) {
+            const std::uint64_t now = bo::checksum(*s);
+            rt.set(sim_, "text", Value(std::format("room 1 · step {} · checksum {:016x}", s->frame, now)));
+            if (!first_.empty()) {
+                const auto f = static_cast<std::size_t>(std::clamp<std::int64_t>(std::llround(t * c_.rate()), 0, static_cast<std::int64_t>(first_.size()) - 1));
+                const bool same = first_[f] == now;
+                const double on = smooth(t, 0.8, 1.1) * (1 - smooth(t, 3.4, 3.8));
+                rt.set(rt.find("main/type/stamp"), "opacity", Value(on));
+                rt.set(rt.find("main/type/stamp/match"), "text", Value(std::string(same ? "MATCH ✓" : "DIFFERS ✗")));
+                rt.set(rt.find("main/type/stamp/against"), "text", Value(std::format("first play {:016x} · now {:016x}", first_[f], now)));
+            }
+        }
         rt.invalidate_paint(rt.find("main/backdrop"));
+    }
+
+    // The first play's checksum at each of its frames: the game played again on a runtime of its own.
+    std::vector<std::uint64_t> first_play(std::int64_t frames) {
+        std::vector<std::uint64_t> out;
+        Headless h(HeadlessOptions{.level = HeadlessLevel::layout, .size = c_.size, .fps = {static_cast<std::int32_t>(c_.rate()), 1}, .app = "openmui-promo-first",
+                                   .complete_frames = true});
+        Time replica(c_);
+        h.mount("main", replica.view());
+        Game g;
+        replica.start(h.runtime(), g);
+        for (std::int64_t f = 0; f <= frames; ++f) {
+            if (f > 0)
+                for (int i = 0; i < steps_per_frame; ++i) g.step();
+            h.runtime().frame({hanim::seconds(static_cast<double>(f) / c_.rate()), {}});
+            out.push_back(g.state() ? bo::checksum(*g.state()) : 0);
+        }
+        return out;
     }
 
     // The game's sounds: played on a runtime of its own, the same way, to the end of the clip.
@@ -246,6 +282,7 @@ private:
     std::shared_ptr<State> s_;
     AppSpec                spec_;
     Game                   game_;
+    std::vector<std::uint64_t> first_;  // a replay: the first play's checksums, frame by frame
     float                  scale_ = 1;
     NodeId                 sim_{};
 };

@@ -71,7 +71,7 @@ public:
                                 .paint = [s, refs](PaintContext& p) { paint(p, *s, *refs); }});
         // The typography: the pixel's label, the wordmark and its band of light.
         Element label = text({.id = "provenance", .text = panel_picture().provenance, .style = "code", .color = Fill(hex(ink::ice)), .wrap = false,
-                              .size = portrait ? 24.0f : 28.0f, .weight = 500.0f});
+                              .size = portrait ? 28.0f : 36.0f, .weight = 500.0f});
         GlyphMotion typed = GlyphMotion::typewriter(hanim::seconds(0.022));
         typed.transition.delay = hanim::seconds(0.55);
         Element coords = text({.id = "where",
@@ -147,7 +147,8 @@ public:
         const Rect lb = rt.bounds(label_);
         rt.set(label_, "translate_x", Value(std::clamp(static_cast<double>(p.x) + screen.width * 0.04, screen.width * 0.06,
                                                        std::max(screen.width * 0.06, screen.width * 0.94 - lb.width))));
-        rt.set(label_, "translate_y", Value(std::clamp(static_cast<double>(p.y) + screen.height * off * 0.25, screen.height * 0.08, screen.height * 0.8)));
+        // Clear of the lines along the bottom.
+        rt.set(label_, "translate_y", Value(std::clamp(static_cast<double>(p.y) + screen.height * off * 0.25, screen.height * 0.08, screen.height * 0.66 - lb.height)));
         // The wordmark: filled in as the dashes settle, then the band of light.
         const double filled = smooth(s.gather, 0.82, 1.0);
         rt.set(word_, "opacity", Value(filled));

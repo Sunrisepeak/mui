@@ -156,7 +156,7 @@ public:
     explicit Code(const ShotContext& c) : c_(c), s_(std::make_shared<State>()) {
         const bool portrait = c.portrait();
         const Size screen = c.size;
-        size_ = portrait ? 16.0f : 15.5f;
+        size_ = 16.0f;
         State& s = *s_;
         s.shown_scale = portrait ? 2.2f : 1.8f;
         s.panel = portrait ? Rect{54, 120, screen.width - 108, 720} : Rect{96, 96, 1010, 790};
@@ -218,7 +218,8 @@ public:
                                   .color = Fill(hex(ink::muted, 0.35f)), .wrap = false, .size = 16.0f, .weight = 600.0f}));
         Element badges = column({.id = "badges", .width = Dim(portrait ? s.device.width : s.device.width), .gap = 10, .align = "start",
                                  .translate_x = s.device.x, .translate_y = s.device.y + s.device.height + 34},
-                                {text({.id = "tree", .text = "", .style = "code", .color = Fill(hex(ink::ice)), .wrap = false, .size = 16.0f}),
+                                {text({.id = "verdict", .text = "", .style = "title", .color = Fill(hex(ink::mint)), .wrap = false, .size = 34.0f, .weight = 700.0f}),
+                                 text({.id = "tree", .text = "", .style = "code", .color = Fill(hex(ink::ice)), .wrap = false, .size = 16.0f}),
                                  text({.id = "pixels", .text = "", .style = "code", .color = Fill(hex(ink::ice)), .wrap = false, .size = 16.0f}),
                                  row({.id = "chips", .gap = 22}, std::move(chips))});
         Element type = stack({.id = "type", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .align = "start"}, {std::move(panel), std::move(badges)});
@@ -248,7 +249,7 @@ public:
             const int from = l - 1;
             if (from >= 0) rt.set(blocks_[static_cast<std::size_t>(from)], "glyph_motion", to_value(GlyphMotion::scatter(static_cast<std::uint64_t>(from + 3))));
             GlyphMotion in = GlyphMotion::gather(static_cast<std::uint64_t>(l + 11));
-            in.stagger = hanim::seconds(0.0009);
+            in.stagger = hanim::seconds(0.00025);
             rt.set(blocks_[static_cast<std::size_t>(l)], "glyph_motion", to_value(in));
         }
     }
@@ -280,6 +281,13 @@ public:
         if (shown) {
             rt.set(rt.find("main/type/badges/tree"), "text", Value(std::format("semantic tree  {:016x}", shown->tree)));
             rt.set(rt.find("main/type/badges/pixels"), "text", Value(std::format("pixels         {:016x}", shown->picture)));
+        }
+        // The verdict, as large as the claim: the version shown against the first.
+        {
+            const bool same = shown && first && shown->error.empty() && shown->tree == first->tree && shown->picture == first->picture;
+            const NodeId verdict = rt.find("main/type/badges/verdict");
+            rt.set(verdict, "text", Value(code == 0 ? std::string("") : same ? std::string("same tree · same pixels ✓") : std::string("differs ✗")));
+            rt.set(verdict, "color", Value(std::string(same ? "#34d399" : "#fb7185")));
         }
         for (std::size_t i = 0; i < languages.size(); ++i) {
             const Tally* v = s.tallies[i];

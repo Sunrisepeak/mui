@@ -125,15 +125,15 @@ int main(int argc, char** argv) {
                                                                           (*px)->width() * 4, imageio::Alpha::premultiplied})
                       .has_value());
         }
-        check_eq(all.hex(), std::string("9f8f409a0793d2fd"));
+        check_eq(all.hex(), std::string("77d08b036a3f4943"));
         promo::Player full(film(), c, {.scale = 1, .fonts = &fonts(), .parallel_raster = false});
         auto hd = full.frame(1860);
         check(hd && (*hd)->width() == 1920 && (*hd)->height() == 1080, "1080p");
-        if (hd) check_eq(hex(promo::pixel_hash(**hd)), std::string("9489b120dd1c3cd5"));
+        if (hd) check_eq(hex(promo::pixel_hash(**hd)), std::string("fdd6dfe2b9b69cac"));
         promo::Player uhd(film(), c, {.scale = 2, .fonts = &fonts(), .parallel_raster = false});
         auto k4 = uhd.frame(400);
         check(k4 && (*k4)->width() == 3840 && (*k4)->height() == 2160, "4K");
-        if (k4) check_eq(hex(promo::pixel_hash(**k4)), std::string("979626a7a9b17025"));
+        if (k4) check_eq(hex(promo::pixel_hash(**k4)), std::string("4e3f3873159366fe"));
     });
 
     s.test("seek: a frame drawn directly is the frame played to — in every chapter, after its moments, and through the rewind", [] {
@@ -165,22 +165,22 @@ int main(int argc, char** argv) {
         const auto r = promo::shown(c, 3020);
         check(r && r->film && tl::frame_at(c.timeline.rate, r->source) == 2999 - 5 * 20, "frame 3020 plays back frame 2899");
         // Without the lines and the timeline (they say where in the film it is), the replay is the first play, byte for byte.
-        promo::Player p(film(), c, {.scale = 0.25f, .subtitles = false, .timebar = false, .fonts = &fonts(), .parallel_raster = false});
+        promo::Player p(film(), c, {.scale = 0.25f, .subtitles = false, .timebar = false, .chapters = false, .fonts = &fonts(), .parallel_raster = false});
         std::vector<std::uint64_t> first, again;
-        for (std::int64_t k = 0; k < 24; ++k) {
-            auto a = p.frame(2820 + k);
+        for (std::int64_t k = 0; k < 40; ++k) {
+            auto a = p.frame(2760 + k);
             check(a.has_value());
             if (!a) return;
             first.push_back(promo::pixel_hash(**a));
         }
-        for (std::int64_t k = 0; k < 24; ++k) {
-            auto b = p.frame(3120 + k);
+        for (std::int64_t k = 0; k < 40; ++k) {
+            auto b = p.frame(3060 + k);
             check(b.has_value());
             if (!b) return;
             again.push_back(promo::pixel_hash(**b));
         }
-        check(first == again, "the replay's frames are the first play's");
-        check(std::set<std::uint64_t>(first.begin(), first.end()).size() > 20, "and the game moves");
+        check(first == again, "the replay's frames are the first play's (before its stamp)");
+        check(std::set<std::uint64_t>(first.begin(), first.end()).size() > 30, "and the game moves");
     });
 
     s.test("every sampled frame's typography at rest is inside the title-safe area and apart, and none is blank — 16:9, and the short at 9:16", [] {

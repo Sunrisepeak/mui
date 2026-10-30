@@ -51,7 +51,12 @@ public:
                                 .height = Dim(layout::pct(100)),
                                 .role = Role::none,
                                 .paint = [st](PaintContext& p) {
-                                    paint_paper(p.list, p.size, {static_cast<float>(st->t * 9), static_cast<float>(st->t * 4)}, 1);
+                                    // The whole frame in the pack's own paper, its grid faint over it.
+                                    p.list.fill_rect({0, 0, p.size.width, p.size.height}, p.theme.color("background"));
+                                    const Color line = p.theme.color("accent").with_alpha(0.08f);
+                                    const float step = 60, ox = std::fmod(static_cast<float>(st->t * 9), step), oy = std::fmod(static_cast<float>(st->t * 4), step);
+                                    for (float x = ox; x < p.size.width; x += step) p.list.fill_rect({std::floor(x), 0, 1, p.size.height}, line);
+                                    for (float y = oy; y < p.size.height; y += step) p.list.fill_rect({0, std::floor(y), p.size.width, 1}, line);
                                     const Rect& s = st->studio;
                                     p.list.box_shadow(s, CornerRadii::all(6), {0, 16}, 44, 0, hex(0x000000, 0.55f));
                                 }});
@@ -73,17 +78,17 @@ public:
             std::string up(packs[static_cast<std::size_t>(pack)]);
             for (char& ch : up) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
             names.push_back(row({.id = std::format("name-{}", k), .gap = 16, .align = "end", .visible = false},
-                                {animate_glyphs(text({.id = "en", .text = up, .style = "display", .color = Fill(hex(ink::ice)), .wrap = false,
+                                {animate_glyphs(text({.id = "en", .text = up, .style = "display", .color = Fill("text"), .wrap = false,
                                                       .size = 44.0f, .weight = 800.0f}),
                                                 in),
-                                 text({.id = "zh", .text = std::string(packs_zh[static_cast<std::size_t>(pack)]), .style = "title", .color = Fill(hex(ink::cyan)),
+                                 text({.id = "zh", .text = std::string(packs_zh[static_cast<std::size_t>(pack)]), .style = "title", .color = Fill("accent"),
                                        .wrap = false, .size = 26.0f, .weight = 600.0f})}));
         }
         const float side = c_.portrait() ? 54 : 96;
         Element type = column({.id = "type", .width = Dim(layout::pct(100)), .padding = Edges(Insets{c_.portrait() ? 160.0f : 80.0f, side, 0, side}), .gap = 8},
                               {row({.id = "head", .align = "end"},
                                    {stack({.id = "names", .align = "start", .grow = 1}, std::move(names)),
-                                    text({.id = "tree", .text = "", .style = "code", .color = Fill(hex(ink::mint)), .wrap = false, .size = 15.0f})})});
+                                    text({.id = "tree", .text = "", .style = "code", .color = Fill("success"), .wrap = false, .size = 17.0f})})});
         return stack({.id = "styles", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .align = "start"},
                      {std::move(back), std::move(studio), std::move(type)});
     }

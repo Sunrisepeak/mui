@@ -222,6 +222,11 @@ source = "shot:time"
 at = "51s"
 length = "4s"
 
+# The same game again: its checksum set beside the first play's, from a run of its own.
+[[track.clip.property]]
+name = "compare"
+keys = [["0s", 1]]
+
 [[track.clip]]
 name = "end"
 source = "shot:end"
@@ -247,6 +252,12 @@ keys = [["3.2s", 0, "out_cubic"], ["4s", 1]]
 [[track]]
 name = "subtitles"
 kind = "events"
+
+[[track.clip]]
+name = "hook"
+source = "line:short"
+at = "0.6s"
+length = "2.9s"
 
 [[track.clip]]
 name = "title"

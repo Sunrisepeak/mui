@@ -30,9 +30,9 @@ $P render promo --dir showcase/promo-video --out x.webm  # an edited copy of the
 | 0:08 | Code | `code`: the tally counter in TypeScript, C++, Python and Lua (`code/`) | `tally.ts` typed (glyph motion over a code block), the counter appearing a node at a time as its lines arrive; then C++, Python, Lua on the beat — each **run** in its own runtime (QuickJS-ng, compiled C++, PocketPy, Lua) and its tree and pixel hashes shown: the same four times |
 | 0:16 | Infinite | `infinite`: the Markdown wall (S1), a thousand documents, the film's own script among them | One shot from a live page out to the whole wall and in to another page; the corner counts what each frame draws, by tier |
 | 0:28 | Styles | `styles`: the style workshop (S2) | Glass, neon, retro, ink, liquid and back to the blueprint, on the beat; the preview's semantic tree hashed each frame: unchanged |
-| 0:36 | Agent | `agent`: a notes panel | An agent stars a note (reversible), undoes it, asks to delete every note — stopped with `needs-answer` until a person answers; the tree as it reads it, the protocol's records, the journal |
-| 0:46 | Time | `time`: the haunted settings breakout (S4), played by a bot through the field's actions | Mid-rally; then **the film rewinds itself** (a `film` clip of its own frames at −5×, the tape's colours drifting apart), into the chapter before, and the game plays again: the same frames, the same checksum |
-| 0:55 | End | `end` | Back into the pixel, which becomes a cursor: `mcpp new hello --template openmui`; this cut's own timeline in `openmui.ui.timeline`'s editor, its playhead on the frame; the closing line |
+| 0:36 | Agent | `agent`: a notes panel | An agent stars a note (reversible), undoes it, asks to delete every note — stopped with `needs-answer` until a person answers; a headline says what each step means; the tree as it reads it, the protocol's records, the journal |
+| 0:46 | Time | `time`: the haunted settings breakout (S4), played by a bot through the field's actions | Mid-rally; then **the film rewinds itself** (a `film` clip of its own frames at −5×, the tape's colours drifting apart), into the chapter before, and the game plays again: the same frames, and a MATCH stamp setting its checksum beside the first play's — computed by a second run of the game on a host of its own |
+| 0:55 | End | `end` | Back into the pixel, which becomes a cursor: `mcpp new hello --template openmui`; this cut's own timeline in `openmui.ui.timeline`'s editor, its playhead on the frame; then a clean card: the wordmark and the closing line |
 
 The data, every file carried in the program (`openmui.build.embed`) and read from `--dir` when edited:
 
@@ -64,7 +64,7 @@ The data, every file carried in the program (`openmui.build.embed`) and read fro
 | Reading time | each line up long enough | ≥ 1 s, ≤ 9 Chinese / 17 English characters a second; the tightest line has 1.45 s to spare |
 | Beats | cuts and hits within a frame | 0.00 frames off by the score's beat; onsets heard in the track within 0.36 frames |
 | Lines | Chinese and English | all of them |
-| Rendering | 60 s 1080p60: ≤ 15 s (GPU), ≤ 60 s (CPU) | CPU only, 32 cores: the frames alone in 52 s (8 workers, 3 GB) or 78 s (one, 1.1 GB); with a fast WebM encode about 2 min; 4K frames 212 s; GPU not yet (below) |
+| Rendering | 60 s 1080p60: ≤ 15 s (GPU), ≤ 60 s (CPU) | CPU only, a shared 32-core machine: the frames alone in 36 s (8 workers, 2.9 GB) or 85 s (one, 1.2 GB); with VP9 in real-time mode 68 s, at libvpx's default quality on one thread (the same bytes everywhere) far longer; 4K frames 212 s; GPU not yet (below) |
 
 Not yet: rendering on the GPU and with hardware encoding (the video pipeline draws on the CPU reference renderer), the four-layer cache that re-renders only what an edit touches, the preview with hot reload and edits written back (§12.6), the comparison with the benchmarks and the outside viewers (§5.2) — and the benchmarks' shot-by-shot breakdown (§2.3) needs their files.
 

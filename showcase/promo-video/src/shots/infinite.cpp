@@ -20,7 +20,13 @@ namespace omui::promo {
 namespace {
 
 constexpr std::size_t wall_size = 1000;
-constexpr double live_zoom = 1.52;  // a 640-unit window 970 px wide: past the wall's 900 px, so it is live
+constexpr double live_zoom = 1.52;
+
+std::string grouped(std::size_t n) {  // 1,000
+    std::string s = std::to_string(n);
+    for (int i = static_cast<int>(s.size()) - 3; i > 0; i -= 3) s.insert(static_cast<std::size_t>(i), ",");
+    return s;
+}  // a 640-unit window 970 px wide: past the wall's 900 px, so it is live
 
 struct Anchors {
     world::Camera a, b;      // the two pages
@@ -75,7 +81,7 @@ public:
                               .align = "end"},
                              {column({.id = "hud", .padding = Edges(12.0f, 16.0f), .gap = 4, .align = "end", .background = Fill(hex(ink::paper, 0.82f)),
                                       .border_color = Fill(hex(ink::cyan, 0.3f)), .border_width = 1, .radius = 6},
-                                     {text({.id = "count", .text = "", .style = "code", .color = Fill(hex(ink::ice)), .wrap = false, .size = 16.0f, .weight = 600.0f}),
+                                     {text({.id = "count", .text = "", .style = "code", .color = Fill(hex(ink::ice)), .wrap = false, .size = 30.0f, .weight = 700.0f}),
                                       text({.id = "tiers", .text = "", .style = "code", .color = Fill(hex(ink::muted)), .wrap = false, .size = 14.0f}),
                                       text({.id = "zoom", .text = "", .style = "code", .color = Fill(hex(ink::cyan)), .wrap = false, .size = 14.0f}),
                                       text({.id = "budget", .text = "≤ 1 ms of CPU a frame · tests/bench", .style = "code", .color = Fill(hex(ink::muted, 0.8f)),
@@ -116,7 +122,7 @@ public:
             const float side = std::max(r.width, r.height);
             (side >= 900 ? live : side >= 40 ? textured : boxes) += 1;
         }
-        rt.set(rt.find("main/type/hud/count"), "text", Value(std::format("{} documents · {} on screen", wall_size, windows)));
+        rt.set(rt.find("main/type/hud/count"), "text", Value(std::format("{} of {} on screen", grouped(windows), grouped(wall_size))));
         rt.set(rt.find("main/type/hud/tiers"), "text", Value(std::format("boxes {} · textures {} · live {}", boxes, textured, live)));
         rt.set(rt.find("main/type/hud/zoom"), "text", Value(std::format("zoom {:.1f}%", c.zoom * 100)));
         rt.set(hud_, "opacity", Value(smooth(t, 0.4, 0.9)));

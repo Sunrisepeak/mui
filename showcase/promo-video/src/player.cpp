@@ -93,7 +93,7 @@ Player::Player(const Film& film, const Cut& cut, PlayerOptions options) : film_(
         if (auto r = own_fonts_->add_defaults(); !r) warn("promo: the default fonts did not load: {}", r.error());
         fonts_ = own_fonts_.get();
     }
-    overlay_ = std::make_unique<Overlay>(cut, film.subtitles, size_, OverlayOptions{.subtitles = options_.subtitles, .timebar = options_.timebar});
+    overlay_ = std::make_unique<Overlay>(cut, film.subtitles, size_, OverlayOptions{.subtitles = options_.subtitles, .timebar = options_.timebar, .chapters = options_.chapters});
     overlay_host_ = std::make_unique<Headless>(HeadlessOptions{.size = size_,
                                                                .scale = options_.scale,
                                                                .fps = {cut.timeline.rate.num, cut.timeline.rate.den},
@@ -174,7 +174,7 @@ std::expected<std::shared_ptr<const raster::Surface>, std::string> Player::playe
         return s;
     }
     // Not kept (asked for out of order): drawn afresh.
-    Player again(*film_, *cut_, PlayerOptions{options_.size, options_.scale, options_.subtitles, options_.timebar, fonts_, {}, options_.parallel_raster});
+    Player again(*film_, *cut_, PlayerOptions{options_.size, options_.scale, options_.subtitles, options_.timebar, options_.chapters, fonts_, {}, options_.parallel_raster});
     auto f = again.frame(frame);
     if (!f) return std::unexpected(f.error());
     return std::make_shared<raster::Surface>(**f);
@@ -253,7 +253,7 @@ std::expected<const raster::Surface*, std::string> Player::frame(std::int64_t i)
 }
 
 std::expected<raster::Surface, std::string> Player::direct(std::int64_t i) {
-    Player fresh(*film_, *cut_, PlayerOptions{options_.size, options_.scale, options_.subtitles, options_.timebar, fonts_, {}, options_.parallel_raster});
+    Player fresh(*film_, *cut_, PlayerOptions{options_.size, options_.scale, options_.subtitles, options_.timebar, options_.chapters, fonts_, {}, options_.parallel_raster});
     auto f = fresh.frame(i);
     if (!f) return std::unexpected(f.error());
     return **f;

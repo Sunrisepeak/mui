@@ -16,6 +16,7 @@ export namespace omui::promo {
 struct OverlayOptions {
     bool subtitles = true;
     bool timebar = true;
+    bool chapters = true;
 };
 
 class Overlay {

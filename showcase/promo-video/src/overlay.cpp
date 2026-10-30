@@ -9,7 +9,7 @@ namespace omui::promo {
 
 namespace {
 
-constexpr float subtitle_zh = 40, subtitle_en = 25;
+constexpr float subtitle_zh = 50, subtitle_en = 29;
 
 std::string timecode(double s) {
     const auto cs = static_cast<std::int64_t>(std::floor(s * 100 + 1e-9));
@@ -210,7 +210,7 @@ void Overlay::at(Runtime& rt, std::int64_t frame, const std::optional<Shown>& sh
     for (std::size_t i = 0; i < chapters_.size(); ++i) {
         const double from = cut_->seconds_of(chapters_[i].frame);
         const double to = i + 1 < chapters_.size() ? cut_->seconds_of(chapters_[i + 1].frame) : 1e9;
-        const bool on = !film && t >= std::max(from, 3.0) && t < to;
+        const bool on = options_.chapters && !film && t >= std::max(from, 3.0) && t < to;
         rt.set(chapter_nodes_[i], "visible", Value(on));
         rt.set(chapter_nodes_[i], "opacity", Value(on ? smooth(t, std::max(from, 3.0), std::max(from, 3.0) + 0.3) : 0.0));
     }

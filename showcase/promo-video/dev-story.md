@@ -47,8 +47,8 @@ And the player's rule, found by the seek test: a moment's change must be followe
 
 On the 32-core development machine, release build, CPU reference renderer:
 
-- The film's 3600 frames at 1080p alone (`--out promo.frames.txt`): 52 s with 8 workers (69 frames a second, 3 GB at most), 78 s with one (1.1 GB) — one player already draws each frame's rows in bands on every core, so more players buy less than it seems; the same hashes either way. 4K: 212 s with 8.
-- With a WebM (VP9 real-time, 8 threads, 10 Mb/s): about 2 minutes — the encoder is the bottleneck; VP9 at its default quality on one thread (the same bytes everywhere) runs at about 2 frames a second.
+- The film's 3600 frames at 1080p alone (`--out promo.frames.txt`): 36 s with 8 workers (100 frames a second, 2.9 GB at most), 85 s with one (1.2 GB) — one player already draws each frame's rows in bands on every core, so more players buy less than it seems; the same hashes either way. 4K: 212 s with 8. (The machine is shared with other builds: the same run measured 52 s once.)
+- With a WebM (VP9 real-time, 8 threads, 10 Mb/s): 68 s for the film (72 MB), 20 s for the short at 16:9 and 19 s at 9:16 — the encoder is the bottleneck; VP9 at its default quality on one thread (the same bytes everywhere) runs at about 2 frames a second.
 - The sound track: 1.4 s for sixty seconds.
 
 The plan's targets (§12.6) are not met yet: ≤ 15 s on the GPU with a hardware encoder, ≤ 60 s on the CPU including the encode, ≤ 1 GB at 1080p, and re-rendering only what an edit touches. The frames are ready for it — each a function of time, hashed, independent — but the video pipeline draws on the CPU reference renderer and encodes on one thread.
@@ -61,6 +61,10 @@ The plan's targets (§12.6) are not met yet: ≤ 15 s on the GPU with a hardware
 - **What is missing:** the GPU path and hardware encode; the incremental cache; the preview with hot reload and edits written back to the timeline; the shot-by-shot breakdown of the three benchmarks (it needs their files); the maintainers' scoring against them and the five outside viewers (§5.2).
 - **Improvements to make:** a GPU frame source for `openmui.video` (rhi plus readback), the frame and chunk caches keyed by each frame's inputs, a shared font collection safe across threads (each worker loads its own), and an encoder that splits the film into independently encoded chunks.
 
-## 7. Practices that generalise
+## 7. A second opinion
+
+A reviewer (codex, from a contact sheet of a frame every two seconds) scored it a strong engineering demo and a weak promo: too much small type, every chapter equally dense, the hook's meaning too small to grasp, an ending that says four things. What was taken: the hook now says its point in the lines (*This pixel knows what it is*) and its label is larger; the lines are a quarter larger; the code chapter states its verdict in large type (*same tree · same pixels ✓*); the wall's count is large; the style chapter's whole frame takes each pack's paper; the agent chapter has a headline per step and larger type, and leans in; the replay carries a MATCH stamp from a second, independent run of the game; the end gives the command and the editor their moment and then a clean card. What was not: shortening every line to six words (they are read in two languages at once and pass the reading-time check), and moving the command earlier (the doc's ending is the call to action).
+
+## 8. Practices that generalise
 
 See [best practices](../../docs/en/best-practices.md) §11: what a scene's time says, and its moments; motion pinned to its moment; frames drawn complete; text checked where it is drawn. And from §8: a film's acceptance is tests like any other — its hashes pinned, its seeks compared, its typography checked frame by frame.

@@ -9,6 +9,9 @@ namespace openmui::build {
 bool dist_toy(toy_options opt) {
     mcpp::provides_pack_format("dist-toy");
     if (std::string_view(mcpp::pack_format()) != "dist-toy") return true;
+    // Only the package being packed (the site packs; the fighting game it
+    // depends on does not).
+    if (!is_packed()) return true;
     const std::string gen = generator();
     if (opt.target.empty() || gen.empty()) {
         std::println(std::cerr, "openmui.build.toy: dist_toy() names the program target, and needs omui-gen built for the build");

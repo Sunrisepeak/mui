@@ -56,23 +56,39 @@ std::string paragraph(Rng& r) {
 std::string page(Rng& r, std::size_t kind, const std::string& title) {
     std::string md = std::format("# {}\n\n", title);
     switch (kind) {
-        case 0:  // a README
-            md += paragraph(r) + "\n\n## Install\n\n```sh\nmcpp add " + std::string(r.pick(words)) + "\n```\n\n## Use\n\n";
+        case 0: {  // a README
+            // One draw a statement: the operands of + (and a call's arguments)
+            // are evaluated in an order the compiler chooses, GCC's not Clang's.
+            const std::string about = paragraph(r);
+            const std::string_view package = r.pick(words);
+            md += about + "\n\n## Install\n\n```sh\nmcpp add " + std::string(package) + "\n```\n\n## Use\n\n";
             for (int i = 0; i < 5; ++i) md += "- " + sentence(r, 4 + r.below(6)) + "\n";
-            md += "\nSee [the guide](https://openmui.dev/" + std::string(r.pick(words)) + ") and `" + std::string(r.pick(words)) + "()`.\n";
+            const std::string_view guide = r.pick(words);
+            const std::string_view call = r.pick(words);
+            md += "\nSee [the guide](https://openmui.dev/" + std::string(guide) + ") and `" + std::string(call) + "()`.\n";
             break;
+        }
         case 1:  // a long page
             for (int i = 0; i < 4; ++i) {
-                md += std::format("## {} {}\n\n", r.pick(adjectives), r.pick(nouns));
-                md += paragraph(r) + "\n\n" + paragraph(r) + "\n\n";
+                const std::string_view adjective = r.pick(adjectives);
+                const std::string_view noun = r.pick(nouns);
+                md += std::format("## {} {}\n\n", adjective, noun);
+                const std::string first = paragraph(r);
+                const std::string second = paragraph(r);
+                md += first + "\n\n" + second + "\n\n";
             }
             break;
         case 2:  // code
             md += paragraph(r) + "\n\n";
             for (int b = 0; b < 3; ++b) {
                 md += "```cpp\n";
-                for (int i = 0; i < 9; ++i)
-                    md += std::format("auto {}_{} = {}({}, {});\n", r.pick(words), i, r.pick(words), r.below(1000), r.pick(words));
+                for (int i = 0; i < 9; ++i) {
+                    const std::string_view name = r.pick(words);
+                    const std::string_view function = r.pick(words);
+                    const std::size_t number = r.below(1000);
+                    const std::string_view argument = r.pick(words);
+                    md += std::format("auto {}_{} = {}({}, {});\n", name, i, function, number, argument);
+                }
                 md += "```\n\n";
             }
             break;
@@ -85,8 +101,14 @@ std::string page(Rng& r, std::size_t kind, const std::string& title) {
             break;
         default:  // a table
             md += paragraph(r) + "\n\n| Name | Frames | Cost (ms) | Notes |\n|---|---:|---:|---|\n";
-            for (int i = 0; i < 10; ++i)
-                md += std::format("| {} | {} | {}.{} | {} |\n", r.pick(words), 60 + r.below(1000), r.below(9), r.below(10), sentence(r, 3));
+            for (int i = 0; i < 10; ++i) {
+                const std::string_view name = r.pick(words);
+                const std::size_t frames = 60 + r.below(1000);
+                const std::size_t whole = r.below(9);
+                const std::size_t tenth = r.below(10);
+                const std::string notes = sentence(r, 3);
+                md += std::format("| {} | {} | {}.{} | {} |\n", name, frames, whole, tenth, notes);
+            }
             md += "\n> " + sentence(r, 10) + "\n";
             break;
     }
@@ -172,7 +194,9 @@ std::vector<Document> synthetic(std::size_t count, std::uint64_t seed, std::size
         Document d;
         const std::size_t g = i % groups;
         d.group = std::format("{}-{}", nouns[g % nouns.size()], g / nouns.size() + 1);
-        d.title = std::format("{} {} {}", r.pick(adjectives), r.pick(nouns), i + 1);
+        const std::string_view adjective = r.pick(adjectives);  // apart: arguments are evaluated in no set order
+        const std::string_view noun = r.pick(nouns);
+        d.title = std::format("{} {} {}", adjective, noun, i + 1);
         d.path = std::format("{}/{:04}.md", d.group, i);
         d.source = page(r, i % 5, d.title);
         d.key = key_of(d.path);

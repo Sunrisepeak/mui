@@ -229,6 +229,18 @@ void DisplayList::style_glyphs(std::size_t index, std::span<const GlyphStyle> st
     if (auto* g = std::get_if<DrawGlyphs>(&commands_[index]))
         g->styles = styles.size() == g->glyphs.size() ? arena_.copy(styles) : std::span<const GlyphStyle>{};
 }
+void DisplayList::move_fill(std::size_t index, Point offset, float opacity) {
+    if (index >= commands_.size()) return;
+    std::visit(
+        [&](auto& c) {
+            using T = std::decay_t<decltype(c)>;
+            if constexpr (std::same_as<T, FillRect> || std::same_as<T, FillRoundRect>) {
+                c.rect = c.rect.offset(offset);
+                if (c.paint.kind == Paint::Kind::solid) c.paint.color.a *= std::clamp(opacity, 0.0f, 1.0f);
+            }
+        },
+        commands_[index]);
+}
 void DisplayList::draw_mesh(ImageRef image, std::span<const Point> positions, std::span<const Point> uvs, std::span<const std::uint16_t> indices,
                             Sampling s, float opacity, float seam, const Material* material) {
     Paint paint;

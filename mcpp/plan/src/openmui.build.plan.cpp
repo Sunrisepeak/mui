@@ -57,6 +57,13 @@ std::vector<std::string> files_under(const std::filesystem::path& dir) {
     return files;
 }
 
+bool is_packed() {
+    const std::string_view stage = mcpp::pack_stage_dir();
+    if (stage.empty()) return true;
+    const std::filesystem::path dir{stage};
+    return generic_utf8(dir.filename()) == std::format("{}-{}-{}", mcpp::package_name(), mcpp::package_version(), mcpp::target());
+}
+
 std::vector<std::string> table_names(const std::filesystem::path& file, std::string_view table) {
     const std::string open = std::format("[{}.", table);
     std::vector<std::string> out;

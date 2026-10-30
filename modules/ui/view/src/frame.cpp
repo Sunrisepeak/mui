@@ -609,8 +609,18 @@ void Runtime::Impl::restyle_glyphs(NodeId id, std::size_t first) {
     // Every glyph command recorded since `first` — the node's own and its
     // descendants', each descendant a paragraph of its own — styled by the
     // node's glyph motion at this frame's time (D-68): the components did
-    // nothing. A descendant with a motion of its own keeps it.
+    // nothing. A descendant with a motion of its own keeps it. The text's
+    // decorations go with it: a fill no taller than a line drawn under or
+    // behind a paragraph's glyphs (an underline, a strikethrough, an inline
+    // code's background) moves by those glyphs' mean offset and fades with
+    // their mean opacity.
     Node& n = at(id);
+    struct Fill {
+        std::size_t   index;
+        Rect          rect;
+        std::uint32_t paragraph;
+    };
+    std::vector<Fill> fills;
     std::vector<std::size_t> at_index;
     std::vector<std::span<const render::Glyph>> runs;
     std::vector<std::uint32_t> paragraphs;
@@ -629,6 +639,10 @@ void Runtime::Impl::restyle_glyphs(NodeId id, std::size_t first) {
             at_index.push_back(i);
             runs.push_back(g->glyphs);
             paragraphs.push_back(open.empty() ? 0 : open.back());
+        } else if (!kept) {
+            const std::uint32_t paragraph = open.empty() ? 0 : open.back();
+            if (const auto* r = std::get_if<render::FillRect>(&commands[i])) fills.push_back({i, r->rect, paragraph});
+            else if (const auto* rr = std::get_if<render::FillRoundRect>(&commands[i])) fills.push_back({i, rr->rect, paragraph});
         }
     }
     if (runs.empty()) return;
@@ -636,6 +650,30 @@ void Runtime::Impl::restyle_glyphs(NodeId id, std::size_t first) {
     const GlyphFrame f = glyph_frame(state.motion, now() - state.start, runs, reduce_motion, paragraphs);
     state.ends = f.ends;
     for (std::size_t k = 0; k < at_index.size(); ++k) list.style_glyphs(at_index[k], f.styles[k]);
+    for (const Fill& fill : fills) {
+        // The glyphs whose pens it lies under: across its width, about their line's middle.
+        double dx = 0, dy = 0, opacity = 0;
+        std::size_t count = 0;
+        for (std::size_t k = 0; k < at_index.size(); ++k) {
+            if (paragraphs[k] != fill.paragraph || f.styles[k].empty()) continue;
+            const auto& g = std::get<render::DrawGlyphs>(list.commands()[at_index[k]]);
+            if (fill.rect.height > 1.6f * g.size) continue;
+            for (std::size_t j = 0; j < g.glyphs.size(); ++j) {
+                const Point pen{g.origin.x + g.glyphs[j].position.x, g.origin.y + g.glyphs[j].position.y};
+                const float middle = pen.y - 0.3f * g.size;
+                if (pen.x < fill.rect.x || pen.x >= fill.rect.x + fill.rect.width) continue;
+                if (std::abs(fill.rect.y + fill.rect.height / 2 - middle) > 0.6f * g.size) continue;
+                const render::GlyphStyle& st = f.styles[k][j];
+                dx += st.transform.e;
+                dy += st.transform.f;
+                opacity += st.opacity;
+                ++count;
+            }
+        }
+        if (count == 0) continue;
+        const double c = static_cast<double>(count);
+        list.move_fill(fill.index, {static_cast<float>(dx / c), static_cast<float>(dy / c)}, static_cast<float>(opacity / c));
+    }
 }
 
 NodeId Runtime::Impl::hit(NodeId id, Point window, std::optional<Rect>) const {

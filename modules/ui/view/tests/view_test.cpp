@@ -928,25 +928,23 @@ int main(int argc, char** argv) {
         check(rt.path(rt.children(column)[3]) == rt.path(kids[3]));
     });
 
-    s.test("immediate mode: a generated id is the call site's file by its own name, line and column — the same wherever the source was checked out", [] {
+    s.test("immediate mode: a generated id is the call site's file by its own name and line — the same wherever the source was checked out, whichever compiler", [] {
         Runtime rt(options({300, 200}));
         std::source_location site;
         rt.mount("main", immediate([&](Ui& ui) {
-                     site = std::source_location::current(); ui.column({}, [] {});  // one line: the same site
+                     site = std::source_location::current(); ui.column({}, [] {}); ui.column({}, [] {});  // one line: two columns
                  }));
         rt.frame({seconds(0), {}});
         std::string_view file = site.file_name();
         file.remove_prefix(file.find_last_of("/\\") + 1);
-        const std::string where = std::format("{}:{}:", file, site.line());
-        // The column's id hashes "<file>:<line>:<column>": find the column of the call by trying the line's.
-        const std::string got(rt.path(rt.children(rt.find("main"))[0]));
-        bool found = false;
-        for (std::uint32_t c = 1; c < 200 && !found; ++c) {
-            std::uint32_t h = 2166136261u;
-            for (const unsigned char ch : where + std::to_string(c)) h = (h ^ ch) * 16777619u;
-            found = got.ends_with(std::format("column:i{:08x}", h));
-        }
-        check(found, std::format("{} from {}", got, where));
+        std::uint32_t h = 2166136261u;
+        for (const unsigned char ch : std::format("{}:{}", file, site.line())) h = (h ^ ch) * 16777619u;
+        const auto kids = rt.children(rt.find("main"));
+        check(kids.size() == 2);
+        if (kids.size() != 2) return;
+        const std::string first(rt.path(kids[0])), second(rt.path(kids[1]));
+        check(first.ends_with(std::format("column:i{:08x}", h)), std::format("{} from {}:{}", first, file, site.line()));
+        check(second.ends_with(std::format("column:i{:08x}.1", h)), std::format("the second on the line, in order: {}", second));
     });
 
     s.test("immediate mode: timers and events drive builds; retained views nest", [] {
@@ -1128,6 +1126,38 @@ int main(int argc, char** argv) {
         check(typed != blank && typed != rest, "a few letters typed");
         plain.frame({seconds(9), {}});
         check(draw(plain, glyphs).hash() == rest);
+    });
+
+    s.test("glyph motion takes the text's decorations along: an underline under the glyphs moves and fades with them, a background taller than a line and a fill beside them stay", [] {
+        static const render::Glyph word[] = {{.id = 1, .position = {0, 0}}, {.id = 2, .position = {9, 0}}, {.id = 3, .position = {18, 0}}};
+        GlyphMotion m;
+        m.domain = GlyphDomain::glyph;
+        m.from = {.y = 10, .opacity = 0};
+        m.transition = Transition::tween(seconds(1), hanim::ease::linear);
+        m.stagger = seconds(0);
+        Runtime rt(options({200, 80}));
+        rt.mount("main", column({}, {animate_glyphs(painter({.id = "p", .width = 200, .height = 60, .paint = [](PaintContext& c) {
+                                                       c.list.fill_rect({0, 0, 200, 60}, Color::hex(0x202020));     // the whole box: no decoration
+                                                       c.list.draw_glyphs({}, 16, {10, 30}, word, render::Paint::solid(Color::hex(0xffffff)));
+                                                       c.list.fill_rect({10, 32, 27, 1}, Color::hex(0xffffff));      // the underline
+                                                       c.list.fill_rect({120, 20, 20, 12}, Color::hex(0xff0000));    // beside the text
+                                                   }}),
+                                                   m)}));
+        rt.frame({seconds(0), {}});
+        rt.frame({seconds(0.5), {}});
+        std::vector<render::FillRect> fills;
+        for (const auto& c : rt.display_list().commands())
+            if (const auto* f = std::get_if<render::FillRect>(&c)) fills.push_back(*f);
+        check(fills.size() == 3);
+        if (fills.size() != 3) return;
+        check(fills[0].rect == Rect{0, 0, 200, 60} && fills[0].paint.color.a == 1, "the box stays");
+        check_near(fills[1].rect.y, 37.0, 1e-4);
+        check_near(fills[1].paint.color.a, 0.5, 1e-4);
+        check(fills[1].rect.x == 10 && fills[1].rect.width == 27, "the underline halfway, with its glyphs");
+        check(fills[2].rect == Rect{120, 20, 20, 12} && fills[2].paint.color.a == 1, "the fill beside the text stays");
+        rt.frame({seconds(2), {}});
+        for (const auto& c : rt.display_list().commands())
+            if (const auto* f = std::get_if<render::FillRect>(&c); f && f->rect.height == 1) check(f->rect.y == 32 && f->paint.color.a == 1, "at rest, where it was drawn");
     });
 
     s.test("glyph motion on a container: its descendants' text, each a paragraph; one with its own motion keeps it", [] {

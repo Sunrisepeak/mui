@@ -271,6 +271,10 @@ public:
     // or removes them (empty): how the runtime animates any node's text after
     // the node painted it (D-68).
     void style_glyphs(std::size_t index, std::span<const GlyphStyle> styles);
+    // Moves the FillRect or FillRoundRect at `index` by `offset` and fades its
+    // solid paint by `opacity`: a text's decoration (an underline, an inline
+    // code's background) following its glyphs' motion (D-68).
+    void move_fill(std::size_t index, Point offset, float opacity);
     void push_clip(const Rect& r, const CornerRadii& radii = {});
     void push_clip(const Path& path, FillRule rule = FillRule::nonzero);
     void pop_clip();

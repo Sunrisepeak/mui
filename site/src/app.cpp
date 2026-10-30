@@ -287,6 +287,13 @@ struct Site {
                 playhead.set(t);
                 runtime->request_frame();
             }
+        } else if (mode == "live") {
+            // The strip runs on a second at a time, on frames there are anyway:
+            // what it draws is a function of its properties, the same whenever
+            // something else has it drawn again (a texture arriving, a hash),
+            // and an idle page stays idle.
+            const double second = std::floor(page_time());
+            if (second > time_end.peek()) strip_to(second);
         }
     }
 
@@ -649,8 +656,9 @@ Element moves_window(const std::shared_ptr<Site>& s, bool live) {
                                }}));
     }
     // The table: a header, then a row a move (rebuilt for another fighter, or another move chosen).
-    constexpr std::array<float, 7> widths{64, 56, 48, 68, 64, 72, 56};
-    auto cells = [&](std::vector<std::string> values, std::string_view style) {
+    // Static: `cells` runs again in the dynamic below, after this function has returned.
+    static constexpr std::array<float, 7> widths{64, 56, 48, 68, 64, 72, 56};
+    auto cells = [](std::vector<std::string> values, std::string_view style) {
         std::vector<Element> out;
         for (std::size_t c = 1; c < values.size(); ++c)
             out.push_back(text({.text = std::move(values[c]), .style = std::string(style), .width = Dim(widths[c])}));
@@ -663,7 +671,7 @@ Element moves_window(const std::shared_ptr<Site>& s, bool live) {
         head.push_back(std::move(e));
     Element table = column({.id = "table", .gap = 2},
                            {row({.id = "head", .padding = Edges(4.0f, 8.0f), .gap = 6, .align = "center"}, std::move(head)),
-                            dynamic([s, zh, cells, widths] {
+                            dynamic([s, zh, cells] {
                                 const std::string who = s->fighter.get();
                                 const std::string chosen = s->move.get();
                                 const gongfu::Fighter& f = fighting::roster().fighters[fighting::fighter_index(who)];

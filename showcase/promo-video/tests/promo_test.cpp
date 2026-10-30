@@ -113,6 +113,7 @@ int main(int argc, char** argv) {
         constexpr std::array<std::int64_t, 10> frames{60, 400, 900, 1500, 1820, 1830 + 30, 2470, 2900, 3030, 3420};
         promo::Player p(film(), c, {.scale = 0.5f, .fonts = &fonts(), .parallel_raster = false});
         Hash all;
+        const auto dir = scratch_dir("promo-frames");  // once: it starts empty
         for (const std::int64_t f : frames) {
             auto px = p.frame(f);
             check(px.has_value(), px ? "" : px.error());
@@ -120,12 +121,11 @@ int main(int argc, char** argv) {
             const auto h = promo::pixel_hash(**px);
             all.u64(h);
             std::println("    frame {:>4}: {}", f, hex(h));
-            const auto dir = scratch_dir("promo-frames");
             check(imageio::save_png(dir / std::format("{:04}.png", f), {reinterpret_cast<const std::uint8_t*>((*px)->row(0)), (*px)->width(), (*px)->height(),
                                                                           (*px)->width() * 4, imageio::Alpha::premultiplied})
                       .has_value());
         }
-        check_eq(all.hex(), std::string("77d08b036a3f4943"));
+        check_eq(all.hex(), std::string("14d731cf36b93bff"));
         promo::Player full(film(), c, {.scale = 1, .fonts = &fonts(), .parallel_raster = false});
         auto hd = full.frame(1860);
         check(hd && (*hd)->width() == 1920 && (*hd)->height() == 1080, "1080p");

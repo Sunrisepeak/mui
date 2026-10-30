@@ -65,12 +65,15 @@ std::string Ui::next_id(std::string_view type, std::string_view explicit_id, con
         where += part;
         where += '/';
     }
-    // The file by its own name: where the source was checked out (an
-    // absolute path, as the compiler was given it) is no part of an id, so
-    // the ids — and the tree's hash — are the same on every machine.
+    // The file by its own name and the line: where the source was checked
+    // out (an absolute path, as the compiler was given it) is no part of an
+    // id, nor is the column (GCC and Clang count it from different places in
+    // a call), so the ids — and the tree's hash — are the same on every
+    // machine and compiler. Two calls of a type on one line are told apart
+    // below, in order, as a loop's are.
     std::string_view file = at.file_name();
     if (const auto slash = file.find_last_of("/\\"); slash != std::string_view::npos) file.remove_prefix(slash + 1);
-    where += std::format("{}:{}:{}", file, at.line(), at.column());
+    where += std::format("{}:{}", file, at.line());
     std::string id = std::format("{}:i{:08x}", type, fnv1a(where));
     const int n = seen_[id]++;
     if (n > 0) id += std::format(".{}", n);  // the same call site in a loop

@@ -39,7 +39,7 @@ The site shows openmui's thesis instead of describing it: **the interface is a s
   - The answer buttons are the person's own (S-10). When the agent tries to press them, it is refused whatever actor it names.
   - The panel shows each request and its records.
 - **Links.** A document's link to another document moves to that place. Any other link is opened by the host: the system's browser on the desktop, a new tab on the Web. This goes through `Runtime::open_url`, which accepts only http, https and mailto.
-- **The page's time.** The footer is a strip of the page's last 20 seconds, with what happened marked where it did: a place reached, a language, a lens.
+- **The page's time.** The footer is a strip of the page's last 20 seconds, with what happened marked where it did: a place reached, a language, a lens. It runs on a second at a time, on frames the page draws anyway, so an idle page stays idle and the strip is drawn the same whenever it is drawn again.
   - Drag the playhead back, or let an agent set it (the strip is a slider on the bus), and the page is drawn as it was: the camera mid-flight, the letters of a language switch gathering, a lens fading in.
   - Play it forwards or backwards. **Live** returns to the present.
   - Animations are functions of time, so every moment can be drawn again. The runtime re-evaluates what it holds (D-60), and components that animate on their own are told the time (`retimed`): the canvas keeps its camera's past for this.
@@ -88,5 +88,7 @@ python3 -m http.server -d target/site            # and look at it
 - the pixels of home, the overview, the wireframe, the agent's JSON, the timeline, the wall, example 01, the move list, the agent asking, the Chinese page and the page's time dragged back into a language switch, pinned on every platform (each picture's own hash printed, so a platform that differs shows which);
 - the reference run: every sampled frame pinned (`reference/ci.frames.omui.json`; when they differ the run's own table is written to `$TMPDIR/openmui-tests/site-reference/`, with three of its frames beside it), a frame played to again the same; the panel in the page: an agent picks frame 9, and the hash drawn here is a fresh replay's and CI's;
 - the static HTML and its injection into dist-toy's page.
+
+The tests run natively on every CI row and on wasm32 under node in the Web row, with the same pins.
 
 Changing a document changes the pinned hashes. Look at the pictures (`$TMPDIR/openmui-tests/site/`), then update the pins.

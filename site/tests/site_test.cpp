@@ -484,7 +484,7 @@ int main(int argc, char** argv) {
         a.h.advance(seconds(1));
         shot("time.png");
         std::println("    pixels {}", all.hex());
-        check_eq(all.hex(), std::string("2ec8e0db699bfc36"));
+        check_eq(all.hex(), std::string("a1e71b47acd65907"));
     });
 
     s.test("the reference run: each sampled frame's pixels hashed as a browser hashes them, pinned (reference/ci.frames.omui.json)", [] {

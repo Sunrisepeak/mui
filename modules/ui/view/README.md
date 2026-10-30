@@ -54,7 +54,9 @@ The retained and immediate view runtime (plan §3–§5):
   `glyph_motion` property (`animate_glyphs(element, GlyphMotion::rise())`, or a value an agent sets).
   After a component paints, the runtime styles the glyphs it recorded at the frame's time, so every
   component's text can be typed out, raised, gathered, scattered or set to a wave with no change to
-  the component. The motion is a pure function of time: it seeks, pauses and steps, and respects
+  the component. The text's decorations go with it: a fill no taller than a line, drawn under or
+  behind a paragraph's glyphs (an underline, a strikethrough, an inline code's background), moves by
+  those glyphs' mean offset and fades with their mean opacity. The motion is a pure function of time: it seeks, pauses and steps, and respects
   reduced motion. It costs about 90 ns per glyph per frame (`text/glyph-motion`).
 - **pixel effects** (D-68): any node's whole drawing, children included, in an effect layer of
   `render::effects()`: dissolve, wipe, reveal, displace, noise, chromatic, blur, pixelate, particles,

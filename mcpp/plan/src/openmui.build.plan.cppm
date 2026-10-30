@@ -35,6 +35,13 @@ bool submit(std::span<const edge> edges);
 // depends on openmui.gen with tools = ["omui-gen"]).
 [[nodiscard]] std::string generator();
 
+// Whether this package is the one `mcpp pack` is packing (true when the
+// engine does not say). Packing a program is that package's alone: a package
+// it depends on leaves its own packing alone. The stage directory names it
+// (<name>-<version>-<target>); the graph cannot, since mcpp hands each
+// workspace member a graph rooted at itself.
+[[nodiscard]] bool is_packed();
+
 // A module's C++ namespace: acme.ui → acme::ui.
 [[nodiscard]] std::string namespace_of(std::string_view module);
 

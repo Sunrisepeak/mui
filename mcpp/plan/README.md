@@ -8,4 +8,5 @@ What openmui's build plugins share (`mcpp/README.md`); each plugin re-exports it
 - `generator()`: `omui-gen` as built for this build;
 - `files_ending()`, `files_under()`, `table_names()`: the files a plugin reads;
 - `utf8()`, `generic_utf8()`: a path's text, never through the process's code page;
-- `namespace_of()`: a module's C++ namespace.
+- `namespace_of()`: a module's C++ namespace;
+- `is_packed()`: whether this package is the one `mcpp pack` is packing. The pack's stage directory names it; the resolved graph can't, because mcpp hands each workspace member a graph rooted at itself.

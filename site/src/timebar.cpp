@@ -15,7 +15,7 @@ constexpr float inset = 6;  // the strip's ends, so the playhead's knob fits at 
 
 }  // namespace
 
-double Timebar::last() const { return props.live && attached() ? std::max(props.end, services().now().count()) : props.end; }
+double Timebar::last() const { return props.end; }
 
 double Timebar::first() const { return props.live ? std::max(0.0, last() - props.window) : props.start; }
 

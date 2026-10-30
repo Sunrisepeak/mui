@@ -13,15 +13,14 @@ import :internal;
 namespace omui::layout {
 
 bool operator==(const Style& a, const Style& b) noexcept {
-    auto same_tracks = [](const std::vector<Track>& x, const std::vector<Track>& y) {
-        if (x.size() != y.size()) return false;
-        for (std::size_t i = 0; i < x.size(); ++i)
-            if (x[i].kind != y[i].kind || x[i].value != y[i].value || x[i].min_kind != y[i].min_kind ||
-                x[i].min_value != y[i].min_value || x[i].max_kind != y[i].max_kind || x[i].max_value != y[i].max_value)
-                return false;
-        return true;
+    // Compared in place: equality runs every frame a style is set, and allocates nothing.
+    auto same_track = [](const Track& x, const Track& y) {
+        return x.kind == y.kind && x.value == y.value && x.min_kind == y.min_kind && x.min_value == y.min_value &&
+               x.max_kind == y.max_kind && x.max_value == y.max_value;
     };
-    auto same_track = [&](const Track& x, const Track& y) { return same_tracks({x}, {y}); };
+    auto same_tracks = [&](const std::vector<Track>& x, const std::vector<Track>& y) {
+        return x.size() == y.size() && std::ranges::equal(x, y, same_track);
+    };
     return a.display == b.display && a.position == b.position && a.overflow_x == b.overflow_x &&
            a.overflow_y == b.overflow_y && a.width == b.width && a.height == b.height && a.min_width == b.min_width &&
            a.min_height == b.min_height && a.max_width == b.max_width && a.max_height == b.max_height &&

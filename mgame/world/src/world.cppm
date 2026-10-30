@@ -89,17 +89,23 @@ public:
     [[nodiscard]] bool alive(Entity e) const noexcept { return e.index < N && alive_.test(e.index) && generation_[e.index] == e.generation; }
     [[nodiscard]] std::size_t count() const noexcept { return count_; }
 
+    // A component set on a living entity: the value in its column. A
+    // destroyed entity's handle, or a stale one whose index another entity
+    // now holds, changes nothing (nullptr; false).
     template <class C>
-    C& add(Entity e, C value = {}) noexcept {
+    C* add(Entity e, C value = {}) noexcept {
+        if (!alive(e)) return nullptr;
         auto& c = column<C>();
         c.present.set(e.index);
-        return c.values[e.index] = value;
+        return &(c.values[e.index] = value);
     }
     template <class C>
-    void remove(Entity e) noexcept {
+    bool remove(Entity e) noexcept {
+        if (!alive(e)) return false;
         auto& c = column<C>();
         c.present.clear(e.index);
         c.values[e.index] = C{};
+        return true;
     }
     template <class C>
     [[nodiscard]] bool has(Entity e) const noexcept { return alive(e) && column<C>().present.test(e.index); }

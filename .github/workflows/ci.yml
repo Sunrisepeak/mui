@@ -217,7 +217,7 @@ jobs:
         if: matrix.profile == 'release'
         run: |
           mcpp run -p openmui.bench --profile release -- \
-            --check tests/bench/budgets.bench.omui.json --json results.bench.omui.json \
+            --check tests/bench/budgets.bench.omui.json --all-budgets --json results.bench.omui.json \
             --report bench-report.md --label "${{ matrix.os }} ${{ matrix.toolchain }}"
 
       - name: Keep the benchmark report

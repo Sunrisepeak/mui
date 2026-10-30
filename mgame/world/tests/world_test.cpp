@@ -65,6 +65,17 @@ int main(int argc, char** argv) {
         check(f.index == e.index && !w.has<Velocity>(f), "a new entity at the index has none of the old one's");
     });
 
+    s.test("a stale handle changes nothing: adding or removing through it leaves the entity now at its index alone", [] {
+        W w;
+        const auto e = w.create();
+        w.destroy(e);
+        const auto f = w.create();  // the same index, the next generation
+        check(w.add(f, Position{1, 2}) != nullptr, "the living one takes it");
+        check(w.add(e, Position{7, 7}) == nullptr && w.find<Position>(f)->x == 1, "the stale handle's add: refused, the slot untouched");
+        check(!w.remove<Position>(e) && w.has<Position>(f), "the stale handle's remove: refused");
+        check(w.remove<Position>(f) && !w.has<Position>(f), "the living one's remove");
+    });
+
     s.test("iteration by index over those with every queried component", [] {
         W w;
         std::vector<mgame::Entity> made;

@@ -91,7 +91,9 @@ std::vector<Plugin> plugins() {
                  d.compute_bounds(d.root, {0, 0}, Affine{});
                  d.place_overlays();
                  d.trap_focus();
-                 for (NodeId w : std::vector<NodeId>(d.watchers))
+                 // A copy (a hook may add or remove watchers), into a vector kept from frame to frame.
+                 d.watching.assign(d.watchers.begin(), d.watchers.end());
+                 for (NodeId w : d.watching)
                      if (d.alive(w)) {
                          auto use = d.use_theme(w);
                          d.at(w).type->laid_out(d.at(w).instance);

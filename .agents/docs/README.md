@@ -25,6 +25,8 @@
 | [2026-10-29-math-fighter-tech-design.md](2026-10-29-math-fighter-tech-design.md) | **数学库与格斗人物的表现技术**：`modules/base/math` 统一全仓库的数学（确定性分级，SIMD、多线程、GPU compute、可选 CUDA 按标量参考实现验收）；`openmui.rig`、`render.mesh`、表现物理的分层；精细模型（自动网格和权重、形变器、法线图光照）、姿态的表现力（叠加层、弹簧链、拖影、静止画面动感的量化指标）、多通道同步的打击感、物理的回滚处理、简洁的原则；D-87、D-88 |
 | [2026-10-26-openmui-view-data-files-design.md](2026-10-26-openmui-view-data-files-design.md) | **视图与数据文件**：代码优先、可读性要求、`*.view.omui.json` 视图文档、表达式（组合函数 + CEL 字符串）、行为状态机、后缀体系 |
 
+**评估**：[evaluation/](evaluation/README.md) 是评估标准和评分记录。每个对象（UI 框架、渲染、动画、游戏引擎、官网、五个作品）都和所在领域的前 3 名逐维度对比，0–100 分，每一项都要到 90。原始报告在 `evaluation/reports/`，分数在台账 `evaluation/ledger.eval.omui.jsonl`，运行脚本是 `tools/eval/eval.sh`。
+
 `research/` 目录下是前期的调研和讨论稿。其中的命名（openui / mui）已经过时，一切以上面的设计文档为准。
 
 新的设计记录按 `YYYY-MM-DD-<主题>-design.md` 命名，和 xlings 的 `.agents/docs` 保持一致。

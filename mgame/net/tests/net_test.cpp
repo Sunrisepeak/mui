@@ -235,5 +235,20 @@ int main(int argc, char** argv) {
         if (o.desync) check(*o.desync > 200 && *o.desync <= 240, std::format("parted at frame {} (the state at the start of the first checked frame after 200)", *o.desync));
     });
 
+    s.test("options out of range are taken as the nearest accepted: no negative ring, no checksum every 0 frames", [] {
+        constexpr net::Options o = net::Options{.delay = -3, .max_rollback = 500, .checksum_every = 0}.valid();
+        static_assert(o.delay == 0 && o.max_rollback == 120 && o.checksum_every == 1);
+        const auto& f = compiled();
+        Fight ga{gongfu::Match(rules(), f, f)}, gb{gongfu::Match(rules(), f, f)};
+        net::Session<Fight> a(ga, 0, {.delay = -3, .max_rollback = -1, .checksum_every = 0}), b(gb, 7, {});
+        for (int f = 0; f < 10; ++f) {
+            b.receive(net::decode(net::encode(a.local(gongfu::Pad{}))).value());
+            a.receive(net::decode(net::encode(b.local(gongfu::Pad{}))).value());
+            (void)a.advance();
+            (void)b.advance();
+        }
+        check(a.frame() > 0, "the session ran");
+    });
+
     return s.run(argc, argv);
 }

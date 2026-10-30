@@ -130,12 +130,15 @@ void FrameMeter::paint(PaintContext& ctx) const {
     }
     x = bx + bar_step * bars + 10;
 
-    // The rate and a frame's cost; at rest, what the last run was.
+    // The rate and a frame's cost; at rest, none a second. (How many frames
+    // the last motion took is not shown: work that finishes on other threads
+    // — a wall's textures — lands on different frames on different machines,
+    // the pixels it ends with the same; `reading` gives the count.)
     rate_.set_style("code");
     cost_.set_style("caption");
     if (r.idle) {
         rate_.set_text("idle");
-        cost_.set_text(r.frames > 1 ? std::format("{} frames", r.frames) : std::string("at rest"));
+        cost_.set_text("0 fps");
     } else {
         rate_.set_text(std::format("{:>3.0f} fps", std::min(r.fps, 999.0)));
         cost_.set_text(r.cost_ms ? std::format("{:.1f} ms", *r.cost_ms) : std::string());

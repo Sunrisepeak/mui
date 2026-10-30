@@ -232,6 +232,7 @@ struct Runtime::Impl {
     std::vector<NodeId>                   fresh;      // created since the last frame ended
     std::vector<NodeId>                   overlays;   // overlay nodes, bottom to top
     std::vector<NodeId>                   watchers;   // nodes whose type has laid_out()
+    std::vector<NodeId>                   watching;   // the bounds stage's copy of them (kept: no allocation a frame)
     std::vector<std::pair<NodeId, NodeId>> modal_focus;
     std::map<std::string, std::unique_ptr<Model>, std::less<>> models;  // a modal overlay, and the focus before it opened
     Size                                  size;

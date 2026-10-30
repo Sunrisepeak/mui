@@ -1,6 +1,6 @@
 // The site's frames while it moves: every place flown to, the lenses. Each
 // motion comes to rest — the page stops asking for frames — and the bar's
-// frame meter then says so: idle, with the run it saw. With --timing each
+// frame meter then says so: idle (and `reading` gives the run it saw). With --timing each
 // frame is also drawn at a 2× display on one thread (as a page without
 // threads draws it) and its time split into the runtime's stages and the
 // raster, so a slow frame says where it went; run it with --profile release

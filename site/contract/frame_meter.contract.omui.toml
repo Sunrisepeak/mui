@@ -14,4 +14,4 @@ budget_ms = { type = "f64", default = 16.667, doc = "A frame's budget in millise
 label     = { type = "string", default = "", doc = "Its accessible name." }
 
 [contract.frame_meter.actions]
-reading = { effect = "read", doc = "What it shows, as data: renderer, fps, cost_ms (the median of the frames it shows; null where the host does not measure), frames, idle." }
+reading = { effect = "read", doc = "What it shows, as data: renderer, fps, cost_ms (the median of the frames it shows; null where the host does not measure), idle, and frames (how many the last motion took)." }

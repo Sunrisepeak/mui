@@ -1344,6 +1344,13 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
     - 稠密合成内联源上覆盖，不再走混合模式的 `switch`。
     镜头飞行的光栅从 72 ms 降到 18.8 ms（原生单线程）；浏览器里切换页面的 p95 从 133 ms 降到 33–50 ms，长任务从约 1.5 s 降到约 0.13 s（仍是 CPU）。站点改成 `renderer = "automatic"`：有硬件 GPU 就用 WebGPU，否则 WebGL 2，都没有才用 CPU；对照 CI 的检查照旧用 CPU 画参考帧。框架加了宿主报告帧的通道：`ShownFrame`（显示的时刻、宿主的开销，headless 不测开销，记 −1）、`ShownFrames`（120 帧的环，不分配内存）、`Runtime::frame_shown`、`shown_frames`、`set_renderer`、`renderer`，`Services` 也能读；web、桌面、headless 三个宿主都报告。站点顶栏的 `frame_meter` 组件（契约优先）显示由谁绘制、帧率、开销中位数和最近 36 帧对 60 Hz 预算的柱；静止时显示 idle，它自己不请求帧，只在最后一帧之后 0.3 s 补一帧说已静止；`reading` 动作把同样的数字给 agent。`frames_test` 检查每个地方飞完都会静止、静止后帧率表读 idle、运动中读到帧率；带 `--timing` 时按 2 倍屏单线程测每帧的阶段和光栅耗时。像素对比的测试把帧率表排除在外，它和底栏的时间条一样是实时读数。还没做：Style workshop 的效果在 CPU 上偶尔一帧 190 ms，Move list 的舞台在 CPU 上持续约 24 ms 一帧；wasm SIMD 还没开（要先确认 Toy 的运行环境）。
     另外清了剩下的私有 FNV：站点的树哈希和参考帧哈希、语义树哈希、rhi 命令列表哈希、gongfu studio 的烘焙指纹（七个角色的 `from` 已按新算法重算，换算前逐个核对过旧值）、两个测试。它们大多用了少一位的偏移基数（1469598103934665603），不是标准的 FNV-1a。lint 规则 `hash` 加上十进制写法，gongfu 的核心按 D-82 只依赖标准库，豁免。
+  - 评估标准和评分记录（维护者：“评分标准要细化，并保留评估和评分记录；UI 框架和主流 UI 框架比，引擎和主流游戏引擎比，动画和最好的动画引擎比，每个作品和官网和各自领域最好的比，每项都要到 90”）：[评估](evaluation/README.md)：
+    - 0–100 分，锚点相对于每个领域的前 3 名；每个维度要写依据（标明实测、查看还是推断）、和前 3 名逐个比、到 90 要改什么；
+    - 总评取最低的维度，均分用来看进展；报告最后一段是机器可读的分数；
+    - 10 个对象，各有对标的前 3 名和维度（`subjects/`）；
+    - `tools/eval/eval.sh` 把标准、对象文件和上一次的记录拼成提示，交给 codex 只读运行，报告存进 `reports/`，分数追加到 `ledger.eval.omui.jsonl`；
+    - 第一轮：v0 七条、v1 十条，汇总和维护方的处理在 `reports/2026-10-31-round-1.md`。没有一项到 90：框架独有的部分领先（agent 原生 84、确定性 82），面向人的完成度、创作工具和对标实测落后最多。
+    同一轮修了评估指出的几处：layout 样式比较和 bounds 阶段的每帧分配；`mgame::World::add/remove` 拒绝失效的句柄；网络会话参数超出范围时取最近的有效值，输入编译期要求无填充、小端；CI 的基准加上 `--all-budgets`。另外，帧率表静止时显示“idle · 0 fps”，不再显示上一段运动画了多少帧：文档墙的纹理在别的线程上完成，各平台落在不同的帧上，最终像素相同，但帧数不同，wasm、macOS、Windows 的固定值因此和 Linux 不一致。帧数仍由 `reading` 给出。
 - M5：openmui-video、ui-timeline、MCP 服务器、skills、S3 / S4 / S5。
 - 契约⑦（插件与管线）写进规范；Inspector 的火焰图和动画检查器视图。
 

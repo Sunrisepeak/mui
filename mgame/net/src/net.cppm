@@ -31,6 +31,8 @@ export namespace mgame::net {
 template <class G>
 concept Game = requires(G& g, const G& cg, const typename G::Input& in, const typename G::State& s) {
     requires std::is_trivially_copyable_v<typename G::Input>;
+    // Sent as its own bytes: none of them padding, so equal inputs are equal bytes.
+    requires std::has_unique_object_representations_v<typename G::Input>;
     requires std::equality_comparable<typename G::Input>;
     requires std::default_initializable<typename G::Input>;
     g.advance(in, in);  // player 0's input, player 1's
@@ -39,11 +41,20 @@ concept Game = requires(G& g, const G& cg, const typename G::Input& in, const ty
     { cg.checksum_of(s) } -> std::convertible_to<std::uint64_t>;
 };
 
+// Out of range, a session takes the nearest it accepts (valid()).
 struct Options {
-    std::int32_t delay = 2;            // frames between giving a local input and the frame it plays on
-    std::int32_t max_rollback = 8;     // the most frames a correction reaches back
-    std::int32_t checksum_every = 30;  // frames between checksum exchanges
+    std::int32_t delay = 2;            // frames between giving a local input and the frame it plays on (0–60)
+    std::int32_t max_rollback = 8;     // the most frames a correction reaches back (0–120)
+    std::int32_t checksum_every = 30;  // frames between checksum exchanges (at least 1)
+
+    [[nodiscard]] constexpr Options valid() const noexcept {
+        return {std::clamp(delay, 0, 60), std::clamp(max_rollback, 0, 120), std::max(checksum_every, 1)};
+    }
 };
+
+// An input is its own bytes on the wire, and every target openmui builds for
+// is little-endian; a big-endian one would need the input encoded field by field.
+static_assert(std::endian::native == std::endian::little, "mgame.net sends inputs as their bytes: a little-endian target");
 
 struct Message {
     std::int32_t           first = 0;            // the frame of the first input
@@ -68,7 +79,8 @@ public:
     using State = typename G::State;
 
     Session(G& game, std::int32_t local, Options options = {})
-        : game_(&game), local_(local), options_(options), ring_(static_cast<std::size_t>(options.max_rollback + 2 * options.delay + 64)) {
+        : game_(&game), local_(local == 1 ? 1 : 0), options_(options.valid()),
+          ring_(static_cast<std::size_t>(options_.max_rollback + 2 * options_.delay + 64)) {
         for (Slot& s : ring_) s = {};
         // The frames before the first local input plays: neutral, for both, known to both.
         for (std::int32_t f = 0; f < options_.delay; ++f) {

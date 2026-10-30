@@ -928,6 +928,27 @@ int main(int argc, char** argv) {
         check(rt.path(rt.children(column)[3]) == rt.path(kids[3]));
     });
 
+    s.test("immediate mode: a generated id is the call site's file by its own name, line and column — the same wherever the source was checked out", [] {
+        Runtime rt(options({300, 200}));
+        std::source_location site;
+        rt.mount("main", immediate([&](Ui& ui) {
+                     site = std::source_location::current(); ui.column({}, [] {});  // one line: the same site
+                 }));
+        rt.frame({seconds(0), {}});
+        std::string_view file = site.file_name();
+        file.remove_prefix(file.find_last_of("/\\") + 1);
+        const std::string where = std::format("{}:{}:", file, site.line());
+        // The column's id hashes "<file>:<line>:<column>": find the column of the call by trying the line's.
+        const std::string got(rt.path(rt.children(rt.find("main"))[0]));
+        bool found = false;
+        for (std::uint32_t c = 1; c < 200 && !found; ++c) {
+            std::uint32_t h = 2166136261u;
+            for (const unsigned char ch : where + std::to_string(c)) h = (h ^ ch) * 16777619u;
+            found = got.ends_with(std::format("column:i{:08x}", h));
+        }
+        check(found, std::format("{} from {}", got, where));
+    });
+
     s.test("immediate mode: timers and events drive builds; retained views nest", [] {
         Runtime rt(options({300, 200}));
         int builds = 0, ticks = 0, downs = 0;

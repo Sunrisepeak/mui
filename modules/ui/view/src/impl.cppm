@@ -243,6 +243,7 @@ struct Runtime::Impl {
     // input
     NodeId               capture;
     NodeId               pressed;
+    Point                pressed_at;  // where the press began: moved further than a click's slop, it was a drag
     std::vector<NodeId>  hover_chain;   // the hovered node and its ancestors
     NodeId               focus;
     bool                 focus_visible = false;
@@ -422,7 +423,9 @@ struct Runtime::Impl {
     void   pointer_event(const PointerEvent& e);
     void   wheel_event(const WheelEvent& e);
     void   key_event(const KeyEvent& e);
-    bool   deliver(NodeId target, const InputEvent& e, Point window, bool bubble);
+    // To the target, then (bubbling) its ancestors until one handles it; `by`
+    // is told which did.
+    bool   deliver(NodeId target, const InputEvent& e, Point window, bool bubble, NodeId* by = nullptr);
     void   set_hover(NodeId target);
     void   set_focus(NodeId id, bool keyboard);
     [[nodiscard]] bool is_focusable(NodeId id) const;

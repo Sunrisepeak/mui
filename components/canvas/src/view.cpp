@@ -685,11 +685,18 @@ bool Canvas::on_event(EventContext& ctx, const InputEvent& e) {
             velocity_ = {};
             last_move_ = services().now();
             pinch_distance_ = 0;
-            services().capture_pointer(node());
-            services().focus(node());
+            // Not captured yet: a press that stays put is a click, and the
+            // node under it (a live window's link, button, field) takes it.
+            // The pointer is the canvas's once it travels (a pan).
             return true;
         }
         case PointerKind::move: {
+            if (dragging_ && p->type == PointerType::mouse && p->buttons == 0) {
+                // A release a node inside took (a link's click): the press is over.
+                dragging_ = false;
+                pointers_.clear();
+                return false;
+            }
             if (!dragging_ || pointer == pointers_.end()) return false;
             const Point before = pointer->at;
             pointer->at = at;
@@ -703,7 +710,11 @@ bool Canvas::on_event(EventContext& ctx, const InputEvent& e) {
                 if (pointer == pointers_.begin() || pointer == pointers_.begin() + 1) camera_.pan({(at.x - before.x) / 2, (at.y - before.y) / 2});
             } else {
                 const Point delta{at.x - before.x, at.y - before.y};
-                if (std::hypot(at.x - pressed_at_.x, at.y - pressed_at_.y) > 3) travelled_ = true;
+                if (!travelled_ && std::hypot(at.x - pressed_at_.x, at.y - pressed_at_.y) > 3) {
+                    travelled_ = true;
+                    services().capture_pointer(node());  // a pan: the pointer is the canvas's until released
+                    services().focus(node());
+                }
                 if (!travelled_) return true;  // a tap's jitter does not pan
                 camera_.pan(delta);
                 // The pointer's velocity, smoothed, for the fling.

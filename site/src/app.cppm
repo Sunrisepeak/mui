@@ -33,7 +33,7 @@ struct Place {
 // on any machine.
 [[nodiscard]] std::uint64_t tree_hash(const Value& snapshot);
 // The home page's tree hash in English, as CI pins it (tests/site_test.cpp).
-inline constexpr std::uint64_t pinned_home_hash = 0xd4d1bdb1b7bb9de6;
+inline constexpr std::uint64_t pinned_home_hash = 0x4966e6a50c3143a3;
 
 // Every place as static HTML (the documents through openmui.markdown's
 // to_html, byte for byte md4c-html's), in a <main id="omui-static"> that a

@@ -1,4 +1,4 @@
-# One tree, many renderings
+## One tree, many renderings
 
 openmui is a UI framework and an open specification built around one idea: **the interface is a semantic tree**, and everything else is a rendering of it.
 

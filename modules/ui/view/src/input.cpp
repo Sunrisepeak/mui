@@ -100,7 +100,7 @@ void Runtime::Impl::dispatch(const InputEvent& e) {
         e);
 }
 
-bool Runtime::Impl::deliver(NodeId target, const InputEvent& e, Point window, bool bubble) {
+bool Runtime::Impl::deliver(NodeId target, const InputEvent& e, Point window, bool bubble, NodeId* by) {
     const std::string_view name = handler_name(e);
     bool handled = false;
     for (NodeId cur = target; alive(cur);) {
@@ -116,6 +116,7 @@ bool Runtime::Impl::deliver(NodeId target, const InputEvent& e, Point window, bo
             args.set("x", ctx.local.x).set("y", ctx.local.y);
             call_handlers(cur, name, args);
         }
+        if (ctx.handled && !handled && by) *by = cur;
         handled = handled || ctx.handled;
         if (!bubble || ctx.handled || ctx.stopped || !alive(cur)) break;
         cur = at(cur).parent;
@@ -168,6 +169,7 @@ void Runtime::Impl::pointer_event(const PointerEvent& e) {
             else if (alive(focus)) set_focus({}, false);
             if (e.button == MouseButton::left || e.type != PointerType::mouse) {
                 pressed = activatable_ancestor(target);
+                pressed_at = e.position;
                 if (alive(pressed)) {
                     at(pressed).state.pressed = true;
                     touch(dirty_paint | dirty_semantics);
@@ -179,7 +181,8 @@ void Runtime::Impl::pointer_event(const PointerEvent& e) {
         }
         case PointerKind::up: {
             NodeId target = alive(capture) ? capture : self.hit_test(e.position);
-            const bool handled = deliver(target, e, e.position, true);
+            NodeId by{};
+            const bool handled = deliver(target, e, e.position, true, &by);
             capture = {};
             NodeId p = pressed;
             pressed = {};
@@ -193,7 +196,17 @@ void Runtime::Impl::pointer_event(const PointerEvent& e) {
                         inside = true;
                         break;
                     }
-                if (inside && !handled) {
+                // A release nobody took activates what was pressed. One an
+                // ancestor of it took (a canvas that captured the press for a
+                // pan, then offered the release to its behaviours as a tap)
+                // still does, unless the pointer travelled: then it was that
+                // ancestor's drag. The pressed node's own handling (or a
+                // node's inside it, or elsewhere) keeps the activation, as before.
+                constexpr float slop = 4;  // logical pixels
+                const float dx = e.position.x - pressed_at.x, dy = e.position.y - pressed_at.y;
+                const bool travelled = dx * dx + dy * dy > slop * slop;  // squared: no libm, the same on every platform
+                const bool ancestor_took = handled && alive(by) && by != p && contains(by, p);
+                if (inside && (!handled || (ancestor_took && !travelled))) {
                     Invocation call;
                     call.actor = {"person", "user", {}};
                     call.answer = own_answer(p, "activate");

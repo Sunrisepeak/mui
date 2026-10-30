@@ -29,7 +29,7 @@ python3 - "$out" <<'PY'
 import os, sys
 out = sys.argv[1]
 page = open(os.path.join(out, "index.html"), encoding="utf-8").read()
-need = ['<main id="omui-static"', '<section id="/home">', '<section id="/features">', "<h1>One tree, many renderings</h1>",
+need = ['<main id="omui-static"', '<section id="/home">', '<section id="/features">', "<h1>One interface. Every rendering.</h1>",
         "Module.onRuntimeInitialized = function", "@font-face", '<canvas id="canvas"']
 missing = [n for n in need if n not in page]
 if missing:

@@ -17,5 +17,6 @@ export import :content_files;
 export import :en_files;
 export import :zh_files;
 export import :guide;
+export import :hero;
 export import :app;
 export import :atlas;

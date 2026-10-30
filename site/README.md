@@ -8,6 +8,12 @@ The site shows openmui's thesis instead of describing it: **the interface is a s
 
 ## What is on it
 
+- **The opening** (`src/hero.*`): one thing, rendered four ways. It shows the claim beside the mark (one node branching into a pixel, a focus ring, braces and a check). Below them is a real checklist: three checks, then "Ship 0.1", which waits for them. Beside the checklist is the same node, the one last touched, three more ways, read from the page's semantic tree:
+  - as a screen reader says it;
+  - as an agent asks for it;
+  - as a test asserts it.
+
+  Lines in the lens's colours join them. "Let an agent ship it" performs the same actions a person's clicks reach, as an agent, through the runtime's checks; each one is journaled and undoable. The static page carries the same opening for readers without JavaScript.
 - **Places, not pages.** The places are:
   - the home page;
   - the framework's documents (`docs/en`, `docs/zh`: features and practices), rendered by `openmui.ui.markdown`;

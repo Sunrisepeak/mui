@@ -95,6 +95,8 @@ struct Site {
     hello::State        hello;                 // example 01's, as the person left it
     std::unique_ptr<wall::Model> wall;         // S1's wall of the site's documents
     styles::Studio      studio;                // S2's workshop: its packs in a theme scope, the site in its own theme
+    Hero                hero;                  // the home page's opening: its checklist, the node its panels show
+    HeroSite            hero_site;             // what the opening reads of the site
     // The reference run (the foot's check against CI): played here, on a
     // headless runtime of its own, when asked; the frame shown, its hash as
     // this machine drew it, and CI's.
@@ -316,8 +318,9 @@ struct Site {
         test.set(test_text(snapshot));
         const std::uint64_t h = tree_hash(snapshot);
         const bool pinned = place.get() == "home" && lang.get() == "en" && pinned_home_hash != 0;
-        hash.set(pinned ? std::format("tree {:016x} · CI {:016x} {}", h, pinned_home_hash, h == pinned_home_hash ? "✓ the same tree" : "✗ not the pinned tree")
-                        : std::format("tree {:016x}", h));
+        // Eight digits of each (they are compared whole).
+        hash.set(pinned ? std::format("tree {:08x} · CI {:08x} {}", h >> 32, pinned_home_hash >> 32, h == pinned_home_hash ? "✓ the same" : "✗ not the pinned tree")
+                        : std::format("tree {:08x}", h >> 32));
     }
     // After the frame that shows what changed: once, and then, while a lens
     // shows the tree, a few times a second (the page moves under it: a
@@ -427,7 +430,7 @@ Element lens_button(const std::shared_ptr<Site>& s, std::string_view id, std::st
     const std::string key(id), label(name);
     return button({.id = "lens_" + key,
                    .text = std::string(label),
-                   .variant = computed([s, key] { return s->lens.get() == key ? ButtonVariant::primary : ButtonVariant::ghost; }),
+                   .variant = computed([s, key] { return s->lens.get() == key ? ButtonVariant::secondary : ButtonVariant::ghost; }),
                    .on_activated = [s, key, label] {
                        if (s->lens.peek() != key) s->mark(std::format("{} {}", s->lang.peek() == "zh" ? "镜头" : "Lens", label));
                        s->lens.set(key);
@@ -467,9 +470,14 @@ std::string test_text(const Value& snapshot) {
         if (role == "generic" || id.empty()) continue;
         out += std::format("check_eq(node(\"{}\").role, \"{}\");\n", id, role);
         if (const Value* name = n.get("name"); name && !name->as_string().empty()) {
-            std::string text(name->as_string());
-            if (text.size() > 60) text = text.substr(0, 57) + "...";
-            out += std::format("check_eq(node(\"{}\").name, {});\n", id, Value(text).json());
+            const std::string_view text = name->as_string();
+            if (text.size() <= 60) out += std::format("check_eq(node(\"{}\").name, {});\n", id, Value(std::string(text)).json());
+            else {
+                // A long name: what it starts with, said as that (cut where a character begins).
+                std::size_t cut = 57;
+                while (cut > 0 && (static_cast<unsigned char>(text[cut]) & 0xC0) == 0x80) --cut;
+                out += std::format("check(node(\"{}\").name.starts_with({}));\n", id, Value(std::string(text.substr(0, cut))).json());
+            }
         }
         if (++lines >= 60) break;
     }
@@ -964,14 +972,17 @@ Element place_window(const std::shared_ptr<Site>& s, const std::string& id, bool
     if (id == "hello" || id == "wall") return work_window(s, id, live);
     if (id == "moves") return moves_window(s, live);
     if (id == "styles") return styles_window(s, live);
+    std::vector<Element> content;
+    if (id == "home") content.push_back(hero(s->hero, s->hero_site, live));
     Element doc = live ? retyped(markdown({.id = "doc",
                                            .origin = MarkdownOrigin::app,
                                            .source = computed([s, id] { return std::string(document(id, s->lang.get())); }),
                                            .on_link_activated = [s](std::string href) { follow(*s, href); },
-                                           .max_width = Dim(860.0f)}),
+                                           .max_width = Dim(640.0f)}),
                                  s, Arrival::lines)
-                       : markdown({.id = "doc", .origin = MarkdownOrigin::app, .source = std::string(document(id, zh ? "zh" : "en")), .max_width = Dim(860.0f)});
-    return scroll({.id = "page", .width = Dim(v.width), .height = Dim(v.height), .padding = Edges(32.0f, 40.0f), .background = "background"}, {std::move(doc)});
+                       : markdown({.id = "doc", .origin = MarkdownOrigin::app, .source = std::string(document(id, zh ? "zh" : "en")), .max_width = Dim(640.0f)});
+    content.push_back(std::move(doc));
+    return scroll({.id = "page", .width = Dim(v.width), .height = Dim(v.height), .padding = Edges(32.0f, 40.0f), .background = "background"}, std::move(content));
 }
 
 // The atlas's kinds: a place's window (a block far away, its texture nearer,
@@ -1037,6 +1048,16 @@ AppSpec app(std::string_view place, std::string_view lang) {
         // The atlas: a scene of this site's own, laid out for the window's size until the canvas has its own.
         static std::atomic<int> sites{0};
         s->scene_name = std::format("openmui.site.{}", sites++);
+        s->hero_site = {.runtime = &s->runtime,
+                        .lang = &s->lang,
+                        .nodes = &s->nodes,
+                        .root = [] { return std::string(place_root) + "home/page"; },
+                        .go = [p = s.get()](std::string id) { p->fly(id); },
+                        .tree_lens = [p = s.get()] {
+                            if (p->lens.peek() != "tree") p->mark(p->lang.peek() == "zh" ? "镜头 Tree" : "Lens Tree");
+                            p->lens.set("tree");
+                            p->soon();
+                        }};
         s->kinds = [site = std::weak_ptr<Site>(s)] {
             if (auto p = site.lock()) atlas_kinds(p);
         };
@@ -1085,7 +1106,7 @@ AppSpec app(std::string_view place, std::string_view lang) {
     a.view = [s] {
         // The bar: the name, the lens, the language.
         Element bar = row({.id = "bar", .padding = Edges(10.0f, 16.0f), .gap = 6, .align = "center", .background = "surface"},
-                          {text({.id = "mark", .text = "openmui", .style = "title"}),
+                          {brand_mark("logo", 28), text({.id = "mark", .text = "openmui", .style = "title"}),
                            retyped(text({.id = "motto", .text = computed([s] { return std::string(s->lang.get() == "zh" ? "一棵树，多种呈现" : "one tree, many renderings"); }),
                                          .style = "caption", .grow = 1}),
                                    s),
@@ -1114,12 +1135,26 @@ AppSpec app(std::string_view place, std::string_view lang) {
         auto go = [&nav, s](std::string id, std::string_view en, std::string_view zh) {
             nav.push_back(retyped(button({.id = "to_" + id,
                                           .text = computed([s, en, zh] { return std::string(s->lang.get() == "zh" ? zh : en); }),
-                                          .variant = computed([s, id] { return s->place.get() == id ? ButtonVariant::primary : ButtonVariant::ghost; }),
+                                          // Where you are: outlined, not filled (filled is for an action to take).
+                                          .variant = computed([s, id] { return s->place.get() == id ? ButtonVariant::secondary : ButtonVariant::ghost; }),
                                           .on_activated = [s, id] { s->fly(id); }}),
                                   s));
         };
+        // Two groups: what to read, and what runs.
+        auto group = [&nav, s](std::string id, std::string_view en, std::string_view zh) {
+            // Lined up with the buttons' text, a little space above it.
+            nav.push_back(box({.id = std::move(id), .padding = Edges(Insets{12, 16, 2, 16})},
+                              {retyped(text({.id = "label",
+                                             .text = computed([s, en, zh] { return std::string(s->lang.get() == "zh" ? zh : en); }),
+                                             .style = "caption",
+                                             .color = "text_muted"}),
+                                       s)}));
+        };
         go("overview", "Overview", "全景");
-        for (const Place& p : all) go(std::string(p.id), p.en, p.zh);
+        group("learn", "LEARN", "阅读");
+        for (const Place& p : all | std::views::take(3)) go(std::string(p.id), p.en, p.zh);
+        group("explore", "EXPLORE", "运行");
+        for (const Place& p : all | std::views::drop(3)) go(std::string(p.id), p.en, p.zh);
         // The places: windows on one canvas, the camera flying between them.
         std::vector<Element> shown;
         Element atlas = canvas({.id = "atlas",
@@ -1142,7 +1177,7 @@ AppSpec app(std::string_view place, std::string_view lang) {
                                       [s, key] { return s->lens.get() == key; }));
         }
         Element body = row({.id = "body", .min_height = Dim(0.0f), .align = "stretch", .grow = 1},
-                           {column({.id = "nav", .width = Dim(188.0f), .padding = Edges(20.0f, 12.0f), .gap = 4, .background = "surface"}, std::move(nav)),
+                           {column({.id = "nav", .width = Dim(188.0f), .padding = Edges(20.0f, 12.0f), .gap = 4, .align = "start", .background = "surface"}, std::move(nav)),
                             stack({.id = "view", .min_width = Dim(0.0f), .min_height = Dim(0.0f), .grow = 1}, std::move(shown)),
                             only_when(guide_panel(s), [s] { return s->panel.get(); }),
                             only_when(check_panel(s), [s] { return s->checking.get(); })});
@@ -1226,6 +1261,7 @@ std::string static_html(std::string_view lang) {
     for (const Place& p : all) {
         out += std::format("<section id=\"/{}{}\">\n", lang == "zh" ? "zh/" : "", p.id);
         const bool zh = lang == "zh";
+        if (p.id == "home") out += hero_html(zh);
         if (const std::string_view doc = document(p.id, lang); !doc.empty()) out += md::to_html(md::parse(doc));
         else if (p.id == "timeline")
             out += zh ? "<h1>时间线编辑器</h1>\n<p>一个可用的时间线编辑器：拖动、修剪、切开，每次编辑都能精确撤销。需要 JavaScript。</p>\n"

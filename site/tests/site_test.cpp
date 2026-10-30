@@ -103,7 +103,8 @@ int main(int argc, char** argv) {
             }
             for (std::string_view lang : {"en", "zh"}) {
                 const std::string_view doc = site::document(p.id, lang);
-                check(doc.starts_with("# "), std::format("{} in {}: a document with its title", p.id, lang));
+                // Home's title is the opening's claim (hero.cpp); its document begins a level down.
+                check(doc.starts_with(p.id == "home" ? "## " : "# "), std::format("{} in {}: a document with its title", p.id, lang));
                 check(!md::parse(doc).root.children.empty(), std::format("{} in {}: reads as Markdown", p.id, lang));
             }
         }
@@ -159,6 +160,38 @@ int main(int argc, char** argv) {
         a.h.settle(seconds(3));
         (void)a.h.save_png(scratch_dir("site-sw") / "a.png");
         check(a.page() == direct, "at rest: the very pixels of the page opened in Chinese (above the foot, where the switch is marked)");
+    });
+
+    s.test("the opening: a checklist as a person sees it, and its node as a screen reader says it, an agent sends it, a test asserts it", [] {
+        Site a;
+        const std::string hero = "main/body/view/atlas/home/page/hero";
+        const auto ship = a.h.tree().node(hero + "/demo/specimen/ship");
+        check(ship.has_value() && ship->role == Role::button && ship->states.has(State::disabled), "Ship 0.1 waits for its checks");
+        const std::string panel = hero + "/demo/renderings/";
+        check_eq(a.text(panel + "reader/body/line"), std::string("\"Ship 0.1\", button, dimmed"));
+        check(a.text(panel + "agent/body/line").find("\"act\": \"specimen/ship\", \"action\": \"activate\"") != std::string::npos, a.text(panel + "agent/body/line"));
+        check(a.text(panel + "test/body/line").find("check(node(\"specimen/ship\").states.has(\"disabled\"));") != std::string::npos, a.text(panel + "test/body/line"));
+        // A person checks one: the panels follow it, read again from the tree.
+        check(a.h.click(hero + "/demo/specimen/items/docs"));
+        a.h.advance(seconds(0.5));
+        check_eq(a.text(panel + "reader/body/line"), std::string("\"Docs reviewed\", checkbox, checked"));
+        check(a.text(panel + "test/body/line").find("check(node(\"specimen/items/docs\").states.has(\"checked\"));") != std::string::npos,
+              a.text(panel + "test/body/line"));
+    });
+
+    s.test("the opening's agent ships it: each step a real action as an agent, through the same checks, each one undoable", [] {
+        Site a;
+        const std::string hero = "main/body/view/atlas/home/page/hero";
+        check(a.h.click(hero + "/agent_row/let_agent"), "a person asks the agent");
+        a.h.advance(seconds(6));
+        for (const char* item : {"tests", "docs", "notes"}) {
+            const auto n = a.h.tree().node(hero + "/demo/specimen/items/" + item);
+            check(n && n->states.has(State::checked), std::format("{} checked by the agent", item));
+        }
+        check(a.text(hero + "/demo/specimen/shipped").starts_with("Shipped"), "shipped");
+        check(a.text(hero + "/demo/renderings/agent/body/line").find("done") != std::string::npos, a.text(hero + "/demo/renderings/agent/body/line"));
+        const auto agents = std::ranges::count_if(a.h.runtime().action_journal(), [](const ActionEntry& e) { return e.actor.starts_with("agent"); });
+        check(agents >= 4, std::format("{} actions journaled as the agent's", agents));
     });
 
     s.test("the lens: pixels, the tree's wireframe, an agent's JSON, a test's assertions — of the same nodes", [] {
@@ -360,6 +393,19 @@ int main(int argc, char** argv) {
         check(a.h.tree().act("main/body/view/atlas/home/page/doc", "open_link", person).exit_code() == std::optional<int>(0), "the spec's repository");
         check(a.h.runtime().opened() == std::vector<std::string>{"https://github.com/openlifa/openmui"}, "opened by the host");
         check(!a.h.runtime().open_url("javascript:alert(1)"), "never a script");
+        // Clicked with the pointer, as a visitor does: the atlas's canvas sees
+        // the press (it pans on a drag) and the link still takes the click.
+        Site b;
+        const auto links = b.h.tree().find({.under = "main/body/view/atlas/home/page/doc", .role = Role::link});
+        const auto to_features = std::ranges::find_if(links, [](const auto& n) { return n.name.contains("sets openmui apart"); });
+        check(to_features != links.end(), "the link to the features");
+        if (to_features != links.end()) {
+            (void)b.h.tree().act(to_features->id, "scroll_into_view");  // below the opening: brought into view, as a reader scrolls
+            b.h.settle(seconds(1));
+            check(b.h.click(to_features->id), "clicked");
+        }
+        b.h.settle(seconds(3));
+        check(b.shown("features"), "a click inside a place's live window reaches its link");
     });
 
     s.test("an agent on the page: real requests, openas deciding — it asks first, the person answers, and only the person", [] {
@@ -491,7 +537,7 @@ int main(int argc, char** argv) {
         a.h.advance(seconds(1));
         shot("time.png");
         std::println("    pixels {}", all.hex());
-        check_eq(all.hex(), std::string("f122a3e88f8f0d7b"));
+        check_eq(all.hex(), std::string("f691cc4ec262a5ee"));
     });
 
     s.test("the style workshop runs in its place, a theme scope: a pack styles it alone, the site keeps its theme, the tree is the same in every pack", [] {
@@ -580,7 +626,7 @@ int main(int argc, char** argv) {
             check(html.find(md::to_html(md::parse(site::document("features", lang)))) != std::string::npos, "the features as md4c-html writes them");
         }
         const std::string en = site::static_html("en");
-        check(en.find("<h1>One tree, many renderings</h1>") != std::string::npos, "the thesis, readable without JavaScript");
+        check(en.find("<h1>One interface. Every rendering.</h1>") != std::string::npos, "the thesis, readable without JavaScript");
         {  // The move list without the program: every fighter's frame data, as measured.
             const auto& r = fighting::roster();
             const gongfu::Fighter& mo = r.fighters[fighting::fighter_index("mo")];
@@ -591,8 +637,8 @@ int main(int argc, char** argv) {
         // The site's own part pinned (the docs change with the framework; they are held to md4c-html's bytes above).
         auto own = [](const std::string& html) { return html.substr(0, html.find("<section id=\"/", html.find("<section id=\"/") + 1)); };
         std::println("    static en {:016x} zh {:016x}", fnv(own(en)), fnv(own(site::static_html("zh"))));
-        check_eq(std::format("{:016x}", fnv(own(en))), std::string("f48ec0aeaaa69b40"));
-        check_eq(std::format("{:016x}", fnv(own(site::static_html("zh")))), std::string("299ed69645827f98"));
+        check_eq(std::format("{:016x}", fnv(own(en))), std::string("a23292eef4db84c6"));
+        check_eq(std::format("{:016x}", fnv(own(site::static_html("zh")))), std::string("f170b6bee40899e8"));
 
         const auto out = site::inject(page, en, "zh");
         check(out.has_value(), "dist-toy's page");

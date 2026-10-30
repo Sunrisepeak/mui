@@ -50,6 +50,11 @@ struct AppSpec {
     // and the person may switch (the verb window.frame). --window overrides.
     std::string              window = "native";
     WindowFrameOptions       frame;
+    // Who draws its frames, on the desktop and in a page: "automatic" (a
+    // hardware GPU when there is one, else the CPU), "cpu" — the reference,
+    // the same bytes on every machine — or "gpu" (insisted on). --gpu and
+    // --cpu override it.
+    std::string              renderer = "automatic";
 };
 
 // How to run, from the command line:

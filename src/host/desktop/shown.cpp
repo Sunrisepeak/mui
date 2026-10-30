@@ -21,6 +21,8 @@ int shown(const AppSpec& app, const RunOptions& o, const Prepare& prepare) {
     d.effects = app.effects;
     d.reduce_transparency = o.reduce_transparency;
     if (o.gpu) d.renderer = *o.gpu ? DesktopOptions::Renderer::gpu : DesktopOptions::Renderer::cpu;
+    else if (app.renderer == "cpu") d.renderer = DesktopOptions::Renderer::cpu;
+    else if (app.renderer == "gpu") d.renderer = DesktopOptions::Renderer::gpu;
     const std::string_view mode = o.window.empty() ? std::string_view(app.window) : std::string_view(o.window);
     d.frame = mode == "framework" ? DesktopOptions::Frame::framework : DesktopOptions::Frame::native;
     Desktop desktop(d);

@@ -478,6 +478,14 @@ addToLibrary({
 
   // A frame of RGBA8 pixels (opaque: premultiplied is straight) put on the
   // canvas, whose backing store takes the frame's size.
+  omui_web_backing__deps: ['$omuiCanvas', '$UTF8ToString'],
+  omui_web_backing: function (selector, width, height) {
+    var canvas = omuiCanvas(UTF8ToString(selector));
+    if (!canvas || width <= 0 || height <= 0) return;
+    if (canvas.width !== width) canvas.width = width;
+    if (canvas.height !== height) canvas.height = height;
+  },
+
   omui_web_present__deps: ['$omuiCanvas', '$UTF8ToString'],
   omui_web_present: function (selector, pixels, width, height) {
     var canvas = omuiCanvas(UTF8ToString(selector));
@@ -487,6 +495,11 @@ addToLibrary({
     if (!Module.omuiContext || Module.omuiContextCanvas !== canvas) {
       Module.omuiContext = canvas.getContext('2d', { alpha: false });
       Module.omuiContextCanvas = canvas;
+    }
+    if (!Module.omuiContext) {  // the canvas gave another kind of context (a GPU's): said once, nothing drawn
+      if (!Module.omuiContextSaid) err('openmui: the canvas has another kind of context; the CPU\'s frames cannot be shown on it');
+      Module.omuiContextSaid = true;
+      return;
     }
     var bytes = new Uint8ClampedArray(HEAPU8.buffer, pixels, width * height * 4);
     Module.omuiContext.putImageData(new ImageData(bytes, width, height), 0, 0);

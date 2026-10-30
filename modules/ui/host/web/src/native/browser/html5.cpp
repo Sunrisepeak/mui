@@ -16,6 +16,7 @@ import :platform;
 
 extern "C" {
 void omui_web_present(const char* selector, const std::uint8_t* pixels, int width, int height);
+void omui_web_backing(const char* selector, int width, int height);
 void omui_web_canvas(const char* selector, float* out);
 int  omui_web_hidden();
 int  omui_web_page();
@@ -346,6 +347,8 @@ std::vector<std::string> storage_keys(std::string_view prefix) {
         for (const Value& k : *list->list()) out.emplace_back(k.as_string());
     return out;
 }
+
+void backing(std::string_view sel, int width, int height) { omui_web_backing(std::string(sel).c_str(), width, height); }
 
 void present(std::string_view sel, const raster::Surface& frame) {
     omui_web_present(std::string(sel).c_str(), reinterpret_cast<const std::uint8_t*>(frame.row(0)), frame.width(), frame.height());

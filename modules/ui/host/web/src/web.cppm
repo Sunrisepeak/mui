@@ -37,6 +37,15 @@ export import :mirror;
 
 export namespace omui {
 
+// Who draws the frames (D-84 §6.3), as the desktop's host decides it: the
+// page's WebGPU, its WebGL2, or the CPU. `automatic` takes the first GPU the
+// page has — a software adapter (SwiftShader, llvmpipe) counting as none:
+// the CPU draws faster than it; `gpu` insists on one (either, software too);
+// `webgpu` and `webgl` on that one. Without what they ask for, the CPU draws.
+// The CPU's pixels are the reference, the same bytes everywhere; a GPU's are
+// within the renderer's stated tolerances of them.
+enum class Renderer : std::uint8_t { automatic, cpu, gpu, webgpu, webgl };
+
 struct WebOptions {
     std::string             title = "openmui";   // the document's
     std::string             app = "openmui-app";
@@ -47,6 +56,7 @@ struct WebOptions {
     bool                    reduce_motion = false;
     bool                    reduce_transparency = false;
     Color                   background = Color::white();
+    Renderer                renderer = Renderer::automatic;
     // Show a runtime that exists already (the host does not own it).
     Runtime*                runtime = nullptr;
 };
@@ -101,8 +111,14 @@ public:
     // it as the window's focus. Toy's lifecycle hangs here.
     void on_visibility(std::function<void(bool hidden)> fn);
 
-    // What the canvas shows (the CPU frame).
+    // What the canvas shows, when the CPU draws it.
     [[nodiscard]] const raster::Surface& pixels() const noexcept;
+    // Who draws: "webgpu", "webgl" or "cpu".
+    [[nodiscard]] std::string_view renderer() const noexcept;
+    // The last frame shown, read back from whoever drew it — a GPU's texture
+    // (a program linked to wait for it: rhi::webgpu::can_wait), the CPU's
+    // frame: what a test compares with the reference, a screenshot keeps.
+    [[nodiscard]] std::expected<raster::Surface, std::string> read_frame();
     [[nodiscard]] std::size_t frames_shown() const noexcept;
     [[nodiscard]] bool hidden() const noexcept;
 

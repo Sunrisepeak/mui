@@ -1018,6 +1018,10 @@ AppSpec app(std::string_view place, std::string_view lang) {
     a.title = "openmui — one tree, many renderings";
     a.size = {1280, 800};
     a.theme = Theme::dark_theme();
+    // Drawn by the CPU, on the desktop and in a page: its pixels are the
+    // reference, the same bytes on every machine (what the home page says,
+    // what the check against CI shows); a GPU's are within tolerances of them.
+    a.renderer = "cpu";
     auto s = std::make_shared<Site>();
     if (place == "overview" || std::ranges::any_of(all, [&](const Place& p) { return p.id == place; })) s->place.set(std::string(place));
     s->lang.set(lang == "zh" ? "zh" : "en");

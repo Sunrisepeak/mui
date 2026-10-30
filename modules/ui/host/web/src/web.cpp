@@ -6,6 +6,9 @@ import openmui.view;
 import openmui.semantic;
 import openmui.raster;
 import openmui.render.vector;
+import openmui.rhi;
+import openmui.rhi.webgpu;
+import openmui.rhi.webgl;
 import openmui.text;
 import openmui.trace;
 import openmui.agent;
@@ -65,6 +68,13 @@ struct Web::Impl {
     std::unique_ptr<semantic::Tree>          tree;
     std::unique_ptr<typeset::GlyphCache>     glyphs;
     render::CpuRenderer                      renderer;
+    // The GPU, when one draws (WebOptions::renderer): its device (before the
+    // renderer, which holds it), the renderer, the texture each frame is drawn in.
+    std::unique_ptr<rhi::Device>             device;
+    std::optional<render::GpuRenderer>       gpu;
+    rhi::Texture                             target{};
+    int                                      target_w = 0, target_h = 0;
+    std::string_view                         drawn_by = "cpu";
     render::DamageTracker                    damage;
     raster::Surface                          frame;
     std::uint64_t                            shown = 0;   // the list hash on the canvas
@@ -175,12 +185,83 @@ struct Web::Impl {
         caret_sent = true;
     }
 
+    // The device the options ask for, as the page has one (in a page only:
+    // before anything is shown, as a canvas keeps the first kind of context
+    // it gives).
+    void choose_renderer() {
+        const Renderer want = options.renderer;
+        if (!opened || want == Renderer::cpu) return;
+        auto take = [&](Renderer kind) {
+            // A software adapter counts as none for `automatic`: asked first
+            // without the canvas, so that the canvas keeps no context of a
+            // device that will not draw (and the CPU can still show its frames).
+            if (want == Renderer::automatic) {
+                auto probe = kind == Renderer::webgpu ? rhi::webgpu::create({}) : rhi::webgl::create({});
+                if (!probe || (*probe)->caps().software) return false;
+            }
+            auto made = kind == Renderer::webgpu ? rhi::webgpu::create({.canvas = options.canvas}) : rhi::webgl::create({.canvas = options.canvas});
+            const std::string_view name = kind == Renderer::webgpu ? "WebGPU" : "WebGL2";
+            if (!made) {
+                if (want == kind) warn("host.web: {} was asked for and the page has none ({}): the CPU draws", name, made.error().message);
+                return false;
+            }
+            auto renderer = render::GpuRenderer::create(**made);
+            if (!renderer) {
+                warn("host.web: {} cannot draw ({}): the CPU does", name, renderer.error().message);
+                return false;
+            }
+            device = std::move(*made);
+            gpu.emplace(std::move(*renderer));
+            drawn_by = kind == Renderer::webgpu ? "webgpu" : "webgl";
+            return true;
+        };
+        if (want != Renderer::webgl && take(Renderer::webgpu)) return;
+        if (want != Renderer::webgpu && !take(Renderer::webgl) && want == Renderer::gpu) warn("host.web: a GPU was asked for and the page has none: the CPU draws");
+    }
+
+    // The frame on the GPU: drawn whole into a texture the canvas's size,
+    // presented. False when the GPU failed it (said once).
+    bool show_gpu(const render::DisplayList& list, int w, int hgt) {
+        if (target_w != w || target_h != hgt) {
+            if (target.valid()) device->destroy(target);
+            auto t = device->create(rhi::TextureDesc{.format = rhi::Format::rgba8_unorm, .width = static_cast<std::uint32_t>(w),
+                                                     .height = static_cast<std::uint32_t>(hgt),
+                                                     .usage = rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, .label = "host.web frame"});
+            if (!t) return gpu_failed(t.error().message);
+            target = *t;
+            target_w = w, target_h = hgt;
+        }
+        {
+            trace::Span span("render", "host");
+            const render::Resources resources{&runtime->images(), glyphs.get()};
+            if (auto r = gpu->render(list, target, resources, {.scale = scale, .clear = true, .background = options.background}); !r) return gpu_failed(r.error().message);
+        }
+        trace::Span span("present", "host");
+        page::backing(options.canvas, w, hgt);  // shown pixel for pixel, as the CPU's frame is
+        if (auto r = device->present(target); !r) return gpu_failed(r.error().message);
+        return true;
+    }
+    bool gpu_failed(std::string_view why) {
+        if (!gpu_said) warn("host.web: the {} frame failed: {}", drawn_by, why);
+        gpu_said = true;
+        return false;
+    }
+    bool gpu_said = false;
+
     void show() {
         const render::DisplayList& list = runtime->display_list();
         const std::uint64_t h = list.hash();
         const int w = static_cast<int>(std::lround(runtime->size().width * scale));
         const int hgt = static_cast<int>(std::lround(runtime->size().height * scale));
         if (w <= 0 || hgt <= 0) return;
+        if (gpu) {
+            if (h == shown && target_w == w && target_h == hgt) return;
+            if (show_gpu(list, w, hgt)) {
+                shown = h;
+                ++frames_shown;
+            }
+            return;
+        }
         if (h == shown && frame.width() == w && frame.height() == hgt) return;
         if (frame.width() != w || frame.height() != hgt) frame = raster::Surface(w, hgt);
         {
@@ -282,6 +363,7 @@ Web::Web(WebOptions options) : impl_(std::make_unique<Impl>()) {
         const page::Canvas c = page::canvas(d.options.canvas);
         if (c.size.width > 0 && c.size.height > 0) d.size = c.size, d.scale = c.scale;
     }
+    d.choose_renderer();
     if (d.options.runtime) {
         d.runtime = d.options.runtime;
         d.runtime->clock() = hanim::Clock::interactive();
@@ -320,6 +402,20 @@ Runtime& Web::runtime() noexcept { return *impl_->runtime; }
 semantic::Tree& Web::tree() noexcept { return *impl_->tree; }
 NodeId Web::mount(std::string_view slot, View view) { return impl_->runtime->mount(slot, std::move(view)); }
 const raster::Surface& Web::pixels() const noexcept { return impl_->frame; }
+std::string_view Web::renderer() const noexcept { return impl_->drawn_by; }
+
+std::expected<raster::Surface, std::string> Web::read_frame() {
+    Impl& d = *impl_;
+    if (!d.gpu) return d.frame;
+    if (!d.target.valid()) return std::unexpected(std::string("no frame shown yet"));
+    const auto w = static_cast<std::uint32_t>(d.target_w), h = static_cast<std::uint32_t>(d.target_h);
+    auto bytes = d.device->read(d.target, rhi::Region{0, 0, w, h});
+    if (!bytes) return std::unexpected(bytes.error().message);
+    raster::Surface s(d.target_w, d.target_h);
+    for (int y = 0; y < d.target_h; ++y)
+        std::memcpy(s.row(y), bytes->data() + static_cast<std::size_t>(y) * w * 4, static_cast<std::size_t>(w) * 4);
+    return s;
+}
 std::size_t Web::frames_shown() const noexcept { return impl_->frames_shown; }
 bool Web::hidden() const noexcept { return impl_->is_hidden; }
 void Web::on_visibility(std::function<void(bool)> fn) { impl_->visibility = std::move(fn); }

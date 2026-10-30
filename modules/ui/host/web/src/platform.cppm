@@ -59,6 +59,8 @@ bool storage_remove(std::string_view key);
 [[nodiscard]] std::vector<std::string> storage_keys(std::string_view prefix);
 
 void present(std::string_view selector, const raster::Surface& frame);
+// The canvas's backing store the frame's size (a GPU presents into it).
+void backing(std::string_view selector, int width, int height);
 [[nodiscard]] bool hidden();
 
 // The page calls `tick(user)` once a display frame, from now on; on the Web

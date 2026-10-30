@@ -6,8 +6,8 @@
 # caret for input methods; the clipboard (Async Clipboard API); the semantic
 # tree mirrored into a hidden DOM (ARIA roles, states, focus, a live region);
 # window.omui for the page's agents (openmui.tree@0.1, decided by openas);
-# the program's store on localStorage; frames drawn by the CPU renderer and
-# put on the canvas (WebGL2 and WebGPU later); the page's visibility as the
+# the program's store on localStorage; frames drawn on the page's WebGPU or
+# WebGL2 (a hardware one), else by the CPU renderer; the page's visibility as the
 # window's focus. Off the Web it builds with no page: the same loop, stepped
 # by hand, for its tests.
 [package]
@@ -45,6 +45,9 @@ openmui.agent    = { path = "../../agent" }
 "openmui.native.store" = { path = "../../native/store" }
 openmui.raster   = { path = "../../../gfx/raster" }
 openmui.render.vector = { path = "../../../gfx/render/vector" }
+"openmui.rhi"         = { path = "../../../gfx/rhi" }
+"openmui.rhi.webgpu"  = { path = "../../../gfx/rhi/webgpu" }
+"openmui.rhi.webgl"   = { path = "../../../gfx/rhi/webgl" }
 openmui.text     = { path = "../../../content/text" }
 openmui.trace    = { path = "../../../base/trace" }
 openmui.image    = { path = "../../../base/image" }

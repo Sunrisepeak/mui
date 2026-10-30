@@ -14,7 +14,7 @@ SharedArrayBuffer).
 | Semantic DOM mirror | after each batch of changes, the semantic tree as hidden elements over the canvas (`DomMirror`): the registry's ARIA role, the name, description, value and states as `aria-*`, a focusable node's `tabindex`, its box, the children in order, the focus. Only what changed is sent. A status is said in a polite live region, an alert dialog in an assertive one. A screen reader's focus and click come back as the focus moved and a press of the node's middle |
 | `window.omui` | `snapshot`, `find`, `act`, `invoke`, `wait`, `capture`, `describe`, `changes` and `request` for the page's agents — `openmui.tree@0.1` as the desktop's agents speak it, served between frames. Promises of `{exitCode, data, errors, records}`. They come over the bus: openas decides (S-11), and the person's own actions are refused to them, whatever actor they name (S-10) |
 | Store | the program's `Store` (`openmui.native.store`: `omui::store()` in C++, `openmui:native/store` in scripts) is the page's `localStorage`, under `omui/<app>/` |
-| Drawing | the CPU renderer, only the rows that changed, put on the canvas (`putImageData`); WebGL2 and WebGPU later (§6.3) |
+| Drawing | `WebOptions::renderer`, as the desktop's host decides it (§6.3): the page's WebGPU, else its WebGL2 (`openmui.rhi.webgpu`, `openmui.rhi.webgl`), each frame drawn whole by the GPU renderer into a texture the canvas's size and presented; else the CPU renderer, only the rows that changed, put on the canvas (`putImageData`). `automatic` takes a GPU only when it is hardware (a software adapter is slower than the CPU renderer: it is asked first without the canvas, which keeps no context of a device that will not draw); `gpu`, `webgpu` and `webgl` insist. `renderer()` says who draws; `read_frame()` reads back what was shown. The CPU's pixels are the reference, the same bytes everywhere; a GPU's are within the renderer's tolerances of them |
 | Fonts | `/fonts` in the page's file system, filled by the page before `main` (`dist-toy` writes the loader) |
 | Visibility | the page hidden is the window's focus lost; `on_visibility` for the application (Toy's lifecycle) |
 
@@ -44,7 +44,9 @@ node with a fake DOM, alone and with `tests/page_test.cpp` built for
 wasm32-emscripten (the person composing, typing, pasting; a screen reader;
 an agent through `window.omui`); `tools/ci/web.sh` runs both.
 
-Not yet: WebGL2/WebGPU (the CPU renderer draws); IndexedDB for what is
+`tests/drawing_test.cpp`: without a page the CPU draws; in Chromium (`tools/ci/browser.sh`, with WebGPU, then WebGL2, the fonts preloaded) that device draws a page of boxes, borders, text in two scripts and a picture within the renderer's tolerances of the CPU's frame (4 levels at most, 64 pixels of 76 800 off by more than one: the rounded corners). Headless Chromium on SwiftShader loses a WebGPU device that presents to a canvas unless its Vulkan is SwiftShader's too, under which ANGLE's WebGL2 reads back wrong: each run has its own switches.
+
+Not yet: IndexedDB for what is
 larger than localStorage holds; the clipboard's other kinds than text.
 
 | Package | |

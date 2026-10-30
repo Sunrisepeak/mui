@@ -18,6 +18,9 @@ int shown(const AppSpec& app, const RunOptions& o, const Prepare& prepare) {
     w.size = o.size.value_or(app.size);
     w.theme = o.dark ? Theme::dark_theme() : app.theme;
     w.reduce_transparency = o.reduce_transparency;
+    if (o.gpu) w.renderer = *o.gpu ? Renderer::gpu : Renderer::cpu;
+    else if (app.renderer == "cpu") w.renderer = Renderer::cpu;
+    else if (app.renderer == "gpu") w.renderer = Renderer::gpu;
     static Web* page = nullptr;            // the page's: never destroyed
     static std::shared_ptr<void> kept;     // what the application keeps while it is shown
     page = new Web(std::move(w));

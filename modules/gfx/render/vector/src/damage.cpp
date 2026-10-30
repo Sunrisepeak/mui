@@ -1,6 +1,7 @@
 module openmui.render.vector;
 
 import std;
+import openmui.hash;
 import openmui.geom;
 import :effects;
 
@@ -8,15 +9,9 @@ namespace omui::render {
 
 namespace {
 
-constexpr std::uint64_t fnv_basis = 0xcbf29ce484222325ull;
+constexpr std::uint64_t fnv_basis = hash::Fnv1a::offset;
 
-std::uint64_t mix(std::uint64_t h, std::uint64_t v) noexcept {
-    for (int i = 0; i < 8; ++i) {
-        h ^= (v >> (8 * i)) & 0xff;
-        h *= 0x100000001b3ull;
-    }
-    return h;
-}
+std::uint64_t mix(std::uint64_t h, std::uint64_t v) noexcept { return hash::Fnv1a(h).u64(v).value(); }
 
 Rect points_bounds(std::span<const Point> points) noexcept {
     if (points.empty()) return {};

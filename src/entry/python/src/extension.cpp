@@ -4,6 +4,7 @@
 module openmui.entry.python;
 
 import std;
+import openmui.hash;
 import nlohmann.json;
 import openmui;
 import openmui.abi;
@@ -101,12 +102,7 @@ struct World {
     // FNV-1a over the frame's RGBA rows: the hash the examples' tests pin.
     std::string pixels() {
         render();
-        std::uint64_t h = 0xcbf29ce484222325ull;
-        for (const std::uint8_t b : surface.bytes()) {
-            h ^= b;
-            h *= 0x100000001b3ull;
-        }
-        return std::format("{:016x}", h);
+        return omui::hash::Fnv1a().bytes(surface.bytes()).hex();
     }
 
     int run(const lang::Json& o) {

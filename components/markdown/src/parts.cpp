@@ -1,6 +1,7 @@
 module openmui.ui.markdown;
 
 import std;
+import openmui.hash;
 import openmui.core;
 import openmui.view;
 import openmui.markdown;
@@ -149,14 +150,10 @@ Element make(std::shared_ptr<Data> data, std::string id, std::string key) {
 
 std::string key_of(const Data& d, std::string_view id) {
     // The content and what around it changes how it looks or what it does.
-    std::uint64_t h = d.block.hash;
-    auto mix = [&](std::uint64_t v) { h = (h ^ v) * 0x100000001b3ull; };
-    mix(d.tight);
-    mix(d.number);
-    mix(static_cast<std::uint64_t>(static_cast<unsigned char>(d.bullet)));
-    mix(static_cast<std::uint64_t>(d.task + 1));
-    for (char c : d.block.anchor) mix(static_cast<unsigned char>(c));
-    return std::format("{}:{:016x}", id, h);
+    hash::Fnv1a h(d.block.hash);
+    h.word(d.tight).word(static_cast<std::uint64_t>(d.number)).word(static_cast<unsigned char>(d.bullet)).word(static_cast<std::uint64_t>(d.task + 1));
+    for (char c : d.block.anchor) h.word(static_cast<unsigned char>(c));
+    return std::format("{}:{}", id, h.hex());
 }
 
 void localize_into(md::Block& b, std::span<const md::Link> links, std::vector<md::Link>& out, std::map<std::uint32_t, std::uint32_t>& seen) {

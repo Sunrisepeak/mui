@@ -22,6 +22,7 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 
 [dependencies]
+openmui.hash = { path = "../../base/hash" }
 openmui.trace       = { path = "../../base/trace" }
 mcpplibs.mwrap.md4c = "0.5.3"
 

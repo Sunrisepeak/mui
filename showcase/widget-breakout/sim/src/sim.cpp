@@ -1,6 +1,7 @@
 module openmui.showcase.widget_breakout.sim;
 
 import std;
+import openmui.hash;
 import mgame.world;
 import mgame.input;
 import mgame.physics;
@@ -722,11 +723,8 @@ std::size_t trace(const State& s, V2 at, V2 velocity, double radius, std::span<V
 }
 
 std::uint64_t checksum(const State& s) noexcept {
-    std::uint64_t h = s.world.checksum();
-    auto bytes = [&h](const auto& v) {
-        const auto* p = reinterpret_cast<const unsigned char*>(&v);
-        for (std::size_t i = 0; i < sizeof(v); ++i) h = (h ^ p[i]) * 0x100000001b3ull;
-    };
+    omui::hash::Fnv1a h(s.world.checksum());
+    auto bytes = [&h](const auto& v) { h.bytes(std::as_bytes(std::span(&v, 1))); };
     for (const Paddle& p : s.paddles) bytes(p.x), bytes(p.y), bytes(p.half), bytes(p.moved), bytes(p.wide), bytes(p.active), bytes(p.magnet);
     bytes(s.rng), bytes(s.frame), bytes(s.score), bytes(s.combo), bytes(s.lives), bytes(s.slow), bytes(s.bricks), bytes(s.speed), bytes(s.over), bytes(s.gate_from), bytes(s.gate_to), bytes(s.height), bytes(s.zoom);
     bytes(s.gate_period), bytes(s.gate_open), bytes(s.chamber), bytes(s.aim), bytes(s.aim_phase), bytes(s.aim_held), bytes(s.freeze), bytes(s.ending), bytes(s.sparks);
@@ -736,7 +734,7 @@ std::uint64_t checksum(const State& s) noexcept {
     bytes(r.magnet_catches), bytes(r.gift_mask);
     bytes(s.events);
     for (std::uint32_t i = 0; i < s.events; ++i) bytes(s.event[i]);
-    return h;
+    return h.value();
 }
 
 }  // namespace omui::breakout

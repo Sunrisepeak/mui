@@ -1,6 +1,7 @@
 module openmui.render.vector;
 
 import std;
+import openmui.hash;
 import hanim;
 
 namespace omui::render {
@@ -377,14 +378,8 @@ bool DisplayList::balanced() const noexcept {
 namespace {
 
 struct Hasher {
-    std::uint64_t h = 0xcbf29ce484222325ull;
-    void bytes(const void* p, std::size_t n) {
-        auto* b = static_cast<const unsigned char*>(p);
-        for (std::size_t i = 0; i < n; ++i) {
-            h ^= b[i];
-            h *= 0x100000001b3ull;
-        }
-    }
+    std::uint64_t h = hash::Fnv1a::offset;
+    void bytes(const void* p, std::size_t n) { h = hash::Fnv1a(h).bytes(std::span(static_cast<const std::byte*>(p), n)).value(); }
     template <class T>
         requires std::is_arithmetic_v<T> || std::is_enum_v<T>
     void put(T v) {

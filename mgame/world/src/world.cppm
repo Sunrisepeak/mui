@@ -18,6 +18,7 @@
 export module mgame.world;
 
 import std;
+import openmui.hash;
 
 export namespace mgame {
 
@@ -139,20 +140,14 @@ public:
 
     // FNV-1a over the world's bytes: the same world, the same number, everywhere.
     [[nodiscard]] std::uint64_t checksum() const noexcept {
-        std::uint64_t h = 0xcbf29ce484222325ull;
-        auto bytes = [&h](const auto& v) {
-            const auto* p = reinterpret_cast<const unsigned char*>(&v);
-            for (std::size_t i = 0; i < sizeof(v); ++i) {
-                h ^= p[i];
-                h *= 0x100000001b3ull;
-            }
-        };
+        omui::hash::Fnv1a h;
+        auto bytes = [&h](const auto& v) { h.bytes(std::as_bytes(std::span(&v, 1))); };
         // Part by part: each part has no padding of its own (a column's values and its bits may have some between them).
         bytes(alive_);
         bytes(generation_);
         bytes(count_);
         ((bytes(column<Cs>().values), bytes(column<Cs>().present)), ...);
-        return h;
+        return h.value();
     }
 
 private:

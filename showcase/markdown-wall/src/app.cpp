@@ -2,6 +2,7 @@
 module openmui.showcase.markdown_wall;
 
 import std;
+import openmui.hash;
 import openmui;
 import openmui.ui.canvas;
 import openmui.ui.canvas.kit;
@@ -16,8 +17,7 @@ constexpr std::array<std::string_view, 24> tokens{"the",  "wall", "streams", "te
 
 // A stream's n-th token: words, sentences, now and then a new paragraph.
 std::string token(std::string_view key, std::uint64_t n) {
-    std::uint64_t h = 0xcbf29ce484222325ull;
-    for (unsigned char c : key) h = (h ^ c) * 0x100000001b3ull;
+    const std::uint64_t h = omui::hash::fnv1a(key);
     std::string t(tokens[(h + n * 7) % tokens.size()]);
     if (n % 60 == 0) return "\n\n" + std::string(1, static_cast<char>(std::toupper(static_cast<unsigned char>(t[0])))) + t.substr(1);
     if (n % 12 == 11) return " " + t + ".";

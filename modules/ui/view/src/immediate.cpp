@@ -1,6 +1,7 @@
 module openmui.view;
 
 import std;
+import openmui.hash;
 import openmui.core;
 import openmui.layout;
 
@@ -45,14 +46,7 @@ struct ImRootNode {
     }
 };
 
-std::uint32_t fnv1a(std::string_view s) noexcept {
-    std::uint32_t h = 2166136261u;
-    for (unsigned char c : s) {
-        h ^= c;
-        h *= 16777619u;
-    }
-    return h;
-}
+std::uint32_t fnv1a(std::string_view s) noexcept { return hash::fnv1a32(s); }
 
 }  // namespace
 

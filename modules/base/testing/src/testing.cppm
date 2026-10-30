@@ -7,6 +7,7 @@
 export module openmui.testing;
 
 import std;
+export import openmui.hash;
 export import :target;
 
 export namespace omui::testing {
@@ -70,20 +71,9 @@ void check_eq(const A& actual, const B& expected,
 
 // FNV-1a over bytes, for the pinned hashes of determinism tests: one value per
 // sampled table keeps the tests short and makes a cross-platform difference a
-// single, comparable line in the CI log.
-class Hash {
-public:
-    void bytes(std::span<const std::byte> data) noexcept;
-    void f64(double v) noexcept;
-    void f32(float v) noexcept;
-    void u64(std::uint64_t v) noexcept;
-    void str(std::string_view s) noexcept;
-    [[nodiscard]] std::uint64_t value() const noexcept { return h_; }
-    [[nodiscard]] std::string hex() const;
-
-private:
-    std::uint64_t h_ = 0xcbf29ce484222325ull;
-};
+// single, comparable line in the CI log (openmui.hash's: bytes, u64, f64,
+// f32, str, value, hex).
+using Hash = ::omui::hash::Fnv1a;
 
 // A directory a test may write into, removed when the program starts again.
 [[nodiscard]] std::filesystem::path scratch_dir(std::string_view test_name);

@@ -74,11 +74,7 @@ std::vector<std::pair<image::Image, std::uint32_t>> play(std::span<const std::ui
 }
 
 // FNV-1a over the pixels: a pin that names a whole picture.
-std::uint64_t fnv(std::span<const std::uint8_t> b) {
-    std::uint64_t h = 0xcbf29ce484222325ull;
-    for (std::uint8_t x : b) h = (h ^ x) * 0x100000001b3ull;
-    return h;
-}
+std::uint64_t fnv(std::span<const std::uint8_t> b) { return omui::hash::Fnv1a().bytes(b).value(); }
 
 // A picture like art or a photograph: smooth colour with a little grain
 // (what lossy coding is for), alpha rising left to right, and a clear band

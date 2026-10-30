@@ -1,6 +1,7 @@
 module openmui.view;
 
 import std;
+import openmui.hash;
 import openmui.core;
 import hanim;
 import openmui.render.vector;
@@ -20,7 +21,7 @@ std::uint64_t mix(std::uint64_t x) noexcept {
 }
 // A number in [-1, 1] for (seed, element, component), the same everywhere.
 float signed_unit(std::uint64_t seed, std::uint64_t key, std::uint64_t component) noexcept {
-    const std::uint64_t h = mix(seed ^ mix(key * 0x100000001b3ull + component));
+    const std::uint64_t h = mix(seed ^ mix(key * hash::Fnv1a::prime + component));
     return static_cast<float>(static_cast<double>(h >> 11) * (1.0 / 9007199254740992.0)) * 2 - 1;
 }
 

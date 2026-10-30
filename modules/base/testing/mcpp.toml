@@ -15,6 +15,9 @@ kind = "lib"
 [build]
 sources = ["src/*.cppm", "src/*.cpp"]
 
+[dependencies]
+openmui.hash = { path = "../hash" }
+
 # What the target can do, as constants (:target): the Web row runs no threads.
 [target.'cfg(not(os = "emscripten"))'.build]
 sources = ["src/targets/threads.cppm"]

@@ -31,6 +31,7 @@ sources  = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
+openmui.hash = { path = "../../base/hash" }
 hanim               = { path = "../../base/hanim" }
 openmui.image       = { path = "../../base/image" }
 openmui.trace       = { path = "../../base/trace" }

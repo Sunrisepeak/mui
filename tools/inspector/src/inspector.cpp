@@ -2,6 +2,7 @@
 module openmui.inspector;
 
 import std;
+import openmui.hash;
 import openmui.core;
 import openmui.view;
 import openmui.agent;
@@ -30,9 +31,7 @@ std::string key_of(std::string_view id) {
         else k += c;
     }
     if (k.size() <= 128) return k;
-    std::uint64_t h = 0xcbf29ce484222325ull;
-    for (char c : id) h = (h ^ static_cast<unsigned char>(c)) * 0x100000001b3ull;
-    return std::format("h{:016x}", h);
+    return std::format("h{:016x}", omui::hash::fnv1a(id));
 }
 
 }  // namespace

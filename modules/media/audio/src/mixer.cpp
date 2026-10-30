@@ -1,6 +1,7 @@
 module openmui.audio;
 
 import std;
+import openmui.hash;
 import hanim;
 import openmui.trace;
 import :dsp;
@@ -461,15 +462,9 @@ std::vector<float> render(Mixer& mixer, std::int64_t frames) {
 }
 
 std::uint64_t hash(std::span<const float> samples) noexcept {
-    std::uint64_t h = 0xcbf29ce484222325ull;
-    for (const float s : samples) {
-        const auto bits = std::bit_cast<std::uint32_t>(s);
-        for (int b = 0; b < 4; ++b) {
-            h ^= (bits >> (8 * b)) & 0xff;
-            h *= 0x100000001b3ull;
-        }
-    }
-    return h;
+    hash::Fnv1a h;
+    for (const float s : samples) h.le(std::bit_cast<std::uint32_t>(s), 4);
+    return h.value();
 }
 
 float peak(std::span<const float> samples) noexcept {

@@ -19,6 +19,7 @@ members = [
     "modules/base/fuzzy",
     "modules/base/geom",
     "modules/base/hanim",
+    "modules/base/hash",
     "modules/base/image",
     "modules/base/memory",
     "modules/base/pipeline",

@@ -1,6 +1,7 @@
 module space;
 
 import std;
+import openmui.hash;
 import openmui;
 import openmui.ui.canvas;
 
@@ -255,9 +256,7 @@ std::string human(std::uint64_t bytes) {
 }
 
 std::string key_of(std::string_view path) {
-    std::uint64_t h = 0xcbf29ce484222325ull;  // FNV-1a
-    for (unsigned char c : path) h = (h ^ c) * 0x100000001b3ull;
-    return std::format("n{:016x}", h);
+    return std::format("n{:016x}", omui::hash::fnv1a(path));
 }
 
 void layout(const Entry& root, Scene& scene, double width, double height) {

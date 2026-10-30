@@ -20,7 +20,7 @@ struct Toy {
         std::int32_t value = 0;
     };
     static void step(State& s, const Input& in) {
-        s.mix = (s.mix ^ static_cast<std::uint64_t>(in.value)) * 0x100000001b3ull + 0x7f4a7c15ull;
+        s.mix = (s.mix ^ static_cast<std::uint64_t>(in.value)) * omui::hash::Fnv1a::prime + 0x7f4a7c15ull;
         s.sum += in.value;
     }
 };

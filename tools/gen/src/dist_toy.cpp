@@ -1,6 +1,7 @@
 module openmui.gen.dist_toy;
 
 import std;
+import openmui.hash;
 import nlohmann.json;
 
 namespace omui::gen {
@@ -32,12 +33,7 @@ std::expected<void, std::string> write(const fs::path& file, std::string_view by
 
 // A content hash for file names: FNV-1a, 64 bits, as 12 hex digits.
 std::string content_hash(std::string_view bytes) {
-    std::uint64_t h = 0xcbf29ce484222325ull;
-    for (const unsigned char c : bytes) {
-        h ^= c;
-        h *= 0x100000001b3ull;
-    }
-    return std::format("{:012x}", h & 0xffffffffffffull);
+    return std::format("{:012x}", omui::hash::fnv1a(bytes) & 0xffffffffffffull);
 }
 
 // openmui.text's directory of default fonts, from mcpp's resolved graph.

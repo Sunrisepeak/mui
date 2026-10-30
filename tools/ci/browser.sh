@@ -58,13 +58,17 @@ done
   || { echo "::error::host.web's tests did not build for the browser"; exit 1; }
 drawing=$(ls -t target/wasm32-emscripten/*/bin/web/drawing_test.js 2>/dev/null | head -1)
 [ -n "$drawing" ] || { echo "::error::host.web's drawing_test.js was not built"; exit 1; }
-# Headless Chromium on SwiftShader loses a WebGPU device that presents to a
-# canvas ("Device was destroyed") unless its Vulkan is SwiftShader's too —
-# under which ANGLE's WebGL2 reads back wrong: each its own switches.
+# Headless Chromium's SwiftShader differs by build and machine: some lose a
+# WebGPU device that presents to a canvas ("Device was destroyed") unless
+# their Vulkan is SwiftShader's too (under which ANGLE's WebGL2 reads back
+# wrong), others offer no WebGPU adapter with those switches. WebGPU's run
+# takes the default switches, else the Vulkan ones; the test is the same.
 # The fonts as dist-toy's page gives them: so the page draws its text.
 fonts="--preload modules/content/text/fonts:/fonts"
-"$node_bin" tools/ci/browser.mjs --chrome "$chrome" --flag --enable-features=Vulkan --flag --use-vulkan=swiftshader --flag --use-angle=vulkan \
-  $fonts "$drawing" --webgpu || { echo "::error::host.web did not draw on WebGPU in the browser"; exit 1; }
+"$node_bin" tools/ci/browser.mjs --chrome "$chrome" $fonts "$drawing" --webgpu \
+  || "$node_bin" tools/ci/browser.mjs --chrome "$chrome" --flag --enable-features=Vulkan --flag --use-vulkan=swiftshader --flag --use-angle=vulkan \
+       $fonts "$drawing" --webgpu \
+  || { echo "::error::host.web did not draw on WebGPU in the browser"; exit 1; }
 "$node_bin" tools/ci/browser.mjs --chrome "$chrome" $fonts "$drawing" --webgl \
   || { echo "::error::host.web did not draw on WebGL2 in the browser"; exit 1; }
 

@@ -2,6 +2,7 @@
 module openmui.video;
 
 import std;
+import openmui.hash;
 import openmui.image;
 import openmui.audio;
 import openmui.trace;
@@ -126,16 +127,13 @@ std::expected<void, std::string> DirectoryOutput::close(File* file) {
     const bool ok = static_cast<bool>(f.stream);
     // Its hash from what is on the disk now (an encoder may have gone back).
     f.stream.seekg(0);
-    std::uint64_t h = 0xcbf29ce484222325ull;
+    hash::Fnv1a h;
     std::int64_t size = 0;
     std::array<char, 1 << 16> buffer{};
     while (f.stream) {
         f.stream.read(buffer.data(), buffer.size());
         const auto n = f.stream.gcount();
-        for (std::streamsize i = 0; i < n; ++i) {
-            h ^= static_cast<std::uint8_t>(buffer[static_cast<std::size_t>(i)]);
-            h *= 0x100000001b3ull;
-        }
+        h.text(std::string_view(buffer.data(), static_cast<std::size_t>(n)));
         size += n;
     }
     f.stream.close();
@@ -143,7 +141,7 @@ std::expected<void, std::string> DirectoryOutput::close(File* file) {
     impl_->open.erase(it);
     if (!ok) return std::unexpected(std::format("cannot write {}", where));
     std::erase_if(impl_->written, [&](const Written& w) { return w.name == name; });
-    impl_->written.push_back({name, size, h});
+    impl_->written.push_back({name, size, h.value()});
     return {};
 }
 

@@ -35,6 +35,7 @@ sources  = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
+openmui.hash = { path = "../../base/hash" }
 hanim               = { path = "../../base/hanim" }
 openmui.trace       = { path = "../../base/trace" }
 marzer.tomlplusplus = "3.4.0"

@@ -22,6 +22,7 @@ main = "src/main.cpp"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
+openmui.hash = { path = "../../modules/base/hash" }
 marzer.tomlplusplus = "3.4.0"
 nlohmann.json       = "3.12.0"
 

@@ -65,12 +65,13 @@ SKIP_DIRS = {"target", ".git", ".cache", "build", "node_modules", "fixtures", ".
 # (D-55); openmui (modules/ui) never depends on the game engine (mgame); the
 # fighting framework's core (mgame/gongfu) depends on the standard library
 # alone, so that it can leave the repository unchanged.
-GROUPS = ["modules/base/testing", "modules/base", "modules/gfx", "modules/content", "modules/media", "modules/ui/host", "modules/ui",
+GROUPS = ["modules/base/hash", "modules/base/testing", "modules/base", "modules/gfx", "modules/content", "modules/media", "modules/ui/host", "modules/ui",
           "spec", "components", "lang", "mgame/gongfu", "mgame", "tools", "mcpp", "src", "tests", "examples", "showcase", "site", "."]
 INDEPENDENT = ["modules/base", "modules/gfx", "modules/content", "modules/media"]
 _BELOW_UI = {"modules/base", "modules/gfx", "modules/content", "modules/media", "spec"}
 LAYERS: dict[str, set[str]] = {
-    "modules/base/testing": set(),
+    "modules/base/hash": set(),  # the bottom: what testing hashes with
+    "modules/base/testing": {"modules/base/hash"},
     "modules/base": {"modules/base"},
     "modules/gfx": {"modules/base", "modules/gfx"},
     "modules/content": {"modules/base", "modules/gfx", "modules/content"},
@@ -91,6 +92,10 @@ LAYERS: dict[str, set[str]] = {
     "site": {"*"},
     ".": {"*"},
 }
+# openmui.hash is the base layer's bottom: whoever may use the base may use it.
+for _allowed in LAYERS.values():
+    if "modules/base" in _allowed:
+        _allowed.add("modules/base/hash")
 
 # Members whose results are part of A-level conformance (identical bits).
 DETERMINISTIC = ["modules/base/fuzzy", "modules/media/audio", "modules/media/video", "mgame/physics", "showcase/widget-breakout/sim", "modules/base/hanim", "modules/gfx/raster", "modules/content/layout", "modules/base/geom", "modules/gfx/render", "modules/gfx/render/vector", "modules/content/text",

@@ -937,8 +937,7 @@ int main(int argc, char** argv) {
         rt.frame({seconds(0), {}});
         std::string_view file = site.file_name();
         file.remove_prefix(file.find_last_of("/\\") + 1);
-        std::uint32_t h = 2166136261u;
-        for (const unsigned char ch : std::format("{}:{}", file, site.line())) h = (h ^ ch) * 16777619u;
+        const std::uint32_t h = omui::hash::fnv1a32(std::format("{}:{}", file, site.line()));
         const auto kids = rt.children(rt.find("main"));
         check(kids.size() == 2);
         if (kids.size() != 2) return;

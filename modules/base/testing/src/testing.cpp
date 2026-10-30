@@ -80,28 +80,6 @@ void check_near(double actual, double expected, double tolerance, std::source_lo
 
 int failures() noexcept { return running ? running->failures : 0; }
 
-void Hash::bytes(std::span<const std::byte> data) noexcept {
-    for (auto b : data) {
-        h_ ^= static_cast<std::uint64_t>(b);
-        h_ *= 0x100000001b3ull;
-    }
-}
-
-void Hash::u64(std::uint64_t v) noexcept {
-    std::array<std::byte, 8> le{};
-    for (int i = 0; i < 8; ++i) le[i] = static_cast<std::byte>((v >> (8 * i)) & 0xff);
-    bytes(le);
-}
-
-void Hash::f64(double v) noexcept { u64(std::bit_cast<std::uint64_t>(v)); }
-void Hash::f32(float v) noexcept { u64(std::bit_cast<std::uint32_t>(v)); }
-
-void Hash::str(std::string_view s) noexcept {
-    bytes(std::as_bytes(std::span(s.data(), s.size())));
-    u64(s.size());
-}
-
-std::string Hash::hex() const { return std::format("{:016x}", h_); }
 
 std::filesystem::path scratch_dir(std::string_view test_name) {
     auto dir = std::filesystem::temp_directory_path() / "openmui-tests" / std::string(test_name);

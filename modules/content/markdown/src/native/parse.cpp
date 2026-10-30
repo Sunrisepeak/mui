@@ -3,6 +3,7 @@
 module openmui.markdown;
 
 import std;
+import openmui.hash;
 import mcpplibs.mwrap.md4c;
 import openmui.trace;
 
@@ -117,13 +118,7 @@ struct Builder {
     }
 };
 
-std::uint64_t fnv(std::uint64_t h, std::string_view s) {
-    for (unsigned char c : s) {
-        h ^= c;
-        h *= 0x100000001b3ull;
-    }
-    return h;
-}
+std::uint64_t fnv(std::uint64_t h, std::string_view s) { return hash::Fnv1a(h).text(s).value(); }
 template <class T>
 std::uint64_t fnv_value(std::uint64_t h, T v) {
     return fnv(h, std::string_view(reinterpret_cast<const char*>(&v), sizeof v));
@@ -132,7 +127,7 @@ std::uint64_t fnv_value(std::uint64_t h, T v) {
 }  // namespace
 
 std::uint64_t hash_fields(const Block& b, std::span<const Link> links) {
-    std::uint64_t h = 0xcbf29ce484222325ull;
+    std::uint64_t h = hash::Fnv1a::offset;
     h = fnv_value(h, static_cast<std::uint8_t>(b.kind));
     h = fnv_value(h, b.level);
     h = fnv_value(h, b.tight);

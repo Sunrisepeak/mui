@@ -1,6 +1,7 @@
 module openmui.render.vector;
 
 import std;
+import openmui.hash;
 import openmui.raster;
 import :shared;
 
@@ -172,11 +173,11 @@ private:
         bool             used = false;
     };
     static std::uint64_t hash(const MaskKey& k) noexcept {
-        std::uint64_t h = 0xcbf29ce484222325ull;
+        hash::Fnv1a h;
         for (std::uint32_t v : {k.font, k.glyph, std::bit_cast<std::uint32_t>(k.size), std::bit_cast<std::uint32_t>(k.fx),
                                 std::bit_cast<std::uint32_t>(k.fy)})
-            h = (h ^ v) * 0x100000001b3ull;
-        return h;
+            h.word(v);
+        return h.value();
     }
     MaskSlot* find(const MaskKey& k, bool insert) {
         if (masks_.empty()) return nullptr;

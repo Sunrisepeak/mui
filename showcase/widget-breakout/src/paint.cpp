@@ -10,6 +10,7 @@
 module openmui.showcase.widget_breakout;
 
 import std;
+import openmui.hash;
 import openmui;
 import openmui.showcase.widget_breakout.sim;
 
@@ -30,10 +31,10 @@ float pulse(std::int64_t frame, std::int64_t period) {
     return static_cast<float>(p < period / 2 ? p : period - p) / static_cast<float>(period / 2);
 }
 std::uint64_t hash_text(std::string_view text, float size, Color c, float width) {
-    std::uint64_t h = 0xcbf29ce484222325ull;
-    for (const char ch : text) h = (h ^ static_cast<unsigned char>(ch)) * 0x100000001b3ull;
-    for (const float f : {size, c.r, c.g, c.b, c.a, width}) h = (h ^ std::bit_cast<std::uint32_t>(f)) * 0x100000001b3ull;
-    return h;
+    omui::hash::Fnv1a h;
+    h.text(text);
+    for (const float f : {size, c.r, c.g, c.b, c.a, width}) h.word(std::bit_cast<std::uint32_t>(f));
+    return h.value();
 }
 const char* gift_letter(Gift g) {
     switch (g) {

@@ -22,3 +22,6 @@ sources = ["src/*.cppm"]
 
 [dev-dependencies]
 openmui.testing = { path = "../../modules/base/testing" }
+
+[dependencies]
+openmui.hash = { path = "../../modules/base/hash" }

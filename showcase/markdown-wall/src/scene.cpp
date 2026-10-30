@@ -2,6 +2,7 @@
 module openmui.showcase.markdown_wall;
 
 import std;
+import openmui.hash;
 import openmui;
 import openmui.ui.canvas;
 import openmui.ui.markdown;
@@ -20,8 +21,7 @@ constexpr float title_bar = 30;  // a window's, world units
 // A workspace's colour: its name's, from a set that reads on light and dark.
 omui::Color tint(std::string_view name) {
     constexpr std::array<std::uint32_t, 8> tints{0x6366f1, 0x0ea5e9, 0x10b981, 0xf59e0b, 0xec4899, 0x8b5cf6, 0x14b8a6, 0xef4444};
-    std::uint64_t h = 0xcbf29ce484222325ull;
-    for (unsigned char c : name) h = (h ^ c) * 0x100000001b3ull;
+    const std::uint64_t h = omui::hash::fnv1a(name);
     return omui::Color::hex(tints[h % tints.size()]);
 }
 

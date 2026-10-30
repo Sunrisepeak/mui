@@ -1,6 +1,7 @@
 module openmui.raster;
 
 import std;
+import openmui.hash;
 
 namespace omui::raster {
 
@@ -15,22 +16,10 @@ void Surface::resize(int width, int height) {
 void Surface::clear(Rgba8 value) { std::ranges::fill(pixels_, value); }
 
 std::uint64_t Surface::hash() const noexcept {
-    std::uint64_t h = 0xcbf29ce484222325ull;
-    auto mix = [&](std::uint8_t b) {
-        h ^= b;
-        h *= 0x100000001b3ull;
-    };
-    mix(static_cast<std::uint8_t>(width_));
-    mix(static_cast<std::uint8_t>(width_ >> 8));
-    mix(static_cast<std::uint8_t>(height_));
-    mix(static_cast<std::uint8_t>(height_ >> 8));
-    for (const Rgba8& p : pixels_) {
-        mix(p.r);
-        mix(p.g);
-        mix(p.b);
-        mix(p.a);
-    }
-    return h;
+    hash::Fnv1a h;
+    h.le(static_cast<std::uint64_t>(width_), 2).le(static_cast<std::uint64_t>(height_), 2);
+    for (const Rgba8& p : pixels_) h.byte(p.r).byte(p.g).byte(p.b).byte(p.a);
+    return h.value();
 }
 
 Mask::Mask(int width, int height, std::uint8_t fill) { resize(width, height, fill); }

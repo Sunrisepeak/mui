@@ -2,6 +2,7 @@
 module openmui.video;
 
 import std;
+import openmui.hash;
 import hanim;
 import openmui.image;
 
@@ -183,12 +184,7 @@ std::expected<Y4m, std::string> read_y4m(std::span<const std::byte> file) {
 }
 
 std::uint64_t hash(std::span<const std::byte> bytes) noexcept {
-    std::uint64_t h = 0xcbf29ce484222325ull;
-    for (const std::byte b : bytes) {
-        h ^= static_cast<std::uint8_t>(b);
-        h *= 0x100000001b3ull;
-    }
-    return h;
+    return hash::fnv1a(bytes);
 }
 
 std::uint64_t hash(std::span<const std::uint8_t> bytes) noexcept { return hash(std::as_bytes(bytes)); }

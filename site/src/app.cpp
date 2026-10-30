@@ -91,6 +91,37 @@ struct Site {
     Signal<std::string> timeline = signal(std::string(sample));  // the timeline as last edited
     hello::State        hello;                 // example 01's, as the person left it
     std::unique_ptr<wall::Model> wall;         // S1's wall of the site's documents
+    // The reference run (the foot's check against CI): played here, on a
+    // headless runtime of its own, when asked; the frame shown, its hash as
+    // this machine drew it, and CI's.
+    Signal<bool>        checking = signal(false);
+    Signal<double>      ref_frame = signal(0.0);
+    Signal<std::string> ref_mine = signal(std::string()), ref_ci = signal(std::string());
+    Signal<int>         ref_verdict = signal(0), ref_shown = signal(0);  // verdict: 1 the same, −1 not, 0 none pinned
+    std::unique_ptr<ReferenceReplay> replay;
+    render::ImageRef    ref_image{};
+    // A frame asked for (a handler's request, played by the frame stage
+    // after paint: driving another runtime inside a handler would run in the
+    // page's batch, its own effects held back until the batch ends).
+    std::optional<std::int32_t> ref_wanted;
+    void want_frame(std::int32_t f) {
+        ref_wanted = f;
+        if (runtime) runtime->request_frame();
+    }
+    void check_frame(std::int32_t f) {
+        if (!runtime) return;
+        trace::Span span("reference frame", "site");
+        if (!replay) replay = std::make_unique<ReferenceReplay>();
+        const std::uint64_t mine = replay->hash(f);
+        if (ref_image.id != 0) runtime->images().remove(ref_image);
+        ref_image = runtime->images().add(std::make_shared<const raster::Surface>(replay->pixels()));
+        const auto pinned = reference_pinned();
+        ref_mine.set(std::format("{:016x}", mine));
+        ref_ci.set(static_cast<std::size_t>(f) < pinned.size() ? std::format("{:016x}", pinned[static_cast<std::size_t>(f)]) : std::string());
+        ref_verdict.set(static_cast<std::size_t>(f) < pinned.size() ? (pinned[static_cast<std::size_t>(f)] == mine ? 1 : -1) : 0);
+        ref_frame.set(static_cast<double>(f));
+        ref_shown.set(ref_shown.peek() + 1);
+    }
     // The fighting game's move list: the fighter, the move shown, how the
     // dummy meets it (standing or guarding); each fighter's moves measured once.
     Signal<std::string> fighter = signal(std::string("mo")), move = signal(std::string("5LP"));
@@ -364,6 +395,7 @@ public:
             }
         }
         site_.tick_time();
+        if (const auto f = std::exchange(site_.ref_wanted, std::nullopt)) site_.check_frame(*f);
         if (site_.runtime && site_.runtime->semantic_revision() != site_.seen && !queued_) {
             queued_ = true;
             (void)site_.runtime->after(seconds(0.0), [this] {
@@ -810,6 +842,62 @@ Element work_window(const std::shared_ptr<Site>& s, const std::string& id, bool 
                    std::move(wall)});
 }
 
+// The check against CI: the reference run's frame as this browser drew it,
+// its pixels' hash, and the hash CI pinned for the same frame.
+Element check_panel(const std::shared_ptr<Site>& s) {
+    auto say = [s](std::string_view en, std::string_view han) {
+        return computed([s, en = std::string(en), han = std::string(han)] { return s->lang.get() == "zh" ? han : en; });
+    };
+    return column({.id = "check", .width = Dim(360.0f), .padding = Edges(16.0f, 16.0f), .gap = 10, .background = "surface"},
+                  {text({.id = "title", .text = say("The reference run", "参考回放"), .style = "heading"}),
+                   text({.id = "about",
+                         .text = say("A few seconds of this site, played here offscreen at CI's size (1280 × 800): a flight, the language switched, a lens. "
+                                     "This machine draws each frame and hashes its pixels; CI pinned the same frames' hashes.",
+                                     "这个网站的几秒钟，在这里离屏按 CI 的尺寸（1280 × 800）重放：一次飞行、切换语言、切换镜头。"
+                                     "这台机器画出每一帧并对像素求哈希；CI 固定了同样这些帧的哈希。"),
+                         .style = "caption"}),
+                   dynamic([s] {
+                       (void)s->ref_shown.get();  // a new frame: drawn again
+                       return std::vector<Element>{painter({.id = "preview",
+                                                          .width = Dim(328.0f),
+                                                          .height = Dim(205.0f),
+                                                          .label = "The reference run's frame",
+                                                          .paint = [s](PaintContext& c) {
+                                                              if (s->ref_image.id != 0)
+                                                                  c.list.draw_image(s->ref_image, {0, 0, reference_size.width, reference_size.height},
+                                                                                    {0, 0, c.size.width, c.size.height});
+                                                          }})};
+                   }),
+                   slider({.id = "ref_frame",
+                           .label = say("Frame", "帧"),
+                           .max = static_cast<double>(reference_frames() - 1),
+                           .min = 0,
+                           .step = 1,
+                           .value = s->ref_frame,
+                           .on_changed = [s](double f) { s->want_frame(static_cast<std::int32_t>(f)); }}),
+                   text({.id = "at",
+                         .text = computed([s] {
+                             const int f = static_cast<int>(s->ref_frame.get());
+                             return std::format("{} {} · {:.1f} s", s->lang.get() == "zh" ? "帧" : "frame", f, f / reference_fps);
+                         }),
+                         .style = "caption"}),
+                   text({.id = "mine",
+                         .text = computed([s] { return std::format("{} {}", s->lang.get() == "zh" ? "这台机器" : "this machine", s->ref_mine.get()); }),
+                         .style = "code"}),
+                   text({.id = "ci",
+                         .text = computed([s] { return std::format("CI {}", s->ref_ci.get().empty() ? std::string("—") : s->ref_ci.get()); }),
+                         .style = "code"}),
+                   text({.id = "verdict",
+                         .text = computed([s] {
+                             const bool zh = s->lang.get() == "zh";
+                             const int v = s->ref_verdict.get();
+                             return std::string(v > 0 ? (zh ? "✓ 同样的像素，逐位相同" : "✓ the same pixels, bit for bit")
+                                                : v < 0 ? (zh ? "✗ 像素不同" : "✗ not the same pixels")
+                                                        : (zh ? "这一帧 CI 还没有固定" : "CI has not pinned this frame"));
+                         }),
+                         .style = "label"})});
+}
+
 // A place's window: what it shows, at the view's size. Live, it is bound to
 // the site (the language, the timeline as edited, links); as a texture
 // (drawn away from the UI thread) it holds values only.
@@ -1006,7 +1094,8 @@ AppSpec app(std::string_view place, std::string_view lang) {
         Element body = row({.id = "body", .min_height = Dim(0.0f), .align = "stretch", .grow = 1},
                            {column({.id = "nav", .width = Dim(188.0f), .padding = Edges(20.0f, 12.0f), .gap = 4, .background = "surface"}, std::move(nav)),
                             stack({.id = "view", .min_width = Dim(0.0f), .min_height = Dim(0.0f), .grow = 1}, std::move(shown)),
-                            only_when(guide_panel(s), [s] { return s->panel.get(); })});
+                            only_when(guide_panel(s), [s] { return s->panel.get(); }),
+                            only_when(check_panel(s), [s] { return s->checking.get(); })});
         // The foot: the page's time (drag it, play it, play it backwards) and the tree's hash.
         auto say = [s](std::string_view en, std::string_view han) {
             return computed([s, en = std::string(en), han = std::string(han)] { return s->lang.get() == "zh" ? han : en; });
@@ -1047,7 +1136,15 @@ AppSpec app(std::string_view place, std::string_view lang) {
                                       return t;
                                   }),
                                   .style = "caption"}),
-                            text({.id = "hash", .text = s->hash, .style = "caption"})});
+                            text({.id = "hash", .text = s->hash, .style = "caption"}),
+                            button({.id = "ci_check",
+                                    .text = say("Check against CI", "对照 CI"),
+                                    .variant = computed([s] { return s->checking.get() ? ButtonVariant::primary : ButtonVariant::ghost; }),
+                                    .on_activated = [s] {
+                                        const bool open = !s->checking.peek();
+                                        if (open && !s->replay) s->want_frame(0);
+                                        s->checking.set(open);
+                                    }})});
         return column({.id = "site", .grow = 1, .background = "background"}, {std::move(bar), std::move(body), std::move(foot)});
     };
     return a;

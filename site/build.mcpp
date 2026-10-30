@@ -12,6 +12,8 @@ int main() {
     const bool content = openmui::build::embed({.module = "openmui.site", .ns = "omui::site::files", .dir = "content", .suffix = ".md", .tag = "content", .index = true});
     const bool en = openmui::build::embed({.module = "openmui.site", .ns = "omui::site::files", .dir = "../docs/en", .suffix = ".md", .tag = "en", .index = true});
     const bool zh = openmui::build::embed({.module = "openmui.site", .ns = "omui::site::files", .dir = "../docs/zh", .suffix = ".md", .tag = "zh", .index = true});
+    // The reference run's frames as CI hashed them (the footer compares a browser's own with them).
+    const bool frames = openmui::build::embed({.module = "openmui.site", .ns = "omui::site::files", .dir = "reference", .suffix = ".frames.omui.json", .tag = "frames"});
     const bool page = openmui::build::dist_toy({.target = "omui-site", .title = "openmui", .fonts = {"Inter", "JetBrainsMono", "NotoSansSC"}, .background = "#0b0f16", .sdk = false});
-    return lens && content && en && zh && page ? 0 : 1;
+    return lens && content && en && zh && frames && page ? 0 : 1;
 }

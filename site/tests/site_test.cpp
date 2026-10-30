@@ -484,7 +484,50 @@ int main(int argc, char** argv) {
         a.h.advance(seconds(1));
         shot("time.png");
         std::println("    pixels {}", all.hex());
-        check_eq(all.hex(), std::string("f51de304275db69b"));
+        check_eq(all.hex(), std::string("2ec8e0db699bfc36"));
+    });
+
+    s.test("the reference run: each sampled frame's pixels hashed as a browser hashes them, pinned (reference/ci.frames.omui.json)", [] {
+        site::ReferenceReplay replay;
+        std::vector<std::string> got;
+        for (std::int32_t f = 0; f < site::reference_frames(); ++f) got.push_back(std::format("{:016x}", replay.hash(f)));
+        check(std::format("{:016x}", replay.hash(17)) == got[17], "a frame played to again, from the start: the same");
+        check(std::set(got.begin(), got.end()).size() > got.size() / 2, "the run moves: most frames differ");
+        const auto pinned = site::reference_pinned();
+        bool same = pinned.size() == got.size();
+        for (std::size_t i = 0; same && i < got.size(); ++i) same = std::format("{:016x}", pinned[i]) == got[i];
+        if (!same) {  // the table as this run makes it, to look at and pin
+            std::string json = "{\n  \"about\": \"The site's reference run: each sampled frame's pixel hash as CI computed it (site_test writes and checks it; the page compares a browser's own with it).\",\n  \"fps\": 10,\n  \"size\": [1280, 800],\n  \"frames\": [";
+            for (std::size_t i = 0; i < got.size(); ++i) json += std::format("{}\n    \"{}\"", i ? "," : "", got[i]);
+            json += "\n  ]\n}\n";
+            const auto out = scratch_dir("site-reference") / "ci.frames.omui.json";
+            std::ofstream(out, std::ios::binary) << json;
+            std::println("    the reference run's table: {}", out.string());
+        }
+        check(same, std::format("{} frames pinned, {} made; first made {}", pinned.size(), got.size(), got.empty() ? "" : got[0]));
+        // A few of its moments, to look at: the flight, the switch, the lens fading in.
+        const auto dir = scratch_dir("site-reference-frames");
+        for (const std::int32_t f : {9, 30, 48}) {
+            (void)replay.hash(f);
+            if (auto png = replay.png()) std::ofstream(dir / std::format("frame-{:02}.png", f), std::ios::binary).write(reinterpret_cast<const char*>(png->data()), static_cast<std::streamsize>(png->size()));
+        }
+    });
+
+    s.test("the check against CI in the page: the reference run's frame drawn here, its hash beside CI's, the same", [] {
+        Site a;
+        check(a.h.click("main/foot/ci_check"));
+        a.h.advance(seconds(0.5));
+        check(a.visible("main/body/check"), "the panel");
+        Invocation agent;
+        agent.actor = {"agent", "visitor", {}};
+        agent.args = Value{}.set("value", Value(9.0));
+        check(a.h.tree().act("main/body/check/ref_frame", "set_value", agent).exit_code() == std::optional<int>(0), "a frame chosen");
+        a.h.advance(seconds(0.5));
+        site::ReferenceReplay own;
+        const std::string want = std::format("{:016x}", own.hash(9));
+        check(a.text("main/body/check/mine").ends_with(want), a.text("main/body/check/mine"));
+        check(a.text("main/body/check/ci").ends_with(want) && a.text("main/body/check/verdict").starts_with("✓"), a.text("main/body/check/verdict"));
+        (void)a.h.save_png(scratch_dir("site-check") / "panel.png");
     });
 
     s.test("the static page: every place's HTML, md4c-html's bytes, in a page that hides it once the program runs", [] {

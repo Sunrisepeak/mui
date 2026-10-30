@@ -44,6 +44,12 @@ The site shows openmui's thesis instead of describing it: **the interface is a s
   - Play it forwards or backwards. **Live** returns to the present.
   - Animations are functions of time, so every moment can be drawn again. The runtime re-evaluates what it holds (D-60), and components that animate on their own are told the time (`retimed`): the canvas keeps its camera's past for this.
   - Only the drawing goes back; the tree stays as it is now.
+- **Checked against CI, frame by frame.** **Check against CI** in the footer opens a panel that replays a fixed script offscreen in your browser: fly to Features, switch to Chinese, turn the lens to Tree, 5.9 seconds in all (`src/reference.*`).
+  - It plays on a host of its own, at CI's size (1280×800), with only the program's own fonts (Inter, Noto Sans SC, JetBrains Mono), rastered in one band, every frame complete (`complete_frames`).
+  - Ten frames a second are sampled; each frame's RGBA bytes are hashed (FNV-1a).
+  - Drag to a frame and the panel draws it, with its hash here, CI's hash for it and whether they are the same.
+  - CI's table is a data file, `reference/ci.frames.omui.json`, embedded in the program. `site_test` makes every frame and checks it against the table.
+  - The replay runs in a stage of the frame after paint, not inside the slider's handler: there it would run inside the page's batch, its effects held back, and draw a stale frame.
 - **The tree's hash.** The footer shows a hash of the home page's semantic tree as your browser computed it, next to the value CI pins in `tests/site_test.cpp`.
   - It covers ids, roles, names, values and lasting states.
   - It leaves out what follows the window: boxes, how far a view scrolls, and what is off screen. It also leaves out the pointer's hover and press, and motion under way.
@@ -80,6 +86,7 @@ python3 -m http.server -d target/site            # and look at it
 - the page's time: an agent dragging it back to before a flight (the view exactly as it was), live again, played backwards to the strip's start and forwards to live;
 - the works: example 01 typed into and clicked, the wall's canvas live with the site's documents; the move list's rows equal to what the game measures, a move picked by an agent, on block, shown at its first active frame;
 - the pixels of home, the overview, the wireframe, the agent's JSON, the timeline, the wall, example 01, the move list, the agent asking, the Chinese page and the page's time dragged back into a language switch, pinned on every platform (each picture's own hash printed, so a platform that differs shows which);
+- the reference run: every sampled frame pinned (`reference/ci.frames.omui.json`; when they differ the run's own table is written to `$TMPDIR/openmui-tests/site-reference/`, with three of its frames beside it), a frame played to again the same; the panel in the page: an agent picks frame 9, and the hash drawn here is a fresh replay's and CI's;
 - the static HTML and its injection into dist-toy's page.
 
 Changing a document changes the pinned hashes. Look at the pictures (`$TMPDIR/openmui-tests/site/`), then update the pins.

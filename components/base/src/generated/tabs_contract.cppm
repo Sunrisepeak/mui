@@ -10,17 +10,49 @@ import openmui.view;
 
 export namespace omui {
 
+enum class TabsVariant : std::uint8_t { line, bar };
+
+[[nodiscard]] constexpr std::string_view name(TabsVariant v) noexcept {
+    switch (v) {
+        case TabsVariant::line: return "line";
+        case TabsVariant::bar: return "bar";
+    }
+    return {};
+}
+
+[[nodiscard]] constexpr std::optional<TabsVariant> parse_tabs_variant(std::string_view text) noexcept {
+    if (text == "line") return TabsVariant::line;
+    if (text == "bar") return TabsVariant::bar;
+    return std::nullopt;
+}
+
+}  // namespace omui
+
+export namespace omui {
+
+template <>
+struct ValueOf<::omui::TabsVariant> {
+    static Value to(::omui::TabsVariant v) { return Value(::omui::name(v)); }
+    static ::omui::TabsVariant from(const Value& v) { return ::omui::parse_tabs_variant(v.as_string()).value_or(::omui::TabsVariant::line); }
+};
+
+}  // namespace omui
+
+export namespace omui {
+
 // The properties of tabs, with the contract's defaults.
 struct TabsProps {
     std::string selected;  // The id of the selected tab.
+    TabsVariant variant = TabsVariant::line;  // line: the selected tab underlined; bar: the tabs on a capsule, the selected one in a lens that slides to it, stretching as it goes (a segmented control, a floating tab bar).
 };
 
-enum class TabsProp : std::uint8_t { selected };
+enum class TabsProp : std::uint8_t { selected, variant };
 
 // What `tabs(...)` takes: every property may be a value, a signal or a computed value.
 struct TabsOptions {
     std::string id;
     Prop<std::string> selected;
+    Prop<TabsVariant> variant;
     std::function<void(std::string)> on_changed;
     Prop<Dim> width;
     Prop<Dim> height;
@@ -67,11 +99,16 @@ public:
             props.selected = v.is_null() ? TabsProps{}.selected : std::string(v.as_string(std::string_view{}));
             return notify(TabsProp::selected);
         }
+        if (k == "variant") {
+            props.variant = v.is_null() ? TabsProps{}.variant : parse_tabs_variant(v.as_string()).value_or(TabsVariant::line);
+            return notify(TabsProp::variant);
+        }
         return false;
     }
 
     [[nodiscard]] Value get_prop(std::string_view k) const {
         if (k == "selected") return Value(props.selected);
+        if (k == "variant") return Value(::omui::name(props.variant));
         return {};
     }
 

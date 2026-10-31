@@ -74,6 +74,8 @@ Theme Theme::light() {
     c("accent_pressed", 0x3730a3);
     c("on_accent", 0xffffff);
     c("accent_subtle", 0xe0e7ff);
+    c("bar", 0xf1f5f9);       // a bar of tabs (a segmented control, a floating tab bar)
+    c("tab_lens", 0xffffff);  // the lens under its selected tab
     c("focus", 0x6366f1, 0.55f);
     c("danger", 0xdc2626);
     c("on_danger", 0xffffff);
@@ -111,6 +113,8 @@ Theme Theme::dark_theme() {
     c("accent_pressed", 0x4f46e5);
     c("on_accent", 0x0b1120);
     c("accent_subtle", 0x312e81);
+    c("bar", 0x1f2937);
+    c("tab_lens", 0x374151);
     c("track", 0x334155);
     c("thumb", 0xf1f5f9);
     c("tooltip", 0xf1f5f9);

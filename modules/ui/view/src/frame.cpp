@@ -544,6 +544,27 @@ void Runtime::Impl::paint_node(NodeId id) {
     // A disabled control is not lit by its style's effect (a neon tube, a
     // glow): the decoration is for what can be used.
     if (fxs == (n.styled_effect ? &*n.styled_effect : nullptr) && fxs && n.state.disabled) fxs = nullptr;
+    // A state's params (pressed, hovered, focused), eased to from wherever they were.
+    if (fxs && fxs == (n.styled_effect ? &*n.styled_effect : nullptr) && !fxs->variants.empty()) {
+        auto& fx = *fxs;
+        const Node::PixelEffectState::Variant* want = nullptr;
+        for (const auto& v : fx.variants)
+            if (!want && ((v.state == 1 && n.state.pressed) || (v.state == 2 && n.state.hovered) || (v.state == 3 && n.state.focused))) want = &v;
+        const std::uint8_t to = want ? want->state : 0;
+        if (to != fx.shown) {
+            fx.from = fx.params;
+            fx.shown = to;
+            fx.changed = now();
+            if (std::ranges::find(animating, id) == animating.end()) animating.push_back(id);
+            frame_requested = true;
+        }
+        const std::vector<float>& target = want ? want->params : fx.rest;
+        const double u = std::clamp((now() - fx.changed).count() / std::max(1e-6, fx.transition.count()), 0.0, 1.0);
+        const double e = reduce_motion ? 1.0 : fx.transition_ease(u);
+        if (fx.from.size() == target.size() && fx.params.size() == target.size())
+            for (std::size_t i = 0; i < target.size(); ++i)
+                if (static_cast<int>(i) != fx.progress) fx.params[i] = static_cast<float>(fx.from[i] + (target[i] - fx.from[i]) * e);
+    }
     const bool effected = fxs != nullptr;
     if (effected) {
         auto& fx = *fxs;

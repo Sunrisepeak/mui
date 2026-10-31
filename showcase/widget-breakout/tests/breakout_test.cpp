@@ -754,7 +754,7 @@ int main(int argc, char** argv) {
         const auto inspector = g.pixels();
         check(g.h.save_png(dir / "inspector.png").has_value());
         std::println("    start {:016x}, played {:016x}, inspector {:016x}", start, played, inspector);
-        check_eq(start, std::uint64_t{0xe166fd1ea373eb9b});  // GCC (LLVM: CI)
+        check_eq(start, std::uint64_t{0x90d360d48a306aab});  // GCC (LLVM: CI)
         check_eq(played, std::uint64_t{0xc6fc0fb3e7e09dcc});
         check_eq(inspector, std::uint64_t{0x9d65d8e82c70e2a6});
     });

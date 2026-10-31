@@ -11,7 +11,7 @@ using parts::mix;
 
 namespace {
 
-constexpr float tab_h = 40, pad_x = 14, indicator_h = 2;
+constexpr float tab_h = 40, pad_x = 14, indicator_h = 2, bar_pad = 4;
 
 }  // namespace
 
@@ -22,13 +22,16 @@ void Tabs::mounted() {
     w_.attach(services(), 0);
 }
 
-void Tabs::prop_changed(TabsProp) {
-    if (attached()) services().invalidate_paint(node());
+void Tabs::prop_changed(TabsProp p) {
+    if (!attached()) return;
+    if (p == TabsProp::variant) services().restyle(node());
+    services().invalidate_paint(node());
 }
 
 void Tabs::style(const Theme&, layout::Style& s) const {
     s.direction = layout::Direction::row;
     s.align_items = layout::Align::stretch;
+    if (props.variant == TabsVariant::bar) s.padding = {bar_pad, bar_pad, bar_pad, bar_pad};
 }
 
 NodeId Tabs::current() const {
@@ -69,9 +72,7 @@ ActResult Tabs::step(int by) {
 ActResult Tabs::next(ActContext&) { return step(1); }
 ActResult Tabs::previous(ActContext&) { return step(-1); }
 
-void Tabs::paint_over(PaintContext& ctx) const {
-    const Theme& th = ctx.theme;
-    ctx.list.fill_rect({0, ctx.size.height - 1, ctx.size.width, 1}, th.color("border"));
+void Tabs::follow(PaintContext& ctx) const {
     const NodeId tab = current();
     if (!tab) return;
     const Rect mine = ctx.services.bounds(ctx.node);
@@ -82,12 +83,50 @@ void Tabs::paint_over(PaintContext& ctx) const {
         w_.jump(w);
         shown_ = true;
     } else {
-        x_.to(x, th.transition("motion.spring.snappy"));
-        w_.to(w, th.transition("motion.spring.snappy"));
+        x_.to(x, ctx.theme.transition("motion.spring.snappy"));
+        w_.to(w, ctx.theme.transition("motion.spring.snappy"));
     }
+    keep_frames(ctx, {&x_, &w_});
+}
+
+Rect Tabs::lens(Size size) const {
+    // Sliding, it stretches along its way and thins a little — a drop pulled, not a box moved — and rests round.
+    const double left = std::abs(x_.target() - x_.value());
+    const float stretch = static_cast<float>(std::min(left * 0.35, w_.value() * 0.4));
+    const float h = size.height - 2 * bar_pad, thin = std::min(stretch * 0.08f, h * 0.12f);
+    const float x = static_cast<float>(x_.value()) - (x_.target() > x_.value() ? 0.0f : stretch);
+    return {x, bar_pad + thin / 2, static_cast<float>(w_.value()) + stretch, h - thin};
+}
+
+// A bar: a capsule under the tabs, and under the selected one a lens that slides to it.
+void Tabs::paint(PaintContext& ctx) const {
+    if (props.variant != TabsVariant::bar) return;
+    const Theme& th = ctx.theme;
+    follow(ctx);
+    ctx.list.fill_round_rect({0, 0, ctx.size.width, ctx.size.height}, CornerRadii::all(ctx.size.height / 2),
+                             render::Paint::solid(th.color("bar", th.color("surface_variant"))));
+    if (!current()) return;
+    const Rect l = lens(ctx.size);
+    ctx.list.fill_round_rect(l, CornerRadii::all(l.height / 2), render::Paint::solid(th.color("tab_lens", th.color("accent_subtle"))));
+}
+
+void Tabs::paint_over(PaintContext& ctx) const {
+    if (props.variant == TabsVariant::bar) return;
+    const Theme& th = ctx.theme;
+    ctx.list.fill_rect({0, ctx.size.height - 1, ctx.size.width, 1}, th.color("border"));
+    follow(ctx);
+    if (!current()) return;
     ctx.list.fill_round_rect({static_cast<float>(x_.value()), ctx.size.height - indicator_h, static_cast<float>(w_.value()), indicator_h},
                              CornerRadii::all(indicator_h / 2), render::Paint::solid(th.color("accent")));
-    keep_frames(ctx, {&x_, &w_});
+}
+
+std::size_t Tabs::effect_shapes(Size size, Rect, std::span<render::EffectShape> out) const {
+    if (props.variant != TabsVariant::bar || out.size() < 2) return 0;
+    out[0] = {{0, 0, size.width, size.height}, CornerRadii::all(size.height / 2)};
+    if (!current()) return 1;
+    const Rect l = lens(size);
+    out[1] = {l, CornerRadii::all(l.height / 2)};
+    return 2;
 }
 
 // ── tab ──

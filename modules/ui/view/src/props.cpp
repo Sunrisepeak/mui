@@ -619,7 +619,28 @@ void Runtime::Impl::apply_rules(NodeId id) {
         }
         if (!window && !best && r.selector == role) best = &r;
     }
-    if (best) n.styled_effect = effect_state(best->effect, std::format("the style's `{}`", best->selector), &theme_of(id));
+    if (!best) return;
+    n.styled_effect = effect_state(best->effect, std::format("the style's `{}`", best->selector), &theme_of(id));
+    if (!n.styled_effect) return;
+    // Its states' rules: the same selector and a state (`button:pressed`), the same effect, their params.
+    auto& fx = *n.styled_effect;
+    fx.rest = fx.params;
+    for (const auto& [state, bit] : {std::pair{std::string_view(":pressed"), std::uint8_t{1}}, {":hovered", std::uint8_t{2}}, {":focused", std::uint8_t{3}}})
+        for (const EffectRule& r : effect_rules) {
+            if (r.selector.size() != best->selector.size() + state.size() || !r.selector.starts_with(best->selector) || !r.selector.ends_with(state)) continue;
+            const Value* name = r.effect.get("name");
+            const Value* base = best->effect.get("name");
+            if (!name || !base || name->as_string() != base->as_string()) {
+                warn("the style's `{}`: a state's rule draws the same effect as its node's (`{}`)", r.selector, base ? base->as_string() : "");
+                continue;
+            }
+            // Its params: the node's rule's, with the state's own over them.
+            Value merged = best->effect;
+            if (const Value::Map* m = r.effect.map())
+                for (const auto& [k, v] : *m) merged.set(k, v);
+            if (auto st = effect_state(merged, std::format("the style's `{}`", r.selector), &theme_of(id))) fx.variants.push_back({bit, std::move(st->params)});
+            if (const Value* t = r.effect.get("transition"); t && t->is_number()) fx.transition = seconds(t->as_double());
+        }
 }
 
 void Runtime::Impl::sync_style(NodeId id) {

@@ -17,7 +17,10 @@ public:
     void mounted();
     void prop_changed(TabsProp p);
     void style(const Theme& theme, layout::Style& s) const;
+    void paint(PaintContext& ctx) const;
     void paint_over(PaintContext& ctx) const;
+    // A bar's surfaces, for a style's effect (liquid glass): its capsule and the lens under the selected tab.
+    std::size_t effect_shapes(Size size, Rect content, std::span<render::EffectShape> out) const;
 
     ActResult next(ActContext& ctx);
     ActResult previous(ActContext& ctx);
@@ -29,6 +32,8 @@ public:
 
 private:
     ActResult step(int by);
+    void follow(PaintContext& ctx) const;  // the indicator toward the selected tab
+    [[nodiscard]] Rect lens(Size size) const;  // a bar's lens now: stretched along its way while it slides
 
     mutable parts::Motion x_, w_;
     mutable bool          shown_ = false;

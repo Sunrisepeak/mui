@@ -337,10 +337,36 @@ Element preview(Studio& s) {
     // workshop inside a page) the dashboard goes below the settings. A basis
     // of 0: a line breaks by its least width, not its content's.
     dashboard.prop("basis", Source(Value(0.0)));
+    // The navigation layer: a tab bar floating over the content at the foot (the content scrolls under it), its
+    // tabs going to their panels. What a style makes of a layer over content shows here — liquid glass in glass.
+    Element bar = tabs({.id = "sections",
+                        .selected = s.section,
+                        .variant = TabsVariant::bar,
+                        .on_changed =
+                            [&s](std::string to) {
+                                if (!s.runtime) return;
+                                // Its panel, wherever the workshop is placed (its own window, a page's place).
+                                const std::string end = std::format("/preview/content/panels/{}", to == "settings" ? "settings" : to == "activity" ? "dashboard/activity" : "dashboard");
+                                std::vector<NodeId> todo{s.runtime->root()};
+                                while (!todo.empty()) {
+                                    const NodeId n = todo.back();
+                                    todo.pop_back();
+                                    if (s.runtime->path(n).ends_with(end)) {
+                                        s.runtime->scroll_into_view(n);
+                                        return;
+                                    }
+                                    for (const NodeId c : s.runtime->children(n)) todo.push_back(c);
+                                }
+                            }},
+                       {tab({.id = "overview", .text = "Overview"}), tab({.id = "activity", .text = "Activity"}), tab({.id = "settings", .text = "Settings"})});
+    Element nav = column({.id = "nav", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .padding = 22, .justify = "end", .align = "center"},
+                         {std::move(bar)});
+    nav.prop("pointer_events", Source(Value("children")));  // the layer takes no pointer; its tabs do
     return stack({.id = "preview", .min_width = 0, .align = "start", .grow = 1, .clip = true},
                  {wallpaper(), scroll({.id = "content", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100))},
-                                      {row({.id = "panels", .width = Dim(layout::pct(100)), .padding = 32, .gap = 24, .wrap = "wrap"},
-                                           {column({.width = 380}, {std::move(settings)}), std::move(dashboard)})})});
+                                      {row({.id = "panels", .width = Dim(layout::pct(100)), .padding = Edges(Insets{32, 32, 110, 32}), .gap = 24, .wrap = "wrap"},
+                                           {column({.width = 380}, {std::move(settings)}), std::move(dashboard)})}),
+                  std::move(nav)});
 }
 
 // The sidebar: the packs, and the export.
@@ -429,8 +455,11 @@ Element editor(Studio& s, bool wide = false) {
                 auto scope = ui.scope(r.selector);
                 const std::string effect(r.effect.get("name") ? r.effect.get("name")->as_string() : "");
                 // Where it lies, as a person names it: a region is a panel here.
-                const std::string_view what = r.selector.starts_with("role:") ? std::string_view(r.selector).substr(5) : std::string_view(r.selector);
-                const std::string on = what == "region" ? std::string("the panels") : std::format("every {}", human(what));
+                std::string_view what = r.selector.starts_with("role:") ? std::string_view(r.selector).substr(5) : std::string_view(r.selector);
+                std::string_view state;  // a state's rule (button:pressed)
+                if (const auto colon = what.rfind(':'); colon != std::string_view::npos) state = what.substr(colon + 1), what = what.substr(0, colon);
+                std::string on = what == "region" ? std::string("the panels") : what == "tabs" ? std::string("the tab bar") : std::format("every {}", human(what));
+                if (!state.empty()) on += std::format(", {}", state);
                 ui.text(std::format("{} — on {}", human(effect), on), {.style = "label"});
                 const auto ref = render::effects().find(effect);
                 const render::EffectInfo* info = ref ? render::effects().info(*ref) : nullptr;
@@ -445,6 +474,7 @@ Element editor(Studio& s, bool wide = false) {
                         if (info)
                             for (const auto& p : info->params)
                                 if (p.name == param) ep = &p;
+                        if (!ep) continue;  // not the effect's (a state's `transition`): no field
                         const double was = shipped && shipped->get(param) ? shipped->get(param)->as_double() : value.as_double();
                         double lo = ep ? ep->min : 0, hi = ep ? ep->max : 1;
                         if (ep && hi - lo > 4) hi = std::min<double>(ep->max, std::max({lo + 1.0, 4.0 * ep->value, 2.0 * was}));

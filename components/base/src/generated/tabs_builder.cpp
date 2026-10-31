@@ -15,6 +15,7 @@ Element tabs(TabsOptions o, std::vector<Element> children, std::source_location 
     e.where = where;
     e.children = std::move(children);
     e.prop("selected", o.selected);
+    e.prop("variant", o.variant);
     if (o.on_changed) e.on("changed", [f = std::move(o.on_changed)]([[maybe_unused]] const Value& a) { f(ValueOf<std::string>::from((a.get("selected") ? *a.get("selected") : Value{}))); });
     e.prop("width", o.width);
     e.prop("height", o.height);

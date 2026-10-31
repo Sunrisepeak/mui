@@ -75,7 +75,7 @@ int main(int argc, char** argv) {
         }
         check_eq(looks.size(), std::size_t{5});
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
-        check_eq(all.hex(), std::string("a990311ddefdb686"));
+        check_eq(all.hex(), std::string("69f87621ca1ba262"));
     });
 
     s.test("the README's loop: the five packs in turn — an animated PNG under 1 MB", [] {
@@ -90,6 +90,59 @@ int main(int argc, char** argv) {
         const auto size = std::filesystem::file_size(file);
         std::println("    the loop: {} KB", size / 1024);
         check(size < 1024 * 1024, std::format("{} bytes", size));
+    });
+
+    s.test("liquid glass that answers: a pressed button's glass swells (thicker, bending more) and eases back; the tab bar's lens slides to the tab chosen, stretching on its way, and rests round", [] {
+        App a("glass");
+        // The glass layers in the frame (their params and shapes), from the display list.
+        const auto glass_layers = [&] {
+            std::vector<render::PushLayer> out;
+            const auto glass = render::effects().find("liquid_glass");
+            for (const auto& c : a.h.runtime().display_list().commands())
+                if (const auto* l = std::get_if<render::PushLayer>(&c); l && glass && l->effect.id == glass->id && !l->params.empty()) out.push_back(*l);
+            return out;
+        };
+        // The buttons' glass: one shape each; their thicknesses.
+        const auto thicknesses = [&] {
+            std::vector<float> t;
+            for (const auto& l : glass_layers())
+                if (l.shapes.size() == 1) t.push_back(l.params[0]);
+            return t;
+        };
+        const auto count = [](const std::vector<float>& v, auto&& pred) { return std::ranges::count_if(v, pred); };
+        const std::string button = "main/sidebar/pack-neon/show-neon";
+        a.h.settle();
+        const auto rest = thicknesses();
+        check(!rest.empty() && count(rest, [](float t) { return std::abs(t - 10) < 0.01f; }) == static_cast<long>(rest.size()), std::format("{} glass buttons at rest", rest.size()));
+        const Rect b = a.h.runtime().screen_bounds(a.h.runtime().find(button));
+        const Point c{b.x + b.width / 2, b.y + b.height / 2};
+        a.h.step({PointerEvent{.kind = PointerKind::down, .position = c, .button = MouseButton::left, .buttons = 1}});
+        a.h.advance(seconds(0.08));
+        check_eq(count(thicknesses(), [](float t) { return t > 10.5f && t < 17.5f; }), 1L);  // on its way
+        a.h.advance(seconds(0.6));
+        check_eq(count(thicknesses(), [](float t) { return std::abs(t - 18) < 0.05f; }), 1L);  // swollen, the pressed one alone
+        a.h.step({PointerEvent{.kind = PointerKind::up, .position = {c.x + 400, c.y}, .button = MouseButton::left}});  // let go away from it: no click
+        a.h.advance(seconds(0.7));
+        const auto back = thicknesses();
+        check(count(back, [](float t) { return std::abs(t - 10) < 0.05f; }) == static_cast<long>(back.size()), "eased back");
+        // The tab bar: two shapes, the bar and its lens under Overview; Settings chosen, the lens slides there, longer on its way than at rest.
+        const auto lens = [&]() -> std::optional<Rect> {
+            for (const auto& l : glass_layers())
+                if (l.shapes.size() == 2) return l.shapes[1].rect;
+            return std::nullopt;
+        };
+        const auto l0 = lens();
+        check(l0.has_value(), "a lens in the bar");
+        if (!l0) return;
+        check(a.h.click("main/preview/nav/sections/settings"), "Settings");
+        a.h.advance(seconds(0.05));
+        const auto moving = lens();
+        a.h.advance(seconds(1));
+        const auto l1 = lens();
+        check(moving && l1 && l1->x > l0->x + 50, std::format("slid from {} to {}", l0->x, l1 ? l1->x : -1));
+        check(moving && l1 && moving->width > std::max(l0->width, l1->width) + 2,
+              std::format("stretched on its way: {} (at rest {} and {})", moving ? moving->width : -1, l0->width, l1 ? l1->width : -1));
+        check_eq(a.studio.section.peek(), std::string("settings"));
     });
 
     s.test("switching is a cross-fade; a person's click and an agent's verb do the same", [] {

@@ -146,11 +146,24 @@ struct Node {
         seconds            delay{0};
         hanim::Ease         ease = hanim::ease::standard;
         bool               reverse = false;
+        // A style's rules for a state (`button:pressed`, `:hovered`, `:focused`): the params while the node is in it,
+        // eased to and back over `transition` from wherever they were — a press the glass answers, not a cut.
+        struct Variant {
+            std::uint8_t       state = 0;  // 1 pressed, 2 hovered, 3 focused (the first that holds wins)
+            std::vector<float> params;
+        };
+        std::vector<Variant> variants;
+        std::vector<float>   rest, from;     // the params at rest; where the last change began
+        std::uint8_t         shown = 0;      // the state it goes to (0: rest)
+        seconds              changed{-1e9};  // when
+        seconds              transition{0.3};
+        hanim::Ease          transition_ease = hanim::ease::out_back;
     };
     std::optional<PixelEffectState> pixel_effect;
     std::optional<PixelEffectState> styled_effect;  // what the style's rules give its type or role
     [[nodiscard]] bool effect_moving(seconds now) const noexcept {
-        return pixel_effect && pixel_effect->duration && now - pixel_effect->start < *pixel_effect->duration + pixel_effect->delay;
+        return (pixel_effect && pixel_effect->duration && now - pixel_effect->start < *pixel_effect->duration + pixel_effect->delay) ||
+               (styled_effect && !styled_effect->variants.empty() && now - styled_effect->changed < styled_effect->transition);
     }
     [[nodiscard]] bool glyphs_moving(seconds now) const noexcept { return glyph_motion && now - glyph_motion->start < glyph_motion->ends; }
     [[nodiscard]] bool props_moving() const noexcept {

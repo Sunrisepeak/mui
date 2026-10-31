@@ -18,7 +18,7 @@ constexpr std::array<std::string_view, 11> theme_keys{"doc",     "dark",   "exte
 constexpr std::array<std::string_view, 5> text_keys{"size", "weight", "line_height", "letter_spacing", "families"};
 constexpr std::array<std::string_view, 5> shadow_keys{"x", "y", "blur", "spread", "color"};
 constexpr std::array<std::string_view, 10> style_keys{"doc", "theme", "crossfade", "effects", "colors", "text", "spacing", "radius", "shadows", "motion"};
-constexpr std::array<std::string_view, 4> effect_control_keys{"effect", "duration", "delay", "ease"};
+constexpr std::array<std::string_view, 5> effect_control_keys{"effect", "duration", "delay", "ease", "transition"};
 
 std::size_t distance(std::string_view a, std::string_view b) {
     std::vector<std::size_t> row(b.size() + 1);

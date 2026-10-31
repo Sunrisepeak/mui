@@ -73,6 +73,8 @@ public:
     void cancel_settings();
     [[nodiscard]] bool settings_changed() const;
     omui::Signal<std::string> status = omui::signal(std::string());
+    // The floating tab bar's section (the navigation layer over the content: liquid glass in the glass pack).
+    omui::Signal<std::string> section = omui::signal(std::string("overview"));
 
 private:
     struct Saved {

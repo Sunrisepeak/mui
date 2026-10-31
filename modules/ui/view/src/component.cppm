@@ -280,6 +280,23 @@ struct EventContext {
     void relayout() { services.invalidate_layout(node); }
 };
 
+// A component's text as it is laid out, for assistive technology (a screen
+// reader's caret and character navigation): the lines in logical order, each
+// grapheme's bytes and place on its line, and the selection. A component
+// whose text a person edits or selects says it (`text_layout() const`).
+struct TextLine {
+    std::size_t                begin = 0, end = 0;  // bytes of `text`, the line break included
+    Rect                       bounds;             // window coordinates, logical pixels
+    bool                       rtl = false;
+    std::vector<std::uint8_t>  lengths;            // each grapheme's bytes (at most 255: a longer one is split)
+    std::vector<float>         positions, widths;  // each grapheme's start along the line and its advance
+    std::vector<std::uint8_t>  word_starts;        // the graphemes that begin a word (its trailing spaces are its own)
+};
+struct TextLayout {
+    std::string           text;
+    std::vector<TextLine> lines;
+    std::size_t           anchor = 0, focus = 0;  // the selection, in graphemes (equal: the caret)
+};
 
 struct ActResult {
     bool        ok = true;
@@ -362,6 +379,7 @@ struct ComponentType {
     void (*semantics)(const void*, SemanticsContext&, spec::SemanticNode&) = nullptr;
     // A scroll container: its children are offset by this (and clipped).
     Point (*scroll_offset)(const void*) = nullptr;
+    std::optional<TextLayout> (*text_layout)(const void*) = nullptr;  // its text, laid out (assistive technology)
     // The theme changed: drop what was resolved from it (shaped text).
     void (*restyle)(void*) = nullptr;
     // An overlay's place (overlays only).
@@ -462,6 +480,8 @@ template <class C>
             x.semantics = [](const void* p, SemanticsContext& ctx, spec::SemanticNode& n) { static_cast<const C*>(p)->semantics(ctx, n); };
         if constexpr (requires(const C& c) { { c.scroll_offset() } -> std::same_as<Point>; })
             x.scroll_offset = [](const void* p) { return static_cast<const C*>(p)->scroll_offset(); };
+        if constexpr (requires(const C& c) { { c.text_layout() } -> std::same_as<std::optional<TextLayout>>; })
+            x.text_layout = [](const void* p) { return static_cast<const C*>(p)->text_layout(); };
         if constexpr (requires(C& c) { c.restyle(); })
             x.restyle = [](void* p) { static_cast<C*>(p)->restyle(); };
         return x;

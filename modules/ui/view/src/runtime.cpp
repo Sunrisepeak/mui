@@ -652,6 +652,14 @@ void Runtime::request_frame() { impl_->frame_requested = true; }
 void Runtime::scroll_into_view(NodeId node) {
     if (impl_->alive(node)) (void)impl_->perform(node, "scroll_into_view", {}, true);
 }
+std::optional<TextLayout> Runtime::text_layout(NodeId node) const {
+    const Impl& d = *impl_;
+    if (!d.alive(node)) return std::nullopt;
+    const auto& n = d.at(node);
+    if (!n.type->text_layout) return std::nullopt;
+    return n.type->text_layout(n.instance);
+}
+
 void Runtime::scroll_to_start(NodeId node) {
     if (impl_->alive(node)) impl_->reveal(node, true);
 }

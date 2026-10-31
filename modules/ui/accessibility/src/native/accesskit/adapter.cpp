@@ -21,6 +21,7 @@ struct RoleName {
 
 // The names roles.toml's `accesskit` column uses, as AccessKit's roles.
 constexpr RoleName role_names[] = {
+    {"TextRun", ACCESSKIT_ROLE_TEXT_RUN},
     {"AlertDialog", ACCESSKIT_ROLE_ALERT_DIALOG},
     {"Application", ACCESSKIT_ROLE_APPLICATION},
     {"Article", ACCESSKIT_ROLE_ARTICLE},
@@ -122,6 +123,8 @@ accesskit_node* make(const Node& d, float scale, bool root) {
     set_text(n, accesskit_node_set_label_with_length, d.label);
     set_text(n, accesskit_node_set_description_with_length, d.description);
     set_text(n, accesskit_node_set_value_with_length, d.value);
+    // A run always has its words, an empty line's too (AccessKit reads them).
+    if (d.value.empty() && d.role == "TextRun") accesskit_node_set_value_with_length(n, "", 0);
     set_text(n, accesskit_node_set_url_with_length, d.url);
     if (d.number) accesskit_node_set_numeric_value(n, *d.number);
     if (d.min) accesskit_node_set_min_numeric_value(n, *d.min);
@@ -175,6 +178,17 @@ accesskit_node* make(const Node& d, float scale, bool root) {
     // Bounds are logical pixels; AccessKit's are the window's physical ones.
     if (root && scale != 1) accesskit_node_set_transform(n, accesskit_affine{{scale, 0, 0, scale, 0, 0}});
     if (!d.children.empty()) accesskit_node_set_children(n, d.children.size(), d.children.data());
+    // A text field's selection over its runs; a run's characters.
+    if (d.selection)
+        accesskit_node_set_text_selection(n, accesskit_text_selection{{d.selection->anchor.run, d.selection->anchor.index},
+                                                                      {d.selection->focus.run, d.selection->focus.index}});
+    if (!d.lengths.empty()) {
+        accesskit_node_set_character_lengths(n, d.lengths.size(), d.lengths.data());
+        accesskit_node_set_character_positions(n, d.positions.size(), d.positions.data());
+        accesskit_node_set_character_widths(n, d.widths.size(), d.widths.data());
+        if (!d.word_starts.empty()) accesskit_node_set_word_starts(n, d.word_starts.size(), d.word_starts.data());
+        accesskit_node_set_text_direction(n, d.rtl ? ACCESSKIT_TEXT_DIRECTION_RIGHT_TO_LEFT : ACCESSKIT_TEXT_DIRECTION_LEFT_TO_RIGHT);
+    }
     return n;
 }
 
@@ -264,6 +278,10 @@ struct Adapter::Impl {
                     break;
                 case ACCESSKIT_ACTION_DATA_NUMERIC_VALUE: r.number = data.numeric_value; break;
                 case ACCESSKIT_ACTION_DATA_SCROLL_UNIT: r.page = data.scroll_unit == ACCESSKIT_SCROLL_UNIT_PAGE; break;
+                case ACCESSKIT_ACTION_DATA_SET_TEXT_SELECTION:
+                    r.selection = TextSelection{{data.set_text_selection.anchor.node, data.set_text_selection.anchor.character_index},
+                                                {data.set_text_selection.focus.node, data.set_text_selection.focus.character_index}};
+                    break;
                 case ACCESSKIT_ACTION_DATA_SET_SCROLL_OFFSET:
                     r.point = Point{static_cast<float>(data.set_scroll_offset.x), static_cast<float>(data.set_scroll_offset.y)};
                     break;

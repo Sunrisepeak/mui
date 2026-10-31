@@ -205,7 +205,7 @@ jobs:
           PROFILE: ${{ matrix.profile }}
         run: tools/ci/agent-e2e.sh
 
-      - name: A screen reader's protocol reads and operates example 03 (AT-SPI over D-Bus)
+      - name: A screen reader's protocol reads and operates examples 03 and 07 (AT-SPI over D-Bus)
         if: runner.os == 'Linux' && runner.arch == 'X64'
         env:
           PROFILE: ${{ matrix.profile }}

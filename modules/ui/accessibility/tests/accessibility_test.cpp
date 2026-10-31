@@ -54,6 +54,49 @@ struct App {
     }
 };
 
+// A text field of two lines ("ab\n", "cd"), each character 10 wide, whose
+// selection a test moves: what a text box says of its laid-out text.
+struct Field {
+    static constexpr std::string_view name = "field";
+    static constexpr Role             role = Role::text_box;
+    Services*   services = nullptr;
+    NodeId      node;
+    std::size_t anchor = 0, focus = 0;
+
+    void mount(Services& s, NodeId n) {
+        services = &s;
+        node = n;
+    }
+    void semantics(SemanticsContext&, spec::SemanticNode& n) const {
+        n.name = "Note";
+        n.value = Value("ab\ncd");
+        n.states.set(State::editable).set(State::focusable);
+        n.actions.push_back({"set_selection", Effect::read, {}, {}, {{"anchor", "i64"}, {"focus", "i64"}}});
+    }
+    ActResult act(ActContext& ctx, std::string_view a) {
+        if (a != "set_selection") return ActResult::fail("no such action");
+        anchor = static_cast<std::size_t>(ctx.args.get("anchor")->as_int());
+        focus = static_cast<std::size_t>(ctx.args.get("focus")->as_int());
+        return ActResult::done();
+    }
+    std::optional<TextLayout> text_layout() const {
+        TextLayout t;
+        t.text = "ab\ncd";
+        t.lines.push_back({0, 3, Rect{10, 20, 30, 16}, false, {1, 1, 1}, {0, 10, 20}, {10, 10, 0}});
+        t.lines.push_back({3, 5, Rect{10, 36, 20, 16}, false, {1, 1}, {0, 10}, {10, 10}});
+        t.anchor = anchor;
+        t.focus = focus;
+        return t;
+    }
+};
+
+Element field(std::string id) {
+    Element e;
+    e.type = &component_type<Field>();
+    e.id = std::move(id);
+    return e;
+}
+
 const a11y::Node* find(const std::vector<a11y::Node>& nodes, std::string_view id) {
     for (const a11y::Node& n : nodes)
         if (n.key == a11y::key_of(id)) return &n;
@@ -182,6 +225,41 @@ int main(int argc, char** argv) {
         const Envelope wrong = mirror.perform({.target = a11y::key_of("main/add"), .action = a11y::Action::increment});
         check(wrong.exit_code() == std::optional<int>(1), "an action the node has not is refused, not guessed");
         check(app.count.peek() == 1);
+    });
+
+    s.test("a text field's text: its runs (lines), characters and caret; a screen reader moves the selection", [] {
+        Runtime rt(options());
+        Signal<int> unused{0};
+        rt.mount("main", column({}, {field("note")}));
+        rt.frame({seconds(0), {}});
+        a11y::Mirror mirror(rt);
+        const auto first = mirror.refresh();
+        const a11y::Node* note = find(first.nodes, "main/note");
+        check(note && note->role == "TextInput" && note->children.size() == 2, "the field holds a run a line");
+        if (!note) return;
+        std::vector<const a11y::Node*> runs;
+        for (std::uint64_t k : note->children)
+            for (const a11y::Node& n : first.nodes)
+                if (n.key == k) runs.push_back(&n);
+        check(runs.size() == 2 && runs[0]->role == "TextRun" && runs[0]->value == "ab\n" && runs[1]->value == "cd",
+              "each run's words, the line break with the first");
+        check(runs.size() == 2 && runs[0]->lengths == std::vector<std::uint8_t>{1, 1, 1} && runs[1]->positions == std::vector<float>{0, 10});
+        check(note->selection && note->selection->focus.run == note->children[0] && note->selection->focus.index == 0, "the caret at the start");
+        check(note->has(a11y::Action::set_text_selection));
+        // A screen reader selects "bc" (the second character of the first run to the first of the second… one past it).
+        a11y::Request r{.target = note->key, .action = a11y::Action::set_text_selection};
+        r.selection = a11y::TextSelection{{note->children[0], 1}, {note->children[1], 1}};
+        const Envelope e = mirror.perform(r);
+        check(e.exit_code() == std::optional<int>(0), e.ndjson());
+        rt.frame({seconds(0), {}});
+        // Nothing in the tree changed, yet the caret moved: told.
+        const auto moved = mirror.refresh();
+        const a11y::Node* again = find(moved.nodes, "main/note");
+        check(again == nullptr, "not focused: the caret is read when the field is focused, or when the tree changes");
+        (void)rt.semantic_node(rt.find("main/note"));
+        check(rt.text_layout(rt.find("main/note"))->anchor == 1 && rt.text_layout(rt.find("main/note"))->focus == 4,
+              "graphemes 1 to 4: runs and characters to the field's own offsets");
+        (void)unused;
     });
 
     s.test("the update AccessKit would be told", [] {

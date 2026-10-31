@@ -426,6 +426,56 @@ void TextBox::semantics(SemanticsContext&, spec::SemanticNode& node) const {
     if (props.disabled) node.states.set(State::disabled);
 }
 
+std::optional<TextLayout> TextBox::text_layout() const {
+    // As last painted: the lines a person sees.
+    if (!paragraph_ || paragraph_dirty_ || !attached()) return std::nullopt;
+    const typeset::Paragraph& p = *paragraph_;
+    TextLayout out;
+    out.text = paragraph_text_;
+    const Rect at = services().bounds(node());
+    const Point origin = text_origin(content_);
+    const std::vector<std::size_t> words = unicode::word_boundaries(out.text);
+    for (const typeset::Line& l : p.lines()) {
+        TextLine line;
+        line.begin = l.begin;
+        line.end = l.end;
+        line.rtl = l.rtl;
+        std::size_t covered = l.begin;
+        float right = 0;
+        auto add = [&](std::size_t bytes, float x, float w) {
+            for (; bytes > 255; bytes -= 255) {  // AccessKit counts a character's bytes in one octet
+                line.lengths.push_back(255);
+                line.positions.push_back(x);
+                line.widths.push_back(0);
+            }
+            line.lengths.push_back(static_cast<std::uint8_t>(bytes));
+            line.positions.push_back(x);
+            line.widths.push_back(w);
+        };
+        for (const typeset::GraphemeBox& g : l.graphemes) {
+            add(g.end - g.begin, std::min(g.x0, g.x1), std::abs(g.x1 - g.x0));
+            covered = g.end;
+            right = std::max(right, std::max(g.x0, g.x1));
+        }
+        if (l.end > covered) add(l.end - covered, right, 0);  // the line break: one character
+        // Words: a UAX #29 boundary not in white space begins one (a word keeps its trailing spaces).
+        std::size_t byte = l.begin;
+        for (std::size_t c = 0; c < line.lengths.size() && c < 256; byte += line.lengths[c], ++c) {
+            const char at = byte < out.text.size() ? out.text[byte] : ' ';
+            if (at == ' ' || at == '\t' || at == '\n' || at == '\r') continue;
+            if (c == 0 || std::ranges::binary_search(words, byte)) line.word_starts.push_back(static_cast<std::uint8_t>(c));
+        }
+        line.bounds = {at.x + origin.x, at.y + origin.y + l.top, std::max(right, l.left + l.width), l.height};
+        out.lines.push_back(std::move(line));
+    }
+    const typeset::Selection sel = editor_.selection();
+    const std::vector<std::size_t> b = unicode::grapheme_boundaries(editor_.text());
+    auto grapheme = [&](std::size_t byte) { return static_cast<std::size_t>(std::ranges::lower_bound(b, byte) - b.begin()); };
+    out.anchor = grapheme(sel.anchor);
+    out.focus = grapheme(sel.focus);
+    return out;
+}
+
 ActResult TextBox::focus(ActContext&) {
     services().focus(node());
     return ActResult::done();

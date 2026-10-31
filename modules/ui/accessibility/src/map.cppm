@@ -51,6 +51,15 @@ enum class Action : std::uint8_t {
 inline constexpr std::size_t action_count = 22;
 
 enum class Toggled : std::uint8_t { none, off, on, mixed };
+
+// A place in a text field's text: a run (a laid-out line) and a character in it.
+struct TextPosition {
+    std::uint64_t run = 0;
+    std::size_t   index = 0;
+};
+struct TextSelection {
+    TextPosition anchor, focus;
+};
 enum class Live : std::uint8_t { off, polite, assertive };
 
 // A node as AccessKit models one.
@@ -72,6 +81,14 @@ struct Node {
     std::vector<std::string>   custom;
     std::optional<spec::Rect>  bounds;            // logical pixels, in the window
     std::vector<std::uint64_t> children;
+    // A text field's selection (its caret when empty), over its runs; a run
+    // (role TextRun, a laid-out line: its words in `value`) has each
+    // character's bytes, place and advance along it.
+    std::optional<TextSelection> selection;
+    std::vector<std::uint8_t>  lengths;
+    std::vector<float>         positions, widths;
+    std::vector<std::uint8_t>  word_starts;
+    bool                       rtl = false;
 
     [[nodiscard]] bool has(Action a) const noexcept { return (actions >> static_cast<unsigned>(a)) & 1u; }
     void add(Action a) noexcept { actions |= 1u << static_cast<unsigned>(a); }
@@ -94,6 +111,7 @@ struct Request {
     std::optional<std::string> text;          // set_value, replace_selected_text
     std::optional<double>      number;        // set_value
     std::optional<Point>       point;         // set_scroll_offset, scroll_to_point (logical pixels)
+    std::optional<TextSelection> selection;   // set_text_selection
     bool                       page = false;  // scroll_*: by a page, else by a line
 };
 
@@ -140,6 +158,16 @@ public:
 
 private:
     Node root_node(const spec::SemanticNode* app) const;
+    // A text field's runs and selection, as the runtime has them laid out:
+    // `node` gets its runs as children and its selection; the runs go to
+    // `out` when they changed (or always, `force`). Under the lock.
+    void text_of(const std::string& id, Node& node, std::vector<Node>& out, bool force);
+    struct Text {
+        std::vector<Node> runs;
+        std::optional<TextSelection> selection;
+    };
+    std::unordered_map<std::uint64_t, Text>             texts_;    // by the field's key
+    std::unordered_map<std::uint64_t, std::pair<std::uint64_t, std::size_t>> run_of_;  // a run: its field, its first grapheme
 
     semantic::Tree                                      tree_;
     MirrorOptions                                       options_;

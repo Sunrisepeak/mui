@@ -35,6 +35,8 @@ public:
     void paint_over(PaintContext& ctx) const;
     bool on_event(EventContext& ctx, const InputEvent& e);
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    // Its text as laid out and the selection, for assistive technology.
+    [[nodiscard]] std::optional<TextLayout> text_layout() const;
 
     ActResult focus(ActContext& ctx);
     ActResult set_value(ActContext& ctx, const Value& value);

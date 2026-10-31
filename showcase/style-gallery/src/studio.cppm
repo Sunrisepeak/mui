@@ -88,6 +88,7 @@ private:
     theme::Style                draft_, original_;
     std::vector<theme::Style>   undo_, redo_;
     std::string                 last_key_;       // the field the last step changed: more of it joins that step
+    bool                        retracing_ = false;  // a pack change being taken back or put forward
     double                      last_at_ = -1e9;  // when (the runtime's seconds)
     std::optional<std::uint64_t> last_gesture_;  // and in which drag (none: typing, keys)
     // Each pack's history, kept while another is shown.

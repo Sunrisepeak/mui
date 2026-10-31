@@ -128,7 +128,7 @@ Envelope Verbs::invoke(std::string_view name, const Invocation& call) {
         e.result(spec::exit_code::success);
         record(spec::exit_code::success);
     } else {
-        e.error(spec::error_code::internal, result.error()).result(spec::exit_code::failure);
+        e.error(spec::error_code::failed, result.error()).result(spec::exit_code::failure);  // the work ran and did not succeed
         record(spec::exit_code::failure);
     }
     return e;

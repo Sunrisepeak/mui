@@ -365,6 +365,8 @@ public:
     // ── semantics ──
     // The node as the semantic tree states it (contract ①).
     [[nodiscard]] spec::SemanticNode semantic_node(NodeId node) const;
+    // A node's text as laid out (a text field's): none when it has none to say.
+    [[nodiscard]] std::optional<TextLayout> text_layout(NodeId node) const;
     // Bumped whenever a node's semantics may have changed.
     [[nodiscard]] std::uint64_t semantic_revision() const noexcept;
 

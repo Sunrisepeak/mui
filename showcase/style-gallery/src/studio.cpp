@@ -4,6 +4,7 @@ import std;
 import openmui;
 import openmui.theme;
 import openmui.theme.styles;
+import openmui.math;
 import mcpplibs.os;
 
 namespace omui::styles {
@@ -20,6 +21,24 @@ Studio::Studio() {
 std::expected<void, std::string> Studio::show(std::string_view name, bool crossfade) {
     const auto st = theme::library().find_style(name);
     if (!st) return std::unexpected(std::format("no style is named `{}`", name));
+    // Shown by a person or an agent: a step of the interface's own history,
+    // so that undo goes back to the pack first — and the edits made in it,
+    // whose fields come back with it, after.
+    const std::string before = current_;
+    if (runtime && !retracing_ && !before.empty() && before != name) {
+        Inverse back;
+        back.run = [this, before] {
+            retracing_ = true;
+            (void)show(before);
+            retracing_ = false;
+        };
+        back.again = [this, after = std::string(name)] {
+            retracing_ = true;
+            (void)show(after);
+            retracing_ = false;
+        };
+        runtime->performed(runtime->root(), "styles.show", Value{}.set("name", name), {std::move(back)});
+    }
     // The pack left keeps its history; the one shown takes its own back.
     if (!current_.empty()) kept_[current_] = {std::move(undo_), std::move(redo_)};
     current_ = std::string(name);
@@ -163,6 +182,9 @@ std::expected<void, std::string> Studio::redo() {
 }
 
 std::expected<void, std::string> Studio::reset() {
+    // Nothing edited, nothing to take back — but a refusal still shown is cleared.
+    problem.set(std::string());
+    accent_text.set(std::string());
     if (!edited()) return {};
     undo_.push_back(draft_);
     redo_.clear();
@@ -312,13 +334,33 @@ Element preview(Studio& s) {
                                                 .label = "Sign-ups by day: Mon 210, Tue 325, Wed 255, Thu 415, Fri 370, Sat 460, Sun 300",
                                                 .paint = [](PaintContext& p) {
                                                     constexpr std::array<float, 7> days{0.42f, 0.65f, 0.51f, 0.83f, 0.74f, 0.92f, 0.6f};
-                                                    // The best day the accent; the rest the accent half-strength, which still stands off the panel (3:1 and more).
+                                                    // The best day the accent; the rest lighter, yet standing off the panel by
+                                                    // 3:1 at least (WCAG's non-text contrast), whatever the pack's colours.
                                                     const float w = p.size.width, h = p.size.height, gap = 10;
                                                     const float bar = (w - gap * 6) / 7;
+                                                    const Color panel = p.theme.color("surface"), accent = p.theme.color("accent");
+                                                    auto lum = [](Color c) {
+                                                        auto lin = [](float v) { return v <= 0.04045f ? v / 12.92f : static_cast<float>(math::det::pow((v + 0.055) / 1.055, 2.4)); };
+                                                        return 0.2126f * lin(c.r) + 0.7152f * lin(c.g) + 0.0722f * lin(c.b);
+                                                    };
+                                                    auto contrast = [&](Color a, Color b) {
+                                                        const float x = lum(a), y = lum(b);
+                                                        return (std::max(x, y) + 0.05f) / (std::min(x, y) + 0.05f);
+                                                    };
+                                                    auto over = [&](float a) { return Color{panel.r + (accent.r - panel.r) * a, panel.g + (accent.g - panel.g) * a, panel.b + (accent.b - panel.b) * a, 1}; };
+                                                    float soft = 0.62f;
+                                                    while (soft < 1 && contrast(over(soft), panel) < 3) soft += 0.04f;
+                                                    Color rest = over(std::min(soft, 1.0f));
+                                                    Color best = accent.with_alpha(1);
+                                                    // An accent too near the panel itself: the bars in the text's colour, the best in full.
+                                                    if (contrast(best, panel) < 3) {
+                                                        best = p.theme.color("text");
+                                                        rest = best.with_alpha(0.7f);
+                                                    }
                                                     for (std::size_t i = 0; i < days.size(); ++i) {
                                                         const float bh = days[i] * (h - 4);
                                                         p.list.fill_round_rect({static_cast<float>(i) * (bar + gap), h - bh, bar, bh}, CornerRadii::all(4),
-                                                                               render::Paint::solid(p.theme.color("accent").with_alpha(i == 5 ? 1.0f : 0.62f)));
+                                                                               render::Paint::solid(i == 5 ? best : rest));
                                                     }
                                                 }}),
                                        row({.id = "days", .justify = "space_between"},
@@ -392,6 +434,9 @@ Element sidebar(Studio& s) {
 // A parameter's name as a person reads it ("sweep_width" → "Sweep width"),
 // and its value with the unit its description gives.
 std::string human(std::string_view name) {
+    // The optical terms as a person reads them.
+    if (name == "ior") return "Refraction (index)";
+    if (name == "rim") return "Rim light";
     // A colour's channels by name: tint_r → "Tint · red".
     for (auto [suffix, channel] : {std::pair{"_r", "red"}, {"_g", "green"}, {"_b", "blue"}, {"_a", "opacity"}})
         if (name.size() > 2 && name.ends_with(suffix)) return std::format("{} · {}", human(name.substr(0, name.size() - 2)), channel);
@@ -419,12 +464,6 @@ Element editor(Studio& s, bool wide = false) {
             (void)s.revision.get();
             (void)s.problem.get();
             const theme::Style& d = s.draft();
-            ui.text(std::format("Editing {}", d.name), {.style = "heading"});
-            ui.row({.id = "history", .gap = 6}, [&] {
-                if (ui.button("Undo", {.id = "undo", .variant = "secondary", .disabled = !s.can_undo()})) (void)s.undo();
-                if (ui.button("Redo", {.id = "redo", .variant = "ghost", .disabled = !s.can_redo()})) (void)s.redo();
-                if (ui.button("Reset", {.id = "reset", .variant = "ghost", .disabled = !s.edited()})) (void)s.reset();
-            });
             const std::string shown_accent = [&] {
                 const auto it = d.tokens.colors.find("accent");
                 const Theme* shown = !s.runtime ? nullptr : s.scope.empty() ? &s.runtime->theme() : s.runtime->scope_theme(s.scope);
@@ -467,23 +506,22 @@ Element editor(Studio& s, bool wide = false) {
                 const Value* shipped = nullptr;
                 for (const EffectRule& o : s.original().effects)
                     if (o.selector == r.selector) shipped = &o.effect;
-                if (const Value::Map* m = r.effect.map())
-                    for (const auto& [param, value] : *m) {
-                        if (!value.is_number()) continue;
-                        const render::EffectParam* ep = nullptr;
-                        if (info)
-                            for (const auto& p : info->params)
-                                if (p.name == param) ep = &p;
-                        if (!ep) continue;  // not the effect's (a state's `transition`): no field
+                // Every parameter of the effect, in its order: the pack's value, else the effect's own.
+                if (info)
+                    for (const render::EffectParam& p : info->params) {
+                        const std::string_view param = p.name;
+                        const Value* given = r.effect.get(param);
+                        const Value value = given && given->is_number() ? *given : Value(static_cast<double>(p.value));
+                        const render::EffectParam* ep = &p;
                         const double was = shipped && shipped->get(param) ? shipped->get(param)->as_double() : value.as_double();
                         double lo = ep ? ep->min : 0, hi = ep ? ep->max : 1;
-                        if (ep && hi - lo > 4) hi = std::min<double>(ep->max, std::max({lo + 1.0, 4.0 * ep->value, 2.0 * was}));
+                        if (ep && hi - lo > 4) hi = std::min<double>(ep->max, std::max({lo + 1.0, 4.0 * ep->value, 2.0 * was, value.as_double()}));
                         double v = std::clamp(value.as_double(), lo, hi);
                         ui.text(std::format("{} · {}", human(param), with_unit(v, ep)), {.style = "caption", .color = Fill("text_muted")});
                         std::string id = std::format("{}-{}", r.selector, param);  // role:region → role-region-…: an id's characters
                         std::ranges::replace(id, ':', '-');
                         if (ui.slider(human(param), v, {.id = id, .min = lo, .max = hi, .step = (hi - lo) / 100}))
-                            changed = {r.selector, param, v};  // applied after the loop: an edit replaces the draft being read
+                            changed = {r.selector, std::string(param), v};  // applied after the loop: an edit replaces the draft being read
                     }
             }
             if (changed) (void)s.set_param(changed->selector, changed->param, changed->value);
@@ -493,8 +531,21 @@ Element editor(Studio& s, bool wide = false) {
             });
         },
         {.id = "fields", .padding = 16, .gap = 8});
-    return box({.id = "editor", .width = wide ? Dim(layout::pct(100)) : Dim(300.0f), .shrink = 0, .background = "surface", .border_color = "border", .border_width = 1},
-               {scroll({.id = "scroll", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100))}, {std::move(fields)})});
+    // What is edited and its history stay in view while the fields scroll.
+    Element head = immediate(
+        [&s](Ui& ui) {
+            (void)s.revision.get();
+            ui.text(std::format("Editing {}", s.draft().name), {.style = "heading"});
+            ui.row({.id = "history", .gap = 6}, [&] {
+                if (ui.button("Undo", {.id = "undo", .variant = "secondary", .disabled = !s.can_undo()})) (void)s.undo();
+                if (ui.button("Redo", {.id = "redo", .variant = "ghost", .disabled = !s.can_redo()})) (void)s.redo();
+                if (ui.button("Reset", {.id = "reset", .variant = "ghost", .disabled = !s.edited()})) (void)s.reset();
+            });
+        },
+        {.id = "head", .padding = Edges(Insets{16, 16, 8, 16}), .gap = 8, .border_color = "border"});
+    return column({.id = "editor", .width = wide ? Dim(layout::pct(100)) : Dim(300.0f), .shrink = 0, .background = "surface", .border_color = "border",
+                   .border_width = 1},
+                  {std::move(head), scroll({.id = "scroll", .width = Dim(layout::pct(100)), .grow = 1}, {std::move(fields)})});
 }
 
 }  // namespace

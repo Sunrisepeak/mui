@@ -192,12 +192,87 @@ void Mirror::rename(std::string name) {
     if (auto it = nodes_.find(root_); it != nodes_.end() && !options_.name.empty()) it->second.label = options_.name;
 }
 
+namespace {
+
+bool text_field(Role r) noexcept { return r == Role::text_box || r == Role::search_box || r == Role::combo_box; }
+
+bool same_run(const Node& a, const Node& b) {
+    auto same_rect = [](const std::optional<spec::Rect>& x, const std::optional<spec::Rect>& y) {
+        return x.has_value() == y.has_value() && (!x || (x->x == y->x && x->y == y->y && x->width == y->width && x->height == y->height));
+    };
+    return a.key == b.key && a.value == b.value && a.lengths == b.lengths && a.positions == b.positions && a.widths == b.widths && a.word_starts == b.word_starts &&
+           a.rtl == b.rtl && same_rect(a.bounds, b.bounds);
+}
+
+bool same_place(const std::optional<TextSelection>& a, const std::optional<TextSelection>& b) {
+    return a.has_value() == b.has_value() &&
+           (!a || (a->anchor.run == b->anchor.run && a->anchor.index == b->anchor.index && a->focus.run == b->focus.run &&
+                   a->focus.index == b->focus.index));
+}
+
+}  // namespace
+
+void Mirror::text_of(const std::string& id, Node& node, std::vector<Node>& out, bool force) {
+    Runtime& rt = tree_.runtime();
+    const NodeId n = rt.find(id);
+    const std::optional<TextLayout> layout = rt.valid(n) ? rt.text_layout(n) : std::nullopt;
+    Text now;
+    if (layout) {
+        std::size_t first = 0;  // the run's first grapheme
+        for (std::size_t i = 0; i < layout->lines.size(); ++i) {
+            const TextLine& l = layout->lines[i];
+            Node run;
+            run.key = key_of(std::format("{}\x1frun:{}", id, i));
+            run.role = "TextRun";
+            run.value = layout->text.substr(l.begin, l.end - l.begin);
+            run.lengths = l.lengths;
+            run.positions = l.positions;
+            run.widths = l.widths;
+            run.word_starts = l.word_starts;
+            run.rtl = l.rtl;
+            run.bounds = spec::Rect{l.bounds.x, l.bounds.y, l.bounds.width, l.bounds.height};
+            run_of_[run.key] = {node.key, first};
+            first += run.lengths.size();
+            now.runs.push_back(std::move(run));
+        }
+        // Graphemes to a run and a character in it: the end of the text is the end of the last run.
+        auto place = [&](std::size_t g) {
+            std::size_t start = 0;
+            for (const Node& r : now.runs) {
+                if (g < start + r.lengths.size()) return TextPosition{r.key, g - start};
+                start += r.lengths.size();
+            }
+            return now.runs.empty() ? TextPosition{} : TextPosition{now.runs.back().key, now.runs.back().lengths.size()};
+        };
+        if (!now.runs.empty()) now.selection = TextSelection{place(layout->anchor), place(layout->focus)};
+    }
+    Text& was = texts_[node.key];
+    for (const Node& r : now.runs) {
+        const bool known = std::ranges::any_of(was.runs, [&](const Node& w) { return same_run(w, r); });
+        if (force || !known) {
+            out.push_back(r);
+            nodes_[r.key] = r;
+        }
+    }
+    for (const Node& w : was.runs)
+        if (std::ranges::none_of(now.runs, [&](const Node& r) { return r.key == w.key; })) {
+            nodes_.erase(w.key);
+            run_of_.erase(w.key);
+        }
+    for (const Node& r : now.runs) node.children.push_back(r.key);
+    node.selection = now.selection;
+    if (node.selection) node.add(Action::set_text_selection);
+    was = std::move(now);
+}
+
 Mirror::Changes Mirror::refresh() {
     trace::Span span("accessibility.refresh", "accessibility");
     spec::SemanticDelta delta = tree_.changes();
     Changes out;
-    if (delta.empty()) return out;
     std::lock_guard hold(mutex_);
+    // A text field's caret moves, and its line scrolls, with no change to the tree: the focused one is read again.
+    const bool focused_text = texts_.contains(focus_);
+    if (delta.empty() && !focused_text) return out;
     if (root_ == 0)
         if (const semantic::Snapshot top = tree_.snapshot({.depth = 0}); !top.nodes.empty()) {
             app_id_ = top.nodes.front().id;
@@ -205,10 +280,12 @@ Mirror::Changes Mirror::refresh() {
         }
     std::uint64_t focused = 0;
     bool          lost = false;
+    std::vector<Node> runs;
     auto keep = [&](const spec::SemanticNode& n) {
         Node node = n.id == app_id_ ? root_node(&n) : describe(n);
         if (n.states.has(State::focused)) focused = node.key;
         else if (node.key == focus_) lost = true;
+        if (text_field(n.role)) text_of(n.id, node, runs, true);
         ids_[node.key] = n.id;
         out.nodes.push_back(node);
         nodes_[node.key] = std::move(node);
@@ -218,9 +295,31 @@ Mirror::Changes Mirror::refresh() {
     for (const std::string& id : delta.removed) {
         const std::uint64_t k = key_of(id);
         if (k == focus_) lost = true;
+        if (auto t = texts_.find(k); t != texts_.end()) {
+            for (const Node& r : t->second.runs) {
+                nodes_.erase(r.key);
+                run_of_.erase(r.key);
+            }
+            texts_.erase(t);
+        }
         nodes_.erase(k);
         ids_.erase(k);
     }
+    // The focused field, unchanged in the tree: its caret or its runs may have moved.
+    if (focused_text && !lost && !focused)
+        if (auto n = nodes_.find(focus_); n != nodes_.end() && std::ranges::none_of(out.nodes, [&](const Node& o) { return o.key == focus_; })) {
+            Node node = n->second;
+            const auto before = node.selection;
+            node.children.erase(std::remove_if(node.children.begin(), node.children.end(), [&](std::uint64_t c) { return run_of_.contains(c); }),
+                                node.children.end());
+            const std::size_t sent = runs.size();
+            text_of(ids_[focus_], node, runs, false);
+            if (runs.size() != sent || !same_place(before, node.selection) || node.children != n->second.children) {
+                out.nodes.push_back(node);
+                n->second = std::move(node);
+            }
+        }
+    for (Node& r : runs) out.nodes.push_back(std::move(r));
     // The focus: the focused node, else the window.
     const std::uint64_t focus = focused ? focused : (lost || focus_ == 0) ? root_ : focus_;
     out.focus = focus;
@@ -309,6 +408,22 @@ Envelope Mirror::perform(const Request& r) {
         case Action::decrement: action = "decrement"; break;
         case Action::scroll_into_view: action = "scroll_into_view"; break;
         case Action::show_context_menu: action = "open_menu"; break;
+        case Action::set_text_selection:
+            if (r.selection) {
+                // Runs and characters to the field's graphemes.
+                auto grapheme = [&](const TextPosition& p) -> std::optional<std::size_t> {
+                    std::lock_guard hold(mutex_);
+                    auto it = run_of_.find(p.run);
+                    if (it == run_of_.end() || it->second.first != r.target) return std::nullopt;
+                    return it->second.second + p.index;
+                };
+                const auto anchor = grapheme(r.selection->anchor), focus = grapheme(r.selection->focus);
+                if (anchor && focus) {
+                    action = "set_selection";
+                    args = Value{}.set("anchor", static_cast<std::int64_t>(*anchor)).set("focus", static_cast<std::int64_t>(*focus));
+                }
+            }
+            break;
         case Action::custom: {
             const Node d = describe(*node);
             if (r.custom >= 0 && static_cast<std::size_t>(r.custom) < d.custom.size()) action = d.custom[static_cast<std::size_t>(r.custom)];

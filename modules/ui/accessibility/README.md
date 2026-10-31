@@ -23,6 +23,13 @@ the module `mcpplibs.mwrap.accesskit`), only in `src/native/accesskit/`.
   Actions keep AccessKit's names where it has them (click is the node's
   activate, else toggle, else select); the others with no arguments
   (dismiss, deselect…) are custom actions a screen reader lists by name.
+- **Text** — a text field (text box, search box, combo box) says its text as
+  laid out (`TextLayout`, the component's `text_layout()`): each line a run
+  (AccessKit's TextRun) with its characters' bytes, places, advances and word
+  starts, and the field's selection over them. The focused field's caret is
+  read again each frame, so a screen reader follows the cursor; it moves the
+  caret and the selection (`set_text_selection` → `set_selection`), writes the
+  text (`set_value`), and reads characters, words and lines.
 - **The mirror** (`Mirror`) — the tree as the platform was last told it:
   `refresh` reads what changed (the nodes whose children changed too) and
   where the focus is; the window is the root, named as the window. Node keys
@@ -40,8 +47,10 @@ the module `mcpplibs.mwrap.accesskit`), only in `src/native/accesskit/`.
 Tested: the mapping and the mirror on every platform; AccessKit's own reading
 of the update where it has a library; on Linux x86_64 CI, `tools/ci/atspi.sh`
 — an AT-SPI client over D-Bus, as Orca speaks it, reads example 03's tree
-(names, roles, states, the slider's value) and presses its button and sets
-its slider. Trace category and log category `accessibility`.
+(names, roles, states, the slider's value), presses its button and sets its
+slider; and in example 07 reads, writes and selects in the draft field
+through Text and EditableText (the caret, a selection, the word at an
+offset) and adds the note. Trace category and log category `accessibility`.
 
 Depends on `openmui.core`, `openmui.view`, `openmui.semantic`, `openmui.hash`
 and `openmui.trace`.

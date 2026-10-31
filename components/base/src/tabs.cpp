@@ -168,9 +168,11 @@ void Tab::paint(PaintContext& ctx) const {
     const bool off = props.disabled || ctx.state.disabled;
     hover_.to(!off && ctx.state.hovered ? 1.0 : 0.0, th.transition("motion.fast"));
     const float h = static_cast<float>(hover_.value());
-    if (h > 0)
+    // Hovered: the hover's own colour faded in (its alpha kept: a glass pack's is a breath of white, not a slab).
+    // On a bar the lens marks the selected one; a hover is lighter still, never a second lens.
+    if (const Color hover = th.color("surface_variant"); h > 0)
         ctx.list.fill_round_rect({0, 4, ctx.size.width, ctx.size.height - 8}, CornerRadii::all(th.corner("small", 4)),
-                                 render::Paint::solid(th.color("surface_variant").with_alpha(h)));
+                                 render::Paint::solid(hover.with_alpha(hover.a * h * (selected() ? 0.0f : 1.0f))));
     const Color c = off ? th.color("text_disabled") : selected() ? th.color("accent") : mix(th.color("text_muted"), th.color("text"), h);
     const Size t = label_.measure(ctx.services, c);
     label_.paint(ctx, {ctx.content.x + (ctx.content.width - t.width) / 2, ctx.content.y + (ctx.content.height - t.height) / 2}, c);

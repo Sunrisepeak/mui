@@ -169,7 +169,8 @@ void Checkbox::paint(PaintContext& ctx) const {
     const Color empty = mix(th.color("surface"), th.color("surface_variant"), static_cast<float>(hover_.value()));
     ctx.list.fill_round_rect(b, r, render::Paint::solid(mix(empty, th.color("accent"), k)));
     if (k < 1) {
-        const Color border = th.color("border_strong").with_alpha(1 - k);
+        const Color strong = th.color("border_strong");
+        const Color border = strong.with_alpha(strong.a * (1 - k));
         ctx.list.stroke_round_rect({b.x + 0.5f, b.y + 0.5f, b.width - 1, b.height - 1}, CornerRadii::all(r.top_left - 0.5f), 1,
                                    render::Paint::solid(border));
     }

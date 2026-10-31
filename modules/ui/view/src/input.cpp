@@ -409,7 +409,8 @@ NodeId Runtime::Impl::focusable_ancestor(NodeId id) const {
 }
 
 std::string Runtime::Impl::own_answer(NodeId id, std::string_view action) const {
-    if (!alive(id)) return {};
+    // An agent's input (set_input_actor) is the agent's: its click answers nothing a person must answer.
+    if (!alive(id) || input_actor) return {};
     const spec::SemanticNode n = semantics(id);
     const spec::ActionDesc* a = n.action(action);
     // Only reaching outside (a link, a file): an irreversible action asks a

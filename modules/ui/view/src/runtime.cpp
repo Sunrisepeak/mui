@@ -52,12 +52,14 @@ Value default_of(const spec::DefaultValue& d) {
 Runtime::Runtime(RuntimeOptions options) : impl_(std::make_unique<Impl>(*this)) {
     Impl& d = *impl_;
     d.theme = std::move(options.theme);
+    d.make_opaque();
     d.clock = options.clock;
     d.complete_frames = options.complete_frames;
     d.size = options.size;
     d.scale = options.scale;
     d.reduce_motion = options.reduce_motion;
     d.reduce_transparency = options.reduce_transparency;
+    d.make_opaque();
     if (options.fonts) {
         d.fonts = options.fonts;
     } else {
@@ -392,6 +394,7 @@ UiQueue& Runtime::queue() noexcept { return impl_->queue; }
 void Runtime::set_theme(Theme theme) {
     Impl& d = *impl_;
     d.theme = std::move(theme);
+    d.make_opaque();
     std::vector<NodeId> all;
     walk([&](NodeId id, int) { all.push_back(id); });
     for (NodeId id : all)
@@ -403,7 +406,35 @@ void Runtime::set_theme(Theme theme) {
 
 const Theme& Runtime::Impl::theme_of(NodeId id) const {
     const std::uint32_t s = alive(id) ? at(id).scope : 0;
+    if (reduce_transparency) return s == 0 ? opaque_theme : scopes[s].opaque;
     return s == 0 ? theme : scopes[s].theme;
+}
+
+namespace {
+
+// A theme with less transparency: each translucent colour a surface is drawn in — a panel, a bar, a control's
+// fill — made solid, as it looks over the theme's background; what lies over things to mark them (focus,
+// selection, a scrim, a shadow) keeps its alpha.
+Theme opaque_of(const Theme& t) {
+    Theme o = t;
+    Color under = t.color("background", t.dark ? Color::hex(0x0b1120) : Color::hex(0xffffff));
+    if (under.a < 1) {
+        const Color base = t.dark ? Color::hex(0x000000) : Color::hex(0xffffff);
+        under = {base.r + (under.r - base.r) * under.a, base.g + (under.g - base.g) * under.a, base.b + (under.b - base.b) * under.a, 1};
+    }
+    for (auto& [name, c] : o.colors) {
+        if (c.a >= 1 || name == "focus" || name == "selection" || name.contains("scrim") || name.contains("shadow") || name.contains("overlay")) continue;
+        c = {under.r + (c.r - under.r) * c.a, under.g + (c.g - under.g) * c.a, under.b + (c.b - under.b) * c.a, 1};
+    }
+    return o;
+}
+
+}  // namespace
+
+void Runtime::Impl::make_opaque() {
+    if (!reduce_transparency) return;
+    opaque_theme = opaque_of(theme);
+    for (Scope& sc : scopes) sc.opaque = opaque_of(sc.theme);
 }
 
 const std::vector<EffectRule>& Runtime::Impl::rules_of(NodeId id) const {
@@ -465,6 +496,7 @@ void Runtime::set_scope(std::string_view name, Theme theme, std::vector<EffectRu
     }
     d.scopes[s].theme = std::move(theme);
     d.scopes[s].rules = std::move(rules);
+    d.make_opaque();
     if (d.alive(d.root)) d.rescope(d.root, 0, s);
     d.touch(dirty_layout | dirty_paint | dirty_semantics);
 }
@@ -496,8 +528,15 @@ void Runtime::set_reduce_motion(bool reduce) {
 }
 
 void Runtime::set_reduce_transparency(bool reduce) {
-    impl_->reduce_transparency = reduce;
-    impl_->touch(dirty_paint);
+    Impl& d = *impl_;
+    if (d.reduce_transparency == reduce) return;
+    d.reduce_transparency = reduce;
+    d.make_opaque();
+    // Every node's colours again, from the theme it now draws with.
+    std::vector<NodeId> all;
+    walk([&](NodeId id, int) { all.push_back(id); });
+    for (NodeId id : all) d.restyle(id);
+    d.touch(dirty_layout | dirty_paint | dirty_semantics);
 }
 
 bool Runtime::reduce_transparency() const { return impl_->reduce_transparency; }

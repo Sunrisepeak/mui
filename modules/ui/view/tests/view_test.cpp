@@ -1417,6 +1417,49 @@ int main(int argc, char** argv) {
         check(under == 1 && over == 0, std::format("under {} over {}", under, over));
     });
 
+    s.test("less transparency asked for: the theme's translucent surfaces solid, as they look over the background; focus and selection keep their alpha", [] {
+        RuntimeOptions o = options();
+        o.theme.colors["background"] = Color::hex(0x1e1b4b);
+        o.theme.colors["surface"] = Color::hex(0xffffff, 0.1f);
+        o.theme.colors["focus"] = Color::hex(0x6366f1, 0.55f);
+        Runtime rt(std::move(o));
+        Color surface, focus;
+        rt.mount("main", column({}, {painter({.id = "p", .width = 20, .height = 20, .paint = [&](PaintContext& c) {
+                                                  surface = c.theme.color("surface");
+                                                  focus = c.theme.color("focus");
+                                              }})}));
+        rt.frame();
+        check(surface.a < 0.2f, "translucent as the theme has it");
+        rt.set_reduce_transparency(true);
+        rt.frame();
+        check(surface.a == 1 && std::abs(surface.r - (0x1e / 255.0f * 0.9f + 0.1f)) < 1e-3, std::format("solid: {} {} {} {}", surface.r, surface.g, surface.b, surface.a));
+        check(focus.a < 0.6f, "focus keeps its alpha");
+        rt.set_reduce_transparency(false);
+        rt.frame();
+        check(surface.a < 0.2f, "and back");
+    });
+
+    s.test("a person's click answers an external action (S-2a); an agent's input does not — its click asks the person", [] {
+        Runtime rt(options());
+        int opened = 0;
+        rt.mount("main", column({}, {box({.id = "open", .width = 60, .height = 30, .label = "Open the file", .on = {{"press", [&](const Value&) { ++opened; }}}})
+                                         .prop("effect", Source{Value("external"), {}, {}})
+                                         .prop("answer", Source{Value("yes"), {}, {}})}));
+        rt.frame();
+        const Rect r = rt.screen_bounds(rt.find("main/open"));
+        const Point c{r.x + r.width / 2, r.y + r.height / 2};
+        auto click = [&] {
+            rt.frame({std::nullopt, {PointerEvent{.kind = PointerKind::down, .position = c, .button = MouseButton::left, .buttons = 1},
+                                     PointerEvent{.kind = PointerKind::up, .position = c, .button = MouseButton::left}}});
+        };
+        click();
+        check_eq(opened, 1);  // the person's click is the answer
+        rt.set_input_actor(Actor{"agent", "sly", {}});
+        click();
+        rt.set_input_actor(std::nullopt);
+        check_eq(opened, 1);  // the agent's is not: it needs the person's answer
+    });
+
     s.test("readonly: read, not changed — an action that changes it is refused and says why; the state tells every reader", [] {
         Runtime rt(options());
         int pressed = 0;

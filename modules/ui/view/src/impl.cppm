@@ -328,7 +328,10 @@ struct Runtime::Impl {
         std::string             name;
         Theme                   theme;
         std::vector<EffectRule> rules;
+        Theme                   opaque;  // its theme with less transparency asked for (see opaque_theme)
     };
+    Theme opaque_theme;  // the theme, every translucent surface made solid (as it looks over the background): reduced transparency
+    void make_opaque();  // after the theme, a scope's or the setting changes
     std::vector<Scope> scopes = std::vector<Scope>(1);
     // The theme Services::theme() answers with: the scope of the node whose
     // hook is running (ThemeUse), else the runtime's.

@@ -359,6 +359,29 @@ int main(int argc, char** argv) {
         check_frame(e, e.children(root)[9], {0, 270, 50, 30});
     });
 
+    s.test("a container scrolling sideways: a stretched line wider than it keeps its width, and scrolls", [] {
+        layout::Engine e;
+        layout::Style ss;
+        ss.direction = layout::Direction::column;
+        ss.overflow_x = layout::Overflow::scroll;
+        ss.width = pt(100);
+        auto root = e.create(ss);
+        auto line = e.create(layout::Style{});  // stretched (align-items' default)
+        e.set_measure(line, [](void*, layout::NodeId, std::optional<float>, std::optional<float>, layout::Available, layout::Available) {
+            return omui::geom::Size{300, 20};  // a line of code, kept whole
+        }, nullptr);
+        auto narrow = e.create(layout::Style{});
+        e.set_measure(narrow, [](void*, layout::NodeId, std::optional<float>, std::optional<float>, layout::Available, layout::Available) {
+            return omui::geom::Size{40, 20};
+        }, nullptr);
+        e.append(root, line);
+        e.append(root, narrow);
+        e.compute(root, {500, 500});
+        check_frame(e, line, {0, 0, 300, 20});
+        check_frame(e, narrow, {0, 20, 100, 20});  // stretched to the view, as without scrolling
+        check_near(e.content_size(root).width, 300, 1e-3);
+    });
+
     s.test("relayout is incremental", [] {
         layout::Engine e;
         layout::Style cs;

@@ -364,8 +364,11 @@ Size FlexAlgorithm::run(Engine& e, NodeId node, const Engine::Request& r) {
     for (const FlexLine& l : lines)
         for (std::size_t i = l.begin; i < l.end; ++i) {
             FlexItem& it = items[i];
-            if (it.align == Align::stretch && !it.cross_known)
-                it.cross = clamp_opt(l.cross - it.m_cross_start - it.m_cross_end, it.min_cross, it.max_cross);
+            if (it.align == Align::stretch && !it.cross_known) {
+                const float line = clamp_opt(l.cross - it.m_cross_start - it.m_cross_end, it.min_cross, it.max_cross);
+                // Scrolling across, an item wider than the view keeps its width (a line of code kept whole): it is what scrolls.
+                it.cross = scroll_cross ? std::max(line, it.cross) : line;
+            }
         }
 
     // ── main-axis positions (§9.5) and cross-axis positions (§9.6) ──

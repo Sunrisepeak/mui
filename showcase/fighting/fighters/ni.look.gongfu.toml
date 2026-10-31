@@ -52,6 +52,13 @@ name = "heavy"
 file = "art/ni-heavy.webp"
 size = [1700, 731]
 
+# 623MK, the two-contact rising knee (D-90's pilot): eleven keys in the same style and scale, registered on the
+# root — airborne ones drawn as if it stood, the path lifting the whole drawing.
+[[picture]]
+name = "knee"
+file = "art/ni-knee.webp"
+size = [1886, 714]
+
 [[picture]]
 name = "eyes"
 file = "art/ni-cutin-eyes.webp"
@@ -663,6 +670,76 @@ source = [714, 366, 270, 365]
 pivot = [865, 726]
 scale = 0.5
 
+[cel.mk_compress]
+picture = "knee"
+source = [0, 0, 229, 287]
+pivot = [129, 284]
+scale = 0.5
+
+[cel.mk_spring]
+picture = "knee"
+source = [229, 0, 203, 351]
+pivot = [329, 348]
+scale = 0.5
+
+[cel.mk_contact1]
+picture = "knee"
+source = [432, 0, 188, 372]
+pivot = [525, 369]
+scale = 0.5
+sockets.contact = { at = [615, 100], normal = [0.707, -0.707] }
+
+[cel.mk_recoil]
+picture = "knee"
+source = [620, 0, 178, 372]
+pivot = [712, 369]
+scale = 0.5
+
+[cel.mk_contact2]
+picture = "knee"
+source = [798, 0, 188, 372]
+pivot = [891, 369]
+scale = 0.5
+sockets.contact = { at = [977, 71], normal = [0.707, -0.707] }
+
+[cel.mk_apex]
+picture = "knee"
+source = [986, 0, 203, 384]
+pivot = [1083, 381]
+scale = 0.5
+
+[cel.mk_descent]
+picture = "knee"
+source = [1189, 0, 215, 312]
+pivot = [1312, 309]
+scale = 0.5
+
+[cel.mk_prepare]
+picture = "knee"
+source = [1404, 0, 221, 326]
+pivot = [1523, 323]
+scale = 0.5
+
+[cel.mk_precontact]
+picture = "knee"
+source = [1625, 0, 261, 309]
+pivot = [1775, 306]
+scale = 0.5
+sockets.front_sole = { at = [1836, 306], normal = [0.000, 1.000] }
+
+[cel.mk_landing]
+picture = "knee"
+source = [0, 384, 250, 248]
+pivot = [132, 629]
+scale = 0.5
+sockets.front_sole = { at = [223, 628], normal = [0.000, 1.000] }
+
+[cel.mk_rebound]
+picture = "knee"
+source = [250, 384, 259, 330]
+pivot = [397, 711]
+scale = 0.5
+
 [clip.5HP]
 frames = 28
 ease = "in_out_sine"
@@ -882,6 +959,21 @@ poses = [
     [17, "stance", "linear", { aim = { hip = 100, torso = 112, head = 92, upper_front = -90, fore_front = 50, thigh_front = -10, shin_front = -12, thigh_back = -150, shin_back = -110, foot_front = -10, foot_back = -10 }, grip = { foot_front = 0 }, grip_at = { foot_front = 0, foot_back = -40 }, grip_across = { foot_front = 0 } }],
     [28, "stance", { aim = { torso = 90 } }],
     [36, "stance"],
+]
+
+[clip.623MK]
+# Zero-based clip time; the keys of pilot.md's table: whole-body drawings through the rise, both knees and the landing,
+# the rig for the airborne carry (14–17) and the recovery (28 on).
+cels = [[1, "mk_compress"], [3, "mk_spring"], [4, "mk_contact1"], [6, "mk_recoil"], [7, "mk_contact2"], [9, "mk_apex"], [10, "mk_descent"], [13, "rig"], [17, "mk_prepare"], [20, "mk_precontact"], [21, "mk_landing"], [23, "mk_rebound"], [27, "rig"]]
+frames = 41
+ease = "in_out_sine"
+poses = [
+    [0, "crouch", { rise = -30 }],
+    [3, "stance", "out_expo", { aim = { torso = 100, head = 96, upper_front = 40, fore_front = 90, thigh_front = 70, shin_front = -30, foot_front = -20 }, rise = 10, grip = { foot_front = 0 }, grip_at = { foot_front = 0 }, grip_across = { foot_front = 0 } }],
+    [6, "stance", "out_quad", { aim = { hip = 110, torso = 118, head = 110, upper_front = -40, fore_front = 40, thigh_front = 80, shin_front = 70, thigh_back = -110, shin_back = -140, foot_front = 70 }, rise = 34, grip = { foot_front = 0, foot_back = 0 }, grip_at = { foot_front = 0, foot_back = 0 }, grip_across = { foot_front = 0, foot_back = 0 } }],
+    [15, "stance", { aim = { torso = 110, thigh_front = 40, shin_front = -40, thigh_back = -110, shin_back = -140 }, rise = 30, grip = { foot_front = 0, foot_back = 0 }, grip_at = { foot_front = 0, foot_back = 0 }, grip_across = { foot_front = 0, foot_back = 0 } }],
+    [29, "crouch", { rise = -20 }],
+    [37, "stance"],
 ]
 
 [clip.623K]

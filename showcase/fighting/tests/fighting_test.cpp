@@ -601,7 +601,7 @@ int main(int argc, char** argv) {
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    ni level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("62f424f06e2a8c19"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("153a440a6502865f"));  // GCC and LLVM, every platform
     });
 
     s.test("坤's level 3: the ball spun on a finger, the bounce pass into the gut, the glide and 铁山靠, the catch behind his back as they crash down behind him — frames pinned", [] {
@@ -1424,6 +1424,54 @@ int main(int argc, char** argv) {
         const auto& box = hp.hits.front().boxes.front();
         const double edge = (box.x + box.w).to_double();
         check(reach && std::abs(*reach - edge) <= 4, std::format("knuckles at {}, the attack box to {}", reach.value_or(-1), edge));
+    });
+
+    s.test("霓's 623MK, the pilot's rising knee (D-90): two contacts drawn on the knee's ridge inside each attack box, the rig for the carry, the landing drawn", [] {
+        Game g("versus", "ni", "kata");
+        check(g.act("pause"));
+        check(g.act("press", pad(0, "6")));
+        for (int i = 0; i < 200 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 80; ++i) check(g.act("step"));
+        for (const char* p : {"2", "3", "3MK"}) {  // from 6, held while walking in
+            check(g.act("press", pad(0, p)));
+            check(g.act("step"));
+        }
+        const auto& r = fighting::roster();
+        const std::size_t ni = fighting::fighter_index("ni");
+        const gongfu::present2d::Look& look = r.looks[2 * ni];
+        const gongfu::Fighter& fighter = r.fighters[ni];
+        const gongfu::MoveDef& mk = fighter.def.moves[static_cast<std::size_t>(fighter.find("623MK"))];
+        std::map<std::int32_t, std::string> shown;
+        std::vector<std::string> inside;
+        for (int i = 0; i < 90; ++i) {
+            if (i == 0) check(g.act("press", pad(0, "5")));
+            const auto& f = g.state().f[0];
+            if (f.mode == gongfu::Mode::move && f.move == fighter.find("623MK")) {
+                const std::int32_t cel = gongfu::present2d::exposed(&look.clips.at("623MK"), f.move_frame - 1);
+                const bool first = !shown.contains(f.move_frame);
+                shown[f.move_frame] = cel < 0 ? std::string("rig") : look.cels[static_cast<std::size_t>(cel)].name;
+                for (std::size_t h = 0; h < mk.hits.size(); ++h)
+                    if (first && f.move_frame == mk.hits[h].active.from) {
+                        const auto k = gongfu::present2d::socket(look, fighter, f, g.state().frame, "contact");
+                        const auto& b = mk.hits[h].boxes.front();
+                        if (k) {
+                            const double x = (k->x - f.pos.x.to_double()) * (f.facing < 0 ? -1 : 1), y = k->y - f.pos.y.to_double();
+                            if (x >= b.x.to_double() && x <= (b.x + b.w).to_double() && y >= b.y.to_double() && y <= (b.y + b.h).to_double())
+                                inside.push_back(std::format("hit {}", h));
+                            else
+                                inside.push_back(std::format("hit {} outside: knee at {:.0f},{:.0f}", h, x, y));
+                        }
+                        g.h.step();
+                        check(g.h.save_png(scratch_dir("fighting-pilot") / std::format("ni-623mk-contact-{}.png", h + 1)).has_value());
+                    }
+            } else if (!shown.empty()) {
+                break;
+            }
+            check(g.act("step"));
+        }
+        check(shown.size() >= 30, std::format("{} frames of the move", shown.size()));
+        check(shown[5] == "mk_contact1" && shown[8] == "mk_contact2" && shown[15] == "rig" && shown[22] == "mk_landing" && shown[30] == "rig",
+              std::format("{} {} {} {} {}", shown[5], shown[8], shown[15], shown[22], shown[30]));
+        check(inside == std::vector<std::string>{"hit 0", "hit 1"}, std::format("{}", inside));
     });
 
     s.test("frames pinned: versus and training (boxes and the meter) at a jab's active frame", [] {

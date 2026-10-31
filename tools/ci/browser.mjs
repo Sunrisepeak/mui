@@ -138,8 +138,12 @@ browser.on('exit', (code) => finish(code === 0 ? 1 : (code ?? 1)));
 let code = await finished;
 if (code === 0 && (summaries.length === 0 || summaries.some((n) => n > 0))) code = 1;
 clearTimeout(timer);
+// The browser gone before its profile is: a process killed may still be writing it (ENOTEMPTY), and what the run
+// found is not to be lost to its cleanup — a profile that will not go is left to the system's temporary files.
+const gone = browser.exitCode !== null || browser.signalCode !== null ? Promise.resolve() : new Promise((r) => browser.once('exit', r));
 browser.kill('SIGKILL');
+await Promise.race([gone, new Promise((r) => setTimeout(r, 3000))]);
 server.close();
-rmSync(profile, { recursive: true, force: true });
+try { rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }); } catch {}
 if (code !== 0 && process.env.OMUI_BROWSER_LOG) process.stderr.write(log);
 process.exit(code);

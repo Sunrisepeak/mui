@@ -79,8 +79,18 @@ std::vector<std::pair<std::string, std::string>> aria_attributes(const spec::Sem
     if (s.has(State::modal)) put("aria-modal", "true");
     if (ranged(n.role)) {
         if (n.value.is_number()) put("aria-valuenow", value_text(n.value));
-        else if (const std::string v = value_text(n.value); !v.empty()) put("aria-valuetext", v);
+        else if (n.value.map()) {
+            // A slider's value with its range ({value, min, max, step}): each its attribute.
+            for (auto [key, attr] : {std::pair{"value", "aria-valuenow"}, {"min", "aria-valuemin"}, {"max", "aria-valuemax"}})
+                if (const Value* f = n.value.get(key); f && f->is_number()) put(attr, value_text(*f));
+        } else if (const std::string v = value_text(n.value); !v.empty()) put("aria-valuetext", v);
+        if (n.role == Role::progress && n.value.is_number() && !n.value.map()) {
+            put("aria-valuemin", "0");
+            put("aria-valuemax", "1");
+        }
     }
+    // A heading's level (its value).
+    if (n.role == Role::heading && n.value.is_number()) put("aria-level", value_text(n.value));
     // The page's live region speaks for a status (once, not twice).
     if (n.role == Role::status) put("aria-live", "off");
     if (s.has(State::focusable)) put("tabindex", "-1");

@@ -22,6 +22,8 @@ struct RoleName {
 // The names roles.toml's `accesskit` column uses, as AccessKit's roles.
 constexpr RoleName role_names[] = {
     {"TextRun", ACCESSKIT_ROLE_TEXT_RUN},
+    {"Navigation", ACCESSKIT_ROLE_NAVIGATION},
+    {"Main", ACCESSKIT_ROLE_MAIN},
     {"AlertDialog", ACCESSKIT_ROLE_ALERT_DIALOG},
     {"Application", ACCESSKIT_ROLE_APPLICATION},
     {"Article", ACCESSKIT_ROLE_ARTICLE},

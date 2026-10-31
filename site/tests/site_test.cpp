@@ -816,6 +816,9 @@ int main(int argc, char** argv) {
 
     s.test("a panel opened beside the place: the place is laid out again to the room left", [] {
         Site a;
+        // Landmarks a screen reader jumps between: the places' navigation, the place itself.
+        check(a.h.tree().node("main/body/nav") && a.h.tree().node("main/body/nav")->role == Role::navigation, "the navigation landmark");
+        check(a.h.tree().node("main/body/view") && a.h.tree().node("main/body/view")->role == Role::main, "the main landmark");
         const Rect before = a.h.runtime().screen_bounds(a.h.runtime().find("main/body/view"));
         check(a.h.click("main/bar/guide_toggle"));
         a.h.advance(seconds(1));

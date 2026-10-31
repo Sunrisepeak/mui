@@ -1467,16 +1467,19 @@ AppSpec app(std::string_view place, std::string_view lang) {
                                       [s, key] { return s->lens.get() == key; }));
         }
         Element body = row({.id = "body", .min_height = Dim(0.0f), .align = "stretch", .grow = 1},
-                           {only_when(column({.id = "nav",
-                                              .width = computed([s] { return s->compact.get() ? Dim(layout::pct(100)) : Dim(188.0f); }),
-                                              .padding = Edges(20.0f, 12.0f),
-                                              .gap = 4,
-                                              .align = "start",
-                                              .background = "surface"},
-                                             std::move(nav)),
+                           {only_when(std::move(column({.id = "nav",
+                                                        .width = computed([s] { return s->compact.get() ? Dim(layout::pct(100)) : Dim(188.0f); }),
+                                                        .padding = Edges(20.0f, 12.0f),
+                                                        .gap = 4,
+                                                        .align = "start",
+                                                        .background = "surface",
+                                                        .label = "Places"},
+                                                       std::move(nav))
+                                                    .prop("role", Source(Value("navigation")))),  // a landmark
                                       [s] { return !s->compact.get() || s->menu.get(); }),
                             // (compact: the menu or a panel, at the full width, leaves it none)
-                            stack({.id = "view", .min_width = Dim(0.0f), .min_height = Dim(0.0f), .grow = 1}, std::move(shown)),
+                            std::move(stack({.id = "view", .min_width = Dim(0.0f), .min_height = Dim(0.0f), .grow = 1, .label = "The place"}, std::move(shown))
+                                          .prop("role", Source(Value("main")))),  // a landmark: where a screen reader goes to read
                             only_when(guide_panel(s), [s] { return s->panel.get(); }),
                             only_when(drawing_panel(s), [s] { return s->drawing.get(); }),
                             only_when(check_panel(s), [s] { return s->checking.get(); })});

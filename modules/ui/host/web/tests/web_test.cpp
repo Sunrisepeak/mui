@@ -228,6 +228,11 @@ int main(int argc, char** argv) {
         check_eq(attrs(Role::dialog, {State::modal}), std::string("aria-label=X aria-modal=true role=dialog "));
         check(attrs(Role::paragraph, {}) == "role=paragraph ", "a paragraph's name is its text, not a label");
         check(attrs(Role::generic, {State::busy}) == "aria-busy=true ", "a generic node is a plain element");
+        // A slider's value with its range: each its attribute; a heading's level.
+        check_eq(attrs(Role::slider, {}, Value{}.set("value", 0.25).set("min", 0.0).set("max", 1.0).set("step", 0.05)),
+                 std::string("aria-label=X aria-valuemax=1 aria-valuemin=0 aria-valuenow=0.25 role=slider "));
+        check_eq(attrs(Role::progress, {}, Value(0.5)), std::string("aria-label=X aria-valuemax=1 aria-valuemin=0 aria-valuenow=0.5 role=progressbar "));
+        check_eq(attrs(Role::heading, {}, Value(std::int64_t{2})), std::string("aria-label=X aria-level=2 role=heading "));
     });
 
     s.test("the mirror's batches are the same each run (deterministic)", [] {

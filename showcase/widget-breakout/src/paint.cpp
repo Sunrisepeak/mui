@@ -334,6 +334,18 @@ void Field::paint_over(PaintContext& ctx) const {
                     out.stroke_round_rect(rect(body.box), CornerRadii::all(6), 2, solid(hex(b.kind == Kind::hidden ? ink::cache : ink::live, 0.9f)));
             });
     }
+    // Whether a brick stands in the light round a ball or the paddle (there it is seen as it is).
+    const auto lit_by_light = [&](const Rect& r) {
+        const Point c{r.x + r.width / 2, r.y + r.height / 2};
+        bool lit = false;
+        const auto near = [&](Point at, float radius) {
+            const float dx = c.x - at.x, dy = c.y - at.y;
+            lit = lit || dx * dx + dy * dy < radius * radius;
+        };
+        s.world.each<Ball>([&](mgame::Entity, const Ball& b) { near(point(b.at), 150); });
+        near({static_cast<float>(s.paddles[0].x), static_cast<float>(s.paddles[0].y)}, 110);
+        return lit;
+    };
     // What to act on, even in the dark: a gate's timer, the core's outline.
     s.world.each<Body, Brick>([&](mgame::Entity, const Body& body, const Brick& b) {
         const Rect r = rect(body.box);
@@ -341,6 +353,15 @@ void Field::paint_over(PaintContext& ctx) const {
         // In the dark, every brick that is not hidden is still a faint outline: where the ball can go is never a guess.
         if (dark() && !s.over && b.kind != Kind::hidden && b.kind != Kind::core && b.kind != Kind::gate)
             out.stroke_round_rect(r, CornerRadii::all(8), 1.0f, solid(text_ink.with_alpha(0.22f)));
+        // Every control in the dark still says what it is, faintly (its own words are under the darkness); the X-ray reads them clearly.
+        if (dark() && !s.over && b.kind != Kind::hidden && b.kind != Kind::slider && b.kind != Kind::wall && b.kind != Kind::shutter && b.kind != Kind::core &&
+            b.kind != Kind::gate && b.id < def.bricks.size() && !def.bricks[b.id].label.empty() && !lit_by_light(r)) {
+            // Its own words, ghosted by the dark, covered (a switch's beside its knob, which keeps its glow).
+            const float from = b.kind == Kind::toggle ? 42.0f : 0.0f;
+            const Rect words{r.x + from + 3, r.y + 3, r.width - from - 6, r.height - 6};
+            out.fill_round_rect(words, CornerRadii::all(6), solid(hex(0x04060b, 1)));
+            centred(def.bricks[b.id].label, 12, text_ink.with_alpha(scanning() ? 0.9f : 0.42f), {words.x + words.width / 2, r.y + r.height / 2 + 1});
+        }
         // A slider's name over it (the component draws a track alone): what the beam it charges is called.
         if (b.kind == Kind::slider && b.id < def.bricks.size())
             centred(def.bricks[b.id].label, 12, text_ink.with_alpha(dark() && !scanning() ? 0.45f : 0.8f), {r.x + r.width / 2, r.y - 9});
@@ -509,7 +530,9 @@ void Field::paint_over(PaintContext& ctx) const {
         }
     }
     {
-        const auto& n = label(std::format("{} ◆", std::max(0, s.sparks)), 12, cue(ink::spark, 0.85f));
+        // A rewind across the bank that paid for it leaves a debt: owed, in the colour of a loss, until sparks pay it back.
+        const auto& n = s.sparks >= 0 ? label(std::format("{} ◆", s.sparks), 12, cue(ink::spark, 0.85f))
+                                      : label(std::format("{} ◆ owed", -s.sparks), 12, cue(ink::lost, 0.95f));
         n.paint(out, {W - 128 - n.size().width, 51});
     }
     // The chain, as it grows.
@@ -555,7 +578,8 @@ void Field::paint_over(PaintContext& ctx) const {
         const std::string title = !cleared ? std::string("Out of balls") : done ? std::string("The panel is off") : std::string("SHUT DOWN");
         const std::string line = !cleared ? std::format("Room {} of {} · score {} · longest chain {}", props.room, room_count, s.score, std::max(run_.best, s.best))
                                  : done   ? std::format("Run complete · score {} · longest chain {}", s.score, std::max(run_.best, s.best))
-                                          : std::format("longest chain {}   ·   {} ◆   ·   score {}", s.best, std::max(0, s.sparks), s.score);
+                                          : (s.sparks >= 0 ? std::format("longest chain {}   ·   {} ◆   ·   score {}", s.best, s.sparks, s.score)
+                                                           : std::format("longest chain {}   ·   {} ◆ owed   ·   score {}", s.best, -s.sparks, s.score));
         out.fill_rect({0, 0, W, H}, hex(0x05070d, 0.45f * in));
         centred(title, 54, hex(cleared ? 0xffffff : ink::lost, in), {W / 2, H / 2 - 30});
         centred(line, 16, text_ink.with_alpha(0.85f * in), {W / 2, H / 2 + 22});

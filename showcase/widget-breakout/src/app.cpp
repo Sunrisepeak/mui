@@ -155,12 +155,13 @@ struct Bench {
 Element card_view(const std::shared_ptr<Bench>& b, std::size_t k) {
     const std::string id = std::format("offer.{}", k);
     return column({.id = id, .width = Dim(420.0f), .padding = 20, .gap = 10.0f, .background = Color::hex(0x101626, 0.96f), .radius = 16.0f},
-                  {text({.text = b->name[k], .style = "title"}),
-                   text({.text = b->line[k], .style = "body"}),
+                  // Its own dark ground whatever the room's skin (a light skin's dark text vanished on it): its words light.
+                  {text({.text = b->name[k], .style = "title", .color = Fill(Color::hex(0xf4f6fb))}),
+                   text({.text = b->line[k], .style = "body", .color = Fill(Color::hex(0xd5dbea))}),
                    row({.id = id + ".presets", .gap = 8.0f},
                        {button({.id = id + ".brief", .text = b->brief[k], .variant = ButtonVariant::secondary, .on_activated = [b, k] { b->preset(k, 0); }}),
                         button({.id = id + ".steady", .text = b->steady[k], .variant = ButtonVariant::secondary, .on_activated = [b, k] { b->preset(k, 1); }})}),
-                   text({.id = id + ".state", .text = b->state[k], .style = "caption"}),
+                   text({.id = id + ".state", .text = b->state[k], .style = "caption", .color = Fill(Color::hex(0xaab4cc))}),
                    row({.id = id + ".tools", .gap = 8.0f},
                        {button({.id = id + ".take", .text = std::format("Take it  ({})", k + 1), .variant = ButtonVariant::primary, .on_activated = [b, k] { b->take(k); }}),
                         button({.id = id + ".open", .text = "Open the casing", .variant = ButtonVariant::ghost,

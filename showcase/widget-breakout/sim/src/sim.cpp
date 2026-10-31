@@ -173,6 +173,10 @@ Contact first_contact(const State& s, V2 at, double radius, V2 d, double left, b
         if (!s.paddles[i].active) continue;
         Box from = paddle_box(s.paddles[i]);
         from.x -= s.paddles[i].moved * left;
+        // A ball already past a paddle's face (the paddle swept onto it from the side, late) goes on: it is not caught
+        // from behind, nor held bouncing inside it (it lodged under the bottom paddle, never moving).
+        const double face = i == 0 ? from.y : from.y + from.h;
+        if (i == 0 ? at.y > face : at.y < face) continue;
         if (auto h = mgame::sweep(at, radius, d - V2{s.paddles[i].moved * left, 0}, from)) meet(*h, [&] { c.paddle = static_cast<std::int32_t>(i); });
     }
     // Bricks, by index: all but open shutters and gates.

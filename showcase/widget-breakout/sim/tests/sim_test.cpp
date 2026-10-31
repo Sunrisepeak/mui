@@ -171,6 +171,24 @@ int main(int argc, char** argv) {
         check(caught && balls(st) == 1, "caught, not passed through");
     });
 
+    s.test("a ball already past the paddle's face, the paddle swept onto it late from the side, goes on down: never lodged inside it", [] {
+        bo::Level l;
+        l.bricks.push_back({Box{0, 0, 10, 10}, bo::Kind::button, 1, 0, 0});
+        bo::State st = bo::start(l);
+        const double face = st.paddles[0].y - 6;  // inside the paddle's thickness, below its top
+        st.world.each<bo::Ball>([&](mgame::Entity, bo::Ball& b) {
+            b.on = 0;
+            b.at = {st.paddles[0].x + 40, face + 4};
+            b.velocity = {-3, 2};
+        });
+        double y0 = 0;
+        st.world.each<bo::Ball>([&](mgame::Entity, const bo::Ball& b) { y0 = b.at.y; });
+        for (int f = 0; f < 20; ++f) bo::step(st, {});
+        double y = y0;
+        st.world.each<bo::Ball>([&](mgame::Entity, const bo::Ball& b) { y = b.at.y; });
+        check(y > y0 + 10 || balls(st) == 0, std::format("it fell on: from {} to {}", y0, y));
+    });
+
     s.test("a ball into the seam between two bricks bounces straight back, as off a face", [] {
         bo::Level l;
         l.bricks.push_back({Box{500, 200, 100, 30}, bo::Kind::wall, 1, 1, 0});
@@ -644,7 +662,7 @@ int main(int argc, char** argv) {
             all = omui::hash::Fnv1a(all).word(bo::checksum(st)).value();
         }
         std::println("    game {:016x} ({} frames, score {}, over {})", all, frames, st.score, st.over);
-        check_eq(all, std::uint64_t{0xff443bf0c65e7a3c});  // GCC, LLVM and wasm
+        check_eq(all, std::uint64_t{0x44161a195811b4c0});  // GCC, LLVM and wasm
     });
 
     return s.run(argc, argv);

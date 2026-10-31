@@ -554,8 +554,8 @@ int main(int argc, char** argv) {
         check(g.act("scan"), "recharged");
         check_eq(g.disagreement(), std::string());
         std::println("    dark {:016x}, scanned {:016x}", dark, scanned);
-        check_eq(dark, std::uint64_t{0xa1d009263e76f863});  // GCC (LLVM: CI)
-        check_eq(scanned, std::uint64_t{0x0c1188043b1df2ef});
+        check_eq(dark, std::uint64_t{0x9518c0e5528ef67a});  // GCC (LLVM: CI)
+        check_eq(scanned, std::uint64_t{0xb5e0996114b20ea2});
     });
 
     s.test("room 5: the copilot plays the top paddle from outside — the semantic tree in, guard_to out, journaled as its own; an order changes where it sends the ball; with a player below, they shut it down", [] {
@@ -645,7 +645,7 @@ int main(int argc, char** argv) {
         g.h.advance(seconds(0.25));
         check(g.component().props.room == 1 && g.component().run_so_far().kit.empty() && g.state().score == 0 && g.state().lives == 3, "afresh");
         std::println("    choice {:016x}", choice);
-        check_eq(choice, std::uint64_t{0x0857ac00b1ba15c9});  // GCC (LLVM: CI)
+        check_eq(choice, std::uint64_t{0xc9b0efdd6f6029c6});  // GCC (LLVM: CI)
     });
 
     s.test("between rooms, a casing open: its script — TypeScript, Lua, Python — edited and reloaded in place under 200 ms, a preset retuning it, a bad one keeping the rules; the rules reach the next room", [] {

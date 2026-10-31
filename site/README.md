@@ -87,17 +87,24 @@ python3 -m http.server -d target/site            # and look at it
 
 ## Delivery
 
-`tools/ci/site-perf.sh` measures the built page in a real browser, and the Pages workflow holds every build to `delivery.budget.omui.json`. It serves `target/site` as Pages does (gzip) and makes a cold visit at 1280×800 over a 20 Mbit/s, 40 ms connection. It then flies to the features and back through `window.omui`. Measured 2026-11-01 (headless Chromium 156, i9-13900K):
+`tools/ci/site-browser.sh` measures the built page in a real browser (`tools/ci/site-perf.mjs`), and the Pages workflow holds every build to `delivery.budget.omui.json`. It serves `target/site` as Pages does (gzip) and makes a cold visit at 1280×800 over a 20 Mbit/s, 40 ms connection. It then flies to the features and back through `window.omui`. The Pages workflow's run of 2026-11-01 (Chrome 156 on GitHub's runner):
 
 | | |
 |---|---|
-| transferred | 10.6 MB: the wasm 7.2 MB (4.3 MB of it the fighters' and stages' WebP, which the training room draws), the fonts 3.3 MB (Noto Sans SC 2.7 MB), the script 87 KB |
-| first frame | 4.6 s (the transfer alone takes 4.2 s at 20 Mbit/s); 0.49 s on the machine itself |
-| `window.omui` answers | 4.57 s |
-| frames during the flights | p50 16.7 ms, p95 16.8 ms, max 50 ms; 1 frame over 33 ms in 301 |
+| transferred | 11.1 MB: the wasm about 7.7 MB (4.3 MB of it the fighters' WebP, which the move list's training stage draws), the fonts 3.3 MB (Noto Sans SC 2.7 MB), the script 87 KB |
+| first frame | 5.0 s (the transfer alone takes 4.5 s at 20 Mbit/s); 0.5 s on the machine itself |
+| `window.omui` answers | 5.0 s |
+| frames during the flights | p50 16.7 ms, p95 16.8 ms, max 67 ms; 1 frame over 33 ms in 300 |
 | memory at the end | JS heap 10 MB, wasm memory 42 MB |
 
 Most of the bytes are art and CJK glyphs that the first place doesn't need. Fetching them once the page is drawn is the next step.
+
+The same script then reads the page as assistive technology does (`tools/ci/site-a11y.mjs`), from Chromium's own accessibility tree, which is what a screen reader on the page is given. It checks that:
+- the places are a navigation landmark and the place shown is the main one;
+- the claim is a level-1 heading, and every button and link has a name;
+- the page states its language and allows zoom;
+- the static page is hidden once the program runs;
+- the first Tab is the skip link, seen while it has focus, and Enter takes both the page's focus and the program's to the main landmark.
 
 ## Tests
 

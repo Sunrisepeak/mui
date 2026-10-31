@@ -114,6 +114,8 @@ struct FrameData {
     std::int32_t meter_cost = 0, level = 0;
     // How long its demonstrations run (demo()'s frames), standing and guarding: what a move list's frame slider spans.
     std::int32_t shown_on_hit = 0, shown_on_block = 0;
+    // The frame of each where its blow first lands (-1: it does not): where a move list holds it still.
+    std::int32_t contact_on_hit = -1, contact_on_block = -1;
 };
 
 // Measured on a match of `fighter` against itself under `system`: a few
@@ -133,6 +135,7 @@ struct Demo {
     Pad                         dummy = pad(5);
     std::int32_t                frames = 0;
     bool                        contact = false;  // its strikes reached the dummy
+    std::int32_t                contact_at = -1;  // the frame they first did (from the demonstration's start)
     std::optional<std::int32_t> advantage;        // as measured, from the attacker's side
 };
 [[nodiscard]] Demo demo(const SystemDef& system, const Fighter& attacker, const Fighter& dummy, std::int32_t move, bool guard);

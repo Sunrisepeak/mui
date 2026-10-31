@@ -270,6 +270,36 @@ test('the skip link: the first Tab stop, seen while focused, the focus taken to 
   assert.equal(skip.hidden, true, 'nothing to go to: gone');
 });
 
+test('the skip link by the keys: the first Tab while the program has no focus, Enter follows it, Tab goes on into the program', () => {
+  const { P, context, heard, document, window, canvas } = page();
+  const program = [];  // the program's keys, heard on the window after the page's (Emscripten's listener)
+  window.addEventListener('keydown', (e) => { program.push(e.key); e.preventDefault(); }, true);
+  const skip = document.querySelector('[data-omui="skip"]');
+  const press = (target, k, fields = {}) => document.dispatch(target, new Event('keydown', { key: k, ...fields }, true));
+  press(canvas, 'Tab');
+  assert.deepEqual(program, ['Tab'], 'no skip link yet: the program\'s');
+  context.omui_web_mirror(JSON.stringify({ skip: { to: 'main/view/more', name: 'The place' } }));
+  canvas.focus();
+  const tab = press(canvas, 'Tab');
+  assert.equal(document.activeElement, skip, 'the first Tab: the skip link');
+  assert.ok(tab.defaultPrevented);
+  assert.deepEqual(program, ['Tab'], 'not the program\'s');
+  press(skip, 'Enter');
+  assert.deepEqual(heard, [[P.FOCUS, 0, 0, 'main/view/more']], 'Enter follows it');
+  assert.deepEqual(program, ['Tab'], 'nor its Enter');
+  assert.equal(document.activeElement, canvas);
+  // Once the program has a focus, Tab is its own.
+  context.omui_web_mirror(JSON.stringify({ focus: 'main/view/more' }));
+  press(canvas, 'Tab');
+  assert.deepEqual(program, ['Tab', 'Tab']);
+  // From the link, Tab goes on into the program, which takes it.
+  P.focused = null;
+  skip.focus();
+  press(skip, 'Tab');
+  assert.equal(document.activeElement, canvas);
+  assert.deepEqual(program, ['Tab', 'Tab', 'Tab']);
+});
+
 test('window.omui: requests go to the program, its records settle the promise', async () => {
   const { P, window, context, heard } = page();
   const found = window.omui.find({ role: 'button', name: 'Save*' });

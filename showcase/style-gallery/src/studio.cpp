@@ -594,7 +594,8 @@ Element view(Studio& s, bool narrow) {
 }
 
 void add_verbs(AppSpec& a, Studio& s) {
-    a.verbs.push_back({{"styles.show", "Shows the interface in a style pack (a cross-fade from the last).", Effect::reversible, {}, {{"name", "string"}}},
+    a.verbs.push_back({{"styles.show", "Shows the interface in a style pack (a cross-fade from the last); undo shows the one before.", Effect::reversible, {},
+                        {{"name", "string"}}, false, true},  // its own step of history (Studio::show)
                        [&s](const Value& args) -> VerbResult {
                            const Value* n = args.get("name");
                            if (!n) return std::unexpected(std::string("styles.show takes a name"));

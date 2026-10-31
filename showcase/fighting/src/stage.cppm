@@ -64,6 +64,7 @@ public:
 
 private:
     void schedule();
+    void wake();
     void tick();
     void advance();  // one frame: the dummies, the match, its effects, the readings
     void start_demo();  // the `demo` move from its beginning (none: the match as it was)

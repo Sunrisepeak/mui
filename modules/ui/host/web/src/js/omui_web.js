@@ -105,16 +105,35 @@ addToLibrary({
         'background:#fff;color:#0b0f16;font:600 15px system-ui,sans-serif;text-decoration:none;outline:2px solid #4c8dff';
       skip.addEventListener('focus', function () { skip.style.top = '8px'; });
       skip.addEventListener('blur', function () { skip.style.top = '-60px'; });
-      // Its keys are its own: Tab and Enter do what they do on a link, not on the canvas.
-      skip.addEventListener('keydown', function (e) { e.stopPropagation(); });
       skip.addEventListener('click', function (e) {
         e.preventDefault();
-        if (!e.isTrusted || !P.skipTo) return;
-        omuiCanvas(P.selector).focus({ preventScroll: true });
-        P.send(P.FOCUS, 0, 0, P.skipTo);
+        if (e.isTrusted) P.followSkip();
       });
       body.insertBefore(skip, body.firstChild);
       P.skip = skip;
+      // The program hears the keys on the window, before the page's elements
+      // do: the skip link's keys are taken first. The first Tab while nothing
+      // in the program is focused goes to the link; on it, Enter (or Space)
+      // follows it, Tab goes on into the program (which takes that Tab).
+      window.addEventListener('keydown', function (e) {
+        if (!e.isTrusted || e.ctrlKey || e.altKey || e.metaKey) return;
+        if (document.activeElement === skip) {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            P.followSkip();
+          } else if (e.key === 'Tab' && !e.shiftKey) {
+            omuiCanvas(P.selector).focus({ preventScroll: true });
+            return;
+          }
+          e.stopImmediatePropagation();
+          return;
+        }
+        if (e.key === 'Tab' && !e.shiftKey && P.skipTo && !P.focused && P.ours(document.activeElement)) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          skip.focus();
+        }
+      }, true);
       // The mirror's layer over the canvas, and the live regions.
       var layer = P.hidden(document.createElement('div'));
       layer.setAttribute('data-omui', 'mirror');
@@ -303,6 +322,15 @@ addToLibrary({
       } else if (text) {
         el.insertBefore(document.createTextNode(text), first);
       }
+    },
+
+    // The skip link followed: the page's focus back on the canvas, the
+    // program's on the main landmark's first focusable node.
+    followSkip: function () {
+      var P = omuiPage;
+      if (!P.skipTo) return;
+      omuiCanvas(P.selector).focus({ preventScroll: true });
+      P.send(P.FOCUS, 0, 0, P.skipTo);
     },
 
     focusTo: function (id) {

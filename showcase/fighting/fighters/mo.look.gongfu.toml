@@ -1006,9 +1006,9 @@ poses = [
     [25, "seize", "in_quad", { aim = { torso = 92, upper_back = -150, fore_back = 30, hand_back = 30 }, swap = { hand_back = 2 } }],
     [28, "seize", "out_expo", { aim = { torso = 80, upper_back = -25, fore_back = -5, hand_back = 82 }, rise = -8, grip_at = { foot_front = 52, foot_back = -36 }, swap = { hand_back = 2 } }],
     [32, "seize", "in_out_sine", { aim = { torso = 81, upper_back = -25, fore_back = -4, hand_back = 82 }, rise = -8, grip_at = { foot_front = 52, foot_back = -36 }, swap = { hand_back = 2 } }],
-    [37, "seize", "in_quad", { aim = { torso = 94, head = 90, upper_back = -130, fore_back = 60, hand_back = 60 }, swap = { hand_back = 6 } }],
-    [40, "seize", "out_expo", { aim = { torso = 82, head = 84, upper_back = 0, fore_back = 30, hand_back = 30 }, rise = -6, grip_at = { foot_front = 52, foot_back = -36 }, swap = { hand_back = 6 } }],
-    [44, "seize", "in_out_sine", { aim = { torso = 83, head = 84, upper_back = 0, fore_back = 28, hand_back = 28 }, rise = -6, grip_at = { foot_front = 52, foot_back = -36 }, swap = { hand_back = 6 } }],
+    [37, "seize", "in_quad", { aim = { torso = 94, head = 90, upper_back = -130, fore_back = 60, hand_back = 60 }, swap = { hand_back = 2 } }],
+    [40, "seize", "out_expo", { aim = { torso = 82, head = 84, upper_back = 0, fore_back = 30, hand_back = 30 }, rise = -6, grip_at = { foot_front = 52, foot_back = -36 }, swap = { hand_back = 2 } }],
+    [44, "seize", "in_out_sine", { aim = { torso = 83, head = 84, upper_back = 0, fore_back = 28, hand_back = 28 }, rise = -6, grip_at = { foot_front = 52, foot_back = -36 }, swap = { hand_back = 2 } }],
     [49, "seize", "in_quad", { aim = { torso = 98, head = 92, upper_back = -150, fore_back = 70, hand_back = 80 }, rise = -2, swap = { hand_back = 3 } }],
     [52, "seize", "out_expo", { aim = { torso = 78, head = 82, upper_back = -15, fore_back = 8, hand_back = 8 }, rise = -8, grip_at = { foot_front = 54, foot_back = -36 }, swap = { hand_back = 3 } }],
     [56, "seize", "in_out_sine", { aim = { torso = 79, head = 82, upper_back = -16, fore_back = 6, hand_back = 6 }, rise = -8, grip_at = { foot_front = 54, foot_back = -36 }, swap = { hand_back = 3 } }],
@@ -1300,7 +1300,7 @@ size = 60
 
 # Her level 3 (the hardcore combat design §4): her palm lands on the chest; her
 # front hand takes the wrist and turns them in; her free hand strikes four times
-# — palm to the chest, two fingers to the throat, the knife of the hand across
+# — palm to the chest, the heel of the palm to the throat, the knife of the hand across
 # the ribs, a chop down on the collarbone — each blow leaving its stroke of ink
 # where it lands; both palms drive them off. She draws the brush from her back,
 # sinks low and sweeps one great horizontal stroke, 一, across the picture,

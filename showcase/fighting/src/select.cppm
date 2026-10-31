@@ -77,6 +77,7 @@ private:
     mutable gongfu::present2d::Painter painter_;
     mutable render::DisplayList       list_;
     FrameDemandLease                  pace_;
+    bool                              mounting_ = false, focus_pending_ = false;
     std::uint64_t                     timer_ = 0;
 };
 

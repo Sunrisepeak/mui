@@ -184,8 +184,23 @@ void Stage::schedule() {
     timer_ = services().after(seconds(std::max(0.0, next - services().now().count())), [this] {
         timer_ = 0;
         tick();
+        // A demonstration held at a frame (paused, or shown frame by frame) is a still picture: no frames are
+        // wanted and nothing wakes until it plays again.
+        if (props.paused && demo_) {
+            pace_.release();
+            return;
+        }
         schedule();
     });
+}
+
+// Playing again after a held demonstration: sixty frames a second, and the timer.
+void Stage::wake() {
+    if (!pace_) pace_ = services().demand_frames({.min_hz = 60, .max_hz = 60, .preferred_hz = 60, .reason = "game"});
+    if (!timer_) {
+        start_ = services().now().count() - static_cast<double>(played_) * frame_period;
+        schedule();
+    }
 }
 
 void Stage::prop_changed(StageProp p) {
@@ -197,7 +212,9 @@ void Stage::prop_changed(StageProp p) {
     if (p == StageProp::paused && !props.paused) {  // playing again: the keyboard is the players'; a finished match, a new one
         if (match_ && (fresh_ || (match_->state().over && (decided_ || props.mode == "training")))) start_round();
         services().focus(node());
+        wake();
     }
+    if (p == StageProp::demo || p == StageProp::demo_guard) wake();  // another move shown: drawn (and played, unless held)
     services().invalidate_paint(node());
     services().invalidate_semantics(node());
 }

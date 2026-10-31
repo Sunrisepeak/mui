@@ -104,8 +104,12 @@ void Select::mounted() {
             }
     }
     if (hearing() && !heard_) heard_ = hearing()(sounds_);  // the program hears the menus (a device on their mixer)
+    // The keys its own only while it is up: behind a fight they are the players'. Its bound properties
+    // (`active`) are read after it mounts, so whether it is up is asked once they are.
+    mounting_ = true;
     begin(props.phase);
-    services().focus(node());
+    mounting_ = false;
+    focus_pending_ = true;  // at its first frame
     pace_ = services().demand_frames({.min_hz = 60, .max_hz = 60, .preferred_hz = 60, .reason = "menu"});
     schedule();
 }
@@ -113,6 +117,7 @@ void Select::mounted() {
 void Select::schedule() {
     timer_ = services().after(seconds(frame_period), [this] {
         timer_ = 0;
+        if (std::exchange(focus_pending_, false) && props.active) services().focus(node());
         if (!props.active) {  // behind the fight: still, until it is up again
             schedule();
             return;
@@ -136,7 +141,7 @@ void Select::begin(std::string_view phase) {
     ready_ = {};
     both_ready_ = -1;
     cpu_ = phase_ == "fighters" && mode_ == "versus";  // one person at the keys plays the computer; a second joins by moving
-    if (attached()) services().focus(node());
+    if (attached() && props.active && !mounting_) services().focus(node());
     music();
     if (phase_ == "fighters") cue("call_choose");  // the announcer: choose your character
     changed();

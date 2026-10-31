@@ -190,6 +190,9 @@ spec::SemanticNode Runtime::Impl::semantics(NodeId id) const {
         auto use = use_theme(id);
         n.type->semantics(n.instance, ctx, s);
     }
+    // A heading's level, stated on any element made one (`.prop("level", 1)`): its value, as a document's headings say theirs.
+    if (s.role == Role::heading)
+        if (const Value* v = prop("level"); v && v->is_number()) s.value = Value(v->as_int());
     return s;
 }
 

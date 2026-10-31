@@ -118,9 +118,9 @@ Envelope Verbs::invoke(std::string_view name, const Invocation& call) {
     if (clear == openas::Decision::refuse) return stop(above_cap(std::format("`{}` ({})", name, spec::name(effect))), effect);
     if (clear != openas::Decision::run && spec::requires_answer(effect) && call.answer != it->desc.answer)
         return stop(needs_answer(std::format("`{}` ({})", name, spec::name(effect)), it->desc.answer), effect);
-    // A verb states no inverse: a reversible one is not in the history, so
-    // it cannot be undone by the runtime (S-12).
-    if (call.dry_run) return dry_run_answer("run", effect, Value{}.set("undoable", false));
+    // A verb states no inverse: a reversible one is not in the history, so it
+    // cannot be undone by the runtime (S-12) — unless its function records one.
+    if (call.dry_run) return dry_run_answer("run", effect, Value{}.set("undoable", it->desc.undoable && effect == Effect::reversible));
     Envelope e;
     auto result = it->fn(call.args);
     if (result) {

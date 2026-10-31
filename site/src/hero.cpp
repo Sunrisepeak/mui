@@ -321,7 +321,8 @@ Element hero(Hero& h, const HeroSite& site, bool live, float width) {
                                {text({.id = "claim",
                                       .text = say("One interface. Every rendering.", "一个界面，每一种呈现。"),
                                       .style = narrow ? "title" : "display"})
-                                    .prop("role", Source{Value("heading"), {}, {}}),  // the page's first heading, to a screen reader too
+                                    .prop("role", Source{Value("heading"), {}, {}})  // the page's first heading, to a screen reader too
+                                    .prop("level", Source{Value(std::int64_t{1}), {}, {}}),
                                 text({.id = "thesis",
                                       .text = say("openmui draws an interface from one semantic tree: the pixels you see, what a screen reader says, what an agent acts on and what a test asserts are the same nodes.",
                                                   "openmui 从一棵语义树画出界面：你看到的像素、读屏软件读出的、agent 操作的、测试断言的，是同一批节点。"),

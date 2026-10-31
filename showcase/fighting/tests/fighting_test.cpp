@@ -500,7 +500,7 @@ int main(int argc, char** argv) {
         check(g.act("press", pad(0, "5")));
         const auto dir = scratch_dir("fighting-mo-level3");
         // Each beat at the frame that tells it.
-        const std::vector<std::pair<std::int32_t, std::string_view>> beats{{14, "wrist"}, {29, "palm"},  {41, "fingers"}, {53, "knife"},  {65, "chop"},  {77, "both-palms"},
+        const std::vector<std::pair<std::int32_t, std::string_view>> beats{{14, "wrist"}, {29, "palm"},  {41, "heel"}, {53, "knife"},  {65, "chop"},  {77, "both-palms"},
                                                                            {92, "draw"},  {108, "coil"}, {117, "great-stroke"}, {136, "thrown"}, {153, "fall"}, {170, "finisher"}};
         std::vector<std::uint64_t> px;
         std::int32_t lock_from = -1;
@@ -520,7 +520,7 @@ int main(int argc, char** argv) {
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    mo level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("495e76bd42af3e70"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("6e7cd5e0c7292741"));  // GCC and LLVM, every platform
     });
 
     s.test("墨's ink: waves of three sizes flung from the brush, and her level 2's tide along the floor — frames pinned", [] {
@@ -1074,7 +1074,7 @@ int main(int argc, char** argv) {
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    ke level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("17999461921b0d3a"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("7370c7bef9f433a9"));  // GCC and LLVM, every platform
     });
 
     s.test("each fighter's win pose: a round won on the clock, the winner standing to play it out at its beats — frames pinned", [] {

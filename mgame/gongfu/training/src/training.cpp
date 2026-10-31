@@ -221,7 +221,10 @@ Demo demo(const SystemDef& system, const Fighter& attacker, const Fighter& dummy
             m.tick(a, held);
             r.record(m, a, held);
             for (const Event& e : m.events())
-                if (e.attacker == 0 && (e.kind == Event::Kind::hit || e.kind == Event::Kind::counter || e.kind == Event::Kind::block)) d.contact = true;
+                if (e.attacker == 0 && (e.kind == Event::Kind::hit || e.kind == Event::Kind::counter || e.kind == Event::Kind::block)) {
+                    if (!d.contact) d.contact_at = f;
+                    d.contact = true;
+                }
             d.frames = f + 1;
             if (d.contact && r.advantage() && r.advantage_attacker() == 0) {
                 d.advantage = r.advantage();
@@ -272,6 +275,8 @@ FrameData frame_data(const SystemDef& system, const Fighter& fighter, std::int32
     const Demo hit = demo(system, fighter, fighter, move, false), block = demo(system, fighter, fighter, move, true);
     d.shown_on_hit = hit.frames;
     d.shown_on_block = block.frames;
+    d.contact_on_hit = hit.contact_at;
+    d.contact_on_block = block.contact_at;
     if (!md.asked || d.air || d.throw_ || (md.hits.empty() && !d.projectile)) return d;
     if (hit.contact) d.on_hit = hit.advantage;
     if (block.contact) d.on_block = block.advantage;

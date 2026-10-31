@@ -349,6 +349,7 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
             one.set("name", v->name).set("summary", v->summary).set("effect", spec::name(v->effect)).set("args", std::move(args));
             if (!v->answer.empty()) one.set("answer", v->answer);
             if (v->person) one.set("person", true);
+            if (v->undoable) one.set("undoable", true);
             verbs.push_back(std::move(one));
         }
         d.set("verbs", Value(std::move(verbs)));

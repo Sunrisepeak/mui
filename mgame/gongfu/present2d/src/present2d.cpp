@@ -153,11 +153,12 @@ std::pair<const Clip*, std::int32_t> resolve(const Look& look, const Fighter& fi
     if (it == look.clips.end() && s.mode == Mode::broken) it = look.clips.find(std::string_view("hitstun"));  // staggered
     if (it == look.clips.end()) it = look.clips.find(std::string_view("idle"));
     const Clip* clip = it == look.clips.end() ? nullptr : &it->second;
-    // A move's clip at its frame; a stun's at the frames it has taken; the rest at the match's, looping.
+    // A move's clip at its frame; a stun's (a throw's) at the frames it has taken; the rest at the match's, looping.
     std::int32_t t = frame;
     if (clip) {
         if (s.mode == Mode::move) t = std::max(0, s.move_frame - 1);
-        else if (s.mode == Mode::hitstun || s.mode == Mode::blockstun || s.mode == Mode::knockdown || s.mode == Mode::wakeup)
+        else if (s.mode == Mode::hitstun || s.mode == Mode::blockstun || s.mode == Mode::knockdown || s.mode == Mode::wakeup ||
+                 s.mode == Mode::thrown)  // held in a throw: its clip ends as the throw lands, not wherever the match's clock is
             t = std::max(0, clip->frames - s.stun);
     }
     return {clip, t};
@@ -1782,8 +1783,8 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         const bool own_tier = tier != im.fx;
         const float tier_scale = own_tier ? 1.0f : e.punish ? 1.4f : countered ? 1.2f : 1.0f;
         const std::optional<Color> tier_paint = countered && !own_tier ? std::optional<Color>(im.counter_color) : std::nullopt;
-        // A contact while time stands still hangs in the air a few frames in, each where its own
-        // number puts it about the hit (so the hits hang apart), and goes on from the bell.
+        // A contact while time stands still hangs in the air a few frames in, at the contact
+        // (its own number nudging it a little, so hits on one place do not stack into one), and goes on from the bell.
         const bool hung = k.frame >= stop_from && k.frame < stop_to;
         Effects::Kept held = k;
         // Drawn by a whole-body drawing: where it touched (D-90), not between the boxes.
@@ -1793,8 +1794,8 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         }
         if (hung) {
             spark_age = std::min(std::min(st.frame, stop_to) - k.frame, 3) + std::max(0, st.frame - stop_to);
-            held.event.at.x += Fixed::raw(static_cast<std::int32_t>(std::lround((scatter(k, 7) - 0.5) * 140 * Fixed::one_bits)));
-            held.event.at.y += Fixed::raw(static_cast<std::int32_t>(std::lround((scatter(k, 8) - 0.5) * 140 * Fixed::one_bits)));
+            held.event.at.x += Fixed::raw(static_cast<std::int32_t>(std::lround((scatter(k, 7) - 0.5) * 24 * Fixed::one_bits)));
+            held.event.at.y += Fixed::raw(static_cast<std::int32_t>(std::lround((scatter(k, 8) - 0.5) * 24 * Fixed::one_bits)));
         }
         if (const auto fx = tier.empty() ? by_look.fx.end() : by_look.fx.find(tier); fx != by_look.fx.end()) {
             const FighterState& by = st.f[static_cast<std::size_t>(std::clamp(e.attacker, 0, 1))];

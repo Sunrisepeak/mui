@@ -16,8 +16,8 @@ namespace {
 
 struct App {
     Headless h{HeadlessOptions{.size = {960, 540}}};
-    App() {
-        AppSpec spec = fighting::app();
+    explicit App(fighting::Start start = {}) {
+        AppSpec spec = fighting::app(std::move(start));
         spec.setup(h.runtime());
         h.mount("main", spec.view());
         h.step();
@@ -170,6 +170,19 @@ int main(int argc, char** argv) {
         std::println("    rounds {:016x} results {:016x}", won, results);
         check_eq(results, std::uint64_t{0x6e44da4ad32f70d4});  // GCC and LLVM
         check_eq(won, std::uint64_t{0xf2dc53b2cf91f5dd});  // GCC and LLVM
+    });
+
+    s.test("straight into a fight (--fight): the keys are the players' from the first frame, Esc opens the card", [] {
+        fighting::Start start;
+        start.player1 = "mo", start.player2 = "ni";
+        App a(start);
+        a.h.advance(seconds(3));
+        check(a.h.runtime().focused() == a.h.runtime().find("main/stage"),
+              std::format("the stage has the keys, not the select screen behind it (focused: '{}')", a.h.runtime().path(a.h.runtime().focused())));
+        a.h.step({key(Key::escape), key(Key::escape, false)});
+        const Value seen = a.seen("main/stage");  // kept: what is read from it points into it
+        const Value* m = seen.get("menu");
+        check(m && m->get("shown") && m->get("shown")->as_string() == "paused", "Esc paused it before any click");
     });
 
     s.test("Esc pauses the fight under a card — the match stands, both players' keys on it; resume, restart, the select screen from it, by keys, the pointer and a pad; the next fight a new match", [] {

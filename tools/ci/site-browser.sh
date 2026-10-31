@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
-# The site's delivery measured in a real browser against its budget
-# (site/delivery.budget.omui.json): the built page (target/site, from
-# tools/ci/site.sh) served as Pages serves it, a cold visit over the budget's
-# connection, its transfer, first frame, readiness and frame tails. The
-# report is written to target/site-perf.json.
+# The built site (target/site, from tools/ci/site.sh) in a real browser,
+# served as Pages serves it:
+# 1. its delivery against its budget (site/delivery.budget.omui.json): a cold
+#    visit over the budget's connection — transfer, first frame, readiness,
+#    frame tails (tools/ci/site-perf.mjs, target/site-perf.json);
+# 2. what assistive technology reads: the browser's accessibility tree — the
+#    landmarks, the headings' levels, every control named, the language,
+#    zoom — and the keyboard's way in by the skip link
+#    (tools/ci/site-a11y.mjs, target/site-a11y.json).
 #
-#   tools/ci/site-perf.sh             OMUI_CHROME=<chromium> (else as browser.sh finds one)
+#   tools/ci/site-browser.sh          OMUI_CHROME=<chromium> (else as browser.sh finds one)
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 chrome=${OMUI_CHROME:-}
@@ -34,4 +38,14 @@ for b in r.get("budgets", []):
     print(f"  {'ok  ' if b['pass'] else 'OVER'} {b['metric']}: {b['value']} (budget {b['max']})")
 PY
 [ "$status" = 0 ] || echo "::error::the site's delivery is over its budget (target/site-perf.json)"
+a11y=0
+CHROME=$chrome "$node_bin" "${flags[@]}" tools/ci/site-a11y.mjs --serve target/site > target/site-a11y.json || a11y=$?
+python3 - target/site-a11y.json <<'PY'
+import json, sys
+r = json.load(open(sys.argv[1]))
+print(f"site accessibility ({r['tree']['nodes']} nodes in the browser's tree):")
+for c in r["checks"]:
+    print(f"  {'ok  ' if c['ok'] else 'FAIL'} {c['what']}")
+PY
+[ "$a11y" = 0 ] || { echo "::error::the browser's accessibility tree or the keyboard's way in is wrong (target/site-a11y.json)"; status=1; }
 exit "$status"

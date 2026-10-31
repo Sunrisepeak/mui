@@ -77,6 +77,11 @@ int main(int argc, char** argv) {
         auto none = verbs.invoke("note.nothing", {.dry_run = true});
         check(none.exit_code() == 0 && outcome(none) == "fails" && none.data_value()->get("error")->get("code")->as_string() == "not-found", none.ndjson());
         check(ran == 0 && verbs.journal().empty(), "nothing ran, nothing journaled");
+        // A reversible verb whose function records its own way back says so; one that does not, does not.
+        check(verbs.add({.name = "pack.show", .effect = omui::Effect::reversible, .undoable = true}, [](const omui::Value&) -> omui::VerbResult { return omui::Value{}; }).has_value());
+        check(verbs.add({.name = "pack.poke", .effect = omui::Effect::reversible}, [](const omui::Value&) -> omui::VerbResult { return omui::Value{}; }).has_value());
+        check(verbs.invoke("pack.show", {.dry_run = true}).data_value()->get("undoable")->as_bool(), "pack.show: undoable");
+        check(!verbs.invoke("pack.poke", {.dry_run = true}).data_value()->get("undoable")->as_bool(), "pack.poke: not");
     });
 
     return s.run(argc, argv);

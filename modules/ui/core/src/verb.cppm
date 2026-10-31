@@ -21,6 +21,10 @@ struct VerbDesc {
     // Only the person at the machine invokes it — the answer to a
     // confirmation, a permission — never a request over the bus (S-10).
     bool        person = false;
+    // The verb's function puts its own way back in the runtime's history
+    // (Services::performed, Runtime::taken_back_by): undo takes it back, and
+    // a preview says so. Else a reversible verb is not in the history (S-12).
+    bool        undoable = false;
 };
 
 // Who asks, with what, and the answer they give.

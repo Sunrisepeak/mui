@@ -5,7 +5,7 @@
 # double-breasted waistcoat with brass buttons and a gold pocket watch on its chain; an
 # ivory shirt with sleeve garters; white horologist's gloves; a round gold monocle on a
 # chain; long black hair with one white streak, in a low ponytail that swings like a
-# pendulum. Unarmed: two-finger jabs like a clock's hand, knife-hands, palms, long exact
+# pendulum. Unarmed: straight jabs as exact as a clock's hand (two fingers raised only as her guard and her mark), knife-hands, palms, long exact
 # kicks; the watch and the clock's hands only in special moments. Her clone in gold; a
 # rewind leaves ghosts along the way back; her level 3 stops time. Angles are degrees,
 # counter-clockwise; keys by frame. In a bone's frame x runs along it and y across: for a
@@ -529,7 +529,7 @@ from = "stance"
 aim = { torso = 86, head = 88, upper_front = -4, fore_front = 0, hand_front = 0, upper_back = -118, fore_back = -4, hand_back = 40 }
 rise = -6
 grip_at = { foot_front = 42, foot_back = -40 }
-swap = { head = 2, hand_front = 5 }
+swap = { head = 2, hand_front = 1 }  # a fist: the clock's hand is her guard, not her strike
 
 [pose.cut]
 from = "stance"
@@ -700,7 +700,7 @@ poses = [
     [21, "stance"],
 ]
 
-# The second hand: two fingers flicked straight at the throat, no wind-up.
+# The second hand: a short straight fist at the throat, no wind-up.
 [clip."5LP"]
 frames = 14
 ease = "in_out_sine"
@@ -784,8 +784,8 @@ ease = "in_out_sine"
 poses = [
     [0, "crouch"],
     [1, "crouch", "out_quad", { aim = { upper_front = -70, fore_front = 40, hand_front = 40 } }],
-    [3, "crouch", "linear", { aim = { torso = 74, upper_front = -14, fore_front = -4, hand_front = -4 }, swap = { head = 2, hand_front = 3 } }],
-    [5, "crouch", { aim = { torso = 74, upper_front = -14, fore_front = -4, hand_front = -4 }, swap = { head = 2, hand_front = 3 } }],
+    [3, "crouch", "linear", { aim = { torso = 74, upper_front = -14, fore_front = -4, hand_front = -4 }, swap = { head = 2, hand_front = 1 } }],
+    [5, "crouch", { aim = { torso = 74, upper_front = -14, fore_front = -4, hand_front = -4 }, swap = { head = 2, hand_front = 1 } }],
     [9, "crouch", { aim = { upper_front = -40, fore_front = 20, hand_front = 20 } }],
     [12, "crouch"],
 ]
@@ -861,8 +861,8 @@ ease = "in_out_sine"
 poses = [
     [0, "air"],
     [2, "air", "out_quad", { aim = { upper_front = -60, fore_front = 20, hand_front = 20 } }],
-    [3, "air", "linear", { aim = { torso = 86, upper_front = -30, fore_front = -28, hand_front = -28 }, swap = { head = 2, hand_front = 3 } }],
-    [8, "air", { aim = { torso = 86, upper_front = -30, fore_front = -28, hand_front = -28 }, swap = { head = 2, hand_front = 3 } }],
+    [3, "air", "linear", { aim = { torso = 86, upper_front = -30, fore_front = -28, hand_front = -28 }, swap = { head = 2, hand_front = 1 } }],
+    [8, "air", { aim = { torso = 86, upper_front = -30, fore_front = -28, hand_front = -28 }, swap = { head = 2, hand_front = 1 } }],
     [21, "air"],
 ]
 

@@ -209,6 +209,7 @@ struct Site {
     Signal<bool>        guard = signal(false);
     Signal<double>      demo_at = signal(0.0);
     Signal<bool>        demo_playing = signal(false);  // the move list's stage playing its demonstration on
+    std::string         demo_held;                     // the fighter, move and guard the stage was last held for
     std::map<std::string, std::vector<gongfu::training::FrameData>, std::less<>> measured;
     [[nodiscard]] const std::vector<gongfu::training::FrameData>& moves_of(const std::string& name) {
         auto it = measured.find(name);
@@ -221,6 +222,23 @@ struct Site {
             it = measured.emplace(name, std::move(rows)).first;
         }
         return it->second;
+    }
+    // The move chosen's frame data: where its blow lands (the frame the stage is held at), and its last frame shown.
+    const gongfu::training::FrameData* move_data() {
+        const auto& data = moves_of(fighter.peek());
+        const gongfu::Fighter& f = fighting::roster().fighters[fighting::fighter_index(fighter.peek())];
+        const std::int32_t m = f.find(move.peek());
+        return m < 0 || static_cast<std::size_t>(m) >= data.size() ? nullptr : &data[static_cast<std::size_t>(m)];
+    }
+    std::int32_t contact_frame() {
+        const auto* d = move_data();
+        if (!d) return 0;
+        const std::int32_t at = guard.peek() ? d->contact_on_block : d->contact_on_hit;
+        return at >= 0 ? at + 1 : static_cast<std::int32_t>(demo_end());  // the frame after it is played: the blow landed; else the whole
+    }
+    double demo_end() {
+        const auto* d = move_data();
+        return d ? static_cast<double>(guard.peek() ? d->shown_on_block : d->shown_on_hit) : 0.0;
     }
     // The move list's stage, told to show its demonstration at a frame (paused) or to play.
     void stage_act(std::string_view action, Value args = {}) {
@@ -509,7 +527,17 @@ public:
                         const Value* of = d->get("demo")->get("frames");
                         const double at = of ? std::min(f->as_double(), of->as_double()) : f->as_double();
                         if (at != site_.demo_at.peek()) site_.demo_at.set(at);
+                        // Played to its end: held there (Play plays it again from its start).
+                        if (site_.demo_playing.peek() && of && f->as_double() >= of->as_double()) {
+                            site_.stage_act("pause");
+                            site_.demo_playing.set(false);
+                        }
                     }
+                // Another move, guard or fighter: shown still, at the frame its blow lands, until Play.
+                if (std::string held = std::format("{}|{}|{}", site_.fighter.peek(), site_.move.peek(), site_.guard.peek()); held != site_.demo_held) {
+                    site_.demo_held = std::move(held);
+                    if (!site_.demo_playing.peek()) site_.stage_act("demo_frame", Value{}.set("frame", static_cast<std::int64_t>(site_.contact_frame())));
+                }
             }
         if (const auto f = std::exchange(site_.ref_wanted, std::nullopt)) site_.check_frame(*f);
         if (site_.runtime && site_.runtime->semantic_revision() != site_.seen && !queued_) {
@@ -863,6 +891,7 @@ Element moves_window(const std::shared_ptr<Site>& s, bool live) {
                                     .variant = ButtonVariant::ghost,
                                     .on_activated = [s] {
                                         const bool on = !s->demo_playing.peek();
+                                        if (on && s->demo_at.peek() >= s->demo_end()) s->stage_act("demo_frame", Value{}.set("frame", std::int64_t{0}));  // again from its start
                                         s->stage_act(on ? "resume" : "pause");
                                         s->demo_playing.set(on);
                                     },

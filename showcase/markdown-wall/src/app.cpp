@@ -672,14 +672,14 @@ omui::AppSpec app(Model& model) {
                            return omui::Value(doc->key);
                        }});
     a.verbs.push_back({{"wall.tidy", "Tidies the wall: each workspace's windows packed in columns, the workspaces in rows, the shape of the window it is seen in; one step of history.",
-                        omui::Effect::reversible, {}, {}},
+                        omui::Effect::reversible, {}, {}, false, true},  // one step of history (taken_back_by)
                        [&model](const omui::Value&) -> omui::VerbResult {
                            const omui::Canvas* c = model.canvas();
                            const omui::Size vp = c ? c->viewport() : omui::Size{16, 9};
                            return omui::Value(static_cast<std::int64_t>(model.tidy(vp.height > 0 ? vp.width / vp.height : 16.0 / 9.0)));
                        }});
     a.verbs.push_back({{"wall.align", "Lines up the selected windows: how is left, right, top, bottom, across (evenly left to right) or down.", omui::Effect::reversible,
-                        {}, {{"how", "string"}}},
+                        {}, {{"how", "string"}}, false, true},
                        [&model](const omui::Value& args) -> omui::VerbResult {
                            const omui::Value* how = args.get("how");
                            auto r = model.align(how ? how->as_string() : "");

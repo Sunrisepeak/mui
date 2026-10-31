@@ -407,7 +407,7 @@ Element preview(Studio& s) {
     return stack({.id = "preview", .min_width = 0, .align = "start", .grow = 1, .clip = true},
                  {wallpaper(), scroll({.id = "content", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100))},
                                       {row({.id = "panels", .width = Dim(layout::pct(100)), .padding = Edges(Insets{32, 32, 110, 32}), .gap = 24, .wrap = "wrap"},
-                                           {column({.width = 380}, {std::move(settings)}), std::move(dashboard)})}),
+                                           {column({.width = 380, .max_width = Dim(layout::pct(100))}, {std::move(settings)}), std::move(dashboard)})}),
                   std::move(nav)});
 }
 

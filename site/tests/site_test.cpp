@@ -729,5 +729,52 @@ int main(int argc, char** argv) {
         check(!site::inject(p, en, "en").has_value(), "a page already pre-rendered");
     });
 
+    s.test("on a phone: the move list's table scrolls sideways, the workshop's settings fit, a button's word stays whole", [] {
+        auto phone = [](std::string_view place) {
+            auto h = std::make_unique<Headless>(HeadlessOptions{.size = {390, 844}});
+            AppSpec spec = site::app(place, "en");
+            h->runtime().set_theme(spec.theme);
+            spec.setup(h->runtime());
+            for (auto& v : spec.verbs) (void)h->runtime().verbs().add(v.desc, v.fn);
+            h->mount("main", spec.view());
+            h->settle();
+            return h;
+        };
+        {
+            auto h = phone("moves");
+            const std::string table = "main/body/view/atlas/moves/page/list/moves";
+            const auto n = h->tree().node(table);
+            const double max_x = n && n->value.get("max_x") ? n->value.get("max_x")->as_double() : 0;
+            check(max_x > 0, std::format("the table wider than the phone, scrolled sideways (max_x {})", max_x));
+            const Rect r = h->runtime().screen_bounds(h->runtime().find(table));
+            check(r.x >= 0 && r.x + r.width <= 390, std::format("its view inside the window: {} + {}", r.x, r.width));
+            const Rect label = h->runtime().screen_bounds(h->runtime().find("main/body/view/atlas/moves/page/show/controls/frame_of"));
+            check(label.x + label.width <= 390, std::format("the frame counter inside: {} + {}", label.x, label.width));
+        }
+        {
+            auto h = phone("styles");
+            std::optional<Rect> settings;
+            for (const auto& n : h->tree().snapshot().nodes)
+                if (n.id.ends_with("/panels/column:0/settings") || n.id.ends_with("/settings") && n.id.contains("styles/page")) settings = h->runtime().screen_bounds(h->runtime().find(n.id));
+            check(settings && settings->x + settings->width <= 390, settings ? std::format("the settings panel inside: {} + {}", settings->x, settings->width) : "no settings panel");
+            const Rect play = h->runtime().screen_bounds(h->runtime().find("main/foot/time_play"));
+            check(play.height < 60, std::format("the foot's Play on one line ({} high)", play.height));
+        }
+    });
+
+
+    s.test("a panel opened beside the place: the place is laid out again to the room left", [] {
+        Site a;
+        const Rect before = a.h.runtime().screen_bounds(a.h.runtime().find("main/body/view"));
+        check(a.h.click("main/bar/guide_toggle"));
+        a.h.advance(seconds(1));
+        const Rect view = a.h.runtime().screen_bounds(a.h.runtime().find("main/body/view"));
+        check(view.width < before.width, std::format("the view narrower: {} → {}", before.width, view.width));
+        const Rect page = a.h.runtime().screen_bounds(a.h.runtime().find("main/body/view/atlas/home/page"));
+        check(page.x >= view.x - 1 && page.x + page.width <= view.x + view.width + 1,
+              std::format("the page within the view: page {} + {}, view {} + {}", page.x, page.width, view.x, view.width));
+    });
+
+
     return s.run(argc, argv);
 }

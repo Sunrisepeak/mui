@@ -487,7 +487,9 @@ public:
         // The atlas's windows follow the view's size (a resized window, a phone turned).
         if (const Canvas* c = site_.atlas(); c && !resizing_) {
             const Size v = c->viewport();
-            if (v.width > 0 && v.height > 0 && (std::ceil(v.width) != site_.layout.view.width || std::ceil(v.height) != site_.layout.view.height)) {
+            // A pixel or more: a view whose height wavers by a fraction (a line of the bar wrapping, a font's rounding)
+            // does not lay its places out again — which would build their live works anew, forgetting their edits.
+            if (v.width > 0 && v.height > 0 && (std::abs(v.width - site_.layout.view.width) >= 1 || std::abs(v.height - site_.layout.view.height) >= 1)) {
                 resizing_ = true;
                 (void)site_.runtime->after(seconds(0.0), [this, v] {
                     resizing_ = false;
@@ -644,7 +646,7 @@ Element guide_panel(const std::shared_ptr<Site>& s) {
                                        .variant = ButtonVariant::ghost,
                                        .on_activated = [s] { s->guide->deny(); }}))});
     return column(
-        {.id = "guide", .width = computed([s] { return s->compact.get() ? Dim(layout::pct(100)) : Dim(380.0f); }), .padding = Edges(20.0f, 16.0f), .gap = 10, .background = "surface"},
+        {.id = "guide", .width = computed([s] { return s->compact.get() ? Dim(layout::pct(100)) : Dim(380.0f); }), .min_width = computed([s] { return s->compact.get() ? Dim(layout::pct(100)) : Dim(380.0f); }), .padding = Edges(20.0f, 16.0f), .gap = 10, .shrink = 0, .background = "surface"},
         {text({.id = "guide_title", .text = computed([zh] { return std::string(zh() ? "这一页上的 agent" : "An agent on this page"); }), .style = "heading"}),
          text({.id = "guide_about",
                .text = computed([zh] {
@@ -921,7 +923,7 @@ Element moves_window(const std::shared_ptr<Site>& s, bool live) {
                                column({.id = "details", .gap = 4}, {std::move(details)})}),
                        column({.id = "list", .padding = Edges(Insets{16, 0, 0, 0}), .gap = 12},
                               {row({.id = "fighters", .gap = 4, .wrap = "wrap"}, std::move(tabs)),
-                               scroll({.id = "moves", .horizontal = true, .height = Dim(360.0f), .background = "surface"},
+                               scroll({.id = "moves", .horizontal = true, .width = Dim(v.width - 32), .height = Dim(360.0f), .background = "surface"},
                                       {std::move(table.prop("min_width", Source{Value(520.0), {}, {}}))})})});  // its columns whole: scrolled sideways
     return row({.id = "page", .width = Dim(v.width), .height = Dim(v.height), .padding = Edges(28.0f, 32.0f), .gap = 28, .align = "stretch", .background = "background"},
                {column({.id = "list", .min_width = Dim(0.0f), .gap = 12, .grow = 1},
@@ -1033,7 +1035,7 @@ Element drawing_panel(const std::shared_ptr<Site>& s) {
     auto labels = [s](std::vector<std::string> en, std::vector<std::string> han) {
         return computed([s, en = std::move(en), han = std::move(han)] { return s->lang.get() == "zh" ? han : en; });
     };
-    return column({.id = "drawing", .width = computed([s] { return s->compact.get() ? Dim(layout::pct(100)) : Dim(340.0f); }), .padding = Edges(16.0f, 16.0f), .gap = 10, .background = "surface"},
+    return column({.id = "drawing", .width = computed([s] { return s->compact.get() ? Dim(layout::pct(100)) : Dim(340.0f); }), .min_width = computed([s] { return s->compact.get() ? Dim(layout::pct(100)) : Dim(340.0f); }), .padding = Edges(16.0f, 16.0f), .gap = 10, .shrink = 0, .background = "surface"},
                   {text({.id = "title", .text = say("How this page draws", "这页怎么画"), .style = "heading"}),
                    text({.id = "now",
                          .text = computed([s] {
@@ -1075,7 +1077,7 @@ Element check_panel(const std::shared_ptr<Site>& s) {
     auto say = [s](std::string_view en, std::string_view han) {
         return computed([s, en = std::string(en), han = std::string(han)] { return s->lang.get() == "zh" ? han : en; });
     };
-    return column({.id = "check", .width = computed([s] { return s->compact.get() ? Dim(layout::pct(100)) : Dim(360.0f); }), .padding = Edges(16.0f, 16.0f), .gap = 10, .background = "surface"},
+    return column({.id = "check", .width = computed([s] { return s->compact.get() ? Dim(layout::pct(100)) : Dim(360.0f); }), .min_width = computed([s] { return s->compact.get() ? Dim(layout::pct(100)) : Dim(360.0f); }), .padding = Edges(16.0f, 16.0f), .gap = 10, .shrink = 0, .background = "surface"},
                   {text({.id = "title", .text = say("The reference run", "参考回放"), .style = "heading"}),
                    text({.id = "about",
                          .text = say("A few seconds of this site, played here offscreen at CI's size (1280 × 800): a flight, the language switched, a lens. "

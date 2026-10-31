@@ -30,8 +30,11 @@ void lay_out(world::Scene& scene, const AtlasLayout& layout, std::span<const Pla
         auto put = [&](std::string_view kind, std::string_view key, const world::WorldRect& at) {
             const auto n = scene.find(key);
             const world::NodeRef node = n ? *n : scene.add({.kind = kind, .x = at.x, .y = at.y, .width = 1, .height = 1, .key = key});
+            const world::WorldRect was = scene.rect(node);
             scene.move(node, at.x, at.y);
             scene.resize(node, static_cast<float>(at.width), static_cast<float>(at.height));
+            // Another size: what is live in it is composed again, laid out to the room it has now.
+            if (n && (was.width != at.width || was.height != at.height)) scene.touch(node);
             return node;
         };
         const world::NodeRef window = put("place", id, r);

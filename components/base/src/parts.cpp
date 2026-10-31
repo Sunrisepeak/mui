@@ -122,6 +122,11 @@ Size Label::measure(Services& services, Color color, float max_width) {
     return shaped(services, color, max_width).size();
 }
 
+float Label::min_content(Services& services, Color color) {
+    if (text_.empty()) return 0;
+    return shaped(services, color, width_ < 0 ? std::numeric_limits<float>::infinity() : width_).min_intrinsic_width();
+}
+
 float Label::baseline(Services& services, Color color) {
     if (text_.empty()) return 0;
     return shaped(services, color, width_ < 0 ? std::numeric_limits<float>::infinity() : width_).first_baseline();

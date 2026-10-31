@@ -61,7 +61,9 @@ void Button::style(const Theme& theme, layout::Style& s) const {
 Size Button::measure(MeasureContext& m, std::optional<float> width, std::optional<float>, layout::Available aw, layout::Available) {
     const Colors c = colors(m.services.theme(), props.variant);
     // Narrower than its label (a max_width, a narrow column): the label wraps.
-    const float room = width ? *width : aw.is_definite() ? aw.value : std::numeric_limits<float>::infinity();
+    // Wrapped between words only: a word wider than the room stays whole.
+    float room = width ? *width : aw.is_definite() ? aw.value : std::numeric_limits<float>::infinity();
+    if (std::isfinite(room)) room = std::max(room, std::ceil(label_.min_content(m.services, c.text)));
     Size s = label_.measure(m.services, c.text, room);
     return {width.value_or(std::ceil(s.width)), std::ceil(s.height)};
 }
@@ -101,7 +103,7 @@ void Button::paint(PaintContext& ctx) const {
         ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, inner, 1, render::Paint::solid(*c.border));
     }
     const Color text = off ? ctx.theme.color("text_disabled", c.text) : c.text;
-    const Size t = label_.measure(ctx.services, text, ctx.content.width + 0.5f);
+    const Size t = label_.measure(ctx.services, text, std::max(ctx.content.width + 0.5f, std::ceil(label_.min_content(ctx.services, text)) + 0.5f));
     label_.paint(ctx, {ctx.content.x + (ctx.content.width - t.width) / 2, ctx.content.y + (ctx.content.height - t.height) / 2}, text);
 
     if (off) ctx.list.pop_layer();

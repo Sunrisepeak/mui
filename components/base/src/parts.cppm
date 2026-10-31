@@ -61,6 +61,8 @@ public:
     void set_style(std::string token);
     [[nodiscard]] const std::string& text() const noexcept { return text_; }
     [[nodiscard]] Size measure(Services& services, Color color, float max_width = std::numeric_limits<float>::infinity());
+    // Its widest unbreakable piece (a word): narrower than this, it would break inside one.
+    [[nodiscard]] float min_content(Services& services, Color color);
     [[nodiscard]] float baseline(Services& services, Color color);
     void paint(PaintContext& ctx, Point origin, Color color);
 

@@ -765,7 +765,10 @@ int main(int argc, char** argv) {
         const auto heard = audio::hash(samples);
         check(audio::peak(samples) > 0.05f && audio::peak(samples) <= 1.0f, std::format("peak {}", audio::peak(samples)));
         std::println("    heard {:016x} ({} sounds)", heard, begun);
-        check_eq(heard, std::uint64_t{0x5fd4b3c4fea94a03});  // GCC (LLVM: CI)
+        // To listen to: the run as heard, its theme under it.
+        const auto wav = audio::wav(samples, sounds.mixer().rate());
+        std::ofstream(scratch_dir("breakout-heard") / "heard.wav", std::ios::binary).write(reinterpret_cast<const char*>(wav.data()), static_cast<std::streamsize>(wav.size()));
+        check_eq(heard, std::uint64_t{0x62ef9b47a1e4120d});  // GCC (LLVM: CI)
     });
 
     s.test("frames are pinned: room 1 under way with the aim's forecast, and the inspector", [] {

@@ -9,7 +9,10 @@
 // on the step the simulation made them, panned by where across the field:
 // offline (tests, a video's track) on the step's very sample, live a block
 // ahead of the device. Seeking back is silent; played on from there, the new
-// branch is heard after what was (the sound's time only goes forward).
+// branch is heard after what was (the sound's time only goes forward). Under
+// them, the panel's theme (music/haunt.music.omui.toml): a music box in F#
+// minor, the chain's pentatonic notes its own; its intensity rises with the
+// chain, the last ball and several in the air, from the next bar.
 export module openmui.showcase.widget_breakout:sound;
 
 import std;
@@ -26,8 +29,10 @@ public:
     void heard(const State& s, const RoomDef& room);
     // A sound of the program's own (a gate opening, a rewind, a scan), now.
     void cue(std::string_view name, float pan = 0);
-    // A new level: its step 0 is the mixer's clock now.
+    // A new level: its step 0 is the mixer's clock now (the theme plays on from the first).
     void restart();
+    // The theme: playing, and how hard (0–1).
+    [[nodiscard]] float intensity() const noexcept;
     // Heard live (a device pulls the mixer): sounds start just ahead of its clock instead of on their step's sample.
     void live(bool on) noexcept { live_ = on; }
 
@@ -39,6 +44,7 @@ private:
     void play(std::string_view name, std::int64_t at, float gain, float pan, float pitch = 1);
 
     std::unique_ptr<audio::Mixer> mixer_;
+    std::shared_ptr<audio::Sequencer> theme_;
     std::int64_t                  base_ = 0;  // the mixer's sample of step 0
     std::int64_t                  played_ = 0;  // steps heard since step 0
     bool                          live_ = false;

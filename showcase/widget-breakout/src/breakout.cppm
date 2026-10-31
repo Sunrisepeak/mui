@@ -10,6 +10,7 @@ export import :field_contract;
 export import :rooms;
 export import :fx;
 export import :breakout_sound;
+export import :haunt_music;
 export import :sound;
 export import :wide_ts;
 export import :pierce_ts;

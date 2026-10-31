@@ -44,12 +44,20 @@ Sounds::Sounds() : mixer_(std::make_unique<audio::Mixer>()) {
     if (sounds)
         for (const auto& s : *sounds) mixer_->add(s);
     mixer_->add_effect("sfx", audio::echo(0.08f, 0.18f, 0.15f, mixer_->rate()));  // a small room
+    if (auto music = audio::read_music(files::haunt_music, "haunt.music.omui.toml"))
+        if (auto seq = audio::Sequencer::attach(*music, *mixer_)) theme_ = std::move(*seq);
 }
 
 void Sounds::restart() {
     base_ = mixer_->clock();
     played_ = 0;
+    if (theme_ && !theme_->playing()) {
+        theme_->set_intensity(0.2f);
+        theme_->start(base_);
+    }
 }
+
+float Sounds::intensity() const noexcept { return theme_ ? theme_->intensity() : 0.0f; }
 
 void Sounds::play(std::string_view name, std::int64_t at, float gain, float pan, float pitch) {
     if (const std::int32_t id = mixer_->find(name); id >= 0) mixer_->play(id, at, gain, pan, pitch);
@@ -59,6 +67,15 @@ void Sounds::cue(std::string_view name, float pan) { play(name, mixer_->clock() 
 
 void Sounds::heard(const State& s, const RoomDef& room) {
     ++played_;  // the steps played forward: after a rewind the sound goes on, it does not go back
+    // The theme rises with the chain (a part every few bricks), on the last ball, and with several in the air.
+    if (theme_) {
+        std::int32_t flying = 0;
+        s.world.each<Ball>([&](mgame::Entity, const Ball& b) { flying += b.on == 0 ? 1 : 0; });
+        const float chain = 0.06f * static_cast<float>(std::min(s.combo, 10));
+        const float last = s.lives <= 1 ? 0.2f : 0.0f;
+        const float many = flying > 1 ? 0.25f : 0.0f;
+        theme_->set_intensity(s.over ? 0.2f : std::clamp(0.2f + chain + last + many, 0.0f, 1.0f));
+    }
     const std::int64_t at = live_ ? mixer_->clock() + audio::block_frames : base_ + played_ * step_samples();
     for (std::uint32_t k = 0; k < s.events; ++k) {
         const Event& e = s.event[k];

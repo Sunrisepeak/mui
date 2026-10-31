@@ -22,6 +22,11 @@ A run is five short rooms and three balls. Each room has a core (its power butto
 - **100 sparks rewind 2 seconds** (hold R). Taking time back also takes back what it banked, and the shot you abandoned stays on screen as a ghost.
 - **Spin:** move the paddle as the ball meets it and the ball curves the way you moved.
 - **The ghost** that haunts the panel is the same in every room, whatever its style: a faint face behind the bricks, its core where a nose would be. Its eyes follow the ball and widen when its bricks break; it winces when its core is struck, grins when you lose a ball, and closes its eyes when the last core shuts down.
+- **What you hear.** Each brick sounds like the component it is: a button clicks, a switch snaps, a capacitor charges. A broken brick pops one note higher up an A major pentatonic for each brick in the chain, so a long chain plays a run.
+
+  Under the effects is the panel's theme (`music/haunt.music.omui.toml`): a music box in F♯ minor, with something that hums along. It is in the same key as the chain's notes, so a chain sings over it rather than against it. The theme gathers parts as play gets tense. Each brick in the chain adds intensity, and so does the last ball or several balls in the air. In order, it adds the bass and a soft kit, then the full kit and the hum, then a celesta over the tune. Each part enters at the next bar.
+
+  The tests render a run's sound to the sample. The sound of the same run is pinned and is the same everywhere. A rendered copy is written to `breakout-heard/heard.wav` so you can listen to it.
 - **Between rooms**, each contraption has two presets (huge and brief, or modest and long). **Open the casing** to see the script that makes it — TypeScript, Lua or Python — and change it: it reloads at once.
 
 ![A beam along the top row breaks the dam](media/room-2-beam.png) ![Through the cloud: the chamber of files](media/room-3-breakthrough.png)

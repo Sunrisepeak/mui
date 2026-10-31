@@ -38,4 +38,6 @@ xl     = 2
 
 [style.retro.effects]
 # Gentle enough to read at a glance: the lines and the grille show, the corners dim a little.
-window = { effect = "crt", curvature = 0.05, scanlines = 0.35, mask = 0.2, vignette = 0.35 }
+# Gentle enough that type stays crisp: the curve bends the edges more than the
+# middle where text sits, and the lines and grille dim it little.
+window = { effect = "crt", curvature = 0.035, scanlines = 0.2, mask = 0.12, vignette = 0.28 }

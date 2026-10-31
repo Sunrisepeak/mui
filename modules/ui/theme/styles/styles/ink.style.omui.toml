@@ -18,6 +18,8 @@ on_accent       = "#fbf6e9"
 track           = "#d6cbb1"
 
 [style.ink.effects]
-window        = { effect = "paper", grain = 0.45, warmth = 0.7, edge = 0.5 }
-button        = { effect = "wobble", amount = 1.2, size = 16, ink = 0.6 }
-"role:region" = { effect = "wobble", amount = 1.5, size = 22, ink = 0.5 }
+# The hand shows in the lines, not in the letters: a wobble small enough that a
+# label stays legible, and a grain that does not grey the text.
+window        = { effect = "paper", grain = 0.3, warmth = 0.7, edge = 0.4 }
+button        = { effect = "wobble", amount = 0.7, size = 16, ink = 0.6 }
+"role:region" = { effect = "wobble", amount = 0.9, size = 22, ink = 0.5 }

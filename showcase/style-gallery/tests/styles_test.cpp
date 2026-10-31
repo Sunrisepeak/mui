@@ -75,7 +75,7 @@ int main(int argc, char** argv) {
         }
         check_eq(looks.size(), std::size_t{5});
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
-        check_eq(all.hex(), std::string("216ee30624012c5d"));
+        check_eq(all.hex(), std::string("b0158ea86f73d01a"));
     });
 
     s.test("the README's loop: the five packs in turn — an animated PNG under 1 MB", [] {

@@ -9,6 +9,7 @@ import openmui;
 import openmui.hash;
 import openmui.ui.markdown;
 import openmui.ui.timeline;
+import openmui.timeline;
 import openmui.ui.canvas;
 import openmui.showcase.markdown_wall;
 import openmui.showcase.style_gallery;
@@ -167,6 +168,45 @@ struct Site {
     Signal<int>         switches = signal(0);   // the language switched this many times
     double              switched_at = -1;       // when it last did (the runtime's seconds)
     Signal<std::string> timeline = signal(std::string(sample));  // the timeline as last edited
+    Signal<std::int32_t> timeline_frame = signal(45);            // its playhead (the title on screen)
+    Signal<bool>        timeline_playing = signal(false);
+    // The timeline read again only when its text changed: what the monitor shows at the playhead.
+    std::string                      timeline_read_from;
+    std::optional<omui::timeline::Timeline> timeline_model;
+    const omui::timeline::Timeline* timeline_now(const std::string& text) {
+        if (text != timeline_read_from || !timeline_model) {
+            timeline_read_from = text;
+            auto t = omui::timeline::read_timeline(text, "site.timeline.omui.toml");
+            timeline_model = t ? std::optional(std::move(*t)) : std::nullopt;
+        }
+        return timeline_model ? &*timeline_model : nullptr;
+    }
+    // Played: the playhead on a frame at a time (30 a second), to the timeline's end, then back to its start.
+    void play_timeline() {
+        (void)runtime->after(seconds(1.0 / 30), [this] {
+            if (!timeline_playing.peek()) return;
+            const omui::timeline::Timeline* t = timeline_now(timeline.peek());
+            const std::int64_t end = t ? omui::timeline::frame_at(t->rate, t->duration()) : 270;
+            const std::int32_t next = timeline_frame.peek() + 1;
+            if (next > end) {
+                timeline_frame.set(0);
+                timeline_playing.set(false);
+                return;
+            }
+            timeline_frame.set(next);
+            play_timeline();
+        });
+    }
+    // The level (0–1, its fades) the picture clip named `name` plays at the frame shown; 0 when it does not.
+    float clip_level(std::string_view name, std::int32_t frame) {
+        const omui::timeline::Timeline* t = timeline_now(timeline.get());
+        if (!t) return 0;
+        std::vector<omui::timeline::Playing> now;
+        omui::timeline::playing(*t, omui::timeline::frame_time(t->rate, frame), now);
+        for (const auto& p : now)
+            if (t->tracks[p.track].clips[p.clip].name == name) return p.level;
+        return 0;
+    }
     hello::State        hello;                 // example 01's, as the person left it
     std::unique_ptr<wall::Model> wall;         // S1's wall of the site's documents
     styles::Studio      studio;                // S2's workshop: its packs in a theme scope, the site in its own theme
@@ -1208,7 +1248,7 @@ Element place_window(const std::shared_ptr<Site>& s, const std::string& id, bool
     const Size v = s->layout.view;
     const bool zh = s->lang.peek() == "zh";
     if (id == "timeline") {
-        Element editor = timeline_editor({.id = "editor", .document = s->timeline.peek(), .zoom = 60});
+        Element editor = timeline_editor({.id = "editor", .document = s->timeline.peek(), .frame = live ? Prop<std::int32_t>(s->timeline_frame) : Prop<std::int32_t>(s->timeline_frame.peek()), .zoom = 60});
         if (live) {
             // The live work: its own history (S-12); an edit is kept for the next time it is live, and changes the tree a lens shows.
             editor.prop("undo_scope", Source{Value(true), {}, {}});
@@ -1222,12 +1262,70 @@ Element place_window(const std::shared_ptr<Site>& s, const std::string& id, bool
             return computed([s, en, han] { return std::string(s->lang.get() == "zh" ? han : en); });
         };
         Element title = text({.id = "title", .text = words("A timeline editor", "时间线编辑器"), .style = "title"});
+        // The program monitor: what the timeline plays at its playhead — the title card fading as its clip does,
+        // the fight's two figures, the music's level — and the time; Play runs the playhead at the timeline's rate.
+        auto level = [s, live](std::string name) -> Prop<float> {
+            if (!live) return s->clip_level(name, s->timeline_frame.peek());
+            return computed([s, name] { return s->clip_level(name, s->timeline_frame.get()); });
+        };
+        const float mw = std::clamp(v.height - 340.0f, 220.0f, 380.0f) * 16 / 9;
+        Element fighters = painter({.id = "figures",
+                                    .width = Dim(mw * 0.5f),
+                                    .height = Dim(mw * 9 / 16 * 0.6f),
+                                    .role = Role::none,
+                                    .paint = [](PaintContext& ctx) {
+                                        // Two figures squared up on a floor line, and the light of a blow between them.
+                                        const float w = ctx.size.width, h = ctx.size.height;
+                                        auto figure = [&](float x, float dir, Color c) {
+                                            ctx.list.fill_round_rect({x - w * 0.05f, h * 0.18f, w * 0.1f, w * 0.1f}, CornerRadii::all(w * 0.05f), render::Paint::solid(c));
+                                            render::Path body;
+                                            body.move_to({x, h * 0.32f}).line_to({x - dir * w * 0.02f, h * 0.62f}).line_to({x - dir * w * 0.09f, h * 0.92f});
+                                            body.move_to({x - dir * w * 0.02f, h * 0.62f}).line_to({x + dir * w * 0.07f, h * 0.92f});
+                                            body.move_to({x, h * 0.4f}).line_to({x + dir * w * 0.16f, h * 0.36f});
+                                            ctx.list.stroke_path(body, render::StrokeStyle{.width = w * 0.035f, .cap = render::LineCap::round, .join = render::LineJoin::round},
+                                                                 render::Paint::solid(c));
+                                        };
+                                        figure(w * 0.32f, 1, Color::hex(0x60a5fa));
+                                        figure(w * 0.68f, -1, Color::hex(0xf59e0b));
+                                        ctx.list.fill_round_rect({w * 0.47f, h * 0.31f, w * 0.06f, w * 0.06f}, CornerRadii::all(w * 0.03f), render::Paint::solid(Color::hex(0xffffff, 0.85f)));
+                                        ctx.list.fill_rect({0, h * 0.94f, w, 2}, Color::hex(0xffffff, 0.25f));
+                                    }});
+        Element monitor = stack({.id = "monitor", .width = Dim(mw), .height = Dim(mw * 9 / 16), .background = Fill(Color::hex(0x05070b)), .radius = 10, .clip = true,
+                                 .label = std::string(zh ? "监视器" : "Program monitor")},
+                                {column({.id = "title_card", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .gap = 8, .justify = "center", .align = "center",
+                                         .opacity = level("title")},
+                                        {brand_mark("mark", mw * 0.14f), text({.id = "name", .text = std::string("a short"), .style = "title", .color = Fill(Color::hex(0xe6edf7))})}),
+                                 column({.id = "fight_card", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .justify = "center", .align = "center",
+                                         .opacity = level("the fight")},
+                                        {std::move(fighters)}),
+                                 column({.id = "time", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .padding = Edges(10.0f, 14.0f), .justify = "end"},
+                                        {row({.gap = 10, .align = "center"},
+                                             {text({.id = "timecode",
+                                                    .text = live ? Prop<std::string>(computed([s] {
+                                                        const std::int32_t f = s->timeline_frame.get();
+                                                        return std::format("{:02}:{:02}", f / 30, f % 30);
+                                                    }))
+                                                                 : Prop<std::string>(std::format("{:02}:{:02}", s->timeline_frame.peek() / 30, s->timeline_frame.peek() % 30)),
+                                                    .style = "code",
+                                                    .color = Fill(Color::hex(0xe6edf7, 0.8f))}),
+                                              box({.id = "music", .width = Dim(mw * 0.25f), .height = Dim(4.0f), .background = Fill(Color::hex(0x10b981)), .radius = 2,
+                                                   .opacity = level("main theme")})})})});
+        ButtonOptions play{.id = "play", .text = words("Play", "播放"), .variant = ButtonVariant::secondary};
+        if (live) {
+            play.text = computed([s] { return std::string(s->timeline_playing.get() ? (s->lang.get() == "zh" ? "暂停" : "Pause") : (s->lang.get() == "zh" ? "播放" : "Play")); });
+            play.on_activated = [s] {
+                const bool on = !s->timeline_playing.peek();
+                s->timeline_playing.set(on);
+                if (on && s->runtime) s->play_timeline();
+            };
+        } else play.disabled = true;
         return column({.id = "page", .width = Dim(v.width), .height = Dim(v.height), .padding = Edges(32.0f, 40.0f), .gap = 12, .background = "background"},
                       {live ? retyped(std::move(title), s) : std::move(title),
                        text({.id = "how",
                              .text = words("Drag a clip, trim its edge, press S to split it at the playhead, Ctrl+Z to undo. Every edit has its exact inverse; switch the lens to see the same timeline as an agent reads it.",
                                            "拖动片段、拖边修剪、按 S 在播放头处切开，Ctrl+Z 撤销。每次编辑都有它精确的反向；切换镜头，看 agent 读到的同一份时间线。"),
                              .style = "body"}),
+                       row({.id = "program", .gap = 16, .align = "end"}, {std::move(monitor), button(std::move(play))}),
                        std::move(editor)});
     }
     if (id == "hello" || id == "wall") return work_window(s, id, live);

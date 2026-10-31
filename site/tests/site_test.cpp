@@ -303,6 +303,25 @@ int main(int argc, char** argv) {
         check(a.page() == plain, "back to the pixels, the same pixels (above the foot, where the lenses are marked)");
     });
 
+    s.test("the timeline's monitor: what plays at the playhead, the title fading as its clip does; Play runs the playhead and stops at the end", [] {
+        Site a;
+        check(a.h.click("main/body/nav/to_timeline"));
+        a.h.settle(seconds(3));
+        const std::string base = "main/body/view/atlas/timeline/page/";
+        check_eq(a.text(base + "program/monitor/time/row:0/timecode"), std::string("01:15"));
+        check(a.h.click(base + "program/play"));
+        a.h.advance(seconds(1));
+        const std::string after = a.text(base + "program/monitor/time/row:0/timecode");
+        check(after != "01:15" && after.starts_with("02:"), after);
+        // Sought into the fight: the playhead is the editor's, the monitor follows it.
+        Invocation agent;
+        agent.actor = {"agent", "test", {}};
+        agent.args = Value{}.set("frame", std::int64_t{150});
+        check(a.h.tree().act(base + "editor", "seek", agent).exit_code() == std::optional<int>(0));
+        a.h.advance(seconds(0.1));
+        check(a.text(base + "program/monitor/time/row:0/timecode").starts_with("05:"), a.text(base + "program/monitor/time/row:0/timecode"));
+    });
+
     s.test("Build with it: the opening's first button scrolls the page to its three commands", [] {
         Site a;
         check(a.h.click("main/body/view/atlas/home/page/hero/cta/to_start"));
@@ -649,7 +668,7 @@ int main(int argc, char** argv) {
         a.h.advance(seconds(1));
         shot("time.png");
         std::println("    pixels {}", all.hex());
-        check_eq(all.hex(), std::string("f501bc99dbc2ec68"));
+        check_eq(all.hex(), std::string("f6fbb0f5083c5b03"));
     });
 
     s.test("the style workshop runs in its place, a theme scope: a pack styles it alone, the site keeps its theme, the tree is the same in every pack", [] {

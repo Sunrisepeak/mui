@@ -23,7 +23,13 @@ float4 wobble_fs(EffectPixel px) : SV_Target {
     precise const float amount = param(0) * scale;
     const float size = max(1.0, param(1) * scale), seed = param(2), ink = clamp01(param(3));
     const float qx = float(p.x) + 0.5, qy = float(p.y) + 0.5;
-    precise const float ox = smooth_noise(seed, qx / size, qy / size, 1) * amount, oy = smooth_noise(seed, qx / size, qy / size, 2) * amount;
+    // Pushed about only near the layer's own edge: inside, its text and figures stay where they are.
+    precise const float reach = abs(amount) + 1;
+    const float4 h0 = source_bilinear(float2(qx, qy));
+    const float4 e0 = source_bilinear(float2(qx - reach, qy)), e1 = source_bilinear(float2(qx + reach, qy));
+    const float4 e2 = source_bilinear(float2(qx, qy - reach)), e3 = source_bilinear(float2(qx, qy + reach));
+    precise const float near = clamp01((abs(e1.a - h0.a) + abs(e0.a - h0.a) + abs(e3.a - h0.a) + abs(e2.a - h0.a)) / 255.0);
+    precise const float ox = smooth_noise(seed, qx / size, qy / size, 1) * amount * near, oy = smooth_noise(seed, qx / size, qy / size, 2) * amount * near;
     precise const float sx = qx - ox, sy = qy - oy;
     const float4 c = source_bilinear(float2(sx, sy));
     const float4 l = source_bilinear(float2(sx - 1, sy)), r = source_bilinear(float2(sx + 1, sy));

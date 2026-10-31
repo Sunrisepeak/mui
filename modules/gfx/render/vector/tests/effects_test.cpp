@@ -230,7 +230,7 @@ int main(int argc, char** argv) {
         check(apart.r == 15 && apart.g == 23 && apart.b == 42, "smoothness 0: apart");
         // Pinned: GCC and LLVM, Linux, macOS and Windows compute these bytes.
         std::println("    all {}", all.hex());
-        check_eq(all.hex(), std::string("40df5182c5755cb0"));
+        check_eq(all.hex(), std::string("1b2cea8047d48716"));
     });
 
     s.test("tone: the layer in one colour, its brightness kept; amount 0 is the layer as it is — pinned", [] {

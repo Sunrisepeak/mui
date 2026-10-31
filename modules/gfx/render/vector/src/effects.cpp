@@ -575,7 +575,14 @@ void wobble(const EffectInput& in) {
         Rgba8* out = in.target.row(y);
         for (int x = 0; x < in.target.width(); ++x) {
             const float qx = static_cast<float>(x) + 0.5f, qy = static_cast<float>(y) + 0.5f;
-            const float ox = smooth_noise(seed, qx / size, qy / size, 1) * amount, oy = smooth_noise(seed, qx / size, qy / size, 2) * amount;
+            // Pushed about only near the layer's own edge (its alpha changing within reach): inside, what the
+            // layer holds — its text, its figures — stays where it is, sharp; the hand shows in the outline.
+            const float reach = std::abs(amount) + 1;
+            const auto h0 = sample(in.source, qx, qy);
+            const auto e0 = sample(in.source, qx - reach, qy), e1 = sample(in.source, qx + reach, qy);
+            const auto e2 = sample(in.source, qx, qy - reach), e3 = sample(in.source, qx, qy + reach);
+            const float near = clamp01((std::abs(e1[3] - h0[3]) + std::abs(e0[3] - h0[3]) + std::abs(e3[3] - h0[3]) + std::abs(e2[3] - h0[3])) / 255.0f);
+            const float ox = smooth_noise(seed, qx / size, qy / size, 1) * amount * near, oy = smooth_noise(seed, qx / size, qy / size, 2) * amount * near;
             const auto c = sample(in.source, qx - ox, qy - oy);
             // Ink where the alpha changes: an edge.
             const auto l = sample(in.source, qx - ox - 1, qy - oy), r = sample(in.source, qx - ox + 1, qy - oy);

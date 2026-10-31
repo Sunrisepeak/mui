@@ -78,6 +78,7 @@ void Fx::clear() {
     for (Ring& r : rings) r.life = 0;
     flash.fill(0);
     paddle_squash.fill(0);
+    startle = wince = glee = 0;
     shake = 0;
     chain_pop = 0;
     banked = 0;
@@ -109,6 +110,9 @@ void Fx::age() {
     for (Ring& r : rings)
         if (r.life > 0) r.radius += r.grow, r.life = std::max(0.0f, r.life - 1 / 40.0f);
     for (float& f : flash) f = std::max(0.0f, f - 1 / 14.0f);
+    startle = std::max(0.0f, startle - 1 / 30.0f);
+    wince = std::max(0.0f, wince - 1 / 40.0f);
+    glee = std::max(0.0f, glee - 1 / 90.0f);
     for (float& q : paddle_squash) q = std::max(0.0f, q - 1 / 10.0f);
     shake *= 0.86f;
     if (shake < 0.2f) shake = 0;
@@ -171,7 +175,10 @@ void Fx::react(const State& s, const RoomDef& room) {
         };
         switch (e.what) {
             case Happened::hit: burst(at, kind_color(kind), 4, 2.2f, seed); lit(e.id); break;
-            case Happened::broke: burst(at, kind_color(kind), e.n < 0 ? 6 : 12, e.n < 0 ? 2.5f : 3.4f, seed, 3); break;
+            case Happened::broke:
+                burst(at, kind_color(kind), e.n < 0 ? 6 : 12, e.n < 0 ? 2.5f : 3.4f, seed, 3);
+                startle = std::max(startle, 0.6f);
+                break;
             case Happened::paddle: paddle_squash[std::min<std::size_t>(e.id, 1)] = 1; burst(at, Color::hex(ink::paddle), 3, 1.6f, seed, 2); break;
             case Happened::flipped: burst(at, Color::hex(ink::live), 8, 2.6f, seed); lit(e.id); break;
             case Happened::wired: {
@@ -197,7 +204,12 @@ void Fx::react(const State& s, const RoomDef& room) {
                 break;
             }
             case Happened::kicked: burst(at, Color::hex(ink::kicker), 8, 2.8f, seed); lit(e.id); break;
-            case Happened::core_hit: burst(at, Color::hex(ink::core), 16, 3.8f, seed, 3); lit(e.id); shake = std::max(shake, 4.0f); break;
+            case Happened::core_hit:
+                burst(at, Color::hex(ink::core), 16, 3.8f, seed, 3);
+                lit(e.id);
+                shake = std::max(shake, 4.0f);
+                wince = 1;
+                break;
             case Happened::shutdown:
                 burst(at, Color::hex(ink::core), 40, 5.5f, seed, 3.5f);
                 burst(at, Color::hex(0xffffff), 20, 3.0f, seed + 7, 2.5f);
@@ -227,7 +239,10 @@ void Fx::react(const State& s, const RoomDef& room) {
                 break;
             }
             case Happened::cache: floater({at.x, at.y - 10}, Color::hex(ink::cache), 18, "+30 ◆"); break;
-            case Happened::lost: burst(at, Color::hex(ink::lost), 14, 3.0f, seed); break;
+            case Happened::lost:
+                burst(at, Color::hex(ink::lost), 14, 3.0f, seed);
+                glee = 1;
+                break;
             case Happened::caught: ring(at, Color::hex(0xffffff), 8, 3, 0.8f); break;
             case Happened::magnet: ring(at, Color::hex(ink::magnet), 10, 2, 0.8f); break;
             case Happened::finisher: floater({at.x, at.y + 60}, Color::hex(ink::live), 22, "DUET READY — return it"); break;

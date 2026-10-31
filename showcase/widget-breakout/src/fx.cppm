@@ -81,6 +81,9 @@ public:
     float                      shake = 0;        // pixels, dying away
     float                      chain_pop = 0;    // the chain's counter just grew
     float                      banked = 0;       // sparks just banked: the meter glows
+    // The ghost that haunts the panel, one face in every room (its moods dying away): startled when its bricks
+    // break, wincing when its core is struck, gleeful when a ball is lost.
+    float                      startle = 0, wince = 0, glee = 0;
     std::int64_t               frame = 0;
     std::array<Point, 128>     ghost{};          // a rewound shot's path
     std::size_t                ghost_count = 0;

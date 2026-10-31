@@ -125,7 +125,7 @@ int main(int argc, char** argv) {
                                                                           (*px)->width() * 4, imageio::Alpha::premultiplied})
                       .has_value());
         }
-        check_eq(all.hex(), std::string("7e4d7ad1adc53add"));
+        check_eq(all.hex(), std::string("b89a9c1672193f78"));
         promo::Player full(film(), c, {.scale = 1, .fonts = &fonts(), .parallel_raster = false});
         auto hd = full.frame(1860);
         check(hd && (*hd)->width() == 1920 && (*hd)->height() == 1080, "1080p");

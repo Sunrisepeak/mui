@@ -386,7 +386,7 @@ int main(int argc, char** argv) {
         check_eq(g.state().over, std::uint32_t{1});
         check_eq(g.disagreement(), std::string());
         std::println("    beam {:016x}", beam);
-        check_eq(beam, std::uint64_t{0xc42d9fbf7c98bf2c});  // GCC (LLVM: CI)
+        check_eq(beam, std::uint64_t{0xb73160c7b58a0dad});  // GCC (LLVM: CI)
     });
 
     s.test("a rewind costs 100 sparks, puts every brick back and the score with it; never past 2 s nor the last landing; it cannot be farmed", [] {
@@ -585,8 +585,8 @@ int main(int argc, char** argv) {
         check(g.act("scan"), "recharged");
         check_eq(g.disagreement(), std::string());
         std::println("    dark {:016x}, scanned {:016x}", dark, scanned);
-        check_eq(dark, std::uint64_t{0x9518c0e5528ef67a});  // GCC (LLVM: CI)
-        check_eq(scanned, std::uint64_t{0xb5e0996114b20ea2});
+        check_eq(dark, std::uint64_t{0x2382d9db5464061a});  // GCC (LLVM: CI)
+        check_eq(scanned, std::uint64_t{0xbf3dca306d7c795b});
     });
 
     s.test("room 5: the copilot plays the top paddle from outside — the semantic tree in, guard_to out, journaled as its own; an order changes where it sends the ball; with a player below, they shut it down", [] {
@@ -630,7 +630,7 @@ int main(int argc, char** argv) {
         const auto px = p.pixels();
         check(p.h.save_png(scratch_dir("breakout-room5") / "copilot.png").has_value());
         std::println("    copilot {:016x}", px);
-        check_eq(px, std::uint64_t{0xaf319f35d0ba432e});  // GCC (LLVM: CI)
+        check_eq(px, std::uint64_t{0x461aeb73442f0dba});  // GCC (LLVM: CI)
     });
 
     s.test("a run: room 1 shut down — the wave, the next room's skin, two contraptions offered; one taken, room 2 begins with what the run carries and drops it", [] {
@@ -676,7 +676,7 @@ int main(int argc, char** argv) {
         g.h.advance(seconds(0.25));
         check(g.component().props.room == 1 && g.component().run_so_far().kit.empty() && g.state().score == 0 && g.state().lives == 3, "afresh");
         std::println("    choice {:016x}", choice);
-        check_eq(choice, std::uint64_t{0x0192bedd92c7d09b});  // GCC (LLVM: CI)
+        check_eq(choice, std::uint64_t{0xb4a7b7296897ccdd});  // GCC (LLVM: CI)
     });
 
     s.test("between rooms, a casing open: its script — TypeScript, Lua, Python — edited and reloaded in place under 200 ms, a preset retuning it, a bad one keeping the rules; the rules reach the next room", [] {
@@ -785,9 +785,9 @@ int main(int argc, char** argv) {
         const auto inspector = g.pixels();
         check(g.h.save_png(dir / "inspector.png").has_value());
         std::println("    start {:016x}, played {:016x}, inspector {:016x}", start, played, inspector);
-        check_eq(start, std::uint64_t{0xbb58b82166e80b6b});  // GCC (LLVM: CI)
-        check_eq(played, std::uint64_t{0xc6fc0fb3e7e09dcc});
-        check_eq(inspector, std::uint64_t{0x9d65d8e82c70e2a6});
+        check_eq(start, std::uint64_t{0xeffd71511095634b});  // GCC (LLVM: CI)
+        check_eq(played, std::uint64_t{0x66106354436ff307});
+        check_eq(inspector, std::uint64_t{0xc5f7d4000518b5f1});
     });
 
     s.test("the README's loop: room 1 played from its launch to its shutdown — an animated WebP under 1 MB", [] {

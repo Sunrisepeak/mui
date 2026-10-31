@@ -132,6 +132,60 @@ const char* role_of(Kind k) {
 
 }  // namespace
 
+// The ghost that haunts the panel — the same face behind every room, whatever its style: two eyes that follow
+// the ball, blink now and then, widen as it nears the core, squeeze shut when the core is struck and close for
+// good when the last core shuts down; a mouth that grins when a ball is lost. Faint: the room's bricks over it.
+void Field::haunt(render::DisplayList& out, const State& s, const Theme& theme) const {
+    const Color ground = theme.color("background", hex(0x0d111c));
+    const bool light = 0.2126f * ground.r + 0.7152f * ground.g + 0.0722f * ground.b > 0.5f;
+    const Color ghost = light ? hex(0x3a3f6b) : hex(0xd8e6ff);
+    const float a = light ? 0.10f : 0.13f;
+    auto oval = [](render::Path& p, Point at, float rx, float ry) { p.add_ellipse({at.x - rx, at.y - ry, 2 * rx, 2 * ry}); };
+    const Point c{static_cast<float>(field_w) / 2, static_cast<float>(s.height) - static_cast<float>(field_h) * 0.62f};
+    // What it watches: the first ball in flight, else the paddle's.
+    Point look{c.x, static_cast<float>(s.height)};
+    bool found = false;
+    s.world.each<Ball>([&](mgame::Entity, const Ball& b) {
+        if (found) return;
+        look = {static_cast<float>(b.at.x), static_cast<float>(b.at.y)};
+        found = b.on == 0;
+    });
+    const bool calm = s.cores == 0 || s.over == 1;  // exorcised: its eyes close
+    const std::int64_t cycle = s.frame % 260;
+    const float blink = calm ? 1.0f : cycle < 7 ? 1.0f - std::abs(static_cast<float>(cycle) - 3.5f) / 3.5f : 0.0f;
+    const float shut = std::clamp(std::max(blink, fx_.wince * 0.9f), 0.0f, 1.0f);
+    const float wide = 1 + 0.35f * fx_.startle;
+    // Its head: one faint veil, no outline.
+    render::Path halo;
+    oval(halo, {c.x, c.y + 50}, 330, 230);
+    out.fill_path(halo, render::FillRule::nonzero, solid(ghost.with_alpha(a * 0.22f)));
+    for (int side = -1; side <= 1; side += 2) {
+        const Point eye{c.x + static_cast<float>(side) * 130, c.y};
+        const float dx = look.x - eye.x, dy = look.y - eye.y, d = std::max(1.0f, std::sqrt(dx * dx + dy * dy));
+        const float open = 34 * wide * (1 - shut) + 3;
+        render::Path lid;
+        oval(lid, eye, 70 * wide, open);
+        out.fill_path(lid, render::FillRule::nonzero, solid(ghost.with_alpha(a * 1.6f)));
+        if (shut < 0.85f) {
+            render::Path pupil;
+            const float r = 16 * (1 - shut);
+            oval(pupil, {eye.x + dx / d * 28, eye.y + dy / d * std::min(open * 0.5f, 14.0f)}, r, r);
+            out.fill_path(pupil, render::FillRule::nonzero, solid(ground.with_alpha(0.55f)));
+        }
+    }
+    // The mouth: a thin line, a grin when a ball is lost, a small 'o' when its core is struck.
+    render::Path mouth;
+    const float grin = fx_.glee, o = fx_.wince;
+    const float my = c.y + 120;
+    mouth.move_to({c.x - 90 - 40 * grin, my}).cubic_to({c.x - 40, my + 10 + 70 * grin - 20 * o}, {c.x + 40, my + 10 + 70 * grin - 20 * o}, {c.x + 90 + 40 * grin, my});
+    out.stroke_path(mouth, {.width = 10.0f + 6 * grin, .cap = render::LineCap::round}, solid(ghost.with_alpha(a * (1.2f + grin))));
+    if (o > 0.05f) {
+        render::Path ring;
+        oval(ring, {c.x, my + 6}, 18 * o, 24 * o);
+        out.fill_path(ring, render::FillRule::nonzero, solid(ghost.with_alpha(a * 1.5f * o)));
+    }
+}
+
 void Field::paint(PaintContext& ctx) const {
     const Theme& theme = services().theme();
     ctx.list.fill_rect({0, 0, ctx.size.width, ctx.size.height}, theme.color("background", hex(0x0d111c)));
@@ -141,6 +195,7 @@ void Field::paint(PaintContext& ctx) const {
     auto& out = ctx.list;
     out.push_transform(Affine::scale(ctx.size.width / static_cast<float>(field_w), ctx.size.height / static_cast<float>(field_h)));
     const Color plate = theme.color("surface_variant", hex(0x1b2235));
+    haunt(out, *s, theme);
     draw_wires(out, path_, *s, hex(ink::wire), 3);
     // Plates: walls, shutters (hatched, closed; a dashed track, open), and under the components that are not buttons.
     s->world.each<Body, Brick>([&](mgame::Entity, const Body& body, const Brick& b) {

@@ -21,6 +21,7 @@ A run is five short rooms and three balls. Each room has a core (its power butto
 - **The chain** is everything the ball sets going after it leaves your paddle. Bring the ball back and three or more are **banked as sparks**; lose it and they are gone.
 - **100 sparks rewind 2 seconds** (hold R). Taking time back also takes back what it banked, and the shot you abandoned stays on screen as a ghost.
 - **Spin:** move the paddle as the ball meets it and the ball curves the way you moved.
+- **The ghost** that haunts the panel is the same in every room, whatever its style: a faint face behind the bricks, its core where a nose would be. Its eyes follow the ball and widen when its bricks break; it winces when its core is struck, grins when you lose a ball, and closes its eyes when the last core shuts down.
 - **Between rooms**, each contraption has two presets (huge and brief, or modest and long). **Open the casing** to see the script that makes it — TypeScript, Lua or Python — and change it: it reloads at once.
 
 ![A beam along the top row breaks the dam](media/room-2-beam.png) ![Through the cloud: the chamber of files](media/room-3-breakthrough.png)

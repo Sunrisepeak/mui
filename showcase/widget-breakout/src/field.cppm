@@ -44,6 +44,8 @@ public:
     void mounted();
     void prop_changed(FieldProp p);
     void style(const Theme& theme, layout::Style& s) const;
+    // The ghost behind every room (paint.cpp).
+    void haunt(render::DisplayList& out, const State& s, const Theme& theme) const;
     void paint(PaintContext& ctx) const;
     void paint_over(PaintContext& ctx) const;
     bool on_event(EventContext& ctx, const InputEvent& e);

@@ -18,7 +18,17 @@ track           = "#1e1b4b"
 thumb           = "#e0f2fe"
 
 [style.neon.effects]
-button        = { effect = "neon", color = "accent", radius = 12, intensity = 1.1 }
-toggle        = { effect = "neon", color = "accent", radius = 10, intensity = 0.9 }
-slider        = { effect = "neon", color = "accent", radius = 8, intensity = 0.7 }
-"role:region" = { effect = "neon", color = "border", radius = 18, intensity = 0.35 }
+# The tubes glow low at rest and light up for what the hand is on: the
+# strongest glow is kept for a control hovered, focused or pressed, so the
+# content stays the brightest thing on the page.
+button           = { effect = "neon", color = "accent", radius = 12, intensity = 0.45, transition = 0.25 }
+"button:hovered" = { effect = "neon", intensity = 1.1 }
+"button:focused" = { effect = "neon", intensity = 1.0 }
+"button:pressed" = { effect = "neon", intensity = 1.4 }
+toggle           = { effect = "neon", color = "accent", radius = 10, intensity = 0.4, transition = 0.25 }
+"toggle:hovered" = { effect = "neon", intensity = 0.9 }
+"toggle:focused" = { effect = "neon", intensity = 0.9 }
+slider           = { effect = "neon", color = "accent", radius = 8, intensity = 0.3, transition = 0.25 }
+"slider:hovered" = { effect = "neon", intensity = 0.7 }
+"slider:focused" = { effect = "neon", intensity = 0.7 }
+"role:region"    = { effect = "neon", color = "border", radius = 18, intensity = 0.25 }

@@ -69,6 +69,24 @@ int main(int argc, char** argv) {
               "an entry within them");
     });
 
+    s.test("a heading longer than the contents is wide wraps inside them, from its first frame", [] {
+        App a;
+        a.start(std::filesystem::path(std::source_location::current().file_name()).parent_path() / "data" / "long" / "headings.md");
+        const auto toc = find(a.h, Role::scroll_view, "Contents");
+        check(toc && toc->bounds, "the contents");
+        if (!toc || !toc->bounds) return;
+        for (const char* name : {"What sets openmui apart", "1. One semantic tree: pixels, accessibility, agents and tests read the same tree",
+                                 "Determinism: three platforms, two compilers, the same pixels", "Side by side"}) {
+            const auto e = find(a.h, Role::button, name);
+            check(e && e->bounds && e->bounds->x >= toc->bounds->x && e->bounds->x + e->bounds->width <= toc->bounds->x + toc->bounds->width + 0.5f,
+                  e && e->bounds ? std::format("{}: {} + {} in {} + {}", name, e->bounds->x, e->bounds->width, toc->bounds->x, toc->bounds->width)
+                                 : std::format("{}: not found", name));
+        }
+        const auto long_one = find(a.h, Role::button, "1. One semantic tree: pixels, accessibility, agents and tests read the same tree");
+        check(long_one && long_one->bounds && long_one->bounds->height > 50, long_one && long_one->bounds ? std::format("on several lines: {}x{}", long_one->bounds->width, long_one->bounds->height) : "none");
+        (void)a.h.save_png(scratch_dir("markdown-viewer-long") / "headings.png");
+    });
+
     s.test("the contents lead the reading: a heading scrolls into view", [] {
         App a({980, 260});
         a.start(docs());

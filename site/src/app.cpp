@@ -851,11 +851,13 @@ Element moves_window(const std::shared_ptr<Site>& s, bool live) {
                            {button({.id = "on_hit",
                                     .text = say("On hit", "命中"),
                                     .variant = computed([s] { return s->guard.get() ? ButtonVariant::ghost : ButtonVariant::primary; }),
-                                    .on_activated = [s] { s->guard.set(false), s->demo_at.set(0), s->demo_playing.set(false); }}),
+                                    .on_activated = [s] { s->guard.set(false), s->demo_at.set(0), s->demo_playing.set(false); },
+                                    .shrink = 0}),  // the slider gives up the room, not the words
                             button({.id = "on_block",
                                     .text = say("On block", "被防"),
                                     .variant = computed([s] { return s->guard.get() ? ButtonVariant::primary : ButtonVariant::ghost; }),
-                                    .on_activated = [s] { s->guard.set(true), s->demo_at.set(0), s->demo_playing.set(false); }}),
+                                    .on_activated = [s] { s->guard.set(true), s->demo_at.set(0), s->demo_playing.set(false); },
+                                    .shrink = 0}),
                             button({.id = "play",
                                     .text = computed([s, zh] { return std::string(s->demo_playing.get() ? (zh ? "暂停" : "Pause") : (zh ? "播放" : "Play")); }),
                                     .variant = ButtonVariant::ghost,
@@ -863,7 +865,8 @@ Element moves_window(const std::shared_ptr<Site>& s, bool live) {
                                         const bool on = !s->demo_playing.peek();
                                         s->stage_act(on ? "resume" : "pause");
                                         s->demo_playing.set(on);
-                                    }}),
+                                    },
+                                    .shrink = 0}),
                             slider({.id = "frame",
                                     .label = say("Frame", "帧"),
                                     .max = computed(frames),
@@ -874,6 +877,7 @@ Element moves_window(const std::shared_ptr<Site>& s, bool live) {
                                         s->stage_act("demo_frame", Value{}.set("frame", static_cast<std::int64_t>(f)));
                                         s->demo_playing.set(false);  // a frame chosen: held there
                                     },
+                                    .min_width = Dim(0.0f),
                                     .grow = 1}),
                             text({.id = "frame_of",
                                   .text = computed([s, frames, zh] { return std::format("{} {} / {}", zh ? "帧" : "frame", static_cast<int>(s->demo_at.get()), static_cast<int>(frames())); }),

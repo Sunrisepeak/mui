@@ -35,7 +35,29 @@ std::string ts_type(const std::string& type, const std::vector<std::string>& val
     return "unknown";
 }
 
+// Each part of an alternative (`f64 | min | max`), its spaces removed.
+std::vector<std::string> alternatives(const std::string& type) {
+    std::vector<std::string> out;
+    for (auto part : type | std::views::split('|')) {
+        std::string t(part.begin(), part.end());
+        std::erase(t, ' ');
+        out.push_back(std::move(t));
+    }
+    return out;
+}
+
 std::string py_type(const std::string& type, const std::vector<std::string>& values) {
+    if (type.find('|') != std::string::npos) {
+        // As TS's: each a type, a symbol as its string (Literal).
+        std::string types, symbols;
+        for (const std::string& t : alternatives(type)) {
+            const std::string one = py_type(t, values);
+            if (one == "Any") symbols += (symbols.empty() ? "" : ", ") + std::format("\"{}\"", t);
+            else types += (types.empty() ? "" : " | ") + one;
+        }
+        if (!symbols.empty()) types += (types.empty() ? "" : " | ") + std::format("Literal[{}]", symbols);
+        return types;
+    }
     if (type == "bool") return "bool";
     if (type == "i32" || type == "i64") return "int";
     if (type == "f64") return "float";
@@ -50,6 +72,14 @@ std::string py_type(const std::string& type, const std::vector<std::string>& val
 }
 
 std::string lua_type(const std::string& type, const std::vector<std::string>& values) {
+    if (type.find('|') != std::string::npos) {
+        std::string out;
+        for (const std::string& t : alternatives(type)) {
+            const std::string one = lua_type(t, values);
+            out += (out.empty() ? "" : "|") + (one == "any" ? std::format("\"{}\"", t) : one);
+        }
+        return out;
+    }
     if (type == "bool") return "boolean";
     if (type == "i32" || type == "i64") return "integer";
     if (type == "f64") return "number";

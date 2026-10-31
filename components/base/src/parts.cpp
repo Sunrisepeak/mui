@@ -101,7 +101,7 @@ typeset::Paragraph& Label::shaped(Services& services, Color color, float width) 
         ps.style.line_height = tok.line_height;
         ps.style.letter_spacing = tok.letter_spacing;
         ps.style.color = color;
-        ps.wrap = std::isfinite(width);
+        ps.wrap = true;  // whatever width it is first shaped at: an infinite one does not wrap, a later finite one does
         paragraph_.emplace(services.fonts(), text_, std::move(ps));
         color_ = color;
         width_ = -1;

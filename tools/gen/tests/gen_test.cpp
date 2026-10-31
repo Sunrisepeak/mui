@@ -107,6 +107,19 @@ int main(int argc, char** argv) {
             check(cpp.find(expect) != std::string::npos, expect);
     });
 
+    s.test("alternatives typed alike in TypeScript, Python and Lua (`f64 | min | max`)", [] {
+        gen::Diagnostics diags;
+        auto reg = gen::read_registry(spec_dir() / "registry", diags);
+        auto slider = gen::read_contracts(spec_dir() / "registry" / "components" / "slider.contract.omui.toml", reg, diags);
+        check(!slider.empty() && !slider.at(0).props.empty());
+        if (slider.empty() || slider.at(0).props.empty()) return;
+        slider.at(0).props.at(0).type = "f64 | min | max";
+        const std::string ts = gen::emit_dts(slider, "x"), py = gen::emit_pyi(slider, "x"), lua = gen::emit_lua(slider, "x");
+        check(ts.find("number | \"min\" | \"max\"") != std::string::npos, "TypeScript");
+        check(py.find("float | Literal[\"min\", \"max\"]") != std::string::npos, "Python, not Any");
+        check(lua.find("number|\"min\"|\"max\"") != std::string::npos, "Lua, not any");
+    });
+
     s.test("a property of any type is data as it is: a Value, read and handed back whole", [] {
         gen::Diagnostics diags;
         auto reg = gen::read_registry(spec_dir() / "registry", diags);

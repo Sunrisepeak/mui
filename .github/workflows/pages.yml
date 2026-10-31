@@ -20,6 +20,7 @@ on:
       - 'components/timeline/**'
       - 'tools/gen/src/dist_toy.cpp'
       - 'tools/ci/site.sh'
+      - 'tools/ci/site-perf.*'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -65,6 +66,11 @@ jobs:
           mcpp toolchain default gcc@16.1.0
       - name: The site, packed for the Web and pre-rendered
         run: tools/ci/site.sh
+      - name: The site's delivery in a real browser, within its budget
+        # tools/ci/site-perf.sh: the page served as Pages serves it, a cold
+        # visit over 20 Mbit/s — transfer, first frame, readiness, frame tails
+        # (site/delivery.budget.omui.json).
+        run: tools/ci/site-perf.sh
       - name: Keep the site
         uses: actions/upload-pages-artifact@v3
         with:

@@ -85,6 +85,20 @@ python3 -m http.server -d target/site            # and look at it
 
 `.github/workflows/pages.yml` publishes `target/site` to GitHub Pages. `tools/ci/drive-page.mjs` loads the page in a real browser (headless Chromium, in real time) and can drive it through `window.omui`. That is how the packed site was checked: the same tree hash as CI at three window sizes, the overview's textures, the hash routes, and a flight started by a page agent.
 
+## Delivery
+
+`tools/ci/site-perf.sh` measures the built page in a real browser, and the Pages workflow holds every build to `delivery.budget.omui.json`. It serves `target/site` as Pages does (gzip) and makes a cold visit at 1280×800 over a 20 Mbit/s, 40 ms connection. It then flies to the features and back through `window.omui`. Measured 2026-11-01 (headless Chromium 156, i9-13900K):
+
+| | |
+|---|---|
+| transferred | 10.6 MB: the wasm 7.2 MB (4.3 MB of it the fighters' and stages' WebP, which the training room draws), the fonts 3.3 MB (Noto Sans SC 2.7 MB), the script 87 KB |
+| first frame | 4.6 s (the transfer alone takes 4.2 s at 20 Mbit/s); 0.49 s on the machine itself |
+| `window.omui` answers | 4.57 s |
+| frames during the flights | p50 16.7 ms, p95 16.8 ms, max 50 ms; 1 frame over 33 ms in 301 |
+| memory at the end | JS heap 10 MB, wasm memory 42 MB |
+
+Most of the bytes are art and CJK glyphs that the first place doesn't need. Fetching them once the page is drawn is the next step.
+
 ## Tests
 
 `tests/site_test.cpp`:

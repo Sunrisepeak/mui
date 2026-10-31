@@ -333,6 +333,11 @@ public:
     // the program's own state says how here, or undo passes over it.
     // Outside an action, nothing.
     void taken_back_by(std::function<void()> undo, std::function<void()> redo);
+    // Who performs the action under way (its handlers run inside it): what
+    // an action the program performs in turn carries on as its actor
+    // (openas: an agent's click that takes a card takes it as the agent).
+    // None outside an action.
+    [[nodiscard]] std::optional<Actor> acting() const;
     [[nodiscard]] NodeId undo_scope(NodeId node) const;
     [[nodiscard]] History history(NodeId scope) const;
     void clear_history(NodeId scope);

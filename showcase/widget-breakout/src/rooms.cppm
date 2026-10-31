@@ -71,7 +71,8 @@ struct Contraption {
 // The id the n-th brick's node has: "brick.<n>".
 [[nodiscard]] std::string brick_id(std::size_t index);
 // A room's bricks: the field's child, a panel of them named by the room (a canvas room: its canvas).
-[[nodiscard]] std::vector<Element> room_bricks(const RoomDef& r);
+// `changed`: told when a brick's control is changed by anything but the field (an agent acting on it).
+[[nodiscard]] std::vector<Element> room_bricks(const RoomDef& r, std::function<void(std::size_t)> changed = {});
 
 // The scene a canvas room's bricks are in (openmui.ui.canvas): far, boxes
 // of their colour; near, live cards and switches.

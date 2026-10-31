@@ -10,7 +10,7 @@ doc      = "A breakout's field: a paddle, balls and capsules over a room of real
 [contract.field.props]
 room      = { type = "i32", default = 1, doc = "Which room of the run (1–5): its bricks are the field's children; a new room starts afresh with what the run carries (score, balls, sparks, contraptions)." }
 paused    = { type = "bool", default = false, doc = "Stand still: `step` plays one frame." }
-inspector = { type = "bool", default = false, doc = "The inspector (Tab): every brick's role and id, the hidden ones, the semantic tree's latest changes, the state's checksum, and how the room is made." }
+inspector = { type = "bool", default = false, doc = "The inspector (Tab): every brick's role and id, the hidden ones, the semantic tree's latest changes, the state's checksum, and how the room is made; the game waits while it is open." }
 copilot   = { type = "bool", default = true, doc = "Room 5: the application's agent plays the top paddle; off, it leaves it to another agent." }
 
 [contract.field.events]

@@ -274,6 +274,89 @@ int main(int argc, char** argv) {
         check(!a.model.follow(usage, "missing.md") && !a.model.follow(usage, "#searching"));
     });
 
+    s.test("reading: search finds by title, path and text; a result opens; back and forward return; a double-click opens a window", [] {
+        App a;
+        const auto found = a.model.search("search");
+        check(!found.empty() && found.front().path == "guide/usage.md", found.empty() ? "nothing" : found.front().path);
+        check(a.model.search("SEARCH").size() == found.size(), "any case");
+        check(a.model.search("no such words here").empty());
+        const double z0 = a.model.zoom.peek();
+        a.model.open(found.front().key);
+        a.h.settle();
+        check(a.model.zoom.peek() > z0 * 2 && a.model.can_back(), "open: close up, and back remembered");
+        check(a.model.back());
+        a.h.settle();
+        check(std::abs(a.model.zoom.peek() - z0) < 1e-6 && a.model.can_forward(), "back to the whole wall");
+        // Alt+Right goes forward again, through the keyboard as a person's.
+        Headless& h = a.h;
+        check(h.click("main/wall") || true);
+        h.key(Key::right, Modifier::alt);
+        h.settle();
+        check(a.model.zoom.peek() > z0 * 2, "forward again");
+        // The search box, from the toolbar: typing narrows, Enter opens the first.
+        check(h.click("main/top/toolbar/search"), "Search");
+        h.settle();
+        check(a.model.searching.peek(), "shown");
+        const auto readme = by_path(a.model.docs, "README.md").key;
+        check_eq(h.runtime().verbs().invoke("wall.open", Invocation{.args = Value{}.set("document", "README.md")}).exit_code().value_or(-1), std::int64_t{0});
+        h.settle();
+        // Esc puts the box away; a double-click on a window (the whole wall first) opens it.
+        h.key(Key::escape);
+        check(!a.model.searching.peek(), "put away");
+        h.key(Key::digit2);
+        h.settle();
+        const auto r = a.rect(by_path(a.model.docs, "notes/meeting.md").key);
+        const Point at = a.at(r.x + r.width / 2, r.y + r.height / 2);
+        h.step({PointerEvent{.kind = PointerKind::move, .position = at}, PointerEvent{.kind = PointerKind::down, .position = at, .button = MouseButton::left, .buttons = 1}});
+        h.step({PointerEvent{.kind = PointerKind::up, .position = at, .button = MouseButton::left}});
+        h.step({PointerEvent{.kind = PointerKind::down, .position = at, .button = MouseButton::left, .buttons = 1, .clicks = 2}});
+        h.step({PointerEvent{.kind = PointerKind::up, .position = at, .button = MouseButton::left, .clicks = 2}});
+        h.settle();
+        bool live = false;
+        const auto meeting = by_path(a.model.docs, "notes/meeting.md").key;
+        for (const auto& n : h.tree().snapshot({}).nodes) live = live || n.id.starts_with(std::format("main/wall/{}/", meeting));
+        check(live, "the meeting notes, open to read");
+        (void)readme;
+    });
+
+    s.test("kept: the arrangement and the camera come back with the folder", [] {
+        const auto dir = scratch_dir("wall-kept");
+        std::filesystem::remove_all(dir);
+        std::filesystem::copy(docs(), dir, std::filesystem::copy_options::recursive);
+        auto read = omui::wall::read_folder(dir);
+        check(read.has_value());
+        const auto install = by_path(*read, "guide/install.md").key;
+        world::WorldRect moved{};
+        double zoom = 0;
+        {
+            App a(*read);
+            a.model.folder = dir;
+            Invocation call;
+            call.args = Value{}.set("keys", Value(Value::List{Value(install)})).set("dx", 120.0).set("dy", 40.0);
+            check_eq(a.h.tree().act("main/wall", "move_by", call).exit_code().value_or(-1), std::int64_t{0});
+            a.h.key(Key::digit1);
+            a.h.advance(seconds(1));
+            a.h.settle();
+            moved = a.rect(install);
+            zoom = a.model.zoom.peek();
+            check(std::filesystem::exists(dir / ".openmui" / "wall.layout.omui.json"), "kept in the folder");
+        }
+        {
+            omui::wall::Model m;
+            m.docs = *omui::wall::read_folder(dir);
+            m.folder = dir;
+            Headless h({.size = {1440, 900}});
+            AppSpec spec = omui::wall::app(m);
+            spec.setup(h.runtime());
+            h.mount("main", spec.view());
+            h.settle();
+            const auto& sc = world::scene(m.scene);
+            const auto r = sc.rect(*sc.find(install));
+            check(m.restored && std::abs(r.x - moved.x) < 1e-6 && std::abs(r.y - moved.y) < 1e-6, "the window where it was left");
+            check(std::abs(m.zoom.peek() - zoom) < 1e-6, std::format("the camera too: {} {}", m.zoom.peek(), zoom));
+        }
+    });
+
     s.test("a workspace drags by its label with its windows; Esc puts them back; a window drags by its title alone", [] {
         App a;
         const auto guide = omui::wall::key_of("workspace:guide");
@@ -302,6 +385,14 @@ int main(int argc, char** argv) {
         const Point title = a.at(i2.x + 200, i2.y + 12);
         a.drag(title, {title.x + 30, title.y + 30});
         check(a.rect(install).x > i2.x && std::abs(a.rect(usage).x - u2.x) < 1e-6, "the window alone");
+        // Each drag one step of history: undone, last first, the workspace with its windows.
+        check_eq(a.h.runtime().undo({}).exit_code().value_or(-1), std::int64_t{0});
+        check(std::abs(a.rect(install).x - i2.x) < 1e-6, "the window's drag undone");
+        check_eq(a.h.runtime().undo({}).exit_code().value_or(-1), std::int64_t{0});
+        check(std::abs(a.rect(guide).x - ws0.x) < 1e-6 && std::abs(a.rect(install).x - i0.x) < 1e-6 && std::abs(a.rect(usage).y - u0.y) < 1e-6,
+              "the workspace's undone, its windows with it");
+        check_eq(a.h.runtime().redo({}).exit_code().value_or(-1), std::int64_t{0});
+        check(std::abs(a.rect(guide).x - (ws0.x + dx)) < 1e-6, "redone");
     });
 
     s.test("1 is one to one, 2 the whole wall, H the HUD", [] {
@@ -391,7 +482,7 @@ int main(int argc, char** argv) {
         check(a.h.save_png(still).has_value() && std::filesystem::file_size(still) < 1024 * 1024);
         std::println("    pixels {}", hash.hex());
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
-        check_eq(hash.hex(), std::string("e756bc33972b1f35"));
+        check_eq(hash.hex(), std::string("2a14008523bc04ed"));
     });
 
     return s.run(argc, argv);

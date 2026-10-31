@@ -25,7 +25,10 @@ void Sampler::key(std::uint32_t code, bool down) {
     for (const auto& k : b_.keys_)
         if (k.source == code) {
             if (k.button >= 0) button(k.button, down);
-            if (k.axis >= 0 && k.axis < 4) key_axes_[static_cast<std::size_t>(k.axis)] += down ? k.sign : -k.sign;
+            if (k.axis >= 0 && k.axis < 4) {
+                key_axes_[static_cast<std::size_t>(k.axis)] += down ? k.sign : -k.sign;
+                if (down) px_ = py_ = -1;  // the last device used steers: the pointer gives way until it moves again
+            }
         }
 }
 
@@ -37,7 +40,10 @@ void Sampler::pad_button(std::int32_t index, bool down) {
     for (const auto& p : b_.pads_)
         if (p.source == static_cast<std::uint32_t>(index)) {
             if (p.button >= 0) button(p.button, down);
-            if (p.axis >= 0 && p.axis < 4) key_axes_[static_cast<std::size_t>(p.axis)] += down ? p.sign : -p.sign;
+            if (p.axis >= 0 && p.axis < 4) {
+                key_axes_[static_cast<std::size_t>(p.axis)] += down ? p.sign : -p.sign;
+                if (down) px_ = py_ = -1;
+            }
         }
 }
 
@@ -48,6 +54,7 @@ void Sampler::mouse(std::int32_t button, bool down) {
 
 void Sampler::pad_axis(std::int32_t index, double value) {
     if (index >= 0 && index < static_cast<std::int32_t>(pad_axes_.size())) pad_axes_[static_cast<std::size_t>(index)] = value;
+    if (std::abs(value) > 0.5) px_ = py_ = -1;  // a stick pushed steers, as a key does
 }
 
 void Sampler::pointer(double x, double y) {

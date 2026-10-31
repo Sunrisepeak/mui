@@ -32,6 +32,7 @@ int main(int argc, char** argv) {
             return 1;
         }
         model.docs = std::move(*docs);
+        model.folder = where;  // its arrangement and camera kept in it (.openmui/), its tasks' ticks written back
         model.title = omui::utf8(std::filesystem::absolute(where).filename());
     }
     omui::AppSpec spec = omui::wall::app(model);

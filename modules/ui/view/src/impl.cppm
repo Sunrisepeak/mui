@@ -68,6 +68,7 @@ struct Visual {
     bool                           clip = false;
     bool                           visible = true;
     bool                           hit = true;  // pointer_events: none → false (the node and its subtree)
+    bool                           hit_self = true;  // pointer_events: children → false (what is inside takes it, the node not: a layer over another)
 
     float&       operator[](Field x) noexcept { return f[static_cast<std::size_t>(x)]; }
     float        operator[](Field x) const noexcept { return f[static_cast<std::size_t>(x)]; }
@@ -501,6 +502,7 @@ struct Runtime::Impl {
     // and whether one is (outside one, they are not kept).
     std::vector<Inverse>       program_inverse;
     int                        acting = 0;
+    std::vector<Actor>         actors;  // who performs the actions under way, innermost last (Runtime::acting)
     [[nodiscard]] bool is_scope(NodeId id) const;
     [[nodiscard]] NodeId scope_of(NodeId id) const;
     [[nodiscard]] const ScopeHistory* find_history(NodeId scope) const;

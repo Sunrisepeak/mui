@@ -301,6 +301,9 @@ struct ActContext {
     Services&    services;
     NodeId       node;
     const Value& args;
+    // Who acts (openas): a person, an agent, a program — what a component
+    // that seats players or keeps owners checks. Null outside an action.
+    const Actor* actor = nullptr;
 };
 
 struct SemanticsContext {

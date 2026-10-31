@@ -7,6 +7,7 @@ import openmui;
 import openmui.ui.canvas;
 import openmui.ui.canvas.kit;
 import openmui.ui.markdown;
+import mcpplibs.os;
 
 namespace omui::wall {
 
@@ -53,6 +54,144 @@ std::string Model::text(std::string_view key) const {
     return d ? d->source : std::string{};
 }
 
+void Model::open(std::string_view key) {
+    if (!runtime || !document(key)) return;
+    back_.push_back({x.peek(), y.peek(), zoom.peek()});
+    if (back_.size() > 100) back_.erase(back_.begin());
+    forward_.clear();
+    if (const NodeId c = runtime->find(canvas_path); runtime->valid(c)) {
+        Invocation call;
+        call.args = Value{}.set("key", std::string(key));
+        (void)runtime->act(c, "focus_node", call);
+    }
+}
+
+void Model::open_search() {
+    searching.set(true);
+    if (runtime)  // once it is laid out: typing goes into it
+        (void)runtime->after(seconds(0), [this, alive = std::weak_ptr<int>(alive_)] {
+            if (alive.expired() || !runtime) return;
+            if (const NodeId q = runtime->find(query_path); runtime->valid(q)) (void)runtime->act(q, "focus");
+        });
+}
+
+void Model::close_search() {
+    searching.set(false);
+    if (runtime)
+        if (const NodeId c = runtime->find(canvas_path); runtime->valid(c)) (void)runtime->act(c, "focus");
+}
+
+void Model::go(const Camera& c) {
+    if (Canvas* cv = canvas()) cv->animate_to({c.x, c.y, c.zoom});
+    else x.set(c.x), y.set(c.y), zoom.set(c.zoom);
+}
+
+bool Model::back() {
+    if (back_.empty()) return false;
+    forward_.push_back({x.peek(), y.peek(), zoom.peek()});
+    go(back_.back());
+    back_.pop_back();
+    return true;
+}
+
+bool Model::forward() {
+    if (forward_.empty()) return false;
+    back_.push_back({x.peek(), y.peek(), zoom.peek()});
+    go(forward_.back());
+    forward_.pop_back();
+    return true;
+}
+
+std::vector<Model::Found> Model::search(std::string_view words, std::size_t limit) const {
+    auto lower = [](std::string_view s) {
+        std::string out(s);
+        for (char& c : out) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        return out;
+    };
+    const std::string w = lower(words);
+    std::vector<Found> titles, paths, texts;
+    if (w.empty()) return {};
+    for (const Document& d : docs) {
+        const std::string text = this->text(d.key);
+        auto first_line = [&] {
+            const auto nl = text.find('\n');
+            return text.substr(0, std::min<std::size_t>(nl == std::string::npos ? text.size() : nl, 120));
+        };
+        if (lower(d.title).contains(w)) titles.push_back({d.key, d.title, d.path, first_line()});
+        else if (lower(d.path).contains(w)) paths.push_back({d.key, d.title, d.path, first_line()});
+        else if (const auto at = lower(text).find(w); at != std::string::npos) {
+            const auto from = text.rfind('\n', at), to = text.find('\n', at);
+            const std::size_t b = from == std::string::npos ? 0 : from + 1, e = to == std::string::npos ? text.size() : to;
+            std::string line = text.substr(b, std::min<std::size_t>(e - b, 160));
+            texts.push_back({d.key, d.title, d.path, std::move(line)});
+        }
+    }
+    std::vector<Found> out;
+    for (auto* list : {&titles, &paths, &texts})
+        for (Found& f : *list)
+            if (out.size() < limit) out.push_back(std::move(f));
+    return out;
+}
+
+std::filesystem::path Model::layout_file() const { return folder.empty() ? std::filesystem::path{} : folder / ".openmui" / "wall.layout.omui.json"; }
+
+bool Model::restore() {
+    const auto file = layout_file();
+    if (file.empty()) return false;
+    std::ifstream in(file, std::ios::binary);
+    if (!in) return false;
+    const std::string text{std::istreambuf_iterator<char>(in), {}};
+    auto v = parse_json(text);
+    if (!v || !v->map()) {
+        said.set(std::format("{} did not read: the arrangement starts afresh", utf8(file.filename())));
+        return false;
+    }
+    world::Scene& s = world::scene(scene);
+    if (const Value* nodes = v->get("nodes"); nodes && nodes->map())
+        for (const auto& [key, at] : *nodes->map())
+            if (const auto n = s.find(key); n && at.list() && at.list()->size() == 2) s.move(*n, (*at.list())[0].as_double(), (*at.list())[1].as_double());
+    if (const Value* c = v->get("camera"); c && c->list() && c->list()->size() == 3) {
+        x.set((*c->list())[0].as_double());
+        y.set((*c->list())[1].as_double());
+        zoom.set((*c->list())[2].as_double());
+        return true;
+    }
+    return false;
+}
+
+void Model::keep() {
+    if (layout_file().empty() || !runtime || keep_timer_) return;
+    keep_timer_ = runtime->after(seconds(0.5), [this, alive = std::weak_ptr<int>(alive_)] {
+        if (alive.expired()) return;
+        keep_timer_ = 0;
+        const world::Scene& s = world::scene(scene);
+        Value nodes = Value(Value::Map{});
+        s.each_unordered([&](world::NodeRef n) {
+            const auto r = s.rect(n);
+            nodes.set(s.key(n), Value(Value::List{Value(r.x), Value(r.y)}));
+        });
+        Value v;
+        v.set("about", "The document wall's arrangement and camera for this folder (omui-wall writes it; delete it to start afresh).");
+        v.set("camera", Value(Value::List{Value(x.peek()), Value(y.peek()), Value(zoom.peek())})).set("nodes", std::move(nodes));
+        const auto file = layout_file();
+        std::error_code ec;
+        std::filesystem::create_directories(file.parent_path(), ec);
+        if (auto w = mcpplibs::os::fs::write_atomic(file, v.json()); !w) said.set(std::format("not kept: {}", w.error().message()));
+    });
+}
+
+std::expected<void, std::string> Model::save_document(std::string_view key) {
+    const Document* d = document(key);
+    if (!d || folder.empty()) return std::unexpected(std::string("nowhere to write it"));
+    const auto file = folder / std::filesystem::path(std::u8string(d->path.begin(), d->path.end()));
+    if (auto w = mcpplibs::os::fs::write_atomic(file, text(key)); !w) {
+        said.set(std::format("{} not saved: {}", d->path, w.error().message()));
+        return std::unexpected(w.error().message());
+    }
+    said.set(std::format("{} saved", d->path));
+    return {};
+}
+
 omui::Canvas* Model::canvas() const { return runtime ? runtime->component<omui::Canvas>(runtime->find(canvas_path)) : nullptr; }
 
 const Document* Model::at_path(std::string_view path) const {
@@ -87,11 +226,7 @@ std::optional<std::string> Model::follow(std::string_view from_key, std::string_
     for (const std::string& p : parts) path += path.empty() ? p : "/" + p;
     const Document* to = at_path(path);
     if (!to) return std::nullopt;
-    if (const NodeId c = runtime->find(canvas_path); runtime->valid(c)) {
-        Invocation call;
-        call.args = Value{}.set("key", to->key);
-        (void)runtime->act(c, "focus_node", call);
-    }
+    open(to->key);  // back() returns here
     return to->key;
 }
 
@@ -251,7 +386,30 @@ omui::AppSpec app(Model& model) {
         model.runtime = &rt;
         register_all();
         build(model, omui::world::scene(model.scene));
+        model.restored = model.restore();  // the folder's arrangement and camera, as last left
     };
+    for (auto [name, doc] : {std::pair{"wall.back", "Back to where the camera was before the last document opened (Alt+←)."},
+                             {"wall.forward", "Forward again (Alt+→)."}})
+        a.verbs.push_back({{name, doc, omui::Effect::read, {}, {}}, [&model, n = std::string_view(name)](const omui::Value&) -> omui::VerbResult {
+                               const bool went = n == "wall.back" ? model.back() : model.forward();
+                               if (!went) return std::unexpected(std::string(n == "wall.back" ? "nothing to go back to" : "nothing to go forward to"));
+                               return omui::Value{};
+                           }});
+    a.verbs.push_back({{"wall.search", "The documents with these words: titles first, then paths, then text.", omui::Effect::read, {}, {{"words", "string"}}},
+                       [&model](const omui::Value& args) -> omui::VerbResult {
+                           omui::Value::List out;
+                           for (const auto& f : model.search(args.get("words") ? args.get("words")->as_string() : ""))
+                               out.push_back(omui::Value{}.set("key", f.key).set("title", f.title).set("path", f.path).set("line", f.line));
+                           return omui::Value(std::move(out));
+                       }});
+    a.verbs.push_back({{"wall.open", "Brings a document into view to read it (by its key or its path).", omui::Effect::read, {}, {{"document", "string"}}},
+                       [&model](const omui::Value& args) -> omui::VerbResult {
+                           const std::string_view d = args.get("document") ? args.get("document")->as_string() : "";
+                           const Document* doc = model.document(d) ? model.document(d) : model.at_path(d);
+                           if (!doc) return std::unexpected(std::format("no document `{}`", d));
+                           model.open(doc->key);
+                           return omui::Value(doc->key);
+                       }});
     a.verbs.push_back({{"wall.stream", "Writes into the windows nearest the view's centre at a language model's pace.", omui::Effect::reversible, {},
                         {{"windows", "i64"}, {"rate", "f64"}}},
                        [&model](const omui::Value& args) -> omui::VerbResult {
@@ -269,23 +427,84 @@ omui::AppSpec app(Model& model) {
     a.view = [&model] {
         using namespace omui;
         // The HUD over the canvas, its own size at the corner (not stretched over the wall, where it would take its input).
+        Element wall = canvas({.id = "wall",
+                               .behaviors = std::vector<std::string>{"select", "drag", "snap", "minimap", "group-drag", "views"},
+                               .label = model.title,
+                               .max_zoom = 8,
+                               .min_zoom = 0.004,
+                               .scene = model.scene,
+                               .start = model.restored ? std::string() : std::string("fit"),
+                               .x = model.x,
+                               .y = model.y,
+                               .zoom = model.zoom,
+                               // A double-click (or Enter) on a window opens it to read.
+                               .on_activated = [&model](std::string key) { if (model.document(key)) model.open(key); },
+                               .on_camera_changed = [&model](double, double, double) { model.keep(); },
+                               .on_moved = [&model](double, double, std::vector<std::string>) { model.keep(); },
+                               .width = Dim(layout::pct(100)),
+                               .height = Dim(layout::pct(100)),
+                               .on = {{"hud.toggle", [&model](const Value&) { model.hud.set(!model.hud.peek()); }},
+                                      {"key_down", [&model](const Value& e) {
+                                           const std::string_view key = e.get("key") ? e.get("key")->as_string() : "";
+                                           const Value* mods = e.get("mods");
+                                           auto has = [&](std::string_view m) {
+                                               return mods && mods->list() && std::ranges::any_of(*mods->list(), [&](const Value& x) { return x.as_string() == m; });
+                                           };
+                                           if (has("alt") && key == "Left") (void)model.back();
+                                           else if (has("alt") && key == "Right") (void)model.forward();
+                                           else if ((has("ctrl") || has("meta")) && key == "F") model.open_search();
+                                           else if (key == "Slash" && !has("ctrl")) model.open_search();
+                                       }}}});
+        // How to find one's way, and back: always at hand (top right).
+        Element bar = row({.id = "toolbar", .padding = Edges(6.0f, 8.0f), .gap = 6, .align = "center", .background = "surface", .border_color = "border",
+                           .border_width = 1, .radius = 10, .shadow = "md"},
+                          {button({.id = "back", .disabled = computed([&model] { (void)model.x.get(); return !model.can_back(); }), .text = "Back",
+                                   .variant = ButtonVariant::ghost, .on_activated = [&model] { (void)model.back(); }}),
+                           button({.id = "forward", .disabled = computed([&model] { (void)model.x.get(); return !model.can_forward(); }), .text = "Forward",
+                                   .variant = ButtonVariant::ghost, .on_activated = [&model] { (void)model.forward(); }}),
+                           button({.id = "search", .text = "Search", .variant = ButtonVariant::secondary, .on_activated = [&model] { model.open_search(); }}),
+                           text({.id = "how", .text = "drag · wheel to zoom · double-click to read · 2 all", .style = "caption", .color = "text_muted"})});
+        // Search: the words, and what has them; Enter or a click goes there, Esc closes it.
+        Element finder = column({.id = "finder", .width = Dim(520.0f), .padding = Edges(12.0f), .gap = 8, .background = "surface", .border_color = "border",
+                                 .border_width = 1, .radius = 12, .shadow = "lg"},
+                                {text_box({.id = "query", .label = "Search the documents", .placeholder = "Words in a title, a path or the text",
+                                           .text = model.query,
+                                           .on_changed = [&model](std::string v) { model.query.set(std::move(v)); },
+                                           .on_submitted = [&model](std::string v) {
+                                               const auto found = model.search(v, 1);
+                                               if (found.empty()) return;
+                                               model.close_search();
+                                               model.open(found.front().key);
+                                           }}),
+                                 dynamic([&model] {
+                                     std::vector<Element> out;
+                                     const auto found = model.search(model.query.get());
+                                     if (!model.query.get().empty() && found.empty())
+                                         out.push_back(text({.id = "none", .text = "Nothing has these words.", .style = "caption", .color = "text_muted"}));
+                                     for (std::size_t i = 0; i < found.size(); ++i) {
+                                         const auto& f = found[i];
+                                         out.push_back(button({.id = std::format("result{}", i), .text = std::format("{} — {}", f.title, f.path),
+                                                               .variant = ButtonVariant::ghost, .on_activated = [&model, key = f.key] {
+                                                                   model.close_search();
+                                                                   model.open(key);
+                                                               }}));
+                                         out.push_back(text({.id = std::format("line{}", i), .text = f.line, .style = "caption", .color = "text_muted", .max_lines = 1}));
+                                     }
+                                     return out;
+                                 })});
+        finder.on("key_down", [&model](const Value& e) {
+            if (e.get("key") && e.get("key")->as_string() == "Escape") model.close_search();
+        });
+        finder.prop("display", derive([&model] { return std::string(model.searching.get() ? "flex" : "none"); }));
         return stack({.id = "app", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .align = "start"},
-                     {canvas({.id = "wall",
-                              .behaviors = std::vector<std::string>{"select", "drag", "snap", "minimap", "group-drag", "views"},
-                              .label = model.title,
-                              .max_zoom = 8,
-                              .min_zoom = 0.004,
-                              .scene = model.scene,
-                              .start = "fit",
-                              .x = model.x,
-                              .y = model.y,
-                              .zoom = model.zoom,
-                              .width = Dim(layout::pct(100)),
-                              .height = Dim(layout::pct(100)),
-                              .on = {{"hud.toggle", [&model](const Value&) { model.hud.set(!model.hud.peek()); }}}}),
+                     {std::move(wall),
                       // The HUD reads; it takes no pointer: a click on what it covers reaches the wall.
-                      immediate([&model](Ui& ui) { hud(ui, model); }, {.id = "hud-layer", .margin = Edges(12)})
-                          .prop("pointer_events", Source{Value("none"), {}, {}})});
+                      immediate([&model](Ui& ui) { hud(ui, model); }, {.id = "hud-layer", .margin = Edges(12)}).prop("pointer_events", Source{Value("none"), {}, {}}),
+                      // Layers over the wall that take no pointer themselves, only their controls do.
+                      column({.id = "top", .width = Dim(layout::pct(100)), .padding = Edges(12.0f), .gap = 8, .align = "end"}, {std::move(bar)})
+                          .prop("pointer_events", Source{Value("children"), {}, {}}),
+                      column({.id = "middle", .width = Dim(layout::pct(100)), .padding = Edges(Insets{80, 0, 0, 0}), .align = "center"}, {std::move(finder)})
+                          .prop("pointer_events", Source{Value("children"), {}, {}})});
     };
     return a;
 }

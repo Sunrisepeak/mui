@@ -156,7 +156,14 @@ int main(int argc, char** argv) {
         check(now && now->states.has(State::checked));
         check_eq(act(h, "main/doc", "toggle_task", Value{}.set("index", std::int64_t{0})), std::int64_t{0});
         h.settle();
-        check(src.peek().contains("- [ ] parse"));
+        check(src.peek().contains("- [ ] parse"));        // A person's click toggles it as well (activate), and undo takes it back.
+        const auto again = find_role(h, Role::checkbox, "render");
+        check(again && h.click(again->id), "clicked");
+        h.settle();
+        check(src.peek().contains("- [ ] render"), "a click unchecked it");
+        check_eq(h.runtime().undo({}).exit_code().value_or(-1), std::int64_t{0});
+        h.settle();
+        check(src.peek().contains("- [x] render"), "undone");
     });
 
     s.test("streaming: unchanged blocks keep their nodes, the stream re-parses the tail", [] {

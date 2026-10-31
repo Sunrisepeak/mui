@@ -11,3 +11,4 @@ __pycache__/
 dist/
 python-probe.log
 reflect-canary.log
+.openmui/

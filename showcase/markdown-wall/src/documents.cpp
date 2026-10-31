@@ -127,6 +127,8 @@ std::string title_of(std::string_view md, std::string_view fallback) {
             while (!line.empty() && (line.back() == ' ' || line.back() == '\r')) line.remove_suffix(1);
             if (!line.empty()) return std::string(line);
         }
+        // A heading further down names a part of it, not the document: its file's name does.
+        if (line.find_first_not_of(" \t\r") != std::string_view::npos) break;
         at = end + 1;
     }
     return std::string(fallback);

@@ -487,6 +487,7 @@ void Runtime::Impl::apply_now(NodeId id, std::string_view name, const Value& val
             what |= dirty_semantics;
         } else if (name == "pointer_events") {
             m.visual.hit = value.as_string() != "none";
+            m.visual.hit_self = value.as_string() != "children";
         }
     }
     if (name == "role" && !rules_of(id).empty()) apply_rules(id);  // a rule may name its role

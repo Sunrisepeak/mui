@@ -390,7 +390,8 @@ Value pointer_value(const PointerInput& in) {
 }
 
 // What a pointer is over; with `inside`, the keys of the nodes lying wholly
-// on it too, bottom to top (a frame dragged with what is on it).
+// on it too, bottom to top (a frame dragged with what is on it), and `group`:
+// its own key and theirs (what a drag of it moves).
 Value hit_value(const Scene& s, const std::optional<world::Hit>& hit, bool inside = false) {
     if (!hit || !s.valid(hit->node)) return {};
     Value v = Value{}.set("node", Value(s.key(hit->node))).set("kind", Value(s.kind_name(hit->node))).set("title", Value(hit->title));
@@ -398,13 +399,13 @@ Value hit_value(const Scene& s, const std::optional<world::Hit>& hit, bool insid
         const WorldRect r = s.rect(hit->node);
         std::vector<NodeRef> under;
         s.query(r, under);
-        Value::List keys;
+        Value::List keys, group{Value(s.key(hit->node))};
         for (NodeRef n : under) {
             if (n == hit->node) continue;
             const WorldRect q = s.rect(n);
-            if (q.x >= r.x && q.y >= r.y && q.right() <= r.right() && q.bottom() <= r.bottom()) keys.emplace_back(s.key(n));
+            if (q.x >= r.x && q.y >= r.y && q.right() <= r.right() && q.bottom() <= r.bottom()) keys.emplace_back(s.key(n)), group.emplace_back(s.key(n));
         }
-        v.set("inside", Value(std::move(keys)));
+        v.set("inside", Value(std::move(keys))).set("group", Value(std::move(group)));
     }
     return v;
 }

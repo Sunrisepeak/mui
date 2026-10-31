@@ -1,5 +1,6 @@
 # A workspace dragged by its label, with every window lying on it; Esc or a
-# cancelled gesture puts them back. Told as `workspace.moved`.
+# cancelled gesture puts them back. Told as `moved` (all of them: one step
+# of history, undone together) and `workspace.moved`.
 [behavior.group-drag]
 on       = "canvas"
 initial  = "idle"
@@ -11,7 +12,7 @@ on.pointer_down = { when = "hit != null && hit.kind == 'workspace' && hit.title 
 
 [behavior.group-drag.states.dragging]
 on.pointer_move   = { do = ["move(hit.node, delta.world)", "move(hit.inside, delta.world)"] }
-on.pointer_up     = { to = "idle", do = ["commit('workspace.moved', {'workspace': hit.node, 'dx': travel.world.x, 'dy': travel.world.y})"] }
+on.pointer_up     = { to = "idle", do = ["commit('moved', {'keys': hit.group, 'dx': travel.world.x, 'dy': travel.world.y})", "commit('workspace.moved', {'workspace': hit.node, 'dx': travel.world.x, 'dy': travel.world.y})"] }
 on.pointer_cancel = { to = "idle", do = ["move(hit.node, {'x': -travel.world.x, 'y': -travel.world.y})", "move(hit.inside, {'x': -travel.world.x, 'y': -travel.world.y})"] }
 on.key            = { when = "key == 'Escape'", to = "cancelled", do = ["move(hit.node, {'x': -travel.world.x, 'y': -travel.world.y})", "move(hit.inside, {'x': -travel.world.x, 'y': -travel.world.y})"] }
 

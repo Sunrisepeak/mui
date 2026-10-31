@@ -77,11 +77,25 @@ void Field::prop_changed(FieldProp p) {
     if (p == FieldProp::room) {
         services().recompose(node());  // its bricks: read into a new simulation on the next step
         restart_room();
+        services().focus(node());
     }
     refresh();
 }
 
-std::vector<Element> Field::compose() { return room_bricks(room(props.room)); }
+std::vector<Element> Field::compose() {
+    // A brick's control changed by anything but the simulation (an agent's toggle): once it has taken the
+    // change (the event comes first), what the simulation holds, again.
+    return room_bricks(room(props.room), [this](std::size_t i) {
+        (void)services().after(seconds(0), [this, i] {
+            if (!timeline_) return;
+            const Brick* found = nullptr;
+            timeline_->state().world.each<Brick>([&](mgame::Entity, const Brick& b) {
+                if (b.id == i) found = &b;
+            });
+            if (found) show_brick(i, found);
+        });
+    });
+}
 
 void Field::refresh() {
     services().invalidate_paint(node());
@@ -433,7 +447,7 @@ void Field::run(std::int32_t steps) {
         show_style();
         refresh();
     }
-    if (props.paused) return;
+    if (props.paused || props.inspector) return;  // looking inside: the game waits
     const State& s = timeline_->state();
     if (s.over) {
         for (std::int32_t k = 0; k < steps; ++k) over_step();
@@ -718,6 +732,7 @@ ActResult Field::choose(ActContext&, const Value& gift) {
     emit_choosing(props.room, false);
     props.room = std::min(props.room + 1, room_count);
     prop_changed(FieldProp::room);
+    services().focus(node());  // the cards gone: the keys are the game's again (Space, Enter), not the card's button
     return ActResult::done(Value(static_cast<std::int64_t>(props.room)));
 }
 

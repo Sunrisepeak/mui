@@ -586,7 +586,7 @@ int main(int argc, char** argv) {
         a.h.advance(seconds(1));
         shot("time.png");
         std::println("    pixels {}", all.hex());
-        check_eq(all.hex(), std::string("999ac1ca845098c1"));
+        check_eq(all.hex(), std::string("69251435566e3d70"));
     });
 
     s.test("the style workshop runs in its place, a theme scope: a pack styles it alone, the site keeps its theme, the tree is the same in every pack", [] {

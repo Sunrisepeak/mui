@@ -17,6 +17,7 @@ const mgame::Actions a = in.sample();       // once a frame: plain data
 - **Actions:** held, pressed and released bits for up to 32 buttons; four axes in 16-bit steps; the pointer within the game's area. It is plain data, so recordings replay and hash exactly.
 - **No tap lost:** a press and a release between two samples still count as a press. A key's repeat changes nothing.
 - **Axes:** arrows held both ways cancel. A stick past its dead zone wins over keys. The pointer can be an axis, as a paddle follows it.
+- **The last device steers:** a key or a stick that moves an axis puts the pointer aside (`pointer_x` −1) until the pointer moves again, so a player who reached for the keys is not held where the mouse rests.
 - **Recordings as text:** one frame a line, readable and writable by people and agents (`to_text`, `from_text`).
 
 The standard library alone; `mgame.ui` feeds it from openmui's events.

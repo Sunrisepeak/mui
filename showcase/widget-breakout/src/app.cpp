@@ -116,7 +116,7 @@ struct Bench {
         const Contraption* c = contraption(offered[card]);
         if (!c) return;
         Invocation call;
-        call.actor = {"person", "player", {}};
+        call.actor = runtime->acting().value_or(Actor{"person", "player", {}});  // whoever clicked Take takes it (openas)
         call.args = Value{}.set("gift", std::string(c->script));
         (void)runtime->act(field, "choose", call);
     }

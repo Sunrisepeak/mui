@@ -29,7 +29,7 @@ omui::Color tint(std::string_view name) {
 // live window are this one element — values for the texture (it is laid out
 // on the pool), the live text's signal for the window.
 omui::Element window(const Document& d, double w, double h, omui::Prop<std::string> source, omui::Color accent,
-                     std::function<void(std::string)> follow = {}) {
+                     std::function<void(std::string)> follow = {}, std::function<void()> ticked = {}) {
     using namespace omui;
     return column({.width = Dim(static_cast<float>(w)),
                    .height = Dim(static_cast<float>(h)),
@@ -43,7 +43,10 @@ omui::Element window(const Document& d, double w, double h, omui::Prop<std::stri
                         text({.text = d.title, .style = "label", .wrap = false, .max_lines = 1}),
                         spacer(),
                         text({.text = d.path, .style = "caption", .color = Fill("text_muted"), .wrap = false, .max_lines = 1})}),
-                   scroll({.id = "page", .grow = 1, .padding = Edges(14.0f, 18.0f)}, {markdown({.id = "doc", .source = std::move(source), .on_link_activated = std::move(follow)})})});
+                   scroll({.id = "page", .grow = 1, .padding = Edges(14.0f, 18.0f)}, {markdown({.id = "doc", .source = std::move(source), .on_link_activated = std::move(follow),
+                                                                                       .on_task_toggled = [ticked = std::move(ticked)](bool, std::int32_t) {
+                                                                                           if (ticked) ticked();
+                                                                                       }})})});
 }
 
 // Labels shaped once a node (and theme), drawn at a size fixed on screen.
@@ -105,22 +108,33 @@ void build(Model& model, Scene& scene, const Geometry& g) {
                                  .role = omui::Role::group,
                                  .title_bar = static_cast<float>(g.label)});
     scene.kind("window",
-               omui::world::Kind{.tiers = {{0, Tier::Draw::custom}, {40, Tier::Draw::texture}, {900, Tier::Draw::promote}},
+               omui::world::Kind{// A block with its title until the page would be too small to read (miniature text names nothing).
+                                 .tiers = {{0, Tier::Draw::custom}, {g.texture_from, Tier::Draw::texture}, {900, Tier::Draw::promote}},
                                  .draw =
-                                     [](DrawContext& d) {
-                                         // T0: a block and a title strip, two instanced boxes.
+                                     [labels](DrawContext& d) {
+                                         // T0: a block and a title strip, two instanced boxes; its title, at a size fixed
+                                         // on screen, where there is room — each document known at any distance.
                                          const omui::Rect r = d.screen;
                                          const float radius = static_cast<float>(10 * d.zoom);
                                          d.list.fill_round_rect(r, omui::CornerRadii::all(radius), omui::render::Paint::solid(d.theme.color("surface")));
                                          d.list.fill_round_rect({r.x, r.y, r.width, std::max(1.0f, static_cast<float>(title_bar * d.zoom))},
                                                                 omui::CornerRadii{radius, radius, 0, 0}, omui::render::Paint::solid(d.scene.fill(d.node)));
+                                         if (!d.fonts || r.width < 36 || r.height < 14) return;
+                                         const std::string key(d.scene.key(d.node));
+                                         const auto& p = labels->get(d, key, std::string(d.scene.text(d.node, "title")), 11, 600, d.theme.color("text"));
+                                         const omui::Size s = p.size();
+                                         d.list.push_clip({r.x + 4, r.y, r.width - 8, r.height});
+                                         p.paint(d.list, {r.x + 6, r.y + std::min(r.height / 2 - s.height / 2, 4.0f + static_cast<float>(title_bar * d.zoom))});
+                                         d.list.pop_clip();
                                      },
                                  .promote =
                                      [&model](const Scene& s, NodeRef n) {
                                          const Document* doc = model.document(s.key(n));
                                          const auto r = s.rect(n);
                                          return window(*doc, r.width, r.height, model.live(doc->key), s.fill(n),
-                                                       [&model, key = doc->key](std::string href) { (void)model.follow(key, href); });
+                                                       [&model, key = doc->key](std::string href) { (void)model.follow(key, href); },
+                                                       // A task ticked: the file says so too (the folder's own documents).
+                                                       [&model, key = doc->key] { (void)model.save_document(key); });
                                      },
                                  .view =
                                      [&model](const Scene& s, NodeRef n) {

@@ -61,6 +61,7 @@ public:
     ActResult zoom_to(ActContext& ctx, const Value& zoom);
     ActResult fit(ActContext& ctx, const Value& target);
     ActResult focus_node(ActContext& ctx, const Value& key);
+    ActResult move_by(ActContext& ctx, const MoveByArgs& args);
     ActResult camera_preset(ActContext& ctx, const Value& name);
     ActResult find(ActContext& ctx, const Value& query);
 

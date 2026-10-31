@@ -12,6 +12,8 @@ import openmui.ui.timeline;
 import openmui.ui.canvas;
 import openmui.showcase.markdown_wall;
 import openmui.showcase.style_gallery;
+import openmui.theme;
+import openmui.theme.styles;
 import openmui.showcase.fighting;
 import hello;
 import openmui.semantic;
@@ -82,6 +84,67 @@ fade = { out = "30f" }
 )";
 
 // What the site keeps between its setup and its view.
+// What the far-away pictures of the live works show: their own structure,
+// taken once on the UI thread and never written again (textures are drawn on
+// other threads) — the wall's workspaces and windows as its blocks, the
+// workshop's packs in their own colours.
+struct Thumbs {
+    struct Block {
+        world::WorldRect r;
+        Color            fill;
+        std::string      title;
+        bool             group = false;
+    };
+    std::vector<Block> wall;
+    world::WorldRect   wall_bounds{};
+    struct Pack {
+        std::string name, doc;
+        Color       background, surface, accent, text;
+    };
+    std::vector<Pack> packs;
+};
+
+// The wall's blocks drawn into a box (each workspace and window, its title
+// where it fits), as the wall itself draws them from far away.
+Element wall_picture(std::shared_ptr<const Thumbs> t) {
+    return painter({.id = "picture", .width = Dim(layout::pct(100)), .grow = 1, .role = Role::image, .label = "The wall from far away",
+                    .paint = [t](PaintContext& c) {
+                        const auto& b = t->wall_bounds;
+                        if (b.width <= 0 || b.height <= 0) return;
+                        const float k = std::min(c.size.width / static_cast<float>(b.width), c.size.height / static_cast<float>(b.height)) * 0.94f;
+                        const float ox = (c.size.width - static_cast<float>(b.width) * k) / 2, oy = (c.size.height - static_cast<float>(b.height) * k) / 2;
+                        auto at = [&](const world::WorldRect& r) {
+                            return Rect{ox + static_cast<float>(r.x - b.x) * k, oy + static_cast<float>(r.y - b.y) * k, static_cast<float>(r.width) * k,
+                                        static_cast<float>(r.height) * k};
+                        };
+                        for (const auto& x : t->wall) {
+                            const Rect r = at(x.r);
+                            if (x.group) {
+                                c.list.fill_round_rect(r, CornerRadii::all(6), render::Paint::solid(x.fill.with_alpha(0.12f)));
+                                c.list.stroke_round_rect(r, CornerRadii::all(6), 1, render::Paint::solid(x.fill.with_alpha(0.45f)));
+                            } else {
+                                c.list.fill_round_rect(r, CornerRadii::all(2), render::Paint::solid(c.theme.color("surface")));
+                                c.list.fill_rect({r.x, r.y, r.width, std::max(1.5f, r.height * 0.08f)}, x.fill);
+                            }
+                        }
+                    }});
+}
+
+// The five packs side by side, each a small panel in its own colours.
+Element packs_picture(std::shared_ptr<const Thumbs> t) {
+    std::vector<Element> tiles;
+    for (const auto& p : t->packs)
+        tiles.push_back(column({.min_width = Dim(0.0f), .padding = Edges(14.0f), .gap = 8, .grow = 1, .background = Fill(p.background), .radius = 10},
+                               {text({.text = p.name, .style = "heading", .color = Fill(p.text)}),
+                                box({.width = Dim(layout::pct(60)), .height = Dim(6.0f), .background = Fill(p.accent), .radius = 3}),
+                                column({.padding = Edges(10.0f), .gap = 6, .background = Fill(p.surface), .radius = 8},
+                                       {box({.width = Dim(layout::pct(80)), .height = Dim(8.0f), .background = Fill(p.text.with_alpha(0.5f)), .radius = 4}),
+                                        box({.width = Dim(layout::pct(55)), .height = Dim(8.0f), .background = Fill(p.text.with_alpha(0.3f)), .radius = 4}),
+                                        box({.width = Dim(70.0f), .height = Dim(18.0f), .background = Fill(p.accent), .radius = 6})}),
+                                text({.text = p.doc, .style = "caption", .color = Fill(p.text.with_alpha(0.7f))})}));
+    return row({.id = "picture", .width = Dim(layout::pct(100)), .gap = 10, .align = "stretch", .grow = 1}, std::move(tiles));
+}
+
 struct Site {
     Runtime*            runtime = nullptr;
     Signal<std::string> place = signal(std::string("home")), lang = signal(std::string("en")), lens = signal(std::string("pixels"));
@@ -89,6 +152,7 @@ struct Site {
     Signal<std::string> agent = signal(std::string()), test = signal(std::string()), hash = signal(std::string());
 
     Signal<bool>        panel = signal(false);  // the agent panel open
+    std::shared_ptr<const Thumbs> thumbs = std::make_shared<Thumbs>();  // the far-away pictures' (set up once)
     // How the page draws, as the person chose it (the drawing panel): the
     // places live only at rest, always, or never (the atlas's `promotion`),
     // and who draws (choose_renderer: on the Web the page loads again).
@@ -857,7 +921,9 @@ Element work_window(const std::shared_ptr<Site>& s, const std::string& id, bool 
     };
     if (id == "hello") {
         // Example 01, the shortest openmui program, running beside its own source (embedded by its build).
-        Element run = live ? hello::app(s->hello).view() : later(say("It runs here, close up.", "走近，它就在这里运行。"));
+        // Far away the same program as it starts (a state of its own, never written: the texture is drawn on another thread).
+        static hello::State still;
+        Element run = live ? hello::app(s->hello).view() : hello::app(still).view();
         if (v.width < 600) {  // a phone: the program, then its source, the page scrolling
             const float w = v.width - 32;
             return scroll({.id = "page", .width = Dim(v.width), .height = Dim(v.height), .padding = Edges(20.0f, 16.0f), .background = "background"},
@@ -900,7 +966,7 @@ Element work_window(const std::shared_ptr<Site>& s, const std::string& id, bool 
                                              .scene = s->wall->scene,
                                              .start = "fit",
                                              .grow = 1})
-                                   : later(say("A wall of documents, live close up.", "一面文档墙，走近就是活的。"));
+                                   : wall_picture(s->thumbs);
     return column({.id = "page", .width = Dim(v.width), .height = Dim(v.height), .padding = Edges(24.0f, 32.0f), .gap = 12, .background = "background"},
                   {text({.id = "title", .text = say("The document wall (S1)", "文档墙（S1）"), .style = "title"}),
                    text({.id = "about",
@@ -919,9 +985,7 @@ Element styles_window(const std::shared_ptr<Site>& s, bool live) {
     const Size v = s->layout.view;
     const bool zh = s->lang.peek() == "zh";
     auto say = [zh](std::string_view en, std::string_view han) { return std::string(zh ? han : en); };
-    Element work = live ? styles::view(s->studio)
-                        : box({.id = "later", .justify = "center", .align = "center", .grow = 1, .background = "surface", .radius = 12},
-                              {text({.text = say("Close up, the workshop runs here.", "走近，工坊就在这里运行。"), .style = "caption", .color = "text_muted"})});
+    Element work = live ? styles::view(s->studio) : packs_picture(s->thumbs);
     return column({.id = "page", .width = Dim(v.width), .height = Dim(v.height), .padding = Edges(24.0f, 32.0f), .gap = 12, .background = "background"},
                   {text({.id = "title", .text = say("The style workshop (S2)", "风格工坊（S2）"), .style = "title"}),
                    text({.id = "about",
@@ -1190,6 +1254,35 @@ AppSpec app(std::string_view place, std::string_view lang) {
         s->studio.can_export = false;  // a page has nowhere to write the file
         s->studio.runtime = &rt;
         if (auto r = s->studio.show("glass", false); !r) warn("site: {}", r.error());
+        // The far-away pictures: the wall's blocks and the packs' colours, taken now, never written again.
+        {
+            auto t = std::make_shared<Thumbs>();
+            const world::Scene& ws = world::scene(s->wall->scene);
+            bool first = true;
+            ws.each_unordered([&](world::NodeRef n) {
+                const std::string_view kind = ws.kind_name(n);
+                if (kind != "workspace" && kind != "window") return;
+                const auto r = ws.rect(n);
+                t->wall.push_back({r, ws.fill(n), std::string(ws.text(n, "title")), kind == "workspace"});
+                if (first) t->wall_bounds = r, first = false;
+                const double x0 = std::min(t->wall_bounds.x, r.x), y0 = std::min(t->wall_bounds.y, r.y);
+                const double x1 = std::max(t->wall_bounds.x + t->wall_bounds.width, r.x + r.width), y1 = std::max(t->wall_bounds.y + t->wall_bounds.height, r.y + r.height);
+                t->wall_bounds = {x0, y0, x1 - x0, y1 - y0};
+            });
+            std::ranges::stable_sort(t->wall, [](const Thumbs::Block& a, const Thumbs::Block& b) { return a.group > b.group; });  // workspaces under their windows
+            for (std::string_view name : themes::style_names)
+                if (const auto st = theme::library().find_style(name)) {
+                    const bool dark = std::ranges::contains(st->layers, std::string("dark"));
+                    auto colour = [&](std::string_view token, Color otherwise) {
+                        const auto it = st->tokens.colors.find(std::string(token));
+                        return it != st->tokens.colors.end() ? it->second : otherwise;
+                    };
+                    t->packs.push_back({std::string(name), st->doc, colour("background", dark ? Color::hex(0x0b0f16) : Color::hex(0xf8fafc)),
+                                        colour("surface", dark ? Color::hex(0x161c27) : Color::white()), colour("accent", Color::hex(0x6366f1)),
+                                        colour("text", dark ? Color::hex(0xe5e7eb) : Color::hex(0x111827))});
+                }
+            s->thumbs = std::move(t);
+        }
         s->guide = std::make_unique<Guide>(rt, [site = s.get()] { return site->place.get(); });
         register_type(component_type<Timebar>());
         register_type(component_type<FrameMeter>());

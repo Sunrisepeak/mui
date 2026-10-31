@@ -247,7 +247,7 @@ Envelope Runtime::Impl::perform(NodeId id, std::string_view action, const Invoca
         Value more;
         if (spec::requires_answer(effect) || invokes_verb) more.set("undoable", false);
         if (effect != Effect::read && !invokes_verb && at(id).type->preview) {
-            ActContext ctx{self, id, call.args};
+            ActContext ctx{self, id, call.args, &call.actor};
             auto use = use_theme(id);
             ActResult r = at(id).type->preview(at(id).instance, ctx, action);
             if (!r.ok) {
@@ -300,7 +300,7 @@ Envelope Runtime::Impl::perform(NodeId id, std::string_view action, const Invoca
 
     ActResult r = ActResult::done();
     if (at(id).type->act) {
-        ActContext ctx{self, id, call.args};
+        ActContext ctx{self, id, call.args, &call.actor};
         auto use = use_theme(id);
         r = at(id).type->act(at(id).instance, ctx, action);
     }
@@ -347,7 +347,9 @@ Envelope Runtime::act(NodeId node, std::string_view action, const Invocation& gi
     Impl::Outcome out;
     std::vector<Inverse> outer = std::exchange(d.program_inverse, {});
     ++d.acting;
+    d.actors.push_back(call.actor);
     Envelope e = batch([&] { return d.perform(node, action, call, false, &out); });
+    d.actors.pop_back();
     --d.acting;
     if (out.ran && out.undo.empty() && out.effect == Effect::reversible) out.undo = std::move(d.program_inverse);
     d.program_inverse = std::move(outer);
@@ -402,7 +404,7 @@ Envelope Runtime::Impl::perform_item(NodeId holder, std::string_view key, std::s
         return dry_run_answer("run", effect, std::move(more));
     }
     ActResult r = batch([&] {
-        ActContext ctx{self, holder, call.args};
+        ActContext ctx{self, holder, call.args, &call.actor};
         auto use = use_theme(holder);
         return at(holder).type->act_item(at(holder).instance, ctx, key, action);
     });

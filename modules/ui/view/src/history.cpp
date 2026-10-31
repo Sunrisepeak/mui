@@ -229,7 +229,9 @@ Envelope Runtime::invoke(std::string_view verb, const Invocation& given) {
     const Effect effect = v ? v->effect : Effect::read;
     std::vector<Inverse> outer = std::exchange(d.program_inverse, {});
     ++d.acting;
+    d.actors.push_back(call.actor);
     Envelope e = batch([&] { return d.verbs.invoke(verb, call); });
+    d.actors.pop_back();
     --d.acting;
     std::vector<Inverse> inverse = effect == Effect::reversible ? std::move(d.program_inverse) : std::vector<Inverse>{};
     d.program_inverse = std::move(outer);
@@ -239,6 +241,12 @@ Envelope Runtime::invoke(std::string_view verb, const Invocation& given) {
     if (v && e.exit_code() == spec::exit_code::success)
         d.record(d.root, {d.root, "app", {}, std::string(verb), call.args, std::move(inverse), std::format("`{}`", verb)}, effect);
     return e;
+}
+
+std::optional<Actor> Runtime::acting() const {
+    const Impl& d = *impl_;
+    if (d.actors.empty()) return std::nullopt;
+    return d.actors.back();
 }
 
 void Runtime::taken_back_by(std::function<void()> undo, std::function<void()> redo) {

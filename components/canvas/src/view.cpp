@@ -282,7 +282,15 @@ world::Scene& Canvas::HostAdapter::scene() {
     return *s;
 }
 
-void Canvas::HostAdapter::committed(std::string_view what, const Value& args) { c->services().emit(c->node(), what, args); }
+void Canvas::HostAdapter::committed(std::string_view what, const Value& args) {
+    // A drag of nodes (a behaviour's, done as the pointer went): one step of
+    // the history, its opposite the undo (S-12).
+    if (what == "moved")
+        if (const Value *dx = args.get("dx"), *dy = args.get("dy"), *keys = args.get("keys"); dx && dy && keys && (dx->as_double() != 0 || dy->as_double() != 0))
+            c->services().performed(c->node(), "move_by", args,
+                                    {{"move_by", Value{}.set("keys", *keys).set("dx", -dx->as_double()).set("dy", -dy->as_double())}});
+    c->services().emit(c->node(), what, args);
+}
 
 void Canvas::select(std::vector<std::string> keys) {
     if (keys == selected_) return;
@@ -837,6 +845,24 @@ bool Canvas::reveal(std::string_view key) {
 }
 
 // ── the viewport's actions ───────────────────────────────────────────────
+
+ActResult Canvas::move_by(ActContext&, const MoveByArgs& args) {
+    world::Scene* s = scene();
+    if (!s) return ActResult::fail("the canvas shows no scene");
+    if (!args.keys.list() || !args.dx.is_number() || !args.dy.is_number()) return ActResult::fail("move_by takes keys (a list) and dx, dy (numbers)");
+    const double dx = args.dx.as_double(), dy = args.dy.as_double();
+    std::vector<std::string> moved;
+    for (const Value& k : *args.keys.list())
+        if (auto n = s->find(k.as_string())) {
+            const auto r = s->rect(*n);
+            s->move(*n, r.x + dx, r.y + dy);
+            moved.emplace_back(k.as_string());
+        }
+    if (moved.empty()) return ActResult::fail("no node with those keys");
+    services().invalidate_paint(node());
+    emit_moved(dx, dy, moved);
+    return ActResult::done().undo_by("move_by", Value{}.set("keys", args.keys).set("dx", -dx).set("dy", -dy));
+}
 
 ActResult Canvas::pan_to(ActContext&, const PanToArgs& args) {
     animate_to({number_of(args.x, camera_.x), number_of(args.y, camera_.y), camera_.zoom});

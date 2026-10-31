@@ -185,6 +185,7 @@ void Field::paint_over(PaintContext& ctx) const {
     auto& fonts = services().fonts();
     const Theme& theme = services().theme();
     const Color text_ink = theme.color("text", hex(0xe8eaf6));
+    const Color on_dark = hex(0xe8eaf6);  // words on the dark panels the HUD lays down (the hint, the inspector): light in every room's theme
     // On a light style the bright cues (gold, cyan) are drawn darker, so they read as well as on a dark one.
     const Color ground = theme.color("background", hex(0x0d111c));
     const bool light = 0.2126f * ground.r + 0.7152f * ground.g + 0.0722f * ground.b > 0.5f;
@@ -337,6 +338,12 @@ void Field::paint_over(PaintContext& ctx) const {
     s.world.each<Body, Brick>([&](mgame::Entity, const Body& body, const Brick& b) {
         const Rect r = rect(body.box);
         if (b.kind == Kind::core && dark() && !s.over) out.stroke_round_rect(grow(r, 4), CornerRadii::all(12), 1.5f, solid(hex(ink::core, 0.45f)));
+        // In the dark, every brick that is not hidden is still a faint outline: where the ball can go is never a guess.
+        if (dark() && !s.over && b.kind != Kind::hidden && b.kind != Kind::core && b.kind != Kind::gate)
+            out.stroke_round_rect(r, CornerRadii::all(8), 1.0f, solid(text_ink.with_alpha(0.22f)));
+        // A slider's name over it (the component draws a track alone): what the beam it charges is called.
+        if (b.kind == Kind::slider && b.id < def.bricks.size())
+            centred(def.bricks[b.id].label, 12, text_ink.with_alpha(dark() && !scanning() ? 0.45f : 0.8f), {r.x + r.width / 2, r.y - 9});
         if (b.kind != Kind::gate) return;
         const bool open = gates_open(s);
         if (dark() && !s.over) out.stroke_round_rect(r, CornerRadii::all(6), 1.5f, solid(hex(ink::live, open ? 0.9f : 0.35f)));
@@ -528,7 +535,7 @@ void Field::paint_over(PaintContext& ctx) const {
     // A hint, once, when it is needed; fading out.
     if (!hint_.empty() && s.frame < hint_until_ && !s.over) {
         const float a = std::min(1.0f, static_cast<float>(hint_until_ - s.frame) / 60);
-        const auto& p = label(hint_, 16, text_ink.with_alpha(0.9f * a));
+        const auto& p = label(hint_, 16, on_dark.with_alpha(0.9f * a));
         out.fill_round_rect({W / 2 - p.size().width / 2 - 16, H - 92, p.size().width + 32, p.size().height + 14}, CornerRadii::all(12), solid(hex(0x0b0e17, 0.7f * a)));
         p.paint(out, {W / 2 - p.size().width / 2, H - 85});
     }
@@ -569,7 +576,7 @@ void Field::paint_over(PaintContext& ctx) const {
             p.paint(out, {at.x + 3, at.y - p.size().height - 1});
         }
         const float x = W - 352, w = 330;
-        const auto& made = label(def.made, 12, text_ink.with_alpha(0.9f), w, 400);
+        const auto& made = label(def.made, 12, on_dark.with_alpha(0.9f), w, 400);
         const float line = 17, top = 84;
         const float h = made.size().height + line * static_cast<float>(log_size + 4) + 40;
         out.fill_round_rect({x - 12, top - 10, w + 24, h}, CornerRadii::all(10), solid(hex(0x0b0e17, 0.9f)));
@@ -579,10 +586,11 @@ void Field::paint_over(PaintContext& ctx) const {
         label("SEMANTIC TREE · LATEST CHANGES", 11, hex(0x64ffda, 0.8f)).paint(out, {x, y});
         for (std::size_t k = 0; k < log_.size(); ++k) {
             const float alpha = 0.45f + 0.55f * static_cast<float>(k + 1) / static_cast<float>(log_.size());
-            label(log_[k], 11, text_ink.with_alpha(alpha), 0, 500).paint(out, {x, y + line * static_cast<float>(k + 1)});
+            label(log_[k], 11, on_dark.with_alpha(alpha), 0, 500).paint(out, {x, y + line * static_cast<float>(k + 1)});
         }
         y += line * static_cast<float>(log_size + 1) + 6;
-        label(std::format("frame {} · state {:016x}", s.frame, checksum(s)), 11, text_ink.with_alpha(0.6f), 0, 500).paint(out, {x, y});
+        label(std::format("frame {} · state {:016x}", s.frame, checksum(s)), 11, on_dark.with_alpha(0.6f), 0, 500).paint(out, {x, y});
+        label("Tab — back to the game (paused while you look)", 11, hex(0x64ffda, 0.7f), 0, 500).paint(out, {x, y + line * 2});
         if (!agent_log_.empty()) label(std::format("copilot: {}", agent_log_.back()), 11, hex(ink::live, 0.8f), w, 500).paint(out, {x, y + line});
     }
 }

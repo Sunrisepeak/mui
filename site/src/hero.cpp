@@ -275,8 +275,11 @@ Element hero(Hero& h, const HeroSite& site, bool live, float width) {
             for (std::size_t i = 0; i < items.size(); ++i)
                 if (!hp->checks[i].peek()) steps->push_back({"items/" + std::string(items[i].id), std::string(items[i].id)});
             steps->push_back({"ship", "ship"});
+            // Each step's timers hold the steps going; the function holds itself weakly (no cycle: it goes with the last timer).
             auto next = std::make_shared<std::function<void(std::size_t)>>();
-            *next = [hp, sp, steps, next](std::size_t k) {
+            *next = [hp, sp, steps, self = std::weak_ptr(next)](std::size_t k) {
+                const auto next = self.lock();
+                if (!next) return;
                 Runtime& rt = **sp->runtime;
                 if (k >= steps->size()) {
                     hp->agent_running.set(false);

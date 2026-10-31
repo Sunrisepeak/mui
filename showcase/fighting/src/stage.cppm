@@ -41,6 +41,7 @@ public:
     ActResult press(ActContext& ctx, const PressArgs& args);
     ActResult release(ActContext& ctx, const Value& player);
     ActResult turn(ActContext& ctx, const TurnArgs& args);
+    ActResult inputs(ActContext& ctx);
     ActResult save(ActContext& ctx);
     ActResult load(ActContext& ctx);
     ActResult record(ActContext& ctx, const Value& player);
@@ -97,6 +98,9 @@ private:
     std::array<std::optional<gongfu::ai::Bot>, 2> bots_{};  // the computer's player (props.cpu)
     std::array<bool, 2>                       turned_{};      // turns: who has said what they hold
     std::array<std::vector<gongfu::Pad>, 2>   turn_pads_{};   // and what: a pad a frame, the last held
+    std::array<std::string, 2>                seats_{};       // turns: the actor who plays each seat (the first to)
+    Value                                     last_turn_;     // what happened in the last turn played
+    std::vector<std::array<gongfu::Pad, 2>>   inputs_;        // the round's pads, frame by frame (`inputs`)
     std::int64_t                              turns_ = 0;     // turns played
     void make_bots();
     gongfu::training::Readout             readout_;

@@ -622,9 +622,12 @@ void Task::paint_over(PaintContext& ctx) const {
 }
 
 ActResult Task::act(ActContext&, std::string_view action) {
+    // A click (activate) is the toggle — its handler, set where the item is
+    // built, ticks it; toggling again takes either back (S-12).
+    if (action == "activate") return ActResult::done().undo_by("toggle");
     if (action != "toggle") return ActResult::fail(std::format("md_task has no action '{}'", action));
     if (data->hub->toggle_task) data->hub->toggle_task(data->task);
-    return ActResult::done(Value(data->block.task != md::Task::done));
+    return ActResult::done(Value(data->block.task != md::Task::done)).undo_by("toggle");
 }
 
 void Task::semantics(SemanticsContext&, spec::SemanticNode& n) const {

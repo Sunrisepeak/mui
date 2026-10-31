@@ -66,6 +66,21 @@ int main(int argc, char** argv) {
         check(gone.held == 0 && gone.axes[0] == 0, "focus lost: nothing held");
     });
 
+    s.test("the last device steers: a key that moves an axis puts the pointer aside until it moves again", [&] {
+        mgame::Sampler in(bindings());
+        in.pointer(0.4, 0.5);
+        check(in.sample().pointer_x >= 0, "the pointer");
+        in.key(right, true);
+        const auto k = in.sample();
+        check(k.pointer_x == -1 && k.axes[0] == 32767, "the keys now");
+        in.key(right, false);
+        check(in.sample().pointer_x == -1, "still aside");
+        in.pointer(0.6, 0.5);
+        check(in.sample().pointer_x >= 0, "the pointer moved: its again");
+        in.key(space, true);
+        check(in.sample().pointer_x >= 0, "a button steers nothing: the pointer stays");
+    });
+
     s.test("a gamepad: a button presses, a d-pad pushes an axis as keys do, a repeat changes nothing", [&] {
         mgame::Bindings b;
         b.pad_button(15, mgame::Axis{0, -1});  // d-pad left

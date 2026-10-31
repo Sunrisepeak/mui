@@ -92,7 +92,7 @@ public:
         (void)theme::apply_style(rt, look_style, false);
         model_.runtime = &rt;
         world::Scene& scene = world::scene(model_.scene);
-        wall::build(model_, scene);
+        wall::build(model_, scene, {.texture_from = 40});  // the film shows the textures far away (its subtitle says so)
         const Size vp = c_.size;
         auto at = [&](std::string_view key) {
             const auto n = scene.find(key);

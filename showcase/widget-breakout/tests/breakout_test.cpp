@@ -386,7 +386,7 @@ int main(int argc, char** argv) {
         check_eq(g.state().over, std::uint32_t{1});
         check_eq(g.disagreement(), std::string());
         std::println("    beam {:016x}", beam);
-        check_eq(beam, std::uint64_t{0xd0368fa84b09f6e7});  // GCC (LLVM: CI)
+        check_eq(beam, std::uint64_t{0xd61db6953a80ee06});  // GCC (LLVM: CI)
     });
 
     s.test("a rewind costs 100 sparks, puts every brick back and the score with it; never past 2 s nor the last landing; it cannot be farmed", [] {
@@ -456,7 +456,36 @@ int main(int argc, char** argv) {
         g.h.step();
         check(g.seen().get("inspector")->as_bool(), "open");
         check(g.pixels() != plain, "it draws");
-        check(g.h.save_png(scratch_dir("breakout-inspector") / "inspector.png").has_value());
+        check(g.h.save_png(scratch_dir("breakout-inspector") / "inspector.png").has_value());        // While it is open the game waits; Tab again, it goes on.
+        const auto frame = g.state().frame;
+        g.h.advance(seconds(0.5));
+        check_eq(g.state().frame, frame);
+        g.h.key(Key::tab);
+        g.h.advance(seconds(0.5));
+        check(g.state().frame > frame, "on again");
+    });
+
+    s.test("the bricks are the ball's: a click on one reaches the field, an agent's toggle of one is put back; the keys steer after the pointer", [] {
+        Game g(1);
+        g.h.step();
+        std::size_t sw = 0;
+        for (std::size_t i = 0; i < bo::room(1).bricks.size(); ++i)
+            if (bo::room(1).bricks[i].kind == bo::Kind::toggle) sw = i;
+        const NodeId toggle = g.bricks()[sw];
+        const bool was = g.h.runtime().get(toggle, "checked").as_bool();
+        // A person's click where it is drawn: the field takes it (the switch does not change).
+        const Rect r = g.h.runtime().screen_bounds(toggle);
+        check(g.h.runtime().hit_test(r.center()) != toggle, "the pointer passes to the field");
+        g.h.click(r.center());
+        g.h.step();
+        check(g.h.runtime().get(toggle, "checked").as_bool() == was, "unchanged by a click");
+        // An agent's toggle: the simulation's state again at once.
+        Invocation call;
+        call.actor = {"agent", "test", {}};
+        (void)g.h.runtime().act(toggle, "toggle", call);
+        g.h.step();
+        check(g.h.runtime().get(toggle, "checked").as_bool() == was, "put back");
+        check(!g.h.tree().node(g.h.runtime().path(toggle))->states.has(State::focusable), "not in the Tab order");
     });
 
     s.test("room 3: the cloud is a canvas's scene — live near, boxes far; through it the camera pulls back, never past half; a rewind puts the scene back", [] {
@@ -492,7 +521,7 @@ int main(int argc, char** argv) {
         };
         check_eq(agrees(), std::size_t{0});
         std::println("    chamber {:016x}", chamber);
-        check_eq(chamber, std::uint64_t{0xe52e38e1a8d662dd});  // GCC (LLVM: CI)
+        check_eq(chamber, std::uint64_t{0x5a1338435ba4d6d6});  // GCC (LLVM: CI)
     });
 
     s.test("room 4: dark but round the ball and the paddle; the X-ray shows what hides, then recharges; the gate comes round", [] {
@@ -523,8 +552,8 @@ int main(int argc, char** argv) {
         check(g.act("scan"), "recharged");
         check_eq(g.disagreement(), std::string());
         std::println("    dark {:016x}, scanned {:016x}", dark, scanned);
-        check_eq(dark, std::uint64_t{0x3779b9667a98e366});  // GCC (LLVM: CI)
-        check_eq(scanned, std::uint64_t{0xa5c9f6792444b1fd});
+        check_eq(dark, std::uint64_t{0xa1d009263e76f863});  // GCC (LLVM: CI)
+        check_eq(scanned, std::uint64_t{0x0c1188043b1df2ef});
     });
 
     s.test("room 5: the copilot plays the top paddle from outside — the semantic tree in, guard_to out, journaled as its own; an order changes where it sends the ball; with a player below, they shut it down", [] {
@@ -568,7 +597,7 @@ int main(int argc, char** argv) {
         const auto px = p.pixels();
         check(p.h.save_png(scratch_dir("breakout-room5") / "copilot.png").has_value());
         std::println("    copilot {:016x}", px);
-        check_eq(px, std::uint64_t{0x416ebfe22167af25});  // GCC (LLVM: CI)
+        check_eq(px, std::uint64_t{0xf22e8ad933693c0d});  // GCC (LLVM: CI)
     });
 
     s.test("a run: room 1 shut down — the wave, the next room's skin, two contraptions offered; one taken, room 2 begins with what the run carries and drops it", [] {
@@ -723,9 +752,9 @@ int main(int argc, char** argv) {
         const auto inspector = g.pixels();
         check(g.h.save_png(dir / "inspector.png").has_value());
         std::println("    start {:016x}, played {:016x}, inspector {:016x}", start, played, inspector);
-        check_eq(start, std::uint64_t{0x4ba7cb3e8684766e});  // GCC (LLVM: CI)
+        check_eq(start, std::uint64_t{0xe166fd1ea373eb9b});  // GCC (LLVM: CI)
         check_eq(played, std::uint64_t{0xc6fc0fb3e7e09dcc});
-        check_eq(inspector, std::uint64_t{0x15e1db8a16e776a3});
+        check_eq(inspector, std::uint64_t{0x9d65d8e82c70e2a6});
     });
 
     s.test("the README's loop: room 1 played from its launch to its shutdown — an animated WebP under 1 MB", [] {

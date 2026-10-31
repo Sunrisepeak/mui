@@ -284,6 +284,11 @@ Element brick_view(const BrickDef& b, std::size_t index) {
         }
         return column({.id = id, .width = w, .height = h});  // a plate: the field draws it
     }();
+    // The ball works it, not a click or a key: the pointer passes to the field
+    // (aim, launch), the keyboard's focus stays on it (Space, Enter), and the
+    // simulation is what it shows (the field puts back any other change).
+    e.prop("pointer_events", Source(Value("none"))).prop("focusable", Source(Value(false)));
+    e.prop("description", Source(Value("A brick of the haunted panel: the ball works it.")));
     // Where it stands, in shares of the field (the field's units are 1280 × 720 at any size).
     return std::move(e.prop("position", Source(Value("absolute")))
                          .prop("left", Source(Value(std::format("{}%", b.x / field_w * 100))))
@@ -322,7 +327,7 @@ void fill_scene(const RoomDef& r) {
     }
 }
 
-std::vector<Element> room_bricks(const RoomDef& r) {
+std::vector<Element> room_bricks(const RoomDef& r, std::function<void(std::size_t)> changed) {
     std::vector<Element> out;
     if (r.canvas) {  // the scene's camera is the field's (it takes no pointer: that moves the paddle); the room fills it when it begins
         out.push_back(std::move(canvas({.id = "cloud", .inertia = false, .label = "The cloud", .max_zoom = 4, .min_zoom = 0.05, .scene = std::string(cloud_scene),
@@ -332,7 +337,10 @@ std::vector<Element> room_bricks(const RoomDef& r) {
     }
     // In a panel named by its room: a new room's bricks are new nodes, laid out afresh (never the last room's places).
     std::vector<Element> bricks;
-    for (std::size_t i = 0; i < r.bricks.size(); ++i) bricks.push_back(brick_view(r.bricks[i], i));
+    for (std::size_t i = 0; i < r.bricks.size(); ++i) {
+        bricks.push_back(brick_view(r.bricks[i], i));
+        if (changed) bricks.back().on("changed", [changed, i](const Value&) { changed(i); });
+    }
     out.push_back(column({.id = std::format("room.{}", r.number), .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100))}, std::move(bricks)));
     return out;
 }

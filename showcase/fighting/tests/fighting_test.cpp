@@ -144,6 +144,20 @@ int main(int argc, char** argv) {
         check(seen().get("p1")->get("doing")->as_string().contains("236"), seen().get("p1")->json());
         check(turn(0, "2,2,2,2,2,2,2").exit_code() != std::optional<std::int64_t>(0), "more pads than frames");
         check(turn(0, "5XP").exit_code() != std::optional<std::int64_t>(0), "not a pad");
+        // What happened is said to both, the move begun among it; the fighter's phase is read.
+        const Value last = *seen().get("turns")->get("last");
+        check(last.json().contains("\"kind\":\"move\"") && last.json().contains("236"), last.json());
+        check(seen().get("p1")->get("move") && seen().get("p1")->get("move")->get("phase"), seen().get("p1")->json());
+        // A seat is its first player's: another actor is refused it.
+        Invocation other;
+        other.actor = {"agent", "intruder", {}};
+        other.args = pad(0, "5");
+        check(h.tree().act("main", "turn", other).exit_code() == std::optional<std::int64_t>(1), "player 1's seat is player1's");
+        // The round's pads, frame by frame, and where they led: a replay of the same turns elsewhere lands on the same checksum.
+        Invocation read;
+        read.actor = {"agent", "referee", {}};
+        const Envelope log = h.tree().act("main", "inputs", read);
+        check(log.exit_code() == std::optional<std::int64_t>(0) && log.ndjson().contains("\"checksum\""), log.ndjson());
     });
 
     s.test("the computer plays a side: it walks, guards and attacks by itself, the same every run", [] {

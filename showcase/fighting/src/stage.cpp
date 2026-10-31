@@ -118,6 +118,10 @@ void Stage::start_round(bool next) {
     readout_.clear();
     make_bots();
     turned_ = {};
+    turn_pads_ = {};
+    seats_ = {};
+    last_turn_ = Value{};
+    inputs_.clear();
     if (!props.demo.empty()) start_demo();
     // The stage's music: the arena's, else player 1's home's (none in training's plain room).
     std::string_view theme = props.arena;
@@ -285,6 +289,7 @@ void Stage::advance() {
         return dummies_[static_cast<std::size_t>(p)].step(pad_of(p));
     };
     const gongfu::Pad a = input(0), b = input(1);
+    if (!demo_) inputs_.push_back({a, b});
     if (demo_) ++demo_at_;
     match_->tick(a, b);
     effects_.record(*match_);
@@ -422,21 +427,44 @@ void Stage::semantics(SemanticsContext&, spec::SemanticNode& node) const {
         Value::List waiting;
         for (std::int64_t i = 0; i < 2; ++i)
             if (!turned_[static_cast<std::size_t>(i)] && !bots_[static_cast<std::size_t>(i)]) waiting.emplace_back(i);
-        v.set("turns", Value{}.set("played", turns_).set("frames", props.turn_frames).set("waiting", Value(std::move(waiting))));
+        Value t;
+        t.set("played", turns_).set("frames", props.turn_frames).set("waiting", Value(std::move(waiting)));
+        if (!last_turn_.is_null()) t.set("last", last_turn_);
+        v.set("turns", std::move(t));
     }
     if (props.mode != "training")
         v.set("round", round_).set("wins", Value(Value::List{Value(wins_[0]), Value(wins_[1])})).set("to_win", to_win()).set("decided", decided_);
     if (!roster().problems.empty()) v.set("problems", Value(Value::List(roster().problems.begin(), roster().problems.end())));
     for (std::int32_t i = 0; i < 2; ++i) {
         const auto& f = st.f[static_cast<std::size_t>(i)];
-        v.set(i == 0 ? "p1" : "p2", Value{}
-                                        .set("name", match_->fighter(i).def.name)
-                                        .set("health", f.health)
-                                        .set("doing", std::string(p2::clip_name(match_->fighter(i), f)))
-                                        .set("x", f.pos.x.to_double())
-                                        .set("combo", f.combo)
-                                        .set("posture", f.posture)
-                                        .set("meter", f.meter));
+        // What a player reads of a fighter: where, what it is doing and how far into it, whether it can act.
+        Value me = Value{}
+                       .set("name", match_->fighter(i).def.name)
+                       .set("health", f.health)
+                       .set("doing", std::string(p2::clip_name(match_->fighter(i), f)))
+                       .set("x", f.pos.x.to_double())
+                       .set("y", f.pos.y.to_double())
+                       .set("facing", f.facing)
+                       .set("combo", f.combo)  // hits taken in the combo it is in
+                       .set("posture", f.posture)
+                       .set("meter", f.meter);
+        if (f.mode == gongfu::Mode::move && f.move >= 0) {
+            const gongfu::MoveDef& m = match_->fighter(i).def.moves[static_cast<std::size_t>(f.move)];
+            std::string phase = "recovery";
+            std::int32_t first = m.total;
+            for (const gongfu::HitDef& h : m.hits) {
+                first = std::min(first, h.active.from);
+                if (f.move_frame >= h.active.from && f.move_frame <= h.active.to) phase = "active";
+            }
+            if (phase != "active" && f.move_frame < first) phase = "startup";
+            me.set("move", Value{}.set("name", m.name).set("frame", f.move_frame).set("of", m.total).set("phase", phase).set("left", std::max(0, m.total - f.move_frame)));
+        }
+        const bool free = f.mode == gongfu::Mode::idle || f.mode == gongfu::Mode::walk_forward || f.mode == gongfu::Mode::walk_back || f.mode == gongfu::Mode::crouch;
+        me.set("actionable", free && f.stop == 0);
+        if (f.stun > 0) me.set("stun", f.stun);
+        if (f.stop > 0) me.set("hitstop", f.stop);
+        if (f.protect > 0) me.set("throw_protected", f.protect);
+        v.set(i == 0 ? "p1" : "p2", std::move(me));
     }
     // Training's readings, as a person sees them.
     Value training;
@@ -532,12 +560,19 @@ ActResult Stage::press(ActContext&, const PressArgs& args) {
     return ActResult::done();
 }
 
-ActResult Stage::turn(ActContext&, const TurnArgs& args) {
+ActResult Stage::turn(ActContext& ctx, const TurnArgs& args) {
     if (props.turn_frames <= 0) return ActResult::fail("not a match by turns: set `turn_frames` (frames a turn) first");
     if (!match_) return ActResult::fail("no match: the roster did not read");
     const auto p = args.player.as_int(-1);
     if (p != 0 && p != 1) return ActResult::fail("`player` is 0 or 1");
     if (bots_[static_cast<std::size_t>(p)]) return ActResult::fail(std::format("player {} is the computer's", p));
+    // A seat is its first player's (openas: the actor): another is refused.
+    if (ctx.actor) {
+        std::string& seat = seats_[static_cast<std::size_t>(p)];
+        const std::string who = ctx.actor->text();
+        if (seat.empty()) seat = who;
+        else if (seat != who) return ActResult::fail(std::format("player {}'s seat is {}'s", p, seat));
+    }
     // A pad, or pads a frame each, the last held for the rest of the turn ("2,3,6LP": a quarter circle and a punch).
     std::vector<gongfu::Pad> pads;
     for (auto part : std::views::split(args.pad.as_string(), ',')) {
@@ -558,13 +593,34 @@ ActResult Stage::turn(ActContext&, const TurnArgs& args) {
             changed();
             return ActResult::done(said.set("waiting", static_cast<std::int64_t>(i)));  // the other player has not said yet
         }
-    // Every player has said: the turn plays, and what happened in it is said.
+    // Every player has said: the turn plays, and what happened in it is said — to both (turns.last).
     const std::array<std::int32_t, 2> before{match_->state().f[0].health, match_->state().f[1].health};
+    Value::List events;
+    std::array<std::int32_t, 2> started{-1, -1};
     for (std::int32_t i = 0; i < props.turn_frames; ++i, ++played_) {
         for (std::size_t s = 0; s < 2; ++s)
             if (const auto& pads = turn_pads_[s]; !pads.empty()) agent_[s] = pads[std::min<std::size_t>(static_cast<std::size_t>(i), pads.size() - 1)];
         advance();
+        const gongfu::State& now = match_->state();
+        for (std::size_t s = 0; s < 2; ++s)  // a move begun in this turn: what the pads were read as
+            if (now.f[s].mode == gongfu::Mode::move && now.f[s].move_frame == 1 && now.f[s].move >= 0) {
+                started[s] = now.f[s].move;
+                events.push_back(Value{}.set("frame", now.frame).set("kind", "move").set("by", static_cast<std::int64_t>(s))
+                                     .set("move", match_->fighter(static_cast<std::int32_t>(s)).def.moves[static_cast<std::size_t>(now.f[s].move)].name));
+            }
+        for (const gongfu::Event& e : match_->events()) {
+            static constexpr std::array<std::string_view, 22> kinds{"hit", "counter", "block", "throw", "tech", "projectile_clash", "ko", "time_over", "clash",
+                                                                     "deflect", "guard_break", "cinematic", "armor", "piece", "piece_hit", "reflect",
+                                                                     "shatter", "mark", "rewind", "clone", "vanish", "?"};
+            Value x;
+            x.set("frame", now.frame).set("kind", kinds[std::min<std::size_t>(static_cast<std::size_t>(e.kind), kinds.size() - 1)]).set("by", e.attacker);
+            if (e.move >= 0 && (e.attacker == 0 || e.attacker == 1))
+                x.set("move", match_->fighter(e.attacker).def.moves[static_cast<std::size_t>(e.move)].name);
+            if (e.damage) x.set("damage", e.damage);
+            events.push_back(std::move(x));
+        }
     }
+    (void)started;
     turned_ = {};
     turn_pads_ = {};
     ++turns_;
@@ -576,8 +632,32 @@ ActResult Stage::turn(ActContext&, const TurnArgs& args) {
                                            .set("doing", std::string(p2::clip_name(match_->fighter(i), f))).set("x", f.pos.x.to_double()));
     }
     if (st.over) said.set("over", true).set("winner", st.winner);
+    said.set("events", Value(std::move(events)));
+    last_turn_ = said;
     changed();
     return ActResult::done(std::move(said));
+}
+
+ActResult Stage::inputs(ActContext&) {
+    if (!match_) return ActResult::fail("no match: the roster did not read");
+    // Numpad notation: the direction (on the screen), then the buttons.
+    auto text = [](gongfu::Pad p) {
+        const bool u = p.directions & gongfu::Pad::up, d = p.directions & gongfu::Pad::down, l = p.directions & gongfu::Pad::left,
+                   r = p.directions & gongfu::Pad::right;
+        const int x = (r && !l) ? 1 : (l && !r) ? -1 : 0, y = (u && !d) ? 1 : (d && !u) ? -1 : 0;
+        std::string out(1, static_cast<char>('0' + 5 + x + 3 * y));
+        static constexpr std::array<std::string_view, 6> names{"LP", "MP", "HP", "LK", "MK", "HK"};
+        bool first = true;
+        for (std::size_t b = 0; b < names.size(); ++b)
+            if (p.buttons & (1u << b)) out += (first ? "" : "+"), out += names[b], first = false;
+        return out;
+    };
+    Value::List frames;
+    for (const auto& [a, b] : inputs_) frames.emplace_back(Value::List{Value(text(a)), Value(text(b))});
+    Value v;
+    v.set("frames", static_cast<std::int64_t>(inputs_.size())).set("pads", Value(std::move(frames)));
+    v.set("checksum", std::format("{:016x}", match_->checksum())).set("player1", props.player1).set("player2", props.player2);
+    return ActResult::done(std::move(v));
 }
 
 ActResult Stage::save(ActContext&) {

@@ -32,7 +32,8 @@ resume  = { effect = "reversible" }
 step    = { effect = "reversible", doc = "One frame, while paused." }
 press   = { effect = "reversible", args = { player = "i32", pad = "string" }, doc = "Holds a pad for a player until the next press: a numpad direction and buttons (`6`, `2LK`, `5LP+LK`, `5` to let go)." }
 release = { effect = "reversible", args = { player = "i32" }, doc = "Gives the player back to the keyboard." }
-turn    = { effect = "reversible", args = { player = "i32", pad = "string" }, doc = "Turns: what the player holds for the next turn — a pad as `press` takes it, or pads a frame each, the last held to the turn's end (`2,3,6LP`: a quarter circle forward and a light punch); once every player has said, the turn is played and the answer says what happened in it." }
+turn    = { effect = "reversible", args = { player = "i32", pad = "string" }, doc = "Turns: what the player holds for the next turn — a pad as `press` takes it, or pads a frame each, the last held to the turn's end (`2,3,6LP`: a quarter circle forward and a light punch); once every player has said, the turn is played and the answer says what happened in it (also in the stage's value, turns.last, for both). The first actor to play a seat keeps it: another is refused." }
+inputs  = { effect = "read", doc = "What the round was played with: both pads, frame by frame (numpad notation), from its start, and the checksum of where they led — what a replay checks." }
 save    = { effect = "reversible", doc = "Keeps the match as it is now (training's state save)." }
 load    = { effect = "reversible", doc = "Back to the saved match." }
 record  = { effect = "reversible", args = { player = "i32" }, doc = "Starts recording what the player does (training's dummy)." }

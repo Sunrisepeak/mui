@@ -43,4 +43,5 @@ zoom_to       = { effect = "read", args = { zoom = "f64" }, doc = "Zoom about th
 fit           = { effect = "read", args = { target = "string" }, doc = "Show `all` the scene, or the node with this key, whole (animated)." }
 focus_node    = { effect = "read", args = { key = "string" }, doc = "Bring the node with this key to the centre at a zoom that shows it whole, and focus it." }
 camera_preset = { effect = "read", args = { name = "string" }, doc = "Go to one of the scene's named views (animated)." }
+move_by       = { effect = "reversible", args = { keys = "list<string>", dx = "f64", dy = "f64" }, doc = "Moves the nodes with these keys by (dx, dy) world units — what a drag of them does; a drag is undone by its opposite." }
 find          = { effect = "read", args = { query = "any" }, doc = "The keys of the scene's nodes matching {in_rect: [x, y, w, h], near: [x, y], radius, name, kind, role}, nearest first when `near` is given — over the whole scene, not only what is on screen." }

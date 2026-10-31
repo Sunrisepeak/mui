@@ -53,6 +53,7 @@ struct Geometry {
     double margin = 64;         // inside a workspace
     double label = 72;          // a workspace's label strip
     double between = 360;       // between workspaces
+    float  texture_from = 160;  // a window's size on screen (px) from which its page is a texture; below, a block and its title
 };
 class Model;
 void build(Model& model, omui::world::Scene& scene, const Geometry& g = {});
@@ -104,6 +105,40 @@ public:
     // The document at a path relative to the folder, '/' between parts.
     [[nodiscard]] const Document* at_path(std::string_view path) const;
 
+    // ── reading: open, back and forward, search ──
+    // A window brought into view to read (focused, live), the camera before
+    // it remembered for back(); forward is forgotten.
+    void open(std::string_view key);
+    // The camera as it was before the last open (back), or after it (forward).
+    bool back();
+    bool forward();
+    [[nodiscard]] bool can_back() const noexcept { return !back_.empty(); }
+    [[nodiscard]] bool can_forward() const noexcept { return !forward_.empty(); }
+    struct Found {
+        std::string key, title, path, line;  // line: where the words are (a title or path match: its first line)
+    };
+    // The documents with these words (any case), titles first, then paths, then text: at most `limit`.
+    [[nodiscard]] std::vector<Found> search(std::string_view words, std::size_t limit = 8) const;
+    omui::Signal<bool>        searching = omui::signal(false);  // the search box shown (Ctrl+F, /)
+    omui::Signal<std::string> query = omui::signal(std::string());
+    void open_search();   // the box shown, the keys its (Ctrl+F, /, the toolbar)
+    void close_search();  // the box put away, the keys the wall's again
+    std::string query_path = "main/middle/finder/query";
+
+    // ── keeping: the arrangement and the camera, and the documents' edits ──
+    // Where the folder's own state lives (its `.openmui/wall.layout.omui.json`);
+    // empty: nothing kept (made documents, a page).
+    std::filesystem::path folder;
+    bool                  restored = false;  // the camera came back from it (the canvas starts there, not fitted)
+    // Put the arrangement and the camera back as last kept (after build): whether there was one.
+    bool restore();
+    // Keep them (soon: changes a moment apart are kept once).
+    void keep();
+    // A document's edit (a task ticked) written to its file, whole or not at all.
+    std::expected<void, std::string> save_document(std::string_view key);
+    [[nodiscard]] std::filesystem::path layout_file() const;
+    omui::Signal<std::string> said = omui::signal(std::string());  // the last thing kept or failed, for the HUD
+
 private:
     struct Stream {
         std::string   key;
@@ -119,6 +154,12 @@ private:
     double                                                     rate_ = 50;
     omui::seconds                                              last_{0};
     std::uint64_t                                              tokens_ = 0;
+    struct Camera {
+        double x = 0, y = 0, zoom = 1;
+    };
+    std::vector<Camera>                                        back_, forward_;
+    std::uint64_t                                              keep_timer_ = 0;
+    void go(const Camera& c);
     omui::FrameDemandLease                                     pace_;  // while streaming: 60 a second is enough for text
     std::shared_ptr<int>                                       alive_ = std::make_shared<int>(0);  // a pending tick's: expired once the model is gone
 };

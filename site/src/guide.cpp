@@ -63,7 +63,7 @@ std::vector<std::string> Guide::steps(std::string_view task) const {
         const std::string at = place_() == "overview" ? std::string("main/body/view/atlas") : std::format("main/body/view/atlas/{}/page", place_());
         return {std::format(R"({{"op":"snapshot","actor":"{}","root":"{}","depth":2}})", guide_actor, at)};
     }
-    if (task == "tour") return {act("main/bar/lang", "activate"), act("main/body/nav/to_features", "activate"), wait("main/body/view/atlas/features/page/doc")};
+    if (task == "tour") return {act("main/bar/lang", "activate"), act("main/body/nav/to_features", "activate"), wait("main/body/view/atlas/features/page/read/doc")};
     if (task == "edit")
         return {act("main/body/nav/to_timeline", "activate"), wait(editor), act(editor, "seek", R"({"frame":30})"), act(editor, "select", R"({"track":0,"clip":0})"),
                 act(editor, "split"), std::format(R"({{"op":"undo","actor":"{}","scope":"{}"}})", guide_actor, editor)};

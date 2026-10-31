@@ -1342,6 +1342,40 @@ Element place_window(const std::shared_ptr<Site>& s, const std::string& id, bool
                                  s, Arrival::lines)
                        : markdown({.id = "doc", .origin = MarkdownOrigin::app, .source = std::string(document(id, zh ? "zh" : "en")), .max_width = Dim(640.0f)});
     content.push_back(std::move(doc));
+    if (id != "home") {
+        // A document's sections down its right, where a wide window has room: each takes the reader to it.
+        auto rail = [s, id, live](std::string_view lang) {
+            std::vector<Element> entries;
+            entries.push_back(text({.id = "label", .text = std::string(lang == "zh" ? "本页内容" : "On this page"), .style = "caption", .color = "text_muted"}));
+            const md::Document d = md::parse(document(id, lang));
+            std::size_t i = 0;
+            md::walk(d.root, [&](const md::Block& b) {
+                if (b.kind != md::Kind::heading || b.level > 2) return;
+                ButtonOptions o{.id = std::format("s{}", i++), .text = md::plain_text(b), .variant = ButtonVariant::ghost};
+                o.max_width = Dim(240.0f);
+                o.align_self = "start";
+                if (live)
+                    o.on_activated = [s, id, anchor = b.anchor] {
+                        if (!s->runtime) return;
+                        Invocation call;
+                        call.args = Value{}.set("anchor", anchor);
+                        (void)s->runtime->act(s->runtime->find(std::string(place_root) + id + "/page/read/doc"), "scroll_to_anchor", call);
+                    };
+                else o.disabled = true;
+                entries.push_back(button(std::move(o)));
+            });
+            return entries;
+        };
+        Element contents = live ? column({.id = "contents", .width = Dim(260.0f), .gap = 2, .label = "Sections"},
+                                         {dynamic([s, rail] { return rail(s->lang.get()); })})
+                                : column({.id = "contents", .width = Dim(260.0f), .gap = 2, .label = "Sections"}, rail(zh ? "zh" : "en"));
+        contents.prop("shrink", Source(Value(0.0)));
+        std::vector<Element> both;
+        both.push_back(std::move(content.back()));
+        if (v.width >= 1000) both.push_back(std::move(contents));  // narrower: the document alone (the same path to it)
+        Element read = row({.id = "read", .min_width = Dim(0.0f), .gap = 48, .align = "start"}, std::move(both));
+        content.back() = std::move(read);
+    }
     return scroll({.id = "page", .width = Dim(v.width), .height = Dim(v.height), .padding = narrow ? Edges(20.0f, 20.0f) : Edges(32.0f, 40.0f), .background = "background"},
                   std::move(content));
 }

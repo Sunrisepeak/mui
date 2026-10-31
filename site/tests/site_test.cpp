@@ -260,7 +260,7 @@ int main(int argc, char** argv) {
         h.key(Key::escape);
         h.settle();
         check(!shown("main/body/nav"), "Esc closed it");
-        const auto features = h.tree().node("main/body/view/atlas/features/page/doc");
+        const auto features = h.tree().node("main/body/view/atlas/features/page/read/doc");
         check(features && !features->states.has(State::offscreen), "and the place is there");
     });
 
@@ -668,7 +668,7 @@ int main(int argc, char** argv) {
         a.h.advance(seconds(1));
         shot("time.png");
         std::println("    pixels {}", all.hex());
-        check_eq(all.hex(), std::string("f6fbb0f5083c5b03"));
+        check_eq(all.hex(), std::string("7021110d91708339"));
     });
 
     s.test("the style workshop runs in its place, a theme scope: a pack styles it alone, the site keeps its theme, the tree is the same in every pack", [] {
@@ -820,7 +820,7 @@ int main(int argc, char** argv) {
             check(h->click("main/body/guide/tasks/task_tour"), "the tour");
             h->advance(seconds(6));
             h->settle(seconds(1));
-            const auto doc = h->tree().node("main/body/view/atlas/features/page/doc");
+            const auto doc = h->tree().node("main/body/view/atlas/features/page/read/doc");
             check(doc && !doc->states.has(State::offscreen), "the features read, in view");
             const Rect view = h->runtime().screen_bounds(h->runtime().find("main/body/view"));
             check(view.width == 390, std::format("the view the whole width again ({})", view.width));

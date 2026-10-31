@@ -784,8 +784,8 @@ ease = "in_out_sine"
 poses = [
     [0, "crouch"],
     [1, "crouch", "out_quad", { aim = { upper_front = -70, fore_front = 40, hand_front = 40 } }],
-    [3, "crouch", "linear", { aim = { torso = 74, upper_front = -14, fore_front = -4, hand_front = -4 }, swap = { head = 2, hand_front = 5 } }],
-    [5, "crouch", { aim = { torso = 74, upper_front = -14, fore_front = -4, hand_front = -4 }, swap = { head = 2, hand_front = 5 } }],
+    [3, "crouch", "linear", { aim = { torso = 74, upper_front = -14, fore_front = -4, hand_front = -4 }, swap = { head = 2, hand_front = 3 } }],
+    [5, "crouch", { aim = { torso = 74, upper_front = -14, fore_front = -4, hand_front = -4 }, swap = { head = 2, hand_front = 3 } }],
     [9, "crouch", { aim = { upper_front = -40, fore_front = 20, hand_front = 20 } }],
     [12, "crouch"],
 ]
@@ -809,9 +809,9 @@ frames = 33
 ease = "in_out_sine"
 poses = [
     [0, "crouch"],
-    [3, "crouch", "in_quad", { aim = { torso = 72, upper_front = -110, fore_front = -40, hand_front = -40 }, rise = -40, swap = { hand_front = 5 } }],
-    [7, "stance", "out_expo", { aim = { torso = 98, head = 98, upper_front = 78, fore_front = 86, hand_front = 88, upper_back = -110, fore_back = -40, hand_back = -40 }, rise = 4, grip_at = { foot_front = 44 }, swap = { head = 3, hand_front = 5, hand_back = 1, cape = 1 } }],
-    [10, "stance", { aim = { torso = 100, head = 100, upper_front = 82, fore_front = 88, hand_front = 90, upper_back = -110, fore_back = -40, hand_back = -40 }, rise = 6, grip_at = { foot_front = 44 }, swap = { head = 3, hand_front = 5, hand_back = 1, cape = 1 } }],
+    [3, "crouch", "in_quad", { aim = { torso = 72, upper_front = -110, fore_front = -40, hand_front = -40 }, rise = -40, swap = { hand_front = 3 } }],
+    [7, "stance", "out_expo", { aim = { torso = 98, head = 98, upper_front = 78, fore_front = 86, hand_front = 88, upper_back = -110, fore_back = -40, hand_back = -40 }, rise = 4, grip_at = { foot_front = 44 }, swap = { head = 3, hand_front = 3, hand_back = 1, cape = 1 } }],
+    [10, "stance", { aim = { torso = 100, head = 100, upper_front = 82, fore_front = 88, hand_front = 90, upper_back = -110, fore_back = -40, hand_back = -40 }, rise = 6, grip_at = { foot_front = 44 }, swap = { head = 3, hand_front = 3, hand_back = 1, cape = 1 } }],
     [21, "crouch", { rise = -20 }],
     [32, "crouch"],
 ]
@@ -861,8 +861,8 @@ ease = "in_out_sine"
 poses = [
     [0, "air"],
     [2, "air", "out_quad", { aim = { upper_front = -60, fore_front = 20, hand_front = 20 } }],
-    [3, "air", "linear", { aim = { torso = 86, upper_front = -30, fore_front = -28, hand_front = -28 }, swap = { head = 2, hand_front = 5 } }],
-    [8, "air", { aim = { torso = 86, upper_front = -30, fore_front = -28, hand_front = -28 }, swap = { head = 2, hand_front = 5 } }],
+    [3, "air", "linear", { aim = { torso = 86, upper_front = -30, fore_front = -28, hand_front = -28 }, swap = { head = 2, hand_front = 3 } }],
+    [8, "air", { aim = { torso = 86, upper_front = -30, fore_front = -28, hand_front = -28 }, swap = { head = 2, hand_front = 3 } }],
     [21, "air"],
 ]
 

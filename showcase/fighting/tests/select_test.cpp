@@ -168,8 +168,8 @@ int main(int argc, char** argv) {
         a.h.step({key(Key::s), key(Key::s, false), key(Key::u), key(Key::u, false)});  // down to 选人 · FIGHTERS, chosen
         check(a.select().phase() == std::string_view("fighters") && a.stage().props.paused, "back to the select screen");
         std::println("    rounds {:016x} results {:016x}", won, results);
-        check_eq(results, std::uint64_t{0x787f1c47001190b6});  // GCC and LLVM
-        check_eq(won, std::uint64_t{0x881db01b885d9982});  // GCC and LLVM
+        check_eq(results, std::uint64_t{0x6e44da4ad32f70d4});  // GCC and LLVM
+        check_eq(won, std::uint64_t{0xf2dc53b2cf91f5dd});  // GCC and LLVM
     });
 
     s.test("Esc pauses the fight under a card — the match stands, both players' keys on it; resume, restart, the select screen from it, by keys, the pointer and a pad; the next fight a new match", [] {
@@ -215,7 +215,7 @@ int main(int argc, char** argv) {
         for (int i = 0; i < 600 && a.stage().props.paused; ++i) a.h.advance(seconds(1.0 / 60));  // the versus screen's moment
         check(!a.stage().props.paused && a.stage().match().state().frame < 5, "a new match");
         std::println("    paused {:016x}", paused);
-        check_eq(paused, std::uint64_t{0x285cec6223e53ebb});  // GCC and LLVM
+        check_eq(paused, std::uint64_t{0x0967e0f56fc9dbd3});  // GCC and LLVM
     });
 
     s.test("training's tools on its pause card, for a person: player 2 recorded — the person's keys play it — and replayed; save and load; the overlays off", [] {
@@ -311,13 +311,13 @@ int main(int argc, char** argv) {
         check(a.act("main/stage", "demonstrate", Value{}.set("move", "")) && a.stage().props.demo.empty(), "an agent stops it");
         check(!a.act("main/stage", "demonstrate", Value{}.set("move", "nothing")), "no such move");
         std::println("    move list {:016x}", moves);
-        check_eq(moves, std::uint64_t{0x125c78540e01b35b});  // GCC and LLVM
+        check_eq(moves, std::uint64_t{0xd172fdfe5c98b1a8});  // GCC and LLVM
         // Who fights, by an agent: 坤 for player 1, a new match; an unknown name refused.
         check(a.act("main/stage", "fighters", Value{}.set("player1", "kun").set("player2", "")), "fighters");
         check_eq(a.stage().match().fighter(0).def.name, std::string("Kun"));
         check(!a.act("main/stage", "fighters", Value{}.set("player1", "").set("player2", "nobody")), "no such fighter");
         std::println("    training card {:016x}", card);
-        check_eq(card, std::uint64_t{0x75a3328eade0ca63});  // GCC and LLVM
+        check_eq(card, std::uint64_t{0x73475a7950f3fd9c});  // GCC and LLVM
     });
 
     s.test("the title and the select screen, pinned: the logo over the study, the modes; the roster, both fighters' previews, VS", [] {
@@ -333,7 +333,7 @@ int main(int argc, char** argv) {
         std::println("    menus title {:016x} select {:016x}", title, select);
         check(title != select, "two screens");
         check_eq(title, std::uint64_t{0x643fb24c0ef4dddf});   // GCC and LLVM
-        check_eq(select, std::uint64_t{0xcc2e3f9b2e6c8ec4});  // GCC and LLVM
+        check_eq(select, std::uint64_t{0x654fc427636b90a1});  // GCC and LLVM
     });
 
     return s.run(argc, argv);

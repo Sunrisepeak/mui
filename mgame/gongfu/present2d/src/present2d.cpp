@@ -890,14 +890,19 @@ void Painter::picture_part(const Look& look, const Part& own, std::size_t drawin
             Point at = place(pose_[b], along, across);
             if (!part.bend.empty()) {
                 // Skinning: from the rest pose, each bend bone takes the vertex over across `blend` about its joint.
+                // How far toward the bend is measured along the part's own bone (where the joint lies on it), not
+                // along the bend bone: a bent rest elbow would otherwise split the sleeve across its width and pull
+                // the shoulder's end off its joint. The part's own end stays its bone's.
                 const Point rest = place(rest_[b], along, across);
+                const double oa = dm::cos(rest_[b].angle), os = dm::sin(rest_[b].angle);
                 for (const std::int32_t cb : part.bend) {
                     if (cb < 0 || static_cast<std::size_t>(cb) >= rest_.size()) continue;
                     const BonePlace& rc = rest_[static_cast<std::size_t>(cb)];
                     const double ca = dm::cos(rc.angle), sa = dm::sin(rc.angle);
                     const double rx = rest.x - rc.joint.x, ry = rest.y - rc.joint.y;
                     const double along_c = rx * ca + ry * sa, across_c = (-rx * sa + ry * ca) * facing;
-                    const double w = std::clamp(0.5 + along_c / std::max(1.0, part.blend * scale), 0.0, 1.0);
+                    const double at_joint = (rc.joint.x - rest_[b].joint.x) * oa + (rc.joint.y - rest_[b].joint.y) * os;  // the bend's joint on the part's bone
+                    const double w = std::clamp(0.5 + (along - at_joint) / std::max(1.0, part.blend * scale), 0.0, 1.0);
                     const Point moved = place(pose_[static_cast<std::size_t>(cb)], along_c, across_c);
                     at = {static_cast<float>(at.x + (moved.x - at.x) * w), static_cast<float>(at.y + (moved.y - at.y) * w)};
                 }

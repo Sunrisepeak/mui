@@ -631,6 +631,45 @@ angle.fore = [[0, 0], [10, 90]]
         for (int y = 0; y < 300; ++y)
             for (int x = 0; x < 400; ++x) moved += blue(straight, x, y) != blue(bent, x, y);
         check(moved > 1500, std::format("bent, the forearm's art moved: {} pixels", moved));
+        // A bent rest elbow (the forearm at rest across, as painted arms often are): bending it further leaves the
+        // shoulder's end of the art on its joint — the bend is measured along the upper arm, not across its width.
+        {
+            std::string rested = text;
+            rested.replace(rested.find("length = 80\n\n[[part]]"), 11, "length = 80\nrest = 100");
+            rested.replace(rested.find("angle.fore = [[0, 0], [10, 90]]"), 31, "angle.fore = [[0, 0], [10, -60]]");
+            auto bent_rest = p2::read_look(rested, "rested.look.gongfu.toml");
+            check(bent_rest.has_value(), bent_rest ? "" : std::format("{}", texts(bent_rest.error())));
+            if (!bent_rest) return;
+            bent_rest->pictures[0].ref = look->pictures[0].ref;
+            auto draw = [&](std::int32_t t) {
+                omui::render::DisplayList dl;
+                dl.fill_rect({0, 0, 400, 300}, Color::hex(0xffffff));
+                painter.body(*bent_rest, f, st, 0, p2::Scene{.width = 400, .height = 300, .ground = 200}, p2::Camera{0, 60, 1}, dl, "bend", t);
+                omui::raster::Surface out(400, 300);
+                omui::render::CpuRenderer{}.render(dl, out, {&images, nullptr}, {.scale = 1});
+                return out;
+            };
+            const auto at_rest = draw(0), turned = draw(10);
+            save(turned, "art-bent-rest");
+            auto red = [](const omui::raster::Surface& s, int x, int y) { return s.at(x, y).r > 150 && s.at(x, y).b < 100; };
+            // The shoulder: the topmost red row and its middle.
+            int top = -1, sx = 0, n = 0;
+            for (int y = 0; y < 300 && top < 0; ++y)
+                for (int x = 0; x < 400; ++x)
+                    if (red(at_rest, x, y)) top = y;
+            for (int x = 0; x < 400; ++x)
+                if (top >= 0 && red(at_rest, x, top)) sx += x, ++n;
+            check(top >= 0 && n > 0, "the upper arm drawn");
+            if (n == 0) return;
+            sx /= n;
+            int same = 0, there = 0;
+            for (int y = top; y < top + 16; ++y)
+                for (int x = sx - 20; x <= sx + 20; ++x) {
+                    there += red(at_rest, x, y);
+                    same += red(at_rest, x, y) && red(turned, x, y);
+                }
+            check(there > 200 && same * 100 >= there * 95, std::format("the shoulder's end stays: {} of {} pixels", same, there));
+        }
         // Problems: a picture not declared, a source outside it.
         std::string bad = text;
         bad.replace(bad.find("picture = \"arm\""), 15, "picture = \"leg\"");

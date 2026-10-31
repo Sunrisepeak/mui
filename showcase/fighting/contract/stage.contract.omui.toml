@@ -31,8 +31,8 @@ restart = { effect = "reversible", doc = "A new round from the start." }
 rematch = { effect = "reversible", doc = "The match again from its first round, the same fighters (the results' 再战 · REMATCH)." }
 fighters = { effect = "reversible", args = { player1 = "string", player2 = "string" }, doc = "Who fights: the players' fighters by their files' names (mo, ni, kun, li, yue, ke; an empty one stays as it is) — a new match." }
 leave   = { effect = "reversible", doc = "Back to the select screen (the results' or the pause menu's 选人 · FIGHTERS): the `leave` event." }
-pause   = { effect = "reversible" }
-resume  = { effect = "reversible" }
+pause   = { effect = "reversible", doc = "Stands the match still (the program's pause, not the card): `step` plays a frame." }
+resume  = { effect = "reversible", doc = "Plays the match again after `pause`." }
 step    = { effect = "reversible", doc = "One frame, while paused." }
 press   = { effect = "reversible", args = { player = "i32", pad = "string" }, doc = "Holds a pad for a player until the next press: a numpad direction and buttons (`6`, `2LK`, `5LP+LK`, `5` to let go)." }
 release = { effect = "reversible", args = { player = "i32" }, doc = "Gives the player back to the keyboard." }

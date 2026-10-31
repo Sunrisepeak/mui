@@ -1073,7 +1073,20 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
                                             "give the pose (or its `from`) an angle for it");
                                     all = false;
                                 }
-                            if (all) c.aims[static_cast<std::size_t>(b)] = track([&](const KeyPose& kp) { return kp.aim.at(b); }, ease);
+                            // An angle keyed goes the short way from the key before (240 after -105 is -120: a quarter, not
+                            // three); a turn of more than half is a clip's `turns`, said as such.
+                            if (all) {
+                                std::vector<double> unwound;
+                                for (const auto& [kp, _] : made) {
+                                    double v = kp.aim.at(b);
+                                    if (!unwound.empty()) v -= 360.0 * std::round((v - unwound.back()) / 360.0);
+                                    unwound.push_back(v);
+                                }
+                                hanim::Track<double> tr;
+                                for (std::size_t i = 0; i < made.size(); ++i)
+                                    tr.key(hanim::seconds(c.keys[i].frame / 60.0), unwound[i], c.keys[i].ease.value_or(ease));
+                                c.aims[static_cast<std::size_t>(b)] = std::move(tr);
+                            }
                         }
                         if (std::ranges::any_of(made, [](const auto& m) { return m.first.rise.has_value(); }))
                             c.rise = track([](const KeyPose& kp) { return kp.rise.value_or(0.0); }, ease);

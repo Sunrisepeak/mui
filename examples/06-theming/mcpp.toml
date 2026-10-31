@@ -1,0 +1,44 @@
+# Example 06 — theming (canvas-markdown §5; component-binding §11): a theme
+# preview, written in Lua and run by the player. The components and the
+# tokens under any composition — light, dark or the application's own brand,
+# compact or not, with reduced motion or not — switched from the script
+# (omui.theme). Themes are data (*.theme.omui.toml): openmui's default and
+# compact packages, and themes/brand.theme.omui.toml, which the player
+# reloads when it is saved. The semantic tree is the same under all of them.
+#
+#   mcpp run                       a window; edit themes/brand.theme.omui.toml
+#   mcpp run -- --headless --png preview.png
+[package]
+namespace   = "openmui.example"
+name        = "theming"
+version     = "0.1.0"
+description = "openmui example 06: a theme preview in Lua — compositions, density, motion, an application's own theme file"
+license     = "Apache-2.0"
+
+[package.metadata.openmui]
+kind   = "app"
+id     = "org.openmui.theme-preview"
+title  = "Theme preview"
+size   = "640x560"
+themes = ["themes/*.theme.omui.toml"]
+theme  = ["light"]
+
+[package.metadata.openmui.scripts]
+main = "logic/main.lua"
+
+[targets.theme-preview]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cpp"]
+
+[dependencies]
+openmui.entry.player = { path = "../../src/entry/player" }
+
+[dev-dependencies]
+openmui.testing       = { path = "../../modules/base/testing" }
+openmui.player        = { path = "../../modules/ui/player" }
+openmui.lang.lua      = { path = "../../lang/lua" }
+openmui.theme.default = { path = "../../modules/ui/theme/default" }
+openmui.theme.compact = { path = "../../modules/ui/theme/compact" }

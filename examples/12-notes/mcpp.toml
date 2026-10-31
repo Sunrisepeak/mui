@@ -1,0 +1,47 @@
+# Example 12 — a notes application in four languages (canvas-markdown §5;
+# component-binding §9): the views and the logic in TypeScript
+# (logic/main.ts), text macros in Lua (plugins/macros.lua, as verbs any
+# language or agent calls), a help panel as a view document
+# (ui/help.view.omui.json, mounted into the TypeScript view's slot), and the
+# search in C++ (openmui's native module `fuzzy`). They share only what the
+# design allows: signals, models, verbs and events. The tool: notes in
+# Markdown, searched as you type, edited beside their preview, with tasks you
+# tick in the preview.
+#
+#   mcpp run                       a window
+#   mcpp run -- --headless --png notes.png
+[package]
+namespace   = "openmui.example"
+name        = "notes"
+version     = "0.1.0"
+description = "openmui example 12: a Markdown notes application in TypeScript, Lua, a view document and C++"
+license     = "Apache-2.0"
+
+[package.metadata.openmui]
+kind  = "app"
+id    = "org.openmui.notes"
+title = "Notes"
+size  = "960x620"
+views = ["ui/*.view.omui.json"]
+
+[package.metadata.openmui.scripts]
+macros = "plugins/macros.lua"
+main   = "logic/main.ts"
+
+[targets.notes]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cpp"]
+
+[dependencies]
+openmui.entry.player = { path = "../../src/entry/player" }
+
+[dev-dependencies]
+openmui.testing      = { path = "../../modules/base/testing" }
+openmui.player       = { path = "../../modules/ui/player" }
+openmui.lang.js      = { path = "../../lang/js" }
+openmui.lang.lua     = { path = "../../lang/lua" }
+openmui.ui.markdown  = { path = "../../components/markdown" }
+openmui.native.fuzzy = { path = "../../modules/ui/native/fuzzy" }

@@ -1,0 +1,33 @@
+# openmui.build.toy — the build plugin for Bilibili Toy (D-84 §6.5): the pack
+# format `dist-toy`, a wasm32-emscripten program packaged for Toy (or, without
+# Toy's SDK, as a plain static page: the site's).
+#
+#   [build-dependencies]
+#   openmui.build.toy = { path = "…/mcpp/toy", host-module = true }
+#
+#   // build.mcpp
+#   import mcpp;
+#   import openmui.build.toy;
+#   int main() { return openmui::build::dist_toy({.target = "omui-fight", .title = "格斗"}) ? 0 : 1; }
+#
+#   mcpp pack -p <package> --target wasm32-emscripten --release --pkg-format dist-toy
+[package]
+name        = "toy"
+namespace   = "openmui.build"
+version     = "0.1.0"
+description = "Build plugin: the dist-toy pack format, a program packaged for Bilibili Toy or as a static page"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "rules"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+# The generator, built for the build machine and handed to the build program
+# that uses this plugin (a generating plugin compiles no device language, so
+# it is a plain library of build programs: mcpp's 08-build-rules shape).
+[dependencies]
+openmui.build.plan = { path = "../plan", reexport = true }
+openmui.gen        = { path = "../../tools/gen", tools = ["omui-gen"], reexport = true }

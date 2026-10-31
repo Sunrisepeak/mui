@@ -1,0 +1,36 @@
+# Glass: Liquid Glass as Apple uses it — a layer for navigation and
+# controls floating over the content, never the content itself. The
+# content's panels are solid; the tab bar and the buttons are
+# liquid glass: the content behind them bent at their bevels, lit at the rim;
+# a press swells the glass (thicker, bending more, brighter at the rim) and
+# it eases back; the tab bar's lens slides to the tab chosen and merges with
+# the bar it sits in.
+[style.glass]
+doc       = "Liquid glass controls and a floating tab bar over solid content."
+theme     = "dark"
+crossfade = 0.45
+
+[style.glass.colors]
+background      = "#1e1b4b"
+surface         = "#2a2763 / 0.94"
+surface_variant = "#ffffff / 0.16"
+surface_pressed = "#ffffff / 0.24"
+border          = "#ffffff / 0.28"
+text            = "#f8fafc"
+text_muted      = "#c7d2fe"
+accent          = "#a5b4fc"
+on_accent       = "#1e1b4b"
+track           = "#ffffff / 0.25"
+bar             = "#ffffff / 0.03"
+tab_lens        = "#ffffff / 0.10"
+
+[style.glass.radius]
+medium = 14
+large  = 20
+xl     = 24
+
+[style.glass.effects]
+tabs             = { effect = "liquid_glass", thickness = 16, ior = 1.5, blur = 3, tint_a = 0.05, dispersion = 0.35, rim = 0.8, smoothness = 14 }
+button           = { effect = "liquid_glass", thickness = 10, ior = 1.4, blur = 2, tint_a = 0.04, dispersion = 0.3, rim = 0.7, transition = 0.35 }
+"button:hovered" = { effect = "liquid_glass", rim = 0.9 }
+"button:pressed" = { effect = "liquid_glass", thickness = 18, ior = 1.65, rim = 1.0, tint_a = 0.1, light_x = 0.1, light_y = -1 }

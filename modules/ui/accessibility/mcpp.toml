@@ -1,0 +1,55 @@
+# openmui.accessibility — the semantic tree served to the platform's
+# assistive technology (D-21): UI Automation on Windows, NSAccessibility on
+# macOS, AT-SPI on Linux, through AccessKit's C bindings (mcpp-index's
+# compat.accesskit, imported as the module mcpplibs.mwrap.accesskit). A screen
+# reader, a magnifier or voice control reads the tree a view's semantics make
+# and asks for its actions; what it asks is performed as the person's own
+# input. The mapping from the tree is the same everywhere and is tested
+# everywhere; where AccessKit has no library (Linux arm64, x86_64 macOS, the
+# Web) an adapter says it is not available.
+[package]
+namespace   = "openmui"
+name        = "accessibility"
+version     = "0.1.0"
+description = "openmui accessibility: the semantic tree served to UIA, NSAccessibility and AT-SPI through AccessKit"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "runtime"
+
+[targets.openmui-accessibility]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+# AccessKit's prebuilt libraries: Linux x86_64, macOS arm64, Windows x86_64.
+[target.'cfg(any(all(os = "linux", arch = "x86_64"), all(os = "macos", arch = "aarch64"), all(os = "windows", arch = "x86_64")))'.build]
+sources = ["src/platform/accesskit/*.cppm", "src/native/accesskit/*.cppm", "src/native/accesskit/*.cpp"]
+
+[target.'cfg(any(all(os = "linux", arch = "x86_64"), all(os = "macos", arch = "aarch64"), all(os = "windows", arch = "x86_64")))'.dependencies]
+mcpplibs.mwrap.accesskit = "0.23.1"
+
+# The service of each: AT-SPI, NSAccessibility, UI Automation.
+[target.'cfg(all(os = "linux", arch = "x86_64"))'.build]
+sources = ["src/native/accesskit/unix/*.cpp"]
+
+[target.'cfg(all(os = "macos", arch = "aarch64"))'.build]
+sources = ["src/native/accesskit/macos/*.cpp"]
+
+[target.'cfg(all(os = "windows", arch = "x86_64"))'.build]
+sources = ["src/native/accesskit/windows/*.cpp"]
+
+[target.'cfg(not(any(all(os = "linux", arch = "x86_64"), all(os = "macos", arch = "aarch64"), all(os = "windows", arch = "x86_64"))))'.build]
+sources = ["src/platform/none/*.cppm", "src/native/none/*.cpp"]
+
+[dependencies]
+openmui.core     = { path = "../core" }
+openmui.view     = { path = "../view" }
+openmui.semantic = { path = "../semantic" }
+openmui.hash     = { path = "../../base/hash" }
+openmui.trace    = { path = "../../base/trace" }
+
+[dev-dependencies]
+openmui.testing = { path = "../../base/testing" }

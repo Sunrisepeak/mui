@@ -1,0 +1,37 @@
+# openmui.ui.liquid_glass — liquid glass as components (D-64, features §3.3):
+# `liquid_glass`, a container whose surface is a thick transparent material
+# over what lies under it, and `glass_group`, whose members merge like drops.
+# Contract-first: contract/*.contract.omui.toml become the bases, builders,
+# stubs and schema when it builds (openmui.build.contracts). The look is the renderer's
+# built-in `liquid_glass` effect (openmui.render); the semantics are an
+# ordinary group's; reduced transparency draws an opaque panel.
+[package]
+namespace   = "openmui.ui"
+name        = "liquid_glass"
+version     = "0.1.0"
+description = "Liquid glass components: a container of thick transparent material over its backdrop, and groups that merge like drops"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "component"
+
+[targets.openmui-ui-liquid-glass]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+openmui.core   = { path = "../../modules/ui/core" }
+openmui.view   = { path = "../../modules/ui/view" }
+openmui.render.vector = { path = "../../modules/gfx/render/vector" }
+
+[build-dependencies]
+openmui.build.contracts = { path = "../../mcpp/contracts", host-module = true }
+
+[dev-dependencies]
+openmui.testing       = { path = "../../modules/base/testing" }
+openmui.host.headless = { path = "../../modules/ui/host/headless" }
+openmui.semantic      = { path = "../../modules/ui/semantic" }

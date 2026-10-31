@@ -1,0 +1,302 @@
+// The headless host: the four levels give the same semantic tree, the clock
+// steps by frames, input by point or by id, pixels and PNG, pixel
+// provenance, and an agent driving an H3 session.
+import std;
+import openmui.host.headless;
+import openmui.testing;
+
+using namespace omui::testing;
+using namespace omui;
+
+namespace {
+
+typeset::FontCollection& fonts() {
+    static typeset::FontCollection f = [] {
+        typeset::FontCollection c;
+        (void)c.add_defaults();
+        return c;
+    }();
+    return f;
+}
+
+struct Counter {
+    Signal<int> count{0};
+    View view() {
+        return column({.padding = 12, .gap = 8}, {
+            text({.id = "label", .text = derive([c = count] { return std::format("{} clicks", c.get()); })}),
+            box({.id = "inc", .width = 80, .height = 28, .background = "accent", .radius = 6, .label = "Add one",
+                 .on = {{"press", [c = count](const Value&) { c.set(c.peek() + 1); }}},
+                 .animate = {{"background", Transition::tween(seconds(0.2))}}}),
+        });
+    }
+};
+
+HeadlessOptions at(HeadlessLevel level) {
+    HeadlessOptions o;
+    o.level = level;
+    o.size = {240, 120};
+    o.fonts = &fonts();
+    return o;
+}
+
+// The parts of a node every level agrees on (S level): id, role, name, value, actions.
+std::string essence(semantic::Tree& t) {
+    std::string out;
+    for (const auto& n : t.snapshot().nodes) {
+        out += std::format("{} {} '{}' {}", n.id, spec::name(n.role), n.name, n.value.json());
+        for (const auto& a : n.actions) out += std::format(" {}:{}", a.name, spec::name(a.effect));
+        out += '\n';
+    }
+    return out;
+}
+
+}  // namespace
+
+int main(int argc, char** argv) {
+    Suite s{"headless"};
+
+    s.test("H0, H1 and H2 give the same semantic tree; only H1 and up have places", [] {
+        std::array<std::string, 3> trees;
+        std::array<HeadlessLevel, 3> levels{HeadlessLevel::semantics, HeadlessLevel::layout, HeadlessLevel::pixels};
+        for (std::size_t i = 0; i < 3; ++i) {
+            Headless h(at(levels[i]));
+            Counter c;
+            h.mount("main", c.view());
+            h.step();
+            check(h.click("main/inc"), "click by id at every level");
+            h.settle();
+            check(c.count.peek() == 1);
+            trees[i] = essence(h.tree());
+            auto label = h.tree().node("main/label");
+            check(label.has_value());
+            if (i == 0) check(!label->bounds && !label->states.has(State::offscreen), "H0: no layout, no place");
+            else check(label->bounds.has_value() && label->bounds->width > 0);
+        }
+        check(trees[0] == trees[1] && trees[1] == trees[2], trees[0] + "---\n" + trees[2]);
+        check(trees[0].find("main/label text '1 clicks'") != std::string::npos, trees[0]);
+    });
+
+    s.test("the clock steps by frames; settle runs until nothing moves", [] {
+        Headless h(at(HeadlessLevel::layout));
+        Counter c;
+        h.mount("main", c.view());
+        h.step();
+        check(h.frame_index() == 0 && h.now() == seconds(0));
+        h.advance(seconds(0.5));
+        check(h.frame_index() == 30, std::format("{}", h.frame_index()));
+        h.runtime().set(h.runtime().find("main/inc"), "background", Value("#ff0000"));
+        auto frames = h.settle();
+        check(frames >= 12 && frames <= 14, std::format("a 0.2 s transition at 60 Hz: {} frames", frames));
+        check(!h.tree().node("main/inc")->states.has(State::animating));
+        check(h.settle() == 1, "already settled: one frame");
+    });
+
+    s.test("a gamepad, injected: to the focus as the keyboard's keys go, its handlers by name, from its JSON form", [] {
+        Headless h(at(HeadlessLevel::layout));
+        std::vector<std::string> got;
+        auto log = [&](std::string what) { return [&got, what](const Value& v) { got.push_back(what + " " + v.json()); }; };
+        Element player = painter({.id = "player", .width = 40, .height = 40, .focusable = true});
+        for (std::string_view e : {"connect", "down", "up", "axis", "disconnect"}) player.on(std::format("gamepad_{}", e), log(std::string(e)));
+        h.mount("main", column({}, {std::move(player)}));
+        h.step();
+        h.runtime().focus(h.runtime().find("main/player"));
+        std::vector<InputEvent> events;
+        for (std::string_view json : {R"({"type":"gamepad","kind":"connected","device":2,"name":"pad"})",
+                                      R"({"type":"gamepad","kind":"down","device":2,"button":"south"})",
+                                      R"({"type":"gamepad","kind":"axis","device":2,"axis":"leftX","value":-0.5})",
+                                      R"({"type":"gamepad","kind":"up","device":2,"button":"south"})",
+                                      R"({"type":"gamepad","kind":"disconnected","device":2})"})
+            events.push_back(*event_from_value(*parse_json(json)));
+        h.step(events);
+        check(got.size() == 5, std::format("{}", got));
+        if (got.size() != 5) return;
+        check(got[0].starts_with("connect ") && got[0].contains(R"("name":"pad")"), got[0]);
+        check(got[1].starts_with("down ") && got[1].contains(R"("button":"south")"), got[1]);
+        check(got[2].starts_with("axis ") && got[2].contains(R"("value":-0.5)"), got[2]);
+        check(got[3].starts_with("up ") && got[4].starts_with("disconnect "), got[4]);
+    });
+
+    s.test("pixels, PNG, regions, and the node behind a pixel", [] {
+        Headless h(at(HeadlessLevel::pixels));
+        Counter c;
+        h.mount("main", c.view());
+        h.step();
+        const auto& px = h.pixels();
+        check(px.width() == 240 && px.height() == 120);
+        const Rect inc = h.runtime().bounds(h.runtime().find("main/inc"));
+        auto p = px.at(static_cast<int>(inc.center().x), static_cast<int>(inc.center().y));
+        check(p.b > 200 && p.r < 120, "the accent colour");
+        check(h.node_at_pixel(inc.center()) == h.runtime().find("main/inc"));
+        auto whole = h.png();
+        check(whole.has_value() && whole->size() > 100 && (*whole)[1] == 'P');
+        auto part = h.png(inc);
+        check(part.has_value() && part->size() < whole->size());
+        auto dir = scratch_dir("headless");
+        check(h.save_png(dir / "counter.png").has_value());
+        check(std::filesystem::file_size(dir / "counter.png") == whole->size());
+        Headless h1(at(HeadlessLevel::layout));
+        check(!h1.png().has_value(), "no pixels at H1");
+    });
+
+    s.test("a recording: frames kept, written as an animated PNG whose first frame is the first kept", [] {
+        Headless h(at(HeadlessLevel::pixels));
+        Counter c;
+        h.mount("main", c.view());
+        h.step();
+        h.record();
+        for (int k = 0; k < 3; ++k) {
+            check(h.click("main/inc"));
+            h.step();
+            h.record();
+        }
+        h.record();  // the same again: one frame, shown longer
+        check_eq(h.recorded(), std::size_t{5});
+        const auto file = scratch_dir("headless-recording") / "counter.png";
+        check(h.save_recording(file, {.delay_num = 1, .delay_den = 4}).has_value());
+        check_eq(h.recorded(), std::size_t{0});
+        auto back = imageio::load_png(file);  // a viewer without APNG: the first frame
+        check(back.has_value() && back->width == 240 && back->height == 120);
+        check(!h.save_recording(file).has_value(), "nothing recorded");
+    });
+
+    s.test("a recording to a .webp file is an animated WebP: the same frames and timing, and smaller than the APNG", [] {
+        // The same film on a fresh host each time: three clicks, each frame kept, the last kept twice.
+        struct Film {
+            Headless                               h{at(HeadlessLevel::pixels)};
+            Counter                                c;
+            std::vector<std::vector<std::uint8_t>> shown;  // each kept frame as a PNG gives it (straight)
+            Film() {
+                h.mount("main", c.view());
+                h.step();
+                keep();
+                for (int k = 0; k < 3; ++k) {
+                    check(h.click("main/inc"));
+                    h.step();
+                    keep();
+                }
+                h.record();  // the same again: one frame, shown longer
+            }
+            void keep() {
+                h.record();
+                auto png = h.png();
+                if (png) shown.push_back(imageio::decode_png(*png)->rgba);
+            }
+        };
+        const auto dir = scratch_dir("headless-recording-webp");
+        Film exact;
+        check(exact.h.save_recording(dir / "counter.WebP", {.delay_num = 1, .delay_den = 4, .loops = 2, .lossless = true}).has_value());
+        check_eq(exact.h.recorded(), std::size_t{0});
+        auto anim = imageio::load_animated_webp(dir / "counter.WebP");
+        check(anim.has_value(), anim ? "" : anim.error());
+        if (anim) {
+            check(anim->width == 240 && anim->height == 120 && anim->loops == 2);
+            check_eq(anim->frames.size(), std::size_t{4});
+            const std::array<std::uint32_t, 4> lasts{250, 250, 250, 500};
+            for (std::size_t k = 0; k < anim->frames.size() && k < 4 && k < exact.shown.size(); ++k) {
+                check(anim->frames[k].image.rgba == exact.shown[k], std::format("frame {} as rendered (lossless)", k));
+                check_eq(anim->frames[k].delay_ms, lasts[k]);
+            }
+        }
+        Film lossy, png;
+        check(lossy.h.save_recording(dir / "counter.webp").has_value());
+        check(png.h.save_recording(dir / "counter.png").has_value());
+        const auto webp_size = std::filesystem::file_size(dir / "counter.webp"), apng_size = std::filesystem::file_size(dir / "counter.png");
+        std::println("counter recording: animated WebP (lossy) {} bytes, APNG {} bytes", webp_size, apng_size);
+        check(webp_size < apng_size, "smaller");
+        check(imageio::load_animated_webp(dir / "counter.webp").has_value());
+        check(imageio::load_png(dir / "counter.png").has_value(), "any other name: an animated PNG");
+    });
+
+    s.test("H3: an agent drives the session over the endpoint", [] {
+        auto dir = scratch_dir("headless-h3");
+        HeadlessOptions o = at(HeadlessLevel::session);
+        o.app = "counter-h3";
+        o.endpoint_directory = dir;
+        Headless h(o);
+        Counter c;
+        h.mount("main", c.view());
+        h.step();
+        if (!h.endpoint()) {
+            std::println("    skipped: local endpoints are not supported here");
+            return;
+        }
+        std::atomic<bool> done{false};
+        std::vector<Value> acted, captured;
+        std::jthread agent_thread([&] {
+            auto client = agent::Client::connect("counter-h3", dir);
+            if (client) {
+                acted = client->call(parse_json(R"({"op":"act","node":"main/inc","action":"activate","actor":"agent:test"})").value());
+                captured = client->call(parse_json(R"({"op":"capture","node":"main/inc"})").value());
+            }
+            done = true;
+        });
+        for (int i = 0; i < 3000 && !done; ++i) {
+            h.step();
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        agent_thread.join();
+        check(!acted.empty() && acted.back().get("exitCode")->as_int() == 0);
+        check(c.count.peek() == 1);
+        check(!captured.empty() && captured.back().get("exitCode")->as_int() == 0);
+        check(captured.front().get("data") && captured.front().get("data")->get("base64")->as_string().starts_with("iVBOR"),
+              "a PNG, base64");
+    });
+
+    s.test("every incremental frame is the full render of its list, byte for byte", [] {
+        // Text edits, a colour transition, a moving box, hover, a scroll:
+        // each frame's pixels (only the damaged rows drawn) against a fresh
+        // render of the same list.
+        auto label = signal(std::string("Hello"));
+        auto offset = signal(0.0f);
+        auto shift = signal(0.0f);
+        std::vector<Element> rows;
+        for (int i = 0; i < 12; ++i) rows.push_back(text({.id = std::format("r{}", i), .text = std::format("row {} · scrolled", i)}));
+        HeadlessOptions o = at(HeadlessLevel::pixels);
+        o.size = {320, 200};
+        Headless h(o);
+        h.mount("main", column({.padding = 8, .gap = 6}, {
+                                   text({.id = "label", .text = label, .style = "title"}),
+                                   box({.id = "mover", .width = 60, .height = 24, .background = "accent", .radius = 6,
+                                        .translate_x = shift, .label = "Mover",
+                                        .on = {{"press", [](const Value&) {}}},
+                                        .animate = {{"translate_x", Transition::tween(seconds(0.3))}, {"background", Transition::tween(seconds(0.2))}}}),
+                                   scroll({.id = "list", .y = offset, .height = 80, .gap = 2}, std::move(rows)),
+                               }));
+        h.settle();
+        typeset::GlyphCache glyphs(fonts());
+        int frames = 0;
+        auto same_as_full = [&](std::string_view what) {
+            const raster::Surface& inc = h.pixels();
+            raster::Surface full(inc.width(), inc.height());
+            render::CpuRenderer fresh;
+            (void)fresh.render(h.runtime().display_list(), full, {&h.runtime().images(), &glyphs},
+                               {.scale = o.scale, .background = o.background});
+            ++frames;
+            check(std::ranges::equal(inc.bytes(), full.bytes()), std::format("{} (frame {}): differs from the full render", what, frames));
+        };
+        same_as_full("first frame");
+        label.set("Hello, incremental world");
+        h.step();
+        same_as_full("a longer label");
+        shift.set(180.0f);
+        for (int i = 0; i < 6; ++i) {
+            h.step();
+            same_as_full("the box moving");
+        }
+        const Rect mover = h.runtime().bounds(h.runtime().find("main/mover"));
+        h.move({mover.x + 5, mover.y + 5});
+        h.step();
+        same_as_full("hover");
+        h.move({2, 2});
+        h.step();
+        same_as_full("hover gone");
+        offset.set(37.5f);
+        h.step();
+        same_as_full("scrolled");
+        label.set("Hi");
+        h.settle();
+        same_as_full("settled");
+    });
+
+    return s.run(argc, argv);
+}

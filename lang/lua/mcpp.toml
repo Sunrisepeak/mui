@@ -1,0 +1,36 @@
+# openmui.lang.lua — Lua 5.4 (mcpplibs.mwrap.lua, lua-m) on the Script Binding Profile
+# (component-binding §7): the `omui` module, its builders (table
+# constructors: omui.Column { gap = 8, omui.Text { … } }), signals with
+# expression arithmetic, regions, verbs, models and the bus interface.
+# Embedded: the script runs on openmui.lang's script thread.
+[package]
+namespace   = "openmui.lang"
+name        = "lua"
+version     = "0.1.0"
+description = "openmui for Lua 5.4: builders, signals, expressions, verbs, models and the semantic tree"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "lang"
+
+[targets.openmui-lang-lua]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+
+[dependencies]
+openmui.lang   = { path = ".." }
+openmui.abi    = { path = "../../modules/ui/abi" }
+openmui.player = { path = "../../modules/ui/player" }
+nlohmann.json = "3.12.0"
+mcpplibs.mwrap.lua = "5.4.7"
+
+[dev-dependencies]
+openmui.testing       = { path = "../../modules/base/testing" }
+openmui.cts           = { path = "../../tests/cts" }
+openmui.native.fuzzy  = { path = "../../modules/ui/native/fuzzy" }
+openmui.theme.default = { path = "../../modules/ui/theme/default" }
+openmui.theme.compact = { path = "../../modules/ui/theme/compact" }
+openmui.ui.base       = { path = "../../components/base" }

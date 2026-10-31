@@ -1,0 +1,30 @@
+# openmui.lang — what every language binding shares (component-binding §6):
+# the Script Binding Profile over openmui.h. A script runs on its own thread
+# (the logical thread); the tree stays on the runtime's. Views a script builds
+# are view documents, its signals are runtime signals it mirrors, its event
+# handlers are a document's own events forwarded to it. Lua, TypeScript and
+# Python bind their values to this; nothing here knows a language.
+[package]
+namespace   = "openmui"
+name        = "lang"
+version     = "0.1.0"
+description = "openmui's Script Binding Profile over the C ABI: script thread, views as documents, mirrored signals, handlers"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "lang"
+
+[targets.openmui-lang]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+openmui.abi   = { path = "../modules/ui/abi" }
+nlohmann.json = "3.12.0"
+
+[dev-dependencies]
+openmui.testing = { path = "../modules/base/testing" }
+openmui.ui.base = { path = "../components/base" }

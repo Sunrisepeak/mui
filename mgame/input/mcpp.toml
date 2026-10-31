@@ -1,0 +1,22 @@
+# mgame.input — devices to a game's actions, sampled once a frame (structure,
+# render, web and game design §7): keys, gamepad buttons and axes, and the
+# pointer bound to buttons and axes; each frame one block of plain data — held,
+# pressed and released bits, axes in 16-bit steps, the pointer — so inputs are
+# recorded, replayed and hashed exactly. The standard library alone.
+[package]
+namespace   = "mgame"
+name        = "input"
+version     = "0.1.0"
+description = "Keys, gamepads and the pointer bound to a game's actions, sampled once a frame as plain data"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[targets.mgame-input]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dev-dependencies]
+openmui.testing = { path = "../../modules/base/testing" }

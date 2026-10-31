@@ -1,0 +1,3 @@
+[template]
+description  = "An openmui application in TypeScript, run by the player: no C++ to write"
+post_message = "cd into the project, then `mcpp run` (a window; saving logic/main.ts shows at once), `mcpp run -- --headless --png app.png` or `mcpp test`."

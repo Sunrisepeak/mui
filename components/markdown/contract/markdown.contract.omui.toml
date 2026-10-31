@@ -1,0 +1,38 @@
+# A Markdown document (CommonMark + GitHub's extensions) as a part of the
+# interface: headings, paragraphs, lists, tasks, quotes, code, tables, links
+# and images are semantic nodes an agent reads and operates; text that
+# streams in (an assistant's answer) only re-lays out its last blocks.
+# canvas-markdown §2.4.
+[contract.markdown]
+role = "document"
+spec = "0.1"
+doc  = "A Markdown document: rendered, semantic, streamable."
+
+[contract.markdown.props]
+source     = { type = "string", default = "", bindable = true, doc = "The Markdown text. A value that extends the current one is appended (streaming)." }
+base_url   = { type = "string", default = "", doc = "Where relative image sources and links resolve from (a directory or a URL)." }
+origin     = { type = "enum", values = ["app", "user_content", "remote"], default = "user_content", doc = "Where the text came from; remote text (an LLM's, a web page's) is marked so on every node." }
+extensions = { type = "list<string>", default = ["gfm"], doc = "`gfm`, `commonmark`, or extensions by name: tables, strikethrough, tasklists, autolinks, math, wikilinks, underline …" }
+label      = { type = "string", default = "", doc = "The accessible name of the document (otherwise its first heading)." }
+
+[contract.markdown.events]
+link_activated  = { args = { href = "string" } }
+task_toggled    = { args = { index = "i32", checked = "bool" } }
+heading_visible = { args = { anchor = "string" }, coalesce = "frame" }
+changed         = { args = { source = "string" }, coalesce = "frame" }
+
+[contract.markdown.actions]
+append           = { effect = "reversible", args = { chunk = "string" }, doc = "Append text to the source (streaming): only the last blocks are parsed and laid out again." }
+scroll_to_anchor = { effect = "read", args = { anchor = "string" }, doc = "Scroll the heading with this anchor (its GitHub-style slug) into view." }
+open_link        = { effect = "external", answer = "yes", args = { href = "string" }, doc = "Follow a link of the document: emits link_activated; the application opens it." }
+toggle_task      = { effect = "reversible", args = { index = "i32" }, doc = "Check or uncheck the index-th task of the document, rewriting its mark in the source." }
+copy             = { effect = "read", doc = "Put the document's text on the clipboard." }
+find             = { effect = "read", args = { query = "string" }, doc = "The blocks whose text contains the query (case-insensitive), as node ids." }
+
+[contract.markdown.parts]
+block   = {}
+heading = {}
+code    = {}
+link    = {}
+task    = {}
+table   = {}

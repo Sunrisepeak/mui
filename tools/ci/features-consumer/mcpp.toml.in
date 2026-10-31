@@ -1,0 +1,22 @@
+# The other choice of M0 ⑤'s fixture: an application that selects
+# `sink-memory` on its dependency edge (without the default `sink-stdout`).
+# Not a workspace member: a workspace build plans every member together and
+# would give the fixture both sinks. tools/ci/features.sh builds it standalone.
+[package]
+namespace   = "openmui"
+name        = "features-consumer"
+version     = "0.1.0"
+description = "M0 ⑤: a consumer chooses the other mutually exclusive partition"
+license     = "Apache-2.0"
+
+[targets.openmui-feature-consumer]
+kind = "lib"
+
+[build]
+sources = []
+
+[dependencies]
+openmui.features = { path = "{{repo}}/tests/features", default-features = false, features = ["sink-memory"] }
+
+[dev-dependencies]
+openmui.testing = { path = "{{repo}}/modules/base/testing" }

@@ -1,0 +1,30 @@
+# openmui.audio.device — a mixer heard (D-86): the system's default output
+# (or miniaudio's null backend: the clock runs, nothing sounds — headless
+# programs and tests) pulling blocks from an openmui.audio Mixer on its own
+# audio thread. A plugin: the mixer does not know of it. miniaudio comes
+# through mcpplibs.mwrap.miniaudio, in its native unit only (D-83). The Web's
+# output (Web Audio) comes with the Web host.
+[package]
+namespace   = "openmui.audio"
+name        = "device"
+version     = "0.1.0"
+description = "A Mixer heard: the system's default output through miniaudio, or its null backend for headless runs"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "runtime"
+
+[targets.openmui-audio-device]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/native/*.cpp"]
+
+[dependencies]
+openmui.audio            = { path = ".." }
+mcpplibs.mwrap.miniaudio = "0.11.25"
+
+[dev-dependencies]
+openmui.testing = { path = "../../../base/testing" }

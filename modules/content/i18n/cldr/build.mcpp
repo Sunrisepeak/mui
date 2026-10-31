@@ -1,0 +1,11 @@
+// The locale packs (data/*.locale.omui.json) embedded in the program:
+// partitions openmui.i18n.cldr:<id>_locale.
+import std;
+import mcpp;
+import openmui.build.embed;
+
+int main() {
+    return openmui::build::embed({.module = "openmui.i18n.cldr", .ns = "omui::i18n::cldr", .dir = "data", .suffix = ".locale.omui.json", .tag = "locale"})
+               ? 0
+               : 1;
+}

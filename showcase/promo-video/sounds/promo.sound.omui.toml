@@ -1,0 +1,196 @@
+doc = """What the film's picture sounds like (openmui.audio): the pixel's ping, the
+camera's air, the keys of an agent typing, a morph, a style struck, an
+agent's touch and its warning, a brick, the tape running backwards. Pitched
+in the score's A minor; each played on its frame's first sample."""
+
+# The pixel lights: a pure A6 with its octave, and a long tail.
+[sound.ping]
+[[sound.ping.layer]]
+wave = "sine"
+length = 1.6
+pitch = 1760
+envelope = { attack = 0.002, decay = 1.55, sustain = 0, release = 0.05 }
+gain = 0.32
+
+[[sound.ping.layer]]
+wave = "sine"
+length = 0.9
+pitch = 3520
+envelope = { attack = 0.001, decay = 0.85, sustain = 0, release = 0.05 }
+gain = 0.08
+pan = 0.2
+
+# The camera moving fast: filtered noise sweeping up and away.
+[sound.whoosh]
+[[sound.whoosh.layer]]
+wave = "noise"
+length = 0.9
+envelope = { attack = 0.35, decay = 0.5, sustain = 0, release = 0.05 }
+filter = { kind = "bandpass", cutoff = [300, 3200], q = 1.2 }
+gain = 0.42
+seed = 11
+
+# A hit of light: a bell-like A over a low thump.
+[sound.sting]
+[[sound.sting.layer]]
+wave = "sine"
+length = 1.8
+pitch = 880
+envelope = { attack = 0.001, decay = 1.7, sustain = 0, release = 0.08 }
+gain = 0.2
+
+[[sound.sting.layer]]
+wave = "sine"
+length = 1.2
+pitch = 2637
+envelope = { attack = 0.001, decay = 1.1, sustain = 0, release = 0.08 }
+gain = 0.07
+pan = -0.25
+
+[[sound.sting.layer]]
+wave = "sine"
+length = 0.35
+pitch = [120, 45]
+envelope = { attack = 0.001, decay = 0.33, sustain = 0, release = 0.02 }
+gain = 0.45
+
+# A key pressed: a soft tick (the typing is many of these).
+[sound.tick]
+[[sound.tick.layer]]
+wave = "noise"
+length = 0.025
+envelope = { attack = 0.0005, decay = 0.022, sustain = 0, release = 0.002 }
+filter = { kind = "bandpass", cutoff = 3200, q = 1.6 }
+gain = 0.14
+seed = 5
+
+[[sound.tick.layer]]
+wave = "triangle"
+length = 0.02
+pitch = 1100
+envelope = { attack = 0.0005, decay = 0.018, sustain = 0, release = 0.002 }
+gain = 0.05
+
+# Code turning into another language: a swept chime.
+[sound.morph]
+[[sound.morph.layer]]
+wave = "noise"
+length = 0.45
+envelope = { attack = 0.12, decay = 0.3, sustain = 0, release = 0.03 }
+filter = { kind = "bandpass", cutoff = [5200, 900], q = 2.2 }
+gain = 0.3
+seed = 17
+
+[[sound.morph.layer]]
+wave = "sine"
+length = 0.6
+pitch = [1319, 1760]
+envelope = { attack = 0.004, decay = 0.55, sustain = 0, release = 0.04 }
+gain = 0.1
+
+# A style struck: a short bright snap.
+[sound.snap]
+[[sound.snap.layer]]
+wave = "noise"
+length = 0.08
+envelope = { attack = 0.0005, decay = 0.075, sustain = 0, release = 0.004 }
+filter = { kind = "highpass", cutoff = [6000, 2500], q = 0.7 }
+gain = 0.3
+seed = 23
+
+# An agent's touch: a glassy click.
+[sound.touch]
+[[sound.touch.layer]]
+wave = "sine"
+length = 0.12
+pitch = [2093, 1568]
+envelope = { attack = 0.0005, decay = 0.11, sustain = 0, release = 0.008 }
+gain = 0.18
+
+[[sound.touch.layer]]
+wave = "noise"
+length = 0.02
+envelope = { attack = 0.0003, decay = 0.018, sustain = 0, release = 0.002 }
+filter = { kind = "highpass", cutoff = 4000, q = 0.7 }
+gain = 0.16
+seed = 29
+
+# The runtime asking for an answer: two falling tones, a tritone apart.
+[sound.warn]
+[[sound.warn.layer]]
+wave = "triangle"
+length = 0.16
+pitch = 988
+envelope = { attack = 0.002, decay = 0.15, sustain = 0, release = 0.01 }
+gain = 0.22
+
+[[sound.warn.layer]]
+wave = "triangle"
+length = 0.3
+pitch = 698
+at = 0.16
+envelope = { attack = 0.002, decay = 0.28, sustain = 0, release = 0.02 }
+gain = 0.22
+
+# An answer given: a rising fifth.
+[sound.confirm]
+[[sound.confirm.layer]]
+wave = "sine"
+length = 0.4
+pitch = 1319
+envelope = { attack = 0.001, decay = 0.38, sustain = 0, release = 0.02 }
+gain = 0.2
+
+[[sound.confirm.layer]]
+wave = "sine"
+length = 0.35
+pitch = 1976
+at = 0.06
+envelope = { attack = 0.001, decay = 0.32, sustain = 0, release = 0.02 }
+gain = 0.14
+
+# Notes deleted: a dry crumple.
+[sound.crumple]
+[[sound.crumple.layer]]
+wave = "noise"
+length = 0.35
+envelope = { attack = 0.004, decay = 0.33, sustain = 0, release = 0.02 }
+filter = { kind = "lowpass", cutoff = [2800, 500], q = 0.9 }
+gain = 0.34
+seed = 31
+
+# A brick struck by the ball, and the paddle.
+[sound.brick]
+[[sound.brick.layer]]
+wave = "square"
+length = 0.07
+pitch = [1320, 990]
+envelope = { attack = 0.0005, decay = 0.065, sustain = 0, release = 0.004 }
+filter = { kind = "lowpass", cutoff = 3500, q = 0.8 }
+gain = 0.13
+
+[sound.paddle]
+[[sound.paddle.layer]]
+wave = "triangle"
+length = 0.1
+pitch = [440, 330]
+envelope = { attack = 0.0005, decay = 0.095, sustain = 0, release = 0.004 }
+gain = 0.3
+
+# The tape running backwards: a whine falling through the second.
+[sound.tape]
+[[sound.tape.layer]]
+wave = "saw"
+length = 1.0
+pitch = [1400, 220]
+envelope = { attack = 0.02, decay = 0.95, sustain = 0, release = 0.03 }
+filter = { kind = "bandpass", cutoff = [2600, 500], q = 1.5 }
+gain = 0.12
+
+[[sound.tape.layer]]
+wave = "noise"
+length = 1.0
+envelope = { attack = 0.05, decay = 0.9, sustain = 0, release = 0.05 }
+filter = { kind = "highpass", cutoff = 2500, q = 0.7 }
+gain = 0.1
+seed = 37

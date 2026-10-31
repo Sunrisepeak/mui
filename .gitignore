@@ -4,3 +4,11 @@ build/
 compile_commands.json
 *.swp
 .DS_Store
+.xlings/
+.template-check/
+__pycache__/
+*.pyc
+dist/
+python-probe.log
+reflect-canary.log
+.openmui/

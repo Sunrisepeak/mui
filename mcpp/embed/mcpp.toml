@@ -1,0 +1,32 @@
+# openmui.build.embed — the build plugin for data files a program carries
+# (D-73's embed plugin): each file a partition holding its text (omui-gen
+# embed), so a shipped program reads no file to have them; themes() and
+# behaviors() for theme packages and canvas programs.
+#
+#   [build-dependencies]
+#   openmui.build.embed = { path = "…/mcpp/embed", host-module = true }
+#
+#   // build.mcpp
+#   import mcpp;
+#   import openmui.build.embed;
+#   int main() { return openmui::build::embed({.module = "acme", .dir = "data", .suffix = ".json", .tag = "data"}) ? 0 : 1; }
+[package]
+name        = "embed"
+namespace   = "openmui.build"
+version     = "0.1.0"
+description = "Build plugin: data files carried in the program, each a partition holding its text"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "rules"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+# The generator, built for the build machine and handed to the build program
+# that uses this plugin (a generating plugin compiles no device language, so
+# it is a plain library of build programs: mcpp's 08-build-rules shape).
+[dependencies]
+openmui.build.plan = { path = "../plan", reexport = true }
+openmui.gen        = { path = "../../tools/gen", tools = ["omui-gen"], reexport = true }

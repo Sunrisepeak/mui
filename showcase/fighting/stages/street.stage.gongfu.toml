@@ -1,0 +1,147 @@
+# 霓's street (the hardcore combat design's stages): a rainy neon alley at
+# night, painted in layers (stages/art, generated and keyed by gongfu-studio):
+# a hazy skyline of towers in magenta and cyan; the alley's back — shopfronts
+# under glowing signs of shapes, shutters, air-conditioners, tangled cables, a
+# fire escape, steam from a noodle stall; the wet asphalt mirroring the neon;
+# a vending machine and crates, a scooter and a bin under paper lanterns at
+# the alley's ends; cables and a lantern hanging in front. Rain falls behind
+# and before the fighters. The light comes from the signs, upper right: a cyan
+# rim on whoever stands here.
+gongfu = "0.1"
+name = "street"
+sky = ["#07081a", "#1d1236"]
+floor = "#0d0f20"
+line = "#2a2f55"
+marks = false
+light = { from = [0.55, -0.83], shadow = "#030208", rim_color = "#3ef2ffbb", color = "#f2dcff" }
+
+[[picture]]
+name = "far"
+file = "art/street-far.webp"
+size = [1152, 768]
+
+[[picture]]
+name = "mid"
+file = "art/street-mid.webp"
+size = [1152, 768]
+
+[[picture]]
+name = "floor"
+file = "art/street-floor.webp"
+size = [1152, 300]
+
+[[picture]]
+name = "near"
+file = "art/street-near.webp"
+size = [1152, 768]
+
+[[picture]]
+name = "front"
+file = "art/street-front.webp"
+size = [1152, 768]
+
+[[layer]]
+name = "skyline"
+parallax = 0.15
+[[layer.image]]
+picture = "far"
+source = [0, 0, 1152, 768]
+at = [370, -250]
+width = 1180
+
+[[layer]]
+name = "far rain"
+parallax = 0.3
+[[layer.rain]]
+seed = 3
+count = 140
+span = [-400, 2320]
+height = [0, 760]
+length = 18
+speed = 700
+slant = 0.1
+color = "#8fb3ff40"
+
+# Shopfronts and their signs, and the road giving them back.
+
+[[layer]]
+name = "road"
+parallax = 0.9
+[[layer.image]]
+picture = "floor"
+source = [0, 0, 1152, 300]
+at = [-400, -150]
+width = 2720
+height = 230
+
+[[layer]]
+name = "alley"
+parallax = 0.5
+[[layer.image]]
+picture = "mid"
+source = [0, 0, 1152, 445]
+at = [285, 40]
+width = 1350
+[[layer.image]]
+picture = "mid"
+source = [0, 0, 1152, 445]
+at = [-1065, 40]
+width = 1350
+flip = true
+[[layer.image]]
+picture = "mid"
+source = [0, 0, 1152, 445]
+at = [1635, 40]
+width = 1350
+flip = true
+
+[[layer]]
+name = "machines and scooter"
+parallax = 0.92
+[[layer.image]]
+picture = "near"
+source = [0, 0, 360, 650]
+at = [-60, 0]
+width = 240
+flicker = 0.08
+[[layer.image]]
+picture = "near"
+source = [880, 0, 272, 650]
+at = [1740, 0]
+width = 181
+
+[[layer]]
+name = "cables"
+parallax = 1.3
+front = true
+[[layer.image]]
+picture = "front"
+source = [0, 0, 359, 266]
+at = [-260, 330]
+width = 360
+[[layer.image]]
+picture = "front"
+source = [1026, 0, 126, 266]
+at = [1980, 330]
+width = 126
+flicker = 0.15
+[[layer.image]]
+picture = "front"
+source = [0, 558, 359, 210]
+at = [1960, -270]
+width = 260
+flip = true
+
+[[layer]]
+name = "near rain"
+parallax = 1.3
+front = true
+[[layer.rain]]
+seed = 9
+count = 60
+span = [-500, 2420]
+height = [-100, 700]
+length = 40
+speed = 1300
+slant = 0.14
+color = "#cfe0ff38"

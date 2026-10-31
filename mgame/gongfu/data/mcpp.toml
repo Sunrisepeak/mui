@@ -1,0 +1,27 @@
+# gongfu.data — characters and rules as files (D-85 §8.3): a fighter is a
+# `*.fighter.gongfu.toml`, the game's rules a `*.system.gongfu.toml`. Read,
+# checked and compiled, every problem with its line and column and, for a
+# name misspelt, the nearest right one. Moves are asked for in numpad
+# notation (236P, [4]6P, 2LK, LP+LK). This is the format a community
+# designer writes, and what a mod is.
+[package]
+namespace   = "gongfu"
+name        = "data"
+version     = "0.1.0"
+description = "gongfu's characters and rules as files: *.fighter.gongfu.toml and *.system.gongfu.toml read with line and column, moves in numpad notation"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[targets.gongfu-data]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+
+[dependencies]
+gongfu              = { path = ".." }
+marzer.tomlplusplus = "3.4.0"
+
+[dev-dependencies]
+openmui.testing = { path = "../../../modules/base/testing" }

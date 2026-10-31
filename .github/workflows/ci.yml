@@ -1,0 +1,258 @@
+name: CI
+
+# What a green run asserts about openmui (implementation plan §15, §19.1):
+#
+#   lint      the repository rules hold, and each rule still catches a planted
+#             violation (no macros, one header, naming, layering, exceptions,
+#             determinism flags)
+#   test      every workspace member builds and passes its tests on Linux,
+#             macOS and Windows; the pinned determinism hashes in the tests are
+#             the same constants on every row, so a green matrix is the
+#             cross-platform determinism gate
+#   web       the members that say they run on the Web pass their tests on
+#             wasm32-emscripten under node, with the same pinned hashes
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  XLINGS_VERSION: v2026.10.26.1
+  XLINGS_NON_INTERACTIVE: '1'
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: The schema checker of view documents
+        run: python3 -m pip install jsonschema
+      - name: Repository rules
+        run: python3 tools/lint/lint.py
+      - name: Each rule catches a planted violation
+        run: python3 tools/lint/lint.py --self-test
+      - name: openmui.h is plain C99 and C++11
+        run: |
+          gcc -std=c99 -Wall -Wextra -pedantic -Werror -Ispec/include -fsyntax-only tools/lint/abi_c99.c
+          g++ -std=c++11 -Wall -Wextra -pedantic -Werror -Ispec/include -x c++ -fsyntax-only tools/lint/abi_c99.c
+
+  # The Web row (D-84): the members that say they run on the Web, built for
+  # wasm32-emscripten (emsdk and node from xlings, through mcpp) and tested
+  # under node; their pinned hashes are the other rows' constants.
+  web:
+    name: test web wasm32-emscripten
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Install xlings
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/openxlings/xlings/main/tools/other/quick_install.sh \
+            | bash -s "$XLINGS_VERSION"
+          echo "$HOME/.xlings/subos/current/bin" >> "$GITHUB_PATH"
+      - name: Install mcpp
+        run: |
+          # The mcpp every row builds with is the project's (.xlings.json), the one
+          # the work is checked with locally; in the project, xlings runs that one.
+          MCPP_VERSION="$(sed -n 's/.*"mcpp": *"\([^"]*\)".*/\1/p' .xlings.json)"
+          for attempt in 1 2 3 4 5 6; do
+            xlings update > /dev/null 2>&1 || true
+            if xlings install "mcpp@$MCPP_VERSION" -y -g; then break; fi
+            [ "$attempt" = 6 ] && { echo "::error::mcpp could not be installed"; exit 1; }
+            sleep 60
+          done
+          version="$(mcpp --version)"
+          echo "$version"
+          case "$version" in *"$MCPP_VERSION"*) ;; *) echo "::error::not mcpp $MCPP_VERSION"; exit 1 ;; esac
+          mcpp self config --mirror GLOBAL
+      - name: The members that run on the Web, tested under node
+        run: tools/ci/web.sh
+      # D-84 §6.5: the games packed for Bilibili Toy (dist-toy) and checked by
+      # Toy's own toy_doctor.py, pinned; nothing is published.
+      - name: The games packaged for Toy, checked by Toy's doctor
+        run: tools/ci/toy.sh
+
+  test:
+    name: test ${{ matrix.os }} ${{ matrix.toolchain }} ${{ matrix.profile }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04,     toolchain: 'gcc@16.1.0',  profile: dev }
+          - { os: ubuntu-24.04,     toolchain: 'gcc@16.1.0',  profile: release }
+          - { os: ubuntu-24.04,     toolchain: 'llvm@23.1.3', profile: dev }
+          # aarch64 Linux's native glibc toolchain is LLVM (mcpp docs/20): there
+          # `gcc` is the static musl toolchain, which cannot link the shared
+          # X11 libraries the desktop host needs.
+          - { os: ubuntu-24.04-arm, toolchain: 'llvm@23.1.3', profile: dev }
+          - { os: macos-15,         toolchain: 'llvm@23.1.3', profile: dev }
+          - { os: windows-2022,     toolchain: 'llvm@23.1.3', profile: dev }
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install xlings (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/openxlings/xlings/main/tools/other/quick_install.sh \
+            | bash -s "$XLINGS_VERSION"
+          echo "$HOME/.xlings/subos/current/bin" >> "$GITHUB_PATH"
+
+      - name: Install xlings (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          irm https://d2learn.org/xlings-install.ps1.txt | iex
+          "$env:USERPROFILE\.xlings\subos\current\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Install mcpp
+        run: |
+          # The mcpp every row builds with is the project's (.xlings.json), the one
+          # the work is checked with locally; in the project, xlings runs that one.
+          MCPP_VERSION="$(sed -n 's/.*"mcpp": *"\([^"]*\)".*/\1/p' .xlings.json)"
+          for attempt in 1 2 3 4 5 6; do
+            xlings update > /dev/null 2>&1 || true
+            if xlings install "mcpp@$MCPP_VERSION" -y -g; then break; fi
+            [ "$attempt" = 6 ] && { echo "::error::mcpp could not be installed"; exit 1; }
+            sleep 60
+          done
+          version="$(mcpp --version)"
+          echo "$version"
+          case "$version" in *"$MCPP_VERSION"*) ;; *) echo "::error::not mcpp $MCPP_VERSION"; exit 1 ;; esac
+          mcpp self config --mirror GLOBAL
+
+      - name: Install esbuild (TypeScript is compiled to JavaScript; lang/js, example 03)
+        run: |
+          for attempt in 1 2 3; do
+            if xlings install esbuild -y -g; then break; fi
+            [ "$attempt" = 3 ] && { echo "::error::esbuild could not be installed"; exit 1; }
+            sleep 30
+          done
+          esbuild --version
+
+      - name: Select the toolchain
+        run: |
+          spec='${{ matrix.toolchain }}'
+          mcpp toolchain install "${spec%@*}" "${spec#*@}"
+          mcpp toolchain default "$spec"
+
+      - name: SDL's offscreen video driver (the desktop host's tests open windows)
+        run: echo "SDL_VIDEO_DRIVER=offscreen" >> "$GITHUB_ENV"
+
+      - name: A GPU for omui.rhi (lavapipe on Linux and Windows, Metal on macOS; required, not skipped)
+        run: tools/ci/gpu.sh
+
+      - name: Build every member
+        run: mcpp build --workspace --profile '${{ matrix.profile }}' --exclude openmui.entry.python --exclude openmui.reflect
+
+      - name: Test every member
+        run: |
+          mcpp test --workspace --profile '${{ matrix.profile }}' --exclude openmui.entry.python --exclude openmui.reflect 2>&1 | tee tests.log
+          grep -q "workspace result ok" tests.log || { echo "::error::workspace tests failed"; exit 1; }
+
+      # The showcases' README pictures are what their tests draw (deterministic:
+      # tools/ci/readme-media.sh makes them again after a change in the picture).
+      - name: The showcases' README media are up to date
+        if: runner.os == 'Linux' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'dev'
+        run: tools/ci/readme-media.sh --check
+
+      # A pinned picture that differs on one platform is looked at, not
+      # guessed at: every test's pictures, kept when a test failed.
+      - name: Keep the tests' pictures (on failure)
+        if: failure()
+        run: |
+          src="$(python3 -c 'import tempfile; print(tempfile.gettempdir())')/openmui-tests"
+          mkdir -p test-pictures
+          if [ -d "$src" ]; then (cd "$src" && find . -name '*.png' | tar -cf - -T -) | tar -C test-pictures -xf -; fi
+
+      - name: Upload the tests' pictures (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-pictures-${{ matrix.os }}-${{ matrix.toolchain }}-${{ matrix.profile }}
+          path: test-pictures
+          if-no-files-found: ignore
+
+      # C++26 reflection (D-39): GCC 16 with -freflection only, and a C++26
+      # build of its graph of its own, so on one row — gated on a toolchain
+      # that builds reflection beside C headers (V-08, tools/ci/reflect.sh).
+      - name: openmui.reflect (C++26 reflection, GCC 16)
+        if: runner.os == 'Linux' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'dev'
+        run: tools/ci/reflect.sh '${{ matrix.profile }}'
+
+      - name: An agent drives example 07 in its own process (M1 acceptance ②)
+        if: runner.os == 'Linux'
+        env:
+          PROFILE: ${{ matrix.profile }}
+        run: tools/ci/agent-e2e.sh
+
+      - name: A screen reader's protocol reads and operates example 03 (AT-SPI over D-Bus)
+        if: runner.os == 'Linux' && runner.arch == 'X64'
+        env:
+          PROFILE: ${{ matrix.profile }}
+        run: |
+          command -v /usr/libexec/at-spi-bus-launcher > /dev/null || { sudo apt-get update -q && sudo apt-get install -yq at-spi2-core; }
+          tools/ci/atspi.sh
+
+      - name: A feature selects one of two exclusive sources (M0 acceptance ⑤)
+        if: runner.os == 'Linux' && matrix.profile == 'dev'
+        run: tools/ci/features.sh
+
+      - name: The templates build and pass their tests (M0 acceptance ①)
+        if: runner.os == 'Linux' && matrix.profile == 'dev'
+        run: tools/ci/templates.sh
+
+      - name: Benchmarks against their budgets (M1 acceptance ⑤; tests/bench)
+        if: matrix.profile == 'release'
+        run: |
+          mcpp run -p openmui.bench --profile release -- \
+            --check tests/bench/budgets.bench.omui.json --all-budgets --json results.bench.omui.json \
+            --report bench-report.md --label "${{ matrix.os }} ${{ matrix.toolchain }}"
+
+      - name: Keep the benchmark report
+        if: always() && matrix.profile == 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-${{ matrix.os }}-${{ matrix.toolchain }}
+          path: |
+            results.bench.omui.json
+            bench-report.md
+          if-no-files-found: ignore
+
+      # The Python extension (src/entry/python) last: it needs an mcpp that
+      # puts the kernel-abi package into a shared library
+      # (mcpp-community/mcpp#846). The probe builds it; with an older mcpp it
+      # is left out, with a warning, and comes back by itself. Nothing else is
+      # built after it.
+      - name: Whether this mcpp links the Python extension
+        id: python
+        run: tools/ci/python-extension-probe.sh '${{ matrix.profile }}'
+
+      - name: The Python binding's suite (CPython against the extension)
+        if: steps.python.outputs.ok == 'true'
+        run: |
+          mcpp test -p openmui.entry.python --profile '${{ matrix.profile }}' 2>&1 | tee python.log
+          grep -q "test result ok" python.log || { echo "::error::the Python binding's suite failed"; exit 1; }
+
+      - name: The Python wheel, pip-installed, runs example 03 (M3 acceptance ⑤)
+        if: runner.os == 'Linux' && matrix.profile == 'dev' && steps.python.outputs.ok == 'true'
+        run: tools/ci/python-wheel.sh

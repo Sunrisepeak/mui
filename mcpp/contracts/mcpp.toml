@@ -1,0 +1,34 @@
+# openmui.build.contracts — the build plugin for contracts
+# (component-binding §2.3, §8, §10.3): a component package's
+# `contract/*.contract.omui.toml` become, at build time, the C++ partitions
+# and builders it compiles (omui-gen cpp) and the script stubs and
+# view-document schema it ships (omui-gen stubs); a native-module package's
+# `native/*.native.omui.toml` the same way (omui-gen native).
+#
+#   [build-dependencies]
+#   openmui.build.contracts = { path = "…/mcpp/contracts", host-module = true }
+#
+#   // build.mcpp
+#   import mcpp;
+#   import openmui.build.contracts;
+#   int main() { return openmui::build::components({.module = "acme.ui", .ns = "acme::ui"}) ? 0 : 1; }
+[package]
+name        = "contracts"
+namespace   = "openmui.build"
+version     = "0.1.0"
+description = "Build plugin: contracts to C++ partitions, builders, script stubs and schemas, at build time"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "rules"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+# The generator, built for the build machine and handed to the build program
+# that uses this plugin (a generating plugin compiles no device language, so
+# it is a plain library of build programs: mcpp's 08-build-rules shape).
+[dependencies]
+openmui.build.plan = { path = "../plan", reexport = true }
+openmui.gen        = { path = "../../tools/gen", tools = ["omui-gen"], reexport = true }

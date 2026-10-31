@@ -1,0 +1,77 @@
+# Every package from mcpp-index that openmui's workspace reaches, with its
+# licences (SPDX ids), as the index's descriptor lists them. lint `licenses`
+# (D-83) holds that each package the manifests and mcpp.lock name is listed
+# here, that none is GPL or AGPL (dynamic linking included), and that an LGPL
+# package is listed under [dynamic] — optional, linked as a shared library,
+# replaceable. Where a local index is present, the licences must match its
+# descriptors.
+
+[packages]
+"boost-ext.ut" = ["BSL-1.0"]
+"compat.fribidi" = ["LGPL-2.1-or-later"]
+"compat.concurrentqueue" = ["BSD-2-Clause", "BSL-1.0"]
+"compat.freetype" = ["FreeType"]
+"compat.glx-headers" = ["MIT"]
+"compat.harfbuzz" = ["MIT"]
+"compat.libpng" = ["libpng"]
+"compat.libvpx" = ["BSD-3-Clause"]  # with the WebM project's royalty-free patent grant
+"compat.libwebm" = ["BSD-3-Clause"]
+"compat.libwebp" = ["BSD-3-Clause"]
+"compat.lua" = ["MIT"]
+"compat.accesskit" = ["MIT", "Apache-2.0"]
+"compat.md4c" = ["MIT"]
+"compat.miniaudio" = ["MIT-0", "Unlicense"]
+"compat.ogg" = ["BSD-3-Clause"]
+"compat.opus" = ["BSD-3-Clause"]  # with its royalty-free patent licences
+"compat.opusfile" = ["BSD-3-Clause"]
+"compat.pocketpy" = ["MIT"]
+"compat.quickjs-ng" = ["MIT", "Unicode-3.0"]
+"compat.sdl3" = ["Zlib"]
+"compat.sheenbidi" = ["Apache-2.0"]
+"compat.x11" = ["BSD-1-Clause", "HPND-sell-variant", "ISC", "MIT", "MIT-Open-Group", "X11"]
+"compat.xau" = ["MIT-Open-Group"]
+"compat.xcb" = ["MIT"]
+"compat.xcb-proto" = ["MIT"]
+"compat.xcursor" = ["HPND-sell-variant"]
+"compat.xdmcp" = ["MIT-Open-Group"]
+"compat.xext" = ["HPND-sell-variant", "ISC", "MIT", "MIT-Open-Group"]
+"compat.xfixes" = ["HPND-sell-variant"]
+"compat.xi" = ["MIT-Open-Group"]
+"compat.xorgproto" = ["MIT"]  # the index lists none; xorgproto's COPYING files are MIT-style (read by hand)
+"compat.xrandr" = ["HPND-sell-variant"]
+"compat.xrender" = ["HPND-sell-variant"]
+"compat.xtrans" = ["HPND-sell-variant", "MIT", "MIT-Open-Group"]
+"compat.zlib" = ["Zlib"]
+"marzer.tomlplusplus" = ["MIT"]
+"mcpplibs.cmdline" = ["Apache-2.0"]
+"mcpplibs.mwrap.concurrentqueue" = ["Apache-2.0"]
+"mcpplibs.mwrap.harfbuzz" = ["Apache-2.0"]
+"mcpplibs.mwrap.libpng" = ["Apache-2.0"]
+"mcpplibs.mwrap.libvpx" = ["Apache-2.0"]
+"mcpplibs.mwrap.libwebp" = ["Apache-2.0"]
+"mcpplibs.mwrap.lua" = ["Apache-2.0"]
+"mcpplibs.mwrap.accesskit" = ["Apache-2.0"]
+"mcpplibs.mwrap.md4c" = ["Apache-2.0"]
+"mcpplibs.mwrap.miniaudio" = ["Apache-2.0"]
+"mcpplibs.mwrap.opus" = ["Apache-2.0"]
+"mcpplibs.mwrap.pocketpy" = ["Apache-2.0"]
+"mcpplibs.mwrap.quickjs_ng" = ["Apache-2.0"]
+"mcpplibs.mwrap.sdl3" = ["Apache-2.0"]
+"mcpplibs.mwrap.sheenbidi" = ["Apache-2.0"]
+"mcpplibs.os" = ["Apache-2.0"]
+"nlohmann.json" = ["MIT"]
+"openkal" = ["Apache-2.0"]
+"openkal-emscripten" = ["Apache-2.0"]
+"openkal-linux" = ["Apache-2.0"]
+"openkal-macos" = ["Apache-2.0"]
+"openkal-windows" = ["Apache-2.0"]
+"openlifa.openas" = ["Apache-2.0", "CC-BY-SA-4.0"]
+"openlifa.openmui" = ["Apache-2.0", "CC-BY-SA-4.0"]
+"taskflow.taskflow" = ["MIT"]
+
+# LGPL packages allowed only as optional plugins, dynamically linked.
+[dynamic]
+# SDL3 on X11 compiles against fribidi's headers and dlopens the system's
+# libfribidi.so.0 when it is there (RTL text in its message boxes); nothing
+# of fribidi is linked or shipped.
+"compat.fribidi" = "compat.sdl3 dlopens libfribidi.so.0 (headers only at build time)"

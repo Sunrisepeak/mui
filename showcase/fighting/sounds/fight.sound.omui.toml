@@ -1,0 +1,372 @@
+doc = """What the fight sounds like (openmui.audio): every contact's impact profile
+in a look names up to three of these — an attack (the snap at contact), a body
+(the weight of it) and a tail (what rings after). Shared ones first, then each
+fighter's own: ink, neon, glass, the mountain, the clock."""
+
+# ── shared ───────────────────────────────────────────────────────────────
+
+[sound.snap]
+[[sound.snap.layer]]
+wave = "noise"
+length = 0.03
+envelope = { attack = 0.0005, decay = 0.025, sustain = 0, release = 0.004 }
+filter = { kind = "highpass", cutoff = [3000, 1800], q = 0.7 }
+gain = 0.5
+seed = 3
+
+[sound.thud_light]
+[[sound.thud_light.layer]]
+wave = "sine"
+length = 0.09
+pitch = [210, 90]
+envelope = { attack = 0.001, decay = 0.08, sustain = 0, release = 0.01 }
+drive = 0.2
+gain = 0.7
+
+[[sound.thud_light.layer]]
+wave = "noise"
+length = 0.05
+envelope = { attack = 0.0005, decay = 0.045, sustain = 0, release = 0.005 }
+filter = { kind = "lowpass", cutoff = [2500, 700], q = 0.8 }
+gain = 0.4
+seed = 5
+
+[sound.thud_medium]
+[[sound.thud_medium.layer]]
+wave = "sine"
+length = 0.13
+pitch = [180, 70]
+envelope = { attack = 0.001, decay = 0.12, sustain = 0, release = 0.012 }
+drive = 0.3
+gain = 0.85
+
+[[sound.thud_medium.layer]]
+wave = "noise"
+length = 0.07
+envelope = { attack = 0.0005, decay = 0.065, sustain = 0, release = 0.006 }
+filter = { kind = "lowpass", cutoff = [3000, 600], q = 0.8 }
+gain = 0.5
+seed = 7
+
+[sound.thud_heavy]
+[[sound.thud_heavy.layer]]
+wave = "sine"
+length = 0.2
+pitch = [150, 48]
+envelope = { attack = 0.001, decay = 0.18, sustain = 0, release = 0.02 }
+drive = 0.45
+gain = 1
+
+[[sound.thud_heavy.layer]]
+wave = "noise"
+length = 0.1
+envelope = { attack = 0.0005, decay = 0.09, sustain = 0, release = 0.008 }
+filter = { kind = "lowpass", cutoff = [3500, 450], q = 0.9 }
+gain = 0.6
+seed = 11
+
+[sound.crack]
+[[sound.crack.layer]]
+wave = "noise"
+length = 0.05
+envelope = { attack = 0.0003, decay = 0.045, sustain = 0, release = 0.004 }
+filter = { kind = "bandpass", cutoff = [2600, 1400], q = 1.4 }
+gain = 0.8
+seed = 13
+
+[sound.tail_short]
+[[sound.tail_short.layer]]
+wave = "noise"
+at = 0.03
+length = 0.25
+envelope = { attack = 0.01, decay = 0.2, sustain = 0, release = 0.04 }
+filter = { kind = "lowpass", cutoff = [900, 200], q = 0.7 }
+gain = 0.25
+seed = 17
+
+[sound.block_tick]
+[[sound.block_tick.layer]]
+wave = "square"
+length = 0.035
+pitch = [1400, 900]
+envelope = { attack = 0.0005, decay = 0.03, sustain = 0, release = 0.004 }
+filter = { kind = "lowpass", cutoff = [5000, 2000], q = 0.7 }
+gain = 0.35
+
+[[sound.block_tick.layer]]
+wave = "noise"
+length = 0.04
+envelope = { attack = 0.0005, decay = 0.035, sustain = 0, release = 0.004 }
+filter = { kind = "highpass", cutoff = [2500, 2500], q = 0.7 }
+gain = 0.3
+seed = 19
+
+[sound.slam_tail]
+[[sound.slam_tail.layer]]
+wave = "sine"
+length = 0.35
+pitch = [90, 40]
+envelope = { attack = 0.002, decay = 0.32, sustain = 0, release = 0.03 }
+drive = 0.4
+gain = 0.8
+
+[[sound.slam_tail.layer]]
+wave = "noise"
+length = 0.3
+envelope = { attack = 0.003, decay = 0.25, sustain = 0, release = 0.04 }
+filter = { kind = "lowpass", cutoff = [1200, 150], q = 0.7 }
+gain = 0.45
+seed = 23
+
+[sound.boom]
+[[sound.boom.layer]]
+wave = "sine"
+length = 0.6
+pitch = [120, 32]
+envelope = { attack = 0.002, decay = 0.55, sustain = 0, release = 0.05 }
+drive = 0.6
+gain = 1
+
+[[sound.boom.layer]]
+wave = "noise"
+length = 0.4
+envelope = { attack = 0.001, decay = 0.35, sustain = 0, release = 0.05 }
+filter = { kind = "lowpass", cutoff = [4000, 200], q = 0.8 }
+gain = 0.7
+seed = 29
+
+[sound.tail_long]
+[[sound.tail_long.layer]]
+wave = "noise"
+at = 0.05
+length = 1.2
+envelope = { attack = 0.02, decay = 1.0, sustain = 0, release = 0.15 }
+filter = { kind = "lowpass", cutoff = [1500, 120], q = 0.7 }
+gain = 0.3
+seed = 31
+
+[sound.clang]
+[[sound.clang.layer]]
+wave = "sine"
+length = 0.5
+pitch = 1210
+envelope = { attack = 0.001, decay = 0.48, sustain = 0, release = 0.02 }
+gain = 0.45
+
+[[sound.clang.layer]]
+wave = "sine"
+length = 0.35
+pitch = 2750
+envelope = { attack = 0.001, decay = 0.33, sustain = 0, release = 0.02 }
+gain = 0.3
+pan = 0.2
+
+[[sound.clang.layer]]
+wave = "noise"
+length = 0.04
+envelope = { attack = 0.0003, decay = 0.035, sustain = 0, release = 0.004 }
+filter = { kind = "highpass", cutoff = [4000, 4000], q = 0.7 }
+gain = 0.4
+seed = 37
+
+[sound.ping]
+[[sound.ping.layer]]
+wave = "sine"
+length = 0.25
+pitch = [1800, 1750]
+envelope = { attack = 0.001, decay = 0.23, sustain = 0, release = 0.02 }
+gain = 0.45
+
+[sound.super_flash]
+[[sound.super_flash.layer]]
+wave = "saw"
+length = 0.45
+pitch = [180, 1400]
+envelope = { attack = 0.02, hold = 0.2, decay = 0.2, sustain = 0, release = 0.03 }
+filter = { kind = "lowpass", cutoff = [600, 6000], q = 2 }
+gain = 0.45
+
+[[sound.super_flash.layer]]
+wave = "noise"
+length = 0.45
+envelope = { attack = 0.3, decay = 0.12, sustain = 0, release = 0.03 }
+filter = { kind = "bandpass", cutoff = [1500, 8000], q = 1.5 }
+gain = 0.3
+seed = 41
+
+# ── 墨: ink ──────────────────────────────────────────────────────────────
+
+[sound.ink_splash]
+[[sound.ink_splash.layer]]
+wave = "noise"
+length = 0.2
+envelope = { attack = 0.002, decay = 0.17, sustain = 0, release = 0.03 }
+filter = { kind = "bandpass", cutoff = [3200, 500], q = 2.5 }
+gain = 0.6
+seed = 43
+
+[[sound.ink_splash.layer]]
+wave = "sine"
+length = 0.12
+pitch = [420, 160]
+envelope = { attack = 0.002, decay = 0.1, sustain = 0, release = 0.02 }
+gain = 0.35
+
+# ── 霓: neon ─────────────────────────────────────────────────────────────
+
+[sound.zap]
+[[sound.zap.layer]]
+wave = "square"
+length = 0.08
+pitch = [2200, 320]
+envelope = { attack = 0.0005, decay = 0.075, sustain = 0, release = 0.006 }
+filter = { kind = "lowpass", cutoff = [7000, 1500], q = 1.2 }
+gain = 0.35
+
+[[sound.zap.layer]]
+wave = "noise"
+length = 0.06
+envelope = { attack = 0.0005, decay = 0.055, sustain = 0, release = 0.005 }
+filter = { kind = "bandpass", cutoff = [6000, 3000], q = 2 }
+gain = 0.3
+seed = 47
+
+# ── 璃: glass ────────────────────────────────────────────────────────────
+
+[sound.glass_tink]
+[[sound.glass_tink.layer]]
+wave = "sine"
+length = 0.3
+pitch = 2637
+envelope = { attack = 0.0005, decay = 0.28, sustain = 0, release = 0.02 }
+gain = 0.35
+
+[[sound.glass_tink.layer]]
+wave = "sine"
+length = 0.22
+pitch = 4186
+envelope = { attack = 0.0005, decay = 0.2, sustain = 0, release = 0.02 }
+gain = 0.22
+pan = -0.2
+
+[[sound.glass_tink.layer]]
+wave = "sine"
+length = 0.15
+pitch = 6271
+envelope = { attack = 0.0005, decay = 0.14, sustain = 0, release = 0.01 }
+gain = 0.15
+pan = 0.2
+
+[sound.glass_shatter]
+[[sound.glass_shatter.layer]]
+wave = "noise"
+length = 0.35
+envelope = { attack = 0.0005, decay = 0.32, sustain = 0, release = 0.03 }
+filter = { kind = "highpass", cutoff = [5000, 2500], q = 0.8 }
+gain = 0.55
+seed = 53
+
+[[sound.glass_shatter.layer]]
+wave = "sine"
+at = 0.02
+length = 0.25
+pitch = 3520
+envelope = { attack = 0.0005, decay = 0.23, sustain = 0, release = 0.02 }
+gain = 0.2
+pan = 0.4
+
+[[sound.glass_shatter.layer]]
+wave = "sine"
+at = 0.05
+length = 0.2
+pitch = 4699
+envelope = { attack = 0.0005, decay = 0.18, sustain = 0, release = 0.02 }
+gain = 0.18
+pan = -0.4
+
+[[sound.glass_shatter.layer]]
+wave = "sine"
+at = 0.09
+length = 0.18
+pitch = 5588
+envelope = { attack = 0.0005, decay = 0.16, sustain = 0, release = 0.02 }
+gain = 0.14
+pan = 0.1
+
+# ── 岳: the mountain ─────────────────────────────────────────────────────
+
+[sound.quake]
+[[sound.quake.layer]]
+wave = "sine"
+length = 0.8
+pitch = [70, 30]
+envelope = { attack = 0.003, decay = 0.75, sustain = 0, release = 0.05 }
+drive = 0.7
+gain = 1
+
+[[sound.quake.layer]]
+wave = "noise"
+length = 0.7
+envelope = { attack = 0.002, decay = 0.6, sustain = 0, release = 0.08 }
+filter = { kind = "lowpass", cutoff = [500, 60], q = 0.9 }
+gain = 0.8
+seed = 59
+
+[[sound.quake.layer]]
+wave = "noise"
+at = 0.05
+length = 0.5
+envelope = { attack = 0.05, decay = 0.4, sustain = 0, release = 0.05 }
+filter = { kind = "bandpass", cutoff = [900, 300], q = 1 }
+gain = 0.3
+seed = 61
+
+# ── 刻: the clock ────────────────────────────────────────────────────────
+
+[sound.clock_tick]
+[[sound.clock_tick.layer]]
+wave = "square"
+length = 0.015
+pitch = 3000
+envelope = { attack = 0.0003, decay = 0.012, sustain = 0, release = 0.002 }
+filter = { kind = "highpass", cutoff = [1500, 1500], q = 0.7 }
+gain = 0.4
+
+[[sound.clock_tick.layer]]
+wave = "noise"
+length = 0.02
+envelope = { attack = 0.0003, decay = 0.018, sustain = 0, release = 0.002 }
+filter = { kind = "bandpass", cutoff = [4500, 4500], q = 3 }
+gain = 0.35
+seed = 67
+
+[sound.clock_bell]
+[[sound.clock_bell.layer]]
+wave = "sine"
+length = 2.2
+pitch = 523.25
+envelope = { attack = 0.002, decay = 2.1, sustain = 0, release = 0.1 }
+gain = 0.5
+
+[[sound.clock_bell.layer]]
+wave = "sine"
+length = 1.6
+pitch = 1308
+envelope = { attack = 0.002, decay = 1.5, sustain = 0, release = 0.1 }
+gain = 0.3
+pan = 0.15
+
+[[sound.clock_bell.layer]]
+wave = "sine"
+length = 1.1
+pitch = 2213
+envelope = { attack = 0.002, decay = 1.0, sustain = 0, release = 0.1 }
+gain = 0.18
+pan = -0.15
+
+[[sound.clock_bell.layer]]
+wave = "sine"
+length = 3.2
+pitch = 261.6
+envelope = { attack = 0.004, decay = 3.0, sustain = 0, release = 0.2 }
+gain = 0.35

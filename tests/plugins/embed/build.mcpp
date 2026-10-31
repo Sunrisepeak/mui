@@ -1,0 +1,13 @@
+// The package's build program: its data files become partitions.
+import std;
+import mcpp;
+import openmui.build.embed;
+
+int main() {
+    const bool notes = openmui::build::embed({.module = "acme.data", .dir = "data", .suffix = ".txt", .tag = "note", .index = true});
+    // The same files left out (a feature the build does not have): an empty table.
+    const bool left = openmui::build::embed({.module = "acme.data", .dir = "data", .suffix = ".txt", .tag = "left", .index = true, .left_out = true});
+    const bool themes = openmui::build::themes({.module = "acme.data"});
+    const bool behaviors = openmui::build::behaviors({.module = "acme.data"});
+    return notes && left && themes && behaviors ? 0 : 1;
+}

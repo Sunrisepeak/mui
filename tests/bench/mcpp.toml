@@ -1,0 +1,47 @@
+# openmui.bench — the framework's benchmarks: what a frame of the 1000-node
+# dashboard costs at 1080p on the CPU (M1 acceptance ⑤), the pieces alone,
+# and what tracing and logging cost when off. `omui-bench` prints a table,
+# writes `<name>.bench.omui.json`, and checks budgets.bench.omui.json (CI's
+# release row; the budgets are for release builds).
+#
+#   mcpp run -p openmui.bench --profile release -- --check tests/bench/budgets.bench.omui.json
+[package]
+namespace   = "openmui"
+name        = "bench"
+version     = "0.1.0"
+description = "openmui benchmarks: frame costs, pieces alone, reports and budgets"
+license     = "Apache-2.0"
+
+[package.metadata.openmui]
+kind = "tool"
+
+[targets.openmui-bench]
+kind = "lib"
+
+[targets.omui-bench]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+openmui.sdk             = { path = "../.." }
+openmui.trace           = { path = "../../modules/base/trace" }
+openmui.markdown        = { path = "../../modules/content/markdown" }
+openmui.audio           = { path = "../../modules/media/audio" }
+"openmui.ui.canvas"       = { path = "../../components/canvas" }
+"openmui.ui.canvas.kit"   = { path = "../../components/canvas/kit" }
+openmui.showcase.markdown_wall   = { path = "../../showcase/markdown-wall" }
+openmui.showcase.style_gallery = { path = "../../showcase/style-gallery" }
+"openmui.showcase.fighting" = { path = "../../showcase/fighting" }
+"openmui.showcase.widget_breakout.sim" = { path = "../../showcase/widget-breakout/sim" }
+gongfu                  = { path = "../../mgame/gongfu" }
+"gongfu.present2d"      = { path = "../../mgame/gongfu/present2d" }
+openmui.theme.styles    = { path = "../../modules/ui/theme/styles" }
+"openmui.rhi"           = { path = "../../modules/gfx/rhi" }
+"openmui.rhi.sdl"       = { path = "../../modules/gfx/rhi/sdl" }
+mcpplibs.os           = "0.2.2"
+
+[dev-dependencies]
+openmui.testing = { path = "../../modules/base/testing" }

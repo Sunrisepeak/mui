@@ -4,10 +4,28 @@
 
 | 文档 | 内容 |
 |---|---|
+| [2026-10-26-openmui-implementation-plan.md](2026-10-26-openmui-implementation-plan.md) | **实施计划**：技术基线和规则（不用宏、头文件最少、C++23 / 26）、workspace 成员划分和目录树、协作流程、各模块的实施、通用动画引擎、渲染、平台、语言绑定、agent、openmui-video、五个展示（含游戏和宣传片）、文档、CI、跨平台、生态补充、里程碑、**验收标准** |
+| [2026-10-26-openmui-promo-video-design.md](2026-10-26-openmui-promo-video-design.md) | **宣传片**：三部爆款 agent 代码动画视频的对标拆解、8 个共同点、约 60 秒的创意和分镜、视觉语言、配乐、制作流程、验收标准（自动检查 + 对标评分） |
 | [2026-10-26-openmui-architecture-design.md](2026-10-26-openmui-architecture-design.md) | **总体架构**：定位、原则、分层、规范和实现的关系、仓库和包、构建和生态、一致性分级、三根支柱、里程碑、决策记录（D-xx）、待决问题（Q-xx） |
 | [2026-10-26-openmui-spec-design.md](2026-10-26-openmui-spec-design.md) | **规范**：registry、6 个契约、总线接口、动画语义、Core 配置档和扩展、发行版配置档、CTS |
 | [2026-10-26-openmui-component-binding-design.md](2026-10-26-openmui-component-binding-design.md) | **组件、绑定与工程模型**：组件分层、契约优先、`[package.metadata.openmui]`、脚本薄接口、三种语言、native 模块、多语言混合、构建流水线 |
 | [2026-10-26-openmui-canvas-markdown-design.md](2026-10-26-openmui-canvas-markdown-design.md) | **画布、Markdown 与旗舰示例**：画布的机制和策略分离、Markdown 组件、markdown-wall 基准测试、示例目录 |
+| [2026-10-27-openmui-features-plugins-pipeline-design.md](2026-10-27-openmui-features-plugins-pipeline-design.md) | **特色、旗舰作品、可拔插架构与管线**：九项特色和各自的双视角旗舰作品（真实可用 + 展示 + 招牌镜头）、液态玻璃的原理和通用的背景效果能力、契约⑦（插件与管线）、插件种类、`*.pipeline.omui.toml` 管线编排 |
+| [2026-10-28-openmui-progressive-disclosure-design.md](2026-10-28-openmui-progressive-disclosure-design.md) | **渐进式披露**：每项能力分 L0–L3 四层；帧需求与帧节奏（ProMotion / VRR，按预测上屏时间求值）；画布晋升策略和预热；构建期标记（四种语言语法不同、语义对齐）；构建插件拆分和经 mcpp-index 分发 |
+| [2026-10-28-openmui-i18n-window-engine-design.md](2026-10-28-openmui-i18n-window-engine-design.md) | **国际化、自绘窗口与引擎分层**：i18n 引擎和数据分开（可独立发布，不用 ICU，从 CLDR 生成）、en / zh 的顶级支持（中文排版、格式、输入法）；框架自绘窗口外框为默认、原生可切换，窗口关闭时溶解且不阻塞输入；基础层、引擎服务、框架三层，openmui 作为游戏引擎的 UI 模块 |
+| [2026-10-28-openmui-structure-render-web-game-design.md](2026-10-28-openmui-structure-render-web-game-design.md) | **目录与命名、统一渲染、Web 与 Toy、游戏引擎与格斗框架、媒体**（草案，待 review）：路径就是包名、`modules/` 按层分组、hanim；rhi → shader → 渲染图 → 渲染特性，2D 和 3D 同一套架构；产品分层（基础组件、openmui、mgame、gongfu、作品）；第三方库的 mwrap 规范和许可规则；wasm、`host.web`、WebGPU / WebGL2、Toy 能力映射、创意官网；mgame 引擎服务；gongfu 确定性回滚格斗框架和 5 个角色；音频、视频、时间线 |
+| [2026-10-28-gongfu-characters-design.md](2026-10-28-gongfu-characters-design.md) | **格斗游戏的角色：墨和霓**（草案）：严肃而简约的原则、共同系统（段位、取消、冲刺、投技契约、倒地、追打点数、停顿和冻结、能量）、两个角色的完整招式表和帧数据、赢法和弱点、画面和打击感、对 gongfu 核心的新需求（G-1..G-13）、`gongfu.rules` 从动画烘焙受击框、实施顺序、验收、codex 评审记录 |
+| [2026-10-28-gongfu-characters-2-design.md](2026-10-28-gongfu-characters-2-design.md) | **格斗游戏的角色：璃、岳、刻**（草案）：三人的赢法和弱点、招式表和帧数据、一气二气三气；对核心的新需求（G-15 设置物和反射、G-16 霸体、G-17 转圈指令、G-18 空中投、G-19 折返、G-20 回刻、G-21 分身、G-22 停摆）和评审后的规则细化、验收 |
+| [2026-10-28-gongfu-posture-supers-design.md](2026-10-28-gongfu-posture-supers-design.md) | **格斗系统 0.3：架势与拼刀、一气二气三气与特写**（草案）：防御积累架势直到破势、攻击框相交的拼刀（新鲜度和分量决定输赢，完美拼刀双方不变）、完美格挡；三档超必杀、冻结与特写、三气命中后的超级动画（数据驱动的时间线，可回滚）；五个角色各自的一气二气三气；对核心的需求（P-1..P-8）、平衡要点、验收、codex 评审记录 |
+| [2026-10-29-mgame-s4-breakout-design.md](2026-10-29-mgame-s4-breakout-design.md) | **mgame 和 S4《组件打砖块》**：mgame 的世界、模拟、输入、物理（自写、确定性）；打砖块的模拟；六关各自展示一项能力（语义、风格、画布、时间、agent、多语言）和已经做出来的样子；codex 两次评审记录 |
+| [2026-10-29-fighting-indie-quality-design.md](2026-10-29-fighting-indie-quality-design.md) | **格斗游戏的顶级独立游戏水准**：标杆、现状的诚实评估、美术方向（墨线 + 剪纸的矢量，亲手定的关键姿势）、动画和打击感、五个人的完成清单、音乐和声音、界面和多视角、自动验收和分项评审、先做墨和霓的完整纵切；codex 评审记录 |
+| [2026-10-29-fighting-acceptance-rubric.md](2026-10-29-fighting-acceptance-rubric.md) | **格斗游戏的严格验收评分表**：维护者评 1/10 之后定的；11 项各 0–10 分的锚点、每项 ≥ 8 才过、总评取最低分；对照作品；每次评分要交的证据；codex 按它评分（一个独立来源） |
+| [2026-10-29-fighting-art-pipeline-design.md](2026-10-29-fighting-art-pipeline-design.md) | **格斗游戏的素材管线**：codex 生成的美术达到主视觉水准，所以美术来自生成的图（或画师的图），框架负责分件、网格蒙皮、关键姿势、导演式演出、特效、界面、每个人的语音集和代码作曲；各环节的工具都是 openmui 应用，agent（包括通过 MCP 的 codex）用它们做素材；基线评分 2/10 |
+| [2026-10-29-fighting-hardcore-combat-design.md](2026-10-29-fighting-hardcore-combat-design.md) | **格斗游戏的硬核战斗**：普通技全部徒手、道具只在特殊环节出现、写实的比例；上中下段、轻中重、出招和受击、连招、三档超必杀、打击感、击倒、防御、立回、差合、跳、逆向逐项的规则、表现和验收；每个人的拳脚体系和不公式化的超必杀（抓取挂点等通用原语）；第六人“坤”的调研、艺术化处理（反差：高冷帅酷）和战斗设计；手到手指的绑定 |
+| [2026-10-29-math-fighter-tech-design.md](2026-10-29-math-fighter-tech-design.md) | **数学库与格斗人物的表现技术**：`modules/base/math` 统一全仓库的数学（确定性分级，SIMD、多线程、GPU compute、可选 CUDA 按标量参考实现验收）；`openmui.rig`、`render.mesh`、表现物理的分层；精细模型（自动网格和权重、形变器、法线图光照）、姿态的表现力（叠加层、弹簧链、拖影、静止画面动感的量化指标）、多通道同步的打击感、物理的回滚处理、简洁的原则；D-87、D-88 |
+| [2026-10-26-openmui-view-data-files-design.md](2026-10-26-openmui-view-data-files-design.md) | **视图与数据文件**：代码优先、可读性要求、`*.view.omui.json` 视图文档、表达式（组合函数 + CEL 字符串）、行为状态机、后缀体系 |
+
+**评估**：[evaluation/](evaluation/README.md) 是评估标准和评分记录。每个对象（UI 框架、渲染、动画、游戏引擎、官网、五个作品）都和所在领域的前 3 名逐维度对比，0–100 分，每一项都要到 90。原始报告在 `evaluation/reports/`，分数在台账 `evaluation/ledger.eval.omui.jsonl`，运行脚本是 `tools/eval/eval.sh`。
 
 `research/` 目录下是前期的调研和讨论稿。其中的命名（openui / mui）已经过时，一切以上面的设计文档为准。
 

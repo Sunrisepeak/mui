@@ -1,0 +1,33 @@
+# Example 10 — a map of where a disk's space went (canvas-markdown §5, "canvas
+# basics": the canvas core and its default behaviour only — pan, zoom, tiers).
+# `space DIR` lays a folder out as a squarified treemap on the infinite
+# canvas: every folder a region holding its children, every file a block of
+# its size, coloured by what it is. Far out the blocks are boxes; closer, they
+# carry their names; closer still a file becomes a live card. The header lists
+# the largest files; choosing one flies there.
+#
+#   mcpp run -- ~/Downloads           mcpp run -- . --headless --png space.png
+[package]
+namespace   = "openmui.example"
+name        = "space"
+version     = "0.1.0"
+description = "openmui example 10: where a folder's space went, as a zoomable treemap on the infinite canvas"
+license     = "Apache-2.0"
+
+[package.metadata.openmui]
+kind = "example"
+
+[targets.space]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+openmui.hash = { path = "../../modules/base/hash" }
+openmui.sdk       = { path = "../.." }
+openmui.ui.canvas = { path = "../../components/canvas" }
+
+[dev-dependencies]
+openmui.testing = { path = "../../modules/base/testing" }

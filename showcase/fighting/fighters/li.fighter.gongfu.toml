@@ -1,0 +1,650 @@
+# 璃 (Li), glass: set play (gongfu characters 2 design §2). She stands panes
+# on the stage that stop the other side's projectiles, strikes them into
+# shards that fly at the opponent, steps through them; her level 1 stands
+# three that turn projectiles back. Low damage, and no reliable answer when
+# rushed up close. Units are pixels and frames; every number is the design's.
+gongfu = "0.1"
+name = "Li"
+health = 9800
+posture = 950
+walk = { forward = 4.2, back = 3.4 }
+jump = { prejump = 4, up = 19, forward = 5, gravity = 1, landing = 3 }
+push = [-28, 0, 56, 160]
+hurt = { standing = [-32, 0, 64, 176], crouching = [-32, 0, 64, 106], air = [-28, 40, 56, 126] }
+
+[[move]]
+name = "5LP"
+input = "LP"
+total = 14
+meter = { gain = 20 }
+[[move.hit]]
+active = [4, 5]
+boxes = [[15, 115, 65, 25]]
+damage = 280
+hitstun = 13
+blockstun = 8
+hitstop = 5
+pushback = 2
+impact = "light"
+[[move.cancel]]
+frames = [4, 12]
+into = ["5LP", "2LP", "236LP", "236MP", "236HP", "214P", "623LK", "623MK", "623HK", "22K"]
+
+[[move]]
+name = "5MP"
+input = "MP"
+total = 22
+meter = { gain = 40 }
+[[move.hit]]
+active = [6, 8]
+boxes = [[15, 100, 90, 30]]
+damage = 550
+hitstun = 18
+blockstun = 13
+hitstop = 7
+pushback = 3
+impact = "medium"
+[[move.cancel]]
+frames = [6, 15]
+into = ["236LP", "236MP", "236HP", "214P", "623LK", "623MK", "623HK", "22K"]
+
+[[move]]
+name = "5HP"
+input = "HP"
+total = 33
+meter = { gain = 60 }
+[[move.hit]]
+active = [9, 12]
+boxes = [[20, 95, 115, 35]]
+damage = 850
+hitstun = 25
+blockstun = 18
+hitstop = 9
+pushback = 3
+impact = "heavy"
+[[move.cancel]]
+frames = [9, 19]
+into = ["236LP", "236MP", "236HP", "214P", "623LK", "623MK", "623HK", "22K"]
+
+[[move]]
+name = "5LK"
+input = "LK"
+total = 16
+meter = { gain = 20 }
+[[move.hit]]
+active = [5, 6]
+boxes = [[15, 55, 70, 25]]
+damage = 280
+hitstun = 13
+blockstun = 9
+hitstop = 5
+pushback = 2
+impact = "light"
+
+[[move]]
+name = "5MK"
+input = "MK"
+total = 25
+meter = { gain = 40 }
+[[move.hit]]
+active = [7, 9]
+boxes = [[20, 40, 90, 30]]
+damage = 600
+hitstun = 19
+blockstun = 14
+hitstop = 7
+pushback = 3
+impact = "medium"
+[[move.cancel]]
+frames = [7, 16]
+into = ["236LP", "236MP", "236HP", "214P", "623LK", "623MK", "623HK", "22K"]
+
+[[move]]
+name = "5HK"
+input = "HK"
+total = 35
+meter = { gain = 60 }
+[[move.hit]]
+active = [11, 14]
+boxes = [[0, 120, 80, 70]]
+damage = 850
+hitstun = 24
+blockstun = 17
+hitstop = 9
+pushback = 3
+impact = "heavy"
+
+[[move]]
+name = "2LP"
+input = "2LP"
+stance = "crouching"
+total = 13
+meter = { gain = 20 }
+[[move.hit]]
+active = [4, 5]
+boxes = [[15, 70, 60, 25]]
+damage = 250
+hitstun = 12
+blockstun = 8
+hitstop = 5
+pushback = 2
+impact = "light"
+[[move.cancel]]
+frames = [4, 12]
+into = ["5LP", "2LP", "236LP", "236MP", "236HP", "214P", "623LK", "623MK", "623HK", "22K"]
+
+[[move]]
+name = "2MP"
+input = "2MP"
+stance = "crouching"
+total = 21
+meter = { gain = 40 }
+[[move.hit]]
+active = [6, 8]
+boxes = [[15, 60, 80, 30]]
+damage = 520
+hitstun = 17
+blockstun = 13
+hitstop = 7
+pushback = 3
+impact = "medium"
+[[move.cancel]]
+frames = [6, 15]
+into = ["236LP", "236MP", "236HP", "214P", "623LK", "623MK", "623HK", "22K"]
+
+[[move]]
+name = "2HP"
+input = "2HP"
+stance = "crouching"
+total = 33
+meter = { gain = 60 }
+[[move.hit]]
+active = [9, 12]
+boxes = [[0, 110, 70, 110]]
+damage = 850
+hitstun = 40
+blockstun = 16
+hitstop = 9
+pushback = 3
+launch = [2, 15]
+juggle = 1
+impact = "heavy"
+[[move.cancel]]
+frames = [9, 19]
+into = ["236LP", "236MP", "236HP", "214P", "623LK", "623MK", "623HK", "22K"]
+
+[[move]]
+name = "2LK"
+input = "2LK"
+stance = "crouching"
+total = 16
+meter = { gain = 20 }
+[[move.hit]]
+active = [5, 6]
+boxes = [[10, 0, 80, 25]]
+damage = 230
+hitstun = 13
+blockstun = 9
+hitstop = 5
+pushback = 2
+level = "low"
+impact = "light"
+[[move.cancel]]
+frames = [5, 13]
+into = ["2LP", "5LP"]
+
+[[move]]
+name = "2MK"
+input = "2MK"
+stance = "crouching"
+total = 27
+meter = { gain = 40 }
+[[move.hit]]
+active = [8, 10]
+boxes = [[15, 0, 105, 25]]
+damage = 580
+hitstun = 20
+blockstun = 14
+hitstop = 7
+pushback = 3
+level = "low"
+impact = "medium"
+[[move.cancel]]
+frames = [8, 17]
+into = ["236LP", "236MP", "236HP", "214P", "623LK", "623MK", "623HK", "22K"]
+
+[[move]]
+name = "2HK"
+input = "2HK"
+stance = "crouching"
+total = 37
+meter = { gain = 60 }
+[[move.hit]]
+active = [10, 12]
+boxes = [[15, 0, 120, 30]]
+damage = 850
+hitstun = 24
+blockstun = 15
+hitstop = 9
+pushback = 3
+level = "low"
+knockdown = true
+impact = "heavy"
+
+[[move]]
+name = "6HP"
+input = "6HP"
+total = 35
+priority = 1
+meter = { gain = 40 }
+[[move.hit]]
+active = [20, 21]
+boxes = [[15, 100, 80, 60]]
+damage = 650
+hitstun = 17
+blockstun = 11
+hitstop = 7
+pushback = 3
+level = "overhead"
+impact = "medium"
+
+[[move]]
+name = "j.LP"
+input = "LP"
+stance = "air"
+total = 21
+meter = { gain = 30 }
+[[move.hit]]
+active = [4, 9]
+boxes = [[10, 60, 55, 30]]
+damage = 260
+hitstun = 12
+blockstun = 9
+hitstop = 5
+pushback = 2
+level = "overhead"
+impact = "light"
+
+[[move]]
+name = "j.MP"
+input = "MP"
+stance = "air"
+total = 21
+meter = { gain = 30 }
+[[move.hit]]
+active = [6, 9]
+boxes = [[15, 40, 80, 40]]
+damage = 560
+hitstun = 16
+blockstun = 12
+hitstop = 7
+pushback = 3
+level = "overhead"
+impact = "medium"
+
+[[move]]
+name = "j.HP"
+input = "HP"
+stance = "air"
+total = 23
+meter = { gain = 30 }
+[[move.hit]]
+active = [9, 11]
+boxes = [[10, -10, 90, 60]]
+damage = 860
+hitstun = 20
+blockstun = 16
+hitstop = 9
+pushback = 3
+level = "overhead"
+impact = "heavy"
+
+[[move]]
+name = "j.LK"
+input = "LK"
+stance = "air"
+total = 21
+meter = { gain = 30 }
+[[move.hit]]
+active = [4, 9]
+boxes = [[10, 20, 60, 30]]
+damage = 260
+hitstun = 12
+blockstun = 9
+hitstop = 5
+pushback = 2
+level = "overhead"
+impact = "light"
+
+[[move]]
+name = "j.MK"
+input = "MK"
+stance = "air"
+total = 21
+meter = { gain = 30 }
+[[move.hit]]
+active = [6, 9]
+boxes = [[15, 10, 85, 35]]
+damage = 560
+hitstun = 16
+blockstun = 12
+hitstop = 7
+pushback = 3
+level = "overhead"
+impact = "medium"
+
+[[move]]
+name = "j.HK"
+input = "HK"
+stance = "air"
+total = 23
+meter = { gain = 30 }
+[[move.hit]]
+active = [9, 11]
+boxes = [[10, 0, 95, 45]]
+damage = 860
+hitstun = 19
+blockstun = 15
+hitstop = 9
+pushback = 3
+level = "overhead"
+impact = "heavy"
+
+[[move]]
+name = "shard"
+input = "none"
+total = 1
+[move.projectile]
+spawn = 1
+offset = [0, 60]
+speed = 11
+life = 70
+reflectable = false
+[move.projectile.hit]
+active = [1, 70]
+boxes = [[-16, -9, 32, 18]]
+damage = 200
+chip = 20
+hitstun = 18
+blockstun = 12
+hitstop = 4
+pushback = 1
+impact = "shard"
+
+[[move]]
+name = "glint"
+input = "none"
+total = 1
+[move.projectile]
+spawn = 1
+offset = [0, 60]
+speed = 11
+life = 70
+reflectable = false
+[move.projectile.hit]
+active = [1, 70]
+boxes = [[-16, -9, 32, 18]]
+damage = 330
+chip = 33
+hitstun = 18
+blockstun = 12
+hitstop = 4
+pushback = 1
+impact = "shard"
+
+[[move]]
+name = "236LP"
+input = "236LP"
+total = 34
+priority = 10
+meter = { gain = 40 }
+[[move.piece]]
+act = "place"
+frame = 14
+at = [120]
+life = 480
+durability = 2
+limit = 2
+shard = "shard"
+shards = 3
+
+[[move]]
+name = "236MP"
+input = "236MP"
+total = 34
+priority = 10
+meter = { gain = 40 }
+[[move.piece]]
+act = "place"
+frame = 14
+at = [220]
+life = 480
+durability = 2
+limit = 2
+shard = "shard"
+shards = 3
+
+[[move]]
+name = "236HP"
+input = "236HP"
+total = 34
+priority = 10
+meter = { gain = 40 }
+[[move.piece]]
+act = "place"
+frame = 14
+at = [320]
+life = 480
+durability = 2
+limit = 2
+shard = "shard"
+shards = 3
+
+[[move]]
+name = "214P"
+input = "214P"
+total = 28
+priority = 10
+[[move.piece]]
+act = "shatter"
+frame = 8
+
+[[move]]
+name = "623LK"
+input = "623LK"
+total = 35
+priority = 11
+invulnerable = [{ frames = [1, 4], to = ["air"] }]
+meter = { gain = 50 }
+[[move.step]]
+frame = 3
+velocity = [2, 12]
+[[move.step]]
+frame = 11
+velocity = [0, -8]
+[[move.hit]]
+active = [5, 10]
+boxes = [[0, 80, 70, 120]]
+damage = 1000
+hitstun = 30
+blockstun = 8
+hitstop = 9
+pushback = 3
+knockdown = true
+impact = "heavy"
+
+[[move]]
+name = "623MK"
+input = "623MK"
+total = 38
+priority = 11
+invulnerable = [{ frames = [1, 5], to = ["air"] }]
+meter = { gain = 50 }
+[[move.step]]
+frame = 3
+velocity = [2, 12]
+[[move.step]]
+frame = 12
+velocity = [0, -8]
+[[move.hit]]
+active = [6, 11]
+boxes = [[0, 80, 70, 120]]
+damage = 1100
+hitstun = 30
+blockstun = 8
+hitstop = 9
+pushback = 3
+knockdown = true
+impact = "heavy"
+
+[[move]]
+name = "623HK"
+input = "623HK"
+total = 41
+priority = 11
+invulnerable = [{ frames = [1, 6], to = ["air"] }]
+meter = { gain = 50 }
+[[move.step]]
+frame = 3
+velocity = [2, 12]
+[[move.step]]
+frame = 13
+velocity = [0, -8]
+[[move.hit]]
+active = [7, 12]
+boxes = [[0, 80, 70, 120]]
+damage = 1250
+hitstun = 30
+blockstun = 8
+hitstop = 9
+pushback = 3
+knockdown = true
+impact = "heavy"
+
+[[move]]
+name = "22K"
+input = "22K"
+total = 30
+priority = 12
+needs_piece = true
+invulnerable = [{ frames = [6, 16], to = ["strike"] }]
+[[move.piece]]
+act = "warp"
+frame = 12
+
+[[move]]
+name = "236236P"
+input = "236236P"
+total = 46
+priority = 20
+level = 1
+freeze = 30
+meter = { cost = 1000 }
+[[move.piece]]
+act = "place"
+frame = 10
+at = [100, 200, 300]
+life = 480
+durability = 2
+limit = 3
+reflects = 1
+shard = "shard"
+shards = 3
+
+[[move]]
+name = "214214P"
+input = "214214P"
+total = 44
+priority = 20
+level = 2
+freeze = 40
+meter = { cost = 2000 }
+[[move.piece]]
+act = "shatter"
+frame = 10
+at = [60]
+at_opponent = true
+shard = "glint"
+shards = 3
+
+[[move]]
+name = "236236K"
+input = "236236K"
+total = 46
+priority = 21
+level = 3
+freeze = 50
+invulnerable = [[1, 8]]
+meter = { cost = 3000 }
+[[move.step]]
+frame = 2
+velocity = [4, 0]
+[[move.step]]
+frame = 9
+velocity = [0, 0]
+[[move.hit]]
+active = [8, 10]
+boxes = [[10, 80, 75, 60]]
+damage = 300
+hitstun = 40
+blockstun = 24
+hitstop = 12
+pushback = 3
+impact = "heavy"
+[move.cinematic]
+frames = 170
+hits = [[24, 250, "shard"], [33, 250, "shard"], [42, 250, "shard"], [51, 250, "shard"], [60, 250, "shard"], [69, 250, "shard"], [78, 250, "shard"], [87, 250, "shard"], [96, 250, "shard"], [105, 250, "shard"], [114, 250, "shard"], [123, 250, "shard"], [150, 600, "super"]]
+attacker = [0, 0]
+defender = [150, 0]
+down = 70
+recovery = 24
+
+[[move]]
+name = "66"
+input = "66"
+total = 20
+priority = 5
+[[move.step]]
+frame = 1
+velocity = [8, 0]
+[[move.step]]
+frame = 15
+velocity = [0, 0]
+
+[[move]]
+name = "44"
+input = "44"
+total = 22
+priority = 5
+invulnerable = [{ frames = [1, 7], to = ["strike", "air", "projectile"] }]
+[[move.step]]
+frame = 1
+velocity = [-6, 0]
+[[move.step]]
+frame = 16
+velocity = [0, 0]
+
+[[move]]
+name = "throw"
+input = "LP+LK"
+total = 29
+priority = 20
+clash = false
+[move.throw]
+active = [5, 6]
+range = [0, 0, 75, 150]
+damage = 1100
+tech = 7
+
+[[move]]
+name = "back throw"
+input = "4LP+LK"
+total = 29
+priority = 21
+clash = false
+[move.throw]
+active = [5, 6]
+range = [0, 0, 75, 150]
+damage = 1100
+tech = 7
+swap = true

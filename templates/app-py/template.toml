@@ -1,0 +1,3 @@
+[template]
+description  = "An openmui application in Python: `pip install openmui`, then a script — no C++, no build"
+post_message = "cd into the project, `pip install openmui` (or ./lang/python of an openmui checkout), then `python main.py` (a window), `python main.py --headless --png app.png` or `python -m unittest`."

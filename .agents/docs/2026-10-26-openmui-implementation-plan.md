@@ -1,0 +1,1389 @@
+# openmui 实施计划
+
+> 状态：**草案 v1.3**（2026-10-26），待 review
+> 依据：[architecture](2026-10-26-openmui-architecture-design.md)（D-01 到 D-37）、[spec](2026-10-26-openmui-spec-design.md)、[component-binding](2026-10-26-openmui-component-binding-design.md)、[view-data-files](2026-10-26-openmui-view-data-files-design.md)、[canvas-markdown](2026-10-26-openmui-canvas-markdown-design.md)。
+> 本计划新增的决策是 **D-38 到 D-57**（§21），已经同步到架构文档 §13。**验收标准见 §19。**
+> 写法说明：标注了路径或来源的内容是事实；性能数字都是**目标值**，需要实测校准；命令和 API 是示意。
+
+---
+
+## 0. 一页摘要
+
+| 方面 | 计划 |
+|---|---|
+| 语言 | **C++23 是基线**（全部模块化，`import std`）；用 GCC 16 时可以选用 C++26（反射、`template for`、`std::inplace_vector`），但只限定在**单独的成员包**里（§1.1） |
+| 规则 | **不用宏，用 constexpr**；**头文件只有 `openmui.h`（C ABI）**；核心不用异常和 RTTI；热路径没有虚函数，每帧零分配 |
+| 工程 | 一个仓库，多个 **workspace 成员**。每个成员有独立的 `mcpp.toml`，就是将来可以拆分出去的独立仓库（§2） |
+| 平台 | OS 服务通过 git 依赖 **`mcpplibs/os`（分支 `os-0.1.0`）**；窗口和输入走 SDL3；平台差异用“清单按目标选择模块分区 + constexpr 常量”来处理（§8） |
+| 动画 | **通用动画引擎 `hanim`**：独立的 workspace 成员，只依赖标准库，将来可以独立成仓库；**时间的纯函数**（可以任意跳转、结果确定，spring 有解析解）；UI、视频、游戏、画布共用；**提前到 M2**（§6） |
+| 展示 | S1 无限画布 Markdown 墙 · S2 风格化 GPU 渲染 · S3 Agent 操作 · **S4《组件打砖块：openmui 巡礼》**（游戏本身就是框架导览）· **S5 openmui 宣传片**（约 60 秒，用 openmui-video 制作，对标播放量几百万到上千万的 agent 代码动画视频，拆解和分镜见 [promo-video](2026-10-26-openmui-promo-video-design.md)）（§13） |
+| 视频 | **性能和编辑体验全面领先业界**：60 秒 1080p60 完整渲染 ≤ 15 秒（GPU），修改一个镜头后整片重新渲染 ≤ 3 秒（四层缓存），预览热重载 ≤ 100 毫秒，修改可以从预览写回（§12.6） |
+| 测试 | 单元测试、CTS 的 S / A / B / C 四级、CPU 金图逐字节比对、GPU 金图（lavapipe）、跨平台确定性、三种语言的语义一致性、性能门禁、模糊测试和 sanitizer（§15） |
+| 生态 | 需要补充到 mcpp-index、xim、mcpplibs、mcpp 的内容逐项列出（§17） |
+| 里程碑 | M0 骨架 → M1 核心 → M2 文本 + 动画 + Markdown → M3 声明式 + 三种语言 → M4 GPU + 画布 + 风格化 → M5 视频 + 游戏 + Agent → M6 打磨和跨平台（§18） |
+| 验收 | 全局质量门禁 + 每个里程碑、模块、展示各自的验收标准，**能自动检查的都进 CI**（§19） |
+| 协作 | **单个 PR，每一轮修改提交一个 commit 作为检查点**，方便审查（§2.5） |
+
+---
+
+## 1. 技术基线与工程规则
+
+### 1.1 语言标准与工具链
+
+| 项目 | 规定 |
+|---|---|
+| 基线 | `[language] standard = "c++23"`，`modules = true`，`import std`。**核心的所有成员包都必须能以 C++23 编译** |
+| 主工具链 | GCC 16（mcpp 的 `gcc@16.1.0`）。其他平台使用 mcpp 在该平台上的默认工具链 |
+| C++26 | GCC 16.1 已经提供实验性的 P2996 反射（需要 `-std=c++26 -freflection`），以及 `template for`（`-fexpansion-statements`）、`std::inplace_vector` 等（来源见文末）。**只在单独的成员包 `openmui-reflect` 里使用**：应用依赖它，就选用了反射；不依赖它，整个依赖图仍然是 C++23 |
+| 反射的用途 | 只用于**提升易用性**，不是必需的：结构体自动生成表单、模型列、视图文档和语义节点；C++ 实现和契约的一致性检查。**每一处都有 C++23 下的替代方案**（由契约生成代码） |
+| 编译器开关 | 核心不用异常和 RTTI；动画、布局、CPU 光栅器这几个模块通过 mcpp 的按文件 flags 设置 `-ffp-contract=off`，并且禁用 fast-math，**保证浮点结果跨平台一致**（A / B 级确定性） |
+
+### 1.2 不用宏，用 constexpr（D-38）
+
+| 场景 | 做法 |
+|---|---|
+| 平台、架构、特性的判断 | **清单按目标选择模块分区**，分区里提供 `inline constexpr` 常量，代码里用 `if constexpr` 分发。这和 `mcpplibs/os` 的规则 R3 / R5 一样：平台专属的函数在所有目标上都声明，只在自己的平台上定义；在别的平台上误用会**链接失败**，而不是运行时出错 |
+| 编译期校验 | `consteval`：ID 字面量的格式、格式化字符串、契约里的名字 |
+| 断言和日志 | 普通函数加 `std::source_location`，不用 `assert` 宏和日志宏 |
+| C 头文件里的宏 | 只在 `native/` 绑定模块里读取 C 头文件，把宏转换成 `constexpr` 常量或内联函数再导出（照搬 imkit、xdesk 的做法） |
+| 生成的代码 | 生成器产出的 C++ 同样不含宏 |
+| **唯一的例外** | `openmui.h`：C 头文件需要 `extern "C"` 的判断和导出可见性。它由生成器产出，宏的数量保持在最少，而且版本号同时提供一个 enum 常量形式 |
+
+示意（平台常量，没有宏）：
+
+```cpp
+// runtime/platform/src/platform.cppm
+export module openmui.platform;
+export import :target;                  // 由清单按目标选择：src/targets/{linux,macos,windows,web}.cppm
+
+// runtime/platform/src/targets/linux.cppm
+export module openmui.platform:target;
+export namespace omui::platform {
+    enum class os { linux, macos, windows, web, android, ios };
+    inline constexpr os current = os::linux;
+    inline constexpr bool desktop = true;
+}
+```
+
+```toml
+# runtime/platform/mcpp.toml
+[target.linux.build]
+sources = ["src/targets/linux.cppm", "src/linux/*.cpp"]
+[target.windows.build]
+sources = ["src/targets/windows.cppm", "src/windows/*.cpp"]
+```
+
+### 1.3 头文件收敛到最少（D-40）
+
+- **整个项目只有一个头文件：`spec/include/openmui.h`**（C ABI，由 registry 生成）。
+- 其他全部是模块：接口单元 `.cppm`，实现单元 `.cpp`。
+- 第三方的 C / C++ 头文件只出现在各成员包的 `native/` **实现分区**里，并且不导出；用 lint 检查（参考 xlings 的 `lint_c_headers.sh`）。
+- 模块接口里只出现标准库和 openmui 自己的类型，**不出现原生句柄**（参考 `mcpplibs/os` 的规则 R4）。
+
+### 1.4 性能规则
+
+| 规则 | 做法 |
+|---|---|
+| 数据导向 | 节点存储用 SoA 加带代数的句柄（slot map）；脏标记用位集合；遍历时缓存友好 |
+| 每帧零分配 | 每帧一个 arena，帧结束整体重置；对象池；`std::inplace_vector`（C++26，只在 GCC 下选用）或自己实现的定长向量 |
+| 热路径没有虚函数 | S 边界用 concepts / CRTP；L 边界只在粗粒度的地方做类型擦除（例如一个渲染后端一个虚表） |
+| 不用异常和 RTTI | 错误用 `std::expected` |
+| 并行 | 任务系统：工作窃取线程池、优先级、取消（`std::jthread` + `std::stop_token`）；布局测量、文本排版、光栅化、视频帧渲染都可以并行 |
+| 先测量 | 每个模块都带基准测试；CI 里有性能门禁（§15） |
+
+### 1.5 API 的优雅和简洁
+
+- **核心概念只有五个**：Node（节点）、Signal（状态）、Verb（命令）、View（视图）、Effect（效果）。其他都是由它们组合出来的。
+- **选项用指定初始化器**：`omui::button({.id = "inc", .text = "加一"})`。没有长长的参数列表，也没有 builder 链。
+- **值语义**，没有输出参数；`[[nodiscard]]`；强类型 ID（`NodeId`、`VerbId`，不是裸整数）。
+- **每个模块都很小**，用分区来组织；对外只有一个主模块。
+- **注释写“是什么、为什么”**（和 Luban 的代码风格一致），不写“怎么做”。
+
+---
+
+## 2. 工程划分：一个仓库，多个可以独立的 workspace 成员（D-41）
+
+### 2.1 原则
+
+1. **每个成员都是一个完整的 mcpp 包**：有自己的 `mcpp.toml`、版本号、README、`tests/`、许可证声明。
+2. **成员之间只通过 `path` 依赖互相引用**。拆分出去的时候，只需要把 `path` 改成 `version` 或 `git` 依赖（和 Luban 的规范“移出仓库”的成本一样低）。
+3. **不允许跨成员用相对路径引用源文件**；依赖方向用 lint 检查。
+4. **每个成员可以单独构建和测试**：`mcpp build -p <member>`、`mcpp test -p <member>`（具体参数以 mcpp 为准）。
+5. tag 按成员打：`spec-v0.1.0`、`runtime-core-v0.1.0` …（每个包单独打 tag、单独发布，需要在 M0 验证，见 V-02）。
+
+### 2.2 目录树
+
+> **2026-10-28 修订（D-80）**：目录按层重新分组，现行的目录树见 [structure-render-web-game](2026-10-28-openmui-structure-render-web-game-design.md) §3.2（`modules/{base,gfx,content,media,ui}`、宿主在 `modules/ui/host`、hanim、shader、session）。下面是最初的规划，保留作为记录。
+
+```
+mui/                                   （仓库根目录 = openmui 伞包 + workspace；内部一律叫 openmui）
+├── mcpp.toml                          # [package] openmui · [workspace] members · [features] rules / entry-player / entry-app
+├── src/
+│   ├── openmui.cppm                   # 伞模块：export import openmui.core / view / ui.base / theme.default …
+│   └── entry/{player.cpp,app.cpp}     # 入口（运行时代码；mcpp#845 落地后由特性提供）
+├── mcpp/
+│   ├── plan/                          # 构建插件共用的基础 openmui.build.plan（只放构建系统相关的代码）
+│   ├── contracts/                     # 构建插件：契约 → 代码（openmui.build.contracts）
+│   ├── embed/                         # 构建插件：数据文件嵌入程序（openmui.build.embed）
+│   └── toy/                           # 构建插件：dist-toy 打包格式（openmui.build.toy）
+├── templates/                         # mcpp new 的模板（mcpp 约定必须放在包的根目录）
+│
+├── spec/                              # ★ openmui.spec：规范（只依赖标准库）
+│   ├── SPEC.md
+│   ├── registry/                      #   roles / actions / effects / motion / expr / effect / extensions / profiles / components / schemas
+│   ├── include/openmui.h              #   全仓库唯一的头文件（生成）
+│   ├── src/                           #   值类型模块 openmui.spec（生成 + 少量手写）
+│   └── conformance/{S,A,B,C}/         #   CTS
+│
+├── modules/                           # ★ 独立组件（D-55、D-57）：不依赖 openmui 的任何其他包，随时可以拆成独立仓库
+│   ├── geom/                          # ★ openmui.geom：点、尺寸、矩形、边距、颜色、仿射变换、像素对齐（modules 共用的几何类型）
+│   ├── anim/                          # ★ hanim：**通用动画引擎**（只依赖标准库；UI、视频、游戏、画布共用，§6.0）
+│   ├── layout/                        # ★ openmui.layout：flex / grid / 栈 / 绝对定位 / 滚动的布局引擎（自带节点存储，增量、带缓存、结果确定）
+│   ├── unicode/                       # ★ openmui.unicode：UAX#14 断行、UAX#29 字素，表由 tools/gen 从 Unicode 数据生成
+│   ├── text/                          # ★ openmui.text：字体、排版、断行、字体回退、编辑（依赖 unicode、HarfBuzz）
+│   ├── raster/                        # ★ openmui.raster：确定性的 CPU 2D 光栅器（路径、描边、渐变、合成）
+│   ├── image/                         # ★ openmui.image：图像缓冲、PNG / JPEG 编解码（libpng、zlib）
+│   ├── render/                        # ★ openmui.render：**渲染层抽象**：显示列表、渲染器接口、CPU 后端（基于 raster）、GPU 后端（基于 gpu）、内置 Slang 着色器
+│   ├── rhi/                           # ★ openmui-rhi：UI 尺度的 GPU 抽象层接口 omui.rhi
+│   ├── rhi-sdl/                       # ★ openmui-rhi-sdl：后端（Vulkan / Metal / D3D12）
+│   ├── rhi-gles/                      #   openmui-rhi-gles（M6：嵌入式 Linux、WebGL2）
+│   ├── rhi-webgpu/  rhi-vk/           #   以后再做
+│   ├── pipeline/                      # ★ openmui.pipeline：阶段插件组成的管线：带类型的资源、校验、确定的顺序、按阶段计时和追踪、运行中替换（D-66）
+│   ├── trace/                         # ★ openmui.trace：span / 计数器 / 标记，按线程无锁记录，导出 Chrome trace，按 span 汇总百分位（D-59）
+│   ├── record/                        # ★ openmui.session：录制和回放：带时间戳的事件 / 动作流（NDJSON），可以跳转、可以转成测试
+│   └── encode/                        # ★ openmui-encode：文件输出：PNG 序列、视频编码（经 mcpplibs.os 启动 ffmpeg 并用管道送帧，可选硬件编码）、音频混合
+│
+├── runtime/
+│   ├── core/                          # ★ openmui.core：signal、verb、输入事件和按键、arena、句柄、JSON、任务调度、诊断
+│   ├── view/                          # ★ openmui.view：节点树、组件模型、帧流水线、视图 IR、对账、立即模式（openmui.im）、保留模式（openmui.rt）、表达式（openmui.expr）、视图文档
+│   ├── semantic/                      # ★ openmui.semantic：语义树、动作执行、效果分级、信封、查询
+│   ├── agent/                         # ★ openmui.agent：openmui.tree@0.1 本地端点（mcpplibs.os.ipc）、协议
+│   ├── platform/                      # ★ openmui-platform：平台服务（**全部经由 mcpplibs/os**，每个服务标注效果分级）
+│   ├── abi/                           # ★ openmui-abi：openmui.h 的实现（C ABI 的对外导出）
+│   ├── player/                        # ★ openmui-player：加载清单、视图文档和脚本
+│   ├── reflect/                       # ★ openmui-reflect：C++26 反射的易用层（只在 GCC 16 下可选）
+│   └── devtools/                      # ★ openmui-devtools：检查协议、遥测、基准测试接口、像素溯源
+│
+├── hosts/
+│   ├── sdl3/                          # ★ openmui.host.sdl3：桌面（以后包括移动）
+│   ├── headless/                      # ★ openmui.host.headless：虚拟 surface、注入时钟、输出 PNG（CI 和视频渲染都用它）
+│   └── opensal/  web/                 #   以后再做
+│
+├── components/
+│   ├── base/                          # ★ openmui.ui.base：Core 组件
+│   ├── markdown/                      # ★ openmui.ui.markdown
+│   ├── canvas/  canvas-kit/           # ★ openmui-ui-canvas / -canvas-kit
+│   ├── timeline/                      # ★ openmui-ui-timeline：时间轴、播放器控件（视频预览和动画检查器都用）
+│   └── data/  editor/                 #   以后再做
+├── themes/{tokens,default,compact,styles}/   # styles：风格包（token + Slang 效果 + 动效），S2 使用
+├── video/                             # ★ openmui-video：合成、帧、离线渲染、编码（§12；以后可以独立成仓库）
+├── lang/{ts,py,lua}/                  # ★ openmui-lang-*：语言绑定
+├── tools/
+│   ├── gen/                           # registry / 契约 → C ABI、C++ 分区、.d.ts、.pyi、Lua 注解、CTS 骨架、文档表格
+│   ├── omui/                          # 命令行：check / fmt / add / agent / video / bench
+│   ├── mcp/                           # MCP 服务器：任何 openmui 应用都可以被 agent 操作
+│   └── inspector/                     # 检查器（用 openmui 自己写的应用）
+├── examples/01-…/ … 13-…/             # 小示例（文档的骨架）
+├── showcase/                          # 旗舰展示（§13）
+│   ├── markdown-wall/  style-gallery/  agent-ops/  widget-breakout/  promo-video/
+├── tests/{support,cts,e2e,bench}/     # support：测试共用的检查（openmui.testing，只作为 dev 依赖）；其余是跨成员的测试：CTS 运行器、e2e、确定性、性能
+├── skills/{openmui,openmui-video}/    # 给 agent 用的技能包（SKILL.md + 规则文件），参考 Remotion 的做法
+├── docs/{en,zh}/  llms.txt
+├── .github/workflows/
+├── .xlings.json                       # 工具清单：mcpp、slang、mesa-lavapipe、esbuild、node、uv、python、emsdk、ffmpeg …
+├── AGENTS.md
+└── .agents/docs/
+```
+
+标了 ★ 的是 M0 到 M5 期间会实际建立的成员。
+
+### 2.3 成员一览：以后哪些可以独立成仓库
+
+| 成员 | 包名 | 将来可以独立吗 | 说明 |
+|---|---|---|---|
+| spec | `openmui.spec` | ✅ 出现第二个实现者时 | 参考 openkal、Vulkan-Docs |
+| **modules/base/hanim** | `hanim` | ✅ **通用动画引擎** | 只依赖标准库，不知道 UI 的存在；游戏引擎、其他 UI 框架都可以使用 |
+| modules/base/unicode | `openmui.unicode` | ✅ 通用库 | mcpp-index 里没有断行库，所以自己做；也可以贡献给 mcpplibs |
+| modules/content/text | `openmui.text` | ✅ 通用库 | C++ 模块化的文本引擎在 C++ 生态里很少见 |
+| modules/gfx/raster | `openmui.raster` | ✅ 通用库 | 确定性的 2D 光栅器 |
+| modules/gfx/rhi + 各后端 | `openmui-rhi*` | ✅ | UI 尺度的 GPU 抽象层 |
+| components/markdown、canvas | `openmui-ui-*` | ✅ | 有独立用户时 |
+| video | `openmui-video` | ✅ | 产品形态独立 |
+| lang/* | `openmui-lang-*` | ✅ 有独立维护者时 | 参考 OpenTelemetry |
+| tools/mcp | `openmui-mcp` | ✅ | — |
+| runtime 的其他成员、伞包 | — | 一般留在主仓库 | — |
+
+### 2.4 根目录的 `mcpp.toml`（示意）
+
+```toml
+[package]
+name    = "openmui"
+version = "0.1.0"
+license = "Apache-2.0"
+
+[language]
+standard = "c++23"
+modules  = true
+
+[workspace]
+members = [
+  "spec", "modules/*",
+  "modules/ui/*", "modules/ui/host/*", "components/*", "modules/ui/theme/*",
+  "video", "lang/*", "tools/*", "examples/*", "showcase/*", "tests/*",
+]
+
+[dependencies]
+openmui.core     = { path = "modules/ui/core" }
+openmui.view     = { path = "modules/ui/view" }
+openmui.ui.base  = { path = "components/base" }
+openmui-theme-default = { path = "modules/ui/theme/default" }
+
+# 构建插件不是伞包的特性，而是 mcpp/ 下各自独立的包（D-73），按需写进 [build-dependencies]
+
+[features.entry-player]
+sources = ["src/entry/player.cpp"]      # mcpp#845 落地后改成入口声明
+```
+
+### 2.5 协作流程：单个 PR，commit 作为检查点（D-52）
+
+- 当前阶段的工作都放在**同一个 PR** 里（分支 `openmui-design`，PR 合入 `main`），方便集中审查。
+- **每一轮修改提交一个 commit 作为检查点**。commit 信息写清楚这一轮改了什么、为什么改，审查时可以按 commit 逐轮查看差异。
+- 每个检查点都要满足：文档之间互相一致（决策编号、目录树、里程碑、后缀）；以后有了代码，还要求 CI 全绿。
+- 进入实现阶段以后，仍然按里程碑一个 PR；里程碑之内用 commit 作为检查点。
+
+---
+
+## 3. 架构落地
+
+### 3.1 一帧的流水线和线程
+
+```
+UI 线程（C++）：
+  输入（按帧合并）→ 分发事件 → 执行动作 / verb
+  → signal 传播（批量、拓扑排序）→ 对账（立即模式的 build、保留模式的局部重建）
+  → 增量布局 → 动画求值（批量、SoA）→ 语义变更 → 显示列表（增量）→ 交给渲染线程
+渲染线程：显示列表 → render（批处理、实例化、图层缓存）→ omui.rhi 或 raster → 提交 → 等待帧已显示（帧节奏）
+任务线程池：文本排版、图片解码、缩略图光栅化、视频帧渲染、布局测量（大子树）
+脚本线程（每种语言一个）：事件处理、verb、业务逻辑 ↔ 通过消息队列和 UI 线程交换值
+```
+
+### 3.2 关键数据结构
+
+| 结构 | 设计 |
+|---|---|
+| `NodeStore` | SoA：类型、父节点、第一个子节点、下一个兄弟、属性块的偏移、脏位；节点用带代数的句柄（`NodeId`）引用 |
+| `SignalGraph` | 依赖图是增量维护的；“先推送标记、再按需拉取”；事务内的修改批量提交 |
+| `DisplayList` | 每帧 arena 里的 POD 指令流；按节点子树缓存片段；脏区 |
+| `AnimSet` | 活跃动画的 SoA（目标属性、曲线类型、参数、起始时间），每帧批量求值 |
+| `SemanticDelta` | revision 加有序的 added / removed / updated；给 agent 和无障碍层使用 |
+
+### 3.3 依赖方向（用 lint 强制）
+
+```
+modules/*（geom、anim、layout、unicode、text、raster、image、render、rhi、record、encode、trace、pipeline）：只依赖标准库、彼此和第三方库，不依赖任何 openmui 包
+anim ← core（时钟来自 anim）     nlohmann.json、taskflow（tf）、concurrentqueue ← core（来自 mcpp-index，D-56）
+spec ← core ← view（节点树、组件；把 layout、text、anim 适配到节点上；产出 render 的显示列表）（把 anim 适配到节点属性）← semantic ← agent（另外依赖 platform 的 IPC）
+                                         ↑
+                    render ← {gpu ← gpu-*, raster, image}
+                    host-* ← (core, render)      platform ← mcpplibs/os
+component ← (view 的公开 API)      lang-* ← openmui.h ← abi
+video ← (view, anim, host-headless, render, ffmpeg)      game / canvas ← anim
+```
+
+---
+
+## 4. 规范工作流
+
+### 4.1 每个版本交付什么
+
+| 规范版本 | 和哪个里程碑对应 | 内容 |
+|---|---|---|
+| 0.1 | M1–M2 | 语义树（S-1 到 S-9）、动作和效果、视图 IR、显示列表、**动画语义和精确公式**（视频依赖它，所以提前）、C ABI 骨架、CTS 的 S 级和 A 级 |
+| 0.2 | M3 | 视图文档的 schema、表达式 AST 和 CEL 子集、Script Binding Profile、契约 schema、清单 schema |
+| 0.3 | M4–M5 | 扩展：canvas、instanced_draw、shader_effect（效果接口）、render_to_texture、gpu_node；视频合成的语义 |
+
+### 4.2 Registry 和生成器（`tools/gen`）
+
+| 输入 | 输出 |
+|---|---|
+| `registry/*.toml`、`components/*.contract.omui.toml` | `openmui.h`、值类型模块、契约的 C++ 分区（CRTP 基类、属性存储、动作分发） |
+| 同上 | `.d.ts`、`.pyi`、LuaLS 注解、各语言的类型化封装 |
+| 同上 | 视图文档的 JSON Schema、组件目录（给 agent 用） |
+| 同上 | CTS 骨架、文档里的表格、`llms.txt` 的片段 |
+
+生成器本身是一个 C++ 模块化程序（依赖 mcpp-index 里的 `marzer.tomlplusplus` 和 `nlohmann.json`，两者都以 C++23 模块提供），由 `openmui.rules` 在构建期调用。
+
+### 4.3 流程
+
+规范的每一次修改都必须同时提交：registry 的修改、CTS 用例、参考实现的实现，缺一项就不能合并。较大的改动先写 RFC，放在 `.agents/docs/`。
+
+---
+
+## 5. 运行时各模块的实施
+
+| 成员 | 范围 | 关键点 | 里程碑 |
+|---|---|---|---|
+| core | 树、ID（S-8 / S-9）、signal、verb、事件、焦点和导航、arena | SoA + 带代数的句柄；`consteval` 校验 ID 字面量；signal 批量提交；**时钟使用 `hanim::Clock`，可以注入**（交互、虚拟、渲染三种） | M1 |
+| 任务调度（core 内） | 基于 mcpp-index 的 **taskflow**（模块 `tf`）：帧内的并行 for、任务图、优先级（帧关键 / 后台）、取消；UI 线程和脚本线程之间的队列用 `compat.concurrentqueue` | 不自己写线程池（D-56）；热路径上不分配内存 | M1 |
+| layout | flex、grid、栈、滚动、虚拟化 | 增量布局、测量结果缓存、**取整规则**（A 级）、`-ffp-contract=off` | M1–M2 |
+| text | HarfBuzz 排版、FreeType 字形、fribidi、**UAX#14 断行**、字体回退、选区和编辑、输入法 | 断行表由 `tools/gen` 从 Unicode 数据生成（不额外依赖 ICU）；排版结果缓存；msdf 图集交给 render | M1–M2 |
+| anim | 独立组件 `modules/base/hanim/`，见 §6 | 只依赖标准库 | M2 |
+| view | 视图 IR、对账、`openmui.im`、`openmui.rt`、`openmui.expr`、视图文档的加载 | 立即模式在没有事件时不调用 build；表达式 AST 由原生代码求值；CEL 子集解析器要做模糊测试 | M1（im）、M3（rt、expr、视图文档） |
+| semantic | 产出语义树、执行动作、效果分级、`needs-answer`、Origin、信封、**录制和回放** | 增量变更；虚拟化语义；录制内容是“语义动作 + 时钟” | M1 |
+| agent | `openmui.tree@0.1` 本地端点（`mcpplibs.os.ipc`），协议是 JSON lines | snapshot / changes / find / act / wait / capture；actor 的文本形式和 openas 一致 | M1（基础）、M5（完整） |
+| platform | 文件、目录、进程、IPC（来自 `mcpplibs/os`）；对话框、剪贴板、托盘（来自 SDL3） | 每个服务都标注效果分级 | M1–M3 |
+| abi | 实现 `openmui.h` | 由生成器产出调用桩；不让异常越过边界 | M3 |
+| player | 加载清单、视图文档、脚本、native 模块 | `entry-player` 使用它 | M3 |
+| reflect | C++26 反射的易用层：`omui::form(settings)`、`omui::model_of<T>()` | **只在 GCC 16 加 `-freflection` 时可用**；C++23 下有由契约生成的替代方案 | M3 之后 |
+| devtools | 检查协议、遥测、基准测试接口、像素溯源（对象 ID 缓冲）；协议操作 `clock`、`trace` 订阅、`signals` | 检查器本身就是一个 openmui 应用，同时是示例（D-61）：节点树、属性、帧时间、火焰图、日志、动画检查器、依赖图 | M2 起逐步（可观测性的数据已经在 D-59 里），M4–M6 完成像素溯源 |
+
+C++26 反射的易用层示意（只在 `openmui-reflect` 里）：
+
+```cpp
+import openmui;
+import openmui.reflect;
+
+struct Settings { std::string name; int volume = 30; bool dark = false; };
+
+auto settings_panel(Settings& s) -> omui::View {
+    return omui::reflect::form(s);       // 用反射遍历成员，生成 TextBox / Slider / Toggle，并带上语义 ID（name / volume / dark）
+}
+```
+
+---
+
+## 6. 动画系统（重点：同时服务交互和视频）
+
+### 6.0 定位：通用动画引擎 `hanim`（D-49）
+
+- **独立组件 `modules/base/hanim/`**，有自己的 `mcpp.toml`，**只依赖标准库**，不知道节点、视图、渲染的存在。将来可以直接独立成仓库（甚至贡献给 mcpplibs）。
+- **使用方**：`openmui.view` 把它适配到节点属性上；`openmui-video` 用它做合成和时间线；S4 游戏用它做玩法里的补间和时间倒流；画布用它驱动相机。**其他项目也可以单独使用**，比如游戏引擎、别的 UI 框架。
+- **对外的核心抽象**：
+
+```cpp
+export module hanim;
+import std;
+
+export namespace hanim {
+
+using seconds = std::chrono::duration<double>;
+
+template <class T>
+concept Animatable = requires(const T& a, const T& b, double t) {
+    { lerp(a, b, t) } -> std::same_as<T>;           // 颜色在 OKLab 空间插值，变换按分量插值
+};
+
+class Clock;                                       // 交互 / 虚拟 / 渲染三种，可以注入
+template <Animatable T> class Track;               // 关键帧轨道：每一段有自己的缓动
+template <Animatable T> class Spring;              // 阻尼谐振子的解析解，可以分段（被打断时）
+class Timeline;                                    // 轨道、序列、错峰、嵌套合成、时间映射
+
+// 纯函数求值：任意时刻 O(1) 或 O(log n)，结果确定
+template <Animatable T> auto sample(const Track<T>&, seconds t) -> T;
+template <Animatable T> auto sample(const Spring<T>&, seconds t) -> T;
+
+// 批量求值：SoA，给 UI 线程每帧调用一次
+class Set;                                         // 活跃动画的集合
+void evaluate(Set&, seconds t, std::span<std::byte> out);
+
+}
+```
+
+- **和 UI 的边界**：anim 只负责“给定时刻，算出值”；“把值写到哪个属性上”由 view 负责。所以 anim 里没有任何节点、属性、线程的概念。
+
+
+### 6.1 设计目标
+
+| 目标 | 原因 |
+|---|---|
+| **动画是时间的纯函数** | 视频必须能**跳转到任意一帧**直接渲染，而不是从第 0 帧一路模拟过去。这样不同的帧还可以并行渲染 |
+| **结果确定、跨平台一致** | 同样的时间得到同样的值（A 级）；视频每次渲染结果相同；测试可以复现 |
+| **交互模式和渲染模式共用同一套动画** | 界面里调好的动效，可以原样用进视频 |
+| **可以被打断，同时保持可跳转** | 交互中途改变目标时保留速度；做法是把一次动画拆成多段解析解，段的列表就是可以跳转的历史 |
+| **不经过脚本** | 每帧由 C++ 批量求值；脚本只负责声明 |
+
+### 6.2 分层
+
+```
+时钟（Clock）
+  ├─ 交互时钟：真实时间，和帧节奏对齐；可以调速（慢放）、暂停
+  ├─ 虚拟时钟：headless 测试按步推进
+  └─ 渲染时钟：视频专用，帧号 → 时间（帧号 / fps），完全确定
+时间线（Timeline）
+  ├─ 轨道、序列（sequence）、串联（series）、错峰（stagger）
+  └─ 嵌套的合成，带时间映射：偏移、速度、裁剪、循环、倒放
+动画原语（全部有解析解，可以在任意时刻求值）
+  ├─ 关键帧：每一段有自己的缓动；支持 hold
+  ├─ tween：时长 + 缓动（cubic-bezier 的求解是确定的：牛顿迭代加二分，迭代次数固定）
+  ├─ spring：阻尼谐振子的**解析解**（欠阻尼、临界阻尼、过阻尼三种情况），O(1) 求值；
+  │          被打断时生成新的一段，初始条件就是当前的位置和速度
+  ├─ decay：惯性衰减的解析解
+  ├─ 路径：沿贝塞尔路径运动（按弧长参数化）
+  └─ 形变：路径插值；颜色在 OKLab 空间插值
+绑定：任何属性（数值、向量、颜色、变换、布局属性、着色器参数）
+声明式写法：属性改变时自动过渡、出现和消失、布局动画（FLIP、共享元素）、状态机
+```
+
+### 6.3 可以动画化的属性，按代价分级
+
+| 级别 | 属性 | 每帧代价 |
+|---|---|---|
+| 只需合成 | transform、opacity、着色器参数 | 只改 GPU 的 uniform 或实例数据 |
+| 需要重绘 | 颜色、圆角、阴影、文字颜色 | 重新录制这一个节点 |
+| 需要重新布局 | 尺寸、边距、flex 参数 | 子树重新布局（开发工具会给出提示） |
+
+**所有可视属性都可以做动画（D-60）**：契约里类型是数值、长度、颜色、变换、渐变、阴影、路径的属性，默认都可以动画（`lanes<T>` 给出插值的分量），契约可以写 `animatable = false` 排除；生成器为每个属性产出它的代价级别，开发工具和 lint 据此提示“这个动画会触发重新布局”。颜色一律经过 OKLab，阴影、渐变逐分量插值，路径用形变插值。
+
+**控制粒度分三层，都是时间的纯函数，都可以跳转**：
+
+| 粒度 | 能动的东西 | 做法 |
+|---|---|---|
+| 对象 / 属性 | 节点的任何可视属性；布局（FLIP、共享元素）；出现和消失 | 上面的三级代价；`animating` / `removing` 进语义树，agent 可以 `wait settled` |
+| 子对象 | 文字的每个字形 / 词 / 行（错峰、逐字出现、打字机）；路径的描边进度和虚线偏移（“画出来”的效果）；渐变的色标；画布和粒子的每个实例 | 文字排版后的字形序列、路径的弧长参数、实例数组都暴露为可以错峰的**域**（`stagger(域, …)`），每个元素的值仍然是 `f(t, i)` |
+| 像素 | 溶解、擦除、遮罩显现、位移、噪声、模糊、色散；任意子树先渲染成图层（render-to-texture）再加效果；轨道遮罩（track matte） | Slang 效果：`f(uv, t, 参数)`，参数就是可以动画的属性；CPU 参考路径也要能算，保证金图和跳转一致性（Slang 的 CPU 目标或手写的参考实现，M4 验证）；`painter` 节点可以按时间逐像素绘制 |
+
+**默认就能动画化，不需要组件配合**：子对象层和像素层是运行时的基础设施，作用在节点录制的显示列表上，而不是由每个组件自己实现。
+
+- 一个节点画出的字形串（不管是 `text`、按钮的标签、Markdown 段落还是第三方组件的文字），运行时都能按节点、按文字范围（字节区间、第几个字形 / 词 / 行）拿到，并逐个应用 `f(t, i)`：位移、旋转、缩放、透明度、颜色、模糊半径。
+- 任何节点都可以加 `effect` 属性：子树先渲染成图层，再在图层上逐像素求 `f(uv, t, 参数)`。内置的效果有溶解、擦除、遮罩显现、位移、噪声、色散，以及把文字或图层的像素拆成粒子再聚合。CPU 参考实现和 GPU 路径给出同样的金图。
+- 文字的某个范围也可以单独成为像素层的对象，比如只让一段文字里的一个词化成粒子飞走，再在别处聚合。
+- **算力**：每种效果和粒子模拟都有两条路径。
+  - CPU 参考路径：确定性，用来出金图、跑 headless 和 CI；按行带并行，只算脏区。
+  - GPU 路径：机器有 GPU 时，同一组效果和粒子模拟以 compute shader 运行（经 `omui.rhi`，SDL_GPU 支持 compute），按能力查询选用；它和 CPU 参考路径的金图误差不超过约定的容差。
+  - 粒子天然适合 compute：一个线程算一个粒子，`f(t, i)` 是纯函数，可以直接跳到任意时刻。
+
+这三层对视频尤其重要：Remotion 一类的工具停在 DOM / CSS 的属性层，像素层要另起 WebGL；openmui 在同一棵树、同一个时钟、同一个确定性的渲染器里覆盖三层，所以任意一帧都能直接渲染、并行渲染、增量重渲染（§12.6）。
+
+### 6.4 API（四种语言同一套概念）
+
+```cpp
+// C++：交互里的 spring 过渡
+omui::box({.id = "drawer", .x = omui::spring_to(open ? 0.f : -320.f, {.stiffness = 300, .damping = 30})});
+
+// 时间线（交互和视频都能用）
+auto tl = hanim::timeline()
+    .at(0.0s, "title.opacity", hanim::tween(0, 1, 400ms, omui::ease::out_cubic))
+    .at(0.2s, "title.y",       hanim::spring(40, 0, {.stiffness = 120, .damping = 14}))
+    .stagger(0.05s, "cards/*.scale", hanim::tween(0.9, 1, 300ms));
+```
+
+```ts
+// TS：交互
+box({ id: "drawer", x: springTo(open ? 0 : -320, { stiffness: 300, damping: 30 }) });
+// TS：视频里按帧求值（frame() 是 signal；interpolate 和 spring 是表达式组合函数，由原生代码求值）
+text({ opacity: interpolate(frame(), [0, 30], [0, 1]), scale: spring({ frame: frame(), from: 0.8, to: 1 }) });
+```
+
+### 6.5 视频专用的能力
+
+- **运动模糊**：渲染时在一帧内做时间超采样（取 N 个子帧再累加）。只在渲染模式下使用。
+- **音频同步**：时间线驱动音频片段，按帧精确对齐（用 `compat.miniaudio` 做预览，用 ffmpeg 混音输出）。
+- **跳转一致性**：直接渲染第 N 帧的结果，必须和从头播放到第 N 帧的结果**完全相同**。这是一条 CTS 用例。
+
+### 6.6 测试
+
+- **A 级曲线金值**：每种缓动、spring、decay 按固定的时间点采样，结果逐位比对，并且要求跨平台一致。
+- **跳转一致性**（见上）。
+- **被打断的 spring**：速度连续，段列表可以回放。
+- **语义**：`animating` / `settled` / `removing`；`wait settled` 不会提前返回，也不会卡住。
+- **减少动效**：设置开启时，spring 直接跳到终态。
+
+### 6.7 工具
+
+- **动画检查器**：任何正在运行的 openmui 应用都可以连接，用时间轴组件（`openmui-ui-timeline`）拖动时间、逐帧查看、慢放。
+- `omui anim plot`：把一条曲线画成图，检查和设计稿是否一致。
+
+### 6.8 强动画框架的特色（D-60）
+
+- **时间是一等输入**：时钟可以注入、暂停、慢放、逐帧、倒放；任何应用的动画状态都可以拖到任意时刻查看（动画检查器），录下的会话可以按帧回放。
+- **可以打断而且可以跳转**：spring 被打断时速度连续，段列表就是历史，所以“交互里的动画”也能跳转和回放。
+- **布局动画是自动的**：尺寸和位置的变化用 FLIP，跨视图的共享元素过渡；列表的插入、删除、重排有默认的过渡。
+- **设计一次，界面和视频共用**：界面里的动效 token（`motion.*`）原样进入视频时间线。
+- **可测**：动画在任意时刻的值和像素都可以金值比对；`animating` / `settled` 进语义树。
+- **减少动效**是全局开关，spring 直接到终态，测试覆盖。
+- **代价可见**：开发工具按帧显示每个正在动的属性落在哪一级（合成 / 重绘 / 重新布局）。
+
+---
+
+## 7. 渲染与 GPU
+
+| 工作 | 内容 | 里程碑 |
+|---|---|---|
+| raster（CPU 参考光栅器） | **自己实现定点数的扫描线光栅器**，用解析覆盖率做抗锯齿，保证跨平台逐字节一致（不依赖 pixman 的 SIMD 路径，避免不同平台的取整差异）；字形由 FreeType 光栅化（版本由 mcpp.lock 锁定，关闭 hinting） | M1 |
+| render | 显示列表 → 批处理；圆角矩形、边框、阴影用 SDF；msdf 文字图集；图层缓存；脏区；外部纹理 | M4（CPU 路径在 M1 就有） |
+| rhi | `omui.rhi` 接口（RHI，Render Hardware Interface）：设备、缓冲、纹理、管线、命令列表、导入外部纹理、能力查询 | M4 |
+| rhi-sdl | 第一个 GPU 后端（Vulkan / Metal / D3D12） | M4 |
+| shaders | 用 Slang 写内置着色器；`rules-slang` 编译成 SPIR-V / MSL / DXIL（/ GLSL ES / WGSL）；通过反射得到参数；开发期热重载 | M4 |
+| 效果（第 ① 级） | 效果模板 `EffectInput`；参数就是带类型的属性，可以做动画；第三方的着色器只能使用模板 | M4 |
+| 材质（第 ② 级） | 画布节点类型自己的着色器 | M4–M5 |
+| rhi-gles | 嵌入式 Linux 和 WebGL2（D-36） | M6 |
+| CI 中的 GPU | headless 下用 **mesa-lavapipe**（xim 中已有）跑 rhi-sdl 的 Vulkan 路径 | M4 |
+
+---
+
+## 8. 宿主与平台
+
+### 8.1 平台层：git 依赖 `mcpplibs/os`
+
+**本地事实**：`mcpplibs/os` 的 `os-0.1.0` 是一个分支。它提供进程、文件、环境变量、终端、约定目录、本地 IPC、机器信息，以及编译期的平台常量（`PLATFORM`、`is_linux` …），底层基于 openkal。它的规则 R0 到 R6 里包括：接口单元不包含系统头文件、也不包含宏；平台专属模块在所有目标上都声明，只在自己的平台上定义。
+
+```toml
+# runtime/platform/mcpp.toml
+[dependencies]
+mcpplibs.os = { git = "https://github.com/mcpplibs/os.git", branch = "os-0.1.0" }
+```
+
+| openmui-platform 的能力 | 来源 |
+|---|---|
+| 目录（配置、缓存、数据）、文件、原子写入 | `mcpplibs.os.dirs` / `.fs` |
+| 打开链接、启动外部程序（效果为 `external`） | `mcpplibs.os.process` |
+| 单实例、agent 端点 | `mcpplibs.os.ipc`（本地监听和连接，`single_instance`） |
+| 平台常量 | `mcpplibs.os.platform`（`if constexpr` 分发） |
+| 窗口、输入、输入法、剪贴板、文件对话框、托盘、显示器 | SDL3（`compat.sdl3`）——在宿主层 |
+
+### 8.2 宿主
+
+| 宿主 | 用途 | 里程碑 |
+|---|---|---|
+| **headless** | 虚拟 surface、注入时钟、输出 PNG；CI、agent、**视频渲染**都使用它 | M1 |
+| **sdl3** | Linux / Windows / macOS 桌面，以后包括 Android / iOS | M1（Linux）→ M2（三个桌面平台） |
+| web | emscripten（emsdk 在 xim 中已有）+ rhi-gles（WebGL2） | M6 |
+| opensal | 以后接入 Luban / xdesk | 以后 |
+
+---
+
+## 9. 组件实施
+
+| 组件包 | 内容和顺序 | 里程碑 |
+|---|---|---|
+| ui-base | Text、Box / Stack / Column / Row、Button、Toggle、Checkbox、Slider、TextBox → ScrollView、List / VirtualList、Tabs、Menu、Dialog、Tooltip、Select、Radio | M1（前 9 个）、M3（其余） |
+| ui-markdown | md4c、块缓存、流式追加、扩展块、链接（`external`）、Origin | M2 |
+| ui-canvas | 场景存储、空间索引、相机、LOD、晋升、实例化、`OMUI_EXT_canvas` | M4 |
+| ui-canvas-kit | 选择、拖动、缩放手柄、吸附、连线、小地图、网格 | M4 |
+| ui-timeline | 时间轴、播放头、轨道、关键帧标记、播放器控件 | M5（视频预览、动画检查器都用） |
+| modules/ui/theme/styles | 风格包：token + Slang 效果 + 动效 token | M4（S2） |
+
+每个组件都必须通过组件完成标准（component-binding §12）。
+
+---
+
+## 10. 语言绑定实施
+
+| 语言 | 方案 | 里程碑 |
+|---|---|---|
+| C ABI | `openmui.h` + `modules/ui/abi`，由生成器产出 | M3 |
+| TS / JS | `mcpplibs.mwrap.quickjs_ng`（quickjs-ng-m，模块封装 `compat.quickjs-ng`）；TS 在构建期用 esbuild 转换（xim 中已有）；生成 `.d.ts`；可选 TSX | M3 |
+| Python | **用 CPython 的稳定 ABI（limited API / abi3）自己写绑定模块**，不用 pybind11（它是依赖宏的头文件库，不符合“不用宏、头文件最少”的规则）；先做“作为宿主”的模式（`pip install openmui`，每个平台一个 wheel）；生成 `.pyi` | M3 |
+| Lua | `mcpplibs.mwrap.lua`（lua-m，模块封装 `compat.lua` 5.4）；生成 LuaLS 注解 | M3 |
+
+- **线程**：每种语言一个逻辑线程；和 UI 线程之间用无锁的 MPSC 队列交换值。
+- **测试**：同一组语言中立的 JSON 场景，分别由三种语言执行，语义结果必须完全相同（CTS 的 S 级）。
+
+---
+
+## 11. Agent 实施
+
+| 工作 | 内容 | 里程碑 |
+|---|---|---|
+| 本地端点 | 每个应用通过 `mcpplibs.os.ipc` 在约定的目录里监听；协议是 JSON lines，接口名 `openmui.tree@0.1` | M1 |
+| 命令行 | `omui agent ls / snapshot / find / act / wait / capture` | M1 |
+| 效果分级 | `irreversible` / `external` 的动作没有 `answer` 时返回 `needs-answer`；actor 用 openas 的文本形式；信封 | M1 |
+| 录制和回放 | 语义动作 + 时钟 → headless 下精确回放；可以转成测试 | M2 |
+| MCP 服务器 | `tools/mcp`：`ui_snapshot` / `ui_find` / `ui_act` / `ui_wait` / `ui_capture`、`video_*`（§12） | M5 |
+| Skills | `skills/openmui`、`skills/openmui-video`：给 Claude Code 等 agent 使用的规则包（参考 Remotion 的 agent skills） | M5 |
+| 接入 Luban | 通过 git 依赖 openbus / xbus 发布到总线 | 以后 |
+
+协议示意：
+
+```text
+→ {"op":"find","q":{"role":"button","name":"删除*"}}
+← {"kind":"data","data":{"nodes":[{"id":"notes/delete","role":"button","actions":[{"name":"activate","effect":"irreversible","answer":"yes"}]}]}}
+→ {"op":"act","node":"notes/delete","action":"activate","actor":"agent:planner;via=person:alice"}
+← {"kind":"error","code":"needs-answer","hint":"带上 \"answer\":\"yes\" 再次调用"}
+← {"kind":"result","exitCode":2}
+```
+
+---
+
+## 12. openmui-video：用代码制作动画视频（对标 Remotion 和 Opus 5.5 带起的代码动画）
+
+### 12.1 背景
+
+Remotion 用 React 代码来写视频。它在 2026 年 1 月推出了 agent skill，让 Claude Code 等 agent 能用自然语言生成视频；几周之内安装量就达到十几万。它的定位是**由代码生成的动态图形视频**（产品演示、数据可视化、讲解动画），不是生成写实画面（来源见文末）。
+
+openmui-video 走同样的路线，并且有几项明显的优势：
+
+| 方面 | Remotion | openmui-video |
+|---|---|---|
+| 渲染 | 无头 Chrome 截图 | **原生 C++ 渲染**（headless 宿主 + GPU 或 CPU），不需要浏览器 |
+| 确定性 | 依赖浏览器 | **动画是时间的纯函数**；CPU 渲染逐字节一致 |
+| 并行 | 多个浏览器实例 | 帧之间互相独立，可以在任务线程或多个进程上**并行渲染** |
+| 特效 | CSS / WebGL | **Slang 着色器**效果，和界面共用 |
+| 语言 | TS / React | TS、Python、Lua、C++ |
+| 给 agent 的质量检查 | 截图 | **每一帧都有语义树**：agent 可以检查文字是否重叠、是否出界、时间点是否正确，不只是看截图 |
+
+### 12.1a 质量对标：Opus 5.5 带起的代码动画视频
+
+2026 年 9 月 22 日 Claude Opus 5.5 发布以后，“让模型写动画代码、再逐帧渲染成视频”迅速流行：常见的流程是模型写 HTML / Canvas / three.js，再用无头 Chrome 加 ffmpeg 渲染；社区收录了上千个作品，最常见的形式是 15 秒展示短片。openmui-video 的目标是**达到同样的画面质量**，同时提供它们没有的东西：原生渲染（不需要浏览器）、结果确定、帧可以并行渲染、每一帧都有语义树可以检查。
+
+### 12.2 概念
+
+| 概念 | 说明 |
+|---|---|
+| 合成（composition） | id、宽高、fps、总帧数、默认属性 |
+| `frame()` | 当前帧号，是一个 signal；只在渲染时钟下变化 |
+| 序列（sequence）、串联（series） | 时间线上的片段：起点、长度、嵌套、时间映射 |
+| `interpolate` / `spring` / 缓动 | 就是 §6 的动画原语，以表达式组合函数的形式提供，由原生代码求值 |
+| 素材 | 图片、字体、音频、视频片段（用 ffmpeg 解码） |
+| 字幕 | 文本或 Markdown 组件，加上时间轴数据 |
+
+```ts
+// intro.video.ts
+import { composition, sequence, frame, interpolate, spring } from "openmui/video";
+import { column, text, markdown } from "openmui";
+
+export default composition({ id: "intro", width: 1920, height: 1080, fps: 60, frames: 600 }, () => [
+  sequence({ from: 0, frames: 120 }, () =>
+    text({ id: "title", text: "openmui", style: "display",
+           opacity: interpolate(frame(), [0, 30], [0, 1]),
+           scale:   spring({ frame: frame(), from: 0.8, to: 1, stiffness: 120, damping: 14 }) })),
+  sequence({ from: 90, frames: 300 }, () =>
+    markdown({ id: "pitch", source: "**Agent 原生**、可以 headless 测试的现代 C++ UI" })),
+]);
+```
+
+### 12.3 渲染流水线
+
+```
+合成 + 帧区间 → 拆成帧块分给任务线程或进程 → 每一帧：渲染时钟 = 帧号 / fps
+  → 对账 → 布局 → 动画求值 → 渲染（rhi-sdl 或 lavapipe，也可以用 CPU raster）
+  →（可选的运动模糊：子帧累加）→ 帧缓冲
+→ 编码：ffmpeg（compat.ffmpeg）→ mp4（h264 / h265 / av1）/ webm / png 序列 / gif；音频混合
+```
+
+```bash
+omui video render intro.video.ts --out intro.mp4 --codec h264 --scale 1 --jobs 8
+omui video still  intro.video.ts --frame 240 --out f240.png
+omui video check  intro.video.ts            # 每一帧的语义检查：文字重叠、出界、空白帧
+```
+
+### 12.4 预览工具
+
+预览工具本身用 openmui 写：时间轴可以拖动（`openmui-ui-timeline`）、播放和暂停、逐帧前进、修改属性的面板、热重载（脚本保存后立刻刷新当前帧）。
+
+### 12.5 给 agent 的工作流
+
+- `skills/openmui-video`：参考 Remotion 的 skill，按主题拆成很多小的规则文件（合成、动画、文字、字幕、音频、着色器效果、渲染），agent 按需加载。
+- MCP 工具：`video_render(range)`、`video_still(frame)`、`video_snapshot(frame)`（某一帧的语义树）、`video_check()`。
+- **闭环**：agent 写代码 → 渲染关键帧 → 读取语义树和截图检查 → 修改 → 最终渲染。
+
+### 12.6 性能和编辑体验：要全面领先业界（D-54）
+
+**业界现状（公开数据，口径各不相同，只作量级参考）**：
+
+| 工具 | 公开的速度 | 编辑体验 |
+|---|---|---|
+| Remotion（本地） | 简单的 1080p 合成热缓存时约 90 fps；真实项目常见 5–15 fps；一份第三方指南说 60 秒的视频在本地要 3–7 分钟；首次构建还要额外几分钟，安装占用约 870 MB | Studio 预览、React 热更新；属性面板有限 |
+| Remotion Lambda | 1 分钟（1440 帧）约 15–19 秒，靠的是 **约 200 个 Lambda 并发** | 同上 |
+| Revideo / Motion Canvas | Revideo 自称“几乎总是快于实时”，每个渲染任务建议 8–10 GB 内存；一次对比测试里 Motion Canvas 比 Remotion 快约 35% | Motion Canvas 有编辑器，可以拖动时间轴 |
+| HyperFrames | 第三方测试里本地比 Remotion 快约 2 倍 | HTML 写法 |
+
+**openmui-video 的优势来源**：
+- 原生渲染，没有浏览器、没有截图、没有进程间传帧；
+- 帧是时间的纯函数，**任意帧可以并行渲染、可以缓存**；
+- GPU 渲染之后直接交给硬件编码器，零拷贝（不能零拷贝的平台走固定的回读路径）；
+- 每一帧都知道自己读了哪些输入，所以**可以精确地判断一次修改影响了哪些帧**。
+
+**缓存的分层（修改代码以后只重做受影响的部分）**：
+
+| 层 | 缓存什么 | 失效条件 |
+|---|---|---|
+| ① 帧依赖记录 | 每一帧读取了哪些 signal、属性、素材、着色器，以及它们在这一帧的取值摘要 | 无（每次渲染都会更新） |
+| ② 图层和子树 | 静态子树的光栅结果、文字排版、字形图集、矢量路径的细分结果 | 子树的输入改变 |
+| ③ 帧 | 每一帧的像素摘要（内容哈希） | 这一帧的依赖摘要改变 |
+| ④ 编码分块 | 按 GOP 对齐的编码分块（例如每 2 秒一块） | 块里有任何一帧的摘要改变；没有改变的块直接拷贝码流，不重新编码 |
+
+**性能和编辑体验的指标（参考机器：8 核 CPU + 主流独立显卡或较新的核显；具体型号在 M4 写进基准报告）**：
+
+| 指标 | 目标 | 和业界比 |
+|---|---|---|
+| 完整渲染 60 秒 1080p60（3600 帧），GPU + 硬件编码 | **≤ 15 秒（≥ 240 fps，4 倍实时）** | 单机超过 Remotion Lambda 的 200 并发（1440 帧约 15–19 秒） |
+| 完整渲染 60 秒 1080p60，只用 CPU 光栅器 + 软件编码 | ≤ 60 秒（≥ 实时） | 比 Remotion 本地快 3–7 倍 |
+| 4K60 完整渲染（GPU） | ≤ 60 秒 | — |
+| **修改一个镜头（约 5 秒）以后重新渲染整片** | **≤ 3 秒**；没有受影响的编码块 100% 命中缓存 | 业界工具都是整片重渲染 |
+| 只改字幕或一个颜色 | ≤ 2 秒，只重做受影响的帧 | — |
+| 冷启动到第一帧 | ≤ 1 秒（没有浏览器，没有打包步骤） | Remotion 首次构建要几分钟 |
+| 预览：拖动时间轴 | 1080p 下 60fps，不掉帧；跳到任意一帧 ≤ 50 毫秒 | — |
+| 预览：保存代码到画面更新 | TS / Python / Lua ≤ 100 毫秒，**时间轴位置和属性面板里的修改都保留** | — |
+| 内存峰值 | 1080p 渲染 ≤ 1 GB，4K ≤ 2 GB | Revideo 建议每个任务 8–10 GB |
+| 安装体积 | 命令行 + 运行时 + 默认字体 ≤ 60 MB | Remotion 约 870 MB |
+
+**编辑体验（“可再编辑”）**：
+- **属性面板写回**：在预览里选中元素（按语义 ID），拖动数值、调整关键帧、改颜色。修改写到一个旁路数据文件 `<名字>.timeline.omui.json`，叠加在代码之上，不改动代码文本；`omui video bake` 可以把它合并回代码里的字面量。人、agent、脚本修改的是同一份数据，diff 清楚。
+- **像素溯源**：点击画面上的任何像素，跳到产生它的源码位置（文件和行号），以及对应的语义节点和动画轨道。
+- **时间轴就是数据**：每个镜头、标记、节拍点都显示在 `openmui-ui-timeline` 上，可以拖动起点和长度；拖动的结果同样写进 `.timeline.omui.json`。
+- **按时间提问**：agent 可以问“第 12.3 秒画面上有什么”，得到的是语义树，不是截图。
+- **局部预览**：只渲染选中的时间段和区域（降低分辨率、只渲染一个图层），用来快速确认修改。
+
+**基准套件**（`tests/bench/video/`，M4 建立，M5 起进门禁）：五个标准合成（文字和图形、1000 个粒子、Markdown 滚动、视频里嵌视频、着色器效果）。**在同一台机器上**分别用 openmui-video、Remotion、Revideo、HyperFrames 渲染，比较完整渲染时间、修改后重新渲染的时间、冷启动、内存峰值和安装体积。结果写进公开的基准报告。**领先的标准：每一项都优于业界最好的工具。**
+
+---
+
+## 13. 展示（showcase）
+
+**核心理念（D-63）：展示不是 demo，而是融入真实功能、组件和工具里的东西——真实有用，同时用来展示。** 每个展示先回答"谁会因为它本身去用它"，再回答"它证明了哪项特色"。下面每一项都写明它的**真实身份**。
+
+### S1 无限画布 Markdown 墙（`showcase/markdown-wall`）
+
+- **真实身份**：**文档墙**——`omui wall <目录>` 把任意一个 Markdown 目录摊在无限画布上阅读和检索；openmui 自己的设计文档和 API 文档就用它浏览；Agent 驾驶舱（S3）的工作区也是它。
+- **内容**：画布核心加上应用层自定义的 WuXian 风格交互（工作区分组、两个相机预设、小地图）；1000 个 Markdown 窗口；四个 LOD 档位；流式输出；HUD 用立即模式写。
+- **验证的能力**：画布、LOD、晋升、图层缓存、任务系统、富文本、语义虚拟化。
+- **指标（目标值）**：1000 个窗口在核显上缩放扫描达到 120Hz，帧时间 P99 < 8.3ms；平移缩放时每帧 CPU < 1ms；清晰化时间 < 300ms。
+- **CI**：确定性时钟下的场景脚本（TS、Python、Lua 三种），性能门禁。
+- **里程碑**：M4。
+
+### S2 风格化 GPU 渲染画廊（`showcase/style-gallery`）
+
+- **真实身份**：**风格工坊**——设计师编辑 token、Slang 效果和动效 token，在真实的界面（Inspector、设置面板、视频播放器）上实时预览，导出风格包（`*.style.omui.toml`）给真实应用使用；液态玻璃组件（D-64）在这里调参。画廊就是它的预览页，不是单独的演示程序。
+- **内容**：**同一个“设置面板 + 仪表盘”应用**，可以在运行时切换五种风格包，切换时有交叉过渡：
+  - **玻璃**：背景模糊、折射、高光；
+  - **霓虹**：SDF 外发光、bloom、扫光；
+  - **复古 CRT**：像素字体、扫描线、屏幕弯曲、荧光余辉；
+  - **水墨纸张**：非真实感描边、纸张颗粒噪声、手绘抖动；
+  - **液态**：开关和滑块的 metaball 形变、粘连效果。
+- **风格包** = token + Slang 效果 + 动效 token，放在 `modules/ui/theme/styles/`。
+- **验证的能力**：效果（第 ①、② 级）；着色器参数可以做动画；**换了风格，语义树仍然完全相同**（S 级用例）；风格不影响 agent 的操作。
+- **指标**：在核显上，每种风格都达到 120Hz；效果的 GPU 开销进报告。
+- **里程碑**：M4。
+
+### S3 Agent 操作（`showcase/agent-ops`）
+
+- **真实身份**：**`omui mcp` 和 Agent 驾驶舱**——一个真的 MCP 服务器，让 Claude Code 等 agent 操作任何 openmui 应用；驾驶舱显示 agent 的动作日志和待确认的动作。下面的笔记和文档墙任务就是它的日常用法。
+- **内容**：
+  - 一个 Markdown 笔记应用加上 Markdown 墙，通过 MCP 交给 agent。任务例如：“把所有带 TODO 的文档整理到一个工作区，再写一份总结”。过程中会用到语义查找和空间查询、移动、读取（内容标记为 `remote`）、删除（`irreversible`，会被拦下，需要用户确认）。
+  - **agent 生成一个设置面板的视图文档**，挂载上去，再通过语义树验证结果（生成式 UI 的闭环）。
+  - 整个会话被录制下来，在 headless 下精确回放，变成一个测试。
+- **CI**：不需要真的调用 LLM。用一个脚本化的“假 agent”按确定的步骤操作，验证协议、效果分级和回放。
+- **里程碑**：M5（基础协议在 M1 已经可用）。
+
+### S4 特色小游戏：《组件打砖块：openmui 巡礼》（`showcase/widget-breakout`，D-50）
+
+**定位：它是一个真正好玩的游戏，同时也是一次框架导览。** 真实身份还有一层：它是一个**确定性的 agent 评测环境**——给定种子和输入就能精确回放，agent 通过语义 API 玩它，成绩可以比较。 每一关讲解一项框架能力，而且这项能力就是这一关的**玩法本身**，不是贴在旁边的说明。
+
+- **基础玩法**：打砖块。**每一块砖都是真实的 openmui 组件**（按钮、开关、滑块、Markdown 卡片），被击碎时播放 Slang 溶解效果，并用 GPU 实例化喷出粒子；砖块碎掉后会露出一张 Markdown 卡片，用一两句话介绍这一关演示的能力。
+- **关卡（每一关对应一项框架特色）**：
+
+| 关卡 | 演示的能力 | 玩法 |
+|---|---|---|
+| 1 语义 | 语义树、显式 ID | 按 Tab 打开“语义透视”，砖块显示出 role 和 ID；击碎砖块时，语义树的变化实时显示在侧栏 |
+| 2 风格 | 风格包、着色器效果 | 每击碎一排，风格就切换一次（玻璃 → 霓虹 → CRT → 水墨 → 液态）；物理和语义完全不受影响 |
+| 3 画布 | 无限画布、缩放 | 关卡场地本身是一块无限画布；球飞出视野时镜头会拉远，露出整面 Markdown 墙；在不同的缩放级别之间穿梭打砖块 |
+| 4 时间 | 动画是时间的纯函数 | **时间倒流**：按住按键就能倒放（参考《时空幻境》），这正是“动画可以任意跳转、结果确定”这一点；道具“慢动作”直接调整动画时钟的倍率 |
+| 5 Agent | agent 原生 | 和 AI 合作或对战：AI 通过语义 API 控制第二块挡板（`paddle2` 的 `move_to(x)`），它的每一个动作都实时显示在“动作日志”里 |
+| 6 多语言 | 三种脚本语言、热重载 | **用户可以用 TS、Python 或 Lua 写道具**，保存后立即生效（热重载）；官方自带的三个道具，三种语言各写一个 |
+
+- **控制**：鼠标、键盘、手柄都可以；也可以由 agent 来玩。
+- **技术**：游戏循环和 HUD 用立即模式，菜单和关卡选择用保留模式；物理按固定步长计算、由种子决定；时间倒流靠 `hanim` 的分段解析解和输入记录；目标 120Hz。
+- **CI**：给定种子和输入，在 headless 下回放，比对最终状态和关键帧的哈希；时间倒流和跳转的一致性；AI 关卡用脚本化的 agent。
+- **里程碑**：M5。
+
+### S5 openmui 宣传片（`showcase/promo-video`，D-51）
+
+**完整设计见 [promo-video](2026-10-26-openmui-promo-video-design.md)：对标拆解、创意、视觉语言、配乐、分镜、制作流程、验收标准。** 要点如下：
+
+- **定位**：框架的宣传片。片子本身用 openmui 制作，片子里演示的也是 openmui；每个镜头都是实时渲染的真实场景，不是录屏。
+- **成片**：**约 60 秒的主片**（16:9，1080p60 / 4K60）+ **15 秒短片**（16:9 和 9:16）+ 中英双语字幕。
+- **对标**：三部用 agent 制作、播放量达到几百万到上千万的作品：《西方文明 / PROMETHEUS》（约 1200 万到 1500 万）、Remotion 的 Agent Skills 发布视频（约 1880 万）、《I'm Upping My P(doom)》音乐动画及其翻拍（几百万）。拆解出 8 个共同点：开头 3 秒的钩子、统一的视觉语言、分章节、跟着节奏走、强烈的排版、“这是工具自己做出来的”、可以验证和复刻、结尾的口号。
+- **创意**：“这个像素知道自己是什么”。从一个像素开始**一镜到底地拉远**到上千个窗口，这是无限画布独有的标志性镜头。
+- **分镜（8 章，约 60 秒）**：钩子 → 标题 → 代码就是界面（四种语言变形，界面不变）→ 无限（一镜到底）→ 风格（卡点切换五种风格）→ Agent（效果分级）→ 时间（整片连同游戏一起倒流）→ 结尾（`mcpp new`，以及“由 agent 用 openmui 制作，源码见仓库”）。
+- **制作**：由 agent 借助 `skills/openmui-video` 制作，人审核；**公开完整的提示历史和源码**，欢迎二次创作。
+- **里程碑**：拆解、分镜、动态分镜（animatic）、风格帧在 M4；正式制作、声音、审核、发布在 M5。
+
+### S7 特色旗舰作品（D-63）
+
+九项特色各有一个**既真实可用、又展示能力**的旗舰作品（Inspector、`omui mcp` 驾驶舱、`omui replay`、Motion Studio 和宣传片、Perf Lab、液态玻璃组件、文档墙、组件工坊、管线工坊），每个都有招牌镜头和传播物。完整列表、招牌镜头和里程碑见 [特色与管线](2026-10-27-openmui-features-plugins-pipeline-design.md) §2。
+
+### S6 入门和画廊（`examples/01` 到 `13`）
+
+- **真实身份**：教程和文档的骨架；每个示例尽量是一个小而真实的工具（示例 07 是一个能用的笔记应用，同时演示 headless 测试和 agent 脚本）。
+见 [canvas-markdown](2026-10-26-openmui-canvas-markdown-design.md) §5；同时也是文档的骨架。
+
+---
+
+## 14. 文档计划
+
+| 部分 | 内容 | 位置 |
+|---|---|---|
+| 入门 | 四种语言各一份 10 分钟教程（`mcpp new … --template openmui:*`） | `docs/{zh,en}/getting-started/` |
+| 概念 | 语义树、ID 规则、效果分级、signal、verb、两种写法、一致性分级 | `docs/*/concepts/` |
+| 指南 | 组件、主题和风格包、**动画**、画布、Markdown、**视频**、着色器、agent、测试、打包、多语言混合 | `docs/*/guides/` |
+| 参考 | 由契约和 registry 生成的 API 参考（四种语言 + C ABI） | `docs/*/reference/`（生成） |
+| 规范 | `spec/SPEC.md` 和 CTS 说明 | `spec/` |
+| 给 agent 的资料 | `llms.txt`、`skills/openmui`、`skills/openmui-video`、MCP 工具说明 | 仓库根目录、`skills/` |
+| 设计记录 | 设计、RFC、实施计划 | `.agents/docs/` |
+| 发布 | CHANGELOG、迁移说明 | 各成员包 |
+
+中英文双语（和 xlings 的 `docs/zh` 镜像方式一致）。示例代码直接从 `examples/` 中引用，保证文档里的代码一定能编译。
+
+---
+
+## 15. CI 与测试
+
+### 15.1 测试的层次
+
+| 层次 | 内容 | 在哪里跑 |
+|---|---|---|
+| 单元测试 | 每个成员的 `tests/**/*.cpp`（`mcpp test`） | 所有平台 |
+| CTS 的 S / A 级 | 语义、行为、四种写法一致、三种语言一致；布局快照、动画曲线逐位比对 | 所有平台 |
+| CTS 的 B 级 | CPU 金图逐字节比对；GPU 金图（lavapipe）按容差比对 | Linux（GPU 部分） |
+| CTS 的 C 级 | 平台适配表（headless 下模拟各平台） | Linux |
+| **跨平台确定性** | 三个桌面平台各自算出 CPU 渲染和动画曲线的哈希，必须相同 | 三个桌面平台 |
+| e2e（H3） | headless 宿主 + 场景脚本 + 录制回放 | Linux |
+| agent | 假 agent 的场景、`needs-answer`、回放 | Linux |
+| 性能 | 帧时间 P50 / P99、分配次数、启动时间、视频渲染吞吐量；和基线比较，超出阈值就失败 | Linux（lavapipe 看相对变化；以后加自托管的 GPU 机器看绝对值） |
+| 模糊测试 | 视图文档、CEL 表达式、契约、Markdown 的解析器 | 每晚 |
+| Sanitizer | ASan / UBSan / TSan（任务系统和脚本线程） | 每晚 |
+
+### 15.2 工作流
+
+| 工作流 | 触发 | 内容 |
+|---|---|---|
+| `ci.yml` | PR / push | 三个桌面平台：构建、单元测试、CTS 的 S / A 级、lint（依赖方向、头文件、宏、命名） |
+| `golden.yml` | PR / push | Linux：B 级金图（CPU + lavapipe） |
+| `bench.yml` | PR（带标签时）/ 每晚 | 性能门禁、报告（`tests/bench`：`omui-bench --check budgets.bench.omui.json`；在 `ci.yml` 的 release 行上已经运行） |
+| `nightly.yml` | 每晚 | 模糊测试、sanitizer、长时间运行、跨平台确定性比对 |
+| `release.yml` | tag | 按成员发布：mcpp-index、xpkg、wheel、npm |
+
+CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、node、uv、python、emsdk、ffmpeg。
+
+### 15.3 lint（M0 就建立）
+
+- 依赖方向（参考 `lint_layer_deps.sh`）；
+- 头文件：除 `openmui.h` 之外不允许出现头文件；C 头文件只能出现在 `native/` 里；
+- **宏**：我们自己的代码里不允许出现 `#define`（`openmui.h` 是唯一的例外）；
+- 命名：身份用 `openmui`，缩写用 `omui`；不允许出现裸的 `mui`；
+- 可交互的节点必须有显式 ID（在 view 检查器里）。
+
+---
+
+## 16. 跨平台计划
+
+| 阶段 | 平台 | 渲染 | 说明 |
+|---|---|---|---|
+| M1 | Linux x86_64 | CPU raster | headless + SDL3 |
+| M2 | + Windows x64、macOS arm64 | CPU raster | 平台差异用模块分区处理；跨平台确定性测试开始运行 |
+| M4 | 三个桌面平台 | + rhi-sdl（Vulkan / D3D12 / Metal） | lavapipe 用于 CI |
+| M6 | + Web | rhi-gles → WebGL2（emsdk、openkal-emscripten） | SDL_GPU 的 WebGPU 后端还只是实验性的 PR，不依赖它 |
+| M6 之后 | Android、iOS、Linux aarch64、嵌入式 Linux | rhi-sdl / rhi-gles | — |
+| 以后 | MCU | mcu 渲染 | freestanding 配置档 |
+
+---
+
+## 17. 需要补充到生态的内容
+
+### 17.1 已经有的（直接使用）
+
+| 位置 | 内容 |
+|---|---|
+| mcpp-index | `compat.sdl3`（`mcpplibs.mwrap.sdl3`）、`compat.harfbuzz`（`mcpplibs.mwrap.harfbuzz`）、`compat.freetype`（`mcpplibs.mwrap.freetype`）、`compat.fribidi`（`mcpplibs.mwrap.fribidi`）、`compat.msdfgen`、`compat.md4c`（`mcpplibs.mwrap.md4c`）、`compat.quickjs-ng`（`mcpplibs.mwrap.quickjs_ng`）、`compat.lua`（`mcpplibs.mwrap.lua`）、`compat.ffmpeg` / `ffmpeg.ffmpeg`、`compat.miniaudio`、`compat.spirv-reflect`、`compat.libpng`（`mcpplibs.mwrap.libpng`）、`compat.zlib`、**`nlohmann.json`**（JSON，模块 `nlohmann.json`）、**`marzer.tomlplusplus`**（TOML，模块 `tomlplusplus`）、**`taskflow.taskflow`**（任务系统，模块 `tf`）、`compat.concurrentqueue`（无锁队列，`mcpplibs.mwrap.concurrentqueue`）、`compat.xxhash`、`compat.mimalloc`、`compat.wamr` |
+| xim（xlings） | `slang`、`mesa-lavapipe`、`vulkan-loader` / `vulkan-headers`、`glslang`、`spirv-tools`、`esbuild`、`node`、`uv`、`python`、`emsdk` |
+| mcpp-plugins | `rules-slang`、`rules-spirv`、`dist`（apk / apple / web / wix / appimage） |
+| mcpplibs | `os`（git 依赖，分支 `os-0.1.0`）、`openkal` |
+
+### 17.2 需要新增的
+
+| 位置 | 内容 | 用途 | 时间 |
+|---|---|---|---|
+| mcpp-index | `compat.cpython`（limited API 的头文件和导入库） | Python 绑定 | M3 |
+| mcpp-index | `accesskit-c`（预编译） | 无障碍层（D-21） | M5 |
+| mcpp-index | `compat.thorvg` | Lottie（以后的扩展） | 以后 |
+| mcpp-index | `compat.dawn` 或 `wgpu-native` | rhi-webgpu | 以后 |
+| xim | `luarocks` | Lua 依赖（D-29） | M3 |
+| xim | `ffmpeg`（命令行） | 视频的调试和转码 | M5 |
+| xim | `openmui-fonts`（Inter、Noto Sans、Noto Sans CJK 子集、等宽字体） | **默认字体固定下来**，保证跨平台一致（A / B 级） | M1 |
+| xim | `omui`（命令行）、`openmui-player` | 分发 | M3 |
+| mcpplibs（以后贡献） | `mcpplibs.unicode`（UAX#14 / #29 的表和算法）、`openmui.raster` | 通用库 | 稳定以后 |
+| mcpp | #845（入口由依赖提供）；每个成员单独打 tag 和发布（V-02）。**已确认 mcpp 支持**：按特性开关选择互斥的源文件；依赖图里有 C++26 成员时 BMI 兼容 | 工程体验 | 持续 |
+
+---
+
+## 18. 里程碑
+
+> 时间按一个小团队粗略估计，要随着实际进展调整。多条工作流可以并行。
+
+| 里程碑 | 粗略时间 | 主要交付 | 验收 |
+|---|---|---|---|
+| **M0 骨架** | 2–3 周 | workspace 和所有 ★ 成员的空包；registry 格式；`tools/gen` 的最小闭环（`openmui.h`、契约 → C++ 分区）；`openmui.rules` 雏形；`app-cpp` 和 `component` 两个模板；lint；CI 骨架（三个平台）；`.xlings.json`；`openmui-fonts` | `mcpp new x --template openmui` 能创建工程并构建通过；三个平台的 CI 是绿色的 |
+| **M1 核心** | 6–8 周 | core（含基于 taskflow 的任务调度）/ layout（flex）/ 基础文本 / view（im）/ semantic / agent（本地端点 + 命令行）/ raster / host-headless / host-sdl3（Linux）/ ui-base 的前 9 个组件；规范 0.1 的 S 级 | 示例 01 和 07；`omui agent` 能操作示例；CPU 金图逐字节一致 |
+| **M2 文本 + 动画 + Markdown** | 6–8 周（**文本可以从 M1 开始并行**） | 富文本、UAX#14、双向文字、编辑和输入法；**anim 全部功能（§6）**；ui-markdown；录制和回放；Windows / macOS | 示例 08 和 09；动画的 A 级用例和跳转一致性；跨平台确定性测试是绿色的 |
+| **M3 声明式 + 三种语言** | 6–8 周 | rt / expr / 视图文档；C ABI；TS / Python（宿主模式，abi3）/ Lua；native 模块；`deps.<lang>`；player；其余模板；规范 0.2 | 示例 02–06、12；四种写法加视图文档的语义树一致；三种语言的 CTS 一致 |
+| **M4 GPU + 画布 + 风格化** | 8–10 周 | omui.rhi + rhi-sdl；render；Slang 着色器流水线；效果和材质；lavapipe 进 CI；ui-canvas / canvas-kit；modules/ui/theme/styles；规范 0.3；**openmui-video 的原型，S5 的对标拆解、分镜、动态分镜和风格帧** | **S1 Markdown 墙**和 **S2 风格画廊**；第一份基准报告 |
+| **M5 视频 + 游戏 + Agent** | 6–8 周 | openmui-video；ui-timeline；动画检查器；MCP 服务器；skills；accesskit | **S3、S4（六个关卡）、S5（约 60 秒主片 + 15 秒短片）**；详见 §19.3 |
+| **M6 打磨和跨平台** | 持续 | 检查器（像素溯源）；性能调优和门禁；rhi-gles 和 Web；文档完整；准备公开 | 指标稳定；文档完整；评估迁移到公开仓库 |
+
+### 18.1 M0 的任务清单（可以直接开工）
+
+1. 根目录 `mcpp.toml`（伞包 + workspace），以及各个 ★ 成员的 `mcpp.toml` 和最小的主模块。
+2. `spec/registry` 的第一批文件：roles、states、actions、effects、motion（公式）、Button / Slider / TextBox 三份契约。
+3. `tools/gen`：registry 和契约 → `openmui.h`、`openmui.spec` 模块、契约的 C++ 分区（CRTP）；带单元测试。
+4. `mcpp/rules`：调用生成器的 action（`role = "source"`）。
+5. lint 脚本：依赖方向、头文件、宏、命名。
+6. CI：三个平台的构建 + 单元测试；`.xlings.json`。
+7. 模板：`app-cpp`（带一行的 `src/main.cpp`）、`component`。
+8. `openmui-fonts` 的 xpkg 草稿。
+9. 验证 V-02（每个成员单独打 tag 和发布）；用一个最小示例跑通“按特性选择互斥源文件”（mcpp 已经支持），作为没有宏的特性分区的样板。
+
+---
+
+## 19. 验收标准（D-53）
+
+原则：**能自动检查的都进 CI**；不能自动检查的（例如视频的画面质量）写成检查清单，由维护者签字确认。数字都是目标值，M1 期间做一次实测校准，校准后的数值写回本节，从此作为门禁。
+
+### 19.1 全局质量门禁（每个 PR、每个检查点都要满足）
+
+| 项目 | 标准 |
+|---|---|
+| 构建 | Linux、Windows、macOS 三个平台都能构建（M2 起） |
+| lint | 依赖方向、头文件（只允许 `openmui.h`）、`#define`（为 0）、命名、显式 ID 全部通过 |
+| 测试 | 单元测试、CTS 的 S / A 级 100% 通过；B 级金图通过 |
+| 确定性 | CPU 渲染和动画曲线的哈希在三个平台上完全相同 |
+| 性能 | 基准测试的 P99 相对基线退步不超过 5%（超过就失败，除非 PR 里写明原因并获得批准） |
+| 内存 | ASan / UBSan 每晚运行无报错；每帧零分配的模块有分配计数测试 |
+| 文档 | 公开 API 的改动必须同步文档；设计文档之间互相一致 |
+
+### 19.2 各里程碑的验收
+
+| 里程碑 | 验收标准 |
+|---|---|
+| **M0** | ① `mcpp new demo --template openmui` 生成的工程能构建和运行；② 修改一份契约以后，`mcpp build` 重新生成 C++ 分区、`openmui.h`、`.d.ts` / `.pyi` / Lua 注解，并且增量构建只重新编译受影响的成员；③ 三个平台的 CI 都是绿的；④ lint 能拦下一个故意加入的 `#define` 和一个越级依赖；⑤ 用一个最小示例跑通“按特性选择互斥源文件” |
+| **M1** | ① 示例 01 和 07 在 Linux 上运行；② `omui agent snapshot / find / act / wait` 能操作示例 07，不可逆动作没有 `answer` 时返回 `needs-answer`（退出码 2）；③ CPU 金图在 Linux 上两次运行逐字节相同；④ ui-base 的前 9 个组件全部满足组件完成标准；⑤ 1000 个节点的界面在 CPU 后端上 1080p 达到 60Hz（目标值） |
+| **M2** | ① 示例 08 和 09；② 公开的 CommonMark 测试集通过率 ≥ 95%（GFM 扩展单独统计）；③ **动画**：§6.6 的 A 级曲线金值全部通过；跳转一致性用例（随机抽取 1000 个时刻）全部通过；被打断的 spring 速度连续（误差 < 1e-9）；④ 跨平台确定性测试在三个桌面平台上是绿的；⑤ 中文、阿拉伯语、emoji 混排的排版测试集通过；⑥ 录制一段会话，在 headless 下回放，结果完全相同 |
+| **M3** | ① 示例 02–06、12；② 同一个视图用四种语言加视图文档写，语义树完全相同（CTS 的 S 级）；③ 同一组 JSON 场景由 TS、Python、Lua 执行，结果完全相同；④ 脚本热重载在 200ms 以内生效，并且 signal 的状态保留；⑤ `pip install openmui` 后运行 Python 示例（Linux）；⑥ native 模块的契约生成三种语言的绑定，不需要手写代码 |
+| **M4** | ① **S1** 和 **S2** 满足 §19.3；② rhi-sdl 在三个桌面平台上运行；lavapipe 金图在 CI 里通过；③ 一个自定义的 Slang 效果从编写到生效不需要改任何 C++ 代码，着色器热重载在 500ms 以内；④ 第一份公开的基准报告 |
+| **M5** | ① **S3、S4、S5** 满足 §19.3；② MCP 服务器能让 Claude Code 操作任意一个示例；③ `skills/openmui` 和 `skills/openmui-video` 发布；④ **视频基准套件（§12.6）的每一项都优于业界最好的工具**，结果写进公开的基准报告 |
+| **M6** | ① Web（WebGL2）上运行 S1 的缩小版和示例 01；② 文档完整（四种语言的入门、所有指南、生成的 API 参考）；③ 所有门禁稳定运行 4 周以上 |
+
+### 19.3 各展示的验收
+
+| 展示 | 自动检查（进 CI） | 人工检查（维护者签字） |
+|---|---|---|
+| **S1 Markdown 墙** | 1000 个窗口，缩放扫描（1% ↔ 400%）：核显 120Hz 下帧时间 P99 < 8.3ms；平移和缩放时每帧 CPU < 1ms；清晰化时间 < 300ms；20 个窗口同时流式输出时不掉帧；内存不超过公开的预算；三种语言写的场景脚本结果一致 | 缩放过程中没有可见的闪烁和跳变 |
+| **S2 风格画廊** | 五种风格在核显上都达到 120Hz；**换风格前后语义树完全相同**；每种风格的 GPU 开销进报告；lavapipe 金图通过 | 每种风格的观感达到设计稿的水平 |
+| **S3 Agent 操作** | 脚本化的 agent 完成整理任务，结果 100% 确定；不可逆操作 100% 被拦下；录制的会话回放结果完全相同；生成的视图文档通过 schema 和语义检查 | 用真实的 LLM agent（Claude Code）手动跑 10 次，至少 9 次完成任务 |
+| **S4 组件打砖块** | 120Hz，输入延迟 ≤ 1 帧；给定种子和输入，三个平台上的回放哈希完全相同；最近 30 秒内可以倒流到任意时刻，倒流后继续游戏的结果和直接回放相同；三种语言写的道具都能热重载（< 200ms）；脚本化的 agent 能通过第 5 关 | 六个关卡**每一关都能让玩家明白它演示的是哪项框架能力**；作为游戏本身好玩（试玩反馈） |
+| **S5 宣传片** | 见 [promo-video](2026-10-26-openmui-promo-video-design.md) §5.1：时长（主片 60 秒 ± 5 秒，短片 15 秒 ± 1 秒）、规格、确定性、跳转一致性、逐帧语义检查零问题、字幕阅读时间、卡点误差 ≤ 1 帧、双语字幕；**渲染性能按 §12.6**：完整渲染 60 秒 1080p60 ≤ 15 秒（GPU），修改一个镜头后整片重新渲染 ≤ 3 秒 | 见 promo-video §5.2：**和三个标杆并排观看，按十个维度打分，每一项都不低于标杆的平均分，总分 ≥ 4.0**；每个镜头都在演示框架能力；制作过程有完整记录；至少 5 位外部观众看完能说出 3 个以上的特点 |
+
+### 19.4 各模块的完成标准
+
+| 模块类型 | 标准 |
+|---|---|
+| 所有成员 | 独立的 `mcpp.toml` 能单独构建和测试；README 写明用途和依赖；公开 API 有文档注释；不违反 lint |
+| 核心模块（core、anim、layout、text、view、semantic、raster、render） | 有基准测试并进入门禁；热路径每帧零分配（有分配计数测试）；单元测试覆盖主要分支（M2 起统计覆盖率，目标是行覆盖率 ≥ 80%） |
+| 解析器（契约、视图文档、表达式、Markdown） | 有模糊测试，每晚运行不崩溃；错误信息带位置和修改建议，并支持 `--json` |
+| 组件 | 满足组件完成标准（component-binding §12） |
+| 语言绑定 | 通过三种语言的 CTS；类型存根完整；示例能运行 |
+| 规范 | 每一条条款都有对应的 CTS 用例；registry 能生成全部产物 |
+
+---
+
+## 20. 风险与对策
+
+| 风险 | 对策 |
+|---|---|
+| 文本引擎的工作量被低估 | 从 M1 开始并行；复用 HarfBuzz、FreeType、fribidi；断行表由生成器产出；尽早建立测试集（CJK、双向文字、emoji、组合字符） |
+| GCC 16 的反射还是实验性的 | 反射只放在 `openmui-reflect`，核心不依赖它；每一处都有 C++23 下的替代方案 |
+| 浮点结果跨平台不一致 | `-ffp-contract=off`、禁用 fast-math、自己写定点光栅器；跨平台哈希测试从 M2 开始运行 |
+| 自己维护 GPU 抽象层的成本 | 范围由渲染特性的需要决定（D-81，2026-10-28 修订；原来是“严格控制在 UI 需要的程度”）；每项能力进 rhi.cts；第一个后端是 SDL_GPU 的薄映射；每个后端都跑 B 级 CTS |
+| 视频渲染的性能 | 帧之间互相独立，可以并行；GPU 路径；编码交给 ffmpeg |
+| 范围太大 | 每个里程碑都绑定展示作为验收；“非目标”写进文档；S1 到 S5 之外的展示一律推迟 |
+| 依赖 mcpp 尚未提供的能力 | #845 有过渡办法；其余需求提前列出，和 mcpp 一起推进 |
+| 只有一个维护者 | 成员可以独立；规范先行；文档和 skills 让 agent 也能参与开发 |
+
+---
+
+## 21. 本计划新增的决策
+
+| ID | 决策 |
+|---|---|
+| D-38 | **不用宏，用 constexpr**：平台和特性用“清单按目标选择模块分区 + constexpr 常量 + `if constexpr`”；编译期校验用 `consteval`；C 宏在绑定模块里转换；只有生成的 `openmui.h` 是例外 |
+| D-39 | C++23 是基线；C++26 特性（反射等）只在单独的成员 `openmui-reflect` 里使用（GCC 16，`-freflection`），核心不依赖它 |
+| D-40 | 全项目只有一个头文件 `openmui.h`（C ABI）；其他全部是模块；第三方头文件只出现在 `native/` 实现分区里 |
+| D-41 | 一个仓库，多个 workspace 成员；每个成员有独立的 `mcpp.toml`、版本、测试，只通过 `path` 依赖互相引用，可以随时拆成独立仓库 |
+| D-42 | OS 服务通过 git 依赖 `mcpplibs/os`（分支 `os-0.1.0`）；窗口和输入走 SDL3 |
+| D-43 | CPU 参考光栅器自己实现（定点数、解析覆盖率），保证跨平台逐字节一致 |
+| D-44 | 动画是时间的纯函数（spring、decay 都用解析解），可以任意跳转、结果确定；交互模式和渲染模式共用；核心动画提前到 M2 |
+| D-45 | 新增 openmui-video（用代码制作动画视频，对标 Remotion）和配套的 agent skill |
+| D-46 | Python 绑定用 CPython 的稳定 ABI（abi3）自己实现，不用 pybind11 |
+| D-47 | UAX#14 断行表由 `tools/gen` 从 Unicode 数据生成，不依赖 ICU |
+| D-48 | 默认字体通过 `openmui-fonts` 固定下来，作为渲染确定性的一部分 |
+| D-49 | **通用动画引擎 `hanim`**：独立组件 `modules/base/hanim/`，只依赖标准库，不知道 UI 的存在；UI、视频、游戏、画布共用；将来可以独立成仓库 |
+| D-50 | S4 改为《组件打砖块：openmui 巡礼》：六个关卡，每一关的玩法本身就是一项框架能力（语义、风格、画布、时间倒流、agent、多语言） |
+| D-51 | S5 是 **openmui 宣传片**：约 60 秒主片 + 15 秒短片，双语字幕；用 openmui-video 制作，全部是实时渲染的真实场景；对标三部播放量几百万到上千万的 agent 代码动画视频，拆解、分镜、验收见 promo-video 设计文档 |
+| D-52 | 协作流程：单个 PR，每一轮修改一个 commit 作为检查点 |
+| D-53 | 每个里程碑、展示、模块都有验收标准；能自动检查的进 CI，不能自动检查的写成检查清单并由维护者签字 |
+| D-55 | **独立组件放在 `modules/` 下**（参考 mcpp 的 `modules/`）：它们不依赖 openmui 的任何其他包，随时可以拆成独立仓库；openmui 专用的包留在 spec / runtime / hosts / components 等原来的位置 |
+| D-57 | **渲染层抽象也是独立组件**：`modules/gfx/render`（显示列表、渲染器接口、CPU 和 GPU 后端、内置着色器），`gfx/` 目录取消；布局引擎 `modules/content/layout`、图像编解码 `modules/base/image`、录制回放 `modules/base/session`、文件和视频输出 `modules/encode` 同样放在 `modules/` 下；这些模块共用一个只依赖标准库的几何模块 `modules/base/geom`（规范保留自己的线上值类型，运行时在边界处转换）。**平台相关的代码一律经由 `mcpplibs.os`**（文件、目录、进程、管道、IPC），窗口和输入经由 SDL3 |
+| D-58 | **GPU 抽象层叫 RHI**：`modules/gpu` 改名为 `modules/gfx/rhi`（包 `openmui-rhi`，接口 `omui.rhi`，后端 `rhi-sdl`、`rhi-gles`、`rhi-webgpu`、`rhi-vk`），沿用业界对“渲染硬件接口”的叫法；`modules/gfx/render` 保持原名：它是渲染子系统（显示列表、渲染器接口、CPU 和 GPU 渲染器），和 `layout`、`raster`、`text` 一样以子系统命名 |
+| D-59 | **可观测性是框架的一部分，不是外挂工具**：独立组件 `modules/base/trace`（`openmui.trace`：按线程的定长缓冲，每个事件无锁、无分配；关闭时一个 span 只是一次 relaxed 原子读；导出 Chrome trace JSON，在 Perfetto 里打开；按 span 汇总 count / total / p50 / p95 / p99 / max）；日志分类别（`Log{"layout"}`），过滤规则 `layout=debug,*=info` 来自 `OMUI_LOG` 或 `--log`，最近的记录留在环形历史里；运行时记录每一帧各阶段的耗时（timers、input、regions、animations、layout、bounds、paint）和最近 240 帧的历史，慢帧按限频写警告；调试模式（`DebugOptions`）叠加节点边界、重绘闪烁、悬停检查器（盒模型、路径、类型、源码行）和帧时间 HUD；agent 协议增加开发操作 `inspect`、`stats`、`profile`、`logs`、`debug`，`omui agent` 和 `omui::run` 的 `--debug` / `--log` / `--profile` 对应它们。开发辅助只走诊断通道，不改变语义树，像素黄金值只在调试模式关闭时有效 |
+| D-60 | **所有可视属性都可以做动画，控制粒度到像素**：契约里数值、长度、颜色、变换、渐变、阴影、路径类型的属性默认可以动画，代价级别由生成器标出；粒度分对象 / 属性、子对象（字形、路径弧长、实例，作为可错峰的域）、像素（Slang 效果、图层、轨道遮罩、按时间绘制的 `painter`）三层，全部是时间的纯函数，可以跳转；颜色一律在 OKLab 插值（§6.3、§6.8） |
+| D-61 | **开发工具用 openmui 自己写，同时是示例**：`tools/inspector`（openmui-devtools）通过 agent 协议连接任何正在运行的应用（进程外，几乎不扰动目标），包含节点树和属性面板（`inspect`）、帧时间曲线和阶段堆叠图（`stats`）、火焰图和时间线（`profile` 的 trace，画布 + 虚拟化，10 万个事件流畅）、日志查看（`logs`）、叠加层开关（`debug`）、动画检查器（拖动目标应用的时钟）、像素溯源（对象 ID 缓冲）和“为什么重绘 / 重新布局”的依赖图；它自己的界面也在 headless 下做金图测试，可以检查它自己；作为示例展示画布、虚拟化、时间轴、图表和 agent 协议。需要的协议操作：`clock`（暂停、逐帧、跳转、调速）、`trace` 流式订阅、`signals`（依赖图）。**每个工具都有两种界面，读同一份数据**：命令行（JSON 行输出、退出码，方便 agent 分析和 CI）和用 openmui 写的界面（方便人观察和操作）；每个工具的界面都要**突出框架自己的特色**，让工具本身就是框架的展示：火焰图和事件时间线用画布、虚拟化和动画缩放，节点树用语义树和 agent 协议，动画检查器用可跳转的时钟，基准报告用仪表盘（`tests/bench` 的参考场景本身就是 1000 个节点的仪表盘）。`omui-bench`、`omui agent` 先有命令行，界面随 inspector 落地 |
+| D-62 | **增量帧是精确的**：`modules/gfx/render` 的 `DamageTracker` 按节点标记把显示列表分段（段的哈希覆盖自己的命令和子节点的顺序，范围在设备坐标里），和上一帧比较，给出可能变化的**整行带**；CPU 光栅器保证一个行带和整张画面的同几行逐字节相同（行边界的交点总是从边自己的端点算，越界的行跳过而不是截断），所以只画这些行就等于完整渲染。测试对每一种变化逐字节比对；M1 ⑤ 的仪表盘单个文字变化的一帧从 28ms 降到 2ms 以内。行带还可以切成任务在线程池上同时画（每个任务一个画布，字形先在调用线程上解析），结果仍然和串行渲染逐字节相同；所有卡片同时动画的一帧从 25.7ms 降到 5ms。GPU 路径用同一个 tracker 做 scissor。光栅器在复用画布时每帧不分配 |
+| D-63 – D-67 | 双视角作品、液态玻璃效果组件、可拔插架构（契约⑦）、管线编排、工具共用外壳：见 [特色与管线](2026-10-27-openmui-features-plugins-pipeline-design.md) §5 |
+| D-56 | **mcpp-index 里已经有知名、跨平台的库时，优先使用生态里的库，不自己实现**：JSON 用 `nlohmann.json`，TOML 用 `marzer.tomlplusplus`，任务系统用 `taskflow`，无锁队列用 `compat.concurrentqueue`，PNG 用 `compat.libpng`，Markdown 用 `compat.md4c`，排版用 HarfBuzz / FreeType / fribidi。**只有两种情况自己实现**：生态里没有（UAX#14 断行表）；或者确定性要求无法满足（anim 的数学函数，因为各平台 libm 的结果不同；CPU 光栅器，因为 pixman 的 SIMD 路径在不同平台上取整不同）。缺少的库优先补充到 mcpp-index（§17.2） |
+| D-54 | openmui-video 的渲染速度、修改后的增量渲染（四层缓存）、GPU 和硬件编码、预览和可再编辑性都作为指标，**每一项都要优于业界最好的工具**（§12.6）；修改以旁路数据文件 `.timeline.omui.json` 叠加在代码之上 |
+
+---
+
+## 22. 实施进度（截至 2026-10-27）
+
+按本计划从 M0 开始实施，在 PR #1（分支 `openmui-design`）上每轮一个提交。本节只记录事实：做到了什么、凭什么说做到了、还差什么。
+
+### 22.1 工程约定（全部在执行，lint 或 CI 检查）
+
+- **`.cppm` + `.cpp` 分离**：每个模块的接口单元只放声明和必要的内联，实现放在 `.cpp` 实现单元；第三方头文件只出现在 `native/` 实现分区。
+- **mcpp 和 C++ 规范**：以 mcpp 的 `.agents/skills` 为准，逐条落到 openmui：
+
+  | mcpp skill | 规则 | openmui 的做法 |
+  |---|---|---|
+  | `mcpp-contributing` §项目结构 | `modules/` 放独立包，各带 `mcpp.toml`、由 `path` 引用、依赖显式声明；子系统的单测放 `modules/<x>/tests/`（只在它自己声明的依赖下构建，能抓到“偷偷依赖了没声明的东西”） | 每个目录一个成员；`modules/*` 不依赖 openmui 的任何包（lint `modules`、`layering`）；每个成员的测试在自己的 `tests/` 里 |
+  | `mcpp-contributing` §注意事项 | 平台相关代码集中在一处，不在别的模块里写 `#if defined`；import 指向类型的提供者，而不是它的某个消费者 | 平台代码只经由 `mcpplibs.os`（lint `platform`），没有宏（lint `macros`）；分区和模块按提供者导入 |
+  | `mcpp-contributing` §路径窄化不变式 | `std::filesystem::path::string()` 在 Windows 上经过 ANSI 代码页，遇到拼不出的名字就抛异常，而 Linux / macOS 上永远不失败；比较用 `path`，身份和显示用 UTF-8 | `omui::utf8()` / `generic_utf8()`；文件经由 `path` 本身打开；lint `paths` 禁止测试以外的 `string()` / `generic_string()`（`// NARROW-OK:` 写明理由才放行） |
+  | `mcpp-contributing` §PR 流程 | 永远走 PR；CI 全部通过 | 所有工作在 PR #1 上，每轮一个提交；7 个 CI 作业加每晚的 sanitizer 全部通过后才算完成一轮 |
+  | `mcpp-usage` | `mcpp.toml` 的写法、workspace、`mcpp test -p`、工具链 | 只用 `mcpp.toml`；带命名空间的依赖写成点分键（lint `manifest`）；`mcpplibs.os` 按版本 `0.1.0` 从 mcpp-index 引用 |
+  | `mcpp-docs-style` | 文档描述已经实现的东西，陈述式、准确、无表情符号，与实现一致 | 成员的 README 只写已实现的行为；设计记录和实现计划随实现更新（本节） |
+- **不降级、不推迟**：遇到上游缺口（mcpp-index 的包、工具链差异）就在上游修好再继续，而不是绕开或降低检查（mcpp-index #571、#575、#576、#577）。
+- 不用宏（唯一例外 `openmui.h`），不用异常和 RTTI（lint `exceptions`），每帧零分配有 bench 预算检查。
+
+### 22.2 全局质量门禁（§19.1）
+
+| 项目 | 状态 | 依据 |
+|---|---|---|
+| 构建：三个平台 | ✅ | GitHub Actions：Linux x86_64（GCC 16 dev / release、LLVM 23）、Linux aarch64（LLVM 23）、macOS 15、Windows 2022（MSVC ABI）全部通过（提交 `a65e61b`） |
+| lint | ✅ | `tools/lint/lint.py`：10 条规则，自测 10/10 能拦下各自的违规 |
+| 测试 | ✅ | 36 个成员、54 个测试程序在所有平台通过 |
+| 确定性 | ✅ | CPU 渲染和动画的固定哈希在 Linux、macOS、Windows（MSVC 和 MinGW）上完全相同；增量帧与完整渲染逐字节相同（D-62） |
+| 性能 | ✅ | `tests/bench`：12 项预算在 CI 的 release 行检查并保存报告 |
+| 内存 | ✅ | 每帧零分配有分配计数（bench `max_allocations`）；`sanitize` 配置（ASan + UBSan，整个依赖图都插桩，第一个问题即失败）每晚在 CI 上运行（`nightly.yml`，LLVM：GCC 16.1 的 UBSan 空指针检查在 `import std` 的 `std::variant` 上会让编译器崩溃）；本地全部成员通过，发现并修好了 SDL 软件窗口加载 GPU 驱动（驱动在退出时泄漏） |
+| 文档 | ✅ | 每个成员有 README；决策 D-59 至 D-67 已记录 |
+
+### 22.3 里程碑验收（§19.2）
+
+| 里程碑 | 条目 | 状态 |
+|---|---|---|
+| M0 | ① 模板生成的工程能构建和运行 | ✅ `tools/ci/templates.sh`（app-cpp、component） |
+| | ② 改契约后重新生成 C++ 分区等，增量构建 | ✅ `openmui.rules` 构建插件；`tests/rules` 夹具；生成物有新鲜度测试 |
+| | ③ 三个平台的 CI 是绿的 | ✅ 见 22.2 |
+| | ④ lint 拦下 `#define` 和越级依赖 | ✅ lint 自测 |
+| | ⑤ 按特性选择互斥源文件的最小示例 | ✅ `tests/features`：两个特性各自提供分区 `openmui.features:sink`，常量加 `if constexpr`，没有宏；一个工作区外的应用在依赖边上选择另一个（工作区构建会把所有成员一起规划，同一个包的两种互斥配置不能同在一次构建里）；两个同时启用会在扫描时被拒绝（`tools/ci/features.sh`） |
+| M1 | ① 示例 01、07 在 Linux 上运行 | ✅（并且在所有平台的 CI 上测试） |
+| | ② `omui agent` 操作示例 07，不可逆动作返回 `needs-answer` | ✅ `tools/ci/agent-e2e.sh`，单独进程 |
+| | ③ CPU 金图两次运行逐字节相同 | ✅ 并且跨平台相同 |
+| | ④ ui-base 前 9 个组件满足完成标准 | ✅ 14 个组件，契约优先，金图 |
+| | ⑤ 1000 个节点、1080p、CPU 后端 60Hz | ✅ GitHub 的 4 核机器上单个文字变化的一帧 p95 2.9ms，全部卡片动画 p95 10ms |
+| M2 | ① 示例 08 和 09 | ✅ `examples/08-markdown-viewer`（目录、文档间链接和返回、外部链接 S-2a、保存即重载）和 `examples/09-markdown-stream`（标准输入流式渲染，新字节淡入）：都是真实工具，headless 测试，像素在各平台固定 |
+| | ② CommonMark 测试集通过率 ≥ 95%（GFM 扩展单独统计） | ✅ `modules/content/markdown`（md4c 经 `mcpplibs.mwrap.md4c`）：CommonMark 0.31.2 规范 652/652，GFM 扩展、回归和覆盖用例 156/156；808 个例子从文档模型写出的 HTML 和 md4c-html 逐字节相同；三个桌面平台和 wine 上一致 |
+| | ③ 动画：A 级曲线金值；随机 1000 个时刻的跳转一致性；被打断的 spring 速度连续（< 1e-9） | ✅ 曲线、spring、decay 的金值在各平台固定；通道保留被打断前的分段作为历史（30 秒），事后跳转到 1000 个随机帧和播放时逐位相同，打断处速度连续；运行时跳转越过被打断的过渡也一样 |
+| | ④ 跨平台确定性测试在三个桌面平台上是绿的 | ✅ 每个金图（视图、组件、文本、效果、示例）在 Linux / macOS / Windows（MSVC ABI）和 wine 上是同一个固定哈希 |
+| | ⑤ 中文、阿拉伯语、emoji 混排的排版测试集 | ✅ `modules/content/text`：回退、双向、断行、字素和混排像素固定；带样式的字形（旋转、着色）也固定 |
+| | ⑥ 录制一段会话，在 headless 下回放，结果完全相同 | ✅ 示例 07 的“recorded session replays exactly”；会话文件名可以是任何文字（`mcpplibs.os` 0.1.1） |
+| M3 | ① 示例 02–06、12 | ✅ 02 hello-ts、03 计数器（五种写法）、04 阅读清单（应用自己的组件）、05 对比度检查器（应用自己的 native 模块）、06 主题预览、12 笔记（四种语言）：都是真实工具，headless 测试，像素在各平台固定 |
+| | ② 四种语言加视图文档的语义树相同（CTS 的 S 级） | ✅ 示例 03：C++、视图文档、Lua、TypeScript、Python 五种写法的语义树和像素完全相同；示例 04 的组件从 Lua、视图文档、C++ builder 得到同一个节点 |
+| | ③ 同一组 JSON 场景由 TS、Python、Lua 执行，结果相同 | ✅ `spec/conformance/S` 的五个场景（counter、notes、form、finder、themed），三种语言的轨迹和固定轨迹逐条相同 |
+| | ④ 脚本热重载 200ms 以内，signal 状态保留 | ✅ Lua、TypeScript、视图文档的重新加载测试（节点和 signal 保留） |
+| | ⑤ `pip install openmui` 后运行 Python 示例（Linux） | ✅ `tools/ci/python-wheel.sh`：装好的 wheel 上跑套件、示例 03 和 `app-py` 模板，`mypy --strict` |
+| | ⑥ native 模块的契约生成三种语言的绑定 | ✅ `omui-gen native` + `openmui.rules` 的 `natives()`；`fuzzy` 和示例 05 的模块，CTS 场景 `finder` |
+
+### 22.4 计划之外提前完成的
+
+- 可观测性（D-59）：`modules/base/trace`、日志类别、帧阶段耗时、调试叠加层、agent 开发操作。
+- 精确的增量帧和并行行带（D-62），稀疏光栅化（全帧 22.8 → 8.0ms）。
+- 所有可视属性可做动画（D-60），OKLab 颜色；运行时的时间控制（暂停、单步、调速、跳转）。
+- 管线编排（D-66）：`modules/base/pipeline`，运行时一帧是八个阶段插件，agent 可以在运行中替换。
+- F1 / F4 的旗舰作品 Inspector 第一版（D-61、D-63）。
+- 细粒度动画的基础设施（D-68 阶段 ①–③）：
+  - 字形带来历（源字节、字素、词、行），绘制命令可以带逐字形样式。
+  - 任何节点的 `glyph_motion`（逐字形 / 字素 / 词 / 行，错峰、带种子的随机、重复；预设：打字机、升起、聚合、散开、波浪）。
+  - 效果注册表（溶解、擦除、显现、位移、噪声、色散、模糊、像素化、粒子，以及程序自己注册的效果），任何节点的 `pixel_effect`。
+  - 全部是时间的纯函数：能跳转，在行带并行和增量 damage 下逐字节一致，三个平台金图一致。
+  - 组件不需要配合：Markdown 组件的文字直接就能动。GPU 路径（阶段 ④）在 M4。
+- Markdown 的文档模型（`modules/content/markdown`）：块和行内标记、标题锚点、任务位置、块哈希；流式追加只重新解析尾部（稳定边界由 md4c 用哨兵行确认，结果总等于整篇解析；4 字节一个 token 时每次约 1µs）。md4c 按 mwrap 规范做成了 `mcpplibs/md4c-m`（`mcpplibs.mwrap.md4c` 0.5.3，含 md4c-html 和宏映射，上游 808 个例子在四个平台的 CI 上通过），已收录进 mcpp-index（#578）。框架用到的 compat 库都按 mwrap 规范做成模块封装仓库（每个仓库一个 PR，测试和四个平台的 CI，上游自己的测试集跑在用模块写的程序上）：`mcpplibs/fribidi-m`（Unicode BidiTest 770,241 例、BidiCharacterTest 91,707 例全过，index #593）、`mcpplibs/freetype-m`（218 个函数全部导出，index #594，顺带补全 compat.freetype 漏编的部分 #589 / #591）、`mcpplibs/harfbuzz-m`（HarfBuzz 自己的 7,549 个排版用例全过，index #597，修正 compat.harfbuzz 缺的 FreeType 变体开关 #590）；`mcpplibs/libpng-m`（libpng 自己的 pngtest 移植到模块，96 个用例的输出和上游逐字节相同，index #592）、`mcpplibs/concurrentqueue-m`（上游 45 个单元测试对着模块全过，index #596）。`mcpplibs/sdl3-m`（2795 个声明导出，SDL 自己的 testautomation 26 套 377 个测试编译成 C++ 对着模块全过，index #595）。`modules/content/text`、`modules/base/image`、`modules/ui/core`、`modules/ui/host/sdl3`、`modules/gfx/rhi/sdl` 都改为 `import mcpplibs.mwrap.*;`：openmui 自己的源码里除了 `openmui.h`，不再包含任何第三方头文件，清单里也不再直接依赖 `compat.*`。（Windows 的 clang 在一个单元里同时导入 taskflow 和另一个模块时，taskflow 各分区的内部函数会重名：线程池和 UI 队列分成两个实现单元。）
+
+### 22.5 还差什么（按计划顺序）
+
+- M2 的验收已完成（见 22.3）。
+- M3：
+  - ✅ 表达式 `openmui.expr`（`modules/ui/expr`）：CEL 兼容的解析器和打印器（往返由随机合法和随机非法输入做模糊测试，四个平台同一个固定哈希）、组合子、同步求值器（错误给 null 和定位诊断，带修复提示）、注册表里的全部函数（函数表从生成的注册表来）；树高不超过 200 层，解析、求值、打印都不会栈溢出。`openmui.unicode` 同时补上了完整的大小写映射（SpecialCasing、Final_Sigma）。
+  - ✅ 视图文档 `openmui.viewdoc`（`modules/ui/viewdoc`）：检查（名字、类型、ID、表达式，带位置和修改建议）、加载成和 builder 相同的 Element、绑定和事件（`set` / `verb` / `emit`，激活上的 verb 走 S-1 / S-2）、`if` / `for`（列表里虚拟化）、插槽、原地重新加载（signal 和节点保留）、组件文档（接口生成契约）、JSON Schema（`spec/schema/view.schema.json`，CI 校验）、规范格式；`omui check` / `fmt` / `schema`；随机文档模糊测试。
+  - 示例 03 的 C++ 和视图文档两种写法：语义树和像素完全相同（S 级），保存即重新加载（< 200ms，计数保留）；TS / Python / Lua 版本随绑定加入。
+  - ✅ C ABI `openmui.abi`（`modules/ui/abi`）：`openmui.h` 的全部函数，视图文档、节点、signal、verb（S-1 / S-2）、总线接口（snapshot / act / wait）、帧和像素；类型和声明由 `omui-gen abi` 从 `abi.toml` 生成，原生单元对照头文件检查每个大小和偏移；C++ 测试覆盖每个函数和每种误用，C 程序测试头文件本身。为绑定追加了 `omuiCheck`、`omuiDefineComponent`、`omuiSignalFind`、`omuiSignalWatch`、`omuiRun`。
+  - ✅ 脚本绑定的公共层 `openmui.lang`（`lang`）：脚本线程、视图编译成视图文档、signal 镜像、处理函数转发、脚本实现的 verb（不会死锁）。
+  - ✅ Lua 绑定 `openmui.lang.lua`（`lang/lua`）：表构造的 builder、signal 和表达式、区域、verb、model、语义树；Lua 写的计数器和手写的视图文档是同一棵树（S 级）；热重载保留状态，200ms 以内。
+  - ✅ TS / JS 绑定 `openmui.lang.js`（`lang/js`）：QuickJS-ng（`compat.quickjs-ng` 补齐了 macOS 和 Windows，mcpp-index #582），TypeScript 由 esbuild 编译。
+  - ✅ 播放器 `openmui.player`（`modules/ui/player`）和 `entry-player` 特性：清单里的组件文档、视图文档和脚本（语言是插件），保存即原地重新加载。
+  - ✅ 示例 03 五种写法（C++、视图文档、Lua、TypeScript、Python）语义树和像素完全相同。
+  - ✅ Python 绑定（`lang/python` + `src/entry/python`，abi3，宿主模式）：扩展 `_openmui` 不用 CPython 头文件、不链接 libpython，函数在加载它的解释器里解析（`mcpplibs.os` 0.1.2 的 `library`），一份构建服务一个平台上所有 CPython 3.10+；`with` 块 builder、运算符表达式、verb 装饰器、异常；`.pyi` 从组件目录生成（`mypy --strict` 通过）；PEP 517 后端（`lang/python/packaging`）用 mcpp 构建、按 mcpp 的结果记录取产物、捆绑旁边的共享库和第三方声明，归档可复现；CI 里 pip 安装 wheel 后跑套件和示例 03（M3 ⑤）。为此修了 mcpp：kernel-abi 包现在会放进引用它的共享库（mcpp-community/mcpp#846）。
+  - ✅ CTS 的 S 级场景（M3 ③）：`spec/conformance/S` 里语言中立的场景（视图、处理函数、verb、步骤；`spec/schema/scenario.schema.json`，lint 校验），Python、Lua、JavaScript 各有一个运行器（`lang/*/tests/cts.*`），用各自的 builder、运算符和闭包搭视图，用各自的 API 执行步骤，记录的轨迹必须和场景旁边固定的轨迹逐条相同（`openmui.cts` 是 C++ 一侧的驱动）。三种语言一次就对上了；顺带补上了：`each` 的 `where` 可以是行的函数（三种语言），动作的参数按声明检查（缺少、类型不对、多余都以 `invalid-argument` 拒绝，规范 §3.3，参数类型可以写成 `f64 | min | max` 这样的备选），Session 把拒绝作为记录返回。
+  - ✅ native 模块（M3 ⑥）：`*.native.omui.toml` 契约 → `omui-gen native`（记录类型、要实现的函数声明、转换、`define()`；TS / Python / Lua 存根）→ 注册表 `openmui.native`（参数按契约类型在一处检查，`invalid-argument` 指出位置）→ C ABI `omuiNativeCatalog` / `omuiNativeCall` → 三种语言的绑定由目录生成（`openmui:native/<name>`、`openmui.native`、`omui.native`；async 的在 worker 上跑，JS 得到 promise，另有 `…Sync`）；`openmui.rules` 的 `natives()` 在构建时生成。官方 native 模块 `fuzzy`（`modules/base/fuzzy` 是独立的 fzf 式匹配算法，确定、多线程排序）由各宿主注册；CTS 场景 `finder` 证明三种语言经生成的绑定得到同一轨迹。示例 05 是 WCAG 对比度检查器：TS 界面 + 应用自己的 native 模块（C++ 色彩科学），构建时生成绑定。
+  - ✅ 主题即数据：`modules/ui/theme`（`openmui.theme`）读 `*.theme.omui.toml`（主题、`extends`、覆盖层 overlay；颜色、文字、间距、圆角、阴影、动效 token、`density`），一次读完报告全部错误（行列和修改建议），组合 `["dark", "compact", "reduced_motion"]`；`modules/ui/theme/default`（light / dark / reduced_motion，与运行时内置 token 由测试保持一致）、`modules/ui/theme/compact`（密度 0.8，基础控件的高度和内边距按密度缩放，默认密度下所有金图不变）；文件由通用的 `omui-gen embed` 嵌入；C ABI `omuiTheme` / `omuiThemes`，三种语言的 `theme()` / `themes()`；播放器清单的 `themes` / `theme`，保存即重新加载；CTS 场景 `themed` 证明各组合下语义树相同。示例 06 是 Lua 写的主题预览工具（应用自己的品牌主题文件热重载）。
+  - ✅ 示例 04 自定义组件：阅读清单（TS），应用自己的 `rating` 组件从契约（`rating.contract.omui.toml`）经 `openmui.rules` 构建时生成 C++ 分区、builder 和 TS / Python / Lua 存根，`src/rating.cpp` 写行为（星形逐渐填充、悬停预览、动作和键位）；注册后 TS、Lua、视图文档和 agent 都按名字使用，测试证明 Lua / 视图文档 / C++ builder 得到同一个语义节点。
+  - ✅ 模板：`app-ts` / `app-lua`（播放器跑脚本，headless 测试像 agent 一样按按钮）、`app-py`（`pip install openmui` 的纯 Python 应用，CI 在装好的 wheel 上跑它的测试并做 `mypy --strict`）、`native`（native 模块包，构建时生成绑定）、`theme`（主题包，`openmui.rules` 的 `themes()` 在构建时嵌入主题文件）；`tools/ci/templates.sh` 全部渲染、构建、测试。
+  - ✅ `modules/ui/reflect`（`openmui.reflect`，C++26，GCC 16 `-freflection`）：`form(signal)` 按成员类型生成文本框 / 开关 / 滑块 / 下拉 / 分组，双向绑定，成员名是语义 ID 和标签，注解 `range` / `label` / `hidden`；`to_value` / `from_value` / `fields<T>()`。C++26 的模块要和 C++23 的分开构建，所以它单独成员（V-07：注解里的字符串要用数组，字符串字面量的地址不是常量）。**V-08：GCC 16.1 不能在 openmui 的依赖图里构建它**：libstdc++ 的 `std` 模块只有带 `-freflection` 构建时才导出 `<meta>`，而这样构建的 `std` 和任何在全局模块片段里包含 C 头文件的单元（libpng、FreeType、SDL 和第三方模块包装）合并不了 C 库的匿名结构体 typedef（先是 `__mbstate_t`），不带 `-freflection` 的单元又读不了它；只给本包的单元加 `-freflection`、把 `<meta>` 单独包成模块都实测无效，Clang 23 没有 `-freflection`。代码只在独立的小依赖图里验证过；CI 的 `tools/ci/reflect.sh` 先构建最小的冲突图，失败时给出警告，工具链修好后就运行本包的测试并要求通过。
+  - ✅ 示例 12 笔记：TypeScript 写视图和逻辑，Lua 写文本宏（verb，任何语言和 agent 都能调用），视图文档是帮助面板，C++ 的 `fuzzy` 边输入边在 worker 上搜索；它们只共享 signal、model、verb 和事件。为此补上了：
+    - 出口（outlet）：没有代码填的插槽显示以它的名字挂载的视图，有人读这个插槽时视图移进来，没人读时回到顶层。
+    - 事件在批次之后送达（core 的 `after_batch`）：脚本的处理函数读到的 signal 就是事件发生时的值。之前绑定的镜像晚一步，清空搜索框时搜的是上一次的文字。
+- M3 的验收已完成（见 22.3）。
+- M4：`modules/gfx/rhi` 和 `rhi-sdl`、GPU 渲染路径、Slang 着色器、效果和背景输入（液态玻璃，D-64）、画布、风格包、S1 / S2。进行中：
+  - ✅ `omui.rhi`（描述先校验再交给后端，命令列表是数据）、`openmui.shader`（slangc 按入口和格式编译，绑定从 SPIR-V 读出；`openmui.shader.rules` 在构建时编译）、`rhi-sdl`（SDL_GPU）、`rhi-cts`（B 级一致性，15 个用例，像素精确）。CI 每一行都有 GPU 并且必须可用：Linux 和 Windows 用 lavapipe，macOS 用 Metal（offscreen 视频驱动做不了 Metal 视图，所以设备用 cocoa 驱动打开，`Options::video_driver`）。
+  - ✅ GPU 渲染器（`openmui.render:gpu`）：一个 Slang 着色器画实例化的四边形，只在纹理变化处分批。CPU 精确算的东西，GPU 用同样的方法算：设备对齐的矩形按面积覆盖，渐变查 CPU 的 256 项表，路径、描边、字形、阴影、非矩形裁剪用 raster 的覆盖率进图集，图层是纹理。**和第 7 节 render 一行的差别**：圆角矩形不用 SDF，而是按真实圆弧的面积精确覆盖（旋转后才用有符号距离）；CPU 把圆弧压成 1/32 像素以内的折线，两者最多差 8 级（测试按这个上界检查，其余场景在混合的舍入以内）。GPU 按 CPU 的字节计算（覆盖率、8 位预乘颜色、渐变表、图像整数权重、`mul255`），源覆盖交给混合单元：lavapipe 上矩形、渐变、描边、阴影、裁剪、图层、图像、字形、全部效果与 CPU 逐字节相同。混合模式由第二个着色器（`blend.slang`）在目标的副本上按 CPU 的算法合成；Metal 上 MSL 要求 IEEE 运算、不做收缩（`#pragma METAL fp`）。效果层在自己的表面上离屏绘制（图层加效果的范围），内置的 9 个效果都有 GPU 路径：逐像素效果用效果模板（`effects/lib/openmui_effect.slang`，参数和 CPU 预先算好的值，64 位哈希用两个 32 位字），模糊是整数盒式滤波，像素化是计算着色器，粒子一格一个实例。程序自己的效果：`modules/gfx/render/effect`（`openmui.render.effect`）读 `<名字>.effect.omui.toml` 和 Slang 着色器（基于效果模板，不写 C++），检查后按设备格式编译、注册到渲染器的效果表；文件、着色器或它导入的文件改了就重新加载，原地替换（ref 不变，代数加一，GPU 渲染器下一帧换管线）；只绑定模板提供的资源，否则拒绝；slangc 的报错变成带行列的诊断，坏文件保留旧效果。`openmui.shader` 知道入口时一次 slangc 启动、各格式并行：加载约 170ms、重新加载约 160ms（验收 ③ 要求 500ms 以内，测试每次都量）。宿主的 GPU 呈现：`rhi::Device::present`（rhi 检查，后端 `show`），`rhi::sdl::Options::window` 认领窗口、交换链按显示器同步，帧 blit 进交换链；`openmui.host.sdl3` 的 `renderer`（automatic：有硬件 GPU 用 GPU，只有软件光栅器时用更快的 CPU 渲染器）和 `effects` 目录（随窗口加载，帧之间重新加载）。验收 ③ 端到端：窗口运行时保存着色器，到屏幕上出现新画面 167ms（宿主测试每次都量）。播放器清单的 `effects`（目录）和 `--gpu` / `--cpu`。外部纹理：`GpuOptions::external` 把 id 映射到程序在同一设备上建的纹理（解码的视频帧、引擎视图），按图像画（和 CPU 画同样像素的结果相差不超过 1 级）；零拷贝导入（dmabuf / IOSurface / D3D 共享句柄，`import_external`）随 M5 的硬件视频路径。
+  - ✅ 液态玻璃的通用能力（D-64）：背景输入（`EffectInfo::backdrop`，CPU 在绘制到该层时拷贝目标，GPU 把父目标拷进效果的 aux 纹理；`backdrop_blur` 用两边相同的整数盒式模糊磨砂）、形状输入（`EffectShape` 圆角矩形，模板的 `shapes_distance` / `smooth_min`，玻璃组的成员平滑合并）、damage 依赖（带背景输入的效果被任何 damage 触及就整块重画；CPU 一帧一个条带）。内置效果 `liquid_glass`：倒角处按距离场梯度折射、色散、磨砂、自适应着色、边缘光，CPU 参考和 GPU 在 lavapipe 上逐字节相同，CPU 像素固定哈希。组件包 `components/liquid-glass`（`openmui.ui.liquid_glass`，契约优先，设计里写的 `effects/liquid-glass` 按仓库的分层放在 components/ 下）：`liquid_glass` 在自己和子节点外推效果层，形状是自己的圆角盒；`glass_group` 一层画所有成员，形状平滑合并；语义只是普通的分组，有无玻璃、减少透明度时完全相同；减少透明度（`Runtime::set_reduce_transparency`、`DesktopOptions`、`--reduce-transparency`）时画成不透明面板。基准 `glass/10-1080p-cpu`、`glass/10-1080p-gpu`（1080p、10 个玻璃元素）进了第一份基准报告：RTX 4080 上 p95 0.82ms；核显的数字还没有（本机核显未启用）。
+  - ✅ 画布核心 `components/canvas`（`openmui.ui.canvas`，契约优先）：按列存储的场景（double 世界坐标、键、种类、填充、圆角、按名的数字和文本列，`push` 一次交付上万个节点）、均匀网格索引（查询的代价随结果而不是场景大小）、double 精度相机（以相机为原点绘制，十亿单位外也清晰）、拖动 / 触控板平移、以光标为中心缩放、双指缩放、甩动惯性、命名视图之间的 spring（对数缩放）；节点种类的档位（实例化圆角框、自定义绘制、晋升为实时组件，聚焦的提前一档；实时组件按世界尺寸布局、相机缩放显示，不重排，同一帧随相机移动）；语义（`OMUI_EXT_canvas`：屏幕上的节点和聚焦节点作为虚拟子项，`find` 搜索整个场景，视口动作 `pan_to` / `zoom_to` / `fit` / `focus_node` / `camera_preset`）。基准：1000 个窗口平移、缩放和 10 万个节点平移，每帧 CPU 约 0.02ms（预算 1ms）。纹理档位：种类的 `content` 在 UI 线程生成显示列表，在共享线程池按屏幕分辨率需要的 mip 级别光栅化，按屏幕面积和离中心距离排优先级；没好之前拉伸最近的已就绪级别，一个都没有时画框；每帧进入图像库的字节有预算（GPU 每张只上传一次），缓存有内存上限（LRU）；内容版本变了（`Scene::touch`）旧纹理留到新的就绪；场景通知画布重画（合并成一次）。GPU 渲染器的图像库图像按 id 只上传一次（`RenderReport::uploaded` 可查）；`FontCollection` 的字体实例在多线程下安全。基准：清晰化约 1ms（预算 300ms）。
+  - ✅ 画布行为和 canvas-kit `components/canvas/kit`（`openmui.ui.canvas.kit`）：
+    - **行为机制**：画布核心 `world::Behavior` 按名字注册，画布的 `behaviors` 里写 `名字` 或 `名字:参数`。按下事件进手势竞技场，从高优先级起依次询问，接手的行为持有指针直到松开；没人接手的按下用来平移，没人接手的单击作为 tap 再问一遍。行为可以在节点下面和上面绘制，给节点的语义项加状态和动作并执行这些动作；完成的修改作为画布事件发出（`moved`、`resized`、`connected`、`disconnected`、`deleted`、`selection_changed`）；画布放下行为时调用 `unmounted`，行为借此释放图像。
+    - **场景**：连线 `Edge`；未注册的种类按名字登记成框；边界跨移动保持（拖动不再遍历整个场景）；新增 `each_rect` 按列遍历。
+    - **canvas-kit 提供八个行为**：
+      - select：单击、⇧ 加减、背景框选、Esc、Ctrl-A，语义动作 `select` / `deselect`；
+      - drag：带上整个选区，可按标题栏拖，Esc 复原，语义动作 `move_to`；
+      - resize：八个手柄，⇧ 保持比例，最小 8px，语义动作 `resize`；
+      - snap：对齐视野内节点的边和中线，带对齐线，也可以对齐网格；
+      - connect：⌥ 拖动连线，语义动作 `connect` / `disconnect`；
+      - grid：任意缩放下格子都是 16–32px，细线渐显；
+      - minimap：差分数组把整个场景光栅化成一张图，每帧分批处理 12,000 个节点，场景变化时最多每秒重做十次；
+      - delete：Delete 键删除选区，语义动作 `delete`（irreversible，回答 yes）。
+    - **声明式行为** `*.behavior.omui.toml`：
+      - 一个 statechart。事件有 pointer_down / move / up / cancel、tap、key；状态有 entry / exit，执行顺序和 SCXML 相同；可以声明带 when、参数类型和回答的语义动作。
+      - 表达式用 `openmui.expr` 在 C++ 里求值，每帧路径不进入脚本。
+      - 加载时检查每个键、状态、事件、操作、参数个数、表达式里的函数和名字、参数类型，以及 S-1（irreversible 动作必须声明回答）。每个问题都带行号、列号，并给出最接近的正确写法；文件有任何问题就整份不注册。
+    - **行为 CTS**：所有已注册的行为（带参数和不带参数的，以及声明式的）都要经过 120 次种子随机手势、键盘和滚轮输入，再加一次中途取消。要求是：同样的输入跑两次，场景结果一致；每个节点都通过 spec §3.2 检查；声明的每个动作都按声明的参数类型调用一遍；行为被放下后，它创建的图像都被释放。
+    - **基准** `canvas-kit/drag-100k`：在 10 万个节点里拖动 10 个选中的节点，同时开启 select、drag、snap、grid、minimap，p95 约 0.26ms（预算 1ms）。
+  - ✅ 视图纹理档位和画布修正：
+    - 种类的 `view`（返回 Element）在线程池上用离屏 Runtime 布局和绘制成纹理，和晋升后的实时节点逐字节相同；换主题时重画。
+    - 确定性时钟（headless、视频导出）下，`Services::deterministic()` 让下一帧等待已发出的后台任务，结果按发出顺序进入。缓存析构时等待正在运行的任务。
+    - 双向绑定的回写不再打断 spring。
+    - 画布尺寸变化时，实时节点立即重新摆放；画布最小尺寸为 0，不被晋升节点撑大。
+    - 新增 `start = "fit" | "preset:<名字>"`：fit 在用户移动相机前，会跟着尺寸变化重新适配。
+    - 种类绘制可以拿到 FontCollection。
+  - ✅ 示例 10 `examples/10-canvas-basics`（`space`，真实工具：磁盘空间地图）：
+    - 文件夹用 squarified treemap 摊在画布上。
+    - 只用画布核心和默认交互；档位依次是框、名字标签（只在放得下时绘制）、实时文件卡片。
+    - 标题栏显示最大的五个文件，点击即调用 `focus_node` 飞过去。
+    - agent 可以用 `find` 按名字查找整棵树。
+    - 测试覆盖扫描、treemap 不变量（包含、不重叠、面积比例）、人和 agent 的操作，像素固定。
+  - ✅ S1 Markdown 墙 `showcase/markdown-wall`（`omui-wall`，真实工具：文档墙，可以用来读 `.agents/docs`）：
+    - 工作区按文件夹划分，窗口在工作区里按行排列。
+    - 档位：远处是色块加标题条；中间是窗口自身元素在线程池上离屏渲染的纹理，同时按 mip 级别逐步清晰化；近处或聚焦时变成实时文档。
+    - 工作区按标签拖动用声明式行为 `group-drag.behavior.omui.toml`，构建时通过 `openmui.rules` 的 `behaviors()` 嵌入程序，Esc 复原；窗口按标题栏拖动，选择、吸附、小地图都来自 canvas-kit。
+    - 视图：1 是 1:1，2 是总览，H 切换 HUD（`views.behavior.omui.toml`）。
+    - HUD 用立即模式写：帧时间曲线、各档位的数量、纹理缓存、清晰比例。
+    - 流式输出：`--stream N` 或 verb `wall.stream`，每秒 50 个 token。实时窗口立即追加，纹理窗口最多每秒标记过期四次。
+    - 通用能力：`Runtime::component<C>()`；声明式行为的 `hit.inside`（框连同上面的东西一起拖）、`preset` / `zoom_to` / `fit('all')`，按键事件在手势期间也能看到 `hit` / `travel`。
+    - 测试：7 项，像素固定。
+    - ✅ 基准（tests/bench 的 `wall/*`，CPU 预算进门禁）：
+      - 1000 个窗口缩放扫描 1%↔400%，p95 0.12ms；
+      - 平移 0.012ms；
+      - 拖动 100 个窗口的工作区 0.23ms；
+      - 1000 个选中窗口一起拖 0.35ms；
+      - 20 个窗口流式输出 0.65ms；
+      - 清晰化约 50ms（预算 300ms）。
+      - 为此做的改动：相机移动时不晋升（聚焦的除外），停下 120ms 后再晋升；小地图任何规模都最多每秒重做 10 次；`Runtime::frame_rate()`，HUD 显示 FPS。
+    - ✅ 三种语言的场景脚本 `scripts/tour.{ts,lua,py}`：
+      - TS / Lua 在进程内通过 openmui.lang 会话运行；Python 经 agent 端点用 `openmui_agent` 驱动（纯标准库客户端，随 wheel 发布）。
+      - 测试要求三者记录的答案和留下的墙（相机、窗口位置、选择）完全相同。
+      - 协议新增 `invoke`（调用应用的 verb，S-1 规则同 `act`）。
+      - 实例化（晋升）后的节点仍然是它的条目：语义树合并持有者的描述，持有者的动作照常路由。
+    - ✅ 帧需求与帧节奏（D-70）的平台无关部分：
+      - `FrameDemand`（L2 RAII 租约 `demand_frames`，租约在运行时销毁后自动失效）；
+      - L0 自动来源：动画、300ms 内的输入、定时器节奏；
+      - 合并规则 `merge` 和 `frame_interval`；`FrameOutput::demand`；trace 计数 `frame.demand_hz`；
+      - 按预测上屏时间求值（`FrameInput::present_at`）；
+      - 桌面宿主按需求的节奏出帧：低于刷新率时等待，空闲时睡眠，没有 vsync 时也不空转；
+      - 画布在相机自行移动时请求最快，S1 流式输出请求 60Hz；HUD 显示请求的刷新率和原因。
+    - 还没做：平台映射（macOS ProMotion 的 `CAMetalDisplayLink`、Windows VRR 的 tearing present）、呈现反馈校准、真机实时帧节奏报告。
+  - ✅ 风格包与 S2 风格工坊：
+    - **新效果**：neon、crt、paper、wobble、metaball 五个效果，CPU 参考实现和 Slang GPU 路径在 lavapipe 上相差不超过一级，像素固定。
+    - **`*.style.omui.toml` 风格包**：起始主题、token 修改，以及按窗口 / 组件类型 / role 指定的效果。未知效果或参数会报错，并给出最接近的名字；`write_style` 能写回原文件。
+    - **运行时**：
+      - 效果规则，节点自己的 `pixel_effect` 优先；
+      - 效果层的形状取节点实际绘制的表面，组件可以通过 `effect_shapes` 报告轨道和滑块；
+      - 换风格时与上一帧交叉淡化；`apply_style`。
+    - **五个风格包**（modules/ui/theme/styles）：glass、neon、retro、ink、liquid。`openmui.rules` 新增通用的 `embed()`。
+    - **S2 `showcase/style-gallery`**（`omui-styles`）：
+      - 真实的设置面板加仪表盘，可在五种风格之间切换，带交叉淡化；
+      - 可以编辑强调色、圆角和各效果参数，即时生效；导出 verb 为 external；
+      - 语义树在五种风格下完全相同；测试覆盖切换、编辑、导出、可用性，像素固定。
+    - GPU 开销进了第一份基准报告（`docs/{en,zh}/benchmarks/`）：独立显卡上满足 120Hz；核显的数字还没有（本机核显未启用）。
+  - ✅ 第一份公开的基准报告（M4 ④，`docs/en/benchmarks/`、`docs/zh/benchmarks/`，数据 `docs/benchmarks/*.bench.omui.json`）：
+    - `omui-bench --report / --report-zh`：机器（CPU 型号、内存、系统、GPU）、方法、按组的结果（p50 / p95 / p99 / 最大 / 分配）和预算、每项预算的理由、说明；CI 的 release 行同时保存报告构件。
+    - 基准新增：`glass/10-1080p-{cpu,gpu}`、`styles/<风格>-gpu`（S2 五种风格）、`wall/zoom-sweep-1000-gpu`（S1，GPU 每帧绘制）。GPU 基准记下设备；`State::skip` 让没有设备的基准报告为跳过而不是零；预算的 `unless` 让 GPU 的 120Hz 预算不用于软件设备。
+    - 为了达标做的 GPU 渲染器改造（结果和 CPU 参考的差别不变，测试覆盖）：
+      - 覆盖图集跨帧保留：字形、路径、描边、阴影的掩码按输入的键缓存，只在未命中时光栅化和上传；图集超过 2048 行时先清空重编码，单帧确实需要时才继续增长；
+      - 圆角裁剪的掩码按键缓存；图像整张一次上传，存储里的图像借用而不复制；释放的图像纹理按尺寸复用；
+      - 圆角矩形描边改为解析的“外圆角矩形减内圆角矩形”（CPU 用 even-odd 填充，GPU 用 `KIND_RRING` 精确面积），修正了 CPU 描边在曲线内侧多覆盖约 0.15 像素的误差；受影响的像素哈希重新固定；
+      - `Arena` 的大块分配按最合适的块复用，同样大小的帧不再分配。
+    - 结果（i9-13900K + RTX 4080）：S2 五种风格每帧 0.24–0.64ms（p95 ≤ 0.92ms，原来 2.6–4.4ms）；S1 缩放扫描 p99 5.7ms（原来 p95 27.9ms）；玻璃 0.82ms。
+  - ✅ 着色器在进程内编译（`openmui.shader`）：slangc 旁边有 Slang 的库时，加载一次，用 slangc 自己的参数编译，会话保留；输出、反射、依赖和诊断与 slangc 相同（测试两种方式对比）。热重载在本机从约 160ms 降到约 50ms（macOS CI 原来 540ms，超过 M4 的 500ms）。
+  - ✅ 国际化（D-74，`modules/content/i18n` + `modules/content/i18n/cldr`）：
+    - 引擎只依赖标准库和 JSON / TOML 库，不内置任何语言：BCP 47 和 POSIX 标签、似然子标签、语言协商（同一书写系统优先，简繁互相回退）；CLDR 复数规则（按显示的数字选择）；数字、紧凑数字（1.2K、12万、12萬）、日期时间（各长度、骨架、灵活时段“下午”、时区偏移）、相对时间、列表；MessageFormat 2（函数和选项、声明、多选择器）；消息目录、翻译检查、伪本地化。测试结果与 CLDR 一致。
+    - `omui-gen cldr` 从 CLDR 49 生成 en、zh、zh-Hant 数据包和似然子标签；`openmui.i18n.cldr` 把它们嵌入程序。
+    - 框架接入：`languages()`（数据包和目录、请求的语言、翻译器）、`tr()`（语言或参数变化时原地更新，ID 不变）、视图文档的 `{"tr": …, "args": {…}}`、表达式 `tr(key, {…})`、Lua / TS / Python 的 `tr`（参数按名字）；`--lang`、SDL 的首选语言、`AppSpec` 的目录和源语言。没有翻译的键按 MessageFormat 2 显示它自己。
+    - 中文排版（`openmui.text`，按 CSS Text 4 的默认值，`TextStyle::autospace` / `trim_punctuation` 可关）：汉字与西文字母、数字之间自动留 1/8 em（行尾不留）；全角标点按字形墨迹所在的半边分成开、闭、居中三类，相邻时挤掉空的半边（。」、「（ 各 1.5 em），开括号在第一行以后的行首挤掉左半边；行首避免闭标点由 UAX #14 断行保证。分类读字体本身的度量，所以简体和繁体的标点位置都对。
+  - ✅ 修复：画布纹理任务按线程缓存字形，原来以字体集合的地址为键；地址被复用时（macOS 上常见）会拿到上一个集合的字形，粗体变常规。字体集合现在有唯一 ID，缓存以 ID 为键，集合销毁后清除。
+  - ✅ 规范 0.3（`spec/SPEC.md` §16）：
+    - 扩展条款：K-1–K-6 画布（条目、`find`、视口动作、实例化条目、行为、声明式行为）；E-1–E-6 效果和背景输入；ST-1–ST-3 风格包；P-1–P-3 帧节奏；T-1、T-2 纹理档位和确定性；VD-1 视频。
+    - 总线 `invoke`；registry 升到 0.3，新增扩展 `OMUI_EXT_backdrop_effect`、`OMUI_EXT_style_pack`、`OMUI_EXT_frame_pacing`；`openmui.h` 等由生成器重新生成。
+  - ✅ 开放标准（D-78）：规范拆成 OpenLifa 的两个仓库，各一个 PR、全平台 CI：[openlifa/openmui](https://github.com/openlifa/openmui)（本仓库的 `spec/` 子模块，包 `openlifa.openmui` 0.3.0）和 [openlifa/openas](https://github.com/openlifa/openas)（openas 0.2：actor 文本形式、在场、人的动作、系统上限下的授权和单个请求的决定、退出码 3 和错误码）；两个包都已发布到 mcpp-index（#603、#604）。openmui 的信封字段、actor 写法、未知效果的读法与 openas 一致。
+  - ✅ agent 授权（S-11，D-79）：`openmui.core:access` 用 `openas::decide` 决定总线上的每个请求；`AppSpec::agent`（上限）和 `AppSpec::grants`，`agent_access().give` 由人在应用界面里授权；协议测试覆盖上限、授权链和其他 agent。
+  - ✅ 窗口（D-75）：
+    - `openmui.view:window`：窗口状态（正常、最大化、最小化、全屏、活动、关闭中、自绘、透明）是信号，操作是动词 `window.*`（含切换外框的 `window.frame`）；`window_area_at` 问组件各部分是什么（`ComponentType::window_area`、通用属性 `window_area`）。
+    - `openmui.ui.window`：`window_frame`（阴影、圆角边、标题栏、跟随状态）和 `caption_button`（标准和红绿灯两种风格，名称 en / zh-Hans / zh-Hant），契约优先；`FramedWindow` 把外框挂在应用下面（`mount_beneath`、`set_slot_insets`），应用的路径不变；两种风格的像素逐字节固定。
+    - SDL3 宿主：无系统外框的透明窗口，`SDL_SetWindowHitTest` 经 `window_area_at`，状态事件，运行时切换，关闭时立即在逻辑上关闭、不再接收输入、输入穿透（Windows 分层窗口、macOS `setIgnoresMouseEvents`、X11 输入形状；Wayland 没有客户端能用的办法），溶解只是呈现。
+    - `AppSpec::window`（native / framework / switchable）和 `--window`；headless 也画外框，用于确定的截图。
+- ✅ 目录与命名（D-80，[structure-render-web-game](2026-10-28-openmui-structure-render-web-game-design.md) §3）：
+  - `modules/` 按层分组：`base`（hanim、geom、memory、unicode、fuzzy、trace、session、pipeline、image、testing）、`gfx`（rhi 和它的 `sdl` / `cts`、shader 和 `rules`、raster、render 和 `effect`）、`content`（text、layout、markdown、i18n 和 `cldr`）、`ui`（openmui：core、view…，主题和原生模块的包在 `theme/`、`native/` 里，宿主在 `host/`）；`lang/` 本身是 `openmui.lang`，三种语言是它里面的包；`tools/cli`。
+  - 按角色改名：`openmui.anim` → `hanim`（`hanim::`）、`openmui.slang` → `openmui.shader`（`omui::shader`、`omui-shader`）、`openmui.record` → `openmui.session`（`omui::session`）、`openmui.effect` → `openmui.render.effect`、`openmui.ui.canvas_kit` → `openmui.ui.canvas.kit`。
+  - lint：`layering` 按分组（独立组件、openmui、mgame；gongfu 的核心只依赖标准库）、`layout`（路径就是包名、有包的目录都有列出它们的 README）、`thirdparty`（`mcpplibs.mwrap.*` 只在 `native/` 单元里，三处移进了 `native/`）；自测 13/13。
+  - 每个分组目录一份 README；主 README 以作品为中心重写（英文为主，附 `README.zh.md`），仓库加上 Apache-2.0 的 `LICENSE`。
+  - 发现：`mcpp` 对带引号的三段依赖键（`"openmui.render.effect"`）编译但不链接，改用不带引号的写法（和带引号的 `"openmui.render"` 是不同的键，合法 TOML）；fribidi 是 LGPL-2.1 且静态链接，违反 D-83（下一条）。
+- ✅ 许可（D-83）：
+  - lint `licenses`：`tools/lint/licenses.toml` 列出工作区经由清单和 `mcpp.lock` 用到的每个 mcpp-index 包和它的许可（SPDX）；没有列出的包、GPL / AGPL、不在 `[dynamic]` 里的 LGPL 都会失败；有本地索引时，许可要和索引的描述一致。自测 14/14。
+  - 双向文本从 fribidi 换成 SheenBidi 3.0.0（Apache-2.0，Unicode 17）：上游新增 `compat.sheenbidi`（mcpp-index #607）和 `mcpplibs.mwrap.sheenbidi`（mcpplibs/sheenbidi-m，mcpp-index #608），模块的测试在所有平台上跑 Unicode 的 BidiTest（770,241 例）和 BidiCharacterTest（91,707 例），0 错误。`openmui.text` 按 UBA P1 逐段解析（换行结束一段，下一段按自己的第一个强字符定方向，新测试），L1 的段落部分自己做，行尾部分仍在排版里；固定的像素哈希不变。
+  - fribidi 只剩 SDL3 在 X11 上的可选用法：编译时用头文件，运行时 dlopen 系统的 `libfribidi.so.0`（消息框的 RTL 文本），登记在 `[dynamic]`。
+- ✅ 统一渲染的第一步（D-81 ①）：
+  - `openmui.render` 是渲染架构：`:pool`（瞬时纹理按尺寸、格式、用途从帧到帧复用，120 帧没人要的释放；帧重新编码时 `restart_frame`）和 `:graph`（一帧是 pass 的图：每个 pass 声明读写，瞬时纹理先写后读，否则报出两者的名字；写的东西到不了输出、外部纹理或之后运行的 pass 的 pass 被去掉；其余按描述的顺序记录，每个 pass 一个 trace span，类别 `render`）。
+  - 原来的 2D 渲染器成为它的渲染特性 `openmui.render.vector`（`modules/gfx/render/vector`，重新导出核心）；GPU 渲染器的每一帧经由渲染图记录：绘制、混合、效果三种 pass 各自声明读写，`RenderReport::gpu_passes` / `gpu_passes_culled`；纹理池换成核心的；CPU 参考和 GPU 的像素比较全部不变。
+  - rhi 补上渲染特性需要的（D-81 ②）：深度和模板目标（`d32_float`、`d32_float_s8`，`DepthTarget` 的清除、加载、保存），多重采样（`TextureDesc::samples` 到 `Caps::max_samples`，在 pass 结束时解析进 `ColorTarget::resolve`），每个管线一个深度测试（`DepthState`）；校验要求 pass 和它设置的管线采样数、深度格式一致；SDL_GPU 后端逐项映射；rhi.cts 加三例（`depth_test`、`depth_kept`、`multisample`，4× 的标准采样位置在三种 API 上相同），lavapipe 上逐像素通过。SDL_GPU 没有 GPU 时间戳查询，记为上游缺口 #3，渲染图暂时只在 CPU 端计时。
+  - 测试：`modules/gfx/render/tests/graph_test.cpp`（池的复用和释放、问题的措辞、计划、span，以及真实设备上没被读的 pass 不运行的字节）；vector 的 GPU 测试加一条：一帧的每个 pass 一个 span，同一帧再画一次 pass 相同。
+- ✅ Web 的第一步（D-84，W1 ①）：
+  - 工作区对 `wasm32-emscripten` 的设置：异常（JSON、TOML 和捕获它们的 native 单元需要）、可增长的内存、1 MiB 的栈；测试程序的配置 `wasm-test`（`-sNODERAWFS=1`：在 node 下读源码旁边的数据，和其他行一样）。
+  - 包用 mcpp 的 `[package] platforms` 声明自己能在 Web 上运行；lint `platforms`：这样的包只依赖同样声明了的包（开发依赖也算，测试也在那里跑），自测 15/15。
+  - 现在声明的 14 个：hanim、geom、memory、unicode、fuzzy、trace、pipeline、image、testing、raster、layout、i18n 和 cldr、markdown。CI 新增一行 `test web wasm32-emscripten`（`tools/ci/web.sh` 按清单选包，在 node 下跑测试）：21 个测试程序全部通过，固定的哈希——hanim 的数学位、raster 的像素、CommonMark 652/652——和桌面各行是同一组常量。
+  - 目标能做什么用分区常量表达，不用宏：`openmui.testing:target` 按目标选源文件（`threads`：Web 行没有线程）。
+  - 依赖 `mcpplibs.os` 的包（text、session、ui/*）等上游：mcpplibs/os#8 和 openkal-emscripten#8 已经就绪（CI 绿），os#8 建在另一项工作的 os#7 上；mcpp 的三个 Emscripten 缺口报在 mcpp#851。
+- ✅ gongfu 的核心（D-85，第一部分；`mgame/gongfu`，包 `gongfu`，只依赖标准库，也在 Web 行上测试）：
+  - `:fixed` Q16.16 定点数（乘积向下取整、商向零截断，字面量在编译期转换）；`:input` 64 帧输入记录（相对朝向的方向、按住和按下、SOCD 三种）、指令（窗口内的搓招、蓄力、按下时的方向、同时按键、缓冲）；`:data` 角色、招式（帧、判定、伤害、削血、硬直、打击停顿、推开、上中下段、击倒、浮空、取消、无敌、位移、投技、飞行道具、能量、超必杀的冻结）和规则（连段补正、反击、回合、场地、近身防御、SOCD），`compile` 逐项检查并带位置；`:state` 一整块没有填充的纯数据（编译期检查），哈希就是它的字节；`:match` 两名角色从帧开始时同时决定、移动、推开、留在场上，所有攻击先判定后结算（同帧相抵），停顿期间按下的取消在停顿结束时开始。
+  - 测试 14 项：帧数据实测与声明一致（空挥的发生、持续、收招；命中和防御的帧优势 = 硬直 − 攻击方剩下的帧），防御的上中下段，取消连段和补正，反击，投技和拆投，飞行道具和相抵，无敌升龙；随机 10,000 帧上 10,000 次随机深度的回滚，每一帧的状态和不回滚时逐字节相同，哈希在 GCC、LLVM、wasm 上相同并固定。
+  - `gongfu.data`（`mgame/gongfu/data`）：角色和规则是文件——`*.fighter.gongfu.toml`、`*.system.gongfu.toml`，将来 mod 的格式。招式输入用数字键记法（`236P`、`623K`、`63214HP`、`[4]6P`、`[4:60]6HP`、`2LK`、`LP+LK`，读写互逆）。格式的问题（未知的键带最接近的正确写法、类型、范围）和编译器的问题（帧超出招式、取消进不存在的招式）一次报完，每个都带行号和列号；TOML 本身的语法错误也一样。测试：训练角色的文件和它的 C++ 定义打出同样的连段；Web 行上也通过。
+  - `mgame.net`（`mgame/net`，只依赖标准库）：两个对等端的回滚网络，和传输无关：输入延迟、预测（对方最后已知的输入）、回滚（恢复那一帧保存的状态再向前播放）、等待（超过 `max_rollback` 不再前进）、消息带未确认的全部本地输入（丢包随下一条重发）和确认、对方的帧（时间同步）、每 30 个确认帧交换一次校验和（不同步时报出分歧的帧）；消息是小端字节，任何传输都能带。测试在模拟链路上（完美；延迟在输入延迟以内；4、6±3、8±4 帧，0、5%、15% 丢包；落后 20 帧）用 gongfu 的对局对打：两端和离线回放逐字节相同；延迟被输入延迟覆盖时没有回滚，否则有；一端的游戏被改动时报出分歧的帧。GCC、LLVM、wasm 上都通过。
+  - `gongfu.present2d`（`mgame/gongfu/present2d`）：对局的 2D 画面，画进 openmui 的显示列表（CPU 参考或 GPU 渲染器）。外观是骨骼（关节、长度、静止角）加矢量部件（胶囊、椭圆、多边形、背后的描边）和按帧打关键帧的片段（hanim 的缓动）；播放的片段由角色在做什么决定（招式名，否则模式），招式按招式帧、硬直按已过的帧、其余按对局帧循环；朝左是朝右的镜像。镜头让两人都在画面里；效果来自按帧保存的事件：命中的光线（反击是红色）、防御和投技的圆环、KO 的闪白、重击的震动。三角函数用 hanim 的确定性函数：三帧的显示列表和 CPU 像素在 GCC 和 LLVM 上相同并固定；回滚后重画同一帧逐字节相同。核心的事件位置改为攻击框和受击框重叠区域的中心（火花落在打中的地方）。
+  - 格斗游戏的骨架（`showcase/fighting`，`omui-fight`）：舞台组件（契约 `stage.contract.omui.toml`）在运行时的时钟上以 60 帧/秒推进对局（定时器补帧，最多补 4 帧；超过就丢掉，不重放；headless 下 1 秒恰好 60 帧），两名玩家用键盘，agent 用动作（`press` 用数字键记法持续按住一个手柄状态，`release` 交还键盘；`pause`/`step` 逐帧）；语义值就是对局（帧、剩余秒数、每个角色的名字、血量、连击数、位置、正在做什么）。角色是程序内嵌的 `*.fighter.gongfu.toml`，读不了的文件带行列号出现在语义值里。训练模式按画面的镜头（含震动，present2d 新增 `view_camera`/`on_picture`）画出推挤、受击和生效中的攻击框，以及 60 帧的帧表；血条从中间向各自一侧减少，计时器是七段数码，不需要字体。测试：60 帧/秒、键盘、暂停和逐帧、agent 走近出拳命中，对战和训练画面的像素固定。
+  - 格斗游戏的性能预算（D-85 §8.6）：`tests/bench` 新增 `gongfu/frame`（单帧模拟，实测约 1 µs，预算 p95 ≤ 20 µs）、`gongfu/rollback-8`（回滚 8 帧并重算，每帧保存状态，实测约 90 ns/帧，预算 ≤ 2 µs/帧）、`gongfu/present2d`（一帧画面的显示列表，实测约 30 µs，预算 p95 ≤ 0.25 ms）；三项都是零分配，并写进预算。present2d 新增 `Painter`，在帧之间复用姿势、部件顺序和路径；`DisplayList::reserve` 让每帧重建的列表在大小变化时也不分配；舞台改用它们。
+  - 外观成为文件，打击感成为数据（D-85 §8.3/§8.4）：`*.look.gongfu.toml`（`read_look` / `write_look`）包含调色板（命名的槽，左右两侧各一套）、骨骼（角度用度）、部件、片段（按帧的关键帧，片段的缓动加上个别关键帧自己的缓动）和冲击配置；所有问题一次报出，带行列号和最接近的正确写法；写出的文件能读回成同一个外观。冲击配置包括震屏、镜头推近、闪白或负片、火花（`rays`、`ring`、`splash` 墨点、`shards` 碎片、`bolt` 电光，以及大小、数量、帧数、颜色、反击色）、声音名和震动。角色文件的 `impact` 改为按名字引用（`FighterDef::impacts`），防御、投技、KO 用外观里的 `block`、`throw`、`ko`，没有配置的用默认值；火花的散布是事件的哈希，回滚后画出来相同。Kata 的外观从 C++ 搬到 `fighters/kata.look.gongfu.toml`，`gongfu.data` 导出 `nearest_hint` 给其他格式复用。
+  - 训练模式（D-85 §8.5）：新包 `gongfu.training`（只依赖标准库，每帧零分配，也在 wasm 上测试）在每帧之后从对局读出：输入历史（每个手柄状态一行，带按住的帧数）、帧表（发生、持续、收招、受击硬直、防御硬直、倒地、被投，不计打击停顿和超必杀的冻结帧，所以一个招式的长度就是它的帧数据）、两边都恢复后的帧优势、连段的段数和伤害，以及按玩家录制并循环回放的假人 `Recorder`；测试按数据核对（拳的 3/2/7，拳和重拳在命中和被防时的帧优势，拳取消波动拳是 2 段 900 伤害）。格斗游戏的训练模式改用它：判定框加上投技范围和飞行道具，80 帧的帧表，两侧的输入历史（箭头、按键颜色、帧数），计时器下方的发生、帧优势、连段读数（数字用七段，几个词只排版一次并缓存）；舞台新增动作 `save`、`load`、`record`、`replay`、`stop`；语义值的 `training` 给 agent 同样的读数。HUD 拆成 `:hud` 分区。
+  - 格斗系统 0.2（[角色设计](2026-10-28-gongfu-characters-design.md) G-1..G-10，经 codex 评审后定稿的部分）：冲刺（只有方向的指令 `66` / `44`）；飞行道具的速度向量（可以下落、落地消失）、多段和间隔、强度（相撞时强的留下）、同屏数量限制；后投（交换位置）、拆投窗口从投住起算、起身 3 帧和硬直结束 2 帧不可投、起跳前可投；无敌按种类（打击、空中、飞行道具、投技）；招式自己的逐帧受击框；追打点数和空中复位（每次浮空最多再浮空 1 次）；打击停顿按方计算（飞行道具的主人不停），超必杀冻结期间一切暂停、输入缓冲到冻结后第一帧；被打方得到伤害的 1/10 能量；击倒招式自己的倒地帧数；同优先级时指令更具体的先读（2HP 不会被读成 5HP）。`*.fighter.gongfu.toml` 增加对应的键（`hitstop = { attacker, defender }`、`down`、`juggle`、`juggle_cost`、`invulnerable` 的 `to`、`[[move.hurt]]`、飞行道具的 `velocity` / `hits` / `interval` / `strength` / `limit`、投技的 `swap`、记法 `66` / `44` / `4LP+LK`）。新的 `tests/rules_test.cpp` 逐条测试，再用 5000 帧覆盖全部规则、逐帧回滚，和不回滚的结果逐字节相同，哈希固定（GCC、LLVM、wasm 相同）；原有测试的回放哈希重新固定。
+  - 从动画烘焙受击框（G-5，角色设计 §6）：外观的骨骼可以标 `limb = true`；present2d 的 `reach` 算出某个姿势下哪个肢体伸出了站姿的受击框（和站姿的静止姿势相比，超出 12 像素才算）；新包 `gongfu.studio`（库 + 命令行 `gongfu-studio`，JSON 输出和退出码）的 `bake` 对每个招式的每一帧摆姿势，把伸出的肢体框按 5 像素网格取整、相同的相邻帧合并，写成 `<名字>.boxes.gongfu.toml`（带源文件的哈希），`check` 检查是否过期，`embed` 把一个目录的角色（角色、外观、受击框）生成模块分区；新包 `gongfu.rules` 是构建插件，在构建里运行 `embed`，受击框过期时构建失败并给出重新烘焙的命令。`gongfu.data` 读写 boxes 文件，`read_fighter` 可以带上它；模拟的 `Match::hurtboxes` 公开，训练模式画的就是模拟用的受击框（出拳时手臂的框可见）。present2d 测试新增 Kata 全部片段的姿势总览图（三个时刻），借它修正了 Kata 的蹲、下段踢和跳跃姿势；openmui.rules 改用限定名 `openmui.rules` 找自己的目录（和 `gongfu.rules` 的短名相同）。
+  - 墨（第一个设计角色，[角色设计](2026-10-28-gongfu-characters-design.md) §3）：角色文件的数值由设计表算出（32 个招式：普通技、跳攻击、三种速度的「字」、空中「点」、只对空无敌的「挑」、可被投的「墨遁」、超必杀「一字千钧」、冲刺、前后投）；外观第一版（纸白长袍、宽袖、发髻、作为道具的笔，41 个片段，墨点冲击）；格斗游戏的测试在模拟里实测每个普通技、「字」和「挑」的发生帧和命中 / 被防的帧优势，和设计表一致（飞行道具的停顿只算被击方，这一点由测试发现并写进设计记录）。present2d 新增 `Painter::body`（单个角色的画法）、骨骼的 `prop`（拿着的道具不算受击框）、片段按力度共用（`236P` 用于 236LP/MP/HP）；`gongfu-studio sheet` 画出外观的全部片段（持续帧实心、首末帧淡色、攻击框和受击框），用来核对动作和判定；舞台新增 `left` / `right` 属性选择角色。
+  - 格斗系统 0.3 的核心规则（[架势与超必杀设计](2026-10-28-gongfu-posture-supers-design.md) P-1..P-4，经 codex 评审后定稿）：架势（防御按整招积累、破势踉跄、追击清零 + 势回 + 80% 补正、按姿态不同速度恢复）、拼刀（攻击框相交：超必杀 > 时机相同时比分量 / 分量也相同为完美拼刀双方不变 > 时机不同时新鲜的赢；无敌时不拼）、完美格挡（读屏幕方向的新按下，改善 4 帧，不掉架势和削血，可以逐段弹）、3 气能量和超必杀的补正锁定、超必杀命中不回气；数据文件和规则文件的对应键；逐条测试，全规则逐帧回滚覆盖拼刀 / 弹 / 破势，哈希三平台相同；格斗游戏加上架势条和三格能量，墨的数值按设计更新。
+  - 三气的锁定和超级动画（P-5、P-6 第一部分）：模拟里三气第一击命中后双方锁定，按帧结算动画里的每一段伤害、计时器暂停、结束时按数据摆放（锁定中的 KO 等到结束）；画面层新增超必杀冻结时的镜头推近、压暗、角色色调光带和三气的放大特写，外观文件的笔画字形和超级动画时间线（片段、背景、镜头、逐帧写出的字、印章、闪光）；墨的三气「永字八法」在宣纸上按笔顺写出「永」的八笔，每笔一段伤害并对齐模拟的帧，最后盖朱印——格斗游戏的测试固定了冻结特写和 6 个动画画面。舞台新增训练动作 `fill`（满能量、清架势）和 `player1` / `player2` 属性（原来叫 left / right，和布局的样式属性同名而被吞掉——这是框架该在生成器里报错的地方，记为待做）。
+  - 霓（第二个设计角色）和画面的新能力：角色文件按设计算出，实测发生和帧优势和表一致；招式的 `pass` 帧不推开对手（二气穿过对手）；present2d 新增拖影（`trail`，由 Effects 按帧保存的角色状态画出，回滚后相同）、霓虹光晕（`glow`）、超级动画的扫描线；飞行道具可以画成字（G-11，墨的「一」「人」「永」在笔下写出后飞出，带纸色光晕）；墨的三档超必杀补齐。运行时修了一处框架缺陷：合约里和布局属性同名的属性（文字的 `align`、舞台的 `left`）以前只交给布局、组件收不到，现在两者都收到（全工作区 83 个成员的测试通过）。
+  - 岳（[角色设计 2](2026-10-28-gongfu-characters-2-design.md) §3，第三个设计角色）和他需要的规则 G-16..G-18：霸体（招式的帧吸收若干段打击，伤害照收、双方停顿；投和超必杀不受影响）、转圈指令（`360` / `720`，按经过的四侧计圈，可以从起跳前发动）、空中投（只抓空中的对手，抓住后拉到地面）；三气的投技抓住即进入超级动画。核心修了一处缺陷：超必杀的冻结以前从招式第 1 帧之后才开始，第 1 帧生效的投会在闪光的同一帧抓住、冻结被推到动画之后；现在请求超必杀的那一帧就进入闪光，招式第 1 帧在冻结之后（设计写的“冻结后第 1 帧生效”，有专门的测试），墨、霓的画面哈希因此整体后移一帧并重新固定。present2d 新增超级动画的路径（从锁定原点算起的举起、跃起、砸下）、画面震动和冲击环、背景里的云（放在世界里，镜头升起时从旁经过）、地面开裂的火花（`cracks`）、巨汉的脚步让镜头下沉（`footfall`）。角色文件 36 个招式、外观 44 个片段；测试实测普通技和「顶肘」的发生和帧优势，三气「泰山压顶」从防御硬直里转两圈发动，七个画面固定（GCC、LLVM 相同）。
+  - 璃（[角色设计 2](2026-10-28-gongfu-characters-2-design.md) §2，第四个设计角色）和 G-15 设置物：状态里每人 3 面镜子，招式可以立镜、碎镜、瞬移到镜子；镜子挡下对手的飞行道具（每段扣 1 点耐久）、被对手的打击扣耐久（一击一次）、被主人的打击打碎成射向对手的碎片；一气的镜子把飞行道具反射回去（飞行道具记住定义它的人，反射后不占额度、不给能量）；规则逐条测试并加进全规则回滚。实现时修了两处核心缺陷：离地的地面招式落下越过地面时会提前结束（现在按招式的姿态判断，有测试）；画面层按状态找片段的表少一项、越界读（Nightly 的 ASan 发现；表长由 `mode_count` 决定，编译期检查）。记法里相邻的相同方向是点两次（`22K` 是下、回中、下）。画面层画镜子（玻璃、高光、耐久低时的裂纹、能反射的金边）和三种新冲击，超级动画新增棱镜像、按命中段数增加的裂纹和画面碎落；「琉璃界」七个画面、镜子在对局中四个画面固定。
+  - 刻（[角色设计 2](2026-10-28-gongfu-characters-2-design.md) §4，第五个设计角色）和 G-19..G-22：会折返的飞行道具（朝主人当前位置飞回、去回各中一次）；每人 128 帧的历史（手柄和位置）与刻印、回刻；分身作为第三个身体（决定、推进、受击框按身体编号，读本方 120 帧前的手柄，用本方的招式表，不能投、不用能量、不放超必杀，被对方碰到、本体被打中或时间到就消失）；停摆（额外受击硬直，每连段一次）。规则逐条测试并进全规则回滚（三平台哈希相同，回滚 8 帧约 196 ns/帧）。画面层新增旋转的投射物、分身的色调、回刻的残影、超级动画的时间停止（画面变灰、火花冻住、钟面），渲染层新增 `DisplayList::recolor`。训练模式的判定框按飞行道具的定义者查招式（反射后在 LLVM 下曾段错误）。五个设计角色全部完成。
+  - 平衡第 1 轮（[角色设计 2](2026-10-28-gongfu-characters-2-design.md) §9.5）：新包 `gongfu.ai`（从数据读出招式用途；机器人带 14 帧反应、带种子、结果确定；`versus` 逐对比赛并交换左右），`gongfu-studio versus` 输出 JSON 报告（胜率、伤害来源、回合时长）。按报告调了墨的 5HP 判定、霓和岳的血量，六人胜率在 44%–58%；格斗游戏测试里每次跑平衡门槛（每对 100 局，每人 38%–62%，每对 25%–75%，结果哈希固定），P-8 检查扩到六人并新增“连续不能行动不超过 600 帧”。
+  - 音频（D-86，R8 的第一部分）：独立组件 `modules/media/audio`（`openmui.audio`）。声音是数据（`*.sound.omui.toml`：正弦表、带限方波和锯齿波、噪声，音高和滤波截止频率按指数滑动，包络、过载、声像），声部按样本精确开始、满了让最旧的，总线带效果插件（滤波、回声）进母线限幅器，按块渲染且不分配内存，播放和渲染之间是无锁队列；DSP 只用 hanim 的数学函数、不收缩不快速数学，离线渲染在 GCC、LLVM、wasm 上逐位相同（测试固定哈希）。基准 `audio/mix-48`（48 个声部一块 128 帧约 0.045 ms，预算 0.5 ms，零分配）。插件 `openmui.audio.device`（miniaudio，经 `mcpplibs.mwrap.miniaudio`；空后端用于无头和测试）。格斗游戏接入：声音库 `sounds/fight.sound.omui.toml`（共用的击打声和每个角色自己的墨、霓虹、玻璃、山、钟声），外观的冲击配置写明三层声音，舞台按模拟的帧播放，桌面版经设备发声；测试把一段对局的声音离线渲染并固定哈希（GCC、LLVM 相同），输出 WAV。规范补充：合约属性和运行时属性同名时两边都收到（规范 §11）。
+  - mgame 核心（[S4 设计](2026-10-29-mgame-s4-breakout-design.md)，R8 的第二部分，经 codex 评审）：`mgame.world`（自写列存储：定长列、下标 + 代数、位图，按下标遍历，整块拷贝即快照，校验和是字节的哈希；Q-25 定为自写）、`mgame.sim`（定步长时钟：追帧上限、时间倍率、插值比例；`Timeline`：快照环 + 输入环，`seek` 精确到达保留范围内的任意帧，从那里继续就是新分支）、`mgame.input`（键、手柄、指针、鼠标 → 动作，每帧采样成纯数据，帧内的轻点不丢，录制是可读的文本）、`mgame.physics`（圆对盒的扫掠：四个面外推半径、四个角是圆弧，只认朝里的接触，角的根用不抵消的形式；双精度只用精确舍入的运算，三平台逐位相同）、`mgame.ui`（在运行时的时钟上按步推进游戏；openmui 的键和指针给 `mgame.input`）。S4 的模拟 `showcase/widget-breakout/sim`：挡板按相对运动碰撞、同一时刻的碰撞按下标排定并合并法线（砖缝按面弹）、每帧最多 8 次碰撞、砖块耐久和连击、胶囊（变宽、多球、慢动作、穿透）、生命；事件存在状态里（倒流不重放）；倒流 5 秒再重放逐字节相同。依赖升级：`mcpplibs.os` 0.1.2 → 0.2.2（含 Emscripten；上游 openkal-emscripten 0.6.0、os 0.2.2 由子代理发布进 mcpp-index），本地用和 CI 相同的 mcpp 2026.10.27.1 全量构建和测试。
+  - S4 第 1 关（[S4 设计](2026-10-29-mgame-s4-breakout-design.md) §6 第 3 步）：`showcase/widget-breakout` 的界面包 `openmui.showcase.widget_breakout`。场地组件 `field`（契约先行：`level`、`paused`、`lens`；事件 `brick_broke`、`level_over`；动作 `launch`、`move_to`、`release`、`pause`、`resume`、`step`、`restart`、`rewind`）的子节点就是关卡的砖块——真实的按钮、开关、滑块、卡片，由 openmui 的布局排成行；第一步按布局矩形读进模拟（换算到 1280 × 720），之后每次击中都真的改变组件（开关切换、滑块减三分之一、碎掉的砖从画面消失并在语义树里变成 hidden）。`mgame.ui` 的步进器在运行时的时钟上每秒 120 步（无头下精确）；指针、方向键、空格和鼠标经 `mgame.input` 采样，agent 用同一组动作玩。Tab 打开语义透视：每块砖的 role 和 ID、两块隐形砖（画面上透明，语义树里是按钮；看过之后保持淡色轮廓）、语义树最近的变化（也在语义值 `changes` 里给 agent 读）。倒流按模拟状态恢复每块砖。无头测试：砖块和模拟的盒子逐位一致、每秒 120 步、agent 打砖时组件和模拟始终一致、倒流 600 帧校验和与当时相同、超过 30 秒拒绝、语义透视；两帧像素在 GCC 和 LLVM 上固定。`omui-breakout` 是可执行程序。S4 的模拟改为导出 `mgame.sim`（它的 `Game` 就是时间线的游戏）。
+  - S4 第 2 关和关卡流程：场地按关卡自己组成砖块（`compose()`，换关就重新组成、重新布局、重新读进模拟），通关显示这一关的一课，Enter 或 `next` 进下一关（没球了重来）。第 2 关“风格”：每打通一行换一个风格包（glass、neon、retro、ink、liquid，交叉淡入），S 或 `next_style` 随时换；场地只发 `style` 事件，应用用 `theme::apply_style` 应用；背景、砖底、挡板、球和 HUD 都用当前风格的颜色。测试：同一个 agent 打两局，一局中途换三次风格，每帧校验和相同、砖块的语义节点相同、像素不同（两种风格的像素固定）；第 1 关打通后 Enter 进入第 2 关。
+  - S4 第 4 关“时间”：模拟加入门（`Kind::gate`：在状态里的帧窗口内不参与碰撞，不算要打的砖；整局校验和重新固定，GCC、LLVM、wasm 相同）；金库一行只能经门进入，门是真实的进度条组件（随帧填满、打开时消失并显示倒计时、之后永远关闭），按住 R 每步倒退两帧（最多 30 秒），松开从那里继续；慢动作胶囊让游戏时钟以半速走。关卡按编号查找，`next` 走到下一个已经做出的关（第 3 关以后补上）。测试：门在一半时间时进度一半、窗口内打开、之后关闭；按住 R 一秒退回约 240 帧并回到门开着的时刻，组件和模拟一致；像素固定。
+  - S4 第 5 关“智能体”：上方挡板归 agent。新分区 `:copilot`：应用里的 agent 每秒 30 次读场地的语义节点和语义树里还立着的砖，预测上升球的落点（侧墙镜面折回），偏移击球点让球弹向最近的砖，以 `agent:copilot` 的身份调用场地的新动作 `guard_to(x, seen)`，进运行时的动作日志；场地左下角列出它的动作和观察，语义值里也有；`copilot` 属性关掉就让给别的 agent。场地新事件 `level_began(number, path)` 让宿主知道哪一关开始。发现并修正：契约动作的参数按名字的字母序传给组件（`guard_to(seen, x)`），签名顺序写反时两个 `Value` 照样编译——测试抓到了。测试：脚本化玩家和 copilot 打通第 5 关、动作日志里有 copilot 的 `guard_to`、别的关拒绝 `guard_to`、像素固定。
+  - S4 第 3 关“画布”：模拟支持比一屏高的场地（`Level::height`，挡板在底部）和状态里的镜头（`State::zoom`：底边固定在挡板那一行，最高的球离开第一屏时拉远到看见它，按住 Z 拉到整面墙，每步精确缓动；整局校验和重新固定，GCC、LLVM、wasm 相同）。砖是 `openmui.ui.canvas` 场景里的 160 张便签（远处是一批方块，近处提升为真实的卡片组件，颜色自下而上渐变），场地每步把模拟的镜头交给画布，碎砖从场景里移除，倒流按模拟状态补回；挡板、球、胶囊在同一镜头下画，指针按镜头换算回场地。测试：场景和模拟一致、近处有活的卡片而按住 Z 后没有、球飞高时镜头拉远、倒流后场景恢复、两帧像素固定。
+  - S4 的声音（S4 设计 §6 第 7 步的一部分）：`sounds/breakout.sound.omui.toml`（按钮的咔嗒、开关的两声翻转、滑块的刻度、碎砖的“啵”——连击越高音越高、挡板、墙、胶囊的铃声和接住、丢球、通关琶音、发球、门开、倒流），新分区 `:sound` 按模拟的事件在它那一步的样本上播放、按场地左右声像；倒流本身无声，从那里接着玩是新分支，声音的时间只往前走。`omui-breakout` 经 `openmui.audio.device` 出声（`--quiet` 或无头时不出声）。测试：一局的声音离线渲染，哈希在 GCC 和 LLVM 上固定；倒流无声，接着玩有声。
+  - S4 第 6 关的模拟准备（codex 评审意见，作为参考）：道具的效果是状态里的 `Rules`（宽挡板的时长和半宽、多球的个数、慢动作的时长和时钟百分比、穿透的时长、掉落几率），全是有界的整数（`bounded`）；只在一步开始时由这一步的输入整体替换（`Input::new_rules`），所以回放不执行脚本、倒流回到当时的规则；砖可以带固定的道具（碎了必掉）。多球最多四个（±20°、±40°，常数按正确舍入写死）。整局校验和重新固定，GCC、LLVM、wasm 相同。
+  - S4 第 6 关“工坊”（Python 部分等 PocketPy 进 mcpp-index，子代理在做）：`gifts/wide.ts`、`gifts/pierce.ts`（TypeScript）和 `gifts/slow.lua`（Lua）随程序嵌入，每个注册动词 `gift.<名字>` 返回规则，脚本里有一个 `← tune` 参数和一笔固定预算；新分区 `:workshop` 在 openmui.lang 的脚本宿主上运行它们，应用编辑就是热重载，再问动词、逐项校验（已知字段、有限整数、在界内），否则保留旧规则并说明原因；规则经场地的新动作 `set_rules` 在下一步开始时生效。E 暂停并打开叠在场地上的工坊面板（真实的多行 `text_box`、应用、恢复原样、两个预设、状态“reloaded in N ms”）。框架改进：`openmui.lang.js::compile_typescript_source`（从编辑器的文本编译 TypeScript）；同一个会话再次注册自己的动词（重载）时换成新函数，效果或回答不同则拒绝（`lang/lua` 测试）。测试：TS 和 Lua 的重载都在 200 ms 以内且规则在下一步生效、越界和语法错误保留规则、倒流回到重载之前的规则。
+  - 作品的 README 图（维护者要求：每个作品一张有代表性的关键帧或动图，单个文件 ≤ 1 MB）：`openmui.image::encode_apng`（动画 PNG：第一帧之后只存变了的矩形，相同的帧合并为更长的一帧，不支持 APNG 的看到第一帧；测试用自己的读法逐帧放回、逐像素比较）；`Headless::record` / `save_recording`（录下若干帧写成动画 PNG）。四个作品的测试各自画出招牌镜头写进 `readme-<作品>`，提交在 `showcase/<作品>/media/`：墨的三气（907 KB）、打砖块第 1 关的语义透视（144 KB）、五个风格包（581 KB）、Markdown 墙（89 KB）。`tools/ci/readme-media.sh` 重新生成，CI（Linux GCC dev）用 `--check` 要求提交的图就是测试画的；lint 规则 `media`：仓库里的图都小于 1 MB，每个作品的 README 都有自己 media/ 里的图。格斗游戏的顶级水准另起[设计和评估](2026-10-29-fighting-indie-quality-design.md)（经 codex 评审，先做墨和霓的完整纵切）。
+  - 作品的开发故事（维护者要求：每个作品一份 `dev-story.md`，从开发角度讲怎么用框架做出来的——连同资产——并借此自省，通用的经验汇总到通用文档；分层不能为了单点方便被打乱）：四个作品的 `dev-story.md`，和 `docs/{en,zh}/best-practices.md`（按层放置、按用途选语言——每帧跑的用 C++、反复调整的内容用数据文件、需要现场调的逻辑用 TS / Lua / Python 热重载、脚本只产出数据；确定性的做法；画面由状态算出；契约先行；资产由构建检查；脚本在边界校验；有意义的像素固定；性能要测；带一张图）。自省发现、排进后续的轮：① 契约动作的参数按字母序以 `Value` 传入，签名写反照样编译（生成器改为带类型的参数或参数结构）；② 作品的包名和目录不一致（`styles` 在 `style-gallery`、`wall` 在 `markdown-wall`），lint `layout` 没覆盖作品；③ 格斗游戏的美术靠手写 TOML 的关键帧数字，是最大的瓶颈——先做 `gongfu.studio` 的图形界面（时间线、洋葱皮、姿势编辑、替换图）；④ 角色文件没有开发时的热重载；⑤ 像素固定变了时只有 PNG 可看——`openmui.testing` 加和上次接受的帧的差异图；⑥ 打砖块的模拟还没有基准；⑦ 整个画面都在动的循环（风格切换、画布缩放）要视频而不是动画 PNG（S5）。
+  - 自省 ① 解决：契约生成器给两个及以上参数的动作生成按名字的参数结构（`<Action>Args`），处理函数写 `ActResult name(ActContext&, const NameArgs& args)`，不会再取错顺序；一个参数的动作照旧。迁移了全部 6 个这样的动作（`text_box.set_selection`、`list.scroll_to`、`canvas.pan_to`、格斗的 `press`、打砖块的 `guard_to` 和 `set_rules`），基础组件的生成代码重新生成；组件绑定设计 §2.4 写明。
+  - 自省 ② 解决：作品的包名跟目录一致——`openmui.showcase.style_gallery`（`showcase/style-gallery`）、`openmui.showcase.markdown_wall`（`showcase/markdown-wall`），可执行程序的短名不变；lint 规则 `layout` 覆盖 `showcase/`（示例的编号目录是有意的，不在内）。
+  - 自省 ⑥ 解决：打砖块模拟的基准——`breakout/step`（满墙 96 块砖、平均约 13 个球，p95 0.013 ms，不分配；预算 0.1 ms）和 `breakout/seek`（倒流 0.5–30 秒，p95 0.002 ms，不分配；预算 0.25 ms）。
+  - 格斗游戏纵切第 1 步（画面基础，质量设计 §3、§9）的第一部分：`gongfu.present2d` 能画出画师要的东西——部件可以是平滑的闭合曲线（`curve`，Catmull-Rom）；部件可以有手画的替换图（`variants`），片段的 `swap.<部件>` 在关键帧换图；骨骼的二次运动（`follow`：按它在最近 `lag` 帧里摆过的角度反向滞后，有上限，只影响画面、不影响受击框，仍是片段时间的纯函数）；外观的光（`light`：每个部件背光一侧的阴影和朝光一侧的边缘光，用裁剪和平移实现、每帧不分配；部件可以 `shade = false`）。外观文件读写这些，写出的读回是它自己；错误带位置（不存在的部件、没有的替换图、缺 `lag`）。测试：曲线部件上边是边缘光、下边是阴影、中间是本色；第 8 帧换图、第 12 帧换回；挥臂时袖子滞后、停下后垂直。原有的外观和它们固定的像素不变。
+  - 纵切第 1 步第二部分：场景的美术文件 `*.stage.gongfu.toml`（gongfu.present2d 读写，写出的读回是它自己，错误带位置）：按视差分层（以场地中点为准，镜头移动时每层移动视差那么多、缩放也按视差）、可在人物前面的层、按场地单位的裁剪、横向重复；形状是多边形或曲线，可以是由上到下的渐变，随帧摆动（绕支点）和闪烁——都是帧的纯函数；生成器按种子生成形状（竹子：分节、节点、成簇的叶子、各自摆动；格子窗；地板的缝和接头）；场景定义世界的光（方向、阴影色、边缘光色），在它上面的两个人都按它打光。格斗游戏把 `stages/` 嵌入程序，名册读入，舞台组件的新属性 `arena`（空：对战时是玩家 1 的主场，训练时是原来的素室；`plain`：无），墨的主场“书斋”：深色木墙（白袍和黑夹克都清楚）、发光的格子窗和窗纸上摇动的竹影、挂轴和书架、木地板、画面边上的矮桌和笔筒。测试：图层、生成器同种子同形状、摆动随时间、写出读回、错误；书斋一帧的像素在 GCC 和 LLVM 上固定。
+  - 嵌入式 Python（子代理完成）：PocketPy 2.2.0 经子代理发布进 mcpp-index（`compat.pocketpy`、`mcpplibs.mwrap.pocketpy`，新仓库 mcpplibs/pocketpy-m，全平台 CI 绿，包括 wasm）；新成员 `lang/python/embedded`（`openmui.lang.python.embedded`）：和 Lua 一样的 `Script(Session&)`（`run`、`reload`、`on_error`、看门狗 `budget`），播放器的 `py` 语言；Python 侧的 `openmui` 模块就是宿主模式的那一个按 PocketPy 的子集重写——同一个脚本两种模式都能跑（例 03 的 `tally.py` 在嵌入模式下画出和 C++ 一样的树和像素）。构建器、信号和表达式、区域、视图、动词（含装饰器）、模型、语义树、tr、主题、原生模块；`exit()` 只结束脚本、跑飞的脚本被看门狗停下；每个脚本一个 VM，共用一把锁。重载约 1 ms。发现、排进后续：openmui.lang 的信号回声会把镜像改回旧值（连续两次写）；Lua 和 JS 的 watch 在重载后累积；Lua 的处理函数引用不释放；非法 UTF-8 让 `Json::dump` 抛异常。PocketPy 的子集限制写在 README 里。
+  - 纵切第 1 步第三部分：骨骼可以“悬挂”（`hang`：角度对世界而不是对父骨骼——衣袖、腰带的垂端、发丝），二次运动加 `drag`（按关节在滞后帧里走过的距离、包括身体自己的速度往后拖）；悬挂的布和头发从不算受击框。墨的造型换新：深色的交领、可以换色的配件槽（`trim`、`pin`、`trousers`）、袖子和腰带垂端和后摆和一缕发丝都悬挂并跟随、脸（眼、眉）和发髻上的发簪、软鞋、笔锋；按场景的光打阴影和边缘光。受击框重新烘焙；平衡门槛照样通过（墨胜率 0.53），整局哈希、墨的三气和字形的像素、书斋的像素在 GCC 和 LLVM 上重新固定；README 的动图改为每秒 12 帧（836 KB）。
+  - S4 第 6 关补上 Python：`gifts/multi.py`（多球，嵌入式 Python），工坊的四个脚本排成 2 × 2，三种语言的重载都在测试里测量（TypeScript 约 20 ms、Lua 约 3 ms、Python 约 2 ms），S4 验收“三种语言写的道具都能热重载（< 200ms）”满足。
+  - openmui.lang 的四个发现修好：① 信号回声——会话记着脚本正在送往运行时的写，运行时回来的是它自己的值就不算变化，所以连续两次写不会被第一次的回声改回去；② `Session::watch` 返回凭据、`unwatch` 放掉，Lua 和 JS 在重载时放掉上一次的 watch（不再累积）；③ Lua 的处理函数按槽位管理生命周期（重新挂载或卸载时放掉被替换的视图的），重新注册的动词放掉旧函数；④ 脚本的值转成 JSON 时非法 UTF-8 替换成 U+FFFD，不再抛异常。Lua 的测试覆盖前三条和第四条；JS、嵌入式 Python、播放器、例 03、Markdown 墙、打砖块的测试照样通过。
+  - 纵切第 1 步第四部分：霓的造型换新——推剪加一大绺品红刘海（跟随、拖曳）、高领短夹克和发光的拉链、缠手带和无指手套与发光的指节、工装裤的口袋和发光的护膝、白底运动鞋、一根耳机线（悬挂、跟随，末端发光）、眼眉和耳钉；配色加 `wrap`、`sole` 槽。受击框重新烘焙；平衡门槛照样通过（霓 0.43），整局哈希、霓的特写帧、书斋的帧在 GCC 和 LLVM 上重新固定。
+  - 格斗游戏的方向调整（维护者评 1/10，codex 按[严格评分表](2026-10-29-fighting-acceptance-rubric.md)评 2/10）：美术改为生成的图（codex 的图片生成做出了主视觉水准的墨的设定图和分件图）或画师的图，框架做分件、蒙皮、动画、演出和工具（[素材管线设计](2026-10-29-fighting-art-pipeline-design.md)）。第一块通用能力：`DisplayList::draw_mesh`——纹理网格（2D 蒙皮：一张图被骨骼弯曲），每个三角形是一个按它自己的仿射映射的图片填充、每条边向外偏移半个像素，所以两个三角形共享的边上没有裂缝；CPU 参考渲染器上，平铺的网格和直接画图逐像素相同；GPU 路径和 CPU 一致（最大差 0）。同时修好 Nightly 的泄漏：工坊的 C ABI 句柄最后释放。
+  - 发现并修正：GCC 16 在导入时对默认的友元比较运算符内部崩溃（改成显式比较）；测试里两个实参的求值顺序未指定，曾让 GCC 和 Clang 生成不同的输入（拆成两条语句）。
+  - 格斗游戏的打击手感（[硬核战斗设计](2026-10-29-fighting-hardcore-combat-design.md) §2.6 的五要素，各有验收测试）：顿帧按轻 < 中 < 重排定，反击加 2 帧、确反加 4 帧（`counter_hitstop`、`punish_hitstop`，确反伤害 `punish_damage`）；被打的一方在顿帧的每一帧都抖动、顿帧结束就停；特效按档位放大并换反击色，确反盖两次并闪白（外观可以给自己的 `fx_counter` / `fx_punish`）；镜头只在中击以上抖动，反击和确反抖得更重。整局哈希重新固定。
+  - 材质：外观的 `[material.<名字>]`（色阶、边缘软硬、阴影和轮廓光的强度与宽度）和图片的 `relief`（每块剪影向里倒圆、画暗处起褶），`openmui.image` 的 `normal_map` 在载入时用整数算出法线；渲染器的受光网格填充让法线随部件旋转和镜像，CPU 参考实现和 GPU 相差 0 级。墨两层柔和的晕染、霓硬色阶加品红轮廓光、坤干净的赛璐珞加暖轮廓光，脸和手用更暖更软的 `skin`。
+  - 手柄和 Bilibili Toy：主机经 SDL 的映射库读任意手柄（Web 上是浏览器的标准映射），六键布局写在 `controls/pad.controls.omui.json` 里可以改；两个游戏用 `dist-toy` 打包并用 Toy 自己的 `toy_doctor.py` 检查（`tools/ci/toy.sh`，CI 的 Web 行）。
+  - HUD（黑漆、金箔、朱印）：生成的图由 `gongfu-studio` 切成框、字、名字的书法和填充，`hud::versus` 画头像、带笔触纹理和红色回落的血条、架势、三格气和等级、圆章里的计时、连击和 COUNTER / PUNISH COUNTER、K.O.；全是对局的纯函数，回滚重画相同。
+  - 画出的场景：舞台文件的 `[[picture]]` 和 `[[layer.image]]`（图片区域按视差立在场地某处，可拉伸、镜像、灯笼的闪烁），`gongfu-studio stage` 带两个角色按游戏的取景预览（中间、角落、最远）；`openmui.rules` 的 `embed(.index = true)` 和 `omui-gen embed-index` 生成按文件名的表（`<tag>_files`），程序不用手写清单。三个主场各五层生成图：墨的夜里书斋（月门外的水墨山）、霓的雨夜霓虹巷、坤的蓝调时刻天台；坤的主题曲（92 BPM 的 boom-bap）。
+  - 三气重做（硬核设计 §4）：坤的三气是一次真正接触的交换——肘击、指尖转球、反弹传球打进腹部、滑步、铁山靠把人顶飞、背后接球、对手摔在身后；`gongfu.present2d` 为此加了通用能力：路径关键帧的缓动、转身、动画里被打方的顿帧、动画的残影、`held` / `launched` / `slammed` 三种被动反应（连续再要就接着演，不从头开始）、特效精灵沿弧线飞行（`to` / `lift`）。
+  - 标题和选人画面（契约先行的 `select` 组件：`phase`、`active`；事件 `chosen`；动作 `move`、`confirm`、`back`）：标题是漆金的「拳意」和对战 / 训练，选人是名册的格子、每边一面大旗里用各自外观画出的待机、书法名牌、背后是一号玩家主场的缓慢平移，双方准备好后 VS 停一下再开打；应用把选择放在信号里，舞台跟着变，回合结束 4.5 秒后回到选人。键盘、手柄和 agent 用同一个画面；像素固定。
+  - 主题曲和菜单的声音：E 小调 96 BPM 的主题曲把三个主场合在一起（墨的笛子和古筝、坤的低音和鼓、霓的宽锯齿波），强度由菜单驱动（标题安静、选人进鼓、有人准备好全上），VS 时淡出，开打后结束；回合结束时舞台的曲子进尾声，菜单和对局的音乐不重叠。菜单的提示音按主题的调定音高、按玩家左右声像。
+  - 录音：`openmui.audio` 加了 `read_wav`（8/16/24 位 PCM、32 位浮点，混成单声道）、`Mixer::add_recording` 和声音层 `wave = "recording"`（按名字播放录音，可变速和滑变，包络、滤波、失真、声像照常）。格斗游戏的播报员用 Kenney 的 CC0 播报包（开打、时间到、某某玩家、胜者、完胜、平局、选择角色）；开打的播报按对局自己的第 20 帧发出——应用设置每个属性都会重开回合，曾让同一句在同一个样本上叠了好几遍。`omui-music takes` 按静音把录音切成一段段，量出长度、峰值、RMS、音高（有声窗口的归一化自相关中位数）、有声比例和亮度（每秒过零数），供挑选；角色语音（CC0 的呻吟和发力声）就按这些数字挑出，按角色处理（墨柔、霓尖、坤低沉），重击或反击时被打方叫一声（之间留一口气）、重击的一方发力、K.O. 只有倒地声。声音单独成一组测试（`tests/sound_test.cpp`），离线逐帧渲染，哈希固定。
+  - CI：每一行用项目的 mcpp（`.xlings.json`，现为 2026.10.27.1）——只在工作流里写版本时，xlings 在项目目录里拒绝切换，每一行都没装上；新版 mcpp 能链接 Python 扩展（mcpp#846），它第一次在每一行和消毒器下运行，查出一个漏改的旧像素钉（示例 03 的计数器）。
+  - 时间线（[结构、渲染、Web 与游戏设计](2026-10-28-openmui-structure-render-web-game-design.md) §13.2a 的 T2，D-86）：独立组件 `modules/media/timeline`（`openmui.timeline`，只依赖标准库、hanim 和 toml++）。时间是整数的 flick（1/705,600,000 秒），常见的帧率（24 到 120 和 NTSC 的 1000/1001）和采样率（44.1、48、96 kHz）都整除它，编辑永不漂移；轨道按种类（画面、声音、动画、事件），片段有来源、入点、速度、电平、带缓动的淡入淡出和用 hanim 曲线打关键帧的属性，标记命名时刻；`playing` 给出某一时刻在放的片段、来源里的位置和电平（复用同一个列表）。编辑由三种步骤（插入、移除、替换片段）组成，`apply` 返回撤销它的反向修改，做不成的修改完全不做；插入、移除、波纹删除、移动（同种轨道之间）、修剪（来源跟着时间不动）、切分（后半段从前半段停下的地方接着）。文件 `*.timeline.omui.toml` 给人和 agent 读：时间写成 `90f`、`1.5s`、`250ms` 或 `123fl`，错误带行列和最近的正确写法，写出的读回是它自己。测试：帧和样本的时间精确、时间文本双向、读取和各时刻在放什么（淡入、半速、缓动的关键帧）、有位置的错误、每种编辑的撤销和重做都还原出同样的文本、被拒的编辑不留痕迹、一分钟逐帧结果的哈希（GCC、LLVM、wasm 相同）。
+  - 视频（[结构、渲染、Web 与游戏设计](2026-10-28-openmui-structure-render-web-game-design.md) §9、§13.2a 的 T3，D-86）：独立组件 `modules/media/video`（`openmui.video`，依赖 hanim、`openmui.image`、`openmui.audio`、`openmui.trace` 和 toml++）。帧管线把“呈现”换成“编码”：帧来源（`FrameSource`：内置的同步测试卡、按模式命名的 PNG 文件；视图由宿主渲染）和声轨（`openmui.audio` 的离线渲染）按帧交给编码器，第 i 帧带的样本正好是 ⌊i·rate·den/num⌋ 到下一帧之前——全是整数，24/30/60 fps 在 48 kHz 下每帧 2000/1600/800 个样本，30000/1001 下五帧正好 8008 个，永不漂移。编码器是插件（`Encoder`），内置三种、不带第三方代码（PNG 用 `openmui.image`）：PNG 序列、Y4M（BT.709、有限范围、4:2:0，16 位定点的整数转换，色度取 2×2 四个像素之和，黑 16、白 235、灰的色度正好 128）、WAV；输出可以是目录或内存，每个文件报告大小和哈希。同步测试卡：彩条和反向城垛、灰阶、每秒扫过一次的竖线（丢帧或重帧一眼可见）、时间码和帧号，每秒开始的那一帧右下角闪白，`card_track` 在同一帧的全部样本里响 1 kHz 的提示音。`*.video.omui.toml` 描述一个视频（尺寸、帧率、长度、帧来源、音乐和强度、音效按帧或按秒的提示、录音、提示音），错误带行列和最近的写法，写出的读回是它自己。命令行是 `omui video`（`tools/cli`）：`render`（Y4M 加旁边的 WAV、PNG 序列或 WAV；视图文档在 headless 宿主的时钟上一帧一步地渲染）、`still`、`check`、`probe`、`timing`，输出一个 JSON 对象和退出码。测试：十分钟内每帧的样本数精确、转换的黑白灰和三原色及往返误差、测试卡的闪白和提示音在同一帧精确到样本、Y4M 读回就是输入的帧、PNG 序列和 WAV 的长度、描述的读写和错误位置、声轨的提示落在帧的第一个样本；Y4M、PNG 序列加 WAV、声轨的哈希固定（GCC 和 wasm 相同）。WebM 插件（同一项，D-83 的上游先做）：新成员 `modules/media/video/webm`（`openmui.video.webm`），VP9（libvpx）和 Opus（libopus）由 libwebm 封装，只在 native 单元里 `import mcpplibs.mwrap.libvpx` 和 `mcpplibs.mwrap.opus`；画面按 BT.709 有限范围送进编码器并在 VP9 和 WebM 的 Colour 元素里写明（ffprobe 读出 bt709 / tv / center），第 i 帧的时间是 ⌊i·den/num⌋ 秒；声音是 48 kHz 的 20 ms 包，编码器的前瞻写成轨道的 codec delay、最后一包的填充写成 discard padding，所以播放器（包括 ffmpeg）解出的正好是送进去的样本；轨道 UID 固定，单线程时视频字节各平台相同。`decode_webm` 读回画面（带时间）和声音。`omui video render x.webm`（`--quality`、`--bitrate`、`--speed`、`--realtime`、`--lossless`、`--threads`）和 `probe x.webm`。测试：只有画面的文件逐帧 PSNR 高于 38 dB、字节固定（GCC 和 LLVM 相同）、两次相同；无损逐样本还原；带声音时在 30 和 30000/1001 fps 下样本数和送进去的完全一样、每秒的提示音仍在闪白那一帧的 1 毫秒以内、音调的信噪比约 37 dB；44.1 kHz 被拒绝。上游（mcpplibs 和 mcpp-index）：compat.libvpx 1.17.0（上游 configure 的 generic 目标编译的 101 个 C 文件，没有 SIMD，生成的配置头和 RTCD 头放在 generated_files 里，只把描述宿主系统的几行改成预处理判断；不带 pthreads 的 Emscripten 上单线程）和 compat.libwebm 1.0.0.32（mcpp-index#624）；新仓库 mcpplibs/libvpx-m（`mcpplibs.mwrap.libvpx` 1.17.0：libvpx 的类型、枚举值、上游导出的函数和 VP9 接口，86 个类型化控制函数同名适配，libwebm 的 mkvmuxer / mkvparser / libwebm 命名空间作为 `.webm` 子模块，宏映射成常量和函数；导出审计；一致性测试——用模块写的示例和上游 vpxenc 在六种设置下写出逐字节相同的 IVF，vpxdec 和 mkvparser 读出的帧相同；五个原生平台和 Web 的 CI 全绿，固定的哈希各平台相同；发布 mwrap-1.17.0）和它的索引描述（mcpp-index#627）；暂无 CN 镜像。性能还是 libvpx 的可移植 C：SIMD 和线程是以后的事（宣传片的渲染性能目标需要它们）。
+  - Web 宿主的后一半（[结构、渲染、Web 与游戏设计](2026-10-28-openmui-structure-render-web-game-design.md) §6.2、§13.2a 的 T4，D-84）：`openmui.host.web` 补上输入法、剪贴板、语义 DOM 镜像、`window.omui` 和存储。输入法用光标处一个隐藏的 textarea（以字段的名字为无障碍名称），组合事件变成 openmui 的 `PreeditEvent`（偏移按字节），结果是 `TextEvent`；手机键盘的字母和删除也从这里来；组合中的按键、死键留给页面。剪贴板记着页面最后知道的内容（粘贴、程序复制的），写入走 Async Clipboard API，回到页面时在已授权的情况下重新读；粘贴组合键是程序自己的按键，菜单粘贴当作输入的文字。语义 DOM 镜像（`DomMirror`）每批变化后把语义树同步成画布上方的隐藏元素：registry 的 ARIA 角色、名字、描述、值、状态（`aria-*`）、可聚焦节点的 `tabindex`、相对父节点的框、子节点顺序、焦点，只发和页面已有的不同的部分；状态（status）的变化在 polite live region 里读出，警告对话框在 assertive 里；读屏软件移动焦点、激活元素，回来就是焦点移动和在节点中点的一次按下。`window.omui`（snapshot / find / act / invoke / wait / capture / describe / changes / request）把页面里的 agent 接到和桌面一样的 `openmui.tree@0.1` 协议，在帧之间处理，结果是 `{exitCode, data, errors, records}` 的 Promise；它走总线，由 `openas::decide` 决定（S-11），人自己的动作不管声称是谁都拒绝（S-10）。人的在场只由页面自己的输入决定：脚本派发的事件（`isTrusted` 为假）一律不算输入（openas §2.7）。存储：新包 `openmui.native.store`，`Store` 插件接口（宿主用 `use_store` 换上自己的，没有就是内存）和契约 `store.native.omui.toml`（get / set / remove / keys，脚本经生成的绑定调用）；Web 宿主给的是 localStorage，键在 `omui/<app>/` 下，同一个源的几个作品互不干扰。测试：C++ 部分在 headless 下（镜像的首批和增量、ARIA 映射、两次运行的批次逐字节相同、`window.omui` 的请求和裁决、读屏的焦点和激活、存储）；页面一半在 node 下用一个小的模拟 DOM（`tests/js`：组合输入、手机输入、可信与不可信事件、剪贴板、镜像的增量应用、live region、Promise 的结算、localStorage 的配额和被关闭），再把 `tests/page_test.cpp` 编成 wasm 放进模拟页面里逐帧驱动，端到端检查 C++、JS 和两者之间的边界；`tools/ci/web.sh` 在 Web 行跑这三部分。
+  - 时间线组件（T2 的第二部分）：`components/timeline`（`openmui.ui.timeline`，契约先行的 `timeline_editor`）显示和编辑 `openmui.timeline` 的文档：秒的刻度尺（帧足够宽时有帧刻度）、按种类着色的轨道头、片段的名字、淡入淡出的阴影角、关键帧的小菱形、标记和播放头。人点刻度尺移动播放头、点片段选中、拖动按整帧移动（可到同种轨道）、拖边修剪、S 切分、Delete 删除（Shift 波纹）、Ctrl+Z / Ctrl+Shift+Z 撤销重做、方向键逐帧、滚轮滚动、Ctrl+滚轮按指针缩放；agent 用同一组动作（seek、select、move、trim、split、remove、undo、redo），语义值是时间线的数据。每次编辑是时间线的修改和它的精确反向，`edited` 事件带出编辑后的文档。发现并绕开：GCC 16 在测试里用指定初始化器的事件列表时内部崩溃（改用小函数构造事件）。测试：agent 看到的文档、agent 的编辑撤销和重做都还原出同样的文本、人的点击拖动修剪和按键、读不了的文档、像素固定。
+  - 撤销、事务和 dry-run（[结构、渲染、Web 与游戏设计](2026-10-28-openmui-structure-render-web-game-design.md) §9、§13.2a 的 T1，D-86；规范 S-12、S-13）：reversible 的动作由实现给出逆操作（`ActResult::undo_by`：同一节点的动作和参数，例如开关再拨一次、`set_value` 带被替换的值），运行时按作用域保存历史（窗口，或带通用属性 `undo_scope` 的节点），作用域节点在有东西可撤销 / 重做时提供 `undo` / `redo` 两个动作（效果 reversible，经 S-4、S-10、S-11 的同样检查；Ctrl/Cmd+Z、加 Shift 重做），撤销按撤销者的身份执行逆操作，重做执行逆操作自己给出的逆操作；read 动作和不给逆操作的动作不进历史，新的修改清掉可重做的；irreversible / external 的动作（包括动词）是屏障，越过它的撤销被拒绝且不改变任何东西。事务（`begin_transaction` / `commit_transaction` / `rollback_transaction`，`semantic::Tree::transaction` 按 id 执行步骤）合成一步历史，第一个失败的步骤结束它，已做的步骤按相反顺序撤回，回答带那一步的错误和退出码；事务里的 irreversible / external 动作在执行前就被拒绝。dry-run（`Invocation::dry_run`）按真实执行的检查走一遍，回答 `outcome`（run / needs-answer / refused / fails）、效果、需要的回答或错误，组件有 `preview` 时再给出能否撤销和前后的值；不留痕迹（状态、历史、日志、事件、语义版本都不变）。总线协议加 `undo`、`redo`、`history`、`transaction`，`act` / `invoke` / `undo` / `redo` / `transaction` 都接受 `dry_run`；MCP 加 `ui_undo`、`ui_transaction`，`ui_act` / `ui_invoke` 可 dry-run；`omui agent undo|redo|history|transaction` 和 `act --dry-run`。基础组件：开关、复选框（不确定状态除外）、滑块、文本框（文字和选区）给出逆操作和预览；组件模板的计数器同样。规范（子模块）加 S-12、S-13 和总线的操作，视图 schema 加 `undo_scope`，CTS 的 S 级加 `history` 场景（Lua、JS、嵌入式 Python、CPython 四个运行器同一份轨迹）。测试：view（历史、屏障、作用域、键盘、嵌套事务、dry-run 不动语义版本）、ui.base（真实组件的撤销重做、中途失败的事务撤回、dry-run 不留痕迹、屏障）、core（动词的 dry-run）、agent 协议、MCP、CLI。
+  - 官网的第一部分（[结构、渲染、Web 与游戏设计](2026-10-28-openmui-structure-render-web-game-design.md) §6.6、§13.2a 的 T5，D-84）：新成员 `site/`（`openmui.site`）。站点是 openmui 程序（深色主题），内容是几个“地方”：首页（`site/content`）、框架的文档（`docs/en`、`docs/zh` 的特性和实践，`ui.markdown` 渲染）和一件可用的作品（时间线编辑器，带自己的撤销历史）。镜头有四档：像素、语义树线框（契约先行的 `lens` 组件，每个节点画框和角色，可改的节点用琥珀色）、agent 收到的 JSON、测试会写的断言，都来自同一棵树；切换后只在树变了时重读（`semantic_revision`）。页脚是首页语义树的哈希（id、角色、名字、值、状态，不含框），和 CI 固定的值对照；窄窗口下哈希不变。中英切换不改 id。哈希路由就是程序参数（`#/zh/timeline` 即 `--zh --timeline`）。地方切换用 `display: none` 移出布局并保留状态。构建：`tools/ci/site.sh` 先用 dist-toy（不带 Toy SDK）打包 wasm，再用本机程序 `omui-site --prerender` 把每个地方写成静态 HTML（Markdown 经 `to_html`，和 md4c-html 逐字节相同），放进 `<main id="omui-static">`，用程序自己的字体，程序启动后隐藏；`.github/workflows/pages.yml` 发布到 Pages（环境允许的分支才部署，否则运行仍是绿的）。生成器：类型为 `any` 的属性在 C++ 里是 `Value`（以前错当成字符串）。测试：每个地方、两种语言、镜头的四种渲染、固定的树哈希、时间线的编辑和撤销、五张画面的像素哈希、静态页和注入；本机 Chromium（headless）里运行打包好的站点，树哈希和 CI 的一致，哈希路由和静态页都正确。
+  - 官网的 agent 面板和链接（T5b 的一部分，§6.6 的“agent 面板”）：页面上有一个按脚本行动的 agent（`site/src/guide.*`），它的每一步都是真实的 `openmui.tree@0.1` 请求，经 `agent::Protocol`（remote）发出，和 `omui mcp`、`window.omui` 走同一条路，所以每一步都由 openas 决定：读页面、切换地方、编辑时间线并撤销都直接运行；打开外部链接先问人（退出码 2），人在面板里回答“这一次”（带上 answer 再发）、“本次访问”（授予一个 openas grant）或“不”；回答按钮标为人自己的（`person`），agent 去按会被拒绝（S-10）；收回后再请求又会先问。运行时新增 `Runtime::open_url`（只允许 http、https、mailto，每次请求都记下）：桌面宿主用 `SDL_OpenURL`，Web 宿主在人的瞬时激活内开新标签页、否则在本页打开（`omuiPage.openUrl`，模拟 DOM 下有测试）。文档里指向别的文档的链接切换到对应地方，其余交给宿主。树哈希改为不含随窗口变化的内容（滚动范围、offscreen、悬停、按下、动画中），由插在帧管线 paint 之后的 `openmui.site.tree_watch` 阶段在树变化时重读；本机 Chromium 里 820×640、1280×800、1600×1000 三种窗口的哈希都和 CI 的一致。镜头切换时淡入。
+  - 切换语言时的字形过渡（T5b，§6.6 的“排版”）：字形动画（D-68）现在作用于节点的整棵子树——节点和它的后代画出的字形一起动，每个后代的文字算一个段落（字素、词、行按段落计数，元素按段落再按阅读顺序排），自己有字形动画的后代保留自己的；所以给整个 Markdown 文档加一个动画，组件不用做任何事。`glyph_frame` 多了每条命令所属段落的参数（不传时和以前一样）。官网切换语言时，标签的字母聚拢成另一种语言，文档逐行升起；树从第一帧起就是另一种语言的，停下来后像素和直接用那种语言打开的页面完全相同（测试）。
+  - WebGPU 后端（[结构、渲染、Web 与游戏设计](2026-10-28-openmui-structure-render-web-game-design.md) §4.1、§6.3、§13.2a 的 T6 前半，D-81、D-84）：新成员 `modules/gfx/rhi/webgpu`（`openmui.rhi.webgpu`），在页面的 WebGPU 上实现 `omui.rhi`，是 Web 的主路径。设备在程序加载时就向页面要（run dependency：拿到设备或确知没有之后 `main()` 才开始），所以 `create()` 是同步的；页面一半是 `src/js/omui_webgpu.js`（Emscripten 库，由 `build.mcpp` 交给链接），不用 emdawnwebgpu（它要联网下载，而且等待要靠挂起）。每个资源一次调用，每次提交也只一次：rhi 新增的 `openmui.rhi:wire` 把校验过的命令列表编成 32 位字（命令的种类和长度、字段、负载按它在内存里的地址），页面把它变成一个 command encoder——所有上传先写进一个暂存缓冲再按列表顺序复制（纹理行按 256 字节对齐），uniform 在另一个缓冲里按 256 字节的偏移，draw 或 dispatch 发现绑定变了才建 bind group；管线用 WebGPU 的 `"auto"` 布局。WebGPU 做不到的在进页面之前就拒绝：缓冲按 4 字节写（上传的起止不对齐又不是缓冲的结尾时 `Errc::unsupported`，指明命令），多重采样只有 4，深度和模板要适配器有 `depth32float-stencil8`。等待和回读在 WebGPU 里是异步的：程序链接成能挂起（`-sASYNCIFY`）时 `wait()` 等队列、`read()` 回读；否则 `wait()` 立刻返回（提交时数据已复制、队列按序执行，调用方看不到区别），`read()` 回答 `Errc::unsupported`。JSPI 不行：它把异常的 `invoke_*` 导入都变成可挂起的，静态构造函数里一进 `try` 块就失败（已用十行程序复现）。WebGPU 异步报告的错误由下一次 submit、wait 或 read 说出。`present()` 把帧画到配置好的 canvas 上（同尺寸逐像素，缩放时线性过滤）。着色器：`openmui.shader` 新增 WGSL 输出，`formats_for("emscripten")` 是 WGSL；Slang 把 `Sampler2D` 拆成纹理和采样器两个绑定且互相重叠，改写成每个阶段只读组里第 *i* 个纹理在 2*i*、它的采样器在 2*i*+1，之后是存储纹理和缓冲；可读写存储纹理必须写明格式（没写的拒绝并给出要写的属性，CTS 和 render.vector 的 pixelate 补上了 `[format("rgba8")]`），只写的声明成 write-only；Slang 写出的两种不合法 WGSL 也修正了（`precise var`，非输入输出结构成员上的 `@interpolate`）——这是在浏览器里编译 render.vector 全部 23 个入口时发现的（17 个被拒）。rhi、rhi.cts、rhi.webgpu 声明了 `platforms`，进入 Web 行。测试：rhi 的 wire 编码；着色器的 WGSL 绑定、只写存储、修正和拒绝；`tests/js/webgpu.test.mjs` 在 node 下用记录调用的假 WebGPU 测页面一半（枚举和 wire 的操作码与 C++ 源码一致、加载时要设备、资源和管线的描述、提交的复制/pass/bind group 顺序、能否挂起时的等待和回读、错误和设备丢失、呈现）；新的 `tools/ci/browser.sh`（`browser.mjs` 在 localhost 上服务程序，读回它的输出）在 headless Chromium 156 里用真的 WebGPU（SwiftShader）跑 `webgpu_test`：rhi.cts 的 18 个用例全部通过，再用浏览器编译 Web 构建写出的每个 WGSL 入口；Web 行找到 Chromium 时自动运行它（`OMUI_CHROME`、Playwright 的 headless shell，或 PATH 上的 chrome-headless-shell / google-chrome / chromium；GitHub 的 ubuntu 运行器自带 google-chrome，本机的 headless shell 和完整 Chromium 的新 headless 模式都拿到了 SwiftShader 的适配器），找不到时说明跳过，`OMUI_REQUIRE_BROWSER=1` 时算失败。
+  - 官网是一块无限画布（T5b，§6.6 的“网站是一块无限画布”）：每个地方是 `openmui.ui.canvas` 上的一扇窗（`site/src/atlas.*`），窗和视图一样大，所以读的时候是 1 倍缩放，和普通页面一样；“全景”让镜头退出来看到所有地方，点侧栏、文档里的链接或窗本身，镜头先退出再飞进去；远处的窗是离屏画好的纹理，近到能读时变成活的组件；镜头位置是场景的命名视图，agent 和人一样用 `camera_preset` 移动它；视图大小变化时窗跟着变（同一个帧管线阶段）。agent 面板的任务改成先 `wait` 目标节点出现再操作（真实 agent 的做法），协议的延迟回答由面板轮询。修正画布的一个缺陷：以 `start` 的命名视图开始时，活节点按起始前的镜头放置（组合了还没建成时镜头又动了），现在会按当前镜头重新组合（`canvas_test` 有复现）。新增 `tools/ci/drive-page.mjs`：用真实浏览器（无头 Chromium、真实时间，经 DevTools 协议）加载页面、经 `window.omui` 操作并截图——无头 shell 的虚拟时间不跑动画帧，按帧驱动的程序在那里会停住，之前的检查因此被误导；在真实时间下全景的四个纹理、哈希路由、页面 agent 发起的飞行都正确。
+  - 官网上可运行的作品（T5b，§6.6 的“可运行的作品”）：画布上新增两个地方。“文档墙”是 S1 的小型版：官网自己的中英文文档加上基准测试的合成文档，在一块自己的画布上（选择、拖动、吸附、小地图、分组拖动、命名视图），近处是活的；“示例 01”是最短的 openmui 程序 `examples/01-hello-im` 原样运行在一个框里，旁边是它自己的源码（示例新增库目标，`build.mcpp` 把源码嵌入为 `hello::hello_source`），人和 agent 都能在里面输入、点击（测试按角色找到输入框）。官网因此注册基础组件（示例的立即模式控件按名字找它们）。修正官网析构时的生命周期问题：全局场景的种类回调改为持有 `weak_ptr`，析构时等线程池空闲、丢弃自己的场景；全景里地方的标签按文字和字号缓存（之前只按文字，飞行途中第一次画的字号会一直留着）。
+  - 构建插件按功能拆包（D-73，渐进式设计 §4）：原来挤在 `mcpp/rules` 一个包里的能力拆成 `mcpp/` 下各自独立的构建插件，每个包的 `build.mcpp` 只引入自己的场景需要的：`openmui.build.contracts`（契约和 native 模块 → C++ 分区、builder、stub、schema）、`openmui.build.embed`（数据文件嵌入程序；`themes()`、`behaviors()` 改成 `embed()` 加各自的目录、后缀和标签，不再各写一遍）、`openmui.build.toy`（dist-toy 打包格式），共用基础 `openmui.build.plan`（edge、`submit`、生成器、扫描文件、UTF-8 路径文本）；每个插件 `.cppm` 声明、`.cpp` 实现，C++ 命名空间统一为 `openmui::build`。不设伞包：仓库里 15 个包和三个模板都改为只依赖自己用到的插件。测试拆成 `tests/plugins/contracts`（原 `tests/rules`）和新的 `tests/plugins/embed`（一个标签的文件和它的总表、带 `-` 和 `.` 的文件名、UTF-8、主题和行为）；lint 的 `layout` 规则现在也检查 `mcpp/`。
+  - 官网页面底部的时间轴（T5b，§6.6 的“时间轴”，D-60）：页脚是这一页最近 20 秒的时间条（官网自己的组件 `timebar`，契约先行，角色 slider，直接按属性绘制、自己没有动画，所以拖动页面时间时它不跟着动），到达的地方、切换的语言、切换的镜头标在发生的时刻；往回拖（人拖，或 agent 经总线 `set_value`），页面就画成当时的样子，可以正放、倒放（每帧往回 seek，因为时间速率不能为负），“实时”回到现在；回去的只是画面，语义树仍是现在的。框架补上缺口：组件多了可选的 `retimed(t)` 钩子，运行时在 seek、step、暂停、继续和放开时间控制时调用它，自己做动画的组件据此画出那一刻（`Services::time_paused` 让它暂停时不要帧）；画布保存镜头最近 30 秒的轨迹（停在哪里、怎样移动），seek 回去时镜头就在当时的位置，落在静止处时活节点立刻放上（时间跳转不算移动）。测试：`view_test` 检查钩子在 seek、step、暂停、继续、放开时被调用；`canvas_test` 检查飞行前、飞行中（与当时那一帧的镜头完全相同）、飞行后，暂停时镜头不动也不要帧，放开后从那里走新的轨迹；`site_test` 检查 agent 把时间拖回飞行之前时视图的像素和当时完全相同、实时、倒放到起点、正放回到实时，固定像素里加入拖回切换语言途中的一帧。像素固定测试现在逐张打印哈希，平台之间不同时能看出是哪一张。待做：链接下划线这类装饰不随字形动画移动（段落把它画成单独的矩形），需要让装饰跟随所属的字形段。
+  - 官网的格斗出招表（T5b，§6.6 的“可运行的作品”：格斗游戏的出招表，对玩家是真实的帧数据查询站）：`gongfu.training` 新增 `frame_data`（发生、持续、收招、总帧数、伤害、削血来自数据；命中和被防的帧差由游戏实际出招测得——对着同一角色的木桩，先站着、再防御（下段就蹲防），从刚好够得着的距离出；防御从出招前就开始，所以被防不会变成 deflect）和 `demo`（测量所用的同一个开局：招式开始时的对局、攻击方每帧的输入、木桩的防御），够得着的距离先按 8 帧粗找、再按 2 帧细找；空中技、投技、没有打击的招式列出但不测。格斗作品的训练场新增招式演示（`demo`、`demo_guard` 属性，`demo_frame` 动作），反复演示、可以停在任意一帧；测试检查训练场显示的发生和帧差就是 `frame_data` 列出的值（型的 5LP、2LK、5HP，命中和被防）。官网新增“出招表”这个地方：每个角色的招式表（`dynamic` 按角色、选中的招式重建），选中的招式在游戏自己的训练场上演示，可以切换命中/被防、逐帧拖动，右侧用文字写出招式的种类和段位、伤害、取消、无敌；静态页面带上全部角色的帧数据表（没有 JavaScript 的读者和搜索引擎）。测试：表格每行等于实测值，agent 选中 5HP、切到被防、把帧拖到发生帧，训练场显示的就是这一帧；固定像素加入出招表。官网因此依赖整个格斗作品（页面多约 9 MB：舞台、音乐、语音也一起带上），待做：把训练场需要的内容和作品的其余部分拆开，或按需加载资源。
+  - 立即模式生成的 id 与源码所在目录无关：之前 id 由调用处的 `file_name()`（编译器拿到的绝对路径）、行、列哈希而来，所以同一个程序在不同机器上 id 不同，语义树哈希也不同（CI 上官网“示例 01”页脚的树哈希因此各平台不同）；现在只用文件名本身（后来又去掉了列号，见下面“各平台、各编译器一致”一条）。`view_test` 固定这条规则。
+  - 官网时间轴旁边与 CI 对照的逐帧哈希（T5b，§6.6 的“时间轴”）：参考回放（`site/src/reference.*`）——一段固定的脚本（0.5 秒飞到“特性”、2.7 秒切到中文、4.6 秒切到树镜头，共 5.9 秒），在它自己的 headless 宿主上按 CI 的尺寸（1280×800）、只用程序自带的三种字体（Inter、Noto Sans SC、JetBrains Mono）、单线程光栅、完整帧（`complete_frames`）播放，每 60 fps 一步，每秒取 10 帧，对 RGBA 字节做 FNV-1a。CI 固定的表是数据文件 `site/reference/ci.frames.omui.json`（嵌入程序，`files::ci_frames`），`site_test` 逐帧生成并对照，不同就写出新表供查看后固定。页面底部的“对照 CI”打开一个面板：在你的浏览器里离屏重放到选中的一帧，画出这一帧，写出它的哈希、CI 的哈希和结论。重放放在帧管线 paint 之后的阶段里做，而不在事件处理里：在处理函数里驱动另一个运行时，它的效果要等页面这一批结束才运行，画出的帧就不是新鲜重放的那一帧（测试发现：面板的哈希和单独重放的不同）。测试：任意一帧从头再放一次相同、大多数帧彼此不同、表格逐帧固定；agent 在面板里选第 9 帧，本机的哈希等于单独重放的、等于 CI 的，结论是“✓”。
+  - 官网像素在各平台、各编译器一致（CI 每行保留的图和 wasm 下跑同一个测试找出的三个问题，都不是浮点）：出招表的列宽数组被一个按引用捕获的 lambda 带进 `dynamic`，函数返回后成了悬空引用（本机碰巧读到旧值，wasm 读到垃圾，整张表挤成一列），改为静态常量；立即模式生成的 id 去掉列号——同一个调用 GCC 和 Clang 报的列不同（GCC 和 LLVM 各一套树哈希，页脚宽度跟着变，时间轴的标记也跟着移），现在是文件名和行号，同一行同类型的第二个调用按顺序加 `.1`（`view_test` 固定）；S1 墙的合成文档在一个表达式里多次取随机数（函数参数、`+` 的操作数），求值顺序由编译器决定，GCC 和 Clang 生成的标题和正文不同，改为每次取数一条语句（宣传片的墙那一章因此和 LLVM 那几行原来画的一样，固定值随之更新；Windows 上的 Clang 用 MSVC 的约定从右往左求值，所以之前和 GCC 一样）；页面底部的时间轴在“实时”状态下的右端是“画它的那一刻”，而它什么时候被重画取决于别的东西（纹理到达、树哈希变化），各平台不同，标记的位置跟着缩放——现在右端是它的 `end` 属性，由官网在帧管线里每过一整秒推进一次（标记也推进到它的时刻），画出来只取决于属性，空闲的页面仍然空闲。另外：文字的装饰跟着字形动画走——字形动画只改了字形，下划线、删除线、行内代码的底色留在原处（切换语言时字已经飞走、底色还在），现在运行时把画在一段文字下面、不高于一行的填充按那些字形的平均位移和平均不透明度移动（`DisplayList::move_fill`，`view_test` 固定）；`dist_toy` 只由被打包的包执行（`openmui.build.plan` 的 `is_packed()`，看打包的暂存目录名；mcpp 给 workspace 的每个成员一张以它自己为根的依赖图，所以图分辨不出），官网依赖格斗作品后 Pages 的打包因此失败过。Web 行（`tools/ci/web.sh`）也在 wasm 下跑官网的测试：浏览器运行的就是它，固定的图和参考回放要在那里成立。
+  - 主题作用域（D-89）和官网的风格工坊（T5b 的最后一项，§6.6 的“可运行的作品”）：`openmui.view` 新增主题作用域——`Runtime::set_scope(名字, 主题, 效果规则)`、`remove_scope`、`scope_theme`、`theme_of(节点)`，节点的 `theme_scope` 属性加入作用域，子孙和它打开的覆盖层随之加入，最近的作用域整体生效（主题和规则替换，不合并），没注册的名字留在父节点的作用域；属性里的长度、颜色、阴影、遮罩、焦点环按节点所在的作用域解析，组件的每个钩子（测量、绘制、事件、动作、语义、组合、属性变化、retimed、laid_out）经 `Services::theme()` 拿到自己作用域的主题；"window" 规则作用于加入作用域的节点；`crossfade(时长, 作用域)` 只淡入那块区域。`openmui.theme` 的 `apply_style(运行时, 名字, 作用域)`。S2 工坊可以嵌入别的程序（`Studio::scope`、`styles::view`、`styles::add_verbs`；页面里没有导出），窄的时候仪表盘换到设置下面、面板在壁纸上滚动（独立窗口里的像素不变）。官网新增“风格工坊”这个地方：风格包只作用于它，网站保持自己的主题，agent 用 `styles.show` 切换。方案经 codex 评审（同样选作用域，不选嵌入另一个运行时），它提出的坑都有对应：覆盖层跟随打开它的节点、整体替换不合并、"window" 指作用域的节点、`frame.cpp` 里读全局主题的地方都改成节点的。测试：`view_test` 两个作用域测试（间距和颜色只在作用域里、钩子拿到作用域的主题、再设一次重新着色、运行时主题只改其余部分、移除后恢复；作用域自己的效果规则、"window" 规则落在加入的节点上、交叉淡入不碰作用域外的像素）；`styles_test` 在深色页面里作为作用域（和独立窗口里同一个风格包的像素逐个相差不超过一级——玻璃的磨砂颗粒跟着屏幕坐标走——agent 切换后页面颜色不变、下拉菜单在风格包的主题里）；`site_test` 风格工坊这个地方（agent 切换、网站的顶栏不变、语义树在每个风格包下相同、改圆角立即生效），固定像素加入工坊。
+  - 宣传片记下的那个竞争（几个播放器同时画、每个又分带并行时，磁带的 `chromatic` 效果层偶尔差两个像素）已经不再出现：强制分带后整部片子由 8 个播放器画了 6 遍，每遍 3600 帧的哈希都和单个播放器的一样（机器上同时还在构建），磁带那一段 16 遍也一样。很可能就是同一轮修掉的任务池问题——`Tasks::parallel_for` 等的那个 taskflow 还在被执行器拆除，几个线程同时画时写坏了调用者的栈，而效果的分带运行正经过它。光栅分带有了自己的并发测试（`render.effects`：六个渲染器同时各自分带，chromatic 层里的图片、模糊、溶解，每帧都是单线程的字节）。`--workers` 大于 1 时每帧仍在一个带里画，原因改为速度：360 帧 20.4 秒，加上分带 23.3 秒。官网的页面变轻：格斗作品新增默认特性 `arenas`（舞台和它们的分层、音乐、播报员），不开时这些表为空（`openmui.build.embed` 的 `left_out`：只生成空的索引表，代码照常编译；`omui-gen embed-index` 允许空表），训练场的纯色房间不需要它们；官网以 `default-features = false` 依赖格斗作品：打包后的 wasm 从 18.7 MB 降到 14.3 MB（gzip 后 11.3 MB → 7.1 MB，其间还加入了风格工坊），本机 Chromium 里工坊和出招表照常运行。S2 工坊的编辑器可以滚动（霓虹的三个效果有十五个参数，之前在窗口下方被截掉），工坊、官网、宣传片的固定值和 README 图随之更新。
+  - `host.web` 在 GPU 上画（T6 之后的一项，§6.3）：`WebOptions::renderer` 和桌面宿主同一个策略——`automatic` 只用硬件 GPU（先不带画布问一次设备，软件适配器（SwiftShader、llvmpipe）当作没有，画布不会留下一个不用的上下文），WebGPU 优先、WebGL2 其次，否则 CPU；`gpu`、`webgpu`、`webgl` 坚持要。每帧由 GPU 渲染器整帧画进和画布一样大的纹理，画布的后备存储设成帧的大小后 present；`renderer()` 说明谁在画，`read_frame()` 读回刚显示的帧。`AppSpec::renderer`（"automatic" / "cpu" / "gpu"，`--gpu` / `--cpu` 覆盖）在桌面和网页上都生效，官网设为 "cpu"：它的首页说像素在每台机器上逐位相同，“和 CI 对照”也以此为准。用真实应用检查时发现并修正两处：自动模式先在画布上建了设备再因为是软件适配器放弃，画布已被占用，CPU 的 2D 上下文拿不到而抛异常（现在先不带画布探测；页面的 CPU present 遇到别的上下文只提示一次）；GPU present 前没有设置画布的后备存储大小，画面被缩到 300×150 再放大而模糊。测试：`host.web.drawing`——没有页面时 CPU 画；Chromium 里 WebGPU 和 WebGL2 各画一页（方框、边框、中英文字、图片），和 CPU 参考相比最大差 4 级、76 800 个像素里 64 个差一级以上（圆角），文字确实画出来了（预加载字体：`browser.mjs` 新增 `--preload 目录:/目标`）。无头 Chromium 的 SwiftShader 因版本和机器而异：有的在 WebGPU 设备 present 到画布后把它销毁，除非 Vulkan 也用 SwiftShader（那样 ANGLE 的 WebGL2 读回又不对），有的在这些开关下根本不给 WebGPU 适配器（CI 的就是这样）：WebGPU 那次先用默认开关、不行再用 Vulkan 的（`tools/ci/browser.sh`），测试本身不变。格斗作品的 Toy 包在 GPU 路径上（`#/gpu/training`）画面清晰、和 CPU 的一致。
+  - 通用工具收进 `modules/base`（维护者的要求：一个概念一个实现，避免重复代码）：新包 `modules/base/hash`（`openmui.hash`，只依赖标准库，base 层的最底层）——FNV-1a 64 位和 32 位，`Fnv1a` 按字节（`byte`、`bytes`、`text`、`str` 带长度、`u64`/`i64`/`f64`/`f32` 和 `le` 按小端字节）、`word`（整个值一次乘法折进去：内存里的键和累计校验，不是它字节的 FNV-1a）、`object`（对象自己的字节）、`hex`，FNV 自己的参考向量在编译期 `static_assert` 并在测试里逐项手算对照。全仓库各自写的 FNV-1a（显示列表、表面、阻尼带、混音、视频文件、立即模式 id、Markdown 块和缓存键、mgame 世界和打砖块的校验、Python 入口、dist-toy 的内容哈希、inspector、作品里的键和颜色……）改用它，`openmui.testing` 的 `Hash` 就是它；每个成员的测试和固定哈希一个不变，证明替换逐位等价。lint 的 layering 加上 hash 这一层（testing 只依赖它）。下一步：D-87 的 `openmui.math` 第一版（`det` 从 `hanim::dm` 移来、`random`、`curve`、`vec`）和各处 splitmix / `unit()` 的迁移，以及 lint 规则 `hash`、`math`。
+  - 宣传片改了以后只重做受影响的部分（T7 剩下的一项，§12.6 的四层缓存里的第一、三、四层，D-54）：每一帧有一个“它依赖什么”的摘要（`promo:cache` 的 `Digests`）——程序自己的字节（镜头的代码、带的字体和图）和播放选项、镜头读的文件（时间线和字幕除外，它们逐帧算）、这一帧显示的片段（时间线文件写出的完整定义）和片段里的位置、回放的那一帧自己的摘要、这一帧的字幕、叠加层从整部片子读的东西。`openmui.video.webm` 新增 `encode_webm_chunked`：按 GOP 对齐的块（默认 2 秒），每块以关键帧开头、由自己的 VP9 编码器单独编码，按键（块里各帧的摘要加格式和选项）存进目录；找到的块直接拷贝、它的帧不画，其余的画出、编码、整块写入（先写 .part 再改名），`at_once` 个块同时进行、画的线程在这些块之间分；无论找到多少块、同时编码多少块，文件的字节都一样；声音每次整轨编码。`omui-promo render --cache DIR [--chunk N]`。实测（共享的 32 核机器，只用 CPU）：整部片子冷启动，8 块同时、VP9 实时模式 speed 8：61 秒（单线程编码器，字节各处相同）；改一行字幕（墙那一章）后 30 块里重画 3 块，10 秒（主要是墙的画面）；什么都没改 2 秒，全部命中；15 秒短片在 libvpx 的默认质量下分块编码 72 秒（一条流 307 秒）。测试：分块——第一次全画、第二次一块不画且文件相同、改一块只重画它且和从头编码的文件相同、三块同时编码字节相同；摘要——同样输入同样摘要、换程序每帧都变、改一行字幕正好是它出现的 324 帧变。§12.6 改一个镜头 ≤ 3 秒的指标要靠 GPU 渲染和硬件编码，这台机器上没法达到；第二层（静态子树的光栅缓存）和预览热重载还没做。lint 规则 `hash`：`modules/base/hash` 以外不再出现 FNV-1a 的常数（自检里有它）。
+  - D-87 的 `openmui.math` 第一版（`modules/base/math`，只依赖标准库，按 math-fighter 设计 §3.1 “有使用者才加”）：`:det` 从 `hanim:math` 原样移来（fdlibm 的 exp、log、sin、cos、atan、atan2、cbrt、pow 和 sqrt、abs、clamp、mix、π，只用五种正确舍入的运算，不融合乘加），`hanim::dm` 现在是它的命名空间别名，259 处调用不用改；`:random` 是 splitmix64——`golden`、终结函数 `finalize`、`mix64`（某个状态下的输出：从键取数，不要流）、流 `SplitMix64`、`unit24`/`unit53`（取高位到 [0, 1)），Vigna 的参考序列在编译期和测试里对照；`det` 在一组输入上的位固定（GCC、LLVM、wasm 相同）。各处自己写的 splitmix 改用它：测试里的生成器（expr、viewdoc、Markdown 流、hanim 的三个测试）、打砖块的模拟、格斗的造型生成、效果的 `hash01`、字形动画的抖动、音序器的噪声、打砖块的特效、格斗的火花散布——这些逐位等价，固定的像素不变；格斗里另有一种少了第一步移位的弱变体（云、火花的 `unit`、裂纹），有意换成 `mix64`，画面上只是这些粒子的位置变了，看过图后更新了固定值。lint 规则 `math`：`modules/base/math` 以外不再出现 splitmix 终结函数和 fdlibm 的常数；`determinism` 的提示改为指向 `openmui.math`；AGENTS.md 里 hanim 的依赖规则随 D-87 改为“标准库和 openmui.math”。`curve`（Catmull-Rom 的三份写法形式不同：求点和化成三次贝塞尔）和 `vec`（要和 `openmui.geom` 一起设计）留到迁移它们的那一轮。
+  - WebGL2 后端（[结构、渲染、Web 与游戏设计](2026-10-28-openmui-structure-render-web-game-design.md) §6.3、§13.2a 的 T6 后半，D-84；定了 Q-21）：新成员 `modules/gfx/rhi/webgl`（`openmui.rhi.webgl`），在页面的 WebGL2 上实现 `omui.rhi`，是 Web 的兼容路径（B 站 WebView 不一定有 WebGPU，Q-22）。上下文随设备一起建：`Options::canvas` 指定的 canvas（`present()` 画到它上面），否则是页面自己的一个不显示的 canvas；WebGL2 全是同步的，所以 `wait()` 无事可等、`read()` 在任何程序里都能回读。和 WebGPU 一样每个资源一次调用、每次提交一次调用（同样的 `openmui.rhi:wire`；管线的状态也编成 wire 的字，两个后端共用），GL 的状态在页面一侧维护：每个（颜色目标、深度目标）一个 framebuffer，pass 开始时关掉 scissor 再清除；管线的 program、混合和深度状态随 set_pipeline 设置；draw 发现绑定变了才重新指向顶点属性——WebGL2 没有 base vertex 和 base instance，draw 的顶点偏移和起始实例挪进属性指针；片段阶段第 *i* 个采样器在纹理单元 *i*、顶点阶段的在 16+*i*；uniform 每次提交写一次进一个缓冲，按上下文的偏移对齐，按范围绑定（顶点阶段第 *i* 个在绑定点 *i*，片段阶段的在 4+*i*），覆盖 program 声明的块大小。WebGL2 没有的在前面就拒绝：没有 compute（`Caps::compute` 为假）、没有存储纹理和缓冲、一个缓冲不能既是索引又是别的；多重采样目标是 renderbuffer，pass 结束时 blit 解析；bgra8 底下是 RGBA8，跨边界（上传、回读）时交换字节。rhi 的纹理行是从上往下的，GL 的从下往上：着色器在顶点阶段最后把 y 翻过来，于是 GL 的第 0 行也是顶上，视口和 scissor 原样用，只有 `present()` 翻转。着色器（Q-21）：Slang 没有 GLSL ES 的 profile，`openmui.shader` 把 Slang 的 Vulkan GLSL 改写成 GLSL ES 3.00——ES 3.00 不按编号绑定，资源按 rhi 的槽位命名（`omui_fs_sampler0`、块 `omui_vs_uniform0`），阶段之间按名字匹配，location *n* 的变量叫 `omui_v<n>`；Vulkan 的绘制参数换成 `gl_VertexID`、`gl_InstanceID` 加后端设置的 uniform `omui_base`；去掉 `precise`，GLSL 保留的名字（Slang 给变量 `gl` 起的 `gl_0`）改名；compute 和用到存储的入口不出 ESSL；`formats_for("emscripten")` 是 WGSL 和 ESSL。不需要 SPIRV-Cross。rhi.cts：没有 compute 的设备在 `compute` 用例里检查它拒绝 compute 管线（`unsupported`），新增 `firsts`（从第几个顶点、第几个实例画起），在 lavapipe、WebGPU、WebGL2 上都通过。发现并修正：建 framebuffer 会同时绑定读和写，先绑源再建目标的 framebuffer 让 blit 读到了自己（CTS 的 `ordering` 发现）。测试：rhi 的管线字；着色器的 ESSL（槽位和 location 的名字、绘制参数、裁剪空间、去掉的东西，有 glslang 时逐个验证，render.vector 和 CTS 的 28 个入口本机全部通过 glslang ES 3.00）；`tests/js/webgl.test.mjs` 在 node 下用记录调用的假 WebGL2 测页面一半；`tools/ci/browser.sh` 在 headless Chromium 156 里用真的 WebGL2（ANGLE 上的 SwiftShader）跑 `webgl_test`：rhi.cts 的 19 个用例全部通过（compute 是检查过的拒绝），WebGPU 的也是；浏览器编译 Web 构建写出的每个 WGSL 和 ESSL 入口，并把同一文件的顶点和片段 ESSL 链接起来（`tools/ci/shaders.mjs`，取代 `wgsl.mjs`）。
+  - S5 宣传片（[promo-video](2026-10-26-openmui-promo-video-design.md)，[结构、渲染、Web 与游戏设计](2026-10-28-openmui-structure-render-web-game-design.md) §13.2a 的 T7，D-51）：新成员 `showcase/promo-video`（`openmui.showcase.promo_video`，程序 `omui-promo`）。片子是数据：`promo.timeline.omui.toml`（60 秒）和 `short.timeline.omui.toml`（15 秒）——画面轨的片段是 `shot:<名字>`（一个镜头的实时场景，关键帧属性是它的镜头和编排）或 `film`（片子自己的帧，按速度回放：倒带是 −5 倍）、字幕轨（`line:<id>`，`promo.subtitles.omui.toml` 中英双语）、两段配乐、音效提示、`chapter:` 和 `hit:` 标记；配乐 `music/promo.music.omui.toml`（120 拍、一章一段）、音效 `sounds/promo.sound.omui.toml`、视觉语言是一个风格包 `blueprint.style.omui.toml`，全部嵌进程序（`openmui.build.embed`），`--dir` 读改过的副本。七个镜头都是真实场景：钩子和标题（风格工坊的设置面板，按对象 ID 和语义树读出那个像素是谁画的；拉远，语义树长出来，树的线段飞成字标的轮廓，一道 wipe 套 wipe 的光扫过）、代码（计数器的 TS、C++、Python、Lua 四个版本各在自己的运行时里真跑，树和像素的哈希四次相同）、无限（S1 的墙，一千个文档，一镜到底）、风格（S2 的切换，卡在拍上，预览的语义树每帧哈希不变）、Agent（经运行时操作笔记面板：可撤销的动作和撤销、不可撤销的被 `needs-answer` 拦下、人回答、日志）、时间（S4 的打砖块由机器人经 field 的动作玩；片子倒带自己，再放一遍逐位相同，校验和相同）、结尾（像素变成光标，`mcpp new hello --template openmui`，这一版本的时间线在 `openmui.ui.timeline` 编辑器里）。每帧是时间的函数：镜头在时间 0 挂载，每帧前按时间设好连续的东西，一步一变的放在“时刻”上——时刻之前画它的前一帧、之后画它自己这一帧，所以直接画一帧（重新挂载、重放时刻）就是顺序播放到那一帧的画面，`render` 用多个播放器交错画帧。声轨：配乐渲染一次、按片段放进 `openmui.audio` 的混音器，每个提示落在它那一帧的第一个样本，倒带处是片子自己的声音倒放。自检（`omui-promo check` 和测试）：时长 60.000 秒 / 15.000 秒，规格 1080p60、4K60、9:16，字幕两种语言且都够读（最紧的一句多 1.45 秒），卡点误差 0 帧、声轨里实测的起音 0.36 帧以内，抽样帧的排版零问题（16:9 和 9:16），直接画和顺序画逐位相同，两次画逐位相同；十个章节帧（半尺寸）、一帧 1080p、一帧 4K 和两条声轨的哈希固定，README 动图 810 KB。渲染（共用的 32 核机器，release，CPU 参考渲染器）：只画帧 3600 帧 1080p 36 秒（8 个播放器，2.9 GB），单个播放器 85 秒（1.2 GB），加 WebM（VP9 实时、8 线程）68 秒；4K 只画帧 212 秒。没达到 §12.6 的目标（GPU ≤ 15 秒、CPU 含编码 ≤ 60 秒、增量重渲染、预览），§5.2 的人工评分和外部观众也还没做。
+  - 为宣传片补的框架能力（都有测试）：`Services::complete_frames`（`HeadlessOptions::complete_frames`）——每帧画成静止时的样子，画布先把这一帧要的纹理按级别做好、节点不等镜头停下就变成实时组件，所以直接画任意一帧和顺序播放到那一帧逐位相同；字形动画按过渡的 `delay` 开始；`Runtime::drawn_bounds`（经过视觉变换的框）；组件类型表和画布场景表加锁（多个运行时在不同线程同时画）；`Textures` 析构时就地释放离屏运行时（不再晚于字体）；SheenBidi 改用不带 scratch 的分配器（它的 scratch 栈在多线程同时排版时会把同一块缓冲交给两个线程，曾导致崩溃）；`Tasks::parallel_for` 不再在调用者的栈上建 taskflow（`run().wait()` 返回后执行器可能还在拆它）。留下的问题：多个播放器同时画时，分带光栅偶尔让效果层的两个像素不同（`--workers` 大于 1 时每个播放器不分带，已逐位一致）。
+  - 宣传片按一轮评审改（codex 看了每两秒一帧的接触表：“工程演示强、宣传片弱”——字太小、每章一样密、钩子的意思太小、结尾说了四件事）：钩子加一句字幕（“这个像素知道自己是什么”），像素的标签放大并避开字幕；字幕放大四分之一；代码一章用大字给出结论（“同一棵树 · 同样的像素 ✓”）；墙的计数放大；风格一章整个画面换成各风格包自己的底色；Agent 一章每一步有一行大标题、字号加大、镜头缓慢推近；再放一遍时打上 MATCH 印记，旁边是另起一个运行时重跑游戏得到的第一遍的校验和；结尾先给命令和编辑器，再换成干净的字标卡。没采纳的：把每句字幕压到六个词以内（中英同屏，阅读时间检查已通过），把命令提前（设计文档的结尾就是行动号召）。`omui-promo` 多个播放器时不分带光栅（见上），默认播放器数是核数的四分之一、最多 8。
+  - 站点的性能和帧率表（维护者：“性能有严重问题，没有用 WebGPU？”“官网加一个帧率显示”）：在无头 Chromium 里测了线上站点（1440×900、2 倍屏），切换页面时每帧约 133 ms、约 7 fps。原因：站点设成了 CPU 绘制，镜头飞行时每帧整屏重画，而 wasm 单线程。原生 release 下拆开测：运行时的阶段每帧 0.1–0.2 ms，光栅 72 ms，其中约 78% 是逐像素的图片采样（gdb 采样）。框架层的修正都逐位等价，全仓库固定的像素哈希一个不变：
+    - `raster::Shader` 画图片时，变换不旋转不错切，就每行只算一次源行和行权重，每次填充只算一次各列的源列和列权重（每线程一份缓存，不按帧分配），行权重为 0 时只读一行；
+    - 稠密合成内联源上覆盖，不再走混合模式的 `switch`。
+    镜头飞行的光栅从 72 ms 降到 18.8 ms（原生单线程）；浏览器里切换页面的 p95 从 133 ms 降到 33–50 ms，长任务从约 1.5 s 降到约 0.13 s（仍是 CPU）。站点改成 `renderer = "automatic"`：有硬件 GPU 就用 WebGPU，否则 WebGL 2，都没有才用 CPU；对照 CI 的检查照旧用 CPU 画参考帧。框架加了宿主报告帧的通道：`ShownFrame`（显示的时刻、宿主的开销，headless 不测开销，记 −1）、`ShownFrames`（120 帧的环，不分配内存）、`Runtime::frame_shown`、`shown_frames`、`set_renderer`、`renderer`，`Services` 也能读；web、桌面、headless 三个宿主都报告。站点顶栏的 `frame_meter` 组件（契约优先）显示由谁绘制、帧率、开销中位数和最近 36 帧对 60 Hz 预算的柱；静止时显示 idle，它自己不请求帧，只在最后一帧之后 0.3 s 补一帧说已静止；`reading` 动作把同样的数字给 agent。`frames_test` 检查每个地方飞完都会静止、静止后帧率表读 idle、运动中读到帧率；带 `--timing` 时按 2 倍屏单线程测每帧的阶段和光栅耗时。像素对比的测试把帧率表排除在外，它和底栏的时间条一样是实时读数。还没做：Style workshop 的效果在 CPU 上偶尔一帧 190 ms，Move list 的舞台在 CPU 上持续约 24 ms 一帧；wasm SIMD 还没开（要先确认 Toy 的运行环境）。
+    另外清了剩下的私有 FNV：站点的树哈希和参考帧哈希、语义树哈希、rhi 命令列表哈希、gongfu studio 的烘焙指纹（七个角色的 `from` 已按新算法重算，换算前逐个核对过旧值）、两个测试。它们大多用了少一位的偏移基数（1469598103934665603），不是标准的 FNV-1a。lint 规则 `hash` 加上十进制写法，gongfu 的核心按 D-82 只依赖标准库，豁免。
+  - 评估标准和评分记录（维护者：“评分标准要细化，并保留评估和评分记录；UI 框架和主流 UI 框架比，引擎和主流游戏引擎比，动画和最好的动画引擎比，每个作品和官网和各自领域最好的比，每项都要到 90”）：[评估](evaluation/README.md)：
+    - 0–100 分，锚点相对于每个领域的前 3 名；每个维度要写依据（标明实测、查看还是推断）、和前 3 名逐个比、到 90 要改什么；
+    - 总评取最低的维度，均分用来看进展；报告最后一段是机器可读的分数；
+    - 10 个对象，各有对标的前 3 名和维度（`subjects/`）；
+    - `tools/eval/eval.sh` 把标准、对象文件和上一次的记录拼成提示，交给 codex 只读运行，报告存进 `reports/`，分数追加到 `ledger.eval.omui.jsonl`；
+    - 第一轮：v0 七条、v1 十条，汇总和维护方的处理在 `reports/2026-10-31-round-1.md`。没有一项到 90：框架独有的部分领先（agent 原生 84、确定性 82），面向人的完成度、创作工具和对标实测落后最多。
+    同一轮修了评估指出的几处：layout 样式比较和 bounds 阶段的每帧分配；`mgame::World::add/remove` 拒绝失效的句柄；网络会话参数超出范围时取最近的有效值，输入编译期要求无填充、小端；CI 的基准加上 `--all-budgets`。另外，帧率表静止时显示“idle · 0 fps”，不再显示上一段运动画了多少帧：文档墙的纹理在别的线程上完成，各平台落在不同的帧上，最终像素相同，但帧数不同，wasm、macOS、Windows 的固定值因此和 Linux 不一致。帧数仍由 `reading` 给出。
+  - 官网首页按评估重做（`site` 的 v1 总评 42，最低的是 `artistic_expression` 和 `first_impression_identity`）：
+    - **开场**（`site/src/hero.*`）：“一个界面，每一种呈现”，旁边是品牌标志，一个节点分出像素、焦点环、花括号和对勾。下面是一张真实的清单：勾选三项后才能“发布 0.1”。清单旁边是最后碰过的那个节点的另外三种呈现，都从页面的语义树读出：读屏软件读出的、agent 发出的、测试断言的，用镜头的三种颜色连线。“让 agent 来发布”以 agent 身份执行和点击相同的动作，经过同样的检查，记进日志，可以撤销。静态页也带上了开场。
+    - **导航**：分成“阅读”和“运行”两组，左对齐；当前位置和当前镜头改成描边，不再和主要操作一样实心填充。
+    - **阅读宽度**：从 860 收到 640。
+    - **底栏**：哈希显示前 8 位。
+    - **Test 镜头**：长名字改成 `starts_with` 断言，并在字符边界截断，不再写出一个假的等值断言。
+    - **一个已有的 bug**：做开场时发现，访客在官网各个地方窗口里的点击都到不了链接和按钮（悬停有效，浏览器里点首页的链接不跳转）。画布在 pointer down 时就捕获了指针，用来平移，于是 up 送给了画布；而运行时规定 up 被处理了就不激活。两处修正：
+      - 画布只在指针移动超过 3 像素时才捕获，也就是确实在平移时；
+      - 运行时：只被按下节点的祖先处理过的 up，只要指针没有移动超过 4 像素，仍然激活被按下的节点；被按下的节点自己处理了，照旧不激活。
+      加了站点的测试（首页链接用指针点击能到 Features）和开场的两个测试（四种呈现读的是同一个节点；agent 用四个真实动作完成发布）。
+  - 评分者亲手使用（维护者：“codex 评估时不只是看素材，而是真实地用 openas 操作，再给出真实反馈；很多地方真实使用连点击都有问题”；“用框架和引擎开发的应用默认就具备 openas 的能力，构建或开发者可以关掉；codex 评测的同时也是在评测框架、引擎和 openas”）：[第二轮](evaluation/reports/2026-10-31-round-2.md)。
+    - **agent 像人的设备那样输入**：协议的 `input`，MCP 的 `ui_input` 和 `ui_clock`。走真实的命中测试、焦点和手势；回答说明按下时命中的节点和执行的动作。应用默认开启（`AppSpec::agent_input`、`--no-agent-input`）。按 openas，这些输入做的事算作 agent 自己的（`Runtime::set_input_actor`，记为 `via=service:input`），按它的请求同样裁决（S-10、S-11、答复）。
+    - **`eval.sh`**：按对象文件的 Run 列表构建并以无头模式启动程序，codex 经 MCP 使用它们；报告先列使用记录，再写框架和 openas 的反馈。标准升到 v2：人会直接碰到的维度，没有使用证据最高只给 70 分。
+    - **用出来并修好的**：
+      - 程序自己维护的状态可以撤销（`taken_back_by`）；
+      - 组件输入完成的动作进入历史（`Services::performed`，滑块的一次拖动算一步）；
+      - 语义边界经过画布镜头（`screen_bounds`）；
+      - `pointer_events: none` 作用于整棵子树；
+      - 移动像素的效果用 `source_of` 映射命中测试（CRT）；
+      - 镜头飞行和交叉淡化算作未静止；
+      - 滚动偏移在内容变短后收回；
+      - 减少透明时不画透视效果；
+      - 禁用的控件不套风格效果；
+      - 按钮给出自己的效果形状。
+      作品方面：官网的撤销、手机布局、“绘制”面板（GPU 和 CPU 切换、`promotion`）；文档墙的链接；风格工坊的历史、校验、Save 和 Cancel；格斗游戏的对电脑和回合制（两个 agent 对战）。
+- M5：openmui-video、ui-timeline、MCP 服务器、skills、S3 / S4 / S5。
+- 契约⑦（插件与管线）写进规范；Inspector 的火焰图和动画检查器视图。
+
+## 来源
+
+- GCC 16 的 C++26 反射：[GCC 16.1 released（isocpp.org）](https://isocpp.org/blog/2026/04/gcc-16.1)、[GCC C++ Dialect Options（-freflection）](https://gcc.gnu.org/onlinedocs/gcc/C_002b_002b-Dialect-Options.html)、[cppreference：C++26 编译器支持](https://en.cppreference.com/cpp/compiler_support/26)、[GCC 16.1 发布（Phoronix）](https://www.phoronix.com/news/GCC-16.1-Released)
+- 视频工具的性能数据：[Remotion Lambda 成本和耗时示例](https://www.remotion.dev/docs/lambda/cost-example)、[Remotion Render Times（rendercomp）](https://rendercomp.com/blog/remotion-render-time-benchmarks/)、[Remotion Alternatives（Orshot）](https://orshot.com/blog/remotion-alternatives)、[IntelligentMixVideo#251 的实测](https://github.com/HsiangNianian/IntelligentMixVideo/pull/251)、[Remotion Lambda 指南（rendercomp）](https://rendercomp.com/blog/remotion-lambda-cloud-rendering-guide/)、[Revideo：Slow Rendering](https://docs.re.video/common-issues/slow-rendering/)、[yt3#166：Motion Canvas 和 Remotion 的对比](https://github.com/KAFKA2306/yt3/pull/166)、[HyperFrames vs Remotion（ArceApps）](https://arceapps.com/blog/hyperframes-vs-remotion-2026/)
+- Remotion 和 agent skills：[Remotion Agent Skills Guide 2026](https://aividpipeline.com/blog/remotion-agent-skills-guide-2026)、[Remotion Skills 2026（gaga.art）](https://gaga.art/blog/remotion-skills/)、[What Is the Remotion Skill?](https://www.ngram.com/blog/remotion-skills-sh-ai-video-creation)
+- Opus 5.5 带起的代码动画视频：[The Emergence of Code-Based Animation in Claude Opus 5.5](https://bretkerr.substack.com/p/the-emergence-of-code-based-animation)、[officechai：10 Best Examples](https://officechai.com/ai/claude-opus-5-5-motion-graphic-videos/)、[How to Make an Opus 5.5 Cartoon in Claude Code](https://explainx.ai/blog/how-opus-5-5-viral-videos-are-made-code-not-diffusion-2026)、[Claude Motion 教程](https://help.apiyi.com/en/claude-motion-opus-5-5-prompt-to-motion-video-tutorial-en.html)、[revid.ai：64 Videos + Prompts](https://www.revid.ai/claude-motion-graphics)
+- SDL_GPU 的 WebGPU 后端（实验性的 PR）：[libsdl-org/SDL#16020](https://github.com/libsdl-org/SDL/pull/16020)、[libsdl-org/SDL#12046](https://github.com/libsdl-org/SDL/pull/12046)
+- 本地：`mcpplibs/os`（分支 `os-0.1.0`）的 README 和 `mcpp.toml`；`mcpp/docs/05-dependencies.md`（git 依赖）、`07-workspace.md`（带根包的 workspace）、`04-mcpp-toml.md`；xim-pkgindex 和 mcpp-index 的包列表

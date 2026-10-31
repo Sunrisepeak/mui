@@ -1,0 +1,23 @@
+# Ink: drawn by hand on warm paper — wandering, inked lines on the panels and
+# buttons, a fine grain over the page.
+[style.ink]
+doc       = "Drawn by hand on warm paper."
+theme     = "light"
+crossfade = 0.45
+
+[style.ink.colors]
+background      = "#f4ecd8"
+surface         = "#fbf6e9"
+surface_variant = "#efe5cc"
+border          = "#3f3f46"
+border_strong   = "#18181b"
+text            = "#1c1917"
+text_muted      = "#57534e"
+accent          = "#b91c1c"
+on_accent       = "#fbf6e9"
+track           = "#d6cbb1"
+
+[style.ink.effects]
+window        = { effect = "paper", grain = 0.45, warmth = 0.7, edge = 0.5 }
+button        = { effect = "wobble", amount = 1.2, size = 16, ink = 0.6 }
+"role:region" = { effect = "wobble", amount = 1.5, size = 22, ink = 0.5 }

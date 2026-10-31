@@ -1,0 +1,27 @@
+# mgame.world — entities and their components as one block of plain data
+# (structure, render, web and game design §7; S4 design G-1): a column of
+# fixed length for each component type, entities as an index and a
+# generation, presence as bits. Iteration goes by index and a new entity takes
+# the lowest free one, so a world is deterministic; it is trivially copyable,
+# so a snapshot (rollback, rewind) is one copy and its checksum is its bytes'.
+# The standard library alone.
+[package]
+namespace   = "mgame"
+name        = "world"
+version     = "0.1.0"
+description = "Entities and components in fixed columns of plain data: deterministic order, a snapshot is one copy"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[targets.mgame-world]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm"]
+
+[dev-dependencies]
+openmui.testing = { path = "../../modules/base/testing" }
+
+[dependencies]
+openmui.hash = { path = "../../modules/base/hash" }

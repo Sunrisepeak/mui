@@ -1,0 +1,53 @@
+# The fighting game (D-85 §8.7; 拳意, its working title): gongfu's match on
+# openmui's stage — played from the keyboard or by an agent, drawn in 2D by
+# gongfu.present2d, with a training mode's tools. Fighters are data files
+# (fighters/*.fighter.gongfu.toml), carried in the program.
+[package]
+namespace   = "openmui.showcase"
+name        = "fighting"
+version     = "0.1.0"
+description = "The fighting game: gongfu's deterministic rollback match on openmui's stage, played from the keyboard or by an agent, with a training mode"
+license     = "Apache-2.0"
+
+[package.metadata.openmui]
+kind      = "showcase"
+contracts = ["contract/*.contract.omui.toml"]
+
+[targets.openmui-showcase-fighting]
+kind = "lib"
+
+[targets.omui-fight]
+kind = "bin"
+main = "src/main.cpp"
+
+# The arenas: the stages and their painted layers, their music, the
+# announcer (about 4 MB of the program). Training's plain room needs none:
+# openmui's site, showing the move list, depends with default-features = false.
+[features]
+default = ["arenas"]
+arenas  = []
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+# Its pictures are pinned on every platform: no fused multiply-adds (arm64 would fuse them).
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+openmui.sdk      = { path = "../.." }
+gongfu.data      = { path = "../../mgame/gongfu/data" }
+gongfu.present2d = { path = "../../mgame/gongfu/present2d" }
+gongfu.training  = { path = "../../mgame/gongfu/training" }
+gongfu.ai        = { path = "../../mgame/gongfu/ai" }
+openmui.image    = { path = "../../modules/base/image" }
+"openmui.raster" = { path = "../../modules/gfx/raster" }
+"openmui.audio"  = { path = "../../modules/media/audio" }
+"openmui.audio.device" = { path = "../../modules/media/audio/device" }
+
+[build-dependencies]
+openmui.build.contracts = { path = "../../mcpp/contracts", host-module = true }
+openmui.build.embed     = { path = "../../mcpp/embed", host-module = true }
+openmui.build.toy       = { path = "../../mcpp/toy", host-module = true }
+gongfu.rules            = { path = "../../mgame/gongfu/rules", host-module = true }
+
+[dev-dependencies]
+openmui.testing = { path = "../../modules/base/testing" }

@@ -1,0 +1,37 @@
+# openmui.mcp — an MCP server (Model Context Protocol, stdio) for any running
+# openmui application (plan §11, S3): Claude Code and other agents list the
+# applications, read their semantic trees, find nodes, act, invoke verbs,
+# wait and capture pixels through ui_* tools, over the application's own
+# agent endpoint (openmui.tree@0.1). An irreversible or external action is
+# put to the person — by MCP elicitation when the client offers it — and
+# never answered by the agent alone.
+[package]
+namespace   = "openmui"
+name        = "mcp"
+version     = "0.1.0"
+description = "An MCP server for any running openmui application: ui_apps, ui_snapshot, ui_find, ui_act, ui_invoke, ui_wait, ui_capture"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "tool"
+
+[targets.openmui-mcp]
+kind = "lib"
+
+[targets.omui-mcp]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+openmui.core  = { path = "../../modules/ui/core" }
+openmui.agent = { path = "../../modules/ui/agent" }
+mcpplibs.os   = "0.2.2"
+
+[dev-dependencies]
+openmui.testing       = { path = "../../modules/base/testing" }
+openmui.host.headless = { path = "../../modules/ui/host/headless" }
+openmui.ui.base       = { path = "../../components/base" }

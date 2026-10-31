@@ -1,0 +1,45 @@
+# openmui.host.sdl3 — openmui on the desktop through SDL3 (imported as the
+# C++ module mcpplibs.mwrap.sdl3 over mcpp-index's compat.sdl3): a window, the display's scale, mouse, touch, wheel,
+# keyboard, text and input methods, the system clipboard and cursors; frames
+# drawn by the GPU renderer into the window's swapchain (omui.rhi on SDL_GPU)
+# or by the CPU renderer into a streamed texture; a program's effect files
+# loaded and reloaded while it runs; a loop that sleeps until an event, a
+# timer or an agent's request; the agent endpoint served between frames.
+[package]
+namespace   = "openmui.host"
+name        = "sdl3"
+version     = "0.1.0"
+description = "openmui desktop host over SDL3: window, input, IME, clipboard, cursors, GPU or CPU frames, effect reloading, agent endpoint"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "host"
+
+[targets.openmui-host-sdl3]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+
+[dependencies]
+openmui.core     = { path = "../../core" }
+openmui.view     = { path = "../../view" }
+openmui.semantic = { path = "../../semantic" }
+openmui.agent    = { path = "../../agent" }
+openmui.accessibility = { path = "../../accessibility" }
+openmui.raster   = { path = "../../../gfx/raster" }
+openmui.render.vector   = { path = "../../../gfx/render/vector" }
+openmui.text     = { path = "../../../content/text" }
+openmui.image    = { path = "../../../base/image" }
+openmui.trace    = { path = "../../../base/trace" }
+# Quoted: as dotted keys of one table, `openmui.rhi.sdl` would extend the
+# inline table `openmui.rhi`, which TOML forbids.
+"openmui.rhi"         = { path = "../../../gfx/rhi" }
+"openmui.rhi.sdl"     = { path = "../../../gfx/rhi/sdl" }
+openmui.render.effect   = { path = "../../../gfx/render/effect" }
+mcpplibs.os      = "0.2.2"
+mcpplibs.mwrap.sdl3 = "3.4.18"
+
+[dev-dependencies]
+openmui.testing = { path = "../../../base/testing" }

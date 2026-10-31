@@ -1,0 +1,55 @@
+# 《组件打砖块：闹鬼的设置》 (S4, D-50; mgame S4 design §8): the Settings panel
+# is haunted, and every control works — a breakout whose bricks are real
+# openmui components (switches that rewire the room, sliders that charge and
+# fire, a core to shut down), placed by openmui's layout and read into the
+# simulation; a run of five rooms, chains banked as sparks that pay for
+# rewinds, contraptions between rooms whose scripts you can open; an agent
+# plays it through the field's actions, and the inspector shows the rest.
+[package]
+namespace   = "openmui.showcase"
+name        = "widget_breakout"
+version     = "0.1.0"
+description = "A breakout over a haunted Settings panel of real openmui components: circuits, capacitors, a core; rewindable for sparks, played by a person or an agent"
+license     = "Apache-2.0"
+
+[package.metadata.openmui]
+kind      = "showcase"
+contracts = ["contract/*.contract.omui.toml"]
+
+[targets.openmui-showcase-widget-breakout]
+kind = "lib"
+
+[targets.omui-breakout]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+# Its pictures are pinned on every platform: no fused multiply-adds (arm64 would fuse them).
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+openmui.math = { path = "../../modules/base/math" }
+openmui.hash = { path = "../../modules/base/hash" }
+openmui.sdk = { path = "../.." }
+"openmui.showcase.widget_breakout.sim" = { path = "sim" }
+mgame.input = { path = "../../mgame/input" }
+mgame.ui    = { path = "../../mgame/ui" }
+"openmui.theme" = { path = "../../modules/ui/theme" }
+openmui.theme.styles = { path = "../../modules/ui/theme/styles" }
+openmui.ui.canvas = { path = "../../components/canvas" }
+"openmui.audio" = { path = "../../modules/media/audio" }
+openmui.abi = { path = "../../modules/ui/abi" }
+"openmui.lang" = { path = "../../lang" }
+"openmui.lang.js" = { path = "../../lang/js" }
+"openmui.lang.lua" = { path = "../../lang/lua" }
+"openmui.lang.python.embedded" = { path = "../../lang/python/embedded" }
+"openmui.audio.device" = { path = "../../modules/media/audio/device" }
+
+[build-dependencies]
+openmui.build.contracts = { path = "../../mcpp/contracts", host-module = true }
+openmui.build.embed     = { path = "../../mcpp/embed", host-module = true }
+openmui.build.toy       = { path = "../../mcpp/toy", host-module = true }
+
+[dev-dependencies]
+openmui.testing = { path = "../../modules/base/testing" }

@@ -1,0 +1,31 @@
+# openmui.markdown — Markdown (CommonMark 0.31 and GitHub's extensions) to a
+# document of blocks and inline marks, through md4c (mcpplibs.mwrap.md4c);
+# HTML from the document; streaming append that re-parses only the tail.
+# An independent component (D-55): the standard library, md4c and openmui.trace
+# (spans in category "markdown").
+[package]
+namespace   = "openmui"
+name        = "markdown"
+version     = "0.1.0"
+description = "Markdown to blocks and inline marks over md4c: CommonMark + GFM, HTML output, streaming append, anchors"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "runtime"
+
+[targets.openmui-markdown]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+
+[dependencies]
+openmui.hash = { path = "../../base/hash" }
+openmui.trace       = { path = "../../base/trace" }
+mcpplibs.mwrap.md4c = "0.5.3"
+
+[dev-dependencies]
+openmui.math = { path = "../../base/math" }
+openmui.testing = { path = "../../base/testing" }

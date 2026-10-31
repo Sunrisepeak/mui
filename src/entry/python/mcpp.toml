@@ -1,0 +1,42 @@
+# openmui.entry.python — the `_openmui` extension module that `import openmui`
+# loads (component-binding §7, D-46): a shared library holding the runtime,
+# the official components, the desktop host and lang/python, written against
+# CPython's stable ABI (abi3) and linked against no libpython. Its window
+# shows the runtime Python built its views on; Python runs on its own thread.
+[package]
+namespace   = "openmui.entry"
+name        = "python"
+version     = "0.1.0"
+description = "The _openmui extension module of the openmui Python package (abi3, host mode)"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "entry"
+
+[targets._openmui]
+kind = "shared"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+# CPython brings no C++ runtime, and another extension may bring its own: the
+# extension holds its own, out of its dynamic symbol table.
+[build.cxx_runtime]
+shared = "self-contained"
+
+[dependencies]
+openmui.hash = { path = "../../../modules/base/hash" }
+openmui.sdk           = { path = "../../.." }
+openmui.abi           = { path = "../../../modules/ui/abi" }
+openmui.lang.python   = { path = "../../../lang/python" }  # and openmui.lang, through it (a TOML key cannot be both)
+openmui.ui.markdown   = { path = "../../../components/markdown" }
+openmui.image         = { path = "../../../modules/base/image" }
+openmui.native.fuzzy  = { path = "../../../modules/ui/native/fuzzy" }
+openmui.theme.default = { path = "../../../modules/ui/theme/default" }
+openmui.theme.compact = { path = "../../../modules/ui/theme/compact" }
+nlohmann.json       = "3.12.0"
+mcpplibs.os         = "0.2.2"
+
+[dev-dependencies]
+openmui.testing = { path = "../../../modules/base/testing" }

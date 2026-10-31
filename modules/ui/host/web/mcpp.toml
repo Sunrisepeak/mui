@@ -1,0 +1,57 @@
+# openmui.host.web — openmui in the browser (D-84 §6.2): wasm32-emscripten,
+# single-threaded; a <canvas> sized by the page, at the device's pixel ratio;
+# the frame loop on requestAnimationFrame (emscripten's main loop), frames
+# only when something wants one; pointer, touch, wheel, keyboard and the
+# Gamepad API's standard pads as openmui's input; a hidden textarea at the
+# caret for input methods; the clipboard (Async Clipboard API); the semantic
+# tree mirrored into a hidden DOM (ARIA roles, states, focus, a live region);
+# window.omui for the page's agents (openmui.tree@0.1, decided by openas);
+# the program's store on localStorage; frames drawn on the page's WebGPU or
+# WebGL2 (a hardware one), else by the CPU renderer; the page's visibility as the
+# window's focus. Off the Web it builds with no page: the same loop, stepped
+# by hand, for its tests.
+[package]
+namespace   = "openmui.host"
+name        = "web"
+version     = "0.1.0"
+description = "openmui in the browser: a canvas, requestAnimationFrame, pointer, touch, keys, gamepads, input methods, the clipboard, a semantic DOM mirror, window.omui, localStorage"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "host"
+
+[targets.openmui-host-web]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+# The page (emscripten's HTML5 API and src/js/omui_web.js, which build.mcpp
+# gives the link), or no page.
+[target.'cfg(os = "emscripten")'.build]
+sources = ["src/native/browser/*.cpp"]
+
+[target.'cfg(not(os = "emscripten"))'.build]
+sources = ["src/native/elsewhere/*.cpp"]
+
+[dependencies]
+openmui.core     = { path = "../../core" }
+openmui.view     = { path = "../../view" }
+openmui.semantic = { path = "../../semantic" }
+openmui.agent    = { path = "../../agent" }
+# Quoted: a package and its subpackage in one table (TOML).
+"openmui.native"       = { path = "../../native" }
+"openmui.native.store" = { path = "../../native/store" }
+openmui.raster   = { path = "../../../gfx/raster" }
+openmui.render.vector = { path = "../../../gfx/render/vector" }
+"openmui.rhi"         = { path = "../../../gfx/rhi" }
+"openmui.rhi.webgpu"  = { path = "../../../gfx/rhi/webgpu" }
+"openmui.rhi.webgl"   = { path = "../../../gfx/rhi/webgl" }
+openmui.text     = { path = "../../../content/text" }
+openmui.trace    = { path = "../../../base/trace" }
+openmui.image    = { path = "../../../base/image" }
+mcpplibs.os      = "0.2.2"
+
+[dev-dependencies]
+openmui.testing = { path = "../../../base/testing" }

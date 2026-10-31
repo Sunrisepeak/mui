@@ -1,0 +1,19 @@
+[package]
+name    = "{{project.name}}"
+version = "0.1.0"
+
+[package.metadata.openmui]
+kind = "component"
+
+[targets.{{project.name}}]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+"{{self.name}}" = "{{self.version}}"
+
+# The rule that makes C++, stubs and a schema from contract/ when this builds.
+[build-dependencies]
+openmui.build.contracts = { version = "{{self.version}}", host-module = true }

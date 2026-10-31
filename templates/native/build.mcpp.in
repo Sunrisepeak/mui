@@ -1,0 +1,6 @@
+// The native contracts in native/ become this package's C++ and stubs when it builds.
+import std;
+import mcpp;
+import openmui.build.contracts;
+
+int main() { return openmui::build::natives({.module = "{{project.name}}"}) ? 0 : 1; }

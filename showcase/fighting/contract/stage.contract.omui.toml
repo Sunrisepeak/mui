@@ -1,0 +1,48 @@
+# The stage: a gongfu match played at 60 frames a second, drawn in 2D. A
+# person plays it from the keyboard (P1: W A S D, U I O, J K L; P2: the
+# arrows, Insert Home PageUp, Delete End PageDown); an agent through its actions — the same match, the
+# same frames.
+[contract.stage]
+role = "canvas"
+spec = "0.1"
+doc  = "A fighting game's stage: two fighters at 60 frames a second, from the keyboard or an agent; a training mode's tools."
+
+[contract.stage.props]
+mode   = { type = "string", default = "versus", doc = "versus, or training (the boxes and the frame meter)." }
+paused = { type = "bool", default = false, doc = "Stand still: `step` plays one frame." }
+player1 = { type = "string", default = "", doc = "Player 1's fighter, by its file's name (kata, mo); empty: the first." }
+player2 = { type = "string", default = "", doc = "Player 2's fighter, by its file's name; empty: the first." }
+arena  = { type = "string", default = "", doc = "The stage's art by name (study …); empty: player 1's home in versus, the plain room in training; plain: none." }
+rounds = { type = "i32", default = 2, doc = "Versus: the rounds a player wins the match by (2: best of three); a K.O. or the clock ends a round, and the next begins three seconds later." }
+demo   = { type = "string", default = "", doc = "Training: a move of player 1's fighter by name (5LP, 236P), demonstrated over and over as a move list shows it — walked in to where it reaches, player 2 standing still (or guarding: `demo_guard`); its frame data is what it does here. Empty: none." }
+demo_guard = { type = "bool", default = false, doc = "The demonstration's player 2 guards (low for a low), from before the move begins." }
+cpu    = { type = "i32", default = -1, doc = "A player the computer plays (gongfu.ai's bot: it sees the other side as a person would, a moment late, guards, answers jumps, punishes, presses): 0 or 1; -1: none." }
+cpu_level = { type = "i32", default = 2, doc = "How well the computer plays: 1 (it reacts slowly, guards half the time, rarely punishes), 2, 3 (quick, careful, punishing)." }
+turn_frames = { type = "i32", default = 0, doc = "Turns (a match by correspondence: agents, or two people far apart): the match plays `turn_frames` frames each time every player the computer does not play has said what they hold for them (`turn`); its clock stands meanwhile. 0: real time." }
+overlays = { type = "bool", default = true, doc = "Training: the boxes, the frame meter, the inputs and the readings drawn over the match (off: the picture alone, the training tools still at hand)." }
+
+[contract.stage.events]
+round_over = { args = { winner = "i32" } }
+match_over = { args = { winner = "i32" } }
+leave      = { args = {} }  # the players chose the select screen (the results' or the pause menu's 选人 · FIGHTERS, or `leave`)
+
+[contract.stage.actions]
+restart = { effect = "reversible", doc = "A new round from the start." }
+rematch = { effect = "reversible", doc = "The match again from its first round, the same fighters (the results' 再战 · REMATCH)." }
+fighters = { effect = "reversible", args = { player1 = "string", player2 = "string" }, doc = "Who fights: the players' fighters by their files' names (mo, ni, kun, li, yue, ke; an empty one stays as it is) — a new match." }
+leave   = { effect = "reversible", doc = "Back to the select screen (the results' or the pause menu's 选人 · FIGHTERS): the `leave` event." }
+pause   = { effect = "reversible", doc = "Stands the match still (the program's pause, not the card): `step` plays a frame." }
+resume  = { effect = "reversible", doc = "Plays the match again after `pause`." }
+step    = { effect = "reversible", doc = "One frame, while paused." }
+press   = { effect = "reversible", args = { player = "i32", pad = "string" }, doc = "Holds a pad for a player until the next press: a numpad direction and buttons (`6`, `2LK`, `5LP+LK`, `5` to let go)." }
+release = { effect = "reversible", args = { player = "i32" }, doc = "Gives the player back to the keyboard." }
+turn    = { effect = "reversible", args = { player = "i32", pad = "string" }, doc = "Turns: what the player holds for the next turn — a pad as `press` takes it, or pads a frame each, the last held to the turn's end (`2,3,6LP`: a quarter circle forward and a light punch); once every player has said, the turn is played and the answer says what happened in it (also in the stage's value, turns.last, for both). The first actor to play a seat keeps it: another is refused." }
+inputs  = { effect = "read", doc = "What the round was played with: both pads, frame by frame (numpad notation), from its start, and the checksum of where they led — what a replay checks." }
+save    = { effect = "reversible", doc = "Keeps the match as it is now (training's state save)." }
+load    = { effect = "reversible", doc = "Back to the saved match." }
+record  = { effect = "reversible", args = { player = "i32" }, doc = "Starts recording what the player does (training's dummy)." }
+replay  = { effect = "reversible", args = { player = "i32" }, doc = "Plays the player's recording back, looped, in place of the player." }
+stop    = { effect = "reversible", args = { player = "i32" }, doc = "Stops the player's recording or replay." }
+fill    = { effect = "reversible", doc = "Training: both players' meter full and posture empty." }
+demonstrate = { effect = "reversible", args = { move = "string" }, doc = "Training: player 1's move by name (5LP, 236P), demonstrated over and over as the move list shows it (the stage's `demo`); empty: none." }
+demo_frame = { effect = "reversible", args = { frame = "i32" }, doc = "Training: the demonstration paused at a frame (0: as the move begins), played there from its start." }

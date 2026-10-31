@@ -1,0 +1,17 @@
+# The site's frame meter, in its bar: who draws the page (the CPU, WebGPU,
+# WebGL 2), how fast — the frame rate and what a frame costs — and the last
+# frames' costs as bars against the budget of a 60 Hz display. It reads the
+# frames the host showed (Services::shown_frames) as it is painted, so it
+# asks for no frame of its own: while nothing moves the page draws nothing,
+# and the meter says so (D-70) — one frame, a moment after the last.
+[contract.frame_meter]
+role = "status"
+spec = "0.1"
+doc  = "Who draws the page and how fast: the frame rate, a frame's cost, the last frames against the budget; idle while nothing moves."
+
+[contract.frame_meter.props]
+budget_ms = { type = "f64", default = 16.667, doc = "A frame's budget in milliseconds: the bars' line (a 60 Hz display's)." }
+label     = { type = "string", default = "", doc = "Its accessible name." }
+
+[contract.frame_meter.actions]
+reading = { effect = "read", doc = "What it shows, as data: renderer, fps, cost_ms (the median of the frames it shows; null where the host does not measure), idle, and frames (how many the last motion took)." }

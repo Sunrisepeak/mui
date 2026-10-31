@@ -1,0 +1,20 @@
+# Every mistake the native reader must report.
+[native.Bad]
+spec = "0.1"
+doc  = "A module with every mistake."
+
+[native.Bad.types.point]
+fields = { x = "f64" }
+
+[native.Bad.types.Node]
+fields = { next = "Node?", weight = "decimal" }
+
+[native.Bad.functions.erase]
+doc    = "Erases everything."
+effect = "irreversible"
+args   = { all = "bool" }
+
+[native.Bad.functions.find]
+doc   = "Finds."
+args  = { limit = "u32?", query = "string" }
+returns = "Hit[]"

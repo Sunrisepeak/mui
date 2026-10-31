@@ -1,0 +1,14 @@
+// The module as scripts reach it: defined once, called with JSON arguments
+// checked against the contract.
+import std;
+import nlohmann.json;
+import openmui.native;
+import {{project.name}};
+
+int main() {
+    if (!{{project.name}}::words::define()) return 1;
+    auto r = omui::native::call("words", "count", nlohmann::json::array({"Hello there. How are you?"}));
+    if (!r || (*r)["words"] != 5 || (*r)["sentences"] != 2) return 1;
+    auto bad = omui::native::call("words", "count", nlohmann::json::array({3}));
+    return !bad && bad.error().code == "invalid-argument" ? 0 : 1;
+}

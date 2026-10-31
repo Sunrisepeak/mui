@@ -1,0 +1,36 @@
+# openmui.ui.markdown — the Markdown component (canvas-markdown §2): a
+# document of semantic nodes over openmui.markdown's model, with block nodes
+# keyed by content so streaming re-lays out only the tail. Contract-first:
+# contract/markdown.contract.omui.toml becomes the base class, the builder,
+# the stubs and the schema when it builds (openmui.build.contracts). An official
+# component package, not in the umbrella's defaults.
+[package]
+namespace   = "openmui.ui"
+name        = "markdown"
+version     = "0.1.0"
+description = "The Markdown component: CommonMark + GFM rendered as semantic nodes, links with external effects, tasks, code, tables, streaming"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "component"
+
+[targets.openmui-ui-markdown]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+openmui.hash = { path = "../../modules/base/hash" }
+openmui.core     = { path = "../../modules/ui/core" }
+openmui.view     = { path = "../../modules/ui/view" }
+openmui.markdown = { path = "../../modules/content/markdown" }
+
+[build-dependencies]
+openmui.build.contracts = { path = "../../mcpp/contracts", host-module = true }
+
+[dev-dependencies]
+openmui.testing       = { path = "../../modules/base/testing" }
+openmui.host.headless = { path = "../../modules/ui/host/headless" }

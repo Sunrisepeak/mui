@@ -1,0 +1,37 @@
+# openmui.host.web.toy — Bilibili Toy's SDK (window.toy, github.com/bilibili/toy)
+# for an openmui program in a Toy page (D-84 §6.5): a thin, optional layer —
+# whether the SDK is there and what it supports, cloud storage written to
+# memory and to Toy at checkpoints (the page hidden, flush()), leaderboards
+# (submit at settlement, ranks); Toy's errors in openas's words (its rate
+# limit, 307044, is "not ready": backed off and tried again). Off a Toy page
+# — off the Web, or a page without the SDK — every call is refused.
+[package]
+namespace   = "openmui.host.web"
+name        = "toy"
+version     = "0.1.0"
+description = "Bilibili Toy's SDK for openmui on the Web: capabilities, cloud storage at checkpoints, leaderboards, openas errors"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "host"
+
+[targets.openmui-host-web-toy]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[target.'cfg(os = "emscripten")'.build]
+sources = ["src/native/browser/*.cpp"]
+
+[target.'cfg(not(os = "emscripten"))'.build]
+sources = ["src/native/elsewhere/*.cpp"]
+
+[dependencies]
+openmui.core     = { path = "../../../core" }
+openmui.host.web = { path = ".." }
+openlifa.openas  = "0.2.0"
+
+[dev-dependencies]
+openmui.testing = { path = "../../../../base/testing" }

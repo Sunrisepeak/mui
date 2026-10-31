@@ -1,0 +1,42 @@
+# openmui.video — frames and a sound track encoded on exact frame and sample
+# counts (D-86): the frame pipeline with "present" swapped for "encode".
+# Frames come from a source (the built-in sync card, PNG files, or a host's:
+# the omui command line renders an openmui view headless), the sound track
+# is openmui.audio's offline render, and frame i carries exactly the samples
+# ⌊i·rate·den/num⌋ … ⌊(i+1)·rate·den/num⌋ − 1. Encoders are plugins; built
+# in, with no third-party code but openmui.image's PNG: a PNG sequence, Y4M
+# (raw YUV 4:2:0, BT.709, integer RGB→YUV) and WAV. Compressed output is a
+# plugin package (openmui.video.webm). Descriptions are data
+# (`*.video.omui.toml`).
+# An independent component (D-55): the standard library, hanim (exact frame
+# rates, deterministic math), openmui.image, openmui.audio, openmui.trace
+# (spans in category "video") and toml++.
+[package]
+namespace   = "openmui"
+name        = "video"
+version     = "0.1.0"
+description = "Frames and a sound track encoded on exact frame and sample counts: PNG sequences, Y4M and WAV built in, codecs as plugins"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "runtime"
+
+[targets.openmui-video]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+openmui.hash = { path = "../../base/hash" }
+hanim               = { path = "../../base/hanim" }
+openmui.image       = { path = "../../base/image" }
+openmui.trace       = { path = "../../base/trace" }
+openmui.audio       = { path = "../audio" }
+marzer.tomlplusplus = "3.4.0"
+
+[dev-dependencies]
+openmui.testing = { path = "../../base/testing" }

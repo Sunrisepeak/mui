@@ -1,0 +1,483 @@
+{
+  "canvas_px": [
+    768,
+    512
+  ],
+  "reference_height_px": 360,
+  "gameplay_scale": 0.5,
+  "source_scale": 0.4171494785631518,
+  "registration_px": [
+    400,
+    456
+  ],
+  "root_px": [
+    284,
+    456
+  ],
+  "background_rgb": [
+    0,
+    177,
+    64
+  ],
+  "assets": {
+    "ni-style.png": {
+      "size": [
+        768,
+        512
+      ],
+      "foreground_bbox_inclusive": [
+        136,
+        99,
+        400,
+        458
+      ],
+      "front_shoe_lower_right_registration": [
+        400,
+        456
+      ],
+      "corner_rgb": [
+        0,
+        177,
+        64
+      ],
+      "sha256": "71488c65a8792b5a5f6df47a101450ac0747bf55834e405caae1816c15a4b7ba",
+      "source": "sources/ni-style-v1.png",
+      "uniform_scale": 0.4171494785631518,
+      "resized_translation_px": [
+        -7,
+        64
+      ],
+      "original": {
+        "size": [
+          1536,
+          1024
+        ],
+        "foreground_bbox_inclusive": [
+          342,
+          84,
+          978,
+          946
+        ],
+        "front_shoe_lower_right_registration": [
+          978,
+          943
+        ],
+        "corner_rgb": [
+          10,
+          167,
+          78
+        ],
+        "sha256": "af13c3a21d8e687e14c268e9eb453f1dd31cd35138f86ad30efd628f9775821a"
+      }
+    },
+    "ni-heavy-01.png": {
+      "size": [
+        768,
+        512
+      ],
+      "foreground_bbox_inclusive": [
+        136,
+        99,
+        400,
+        458
+      ],
+      "front_shoe_lower_right_registration": [
+        400,
+        456
+      ],
+      "corner_rgb": [
+        0,
+        177,
+        64
+      ],
+      "sha256": "71488c65a8792b5a5f6df47a101450ac0747bf55834e405caae1816c15a4b7ba",
+      "source": "sources/ni-heavy-01-v1.png",
+      "uniform_scale": 0.4171494785631518,
+      "resized_translation_px": [
+        -7,
+        64
+      ],
+      "original": {
+        "size": [
+          1536,
+          1024
+        ],
+        "foreground_bbox_inclusive": [
+          342,
+          84,
+          978,
+          946
+        ],
+        "front_shoe_lower_right_registration": [
+          978,
+          943
+        ],
+        "corner_rgb": [
+          10,
+          167,
+          78
+        ],
+        "sha256": "af13c3a21d8e687e14c268e9eb453f1dd31cd35138f86ad30efd628f9775821a"
+      }
+    },
+    "ni-heavy-02.png": {
+      "size": [
+        768,
+        512
+      ],
+      "foreground_bbox_inclusive": [
+        127,
+        106,
+        400,
+        457
+      ],
+      "front_shoe_lower_right_registration": [
+        400,
+        456
+      ],
+      "corner_rgb": [
+        0,
+        177,
+        64
+      ],
+      "sha256": "9d9c09f4f513123fc95fe0c218d7036c4a5b810ac1ddbc39741e6f3559687a57",
+      "source": "sources/ni-heavy-02-v1.png",
+      "uniform_scale": 0.4171494785631518,
+      "resized_translation_px": [
+        -8,
+        63
+      ],
+      "original": {
+        "size": [
+          1536,
+          1024
+        ],
+        "foreground_bbox_inclusive": [
+          324,
+          103,
+          980,
+          946
+        ],
+        "front_shoe_lower_right_registration": [
+          980,
+          943
+        ],
+        "corner_rgb": [
+          9,
+          166,
+          78
+        ],
+        "sha256": "5c9d61a99c13e5023f5f8f5d8c3bd11e3f8489773d6ce79283f33fe2d962c0e9"
+      }
+    },
+    "ni-heavy-03.png": {
+      "size": [
+        768,
+        512
+      ],
+      "foreground_bbox_inclusive": [
+        86,
+        103,
+        400,
+        456
+      ],
+      "front_shoe_lower_right_registration": [
+        400,
+        456
+      ],
+      "corner_rgb": [
+        0,
+        177,
+        64
+      ],
+      "sha256": "fa0e1073ac0a04e83a4cba59c540814123d27f834c8e47d0b6789e13b135f133",
+      "source": "sources/ni-heavy-03-v2.png",
+      "uniform_scale": 0.4171494785631518,
+      "resized_translation_px": [
+        -16,
+        64
+      ],
+      "original": {
+        "size": [
+          1536,
+          1024
+        ],
+        "foreground_bbox_inclusive": [
+          244,
+          92,
+          998,
+          940
+        ],
+        "front_shoe_lower_right_registration": [
+          998,
+          940
+        ],
+        "corner_rgb": [
+          9,
+          177,
+          86
+        ],
+        "sha256": "cf7b6252484892e851d85eefa9fd82a4836806090045bf6499a53c22810e0c19"
+      }
+    },
+    "ni-heavy-04.png": {
+      "size": [
+        768,
+        512
+      ],
+      "foreground_bbox_inclusive": [
+        85,
+        102,
+        484,
+        456
+      ],
+      "front_shoe_lower_right_registration": [
+        400,
+        456
+      ],
+      "corner_rgb": [
+        0,
+        177,
+        64
+      ],
+      "sha256": "079969a5f238abd43c8c0a8f8e9ba49db0e73c4e904db496f0a8d2ced6d6f7b6",
+      "source": "sources/ni-heavy-04-v4.png",
+      "uniform_scale": 0.4171494785631518,
+      "resized_translation_px": [
+        -16,
+        64
+      ],
+      "original": {
+        "size": [
+          1536,
+          1024
+        ],
+        "foreground_bbox_inclusive": [
+          243,
+          91,
+          1199,
+          941
+        ],
+        "front_shoe_lower_right_registration": [
+          998,
+          941
+        ],
+        "corner_rgb": [
+          7,
+          175,
+          86
+        ],
+        "sha256": "39fabf28b95ae60d32a3c21f27d56cb679ff04f0ead846c8ba01790829e62377"
+      }
+    },
+    "ni-heavy-05.png": {
+      "size": [
+        768,
+        512
+      ],
+      "foreground_bbox_inclusive": [
+        86,
+        102,
+        485,
+        456
+      ],
+      "front_shoe_lower_right_registration": [
+        400,
+        456
+      ],
+      "corner_rgb": [
+        0,
+        177,
+        64
+      ],
+      "sha256": "2255a9986e469391b0873996887543ca3265911110cc651fc2ac53daa971f43f",
+      "source": "sources/ni-heavy-05-v1.png",
+      "uniform_scale": 0.4171494785631518,
+      "resized_translation_px": [
+        -16,
+        64
+      ],
+      "original": {
+        "size": [
+          1536,
+          1024
+        ],
+        "foreground_bbox_inclusive": [
+          243,
+          91,
+          1202,
+          941
+        ],
+        "front_shoe_lower_right_registration": [
+          998,
+          941
+        ],
+        "corner_rgb": [
+          9,
+          176,
+          86
+        ],
+        "sha256": "4d6275dbba1ea4915ba316295a88534a9ce547fa17bf519cbfa255cc5af75086"
+      }
+    },
+    "ni-heavy-06.png": {
+      "size": [
+        768,
+        512
+      ],
+      "foreground_bbox_inclusive": [
+        85,
+        102,
+        462,
+        456
+      ],
+      "front_shoe_lower_right_registration": [
+        400,
+        456
+      ],
+      "corner_rgb": [
+        0,
+        177,
+        64
+      ],
+      "sha256": "4a1ce96e6f553f5a4ab699580373897c47aa096dcc10b83db3b2dc801931f98c",
+      "source": "sources/ni-heavy-06-v2.png",
+      "uniform_scale": 0.4171494785631518,
+      "resized_translation_px": [
+        -16,
+        64
+      ],
+      "original": {
+        "size": [
+          1536,
+          1024
+        ],
+        "foreground_bbox_inclusive": [
+          243,
+          91,
+          1147,
+          940
+        ],
+        "front_shoe_lower_right_registration": [
+          998,
+          940
+        ],
+        "corner_rgb": [
+          7,
+          177,
+          86
+        ],
+        "sha256": "917c507ffe9b2adec3bcd3e7263c4cf0d0132882009da27a1bb6821fdbc09b2b"
+      }
+    },
+    "ni-heavy-07.png": {
+      "size": [
+        768,
+        512
+      ],
+      "foreground_bbox_inclusive": [
+        83,
+        99,
+        405,
+        456
+      ],
+      "front_shoe_lower_right_registration": [
+        400,
+        456
+      ],
+      "corner_rgb": [
+        0,
+        177,
+        64
+      ],
+      "sha256": "7eb11169e6c4dd582d406c750b4053920d6ddb61193bfcb263b9bb68b52a0756",
+      "source": "sources/ni-heavy-07-v1.png",
+      "uniform_scale": 0.4171494785631518,
+      "resized_translation_px": [
+        -27,
+        65
+      ],
+      "original": {
+        "size": [
+          1536,
+          1024
+        ],
+        "foreground_bbox_inclusive": [
+          262,
+          81,
+          1036,
+          940
+        ],
+        "front_shoe_lower_right_registration": [
+          1024,
+          940
+        ],
+        "corner_rgb": [
+          10,
+          182,
+          85
+        ],
+        "sha256": "14c978194e2d545ce39fcc6fbb1f4f07f4b72308de39e5d3c416d2c717d42a2e"
+      }
+    },
+    "ni-heavy-08.png": {
+      "size": [
+        768,
+        512
+      ],
+      "foreground_bbox_inclusive": [
+        135,
+        98,
+        400,
+        458
+      ],
+      "front_shoe_lower_right_registration": [
+        400,
+        456
+      ],
+      "corner_rgb": [
+        0,
+        177,
+        64
+      ],
+      "sha256": "75245e8947edf92cf54d4b6832c07ce375bff16df43c2ffa44ae71cb827fe436",
+      "source": "sources/ni-heavy-08-v1.png",
+      "uniform_scale": 0.4171494785631518,
+      "resized_translation_px": [
+        -8,
+        64
+      ],
+      "original": {
+        "size": [
+          1536,
+          1024
+        ],
+        "foreground_bbox_inclusive": [
+          342,
+          82,
+          979,
+          945
+        ],
+        "front_shoe_lower_right_registration": [
+          979,
+          942
+        ],
+        "corner_rgb": [
+          11,
+          170,
+          81
+        ],
+        "sha256": "cf9f8b1ece72cd06c5896044f4e3eb74b3d738ab19c2b82bcd3943a4451673ee"
+      }
+    }
+  },
+  "model": {
+    "file": "ni-model.png",
+    "size": [
+      1536,
+      1024
+    ],
+    "source": "sources/ni-model-v2.png",
+    "sha256": "d933c42345d8c66e3f68a80e51dcb89ae290b22221db981f51a54cb53950b8a7"
+  }
+}

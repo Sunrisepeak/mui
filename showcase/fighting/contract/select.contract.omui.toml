@@ -1,0 +1,21 @@
+# The menus before a fight: the title (versus or training) and the select
+# screen — each player's cursor over the roster, a big preview of whom it
+# rests on, their name in calligraphy over their home stage; both ready, it
+# says whom. A person moves with the stage's keys or a gamepad; an agent
+# through its actions — the same screen.
+[contract.select]
+role = "canvas"
+spec = "0.1"
+doc  = "The fighting game's title and select screen: a menu of modes, then each player choosing a fighter; both ready, the fight is chosen."
+
+[contract.select.props]
+phase  = { type = "string", default = "title", doc = "title (the modes) or fighters (the select screen); set again, the screen goes back there." }
+active = { type = "bool", default = true, doc = "Shown and taking the players' input; made active again, it begins again at `phase` (nobody ready) with the keyboard." }
+
+[contract.select.events]
+chosen = { args = { mode = "string", player1 = "string", player2 = "string", arena = "string", cpu = "i32" } }
+
+[contract.select.actions]
+move    = { effect = "reversible", args = { player = "i32", by = "i32" }, doc = "Moves a player's cursor `by` places: through the menu on the title, through the roster on the select screen." }
+confirm = { effect = "reversible", args = { player = "i32" }, doc = "The title: the mode under the cursor. The select screen: the player is ready with the fighter under their cursor. In versus the computer plays player 2 until player 2 moves or presses (they join); player 1 ready against the computer, it chooses too." }
+back    = { effect = "reversible", args = { player = "i32" }, doc = "Not ready again; with neither ready, back to the title." }

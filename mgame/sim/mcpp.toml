@@ -1,0 +1,25 @@
+# mgame.sim — the fixed-step simulation loop and its timeline (structure,
+# render, web and game design §7; S4 design G-3, G-4): steps due on a clock of
+# its own (a catch-up limit, a time scale, the fraction toward the next step
+# for drawing); a game's states snapshotted every few frames and its inputs
+# every frame, so any frame of the last seconds is reached exactly — rewind,
+# rollback, seek — and playing on from one starts a new branch. Any game
+# whose state is plain data and whose step is a function of the state and
+# the input plugs in. The standard library alone.
+[package]
+namespace   = "mgame"
+name        = "sim"
+version     = "0.1.0"
+description = "A fixed-step simulation clock, and a timeline of snapshots and inputs that reaches any recent frame exactly"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[targets.mgame-sim]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dev-dependencies]
+openmui.testing = { path = "../../modules/base/testing" }

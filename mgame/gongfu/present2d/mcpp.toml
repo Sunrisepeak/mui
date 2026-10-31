@@ -1,0 +1,35 @@
+# gongfu.present2d — what a gongfu match looks like in 2D (D-85 §8.4): each
+# fighter a skeleton of bones with vector parts, posed by the clip of what it
+# is doing at that frame; the camera that keeps both in view; hit sparks,
+# blocks, counters and the shake of a heavy hit. Every picture is a pure
+# function of the match's state and the events it kept, so a rollback needs
+# no saved picture; drawn into openmui's display list, by its CPU reference or
+# its GPU renderer.
+[package]
+namespace   = "gongfu"
+name        = "present2d"
+version     = "0.1.0"
+description = "gongfu matches drawn in 2D: skeletons with vector parts posed by clips, a camera, hit sparks and shakes — pure functions of the state and its events"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[targets.gongfu-present2d]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+openmui.math = { path = "../../../modules/base/math" }
+gongfu                = { path = ".." }
+"gongfu.data"         = { path = "../data" }
+marzer.tomlplusplus   = "3.4.0"
+hanim                 = { path = "../../../modules/base/hanim" }
+openmui.geom          = { path = "../../../modules/base/geom" }
+openmui.render.vector = { path = "../../../modules/gfx/render/vector" }
+
+[dev-dependencies]
+openmui.testing = { path = "../../../modules/base/testing" }
+openmui.raster  = { path = "../../../modules/gfx/raster" }
+openmui.image   = { path = "../../../modules/base/image" }

@@ -1,0 +1,50 @@
+# Example 04 — a custom component (canvas-markdown §5; component-binding §2):
+# the reading list, whose rows are rated with this application's own
+# component, `rating`. Its interface is a contract
+# (contract/rating.contract.omui.toml); openmui.build.contracts generates the C++
+# partition, the builder and the TypeScript / Python / Lua stubs when the
+# package builds; src/rating.cpp is its behaviour. Registered once, it is a
+# component like any other: the TypeScript interface (logic/main.ts), Lua,
+# view documents and agents reach it by name. The tool: books, their ratings
+# in half stars, the average, the ones worth recommending.
+#
+#   mcpp run                       a window
+#   mcpp run -- --headless --png shelf.png
+[package]
+namespace   = "openmui.example"
+name        = "rating"
+version     = "0.1.0"
+description = "openmui example 04: a reading list rated with the application's own component, from contract to every language"
+license     = "Apache-2.0"
+
+[package.metadata.openmui]
+kind      = "app"
+id        = "org.openmui.reading-list"
+title     = "Reading list"
+size      = "560x520"
+contracts = ["contract/*.contract.omui.toml"]
+
+[package.metadata.openmui.scripts]
+main = "logic/main.ts"
+
+[targets.reading-list]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+openmui.entry.player = { path = "../../src/entry/player" }
+openmui.ui.base      = { path = "../../components/base" }
+
+[build-dependencies]
+openmui.build.contracts = { path = "../../mcpp/contracts", host-module = true }
+
+[dev-dependencies]
+openmui.testing  = { path = "../../modules/base/testing" }
+openmui.player   = { path = "../../modules/ui/player" }
+openmui.lang.js  = { path = "../../lang/js" }
+openmui.lang.lua = { path = "../../lang/lua" }
+openmui.abi      = { path = "../../modules/ui/abi" }
+openmui.viewdoc  = { path = "../../modules/ui/viewdoc" }

@@ -1,0 +1,208 @@
+doc = """The announcer (openmui.audio's recording layers over voice/*.wav, Kenney's
+CC0 Voiceover Pack: Fighter): each call a touch lower and darker than
+recorded, doubled 14 ms behind by a muffled copy so it fills the arena, and
+sent through the stage's hall like every other sound."""
+
+[sound.call_fight]
+gain = 0.5
+[[sound.call_fight.layer]]
+wave = "recording"
+recording = "fight"
+speed = 0.95
+filter = { kind = "highpass", cutoff = 90 }
+drive = 0.12
+
+[[sound.call_fight.layer]]
+wave = "recording"
+recording = "fight"
+at = 0.014
+speed = 0.95
+filter = { kind = "lowpass", cutoff = 1800 }
+gain = 0.3
+
+[sound.call_player_1]
+gain = 0.5
+[[sound.call_player_1.layer]]
+wave = "recording"
+recording = "player_1"
+speed = 0.95
+filter = { kind = "highpass", cutoff = 90 }
+drive = 0.12
+
+[[sound.call_player_1.layer]]
+wave = "recording"
+recording = "player_1"
+at = 0.014
+speed = 0.95
+filter = { kind = "lowpass", cutoff = 1800 }
+gain = 0.3
+
+[sound.call_player_2]
+gain = 0.5
+[[sound.call_player_2.layer]]
+wave = "recording"
+recording = "player_2"
+speed = 0.95
+filter = { kind = "highpass", cutoff = 90 }
+drive = 0.12
+
+[[sound.call_player_2.layer]]
+wave = "recording"
+recording = "player_2"
+at = 0.014
+speed = 0.95
+filter = { kind = "lowpass", cutoff = 1800 }
+gain = 0.3
+
+[sound.call_winner]
+gain = 0.5
+[[sound.call_winner.layer]]
+wave = "recording"
+recording = "winner"
+speed = 0.95
+filter = { kind = "highpass", cutoff = 90 }
+drive = 0.12
+
+[[sound.call_winner.layer]]
+wave = "recording"
+recording = "winner"
+at = 0.014
+speed = 0.95
+filter = { kind = "lowpass", cutoff = 1800 }
+gain = 0.3
+
+[sound.call_flawless]
+gain = 0.5
+[[sound.call_flawless.layer]]
+wave = "recording"
+recording = "flawless_victory"
+speed = 0.95
+filter = { kind = "highpass", cutoff = 90 }
+drive = 0.12
+
+[[sound.call_flawless.layer]]
+wave = "recording"
+recording = "flawless_victory"
+at = 0.014
+speed = 0.95
+filter = { kind = "lowpass", cutoff = 1800 }
+gain = 0.3
+
+[sound.call_time]
+gain = 0.5
+[[sound.call_time.layer]]
+wave = "recording"
+recording = "time"
+speed = 0.95
+filter = { kind = "highpass", cutoff = 90 }
+drive = 0.12
+
+[[sound.call_time.layer]]
+wave = "recording"
+recording = "time"
+at = 0.014
+speed = 0.95
+filter = { kind = "lowpass", cutoff = 1800 }
+gain = 0.3
+
+[sound.call_tie]
+gain = 0.5
+[[sound.call_tie.layer]]
+wave = "recording"
+recording = "tie"
+speed = 0.95
+filter = { kind = "highpass", cutoff = 90 }
+drive = 0.12
+
+[[sound.call_tie.layer]]
+wave = "recording"
+recording = "tie"
+at = 0.014
+speed = 0.95
+filter = { kind = "lowpass", cutoff = 1800 }
+gain = 0.3
+
+[sound.call_choose]
+gain = 0.5
+[[sound.call_choose.layer]]
+wave = "recording"
+recording = "choose_your_character"
+speed = 0.95
+filter = { kind = "highpass", cutoff = 90 }
+drive = 0.12
+
+[[sound.call_choose.layer]]
+wave = "recording"
+recording = "choose_your_character"
+at = 0.014
+speed = 0.95
+filter = { kind = "lowpass", cutoff = 1800 }
+gain = 0.3
+
+[sound.call_round_1]
+gain = 0.5
+[[sound.call_round_1.layer]]
+wave = "recording"
+recording = "round_1"
+speed = 0.95
+filter = { kind = "highpass", cutoff = 90 }
+drive = 0.12
+
+[[sound.call_round_1.layer]]
+wave = "recording"
+recording = "round_1"
+at = 0.014
+speed = 0.95
+filter = { kind = "lowpass", cutoff = 1800 }
+gain = 0.3
+
+[sound.call_round_2]
+gain = 0.5
+[[sound.call_round_2.layer]]
+wave = "recording"
+recording = "round_2"
+speed = 0.95
+filter = { kind = "highpass", cutoff = 90 }
+drive = 0.12
+
+[[sound.call_round_2.layer]]
+wave = "recording"
+recording = "round_2"
+at = 0.014
+speed = 0.95
+filter = { kind = "lowpass", cutoff = 1800 }
+gain = 0.3
+
+[sound.call_round_3]
+gain = 0.5
+[[sound.call_round_3.layer]]
+wave = "recording"
+recording = "round_3"
+speed = 0.95
+filter = { kind = "highpass", cutoff = 90 }
+drive = 0.12
+
+[[sound.call_round_3.layer]]
+wave = "recording"
+recording = "round_3"
+at = 0.014
+speed = 0.95
+filter = { kind = "lowpass", cutoff = 1800 }
+gain = 0.3
+
+[sound.call_final_round]
+gain = 0.5
+[[sound.call_final_round.layer]]
+wave = "recording"
+recording = "final_round"
+speed = 0.95
+filter = { kind = "highpass", cutoff = 90 }
+drive = 0.12
+
+[[sound.call_final_round.layer]]
+wave = "recording"
+recording = "final_round"
+at = 0.014
+speed = 0.95
+filter = { kind = "lowpass", cutoff = 1800 }
+gain = 0.3

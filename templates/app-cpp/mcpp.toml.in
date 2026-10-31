@@ -1,0 +1,17 @@
+[package]
+name    = "{{project.name}}"
+version = "0.1.0"
+
+[package.metadata.openmui]
+kind = "app"
+id   = "org.example.{{project.name}}"
+
+[targets.{{project.name}}]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+"{{self.name}}" = "{{self.version}}"

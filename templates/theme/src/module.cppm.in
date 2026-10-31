@@ -1,0 +1,15 @@
+// {{project.name}}: the themes in themes/, embedded (the partition :brand_theme).
+export module {{project.name}};
+
+export import :brand_theme;
+
+import std;
+import openmui.theme;
+
+export namespace {{project.name}} {
+
+// Adds the package's themes to the program's library (with openmui's
+// default, which brand extends).
+std::expected<void, omui::theme::Diagnostics> add();
+
+}  // namespace {{project.name}}

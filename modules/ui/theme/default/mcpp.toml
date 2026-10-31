@@ -1,0 +1,28 @@
+# openmui.theme.default (module openmui.theme.default_theme: `default` is a
+# C++ keyword) — the default theme file (default.theme.omui.toml), embedded:
+# add_default() adds what it declares to the program's theme library
+# (openmui.theme). The partition holding the text is generated
+# (`omui-gen embed`; tools/gen's test keeps it current).
+[package]
+namespace   = "openmui.theme"
+name        = "default"
+version     = "0.1.0"
+description = "openmui's default theme as data"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind   = "theme"
+themes = ["default.theme.omui.toml"]
+
+[targets.openmui-theme-default]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/generated/*.cppm"]
+
+[dependencies]
+openmui.theme = { path = ".." }
+
+[dev-dependencies]
+openmui.testing = { path = "../../../base/testing" }

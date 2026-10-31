@@ -1,0 +1,19 @@
+// The site's build program: its lens's contract becomes code; its content and
+// the docs it shows are carried in the program; on the Web it is packed as a
+// static page (the shape a Pages subpath serves as it is).
+import std;
+import mcpp;
+import openmui.build.contracts;
+import openmui.build.embed;
+import openmui.build.toy;
+
+int main() {
+    const bool lens = openmui::build::components({.module = "openmui.site", .ns = "omui::site"});
+    const bool content = openmui::build::embed({.module = "openmui.site", .ns = "omui::site::files", .dir = "content", .suffix = ".md", .tag = "content", .index = true});
+    const bool en = openmui::build::embed({.module = "openmui.site", .ns = "omui::site::files", .dir = "../docs/en", .suffix = ".md", .tag = "en", .index = true});
+    const bool zh = openmui::build::embed({.module = "openmui.site", .ns = "omui::site::files", .dir = "../docs/zh", .suffix = ".md", .tag = "zh", .index = true});
+    // The reference run's frames as CI hashed them (the footer compares a browser's own with them).
+    const bool frames = openmui::build::embed({.module = "openmui.site", .ns = "omui::site::files", .dir = "reference", .suffix = ".frames.omui.json", .tag = "frames"});
+    const bool page = openmui::build::dist_toy({.target = "omui-site", .title = "openmui", .fonts = {"Inter", "JetBrainsMono", "NotoSansSC"}, .background = "#0b0f16", .sdk = false});
+    return lens && content && en && zh && frames && page ? 0 : 1;
+}

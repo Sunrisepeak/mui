@@ -1,0 +1,29 @@
+// The film's data carried in the program (openmui.build.embed): its cuts,
+// lines, look, score, sounds, script pages and the four versions of the
+// counter its code shot shows — partitions openmui.showcase.promo_video:<name>_<tag>,
+// each tag with a table of them all. `omui-promo --dir` reads edited copies instead.
+import std;
+import mcpp;
+import openmui.build.embed;
+
+int main() {
+    constexpr std::string_view module = "openmui.showcase.promo_video";
+    struct Set {
+        std::string_view dir, suffix, tag;
+    };
+    constexpr std::array<Set, 10> sets{{{".", ".timeline.omui.toml", "timeline"},
+                                        {".", ".subtitles.omui.toml", "subtitles"},
+                                        {".", ".style.omui.toml", "style"},
+                                        {"music", ".music.omui.toml", "music"},
+                                        {"sounds", ".sound.omui.toml", "sound"},
+                                        {"script", ".md", "page"},
+                                        {"code", ".ts", "ts"},
+                                        {"code", ".lua", "lua"},
+                                        {"code", ".py", "py"},
+                                        {"code", ".cpp", "cpp"}}};
+    bool ok = true;
+    for (const Set& s : sets)
+        ok = openmui::build::embed({.module = std::string(module), .ns = "omui::promo::files", .dir = std::string(s.dir), .suffix = std::string(s.suffix),
+                                    .tag = std::string(s.tag), .index = true}) && ok;
+    return ok ? 0 : 1;
+}

@@ -1,0 +1,386 @@
+doc = """openmui's film: sixty seconds at 60 frames a second, 120 beats a minute.
+Each picture clip is a live openmui scene (`shot:<name>`, drawn by the
+scene code in src/shots) or the film's own frames (`film`: played back at
+its speed — here, backwards five times over: the rewind). Its keyed
+properties are the scene's camera and choreography, in the clip's own
+time. Every cut and every marked hit lies on a beat of the music."""
+
+[timeline]
+name = "promo"
+rate = 60
+sample_rate = 48000
+size = [1920, 1080]
+
+# ── chapters and the hits the picture lands on (each on a beat) ──────────
+
+[[marker]]
+at = "0s"
+name = "chapter:hook"
+
+[[marker]]
+at = "0s"
+name = "hit:pixel"
+
+[[marker]]
+at = "4s"
+name = "chapter:title"
+
+[[marker]]
+at = "6s"
+name = "hit:wordmark"
+
+[[marker]]
+at = "8s"
+name = "chapter:code"
+
+[[marker]]
+at = "12s"
+name = "hit:cpp"
+
+[[marker]]
+at = "13s"
+name = "hit:python"
+
+[[marker]]
+at = "14s"
+name = "hit:lua"
+
+[[marker]]
+at = "16s"
+name = "chapter:infinite"
+
+[[marker]]
+at = "24s"
+name = "hit:dive"
+
+[[marker]]
+at = "28s"
+name = "chapter:styles"
+
+[[marker]]
+at = "29s"
+name = "hit:glass"
+
+[[marker]]
+at = "30s"
+name = "hit:neon"
+
+[[marker]]
+at = "31s"
+name = "hit:retro"
+
+[[marker]]
+at = "32s"
+name = "hit:ink"
+
+[[marker]]
+at = "33s"
+name = "hit:liquid"
+
+[[marker]]
+at = "34s"
+name = "hit:blueprint"
+
+[[marker]]
+at = "36s"
+name = "chapter:agent"
+
+[[marker]]
+at = "40.5s"
+name = "hit:needs-answer"
+
+[[marker]]
+at = "42.5s"
+name = "hit:answered"
+
+[[marker]]
+at = "46s"
+name = "chapter:time"
+
+[[marker]]
+at = "50s"
+name = "hit:rewind"
+
+[[marker]]
+at = "51s"
+name = "hit:replay"
+
+[[marker]]
+at = "55s"
+name = "chapter:end"
+
+[[marker]]
+at = "59s"
+name = "hit:sting"
+
+# ── the picture ──────────────────────────────────────────────────────────
+
+[[track]]
+name = "picture"
+kind = "video"
+
+[[track.clip]]
+name = "origin"
+source = "shot:origin"
+at = "0f"
+length = "8s"
+
+# log2 of the screen pixels a pixel of the panel covers: one pixel the size
+# of the screen's height, then the camera pulls back to the whole panel.
+[[track.clip.property]]
+name = "magnify"
+keys = [["0s", 9.4, "linear"], ["1.5s", 9.1, "in_out_cubic"], ["4.6s", -0.35, "out_cubic"], ["6s", -0.75]]
+
+# The panel's semantic tree growing beside it, then its lines gathering
+# into the wordmark (on the bar), then the band of light.
+[[track.clip.property]]
+name = "tree"
+keys = [["4s", 0, "out_cubic"], ["5.2s", 1]]
+
+[[track.clip.property]]
+name = "gather"
+keys = [["5.25s", 0, "in_out_cubic"], ["6s", 1]]
+
+[[track.clip.property]]
+name = "sweep"
+keys = [["6.1s", 0, "in_out_sine"], ["7.2s", 1]]
+
+[[track.clip]]
+name = "code"
+source = "shot:code"
+at = "8s"
+length = "8s"
+
+# How much of tally.ts is typed (its characters, one after another).
+[[track.clip.property]]
+name = "typed"
+keys = [["0.3s", 0, "linear"], ["3.7s", 1]]
+
+# Which version is shown: 0 TypeScript, 1 C++, 2 Python, 3 Lua, 4 all four.
+[[track.clip.property]]
+name = "language"
+keys = [["0s", 0, "hold"], ["4s", 1, "hold"], ["5s", 2, "hold"], ["6s", 3, "hold"], ["7s", 4, "hold"]]
+
+[[track.clip]]
+name = "infinite"
+source = "shot:infinite"
+at = "16s"
+length = "12s"
+
+# How far out the camera is: 0 a page, live, 1 the whole wall (the zoom's
+# logarithm between them).
+[[track.clip.property]]
+name = "out"
+keys = [["0s", 0, "in_out_sine"], ["0.8s", 0.02, "in_out_cubic"], ["5.6s", 1, "linear"], ["8s", 0.98, "in_out_cubic"], ["11.2s", 0]]
+
+# Where it looks: 0 the first page, 1 the wall's middle, 2 the second page
+# (slow while it is close, fast while it is far).
+[[track.clip.property]]
+name = "pan"
+keys = [["0.8s", 0, "in_cubic"], ["5.6s", 1, "linear"], ["8s", 1.04, "out_cubic"], ["11s", 2]]
+
+[[track.clip]]
+name = "styles"
+source = "shot:styles"
+at = "28s"
+length = "8s"
+
+# The style pack shown: 0 blueprint, 1 glass, 2 neon, 3 retro, 4 ink, 5 liquid.
+[[track.clip.property]]
+name = "style"
+keys = [["0s", 0, "hold"], ["1s", 1, "hold"], ["2s", 2, "hold"], ["3s", 3, "hold"], ["4s", 4, "hold"], ["5s", 5, "hold"], ["6s", 0, "hold"]]
+
+[[track.clip]]
+name = "agent"
+source = "shot:agent"
+at = "36s"
+length = "10s"
+
+# The agent's steps: 1 looks, 2 stars a note, 3 undoes it, 4 asks to delete
+# every note (needs an answer), 5 the person answers, 6 the journal.
+[[track.clip.property]]
+name = "step"
+keys = [["0s", 0, "hold"], ["0.5s", 1, "hold"], ["1.5s", 2, "hold"], ["3s", 3, "hold"], ["4.5s", 4, "hold"], ["6.5s", 5, "hold"], ["8s", 6, "hold"]]
+
+[[track.clip]]
+name = "time"
+source = "shot:time"
+at = "46s"
+length = "4s"
+
+[[track.clip]]
+name = "rewind"
+source = "film"
+at = "50s"
+length = "1s"
+in = "2999f"
+speed = -5
+
+[[track.clip]]
+name = "replay"
+source = "shot:time"
+at = "51s"
+length = "4s"
+
+# The same game again: its checksum set beside the first play's, from a run of its own.
+[[track.clip.property]]
+name = "compare"
+keys = [["0s", 1]]
+
+[[track.clip]]
+name = "end"
+source = "shot:end"
+at = "55s"
+length = "5s"
+fade = { in = "0f", out = "0.5s", ease = "in_quad" }
+
+# Back into the pixel; the command typed; the closing line.
+[[track.clip.property]]
+name = "dive"
+keys = [["0s", -0.6, "in_expo"], ["1.4s", 9.6]]
+
+[[track.clip.property]]
+name = "typed"
+keys = [["1.6s", 0, "linear"], ["2.6s", 1]]
+
+[[track.clip.property]]
+name = "close"
+keys = [["3.2s", 0, "out_cubic"], ["4s", 1]]
+
+# ── the lines ────────────────────────────────────────────────────────────
+
+[[track]]
+name = "subtitles"
+kind = "events"
+
+[[track.clip]]
+name = "hook"
+source = "line:short"
+at = "0.6s"
+length = "2.9s"
+
+[[track.clip]]
+name = "title"
+source = "line:title"
+at = "4.5s"
+length = "3.3s"
+
+[[track.clip]]
+name = "code"
+source = "line:code"
+at = "8.5s"
+length = "3.3s"
+
+[[track.clip]]
+name = "languages"
+source = "line:languages"
+at = "12s"
+length = "3.8s"
+
+[[track.clip]]
+name = "infinite"
+source = "line:infinite"
+at = "16.5s"
+length = "5s"
+
+[[track.clip]]
+name = "tiers"
+source = "line:tiers"
+at = "22s"
+length = "5.6s"
+
+[[track.clip]]
+name = "styles"
+source = "line:styles"
+at = "28.5s"
+length = "7.2s"
+
+[[track.clip]]
+name = "agents"
+source = "line:agents"
+at = "36.5s"
+length = "3.8s"
+
+[[track.clip]]
+name = "effects"
+source = "line:effects"
+at = "40.5s"
+length = "5.2s"
+
+[[track.clip]]
+name = "time"
+source = "line:time"
+at = "46.5s"
+length = "3.3s"
+
+[[track.clip]]
+name = "replay"
+source = "line:replay"
+at = "51.5s"
+length = "3.3s"
+
+# ── sound ────────────────────────────────────────────────────────────────
+
+[[track]]
+name = "music"
+kind = "audio"
+
+[[track.clip]]
+name = "score"
+source = "music/promo.music.omui.toml"
+at = "0f"
+length = "50s"
+
+[[track.clip]]
+name = "score again"
+source = "music/promo.music.omui.toml"
+at = "51s"
+length = "9s"
+in = "46s"
+fade = { in = "0f", out = "0.6s", ease = "in_quad" }
+
+[[track]]
+name = "sfx"
+kind = "events"
+
+[[track.clip]]
+name = "ping"
+source = "sound:ping"
+at = "0f"
+length = "1s"
+
+[[track.clip]]
+name = "pull back"
+source = "sound:whoosh"
+at = "2s"
+length = "1s"
+
+[[track.clip]]
+name = "wordmark"
+source = "sound:sting"
+at = "6s"
+length = "1s"
+
+[[track.clip]]
+name = "dive"
+source = "sound:whoosh"
+at = "23.5s"
+length = "1s"
+
+[[track.clip]]
+name = "tape"
+source = "sound:tape"
+at = "50s"
+length = "1s"
+
+[[track.clip]]
+name = "back to the pixel"
+source = "sound:whoosh"
+at = "55s"
+length = "1s"
+
+[[track.clip]]
+name = "closing"
+source = "sound:sting"
+at = "59s"
+length = "1s"

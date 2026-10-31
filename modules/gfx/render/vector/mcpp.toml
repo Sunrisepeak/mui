@@ -1,0 +1,41 @@
+# openmui.render.vector — 2D vector rendering, a rendering feature of
+# openmui.render (D-81): the display list of contract ⑤, its CPU reference
+# backend and its GPU backend (D-57). Knows nothing of nodes or views;
+# anything that produces a display list can render it.
+[package]
+namespace   = "openmui.render"
+name        = "vector"
+version     = "0.1.0"
+description = "2D vector rendering: the display list, its CPU reference renderer and its GPU renderer, byte-for-byte where it can be"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "backend"
+
+[targets.openmui-render-vector]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp", "src/generated/*.cppm"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[build-dependencies]
+openmui.shader.rules = { path = "../../shader/rules", host-module = true }
+
+[dependencies]
+openmui.math = { path = "../../../base/math" }
+openmui.hash = { path = "../../../base/hash" }
+openmui.render = { path = ".." }
+openmui.rhi    = { path = "../../rhi" }
+openmui.geom   = { path = "../../../base/geom" }
+openmui.memory = { path = "../../../base/memory" }
+hanim          = { path = "../../../base/hanim" }
+openmui.raster = { path = "../../raster" }
+
+[dev-dependencies]
+openmui.testing = { path = "../../../base/testing" }
+openmui.image   = { path = "../../../base/image" }
+openmui.rhi.sdl = { path = "../../rhi/sdl" }
+openmui.trace   = { path = "../../../base/trace" }
+mcpplibs.os     = "0.2.2"

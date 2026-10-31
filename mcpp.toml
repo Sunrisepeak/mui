@@ -1,0 +1,232 @@
+# openmui — the umbrella package, and the workspace of every openmui member.
+#
+# The repository root is the package users name (`openmui`): its module
+# re-exports the runtime, the base components and the default theme; the
+# entries are packages under src/entry (the player's: src/entry/player). Each
+# member below has its own mcpp.toml and depends on others only by `path`, so
+# any of them can move to its own repository (D-41).
+[package]
+namespace   = "openmui"
+name        = "sdk"
+version     = "0.1.0"
+description = "openmui: an open UI specification and its reference implementation in C++ modules"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[workspace]
+members = [
+    "spec",
+    "modules/base/fuzzy",
+    "modules/base/geom",
+    "modules/base/hanim",
+    "modules/base/hash",
+    "modules/base/image",
+    "modules/base/math",
+    "modules/base/memory",
+    "modules/base/pipeline",
+    "modules/base/session",
+    "modules/base/testing",
+    "modules/base/trace",
+    "modules/base/unicode",
+    "modules/gfx/raster",
+    "modules/gfx/render",
+    "modules/gfx/render/vector",
+    "modules/gfx/render/effect",
+    "modules/gfx/rhi",
+    "modules/gfx/rhi/cts",
+    "modules/gfx/rhi/sdl",
+    "modules/gfx/rhi/webgpu",
+    "modules/gfx/rhi/webgl",
+    "modules/gfx/shader",
+    "modules/gfx/shader/rules",
+    "modules/content/i18n",
+    "modules/content/i18n/cldr",
+    "modules/content/layout",
+    "modules/content/markdown",
+    "modules/content/text",
+    "modules/media/audio",
+    "modules/media/audio/device",
+    "modules/media/video",
+    "modules/media/video/webm",
+    "modules/media/timeline",
+    "modules/ui/abi",
+    "modules/ui/accessibility",
+    "modules/ui/agent",
+    "modules/ui/core",
+    "modules/ui/expr",
+    "modules/ui/host/headless",
+    "modules/ui/host/sdl3",
+    "modules/ui/host/web",
+    "modules/ui/host/web/toy",
+    "modules/ui/native",
+    "modules/ui/native/fuzzy",
+    "modules/ui/native/store",
+    "modules/ui/player",
+    "modules/ui/reflect",
+    "modules/ui/semantic",
+    "modules/ui/theme",
+    "modules/ui/theme/compact",
+    "modules/ui/theme/default",
+    "modules/ui/theme/styles",
+    "modules/ui/view",
+    "modules/ui/viewdoc",
+    "mgame/gongfu",
+    "mgame/gongfu/data",
+    "mgame/gongfu/present2d",
+    "mgame/gongfu/rules",
+    "mgame/gongfu/studio",
+    "mgame/gongfu/training",
+    "mgame/gongfu/ai",
+    "mgame/net",
+    "mgame/world",
+    "mgame/sim",
+    "mgame/input",
+    "mgame/physics",
+    "mgame/ui",
+    "components/base",
+    "components/canvas",
+    "components/canvas/kit",
+    "components/liquid-glass",
+    "components/markdown",
+    "components/timeline",
+    "components/window",
+    "lang",
+    "lang/js",
+    "lang/lua",
+    "lang/python",
+    "lang/python/embedded",
+    "tools/cli",
+    "tools/gen",
+    "tools/inspector",
+    "tools/mcp",
+    "mcpp/plan",
+    "mcpp/contracts",
+    "mcpp/embed",
+    "mcpp/toy",
+    "src/entry/player",
+    "src/entry/python",
+    "tests/bench",
+    "tests/cts",
+    "tests/features",
+    "tests/plugins/contracts",
+    "tests/plugins/embed",
+    "examples/01-hello-im",
+    "examples/02-hello-ts",
+    "examples/03-counter",
+    "examples/04-rating",
+    "examples/05-contrast",
+    "examples/06-theming",
+    "examples/07-headless-and-agent",
+    "examples/08-markdown-viewer",
+    "examples/09-markdown-stream",
+    "examples/10-canvas-basics",
+    "examples/12-notes",
+    "showcase/fighting",
+    "showcase/markdown-wall",
+    "showcase/promo-video",
+    "showcase/style-gallery",
+    "showcase/widget-breakout",
+    "showcase/widget-breakout/sim",
+    "site",
+]
+
+# Sanitizers (plan §19.1 "内存"): AddressSanitizer and UndefinedBehavior-
+# Sanitizer over every unit of the graph, the first finding fatal. CI runs
+# `mcpp test --workspace --profile sanitize` nightly on Linux.
+[workspace.profile.sanitize]
+opt      = 1
+debug    = true
+cflags   = ["-fsanitize=address,undefined", "-fno-omit-frame-pointer", "-fno-sanitize-recover=all"]
+cxxflags = ["-fsanitize=address,undefined", "-fno-omit-frame-pointer", "-fno-sanitize-recover=all"]
+ldflags  = ["-fsanitize=address,undefined"]
+
+# The Web (D-84): wasm32-emscripten. Exceptions, as the libraries that throw
+# need them (JSON, TOML; the native units that catch); memory that grows; a
+# stack of 1 MiB (Emscripten's default, 64 KiB, is one buffer of
+# mcpplibs.os's reads).
+[workspace.target.'cfg(os = "emscripten")'.abi]
+exceptions = true
+
+#
+# Single-threaded (D-84: no SharedArrayBuffer on Pages or Toy): some index
+# packages' `linux` link flags (taskflow's -pthread, harfbuzz's and libwebp's
+# -lpthread) reach the emscripten row too, and -pthread would make the
+# program's memory shared — which these objects, built without atomics,
+# cannot link into. USE_PTHREADS=0 (applied after the flags) undoes it.
+[workspace.target.'cfg(os = "emscripten")'.build]
+ldflags = ["-sALLOW_MEMORY_GROWTH=1", "-sSTACK_SIZE=1048576", "-sUSE_PTHREADS=0"]
+
+# The test programs on the Web row run under node and read their fixtures
+# beside their sources, as on every other row: node's file system, not the
+# in-memory one a page has. CI's wasm row: `mcpp test --target
+# wasm32-emscripten --profile wasm-test`.
+[workspace.profile.wasm-test]
+opt     = 1
+debug   = false
+ldflags = ["-sNODERAWFS=1"]
+
+# The test programs that need a browser (tools/ci/browser.sh runs them in
+# headless Chromium): linked to suspend for the page's promises — what
+# waiting for WebGPU and reading its textures back take — and to say their
+# exit code to the page. Asyncify, not JSPI: JSPI makes the exceptions'
+# invoke_ imports suspending, and a static constructor that reaches a try
+# block then fails outside WebAssembly.promising.
+[workspace.profile.wasm-browser]
+opt     = 1
+debug   = false
+ldflags = ["-sASYNCIFY=1", "-sEXIT_RUNTIME=1"]
+
+[workspace.package]
+standard = "c++23"
+mcpp     = ">=2026.10.26.1"
+
+# MinGW GCC 16 emits the function-local statics of inline standard-library
+# functions instantiated in module units (std::variant's __reasons,
+# make_shared's type tag) as strong symbols, so two units of one program define
+# them twice. The definitions are identical; the linker keeps one.
+[workspace.target.x86_64-windows-gnu.build]
+ldflags = ["-Wl,--allow-multiple-definition"]
+# HarfBuzz's amalgamated unit exceeds COFF's 2^15 sections under GCC; the big
+# object format lifts the limit. Graph-wide, so it reaches that dependency.
+dialect_cxxflags = ["-Wa,-mbig-obj"]
+
+[targets.openmui]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+openmui.core          = { path = "modules/ui/core" }
+openmui.view          = { path = "modules/ui/view" }
+openmui.semantic      = { path = "modules/ui/semantic" }
+openmui.agent         = { path = "modules/ui/agent" }
+openmui.expr          = { path = "modules/ui/expr" }
+openmui.viewdoc       = { path = "modules/ui/viewdoc" }
+openmui.trace         = { path = "modules/base/trace" }
+openmui.ui.base       = { path = "components/base" }
+openmui.ui.window     = { path = "components/window" }
+openmui.host.headless = { path = "modules/ui/host/headless" }
+"openmui.i18n"        = { path = "modules/content/i18n" }
+"openmui.i18n.cldr"   = { path = "modules/content/i18n/cldr" }
+mcpplibs.os           = "0.2.2"
+
+# Where `omui::run` shows an application (D-84): a desktop window, or on the
+# Web the page's canvas — the host, and the partition (openmui:host) and unit
+# (src/host/<where>/shown.cpp) that name it.
+[target.'cfg(not(os = "emscripten"))'.dependencies]
+openmui.host.sdl3 = { path = "modules/ui/host/sdl3" }
+
+[target.'cfg(os = "emscripten")'.dependencies]
+openmui.host.web = { path = "modules/ui/host/web" }
+
+[target.'cfg(not(os = "emscripten"))'.build]
+sources = ["src/host/desktop/*.cppm", "src/host/desktop/*.cpp"]
+
+[target.'cfg(os = "emscripten")'.build]
+sources = ["src/host/web/*.cppm", "src/host/web/*.cpp"]
+
+# The root package has no test programs of its own: tests/ holds members
+# (modules/base/testing, and the cross-member suites), each discovered by itself.
+[test]
+discover = []

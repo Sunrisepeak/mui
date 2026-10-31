@@ -1,0 +1,13 @@
+-- {{project.name}}: a button that counts. Save this file while the window is
+-- open and it shows at once; the count stays.
+local clicks = omui.signal(0)
+
+local function App()
+  return omui.Column { padding = 24, gap = 12,
+    omui.Text { id = "count", text = omui.fmt("Clicked {} times", clicks), style = "heading" },
+    omui.Button { id = "click", text = "Click me", variant = "primary",
+      on_activated = function() clicks:update(function(n) return n + 1 end) end },
+  }
+end
+
+assert(omui.mount("main", App()))

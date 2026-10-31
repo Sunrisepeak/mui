@@ -1,0 +1,23 @@
+# A count with a tone, that can be dismissed: a component of a package that
+# is not openmui's (it has no privilege: component-binding §1).
+[contract.badge]
+role = "status"
+spec = "0.1"
+doc  = "A small count with a tone; dismissing it clears it."
+
+[contract.badge.props]
+count = { type = "i32", default = 0, bindable = true, doc = "What it counts; 0 hides the number." }
+tone  = { type = "enum", values = ["neutral", "good", "bad"], default = "neutral" }
+label = { type = "string", default = "", doc = "What the count is of (the accessible name)." }
+
+[contract.badge.events]
+cleared = { args = { was = "i32" } }
+
+[contract.badge.actions]
+dismiss = { effect = "reversible" }
+
+[contract.badge.keys]
+"Escape" = "dismiss"
+
+[contract.badge.parts]
+pill = {}

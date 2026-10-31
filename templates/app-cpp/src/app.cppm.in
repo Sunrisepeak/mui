@@ -1,0 +1,28 @@
+// {{project.name}}: the interface, declared each time something happens
+// (immediate mode). Change it and `mcpp run`.
+export module app;
+
+import std;
+import openmui;
+
+export namespace app {
+
+inline omui::AppSpec spec() {
+    static int clicks = 0;
+    return {
+        .id = "org.example.{{project.name}}",
+        .title = "{{project.name}}",
+        .size = {480, 320},
+        .view = [] {
+            return omui::immediate([](omui::Ui& ui) {
+                ui.column({.padding = 24, .gap = 12}, [&] {
+                    ui.text("Hello from {{project.name}}", {.style = "title"});
+                    ui.text(std::format("Clicked {} times", clicks));
+                    if (ui.button("Click me", {.id = "click"})) ++clicks;
+                });
+            });
+        },
+    };
+}
+
+}  // namespace app

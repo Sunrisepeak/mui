@@ -1,0 +1,14 @@
+module {{project.name}};
+
+import std;
+import openmui.theme;
+import openmui.theme.default_theme;
+
+namespace {{project.name}} {
+
+std::expected<void, omui::theme::Diagnostics> add() {
+    if (auto r = omui::themes::add_default(); !r) return r;
+    return omui::theme::library().add(brand_theme, "brand.theme.omui.toml");
+}
+
+}  // namespace {{project.name}}

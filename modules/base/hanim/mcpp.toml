@@ -1,0 +1,33 @@
+# hanim — a general animation engine.
+#
+# The standard library and openmui.math only (D-49, D-55, D-87: its
+# deterministic functions moved there, an independent component too): the two
+# can leave this repository unchanged. Every animation is a pure function of time, and its
+# results are the same bits on every platform (A-level conformance), which is
+# why the floating-point flags below are not optional.
+[package]
+name        = "hanim"
+version     = "0.1.0"
+description = "A general animation engine: tweens, keyframes, analytic springs and decay, timelines, OKLab colour; seekable and deterministic"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "runtime"
+
+[targets.hanim]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+# No fused multiply-add the source did not write: GCC fuses by default outside
+# ISO mode and Clang fuses within an expression, either of which changes the
+# last bit of a spring or a colour on one platform and not another.
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+openmui.math = { path = "../math" }
+
+[dev-dependencies]
+openmui.testing = { path = "../testing" }

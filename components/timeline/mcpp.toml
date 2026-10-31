@@ -1,0 +1,39 @@
+# openmui.ui.timeline — the timeline every editor shares, as a component
+# (D-86): tracks of clips in exact time (openmui.timeline), a ruler, markers
+# and a playhead; clips selected, moved, trimmed, split and removed by the
+# pointer, the keys or an agent's actions, every edit undone exactly.
+# Contract-first: contract/timeline.contract.omui.toml becomes the base,
+# builders, stubs and schema when it builds (openmui.build.contracts).
+[package]
+namespace   = "openmui.ui"
+name        = "timeline"
+version     = "0.1.0"
+description = "A timeline to edit: tracks of clips, a playhead, moves, trims, splits and removals, every edit undone exactly"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "component"
+
+[targets.openmui-ui-timeline]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+openmui.core          = { path = "../../modules/ui/core" }
+openmui.view          = { path = "../../modules/ui/view" }
+openmui.render.vector = { path = "../../modules/gfx/render/vector" }
+openmui.ui.base       = { path = "../base" }
+openmui.timeline      = { path = "../../modules/media/timeline" }
+
+[build-dependencies]
+openmui.build.contracts = { path = "../../mcpp/contracts", host-module = true }
+
+[dev-dependencies]
+openmui.testing       = { path = "../../modules/base/testing" }
+openmui.host.headless = { path = "../../modules/ui/host/headless" }
+openmui.semantic      = { path = "../../modules/ui/semantic" }
+openmui.i18n.cldr     = { path = "../../modules/content/i18n/cldr" }

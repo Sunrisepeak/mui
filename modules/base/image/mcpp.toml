@@ -1,0 +1,33 @@
+# openmui.image — images in memory, PNG encoding and decoding (libpng's
+# simplified API, imported as the C++ module mcpplibs.mwrap.libpng over
+# compat.libpng and compat.zlib from mcpp-index) and WebP encoding and
+# decoding, still and animated (libwebp, imported as mcpplibs.mwrap.libwebp over
+# compat.libwebp; its demux and mux features for WebPAnimDecoder and
+# WebPAnimEncoder).
+# libpng 1.6.43: the version compat.freetype (under HarfBuzz) requires, so
+# one libpng serves the whole graph. libwebp 1.5.0 is built without threads:
+# the native unit makes its one-time setup safe (src/native/webp.cpp).
+[package]
+namespace   = "openmui"
+name        = "image"
+version     = "0.1.0"
+description = "Image buffers, premultiplication, PNG, APNG and WebP (still and animated) encode and decode"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "runtime"
+
+[targets.openmui-image]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+
+[dependencies]
+mcpplibs.mwrap.libpng = "1.6.43"
+mcpplibs.mwrap.libwebp = { version = "1.5.0", features = ["demux", "mux"] }
+
+[dev-dependencies]
+openmui.testing = { path = "../testing" }

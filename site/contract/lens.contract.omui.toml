@@ -1,0 +1,10 @@
+# The site's lens over a place: the same nodes the pixels are drawn from,
+# shown as the semantic tree's wireframe — each node's box and role, the
+# interactive ones marked — over the page as it is.
+[contract.lens]
+role = "canvas"
+spec = "0.1"
+doc  = "A wireframe of the semantic tree over the page: each node's box and role, the ones an agent can operate marked."
+
+[contract.lens.props]
+nodes  = { type = "any", doc = "The semantic snapshot's nodes (openmui.semantic's to_value): their ids, roles, actions and window bounds." }

@@ -1,0 +1,30 @@
+# The timeline every editor shares, to look at and edit (D-86): tracks of
+# clips in exact time (openmui.timeline), a ruler, markers and a playhead.
+# A person selects, drags, trims and splits with the pointer and the keys;
+# an agent does the same through the actions; every edit undoes exactly,
+# through the window's history (or the editor's, as an undo_scope).
+[contract.timeline_editor]
+role = "canvas"
+spec = "0.1"
+doc  = "A timeline to edit: tracks of clips in exact time and a playhead; clips selected, moved, trimmed, split and removed by pointer, keys or an agent, every edit undone exactly."
+
+[contract.timeline_editor.props]
+document = { type = "string", default = "", doc = "The timeline as *.timeline.omui.toml text; set again, it is read again and its history cleared." }
+frame    = { type = "i32", default = 0, doc = "The playhead, in frames at the timeline's rate; moved here, it is written back." }
+zoom     = { type = "f64", default = 120, doc = "Pixels a second." }
+
+[contract.timeline_editor.events]
+edited   = { args = { what = "string", document = "string" } }
+selected = { args = { track = "i32", clip = "i32" } }
+
+[contract.timeline_editor.actions]
+seek   = { effect = "reversible", args = { frame = "i32" }, doc = "Moves the playhead to a frame." }
+select = { effect = "reversible", args = { track = "i32", clip = "i32" }, doc = "Selects a clip (a track of −1: none)." }
+move   = { effect = "reversible", args = { track = "i32", clip = "i32", to_track = "i32", frame = "i32" }, doc = "Moves a clip to start at a frame on a track of its kind." }
+trim   = { effect = "reversible", args = { track = "i32", clip = "i32", frame = "i32", frames = "i32" }, doc = "Gives a clip a new start and length (its source stays under its time)." }
+split  = { effect = "reversible", doc = "Cuts the selected clip in two at the playhead." }
+remove = { effect = "reversible", args = { ripple = "bool" }, doc = "Removes the selected clip; with ripple, later clips on its track move back by its length." }
+revert = { effect = "reversible", args = { change = "i64" }, doc = "Makes a change an earlier edit kept: its inverse, as the window's history undoes and redoes it (S-12)." }
+
+[contract.timeline_editor.keys]
+"S" = "split"

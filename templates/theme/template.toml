@@ -1,0 +1,3 @@
+[template]
+description  = "An openmui theme package: themes/*.theme.omui.toml, embedded in the package when it builds"
+post_message = "cd into the project: themes/ holds the theme; a program calls the package's add() once, then composes it (omui.theme(\"brand\"))."

@@ -1,0 +1,61 @@
+# S5 — openmui's film (D-51; promo-video design): sixty seconds at 60 frames
+# a second and a fifteen-second cut, made with openmui. The film is data —
+# a timeline a cut (*.timeline.omui.toml), its lines, its score and sounds —
+# and scene code: every shot is a live openmui scene drawn on the headless
+# host from its own time, so any frame renders on its own, the same bytes
+# every time. `omui-promo` renders it (WebM: VP9 and Opus; Y4M; PNG), draws
+# a frame, and checks it against the acceptance (§5.1).
+#
+#   mcpp run --release -p openmui.showcase.promo_video -- render promo --out promo.webm
+#   mcpp run --release -p openmui.showcase.promo_video -- still promo --frame 1800 --out wall.png
+#   mcpp run --release -p openmui.showcase.promo_video -- check promo
+[package]
+namespace   = "openmui.showcase"
+name        = "promo_video"
+version     = "0.1.0"
+description = "S5, openmui's film: every shot a live openmui scene, the film a timeline, rendered deterministically and checked against its acceptance"
+license     = "Apache-2.0"
+
+[package.metadata.openmui]
+kind = "showcase"
+
+[targets.openmui-showcase-promo-video]
+kind = "lib"
+
+[targets.omui-promo]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp", "src/shots/*.cpp", "src/native/*.cpp", "code/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+openmui.hash = { path = "../../modules/base/hash" }
+openmui.sdk                         = { path = "../.." }
+"openmui.theme"                     = { path = "../../modules/ui/theme" }
+openmui.theme.styles                = { path = "../../modules/ui/theme/styles" }
+openmui.timeline                    = { path = "../../modules/media/timeline" }
+"openmui.video"                     = { path = "../../modules/media/video" }
+"openmui.video.webm"                = { path = "../../modules/media/video/webm" }
+openmui.audio                       = { path = "../../modules/media/audio" }
+"openmui.ui.canvas"                 = { path = "../../components/canvas" }
+openmui.ui.timeline                 = { path = "../../components/timeline" }
+openmui.abi                         = { path = "../../modules/ui/abi" }
+"openmui.lang"                      = { path = "../../lang" }
+"openmui.lang.js"                   = { path = "../../lang/js" }
+"openmui.lang.lua"                  = { path = "../../lang/lua" }
+"openmui.lang.python.embedded"      = { path = "../../lang/python/embedded" }
+openmui.showcase.markdown_wall      = { path = "../markdown-wall" }
+openmui.showcase.style_gallery      = { path = "../style-gallery" }
+"openmui.showcase.widget_breakout"  = { path = "../widget-breakout" }
+"openmui.showcase.widget_breakout.sim" = { path = "../widget-breakout/sim" }
+marzer.tomlplusplus                 = "3.4.0"
+mcpplibs.cmdline                    = "0.0.2"
+mcpplibs.os                         = "0.2.2"
+
+[build-dependencies]
+openmui.build.embed = { path = "../../mcpp/embed", host-module = true }
+
+[dev-dependencies]
+openmui.testing = { path = "../../modules/base/testing" }

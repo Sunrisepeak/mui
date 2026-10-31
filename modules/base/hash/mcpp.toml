@@ -1,0 +1,23 @@
+# openmui.hash — FNV-1a, once for the whole repository: the determinism hashes
+# tests pin, content hashes (a display list, a surface, a frame's inputs),
+# cache keys and generated ids. Every pinned hash in openmui is FNV-1a over
+# bytes; the other ways a value goes in (a word folded at once, an object's
+# own bytes) are named so they are not mistaken for it.
+# An independent component (D-55): the standard library only.
+[package]
+namespace   = "openmui"
+name        = "hash"
+version     = "0.1.0"
+description = "FNV-1a (64 and 32 bit) for determinism hashes, content hashes, cache keys and generated ids"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "module"
+
+[targets.openmui-hash]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]

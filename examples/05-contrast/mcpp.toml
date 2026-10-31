@@ -1,0 +1,48 @@
+# Example 05 — a native module (canvas-markdown §5; component-binding §8): a
+# WCAG 2.2 contrast checker. The interface is TypeScript (logic/main.ts),
+# run by the player; the colour science is the application's own native
+# module, native/contrast.native.omui.toml, implemented in C++
+# (src/contrast.cpp). The bindings — the C++ partition and the TS / Python /
+# Lua stubs — are generated when the package builds; nothing is written by
+# hand between the two languages. The tool: the contrast of a text colour on
+# a background, the WCAG levels it meets, how the pair looks with each
+# colour-vision deficiency, and the nearest colour that passes.
+#
+#   mcpp run                       a window
+#   mcpp run -- --headless --png contrast.png
+[package]
+namespace   = "openmui.example"
+name        = "contrast"
+version     = "0.1.0"
+description = "openmui example 05: a WCAG contrast checker, TypeScript over the application's own native module"
+license     = "Apache-2.0"
+
+[package.metadata.openmui]
+kind    = "app"
+id      = "org.openmui.contrast"
+title   = "Contrast"
+size    = "560x480"
+natives = ["native/*.native.omui.toml"]
+
+[package.metadata.openmui.scripts]
+main = "logic/main.ts"
+
+[targets.contrast]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+openmui.entry.player = { path = "../../src/entry/player" }
+openmui.native       = { path = "../../modules/ui/native" }
+nlohmann.json        = "3.12.0"
+
+[build-dependencies]
+openmui.build.contracts = { path = "../../mcpp/contracts", host-module = true }
+
+[dev-dependencies]
+openmui.testing = { path = "../../modules/base/testing" }
+openmui.player  = { path = "../../modules/ui/player" }
+openmui.lang.js = { path = "../../lang/js" }

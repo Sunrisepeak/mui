@@ -1,0 +1,14 @@
+# The wall's two views — 1 is one to one (a window at its size, about the
+# view's centre), 2 the whole wall, both on a spring — and H, the HUD
+# (told to the program as `hud.toggle`).
+[behavior.views]
+on      = "canvas"
+initial = "idle"
+doc     = "1: one to one; 2: the overview; H: the HUD."
+
+[behavior.views.states.idle]
+on.key = [
+  { when = "key == '1' && !mods.mod", do = ["zoom_to(1)"] },
+  { when = "key == '2' && !mods.mod", do = ["fit('all')"] },
+  { when = "key == 'H' && !mods.mod", do = ["commit('hud.toggle')"] },
+]

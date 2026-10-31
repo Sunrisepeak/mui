@@ -1,0 +1,27 @@
+# gongfu.rules — gongfu's build rule (D-85 §8.3, G-5): a program's fighters
+# (`<dir>/*.fighter.gongfu.toml` with their looks and baked hurtboxes) become
+# a module partition it carries, `<module>:gongfu_fighters`; the build fails,
+# saying what to run, when a fighter's hurtboxes are not what its look and
+# moves make now. The simulation never samples an animation.
+#
+#   [build-dependencies]
+#   gongfu.rules = { path = "…/mgame/gongfu/rules", host-module = true }
+#
+#   // build.mcpp
+#   import mcpp;
+#   import gongfu.rules;
+#   int main() { return gongfu::rules::fighters({.module = "acme.game", .ns = "acme::files"}) ? 0 : 1; }
+[package]
+namespace   = "gongfu"
+name        = "rules"
+version     = "0.1.0"
+description = "gongfu's build rule: a program's fighters carried as a module partition, stale baked hurtboxes refused"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "rules"
+
+# The studio's command line, built for the build machine, runs the edge.
+[dependencies]
+gongfu.studio = { path = "../studio", tools = ["gongfu-studio"], reexport = true }

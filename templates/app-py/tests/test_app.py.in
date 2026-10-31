@@ -1,0 +1,31 @@
+"""The application without a window: find the button as an agent would,
+press it, read what it says.
+
+    python -m unittest
+"""
+
+import os
+import sys
+import unittest
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+
+import openmui as omui  # noqa: E402
+import main  # noqa: E402
+
+
+class App(unittest.TestCase):
+    def test_the_button_counts(self):
+        omui.run(None, size=(480, 320), headless=True, argv=[])
+        omui.mount("main", main.app)
+        omui.settle()
+        buttons = [n for n in omui.snapshot(root="main")["nodes"] if n.get("role") == "button" and n.get("name") == "Click me"]
+        self.assertEqual(len(buttons), 1)
+        omui.act(node=buttons[0]["id"], action="activate")
+        omui.settle()
+        self.assertTrue(any(n.get("name") == "Clicked 1 times" for n in omui.snapshot(root="main")["nodes"]))
+        omui.unmount("main")
+
+
+if __name__ == "__main__":
+    unittest.main()

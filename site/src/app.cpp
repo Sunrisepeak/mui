@@ -1058,9 +1058,17 @@ Element work_window(const std::shared_ptr<Site>& s, const std::string& id, bool 
     };
     if (id == "hello") {
         // Example 01, the shortest openmui program, running beside its own source (embedded by its build).
-        // Far away the same program as it starts (a state of its own, never written: the texture is drawn on another thread).
-        static hello::State still;
-        Element run = live ? hello::app(s->hello).view() : hello::app(still).view();
+        // Far away the same program as it was left: a copy of its state, never written again (the texture is drawn on
+        // another thread), kept alive with the picture's element.
+        Element run = [&] {
+            if (live) return hello::app(s->hello).view();
+            auto still = std::make_shared<hello::State>(s->hello);
+            Element e = hello::app(*still).view();
+            e.configure = [then = std::move(e.configure), still](void* p) {
+                if (then) then(p);
+            };
+            return e;
+        }();
         if (v.width < 600) {  // a phone: the program, then its source, the page scrolling
             const float w = v.width - 32;
             return scroll({.id = "page", .width = Dim(v.width), .height = Dim(v.height), .padding = Edges(20.0f, 16.0f), .background = "background"},

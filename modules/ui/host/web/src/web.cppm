@@ -138,4 +138,13 @@ private:
 // The person's languages as the browser states them (navigator.languages).
 [[nodiscard]] std::vector<std::string> browser_locales();
 
+// The page's address: a parameter of its query (empty when absent or off
+// the Web), and the page loaded again with one set (empty: removed) —
+// false off the Web.
+[[nodiscard]] std::string page_query(std::string_view name);
+// What the person asked of every page (CSS media queries): less motion,
+// less transparency — false off the Web.
+[[nodiscard]] bool page_prefers(std::string_view media);
+bool reload_page_with(std::string_view name, std::string_view value);
+
 }  // namespace omui

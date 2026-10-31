@@ -137,7 +137,7 @@ int main(int argc, char** argv) {
         const auto w = audio::wav(all, mixer.rate());
         std::ofstream(scratch_dir("fighting-menus-heard") / "menus.wav", std::ios::binary).write(reinterpret_cast<const char*>(w.data()), static_cast<std::streamsize>(w.size()));
         std::println("    menus heard {:016x} ({:.1f} s)", audio::hash(all), static_cast<double>(all.size()) / 2 / mixer.rate());
-        check_eq(audio::hash(all), std::uint64_t{0x626cba52de69bc95});  // GCC and LLVM, every platform
+        check_eq(audio::hash(all), std::uint64_t{0x83b5e07a2ed15da3});  // GCC and LLVM, every platform
     });
 
     s.test("the announcer: \"round one\", \"fight\"; the clock run out, \"time\"; \"round two\", \"fight\"; at the match's end whose it was — player 2, never touched: a flawless victory", [] {

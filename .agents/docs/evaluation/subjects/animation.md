@@ -13,4 +13,10 @@
 - `performance` — cost per animated value, 1000 springs, allocation; measured.
 - `determinism_tooling` — golden tests, cross-platform equality, inspection/debugging tools.
 
+**Run:**
+- `omui-site --size 1440x900` (openmui.site)
+- `omui-fight --quiet` (openmui.showcase.fighting)
+
+**Use:** look at motion frame by frame with ui_clock (pause, step 1/60 s, seek): the site's flights, glyph switches, the page's time (scrub, rewind); a fighter's moves in training (anticipation, follow-through, arcs, spacing, hit-stop); interrupt motion half way with input and judge the hand-off.
+
 **Images:** frames of motion (fighting, promo, site glyph switch) where they exist.

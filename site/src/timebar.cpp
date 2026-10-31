@@ -31,7 +31,9 @@ void Timebar::prop_changed(TimebarProp) {
 }
 
 Size Timebar::measure(MeasureContext&, std::optional<float> width, std::optional<float> height, layout::Available aw, layout::Available) {
-    return {width.value_or(aw.is_definite() ? aw.value : 320.0f), height.value_or(bar_height)};
+    // A small basis: it grows into the row's room, and gives it back on a phone.
+    (void)aw;
+    return {width.value_or(96.0f), height.value_or(bar_height)};
 }
 
 void Timebar::change(double t) {

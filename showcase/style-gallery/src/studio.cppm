@@ -36,12 +36,30 @@ public:
 
     // Shows a pack (`crossfade`: seen as one change). Unknown: why.
     std::expected<void, std::string> show(std::string_view name, bool crossfade = true);
-    // Edits to the draft, applied at once.
+    // Edits to the draft, applied at once; each is a step of the workshop's
+    // own history (a drag's many changes of one value are one step). A value
+    // refused leaves the draft as it was and says why (`problem`).
     std::expected<void, std::string> set_color(std::string_view token, std::string_view hex);
     std::expected<void, std::string> set_radius(std::string_view token, double value);
     std::expected<void, std::string> set_param(std::string_view selector, std::string_view param, double value);
+    // One edit by name, as the editor's fields are named: "accent", "corners",
+    // or "<selector>/<param>" ("role:region/blur"); the value a colour's text
+    // or a number. What an agent uses: a refused value answers why.
+    std::expected<void, std::string> set(std::string_view what, const omui::Value& value);
+    // The history of edits to the pack shown: back, forward, and back to the
+    // pack as it was shipped (itself a step: undone like any other).
+    std::expected<void, std::string> undo();
+    std::expected<void, std::string> redo();
+    std::expected<void, std::string> reset();
+    [[nodiscard]] bool can_undo() const noexcept { return !undo_.empty(); }
+    [[nodiscard]] bool can_redo() const noexcept { return !redo_.empty(); }
+    [[nodiscard]] bool edited() const noexcept;  // the draft differs from the pack as shipped
+    // The pack as shipped (what reset goes back to, what fixes each range).
+    [[nodiscard]] const theme::Style& original() const noexcept { return original_; }
     // The draft as a file in export_dir: the path written.
     std::expected<std::filesystem::path, std::string> export_style();
+    omui::Signal<std::string> problem = omui::signal(std::string());  // the last refused edit, in words (empty: none)
+    omui::Signal<std::string> accent_text = omui::signal(std::string());  // the accent as typed (kept while it is not a colour)
 
     // The preview's own state (a settings panel that works).
     omui::Signal<bool>        notifications = omui::signal(true), cellular = omui::signal(false), backup = omui::signal(true);
@@ -49,11 +67,27 @@ public:
     omui::Signal<std::string> name = omui::signal(std::string("Ada Lovelace"));
     omui::Signal<std::string> region = omui::signal(std::string("eu"));
     omui::Signal<std::int64_t> saved = omui::signal(std::int64_t{0});
+    // Save keeps the settings as they are; Cancel puts them back to the last
+    // saved; the panel says which (status) and whether anything changed.
+    void save_settings();
+    void cancel_settings();
+    [[nodiscard]] bool settings_changed() const;
+    omui::Signal<std::string> status = omui::signal(std::string());
 
 private:
+    struct Saved {
+        bool        notifications = true, cellular = false, backup = true;
+        double      volume = 0.6;
+        std::string name, region;
+    };
     std::expected<void, std::string> apply_draft();
-    std::string  current_;
-    theme::Style draft_;
+    std::expected<void, std::string> edit(std::string key, const std::function<std::expected<void, std::string>(theme::Style&)>& change);
+    std::string                 current_;
+    theme::Style                draft_, original_;
+    std::vector<theme::Style>   undo_, redo_;
+    std::string                 last_key_;       // the field the last step changed: more of it joins that step
+    double                      last_at_ = -1e9;  // when (the runtime's seconds)
+    Saved                       saved_{true, false, true, 0.6, "Ada Lovelace", "eu"};
 };
 
 [[nodiscard]] omui::AppSpec app(Studio& studio, std::string_view first = "glass");

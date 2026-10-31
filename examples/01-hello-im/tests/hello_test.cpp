@@ -33,7 +33,7 @@ int main(int argc, char** argv) {
         h.settle();
         check(state.clicks == 1);
         auto after = h.tree().node(button[0].id);
-        check(after && after->name == "Clicked 1 times", "the label changed; the id did not (S-9)");
+        check(after && after->name == "Clicked once", "the label changed; the id did not (S-9)");
         check(h.tree().violations().empty());
         check(h.save_png(scratch_dir("hello-im") / "hello.png").has_value());
     });

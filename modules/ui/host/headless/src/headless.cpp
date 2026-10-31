@@ -94,10 +94,11 @@ Headless::Headless(HeadlessOptions options) : impl_(std::make_unique<Impl>()) {
     d.glyphs = std::make_unique<typeset::GlyphCache>(*fonts);
     if (d.options.level == HeadlessLevel::session) {
         agent::EndpointOptions eo;
-        eo.name = d.options.app;
+        eo.name = d.options.endpoint_name.empty() ? d.options.app : d.options.endpoint_name;
         eo.directory = d.options.endpoint_directory;
         eo.protocol.app = d.options.app;
         eo.protocol.capture = capture();
+        eo.protocol.input = d.options.agent_input;
         d.endpoint = std::make_unique<agent::Endpoint>(*d.runtime, std::move(eo));
         if (auto r = d.endpoint->start(); !r) {
             warn("the agent endpoint did not start: {}", r.error());
@@ -122,12 +123,20 @@ std::int64_t Headless::frame_index() const noexcept { return impl_->frame; }
 
 FrameOutput Headless::step(std::vector<InputEvent> events) {
     Impl& d = *impl_;
-    if (d.endpoint) d.endpoint->pump();
+    std::optional<agent::AgentInput> given;
+    if (d.endpoint) {
+        d.endpoint->pump();
+        // An agent's input (--agent-input), a frame's worth, after the host's own.
+        given = d.endpoint->take_input();
+        if (given) events.insert(events.end(), std::make_move_iterator(given->events.begin()), std::make_move_iterator(given->events.end()));
+    }
     ++d.frame;
     FrameInput in;
     in.time = d.options.fps.time_of(d.frame);
     in.events = std::move(events);
+    if (given) d.runtime->set_input_actor(given->actor);
     FrameOutput out = d.runtime->frame(in);
+    if (given) d.runtime->set_input_actor(std::nullopt);
     // A frame with something new to show is shown (as a window's host shows
     // it), at its virtual time; its cost is not measured (it would make the
     // pixels differ from run to run).
@@ -195,7 +204,7 @@ bool Headless::click(std::string_view id) {
     }
     NodeId n = rt.find(id);
     if (!rt.valid(n)) return false;
-    const Rect b = rt.bounds(n);
+    const Rect b = rt.screen_bounds(n);
     if (b.empty()) return false;
     click(b.center());
     return true;

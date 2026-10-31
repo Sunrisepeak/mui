@@ -49,6 +49,10 @@ struct HeadlessOptions {
     bool                    reduce_motion = false;
     std::string             app = "openmui-app";  // the application id (endpoint name, descriptor)
     std::filesystem::path   endpoint_directory;   // H3; default: agent::default_directory()
+    std::string             endpoint_name;        // H3; default: the application id (two of one application: another name)
+    // H3: agents may give input as a person's devices would (the protocol's
+    // `input`), decided as their requests over the bus are (S-10, S-11).
+    bool                    agent_input = true;
     bool                    parallel_raster = true;  // bands of rows at the same time (the same bytes)
     // Every frame as it would be at rest (Services::complete_frames): any
     // frame rendered directly is the one the frames before it lead to —

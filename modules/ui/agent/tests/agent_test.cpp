@@ -205,6 +205,66 @@ int main(int argc, char** argv) {
         check_eq(allowed, 1);
     });
 
+    s.test("input: refused where it is off; a click as a device gives it, what it hit and did", [] {
+        Notes app;
+        agent::Protocol closed(app.rt);
+        auto refused = talk(closed, R"({"op":"input","events":[{"type":"click","node":"notes/save"}]})");
+        check(exit_of(refused) == 1 && refused.front().json().contains("--no-agent-input"), refused.empty() ? "" : refused.front().json());
+        check(!closed.take_input(), "nothing queued");
+        agent::Protocol p(app.rt, {.input = true});
+        check(exit_of(talk(p, R"({"op":"input","events":[{"type":"tap","x":1,"y":1}]})")) == 1, "an unknown event");
+        check(exit_of(talk(p, R"({"op":"input","events":[{"type":"click","node":"notes/nothing"}]})")) == 1, "no such node");
+        std::vector<Value> out;
+        p.request(R"({"op":"input","re":7,"events":[{"type":"click","node":"notes/save"},{"type":"wait","frames":2}]})",
+                  [&](std::string_view l) { out.push_back(parse_json(l).value()); });
+        check(out.empty() && p.pending() == 1, "answered after its frames");
+        double t = 0.1;
+        int frames = 0;
+        while (auto batch = p.take_input()) {
+            app.rt.set_input_actor(batch->actor);
+            app.rt.frame({seconds(t += 1.0 / 60), std::move(batch->events)});
+            app.rt.set_input_actor(std::nullopt);
+            ++frames;
+            p.poll();
+        }
+        p.poll();
+        check_eq(frames, 4);
+        check(app.saved.peek(), "the click reached the button");
+        check(exit_of(out) == 0 && out.front().get("re")->as_int() == 7, out.empty() ? "" : out.front().json());
+        const Value* d = out.front().get("data");
+        check(d->get("frames")->as_int() == 4, d->json());
+        const Value& hit = d->get("pressed")->list()->front();
+        check(hit.get("semantic")->as_string() == "notes/save" && hit.get("role")->as_string() == "button", hit.json());
+        const Value& act = d->get("actions")->list()->front();
+        check(act.get("node")->as_string() == "notes/save" && act.get("action")->as_string() == "activate", d->json());
+        check(act.get("actor")->as_string() == "agent:anonymous;via=service:input", act.json());
+        // What the input does is the agent's, decided as its requests are: an
+        // irreversible action asks for its answer, the person's own is refused.
+        auto deliver = [&](std::string_view line) {
+            out.clear();
+            p.request(line, [&](std::string_view l) { out.push_back(parse_json(l).value()); });
+            while (auto batch = p.take_input()) {
+                app.rt.set_input_actor(batch->actor);
+                app.rt.frame({seconds(t += 1.0 / 60), std::move(batch->events)});
+                app.rt.set_input_actor(std::nullopt);
+                p.poll();
+            }
+            p.poll();
+            check(exit_of(out) == 0 && out.front().get("data")->get("actions")->list()->size() == 1, out.empty() ? "" : out.front().json());
+            return out.empty() ? Value{} : out.front().get("data")->get("actions")->list()->front();
+        };
+        const Value asked = deliver(R"({"op":"input","actor":"agent:sly","events":[{"type":"click","node":"notes/delete"}]})");
+        check(asked.get("exitCode")->as_int() == 2 && app.deleted == 0, asked.json());
+        app.rt.mount("cockpit", row({}, {box({.id = "allow", .width = 60, .height = 20, .label = "Allow",
+                                               .on = {{"press", [&](const Value&) { app.saved.set(false); }}}})
+                                              .prop("person", Source{Value(true), {}, {}})}));
+        app.rt.frame({seconds(t += 1.0 / 60), {}});
+        const Value refused_own = deliver(R"({"op":"input","actor":"agent:sly","events":[{"type":"click","node":"cockpit/allow"}]})");
+        check(refused_own.get("exitCode")->as_int() == 1 && refused_own.get("actor")->as_string() == "agent:sly;via=service:input" && app.saved.peek(),
+              refused_own.json());
+        check(p.pending() == 0);
+    });
+
     s.test("grants under the cap (S-11, openas §5): beyond the cap refused, within a grant no answer asked", [] {
         Notes app;
         agent::Protocol p(app.rt);

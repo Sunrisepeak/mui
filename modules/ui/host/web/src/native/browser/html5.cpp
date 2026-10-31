@@ -35,6 +35,9 @@ char* omui_web_store_get(const char* key);
 int  omui_web_store_set(const char* key, const char* value);
 int  omui_web_store_remove(const char* key);
 char* omui_web_store_keys(const char* prefix);
+char* omui_web_query(const char* name);
+int  omui_web_matches(const char* media);
+int  omui_web_reload_with(const char* name, const char* value);
 }
 
 namespace omui::page {
@@ -360,6 +363,14 @@ bool loop(void (*tick)(void*), void* user) {
     // 0: at the display's rate (requestAnimationFrame); true: main does not return.
     emscripten_set_main_loop_arg(tick, user, 0, true);
     return true;
+}
+
+std::string query(std::string_view name) { return taken(omui_web_query(std::string(name).c_str())); }
+
+bool matches(std::string_view media) { return omui_web_matches(std::string(media).c_str()) != 0; }
+
+bool reload_with(std::string_view name, std::string_view value) {
+    return omui_web_reload_with(std::string(name).c_str(), std::string(value).c_str()) != 0;
 }
 
 std::vector<std::string> locales() {

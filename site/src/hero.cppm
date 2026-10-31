@@ -32,8 +32,9 @@ struct HeroSite {
     std::function<void()>                    tree_lens;        // the lens to the tree
 };
 
-// The opening: live (operable, its panels following the tree) or a still (the atlas's texture).
-[[nodiscard]] Element hero(Hero& h, const HeroSite& site, bool live);
+// The opening: live (operable, its panels following the tree) or a still
+// (the atlas's texture), `width` wide (narrow — a phone — it stacks).
+[[nodiscard]] Element hero(Hero& h, const HeroSite& site, bool live, float width = 1100);
 // The mark: one node branching into its four renderings (a pixel, a focus ring, braces, a check).
 [[nodiscard]] Element brand_mark(std::string id, float size);
 

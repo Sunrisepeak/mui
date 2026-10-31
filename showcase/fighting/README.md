@@ -11,6 +11,8 @@ How it was made, layer by layer, and what making it taught: [dev story](dev-stor
 ```sh
 mcpp run -p openmui.showcase.fighting
 mcpp run -p openmui.showcase.fighting -- --training
+mcpp run -p openmui.showcase.fighting -- --fight kun ni --cpu 1 --level 3   # straight into a fight, the computer as 霓
+mcpp run -p openmui.showcase.fighting -- --fight kata mo --turns 10 --serve # by turns: agents (tools/eval/duel.sh)
 mcpp run -p openmui.showcase.fighting -- --headless --png fight.png
 ```
 
@@ -25,7 +27,10 @@ The feature `arenas` (on by default) carries the stages and their painted layers
   - the title offers 对战 (versus) and 训练 (training);
   - on the select screen each player's cursor moves over the roster's tiles; a big lit preview of whom it rests on plays their idle, under their name in calligraphy;
   - behind it all, the home stage of whom player 1 is on pans slowly;
-  - both ready, VS has its moment and the fight starts on player 1's home. A round over, the select screen comes back with the same fighters under the cursors.
+  - both ready, VS has its moment and the fight starts on player 1's home. A round over, the select screen comes back with the same fighters under the cursors;
+  - in versus the computer holds player 2's seat (a CPU plate on its banner) until player 2 moves or presses: one person plays it, and it chooses someone else as player 1 is ready.
+- **The computer** (`gongfu.ai`'s bot, the stage's `cpu` and `cpu_level`): it sees the other side a moment late, as a person does, and guards, answers jumps, punishes and presses; level 1 slow and forgiving, 3 quick and punishing. A round plays the same every time (its generator is seeded by the round).
+- **By turns** (the stage's `turn_frames` and `turn`): the match stands until each player not the computer has said what they hold for the next turn's frames — a pad, or pads a frame each (`2,3,6LP`) — then plays them, and the answer says what happened. Two agents play each other this way (`tools/eval/duel.sh`), each as itself (openas: its actor in the journal).
 
   The main theme plays under them, rising as the players choose, with a cue for each move and choice. It fades under the VS; the fight's theme ends with its round.
 

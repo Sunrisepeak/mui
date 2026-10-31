@@ -41,6 +41,7 @@ private:
     mutable parts::Motion thumb_, hover_, halo_;
     mutable Size   size_{};  // the last painted size: pointer positions map onto it
     bool           dragging_ = false;
+    double         drag_from_ = 0;  // the value when the drag began: the drag is one step of history
 };
 
 }  // namespace omui

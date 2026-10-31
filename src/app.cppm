@@ -43,6 +43,11 @@ struct AppSpec {
     // application's settings). The person gives more through the
     // application's own interface: agent_access().give(…).
     std::string              agent = "external";
+    // Whether agents may also give input as a person's devices would —
+    // point, click, drag, scroll, type (the protocol's `input`) — what it
+    // does decided as their requests are (S-10, S-11). On by default, as
+    // the endpoint is; --no-agent-input turns it off for a run.
+    bool                     agent_input = true;
     std::vector<std::string> grants;
     // Who draws the window's frame (D-75): "native" — the system (the
     // default); "framework" — the interface (window_frame, its look in
@@ -66,7 +71,10 @@ struct AppSpec {
 //     --level h0|h1|h2|h3     the headless level (default h2; --serve means h3)
 //   --serve                   headless, and keep serving the agent endpoint until closed
 //   --agent-dir DIR           where the endpoint listens
+//   --agent-name NAME         the endpoint's name (default: the application id; another for a second copy)
 //   --no-agent                no endpoint
+//   --no-agent-input          agents act on nodes only, giving no input as a person's devices would
+//   --agent-input             they may (the default unless the application turns it off)
 //   --dark                    the dark theme
 //   --gpu | --cpu             who draws the window (default: the GPU when the machine has one)
 //   --reduce-transparency     see-through materials (glass) drawn as opaque panels
@@ -83,7 +91,9 @@ struct RunOptions {
     std::filesystem::path png;
     int                   level = 2;
     std::filesystem::path agent_dir;
+    std::string           agent_name;  // --agent-name
     bool                  agent = true;
+    std::optional<bool>   agent_input;  // --agent-input / --no-agent-input (default: the application's)
     bool                  dark = false;
     std::optional<bool>   gpu;  // --gpu / --cpu
     bool                  reduce_transparency = false;
@@ -96,6 +106,13 @@ struct RunOptions {
 
     [[nodiscard]] static std::expected<RunOptions, std::string> parse(std::span<const std::string_view> args);
 };
+
+// Who draws, as the person chooses it while the application runs:
+// "automatic", "gpu" or "cpu". On the Web the page loads again with
+// ?renderer=NAME, which it then follows over the application's choice; on
+// the desktop the choice is the next start's (--gpu, --cpu), and the answer
+// says so.
+std::expected<void, std::string> choose_renderer(std::string_view name);
 
 // Runs the application as the options say; answers the process's exit code.
 int run(AppSpec app, const RunOptions& options);

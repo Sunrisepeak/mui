@@ -112,11 +112,11 @@ spec::SemanticNode Runtime::Impl::semantics(NodeId id) const {
         .set(State::hovered, n.state.hovered)
         .set(State::pressed, n.state.pressed)
         .set(State::removing, n.state.removing)
-        .set(State::animating, n.state.animating)
+        .set(State::animating, n.state.animating || (id == root && fading.has_value()))  // a style's cross-fade: the window is still changing
         .set(State::hidden, !displayed(id));
     // Without layout (H0) a node has no place: neither bounds nor offscreen.
     const bool placed = this->placed;  // the pipeline computes bounds
-    if (placed && id != root && !n.bounds.intersects(Rect{0, 0, size.width, size.height})) s.states.set(State::offscreen);
+    if (placed && id != root && !n.screen.intersects(Rect{0, 0, size.width, size.height})) s.states.set(State::offscreen);
 
     // Actions: the contract's, then the verb's classification of activate.
     auto add = [&](std::string_view name, Effect effect, std::span<const spec::ArgInfo> args = {}) -> spec::ActionDesc& {
@@ -174,7 +174,7 @@ spec::SemanticNode Runtime::Impl::semantics(NodeId id) const {
             break;
         }
 
-    if (placed) s.bounds = to_spec(n.bounds);
+    if (placed) s.bounds = to_spec(n.screen);  // where it is on the window: through a canvas's camera too
     for (NodeId c : n.children) s.children.push_back(self.path(c));
     if (n.type->semantics) {
         SemanticsContext ctx{self, id, n.state};
@@ -337,13 +337,20 @@ Envelope Runtime::Impl::perform(NodeId id, std::string_view action, const Invoca
     return env;
 }
 
-Envelope Runtime::act(NodeId node, std::string_view action, const Invocation& call) {
+Envelope Runtime::act(NodeId node, std::string_view action, const Invocation& given) {
     Impl& d = *impl_;
+    Invocation copy;
+    const Invocation& call = d.attributed(given, copy);
     if (call.dry_run) return d.perform(node, action, call, false);  // no trace: no journal, no history
     std::string where = d.alive(node) ? path(node) : std::string{};
     const NodeId scope = d.scope_of(node);
     Impl::Outcome out;
+    std::vector<Inverse> outer = std::exchange(d.program_inverse, {});
+    ++d.acting;
     Envelope e = batch([&] { return d.perform(node, action, call, false, &out); });
+    --d.acting;
+    if (out.ran && out.undo.empty() && out.effect == Effect::reversible) out.undo = std::move(d.program_inverse);
+    d.program_inverse = std::move(outer);
     if (out.ran) d.record(scope, {node, where, {}, std::string(action), call.args, std::move(out.undo), std::format("{} on '{}'", action, where)}, out.effect);
     d.journal.push_back({std::move(where), std::string(action), call.actor.text(), e.exit_code().value_or(0)});
     return e;
@@ -413,8 +420,10 @@ Envelope Runtime::Impl::perform_item(NodeId holder, std::string_view key, std::s
     return env;
 }
 
-Envelope Runtime::act_item(NodeId holder, std::string_view key, std::string_view action, const Invocation& call) {
+Envelope Runtime::act_item(NodeId holder, std::string_view key, std::string_view action, const Invocation& given) {
     Impl& d = *impl_;
+    Invocation copy;
+    const Invocation& call = d.attributed(given, copy);
     if (call.dry_run) return d.perform_item(holder, key, action, call);
     const std::string path_of = d.alive(holder) ? path(holder) : std::string{};
     const std::string where = d.alive(holder) ? std::format("{}/{}", path_of, key) : std::string(key);

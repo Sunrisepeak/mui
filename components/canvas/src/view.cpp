@@ -103,6 +103,7 @@ void Canvas::prop_changed(CanvasProp p) {
             observe();
             place();
             break;
+        case CanvasProp::promotion: place(); break;
         case CanvasProp::min_zoom:
         case CanvasProp::max_zoom: camera_.zoom = std::clamp(camera_.zoom, props.min_zoom, props.max_zoom); break;
         default: break;
@@ -326,7 +327,9 @@ void Canvas::place() {
     // the UI thread: a zoom through a wall would stall on each one); those
     // already live stay, the focused one goes at once, the rest when it rests.
     // Frames drawn complete (an offline render) never wait for the camera to rest.
-    const bool moving = !services().complete_frames() && (services().now() - last_motion_).count() < promote_after;
+    // `promotion`: at_rest (as above), always (moving or not), never (textures only but the focused node).
+    const bool never = props.promotion == "never";
+    const bool moving = props.promotion != "always" && !services().complete_frames() && (services().now() - last_motion_).count() < promote_after;
     bool deferred = false;
     if (s && vp.width > 0) {
         std::vector<NodeRef> seen;
@@ -337,6 +340,7 @@ void Canvas::place() {
             const std::string_view key = s->key(n);
             const std::size_t t = tier_of(k, camera_.to_screen(s->rect(n), vp), key == focused_);
             if (k.tiers[t].draw != world::Tier::Draw::promote) continue;
+            if (never && key != focused_) continue;
             if (moving && key != focused_ && std::ranges::find(promoted_, key) == promoted_.end()) deferred = true;
             else {
                 keys.emplace_back(key);
@@ -349,6 +353,7 @@ void Canvas::place() {
             promote_timer_ = 0;
             place();
             services().invalidate_paint(node());
+            services().invalidate_semantics(node());
         });
     if (keys != promoted_ || revisions != promoted_revisions_) {
         promoted_ = std::move(keys);
@@ -762,6 +767,9 @@ bool Canvas::on_event(EventContext& ctx, const InputEvent& e) {
 void Canvas::semantics(SemanticsContext&, spec::SemanticNode& n) const {
     if (!props.label.empty()) n.name = props.label;
     if (world::Scene* s = scene()) n.description = std::format("{} nodes, {} on screen; zoom {:.3g}", s->size(), visible_.size(), camera_.zoom);
+    // The camera flying or gliding, or nodes waiting for it to rest to go
+    // live: not settled yet (an agent's wait for a still waits for this too).
+    if (motion_ || glide_ || promote_timer_) n.states.set(State::animating);
 }
 
 spec::SemanticNode Canvas::item(const world::Scene& s, NodeRef n, std::string_view path, Size vp, Rect b) const {

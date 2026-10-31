@@ -19,4 +19,12 @@
 - `code_quality` — .cppm/.cpp split, modules, no exceptions/RTTI in core, allocation discipline, readability; directory tree and package split.
 - `docs_spec` — the open specification, conformance tests, guides, API reference.
 
+**Run:**
+- `notes-agent` (openmui.example.headless-and-agent)
+- `tally` (openmui.example.counter)
+- `space` (openmui.example.space)
+- `md-view docs/en/features.md` (openmui.example.markdown-viewer)
+
+**Use:** the examples as a person would (ui_input) and as an agent (ui_act, ui_invoke, ui_undo, dry runs, an irreversible action and its answer, a transaction); text fields with typing, selection and keys; the canvas with drag and wheel; focus and Tab order; what the tree states against what is drawn.
+
 **Images:** none required (code review); attach the site's lens shots or tool screenshots when they exist.

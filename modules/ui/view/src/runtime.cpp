@@ -328,6 +328,8 @@ void Runtime::set_renderer(std::string name) { impl_->renderer = std::move(name)
 
 std::string_view Runtime::renderer() const noexcept { return impl_->renderer; }
 
+void Runtime::set_input_actor(std::optional<Actor> actor) { impl_->input_actor = std::move(actor); }
+
 FrameDemandLease Runtime::demand_frames(FrameDemand d) {
     const std::uint64_t token = impl_->next_lease++;
     impl_->leases.emplace_back(token, std::move(d));
@@ -363,7 +365,7 @@ void Runtime::crossfade(seconds length) {
     d.fade_start = d.now();
     d.fade_length = length;
     d.frame_requested = true;
-    d.touch(dirty_paint);
+    d.touch(dirty_paint | dirty_semantics);  // the window animating until the fade is done (an agent's wait for a still waits)
 }
 
 void Runtime::crossfade(seconds length, std::string_view scope) {
@@ -506,6 +508,7 @@ typeset::FontCollection& Runtime::fonts() { return *impl_->fonts; }
 render::ImageStore& Runtime::images() { return impl_->images; }
 hanim::seconds Runtime::now() const { return impl_->now(); }
 Rect Runtime::bounds(NodeId node) const { return valid(node) ? impl_->at(node).bounds : Rect{}; }
+Rect Runtime::screen_bounds(NodeId node) const { return valid(node) ? impl_->at(node).screen : Rect{}; }
 Rect Runtime::drawn_bounds(NodeId node) const {
     if (!valid(node)) return {};
     const auto& n = impl_->at(node);
@@ -612,6 +615,19 @@ bool Runtime::perform(NodeId node, std::string_view action, const Value& args) {
     call.actor = {"person", "user", {}};  // the input being handled is a person's (openas §2.7)
     call.args = args;
     return act(node, action, call).exit_code() == std::optional<int>(0);
+}
+
+void Runtime::performed(NodeId node, std::string_view action, const Value& args, std::vector<Inverse> inverse) {
+    Impl& d = *impl_;
+    if (!d.alive(node)) return;
+    Invocation given;
+    given.actor = {"person", "user", {}};
+    given.args = args;
+    Invocation copy;
+    const Invocation& call = d.attributed(given, copy);  // an agent's input: the agent's
+    const std::string where = path(node);
+    d.record(d.scope_of(node), {node, where, {}, std::string(action), args, std::move(inverse), std::format("{} on '{}'", action, where)}, Effect::reversible);
+    d.journal.push_back({where, std::string(action), call.actor.text(), 0});
 }
 
 void Runtime::text_input(NodeId node, std::optional<Rect> caret) {

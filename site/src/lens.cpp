@@ -39,7 +39,7 @@ Size Lens::measure(MeasureContext&, std::optional<float> width, std::optional<fl
 
 void Lens::paint(PaintContext& ctx) const {
     auto& out = ctx.list;
-    out.fill_rect({0, 0, ctx.size.width, ctx.size.height}, Color{0.02f, 0.03f, 0.05f, 0.62f});  // the pixels dimmed under the tree
+    out.fill_rect({0, 0, ctx.size.width, ctx.size.height}, Color{0.02f, 0.03f, 0.05f, 0.45f});  // the pixels dimmed under the tree (still readable)
     const Value::List* nodes = props.nodes.list();
     if (!nodes) return;
     const Rect self = services().bounds(node());

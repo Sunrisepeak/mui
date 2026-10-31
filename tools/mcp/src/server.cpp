@@ -422,6 +422,50 @@ struct Server::Impl {
                                            b ? b->json() : std::string("?")),
                                false, {}, Value::List{std::move(image)});
         }
+        if (name == "ui_input") {
+            const Value* events = args.get("events");
+            if (!events || !events->list() || events->list()->empty()) return tool_result("ui_input needs `events`: [{\"type\": \"click\", \"x\": …, \"y\": …}, …]", true);
+            Value req;
+            req.set("op", "input").set("events", *events).set("actor", actor);
+            const auto budget = std::chrono::milliseconds(static_cast<std::int64_t>(events->list()->size()) * 2000) + options.timeout;
+            Answer a = call(*app, req, budget);
+            if (a.exit != 0) return tool_result(std::format("{}: {}", a.code.empty() ? "failed" : a.code, a.message), true);
+            std::string out = std::format("{} frames", a.data.get("frames") ? a.data.get("frames")->as_int() : 0);
+            if (const Value* p = a.data.get("pressed"); p && p->list())
+                for (const Value& h : *p->list()) {
+                    const Value* at = h.get("at");
+                    std::string where = at && at->list() && at->list()->size() == 2
+                                            ? std::format("{:.0f},{:.0f}", (*at->list())[0].as_double(), (*at->list())[1].as_double())
+                                            : std::string("?");
+                    if (str(h, "node").empty()) out += std::format("\npressed at {}: nothing there", where);
+                    else
+                        out += std::format("\npressed at {}: {} {}{}", where, str(h, "semantic").empty() ? str(h, "node") : str(h, "semantic"),
+                                           str(h, "role"), str(h, "name").empty() ? std::string() : std::format(" \"{}\"", str(h, "name")));
+                }
+            const Value* acts = a.data.get("actions");
+            if (!acts || !acts->list() || acts->list()->empty()) out += "\nno action was performed";
+            else
+                for (const Value& x : *acts->list())
+                    out += std::format("\naction: {} on {} by {}{}", str(x, "action"), str(x, "node"), str(x, "actor"),
+                                       x.get("exitCode") && x.get("exitCode")->as_int() != 0 ? std::format(" (exit {})", x.get("exitCode")->as_int()) : "");
+            if (auto f = str(a.data, "focused"); !f.empty()) out += std::format("\nfocused: {}", f);
+            Value::List content;
+            if (const Value* c = args.get("capture"); c && c->as_bool()) {
+                Answer pic = call(*app, Value{}.set("op", "capture"), options.timeout);
+                if (pic.exit == 0) content.push_back(Value{}.set("type", "image").set("data", str(pic.data, "base64")).set("mimeType", "image/png"));
+            }
+            return tool_result(std::move(out), false, Value{}.set("data", a.data), std::move(content));
+        }
+        if (name == "ui_clock") {
+            const std::string_view action = str(args, "action");
+            Value req;
+            req.set("op", "clock").set("action", action.empty() ? std::string_view("show") : action);
+            for (std::string_view k : {"seconds", "rate"})
+                if (const Value* v = args.get(k)) req.set(k, v->as_double());
+            Answer a = call(*app, req, options.timeout);
+            if (a.exit != 0) return tool_result(std::format("{}: {}", a.code.empty() ? "failed" : a.code, a.message), true);
+            return tool_result(a.data.json(), false, Value{}.set("data", a.data));
+        }
         return tool_result(std::format("no tool `{}`", name), true);
     }
 };
@@ -503,6 +547,27 @@ Value::List Server::tools() {
              true, false),
         tool("ui_capture", "Capture pixels", "The pixels of the window, or of one node, as a PNG image.",
              object_schema({app_prop, {"node", s("a node's id (default: the window)")}}), true, false),
+        tool("ui_input", "Input as a person gives it",
+             "Pointer, wheel, keys and text, delivered frame by frame through the application's real input path (hit testing, focus, "
+             "gestures), as a person's devices would give them — to use the interface as a person does and find what does not work. Only "
+             "what it does is the agent's, decided as its requests are (the user's own actions refused; an irreversible one needs their answer); "
+             "an application may turn it off. Events: {type: move|click|double_click|down|up, x, y | node, button?, "
+             "mods?}, {type: drag, from: [x,y] | from_node, to: [x,y] | to_node, steps?}, {type: wheel, x, y, dx?, dy?}, {type: key|key_down|"
+             "key_up, key: A|Enter|Escape|Tab|Space|Left|PageDown…, mods?: [shift, ctrl, alt, meta], hold?: frames}, {type: text, text}, "
+             "{type: wait, frames}. Coordinates are logical pixels, as ui_snapshot's @x,y. The answer says what each press hit, the actions "
+             "performed (by whom) and where focus is; capture: true adds the window's pixels after.",
+             object_schema({app_prop,
+                            {"events", prop("array", "the events, in order").set("items", prop("object", "an event"))},
+                            {"capture", b("the window's pixels after the input")}},
+                           {"events"}),
+             false, false),
+        tool("ui_clock", "The application's time",
+             "Shows or controls the application's clock: pause, resume, step {seconds}, seek {seconds}, rate {rate}, release.",
+             object_schema({app_prop,
+                            {"action", s("show, pause, resume, step, seek, rate, release")},
+                            {"seconds", prop("number", "for step and seek")},
+                            {"rate", prop("number", "for rate: 1 is real time")}}),
+             false, false),
     };
 }
 
@@ -553,7 +618,8 @@ void Server::handle(std::string_view line, Transport& t) {
         r.set("protocolVersion", version).set("capabilities", std::move(caps)).set("serverInfo", std::move(info));
         r.set("instructions",
               "Operate running openmui applications through their semantic trees: ui_apps to see what runs, ui_snapshot or ui_find "
-              "to read, ui_act or ui_invoke to change, ui_wait to let the interface settle, ui_capture to see pixels. Ids are stable "
+              "to read, ui_act or ui_invoke to change, ui_wait to let the interface settle, ui_capture to see pixels, ui_input to point, "
+              "click, drag, scroll and type as a person does (when the application allows it), ui_clock for its time. Ids are stable "
               "paths. Actions marked irreversible or external are confirmed by the user; never answer for them. Actions marked person are "
               "the user's own and are refused to agents.");
         t.write(response(*id, std::move(r)).json());

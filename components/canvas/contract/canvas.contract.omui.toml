@@ -24,6 +24,7 @@ label      = { type = "string", default = "", doc = "The canvas's accessible nam
 cache_mb   = { type = "f64", default = 256, doc = "Memory for nodes' textures (MiB); beyond it the least recently drawn go, and their nodes fall back a tier." }
 behaviors  = { type = "list<string>", default = [], doc = "What else it does, by name: canvas-kit's select, drag, resize, snap, connect, grid, minimap, delete, a program's own, or a declarative behaviour's (*.behavior.omui.toml)." }
 upload_mb  = { type = "f64", default = 16, doc = "Textures entering the frame at most (MiB a frame): what a GPU uploads stays within a frame's budget." }
+promotion  = { type = "string", default = "at_rest", bindable = true, doc = "When a node whose tier is live goes live: `at_rest` once the camera has rested a moment (while it moves, nodes not live yet keep their textures, so a flight never waits on their layout), `always` at once, moving or not (what live nodes cost while the camera moves, seen), `never` (textures only; the focused node still goes live)." }
 start      = { type = "string", default = "", doc = "Where the camera starts: `fit` shows the whole scene once the canvas has its size and its scene has nodes, `preset:<name>` one of the scene's named views; empty, x, y and zoom." }
 
 [contract.canvas.events]

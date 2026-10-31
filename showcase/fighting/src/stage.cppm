@@ -9,6 +9,7 @@ import openmui.core;
 import openmui.view;
 import gongfu.present2d;
 import gongfu.training;
+import gongfu.ai;
 import :stage_contract;
 import :roster;
 import :hud;
@@ -39,6 +40,7 @@ public:
     ActResult step(ActContext& ctx);
     ActResult press(ActContext& ctx, const PressArgs& args);
     ActResult release(ActContext& ctx, const Value& player);
+    ActResult turn(ActContext& ctx, const TurnArgs& args);
     ActResult save(ActContext& ctx);
     ActResult load(ActContext& ctx);
     ActResult record(ActContext& ctx, const Value& player);
@@ -92,6 +94,11 @@ private:
     };
     std::array<Gamepad, 2>                    gamepads_{};
     std::array<std::optional<gongfu::Pad>, 2> agent_{};
+    std::array<std::optional<gongfu::ai::Bot>, 2> bots_{};  // the computer's player (props.cpu)
+    std::array<bool, 2>                       turned_{};      // turns: who has said what they hold
+    std::array<std::vector<gongfu::Pad>, 2>   turn_pads_{};   // and what: a pad a frame, the last held
+    std::int64_t                              turns_ = 0;     // turns played
+    void make_bots();
     gongfu::training::Readout             readout_;
     Sounds                                sounds_;
     std::shared_ptr<void>                 heard_;  // the program's device on sounds_ (let go first)

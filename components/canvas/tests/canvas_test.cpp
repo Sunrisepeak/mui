@@ -232,6 +232,33 @@ int main(int argc, char** argv) {
         check(renamed && renamed->name == "Renamed", "the touched node composed again");
     });
 
+    s.test("promotion: live at rest by default, at once with `always`, never with `never`", [] {
+        auto& sc = world::scene("promotion");
+        sc.clear();
+        sc.kind("live", world::Kind{.tiers = {{0, world::Tier::Draw::promote}},
+                                    .promote = [](const world::Scene& s, world::NodeRef n) -> Element {
+                                        return text({.id = "title", .text = std::string(s.key(n))});
+                                    }});
+        sc.add({.kind = "live", .x = -100, .y = 0, .width = 200, .height = 100, .key = "a"});
+        sc.add({.kind = "live", .x = 600, .y = 0, .width = 200, .height = 100, .key = "b"});
+        for (std::string_view policy : {"at_rest", "always", "never"}) {
+            Headless h({.size = {800, 600}});
+            Signal<std::string> promotion = signal(std::string(policy));
+            h.mount("main", column({.width = 800, .height = 600}, {canvas({.id = "c", .promotion = promotion, .scene = "promotion", .x = 100, .y = 50, .width = 800, .height = 600})}));
+            h.settle();
+            check(static_cast<bool>(h.tree().node("main/c/a/title")) == (policy != "never"), std::format("{}: at rest, a", policy));
+            // b comes into view while the camera moves.
+            h.scroll({400, 300}, {400, 0});
+            check(static_cast<bool>(h.tree().node("main/c/b/title")) == (policy == "always"), std::format("{}: moving, b", policy));
+            h.settle();
+            check(static_cast<bool>(h.tree().node("main/c/b/title")) == (policy != "never"), std::format("{}: at rest again, b", policy));
+            // Changed while shown: the nodes follow.
+            promotion.set(policy == "never" ? "at_rest" : "never");
+            h.settle();
+            check(static_cast<bool>(h.tree().node("main/c/b/title")) == (policy == "never"), std::format("{}: switched, b", policy));
+        }
+    });
+
     s.test("a live node at the start view: placed by the camera it starts at, not the one before", [] {
         auto& sc = world::scene("started");
         sc.clear();

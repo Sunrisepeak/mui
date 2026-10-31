@@ -423,7 +423,7 @@ void Runtime::Impl::place_overlays() {
         // Inside the window, as far as it fits.
         at.x = std::clamp(at.x, 0.0f, std::max(0.0f, window.width - w));
         at.y = std::clamp(at.y, 0.0f, std::max(0.0f, window.height - h));
-        compute_bounds(id, {0, 0}, Affine{}, at);
+        compute_bounds(id, {0, 0}, Affine{}, Affine{}, at);
         if (p.match_width && w < anchor.width) {
             sync_style(id);  // the anchor's width became known: lay out again next frame
             frame_requested = true;
@@ -431,38 +431,54 @@ void Runtime::Impl::place_overlays() {
     }
 }
 
-void Runtime::Impl::compute_bounds(NodeId id, Point origin, const Affine& parent_world, std::optional<Point> placed) {
+void Runtime::Impl::compute_bounds(NodeId id, Point origin, const Affine& parent_target, const Affine& parent_world, std::optional<Point> placed) {
     Node& n = at(id);
     n.frame = layout.frame(n.layout);
     if (placed) {
         n.frame.x = placed->x;
         n.frame.y = placed->y;
     }
-    n.bounds = {origin.x + n.frame.x, origin.y + n.frame.y, n.frame.width, n.frame.height};
     n.content_offset = n.type->scroll_offset ? n.type->scroll_offset(n.instance) : Point{};
 
-    // The local transform: the frame's offset, then the visual transforms about the centre.
+    // The local transform: the frame's offset, then the visual transforms
+    // about the centre — as drawn now (their transitions part way), and as
+    // they are set (where they go: the bounds, what the tree states).
     const Visual& v = n.visual;
     const Size size = n.frame.size();
-    Affine local = Affine::translate(n.frame.x + v[Field::translate_x], n.frame.y + v[Field::translate_y]);
-    const float s = v[Field::scale];
-    const float rotation = v[Field::rotation];
-    if (s != 1 || rotation != 0) {
-        const float cx = size.width / 2, cy = size.height / 2;
-        Affine m = Affine::translate(cx, cy);
-        if (rotation != 0) m = m * render::rotate(rotation * degrees_to_radians);
-        if (s != 1) m = m * Affine::scale(s, s);
-        local = local * m * Affine::translate(-cx, -cy);
-    }
+    auto local_of = [&](float tx, float ty, float s, float rotation) {
+        Affine local = Affine::translate(n.frame.x + tx, n.frame.y + ty);
+        if (s != 1 || rotation != 0) {
+            const float cx = size.width / 2, cy = size.height / 2;
+            Affine m = Affine::translate(cx, cy);
+            if (rotation != 0) m = m * render::rotate(rotation * degrees_to_radians);
+            if (s != 1) m = m * Affine::scale(s, s);
+            local = local * m * Affine::translate(-cx, -cy);
+        }
+        return local;
+    };
+    const Affine local = local_of(v[Field::translate_x], v[Field::translate_y], v[Field::scale], v[Field::rotation]);
+    auto set = [&](std::string_view k, float now) {
+        const auto it = n.props.find(k);
+        return it != n.props.end() && it->second.is_number() ? static_cast<float>(it->second.as_double()) : now;
+    };
+    const Affine target = parent_target * local_of(set("translate_x", v[Field::translate_x]), set("translate_y", v[Field::translate_y]),
+                                                   set("scale", v[Field::scale]), set("rotation", v[Field::rotation]));
+    // The layout's box (before the transforms), and where it is on the
+    // window as set: a node a canvas shows under its camera (a live window,
+    // scaled and moved) is where it is drawn, not where it was laid out.
+    n.bounds = {origin.x + n.frame.x, origin.y + n.frame.y, n.frame.width, n.frame.height};
+    n.screen = target.translation_only() ? Rect{target.e, target.f, n.frame.width, n.frame.height} : target.map({0, 0, n.frame.width, n.frame.height});
     n.local = local;
     n.world = parent_world * local;
 
     const Point off = n.content_offset;
     const Point inner{n.bounds.x - off.x, n.bounds.y - off.y};
-    const Affine child_world = (off.x != 0 || off.y != 0) ? n.world * Affine::translate(-off.x, -off.y) : n.world;
+    const bool scrolled = off.x != 0 || off.y != 0;
+    const Affine child_world = scrolled ? n.world * Affine::translate(-off.x, -off.y) : n.world;
+    const Affine child_target = scrolled ? target * Affine::translate(-off.x, -off.y) : target;
     for (std::size_t i = 0; i < at(id).children.size(); ++i) {
         const NodeId c = at(id).children[i];
-        if (!at(c).type->overlay) compute_bounds(c, inner, child_world);
+        if (!at(c).type->overlay) compute_bounds(c, inner, child_target, child_world);
     }
 }
 
@@ -473,7 +489,11 @@ void Runtime::Impl::paint() {
     // What was on screen before a style's change, fading out over what comes.
     if (fading) {
         const double u = reduce_motion ? 1.0 : (now() - fade_start).count() / std::max(1e-6, fade_length.count());
-        if (u >= 1) fading.reset();
+        if (u >= 1) {
+            fading.reset();
+            touch(dirty_semantics);  // settled: said at the next frame
+            frame_requested = true;
+        }
         else {
             if (fade_clip) list.push_clip(*fade_clip);  // a scope's: only its area
             list.push_layer(static_cast<float>(1 - hanim::ease::standard(u)), render::BlendMode::normal);
@@ -515,6 +535,13 @@ void Runtime::Impl::paint_node(NodeId id) {
     // Its own, else what the style's rules give its type or role (D-69: a
     // style pack's effects; the node's property wins).
     Node::PixelEffectState* fxs = n.pixel_effect ? &*n.pixel_effect : (n.styled_effect ? &*n.styled_effect : nullptr);
+    // Less transparency asked for: a see-through effect (glass, frost: it
+    // reads what is behind) is left out, the node drawn as its own opaque panel.
+    if (fxs && reduce_transparency)
+        if (const render::EffectInfo* info = render::effects().info(fxs->effect); info && info->backdrop) fxs = nullptr;
+    // A disabled control is not lit by its style's effect (a neon tube, a
+    // glow): the decoration is for what can be used.
+    if (fxs == (n.styled_effect ? &*n.styled_effect : nullptr) && fxs && n.state.disabled) fxs = nullptr;
     const bool effected = fxs != nullptr;
     if (effected) {
         auto& fx = *fxs;
@@ -688,15 +715,23 @@ void Runtime::Impl::restyle_glyphs(NodeId id, std::size_t first) {
 NodeId Runtime::Impl::hit(NodeId id, Point window, std::optional<Rect>) const {
     const Node& n = at(id);
     if (!n.visual.visible || n.visual[Field::opacity] <= 0 || n.state.removing) return {};
+    if (!n.visual.hit) return {};  // pointer_events: none — it and all inside it take no pointer (a HUD, a picture over a field)
     if (layout.style(n.layout).display == layout::Display::none) return {};
-    const Point p = local_point(n, window);
+    Point p = local_point(n, window);
+    // An effect that moves what is drawn (a bulging screen): the point seen
+    // is where it was drawn from, for this node and what is inside it.
+    if (const Node::PixelEffectState* fx = n.pixel_effect ? &*n.pixel_effect : (n.styled_effect ? &*n.styled_effect : nullptr))
+        if (const render::EffectInfo* info = render::effects().info(fx->effect); info && info->source_of) {
+            p = info->source_of(p, {0, 0, n.frame.width, n.frame.height}, fx->params);
+            window = n.world.apply(p);
+        }
     const bool inside = p.x >= 0 && p.y >= 0 && p.x < n.frame.width && p.y < n.frame.height;
     if ((n.visual.clip || n.type->clips) && !inside) return {};
     for (std::size_t i = n.children.size(); i-- > 0;) {
         if (at(n.children[i]).type->overlay) continue;
         if (NodeId h = hit(n.children[i], window, std::nullopt)) return h;
     }
-    if (inside && n.visual.hit) return id;
+    if (inside) return id;
     return {};
 }
 

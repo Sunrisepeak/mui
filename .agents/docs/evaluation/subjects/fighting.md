@@ -20,4 +20,15 @@
 - `framework_showcase` — rollback determinism, agent play, frame meter, the move list: shown naturally, never bolted on.
 - `code_tests_docs` — code, tests, README, dev story, signature shot.
 
+**Run:**
+- `omui-fight --quiet` (openmui.showcase.fighting)
+
+**Use:** the keys are player 1 W A S D (move), U I O (punches), J K L (kicks); player 2 the arrows, Insert Home PageUp, Delete End PageDown (hold keys with `hold`, in frames; motions as successive keys; ui_clock pause and step to read frames).
+1. Title to fight with the keys and with the pointer: every screen's controls answer, and say how.
+2. Play several fighters, one round each at least: walk, jump, guard, normals, specials by motion, a throw, a super when the meter allows; read the HUD as you go.
+3. Training mode: the move list, a move's demonstration, frame data, the dummy recording and playback, reset.
+4. Watch an exchange frame by frame (ui_clock): anticipation, impact, hit-stop, sparks, reaction, camera.
+5. A whole match to its K.O. and back to the select screen.
+6. As an agent: what the semantic tree says of the fight (frame, health, what each is doing) against what the picture shows.
+
 **Images:** title, select, versus, training, each stage, clash, KO, each fighter's level 3 frames, README animation frames.

@@ -431,6 +431,13 @@ struct ScrollNode {
         return {std::clamp(p.x, 0.0f, m.x), std::clamp(p.y, 0.0f, m.y)};
     }
 
+    // Laid out again: content that shrank (a shorter page shown) leaves no
+    // offset past its end — what is shown and what the tree states agree.
+    void laid_out() {
+        if (!services) return;
+        if (const Point c = clamp(target); c.x != target.x || c.y != target.y) (void)scroll(c, false);
+    }
+
     // Moves toward `to`; `smooth` glides there (wheel notches, keys, actions).
     bool scroll(Point to, bool smooth) {
         to = clamp(to);

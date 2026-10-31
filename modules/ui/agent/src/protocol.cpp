@@ -11,9 +11,9 @@ namespace omui::agent {
 
 namespace {
 
-constexpr std::array<std::string_view, 19> operations{"describe", "snapshot", "changes", "find",     "act",   "invoke",  "undo",
-                                                       "redo",     "transaction", "history", "wait", "capture", "inspect", "stats",
-                                                       "profile",  "logs",     "debug",   "pipeline", "clock"};
+constexpr std::array<std::string_view, 20> operations{"describe", "snapshot", "changes", "find",     "act",   "invoke",  "undo",
+                                                       "redo",     "transaction", "history", "wait", "capture", "input", "inspect",
+                                                       "stats",    "profile",  "logs",     "debug",   "pipeline", "clock"};
 
 // A stage's configuration from a request's JSON object.
 pipeline::Config config_of(const Value* v) {
@@ -113,6 +113,157 @@ Value history_value(const History& h) {
     Value v;
     v.set("scope", h.scope).set("undo", items(h.undo)).set("redo", items(h.redo));
     return v;
+}
+
+
+constexpr std::string_view input_example =
+    R"({"op":"input","events":[{"type":"click","node":"main/save"},{"type":"click","x":120,"y":48},{"type":"text","text":"hi"},)"
+    R"({"type":"key","key":"Enter"},{"type":"drag","from":[10,10],"to":[200,10]},{"type":"wheel","x":300,"y":200,"dy":-120},{"type":"wait","frames":30}]})";
+
+std::optional<MouseButton> button_of(std::string_view b) {
+    if (b.empty() || b == "left") return MouseButton::left;
+    if (b == "right") return MouseButton::right;
+    if (b == "middle") return MouseButton::middle;
+    return std::nullopt;
+}
+
+std::uint32_t held_bit(MouseButton b) {
+    switch (b) {
+        case MouseButton::left: return 1;
+        case MouseButton::right: return 2;
+        case MouseButton::middle: return 4;
+        default: return 0;
+    }
+}
+
+// The frames a list of input events takes, one batch a frame, as a
+// person's devices would give them: a click is a move, a press and, a frame
+// later, a release; a drag presses, moves in steps and releases; a key is
+// pressed and released a frame later (or after `hold` frames).
+std::expected<std::deque<std::vector<InputEvent>>, std::string> frames_of(const Value& events, Runtime& rt) {
+    if (!events.list() || events.list()->empty()) return std::unexpected(std::string("`input` needs `events`: a list of events"));
+    std::deque<std::vector<InputEvent>> out;
+    Point at{};
+    auto number = [](const Value& e, std::string_view k, double fallback) {
+        const Value* v = e.get(k);
+        return v && v->is_number() ? v->as_double() : fallback;
+    };
+    // A point: [x, y], or the centre of a node's bounds as it is laid out now.
+    auto point = [&](const Value& e, std::string_view xy, std::string_view node) -> std::expected<Point, std::string> {
+        if (const Value* v = e.get(node); v && !v->as_string().empty()) {
+            const NodeId n = rt.find(v->as_string());
+            if (!rt.valid(n)) return std::unexpected(std::format("no node '{}'", v->as_string()));
+            const Rect b = rt.screen_bounds(n);
+            if (b.empty()) return std::unexpected(std::format("'{}' has no bounds (not laid out, or not shown)", v->as_string()));
+            return b.center();
+        }
+        if (const Value* v = e.get(xy); v && v->list() && v->list()->size() == 2)
+            return Point{static_cast<float>((*v->list())[0].as_double()), static_cast<float>((*v->list())[1].as_double())};
+        if (e.get("x") && e.get("y")) return Point{static_cast<float>(number(e, "x", 0)), static_cast<float>(number(e, "y", 0))};
+        return std::unexpected(std::string("an event names where: `x` and `y` (logical pixels), or `node` (its centre)"));
+    };
+    auto mods_of = [](const Value& e) -> std::expected<Modifiers, std::string> {
+        Modifiers m;
+        if (const Value* v = e.get("mods"); v && v->list())
+            for (const Value& x : *v->list()) {
+                const std::string_view n = x.as_string();
+                if (n == "shift") m = m | Modifier::shift;
+                else if (n == "ctrl" || n == "control") m = m | Modifier::ctrl;
+                else if (n == "alt") m = m | Modifier::alt;
+                else if (n == "meta" || n == "cmd") m = m | Modifier::meta;
+                else return std::unexpected(std::format("`{}` is not a modifier (shift, ctrl, alt, meta)", n));
+            }
+        return m;
+    };
+    auto pointer = [&](PointerKind kind, Point p, MouseButton b, std::uint32_t held, Modifiers m, std::uint8_t clicks = 1) {
+        PointerEvent e;
+        e.kind = kind;
+        e.position = p;
+        e.button = kind == PointerKind::move ? MouseButton::none : b;
+        e.buttons = held;
+        e.mods = m;
+        e.clicks = clicks;
+        return InputEvent{e};
+    };
+    for (const Value& e : *events.list()) {
+        const std::string_view type = text_of(e, "type");
+        auto mods = mods_of(e);
+        if (!mods) return std::unexpected(mods.error());
+        auto button = button_of(text_of(e, "button"));
+        if (!button) return std::unexpected(std::format("`{}` is not a button (left, right, middle)", text_of(e, "button")));
+        const std::uint32_t bit = held_bit(*button);
+        if (type == "move" || type == "click" || type == "double_click" || type == "down" || type == "up" || type == "wheel") {
+            if (type != "up" || e.get("x") || e.get("node")) {
+                auto p = point(e, "at", "node");
+                if (!p) return std::unexpected(std::format("{}: {}", type, p.error()));
+                at = *p;
+            }
+        }
+        if (type == "move") {
+            out.push_back({pointer(PointerKind::move, at, *button, 0, *mods)});
+        } else if (type == "click" || type == "double_click") {
+            out.push_back({pointer(PointerKind::move, at, *button, 0, *mods), pointer(PointerKind::down, at, *button, bit, *mods)});
+            out.push_back({pointer(PointerKind::up, at, *button, 0, *mods)});
+            if (type == "double_click") {
+                out.push_back({pointer(PointerKind::down, at, *button, bit, *mods, 2)});
+                out.push_back({pointer(PointerKind::up, at, *button, 0, *mods, 2)});
+            }
+        } else if (type == "down") {
+            out.push_back({pointer(PointerKind::move, at, *button, 0, *mods), pointer(PointerKind::down, at, *button, bit, *mods)});
+        } else if (type == "up") {
+            out.push_back({pointer(PointerKind::up, at, *button, 0, *mods)});
+        } else if (type == "drag") {
+            auto from = point(e, "from", "from_node");
+            auto to = point(e, "to", "to_node");
+            if (!from || !to) return std::unexpected(std::format("drag: {} (`from` and `to`: [x, y], or `from_node` and `to_node`)",
+                                                                 !from ? from.error() : to.error()));
+            const int steps = std::clamp(static_cast<int>(number(e, "steps", 12)), 1, 600);
+            out.push_back({pointer(PointerKind::move, *from, *button, 0, *mods), pointer(PointerKind::down, *from, *button, bit, *mods)});
+            for (int i = 1; i <= steps; ++i) {
+                const float t = static_cast<float>(i) / static_cast<float>(steps);
+                out.push_back({pointer(PointerKind::move, {from->x + (to->x - from->x) * t, from->y + (to->y - from->y) * t}, *button, bit, *mods)});
+            }
+            out.push_back({pointer(PointerKind::up, *to, *button, 0, *mods)});
+            at = *to;
+        } else if (type == "wheel") {
+            WheelEvent w;
+            w.position = at;
+            w.delta = {static_cast<float>(number(e, "dx", 0)), static_cast<float>(number(e, "dy", 0))};
+            w.precise = e.get("precise") && e.get("precise")->as_bool();
+            w.mods = *mods;
+            out.push_back({pointer(PointerKind::move, at, *button, 0, *mods), InputEvent{w}});
+        } else if (type == "key" || type == "key_down" || type == "key_up") {
+            const auto key = parse_key(text_of(e, "key"));
+            if (!key) return std::unexpected(std::format("`{}` is not a key (A, Enter, Escape, Tab, Space, Left, PageUp, F5 …)", text_of(e, "key")));
+            KeyEvent k;
+            k.key = *key;
+            k.mods = *mods;
+            if (type != "key_up") {
+                k.kind = KeyKind::down;
+                out.push_back({InputEvent{k}});
+            }
+            if (type == "key") {
+                const int hold = std::clamp(static_cast<int>(number(e, "hold", 1)), 1, 600);
+                for (int i = 1; i < hold; ++i) out.emplace_back();
+            }
+            if (type != "key_down") {
+                k.kind = KeyKind::up;
+                out.push_back({InputEvent{k}});
+            }
+        } else if (type == "text") {
+            const std::string_view text = text_of(e, "text");
+            if (text.empty()) return std::unexpected(std::string("text: needs `text`"));
+            out.push_back({InputEvent{TextEvent{std::string(text)}}});
+        } else if (type == "wait") {
+            const int frames = std::clamp(static_cast<int>(number(e, "frames", 1)), 1, 3600);
+            for (int i = 0; i < frames; ++i) out.emplace_back();
+        } else {
+            return std::unexpected(std::format("`{}` is not an input event (move, click, double_click, down, up, drag, wheel, key, key_down, "
+                                               "key_up, text, wait)",
+                                               type));
+        }
+    }
+    return out;
 }
 
 }  // namespace
@@ -294,7 +445,7 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
                 e.error(spec::error_code::not_found, std::format("no node '{}'", id)).result(spec::exit_code::failure);
                 return e;
             }
-            region = runtime_.bounds(n);
+            region = runtime_.screen_bounds(n);
         }
         auto png = options_.capture(region);
         if (!png) {
@@ -305,6 +456,30 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
         d.set("format", "png").set("bounds", Value(Value::List{Value(region.x), Value(region.y), Value(region.width), Value(region.height)}));
         d.set("base64", base64(*png));
         return e.data(std::move(d)).result(spec::exit_code::success);
+    }
+    if (op == "input") {
+        // A person's input, as their devices give it, delivered a frame at a
+        // time; answered once the last of it has been through a frame, with
+        // what each press hit and the actions it performed.
+        if (!options_.input) {
+            e.error(spec::error_code::refused,
+                    "this application takes no input from agents (AppSpec::agent_input off, or --no-agent-input): act on its nodes instead")
+                .result(spec::exit_code::failure);
+            return e;
+        }
+        const Value* events = req.get("events");
+        if (!events) return invalid("`input` needs `events`", input_example);
+        auto frames = frames_of(*events, runtime_);
+        if (!frames) return invalid(frames.error(), input_example);
+        auto call = invocation(req);
+        if (!call) return call.error();
+        // What the input does is the agent's, through the input (openas §2.7).
+        Actor by = call->actor;
+        by.via.emplace_back("service:input");
+        deferred = true;
+        deliveries_.push_back({re, reply, std::move(by), std::move(*frames), 0, runtime_.action_journal().size(), {}});
+        runtime_.request_frame();
+        return e;
     }
     // ── development: inspection, statistics, profiling, logs, debug overlays ──
     if (op == "inspect") {
@@ -495,7 +670,64 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
                    std::format("operations: {}", known));
 }
 
+std::optional<AgentInput> Protocol::take_input() {
+    for (Delivery& d : deliveries_) {
+        if (d.frames.empty()) continue;
+        std::vector<InputEvent> batch = std::move(d.frames.front());
+        d.frames.pop_front();
+        ++d.delivered;
+        // What each press lands on, as the frame before it laid things out:
+        // the node there, and the nearest around it the semantic tree states.
+        for (const InputEvent& ev : batch) {
+            const auto* p = std::get_if<PointerEvent>(&ev);
+            if (!p || p->kind != PointerKind::down) continue;
+            Value hit;
+            hit.set("at", Value(Value::List{Value(static_cast<double>(p->position.x)), Value(static_cast<double>(p->position.y))}));
+            const NodeId n = runtime_.hit_test(p->position);
+            if (runtime_.valid(n)) {
+                std::string path = runtime_.path(n);
+                hit.set("node", path);
+                for (std::string id = path; !id.empty();) {
+                    if (auto sn = tree_.node(id)) {
+                        hit.set("semantic", sn->id).set("role", spec::name(sn->role));
+                        if (!sn->name.empty()) hit.set("name", sn->name);
+                        break;
+                    }
+                    const auto slash = id.rfind('/');
+                    id = slash == std::string::npos ? std::string() : id.substr(0, slash);
+                }
+            }
+            d.pressed.push_back(std::move(hit));
+        }
+        runtime_.request_frame();
+        return AgentInput{std::move(batch), d.actor};
+    }
+    return std::nullopt;
+}
+
 void Protocol::poll() {
+    // Input whose last frame has run: what it did.
+    while (!deliveries_.empty() && deliveries_.front().frames.empty() && deliveries_.front().delivered > 0) {
+        Delivery& d = deliveries_.front();
+        const auto journal = runtime_.action_journal();
+        Value::List actions;
+        for (std::size_t i = std::min(d.journal, journal.size()); i < journal.size(); ++i) {
+            Value a;
+            a.set("node", journal[i].path).set("action", journal[i].action).set("actor", journal[i].actor);
+            a.set("exitCode", static_cast<std::int64_t>(journal[i].exit_code));
+            actions.push_back(std::move(a));
+        }
+        Value data;
+        data.set("frames", static_cast<std::int64_t>(d.delivered)).set("pressed", Value(std::move(d.pressed)));
+        data.set("actions", Value(std::move(actions)));
+        const NodeId f = runtime_.focused();
+        data.set("focused", runtime_.valid(f) ? Value(runtime_.path(f)) : Value{});
+        Envelope e;
+        e.data(std::move(data)).result(spec::exit_code::success);
+        send(d.reply, e, d.re);
+        deliveries_.pop_front();
+    }
+    if (!deliveries_.empty()) runtime_.request_frame();
     if (waits_.empty()) return;
     const auto now = std::chrono::steady_clock::now();
     std::vector<Wait> still;

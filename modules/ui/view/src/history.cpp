@@ -111,6 +111,12 @@ std::expected<std::vector<Runtime::Impl::UndoStep>, Envelope> Runtime::Impl::tak
         std::vector<std::vector<Inverse>> again;
         bool all = true;
         for (const Inverse& inv : s.inverse) {
+            if (inv.run) {  // the program's own: run, and its own inverse is the step again
+                inv.run();
+                again.push_back({Inverse{{}, {}, inv.again, inv.run}});
+                if (!inv.again) all = false;
+                continue;
+            }
             Invocation c = call;
             c.args = inv.args;
             c.dry_run = false;
@@ -212,19 +218,33 @@ void Runtime::clear_history(NodeId scope) {
 Envelope Runtime::undo(NodeId scope, const Invocation& call) { return act(valid(scope) ? scope : root(), "undo", call); }
 Envelope Runtime::redo(NodeId scope, const Invocation& call) { return act(valid(scope) ? scope : root(), "redo", call); }
 
-Envelope Runtime::invoke(std::string_view verb, const Invocation& call) {
+Envelope Runtime::invoke(std::string_view verb, const Invocation& given) {
     Impl& d = *impl_;
+    Invocation copy;
+    const Invocation& call = d.attributed(given, copy);
     if (call.dry_run) return d.verbs.invoke(verb, call);
     const VerbDesc* v = d.verbs.find(verb);
     if (v && d.transaction && d.replaying == 0 && spec::requires_answer(v->effect))
         return not_in_transaction(std::format("`{}`", verb), v->effect);
     const Effect effect = v ? v->effect : Effect::read;
+    std::vector<Inverse> outer = std::exchange(d.program_inverse, {});
+    ++d.acting;
     Envelope e = batch([&] { return d.verbs.invoke(verb, call); });
-    // A verb gives no inverse: a reversible one is not recorded (but clears
+    --d.acting;
+    std::vector<Inverse> inverse = effect == Effect::reversible ? std::move(d.program_inverse) : std::vector<Inverse>{};
+    d.program_inverse = std::move(outer);
+    // A verb gives no inverse of its own, unless its function said how
+    // (taken_back_by): a reversible one without is not recorded (but clears
     // what could be redone); an irreversible or external one is a barrier.
     if (v && e.exit_code() == spec::exit_code::success)
-        d.record(d.root, {d.root, "app", {}, std::string(verb), call.args, {}, std::format("`{}`", verb)}, effect);
+        d.record(d.root, {d.root, "app", {}, std::string(verb), call.args, std::move(inverse), std::format("`{}`", verb)}, effect);
     return e;
+}
+
+void Runtime::taken_back_by(std::function<void()> undo, std::function<void()> redo) {
+    Impl& d = *impl_;
+    if (d.acting == 0 || d.replaying > 0 || !undo) return;
+    d.program_inverse.push_back({{}, {}, std::move(undo), std::move(redo)});
 }
 
 void Runtime::begin_transaction(std::string label) {

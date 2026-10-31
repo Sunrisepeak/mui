@@ -110,6 +110,64 @@ int main(int argc, char** argv) {
         check_eq(g.state().frame, f + 2 + 60);
     });
 
+    s.test("turns (agents by correspondence): the match waits for both players' turns, then plays them; a quarter circle in a turn throws the fireball", [] {
+        Headless h{HeadlessOptions{.size = {960, 540}}};
+        AppSpec spec = fighting::app();
+        spec.setup(h.runtime());
+        h.mount("main", fighting::stage({.id = "stage", .player1 = "kata", .player2 = "kata", .turn_frames = 6, .width = Dim(layout::pct(100)),
+                                         .height = Dim(layout::pct(100))}));
+        h.step();
+        auto turn = [&](int player, std::string_view p) {
+            Invocation c;
+            c.actor = {"agent", std::format("player{}", player + 1), {}};
+            c.args = pad(player, p);
+            return h.tree().act("main", "turn", c);
+        };
+        auto seen = [&] {
+            for (const auto& n : h.tree().snapshot({}).nodes)
+                if (n.id == "main") return n.value;
+            return Value{};
+        };
+        const auto& st = h.runtime().component<fighting::Stage>(h.runtime().find("main"))->match().state();
+        h.advance(seconds(1));
+        check_eq(st.frame, std::int32_t{0});  // the clock stands: no turn played yet
+        const Envelope first = turn(0, "6");
+        check(first.exit_code() == std::optional<std::int64_t>(0) && first.ndjson().contains("\"waiting\":1"), first.ndjson());
+        check(seen().get("turns")->get("waiting")->json() == "[1]", seen().json());
+        check_eq(st.frame, std::int32_t{0});
+        const Envelope both = turn(1, "4");
+        check(both.ndjson().contains("\"played\":true") && both.ndjson().contains("walk_forward"), both.ndjson());
+        check_eq(st.frame, std::int32_t{6});
+        // A turn standing (the forward walk out of the input buffer: else 6, 2, 3, 6 reads as a dragon punch, as it should).
+        for (int i = 0; i < 3; ++i) check(turn(0, "5").exit_code() == std::optional<std::int64_t>(0) && turn(1, "5").exit_code() == std::optional<std::int64_t>(0));
+        check(turn(0, "2,3,6LP").exit_code() == std::optional<std::int64_t>(0) && turn(1, "5").exit_code() == std::optional<std::int64_t>(0));
+        check(seen().get("p1")->get("doing")->as_string().contains("236"), seen().get("p1")->json());
+        check(turn(0, "2,2,2,2,2,2,2").exit_code() != std::optional<std::int64_t>(0), "more pads than frames");
+        check(turn(0, "5XP").exit_code() != std::optional<std::int64_t>(0), "not a pad");
+    });
+
+    s.test("the computer plays a side: it walks, guards and attacks by itself, the same every run", [] {
+        auto play = [] {
+            Headless h{HeadlessOptions{.size = {960, 540}}};
+            AppSpec spec = fighting::app();
+            spec.setup(h.runtime());
+            h.mount("main", fighting::stage({.id = "stage", .cpu = 1, .player1 = "kata", .player2 = "mo", .width = Dim(layout::pct(100)),
+                                             .height = Dim(layout::pct(100))}));
+            h.step();
+            std::set<std::string> did;
+            const auto* stage = h.runtime().component<fighting::Stage>(h.runtime().find("main"));
+            for (int i = 0; i < 60 * 8; ++i) {
+                h.step();
+                for (const auto& n : h.tree().snapshot({}).nodes)
+                    if (n.id == "main") did.insert(std::string(n.value.get("p2")->get("doing")->as_string()));
+            }
+            return std::pair{did, stage->match().state().f[1].pos.x.to_double()};
+        };
+        const auto [did, x] = play();
+        check(did.size() >= 3, std::format("the computer did {} things", did.size()));
+        check(play() == std::pair{did, x}, "the same every run");
+    });
+
     s.test("an agent walks in and lands a jab: player 2's health falls, the stage says so", [] {
         Game g;
         check(g.act("pause"));

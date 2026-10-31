@@ -153,7 +153,7 @@ int main(int argc, char** argv) {
             check_eq(std::string(r.get("serverInfo")->get("name")->as_string()), std::string("openmui"));
         }
         const Value* tools = c.reply(2) ? c.reply(2)->get("result")->get("tools") : nullptr;
-        check(tools && tools->list() && tools->list()->size() == 9, "nine tools");
+        check(tools && tools->list() && tools->list()->size() == 11, "eleven tools");
         if (tools && tools->list()) {
             std::set<std::string> names;
             for (const Value& t : *tools->list()) {
@@ -161,7 +161,7 @@ int main(int argc, char** argv) {
                 check(t.get("inputSchema") && t.get("inputSchema")->get("type")->as_string() == "object", "an object schema");
             }
             check((names == std::set<std::string>{"ui_apps", "ui_snapshot", "ui_find", "ui_act", "ui_invoke", "ui_undo", "ui_transaction", "ui_wait",
-                                                  "ui_capture"}));
+                                                  "ui_capture", "ui_input", "ui_clock"}));
         }
         check(c.reply(3) && c.reply(3)->get("result"), "ping");
         check(c.reply(4) && c.reply(4)->get("error")->get("code")->as_int() == -32601, "an unknown method");
@@ -213,6 +213,39 @@ int main(int argc, char** argv) {
         check(!journal.empty() && journal.front().get("actor")->as_string() == "agent:claude-code");
         const auto actions = notes.h.runtime().action_journal();
         check(!actions.empty() && actions.back().actor == "agent:claude-code", actions.empty() ? "" : actions.back().actor);
+    });
+
+    s.test("input as a person gives it: a click through hit testing, what it hit and did, as the agent's", [] {
+        const auto dir = scratch_dir("mcp-input");
+        int pressed = 0;
+        Headless h([&] {
+            HeadlessOptions o;
+            o.level = HeadlessLevel::session;
+            o.size = {200, 80};
+            o.app = "org.openmui.test-input";
+            o.endpoint_directory = dir;
+            o.agent_input = true;
+            return o;
+        }());
+        if (!h.endpoint()) return;
+        h.mount("main", column({.padding = 8}, {box({.id = "go", .width = 80, .height = 24, .label = "Go",
+                                                     .on = {{"press", [&](const Value&) { ++pressed; }}}})}));
+        h.step();
+        mcp::Server server({.directory = dir});
+        Client c;
+        c.in = {initialize(1, false),
+                call(2, "ui_input", Value{}.set("events", Value(Value::List{Value{}.set("type", "click").set("node", "main/go")}))),
+                call(3, "ui_input", Value{}.set("events", Value(Value::List{Value{}.set("type", "click").set("x", 190).set("y", 70)}))),
+                call(4, "ui_input", Value{}.set("events", Value(Value::List{Value{}.set("type", "fly")}))),
+                call(5, "ui_clock", Value{}.set("action", "pause"))};
+        serve(h, server, c);
+        check(!c.error(2) && c.text(2).contains("pressed at") && c.text(2).contains("main/go button \"Go\"") &&
+                  c.text(2).contains("action: activate on main/go by agent:claude-code;via=service:input"),
+              c.text(2));
+        check_eq(pressed, 1);
+        check(!c.error(3) && c.text(3).contains("no action was performed"), c.text(3));
+        check(c.error(4) && c.text(4).contains("not an input event"), c.text(4));
+        check(!c.error(5) && c.text(5).contains("\"paused\":true"), c.text(5));
     });
 
     s.test("a client that can ask: the person allows — done, with the person in the actor; declines — nothing done", [] {

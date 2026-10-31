@@ -75,7 +75,7 @@ int main(int argc, char** argv) {
         }
         check_eq(looks.size(), std::size_t{5});
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
-        check_eq(all.hex(), std::string("80f0b5f39cf0229e"));
+        check_eq(all.hex(), std::string("0bfde660c876c4b3"));
     });
 
     s.test("the README's loop: the five packs in turn — an animated PNG under 1 MB", [] {
@@ -138,23 +138,61 @@ int main(int argc, char** argv) {
         }
     });
 
-    s.test("the interface works under every pack: a switch, the slider, saving", [] {
-        App a("ink");
-        check_eq(a.h.tree().act("main/preview/content/panels/column:0/settings/cellular", "toggle", as_agent()).exit_code().value_or(-1), std::int64_t{0});
-        a.h.settle();
-        check(a.studio.cellular.peek(), "switched on");
-        check_eq(a.h.tree().act("main/preview/content/panels/column:0/settings/volume", "set_value", as_agent(Value{}.set("value", Value(0.25)))).exit_code().value_or(-1),
-                 std::int64_t{0});
-        a.h.settle();
-        check(std::abs(a.studio.volume.peek() - 0.25) < 1e-9, "the volume");
-        const auto save = a.h.tree().node("main/preview/content/panels/column:0/settings/row:0/save");
-        check(save && save->bounds, "the save button");
-        check(a.h.click("main/preview/content/panels/column:0/settings/row:0/save"), "clicked");
-        a.h.settle();
-        check_eq(a.studio.saved.peek(), std::int64_t{1});
-        const auto v = a.h.tree().violations();
-        for (const auto& x : v) std::println("    {} {} {}", x.clause, x.id, x.message);
-        check(v.empty());
+    s.test("the interface works under every pack, clicked where it is drawn: a switch, the slider, saving, cancelling", [] {
+        for (std::string_view pack : themes::style_names) {
+            App a(pack);
+            const std::string settings = "main/preview/content/panels/column:0/settings/";
+            // A person's click on the switch where the pack draws it (the retro screen bulges: the click reaches what is seen there).
+            check(a.h.click(settings + "cellular"), std::format("{}: clicked", pack));
+            a.h.settle();
+            check(a.studio.cellular.peek(), std::format("{}: switched on by a click", pack));
+            check_eq(a.h.tree().act(settings + "volume_row/volume", "set_value", as_agent(Value{}.set("value", Value(0.25)))).exit_code().value_or(-1),
+                     std::int64_t{0});
+            a.h.settle();
+            check(std::abs(a.studio.volume.peek() - 0.25) < 1e-9, std::format("{}: the volume", pack));
+            check(a.studio.settings_changed() && a.h.tree().node(settings + "actions/status")->name == "Unsaved changes", "said");
+            check(a.h.click(settings + "actions/save"), std::format("{}: save clicked", pack));
+            a.h.settle();
+            check(a.studio.saved.peek() == 1 && a.h.tree().node(settings + "actions/status")->name == "Saved.",
+                  std::format("{}: saved, and said ({} '{}')", pack, a.studio.saved.peek(), a.h.tree().node(settings + "actions/status")->name));
+            check(a.h.tree().node(settings + "actions/cancel")->states.has(State::disabled), "nothing to cancel");
+            // A change, then Cancel: back to what was saved.
+            check_eq(a.h.tree().act(settings + "backup", "toggle", as_agent()).exit_code().value_or(-1), std::int64_t{0});
+            a.h.settle();
+            check(a.h.click(settings + "actions/cancel"), std::format("{}: cancel clicked", pack));
+            a.h.settle();
+            check(a.studio.backup.peek() && a.h.tree().node(settings + "actions/status")->name == "Changes discarded.", std::format("{}: cancelled", pack));
+            const auto v = a.h.tree().violations();
+            for (const auto& x : v) std::println("    {} {} {}", x.clause, x.id, x.message);
+            check(v.empty());
+        }
+    });
+
+    s.test("the workshop's edits: one step a field, undone, redone, reset; a refused value changes nothing and says why", [] {
+        App a("glass");
+        const auto shipped = theme::write_style(a.studio.draft());
+        check(!a.studio.can_undo() && !a.studio.edited());
+        check(a.studio.set("corners", Value(4.0)).has_value());
+        check(a.studio.set("corners", Value(2.0)).has_value());  // the same field a moment later: the same step
+        check(a.studio.set("accent", Value("#ff0066")).has_value());
+        check(a.studio.edited());
+        // Refused: nothing changes, and why is said (to the person, and to an agent).
+        const auto before = theme::write_style(a.studio.draft());
+        auto bad = a.studio.set("accent", Value("pink"));
+        check(!bad && bad.error().contains("not a colour") && !a.studio.problem.peek().empty(), bad ? "" : bad.error());
+        auto out_of_range = a.h.runtime().verbs().invoke("styles.set", as_agent(Value{}.set("what", "role:region/blur").set("value", 1e9)));
+        check(out_of_range.exit_code() == std::optional<std::int64_t>(1), out_of_range.ndjson());
+        check_eq(theme::write_style(a.studio.draft()), before);
+        // Undo: the accent, then the corners (both moves at once); redo; reset to the pack as shipped.
+        check(a.studio.undo().has_value());
+        check(a.studio.undo().has_value());
+        check_eq(theme::write_style(a.studio.draft()), shipped);
+        check(!a.studio.undo().has_value(), "nothing more");
+        check(a.studio.redo().has_value() && a.studio.edited());
+        check(a.studio.reset().has_value() && !a.studio.edited());
+        check(a.studio.undo().has_value() && a.studio.edited(), "reset is itself undone");
+        check_eq(a.h.runtime().verbs().invoke("styles.reset", as_agent()).exit_code().value_or(-1), std::int64_t{0});
+        check(!a.studio.edited());
     });
 
     s.test("inside another program: the workshop is a theme scope — a pack draws it as in its own window, the page around keeps its theme, a menu it opens is in the pack", [] {

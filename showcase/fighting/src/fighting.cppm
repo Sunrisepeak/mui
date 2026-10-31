@@ -31,7 +31,15 @@ export namespace omui::fighting {
 // Registers the stage: scripts, view documents and agents reach it by name.
 void register_components();
 
+// How the application starts: at the title (no fighters named), or straight
+// in a fight — who plays whom where, the computer's player, turns (agents
+// playing by correspondence: Stage's turn_frames).
+struct Start {
+    std::string  player1, player2, arena;
+    std::int32_t cpu = -1, cpu_level = 2, turn_frames = 0;
+};
+
 // The application: the title and the select screen, then the fight filling the window.
-[[nodiscard]] AppSpec app();
+[[nodiscard]] AppSpec app(Start start = {});
 
 }  // namespace omui::fighting

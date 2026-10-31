@@ -23,7 +23,7 @@ struct State {
                     ui.text("Hello, openmui", {.style = "title"});
                     ui.text_box("Name", s.name, {.id = "name", .placeholder = "Your name"});
                     ui.text(s.name.empty() ? std::string("Type your name above.") : std::format("Nice to meet you, {}!", s.name));
-                    if (ui.button(s.clicks == 0 ? std::string("Click me") : std::format("Clicked {} times", s.clicks), {.id = "click"}))
+                    if (ui.button(s.clicks == 0 ? std::string("Click me") : s.clicks == 1 ? std::string("Clicked once") : std::format("Clicked {} times", s.clicks), {.id = "click"}))
                         ++s.clicks;
                 });
             });

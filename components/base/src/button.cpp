@@ -79,7 +79,8 @@ void Button::paint(PaintContext& ctx) const {
     const float p = static_cast<float>(std::clamp(press_.value(), -0.5, 1.5));
 
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
-    const CornerRadii radii = CornerRadii::all(ctx.theme.corner("medium", 8)).fitted(ctx.size);
+    corner_ = ctx.theme.corner("medium", 8);
+    const CornerRadii radii = CornerRadii::all(corner_).fitted(ctx.size);
     const float s = 1 - press_scale * p;
     const bool scaled = s != 1;
     if (scaled) {
@@ -113,6 +114,12 @@ void Button::paint_over(PaintContext& ctx) const {
 void Button::semantics(SemanticsContext&, spec::SemanticNode& node) const {
     if (node.name.empty()) node.name = props.text;  // the label is the name (S-6)
     if (props.disabled) node.states.set(State::disabled);
+}
+
+std::size_t Button::effect_shapes(Size size, Rect, std::span<render::EffectShape> out) const {
+    if (out.empty()) return 0;
+    out[0] = {{0, 0, size.width, size.height}, CornerRadii::all(corner_).fitted(size)};
+    return 1;
 }
 
 ActResult Button::activate(ActContext&) {

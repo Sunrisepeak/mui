@@ -1335,6 +1335,9 @@ int main(int argc, char** argv) {
         // Scaled twice about its centre (100, 50), then moved by (50, 20).
         check(rt.drawn_bounds(card) == Rect{-50, -30, 400, 200}, "as drawn");
         check(rt.drawn_bounds(dot) == Rect{-50, -30, 20, 20}, "a child under its parent's transforms");
+        // Where they are as set (the tree's bounds): the same at rest.
+        check(rt.screen_bounds(card) == Rect{-50, -30, 400, 200} && rt.screen_bounds(dot) == Rect{-50, -30, 20, 20}, "as set");
+        check(rt.semantic_node(dot).bounds && rt.semantic_node(dot).bounds->width == 20, "the tree states it so");
     });
 
     s.test("glyph motion: domains, ranges, orders, randomness, round trips", [] {
@@ -1397,6 +1400,21 @@ int main(int argc, char** argv) {
         check(!rt.open_url("file:///etc/passwd"), "nor a file");
         check(host == std::vector<std::string>{"mailto:someone@example.org"});
         check(rt.opened() == std::vector<std::string>{"https://example.org/a", "mailto:someone@example.org"}, "what was asked for, in order");
+    });
+
+    s.test("pointer_events none: the node and all inside it take no pointer; what it covers does", [] {
+        Runtime rt(options());
+        int under = 0, over = 0;
+        rt.mount("main", stack({.width = 200, .height = 100},
+                               {box({.id = "under", .width = 200, .height = 100, .label = "Under", .on = {{"press", [&](const Value&) { ++under; }}}}),
+                                column({.id = "hud", .width = 200, .height = 100},
+                                       {box({.id = "over", .width = 200, .height = 100, .label = "Over", .on = {{"press", [&](const Value&) { ++over; }}}})})
+                                    .prop("pointer_events", Source{Value("none"), {}, {}})}));
+        rt.frame();
+        check(rt.hit_test({50, 50}) == rt.find("main/under"), rt.path(rt.hit_test({50, 50})));
+        rt.frame({std::nullopt, {PointerEvent{.kind = PointerKind::down, .position = {50, 50}, .button = MouseButton::left, .buttons = 1},
+                                 PointerEvent{.kind = PointerKind::up, .position = {50, 50}, .button = MouseButton::left}}});
+        check(under == 1 && over == 0, std::format("under {} over {}", under, over));
     });
 
     s.test("history (S-12): undo and redo, barriers, scopes, the keyboard", [] {
@@ -1476,6 +1494,48 @@ int main(int argc, char** argv) {
         check(rt.history(rt.root()).undo.empty() && !offers(rt.root(), "undo"), "unmounted, forgotten");
         const auto j = rt.action_journal();
         check(std::ranges::count(j, std::string("undo"), &ActionEntry::action) >= 4, "undo is journaled as an action");
+    });
+
+    s.test("history (S-12): an action whose handler says how the program takes it back (taken_back_by)", [] {
+        Runtime rt(options());
+        bool shipped = false;
+        int verb_runs = 0;
+        rt.mount("main", column({}, {box({.id = "ship", .width = 40, .height = 20, .label = "Ship",
+                                           .on = {{"press", [&](const Value&) {
+                                               shipped = true;
+                                               rt.taken_back_by([&] { shipped = false; }, [&] { shipped = true; });
+                                           }}}}),
+                                      box({.id = "plain", .width = 40, .height = 20, .label = "Plain", .on = {{"press", [](const Value&) {}}}})}));
+        (void)rt.verbs().add({"count.add", "Adds one", Effect::reversible, "", {}}, [&](const Value&) -> VerbResult {
+            ++verb_runs;
+            rt.taken_back_by([&] { --verb_runs; }, [&] { ++verb_runs; });
+            return Value{};
+        });
+        rt.frame();
+        auto exit_of = [](const Envelope& e) { return e.exit_code().value_or(-1); };
+        check_eq(exit_of(rt.act(rt.find("main/ship"), "activate")), 0);
+        check(shipped && rt.history(rt.root()).undo.size() == 1, "in the history");
+        check_eq(exit_of(rt.act(rt.find("main/plain"), "activate")), 0);
+        check_eq(rt.history(rt.root()).undo.size(), std::size_t{1});  // no inverse given: not in it
+        check_eq(exit_of(rt.undo({})), 0);
+        check(!shipped, "undone by the program's own inverse");
+        check_eq(exit_of(rt.redo({})), 0);
+        check(shipped, "redone");
+        check_eq(exit_of(rt.undo({})), 0);
+        check(!shipped);
+        // A verb's function says how too.
+        check_eq(exit_of(rt.invoke("count.add")), 0);
+        check_eq(verb_runs, 1);
+        check_eq(exit_of(rt.undo({})), 0);
+        check_eq(verb_runs, 0);
+        check_eq(exit_of(rt.redo({})), 0);
+        check_eq(verb_runs, 1);
+        // Outside an action: nothing kept.
+        rt.taken_back_by([&] { shipped = true; }, {});
+        check_eq(exit_of(rt.undo({})), 0);
+        check_eq(verb_runs, 0);
+        check_eq(exit_of(rt.undo({})), 1);
+        check(!shipped);
     });
 
     s.test("transactions (S-13): one step of history, all or nothing; dry runs leave no trace", [] {

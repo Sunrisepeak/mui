@@ -152,6 +152,13 @@ int main(int argc, char** argv) {
         check(volume.peek() == 80, "snapped to the step");
         h.step({up});
         check(committed == std::vector<double>{80} && changed == 2);
+        // The drag is one step of history (S-12): undone whole, redone whole.
+        check_eq(h.runtime().undo({}).exit_code().value_or(-1), std::int64_t{0});
+        check(volume.peek() == 30, std::format("undone: {}", volume.peek()));
+        check_eq(h.runtime().redo({}).exit_code().value_or(-1), std::int64_t{0});
+        check(volume.peek() == 80, std::format("redone: {}", volume.peek()));
+        changed = 2;
+        committed = {80};
         h.focus_next();
         key(h, Key::right);
         check(volume.peek() == 85);

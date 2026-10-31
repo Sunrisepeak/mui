@@ -60,6 +60,10 @@ private:
     std::int32_t                      item_ = 0;              // the title's mode under the cursor
     std::array<std::int32_t, 2>       cursor_{0, 1};
     std::array<bool, 2>               ready_{};
+    bool                              cpu_ = false;           // versus: the computer plays player 2 until they join
+    struct CpuWords;
+    mutable std::shared_ptr<CpuWords> cpu_words_;             // its plate's words, shaped once
+    void join();
     std::int32_t                      frame_ = 0;             // frames shown (the previews' and the backdrop's clock)
     std::int32_t                      both_ready_ = -1;       // the frame both became ready (the fight is chosen a moment later)
     std::shared_ptr<const Registered> art_;

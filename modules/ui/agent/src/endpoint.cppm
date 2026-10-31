@@ -55,6 +55,10 @@ public:
     // Serves what arrived and checks pending waits; call once per frame on
     // the UI thread. Answers how many requests it served.
     std::size_t pump();
+    // The next frame's input from the connections' `input` requests
+    // (ProtocolOptions::input), one batch a frame; the host passes it to
+    // the frame it runs next.
+    [[nodiscard]] std::optional<AgentInput> take_input();
     [[nodiscard]] std::size_t connections() const;
 
     struct Impl;

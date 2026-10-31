@@ -106,6 +106,16 @@ struct ShownFrames {
     [[nodiscard]] const ShownFrame& back() const noexcept { return (*this)[count - 1]; }
 };
 
+// How to take an action back (spec S-12): an action of the same node — or,
+// for an item a node holds, of the same item — with its arguments.
+struct Inverse {
+    std::string action;
+    Value       args;
+    // Or the program's own (Runtime::taken_back_by): `run` takes the step
+    // back, `again` puts it forward; no action is performed.
+    std::function<void()> run, again;
+};
+
 class Services;
 
 // A demand while it lasts (RAII): released when it goes — or when the
@@ -217,6 +227,11 @@ public:
     // same checks, journal and history (S-12) as any call: what a pointer
     // gesture does is undone as a key's or an agent's is. False when refused or failed.
     virtual bool perform(NodeId node, std::string_view action, const Value& args) = 0;
+    // An action of the node's that its own input handling has done already
+    // (a drag that moved the value as it went): journaled as the person's
+    // and put into the history (S-12) with how to take it back, as if it
+    // were performed now — nothing is performed again.
+    virtual void performed(NodeId node, std::string_view action, const Value& args, std::vector<Inverse> inverse) = 0;
     // Text input (input methods): where the caret is, so the candidate
     // window follows it.
     virtual void text_input(NodeId node, std::optional<Rect> caret) = 0;
@@ -258,12 +273,6 @@ struct EventContext {
     void relayout() { services.invalidate_layout(node); }
 };
 
-// How to take an action back (spec S-12): an action of the same node — or,
-// for an item a node holds, of the same item — with its arguments.
-struct Inverse {
-    std::string action;
-    Value       args;
-};
 
 struct ActResult {
     bool        ok = true;

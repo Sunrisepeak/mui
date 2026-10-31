@@ -88,7 +88,7 @@ std::vector<Plugin> plugins() {
              d.dirty = dirty_none;
              d.dirty_taken = true;
              if ((d.todo & (dirty_paint | dirty_layout | dirty_tree)) || debugging(d)) {
-                 d.compute_bounds(d.root, {0, 0}, Affine{});
+                 d.compute_bounds(d.root, {0, 0}, Affine{}, Affine{});
                  d.place_overlays();
                  d.trap_focus();
                  // A copy (a hook may add or remove watchers), into a vector kept from frame to frame.

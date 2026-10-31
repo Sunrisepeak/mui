@@ -136,6 +136,12 @@ struct EffectInfo {
     // Each row of the result depends on the inputs alone (not on other rows
     // of the result): the CPU renderer computes bands of rows at the same time.
     bool row_local = false;
+    // For an effect that moves what is drawn (a bulging screen, a lens):
+    // where the pixel seen at `p` takes its colour from — the layer's own
+    // coordinates, the layer `layer` — so a pointer aimed at what is seen
+    // reaches what is drawn there (the runtime's hit testing). None: every
+    // pixel is seen where it is drawn (or within a pixel or two of it).
+    std::function<geom::Point(geom::Point p, geom::Rect layer, std::span<const float> params)> source_of;
 };
 
 // Runs an effect's CPU reference over its rows — in bands on `parallel` when

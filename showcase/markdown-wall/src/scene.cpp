@@ -28,7 +28,8 @@ omui::Color tint(std::string_view name) {
 // A window: a title bar and its page in a scroll view. The texture and the
 // live window are this one element — values for the texture (it is laid out
 // on the pool), the live text's signal for the window.
-omui::Element window(const Document& d, double w, double h, omui::Prop<std::string> source, omui::Color accent) {
+omui::Element window(const Document& d, double w, double h, omui::Prop<std::string> source, omui::Color accent,
+                     std::function<void(std::string)> follow = {}) {
     using namespace omui;
     return column({.width = Dim(static_cast<float>(w)),
                    .height = Dim(static_cast<float>(h)),
@@ -42,7 +43,7 @@ omui::Element window(const Document& d, double w, double h, omui::Prop<std::stri
                         text({.text = d.title, .style = "label", .wrap = false, .max_lines = 1}),
                         spacer(),
                         text({.text = d.path, .style = "caption", .color = Fill("text_muted"), .wrap = false, .max_lines = 1})}),
-                   scroll({.id = "page", .grow = 1, .padding = Edges(14.0f, 18.0f)}, {markdown({.id = "doc", .source = std::move(source)})})});
+                   scroll({.id = "page", .grow = 1, .padding = Edges(14.0f, 18.0f)}, {markdown({.id = "doc", .source = std::move(source), .on_link_activated = std::move(follow)})})});
 }
 
 // Labels shaped once a node (and theme), drawn at a size fixed on screen.
@@ -118,7 +119,8 @@ void build(Model& model, Scene& scene, const Geometry& g) {
                                      [&model](const Scene& s, NodeRef n) {
                                          const Document* doc = model.document(s.key(n));
                                          const auto r = s.rect(n);
-                                         return window(*doc, r.width, r.height, model.live(doc->key), s.fill(n));
+                                         return window(*doc, r.width, r.height, model.live(doc->key), s.fill(n),
+                                                       [&model, key = doc->key](std::string href) { (void)model.follow(key, href); });
                                      },
                                  .view =
                                      [&model](const Scene& s, NodeRef n) {

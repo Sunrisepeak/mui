@@ -16,4 +16,10 @@
 - `performance` — frame budgets, allocation, scaling.
 - `code_quality_tests` — code, tests, hostile-input handling.
 
+**Run:**
+- `omui-fight --quiet` (openmui.showcase.fighting)
+- `omui-breakout --quiet` (openmui.showcase.widget_breakout)
+
+**Use:** play both games through their real input (keys held for frames, the pointer), step their clocks frame by frame, and read their state from the tree: determinism, input latency in frames, collision and hit feel, what an agent can observe and do.
+
 **Images:** attach fighting and breakout frames.

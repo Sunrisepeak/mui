@@ -16,6 +16,7 @@ int shown(const AppSpec& app, const RunOptions& o, const Prepare& prepare) {
     d.size = o.size.value_or(app.size);
     d.app = app.id;
     d.agent = o.agent;
+    d.agent_input = o.agent_input.value_or(app.agent_input);
     d.agent_directory = o.agent_dir;
     d.theme = o.dark ? Theme::dark_theme() : app.theme;
     d.effects = app.effects;
@@ -38,3 +39,14 @@ int shown(const AppSpec& app, const RunOptions& o, const Prepare& prepare) {
 std::vector<std::string> host_locales() { return preferred_locales(); }
 
 }  // namespace omui::detail
+
+namespace omui {
+
+std::expected<void, std::string> choose_renderer(std::string_view name) {
+    if (name != "automatic" && name != "gpu" && name != "cpu")
+        return std::unexpected(std::format("`{}` is not a renderer (automatic, gpu, cpu)", name));
+    return std::unexpected(name == "automatic" ? std::string("the next start chooses (without --gpu or --cpu)")
+                                               : std::format("the next start draws with the {} (--{})", name == "gpu" ? "GPU" : "CPU", name));
+}
+
+}  // namespace omui

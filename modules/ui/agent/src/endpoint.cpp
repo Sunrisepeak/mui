@@ -197,6 +197,12 @@ std::size_t Endpoint::pump() {
     return work.size();
 }
 
+std::optional<AgentInput> Endpoint::take_input() {
+    for (auto& [link, p] : impl_->protocols)
+        if (auto batch = p->take_input()) return batch;
+    return std::nullopt;
+}
+
 // ── client ───────────────────────────────────────────────────────────────
 
 struct Client::Impl {

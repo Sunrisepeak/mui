@@ -68,5 +68,11 @@ void backing(std::string_view selector, int width, int height);
 bool loop(void (*tick)(void*), void* user);
 
 [[nodiscard]] std::vector<std::string> locales();
+// The page's address: a parameter of its query (empty when absent), and the
+// page loaded again with one set (empty value: removed).
+[[nodiscard]] std::string query(std::string_view name);
+// A media query the page matches now: "(prefers-reduced-motion: reduce)" …
+[[nodiscard]] bool matches(std::string_view media);
+bool reload_with(std::string_view name, std::string_view value);
 
 }  // namespace omui::page

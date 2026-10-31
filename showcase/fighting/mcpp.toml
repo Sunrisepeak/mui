@@ -37,6 +37,7 @@ openmui.sdk      = { path = "../.." }
 gongfu.data      = { path = "../../mgame/gongfu/data" }
 gongfu.present2d = { path = "../../mgame/gongfu/present2d" }
 gongfu.training  = { path = "../../mgame/gongfu/training" }
+gongfu.ai        = { path = "../../mgame/gongfu/ai" }
 openmui.image    = { path = "../../modules/base/image" }
 "openmui.raster" = { path = "../../modules/gfx/raster" }
 "openmui.audio"  = { path = "../../modules/media/audio" }
@@ -50,4 +51,3 @@ gongfu.rules            = { path = "../../mgame/gongfu/rules", host-module = tru
 
 [dev-dependencies]
 openmui.testing = { path = "../../modules/base/testing" }
-gongfu.ai       = { path = "../../mgame/gongfu/ai" }

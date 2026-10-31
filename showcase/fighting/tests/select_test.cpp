@@ -83,6 +83,26 @@ int main(int argc, char** argv) {
         check(a.h.save_png(dir / "fight.png").has_value());
     });
 
+    s.test("one at the keys plays the computer: player 1 ready, it chooses someone else and is ready; player 2 joins by moving", [] {
+        App a;
+        check(a.act("main/select", "confirm", player(0)), "versus");
+        check_eq(std::string(a.seen("main/select").get("p2")->get("by")->as_string()), std::string("computer"));
+        check(a.act("main/select", "confirm", player(0)) && a.select().ready(0) && a.select().ready(1), "player 1 ready; the computer too");
+        check(a.select().cursor(1) != a.select().cursor(0), "someone else");
+        a.h.advance(seconds(1.2));
+        check(!a.stage().props.paused && a.stage().props.cpu == 1, "the fight, against the computer");
+        a.h.advance(seconds(2));
+        check(a.seen("main/stage").get("cpu")->as_int() == 1, a.seen("main/stage").json());
+        // Another time, player 2 at the keys: their first move takes the seat (and moves).
+        App b;
+        check(b.act("main/select", "confirm", player(0)));
+        const auto was = b.select().cursor(1);
+        check(b.act("main/select", "move", player(1).set("by", 1)));
+        check_eq(std::string(b.seen("main/select").get("p2")->get("by")->as_string()), std::string("person"));
+        check(b.select().cursor(1) != was, "moved too");
+        check(b.act("main/select", "confirm", player(0)) && b.select().ready(0) && !b.select().ready(1), "player 2 chooses for themselves");
+    });
+
     s.test("a gamepad chooses too: south on the title, the d-pad across the roster, south ready; east not ready, and back to the title", [] {
         App a;
         a.h.step({GamepadEvent{.kind = GamepadKind::connected, .device = 3, .name = "pad"}});
@@ -124,7 +144,7 @@ int main(int argc, char** argv) {
         a.h.advance(seconds(5));
         check(a.select().phase() == std::string_view("fighters") && a.stage().props.paused, "back to the select screen");
         std::println("    rounds {:016x}", won);
-        check_eq(won, std::uint64_t{0xa0dcacc6b1b36ad4});  // GCC and LLVM
+        check_eq(won, std::uint64_t{0x881db01b885d9982});  // GCC and LLVM
     });
 
     s.test("the title and the select screen, pinned: the logo over the study, the modes; the roster, both fighters' previews, VS", [] {
@@ -140,7 +160,7 @@ int main(int argc, char** argv) {
         std::println("    menus title {:016x} select {:016x}", title, select);
         check(title != select, "two screens");
         check_eq(title, std::uint64_t{0x643fb24c0ef4dddf});   // GCC and LLVM
-        check_eq(select, std::uint64_t{0x348575ae917ce7f1});  // GCC and LLVM
+        check_eq(select, std::uint64_t{0xcc2e3f9b2e6c8ec4});  // GCC and LLVM
     });
 
     return s.run(argc, argv);

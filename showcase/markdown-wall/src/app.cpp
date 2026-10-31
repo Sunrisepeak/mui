@@ -53,7 +53,47 @@ std::string Model::text(std::string_view key) const {
     return d ? d->source : std::string{};
 }
 
-omui::Canvas* Model::canvas() const { return runtime ? runtime->component<omui::Canvas>(runtime->find("main/wall")) : nullptr; }
+omui::Canvas* Model::canvas() const { return runtime ? runtime->component<omui::Canvas>(runtime->find(canvas_path)) : nullptr; }
+
+const Document* Model::at_path(std::string_view path) const {
+    for (const Document& d : docs)
+        if (d.path == path) return &d;
+    return nullptr;
+}
+
+std::optional<std::string> Model::follow(std::string_view from_key, std::string_view href) {
+    if (!runtime || href.empty() || href.starts_with('#')) return std::nullopt;  // a heading of its own: the document scrolls
+    if (href.find("://") != std::string_view::npos || href.starts_with("mailto:")) {
+        (void)runtime->open_url(href);
+        return std::nullopt;
+    }
+    std::string_view target = href.substr(0, href.find('#'));
+    // Relative to the window's folder: its parts, then the link's, `.` and `..` resolved.
+    std::vector<std::string> parts;
+    const Document* from = document(from_key);
+    if (from && !target.starts_with('/'))
+        for (auto p : std::views::split(std::string_view(from->path), '/')) parts.emplace_back(std::string_view(p));
+    if (!parts.empty()) parts.pop_back();  // the file itself
+    for (auto p : std::views::split(target, '/')) {
+        const std::string_view part(p);
+        if (part.empty() || part == ".") continue;
+        if (part == "..") {
+            if (!parts.empty()) parts.pop_back();
+        } else {
+            parts.emplace_back(part);
+        }
+    }
+    std::string path;
+    for (const std::string& p : parts) path += path.empty() ? p : "/" + p;
+    const Document* to = at_path(path);
+    if (!to) return std::nullopt;
+    if (const NodeId c = runtime->find(canvas_path); runtime->valid(c)) {
+        Invocation call;
+        call.args = Value{}.set("key", to->key);
+        (void)runtime->act(c, "focus_node", call);
+    }
+    return to->key;
+}
 
 void Model::stream(std::size_t windows, double rate) {
     stop_stream();
@@ -243,7 +283,9 @@ omui::AppSpec app(Model& model) {
                               .width = Dim(layout::pct(100)),
                               .height = Dim(layout::pct(100)),
                               .on = {{"hud.toggle", [&model](const Value&) { model.hud.set(!model.hud.peek()); }}}}),
-                      immediate([&model](Ui& ui) { hud(ui, model); }, {.id = "hud-layer", .margin = Edges(12)})});
+                      // The HUD reads; it takes no pointer: a click on what it covers reaches the wall.
+                      immediate([&model](Ui& ui) { hud(ui, model); }, {.id = "hud-layer", .margin = Edges(12)})
+                          .prop("pointer_events", Source{Value("none"), {}, {}})});
     };
     return a;
 }

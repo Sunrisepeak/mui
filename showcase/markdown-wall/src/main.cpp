@@ -6,7 +6,7 @@ import openmui;
 import openmui.showcase.markdown_wall;
 
 int main(int argc, char** argv) {
-    constexpr std::array<std::string_view, 8> valued{"--png", "--size", "--frames", "--level", "--agent-dir", "--debug", "--log", "--profile"};
+    constexpr std::array<std::string_view, 11> valued{"--png", "--size", "--frames", "--level", "--agent-dir", "--agent-name", "--debug", "--log", "--profile", "--lang", "--window"};
     std::vector<char*> rest{argv[0]};
     std::optional<std::string> folder;
     std::size_t synthetic = 0, stream = 0;

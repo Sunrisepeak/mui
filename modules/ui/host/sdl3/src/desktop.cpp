@@ -313,6 +313,7 @@ std::expected<void, std::string> Desktop::open() {
         eo.name = d.options.app;
         eo.directory = d.options.agent_directory;
         eo.protocol.app = d.options.app;
+        eo.protocol.input = d.options.agent_input;
         eo.protocol.capture = [&d](Rect region) -> std::expected<std::vector<std::uint8_t>, std::string> {
             // The frame on screen, cut to the region (logical pixels).
             auto shown_frame = d.pixels();
@@ -400,7 +401,13 @@ bool Desktop::step(bool wait) {
         polled.events.clear();
         if (std::chrono::steady_clock::now() >= *d.closed_at) d.quitting = true;
     }
-    if (d.endpoint) d.endpoint->pump();
+    std::optional<agent::AgentInput> given;
+    if (d.endpoint) {
+        d.endpoint->pump();
+        // An agent's input, a frame's worth, after the person's own.
+        given = d.endpoint->take_input();
+        if (given) polled.events.insert(polled.events.end(), std::make_move_iterator(given->events.begin()), std::make_move_iterator(given->events.end()));
+    }
     d.reload_effects();
     FrameInput in;
     in.events = std::move(polled.events);
@@ -409,7 +416,9 @@ bool Desktop::step(bool wait) {
     in.present_at = start + std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::duration<double>(display > 0 ? 1.0 / display : 1.0 / 60));
     in.display_hz = display;
     d.last_frame = start;
+    if (given) d.runtime->set_input_actor(given->actor);
     FrameOutput out = d.runtime->frame(in);
+    if (given) d.runtime->set_input_actor(std::nullopt);
     d.demand = out.demand;
     const std::size_t before = d.frames_shown;
     d.show();

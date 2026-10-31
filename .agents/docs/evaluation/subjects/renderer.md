@@ -14,4 +14,10 @@
 - `portability` — backends and platforms, the Web, software fallbacks.
 - `code_quality` — code, tests, conformance (RHI CTS), benchmarks.
 
+**Run:**
+- `omui-site --size 1440x900` (openmui.site)
+- `omui-styles` (openmui.showcase.style_gallery)
+
+**Use:** capture text, curves, gradients, images, glass and glow at rest and during motion (ui_clock step); zoom the site's atlas in and out and judge the image quality of each level; the frame meter's numbers on this machine's CPU path.
+
 **Images:** attach pixel test pictures (effects, text) where they exist.

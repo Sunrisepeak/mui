@@ -16,4 +16,15 @@
 - `framework_showcase` — tiers, live windows, behaviours, streaming shown naturally.
 - `code_tests_docs` — code, tests, README, dev story, signature shot.
 
+**Run:**
+- `omui-wall .agents/docs` (openmui.showcase.markdown_wall)
+
+**Use:**
+1. Find your way: what the wall is, how to move (drag, wheel, keys), how to get back to everything.
+2. Open a document and read it; scroll it; follow a link to another document and come back.
+3. Search for a word and go to what it finds; the minimap.
+4. Move windows and groups; undo; zoom through the tiers and judge each one's legibility.
+5. Live windows: select text, operate a task list; the stream, if shown.
+6. As an agent: find a document by its title through the tree and bring it into view.
+
 **Images:** the wall at each tier, a reading view, search, the README picture.

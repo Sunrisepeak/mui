@@ -15,4 +15,14 @@
 - `framework_showcase` — effects as plugins, theme scopes, agents switching packs.
 - `code_tests_docs` — code, tests, README, dev story, signature shot.
 
+**Run:**
+- `omui-styles` (openmui.showcase.style_gallery)
+
+**Use:**
+1. Switch every pack (glass, ink, liquid, neon, retro) and watch the cross-fade.
+2. In each pack, operate the settings panel and dashboard with clicks, drags and keys: every switch, slider, field, tab, menu answers and reads.
+3. The workshop: change a pack's values (colour, radius, blur, glow …), see them applied, undo and reset, compare packs.
+4. Contrast and legibility in each pack, light and dark.
+5. As an agent: set a pack's value through the tree and check the picture follows.
+
 **Images:** each pack full-size, the README picture.

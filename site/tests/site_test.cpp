@@ -192,6 +192,55 @@ int main(int argc, char** argv) {
         check(a.text(hero + "/demo/renderings/agent/body/line").find("done") != std::string::npos, a.text(hero + "/demo/renderings/agent/body/line"));
         const auto agents = std::ranges::count_if(a.h.runtime().action_journal(), [](const ActionEntry& e) { return e.actor.starts_with("agent"); });
         check(agents >= 4, std::format("{} actions journaled as the agent's", agents));
+        // Every step can be taken back, the shipping too: undo unships it, the panels with it; redo ships it again.
+        const auto shipped = [&] { return a.text(hero + "/demo/specimen/shipped").starts_with("Shipped"); };
+        check_eq(a.h.runtime().undo({}).exit_code().value_or(-1), std::int64_t{0});
+        a.h.advance(seconds(0.3));
+        check(!shipped(), "undone: not shipped");
+        check(a.text(hero + "/demo/renderings/agent/body/line").find("done") == std::string::npos, "the agent's request is past");
+        const auto items_checked = [&] {
+            int n = 0;
+            for (const char* item : {"tests", "docs", "notes"})
+                if (auto x = a.h.tree().node(hero + "/demo/specimen/items/" + item); x && x->states.has(State::checked)) ++n;
+            return n;
+        };
+        check_eq(items_checked(), 3);  // the checks stay: the shipping alone was taken back
+        check_eq(a.h.runtime().redo({}).exit_code().value_or(-1), std::int64_t{0});
+        a.h.advance(seconds(0.3));
+        check(shipped(), "redone: shipped");
+        check_eq(a.h.runtime().undo({}).exit_code().value_or(-1), std::int64_t{0});
+        check_eq(a.h.runtime().undo({}).exit_code().value_or(-1), std::int64_t{0});
+        a.h.advance(seconds(0.3));
+        check(!shipped() && items_checked() == 2, "then the last check");
+    });
+
+    s.test("on a phone: the places the whole width, the navigation and the switches in a menu", [] {
+        Headless h{HeadlessOptions{.size = {390, 844}}};
+        AppSpec spec = site::app("home", "zh");
+        h.runtime().set_theme(spec.theme);
+        spec.setup(h.runtime());
+        h.mount("main", spec.view());
+        h.settle();
+        const auto shown = [&](std::string_view id) {
+            const auto n = h.tree().node(id);
+            return n && !n->states.has(State::hidden) && !n->states.has(State::offscreen);
+        };
+        check(shown("main/bar/menu") && !shown("main/bar/lens_tree") && !shown("main/body/nav"), "a menu, no sidebar, no lenses in the bar");
+        const Rect view = h.runtime().screen_bounds(h.runtime().find("main/body/view"));
+        check(view.width == 390, std::format("the view the whole width: {}", view.width));
+        // Every control of the opening inside the window.
+        for (const char* id : {"hero/demo/specimen/ship", "hero/agent_row/let_agent", "hero/cta/to_features"}) {
+            const Rect r = h.runtime().screen_bounds(h.runtime().find(std::format("main/body/view/atlas/home/page/{}", id)));
+            check(r.x >= 0 && r.x + r.width <= 390, std::format("{} inside: {} + {}", id, r.x, r.width));
+        }
+        check(h.click("main/bar/menu"));
+        h.settle();
+        check(shown("main/body/nav/to_features") && shown("main/body/nav/view_group/lens_tree"), "the menu: the places and the lenses");
+        check(h.click("main/body/nav/to_features"));
+        h.settle();
+        check(!shown("main/body/nav"), "a place chosen: the menu closes");
+        const auto features = h.tree().node("main/body/view/atlas/features/page/doc");
+        check(features && !features->states.has(State::offscreen), "and the place is there");
     });
 
     s.test("the lens: pixels, the tree's wireframe, an agent's JSON, a test's assertions — of the same nodes", [] {
@@ -234,7 +283,7 @@ int main(int argc, char** argv) {
         const auto h = site::tree_hash(a.snapshot("home"));
         std::println("    home tree {:016x}", h);
         check(h == site::pinned_home_hash, "the hash the footer compares");
-        check(a.text("main/foot/hash").find("✓") != std::string::npos, a.text("main/foot/hash"));
+        check(a.text("main/foot/proof/hash").find("✓") != std::string::npos, a.text("main/foot/proof/hash"));
         // A narrower window moves every box, scrolls further and leaves some of the page off screen: not the tree.
         Headless narrow{HeadlessOptions{.size = {820, 640}}};
         AppSpec spec = site::app();
@@ -262,7 +311,7 @@ int main(int argc, char** argv) {
         check(a.h.tree().act(editor, "move", agent).exit_code().value_or(-1) == std::int64_t{0}, "an agent moves the fight");
         a.h.settle();
         check(site::tree_hash(a.snapshot("timeline")) != before, "the tree follows the edit");
-        check(a.text("main/foot/hash") != std::format("tree {:016x}", before), "and so does the footer");
+        check(a.text("main/foot/proof/hash") != std::format("tree {:016x}", before), "and so does the footer");
         check(a.h.tree().act(editor, "undo", agent).exit_code().value_or(-1) == std::int64_t{0}, "undone in the editor's own history");
         a.h.settle();
         check(tracks() == was, "the very timeline again");
@@ -331,7 +380,7 @@ int main(int argc, char** argv) {
         bool greeted = false, counted = false;
         for (const auto& n : a.h.tree().snapshot({.root = std::string(run)}).nodes) {
             greeted = greeted || n.name == "Nice to meet you, Ada!";
-            counted = counted || n.name == "Clicked 1 times";
+            counted = counted || n.name == "Clicked once";
         }
         check(greeted, "the program ran: greeted");
         check(counted, "the program ran: counted");
@@ -537,7 +586,7 @@ int main(int argc, char** argv) {
         a.h.advance(seconds(1));
         shot("time.png");
         std::println("    pixels {}", all.hex());
-        check_eq(all.hex(), std::string("f691cc4ec262a5ee"));
+        check_eq(all.hex(), std::string("999ac1ca845098c1"));
     });
 
     s.test("the style workshop runs in its place, a theme scope: a pack styles it alone, the site keeps its theme, the tree is the same in every pack", [] {
@@ -637,8 +686,8 @@ int main(int argc, char** argv) {
         // The site's own part pinned (the docs change with the framework; they are held to md4c-html's bytes above).
         auto own = [](const std::string& html) { return html.substr(0, html.find("<section id=\"/", html.find("<section id=\"/") + 1)); };
         std::println("    static en {:016x} zh {:016x}", fnv(own(en)), fnv(own(site::static_html("zh"))));
-        check_eq(std::format("{:016x}", fnv(own(en))), std::string("a23292eef4db84c6"));
-        check_eq(std::format("{:016x}", fnv(own(site::static_html("zh")))), std::string("f170b6bee40899e8"));
+        check_eq(std::format("{:016x}", fnv(own(en))), std::string("73b4aa7e7bfdd5ef"));
+        check_eq(std::format("{:016x}", fnv(own(site::static_html("zh")))), std::string("643fa6f78fbda5a0"));
 
         const auto out = site::inject(page, en, "zh");
         check(out.has_value(), "dist-toy's page");

@@ -123,6 +123,7 @@ bool Slider::on_event(EventContext& ctx, const InputEvent& e) {
         case PointerKind::down:
             if (p->button != MouseButton::left && p->type == PointerType::mouse) return false;
             dragging_ = true;
+            drag_from_ = props.value;
             services().capture_pointer(node());
             change(value_at(ctx.local.x), false, false);
             return true;
@@ -135,6 +136,10 @@ bool Slider::on_event(EventContext& ctx, const InputEvent& e) {
             if (!dragging_) return false;
             dragging_ = false;
             services().release_pointer();
+            // The drag as one action of the person's (S-12): into the history,
+            // so undo takes the whole drag back.
+            if (props.value != drag_from_)
+                services().performed(node(), "set_value", Value{}.set("value", props.value), {{"set_value", Value{}.set("value", drag_from_)}});
             emit_committed(props.value);
             services().invalidate_paint(node());
             return true;  // handled: a drag is not an activation

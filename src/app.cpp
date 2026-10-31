@@ -27,6 +27,8 @@ std::expected<RunOptions, std::string> RunOptions::parse(std::span<const std::st
         if (a == "--headless") o.headless = true;
         else if (a == "--serve") o.serve = o.headless = true;
         else if (a == "--no-agent") o.agent = false;
+        else if (a == "--agent-input") o.agent_input = true;
+        else if (a == "--no-agent-input") o.agent_input = false;
         else if (a == "--dark") o.dark = true;
         else if (a == "--gpu") o.gpu = true;
         else if (a == "--cpu") o.gpu = false;
@@ -49,6 +51,10 @@ std::expected<RunOptions, std::string> RunOptions::parse(std::span<const std::st
             auto v = value();
             if (!v) return std::unexpected("--agent-dir takes a directory");
             o.agent_dir = std::filesystem::path(*v);
+        } else if (a == "--agent-name") {
+            auto v = value();
+            if (!v || v->empty()) return std::unexpected("--agent-name takes a name");
+            o.agent_name = std::string(*v);
         } else if (a == "--window") {
             auto v = value();
             if (!v || (*v != "native" && *v != "framework" && *v != "switchable")) return std::unexpected("--window is native, framework or switchable");
@@ -97,7 +103,7 @@ std::expected<RunOptions, std::string> RunOptions::parse(std::span<const std::st
             o.profile = std::filesystem::path(*v);
         } else {
             return std::unexpected(std::format("unknown option `{}` (--headless, --frames N, --png FILE, --level hN, --serve, "
-                                               "--agent-dir DIR, --no-agent, --dark, --gpu, --cpu, --reduce-transparency, --size WxH, --debug LIST, --log FILTER, --profile FILE, --lang TAGS, --window MODE)",
+                                               "--agent-dir DIR, --agent-name NAME, --no-agent, --agent-input, --no-agent-input, --dark, --gpu, --cpu, --reduce-transparency, --size WxH, --debug LIST, --log FILTER, --profile FILE, --lang TAGS, --window MODE)",
                                                a));
         }
     }
@@ -209,6 +215,8 @@ int headless(AppSpec app, const RunOptions& o) {
     h.theme = o.dark ? Theme::dark_theme() : app.theme;
     h.app = app.id;
     h.endpoint_directory = o.agent_dir;
+    h.agent_input = o.agent_input.value_or(app.agent_input);
+    h.endpoint_name = o.agent_name;
     Headless host(h);
     host.runtime().set_debug(o.debug);
     host.runtime().set_reduce_transparency(o.reduce_transparency);

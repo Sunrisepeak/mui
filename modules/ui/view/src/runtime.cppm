@@ -271,6 +271,14 @@ public:
     [[nodiscard]] const ShownFrames& shown_frames() const noexcept override;
     // Who draws the frames, as the host says ("cpu", "webgpu", "webgl", "vulkan"…).
     void set_renderer(std::string name);
+    // Who gives the input of the frames that follow, when it is not the
+    // person at the machine: an agent giving input as their devices would
+    // (the agent protocol's `input`). The actions that input performs are
+    // the agent's (openas: its actor, via the input), journaled as theirs
+    // and decided as their requests over the bus are: the person's own
+    // actions refused (S-10), the cap and the grants (S-11), the answer an
+    // irreversible one needs. None: the person again.
+    void set_input_actor(std::optional<Actor> actor);
     [[nodiscard]] std::string_view renderer() const noexcept override;
     // The frame's pipeline and the stage plugins it is built from: tools
     // read them, and replace, add or remove stages between frames.
@@ -317,6 +325,14 @@ public:
     // barrier: undo stops there (refused). A read action is not recorded; an
     // action that gives no inverse is not recorded either. Any new change
     // clears what could be redone.
+    // Inside an action's handlers — a button's on_activated, a verb's
+    // function, what a change of value calls — how the program takes back
+    // what it just did, and does it again: the action joins its scope's
+    // history (undo runs `undo`, redo runs `redo`), as an action whose
+    // component gives its inverse does. A reversible action that changes
+    // the program's own state says how here, or undo passes over it.
+    // Outside an action, nothing.
+    void taken_back_by(std::function<void()> undo, std::function<void()> redo);
     [[nodiscard]] NodeId undo_scope(NodeId node) const;
     [[nodiscard]] History history(NodeId scope) const;
     void clear_history(NodeId scope);
@@ -393,6 +409,11 @@ public:
     // check of where things are on screen reads (a film's titles in the
     // safe area).
     [[nodiscard]] Rect drawn_bounds(NodeId node) const;
+    // Where it is on the window as set: through its own and its ancestors'
+    // transforms as they are set, not part way through their transitions —
+    // a canvas's live node where the camera shows it. What the semantic tree
+    // states, and where a click aimed at the node lands.
+    [[nodiscard]] Rect screen_bounds(NodeId node) const;
     [[nodiscard]] Size content_size(NodeId node) const override;
     [[nodiscard]] Insets content_insets(NodeId node) const override;
     [[nodiscard]] NodeState state(NodeId node) const override;
@@ -414,6 +435,7 @@ public:
     void capture_pointer(NodeId node) override;
     void release_pointer() override;
     bool perform(NodeId node, std::string_view action, const Value& args) override;
+    void performed(NodeId node, std::string_view action, const Value& args, std::vector<Inverse> inverse) override;
     void text_input(NodeId node, std::optional<Rect> caret) override;
     [[nodiscard]] std::string clipboard_text() override;
     void set_clipboard_text(std::string_view text) override;

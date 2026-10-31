@@ -25,6 +25,8 @@ public:
     void paint(PaintContext& ctx) const;
     void paint_over(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    // Its surface for an effect: the rounded box it paints (a neon tube follows its corners).
+    std::size_t effect_shapes(Size size, Rect content, std::span<render::EffectShape> out) const;
 
     ActResult activate(ActContext& ctx);
 
@@ -39,6 +41,7 @@ private:
 
     mutable parts::Label  label_;
     mutable parts::Motion hover_, press_;
+    mutable float         corner_ = 8;  // the corners as last painted (the theme's medium)
 };
 
 }  // namespace omui

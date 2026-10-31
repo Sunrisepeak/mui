@@ -669,12 +669,24 @@ void register_builtins(EffectRegistry& r) {
             {"sweep", -1, -1, 2, "where the band of light is across the layer (0…1; below 0: none)"},
             {"sweep_width", 24, 1, 400, "the band's half width, logical pixels"}},
            [](std::span<const float> p) { return std::abs(p[3]); }, neon, pixel(fx::neon::neon_fs)}));
-    r.add(local({"crt", "An old screen: bent outward, in scanlines, through an aperture grille, darker towards its corners.",
-           {{"curvature", 0.08f, 0, 0.5f, "how much the glass bulges"},
-            {"scanlines", 0.5f, 0, 1, "how dark the lines between scanlines are"},
-            {"mask", 0.35f, 0, 1, "the aperture grille's strength"},
-            {"vignette", 0.6f, 0, 1, "darkening towards the corners"}},
-           no_reach, crt, pixel(fx::crt::crt_fs, nullptr, rows_crt)}));
+    {
+        EffectInfo crt_info = local({"crt", "An old screen: bent outward, in scanlines, through an aperture grille, darker towards its corners.",
+                                     {{"curvature", 0.08f, 0, 0.5f, "how much the glass bulges"},
+                                      {"scanlines", 0.5f, 0, 1, "how dark the lines between scanlines are"},
+                                      {"mask", 0.35f, 0, 1, "the aperture grille's strength"},
+                                      {"vignette", 0.6f, 0, 1, "darkening towards the corners"}},
+                                     no_reach, crt, pixel(fx::crt::crt_fs, nullptr, rows_crt)});
+        // The bulge, as crt samples it: what is seen at p was drawn further out.
+        crt_info.source_of = [](geom::Point p, geom::Rect layer, std::span<const float> params) {
+            const float curve = std::clamp(params.empty() ? 0.0f : params[0], 0.0f, 0.5f);
+            const float hw = std::max(layer.width * 0.5f, 1.0f), hh = std::max(layer.height * 0.5f, 1.0f);
+            const float cx = layer.x + hw, cy = layer.y + hh;
+            const float u = (p.x - cx) / hw, v = (p.y - cy) / hh;
+            const float f = 1 + curve * (u * u + v * v);
+            return geom::Point{cx + u * f * hw, cy + v * f * hh};
+        };
+        r.add(std::move(crt_info));
+    }
     r.add(local({"paper", "As if printed on paper: a warm tone, a fine grain, darker towards the edges.",
            {{"grain", 0.35f, 0, 1, "the grain's strength"},
             {"warmth", 0.6f, 0, 1, "how warm the paper is"},

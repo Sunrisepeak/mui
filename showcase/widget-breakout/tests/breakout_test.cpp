@@ -386,7 +386,7 @@ int main(int argc, char** argv) {
         check_eq(g.state().over, std::uint32_t{1});
         check_eq(g.disagreement(), std::string());
         std::println("    beam {:016x}", beam);
-        check_eq(beam, std::uint64_t{0x94fa37dd22c92f40});  // GCC (LLVM: CI)
+        check_eq(beam, std::uint64_t{0xd0368fa84b09f6e7});  // GCC (LLVM: CI)
     });
 
     s.test("a rewind costs 100 sparks, puts every brick back and the score with it; never past 2 s nor the last landing; it cannot be farmed", [] {
@@ -523,8 +523,8 @@ int main(int argc, char** argv) {
         check(g.act("scan"), "recharged");
         check_eq(g.disagreement(), std::string());
         std::println("    dark {:016x}, scanned {:016x}", dark, scanned);
-        check_eq(dark, std::uint64_t{0x3889bcf43a995c63});  // GCC (LLVM: CI)
-        check_eq(scanned, std::uint64_t{0xa90ac88fb1bad31e});
+        check_eq(dark, std::uint64_t{0x3779b9667a98e366});  // GCC (LLVM: CI)
+        check_eq(scanned, std::uint64_t{0xa5c9f6792444b1fd});
     });
 
     s.test("room 5: the copilot plays the top paddle from outside — the semantic tree in, guard_to out, journaled as its own; an order changes where it sends the ball; with a player below, they shut it down", [] {
@@ -614,7 +614,7 @@ int main(int argc, char** argv) {
         g.h.advance(seconds(0.25));
         check(g.component().props.room == 1 && g.component().run_so_far().kit.empty() && g.state().score == 0 && g.state().lives == 3, "afresh");
         std::println("    choice {:016x}", choice);
-        check_eq(choice, std::uint64_t{0x6af4dc60cb2ad9c6});  // GCC (LLVM: CI)
+        check_eq(choice, std::uint64_t{0x2b92d11da967fa07});  // GCC (LLVM: CI)
     });
 
     s.test("between rooms, a casing open: its script — TypeScript, Lua, Python — edited and reloaded in place under 200 ms, a preset retuning it, a bad one keeping the rules; the rules reach the next room", [] {

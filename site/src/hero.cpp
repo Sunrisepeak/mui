@@ -144,7 +144,8 @@ Element brand_mark(std::string id, float size) {
                     }});
 }
 
-Element hero(Hero& h, const HeroSite& site, bool live) {
+Element hero(Hero& h, const HeroSite& site, bool live, float width) {
+    const bool narrow = width < 700;  // a phone: one column, the lines between left out
     const bool zh_now = site.lang && site.lang->peek() == "zh";
     // A word in the page's language: following it when live, as it is in a still.
     auto say = [&](std::string_view en, std::string_view han) -> Prop<std::string> {
@@ -166,6 +167,7 @@ Element hero(Hero& h, const HeroSite& site, bool live) {
             o.on_changed = [hp, i, id = std::string(it.id)](bool on) {
                 hp->checks[i].set(on);
                 hp->selected.set(id);
+                if (!hp->agent_running.peek()) hp->exchange.set(std::string());  // a person's change (or its undo): the agent's request is past
             };
         }
         checks.push_back(checkbox(std::move(o)));
@@ -173,12 +175,24 @@ Element hero(Hero& h, const HeroSite& site, bool live) {
     ButtonOptions ship{.id = "ship", .text = say("Ship 0.1", "发布 0.1"), .variant = ButtonVariant::primary};
     if (live) {
         ship.disabled = computed([hp, all_checked] { return !all_checked() || hp->shipped.get(); });
-        ship.on_activated = [hp] {
+        ship.on_activated = [hp, sp] {
             hp->shipped.set(true);
             hp->selected.set("ship");
+            // Shipping is taken back as the checks are: undo unships it (and the panels follow), redo ships it again.
+            if (sp->runtime && *sp->runtime)
+                (*sp->runtime)->taken_back_by(
+                    [hp] {
+                        hp->shipped.set(false);
+                        hp->selected.set("ship");
+                        hp->exchange.set(std::string());
+                    },
+                    [hp] {
+                        hp->shipped.set(true);
+                        hp->selected.set("ship");
+                    });
         };
     } else ship.disabled = true;
-    Element card = column({.id = "specimen", .width = Dim(330.0f), .padding = Edges(20.0f), .gap = 12, .background = "surface",
+    Element card = column({.id = "specimen", .width = narrow ? Dim(layout::pct(100)) : Dim(330.0f), .padding = Edges(20.0f), .gap = 12, .background = "surface",
                            .border_color = "border", .border_width = 1, .radius = 14},
                           {text({.id = "release", .text = say("Release 0.1", "发布 0.1"), .style = "heading"}),
                            text({.id = "as_seen", .text = say("A checklist, as a person sees it", "一张清单，人看到的样子"), .style = "caption"}),
@@ -285,11 +299,24 @@ Element hero(Hero& h, const HeroSite& site, bool live) {
         };
     } else run.disabled = true;
 
-    return column({.id = "hero", .padding = Edges(Insets{4, 0, 32, 0}), .gap = 22},
-                  {row({.id = "brand", .gap = 18, .align = "center"},
-                       {brand_mark("mark", 56),
-                        column({.gap = 6, .grow = 1},
-                               {text({.id = "claim", .text = say("One interface. Every rendering.", "一个界面，每一种呈现。"), .style = "display"}),
+    // The agent's turn: beside its words, or above them when narrow.
+    std::vector<Element> agent_parts{button(std::move(run)),
+                                     text({.id = "how",
+                                           .text = say("Each step is a real action on these nodes, as an agent: the same checks and the same undo as your clicks.",
+                                                       "每一步都是 agent 对这些节点的真实动作：和你的点击一样的检查、一样的撤销。"),
+                                           .style = "caption"})};
+    Element agent_row = narrow ? column({.id = "agent_row", .gap = 8, .align = "start"}, std::move(agent_parts))
+                               : row({.id = "agent_row", .gap = 12, .align = "center"}, std::move(agent_parts));
+    Element demo = narrow ? column({.id = "demo", .gap = 12, .align = "stretch"}, {std::move(card), std::move(panels)})
+                          : row({.id = "demo", .gap = 0, .align = "start"}, {std::move(card), std::move(links), std::move(panels)});
+    return column({.id = "hero", .padding = Edges(Insets{4, 0, 32, 0}), .gap = narrow ? 16.0f : 22.0f},
+                  {row({.id = "brand", .gap = narrow ? 12.0f : 18.0f, .align = "center"},
+                       {brand_mark("mark", narrow ? 40.0f : 56.0f),
+                        column({.min_width = Dim(0.0f), .gap = 6, .grow = 1, .shrink = 1},
+                               {text({.id = "claim",
+                                      .text = say("One interface. Every rendering.", "一个界面，每一种呈现。"),
+                                      .style = narrow ? "title" : "display"})
+                                    .prop("role", Source{Value("heading"), {}, {}}),  // the page's first heading, to a screen reader too
                                 text({.id = "thesis",
                                       .text = say("openmui draws an interface from one semantic tree: the pixels you see, what a screen reader says, what an agent acts on and what a test asserts are the same nodes.",
                                                   "openmui 从一棵语义树画出界面：你看到的像素、读屏软件读出的、agent 操作的、测试断言的，是同一批节点。"),
@@ -304,13 +331,8 @@ Element hero(Hero& h, const HeroSite& site, bool live) {
                                 .text = say("See this page's tree", "看这一页的语义树"),
                                 .variant = ButtonVariant::secondary,
                                 .on_activated = [sp] { if (sp->tree_lens) sp->tree_lens(); }})}),
-                   row({.id = "demo", .gap = 0, .align = "start"}, {std::move(card), std::move(links), std::move(panels)}),
-                   row({.id = "agent_row", .gap = 12, .align = "center"},
-                       {button(std::move(run)),
-                        text({.id = "how",
-                              .text = say("Each step is a real action on these nodes, as an agent: the same checks and the same undo as your clicks.",
-                                          "每一步都是 agent 对这些节点的真实动作：和你的点击一样的检查、一样的撤销。"),
-                              .style = "caption"})})});
+                   std::move(demo),
+                   std::move(agent_row)});
 }
 
 }  // namespace omui::site

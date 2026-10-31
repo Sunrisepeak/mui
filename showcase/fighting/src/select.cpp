@@ -8,6 +8,11 @@ import hanim;
 
 namespace omui::fighting {
 
+struct Select::CpuWords {
+    std::optional<typeset::Paragraph> tag, hint;
+};
+
+
 namespace {
 
 namespace p2 = gongfu::present2d;
@@ -121,7 +126,7 @@ void Select::schedule() {
             const std::string& a = c[static_cast<std::size_t>(cursor_[0])];
             const std::string& b = c[static_cast<std::size_t>(cursor_[1])];
             const auto home = roster().homes.find(a);
-            emit_chosen(home == roster().homes.end() ? std::string() : home->second, mode_, a, b);
+            emit_chosen(home == roster().homes.end() ? std::string() : home->second, cpu_ ? 1 : -1, mode_, a, b);
         }
         services().invalidate_paint(node());
         schedule();
@@ -132,6 +137,7 @@ void Select::begin(std::string_view phase) {
     phase_ = phase == "fighters" ? "fighters" : "title";
     ready_ = {};
     both_ready_ = -1;
+    cpu_ = phase_ == "fighters" && mode_ == "versus";  // one person at the keys plays the computer; a second joins by moving
     if (attached()) services().focus(node());
     music();
     if (phase_ == "fighters") cue("call_choose");  // the announcer: choose your character
@@ -176,7 +182,15 @@ Size Select::measure(MeasureContext&, std::optional<float> width, std::optional<
     return {width.value_or(picture_w), height.value_or(picture_h)};
 }
 
+// Player 2 takes their seat from the computer (their first move or press).
+void Select::join() {
+    cpu_ = false;
+    cue("menu_ready", 0.4f);
+    changed();
+}
+
 void Select::step(std::int32_t player, std::int32_t by) {
+    if (phase_ != "title" && player == 1 && cpu_ && !ready_[1]) join();  // and the move is theirs too
     if (phase_ == "title") {
         item_ = ((item_ + by) % 2 + 2) % 2;
     } else {
@@ -196,9 +210,16 @@ void Select::press(std::int32_t player) {
         begin("fighters");
         return;
     }
+    if (player == 1 && cpu_ && !ready_[1]) return join();
     if (ready_[static_cast<std::size_t>(player & 1)]) return;
     ready_[static_cast<std::size_t>(player & 1)] = true;
     cue("menu_ready", player == 0 ? -0.4f : 0.4f);
+    // Against the computer: it chooses as player 1 is ready — someone else than them.
+    if (player == 0 && cpu_ && !ready_[1]) {
+        const auto n = static_cast<std::int32_t>(choices().size());
+        if (n > 1 && cursor_[1] == cursor_[0]) cursor_[1] = (cursor_[0] + 1) % n;
+        ready_[1] = true;
+    }
     if (ready_[0] && ready_[1] && both_ready_ < 0) {
         both_ready_ = frame_;
         cue("menu_vs");
@@ -210,6 +231,8 @@ void Select::press(std::int32_t player) {
 void Select::unpress(std::int32_t player) {
     if (phase_ == "title") return;
     const auto p = static_cast<std::size_t>(player & 1);
+    if (p == 1 && cpu_ && !ready_[1]) return join();
+    if (p == 0 && cpu_ && ready_[0]) ready_[1] = false;  // player 1 not ready: the computer waits again
     if (both_ready_ >= 0) both_ready_ = -1;
     cue("menu_back", p == 0 ? -0.4f : 0.4f);
     if (ready_[p]) ready_[p] = false;
@@ -323,7 +346,8 @@ void Select::semantics(SemanticsContext&, spec::SemanticNode& node) const {
         const auto& c = choices();
         for (std::int32_t p = 0; p < 2; ++p) {
             const auto i = static_cast<std::size_t>(cursor_[static_cast<std::size_t>(p)]);
-            v.set(p == 0 ? "p1" : "p2", Value{}.set("on", i < c.size() ? c[i] : std::string()).set("ready", ready_[static_cast<std::size_t>(p)]));
+            v.set(p == 0 ? "p1" : "p2", Value{}.set("on", i < c.size() ? c[i] : std::string()).set("ready", ready_[static_cast<std::size_t>(p)])
+                                            .set("by", p == 1 && cpu_ ? "computer" : "person"));
         }
     }
     node.value = std::move(v);
@@ -459,6 +483,37 @@ void Select::paint(PaintContext& ctx) const {
                 out.fill_path(plate, render::FillRule::nonzero, render::Paint::solid(tone(0x07080b, 0.9f)));
                 out.stroke_path(plate, {.width = 1.5f}, render::Paint::solid(tone(0xc9a24a, 0.9f)));
                 shape(out, names, n->second, {nx, ny, w, h}, tone(0xf6ecd6));
+            }
+            if (p == 1 && cpu_) {  // the computer's seat, and how to take it: on a plate at the banner's head
+                if (!cpu_words_) {
+                    cpu_words_ = std::make_shared<CpuWords>();
+                    typeset::ParagraphStyle big, small;
+                    big.style.families = {"Inter"};
+                    big.style.size = 30;
+                    big.style.weight = 800;
+                    big.style.letter_spacing = 4;
+                    big.style.color = tone(0xf6ecd6);
+                    big.wrap = false;
+                    small.style.families = {"Inter", "Noto Sans SC"};
+                    small.style.size = 14;
+                    small.style.color = tone(0xc9a24a);
+                    small.wrap = false;
+                    cpu_words_->tag.emplace(services().fonts(), "CPU", big);
+                    cpu_words_->hint.emplace(services().fonts(), "2P 按任意键加入 · press to join", small);
+                    cpu_words_->tag->layout(std::numeric_limits<float>::infinity());
+                    cpu_words_->hint->layout(std::numeric_limits<float>::infinity());
+                }
+                const typeset::Paragraph &tag = *cpu_words_->tag, &hint = *cpu_words_->hint;
+                const Size t = tag.size(), h = hint.size();
+                const float pw = std::max(t.width, h.width) + 36, ph = t.height + h.height + 18;
+                // On a slanted lacquer plate, as the name's, over the banner's head (inside the picture).
+                const float px = std::min(bx + bw / 2 - pw / 2, picture_w - pw - 16), py = by + 26, lean = 8;
+                render::Path plate;
+                plate.move_to({px + lean, py}).line_to({px + pw + lean, py}).line_to({px + pw - lean, py + ph}).line_to({px - lean, py + ph}).close();
+                out.fill_path(plate, render::FillRule::nonzero, render::Paint::solid(tone(0x07080b, 0.9f)));
+                out.stroke_path(plate, {.width = 1.5f}, render::Paint::solid(tone(0xc9a24a, 0.9f)));
+                tag.paint(out, {px + pw / 2 - t.width / 2, py + 8});
+                hint.paint(out, {px + pw / 2 - h.width / 2, py + 10 + t.height});
             }
             if (ready_[static_cast<std::size_t>(p)]) {  // stamped READY across the banner
                 const float rh = 46, rw = wide(region::ready, rh);

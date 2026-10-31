@@ -11,9 +11,13 @@ surface         = "#04170b"
 surface_variant = "#062312"
 surface_pressed = "#0a3a1d"
 border          = "#22c55e / 0.6"
-text            = "#4ade80"
-text_muted      = "#16a34a"
+text            = "#86efac"
+text_muted      = "#4ade80"
 accent          = "#4ade80"
+accent_subtle   = "#166534"
+success         = "#22c55e"
+warning         = "#15803d"
+danger          = "#bbf7d0"
 on_accent       = "#020d06"
 track           = "#064e3b"
 thumb           = "#86efac"
@@ -33,4 +37,5 @@ large  = 2
 xl     = 2
 
 [style.retro.effects]
-window = { effect = "crt", curvature = 0.07, scanlines = 0.55, mask = 0.35, vignette = 0.7 }
+# Gentle enough to read at a glance: the lines and the grille show, the corners dim a little.
+window = { effect = "crt", curvature = 0.05, scanlines = 0.35, mask = 0.2, vignette = 0.35 }

@@ -529,6 +529,30 @@ addToLibrary({
 
   // The person's languages (navigator.languages), comma-separated, in memory
   // the caller frees.
+  // The page's query: one parameter (empty when absent); the page loaded
+  // again with one set, or removed when the value is empty.
+  omui_web_query__deps: ['$UTF8ToString', '$stringToNewUTF8'],
+  omui_web_query: function (name) {
+    var v = '';
+    try { v = new URLSearchParams(location.search).get(UTF8ToString(name)) || ''; } catch (e) {}
+    return stringToNewUTF8(v);
+  },
+  omui_web_matches__deps: ['$UTF8ToString'],
+  omui_web_matches: function (media) {
+    try { return (typeof matchMedia === 'function' && matchMedia(UTF8ToString(media)).matches) ? 1 : 0; } catch (e) { return 0; }
+  },
+  omui_web_reload_with__deps: ['$UTF8ToString'],
+  omui_web_reload_with: function (name, value) {
+    try {
+      var u = new URL(location.href), n = UTF8ToString(name), v = UTF8ToString(value);
+      if (v) u.searchParams.set(n, v); else u.searchParams.delete(n);
+      location.replace(u.toString());
+      return 1;
+    } catch (e) {
+      return 0;
+    }
+  },
+
   omui_web_languages__deps: ['$stringToNewUTF8'],
   omui_web_languages: function () {
     var list = (navigator.languages && navigator.languages.length) ? navigator.languages : [navigator.language || ''];

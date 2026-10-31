@@ -34,6 +34,7 @@ struct DesktopOptions {
     bool                    resizable = true;
     std::string             app = "openmui-app";  // the application id (the agent endpoint's name)
     bool                    agent = true;         // serve openmui.tree@0.1
+    bool                    agent_input = true;   // agents may give input as a person's devices would (decided as their requests)
     std::filesystem::path   agent_directory;      // default: agent::default_directory()
     Theme                   theme = Theme::light();
     typeset::FontCollection* fonts = nullptr;

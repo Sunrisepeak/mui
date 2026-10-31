@@ -1361,6 +1361,21 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
       - 画布只在指针移动超过 3 像素时才捕获，也就是确实在平移时；
       - 运行时：只被按下节点的祖先处理过的 up，只要指针没有移动超过 4 像素，仍然激活被按下的节点；被按下的节点自己处理了，照旧不激活。
       加了站点的测试（首页链接用指针点击能到 Features）和开场的两个测试（四种呈现读的是同一个节点；agent 用四个真实动作完成发布）。
+  - 评分者亲手使用（维护者：“codex 评估时不只是看素材，而是真实地用 openas 操作，再给出真实反馈；很多地方真实使用连点击都有问题”；“用框架和引擎开发的应用默认就具备 openas 的能力，构建或开发者可以关掉；codex 评测的同时也是在评测框架、引擎和 openas”）：[第二轮](evaluation/reports/2026-10-31-round-2.md)。
+    - **agent 像人的设备那样输入**：协议的 `input`，MCP 的 `ui_input` 和 `ui_clock`。走真实的命中测试、焦点和手势；回答说明按下时命中的节点和执行的动作。应用默认开启（`AppSpec::agent_input`、`--no-agent-input`）。按 openas，这些输入做的事算作 agent 自己的（`Runtime::set_input_actor`，记为 `via=service:input`），按它的请求同样裁决（S-10、S-11、答复）。
+    - **`eval.sh`**：按对象文件的 Run 列表构建并以无头模式启动程序，codex 经 MCP 使用它们；报告先列使用记录，再写框架和 openas 的反馈。标准升到 v2：人会直接碰到的维度，没有使用证据最高只给 70 分。
+    - **用出来并修好的**：
+      - 程序自己维护的状态可以撤销（`taken_back_by`）；
+      - 组件输入完成的动作进入历史（`Services::performed`，滑块的一次拖动算一步）；
+      - 语义边界经过画布镜头（`screen_bounds`）；
+      - `pointer_events: none` 作用于整棵子树；
+      - 移动像素的效果用 `source_of` 映射命中测试（CRT）；
+      - 镜头飞行和交叉淡化算作未静止；
+      - 滚动偏移在内容变短后收回；
+      - 减少透明时不画透视效果；
+      - 禁用的控件不套风格效果；
+      - 按钮给出自己的效果形状。
+      作品方面：官网的撤销、手机布局、“绘制”面板（GPU 和 CPU 切换、`promotion`）；文档墙的链接；风格工坊的历史、校验、Save 和 Cancel；格斗游戏的对电脑和回合制（两个 agent 对战）。
 - M5：openmui-video、ui-timeline、MCP 服务器、skills、S3 / S4 / S5。
 - 契约⑦（插件与管线）写进规范；Inspector 的火焰图和动画检查器视图。
 

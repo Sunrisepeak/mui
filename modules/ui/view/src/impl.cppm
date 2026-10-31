@@ -67,7 +67,7 @@ struct Visual {
     std::string                    shadow;  // a theme shadow token
     bool                           clip = false;
     bool                           visible = true;
-    bool                           hit = true;  // pointer_events: none → false
+    bool                           hit = true;  // pointer_events: none → false (the node and its subtree)
 
     float&       operator[](Field x) noexcept { return f[static_cast<std::size_t>(x)]; }
     float        operator[](Field x) const noexcept { return f[static_cast<std::size_t>(x)]; }
@@ -161,6 +161,7 @@ struct Node {
 
     Rect                 frame;         // relative to the parent's border box (layout)
     Rect                 bounds;        // window coordinates, without visual transforms
+    Rect                 screen;        // window coordinates, through the visual transforms as set (screen_bounds)
     Point                content_offset;
     Affine               local;         // parent → node: its frame and visual transforms
     Affine               world;         // node → window
@@ -276,6 +277,17 @@ struct Runtime::Impl {
     FrameRing                   history;
     ShownFrames                 shown;     // the frames the host showed (frame_shown)
     std::string                 renderer;  // who draws them, as the host says
+    // Who gives the input being handled when it is not the person at the
+    // machine (set_input_actor): what it does is theirs, and decided as
+    // their requests over the bus are (S-10, S-11).
+    std::optional<Actor>        input_actor;
+    [[nodiscard]] const Invocation& attributed(const Invocation& call, Invocation& copy) const {
+        if (!input_actor || call.remote || call.actor.kind != "person" || call.actor.name != "user") return call;
+        copy = call;
+        copy.actor = *input_actor;
+        copy.remote = true;
+        return copy;
+    }
     // When the last drawn frames were drawn (real time), a ring: the frame
     // rate, up to 512 a second, with no allocation per frame.
     std::array<std::chrono::steady_clock::time_point, 512> drawn{};
@@ -407,7 +419,7 @@ struct Runtime::Impl {
     void   run_timers();
     void   run_animations();
     void   run_layout();
-    void   compute_bounds(NodeId id, Point origin, const Affine& parent_world, std::optional<Point> placed = std::nullopt);
+    void   compute_bounds(NodeId id, Point origin, const Affine& parent_target, const Affine& parent_world, std::optional<Point> placed = std::nullopt);
     void   place_overlays();
     void   trap_focus();
     [[nodiscard]] bool displayed(NodeId id) const;
@@ -485,6 +497,10 @@ struct Runtime::Impl {
     std::vector<ScopeHistory>  histories;
     std::optional<Transaction> transaction;
     int                        replaying = 0;  // undoing, redoing, rolling back: nothing is recorded
+    // The program's inverses of the action being performed (taken_back_by),
+    // and whether one is (outside one, they are not kept).
+    std::vector<Inverse>       program_inverse;
+    int                        acting = 0;
     [[nodiscard]] bool is_scope(NodeId id) const;
     [[nodiscard]] NodeId scope_of(NodeId id) const;
     [[nodiscard]] const ScopeHistory* find_history(NodeId scope) const;

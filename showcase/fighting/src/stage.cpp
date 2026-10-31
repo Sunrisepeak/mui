@@ -116,6 +116,8 @@ void Stage::start_round(bool next) {
     }
     effects_ = {};
     readout_.clear();
+    make_bots();
+    turned_ = {};
     if (!props.demo.empty()) start_demo();
     // The stage's music: the arena's, else player 1's home's (none in training's plain room).
     std::string_view theme = props.arena;
@@ -159,6 +161,7 @@ void Stage::prop_changed(StageProp p) {
     if (!attached()) return;
     // Another fighter, another mode or another stage: a new round.
     if (p == StageProp::player1 || p == StageProp::player2 || p == StageProp::mode || p == StageProp::arena || p == StageProp::rounds) start_round();
+    if (p == StageProp::cpu || p == StageProp::cpu_level) make_bots();
     if (p == StageProp::demo || p == StageProp::demo_guard) start_demo();
     if (p == StageProp::paused && !props.paused) {  // playing again: the keyboard is the players'; a finished match, a new one
         if (match_ && match_->state().over && (decided_ || props.mode == "training")) start_round();
@@ -203,6 +206,22 @@ gongfu::Pad Stage::gamepad(std::int32_t player) const {
     for (const auto& [pad, button] : c.buttons)
         if (held(pad)) p.buttons |= bit(button);
     return p;
+}
+
+// The computer's player, as cpu and cpu_level say: a bot of the fighter on
+// that side, seeded by the round (each round plays the same every time).
+void Stage::make_bots() {
+    bots_ = {};
+    if (!match_ || props.mode == "training" || (props.cpu != 0 && props.cpu != 1)) return;
+    gongfu::ai::Style style;
+    switch (std::clamp(props.cpu_level, 1, 3)) {
+        case 1: style = {.reaction = 24, .aggression = 40, .guard = 45, .anti_air = 30, .punish = 25, .offense = 70, .jump_over = 4}; break;
+        case 3: style = {.reaction = 10, .aggression = 60, .guard = 85, .anti_air = 80, .punish = 90, .offense = 100, .jump_over = 10}; break;
+        default: break;  // gongfu.ai's: a person's
+    }
+    const auto side = static_cast<std::size_t>(props.cpu);
+    const Roster& r = roster();
+    bots_[side].emplace(r.fighters[side == 0 ? left_ : right_], props.cpu, 0x5eed + static_cast<std::uint64_t>(round_), style);
 }
 
 gongfu::Pad Stage::pad_of(std::int32_t player) const {
@@ -259,7 +278,13 @@ void Stage::advance() {
         if (player == 1) return demo_->dummy;
         return demo_at_ < static_cast<std::int32_t>(demo_->attacker.size()) ? demo_->attacker[static_cast<std::size_t>(demo_at_)] : gongfu::pad(5);
     };
-    const gongfu::Pad a = demo_ ? demo_pad(0) : dummies_[0].step(pad_of(0)), b = demo_ ? demo_pad(1) : dummies_[1].step(pad_of(1));
+    // A player's pad: the demonstration's, the computer's, else the person's (or agent's) through the training dummy.
+    const auto input = [&](std::int32_t p) {
+        if (demo_) return demo_pad(p);
+        if (auto& bot = bots_[static_cast<std::size_t>(p)]) return bot->next(*match_);
+        return dummies_[static_cast<std::size_t>(p)].step(pad_of(p));
+    };
+    const gongfu::Pad a = input(0), b = input(1);
     if (demo_) ++demo_at_;
     match_->tick(a, b);
     effects_.record(*match_);
@@ -314,7 +339,7 @@ void Stage::announce() {
 
 void Stage::tick() {
     const double now = services().now().count();
-    if (!match_ || props.paused) {
+    if (!match_ || props.paused || props.turn_frames > 0) {  // turns: the match moves when the players have said
         start_ = now - static_cast<double>(played_) * frame_period;  // a pause is not owed afterwards
         return;
     }
@@ -392,6 +417,13 @@ void Stage::semantics(SemanticsContext&, spec::SemanticNode& node) const {
     const gongfu::State& st = match_->state();
     Value v;
     v.set("frame", st.frame).set("seconds", (st.timer + 59) / 60).set("over", st.over != 0).set("winner", st.winner);
+    if (bots_[0] || bots_[1]) v.set("cpu", bots_[0] ? 0 : 1).set("cpu_level", std::clamp(props.cpu_level, 1, 3));
+    if (props.turn_frames > 0) {
+        Value::List waiting;
+        for (std::int64_t i = 0; i < 2; ++i)
+            if (!turned_[static_cast<std::size_t>(i)] && !bots_[static_cast<std::size_t>(i)]) waiting.emplace_back(i);
+        v.set("turns", Value{}.set("played", turns_).set("frames", props.turn_frames).set("waiting", Value(std::move(waiting))));
+    }
     if (props.mode != "training")
         v.set("round", round_).set("wins", Value(Value::List{Value(wins_[0]), Value(wins_[1])})).set("to_win", to_win()).set("decided", decided_);
     if (!roster().problems.empty()) v.set("problems", Value(Value::List(roster().problems.begin(), roster().problems.end())));
@@ -498,6 +530,54 @@ ActResult Stage::press(ActContext&, const PressArgs& args) {
     if (!parsed) return ActResult::fail(std::format("`{}` is not a pad: a numpad direction and buttons, `6`, `2LK`, `5LP+LK`", pad.as_string()));
     agent_[static_cast<std::size_t>(p)] = *parsed;
     return ActResult::done();
+}
+
+ActResult Stage::turn(ActContext&, const TurnArgs& args) {
+    if (props.turn_frames <= 0) return ActResult::fail("not a match by turns: set `turn_frames` (frames a turn) first");
+    if (!match_) return ActResult::fail("no match: the roster did not read");
+    const auto p = args.player.as_int(-1);
+    if (p != 0 && p != 1) return ActResult::fail("`player` is 0 or 1");
+    if (bots_[static_cast<std::size_t>(p)]) return ActResult::fail(std::format("player {} is the computer's", p));
+    // A pad, or pads a frame each, the last held for the rest of the turn ("2,3,6LP": a quarter circle and a punch).
+    std::vector<gongfu::Pad> pads;
+    for (auto part : std::views::split(args.pad.as_string(), ',')) {
+        const std::string_view one(part);
+        const auto parsed = parse_pad(one);
+        if (!parsed) return ActResult::fail(std::format("`{}` is not a pad: a numpad direction and buttons, `6`, `2LK`, `5LP+LK`; several a frame each: `2,3,6LP`", one));
+        pads.push_back(*parsed);
+    }
+    if (pads.empty() || static_cast<std::int32_t>(pads.size()) > props.turn_frames)
+        return ActResult::fail(std::format("a turn is {} frames: give 1 to {} pads", props.turn_frames, props.turn_frames));
+    turn_pads_[static_cast<std::size_t>(p)] = std::move(pads);
+    agent_[static_cast<std::size_t>(p)] = turn_pads_[static_cast<std::size_t>(p)].front();
+    turned_[static_cast<std::size_t>(p)] = true;
+    Value said;
+    said.set("turn", turns_).set("player", p);
+    for (std::size_t i = 0; i < 2; ++i)
+        if (!turned_[i] && !bots_[i]) {
+            changed();
+            return ActResult::done(said.set("waiting", static_cast<std::int64_t>(i)));  // the other player has not said yet
+        }
+    // Every player has said: the turn plays, and what happened in it is said.
+    const std::array<std::int32_t, 2> before{match_->state().f[0].health, match_->state().f[1].health};
+    for (std::int32_t i = 0; i < props.turn_frames; ++i, ++played_) {
+        for (std::size_t s = 0; s < 2; ++s)
+            if (const auto& pads = turn_pads_[s]; !pads.empty()) agent_[s] = pads[std::min<std::size_t>(static_cast<std::size_t>(i), pads.size() - 1)];
+        advance();
+    }
+    turned_ = {};
+    turn_pads_ = {};
+    ++turns_;
+    const gongfu::State& st = match_->state();
+    said.set("played", true).set("frame", st.frame);
+    for (std::int32_t i = 0; i < 2; ++i) {
+        const auto& f = st.f[static_cast<std::size_t>(i)];
+        said.set(i == 0 ? "p1" : "p2", Value{}.set("health", f.health).set("lost", before[static_cast<std::size_t>(i)] - f.health)
+                                           .set("doing", std::string(p2::clip_name(match_->fighter(i), f))).set("x", f.pos.x.to_double()));
+    }
+    if (st.over) said.set("over", true).set("winner", st.winner);
+    changed();
+    return ActResult::done(std::move(said));
 }
 
 ActResult Stage::save(ActContext&) {

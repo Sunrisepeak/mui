@@ -250,6 +250,30 @@ int main(int argc, char** argv) {
         check(a.h.tree().violations().empty());
     });
 
+    s.test("a link in a live window goes to the document it names, on the wall; `..` and addresses too", [] {
+        App a;
+        const std::string readme = by_path(a.model.docs, "README.md").key, usage = by_path(a.model.docs, "guide/usage.md").key;
+        Invocation call;
+        call.args = Value{}.set("key", Value(readme));
+        check_eq(a.h.tree().act("main/wall", "focus_node", call).exit_code().value_or(-1), std::int64_t{0});
+        a.h.settle();
+        // The person clicks "Using it" where it is drawn.
+        std::string link;
+        for (const auto& n : a.h.tree().snapshot({}).nodes)
+            if (n.id.starts_with(std::format("main/wall/{}/", readme)) && n.role == Role::link && n.name == "Using it") link = n.id;
+        check(!link.empty(), "the README's link, live");
+        if (link.empty()) return;
+        check(a.h.click(link), "clicked (under the HUD: it takes no pointer)");
+        a.h.settle();
+        bool there = false;
+        for (const auto& n : a.h.tree().snapshot({}).nodes) there = there || (n.id.starts_with(std::format("main/wall/{}/", usage)) && n.name == "Searching");
+        check(there, "the camera went to guide/usage.md, live");
+        // Relative paths resolve from the window's folder; what is not on the wall goes nowhere.
+        check(a.model.follow(usage, "../README.md") == std::optional<std::string>(readme));
+        check(a.model.follow(usage, "./install.md#steps") == std::optional<std::string>(by_path(a.model.docs, "guide/install.md").key));
+        check(!a.model.follow(usage, "missing.md") && !a.model.follow(usage, "#searching"));
+    });
+
     s.test("a workspace drags by its label with its windows; Esc puts them back; a window drags by its title alone", [] {
         App a;
         const auto guide = omui::wall::key_of("workspace:guide");

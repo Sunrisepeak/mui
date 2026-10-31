@@ -30,5 +30,8 @@ void backing(std::string_view, int, int) {}
 bool hidden() { return false; }
 bool loop(void (*)(void*), void*) { return false; }
 std::vector<std::string> locales() { return {}; }
+std::string query(std::string_view) { return {}; }
+bool matches(std::string_view) { return false; }
+bool reload_with(std::string_view, std::string_view) { return false; }
 
 }  // namespace omui::page

@@ -91,8 +91,18 @@ public:
     [[nodiscard]] std::size_t streaming() const noexcept { return streams_.size(); }
     [[nodiscard]] std::uint64_t tokens() const noexcept { return tokens_; }
 
-    // The canvas, when mounted.
+    // The canvas, when mounted (at `canvas_path`).
     [[nodiscard]] omui::Canvas* canvas() const;
+    std::string canvas_path = "main/wall";
+
+    // A link followed in a live window: another document of the wall (a
+    // path relative to the window's, `..` and all) is brought into view and
+    // focused; an address opens where the system opens addresses; a heading
+    // of the same document is the document's own (it scrolls there).
+    // Answers the key of the window it went to, if any.
+    std::optional<std::string> follow(std::string_view from_key, std::string_view href);
+    // The document at a path relative to the folder, '/' between parts.
+    [[nodiscard]] const Document* at_path(std::string_view path) const;
 
 private:
     struct Stream {

@@ -462,6 +462,12 @@ int Web::run() {
 
 bool in_browser() noexcept { return page::exists(); }
 
+std::string page_query(std::string_view name) { return page::exists() ? page::query(name) : std::string(); }
+
+bool page_prefers(std::string_view media) { return page::exists() && page::matches(media); }
+
+bool reload_page_with(std::string_view name, std::string_view value) { return page::exists() && page::reload_with(name, value); }
+
 std::vector<std::string> browser_locales() { return page::exists() ? page::locales() : std::vector<std::string>{}; }
 
 }  // namespace omui

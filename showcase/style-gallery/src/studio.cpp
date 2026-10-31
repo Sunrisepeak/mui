@@ -479,6 +479,25 @@ Element editor(Studio& s, bool wide = false) {
                 s.accent_text.set(accent);
                 if (s.set_color("accent", accent)) s.accent_text.set(std::string());
             }
+            // Or picked: a row of accents that read well on light and dark surfaces alike.
+            ui.row({.id = "swatches", .gap = 6, .wrap = "wrap"}, [&] {
+                for (const auto& [name, hex] : {std::pair{"Sky", "#38bdf8"}, {"Teal", "#14b8a6"}, {"Green", "#22c55e"}, {"Amber", "#f59e0b"},
+                                                {"Orange", "#f97316"}, {"Rose", "#f43f5e"}, {"Violet", "#8b5cf6"}, {"Ink red", "#b91c1c"}}) {
+                    const bool here = shown_accent == hex;
+                    ui.add(box({.id = std::format("swatch-{}", std::string_view(hex).substr(1)),
+                                .width = Dim(22.0f),
+                                .height = Dim(22.0f),
+                                .background = Fill(Color::hex(std::stoul(std::string(hex).substr(1), nullptr, 16))),
+                                .border_color = Fill(here ? "text" : "border"),
+                                .border_width = here ? 2.0f : 1.0f,
+                                .radius = 11,
+                                .label = std::format("Accent {} ({})", name, hex),
+                                .on = {{"press", [&s, hex = std::string(hex)](const Value&) {
+                                    s.accent_text.set(std::string());
+                                    (void)s.set_color("accent", hex);
+                                }}}}));
+                }
+            });
             if (!s.problem.peek().empty()) ui.text(s.problem.peek(), {.id = "problem", .style = "caption", .color = Fill("danger")});
             double radius = [&] {
                 const auto it = d.tokens.radius.find("medium");

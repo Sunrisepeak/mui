@@ -140,8 +140,12 @@ void Guide::answer_of(const std::string& line) {
         // It asks the person (openas §3.3): the rest waits for the answer.
         waiting_ = line;
         auto req = parse_json(line);
-        const std::string what = req ? std::format("{} on {}", req->get("action") ? req->get("action")->as_string() : "", req->get("node") ? req->get("node")->as_string() : "")
-                                     : line;
+        // Where it would take the person first (an address), then what and on what.
+        const Value* args = req ? req->get("args") : nullptr;
+        const std::string href = args && args->get("href") ? std::string(args->get("href")->as_string()) : std::string();
+        const std::string act = req ? std::format("{} on {}", req->get("action") ? req->get("action")->as_string() : "", req->get("node") ? req->get("node")->as_string() : "")
+                                    : line;
+        const std::string what = href.empty() ? act : std::format("{} ({})", href, act);
         asking.set(what);
         busy.set(false);
         return;

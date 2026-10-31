@@ -329,6 +329,9 @@ std::size_t Canvas::tier_of(const world::Kind& k, Rect screen, bool focused) con
 void Canvas::place() {
     world::Scene* s = scene();
     const Size vp = viewport();
+    // A canvas given no room for a while (a panel over the whole of a phone) keeps what was live as it was:
+    // a page being read keeps its place, an edit its state, when the room comes back.
+    if (vp.width <= 0 || vp.height <= 0) return;
     std::vector<std::string> keys;
     std::vector<std::uint64_t> revisions;  // each one's content revision: a touched node is composed again
     // While the camera moves, no node goes live (a live node is laid out on

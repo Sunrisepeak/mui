@@ -75,7 +75,7 @@ int main(int argc, char** argv) {
         }
         check_eq(looks.size(), std::size_t{5});
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
-        check_eq(all.hex(), std::string("a9d3bd344cd3eb97"));
+        check_eq(all.hex(), std::string("00d46f46f4014796"));
     });
 
     s.test("the README's loop: the five packs in turn — an animated PNG under 1 MB", [] {
@@ -219,6 +219,15 @@ int main(int argc, char** argv) {
             for (const auto& x : v) std::println("    {} {} {}", x.clause, x.id, x.message);
             check(v.empty());
         }
+    });
+
+    s.test("an accent picked from the swatches: the pack's accent, one step of its history", [] {
+        App a("glass");
+        check(a.h.click("main/editor/scroll/fields/swatches/swatch-f59e0b"), "the amber swatch");
+        a.h.settle();
+        const auto it = a.studio.draft().tokens.colors.find("accent");
+        check(it != a.studio.draft().tokens.colors.end() && it->second == Color::hex(0xf59e0b), "the accent is amber");
+        check(a.studio.can_undo(), "and can be taken back");
     });
 
     s.test("the workshop's edits: one step a field, undone, redone, reset; a refused value changes nothing and says why", [] {

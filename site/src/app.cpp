@@ -1268,7 +1268,9 @@ Element place_window(const std::shared_ptr<Site>& s, const std::string& id, bool
             if (!live) return s->clip_level(name, s->timeline_frame.peek());
             return computed([s, name] { return s->clip_level(name, s->timeline_frame.get()); });
         };
-        const float mw = std::clamp(v.height - 340.0f, 220.0f, 380.0f) * 16 / 9;
+        // As tall as the room under the tracks allows, and never wider than the page (a phone: the button under it).
+        const bool slim = v.width < 760;
+        const float mw = std::min(std::clamp(v.height - 340.0f, 220.0f, 380.0f) * 16 / 9, v.width - (slim ? 40.0f : 200.0f));
         Element fighters = painter({.id = "figures",
                                     .width = Dim(mw * 0.5f),
                                     .height = Dim(mw * 9 / 16 * 0.6f),
@@ -1319,13 +1321,14 @@ Element place_window(const std::shared_ptr<Site>& s, const std::string& id, bool
                 if (on && s->runtime) s->play_timeline();
             };
         } else play.disabled = true;
-        return column({.id = "page", .width = Dim(v.width), .height = Dim(v.height), .padding = Edges(32.0f, 40.0f), .gap = 12, .background = "background"},
+        return column({.id = "page", .width = Dim(v.width), .height = Dim(v.height), .padding = slim ? Edges(20.0f, 20.0f) : Edges(32.0f, 40.0f), .gap = 12, .background = "background"},
                       {live ? retyped(std::move(title), s) : std::move(title),
                        text({.id = "how",
                              .text = words("Drag a clip, trim its edge, press S to split it at the playhead, Ctrl+Z to undo. Every edit has its exact inverse; switch the lens to see the same timeline as an agent reads it.",
                                            "拖动片段、拖边修剪、按 S 在播放头处切开，Ctrl+Z 撤销。每次编辑都有它精确的反向；切换镜头，看 agent 读到的同一份时间线。"),
                              .style = "body"}),
-                       row({.id = "program", .gap = 16, .align = "end"}, {std::move(monitor), button(std::move(play))}),
+                       slim ? column({.id = "program", .gap = 10, .align = "start"}, {std::move(monitor), button(std::move(play))})
+                            : row({.id = "program", .gap = 16, .align = "end"}, {std::move(monitor), button(std::move(play))}),
                        std::move(editor)});
     }
     if (id == "hello" || id == "wall") return work_window(s, id, live);
@@ -1373,7 +1376,9 @@ Element place_window(const std::shared_ptr<Site>& s, const std::string& id, bool
         std::vector<Element> both;
         both.push_back(std::move(content.back()));
         if (v.width >= 1000) both.push_back(std::move(contents));  // narrower: the document alone (the same path to it)
-        Element read = row({.id = "read", .min_width = Dim(0.0f), .gap = 48, .align = "start"}, std::move(both));
+        // Narrower, one column: the document as wide as there is room (at most its measure).
+        Element read = v.width >= 1000 ? row({.id = "read", .min_width = Dim(0.0f), .gap = 48, .align = "start"}, std::move(both))
+                                       : column({.id = "read", .min_width = Dim(0.0f)}, std::move(both));
         content.back() = std::move(read);
     }
     return scroll({.id = "page", .width = Dim(v.width), .height = Dim(v.height), .padding = narrow ? Edges(20.0f, 20.0f) : Edges(32.0f, 40.0f), .background = "background"},

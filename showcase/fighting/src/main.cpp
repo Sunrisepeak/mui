@@ -1,6 +1,6 @@
 // `omui-fight [--training] [--quiet] [--fight P1 P2] [--arena NAME] [--cpu 0|1] [--level 1-3] [--turns N]`
 // — the rest of the line is openmui's (--headless --png …); headless or
-// --quiet, nothing is heard. --fight goes straight into a fight (fighters by
+// --quiet, nothing is heard. --training is training alone (its fighters --fight's). --fight goes straight into a fight (fighters by
 // their files' names: kata, mo …); --cpu has the computer play a side;
 // --turns has the match played by turns of N frames (agents by
 // correspondence: the stage's `turn` action). Keys: player 1 WASD and U I O (punches) J K L (kicks); player 2
@@ -42,10 +42,15 @@ int main(int argc, char** argv) {
             return std::make_shared<omui::audio::Device>(std::move(*device));
         });
     omui::AppSpec a = omui::fighting::app(start);
-    if (training)
-        a.view = [] {
-            return omui::fighting::stage(
-                {.id = "stage", .mode = "training", .width = omui::Dim(omui::layout::pct(100)), .height = omui::Dim(omui::layout::pct(100))});
+    if (training)  // training alone (with --fight's fighters and --arena's stage, if given)
+        a.view = [start] {
+            return omui::fighting::stage({.id = "stage",
+                                          .arena = start.arena,
+                                          .mode = "training",
+                                          .player1 = start.player1,
+                                          .player2 = start.player2,
+                                          .width = omui::Dim(omui::layout::pct(100)),
+                                          .height = omui::Dim(omui::layout::pct(100))});
         };
     return omui::run(std::move(a), static_cast<int>(rest.size()), rest.data());
 }

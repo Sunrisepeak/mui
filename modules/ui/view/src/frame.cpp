@@ -536,9 +536,11 @@ void Runtime::Impl::paint_node(NodeId id) {
     // style pack's effects; the node's property wins).
     Node::PixelEffectState* fxs = n.pixel_effect ? &*n.pixel_effect : (n.styled_effect ? &*n.styled_effect : nullptr);
     // Less transparency asked for: a see-through effect (glass, frost: it
-    // reads what is behind) is left out, the node drawn as its own opaque panel.
+    // reads what is behind) is left out, the node drawn as its own opaque
+    // panel — its background as it looks over the theme's, made solid.
+    bool solid = false;
     if (fxs && reduce_transparency)
-        if (const render::EffectInfo* info = render::effects().info(fxs->effect); info && info->backdrop) fxs = nullptr;
+        if (const render::EffectInfo* info = render::effects().info(fxs->effect); info && info->backdrop) fxs = nullptr, solid = true;
     // A disabled control is not lit by its style's effect (a neon tube, a
     // glow): the decoration is for what can be used.
     if (fxs == (n.styled_effect ? &*n.styled_effect : nullptr) && fxs && n.state.disabled) fxs = nullptr;
@@ -579,7 +581,11 @@ void Runtime::Impl::paint_node(NodeId id) {
     if (!v.shadow.empty())
         if (auto it = theme.shadows.find(v.shadow); it != theme.shadows.end())
             list.box_shadow(box, radii, it->second.offset, it->second.blur, it->second.spread, it->second.color);
-    if (const Color bg = v.background(); bg.a > 0) {
+    if (Color bg = v.background(); bg.a > 0) {
+        if (solid && bg.a < 1) {
+            const Color under = theme.color("background");
+            bg = {under.r + (bg.r - under.r) * bg.a, under.g + (bg.g - under.g) * bg.a, under.b + (bg.b - under.b) * bg.a, 1};
+        }
         if (radii.zero()) list.fill_rect(box, bg);
         else list.fill_round_rect(box, radii, render::Paint::solid(bg));
     }

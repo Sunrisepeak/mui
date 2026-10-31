@@ -1249,7 +1249,7 @@ void Match::tick(Pad left, Pad right) {
     recover({still[0], still[1]});
     for (std::size_t c = 0; c < 2; ++c)  // a clone's frames run out
         if (state_.clones[c].alive && --state_.clones[c].left <= 0) vanish(static_cast<std::int32_t>(c));
-    if (!state_.over && --state_.timer <= 0) {
+    if (!state_.over && !system_.timeless && --state_.timer <= 0) {
         state_.over = 1;
         const std::int32_t h0 = state_.f[0].health, h1 = state_.f[1].health;
         state_.winner = h0 > h1 ? 0 : h1 > h0 ? 1 : 2;

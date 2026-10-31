@@ -498,9 +498,16 @@ public:
         site_.tick_time();
         // The move list's stage playing a demonstration: its frame on the slider and the counter too.
         if (site_.place.peek() == "moves")
-            if (const NodeId n = site_.runtime->find(std::string(place_root) + "moves/page/show/frame_box/stage"); site_.runtime->valid(n))
-                if (const Value* d = site_.runtime->semantic_node(n).value.get("training"); d && d->get("demo"))
-                    if (const Value* f = d->get("demo")->get("frame"); f && f->as_double() != site_.demo_at.peek()) site_.demo_at.set(f->as_double());
+            if (const NodeId n = site_.runtime->find(std::string(place_root) + "moves/page/show/frame_box/stage"); site_.runtime->valid(n)) {
+                const spec::SemanticNode stage = site_.runtime->semantic_node(n);  // kept: what is read from it points into it
+                if (const Value* d = stage.value.get("training"); d && d->get("demo"))
+                    if (const Value* f = d->get("demo")->get("frame"); f) {
+                        // Its rest after the move counts on (frame 25 of 24): the counter and the slider stop at the move's last frame.
+                        const Value* of = d->get("demo")->get("frames");
+                        const double at = of ? std::min(f->as_double(), of->as_double()) : f->as_double();
+                        if (at != site_.demo_at.peek()) site_.demo_at.set(at);
+                    }
+            }
         if (const auto f = std::exchange(site_.ref_wanted, std::nullopt)) site_.check_frame(*f);
         if (site_.runtime && site_.runtime->semantic_revision() != site_.seen && !queued_) {
             queued_ = true;

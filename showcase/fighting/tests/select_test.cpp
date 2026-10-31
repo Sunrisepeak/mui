@@ -240,7 +240,7 @@ int main(int argc, char** argv) {
         };
         const auto esc = [&] { a.h.step({key(Key::escape), key(Key::escape, false)}); };
         esc();
-        check_eq(items(), std::vector<std::string>{"resume", "save", "record", "fill", "overlays_off", "restart", "fighters"});
+        check_eq(items(), std::vector<std::string>{"resume", "save", "record", "fill", "overlays_off", "moves", "restart", "fighters"});
         check(a.h.save_png(scratch_dir("fighting-pause") / "training.png").has_value());
         const std::uint64_t card = a.pixels();
         // 录制 2P: down twice, U. The person's keys are player 2's until it stops.
@@ -287,8 +287,37 @@ int main(int argc, char** argv) {
         for (auto i = off; i > 0; --i) a.h.step({key(Key::s), key(Key::s, false)});
         a.h.step({key(Key::u), key(Key::u, false)});
         check(!a.stage().props.overlays, "the overlays off");
+        // The move list: 招式表 from the card, a move chosen is demonstrated over and over; Esc from the list goes back to the card.
+        const auto go = [&](std::string_view item) {
+            const auto now = items();
+            const auto at = std::ranges::find(now, item) - now.begin();
+            for (auto i = at; i > 0; --i) a.h.step({key(Key::s), key(Key::s, false)});
+            a.h.step({key(Key::u), key(Key::u, false)});
+        };
+        esc();
+        go("moves");
+        const auto list = items();
+        check(std::ranges::find(list, "5HP") != list.end(), "the list has the moves");
+        const Value listed = a.seen("main/stage");
+        check_eq(std::string(listed.get("menu")->get("shown")->as_string()), std::string("moves"));
+        check(a.h.save_png(scratch_dir("fighting-pause") / "moves.png").has_value());
+        const std::uint64_t moves = a.pixels();
+        a.h.step({key(Key::escape), key(Key::escape, false)});
+        const auto card_again = items();
+        check(std::ranges::find(card_again, "moves") != card_again.end(), "back to the card");
+        go("moves");
+        go("5HP");
+        check(items().empty() && a.stage().props.demo == "5HP", "5HP demonstrated");
+        check(a.act("main/stage", "demonstrate", Value{}.set("move", "")) && a.stage().props.demo.empty(), "an agent stops it");
+        check(!a.act("main/stage", "demonstrate", Value{}.set("move", "nothing")), "no such move");
+        std::println("    move list {:016x}", moves);
+        check_eq(moves, std::uint64_t{0x125c78540e01b35b});  // GCC and LLVM
+        // Who fights, by an agent: 坤 for player 1, a new match; an unknown name refused.
+        check(a.act("main/stage", "fighters", Value{}.set("player1", "kun").set("player2", "")), "fighters");
+        check_eq(a.stage().match().fighter(0).def.name, std::string("Kun"));
+        check(!a.act("main/stage", "fighters", Value{}.set("player1", "").set("player2", "nobody")), "no such fighter");
         std::println("    training card {:016x}", card);
-        check_eq(card, std::uint64_t{0xbcd66cd89910160e});  // GCC and LLVM
+        check_eq(card, std::uint64_t{0x75a3328eade0ca63});  // GCC and LLVM
     });
 
     s.test("the title and the select screen, pinned: the logo over the study, the modes; the roster, both fighters' previews, VS", [] {

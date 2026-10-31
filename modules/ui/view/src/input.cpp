@@ -134,6 +134,8 @@ void Runtime::Impl::pointer_event(const PointerEvent& e) {
             break;
         }
         case PointerKind::down: {
+            ++presses;
+            held = true;
             NodeId target = self.hit_test(e.position);
             // A press outside an overlay dismisses it (light dismiss), top first;
             // outside a modal one it goes no further.
@@ -184,6 +186,7 @@ void Runtime::Impl::pointer_event(const PointerEvent& e) {
             NodeId by{};
             const bool handled = deliver(target, e, e.position, true, &by);
             capture = {};
+            held = false;
             NodeId p = pressed;
             pressed = {};
             if (alive(p)) {
@@ -219,6 +222,7 @@ void Runtime::Impl::pointer_event(const PointerEvent& e) {
         case PointerKind::cancel:
             if (alive(pressed)) at(pressed).state.pressed = false;
             pressed = capture = {};
+            held = false;
             touch(dirty_paint);
             break;
         case PointerKind::leave:

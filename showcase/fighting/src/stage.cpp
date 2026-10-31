@@ -89,7 +89,7 @@ Color tone(std::uint32_t hex, float alpha = 1) { return Color::hex(hex, alpha); 
 
 // A card's item as it reads.
 std::string_view label_of(std::string_view item) {
-    constexpr std::array<std::pair<std::string_view, std::string_view>, 13> labels{{
+    constexpr std::array<std::pair<std::string_view, std::string_view>, 15> labels{{
         {"resume", "继续 · RESUME"},
         {"restart", "重来 · RESTART"},
         {"rematch", "再战 · REMATCH"},
@@ -103,6 +103,8 @@ std::string_view label_of(std::string_view item) {
         {"fill", "满气 · FILL METERS"},
         {"overlays_off", "隐藏数据 · OVERLAYS OFF"},
         {"overlays_on", "显示数据 · OVERLAYS ON"},
+        {"moves", "招式表 · MOVE LIST"},
+        {"stop_demo", "停止演示 · STOP DEMO"},
     }};
     const auto it = std::ranges::find(labels, item, &std::pair<std::string_view, std::string_view>::first);
     return it == labels.end() ? item : it->second;
@@ -123,11 +125,13 @@ void Stage::start_round(bool next) {
     }
     decided_ = false;
     over_for_ = 0;
-    paused_ = fresh_ = swapped_ = false;
+    paused_ = fresh_ = swapped_ = listing_ = false;
     menu_at_ = 0;
     left_ = fighter_index(props.player1);
     right_ = fighter_index(props.player2);
-    match_ = std::make_unique<gongfu::Match>(r.system, r.fighters[left_], r.fighters[right_]);
+    gongfu::SystemDef system = r.system;
+    system.timeless = props.mode == "training";  // practice has no time limit
+    match_ = std::make_unique<gongfu::Match>(std::move(system), r.fighters[left_], r.fighters[right_]);
     looks_ = {r.looks[2 * left_], r.looks[2 * right_ + 1]};
     if (art_)
         for (p2::Look& look : looks_) art_->bind(look.pictures);
@@ -410,15 +414,20 @@ void Stage::paint(PaintContext& ctx) const {
     }
 
     if (const Menu m = menu(); m != Menu::none) {
-        std::array<std::string_view, 9> labels{};
+        std::array<std::string_view, 10> labels{};
         const auto items = menu_items();
-        for (std::size_t i = 0; i < items.size(); ++i) labels[i] = label_of(items[i]);
+        const auto [first, count] = page();
+        for (std::size_t i = 0; i < count; ++i) labels[i] = m == Menu::moves ? std::string_view(move_labels_[first + i]) : label_of(items[first + i]);
         constexpr std::array<std::string_view, 3> keys{"1P  W A S D move · U I O punch · J K L kick",
                                                        "2P  arrows move · Insert Home PgUp punch · Delete End PgDn kick",
                                                        "W S or the arrows choose · U or Enter confirm · J or Esc back"};
         std::string sub;
-        hud::Card card{.items = std::span(labels).first(items.size()), .lit = menu_at_};
-        if (m == Menu::paused) {
+        hud::Card card{.items = std::span(labels).first(count), .lit = menu_at_ - static_cast<std::int32_t>(first)};
+        if (m == Menu::moves) {
+            card.heading = "招式表";
+            sub = std::format("MOVE LIST · {} · {} / {} · startup frames · damage", r.fighters[left_].def.name, first / 10 + 1, (items.size() + 9) / 10);
+            card.keys = std::span(keys).last(1);
+        } else if (m == Menu::paused) {
             card.heading = "暂停";
             sub = props.mode == "training" ? std::string("PAUSED · TRAINING") : std::format("PAUSED · ROUND {}", round_);
             card.keys = keys;
@@ -496,7 +505,7 @@ void Stage::semantics(SemanticsContext&, spec::SemanticNode& node) const {
     if (const Menu m = menu(); m != Menu::none) {
         Value::List items;
         for (std::string_view i : menu_items()) items.emplace_back(std::string(i));
-        v.set("menu", Value{}.set("shown", std::string(m == Menu::paused ? "paused" : "results")).set("items", Value(std::move(items))).set("lit", menu_at_));
+        v.set("menu", Value{}.set("shown", std::string(m == Menu::paused ? "paused" : m == Menu::moves ? "moves" : "results")).set("items", Value(std::move(items))).set("lit", menu_at_));
     }
     if (props.mode != "training")
         v.set("round", round_).set("wins", Value(Value::List{Value(wins_[0]), Value(wins_[1])})).set("to_win", to_win()).set("decided", decided_);
@@ -530,10 +539,13 @@ void Stage::semantics(SemanticsContext&, spec::SemanticNode& node) const {
             if (f.mode == gongfu::Mode::thrown || (m.throw_ && f.thrower)) phase = "throw";
             me.set("move", Value{}.set("name", m.name).set("frame", f.move_frame).set("of", m.total).set("phase", phase).set("left", std::max(0, m.total - f.move_frame)));
         }
-        const bool free = f.mode == gongfu::Mode::idle || f.mode == gongfu::Mode::walk_forward || f.mode == gongfu::Mode::walk_back || f.mode == gongfu::Mode::crouch;
+        // As the rules decide it (gongfu's own reading): recovered, in a move's cancel window, or in the air (an air attack may start).
         // A super's flash, a cinematic, a round not under way: nobody acts.
         const bool held = st.freeze > 0 || st.lock.owner >= 0 || st.over != 0;
-        me.set("actionable", free && f.stop == 0 && !held);
+        const bool cancel = f.mode == gongfu::Mode::move && match_->actionable(i);
+        const bool can = !held && f.stop == 0 && (match_->actionable(i) || f.mode == gongfu::Mode::air);
+        me.set("actionable", can);
+        if (can) me.set("can", f.mode == gongfu::Mode::air ? "air attack" : cancel ? "cancel" : "anything");
         if (f.stun > 0) me.set("stun", f.stun);
         if (f.stop > 0) me.set("hitstop", f.stop);
         if (f.protect > 0) me.set("throw_protected", f.protect);
@@ -569,7 +581,7 @@ void Stage::semantics(SemanticsContext&, spec::SemanticNode& node) const {
 // ── the card over the match ────────────────────────────────────────────────
 
 Stage::Menu Stage::menu() const noexcept {
-    if (paused_) return Menu::paused;
+    if (paused_) return listing_ ? Menu::moves : Menu::paused;
     // The results once the K.O. and its calls have been seen (at once in turns: no frames pass between them).
     if (decided_ && props.mode != "training" && (over_for_ >= 150 || props.turn_frames > 0)) return Menu::results;
     return Menu::none;
@@ -583,12 +595,13 @@ std::span<const std::string_view> Stage::menu_items() const noexcept {
             add("resume");
             if (props.mode == "training") {  // training's tools, for a person as for an agent
                 add("save");
-                if (saved_) add("load");
+                if (saved_ && saved_->left == left_ && saved_->right == right_) add("load");
                 add(dummies_[1].recording() ? "stop_recording" : "record");
                 if (dummies_[1].playing()) add("stop_replay");
                 else if (dummies_[1].length() > 0 && !dummies_[1].recording()) add("replay");
                 add("fill");
                 add(props.overlays ? "overlays_off" : "overlays_on");
+                add(props.demo.empty() ? "moves" : "stop_demo");
             }
             add("restart");
             add("fighters");
@@ -597,9 +610,37 @@ std::span<const std::string_view> Stage::menu_items() const noexcept {
             add("rematch");
             add("fighters");
             break;
+        case Menu::moves: return moves_;
         case Menu::none: break;
     }
     return std::span<const std::string_view>(items_).first(n);
+}
+
+std::pair<std::size_t, std::size_t> Stage::page() const noexcept {
+    const std::size_t n = menu_items().size();
+    if (menu() != Menu::moves) return {0, n};
+    constexpr std::size_t per = 10;
+    const std::size_t first = static_cast<std::size_t>(menu_at_) / per * per;
+    return {first, std::min(per, n - first)};
+}
+
+// Player 1's moves, as a move list reads them: those an input asks for, by name, with their startup and damage.
+void Stage::list_moves() {
+    moves_.clear();
+    move_labels_.clear();
+    for (const gongfu::MoveDef& m : roster().fighters[left_].def.moves) {
+        if (!m.asked) continue;
+        std::int32_t startup = 0, damage = 0;
+        if (!m.hits.empty()) startup = m.hits.front().active.from;
+        else if (m.projectile) startup = m.projectile->spawn;
+        for (const gongfu::HitDef& h : m.hits) damage += h.damage;
+        moves_.push_back(m.name);
+        std::string label = m.name;
+        if (startup > 0) label += std::format("  ·  {}f", startup);
+        if (damage > 0) label += std::format("  ·  {}", damage);
+        if (m.level > 0) label += std::format("  ·  Lv{}", m.level);
+        move_labels_.push_back(std::move(label));
+    }
 }
 
 void Stage::open_menu(bool paused) {
@@ -610,8 +651,30 @@ void Stage::open_menu(bool paused) {
 }
 
 void Stage::choose(std::string_view item) {
+    if (item == "moves") {  // the move list, over the pause card
+        list_moves();
+        listing_ = true;
+        menu_at_ = 0;
+        changed();
+        return;
+    }
+    if (listing_) {  // a move chosen: demonstrated over and over (training's `demo`), the card put away
+        listing_ = false;
+        if (std::ranges::find(moves_, item) != moves_.end()) {
+            props.demo = std::string(item);
+            start_demo();
+        } else if (item == "back") {
+            menu_at_ = 0;
+            changed();
+            return;
+        }
+    }
     paused_ = false;
     menu_at_ = 0;
+    if (item == "stop_demo") {
+        props.demo.clear();
+        start_demo();
+    }
     if (item == "restart" || item == "rematch") start_round();
     if (item == "fighters") {
         fresh_ = true;
@@ -645,15 +708,16 @@ bool Stage::on_menu(EventContext& ctx, const InputEvent& e) {
         changed();
     };
     const auto confirm = [&] { choose(items[static_cast<std::size_t>(menu_at_)]); };
-    const auto back = [&] { choose(menu() == Menu::paused ? "resume" : "fighters"); };
+    const auto back = [&] { choose(menu() == Menu::moves ? "back" : menu() == Menu::paused ? "resume" : "fighters"); };
     // The pointer: over an item lights it, a click chooses it.
     if (const auto* p = std::get_if<PointerEvent>(&e)) {
         const Rect box = services().bounds(node());
         const float s = std::min(box.width / picture_w, box.height / picture_h);
         const float ox = (box.width - picture_w * s) / 2, oy = (box.height - picture_h * s) / 2;
         const Point at{(ctx.local.x - ox) / s, (ctx.local.y - oy) / s};  // in the picture's own units
-        for (std::int32_t i = 0; i < n; ++i) {
-            if (!hud::card_item(static_cast<std::size_t>(i), items.size()).contains(at)) continue;
+        const auto [first, count] = page();
+        for (std::int32_t i = static_cast<std::int32_t>(first); i < static_cast<std::int32_t>(first + count); ++i) {
+            if (!hud::card_item(static_cast<std::size_t>(i) - first, count).contains(at)) continue;
             if (menu_at_ != i) move(i - menu_at_);
             if (p->kind == PointerKind::up && p->button == MouseButton::left) confirm();
             ctx.handled = true;
@@ -668,7 +732,7 @@ bool Stage::on_menu(EventContext& ctx, const InputEvent& e) {
             case GamepadButton::dpad_up: move(-1); break;
             case GamepadButton::dpad_down: move(1); break;
             case GamepadButton::south: confirm(); break;
-            case GamepadButton::start: menu() == Menu::paused ? back() : confirm(); break;
+            case GamepadButton::start: menu() == Menu::results ? confirm() : back(); break;
             case GamepadButton::east:
             case GamepadButton::back: back(); break;
             default: break;
@@ -706,6 +770,37 @@ ActResult Stage::rematch(ActContext&) {
     start_round();
     changed();
     return ActResult::done();
+}
+
+ActResult Stage::fighters(ActContext&, const FightersArgs& args) {
+    const auto& names = roster().names;
+    const std::string before1 = names.empty() ? std::string() : names[left_], before2 = names.empty() ? std::string() : names[right_];
+    for (const Value* v : {&args.player1, &args.player2}) {
+        const std::string_view n = v->as_string();
+        if (!n.empty() && std::ranges::find(names, n) == names.end())
+            return ActResult::fail(std::format("no fighter `{}` (the fighters: {})", n, names | std::views::join_with(std::string_view(", ")) | std::ranges::to<std::string>()));
+    }
+    if (!args.player1.as_string().empty()) props.player1 = std::string(args.player1.as_string());
+    if (!args.player2.as_string().empty()) props.player2 = std::string(args.player2.as_string());
+    start_round();
+    changed();
+    return ActResult::done().undo_by("fighters", Value{}.set("player1", before1).set("player2", before2));
+}
+
+ActResult Stage::demonstrate(ActContext&, const Value& move) {
+    if (props.mode != "training") return ActResult::fail("a demonstration is training's: the stage's mode is not training");
+    const std::string_view name = move.as_string();
+    if (!name.empty() && roster().fighters[left_].find(name) < 0) {
+        std::string names;
+        for (const gongfu::MoveDef& m : roster().fighters[left_].def.moves)
+            if (m.asked) names += (names.empty() ? "" : ", ") + m.name;
+        return ActResult::fail(std::format("player 1's fighter has no move `{}` (its moves: {})", name, names));
+    }
+    const std::string before = props.demo;
+    props.demo = std::string(name);
+    start_demo();
+    changed();
+    return ActResult::done().undo_by("demonstrate", Value(before));
 }
 
 ActResult Stage::leave(ActContext&) {
@@ -883,14 +978,14 @@ ActResult Stage::inputs(ActContext&) {
 }
 
 void Stage::save_state() {
-    if (match_) saved_ = Saved{match_->state(), effects_, inputs_.size()};
+    if (match_) saved_ = Saved{match_->state(), effects_, inputs_, left_, right_};
 }
 
 bool Stage::load_state() {
-    if (!match_ || !saved_) return false;
+    if (!match_ || !saved_ || saved_->left != left_ || saved_->right != right_) return false;
     match_->restore(saved_->state);
     effects_ = saved_->effects;
-    inputs_.resize(std::min(inputs_.size(), saved_->inputs));  // the pads that led here, no more: `inputs` replays to this state
+    inputs_ = saved_->inputs;  // the pads that led here, no more: `inputs` replays to this state
     readout_.clear();  // its history is of frames no longer played
     over_reported_ = match_->state().over != 0;
     return true;
@@ -914,6 +1009,7 @@ ActResult Stage::save(ActContext&) {
 }
 
 ActResult Stage::load(ActContext&) {
+    if (saved_ && (saved_->left != left_ || saved_->right != right_)) return ActResult::fail("the state saved is of other fighters: `save` this match first");
     if (!load_state()) return ActResult::fail("nothing saved: `save` first");
     changed();
     return ActResult::done(Value(match_->state().frame));

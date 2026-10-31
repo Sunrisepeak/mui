@@ -386,7 +386,7 @@ int main(int argc, char** argv) {
         check_eq(g.state().over, std::uint32_t{1});
         check_eq(g.disagreement(), std::string());
         std::println("    beam {:016x}", beam);
-        check_eq(beam, std::uint64_t{0xd61db6953a80ee06});  // GCC (LLVM: CI)
+        check_eq(beam, std::uint64_t{0xc42d9fbf7c98bf2c});  // GCC (LLVM: CI)
     });
 
     s.test("a rewind costs 100 sparks, puts every brick back and the score with it; never past 2 s nor the last landing; it cannot be farmed", [] {
@@ -465,7 +465,7 @@ int main(int argc, char** argv) {
         check(g.state().frame > frame, "on again");
     });
 
-    s.test("the bricks are the ball's: a click on one reaches the field, an agent's toggle of one is put back; the keys steer after the pointer", [] {
+    s.test("the bricks are the ball's: a click on one reaches the field, an agent's toggle of one refused (read-only, and why); the keys steer after the pointer", [] {
         Game g(1);
         g.h.step();
         std::size_t sw = 0;
@@ -482,9 +482,11 @@ int main(int argc, char** argv) {
         // An agent's toggle: the simulation's state again at once.
         Invocation call;
         call.actor = {"agent", "test", {}};
-        (void)g.h.runtime().act(toggle, "toggle", call);
+        const Envelope refused = g.h.runtime().act(toggle, "toggle", call);
+        check(refused.exit_code() != std::optional<int>(0) && refused.ndjson().contains("read-only: the ball operates the bricks"), refused.ndjson());
         g.h.step();
-        check(g.h.runtime().get(toggle, "checked").as_bool() == was, "put back");
+        check(g.h.runtime().get(toggle, "checked").as_bool() == was, "unchanged");
+        check(g.h.tree().node(g.h.runtime().path(toggle))->states.has(State::readonly), "read-only to every reader");
         check(!g.h.tree().node(g.h.runtime().path(toggle))->states.has(State::focusable), "not in the Tab order");
     });
 
@@ -597,7 +599,7 @@ int main(int argc, char** argv) {
         const auto px = p.pixels();
         check(p.h.save_png(scratch_dir("breakout-room5") / "copilot.png").has_value());
         std::println("    copilot {:016x}", px);
-        check_eq(px, std::uint64_t{0xf22e8ad933693c0d});  // GCC (LLVM: CI)
+        check_eq(px, std::uint64_t{0xaf319f35d0ba432e});  // GCC (LLVM: CI)
     });
 
     s.test("a run: room 1 shut down — the wave, the next room's skin, two contraptions offered; one taken, room 2 begins with what the run carries and drops it", [] {
@@ -643,7 +645,7 @@ int main(int argc, char** argv) {
         g.h.advance(seconds(0.25));
         check(g.component().props.room == 1 && g.component().run_so_far().kit.empty() && g.state().score == 0 && g.state().lives == 3, "afresh");
         std::println("    choice {:016x}", choice);
-        check_eq(choice, std::uint64_t{0x2b92d11da967fa07});  // GCC (LLVM: CI)
+        check_eq(choice, std::uint64_t{0x0857ac00b1ba15c9});  // GCC (LLVM: CI)
     });
 
     s.test("between rooms, a casing open: its script — TypeScript, Lua, Python — edited and reloaded in place under 200 ms, a preset retuning it, a bad one keeping the rules; the rules reach the next room", [] {

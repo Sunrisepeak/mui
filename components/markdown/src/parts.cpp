@@ -12,6 +12,21 @@ namespace omui::mdview {
 
 namespace {
 
+// Whether following a link leaves the application: an address with a scheme
+// (https:, mailto:) or a host (//), or a page beside it when the document's
+// base is itself an address; a heading (#…) never does.
+bool leaves(std::string_view href, std::string_view base) {
+    const auto scheme = [](std::string_view s) {
+        const auto colon = s.find(':');
+        if (colon == std::string_view::npos || colon == 0) return false;
+        if (!std::isalpha(static_cast<unsigned char>(s[0]))) return false;
+        return std::ranges::all_of(s.substr(0, colon), [](char c) { return std::isalnum(static_cast<unsigned char>(c)) || c == '+' || c == '-' || c == '.'; });
+    };
+    if (href.starts_with('#')) return false;
+    if (href.starts_with("//") || scheme(href)) return true;
+    return scheme(base) && !base.starts_with("file:");
+}
+
 // ── the document's look, from the theme ──
 
 constexpr float block_gap = 12;   // between the blocks of the document, a quote, a loose item
@@ -429,11 +444,15 @@ std::vector<Element> Text::compose() {
         e.prop("width", Source{Value(0.0), {}, {}});
         e.prop("height", Source{Value(0.0), {}, {}});
         if (!image) {
-            // Following a link reaches outside the application (S-1); a person's
-            // own click is the answer (S-2a), an agent states it.
-            e.prop("effect", Source{Value("external"), {}, {}});
-            e.prop("answer", Source{Value("yes"), {}, {}});
+            // Following an address reaches outside the application (S-1); a
+            // person's own click is the answer (S-2a), an agent states it. A
+            // heading of the document or a page beside it stays inside: as a
+            // button's (the application shows it).
             const md::Link link = data->links[ref];
+            if (leaves(link.href, data->hub->base_url)) {
+                e.prop("effect", Source{Value("external"), {}, {}});
+                e.prop("answer", Source{Value("yes"), {}, {}});
+            }
             auto hub = data->hub;
             e.on("activate", [hub, link](const Value&) {
                 if (hub->activate_link) hub->activate_link(link);

@@ -67,6 +67,14 @@ std::string invalid_arguments(const spec::ActionDesc& a, const Value& args) {
     return std::format("{} (it takes {})", out, takes);
 }
 
+// `readonly`: true, or why in words (a brick a game's ball operates).
+std::optional<std::string> readonly_of(const Value* v) {
+    if (!v || v->is_null()) return std::nullopt;
+    if (v->type() == Value::Type::boolean) return v->as_bool() ? std::optional<std::string>(std::string()) : std::nullopt;
+    const std::string_view why = v->as_string();
+    return why.empty() ? std::nullopt : std::optional<std::string>(std::string(why));
+}
+
 }  // namespace
 
 void Runtime::Impl::call_handlers(NodeId id, std::string_view event, const Value& args) {
@@ -102,6 +110,7 @@ spec::SemanticNode Runtime::Impl::semantics(NodeId id) const {
         if (auto r = spec::parse_role(v->as_string())) s.role = *r;
     if (const Value* v = prop("label")) s.name = std::string(v->as_string());
     if (const Value* v = prop("description")) s.description = std::string(v->as_string());
+    if (readonly_of(prop("readonly"))) s.states.set(State::readonly);
     if (const Value* v = prop("origin"))
         if (auto o = spec::parse_origin(v->as_string())) s.origin = *o;
 
@@ -217,6 +226,13 @@ Envelope Runtime::Impl::perform(NodeId id, std::string_view action, const Invoca
         env.error(spec::error_code::refused, std::format("'{}' is disabled", where)).result(spec::exit_code::failure);
         return stop(std::move(env));
     }
+    // Read-only (the state's doc: read, not changed): what it shows is another's to change.
+    if (auto it = at(id).props.find("readonly"); it != at(id).props.end() && effect != Effect::read)
+        if (auto why = readonly_of(&it->second)) {
+            env.error(spec::error_code::refused, why->empty() ? std::format("'{}' is read-only", where) : std::format("'{}' is read-only: {}", where, *why))
+                .result(spec::exit_code::failure);
+            return stop(std::move(env));
+        }
     if (a && a->person && call.remote) return stop(person_only(std::format("{} on '{}'", action, where)));
     // Over the bus, an action is decided by the verb it invokes, or by its own name (S-11).
     const openas::Decision clear = clearance(a && !a->verb.empty() ? std::string_view(a->verb) : action, effect, a && a->person, call);

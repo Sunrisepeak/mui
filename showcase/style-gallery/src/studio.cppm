@@ -87,6 +87,12 @@ private:
     std::vector<theme::Style>   undo_, redo_;
     std::string                 last_key_;       // the field the last step changed: more of it joins that step
     double                      last_at_ = -1e9;  // when (the runtime's seconds)
+    std::optional<std::uint64_t> last_gesture_;  // and in which drag (none: typing, keys)
+    // Each pack's history, kept while another is shown.
+    struct Kept {
+        std::vector<theme::Style> undo, redo;
+    };
+    std::map<std::string, Kept, std::less<>> kept_;
     Saved                       saved_{true, false, true, 0.6, "Ada Lovelace", "eu"};
 };
 

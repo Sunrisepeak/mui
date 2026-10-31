@@ -339,6 +339,8 @@ std::vector<Element> room_bricks(const RoomDef& r, std::function<void(std::size_
     std::vector<Element> bricks;
     for (std::size_t i = 0; i < r.bricks.size(); ++i) {
         bricks.push_back(brick_view(r.bricks[i], i));
+        // The ball's to operate: read, not changed — an agent's toggle is refused and says so (as a person's click passes it to the field).
+        bricks.back().prop("readonly", Source(Value("the ball operates the bricks: aim it there (the field's actions, or the paddle)")));
         if (changed) bricks.back().on("changed", [changed, i](const Value&) { changed(i); });
     }
     out.push_back(column({.id = std::format("room.{}", r.number), .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100))}, std::move(bricks)));

@@ -29,8 +29,8 @@ constexpr std::array<std::string_view, 15> visual_props{
 constexpr std::array<std::string_view, 2> motion_props{"glyph_motion", "pixel_effect"};
 
 // `undo_scope`: the node keeps its own history of what is done inside it (S-12).
-constexpr std::array<std::string_view, 12> semantic_props{
-    "label", "description", "role", "origin", "focusable", "disabled", "verb", "verb_args", "effect", "answer", "person", "undo_scope",
+constexpr std::array<std::string_view, 13> semantic_props{
+    "label", "description", "role", "origin", "focusable", "disabled", "readonly", "verb", "verb_args", "effect", "answer", "person", "undo_scope",
 };
 
 // The theme scope a node and its subtree are drawn in (Runtime::set_scope).
@@ -555,7 +555,7 @@ void Runtime::Impl::apply_now(NodeId id, std::string_view name, const Value& val
     touch(what);
 }
 
-std::optional<Node::PixelEffectState> Runtime::Impl::effect_state(const Value& value, std::string_view where) {
+std::optional<Node::PixelEffectState> Runtime::Impl::effect_state(const Value& value, std::string_view where, const Theme* theme) {
     const Value* fx = value.get("name");
     if (!fx || !value.map()) return std::nullopt;
     const auto ref = render::effects().find(fx->as_string());
@@ -564,8 +564,25 @@ std::optional<Node::PixelEffectState> Runtime::Impl::effect_state(const Value& v
         return std::nullopt;
     }
     std::vector<std::pair<std::string_view, float>> given;
-    for (const auto& [k, v] : *value.map())
+    const render::EffectInfo* about = render::effects().info(*ref);
+    const auto param = [&](std::string_view n) -> std::string_view {  // its name as the effect keeps it (lives as long as the effect)
+        if (about)
+            for (const auto& ep : about->params)
+                if (ep.name == n) return ep.name;
+        return {};
+    };
+    for (const auto& [k, v] : *value.map()) {
         if (v.is_number()) given.emplace_back(k, static_cast<float>(v.as_double()));
+        // A colour by the theme's name: its channels from the node's theme (a pack's accent edited, the effect follows).
+        else if (v.type() == Value::Type::text && theme && k != "name" && k != "ease")
+            if (const auto r = param(std::format("{}_r", k)), g = param(std::format("{}_g", k)), b = param(std::format("{}_b", k)); !r.empty() && !g.empty() && !b.empty()) {
+                const Color c = theme->color(v.as_string());
+                given.emplace_back(r, c.r);
+                given.emplace_back(g, c.g);
+                given.emplace_back(b, c.b);
+                if (const auto a = param(std::format("{}_a", k)); !a.empty()) given.emplace_back(a, c.a);
+            }
+    }
     Node::PixelEffectState st;
     st.effect = *ref;
     st.params = render::effects().params(*ref, given);
@@ -602,7 +619,7 @@ void Runtime::Impl::apply_rules(NodeId id) {
         }
         if (!window && !best && r.selector == role) best = &r;
     }
-    if (best) n.styled_effect = effect_state(best->effect, std::format("the style's `{}`", best->selector));
+    if (best) n.styled_effect = effect_state(best->effect, std::format("the style's `{}`", best->selector), &theme_of(id));
 }
 
 void Runtime::Impl::sync_style(NodeId id) {

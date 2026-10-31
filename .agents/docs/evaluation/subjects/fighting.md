@@ -4,6 +4,8 @@
 
 **Top 3:** Street Fighter 6 · Guilty Gear -Strive- · Skullgirls 2nd Encore. **Reference:** Them's Fightin' Herds, Pocket Bravery (what an indie team reaches).
 
+**The bar for supers, impact and UI (the maintainer):** `supers_direction`, `hit_impact`, `vfx` and `hud_menus` are scored against Street Fighter 6 itself. The only allowance is 2D against 3D: what SF6 does with a camera in space, a 2D game must do with its own means (cuts, pans and pushes on painted planes, impact frames, drawn effects). An indie budget, a generated asset or "for 2D" is no excuse beyond that. The focused evaluation of these is the subject `fighting-presentation`.
+
 **Dimensions:**
 - `character_design` — silhouettes, anatomy, hands to the fingers, faces, costume, materials, a style both unified and distinct per fighter.
 - `animation` — key poses, line of action, weight, squash and stretch, smears, follow-through, secondary motion, idles and walks with personality.

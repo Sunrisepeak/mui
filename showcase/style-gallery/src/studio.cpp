@@ -8,6 +8,10 @@ import mcpplibs.os;
 
 namespace omui::styles {
 
+namespace {
+constexpr double corner_max = 32;  // the Corners field's range, the slider's and styles.set's alike
+}  // namespace
+
 Studio::Studio() {
     if (auto r = themes::add_styles(); !r)
         for (const auto& d : r.error()) warn("styles: {}", d.text());
@@ -16,6 +20,8 @@ Studio::Studio() {
 std::expected<void, std::string> Studio::show(std::string_view name, bool crossfade) {
     const auto st = theme::library().find_style(name);
     if (!st) return std::unexpected(std::format("no style is named `{}`", name));
+    // The pack left keeps its history; the one shown takes its own back.
+    if (!current_.empty()) kept_[current_] = {std::move(undo_), std::move(redo_)};
     current_ = std::string(name);
     // The pack as shipped: the first time it is shown (an edited one, shown
     // again, keeps its edits; reset goes back to this).
@@ -25,6 +31,11 @@ std::expected<void, std::string> Studio::show(std::string_view name, bool crossf
     draft_ = *st;
     undo_.clear();
     redo_.clear();
+    if (auto k = kept_.find(name); k != kept_.end()) {
+        undo_ = std::move(k->second.undo);
+        redo_ = std::move(k->second.redo);
+        kept_.erase(k);
+    }
     last_key_.clear();
     problem.set(std::string());
     accent_text.set(std::string());
@@ -51,7 +62,9 @@ std::expected<void, std::string> Studio::apply_draft() {
 }
 
 // One step of the history: the draft before, unless the same field changed
-// a moment ago (a drag, typing): then it joins that step.
+// in the same drag (one press of the pointer), or by typing or keys a moment
+// ago: then it joins that step. Whole or not at all: a change the pack does
+// not take leaves the draft and its history as they were.
 std::expected<void, std::string> Studio::edit(std::string key, const std::function<std::expected<void, std::string>(theme::Style&)>& change) {
     theme::Style next = draft_;
     if (auto r = change(next); !r) {
@@ -59,14 +72,22 @@ std::expected<void, std::string> Studio::edit(std::string key, const std::functi
         return r;
     }
     const double now = runtime ? runtime->now().count() : 0;
-    const bool joins = key == last_key_ && now - last_at_ < 1.0 && !undo_.empty();
-    if (!joins) undo_.push_back(draft_);
+    const std::optional<std::uint64_t> gesture = runtime ? runtime->pointer_gesture() : std::nullopt;
+    const bool same = key == last_key_ && !undo_.empty() && (gesture ? gesture == last_gesture_ : !last_gesture_ && now - last_at_ < 1.0);
+    theme::Style before = std::exchange(draft_, std::move(next));
+    if (auto r = apply_draft(); !r) {
+        draft_ = std::move(before);
+        (void)apply_draft();
+        problem.set(r.error());
+        return r;
+    }
+    if (!same) undo_.push_back(std::move(before));
     redo_.clear();
     last_key_ = std::move(key);
     last_at_ = now;
-    draft_ = std::move(next);
+    last_gesture_ = gesture;
     problem.set(std::string());
-    return apply_draft();
+    return {};
 }
 
 std::expected<void, std::string> Studio::set_color(std::string_view token, std::string_view hex) {
@@ -83,7 +104,7 @@ std::expected<void, std::string> Studio::set_color(std::string_view token, std::
 
 std::expected<void, std::string> Studio::set_radius(std::string_view token, double value) {
     return edit(std::format("radius:{}", token), [&](theme::Style& s) -> std::expected<void, std::string> {
-        if (!(value >= 0 && value <= 64)) return std::unexpected(std::format("a radius is 0 to 64 px, not {}", value));
+        if (!(value >= 0 && value <= corner_max)) return std::unexpected(std::format("corners are 0 to {} px, not {}", corner_max, value));
         s.tokens.radius[std::string(token)] = static_cast<float>(value);
         return {};
     });
@@ -94,11 +115,16 @@ std::expected<void, std::string> Studio::set_param(std::string_view selector, st
         for (EffectRule& r : s.effects)
             if (r.selector == selector) {
                 const std::string effect(r.effect.get("name") ? r.effect.get("name")->as_string() : "");
-                if (const auto ref = render::effects().find(effect))
-                    if (const render::EffectInfo* info = render::effects().info(*ref))
-                        for (const auto& ep : info->params)
-                            if (ep.name == param && !(value >= ep.min && value <= ep.max))
-                                return std::unexpected(std::format("{} of {} is {} to {}, not {}", param, effect, ep.min, ep.max, value));
+                const auto ref = render::effects().find(effect);
+                const render::EffectInfo* info = ref ? render::effects().info(*ref) : nullptr;
+                if (!info) return std::unexpected(std::format("no effect `{}` is registered", effect));
+                const auto ep = std::ranges::find(info->params, param, &render::EffectParam::name);
+                if (ep == info->params.end()) {
+                    std::string names;
+                    for (const auto& p : info->params) names += (names.empty() ? "" : ", ") + std::string(p.name);
+                    return std::unexpected(std::format("{} has no parameter `{}` (it has {})", effect, param, names));
+                }
+                if (!(value >= ep->min && value <= ep->max)) return std::unexpected(std::format("{} of {} is {} to {}, not {}", param, effect, ep->min, ep->max, value));
                 r.effect.set(param, Value(value));
                 return {};
             }
@@ -224,6 +250,7 @@ float panel_radius(const Studio& s) {
 
 // A panel: a region, so the style's "role:region" effect is its.
 Element panel(Studio& s, std::string id, std::string title, std::vector<Element> children, float grow = 0) {
+    const std::string title_of = title;
     std::vector<Element> all{text({.text = std::move(title), .style = "heading"})};
     for (Element& c : children) all.push_back(std::move(c));
     Element e = column({.id = std::move(id), .min_width = 0, .padding = 18, .gap = 12, .grow = grow, .background = "surface", .border_color = "border",
@@ -233,6 +260,7 @@ Element panel(Studio& s, std::string id, std::string title, std::vector<Element>
                         })},
                        std::move(all));
     e.prop("role", Source(Value("region")));
+    e.prop("label", Source(Value(title_of)));  // a region is named (S-6): its heading
     return e;
 }
 
@@ -245,7 +273,8 @@ Element stat(Studio& s, std::string id, std::string label, std::string value, do
 
 Element preview(Studio& s) {
     Element settings = panel(s, "settings", "Settings",
-                             {text_box({.id = "name", .label = "Display name", .text = s.name, .on_changed = [&s](std::string v) { s.name.set(std::move(v)); }}),
+                             {text({.text = "Display name", .style = "label"}),
+                              text_box({.id = "name", .label = "Display name", .text = s.name, .on_changed = [&s](std::string v) { s.name.set(std::move(v)); }}),
                               toggle({.id = "notifications", .checked = s.notifications, .label = "Notifications",
                                       .on_changed = [&s](bool v) { s.notifications.set(v); }}),
                               toggle({.id = "cellular", .checked = s.cellular, .label = "Sync over cellular", .on_changed = [&s](bool v) { s.cellular.set(v); }}),
@@ -256,6 +285,7 @@ Element preview(Studio& s) {
                                            .on_changed = [&s](double v) { s.volume.set(v); }, .grow = 1}),
                                    text({.text = computed([&s] { return std::format("{:.0f}%", s.volume.get() * 100); }), .style = "label",
                                          .align = "end", .width = Dim(44.0f)})}),
+                              text({.text = "Region", .style = "label"}),
                               select({.id = "region", .label = "Region", .labels = std::vector<std::string>{"Europe", "Americas", "Asia"},
                                       .options = std::vector<std::string>{"eu", "am", "as"}, .value = s.region,
                                       .on_changed = [&s](std::string v) { s.region.set(std::move(v)); }}),
@@ -282,19 +312,24 @@ Element preview(Studio& s) {
                                                 .label = "Sign-ups by day: Mon 210, Tue 325, Wed 255, Thu 415, Fri 370, Sat 460, Sun 300",
                                                 .paint = [](PaintContext& p) {
                                                     constexpr std::array<float, 7> days{0.42f, 0.65f, 0.51f, 0.83f, 0.74f, 0.92f, 0.6f};
+                                                    // The best day the accent; the rest the accent half-strength, which still stands off the panel (3:1 and more).
                                                     const float w = p.size.width, h = p.size.height, gap = 10;
                                                     const float bar = (w - gap * 6) / 7;
                                                     for (std::size_t i = 0; i < days.size(); ++i) {
                                                         const float bh = days[i] * (h - 4);
                                                         p.list.fill_round_rect({static_cast<float>(i) * (bar + gap), h - bh, bar, bh}, CornerRadii::all(4),
-                                                                               render::Paint::solid(p.theme.color(i == 5 ? "accent" : "accent_subtle")));
+                                                                               render::Paint::solid(p.theme.color("accent").with_alpha(i == 5 ? 1.0f : 0.62f)));
                                                     }
                                                 }}),
                                        row({.id = "days", .justify = "space_between"},
                                            [] {
+                                               // Each day's name and its number, under its bar.
                                                std::vector<Element> d;
-                                               for (std::string_view day : {"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"})
-                                                   d.push_back(text({.text = std::string(day), .style = "caption", .color = "text_muted"}));
+                                               constexpr std::array<std::pair<std::string_view, int>, 7> week{
+                                                   {{"Mon", 210}, {"Tue", 325}, {"Wed", 255}, {"Thu", 415}, {"Fri", 370}, {"Sat", 460}, {"Sun", 300}}};
+                                               for (auto [day, n] : week)
+                                                   d.push_back(column({.align = "center"}, {text({.text = std::to_string(n), .style = "label"}),
+                                                                                           text({.text = std::string(day), .style = "caption", .color = "text_muted"})}));
                                                return d;
                                            }()),
                                        text({.text = "Saturday was the best day yet.", .style = "caption", .color = "text_muted"})})});
@@ -331,6 +366,9 @@ Element sidebar(Studio& s) {
 // A parameter's name as a person reads it ("sweep_width" → "Sweep width"),
 // and its value with the unit its description gives.
 std::string human(std::string_view name) {
+    // A colour's channels by name: tint_r → "Tint · red".
+    for (auto [suffix, channel] : {std::pair{"_r", "red"}, {"_g", "green"}, {"_b", "blue"}, {"_a", "opacity"}})
+        if (name.size() > 2 && name.ends_with(suffix)) return std::format("{} · {}", human(name.substr(0, name.size() - 2)), channel);
     std::string out(name);
     std::ranges::replace(out, '_', ' ');
     if (!out.empty() && out[0] >= 'a' && out[0] <= 'z') out[0] = static_cast<char>(out[0] - 'a' + 'A');
@@ -370,6 +408,7 @@ Element editor(Studio& s, bool wide = false) {
             }();
             // What was typed stays while it is not a colour, with why.
             std::string accent = s.accent_text.peek().empty() ? shown_accent : s.accent_text.peek();
+            ui.text("Accent", {.style = "caption", .color = Fill("text_muted")});
             if (ui.text_box("Accent", accent, {.id = "accent", .placeholder = "#rrggbb"})) {
                 s.accent_text.set(accent);
                 if (s.set_color("accent", accent)) s.accent_text.set(std::string());
@@ -380,7 +419,7 @@ Element editor(Studio& s, bool wide = false) {
                 return it != d.tokens.radius.end() ? static_cast<double>(it->second) : 8.0;
             }();
             ui.text(std::format("Corners · {:.0f} px", radius), {.style = "caption", .color = Fill("text_muted")});
-            if (ui.slider("Corners", radius, {.id = "corners", .min = 0, .max = 32, .step = 1})) (void)s.set_radius("medium", radius);
+            if (ui.slider("Corners", radius, {.id = "corners", .min = 0, .max = corner_max, .step = 1})) (void)s.set_radius("medium", radius);
             struct Changed {
                 std::string selector, param;
                 double      value;
@@ -389,7 +428,9 @@ Element editor(Studio& s, bool wide = false) {
             for (const EffectRule& r : d.effects) {
                 auto scope = ui.scope(r.selector);
                 const std::string effect(r.effect.get("name") ? r.effect.get("name")->as_string() : "");
-                const std::string on = r.selector.starts_with("role:") ? std::format("every {}", r.selector.substr(5)) : std::format("every {}", r.selector);
+                // Where it lies, as a person names it: a region is a panel here.
+                const std::string_view what = r.selector.starts_with("role:") ? std::string_view(r.selector).substr(5) : std::string_view(r.selector);
+                const std::string on = what == "region" ? std::string("the panels") : std::format("every {}", human(what));
                 ui.text(std::format("{} — on {}", human(effect), on), {.style = "label"});
                 const auto ref = render::effects().find(effect);
                 const render::EffectInfo* info = ref ? render::effects().info(*ref) : nullptr;

@@ -243,6 +243,11 @@ Envelope Runtime::invoke(std::string_view verb, const Invocation& given) {
     return e;
 }
 
+std::optional<std::uint64_t> Runtime::pointer_gesture() const {
+    const Impl& d = *impl_;
+    return d.held ? std::optional<std::uint64_t>(d.presses) : std::nullopt;
+}
+
 std::optional<Actor> Runtime::acting() const {
     const Impl& d = *impl_;
     if (d.actors.empty()) return std::nullopt;

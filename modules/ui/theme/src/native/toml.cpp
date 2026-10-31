@@ -368,7 +368,16 @@ std::expected<std::vector<Style>, Diagnostics> read_styles(std::string_view sour
                             continue;
                         }
                         const bool control = std::ranges::find(effect_control_keys, param) != effect_control_keys.end();
-                        const bool known = control || std::ranges::any_of(info->params, [&](const render::EffectParam& ep) { return ep.name == param; });
+                        // A colour by the theme's name (`color = "accent"`): its channels, `color_r` `color_g` `color_b`, follow the pack's colours.
+                        const auto has = [&](std::string_view n) {
+                            return std::ranges::any_of(info->params, [&](const render::EffectParam& ep) { return ep.name == n; });
+                        };
+                        if (has(std::format("{}_r", param)) && has(std::format("{}_g", param)) && has(std::format("{}_b", param))) {
+                            if (auto c = pv.value<std::string>()) effect.set(param, Value(*c));
+                            else r.error(&pv, std::format("`{}` is a colour of the theme by name (\"accent\", \"border\" …)", param));
+                            continue;
+                        }
+                        const bool known = control || has(param);
                         if (!known) {
                             std::string all;
                             std::string_view best;

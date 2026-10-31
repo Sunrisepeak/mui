@@ -338,6 +338,11 @@ public:
     // (openas: an agent's click that takes a card takes it as the agent).
     // None outside an action.
     [[nodiscard]] std::optional<Actor> acting() const;
+    // The press under way: its number (each press of a pointer counts one),
+    // none while no pointer is held. What a drag changes, step by step, is one
+    // gesture: a program's own history joins its steps by it (a slider
+    // dragged twice is two steps, however quick).
+    [[nodiscard]] std::optional<std::uint64_t> pointer_gesture() const;
     [[nodiscard]] NodeId undo_scope(NodeId node) const;
     [[nodiscard]] History history(NodeId scope) const;
     void clear_history(NodeId scope);

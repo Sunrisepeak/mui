@@ -37,6 +37,8 @@ public:
     ActResult restart(ActContext& ctx);
     ActResult rematch(ActContext& ctx);
     ActResult leave(ActContext& ctx);
+    ActResult fighters(ActContext& ctx, const FightersArgs& args);
+    ActResult demonstrate(ActContext& ctx, const Value& move);
     ActResult pause(ActContext& ctx);
     ActResult resume(ActContext& ctx);
     ActResult step(ActContext& ctx);
@@ -76,7 +78,7 @@ private:
     // The card over the match: paused (Esc, a pad's start: the match stands)
     // or the results (the match decided, its K.O. seen). Its items by what
     // they do: resume, restart, rematch, fighters.
-    enum class Menu : std::uint8_t { none, paused, results };
+    enum class Menu : std::uint8_t { none, paused, results, moves };
     [[nodiscard]] Menu menu() const noexcept;
     [[nodiscard]] std::span<const std::string_view> menu_items() const noexcept;
     bool on_menu(EventContext& ctx, const InputEvent& e);  // the card's keys, pad and pointer
@@ -84,7 +86,13 @@ private:
     void open_menu(bool paused);
     bool                                  paused_ = false;   // the pause card is up
     bool                                  swapped_ = false;  // training: the person plays player 2 (recording it from the card)
-    mutable std::array<std::string_view, 9> items_{};        // the card's items as they stand (menu_items)
+    // Training's move list (from the pause card): player 1's moves by name, and as they read (name, startup, damage); ten a page.
+    bool                                  listing_ = false;
+    std::vector<std::string_view>         moves_;
+    std::vector<std::string>              move_labels_;
+    void list_moves();
+    [[nodiscard]] std::pair<std::size_t, std::size_t> page() const noexcept;  // the items shown: the first, how many
+    mutable std::array<std::string_view, 10> items_{};        // the card's items as they stand (menu_items)
     void save_state();
     bool load_state();
     void fill_meters();
@@ -130,7 +138,8 @@ private:
     struct Saved {
         gongfu::State              state;
         gongfu::present2d::Effects effects;
-        std::size_t                inputs = 0;  // how many frames of pads had led to it
+        std::vector<std::array<gongfu::Pad, 2>> inputs;  // the pads that had led to it (a round restarted since, they still do)
+        std::size_t                left = 0, right = 0;  // between whom (another pair cannot take it)
     };
     std::optional<Saved>                  saved_;
     // What painting reuses from frame to frame (paint is const; these are its scratch).

@@ -411,6 +411,19 @@ int main(int argc, char** argv) {
                                                }});
         auto cap = talk(with_capture, R"({"op":"capture","node":"notes/save"})");
         check(exit_of(cap) == 0 && cap[0].get("data")->get("base64")->as_string() == "UE5H");
+        // A part of the window, to look closer: clipped to what is captured; outside, refused.
+        Rect asked{};
+        agent::Protocol closer(app.rt, {.capture = [&](Rect r) -> std::expected<std::vector<std::uint8_t>, std::string> {
+                                            asked = r;
+                                            return std::vector<std::uint8_t>{'P', 'N', 'G'};
+                                        }});
+        check(exit_of(talk(closer, R"({"op":"capture","region":[10,20,30,40]})")) == 0 && asked == Rect{10, 20, 30, 40}, "a region");
+        const Size win = app.rt.size();
+        check(exit_of(talk(closer, std::format(R"({{"op":"capture","region":[{},{},100,100]}})", win.width - 50, win.height - 50))) == 0 &&
+                  asked == Rect{win.width - 50, win.height - 50, 50, 50},
+              "clipped to the window");
+        check(exit_of(talk(closer, R"({"op":"capture","region":[-500,-500,10,10]})")) == 1, "outside: refused");
+        check(exit_of(talk(closer, R"({"op":"capture","region":[1,2]})")) == 1, "four numbers");
     });
 
     s.test("development: the application's clock, paused, stepped and sought (F4)", [] {

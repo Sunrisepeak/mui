@@ -503,10 +503,23 @@ void versus(render::DisplayList& out, const gongfu::Match& match, const p2::Effe
     {
         const float d = 90, x = width / 2 - d / 2, y = 2;
         picture(out, art.frames, region::timer, {x, y, d, d * region::timer.height / region::timer.width});
-        const std::int32_t seconds = std::clamp((st.timer + 59) / 60, 0, 99);
-        const bool last = seconds <= 10 && seconds > 0;
-        digits(out, art.type, seconds, {width / 2, y + d * region::timer.height / region::timer.width / 2 + 1}, 36,
-               last ? std::optional<Color>(tone(0xff5a3c)) : std::nullopt);
+        const float cy = y + d * region::timer.height / region::timer.width / 2 + 1;
+        if (match.system().timeless) {  // no time limit: ∞, two loops in the type's gold
+            render::Path loops;
+            constexpr int steps = 48;
+            for (int k = 0; k <= steps; ++k) {
+                const double t = 2 * std::numbers::pi * k / steps;
+                const double den = 1 + hanim::dm::sin(t) * hanim::dm::sin(t);
+                const Point p{width / 2 + static_cast<float>(19 * hanim::dm::cos(t) / den), cy + static_cast<float>(19 * hanim::dm::sin(t) * hanim::dm::cos(t) / den)};
+                if (k == 0) loops.move_to(p);
+                else loops.line_to(p);
+            }
+            out.stroke_path(loops, {.width = 4.5f, .cap = render::LineCap::round, .join = render::LineJoin::round}, render::Paint::solid(tone(0xf2d28a)));
+        } else {
+            const std::int32_t seconds = std::clamp((st.timer + 59) / 60, 0, 99);
+            const bool last = seconds <= 10 && seconds > 0;
+            digits(out, art.type, seconds, {width / 2, cy}, 36, last ? std::optional<Color>(tone(0xff5a3c)) : std::nullopt);
+        }
     }
 
     // A combo's count and damage on the attacker's side; COUNTER and PUNISH COUNTER as they land.

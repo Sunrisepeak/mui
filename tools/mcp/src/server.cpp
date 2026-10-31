@@ -413,6 +413,7 @@ struct Server::Impl {
             Value req;
             req.set("op", "capture");
             if (auto n = str(args, "node"); !n.empty()) req.set("node", n);
+            if (const Value* r = args.get("region")) req.set("region", *r);
             Answer a = call(*app, req, options.timeout);
             if (a.exit != 0) return tool_result(std::format("{}: {}", a.code, a.message), true);
             Value image;
@@ -546,8 +547,11 @@ Value::List Server::tools() {
                             {"settled", b("nothing animates or is being removed")},
                             {"timeout", prop("number", "seconds (default 5)")}}),
              true, false),
-        tool("ui_capture", "Capture pixels", "The pixels of the window, or of one node, as a PNG image.",
-             object_schema({app_prop, {"node", s("a node's id (default: the window)")}}), true, false),
+        tool("ui_capture", "Capture pixels",
+             "The pixels of the window, or of one node, as a PNG image; `region` [x, y, width, height] (logical pixels, from the node's corner "
+             "or the window's) takes a part of it, to look closer at a detail.",
+             object_schema({app_prop, {"node", s("a node's id (default: the window)")}, {"region", Value{}.set("type", "array").set("items", Value{}.set("type", "number")).set("description", "[x, y, width, height]")}}),
+             true, false),
         tool("ui_input", "Input as a person gives it",
              "Pointer, wheel, keys and text, delivered frame by frame through the application's real input path (hit testing, focus, "
              "gestures), as a person's devices would give them — to use the interface as a person does and find what does not work. Only "

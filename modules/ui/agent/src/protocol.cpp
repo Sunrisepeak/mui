@@ -467,6 +467,18 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
             }
             region = runtime_.screen_bounds(n);
         }
+        // A part of it, to look closer (a hand, a joint): [x, y, width, height], from the node's corner (or the window's).
+        if (const Value* r = req.get("region")) {
+            const Value::List* l = r->list();
+            if (!l || l->size() != 4 || !std::ranges::all_of(*l, [](const Value& v) { return v.is_number(); }))
+                return invalid("`region` is [x, y, width, height] in logical pixels", R"({"op":"capture","region":[100,80,200,150]})");
+            const Rect want{region.x + static_cast<float>((*l)[0].as_double()), region.y + static_cast<float>((*l)[1].as_double()),
+                            static_cast<float>((*l)[2].as_double()), static_cast<float>((*l)[3].as_double())};
+            const float x0 = std::max(want.x, region.x), y0 = std::max(want.y, region.y);
+            const float x1 = std::min(want.x + want.width, region.x + region.width), y1 = std::min(want.y + want.height, region.y + region.height);
+            if (!(x1 > x0 && y1 > y0)) return invalid("`region` lies outside what is captured", R"({"op":"capture","region":[100,80,200,150]})");
+            region = {x0, y0, x1 - x0, y1 - y0};
+        }
         auto png = options_.capture(region);
         if (!png) {
             e.error(spec::error_code::internal, png.error()).result(spec::exit_code::failure);

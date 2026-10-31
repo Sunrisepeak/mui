@@ -29,6 +29,7 @@ leave      = { args = {} }  # the players chose the select screen (the results' 
 [contract.stage.actions]
 restart = { effect = "reversible", doc = "A new round from the start." }
 rematch = { effect = "reversible", doc = "The match again from its first round, the same fighters (the results' 再战 · REMATCH)." }
+fighters = { effect = "reversible", args = { player1 = "string", player2 = "string" }, doc = "Who fights: the players' fighters by their files' names (mo, ni, kun, li, yue, ke; an empty one stays as it is) — a new match." }
 leave   = { effect = "reversible", doc = "Back to the select screen (the results' or the pause menu's 选人 · FIGHTERS): the `leave` event." }
 pause   = { effect = "reversible" }
 resume  = { effect = "reversible" }
@@ -43,4 +44,5 @@ record  = { effect = "reversible", args = { player = "i32" }, doc = "Starts reco
 replay  = { effect = "reversible", args = { player = "i32" }, doc = "Plays the player's recording back, looped, in place of the player." }
 stop    = { effect = "reversible", args = { player = "i32" }, doc = "Stops the player's recording or replay." }
 fill    = { effect = "reversible", doc = "Training: both players' meter full and posture empty." }
+demonstrate = { effect = "reversible", args = { move = "string" }, doc = "Training: player 1's move by name (5LP, 236P), demonstrated over and over as the move list shows it (the stage's `demo`); empty: none." }
 demo_frame = { effect = "reversible", args = { frame = "i32" }, doc = "Training: the demonstration paused at a frame (0: as the move begins), played there from its start." }

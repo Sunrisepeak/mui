@@ -245,6 +245,8 @@ struct Runtime::Impl {
     // input
     NodeId               capture;
     NodeId               pressed;
+    std::uint64_t        presses = 0;  // pointer presses so far (pointer_gesture)
+    bool                 held = false;  // a pointer is held
     Point                pressed_at;  // where the press began: moved further than a click's slop, it was a drag
     std::vector<NodeId>  hover_chain;   // the hovered node and its ancestors
     NodeId               focus;
@@ -385,7 +387,7 @@ struct Runtime::Impl {
     // tree (tree.cpp)
     NodeId create(Element& e, NodeId parent);
     // A pixel effect as a property or a rule writes it ({name, params…, duration…}).
-    std::optional<Node::PixelEffectState> effect_state(const Value& value, std::string_view where);
+    std::optional<Node::PixelEffectState> effect_state(const Value& value, std::string_view where, const Theme* theme = nullptr);
     void apply_rules(NodeId id);
     void   destroy(NodeId id);
     std::vector<ChildSlot> reconcile(NodeId parent, std::vector<ChildSlot> old, std::vector<Element>& elements);

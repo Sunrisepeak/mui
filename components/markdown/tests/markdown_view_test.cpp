@@ -85,6 +85,9 @@ int main(int argc, char** argv) {
         check(spec_link && spec_link->value == Value("https://example.com/spec"), "links are link nodes with their address");
         check(spec_link && spec_link->action("activate") && spec_link->action("activate")->effect == Effect::external,
               "following a link reaches outside (S-1)");
+        const auto jump = find_role(h, Role::link, "usage");
+        check(jump && jump->action("activate") && jump->action("activate")->effect == Effect::reversible && jump->action("activate")->answer.empty(),
+              "a heading of the document is inside: no answer asked");
         check(h.tree().violations().empty(), std::format("{} violations", h.tree().violations().size()));
     });
 

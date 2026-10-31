@@ -1417,6 +1417,24 @@ int main(int argc, char** argv) {
         check(under == 1 && over == 0, std::format("under {} over {}", under, over));
     });
 
+    s.test("readonly: read, not changed — an action that changes it is refused and says why; the state tells every reader", [] {
+        Runtime rt(options());
+        int pressed = 0;
+        rt.mount("main", column({}, {box({.id = "lamp", .width = 40, .height = 20, .label = "Lamp", .on = {{"press", [&](const Value&) { ++pressed; }}}})
+                                         .prop("readonly", Source{Value("the circuit lights it"), {}, {}}),
+                                     box({.id = "plain", .width = 40, .height = 20, .label = "Plain", .on = {{"press", [&](const Value&) { ++pressed; }}}})
+                                         .prop("readonly", Source{Value(true), {}, {}})}));
+        rt.frame();
+        Invocation call;
+        call.actor = {"agent", "test", {}};
+        const Envelope why = rt.act(rt.find("main/lamp"), "activate", call);
+        check(why.exit_code() == std::optional<int>(1) && why.ndjson().contains("read-only: the circuit lights it"), why.ndjson());
+        const Envelope plain = rt.act(rt.find("main/plain"), "activate", call);
+        check(plain.exit_code() == std::optional<int>(1) && plain.ndjson().contains("'main/plain' is read-only"), plain.ndjson());
+        check_eq(pressed, 0);
+        check(rt.semantic_node(rt.find("main/lamp")).states.has(State::readonly), "the state");
+    });
+
     s.test("history (S-12): undo and redo, barriers, scopes, the keyboard", [] {
         Runtime rt(options());
         int changes = 0;

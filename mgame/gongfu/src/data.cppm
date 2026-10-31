@@ -255,6 +255,7 @@ struct SystemDef {
     std::int32_t punish_hitstun = 4;    // extra frames
     std::int32_t punish_hitstop = 4;    // extra frames of hitstop, both
     std::int32_t round_frames = 99 * 60;
+    bool         timeless = false;  // the clock stands (training: practice has no time limit)
     Fixed        stage_width = 1920_fx;
     Box          piece_box{-8_fx, 0_fx, 16_fx, 170_fx};  // a set piece's, from where it stands (G-15)
     Fixed        start_distance = 400_fx;

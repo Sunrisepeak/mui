@@ -17,4 +17,4 @@ large  = 24
 xl     = 28
 
 [style.liquid.effects]
-slider = { effect = "metaball", smoothness = 12, color_r = 0.39, color_g = 0.4, color_b = 0.95 }
+slider = { effect = "metaball", smoothness = 12, color = "accent" }  # the drop in the accent: an edited accent, an edited drop

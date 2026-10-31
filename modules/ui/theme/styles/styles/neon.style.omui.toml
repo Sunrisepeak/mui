@@ -18,7 +18,7 @@ track           = "#1e1b4b"
 thumb           = "#e0f2fe"
 
 [style.neon.effects]
-button        = { effect = "neon", color_r = 0.13, color_g = 0.83, color_b = 0.93, radius = 12, intensity = 1.1 }
-toggle        = { effect = "neon", color_r = 0.13, color_g = 0.83, color_b = 0.93, radius = 10, intensity = 0.9 }
-slider        = { effect = "neon", color_r = 0.13, color_g = 0.83, color_b = 0.93, radius = 8, intensity = 0.7 }
-"role:region" = { effect = "neon", color_r = 0.94, color_g = 0.67, color_b = 0.99, radius = 18, intensity = 0.35 }
+button        = { effect = "neon", color = "accent", radius = 12, intensity = 1.1 }
+toggle        = { effect = "neon", color = "accent", radius = 10, intensity = 0.9 }
+slider        = { effect = "neon", color = "accent", radius = 8, intensity = 0.7 }
+"role:region" = { effect = "neon", color = "border", radius = 18, intensity = 0.35 }

@@ -751,6 +751,11 @@ void Painter::body(const Look& look, const Fighter& fighter, const FighterState&
     pose_at(look, clip, t, s, pose_, follow_);
     const Pose& p = pose_;
     const hanim::seconds at{(clip && clip->loop && clip->frames > 0 ? t % clip->frames : clip ? std::min(t, clip->frames) : t) / 60.0};
+    // A whole-body drawing exposed at this frame (D-90): the fighter is that drawing, in place of its parts.
+    if (const std::int32_t cel = exposed(clip, t); cel >= 0 && static_cast<std::size_t>(cel) < look.cels.size()) {
+        draw_cel(look, look.cels[static_cast<std::size_t>(cel)], s, scene, camera, tint, out);
+        return;
+    }
     order_.resize(look.parts.size());
     std::iota(order_.begin(), order_.end(), std::size_t{0});
     // Insertion sort by depth: stable, in place (std::stable_sort may take a buffer).
@@ -854,6 +859,53 @@ void Painter::body(const Look& look, const Fighter& fighter, const FighterState&
         }
     }
     if (layered) out.pop_layer();
+}
+
+std::int32_t exposed(const Clip* clip, std::int32_t t) noexcept {
+    if (!clip || clip->exposures.empty()) return -1;
+    const std::int32_t f = clip->loop && clip->frames > 0 ? t % clip->frames : std::min(t, clip->frames - 1);
+    std::int32_t cel = -1;
+    for (const auto& [from, which] : clip->exposures) {
+        if (from > f) break;
+        cel = which;
+    }
+    return cel;
+}
+
+Point cel_point(const Look& look, const Cel& cel, const FighterState& s, Point pixel) noexcept {
+    const double scale = cel.scale > 0 ? cel.scale : look.art_scale > 0 ? look.art_scale : 1.0;
+    const double facing = s.facing < 0 ? -1.0 : 1.0;
+    return {static_cast<float>(stage(s.pos.x) + (pixel.x - cel.pivot.x) * scale * facing), static_cast<float>(stage(s.pos.y) + (cel.pivot.y - pixel.y) * scale)};
+}
+
+std::optional<Point> socket(const Look& look, const Fighter& fighter, const FighterState& s, std::int32_t frame, std::string_view name) {
+    const auto [clip, t] = resolve(look, fighter, s, frame);
+    const std::int32_t cel = exposed(clip, t);
+    if (cel < 0 || static_cast<std::size_t>(cel) >= look.cels.size()) return std::nullopt;
+    const Cel& c = look.cels[static_cast<std::size_t>(cel)];
+    const auto it = c.sockets.find(name);
+    if (it == c.sockets.end()) return std::nullopt;
+    return cel_point(look, c, s, it->second.at);
+}
+
+void Painter::draw_cel(const Look& look, const Cel& cel, const FighterState& s, const Scene& scene, const Camera& camera, std::optional<Color> tint,
+                       render::DisplayList& out) {
+    if (cel.picture < 0 || static_cast<std::size_t>(cel.picture) >= look.pictures.size()) return;
+    const Picture& pic = look.pictures[static_cast<std::size_t>(cel.picture)];
+    if (pic.ref.id == 0) return;
+    const View view{scene, camera};
+    const omui::geom::Rect& r = cel.source;
+    const std::array<Point, 4> pixel{Point{r.x, r.y}, {r.x + r.width, r.y}, {r.x + r.width, r.y + r.height}, {r.x, r.y + r.height}};
+    mesh_at_.clear();
+    mesh_uv_.clear();
+    for (const Point& px : pixel) {
+        const Point w = cel_point(look, cel, s, px);
+        mesh_at_.push_back(view.at(w.x, w.y));
+        mesh_uv_.push_back(px);
+    }
+    mesh_index_.assign({0, 1, 2, 0, 2, 3});
+    if (tint) out.draw_mesh_mask(pic.ref, mesh_at_, mesh_uv_, mesh_index_, *tint, render::Sampling::linear, 0);
+    else out.draw_mesh(pic.ref, mesh_at_, mesh_uv_, mesh_index_, render::Sampling::linear, 1.0f, 0);
 }
 
 void Painter::picture_part(const Look& look, const Part& own, std::size_t drawing, const FighterState& s, const Scene& scene, const Camera& camera,

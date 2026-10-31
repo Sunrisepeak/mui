@@ -61,8 +61,10 @@ namespace {
 using data::Diagnostic;
 
 constexpr std::string_view format_version = "0.1";
-constexpr std::array<std::string_view, 27> look_keys{"gongfu", "name", "outline", "accent", "trail", "glow", "footfall", "pane", "clone", "rewind", "palette", "bone", "part", "clip", "impact",
-                                                     "glyph", "cinematic", "projectile", "doc", "light", "picture", "art_scale", "grip", "fx", "cutin", "pose", "material"};
+constexpr std::array<std::string_view, 28> look_keys{"gongfu", "name", "outline", "accent", "trail", "glow", "footfall", "pane", "clone", "rewind", "palette", "bone", "part", "clip", "impact",
+                                                     "glyph", "cinematic", "projectile", "doc", "light", "picture", "art_scale", "grip", "fx", "cutin", "pose", "material", "cel"};
+constexpr std::array<std::string_view, 6> cel_keys{"picture", "source", "pivot", "scale", "sockets", "doc"};
+constexpr std::array<std::string_view, 2> socket_keys{"at", "normal"};
 constexpr std::array<std::string_view, 7> grip_keys{"name", "upper", "lower", "target", "at", "across", "bend"};
 constexpr std::array<std::string_view, 4> picture_keys{"name", "file", "size", "relief"};
 constexpr std::array<std::string_view, 4> relief_keys{"bevel", "detail", "smooth", "strength"};
@@ -101,7 +103,7 @@ constexpr std::array<std::string_view, 2> outline_keys{"color", "width"};
 constexpr std::array<std::string_view, 9> bone_keys{"name", "parent", "joint", "length", "rest", "limb", "prop", "follow", "hang"};
 constexpr std::array<std::string_view, 22> part_keys{"bone", "shape", "size", "points", "color", "depth", "doc", "name", "variants", "shade",
                                                     "picture", "source", "anchor", "tip", "mesh", "bend", "blend", "fit", "drawings", "mirror", "shown", "material"};
-constexpr std::array<std::string_view, 14> clip_keys{"frames", "loop", "ease", "angle", "rise", "doc", "swap", "grip", "aim", "grip_at", "grip_across", "fx", "poses", "show"};
+constexpr std::array<std::string_view, 15> clip_keys{"frames", "loop", "ease", "angle", "rise", "doc", "swap", "grip", "aim", "grip_at", "grip_across", "fx", "poses", "show", "cels"};
 constexpr std::array<std::string_view, 11> impact_keys{"shake", "zoom", "flash", "spark", "sound", "rumble", "doc", "name", "fx", "fx_counter", "fx_punish"};
 constexpr std::array<std::string_view, 6> spark_keys{"style", "size", "count", "frames", "color", "counter"};
 constexpr std::array<std::string_view, 5> shape_names{"capsule", "ellipse", "polygon", "curve", "image"};
@@ -507,6 +509,48 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
     auto range = [&](const toml::node* n, std::string_view what, std::array<float, 2>& out) {
         if (auto v = r.pair(n, what, "[from, to]")) out = {static_cast<float>((*v)[0]), static_cast<float>((*v)[1])};
     };
+
+    // Whole-body drawings (D-90): [cel.<name>] picture, source, pivot (the pixel over the root on the ground), scale, sockets.
+    if (const toml::node* cn = root->get("cel")) {
+        if (const toml::table* ct = cn->as_table()) {
+            for (const auto& [name, node] : *ct) {
+                const toml::table* t = node.as_table();
+                const std::string what = std::format("cel `{}`", name.str());
+                if (!t) {
+                    r.error(&node, std::format("{} is a table", what), "[cel.guard] picture = \"ni-heavy\" source = [0, 0, 768, 512] pivot = [284, 456]");
+                    continue;
+                }
+                r.only(*t, cel_keys, what);
+                Cel c;
+                c.name = std::string(name.str());
+                c.picture = picture_index(t->get("picture"), std::format("{}'s `picture`", what));
+                if (!t->get("picture")) r.error(t, std::format("{} has no `picture`", what));
+                if (auto v = r.rect(t->get("source"), std::format("{}'s `source`", what))) c.source = *v, inside(t->get("source"), c.picture, *v);
+                else if (!t->get("source")) r.error(t, std::format("{} has no `source`", what), "source = [x, y, width, height]: its region of the picture");
+                if (auto v = r.pair(t->get("pivot"), std::format("{}'s `pivot`", what), "pivot = [x, y]: the pixel over the root, on the ground"))
+                    c.pivot = {static_cast<float>((*v)[0]), static_cast<float>((*v)[1])};
+                else if (!t->get("pivot")) r.error(t, std::format("{} has no `pivot`", what), "pivot = [x, y]: the pixel over the root, on the ground");
+                if (auto v = r.number(t->get("scale"), std::format("{}'s `scale`", what), 0, 100)) c.scale = static_cast<float>(*v);
+                if (const toml::table* st = r.table_of(t->get("sockets"), std::format("{}'s `sockets`", what))) {
+                    for (const auto& [sname, snode] : *st) {
+                        const std::string sw = std::format("{}'s socket `{}`", what, sname.str());
+                        const toml::table* so = r.table_of(&snode, sw);
+                        if (!so) continue;
+                        r.only(*so, socket_keys, sw);
+                        Cel::Socket k;
+                        if (auto v = r.pair(so->get("at"), std::format("{}'s `at`", sw), "at = [x, y]: its pixel")) k.at = {static_cast<float>((*v)[0]), static_cast<float>((*v)[1])};
+                        else r.error(so, std::format("{} has no `at`", sw));
+                        if (auto v = r.pair(so->get("normal"), std::format("{}'s `normal`", sw), "normal = [x, y]: the way its surface faces, y down"))
+                            k.normal = {static_cast<float>((*v)[0]), static_cast<float>((*v)[1])};
+                        c.sockets.emplace(std::string(sname.str()), k);
+                    }
+                }
+                look.cels.push_back(std::move(c));
+            }
+        } else {
+            r.error(cn, "`cel` is a table of cels", "[cel.guard] picture = \"ni-heavy\" source = [0, 0, 768, 512] pivot = [284, 456]");
+        }
+    }
 
     // Effects: sprites, strokes and sprays of the look's pictures.
     if (const toml::node* fn = root->get("fx")) {
@@ -928,6 +972,36 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
                         }
                     } else {
                         r.error(sh, std::format("{}'s `show` is a table of parts", what), "show.brush = [[0, 0], [6, 1]]");
+                    }
+                }
+                // `cels = [[0, "guard"], [7, "contact"], [20, "rig"]]`: from each frame, a whole-body drawing (or the rig again), held.
+                if (const toml::node* cs = t->get("cels")) {
+                    const toml::array* a = cs->as_array();
+                    if (!a) r.error(cs, std::format("{}'s `cels` is a list of [frame, cel]", what), "cels = [[0, \"guard\"], [7, \"contact\"], [20, \"rig\"]]");
+                    std::int32_t last = -1;
+                    for (std::size_t i = 0; a && i < a->size(); ++i) {
+                        const toml::array* e = a->get(i)->as_array();
+                        if (!e || e->size() != 2) {
+                            r.error(a->get(i), std::format("{}'s `cels` takes [frame, cel]", what), "[7, \"contact\"]");
+                            continue;
+                        }
+                        const auto f = r.integer(e->get(0), std::format("{}'s cel frame", what), 0, c.frames - 1);
+                        const auto n = r.text(e->get(1), std::format("{}'s cel", what));
+                        if (!f || !n) continue;
+                        if (*f <= last) r.error(e->get(0), std::format("{}'s cels go forward in time: frame {} after {}", what, *f, last));
+                        last = *f;
+                        std::int32_t cel = -1;
+                        if (*n != "rig") {
+                            auto it = std::ranges::find(look.cels, *n, &Cel::name);
+                            if (it == look.cels.end()) {
+                                std::vector<std::string_view> names;
+                                for (const Cel& o : look.cels) names.push_back(o.name);
+                                r.error(e->get(1), std::format("{} shows `{}`, which is no cel's name", what, *n), names.empty() ? "[cel.<name>] … first" : data::nearest_hint(*n, names));
+                                continue;
+                            }
+                            cel = static_cast<std::int32_t>(it - look.cels.begin());
+                        }
+                        c.exposures.emplace_back(*f, cel);
                     }
                 }
                 if (const toml::node* sw = t->get("swap")) {
@@ -1665,6 +1739,14 @@ std::string write_look(const Look& look) {
             s += std::format("relief = {{ bevel = {}, detail = {}, smooth = {}, strength = {} }}\n", pic.relief->bevel, pic.relief->detail, pic.relief->smooth,
                              pic.relief->strength);
     }
+    for (const Cel& c : look.cels) {
+        s += std::format("\n[cel.{}]\npicture = \"{}\"\nsource = [{}, {}, {}, {}]\npivot = [{}, {}]\n", key_text(c.name),
+                         c.picture >= 0 ? look.pictures[static_cast<std::size_t>(c.picture)].name : std::string(), c.source.x, c.source.y, c.source.width,
+                         c.source.height, c.pivot.x, c.pivot.y);
+        if (c.scale > 0) s += std::format("scale = {}\n", c.scale);
+        for (const auto& [n, k] : c.sockets)
+            s += std::format("sockets.{} = {{ at = [{}, {}], normal = [{}, {}] }}\n", key_text(n), k.at.x, k.at.y, k.normal.x, k.normal.y);
+    }
     for (const auto& [name, m] : look.materials)
         s += std::format("\n[material.{}]\nbands = {}\nsoftness = {}\nshadow = {}\nshadow_strength = {}\nrim = {}\nrim_strength = {}\nrim_width = {}\nlight_z = {}\n",
                          key_text(name), m.bands, m.softness, colour_text(m.shadow), m.shadow_strength, colour_text(m.rim), m.rim_strength, m.rim_width, m.light_z);
@@ -1765,6 +1847,13 @@ std::string write_look(const Look& look) {
             for (std::size_t g = 0; g < tracks->size() && g < look.grips.size(); ++g)
                 if (!(*tracks)[g].empty() && !derived->contains(static_cast<std::int32_t>(g)))
                     s += std::format("{}.{} = {}\n", key, key_text(look.grips[g].name), keys_text((*tracks)[g], ease));
+        if (!c.exposures.empty()) {
+            s += "cels = [";
+            for (std::size_t i = 0; i < c.exposures.size(); ++i)
+                s += std::format("{}[{}, \"{}\"]", i ? ", " : "", c.exposures[i].first,
+                                 c.exposures[i].second < 0 ? std::string("rig") : look.cels[static_cast<std::size_t>(c.exposures[i].second)].name);
+            s += "]\n";
+        }
         if (!c.fx.empty()) s += fx_rows_text(c.fx);
     }
     constexpr std::array<std::string_view, 6> sparks{"rays", "ring", "splash", "shards", "bolt", "cracks"};

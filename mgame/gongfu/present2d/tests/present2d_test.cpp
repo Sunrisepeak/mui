@@ -552,6 +552,111 @@ swap.body = [[0, 0], [8, 1], [12, 0]]
         check(!b3 && has(texts(b3.error()), "a follow has a `lag`"), b3 ? "read" : std::format("{}", texts(b3.error())));
     });
 
+    s.test("whole-body drawings (D-90): a clip's cels shown in place of the rig, held to their next exposure, at the fighter's place and facing; their sockets on the stage; a file that reads back as itself", [&] {
+        const std::string text = R"(gongfu = "0.1"
+name = "cels"
+art_scale = 0.5
+
+[[picture]]
+name = "poses"
+file = "poses.png"
+size = [200, 100]
+
+[[bone]]
+name = "hip"
+joint = [0, 90]
+length = 20
+rest = 90
+
+[[part]]
+name = "body"
+bone = "hip"
+shape = "capsule"
+size = [10, 10]
+color = "#00ff00"
+
+[cel.load]
+picture = "poses"
+source = [0, 0, 100, 100]
+pivot = [50, 100]
+
+[cel.hit]
+picture = "poses"
+source = [100, 0, 100, 100]
+pivot = [130, 100]
+sockets.fist = { at = [190, 40], normal = [1, 0] }
+
+[clip.idle]
+frames = 30
+loop = true
+
+[clip.punch]
+frames = 20
+cels = [[0, "load"], [5, "hit"], [12, "rig"]]
+)";
+        auto look = p2::read_look(text, "cels.look.gongfu.toml");
+        check(look.has_value(), look ? "" : std::format("{}", texts(look.error())));
+        if (!look) return;
+        check(look->cels.size() == 2 && look->clips.at("punch").exposures.size() == 3, "read");
+        const std::string written = p2::write_look(*look);
+        auto again = p2::read_look(written, "written.look.gongfu.toml");
+        check(again && p2::write_look(*again) == written, again ? written : std::format("{}", texts(again.error())));
+        const p2::Clip& punch = look->clips.at("punch");
+        const auto cel_of = [&](std::string_view n) { return static_cast<std::int32_t>(std::ranges::find(look->cels, n, &p2::Cel::name) - look->cels.begin()); };
+        const std::int32_t load_cel = cel_of("load"), hit_cel = cel_of("hit");
+        check(p2::exposed(&punch, 0) == load_cel && p2::exposed(&punch, 4) == load_cel && p2::exposed(&punch, 5) == hit_cel && p2::exposed(&punch, 11) == hit_cel &&
+                  p2::exposed(&punch, 12) == -1,
+              "held to the next exposure; the rig again");
+        // The picture: the load pose red, the hit pose blue.
+        omui::render::ImageStore images;
+        std::vector<omui::raster::Rgba8> px(200 * 100);
+        for (int y = 0; y < 100; ++y)
+            for (int x = 0; x < 200; ++x) px[static_cast<std::size_t>(y * 200 + x)] = x < 100 ? omui::raster::Rgba8{220, 40, 40, 255} : omui::raster::Rgba8{40, 40, 220, 255};
+        look->pictures[0].ref = images.add(200, 100, std::move(px));
+        const Fighter f = *compile(body());
+        FighterState st;
+        st.facing = 1;
+        st.pos.x = 200_fx;
+        p2::Painter painter;
+        auto draw_at = [&](std::int32_t t, std::int32_t facing) {
+            st.facing = facing;
+            omui::render::DisplayList dl;
+            dl.fill_rect({0, 0, 400, 300}, Color::hex(0xffffff));
+            painter.body(*look, f, st, 0, p2::Scene{.width = 400, .height = 300, .ground = 200}, p2::Camera{200, 0, 1}, dl, "punch", t);
+            omui::raster::Surface out(400, 300);
+            omui::render::CpuRenderer{}.render(dl, out, {&images, nullptr}, {.scale = 1});
+            return out;
+        };
+        auto count = [](const omui::raster::Surface& s, bool blue, int x0, int x1) {
+            int n = 0;
+            for (int y = 0; y < 300; ++y)
+                for (int x = x0; x < x1; ++x) n += blue ? (s.at(x, y).b > 150 && s.at(x, y).r < 100) : (s.at(x, y).r > 150 && s.at(x, y).b < 100 && s.at(x, y).g < 100);
+            return n;
+        };
+        // At half scale the load pose is 50 × 50, its pivot under the fighter (x 200 on screen): red from 175 to 225, above the ground.
+        const auto load = draw_at(2, 1), hit = draw_at(7, 1), left = draw_at(7, -1), rig = draw_at(14, 1);
+        save(hit, "cel-hit");
+        check(count(load, false, 170, 230) > 2000 && count(load, true, 0, 400) == 0, "the load drawing where the fighter stands");
+        // The hit drawing's pivot is 30 px into it: it reaches forward, 185 to 235 facing right, 165 to 215 facing left (mirrored).
+        check(count(hit, true, 186, 234) > 2000 && count(hit, true, 0, 180) == 0, "the hit drawing reaching forward");
+        check(count(left, true, 166, 214) > 2000 && count(left, true, 220, 400) == 0, "and facing left, mirrored about the fighter");
+        check(count(rig, false, 0, 400) == 0 && count(rig, true, 0, 400) == 0, "the rig again: no drawing");
+        // The fist's socket on the stage: 60 px forward of the pivot, 60 up — at half scale 30 and 30.
+        st.facing = 1;
+        const p2::Cel& c = look->cels[static_cast<std::size_t>(hit_cel)];
+        const auto fist = p2::cel_point(*look, c, st, c.sockets.at("fist").at);
+        check(std::abs(fist.x - 230) < 1e-3 && std::abs(fist.y - 30) < 1e-3, std::format("the fist at ({}, {})", fist.x, fist.y));
+        // Errors: a cel unknown, exposures out of order.
+        std::string bad = text;
+        bad.replace(bad.find("[5, \"hit\"]"), 10, "[5, \"hti\"]");
+        auto b1 = p2::read_look(bad, "bad.look.gongfu.toml");
+        check(!b1 && has(texts(b1.error()), "which is no cel's name"), b1 ? "read" : std::format("{}", texts(b1.error())));
+        bad = text;
+        bad.replace(bad.find("[12, \"rig\"]"), 11, "[3, \"rig\"]");
+        auto b2 = p2::read_look(bad, "bad.look.gongfu.toml");
+        check(!b2 && has(texts(b2.error()), "go forward in time"), b2 ? "read" : std::format("{}", texts(b2.error())));
+    });
+
     s.test("drawn art on bones: a picture's region skinned to a bone and bent at the next one's joint; a file that reads back as itself", [&] {
         const std::string text = R"(gongfu = "0.1"
 name = "art"

@@ -225,6 +225,31 @@ struct Clip {
     std::vector<PoseKey>              keys;  // keyed by poses (its tracks made from them when read)
     std::optional<hanim::Ease>        ease;  // its keys' way to the next, unless a key says (as its file said)
     std::vector<hanim::Track<double>> shows;  // by part: drawn (1) or not (0), held between keys
+    // Whole-body drawings (D-90): from each frame, the look's cel shown in
+    // place of the rig (−1: the rig again), held until the next — exposures
+    // as an animator times them, never blended, never turned by a bone.
+    std::vector<std::pair<std::int32_t, std::int32_t>> exposures;  // (from frame, cel)
+};
+
+// A whole-body drawing (D-90): a picture's region drawn as the fighter in
+// one pose, in place of its parts — the decisive poses a rig cannot make
+// (a heavy's contact, a turn, a compression, a reaction). Its `pivot` is the
+// pixel over the fighter's root on the ground (where the rig's feet stand),
+// so a cel and the rig share their place; `scale` stage units a pixel (0:
+// the look's art scale). Its sockets name points of the drawing — a fist's
+// knuckles, a forehead, a sole — with the way their surface faces (picture
+// coordinates, y down): where its contacts and effects belong.
+struct Cel {
+    std::string  name;
+    std::int32_t     picture = -1;
+    omui::geom::Rect source;
+    Point            pivot;
+    float            scale = 0;
+    struct Socket {
+        Point at;
+        Point normal{1, 0};
+    };
+    std::map<std::string, Socket, std::less<>> sockets;
 };
 
 // A grip (two-bone IK): the chain `upper` → `lower` (a shoulder and an elbow,
@@ -455,6 +480,7 @@ struct Look {
     std::vector<Grip>           grips;
     std::map<std::string, KeyPose, std::less<>> poses;
     std::map<std::string, Clip, std::less<>> clips;
+    std::vector<Cel>            cels;  // whole-body drawings, by their place (a clip's exposures name them)
     Color                       outline = Color::hex(0x101014);
     float                       outline_width = 3;
     // Light (the world's rules: one light for every fighter on a stage): each
@@ -570,6 +596,13 @@ using Pose = std::vector<BonePlace>;
 void pose(const Look& look, const Fighter& fighter, const FighterState& state, std::int32_t frame, Pose& out);
 // A clip by name at frame `t` (looping or held at its end), for the fighter where and as it faces in `state`.
 void pose_clip(const Look& look, std::string_view clip, std::int32_t t, const FighterState& state, Pose& out);
+// The whole-body drawing a clip exposes at its frame t (−1: the rig).
+[[nodiscard]] std::int32_t exposed(const Clip* clip, std::int32_t t) noexcept;
+// A pixel of a cel where the fighter stands: on the stage (y up).
+[[nodiscard]] Point cel_point(const Look& look, const Cel& cel, const FighterState& s, Point pixel) noexcept;
+// A named socket of the drawing the fighter shows now (a fist's knuckles, a sole), on the stage; none while
+// the rig is shown or the drawing has no such socket.
+[[nodiscard]] std::optional<Point> socket(const Look& look, const Fighter& fighter, const FighterState& s, std::int32_t frame, std::string_view name);
 
 // A look as a file, `*.look.gongfu.toml` — what gongfu.studio writes and a
 // mod will carry: the palettes, the bones (angles in degrees), the parts, the
@@ -742,6 +775,9 @@ public:
                       omui::render::DisplayList& out);
 
 private:
+    // A whole-body drawing at the fighter's place (its pivot over the root on the ground; mirrored facing left).
+    void draw_cel(const Look& look, const Cel& cel, const FighterState& s, const Scene& scene, const Camera& camera, std::optional<Color> tint,
+                  omui::render::DisplayList& out);
     void picture_part(const Look& look, const Part& part, std::size_t drawing, const FighterState& s, const Scene& scene, const Camera& camera,
                       std::optional<Color> tint, omui::render::DisplayList& out);
     Pose                     pose_, past_, rest_, held_;

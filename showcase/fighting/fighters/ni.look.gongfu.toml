@@ -45,6 +45,13 @@ file = "art/ni-parts.webp"
 size = [1017, 438]
 relief = { bevel = 12, detail = 2, smooth = 2, strength = 1 }
 
+# The pilot's whole-body drawings (D-90; evaluation/research/ni-pilot): 5HP, the lead power straight, in the
+# animation style — eight keys, one scale (a pixel half a stage unit), registered on the front shoe.
+[[picture]]
+name = "heavy"
+file = "art/ni-heavy.webp"
+size = [1700, 731]
+
 [[picture]]
 name = "eyes"
 file = "art/ni-cutin-eyes.webp"
@@ -604,9 +611,62 @@ poses = [
     [17, "stance"],
 ]
 
+# 5HP as the pilot times it (one-based move frame f is clip key f − 1): the guard, the load (f3–5), the drive (f6–7),
+# contact (f8–9), the last active reach (f10), braking (f11–13), retraction (f14–18), settling (f19–25), the guard again.
+[cel.hp_guard]
+picture = "heavy"
+source = [0, 0, 270, 364]
+pivot = [150, 359]
+scale = 0.5
+
+[cel.hp_load]
+picture = "heavy"
+source = [272, 0, 279, 356]
+pivot = [431, 352]
+scale = 0.5
+
+[cel.hp_drive]
+picture = "heavy"
+source = [553, 0, 319, 359]
+pivot = [753, 356]
+scale = 0.5
+
+[cel.hp_contact]
+picture = "heavy"
+source = [874, 0, 404, 359]
+pivot = [1075, 356]
+scale = 0.5
+sockets.knuckle = { at = [1274, 126], normal = [1, 0] }
+
+[cel.hp_reach]
+picture = "heavy"
+source = [1280, 0, 405, 359]
+pivot = [1481, 356]
+scale = 0.5
+sockets.knuckle = { at = [1681, 106], normal = [1, 0] }
+
+[cel.hp_brake]
+picture = "heavy"
+source = [0, 366, 382, 359]
+pivot = [201, 722]
+scale = 0.5
+
+[cel.hp_retract]
+picture = "heavy"
+source = [384, 366, 328, 364]
+pivot = [588, 726]
+scale = 0.5
+
+[cel.hp_settle]
+picture = "heavy"
+source = [714, 366, 270, 365]
+pivot = [865, 726]
+scale = 0.5
+
 [clip.5HP]
 frames = 28
 ease = "in_out_sine"
+cels = [[0, "hp_guard"], [2, "hp_load"], [5, "hp_drive"], [7, "hp_contact"], [9, "hp_reach"], [10, "hp_brake"], [13, "hp_retract"], [18, "hp_settle"], [25, "hp_guard"]]
 poses = [
     [0, "stance"],
     [4, "stance", "in_quad", { aim = { torso = 94, upper_front = -110, fore_front = 10, upper_back = -60, fore_back = 100 }, rise = -6 }],

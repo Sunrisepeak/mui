@@ -17,6 +17,9 @@ struct AtlasLayout {
     float                                                  gap = 0;   // between windows, world units
     std::vector<std::pair<std::string, world::WorldRect>>  windows;   // by place id, in the places' order
     world::WorldRect                                       bounds;    // of every window and its label
+    // The cell after the last window: the tree the places grow from, drawn on
+    // the atlas between them (the site's mark, its branches to each window).
+    world::WorldRect                                       emblem;
 };
 
 // The windows of `places` for a view of `view`: rows of two (three from five

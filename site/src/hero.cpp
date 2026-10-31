@@ -101,47 +101,50 @@ std::string hero_html(bool zh) {
     return out;
 }
 
+void paint_mark(render::DisplayList& out, const Theme& theme, Point at, float s) {
+    const bool moved = at.x != 0 || at.y != 0;
+    if (moved) out.push_transform(Affine::translate(at.x, at.y));
+    const Color stem = theme.color("accent");
+    const Point root{s * 0.17f, s * 0.5f};
+    constexpr std::array<float, 4> ys{0.14f, 0.38f, 0.62f, 0.86f};
+    render::StrokeStyle line{.width = std::max(1.2f, s * 0.05f), .cap = render::LineCap::round};
+    for (const float y : ys) {
+        render::Path p;
+        const Point end{s * 0.7f, s * y};
+        p.move_to(root).cubic_to({s * 0.42f, root.y}, {s * 0.42f, end.y}, end);
+        out.stroke_path(p, line, render::Paint::solid(stem.with_alpha(0.75f)));
+    }
+    out.fill_round_rect({root.x - s * 0.1f, root.y - s * 0.1f, s * 0.2f, s * 0.2f}, CornerRadii::all(s * 0.1f), render::Paint::solid(stem));
+    const float t = s * 0.16f, x = s * 0.74f;
+    // A pixel.
+    out.fill_rect({x, s * ys[0] - t / 2, t, t}, theme.color("text"));
+    // A focus ring.
+    out.stroke_round_rect({x, s * ys[1] - t / 2, t, t}, CornerRadii::all(t / 2), std::max(1.0f, s * 0.035f),
+                          render::Paint::solid(Color::hex(reader_hue)));
+    // Braces: what an agent reads.
+    render::StrokeStyle thin{.width = std::max(1.0f, s * 0.035f), .cap = render::LineCap::round, .join = render::LineJoin::round};
+    for (const float side : {-1.0f, 1.0f}) {
+        render::Path b;
+        const float cx = x + t / 2 + side * t * 0.38f, y = s * ys[2], h = t / 2, w = t * 0.18f;
+        b.move_to({cx + side * w, y - h}).line_to({cx, y - h * 0.6f}).line_to({cx, y - h * 0.15f}).line_to({cx - side * w, y})
+            .line_to({cx, y + h * 0.15f}).line_to({cx, y + h * 0.6f}).line_to({cx + side * w, y + h});
+        out.stroke_path(b, thin, render::Paint::solid(Color::hex(agent_hue)));
+    }
+    // A check: what a test asserts.
+    render::Path c;
+    const float y = s * ys[3];
+    c.move_to({x, y}).line_to({x + t * 0.38f, y + t * 0.36f}).line_to({x + t, y - t * 0.42f});
+    out.stroke_path(c, render::StrokeStyle{.width = std::max(1.2f, s * 0.045f), .cap = render::LineCap::round, .join = render::LineJoin::round},
+                    render::Paint::solid(Color::hex(test_hue)));
+    if (moved) out.pop_transform();
+}
+
 Element brand_mark(std::string id, float size) {
     return painter({.id = std::move(id),
                     .width = Dim(size),
                     .height = Dim(size),
                     .role = Role::none,
-                    .paint = [size](PaintContext& ctx) {
-                        auto& out = ctx.list;
-                        const float s = size;
-                        const Color stem = ctx.theme.color("accent");
-                        const Point root{s * 0.17f, s * 0.5f};
-                        constexpr std::array<float, 4> ys{0.14f, 0.38f, 0.62f, 0.86f};
-                        render::StrokeStyle line{.width = std::max(1.2f, s * 0.05f), .cap = render::LineCap::round};
-                        for (const float y : ys) {
-                            render::Path p;
-                            const Point end{s * 0.7f, s * y};
-                            p.move_to(root).cubic_to({s * 0.42f, root.y}, {s * 0.42f, end.y}, end);
-                            out.stroke_path(p, line, render::Paint::solid(stem.with_alpha(0.75f)));
-                        }
-                        out.fill_round_rect({root.x - s * 0.1f, root.y - s * 0.1f, s * 0.2f, s * 0.2f}, CornerRadii::all(s * 0.1f), render::Paint::solid(stem));
-                        const float t = s * 0.16f, x = s * 0.74f;
-                        // A pixel.
-                        out.fill_rect({x, s * ys[0] - t / 2, t, t}, ctx.theme.color("text"));
-                        // A focus ring.
-                        out.stroke_round_rect({x, s * ys[1] - t / 2, t, t}, CornerRadii::all(t / 2), std::max(1.0f, s * 0.035f),
-                                              render::Paint::solid(Color::hex(reader_hue)));
-                        // Braces: what an agent reads.
-                        render::StrokeStyle thin{.width = std::max(1.0f, s * 0.035f), .cap = render::LineCap::round, .join = render::LineJoin::round};
-                        for (const float side : {-1.0f, 1.0f}) {
-                            render::Path b;
-                            const float cx = x + t / 2 + side * t * 0.38f, y = s * ys[2], h = t / 2, w = t * 0.18f;
-                            b.move_to({cx + side * w, y - h}).line_to({cx, y - h * 0.6f}).line_to({cx, y - h * 0.15f}).line_to({cx - side * w, y})
-                                .line_to({cx, y + h * 0.15f}).line_to({cx, y + h * 0.6f}).line_to({cx + side * w, y + h});
-                            out.stroke_path(b, thin, render::Paint::solid(Color::hex(agent_hue)));
-                        }
-                        // A check: what a test asserts.
-                        render::Path c;
-                        const float y = s * ys[3];
-                        c.move_to({x, y}).line_to({x + t * 0.38f, y + t * 0.36f}).line_to({x + t, y - t * 0.42f});
-                        out.stroke_path(c, render::StrokeStyle{.width = std::max(1.2f, s * 0.045f), .cap = render::LineCap::round, .join = render::LineJoin::round},
-                                        render::Paint::solid(Color::hex(test_hue)));
-                    }});
+                    .paint = [size](PaintContext& ctx) { paint_mark(ctx.list, ctx.theme, {0, 0}, size); }});
 }
 
 Element hero(Hero& h, const HeroSite& site, bool live, float width) {
@@ -172,6 +175,8 @@ Element hero(Hero& h, const HeroSite& site, bool live, float width) {
                 hp->selected.set(id);
                 if (!hp->agent_running.peek()) hp->exchange.set(std::string());  // a person's change (or its undo): the agent's request is past
             };
+        } else {
+            o.checked = hp->checks[i].peek();  // a still (the window's texture): as it is now
         }
         checks.push_back(checkbox(std::move(o)));
     }
@@ -194,7 +199,9 @@ Element hero(Hero& h, const HeroSite& site, bool live, float width) {
                         hp->selected.set("ship");
                     });
         };
-    } else ship.disabled = true;
+    } else {
+        ship.disabled = !(hp->checks[0].peek() && hp->checks[1].peek() && hp->checks[2].peek()) || hp->shipped.peek();
+    }
     Element card = column({.id = "specimen", .width = narrow ? Dim(layout::pct(100)) : Dim(330.0f), .padding = Edges(20.0f), .gap = 12, .background = "surface",
                            .border_color = "border", .border_width = 1, .radius = 14},
                           {text({.id = "release", .text = say("Release 0.1", "发布 0.1"), .style = "heading"}),
@@ -205,7 +212,9 @@ Element hero(Hero& h, const HeroSite& site, bool live, float width) {
                                      if (!hp->shipped.get()) return std::string(" ");
                                      return std::string(lang && lang->get() == "zh" ? "已发布。每一步都可以撤销。" : "Shipped. Every step can be taken back.");
                                  }))
-                                              : Prop<std::string>(std::string(" ")),
+                                              : Prop<std::string>(std::string(!hp->shipped.peek() ? " "
+                                                                              : zh_now ? "已发布。每一步都可以撤销。"
+                                                                                       : "Shipped. Every step can be taken back.")),
                                  .style = "caption"})});
 
     // The same node, three more ways: read from the page's semantic tree.

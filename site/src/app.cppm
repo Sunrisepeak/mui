@@ -24,8 +24,10 @@ struct Place {
 
 // What a lens shows of a place's semantic snapshot (openmui.semantic's to_value):
 // the JSON an agent reads (a node a line), and the assertions a test would write.
-[[nodiscard]] std::string agent_text(const Value& snapshot);
-[[nodiscard]] std::string test_text(const Value& snapshot);
+// The ids under `root` (the place) are shown from it: `…/page/doc/b0`, and the
+// test's `node("page/doc/b0")` under it.
+[[nodiscard]] std::string agent_text(const Value& snapshot, std::string_view root = {});
+[[nodiscard]] std::string test_text(const Value& snapshot, std::string_view root = {});
 // The tree's hash: its nodes' ids, roles, names, values and states (not their
 // boxes, how far a scroll view can scroll or what is off screen: those follow
 // the window; nor the pointer's hover and press, nor a motion under way),

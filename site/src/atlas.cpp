@@ -19,12 +19,26 @@ AtlasLayout atlas_layout(std::span<const Place> places, Size view) {
         const world::WorldRect with_label{r.x, r.y - label_strip, r.width, r.height + label_strip};
         l.bounds = l.bounds.empty() ? with_label : l.bounds.united(with_label);
     }
+    // The next cell: the last row's room when it is not full, else a cell of its own below.
+    const std::size_t e = places.size();
+    l.emblem = {static_cast<double>(e % columns) * step_x, label_strip + static_cast<double>(e / columns) * step_y, w, h};
+    if (e % columns == 0) l.bounds = l.bounds.united(l.emblem);
     return l;
 }
 
 float live_from(const AtlasLayout& layout) noexcept { return 0.8f * std::max(layout.view.width, layout.view.height); }
 
 void lay_out(world::Scene& scene, const AtlasLayout& layout, std::span<const Place> places, std::string_view lang) {
+    // Under the windows (added first): the tree they grow from, over all of the atlas.
+    {
+        const world::WorldRect& b = layout.bounds;
+        const double m = layout.gap;
+        const world::WorldRect all{b.x - m, b.y - m, b.width + 2 * m, b.height + 2 * m};
+        const auto n = scene.find("tree");
+        const world::NodeRef tree = n ? *n : scene.add({.kind = "tree", .x = all.x, .y = all.y, .width = 1, .height = 1, .key = "tree"});
+        scene.move(tree, all.x, all.y);
+        scene.resize(tree, static_cast<float>(all.width), static_cast<float>(all.height));
+    }
     for (std::size_t i = 0; i < layout.windows.size() && i < places.size(); ++i) {
         const auto& [id, r] = layout.windows[i];
         auto put = [&](std::string_view kind, std::string_view key, const world::WorldRect& at) {

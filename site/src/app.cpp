@@ -337,7 +337,8 @@ struct Site {
     // The playhead dragged (or set by an agent): the page shown as it was then.
     void scrub(double t) {
         if (!runtime) return;
-        if (time_mode.peek() == "live") strip_to(page_time());
+        // The strip as it is drawn where it was grabbed (it does not move under the pointer); a time outside it, its edge.
+        t = std::clamp(t, time_start.peek(), std::max(time_start.peek(), time_end.peek()));
         runtime->pause_time(true);
         runtime->seek_time(seconds(t));
         playhead.set(t);
@@ -415,8 +416,11 @@ struct Site {
         semantic::Tree tree(*runtime);
         const Value snapshot = tree.snapshot({.root = root()}).to_value();
         nodes.set(snapshot.get("nodes") ? *snapshot.get("nodes") : Value{});
-        agent.set(agent_text(snapshot));
-        test.set(test_text(snapshot));
+        // Its ids shown from the place's window (`…/page/doc/b0`).
+        std::string place_window = root();
+        if (place_window.ends_with("/page")) place_window.resize(place_window.size() - 5);
+        agent.set(agent_text(snapshot, place_window));
+        test.set(test_text(snapshot, place_window));
         const std::uint64_t h = tree_hash(snapshot);
         const bool pinned = place.get() == "home" && lang.get() == "en" && pinned_home_hash != 0;
         // Eight digits of each (they are compared whole).
@@ -586,20 +590,35 @@ std::string_view document(std::string_view place, std::string_view lang) {
 
 std::string_view sample_timeline() { return sample; }
 
-std::string agent_text(const Value& snapshot) {
+std::string agent_text(const Value& snapshot, std::string_view root) {
     std::string out;
+    const std::string under = root.empty() ? std::string() : std::format("\"{}/", root);
+    if (!root.empty())
+        out += std::format("// openmui.tree@0.1's snapshot of {}, a node a line (its ids are paths: \"…/\" is that place).\n", root);
     if (const Value::List* nodes = snapshot.get("nodes") ? snapshot.get("nodes")->list() : nullptr)
-        for (const Value& n : *nodes) out += n.json() + "\n";
+        for (const Value& n : *nodes) {
+            std::string line = n.json();
+            for (std::size_t at = 0; !under.empty() && (at = line.find(under, at)) != std::string::npos;) {
+                line.replace(at, under.size(), "\"…/");
+                at += 5;
+            }
+            out += line + "\n";
+        }
     return out;
 }
 
-std::string test_text(const Value& snapshot) {
+std::string test_text(const Value& snapshot, std::string_view root) {
     std::string out = "// What a test of this page asserts, read from the same tree:\n";
+    if (!root.empty()) out += std::format("auto node = [&](std::string_view path) {{ return *tree.node(std::format(\"{}/{{}}\", path)); }};\n", root);
     const Value::List* nodes = snapshot.get("nodes") ? snapshot.get("nodes")->list() : nullptr;
     if (!nodes) return out;
     std::size_t lines = 0;
     for (const Value& n : *nodes) {
-        const std::string id = n.get("id") ? std::string(n.get("id")->as_string()) : std::string();
+        std::string id = n.get("id") ? std::string(n.get("id")->as_string()) : std::string();
+        if (!root.empty()) {
+            if (!id.starts_with(std::string(root) + "/")) continue;  // the place itself, and what is not under it
+            id.erase(0, root.size() + 1);
+        }
         const std::string role = n.get("role") ? std::string(n.get("role")->as_string()) : std::string();
         if (role == "generic" || id.empty()) continue;
         out += std::format("check_eq(node(\"{}\").role, \"{}\");\n", id, role);
@@ -1247,6 +1266,53 @@ void atlas_kinds(const std::shared_ptr<Site>& s) {
                                             return p ? place_window(p, std::string(sc.key(n)), false) : box({});
                                         },
                                     .role = Role::article});
+    // Under the windows, the tree they grow from: the site's mark in the cell after the last window,
+    // a branch from it to each window in the hue of what the window shows (reading, running), and a
+    // faint grid of the canvas between them. Drawn on screen, so lines stay a pixel or two at any zoom.
+    scene.kind("tree", world::Kind{.tiers = {{0, Tier::Draw::custom}},
+                                   .draw =
+                                       [w = std::weak_ptr<Site>(s)](world::DrawContext& d) {
+                                           const auto p = w.lock();
+                                           if (!p) return;
+                                           const AtlasLayout& l = p->layout;
+                                           const world::WorldRect nr = d.scene.rect(d.node);
+                                           const auto at = [&](double x, double y) {
+                                               return Point{static_cast<float>(d.screen.x + (x - nr.x) * d.zoom), static_cast<float>(d.screen.y + (y - nr.y) * d.zoom)};
+                                           };
+                                           const Color ink = d.theme.color("text");
+                                           // The grid: a dot where the gaps' lanes cross, every half gap.
+                                           if (const double step = l.gap / 2; step * d.zoom >= 8) {
+                                               const float r = 1.0f;
+                                               for (double y = nr.y + step; y < nr.y + nr.height; y += step)
+                                                   for (double x = nr.x + step; x < nr.x + nr.width; x += step) {
+                                                       const Point q = at(x, y);
+                                                       if (q.x < -2 || q.y < -2 || q.x > d.screen.right() + 2 || q.y > d.screen.bottom() + 2) continue;
+                                                       d.list.fill_rect({q.x - r / 2, q.y - r / 2, r, r}, ink.with_alpha(0.10f));
+                                                   }
+                                           }
+                                           // The branches: from the mark's root to each window's nearest corner of its label strip.
+                                           const world::WorldRect& e = l.emblem;
+                                           const double mark = std::min(e.width, e.height) * 0.42;
+                                           const Point root = at(e.x + e.width / 2 - mark * 0.33, e.y + e.height / 2);
+                                           const render::StrokeStyle line{.width = std::clamp(static_cast<float>(3 * d.zoom), 1.0f, 3.0f), .cap = render::LineCap::round};
+                                           constexpr std::array<std::uint32_t, 2> group{0x60a5fa, 0x34d399};  // what is read (the reader's blue), what runs (the test's green)
+                                           for (std::size_t i = 0; i < l.windows.size(); ++i) {
+                                               const world::WorldRect& r = l.windows[i].second;
+                                               const Point to = at(r.x + r.width / 2, r.y + r.height / 2);
+                                               render::Path b;
+                                               const float mid = (root.x + to.x) / 2;
+                                               b.move_to(root).cubic_to({mid, root.y}, {mid, to.y}, to);
+                                               const Color c = Color::hex(group[i < 3 ? 0 : 1]);
+                                               d.list.stroke_path(b, line, render::Paint::solid(c.with_alpha(0.45f)));
+                                           }
+                                           // The mark, large, in its cell.
+                                           const float size = static_cast<float>(mark * d.zoom);
+                                           if (size >= 12) {
+                                               const Point c = at(e.x + e.width / 2, e.y + e.height / 2);
+                                               paint_mark(d.list, d.theme, {c.x - size / 2, c.y - size / 2}, size);
+                                           }
+                                       },
+                                   .role = Role::none});
     scene.kind("label", world::Kind{.tiers = {{0, Tier::Draw::custom}},
                                     .draw =
                                         [labels](world::DrawContext& d) {

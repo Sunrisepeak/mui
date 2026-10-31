@@ -277,16 +277,20 @@ int main(int argc, char** argv) {
         a.h.advance(seconds(0.3));
         a.h.settle(seconds(0.1));
         const std::string json = a.text("main/body/view/agent/agent_text");
-        check(json.find("\"id\":\"main/body/view/atlas/home") != std::string::npos || json.find("\"id\": \"main/body/view/atlas/home") != std::string::npos,
-              "the nodes as an agent reads them");
-        for (const Value& n : *home.get("nodes")->list()) check(json.find(n.get("id")->json()) != std::string::npos, std::format("{} in the agent's JSON", n.get("id")->json()));
+        check(json.starts_with("// openmui.tree@0.1's snapshot of main/body/view/atlas/home"), "the place named once");
+        check(json.find("\"id\":\"…/page/doc/b0\"") != std::string::npos, "the nodes as an agent reads them, from the place");
+        for (const Value& n : *home.get("nodes")->list()) {
+            std::string id = std::string(n.get("id")->as_string());
+            if (id.starts_with("main/body/view/atlas/home/")) id = "…/" + id.substr(std::string_view("main/body/view/atlas/home/").size());
+            check(json.find(Value(id).json()) != std::string::npos, std::format("{} in the agent's JSON", id));
+        }
 
         check(a.h.click("main/bar/lens_test"));
         a.h.advance(seconds(0.3));
         a.h.settle(seconds(0.1));
         const std::string lines = a.text("main/body/view/test/test_text");
-        check(lines.find("check_eq(node(\"main/body/view/atlas/home") != std::string::npos, "assertions of the same nodes");
-        check(lines.find("check_eq(node(\"main/body/view/atlas/home/page/doc/b0\").role, \"heading\");") != std::string::npos, "the title's role asserted");
+        check(lines.find("tree.node(std::format(\"main/body/view/atlas/home/{}\", path))") != std::string::npos, "the place's nodes found under it");
+        check(lines.find("check_eq(node(\"page/doc/b0\").role, \"heading\");") != std::string::npos, "the title's role asserted");
 
         check(a.h.click("main/bar/lens_pixels"));
         a.h.move({4, 796});  // the pointer off the buttons (no hover)
@@ -628,7 +632,7 @@ int main(int argc, char** argv) {
         a.h.advance(seconds(1));
         shot("time.png");
         std::println("    pixels {}", all.hex());
-        check_eq(all.hex(), std::string("23dd96b4449270c9"));
+        check_eq(all.hex(), std::string("fed2d7d87245fc14"));
     });
 
     s.test("the style workshop runs in its place, a theme scope: a pack styles it alone, the site keeps its theme, the tree is the same in every pack", [] {

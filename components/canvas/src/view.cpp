@@ -364,8 +364,15 @@ void Canvas::place() {
             services().invalidate_semantics(node());
         });
     if (keys != promoted_ || revisions != promoted_revisions_) {
+        // A node going back to its texture is drawn again as it is now: what was done in it while live shows.
+        std::vector<std::string> left;
+        for (const std::string& k : promoted_)
+            if (std::ranges::find(keys, k) == keys.end()) left.push_back(k);
         promoted_ = std::move(keys);
         promoted_revisions_ = std::move(revisions);
+        if (s)
+            for (const std::string& k : left)
+                if (const auto n = s->find(k)) s->touch(*n);
         services().recompose(node());
         return;
     }

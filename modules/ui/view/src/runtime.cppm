@@ -440,6 +440,7 @@ public:
     // A virtualising node's items as the semantic tree states them (S-7).
     [[nodiscard]] std::vector<spec::SemanticNode> virtual_items(NodeId node) const;
     void request_frame() override;
+    void moving(NodeId node) override;
     void scroll_into_view(NodeId node) override;
     void focus(NodeId node) override;
     void capture_pointer(NodeId node) override;

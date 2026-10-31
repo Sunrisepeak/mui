@@ -216,6 +216,10 @@ public:
     virtual void invalidate_layout(NodeId node) = 0;
     virtual void invalidate_semantics(NodeId node) = 0;
     virtual void request_frame() = 0;
+    // A component's own motion under way (a scroll easing, a knob sliding, a
+    // lens on its way): said while painting, the node is animating to every
+    // reader — `wait settled` waits for it — until a paint where it is not said.
+    virtual void moving(NodeId) {}
     // Scrolls every scroll view around the node so that it is in view (what
     // the `scroll_into_view` action does): a document's anchors, a list's row.
     virtual void scroll_into_view(NodeId node) = 0;

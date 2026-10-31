@@ -1417,6 +1417,23 @@ int main(int argc, char** argv) {
         check(under == 1 && over == 0, std::format("under {} over {}", under, over));
     });
 
+    s.test("a component's own motion is animating to readers (a scroll easing to its place): settled only when it is", [] {
+        Runtime rt(options({200, 100}));
+        std::vector<Element> rows;
+        for (int i = 0; i < 40; ++i) rows.push_back(box({.height = 30, .label = std::format("row {}", i)}));
+        rt.mount("main", scroll({.id = "list", .width = Dim(200.0f), .height = Dim(100.0f)}, {column({}, std::move(rows))}));
+        rt.frame({seconds(0), {}});
+        const NodeId list = rt.find("main");
+        Invocation call;
+        call.args = Value{}.set("x", 0.0).set("y", 600.0);
+        check(rt.act(list, "scroll_to", call).exit_code() == std::optional<int>(0), "scrolled");
+        rt.frame({seconds(0.05), {}});
+        rt.frame({seconds(0.06), {}});
+        check(rt.semantic_node(list).states.has(State::animating), "on its way: animating");
+        for (double t = 0.1; t < 2; t += 0.05) rt.frame({seconds(t), {}});
+        check(!rt.semantic_node(list).states.has(State::animating), "there: settled");
+    });
+
     s.test("less transparency asked for: the theme's translucent surfaces solid, as they look over the background; focus and selection keep their alpha", [] {
         RuntimeOptions o = options();
         o.theme.colors["background"] = Color::hex(0x1e1b4b);

@@ -365,6 +365,13 @@ int main(int argc, char** argv) {
         check(exit_of(refused) == 1 && refused[0].json().contains("cannot be taken back") && value("counts/a") == 2, refused[0].json());
         auto plan_undo = talk(p, R"({"op":"undo","dry_run":true})");
         check(exit_of(plan_undo) == 0 && plan_undo[0].get("data")->get("outcome")->as_string() == "refused", plan_undo[0].json());
+        // A plan with a step that cannot be tried says the whole would fail, not run.
+        auto doomed = talk(p, R"({"op":"transaction","dry_run":true,"steps":[{"node":"counts/a","action":"increment"},{"node":"notes/nothing","action":"activate"}]})");
+        check(exit_of(doomed) == 0 && doomed[0].get("data")->get("outcome")->as_string() == "fail", doomed[0].json());
+        // A step with no way back (a button whose handler gives no inverse), then a failing one: said as it is — it stays
+        // done, or the whole is refused before anything is done; never "taken back".
+        auto honest = talk(p, R"({"op":"transaction","steps":[{"node":"notes/save","action":"activate"},{"node":"notes/nothing","action":"activate"}]})");
+        check(exit_of(honest) == 1 && (honest[0].json().contains("stay done") || honest[0].json().contains("gives no way back")), honest[0].json());
         check(exit_of(talk(p, R"({"op":"transaction","steps":[]})")) == 1, "a transaction needs steps");
         check(exit_of(talk(p, R"({"op":"history","scope":"nowhere"})")) == 1);
     });

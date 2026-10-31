@@ -59,6 +59,16 @@ int main(int argc, char** argv) {
         check(a.h.tree().violations().empty());
     });
 
+    s.test("the contents keep their width beside any document (a long line once squeezed them to 29 px); their entries inside them", [] {
+        App a;
+        a.start(docs());
+        const auto toc = find(a.h, Role::scroll_view, "Contents");
+        check(toc && toc->bounds && toc->bounds->width >= 200, toc && toc->bounds ? std::format("{} px", toc->bounds->width) : "no contents");
+        const auto entry = find(a.h, Role::button, "Installing");
+        check(toc && entry && entry->bounds && toc->bounds && entry->bounds->x + entry->bounds->width <= toc->bounds->x + toc->bounds->width + 1,
+              "an entry within them");
+    });
+
     s.test("the contents lead the reading: a heading scrolls into view", [] {
         App a({980, 260});
         a.start(docs());

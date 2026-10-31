@@ -237,6 +237,16 @@ Envelope Tree::transaction(std::span<const Step> steps, const Invocation& call, 
             Envelope d = act(s.id, s.action, call_of(s));
             Value v = d.data_value() ? *d.data_value() : Value{};
             v.set("id", s.id).set("action", s.action);
+            // A step that cannot even be tried (no such node, no such action) would fail: the whole would.
+            if (d.exit_code() != spec::exit_code::success && !v.get("outcome")) {
+                const auto [code, message] = first_error(d);
+                v.set("outcome", "fail").set("error", Value{}.set("code", code).set("text", message));
+            }
+            if (v.get("undoable") && !v.get("undoable")->as_bool() && v.get("outcome") && v.get("outcome")->as_string() == "run") {
+                v.set("outcome", "refused");
+                v.set("error", Value{}.set("code", spec::error_code::refused)
+                                   .set("text", std::format("{} gives no way back: a transaction holds only what it can take back (S-13)", label_of(s))));
+            }
             const std::string_view effect = v.get("effect") ? v.get("effect")->as_string() : std::string_view{};
             const Effect fx = spec::parse_effect(effect).value_or(Effect::external);
             strongest = std::max(strongest, fx);
@@ -250,6 +260,27 @@ Envelope Tree::transaction(std::span<const Step> steps, const Invocation& call, 
             outcomes.push_back(std::move(v));
         }
         return dry_run_answer(outcome, strongest, Value{}.set("steps", Value(std::move(outcomes))));
+    }
+    // Eligibility first, nothing changed yet: a step that would give no way back (its preview says so) refuses the
+    // whole, rather than staying done after a later step fails while the answer says it was taken back.
+    {
+        Invocation preview = call;
+        preview.dry_run = true;
+        for (std::size_t i = 0; i < steps.size(); ++i) {
+            Invocation c = call_of(steps[i]);
+            c.dry_run = true;
+            Envelope d = act(steps[i].id, steps[i].action, c);
+            const Value* v = d.data_value();
+            if (v && v->get("undoable") && !v->get("undoable")->as_bool() && v->get("outcome") && v->get("outcome")->as_string() == "run") {
+                e.error(spec::error_code::refused,
+                        std::format("step {} ({}) gives no way back: a transaction holds only what it can take back (S-13); nothing was done", i + 1,
+                                    label_of(steps[i])),
+                        Value{}.set("step", static_cast<std::int64_t>(i)).set("id", steps[i].id).set("action", steps[i].action))
+                    .result(spec::exit_code::failure);
+                return e;
+            }
+        }
+        (void)preview;
     }
     runtime_.begin_transaction(std::move(label));
     Value::List results;
@@ -270,8 +301,15 @@ Envelope Tree::transaction(std::span<const Step> steps, const Invocation& call, 
                     for (std::string_view k : {"answer", "hint", "args", "actions"})
                         if (const Value* v = rec.body.get(k)) extra.set(k, *v);
             std::string why = std::format("step {} ({}): {}", i + 1, label_of(steps[i]), message);
+            const Value* kept = back.data_value() ? back.data_value()->get("kept") : nullptr;
+            const bool some_kept = kept && kept->list() && !kept->list()->empty();
             if (back.exit_code() != spec::exit_code::success) why += std::format("; taking back the steps before it failed: {}", first_error(back).second);
-            else if (i > 0) why += std::format("; the {} step{} before it {} taken back", i, i == 1 ? "" : "s", i == 1 ? "was" : "were");
+            else if (some_kept) {
+                // Said as it is: what gave no way back stays done.
+                std::string names;
+                for (const Value& k : *kept->list()) names += (names.empty() ? "" : ", ") + std::string(k.as_string());
+                why += std::format("; of the steps before it, these could not be taken back and stay done: {}", names);
+            } else if (i > 0) why += std::format("; the {} step{} before it {} taken back", i, i == 1 ? "" : "s", i == 1 ? "was" : "were");
             e.error(code, why, std::move(extra)).result(r.exit_code().value_or(spec::exit_code::failure));
             return e;
         }

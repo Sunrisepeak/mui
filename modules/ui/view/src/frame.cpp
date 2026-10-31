@@ -485,6 +485,7 @@ void Runtime::Impl::compute_bounds(NodeId id, Point origin, const Affine& parent
 void Runtime::Impl::paint() {
     list.clear();
     glyph_movers.clear();
+    moving_said.clear();
     paint_node(root);
     // What was on screen before a style's change, fading out over what comes.
     if (fading) {
@@ -512,6 +513,12 @@ void Runtime::Impl::paint() {
         }
         paint_node(id);
     }
+    // Components' own motions: a node said moving is animating; one no longer said, settled (readers told either way).
+    for (const NodeId id : moving_flagged)
+        if (alive(id) && std::ranges::find(moving_said, id) == moving_said.end()) touch(dirty_semantics);
+    for (const NodeId id : moving_said)
+        if (std::ranges::find(moving_flagged, id) == moving_flagged.end()) touch(dirty_semantics);
+    moving_flagged = moving_said;
 }
 
 void Runtime::Impl::paint_node(NodeId id) {

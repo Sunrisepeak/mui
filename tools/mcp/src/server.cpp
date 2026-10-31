@@ -393,7 +393,11 @@ struct Server::Impl {
             if (const Value* d = args.get("dry_run"); d && d->as_bool()) return plan(*app, std::move(req), what);
             req.set("actor", actor);
             Answer a = call(*app, req, options.timeout);
-            if (a.exit != 0) return tool_result(std::format("{}: {} — nothing of it stays", a.code.empty() ? "failed" : a.code, a.message), true);
+            if (a.exit != 0) {
+                // What stays is the answer's to say (a step that gave no way back stays done); else nothing does.
+                const bool some_stay = a.message.find("stay done") != std::string::npos;
+                return tool_result(std::format("{}: {}{}", a.code.empty() ? "failed" : a.code, a.message, some_stay ? "" : " — nothing of it stays"), true);
+            }
             return tool_result(std::format("done: {} as one step ({})", what, str(a.data, "committed")), false, Value{}.set("data", a.data));
         }
         if (name == "ui_wait") {

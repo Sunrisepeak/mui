@@ -163,6 +163,8 @@ omui::AppSpec app(Model& m) {
                                  }
                                  return out;
                              })});
+        // The contents keep their width; the document takes what is left, however wide its widest line (it scrolls).
+        toc.prop("shrink", Source(Value(0.0)));
         Element doc = scroll({.id = "view", .grow = 1, .padding = Edges(24.0f, 32.0f)},
                              {markdown({.id = "doc",
                                         .base_url = derive([&m] {
@@ -172,6 +174,7 @@ omui::AppSpec app(Model& m) {
                                         .source = m.source,
                                         .on_heading_visible = [&m](std::string a) { m.current.set(std::move(a)); },
                                         .on_link_activated = [&m](std::string href) { m.follow(href); }})});
+        doc.prop("min_width", Source(Value(0.0)));
         return column({.id = "app", .grow = 1, .background = "background"},
                       {
                           row({.id = "header", .padding = Edges(8.0f, 12.0f), .gap = 12, .align = "center", .background = "surface"},

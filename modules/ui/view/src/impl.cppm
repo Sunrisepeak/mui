@@ -330,6 +330,8 @@ struct Runtime::Impl {
         std::vector<EffectRule> rules;
         Theme                   opaque;  // its theme with less transparency asked for (see opaque_theme)
     };
+    // Components' own motions said in a paint (Services::moving): this paint's, and the nodes flagged by the last.
+    std::vector<NodeId> moving_said, moving_flagged;
     Theme opaque_theme;  // the theme, every translucent surface made solid (as it looks over the background): reduced transparency
     void make_opaque();  // after the theme, a scope's or the setting changes
     std::vector<Scope> scopes = std::vector<Scope>(1);

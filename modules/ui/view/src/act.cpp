@@ -121,7 +121,7 @@ spec::SemanticNode Runtime::Impl::semantics(NodeId id) const {
         .set(State::hovered, n.state.hovered)
         .set(State::pressed, n.state.pressed)
         .set(State::removing, n.state.removing)
-        .set(State::animating, n.state.animating || (id == root && fading.has_value()))  // a style's cross-fade: the window is still changing
+        .set(State::animating, n.state.animating || (id == root && fading.has_value()) || std::ranges::find(moving_flagged, id) != moving_flagged.end())  // a style's cross-fade: the window is still changing
         .set(State::hidden, !displayed(id));
     // Without layout (H0) a node has no place: neither bounds nor offscreen.
     const bool placed = this->placed;  // the pipeline computes bounds

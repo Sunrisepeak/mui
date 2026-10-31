@@ -527,6 +527,13 @@ void Runtime::set_reduce_motion(bool reduce) {
     impl_->touch(dirty_paint);
 }
 
+void Runtime::moving(NodeId node) {
+    if (!valid(node)) return;
+    Impl& d = *impl_;
+    if (std::ranges::find(d.moving_said, node) == d.moving_said.end()) d.moving_said.push_back(node);
+    d.frame_requested = true;
+}
+
 void Runtime::set_reduce_transparency(bool reduce) {
     Impl& d = *impl_;
     if (d.reduce_transparency == reduce) return;

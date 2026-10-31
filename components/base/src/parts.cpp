@@ -48,6 +48,7 @@ void keep_frames(PaintContext& ctx, std::initializer_list<const Motion*> motions
         if (m && m->moving()) {
             ctx.services.invalidate_paint(ctx.node);
             ctx.services.request_frame();
+            ctx.services.moving(ctx.node);
             return;
         }
 }

@@ -584,6 +584,7 @@ struct ScrollNode {
         if (!a.settled(cx, now) || !a.settled(cy, now)) {
             services->invalidate_paint(node);
             services->request_frame();
+            services->moving(node);
         }
         const Size c = services->content_size(node), view = viewport();
         const Point off = scroll_offset();

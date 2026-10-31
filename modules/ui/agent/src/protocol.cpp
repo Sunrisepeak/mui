@@ -340,6 +340,18 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
         d.set("interface", interface_name).set("spec", spec::version).set("app", options_.app).set("operations", Value(std::move(ops)));
         d.set("revision", static_cast<std::int64_t>(runtime_.semantic_revision()));
         d.set("capture", static_cast<bool>(options_.capture));
+        // The application's verbs: what ui_invoke / invoke can name, with what they take.
+        Value::List verbs;
+        for (const VerbDesc* v : runtime_.verbs().list()) {
+            Value args = Value(Value::Map{});
+            for (const auto& [n, t] : v->args) args.set(n, t);
+            Value one;
+            one.set("name", v->name).set("summary", v->summary).set("effect", spec::name(v->effect)).set("args", std::move(args));
+            if (!v->answer.empty()) one.set("answer", v->answer);
+            if (v->person) one.set("person", true);
+            verbs.push_back(std::move(one));
+        }
+        d.set("verbs", Value(std::move(verbs)));
         return e.data(std::move(d)).result(spec::exit_code::success);
     }
     if (op == "snapshot") {

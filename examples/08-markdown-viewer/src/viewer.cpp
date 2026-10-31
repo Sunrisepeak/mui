@@ -156,6 +156,8 @@ omui::AppSpec app(Model& m) {
                                      Element b = button({.id = std::format("h{}", i), .text = h.text,
                                                          .variant = h.anchor == here ? ButtonVariant::secondary : ButtonVariant::ghost,
                                                          .on_activated = [anchor] { (void)scroll_to(anchor); },
+                                                         // Within the pane: a long heading wraps.
+                                                         .max_width = Dim(216.0f - static_cast<float>(12 * (h.level - 1))),
                                                          .align_self = "start",
                                                          .margin = Edges(Insets{0, 0, 0, static_cast<float>(12 * (h.level - 1))})});
                                      b.key = std::format("{}:{}", i, h.anchor);

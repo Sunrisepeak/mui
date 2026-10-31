@@ -118,7 +118,10 @@ int main(int argc, char** argv) {
     s.test("an in-document link and scroll_to_anchor bring the heading into view", [] {
         Headless h({.size = {720, 260}});
         std::string long_doc = std::string(readme);
-        for (int i = 0; i < 40; ++i) long_doc += std::format("\nParagraph {} of filler text to scroll past.\n", i);
+        for (int i = 0; i < 40; ++i) {
+            long_doc += std::format("\nParagraph {} of filler text to scroll past.\n", i);
+            if (i == 15) long_doc += "\n## Middle\n";
+        }
         long_doc += "\n## Appendix\n\nThe end.\n";
         std::vector<std::string> seen;
         h.mount("main", scroll({.id = "view", .grow = 1}, {markdown({.id = "doc", .source = long_doc,
@@ -137,6 +140,11 @@ int main(int argc, char** argv) {
         const auto after = find_role(h, Role::heading, "Appendix");
         check(after && !after->states.has(State::offscreen), "and is in view after scroll_to_anchor");
         check(!seen.empty() && seen.front() == "openmui", "heading_visible reports the first heading in view");
+        // A heading the view can scroll to the top of: its section is read from the top, not glimpsed at the bottom.
+        check_eq(act(h, find_role(h, Role::document)->id, "scroll_to_anchor", Value{}.set("anchor", "middle")), std::int64_t{0});
+        h.settle();
+        const auto middle = find_role(h, Role::heading, "Middle");
+        check(middle && middle->bounds && middle->bounds->y < 4, middle && middle->bounds ? std::format("at y {}", middle->bounds->y) : "no bounds");
         check_eq(act(h, find_role(h, Role::document)->id, "scroll_to_anchor", Value{}.set("anchor", "nope")),
                  std::int64_t{spec::exit_code::failure});
     });

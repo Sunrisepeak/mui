@@ -48,7 +48,7 @@ void Markdown::mounted() {
         // A link to a heading of this document scrolls to it as well.
         if (l.href.starts_with('#'))
             if (auto it = hub_->headings.find(std::string_view(l.href).substr(1)); it != hub_->headings.end())
-                services().scroll_into_view(it->second);
+                services().scroll_to_start(it->second);
         emit_link_activated(l.href);
     };
     hub_->toggle_task = [this](std::int32_t i) { (void)toggle(i); };
@@ -186,7 +186,7 @@ ActResult Markdown::scroll_to_anchor(ActContext&, const Value& anchor) {
     if (a.starts_with('#')) a.remove_prefix(1);
     auto it = hub_->headings.find(a);
     if (it == hub_->headings.end()) return ActResult::fail(std::format("no heading has the anchor '{}'", a));
-    services().scroll_into_view(it->second);
+    services().scroll_to_start(it->second);
     return ActResult::done(Value(services().path(it->second)));
 }
 

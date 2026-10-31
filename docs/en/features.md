@@ -44,11 +44,11 @@ Compared with today's major UI frameworks: Qt (Widgets / QML), Flutter, SwiftUI,
 
 **What**: one renderer. The CPU backend is the deterministic reference; the GPU backend runs on `omui.rhi` within stated tolerances of it. Custom effects are Slang (a reload in about 50 ms); backdrop effects such as liquid glass are a general capability; style packs change the look and leave the semantic tree as it is.
 
-**Evidence**: GPU tests against the CPU reference, scene by scene; the first benchmark report — on an RTX 4080 the five style packs take 0.24–0.64 ms a frame, ten liquid-glass panels 0.82 ms.
+**Evidence**: GPU tests against the CPU reference, scene by scene; the benchmark report (`docs/en/benchmarks/`, 2026-10-27) — on an RTX 4080 the five style packs take 0.36–1.38 ms a frame at p95 (the runtime's frame and the GPU's, submitted and waited for), ten liquid-glass panels at 1080p 1.61 ms.
 
 ## 7. Performance that is proven: budgets in CI, a public report
 
-**Evidence**: 36 budgets in `tests/bench`, checked on every change; `docs/en/benchmarks/`; S1's 1000-window zoom sweep at a frame p99 of 5.7 ms. Frame demand and pacing (ProMotion / VRR) are exposed in layers.
+**Evidence**: 48 budgets in `tests/bench` (`budgets.bench.omui.json`), checked on every change; `docs/en/benchmarks/`; S1's 1000-window zoom sweep drawn by the GPU at a frame p99 of 7.11 ms (p95 1.20 ms; on the CPU path p95 0.115 ms). Frame demand and pacing (ProMotion / VRR) are exposed in layers.
 
 ## 8. Simple to write, deep to control (progressive disclosure)
 

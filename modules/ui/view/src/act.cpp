@@ -193,6 +193,40 @@ spec::SemanticNode Runtime::Impl::semantics(NodeId id) const {
     return s;
 }
 
+// Each scroll ancestor, innermost first, moves the least that shows the node
+// — or, `at_start`, so that the node starts at the top of its view (a
+// document's anchor: the section read from its heading).
+void Runtime::Impl::reveal(NodeId id, bool at_start) {
+    Rect target = at(id).bounds;
+    for (NodeId c = at(id).parent; alive(c); c = at(c).parent) {
+        Node& sc = at(c);
+        if (!sc.type->scroll_offset || !sc.type->act) continue;
+        const Point off = sc.type->scroll_offset(sc.instance);
+        const Rect view = sc.bounds;
+        float x = off.x, y = off.y;
+        if (at_start) {
+            y += target.y - view.y;
+        } else {
+            if (target.bottom() > view.bottom()) y += target.bottom() - view.bottom();
+            if (target.y < view.y + (y - off.y)) y -= view.y + (y - off.y) - target.y;
+        }
+        if (target.right() > view.right()) x += target.right() - view.right();
+        if (target.x < view.x + (x - off.x)) x -= view.x + (x - off.x) - target.x;
+        if (x != off.x || y != off.y) {
+            Value args;
+            args.set("x", static_cast<double>(x)).set("y", static_cast<double>(y));
+            ActContext ctx{self, c, args};
+            (void)sc.type->act(sc.instance, ctx, "scroll_to");
+            touch(dirty_paint);
+            // Where the view really went (it stops at its end).
+            const Point now = sc.type->scroll_offset(sc.instance);
+            x = now.x;
+            y = now.y;
+        }
+        target = target.offset({-(x - off.x), -(y - off.y)});
+    }
+}
+
 Envelope Runtime::Impl::perform(NodeId id, std::string_view action, const Invocation& call, bool command, Outcome* out) {
     Envelope env;
     // A dry run answers where the checks stopped as its outcome (S-13).
@@ -289,27 +323,7 @@ Envelope Runtime::Impl::perform(NodeId id, std::string_view action, const Invoca
         return env;
     }
     if (action == "scroll_into_view") {
-        // Each scroll ancestor, innermost first, moves the least that shows the node.
-        Rect target = at(id).bounds;
-        for (NodeId c = at(id).parent; alive(c); c = at(c).parent) {
-            Node& sc = at(c);
-            if (!sc.type->scroll_offset || !sc.type->act) continue;
-            const Point off = sc.type->scroll_offset(sc.instance);
-            const Rect view = sc.bounds;
-            float x = off.x, y = off.y;
-            if (target.bottom() > view.bottom()) y += target.bottom() - view.bottom();
-            if (target.y < view.y + (y - off.y)) y -= view.y + (y - off.y) - target.y;
-            if (target.right() > view.right()) x += target.right() - view.right();
-            if (target.x < view.x + (x - off.x)) x -= view.x + (x - off.x) - target.x;
-            if (x != off.x || y != off.y) {
-                Value args;
-                args.set("x", static_cast<double>(x)).set("y", static_cast<double>(y));
-                ActContext ctx{self, c, args};
-                (void)sc.type->act(sc.instance, ctx, "scroll_to");
-                touch(dirty_paint);
-            }
-            target = target.offset({-(x - off.x), -(y - off.y)});
-        }
+        reveal(id, false);
         env.result(spec::exit_code::success);
         return env;
     }

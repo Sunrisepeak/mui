@@ -271,10 +271,13 @@ Envelope Tree::transaction(std::span<const Step> steps, const Invocation& call, 
             c.dry_run = true;
             Envelope d = act(steps[i].id, steps[i].action, c);
             const Value* v = d.data_value();
-            if (v && v->get("undoable") && !v->get("undoable")->as_bool() && v->get("outcome") && v->get("outcome")->as_string() == "run") {
+            // Only what its preview says it can take back: a step whose way back is unknown (a callback
+            // that keeps no history) is refused as one that has none.
+            const Value* undoable = v ? v->get("undoable") : nullptr;
+            if (v && (!undoable || !undoable->as_bool()) && v->get("outcome") && v->get("outcome")->as_string() == "run") {
                 e.error(spec::error_code::refused,
-                        std::format("step {} ({}) gives no way back: a transaction holds only what it can take back (S-13); nothing was done", i + 1,
-                                    label_of(steps[i])),
+                        std::format("step {} ({}) {}: a transaction holds only what it can take back (S-13); nothing was done", i + 1,
+                                    label_of(steps[i]), undoable ? "gives no way back" : "has no known way back"),
                         Value{}.set("step", static_cast<std::int64_t>(i)).set("id", steps[i].id).set("action", steps[i].action))
                     .result(spec::exit_code::failure);
                 return e;

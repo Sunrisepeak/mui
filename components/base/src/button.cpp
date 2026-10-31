@@ -14,6 +14,7 @@ namespace {
 
 constexpr float height = 36;
 constexpr float padding_x = 16;
+constexpr float padding_y = 6;  // a label wrapped onto more lines keeps off the edge
 constexpr float press_scale = 0.03f;  // a pressed button is this much smaller
 
 }  // namespace
@@ -52,14 +53,16 @@ void Button::prop_changed(ButtonProp p) {
 void Button::restyle() { label_.set_style("label"); }
 
 void Button::style(const Theme& theme, layout::Style& s) const {
-    s.padding = {0, theme.scaled(padding_x), 0, theme.scaled(padding_x)};
+    s.padding = {theme.scaled(padding_y), theme.scaled(padding_x), theme.scaled(padding_y), theme.scaled(padding_x)};
     s.min_height = layout::pt(theme.scaled(height));
     s.min_width = layout::pt(theme.scaled(height));
 }
 
-Size Button::measure(MeasureContext& m, std::optional<float> width, std::optional<float>, layout::Available, layout::Available) {
+Size Button::measure(MeasureContext& m, std::optional<float> width, std::optional<float>, layout::Available aw, layout::Available) {
     const Colors c = colors(m.services.theme(), props.variant);
-    Size s = label_.measure(m.services, c.text);
+    // Narrower than its label (a max_width, a narrow column): the label wraps.
+    const float room = width ? *width : aw.is_definite() ? aw.value : std::numeric_limits<float>::infinity();
+    Size s = label_.measure(m.services, c.text, room);
     return {width.value_or(std::ceil(s.width)), std::ceil(s.height)};
 }
 
@@ -98,7 +101,7 @@ void Button::paint(PaintContext& ctx) const {
         ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, inner, 1, render::Paint::solid(*c.border));
     }
     const Color text = off ? ctx.theme.color("text_disabled", c.text) : c.text;
-    const Size t = label_.measure(ctx.services, text);
+    const Size t = label_.measure(ctx.services, text, ctx.content.width + 0.5f);
     label_.paint(ctx, {ctx.content.x + (ctx.content.width - t.width) / 2, ctx.content.y + (ctx.content.height - t.height) / 2}, text);
 
     if (off) ctx.list.pop_layer();

@@ -652,6 +652,9 @@ void Runtime::request_frame() { impl_->frame_requested = true; }
 void Runtime::scroll_into_view(NodeId node) {
     if (impl_->alive(node)) (void)impl_->perform(node, "scroll_into_view", {}, true);
 }
+void Runtime::scroll_to_start(NodeId node) {
+    if (impl_->alive(node)) impl_->reveal(node, true);
+}
 void Runtime::focus(NodeId node) { impl_->set_focus(node, impl_->focus_visible); }
 void Runtime::capture_pointer(NodeId node) { impl_->capture = node; }
 void Runtime::release_pointer() { impl_->capture = {}; }

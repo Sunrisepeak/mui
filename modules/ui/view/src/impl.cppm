@@ -484,6 +484,7 @@ struct Runtime::Impl {
         std::vector<Inverse> undo;
     };
     Envelope perform(NodeId id, std::string_view action, const Invocation& call, bool command, Outcome* out = nullptr);
+    void     reveal(NodeId id, bool at_start);
     Envelope perform_item(NodeId holder, std::string_view key, std::string_view action, const Invocation& call, Outcome* out = nullptr);
     [[nodiscard]] spec::SemanticNode semantics(NodeId id) const;
 

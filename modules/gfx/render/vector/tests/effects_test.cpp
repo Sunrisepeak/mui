@@ -164,7 +164,7 @@ int main(int argc, char** argv) {
         Hash all;
         for (const raster::Surface* s : {&clear_glass, &frosted, &group}) all.u64(s->hash());
         std::println("    liquid_glass {}", all.hex());
-        check_eq(all.hex(), std::string("5b06f8bd3fe613ad"));
+        check_eq(all.hex(), std::string("fed433c73b906b44"));
     });
 
     s.test("the style packs' effects (S2): neon, crt, paper, wobble, metaball — each changes the layer, pinned", [] {

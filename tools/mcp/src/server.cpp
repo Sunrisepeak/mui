@@ -338,6 +338,26 @@ struct Server::Impl {
             const Value::List& list = nodes && nodes->list() ? *nodes->list() : none;
             return tool_result(std::format("{}: {} nodes\n{}", *app, list.size(), outline(list)), false, a.data);
         }
+        if (name == "ui_verbs") {
+            Answer a = call(*app, Value{}.set("op", "describe"), options.timeout);
+            if (a.exit != 0) return tool_result(std::format("{}: {}", a.code, a.message), true);
+            const Value* verbs = a.data.get("verbs");
+            std::string out = std::format("{}: verbs\n", *app);
+            Value::List list;
+            if (verbs && verbs->list())
+                for (const Value& v : *verbs->list()) {
+                    std::string takes;
+                    if (const Value* g = v.get("args"); g && g->map())
+                        for (const auto& [k, t] : *g->map()) takes += std::format("{}{}: {}", takes.empty() ? "" : ", ", k, t.as_string());
+                    out += std::format("- {} ({}{}){}{} — {}\n", v.get("name")->as_string(), v.get("effect")->as_string(),
+                                       v.get("answer") ? std::format(", answer \"{}\"", v.get("answer")->as_string()) : std::string(),
+                                       takes.empty() ? "" : std::format(" {{{}}}", takes), v.get("person") ? " [person only]" : "",
+                                       v.get("summary") ? v.get("summary")->as_string() : std::string_view{});
+                    list.push_back(v);
+                }
+            if (list.empty()) out += "(none)\n";
+            return tool_result(std::move(out), false, Value{}.set("verbs", Value(std::move(list))));
+        }
         if (name == "ui_find") {
             Value q = Value(Value::Map{});
             if (const Value* raw = args.get("query"); raw && raw->map()) q = *raw;
@@ -518,7 +538,11 @@ Value::List Server::tools() {
                             {"dry_run", b("only what would happen; nothing is done")}},
                            {"node", "action"}),
              false, true),
-        tool("ui_invoke", "Invoke a verb", "Invokes an application verb (its describe lists them), e.g. notes.new with {\"title\": …}.",
+        tool("ui_verbs", "Application verbs",
+             "The application's verbs — what ui_invoke can name: each with its effect, the answer an irreversible or external one asks "
+             "for, the arguments it takes, and whether only the user may invoke it.",
+             object_schema({app_prop}), true, false),
+        tool("ui_invoke", "Invoke a verb", "Invokes an application verb (ui_verbs lists them, with their arguments).",
              object_schema({app_prop,
                             {"verb", s("the verb's name")},
                             {"args", o("its arguments")},
@@ -628,7 +652,7 @@ void Server::handle(std::string_view line, Transport& t) {
         r.set("protocolVersion", version).set("capabilities", std::move(caps)).set("serverInfo", std::move(info));
         r.set("instructions",
               "Operate running openmui applications through their semantic trees: ui_apps to see what runs, ui_snapshot or ui_find "
-              "to read, ui_act or ui_invoke to change, ui_wait to let the interface settle, ui_capture to see pixels, ui_input to point, "
+              "to read, ui_verbs for the application's verbs, ui_act or ui_invoke to change, ui_wait to let the interface settle, ui_capture to see pixels, ui_input to point, "
               "click, drag, scroll and type as a person does (when the application allows it), ui_clock for its time. Ids are stable "
               "paths. Actions marked irreversible or external are confirmed by the user; never answer for them. Actions marked person are "
               "the user's own and are refused to agents.");

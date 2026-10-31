@@ -320,13 +320,20 @@ void particles(const EffectInput& in) {
 
 // ── liquid glass (D-64) ──
 //
-// A thick transparent material over what lies under it: the backdrop bent
-// at the shape's bevel (refraction from the signed distance's gradient),
-// split a little by colour (dispersion), frosted (the renderer's box blur),
-// tinted — darker over a bright backdrop, lighter over a dark one, so what is
-// on the glass stays legible — lit at the rim facing the light and along a
-// fine inner edge; the layer's own content over it. Every operation is the
-// GPU path's (effects/liquid_glass.slang), in the same order.
+// A thick transparent material over what lies under it. Its surface is a
+// height field over the bevel — h(u) = 1 − (1 − u)³, u from 0 at the edge to
+// 1 where it is flat — whose 3D normal (the signed distance's gradient
+// tilted by the slope) refracts the view ray by Snell's law: the backdrop is
+// sampled where the bent ray meets it, so the edge magnifies and pulls in
+// what lies inside, continuously, as a lens does. Split a little by colour
+// (dispersion), frosted (the renderer's box blur), tinted — darker over a
+// bright backdrop, lighter over a dark one, so what is on the glass stays
+// legible —, lit: a specular highlight where the surface faces between the
+// light and the eye, a Fresnel rim brighter where it faces the light, a fine
+// line inside the edge, and shaded inside the edge turned away from the
+// light, so its depth reads on a bright backdrop too. The layer's own content
+// over it. Every operation is the GPU path's (effects/liquid_glass.slang), in
+// the same order.
 
 struct Glass {
     float thickness, ior, dispersion;
@@ -335,6 +342,7 @@ struct Glass {
     float smoothness;
     bool  adaptive;
     float rim;
+    float height, specular, shade;
 };
 
 Glass glass_of(std::span<const float> p, float scale) {
@@ -349,6 +357,9 @@ Glass glass_of(std::span<const float> p, float scale) {
     g.smoothness = p[10] * scale;
     g.adaptive = p[11] >= 0.5f;
     g.rim = clamp01(p[12]);
+    g.height = std::clamp(p[13], 0.0f, 4.0f);
+    g.specular = clamp01(p[14]);
+    g.shade = clamp01(p[15]);
     return g;
 }
 
@@ -375,14 +386,24 @@ void liquid_glass(const EffectInput& in) {
         const float gy = (shapes_distance(in.shapes, qx, qy + 1, g.smoothness) - shapes_distance(in.shapes, qx, qy - 1, g.smoothness)) * 0.5f;
         const float gl = std::sqrt(gx * gx + gy * gy);
         const float nx = gl > 0 ? gx / gl : 0.0f, ny = gl > 0 ? gy / gl : 0.0f;
-        // Refraction: the backdrop pulled in from beyond the edge.
-        const float bend = (1 - t) * (1 - t);
-        const float off = (g.ior - 1) * g.thickness * bend;
+        // The surface: its slope over the bevel, and its normal in 3D.
+        const float w = 1 - t;
+        const float slope = 3 * w * w * g.height;
+        const float sl = std::sqrt(slope * slope + 1);
+        const float sx = nx * slope / sl, sy = ny * slope / sl, sz = 1 / sl;
+        // Refraction (Snell): the view ray, straight down, bent into the
+        // glass; the backdrop where it lands, the glass's depth below.
+        const float eta = 1 / g.ior;
+        const float under_root = 1 - eta * eta * (1 - sz * sz);
+        const float f = eta * sz - std::sqrt(std::max(under_root, 0.0f));
+        const float tz = f * sz - eta;
+        const float reach = f * g.thickness * g.height / std::max(-tz, 0.05f);
+        const float dx = sx * reach, dy = sy * reach;
         const float spread = g.dispersion * 0.5f;
-        const float ro = off * (1 + spread), bo = off * (1 - spread);
-        const auto red = sample(under, qx - nx * ro, qy - ny * ro);
-        const auto green = sample(under, qx - nx * off, qy - ny * off);
-        const auto blue = sample(under, qx - nx * bo, qy - ny * bo);
+        const float rs = 1 + spread, bs = 1 - spread;
+        const auto red = sample(under, qx + dx * rs, qy + dy * rs);
+        const auto green = sample(under, qx + dx, qy + dy);
+        const auto blue = sample(under, qx + dx * bs, qy + dy * bs);
         float c[4] = {std::min(red[0], green[3]), green[1], std::min(blue[2], green[3]), green[3]};
         // Tint, over (premultiplied).
         const float ta = g.tint[3];
@@ -394,11 +415,26 @@ void liquid_glass(const EffectInput& in) {
             const float darken = 0.08f * clamp01((lum - 0.55f) / 0.35f), lighten = 0.08f * clamp01((0.45f - lum) / 0.35f);
             for (int i = 0; i < 3; ++i) c[i] = c[i] * (1 - darken) + c[3] * lighten;
         }
-        // Light: the rim facing it, and a fine line inside the edge.
+        // Shade: inside the edge turned away from the light.
+        const float away = std::max(0.0f, nx * g.lx + ny * g.ly);
+        const float dim = g.shade * w * w * away;
+        for (int i = 0; i < 3; ++i) c[i] = c[i] * (1 - dim);
+        // Light: the specular highlight (the light 45° up, toward where it
+        // comes from; the half vector with the eye), the Fresnel rim facing
+        // it, and a fine line inside the edge.
+        const float hx = -g.lx * 0.70710678f, hy = -g.ly * 0.70710678f, hz = 1.70710678f;  // L + V: L = (−l, 1)/√2, V = (0, 0, 1)
+        const float hl = std::sqrt(hx * hx + hy * hy + hz * hz);
+        const float nh = std::max(0.0f, (sx * hx + sy * hy + sz * hz) / hl);
+        float spec = nh * nh;
+        spec = spec * spec;
+        spec = spec * spec;
+        spec = spec * spec;
+        spec = spec * spec;  // (n·h)³²
+        const float edge = clamp01((1 - sz) * 1.5f);
         const float facing = std::max(0.0f, -(nx * g.lx + ny * g.ly));
-        const float rim = g.rim * (1 - t) * (1 - t) * (1 - t) * facing;
+        const float rim = g.rim * edge * edge * (0.35f + 0.65f * facing);
         const float line = g.rim * 0.5f * clamp01(1 - e / (1.5f * in.scale));
-        const float light = std::min(rim + line, 1.0f);
+        const float light = std::min(rim + line + g.specular * spec, 1.0f);
         for (int i = 0; i < 3; ++i) c[i] = std::min(c[i] + (c[3] - c[i]) * light, c[3]);
         // The glass where it covers; the layer's content over it.
         const float inv = 1 - static_cast<float>(s.a) / 255.0f;
@@ -723,7 +759,10 @@ void register_builtins(EffectRegistry& r) {
                           {"light_y", -0.8f, -1, 1, "the light's direction, y (up is negative)"},
                           {"smoothness", 0, 0, 200, "how far apart a group's members merge like drops, logical pixels"},
                           {"adaptive", 1, 0, 1, "darker over a bright backdrop, lighter over a dark one (0: off)"},
-                          {"rim", 0.6f, 0, 1, "the rim light's strength"}},
+                          {"rim", 0.6f, 0, 1, "the rim light's strength"},
+                          {"height", 1, 0, 4, "the surface's height over its bevel: how much it bulges, so how strongly the edge magnifies"},
+                          {"specular", 0.5f, 0, 1, "the highlight where the surface faces between the light and the eye"},
+                          {"shade", 0.2f, 0, 1, "the shade inside the edge turned away from the light"}},
                          [](std::span<const float> p) { return std::abs(p[0]) * 2 + std::abs(p[2]) + p[10]; },
                          liquid_glass,
                          pixel(fx::liquid_glass::liquid_glass_fs, derive_glass)};

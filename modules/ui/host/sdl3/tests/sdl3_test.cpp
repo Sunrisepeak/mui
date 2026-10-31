@@ -385,6 +385,13 @@ float4 invert_fs(EffectPixel px) : SV_Target {
             check(d.accessibility_mirror() == nullptr && d.accessibility_adapter() == nullptr);
             return;
         }
+        // UI Automation and NSAccessibility need the system's window, which
+        // SDL's offscreen driver has none of; AT-SPI needs none.
+        if (accessibility::service() != "atspi" && !d.accessibility_adapter()) {
+            check(d.accessibility_mirror() == nullptr, "no mirror kept without an adapter");
+            std::println("    skipped: {} needs a system window (the offscreen driver has none)", accessibility::service());
+            return;
+        }
         check(d.accessibility_adapter() != nullptr, "attached");
         Signal<int> pressed{0};
         d.mount("main", column({}, {box({.id = "ok", .width = 40, .height = 20, .label = "OK",

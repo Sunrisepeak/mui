@@ -223,6 +223,9 @@ public:
     // Scrolls every scroll view around the node so that it is in view (what
     // the `scroll_into_view` action does): a document's anchors, a list's row.
     virtual void scroll_into_view(NodeId node) = 0;
+    // So that the node starts at the top of its view, as far as the view
+    // scrolls (a document's anchor followed: its section read from the top).
+    virtual void scroll_to_start(NodeId node) { scroll_into_view(node); }
     virtual void focus(NodeId node) = 0;
     virtual void capture_pointer(NodeId node) = 0;
     virtual void release_pointer() = 0;

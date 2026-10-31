@@ -153,7 +153,7 @@ int main(int argc, char** argv) {
             check_eq(std::string(r.get("serverInfo")->get("name")->as_string()), std::string("openmui"));
         }
         const Value* tools = c.reply(2) ? c.reply(2)->get("result")->get("tools") : nullptr;
-        check(tools && tools->list() && tools->list()->size() == 11, "eleven tools");
+        check(tools && tools->list() && tools->list()->size() == 12, "twelve tools");
         if (tools && tools->list()) {
             std::set<std::string> names;
             for (const Value& t : *tools->list()) {
@@ -161,7 +161,7 @@ int main(int argc, char** argv) {
                 check(t.get("inputSchema") && t.get("inputSchema")->get("type")->as_string() == "object", "an object schema");
             }
             check((names == std::set<std::string>{"ui_apps", "ui_snapshot", "ui_find", "ui_act", "ui_invoke", "ui_undo", "ui_transaction", "ui_wait",
-                                                  "ui_capture", "ui_input", "ui_clock"}));
+                                                  "ui_capture", "ui_input", "ui_clock", "ui_verbs"}));
         }
         check(c.reply(3) && c.reply(3)->get("result"), "ping");
         check(c.reply(4) && c.reply(4)->get("error")->get("code")->as_int() == -32601, "an unknown method");
@@ -191,8 +191,10 @@ int main(int argc, char** argv) {
                 call(7, "ui_wait", Value{}.set("settled", true).set("timeout", 2)),
                 call(8, "ui_capture", Value{}.set("node", "notes/delete")),
                 call(9, "ui_snapshot", Value{}.set("app", "org.openmui.test-notes").set("root", "notes/nowhere")),
-                call(10, "ui_act", Value{}.set("node", "notes/delete"))};
+                call(10, "ui_act", Value{}.set("node", "notes/delete")),
+                call(11, "ui_verbs")};
         serve(notes.h, server, c);
+        check(!c.error(11) && c.text(11).contains("- notes.pin (") , c.text(11));
         check(c.text(2).contains("org.openmui.test-notes"), c.text(2));
         check(c.text(3).contains("notes/delete") && c.text(3).contains("(irreversible)") && !c.text(3).contains("notes/title"), c.text(3));
         check(c.text(4).starts_with("1 found") && c.text(4).contains("\"Delete all\""), c.text(4));

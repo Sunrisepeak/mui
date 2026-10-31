@@ -246,7 +246,14 @@ Size Engine::layout_leaf(NodeId node, const Request& r) {
             if (!v) return std::nullopt;
             return std::max(0.0f, *v - pb);
         };
-        auto inner_avail = [](Available a, float pb) {
+        // A definite max-width bounds what the content may take: a label
+        // wider than it wraps (as CSS's max-width does), not overflows.
+        const std::optional<float> most = s.max_width.unit == Length::Unit::points ? std::optional<float>(s.max_width.value) : std::nullopt;
+        auto inner_avail = [&](Available a, float pb, bool horizontal) {
+            if (horizontal && most && !r.width && a.kind != Available::Kind::min_content) {
+                const float cap = std::max(0.0f, *most - pb);
+                return Available::definite(a.is_definite() ? std::min(cap, std::max(0.0f, a.value - pb)) : cap);
+            }
             if (a.is_definite()) return Available::definite(std::max(0.0f, a.value - pb));
             return a;
         };
@@ -256,12 +263,12 @@ Size Engine::layout_leaf(NodeId node, const Request& r) {
             if (r.perform) {
                 ++stats_.measures;
                 content = n.measure(n.context, node, inner(r.width, pb_w), inner(r.height, pb_h),
-                                    inner_avail(r.avail_width, pb_w), inner_avail(r.avail_height, pb_h));
+                                    inner_avail(r.avail_width, pb_w, true), inner_avail(r.avail_height, pb_h, false));
             }
         } else {
             ++stats_.measures;
             content = n.measure(n.context, node, inner(r.width, pb_w), inner(r.height, pb_h),
-                                inner_avail(r.avail_width, pb_w), inner_avail(r.avail_height, pb_h));
+                                inner_avail(r.avail_width, pb_w, true), inner_avail(r.avail_height, pb_h, false));
         }
     }
     Size size{r.width.value_or(content.width + pb_w), r.height.value_or(content.height + pb_h)};

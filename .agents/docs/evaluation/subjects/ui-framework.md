@@ -25,6 +25,6 @@
 - `space` (openmui.example.space)
 - `md-view docs/en/features.md` (openmui.example.markdown-viewer)
 
-**Use:** the examples as a person would (ui_input) and as an agent (ui_act, ui_invoke, ui_undo, dry runs, an irreversible action and its answer, a transaction); text fields with typing, selection and keys; the canvas with drag and wheel; focus and Tab order; what the tree states against what is drawn.
+**Use:** the examples as a person would (ui_input) and as an agent (ui_act, ui_invoke, ui_undo, dry runs, an irreversible action and its answer, a transaction); text fields with typing, selection and keys; the canvas with drag and wheel; focus and Tab order; what the tree states against what is drawn. Native accessibility: `tools/ci/atspi.sh` runs `tally` on a desktop window and an AT-SPI client (the protocol Orca speaks, over D-Bus) reads and operates it — run it if your sandbox allows D-Bus, else read the report it wrote just before this evaluation (`/tmp/omui-eval-atspi.json`); judge the mapping (`modules/ui/accessibility`) and what is and is not covered (Windows and macOS adapters are built and attached in CI, not driven by a screen reader there).
 
 **Images:** none required (code review); attach the site's lens shots or tool screenshots when they exist.

@@ -12,8 +12,9 @@ openmui on the desktop, through SDL3 (`compat.sdl3` from mcpp-index):
   shoulders, triggers as axes and buttons, d-pad, sticks; the dead zones by
   `GamepadReader`; the device's events released before it goes);
 - the system clipboard and cursors (an I-beam over text fields);
-- the CPU renderer's frames streamed into a texture, presented only when the
-  display list changed (the GPU renderer replaces it at M4);
+- frames drawn by the GPU renderer into the window's swapchain (omui.rhi on
+  SDL_GPU) when the machine has a GPU, else by the CPU renderer and streamed
+  into a texture — presented only when the display list changed;
 - a loop that sleeps until an event, the next timer or an agent's request
   (`Desktop::wake` from other threads), and paces animation by vsync;
 - the agent endpoint (`openmui.tree@0.1`), with capture of the shown frame.

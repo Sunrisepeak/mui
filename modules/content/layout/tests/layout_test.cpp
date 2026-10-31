@@ -158,6 +158,22 @@ int main(int argc, char** argv) {
         check_frame(e, b, {45, 0, 15, 40});  // 15 wide: 1 word per line, 2 lines
     });
 
+    s.test("a max-width bounds what content measures: a long paragraph wraps within it (CSS)", [] {
+        layout::Engine e;
+        layout::Style cs;
+        cs.direction = layout::Direction::column;
+        cs.align_items = layout::Align::start;  // not stretched: its own width
+        auto root = e.create(cs);
+        Words nine{9};
+        layout::Style ps;
+        ps.max_width = pt(50);
+        auto p = e.create(ps);
+        e.set_measure(p, measure_words, &nine);
+        e.append(root, p);
+        e.compute(root, {400, 400});
+        check_frame(e, p, {0, 0, 50, 60});  // 50 wide: 3 words a line, 3 lines — not one line of 170 cut to 50
+    });
+
     s.test("column: stretch, center, end, space-between", [] {
         layout::Engine e;
         layout::Style cs;

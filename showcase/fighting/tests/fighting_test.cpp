@@ -1384,23 +1384,29 @@ int main(int argc, char** argv) {
     s.test("霓's 5HP, the pilot's whole-body drawings (D-90): each key exposed on its frames; at contact her knuckles are where the attack box ends; pinned", [] {
         Game g("versus", "ni", "kata");
         check(g.act("pause"));
+        // Walked in to where the straight reaches, then thrown: it lands.
+        check(g.act("press", pad(0, "6")));
+        for (int i = 0; i < 200 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 95; ++i) check(g.act("step"));
+        check(g.act("press", pad(0, "5")));
+        check(g.act("step"));
         check(g.act("press", pad(0, "5HP")));
         const auto& r = fighting::roster();
         const std::size_t ni = fighting::fighter_index("ni");
         const gongfu::present2d::Look& look = r.looks[2 * ni];
         const gongfu::Fighter& fighter = r.fighters[ni];
         const gongfu::MoveDef& hp = fighter.def.moves[static_cast<std::size_t>(fighter.find("5HP"))];
-        std::vector<std::string> shown;
+        std::map<std::int32_t, std::string> shown;  // by move frame (a hit's stop holds one)
         std::optional<double> reach;
-        for (int i = 0; i < 30; ++i) {
+        for (int i = 0; i < 60; ++i) {
             check(g.act("step"));
             if (i == 0) check(g.act("press", pad(0, "5")));
             const auto& f = g.state().f[0];
             if (f.mode != gongfu::Mode::move) break;
             const auto [clip, t] = std::pair{&look.clips.at("5HP"), f.move_frame - 1};
             const std::int32_t cel = gongfu::present2d::exposed(clip, t);
-            shown.push_back(cel < 0 ? std::string("rig") : look.cels[static_cast<std::size_t>(cel)].name);
-            if (f.move_frame == hp.hits.front().active.from) {
+            const bool first = !shown.contains(f.move_frame);
+            shown[f.move_frame] = cel < 0 ? std::string("rig") : look.cels[static_cast<std::size_t>(cel)].name;
+            if (first && f.move_frame == hp.hits.front().active.from) {
                 const auto k = gongfu::present2d::socket(look, fighter, f, g.state().frame, "knuckle");
                 check(k.has_value(), "a knuckle socket at contact");
                 if (k) reach = (k->x - f.pos.x.to_double()) * (f.facing < 0 ? -1 : 1);
@@ -1408,8 +1414,13 @@ int main(int argc, char** argv) {
                 check(g.h.save_png(scratch_dir("fighting-pilot") / "ni-5hp-contact.png").has_value());
             }
         }
-        check(shown.size() >= 25 && shown[0] == "hp_guard" && shown[7] == "hp_contact" && shown[9] == "hp_reach" && shown[24] == "hp_settle",
+        check(shown.size() >= 25 && shown[1] == "hp_guard" && shown[8] == "hp_contact" && shown[10] == "hp_reach" && shown[25] == "hp_settle",
               std::format("{} frames shown", shown.size()));
+        // The spark where the knuckles were drawn, not between the boxes.
+        bool drawn = false;
+        for (const auto& k : g.stage().effects().kept())
+            if (k.drawn && k.event.attacker == 0) drawn = true;
+        check(drawn, "the contact where the drawing touched");
         const auto& box = hp.hits.front().boxes.front();
         const double edge = (box.x + box.w).to_double();
         check(reach && std::abs(*reach - edge) <= 4, std::format("knuckles at {}, the attack box to {}", reach.value_or(-1), edge));

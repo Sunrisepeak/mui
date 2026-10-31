@@ -320,7 +320,7 @@ void Stage::advance() {
     if (!demo_) inputs_.push_back({a, b});
     if (demo_) ++demo_at_;
     match_->tick(a, b);
-    effects_.record(*match_);
+    effects_.record(*match_, &looks_[0], &looks_[1]);
     readout_.record(*match_, a, b);
     if (!quiet_) sounds_.heard(*match_, looks_[0], looks_[1]);
     const gongfu::State& st = match_->state();

@@ -57,6 +57,8 @@ public:
     // The match being played, and training's readings of it (tests and tools read them).
     [[nodiscard]] const gongfu::Match& match() const noexcept { return *match_; }
     [[nodiscard]] const gongfu::training::Readout& readout() const noexcept { return readout_; }
+    // What the picture keeps of the match: its contacts (where they were drawn), recent poses.
+    [[nodiscard]] const gongfu::present2d::Effects& effects() const noexcept { return effects_; }
     // What the fight sounds like: a device pulls its mixer (the app's), or a test renders it offline.
     [[nodiscard]] Sounds& sounds() noexcept { return sounds_; }
 

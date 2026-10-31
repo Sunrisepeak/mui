@@ -712,13 +712,18 @@ struct Scene {
 
 class Effects {
 public:
-    // After each tick: its events, at its frame.
-    void record(const Match& match);
+    // After each tick: its events, at its frame. With the looks, a contact
+    // made by a whole-body drawing keeps where the drawing touched (its
+    // `contact` socket, else its first).
+    void record(const Match& match, const Look* left = nullptr, const Look* right = nullptr);
     // After a rollback to `frame`: the events of frames from it on are played again.
     void rewind(std::int32_t frame);
     struct Kept {
         std::int32_t frame;
         Event        event;
+        // Where the striking drawing touched, when the attacker showed a whole-body drawing with a contact
+        // socket on that frame (D-90): the spark goes there, on the fist drawn, not between the boxes.
+        std::optional<Point> drawn;
     };
     [[nodiscard]] std::span<const Kept> kept() const noexcept { return kept_; }
     // The fighters as they were `ago` frames before the latest recorded (for

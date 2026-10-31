@@ -1,0 +1,18 @@
+[style.liquid]
+doc       = "Soft and fluid: handles that merge like drops."
+theme     = "light"
+crossfade = 0.4
+
+[style.liquid.colors]
+accent = "#6366f1"
+background = "#eef2ff"
+track = "#c7d2fe"
+
+[style.liquid.radius]
+large = 24
+medium = 16
+small = 10
+xl = 28
+
+[style.liquid.effects]
+slider = { effect = "metaball", color = "accent", smoothness = 12 }

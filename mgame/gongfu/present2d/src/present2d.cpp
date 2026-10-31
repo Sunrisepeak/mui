@@ -446,11 +446,26 @@ const FighterState* Effects::past(std::int32_t fighter, std::int32_t frame) cons
     return nullptr;
 }
 
-void Effects::record(const Match& match) {
-    Past& slot = past_[static_cast<std::size_t>(match.state().frame) % past_.size()];
-    slot.frame = match.state().frame;
-    slot.f = match.state().f;
-    for (const Event& e : match.events()) kept_.push_back({match.state().frame, e});
+void Effects::record(const Match& match, const Look* left, const Look* right) {
+    const State& st = match.state();
+    Past& slot = past_[static_cast<std::size_t>(st.frame) % past_.size()];
+    slot.frame = st.frame;
+    slot.f = st.f;
+    for (const Event& e : match.events()) {
+        Kept k{st.frame, e, std::nullopt};
+        if (left && right && contact(e.kind) && e.attacker >= 0 && e.attacker <= 1) {
+            const Look& look = e.attacker == 0 ? *left : *right;
+            const FighterState& by = st.f[static_cast<std::size_t>(e.attacker)];
+            const auto [clip, t] = resolve(look, match.fighter(e.attacker), by, st.frame);
+            if (const std::int32_t cel = exposed(clip, t); cel >= 0 && static_cast<std::size_t>(cel) < look.cels.size()) {
+                const Cel& c = look.cels[static_cast<std::size_t>(cel)];
+                auto it = c.sockets.find("contact");
+                if (it == c.sockets.end()) it = c.sockets.begin();
+                if (it != c.sockets.end()) k.drawn = cel_point(look, c, by, it->second.at);
+            }
+        }
+        kept_.push_back(std::move(k));
+    }
     // A few seconds is all a picture reads.
     const std::int32_t keep_from = match.state().frame - 240;  // a cinematic's sparks may stand still a while
     std::erase_if(kept_, [&](const Kept& k) { return k.frame < keep_from; });
@@ -1737,6 +1752,11 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         // number puts it about the hit (so the hits hang apart), and goes on from the bell.
         const bool hung = k.frame >= stop_from && k.frame < stop_to;
         Effects::Kept held = k;
+        // Drawn by a whole-body drawing: where it touched (D-90), not between the boxes.
+        if (k.drawn) {
+            held.event.at.x = Fixed::raw(static_cast<std::int32_t>(std::lround(k.drawn->x * Fixed::one_bits)));
+            held.event.at.y = Fixed::raw(static_cast<std::int32_t>(std::lround(k.drawn->y * Fixed::one_bits)));
+        }
         if (hung) {
             spark_age = std::min(std::min(st.frame, stop_to) - k.frame, 3) + std::max(0, st.frame - stop_to);
             held.event.at.x += Fixed::raw(static_cast<std::int32_t>(std::lround((scatter(k, 7) - 0.5) * 140 * Fixed::one_bits)));
@@ -1753,7 +1773,7 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         } else if (hung) {
             if (spark_age < im.spark_frames) spark(held, im, spark_age, view, path_, out);
         } else if (spark_age < im.spark_frames) {
-            spark(k, im, spark_age, view, path_, out);
+            spark(held, im, spark_age, view, path_, out);
         }
         if (im.flash != Flash::none && age < im.flash_frames) {
             if (im.flash == Flash::white) {

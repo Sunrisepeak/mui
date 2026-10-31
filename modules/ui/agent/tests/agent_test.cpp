@@ -205,6 +205,24 @@ int main(int argc, char** argv) {
         check_eq(allowed, 1);
     });
 
+    s.test("input: keys pressed together — a chord, down in one frame, held, up in one", [] {
+        Notes app;
+        agent::Protocol p(app.rt, {.input = true});
+        check(exit_of(talk(p, R"({"op":"input","events":[{"type":"keys","keys":[]}]})")) == 1, "no keys");
+        check(exit_of(talk(p, R"({"op":"input","events":[{"type":"keys","keys":["U","Nope"]}]})")) == 1, "not a key");
+        p.request(R"({"op":"input","events":[{"type":"keys","keys":["U","J"],"hold":3}]})", [](std::string_view) {});
+        std::vector<std::vector<InputEvent>> frames;
+        while (auto batch = p.take_input()) frames.push_back(std::move(batch->events));
+        check_eq(frames.size(), std::size_t{4});
+        const auto keys = [&](std::size_t f, KeyKind kind) {
+            return frames[f].size() == 2 && std::ranges::all_of(frames[f], [&](const InputEvent& e) {
+                       const auto* k = std::get_if<KeyEvent>(&e);
+                       return k && k->kind == kind;
+                   });
+        };
+        check(keys(0, KeyKind::down) && frames[1].empty() && frames[2].empty() && keys(3, KeyKind::up), "down together, held 3 frames, up together");
+    });
+
     s.test("input: refused where it is off; a click as a device gives it, what it hit and did", [] {
         Notes app;
         agent::Protocol closed(app.rt);

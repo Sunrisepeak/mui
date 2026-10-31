@@ -443,7 +443,8 @@ struct Server::Impl {
                                            str(h, "role"), str(h, "name").empty() ? std::string() : std::format(" \"{}\"", str(h, "name")));
                 }
             const Value* acts = a.data.get("actions");
-            if (!acts || !acts->list() || acts->list()->empty()) out += "\nno action was performed";
+            if (!acts || !acts->list() || acts->list()->empty())
+                out += "\nno action was journaled (input a component takes itself — keys a game reads, a pointer's moves — journals none; look at the picture or the tree)";
             else
                 for (const Value& x : *acts->list())
                     out += std::format("\naction: {} on {} by {}{}", str(x, "action"), str(x, "node"), str(x, "actor"),
@@ -553,7 +554,8 @@ Value::List Server::tools() {
              "what it does is the agent's, decided as its requests are (the user's own actions refused; an irreversible one needs their answer); "
              "an application may turn it off. Events: {type: move|click|double_click|down|up, x, y | node, button?, "
              "mods?}, {type: drag, from: [x,y] | from_node, to: [x,y] | to_node, steps?}, {type: wheel, x, y, dx?, dy?}, {type: key|key_down|"
-             "key_up, key: A|Enter|Escape|Tab|Space|Left|PageDown…, mods?: [shift, ctrl, alt, meta], hold?: frames}, {type: text, text}, "
+             "key_up, key: A|Enter|Escape|Tab|Space|Left|PageDown…, mods?: [shift, ctrl, alt, meta], hold?: frames}, {type: keys, keys: [U, J], hold?} "
+             "(pressed together), {type: text, text}, "
              "{type: wait, frames}. Coordinates are logical pixels, as ui_snapshot's @x,y. The answer says what each press hit, the actions "
              "performed (by whom) and where focus is; capture: true adds the window's pixels after.",
              object_schema({app_prop,

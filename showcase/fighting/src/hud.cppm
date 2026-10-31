@@ -47,6 +47,25 @@ private:
     std::map<std::string, typeset::Paragraph, std::less<>> kept_;
 };
 
+// A card over the match: paused (Esc, a pad's start), or the match's
+// results. The match dimmed; a heading — the winner's name in calligraphy
+// with 胜, else words —, a line under it; the items as the menus' lacquer
+// bars, the lit one bright; the keys beneath.
+struct Card {
+    std::string_view                  heading;  // words (empty: the winner's)
+    std::string_view                  winner;   // the results: the winner by its files' name (empty: a draw)
+    std::string_view                  sub;      // under the heading
+    std::span<const std::string_view> items;
+    std::int32_t                      lit = 0;
+    std::span<const std::string_view> keys;  // lines beneath
+};
+void card(render::DisplayList& out, render::ImageRef menu_frames, render::ImageRef names, Words& words, typeset::FontCollection& fonts, const Card& card);
+// Where the card's item `i` of `n` is, in the picture's units (a pointer finds it there).
+[[nodiscard]] Rect card_item(std::size_t i, std::size_t n);
+
+// The menus' lacquer bars (hud/menu-frames.webp), plain and lit.
+inline constexpr Rect menu_bar{19, 262, 562, 75}, menu_bar_lit{15, 345, 568, 90};
+
 // What a dummy is doing, for its side's corner.
 enum class Dummy : std::uint8_t { none, recording, playing };
 

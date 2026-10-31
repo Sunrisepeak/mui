@@ -24,12 +24,12 @@
 - `omui-fight --quiet` (openmui.showcase.fighting)
 - `omui-fight --fight kun ni --cpu 1 --level 2 --quiet --agent-name org.openmui.fighting.cpu` (openmui.showcase.fighting)
 
-**Use:** the keys are player 1 W A S D (move), U I O (punches), J K L (kicks); player 2 the arrows, Insert Home PageUp, Delete End PageDown (hold keys with `hold`, in frames; motions as successive keys; ui_clock pause and step to read frames).
+**Use:** the keys are player 1 W A S D (move), U I O (punches), J K L (kicks); player 2 the arrows, Insert Home PageUp, Delete End PageDown (hold keys with `hold`, in frames; motions as successive keys; buttons together with `keys`; ui_clock pause and step to read frames). Esc (a pad's start) pauses under a card: its items answer the keys, a pad and the pointer.
 1. Title to fight with the keys and with the pointer: every screen's controls answer, and say how.
 2. Play several fighters, one round each at least: walk, jump, guard, normals, specials by motion, a throw, a super when the meter allows; read the HUD as you go.
-3. Training mode: the move list, a move's demonstration, frame data, the dummy recording and playback, reset.
+3. Training mode: frame data, its tools from the pause card (save and load a state, record player 2 and replay it, fill the meters, the overlays), the move list and a move's demonstration, reset.
 4. Watch an exchange frame by frame (ui_clock): anticipation, impact, hit-stop, sparks, reaction, camera.
-5. A whole match to its K.O. and back to the select screen.
+5. A whole match to its K.O., its results; a rematch, and back to the select screen. Pause a fight and leave it.
 6. As an agent: what the semantic tree says of the fight (frame, health, what each is doing, move phases, whether each can act) against what the picture shows.
 7. Against the computer (`org.openmui.fighting.cpu`, you are player 1): play a round with the keys; judge how it plays.
 8. Read the last duel between two agents (`.agents/docs/evaluation/reports/*-fighting-duel-*.md`): what two players found playing by turns.

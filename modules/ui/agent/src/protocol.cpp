@@ -250,6 +250,26 @@ std::expected<std::deque<std::vector<InputEvent>>, std::string> frames_of(const 
                 k.kind = KeyKind::up;
                 out.push_back({InputEvent{k}});
             }
+        } else if (type == "keys") {
+            // Several keys pressed in the same frame, held, released together (a chord: LP+LK).
+            const Value* list = e.get("keys");
+            if (!list || !list->list() || list->list()->empty()) return std::unexpected(std::string("keys: needs `keys`, a list: [\"U\", \"J\"]"));
+            std::vector<KeyEvent> held;
+            for (const Value& k : *list->list()) {
+                const auto key = parse_key(k.as_string());
+                if (!key) return std::unexpected(std::format("`{}` is not a key", k.as_string()));
+                held.push_back({.kind = KeyKind::down, .key = *key, .mods = *mods});
+            }
+            std::vector<InputEvent> down, up;
+            for (KeyEvent k : held) {
+                down.push_back(k);
+                k.kind = KeyKind::up;
+                up.push_back(k);
+            }
+            out.push_back(std::move(down));
+            const int hold = std::clamp(static_cast<int>(number(e, "hold", 1)), 1, 600);
+            for (int i = 1; i < hold; ++i) out.emplace_back();
+            out.push_back(std::move(up));
         } else if (type == "text") {
             const std::string_view text = text_of(e, "text");
             if (text.empty()) return std::unexpected(std::string("text: needs `text`"));
@@ -258,7 +278,7 @@ std::expected<std::deque<std::vector<InputEvent>>, std::string> frames_of(const 
             const int frames = std::clamp(static_cast<int>(number(e, "frames", 1)), 1, 3600);
             for (int i = 0; i < frames; ++i) out.emplace_back();
         } else {
-            return std::unexpected(std::format("`{}` is not an input event (move, click, double_click, down, up, drag, wheel, key, key_down, "
+            return std::unexpected(std::format("`{}` is not an input event (move, click, double_click, down, up, drag, wheel, key, keys, key_down, "
                                                "key_up, text, wait)",
                                                type));
         }

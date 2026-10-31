@@ -189,6 +189,13 @@ int main(int argc, char** argv) {
         for (int d : {2, 1, 4}) other_side.record(pad(d), -1, Socd::up_wins);  // facing left, 1 and 4 are forward
         other_side.record(pad(4, MP), -1, Socd::up_wins);
         check(recognise(other_side, fireball).has_value(), "the motion is the fighter's, not the screen's");
+        // A dash's taps are strict: 6, 5, 6 is 66; the 6 … 6 of a 236236 on its way to its kick is not.
+        InputLog taps;
+        for (int d : {6, 5, 6}) taps.record(pad(d), 1, Socd::up_wins);
+        check(recognise(taps, {.motion = dash_forward}).has_value(), "6, 5, 6");
+        InputLog twice;
+        for (int d : {2, 3, 6, 5, 2, 3, 6}) twice.record(pad(d), 1, Socd::up_wins);
+        check(!recognise(twice, {.motion = dash_forward}), "236 5 236: no dash on the way");
         // The buffer: a press 3 frames ago still counts, 4 does not.
         InputLog late;
         late.record(pad(5, LP), 1, Socd::up_wins);

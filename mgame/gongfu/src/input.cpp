@@ -121,10 +121,16 @@ std::optional<std::int32_t> recognise(const InputLog& log, const Command& c) noe
         if (turns < c.motion.rotation) return std::nullopt;
     }
     // A motion: its steps in order, the last first, back from the press.
+    // A dash's taps (no button) are strict — nothing between them but the
+    // taps held — so the 6 … 6 of a 236236 on its way to a kick is no 66.
     if (c.motion.length > 0) {
         int k = c.motion.length - 1;
-        for (std::int32_t age = *press; age <= *press + c.motion.window && k >= 0; ++age)
-            if (log.direction(age) == c.motion.steps[static_cast<std::size_t>(k)]) --k;
+        const bool strict = c.buttons == 0;
+        for (std::int32_t age = *press; age <= *press + c.motion.window && k >= 0; ++age) {
+            const int d = log.direction(age);
+            if (d == c.motion.steps[static_cast<std::size_t>(k)]) --k;
+            else if (strict && (k + 1 >= c.motion.length || d != c.motion.steps[static_cast<std::size_t>(k + 1)])) return std::nullopt;
+        }
         if (k >= 0) return std::nullopt;
     }
 

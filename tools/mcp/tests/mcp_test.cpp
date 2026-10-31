@@ -243,7 +243,7 @@ int main(int argc, char** argv) {
                   c.text(2).contains("action: activate on main/go by agent:claude-code;via=service:input"),
               c.text(2));
         check_eq(pressed, 1);
-        check(!c.error(3) && c.text(3).contains("no action was performed"), c.text(3));
+        check(!c.error(3) && c.text(3).contains("no action was journaled"), c.text(3));
         check(c.error(4) && c.text(4).contains("not an input event"), c.text(4));
         check(!c.error(5) && c.text(5).contains("\"paused\":true"), c.text(5));
     });

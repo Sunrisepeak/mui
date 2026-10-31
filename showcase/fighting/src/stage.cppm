@@ -35,6 +35,8 @@ public:
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
 
     ActResult restart(ActContext& ctx);
+    ActResult rematch(ActContext& ctx);
+    ActResult leave(ActContext& ctx);
     ActResult pause(ActContext& ctx);
     ActResult resume(ActContext& ctx);
     ActResult step(ActContext& ctx);
@@ -70,6 +72,24 @@ private:
     [[nodiscard]] gongfu::Pad gamepad(std::int32_t player) const;
     [[nodiscard]] gongfu::Pad pad_of(std::int32_t player) const;
     bool on_gamepad(const GamepadEvent& g);
+
+    // The card over the match: paused (Esc, a pad's start: the match stands)
+    // or the results (the match decided, its K.O. seen). Its items by what
+    // they do: resume, restart, rematch, fighters.
+    enum class Menu : std::uint8_t { none, paused, results };
+    [[nodiscard]] Menu menu() const noexcept;
+    [[nodiscard]] std::span<const std::string_view> menu_items() const noexcept;
+    bool on_menu(EventContext& ctx, const InputEvent& e);  // the card's keys, pad and pointer
+    void choose(std::string_view item);
+    void open_menu(bool paused);
+    bool                                  paused_ = false;   // the pause card is up
+    bool                                  swapped_ = false;  // training: the person plays player 2 (recording it from the card)
+    mutable std::array<std::string_view, 9> items_{};        // the card's items as they stand (menu_items)
+    void save_state();
+    bool load_state();
+    void fill_meters();
+    bool                                  fresh_ = false;    // left for the select screen: the next play is a new match
+    std::int32_t                          menu_at_ = 0;      // its lit item
 
     std::unique_ptr<gongfu::Match>        match_;
     // Training's demonstration of a move (`demo`): its match at the move's
@@ -110,6 +130,7 @@ private:
     struct Saved {
         gongfu::State              state;
         gongfu::present2d::Effects effects;
+        std::size_t                inputs = 0;  // how many frames of pads had led to it
     };
     std::optional<Saved>                  saved_;
     // What painting reuses from frame to frame (paint is const; these are its scratch).

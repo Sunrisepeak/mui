@@ -565,4 +565,58 @@ void versus(render::DisplayList& out, const gongfu::Match& match, const p2::Effe
     }
 }
 
+// ── a card over the match ───────────────────────────────────────────────────
+
+Rect card_item(std::size_t i, std::size_t n) {
+    if (n > 4) {  // many (training's tools): two columns, under a smaller heading
+        constexpr float w = 300, h = w * menu_bar.height / menu_bar.width, gap = 8;
+        const std::size_t rows = (n + 1) / 2;
+        const float x = i < rows ? width / 2 - w - 14 : width / 2 + 14;
+        return {x, 174 + static_cast<float>(i % rows) * (h + gap), w, h};
+    }
+    constexpr float w = 340, h = w * menu_bar.height / menu_bar.width, gap = 12;
+    const float top = 262 + (3 - static_cast<float>(n)) * (h + gap) / 2;  // two or three, about the same middle
+    return {width / 2 - w / 2, top + static_cast<float>(i) * (h + gap), w, h};
+}
+
+void card(render::DisplayList& out, render::ImageRef menu_frames, render::ImageRef names, Words& words, typeset::FontCollection& fonts, const Card& c) {
+    out.fill_rect({0, 0, width, height}, tone(0x07060a, 0.66f));
+    // The heading: the winner's name in calligraphy and 胜 beside it, or the words (higher over many items).
+    const bool many = c.items.size() > 4;
+    const float top = many ? 40 : 92;
+    const auto nm = std::ranges::find(region::name, c.winner, &std::pair<std::string_view, Rect>::first);
+    if (c.heading.empty() && nm != region::name.end() && names.id != 0) {
+        const auto& won = words.get(fonts, "胜", 54, tone(0xf6ecd6));
+        const float h = 96, w = placed(nm->second, h), all = w + 16 + won.size().width;
+        shape(out, names, nm->second, {width / 2 - all / 2, top, w, h}, tone(0xf6ecd6));
+        won.paint(out, {width / 2 - all / 2 + w + 16, top + h / 2 - won.size().height / 2});
+    } else {
+        const auto& p = words.get(fonts, c.heading.empty() ? std::string_view("平局") : c.heading, 54, tone(0xf6ecd6));
+        p.paint(out, {width / 2 - p.size().width / 2, top + 48 - p.size().height / 2});
+    }
+    if (!c.sub.empty()) {
+        const auto& p = words.get(fonts, c.sub, 15, tone(0xd9b25a));
+        p.paint(out, {width / 2 - p.size().width / 2, top + 106});
+    }
+    // The items: a lacquer bar each (as the title's modes), the lit one bright and a little out.
+    for (std::size_t i = 0; i < c.items.size(); ++i) {
+        const bool lit = static_cast<std::int32_t>(i) == c.lit;
+        const Rect at = card_item(i, c.items.size());
+        const Rect& src = lit ? menu_bar_lit : menu_bar;
+        const float h = at.width * src.height / src.width;
+        const Rect bar{at.x + (lit ? 0.0f : 10.0f), at.y + at.height / 2 - h / 2, at.width, h};
+        if (menu_frames.id != 0) picture(out, menu_frames, src, bar, lit ? 1.0f : 0.75f);
+        else out.fill_round_rect(bar, CornerRadii::all(4), render::Paint::solid(tone(lit ? 0x8f1d1f : 0x15131a, 0.92f)));
+        const auto& p = words.get(fonts, c.items[i], many ? 15.0f : 19.0f, lit ? tone(0xf6ecd6) : tone(0xb9ad94));
+        p.paint(out, {bar.x + (many ? 54.0f : 64.0f), bar.y + bar.height / 2 - p.size().height / 2});
+    }
+    // The keys, quiet, at the foot.
+    float y = height - 26 - 22 * static_cast<float>(c.keys.size());
+    for (std::string_view line : c.keys) {
+        const auto& p = words.get(fonts, line, 12, ink.with_alpha(0.62f));
+        p.paint(out, {width / 2 - p.size().width / 2, y});
+        y += 22;
+    }
+}
+
 }  // namespace omui::fighting::hud

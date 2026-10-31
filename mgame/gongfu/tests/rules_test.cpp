@@ -1336,7 +1336,10 @@ int main(int argc, char** argv) {
             if (g >= 1800) {
                 const int k = g - 1800;
                 b[static_cast<std::size_t>(g)] = k >= 40 && k < 43 ? std::array{pad(2), pad(5), pad(2, LP)}[static_cast<std::size_t>(k - 40)] : pad(5);
-                a[static_cast<std::size_t>(g)] = k < 120 ? pad(4) : k >= 130 && k < 133 ? std::array{pad(2), pad(3), pad(6, LP)}[static_cast<std::size_t>(k - 130)] : pad(5);
+                a[static_cast<std::size_t>(g)] = k < 120               ? pad(4)
+                                               : k >= 130 && k < 133 ? std::array{pad(2), pad(3), pad(6, LP)}[static_cast<std::size_t>(k - 130)]
+                                               : k >= 180 && k < 183 ? std::array{pad(2), pad(1), pad(4, LP)}[static_cast<std::size_t>(k - 180)]  // a hand that comes back
+                                                                     : pad(5);
                 continue;
             }
             const int f = g - 200;
@@ -1426,7 +1429,7 @@ int main(int argc, char** argv) {
         std::println("    time: marks {}, rewinds {}, clones {} (gone {}), hands coming back {}, stalled {}", times[0], times[1], times[2], times[3], times[4], times[5]);
         check(std::ranges::all_of(times, [](int n) { return n > 0; }), "marks, rewinds, a clone and its end, hands coming back, stalls");
         std::println("    rules run hash {:016x}", hashes.back());
-        check(hashes.back() == 0x4188338a43cb05c1ULL, std::format("run hash {:016x}", hashes.back()));  // GCC, LLVM and wasm
+        check(hashes.back() == 0x50d0046d4a870b49ULL, std::format("run hash {:016x}", hashes.back()));  // GCC, LLVM and wasm
     });
 
     return s.run(argc, argv);

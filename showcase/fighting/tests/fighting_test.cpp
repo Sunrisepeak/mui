@@ -1296,7 +1296,7 @@ int main(int argc, char** argv) {
             check(rate >= 0.38 && rate <= 0.62, std::format("{} wins {:.2f} of its rounds", r.names[i], rate));
         }
         std::println("    rounds {}", all.hex());
-        check_eq(all.hex(), std::string("54f2cbf92a52e6e1"));  // the same rounds on GCC and LLVM
+        check_eq(all.hex(), std::string("79e3cdac32caec40"));  // the same rounds on GCC and LLVM
     });
 
     s.test("a stage's music: the study's piece plays from the round's start, louder as the round gets close; the rooftop's for 坤; none in training's plain room", [] {

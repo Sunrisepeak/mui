@@ -1,6 +1,6 @@
 // The application: the title and the select screen, then the fight filling
-// the window, best of three; the match over, back to the select screen (the same fighters
-// under the cursors) for the next. The stage and the select screen are
+// the window, best of three; the match over, its results — a rematch, or
+// back to the select screen (the same fighters under the cursors). The stage and the select screen are
 // registered by name for view documents, scripts and agents.
 module openmui.showcase.fighting;
 
@@ -14,14 +14,12 @@ namespace {
 // What the application keeps between its setup and its view: which screen
 // is up, and what the select screen chose.
 struct Lobby {
-    Runtime*            runtime = nullptr;
     Signal<bool>        fighting = signal(false);
     Signal<std::string> phase = signal(std::string("title"));
     Signal<std::string> mode = signal(std::string("versus")), player1 = signal(std::string()), player2 = signal(std::string()),
                         arena = signal(std::string());
     Signal<std::int32_t> cpu = signal(std::int32_t{-1});  // the player the computer plays (-1: none)
     std::int32_t         cpu_level = 2, turn_frames = 0;
-    std::uint64_t       back = 0;  // the timer taking the players back to the select screen
 };
 
 }  // namespace
@@ -46,8 +44,7 @@ AppSpec app(Start start) {
     l->cpu.set(start.cpu);
     l->cpu_level = start.cpu_level;
     l->turn_frames = start.turn_frames;
-    a.setup = [l](Runtime& rt) {
-        l->runtime = &rt;
+    a.setup = [](Runtime&) {
         register_components();
     };
     a.view = [l] {
@@ -63,15 +60,10 @@ AppSpec app(Start start) {
                                .width = Dim(layout::pct(100)),
                                .height = Dim(layout::pct(100)),
                                .visible = l->fighting});
-        // The match over (its last round): a few seconds for the K.O. and the finish, then the select screen again.
-        fight.on("match_over", [l](const Value&) {
-            Runtime* rt = l->runtime;
-            if (!rt || l->back) return;
-            l->back = rt->after(seconds(4.5), [l] {
-                l->back = 0;
-                l->phase.set("fighters");
-                l->fighting.set(false);
-            });
+        // The players chose the select screen (the results' card, or the pause card's): the same fighters under the cursors.
+        fight.on("leave", [l](const Value&) {
+            l->phase.set("fighters");
+            l->fighting.set(false);
         });
         Element menu = select({.id = "select",
                                .active = computed([l] { return !l->fighting.get(); }),

@@ -24,9 +24,12 @@ overlays = { type = "bool", default = true, doc = "Training: the boxes, the fram
 [contract.stage.events]
 round_over = { args = { winner = "i32" } }
 match_over = { args = { winner = "i32" } }
+leave      = { args = {} }  # the players chose the select screen (the results' or the pause menu's 选人 · FIGHTERS, or `leave`)
 
 [contract.stage.actions]
 restart = { effect = "reversible", doc = "A new round from the start." }
+rematch = { effect = "reversible", doc = "The match again from its first round, the same fighters (the results' 再战 · REMATCH)." }
+leave   = { effect = "reversible", doc = "Back to the select screen (the results' or the pause menu's 选人 · FIGHTERS): the `leave` event." }
 pause   = { effect = "reversible" }
 resume  = { effect = "reversible" }
 step    = { effect = "reversible", doc = "One frame, while paused." }

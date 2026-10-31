@@ -39,8 +39,6 @@ constexpr Rect xunlian{254, 7, 211, 108};
 constexpr Rect tile{31, 12, 245, 217};  // menu-frames.webp
 constexpr Rect tile_lit{298, 12, 245, 217};
 constexpr Rect banner{581, 12, 245, 442};
-constexpr Rect bar{19, 262, 562, 75};
-constexpr Rect bar_lit{15, 345, 568, 90};
 constexpr Rect ink_fill{32, 104, 928, 62};  // fill.webp
 // names.webp: each fighter's name in calligraphy, with its seal.
 constexpr std::array<std::pair<std::string_view, Rect>, 6> name{{{"mo", {40, 18, 206, 198}},
@@ -276,6 +274,37 @@ std::optional<std::int32_t> Select::seat_of(std::uint32_t device, bool take) {
 
 bool Select::on_event(EventContext& ctx, const InputEvent& e) {
     if (!props.active) return false;
+    // The pointer, as player 1: a mode clicked is chosen; a fighter clicked is under the cursor, clicked again chosen.
+    if (const auto* p = std::get_if<PointerEvent>(&e); p && p->kind == PointerKind::up && p->button == MouseButton::left) {
+        const Rect box = services().bounds(node());
+        const float s = std::min(box.width / picture_w, box.height / picture_h);
+        const float ox = (box.width - picture_w * s) / 2, oy = (box.height - picture_h * s) / 2;
+        const Point at{(ctx.local.x - ox) / s, (ctx.local.y - oy) / s};  // in the picture's own units
+        if (phase_ == "title") {
+            for (std::int32_t m = 0; m < 2; ++m) {
+                const float bw = 430, bh = bw * hud::menu_bar.height / hud::menu_bar.width, x = picture_w / 2 - bw / 2, y = 334 + static_cast<float>(m) * 72;
+                if (Rect{x, y, bw, bh}.contains(at)) {
+                    if (item_ != m) step(0, m - item_);
+                    press(0);
+                    ctx.handled = true;
+                    return true;
+                }
+            }
+        } else {
+            const auto& c = choices();
+            constexpr float tw = 126, th = tw * 217 / 245, gap = 12;
+            const float gx = picture_w / 2 - (3 * tw + 2 * gap) / 2, gy = 84;
+            for (std::size_t i = 0; i < c.size(); ++i) {
+                const Rect tile{gx + static_cast<float>(i % 3) * (tw + gap), gy + static_cast<float>(i / 3) * (th + gap), tw, th};
+                if (!tile.contains(at)) continue;
+                if (cursor_[0] == static_cast<std::int32_t>(i) && !ready_[0]) press(0);  // clicked again: chosen
+                else if (!ready_[0]) step(0, static_cast<std::int32_t>(i) - cursor_[0]);
+                ctx.handled = true;
+                return true;
+            }
+        }
+        return false;
+    }
     if (const auto* g = std::get_if<GamepadEvent>(&e)) {
         if (g->kind == GamepadKind::disconnected) {
             for (auto& p : pads_)
@@ -396,7 +425,7 @@ void Select::paint(PaintContext& ctx) const {
         // The modes: a lacquer bar each, the one under the cursor lit, its Chinese and its word.
         for (std::int32_t m = 0; m < 2; ++m) {
             const bool lit = m == item_;
-            const Rect& bar_src = lit ? region::bar_lit : region::bar;
+            const Rect& bar_src = lit ? hud::menu_bar_lit : hud::menu_bar;
             const float bw = 430, bh = bw * bar_src.height / bar_src.width;
             const float x = picture_w / 2 - bw / 2 + (lit ? 0.0f : 12.0f), y = 334 + static_cast<float>(m) * 72;
             picture(out, frames, bar_src, {x, y, bw, bh}, lit ? 1.0f : 0.75f);

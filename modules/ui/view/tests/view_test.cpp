@@ -818,6 +818,32 @@ int main(int argc, char** argv) {
         check(sem.role == Role::scroll_view && sem.value.get("max_y") && sem.value.get("max_y")->as_double() == 200.0);
     });
 
+    s.test("a scroll view at its end keeps the wheel; one with nothing to scroll passes it on", [] {
+        Runtime rt(options({200, 200}));
+        auto outer = signal(0.0), inner = signal(0.0);
+        std::vector<Element> lines;
+        for (int i = 0; i < 6; ++i) lines.push_back(box({.id = std::format("l{}", i), .height = 30}));
+        rt.mount("main", column({}, {scroll({.id = "page", .y = outer, .height = 200},
+                                             {box({.height = 50}),
+                                              scroll({.id = "doc", .y = inner, .height = 100}, std::move(lines)),
+                                              scroll({.id = "short", .height = 60}, {box({.height = 20})}),
+                                              box({.height = 400})})}));
+        rt.frame({seconds(0), {}});
+        auto wheel = [&](Point at, float dy) {
+            WheelEvent w;
+            w.position = at;
+            w.delta = {0, dy};
+            w.precise = true;
+            rt.frame({seconds(0), {w}});
+        };
+        wheel({50, 60}, 500);
+        check(inner.peek() == 80.0 && outer.peek() == 0.0, "the document scrolled to its end, the page did not move");
+        wheel({50, 60}, 500);
+        check(outer.peek() == 0.0, "at its end it keeps the wheel");
+        wheel({50, 160}, 40);
+        check(outer.peek() == 40.0, std::format("over a view with nothing to scroll, the page scrolls ({})", outer.peek()));
+    });
+
     s.test("themes: tokens resolve again, semantics stay", [] {
         Runtime rt(options());
         rt.mount("main", column({}, {box({.id = "card", .width = 20, .height = 20, .background = "surface"})}));

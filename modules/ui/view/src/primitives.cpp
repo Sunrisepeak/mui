@@ -490,7 +490,13 @@ struct ScrollNode {
         if (const auto* w = std::get_if<WheelEvent>(&e)) {
             Point d = w->delta;
             if (!vertical && horizontal && d.x == 0) d = {d.y, 0};  // a plain wheel scrolls a horizontal view
-            return scroll({target.x + d.x, target.y + d.y}, !w->precise);
+            if (scroll({target.x + d.x, target.y + d.y}, !w->precise)) return true;
+            // At its end, a view that scrolls along the wheel's way keeps the
+            // wheel (CSS's overscroll-behavior: contain): what holds it — a
+            // canvas that zooms, a page that scrolls — does not move under a
+            // reader who scrolled one stroke too far.
+            const Point m = max_offset();
+            return std::abs(d.y) >= std::abs(d.x) ? m.y > 0 : m.x > 0;
         }
         if (const auto* p = std::get_if<PointerEvent>(&e); p && p->type == PointerType::touch) {
             const seconds now = services->now();

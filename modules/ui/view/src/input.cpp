@@ -248,18 +248,28 @@ void Runtime::Impl::key_event(const KeyEvent& e) {
         touch(dirty_paint);
     }
     bool handled = false;
-    for (NodeId cur = target; alive(cur) && !handled;) {
-        Node& n = at(cur);
-        EventContext ctx{self, cur, {}};
-        if (!n.state.disabled && n.type->event) {
-            auto use = use_theme(cur);
-            if (n.type->event(n.instance, ctx, InputEvent(e))) ctx.handled = true;
+    // Nothing focused: the keys go to what is mounted — each view, the last
+    // mounted first, its own handlers (an Esc that closes the page's menu) —
+    // then to the root.
+    std::vector<NodeId> starts;
+    if (target == root && alive(root))
+        for (auto c = at(root).children.rbegin(); c != at(root).children.rend(); ++c) starts.push_back(*c);
+    starts.push_back(target);
+    for (const NodeId start : starts) {
+        for (NodeId cur = start; alive(cur) && !handled;) {
+            Node& n = at(cur);
+            EventContext ctx{self, cur, {}};
+            if (!n.state.disabled && n.type->event) {
+                auto use = use_theme(cur);
+                if (n.type->event(n.instance, ctx, InputEvent(e))) ctx.handled = true;
+            }
+            if (alive(cur) && has_handler(cur, handler_name(InputEvent(e)))) call_handlers(cur, handler_name(InputEvent(e)), to_value(InputEvent(e)));
+            handled = ctx.handled || ctx.stopped;
+            if (!handled && e.kind == KeyKind::down && alive(cur) && key_binding(cur, e)) handled = true;
+            if (!alive(cur) || (start != target && cur == start)) break;  // a view's own chain ends at the view
+            cur = at(cur).parent;
         }
-        if (alive(cur) && has_handler(cur, handler_name(InputEvent(e)))) call_handlers(cur, handler_name(InputEvent(e)), to_value(InputEvent(e)));
-        handled = ctx.handled || ctx.stopped;
-        if (!handled && e.kind == KeyKind::down && alive(cur) && key_binding(cur, e)) handled = true;
-        if (!alive(cur)) break;
-        cur = at(cur).parent;
+        if (handled) break;
     }
     if (!handled && e.kind == KeyKind::down && e.key == Key::tab && !e.mods.has(Modifier::ctrl) &&
         !e.mods.has(Modifier::alt) && !e.mods.has(Modifier::meta))

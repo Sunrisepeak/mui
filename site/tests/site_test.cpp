@@ -239,6 +239,14 @@ int main(int argc, char** argv) {
         check(h.click("main/body/nav/to_features"));
         h.settle();
         check(!shown("main/body/nav"), "a place chosen: the menu closes");
+        // Esc puts the menu away, wherever the focus is (the menu button pressed holds it).
+        check(h.click("main/bar/menu"));
+        h.settle();
+        check(shown("main/body/nav/to_features"), "open again");
+        h.runtime().focus(NodeId{});  // nothing focused (an agent's click focuses nothing): Esc still reaches the page
+        h.key(Key::escape);
+        h.settle();
+        check(!shown("main/body/nav"), "Esc closed it");
         const auto features = h.tree().node("main/body/view/atlas/features/page/doc");
         check(features && !features->states.has(State::offscreen), "and the place is there");
     });
@@ -425,6 +433,24 @@ int main(int argc, char** argv) {
         check(demo && demo->get("move")->as_string() == "5HP" && demo->get("guard")->as_bool() && demo->get("frame")->as_int() == d.startup,
               demo ? demo->json() : std::string("no demonstration"));
         (void)a.h.save_png(scratch_dir("site-moves") / "moves.png");
+        // Play: the stage runs the move on, and the slider and the counter follow it frame by frame.
+        check(a.h.tree().act(std::format("{}/show/controls/play", page), "activate", agent).exit_code() == std::optional<int>(0));
+        for (int i = 0; i < 6; ++i) {
+            a.h.advance(seconds(0.1));
+            const auto st = a.h.tree().node(std::format("{}/show/frame_box/stage", page));
+            const Value* dm = st && st->value.get("training") ? st->value.get("training")->get("demo") : nullptr;
+            const auto slider = a.h.tree().node(std::format("{}/show/controls/frame", page));
+            const auto label = a.h.tree().node(std::format("{}/show/controls/frame_of", page));
+            if (!dm || !slider || !label) {
+                check(false, "the stage, the slider and the counter");
+                break;
+            }
+            const std::int64_t frames = dm->get("frames") ? dm->get("frames")->as_int() : 0;
+            const std::int64_t at = std::min(dm->get("frame")->as_int(), frames);
+            const double shown = slider->value.get("value") ? slider->value.get("value")->as_double() : -1;
+            check(static_cast<std::int64_t>(shown) == at && label->name.contains(std::format(" {} / ", at)),
+                  std::format("the stage at {} (of {}), the slider at {}, the counter '{}'", dm->get("frame")->as_int(), frames, shown, label->name));
+        }
     });
 
     s.test("a document's links: another place of the site, or outside through the host", [] {

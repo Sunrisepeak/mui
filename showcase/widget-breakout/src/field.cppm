@@ -130,6 +130,7 @@ private:
     bool                                 choosing_ = false;
     std::int32_t                         over_steps_ = 0;       // steps since the room was over
     std::uint32_t                        hints_ = 0;            // shown already, by bit
+    std::vector<std::string>             hints_waiting_;        // to show once the one showing has been read
     std::string                          hint_;                 // the one showing, until then
     std::int64_t                         hint_until_ = 0;
     std::string                          style_shown_;          // what the host was last asked for

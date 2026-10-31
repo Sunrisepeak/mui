@@ -16,6 +16,8 @@ constexpr std::int32_t scan_steps = 180;               // the X-ray: 1.5 s
 constexpr std::int32_t scan_cooldown = 720;            // then 6 s to recharge
 constexpr std::int32_t celebrate_steps = 150;          // a cleared room's moment, before the choice
 constexpr std::uint32_t rewind_hint = 1u << 8;
+// The rules, each said once in a run, when play first meets it (taught by what happens, not read first).
+constexpr std::uint32_t chain_hint = 1u << 9, bank_hint = 1u << 10, lost_hint = 1u << 11;
 
 mgame::Bindings bindings() {
     mgame::Bindings b;
@@ -106,6 +108,7 @@ void Field::new_run() {
     run_ = {};
     run_at_start_ = run_;
     hints_ = 0;
+    hints_waiting_.clear();
     if (props.room != 1) {
         props.room = 1;
         prop_changed(FieldProp::room);
@@ -474,6 +477,21 @@ void Field::run(std::int32_t steps) {
         bool waiting = false;
         s.world.each<Ball>([&](mgame::Entity, const Ball& b) { waiting = waiting || b.on == 1; });
         if (waiting && s.frame < 30 * steps_per_second) hint_until_ = std::max(hint_until_, s.frame + 1);
+    }
+    // The chain, the bank and a lost chain: said the first time each happens, while it can still be acted on.
+    // One at a time: a hint showing (the room's own) is read to its end first.
+    auto say = [&](std::uint32_t bit, std::string text, std::int32_t) {
+        if (hints_ & bit) return;
+        hints_ |= bit;
+        hints_waiting_.push_back(std::move(text));
+    };
+    if (s.combo >= 3) say(chain_hint, std::format("Chain ×{} · bring the ball back to your paddle to bank it", s.combo), 4);
+    if (s.sparks > 0) say(bank_hint, std::format("Banked ◆ {} · at 100 ◆, hold R to take back 2 seconds", s.sparks), 4);
+    if ((hints_ & chain_hint) && s.combo == 0 && s.lives < 3) say(lost_hint, "A ball lost takes its chain with it · catch it to keep it", 4);
+    if (!hints_waiting_.empty() && s.frame >= hint_until_) {
+        hint_ = std::move(hints_waiting_.front());
+        hints_waiting_.erase(hints_waiting_.begin());
+        hint_until_ = s.frame + 4 * steps_per_second;
     }
     if (!(hints_ & rewind_hint) && s.sparks >= rewind_cost) {
         hints_ |= rewind_hint;

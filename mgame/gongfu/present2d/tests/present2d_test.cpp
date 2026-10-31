@@ -221,6 +221,34 @@ int main(int argc, char** argv) {
         check(pixels == std::vector<std::uint64_t>{0x63cbb3e2c177a1bcULL, 0x94b2608af7e6ac66ULL, 0xa8ef2d37eb4b6200ULL}, "pixels pinned");
     });
 
+    s.test("a reaction's clock (D-90): its first drawing through the hitstop, then retimed to the stun — the onset never skipped", [&] {
+        Match m(rules(), fighter(), fighter());
+        State st = m.state();
+        st.f[0].pos.x = 915_fx;
+        st.f[1].pos.x = 1005_fx;
+        m.restore(st);
+        p2::Effects fx;
+        constexpr std::int32_t clip = 8;  // a reaction drawn shorter than the jab's 15 frames of stun
+        std::vector<std::int32_t> seen;
+        bool stopped_at_onset = true;
+        for (int f = 0; f < 40; ++f) {
+            m.tick(f == 0 ? pad(5, LP) : pad(5), pad(5));
+            fx.record(m);
+            const FighterState& d = m.state().f[1];
+            if (d.mode != Mode::hitstun) continue;
+            const auto t = fx.reaction_time(1, d, clip);
+            check(t.has_value(), "the reaction is known from its blow");
+            if (!t) break;
+            if (d.stop > 0) stopped_at_onset = stopped_at_onset && *t == 0;
+            else seen.push_back(*t);
+        }
+        check(stopped_at_onset, "held at the first drawing while the hitstop holds");
+        check(!seen.empty() && seen.front() <= 1 && seen.back() == clip - 1, std::format("from the onset to the last drawing: {}", seen));
+        check(std::ranges::is_sorted(seen), "never backwards");
+        fx.rewind(0);
+        check(!fx.reaction_time(1, m.state().f[1], clip).has_value(), "a rewind forgets the reaction till the next blow");
+    });
+
     s.test("after a rollback the frame is drawn again the same: the picture is the state's", [&] {
         Match m(rules(), fighter(), fighter());
         State st = m.state();

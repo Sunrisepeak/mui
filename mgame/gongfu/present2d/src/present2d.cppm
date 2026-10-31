@@ -443,6 +443,8 @@ struct CinematicLook {
 // `hitstun.heavy` — each falling back to `hitstun`. Every look may have them
 // (the name is the convention), so a cinematic can ask any defender for one.
 inline constexpr std::array<std::string_view, 4> hit_reactions{"hitstun.head", "hitstun.body", "hitstun.low", "hitstun.heavy"};
+// A heavy blow's reaction at each height, where a look draws one (else its height's, or the generic heavy for the body).
+inline constexpr std::array<std::string_view, 3> heavy_reactions{"hitstun.head.heavy", "hitstun.body.heavy", "hitstun.low.heavy"};
 // And what a cinematic or a throw asks of the one it takes: held, launched (spinning up), slammed (into the floor).
 inline constexpr std::array<std::string_view, 3> taken_reactions{"held", "launched", "slammed"};
 
@@ -729,9 +731,21 @@ public:
     // The fighters as they were `ago` frames before the latest recorded (for
     // afterimages); none when not kept (beyond 8 frames, or before a rewind).
     [[nodiscard]] const FighterState* past(std::int32_t fighter, std::int32_t frame) const noexcept;
+    // Where a fighter's hit or block reaction stands in a clip of `frames`
+    // (D-90's event clock): its first drawing while the blow's hitstop holds —
+    // the onset is never skipped — then the clip retimed to the stun the blow
+    // gave, so its recovery ends as the stun does. None: no reaction known
+    // (before a rewind's first blow, say).
+    [[nodiscard]] std::optional<std::int32_t> reaction_time(std::int32_t fighter, const FighterState& s, std::int32_t frames) const noexcept;
 
 private:
     std::vector<Kept> kept_;
+    // Each fighter's reaction under way: the frame of the blow that began it, and its stun when the stun
+    // began to count down (−1 until its hitstop ends).
+    struct Reaction {
+        std::int32_t from = -1, stun0 = -1;
+    };
+    std::array<Reaction, 2> reactions_{};
     struct Past {
         std::int32_t                 frame = -1;
         std::array<FighterState, 2> f{};

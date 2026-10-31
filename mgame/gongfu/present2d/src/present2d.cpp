@@ -464,15 +464,35 @@ void Effects::record(const Match& match, const Look* left, const Look* right) {
                 if (it != c.sockets.end()) k.drawn = cel_point(look, c, by, it->second.at);
             }
         }
+        // A blow taken (hit, counter, block): the defender's reaction begins again from it.
+        if ((e.kind == Event::Kind::hit || e.kind == Event::Kind::counter || e.kind == Event::Kind::block) && (e.attacker == 0 || e.attacker == 1))
+            reactions_[static_cast<std::size_t>(1 - e.attacker)] = {st.frame, -1};
         kept_.push_back(std::move(k));
+    }
+    for (std::size_t i = 0; i < 2; ++i) {
+        const FighterState& f = st.f[i];
+        Reaction& r = reactions_[i];
+        if (f.mode != Mode::hitstun && f.mode != Mode::blockstun) r = {};
+        else if (r.from >= 0 && r.stun0 < 0 && f.stop == 0) r.stun0 = f.stun;
     }
     // A few seconds is all a picture reads.
     const std::int32_t keep_from = match.state().frame - 240;  // a cinematic's sparks may stand still a while
     std::erase_if(kept_, [&](const Kept& k) { return k.frame < keep_from; });
 }
 
+std::optional<std::int32_t> Effects::reaction_time(std::int32_t fighter, const FighterState& s, std::int32_t frames) const noexcept {
+    if (fighter < 0 || fighter > 1 || frames <= 0) return std::nullopt;
+    const Reaction& r = reactions_[static_cast<std::size_t>(fighter)];
+    if (r.from < 0) return std::nullopt;
+    if (r.stun0 < 0 || s.stop > 0) return 0;  // held in the blow's hitstop: the onset
+    const std::int32_t age = std::max(0, r.stun0 - s.stun);
+    const std::int32_t span = std::max(1, r.stun0 - 1);
+    return std::clamp((age * (frames - 1) + span / 2) / span, 0, frames - 1);
+}
+
 void Effects::rewind(std::int32_t frame) {
     std::erase_if(kept_, [&](const Kept& k) { return k.frame >= frame; });
+    reactions_ = {};  // what began before the rewind is read again from the next blow
     for (Past& p : past_)
         if (p.frame >= frame) p.frame = -1;
 }
@@ -675,8 +695,9 @@ std::string_view taken_clip(const Look& look, std::string_view name) {
 
 // The fighter in a super's flash, and how far into it (0 → 1); −1 when none.
 // The hit reaction a fighter in hitstun plays: by the latest blow it took —
-// heavy (its impact shakes the picture, or does 800 or more), else where it
-// landed on the body (head above 72% of its standing height, low under 38%).
+// where it landed on the body (head above 72% of its standing height, low
+// under 38%), and how hard (heavy: its impact shakes the picture, or does
+// 800 or more).
 std::string_view reaction(const Match& match, std::int32_t i, const Look& look, const Look& by, const Effects& effects) {
     const FighterState& f = match.state().f[static_cast<std::size_t>(i)];
     for (auto k = effects.kept().size(); k-- > 0;) {
@@ -684,11 +705,17 @@ std::string_view reaction(const Match& match, std::int32_t i, const Look& look, 
         if ((e.kind != Event::Kind::hit && e.kind != Event::Kind::counter) || e.attacker == i) continue;
         const Impact& im = impact_for(by, e);
         auto has = [&](std::string_view n) { return look.clips.contains(n); };
-        if ((im.shake >= 8 || e.damage >= 800) && has(hit_reactions[3])) return hit_reactions[3];
+        const bool heavy = im.shake >= 8 || e.damage >= 800;
         const double tall = std::max(1.0, match.fighter(i).def.hurt_standing.h.to_double());
         const double h = (e.at.y - f.pos.y).to_double() / tall;
-        const std::string_view part = h >= 0.72 ? hit_reactions[0] : h < 0.38 ? hit_reactions[2] : hit_reactions[1];
-        return has(part) ? part : std::string_view("hitstun");
+        const std::size_t where = h >= 0.72 ? 0 : h < 0.38 ? 2 : 1;
+        // The height survives the force (D-90): a heavy blow to the head throws the head, one low takes
+        // the legs — its own heavy drawing where the look has one; the generic heavy is the body's.
+        if (heavy && has(heavy_reactions[where])) return heavy_reactions[where];
+        if (heavy && where == 1 && has(hit_reactions[3])) return hit_reactions[3];
+        if (has(hit_reactions[where])) return hit_reactions[where];
+        if (heavy && has(hit_reactions[3])) return hit_reactions[3];
+        return "hitstun";
     }
     return "hitstun";
 }
@@ -1504,12 +1531,19 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         } else if (!cine && drawn.mode == Mode::hitstun) {
             // An ordinary hit: the reaction to where and how hard it landed, at its stun's time.
             clip = reaction(match, i, own, i == 0 ? right : left, effects);
-            if (clip != "hitstun") {
-                const auto it = own.clips.find(clip);
-                clip_t = std::max(0, it->second.frames - drawn.stun);
+            const auto it = own.clips.find(clip);
+            if (it != own.clips.end()) {
+                clip_t = effects.reaction_time(i, drawn, it->second.frames).value_or(std::max(0, it->second.frames - drawn.stun));
             } else {
                 clip = {};
             }
+        } else if (!cine && drawn.mode == Mode::blockstun) {
+            // A block: its clip on the same clock, the guard taking the blow from its first drawing.
+            if (const auto it = own.clips.find(std::string_view("blockstun")); it != own.clips.end())
+                if (const auto t = effects.reaction_time(i, drawn, it->second.frames)) {
+                    clip = "blockstun";
+                    clip_t = *t;
+                }
         } else if (!cine && st.over && st.winner == i && drawn.mode == Mode::idle && own.clips.contains("win")) {
             // The round won: once standing, the look's win pose, from the round's end (its K.O. or its clock).
             std::int32_t ended = st.frame;

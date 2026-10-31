@@ -1041,7 +1041,7 @@ int main(int argc, char** argv) {
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    ke time {}", all.hex());
-        check_eq(all.hex(), std::string("073e5505cb38f063"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("f8dd79b680da6f03"));  // GCC and LLVM, every platform
     });
 
     s.test("刻's level 3, 「零时」: the stab, the watch clicked and time stops — the picture grey, a dial's hands standing, the struck still, ten blows' sweeps and sparks hanging — then the bell, every blow at once, her finishing picture — frames pinned", [] {
@@ -1443,7 +1443,7 @@ int main(int argc, char** argv) {
         std::println("    fighting versus {:016x} training {:016x}", px[0], px[1]);
         check(px[0] != px[1], "training draws the boxes");
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
-        check(px == std::vector<std::uint64_t>{0x82097ed0a940b732ULL, 0x437e6ff15f8c5faeULL}, "pinned");
+        check(px == std::vector<std::uint64_t>{0x94a1a5b726fa0f80ULL, 0xe646e23f697468daULL}, "pinned");
     });
 
     return s.run(argc, argv);

@@ -752,6 +752,22 @@ int main(int argc, char** argv) {
             check(label.x + label.width <= 390, std::format("the frame counter inside: {} + {}", label.x, label.width));
         }
         {
+            // The agent's tour on a phone: the panel covers the place, the tour puts it away and the place is read.
+            auto h = phone("home");
+            check(h->click("main/bar/menu"));
+            h->settle();
+            const auto ask = h->tree().find({.name = "Ask an agent"});
+            if (!ask.empty()) check(h->click(ask.front().id), "the agent's panel, from the menu");
+            h->settle();
+            check(h->click("main/body/guide/tasks/task_tour"), "the tour");
+            h->advance(seconds(6));
+            h->settle(seconds(1));
+            const auto doc = h->tree().node("main/body/view/atlas/features/page/doc");
+            check(doc && !doc->states.has(State::offscreen), "the features read, in view");
+            const Rect view = h->runtime().screen_bounds(h->runtime().find("main/body/view"));
+            check(view.width == 390, std::format("the view the whole width again ({})", view.width));
+        }
+        {
             auto h = phone("styles");
             std::optional<Rect> settings;
             for (const auto& n : h->tree().snapshot().nodes)

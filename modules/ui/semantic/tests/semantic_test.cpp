@@ -93,6 +93,13 @@ int main(int argc, char** argv) {
         check(page.total == 5 && page.nodes.size() == 2 && page.nodes[0].id == "main/title");
         auto shallow = tree.snapshot({.depth = 0});
         check(shallow.nodes.size() == 1 && shallow.nodes[0].children.size() == 4);
+        // A node's child list bounded: its first ids, and how many there are.
+        auto bounded = tree.snapshot({.depth = 0, .children_limit = 2});
+        check(bounded.nodes[0].children == std::vector<std::string>{"main/title", "main/count"}, std::format("{}", bounded.nodes[0].children));
+        const Value bv = bounded.to_value();
+        const Value* top = &(*bv.get("nodes")->list())[0];
+        check(top->get("children_total") && top->get("children_total")->as_int() == 4, bv.json());
+        check(!snap.to_value().get("nodes")->list()->front().get("children_total"), "not said where nothing was cut");
         auto v = snap.to_value();
         check(v.get("nodes") && v.get("nodes")->list()->size() == 5);
     });

@@ -248,6 +248,28 @@ test('assistive technology in the mirror: a click activates, a focus moves the p
   assert.deepEqual(heard, [[P.ACTIVATE, 0, 0, 'main/save'], [P.FOCUS, 0, 0, 'main/title']]);
 });
 
+test('the skip link: the first Tab stop, seen while focused, the focus taken to the main landmark', () => {
+  const { P, context, heard, fire, document, canvas } = page();
+  const skip = document.querySelector('[data-omui="skip"]');
+  assert.ok(skip, 'made');
+  assert.equal(document.body.firstChild, skip, 'before the canvas: the first stop');
+  assert.equal(skip.hidden, true, 'hidden while the page has no main landmark to go to');
+  context.omui_web_mirror(JSON.stringify({ skip: { to: 'main/view/more', name: 'The place' } }));
+  assert.equal(skip.hidden, false);
+  assert.equal(skip.textContent, 'Skip to main content');
+  skip.focus();
+  assert.equal(skip.style.top, '8px', 'seen once focused');
+  const click = new Event('click', {}, true);
+  document.dispatch(skip, click);
+  assert.ok(click.defaultPrevented, 'no navigation (the hash is the program\'s route)');
+  assert.equal(document.activeElement, canvas, 'the page\'s focus on the canvas, the program\'s to move');
+  assert.deepEqual(heard, [[P.FOCUS, 0, 0, 'main/view/more']]);
+  fire(skip, 'click', {}, false);  // a script's: not the person's
+  assert.equal(heard.length, 1);
+  context.omui_web_mirror(JSON.stringify({ skip: null }));
+  assert.equal(skip.hidden, true, 'nothing to go to: gone');
+});
+
 test('window.omui: requests go to the program, its records settle the promise', async () => {
   const { P, window, context, heard } = page();
   const found = window.omui.find({ role: 'button', name: 'Save*' });

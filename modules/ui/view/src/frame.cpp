@@ -44,9 +44,11 @@ FrameOutput Runtime::frame(const FrameInput& input) {
     // layout → bounds → paint → debug, or what a custom pipeline has.
     d.resources.put(frame_resource::input, const_cast<FrameInput*>(&input));
     d.resources.put(frame_resource::tree, &d.tree_token);
+    std::string failure;
     if (auto r = d.frames->run(d.resources); !r) {
         constexpr Log frame_log{"frame"};
         frame_log.error("{}", r.error());
+        failure = r.error();
     }
     if (!d.dirty_taken) d.dirty = dirty_none;  // no bounds stage (H0): nothing waits for the changes
     for (const pipeline::StageTime& st : d.frames->timings()) {
@@ -109,7 +111,7 @@ FrameOutput Runtime::frame(const FrameInput& input) {
     // Bindings that ran since the last frame count toward this one.
     FrameStats stats = std::exchange(d.stats, {});
     d.history.push(stats);
-    return FrameOutput{&d.list, repainted, more, d.semantic_revision, stats, next_timer(), d.demand};
+    return FrameOutput{&d.list, repainted, more, d.semantic_revision, stats, next_timer(), d.demand, std::move(failure)};
 }
 
 pipeline::Pipeline& Runtime::frame_pipeline() noexcept { return *impl_->frames; }

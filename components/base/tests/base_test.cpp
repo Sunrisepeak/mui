@@ -323,6 +323,29 @@ int main(int argc, char** argv) {
         h.settle();
     });
 
+    s.test("text box: a line of 600 graphemes for assistive technology, cut where words begin, each part going on along the last", [] {
+        Headless h(options());
+        std::string words;
+        for (int i = 0; i < 100; ++i) words += "word5 ";  // 600 graphemes on one line (the field scrolls)
+        h.mount("main", column({.padding = 12}, {text_box({.id = "long", .label = "Long", .text = signal(words)})}));
+        h.step();
+        const auto layout = h.runtime().text_layout(h.runtime().find("main/long"));
+        check(layout.has_value(), "laid out");
+        if (!layout) return;
+        check(layout->lines.size() == 3, std::format("{} parts", layout->lines.size()));
+        std::size_t graphemes = 0, end = 0;
+        for (std::size_t i = 0; i < layout->lines.size(); ++i) {
+            const TextLine& l = layout->lines[i];
+            check(l.lengths.size() <= 255 && l.begin == end, std::format("part {}: {} graphemes from {}", i, l.lengths.size(), l.begin));
+            check(l.continues == (i + 1 < layout->lines.size()), "each goes on along the one before");
+            check(!l.word_starts.empty() && l.word_starts.front() == 0 && l.lengths.size() % 6 == 0, "cut where a word begins");
+            check(l.word_starts.size() == l.lengths.size() / 6, "every word's start, past the 256th grapheme too");
+            graphemes += l.lengths.size();
+            end = l.end;
+        }
+        check(graphemes == 600 && end == words.size(), std::format("{} graphemes to byte {}", graphemes, end));
+    });
+
     s.test("text box: input methods, passwords, limits, and actions in graphemes", [] {
         Headless h(options());
         h.mount("main", column({.padding = 12, .gap = 8}, {

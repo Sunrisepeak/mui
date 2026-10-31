@@ -201,7 +201,7 @@ bool same_run(const Node& a, const Node& b) {
         return x.has_value() == y.has_value() && (!x || (x->x == y->x && x->y == y->y && x->width == y->width && x->height == y->height));
     };
     return a.key == b.key && a.value == b.value && a.lengths == b.lengths && a.positions == b.positions && a.widths == b.widths && a.word_starts == b.word_starts &&
-           a.rtl == b.rtl && same_rect(a.bounds, b.bounds);
+           a.rtl == b.rtl && a.next_on_line == b.next_on_line && a.previous_on_line == b.previous_on_line && same_rect(a.bounds, b.bounds);
 }
 
 bool same_place(const std::optional<TextSelection>& a, const std::optional<TextSelection>& b) {
@@ -233,6 +233,10 @@ void Mirror::text_of(const std::string& id, Node& node, std::vector<Node>& out, 
             run.bounds = spec::Rect{l.bounds.x, l.bounds.y, l.bounds.width, l.bounds.height};
             run_of_[run.key] = {node.key, first};
             first += run.lengths.size();
+            if (i > 0 && layout->lines[i - 1].continues) {
+                run.previous_on_line = now.runs.back().key;
+                now.runs.back().next_on_line = run.key;
+            }
             now.runs.push_back(std::move(run));
         }
         // Graphemes to a run and a character in it: the end of the text is the end of the last run.

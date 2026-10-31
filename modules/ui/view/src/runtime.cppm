@@ -150,6 +150,9 @@ struct FrameOutput {
     FrameStats                 stats;
     std::optional<seconds>     next_timer;         // when the earliest timer is due (hosts sleep until then)
     FrameDemand                demand;             // how often frames are wanted from now on, and why (D-70)
+    // Why a stage failed (the pipeline stopped there; logged too); empty
+    // when every stage ran. A host may say so, retry, or give up.
+    std::string                failure;
 };
 
 // One performed action, for audit (openas: who did what, with what result).
@@ -446,6 +449,9 @@ public:
     void scroll_into_view(NodeId node) override;
     void scroll_to_start(NodeId node) override;
     void focus(NodeId node) override;
+    // The focus moved where a person's keys or assistive technology asked
+    // (a page's skip link): its ring drawn.
+    void focus_visibly(NodeId node);
     void capture_pointer(NodeId node) override;
     void release_pointer() override;
     bool perform(NodeId node, std::string_view action, const Value& args) override;

@@ -17,7 +17,12 @@
 //              "box":[8,40,60,24]},
 //             {"id":"main","children":["main/title","main/save"]}],
 //    "focus":"main/save",
-//    "live":"Saved"}
+//    "live":"Saved",
+//    "skip":{"to":"main/view/save","name":"The place"}}
+//
+// `skip` is the page's skip link: where the page's main landmark (role
+// main) has something to focus, its first such node and the landmark's
+// name; null once it has none.
 export module openmui.host.web:mirror;
 
 import std;
@@ -56,11 +61,14 @@ private:
     };
 
     void place(const std::string& id, std::vector<Value>& out, std::unordered_map<std::string, std::size_t>& at);
+    [[nodiscard]] std::string first_focusable(const std::string& id) const;
 
     semantic::Tree                           tree_;
     std::unordered_map<std::string, Element> elements_;
     std::string                              focused_;
     std::string                              focused_name_;
+    std::string                              main_;  // the main landmark
+    std::string                              skip_;  // what the skip link was last sent as
     std::uint64_t                            synced_ = 0;  // the runtime's semantic revision last read
     bool                                     first_ = true;
 };

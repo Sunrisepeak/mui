@@ -27,7 +27,11 @@ bool interactive(const spec::SemanticNode& n) {
 Value Snapshot::to_value() const {
     Value::List list;
     list.reserve(nodes.size());
-    for (const spec::SemanticNode& n : nodes) list.push_back(spec::to_value(n));
+    for (const spec::SemanticNode& n : nodes) {
+        Value one = spec::to_value(n);
+        if (auto it = children_total.find(n.id); it != children_total.end()) one.set("children_total", static_cast<std::int64_t>(it->second));
+        list.push_back(std::move(one));
+    }
     Value v;
     v.set("revision", static_cast<std::int64_t>(revision));
     v.set("total", static_cast<std::int64_t>(total));
@@ -135,7 +139,15 @@ Snapshot Tree::snapshot(const SnapshotOptions& o) {
     s.total = picked.size();
     const std::size_t end = o.limit ? std::min(picked.size(), o.offset + o.limit) : picked.size();
     // Children past the depth stay named in `children`, so a reader can ask for them next.
-    for (std::size_t i = std::min(o.offset, picked.size()); i < end; ++i) s.nodes.push_back(*picked[i]);
+    // A node's child list bounded too: a list of ten thousand rows is not ten thousand ids in its holder.
+    for (std::size_t i = std::min(o.offset, picked.size()); i < end; ++i) {
+        s.nodes.push_back(*picked[i]);
+        spec::SemanticNode& n = s.nodes.back();
+        if (o.children_limit && n.children.size() > o.children_limit) {
+            s.children_total.emplace(n.id, n.children.size());
+            n.children.resize(o.children_limit);
+        }
+    }
     return s;
 }
 
@@ -222,6 +234,24 @@ Envelope Tree::transaction(std::span<const Step> steps, const Invocation& call, 
         if (!s.answer.empty()) c.answer = s.answer;
         return c;
     };
+    // Whether a transaction may hold a step, from its preview — one rule for
+    // the preview's answer and for running it (S-13): a read takes nothing
+    // back and needs nothing; anything else must say it can be taken back
+    // (a step whose way back is unknown, a callback that keeps no history,
+    // has none), and nothing that asks the person first.
+    auto refusal = [&](const Step& s, const Value& v) -> std::optional<std::string> {
+        if (!v.get("outcome") || v.get("outcome")->as_string() != "run") return std::nullopt;
+        const std::string_view effect = v.get("effect") ? v.get("effect")->as_string() : std::string_view{};
+        const Effect fx = spec::parse_effect(effect).value_or(Effect::external);
+        if (fx == Effect::read) return std::nullopt;
+        if (spec::requires_answer(fx))
+            return std::format("{} is {}: a transaction holds only actions that can be taken back (S-13)", label_of(s), effect);
+        const Value* undoable = v.get("undoable");
+        if (!undoable || !undoable->as_bool())
+            return std::format("{} {}: a transaction holds only what it can take back (S-13)", label_of(s),
+                               undoable ? "gives no way back" : "has no known way back");
+        return std::nullopt;
+    };
     Envelope e;
     if (steps.empty()) {
         e.error(spec::error_code::invalid_argument, "a transaction needs steps").result(spec::exit_code::failure);
@@ -242,48 +272,30 @@ Envelope Tree::transaction(std::span<const Step> steps, const Invocation& call, 
                 const auto [code, message] = first_error(d);
                 v.set("outcome", "fail").set("error", Value{}.set("code", code).set("text", message));
             }
-            if (v.get("undoable") && !v.get("undoable")->as_bool() && v.get("outcome") && v.get("outcome")->as_string() == "run") {
-                v.set("outcome", "refused");
-                v.set("error", Value{}.set("code", spec::error_code::refused)
-                                   .set("text", std::format("{} gives no way back: a transaction holds only what it can take back (S-13)", label_of(s))));
-            }
             const std::string_view effect = v.get("effect") ? v.get("effect")->as_string() : std::string_view{};
-            const Effect fx = spec::parse_effect(effect).value_or(Effect::external);
-            strongest = std::max(strongest, fx);
-            if (v.get("outcome") && v.get("outcome")->as_string() == "run" && spec::requires_answer(fx)) {
+            strongest = std::max(strongest, spec::parse_effect(effect).value_or(Effect::external));
+            if (auto why = refusal(s, v)) {
                 v.set("outcome", "refused");
-                v.set("error", Value{}.set("code", spec::error_code::refused)
-                                   .set("text", std::format("{} is {}: a transaction holds only actions that can be taken back (S-13)",
-                                                               label_of(s), effect)));
+                v.set("error", Value{}.set("code", spec::error_code::refused).set("text", *why));
             }
             if (outcome == "run" && v.get("outcome") && v.get("outcome")->as_string() != "run") outcome = std::string(v.get("outcome")->as_string());
             outcomes.push_back(std::move(v));
         }
         return dry_run_answer(outcome, strongest, Value{}.set("steps", Value(std::move(outcomes))));
     }
-    // Eligibility first, nothing changed yet: a step that would give no way back (its preview says so) refuses the
-    // whole, rather than staying done after a later step fails while the answer says it was taken back.
-    {
-        Invocation preview = call;
-        preview.dry_run = true;
-        for (std::size_t i = 0; i < steps.size(); ++i) {
-            Invocation c = call_of(steps[i]);
-            c.dry_run = true;
-            Envelope d = act(steps[i].id, steps[i].action, c);
-            const Value* v = d.data_value();
-            // Only what its preview says it can take back: a step whose way back is unknown (a callback
-            // that keeps no history) is refused as one that has none.
-            const Value* undoable = v ? v->get("undoable") : nullptr;
-            if (v && (!undoable || !undoable->as_bool()) && v->get("outcome") && v->get("outcome")->as_string() == "run") {
-                e.error(spec::error_code::refused,
-                        std::format("step {} ({}) {}: a transaction holds only what it can take back (S-13); nothing was done", i + 1,
-                                    label_of(steps[i]), undoable ? "gives no way back" : "has no known way back"),
+    // Eligibility first, nothing changed yet, by the preview's own rule: a step the preview would refuse
+    // refuses the whole, rather than staying done after a later step fails while the answer says it was taken back.
+    for (std::size_t i = 0; i < steps.size(); ++i) {
+        Invocation c = call_of(steps[i]);
+        c.dry_run = true;
+        Envelope d = act(steps[i].id, steps[i].action, c);
+        if (const Value* v = d.data_value())
+            if (auto why = refusal(steps[i], *v)) {
+                e.error(spec::error_code::refused, std::format("step {}: {}; nothing was done", i + 1, *why),
                         Value{}.set("step", static_cast<std::int64_t>(i)).set("id", steps[i].id).set("action", steps[i].action))
                     .result(spec::exit_code::failure);
                 return e;
             }
-        }
-        (void)preview;
     }
     runtime_.begin_transaction(std::move(label));
     Value::List results;

@@ -21,8 +21,10 @@ The Core components (spec §11), contract-first (component-binding §2):
 Each class derives from the CRTP base `omui-gen cpp` makes from its contract
 (`src/generated`, committed and checked by the generator's tests); a
 contract action without an implementation does not compile. Components use
-the runtime's public API only, and every colour, size and curve comes from
-theme tokens.
+the runtime's public API only. Every colour, text style, corner, spacing and
+curve comes from theme tokens; a control's own metrics (a button's 36 px
+height, a slider's thumb) are the component's, scaled by the theme's
+`density` (a compact theme's 0.8 makes a button 29 px high).
 
 ```cpp
 import openmui.ui.base;

@@ -25,12 +25,16 @@ struct SnapshotOptions {
     bool        interactive = false;  // only nodes an agent can operate (and their ancestors' ids)
     std::size_t offset = 0;         // paging, in pre-order
     std::size_t limit = 0;          // 0: all
+    std::size_t children_limit = 0;  // the ids a node's `children` lists at most (its first); 0: all
 };
 
 struct Snapshot {
     std::uint64_t                   revision = 0;
     std::vector<spec::SemanticNode> nodes;   // pre-order
     std::size_t                     total = 0;  // before paging
+    // A node whose children were cut to children_limit: how many it has
+    // (`children_total`; the rest are read with root = that node, paged).
+    std::unordered_map<std::string, std::size_t> children_total;
     [[nodiscard]] Value to_value() const;
 };
 

@@ -664,6 +664,7 @@ void Runtime::scroll_to_start(NodeId node) {
     if (impl_->alive(node)) impl_->reveal(node, true);
 }
 void Runtime::focus(NodeId node) { impl_->set_focus(node, impl_->focus_visible); }
+void Runtime::focus_visibly(NodeId node) { impl_->set_focus(node, true); }
 void Runtime::capture_pointer(NodeId node) { impl_->capture = node; }
 void Runtime::release_pointer() { impl_->capture = {}; }
 

@@ -713,6 +713,8 @@ int main(int argc, char** argv) {
         for (std::string_view lang : {"en", "zh"}) {
             const std::string html = site::static_html(lang);
             check(html.starts_with("<main id=\"omui-static\""), lang);
+            const auto skip = html.find("<a class=\"skip\" href=\"#/"), nav = html.find("<nav aria-label=");
+            check(skip != std::string::npos && skip < nav, std::format("{}: a skip link before the places", lang));
             for (const site::Place& p : site::places()) check(html.find(std::format("<section id=\"/{}{}\">", lang == "zh" ? "zh/" : "", p.id)) != std::string::npos, std::format("{} {}", lang, p.id));
             check(html.find(md::to_html(md::parse(site::document("features", lang)))) != std::string::npos, "the features as md4c-html writes them");
         }
@@ -728,8 +730,8 @@ int main(int argc, char** argv) {
         // The site's own part pinned (the docs change with the framework; they are held to md4c-html's bytes above).
         auto own = [](const std::string& html) { return html.substr(0, html.find("<section id=\"/", html.find("<section id=\"/") + 1)); };
         std::println("    static en {:016x} zh {:016x}", fnv(own(en)), fnv(own(site::static_html("zh"))));
-        check_eq(std::format("{:016x}", fnv(own(en))), std::string("73b4aa7e7bfdd5ef"));
-        check_eq(std::format("{:016x}", fnv(own(site::static_html("zh")))), std::string("643fa6f78fbda5a0"));
+        check_eq(std::format("{:016x}", fnv(own(en))), std::string("cc18cdfb97dea96b"));
+        check_eq(std::format("{:016x}", fnv(own(site::static_html("zh")))), std::string("8c6afca2c020f7f5"));
 
         const auto out = site::inject(page, en, "zh");
         check(out.has_value(), "dist-toy's page");

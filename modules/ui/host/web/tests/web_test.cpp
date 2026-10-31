@@ -307,6 +307,38 @@ int main(int argc, char** argv) {
         check_eq(page.saved, 1);
     });
 
+    s.test("the skip link: past the navigation to the main landmark's first focusable node", [] {
+        Runtime rt(page_options());
+        Signal<bool> open{false};
+        rt.mount("main", [open] {
+            return column({}, {
+                column({.id = "nav", .label = "Places"}, {box({.id = "home", .width = 40, .height = 20, .label = "Home"}).prop("focusable", fixed(Value(true)))})
+                    .prop("role", fixed(Value("navigation"))),
+                column({.id = "view", .label = "The place"}, {
+                    text({.id = "intro", .text = "Hello"}),
+                    when([open] { return open.get(); },
+                         [] { return box({.id = "more", .width = 40, .height = 20, .label = "More"}).prop("focusable", fixed(Value(true))); }),
+                }).prop("role", fixed(Value("main"))),
+            });
+        }());
+        rt.frame();
+        DomMirror mirror(rt);
+        auto first = mirror.sync();
+        check(first && !first->get("skip"), "nothing in the main landmark to focus: no skip link");
+        open.set(true);
+        rt.frame();
+        auto then = mirror.sync();
+        const Value* skip = then ? then->get("skip") : nullptr;
+        check(skip && skip->get("to") && skip->get("to")->as_string() == "main/view/more", then ? then->json() : "no batch");
+        check(skip && skip->get("name") && skip->get("name")->as_string() == "The place", "named as the landmark");
+        // Followed: the focus there, its ring drawn.
+        rt.focus_visibly(rt.find("main/view/more"));
+        rt.frame();
+        check(rt.focused() == rt.find("main/view/more"), "focused");
+        auto after = mirror.sync();
+        check(!after || !after->get("skip"), "the link unchanged is not sent again");
+    });
+
     s.test("the store: memory without a page, the contract's for scripts", [] {
         Web w({.size = {100, 100}, .fonts = &fonts()});
         check(w.store().kind() == "memory" && &w.store() == &omui::store());

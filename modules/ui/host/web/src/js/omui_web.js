@@ -38,6 +38,8 @@ addToLibrary({
     assertive: null,
     nodes: null,          // id -> element
     focused: null,        // the mirror's focus
+    skip: null,           // the skip link, and the node it goes to
+    skipTo: null,
     focusing: false,      // the program moving the focus (not the person)
     composing: false,
     clipboard: '',
@@ -93,6 +95,26 @@ addToLibrary({
       t.addEventListener('input', P.onInput);
       body.appendChild(t);
       P.textarea = t;
+      // The skip link: the page's first stop for the Tab key, seen only while
+      // focused, past what comes before the main landmark (WCAG 2.4.1).
+      var skip = document.createElement('a');
+      skip.setAttribute('data-omui', 'skip');
+      skip.href = '#';
+      skip.hidden = true;
+      skip.style.cssText = 'position:fixed;left:8px;top:-60px;z-index:10;padding:10px 16px;border-radius:6px;' +
+        'background:#fff;color:#0b0f16;font:600 15px system-ui,sans-serif;text-decoration:none;outline:2px solid #4c8dff';
+      skip.addEventListener('focus', function () { skip.style.top = '8px'; });
+      skip.addEventListener('blur', function () { skip.style.top = '-60px'; });
+      // Its keys are its own: Tab and Enter do what they do on a link, not on the canvas.
+      skip.addEventListener('keydown', function (e) { e.stopPropagation(); });
+      skip.addEventListener('click', function (e) {
+        e.preventDefault();
+        if (!e.isTrusted || !P.skipTo) return;
+        omuiCanvas(P.selector).focus({ preventScroll: true });
+        P.send(P.FOCUS, 0, 0, P.skipTo);
+      });
+      body.insertBefore(skip, body.firstChild);
+      P.skip = skip;
       // The mirror's layer over the canvas, and the live regions.
       var layer = P.hidden(document.createElement('div'));
       layer.setAttribute('data-omui', 'mirror');
@@ -343,6 +365,13 @@ addToLibrary({
         if (root && root.parentNode !== P.layer) P.layer.appendChild(root);
       }
       if ('focus' in b) P.focusTo(b.focus);
+      if ('skip' in b) {
+        P.skipTo = b.skip ? b.skip.to : null;
+        P.skip.hidden = !b.skip;
+        var zh = /^zh/.test((document.documentElement && document.documentElement.lang) || '');
+        P.skip.textContent = zh ? '跳到主要内容' : 'Skip to main content';
+        if (b.skip && b.skip.name) P.skip.title = b.skip.name;
+      }
       if (b.live) P.announce(P.polite, b.live);
       if (b.alert) P.announce(P.assertive, b.alert);
     },

@@ -459,14 +459,46 @@ std::optional<TextLayout> TextBox::text_layout() const {
         }
         if (l.end > covered) add(l.end - covered, right, 0);  // the line break: one character
         // Words: a UAX #29 boundary not in white space begins one (a word keeps its trailing spaces).
+        std::vector<std::size_t> starts;
         std::size_t byte = l.begin;
-        for (std::size_t c = 0; c < line.lengths.size() && c < 256; byte += line.lengths[c], ++c) {
+        for (std::size_t c = 0; c < line.lengths.size(); byte += line.lengths[c], ++c) {
             const char at = byte < out.text.size() ? out.text[byte] : ' ';
             if (at == ' ' || at == '\t' || at == '\n' || at == '\r') continue;
-            if (c == 0 || std::ranges::binary_search(words, byte)) line.word_starts.push_back(static_cast<std::uint8_t>(c));
+            if (c == 0 || std::ranges::binary_search(words, byte)) starts.push_back(c);
         }
         line.bounds = {at.x + origin.x, at.y + origin.y + l.top, std::max(right, l.left + l.width), l.height};
-        out.lines.push_back(std::move(line));
+        // Assistive technology counts a line's graphemes in an octet: a longer
+        // line is several, each going on along the one before, cut where a word begins.
+        const std::size_t count = line.lengths.size();
+        for (std::size_t from = 0, from_byte = l.begin; from < count || count == 0;) {
+            std::size_t to = std::min(count, from + 255);
+            if (to < count)
+                if (auto it = std::ranges::upper_bound(starts, to); it != starts.begin() && *std::prev(it) > from) to = *std::prev(it);
+            TextLine piece;
+            piece.rtl = line.rtl;
+            piece.begin = from_byte;
+            float x0 = 0, x1 = 0;
+            if (to > from) {
+                x0 = *std::ranges::min_element(line.positions.begin() + static_cast<std::ptrdiff_t>(from), line.positions.begin() + static_cast<std::ptrdiff_t>(to));
+                x1 = x0;
+                for (std::size_t c = from; c < to; ++c) x1 = std::max(x1, line.positions[c] + line.widths[c]);
+            }
+            const bool whole = from == 0 && to == count;
+            for (std::size_t c = from; c < to; ++c) {
+                piece.lengths.push_back(line.lengths[c]);
+                piece.positions.push_back(whole ? line.positions[c] : line.positions[c] - x0);
+                piece.widths.push_back(line.widths[c]);
+                from_byte += line.lengths[c];
+            }
+            piece.end = whole ? l.end : from_byte;
+            for (std::size_t s : starts)
+                if (s >= from && s < to) piece.word_starts.push_back(static_cast<std::uint8_t>(s - from));
+            piece.bounds = whole ? line.bounds : Rect{line.bounds.x + x0, line.bounds.y, x1 - x0, line.bounds.height};
+            piece.continues = to < count;
+            out.lines.push_back(std::move(piece));
+            if (count == 0) break;
+            from = to;
+        }
     }
     const typeset::Selection sel = editor_.selection();
     const std::vector<std::size_t> b = unicode::grapheme_boundaries(editor_.text());

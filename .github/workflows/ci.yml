@@ -80,6 +80,9 @@ jobs:
           mcpp self config --mirror GLOBAL
       - name: The members that run on the Web, tested under node
         run: tools/ci/web.sh
+        env:
+          # The runner has Chrome: a page's checks are never skipped here.
+          OMUI_REQUIRE_BROWSER: '1'
       # D-84 §6.5: the games packed for Bilibili Toy (dist-toy) and checked by
       # Toy's own toy_doctor.py, pinned; nothing is published.
       - name: The games packaged for Toy, checked by Toy's doctor

@@ -361,6 +361,7 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
         if (const Value* v = req.get("interactive")) o.interactive = v->as_bool();
         if (const Value* v = req.get("offset")) o.offset = static_cast<std::size_t>(std::max<std::int64_t>(0, v->as_int()));
         if (const Value* v = req.get("limit")) o.limit = static_cast<std::size_t>(std::max<std::int64_t>(0, v->as_int()));
+        if (const Value* v = req.get("children_limit")) o.children_limit = static_cast<std::size_t>(std::max<std::int64_t>(0, v->as_int()));
         if (!o.root.empty() && !tree_.node(o.root)) {
             e.error(spec::error_code::not_found, std::format("no node '{}'", o.root)).result(spec::exit_code::failure);
             return e;

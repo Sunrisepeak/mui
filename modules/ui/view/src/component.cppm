@@ -291,6 +291,9 @@ struct TextLine {
     std::vector<std::uint8_t>  lengths;            // each grapheme's bytes (at most 255: a longer one is split)
     std::vector<float>         positions, widths;  // each grapheme's start along the line and its advance
     std::vector<std::uint8_t>  word_starts;        // the graphemes that begin a word (its trailing spaces are its own)
+    // The next line goes on along this one: a line of more than 255
+    // graphemes is several (assistive technology counts a run's in an octet).
+    bool                       continues = false;
 };
 struct TextLayout {
     std::string           text;

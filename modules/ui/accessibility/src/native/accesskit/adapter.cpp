@@ -190,6 +190,8 @@ accesskit_node* make(const Node& d, float scale, bool root) {
         accesskit_node_set_character_widths(n, d.widths.size(), d.widths.data());
         if (!d.word_starts.empty()) accesskit_node_set_word_starts(n, d.word_starts.size(), d.word_starts.data());
         accesskit_node_set_text_direction(n, d.rtl ? ACCESSKIT_TEXT_DIRECTION_RIGHT_TO_LEFT : ACCESSKIT_TEXT_DIRECTION_LEFT_TO_RIGHT);
+        if (d.next_on_line) accesskit_node_set_next_on_line(n, d.next_on_line);
+        if (d.previous_on_line) accesskit_node_set_previous_on_line(n, d.previous_on_line);
     }
     return n;
 }

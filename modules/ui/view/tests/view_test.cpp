@@ -586,6 +586,38 @@ int main(int argc, char** argv) {
         check(rt.frame_pipeline().order().size() == 8);
     });
 
+    s.test("a stage that fails: the frame says why, and the next one runs again", [] {
+        struct Flaky final : pipeline::Stage {
+            int* left;
+            explicit Flaky(int* l) : left(l) {}
+            std::vector<pipeline::Port> reads() const override { return {pipeline::port<render::DisplayList>("display")}; }
+            std::vector<pipeline::Port> writes() const override { return {pipeline::port<render::DisplayList>("display")}; }
+            std::expected<void, std::string> run(pipeline::Context&) override {
+                if (*left > 0 && (*left)--) return std::unexpected(std::string("the device was lost"));
+                return {};
+            }
+        };
+        static int failures = 1;
+        RuntimeOptions o = options();
+        pipeline::Description d = runtime_pipeline(Stages::paint);
+        d.name = "app";
+        d.stages.insert(d.stages.begin() + 7, {"flaky", "app.flaky", {"paint"}, {}});
+        o.pipeline = d;
+        o.plugins = [](pipeline::Registry& r) {
+            r.add({.name = "app.flaky", .kind = "stage", .description = "fails once"},
+                  [](const pipeline::Config&) -> std::expected<std::unique_ptr<pipeline::Stage>, std::string> { return std::make_unique<Flaky>(&failures); });
+        };
+        set_log_sink([](void*, const LogRecord&) {}, nullptr);
+        Runtime rt(o);
+        rt.mount("main", text({.id = "t", .text = "hi"}));
+        const auto failed = rt.frame({seconds(0), {}});
+        set_log_sink(nullptr, nullptr);
+        check(failed.failure.contains("the device was lost"), failed.failure.empty() ? std::string("no failure said") : failed.failure);
+        rt.set_debug({});
+        const auto next = rt.frame({seconds(0.1), {}});
+        check(next.failure.empty(), next.failure);
+    });
+
     s.test("a custom pipeline that does not build falls back to its level, and says why", [] {
         std::vector<std::string> said;
         set_log_sink([](void* user, const LogRecord& r) { static_cast<std::vector<std::string>*>(user)->emplace_back(r.message); }, &said);

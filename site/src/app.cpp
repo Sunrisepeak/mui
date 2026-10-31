@@ -1565,7 +1565,10 @@ std::string escaped(std::string_view text) {
 }  // namespace
 
 std::string static_html(std::string_view lang) {
-    std::string out = std::format("<main id=\"omui-static\" lang=\"{}\">\n<nav>", lang == "zh" ? "zh-CN" : "en");
+    const bool chinese = lang == "zh";
+    // A skip link first (WCAG 2.4.1): past the places to the first one's text.
+    std::string out = std::format("<main id=\"omui-static\" lang=\"{}\">\n<a class=\"skip\" href=\"#/{}home\">{}</a>\n<nav aria-label=\"{}\">",
+                                  chinese ? "zh-CN" : "en", chinese ? "zh/" : "", chinese ? "跳到正文" : "Skip to content", chinese ? "页面" : "Places");
     for (const Place& p : all) out += std::format("<a href=\"#/{}{}\">{}</a> ", lang == "zh" ? "zh/" : "", p.id, lang == "zh" ? p.zh : p.en);
     out += "</nav>\n";
     for (const Place& p : all) {
@@ -1651,6 +1654,7 @@ std::optional<std::string> inject(std::string_view page, std::string_view fragme
                    "#omui-static{position:fixed;inset:0;z-index:1;overflow:auto;padding:24px 40px;background:#0b0f16;color:#d6dde8;"
                    "font:16px/1.6 Inter,'Noto Sans SC',system-ui,sans-serif;user-select:text}#omui-static[hidden]{display:none}"
                    "#omui-static nav{margin-bottom:24px}#omui-static a{color:#8ab4ff}#omui-static nav a{margin-right:16px}"
+                   "#omui-static .skip{position:absolute;left:8px;top:-60px;padding:8px 14px;background:#fff;color:#0b0f16}#omui-static .skip:focus{top:8px}"
                    "#omui-static section{max-width:860px;margin-bottom:48px}#omui-static code{font:14px 'JetBrains Mono',monospace;background:#161c27;"
                    "padding:1px 4px;border-radius:3px}#omui-static pre{white-space:pre-wrap}#omui-static table{border-collapse:collapse}"
                    "#omui-static td,#omui-static th{border:1px solid #2a3344;padding:4px 8px}</style>\n"

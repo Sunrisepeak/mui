@@ -328,7 +328,7 @@ struct Server::Impl {
             Value req;
             req.set("op", "snapshot");
             if (auto r = str(args, "root"); !r.empty()) req.set("root", r);
-            for (std::string_view k : {"depth", "offset", "limit"})
+            for (std::string_view k : {"depth", "offset", "limit", "children_limit"})
                 if (const Value* v = args.get(k)) req.set(k, v->as_int());
             if (const Value* v = args.get("interactive")) req.set("interactive", v->as_bool());
             Answer a = call(*app, req, options.timeout);
@@ -516,7 +516,8 @@ Value::List Server::tools() {
                             {"depth", n("levels below the root")},
                             {"interactive", b("only nodes that can be operated")},
                             {"offset", n("skip this many nodes (paging)")},
-                            {"limit", n("at most this many nodes")}}),
+                            {"limit", n("at most this many nodes")},
+                            {"children_limit", n("list at most this many child ids per node (children_total says how many)")}}),
              true, false),
         tool("ui_find", "Find nodes", "Nodes matching a query: a role, a name glob (Save*), a state, or a full query object (spatial: within).",
              object_schema({app_prop,
@@ -723,9 +724,13 @@ std::string outline(const Value::List& nodes) {
         }
         out += l;
         out += '\n';
-        if (const Value* c = n.get("children"); c && c->list())
+        if (const Value* c = n.get("children"); c && c->list()) {
             for (const Value& k : *c->list())
                 if (auto it = by_id.find(k.as_string()); it != by_id.end()) line(*it->second, depth + 1);
+            if (const Value* total = n.get("children_total"); total && total->as_int() > static_cast<std::int64_t>(c->list()->size()))
+                out += std::format("{}… {} more children (ui_snapshot with root {} and offset)\n", std::string(static_cast<std::size_t>(depth + 1) * 2, ' '),
+                                   total->as_int() - static_cast<std::int64_t>(c->list()->size()), id);
+        }
     };
     for (const Value& n : nodes)
         if (!children.contains(str(n, "id"))) line(n, 0);

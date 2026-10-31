@@ -156,7 +156,7 @@ struct Web::Impl {
         if (!runtime->valid(n)) n = runtime->reveal(text);
         if (!runtime->valid(n)) return;
         if (kind == page::Request::Kind::focus) {
-            runtime->focus(n);
+            runtime->focus_visibly(n);  // where assistive technology or the skip link moved it: seen
             return;
         }
         // Activated by assistive technology: as the person's press of its middle.

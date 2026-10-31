@@ -89,6 +89,7 @@ struct Node {
     std::vector<float>         positions, widths;
     std::vector<std::uint8_t>  word_starts;
     bool                       rtl = false;
+    std::uint64_t              next_on_line = 0, previous_on_line = 0;  // runs of one line (keys; 0: none)
 
     [[nodiscard]] bool has(Action a) const noexcept { return (actions >> static_cast<unsigned>(a)) & 1u; }
     void add(Action a) noexcept { actions |= 1u << static_cast<unsigned>(a); }

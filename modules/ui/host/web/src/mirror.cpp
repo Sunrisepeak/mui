@@ -115,6 +115,7 @@ std::optional<Value> DomMirror::sync() {
     Value::List removed;
     for (const std::string& id : delta.removed)
         if (elements_.erase(id)) removed.emplace_back(id);
+    if (!elements_.contains(main_)) main_.clear();
     if (!removed.empty()) batch.set("remove", Value(std::move(removed)));
 
     std::vector<Value> out;  // one per element that changed, in the tree's order
@@ -144,6 +145,8 @@ std::optional<Value> DomMirror::sync() {
             if (!unset.empty()) o.set("unset", Value(std::move(unset)));
             e.attrs = std::move(attrs);
         }
+        if (n.role == Role::main) main_ = n.id;
+        else if (main_ == n.id) main_.clear();
         if (std::string text = text_of(n); added ? !text.empty() : text != e.text) {
             entry(n.id).set("text", text);
             e.text = std::move(text);
@@ -201,11 +204,36 @@ std::optional<Value> DomMirror::sync() {
     if (focus != focused_) batch.set("focus", focus.empty() ? Value{} : Value(focus));
     focused_ = std::move(focus);
     focused_name_ = focused_.empty() ? std::string{} : std::move(focus_name);
+    // The skip link: past what comes before the main landmark, to the first
+    // thing in it a person can focus.
+    {
+        const std::string to = main_.empty() ? std::string{} : first_focusable(main_);
+        std::string name;
+        if (!to.empty())
+            for (const auto& [k, v] : elements_.at(main_).attrs)
+                if (k == "aria-label") name = v;
+        if (std::string key = to.empty() ? std::string{} : to + '\x1f' + name; key != skip_) {
+            batch.set("skip", to.empty() ? Value{} : Value{}.set("to", to).set("name", name));
+            skip_ = std::move(key);
+        }
+    }
     if (!live.empty()) batch.set("live", live);
     if (!alert.empty()) batch.set("alert", alert);
     if (!batch.map() || batch.map()->empty()) return std::nullopt;
     batch.set("revision", static_cast<std::int64_t>(delta.revision));
     return batch;
+}
+
+// The first node in the subtree a person can focus (tree order), enabled.
+std::string DomMirror::first_focusable(const std::string& id) const {
+    const auto it = elements_.find(id);
+    if (it == elements_.end()) return {};
+    const auto& attrs = it->second.attrs;
+    const auto has = [&](std::string_view k) { return std::ranges::find(attrs, k, &std::pair<std::string, std::string>::first) != attrs.end(); };
+    if (has("tabindex") && !has("aria-disabled")) return id;
+    for (const std::string& c : it->second.children)
+        if (std::string found = first_focusable(c); !found.empty()) return found;
+    return {};
 }
 
 // A node's box over the canvas, relative to its parent's (each element is

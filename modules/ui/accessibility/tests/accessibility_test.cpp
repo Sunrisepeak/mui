@@ -62,6 +62,7 @@ struct Field {
     Services*   services = nullptr;
     NodeId      node;
     std::size_t anchor = 0, focus = 0;
+    static inline bool joined = false;  // its two lines one, as a very long line is cut
 
     void mount(Services& s, NodeId n) {
         services = &s;
@@ -84,6 +85,7 @@ struct Field {
         t.text = "ab\ncd";
         t.lines.push_back({0, 3, Rect{10, 20, 30, 16}, false, {1, 1, 1}, {0, 10, 20}, {10, 10, 0}});
         t.lines.push_back({3, 5, Rect{10, 36, 20, 16}, false, {1, 1}, {0, 10}, {10, 10}});
+        t.lines[0].continues = joined;
         t.anchor = anchor;
         t.focus = focus;
         return t;
@@ -225,6 +227,26 @@ int main(int argc, char** argv) {
         const Envelope wrong = mirror.perform({.target = a11y::key_of("main/add"), .action = a11y::Action::increment});
         check(wrong.exit_code() == std::optional<int>(1), "an action the node has not is refused, not guessed");
         check(app.count.peek() == 1);
+    });
+
+    s.test("one line cut in runs: each says the next and the one before on its line", [] {
+        Field::joined = true;
+        Runtime rt(options());
+        rt.mount("main", column({}, {field("note")}));
+        rt.frame({seconds(0), {}});
+        a11y::Mirror mirror(rt);
+        const auto first = mirror.refresh();
+        Field::joined = false;
+        const a11y::Node* note = find(first.nodes, "main/note");
+        check(note && note->children.size() == 2);
+        if (!note || note->children.size() != 2) return;
+        const a11y::Node *a = nullptr, *b = nullptr;
+        for (const a11y::Node& n : first.nodes) {
+            if (n.key == note->children[0]) a = &n;
+            if (n.key == note->children[1]) b = &n;
+        }
+        check(a && b && a->next_on_line == b->key && b->previous_on_line == a->key && !a->previous_on_line && !b->next_on_line,
+              "the relations both ways");
     });
 
     s.test("a text field's text: its runs (lines), characters and caret; a screen reader moves the selection", [] {

@@ -18,6 +18,7 @@ int shown(const AppSpec& app, const RunOptions& o, const Prepare& prepare) {
     d.agent = o.agent;
     d.agent_input = o.agent_input.value_or(app.agent_input);
     d.agent_directory = o.agent_dir;
+    d.accessibility = o.accessibility && app.accessibility;
     d.theme = o.dark ? Theme::dark_theme() : app.theme;
     d.effects = app.effects;
     d.reduce_transparency = o.reduce_transparency;

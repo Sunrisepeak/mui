@@ -35,6 +35,7 @@ DesktopOptions offscreen(std::string app = "sdl3-test") {
     o.fonts = &fonts();
     o.app = std::move(app);
     o.agent = false;
+    o.accessibility = false;  // its own test
     o.renderer = DesktopOptions::Renderer::cpu;  // the CPU frame, read back exactly
     return o;
 }
@@ -373,6 +374,37 @@ float4 invert_fs(EffectPixel px) : SV_Target {
         const auto took = std::chrono::steady_clock::now() - start;
         check(!got.empty() && got.back().get("exitCode")->as_int() == 0, got.empty() ? "no answer" : got.back().json());
         check(took < std::chrono::seconds(5), "woken by the request, not by a timeout");
+    });
+
+    s.test("assistive technology: the tree served, a screen reader's click performed between frames", [] {
+        DesktopOptions o = offscreen("sdl3-access");
+        o.accessibility = true;
+        Desktop d(o);
+        if (!d.open()) return;
+        if constexpr (!accessibility::available) {
+            check(d.accessibility_mirror() == nullptr && d.accessibility_adapter() == nullptr);
+            return;
+        }
+        check(d.accessibility_adapter() != nullptr, "attached");
+        Signal<int> pressed{0};
+        d.mount("main", column({}, {box({.id = "ok", .width = 40, .height = 20, .label = "OK",
+                                         .on = {{"press", [pressed](const Value&) { pressed.set(pressed.peek() + 1); }}}})}));
+        d.step();
+        accessibility::Mirror& m = *d.accessibility_mirror();
+        check(m.id_of(accessibility::key_of("main/ok")).has_value(), "the frame's nodes were told");
+        bool named = false;
+        m.each([&](const accessibility::Node& n) { named = named || (n.key == m.root() && n.label == "openmui test"); });
+        check(named, "the window is named as its title");
+        // From the platform's thread, while the loop sleeps.
+        std::jthread at([&] {
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            m.queue({.target = accessibility::key_of("main/ok"), .action = accessibility::Action::click});
+        });
+        const auto start = std::chrono::steady_clock::now();
+        for (int i = 0; i < 20 && pressed.peek() == 0; ++i) d.step(true);
+        at.join();
+        check(pressed.peek() == 1, "performed");
+        check(std::chrono::steady_clock::now() - start < std::chrono::seconds(5), "woken by the request");
     });
 
     return s.run(argc, argv);

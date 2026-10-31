@@ -408,7 +408,7 @@ M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten，渲�
 | D-18 | （原 Q-02）GPU 第一个后端是 SDL_GPU；GLES 后端放到 M5 之后 |
 | D-19 | （原 Q-03）role 集合对齐 AccessKit / ARIA 的子集 |
 | D-20 | （原 Q-04）实现层先用 git 路径依赖 Luban 的规范包（opensal 等） |
-| D-21 | （原 Q-06）无障碍层先评估 AccessKit 的 C 绑定 |
+| D-21 | （原 Q-06）无障碍层先评估 AccessKit 的 C 绑定。2026-10-31 落地为 `openmui.accessibility`：AccessKit 0.23.1 的预编译库经 mcpp-index（`compat.accesskit`）和 mwrap（`mcpplibs.mwrap.accesskit`）使用；Windows x86_64 是 UI Automation，macOS arm64 是 NSAccessibility，Linux x86_64 是 AT-SPI，其他平台只有映射。辅助技术的请求在帧之间按人自己的输入执行。Linux CI 用 AT-SPI 客户端读树并操作示例 03 |
 | D-22 | （原 Q-08）许可证：Apache-2.0 |
 | D-23 | （原 Q-09）JS 引擎用 quickjs-ng；TS 用 esbuild 转换（xim 索引里已有 `esbuild`、`node`） |
 | D-24 | （原 Q-10）Python 提供两种模式：作为宿主（pip）和嵌入，接口相同；M3 先做宿主模式；宿主模式下主线程运行 C++ 事件循环并释放 GIL，Python 运行在逻辑线程上 |

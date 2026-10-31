@@ -23,6 +23,7 @@ export import openmui.core;
 export import openmui.view;
 export import openmui.semantic;
 export import openmui.agent;
+export import openmui.accessibility;
 export import openmui.raster;
 export import openmui.render.effect;
 
@@ -35,6 +36,11 @@ struct DesktopOptions {
     std::string             app = "openmui-app";  // the application id (the agent endpoint's name)
     bool                    agent = true;         // serve openmui.tree@0.1
     bool                    agent_input = true;   // agents may give input as a person's devices would (decided as their requests)
+    // Serve the semantic tree to the platform's assistive technology (UI
+    // Automation, NSAccessibility, AT-SPI): a screen reader reads it and asks
+    // for its actions as the person's own input. Where AccessKit has no
+    // library it is not served (openmui.accessibility::available).
+    bool                    accessibility = true;
     std::filesystem::path   agent_directory;      // default: agent::default_directory()
     Theme                   theme = Theme::light();
     typeset::FontCollection* fonts = nullptr;
@@ -107,6 +113,10 @@ public:
     [[nodiscard]] std::expected<raster::Surface, std::string> window_pixels();
     [[nodiscard]] float scale() const noexcept;
     [[nodiscard]] agent::Endpoint* endpoint() noexcept;
+    // The tree as assistive technology was last told it; the adapter
+    // serving it (null: not served here, or turned off).
+    [[nodiscard]] accessibility::Mirror* accessibility_mirror() noexcept;
+    [[nodiscard]] accessibility::Adapter* accessibility_adapter() noexcept;
     [[nodiscard]] std::size_t frames_shown() const noexcept;
     // Whether the GPU renderer draws the frames (after open()).
     [[nodiscard]] bool gpu() const noexcept;

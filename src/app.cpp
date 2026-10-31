@@ -29,6 +29,7 @@ std::expected<RunOptions, std::string> RunOptions::parse(std::span<const std::st
         else if (a == "--no-agent") o.agent = false;
         else if (a == "--agent-input") o.agent_input = true;
         else if (a == "--no-agent-input") o.agent_input = false;
+        else if (a == "--no-accessibility") o.accessibility = false;
         else if (a == "--dark") o.dark = true;
         else if (a == "--gpu") o.gpu = true;
         else if (a == "--cpu") o.gpu = false;
@@ -103,7 +104,7 @@ std::expected<RunOptions, std::string> RunOptions::parse(std::span<const std::st
             o.profile = std::filesystem::path(*v);
         } else {
             return std::unexpected(std::format("unknown option `{}` (--headless, --frames N, --png FILE, --level hN, --serve, "
-                                               "--agent-dir DIR, --agent-name NAME, --no-agent, --agent-input, --no-agent-input, --dark, --gpu, --cpu, --reduce-transparency, --size WxH, --debug LIST, --log FILTER, --profile FILE, --lang TAGS, --window MODE)",
+                                               "--agent-dir DIR, --agent-name NAME, --no-agent, --agent-input, --no-agent-input, --no-accessibility, --dark, --gpu, --cpu, --reduce-transparency, --size WxH, --debug LIST, --log FILTER, --profile FILE, --lang TAGS, --window MODE)",
                                                a));
         }
     }

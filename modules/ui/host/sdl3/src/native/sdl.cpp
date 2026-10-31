@@ -223,6 +223,7 @@ std::expected<WindowPtr, std::string> open(const WindowOptions& o) {
     SDL_WindowFlags flags = SDL_WINDOW_HIGH_PIXEL_DENSITY;
     if (o.resizable) flags |= SDL_WINDOW_RESIZABLE;
     if (o.framework) flags |= SDL_WINDOW_BORDERLESS | SDL_WINDOW_TRANSPARENT;
+    if (o.hidden) flags |= SDL_WINDOW_HIDDEN;
     // The software renderer draws into the window's surface and needs no GPU
     // context; saying so stops SDL on macOS from implying OpenGL for any
     // driver that has it — the offscreen driver's is EGL, which macOS lacks.
@@ -261,6 +262,17 @@ WindowState state(Window& w) {
 }
 
 void minimize(Window& w) { SDL_MinimizeWindow(w.window); }
+
+void show(Window& w) { SDL_ShowWindow(w.window); }
+
+void* native_window(Window& w) {
+    const SDL_PropertiesID props = SDL_GetWindowProperties(w.window);
+    const char* name = SDL_GetCurrentVideoDriver();
+    const std::string_view driver = name ? name : "";
+    if (driver == "windows") return SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr);
+    if (driver == "cocoa") return SDL_GetPointerProperty(props, SDL_PROP_WINDOW_COCOA_WINDOW_POINTER, nullptr);
+    return nullptr;
+}
 
 void toggle_maximize(Window& w) {
     if (SDL_GetWindowFlags(w.window) & SDL_WINDOW_MAXIMIZED) SDL_RestoreWindow(w.window);

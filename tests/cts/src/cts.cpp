@@ -137,8 +137,25 @@ std::vector<std::string> check(const Scenario& scenario, const Json& raw) {
         if (got == pin) continue;
         const Json& at = pin.is_object() ? pin : got;
         const std::string step = at.is_object() && at.contains("step") ? at["step"].dump() : std::string("?");
-        out.push_back(std::format("{}: record {} (step {}) differs from the pinned trace:\n  got  {}\n  want {}", scenario.name, i, step,
-                                  show(got), show(pin)));
+        // Where they first differ, then the records (shortened).
+        std::string where = "";
+        std::function<bool(const Json&, const Json&, const std::string&)> first = [&](const Json& a, const Json& b, const std::string& path) {
+            if (a == b) return false;
+            if (a.is_object() && b.is_object()) {
+                for (auto f = a.begin(); f != a.end(); ++f)
+                    if (first(f.value(), b.contains(f.key()) ? b[f.key()] : Json(nullptr), path + "/" + f.key())) return true;
+                for (auto f = b.begin(); f != b.end(); ++f)
+                    if (!a.contains(f.key())) return first(Json(nullptr), f.value(), path + "/" + f.key());
+            } else if (a.is_array() && b.is_array() && a.size() == b.size()) {
+                for (std::size_t k = 0; k < a.size(); ++k)
+                    if (first(a[k], b[k], std::format("{}/{}", path, k))) return true;
+            }
+            where = std::format("{}: got {}, want {}", path.empty() ? "/" : path, show(a), show(b));
+            return true;
+        };
+        first(got, pin, "");
+        out.push_back(std::format("{}: record {} (step {}) differs from the pinned trace at {}\n  got  {}\n  want {}", scenario.name, i, step,
+                                  where, show(got), show(pin)));
         break;
     }
     return out;

@@ -133,7 +133,10 @@ int main(int argc, char** argv) {
         check(r[10].code == 1 && r[10].out.find("S-13") != std::string::npos && deleted == 1, r[10].out + r[10].err);
         auto journal = h.runtime().action_journal();
         check(std::ranges::count(journal, std::string("agent:planner;via=person:alice"), &ActionEntry::actor) == 1);
-        check(!journal.empty() && journal.back().action == "activate" && journal.back().actor == "agent:omui-cli", "the transaction's step");
+        // The transaction was refused before its irreversible step ran: the
+        // journal ends with the undo that was refused before it.
+        check(!journal.empty() && journal.back().action == "undo" && journal.back().actor == "agent:omui-cli",
+              journal.empty() ? "nothing journalled" : journal.back().action + " by " + journal.back().actor);
     });
 
     s.test("omui check: located diagnostics, as text and as JSON", [] {

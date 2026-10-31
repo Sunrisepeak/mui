@@ -5,6 +5,7 @@ import openmui.core;
 import openmui.view;
 import openmui.semantic;
 import openmui.agent;
+import openmui.accessibility;
 import openmui.raster;
 import openmui.render.vector;
 import openmui.text;
@@ -26,6 +27,9 @@ struct Desktop::Impl final : WindowHost {
     std::unique_ptr<semantic::Tree>          tree;
     std::unique_ptr<typeset::GlyphCache>     glyphs;
     std::unique_ptr<agent::Endpoint>         endpoint;
+    // Assistive technology's view of the tree (D-21).
+    std::unique_ptr<accessibility::Mirror>   mirror;
+    std::unique_ptr<accessibility::Adapter>  access;
     platform::WindowPtr                      window;
     render::CpuRenderer                      renderer;
     render::DamageTracker                    damage;     // what the next list changes
@@ -263,6 +267,9 @@ Desktop::Desktop(DesktopOptions options) : impl_(std::make_unique<Impl>()) {
 Desktop::~Desktop() {
     if (omui::window().host() == impl_.get()) omui::window().detach();
     if (impl_->endpoint) impl_->endpoint->stop();
+    // The adapter lets go of the window before the window goes.
+    impl_->access.reset();
+    impl_->mirror.reset();
     // The GPU's before the window it claimed.
     if (impl_->device && impl_->gpu_frame) impl_->device->destroy(impl_->gpu_frame);
     impl_->gpu.reset();
@@ -277,7 +284,7 @@ std::expected<void, std::string> Desktop::open() {
     const bool try_gpu = d.options.renderer != DesktopOptions::Renderer::cpu;
     d.framework = d.options.frame == DesktopOptions::Frame::framework;
     platform::WindowOptions wo{d.options.title, d.options.size, d.options.resizable, d.options.vsync, d.options.video_driver,
-                               d.options.render_driver, try_gpu, d.framework};
+                               d.options.render_driver, try_gpu, d.framework, true};
     // Where the interface draws nothing, a frameless window shows what is behind it.
     if (d.framework) d.options.background = Color::transparent();
     auto w = platform::open(wo);
@@ -333,6 +340,19 @@ std::expected<void, std::string> Desktop::open() {
             d.endpoint.reset();
         }
     }
+    // Assistive technology's adapter, attached before the window is shown.
+    if (d.options.accessibility && accessibility::available) {
+        d.mirror = std::make_unique<accessibility::Mirror>(*d.runtime, accessibility::MirrorOptions{.name = d.options.title});
+        d.mirror->set_wake([] { platform::wake(); });
+        auto adapter = accessibility::Adapter::attach(*d.mirror, platform::native_window(*d.window), {.scale = d.runtime->scale()});
+        if (adapter) {
+            d.access = std::move(*adapter);
+        } else {
+            warn("assistive technology is not served: {}", adapter.error());
+            d.mirror.reset();
+        }
+    }
+    platform::show(*d.window);
     return {};
 }
 
@@ -340,6 +360,8 @@ bool Desktop::is_open() const noexcept { return impl_->window != nullptr; }
 Runtime& Desktop::runtime() noexcept { return *impl_->runtime; }
 semantic::Tree& Desktop::tree() noexcept { return *impl_->tree; }
 agent::Endpoint* Desktop::endpoint() noexcept { return impl_->endpoint.get(); }
+accessibility::Mirror* Desktop::accessibility_mirror() noexcept { return impl_->mirror.get(); }
+accessibility::Adapter* Desktop::accessibility_adapter() noexcept { return impl_->access.get(); }
 std::size_t Desktop::frames_shown() const noexcept { return impl_->frames_shown; }
 bool Desktop::gpu() const noexcept { return impl_->gpu.has_value(); }
 effect::Library* Desktop::effects() noexcept { return impl_->effects ? &*impl_->effects : nullptr; }
@@ -416,9 +438,21 @@ bool Desktop::step(bool wait) {
     in.present_at = start + std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::duration<double>(display > 0 ? 1.0 / display : 1.0 / 60));
     in.display_hz = display;
     d.last_frame = start;
+    if (d.access) {
+        // What a screen reader asked, performed as the person's input before
+        // the frame shows it; the window's focus, as assistive technology
+        // must know it.
+        for (const InputEvent& e : in.events)
+            if (const auto* f = std::get_if<FocusEvent>(&e)) d.access->window_focus(f->gained);
+        if (!d.closed_at) (void)d.mirror->serve();
+    }
     if (given) d.runtime->set_input_actor(given->actor);
     FrameOutput out = d.runtime->frame(in);
     if (given) d.runtime->set_input_actor(std::nullopt);
+    if (d.access) {
+        d.access->set_scale(d.runtime->scale());
+        d.access->update();
+    }
     d.demand = out.demand;
     const std::size_t before = d.frames_shown;
     d.show();

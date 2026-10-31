@@ -27,6 +27,7 @@ openmui.core     = { path = "../../core" }
 openmui.view     = { path = "../../view" }
 openmui.semantic = { path = "../../semantic" }
 openmui.agent    = { path = "../../agent" }
+openmui.accessibility = { path = "../../accessibility" }
 openmui.raster   = { path = "../../../gfx/raster" }
 openmui.render.vector   = { path = "../../../gfx/render/vector" }
 openmui.text     = { path = "../../../content/text" }

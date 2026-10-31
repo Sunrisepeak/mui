@@ -50,6 +50,7 @@ members = [
     "modules/media/video/webm",
     "modules/media/timeline",
     "modules/ui/abi",
+    "modules/ui/accessibility",
     "modules/ui/agent",
     "modules/ui/core",
     "modules/ui/expr",

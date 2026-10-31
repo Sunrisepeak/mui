@@ -39,14 +39,18 @@ struct Runtime {
         check_eq(omuiCreateRuntime(&info, &rt), OMUI_SUCCESS);
     }
     ~Runtime() { (void)omuiDestroyRuntime(rt); }
-    void frame() {
+    // Whether another frame is wanted (something still moves).
+    bool frame() {
         OmuiFrameInput in{};
         in.type = OMUI_STRUCTURE_TYPE_FRAME_INPUT;
         in.time = time += 1.0 / 60.0;
         in.width = width;
         in.height = height;
         in.scale = 1;
-        (void)omuiFrame(rt, &in, nullptr);
+        OmuiFrameOutput out{};
+        out.type = OMUI_STRUCTURE_TYPE_FRAME_OUTPUT;
+        (void)omuiFrame(rt, &in, &out);
+        return out.animating != 0;
     }
     void settle(const lang::Host& host) {
         int quiet = 0;
@@ -397,8 +401,9 @@ omui.verb("seen", { effect = "read" }, function() return { seen = seen } end)
                     // Until the session is idle: an async native's answer is in flight too.
                     int quiet = 0;
                     for (int i = 0; i < 20000 && quiet < 3; ++i) {
-                        r.frame();
-                        quiet = lua.session.idle() ? quiet + 1 : 0;
+                        // And until what the interface shows has settled too.
+                        const bool moving = r.frame();
+                        quiet = lua.session.idle() && !moving ? quiet + 1 : 0;
                         if (!quiet) std::this_thread::sleep_for(std::chrono::microseconds(100));
                     }
                 });

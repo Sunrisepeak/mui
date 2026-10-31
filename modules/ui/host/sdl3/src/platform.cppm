@@ -20,6 +20,9 @@ struct WindowOptions {
     // No system frame: the interface draws its own (D-75), over a window
     // that shows what is behind where it draws nothing (its shadow).
     bool        framework = false;
+    // Made hidden, shown by `show` (UI Automation's adapter is attached to
+    // a window before it is first shown).
+    bool        hidden = false;
 };
 
 struct Window;  // SDL_Window, SDL_Renderer, the frame's texture
@@ -39,6 +42,10 @@ struct Polled {
 
 // ── the window as a window (D-75) ──
 [[nodiscard]] WindowState state(Window& w);
+void show(Window& w);
+// The system's own window: the HWND on Windows, the NSWindow on macOS
+// (null elsewhere): what the accessibility adapter is attached to.
+[[nodiscard]] void* native_window(Window& w);
 void minimize(Window& w);
 void toggle_maximize(Window& w);
 void set_fullscreen(Window& w, bool on);

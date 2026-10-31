@@ -49,6 +49,11 @@ struct AppSpec {
     // the endpoint is; --no-agent-input turns it off for a run.
     bool                     agent_input = true;
     std::vector<std::string> grants;
+    // Whether the platform's assistive technology is served the tree (a
+    // screen reader, a magnifier, voice control: UI Automation,
+    // NSAccessibility, AT-SPI). On by default; --no-accessibility turns it
+    // off for a run.
+    bool                     accessibility = true;
     // Who draws the window's frame (D-75): "native" — the system (the
     // default); "framework" — the interface (window_frame, its look in
     // `frame`, its title `title` unless set); "switchable" — the system's,
@@ -75,6 +80,7 @@ struct AppSpec {
 //   --no-agent                no endpoint
 //   --no-agent-input          agents act on nodes only, giving no input as a person's devices would
 //   --agent-input             they may (the default unless the application turns it off)
+//   --no-accessibility        the tree not served to the platform's assistive technology
 //   --dark                    the dark theme
 //   --gpu | --cpu             who draws the window (default: the GPU when the machine has one)
 //   --reduce-transparency     see-through materials (glass) drawn as opaque panels
@@ -94,6 +100,7 @@ struct RunOptions {
     std::string           agent_name;  // --agent-name
     bool                  agent = true;
     std::optional<bool>   agent_input;  // --agent-input / --no-agent-input (default: the application's)
+    bool                  accessibility = true;  // --no-accessibility
     bool                  dark = false;
     std::optional<bool>   gpu;  // --gpu / --cpu
     bool                  reduce_transparency = false;

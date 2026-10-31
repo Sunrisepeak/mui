@@ -9,6 +9,14 @@ openmui 是一个 UI 框架，也是一份开放的规范，建立在一个想�
 
 这个网站本身用 openmui 做成。切换上方的**镜头**，可以看到你正在读的这一页的每一种呈现：像素、语义树的线框、agent 收到的 JSON、测试会写下的断言。
 
+## 用它来做
+
+1. 安装 [xlings](https://github.com/openxlings/xlings)，再装构建工具：`xlings install mcpp`。
+2. 新建一个应用并运行：`mcpp new hello --template openmui && cd hello && mcpp run`。
+3. 让 agent 像人一样按下它的按钮：`omui agent act org.example.hello main/click activate`。
+
+这个网站上的**示例 01** 就是这样一个程序，旁边是它自己的源码。[示例](https://github.com/Sunrisepeak/mui/tree/openmui-design/examples)从这里接着往下：表单、文档、画布，一个应用里的四种语言。
+
 ## 这里有什么
 
 - **特性**和**实践**：框架的文档，中英两种语言。可以先读[openmui 的不同之处](features.md)。

@@ -9,6 +9,14 @@ openmui is a UI framework and an open specification built around one idea: **the
 
 This site is built with openmui. Switch the **lens** above to see the page you are reading as each of those renderings: its pixels, its tree's wireframe, the JSON an agent receives, the assertions a test would write.
 
+## Build with it
+
+1. Install [xlings](https://github.com/openxlings/xlings), then the build tool: `xlings install mcpp`.
+2. Make an application and run it: `mcpp new hello --template openmui && cd hello && mcpp run`.
+3. Let an agent press its button, as a person would: `omui agent act org.example.hello main/click activate`.
+
+**Example 01** on this site is such a program, running beside its own source. The [examples](https://github.com/Sunrisepeak/mui/tree/openmui-design/examples) go on from there: forms, documents, a canvas, four languages in one application.
+
 ## What is here
 
 - **Features** and **Practices**: the framework's documents, in English and 中文. Read [what sets openmui apart](features.md) first.

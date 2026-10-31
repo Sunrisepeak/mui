@@ -340,14 +340,26 @@ Element hero(Hero& h, const HeroSite& site, bool live, float width) {
                                                   "openmui 从一棵语义树画出界面：你看到的像素、读屏软件读出的、agent 操作的、测试断言的，是同一批节点。"),
                                       .style = "body",
                                       .max_width = Dim(680.0f)})})}),
-                   row({.id = "cta", .gap = 10, .align = "center"},
-                       {button({.id = "to_features",
-                                .text = say("What sets it apart", "它的不同之处"),
+                   row({.id = "cta", .gap = 10, .align = "center", .wrap = "wrap"},
+                       {button({.id = "to_start",
+                                .text = say("Build with it", "用它来做"),
                                 .variant = ButtonVariant::primary,
+                                .on_activated = [sp, zh_now, lang = site.lang] {
+                                    // The page's own section: three commands from nothing to an application an agent can press.
+                                    if (!sp->runtime || !*sp->runtime || !sp->root) return;
+                                    Runtime& rt = **sp->runtime;
+                                    const bool zh = lang ? lang->peek() == "zh" : zh_now;
+                                    Invocation call;
+                                    call.args = Value{}.set("anchor", std::string(zh ? "用它来做" : "build-with-it"));
+                                    (void)rt.act(rt.find(sp->root() + "/doc"), "scroll_to_anchor", call);
+                                }}),
+                        button({.id = "to_features",
+                                .text = say("What sets it apart", "它的不同之处"),
+                                .variant = ButtonVariant::secondary,
                                 .on_activated = [sp] { if (sp->go) sp->go("features"); }}),
                         button({.id = "to_tree",
                                 .text = say("See this page's tree", "看这一页的语义树"),
-                                .variant = ButtonVariant::secondary,
+                                .variant = ButtonVariant::ghost,
                                 .on_activated = [sp] { if (sp->tree_lens) sp->tree_lens(); }})}),
                    std::move(demo),
                    std::move(agent_row)});

@@ -38,10 +38,10 @@ export async function serve(dir) {
 
 // Chromium, headless, on about:blank: `call` sends a DevTools method, `on`
 // hears its events, `value` evaluates an expression (awaited) to its value.
-export async function browser(chrome, { width = 1280, height = 800 } = {}) {
+export async function browser(chrome, { width = 1280, height = 800, flags = [] } = {}) {
   const port = 9300 + Math.floor(Math.random() * 500);
   const proc = spawn(chrome, ['--headless=new', '--no-sandbox', '--enable-unsafe-swiftshader', `--remote-debugging-port=${port}`,
-                              `--window-size=${width},${height}`, 'about:blank'], { stdio: 'ignore' });
+                              `--window-size=${width},${height}`, ...flags, 'about:blank'], { stdio: 'ignore' });
   let targets;
   for (let i = 0; i < 50 && !targets; i++) {
     try { targets = await (await fetch(`http://127.0.0.1:${port}/json`)).json(); } catch { await sleep(200); }

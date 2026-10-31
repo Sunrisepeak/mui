@@ -303,6 +303,18 @@ int main(int argc, char** argv) {
         check(a.page() == plain, "back to the pixels, the same pixels (above the foot, where the lenses are marked)");
     });
 
+    s.test("Build with it: the opening's first button scrolls the page to its three commands", [] {
+        Site a;
+        check(a.h.click("main/body/view/atlas/home/page/hero/cta/to_start"));
+        a.h.settle(seconds(2));
+        std::optional<spec::SemanticNode> heading;
+        for (const auto& n : a.h.tree().snapshot({}).nodes)
+            if (n.role == Role::heading && n.name == "Build with it") heading = n;
+        const auto page = a.h.tree().node("main/body/view/atlas/home/page");
+        check(heading && heading->bounds && page && page->bounds && heading->bounds->y < page->bounds->y + 100,
+              heading && heading->bounds && page && page->bounds ? std::format("the section at {} in a page from {}", heading->bounds->y, page->bounds->y) : "no section");
+    });
+
     s.test("the home page's tree: pinned, the same in a browser as here; boxes do not count", [] {
         Site a;
         const auto h = site::tree_hash(a.snapshot("home"));
@@ -637,7 +649,7 @@ int main(int argc, char** argv) {
         a.h.advance(seconds(1));
         shot("time.png");
         std::println("    pixels {}", all.hex());
-        check_eq(all.hex(), std::string("3c958e30068c3962"));
+        check_eq(all.hex(), std::string("f501bc99dbc2ec68"));
     });
 
     s.test("the style workshop runs in its place, a theme scope: a pack styles it alone, the site keeps its theme, the tree is the same in every pack", [] {
@@ -739,8 +751,8 @@ int main(int argc, char** argv) {
         // The site's own part pinned (the docs change with the framework; they are held to md4c-html's bytes above).
         auto own = [](const std::string& html) { return html.substr(0, html.find("<section id=\"/", html.find("<section id=\"/") + 1)); };
         std::println("    static en {:016x} zh {:016x}", fnv(own(en)), fnv(own(site::static_html("zh"))));
-        check_eq(std::format("{:016x}", fnv(own(en))), std::string("cc18cdfb97dea96b"));
-        check_eq(std::format("{:016x}", fnv(own(site::static_html("zh")))), std::string("8c6afca2c020f7f5"));
+        check_eq(std::format("{:016x}", fnv(own(en))), std::string("458d3ce5fdd93a9d"));
+        check_eq(std::format("{:016x}", fnv(own(site::static_html("zh")))), std::string("fe96f0ce2ae23309"));
 
         const auto out = site::inject(page, en, "zh");
         check(out.has_value(), "dist-toy's page");

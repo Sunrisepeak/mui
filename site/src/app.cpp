@@ -210,6 +210,7 @@ struct Site {
     Signal<double>      demo_at = signal(0.0);
     Signal<bool>        demo_playing = signal(false);  // the move list's stage playing its demonstration on
     std::string         demo_held;                     // the fighter, move and guard the stage was last held for
+    NodeId              demo_stage{};                  // the stage it was held on (the place made live again: a new one)
     std::map<std::string, std::vector<gongfu::training::FrameData>, std::less<>> measured;
     [[nodiscard]] const std::vector<gongfu::training::FrameData>& moves_of(const std::string& name) {
         auto it = measured.find(name);
@@ -524,6 +525,12 @@ public:
         // The move list's stage playing a demonstration: its frame on the slider and the counter too.
         if (site_.place.peek() == "moves")
             if (const NodeId n = site_.runtime->find(std::string(place_root) + "moves/page/show/frame_box/stage"); site_.runtime->valid(n)) {
+                // The place made live again (flown away and back): its new stage starts as the last one was left, held.
+                if (n != site_.demo_stage) {
+                    site_.demo_stage = n;
+                    site_.demo_held.clear();
+                    site_.demo_playing.set(false);
+                }
                 const spec::SemanticNode stage = site_.runtime->semantic_node(n);  // kept: what is read from it points into it
                 if (const Value* d = stage.value.get("training"); d && d->get("demo"))
                     if (const Value* f = d->get("demo")->get("frame"); f) {

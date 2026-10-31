@@ -125,7 +125,13 @@ spec::SemanticNode Runtime::Impl::semantics(NodeId id) const {
         .set(State::hidden, !displayed(id));
     // Without layout (H0) a node has no place: neither bounds nor offscreen.
     const bool placed = this->placed;  // the pipeline computes bounds
-    if (placed && id != root && !n.screen.intersects(Rect{0, 0, size.width, size.height})) s.states.set(State::offscreen);
+    // Off screen: outside the window, or outside what an ancestor clips to (a scroll view's viewport): drawn nowhere.
+    if (placed && id != root) {
+        Rect seen{0, 0, size.width, size.height};
+        for (NodeId c = n.parent; alive(c) && c != root; c = at(c).parent)
+            if (const Node& a = at(c); a.visual.clip || a.type->scroll_offset) seen = seen.intersection(a.screen);
+        if (!n.screen.intersects(seen)) s.states.set(State::offscreen);
+    }
 
     // Actions: the contract's, then the verb's classification of activate.
     auto add = [&](std::string_view name, Effect effect, std::span<const spec::ArgInfo> args = {}) -> spec::ActionDesc& {

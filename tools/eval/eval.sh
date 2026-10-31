@@ -55,7 +55,13 @@ mapfile -t runs < <(awk '/^\*\*Run:\*\*/{on=1; next} on && /^- `/{sub(/^- `/, ""
 mapfile -t packages < <(awk '/^\*\*Run:\*\*/{on=1; next} on && /^- `/{if (match($0, /`[^`]*` \(([^)]*)\)/)) {s=substr($0, RSTART, RLENGTH); sub(/^`[^`]*` \(/, "", s); sub(/\)$/, "", s); print s}; next} on && NF==0{on=0}' "$spec" | sort -u)
 ep=$(mktemp -d /tmp/omui-eval-XXXXXX)
 pids=()
-cleanup() { for p in "${pids[@]}"; do kill "$p" 2> /dev/null || true; done; rm -rf "$ep"; }
+# The programs' logs are kept (target/eval-logs/<subject>/): a program that
+# died while it was used is something to look at afterwards.
+cleanup() {
+    for p in "${pids[@]}"; do kill "$p" 2> /dev/null || true; done
+    mkdir -p "target/eval-logs/$subject" && cp "$ep"/*.log "target/eval-logs/$subject/" 2> /dev/null || true
+    rm -rf "$ep"
+}
 trap cleanup EXIT
 if [ ${#runs[@]} -gt 0 ] && [ -z "${EVAL_BIN:-}" ]; then
     build=(build --profile release -p openmui.cli)

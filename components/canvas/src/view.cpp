@@ -703,6 +703,14 @@ bool Canvas::on_event(EventContext& ctx, const InputEvent& e) {
                 }
                 return true;
             }
+            // Over a live node (a page being read, worked in) a drag is the page's, as its wheel is: what it
+            // does not take (a scroll at its end, text) does not move the camera under it. Two fingers still do.
+            if (pointers_.empty())
+                if (world::Scene* s = scene()) {
+                    const auto w = camera_.to_world(at, vp);
+                    if (const auto h = s->hit(w[0], w[1]); h && std::ranges::find(promoted_, s->key(h->node)) != promoted_.end() && p->type != PointerType::touch)
+                        return false;
+                }
             motion_.reset();
             glide_.reset();
             if (pointer == pointers_.end()) pointers_.push_back({p->pointer, at});

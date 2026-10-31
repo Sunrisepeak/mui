@@ -33,6 +33,13 @@ struct ToyPackage {
     std::filesystem::path graph;          // mcpp's resolved graph (graph_file()), may be empty
     std::string           background = "#000000";
     bool                  sdk = true;     // load the Toy SDK in the page
+    // Files fetched once the program is drawn: a directory's files with a
+    // suffix, written under `mount` (/later/…) in its file system.
+    struct Later {
+        std::filesystem::path dir;
+        std::string           suffix, mount;
+    };
+    std::vector<Later>    later;
 };
 
 struct ToyFile {

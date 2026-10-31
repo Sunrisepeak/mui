@@ -30,6 +30,12 @@ bool dist_toy(toy_options opt) {
         a.arg(arg.c_str());
     if (!fonts.empty()) a.arg("--fonts").arg(fonts.c_str());
     if (!opt.sdk) a.arg("--no-sdk");
+    for (const later_files& l : opt.later) {
+        a.arg("--later").arg(std::format("{}|{}|{}", l.dir, l.suffix, l.mount).c_str());
+        std::error_code ec;
+        for (const auto& e : std::filesystem::directory_iterator(l.dir, ec))
+            if (e.path().string().ends_with(l.suffix)) a.input(e.path().string().c_str());
+    }
     a.input(("${mcpp.target_file:" + opt.target + "}").c_str());
     a.input(gen.c_str());
     a.output((out + "/index.html").c_str());

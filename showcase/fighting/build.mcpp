@@ -25,9 +25,11 @@ int main() {
     // Their painted layers (the pictures the stage files name).
     const bool stage_art = openmui::build::embed({.module = "openmui.showcase.fighting", .ns = "omui::fighting::files", .dir = "stages/art",
                                                   .suffix = ".webp", .tag = "stage_art", .index = true, .left_out = !arenas});
-    // The fighters' drawn art (pictures their looks' image parts are cut from).
+    // The fighters' drawn art (pictures their looks' image parts are cut from) — on the Web with
+    // `art-later`, left out: the page fetches it after the program is drawn (the site's 4 MB).
+    const bool later = mcpp::has_feature("art-later") && std::string_view(mcpp::target()).contains("emscripten");
     const bool art = openmui::build::embed({.module = "openmui.showcase.fighting", .ns = "omui::fighting::files", .dir = "fighters/art",
-                                            .suffix = ".webp", .tag = "art", .index = true});
+                                            .suffix = ".webp", .tag = "art", .index = true, .left_out = later});
     // The HUD's art: its frames, its lettering, the names' calligraphy, its fills.
     const bool hud = openmui::build::embed({.module = "openmui.showcase.fighting", .ns = "omui::fighting::files", .dir = "hud",
                                             .suffix = ".webp", .tag = "hud", .index = true});

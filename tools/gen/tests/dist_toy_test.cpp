@@ -85,6 +85,26 @@ int main(int argc, char** argv) {
         check(!gen::package_for_toy(t.package()).has_value(), "--preload-file's .data is not how a Toy page gets its files");
     });
 
+    s.test("files fetched once the program is drawn: hashed assets, listed with where they go, written by the page after it starts", [] {
+        Tree t;
+        put(t.root / "art" / "b.webp", "b picture");
+        put(t.root / "art" / "a.webp", "a picture");
+        put(t.root / "art" / "notes.txt", "not a picture");
+        auto p = t.package();
+        p.later = {{t.root / "art", ".webp", "/later/fighters-art"}};
+        auto r = gen::package_for_toy(p);
+        check(r.has_value(), r ? "" : r.error());
+        if (!r) return;
+        const std::string index = read(t.root / "out" / "game" / "index.html");
+        const auto a = index.find("[\"/later/fighters-art/a.webp\", \"assets/"), b = index.find("[\"/later/fighters-art/b.webp\", \"assets/");
+        check(a != std::string::npos && b != std::string::npos && a < b, "both pictures, in order, each with its asset");
+        check(!index.contains("notes.txt"), "only the suffix asked for");
+        check(index.contains("omuiFetchLater();") && index.contains("FS.writeFile('/later/.ready', '')"), "fetched after the program starts, .ready last");
+        check(std::ranges::count_if(r->files, [](const gen::ToyFile& f) { return f.path.ends_with(".webp"); }) == 2);
+        p.later = {{t.root / "art", ".webp", "/elsewhere"}};
+        check(!gen::package_for_toy(p).has_value(), "only under /later/");
+    });
+
     s.test("the file types Toy keeps", [] {
         check(gen::toy_keeps(".wasm") && gen::toy_keeps(".ttf") && gen::toy_keeps(".webp") && gen::toy_keeps(".md"));
         check(!gen::toy_keeps(".txt") && !gen::toy_keeps(".mjs") && !gen::toy_keeps(".map") && !gen::toy_keeps(""));

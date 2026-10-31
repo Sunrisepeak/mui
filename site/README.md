@@ -87,17 +87,18 @@ python3 -m http.server -d target/site            # and look at it
 
 ## Delivery
 
-`tools/ci/site-browser.sh` measures the built page in a real browser (`tools/ci/site-perf.mjs`), and the Pages workflow holds every build to `delivery.budget.omui.json`. It serves `target/site` as Pages does (gzip) and makes a cold visit at 1280×800 over a 20 Mbit/s, 40 ms connection. It then flies to the features and back through `window.omui`. The Pages workflow's run of 2026-11-01 (Chrome 156 on GitHub's runner):
+`tools/ci/site-browser.sh` measures the built page in a real browser (`tools/ci/site-perf.mjs`), and the Pages workflow holds every build to `delivery.budget.omui.json`. It serves `target/site` as Pages does (gzip) and makes a cold visit at 1280×800 over a 20 Mbit/s, 40 ms connection. It then flies to the features and back through `window.omui`. Measured 2026-11-01 (headless Chromium 156):
 
 | | |
 |---|---|
-| transferred | 11.1 MB: the wasm about 7.7 MB (4.3 MB of it the fighters' WebP, which the move list's training stage draws), the fonts 3.3 MB (Noto Sans SC 2.7 MB), the script 87 KB |
-| first frame | 5.0 s (the transfer alone takes 4.5 s at 20 Mbit/s); 0.5 s on the machine itself |
-| `window.omui` answers | 5.0 s |
-| frames during the flights | p50 16.7 ms, p95 16.8 ms, max 67 ms; 1 frame over 33 ms in 300 |
+| on the way to the first frame | 7.0 MB: the program (its wasm 3.5 MB compressed, its script 87 KB) and the fonts (3.3 MB, Noto Sans SC 2.7 MB of it) |
+| after it | 4.2 MB: the fighters' pictures, which the move list's training stage draws. On the Web the fighting game leaves them out of the program (its `art-later` feature), and the page fetches them once it is drawn (dist-toy's `later` files) |
+| first frame | 3.1 s, of which the transfer at 20 Mbit/s is 2.8 s (5.0 s while the pictures still came before it); 0.5 s on the machine itself |
+| `window.omui` answers | 3.1 s |
+| frames during the flights | p50 16.7 ms, p95 16.8 ms, max 50 ms; 1 frame over 33 ms in 300 |
 | memory at the end | JS heap 10 MB, wasm memory 42 MB |
 
-Most of the bytes are art and CJK glyphs that the first place doesn't need. Fetching them once the page is drawn is the next step.
+The fonts are most of what is left: the whole of Noto Sans SC is there for any Chinese a visitor types.
 
 The same script then reads the page as assistive technology does (`tools/ci/site-a11y.mjs`), from Chromium's own accessibility tree, which is what a screen reader on the page is given. It checks that:
 - the places are a navigation landmark and the place shown is the main one;

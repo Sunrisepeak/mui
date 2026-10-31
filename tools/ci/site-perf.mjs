@@ -1,7 +1,8 @@
 // The site's delivery measured in a real browser (headless Chromium over
 // the DevTools protocol, real time): what the page transfers (each response's
 // encoded bytes, by kind), how long until the program draws its first frame
-// (its semantic mirror filled after it) and until it is ready (window.omui
+// (its semantic mirror filled after it) and what had arrived by then (the
+// rest is fetched after it: the fighters' pictures), until it is ready (window.omui
 // answers), and its frame tails — the intervals between animation frames
 // while it flies to a place and back, p50 / p95 / p99 / max and the frames
 // longer than 33 ms — with the heap's and the wasm memory's size at the end.
@@ -48,11 +49,13 @@ await b.call('Page.addScriptToEvaluateOnNewDocument', { source: `
     if (window.__perf.first === null || window.__perf.ready === null) requestAnimationFrame(watch);
   })();` });
 await b.call('Page.navigate', { url });
-let first = null, ready = null;
+let first = null, ready = null, before_first = null;
+const sum = () => Object.values(bytes).reduce((x, y) => x + y, 0);
 for (let i = 0; i < 300 && (first === null || ready === null); i++) {
   await sleep(100);
   const p = await b.value('window.__perf');
   if (p) ({ first, ready } = p);
+  if (first !== null && before_first === null) before_first = sum();  // what had arrived when it first drew (to within 100 ms)
 }
 await sleep(1500);  // its fonts arrived, its opening at rest
 // The frame tails: animation-frame intervals while it flies to a place and back.
@@ -74,7 +77,7 @@ const memory = await b.value(`({ heap: performance.memory ? performance.memory.u
   wasm: typeof HEAP8 !== 'undefined' ? HEAP8.length : null })`);
 const total = Object.values(bytes).reduce((x, y) => x + y, 0);
 const report = { url, size: [w, h], network: network || null, browser: b.version,
-  transfer: { total, by_kind: bytes }, first_frame_ms: first, ready_ms: ready, frames: tails, memory, errors };
+  transfer: { total, before_first_frame: before_first, by_kind: bytes }, first_frame_ms: first, ready_ms: ready, frames: tails, memory, errors };
 let ok = true;
 if (budgetFile) {
   report.budgets = [];

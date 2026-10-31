@@ -21,12 +21,23 @@ export import openmui.build.plan;
 
 export namespace openmui::build {
 
+// Files the page fetches once the program is drawn (not before it starts):
+// each of `dir`'s files ending in `suffix`, a hashed asset, written to
+// `mount` (under /later/) in the program's file system — /later/.ready
+// once all are there.
+struct later_files {
+    std::string dir;     // absolute
+    std::string suffix;  // ".webp"
+    std::string mount;   // "/later/fighters-art"
+};
+
 struct toy_options {
     std::string              target;                 // the program target
     std::string              title;                  // the page's <title>
     std::vector<std::string> fonts;                  // openmui.text's default fonts by stem (Inter, NotoSansSC); empty: all
     std::string              background = "#000000"; // behind the canvas while it loads
     bool                     sdk = true;             // the page loads Toy's SDK (window.toy)
+    std::vector<later_files> later;                  // fetched after the program is drawn
     std::string              out_dir = std::string(mcpp::out_dir());
 };
 

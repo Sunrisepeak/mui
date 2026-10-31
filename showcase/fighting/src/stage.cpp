@@ -163,12 +163,31 @@ void Stage::start_round(bool next) {
 Stage::~Stage() {
     if (!attached()) return;
     if (timer_) services().cancel(timer_);
+    if (art_timer_) services().cancel(art_timer_);
+}
+
+// The fighters' pictures arriving after the program started (a page fetches
+// them once it is drawn): looked for a few times a second, drawn with as soon as they are.
+void Stage::await_art() {
+    if (!art_pending()) return;
+    art_timer_ = services().after(seconds(0.25), [this] {
+        art_timer_ = 0;
+        if (!arrive_art()) {
+            await_art();
+            return;
+        }
+        art_ = registered(services().images());
+        for (p2::Look& look : looks_) art_->bind(look.pictures);
+        if (stage_) art_->bind(stage_->pictures, "stages/");
+        services().invalidate_paint(node());
+    });
 }
 
 void Stage::mounted() {
     frame_.reserve(512);
     art_ = registered(services().images());
     start_round();
+    await_art();
     if (hearing() && !heard_) heard_ = hearing()(sounds_);  // the program hears the fight (a device on its mixer)
     services().focus(node());  // the keyboard is the players'
     // A game shows every frame it plays: sixty a second while it is on screen.

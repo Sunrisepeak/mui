@@ -82,9 +82,11 @@ std::string js_string(std::string_view s) {
 // The page: a canvas filling the frame, a word while it loads, and the
 // loader — the program's arguments from the hash route, its /fonts filled
 // before main, its .wasm by its hashed name.
-std::string page(const ToyPackage& p, std::string_view js, std::string_view wasm, std::span<const std::pair<std::string, std::string>> fonts) {
-    std::string font_list;
+std::string page(const ToyPackage& p, std::string_view js, std::string_view wasm, std::span<const std::pair<std::string, std::string>> fonts,
+                 std::span<const std::pair<std::string, std::string>> later) {
+    std::string font_list, later_list;
     for (const auto& [name, file] : fonts) font_list += std::format("{}[{}, {}]", font_list.empty() ? "" : ", ", js_string(name), js_string(file));
+    for (const auto& [path, file] : later) later_list += std::format("{}[{}, {}]", later_list.empty() ? "" : ",\n  ", js_string(path), js_string(file));
     std::string html;
     html += "<!doctype html>\n<html lang=\"zh-CN\">\n<head>\n<meta charset=\"utf-8\">\n";
     html += "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover\">\n";
@@ -99,6 +101,7 @@ std::string page(const ToyPackage& p, std::string_view js, std::string_view wasm
     html += "</head>\n<body>\n<canvas id=\"canvas\" tabindex=\"0\"></canvas>\n<div id=\"status\">…</div>\n<script>\n";
     html += std::format("var omuiFonts = [{}];\n", font_list);
     html += std::format("var omuiWasm = {};\n", js_string(wasm));
+    html += std::format("var omuiLater = [{}];\n", later_list);
     html += R"(var omuiStatus = document.getElementById('status');
 // Hash routes are the program's flags: #/training runs it with --training.
 function omuiArguments() {
@@ -122,9 +125,22 @@ var Module = {
       });
     });
   }],
-  onRuntimeInitialized: function () { omuiStatus.style.display = 'none'; Module.canvas.focus(); },
+  onRuntimeInitialized: function () { omuiStatus.style.display = 'none'; Module.canvas.focus(); omuiFetchLater(); },
   setStatus: function (text) { if (text) omuiStatus.textContent = text; },
 };
+// What the program takes once it is drawn: fetched now, written into its
+// file system, /later/.ready last (the program looks for it).
+function omuiFetchLater() {
+  var left = omuiLater.length;
+  if (!left) return;
+  omuiLater.forEach(function (f) {
+    fetch(f[1]).then(function (r) { return r.arrayBuffer(); }).then(function (b) {
+      FS.mkdirTree(f[0].substring(0, f[0].lastIndexOf('/')));
+      FS.writeFile(f[0], new Uint8Array(b));
+      if (--left === 0) FS.writeFile('/later/.ready', '');
+    });
+  });
+}
 if (typeof WebAssembly !== 'object') omuiStatus.textContent = 'WebAssembly is needed';
 window.addEventListener('hashchange', function () { location.reload(); });
 document.getElementById('canvas').addEventListener('pointerdown', function () { this.focus(); });
@@ -206,7 +222,24 @@ std::expected<ToyReport, std::string> package_for_toy(const ToyPackage& p) {
             if (auto r = keep_licence(e.path(), p.out / "licenses" / "fonts" / name); !r) return std::unexpected(r.error());
     }
 
-    const std::string index = page(p, js_name, wasm_name, fonts);
+    // The files fetched once the program is drawn, each a hashed asset.
+    std::vector<std::pair<std::string, std::string>> later;
+    for (const ToyPackage::Later& l : p.later) {
+        if (!l.mount.starts_with("/later/")) return std::unexpected(std::format("later files go under /later/ ({})", l.mount));
+        std::vector<fs::path> files;
+        for (const auto& e : fs::directory_iterator(l.dir, ec))
+            if (e.is_regular_file() && utf8(e.path().filename()).ends_with(l.suffix)) files.push_back(e.path());
+        if (ec) return std::unexpected(std::format("{}: {}", utf8(l.dir), ec.message()));
+        std::ranges::sort(files);
+        for (const fs::path& f : files) {
+            auto bytes = read(f);
+            if (!bytes) return std::unexpected(bytes.error());
+            const std::string asset = std::format("assets/{}{}", content_hash(*bytes), utf8(f.extension()));
+            if (auto w = write(p.out / asset, *bytes); !w) return std::unexpected(w.error());
+            later.emplace_back(std::format("{}/{}", l.mount, utf8(f.filename())), asset);
+        }
+    }
+    const std::string index = page(p, js_name, wasm_name, fonts, later);
     if (auto w = write(p.out / "index.html", index); !w) return std::unexpected(w.error());
 
     ToyReport report;
@@ -244,7 +277,8 @@ std::expected<ToyReport, std::string> package_for_toy(const ToyPackage& p) {
 int dist_toy_main(int argc, char** argv) {
     auto usage = [] {
         std::println(std::cerr, "usage: omui-gen dist-toy <staged tree> --target <name> --out <dir> [--title T] [--fonts a,b|all]\n"
-                                "                         [--fonts-dir <dir>] [--graph <file>] [--background #rrggbb] [--no-sdk]");
+                                "                         [--fonts-dir <dir>] [--graph <file>] [--background #rrggbb] [--no-sdk]\n"
+                                "                         [--later <dir>|<suffix>|</later/mount>]...");
         return 2;
     };
     ToyPackage p;
@@ -268,6 +302,11 @@ int dist_toy_main(int argc, char** argv) {
                 from = comma + 1;
             }
         } else if (a == "--no-sdk") p.sdk = false;
+        else if (a == "--later" && (v = value())) {  // <dir>|<suffix>|<mount>
+            const auto bar1 = v->find('|'), bar2 = v->find('|', bar1 + 1);
+            if (bar1 == std::string::npos || bar2 == std::string::npos) return usage();
+            p.later.push_back({v->substr(0, bar1), v->substr(bar1 + 1, bar2 - bar1 - 1), v->substr(bar2 + 1)});
+        }
         else if (!a.starts_with("--") && p.stage.empty()) p.stage = a;
         else return usage();
     }

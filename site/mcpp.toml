@@ -43,7 +43,7 @@ openmui.showcase.style_gallery = { path = "../showcase/style-gallery" }
 openmui.theme.styles = { path = "../modules/ui/theme/styles" }
 "openmui.theme"      = { path = "../modules/ui/theme" }
 openmui.example.hello-im       = { path = "../examples/01-hello-im" }
-openmui.showcase.fighting      = { path = "../showcase/fighting", default-features = false }  # its move list: no arenas
+openmui.showcase.fighting      = { path = "../showcase/fighting", default-features = false, features = ["art-later"] }  # its move list: no arenas; on the Web its pictures come after the first frame
 openmui.semantic    = { path = "../modules/ui/semantic" }
 openmui.trace       = { path = "../modules/base/trace" }
 openmui.hash        = { path = "../modules/base/hash" }

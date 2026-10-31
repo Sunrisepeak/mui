@@ -26,6 +26,10 @@ main = "src/main.cpp"
 [features]
 default = ["arenas"]
 arenas  = []
+# On the Web, the fighters' pictures are not carried in the program: a page
+# fetches them once it is drawn (dist-toy's `later` files), and the roster
+# takes them when they arrive (arrive_art). Elsewhere it changes nothing.
+art-later = []
 
 [build]
 sources  = ["src/*.cppm", "src/*.cpp"]

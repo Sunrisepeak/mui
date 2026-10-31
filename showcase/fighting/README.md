@@ -18,6 +18,8 @@ mcpp run -p openmui.showcase.fighting -- --headless --png fight.png
 
 The feature `arenas` (on by default) carries the stages and their painted layers, their music and the announcer, about 4 MB of the program. Without it those tables are empty and training's plain room still works: openmui's site depends on the game with `default-features = false` to show its move list.
 
+The feature `art-later` (off by default) matters only on the Web. There the fighters' pictures (4 MB) are left out of the program, and the page fetches them once it is drawn: dist-toy's `later` files, written under `/later/fighters-art`. The roster takes them when they arrive (`arrive_art`), and a stage draws with them from then on. The site turns it on, so its first frame doesn't wait for art that only the move list shows.
+
 | | Directions | Punches (L M H) | Kicks (L M H) |
 |---|---|---|---|
 | Player 1 | W A S D | U I O | J K L |

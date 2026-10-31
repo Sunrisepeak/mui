@@ -94,6 +94,11 @@ var Module = { canvas: document.getElementById('canvas'), onRuntimeInitialized: 
 
 int main(int argc, char** argv) {
     Suite s{"site"};
+    // On the Web the fighters' pictures come after the program starts (the fighting game's `art-later`): a page
+    // fetches them; here they are taken from beside the sources, so the move list is drawn as everywhere else.
+    if (fighting::art_pending() &&
+        !fighting::arrive_art(std::filesystem::path(std::source_location::current().file_name()).parent_path() / ".." / ".." / "showcase" / "fighting" / "fighters" / "art"))
+        std::println(std::cerr, "site_test: the fighters' pictures were not found beside the sources");
 
     s.test("every place has its document in both languages; the content is what the docs say", [] {
         for (const site::Place& p : site::places()) {

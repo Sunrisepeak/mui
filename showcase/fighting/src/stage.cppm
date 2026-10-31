@@ -65,6 +65,7 @@ public:
 private:
     void schedule();
     void wake();
+    void await_art();
     void tick();
     void advance();  // one frame: the dummies, the match, its effects, the readings
     void start_demo();  // the `demo` move from its beginning (none: the match as it was)
@@ -153,6 +154,7 @@ private:
     double                                start_ = 0;   // the clock's time of frame 0 of the playing (seconds)
     std::int64_t                          played_ = 0;  // frames played by the clock since start_
     std::uint64_t                         timer_ = 0;
+    std::uint64_t                         art_timer_ = 0;
     bool                                  over_reported_ = false;
     // Versus is played in rounds (best of three by default): the round, each side's rounds won, the frame this one ended on.
     std::int32_t                          round_ = 1;

@@ -36,6 +36,7 @@ struct Desktop::Impl final : WindowHost {
     raster::Surface                          frame;
     std::uint64_t                            shown = 0;   // the list hash on screen
     std::size_t                              frames_shown = 0;
+    std::size_t                              failed_frames = 0;  // in a row: a stage failed, the last good frame kept on screen
     bool                                     quitting = false;
     int                                      exit_code = 0;
     bool                                     idle = false;  // the last frame wanted no other
@@ -455,7 +456,17 @@ bool Desktop::step(bool wait) {
     }
     d.demand = out.demand;
     const std::size_t before = d.frames_shown;
-    d.show();
+    // A stage failed: what it would show is not finished — the last frame shown stays, and it is said once
+    // (and again if it keeps failing for a second), not every frame.
+    if (!out.failure.empty()) {
+        if (d.failed_frames++ % 60 == 0)
+            warn("a frame failed ({}{}): the last frame shown stays", out.failure,
+                 d.failed_frames > 1 ? std::format(", {} in a row", d.failed_frames) : std::string());
+    } else {
+        if (d.failed_frames > 0) warn("frames are drawn again after {} that failed", d.failed_frames);
+        d.failed_frames = 0;
+    }
+    if (out.failure.empty()) d.show();
     // A frame shown: when, and what it cost from taking the input to presenting it (D-59).
     if (d.frames_shown != before)
         d.runtime->frame_shown({d.runtime->clock().now(), std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count()});

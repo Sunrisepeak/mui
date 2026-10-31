@@ -115,18 +115,21 @@ bool arrive_art(const std::filesystem::path& dir) {
     std::error_code ec;
     // The page's: there once it has written every file (`.ready` beside the directory, last).
     if (dir == std::filesystem::path(later_art_dir) && !std::filesystem::exists(dir.parent_path() / ".ready", ec)) return false;
-    std::vector<std::string> names;
+    std::vector<std::pair<std::string, std::filesystem::path>> names;  // each file's name (UTF-8, not the code page's) and where it is
     for (const auto& e : std::filesystem::directory_iterator(dir, ec))
-        if (e.is_regular_file() && e.path().extension() == ".webp") names.push_back(e.path().filename().string());
+        if (e.is_regular_file() && e.path().extension() == ".webp") {
+            const std::u8string n = e.path().filename().u8string();
+            names.emplace_back(std::string(reinterpret_cast<const char*>(n.data()), n.size()), e.path());
+        }
     if (ec || names.empty()) return false;
     std::ranges::sort(names);
     std::vector<std::string> bytes(names.size());
     for (std::size_t i = 0; i < names.size(); ++i) {
-        std::ifstream in(dir / names[i], std::ios::binary);
+        std::ifstream in(names[i].second, std::ios::binary);
         bytes[i].assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
     }
     std::vector<std::pair<std::string, std::string_view>> files;
-    for (std::size_t i = 0; i < names.size(); ++i) files.emplace_back(std::format("art/{}", names[i]), bytes[i]);
+    for (std::size_t i = 0; i < names.size(); ++i) files.emplace_back(std::format("art/{}", names[i].first), bytes[i]);
     decode_art(r, files);
     r.art_later = false;
     ++generation;

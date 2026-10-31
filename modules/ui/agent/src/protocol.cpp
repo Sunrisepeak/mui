@@ -11,6 +11,9 @@ namespace omui::agent {
 
 namespace {
 
+constexpr std::size_t default_children_limit = 256;
+
+
 constexpr std::array<std::string_view, 20> operations{"describe", "snapshot", "changes", "find",     "act",   "invoke",  "undo",
                                                        "redo",     "transaction", "history", "wait", "capture", "input", "inspect",
                                                        "stats",    "profile",  "logs",     "debug",   "pipeline", "clock"};
@@ -362,6 +365,9 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
         if (const Value* v = req.get("interactive")) o.interactive = v->as_bool();
         if (const Value* v = req.get("offset")) o.offset = static_cast<std::size_t>(std::max<std::int64_t>(0, v->as_int()));
         if (const Value* v = req.get("limit")) o.limit = static_cast<std::size_t>(std::max<std::int64_t>(0, v->as_int()));
+        // A node's child ids bounded unless asked otherwise (0: all): a list of thirty thousand rows answers with
+        // its first 256 and how many there are, the rest paged with `root`.
+        o.children_limit = default_children_limit;
         if (const Value* v = req.get("children_limit")) o.children_limit = static_cast<std::size_t>(std::max<std::int64_t>(0, v->as_int()));
         if (!o.root.empty() && !tree_.node(o.root)) {
             e.error(spec::error_code::not_found, std::format("no node '{}'", o.root)).result(spec::exit_code::failure);

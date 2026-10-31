@@ -519,6 +519,8 @@ struct Runtime::Impl {
     std::vector<ScopeHistory>  histories;
     std::optional<Transaction> transaction;
     int                        replaying = 0;  // undoing, redoing, rolling back: nothing is recorded
+    std::string                last_failure;   // the last frame's failed stage, if it failed
+    seconds                    last_failure_said{-1e9};
     // The program's inverses of the action being performed (taken_back_by),
     // and whether one is (outside one, they are not kept).
     std::vector<Inverse>       program_inverse;

@@ -58,6 +58,10 @@ public:
     // the reason, and never as numbers; its budgets do not apply. The body
     // returns after it.
     void skip(std::string reason);
+    // What it measures did not happen (a GPU frame that failed): reported as
+    // failed, never as numbers — and a check against the budgets fails. The
+    // body returns after it.
+    void fail(std::string reason);
 
     [[nodiscard]] std::size_t iteration() const noexcept { return done_; }
 
@@ -85,6 +89,7 @@ private:
     std::vector<std::uint64_t>                  allocations_;
     std::vector<std::pair<std::string, double>> counters_;       // sums over the timed iterations
     std::string                                 skipped_;
+    std::string                                 failed_;
     std::vector<std::pair<std::string, std::string>> notes_;
     std::vector<std::pair<std::string, std::size_t>> counter_n_;
 };
@@ -100,6 +105,7 @@ struct Result {
     std::uint64_t max_allocations = 0;
     std::vector<std::pair<std::string, double>> counters;
     std::string  skipped;                // why it did not run; empty when it did
+    std::string  failed;                 // why what it measures went wrong; empty when it did not
     std::vector<std::pair<std::string, std::string>> notes;
 
     // A metric by name: min_ms mean_ms p50_ms p95_ms p99_ms max_ms ns_per_item

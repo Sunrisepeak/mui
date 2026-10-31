@@ -46,9 +46,16 @@ FrameOutput Runtime::frame(const FrameInput& input) {
     d.resources.put(frame_resource::tree, &d.tree_token);
     std::string failure;
     if (auto r = d.frames->run(d.resources); !r) {
-        constexpr Log frame_log{"frame"};
-        frame_log.error("{}", r.error());
         failure = r.error();
+        // Said when it is new, and once a second while it goes on (not every frame).
+        if (failure != d.last_failure || d.now() - d.last_failure_said > seconds(1)) {
+            constexpr Log frame_log{"frame"};
+            frame_log.error("{}", failure);
+            d.last_failure_said = d.now();
+        }
+        d.last_failure = failure;
+    } else if (!d.last_failure.empty()) {
+        d.last_failure.clear();
     }
     if (!d.dirty_taken) d.dirty = dirty_none;  // no bounds stage (H0): nothing waits for the changes
     for (const pipeline::StageTime& st : d.frames->timings()) {

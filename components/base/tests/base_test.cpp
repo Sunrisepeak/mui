@@ -259,6 +259,15 @@ int main(int argc, char** argv) {
         // Redo puts each back, in order.
         for (int i = 0; i < 4; ++i) check(undoes("redo") == 0);
         check(wifi.peek() && volume.peek() == 35 && text() == "hello there");
+        // Typed after an undo: the redo would write over it, so it is gone (what was undone stays undone).
+        check(undoes("undo") == 0 && text() == "hello world");
+        check(h.click("main/msg"));
+        key(h, Key::end);
+        h.type("!");
+        check(text() == "hello world!", text());
+        check(h.runtime().history(h.runtime().root()).redo.empty(), "no redo over the typing");
+        check(undoes("redo") == 1 && text() == "hello world!", "redo has nothing to put back");
+        check(act(h, "main/msg", "set_value", Value{}.set("value", "hello there")) == 0);  // as it was, for what follows
 
         // A dry run: what it would do, and nothing else.
         const std::uint64_t digest = tree.digest();

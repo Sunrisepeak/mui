@@ -227,6 +227,7 @@ void TextBox::paint_over(PaintContext& ctx) const {
 }
 
 void TextBox::edited() {
+    services().changed_outside_history(node());  // typed: a redo of what came before would write over it
     write_text(editor_.text());
     emit_changed(editor_.text());
     paragraph_dirty_ = true;

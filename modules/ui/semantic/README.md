@@ -6,7 +6,8 @@ technology read it (spec §3 and §9, `openmui.tree@0.1`):
 - **snapshots** — the whole tree or a subtree, to a depth, only the nodes an
   agent can operate, paged — nodes by `offset` and `limit`, and a node's list
   of children by `children_limit` (its first ids, with `children_total`, so a
-  list of ten thousand rows is not ten thousand ids in one answer); compact
+  list of ten thousand rows is not ten thousand ids in one answer; the agent
+  protocol bounds it at 256 unless a request says otherwise, 0 for all); compact
   trees lift nameless wrappers so readers see `main/row:0/save` among its
   meaningful neighbours (ids stay full paths);
 - **changes** — what was added, removed and updated since the last call;

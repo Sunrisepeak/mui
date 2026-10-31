@@ -136,7 +136,10 @@ public:
         if (r) s.counter("uploaded_kb", static_cast<double>(r->uploaded) / 1024.0);
         auto w = device_->wait_idle();
         const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
-        if (!r || !w) std::println(std::cerr, "omui-bench: the GPU frame failed: {}", !r ? r.error().message : w.error().message);
+        if (!r || !w) {  // not a frame: nothing timed counts
+            s.fail(std::format("the GPU frame failed: {}", !r ? r.error().message : w.error().message));
+            return;
+        }
         s.counter("gpu_ms", ms);
         s.counter("software", device_->caps().software ? 1 : 0);
     }

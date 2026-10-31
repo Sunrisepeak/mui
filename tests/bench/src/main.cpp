@@ -129,7 +129,14 @@ int main(int argc, char** argv) {
             return 1;
         }
     }
-    if (!budgets_file) return 0;
+    // A benchmark whose measurement went wrong fails the run, budgets or not.
+    std::size_t failed = 0;
+    for (const bench::Result& r : report.results)
+        if (!r.failed.empty()) {
+            std::println(std::cerr, "failed: {} — {}", r.name, r.failed);
+            ++failed;
+        }
+    if (!budgets_file) return failed ? 1 : 0;
     const auto violations = report.check(budgets, require_all);
     for (const bench::Violation& v : violations) {
         if (std::isnan(v.value))
@@ -139,5 +146,5 @@ int main(int argc, char** argv) {
                          v.budget.why);
     }
     std::println("budgets: {} checked, {} over", budgets.size(), violations.size());
-    return violations.empty() ? 0 : 1;
+    return violations.empty() && !failed ? 0 : 1;
 }

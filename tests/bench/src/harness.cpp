@@ -136,6 +136,7 @@ struct Access {
     static const std::vector<std::uint64_t>& allocations(const State& s) noexcept { return s.allocations_; }
     static std::uint64_t items(const State& s) noexcept { return s.items_; }
     static const std::string& skipped(const State& s) noexcept { return s.skipped_; }
+    static const std::string& failed(const State& s) noexcept { return s.failed_; }
     static const std::vector<std::pair<std::string, std::string>>& notes(const State& s) noexcept { return s.notes_; }
     static std::vector<std::pair<std::string, double>> counters(const State& s) {
         std::vector<std::pair<std::string, double>> out;
@@ -149,7 +150,7 @@ bool State::next() {
     // Read the clock and the allocation count before the harness does anything of its own.
     const clock::time_point now = clock::now();
     const std::uint64_t allocs_now = allocation_count.load(std::memory_order_relaxed);
-    if (!skipped_.empty()) return false;
+    if (!skipped_.empty() || !failed_.empty()) return false;
     if (running_) {
         if (paused_at_ != clock::time_point{}) {
             paused_ += now - paused_at_;
@@ -205,6 +206,11 @@ void State::skip(std::string reason) {
     running_ = false;
 }
 
+void State::fail(std::string reason) {
+    if (failed_.empty()) failed_ = reason.empty() ? std::string("failed") : std::move(reason);
+    running_ = false;
+}
+
 void State::counter(std::string_view name, double value) {
     if (done_ < config_.warmup) return;  // the iteration running is a warm-up one
     // The harness's own bookkeeping is not the body's: its allocations are not counted.
@@ -225,7 +231,7 @@ void State::counter(std::string_view name, double value) {
 }
 
 std::optional<double> Result::metric(std::string_view m) const {
-    if (!skipped.empty()) return std::nullopt;
+    if (!skipped.empty() || !failed.empty()) return std::nullopt;
     if (m == "min_ms") return min_ms;
     if (m == "mean_ms") return mean_ms;
     if (m == "p50_ms") return p50_ms;
@@ -255,6 +261,10 @@ Result run_one(const Case& c, const Options& o) {
     r.notes = Access::notes(s);
     if (!Access::skipped(s).empty()) {
         r.skipped = Access::skipped(s);
+        return r;
+    }
+    if (!Access::failed(s).empty()) {
+        r.failed = Access::failed(s);
         return r;
     }
     std::vector<double> ms = Access::samples(s);
@@ -319,8 +329,8 @@ std::string Report::json() const {
             for (const auto& [k, t] : r.notes) n.set(k, t);
             x.set("notes", std::move(n));
         }
-        if (!r.skipped.empty()) {
-            x.set("skipped", r.skipped);
+        if (!r.skipped.empty() || !r.failed.empty()) {
+            x.set(r.failed.empty() ? "skipped" : "failed", r.failed.empty() ? r.skipped : r.failed);
             list.push_back(std::move(x));
             continue;
         }
@@ -342,8 +352,8 @@ std::string Report::table() const {
     std::string out = std::format("{:<34} {:>6} {:>9} {:>9} {:>9} {:>9} {:>10} {:>9}\n", "benchmark", "iters", "mean ms", "p50", "p95",
                                   "max", "ns/item", "allocs");
     for (const Result& r : results) {
-        if (!r.skipped.empty()) {
-            out += std::format("{:<34} skipped: {}\n", r.name, r.skipped);
+        if (!r.skipped.empty() || !r.failed.empty()) {
+            out += std::format("{:<34} {}: {}\n", r.name, r.failed.empty() ? "skipped" : "FAILED", r.failed.empty() ? r.skipped : r.failed);
             continue;
         }
         out += std::format("{:<34} {:>6} {:>9.3f} {:>9.3f} {:>9.3f} {:>9.3f} {:>10} {:>9}\n", r.name, r.iterations, r.mean_ms, r.p50_ms,
@@ -475,15 +485,17 @@ std::string Report::markdown(std::span<const Budget> budgets, std::string_view l
                 limits += std::format("{}{} ≤ {}{}", limits.empty() ? "" : "<br>", b.metric, limit_value(b.metric, b.max),
                                       b.unless.empty() ? "" : std::format(" ({})", unless_text(w, b.unless)));
                 verdict += std::format("{}{}", verdict.empty() ? "" : "<br>",
-                                       !r.skipped.empty() ? std::string("—")
+                                       !r.failed.empty()  ? std::string("✗")
+                                       : !r.skipped.empty() ? std::string("—")
                                        : exempt           ? std::format("— ({})", b.unless)
                                        : !v               ? std::string("?")
                                        : *v <= b.max      ? std::string("✓")
                                                           : std::string("✗"));
             }
-            if (!r.skipped.empty()) {
-                const std::string why = cell(r.skipped);
-                out += std::format("| `{}` | {} | | | | | | {} | {} |\n", r.name, std::vformat(w.skipped, std::make_format_args(why)), limits, verdict);
+            if (!r.skipped.empty() || !r.failed.empty()) {
+                const std::string why = cell(r.failed.empty() ? r.skipped : r.failed);
+                const std::string said = r.failed.empty() ? std::vformat(w.skipped, std::make_format_args(why)) : std::format("✗ {}", why);
+                out += std::format("| `{}` | {} | | | | | | {} | {} |\n", r.name, said, limits, verdict);
                 continue;
             }
             out += std::format("| `{}` | {} | {} | {} | {} | {} | {} | {} | {} |\n", r.name, r.iterations, metric_value("p50_ms", r.p50_ms),

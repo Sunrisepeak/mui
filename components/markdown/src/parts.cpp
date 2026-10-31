@@ -240,6 +240,15 @@ Element element(std::shared_ptr<Data> data, std::string id) {
         case md::Kind::html: return make<Text>(std::move(data), id, key);
         case md::Kind::code: return make<Code>(std::move(data), id, key);
         case md::Kind::rule: return make<Rule>(std::move(data), id, key);
+        case md::Kind::table: {
+            // As wide as its columns; wider than the document, scrolled sideways in its place (the wheel, a drag, the keys).
+            const spec::Origin origin = data->hub ? origin_of(*data->hub) : spec::Origin::user_content;
+            Element t = make<Group>(std::move(data), "table", key + ":table");
+            Element s = scroll({.id = id, .horizontal = true, .vertical = false}, {std::move(t)});
+            s.prop("origin", Source{Value(std::string(spec::name(origin))), {}, {}});  // where its words came from, as theirs
+            s.key = key;
+            return s;
+        }
         default: return make<Group>(std::move(data), id, key);
     }
 }
@@ -542,10 +551,8 @@ void Group::style(const Theme&, layout::Style& s) const {
             break;
         }
         case md::Kind::table:
-            s.align_self = layout::Align::start;  // as wide as its columns, not the document
+            s.align_self = layout::Align::start;  // as wide as its columns, not the document (its scroll view is)
             s.border = Insets{1, 1, 1, 1};
-            s.overflow_x = layout::Overflow::clip;
-            s.max_width = layout::Length::percent(100);
             break;
         case md::Kind::table_head:
         case md::Kind::table_body: break;

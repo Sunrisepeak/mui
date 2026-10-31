@@ -456,6 +456,7 @@ public:
     void release_pointer() override;
     bool perform(NodeId node, std::string_view action, const Value& args) override;
     void performed(NodeId node, std::string_view action, const Value& args, std::vector<Inverse> inverse) override;
+    void changed_outside_history(NodeId node) override;
     void text_input(NodeId node, std::optional<Rect> caret) override;
     [[nodiscard]] std::string clipboard_text() override;
     void set_clipboard_text(std::string_view text) override;

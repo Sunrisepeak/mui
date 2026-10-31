@@ -675,6 +675,17 @@ bool Runtime::perform(NodeId node, std::string_view action, const Value& args) {
     return act(node, action, call).exit_code() == std::optional<int>(0);
 }
 
+void Runtime::changed_outside_history(NodeId node) {
+    Impl& d = *impl_;
+    if (d.replaying > 0 || !d.alive(node)) return;  // an undo or a redo putting it back is not a new change
+    const NodeId scope = d.scope_of(node);
+    for (Impl::ScopeHistory& h : d.histories)
+        if (h.scope == scope && !h.redo.empty()) {
+            h.redo.clear();
+            d.touch(dirty_semantics);
+        }
+}
+
 void Runtime::performed(NodeId node, std::string_view action, const Value& args, std::vector<Inverse> inverse) {
     Impl& d = *impl_;
     if (!d.alive(node)) return;

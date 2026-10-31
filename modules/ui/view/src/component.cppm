@@ -239,6 +239,10 @@ public:
     // and put into the history (S-12) with how to take it back, as if it
     // were performed now — nothing is performed again.
     virtual void performed(NodeId node, std::string_view action, const Value& args, std::vector<Inverse> inverse) = 0;
+    // A change the history does not hold (a person's typing, kept by a text
+    // box's own undo): what was undone in its scope stays undone — its redo
+    // would put back what came before this change, over it.
+    virtual void changed_outside_history(NodeId) {}
     // Text input (input methods): where the caret is, so the candidate
     // window follows it.
     virtual void text_input(NodeId node, std::optional<Rect> caret) = 0;

@@ -125,6 +125,18 @@ public:
     void close_search();  // the box put away, the keys the wall's again
     std::string query_path = "main/middle/finder/query";
 
+    // ── arranging ──
+    // Tidy: each workspace's windows packed in columns (each into the
+    // shortest, no shelf's gaps), as many as make it the shape of `aspect`
+    // (width over height: the window it is seen in); the workspaces in rows
+    // making the wall that shape too; then the whole wall in view. One step
+    // of history. Answers how many nodes moved.
+    std::size_t tidy(double aspect);
+    // The selected windows (two or more) lined up: "left", "right", "top",
+    // "bottom" edges; "across" (evenly spaced left to right) or "down". One
+    // step of history; why not, in words.
+    std::expected<std::size_t, std::string> align(std::string_view how);
+
     // ── keeping: the arrangement and the camera, and the documents' edits ──
     // Where the folder's own state lives (its `.openmui/wall.layout.omui.json`);
     // empty: nothing kept (made documents, a page).

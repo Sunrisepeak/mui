@@ -395,6 +395,71 @@ int main(int argc, char** argv) {
         check(std::abs(a.rect(guide).x - (ws0.x + dx)) < 1e-6, "redone");
     });
 
+    s.test("an agent moves a workspace as a person drags it: its windows with it (move_to on it, move_by on the canvas), one step undone together", [] {
+        App a;
+        const auto guide = omui::wall::key_of("workspace:guide");
+        const auto install = by_path(a.model.docs, "guide/install.md").key, usage = by_path(a.model.docs, "guide/usage.md").key;
+        const auto ws0 = a.rect(guide), i0 = a.rect(install), u0 = a.rect(usage);
+        Invocation call;
+        call.actor = {"agent", "test", {}};
+        call.args = Value{}.set("x", ws0.x + 300).set("y", ws0.y + 50);
+        check_eq(a.h.tree().act(std::format("main/wall/{}", guide), "move_to", call).exit_code().value_or(-1), std::int64_t{0});
+        check(std::abs(a.rect(guide).x - (ws0.x + 300)) < 1e-6 && std::abs(a.rect(install).x - (i0.x + 300)) < 1e-6 && std::abs(a.rect(usage).y - (u0.y + 50)) < 1e-6,
+              "the workspace and its windows, by the same distance");
+        check_eq(a.h.runtime().undo({}).exit_code().value_or(-1), std::int64_t{0});
+        check(std::abs(a.rect(guide).x - ws0.x) < 1e-6 && std::abs(a.rect(install).x - i0.x) < 1e-6, "undone together");
+        call.args = Value{}.set("keys", Value(Value::List{Value(guide)})).set("dx", -120.0).set("dy", 0.0);
+        check_eq(a.h.tree().act("main/wall", "move_by", call).exit_code().value_or(-1), std::int64_t{0});
+        check(std::abs(a.rect(install).x - (i0.x - 120)) < 1e-6, "move_by carries them too");
+        check_eq(a.h.runtime().undo({}).exit_code().value_or(-1), std::int64_t{0});
+        check(std::abs(a.rect(guide).x - ws0.x) < 1e-6 && std::abs(a.rect(usage).x - u0.x) < 1e-6, "and back, once each");
+    });
+
+    s.test("tidy: each workspace packed in columns, the wall the window's shape, nothing overlapping, one step undone; align lines up the selection", [] {
+        App a;
+        auto& sc = world::scene(a.model.scene);
+        std::vector<std::pair<std::string, world::WorldRect>> was;
+        sc.each([&](world::NodeRef n) { was.emplace_back(std::string(sc.key(n)), sc.rect(n)); });
+        check(a.h.click("main/top/toolbar/tidy"), "Tidy");
+        a.h.settle();
+        // No two windows overlap; every window lies on its own workspace; the wall about the window's shape.
+        std::vector<world::WorldRect> windows;
+        sc.each([&](world::NodeRef n) {
+            if (sc.kind_name(n) == "window") windows.push_back(sc.rect(n));
+        });
+        int overlaps = 0;
+        for (std::size_t i = 0; i < windows.size(); ++i)
+            for (std::size_t j = i + 1; j < windows.size(); ++j) overlaps += windows[i].overlaps(windows[j]);
+        check_eq(overlaps, 0);
+        sc.each([&](world::NodeRef n) {
+            if (sc.kind_name(n) != "workspace") return;
+            std::vector<world::NodeRef> on;
+            sc.carried(n, on);
+            check(!on.empty(), std::format("{} carries its windows", sc.text(n, "title")));
+        });
+        const auto b = sc.bounds();
+        const double vp = 1440.0 / 900.0;
+        check(std::abs(std::log((b.width / b.height) / vp)) < std::log(2.5), std::format("the wall {} × {}", b.width, b.height));
+        // Undone: every node where it was.
+        check_eq(a.h.runtime().undo({}).exit_code().value_or(-1), std::int64_t{0});
+        bool same = true;
+        for (const auto& [k, r] : was) {
+            const auto q = sc.rect(*sc.find(k));
+            same = same && std::abs(q.x - r.x) < 1e-6 && std::abs(q.y - r.y) < 1e-6 && std::abs(q.width - r.width) < 1e-3;
+        }
+        check(same, "back as it was");
+        // Align: two windows selected, their tops lined up; refused with one.
+        const auto install = by_path(a.model.docs, "guide/install.md").key, usage = by_path(a.model.docs, "guide/usage.md").key;
+        a.model.canvas()->select({install});
+        auto one = a.h.runtime().verbs().invoke("wall.align", [] { Invocation c; c.args = Value{}.set("how", "top"); return c; }());
+        check(one.exit_code() == std::optional<std::int64_t>(1), "one window: nothing to line up");
+        a.model.canvas()->select({install, usage});
+        Invocation call;
+        call.args = Value{}.set("how", "top");
+        check_eq(a.h.runtime().verbs().invoke("wall.align", call).exit_code().value_or(-1), std::int64_t{0});
+        check(std::abs(a.rect(install).y - a.rect(usage).y) < 1e-6, "tops in a line");
+    });
+
     s.test("1 is one to one, 2 the whole wall, H the HUD", [] {
         App a;
         const double whole = a.model.zoom.peek();
@@ -482,7 +547,7 @@ int main(int argc, char** argv) {
         check(a.h.save_png(still).has_value() && std::filesystem::file_size(still) < 1024 * 1024);
         std::println("    pixels {}", hash.hex());
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
-        check_eq(hash.hex(), std::string("2a14008523bc04ed"));
+        check_eq(hash.hex(), std::string("df141a25ce93af58"));
     });
 
     return s.run(argc, argv);

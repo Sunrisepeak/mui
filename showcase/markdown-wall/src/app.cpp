@@ -86,6 +86,163 @@ void Model::go(const Camera& c) {
     else x.set(c.x), y.set(c.y), zoom.set(c.zoom);
 }
 
+namespace {
+
+// Moves made as one step of the program's history (Runtime::taken_back_by): undone back to `from`, redone to `to`.
+void moved_as_one_step(omui::Runtime* rt, const std::string& scene_name, std::vector<std::pair<std::string, omui::world::WorldRect>> from,
+                       std::vector<std::pair<std::string, omui::world::WorldRect>> to, Model& model) {
+    if (!rt) return;
+    auto put = [scene_name, &model](const std::vector<std::pair<std::string, omui::world::WorldRect>>& where) {
+        omui::world::Scene& s = omui::world::scene(scene_name);
+        for (const auto& [key, r] : where)
+            if (auto n = s.find(key)) s.move(*n, r.x, r.y);
+        model.keep();
+    };
+    rt->taken_back_by([put, from] { put(from); }, [put, to] { put(to); });
+}
+
+}  // namespace
+
+std::size_t Model::tidy(double aspect) {
+    omui::world::Scene& s = omui::world::scene(scene);
+    if (!(aspect > 0)) aspect = 16.0 / 9.0;
+    const Geometry g;
+    struct Space {
+        omui::world::NodeRef               node;
+        std::vector<omui::world::NodeRef>  windows;
+        double                             w = 0, h = 0;
+        std::vector<std::array<double, 2>> at;  // each window's place inside
+    };
+    std::vector<Space> spaces;
+    s.each([&](omui::world::NodeRef n) {
+        if (s.kind_name(n) != "workspace") return;
+        Space sp{.node = n};
+        s.carried(n, sp.windows);
+        std::erase_if(sp.windows, [&](omui::world::NodeRef m) { return s.kind_name(m) != "window"; });
+        // In reading order as they lie now (a person's arrangement kept as an order).
+        std::ranges::sort(sp.windows, [&](omui::world::NodeRef a, omui::world::NodeRef b) {
+            const auto ra = s.rect(a), rb = s.rect(b);
+            return ra.y != rb.y ? ra.y < rb.y : ra.x < rb.x;
+        });
+        spaces.push_back(std::move(sp));
+    });
+    if (spaces.empty()) return 0;
+    std::vector<std::pair<std::string, omui::world::WorldRect>> before, after;
+    // Each workspace: masonry in c columns, c chosen for its shape.
+    for (Space& sp : spaces) {
+        const std::size_t n = std::max<std::size_t>(1, sp.windows.size());
+        double best = std::numeric_limits<double>::infinity();
+        for (std::size_t c = 1; c <= n; ++c) {
+            std::vector<double> col(c, g.label + g.margin);
+            std::vector<std::array<double, 2>> at;
+            for (omui::world::NodeRef m : sp.windows) {
+                const auto k = static_cast<std::size_t>(std::ranges::min_element(col) - col.begin());
+                at.push_back({g.margin + static_cast<double>(k) * (g.window + g.gap), col[k]});
+                col[k] += s.rect(m).height + g.gap;
+            }
+            const double w = 2 * g.margin + static_cast<double>(c) * g.window + static_cast<double>(c - 1) * g.gap;
+            const double h = *std::ranges::max_element(col) - g.gap + g.margin;
+            const double miss = std::abs(std::log((w / h) / aspect));
+            if (miss < best) best = miss, sp.w = w, sp.h = h, sp.at = std::move(at);
+        }
+    }
+    // The workspaces in rows: as many to a row as make the wall that shape.
+    double best = std::numeric_limits<double>::infinity();
+    std::size_t per = spaces.size();
+    for (std::size_t r = 1; r <= spaces.size(); ++r) {
+        double width = 0, height = 0, x = 0, row = 0;
+        for (std::size_t i = 0; i < spaces.size(); ++i) {
+            if (i > 0 && i % r == 0) height += row + g.between, x = 0, row = 0;
+            x += spaces[i].w + (i % r ? g.between : 0);
+            width = std::max(width, x);
+            row = std::max(row, spaces[i].h);
+        }
+        height += row;
+        const double miss = std::abs(std::log((width / height) / aspect));
+        if (miss < best) best = miss, per = r;
+    }
+    double x = 0, y = 0, row = 0;
+    for (std::size_t i = 0; i < spaces.size(); ++i) {
+        if (i > 0 && i % per == 0) y += row + g.between, x = 0, row = 0;
+        const Space& sp = spaces[i];
+        auto place = [&](omui::world::NodeRef n, double nx, double ny, float w, float h) {
+            before.emplace_back(std::string(s.key(n)), s.rect(n));
+            s.move(n, nx, ny);
+            s.resize(n, w, h);
+            after.emplace_back(std::string(s.key(n)), s.rect(n));
+        };
+        place(sp.node, x, y, static_cast<float>(sp.w), static_cast<float>(sp.h));
+        for (std::size_t k = 0; k < sp.windows.size(); ++k) {
+            const auto r = s.rect(sp.windows[k]);
+            place(sp.windows[k], x + sp.at[k][0], y + sp.at[k][1], static_cast<float>(r.width), static_cast<float>(r.height));
+        }
+        x += sp.w + g.between;
+        row = std::max(row, sp.h);
+    }
+    // Sizes changed too (a workspace fits its windows): undo and redo put both back.
+    if (runtime) {
+        const std::string name = scene;
+        auto put = [name, this](const std::vector<std::pair<std::string, omui::world::WorldRect>>& where) {
+            omui::world::Scene& sc = omui::world::scene(name);
+            for (const auto& [key, r] : where)
+                if (auto n = sc.find(key)) {
+                    sc.move(*n, r.x, r.y);
+                    sc.resize(*n, static_cast<float>(r.width), static_cast<float>(r.height));
+                }
+            keep();
+        };
+        runtime->taken_back_by([put, before] { put(before); }, [put, after] { put(after); });
+    }
+    if (omui::Canvas* c = canvas()) {
+        const auto b = s.bounds();
+        const omui::Size vp = c->viewport();
+        c->animate_to(omui::world::Camera::fit(b, vp, 32, 0.02, 4));
+    }
+    keep();
+    return after.size();
+}
+
+std::expected<std::size_t, std::string> Model::align(std::string_view how) {
+    omui::Canvas* c = canvas();
+    if (!c) return std::unexpected(std::string("the wall is not shown"));
+    omui::world::Scene& s = omui::world::scene(scene);
+    std::vector<omui::world::NodeRef> chosen;
+    for (const std::string& k : c->selection())
+        if (auto n = s.find(k); n && s.kind_name(*n) == "window") chosen.push_back(*n);
+    if (chosen.size() < 2) return std::unexpected(std::string("select two windows or more first (click, then shift-click)"));
+    std::vector<std::pair<std::string, omui::world::WorldRect>> before, after;
+    for (auto n : chosen) before.emplace_back(std::string(s.key(n)), s.rect(n));
+    double left = 1e300, top = 1e300, right = -1e300, bottom = -1e300;
+    for (auto n : chosen) {
+        const auto r = s.rect(n);
+        left = std::min(left, r.x), top = std::min(top, r.y), right = std::max(right, r.right()), bottom = std::max(bottom, r.bottom());
+    }
+    if (how == "left" || how == "right" || how == "top" || how == "bottom") {
+        for (auto n : chosen) {
+            const auto r = s.rect(n);
+            s.move(n, how == "left" ? left : how == "right" ? right - r.width : r.x, how == "top" ? top : how == "bottom" ? bottom - r.height : r.y);
+        }
+    } else if (how == "across" || how == "down") {
+        const bool across = how == "across";
+        std::ranges::sort(chosen, [&](auto a, auto b) { return across ? s.rect(a).x < s.rect(b).x : s.rect(a).y < s.rect(b).y; });
+        double total = 0;
+        for (auto n : chosen) total += across ? s.rect(n).width : s.rect(n).height;
+        const double space = ((across ? right - left : bottom - top) - total) / static_cast<double>(chosen.size() - 1);
+        double at = across ? left : top;
+        for (auto n : chosen) {
+            const auto r = s.rect(n);
+            s.move(n, across ? at : r.x, across ? r.y : at);
+            at += (across ? r.width : r.height) + std::max(space, Geometry{}.gap);
+        }
+    } else {
+        return std::unexpected(std::format("`{}` is not a way to align: left, right, top, bottom, across, down", how));
+    }
+    for (auto n : chosen) after.emplace_back(std::string(s.key(n)), s.rect(n));
+    moved_as_one_step(runtime, scene, std::move(before), std::move(after), *this);
+    keep();
+    return chosen.size();
+}
+
 bool Model::back() {
     if (back_.empty()) return false;
     forward_.push_back({x.peek(), y.peek(), zoom.peek()});
@@ -410,6 +567,21 @@ omui::AppSpec app(Model& model) {
                            model.open(doc->key);
                            return omui::Value(doc->key);
                        }});
+    a.verbs.push_back({{"wall.tidy", "Tidies the wall: each workspace's windows packed in columns, the workspaces in rows, the shape of the window it is seen in; one step of history.",
+                        omui::Effect::reversible, {}, {}},
+                       [&model](const omui::Value&) -> omui::VerbResult {
+                           const omui::Canvas* c = model.canvas();
+                           const omui::Size vp = c ? c->viewport() : omui::Size{16, 9};
+                           return omui::Value(static_cast<std::int64_t>(model.tidy(vp.height > 0 ? vp.width / vp.height : 16.0 / 9.0)));
+                       }});
+    a.verbs.push_back({{"wall.align", "Lines up the selected windows: how is left, right, top, bottom, across (evenly left to right) or down.", omui::Effect::reversible,
+                        {}, {{"how", "string"}}},
+                       [&model](const omui::Value& args) -> omui::VerbResult {
+                           const omui::Value* how = args.get("how");
+                           auto r = model.align(how ? how->as_string() : "");
+                           if (!r) return std::unexpected(r.error());
+                           return omui::Value(static_cast<std::int64_t>(*r));
+                       }});
     a.verbs.push_back({{"wall.stream", "Writes into the windows nearest the view's centre at a language model's pace.", omui::Effect::reversible, {},
                         {{"windows", "i64"}, {"rate", "f64"}}},
                        [&model](const omui::Value& args) -> omui::VerbResult {
@@ -463,6 +635,11 @@ omui::AppSpec app(Model& model) {
                            button({.id = "forward", .disabled = computed([&model] { (void)model.x.get(); return !model.can_forward(); }), .text = "Forward",
                                    .variant = ButtonVariant::ghost, .on_activated = [&model] { (void)model.forward(); }}),
                            button({.id = "search", .text = "Search", .variant = ButtonVariant::secondary, .on_activated = [&model] { model.open_search(); }}),
+                           button({.id = "tidy", .text = "Tidy", .variant = ButtonVariant::ghost, .on_activated = [&model] {
+                                       const omui::Canvas* c = model.canvas();
+                                       const omui::Size vp = c ? c->viewport() : omui::Size{16, 9};
+                                       (void)model.tidy(vp.height > 0 ? vp.width / vp.height : 16.0 / 9.0);
+                                   }}),
                            text({.id = "how", .text = "drag · wheel to zoom · double-click to read · 2 all", .style = "caption", .color = "text_muted"})});
         // Search: the words, and what has them; Enter or a click goes there, Esc closes it.
         Element finder = column({.id = "finder", .width = Dim(520.0f), .padding = Edges(12.0f), .gap = 8, .background = "surface", .border_color = "border",

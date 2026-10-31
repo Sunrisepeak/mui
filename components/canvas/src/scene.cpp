@@ -286,6 +286,19 @@ void Scene::unindex(std::uint32_t i) {
         }
 }
 
+void Scene::carried(NodeRef n, std::vector<NodeRef>& out) const {
+    out.clear();
+    if (!valid(n)) return;
+    const WorldRect r = rect(n);
+    std::vector<NodeRef> under;
+    query(r, under);
+    for (NodeRef m : under) {
+        if (m == n) continue;
+        const WorldRect q = rect(m);
+        if (q.x >= r.x && q.y >= r.y && q.right() <= r.right() && q.bottom() <= r.bottom()) out.push_back(m);
+    }
+}
+
 void Scene::query(const WorldRect& r, std::vector<NodeRef>& out) const {
     out.clear();
     if (r.empty() || live_ == 0) return;

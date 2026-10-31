@@ -133,10 +133,19 @@ public:
         if (!x || !y || !x->is_number() || !y->is_number()) return ActResult::fail("move_to takes x and y, numbers");
         Scene& s = h.scene();
         const WorldRect r = s.rect(n);
+        const double dx = x->as_double() - r.x, dy = y->as_double() - r.y;
+        // A kind that carries (a workspace) takes what lies on it along, as a person's drag of it does.
+        std::vector<NodeRef> along;
+        if (s.kind_of(n).carries) s.carried(n, along);
+        std::vector<std::string> keys{std::string(s.key(n))};
         s.move(n, x->as_double(), y->as_double());
-        const std::array<std::string, 1> keys{std::string(s.key(n))};
-        h.committed("moved", Value{}.set("keys", keys_value(keys)).set("dx", Value(x->as_double() - r.x)).set("dy", Value(y->as_double() - r.y)));
-        return ActResult::done();
+        for (NodeRef m : along) {
+            const WorldRect q = s.rect(m);
+            s.move(m, q.x + dx, q.y + dy);
+            keys.emplace_back(s.key(m));
+        }
+        h.committed("moved", Value{}.set("keys", keys_value(keys)).set("dx", Value(dx)).set("dy", Value(dy)));
+        return ActResult::done(Value(static_cast<std::int64_t>(keys.size())));
     }
 
 private:

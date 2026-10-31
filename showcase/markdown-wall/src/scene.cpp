@@ -127,7 +127,8 @@ void build(Model& model, Scene& scene, const Geometry& g) {
                                          p.paint(d.list, {r.x + 16, y});
                                      },
                                  .role = omui::Role::group,
-                                 .title_bar = static_cast<float>(g.label)});
+                                 .title_bar = static_cast<float>(g.label),
+                                 .carries = true});  // its windows go with it: dragged or moved by an agent alike
     scene.kind("window",
                omui::world::Kind{// A block with its title until the page would be too small to read (miniature text names nothing).
                                  .tiers = {{0, Tier::Draw::custom}, {g.texture_from, Tier::Draw::texture}, {900, Tier::Draw::promote}},

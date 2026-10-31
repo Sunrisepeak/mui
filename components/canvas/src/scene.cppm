@@ -91,6 +91,9 @@ struct Kind {
     std::string name_column = "title";
     // A strip at the top that hits as the node's title (a window's bar), logical px.
     float       title_bar = 0;
+    // What lies wholly on it moves with it (a workspace and its windows): a
+    // person's drag and an agent's move alike — one operation, one meaning.
+    bool        carries = false;
 };
 
 // A node as a script or a loader hands it over.
@@ -175,6 +178,8 @@ public:
     void query(const WorldRect& r, std::vector<NodeRef>& out) const;
     // The topmost node at a point.
     [[nodiscard]] std::optional<Hit> hit(double x, double y) const;
+    // The nodes lying wholly on `n` (its kind carries them), bottom to top.
+    void carried(NodeRef n, std::vector<NodeRef>& out) const;
     // Every node, bottom to top.
     void each(const std::function<void(NodeRef)>& f) const;
     // Every node in no particular order (by slot): a pass over the whole

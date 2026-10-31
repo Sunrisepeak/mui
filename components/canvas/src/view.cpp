@@ -860,16 +860,27 @@ ActResult Canvas::move_by(ActContext&, const MoveByArgs& args) {
     if (!args.keys.list() || !args.dx.is_number() || !args.dy.is_number()) return ActResult::fail("move_by takes keys (a list) and dx, dy (numbers)");
     const double dx = args.dx.as_double(), dy = args.dy.as_double();
     std::vector<std::string> moved;
+    std::vector<world::NodeRef> along;
+    auto move = [&](world::NodeRef n) {
+        if (std::ranges::find(moved, s->key(n)) != moved.end()) return;  // once, though named and carried both
+        const auto r = s->rect(n);
+        s->move(n, r.x + dx, r.y + dy);
+        moved.emplace_back(s->key(n));
+    };
     for (const Value& k : *args.keys.list())
         if (auto n = s->find(k.as_string())) {
-            const auto r = s->rect(*n);
-            s->move(*n, r.x + dx, r.y + dy);
-            moved.emplace_back(k.as_string());
+            // A kind that carries (a workspace) takes what lies on it along, as a drag of it does.
+            if (s->kind_of(*n).carries) s->carried(*n, along);
+            else along.clear();
+            move(*n);
+            for (world::NodeRef m : along) move(m);
         }
     if (moved.empty()) return ActResult::fail("no node with those keys");
     services().invalidate_paint(node());
     emit_moved(dx, dy, moved);
-    return ActResult::done().undo_by("move_by", Value{}.set("keys", args.keys).set("dx", -dx).set("dy", -dy));
+    Value::List all;
+    for (const std::string& k : moved) all.emplace_back(k);
+    return ActResult::done().undo_by("move_by", Value{}.set("keys", Value(std::move(all))).set("dx", -dx).set("dy", -dy));
 }
 
 ActResult Canvas::pan_to(ActContext&, const PanToArgs& args) {

@@ -502,6 +502,12 @@ bool Field::on_event(EventContext& ctx, const InputEvent& e) {
         }
         return handled();
     }
+    // The inspector open, the game stands under it: its keys are the inspector's, never a launch or a step (a key
+    // let go still reaches the game, so nothing held stays held), and so is its pointer.
+    if (props.inspector) {
+        if (k && k->kind == KeyKind::up) (void)mgame::ui::feed(sampler_, e, services().bounds(node()));
+        if (k || std::holds_alternative<PointerEvent>(e) || std::holds_alternative<WheelEvent>(e)) return handled();
+    }
     // R held: rewinding, while it reaches (it costs sparks).
     if (k && k->key == Key::r) {
         if (!k->repeat && k->kind == KeyKind::down) {
@@ -541,8 +547,6 @@ bool Field::on_event(EventContext& ctx, const InputEvent& e) {
         if (k->kind == KeyKind::down && !k->repeat) act([&](ActContext& c) { return next(c); });
         return handled();
     }
-    // The inspector open, the game stands under it: its pointer is the inspector's, never an aim or a launch.
-    if (props.inspector && (std::holds_alternative<PointerEvent>(e) || std::holds_alternative<WheelEvent>(e))) return handled();
     if (mgame::ui::feed(sampler_, e, services().bounds(node()))) return handled();
     return false;
 }

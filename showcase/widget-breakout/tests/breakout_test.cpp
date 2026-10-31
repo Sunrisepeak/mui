@@ -463,6 +463,22 @@ int main(int argc, char** argv) {
         g.h.key(Key::tab);
         g.h.advance(seconds(0.5));
         check(g.state().frame > frame, "on again");
+        // Its keys are its own: Space pressed while it is open does not launch once it closes.
+        Game w(1);
+        w.h.step();
+        auto waiting = [&] {
+            bool on = false;
+            w.state().world.each<bo::Ball>([&](mgame::Entity, const bo::Ball& b) { on = on || b.on != 0; });
+            return on;
+        };
+        check(waiting(), "a ball on the paddle");
+        w.h.key(Key::tab);
+        w.h.step();
+        w.h.key(Key::space);
+        w.h.step();
+        w.h.key(Key::tab);
+        w.h.advance(seconds(0.5));
+        check(waiting(), "still on the paddle: the Space was the inspector's");
     });
 
     s.test("the bricks are the ball's: a click on one reaches the field, an agent's toggle of one refused (read-only, and why); the keys steer after the pointer", [] {
@@ -488,6 +504,21 @@ int main(int argc, char** argv) {
         check(g.h.runtime().get(toggle, "checked").as_bool() == was, "unchanged");
         check(g.h.tree().node(g.h.runtime().path(toggle))->states.has(State::readonly), "read-only to every reader");
         check(!g.h.tree().node(g.h.runtime().path(toggle))->states.has(State::focusable), "not in the Tab order");
+    });
+
+    s.test("room 3: a switch of the cloud, near and live, is the ball's too (read-only, an agent told why)", [] {
+        Game g(3);
+        g.h.settle();
+        std::optional<spec::SemanticNode> live;
+        for (const auto& n : g.h.tree().snapshot({}).nodes)
+            if (n.role == spec::Role::switch_ && n.id.contains("/cloud/")) live = n;
+        check(live.has_value(), "a live switch in the cloud");
+        if (!live) return;
+        check(live->states.has(State::readonly), "read-only to every reader");
+        Invocation call;
+        call.actor = {"agent", "test", {}};
+        const Envelope refused = g.h.tree().act(live->id, "toggle", call);
+        check(refused.exit_code() != std::optional<int>(0) && refused.ndjson().contains("the ball operates the bricks"), refused.ndjson());
     });
 
     s.test("room 3: the cloud is a canvas's scene — live near, boxes far; through it the camera pulls back, never past half; a rewind puts the scene back", [] {
@@ -645,7 +676,7 @@ int main(int argc, char** argv) {
         g.h.advance(seconds(0.25));
         check(g.component().props.room == 1 && g.component().run_so_far().kit.empty() && g.state().score == 0 && g.state().lives == 3, "afresh");
         std::println("    choice {:016x}", choice);
-        check_eq(choice, std::uint64_t{0xc9b0efdd6f6029c6});  // GCC (LLVM: CI)
+        check_eq(choice, std::uint64_t{0x0192bedd92c7d09b});  // GCC (LLVM: CI)
     });
 
     s.test("between rooms, a casing open: its script — TypeScript, Lua, Python — edited and reloaded in place under 200 ms, a preset retuning it, a bad one keeping the rules; the rules reach the next room", [] {

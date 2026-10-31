@@ -182,7 +182,7 @@ Element casing_view(const std::shared_ptr<Bench>& b) {
     });
     return column({.id = "casing", .width = Dim(860.0f), .padding = 16, .gap = 8.0f, .background = Color::hex(0x0b0e17, 0.97f), .radius = 14.0f,
                    .visible = computed([b] { return b->casing.get() >= 0; })},
-                  {text({.text = b->casing_title, .style = "label"}),
+                  {text({.text = b->casing_title, .style = "label", .color = Color::hex(0xeef2ff)}),  // light on the casing, whatever the room's theme
                    text_box({.id = "casing.script", .label = "The contraption's script", .multiline = true, .text = source,
                              .on_changed = [b, script](std::string v) { b->text[script()].set(std::move(v)); }, .height = Dim(170.0f)}),
                    row({.id = "casing.tools", .gap = 8.0f},
@@ -199,16 +199,17 @@ Element casing_view(const std::shared_ptr<Bench>& b) {
                                     b->apply(script(), [b](const std::string& s) { b->casing_status.set(s); });
                                 }}),
                         button({.id = "casing.close", .text = "Close", .variant = ButtonVariant::ghost, .on_activated = [b] { b->show_casing(-1); }})}),
-                   text({.id = "casing.status", .text = b->casing_status, .style = "caption"})});
+                   text({.id = "casing.status", .text = b->casing_status, .style = "caption", .color = Color::hex(0xc7cde0)})});
 }
 
 // Between rooms: over the field, the room's end and the two contraptions offered.
 Element between_view(const std::shared_ptr<Bench>& b) {
     return column({.id = "between", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .padding = 28, .gap = 16.0f, .justify = "center",
                    .align = "center", .background = Color::hex(0x05070d, 0.72f), .visible = b->open},
-                  {text({.id = "between.heading", .text = b->heading, .style = "title"}),
-                   text({.id = "between.stats", .text = b->stats, .style = "caption"}),
-                   text({.text = "Take one into the rooms ahead — the other is gone.", .style = "body"}),
+                  // Light on the dimmed field, whatever the room's theme (ink's dark text vanished there).
+                  {text({.id = "between.heading", .text = b->heading, .style = "title", .color = Color::hex(0xeef2ff)}),
+                   text({.id = "between.stats", .text = b->stats, .style = "caption", .color = Color::hex(0xc7cde0)}),
+                   text({.text = "Take one into the rooms ahead — the other is gone.", .style = "body", .color = Color::hex(0xdfe4f2)}),
                    row({.id = "offers", .gap = 24.0f}, {card_view(b, 0), card_view(b, 1)}),
                    casing_view(b)});
 }

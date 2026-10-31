@@ -308,9 +308,12 @@ void fill_scene(const RoomDef& r) {
                                        .role = Role::article});
         scene.kind("switch", world::Kind{.tiers = {{0, world::Tier::Draw::box}, {60, world::Tier::Draw::promote}},
                                          .promote = [](const world::Scene& s, world::NodeRef n) {
-                                             return toggle({.id = std::string(s.key(n)), .checked = s.number(n, "on") != 0,
-                                                            .label = std::string(s.text(n, "title")), .width = Dim(layout::pct(100)),
-                                                            .height = Dim(layout::pct(100))});
+                                             // As in the other rooms: shown, read, but the ball's to operate (an agent asking is told so).
+                                             Element t = toggle({.id = std::string(s.key(n)), .checked = s.number(n, "on") != 0,
+                                                                 .label = std::string(s.text(n, "title")), .width = Dim(layout::pct(100)),
+                                                                 .height = Dim(layout::pct(100))});
+                                             t.prop("readonly", Source(Value("the ball operates the bricks: aim it there (the field's actions, or the paddle)")));
+                                             return t;
                                          },
                                          .role = Role::switch_});
         return true;

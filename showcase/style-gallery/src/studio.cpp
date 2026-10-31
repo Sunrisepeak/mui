@@ -293,7 +293,7 @@ Element stat(Studio& s, std::string id, std::string label, std::string value, do
                  1);
 }
 
-Element preview(Studio& s) {
+Element preview(Studio& s, bool narrow = false) {
     Element settings = panel(s, "settings", "Settings",
                              {text({.text = "Display name", .style = "label"}),
                               text_box({.id = "name", .label = "Display name", .text = s.name, .on_changed = [&s](std::string v) { s.name.set(std::move(v)); }}),
@@ -304,7 +304,7 @@ Element preview(Studio& s) {
                               row({.id = "volume_row", .gap = 8, .align = "center"},
                                   {text({.text = "Volume", .style = "label", .width = Dim(64.0f)}),
                                    slider({.id = "volume", .label = "Volume", .max = 1, .min = 0, .step = 0.05, .value = s.volume,
-                                           .on_changed = [&s](double v) { s.volume.set(v); }, .grow = 1}),
+                                           .on_changed = [&s](double v) { s.volume.set(v); }, .min_width = Dim(0.0f), .grow = 1}),
                                    text({.text = computed([&s] { return std::format("{:.0f}%", s.volume.get() * 100); }), .style = "label",
                                          .align = "end", .width = Dim(44.0f)})}),
                               text({.text = "Region", .style = "label"}),
@@ -324,8 +324,9 @@ Element preview(Studio& s) {
                                            .variant = ButtonVariant::secondary, .on_activated = [&s] { s.cancel_settings(); }}),
                                    button({.id = "save", .disabled = computed([&s] { return !s.settings_changed(); }), .text = "Save",
                                            .variant = ButtonVariant::primary, .on_activated = [&s] { s.save_settings(); }})})});
-    Element dashboard = column({.id = "dashboard", .min_width = 380, .gap = 16, .grow = 1},
-                               {row({.gap = 16}, {stat(s, "users", "Active users", "12,408", 0.72), stat(s, "revenue", "Revenue", "$84.2k", 0.54)}),
+    // Narrow (a phone): the dashboard under the settings, as wide as the panels; else beside them, at least 380.
+    Element dashboard = column({.id = "dashboard", .min_width = narrow ? Dim(0.0f) : Dim(380.0f), .max_width = Dim(layout::pct(100)), .gap = 16, .grow = 1},
+                               {row({.gap = 16, .wrap = narrow ? "wrap" : ""}, {stat(s, "users", "Active users", "12,408", 0.72), stat(s, "revenue", "Revenue", "$84.2k", 0.54)}),
                                 panel(s, "activity", "This week",
                                       {painter({.id = "chart",
                                                 .width = Dim(layout::pct(100)),
@@ -378,7 +379,7 @@ Element preview(Studio& s) {
     // The panels scroll over the wallpaper; where the preview is narrow (the
     // workshop inside a page) the dashboard goes below the settings. A basis
     // of 0: a line breaks by its least width, not its content's.
-    dashboard.prop("basis", Source(Value(0.0)));
+    dashboard.prop("basis", narrow ? Source(Value("100%")) : Source(Value(0.0)));  // narrow: a line of its own
     // The navigation layer: a tab bar floating over the content at the foot (the content scrolls under it), its
     // tabs going to their panels. What a style makes of a layer over content shows here — liquid glass in glass.
     Element bar = tabs({.id = "sections",
@@ -543,9 +544,13 @@ Element editor(Studio& s, bool wide = false) {
             });
         },
         {.id = "head", .padding = Edges(Insets{16, 16, 8, 16}), .gap = 8, .border_color = "border"});
-    return column({.id = "editor", .width = wide ? Dim(layout::pct(100)) : Dim(300.0f), .shrink = 0, .background = "surface", .border_color = "border",
-                   .border_width = 1},
-                  {std::move(head), scroll({.id = "scroll", .width = Dim(layout::pct(100)), .grow = 1}, {std::move(fields)})});
+    // The fields' view takes the height left under the head, however tall what it scrolls (min-height 0: no
+    // automatic minimum from its content, or it would grow to it and have nothing to scroll).
+    Element fields_view = scroll({.id = "scroll", .width = Dim(layout::pct(100)), .grow = 1}, {std::move(fields)});
+    fields_view.prop("min_height", Source(Value(0.0)));
+    return column({.id = "editor", .width = wide ? Dim(layout::pct(100)) : Dim(300.0f), .min_height = 0, .shrink = 0, .background = "surface",
+                   .border_color = "border", .border_width = 1},
+                  {std::move(head), std::move(fields_view)});
 }
 
 }  // namespace
@@ -580,7 +585,7 @@ Element pack_row(Studio& s) {
 
 Element view(Studio& s, bool narrow) {
     Element e = narrow ? scroll({.id = "studio", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .background = Fill("background")},
-                                {pack_row(s), box({.id = "show", .width = Dim(layout::pct(100)), .height = Dim(760.0f)}, {preview(s)}),
+                                {pack_row(s), box({.id = "show", .width = Dim(layout::pct(100)), .height = Dim(760.0f)}, {preview(s, true)}),
                                  box({.id = "edit", .width = Dim(layout::pct(100)), .height = Dim(620.0f)}, {editor(s, true)})})
                        : row({.id = "studio", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .align = "stretch", .background = "background"},
                              {sidebar(s), preview(s), editor(s)});

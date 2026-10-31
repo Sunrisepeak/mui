@@ -208,6 +208,7 @@ struct Site {
     Signal<std::string> fighter = signal(std::string("mo")), move = signal(std::string("5LP"));
     Signal<bool>        guard = signal(false);
     Signal<double>      demo_at = signal(0.0);
+    Signal<bool>        demo_playing = signal(false);  // the move list's stage playing its demonstration on
     std::map<std::string, std::vector<gongfu::training::FrameData>, std::less<>> measured;
     [[nodiscard]] const std::vector<gongfu::training::FrameData>& moves_of(const std::string& name) {
         auto it = measured.find(name);
@@ -770,6 +771,7 @@ Element moves_window(const std::shared_ptr<Site>& s, bool live) {
                                    const auto first = std::ranges::find_if(f.def.moves, [](const gongfu::MoveDef& m) { return !m.hits.empty() && m.asked; });
                                    s->move.set(first != f.def.moves.end() ? first->name : f.def.moves.front().name);
                                    s->demo_at.set(0);
+                                   s->demo_playing.set(false);
                                }}));
     }
     // The table: a header, then a row a move (rebuilt for another fighter, or another move chosen).
@@ -807,6 +809,7 @@ Element moves_window(const std::shared_ptr<Site>& s, bool live) {
                                                                                .on_activated = [s, name] {
                                                                                    s->move.set(name);
                                                                                    s->demo_at.set(0);
+                                   s->demo_playing.set(false);
                                                                                }})})};
                                         const std::string kind = d.throw_ ? (zh ? "投" : "throw") : d.air ? (zh ? "空中" : "air") : "";
                                         for (Element& e : cells({"", std::format("{}", d.startup), std::format("{}", d.active), std::format("{}", d.recovery),
@@ -833,7 +836,8 @@ Element moves_window(const std::shared_ptr<Site>& s, bool live) {
     };
     // A phone: the stage first, as wide as the page, the list under it, the page scrolling.
     const bool narrow = v.width < 600;
-    const float stage_w = narrow ? std::min(512.0f, v.width - 32) : 512.0f;
+    // Beside the table (wide): at most 512, and never more than half the room — the table keeps its columns.
+    const float stage_w = narrow ? std::min(512.0f, v.width - 32) : std::clamp((v.width - 64 - 28) / 2, 300.0f, 512.0f);
     Element stage = fighting::stage({.id = "stage",
                                      .arena = "plain",
                                      .demo = s->move,
@@ -847,19 +851,29 @@ Element moves_window(const std::shared_ptr<Site>& s, bool live) {
                            {button({.id = "on_hit",
                                     .text = say("On hit", "命中"),
                                     .variant = computed([s] { return s->guard.get() ? ButtonVariant::ghost : ButtonVariant::primary; }),
-                                    .on_activated = [s] { s->guard.set(false), s->demo_at.set(0); }}),
+                                    .on_activated = [s] { s->guard.set(false), s->demo_at.set(0), s->demo_playing.set(false); }}),
                             button({.id = "on_block",
                                     .text = say("On block", "被防"),
                                     .variant = computed([s] { return s->guard.get() ? ButtonVariant::primary : ButtonVariant::ghost; }),
-                                    .on_activated = [s] { s->guard.set(true), s->demo_at.set(0); }}),
-                            button({.id = "play", .text = say("Play", "播放"), .variant = ButtonVariant::ghost, .on_activated = [s] { s->stage_act("resume"); }}),
+                                    .on_activated = [s] { s->guard.set(true), s->demo_at.set(0), s->demo_playing.set(false); }}),
+                            button({.id = "play",
+                                    .text = computed([s, zh] { return std::string(s->demo_playing.get() ? (zh ? "暂停" : "Pause") : (zh ? "播放" : "Play")); }),
+                                    .variant = ButtonVariant::ghost,
+                                    .on_activated = [s] {
+                                        const bool on = !s->demo_playing.peek();
+                                        s->stage_act(on ? "resume" : "pause");
+                                        s->demo_playing.set(on);
+                                    }}),
                             slider({.id = "frame",
                                     .label = say("Frame", "帧"),
                                     .max = computed(frames),
                                     .min = 0,
                                     .step = 1,
                                     .value = s->demo_at,
-                                    .on_changed = [s](double f) { s->stage_act("demo_frame", Value{}.set("frame", static_cast<std::int64_t>(f))); },
+                                    .on_changed = [s](double f) {
+                                        s->stage_act("demo_frame", Value{}.set("frame", static_cast<std::int64_t>(f)));
+                                        s->demo_playing.set(false);  // a frame chosen: held there
+                                    },
                                     .grow = 1}),
                             text({.id = "frame_of",
                                   .text = computed([s, frames, zh] { return std::format("{} {} / {}", zh ? "帧" : "frame", static_cast<int>(s->demo_at.get()), static_cast<int>(frames())); }),
@@ -928,7 +942,8 @@ Element moves_window(const std::shared_ptr<Site>& s, bool live) {
     return row({.id = "page", .width = Dim(v.width), .height = Dim(v.height), .padding = Edges(28.0f, 32.0f), .gap = 28, .align = "stretch", .background = "background"},
                {column({.id = "list", .min_width = Dim(0.0f), .gap = 12, .grow = 1},
                        {std::move(title), std::move(about), row({.id = "fighters", .gap = 4, .wrap = "wrap"}, std::move(tabs)),
-                        scroll({.id = "moves", .grow = 1, .background = "surface"}, {std::move(table)})}),
+                        scroll({.id = "moves", .horizontal = true, .grow = 1, .background = "surface"},
+                               {std::move(table.prop("min_width", Source{Value(520.0), {}, {}}))})}),  // narrower: its columns whole, scrolled sideways
                 column({.id = "show", .width = Dim(stage_w), .gap = 10},
                        {box({.id = "frame_box", .radius = 12, .clip = true}, {std::move(stage)}), std::move(controls),
                         column({.id = "details", .gap = 4}, {std::move(details)})})});
@@ -1018,7 +1033,7 @@ Element styles_window(const std::shared_ptr<Site>& s, bool live) {
                                      "同一个真实的界面，放进 openmui 的每个风格包：玻璃、霓虹、复古、水墨、液态；当前的风格包可以边看边改。"
                                      "变的只有像素：每个风格包下语义树都一样。风格包只作用于这个地方，周围的网站保持自己的主题。"),
                          .style = "body"}),
-                   box({.id = "workshop", .grow = 1, .radius = 12, .clip = true}, {std::move(work)})});
+                   box({.id = "workshop", .min_height = 0, .grow = 1, .radius = 12, .clip = true}, {std::move(work)})});  // the room left: its own views scroll
 }
 
 // The check against CI: the reference run's frame as this browser drew it,

@@ -229,6 +229,14 @@ int main(int argc, char** argv) {
         const Rect view = h.runtime().screen_bounds(h.runtime().find("main/body/view"));
         check(view.width == 390, std::format("the view the whole width: {}", view.width));
         // Every control of the opening inside the window.
+        // The renderings' words whole: no line of a card below its card's bottom.
+        for (const char* card : {"reader", "agent", "test"}) {
+            const std::string base = std::format("main/body/view/atlas/home/page/hero/demo/renderings/{}", card);
+            check(h.runtime().valid(h.runtime().find(base + "/body/line")), base);
+            const Rect c = h.runtime().screen_bounds(h.runtime().find(base));
+            const Rect l = h.runtime().screen_bounds(h.runtime().find(base + "/body/line"));
+            check(l.y + l.height <= c.y + c.height + 0.5f, std::format("{}'s line inside its card: {} vs {}", card, l.y + l.height, c.y + c.height));
+        }
         for (const char* id : {"hero/demo/specimen/ship", "hero/agent_row/let_agent", "hero/cta/to_features"}) {
             const Rect r = h.runtime().screen_bounds(h.runtime().find(std::format("main/body/view/atlas/home/page/{}", id)));
             check(r.x >= 0 && r.x + r.width <= 390, std::format("{} inside: {} + {}", id, r.x, r.width));
@@ -451,6 +459,14 @@ int main(int argc, char** argv) {
             check(static_cast<std::int64_t>(shown) == at && label->name.contains(std::format(" {} / ", at)),
                   std::format("the stage at {} (of {}), the slider at {}, the counter '{}'", dm->get("frame")->as_int(), frames, shown, label->name));
         }
+        // Playing, the button says Pause; pressed, the stage holds its frame.
+        check(a.text(std::format("{}/show/controls/play", page)) == "Pause", a.text(std::format("{}/show/controls/play", page)));
+        check(a.h.tree().act(std::format("{}/show/controls/play", page), "activate", agent).exit_code() == std::optional<int>(0));
+        a.h.advance(seconds(0.1));
+        const auto held = a.h.tree().node(std::format("{}/show/frame_box/stage", page))->value.get("training")->get("demo")->get("frame")->as_int();
+        a.h.advance(seconds(0.5));
+        const auto still = a.h.tree().node(std::format("{}/show/frame_box/stage", page))->value.get("training")->get("demo")->get("frame")->as_int();
+        check(held == still && a.text(std::format("{}/show/controls/play", page)) == "Play", std::format("paused at {} (then {})", held, still));
     });
 
     s.test("a document's links: another place of the site, or outside through the host", [] {
@@ -612,7 +628,7 @@ int main(int argc, char** argv) {
         a.h.advance(seconds(1));
         shot("time.png");
         std::println("    pixels {}", all.hex());
-        check_eq(all.hex(), std::string("185e0293409893e5"));
+        check_eq(all.hex(), std::string("50ae607482a1d969"));
     });
 
     s.test("the style workshop runs in its place, a theme scope: a pack styles it alone, the site keeps its theme, the tree is the same in every pack", [] {
@@ -773,11 +789,30 @@ int main(int argc, char** argv) {
             for (const auto& n : h->tree().snapshot().nodes)
                 if (n.id.ends_with("/panels/column:0/settings") || n.id.ends_with("/settings") && n.id.contains("styles/page")) settings = h->runtime().screen_bounds(h->runtime().find(n.id));
             check(settings && settings->x + settings->width <= 390, settings ? std::format("the settings panel inside: {} + {}", settings->x, settings->width) : "no settings panel");
+            // The workshop's own views scroll inside its place: the studio on a phone, the editor's fields.
+            bool scrolls = false;
+            for (const auto& n : h->tree().snapshot().nodes)
+                if (n.id.contains("styles/page/workshop") && n.role == Role::scroll_view && n.value.get("max_y") && n.value.get("max_y")->as_double() > 0) scrolls = true;
+            check(scrolls, "the workshop scrolls within its place");
+            // Nothing of the preview's panels wider than the phone (the Revenue card, the volume's value).
+            std::string out;
+            for (const auto& n : h->tree().snapshot().nodes)
+                if (n.id.contains("/preview/content/panels/") && n.bounds && n.bounds->x + n.bounds->width > 390.5f) out += std::format("{} ({}) ", n.id, n.bounds->x + n.bounds->width);
+            check(out.empty(), "within the phone's width: " + out);
             const Rect play = h->runtime().screen_bounds(h->runtime().find("main/foot/time_play"));
             check(play.height < 60, std::format("the foot's Play on one line ({} high)", play.height));
         }
     });
 
+
+    s.test("the workshop on the desktop: the editor's fields scroll under its head", [] {
+        Site a("styles");
+        a.h.settle(seconds(1));
+        bool fields = false;
+        for (const auto& n : a.h.tree().snapshot().nodes)
+            if (n.id.ends_with("/editor/scroll") && n.value.get("max_y") && n.value.get("max_y")->as_double() > 0) fields = true;
+        check(fields, "the editor's fields reach past its height, and scroll");
+    });
 
     s.test("a panel opened beside the place: the place is laid out again to the room left", [] {
         Site a;
@@ -789,6 +824,13 @@ int main(int argc, char** argv) {
         const Rect page = a.h.runtime().screen_bounds(a.h.runtime().find("main/body/view/atlas/home/page"));
         check(page.x >= view.x - 1 && page.x + page.width <= view.x + view.width + 1,
               std::format("the page within the view: page {} + {}, view {} + {}", page.x, page.width, view.x, view.width));
+        // Nothing of the page's content under the panel.
+        std::string under;
+        for (const auto& n : a.h.tree().snapshot({.root = "main/body/view/atlas/home/page"}).nodes)
+            if (n.bounds && n.bounds->x + n.bounds->width > view.x + view.width + 1 && !n.states.has(State::offscreen) && !n.states.has(State::hidden))
+                under += std::format("{} ({}) ", n.id, n.bounds->x + n.bounds->width);
+        check(under.empty(), "nothing under the panel: " + under);
+        (void)a.h.save_png(scratch_dir("site-panel") / "home-with-panel.png");
     });
 
 

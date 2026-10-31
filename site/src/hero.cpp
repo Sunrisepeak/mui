@@ -214,7 +214,9 @@ Element hero(Hero& h, const HeroSite& site, bool live, float width) {
         return still_node(sp->lang ? sp->lang->peek() == "zh" : zh_now);
     };
     auto panel = [&](std::string id, std::uint32_t hue, Prop<std::string> title, Prop<std::string> line) {
-        return row({.id = std::move(id), .height = Dim(96.0f), .gap = 0, .align = "stretch", .background = "surface", .border_color = "border", .border_width = 1, .radius = 12, .clip = true},
+        // Beside the lines (wide), each the height the lines reach; in one column (a phone) as tall as its words wrap.
+        return row({.id = std::move(id), .height = narrow ? Dim() : Dim(96.0f), .min_height = Dim(96.0f), .gap = 0, .align = "stretch", .background = "surface",
+                    .border_color = "border", .border_width = 1, .radius = 12, .clip = true},
                    {box({.width = Dim(4.0f), .background = Fill(Color::hex(hue))}),
                     column({.id = "body", .padding = Edges(12.0f, 16.0f), .gap = 6, .grow = 1},
                            {text({.id = "title", .text = std::move(title), .style = "caption"}), text({.id = "line", .text = std::move(line), .style = "code"})})});

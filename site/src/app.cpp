@@ -257,6 +257,13 @@ struct Site {
     }
     // The camera flies to a place (or the overview), as the person's own request of the canvas.
     void fly(std::string_view to) {
+        // On a phone a panel or the menu covers the place: going somewhere puts them away, so it is seen.
+        if (compact.peek()) {
+            menu.set(false);
+            panel.set(false);
+            drawing.set(false);
+            checking.set(false);
+        }
         if (to != place.peek()) {
             const auto it = std::ranges::find_if(all, [&](const Place& p) { return p.id == to; });
             const bool zh = lang.peek() == "zh";
@@ -489,6 +496,11 @@ public:
             }
         }
         site_.tick_time();
+        // The move list's stage playing a demonstration: its frame on the slider and the counter too.
+        if (site_.place.peek() == "moves")
+            if (const NodeId n = site_.runtime->find(std::string(place_root) + "moves/page/show/frame_box/stage"); site_.runtime->valid(n))
+                if (const Value* d = site_.runtime->semantic_node(n).value.get("training"); d && d->get("demo"))
+                    if (const Value* f = d->get("demo")->get("frame"); f && f->as_double() != site_.demo_at.peek()) site_.demo_at.set(f->as_double());
         if (const auto f = std::exchange(site_.ref_wanted, std::nullopt)) site_.check_frame(*f);
         if (site_.runtime && site_.runtime->semantic_revision() != site_.seen && !queued_) {
             queued_ = true;
@@ -893,6 +905,7 @@ Element moves_window(const std::shared_ptr<Site>& s, bool live) {
             out.push_back(text({.id = std::format("line{}", i), .text = lines[i], .style = i == 0 ? "label" : "body"}));
         return out;
     });
+    if (narrow) controls.prop("wrap", Source{Value("wrap"), {}, {}});  // the frame's counter under the buttons when there is no room
     if (narrow)
         return scroll({.id = "page", .width = Dim(v.width), .height = Dim(v.height), .padding = Edges(20.0f, 16.0f), .background = "background"},
                       {column({.id = "intro", .padding = Edges(Insets{0, 0, 12, 0}), .gap = 10}, {std::move(title), std::move(about)}),
@@ -901,7 +914,8 @@ Element moves_window(const std::shared_ptr<Site>& s, bool live) {
                                column({.id = "details", .gap = 4}, {std::move(details)})}),
                        column({.id = "list", .padding = Edges(Insets{16, 0, 0, 0}), .gap = 12},
                               {row({.id = "fighters", .gap = 4, .wrap = "wrap"}, std::move(tabs)),
-                               scroll({.id = "moves", .horizontal = true, .height = Dim(360.0f), .background = "surface"}, {std::move(table)})})});
+                               scroll({.id = "moves", .horizontal = true, .height = Dim(360.0f), .background = "surface"},
+                                      {std::move(table.prop("min_width", Source{Value(520.0), {}, {}}))})})});  // its columns whole: scrolled sideways
     return row({.id = "page", .width = Dim(v.width), .height = Dim(v.height), .padding = Edges(28.0f, 32.0f), .gap = 28, .align = "stretch", .background = "background"},
                {column({.id = "list", .min_width = Dim(0.0f), .gap = 12, .grow = 1},
                        {std::move(title), std::move(about), row({.id = "fighters", .gap = 4, .wrap = "wrap"}, std::move(tabs)),
@@ -985,7 +999,7 @@ Element styles_window(const std::shared_ptr<Site>& s, bool live) {
     const Size v = s->layout.view;
     const bool zh = s->lang.peek() == "zh";
     auto say = [zh](std::string_view en, std::string_view han) { return std::string(zh ? han : en); };
-    Element work = live ? styles::view(s->studio) : packs_picture(s->thumbs);
+    Element work = live ? styles::view(s->studio, v.width < 700) : packs_picture(s->thumbs);
     return column({.id = "page", .width = Dim(v.width), .height = Dim(v.height), .padding = Edges(24.0f, 32.0f), .gap = 12, .background = "background"},
                   {text({.id = "title", .text = say("The style workshop (S2)", "风格工坊（S2）"), .style = "title"}),
                    text({.id = "about",
@@ -1492,7 +1506,14 @@ AppSpec app(std::string_view place, std::string_view lang) {
                                         s->checking.set(open);
                                     }}),
                                       [s] { return !s->compact.get(); })});
-        return column({.id = "site", .grow = 1, .background = "background"}, {std::move(bar), std::move(body), std::move(foot)});
+        Element site = column({.id = "site", .grow = 1, .background = "background"}, {std::move(bar), std::move(body), std::move(foot)});
+        // Esc puts away what is open over the place: the menu, a panel.
+        site.on("key_down", [s](const Value& e) {
+            if (!e.get("key") || e.get("key")->as_string() != "Escape") return;
+            for (Signal<bool>* open : {&s->menu, &s->panel, &s->drawing, &s->checking})
+                if (open->peek()) open->set(false);
+        });
+        return site;
     };
     return a;
 }

@@ -177,8 +177,13 @@ int main(int argc, char** argv) {
             const auto b = *at->bounds;
             check(std::abs(b.x + b.width / 2 - 400) < 2 && std::abs(b.y + b.height / 2 - 300) < 2, std::format("centred: {} {} {}×{}", b.x, b.y, b.width, b.height));
         }
-        // Panning moves it with the camera in the same frame.
-        h.scroll({400, 300}, {-50, 0});
+        // A wheel over the live card is the card's: the camera stays (a page's end is not a zoom).
+        h.scroll({400, 300}, {0, -120});
+        const auto still = h.tree().node("main/board/c55");
+        check(still && still->bounds && at && at->bounds && std::abs(still->bounds->x - at->bounds->x) < 1 && std::abs(still->bounds->width - at->bounds->width) < 1,
+              "the camera stayed");
+        // Panning (a trackpad's two fingers off the card) moves it with the camera in the same frame.
+        h.scroll({6, 6}, {-50, 0});
         const auto moved = h.tree().node("main/board/c55");
         check(moved && moved->bounds && at && at->bounds && std::abs((moved->bounds->x - at->bounds->x) - 50) < 1, "moved 50 px with the pan");
     });

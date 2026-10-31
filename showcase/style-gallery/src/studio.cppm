@@ -93,7 +93,8 @@ private:
 [[nodiscard]] omui::AppSpec app(Studio& studio, std::string_view first = "glass");
 // The workshop itself — the packs, the interface, the editor — for a program
 // to place (in the studio's scope, when it has one), and its verbs.
-[[nodiscard]] omui::Element view(Studio& studio);
+// `narrow` (a phone): the packs a row above, the interface, then the editor, one column scrolling.
+[[nodiscard]] omui::Element view(Studio& studio, bool narrow = false);
 void add_verbs(omui::AppSpec& spec, Studio& studio);
 
 }  // namespace omui::styles

@@ -74,6 +74,27 @@ struct Labels {
     }
 };
 
+// A document's outline: its section headings (## and ###), a line each, the
+// first eight — what a window far enough away to be a summary shows.
+std::string outline(std::string_view md) {
+    std::string out;
+    std::size_t lines = 0, at = 0;
+    bool fenced = false;
+    while (at < md.size() && lines < 8) {
+        const std::size_t end = std::min(md.find('\n', at), md.size());
+        std::string_view line = md.substr(at, end - at);
+        at = end + 1;
+        if (line.starts_with("```")) fenced = !fenced;
+        if (fenced || !(line.starts_with("## ") || line.starts_with("### "))) continue;
+        const bool sub = line.starts_with("### ");
+        line.remove_prefix(sub ? 4 : 3);
+        while (!line.empty() && (line.back() == '\r' || line.back() == ' ')) line.remove_suffix(1);
+        out += std::format("{}{}{}", out.empty() ? "" : "\n", sub ? "   " : "", line);
+        ++lines;
+    }
+    return out;
+}
+
 }  // namespace
 
 void build(Model& model, Scene& scene, const Geometry& g) {
@@ -110,6 +131,7 @@ void build(Model& model, Scene& scene, const Geometry& g) {
     scene.kind("window",
                omui::world::Kind{// A block with its title until the page would be too small to read (miniature text names nothing).
                                  .tiers = {{0, Tier::Draw::custom}, {g.texture_from, Tier::Draw::texture}, {900, Tier::Draw::promote}},
+                                 // (a block, its title; nearer, its sections too: a summary; then its page)
                                  .draw =
                                      [labels](DrawContext& d) {
                                          // T0: a block and a title strip, two instanced boxes; its title, at a size fixed
@@ -121,10 +143,27 @@ void build(Model& model, Scene& scene, const Geometry& g) {
                                                                 omui::CornerRadii{radius, radius, 0, 0}, omui::render::Paint::solid(d.scene.fill(d.node)));
                                          if (!d.fonts || r.width < 36 || r.height < 14) return;
                                          const std::string key(d.scene.key(d.node));
-                                         const auto& p = labels->get(d, key, std::string(d.scene.text(d.node, "title")), 11, 600, d.theme.color("text"));
+                                         // Near enough (a summary): the title larger, then the document's sections, then its path.
+                                         const bool summary = r.width >= 150 && r.height >= 100;
+                                         const auto& p = labels->get(d, summary ? key + "#t" : key, std::string(d.scene.text(d.node, "title")), summary ? 15 : 11, 650,
+                                                                     d.theme.color("text"));
                                          const omui::Size s = p.size();
                                          d.list.push_clip({r.x + 4, r.y, r.width - 8, r.height});
-                                         p.paint(d.list, {r.x + 6, r.y + std::min(r.height / 2 - s.height / 2, 4.0f + static_cast<float>(title_bar * d.zoom))});
+                                         const float top = r.y + std::min(r.height / 2 - s.height / 2, 4.0f + static_cast<float>(title_bar * d.zoom));
+                                         p.paint(d.list, {r.x + 8, top});
+                                         if (summary) {
+                                             float y = top + s.height + 8;
+                                             for (auto part : std::views::split(d.scene.text(d.node, "outline"), '\n')) {
+                                                 const std::string line{std::string_view(part)};
+                                                 if (line.empty()) continue;
+                                                 const auto& q = labels->get(d, std::format("{}#{}", key, line), line, 12, 450, d.theme.color("text_muted"));
+                                                 if (y + q.size().height > r.y + r.height - 22) break;
+                                                 q.paint(d.list, {r.x + 10, y});
+                                                 y += q.size().height + 3;
+                                             }
+                                             const auto& path = labels->get(d, key + "#p", std::string(d.scene.text(d.node, "path")), 10, 400, d.theme.color("text_muted"));
+                                             path.paint(d.list, {r.x + 8, r.y + r.height - path.size().height - 6});
+                                         }
                                          d.list.pop_clip();
                                      },
                                  .promote =
@@ -208,6 +247,7 @@ void build(Model& model, Scene& scene, const Geometry& g) {
                                       .radius = 10});
             scene.set(n, "title", docs[k]->title);
             scene.set(n, "path", docs[k]->path);
+            scene.set(n, "outline", outline(docs[k]->source));
             scene.set(n, "workspace", name);
         }
         gx += p.w + g.between;

@@ -349,7 +349,7 @@ std::string with_unit(double v, const render::EffectParam* ep) {
 // corners, its effects' parameters — each with its name, its value and its
 // unit, over a range that stays put while it is dragged — scrolling, as a
 // pack of several effects has more of them than a window is tall.
-Element editor(Studio& s) {
+Element editor(Studio& s, bool wide = false) {
     Element fields = immediate(
         [&s](Ui& ui) {
             (void)s.revision.get();
@@ -381,6 +381,11 @@ Element editor(Studio& s) {
             }();
             ui.text(std::format("Corners · {:.0f} px", radius), {.style = "caption", .color = Fill("text_muted")});
             if (ui.slider("Corners", radius, {.id = "corners", .min = 0, .max = 32, .step = 1})) (void)s.set_radius("medium", radius);
+            struct Changed {
+                std::string selector, param;
+                double      value;
+            };
+            std::optional<Changed> changed;
             for (const EffectRule& r : d.effects) {
                 auto scope = ui.scope(r.selector);
                 const std::string effect(r.effect.get("name") ? r.effect.get("name")->as_string() : "");
@@ -406,16 +411,18 @@ Element editor(Studio& s) {
                         ui.text(std::format("{} · {}", human(param), with_unit(v, ep)), {.style = "caption", .color = Fill("text_muted")});
                         std::string id = std::format("{}-{}", r.selector, param);  // role:region → role-region-…: an id's characters
                         std::ranges::replace(id, ':', '-');
-                        if (ui.slider(human(param), v, {.id = id, .min = lo, .max = hi, .step = (hi - lo) / 100})) (void)s.set_param(r.selector, param, v);
+                        if (ui.slider(human(param), v, {.id = id, .min = lo, .max = hi, .step = (hi - lo) / 100}))
+                            changed = {r.selector, param, v};  // applied after the loop: an edit replaces the draft being read
                     }
             }
+            if (changed) (void)s.set_param(changed->selector, changed->param, changed->value);
             ui.row({.id = "variants", .gap = 6}, [&] {
                 bool clear = s.runtime && s.runtime->reduce_transparency();
                 if (ui.toggle("Reduce transparency", clear, {.id = "reduce_transparency"}) && s.runtime) s.runtime->set_reduce_transparency(clear);
             });
         },
         {.id = "fields", .padding = 16, .gap = 8});
-    return box({.id = "editor", .width = 300, .shrink = 0, .background = "surface", .border_color = "border", .border_width = 1},
+    return box({.id = "editor", .width = wide ? Dim(layout::pct(100)) : Dim(300.0f), .shrink = 0, .background = "surface", .border_color = "border", .border_width = 1},
                {scroll({.id = "scroll", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100))}, {std::move(fields)})});
 }
 
@@ -436,9 +443,25 @@ AppSpec app(Studio& s, std::string_view first) {
     return a;
 }
 
-Element view(Studio& s) {
-    Element e = row({.id = "studio", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .align = "stretch", .background = "background"},
-                    {sidebar(s), preview(s), editor(s)});
+// The packs as a row of buttons (a narrow workshop's chooser).
+Element pack_row(Studio& s) {
+    return immediate(
+        [&s](Ui& ui) {
+            (void)s.revision.get();
+            ui.row({.id = "packs", .gap = 6, .wrap = "wrap"}, [&] {
+                for (std::string_view n : themes::style_names)
+                    if (ui.button(n, {.id = std::format("show-{}", n), .variant = n == s.current() ? "primary" : "ghost"})) (void)s.show(n);
+            });
+        },
+        {.id = "chooser", .padding = 10, .background = "surface"});
+}
+
+Element view(Studio& s, bool narrow) {
+    Element e = narrow ? scroll({.id = "studio", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .background = Fill("background")},
+                                {pack_row(s), box({.id = "show", .width = Dim(layout::pct(100)), .height = Dim(760.0f)}, {preview(s)}),
+                                 box({.id = "edit", .width = Dim(layout::pct(100)), .height = Dim(620.0f)}, {editor(s, true)})})
+                       : row({.id = "studio", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .align = "stretch", .background = "background"},
+                             {sidebar(s), preview(s), editor(s)});
     if (!s.scope.empty()) e.prop("theme_scope", Source(Value(s.scope)));
     return e;
 }

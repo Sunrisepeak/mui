@@ -22,6 +22,7 @@
 
 **Run:**
 - `omui-fight --quiet` (openmui.showcase.fighting)
+- `omui-fight --fight kun ni --cpu 1 --level 2 --quiet --agent-name org.openmui.fighting.cpu` (openmui.showcase.fighting)
 
 **Use:** the keys are player 1 W A S D (move), U I O (punches), J K L (kicks); player 2 the arrows, Insert Home PageUp, Delete End PageDown (hold keys with `hold`, in frames; motions as successive keys; ui_clock pause and step to read frames).
 1. Title to fight with the keys and with the pointer: every screen's controls answer, and say how.
@@ -29,6 +30,8 @@
 3. Training mode: the move list, a move's demonstration, frame data, the dummy recording and playback, reset.
 4. Watch an exchange frame by frame (ui_clock): anticipation, impact, hit-stop, sparks, reaction, camera.
 5. A whole match to its K.O. and back to the select screen.
-6. As an agent: what the semantic tree says of the fight (frame, health, what each is doing) against what the picture shows.
+6. As an agent: what the semantic tree says of the fight (frame, health, what each is doing, move phases, whether each can act) against what the picture shows.
+7. Against the computer (`org.openmui.fighting.cpu`, you are player 1): play a round with the keys; judge how it plays.
+8. Read the last duel between two agents (`.agents/docs/evaluation/reports/*-fighting-duel-*.md`): what two players found playing by turns.
 
 **Images:** title, select, versus, training, each stage, clash, KO, each fighter's level 3 frames, README animation frames.

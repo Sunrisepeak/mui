@@ -617,6 +617,14 @@ bool Canvas::on_event(EventContext& ctx, const InputEvent& e) {
     }();
     if (const auto* w = std::get_if<WheelEvent>(&e)) {
         const Point at{w->position.x - origin.x, w->position.y - origin.y};
+        // Over a live node (a page being read) the wheel is the page's: what
+        // it does not scroll stops there, the camera stays (⌃ or ⌘ held still
+        // zooms) — a page's end is not a zoom.
+        if (!w->mods.has(Modifier::ctrl) && !w->mods.has(Modifier::meta))
+            if (world::Scene* s = scene()) {
+                const auto wp = camera_.to_world(at, vp);
+                if (const auto h = s->hit(wp[0], wp[1]); h && std::ranges::find(promoted_, s->key(h->node)) != promoted_.end()) return true;
+            }
         motion_.reset();
         glide_.reset();
         // A mouse wheel zooms about the cursor; a trackpad pans, and zooms

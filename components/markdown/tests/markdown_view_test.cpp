@@ -138,6 +138,25 @@ int main(int argc, char** argv) {
                  std::int64_t{spec::exit_code::failure});
     });
 
+    s.test("selecting text: pressed and dragged across a paragraph, the text between is selected and on the clipboard; an agent selects too", [] {
+        Headless h({.size = {720, 900}});
+        h.mount("main", column({.padding = 16}, {markdown({.id = "doc", .source = std::string("A paragraph to select some words from.\n")})}));
+        h.settle();
+        const auto para = find_role(h, Role::paragraph, "A paragraph to select some words from.");
+        check(para.has_value(), "the paragraph");
+        if (!para) return;
+        const Rect r = h.runtime().screen_bounds(h.runtime().find(para->id));
+        const Point from{r.x + 2, r.y + r.height / 2}, to{r.x + 70, r.y + r.height / 2};  // a few words in
+        h.step({PointerEvent{.kind = PointerKind::down, .position = from, .button = MouseButton::left, .buttons = 1}});
+        h.step({PointerEvent{.kind = PointerKind::move, .position = to, .buttons = 1}});
+        h.step({PointerEvent{.kind = PointerKind::up, .position = to, .button = MouseButton::left}});
+        h.settle();
+        const std::string copied = h.runtime().clipboard_text();
+        check(copied.starts_with("A para") && copied.size() < std::string("A paragraph to select some words from.").size(), copied);
+        check(h.tree().node(para->id)->states.has(State::selected), "selected");
+        check_eq(act(h, para->id, "set_selection", Value{}.set("anchor", 2).set("focus", 11)), std::int64_t{0});
+    });
+
     s.test("tasks: toggling rewrites the mark in the source and tells the binding", [] {
         Headless h({.size = {720, 900}});
         auto src = signal(std::string(readme));

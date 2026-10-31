@@ -53,7 +53,7 @@ struct Geometry {
     double margin = 64;         // inside a workspace
     double label = 72;          // a workspace's label strip
     double between = 360;       // between workspaces
-    float  texture_from = 160;  // a window's size on screen (px) from which its page is a texture; below, a block and its title
+    float  texture_from = 320;  // a window's size on screen (px) from which its page is a texture; below, a block: its title, and from 150 px its sections (a summary)
 };
 class Model;
 void build(Model& model, omui::world::Scene& scene, const Geometry& g = {});

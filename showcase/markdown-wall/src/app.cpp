@@ -54,9 +54,10 @@ std::string Model::text(std::string_view key) const {
     return d ? d->source : std::string{};
 }
 
-void Model::open(std::string_view key) {
+void Model::open(std::string_view key, std::string_view words) {
     if (!runtime || !document(key)) return;
-    back_.push_back({x.peek(), y.peek(), zoom.peek()});
+    if (!words.empty()) show_words(std::string(key), std::string(words), 16);
+    back_.push_back(here());
     if (back_.size() > 100) back_.erase(back_.begin());
     forward_.clear();
     if (const NodeId c = runtime->find(canvas_path); runtime->valid(c)) {
@@ -81,9 +82,112 @@ void Model::close_search() {
         if (const NodeId c = runtime->find(canvas_path); runtime->valid(c)) (void)runtime->act(c, "focus");
 }
 
+namespace {
+
+// A live window's page (its scroll), wherever the canvas put the window's element: none while it is not live.
+NodeId page_of(const omui::Runtime& rt, std::string_view canvas_path, std::string_view key) {
+    // From the canvas (the window's own path is its item's, which the runtime does not hold).
+    const std::string within = std::format("{}/{}/", canvas_path, key);
+    std::vector<NodeId> todo{rt.find(canvas_path)};
+    while (!todo.empty()) {
+        const NodeId n = todo.back();
+        todo.pop_back();
+        if (!rt.valid(n)) continue;
+        if (const std::string p = rt.path(n); p.starts_with(within) && p.ends_with("/page")) return n;
+        for (const NodeId c : rt.children(n)) todo.push_back(c);
+    }
+    return {};
+}
+
+}  // namespace
+
+Model::Camera Model::here() const {
+    Camera c{x.peek(), y.peek(), zoom.peek(), {}, 0};
+    if (const Canvas* cv = canvas(); cv && runtime) {
+        c.focused = cv->focused();
+        // How far down its page the window read was (its live page's scroll).
+        if (!c.focused.empty())
+            if (const NodeId page = page_of(*runtime, canvas_path, c.focused); runtime->valid(page)) {
+                const spec::SemanticNode seen = runtime->semantic_node(page);  // kept: what is read from it points into it
+                if (const Value* down = seen.value.get("y")) c.scroll = down->as_double();
+            }
+    }
+    return c;
+}
+
 void Model::go(const Camera& c) {
-    if (Canvas* cv = canvas()) cv->animate_to({c.x, c.y, c.zoom});
-    else x.set(c.x), y.set(c.y), zoom.set(c.zoom);
+    Canvas* cv = canvas();
+    if (!cv) {
+        x.set(c.x), y.set(c.y), zoom.set(c.zoom);
+        return;
+    }
+    // The window read then, read again — live and focused — and its page where it was, once it is live.
+    cv->focus_only(c.focused);
+    cv->animate_to({c.x, c.y, c.zoom});
+    if (c.focused.empty() || c.scroll <= 0 || !runtime) return;
+    restore_scroll(c.focused, c.scroll, c, 16);
+}
+
+// The words searched for, shown where they are in the window opened: its first block with them scrolled into
+// view and the words selected — once the window is live (tried a few times a second).
+void Model::show_words(std::string key, std::string words, int tries) {
+    if (!runtime || tries <= 0) return;
+    (void)runtime->after(seconds(0.15), [this, key = std::move(key), words = std::move(words), tries, alive = std::weak_ptr<int>(alive_)]() mutable {
+        if (alive.expired() || !runtime) return;
+        const NodeId page = page_of(*runtime, canvas_path, key);
+        const NodeId doc = runtime->valid(page) ? runtime->find(runtime->path(page) + "/doc") : NodeId{};
+        if (!runtime->valid(doc)) {
+            show_words(std::move(key), std::move(words), tries - 1);
+            return;
+        }
+        Invocation call;
+        call.args = Value{}.set("query", words);
+        const Envelope e = runtime->act(doc, "find", call);
+        const Value* hits = e.data_value();
+        if (!hits || !hits->list() || hits->list()->empty()) return;
+        // The first block that has them: the words themselves in it, else the block.
+        std::vector<NodeId> todo{runtime->find(hits->list()->front().as_string())};
+        auto lower = [](std::string_view t) {
+            std::string out(t);
+            for (char& ch : out) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+            return out;
+        };
+        const std::string w = lower(words);
+        while (!todo.empty()) {
+            const NodeId n = todo.back();
+            todo.pop_back();
+            if (!runtime->valid(n)) continue;
+            const spec::SemanticNode seen = runtime->semantic_node(n);
+            const auto at = lower(seen.name).find(w);
+            if (at != std::string::npos && std::ranges::any_of(seen.actions, [](const spec::ActionDesc& a) { return a.name == "set_selection"; })) {
+                runtime->scroll_into_view(n);
+                Invocation select;
+                select.args = Value{}.set("anchor", static_cast<std::int64_t>(at)).set("focus", static_cast<std::int64_t>(at + w.size()));
+                (void)runtime->act(n, "set_selection", select);
+                return;
+            }
+            const auto kids = runtime->children(n);
+            for (auto it = kids.rbegin(); it != kids.rend(); ++it) todo.push_back(*it);
+        }
+        runtime->scroll_into_view(runtime->find(hits->list()->front().as_string()));
+    });
+}
+
+// The page scrolled where it was, once the camera is there and the window live (tried a few times a second).
+void Model::restore_scroll(std::string key, double scroll, Camera at, int tries) {
+    if (!runtime || tries <= 0) return;
+    (void)runtime->after(seconds(0.15), [this, key = std::move(key), scroll, at, tries, alive = std::weak_ptr<int>(alive_)]() mutable {
+        if (alive.expired() || !runtime) return;
+        const bool there = std::abs(x.peek() - at.x) < 1 && std::abs(y.peek() - at.y) < 1 && std::abs(zoom.peek() - at.zoom) < 1e-3;
+        const NodeId n = page_of(*runtime, canvas_path, key);
+        if (!there || !runtime->valid(n)) {
+            restore_scroll(std::move(key), scroll, at, tries - 1);
+            return;
+        }
+        Invocation call;
+        call.args = Value{}.set("x", 0.0).set("y", scroll);
+        (void)runtime->act(n, "scroll_to", call);
+    });
 }
 
 namespace {
@@ -245,7 +349,7 @@ std::expected<std::size_t, std::string> Model::align(std::string_view how) {
 
 bool Model::back() {
     if (back_.empty()) return false;
-    forward_.push_back({x.peek(), y.peek(), zoom.peek()});
+    forward_.push_back(here());
     go(back_.back());
     back_.pop_back();
     return true;
@@ -253,7 +357,7 @@ bool Model::back() {
 
 bool Model::forward() {
     if (forward_.empty()) return false;
-    back_.push_back({x.peek(), y.peek(), zoom.peek()});
+    back_.push_back(here());
     go(forward_.back());
     forward_.pop_back();
     return true;
@@ -651,7 +755,7 @@ omui::AppSpec app(Model& model) {
                                                const auto found = model.search(v, 1);
                                                if (found.empty()) return;
                                                model.close_search();
-                                               model.open(found.front().key);
+                                               model.open(found.front().key, v);
                                            }}),
                                  dynamic([&model] {
                                      std::vector<Element> out;
@@ -663,7 +767,7 @@ omui::AppSpec app(Model& model) {
                                          out.push_back(button({.id = std::format("result{}", i), .text = std::format("{} — {}", f.title, f.path),
                                                                .variant = ButtonVariant::ghost, .on_activated = [&model, key = f.key] {
                                                                    model.close_search();
-                                                                   model.open(key);
+                                                                   model.open(key, model.query.peek());
                                                                }}));
                                          out.push_back(text({.id = std::format("line{}", i), .text = f.line, .style = "caption", .color = "text_muted", .max_lines = 1}));
                                      }

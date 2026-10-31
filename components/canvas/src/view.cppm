@@ -82,6 +82,10 @@ public:
     };
     [[nodiscard]] world::Textures::Stats texture_stats() const { return textures_.stats(); }
     [[nodiscard]] const Stats& stats() const noexcept { return stats_; }
+    // The node focused (`focus_node`): live wherever it is; empty: none.
+    [[nodiscard]] const std::string& focused() const noexcept { return focused_; }
+    // Focuses a node without moving the camera (the camera set apart, as a program returning somewhere does).
+    void focus_only(std::string key);
     // The selection (keys, in the order chosen), and choosing it.
     [[nodiscard]] const std::vector<std::string>& selection() const noexcept { return selected_; }
     void select(std::vector<std::string> keys);

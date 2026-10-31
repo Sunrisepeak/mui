@@ -460,6 +460,75 @@ int main(int argc, char** argv) {
         check(std::abs(a.rect(install).y - a.rect(usage).y) < 1e-6, "tops in a line");
     });
 
+    s.test("back returns to the window read, and to where in it: focused again, its page scrolled as it was", [] {
+        // A long document (its window shows a part of it: its page scrolls) among the folder's.
+        auto docs_with_long = *omui::wall::read_folder(docs());
+        std::string long_text = "# The long one\n\n";
+        for (int i = 0; i < 120; ++i) long_text += std::format("Paragraph {} of a document long enough that its window scrolls.\n\n", i);
+        docs_with_long.push_back({omui::wall::key_of("notes/long.md"), "The long one", "notes/long.md", "notes", long_text});
+        App a(docs_with_long);
+        // A document long enough to scroll, read first; another after it.
+        std::string readme, install;
+        const auto page_of = [&](const std::string& key) {
+            for (const auto& n : a.h.tree().snapshot({}).nodes)
+                if (n.id.starts_with(std::format("main/wall/{}/", key)) && n.id.ends_with("/page")) return n;
+            return spec::SemanticNode{};
+        };
+        for (const auto& d : a.model.docs) {
+            a.model.open(d.key);
+            a.h.advance(seconds(1));
+            a.h.settle();
+            const auto p = page_of(d.key);
+            if (readme.empty() && p.value.get("max_y") && p.value.get("max_y")->as_double() > 150) readme = d.key;
+            else if (install.empty() && !readme.empty()) install = d.key;
+        }
+        if (install.empty()) install = a.model.docs.front().key == readme ? a.model.docs.back().key : a.model.docs.front().key;
+        check(!readme.empty(), "a page that scrolls");
+        if (readme.empty()) return;
+        a.model.open(readme);
+        a.h.advance(seconds(1));
+        a.h.settle();
+        const auto page_node = [&] {
+            for (const auto& n : a.h.tree().snapshot({}).nodes)
+                if (n.id.starts_with(std::format("main/wall/{}/", readme)) && n.id.ends_with("/page")) return n.id;
+            return std::string();
+        };
+        const std::string page = page_node();
+        check(!page.empty(), "read: its page live");
+        Invocation call;
+        call.args = Value{}.set("x", 0.0).set("y", 120.0);
+        const auto scrolled_by = a.h.tree().act(page, "scroll_to", call);
+        check(scrolled_by.exit_code() == std::optional<int>(0), scrolled_by.ndjson());
+        a.h.advance(seconds(1));
+        const double scrolled = a.h.runtime().semantic_node(a.h.runtime().find(page)).value.get("y")->as_double();
+        check(scrolled > 50, std::format("scrolled down: {}", scrolled));
+        check(a.model.here().focused == readme && a.model.here().scroll > 50, "where one is: the window read, and how far down");
+        a.model.open(install);
+        a.h.advance(seconds(1));
+        a.h.settle();
+        check_eq(a.model.canvas()->focused(), install);
+        check(a.model.back(), "back");
+        a.h.advance(seconds(1.5));
+        a.h.settle();
+        check_eq(a.model.canvas()->focused(), readme);
+        const NodeId again = a.h.runtime().find(page_node());
+        check(a.h.runtime().valid(again) && std::abs(a.h.runtime().semantic_node(again).value.get("y")->as_double() - scrolled) < 1,
+              "its page where it was");
+    });
+
+    s.test("a document opened from a search shows the words searched for: scrolled to and selected in it", [] {
+        App a;
+        const auto usage = by_path(a.model.docs, "guide/usage.md").key;
+        a.model.open(usage, "searching");
+        a.h.advance(seconds(1.5));
+        a.h.settle();
+        bool selected = false;
+        for (const auto& n : a.h.tree().snapshot({}).nodes)
+            selected = selected || (n.id.starts_with(std::format("main/wall/{}/", usage)) && n.states.has(State::selected) &&
+                                    n.name.find("Searching") != std::string::npos);
+        check(selected, "the words selected where they are");
+    });
+
     s.test("1 is one to one, 2 the whole wall, H the HUD", [] {
         App a;
         const double whole = a.model.zoom.peek();

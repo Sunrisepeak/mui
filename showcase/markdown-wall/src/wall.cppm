@@ -108,10 +108,18 @@ public:
     // ── reading: open, back and forward, search ──
     // A window brought into view to read (focused, live), the camera before
     // it remembered for back(); forward is forgotten.
-    void open(std::string_view key);
+    // With words (a search's): those words shown where they are in it — scrolled to and selected.
+    void open(std::string_view key, std::string_view words = {});
     // The camera as it was before the last open (back), or after it (forward).
     bool back();
     bool forward();
+    // Where one is: the camera, the window read (focused) and how far down its page — what back() returns to.
+    struct Camera {
+        double      x = 0, y = 0, zoom = 1;
+        std::string focused;
+        double      scroll = 0;
+    };
+    [[nodiscard]] Camera here() const;
     [[nodiscard]] bool can_back() const noexcept { return !back_.empty(); }
     [[nodiscard]] bool can_forward() const noexcept { return !forward_.empty(); }
     struct Found {
@@ -166,10 +174,9 @@ private:
     double                                                     rate_ = 50;
     omui::seconds                                              last_{0};
     std::uint64_t                                              tokens_ = 0;
-    struct Camera {
-        double x = 0, y = 0, zoom = 1;
-    };
     std::vector<Camera>                                        back_, forward_;
+    void restore_scroll(std::string key, double scroll, Camera at, int tries);
+    void show_words(std::string key, std::string words, int tries);
     std::uint64_t                                              keep_timer_ = 0;
     void go(const Camera& c);
     omui::FrameDemandLease                                     pace_;  // while streaming: 60 a second is enough for text

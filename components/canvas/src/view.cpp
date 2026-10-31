@@ -916,6 +916,13 @@ ActResult Canvas::focus_node(ActContext&, const Value& key) {
     return ActResult::done();
 }
 
+void Canvas::focus_only(std::string key) {
+    focused_ = std::move(key);
+    if (!attached()) return;
+    services().invalidate_paint(node());
+    services().invalidate_semantics(node());
+}
+
 ActResult Canvas::camera_preset(ActContext&, const Value& name) {
     world::Scene* s = scene();
     if (!s) return ActResult::fail("the canvas shows no scene");

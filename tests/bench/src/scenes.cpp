@@ -615,6 +615,46 @@ void add_framework_benchmarks() {
             (void)h.pixels();
         }
     });
+    // Universal motion (D-93): a hundred switches flipped at once, each frame of their morphs drawn — by the
+    // framework's own motion, and by ink and liquid (an effect on the way: wobble, metaball).
+    auto switches = [](std::string_view motion, bool on_gpu = false) {
+        return [motion, on_gpu](State& s) {
+            std::optional<Gpu> gpu;
+            if (on_gpu) {
+                gpu.emplace(full_hd);
+                if (!gpu->ready(s)) return;
+            }
+            auto on = signal(false);
+            Headless h(scene_options());
+            if (!motion.empty()) h.runtime().set_motion_choice(std::string(motion));
+            std::vector<Element> rows;
+            for (int r = 0; r < 10; ++r) {
+                std::vector<Element> row_items;
+                for (int c = 0; c < 10; ++c) {
+                    Element t = toggle({.id = std::format("t{}", r * 10 + c), .checked = on, .label = std::format("Switch {}", r * 10 + c)});
+                    if (!motion.empty()) t.prop("motion", Source(Value(Value::List{Value(std::string(motion)), Value("simple")})));
+                    row_items.push_back(std::move(t));
+                }
+                rows.push_back(row({.gap = 24}, std::move(row_items)));
+            }
+            h.mount("main", column({.padding = 24, .gap = 20}, std::move(rows)));
+            h.settle();
+            typeset::GlyphCache glyphs(h.runtime().fonts());
+            while (s.next()) {
+                const FrameOutput f = h.step();
+                if (!f.animating) on.set(!on.peek());  // at rest: flip them all again
+                if (gpu) gpu->draw(s, h.runtime().display_list(), {&h.runtime().images(), &glyphs}, Color::white());
+                else (void)h.pixels();
+                frame_counters(s, f, &h.runtime());
+            }
+        };
+    };
+    add("motion/switches-100", "a hundred switches flipped at once, the framework's own motion: every frame of their morphs drawn", switches(""));
+    add("motion/switches-100-ink", "the same, ink's motion: the line wavering on the way (wobble on each)", switches("ink"));
+    add("motion/switches-100-liquid", "the same, liquid's: drawn out like drops, merging on the way (metaball on each)", switches("liquid"));
+    // Where they run (wobble from T2, metaball from T3: a GPU draws them), on it.
+    add("motion/switches-100-ink-gpu", "ink's hundred switches with the GPU drawing every frame (omui.rhi)", switches("ink", true));
+    add("motion/switches-100-liquid-gpu", "liquid's hundred switches with the GPU drawing every frame (omui.rhi)", switches("liquid", true));
     add("ui/frame/hover-sweep", "the pointer moves from button to button: hit testing, hover restyle, repaint", [](State& s) {
         Dashboard d;
         Headless h(scene_options());
@@ -777,6 +817,24 @@ void add_framework_benchmarks() {
             s.counter("skipped", static_cast<double>(r.effects_skipped));
         }
     });
+    // The style packs' and motions' effects, each over the same 480 × 320 layer of rounded bars: what one costs a pixel.
+    for (std::string_view name : {"wobble", "metaball", "neon", "paper"})
+        add(std::format("render/effect-{}", name), std::format("a 480 × 320 layer of bars through {}: offscreen, effect, composite (per pixel)", name),
+            [name](State& s) {
+                render::DisplayList dl;
+                const Rect area{20, 20, 480, 320};
+                const auto ref = *render::effects().find(name);
+                const auto params = render::effects().params(ref, {});
+                std::array<render::EffectShape, 8> shapes{};
+                for (int i = 0; i < 8; ++i) shapes[i] = {{area.x + 10.0f + 58.0f * static_cast<float>(i), area.y + 20, 44, 280}, CornerRadii::all(8)};
+                dl.push_layer(1, render::BlendMode::normal, ref, params, area, shapes);
+                for (const auto& sh : shapes) dl.fill_round_rect(sh.rect, sh.radii, render::Paint::solid(Color::hex(0x4f46e5)));
+                dl.pop_layer();
+                raster::Surface surf(560, 400);
+                render::CpuRenderer cpu;
+                s.items(static_cast<std::size_t>(area.width * area.height));
+                while (s.next()) (void)cpu.render(dl, surf, {}, {.background = Color::white()});
+            });
     add("trace/span-off", "10 000 spans while nothing records: the cost tracing adds to a normal run", [](State& s) {
         (void)trace::stop();
         constexpr std::size_t n = 10'000;

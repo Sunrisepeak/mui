@@ -737,5 +737,66 @@ int main(int argc, char** argv) {
         check(hash.value() == 0xae3e686a8040c61fULL, std::format("gallery {:016x}", hash.value()));
     });
 
+    s.test("universal motion's use cases 1, 2, 4, 7 on the real components: a switch, a label, a list's order, one switch's three motions — frames pinned", [] {
+        typeset::FontCollection own;
+        check(own.add_defaults().has_value());
+        HeadlessOptions o = options({320, 260});
+        o.fonts = &own;
+        Headless h(o);
+        auto on = signal(false), seven = signal(false);
+        auto label = signal(std::string("Save"));
+        auto order = signal(std::vector<std::string>{"one", "two", "three"});
+        Element list = column({.id = "list", .gap = 4}, {dynamic([order] {
+                                  std::vector<Element> rows;
+                                  for (const std::string& k : order()) {
+                                      Element b = button({.id = k, .text = k});
+                                      b.key = k;
+                                      rows.push_back(std::move(b));
+                                  }
+                                  return rows;
+                              })});
+        // 4: the list's order travels, each item a little after the one before.
+        list.prop("motion", Source(Value(Value::Map{{"update", Value("none")},
+                                                    {"reorder", Value{}.set("use", "morph").set("order", "document").set("stagger", 0.03)}})));
+        // 7: one switch offering three motions; the person chose ink.
+        Element three = toggle({.id = "seven", .checked = seven, .label = "Seven"});
+        three.prop("motion", Source(Value(Value::List{Value("simple"), Value("liquid"), Value("ink")})));
+        h.runtime().set_motion_choice("ink");
+        h.mount("main", column({.padding = 12, .gap = 10}, {
+                                   toggle({.id = "one", .checked = on, .label = "One"}),         // 1: the framework's own
+                                   button({.id = "save", .text = label}),                        // 2: glyph by glyph
+                                   std::move(list),
+                                   std::move(three),
+                               }));
+        h.settle();
+        auto hash_now = [&] {
+            Hash hash;
+            const auto& px = h.pixels();
+            for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
+            return hash.value();
+        };
+        const auto before = hash_now();
+        const auto pictures = scratch_dir("ui-base-motion");
+        on.set(true);
+        label.set("Saved ✓");
+        order.set({"two", "three", "one"});
+        seven.set(true);
+        h.step();
+        for (int i = 0; i < 5; ++i) h.step();  // a twelfth of a second in
+        const auto moving = h.runtime().motions();
+        check(moving.size() >= 4, std::format("the four (and the list's buttons, each its own) moving: {}", moving.size()));
+        const auto mid = hash_now();
+        check(h.save_png(pictures / "motion-cases-mid.png").has_value());
+        h.settle();
+        check(h.runtime().motions().empty(), "at rest");
+        const auto rest = hash_now();
+        check(h.save_png(pictures / "motion-cases-rest.png").has_value());
+        std::println("ui.base motion cases {:016x} {:016x} {:016x}", before, mid, rest);
+        check(mid != before && mid != rest, "mid-way is neither drawing");
+        // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
+        check(mid == 0x4818defc48dc7532ULL, std::format("mid {:016x}", mid));
+        check(rest == 0xfa5cbbab36eaa981ULL, std::format("rest {:016x}", rest));
+    });
+
     return s.run(argc, argv);
 }

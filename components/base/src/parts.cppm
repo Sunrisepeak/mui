@@ -26,6 +26,15 @@ void chevron(PaintContext& ctx, Point c, float size, Color color);
 // The ring keyboard focus draws around a control (theme token `focus`).
 void focus_ring(PaintContext& ctx, const Rect& r, const CornerRadii& radii);
 
+// A small ×, centred on `c` (a close or a remove button).
+void cross(PaintContext& ctx, Point c, float size, Color color);
+
+// A check mark, `size` wide, centred on `c` (a chosen chip, a step done).
+void check_mark(PaintContext& ctx, Point c, float size, Color color, float width = 1.75f);
+
+// The theme's shadow `token` (sm, md, lg) under a box.
+void shadow(PaintContext& ctx, std::string_view token, const Rect& box, const CornerRadii& r);
+
 // One line (or a wrapped block) of text in a theme text style, shaped when
 // its text, style, colour or width changes and not otherwise.
 class Label {

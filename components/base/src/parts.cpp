@@ -31,6 +31,31 @@ void focus_ring(PaintContext& ctx, const Rect& r, const CornerRadii& radii) {
                                render::Paint::solid(ctx.theme.color("focus", Color::hex(0x6366f1, 0.55f))));
 }
 
+void cross(PaintContext& ctx, Point c, float size, Color color) {
+    render::Path p;
+    p.move_to({c.x - size / 2, c.y - size / 2}).line_to({c.x + size / 2, c.y + size / 2});
+    p.move_to({c.x + size / 2, c.y - size / 2}).line_to({c.x - size / 2, c.y + size / 2});
+    render::StrokeStyle st;
+    st.width = 1.5f;
+    st.cap = render::LineCap::round;
+    ctx.list.stroke_path(p, st, render::Paint::solid(color));
+}
+
+void check_mark(PaintContext& ctx, Point c, float size, Color color, float width) {
+    render::Path p;
+    p.move_to({c.x - size / 2, c.y}).line_to({c.x - size / 8, c.y + size * 0.35f}).line_to({c.x + size / 2, c.y - size * 0.35f});
+    render::StrokeStyle st;
+    st.width = width;
+    st.cap = render::LineCap::round;
+    st.join = render::LineJoin::round;
+    ctx.list.stroke_path(p, st, render::Paint::solid(color));
+}
+
+void shadow(PaintContext& ctx, std::string_view token, const Rect& box, const CornerRadii& r) {
+    if (auto it = ctx.theme.shadows.find(token); it != ctx.theme.shadows.end())
+        ctx.list.box_shadow(box, r, it->second.offset, it->second.blur, it->second.spread, it->second.color);
+}
+
 void Label::set_text(std::string text) {
     if (text == text_) return;
     text_ = std::move(text);

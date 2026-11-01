@@ -3,7 +3,8 @@
 // runtime's public API only (component-binding §1). The look is the theme's.
 // Beside them, the package's own (its contract/ directory, made into code
 // when it builds): badge, avatar, skeleton, card, accordion, toast, popover,
-// breadcrumb, pagination, number input; and who else acts here (actor log).
+// breadcrumb, pagination, number input; who else acts here (actor log);
+// segmented, chip, range slider, alert, stepper.
 //
 //     import openmui.ui.base;
 //     omui::register_base_components();   // view documents and immediate mode find them by name
@@ -42,6 +43,11 @@ export import :breadcrumb_contract;
 export import :pagination_contract;
 export import :number_input_contract;
 export import :actor_log_contract;
+export import :segmented_contract;
+export import :chip_contract;
+export import :range_slider_contract;
+export import :alert_contract;
+export import :stepper_contract;
 export import :button;
 export import :toggle;
 export import :slider;
@@ -57,6 +63,8 @@ export import :surfaces;
 export import :navigation;
 export import :number_input;
 export import :actors;
+export import :choices;
+export import :notices;
 
 export namespace omui {
 

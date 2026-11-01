@@ -34,6 +34,11 @@ made into code when the package builds — `build.mcpp`, openmui.build.contracts
 | `pagination` | `navigation` | previous, the first, the pages around the current one, the last, gaps (…), next; each page a link (`<id>/<page>`); stepped, set, taken back |
 | `number_input` | `spin_button` | typed (Enter or leaving keeps it, Escape drops it) or stepped (−, +, arrows), kept within `min`–`max` on `step`; undo restores it exactly |
 | `actor_log` | `log` | who else acts here (agent connect §3.2): the person's agent link (waiting with its code, linked, lost) and its actors' actions from the runtime's journal, newest last, each a node (`<id>/<entry>`); the last its history holds taken back from here (Undo, or the item's `undo`, as whoever asks); a record hovered or focused points out the node it acted on — an outline over the frame, not a cursor; ending the link is the application's control, the person's own (S-10); its words in another language through `phrases` |
+| `segmented` | `radio_group` | one of a few choices side by side, the chosen one raised; each a radio of its own (`<id>/<value>`); pressed, arrowed, chosen by an agent, taken back |
+| `chip` | `button`, or `toggle_button` when `selectable` | a compact label pressed; a filter turned on and off (taken back by pressing again); a tag removed by its × (`<id>/remove`) |
+| `range_slider` | `group` | two thumbs on one track, the low never past the high; each a slider of its own (`<id>/low`, `<id>/high`); dragged (taken back whole), stepped (Tab between them), set |
+| `alert` | `status` | a message in the page that needs attention: its tone said, a title, one action at most, dismissible when it may be (then hidden to every reader) |
+| `stepper` | `navigation` | the steps of a sequence: done (checked), current, ahead; a done one gone back to (`<id>/<index>`), ahead only when `free`; taken back |
 
 They draw what they are now: how a change of them moves is their slots'
 (universal motion), never their own code. Their gallery (`tests/kit_test.cpp`)

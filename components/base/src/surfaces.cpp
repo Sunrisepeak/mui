@@ -7,6 +7,7 @@ import openmui.view;
 namespace omui {
 
 using parts::mix;
+using parts::shadow;
 
 namespace {
 
@@ -25,22 +26,6 @@ void draw_chevron(PaintContext& ctx, Point c, float size, bool down, Color color
     st.cap = render::LineCap::round;
     st.join = render::LineJoin::round;
     ctx.list.stroke_path(p, st, render::Paint::solid(color));
-}
-
-// A small ×, centred at c.
-void draw_cross(PaintContext& ctx, Point c, float size, Color color) {
-    render::Path p;
-    p.move_to({c.x - size / 2, c.y - size / 2}).line_to({c.x + size / 2, c.y + size / 2});
-    p.move_to({c.x + size / 2, c.y - size / 2}).line_to({c.x - size / 2, c.y + size / 2});
-    render::StrokeStyle st;
-    st.width = 1.5f;
-    st.cap = render::LineCap::round;
-    ctx.list.stroke_path(p, st, render::Paint::solid(color));
-}
-
-void shadow(PaintContext& ctx, std::string_view token, const Rect& box, const CornerRadii& r) {
-    if (auto it = ctx.theme.shadows.find(token); it != ctx.theme.shadows.end())
-        ctx.list.box_shadow(box, r, it->second.offset, it->second.blur, it->second.spread, it->second.color);
 }
 
 }  // namespace
@@ -315,7 +300,7 @@ void Toast::paint(PaintContext& ctx) const {
         action_.paint(ctx, {x, c.y + (c.height - a.height) / 2}, th.color("accent"));
         action_at_ = {x - toast_gap / 2, 0, a.width + toast_gap, ctx.size.height};  // where a press takes it
     }
-    draw_cross(ctx, close_box(ctx.size).center(), 9, th.color("text_muted"));
+    parts::cross(ctx, close_box(ctx.size).center(), 9, th.color("text_muted"));
 }
 
 bool Toast::on_event(EventContext& ctx, const InputEvent& e) {

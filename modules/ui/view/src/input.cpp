@@ -157,7 +157,15 @@ void Runtime::Impl::pointer_event(const PointerEvent& e) {
                     swallowed = outside;
                     break;
                 }
-                if (p.light_dismiss && !contains(on.parent, target)) {
+                // A press inside what it opened from keeps it: its parent (a select's field and popup), or the
+                // element before it when it is anchored there (a popover's button: the rest of the page dismisses it).
+                NodeId keeps = on.parent;
+                if (p.anchor == Placement::Anchor::previous && alive(on.parent))
+                    for (const NodeId c : at(on.parent).children) {
+                        if (c == o) break;
+                        if (!at(c).type->overlay) keeps = c;
+                    }
+                if (p.light_dismiss && !contains(keeps, target)) {
                     Invocation call;
                     call.actor = {"person", "user", {}};
                     (void)self.act(o, "dismiss", call);

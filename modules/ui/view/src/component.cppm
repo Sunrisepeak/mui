@@ -37,7 +37,10 @@ struct NodeState {
 // Where an overlay goes: against its parent (a menu below its button), or
 // centred in the window (a dialog). It flips to stay inside the window.
 struct Placement {
-    enum class Side : std::uint8_t { below, above, start, end, center };
+    // Beside its anchor (below … end), over the window's middle (center), or at an edge or a corner of the window
+    // (top … bottom_end: a toast's), `offset` in from it; overlays at the same edge or corner stack, the first
+    // nearest it.
+    enum class Side : std::uint8_t { below, above, start, end, center, top, bottom, top_start, top_end, bottom_start, bottom_end };
     enum class Anchor : std::uint8_t { parent, previous };  // previous: the sibling before it (a tooltip's target)
     Side   side = Side::below;
     Anchor anchor = Anchor::parent;

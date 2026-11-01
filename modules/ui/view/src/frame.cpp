@@ -394,6 +394,8 @@ void Runtime::Impl::trap_focus() {
 
 void Runtime::Impl::place_overlays() {
     const Rect window{0, 0, size.width, size.height};
+    // How far each edge's and corner's overlays reach in so far (they stack).
+    std::array<float, 11> stacked{};
     for (NodeId id : overlays) {
         if (!alive(id) || !displayed(id)) continue;
         Node& n = at(id);
@@ -426,6 +428,17 @@ void Runtime::Impl::place_overlays() {
                 const bool right = p.side == Placement::Side::end ? (after + w <= window.right() || before < 0)
                                                                   : !(before >= 0 || after + w > window.right());
                 at = {right ? after : before, anchor.y};
+                break;
+            }
+            default: {  // an edge or a corner of the window, past those already there
+                float& in = stacked[static_cast<std::size_t>(p.side)];
+                const bool top = p.side == Placement::Side::top || p.side == Placement::Side::top_start || p.side == Placement::Side::top_end;
+                const bool start = p.side == Placement::Side::top_start || p.side == Placement::Side::bottom_start;
+                const bool end = p.side == Placement::Side::top_end || p.side == Placement::Side::bottom_end;
+                const float x = start ? p.offset : end ? window.width - w - p.offset : (window.width - w) / 2;
+                const float y = top ? p.offset + in : window.height - h - p.offset - in;
+                in += h + p.offset / 2;
+                at = {x, y};
                 break;
             }
         }

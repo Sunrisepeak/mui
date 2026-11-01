@@ -256,6 +256,10 @@ Envelope Runtime::Impl::perform(NodeId id, std::string_view action, const Invoca
         return history_action(id, action == "redo", call);
     const spec::SemanticNode sem = semantics(id);
     const spec::ActionDesc* a = sem.action(action);
+    // Taken back (an undo, a redo): an inverse is the component's own, given when the step was done — performed
+    // whether or not the node offers it now.
+    const spec::ActionDesc given{std::string(action), Effect::reversible, {}, {}, {}};
+    if (!a && replaying > 0) a = &given;
     if (!a && !command) {
         Value::List names;
         for (const spec::ActionDesc& x : sem.actions) names.emplace_back(x.name);
@@ -414,6 +418,10 @@ Envelope Runtime::Impl::perform_item(NodeId holder, std::string_view key, std::s
         return stop(std::move(env));
     }
     const spec::ActionDesc* a = item->action(action);
+    // Taken back: the inverse the component gave, whether or not the item offers it now (the page an undo returns
+    // from is the current one, which offers nothing).
+    const spec::ActionDesc given{std::string(action), Effect::reversible, {}, {}, {}};
+    if (!a && replaying > 0) a = &given;
     if (!a) {
         Value::List names;
         for (const spec::ActionDesc& x : item->actions) names.emplace_back(x.name);

@@ -154,6 +154,8 @@ struct Site {
     hello::State        hello;                 // example 01's, as the person left it
     Hero                hero;                  // the home page's opening: its checklist, the node its panels show
     HeroSite            hero_site;             // what the opening reads of the site
+    Screens             screens;               // the home page's screens after it
+    ScreensSite         screens_site;
     Gallery             gallery;               // the components page: the style, the code's language, the samples' values
     GallerySite         gallery_site;
     // The reference run (the foot's check against CI): played here, on a
@@ -235,6 +237,20 @@ struct Site {
                                code, port, guide);
         if (!code.empty()) runtime->set_clipboard_text(text);
         prompt.set(std::move(text));
+    }
+    // The effects tier the person chose (the settings, the home page's fast screen): "auto" is the device's.
+    void choose_effects(std::string v) {
+        effects.set(v);
+        if (!runtime) return;
+        Adaptation a = runtime->adaptation();
+        const std::optional<pipeline::Tier> chosen = v == "t1" ? std::optional(pipeline::Tier::t1)
+                                                     : v == "t2" ? std::optional(pipeline::Tier::t2)
+                                                     : v == "t3" ? std::optional(pipeline::Tier::t3)
+                                                     : v == "t4" ? std::optional(pipeline::Tier::t4)
+                                                                 : std::nullopt;
+        a.effects = chosen.value_or(a.tier);
+        a.reason = v == "auto" ? std::string("the device's") : std::string("the person's setting");
+        runtime->set_adaptation(a);
     }
     // A route the person moved to (back, forward, a typed address): its place and its language.
     void follow_route(std::string_view route) {
@@ -588,6 +604,8 @@ std::uint64_t tree_hash(const Value& snapshot) {
     const Value::List* nodes = snapshot.get("nodes") ? snapshot.get("nodes")->list() : nullptr;
     if (!nodes) return h.value();
     for (const Value& n : *nodes) {
+        // Not the live readouts the page shows: this hash itself (the time screen's), and what the machine is (the fast screen's).
+        if (const Value* id = n.get("id"); id && (id->as_string().ends_with("/time/proof/hash") || id->as_string().ends_with("/fast/shown/device"))) continue;
         Value kept;  // what the tree says, not where the window put it
         const bool viewport = n.get("role") && n.get("role")->as_string() == "scroll_view";  // its value is how far it scrolls: the window's
         for (std::string_view key : {"id", "role", "name", "description", "value"})
@@ -794,13 +812,6 @@ Element settings_panel(const std::shared_ptr<Site>& s) {
     auto labels = [s](std::vector<std::string> en, std::vector<std::string> han) {
         return computed([s, en = std::move(en), han = std::move(han)] { return s->lang.get() == "zh" ? han : en; });
     };
-    auto effects_tier = [](std::string_view v) -> std::optional<pipeline::Tier> {
-        if (v == "t1") return pipeline::Tier::t1;
-        if (v == "t2") return pipeline::Tier::t2;
-        if (v == "t3") return pipeline::Tier::t3;
-        if (v == "t4") return pipeline::Tier::t4;
-        return std::nullopt;
-    };
     // A choice with its name above it (the name the select is read by, drawn).
     auto labelled = [say](std::string id, std::string_view en, std::string_view han, SelectOptions o) {
         o.id = id;
@@ -851,14 +862,7 @@ Element settings_panel(const std::shared_ptr<Site>& s) {
                                             {"按这台设备的能力（自动）", "嵌入式（T1）", "网页（T2）", "电脑（T3）", "独立显卡（T4）"}),
                            .options = std::vector<std::string>{"auto", "t1", "t2", "t3", "t4"},
                            .value = s->effects,
-                           .on_changed = [s, effects_tier](std::string v) {
-                               s->effects.set(v);
-                               if (!s->runtime) return;
-                               Adaptation a = s->runtime->adaptation();
-                               a.effects = effects_tier(v).value_or(a.tier);
-                               a.reason = v == "auto" ? std::string("the device's") : std::string("the person's setting");
-                               s->runtime->set_adaptation(a);
-                           }}),
+                           .on_changed = [s](std::string v) { s->choose_effects(std::move(v)); }}),
                    labelled("renderer", "Who draws", "谁来画", {.labels = labels({"Automatic (a GPU when there is one)", "The GPU", "The CPU (the reference)"},
                                             {"自动（有 GPU 就用 GPU）", "GPU", "CPU（参考实现）"}),
                            .options = std::vector<std::string>{"automatic", "gpu", "cpu"},
@@ -1030,6 +1034,11 @@ Element place_page(const std::shared_ptr<Site>& s, const std::string& id) {
     std::vector<Element> content;
     if (id == "home") {
         content.push_back(hero(s->hero, s->hero_site, true, room));
+        // A screen a strength: your agent, time, motion, speed; then what it is, in words.
+        content.push_back(agent_screen(s->screens_site, room));
+        content.push_back(time_screen(s->screens_site, room));
+        content.push_back(motion_screen(s->screens, s->screens_site, room));
+        content.push_back(fast_screen(s->screens_site, room));
         content.push_back(document_page(s, id, room));
     } else if (id == "components") {
         content.push_back(gallery(s->gallery, s->gallery_site, true, room));
@@ -1047,8 +1056,14 @@ Element place_page(const std::shared_ptr<Site>& s, const std::string& id) {
     body.prop("max_width", Source(Value(static_cast<double>(content_width))));
     body.prop("align_self", Source(Value("center")));
     // Filling the view (a stack: the place under the lens's renderings).
-    return scroll({.id = id, .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .padding = Edges(narrow ? 24.0f : 56.0f, margin), .background = "background"},
-                  {std::move(body)});
+    Element page = scroll({.id = id, .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .padding = Edges(narrow ? 24.0f : 56.0f, margin), .background = "background"},
+                          {std::move(body)});
+    // The home page's scroll is its motion screen's time.
+    if (id == "home")
+        page.on("scrolled", [s](const Value& at) {
+            scrolled(s->screens, s->screens_site, std::string(place_root) + "home", at.get("y") ? at.get("y")->as_double() : 0);
+        });
+    return page;
 }
 
 }  // namespace
@@ -1090,6 +1105,23 @@ AppSpec app(std::string_view place, std::string_view lang) {
         register_type(component_type<Timebar>());
         register_type(component_type<FrameMeter>());
         fill_gallery_models(rt);  // the components page's tree view and data grid
+        s->screens_site = {.runtime = &s->runtime,
+                           .lang = &s->lang,
+                           .hash = &s->hash,
+                           .effects = &s->effects,
+                           .copy_prompt = [p = s.get()] {
+                               p->settings.set(false), p->checking.set(false);
+                               p->panel.set(true);
+                               p->give_prompt();
+                           },
+                           .open_agent = [p = s.get()] { p->settings.set(false), p->checking.set(false), p->panel.set(true); },
+                           .open_check = [p = s.get()] {
+                               if (!p->replay) p->want_frame(0);
+                               p->panel.set(false), p->settings.set(false);
+                               p->checking.set(true);
+                           },
+                           .replay = [p = s.get()] { p->backwards(); },
+                           .set_effects = [p = s.get()](std::string v) { p->choose_effects(std::move(v)); }};
         s->hero_site = {.runtime = &s->runtime,
                         .lang = &s->lang,
                         .nodes = &s->nodes,

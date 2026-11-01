@@ -564,6 +564,38 @@ int main(int argc, char** argv) {
         agent_access().revoke_all();
     });
 
+    s.test("the home page's screens: your agent, time, motion, speed — the agent panel from its button; the scroll the motion's time; the tier chosen the settings' own", [] {
+        Site a;
+        const std::string home = "main/body/view/home/page/";
+        for (const char* id : {"agent", "time", "motion", "fast"}) check(a.h.tree().node(home + id + "/claim").has_value(), std::format("the {} screen", id));
+        // The agent screen: the panel, a prompt in it.
+        check(a.h.tree().act(home + "agent/shown/actions/copy", "activate").exit_code() == std::optional<int>(0));
+        a.h.settle();
+        check(a.visible("main/body/guide") && !a.text("main/body/guide/prompt").empty(), "the panel open, a prompt given");
+        check(a.h.click("main/bar/guide_toggle"));
+        a.h.settle();
+        // The motion screen: scrolled to, its morph held to the scroll.
+        const NodeId shape = a.h.runtime().find(home + "motion/shown/shape");
+        Invocation person;
+        person.args = Value{}.set("x", 0.0).set("y", 1300.0);
+        check(a.h.tree().act("main/body/view/home", "scroll_to", person).exit_code() == std::optional<int>(0));
+        a.h.settle();
+        a.h.advance(seconds(0.5));  // the hold takes in the frames after the morph starts
+        auto at = a.h.runtime().motion_time(shape);
+        check(at.has_value(), "its morph held");
+        const double part = at ? at->second / at->first : 0;
+        person.args = Value{}.set("x", 0.0).set("y", 1700.0);
+        (void)a.h.tree().act("main/body/view/home", "scroll_to", person);
+        a.h.settle();
+        at = a.h.runtime().motion_time(shape);
+        check(at && at->second / at->first > part, std::format("further down, further on: {} then {}", part, at ? at->second / at->first : -1));
+        // The fast screen: the tier the settings choose.
+        check(a.h.tree().act(home + "fast/shown/tier/t1", "activate").exit_code() == std::optional<int>(0));
+        a.h.settle();
+        check(a.h.runtime().adaptation().effects == pipeline::Tier::t1, "effects as T1");
+        check(a.h.tree().node(home + "fast/shown/device")->name.find("T1") != std::string::npos, a.h.tree().node(home + "fast/shown/device")->name);
+    });
+
     s.test("your own agent: the prompt with its pairing code, copied; its actions in the log, each taken back from there; the self-check it presses", [] {
         Site a;
         check(a.h.click("main/bar/guide_toggle"));
@@ -678,7 +710,7 @@ int main(int argc, char** argv) {
         a.h.advance(seconds(1));
         shot("time.png");
         std::println("    pixels {}", all.hex());
-        check_eq(all.hex(), std::string("c488e1057c8e99bb"));
+        check_eq(all.hex(), std::string("a41d60b40d674a01"));
     });
 
     s.test("the components: each live, its code in four languages; a style pack styles the gallery alone, the tree the same in every pack", [] {

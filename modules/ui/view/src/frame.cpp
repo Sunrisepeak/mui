@@ -559,6 +559,19 @@ void Runtime::Impl::paint_node(NodeId id) {
     bool solid = false;
     if (fxs && reduce_transparency)
         if (const render::EffectInfo* info = render::effects().info(fxs->effect); info && info->backdrop) fxs = nullptr, solid = true;
+    // Below the tiers it runs on (performance tiers, D-94: the device's, or as low as the frame budget allows): what
+    // stands in for it, its defaults; none — a backdrop's effect, its panel then drawn solid.
+    if (fxs)
+        if (const render::EffectInfo* info = render::effects().info(fxs->effect); info && !(info->tiers & pipeline::tier_bit(effects_now()))) {
+            const auto instead = info->degrade.empty() ? std::nullopt : render::effects().find(info->degrade);
+            solid = solid || info->backdrop;
+            if (instead) {
+                n.stood_in = {.effect = *instead, .params = render::effects().params(*instead, {})};
+                fxs = &n.stood_in;
+            } else {
+                fxs = nullptr;
+            }
+        }
     // A disabled control is not lit by its style's effect (a neon tube, a
     // glow): the decoration is for what can be used.
     if (fxs == (n.styled_effect ? &*n.styled_effect : nullptr) && fxs && n.state.disabled) fxs = nullptr;

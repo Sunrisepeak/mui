@@ -1584,7 +1584,8 @@ AppSpec app(std::string_view place, std::string_view lang) {
             const bool zh = s->lang.peek() == "zh";
             s->mark(it != all.end() ? std::string(zh ? it->zh : it->en) : std::string(zh ? "全景" : "Overview"));
         }
-        rt.stage_plugins().add({.name = "openmui.site.tree_watch", .kind = "stage", .description = "the site's place read again when its tree changed"},
+        (void)rt.stage_plugins().add({.name = "openmui.site.tree_watch", .kind = "stage", .description = "the site's place read again when its tree changed",
+                                      .cost = pipeline::Cost{.cpu_us = 200}},
                                [site = s.get()](const pipeline::Config&) -> std::expected<std::unique_ptr<pipeline::Stage>, std::string> {
                                    return std::make_unique<TreeWatch>(*site);
                                });

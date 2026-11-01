@@ -219,12 +219,15 @@ int main(int argc, char** argv) {
             rec.act("main/row:0/delete", "activate", agent);  // no such verb: an error, recorded as such
             rec.frame({seconds(0.2), {}});
             rec.checkpoint("toast entering");
+            rt.set_device_tier(pipeline::Tier::t1, "a slower board");  // as a host would find it: an input, recorded
             rec.frame({seconds(0.5), {}});
             rec.checkpoint();
             end = tree.digest();
             check(app.count.peek() == 2 && app.toast.peek(), std::format("count {}", app.count.peek()));
         }
         check(session.of("frame").size() == 4 && session.of("act").size() == 2 && session.of("check").size() == 3);
+        // How it was drawn: at the start, and the tier the host changed.
+        check(session.of("adapt").size() == 2 && session.of("adapt")[1]->body.contains("\"tier\":\"T1\""), "the adaptations recorded");
         check(session.header.width == 320 && session.header.clock == "virtual");
         auto back = session::Session::parse(session.ndjson());
         check(back.has_value());
@@ -237,6 +240,7 @@ int main(int argc, char** argv) {
             check(r.ok(), std::format("{}", r.mismatches));
             check(r.frames == 4 && r.actions == 2 && r.checkpoints == 3);
             check(r.digest == end);
+            check(rt.adaptation().tier == pipeline::Tier::t1, "replayed, drawn as the recording was");
         }
         {
             // Up to a time: seeking a bug to the moment before it.

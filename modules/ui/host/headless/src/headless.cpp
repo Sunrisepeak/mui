@@ -90,6 +90,7 @@ Headless::Headless(HeadlessOptions options) : impl_(std::make_unique<Impl>()) {
     ro.complete_frames = d.options.complete_frames;
     d.runtime = std::make_unique<Runtime>(std::move(ro));
     d.runtime->set_renderer("cpu");
+    d.runtime->set_device_tier(d.options.tier, std::format("headless, drawn as on {}", pipeline::name(d.options.tier)));
     d.tree = std::make_unique<semantic::Tree>(*d.runtime);
     d.glyphs = std::make_unique<typeset::GlyphCache>(*fonts);
     if (d.options.level == HeadlessLevel::session) {

@@ -120,7 +120,8 @@ void Runtime::Impl::emit_motion_range(std::size_t begin, std::size_t end, render
 
 void Runtime::Impl::run_motion() {
     const double t = now().count();
-    const bool off = reduce_motion || motion_level == MotionLevel::off ||
+    const MotionLevel level = motion_now();
+    const bool off = reduce_motion || level == MotionLevel::off ||
                      (time_control.controlled && (time_control.paused || time_control.rate != 1 || time_control.seek));
     if (!repainted) return;
     const auto cmds = list.commands();
@@ -200,7 +201,14 @@ void Runtime::Impl::run_motion() {
                 return marker != root_marker && marker < marker_flags.size() && (marker_flags[marker] & 1);
             }};
         auto start = [&](std::optional<motion::Matter> from, motion::Matter to, const MotionSpec& spec, double velocity) {
-            motion::Options options = options_of(spec, motion_level);
+            // More pieces than the device's tier moves in a frame (performance tiers §3): shown as it is.
+            const std::size_t pieces = (from ? from->pieces().size() : 0) + to.pieces().size();
+            constexpr std::array<std::size_t, 5> most{0, 300, 3000, 20000, 60000};
+            if (pieces > most[static_cast<std::size_t>(adaptation.tier)]) {
+                n.morph.reset();
+                return;
+            }
+            motion::Options options = options_of(spec, level);
             options.curve.velocity = velocity;
             n.morph = std::make_shared<const motion::Morph>(std::move(*from), std::move(to), std::move(options), t);
             if (std::ranges::find(morphing, id) == morphing.end()) morphing.push_back(id);
@@ -299,7 +307,7 @@ void Runtime::Impl::run_motion() {
         std::optional<motion::Matter> from;
         if (n.morph) from = n.morph->snapshot(t);
         else from = motion::Matter::extract(previous_list, was->first, was->second, keys);
-        motion::Options options = options_of(*update_motion(id), motion_level);
+        motion::Options options = options_of(*update_motion(id), level);
         n.morph = std::make_shared<const motion::Morph>(std::move(*from), motion::Matter{}, std::move(options), t);
         n.ghost = true;
         n.drawn = false;  // drawn again later: from nothing

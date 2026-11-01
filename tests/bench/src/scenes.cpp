@@ -152,13 +152,27 @@ private:
 };
 
 // The phase times and the counts of a frame, as counters.
-void frame_counters(State& s, const FrameOutput& f) {
+void frame_counters(State& s, const FrameOutput& f, const Runtime* rt = nullptr) {
     s.counter("nodes", static_cast<double>(f.stats.nodes));
     s.counter("laid_out", static_cast<double>(f.stats.laid_out));
     s.counter("painted", static_cast<double>(f.stats.painted));
     s.counter("layout_ms", f.stats.timings.layout);
     s.counter("paint_ms", f.stats.timings.paint);
     s.counter("runtime_ms", f.stats.timings.total);
+    // What the stages declare they cost (performance tiers §3), against what they took: the worst of layout and
+    // paint (with motion and debug, timed together), as a fraction of the declaration — 1 is all of it.
+    if (!rt) return;
+    const auto& plugins = const_cast<Runtime*>(rt)->stage_plugins();
+    // By the plugins' whole names: nothing allocated inside the timed frame.
+    auto declared_ms = [&](std::initializer_list<std::string_view> stages) {
+        double us = 0;
+        for (std::string_view st : stages)
+            if (const auto* info = plugins.info(st); info && info->cost) us += info->cost->cpu_us;
+        return us * std::max(1.0, static_cast<double>(f.stats.nodes) / 1000.0) / 1000.0;
+    };
+    const double layout = f.stats.timings.layout / declared_ms({"openmui.view.layout"});
+    const double paint = f.stats.timings.paint / declared_ms({"openmui.view.paint", "openmui.view.motion", "openmui.view.debug"});
+    s.counter("declared_cost", std::max(layout, paint));
 }
 
 // The centres of the cards' buttons, for the pointer to sweep.
@@ -555,7 +569,7 @@ void add_framework_benchmarks() {
         while (s.next()) {
             const FrameOutput f = h.step();
             (void)h.pixels();
-            frame_counters(s, f);
+            frame_counters(s, f, &h.runtime());
         }
     });
     add("ui/frame/one-label", "M1 ⑤: one card's value changes; relayout, repaint and raster at 1920x1080", [](State& s) {
@@ -570,7 +584,7 @@ void add_framework_benchmarks() {
             v.set(v.peek() + 1);
             const FrameOutput f = h.step();
             (void)h.pixels();
-            frame_counters(s, f);
+            frame_counters(s, f, &h.runtime());
         }
     });
     add("ui/frame/all-labels", "every card's value changes at once (the worst ordinary frame)", [](State& s) {
@@ -583,7 +597,7 @@ void add_framework_benchmarks() {
             d.tick.set(d.tick.peek() + 1);
             const FrameOutput f = h.step();
             (void)h.pixels();
-            frame_counters(s, f);
+            frame_counters(s, f, &h.runtime());
         }
     });
     add("ui/frame/animate-all", "every card moves at once (a transition on all 168): the whole frame is redrawn", [](State& s) {
@@ -613,7 +627,7 @@ void add_framework_benchmarks() {
             h.move(targets[i++ % targets.size()]);
             const FrameOutput f = h.step();
             (void)h.pixels();
-            frame_counters(s, f);
+            frame_counters(s, f, &h.runtime());
         }
     });
     add("ui/layout/resize", "the window's width changes: the whole dashboard is laid out again (no raster)", [](State& s) {

@@ -322,7 +322,10 @@ double Runtime::frame_rate() const noexcept {
     }));
 }
 
-void Runtime::frame_shown(ShownFrame f) noexcept { impl_->shown.push(f); }
+void Runtime::frame_shown(ShownFrame f) noexcept {
+    impl_->shown.push(f);
+    if (f.cost_ms >= 0) impl_->govern(f.cost_ms);  // what the frame budget's governor weighs (when it is on)
+}
 
 const ShownFrames& Runtime::shown_frames() const noexcept { return impl_->shown; }
 

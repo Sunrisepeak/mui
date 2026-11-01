@@ -784,6 +784,23 @@ void register_builtins(EffectRegistry& r) {
             {"color_b", 0.71f, 0, 1, "blue"},
             {"amount", 1, 0, 1, "how far toward the tint (0: as it is)"}},
            no_reach, tone, pixel(fx::tone::tone_fs)}));
+
+    // Where each runs (performance tiers §1: bit t is T<t>) and what stands in for it below: the cheap row-local ones
+    // from embedded Linux up; what lights, bursts or reads the backdrop (glass: below, its panel drawn solid) from the Web up;
+    // what merges shapes from a computer up.
+    constexpr std::uint8_t from_t1 = 0x1e, from_t2 = 0x1c, from_t3 = 0x18;
+    const std::array<std::tuple<std::string_view, std::uint8_t, std::string_view>, 15> tiers{{
+        {"displace", from_t1, ""}, {"noise", from_t1, ""}, {"chromatic", from_t1, ""}, {"pixelate", from_t1, ""}, {"tone", from_t1, ""},
+        {"paper", from_t1, ""}, {"blur", from_t1, ""}, {"particles", from_t2, ""}, {"neon", from_t2, ""}, {"crt", from_t2, "noise"},
+        {"wobble", from_t2, ""}, {"metaball", from_t3, ""}, {"liquid_glass", from_t2, ""}, {"dissolve", from_t2, ""}, {"reveal", from_t1, ""},
+    }};
+    for (const auto& [name, mask, degrade] : tiers)
+        if (const auto ref = r.find(name)) {
+            EffectInfo info = *r.info(*ref);
+            info.tiers = mask;
+            info.degrade = degrade;
+            (void)r.replace(*ref, std::move(info));
+        }
 }
 
 }  // namespace

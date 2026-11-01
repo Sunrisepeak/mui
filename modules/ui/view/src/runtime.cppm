@@ -29,6 +29,19 @@ export namespace omui {
 // How much drawings move when they change (Runtime::set_motion_level).
 enum class MotionLevel : std::uint8_t { full, reduced, off };
 
+// How the frame is drawn here and now (performance tiers §4, §5, D-94): the
+// device's tier (its host's), and what the frame budget allows — the
+// governor lowers motion, then effects, when frames keep missing it, and
+// raises them again when there is room. Recorded with a session (an input):
+// a replay draws as the recording did.
+struct Adaptation {
+    pipeline::Tier tier = pipeline::Tier::t3;     // the device's
+    MotionLevel    motion = MotionLevel::full;    // at most this (the person's own setting may be less)
+    pipeline::Tier effects = pipeline::Tier::t4;  // effects drawn as on this tier, at most the device's
+    std::string    reason;                        // why it is so now, said plainly
+    friend bool operator==(const Adaptation&, const Adaptation&) = default;
+};
+
 // A node's drawing moving between two (Runtime::motions).
 struct MotionState {
     NodeId      node;
@@ -409,6 +422,18 @@ public:
     [[nodiscard]] MotionLevel motion_level() const noexcept;
     // The morphs under way: whose, how far, how much of the two drawings was matched.
     [[nodiscard]] std::vector<MotionState> motions() const;
+    // The device's tier, as its host finds it (the GPU it has, the Web, an MCU).
+    void set_device_tier(pipeline::Tier tier, std::string reason);
+    [[nodiscard]] const Adaptation& adaptation() const noexcept;
+    // As a session recorded it, or a tool sets it: the governor's say set aside until it is turned on again.
+    void set_adaptation(const Adaptation& a);
+    // The frame-budget governor (performance tiers §4.2): on where frames are
+    // shown to a person (the desktop's and the Web's hosts); off in tests,
+    // films and replays, where the frames' cost must not change what is drawn.
+    void set_governor(bool on);
+    // The host's measure of the last frame's whole cost (milliseconds, its
+    // raster and present included): what the governor weighs.
+    void report_frame_cost(double ms);
     void set_reduce_transparency(bool reduce);
 
     // ── Services ──

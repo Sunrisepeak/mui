@@ -310,6 +310,21 @@ std::expected<void, std::string> Desktop::open() {
     }
     d.runtime->resize(platform::logical_size(*d.window), platform::pixel_scale(*d.window));
     d.runtime->set_renderer(d.gpu ? std::string(rhi::name(d.device->caps().backend)) : std::string("cpu"));
+    // The machine's tier (performance tiers §1): a discrete GPU T4; integrated graphics T3; the CPU drawing, T2.
+    // And the governor on: these frames are a person's.
+    {
+        pipeline::Tier tier = pipeline::Tier::t2;
+        std::string why = "the CPU draws";
+        if (d.gpu) {
+            const std::string name = d.device->caps().device;
+            const bool integrated = std::ranges::any_of(std::array<std::string_view, 6>{"Intel", "UHD", "Iris", "Mali", "Adreno", "Vega"},
+                                                        [&](std::string_view s) { return name.find(s) != std::string::npos; });
+            tier = integrated ? pipeline::Tier::t3 : pipeline::Tier::t4;
+            why = std::format("{}: {}", integrated ? "integrated graphics" : "a GPU", name);
+        }
+        d.runtime->set_device_tier(tier, std::move(why));
+        d.runtime->set_governor(true);
+    }
     // The window's operations are verbs (window.*), its state the interface's to read.
     omui::window().attach(&d, d.runtime->verbs());
     d.window_state();

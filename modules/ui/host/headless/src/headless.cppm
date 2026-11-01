@@ -58,6 +58,9 @@ struct HeadlessOptions {
     // frame rendered directly is the one the frames before it lead to —
     // a video's frames rendered out of order, a still.
     bool                    complete_frames = false;
+    // The tier it draws as (performance tiers §1: a test of how an ESP32 or a
+    // phone draws says T0 or T2). Its governor stays off: frames are the test's.
+    pipeline::Tier          tier = pipeline::Tier::t3;
 };
 
 class Headless {

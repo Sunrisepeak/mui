@@ -559,7 +559,7 @@ int main(int argc, char** argv) {
         d.stages.insert(d.stages.begin() + 7, {"badge", "app.badge", {"paint"}, {}});
         o.pipeline = d;
         o.plugins = [](pipeline::Registry& r) {
-            r.add({.name = "app.badge", .kind = "stage", .description = "a corner badge"},
+            (void)r.add({.name = "app.badge", .kind = "stage", .description = "a corner badge", .cost = pipeline::Cost{.cpu_us = 20}},
                   [](const pipeline::Config&) -> std::expected<std::unique_ptr<pipeline::Stage>, std::string> { return std::make_unique<Badge>(); });
         };
         Runtime rt(o);
@@ -604,7 +604,7 @@ int main(int argc, char** argv) {
         d.stages.insert(d.stages.begin() + 7, {"flaky", "app.flaky", {"paint"}, {}});
         o.pipeline = d;
         o.plugins = [](pipeline::Registry& r) {
-            r.add({.name = "app.flaky", .kind = "stage", .description = "fails once"},
+            (void)r.add({.name = "app.flaky", .kind = "stage", .description = "fails once", .cost = pipeline::Cost{.cpu_us = 20}},
                   [](const pipeline::Config&) -> std::expected<std::unique_ptr<pipeline::Stage>, std::string> { return std::make_unique<Flaky>(&failures); });
         };
         set_log_sink([](void*, const LogRecord&) {}, nullptr);

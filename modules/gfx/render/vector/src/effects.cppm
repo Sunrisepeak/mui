@@ -142,6 +142,11 @@ struct EffectInfo {
     // reaches what is drawn there (the runtime's hit testing). None: every
     // pixel is seen where it is drawn (or within a pixel or two of it).
     std::function<geom::Point(geom::Point p, geom::Rect layer, std::span<const float> params)> source_of;
+    // Where it runs (performance tiers §1, D-94; bit t: tier T<t> — T0 an
+    // MCU … T4 a discrete GPU) and what stands in for it below them: another
+    // effect's name, or none (the layer drawn as it is).
+    std::uint8_t     tiers = 0x1f;
+    std::string_view degrade;
 };
 
 // Runs an effect's CPU reference over its rows — in bands on `parallel` when

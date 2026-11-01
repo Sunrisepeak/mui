@@ -53,7 +53,7 @@ pl::Registry registry(World& w) {
     pl::Registry r;
     auto add = [&](std::string name, std::vector<pl::Port> reads, std::vector<pl::Port> writes,
                    std::function<std::expected<void, std::string>(pl::Context&, const pl::Config&)> body) {
-        r.add({.name = name, .kind = "stage", .interface = "omui.pipeline.stage@1", .trace_category = "test"},
+        (void)r.add({.name = name, .kind = "stage", .interface = "omui.pipeline.stage@1", .trace_category = "test", .cost = pl::Cost{.cpu_us = 10}},
               [=, &w](const pl::Config& config) -> std::expected<std::unique_ptr<pl::Stage>, std::string> {
                   if (config.flag("refuse")) return std::unexpected("refused by its configuration");
                   auto s = std::make_unique<Lambda>();
@@ -226,6 +226,25 @@ int main(int argc, char** argv) {
         res.put("x", &n);
         check(res.get<Numbers>("x") == &n && res.get<Text>("x") == nullptr && res.get<Numbers>("y") == nullptr);
         check(res.has("x") && !res.has("y"));
+    });
+
+    s.test("a stage declares its cost and its tiers, or is not registered (performance tiers §3); the tiers as bits", [] {
+        pl::Registry r;
+        auto none = r.add({.name = "acme.free", .kind = "stage"}, [](const pl::Config&) -> std::expected<std::unique_ptr<pl::Stage>, std::string> { return nullptr; });
+        check(!none.has_value() && none.error().contains("declares its cost"), "refused without a cost");
+        check(r.info("acme.free") == nullptr, "not there");
+        check(r.add({.name = "acme.tool", .kind = "tool"}, [](const pl::Config&) -> std::expected<std::unique_ptr<pl::Stage>, std::string> { return nullptr; })
+                  .has_value(),
+              "a kind that is not costed needs none");
+        const pl::Cost glass{.unit = "a megapixel", .gpu_us = 400, .tiers = pl::tiers_from(pl::Tier::t2), .degrade = {"frost", ""}};
+        check(r.add({.name = "acme.glass", .kind = "stage", .cost = glass}, [](const pl::Config&) -> std::expected<std::unique_ptr<pl::Stage>, std::string> {
+                   return nullptr;
+               }).has_value());
+        check(r.info("acme.glass")->cost->runs_on(pl::Tier::t3) && !glass.runs_on(pl::Tier::t1), "from T2 up");
+        check_eq(pl::tiers_from(pl::Tier::t0), pl::all_tiers);
+        check_eq(pl::tiers_from(pl::Tier::t3), std::uint8_t{0x18});
+        check(glass.within(700, 2) && !glass.within(900, 2), "a megapixel and a half: within; more than it said: not");
+        check_eq(pl::name(pl::Tier::t4), std::string_view("T4"));
     });
 
     return s.run(argc, argv);

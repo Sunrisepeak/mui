@@ -376,7 +376,7 @@ void Runtime::Impl::start_removal(NodeId id) {
     Node& n = at(id);
     auto exit = n.transitions.find("exit");
     // Its exit slot's motion (universal motion, D-93): it leaves as the motion draws it, then goes.
-    const bool by_motion = n.shown && n.drawn && !reduce_motion && motion_level != MotionLevel::off && slot_motion(id, 2);
+    const bool by_motion = n.shown && n.drawn && !reduce_motion && motion_now() != MotionLevel::off && slot_motion(id, 2);
     if ((exit == n.transitions.end() && !by_motion) || !n.shown || reduce_motion) {
         destroy(id);
         return;

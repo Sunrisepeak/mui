@@ -53,6 +53,7 @@ struct Plugin {
     std::string_view       description;
     std::vector<pl::Port>  reads, writes;
     Body                   body;
+    double                 us_per_thousand_nodes = 1000;  // its cost's bound (performance tiers §3; tests/bench holds it)
 };
 
 std::vector<Plugin> plugins() {
@@ -61,26 +62,26 @@ std::vector<Plugin> plugins() {
          [](Runtime::Impl& d, pl::Context&) {
              d.queue.drain();
              d.run_timers();
-         }},
+         }, 300},
         {"input", "the frame's input events: hit testing, handlers, actions", {input_port(), tree()}, {tree()},
          [](Runtime::Impl& d, pl::Context& c) {
              const FrameInput* in = c.resources.get<FrameInput>(res::input);
              if (!in) return;
              for (const InputEvent& e : in->events) batch([&] { d.dispatch(e); });
-         }},
+         }, 800},
         {"regions", "the regions whose sources changed are rebuilt and reconciled by key", {tree()}, {tree()},
-         [](Runtime::Impl& d, pl::Context&) { d.reconcile_regions(); }},
+         [](Runtime::Impl& d, pl::Context&) { d.reconcile_regions(); }, 3000},
         {"animations", "transitions and animations step to the frame's time; exits finish", {tree()}, {tree()},
          [](Runtime::Impl& d, pl::Context&) {
              d.run_animations();
              d.finish_removals();
              d.rebuild_paths();
-         }},
+         }, 1500},
         {"layout", "incremental layout", {tree()}, {layout_port()},
          [](Runtime::Impl& d, pl::Context& c) {
              d.run_layout();
              c.resources.put(res::layout, &d.layout_token);
-         }},
+         }, 5000},
         {"bounds", "window bounds, overlays placed against their anchors, focus traps, laid_out hooks", {tree(), layout_port()}, {bounds_port()},
          [](Runtime::Impl& d, pl::Context& c) {
              // What painting asks for (a scroll view still gliding) is for the next frame.
@@ -101,7 +102,7 @@ std::vector<Plugin> plugins() {
                  d.bounds_ran = true;
              }
              c.resources.put(res::bounds, &d.bounds_token);
-         }},
+         }, 3000},
         {"paint", "the display list, with node markers", {tree(), bounds_port()}, {display()},
          [](Runtime::Impl& d, pl::Context& c) {
              if (d.bounds_ran) {
@@ -109,16 +110,16 @@ std::vector<Plugin> plugins() {
                  d.repainted = true;
              }
              c.resources.put(res::display, &d.list);
-         }},
+         }, 8000},
         {"motion", "each root that drew something else moves from what was on screen to what it draws (universal motion, D-93)",
          {tree(), display()}, {display()},
          [](Runtime::Impl& d, pl::Context&) {
              if (d.bounds_ran) d.run_motion();
-         }},
+         }, 6000},
         {"debug", "the development overlays over the display list (DebugOptions)", {tree(), bounds_port(), display()}, {display()},
          [](Runtime::Impl& d, pl::Context&) {
              if (d.bounds_ran && debugging(d)) d.paint_debug();
-         }},
+         }, 3000},
     };
 }
 
@@ -144,11 +145,12 @@ pipeline::Description runtime_pipeline(Stages stages) {
 void Runtime::Impl::register_stages() {
     for (Plugin& p : plugins()) {
         Runtime::Impl* d = this;
-        registry.add({.name = std::format("openmui.view.{}", p.name),
-                      .kind = "stage",
-                      .interface = "omui.pipeline.stage@1",
-                      .description = std::string(p.description),
-                      .trace_category = "frame"},
+        (void)registry.add({.name = std::format("openmui.view.{}", p.name),
+                            .kind = "stage",
+                            .interface = "omui.pipeline.stage@1",
+                            .description = std::string(p.description),
+                            .trace_category = "frame",
+                            .cost = pl::Cost{.unit = "a thousand nodes", .cpu_us = p.us_per_thousand_nodes}},
                      [d, reads = p.reads, writes = p.writes, body = p.body](const pl::Config&)
                          -> std::expected<std::unique_ptr<pl::Stage>, std::string> {
                          return std::make_unique<RuntimeStage>(*d, reads, writes, body);

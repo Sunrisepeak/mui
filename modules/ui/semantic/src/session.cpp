@@ -22,6 +22,35 @@ std::string digest_text(std::uint64_t d) { return std::format("{:016x}", d); }
 
 }  // namespace
 
+namespace {
+
+// How the frame is drawn (performance tiers, D-94), as a session keeps it: an input a replay applies.
+std::string adaptation_json(const Adaptation& a) {
+    static constexpr std::array<std::string_view, 3> levels{"full", "reduced", "off"};
+    return Value{}
+        .set("tier", pipeline::name(a.tier))
+        .set("motion", levels[static_cast<std::size_t>(a.motion)])
+        .set("effects", pipeline::name(a.effects))
+        .set("reason", a.reason)
+        .json();
+}
+
+std::optional<Adaptation> adaptation_from(const Value& v) {
+    auto tier = [](std::string_view t) -> std::optional<pipeline::Tier> {
+        for (int i = 0; i <= 4; ++i)
+            if (pipeline::name(static_cast<pipeline::Tier>(i)) == t) return static_cast<pipeline::Tier>(i);
+        return std::nullopt;
+    };
+    const auto t = tier(v.get("tier") ? v.get("tier")->as_string() : "");
+    const auto e = tier(v.get("effects") ? v.get("effects")->as_string() : "");
+    const std::string_view m = v.get("motion") ? v.get("motion")->as_string() : "";
+    if (!t || !e || (m != "full" && m != "reduced" && m != "off")) return std::nullopt;
+    return Adaptation{*t, m == "full" ? MotionLevel::full : m == "reduced" ? MotionLevel::reduced : MotionLevel::off, *e,
+                      std::string(v.get("reason") ? v.get("reason")->as_string() : "")};
+}
+
+}  // namespace
+
 Recorder::Recorder(Tree& tree, session::Session& session) : tree_(tree), session_(session) {
     Runtime& rt = tree.runtime();
     session::Header& h = session_.header;
@@ -31,11 +60,19 @@ Recorder::Recorder(Tree& tree, session::Session& session) : tree_(tree), session
     h.scale = rt.scale();
     h.clock = std::string(clock_name(rt.clock().kind()));
     if (rt.clock().kind() == hanim::ClockKind::render) h.fps = rt.clock().frame_rate().fps();
+    // How it is drawn from the start (its tier, its levels): applied before the first frame is replayed.
+    adapted_ = rt.adaptation();
+    (void)session_.add(rt.now().count(), "adapt", adaptation_json(adapted_));
 }
 
 FrameOutput Recorder::frame(const FrameInput& input) {
     Runtime& rt = tree_.runtime();
     FrameOutput out = rt.frame(input);
+    // The governor changed how it is drawn: recorded after the frame that did it, applied before the next.
+    if (!(rt.adaptation() == adapted_)) {
+        adapted_ = rt.adaptation();
+        (void)session_.add(rt.now().count(), "adapt", adaptation_json(adapted_));
+    }
     Value body = Value(Value::Map{});
     if (!input.events.empty()) {
         Value::List events;
@@ -100,6 +137,9 @@ void Player::run(const session::Entry& entry) {
             }
         (void)rt.frame(in);
         ++r.frames;
+    } else if (entry.kind == "adapt") {
+        if (auto a = adaptation_from(*body)) rt.set_adaptation(*a);
+        else r.mismatches.push_back(std::format("t={}: an adaptation this runtime cannot read: {}", entry.time, entry.body));
     } else if (entry.kind == "act") {
         Invocation call;
         if (const Value* a = body->get("args")) call.args = *a;

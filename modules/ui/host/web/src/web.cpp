@@ -112,6 +112,9 @@ struct Web::Impl {
     // Joins the runtime to the page: its clipboard, the store, the mirror.
     void attach() {
         runtime->set_renderer(std::string(drawn_by));
+        // The Web (performance tiers §1: T2), and the governor on where a page shows the frames to a person.
+        runtime->set_device_tier(pipeline::Tier::t2, "the Web");
+        if (opened) runtime->set_governor(true);
         if (!opened) return;
         runtime->set_clipboard([] { return page::clipboard(); }, [](std::string_view t) { page::set_clipboard(t); });
         runtime->set_url_opener([](std::string_view url) { return page::open_url(url); });

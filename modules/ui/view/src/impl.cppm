@@ -162,6 +162,7 @@ struct Node {
     };
     std::optional<PixelEffectState> pixel_effect;
     std::optional<PixelEffectState> styled_effect;  // what the style's rules give its type or role
+    PixelEffectState     stood_in;                   // what stands in for its effect below the effect's tiers (paint's, a frame's)
     [[nodiscard]] bool effect_moving(seconds now) const noexcept {
         return (pixel_effect && pixel_effect->duration && now - pixel_effect->start < *pixel_effect->duration + pixel_effect->delay) ||
                (styled_effect && !styled_effect->variants.empty() && now - styled_effect->changed < styled_effect->transition);
@@ -394,6 +395,17 @@ struct Runtime::Impl {
     std::uint32_t                               motion_gen = 1;
     std::vector<NodeId>                         morphing;
     MotionLevel                                 motion_level = MotionLevel::full;
+    // Performance tiers (D-94): the adaptation now, the governor and the frame costs it weighs (a ring).
+    Adaptation                                  adaptation;
+    bool                                        governing = false;
+    std::array<float, 300>                      costs{};
+    std::size_t                                 costs_n = 0;
+    std::uint64_t                               cost_frames = 0;  // since the governor last changed something
+    void govern(double ms);
+    [[nodiscard]] MotionLevel motion_now() const noexcept {
+        return static_cast<MotionLevel>(std::max(static_cast<int>(motion_level), static_cast<int>(adaptation.motion)));
+    }
+    [[nodiscard]] pipeline::Tier effects_now() const noexcept { return std::min(adaptation.tier, adaptation.effects); }
     std::vector<std::pair<std::size_t, std::size_t>> marker_ranges;  // this frame's, by marker
     std::vector<std::uint8_t>                   marker_flags;   // 1: a root, 2: moves by itself
     std::vector<std::size_t>                    marker_wrapper; // its wrapper's PushLayer in `list` this frame (npos: none)

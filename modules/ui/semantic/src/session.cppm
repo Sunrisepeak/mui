@@ -32,6 +32,7 @@ public:
 private:
     Tree&            tree_;
     session::Session& session_;
+    Adaptation       adapted_;  // as last recorded
 };
 
 struct ReplayReport {

@@ -74,13 +74,23 @@ std::string_view Config::text(std::string_view key, std::string_view fallback) c
 
 // ── registry ──────────────────────────────────────────────────────────────
 
-void Registry::add(PluginInfo info, Factory make) {
+std::string_view name(Tier t) noexcept {
+    static constexpr std::array<std::string_view, 5> names{"T0", "T1", "T2", "T3", "T4"};
+    return names[static_cast<std::size_t>(t)];
+}
+
+bool costed(std::string_view kind) noexcept { return kind == "stage" || kind == "motion" || kind == "effect" || kind == "render-feature"; }
+
+std::expected<void, std::string> Registry::add(PluginInfo info, Factory make) {
+    if (costed(info.kind) && !info.cost)
+        return std::unexpected(std::format("{}: a {} plugin declares its cost and the tiers it runs on (performance tiers §3)", info.name, info.kind));
     for (Entry& e : entries_)
         if (e.info.name == info.name) {
             e = {std::move(info), std::move(make)};
-            return;
+            return {};
         }
     entries_.push_back({std::move(info), std::move(make)});
+    return {};
 }
 
 const PluginInfo* Registry::info(std::string_view name) const noexcept {

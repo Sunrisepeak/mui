@@ -120,20 +120,55 @@ public:
     virtual std::expected<void, std::string> run(Context& context) = 0;
 };
 
+// Where a plugin runs, by the device's tier (performance tiers §1, D-94):
+// T0 an MCU (ESP32), T1 embedded Linux, T2 the Web and phones, T3 a computer
+// with integrated graphics, T4 one with a discrete GPU. As bits: tier t is
+// bit t of a mask.
+enum class Tier : std::uint8_t { t0, t1, t2, t3, t4 };
+inline constexpr std::uint8_t all_tiers = 0x1f;
+[[nodiscard]] constexpr std::uint8_t tier_bit(Tier t) noexcept { return static_cast<std::uint8_t>(1u << static_cast<unsigned>(t)); }
+// Every tier from `lowest` up.
+[[nodiscard]] constexpr std::uint8_t tiers_from(Tier lowest) noexcept {
+    return static_cast<std::uint8_t>(all_tiers & ~(tier_bit(lowest) - 1u));
+}
+[[nodiscard]] std::string_view name(Tier t) noexcept;  // "T0" … "T4"
+
+// What a plugin costs and where it runs (performance tiers §3): per unit of
+// its input, an upper bound on the reference machine (CI's runner, T3) its
+// CTS holds it to; what stands in for it below its tiers or over a frame's
+// budget, highest first ("": nothing).
+struct Cost {
+    std::string              unit = "frame";  // a frame, a thousand nodes, a megapixel, a thousand pieces …
+    double                   cpu_us = 0;      // per unit
+    double                   gpu_us = 0;
+    std::size_t              memory = 0;      // bytes it keeps
+    std::uint8_t             tiers = all_tiers;
+    std::vector<std::string> degrade;
+    [[nodiscard]] bool runs_on(Tier t) const noexcept { return (tiers & tier_bit(t)) != 0; }
+    // Whether `measured_us` for `units` of its unit stays within what it declares.
+    [[nodiscard]] bool within(double measured_us, double units) const noexcept { return measured_us <= (cpu_us + gpu_us) * std::max(units, 1.0); }
+};
+
+// The plugin kinds whose plugins declare their cost before they are
+// registered (D-94): stages, motions, effects and render features.
+[[nodiscard]] bool costed(std::string_view kind) noexcept;
+
 struct PluginInfo {
     std::string name;                // "openmui.render.cpu"
     std::string kind = "stage";      // the plugin kinds of D-65
     std::string interface;           // "omui.pipeline.stage@1"
     std::string description;
     std::string trace_category = "frame";
+    std::optional<Cost> cost;        // required of the costed kinds
 };
 
 using Factory = std::function<std::expected<std::unique_ptr<Stage>, std::string>(const Config&)>;
 
 class Registry {
 public:
-    // A second plugin of the same name replaces the first.
-    void add(PluginInfo info, Factory make);
+    // A second plugin of the same name replaces the first. Refused: a
+    // plugin of a costed kind that declares no cost (performance tiers §3).
+    std::expected<void, std::string> add(PluginInfo info, Factory make);
     [[nodiscard]] const PluginInfo* info(std::string_view name) const noexcept;
     [[nodiscard]] std::expected<std::unique_ptr<Stage>, std::string> make(std::string_view name, const Config& config) const;
     [[nodiscard]] std::vector<PluginInfo> plugins() const;

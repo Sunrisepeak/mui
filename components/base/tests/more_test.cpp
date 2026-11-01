@@ -370,6 +370,115 @@ int main(int argc, char** argv) {
         check(hash.value() == 0x31a066ff3681ddfcULL, std::format("containers {:016x}", hash.value()));
     });
 
+    s.test("tree view: a model's rows as a hierarchy; each a tree item opened, closed, chosen by the arrows, a press or an agent; closed ones' rows not stated; taken back", [] {
+        Headless h(options({360, 360}));
+        Model& files = h.runtime().model("files");
+        auto row = [](std::string key, std::string label, std::string parent = {}) {
+            Value f = Value{}.set("label", label);
+            if (!parent.empty()) f.set("parent", parent);
+            return Row{std::move(key), std::move(f)};
+        };
+        check(files.push({row("src", "src"), row("app", "app.cpp", "src"), row("ui", "ui", "src"), row("button", "button.cpp", "ui"), row("readme", "README.md")}).has_value());
+        auto open = signal(std::vector<std::string>{});
+        auto chosen = signal(std::string());
+        h.mount("main", column({.padding = 8}, {tree_view({.id = "files", .expanded = open, .label = "Files", .model = "files", .value = chosen})}));
+        h.step();
+        auto it = items(h, "main/files");
+        check(sem(h, "main/files")->role == Role::tree && it.size() == 2 && it[0].name == "src" && it[0].states.has(State::collapsible) && !it[0].states.has(State::expanded),
+              "two roots, src closed");
+        check(act(h, "main/files/src", "expand") == 0 && open.peek() == std::vector<std::string>{"src"} && items(h, "main/files").size() == 4, "opened: its rows stated");
+        check(undo(h) == 0 && open.peek().empty(), "taken back");
+        check(act(h, "main/files/button", "activate") == 0 && chosen.peek() == "button" && open.peek().size() == 2, "a row inside closed ones chosen: they open");
+        it = items(h, "main/files");
+        check(it.size() == 5 && it[3].name == "button.cpp" && it[3].value.get("level")->as_int() == 3 && it[3].states.has(State::selected), "its level said");
+        check(undo(h) == 0 && chosen.peek().empty(), "the choice taken back");
+        // Keys: down, right opens, right goes in, left goes up, left closes.
+        h.click("main/files");
+        h.step();
+        check(act(h, "main/files", "set_value", Value{}.set("value", "readme")) == 0);
+        h.key(Key::up);
+        h.step();
+        check_eq(chosen.peek(), std::string("button"));
+        h.key(Key::left);
+        h.key(Key::left);
+        h.step();
+        check(chosen.peek() == "ui" && std::ranges::find(open.peek(), "ui") == open.peek().end(), std::format("up to ui, closed: {}", chosen.peek()));
+        // The model changes: shown and stated again.
+        check(files.push({row("todo", "TODO.md")}).has_value());
+        h.step();
+        check(items(h, "main/files").back().name == "TODO.md", "a new row stated");
+    });
+
+    s.test("data grid: a model's rows in columns; sorted by a header (ascending, descending, none); rows chosen one or several; each row and header an item of its own", [] {
+        Headless h(options({480, 300}));
+        Model& people = h.runtime().model("people");
+        auto person = [](std::string key, std::string name, double age, std::string city) {
+            return Row{std::move(key), Value{}.set("name", name).set("age", age).set("city", city)};
+        };
+        check(people.push({person("ada", "Ada Lovelace", 36, "London"), person("alan", "Alan Turing", 41, "Wilmslow"), person("grace", "Grace Hopper", 85, "Arlington"),
+                           person("linus", "linus torvalds", 56, "Portland")}).has_value());
+        auto sort = signal(std::string());
+        auto chosen = signal(std::vector<std::string>{});
+        std::vector<std::string> activated;
+        h.mount("main", column({.padding = 8}, {data_grid({.id = "people", .columns = std::vector<std::string>{"name", "age", "city"},
+                                                           .headers = std::vector<std::string>{"Name", "Age", "City"}, .label = "People", .model = "people",
+                                                           .multiple = true, .selected = chosen, .sort = sort,
+                                                           .on_activated = [&](std::string k) { activated.push_back(k); }, .width = Dim(460.0f)})}));
+        h.step();
+        auto it = items(h, "main/people");
+        check(sem(h, "main/people")->role == Role::grid && it.size() == 3 + 4 && it[0].role == Role::column_header && it[0].name == "Name", "three headers, four rows");
+        check(it[3].role == Role::row && it[3].name == "Ada Lovelace" && it[3].value.get("age")->as_double() == 36, "a row, its fields its value");
+        check(act(h, "main/people/col_age", "activate") == 0 && sort.peek() == "age", "sorted by age");
+        check(act(h, "main/people/col_age", "activate") == 0 && sort.peek() == "-age" && items(h, "main/people")[3].name == "Grace Hopper", "descending: the eldest first");
+        check(undo(h) == 0 && sort.peek() == "age", "taken back");
+        check(act(h, "main/people", "set_sort", Value{}.set("sort", "name")) == 0 && items(h, "main/people")[6].name == "linus torvalds", "names, regardless of case");
+        check(act(h, "main/people", "set_sort", Value{}.set("sort", "salary")) == 1, "not a column");
+        check(act(h, "main/people/alan", "activate") == 0 && chosen.peek() == std::vector<std::string>{"alan"} && activated == std::vector<std::string>{"alan"}, "chosen, activated");
+        check(act(h, "main/people/grace", "toggle") == 0 && chosen.peek().size() == 2, "a second added");
+        check(undo(h) == 0 && chosen.peek().size() == 1, "taken back");
+        // Keys: the row below; Space adds it.
+        h.click("main/people");
+        h.step();
+        h.key(Key::down);
+        h.key(Key::space);
+        h.step();
+        check(chosen.peek().size() == 2, std::format("{} chosen", chosen.peek().size()));
+    });
+
+    s.test("a tree view and a data grid, the same pixels on every platform", [] {
+        typeset::FontCollection own;
+        check(own.add_defaults().has_value());
+        HeadlessOptions o = options({720, 260});
+        o.fonts = &own;
+        o.scale = 2;
+        Headless h(o);
+        Model& files = h.runtime().model("files");
+        for (const auto& [k, l, p] : std::vector<std::tuple<std::string, std::string, std::string>>{
+                 {"src", "src", ""}, {"app", "app.cpp", "src"}, {"ui", "ui", "src"}, {"button", "button.cpp", "ui"}, {"readme", "README.md", ""}}) {
+            Value f = Value{}.set("label", l);
+            if (!p.empty()) f.set("parent", p);
+            check(files.push({Row{k, f}}).has_value());
+        }
+        Model& people = h.runtime().model("people");
+        for (const auto& [k, n, a, c] : std::vector<std::tuple<std::string, std::string, double, std::string>>{
+                 {"ada", "Ada Lovelace", 36, "London"}, {"alan", "Alan Turing", 41, "Wilmslow"}, {"grace", "Grace Hopper", 85, "Arlington"}})
+            check(people.push({Row{k, Value{}.set("name", n).set("age", a).set("city", c)}}).has_value());
+        h.mount("main", row({.padding = 16, .gap = 16, .align = "start"}, {
+                                tree_view({.id = "files", .expanded = std::vector<std::string>{"src", "ui"}, .model = "files", .value = std::string("button"),
+                                           .width = Dim(200.0f), .height = Dim(220.0f)}),
+                                data_grid({.id = "people", .columns = std::vector<std::string>{"name", "age", "city"},
+                                           .headers = std::vector<std::string>{"Name", "Age", "City"}, .model = "people", .selected = std::vector<std::string>{"alan"},
+                                           .sort = std::string("-age"), .widths = std::vector<std::string>{"*", "70", "*"}, .width = Dim(472.0f)}),
+                            }));
+        h.settle();
+        Hash hash;
+        const auto& px = h.pixels();
+        for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
+        std::println("ui.base collections {:016x}", hash.value());
+        check(h.save_png(scratch_dir("ui-base-collections") / "collections@2x.png").has_value());
+        check(hash.value() == 0xe9349773377f6b15ULL, std::format("collections {:016x}", hash.value()));
+    });
+
     s.test("the gallery: the second batch, the same pixels on every platform", [] {
         typeset::FontCollection own;
         check(own.add_defaults().has_value());

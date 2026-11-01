@@ -44,6 +44,8 @@ made into code when the package builds — `build.mcpp`, openmui.build.contracts
 | `color_picker` | `combo_box` | a colour (#rrggbb) from a saturation–brightness field, a hue strip and the application's swatches — items of its own while open (`<id>/field`, `<id>/hue`, `<id>/swatch_<n>`); a grey keeps its hue; a drag taken back whole |
 | `split_view` | `group` | two panes (its children) sharing their room as `ratio` says; its handle a splitter of its own (`<id>/handle`, a percentage) dragged (taken back whole), stepped by the arrows, set by an agent, kept `min` from either edge |
 | `drawer` | `dialog` | a sheet along the window's left or right edge, as tall as the window (a placement of its own: `left`, `right`), over the page — modal by default, its first control focused; Escape, a press outside, its × or an agent closes it |
+| `tree_view` | `tree` | a model's rows as a hierarchy (each row's `parent` field); each a tree item of its own (`<id>/<key>`) opened, closed and chosen — Right opens or goes in, Left closes or goes up; a row inside closed ones chosen by an agent opens them; closed ones' rows not stated; drawn as they come into view |
+| `data_grid` | `grid` | a model's rows in columns (pixels or shares); sorted by a header pressed (ascending, descending, none; numbers by value, text regardless of case); rows chosen one or several (Ctrl, Space); each row (`<id>/<key>`, its fields its value) and header (`<id>/col_<field>`) an item; drawn as they come into view |
 
 They draw what they are now: how a change of them moves is their slots'
 (universal motion), never their own code. Their gallery (`tests/kit_test.cpp`)

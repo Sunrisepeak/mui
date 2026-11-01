@@ -47,6 +47,8 @@ void register_base_components() {
     register_type(component_type<ColorPicker>());
     register_type(component_type<SplitView>());
     register_type(component_type<Drawer>());
+    register_type(component_type<TreeView>());
+    register_type(component_type<DataGrid>());
 }
 
 }  // namespace omui

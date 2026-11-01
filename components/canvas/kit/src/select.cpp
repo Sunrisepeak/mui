@@ -107,15 +107,18 @@ public:
     std::optional<ActResult> act(Host& h, NodeRef n, std::string_view action, const Value&) override {
         const std::string key(h.scene().key(n));
         std::vector<std::string> keys = h.selection();
+        const bool was = std::ranges::find(keys, key) != keys.end();
         if (action == "select") {
-            if (std::ranges::find(keys, key) == keys.end()) keys.push_back(key);
+            if (!was) keys.push_back(key);
         } else if (action == "deselect") {
             std::erase(keys, key);
         } else {
             return std::nullopt;
         }
         h.select(std::move(keys));
-        return ActResult::done();
+        // Each taken back by the other (S-12), when it changed the choice.
+        if (was == (action == "select")) return ActResult::done();
+        return ActResult::done().undo_by(was ? "select" : "deselect");
     }
 
 private:

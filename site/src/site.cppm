@@ -18,5 +18,6 @@ export import :en_files;
 export import :zh_files;
 export import :guide;
 export import :hero;
+export import :gallery;
+export import :theme_files;
 export import :app;
-export import :atlas;

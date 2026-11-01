@@ -4,7 +4,7 @@ The site shows openmui's thesis instead of describing it: **the interface is a s
 
 | Package | What it is |
 |---|---|
-| `openmui.site` (here) | The site as an application (`omui::site::app()`), its lens component, the static page and the pre-renderer (`omui-site`) |
+| `openmui.site` (here) | The site as an application (`omui::site::app()`), its components (the lens, the page's time, the frame meter), its theme, the static page and the pre-renderer (`omui-site`) |
 
 ## What is on it
 
@@ -14,27 +14,16 @@ The site shows openmui's thesis instead of describing it: **the interface is a s
   - as a test asserts it.
 
   Lines in the lens's colours join them. "Let an agent ship it" performs the same actions a person's clicks reach, as an agent, through the runtime's checks; each one is journaled and undoable. The static page carries the same opening for readers without JavaScript.
-- **Places, not pages.** The places are:
-  - the home page;
-  - the framework's documents (`docs/en`, `docs/zh`: features and practices), rendered by `openmui.ui.markdown`;
-  - live works:
-    - a timeline editor (`openmui.ui.timeline`) with its own undo history (S-12);
-    - the document wall, S1 small: the site's documents in both languages and the benchmark's set, on a canvas of their own (select, drag, snap, minimap, group drag, named views);
-    - S2's style workshop (`showcase/style-gallery`): one real interface in each of openmui's style packs, the pack shown edited as you go. The place is a theme scope (D-89), so a pack styles it alone and the site keeps its own theme; an agent switches packs with `styles.show`;
-    - example 01 (`examples/01-hello-im`), the shortest openmui program, running in a frame beside its own source. A person or an agent types into it and clicks it.
-    - the fighting game's move list, a real frame-data station:
-      - for each fighter, every move's startup, active and recovery frames, its advantage on hit and on block, and its damage;
-      - every number is measured by the game itself (`gongfu.training::frame_data`);
-      - the chosen move plays on the game's own training stage, with its boxes and frame meter. Drag its frames one at a time, on hit or on block, with the move's details in words beside it;
-      - the static page carries every fighter's table for readers without JavaScript;
-      - the site takes the game without its arenas (`default-features = false`: no stage art, music or announcer, about 4 MB the page does not load).
+- **Places.** The bar names them, and the one shown is `selected` in its semantics (a screen reader says which; an agent reads it):
+  - **Home**: the opening above, then the features document (`docs/en`, `docs/zh`, rendered by `openmui.ui.markdown`).
+  - **Components** (`src/gallery.*`): every component of `openmui.ui.base`, live, with its contract's words (its role, its actions, what it is) and its code in C++, TypeScript, Python or Lua. A style pack (plain, glass, neon, retro, ink, liquid) styles the gallery alone: it is a theme scope (D-89), and the tree is the same in every pack.
+  - **Features** and **Practices**: the framework's documents.
+  - **Get started**: example 01 (`examples/01-hello-im`), the shortest openmui program, running beside its own source. A person or an agent types into it and clicks it.
+  - **Timeline editor** (`openmui.ui.timeline`): a real one with its own undo history (S-12).
 
-  Each place is a window on one infinite canvas (`openmui.ui.canvas`, S1's approach; `src/atlas.*`). A window is the size of the view, so a place is read at zoom 1, like a page.
-  - **Overview** flies the camera out to show every place whole.
-  - Choosing a place, from the side, from a link or by tapping its window, flies the camera out and in again.
-  - Far away, a window is a texture of its page, drawn offscreen at the resolution the screen asks for. Near enough to read, it is live.
-  - The camera's positions are the scene's named views, so an agent moves it as a person does (`camera_preset`).
-  - The windows follow the view's size, through the same stage of the frame that watches the tree.
+  A place is a page that scrolls, at most 1120 px wide and centred. The window's width falls into one of four bands (under 700, 1100, 1400 px, and wider), and a place is built again only when the band changes. On a phone the bar wraps, putting the places on a line of their own, and a panel takes the place's room while it is open.
+- **The site's own design language** (`theme/site.theme.omui.toml`, `.agents/docs/2026-11-01-openmui-site-design-language.md`): warm white (or night), one indigo accent, Inter at a 64 px display size. These are the theme's tokens over the framework's light and dark themes, so every component takes them as it is. The theme sets only tokens the spec defines; a name it adds is an error, and the site would fall back to the default theme (a test holds the site's own background).
+- **Settings**, each choice the framework leaves to its users: light or dark (a crossfade), motion full, reduced or off, how things move (each control's own, simple, liquid or ink, D-90's motion styles), the effects tier, and who draws.
 - **Who draws, and how fast.** The page is drawn by the machine's GPU where it has one (WebGPU, else WebGL 2; a software adapter counts as none), else by the CPU. The CPU's pixels stay the reference: the check against CI draws its frames with the CPU whoever draws the page. The bar's **frame meter** (`frame_meter`, `src/frame_meter.*`) shows:
   - who draws: CPU, WebGPU or WebGL 2;
   - the frame rate and a frame's median cost, with the last frames as bars against a 60 Hz display's budget;
@@ -52,11 +41,11 @@ The site shows openmui's thesis instead of describing it: **the interface is a s
   - The panel shows each request and its records.
 - **Links.** A document's link to another document moves to that place. Any other link is opened by the host: the system's browser on the desktop, a new tab on the Web. This goes through `Runtime::open_url`, which accepts only http, https and mailto.
 - **The page's time.** The footer is a strip of the page's last 20 seconds, with what happened marked where it did: a place reached, a language, a lens. It runs on a second at a time, on frames the page draws anyway, so an idle page stays idle and the strip is drawn the same whenever it is drawn again.
-  - Drag the playhead back, or let an agent set it (the strip is a slider on the bus), and the page is drawn as it was: the camera mid-flight, the letters of a language switch gathering, a lens fading in.
+  - Drag the playhead back, or let an agent set it (the strip is a slider on the bus), and the page is drawn as it was: a place's page arriving, the letters of a language switch gathering, a lens fading in.
   - Play it forwards or backwards. **Live** returns to the present.
-  - Animations are functions of time, so every moment can be drawn again. The runtime re-evaluates what it holds (D-60), and components that animate on their own are told the time (`retimed`): the canvas keeps its camera's past for this.
+  - Animations are functions of time, so every moment can be drawn again. The runtime re-evaluates what it holds (D-60), and components that animate on their own are told the time (`retimed`).
   - Only the drawing goes back; the tree stays as it is now.
-- **Checked against CI, frame by frame.** **Check against CI** in the footer opens a panel that replays a fixed script offscreen in your browser: fly to Features, switch to Chinese, turn the lens to Tree, 5.9 seconds in all (`src/reference.*`).
+- **Checked against CI, frame by frame.** **Check against CI** in the footer opens a panel that replays a fixed script offscreen in your browser: go to Features, switch to Chinese, turn the lens to Tree, 5.9 seconds in all (`src/reference.*`).
   - It plays on a host of its own, at CI's size (1280×800), with only the program's own fonts (Inter, Noto Sans SC, JetBrains Mono), rastered in one band, every frame complete (`complete_frames`).
   - Ten frames a second are sampled; each frame's RGBA bytes are hashed (FNV-1a).
   - Drag to a frame and the panel draws it, with its hash here, CI's hash for it and whether they are the same.
@@ -68,7 +57,7 @@ The site shows openmui's thesis instead of describing it: **the interface is a s
   - So any window size gives the same hash.
   - A stage of the frame's pipeline reads the place again whenever its tree changes.
 - **Both languages.** English and 中文. The node ids are the structure's, not the text's, so the tree keeps its ids when the language changes. On a switch, the labels' letters gather into the other language and the document's lines rise in, in reading order. This is glyph motion (D-68) applied to whole components, which do nothing for it. The tree is the other language's from the first frame, and at rest the pixels are those of the page opened in that language.
-- **Hash routes.** `#/features` or `#/zh/timeline` open a place in a language. They are the program's flags (`--zh --timeline`), as dist-toy's page passes them.
+- **Routes.** Where the site is within itself is its route (`Runtime::set_route`): `/features`, `/zh/timeline`. On the Web the address's hash shows it, each move a step of the browser's history, and Back and Forward move the site. A link to `#/zh/timeline` opens that place in that language.
 
 ## How it is built
 
@@ -83,22 +72,21 @@ python3 -m http.server -d target/site            # and look at it
 - uses the program's own fonts;
 - is hidden once the program runs.
 
-`.github/workflows/pages.yml` publishes `target/site` to GitHub Pages. `tools/ci/drive-page.mjs` loads the page in a real browser (headless Chromium, in real time) and can drive it through `window.omui`. That is how the packed site was checked: the same tree hash as CI at three window sizes, the overview's textures, the hash routes, and a flight started by a page agent.
+`.github/workflows/pages.yml` publishes `target/site` to GitHub Pages. `tools/ci/drive-page.mjs` loads the page in a real browser (headless Chromium, in real time) and can drive it through `window.omui`. That is how the packed site was checked: the same tree hash as CI at three window sizes, the routes, and places reached by a page agent.
 
 ## Delivery
 
-`tools/ci/site-browser.sh` measures the built page in a real browser (`tools/ci/site-perf.mjs`), and the Pages workflow holds every build to `delivery.budget.omui.json`. It serves `target/site` as Pages does (gzip) and makes a cold visit at 1280×800 over a 20 Mbit/s, 40 ms connection. It then flies to the features and back through `window.omui`. Measured 2026-11-01 (headless Chromium 156):
+`tools/ci/site-browser.sh` measures the built page in a real browser (`tools/ci/site-perf.mjs`), and the Pages workflow holds every build to `delivery.budget.omui.json`. It serves `target/site` as Pages does (gzip) and makes a cold visit at 1280×800 over a 20 Mbit/s, 40 ms connection. It then goes to the features and back through `window.omui`. Measured 2026-11-02 (headless Chromium 156):
 
 | | |
 |---|---|
-| on the way to the first frame | 7.0 MB: the program (its wasm 3.5 MB compressed, its script 87 KB) and the fonts (3.3 MB, Noto Sans SC 2.7 MB of it) |
-| after it | 4.2 MB: the fighters' pictures, which the move list's training stage draws. On the Web the fighting game leaves them out of the program (its `art-later` feature), and the page fetches them once it is drawn (dist-toy's `later` files) |
-| first frame | 3.1 s, of which the transfer at 20 Mbit/s is 2.8 s (5.0 s while the pictures still came before it); 0.5 s on the machine itself |
-| `window.omui` answers | 3.1 s |
-| frames during the flights | p50 16.7 ms, p95 16.8 ms, max 50 ms; 1 frame over 33 ms in 300 |
-| memory at the end | JS heap 10 MB, wasm memory 42 MB |
+| on the way to the first frame | 4.4 MB, all of it: the program (its wasm 2.4 MB compressed, its script 89 KB) and the fonts (2.0 MB) |
+| first frame | 2.1 s, nearly all of it the transfer at 20 Mbit/s |
+| `window.omui` answers | 2.1 s |
+| frames while it moves | p50 16.7 ms, p95 16.7 ms, max 50 ms; 1 frame over 33 ms in 303 |
+| memory at the end | JS heap 10 MB, wasm memory 28 MB |
 
-The fonts are most of what is left: the whole of Noto Sans SC is there for any Chinese a visitor types.
+The fonts are most of what is left: Noto Sans SC is there for any Chinese a visitor types.
 
 The same script then reads the page as assistive technology does (`tools/ci/site-a11y.mjs`), from Chromium's own accessibility tree, which is what a screen reader on the page is given. It checks that:
 - the places are a navigation landmark and the place shown is the main one;
@@ -117,9 +105,11 @@ The same script then reads the page as assistive technology does (`tools/ci/site
 - the lens's four renderings of the same nodes;
 - the home tree's hash, pinned, and the same in a narrower window;
 - the timeline editor: an agent's edit followed by the tree, then undone;
-- the page's time: an agent dragging it back to before a flight (the view exactly as it was), live again, played backwards to the strip's start and forwards to live;
-- the works: example 01 typed into and clicked, the wall's canvas live with the site's documents; the style workshop in its place, an agent switching its pack, the site's bar unchanged, the tree the same in every pack, its corners edited; the move list's rows equal to what the game measures, a move picked by an agent, on block, shown at its first active frame;
-- the pixels of home, the overview, the wireframe, the agent's JSON, the timeline, the wall, the style workshop, example 01, the move list, the agent asking, the Chinese page and the page's time dragged back into a language switch, pinned on every platform (each picture's own hash printed, so a platform that differs shows which);
+- the page's time: an agent dragging it back into a language switch (the view exactly as it was), live again, played backwards to the strip's start and forwards to live;
+- the components: each live, its code in four languages, a style pack styling the gallery alone, the tree the same in every pack;
+- example 01 typed into and clicked; the settings, each choice's name drawn and read by it and each changing what it says;
+- on a phone: the bar wrapped, a panel in the place's place, the agent's tour putting it away;
+- the pixels of home, the components, the wireframe, the agent's JSON, the timeline, getting started, the agent asking, the settings, the Chinese page and the page's time dragged back into a language switch, pinned on every platform (each picture's own hash printed, so a platform that differs shows which);
 - the reference run: every sampled frame pinned (`reference/ci.frames.omui.json`; when they differ the run's own table is written to `$TMPDIR/openmui-tests/site-reference/`, with three of its frames beside it), a frame played to again the same; the panel in the page: an agent picks frame 9, and the hash drawn here is a fresh replay's and CI's;
 - the static HTML and its injection into dist-toy's page.
 

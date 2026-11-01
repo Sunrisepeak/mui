@@ -1,5 +1,5 @@
 // The site as a reader, an agent and a crawler meet it: each place shown in
-// turn, in both languages; the lens moving the same page from its pixels to
+// turn, in both languages; the components with their code and the style packs; the lens moving the same page from its pixels to
 // the tree's wireframe, the JSON an agent reads and the assertions a test
 // writes; the home page's tree hash pinned (what the footer compares in the
 // browser); the live timeline editor edited and undone; the static HTML a
@@ -8,8 +8,6 @@ import std;
 import openmui;
 import openmui.site;
 import openmui.ui.markdown;  // openmui.markdown with it
-import openmui.ui.canvas;
-import openmui.showcase.fighting;
 import openmui.testing;
 
 using namespace omui::testing;
@@ -27,7 +25,7 @@ struct Site {
         h.mount("main", spec.view());
         h.settle();
     }
-    Value snapshot(std::string_view place) { return h.tree().snapshot({.root = std::format("main/body/view/atlas/{}/page", place)}).to_value(); }
+    Value snapshot(std::string_view place) { return h.tree().snapshot({.root = std::format("main/body/view/{}/page", place)}).to_value(); }
     std::string text(std::string_view id) {
         const auto n = h.tree().node(id);
         return n ? n->name : std::string();
@@ -68,8 +66,8 @@ struct Site {
         const auto n = h.tree().node(id);
         return n && !n->states.has(State::hidden);
     }
-    // A place is shown when its window is live (not a texture on the atlas).
-    bool shown(std::string_view place) { return h.tree().node(std::format("main/body/view/atlas/{}/page", place)).has_value(); }
+    // A place is shown when it is the one built.
+    bool shown(std::string_view place) { return h.tree().node(std::format("main/body/view/{}/page", place)).has_value(); }
 };
 
 std::uint64_t fnv(std::string_view s) { return hash::fnv1a(s); }
@@ -94,16 +92,10 @@ var Module = { canvas: document.getElementById('canvas'), onRuntimeInitialized: 
 
 int main(int argc, char** argv) {
     Suite s{"site"};
-    // On the Web the fighters' pictures come after the program starts (the fighting game's `art-later`): a page
-    // fetches them; here they are taken from beside the sources, so the move list is drawn as everywhere else.
-    if (fighting::art_pending() &&
-        !fighting::arrive_art(std::filesystem::path(std::source_location::current().file_name()).parent_path() / ".." / ".." / "showcase" / "fighting" / "fighters" / "art"))
-        std::println(std::cerr, "site_test: the fighters' pictures were not found beside the sources");
-
     s.test("every place has its document in both languages; the content is what the docs say", [] {
         for (const site::Place& p : site::places()) {
-            if (p.id == "timeline" || p.id == "wall" || p.id == "styles" || p.id == "hello" || p.id == "moves") {
-                check(site::document(p.id, "en").empty(), std::format("{} is a live work, not a document", p.id));
+            if (p.id == "timeline" || p.id == "components" || p.id == "hello") {
+                check(site::document(p.id, "en").empty(), std::format("{} is a live page, not a document", p.id));
                 continue;
             }
             for (std::string_view lang : {"en", "zh"}) {
@@ -122,7 +114,7 @@ int main(int argc, char** argv) {
         check(a.shown("home"), "home first");
         check(!a.shown("features"), "one place at a time");
         for (const site::Place& p : site::places()) {
-            check(a.h.click(std::format("main/body/nav/to_{}", p.id)), std::format("the nav's {}", p.id));
+            check(a.h.click(std::format("main/bar/nav/to_{}", p.id)), std::format("the nav's {}", p.id));
             a.h.settle();
             for (const site::Place& q : site::places())
                 check(a.shown(q.id) == (p.id == q.id), std::format("{} shown: {}", p.id, q.id));
@@ -135,10 +127,10 @@ int main(int argc, char** argv) {
         Site a;
         std::vector<std::string> ids;
         for (const auto& n : a.h.tree().snapshot({}).nodes) ids.push_back(n.id);
-        check_eq(a.text("main/body/nav/to_features"), std::string("Features"));
+        check_eq(a.text("main/bar/nav/to_features"), std::string("Features"));
         check(a.h.click("main/bar/lang"));
         a.h.settle();
-        check_eq(a.text("main/body/nav/to_features"), std::string("特性"));
+        check_eq(a.text("main/bar/nav/to_features"), std::string("特性"));
         check_eq(a.text("main/bar/lang"), std::string("English"));
         const std::string doc = a.snapshot("home").json();
         check(doc.find("一棵树") != std::string::npos, "the Chinese home page");
@@ -169,7 +161,7 @@ int main(int argc, char** argv) {
 
     s.test("the opening: a checklist as a person sees it, and its node as a screen reader says it, an agent sends it, a test asserts it", [] {
         Site a;
-        const std::string hero = "main/body/view/atlas/home/page/hero";
+        const std::string hero = "main/body/view/home/page/hero";
         const auto ship = a.h.tree().node(hero + "/demo/specimen/ship");
         check(ship.has_value() && ship->role == Role::button && ship->states.has(State::disabled), "Ship 0.1 waits for its checks");
         const std::string panel = hero + "/demo/renderings/";
@@ -186,7 +178,7 @@ int main(int argc, char** argv) {
 
     s.test("the opening's agent ships it: each step a real action as an agent, through the same checks, each one undoable", [] {
         Site a;
-        const std::string hero = "main/body/view/atlas/home/page/hero";
+        const std::string hero = "main/body/view/home/page/hero";
         check(a.h.click(hero + "/agent_row/let_agent"), "a person asks the agent");
         a.h.advance(seconds(6));
         for (const char* item : {"tests", "docs", "notes"}) {
@@ -219,7 +211,7 @@ int main(int argc, char** argv) {
         check(!shipped() && items_checked() == 2, "then the last check");
     });
 
-    s.test("on a phone: the places the whole width, the navigation and the switches in a menu", [] {
+    s.test("on a phone: the bar wraps (the places on a line of their own), the place the whole width, a panel in its place", [] {
         Headless h{HeadlessOptions{.size = {390, 844}}};
         AppSpec spec = site::app("home", "zh");
         h.runtime().set_theme(spec.theme);
@@ -230,45 +222,75 @@ int main(int argc, char** argv) {
             const auto n = h.tree().node(id);
             return n && !n->states.has(State::hidden) && !n->states.has(State::offscreen);
         };
-        check(shown("main/bar/menu") && !shown("main/bar/lens_tree") && !shown("main/body/nav"), "a menu, no sidebar, no lenses in the bar");
+        check(shown("main/bar/nav/to_features") && shown("main/foot/lens_tree"), "the places in the bar, the lenses at the foot");
+        const Rect nav = h.runtime().screen_bounds(h.runtime().find("main/bar/nav"));
+        check(nav.x >= 0 && nav.x + nav.width <= 390.5f, std::format("the places within the phone: {} + {}", nav.x, nav.width));
         const Rect view = h.runtime().screen_bounds(h.runtime().find("main/body/view"));
         check(view.width == 390, std::format("the view the whole width: {}", view.width));
-        // Every control of the opening inside the window.
         // The renderings' words whole: no line of a card below its card's bottom.
         for (const char* card : {"reader", "agent", "test"}) {
-            const std::string base = std::format("main/body/view/atlas/home/page/hero/demo/renderings/{}", card);
+            const std::string base = std::format("main/body/view/home/page/hero/demo/renderings/{}", card);
             check(h.runtime().valid(h.runtime().find(base + "/body/line")), base);
             const Rect c = h.runtime().screen_bounds(h.runtime().find(base));
             const Rect l = h.runtime().screen_bounds(h.runtime().find(base + "/body/line"));
             check(l.y + l.height <= c.y + c.height + 0.5f, std::format("{}'s line inside its card: {} vs {}", card, l.y + l.height, c.y + c.height));
         }
         for (const char* id : {"hero/demo/specimen/ship", "hero/agent_row/let_agent", "hero/cta/to_features"}) {
-            const Rect r = h.runtime().screen_bounds(h.runtime().find(std::format("main/body/view/atlas/home/page/{}", id)));
+            const Rect r = h.runtime().screen_bounds(h.runtime().find(std::format("main/body/view/home/page/{}", id)));
             check(r.x >= 0 && r.x + r.width <= 390, std::format("{} inside: {} + {}", id, r.x, r.width));
         }
-        check(h.click("main/bar/menu"));
+        // A panel takes the place's room; Esc puts it away, wherever the focus is.
+        check(h.click("main/bar/settings_toggle"));
         h.settle();
-        check(shown("main/body/nav/to_features") && shown("main/body/nav/view_group/lens_tree"), "the menu: the places and the lenses");
-        check(h.click("main/body/nav/to_features"));
-        h.settle();
-        check(!shown("main/body/nav"), "a place chosen: the menu closes");
-        // Esc puts the menu away, wherever the focus is (the menu button pressed holds it).
-        check(h.click("main/bar/menu"));
-        h.settle();
-        check(shown("main/body/nav/to_features"), "open again");
-        h.runtime().focus(NodeId{});  // nothing focused (an agent's click focuses nothing): Esc still reaches the page
+        check(shown("main/body/settings") && !shown("main/body/view"), "the settings in the place's place");
+        h.runtime().focus(NodeId{});
         h.key(Key::escape);
         h.settle();
-        check(!shown("main/body/nav"), "Esc closed it");
-        const auto features = h.tree().node("main/body/view/atlas/features/page/read/doc");
-        check(features && !features->states.has(State::offscreen), "and the place is there");
+        check(!shown("main/body/settings") && shown("main/body/view"), "Esc closed it, the place back");
+        check(h.click("main/bar/nav/to_features"));
+        h.settle();
+        const auto features = h.tree().node("main/body/view/features/page/read/doc");
+        check(features && !features->states.has(State::offscreen), "the features, read");
+    });
+
+    s.test("the settings: each choice's name drawn and read by it, and each one changing what it says — the theme, the motion, how things move, the effects", [] {
+        Site a;
+        check(a.h.click("main/bar/settings_toggle"));
+        a.h.settle();
+        const std::string at = "main/body/settings/";
+        for (const std::string id : {"theme", "motion", "motion_style", "effects", "renderer"}) {
+            const auto field = a.h.tree().node(at + id + "_field/" + id), name = a.h.tree().node(at + id + "_field/name");
+            check(field && name && !name->name.empty() && field->name == name->name, std::format("{}: drawn as it is read", id));
+        }
+        Invocation agent;
+        agent.actor = {"agent", "visitor", {}};
+        auto choose = [&](std::string_view id, std::string_view value) {
+            agent.args = Value{}.set("value", std::string(value));
+            check(a.h.tree().act(std::format("{}{}_field/{}", at, id, id), "set_value", agent).exit_code() == std::optional<int>(0), std::format("{} {}", id, value));
+            a.h.settle(seconds(1));
+        };
+        const Color light = a.h.runtime().theme().color("background");
+        check(std::abs(light.r - 0xfb / 255.0f) < 0.002f && std::abs(light.b - 0xfa / 255.0f) < 0.002f, "the site's own theme (site.theme.omui.toml), not the default it extends");
+        choose("theme", "dark");
+        const Color dark = a.h.runtime().theme().color("background");
+        check(dark.r + dark.g + dark.b < light.r + light.g + light.b - 1, "dark");
+        choose("motion", "off");
+        check(a.h.runtime().motion_level() == MotionLevel::off);
+        choose("motion_style", "ink");
+        check(a.h.runtime().motion_choice() == "ink");
+        choose("motion_style", "default");
+        check(a.h.runtime().motion_choice().empty(), "each control's own again");
+        choose("effects", "t1");
+        check(a.h.runtime().adaptation().reason == "the person's setting", a.h.runtime().adaptation().reason);
+        check(a.h.tree().act(at + "theme_field/theme", "set_value", [&] { agent.args = Value{}.set("value", "sepia"); return agent; }()).exit_code() != std::optional<int>(0),
+              "not one of its choices");
     });
 
     s.test("the lens: pixels, the tree's wireframe, an agent's JSON, a test's assertions — of the same nodes", [] {
         Site a;
         const auto plain = a.page();
         check(!a.visible("main/body/view/wireframe") && !a.visible("main/body/view/agent"), "only the pixels");
-        check(a.h.click("main/bar/lens_tree"));
+        check(a.h.click("main/foot/lens_tree"));
         a.h.advance(seconds(0.3));
         a.h.settle(seconds(0.1));
         check(a.visible("main/body/view/wireframe"), "the wireframe over the page");
@@ -278,26 +300,26 @@ int main(int argc, char** argv) {
         const auto home = a.snapshot("home");
         check(drawn == static_cast<std::int64_t>(home.get("nodes")->list()->size()), "every node of the place outlined");
 
-        check(a.h.click("main/bar/lens_agent"));
+        check(a.h.click("main/foot/lens_agent"));
         a.h.advance(seconds(0.3));
         a.h.settle(seconds(0.1));
         const std::string json = a.text("main/body/view/agent/agent_text");
-        check(json.starts_with("// openmui.tree@0.1's snapshot of main/body/view/atlas/home"), "the place named once");
+        check(json.starts_with("// openmui.tree@0.1's snapshot of main/body/view/home"), "the place named once");
         check(json.find("\"id\":\"…/page/doc/b0\"") != std::string::npos, "the nodes as an agent reads them, from the place");
         for (const Value& n : *home.get("nodes")->list()) {
             std::string id = std::string(n.get("id")->as_string());
-            if (id.starts_with("main/body/view/atlas/home/")) id = "…/" + id.substr(std::string_view("main/body/view/atlas/home/").size());
+            if (id.starts_with("main/body/view/home/")) id = "…/" + id.substr(std::string_view("main/body/view/home/").size());
             check(json.find(Value(id).json()) != std::string::npos, std::format("{} in the agent's JSON", id));
         }
 
-        check(a.h.click("main/bar/lens_test"));
+        check(a.h.click("main/foot/lens_test"));
         a.h.advance(seconds(0.3));
         a.h.settle(seconds(0.1));
         const std::string lines = a.text("main/body/view/test/test_text");
-        check(lines.find("tree.node(std::format(\"main/body/view/atlas/home/{}\", path))") != std::string::npos, "the place's nodes found under it");
+        check(lines.find("tree.node(std::format(\"main/body/view/home/{}\", path))") != std::string::npos, "the place's nodes found under it");
         check(lines.find("check_eq(node(\"page/doc/b0\").role, \"heading\");") != std::string::npos, "the title's role asserted");
 
-        check(a.h.click("main/bar/lens_pixels"));
+        check(a.h.click("main/foot/lens_pixels"));
         a.h.move({4, 796});  // the pointer off the buttons (no hover)
         a.h.settle(seconds(1));
         check(a.page() == plain, "back to the pixels, the same pixels (above the foot, where the lenses are marked)");
@@ -305,9 +327,9 @@ int main(int argc, char** argv) {
 
     s.test("the timeline's monitor: what plays at the playhead, the title fading as its clip does; Play runs the playhead and stops at the end", [] {
         Site a;
-        check(a.h.click("main/body/nav/to_timeline"));
+        check(a.h.click("main/bar/nav/to_timeline"));
         a.h.settle(seconds(3));
-        const std::string base = "main/body/view/atlas/timeline/page/";
+        const std::string base = "main/body/view/timeline/page/";
         check_eq(a.text(base + "program/monitor/time/row:0/timecode"), std::string("01:15"));
         check(a.h.click(base + "program/play"));
         a.h.advance(seconds(1));
@@ -324,14 +346,14 @@ int main(int argc, char** argv) {
 
     s.test("Build with it: the opening's first button scrolls the page to its three commands", [] {
         Site a;
-        check(a.h.click("main/body/view/atlas/home/page/hero/cta/to_start"));
+        check(a.h.click("main/body/view/home/page/hero/cta/to_start"));
         a.h.settle(seconds(2));
         std::optional<spec::SemanticNode> heading;
         for (const auto& n : a.h.tree().snapshot({}).nodes)
             if (n.role == Role::heading && n.name == "Build with it") heading = n;
-        const auto page = a.h.tree().node("main/body/view/atlas/home/page");
-        check(heading && heading->bounds && page && page->bounds && heading->bounds->y < page->bounds->y + 100,
-              heading && heading->bounds && page && page->bounds ? std::format("the section at {} in a page from {}", heading->bounds->y, page->bounds->y) : "no section");
+        const auto view = a.h.tree().node("main/body/view");
+        check(heading && heading->bounds && view && view->bounds && heading->bounds->y < view->bounds->y + 150 && heading->bounds->y >= view->bounds->y,
+              heading && heading->bounds && view && view->bounds ? std::format("the section at {} in a view from {}", heading->bounds->y, view->bounds->y) : "no section");
     });
 
     s.test("the home page's tree: pinned, the same in a browser as here; boxes do not count", [] {
@@ -346,7 +368,7 @@ int main(int argc, char** argv) {
         spec.setup(narrow.runtime());
         narrow.mount("main", spec.view());
         narrow.settle();
-        check(site::tree_hash(narrow.tree().snapshot({.root = "main/body/view/atlas/home/page"}).to_value()) == h, "the same tree, another window");
+        check(site::tree_hash(narrow.tree().snapshot({.root = "main/body/view/home/page"}).to_value()) == h, "the same tree, another window");
         // The Chinese page is another tree.
         check(a.h.click("main/bar/lang"));
         a.h.settle();
@@ -355,9 +377,9 @@ int main(int argc, char** argv) {
 
     s.test("the live timeline editor: an agent's edit, the person's undo, the tree that follows", [] {
         Site a;
-        check(a.h.click("main/body/nav/to_timeline"));
+        check(a.h.click("main/bar/nav/to_timeline"));
         a.h.settle();
-        constexpr std::string_view editor = "main/body/view/atlas/timeline/page/editor";
+        constexpr std::string_view editor = "main/body/view/timeline/page/editor";
         const auto before = site::tree_hash(a.snapshot("timeline"));
         auto tracks = [&] { return a.h.tree().node(editor)->value.get("tracks")->json(); };
         const std::string was = tracks();
@@ -373,56 +395,51 @@ int main(int argc, char** argv) {
         check(tracks() == was, "the very timeline again");
     });
 
-    s.test("the page's time: dragged back, the page is drawn as it was; played backwards and forwards; live again", [] {
+    s.test("the page's time: dragged back into a motion, the page is drawn as it was then; played backwards and forwards; live again", [] {
         Site a;
-        constexpr std::string_view view = "main/body/view", bar = "main/foot/time";
-        const auto at_home = a.pixels_of(view);
-        const double before = a.h.runtime().now().count();
+        // The bar: its places' names gather into the other language (the place below the opening is below the fold).
+        constexpr std::string_view view = "main/bar", bar = "main/foot/time";
         a.h.advance(seconds(0.5));
-        check(a.h.click("main/body/nav/to_features"));
-        a.h.settle(seconds(4));
-        const auto at_features = a.pixels_of(view);
-        check(at_features != at_home, "flown to Features");
+        const double switched = a.h.runtime().now().count();
+        check(a.h.click("main/bar/lang"));
+        a.h.move({4, 796});
+        a.h.settle(seconds(3));
+        const auto at_rest = a.pixels_of(view);
         check(a.h.tree().node(bar) && a.h.tree().node(bar)->role == Role::slider, "the page's time, a slider");
-        check(a.text("main/foot/clock") == "now", "live");
-
-        // An agent drags the playhead to before the flight: the page as it was then.
+        check(a.text("main/foot/clock") == "现在", "live");
+        // An agent drags the playhead into the switch: the letters gathering, as they were then.
         Invocation agent;
         agent.actor = {"agent", "visitor", {}};
-        agent.args = Value{}.set("value", Value(before + 0.25));
+        agent.args = Value{}.set("value", Value(switched + 0.15));
         check(a.h.tree().act(bar, "set_value", agent).exit_code() == std::optional<int>(0), "set by an agent, as a person drags it");
         a.h.settle(seconds(2));
-        check(a.pixels_of(view) == at_home, "the camera back where it was: Home, at rest, live");
+        const auto then = a.pixels_of(view);
+        check(then != at_rest, "the switch under way, held");
         check(a.text("main/foot/clock").starts_with("−"), "seconds before the newest");
-        check(a.h.tree().node("main/body/nav/to_features") && a.value(bar) < a.value(bar, "max"), "the playhead before the strip's end");
-
         // Live again: the page as it is.
         check(a.h.click("main/foot/time_live"));
         a.h.settle(seconds(2));
-        check(a.pixels_of(view) == at_features && a.text("main/foot/clock") == "now", "live: Features, as it is");
-
-        // Backwards: the playhead earlier each frame, the camera flying back, until the strip's start.
+        check(a.pixels_of(view) == at_rest && a.text("main/foot/clock") == "现在", "live: at rest");
+        // Backwards: the playhead earlier each frame, until the strip's start.
         check(a.h.click("main/foot/time_back"));
         const double from = a.value(bar);
         for (int i = 0; i < 20; ++i) a.h.step();
         check(a.value(bar) < from, "earlier each frame");
         a.h.advance(seconds(30));
         check(a.value(bar) == a.value(bar, "min"), "stopped at the strip's start");
-        check(a.pixels_of(view) == at_home, "back at Home, where the page began");
-
-        // Played forwards from there: the flight again, and at the end, live.
+        // Played forwards from there: at the end, live.
         check(a.h.click("main/foot/time_play"));
         a.h.advance(seconds(30));
         a.h.settle(seconds(2));
-        check(a.text("main/foot/clock") == "now", "live at the end");
-        check(a.pixels_of(view) == at_features, "Features, as the flight left it");
+        check(a.text("main/foot/clock") == "现在", "live at the end");
+        check(a.pixels_of(view) == at_rest, "at rest, as it was");
     });
 
-    s.test("the works run in their places: example 01 typed into and clicked, S1's wall live with the site's documents", [] {
+    s.test("getting started: example 01 runs beside its source, typed into and clicked", [] {
         Site a;
-        check(a.h.click("main/body/nav/to_hello"));
+        check(a.h.click("main/bar/nav/to_hello"));
         a.h.settle(seconds(3));
-        constexpr std::string_view run = "main/body/view/atlas/hello/page";
+        constexpr std::string_view run = "main/body/view/hello/page";
         const auto field = a.h.tree().find({.under = std::string(run), .role = Role::text_box});
         check(!field.empty(), "example 01's field, found by its role");
         check(!field.empty() && a.h.click(field.front().id), "its field focused");
@@ -440,73 +457,8 @@ int main(int argc, char** argv) {
         }
         check(greeted, "the program ran: greeted");
         check(counted, "the program ran: counted");
-        check(a.text("main/body/view/atlas/hello/page/code/source").contains("export module hello;"), "its source beside it");
+        check(a.text("main/body/view/hello/page/code/source").contains("export module hello;"), "its source beside it");
 
-        check(a.h.click("main/body/nav/to_wall"));
-        a.h.settle(seconds(3));
-        const auto wall = a.h.tree().node("main/body/view/atlas/wall/page/wall");
-        check(wall && wall->role == Role::canvas, "the wall's canvas, live");
-        const auto windows = a.h.tree().find({.under = "main/body/view/atlas/wall/page/wall", .role = Role::window});
-        check(windows.size() >= 6, std::format("its windows: {}", windows.size()));
-    });
-
-    s.test("the move list: frame data the game measured, a move chosen by an agent, shown on the game's own stage at a frame", [] {
-        Site a;
-        check(a.h.click("main/body/nav/to_moves"));
-        a.h.advance(seconds(3));
-        constexpr std::string_view page = "main/body/view/atlas/moves/page";
-        const auto& r = fighting::roster();
-        const gongfu::Fighter& mo = r.fighters[fighting::fighter_index("mo")];
-        // Every row is what gongfu.training measured for it.
-        const std::int32_t heavy = mo.find("5HP");
-        const gongfu::training::FrameData d = gongfu::training::frame_data(r.system, mo, heavy);
-        const std::string row = std::format("{}/list/moves/table/move_5hp", page);
-        check(a.h.tree().node(row + "/name/pick").has_value(), "a row for 5HP");
-        std::vector<std::string> cells;
-        for (const auto& n : a.h.tree().snapshot({.root = row}).nodes)
-            if (n.role == Role::text && !n.id.contains("/pick")) cells.push_back(n.name);
-        check(cells.size() >= 6 && cells[0] == std::format("{}", d.startup) && cells[1] == std::format("{}", d.active) && cells[2] == std::format("{}", d.recovery),
-              cells.empty() ? std::string("no cells") : cells[0]);
-        // An agent picks it, on block, and drags the frame to its first active one.
-        Invocation agent;
-        agent.actor = {"agent", "visitor", {}};
-        check(a.h.tree().act(row + "/name/pick", "activate", agent).exit_code() == std::optional<int>(0), "picked by an agent");
-        check(a.h.tree().act(std::format("{}/show/controls/on_block", page), "activate", agent).exit_code() == std::optional<int>(0));
-        a.h.advance(seconds(0.2));
-        agent.args = Value{}.set("value", Value(static_cast<double>(d.startup)));
-        check(a.h.tree().act(std::format("{}/show/controls/frame", page), "set_value", agent).exit_code() == std::optional<int>(0));
-        a.h.advance(seconds(0.2));
-        const auto stage = a.h.tree().node(std::format("{}/show/frame_box/stage", page));
-        const Value* demo = stage && stage->value.get("training") ? stage->value.get("training")->get("demo") : nullptr;
-        check(demo && demo->get("move")->as_string() == "5HP" && demo->get("guard")->as_bool() && demo->get("frame")->as_int() == d.startup,
-              demo ? demo->json() : std::string("no demonstration"));
-        (void)a.h.save_png(scratch_dir("site-moves") / "moves.png");
-        // Play: the stage runs the move on, and the slider and the counter follow it frame by frame.
-        check(a.h.tree().act(std::format("{}/show/controls/play", page), "activate", agent).exit_code() == std::optional<int>(0));
-        for (int i = 0; i < 6; ++i) {
-            a.h.advance(seconds(0.1));
-            const auto st = a.h.tree().node(std::format("{}/show/frame_box/stage", page));
-            const Value* dm = st && st->value.get("training") ? st->value.get("training")->get("demo") : nullptr;
-            const auto slider = a.h.tree().node(std::format("{}/show/controls/frame", page));
-            const auto label = a.h.tree().node(std::format("{}/show/controls/frame_of", page));
-            if (!dm || !slider || !label) {
-                check(false, "the stage, the slider and the counter");
-                break;
-            }
-            const std::int64_t frames = dm->get("frames") ? dm->get("frames")->as_int() : 0;
-            const std::int64_t at = std::min(dm->get("frame")->as_int(), frames);
-            const double shown = slider->value.get("value") ? slider->value.get("value")->as_double() : -1;
-            check(static_cast<std::int64_t>(shown) == at && label->name.contains(std::format(" {} / ", at)),
-                  std::format("the stage at {} (of {}), the slider at {}, the counter '{}'", dm->get("frame")->as_int(), frames, shown, label->name));
-        }
-        // Playing, the button says Pause; pressed, the stage holds its frame.
-        check(a.text(std::format("{}/show/controls/play", page)) == "Pause", a.text(std::format("{}/show/controls/play", page)));
-        check(a.h.tree().act(std::format("{}/show/controls/play", page), "activate", agent).exit_code() == std::optional<int>(0));
-        a.h.advance(seconds(0.1));
-        const auto held = a.h.tree().node(std::format("{}/show/frame_box/stage", page))->value.get("training")->get("demo")->get("frame")->as_int();
-        a.h.advance(seconds(0.5));
-        const auto still = a.h.tree().node(std::format("{}/show/frame_box/stage", page))->value.get("training")->get("demo")->get("frame")->as_int();
-        check(held == still && a.text(std::format("{}/show/controls/play", page)) == "Play", std::format("paused at {} (then {})", held, still));
     });
 
     s.test("a document's links: another place of the site, or outside through the host", [] {
@@ -514,20 +466,19 @@ int main(int argc, char** argv) {
         Invocation person;  // the person at the machine (not over the bus)
         person.args = Value{}.set("href", Value("features.md"));
         person.answer = "yes";
-        check(a.h.tree().act("main/body/view/atlas/home/page/doc", "open_link", person).exit_code() == std::optional<int>(0), "a link to the features");
+        check(a.h.tree().act("main/body/view/home/page/doc", "open_link", person).exit_code() == std::optional<int>(0), "a link to the features");
         a.h.settle();
         check(a.shown("features"), "the features shown");
         check(a.h.runtime().opened().empty(), "nothing opened outside");
-        check(a.h.click("main/body/nav/to_home"));
+        check(a.h.click("main/bar/nav/to_home"));
         a.h.settle();
         person.args = Value{}.set("href", Value("https://github.com/openlifa/openmui"));
-        check(a.h.tree().act("main/body/view/atlas/home/page/doc", "open_link", person).exit_code() == std::optional<int>(0), "the spec's repository");
+        check(a.h.tree().act("main/body/view/home/page/doc", "open_link", person).exit_code() == std::optional<int>(0), "the spec's repository");
         check(a.h.runtime().opened() == std::vector<std::string>{"https://github.com/openlifa/openmui"}, "opened by the host");
         check(!a.h.runtime().open_url("javascript:alert(1)"), "never a script");
-        // Clicked with the pointer, as a visitor does: the atlas's canvas sees
-        // the press (it pans on a drag) and the link still takes the click.
+        // Clicked with the pointer, as a visitor does.
         Site b;
-        const auto links = b.h.tree().find({.under = "main/body/view/atlas/home/page/doc", .role = Role::link});
+        const auto links = b.h.tree().find({.under = "main/body/view/home/page/doc", .role = Role::link});
         const auto to_features = std::ranges::find_if(links, [](const auto& n) { return n.name.contains("sets openmui apart"); });
         check(to_features != links.end(), "the link to the features");
         if (to_features != links.end()) {
@@ -536,7 +487,7 @@ int main(int argc, char** argv) {
             check(b.h.click(to_features->id), "clicked");
         }
         b.h.settle(seconds(3));
-        check(b.shown("features"), "a click inside a place's live window reaches its link");
+        check(b.shown("features"), "a click reaches its link");
     });
 
     s.test("an agent on the page: real requests, openas deciding — it asks first, the person answers, and only the person", [] {
@@ -552,18 +503,18 @@ int main(int argc, char** argv) {
         const auto said = [&] { return a.text("main/body/guide/said/transcript"); };
 
         run("read");
-        check(said().find(R"(→ {"op":"snapshot","actor":"agent:guide","root":"main/body/view/atlas/home/page","depth":2})") != std::string::npos, said());
+        check(said().find(R"(→ {"op":"snapshot","actor":"agent:guide","root":"main/body/view/home/page","depth":2})") != std::string::npos, said());
         check(said().find(R"(← {"kind":"result","exitCode":0})") != std::string::npos, "read: it runs");
 
         run("tour");
-        check(a.text("main/body/nav/to_features") == "特性", "the language switched by the agent");
+        check(a.text("main/bar/nav/to_features") == "特性", "the language switched by the agent");
         check(a.shown("features"), "and the features open");
         check(a.h.click("main/bar/lang"));
         a.h.settle();
 
         run("edit");
         check(a.shown("timeline"), "the timeline");
-        const Value ed = a.h.tree().node("main/body/view/atlas/timeline/page/editor")->value;
+        const Value ed = a.h.tree().node("main/body/view/timeline/page/editor")->value;
         check(ed.get("tracks") && ed.get("tracks")->list()->front().get("clips")->list()->size() == 2, std::format("split, then undone: {}\n{}", ed.json(), said()));
         check(said().find(R"("action":"split")") != std::string::npos && said().find(R"("op":"undo")") != std::string::npos, "split and undo, as requests");
 
@@ -603,7 +554,7 @@ int main(int argc, char** argv) {
         agent_access().revoke_all();
     });
 
-    s.test("the site's pixels pinned on every platform: home, the overview, the wireframe, the agent's JSON, the works (the wall, the style workshop, example 01, the move list), an agent asking, Chinese, the page's time dragged back", [] {
+    s.test("the site's pixels pinned on every platform: home, the components, the wireframe, the agent's JSON, the timeline editor, getting started, an agent asking, the settings, Chinese, the page's time held", [] {
         Site a;
         // Fixed spans of time, not "until quiet": how many frames a platform
         // takes to settle differs a little, and the foot draws the page's time.
@@ -616,36 +567,30 @@ int main(int argc, char** argv) {
             std::println("    {} {:016x}", name, p);
             check(a.h.save_png(dir / name).has_value());
         };
+        auto go = [&](std::string_view place) {
+            check(a.h.click(std::format("main/bar/nav/to_{}", place)));
+            a.h.move({4, 796});
+            a.h.advance(seconds(2));
+        };
         shot("home.png");
-        // The overview: every place a window on the atlas, the camera flown out.
-        check(a.h.click("main/body/nav/to_overview"));
-        a.h.move({4, 796});
-        a.h.advance(seconds(3));
-        shot("overview.png");
-        check(a.h.click("main/body/nav/to_home"));
-        a.h.move({4, 796});
-        a.h.advance(seconds(3));
-        check(a.h.click("main/bar/lens_tree"));
+        go("components");
+        shot("components.png");
+        go("home");
+        check(a.h.click("main/foot/lens_tree"));
         a.h.advance(seconds(0.3));
         a.h.advance(seconds(0.1));
         shot("tree.png");
-        check(a.h.click("main/bar/lens_agent"));
+        check(a.h.click("main/foot/lens_agent"));
         a.h.advance(seconds(0.3));
         a.h.advance(seconds(0.1));
         shot("agent.png");
-        check(a.h.click("main/bar/lens_pixels"));
-        check(a.h.click("main/body/nav/to_timeline"));
-        a.h.move({4, 796});
-        a.h.advance(seconds(2));
+        check(a.h.click("main/foot/lens_pixels"));
+        go("timeline");
         shot("timeline.png");
-        for (std::string_view work : {"wall", "styles", "hello", "moves"}) {
-            check(a.h.click(std::format("main/body/nav/to_{}", work)));
-            a.h.move({4, 796});
-            a.h.advance(seconds(3));
-            shot(std::format("{}.png", work));
-        }
+        go("hello");
+        shot("hello.png");
         // The agent asks before something external (S-11), the answer the person's alone (S-10).
-        check(a.h.click("main/body/nav/to_home"));
+        go("home");
         check(a.h.click("main/bar/guide_toggle"));
         check(a.h.click("main/body/guide/tasks/task_link"));
         a.h.advance(seconds(3));
@@ -653,9 +598,12 @@ int main(int argc, char** argv) {
         a.h.advance(seconds(1));
         shot("agent-asks.png");
         check(a.h.click("main/body/guide/asking/answer/deny"));
-        check(a.h.click("main/bar/guide_toggle"));
-        check(a.h.click("main/body/nav/to_home"));
-        a.h.advance(seconds(3));
+        check(a.h.click("main/bar/settings_toggle"));
+        a.h.move({4, 796});
+        a.h.advance(seconds(1));
+        shot("settings.png");
+        check(a.h.click("main/bar/settings_toggle"));
+        go("home");
         const double switched = a.h.runtime().now().count();
         check(a.h.click("main/bar/lang"));
         a.h.move({4, 796});
@@ -668,42 +616,39 @@ int main(int argc, char** argv) {
         a.h.advance(seconds(1));
         shot("time.png");
         std::println("    pixels {}", all.hex());
-        check_eq(all.hex(), std::string("5cb60092a3d54556"));
+        check_eq(all.hex(), std::string("71846031b0019bc4"));
     });
 
-    s.test("the style workshop runs in its place, a theme scope: a pack styles it alone, the site keeps its theme, the tree is the same in every pack", [] {
-        Site a;
-        check(a.h.click("main/body/nav/to_styles"));
+    s.test("the components: each live, its code in four languages; a style pack styles the gallery alone, the tree the same in every pack", [] {
+        Site a("components");
         a.h.move({4, 796});
-        a.h.advance(seconds(3));
-        const std::string work = "main/body/view/atlas/styles/page/workshop/studio";
-        check(a.visible(work + "/preview"), "the workshop, live close up");
-        check(!a.h.tree().node(work + "/sidebar/export"), "no Export: a page has nowhere to write");
-        // The workshop's tree: what an agent reads of it, the same whatever the pack.
-        auto tree = [&] {
-            std::vector<std::string> out;
-            for (const auto& n : a.h.tree().snapshot({.root = work + "/preview"}).nodes) out.push_back(std::format("{} {} {}", n.id, spec::name(n.role), n.name));
-            return out;
-        };
-        const auto glass = tree();
-        const std::uint64_t chrome = a.pixels_in({0, 0, 1280, 56});  // the site's bar, in the site's theme
-        const std::uint64_t shown = a.pixels_of(work);
+        a.h.advance(seconds(1));
+        const std::string page = "main/body/view/components/page/gallery";
+        const auto items = a.h.tree().find({.under = page + "/items", .role = Role::button});
+        check(items.size() >= 10, std::format("the specimens' buttons: {}", items.size()));
+        check(a.text(page + "/items/badge/code/source") == "badge({.count = 120, .id = \"mail\", .tone = BadgeTone::danger})", a.text(page + "/items/badge/code/source"));
         Invocation agent;
         agent.actor = {"agent", "visitor", {}};
-        agent.args = Value{}.set("name", Value("retro"));
-        check(a.h.runtime().verbs().invoke("styles.show", agent).exit_code() == std::optional<std::int64_t>(0), "an agent shows the retro pack");
+        check(a.h.tree().act(page + "/controls/language/languages/python", "activate", agent).exit_code() == std::optional<int>(0), "Python's code");
+        a.h.settle();
+        check(a.text(page + "/items/badge/code/source") == "omui.badge(id=\"mail\", count=120, tone=\"danger\")", a.text(page + "/items/badge/code/source"));
+        check(a.h.tree().act(page + "/controls/language/languages/lua", "activate", agent).exit_code() == std::optional<int>(0));
+        a.h.settle();
+        check(a.text(page + "/items/badge/code/source") == "omui.Badge { id = \"mail\", count = 120, tone = \"danger\" }", a.text(page + "/items/badge/code/source"));
+        // A pack: the gallery's specimens in it, the site around them as they were, the tree the same.
+        auto tree = [&] {
+            std::vector<std::string> out;
+            for (const auto& n : a.h.tree().snapshot({.root = page + "/items"}).nodes) out.push_back(std::format("{} {} {}", n.id, spec::name(n.role), n.name));
+            return out;
+        };
+        const auto plain = tree();
+        const std::uint64_t chrome = a.pixels_in({0, 0, 1280, 56});
+        const std::uint64_t shown = a.pixels_of(page + "/items/button/specimen");
+        check(a.h.tree().act(page + "/controls/style/packs/neon", "activate", agent).exit_code() == std::optional<int>(0), "the neon pack");
         a.h.advance(seconds(1));
-        check(a.pixels_of(work) != shown, "the workshop in another pack");
-        check(a.pixels_in({0, 0, 1280, 56}) == chrome, "the site around it as it was");
-        check(a.h.runtime().theme_of(a.h.runtime().find("main/body/view/atlas/styles/page/title")).color("surface") == Theme::dark_theme().color("surface"),
-              "the place's own title in the site's theme");
-        check(tree() == glass, "only pixels change");
-        // A person edits the pack: its corners, at once.
-        Invocation person;
-        person.args = Value{}.set("value", Value(20.0));
-        check(a.h.tree().act(work + "/editor/scroll/fields/corners", "set_value", person).exit_code() == std::optional<int>(0), "the corners slider");
-        a.h.advance(seconds(0.5));
-        check(a.h.runtime().scope_theme("workshop") && a.h.runtime().scope_theme("workshop")->corner("medium", 0) == 20.0f, "the corners edited");
+        check(a.pixels_of(page + "/items/button/specimen") != shown, "the specimens in another pack");
+        check(a.pixels_in({0, 0, 1280, 56}) == chrome, "the site's bar as it was");
+        check(tree() == plain, "only pixels change");
     });
 
     s.test("the reference run: each sampled frame's pixels hashed as a browser hashes them, pinned (reference/ci.frames.omui.json)", [] {
@@ -711,7 +656,7 @@ int main(int argc, char** argv) {
         std::vector<std::string> got;
         for (std::int32_t f = 0; f < site::reference_frames(); ++f) got.push_back(std::format("{:016x}", replay.hash(f)));
         check(std::format("{:016x}", replay.hash(17)) == got[17], "a frame played to again, from the start: the same");
-        check(std::set(got.begin(), got.end()).size() > got.size() / 2, "the run moves: most frames differ");
+        check(std::set(got.begin(), got.end()).size() >= 4, "the run moves: its frames differ");
         const auto pinned = site::reference_pinned();
         bool same = pinned.size() == got.size();
         for (std::size_t i = 0; same && i < got.size(); ++i) same = std::format("{:016x}", pinned[i]) == got[i];
@@ -760,18 +705,11 @@ int main(int argc, char** argv) {
         }
         const std::string en = site::static_html("en");
         check(en.find("<h1>One interface. Every rendering.</h1>") != std::string::npos, "the thesis, readable without JavaScript");
-        {  // The move list without the program: every fighter's frame data, as measured.
-            const auto& r = fighting::roster();
-            const gongfu::Fighter& mo = r.fighters[fighting::fighter_index("mo")];
-            const auto d = gongfu::training::frame_data(r.system, mo, mo.find("5HP"));
-            check(en.find("<h2>Mo</h2>") != std::string::npos && site::static_html("zh").find("<h2>墨</h2>") != std::string::npos, "each fighter, in both languages");
-            check(en.find(std::format("<tr><td>5HP</td><td>{}</td><td>{}</td><td>{}</td>", d.startup, d.active, d.recovery)) != std::string::npos, "its moves' measured frames");
-        }
         // The site's own part pinned (the docs change with the framework; they are held to md4c-html's bytes above).
         auto own = [](const std::string& html) { return html.substr(0, html.find("<section id=\"/", html.find("<section id=\"/") + 1)); };
         std::println("    static en {:016x} zh {:016x}", fnv(own(en)), fnv(own(site::static_html("zh"))));
-        check_eq(std::format("{:016x}", fnv(own(en))), std::string("458d3ce5fdd93a9d"));
-        check_eq(std::format("{:016x}", fnv(own(site::static_html("zh")))), std::string("fe96f0ce2ae23309"));
+        check_eq(std::format("{:016x}", fnv(own(en))), std::string("6f7002018b2f62a8"));
+        check_eq(std::format("{:016x}", fnv(own(site::static_html("zh")))), std::string("5fd8dfe72a66426b"));
 
         const auto out = site::inject(page, en, "zh");
         check(out.has_value(), "dist-toy's page");
@@ -787,91 +725,44 @@ int main(int argc, char** argv) {
         check(!site::inject(p, en, "en").has_value(), "a page already pre-rendered");
     });
 
-    s.test("on a phone: the move list's table scrolls sideways, the workshop's settings fit, a button's word stays whole", [] {
-        auto phone = [](std::string_view place) {
-            auto h = std::make_unique<Headless>(HeadlessOptions{.size = {390, 844}});
-            AppSpec spec = site::app(place, "en");
-            h->runtime().set_theme(spec.theme);
-            spec.setup(h->runtime());
-            for (auto& v : spec.verbs) (void)h->runtime().verbs().add(v.desc, v.fn);
-            h->mount("main", spec.view());
-            h->settle();
-            return h;
-        };
-        {
-            auto h = phone("moves");
-            const std::string table = "main/body/view/atlas/moves/page/list/moves";
-            const auto n = h->tree().node(table);
-            const double max_x = n && n->value.get("max_x") ? n->value.get("max_x")->as_double() : 0;
-            check(max_x > 0, std::format("the table wider than the phone, scrolled sideways (max_x {})", max_x));
-            const Rect r = h->runtime().screen_bounds(h->runtime().find(table));
-            check(r.x >= 0 && r.x + r.width <= 390, std::format("its view inside the window: {} + {}", r.x, r.width));
-            const Rect label = h->runtime().screen_bounds(h->runtime().find("main/body/view/atlas/moves/page/show/controls/frame_of"));
-            check(label.x + label.width <= 390, std::format("the frame counter inside: {} + {}", label.x, label.width));
-        }
-        {
-            // The agent's tour on a phone: the panel covers the place, the tour puts it away and the place is read.
-            auto h = phone("home");
-            check(h->click("main/bar/menu"));
-            h->settle();
-            const auto ask = h->tree().find({.name = "Ask an agent"});
-            if (!ask.empty()) check(h->click(ask.front().id), "the agent's panel, from the menu");
-            h->settle();
-            check(h->click("main/body/guide/tasks/task_tour"), "the tour");
-            h->advance(seconds(6));
-            h->settle(seconds(1));
-            const auto doc = h->tree().node("main/body/view/atlas/features/page/read/doc");
-            check(doc && !doc->states.has(State::offscreen), "the features read, in view");
-            const Rect view = h->runtime().screen_bounds(h->runtime().find("main/body/view"));
-            check(view.width == 390, std::format("the view the whole width again ({})", view.width));
-        }
-        {
-            auto h = phone("styles");
-            std::optional<Rect> settings;
-            for (const auto& n : h->tree().snapshot().nodes)
-                if (n.id.ends_with("/panels/column:0/settings") || n.id.ends_with("/settings") && n.id.contains("styles/page")) settings = h->runtime().screen_bounds(h->runtime().find(n.id));
-            check(settings && settings->x + settings->width <= 390, settings ? std::format("the settings panel inside: {} + {}", settings->x, settings->width) : "no settings panel");
-            // The workshop's own views scroll inside its place: the studio on a phone, the editor's fields.
-            bool scrolls = false;
-            for (const auto& n : h->tree().snapshot().nodes)
-                if (n.id.contains("styles/page/workshop") && n.role == Role::scroll_view && n.value.get("max_y") && n.value.get("max_y")->as_double() > 0) scrolls = true;
-            check(scrolls, "the workshop scrolls within its place");
-            // Nothing of the preview's panels wider than the phone (the Revenue card, the volume's value).
-            std::string out;
-            for (const auto& n : h->tree().snapshot().nodes)
-                if (n.id.contains("/preview/content/panels/") && n.bounds && n.bounds->x + n.bounds->width > 390.5f) out += std::format("{} ({}) ", n.id, n.bounds->x + n.bounds->width);
-            check(out.empty(), "within the phone's width: " + out);
-            const Rect play = h->runtime().screen_bounds(h->runtime().find("main/foot/time_play"));
-            check(play.height < 60, std::format("the foot's Play on one line ({} high)", play.height));
-        }
-    });
-
-
-    s.test("the workshop on the desktop: the editor's fields scroll under its head", [] {
-        Site a("styles");
-        a.h.settle(seconds(1));
-        bool fields = false;
-        for (const auto& n : a.h.tree().snapshot().nodes)
-            if (n.id.ends_with("/editor/scroll") && n.value.get("max_y") && n.value.get("max_y")->as_double() > 0) fields = true;
-        check(fields, "the editor's fields reach past its height, and scroll");
+    s.test("on a phone: the agent's tour — the panel covers the place, the tour puts it away and the place is read", [] {
+        auto h = std::make_unique<Headless>(HeadlessOptions{.size = {390, 844}});
+        AppSpec spec = site::app("home", "en");
+        h->runtime().set_theme(spec.theme);
+        spec.setup(h->runtime());
+        h->mount("main", spec.view());
+        h->settle();
+        check(h->click("main/bar/guide_toggle"), "the agent's panel");
+        h->settle();
+        check(h->click("main/body/guide/tasks/task_tour"), "the tour");
+        h->advance(seconds(6));
+        h->settle(seconds(1));
+        const auto doc = h->tree().node("main/body/view/features/page/read/doc");
+        check(doc && !doc->states.has(State::offscreen), "the features read, in view");
+        const Rect view = h->runtime().screen_bounds(h->runtime().find("main/body/view"));
+        check(view.width == 390, std::format("the view the whole width again ({})", view.width));
+        const Rect live = h->runtime().screen_bounds(h->runtime().find("main/foot/time_live"));
+        check(live.height < 60 && live.x + live.width <= 390, std::format("the foot's Live on one line, inside ({} high, to {})", live.height, live.x + live.width));
     });
 
     s.test("a panel opened beside the place: the place is laid out again to the room left", [] {
         Site a;
         // Landmarks a screen reader jumps between: the places' navigation, the place itself.
-        check(a.h.tree().node("main/body/nav") && a.h.tree().node("main/body/nav")->role == Role::navigation, "the navigation landmark");
+        check(a.h.tree().node("main/bar/nav") && a.h.tree().node("main/bar/nav")->role == Role::navigation, "the navigation landmark");
+        check(a.h.tree().node("main/bar/nav/to_home")->states.has(State::selected) && !a.h.tree().node("main/bar/nav/to_features")->states.has(State::selected),
+              "where you are: the current place selected");
         check(a.h.tree().node("main/body/view") && a.h.tree().node("main/body/view")->role == Role::main, "the main landmark");
         const Rect before = a.h.runtime().screen_bounds(a.h.runtime().find("main/body/view"));
         check(a.h.click("main/bar/guide_toggle"));
         a.h.advance(seconds(1));
         const Rect view = a.h.runtime().screen_bounds(a.h.runtime().find("main/body/view"));
         check(view.width < before.width, std::format("the view narrower: {} → {}", before.width, view.width));
-        const Rect page = a.h.runtime().screen_bounds(a.h.runtime().find("main/body/view/atlas/home/page"));
+        const Rect page = a.h.runtime().screen_bounds(a.h.runtime().find("main/body/view/home/page"));
         check(page.x >= view.x - 1 && page.x + page.width <= view.x + view.width + 1,
               std::format("the page within the view: page {} + {}, view {} + {}", page.x, page.width, view.x, view.width));
         // Nothing of the page's content under the panel.
         std::string under;
-        for (const auto& n : a.h.tree().snapshot({.root = "main/body/view/atlas/home/page"}).nodes)
+        for (const auto& n : a.h.tree().snapshot({.root = "main/body/view/home/page"}).nodes)
             if (n.bounds && n.bounds->x + n.bounds->width > view.x + view.width + 1 && !n.states.has(State::offscreen) && !n.states.has(State::hidden))
                 under += std::format("{} ({}) ", n.id, n.bounds->x + n.bounds->width);
         check(under.empty(), "nothing under the panel: " + under);

@@ -49,7 +49,7 @@ const Value* find_node(const Value& nodes, std::string_view selected) {
     return nullptr;
 }
 
-// What the panels show before there is a tree to read (the atlas's still): the button as it starts.
+// What the panels show before there is a tree to read (and in a still): the button as it starts.
 Value still_node(bool zh) {
     Value n;
     n.set("id", "specimen/ship").set("role", "button").set("name", zh ? "发布 0.1" : "Ship 0.1");

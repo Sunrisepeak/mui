@@ -1,4 +1,4 @@
-// The site's frames while it moves: every place flown to, the lenses. Each
+// The site's frames while it moves: every place shown, the language switched, the lenses. Each
 // motion comes to rest — the page stops asking for frames — and the bar's
 // frame meter then says so: idle (and `reading` gives the run it saw). With --timing each
 // frame is also drawn at a 2× display on one thread (as a page without
@@ -9,8 +9,6 @@ import std;
 import openmui;
 import openmui.site;
 import openmui.ui.markdown;
-import openmui.ui.canvas;
-import openmui.showcase.fighting;
 import openmui.testing;
 
 using namespace omui::testing;
@@ -24,7 +22,7 @@ bool timing = false;  // --timing
 
 struct Run {
     Headless h;
-    explicit Run(float scale) : h{HeadlessOptions{.size = {1280, 800}, .scale = scale, .parallel_raster = false}} {
+    explicit Run(float scale) : h{HeadlessOptions{.size = {1440, 900}, .scale = scale, .parallel_raster = false}} {
         AppSpec spec = site::app("home", "en");
         h.runtime().set_theme(spec.theme);
         spec.setup(h.runtime());
@@ -81,26 +79,26 @@ int main(int argc, char** argv) {
     timing = std::erase_if(args, [](const char* a) { return std::string_view(a) == "--timing"; }) > 0;
     Suite s{"site.frames"};
 
-    s.test("every place flown to comes to rest, and the frame meter then says the page is idle", [] {
+    s.test("every place shown comes to rest, and the frame meter then says the page is idle", [] {
         Run r(timing ? 2.0f : 1.0f);
         for (const site::Place& p : site::places()) {
-            if (p.id == "home" || p.id == "moves") continue;  // home: where the page opens; the move list's stage plays on (its own test)
-            check(r.h.click(std::format("main/body/nav/to_{}", p.id)), std::format("the nav's {}", p.id));
+            if (p.id == "home") continue;  // where the page opens
+            check(r.h.click(std::format("main/bar/nav/to_{}", p.id)), std::format("the nav's {}", p.id));
             const Run::Times t = r.frames(300);
             report(std::format("to {}", p.id), t);
             check(t.rested, std::format("to {}: at rest within 5 s (still: {})", p.id, t.wants));
             const Value v = r.reading();
             check(v.get("idle") && v.get("idle")->as_bool(), std::format("to {}: the meter idle at rest", p.id));
             check(v.get("renderer") && v.get("renderer")->as_string() == "cpu", "the headless host's renderer");
-            check(v.get("frames") && v.get("frames")->as_int() > 10, std::format("to {}: the flight's frames counted", p.id));
+            check(v.get("frames") && v.get("frames")->as_int() > 0, std::format("to {}: its frames counted", p.id));
             check(v.get("cost_ms") && v.get("cost_ms")->is_null(), "no cost where the host does not measure");
         }
     });
 
-    s.test("while a flight moves the meter reads its rate: the frames with something new, at most 60 a second on the headless host's clock", [] {
+    s.test("while the language switches the meter reads its rate: the frames with something new, at most 60 a second on the headless host's clock", [] {
         Run r(1);
-        check(r.h.click("main/body/nav/to_features"));
-        for (int i = 0; i < 20; ++i) (void)r.h.step();
+        check(r.h.click("main/bar/lang"));
+        for (int i = 0; i < 12; ++i) (void)r.h.step();
         const Value v = r.reading();
         check(v.get("idle") && !v.get("idle")->as_bool(), "moving: not idle");
         const double fps = v.get("fps") ? v.get("fps")->as_double(0) : 0;
@@ -110,7 +108,7 @@ int main(int argc, char** argv) {
     s.test("the lenses: each switch comes to rest (what stays is a slow timer, no frame a display frame)", [] {
         Run r(timing ? 2.0f : 1.0f);
         for (const std::string_view lens : {"tree", "agent", "test", "pixels"}) {
-            check(r.h.click(std::format("main/bar/lens_{}", lens)), std::format("the lens {}", lens));
+            check(r.h.click(std::format("main/foot/lens_{}", lens)), std::format("the lens {}", lens));
             const Run::Times t = r.frames(120);
             report(std::format("lens {}", lens), t);
             const FrameOutput out = r.h.step();

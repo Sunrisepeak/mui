@@ -1,7 +1,10 @@
-// The site: a bar with the lens and the language, the places down the side,
-// the place in the middle (a document, or the live timeline editor) and over
-// it, as the lens says, the tree's wireframe, the JSON an agent reads or the
-// assertions a test writes; at the foot, the tree's hash.
+// The site (C2: positioning §2, the design language): bright and editorial —
+// a bar with the mark and the places, one place at a time below it (the home,
+// the components, the documents, getting started, a working timeline editor),
+// scrolled as a page; over the place, as the lens says, the tree's wireframe,
+// the JSON an agent reads or the assertions a test writes; at the foot, the
+// lenses, the page's time and the tree's hash. The address follows the place
+// (the route), and the browser's back and forward move it.
 module openmui.site;
 
 import std;
@@ -10,12 +13,8 @@ import openmui.hash;
 import openmui.ui.markdown;
 import openmui.ui.timeline;
 import openmui.timeline;
-import openmui.ui.canvas;
-import openmui.showcase.markdown_wall;
-import openmui.showcase.style_gallery;
 import openmui.theme;
 import openmui.theme.styles;
-import openmui.showcase.fighting;
 import hello;
 import openmui.semantic;
 import openmui.trace;
@@ -26,19 +25,18 @@ namespace {
 
 constexpr Log site_log{"site"};
 
-// Where the places are in the tree (the window mounts the site as "main";
-// the places are the atlas canvas's live windows).
-constexpr std::string_view atlas_path = "main/body/view/atlas";
-constexpr std::string_view place_root = "main/body/view/atlas/";
+// Where the places are in the tree (the window mounts the site as "main").
+constexpr std::string_view place_root = "main/body/view/";
 
-constexpr std::array<Place, 8> all{{{"home", "Home", "首页"},
+constexpr std::array<Place, 6> all{{{"home", "Home", "首页"},
+                                     {"components", "Components", "组件"},
                                      {"features", "Features", "特性"},
                                      {"practices", "Practices", "实践"},
-                                     {"timeline", "Timeline", "时间线"},
-                                     {"wall", "Document wall", "文档墙"},
-                                     {"styles", "Style workshop", "风格工坊"},
-                                     {"hello", "Example 01", "示例 01"},
-                                     {"moves", "Move list", "出招表"}}};
+                                     {"hello", "Get started", "开始使用"},
+                                     {"timeline", "Timeline editor", "时间线编辑器"}}};
+
+// The widest a place's content is (the design language's 1200, less its margins).
+constexpr float content_width = 1120;
 
 std::string_view embedded(std::span<const std::pair<std::string_view, std::string_view>> table, std::string_view file) {
     for (const auto& [name, text] : table)
@@ -85,86 +83,29 @@ fade = { out = "30f" }
 )";
 
 // What the site keeps between its setup and its view.
-// What the far-away pictures of the live works show: their own structure,
-// taken once on the UI thread and never written again (textures are drawn on
-// other threads) — the wall's workspaces and windows as its blocks, the
-// workshop's packs in their own colours.
-struct Thumbs {
-    struct Block {
-        world::WorldRect r;
-        Color            fill;
-        std::string      title;
-        bool             group = false;
-    };
-    std::vector<Block> wall;
-    world::WorldRect   wall_bounds{};
-    struct Pack {
-        std::string name, doc;
-        Color       background, surface, accent, text;
-    };
-    std::vector<Pack> packs;
-};
-
-// The wall's blocks drawn into a box (each workspace and window, its title
-// where it fits), as the wall itself draws them from far away.
-Element wall_picture(std::shared_ptr<const Thumbs> t) {
-    return painter({.id = "picture", .width = Dim(layout::pct(100)), .grow = 1, .role = Role::image, .label = "The wall from far away",
-                    .paint = [t](PaintContext& c) {
-                        const auto& b = t->wall_bounds;
-                        if (b.width <= 0 || b.height <= 0) return;
-                        const float k = std::min(c.size.width / static_cast<float>(b.width), c.size.height / static_cast<float>(b.height)) * 0.94f;
-                        const float ox = (c.size.width - static_cast<float>(b.width) * k) / 2, oy = (c.size.height - static_cast<float>(b.height) * k) / 2;
-                        auto at = [&](const world::WorldRect& r) {
-                            return Rect{ox + static_cast<float>(r.x - b.x) * k, oy + static_cast<float>(r.y - b.y) * k, static_cast<float>(r.width) * k,
-                                        static_cast<float>(r.height) * k};
-                        };
-                        for (const auto& x : t->wall) {
-                            const Rect r = at(x.r);
-                            if (x.group) {
-                                c.list.fill_round_rect(r, CornerRadii::all(6), render::Paint::solid(x.fill.with_alpha(0.12f)));
-                                c.list.stroke_round_rect(r, CornerRadii::all(6), 1, render::Paint::solid(x.fill.with_alpha(0.45f)));
-                            } else {
-                                c.list.fill_round_rect(r, CornerRadii::all(2), render::Paint::solid(c.theme.color("surface")));
-                                c.list.fill_rect({r.x, r.y, r.width, std::max(1.5f, r.height * 0.08f)}, x.fill);
-                            }
-                        }
-                    }});
-}
-
-// The five packs side by side, each a small panel in its own colours.
-Element packs_picture(std::shared_ptr<const Thumbs> t) {
-    std::vector<Element> tiles;
-    for (const auto& p : t->packs)
-        tiles.push_back(column({.min_width = Dim(0.0f), .padding = Edges(14.0f), .gap = 8, .grow = 1, .background = Fill(p.background), .radius = 10},
-                               {text({.text = p.name, .style = "heading", .color = Fill(p.text)}),
-                                box({.width = Dim(layout::pct(60)), .height = Dim(6.0f), .background = Fill(p.accent), .radius = 3}),
-                                column({.padding = Edges(10.0f), .gap = 6, .background = Fill(p.surface), .radius = 8},
-                                       {box({.width = Dim(layout::pct(80)), .height = Dim(8.0f), .background = Fill(p.text.with_alpha(0.5f)), .radius = 4}),
-                                        box({.width = Dim(layout::pct(55)), .height = Dim(8.0f), .background = Fill(p.text.with_alpha(0.3f)), .radius = 4}),
-                                        box({.width = Dim(70.0f), .height = Dim(18.0f), .background = Fill(p.accent), .radius = 6})}),
-                                text({.text = p.doc, .style = "caption", .color = Fill(p.text.with_alpha(0.7f))})}));
-    return row({.id = "picture", .width = Dim(layout::pct(100)), .gap = 10, .align = "stretch", .grow = 1}, std::move(tiles));
-}
-
 struct Site {
     Runtime*            runtime = nullptr;
     Signal<std::string> place = signal(std::string("home")), lang = signal(std::string("en")), lens = signal(std::string("pixels"));
     Signal<Value>       nodes = signal(Value{});
     Signal<std::string> agent = signal(std::string()), test = signal(std::string()), hash = signal(std::string());
 
-    Signal<bool>        panel = signal(false);  // the agent panel open
-    std::shared_ptr<const Thumbs> thumbs = std::make_shared<Thumbs>();  // the far-away pictures' (set up once)
-    // How the page draws, as the person chose it (the drawing panel): the
-    // places live only at rest, always, or never (the atlas's `promotion`),
-    // and who draws (choose_renderer: on the Web the page loads again).
-    Signal<bool>        drawing = signal(false);
-    // A narrow window (a phone): the places take the whole width, the
-    // navigation and the bar's switches are in a menu, panels in its place.
-    static constexpr float compact_below = 720;
+    Signal<bool>        panel = signal(false);     // the agent panel open
+    Signal<bool>        settings = signal(false);  // the settings panel open
+    // A narrow window (a phone): the places and the switches in a menu, a panel in the place's place.
+    static constexpr float compact_below = 900;
     Signal<bool>        compact = signal(false), menu = signal(false);
+    Signal<float>       width = signal(1280.0f);  // the window's width, logical px
+    float               room = 1280;              // the place's: the view's width (the window's, less an open panel's)
+    // Its band (a place's page is built again when it changes): a phone, a tablet, a laptop, a wide screen.
+    Signal<int>         band = signal(2);
+    [[nodiscard]] static int band_of(float w) noexcept { return w < 700 ? 0 : w < 1100 ? 1 : w < 1400 ? 2 : 3; }
 
-    Signal<std::string> promotion = signal(std::string("at_rest")), renderer_choice = signal(std::string("automatic")),
-                        drawing_note = signal(std::string());
+    // The settings (the person's, where the site exposes them: D-94's three layers).
+    Signal<std::string> renderer_choice = signal(std::string("automatic")), settings_note = signal(std::string());
+    Signal<std::string> motion_level = signal(std::string("full")), motion_choice = signal(std::string("default")),
+                        effects = signal(std::string("auto"));
+    Signal<bool>        dark = signal(false);
+
     Signal<int>         switches = signal(0);   // the language switched this many times
     double              switched_at = -1;       // when it last did (the runtime's seconds)
     Signal<std::string> timeline = signal(std::string(sample));  // the timeline as last edited
@@ -208,10 +149,10 @@ struct Site {
         return 0;
     }
     hello::State        hello;                 // example 01's, as the person left it
-    std::unique_ptr<wall::Model> wall;         // S1's wall of the site's documents
-    styles::Studio      studio;                // S2's workshop: its packs in a theme scope, the site in its own theme
     Hero                hero;                  // the home page's opening: its checklist, the node its panels show
     HeroSite            hero_site;             // what the opening reads of the site
+    Gallery             gallery;               // the components page: the style, the code's language, the samples' values
+    GallerySite         gallery_site;
     // The reference run (the foot's check against CI): played here, on a
     // headless runtime of its own, when asked; the frame shown, its hash as
     // this machine drew it, and CI's.
@@ -243,107 +184,55 @@ struct Site {
         ref_frame.set(static_cast<double>(f));
         ref_shown.set(ref_shown.peek() + 1);
     }
-    // The fighting game's move list: the fighter, the move shown, how the
-    // dummy meets it (standing or guarding); each fighter's moves measured once.
-    Signal<std::string> fighter = signal(std::string("mo")), move = signal(std::string("5LP"));
-    Signal<bool>        guard = signal(false);
-    Signal<double>      demo_at = signal(0.0);
-    Signal<bool>        demo_playing = signal(false);  // the move list's stage playing its demonstration on
-    std::string         demo_held;                     // the fighter, move and guard the stage was last held for
-    NodeId              demo_stage{};                  // the stage it was held on (the place made live again: a new one)
-    std::map<std::string, std::vector<gongfu::training::FrameData>, std::less<>> measured;
-    [[nodiscard]] const std::vector<gongfu::training::FrameData>& moves_of(const std::string& name) {
-        auto it = measured.find(name);
-        if (it == measured.end()) {
-            trace::Span span("frame data", "site");
-            const fighting::Roster& r = fighting::roster();
-            const gongfu::Fighter& f = r.fighters[fighting::fighter_index(name)];
-            std::vector<gongfu::training::FrameData> rows;
-            for (std::size_t m = 0; m < f.def.moves.size(); ++m) rows.push_back(gongfu::training::frame_data(r.system, f, static_cast<std::int32_t>(m)));
-            it = measured.emplace(name, std::move(rows)).first;
-        }
-        return it->second;
-    }
-    // The move chosen's frame data: where its blow lands (the frame the stage is held at), and its last frame shown.
-    const gongfu::training::FrameData* move_data() {
-        const auto& data = moves_of(fighter.peek());
-        const gongfu::Fighter& f = fighting::roster().fighters[fighting::fighter_index(fighter.peek())];
-        const std::int32_t m = f.find(move.peek());
-        return m < 0 || static_cast<std::size_t>(m) >= data.size() ? nullptr : &data[static_cast<std::size_t>(m)];
-    }
-    std::int32_t contact_frame() {
-        const auto* d = move_data();
-        if (!d) return 0;
-        const std::int32_t at = guard.peek() ? d->contact_on_block : d->contact_on_hit;
-        return at >= 0 ? at + 1 : static_cast<std::int32_t>(demo_end());  // the frame after it is played: the blow landed; else the whole
-    }
-    double demo_end() {
-        const auto* d = move_data();
-        return d ? static_cast<double>(guard.peek() ? d->shown_on_block : d->shown_on_hit) : 0.0;
-    }
-    // The move list's stage, told to show its demonstration at a frame (paused) or to play.
-    void stage_act(std::string_view action, Value args = {}) {
-        if (!runtime) return;
-        if (const NodeId n = runtime->find(std::string(place_root) + "moves/page/show/frame_box/stage")) {
-            Invocation call;
-            call.args = std::move(args);
-            (void)runtime->act(n, action, call);
-        }
-    }
     std::unique_ptr<Guide> guide;
-
-    // The atlas: its scene (by a name of this site's own) and its layout.
-    std::string         scene_name;
-    AtlasLayout         layout;
-    std::function<void()> kinds;  // registers the atlas's kinds again (their tiers follow the layout)
 
     Site() = default;
     Site(const Site&) = delete;
     Site& operator=(const Site&) = delete;
-    // What the pool still draws of the windows (and of the wall's) is done
-    // before what it reads goes; then the atlas's scene goes too.
-    ~Site() {
-        Tasks::shared().wait_idle();
-        wall.reset();
-        if (!scene_name.empty()) world::drop_scene(scene_name);
-    }
 
-    [[nodiscard]] Canvas* atlas() const { return runtime ? runtime->component<Canvas>(runtime->find(atlas_path)) : nullptr; }
-    [[nodiscard]] world::Scene& scene() const { return world::scene(scene_name); }
-    // Where the tree is read: the place's window while it is live, else the whole atlas.
-    [[nodiscard]] std::string root() const {
-        const std::string place_path = std::string(place_root) + place.get() + "/page";
-        return runtime && runtime->find(place_path) ? place_path : std::string(atlas_path);
+    // Where the tree is read: the place's page.
+    [[nodiscard]] std::string root() const { return std::string(place_root) + place.get() + "/page"; }
+
+    // The route a place has in a language: its address's hash ("features", "zh/features"; the English home, none).
+    [[nodiscard]] static std::string route_of(std::string_view place, std::string_view lang) {
+        const std::string p = place == "home" ? std::string() : std::string(place);
+        if (lang != "zh") return p;
+        return p.empty() ? std::string("zh") : "zh/" + p;
     }
-    // The camera flies to a place (or the overview), as the person's own request of the canvas.
-    void fly(std::string_view to) {
+    void show_route() {
+        if (runtime) runtime->set_route(route_of(place.peek(), lang.peek()));
+    }
+    // A route the person moved to (back, forward, a typed address): its place and its language.
+    void follow_route(std::string_view route) {
+        std::string_view r = route;
+        std::string l = "en";
+        if (r == "zh" || r.starts_with("zh/")) l = "zh", r = r.size() > 2 ? r.substr(3) : std::string_view();
+        const std::string p = r.empty() ? std::string("home") : std::string(r);
+        if (!std::ranges::any_of(all, [&](const Place& x) { return x.id == p; })) return;
+        if (l != lang.peek()) {
+            lang.set(l);
+            switches.set(switches.peek() + 1);
+            switched_at = runtime ? runtime->now().count() : 0;
+        }
+        go(p);
+    }
+    // To a place: shown, its page from its top; the address follows.
+    void go(std::string_view to) {
         // On a phone a panel or the menu covers the place: going somewhere puts them away, so it is seen.
         if (compact.peek()) {
             menu.set(false);
             panel.set(false);
-            drawing.set(false);
+            settings.set(false);
             checking.set(false);
         }
         if (to != place.peek()) {
             const auto it = std::ranges::find_if(all, [&](const Place& p) { return p.id == to; });
             const bool zh = lang.peek() == "zh";
-            mark(it != all.end() ? std::string(zh ? it->zh : it->en) : std::string(zh ? "全景" : "Overview"));
+            if (it != all.end()) mark(std::string(zh ? it->zh : it->en));
         }
         place.set(std::string(to));
-        if (const auto c = runtime ? runtime->find(atlas_path) : NodeId{}) {
-            Invocation call;
-            call.args = Value{}.set("name", Value(std::string(to)));
-            (void)runtime->act(c, "camera_preset", call);
-        }
+        show_route();
         soon();
-    }
-    // Windows the size of the view (a place read at zoom 1); laid out again when the view's size changes.
-    void relayout(Size view) {
-        layout = atlas_layout(all, view);
-        lay_out(scene(), layout, all, lang.get());
-        if (kinds) kinds();
-        if (Canvas* c = atlas())
-            if (const auto p = scene().preset(place.get())) c->set_camera({p->x, p->y, p->zoom});
     }
 
     // The page's time (the timebar, D-60): live, it is the host's; dragged,
@@ -455,13 +344,14 @@ struct Site {
         seen = runtime->semantic_revision();
         trace::Span span("look", "site");
         semantic::Tree tree(*runtime);
-        const Value snapshot = tree.snapshot({.root = root()}).to_value();
+        const std::string at = root();
+        const Value snapshot = runtime->find(at) ? tree.snapshot({.root = at}).to_value() : Value{};
         nodes.set(snapshot.get("nodes") ? *snapshot.get("nodes") : Value{});
-        // Its ids shown from the place's window (`…/page/doc/b0`).
-        std::string place_window = root();
-        if (place_window.ends_with("/page")) place_window.resize(place_window.size() - 5);
-        agent.set(agent_text(snapshot, place_window));
-        test.set(test_text(snapshot, place_window));
+        // Its ids shown from the place (`…/page/doc/b0`).
+        std::string place_path = at;
+        if (place_path.ends_with("/page")) place_path.resize(place_path.size() - 5);
+        agent.set(agent_text(snapshot, place_path));
+        test.set(test_text(snapshot, place_path));
         const std::uint64_t h = tree_hash(snapshot);
         const bool pinned = place.get() == "home" && lang.get() == "en" && pinned_home_hash != 0;
         // Eight digits of each (they are compared whole).
@@ -486,9 +376,9 @@ struct Site {
 };
 
 // An element in the layout only while `cond` holds: out of it (and hidden
-// from the tree) otherwise, its state kept.
-Element only_when(Element e, std::function<bool()> cond) {
-    e.prop("display", derive([cond = std::move(cond)] { return std::string(cond() ? "flex" : "none"); }));
+// from the tree) otherwise, its state kept; shown as `shown` (a stack stays one).
+Element only_when(Element e, std::function<bool()> cond, std::string_view shown = "flex") {
+    e.prop("display", derive([cond = std::move(cond), shown = std::string(shown)] { return cond() ? shown : std::string("none"); }));
     return e;
 }
 
@@ -507,7 +397,7 @@ enum class Arrival : std::uint8_t { letters, lines };
 Element retyped(Element e, const std::shared_ptr<Site>& s, Arrival how = Arrival::letters) {
     e.prop("glyph_motion", derive([s, how] {
         const int n = s->switches.get();
-        // Only right after a switch: a window made live later shows its text at rest.
+        // Only right after a switch: a place shown later shows its text at rest.
         if (n == 0 || !s->runtime || s->runtime->now().count() - s->switched_at > 0.25) return Value{};
         GlyphMotion m = GlyphMotion::gather(static_cast<std::uint64_t>(n));
         m.stagger = hanim::seconds(0.018);
@@ -528,72 +418,47 @@ Element retyped(Element e, const std::shared_ptr<Site>& s, Arrival how = Arrival
 void follow(Site& s, std::string_view href) {
     for (const auto& [file, place] : {std::pair{"features.md", "features"}, std::pair{"best-practices.md", "practices"}})
         if (href.ends_with(file)) {
-            s.fly(place);
+            s.go(place);
             return;
         }
     if (s.runtime) (void)s.runtime->open_url(href);
 }
 
-// A stage of the window's frame (D-66) after paint: when the tree changed
-// (a resize, the fonts arriving, an agent's edit), the place is read again
-// once the frame is done. The check is one comparison a frame.
+// A stage of the window's frame (D-66) after paint: the window's width
+// (compact or not, the place's room), the route the person moved, the page's
+// time; and when the tree changed (a resize, the fonts arriving, an agent's
+// edit), the place read again once the frame is done.
 class TreeWatch final : public pipeline::Stage {
 public:
     explicit TreeWatch(Site& site) : site_(site) {}
     [[nodiscard]] std::vector<pipeline::Port> reads() const override { return {}; }
     [[nodiscard]] std::vector<pipeline::Port> writes() const override { return {}; }
     std::expected<void, std::string> run(pipeline::Context&) override {
+        Runtime& rt = *site_.runtime;
         // A phone, or a window made narrow: compact (and back).
-        if (const bool narrow = site_.runtime->size().width < Site::compact_below; narrow != site_.compact.peek()) {
+        const float w = rt.size().width;
+        if (const bool narrow = w < Site::compact_below; narrow != site_.compact.peek()) {
             site_.compact.set(narrow);
             if (!narrow) site_.menu.set(false);
         }
-        // The atlas's windows follow the view's size (a resized window, a phone turned).
-        if (const Canvas* c = site_.atlas(); c && !resizing_) {
-            const Size v = c->viewport();
-            // A pixel or more: a view whose height wavers by a fraction (a line of the bar wrapping, a font's rounding)
-            // does not lay its places out again — which would build their live works anew, forgetting their edits.
-            if (v.width > 0 && v.height > 0 && (std::abs(v.width - site_.layout.view.width) >= 1 || std::abs(v.height - site_.layout.view.height) >= 1)) {
-                resizing_ = true;
-                (void)site_.runtime->after(seconds(0.0), [this, v] {
-                    resizing_ = false;
-                    site_.relayout(v);
-                });
+        if (std::abs(w - site_.width.peek()) >= 1) site_.width.set(w);
+        // The place's room: the view as laid out (a panel open beside it takes some); its band, when it changes, builds the page again.
+        if (const NodeId v = rt.find("main/body/view"); rt.valid(v) && rt.bounds(v).width > 0) site_.room = rt.bounds(v).width;
+        else site_.room = w;
+        if (const int b = Site::band_of(site_.room); b != site_.band.peek()) site_.band.set(b);
+        // The person moved the route (back, forward): the place and the language it names.
+        if (rt.route_revision() != route_seen_) {
+            route_seen_ = rt.route_revision();
+            if (rt.route() != Site::route_of(site_.place.peek(), site_.lang.peek())) {
+                const std::string route = rt.route();
+                (void)rt.after(seconds(0.0), [this, route] { site_.follow_route(route); });
             }
         }
         site_.tick_time();
-        // The move list's stage playing a demonstration: its frame on the slider and the counter too.
-        if (site_.place.peek() == "moves")
-            if (const NodeId n = site_.runtime->find(std::string(place_root) + "moves/page/show/frame_box/stage"); site_.runtime->valid(n)) {
-                // The place made live again (flown away and back): its new stage starts as the last one was left, held.
-                if (n != site_.demo_stage) {
-                    site_.demo_stage = n;
-                    site_.demo_held.clear();
-                    site_.demo_playing.set(false);
-                }
-                const spec::SemanticNode stage = site_.runtime->semantic_node(n);  // kept: what is read from it points into it
-                if (const Value* d = stage.value.get("training"); d && d->get("demo"))
-                    if (const Value* f = d->get("demo")->get("frame"); f) {
-                        // Its rest after the move counts on (frame 25 of 24): the counter and the slider stop at the move's last frame.
-                        const Value* of = d->get("demo")->get("frames");
-                        const double at = of ? std::min(f->as_double(), of->as_double()) : f->as_double();
-                        if (at != site_.demo_at.peek()) site_.demo_at.set(at);
-                        // Played to its end: held there (Play plays it again from its start).
-                        if (site_.demo_playing.peek() && of && f->as_double() >= of->as_double()) {
-                            site_.stage_act("pause");
-                            site_.demo_playing.set(false);
-                        }
-                    }
-                // Another move, guard or fighter: shown still, at the frame its blow lands, until Play.
-                if (std::string held = std::format("{}|{}|{}", site_.fighter.peek(), site_.move.peek(), site_.guard.peek()); held != site_.demo_held) {
-                    site_.demo_held = std::move(held);
-                    if (!site_.demo_playing.peek()) site_.stage_act("demo_frame", Value{}.set("frame", static_cast<std::int64_t>(site_.contact_frame())));
-                }
-            }
         if (const auto f = std::exchange(site_.ref_wanted, std::nullopt)) site_.check_frame(*f);
-        if (site_.runtime && site_.runtime->semantic_revision() != site_.seen && !queued_) {
+        if (rt.semantic_revision() != site_.seen && !queued_) {
             queued_ = true;
-            (void)site_.runtime->after(seconds(0.0), [this] {
+            (void)rt.after(seconds(0.0), [this] {
                 queued_ = false;
                 site_.look();
             });
@@ -602,25 +467,25 @@ public:
     }
 
 private:
-    Site& site_;
-    bool  queued_ = false, resizing_ = false;
+    Site&         site_;
+    bool          queued_ = false;
+    std::uint64_t route_seen_ = 0;
 };
 
-// A lens's button: highlighted when it is the lens.
-// A lens's switch: in the bar, or (in_menu) in the compact menu.
-Element lens_button(const std::shared_ptr<Site>& s, std::string_view id, std::string_view name, bool in_menu = false) {
+// A lens's switch: highlighted when it is the lens.
+Element lens_button(const std::shared_ptr<Site>& s, std::string_view id, std::string_view name) {
     const std::string key(id), label(name);
-    return only_when(button({.id = "lens_" + key,
-                   .text = std::string(label),
-                   .variant = computed([s, key] { return s->lens.get() == key ? ButtonVariant::secondary : ButtonVariant::ghost; }),
-                   .on_activated = [s, key, label] {
-                       if (s->lens.peek() != key) s->mark(std::format("{} {}", s->lang.peek() == "zh" ? "镜头" : "Lens", label));
-                       s->lens.set(key);
-                       s->menu.set(false);
-                       s->soon();
-                   },
-                   }),
-                     [s, in_menu] { return s->compact.get() == in_menu; });
+    Element b = button({.id = "lens_" + key,
+                        .text = std::string(label),
+                        .variant = computed([s, key] { return s->lens.get() == key ? ButtonVariant::secondary : ButtonVariant::ghost; }),
+                        .on_activated = [s, key, label] {
+                            if (s->lens.peek() != key) s->mark(std::format("{} {}", s->lang.peek() == "zh" ? "镜头" : "Lens", label));
+                            s->lens.set(key);
+                            s->menu.set(false);
+                            s->soon();
+                        }});
+    b.prop("selected", derive([s, key] { return s->lens.get() == key; }));
+    return b;
 }
 
 }  // namespace
@@ -705,10 +570,9 @@ std::uint64_t tree_hash(const Value& snapshot) {
     return h.value();
 }
 
+
 namespace {
 
-// The agent panel: what a visitor can ask the agent, what it asks the person,
-// the grants it holds, and every request and record it exchanged.
 Element guide_panel(const std::shared_ptr<Site>& s) {
     auto zh = [s] { return s->lang.get() == "zh"; };
     std::vector<Element> asks;
@@ -776,425 +640,6 @@ Element guide_panel(const std::shared_ptr<Site>& s) {
                 {text({.id = "transcript", .text = computed([s] { return s->guide ? s->guide->transcript.get() : std::string(); }), .style = "code"})})});
 }
 
-// Shaped labels, kept per text (shaping is not per frame).
-struct Labels {
-    // By text and size: a label is drawn at the size the camera gives it, in whole pixels.
-    std::map<std::pair<std::string, int>, typeset::Paragraph, std::less<>> shaped;
-    bool                                                                  dark = false;
-    const typeset::Paragraph& get(world::DrawContext& d, std::string_view text, int size, Color colour) {
-        if (d.theme.dark != dark) {
-            shaped.clear();
-            dark = d.theme.dark;
-        }
-        std::pair<std::string, int> key{std::string(text), size};
-        auto it = shaped.find(key);
-        if (it == shaped.end()) {
-            typeset::ParagraphStyle ps;
-            ps.style.size = static_cast<float>(size);
-            ps.style.weight = 650;
-            ps.style.color = colour;
-            ps.style.families = d.theme.text_style("title").families;
-            ps.wrap = false;
-            typeset::Paragraph p(*d.fonts, std::string(text), ps);
-            p.layout(std::numeric_limits<float>::infinity());
-            it = shaped.emplace(std::move(key), std::move(p)).first;
-        }
-        return it->second;
-    }
-};
-
-// A work's window: the work itself, running, when the window is live; far
-// away (a texture, drawn away from the UI thread, values only) what it is.
-// A fighter's name as the game writes it: its calligraphy's characters in Chinese.
-std::string fighter_name(std::string_view file, std::string_view en, bool zh) {
-    static constexpr std::array<std::pair<std::string_view, std::string_view>, 7> han{
-        {{"kata", "型"}, {"ke", "刻"}, {"kun", "坤"}, {"li", "璃"}, {"mo", "墨"}, {"ni", "霓"}, {"yue", "岳"}}};
-    if (zh)
-        for (const auto& [f, h] : han)
-            if (f == file) return std::string(h);
-    return std::string(en);
-}
-
-// Frames of advantage as a move list writes them: +3, −2, 0; a knockdown's
-// counts the getting up; none measured: a dash.
-std::string advantage(const std::optional<std::int32_t>& a, bool down, bool zh) {
-    if (!a) return "—";
-    std::string n = *a > 0 ? std::format("+{}", *a) : *a < 0 ? std::format("−{}", -*a) : std::string("0");
-    return down ? std::format("{} {}", zh ? "倒地" : "KD", n) : n;
-}
-
-// An id of a move by its name (5LP → move_5lp, j.HK → move_j_hk): the data's key, not its display.
-std::string move_id(std::string_view name) {
-    std::string id = "move_";
-    for (const char c : name) id += std::isalnum(static_cast<unsigned char>(c)) ? static_cast<char>(std::tolower(static_cast<unsigned char>(c))) : '_';
-    return id;
-}
-
-// The fighting game's move list, a real frame-data station: every number
-// measured by the game itself — each move played against a dummy standing
-// still, then guarding, from where it reaches (gongfu.training) — and the
-// move chosen shown on the game's own training stage, frame by frame.
-Element moves_window(const std::shared_ptr<Site>& s, bool live) {
-    const Size v = s->layout.view;
-    const bool zh = s->lang.peek() == "zh";
-    auto say = [zh](std::string_view en, std::string_view han) { return std::string(zh ? han : en); };
-    Element title = text({.id = "title", .text = say("Move list — frame data, measured", "出招表：帧数据，实测"), .style = "title"});
-    Element about = text({.id = "about",
-                          .text = say("Every number here is measured: the game plays each move against a dummy standing still, then guarding, from where it "
-                                      "reaches. Choose a move to see it on the game's own training stage, frame by frame, with its boxes.",
-                                      "这里的每个数字都是实测的：游戏自己把每个招式对着站立的、再对着防御的木桩出一遍，从刚好够得着的距离出。"
-                                      "选一个招式，在游戏自己的训练场上逐帧看它，连同判定框。"),
-                          .style = "body"});
-    if (!live)  // far away (a texture, drawn away from the UI thread): what it is, values only
-        return column({.id = "page", .width = Dim(v.width), .height = Dim(v.height), .padding = Edges(32.0f, 40.0f), .gap = 14, .background = "background"},
-                      {std::move(title), std::move(about),
-                       box({.id = "later", .justify = "center", .align = "center", .grow = 1, .background = "surface", .radius = 12},
-                           {text({.text = say("Close up, the game measures and plays every move.", "走近，游戏会实测并演示每个招式。"), .style = "caption",
-                                  .color = "text_muted"})})});
-    const fighting::Roster& r = fighting::roster();
-    std::vector<Element> tabs;
-    for (std::size_t i = 0; i < r.names.size(); ++i) {
-        const std::string file = r.names[i];
-        tabs.push_back(button({.id = "fighter_" + file,
-                               .text = fighter_name(file, r.fighters[i].def.name, zh),
-                               .variant = computed([s, file] { return s->fighter.get() == file ? ButtonVariant::primary : ButtonVariant::ghost; }),
-                               .on_activated = [s, file] {
-                                   s->fighter.set(file);
-                                   // Its first move with a strike, shown from its beginning.
-                                   const gongfu::Fighter& f = fighting::roster().fighters[fighting::fighter_index(file)];
-                                   const auto first = std::ranges::find_if(f.def.moves, [](const gongfu::MoveDef& m) { return !m.hits.empty() && m.asked; });
-                                   s->move.set(first != f.def.moves.end() ? first->name : f.def.moves.front().name);
-                                   s->demo_at.set(0);
-                                   s->demo_playing.set(false);
-                               }}));
-    }
-    // The table: a header, then a row a move (rebuilt for another fighter, or another move chosen).
-    // Static: `cells` runs again in the dynamic below, after this function has returned.
-    static constexpr std::array<float, 7> widths{64, 56, 48, 68, 64, 72, 56};
-    auto cells = [](std::vector<std::string> values, std::string_view style) {
-        std::vector<Element> out;
-        for (std::size_t c = 1; c < values.size(); ++c)
-            out.push_back(text({.text = std::move(values[c]), .style = std::string(style), .width = Dim(widths[c])}));
-        return out;
-    };
-    std::vector<Element> head{text({.text = say("Move", "招式"), .style = "label", .width = Dim(widths[0])})};
-    for (Element& e : cells({"", say("Startup", "发生"), say("Active", "持续"), say("Recovery", "收招"), say("On hit", "命中"), say("On block", "被防"),
-                             say("Damage", "伤害")},
-                            "label"))
-        head.push_back(std::move(e));
-    Element table = column({.id = "table", .gap = 2},
-                           {row({.id = "head", .padding = Edges(4.0f, 8.0f), .gap = 6, .align = "center"}, std::move(head)),
-                            dynamic([s, zh, cells] {
-                                const std::string who = s->fighter.get();
-                                const std::string chosen = s->move.get();
-                                const gongfu::Fighter& f = fighting::roster().fighters[fighting::fighter_index(who)];
-                                std::vector<Element> rows;
-                                untracked([&] {
-                                    const auto& data = s->moves_of(who);
-                                    for (std::size_t m = 0; m < f.def.moves.size() && m < data.size(); ++m) {
-                                        const gongfu::MoveDef& md = f.def.moves[m];
-                                        if (!md.asked) continue;  // started by something else (a piece's shard): not a move to ask for
-                                        const gongfu::training::FrameData& d = data[m];
-                                        const std::string name = md.name;
-                                        std::vector<Element> line{box({.id = "name", .width = Dim(widths[0])},
-                                                                      {button({.id = "pick",
-                                                                               .text = name,
-                                                                               .variant = name == chosen ? ButtonVariant::primary : ButtonVariant::ghost,
-                                                                               .on_activated = [s, name] {
-                                                                                   s->move.set(name);
-                                                                                   s->demo_at.set(0);
-                                   s->demo_playing.set(false);
-                                                                               }})})};
-                                        const std::string kind = d.throw_ ? (zh ? "投" : "throw") : d.air ? (zh ? "空中" : "air") : "";
-                                        for (Element& e : cells({"", std::format("{}", d.startup), std::format("{}", d.active), std::format("{}", d.recovery),
-                                                                 kind.empty() ? advantage(d.on_hit, d.knockdown, zh) : kind,
-                                                                 kind.empty() ? advantage(d.on_block, false, zh) : "—", std::format("{}", d.damage)},
-                                                                "code"))
-                                            line.push_back(std::move(e));
-                                        Element e = row({.id = move_id(name), .padding = Edges(2.0f, 8.0f), .gap = 6, .align = "center",
-                                                         .background = name == chosen ? "surface_variant" : "transparent", .radius = 6},
-                                                        std::move(line));
-                                        e.key = move_id(name);
-                                        rows.push_back(std::move(e));
-                                    }
-                                });
-                                return rows;
-                            })});
-    // The stage: the game's training mode demonstrating the move chosen, its boxes and frame meter over it.
-    auto frames = [s] {
-        const auto& data = s->moves_of(s->fighter.get());
-        const gongfu::Fighter& f = fighting::roster().fighters[fighting::fighter_index(s->fighter.get())];
-        const std::int32_t m = f.find(s->move.get());
-        if (m < 0 || static_cast<std::size_t>(m) >= data.size()) return 0.0;
-        return static_cast<double>(s->guard.get() ? data[static_cast<std::size_t>(m)].shown_on_block : data[static_cast<std::size_t>(m)].shown_on_hit);
-    };
-    // A phone: the stage first, as wide as the page, the list under it, the page scrolling.
-    const bool narrow = v.width < 600;
-    // Beside the table (wide): at most 512, and never more than half the room — the table keeps its columns.
-    const float stage_w = narrow ? std::min(512.0f, v.width - 32) : std::clamp((v.width - 64 - 28) / 2, 300.0f, 512.0f);
-    Element stage = fighting::stage({.id = "stage",
-                                     .arena = "plain",
-                                     .demo = s->move,
-                                     .demo_guard = s->guard,
-                                     .mode = "training",
-                                     .player1 = s->fighter,
-                                     .player2 = s->fighter,
-                                     .width = Dim(stage_w),
-                                     .height = Dim(stage_w * 288 / 512)});
-    Element controls = row({.id = "controls", .gap = 6, .align = "center"},
-                           {button({.id = "on_hit",
-                                    .text = say("On hit", "命中"),
-                                    .variant = computed([s] { return s->guard.get() ? ButtonVariant::ghost : ButtonVariant::primary; }),
-                                    .on_activated = [s] { s->guard.set(false), s->demo_at.set(0), s->demo_playing.set(false); },
-                                    .shrink = 0}),  // the slider gives up the room, not the words
-                            button({.id = "on_block",
-                                    .text = say("On block", "被防"),
-                                    .variant = computed([s] { return s->guard.get() ? ButtonVariant::primary : ButtonVariant::ghost; }),
-                                    .on_activated = [s] { s->guard.set(true), s->demo_at.set(0), s->demo_playing.set(false); },
-                                    .shrink = 0}),
-                            button({.id = "play",
-                                    .text = computed([s, zh] { return std::string(s->demo_playing.get() ? (zh ? "暂停" : "Pause") : (zh ? "播放" : "Play")); }),
-                                    .variant = ButtonVariant::ghost,
-                                    .on_activated = [s] {
-                                        const bool on = !s->demo_playing.peek();
-                                        if (on && s->demo_at.peek() >= s->demo_end()) s->stage_act("demo_frame", Value{}.set("frame", std::int64_t{0}));  // again from its start
-                                        s->stage_act(on ? "resume" : "pause");
-                                        s->demo_playing.set(on);
-                                    },
-                                    .shrink = 0}),
-                            slider({.id = "frame",
-                                    .label = say("Frame", "帧"),
-                                    .max = computed(frames),
-                                    .min = 0,
-                                    .step = 1,
-                                    .value = s->demo_at,
-                                    .on_changed = [s](double f) {
-                                        s->stage_act("demo_frame", Value{}.set("frame", static_cast<std::int64_t>(f)));
-                                        s->demo_playing.set(false);  // a frame chosen: held there
-                                    },
-                                    .min_width = Dim(0.0f),
-                                    .grow = 1}),
-                            text({.id = "frame_of",
-                                  .text = computed([s, frames, zh] { return std::format("{} {} / {}", zh ? "帧" : "frame", static_cast<int>(s->demo_at.get()), static_cast<int>(frames())); }),
-                                  .style = "caption",
-                                  .width = Dim(96.0f)})});
-    // The move chosen, in words: what it is, what it costs and does, what it cancels into, what it passes through.
-    // (Its sentences in the reader's language: the format chosen at run time.)
-    const auto say_f = [zh](std::string_view en, std::string_view han, const auto&... args) { return std::vformat(zh ? han : en, std::make_format_args(args...)); };
-    Element details = dynamic([s, zh, say_f] {
-        const gongfu::Fighter& f = fighting::roster().fighters[fighting::fighter_index(s->fighter.get())];
-        const std::int32_t m = f.find(s->move.get());
-        std::vector<Element> out;
-        if (m < 0) return out;
-        const gongfu::MoveDef& md = f.def.moves[static_cast<std::size_t>(m)];
-        const auto& data = untracked([&] { return s->moves_of(s->fighter.peek()); });
-        const gongfu::training::FrameData& d = data[static_cast<std::size_t>(m)];
-        std::vector<std::string> lines;
-        // Its first strike's height: how it must be guarded.
-        const std::optional<gongfu::Level> height = !md.hits.empty() ? std::optional(md.hits.front().level)
-                                                  : md.projectile ? std::optional(md.projectile->hit.level) : std::nullopt;
-        const std::string guarded = !height ? std::string()
-                                  : *height == gongfu::Level::low      ? std::string(zh ? "（下段）" : " (low)")
-                                  : *height == gongfu::Level::overhead ? std::string(zh ? "（中段，须站防）" : " (overhead)")
-                                                                       : std::string(zh ? "（上段）" : " (mid)");
-        std::string what = md.level > 0 ? say_f("Level {} super", "{} 级超必杀", md.level)
-                         : d.throw_ ? (zh ? "投技" : "Throw") : d.projectile ? (zh ? "飞行道具" : "Projectile") : d.air ? (zh ? "空中技" : "Air move")
-                                                                                                                : (zh ? "打击" : "Strike");
-        what += guarded;
-        if (md.meter_cost > 0) what += say_f(", {} meter", "，消耗 {} 能量", md.meter_cost);
-        lines.push_back(std::format("{}{}{}", md.name, zh ? "：" : " — ", what));
-        lines.push_back(say_f("Damage {}, chip {}; {} frames in all", "伤害 {}，削血 {}；共 {} 帧", d.damage, d.chip, d.total));
-        if (d.knockdown) lines.push_back(zh ? "命中后对手倒地（命中一栏含起身）" : "Knocks down on hit (on hit counts the getting up)");
-        if (d.launch) lines.push_back(zh ? "命中后把对手打上空中" : "Launches on hit");
-        for (const gongfu::CancelDef& c : md.cancels) {
-            std::string into;
-            for (const std::string& i : c.into) into += (into.empty() ? "" : ", ") + i;
-            const std::string_view after = c.on_contact ? (zh ? "接触后" : " after contact") : "";
-            lines.push_back(say_f("Cancels into {3} on frames {0}–{1}{2}", "第 {}–{} 帧{}可取消为 {}", c.frames.from, c.frames.to, after, into));
-        }
-        for (const gongfu::Invulnerable& i : md.invulnerable) {
-            std::string to;
-            const auto add = [&](std::uint8_t bit, std::string_view en, std::string_view han) {
-                if (i.to & bit) to += (to.empty() ? "" : (zh ? "、" : ", ")) + std::string(zh ? han : en);
-            };
-            add(gongfu::to_strike, "strikes", "打击");
-            add(gongfu::to_air, "air attacks", "空中攻击");
-            add(gongfu::to_projectile, "projectiles", "飞行道具");
-            add(gongfu::to_throw, "throws", "投技");
-            lines.push_back(say_f("Invulnerable to {2} on frames {0}–{1}", "第 {}–{} 帧无敌：{}", i.frames.from, i.frames.to, to));
-        }
-        for (std::size_t i = 0; i < lines.size(); ++i)
-            out.push_back(text({.id = std::format("line{}", i), .text = lines[i], .style = i == 0 ? "label" : "body"}));
-        return out;
-    });
-    if (narrow) controls.prop("wrap", Source{Value("wrap"), {}, {}});  // the frame's counter under the buttons when there is no room
-    if (narrow)
-        return scroll({.id = "page", .width = Dim(v.width), .height = Dim(v.height), .padding = Edges(20.0f, 16.0f), .background = "background"},
-                      {column({.id = "intro", .padding = Edges(Insets{0, 0, 12, 0}), .gap = 10}, {std::move(title), std::move(about)}),
-                       column({.id = "show", .width = Dim(stage_w), .gap = 10},
-                              {box({.id = "frame_box", .radius = 12, .clip = true}, {std::move(stage)}), std::move(controls),
-                               column({.id = "details", .gap = 4}, {std::move(details)})}),
-                       column({.id = "list", .padding = Edges(Insets{16, 0, 0, 0}), .gap = 12},
-                              {row({.id = "fighters", .gap = 4, .wrap = "wrap"}, std::move(tabs)),
-                               scroll({.id = "moves", .horizontal = true, .width = Dim(v.width - 32), .height = Dim(360.0f), .background = "surface"},
-                                      {std::move(table.prop("min_width", Source{Value(520.0), {}, {}}))})})});  // its columns whole: scrolled sideways
-    return row({.id = "page", .width = Dim(v.width), .height = Dim(v.height), .padding = Edges(28.0f, 32.0f), .gap = 28, .align = "stretch", .background = "background"},
-               {column({.id = "list", .min_width = Dim(0.0f), .gap = 12, .grow = 1},
-                       {std::move(title), std::move(about), row({.id = "fighters", .gap = 4, .wrap = "wrap"}, std::move(tabs)),
-                        scroll({.id = "moves", .horizontal = true, .grow = 1, .background = "surface"},
-                               {std::move(table.prop("min_width", Source{Value(520.0), {}, {}}))})}),  // narrower: its columns whole, scrolled sideways
-                column({.id = "show", .width = Dim(stage_w), .gap = 10},
-                       {box({.id = "frame_box", .radius = 12, .clip = true}, {std::move(stage)}), std::move(controls),
-                        column({.id = "details", .gap = 4}, {std::move(details)})})});
-}
-
-Element work_window(const std::shared_ptr<Site>& s, const std::string& id, bool live) {
-    const Size v = s->layout.view;
-    const bool zh = s->lang.peek() == "zh";
-    auto say = [zh](std::string_view en, std::string_view han) { return std::string(zh ? han : en); };
-    auto later = [&](std::string_view what) {
-        return box({.id = "later", .justify = "center", .align = "center", .grow = 1, .background = "surface", .radius = 12},
-                   {text({.text = std::string(what), .style = "caption", .color = "text_muted"})});
-    };
-    if (id == "hello") {
-        // Example 01, the shortest openmui program, running beside its own source (embedded by its build).
-        // Far away the same program as it was left: a copy of its state, never written again (the texture is drawn on
-        // another thread), kept alive with the picture's element.
-        Element run = [&] {
-            if (live) return hello::app(s->hello).view();
-            auto still = std::make_shared<hello::State>(s->hello);
-            Element e = hello::app(*still).view();
-            e.configure = [then = std::move(e.configure), still](void* p) {
-                if (then) then(p);
-            };
-            return e;
-        }();
-        if (v.width < 600) {  // a phone: the program, then its source, the page scrolling
-            const float w = v.width - 32;
-            return scroll({.id = "page", .width = Dim(v.width), .height = Dim(v.height), .padding = Edges(20.0f, 16.0f), .background = "background"},
-                          {column({.width = Dim(w), .gap = 14},
-                                  {text({.id = "title", .text = say("Example 01 — hello, immediate mode", "示例 01：你好，立即模式"), .style = "title"}),
-                                   text({.id = "about",
-                                         .text = say("A whole openmui program, running here: type a name, click the button. Its interface is declared each frame "
-                                                     "in plain C++; an agent finds the field by its role, and renaming the button keeps its id.",
-                                                     "一个完整的 openmui 程序，就在这里运行：输入名字，点按钮。界面每一帧用普通的 C++ 声明；agent 按角色找到输入框，"
-                                                     "按钮改名后 id 不变。"),
-                                         .style = "body"}),
-                                   box({.id = "run", .width = Dim(w), .height = Dim(280.0f), .background = "surface", .border_color = "border", .border_width = 1,
-                                        .radius = 12, .clip = true},
-                                       {std::move(run)}),
-                                   scroll({.id = "code", .horizontal = true, .vertical = false, .width = Dim(w), .padding = Edges(16.0f, 16.0f), .background = "surface"},
-                                          {text({.id = "source", .text = std::string(hello::hello_source), .style = "code", .wrap = false})})})});
-        }
-        return row({.id = "page", .width = Dim(v.width), .height = Dim(v.height), .padding = Edges(32.0f, 40.0f), .gap = 32, .align = "stretch", .background = "background"},
-                   {column({.width = Dim(440.0f), .gap = 14},
-                           {text({.id = "title", .text = say("Example 01 — hello, immediate mode", "示例 01：你好，立即模式"), .style = "title"}),
-                            text({.id = "about",
-                                  .text = say("A whole openmui program, running here: type a name, click the button. Its interface is declared each frame "
-                                              "in plain C++; an agent finds the field by its role, and renaming the button keeps its id.",
-                                              "一个完整的 openmui 程序，就在这里运行：输入名字，点按钮。界面每一帧用普通的 C++ 声明；agent 按角色找到输入框，"
-                                              "按钮改名后 id 不变。"),
-                                  .style = "body"}),
-                            box({.id = "run", .width = Dim(420.0f), .height = Dim(280.0f), .background = "surface", .border_color = "border", .border_width = 1, .radius = 12,
-                                 .clip = true},
-                                {std::move(run)})}),
-                    // The source as written: lines kept whole (indentation is meaning), scrolled sideways when long.
-                    scroll({.id = "code", .horizontal = true, .grow = 1, .padding = Edges(16.0f, 20.0f), .background = "surface"},
-                           {text({.id = "source", .text = std::string(hello::hello_source), .style = "code", .wrap = false})})});
-    }
-    // S1's wall, small: the site's documents in both languages and the benchmark's, on a canvas of their own.
-    Element wall = live && s->wall ? canvas({.id = "wall",
-                                             .behaviors = std::vector<std::string>{"select", "drag", "snap", "minimap", "group-drag", "views"},
-                                             .label = say("openmui's documents as a wall", "openmui 的文档墙"),
-                                             .max_zoom = 8,
-                                             .min_zoom = 0.004,
-                                             .scene = s->wall->scene,
-                                             .start = "fit",
-                                             .grow = 1})
-                                   : wall_picture(s->thumbs);
-    return column({.id = "page", .width = Dim(v.width), .height = Dim(v.height), .padding = Edges(24.0f, 32.0f), .gap = 12, .background = "background"},
-                  {text({.id = "title", .text = say("The document wall (S1)", "文档墙（S1）"), .style = "title"}),
-                   text({.id = "about",
-                         .text = say("Every document on one infinite canvas: far away a block, nearer a texture drawn offscreen, close up a live document. "
-                                     "Drag a workspace by its label, a window by its title bar; 2 shows them all, 1 is one to one.",
-                                     "所有文档在一块无限画布上：远处是色块，近一些是离屏画好的纹理，再近就是活的文档。拖工作区的标签、窗口的标题栏；"
-                                     "按 2 看全部，按 1 回到一比一。"),
-                         .style = "body"}),
-                   std::move(wall)});
-}
-
-// S2's workshop: one real interface in a style pack, the pack edited live.
-// The place is a theme scope (styles::Studio::scope): the pack styles it
-// alone, and the site around it keeps its own theme.
-Element styles_window(const std::shared_ptr<Site>& s, bool live) {
-    const Size v = s->layout.view;
-    const bool zh = s->lang.peek() == "zh";
-    auto say = [zh](std::string_view en, std::string_view han) { return std::string(zh ? han : en); };
-    Element work = live ? styles::view(s->studio, v.width < 700) : packs_picture(s->thumbs);
-    return column({.id = "page", .width = Dim(v.width), .height = Dim(v.height), .padding = Edges(24.0f, 32.0f), .gap = 12, .background = "background"},
-                  {text({.id = "title", .text = say("The style workshop (S2)", "风格工坊（S2）"), .style = "title"}),
-                   text({.id = "about",
-                         .text = say("One real interface in each of openmui's style packs — glass, neon, retro, ink, liquid — and the pack shown edited "
-                                     "as you go. Only pixels change: the semantic tree is the same in every pack. The pack styles this place alone; "
-                                     "the site around it keeps its own theme.",
-                                     "同一个真实的界面，放进 openmui 的每个风格包：玻璃、霓虹、复古、水墨、液态；当前的风格包可以边看边改。"
-                                     "变的只有像素：每个风格包下语义树都一样。风格包只作用于这个地方，周围的网站保持自己的主题。"),
-                         .style = "body"}),
-                   box({.id = "workshop", .min_height = 0, .grow = 1, .radius = 12, .clip = true}, {std::move(work)})});  // the room left: its own views scroll
-}
-
-// The check against CI: the reference run's frame as this browser drew it,
-// its pixels' hash, and the hash CI pinned for the same frame.
-// How the page draws, and the person's switches for it: who draws (the
-// GPU, the CPU), and when the places go live — only once the camera rests
-// (the default: a flight shows their textures, smooth whatever a place
-// costs), always (what a live place costs while moving, on the meter), or
-// never (textures only). The meter in the bar says what each costs.
-Element drawing_panel(const std::shared_ptr<Site>& s) {
-    auto say = [s](std::string_view en, std::string_view han) {
-        return computed([s, en = std::string(en), han = std::string(han)] { return s->lang.get() == "zh" ? han : en; });
-    };
-    auto labels = [s](std::vector<std::string> en, std::vector<std::string> han) {
-        return computed([s, en = std::move(en), han = std::move(han)] { return s->lang.get() == "zh" ? han : en; });
-    };
-    return column({.id = "drawing", .width = computed([s] { return s->compact.get() ? Dim(layout::pct(100)) : Dim(340.0f); }), .min_width = computed([s] { return s->compact.get() ? Dim(layout::pct(100)) : Dim(340.0f); }), .padding = Edges(16.0f, 16.0f), .gap = 10, .shrink = 0, .background = "surface"},
-                  {text({.id = "title", .text = say("How this page draws", "这页怎么画"), .style = "heading"}),
-                   text({.id = "now",
-                         .text = computed([s] {
-                             const std::string by(s->runtime ? s->runtime->renderer() : std::string_view("cpu"));
-                             const std::string name = by == "cpu" ? "the CPU" : by == "webgpu" ? "WebGPU" : by == "webgl" ? "WebGL 2" : by;
-                             return s->lang.get() == "zh" ? std::format("现在由 {} 绘制。", by == "cpu" ? "CPU" : name)
-                                                          : std::format("Drawn by {} now.", name);
-                         })}),
-                   select({.id = "renderer",
-                           .label = say("Who draws", "谁来画"),
-                           .labels = labels({"Automatic (a GPU when there is one)", "The GPU", "The CPU (the reference)"},
-                                            {"自动（有 GPU 就用 GPU）", "GPU", "CPU（参考实现）"}),
-                           .options = std::vector<std::string>{"automatic", "gpu", "cpu"},
-                           .value = s->renderer_choice,
-                           .on_changed = [s](std::string v) {
-                               s->renderer_choice.set(v);
-                               if (auto r = choose_renderer(v); !r) s->drawing_note.set(r.error());
-                               else s->drawing_note.set(std::string());
-                           }}),
-                   select({.id = "promotion",
-                           .label = say("Places while the camera moves", "镜头移动时的地方"),
-                           .labels = labels({"Pictures, live once at rest", "Live, always", "Pictures only"},
-                                            {"先用图片，停下后变成实时", "一直实时", "只用图片"}),
-                           .options = std::vector<std::string>{"at_rest", "always", "never"},
-                           .value = s->promotion,
-                           .on_changed = [s](std::string v) { s->promotion.set(std::move(v)); }}),
-                   text({.id = "about",
-                         .text = say("While the camera flies, each place is drawn from a picture of it and goes live 120 ms after the camera rests: a "
-                                     "flight stays smooth whatever a place costs to lay out. \"Live, always\" draws them live in flight too — the frame "
-                                     "meter above shows what that costs on this machine; \"Pictures only\" keeps them pictures (the one you use still "
-                                     "goes live).",
-                                     "镜头飞行时，每个地方先用它的图片来画，镜头停下 120 毫秒后才变成实时的；所以不管一个地方排版多贵，飞行都是流畅的。"
-                                     "“一直实时”让它们在飞行中也实时绘制，上面的帧率表会显示这台机器上的代价；“只用图片”让它们一直是图片（正在用的那个仍然是实时的）。"),
-                         .style = "caption"}),
-                   text({.id = "note", .text = s->drawing_note, .style = "caption", .color = "text_muted"})});
-}
-
 Element check_panel(const std::shared_ptr<Site>& s) {
     auto say = [s](std::string_view en, std::string_view han) {
         return computed([s, en = std::string(en), han = std::string(han)] { return s->lang.get() == "zh" ? han : en; });
@@ -1202,9 +647,9 @@ Element check_panel(const std::shared_ptr<Site>& s) {
     return column({.id = "check", .width = computed([s] { return s->compact.get() ? Dim(layout::pct(100)) : Dim(360.0f); }), .min_width = computed([s] { return s->compact.get() ? Dim(layout::pct(100)) : Dim(360.0f); }), .padding = Edges(16.0f, 16.0f), .gap = 10, .shrink = 0, .background = "surface"},
                   {text({.id = "title", .text = say("The reference run", "参考回放"), .style = "heading"}),
                    text({.id = "about",
-                         .text = say("A few seconds of this site, played here offscreen at CI's size (1280 × 800): a flight, the language switched, a lens. "
+                         .text = say("A few seconds of this site, played here offscreen at CI's size (1280 × 800): its home, the features, the language switched, a lens. "
                                      "This machine draws each frame and hashes its pixels; CI pinned the same frames' hashes.",
-                                     "这个网站的几秒钟，在这里离屏按 CI 的尺寸（1280 × 800）重放：一次飞行、切换语言、切换镜头。"
+                                     "这个网站的几秒钟，在这里离屏按 CI 的尺寸（1280 × 800）重放：首页、特性、切换语言、切换镜头。"
                                      "这台机器画出每一帧并对像素求哈希；CI 固定了同样这些帧的哈希。"),
                          .style = "caption"}),
                    dynamic([s] {
@@ -1249,232 +694,272 @@ Element check_panel(const std::shared_ptr<Site>& s) {
                          .style = "label"})});
 }
 
-// A place's window: what it shows, at the view's size. Live, it is bound to
-// the site (the language, the timeline as edited, links); as a texture
-// (drawn away from the UI thread) it holds values only.
-Element place_window(const std::shared_ptr<Site>& s, const std::string& id, bool live) {
-    const Size v = s->layout.view;
-    const bool zh = s->lang.peek() == "zh";
-    if (id == "timeline") {
-        Element editor = timeline_editor({.id = "editor", .document = s->timeline.peek(), .frame = live ? Prop<std::int32_t>(s->timeline_frame) : Prop<std::int32_t>(s->timeline_frame.peek()), .zoom = 60});
-        if (live) {
-            // The live work: its own history (S-12); an edit is kept for the next time it is live, and changes the tree a lens shows.
-            editor.prop("undo_scope", Source{Value(true), {}, {}});
-            editor.on("edited", [s](const Value& e) {
-                if (const Value* d = e.get("document")) s->timeline.set(std::string(d->as_string()));
-                s->soon();
-            });
-        }
-        auto words = [s, live, zh](std::string_view en, std::string_view han) -> Prop<std::string> {
-            if (!live) return std::string(zh ? han : en);
-            return computed([s, en, han] { return std::string(s->lang.get() == "zh" ? han : en); });
-        };
-        Element title = text({.id = "title", .text = words("A timeline editor", "时间线编辑器"), .style = "title"});
-        // The program monitor: what the timeline plays at its playhead — the title card fading as its clip does,
-        // the fight's two figures, the music's level — and the time; Play runs the playhead at the timeline's rate.
-        auto level = [s, live](std::string name) -> Prop<float> {
-            if (!live) return s->clip_level(name, s->timeline_frame.peek());
-            return computed([s, name] { return s->clip_level(name, s->timeline_frame.get()); });
-        };
-        // As tall as the room under the tracks allows, and never wider than the page (a phone: the button under it).
-        const bool slim = v.width < 760;
-        const float mw = std::min(std::clamp(v.height - 340.0f, 220.0f, 380.0f) * 16 / 9, v.width - (slim ? 40.0f : 200.0f));
-        Element fighters = painter({.id = "figures",
-                                    .width = Dim(mw * 0.5f),
-                                    .height = Dim(mw * 9 / 16 * 0.6f),
-                                    .role = Role::none,
-                                    .paint = [](PaintContext& ctx) {
-                                        // Two figures squared up on a floor line, and the light of a blow between them.
-                                        const float w = ctx.size.width, h = ctx.size.height;
-                                        auto figure = [&](float x, float dir, Color c) {
-                                            ctx.list.fill_round_rect({x - w * 0.05f, h * 0.18f, w * 0.1f, w * 0.1f}, CornerRadii::all(w * 0.05f), render::Paint::solid(c));
-                                            render::Path body;
-                                            body.move_to({x, h * 0.32f}).line_to({x - dir * w * 0.02f, h * 0.62f}).line_to({x - dir * w * 0.09f, h * 0.92f});
-                                            body.move_to({x - dir * w * 0.02f, h * 0.62f}).line_to({x + dir * w * 0.07f, h * 0.92f});
-                                            body.move_to({x, h * 0.4f}).line_to({x + dir * w * 0.16f, h * 0.36f});
-                                            ctx.list.stroke_path(body, render::StrokeStyle{.width = w * 0.035f, .cap = render::LineCap::round, .join = render::LineJoin::round},
-                                                                 render::Paint::solid(c));
-                                        };
-                                        figure(w * 0.32f, 1, Color::hex(0x60a5fa));
-                                        figure(w * 0.68f, -1, Color::hex(0xf59e0b));
-                                        ctx.list.fill_round_rect({w * 0.47f, h * 0.31f, w * 0.06f, w * 0.06f}, CornerRadii::all(w * 0.03f), render::Paint::solid(Color::hex(0xffffff, 0.85f)));
-                                        ctx.list.fill_rect({0, h * 0.94f, w, 2}, Color::hex(0xffffff, 0.25f));
-                                    }});
-        Element monitor = stack({.id = "monitor", .width = Dim(mw), .height = Dim(mw * 9 / 16), .background = Fill(Color::hex(0x05070b)), .radius = 10, .clip = true,
-                                 .label = std::string(zh ? "监视器" : "Program monitor")},
-                                {column({.id = "title_card", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .gap = 8, .justify = "center", .align = "center",
-                                         .opacity = level("title")},
-                                        {brand_mark("mark", mw * 0.14f), text({.id = "name", .text = std::string("a short"), .style = "title", .color = Fill(Color::hex(0xe6edf7))})}),
-                                 column({.id = "fight_card", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .justify = "center", .align = "center",
-                                         .opacity = level("the fight")},
-                                        {std::move(fighters)}),
-                                 column({.id = "time", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .padding = Edges(10.0f, 14.0f), .justify = "end"},
-                                        {row({.gap = 10, .align = "center"},
-                                             {text({.id = "timecode",
-                                                    .text = live ? Prop<std::string>(computed([s] {
-                                                        const std::int32_t f = s->timeline_frame.get();
-                                                        return std::format("{:02}:{:02}", f / 30, f % 30);
-                                                    }))
-                                                                 : Prop<std::string>(std::format("{:02}:{:02}", s->timeline_frame.peek() / 30, s->timeline_frame.peek() % 30)),
-                                                    .style = "code",
-                                                    .color = Fill(Color::hex(0xe6edf7, 0.8f))}),
-                                              box({.id = "music", .width = Dim(mw * 0.25f), .height = Dim(4.0f), .background = Fill(Color::hex(0x10b981)), .radius = 2,
-                                                   .opacity = level("main theme")})})})});
-        ButtonOptions play{.id = "play", .text = words("Play", "播放"), .variant = ButtonVariant::secondary};
-        if (live) {
-            play.text = computed([s] { return std::string(s->timeline_playing.get() ? (s->lang.get() == "zh" ? "暂停" : "Pause") : (s->lang.get() == "zh" ? "播放" : "Play")); });
-            play.on_activated = [s] {
-                const bool on = !s->timeline_playing.peek();
-                s->timeline_playing.set(on);
-                if (on && s->runtime) s->play_timeline();
-            };
-        } else play.disabled = true;
-        return column({.id = "page", .width = Dim(v.width), .height = Dim(v.height), .padding = slim ? Edges(20.0f, 20.0f) : Edges(32.0f, 40.0f), .gap = 12, .background = "background"},
-                      {live ? retyped(std::move(title), s) : std::move(title),
-                       text({.id = "how",
-                             .text = words("Drag a clip, trim its edge, press S to split it at the playhead, Ctrl+Z to undo. Every edit has its exact inverse; switch the lens to see the same timeline as an agent reads it.",
-                                           "拖动片段、拖边修剪、按 S 在播放头处切开，Ctrl+Z 撤销。每次编辑都有它精确的反向；切换镜头，看 agent 读到的同一份时间线。"),
-                             .style = "body"}),
-                       slim ? column({.id = "program", .gap = 10, .align = "start"}, {std::move(monitor), button(std::move(play))})
-                            : row({.id = "program", .gap = 16, .align = "end"}, {std::move(monitor), button(std::move(play))}),
-                       std::move(editor)});
-    }
-    if (id == "hello" || id == "wall") return work_window(s, id, live);
-    if (id == "moves") return moves_window(s, live);
-    if (id == "styles") return styles_window(s, live);
-    std::vector<Element> content;
-    const bool narrow = v.width < 600;  // a phone: less margin
-    if (id == "home") content.push_back(hero(s->hero, s->hero_site, live, v.width - (narrow ? 40.0f : 80.0f)));
-    Element doc = live ? retyped(markdown({.id = "doc",
-                                           .origin = MarkdownOrigin::app,
-                                           .source = computed([s, id] { return std::string(document(id, s->lang.get())); }),
-                                           .on_link_activated = [s](std::string href) { follow(*s, href); },
-                                           .max_width = Dim(640.0f)}),
-                                 s, Arrival::lines)
-                       : markdown({.id = "doc", .origin = MarkdownOrigin::app, .source = std::string(document(id, zh ? "zh" : "en")), .max_width = Dim(640.0f)});
-    content.push_back(std::move(doc));
-    if (id != "home") {
-        // A document's sections down its right, where a wide window has room: each takes the reader to it.
-        auto rail = [s, id, live](std::string_view lang) {
-            std::vector<Element> entries;
-            entries.push_back(text({.id = "label", .text = std::string(lang == "zh" ? "本页内容" : "On this page"), .style = "caption", .color = "text_muted"}));
-            const md::Document d = md::parse(document(id, lang));
-            std::size_t i = 0;
-            md::walk(d.root, [&](const md::Block& b) {
-                if (b.kind != md::Kind::heading || b.level > 2) return;
-                ButtonOptions o{.id = std::format("s{}", i++), .text = md::plain_text(b), .variant = ButtonVariant::ghost};
-                o.max_width = Dim(240.0f);
-                o.align_self = "start";
-                if (live)
-                    o.on_activated = [s, id, anchor = b.anchor] {
-                        if (!s->runtime) return;
-                        Invocation call;
-                        call.args = Value{}.set("anchor", anchor);
-                        (void)s->runtime->act(s->runtime->find(std::string(place_root) + id + "/page/read/doc"), "scroll_to_anchor", call);
-                    };
-                else o.disabled = true;
-                entries.push_back(button(std::move(o)));
-            });
-            return entries;
-        };
-        Element contents = live ? column({.id = "contents", .width = Dim(260.0f), .gap = 2, .label = "Sections"},
-                                         {dynamic([s, rail] { return rail(s->lang.get()); })})
-                                : column({.id = "contents", .width = Dim(260.0f), .gap = 2, .label = "Sections"}, rail(zh ? "zh" : "en"));
-        contents.prop("shrink", Source(Value(0.0)));
-        std::vector<Element> both;
-        both.push_back(std::move(content.back()));
-        if (v.width >= 1000) both.push_back(std::move(contents));  // narrower: the document alone (the same path to it)
-        // Narrower, one column: the document as wide as there is room (at most its measure).
-        Element read = v.width >= 1000 ? row({.id = "read", .min_width = Dim(0.0f), .gap = 48, .align = "start"}, std::move(both))
-                                       : column({.id = "read", .min_width = Dim(0.0f)}, std::move(both));
-        content.back() = std::move(read);
-    }
-    return scroll({.id = "page", .width = Dim(v.width), .height = Dim(v.height), .padding = narrow ? Edges(20.0f, 20.0f) : Edges(32.0f, 40.0f), .background = "background"},
-                  std::move(content));
+
+// The settings: how the page moves and draws, the person's where the site
+// exposes it (D-94's three layers: the device, the developer, the person) —
+// itself a demonstration of the framework's.
+Element settings_panel(const std::shared_ptr<Site>& s) {
+    auto say = [s](std::string_view en, std::string_view han) {
+        return computed([s, en = std::string(en), han = std::string(han)] { return s->lang.get() == "zh" ? han : en; });
+    };
+    auto labels = [s](std::vector<std::string> en, std::vector<std::string> han) {
+        return computed([s, en = std::move(en), han = std::move(han)] { return s->lang.get() == "zh" ? han : en; });
+    };
+    auto effects_tier = [](std::string_view v) -> std::optional<pipeline::Tier> {
+        if (v == "t1") return pipeline::Tier::t1;
+        if (v == "t2") return pipeline::Tier::t2;
+        if (v == "t3") return pipeline::Tier::t3;
+        if (v == "t4") return pipeline::Tier::t4;
+        return std::nullopt;
+    };
+    // A choice with its name above it (the name the select is read by, drawn).
+    auto labelled = [say](std::string id, std::string_view en, std::string_view han, SelectOptions o) {
+        o.id = id;
+        o.label = say(en, han);
+        return column({.id = id + "_field", .gap = 6},
+                      {text({.id = "name", .text = say(en, han), .style = "label", .color = "text_muted"}), select(std::move(o))});
+    };
+    return column({.id = "settings",
+                   .width = computed([s] { return s->compact.get() ? Dim(layout::pct(100)) : Dim(340.0f); }),
+                   .min_width = computed([s] { return s->compact.get() ? Dim(layout::pct(100)) : Dim(340.0f); }),
+                   .padding = Edges(20.0f, 20.0f),
+                   .gap = 14,
+                   .shrink = 0,
+                   .background = "surface",
+                   .label = "Settings"},
+                  {text({.id = "title", .text = say("Settings", "设置"), .style = "heading"}),
+                   text({.id = "about",
+                         .text = say("Yours, as far as this site lets you: a program on openmui says which of the framework's choices its users make.",
+                                     "这些是你的选择，以这个网站开放的为限：基于 openmui 的程序自己决定把框架的哪些选择交给用户。"),
+                         .style = "caption",
+                         .color = "text_muted"}),
+                   labelled("theme", "Theme", "主题", {.labels = labels({"Light", "Dark"}, {"浅色", "深色"}),
+                           .options = std::vector<std::string>{"light", "dark"},
+                           .value = computed([s] { return std::string(s->dark.get() ? "dark" : "light"); }),
+                           .on_changed = [s](std::string v) {
+                               s->dark.set(v == "dark");
+                               if (s->runtime)
+                                   if (auto t = theme::library().compose(std::vector<std::string>{v == "dark" ? "site_dark" : "site"}); t) {
+                                       s->runtime->crossfade(seconds(0.3));
+                                       s->runtime->set_theme(std::move(*t));
+                                   }
+                           }}),
+                   labelled("motion", "Motion", "动效", {.labels = labels({"Full", "Reduced (short fades)", "Off"}, {"完整", "精简（短暂的淡化）", "关闭"}),
+                           .options = std::vector<std::string>{"full", "reduced", "off"},
+                           .value = s->motion_level,
+                           .on_changed = [s](std::string v) {
+                               s->motion_level.set(v);
+                               if (s->runtime) s->runtime->set_motion_level(v == "off" ? MotionLevel::off : v == "reduced" ? MotionLevel::reduced : MotionLevel::full);
+                           }}),
+                   labelled("motion_style", "How things move", "动的方式", {.labels = labels({"As each control says", "Simple", "Liquid", "Ink"}, {"按各控件的设定", "简洁", "液态", "水墨"}),
+                           .options = std::vector<std::string>{"default", "simple", "liquid", "ink"},
+                           .value = s->motion_choice,
+                           .on_changed = [s](std::string v) {
+                               s->motion_choice.set(v);
+                               if (s->runtime) s->runtime->set_motion_choice(v == "default" ? std::string() : v);
+                           }}),
+                   labelled("effects", "Effects", "效果", {.labels = labels({"As this device can (automatic)", "Embedded (T1)", "The Web (T2)", "A computer (T3)", "A discrete GPU (T4)"},
+                                            {"按这台设备的能力（自动）", "嵌入式（T1）", "网页（T2）", "电脑（T3）", "独立显卡（T4）"}),
+                           .options = std::vector<std::string>{"auto", "t1", "t2", "t3", "t4"},
+                           .value = s->effects,
+                           .on_changed = [s, effects_tier](std::string v) {
+                               s->effects.set(v);
+                               if (!s->runtime) return;
+                               Adaptation a = s->runtime->adaptation();
+                               a.effects = effects_tier(v).value_or(a.tier);
+                               a.reason = v == "auto" ? std::string("the device's") : std::string("the person's setting");
+                               s->runtime->set_adaptation(a);
+                           }}),
+                   labelled("renderer", "Who draws", "谁来画", {.labels = labels({"Automatic (a GPU when there is one)", "The GPU", "The CPU (the reference)"},
+                                            {"自动（有 GPU 就用 GPU）", "GPU", "CPU（参考实现）"}),
+                           .options = std::vector<std::string>{"automatic", "gpu", "cpu"},
+                           .value = s->renderer_choice,
+                           .on_changed = [s](std::string v) {
+                               s->renderer_choice.set(v);
+                               if (auto r = choose_renderer(v); !r) s->settings_note.set(r.error());
+                               else s->settings_note.set(std::string());
+                           }}),
+                   text({.id = "now",
+                         .text = computed([s] {
+                             const std::string by(s->runtime ? s->runtime->renderer() : std::string_view("cpu"));
+                             const std::string name = by == "cpu" ? "the CPU" : by == "webgpu" ? "WebGPU" : by == "webgl" ? "WebGL 2" : by;
+                             return s->lang.get() == "zh" ? std::format("现在由 {} 绘制。", by == "cpu" ? "CPU" : name) : std::format("Drawn by {} now.", name);
+                         }),
+                         .style = "caption"}),
+                   text({.id = "note", .text = s->settings_note, .style = "caption", .color = "text_muted"})});
 }
 
-// The atlas's kinds: a place's window (a block far away, its texture nearer,
-// live when it nearly fills the view) and its label (drawn at a size fixed
-// on screen, above its window).
-void atlas_kinds(const std::shared_ptr<Site>& s) {
-    world::Scene& scene = s->scene();
-    using world::Tier;
-    auto labels = std::make_shared<Labels>();
-    scene.kind("place", world::Kind{.tiers = {{0, Tier::Draw::custom}, {48, Tier::Draw::texture}, {live_from(s->layout), Tier::Draw::promote}},
-                                    .draw =
-                                        [](world::DrawContext& d) {
-                                            const float r = static_cast<float>(14 * d.zoom);
-                                            d.list.fill_round_rect(d.screen, CornerRadii::all(r), render::Paint::solid(d.theme.color("surface")));
-                                        },
-                                    // The scene is the process's (by name): what it holds of the site is a weak reference, the site its owner.
-                                    .promote =
-                                        [w = std::weak_ptr<Site>(s)](const world::Scene& sc, world::NodeRef n) {
-                                            const auto p = w.lock();
-                                            return p ? place_window(p, std::string(sc.key(n)), true) : box({});
-                                        },
-                                    .view =
-                                        [w = std::weak_ptr<Site>(s)](const world::Scene& sc, world::NodeRef n) {
-                                            const auto p = w.lock();
-                                            return p ? place_window(p, std::string(sc.key(n)), false) : box({});
-                                        },
-                                    .role = Role::article});
-    // Under the windows, the tree they grow from: the site's mark in the cell after the last window,
-    // a branch from it to each window in the hue of what the window shows (reading, running), and a
-    // faint grid of the canvas between them. Drawn on screen, so lines stay a pixel or two at any zoom.
-    scene.kind("tree", world::Kind{.tiers = {{0, Tier::Draw::custom}},
-                                   .draw =
-                                       [w = std::weak_ptr<Site>(s)](world::DrawContext& d) {
-                                           const auto p = w.lock();
-                                           if (!p) return;
-                                           const AtlasLayout& l = p->layout;
-                                           const world::WorldRect nr = d.scene.rect(d.node);
-                                           const auto at = [&](double x, double y) {
-                                               return Point{static_cast<float>(d.screen.x + (x - nr.x) * d.zoom), static_cast<float>(d.screen.y + (y - nr.y) * d.zoom)};
-                                           };
-                                           const Color ink = d.theme.color("text");
-                                           // The grid: a dot where the gaps' lanes cross, every half gap.
-                                           if (const double step = l.gap / 2; step * d.zoom >= 8) {
-                                               const float r = 1.0f;
-                                               for (double y = nr.y + step; y < nr.y + nr.height; y += step)
-                                                   for (double x = nr.x + step; x < nr.x + nr.width; x += step) {
-                                                       const Point q = at(x, y);
-                                                       if (q.x < -2 || q.y < -2 || q.x > d.screen.right() + 2 || q.y > d.screen.bottom() + 2) continue;
-                                                       d.list.fill_rect({q.x - r / 2, q.y - r / 2, r, r}, ink.with_alpha(0.10f));
-                                                   }
-                                           }
-                                           // The branches: from the mark's root to each window's nearest corner of its label strip.
-                                           const world::WorldRect& e = l.emblem;
-                                           const double mark = std::min(e.width, e.height) * 0.42;
-                                           const Point root = at(e.x + e.width / 2 - mark * 0.33, e.y + e.height / 2);
-                                           const render::StrokeStyle line{.width = std::clamp(static_cast<float>(3 * d.zoom), 1.0f, 3.0f), .cap = render::LineCap::round};
-                                           constexpr std::array<std::uint32_t, 2> group{0x60a5fa, 0x34d399};  // what is read (the reader's blue), what runs (the test's green)
-                                           for (std::size_t i = 0; i < l.windows.size(); ++i) {
-                                               const world::WorldRect& r = l.windows[i].second;
-                                               const Point to = at(r.x + r.width / 2, r.y + r.height / 2);
-                                               render::Path b;
-                                               const float mid = (root.x + to.x) / 2;
-                                               b.move_to(root).cubic_to({mid, root.y}, {mid, to.y}, to);
-                                               const Color c = Color::hex(group[i < 3 ? 0 : 1]);
-                                               d.list.stroke_path(b, line, render::Paint::solid(c.with_alpha(0.45f)));
-                                           }
-                                           // The mark, large, in its cell.
-                                           const float size = static_cast<float>(mark * d.zoom);
-                                           if (size >= 12) {
-                                               const Point c = at(e.x + e.width / 2, e.y + e.height / 2);
-                                               paint_mark(d.list, d.theme, {c.x - size / 2, c.y - size / 2}, size);
-                                           }
-                                       },
-                                   .role = Role::none});
-    scene.kind("label", world::Kind{.tiers = {{0, Tier::Draw::custom}},
-                                    .draw =
-                                        [labels](world::DrawContext& d) {
-                                            if (!d.fonts || d.screen.height < 6) return;
-                                            const int size = static_cast<int>(std::lround(std::clamp(d.screen.height * 0.42f, 13.0f, 26.0f)));
-                                            const auto& p = labels->get(d, d.scene.text(d.node, "title"), size, d.theme.color("text"));
-                                            const Size t = p.size();
-                                            p.paint(d.list, {d.screen.x + 4, d.screen.y + d.screen.height - t.height - 6});
-                                        },
-                                    .role = Role::heading});
+// Getting started: example 01, the shortest openmui program, running beside its own source.
+Element hello_page(const std::shared_ptr<Site>& s, float room) {
+    auto say = [s](std::string_view en, std::string_view han) {
+        return computed([s, en = std::string(en), han = std::string(han)] { return s->lang.get() == "zh" ? han : en; });
+    };
+    const bool narrow = room < 900;
+    Element intro = column({.id = "intro", .width = narrow ? Dim(layout::pct(100)) : Dim(440.0f), .gap = 16},
+                           {retyped(text({.id = "title", .text = say("Get started", "开始使用"), .style = "title"}), s),
+                            text({.id = "about",
+                                  .text = say("Example 01, a whole openmui program, running here: type a name, press the button. Its interface is declared each "
+                                              "frame in plain C++; an agent finds the field by its role, and renaming the button keeps its id.",
+                                              "示例 01，一个完整的 openmui 程序，就在这里运行：输入名字，按按钮。界面每一帧用普通的 C++ 声明；agent 按角色找到输入框，"
+                                              "按钮改名后 id 不变。"),
+                                  .style = "body",
+                                  .size = 20.0f}),
+                            box({.id = "run", .width = narrow ? Dim(layout::pct(100)) : Dim(440.0f), .height = Dim(280.0f), .background = "surface",
+                                 .border_color = "border", .border_width = 1, .radius = 14, .clip = true},
+                                {hello::app(s->hello).view()})});
+    // The source as written: lines kept whole (indentation is meaning), scrolled sideways when long.
+    Element code = scroll({.id = "code", .horizontal = true, .vertical = narrow, .grow = 1, .padding = Edges(20.0f, 24.0f), .background = "surface_variant"},
+                          {text({.id = "source", .text = std::string(hello::hello_source), .style = "code", .wrap = false})});
+    if (narrow) return column({.id = "page", .gap = 24}, {std::move(intro), std::move(code)});
+    return row({.id = "page", .gap = 40, .align = "stretch"}, {std::move(intro), std::move(code)});
+}
+
+// The timeline editor: a working one, its program monitor above it.
+Element timeline_page(const std::shared_ptr<Site>& s, float room) {
+    auto words = [s](std::string_view en, std::string_view han) -> Prop<std::string> {
+        return computed([s, en, han] { return std::string(s->lang.get() == "zh" ? han : en); });
+    };
+    Element editor = timeline_editor({.id = "editor", .document = s->timeline.peek(), .frame = Prop<std::int32_t>(s->timeline_frame), .zoom = 60});
+    // Its own history (S-12); an edit is kept for the next time it is shown, and changes the tree a lens shows.
+    editor.prop("undo_scope", Source{Value(true), {}, {}});
+    editor.on("edited", [s](const Value& e) {
+        if (const Value* d = e.get("document")) s->timeline.set(std::string(d->as_string()));
+        s->soon();
+    });
+    // The program monitor: what the timeline plays at its playhead — the title card fading as its clip does,
+    // the fight's two figures, the music's level — and the time; Play runs the playhead at the timeline's rate.
+    auto level = [s](std::string name) -> Prop<float> { return computed([s, name] { return s->clip_level(name, s->timeline_frame.get()); }); };
+    const bool slim = room < 760;
+    const float mw = std::min(380.0f * 16 / 9, room - (slim ? 0.0f : 160.0f));
+    Element fighters = painter({.id = "figures",
+                                .width = Dim(mw * 0.5f),
+                                .height = Dim(mw * 9 / 16 * 0.6f),
+                                .role = Role::none,
+                                .paint = [](PaintContext& ctx) {
+                                    // Two figures squared up on a floor line, and the light of a blow between them.
+                                    const float w = ctx.size.width, h = ctx.size.height;
+                                    auto figure = [&](float x, float dir, Color c) {
+                                        ctx.list.fill_round_rect({x - w * 0.05f, h * 0.18f, w * 0.1f, w * 0.1f}, CornerRadii::all(w * 0.05f), render::Paint::solid(c));
+                                        render::Path body;
+                                        body.move_to({x, h * 0.32f}).line_to({x - dir * w * 0.02f, h * 0.62f}).line_to({x - dir * w * 0.09f, h * 0.92f});
+                                        body.move_to({x - dir * w * 0.02f, h * 0.62f}).line_to({x + dir * w * 0.07f, h * 0.92f});
+                                        body.move_to({x, h * 0.4f}).line_to({x + dir * w * 0.16f, h * 0.36f});
+                                        ctx.list.stroke_path(body, render::StrokeStyle{.width = w * 0.035f, .cap = render::LineCap::round, .join = render::LineJoin::round},
+                                                             render::Paint::solid(c));
+                                    };
+                                    figure(w * 0.32f, 1, Color::hex(0x60a5fa));
+                                    figure(w * 0.68f, -1, Color::hex(0xf59e0b));
+                                    ctx.list.fill_round_rect({w * 0.47f, h * 0.31f, w * 0.06f, w * 0.06f}, CornerRadii::all(w * 0.03f), render::Paint::solid(Color::hex(0xffffff, 0.85f)));
+                                    ctx.list.fill_rect({0, h * 0.94f, w, 2}, Color::hex(0xffffff, 0.25f));
+                                }});
+    Element monitor = stack({.id = "monitor", .width = Dim(mw), .height = Dim(mw * 9 / 16), .background = Fill(Color::hex(0x05070b)), .radius = 14, .clip = true,
+                             .label = std::string("Program monitor")},
+                            {column({.id = "title_card", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .gap = 8, .justify = "center", .align = "center",
+                                     .opacity = level("title")},
+                                    {brand_mark("mark", mw * 0.14f), text({.id = "name", .text = std::string("a short"), .style = "title", .color = Fill(Color::hex(0xe6edf7))})}),
+                             column({.id = "fight_card", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .justify = "center", .align = "center",
+                                     .opacity = level("the fight")},
+                                    {std::move(fighters)}),
+                             column({.id = "time", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .padding = Edges(10.0f, 14.0f), .justify = "end"},
+                                    {row({.gap = 10, .align = "center"},
+                                         {text({.id = "timecode",
+                                                .text = computed([s] {
+                                                    const std::int32_t f = s->timeline_frame.get();
+                                                    return std::format("{:02}:{:02}", f / 30, f % 30);
+                                                }),
+                                                .style = "code",
+                                                .color = Fill(Color::hex(0xe6edf7, 0.8f))}),
+                                          box({.id = "music", .width = Dim(mw * 0.25f), .height = Dim(4.0f), .background = Fill(Color::hex(0x10b981)), .radius = 2,
+                                               .opacity = level("main theme")})})})});
+    ButtonOptions play{.id = "play", .text = words("Play", "播放"), .variant = ButtonVariant::secondary};
+    play.text = computed([s] { return std::string(s->timeline_playing.get() ? (s->lang.get() == "zh" ? "暂停" : "Pause") : (s->lang.get() == "zh" ? "播放" : "Play")); });
+    play.on_activated = [s] {
+        const bool on = !s->timeline_playing.peek();
+        s->timeline_playing.set(on);
+        if (on && s->runtime) s->play_timeline();
+    };
+    return column({.id = "page", .gap = 16},
+                  {retyped(text({.id = "title", .text = words("A timeline editor", "时间线编辑器"), .style = "title"}), s),
+                   text({.id = "how",
+                         .text = words("Drag a clip, trim its edge, press S to split it at the playhead, Ctrl+Z to undo. Every edit has its exact inverse; switch the lens to see the same timeline as an agent reads it.",
+                                       "拖动片段、拖边修剪、按 S 在播放头处切开，Ctrl+Z 撤销。每次编辑都有它精确的反向；切换镜头，看 agent 读到的同一份时间线。"),
+                         .style = "body",
+                         .size = 20.0f,
+                         .max_width = Dim(760.0f)}),
+                   slim ? column({.id = "program", .gap = 10, .align = "start"}, {std::move(monitor), button(std::move(play))})
+                        : row({.id = "program", .gap = 16, .align = "end"}, {std::move(monitor), button(std::move(play))}),
+                   std::move(editor)});
+}
+
+// A document: its text, and where a wide window has room its sections down its right, each taking the reader to it.
+Element document_page(const std::shared_ptr<Site>& s, const std::string& id, float room) {
+    Element doc = retyped(markdown({.id = "doc",
+                                    .origin = MarkdownOrigin::app,
+                                    .source = computed([s, id] { return std::string(document(id, s->lang.get())); }),
+                                    .on_link_activated = [s](std::string href) { follow(*s, href); },
+                                    .max_width = Dim(720.0f)}),
+                          s, Arrival::lines);
+    if (id == "home") return std::move(doc);
+    auto rail = [s, id](std::string_view lang) {
+        std::vector<Element> entries;
+        entries.push_back(text({.id = "label", .text = std::string(lang == "zh" ? "本页内容" : "On this page"), .style = "caption", .color = "text_muted"}));
+        const md::Document d = md::parse(document(id, lang));
+        std::size_t i = 0;
+        md::walk(d.root, [&](const md::Block& b) {
+            if (b.kind != md::Kind::heading || b.level > 2) return;
+            ButtonOptions o{.id = std::format("s{}", i++), .text = md::plain_text(b), .variant = ButtonVariant::ghost};
+            o.max_width = Dim(260.0f);
+            o.align_self = "start";
+            o.on_activated = [s, id, anchor = b.anchor] {
+                if (!s->runtime) return;
+                Invocation call;
+                call.args = Value{}.set("anchor", anchor);
+                (void)s->runtime->act(s->runtime->find(std::string(place_root) + id + "/page/read/doc"), "scroll_to_anchor", call);
+            };
+            entries.push_back(button(std::move(o)));
+        });
+        return entries;
+    };
+    std::vector<Element> both;
+    both.push_back(std::move(doc));
+    if (room >= 1100) {
+        Element contents = column({.id = "contents", .width = Dim(280.0f), .gap = 2, .label = "Sections"}, {dynamic([s, rail] { return rail(s->lang.get()); })});
+        contents.prop("shrink", Source(Value(0.0)));
+        both.push_back(std::move(contents));
+    }
+    // Narrower, one column: the document as wide as there is room (at most its measure).
+    return room >= 1100 ? row({.id = "read", .min_width = Dim(0.0f), .gap = 64, .align = "start"}, std::move(both))
+                        : column({.id = "read", .min_width = Dim(0.0f)}, std::move(both));
+}
+
+// A place: its page, scrolled, its content as wide as the design's measure, centred.
+Element place_page(const std::shared_ptr<Site>& s, const std::string& id) {
+    const float view = s->room;
+    const bool narrow = view < 700;
+    const float margin = narrow ? 20 : 48;
+    const float room = std::min(content_width, view - 2 * margin);
+    std::vector<Element> content;
+    if (id == "home") {
+        content.push_back(hero(s->hero, s->hero_site, true, room));
+        content.push_back(document_page(s, id, room));
+    } else if (id == "components") {
+        content.push_back(gallery(s->gallery, s->gallery_site, true, room));
+    } else if (id == "hello") {
+        content.push_back(hello_page(s, room));
+    } else if (id == "timeline") {
+        content.push_back(timeline_page(s, room));
+    } else {
+        content.push_back(document_page(s, id, room));
+    }
+    Element body = id == "hello" || id == "timeline" ? std::move(content.front())
+                                                     : column({.id = "page", .gap = 64}, std::move(content));
+    // The design's measure, centred in the window (`…/<place>/page` is where its tree is read).
+    body.prop("width", Source(Value("100%")));
+    body.prop("max_width", Source(Value(static_cast<double>(content_width))));
+    body.prop("align_self", Source(Value("center")));
+    // Filling the view (a stack: the place under the lens's renderings).
+    return scroll({.id = id, .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .padding = Edges(narrow ? 24.0f : 56.0f, margin), .background = "background"},
+                  {std::move(body)});
 }
 
 }  // namespace
@@ -1484,105 +969,65 @@ AppSpec app(std::string_view place, std::string_view lang) {
     a.id = "org.openmui.site";
     a.title = "openmui — one tree, many renderings";
     a.size = {1280, 800};
-    a.theme = Theme::dark_theme();
+    // The site's own theme (its tokens: the design language), over the framework's default themes and the style packs
+    // (the components page shows them in a scope of its own).
+    if (auto r = themes::add_styles(); !r) site_log.warn("the style packs: {}", r.error().empty() ? std::string() : r.error().front().text());
+    if (auto r = theme::library().add(embedded(files::theme_files, "site.theme.omui.toml"), "site.theme.omui.toml"); !r)
+        site_log.warn("the site's theme: {}", r.error().empty() ? std::string() : r.error().front().text());
+    if (auto t = theme::library().compose(std::vector<std::string>{"site"}); t) a.theme = std::move(*t);
+    else {
+        site_log.warn("the site's theme: {}", t.error());
+        a.theme = Theme::light();
+    }
     // The page's time is a live readout of the clock: it is drawn where the time is, never eased there
     // (universal motion: a morph is for a change, not for a clock ticking).
     a.theme.motion_rules.push_back({"timebar", "update", MotionSpec{.kind = MotionSpec::Kind::none}});
     // Drawn by the machine's GPU where it has one (WebGPU, else WebGL 2; a
-    // software adapter counts as none), else by the CPU: a camera's flight at
-    // the display's rate. The CPU's pixels are the reference, the same bytes
-    // on every machine — the check against CI draws its frames with the CPU
-    // whoever draws the page — and a GPU's are within tolerances of them.
-    // The bar's meter says who draws, and how fast.
+    // software adapter counts as none), else by the CPU. The CPU's pixels are
+    // the reference, the same bytes on every machine — the check against CI
+    // draws its frames with the CPU whoever draws the page — and a GPU's are
+    // within tolerances of them.
     a.renderer = "automatic";
     auto s = std::make_shared<Site>();
-    if (place == "overview" || std::ranges::any_of(all, [&](const Place& p) { return p.id == place; })) s->place.set(std::string(place));
+    if (std::ranges::any_of(all, [&](const Place& p) { return p.id == place; })) s->place.set(std::string(place));
     s->lang.set(lang == "zh" ? "zh" : "en");
-    styles::add_verbs(a, s->studio);  // styles.show: an agent switches the workshop's pack as a person does
     a.setup = [s](Runtime& rt) {
         s->runtime = &rt;
         register_type(component_type<Lens>());
-        register_base_components();  // example 01's immediate controls ask for them by name
-        // The atlas: a scene of this site's own, laid out for the window's size until the canvas has its own.
-        static std::atomic<int> sites{0};
-        s->scene_name = std::format("openmui.site.{}", sites++);
+        register_base_components();
+        register_type(component_type<Timebar>());
+        register_type(component_type<FrameMeter>());
         s->hero_site = {.runtime = &s->runtime,
                         .lang = &s->lang,
                         .nodes = &s->nodes,
                         .root = [] { return std::string(place_root) + "home/page"; },
-                        .go = [p = s.get()](std::string id) { p->fly(id); },
+                        .go = [p = s.get()](std::string id) { p->go(id); },
                         .tree_lens = [p = s.get()] {
                             if (p->lens.peek() != "tree") p->mark(p->lang.peek() == "zh" ? "镜头 Tree" : "Lens Tree");
                             p->lens.set("tree");
                             p->soon();
                         }};
-        s->kinds = [site = std::weak_ptr<Site>(s)] {
-            if (auto p = site.lock()) atlas_kinds(p);
-        };
+        // The components page in a theme scope of its own: plain (the site's theme), or a style pack.
+        rt.set_scope(gallery_scope, rt.theme());
+        s->gallery_site = {.lang = &s->lang, .style = [p = s.get()](std::string pack) {
+                               if (!p->runtime) return;
+                               if (pack == "plain") {
+                                   p->runtime->crossfade(seconds(0.35), gallery_scope);
+                                   p->runtime->set_scope(gallery_scope, p->runtime->theme());
+                               } else if (auto r = theme::apply_style(*p->runtime, pack, gallery_scope, true); !r) {
+                                   site_log.warn("the style {}: {}", pack, r.error());
+                               }
+                               p->soon();
+                           }};
         s->compact.set(rt.size().width < Site::compact_below);
-        s->relayout({rt.size().width - (s->compact.peek() ? 0.0f : 188.0f), rt.size().height - 56 - 44});
-        // S1's wall: the site's documents in both languages, and the benchmark's set beside them.
-        s->wall = std::make_unique<wall::Model>();
-        s->wall->title = "openmui's documents";
-        s->wall->scene = s->scene_name + ".wall";
-        s->wall->runtime = &rt;
-        s->wall->canvas_path = std::string(place_root) + "wall/page/wall";  // a link in a live window flies the wall's own camera
-        for (const std::string_view lang : {"en", "zh"})
-            for (const Place& p : all)
-                if (const std::string_view src = document(p.id, lang); !src.empty()) {
-                    const std::string path = std::format("{}/{}.md", lang, p.id);
-                    std::string title(lang == "zh" ? p.zh : p.en);
-                    if (src.starts_with("# ")) title = std::string(src.substr(2, src.find('\n') - 2));
-                    s->wall->docs.push_back({wall::key_of(path), std::move(title), path, std::string(lang), std::string(src)});
-                }
-        for (wall::Document& d : wall::synthetic(18, 7, 2)) {
-            d.group = "benchmark/" + d.group;
-            s->wall->docs.push_back(std::move(d));
-        }
-        wall::register_all();
-        wall::build(*s->wall, world::scene(s->wall->scene));
-        // S2's workshop: a pack styles its place alone (a theme scope); the site keeps its own.
-        s->studio.scope = "workshop";
-        s->studio.can_export = false;  // a page has nowhere to write the file
-        s->studio.runtime = &rt;
-        if (auto r = s->studio.show("glass", false); !r) warn("site: {}", r.error());
-        // The far-away pictures: the wall's blocks and the packs' colours, taken now, never written again.
-        {
-            auto t = std::make_shared<Thumbs>();
-            const world::Scene& ws = world::scene(s->wall->scene);
-            bool first = true;
-            ws.each_unordered([&](world::NodeRef n) {
-                const std::string_view kind = ws.kind_name(n);
-                if (kind != "workspace" && kind != "window") return;
-                const auto r = ws.rect(n);
-                t->wall.push_back({r, ws.fill(n), std::string(ws.text(n, "title")), kind == "workspace"});
-                if (first) t->wall_bounds = r, first = false;
-                const double x0 = std::min(t->wall_bounds.x, r.x), y0 = std::min(t->wall_bounds.y, r.y);
-                const double x1 = std::max(t->wall_bounds.x + t->wall_bounds.width, r.x + r.width), y1 = std::max(t->wall_bounds.y + t->wall_bounds.height, r.y + r.height);
-                t->wall_bounds = {x0, y0, x1 - x0, y1 - y0};
-            });
-            std::ranges::stable_sort(t->wall, [](const Thumbs::Block& a, const Thumbs::Block& b) { return a.group > b.group; });  // workspaces under their windows
-            for (std::string_view name : themes::style_names)
-                if (const auto st = theme::library().find_style(name)) {
-                    const bool dark = std::ranges::contains(st->layers, std::string("dark"));
-                    auto colour = [&](std::string_view token, Color otherwise) {
-                        const auto it = st->tokens.colors.find(std::string(token));
-                        return it != st->tokens.colors.end() ? it->second : otherwise;
-                    };
-                    t->packs.push_back({std::string(name), st->doc, colour("background", dark ? Color::hex(0x0b0f16) : Color::hex(0xf8fafc)),
-                                        colour("surface", dark ? Color::hex(0x161c27) : Color::white()), colour("accent", Color::hex(0x6366f1)),
-                                        colour("text", dark ? Color::hex(0xe5e7eb) : Color::hex(0x111827))});
-                }
-            s->thumbs = std::move(t);
-        }
+        s->width.set(rt.size().width);
+        s->room = rt.size().width;
+        s->band.set(Site::band_of(rt.size().width));
         s->guide = std::make_unique<Guide>(rt, [site = s.get()] { return site->place.get(); });
-        register_type(component_type<Timebar>());
-        register_type(component_type<FrameMeter>());
-        fighting::register_components();  // the move list's stage is the game's own
         {
             const auto it = std::ranges::find_if(all, [&](const Place& p) { return p.id == s->place.peek(); });
             const bool zh = s->lang.peek() == "zh";
-            s->mark(it != all.end() ? std::string(zh ? it->zh : it->en) : std::string(zh ? "全景" : "Overview"));
+            if (it != all.end()) s->mark(std::string(zh ? it->zh : it->en));
         }
         (void)rt.stage_plugins().add({.name = "openmui.site.tree_watch", .kind = "stage", .description = "the site's place read again when its tree changed",
                                       .cost = pipeline::Cost{.cpu_us = 200}},
@@ -1591,171 +1036,100 @@ AppSpec app(std::string_view place, std::string_view lang) {
                                });
         if (auto in = rt.frame_pipeline().insert({"tree_watch", "openmui.site.tree_watch", {"paint"}, {}}, rt.stage_plugins()); !in)
             site_log.warn("the tree watch is not in the frame: {}", pipeline::to_text(in.error()));
+        s->show_route();
         s->soon();
     };
     a.view = [s] {
+        auto say = [s](std::string_view en, std::string_view han) {
+            return computed([s, en = std::string(en), han = std::string(han)] { return s->lang.get() == "zh" ? han : en; });
+        };
         auto wide = [s] { return !s->compact.get(); };
-        auto narrow = [s] { return s->compact.get(); };
-        // The bar: the name, the lens, the language.
-        Element bar = row({.id = "bar", .padding = Edges(10.0f, 16.0f), .gap = 6, .align = "center", .background = "surface"},
-                          {brand_mark("logo", 28), text({.id = "mark", .text = "openmui", .style = "title"}),
-                           only_when(row({.id = "tagline", .grow = 1},
-                                         {retyped(text({.id = "motto", .text = computed([s] { return std::string(s->lang.get() == "zh" ? "一棵树，多种呈现" : "one tree, many renderings"); }),
-                                                        .style = "caption"}),
-                                                  s)}),
-                                     wide),
-                           only_when(box({.id = "fill", .grow = 1}), narrow),
-                           only_when(frame_meter({.id = "frames", .label = computed([s] { return std::string(s->lang.get() == "zh" ? "帧率" : "Frame rate"); })}), wide),
-                           only_when(button({.id = "drawing_toggle",
-                                             .text = computed([s] { return std::string(s->lang.get() == "zh" ? "绘制" : "Drawing"); }),
-                                             .variant = computed([s] { return s->drawing.get() ? ButtonVariant::secondary : ButtonVariant::ghost; }),
-                                             .on_activated = [s] { s->drawing.set(!s->drawing.get()); },
-                                             .margin = Edges(Insets{0, 18, 0, 0})}),  // the meter's switches, apart from the lenses
-                                     wide),
-                           lens_button(s, "pixels", "Pixels"), lens_button(s, "tree", "Tree"), lens_button(s, "agent", "Agent"), lens_button(s, "test", "Test"),
-                           only_when(button({.id = "guide_toggle",
-                                             .text = computed([s] { return std::string(s->lang.get() == "zh" ? "让 agent 来" : "Ask an agent"); }),
-                                             .variant = computed([s] { return s->panel.get() ? ButtonVariant::primary : ButtonVariant::secondary; }),
-                                             .on_activated = [s] { s->panel.set(!s->panel.get()); }}),
-                                     wide),
-                           // Compact: the places, the lenses and the switches in a menu.
-                           only_when(button({.id = "menu",
-                                   .text = computed([s] {
-                                       const bool zh = s->lang.get() == "zh";
-                                       return std::string(s->menu.get() ? (zh ? "关闭" : "Close") : (zh ? "菜单" : "Menu"));
-                                   }),
-                                   .variant = computed([s] { return s->menu.get() ? ButtonVariant::secondary : ButtonVariant::ghost; }),
+        // The places: where you are, said to every reader (selected) and seen (outlined).
+        std::vector<Element> places;
+        for (const Place& p : all) {
+            const std::string id(p.id);
+            Element b = button({.id = "to_" + id,
+                                .text = computed([s, en = p.en, zh = p.zh] { return std::string(s->lang.get() == "zh" ? zh : en); }),
+                                .variant = computed([s, id] { return s->place.get() == id ? ButtonVariant::secondary : ButtonVariant::ghost; }),
+                                .on_activated = [s, id] { s->go(id); }});
+            b.prop("selected", derive([s, id] { return s->place.get() == id; }));
+            places.push_back(retyped(std::move(b), s));
+        }
+        Element nav = row({.id = "nav", .gap = 2, .align = "center", .wrap = "wrap", .label = "Places"}, std::move(places));
+        nav.prop("role", Source(Value("navigation")));  // a landmark
+        // Narrow: a line of its own, its places wrapping within it.
+        nav.prop("width", derive([s] { return s->compact.get() ? Value(static_cast<double>(s->width.get() - 48)) : Value{}; }));
+        // The bar: the mark, the places, the switches. Narrow, it wraps: the places on a line of their own.
+        Element bar = row({.id = "bar", .padding = Edges(12.0f, 24.0f), .gap = 8, .align = "center", .wrap = "wrap", .background = "bar"},
+                          {brand_mark("logo", 26), text({.id = "mark", .text = "openmui", .style = "heading"}), box({.id = "space", .width = Dim(16.0f)}),
+                           std::move(nav), only_when(box({.id = "fill", .grow = 1}), wide),
+                           only_when(frame_meter({.id = "frames", .label = say("Frame rate", "帧率")}), [s] { return s->width.get() >= 1400; }),
+                           button({.id = "settings_toggle",
+                                   .text = say("Settings", "设置"),
+                                   .variant = computed([s] { return s->settings.get() ? ButtonVariant::secondary : ButtonVariant::ghost; }),
                                    .on_activated = [s] {
-                                       s->menu.set(!s->menu.get());
-                                       s->panel.set(false);
-                                       s->drawing.set(false);
-                                       s->checking.set(false);
+                                       s->settings.set(!s->settings.peek());
+                                       if (s->settings.peek()) s->panel.set(false), s->checking.set(false);
                                    }}),
-                                     narrow),
+                           button({.id = "guide_toggle",
+                                   .text = say("Ask an agent", "让 agent 来"),
+                                   .variant = computed([s] { return s->panel.get() ? ButtonVariant::primary : ButtonVariant::secondary; }),
+                                   .on_activated = [s] {
+                                       s->panel.set(!s->panel.peek());
+                                       if (s->panel.peek()) s->settings.set(false), s->checking.set(false);
+                                   }}),
                            button({.id = "lang",
                                    .text = computed([s] { return std::string(s->lang.get() == "zh" ? "English" : "中文"); }),
-                                   .variant = ButtonVariant::secondary,
+                                   .variant = ButtonVariant::ghost,
                                    .on_activated = [s] {
                                        s->mark(s->lang.peek() == "zh" ? "English" : "中文");
                                        s->switched_at = s->runtime ? s->runtime->now().count() : 0;
                                        s->lang.set(s->lang.get() == "zh" ? "en" : "zh");
                                        s->switches.set(s->switches.get() + 1);
-                                       // The labels in the other language, the windows' textures drawn again.
-                                       s->relayout(s->layout.view);
-                                       for (const Place& p : all)
-                                           if (auto n = s->scene().find(p.id)) s->scene().touch(*n);
+                                       s->show_route();
                                        s->soon();
                                    }})});
-        // The places down the side.
-        std::vector<Element> nav;
-        auto go = [&nav, s](std::string id, std::string_view en, std::string_view zh) {
-            nav.push_back(retyped(button({.id = "to_" + id,
-                                          .text = computed([s, en, zh] { return std::string(s->lang.get() == "zh" ? zh : en); }),
-                                          // Where you are: outlined, not filled (filled is for an action to take).
-                                          .variant = computed([s, id] { return s->place.get() == id ? ButtonVariant::secondary : ButtonVariant::ghost; }),
-                                          .on_activated = [s, id] {
-                                              s->menu.set(false);
-                                              s->fly(id);
-                                          }}),
-                                  s));
-        };
-        // Two groups: what to read, and what runs.
-        auto group = [&nav, s](std::string id, std::string_view en, std::string_view zh) {
-            // Lined up with the buttons' text, a little space above it.
-            nav.push_back(box({.id = std::move(id), .padding = Edges(Insets{12, 16, 2, 16})},
-                              {retyped(text({.id = "label",
-                                             .text = computed([s, en, zh] { return std::string(s->lang.get() == "zh" ? zh : en); }),
-                                             .style = "caption",
-                                             .color = "text_muted"}),
-                                       s)}));
-        };
-        go("overview", "Overview", "全景");
-        group("learn", "LEARN", "阅读");
-        for (const Place& p : all | std::views::take(3)) go(std::string(p.id), p.en, p.zh);
-        group("explore", "EXPLORE", "运行");
-        for (const Place& p : all | std::views::drop(3)) go(std::string(p.id), p.en, p.zh);
-        // Compact: the bar's switches here.
-        {
-            std::vector<Element> more;
-            more.push_back(retyped(text({.id = "label", .text = computed([s] { return std::string(s->lang.get() == "zh" ? "查看" : "VIEW"); }),
-                                         .style = "caption", .color = "text_muted"}),
-                                   s));
-            for (auto [id, name] : {std::pair{"pixels", "Pixels"}, {"tree", "Tree"}, {"agent", "Agent"}, {"test", "Test"}})
-                more.push_back(lens_button(s, id, name, true));
-            more.push_back(button({.id = "guide_toggle",
-                                   .text = computed([s] { return std::string(s->lang.get() == "zh" ? "让 agent 来" : "Ask an agent"); }),
-                                   .variant = ButtonVariant::ghost,
-                                   .on_activated = [s] {
-                                       s->menu.set(false);
-                                       s->panel.set(true);
-                                   }}));
-            more.push_back(button({.id = "drawing_toggle",
-                                   .text = computed([s] { return std::string(s->lang.get() == "zh" ? "绘制" : "Drawing"); }),
-                                   .variant = ButtonVariant::ghost,
-                                   .on_activated = [s] {
-                                       s->menu.set(false);
-                                       s->drawing.set(true);
-                                   }}));
-            nav.push_back(only_when(column({.id = "view_group", .padding = Edges(Insets{12, 0, 0, 0}), .gap = 4, .align = "start"}, std::move(more)),
-                                    [s] { return s->compact.get(); }));
-        }
-        // The places: windows on one canvas, the camera flying between them.
+        // The place, one at a time; built again when another is shown or the window crosses a width band.
         std::vector<Element> shown;
-        Element atlas = canvas({.id = "atlas",
-                                .background = Fill(Color::hex(0x05070b)),  // between the windows, darker than any page
-                                .label = "openmui's places",
-                                .promotion = s->promotion,
-                                .scene = s->scene_name,
-                                .start = std::format("preset:{}", s->place.peek())});
-        atlas.on("activated", [s](const Value& e) {
-            std::string key(e.get("key") ? e.get("key")->as_string() : "");
-            if (key.ends_with("-label")) key.resize(key.size() - 6);
-            if (std::ranges::any_of(all, [&](const Place& p) { return p.id == key; })) s->fly(key);
-        });
-        shown.push_back(std::move(atlas));
+        shown.push_back(dynamic([s] {
+            (void)s->band.get();
+            return std::vector<Element>{place_page(s, s->place.get())};
+        }));
         // Over the place, as the lens says.
-        shown.push_back(fades_in(lens({.id = "wireframe", .nodes = s->nodes}), [s] { return s->lens.get() == "tree"; }));
+        shown.push_back(fades_in(lens({.id = "wireframe", .nodes = s->nodes, .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100))}),
+                                 [s] { return s->lens.get() == "tree"; }));
         for (const std::string_view which : {"agent", "test"}) {
             const std::string key(which);
-            shown.push_back(fades_in(scroll({.id = key, .padding = Edges(24.0f, 32.0f), .background = "background"},
+            shown.push_back(fades_in(scroll({.id = key, .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .padding = Edges(32.0f, 48.0f), .background = "background"},
                                              {text({.id = key + "_text", .text = key == "agent" ? s->agent : s->test, .style = "code"})}),
                                       [s, key] { return s->lens.get() == key; }));
         }
+        Element view = stack({.id = "view", .min_width = Dim(0.0f), .min_height = Dim(0.0f), .grow = 1, .label = "The place"}, std::move(shown));
+        view.prop("role", Source(Value("main")));  // a landmark: where a screen reader goes to read
+        // A phone: a panel takes the place's room while it is open.
+        auto some_panel = [s] { return s->panel.get() || s->settings.get() || s->checking.get(); };
         Element body = row({.id = "body", .min_height = Dim(0.0f), .align = "stretch", .grow = 1},
-                           {only_when(std::move(column({.id = "nav",
-                                                        .width = computed([s] { return s->compact.get() ? Dim(layout::pct(100)) : Dim(188.0f); }),
-                                                        .padding = Edges(20.0f, 12.0f),
-                                                        .gap = 4,
-                                                        .align = "start",
-                                                        .background = "surface",
-                                                        .label = "Places"},
-                                                       std::move(nav))
-                                                    .prop("role", Source(Value("navigation")))),  // a landmark
-                                      [s] { return !s->compact.get() || s->menu.get(); }),
-                            // (compact: the menu or a panel, at the full width, leaves it none)
-                            std::move(stack({.id = "view", .min_width = Dim(0.0f), .min_height = Dim(0.0f), .grow = 1, .label = "The place"}, std::move(shown))
-                                          .prop("role", Source(Value("main")))),  // a landmark: where a screen reader goes to read
-                            only_when(guide_panel(s), [s] { return s->panel.get(); }),
-                            only_when(drawing_panel(s), [s] { return s->drawing.get(); }),
+                           {only_when(std::move(view), [s, some_panel] { return !s->compact.get() || !some_panel(); }, "stack"),
+                            only_when(guide_panel(s), [s] { return s->panel.get(); }), only_when(settings_panel(s), [s] { return s->settings.get(); }),
                             only_when(check_panel(s), [s] { return s->checking.get(); })});
-        // The foot: the page's time (drag it, play it, play it backwards) and the tree's hash.
-        auto say = [s](std::string_view en, std::string_view han) {
-            return computed([s, en = std::string(en), han = std::string(han)] { return s->lang.get() == "zh" ? han : en; });
-        };
+        // The foot: the lenses, the page's time (drag it, play it, play it backwards) and the tree's hash.
         auto mode_is = [s](std::string_view m) { return s->time_mode.get() == m; };
-        Element foot = row({.id = "foot", .padding = Edges(4.0f, 12.0f), .gap = 6, .align = "center", .background = "surface"},
-                           {button({.id = "time_back",
+        Element foot = row({.id = "foot", .padding = Edges(6.0f, 16.0f), .gap = 6, .align = "center", .background = "bar"},
+                           {lens_button(s, "pixels", "Pixels"), lens_button(s, "tree", "Tree"), lens_button(s, "agent", "Agent"), lens_button(s, "test", "Test"),
+                            only_when(box({.id = "between", .width = Dim(1.0f), .height = Dim(20.0f), .margin = Edges(Insets{0, 6, 0, 6}), .background = "border"}), wide),
+                            // A phone: the lenses, Live and the strip (the playhead dragged); the rest of the time's controls on a wider screen.
+                            only_when(button({.id = "time_back",
                                     .text = say("Backwards", "倒放"),
                                     .variant = computed([mode_is] { return mode_is("backwards") ? ButtonVariant::primary : ButtonVariant::ghost; }),
-                                    .on_activated = [s] { s->time_mode.peek() == "backwards" ? s->pause() : s->backwards(); }}),
-                            button({.id = "time_play",
+                                    .on_activated = [s] { s->time_mode.peek() == "backwards" ? s->pause() : s->backwards(); }}), wide),
+                            only_when(button({.id = "time_play",
                                     .disabled = computed([mode_is] { return mode_is("live"); }),
                                     .text = computed([s] {
                                         const bool zh = s->lang.get() == "zh";
                                         return std::string(s->time_mode.get() == "playing" ? (zh ? "暂停" : "Pause") : (zh ? "播放" : "Play"));
                                     }),
                                     .variant = ButtonVariant::ghost,
-                                    .on_activated = [s] { s->time_mode.peek() == "playing" ? s->pause() : s->play(); }}),
+                                    .on_activated = [s] { s->time_mode.peek() == "playing" ? s->pause() : s->play(); }}), wide),
                             button({.id = "time_live",
                                     .text = say("Live", "实时"),
                                     .variant = computed([mode_is] { return mode_is("live") ? ButtonVariant::primary : ButtonVariant::ghost; }),
@@ -1770,30 +1144,31 @@ AppSpec app(std::string_view place, std::string_view lang) {
                                      .window = Site::time_window,
                                      .on_scrubbed = [s](double t) { s->scrub(t); },
                                      .grow = 1}),
-                            text({.id = "clock",
+                            only_when(text({.id = "clock",
                                   .text = computed([s] {
                                       if (s->time_mode.get() == "live") return std::string(s->lang.get() == "zh" ? "现在" : "now");
                                       std::string t = std::format("{:.1f} s", s->playhead.get() - s->time_end.get());
                                       if (t.starts_with('-')) t.replace(0, 1, "−");
                                       return t;
                                   }),
-                                  .style = "caption"}),
+                                  .style = "caption"}), wide),
                             // Monospace: a new hash keeps its width, so nothing beside it moves.
-                            only_when(row({.id = "proof"}, {text({.id = "hash", .text = s->hash, .style = "code"})}), [s] { return !s->compact.get(); }),
+                            only_when(row({.id = "proof"}, {text({.id = "hash", .text = s->hash, .style = "code"})}), [s] { return s->band.get() >= 2; }),
                             only_when(button({.id = "ci_check",
-                                    .text = say("Check against CI", "对照 CI"),
-                                    .variant = computed([s] { return s->checking.get() ? ButtonVariant::primary : ButtonVariant::ghost; }),
-                                    .on_activated = [s] {
-                                        const bool open = !s->checking.peek();
-                                        if (open && !s->replay) s->want_frame(0);
-                                        s->checking.set(open);
-                                    }}),
-                                      [s] { return !s->compact.get(); })});
+                                              .text = say("Check against CI", "对照 CI"),
+                                              .variant = computed([s] { return s->checking.get() ? ButtonVariant::primary : ButtonVariant::ghost; }),
+                                              .on_activated = [s] {
+                                                  const bool open = !s->checking.peek();
+                                                  if (open && !s->replay) s->want_frame(0);
+                                                  s->checking.set(open);
+                                                  if (open) s->panel.set(false), s->settings.set(false);
+                                              }}),
+                                      wide)});
         Element site = column({.id = "site", .grow = 1, .background = "background"}, {std::move(bar), std::move(body), std::move(foot)});
-        // Esc puts away what is open over the place: the menu, a panel.
+        // Esc puts away what is open over the place: a panel.
         site.on("key_down", [s](const Value& e) {
             if (!e.get("key") || e.get("key")->as_string() != "Escape") return;
-            for (Signal<bool>* open : {&s->menu, &s->panel, &s->drawing, &s->checking})
+            for (Signal<bool>* open : {&s->panel, &s->settings, &s->checking})
                 if (open->peek()) open->set(false);
         });
         return site;
@@ -1825,58 +1200,40 @@ std::string static_html(std::string_view lang) {
     // A skip link first (WCAG 2.4.1): past the places to the first one's text.
     std::string out = std::format("<main id=\"omui-static\" lang=\"{}\">\n<a class=\"skip\" href=\"#/{}home\">{}</a>\n<nav aria-label=\"{}\">",
                                   chinese ? "zh-CN" : "en", chinese ? "zh/" : "", chinese ? "跳到正文" : "Skip to content", chinese ? "页面" : "Places");
-    for (const Place& p : all) out += std::format("<a href=\"#/{}{}\">{}</a> ", lang == "zh" ? "zh/" : "", p.id, lang == "zh" ? p.zh : p.en);
+    // Each place's section by its whole route (#/home too: the static page's own anchors).
+    auto href = [&](std::string_view place) { return std::format("#/{}{}", chinese ? "zh/" : "", place); };
+    for (const Place& p : all) out += std::format("<a href=\"{}\">{}</a> ", href(p.id), chinese ? p.zh : p.en);
     out += "</nav>\n";
     for (const Place& p : all) {
-        out += std::format("<section id=\"/{}{}\">\n", lang == "zh" ? "zh/" : "", p.id);
-        const bool zh = lang == "zh";
-        if (p.id == "home") out += hero_html(zh);
+        out += std::format("<section id=\"{}\">\n", href(p.id).substr(1));
+        if (p.id == "home") out += hero_html(chinese);
         if (const std::string_view doc = document(p.id, lang); !doc.empty()) {
             // Links to the site's own documents go to their sections, as they go to their places when the program runs.
             std::string html = md::to_html(md::parse(doc));
             for (const auto& [file, place] : {std::pair{"best-practices.md", "practices"}, std::pair{"features.md", "features"}})
-                for (std::string from = std::format("href=\"{}", file), to = std::format("href=\"#/{}{}", lang == "zh" ? "zh/" : "", place);;) {
+                for (std::string from = std::format("href=\"{}", file), to = std::format("href=\"{}", href(place));;) {
                     const auto at = html.find(from);
                     if (at == std::string::npos) break;
                     const auto end = html.find('"', at + 6);
                     html.replace(at, end - at, to);
                 }
             out += html;
+        } else if (p.id == "components") {
+            // Every component, what it is to every reader: its contract's words.
+            out += chinese ? "<h1>组件</h1>\n<p>openmui.ui.base 的每个组件。可以操作的组件、四种语言的代码和风格包需要 JavaScript。</p>\n<ul>\n"
+                           : "<h1>Components</h1>\n<p>Every component of openmui.ui.base. Operating them, their code in four languages and the style packs need JavaScript.</p>\n<ul>\n";
+            for (const std::string_view name : {"button", "toggle", "checkbox", "radio", "slider", "number_input", "text_box", "select", "tabs", "breadcrumb", "pagination",
+                                                "progress", "badge", "avatar", "card", "accordion", "skeleton", "tooltip", "popover", "toast", "dialog"})
+                if (const ComponentType* t = find_type(name); t && t->contract)
+                    out += std::format("<li><b>{}</b> ({}) — {}</li>\n", name, spec::name(t->contract->role), escaped(t->contract->doc));
+            out += "</ul>\n";
         } else if (p.id == "timeline")
-            out += zh ? "<h1>时间线编辑器</h1>\n<p>一个可用的时间线编辑器：拖动、修剪、切开，每次编辑都能精确撤销。需要 JavaScript。</p>\n"
-                      : "<h1>A timeline editor</h1>\n<p>A working timeline editor: drag, trim and split clips, every edit undone exactly. It needs JavaScript.</p>\n";
-        else if (p.id == "wall")
-            out += zh ? "<h1>文档墙（S1）</h1>\n<p>所有文档在一块无限画布上：远处是色块，近一些是离屏画好的纹理，再近就是活的文档。需要 JavaScript。</p>\n"
-                      : "<h1>The document wall (S1)</h1>\n<p>Every document on one infinite canvas: far away a block, nearer a texture drawn offscreen, close up a live document. It needs JavaScript.</p>\n";
-        else if (p.id == "moves") {
-            // The move list for readers without the program (and search engines): every fighter's frame data, measured here as the page is.
-            out += zh ? "<h1>出招表：帧数据，实测</h1>\n<p>每个数字都是游戏自己实测的：每个招式对着站立的、再对着防御的木桩，从刚好够得着的距离出一遍。逐帧演示需要 JavaScript。</p>\n"
-                      : "<h1>Move list — frame data, measured</h1>\n<p>Every number is measured by the game itself: each move played against a dummy standing still, then guarding, "
-                        "from where it reaches. Seeing a move frame by frame needs JavaScript.</p>\n";
-            const fighting::Roster& r = fighting::roster();
-            for (std::size_t i = 0; i < r.names.size(); ++i) {
-                const gongfu::Fighter& f = r.fighters[i];
-                out += std::format("<h2>{}</h2>\n<table>\n<tr><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th></tr>\n",
-                                   escaped(fighter_name(r.names[i], f.def.name, zh)), zh ? "招式" : "Move", zh ? "发生" : "Startup", zh ? "持续" : "Active",
-                                   zh ? "收招" : "Recovery", zh ? "命中" : "On hit", zh ? "被防" : "On block", zh ? "伤害" : "Damage");
-                for (std::size_t m = 0; m < f.def.moves.size(); ++m) {
-                    const gongfu::MoveDef& md = f.def.moves[m];
-                    if (!md.asked) continue;
-                    const auto d = gongfu::training::frame_data(r.system, f, static_cast<std::int32_t>(m));
-                    const std::string kind = d.throw_ ? (zh ? "投" : "throw") : d.air ? (zh ? "空中" : "air") : "";
-                    out += std::format("<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>\n", escaped(md.name), d.startup,
-                                       d.active, d.recovery, kind.empty() ? advantage(d.on_hit, d.knockdown, zh) : kind,
-                                       kind.empty() ? advantage(d.on_block, false, zh) : "—", d.damage);
-                }
-                out += "</table>\n";
-            }
-        } else if (p.id == "styles")
-            out += zh ? "<h1>风格工坊（S2）</h1>\n<p>同一个真实的界面，放进 openmui 的每个风格包：玻璃、霓虹、复古、水墨、液态；当前的风格包可以边看边改。变的只有像素：每个风格包下语义树都一样。需要 JavaScript。</p>\n"
-                      : "<h1>The style workshop (S2)</h1>\n<p>One real interface in each of openmui's style packs — glass, neon, retro, ink, liquid — and the pack shown edited as you go. "
-                        "Only pixels change: the semantic tree is the same in every pack. It needs JavaScript.</p>\n";
+            out += chinese ? "<h1>时间线编辑器</h1>\n<p>一个可用的时间线编辑器：拖动、修剪、切开，每次编辑都能精确撤销。需要 JavaScript。</p>\n"
+                           : "<h1>A timeline editor</h1>\n<p>A working timeline editor: drag, trim and split clips, every edit undone exactly. It needs JavaScript.</p>\n";
         else if (p.id == "hello")
-            out += std::format("<h1>{}</h1>\n<p>{}</p>\n<pre><code>{}</code></pre>\n", zh ? "示例 01：你好，立即模式" : "Example 01 — hello, immediate mode",
-                               zh ? "一个完整的 openmui 程序。运行它需要 JavaScript；它的全部源码如下。" : "A whole openmui program. Running it needs JavaScript; here is all of its source.",
+            out += std::format("<h1>{}</h1>\n<p>{}</p>\n<pre><code>{}</code></pre>\n", chinese ? "开始使用" : "Get started",
+                               chinese ? "示例 01，一个完整的 openmui 程序。运行它需要 JavaScript；它的全部源码如下。"
+                                       : "Example 01, a whole openmui program. Running it needs JavaScript; here is all of its source.",
                                escaped(hello::hello_source));
         out += "</section>\n";
     }
@@ -1905,15 +1262,16 @@ std::optional<std::string> inject(std::string_view page, std::string_view fragme
         const auto from = at + key.size(), to = out.find('"', from);
         faces += std::format("@font-face{{font-family:'{}';src:url({});font-display:swap}}", family, out.substr(from, to - from));
     }
+    // In the site's own colours (site.theme.omui.toml's light tokens).
     out.insert(head,
                "<style>" + faces +
-                   "#omui-static{position:fixed;inset:0;z-index:1;overflow:auto;padding:24px 40px;background:#0b0f16;color:#d6dde8;"
+                   "#omui-static{position:fixed;inset:0;z-index:1;overflow:auto;padding:32px 48px;background:#fbfbfa;color:#16161a;"
                    "font:16px/1.6 Inter,'Noto Sans SC',system-ui,sans-serif;user-select:text}#omui-static[hidden]{display:none}"
-                   "#omui-static nav{margin-bottom:24px}#omui-static a{color:#8ab4ff}#omui-static nav a{margin-right:16px}"
-                   "#omui-static .skip{position:absolute;left:8px;top:-60px;padding:8px 14px;background:#fff;color:#0b0f16}#omui-static .skip:focus{top:8px}"
-                   "#omui-static section{max-width:860px;margin-bottom:48px}#omui-static code{font:14px 'JetBrains Mono',monospace;background:#161c27;"
+                   "#omui-static nav{margin-bottom:32px}#omui-static a{color:#4f46e5}#omui-static nav a{margin-right:16px}"
+                   "#omui-static .skip{position:absolute;left:8px;top:-60px;padding:8px 14px;background:#16161a;color:#fbfbfa}#omui-static .skip:focus{top:8px}"
+                   "#omui-static section{max-width:860px;margin-bottom:64px}#omui-static code{font:14px 'JetBrains Mono',monospace;background:#f3f3f1;"
                    "padding:1px 4px;border-radius:3px}#omui-static pre{white-space:pre-wrap}#omui-static table{border-collapse:collapse}"
-                   "#omui-static td,#omui-static th{border:1px solid #2a3344;padding:4px 8px}</style>\n"
+                   "#omui-static td,#omui-static th{border:1px solid #e6e6e3;padding:4px 8px}</style>\n"
                    "<meta name=\"description\" content=\"openmui: one semantic tree, many renderings — pixels, accessibility, agents and tests.\">\n");
     // A reader may zoom the page (WCAG 1.4.4): the packer's viewport forbids it.
     if (const auto at = out.find(", maximum-scale=1, user-scalable=no"); at != std::string::npos) out.erase(at, std::string_view(", maximum-scale=1, user-scalable=no").size());

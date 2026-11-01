@@ -10,7 +10,7 @@
 //   CHROME=<chromium> node tools/ci/drive-page.mjs <url> <out.png> [seconds] [width] [height] [script]
 //   CHROME=… node tools/ci/drive-page.mjs 'http://localhost:8000/#/overview' overview.png 8
 //   CHROME=… node tools/ci/drive-page.mjs http://localhost:8000/ f.png 6 1280 800 \
-//       "window.omui.act('main/body/nav/to_features', 'activate').then(r => r.exitCode)"
+//       "window.omui.act('main/bar/nav/to_features', 'activate').then(r => r.exitCode)"
 import { spawn } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 const [url, out, secs = '6', w = '1280', h = '800', script = ''] = process.argv.slice(2);

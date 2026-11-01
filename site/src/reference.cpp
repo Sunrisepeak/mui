@@ -8,13 +8,13 @@ namespace omui::site {
 
 namespace {
 
-// Home, then a flight to Features, the language switched, the tree's lens:
-// the site's own motions (a camera's spring, glyphs gathering, a fade), each
-// pressed on a whole frame (60 a second).
+// Home, then Features, the language switched, the tree's lens: the site's
+// own motions (the places' morphs, glyphs gathering, a fade), each pressed
+// on a whole frame (60 a second).
 constexpr std::array<ReferenceStep, 3> script{{
-    {0.5, "main/body/nav/to_features"},
+    {0.5, "main/bar/nav/to_features"},
     {2.7, "main/bar/lang"},
-    {4.6, "main/bar/lens_tree"},
+    {4.6, "main/foot/lens_tree"},
 }};
 constexpr double tail = 1.2;  // seconds after the last step: its motion to rest
 

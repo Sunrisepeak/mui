@@ -1,11 +1,13 @@
 # openmui's website (D-84 §6.6): the framework's thesis shown, not told —
-# one semantic tree, many renderings. Places (the home, the docs in English
-# and 中文, a live timeline editor); a lens moving the same page from its
-# pixels to the semantic tree's wireframe, the JSON an agent reads and the
-# assertions a test writes; the tree's hash in your browser beside CI's.
-# Built for the Web (dist-toy's package, which a Pages subpath serves as it
-# is), its places pre-rendered to static HTML from the same documents so a
-# reader without JavaScript and a search engine see them.
+# one semantic tree, many renderings. Places in a bar (the home, every
+# component live, the docs in English and 中文, example 01 beside its
+# source, a live timeline editor), each a page in the site's own theme; a
+# lens moving the same page from its pixels to the semantic tree's
+# wireframe, the JSON an agent reads and the assertions a test writes; the
+# tree's hash in your browser beside CI's. Built for the Web (dist-toy's
+# package, which a Pages subpath serves as it is), its places pre-rendered to
+# static HTML from the same documents so a reader without JavaScript and a
+# search engine see them.
 #
 #   mcpp run -p openmui.site                       the site in a window
 #   mcpp run -p openmui.site -- --prerender out/index.html   its places into a packed page
@@ -37,14 +39,9 @@ openmui.sdk         = { path = ".." }
 openmui.ui.markdown = { path = "../components/markdown" }
 openmui.ui.timeline = { path = "../components/timeline" }
 openmui.timeline    = { path = "../modules/media/timeline" }  # the monitor: what plays at the playhead
-openmui.ui.canvas   = { path = "../components/canvas" }
-# The works the site runs in its places: S1's wall, S2's workshop, example 01, the move list.
-openmui.showcase.markdown_wall = { path = "../showcase/markdown-wall" }
-openmui.showcase.style_gallery = { path = "../showcase/style-gallery" }
 openmui.theme.styles = { path = "../modules/ui/theme/styles" }
 "openmui.theme"      = { path = "../modules/ui/theme" }
-openmui.example.hello-im       = { path = "../examples/01-hello-im" }
-openmui.showcase.fighting      = { path = "../showcase/fighting", default-features = false, features = ["art-later"] }  # its move list: no arenas; on the Web its pictures come after the first frame
+openmui.example.hello-im       = { path = "../examples/01-hello-im" }  # getting started: example 01, running beside its source
 openmui.semantic    = { path = "../modules/ui/semantic" }
 openmui.trace       = { path = "../modules/base/trace" }
 openmui.hash        = { path = "../modules/base/hash" }

@@ -15,7 +15,7 @@ constexpr std::array<GuideTask, 5> tasks{{
     {"self", "Answer for the person (S-10)", "替人回答（S-10）"},
 }};
 
-constexpr std::string_view editor = "main/body/view/atlas/timeline/page/editor";
+constexpr std::string_view editor = "main/body/view/timeline/page/editor";
 constexpr std::string_view openas_url = "https://github.com/openlifa/openas";
 
 std::string act(std::string_view node, std::string_view action, std::string_view args = {}) {
@@ -57,19 +57,19 @@ Guide::Guide(Runtime& runtime, std::function<std::string()> place)
       }()) {}
 
 std::vector<std::string> Guide::steps(std::string_view task) const {
-    // A place's window is live once the camera has flown to it: an agent waits for what it will act on, as any agent does.
+    // A place is built when it is shown: an agent waits for what it will act on, as any agent does.
     auto wait = [](std::string_view node) { return std::format(R"({{"op":"wait","actor":"{}","q":{{"id":"{}"}},"timeout":5}})", guide_actor, node); };
     if (task == "read") {
-        const std::string at = place_() == "overview" ? std::string("main/body/view/atlas") : std::format("main/body/view/atlas/{}/page", place_());
+        const std::string at = std::format("main/body/view/{}/page", place_());
         return {std::format(R"({{"op":"snapshot","actor":"{}","root":"{}","depth":2}})", guide_actor, at)};
     }
-    if (task == "tour") return {act("main/bar/lang", "activate"), act("main/body/nav/to_features", "activate"), wait("main/body/view/atlas/features/page/read/doc")};
+    if (task == "tour") return {act("main/bar/lang", "activate"), act("main/bar/nav/to_features", "activate"), wait("main/body/view/features/page/read/doc")};
     if (task == "edit")
-        return {act("main/body/nav/to_timeline", "activate"), wait(editor), act(editor, "seek", R"({"frame":30})"), act(editor, "select", R"({"track":0,"clip":0})"),
+        return {act("main/bar/nav/to_timeline", "activate"), wait(editor), act(editor, "seek", R"({"frame":30})"), act(editor, "select", R"({"track":0,"clip":0})"),
                 act(editor, "split"), std::format(R"({{"op":"undo","actor":"{}","scope":"{}"}})", guide_actor, editor)};
     if (task == "link")
-        return {act("main/body/nav/to_home", "activate"), wait("main/body/view/atlas/home/page/doc"),
-                act("main/body/view/atlas/home/page/doc", "open_link", std::format(R"({{"href":"{}"}})", openas_url))};
+        return {act("main/bar/nav/to_home", "activate"), wait("main/body/view/home/page/doc"),
+                act("main/body/view/home/page/doc", "open_link", std::format(R"({{"href":"{}"}})", openas_url))};
     if (task == "self") return {act("main/body/guide/asking/answer/allow_once", "activate")};
     return {};
 }

@@ -65,8 +65,8 @@ const tails = await b.value(`new Promise(async (done) => {
   requestAnimationFrame(tick);
   const acted = [];
   const act = async (id) => { const r = window.omui ? await window.omui.act(id, 'activate') : null; acted.push({ node: id, exitCode: r ? r.exitCode : null }); };
-  await act('main/body/nav/to_features'); await new Promise((r) => setTimeout(r, 2500));
-  await act('main/body/nav/to_home'); await new Promise((r) => setTimeout(r, 2500));
+  await act('main/bar/nav/to_features'); await new Promise((r) => setTimeout(r, 2500));
+  await act('main/bar/nav/to_home'); await new Promise((r) => setTimeout(r, 2500));
   running = false;
   gaps.sort((a, b) => a - b);
   const q = (p) => gaps.length ? gaps[Math.min(gaps.length - 1, Math.floor(p * gaps.length))] : null;

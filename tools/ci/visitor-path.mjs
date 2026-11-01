@@ -59,15 +59,15 @@ try {
 
   // 3. The agent operates the page through its semantic tree.
   const snap = page('snapshot', '--interactive');
-  step(snap.code === 0 && snap.out.includes('main/body/nav'), 'the agent reads the page (omui page snapshot)', snap.err.slice(0, 300));
-  const act = page('act', 'main/body/nav/to_features', 'activate');
+  step(snap.code === 0 && snap.out.includes('main/bar/nav'), 'the agent reads the page (omui page snapshot)', snap.err.slice(0, 300));
+  const act = page('act', 'main/bar/nav/to_features', 'activate');
   step(act.code === 0, 'the agent acts on it (omui page act … activate)', (act.out + act.err).slice(0, 300));
   await sleep(1500);
   // Where it is, as the agent reads it: the features' place on screen, home's gone from the tree.
   const there = page('snapshot');
-  step(there.out.includes('"main/body/view/atlas/features') && !there.out.includes('"main/body/view/atlas/home'), 'the page went where the agent took it',
+  step(there.out.includes('"main/body/view/features') && !there.out.includes('"main/body/view/home'), 'the page went where the agent took it',
        there.err.slice(0, 300));
-  const back = page('act', 'main/body/nav/to_home', 'activate');
+  const back = page('act', 'main/bar/nav/to_home', 'activate');
   step(back.code === 0, 'and back home', (back.out + back.err).slice(0, 300));
   await sleep(1000);
 

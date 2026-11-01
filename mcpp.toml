@@ -177,6 +177,14 @@ opt     = 1
 debug   = false
 ldflags = ["-sASYNCIFY=1", "-sEXIT_RUNTIME=1"]
 
+# The Web's bytes, looked into (W8; tools/ci/wasm-size.sh): the release
+# build's code (-O2) with its functions' names kept in a name section, for
+# `omui-gen wasm-size` to say where they go.
+[workspace.profile.wasm-size]
+opt     = 2
+debug   = false
+ldflags = ["--profiling-funcs"]
+
 [workspace.package]
 standard = "c++23"
 mcpp     = ">=2026.10.26.1"

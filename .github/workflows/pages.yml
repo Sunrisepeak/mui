@@ -21,6 +21,8 @@ on:
       - 'tools/gen/src/dist_toy.cpp'
       - 'tools/ci/site.sh'
       - 'tools/ci/site-*'
+      - 'tools/ci/wasm-size.sh'
+      - 'tools/gen/src/wasm_size.cpp'
       - 'tools/ci/page.mjs'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
@@ -73,6 +75,17 @@ jobs:
         # (site/delivery.budget.omui.json); the browser's accessibility tree
         # and the keyboard's way in by the skip link.
         run: tools/ci/site-browser.sh
+      - name: Where the site's WebAssembly bytes go (W8; Q-38)
+        # tools/ci/wasm-size.sh: the release's code with its functions' names
+        # kept, by owner (module, namespace, library) and its largest functions.
+        run: tools/ci/wasm-size.sh
+      - name: Keep the wasm's size report
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasm-size
+          path: |
+            target/wasm-size.json
+            target/wasm-size.md
       - name: Keep the site
         uses: actions/upload-pages-artifact@v3
         with:

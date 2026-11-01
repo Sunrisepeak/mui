@@ -28,6 +28,10 @@
 //   omui-gen dist-toy <staged tree> --target <name> --out <dir> [--title T] [--fonts a,b|all] …
 //       a wasm32-emscripten program packaged for Bilibili Toy (openmui.gen.dist_toy;
 //       what `mcpp pack --pkg-format dist-toy` runs)
+//   omui-gen wasm-size <file.wasm> [--json <out.json>] [--markdown <out.md>] [--top N]
+//       where a WebAssembly program's bytes go: its sections, its code by owner
+//       (module, namespace, C library) and its largest functions (W8;
+//       openmui.gen.wasm_size — names from an analysis build's name section)
 //       openmui.i18n's locale packs (*.locale.omui.json) and likely subtags
 //       openmui.unicode's tables (and a subset of the UCD's conformance tests)
 //
@@ -41,6 +45,7 @@ import openmui.gen.emit;
 import openmui.gen.unicode;
 import openmui.gen.cldr;
 import openmui.gen.dist_toy;
+import openmui.gen.wasm_size;
 
 using namespace omui::gen;
 
@@ -391,8 +396,52 @@ int run_contracts(const Options& o, bool emit) {
 
 }  // namespace
 
+// omui-gen wasm-size: the report on stdout (Markdown), and as files when asked.
+int wasm_size_main(int argc, char** argv) {
+    auto usage = [] {
+        std::println(std::cerr, "usage: omui-gen wasm-size <file.wasm> [--json <out.json>] [--markdown <out.md>] [--top N]");
+        return 2;
+    };
+    std::string file, json, markdown;
+    std::size_t top = 40;
+    for (int i = 2; i < argc; ++i) {
+        const std::string_view a = argv[i];
+        auto value = [&]() -> std::optional<std::string> { return i + 1 < argc ? std::optional<std::string>(argv[++i]) : std::nullopt; };
+        if (a == "--json") { auto v = value(); if (!v) return usage(); json = *v; }
+        else if (a == "--markdown") { auto v = value(); if (!v) return usage(); markdown = *v; }
+        else if (a == "--top") {
+            auto v = value();
+            if (!v || std::from_chars(v->data(), v->data() + v->size(), top).ec != std::errc{}) return usage();
+        } else if (!a.starts_with("--") && file.empty()) file = std::string(a);
+        else return usage();
+    }
+    if (file.empty()) return usage();
+    std::ifstream in(std::filesystem::path(file), std::ios::binary);
+    if (!in) {
+        std::println(std::cerr, "omui-gen wasm-size: cannot read {}", file);
+        return 1;
+    }
+    const std::vector<std::uint8_t> bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    auto r = omui::gen::wasm_size(bytes, top);
+    if (!r) {
+        std::println(std::cerr, "omui-gen wasm-size: {}: {}", file, r.error());
+        return 1;
+    }
+    auto write = [](const std::string& path, const std::string& text) {
+        std::ofstream o(std::filesystem::path(path), std::ios::binary);
+        o << text;
+        return static_cast<bool>(o);
+    };
+    if (!json.empty() && !write(json, omui::gen::to_json(*r))) return 1;
+    const std::string md = omui::gen::to_markdown(*r);
+    if (!markdown.empty() && !write(markdown, md)) return 1;
+    std::print("{}", md);
+    return 0;
+}
+
 int main(int argc, char** argv) {
     if (argc >= 2 && std::string_view(argv[1]) == "dist-toy") return dist_toy_main(argc, argv);
+    if (argc >= 2 && std::string_view(argv[1]) == "wasm-size") return wasm_size_main(argc, argv);
     auto options = parse_args(argc, argv);
     if (!options) return usage();
     if (options->command == "registry") return run_registry(*options);

@@ -522,4 +522,4 @@ M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten，渲�
 | Q-35 | ~~T0 的目标板子~~ **已定**：ESP32，首选 ESP32-S3，备选 ESP32-P4；宿主 `openmui.host.esp32`；C1 做工具链 spike（同上 §1） |
 | Q-36 | ~~Safari 下本地连接的默认行为~~ **已定**：先直连，失败时 agent 改用 `omui connect --serve`（[agent 接入与回溯](2026-11-01-openmui-agent-connect-rewind-design.md) §8） |
 | Q-37 | 按 actor 回溯的依赖判断，第一版的规则是否够用（同上 §6） |
-| Q-38 | 官网的重型页面（实验室要带三个脚本宿主、影片要带全部场景）：Emscripten 动态链接，还是单独程序加页面跳转？C3 前由 wasm 体积分析定（[总体方案](2026-11-01-openmui-master-plan-design.md) §9） |
+| Q-38 | 官网的重型页面（实验室要带三个脚本宿主、影片要带全部场景）：Emscripten 动态链接，还是单独程序加页面跳转？C3 前由 wasm 体积分析定（[总体方案](2026-11-01-openmui-master-plan-design.md) §9）。**分析的建议**：单独程序、按需加载（[wasm 体积分析](2026-11-01-openmui-wasm-size-analysis.md) §4），待评审 |

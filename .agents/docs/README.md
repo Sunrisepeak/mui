@@ -10,6 +10,7 @@
 | [2026-11-01-openmui-universal-motion-design.md](2026-11-01-openmui-universal-motion-design.md) | **通用动画**：组件 × 效果 × 动画三维三级；物质表示；槽、策略和叠加链；`morph` 的四层匹配和编排；幽灵层和粒子；动效工作室；定制分级；验收用例 |
 | [2026-11-01-openmui-performance-tiers-design.md](2026-11-01-openmui-performance-tiers-design.md) | **性能分档**：T0（MCU）到 T4（独立显卡）；编译期裁剪；代价声明和降档序列；帧预算调度器；三层控制；新预算；Web 交付；对比基准 |
 | [2026-11-01-openmui-agent-connect-rewind-design.md](2026-11-01-openmui-agent-connect-rewind-design.md) | **agent 原生接入与状态回溯**：用户叫自己本机的 agent 操作任何 openmui 应用（agent-link、本地桥、`omui page`、提示词和 `agent.md`、安全、CI 验收）；回溯条、按 actor 回溯、分支 |
+| [2026-11-01-openmui-wasm-size-analysis.md](2026-11-01-openmui-wasm-size-analysis.md) | **官网 wasm 体积分析**（W8，C1）：方法（`omui-gen wasm-size`、分析配置档）、代码按模块和库、数据段按内容、`-O2 / -Os / -Oz`；结论和 Q-38 的建议（作品做成单独程序按需加载） |
 | [2026-10-26-openmui-implementation-plan.md](2026-10-26-openmui-implementation-plan.md) | **实施计划**：技术基线和规则（不用宏、头文件最少、C++23 / 26）、workspace 成员划分和目录树、协作流程、各模块的实施、通用动画引擎、渲染、平台、语言绑定、agent、openmui-video、五个展示（含游戏和宣传片）、文档、CI、跨平台、生态补充、里程碑、**验收标准** |
 | [2026-10-26-openmui-promo-video-design.md](2026-10-26-openmui-promo-video-design.md) | **宣传片**：三部爆款 agent 代码动画视频的对标拆解、8 个共同点、约 60 秒的创意和分镜、视觉语言、配乐、制作流程、验收标准（自动检查 + 对标评分） |
 | [2026-10-26-openmui-architecture-design.md](2026-10-26-openmui-architecture-design.md) | **总体架构**：定位、原则、分层、规范和实现的关系、仓库和包、构建和生态、一致性分级、三根支柱、里程碑、决策记录（D-xx）、待决问题（Q-xx） |

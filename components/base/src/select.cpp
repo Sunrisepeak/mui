@@ -6,7 +6,6 @@ import openmui.view;
 
 namespace omui {
 
-using parts::keep_frames;
 using parts::mix;
 
 namespace {
@@ -24,7 +23,7 @@ std::string Select::label_of(std::string_view value) const {
 }
 
 void Select::mounted() {
-    hover_.attach(services(), 0);
+    hover_ = 0;
     label_.set_style("body");
     label_.set_text(props.value.empty() ? std::string("Choose…") : label_of(props.value));
 }
@@ -149,11 +148,11 @@ Size Select::measure(MeasureContext& m, std::optional<float> width, std::optiona
 void Select::paint(PaintContext& ctx) const {
     const Theme& th = ctx.theme;
     const bool off = props.disabled || ctx.state.disabled;
-    hover_.to(!off && ctx.state.hovered ? 1.0 : 0.0, th.transition("motion.fast"));
+    hover_ = !off && ctx.state.hovered ? 1.0 : 0.0;
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
     const CornerRadii r = CornerRadii::all(th.corner("medium", 8)).fitted(ctx.size);
     if (off) ctx.list.push_layer(0.5f, render::BlendMode::normal, {}, {}, box);
-    ctx.list.fill_round_rect(box, r, render::Paint::solid(mix(th.color("surface"), th.color("surface_variant"), static_cast<float>(hover_.value()))));
+    ctx.list.fill_round_rect(box, r, render::Paint::solid(mix(th.color("surface"), th.color("surface_variant"), static_cast<float>(hover_))));
     const bool open = expanded();
     const Color border = open ? th.color("accent") : th.color("border");
     ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, render::Paint::solid(border));
@@ -162,7 +161,6 @@ void Select::paint(PaintContext& ctx) const {
     label_.paint(ctx, {ctx.content.x, ctx.content.y + (ctx.content.height - t.height) / 2}, c);
     parts::chevron(ctx, {box.width - th.scaled(pad_x) - 6, box.height / 2}, 10, th.color("text_muted"));
     if (off) ctx.list.pop_layer();
-    keep_frames(ctx, {&hover_});
 }
 
 void Select::paint_over(PaintContext& ctx) const {

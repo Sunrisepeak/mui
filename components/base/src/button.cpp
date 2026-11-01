@@ -7,7 +7,6 @@ import openmui.view;
 namespace omui {
 
 using parts::focus_ring;
-using parts::keep_frames;
 using parts::mix;
 
 namespace {
@@ -38,8 +37,8 @@ Button::Colors Button::colors(const Theme& t, ButtonVariant v) {
 std::string Button::caption() const { return props.icon.empty() ? props.text : std::format("{}  {}", props.icon, props.text); }
 
 void Button::mounted() {
-    hover_.attach(services(), 0);
-    press_.attach(services(), 0);
+    hover_ = 0;
+    press_ = 0;
     label_.set_text(caption());
 }
 
@@ -78,10 +77,10 @@ void Button::paint(PaintContext& ctx) const {
     const Colors c = colors(ctx.theme, props.variant);
     const bool off = props.disabled || ctx.state.disabled;
     // The hover and press feedback move with the contract's motion tokens.
-    hover_.to(!off && (ctx.state.hovered || ctx.state.pressed) ? 1.0 : 0.0, ctx.theme.transition("motion.fast"));
-    press_.to(!off && ctx.state.pressed ? 1.0 : 0.0, ctx.theme.transition("motion.spring.snappy"));
-    const float h = static_cast<float>(hover_.value());
-    const float p = static_cast<float>(std::clamp(press_.value(), -0.5, 1.5));
+    hover_ = !off && (ctx.state.hovered || ctx.state.pressed) ? 1.0 : 0.0;
+    press_ = !off && ctx.state.pressed ? 1.0 : 0.0;
+    const float h = static_cast<float>(hover_);
+    const float p = static_cast<float>(std::clamp(press_, -0.5, 1.5));
 
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
     corner_ = ctx.theme.corner("medium", 8);
@@ -108,7 +107,6 @@ void Button::paint(PaintContext& ctx) const {
 
     if (off) ctx.list.pop_layer();
     if (scaled) ctx.list.pop_transform();
-    keep_frames(ctx, {&hover_, &press_});
 }
 
 void Button::paint_over(PaintContext& ctx) const {

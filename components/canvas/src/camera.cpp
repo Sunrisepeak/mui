@@ -59,7 +59,7 @@ CameraMotion::CameraMotion(Camera from, Camera to, hanim::seconds start, hanim::
     double settle = 0;
     for (std::size_t i = 0; i < 3; ++i) {
         const hanim::Rest rest = i < 2 ? hanim::Rest{world, world} : hanim::Rest{1e-4, 1e-4};
-        lanes_[i] = hanim::Oscillator(a[i], velocity[i], b[i], params, rest);
+        lanes_[i] = hanim::Oscillator(a[i], velocity[i], b[i], params, rest);  // MOTION-OK: a camera's flight is navigation (the viewpoint through the world, seekable on the runtime's clock), not a change of what is drawn
         settle = std::max(settle, lanes_[i].settle_time());
     }
     end_ = start + hanim::seconds(settle);

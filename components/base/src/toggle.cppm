@@ -32,7 +32,7 @@ public:
 
 private:
     mutable parts::Label  label_;
-    mutable parts::Motion thumb_, hover_;
+    mutable double thumb_ = 0, hover_ = 0;
     mutable bool   shown_ = false;
 };
 
@@ -54,7 +54,7 @@ public:
 
 private:
     mutable parts::Label  label_;
-    mutable parts::Motion mark_, hover_;
+    mutable double mark_ = 0, hover_ = 0;
     mutable bool   shown_ = false;
 };
 

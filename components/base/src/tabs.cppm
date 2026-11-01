@@ -32,11 +32,9 @@ public:
 
 private:
     ActResult step(int by);
-    void follow(PaintContext& ctx) const;  // the indicator toward the selected tab
-    [[nodiscard]] Rect lens(Size size) const;  // a bar's lens now: stretched along its way while it slides
+    [[nodiscard]] Rect under() const;          // the selected tab, in its own space
+    [[nodiscard]] Rect lens(Size size) const;  // a bar's lens, under the selected tab
 
-    mutable parts::Motion x_, w_;
-    mutable bool          shown_ = false;
 };
 
 class Tab : public TabContract<Tab> {
@@ -57,7 +55,7 @@ public:
 
 private:
     mutable parts::Label  label_;
-    mutable parts::Motion hover_;
+    mutable double hover_ = 0;
 };
 
 }  // namespace omui

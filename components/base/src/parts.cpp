@@ -6,53 +6,6 @@ import openmui.view;
 
 namespace omui::parts {
 
-Motion::~Motion() {
-    if (services_ && services_->animations().valid(channel_)) services_->animations().remove(channel_);
-}
-
-void Motion::attach(Services& services, double initial) {
-    if (services_) return;
-    services_ = &services;
-    channel_ = services.animations().hold(initial);
-    target_ = initial;
-}
-
-void Motion::to(double target, const Transition& t) {
-    if (!services_) {
-        target_ = target;
-        return;
-    }
-    if (target == target_) return;
-    target_ = target;
-    hanim::Set& set = services_->animations();
-    const seconds start = services_->now() + t.delay;
-    if (t.kind == Transition::Kind::spring) set.spring_to(channel_, start, target, t.spring);
-    else set.tween_to(channel_, start, target, t.duration, t.ease);
-    services_->request_frame();
-}
-
-void Motion::jump(double v) {
-    target_ = v;
-    if (services_) services_->animations().jump(channel_, v);
-}
-
-double Motion::value() const {
-    if (!services_) return target_;
-    return services_->animations().value(channel_, services_->now());
-}
-
-bool Motion::moving() const { return services_ && !services_->animations().settled(channel_, services_->now()); }
-
-void keep_frames(PaintContext& ctx, std::initializer_list<const Motion*> motions) {
-    for (const Motion* m : motions)
-        if (m && m->moving()) {
-            ctx.services.invalidate_paint(ctx.node);
-            ctx.services.request_frame();
-            ctx.services.moving(ctx.node);
-            return;
-        }
-}
-
 std::string segment(const Services& services, NodeId node) {
     const std::string p = services.path(node);
     const auto slash = p.rfind('/');

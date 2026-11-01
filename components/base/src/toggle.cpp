@@ -7,7 +7,6 @@ import openmui.view;
 namespace omui {
 
 using parts::focus_ring;
-using parts::keep_frames;
 using parts::mix;
 
 namespace {
@@ -29,8 +28,8 @@ Size with_label(parts::Label& label, Services& s, Color color, Size control) {
 // ── toggle ──
 
 void Toggle::mounted() {
-    thumb_.attach(services(), props.checked ? 1 : 0);
-    hover_.attach(services(), 0);
+    thumb_ = props.checked ? 1 : 0;
+    hover_ = 0;
     label_.set_style("body");
     label_.set_text(props.label);
 }
@@ -42,8 +41,7 @@ void Toggle::prop_changed(ToggleProp p) {
     }
     if (p == ToggleProp::checked && attached()) {
         // A change from outside (a binding) moves the thumb as a click does.
-        if (shown_) thumb_.to(props.checked ? 1 : 0, services().theme().transition("motion.spring.snappy"));
-        else thumb_.jump(props.checked ? 1 : 0);
+        thumb_ = props.checked ? 1 : 0;
         services().invalidate_paint(node());
     }
 }
@@ -62,7 +60,7 @@ float Toggle::baseline(MeasureContext& m, Size content) {
 // Its surfaces for an effect: the track and the thumb where it is now.
 std::size_t Toggle::effect_shapes(Size, Rect content, std::span<render::EffectShape> out) const {
     if (out.size() < 2) return 0;
-    const float t = static_cast<float>(thumb_.value());
+    const float t = static_cast<float>(thumb_);
     const float y = content.y + (content.height - track_h) / 2;
     const float d = track_h - 2 * thumb_inset;
     const float x = content.x + thumb_inset + t * (track_w - 2 * thumb_inset - d);
@@ -75,15 +73,15 @@ void Toggle::paint(PaintContext& ctx) const {
     shown_ = true;
     const Theme& th = ctx.theme;
     const bool off = props.disabled || ctx.state.disabled;
-    hover_.to(!off && ctx.state.hovered ? 1.0 : 0.0, th.transition("motion.fast"));
-    const float t = static_cast<float>(thumb_.value());
+    hover_ = !off && ctx.state.hovered ? 1.0 : 0.0;
+    const float t = static_cast<float>(thumb_);
     const float k = std::clamp(t, 0.0f, 1.0f);
     const Rect content = ctx.content;
     const float y = content.y + (content.height - track_h) / 2;
     if (off) ctx.list.push_layer(0.5f, render::BlendMode::normal, {}, {}, {0, 0, ctx.size.width, ctx.size.height});
 
     Color track = mix(th.color("track"), th.color("accent"), k);
-    track = mix(track, mix(track, Color::black(), 0.08f), static_cast<float>(hover_.value()));
+    track = mix(track, mix(track, Color::black(), 0.08f), static_cast<float>(hover_));
     ctx.list.fill_round_rect({content.x, y, track_w, track_h}, CornerRadii::all(track_h / 2), render::Paint::solid(track));
     const float d = track_h - 2 * thumb_inset;
     const float x = content.x + thumb_inset + t * (track_w - 2 * thumb_inset - d);
@@ -97,7 +95,6 @@ void Toggle::paint(PaintContext& ctx) const {
         label_.paint(ctx, {content.x + track_w + gap, content.y + (content.height - ts.height) / 2}, lc);
     }
     if (off) ctx.list.pop_layer();
-    keep_frames(ctx, {&thumb_, &hover_});
 }
 
 void Toggle::paint_over(PaintContext& ctx) const {
@@ -114,7 +111,7 @@ void Toggle::semantics(SemanticsContext&, spec::SemanticNode& node) const {
 
 ActResult Toggle::toggle(ActContext&) {
     write_checked(!props.checked);
-    thumb_.to(props.checked ? 1 : 0, services().theme().transition("motion.spring.snappy"));
+    thumb_ = props.checked ? 1 : 0;
     emit_changed(props.checked);
     services().invalidate_paint(node());
     return ActResult::done(Value(props.checked)).undo_by("toggle");  // toggling again takes it back (S-12)
@@ -125,8 +122,8 @@ ActResult Toggle::preview(ActContext&, std::string_view) const { return ActResul
 // ── checkbox ──
 
 void Checkbox::mounted() {
-    mark_.attach(services(), props.checked || props.indeterminate ? 1 : 0);
-    hover_.attach(services(), 0);
+    mark_ = props.checked || props.indeterminate ? 1 : 0;
+    hover_ = 0;
     label_.set_style("body");
     label_.set_text(props.label);
 }
@@ -138,8 +135,7 @@ void Checkbox::prop_changed(CheckboxProp p) {
     }
     if ((p == CheckboxProp::checked || p == CheckboxProp::indeterminate) && attached()) {
         const double on = props.checked || props.indeterminate ? 1 : 0;
-        if (shown_) mark_.to(on, services().theme().transition("motion.fast"));
-        else mark_.jump(on);
+        mark_ = on;
         services().invalidate_paint(node());
     }
 }
@@ -159,14 +155,14 @@ void Checkbox::paint(PaintContext& ctx) const {
     shown_ = true;
     const Theme& th = ctx.theme;
     const bool off = props.disabled || ctx.state.disabled;
-    hover_.to(!off && ctx.state.hovered ? 1.0 : 0.0, th.transition("motion.fast"));
-    const float k = static_cast<float>(std::clamp(mark_.value(), 0.0, 1.0));
+    hover_ = !off && ctx.state.hovered ? 1.0 : 0.0;
+    const float k = static_cast<float>(std::clamp(mark_, 0.0, 1.0));
     const Rect content = ctx.content;
     const Rect b{content.x, content.y + (content.height - box_size) / 2, box_size, box_size};
     const CornerRadii r = CornerRadii::all(th.corner("small", 4));
     if (off) ctx.list.push_layer(0.5f, render::BlendMode::normal, {}, {}, {0, 0, ctx.size.width, ctx.size.height});
 
-    const Color empty = mix(th.color("surface"), th.color("surface_variant"), static_cast<float>(hover_.value()));
+    const Color empty = mix(th.color("surface"), th.color("surface_variant"), static_cast<float>(hover_));
     ctx.list.fill_round_rect(b, r, render::Paint::solid(mix(empty, th.color("accent"), k)));
     if (k < 1) {
         const Color strong = th.color("border_strong");
@@ -202,7 +198,6 @@ void Checkbox::paint(PaintContext& ctx) const {
         label_.paint(ctx, {content.x + box_size + gap, content.y + (content.height - ts.height) / 2}, lc);
     }
     if (off) ctx.list.pop_layer();
-    keep_frames(ctx, {&mark_, &hover_});
 }
 
 void Checkbox::paint_over(PaintContext& ctx) const {
@@ -224,7 +219,7 @@ ActResult Checkbox::toggle(ActContext&) {
     const bool was_indeterminate = props.indeterminate;
     if (props.indeterminate) props.indeterminate = false;
     write_checked(next);
-    mark_.to(next ? 1 : 0, services().theme().transition("motion.fast"));
+    mark_ = next ? 1 : 0;
     emit_changed(next);
     services().invalidate_paint(node());
     // Toggling again takes it back — unless it was indeterminate, which no action restores.

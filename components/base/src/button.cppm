@@ -40,7 +40,7 @@ private:
     [[nodiscard]] std::string caption() const;
 
     mutable parts::Label  label_;
-    mutable parts::Motion hover_, press_;
+    mutable double hover_ = 0, press_ = 0;
     mutable float         corner_ = 8;  // the corners as last painted (the theme's medium)
 };
 

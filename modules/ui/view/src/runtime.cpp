@@ -432,6 +432,7 @@ Theme opaque_of(const Theme& t) {
 }  // namespace
 
 void Runtime::Impl::make_opaque() {
+    ++motion_gen;  // the slots resolve again against the new theme or scope
     if (!reduce_transparency) return;
     opaque_theme = opaque_of(theme);
     for (Scope& sc : scopes) sc.opaque = opaque_of(sc.theme);

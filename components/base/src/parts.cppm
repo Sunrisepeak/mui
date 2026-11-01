@@ -1,6 +1,7 @@
-// openmui.ui.base:parts — what the base components share: motion of a
-// component's own scalars on the runtime's animation set, colour mixing, the
-// keyboard focus ring, and labels that shape their text once.
+// openmui.ui.base:parts — what the base components share: colour mixing,
+// the keyboard focus ring, and labels that shape their text once. No motion:
+// a component draws its state; how a change moves is its slots' (universal
+// motion, D-93), the same for every component.
 //
 // Exported: theme and component packages build on the same parts.
 export module openmui.ui.base:parts;
@@ -10,34 +11,6 @@ import openmui.core;
 import openmui.view;
 
 export namespace omui::parts {
-
-// A scalar a component animates itself (a thumb's place, a press, a colour
-// mix), on the runtime's clock. Painting reads it; while it moves the
-// component asks for frames (`keep_frames`).
-class Motion {
-public:
-    Motion() = default;
-    Motion(const Motion&) = delete;
-    Motion& operator=(const Motion&) = delete;
-    ~Motion();
-
-    void attach(Services& services, double initial);
-    [[nodiscard]] bool attached() const noexcept { return services_ != nullptr; }
-    // Toward `target` as `transition` moves (a theme motion token's tween or spring).
-    void to(double target, const Transition& transition);
-    void jump(double value);
-    [[nodiscard]] double value() const;
-    [[nodiscard]] double target() const noexcept { return target_; }
-    [[nodiscard]] bool moving() const;
-
-private:
-    Services*          services_ = nullptr;
-    hanim::Set::Channel channel_;
-    double             target_ = 0;
-};
-
-// Keeps frames and paints coming while any of `motions` moves.
-void keep_frames(PaintContext& ctx, std::initializer_list<const Motion*> motions);
 
 [[nodiscard]] constexpr Color mix(Color a, Color b, float t) noexcept {
     const float u = 1 - t;

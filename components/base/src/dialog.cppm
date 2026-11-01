@@ -32,7 +32,7 @@ public:
 
 private:
     mutable parts::Label  title_;
-    mutable parts::Motion open_;
+    mutable double open_ = 0;
     bool                  was_open_ = false;
     std::string           result_ = "dismissed";
 };
@@ -67,7 +67,7 @@ private:
     void show(bool on);
 
     mutable parts::Label       label_;
-    mutable parts::Motion      fade_;
+    mutable double             fade_ = 0;
     NodeId                     target_;
     std::vector<std::uint64_t> listening_;
     std::uint64_t              timer_ = 0;

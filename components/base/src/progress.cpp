@@ -6,7 +6,6 @@ import openmui.view;
 
 namespace omui {
 
-using parts::keep_frames;
 using parts::mix;
 
 namespace {
@@ -19,11 +18,11 @@ constexpr double sweep = 1.4;  // seconds an indeterminate bar takes to cross
 
 // ── progress ──
 
-void Progress::mounted() { fill_.attach(services(), std::clamp(props.value, 0.0, 1.0)); }
+void Progress::mounted() { fill_ = std::clamp(props.value, 0.0, 1.0); }
 
 void Progress::prop_changed(ProgressProp p) {
     if (p != ProgressProp::value || !attached()) return;
-    if (props.value >= 0) fill_.to(std::clamp(props.value, 0.0, 1.0), services().theme().transition("motion.normal"));
+    if (props.value >= 0) fill_ = std::clamp(props.value, 0.0, 1.0);
     services().invalidate_paint(node());
     services().invalidate_semantics(node());
 }
@@ -49,9 +48,8 @@ void Progress::paint(PaintContext& ctx) const {
         ctx.services.request_frame();
         return;
     }
-    const float f = static_cast<float>(std::clamp(fill_.value(), 0.0, 1.0));
+    const float f = static_cast<float>(std::clamp(fill_, 0.0, 1.0));
     if (f > 0) ctx.list.fill_round_rect({0, track.y, track.width * f, bar_h}, round, render::Paint::solid(th.color("accent")));
-    keep_frames(ctx, {&fill_});
 }
 
 void Progress::semantics(SemanticsContext&, spec::SemanticNode& node) const {
@@ -63,8 +61,8 @@ void Progress::semantics(SemanticsContext&, spec::SemanticNode& node) const {
 // ── radio ──
 
 void Radio::mounted() {
-    dot_.attach(services(), chosen() ? 1 : 0);
-    hover_.attach(services(), 0);
+    dot_ = chosen() ? 1 : 0;
+    hover_ = 0;
     label_.set_style("body");
     label_.set_text(props.label);
 }
@@ -75,8 +73,7 @@ void Radio::prop_changed(RadioProp p) {
         if (attached()) services().invalidate_layout(node());
     }
     if ((p == RadioProp::group || p == RadioProp::value) && attached()) {
-        if (shown_) dot_.to(chosen() ? 1 : 0, services().theme().transition("motion.fast"));
-        else dot_.jump(chosen() ? 1 : 0);
+        dot_ = chosen() ? 1 : 0;
         services().invalidate_paint(node());
     }
 }
@@ -98,13 +95,13 @@ void Radio::paint(PaintContext& ctx) const {
     shown_ = true;
     const Theme& th = ctx.theme;
     const bool off = props.disabled || ctx.state.disabled;
-    hover_.to(!off && ctx.state.hovered ? 1.0 : 0.0, th.transition("motion.fast"));
-    const float k = static_cast<float>(std::clamp(dot_.value(), 0.0, 1.0));
+    hover_ = !off && ctx.state.hovered ? 1.0 : 0.0;
+    const float k = static_cast<float>(std::clamp(dot_, 0.0, 1.0));
     const Rect content = ctx.content;
     const Rect c{content.x, content.y + (content.height - circle) / 2, circle, circle};
     if (off) ctx.list.push_layer(0.5f, render::BlendMode::normal, {}, {}, {0, 0, ctx.size.width, ctx.size.height});
     ctx.list.fill_round_rect(c, CornerRadii::all(circle / 2),
-                             render::Paint::solid(mix(th.color("surface"), th.color("surface_variant"), static_cast<float>(hover_.value()))));
+                             render::Paint::solid(mix(th.color("surface"), th.color("surface_variant"), static_cast<float>(hover_))));
     const Color ring = mix(th.color("border_strong"), th.color("accent"), k);
     const float rw = 1.5f + 0.5f * k;
     ctx.list.stroke_round_rect({c.x + rw / 2, c.y + rw / 2, circle - rw, circle - rw}, CornerRadii::all(circle / 2 - rw / 2), rw,
@@ -120,7 +117,6 @@ void Radio::paint(PaintContext& ctx) const {
         label_.paint(ctx, {content.x + circle + gap, content.y + (content.height - ts.height) / 2}, lc);
     }
     if (off) ctx.list.pop_layer();
-    keep_frames(ctx, {&dot_, &hover_});
 }
 
 void Radio::paint_over(PaintContext& ctx) const {
@@ -140,7 +136,7 @@ ActResult Radio::select(ActContext&) {
         write_group(props.value);  // the group's signal: every radio of it follows
         emit_selected(props.value);
     }
-    dot_.to(1, services().theme().transition("motion.fast"));
+    dot_ = 1;
     services().invalidate_paint(node());
     return ActResult::done(Value(props.value));
 }

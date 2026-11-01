@@ -8,7 +8,6 @@ import openmui.ui.base;
 
 namespace omui {
 
-using parts::keep_frames;
 using parts::mix;
 
 namespace {
@@ -68,7 +67,7 @@ render::Paint solid(Color c) { return render::Paint::solid(c); }
 // ── window_frame ─────────────────────────────────────────────────────────
 
 void WindowFrame::mounted() {
-    active_.attach(services(), window().active() ? 1 : 0);
+    active_ = window().active() ? 1 : 0;
     title_.set_text(props.title);
     title_.set_style("label");
     // The window's state decides the frame's shape and its buttons: what the
@@ -138,8 +137,8 @@ void WindowFrame::style(const Theme&, layout::Style& s) const {
 void WindowFrame::paint(PaintContext& ctx) const {
     if (!drawn()) return;
     const Theme& t = ctx.theme;
-    active_.to(window().active() ? 1.0 : 0.0, t.transition("motion.fast"));
-    const float active = static_cast<float>(active_.value());
+    active_ = window().active() ? 1.0 : 0.0;
+    const float active = static_cast<float>(active_);
     const float i = inset();
     const Rect edge{i, i, std::max(0.0f, ctx.size.width - 2 * i), std::max(0.0f, ctx.size.height - 2 * i)};
     const float r = fills_screen() ? 0 : static_cast<float>(std::max(0.0, props.radius));
@@ -167,7 +166,6 @@ void WindowFrame::paint(PaintContext& ctx) const {
     }
     ctx.list.stroke_round_rect({edge.x + 0.5f, edge.y + 0.5f, edge.width - 1, edge.height - 1}, radii, 1,
                                solid(mix(t.color("border"), t.color("border_strong"), active * 0.5f)));
-    keep_frames(ctx, {&active_});
 }
 
 void WindowFrame::semantics(SemanticsContext&, spec::SemanticNode& node) const {
@@ -257,7 +255,7 @@ ActResult WindowFrame::close(ActContext&) { return run("window.close"); }
 
 // ── caption_button ───────────────────────────────────────────────────────
 
-void CaptionButton::mounted() { hover_.attach(services(), 0); }
+void CaptionButton::mounted() { hover_ = 0; }
 
 std::string_view CaptionButton::verb() const noexcept {
     switch (props.kind) {
@@ -280,8 +278,8 @@ void CaptionButton::style(const Theme& theme, layout::Style& s) const {
 
 void CaptionButton::paint(PaintContext& ctx) const {
     const Theme& t = ctx.theme;
-    hover_.to(ctx.state.hovered || ctx.state.pressed ? 1.0 : 0.0, t.transition("motion.fast"));
-    const float h = static_cast<float>(hover_.value());
+    hover_ = ctx.state.hovered || ctx.state.pressed ? 1.0 : 0.0;
+    const float h = static_cast<float>(hover_);
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
     const Point c = box.center();
     const bool close = props.kind == CaptionButtonKind::close;
@@ -329,7 +327,6 @@ void CaptionButton::paint(PaintContext& ctx) const {
         }
         ctx.list.stroke_path(p, {.width = 1}, solid(g));
     }
-    keep_frames(ctx, {&hover_});
 }
 
 void CaptionButton::paint_over(PaintContext& ctx) const {

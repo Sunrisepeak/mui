@@ -375,7 +375,9 @@ void Runtime::Impl::start_removal(NodeId id) {
     if (!alive(id)) return;
     Node& n = at(id);
     auto exit = n.transitions.find("exit");
-    if (exit == n.transitions.end() || !n.shown || reduce_motion) {
+    // Its exit slot's motion (universal motion, D-93): it leaves as the motion draws it, then goes.
+    const bool by_motion = n.shown && n.drawn && !reduce_motion && motion_level != MotionLevel::off && slot_motion(id, 2);
+    if ((exit == n.transitions.end() && !by_motion) || !n.shown || reduce_motion) {
         destroy(id);
         return;
     }
@@ -393,7 +395,8 @@ void Runtime::Impl::start_removal(NodeId id) {
     s.margin = {};
     layout.set_style(n.layout, s);
     removing.push_back(id);
-    animate_field(id, "exit", Field::opacity, 0);
+    if (by_motion) at(id).exiting = true;
+    else animate_field(id, "exit", Field::opacity, 0);
     if (focus == id) focus = {};
     paths_dirty = true;
     touch(dirty_tree | dirty_layout | dirty_paint);
@@ -401,8 +404,11 @@ void Runtime::Impl::start_removal(NodeId id) {
 
 void Runtime::Impl::finish_removals() {
     std::vector<NodeId> done;
-    for (NodeId r : removing)
-        if (!alive(r) || (at(r).moving & (1u << static_cast<unsigned>(Field::opacity))) == 0) done.push_back(r);
+    for (NodeId r : removing) {
+        if (!alive(r)) done.push_back(r);
+        else if (const Node& n = at(r); n.exiting ? (n.exit_begun && !n.morph) : (n.moving & (1u << static_cast<unsigned>(Field::opacity))) == 0)
+            done.push_back(r);
+    }
     for (NodeId r : done) {
         if (!alive(r)) {
             std::erase(removing, r);

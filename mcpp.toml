@@ -64,6 +64,7 @@ members = [
     "modules/ui/player",
     "modules/ui/reflect",
     "modules/ui/semantic",
+    "modules/ui/motion",
     "modules/ui/theme",
     "modules/ui/theme/compact",
     "modules/ui/theme/default",
@@ -200,6 +201,7 @@ sources = ["src/*.cppm", "src/*.cpp"]
 openmui.core          = { path = "modules/ui/core" }
 openmui.view          = { path = "modules/ui/view" }
 openmui.semantic      = { path = "modules/ui/semantic" }
+openmui.motion        = { path = "modules/ui/motion" }
 openmui.agent         = { path = "modules/ui/agent" }
 openmui.expr          = { path = "modules/ui/expr" }
 openmui.viewdoc       = { path = "modules/ui/viewdoc" }

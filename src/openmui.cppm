@@ -15,6 +15,7 @@ export module openmui;
 export import openmui.core;
 export import openmui.view;
 export import openmui.semantic;
+export import openmui.motion;
 export import openmui.agent;
 export import openmui.expr;
 export import openmui.viewdoc;

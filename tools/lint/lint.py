@@ -122,6 +122,10 @@ FNV_OWN = ("modules/base/hash/", "mgame/gongfu/src/")
 # splitmix64's finaliser and fdlibm's exp/log constants: only openmui.math has them.
 MATH_CONSTANTS = re.compile(r"0xbf58476d1ce4e5b9|0x94d049bb133111eb|6\.93147180369123816490e-01|1\.66666666666666019037e-01", re.IGNORECASE)
 
+# A component animating itself (universal motion, D-93): it draws its state;
+# how a change moves is its slots' (the runtime's, one rule for every component).
+MOTION_CODE = re.compile(r"\banimations\(\)|\bspring_to\s*\(|\btween_to\s*\(|\.transition\(\"motion\.|\bTransition::(tween|spring_with)\b"
+                         r"|\bhanim::(Spring|Tween|Track|Set|Oscillator)\b|\bGlyphMotion::|\bparts::Motion\b")
 TRANSCENDENTAL = re.compile(
     r"\bstd::(exp|exp2|expm1|log|log2|log10|log1p|pow|sin|cos|tan|asin|acos|atan|atan2|sinh|cosh|tanh|cbrt|hypot|lerp)\s*\(")
 
@@ -257,6 +261,15 @@ def check_sources(root: Path) -> list[Problem]:
                 if re.search(r"\.(generic_)?string\(\)", line) and "NARROW-OK:" not in line:
                     problems.append(Problem("paths", f"{rel_s}:{no}",
                                             "path::string() narrows through the code page on Windows; use utf8() / generic_utf8()"))
+
+        # Components draw their state; how a change moves is their slots' (D-93).
+        if top == "components" and "src" in rel.parts and not is_test and "generated" not in rel.parts:
+            raw = text.splitlines()
+            for no, line in enumerate(lines, 1):
+                if MOTION_CODE.search(line) and "MOTION-OK:" not in raw[no - 1]:
+                    problems.append(Problem("motion", f"{rel_s}:{no}",
+                                            "a component animating itself; draw the state and let its slots move it "
+                                            "(universal motion, D-93: the `motion` property, a style's motion rules)"))
 
         # One FNV-1a: openmui.hash.
         if not rel_s.startswith(FNV_OWN):
@@ -674,6 +687,7 @@ def self_test() -> int:
         "platforms": None,
         "thirdparty": ("modules/base/hanim/src/w.cpp", "module x;\nimport mcpplibs.mwrap.md4c;\n"),
         "media": ("docs/huge.png", "x" * (1024 * 1024 + 1)),
+        "motion": ("components/base/src/t.cpp", "void Thumb::paint() { services().animations().spring_to(c_, now, 1, s); }\n"),
         "manifest": None,
         "pins": None,
         "documents": ("examples/x/ui/bad.view.omui.json", '{"omui": "0.1", "view": {"root": {"typ": "text"}}}'),

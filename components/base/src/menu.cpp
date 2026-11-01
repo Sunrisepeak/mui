@@ -6,7 +6,6 @@ import openmui.view;
 
 namespace omui {
 
-using parts::keep_frames;
 using parts::mix;
 
 namespace {
@@ -18,7 +17,7 @@ constexpr float item_h = 32, item_pad = 10, shortcut_gap = 24;
 // ── menu ──
 
 void Menu::mounted() {
-    open_.attach(services(), props.open ? 1 : 0);
+    open_ = props.open ? 1 : 0;
     was_open_ = props.open;
 }
 
@@ -56,8 +55,8 @@ void Menu::prop_changed(MenuProp p) {
     if (props.open == was_open_) return;
     was_open_ = props.open;
     if (props.open) {
-        open_.jump(0);
-        open_.to(1, services().theme().transition("motion.enter"));
+        open_ = 0;
+        open_ = 1;
         opened();
     } else {
         // Focus goes back to the menu's button.
@@ -83,14 +82,13 @@ ActResult Menu::dismiss(ActContext&) {
 
 void Menu::paint(PaintContext& ctx) const {
     const Theme& th = ctx.theme;
-    const float k = static_cast<float>(std::clamp(open_.value(), 0.0, 1.0));
+    const float k = static_cast<float>(std::clamp(open_, 0.0, 1.0));
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
     const CornerRadii r = CornerRadii::all(th.corner("medium", 8)).fitted(ctx.size);
     if (auto it = th.shadows.find("lg"); it != th.shadows.end())
         ctx.list.box_shadow(box, r, it->second.offset, it->second.blur, it->second.spread, it->second.color.with_alpha(it->second.color.a * k));
     ctx.list.fill_round_rect(box, r, render::Paint::solid(th.color("surface")));
     ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, render::Paint::solid(th.color("border")));
-    keep_frames(ctx, {&open_});
 }
 
 void Menu::semantics(SemanticsContext&, spec::SemanticNode& node) const { node.states.set(State::expanded, props.open); }

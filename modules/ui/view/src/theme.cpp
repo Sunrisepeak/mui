@@ -122,4 +122,63 @@ Theme Theme::dark_theme() {
     return t;
 }
 
+std::vector<MotionRule> default_motion_rules() {
+    std::vector<MotionRule> rules;
+    MotionSpec snappy;
+    snappy.curve = Transition::token("motion.spring.snappy").value_or(Transition::spring_with());
+    for (std::string_view role : {"button", "toggle_button", "checkbox", "radio", "switch", "slider", "spin_button", "progress", "meter", "combo_box",
+                                  "option", "list_item", "menu_item", "menu_item_checkbox", "menu_item_radio", "tab", "tree_item", "link"})
+        rules.push_back({std::format("role:{}", role), "update", snappy});
+    // A tab list's lens slides to the tab chosen, drawn out along its way.
+    MotionSpec sliding = snappy;
+    sliding.stretch = 0.35f;
+    rules.push_back({"role:tab_list", "update", sliding});
+    // What opens and closes: from a little lower and smaller, on a gentle spring.
+    MotionSpec opening;
+    opening.curve = Transition::token("motion.spring.gentle").value_or(Transition::spring_with());
+    opening.rise = 8;
+    opening.grow = 0.96f;
+    for (std::string_view role : {"dialog", "alert_dialog", "menu", "tooltip", "list_box"}) rules.push_back({std::format("role:{}", role), "update", opening});
+    return rules;
+}
+
+std::optional<MotionSpec> parse_motion(const Value& v, const Theme& theme) {
+    MotionSpec m;
+    auto curve = [&](std::string_view token) -> bool {
+        if (token.empty()) return true;
+        if (auto it = theme.motion.find(token); it != theme.motion.end()) return m.curve = it->second, true;
+        if (auto t = Transition::token(token)) return m.curve = *t, true;
+        return false;
+    };
+    if (v.type() == Value::Type::text) {
+        std::string_view s = v.as_string();
+        const std::size_t space = s.find(' ');
+        const std::string_view use = s.substr(0, space);
+        if (use == "none") return MotionSpec{.kind = MotionSpec::Kind::none};
+        if (use != "morph") return std::nullopt;
+        if (space != std::string_view::npos && !curve(s.substr(space + 1))) return std::nullopt;
+        return m;
+    }
+    if (!v.map()) return std::nullopt;
+    if (const Value* u = v.get("use")) {
+        if (u->as_string() == "none") return MotionSpec{.kind = MotionSpec::Kind::none};
+        if (u->as_string() != "morph") return std::nullopt;
+    }
+    if (const Value* c = v.get("curve"); c && !curve(c->as_string())) return std::nullopt;
+    if (const Value* o = v.get("order")) {
+        const std::string_view order = o->as_string();
+        if (order == "together") m.order = MotionSpec::Order::together;
+        else if (order == "document") m.order = MotionSpec::Order::document;
+        else if (order == "distance") m.order = MotionSpec::Order::distance;
+        else return std::nullopt;
+    }
+    if (const Value* st = v.get("stagger")) m.stagger = std::max(0.0, st->as_double());
+    if (const Value* g = v.get("glyphs")) m.glyphs = g->as_bool(true);
+    if (const Value* g = v.get("meaning")) m.meaning = g->as_bool(true);
+    if (const Value* r = v.get("rise")) m.rise = static_cast<float>(r->as_double());
+    if (const Value* g = v.get("grow")) m.grow = static_cast<float>(std::clamp(g->as_double(1), 0.0, 4.0));
+    if (const Value* st = v.get("stretch")) m.stretch = static_cast<float>(std::clamp(st->as_double(), 0.0, 2.0));
+    return m;
+}
+
 }  // namespace omui

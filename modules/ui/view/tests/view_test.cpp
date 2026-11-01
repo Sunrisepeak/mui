@@ -542,7 +542,7 @@ int main(int argc, char** argv) {
             return out;
         };
         check(names(runtime_pipeline(Stages::semantics)) == std::vector<std::string>{"timers", "input", "regions", "animations"});
-        check(names(runtime_pipeline(Stages::paint)).size() == 8);
+        check(names(runtime_pipeline(Stages::paint)).size() == 9);  // … paint, motion, debug
 
         // A custom stage between paint and the debug overlay: it updates the display list.
         struct Badge final : pipeline::Stage {
@@ -583,7 +583,7 @@ int main(int argc, char** argv) {
         check(!has_badge(), "removed between frames");
         // A replacement that does not build leaves the pipeline as it was.
         check(!rt.frame_pipeline().replace("layout", "app.nonesuch", {}, rt.stage_plugins()).has_value());
-        check(rt.frame_pipeline().order().size() == 8);
+        check(rt.frame_pipeline().order().size() == 9);
     });
 
     s.test("a stage that fails: the frame says why, and the next one runs again", [] {

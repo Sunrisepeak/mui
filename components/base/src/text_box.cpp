@@ -8,7 +8,6 @@ import openmui.unicode;
 namespace omui {
 
 using parts::focus_ring;
-using parts::keep_frames;
 using parts::mix;
 
 namespace {

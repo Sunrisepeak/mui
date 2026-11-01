@@ -65,7 +65,7 @@ FrameOutput Runtime::frame(const FrameInput& input) {
                      : st.name == "animations" ? &t.animations
                      : st.name == "layout" ? &t.layout
                      : st.name == "bounds" ? &t.bounds
-                     : st.name == "paint" || st.name == "debug" ? &t.paint
+                     : st.name == "paint" || st.name == "motion" || st.name == "debug" ? &t.paint
                      : &t.other;
         *into += st.ms;
     }
@@ -89,7 +89,7 @@ FrameOutput Runtime::frame(const FrameInput& input) {
                        t.total, t.timers, t.input, t.regions, t.animations, t.layout, t.bounds, t.paint, t.other, d.stats.nodes,
                        d.stats.laid_out, d.stats.painted);
     }
-    const bool more = !d.animating.empty() || !d.removing.empty() || d.frame_requested || !d.dirty_regions.empty() || d.fading.has_value() ||
+    const bool more = !d.animating.empty() || !d.morphing.empty() || !d.removing.empty() || d.frame_requested || !d.dirty_regions.empty() || d.fading.has_value() ||
                       d.options.debug.hud || !d.flashes.empty();
     // What frames are wanted for from now on (D-70).
     {
@@ -101,7 +101,7 @@ FrameOutput Runtime::frame(const FrameInput& input) {
                 d.input_until = d.now() + seconds(0.3);
         }
         FrameDemand want;
-        if (!d.animating.empty() || d.fading) want = merge(want, FrameDemand::fastest("animation"));
+        if (!d.animating.empty() || !d.morphing.empty() || d.fading) want = merge(want, FrameDemand::fastest("animation"));
         if (d.now() < d.input_until) want = merge(want, FrameDemand::fastest("input"));
         for (const auto& [token, lease] : d.leases) want = merge(want, lease);
         // A timer: as often as it is due (a caret's blink), at most 60 a second.
@@ -492,6 +492,8 @@ void Runtime::Impl::compute_bounds(NodeId id, Point origin, const Affine& parent
 }
 
 void Runtime::Impl::paint() {
+    // The last frame's drawing is kept: what a change moves from (motion.cpp).
+    std::swap(list, previous_list);
     list.clear();
     glyph_movers.clear();
     moving_said.clear();

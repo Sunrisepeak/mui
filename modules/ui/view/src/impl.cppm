@@ -9,6 +9,7 @@ import hanim;
 import openmui.pipeline;
 import openmui.render.vector;
 import openmui.text;
+import openmui.motion;
 import :element;
 import :glyphs;
 import :theme;
@@ -183,6 +184,18 @@ struct Node {
     std::uint32_t        index = 0;     // display-list node marker; 0 is none
     std::uint32_t        scope = 0;     // its theme scope (Impl::scopes); 0: the runtime's theme
     std::shared_ptr<RegionState> composed;  // a composite component's own children
+    // Universal motion (D-93): what its update slot holds — from its `motion`
+    // property, its scope's rules, the defaults; `motion_gen` says against
+    // which it was resolved — what it drew last (a hash, its nested roots'
+    // ranges left out: they move themselves) and its morph under way.
+    std::array<std::optional<MotionSpec>, 3> slot_motions;  // update, enter, exit
+    std::uint32_t                         motion_gen = 0;
+    bool                                  exiting = false, exit_begun = false;  // removed, leaving by its exit slot's motion
+    bool                                  ghost = false;  // no longer drawn (hidden), its last drawing vanishing by its morph
+    std::uint64_t                         drawn_hash = 0;
+    double                                changed_at = -1e9;  // when its drawing last changed (runtime seconds)
+    bool                                  drawn = false;
+    std::shared_ptr<const motion::Morph>  morph;
 };
 
 // A change a node asks for, in the order the frame handles them.
@@ -372,6 +385,24 @@ struct Runtime::Impl {
     void register_stages();
     void build_pipeline();
     std::vector<std::pair<NodeId, seconds>> flashes;  // debug: nodes that changed, and when
+    // Universal motion (motion.cpp): the last frame's drawing, after its
+    // morphs (what a change moves from), and who drew each marker in it; a
+    // scratch list the morphs are drawn into; what invalidates the nodes'
+    // resolved slots; the nodes with a morph under way.
+    render::DisplayList                         previous_list, morph_scratch;
+    std::vector<NodeId>                         drawn_by;
+    std::uint32_t                               motion_gen = 1;
+    std::vector<NodeId>                         morphing;
+    MotionLevel                                 motion_level = MotionLevel::full;
+    std::vector<std::pair<std::size_t, std::size_t>> marker_ranges;  // this frame's, by marker
+    std::vector<std::uint8_t>                   marker_flags;   // 1: a root, 2: moves by itself
+    std::vector<std::size_t>                    marker_wrapper; // its wrapper's PushLayer in `list` this frame (npos: none)
+    std::vector<std::size_t>                    marker_stack;
+    void run_motion();
+    // A slot's motion (0 update, 1 enter, 2 exit), when it holds one.
+    [[nodiscard]] const MotionSpec* slot_motion(NodeId id, std::size_t slot);
+    [[nodiscard]] const MotionSpec* update_motion(NodeId id) { return slot_motion(id, 0); }
+    void emit_motion_range(std::size_t begin, std::size_t end, render::DisplayList& out, double t);
     seconds                     last_slow_log{-1e9};  // slow frames are logged at most once a second
 
     explicit Impl(Runtime& r) : self(r) {}

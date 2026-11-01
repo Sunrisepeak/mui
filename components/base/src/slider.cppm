@@ -38,7 +38,7 @@ private:
     [[nodiscard]] double fraction(double v) const noexcept;
     [[nodiscard]] Rect track(Size size) const noexcept;
 
-    mutable parts::Motion thumb_, hover_, halo_;
+    mutable double thumb_ = 0, hover_ = 0, halo_ = 0;
     mutable Size   size_{};  // the last painted size: pointer positions map onto it
     bool           dragging_ = false;
     double         drag_from_ = 0;  // the value when the drag began: the drag is one step of history

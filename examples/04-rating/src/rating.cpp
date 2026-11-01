@@ -46,13 +46,13 @@ double Rating::at(float x) const noexcept {
 }
 
 void Rating::mounted() {
-    fill_.attach(services(), props.value);
-    hover_.attach(services(), 0);
+    fill_ = props.value;
+    hover_ = 0;
 }
 
 void Rating::prop_changed(RatingProp p) {
     if (!attached()) return;
-    if (p == RatingProp::value) fill_.to(snap(props.value), services().theme().transition("motion.spring.snappy"));
+    if (p == RatingProp::value) fill_ = snap(props.value);
     services().invalidate_paint(node());
     if (p == RatingProp::max) services().invalidate_layout(node());
 }
@@ -66,16 +66,16 @@ omui::Size Rating::measure(omui::MeasureContext&, std::optional<float> width, st
 void Rating::paint(omui::PaintContext& ctx) const {
     const omui::Theme& th = ctx.theme;
     const bool off = props.disabled || ctx.state.disabled;
-    hover_.to(!off && !props.readonly && preview_ >= 0 ? 1.0 : 0.0, th.transition("motion.fast"));
-    const double shown = std::clamp(fill_.value(), 0.0, static_cast<double>(props.max));
+    hover_ = !off && !props.readonly && preview_ >= 0 ? 1.0 : 0.0;
+    const double shown = std::clamp(fill_, 0.0, static_cast<double>(props.max));
     const omui::Color on = off ? th.color("text_disabled") : th.color(props.readonly ? "warning" : "accent");
     const omui::Color empty = th.color("track");
-    const omui::Color preview = th.color("accent").with_alpha(0.35f * static_cast<float>(hover_.value()));
+    const omui::Color preview = th.color("accent").with_alpha(0.35f * static_cast<float>(hover_));
     for (int i = 0; i < std::max(props.max, 1); ++i) {
         const omui::Rect r{i * (star + gap), (ctx.size.height - star) / 2, star, star};
         const auto path = star_path(r);
         ctx.list.fill_path(path, omui::render::FillRule::nonzero, omui::render::Paint::solid(empty));
-        if (preview_ > i && hover_.value() > 0) {
+        if (preview_ > i && hover_ > 0) {
             ctx.list.push_clip({r.x, r.y, r.width * static_cast<float>(std::min(1.0, preview_ - i)), r.height});
             ctx.list.fill_path(path, omui::render::FillRule::nonzero, omui::render::Paint::solid(preview));
             ctx.list.pop_clip();
@@ -88,7 +88,6 @@ void Rating::paint(omui::PaintContext& ctx) const {
     }
     if (ctx.state.focused && ctx.state.focus_visible)
         omui::parts::focus_ring(ctx, {-3, -3, ctx.size.width + 6, ctx.size.height + 6}, omui::CornerRadii::all(th.corner("small", 4)));
-    omui::parts::keep_frames(ctx, {&fill_, &hover_});
 }
 
 bool Rating::on_event(omui::EventContext& ctx, const omui::InputEvent& e) {
@@ -128,7 +127,7 @@ omui::ActResult Rating::change(double v) {
     if (v != props.value) {
         write_value(v);
         emit_changed(v);
-        fill_.to(v, services().theme().transition("motion.spring.snappy"));
+        fill_ = v;
         services().invalidate_paint(node());
         services().invalidate_semantics(node());
     }

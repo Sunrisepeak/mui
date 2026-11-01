@@ -28,6 +28,41 @@ struct ShadowToken {
     Color color{0, 0, 0, 0.15f};
 };
 
+// A motion a node's slot holds (universal motion §5, D-93): none, or a morph
+// between the node's two drawings — what it drew before a change and what
+// it draws after (openmui.motion). Components write no animation; the slot
+// moves whatever they draw.
+struct MotionSpec {
+    enum class Kind : std::uint8_t { none, morph };
+    enum class Order : std::uint8_t { together, document, distance };
+    Kind       kind = Kind::morph;
+    Transition curve = Transition::spring_with();
+    Order      order = Order::together;
+    double     stagger = 0;      // seconds between pieces, in `order`
+    bool       glyphs = true;    // text changes glyph by glyph
+    bool       meaning = true;   // a node whose key changed found again by its role and name
+    float      rise = 0;         // what appears (or vanishes) comes from lower by this
+    float      grow = 1;         // … and scaled by this, about the middle of the drawing
+    float      stretch = 0;      // a moving fill drawn out along its way (a tab's lens)
+    friend bool operator==(const MotionSpec&, const MotionSpec&) = default;
+};
+
+// Which nodes a slot's motion is for: "*" (every node), a component type's
+// name ("toggle"), or "role:<role>" ("role:switch"). The slots: "update"
+// (the node drew something else: a value, a state, an order, a text, a
+// dialog opened), "enter" (its first drawing, inserted where the window was
+// already drawn) and "exit" (removed: it stays until its motion rests).
+struct MotionRule {
+    std::string target;
+    std::string slot = "update";
+    MotionSpec  spec;
+};
+
+// The framework's default rules: every control's drawing moves on a snappy
+// spring when it changes (a toggle's thumb, a tab's lens, a value's fill,
+// a button's colour); what opens and closes rises a little and grows.
+[[nodiscard]] std::vector<MotionRule> default_motion_rules();
+
 class Theme {
 public:
     std::string name = "light";
@@ -41,6 +76,9 @@ public:
     std::map<std::string, float, std::less<>>       radius;
     std::map<std::string, ShadowToken, std::less<>> shadows;
     std::map<std::string, Transition, std::less<>>  motion;
+    // What each slot holds, by node (the first rule that fits wins: a type's,
+    // then a role's, then "*"); the framework's defaults move every control.
+    std::vector<MotionRule>                         motion_rules = default_motion_rules();
 
     // A token name, or a literal #rgb / #rrggbb / #rrggbbaa.
     [[nodiscard]] Color color(std::string_view token_or_hex, Color fallback = Color::black()) const;
@@ -55,4 +93,11 @@ public:
     [[nodiscard]] static Theme dark_theme();
 };
 
+// A slot's motion as a property, a style or a rule writes it: "none",
+// "morph", "morph <curve token>" ("morph motion.spring.gentle"), or
+// {use, curve, order ("together", "document", "distance"), stagger, glyphs,
+// meaning, rise, grow}. Nullopt when it is none of these (the caller says
+// why). A node's `motion` property is one (its update slot's) or a map of
+// them by slot: {update, enter, exit}.
+[[nodiscard]] std::optional<MotionSpec> parse_motion(const Value& v, const Theme& theme);
 }  // namespace omui

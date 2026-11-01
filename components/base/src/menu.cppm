@@ -34,7 +34,7 @@ private:
     void opened();
     [[nodiscard]] NodeId trigger() const;
 
-    mutable parts::Motion open_;
+    mutable double open_ = 0;
     bool                  was_open_ = false;
 };
 

@@ -6,7 +6,6 @@ import openmui.view;
 
 namespace omui {
 
-using parts::keep_frames;
 using parts::mix;
 
 namespace {
@@ -17,10 +16,7 @@ constexpr float tab_h = 40, pad_x = 14, indicator_h = 2, bar_pad = 4;
 
 // ── tabs ──
 
-void Tabs::mounted() {
-    x_.attach(services(), 0);
-    w_.attach(services(), 0);
-}
+void Tabs::mounted() {}
 
 void Tabs::prop_changed(TabsProp p) {
     if (!attached()) return;
@@ -72,37 +68,25 @@ ActResult Tabs::step(int by) {
 ActResult Tabs::next(ActContext&) { return step(1); }
 ActResult Tabs::previous(ActContext&) { return step(-1); }
 
-void Tabs::follow(PaintContext& ctx) const {
+// Where the selected tab is, in the tab list's own space (empty: none); asked whenever it is drawn.
+Rect Tabs::under() const {
     const NodeId tab = current();
-    if (!tab) return;
-    const Rect mine = ctx.services.bounds(ctx.node);
-    const Rect b = ctx.services.bounds(tab);
-    const double x = b.x - mine.x, w = b.width;
-    if (!shown_) {
-        x_.jump(x);
-        w_.jump(w);
-        shown_ = true;
-    } else {
-        x_.to(x, ctx.theme.transition("motion.spring.snappy"));
-        w_.to(w, ctx.theme.transition("motion.spring.snappy"));
-    }
-    keep_frames(ctx, {&x_, &w_});
+    if (!tab) return {};
+    const Rect mine = services().bounds(node());
+    const Rect b = services().bounds(tab);
+    return {b.x - mine.x, b.y - mine.y, b.width, b.height};
 }
 
+// Under the selected tab; its slide to another (drawn out along its way) is its tab list's update slot's.
 Rect Tabs::lens(Size size) const {
-    // Sliding, it stretches along its way and thins a little — a drop pulled, not a box moved — and rests round.
-    const double left = std::abs(x_.target() - x_.value());
-    const float stretch = static_cast<float>(std::min(left * 0.35, w_.value() * 0.4));
-    const float h = size.height - 2 * bar_pad, thin = std::min(stretch * 0.08f, h * 0.12f);
-    const float x = static_cast<float>(x_.value()) - (x_.target() > x_.value() ? 0.0f : stretch);
-    return {x, bar_pad + thin / 2, static_cast<float>(w_.value()) + stretch, h - thin};
+    const Rect u = under();
+    return {u.x, bar_pad, u.width, size.height - 2 * bar_pad};
 }
 
 // A bar: a capsule under the tabs, and under the selected one a lens that slides to it.
 void Tabs::paint(PaintContext& ctx) const {
     if (props.variant != TabsVariant::bar) return;
     const Theme& th = ctx.theme;
-    follow(ctx);
     ctx.list.fill_round_rect({0, 0, ctx.size.width, ctx.size.height}, CornerRadii::all(ctx.size.height / 2),
                              render::Paint::solid(th.color("bar", th.color("surface_variant"))));
     if (!current()) return;
@@ -114,9 +98,9 @@ void Tabs::paint_over(PaintContext& ctx) const {
     if (props.variant == TabsVariant::bar) return;
     const Theme& th = ctx.theme;
     ctx.list.fill_rect({0, ctx.size.height - 1, ctx.size.width, 1}, th.color("border"));
-    follow(ctx);
     if (!current()) return;
-    ctx.list.fill_round_rect({static_cast<float>(x_.value()), ctx.size.height - indicator_h, static_cast<float>(w_.value()), indicator_h},
+    const Rect u = under();
+    ctx.list.fill_round_rect({u.x, ctx.size.height - indicator_h, u.width, indicator_h},
                              CornerRadii::all(indicator_h / 2), render::Paint::solid(th.color("accent")));
 }
 
@@ -132,7 +116,7 @@ std::size_t Tabs::effect_shapes(Size size, Rect, std::span<render::EffectShape> 
 // ── tab ──
 
 void Tab::mounted() {
-    hover_.attach(services(), 0);
+    hover_ = 0;
     label_.set_style("label");
     label_.set_text(props.text);
 }
@@ -166,8 +150,8 @@ bool Tab::selected() const {
 void Tab::paint(PaintContext& ctx) const {
     const Theme& th = ctx.theme;
     const bool off = props.disabled || ctx.state.disabled;
-    hover_.to(!off && ctx.state.hovered ? 1.0 : 0.0, th.transition("motion.fast"));
-    const float h = static_cast<float>(hover_.value());
+    hover_ = !off && ctx.state.hovered ? 1.0 : 0.0;
+    const float h = static_cast<float>(hover_);
     // Hovered: the hover's own colour faded in (its alpha kept: a glass pack's is a breath of white, not a slab).
     // On a bar the lens marks the selected one; a hover is lighter still, never a second lens.
     if (const Color hover = th.color("surface_variant"); h > 0)
@@ -176,7 +160,6 @@ void Tab::paint(PaintContext& ctx) const {
     const Color c = off ? th.color("text_disabled") : selected() ? th.color("accent") : mix(th.color("text_muted"), th.color("text"), h);
     const Size t = label_.measure(ctx.services, c);
     label_.paint(ctx, {ctx.content.x + (ctx.content.width - t.width) / 2, ctx.content.y + (ctx.content.height - t.height) / 2}, c);
-    parts::keep_frames(ctx, {&hover_});
 }
 
 void Tab::paint_over(PaintContext& ctx) const {

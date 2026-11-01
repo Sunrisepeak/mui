@@ -38,7 +38,7 @@ private:
     void open(bool on);
 
     mutable parts::Label  label_;
-    mutable parts::Motion hover_;
+    mutable double hover_ = 0;
 };
 
 // The popup a select builds (an overlay below it).

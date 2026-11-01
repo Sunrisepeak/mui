@@ -110,6 +110,11 @@ std::vector<Plugin> plugins() {
              }
              c.resources.put(res::display, &d.list);
          }},
+        {"motion", "each root that drew something else moves from what was on screen to what it draws (universal motion, D-93)",
+         {tree(), display()}, {display()},
+         [](Runtime::Impl& d, pl::Context&) {
+             if (d.bounds_ran) d.run_motion();
+         }},
         {"debug", "the development overlays over the display list (DebugOptions)", {tree(), bounds_port(), display()}, {display()},
          [](Runtime::Impl& d, pl::Context&) {
              if (d.bounds_ran && debugging(d)) d.paint_debug();
@@ -129,6 +134,7 @@ pipeline::Description runtime_pipeline(Stages stages) {
     }
     if (stages >= Stages::paint) {
         add("paint");
+        add("motion");
         add("debug");
     }
     d.name = stages == Stages::semantics ? "runtime.h0" : stages == Stages::layout ? "runtime.h1" : "runtime.h2";

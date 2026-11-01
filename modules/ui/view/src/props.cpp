@@ -448,6 +448,7 @@ void Runtime::Impl::apply_now(NodeId id, std::string_view name, const Value& val
         n.props.insert_or_assign(std::string(name), value);
     }
     std::uint8_t what = dirty_paint;
+    if (name == "motion" || name == "role") n.motion_gen = 0;  // its slots resolve again
     if (is_layout_prop(name)) sync_style(id);
     if (is_visual_prop(name)) {
         Node& m = at(id);

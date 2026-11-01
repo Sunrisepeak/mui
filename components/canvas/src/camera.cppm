@@ -55,7 +55,7 @@ public:
 private:
     Camera                         to_;
     hanim::seconds                  start_{0}, end_{0};
-    std::array<hanim::Oscillator, 3> lanes_{};
+    std::array<hanim::Oscillator, 3> lanes_{};  // MOTION-OK: the flight's lanes (navigation, not a drawing's change)
 };
 
 // A fling: the camera keeps the pointer's last velocity (screen px/s),

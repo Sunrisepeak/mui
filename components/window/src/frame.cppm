@@ -53,7 +53,7 @@ private:
 
     Watch                 watch_;
     mutable parts::Label  title_;
-    mutable parts::Motion active_;
+    mutable double active_ = 0;
     Size                  size_{};
 };
 
@@ -70,7 +70,7 @@ public:
     [[nodiscard]] std::string_view verb() const noexcept;
 
 private:
-    mutable parts::Motion hover_;
+    mutable double hover_ = 0;
 };
 
 // The framework's frame around an application (D-75): window_frame mounted

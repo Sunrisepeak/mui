@@ -31,7 +31,7 @@ private:
     omui::ActResult change(double v);
     [[nodiscard]] double at(float x) const noexcept;  // the rating a pointer at x gives
 
-    mutable omui::parts::Motion fill_, hover_;
+    mutable double fill_ = 0, hover_ = 0;
     mutable double              preview_ = -1;  // where the pointer is: the rating a click gives
 };
 

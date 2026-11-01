@@ -6,7 +6,6 @@ import openmui.view;
 
 namespace omui {
 
-using parts::keep_frames;
 
 namespace {
 
@@ -17,7 +16,7 @@ constexpr float pad = 24, title_gap = 12;
 // ── dialog ──
 
 void Dialog::mounted() {
-    open_.attach(services(), props.open ? 1 : 0);
+    open_ = props.open ? 1 : 0;
     was_open_ = props.open;
     title_.set_style("heading");
     title_.set_text(props.title);
@@ -48,8 +47,8 @@ void Dialog::prop_changed(DialogProp p) {
     was_open_ = props.open;
     if (props.open) {
         result_ = "dismissed";
-        open_.jump(0);
-        open_.to(1, services().theme().transition("motion.spring.gentle"));
+        open_ = 0;
+        open_ = 1;
     } else {
         emit_closed(result_);
     }
@@ -72,7 +71,7 @@ ActResult Dialog::dismiss(ActContext&) {
 
 void Dialog::paint(PaintContext& ctx) const {
     const Theme& th = ctx.theme;
-    const float k = static_cast<float>(open_.value());
+    const float k = static_cast<float>(open_);
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
     const CornerRadii r = CornerRadii::all(th.corner("large", 12)).fitted(ctx.size);
     // It grows into place on a gentle spring.
@@ -84,7 +83,6 @@ void Dialog::paint(PaintContext& ctx) const {
     ctx.list.fill_round_rect(box, r, render::Paint::solid(th.color("surface")));
     ctx.list.pop_transform();
     if (!title_.text().empty()) title_.paint(ctx, {pad, pad}, th.color("text"));
-    keep_frames(ctx, {&open_});
 }
 
 void Dialog::semantics(SemanticsContext&, spec::SemanticNode& node) const {
@@ -101,7 +99,7 @@ Tooltip::~Tooltip() {
 }
 
 void Tooltip::mounted() {
-    fade_.attach(services(), 0);
+    fade_ = 0;
     label_.set_style("caption");
     label_.set_text(props.text);
     // The tree around it is complete at the next frame: find the target then
@@ -148,7 +146,7 @@ void Tooltip::target_left() {
 void Tooltip::show(bool on) {
     if (on == shown_) return;
     shown_ = on;
-    fade_.to(on ? 1 : 0, services().theme().transition("motion.fast"));
+    fade_ = on ? 1 : 0;
     services().restyle(node());
     services().invalidate_semantics(node());
 }
@@ -165,13 +163,12 @@ Size Tooltip::measure(MeasureContext& m, std::optional<float>, std::optional<flo
 
 void Tooltip::paint(PaintContext& ctx) const {
     const Theme& th = ctx.theme;
-    const float k = static_cast<float>(std::clamp(fade_.value(), 0.0, 1.0));
+    const float k = static_cast<float>(std::clamp(fade_, 0.0, 1.0));
     ctx.list.push_layer(k, render::BlendMode::normal, {}, {}, {0, 0, ctx.size.width, ctx.size.height});
     ctx.list.fill_round_rect({0, 0, ctx.size.width, ctx.size.height}, CornerRadii::all(th.corner("small", 4)),
                              render::Paint::solid(th.color("tooltip")));
     label_.paint(ctx, {ctx.content.x, ctx.content.y}, th.color("on_tooltip"));
     ctx.list.pop_layer();
-    keep_frames(ctx, {&fade_});
 }
 
 void Tooltip::semantics(SemanticsContext&, spec::SemanticNode& node) const {

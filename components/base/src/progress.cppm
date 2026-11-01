@@ -22,7 +22,7 @@ public:
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
 
 private:
-    mutable parts::Motion fill_;
+    mutable double fill_ = 0;
 };
 
 class Radio : public RadioContract<Radio> {
@@ -43,7 +43,7 @@ public:
 
 private:
     mutable parts::Label  label_;
-    mutable parts::Motion dot_, hover_;
+    mutable double dot_ = 0, hover_ = 0;
     mutable bool          shown_ = false;
 };
 

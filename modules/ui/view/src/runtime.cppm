@@ -26,6 +26,18 @@ import :component;
 
 export namespace omui {
 
+// How much drawings move when they change (Runtime::set_motion_level).
+enum class MotionLevel : std::uint8_t { full, reduced, off };
+
+// A node's drawing moving between two (Runtime::motions).
+struct MotionState {
+    NodeId      node;
+    std::string path;
+    double      progress = 0;   // its curve's, 0 to 1 (a spring may pass 1 on its way)
+    double      start = 0, end = 0;
+    std::size_t matched = 0, from_only = 0, to_only = 0, glyphs_kept = 0;
+};
+
 // Development aids drawn over the interface (never in what tests pin).
 struct DebugOptions {
     bool   bounds = false;     // every node's border box, coloured by depth
@@ -390,6 +402,13 @@ public:
     [[nodiscard]] const Theme& theme_of(NodeId node) const;
     void set_reduce_motion(bool reduce);
     [[nodiscard]] bool reduce_motion() const noexcept;
+    // How much the drawing moves when it changes (universal motion, D-93; the
+    // user's setting where the application exposes it, D-94): full, reduced
+    // (short tweens, no stagger) or off. Reduced motion asked by the system is off.
+    void set_motion_level(MotionLevel level);
+    [[nodiscard]] MotionLevel motion_level() const noexcept;
+    // The morphs under way: whose, how far, how much of the two drawings was matched.
+    [[nodiscard]] std::vector<MotionState> motions() const;
     void set_reduce_transparency(bool reduce);
 
     // ── Services ──

@@ -31,6 +31,7 @@
 - 协作：当前的工作都放在同一个 PR（分支 `openmui-design`）里，每一轮修改提交一个 commit 作为检查点。
 - 验收标准见实施计划 §19；能自动检查的都要进 CI。
 - 组件和 native 模块都是“契约优先”：先写 `*.contract.omui.toml` / `*.native.omui.toml`，绑定由生成器产出，不手写。
+- **组件不写动画**（D-93，lint `motion`）：组件只画出自己的状态（和可选的部件名）；变化怎么动由节点的槽决定（`motion` 属性、风格包的动效规则、框架默认），由 `openmui.motion` 在运行时统一完成。画布相机的飞行这类导航运动是例外，要在行内写 `MOTION-OK:` 和理由。
 - 脚本永远不进入每帧路径。
 - ID 不能依赖显示文本；可交互的节点要写显式 ID。
 - 视图代码优先（各语言原生的 builder）；数据文件一律命名为 `<名字>.<种类>.omui.{toml,json}`（逐行记录用 `.jsonl`，例如 `*.session.omui.jsonl`）；着色器用 `.slang`；逻辑代码保持原生后缀。builder 和数据文件都要让人和 agent 容易读懂（`view-data-files` 设计文档 §2）。

@@ -7,7 +7,6 @@ import openmui.view;
 namespace omui {
 
 using parts::focus_ring;
-using parts::keep_frames;
 using parts::mix;
 
 namespace {
@@ -38,16 +37,16 @@ Rect Slider::track(Size size) const noexcept {
 }
 
 void Slider::mounted() {
-    thumb_.attach(services(), fraction(props.value));
-    hover_.attach(services(), 0);
-    halo_.attach(services(), 0);
+    thumb_ = fraction(props.value);
+    hover_ = 0;
+    halo_ = 0;
 }
 
 void Slider::prop_changed(SliderProp p) {
     if (!attached()) return;
     if (p == SliderProp::value || p == SliderProp::min || p == SliderProp::max) {
         // From outside: glide, unless the user is dragging it.
-        if (!dragging_) thumb_.to(fraction(props.value), services().theme().transition("motion.fast"));
+        if (!dragging_) thumb_ = fraction(props.value);
         services().invalidate_paint(node());
     }
 }
@@ -64,8 +63,8 @@ bool Slider::change(double v, bool animate, bool commit) {
         write_value(v);
         emit_changed(v);
     }
-    if (animate) thumb_.to(fraction(v), services().theme().transition("motion.fast"));
-    else thumb_.jump(fraction(v));
+    (void)animate;  // how it moves is its update slot's (universal motion): it draws where it is
+    thumb_ = fraction(v);
     if (commit && moved) emit_committed(v);
     services().invalidate_paint(node());
     services().invalidate_semantics(node());
@@ -76,7 +75,7 @@ bool Slider::change(double v, bool animate, bool commit) {
 std::size_t Slider::effect_shapes(Size size, Rect, std::span<render::EffectShape> out) const {
     if (out.size() < 2) return 0;
     const Rect t = track(size);
-    const float f = static_cast<float>(std::clamp(thumb_.value(), 0.0, 1.0));
+    const float f = static_cast<float>(std::clamp(thumb_, 0.0, 1.0));
     const Point c{t.x + t.width * f, size.height / 2};
     out[0] = {t, CornerRadii::all(track_h / 2)};
     out[1] = {{c.x - thumb_d / 2, c.y - thumb_d / 2, thumb_d, thumb_d}, CornerRadii::all(thumb_d / 2)};
@@ -87,17 +86,17 @@ void Slider::paint(PaintContext& ctx) const {
     const Theme& th = ctx.theme;
     size_ = ctx.size;
     const bool off = props.disabled || ctx.state.disabled;
-    hover_.to(!off && (ctx.state.hovered || dragging_) ? 1.0 : 0.0, th.transition("motion.fast"));
-    halo_.to(!off && (dragging_ || (ctx.state.focused && ctx.state.focus_visible)) ? 1.0 : 0.0, th.transition("motion.fast"));
+    hover_ = !off && (ctx.state.hovered || dragging_) ? 1.0 : 0.0;
+    halo_ = !off && (dragging_ || (ctx.state.focused && ctx.state.focus_visible)) ? 1.0 : 0.0;
     const Rect t = track(ctx.size);
-    const float f = static_cast<float>(std::clamp(thumb_.value(), 0.0, 1.0));
+    const float f = static_cast<float>(std::clamp(thumb_, 0.0, 1.0));
     if (off) ctx.list.push_layer(0.5f, render::BlendMode::normal, {}, {}, {0, 0, ctx.size.width, ctx.size.height});
 
     const CornerRadii round = CornerRadii::all(track_h / 2);
     ctx.list.fill_round_rect(t, round, render::Paint::solid(th.color("track")));
     ctx.list.fill_round_rect({t.x, t.y, t.width * f, t.height}, round, render::Paint::solid(th.color("accent")));
     const Point c{t.x + t.width * f, ctx.size.height / 2};
-    const float halo = static_cast<float>(halo_.value()) * 0.5f + static_cast<float>(hover_.value()) * 0.25f;
+    const float halo = static_cast<float>(halo_) * 0.5f + static_cast<float>(hover_) * 0.25f;
     if (halo > 0) {
         const float r = thumb_d / 2 + 6;
         ctx.list.fill_round_rect({c.x - r, c.y - r, 2 * r, 2 * r}, CornerRadii::all(r),
@@ -109,7 +108,6 @@ void Slider::paint(PaintContext& ctx) const {
     ctx.list.stroke_round_rect({thumb.x + 1, thumb.y + 1, thumb_d - 2, thumb_d - 2}, CornerRadii::all(thumb_d / 2 - 1), 2,
                                render::Paint::solid(th.color("accent")));
     if (off) ctx.list.pop_layer();
-    keep_frames(ctx, {&thumb_, &hover_, &halo_});
 }
 
 void Slider::paint_over(PaintContext&) const {}  // the halo shows keyboard focus

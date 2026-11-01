@@ -86,7 +86,7 @@ int main(int argc, char** argv) {
             return h && h->list() && !h->list()->empty() && insp.pipeline.peek().get("stages");
         }));
         const Value* stages = insp.pipeline.peek().get("stages");
-        check(stages && stages->list() && stages->list()->size() == 8);
+        check(stages && stages->list() && stages->list()->size() == 9);  // … paint, motion, debug
         insp.tab.set("pipeline");
         ui.step();
         check(ui.tree().node("main/body/panels/panel") != std::nullopt);

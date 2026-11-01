@@ -36,6 +36,11 @@ bool dist_toy(toy_options opt) {
         for (const auto& e : std::filesystem::directory_iterator(l.dir, ec))
             if (const std::string f = utf8(e.path()); f.ends_with(l.suffix)) a.input(f.c_str());
     }
+    for (const auto& [font, langs] : opt.font_languages) {
+        std::string list;
+        for (const std::string& l : langs) list += (list.empty() ? "" : ",") + l;
+        a.arg("--font-languages").arg(std::format("{}={}", font, list).c_str());
+    }
     for (const font_subset& s : opt.subsets) {
         std::string list;
         for (const std::string& t : s.text) list += (list.empty() ? "" : ",") + t;

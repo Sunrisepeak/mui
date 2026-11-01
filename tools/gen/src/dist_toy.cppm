@@ -50,6 +50,11 @@ struct ToyPackage {
         std::vector<std::filesystem::path> text;
     };
     std::vector<Subset>   subsets;
+    // A font for some languages (NotoSansSC: zh): before main only when the
+    // page opens in one of them (its route's first part, or the browser's
+    // first language); else fetched once the program is drawn, into
+    // /later/fonts, where the Web host takes it.
+    std::vector<std::pair<std::string, std::vector<std::string>>> font_languages;
 };
 
 struct ToyFile {

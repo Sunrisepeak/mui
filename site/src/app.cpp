@@ -1387,6 +1387,9 @@ std::optional<std::string> inject(std::string_view page, std::string_view fragme
         const auto at = out.find(key);
         if (at == std::string::npos) continue;
         const auto from = at + key.size(), to = out.find('"', from);
+        // The Chinese font only for a Chinese page: an English one fetching it for a word or two (中文) would fetch it before the
+        // program, which takes it just after its first frame; the system's font draws those.
+        if (family == std::string_view("Noto Sans SC") && lang != "zh") continue;
         faces += std::format("@font-face{{font-family:'{}';src:url({});font-display:swap}}", family, out.substr(from, to - from));
     }
     // In the site's own colours (site.theme.omui.toml's light tokens).

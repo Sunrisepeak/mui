@@ -742,6 +742,12 @@ addToLibrary({
     }
     return window.omuiRoute.moves;
   },
+  // The program's first frame is shown: the page's hook, once (dist-toy fetches its later files then).
+  omui_web_first_frame: function () {
+    var f = window.omuiFirstFrame;
+    window.omuiFirstFrame = null;
+    if (typeof f === 'function') f();
+  },
   // Where the application's agent.md is: beside the page.
   omui_web_agent_guide__deps: ['$stringToNewUTF8'],
   omui_web_agent_guide: function () {
@@ -751,6 +757,7 @@ addToLibrary({
   },
   omui_web_set_route__deps: ['$UTF8ToString'],
   omui_web_set_route: function (route) {
+    window.omuiFollowsRoute = true;  // the page's own reload on a new hash is not for it
     try {
       var h = '#/' + UTF8ToString(route);
       var now = location.hash || '#/';

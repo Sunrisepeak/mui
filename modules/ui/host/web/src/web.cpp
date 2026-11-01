@@ -331,10 +331,30 @@ struct Web::Impl {
 
     // `paced`: the page's call, once a display frame — a frame only when one
     // is wanted; else always one (step(), as the desktop's step without waiting).
+    // Fonts the page fetched once the program was drawn (dist-toy's later
+    // fonts, /later/fonts once /later/.ready is there): tried as they come,
+    // every text shaped again with them. Looked for twice a second.
+    bool        later_fonts_taken = false;
+    std::size_t later_looks = 0;
+    void take_later_fonts() {
+        if (later_fonts_taken || !opened || ++later_looks % 30 != 0) return;
+        std::error_code ec;
+        if (!std::filesystem::exists("/later/.ready", ec)) return;
+        later_fonts_taken = true;
+        bool any = false;
+        for (const auto& e : std::filesystem::directory_iterator("/later/fonts", ec))
+            if (e.path().extension() == ".ttf") {
+                if (auto r = runtime->fonts().add_fallback(e.path()); r) any = true;
+                else warn("a later font: {}", r.error());
+            }
+        if (any) runtime->fonts_changed();
+    }
+
     bool step(bool paced) {
         events.clear();
         requests.clear();
         follow_canvas();
+        take_later_fonts();
         if (opened) page::take(events, requests);
         events.insert(events.end(), std::make_move_iterator(pending.begin()), std::make_move_iterator(pending.end()));
         pending.clear();
@@ -381,8 +401,11 @@ struct Web::Impl {
         const std::size_t before = frames_shown;
         show();
         // A frame shown: when, and what it cost from taking the input to presenting it (D-59).
-        if (frames_shown != before)
+        if (frames_shown != before) {
             runtime->frame_shown({runtime->clock().now(), std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - now).count()});
+            // The first: the page may now fetch what comes after it (dist-toy's later files).
+            if (before == 0 && opened) page::first_frame();
+        }
         sync_page();
         // The application moved its route: a step of the browser's history (the address follows it).
         if (opened && runtime->route_revision() != route_shown) {

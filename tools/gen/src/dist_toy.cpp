@@ -86,7 +86,14 @@ std::string js_string(std::string_view s) {
 std::string page(const ToyPackage& p, std::string_view js, std::string_view wasm, std::span<const std::pair<std::string, std::string>> fonts,
                  std::span<const std::pair<std::string, std::string>> later) {
     std::string font_list, later_list;
-    for (const auto& [name, file] : fonts) font_list += std::format("{}[{}, {}]", font_list.empty() ? "" : ", ", js_string(name), js_string(file));
+    for (const auto& [name, file] : fonts) {
+        // Its languages, if it is for some: ["zh"].
+        std::string langs;
+        const std::string stem = name.substr(0, name.rfind('.'));
+        if (const auto fl = std::ranges::find(p.font_languages, stem, &std::pair<std::string, std::vector<std::string>>::first); fl != p.font_languages.end())
+            for (const std::string& l : fl->second) langs += std::format("{}{}", langs.empty() ? "" : ", ", js_string(l));
+        font_list += std::format("{}[{}, {}, [{}]]", font_list.empty() ? "" : ", ", js_string(name), js_string(file), langs);
+    }
     for (const auto& [path, file] : later) later_list += std::format("{}[{}, {}]", later_list.empty() ? "" : ",\n  ", js_string(path), js_string(file));
     std::string html;
     html += "<!doctype html>\n<html lang=\"zh-CN\">\n<head>\n<meta charset=\"utf-8\">\n";
@@ -109,6 +116,12 @@ function omuiArguments() {
   return (document.URL.split('#')[1] || '').replace(/^\//, '').split('/').filter(function (s) { return /^[A-Za-z0-9_-]+$/.test(s); })
     .map(function (s) { return '--' + s; });
 }
+// Whether the page opens in one of these languages: its route's first part (#/zh/…), or the browser's first language.
+function omuiWants(langs) {
+  var route = (document.URL.split('#')[1] || '').replace(/^\//, '').split('/')[0];
+  var first = ((navigator.languages && navigator.languages[0]) || navigator.language || '').toLowerCase();
+  return langs.some(function (l) { return route === l || first === l || first.indexOf(l + '-') === 0; });
+}
 var Module = {
   canvas: document.getElementById('canvas'),
   arguments: omuiArguments(),
@@ -116,9 +129,12 @@ var Module = {
   print: function (text) { console.log(text); },
   printErr: function (text) { console.warn(text); },
   preRun: [function () {
-    // The fonts the program draws with, in its /fonts before main.
+    // The fonts the program draws with, in its /fonts before main — but a
+    // font for some languages only when the page opens in one of them; else
+    // it comes once the program is drawn (omuiFetchLater, /later/fonts).
     FS.mkdir('/fonts');
     omuiFonts.forEach(function (f) {
+      if (f[2].length && !omuiWants(f[2])) { omuiLater.push(['/later/fonts/' + f[0], f[1]]); return; }
       Module.addRunDependency('font ' + f[0]);
       fetch(f[1]).then(function (r) { return r.arrayBuffer(); }).then(function (b) {
         FS.writeFile('/fonts/' + f[0], new Uint8Array(b));
@@ -126,7 +142,13 @@ var Module = {
       });
     });
   }],
-  onRuntimeInitialized: function () { omuiStatus.style.display = 'none'; Module.canvas.focus(); omuiFetchLater(); },
+  onRuntimeInitialized: function () {
+    omuiStatus.style.display = 'none';
+    Module.canvas.focus();
+    // What comes after the first frame starts once it is shown (the program says so), so it never slows it; or in a while, whatever.
+    window.omuiFirstFrame = omuiFetchLater;
+    setTimeout(function () { var f = window.omuiFirstFrame; window.omuiFirstFrame = null; if (f) f(); }, 4000);
+  },
   setStatus: function (text) { if (text) omuiStatus.textContent = text; },
 };
 // What the program takes once it is drawn: fetched now, written into its
@@ -143,7 +165,8 @@ function omuiFetchLater() {
   });
 }
 if (typeof WebAssembly !== 'object') omuiStatus.textContent = 'WebAssembly is needed';
-window.addEventListener('hashchange', function () { location.reload(); });
+// A new hash route: the program started again with its flags — unless it follows its route itself (it has set one: Back and Forward move it).
+window.addEventListener('hashchange', function () { if (!window.omuiFollowsRoute) location.reload(); });
 document.getElementById('canvas').addEventListener('pointerdown', function () { this.focus(); });
 </script>
 )";
@@ -342,6 +365,17 @@ int dist_toy_main(int argc, char** argv) {
                 at = end + 1;
             }
             p.subsets.push_back(std::move(s));
+        }
+        else if (a == "--font-languages" && (v = value())) {  // <font>=<lang>,<lang>…
+            const auto eq = v->find('=');
+            if (eq == std::string::npos) return usage();
+            std::vector<std::string> langs;
+            for (std::size_t at = eq + 1; at <= v->size();) {
+                const std::size_t end = std::min(v->find(',', at), v->size());
+                if (end > at) langs.emplace_back(v->substr(at, end - at));
+                at = end + 1;
+            }
+            p.font_languages.emplace_back(v->substr(0, eq), std::move(langs));
         }
         else if (a == "--later" && (v = value())) {  // <dir>|<suffix>|<mount>
             const auto bar1 = v->find('|'), bar2 = v->find('|', bar1 + 1);

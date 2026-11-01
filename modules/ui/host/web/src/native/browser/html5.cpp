@@ -44,6 +44,7 @@ char* omui_web_route();
 int  omui_web_route_moves();
 void omui_web_set_route(const char* route);
 char* omui_web_agent_guide();
+void omui_web_first_frame();
 }
 
 namespace omui::page {
@@ -382,6 +383,7 @@ std::string route() { return taken(omui_web_route()); }
 int route_moves() { return omui_web_route_moves(); }
 void set_route(std::string_view route) { omui_web_set_route(std::string(route).c_str()); }
 std::string agent_guide() { return taken(omui_web_agent_guide()); }
+void first_frame() { omui_web_first_frame(); }
 
 bool reload_with(std::string_view name, std::string_view value) {
     return omui_web_reload_with(std::string(name).c_str(), std::string(value).c_str()) != 0;

@@ -99,10 +99,24 @@ int main(int argc, char** argv) {
         const auto a = index.find("[\"/later/fighters-art/a.webp\", \"assets/"), b = index.find("[\"/later/fighters-art/b.webp\", \"assets/");
         check(a != std::string::npos && b != std::string::npos && a < b, "both pictures, in order, each with its asset");
         check(!index.contains("notes.txt"), "only the suffix asked for");
-        check(index.contains("omuiFetchLater();") && index.contains("FS.writeFile('/later/.ready', '')"), "fetched after the program starts, .ready last");
+        check(index.contains("window.omuiFirstFrame = omuiFetchLater;") && index.contains("FS.writeFile('/later/.ready', '')"),
+              "fetched once the program's first frame is shown, .ready last");
         check(std::ranges::count_if(r->files, [](const gen::ToyFile& f) { return f.path.ends_with(".webp"); }) == 2);
         p.later = {{t.root / "art", ".webp", "/elsewhere"}};
         check(!gen::package_for_toy(p).has_value(), "only under /later/");
+    });
+
+    s.test("a font for some languages: before main only when the page opens in one, else once the program is drawn; a program that follows its route is not reloaded", [] {
+        Tree t;
+        auto p = t.package();
+        p.font_languages = {{"Inter", {"zh"}}};
+        auto r = gen::package_for_toy(p);
+        check(r.has_value(), r ? "" : r.error());
+        if (!r) return;
+        const std::string index = read(t.root / "out" / "game" / "index.html");
+        check(index.contains("[\"Inter.ttf\", \"assets/") && index.contains("[\"zh\"]]"), "its languages listed with it");
+        check(index.contains("omuiWants(f[2])") && index.contains("'/later/fonts/' + f[0]"), "else in /later/fonts");
+        check(index.contains("if (!window.omuiFollowsRoute) location.reload();"), "reloaded on a new hash only when the program does not follow its route");
     });
 
     s.test("the file types Toy keeps", [] {

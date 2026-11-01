@@ -47,6 +47,9 @@ struct toy_options {
     bool                     sdk = true;             // the page loads Toy's SDK (window.toy)
     std::vector<later_files> later;                  // fetched after the program is drawn
     std::vector<font_subset> subsets;                // fonts cut down to the program's characters
+    // Fonts for some languages ({"NotoSansSC", {"zh"}}): before the program
+    // starts only when the page opens in one; else once it is drawn.
+    std::vector<std::pair<std::string, std::vector<std::string>>> font_languages;
     std::string              out_dir = std::string(mcpp::out_dir());
 };
 

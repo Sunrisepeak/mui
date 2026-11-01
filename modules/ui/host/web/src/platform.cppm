@@ -25,9 +25,9 @@ struct Canvas {
 // What a person did through the page's hidden DOM (assistive technology
 // moved the focus, or activated an element), or a request of window.omui's.
 struct Request {
-    enum class Kind : std::uint8_t { agent, focus, activate };
+    enum class Kind : std::uint8_t { agent, focus, activate, link };
     Kind        kind = Kind::agent;
-    std::string text;  // agent: the request's line; else the node's id
+    std::string text;  // agent: the request's line; link: the agent link's state (JSON); else the node's id
 };
 
 // What came since the last call: the page's events in order (the canvas's,
@@ -42,6 +42,11 @@ void text_input(std::optional<Rect> caret, std::string_view label);
 void mirror(std::string_view batch);
 // A record line answering a window.omui request.
 void agent_reply(std::string_view line);
+// The agent link (agent connect §3): the page looks for a bridge on this
+// machine with a pairing code it made (returned; empty off the Web), and
+// says how it goes as Requests of kind link; stop ends it.
+[[nodiscard]] std::string link_start(std::string_view app);
+void link_stop();
 
 // The clipboard as the page last knew it (what was pasted or copied);
 // writing goes to the Async Clipboard API as well.

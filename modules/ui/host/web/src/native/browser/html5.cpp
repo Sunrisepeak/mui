@@ -27,6 +27,8 @@ int  omui_web_trusted();
 void omui_web_text_input(float x, float y, float width, float height, const char* label);
 void omui_web_mirror(const char* batch);
 void omui_web_agent_reply(const char* line);
+char* omui_web_link_start(const char* app);
+void omui_web_link_stop();
 char* omui_web_clipboard();
 void omui_web_set_clipboard(const char* text);
 int  omui_web_open_url(const char* url);
@@ -115,7 +117,7 @@ std::uint32_t buttons_of(unsigned short b) {
 }
 
 // What the page's library says (src/js/omui_web.js: the same numbers).
-constexpr int page_text = 1, page_preedit = 2, page_key = 3, page_activate = 4, page_focus = 5, page_agent = 6;
+constexpr int page_text = 1, page_preedit = 2, page_key = 3, page_activate = 4, page_focus = 5, page_agent = 6, page_link = 7;
 // KeyboardEvent.keyCode while an input method composes.
 constexpr unsigned composing = 229;
 
@@ -216,6 +218,7 @@ void on_page(int kind, int a, int b, char* text) {
         case page_activate: asked.push_back({Request::Kind::activate, std::move(t)}); break;
         case page_focus: asked.push_back({Request::Kind::focus, std::move(t)}); break;
         case page_agent: asked.push_back({Request::Kind::agent, std::move(t)}); break;
+        case page_link: asked.push_back({Request::Kind::link, std::move(t)}); break;
         default: break;
     }
 }
@@ -322,6 +325,8 @@ void text_input(std::optional<Rect> caret, std::string_view label) {
 void mirror(std::string_view batch) { omui_web_mirror(std::string(batch).c_str()); }
 
 void agent_reply(std::string_view line) { omui_web_agent_reply(std::string(line).c_str()); }
+std::string link_start(std::string_view app) { return taken(omui_web_link_start(std::string(app).c_str())); }
+void link_stop() { omui_web_link_stop(); }
 
 std::string clipboard() { return taken(omui_web_clipboard()); }
 

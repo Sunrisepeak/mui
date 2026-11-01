@@ -5,6 +5,8 @@ import openmui.cli;
 import mcpplibs.cmdline;
 import openmui.host.headless;
 import openmui.testing;
+import openmui.core;
+import mcpplibs.os;
 
 using namespace omui::testing;
 using namespace omui;
@@ -40,6 +42,25 @@ std::vector<Result> with_app(Headless& h, std::vector<std::vector<std::string>> 
     }
     t.join();
     return results;
+}
+
+// One HTTP exchange with a bridge on the loopback, as a page (or a stranger) makes it: the status and the body.
+std::pair<int, std::string> http(std::uint16_t port, std::string_view method, std::string_view path, std::string_view body = {},
+                                 std::string_view headers = {}) {
+    auto c = mcpplibs::os::net::connect_loopback(port);
+    if (!c) return {0, c.error().message()};
+    (void)c->write(std::format("{} {} HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\n{}Content-Length: {}\r\nConnection: close\r\n\r\n{}",
+                               method, path, headers, body.size(), body));
+    std::string got;
+    for (;;) {
+        auto chunk = c->read_for(std::chrono::seconds(30));
+        if (!chunk || !*chunk || (*chunk)->empty()) break;
+        got += **chunk;
+    }
+    int status = 0;
+    if (got.size() > 12) std::from_chars(got.data() + 9, got.data() + 12, status);
+    const auto at = got.find("\r\n\r\n");
+    return {status, at == std::string::npos ? std::string() : got.substr(at + 4)};
 }
 
 }  // namespace
@@ -231,6 +252,55 @@ int main(int argc, char** argv) {
         v = parse_json(r.out);
         check(r.code == 1 && v && v->get("problems")->list()->at(0).get("line")->as_int() == 4, r.out);
         check_eq(omui_cmd({"video", "render", utf8(dir / "card.video.omui.toml")}).code, 2);
+    });
+
+    s.test("omui connect and omui page: a page pairs with the code, the agent's requests reach it as the agent's, its answers come back; strangers refused", [] {
+        const auto dir = scratch_dir("omui-bridge");
+        std::atomic<std::uint16_t> port{0};
+        std::jthread bridge([&](std::stop_token stop) {
+            auto r = cli::run_bridge({.code = "ABCD-EFGH", .name = "tester", .any_port = true, .dir = dir}, stop, [&](std::uint16_t p) { port = p; });
+            check(r.has_value(), r ? "" : r.error());
+        });
+        for (int i = 0; i < 500 && !port; ++i) std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        check(port != 0, "listening");
+        if (!port) return;
+        const std::string agent_dir = omui::utf8(dir);
+        // Not paired yet: the agent is told so.
+        auto status = omui_cmd({"--dir", agent_dir, "page", "status"});
+        check(status.code == 3, status.out + status.err);
+        // A wrong code is refused; the right one, the dash or the case aside, pairs.
+        check_eq(http(port, "POST", "/omui/v1/hello", R"({"code":"ZZZZ-ZZZZ","app":"x"})", "Origin: https://example.org\r\n").first, 403);
+        auto hello = http(port, "POST", "/omui/v1/hello", R"({"code":"abcdefgh","app":"org.example.notes","page":"https://example.org/app"})",
+                          "Origin: https://example.org\r\n");
+        check(hello.first == 200, hello.second);
+        auto session = parse_json(hello.second);
+        const std::string s_id(session && session->get("session") ? session->get("session")->as_string() : "");
+        check(!s_id.empty(), "a session");
+        status = omui_cmd({"--dir", agent_dir, "page", "status", "--wait", "--timeout", "5"});
+        check(status.code == 0 && status.out.contains("\"paired\":true") && status.out.contains("org.example.notes"), status.out + status.err);
+        // The page: takes the next request and answers it, as its window.omui would.
+        std::string seen;
+        std::jthread the_page([&] {
+            auto job = http(port, "GET", "/omui/v1/next?session=" + s_id);
+            seen = job.second;
+            auto j = parse_json(job.second);
+            const std::int64_t id = j && j->get("id") ? j->get("id")->as_int() : 0;
+            const std::string reply = std::format(R"({{"id":{},"reply":{{"exitCode":0,"data":{{"nodes":[]}},"errors":[],"records":[{{"kind":"data","data":{{"nodes":[]}},"re":1}},{{"kind":"result","exitCode":0,"re":1}}]}}}})", id);
+            (void)http(port, "POST", "/omui/v1/reply?session=" + s_id, reply);
+        });
+        auto snap = omui_cmd({"--dir", agent_dir, "page", "snapshot", "--interactive"});
+        the_page.join();
+        check(snap.code == 0, snap.err);
+        check(snap.out.contains("\"kind\":\"data\"") && !snap.out.contains("\"re\""), snap.out);
+        check(seen.contains("\"op\":\"snapshot\"") && seen.contains("\"actor\":\"agent:tester\"") && seen.contains("\"interactive\":true"),
+              std::format("the request as the page took it: {}", seen));
+        // Strangers: the agent's side from a page (an Origin), or without the token, is refused; a page with a wrong session too.
+        check_eq(http(port, "POST", "/omui/v1/call", R"({"op":"snapshot"})", "Origin: https://evil.example\r\n").first, 401);
+        check_eq(http(port, "GET", "/omui/v1/status").first, 401);
+        check_eq(http(port, "GET", "/omui/v1/next?session=nope", {}, "Origin: https://example.org\r\n").first, 403);
+        bridge.request_stop();
+        bridge.join();
+        check(!std::filesystem::exists(dir / "bridge.json"), "the bridge says it is gone");
     });
 
     return s.run(argc, argv);

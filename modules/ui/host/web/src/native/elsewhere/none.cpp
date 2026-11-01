@@ -17,6 +17,8 @@ void take(std::vector<InputEvent>&, std::vector<Request>&) {}
 void text_input(std::optional<Rect>, std::string_view) {}
 void mirror(std::string_view) {}
 void agent_reply(std::string_view) {}
+std::string link_start(std::string_view) { return {}; }
+void link_stop() {}
 std::string clipboard() { return {}; }
 void set_clipboard(std::string_view) {}
 bool open_url(std::string_view) { return false; }

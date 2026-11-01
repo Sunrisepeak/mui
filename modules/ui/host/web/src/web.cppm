@@ -63,6 +63,21 @@ struct WebOptions {
     bool                    present = true;
     // Show a runtime that exists already (the host does not own it).
     Runtime*                runtime = nullptr;
+    // The person may link their own agent (agent connect, D-95): link_agent()
+    // looks for a bridge on their machine. False: it never does (the
+    // application's choice; openas decides what a linked agent may do either way).
+    bool                    agent_link = true;
+};
+
+// The agent link's state (Web::agent_link): idle, waiting (for a bridge with
+// this code), paired (with `agent`), lost (the bridge went: looked for
+// again), expired (ten minutes without one), stopped.
+struct AgentLink {
+    std::string state = "idle";
+    std::string code;   // what the person gives their agent (XXXX-XXXX)
+    std::string agent;  // who paired, as the bridge says (its --name)
+    std::string error;  // the last thing the bridge refused, said plainly
+    int         port = 0;
 };
 
 class Web {
@@ -110,6 +125,16 @@ public:
     // The program's store (omui::store() while this host lives): the page's
     // localStorage, under the application's id; memory without a page.
     [[nodiscard]] Store& store() noexcept;
+
+    // The person's own agent, through a bridge on their machine (agent
+    // connect §3): starts looking for one and answers the pairing code the
+    // person gives their agent (with the prompt); the same code while it
+    // still looks. Empty off the Web, or when the application turned it off.
+    std::string link_agent();
+    void unlink_agent();
+    [[nodiscard]] const AgentLink& agent_link() const noexcept;
+    // Told each time the link's state changes (before the step's frame).
+    void on_agent_link(std::function<void(const AgentLink&)> fn);
     // Called with true when the page is hidden (another tab, the app in the
     // background) and false when it shows again — before the runtime hears
     // it as the window's focus. Toy's lifecycle hangs here.

@@ -103,6 +103,8 @@ struct Web::Impl {
     };
     std::vector<page::Request>               requests;   // this step's, from the page
     std::vector<Asked>                       asked;      // synthesized and request()ed, for the next step
+    AgentLink                                link;
+    std::function<void(const AgentLink&)>    link_heard;
     std::optional<Rect>                      caret;      // where the textarea is
     std::string                              caret_label;
     bool                                     caret_sent = false;
@@ -148,6 +150,16 @@ struct Web::Impl {
     // A request of the page's, or one synthesized: served before the frame.
     void serve(page::Request::Kind kind, const std::string& text, const std::function<void(std::string_view)>& reply) {
         trace::Span span("request", "host");
+        if (kind == page::Request::Kind::link) {  // the agent link's state, as the page says it
+            auto v = parse_json(text);
+            if (!v) return;
+            auto str = [&](std::string_view k) { return std::string(v->get(k) ? v->get(k)->as_string() : ""); };
+            link = {str("state"), str("code"), str("agent"), str("error"), static_cast<int>(v->get("port") ? v->get("port")->as_int() : 0)};
+            constexpr Log link_log{"agent"};
+            link_log.info("the agent link: {}{}{}", link.state, link.agent.empty() ? "" : " with ", link.agent);
+            if (link_heard) link_heard(link);
+            return;
+        }
         if (kind == page::Request::Kind::agent) {
             agents().request(text, reply);
             return;
@@ -439,6 +451,25 @@ void Web::request(std::string_view line, std::function<void(std::string_view)> r
 }
 
 Store& Web::store() noexcept { return omui::store(); }
+
+std::string Web::link_agent() {
+    Impl& d = *impl_;
+    if (!d.options.agent_link || !d.opened) return {};
+    std::string code = page::link_start(d.options.app);
+    if (!code.empty() && d.link.code != code) {
+        d.link = {"waiting", code, {}, {}, 0};
+        if (d.link_heard) d.link_heard(d.link);
+    }
+    return code;
+}
+
+void Web::unlink_agent() {
+    if (impl_->opened) page::link_stop();
+}
+
+const AgentLink& Web::agent_link() const noexcept { return impl_->link; }
+
+void Web::on_agent_link(std::function<void(const AgentLink&)> fn) { impl_->link_heard = std::move(fn); }
 
 bool Web::step() { return impl_->step(false); }
 

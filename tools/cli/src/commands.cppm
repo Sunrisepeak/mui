@@ -19,9 +19,23 @@ int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err)
 
 // The request an `omui agent <op>` command sends, from its arguments
 // (exposed for tests); an error message when the arguments do not make one.
-[[nodiscard]] std::expected<std::string, std::string> agent_request(const mcpplibs::cmdline::ParsedArgs& op);
+// `first`: where the operation's own positional arguments begin (1 for `omui agent <op> <app>`, 0 for `omui page <op>`).
+[[nodiscard]] std::expected<std::string, std::string> agent_request(const mcpplibs::cmdline::ParsedArgs& op, std::size_t first = 1);
 
 [[nodiscard]] std::expected<std::vector<std::uint8_t>, std::string> base64_decode(std::string_view text);
+
+// A bridge (omui connect, agent connect §4) run until `stop`: the pairing
+// code, who the agent is, the origin it serves (empty: any), the port
+// (0: the first free of 47110–47113; any_port: one the system chooses) and
+// where its bridge.json goes (the per-user directory unless given). `ready`
+// hears the port once it listens; answers it when stopped.
+struct BridgeStart {
+    std::string                          code, name, origin;
+    std::uint16_t                        port = 0;
+    bool                                 any_port = false;
+    std::optional<std::filesystem::path> dir;
+};
+std::expected<std::uint16_t, std::string> run_bridge(const BridgeStart& start, std::stop_token stop, const std::function<void(std::uint16_t)>& ready);
 
 }  // namespace omui::cli
 
@@ -36,6 +50,12 @@ int fmt(const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ostream&
 int schema(const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ostream& err);
 // The official components, registered once (documents and views use them).
 void register_components();
+
+// omui connect and omui page (page.cpp, agent connect §4): the bridge a page pairs with, and the paired page operated.
+[[nodiscard]] mcpplibs::cmdline::App connect_command();
+[[nodiscard]] mcpplibs::cmdline::App page_command(mcpplibs::cmdline::App operations);
+int connect(const mcpplibs::cmdline::ParsedArgs& p, std::optional<std::filesystem::path> dir, std::ostream& out, std::ostream& err);
+int page(const mcpplibs::cmdline::ParsedArgs& p, std::optional<std::filesystem::path> dir, std::ostream& out, std::ostream& err);
 
 // omui video (video.cpp).
 [[nodiscard]] mcpplibs::cmdline::App video_command();

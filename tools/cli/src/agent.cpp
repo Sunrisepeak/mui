@@ -15,19 +15,23 @@ namespace {
 
 // Builders commit into the App they were called on when the statement ends,
 // so every App here is a named object.
+// An operation's command: `omui agent <op> <app> …` names the application; `omui page <op> …` operates the paired page.
+bool naming_app = true;
 cmd::App with_app(std::string_view name, std::string_view what) {
     cmd::App a{name};
     (void)a.description(what);
-    a.arg("app").required().help("the application's endpoint name (omui agent ls)");
+    if (naming_app) a.arg("app").required().help("the application's endpoint name (omui agent ls)");
     return a;
 }
 
-cmd::App agent_command() {
-    cmd::App a{"agent"};
-    (void)a.description("Operate a running openmui application through its semantic tree (openmui.tree@0.1)");
-    cmd::App ls{"ls"};
-    (void)ls.description("List the applications that have an endpoint");
-    (void)a.subcommand(std::move(ls));
+// The operations of the semantic protocol (openmui.tree@0.1), as `omui agent` and `omui page` both offer them.
+cmd::App operations(cmd::App a, bool app) {
+    naming_app = app;
+    if (app) {
+        cmd::App ls{"ls"};
+        (void)ls.description("List the applications that have an endpoint");
+        (void)a.subcommand(std::move(ls));
+    }
     (void)a.subcommand(with_app("describe", "The interface, spec version and operations an application offers"));
 
     cmd::App snapshot = with_app("snapshot", "The semantic tree (compact)");
@@ -129,7 +133,14 @@ cmd::App agent_command() {
     cmd::App call = with_app("call", "Send a raw request");
     call.arg("request").required().help(R"(e.g. '{"op":"snapshot","depth":1}')");
     (void)a.subcommand(std::move(call));
+    naming_app = true;
     return a;
+}
+
+cmd::App agent_command() {
+    cmd::App a{"agent"};
+    (void)a.description("Operate a running openmui application through its semantic tree (openmui.tree@0.1)");
+    return operations(std::move(a), true);
 }
 
 std::optional<std::int64_t> integer(const cmd::ParsedArgs& p, std::string_view name) {
@@ -177,7 +188,7 @@ std::expected<std::vector<std::uint8_t>, std::string> base64_decode(std::string_
     return out;
 }
 
-std::expected<std::string, std::string> agent_request(const cmd::ParsedArgs& p) {
+std::expected<std::string, std::string> agent_request(const cmd::ParsedArgs& p, std::size_t first) {
     const std::string op(p.subcommand_name());
     const cmd::ParsedArgs& a = p.subcommand()->get();
     Value req;
@@ -196,8 +207,8 @@ std::expected<std::string, std::string> agent_request(const cmd::ParsedArgs& p) 
     }
     if (op == "find") {
         Value q = Value(Value::Map{});
-        if (a.positionals.size() > 1) {
-            auto parsed = parse_json(a.positional(1));
+        if (a.positionals.size() > first) {
+            auto parsed = parse_json(a.positional(first));
             if (!parsed) return std::unexpected(std::format("the query: {}", parsed.error().text()));
             q = std::move(*parsed);
         }
@@ -213,7 +224,7 @@ std::expected<std::string, std::string> agent_request(const cmd::ParsedArgs& p) 
         return req.json();
     }
     if (op == "act") {
-        req.set("node", a.positional(1)).set("action", a.positional(2));
+        req.set("node", a.positional(first)).set("action", a.positional(first + 1));
         auto args = json_option(a, "args");
         if (!args) return std::unexpected(args.error());
         if (!args->is_null()) req.set("args", *args);
@@ -233,7 +244,7 @@ std::expected<std::string, std::string> agent_request(const cmd::ParsedArgs& p) 
         return req.json();
     }
     if (op == "transaction") {
-        auto steps = parse_json(a.positional(1));
+        auto steps = parse_json(a.positional(first));
         if (!steps) return std::unexpected(std::format("the steps: {}", steps.error().text()));
         if (!steps->list()) return std::unexpected("the steps are a JSON list of {node, action, args}");
         req.set("steps", *steps);
@@ -258,12 +269,12 @@ std::expected<std::string, std::string> agent_request(const cmd::ParsedArgs& p) 
         return req.json();
     }
     if (op == "inspect") {
-        if (a.positionals.size() > 1) req.set("node", a.positional(1));
+        if (a.positionals.size() > first) req.set("node", a.positional(first));
         return req.json();
     }
     if (op == "stats") return req.json();
     if (op == "profile") {
-        const std::string action = a.positional(1);
+        const std::string action = a.positional(first);
         if (action != "start" && action != "stop") return std::unexpected("profile takes start or stop");
         req.set("action", action);
         if (action == "stop" && a.value("out")) req.set("chrome", true);
@@ -293,11 +304,11 @@ std::expected<std::string, std::string> agent_request(const cmd::ParsedArgs& p) 
         return req.json();
     }
     if (op == "clock") {
-        const std::string action = a.positionals.size() > 1 ? std::string(a.positional(1)) : std::string("show");
+        const std::string action = a.positionals.size() > first ? std::string(a.positional(first)) : std::string("show");
         req.set("action", action);
         if (action == "rate" || action == "step" || action == "seek") {
-            if (a.positionals.size() < 3) return std::unexpected(std::format("clock {} needs a number", action));
-            const std::string_view v = a.positional(2);
+            if (a.positionals.size() < first + 2) return std::unexpected(std::format("clock {} needs a number", action));
+            const std::string_view v = a.positional(first + 1);
             double x = 0;
             if (std::from_chars(v.data(), v.data() + v.size(), x).ec != std::errc{}) return std::unexpected(std::format("`{}` is not a number", v));
             req.set(action == "rate" ? "rate" : "seconds", x);
@@ -305,7 +316,7 @@ std::expected<std::string, std::string> agent_request(const cmd::ParsedArgs& p) 
         return req.json();
     }
     if (op == "pipeline") {
-        const std::string action = a.positionals.size() > 1 ? std::string(a.positional(1)) : std::string("show");
+        const std::string action = a.positionals.size() > first ? std::string(a.positional(first)) : std::string("show");
         if (action != "show" && action != "replace" && action != "insert" && action != "remove")
             return std::unexpected("pipeline takes show, replace, insert or remove");
         req.set("action", action);
@@ -332,7 +343,7 @@ std::expected<std::string, std::string> agent_request(const cmd::ParsedArgs& p) 
         return req.json();
     }
     if (op == "call") {
-        auto parsed = parse_json(a.positional(1));
+        auto parsed = parse_json(a.positional(first));
         if (!parsed) return std::unexpected(std::format("the request: {}", parsed.error().text()));
         if (!parsed->map()) return std::unexpected("a request is a JSON object");
         return parsed->json();
@@ -343,12 +354,15 @@ std::expected<std::string, std::string> agent_request(const cmd::ParsedArgs& p) 
 cmd::App app() {
     cmd::App a{"omui"};
     (void)a.version("0.1.0").description("The openmui command line");
-    a.option("dir").takes_value().value_name("DIR").global().help("agent: the endpoint directory (default: the per-user one)");
+    a.option("dir").takes_value().value_name("DIR").global().help("agent: the endpoint directory; connect, page: where the bridge says where it is (default: the per-user one)");
     (void)a.subcommand(agent_command());
     (void)a.subcommand(check_command());
     (void)a.subcommand(fmt_command());
     (void)a.subcommand(schema_command());
     (void)a.subcommand(video_command());
+    (void)a.subcommand(connect_command());
+    cmd::App pg{"page"};
+    (void)a.subcommand(page_command(operations(std::move(pg), false)));
     cmd::App mcp{"mcp"};
     (void)mcp.description("An MCP server on standard input and output: agents (Claude Code …) operate running applications with ui_* tools");
     mcp.option("app").takes_value().value_name("NAME").help("the application a call names none of (default: the one running)");
@@ -461,7 +475,9 @@ int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err)
                "  omui fmt FILE…       the canonical format (--check)\n"
                "  omui schema          the JSON Schema of view documents\n"
                "  omui video render | still | check | probe | timing   videos: frames and sound on exact counts\n"
-               "  omui mcp             an MCP server: agents operate running applications (claude mcp add openmui -- omui mcp)\n\n"
+               "  omui mcp             an MCP server: agents operate running applications (claude mcp add openmui -- omui mcp)\n"
+               "  omui connect --code CODE   the bridge a page in your browser pairs with (its prompt gives the code)\n"
+               "  omui page status | describe | snapshot | find | act | wait | …   operate the paired page\n\n"
                "Run `omui <command> --help` for its options.\n";
         return 0;
     }
@@ -470,6 +486,8 @@ int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err)
     if (parsed->subcommand_name() == "fmt") return fmt(parsed->subcommand()->get(), out, err);
     if (parsed->subcommand_name() == "schema") return schema(parsed->subcommand()->get(), out, err);
     if (parsed->subcommand_name() == "video") return video(parsed->subcommand()->get(), out, err);
+    if (parsed->subcommand_name() == "connect") return connect(parsed->subcommand()->get(), global(*parsed, "dir"), out, err);
+    if (parsed->subcommand_name() == "page") return page(parsed->subcommand()->get(), global(*parsed, "dir"), out, err);
     if (parsed->subcommand_name() == "mcp") {
         // The protocol is this process's standard streams, whatever `out` is.
         const cmd::ParsedArgs& m = parsed->subcommand()->get();

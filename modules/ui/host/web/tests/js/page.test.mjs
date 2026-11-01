@@ -19,7 +19,7 @@ const library = readFileSync(here('../../src/js/omui_web.js'), 'utf8');
 
 // A page with a canvas at (100, 50), 200×160 CSS pixels, and the library
 // opened on it: what the program was told, in order, in `heard`.
-function page({ storage = new Storage(), clipboard = null, permissions = null, activation = undefined } = {}) {
+function page({ storage = new Storage(), clipboard = null, permissions = null, activation = undefined, fetch = undefined } = {}) {
   const window = new Window();
   const document = window.document;
   const canvas = document.createElement('canvas');
@@ -43,6 +43,7 @@ function page({ storage = new Storage(), clipboard = null, permissions = null, a
     stringToNewUTF8: (s) => s,
     lengthBytesUTF8: (s) => Buffer.byteLength(s, 'utf8'),
     getWasmTableEntry: (f) => f,
+    fetch, setTimeout, crypto: globalThis.crypto, location: { href: 'https://example.org/app' },
   };
   Object.defineProperty(context, 'localStorage', {
     get() {
@@ -68,9 +69,9 @@ function page({ storage = new Storage(), clipboard = null, permissions = null, a
 test('the C++ side and the page agree on what each kind of event is', () => {
   const cpp = readFileSync(here('../../src/native/browser/html5.cpp'), 'utf8');
   const { P } = page();
-  const m = /page_text = (\d+), page_preedit = (\d+), page_key = (\d+), page_activate = (\d+), page_focus = (\d+), page_agent = (\d+)/.exec(cpp);
+  const m = /page_text = (\d+), page_preedit = (\d+), page_key = (\d+), page_activate = (\d+), page_focus = (\d+), page_agent = (\d+), page_link = (\d+)/.exec(cpp);
   assert.ok(m, 'html5.cpp names the kinds');
-  assert.deepEqual(m.slice(1).map(Number), [P.TEXT, P.PREEDIT, P.KEY, P.ACTIVATE, P.FOCUS, P.AGENT]);
+  assert.deepEqual(m.slice(1).map(Number), [P.TEXT, P.PREEDIT, P.KEY, P.ACTIVATE, P.FOCUS, P.AGENT, P.LINK]);
 });
 
 test('opening: the textarea, the mirror\'s layer, the live regions, window.omui', () => {
@@ -322,6 +323,76 @@ test('window.omui: requests go to the program, its records settle the promise', 
   assert.equal(a.errors[0].code, 'needs-answer');
   assert.equal(a.records.length, 2);
   assert.equal(P.agents.size, 0);
+});
+
+// A bridge (omui connect) as the page meets it: hello with the code, the next request, the reply.
+function bridge(code, requests) {
+  const seen = { hellos: [], replies: [] };
+  const answer = (status, body) => Promise.resolve({ ok: status === 200, status, json: () => Promise.resolve(body) });
+  const fetch = (url, init = {}) => {
+    const u = new URL(url);
+    if (u.port !== '47111') return Promise.reject(new TypeError('connection refused'));  // the first free port was 47111
+    if (u.pathname === '/omui/v1/hello') {
+      const hello = JSON.parse(init.body);
+      seen.hellos.push(hello);
+      return hello.code.replace('-', '') === code.replace('-', '') ? answer(200, { session: 's1', agent: 'Claude Code', bridge: '0.1.0' })
+                                                                     : answer(403, { error: 'not the pairing code' });
+    }
+    if (u.searchParams.get('session') !== 's1') return answer(403, { error: 'not this session' });
+    if (u.pathname === '/omui/v1/next') {
+      const job = requests.shift();
+      return job ? answer(200, job) : new Promise(() => {});  // nothing more: it waits
+    }
+    if (u.pathname === '/omui/v1/reply') {
+      seen.replies.push(JSON.parse(init.body));
+      return answer(200, {});
+    }
+    return answer(404, {});
+  };
+  return { fetch, seen };
+}
+
+test('the agent link: a code made in the page, a bridge found at its port, the agent\'s requests answered through window.omui\'s path', async () => {
+  // The bridge is started with the code the page made (the person gave it to their agent): made once the code is known.
+  let b = null;
+  const { P, window, context, heard } = page({ fetch: (u, i) => (b ? b.fetch(u, i) : Promise.reject(new TypeError('nothing listens yet'))) });
+  const code = context.omui_web_link_start('org.example.notes');
+  assert.match(code, /^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/, 'eight letters and digits, none easily misread');
+  assert.equal(window.omui.link(), code, 'asked again while it looks: the same code');
+  const said = () => heard.filter((h) => h[0] === P.LINK).map((h) => JSON.parse(h[3]));
+  assert.equal(said()[0].state, 'waiting');
+  b = bridge(code, [{ id: 1, request: { op: 'snapshot', actor: 'agent:Claude Code' } }]);
+  await new Promise((r) => setTimeout(r, 1700));  // the page looks again every 1.5 s
+  const paired = said().find((x) => x.state === 'paired');
+  assert.ok(paired, 'paired');
+  assert.equal(paired.agent, 'Claude Code');
+  assert.equal(paired.port, 47111);
+  assert.equal(b.seen.hellos[0].app, 'org.example.notes');
+  // Its request reached the program as window.omui's do; the program's records went back as the reply.
+  await new Promise((r) => setTimeout(r, 20));
+  const asked = heard.filter((h) => h[0] === P.AGENT);
+  assert.equal(asked.length, 1);
+  assert.deepEqual(JSON.parse(asked[0][3]), { op: 'snapshot', actor: 'agent:Claude Code', re: 1 });
+  context.omui_web_agent_reply(JSON.stringify({ kind: 'data', data: { nodes: [] }, re: 1 }));
+  context.omui_web_agent_reply(JSON.stringify({ kind: 'result', exitCode: 0, re: 1 }));
+  await new Promise((r) => setTimeout(r, 20));
+  assert.equal(b.seen.replies.length, 1);
+  assert.equal(b.seen.replies[0].id, 1);
+  assert.equal(b.seen.replies[0].reply.exitCode, 0);
+  context.omui_web_link_stop();
+  assert.equal(said().at(-1).state, 'stopped');
+});
+
+test('the agent link refuses nothing itself: a wrong code is the bridge\'s to refuse, and the page keeps looking', async () => {
+  const b = bridge('WXYZ-2345', []);
+  const { P, context, heard } = page({ fetch: b.fetch });
+  context.omui_web_link_start('app');
+  await new Promise((r) => setTimeout(r, 50));
+  const said = heard.filter((h) => h[0] === P.LINK).map((h) => JSON.parse(h[3]));
+  assert.equal(b.seen.hellos.length, 1);
+  assert.equal(said.at(-1).state, 'waiting');
+  assert.match(said.at(-1).error, /pairing code/);
+  context.omui_web_link_stop();
 });
 
 test('localStorage: kept, listed by prefix, full, refused', () => {

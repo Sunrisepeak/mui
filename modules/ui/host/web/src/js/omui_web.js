@@ -14,6 +14,7 @@
 //   4 activate  assistive technology activated a mirrored node (text: its id)
 //   5 focus     assistive technology moved the focus to a mirrored node
 //   6 agent     a request of window.omui's (text: one JSON line)
+//   7 link      the agent link's state (text: JSON — state, code, port, agent, error)
 // Only the person's own input counts (openas §2.7): an event a script made
 // (isTrusted false) is never passed on, and window.omui's requests are the
 // program's to decide as any agent's.
@@ -27,7 +28,8 @@ addToLibrary({
 
   $omuiPage__deps: ['$omuiCanvas', '$stringToNewUTF8', '$lengthBytesUTF8', '$getWasmTableEntry'],
   $omuiPage: {
-    TEXT: 1, PREEDIT: 2, KEY: 3, ACTIVATE: 4, FOCUS: 5, AGENT: 6,
+    TEXT: 1, PREEDIT: 2, KEY: 3, ACTIVATE: 4, FOCUS: 5, AGENT: 6, LINK: 7,
+    LINK_PORTS: [47110, 47111, 47112, 47113],  // where a bridge (omui connect) listens, the first free of them
     callback: 0,
     selector: '#canvas',
     trusted: true,        // the event being dispatched now (window, capturing: before the canvas's)
@@ -162,6 +164,9 @@ addToLibrary({
         invoke: function (verb, args, o) { return P.request(Object.assign({ op: 'invoke', verb: verb, args: args || {} }, o || {})); },
         wait: function (condition, o) { return P.request(Object.assign({ op: 'wait' }, condition || {}, o || {})); },
         capture: function (o) { return P.request(Object.assign({ op: 'capture' }, o || {})); },
+        // The person's own agent, through a bridge on this machine (D-95): the pairing code to give it, and the end of it.
+        link: function () { return P.linkStart(P.LINK_PORTS, P.link ? P.link.app : ''); },
+        unlink: function () { P.linkStop(); },
       };
       window.omui = Object.freeze(omui);
     },
@@ -404,6 +409,104 @@ addToLibrary({
       if (b.alert) P.announce(P.assertive, b.alert);
     },
 
+    // ── the agent link (D-95): the person's own agent, through a bridge on 127.0.0.1 ──
+    //
+    // Started by the program (omui_web_link_start: a "copy the prompt" press),
+    // never by itself: it looks for a bridge (omui connect) at the ports given,
+    // says hello with the pairing code it made and the program shows, then
+    // takes the agent's requests one at a time and answers them through
+    // window.omui's path (the bus: openas decides each, S-10, S-11). What it
+    // is doing goes to the program as a LINK line (JSON).
+    link: null,
+    linkStart: function (ports, app) {
+      var P = omuiPage;
+      if (P.link && P.link.state !== 'stopped' && P.link.state !== 'expired') return P.link.code;
+      var bytes = new Uint8Array(8);
+      crypto.getRandomValues(bytes);
+      var abc = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';  // no I, L, O, 0, 1: read aloud, typed again
+      var code = '';
+      for (var i = 0; i < 8; i++) code += abc[bytes[i] % abc.length];
+      code = code.slice(0, 4) + '-' + code.slice(4);
+      P.link = { code: code, ports: ports, app: app || '', state: 'waiting', port: 0, session: '', agent: '', until: Date.now() + 600000, stopped: false };
+      P.linkSay();
+      P.linkHello(P.link);
+      return code;
+    },
+    linkStop: function () {
+      var P = omuiPage, l = P.link;
+      if (!l) return;
+      l.stopped = true;
+      l.state = 'stopped';
+      P.linkSay();
+    },
+    linkSay: function () {
+      var P = omuiPage, l = P.link;
+      if (!l) return;
+      P.send(P.LINK, 0, 0, JSON.stringify({ state: l.state, code: l.code, port: l.port, agent: l.agent, error: l.error || '' }));
+    },
+    linkHello: function (l) {
+      var P = omuiPage;
+      if (l.stopped || P.link !== l) return;
+      if (Date.now() > l.until) { l.state = 'expired'; P.linkSay(); return; }
+      var tries = l.ports.map(function (port) {
+        return fetch('http://127.0.0.1:' + port + '/omui/v1/hello', {
+          method: 'POST', headers: { 'content-type': 'application/json' }, cache: 'no-store',
+          body: JSON.stringify({ code: l.code, app: l.app || '', page: (typeof location !== 'undefined' ? location.href : '') })
+        }).then(function (r) {
+          return r.json().then(function (body) { return { ok: r.ok, body: body, port: port }; });
+        });
+      });
+      Promise.allSettled(tries).then(function (all) {
+        if (l.stopped || P.link !== l) return;
+        var paired = null, refused = null;
+        all.forEach(function (a) {
+          if (a.status !== 'fulfilled') return;
+          if (a.value.ok && !paired) paired = a.value;
+          else if (!a.value.ok) refused = a.value;
+        });
+        if (paired) {
+          l.port = paired.port;
+          l.session = paired.body.session;
+          l.agent = paired.body.agent || 'an agent';
+          l.state = 'paired';
+          l.error = '';
+          P.linkSay();
+          P.linkPoll(l);
+          return;
+        }
+        if (refused && refused.body && refused.body.error) { l.error = refused.body.error; P.linkSay(); }
+        setTimeout(function () { P.linkHello(l); }, 1500);
+      });
+    },
+    linkPoll: function (l) {
+      var P = omuiPage;
+      if (l.stopped || P.link !== l) return;
+      var base = 'http://127.0.0.1:' + l.port + '/omui/v1/';
+      fetch(base + 'next?session=' + encodeURIComponent(l.session), { cache: 'no-store' }).then(function (r) {
+        if (l.stopped) return null;
+        if (r.status === 204) return null;
+        if (!r.ok) throw new Error('the bridge answered ' + r.status);
+        return r.json();
+      }).then(function (job) {
+        if (!job || l.stopped) { P.linkPoll(l); return; }
+        // Answered through window.omui's path, then the next.
+        P.request(job.request).then(function (reply) {
+          return fetch(base + 'reply?session=' + encodeURIComponent(l.session), {
+            method: 'POST', headers: { 'content-type': 'application/json' }, cache: 'no-store',
+            body: JSON.stringify({ id: job.id, reply: reply })
+          });
+        }).catch(function () {}).then(function () { P.linkPoll(l); });
+      }).catch(function (e) {
+        // The bridge went (stopped, restarted): look for it again a while.
+        if (l.stopped || P.link !== l) return;
+        l.state = 'lost';
+        l.error = String(e && e.message || e);
+        l.until = Date.now() + 600000;
+        P.linkSay();
+        setTimeout(function () { P.linkHello(l); }, 1500);
+      });
+    },
+
     // ── window.omui ──
 
     request: function (req) {
@@ -458,6 +561,14 @@ addToLibrary({
   omui_web_mirror: function (batch) {
     omuiPage.mirror(UTF8ToString(batch));
   },
+
+  // The agent link: looking for a bridge with a pairing code (returned, in memory the caller frees), and its end.
+  omui_web_link_start__deps: ['$omuiPage', '$UTF8ToString', '$stringToNewUTF8'],
+  omui_web_link_start: function (app) {
+    return stringToNewUTF8(omuiPage.linkStart(omuiPage.LINK_PORTS, UTF8ToString(app)));
+  },
+  omui_web_link_stop__deps: ['$omuiPage'],
+  omui_web_link_stop: function () { omuiPage.linkStop(); },
 
   omui_web_agent_reply__deps: ['$omuiPage', '$UTF8ToString'],
   omui_web_agent_reply: function (line) {

@@ -75,14 +75,24 @@ void Tree::refresh() {
                         // the node is the item — what the holder says of it
                         // fills what the node does not say itself.
                         spec::SemanticNode& real = nodes_[at->second];
-                        if (real.role == Role::generic || real.role == Role::none) real.role = v.role;
-                        if (real.name.empty()) real.name = v.name;
+                        // A holder of one live node that says what it is itself (a canvas's live switch in its
+                        // placing box): that node is the item to a reader — the box is not said to be one too.
+                        bool inner = false;
+                        if (real.children.size() == 1)
+                            if (auto c = index_.find(real.children.front()); c != index_.end())
+                                inner = nodes_[c->second].role != Role::generic && nodes_[c->second].role != Role::none;
+                        if (!inner && (real.role == Role::generic || real.role == Role::none)) real.role = v.role;
+                        if (!inner && real.name.empty()) real.name = v.name;
                         if (real.description.empty()) real.description = v.description;
                         real.states.bits |= v.states.bits;
                         for (spec::ActionDesc& a : v.actions)
                             if (!real.action(a.name)) real.actions.push_back(std::move(a));
                         continue;
                     }
+                    // Live inside a box this tree lifted (a canvas's placing box): the live node under it stands
+                    // for the item, which is not said a second time.
+                    const std::string under = v.id + "/";
+                    if (std::ranges::any_of(nodes_[holder].children, [&](const std::string& c) { return c.starts_with(under); })) continue;
                     v.children.clear();
                     index_.emplace(v.id, nodes_.size());
                     nodes_.push_back(std::move(v));

@@ -532,6 +532,9 @@ int main(int argc, char** argv) {
         const NodeId cloud = g.h.runtime().children(g.field()).at(0);
         g.settle();
         check(g.h.runtime().children(cloud).size() > 3, std::format("live components near the paddle: {}", g.h.runtime().children(cloud).size()));
+        // A live switch is one switch to a reader: not also the box that places it.
+        const auto wifi = g.h.tree().find({.role = Role::switch_, .name = "Wi-Fi"});
+        check(wifi.size() == 1, std::format("{} Wi-Fi switches", wifi.size()));
         check(g.act("pause"));
         double least = 1;
         bool breached = false;

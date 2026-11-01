@@ -215,8 +215,8 @@ RoomDef sync_room() {
 
 constexpr std::array<Contraption, 5> all_contraptions{{
     {Gift::wide, "wide", "Long paddle", "A wider paddle for a while: huge and brief, or wide and long.", {260, 95}, {"Huge · 4 s", "Wide · 12 s"}},
-    {Gift::magnet, "magnet", "Magnet", "The paddle holds the ball, and you aim again.", {2, 5}, {"2 catches", "5 catches"}},
-    {Gift::multi, "multi", "Splitter", "Every ball in flight splits.", {1, 4}, {"Into two", "Into five"}},
+    {Gift::magnet, "magnet", "Magnet", "The paddle holds the ball, and you aim again: twice, or five times.", {2, 5}, {"2 catches", "5 catches"}},
+    {Gift::multi, "multi", "Splitter", "Every ball in flight splits: into two you can follow, or five to keep up with.", {1, 4}, {"Into two", "Into five"}},
     {Gift::pierce, "pierce", "Drill", "The ball goes through bricks: short and often, or long and rare.", {2, 10}, {"2 s · often", "10 s · rare"}},
     {Gift::slow, "slow", "Molasses", "Time runs slow: very slow and short, or a little slow for long.", {25, 75}, {"25 % · 5 s", "75 % · 16 s"}},
 }};

@@ -33,6 +33,8 @@ struct Bench {
     std::array<Signal<std::string>, 2> name{signal(std::string()), signal(std::string())}, line{signal(std::string()), signal(std::string())},
         brief{signal(std::string()), signal(std::string())}, steady{signal(std::string()), signal(std::string())},
         state{signal(std::string()), signal(std::string())};
+    // Which preset each card's contraption is tuned to now (its script's marked value): -1, neither.
+    std::array<Signal<std::int32_t>, 2> chosen{signal(std::int32_t{-1}), signal(std::int32_t{-1})};
     Signal<std::string>               heading = signal(std::string()), stats = signal(std::string()), casing_title = signal(std::string()),
                                       casing_status = signal(std::string());
 
@@ -106,6 +108,7 @@ struct Bench {
         if (!c || !workshop) return;
         const std::size_t i = script_of(c->gift);
         text[i].set(Workshop::retune(text[i].peek(), c->presets[which]));
+        chosen[card].set(static_cast<std::int32_t>(which));
         state[card].set(std::format("tuning: {}", c->preset_names[which]));
         apply(i, [this, card, c, which](const std::string& s) {
             state[card].set(s.starts_with("reloaded") ? std::format("set: {}", c->preset_names[which]) : s);
@@ -142,6 +145,12 @@ struct Bench {
             brief[k].set(c ? std::string(c->preset_names[0]) : std::string());
             steady[k].set(c ? std::string(c->preset_names[1]) : std::string());
             state[k].set(c ? std::format("{}  ·  press {}", c->script, k + 1) : std::string());
+            std::int32_t now = -1;
+            if (c && workshop)
+                if (const auto v = Workshop::tuned(text[script_of(c->gift)].peek()))
+                    for (std::int32_t w = 0; w < 2; ++w)
+                        if (*v == c->presets[static_cast<std::size_t>(w)]) now = w;
+            chosen[k].set(now);
         }
         const Run& r = f->run_so_far();
         heading.set(std::format("{} {} — shut down", room(after).name, room(after).title));
@@ -157,10 +166,16 @@ Element card_view(const std::shared_ptr<Bench>& b, std::size_t k) {
     return column({.id = id, .width = Dim(420.0f), .padding = 20, .gap = 10.0f, .background = Color::hex(0x101626, 0.96f), .radius = 16.0f},
                   // Its own dark ground whatever the room's skin (a light skin's dark text vanished on it): its words light.
                   {text({.text = b->name[k], .style = "title", .color = Fill(Color::hex(0xf4f6fb))}),
-                   text({.text = b->line[k], .style = "body", .color = Fill(Color::hex(0xd5dbea))}),
+                   // Two lines' room: the presets of both cards on one line whatever their words.
+                   box({.min_height = Dim(46.0f)}, {text({.text = b->line[k], .style = "body", .color = Fill(Color::hex(0xd5dbea))})}),
                    row({.id = id + ".presets", .gap = 8.0f},
-                       {button({.id = id + ".brief", .text = b->brief[k], .variant = ButtonVariant::secondary, .on_activated = [b, k] { b->preset(k, 0); }}),
-                        button({.id = id + ".steady", .text = b->steady[k], .variant = ButtonVariant::secondary, .on_activated = [b, k] { b->preset(k, 1); }})}),
+                       // The preset in effect, filled; the other, to choose.
+                       {button({.id = id + ".brief", .text = b->brief[k],
+                                .variant = computed([b, k] { return b->chosen[k].get() == 0 ? ButtonVariant::primary : ButtonVariant::secondary; }),
+                                .on_activated = [b, k] { b->preset(k, 0); }}),
+                        button({.id = id + ".steady", .text = b->steady[k],
+                                .variant = computed([b, k] { return b->chosen[k].get() == 1 ? ButtonVariant::primary : ButtonVariant::secondary; }),
+                                .on_activated = [b, k] { b->preset(k, 1); }})}),
                    text({.id = id + ".state", .text = b->state[k], .style = "caption", .color = Fill(Color::hex(0xaab4cc))}),
                    row({.id = id + ".tools", .gap = 8.0f},
                        {button({.id = id + ".take", .text = std::format("Take it  ({})", k + 1), .variant = ButtonVariant::primary, .on_activated = [b, k] { b->take(k); }}),

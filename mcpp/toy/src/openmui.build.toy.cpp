@@ -36,6 +36,21 @@ bool dist_toy(toy_options opt) {
         for (const auto& e : std::filesystem::directory_iterator(l.dir, ec))
             if (const std::string f = utf8(e.path()); f.ends_with(l.suffix)) a.input(f.c_str());
     }
+    for (const font_subset& s : opt.subsets) {
+        std::string list;
+        for (const std::string& t : s.text) list += (list.empty() ? "" : ",") + t;
+        a.arg("--subset").arg(std::format("{}={}", s.font, list).c_str());
+        // Their text is the subset's input: a character added, the font is cut again.
+        for (const std::string& t : s.text) {
+            std::error_code ec;
+            if (std::filesystem::is_directory(t, ec)) {
+                for (const auto& e : std::filesystem::recursive_directory_iterator(t, ec))
+                    if (e.is_regular_file()) a.input(utf8(e.path()).c_str());
+            } else {
+                a.input(t.c_str());
+            }
+        }
+    }
     a.input(("${mcpp.target_file:" + opt.target + "}").c_str());
     a.input(gen.c_str());
     a.output((out + "/index.html").c_str());

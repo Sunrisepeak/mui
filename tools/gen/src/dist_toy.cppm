@@ -5,6 +5,7 @@
 //   omui-gen dist-toy <staged tree> --target <name> --out <dir> [--title T]
 //                     [--fonts Inter,NotoSansSC | all] [--fonts-dir <dir>]
 //                     [--graph <mcpp graph file>] [--background #rrggbb] [--no-sdk]
+//                     [--later <dir>|<suffix>|</later/mount>]… [--subset <font>=<path>,<path>…]…
 //
 // The package (Toy's rules, from github.com/bilibili/toy at ae156ec — its
 // skill's content checklist and toy_doctor.py — and the publishing guide's
@@ -40,6 +41,15 @@ struct ToyPackage {
         std::string           suffix, mount;
     };
     std::vector<Later>    later;
+    // A font cut down to the characters these files hold (text: .md, .cpp,
+    // .cppm, .toml, .json, .txt, .js — a directory's, recursively), with its
+    // `<stem>.common.txt` beside it (characters people type) and the
+    // punctuation and Latin every page has (font_subset.cppm).
+    struct Subset {
+        std::string                        font;  // a stem of `fonts`
+        std::vector<std::filesystem::path> text;
+    };
+    std::vector<Subset>   subsets;
 };
 
 struct ToyFile {

@@ -3,7 +3,7 @@
   "network": "20/40",
   "budgets": [
     { "metric": "transfer.total", "max": 11500000, "why": "11.1 MB (2026-11-01): the wasm 3.5 compressed, the fonts 3.3 (Noto Sans SC 2.7), the fighters' pictures 4.2 — fetched after the first frame" },
-    { "metric": "transfer.before_first_frame", "max": 7900000, "why": "7.7 MB on the way to the first frame (2026-11-01): the program (universal motion in it now) and the fonts, Noto Sans SC 2.7 MB of them; raised for checkpoint C1 only — C2 (performance tiers §7: the Chinese font subset to the site's own characters and fetched for the languages that need it, the first frame drawn ahead) brings it under 5 MB" },
+    { "metric": "transfer.before_first_frame", "max": 7500000, "why": "about 6.6 MB on the way to the first frame (2026-11-01): the program and the fonts — Noto Sans SC cut to the site's characters and the 3755 common ones (2.7 → 1.4 MB gzipped); the next step (performance tiers §7: the first frame drawn ahead, the program split) is under 5 MB" },
     { "metric": "first_frame_ms", "max": 4500, "why": "3.1 s locally (5.0 s while the fighters' pictures came before it): the transfer at 20 Mbit/s is most of it" },
     { "metric": "ready_ms", "max": 4500, "why": "window.omui answers before the first frame is drawn" },
     { "metric": "frames.p95", "max": 34, "why": "16.8 ms on the runner and locally; a slower runner's headroom" },

@@ -19,7 +19,14 @@ int main() {
     const char* fighting = mcpp::dep_dir("openmui.showcase.fighting");
     std::vector<openmui::build::later_files> later;
     if (fighting && *fighting) later.push_back({.dir = std::string(fighting) + "/fighters/art", .suffix = ".webp", .mount = "/later/fighters-art"});
+    // The Chinese font cut down to the characters the site draws (2.7 of the 7.7 MB before its first frame):
+    // its text, the docs it shows, the works it runs — and the common characters people type.
+    const std::string here = mcpp::manifest_dir();
+    std::vector<std::string> text{here + "/content", here + "/src", here + "/contract", here + "/../docs"};
+    for (const char* dep : {"openmui.showcase.fighting", "openmui.showcase.style_gallery", "openmui.showcase.markdown_wall", "openmui.example.hello-im",
+                            "openmui.ui.timeline", "openmui.ui.base", "openmui.ui.markdown"})
+        if (const char* d = mcpp::dep_dir(dep); d && *d) text.push_back(std::string(d) + "/src");
     const bool page = openmui::build::dist_toy({.target = "omui-site", .title = "openmui", .fonts = {"Inter", "JetBrainsMono", "NotoSansSC"}, .background = "#0b0f16", .sdk = false,
-                                                .later = std::move(later)});
+                                                .later = std::move(later), .subsets = {{.font = "NotoSansSC", .text = std::move(text)}}});
     return lens && content && en && zh && frames && page ? 0 : 1;
 }

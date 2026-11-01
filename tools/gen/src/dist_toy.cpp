@@ -3,6 +3,7 @@ module openmui.gen.dist_toy;
 import std;
 import openmui.hash;
 import nlohmann.json;
+import openmui.gen.font_subset;
 
 namespace omui::gen {
 
@@ -197,6 +198,32 @@ std::expected<ToyReport, std::string> package_for_toy(const ToyPackage& p) {
     for (const std::string& stem : stems) {
         auto bytes = read(fonts_dir / (stem + ".ttf"));
         if (!bytes) return std::unexpected(std::format("font {}: {}", stem, bytes.error()));
+        // Cut down to the characters the program's text holds, where asked.
+        if (const auto sub = std::ranges::find(p.subsets, stem, &ToyPackage::Subset::font); sub != p.subsets.end()) {
+            std::set<char32_t> keep;
+            always_kept(keep);
+            if (auto common = read(fonts_dir / (stem + ".common.txt"))) characters_of(*common, keep);
+            static constexpr std::array<std::string_view, 7> text_kinds{".md", ".cpp", ".cppm", ".toml", ".json", ".txt", ".js"};
+            auto take = [&](const fs::path& f) {
+                if (std::ranges::find(text_kinds, utf8(f.extension())) == text_kinds.end()) return;
+                if (auto t = read(f)) characters_of(*t, keep);
+            };
+            for (const fs::path& t : sub->text) {
+                if (fs::is_directory(t, ec)) {
+                    for (const auto& e : fs::recursive_directory_iterator(t, ec))
+                        if (e.is_regular_file()) take(e.path());
+                } else if (fs::is_regular_file(t, ec)) {
+                    take(t);
+                } else {
+                    return std::unexpected(std::format("--subset {}: {} is neither a file nor a directory", stem, utf8(t)));
+                }
+            }
+            FontSubsetReport r;
+            auto cut = subset_font(std::span(reinterpret_cast<const std::uint8_t*>(bytes->data()), bytes->size()), keep, &r);
+            if (!cut) return std::unexpected(std::format("font {}: {}", stem, cut.error()));
+            bytes->assign(reinterpret_cast<const char*>(cut->data()), cut->size());
+            std::println("dist-toy: {} cut to {} of its {} glyphs: {} → {} bytes", stem, r.kept, r.glyphs, r.bytes_before, r.bytes_after);
+        }
         const std::string asset = std::format("assets/{}.ttf", content_hash(*bytes));
         if (auto w = write(p.out / asset, *bytes); !w) return std::unexpected(w.error());
         fonts.emplace_back(stem + ".ttf", asset);
@@ -302,6 +329,20 @@ int dist_toy_main(int argc, char** argv) {
                 from = comma + 1;
             }
         } else if (a == "--no-sdk") p.sdk = false;
+        else if (a == "--subset" && (v = value())) {  // <font>=<path>,<path>…
+            const auto eq = v->find('=');
+            if (eq == std::string::npos) {
+                std::println(std::cerr, "omui-gen dist-toy: --subset is <font>=<path>,<path>…");
+                return 2;
+            }
+            ToyPackage::Subset s{v->substr(0, eq), {}};
+            for (std::size_t at = eq + 1; at <= v->size();) {
+                const std::size_t end = std::min(v->find(',', at), v->size());
+                if (end > at) s.text.emplace_back(v->substr(at, end - at));
+                at = end + 1;
+            }
+            p.subsets.push_back(std::move(s));
+        }
         else if (a == "--later" && (v = value())) {  // <dir>|<suffix>|<mount>
             const auto bar1 = v->find('|'), bar2 = v->find('|', bar1 + 1);
             if (bar1 == std::string::npos || bar2 == std::string::npos) return usage();

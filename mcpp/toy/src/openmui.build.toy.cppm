@@ -31,6 +31,14 @@ struct later_files {
     std::string mount;   // "/later/fighters-art"
 };
 
+// A font cut down to the characters these text files and directories hold
+// (absolute paths; directories recursively), with the characters people type
+// (openmui.text's `<stem>.common.txt`) and the punctuation and Latin every page has.
+struct font_subset {
+    std::string              font;  // "NotoSansSC"
+    std::vector<std::string> text;
+};
+
 struct toy_options {
     std::string              target;                 // the program target
     std::string              title;                  // the page's <title>
@@ -38,6 +46,7 @@ struct toy_options {
     std::string              background = "#000000"; // behind the canvas while it loads
     bool                     sdk = true;             // the page loads Toy's SDK (window.toy)
     std::vector<later_files> later;                  // fetched after the program is drawn
+    std::vector<font_subset> subsets;                // fonts cut down to the program's characters
     std::string              out_dir = std::string(mcpp::out_dir());
 };
 

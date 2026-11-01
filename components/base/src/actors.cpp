@@ -12,7 +12,8 @@ constexpr float row_h = 28, pad_x = 8, time_w = 44, dot = 8;
 
 // "{code}" and "{agent}" in a phrase, filled in.
 std::string filled(std::string text, const AgentLink& l) {
-    for (const auto& [key, with] : {std::pair<std::string_view, std::string_view>{"{code}", l.code}, {"{agent}", l.agent.empty() ? "Your agent" : l.agent}})
+    const std::string agent = l.agent.empty() ? std::string("Your agent") : l.agent;  // held: the views below read it
+    for (const auto& [key, with] : {std::pair<std::string_view, std::string_view>{"{code}", l.code}, {"{agent}", agent}})
         for (auto at = text.find(key); at != std::string::npos; at = text.find(key, at + with.size())) text.replace(at, key.size(), with);
     return text;
 }

@@ -39,8 +39,8 @@ struct NodeState {
 struct Placement {
     // Beside its anchor (below … end), over the window's middle (center), or at an edge or a corner of the window
     // (top … bottom_end: a toast's), `offset` in from it; overlays at the same edge or corner stack, the first
-    // nearest it.
-    enum class Side : std::uint8_t { below, above, start, end, center, top, bottom, top_start, top_end, bottom_start, bottom_end };
+    // nearest it. Or along the window's whole left or right edge, as tall as the window (a drawer's).
+    enum class Side : std::uint8_t { below, above, start, end, center, top, bottom, top_start, top_end, bottom_start, bottom_end, left, right };
     enum class Anchor : std::uint8_t { parent, previous };  // previous: the sibling before it (a tooltip's target)
     Side   side = Side::below;
     Anchor anchor = Anchor::parent;

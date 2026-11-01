@@ -678,6 +678,9 @@ void Runtime::Impl::sync_style(NodeId id) {
         s.position = layout::Position::absolute;
         s.left = s.top = layout::pt(0);
         s.right = s.bottom = layout::Length::automatic();
+        // Along a whole edge: from the window's top to its bottom.
+        if (n.type->placement)
+            if (const auto side = n.type->placement(n.instance).side; side == Placement::Side::left || side == Placement::Side::right) s.bottom = layout::pt(0);
         if (n.type->placement && n.type->placement(n.instance).match_width && alive(n.parent))
             s.min_width = layout::pt(std::max(s.min_width.resolve(0).value_or(0), at(n.parent).bounds.width));
     }

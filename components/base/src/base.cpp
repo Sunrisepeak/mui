@@ -49,6 +49,8 @@ void register_base_components() {
     register_type(component_type<Drawer>());
     register_type(component_type<TreeView>());
     register_type(component_type<DataGrid>());
+    register_type(component_type<Combobox>());
+    register_type(component_type<TagInput>());
 }
 
 }  // namespace omui

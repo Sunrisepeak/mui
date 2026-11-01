@@ -46,6 +46,8 @@ made into code when the package builds — `build.mcpp`, openmui.build.contracts
 | `drawer` | `dialog` | a sheet along the window's left or right edge, as tall as the window (a placement of its own: `left`, `right`), over the page — modal by default, its first control focused; Escape, a press outside, its × or an agent closes it |
 | `tree_view` | `tree` | a model's rows as a hierarchy (each row's `parent` field); each a tree item of its own (`<id>/<key>`) opened, closed and chosen — Right opens or goes in, Left closes or goes up; a row inside closed ones chosen by an agent opens them; closed ones' rows not stated; drawn as they come into view |
 | `data_grid` | `grid` | a model's rows in columns (pixels or shares); sorted by a header pressed (ascending, descending, none; numbers by value, text regardless of case); rows chosen one or several (Ctrl, Space); each row (`<id>/<key>`, its fields its value) and header (`<id>/col_<field>`) an item; drawn as they come into view |
+| `combobox` | `combo_box` | one value typed or chosen: its text box filters the options to those whose labels hold what is typed (regardless of case), the arrows move among them, Enter or a press chooses, Escape closes; each option an item (`<id>/<value>`); a value typed that is no option stands only when `free` |
+| `tag_input` | `group` | tags gathered by typing (Enter or a comma keeps one) or choosing a suggestion that holds what is typed; each a chip (`<id>/tag_<n>`) removed by its ×; `add`, `remove` by name, each taken back exactly (its place kept) |
 
 They draw what they are now: how a change of them moves is their slots'
 (universal motion), never their own code. Their gallery (`tests/kit_test.cpp`)

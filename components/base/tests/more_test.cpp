@@ -479,6 +479,79 @@ int main(int argc, char** argv) {
         check(hash.value() == 0xe9349773377f6b15ULL, std::format("collections {:016x}", hash.value()));
     });
 
+    s.test("combobox: typing filters the options; arrows and Enter choose; each option an item an agent chooses; free text only when free; taken back", [] {
+        Headless h(options({420, 360}));
+        auto lang = signal(std::string("cpp"));
+        h.mount("main", column({.padding = 8}, {combobox({.id = "lang", .label = "Language", .labels = std::vector<std::string>{"C++", "TypeScript", "Python", "Lua"},
+                                                          .options = std::vector<std::string>{"cpp", "ts", "py", "lua"}, .value = lang})}));
+        h.step();
+        check(sem(h, "main/lang")->role == Role::combo_box && sem(h, "main/lang/field")->name == "Language", "a combo box, its field named");
+        check(h.tree().node("main/lang/field")->value.get("text")->as_string() == "C++" || sem(h, "main/lang/field")->value.as_string() == "C++", "the field shows C++'s label");
+        auto it = items(h, "main/lang");
+        check(it.size() == 4 && it[0].role == Role::option && it[0].states.has(State::selected), "four options, C++ chosen");
+        check(act(h, "main/lang/py", "activate") == 0 && lang.peek() == "py", "an agent chooses Python");
+        check(undo(h) == 0 && lang.peek() == "cpp", "taken back");
+        check(act(h, "main/lang", "set_value", Value{}.set("value", "rust")) == 1, "not an option (it is not free)");
+        // A person types: the options holding what is typed, the arrows, Enter.
+        check(h.click("main/lang/field"));
+        h.key(Key::a, Modifiers(Modifier::ctrl));
+        h.type("t");
+        h.step();
+        check(sem(h, "main/lang")->states.has(State::expanded), "open as one types");
+        h.key(Key::down);
+        h.key(Key::enter);
+        h.step();
+        check(lang.peek() == "py" && !sem(h, "main/lang")->states.has(State::expanded), std::format("TypeScript, then Python (both hold t): {}", lang.peek()));
+    });
+
+    s.test("tag input: tags typed and kept with Enter or a comma, or chosen from suggestions; each a chip removed by its ×; an agent adds and removes; taken back", [] {
+        Headless h(options({420, 360}));
+        auto tags = signal(std::vector<std::string>{"design"});
+        std::vector<std::string> added;
+        h.mount("main", column({.padding = 8}, {tag_input({.id = "topics", .label = "Topics", .suggestions = std::vector<std::string>{"motion", "layout", "agents", "design"},
+                                                           .tags = tags, .on_added = [&](std::string t) { added.push_back(t); }})}));
+        h.step();
+        check(sem(h, "main/topics")->role == Role::group && sem(h, "main/topics/tag_0")->name == "design", "its tags are chips");
+        check(act(h, "main/topics", "add", Value{}.set("tag", "layout")) == 0 && tags.peek() == std::vector<std::string>{"design", "layout"} && added.size() == 1, "added");
+        check(act(h, "main/topics", "add", Value{}.set("tag", "layout")) == 1, "not twice");
+        check(undo(h) == 0 && tags.peek().size() == 1, "taken back");
+        check(act(h, "main/topics/tag_0/remove", "activate") == 0 && tags.peek().empty(), "its × removes it");
+        check(undo(h) == 0 && tags.peek() == std::vector<std::string>{"design"}, "put back where it was");
+        // Typed: a comma keeps it; the suggestions holding what is typed, Enter takes the one lit.
+        check(h.click("main/topics/field"));
+        h.type("rust,");
+        h.step();
+        check(tags.peek().size() == 2 && tags.peek()[1] == "rust", "a comma keeps it");
+        h.type("ag");
+        h.step();
+        h.key(Key::enter);
+        h.step();
+        check(tags.peek().size() == 3 && tags.peek()[2] == "agents", std::format("the suggestion: {}", tags.peek().back()));
+    });
+
+    s.test("a combobox open and a tag input, the same pixels on every platform", [] {
+        typeset::FontCollection own;
+        check(own.add_defaults().has_value());
+        HeadlessOptions o = options({600, 300});
+        o.fonts = &own;
+        o.scale = 2;
+        Headless h(o);
+        h.mount("main", row({.padding = 16, .gap = 16, .align = "start"}, {
+                                combobox({.id = "lang", .labels = std::vector<std::string>{"C++", "TypeScript", "Python", "Lua"},
+                                          .options = std::vector<std::string>{"cpp", "ts", "py", "lua"}, .value = std::string("ts"), .width = Dim(220.0f)}),
+                                tag_input({.id = "topics", .tags = std::vector<std::string>{"design", "motion", "agents"}, .width = Dim(330.0f)}),
+                            }));
+        h.step();
+        check(act(h, "main/lang", "expand") == 0);
+        h.settle();
+        Hash hash;
+        const auto& px = h.pixels();
+        for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
+        std::println("ui.base entry {:016x}", hash.value());
+        check(h.save_png(scratch_dir("ui-base-entry") / "entry@2x.png").has_value());
+        check(hash.value() == 0x81534110e198a1bfULL, std::format("entry {:016x}", hash.value()));
+    });
+
     s.test("the gallery: the second batch, the same pixels on every platform", [] {
         typeset::FontCollection own;
         check(own.add_defaults().has_value());

@@ -67,10 +67,19 @@ void TextBox::prop_changed(TextBoxProp p) {
 
 void TextBox::restyle() { paragraph_dirty_ = true; }
 
+bool TextBox::set_prop(std::string_view k, const Value& v) {
+    if (k != "bare") return TextBoxContract<TextBox>::set_prop(k, v);
+    bare_ = v.as_bool();
+    if (attached()) services().restyle(node()), services().invalidate_paint(node());
+    return true;
+}
+
+Value TextBox::get_prop(std::string_view k) const { return k == "bare" ? Value(bare_) : TextBoxContract<TextBox>::get_prop(k); }
+
 void TextBox::style(const Theme& theme, layout::Style& s) const {
-    s.padding = {pad_y, pad_x, pad_y, pad_x};
-    s.border = Insets::all(1);
-    s.min_height = layout::pt(36);
+    s.padding = bare_ ? Insets{4, 4, 4, 4} : Insets{pad_y, pad_x, pad_y, pad_x};
+    s.border = bare_ ? Insets{} : Insets::all(1);
+    s.min_height = layout::pt(bare_ ? 28 : 36);
 }
 
 std::string TextBox::shown() const {
@@ -160,13 +169,15 @@ void TextBox::paint(PaintContext& ctx) const {
     const CornerRadii radii = CornerRadii::all(th.corner("medium", 8)).fitted(ctx.size);
     content_ = ctx.content;
 
-    ctx.list.fill_round_rect(box, radii, render::Paint::solid(off ? th.color("surface_variant") : th.color("surface")));
     const bool focus = ctx.state.focused && !off;
-    const float bw = focus ? 2.0f : 1.0f;
-    const Color border = focus ? th.color("accent") : (ctx.state.hovered && !off ? th.color("border_strong") : th.color("border"));
-    CornerRadii inner = radii;
-    for (float* r : {&inner.top_left, &inner.top_right, &inner.bottom_right, &inner.bottom_left}) *r = std::max(0.0f, *r - bw / 2);
-    ctx.list.stroke_round_rect({bw / 2, bw / 2, box.width - bw, box.height - bw}, inner, bw, render::Paint::solid(border));
+    if (!bare_) {  // a bare field's surface and border are the component's it is part of
+        ctx.list.fill_round_rect(box, radii, render::Paint::solid(off ? th.color("surface_variant") : th.color("surface")));
+        const float bw = focus ? 2.0f : 1.0f;
+        const Color border = focus ? th.color("accent") : (ctx.state.hovered && !off ? th.color("border_strong") : th.color("border"));
+        CornerRadii inner = radii;
+        for (float* r : {&inner.top_left, &inner.top_right, &inner.bottom_right, &inner.bottom_left}) *r = std::max(0.0f, *r - bw / 2);
+        ctx.list.stroke_round_rect({bw / 2, bw / 2, box.width - bw, box.height - bw}, inner, bw, render::Paint::solid(border));
+    }
 
     typeset::Paragraph& p = paragraph(ctx.services, ctx.content.width);
     // Keep the caret in view on a single line.

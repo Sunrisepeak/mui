@@ -26,6 +26,10 @@ public:
     void mounted();
     void prop_changed(TextBoxProp p);
     void restyle();
+    // Its contract's properties, and `bare`: a field that is part of another
+    // component (a tag input's), drawn without a surface or a border of its own.
+    bool set_prop(std::string_view k, const Value& v);
+    [[nodiscard]] Value get_prop(std::string_view k) const;
 
     void style(const Theme& theme, layout::Style& s) const;
     Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, layout::Available aw,
@@ -72,6 +76,7 @@ private:
     mutable float         line_height_ = 20;
     mutable Rect          content_{};
     bool                  focused_ = false;
+    bool                  bare_ = false;
     bool                  caret_on_ = true;
     bool                  selecting_ = false;
     std::uint64_t         blink_timer_ = 0;

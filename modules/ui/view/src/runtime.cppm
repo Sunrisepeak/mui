@@ -180,14 +180,6 @@ struct FrameOutput {
     std::string                failure;
 };
 
-// One performed action, for audit (openas: who did what, with what result).
-struct ActionEntry {
-    std::string path;
-    std::string action;
-    std::string actor;
-    int         exit_code = 0;
-};
-
 // What a history holds (S-12), for tools and agents: oldest first.
 struct HistoryItem {
     std::string label;          // "toggle on 'main/dark'", or a transaction's own
@@ -335,7 +327,9 @@ public:
     // An item of a virtualising node, stated or not (its `virtual_item`).
     [[nodiscard]] std::optional<spec::SemanticNode> virtual_item(NodeId holder, std::string_view key) const;
     [[nodiscard]] bool acts_on_items(NodeId holder) const;
-    [[nodiscard]] std::span<const ActionEntry> action_journal() const noexcept;
+    [[nodiscard]] std::span<const ActionEntry> action_journal() const noexcept override;
+    [[nodiscard]] NodeId undoes(std::uint64_t entry) const override;
+    bool undo_entry(std::uint64_t entry, const Actor* actor) override;
     // The actions a node offers now, with their effects.
     [[nodiscard]] std::vector<spec::ActionDesc> actions(NodeId node) const;
     // An application verb, as `act` performs an action: its checks (S-1,
@@ -550,6 +544,24 @@ public:
     bool open_url(std::string_view url);
     void set_url_opener(std::function<bool(std::string_view)> open);
     [[nodiscard]] const std::vector<std::string>& opened() const noexcept;
+    // The person's own agent (agent connect, D-95), where the host can link
+    // one — the Web, through a bridge on the person's machine: link_agent()
+    // starts looking for it and answers the pairing code the person gives
+    // their agent (the same code while it still looks); empty where the
+    // host cannot. The host says how it links, and each state it hears.
+    std::string link_agent() override;
+    void unlink_agent() override;
+    [[nodiscard]] const AgentLink& agent_link() const noexcept override;
+    [[nodiscard]] std::uint64_t agent_link_revision() const noexcept;
+    struct AgentLinker {
+        std::function<std::string()> link;
+        std::function<void()>        unlink;
+    };
+    void set_agent_linker(AgentLinker linker);
+    void agent_link_changed(AgentLink link);
+    void follow_actions(NodeId node, bool follow) override;
+    void point_out(NodeId by, std::string_view path) override;
+    [[nodiscard]] const std::string& pointed_out() const noexcept;
 
     struct Impl;  // defined by the implementation (openmui.view:impl)
 

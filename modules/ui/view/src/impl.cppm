@@ -299,6 +299,13 @@ struct Runtime::Impl {
     std::function<void(std::string_view)>   clipboard_write;
     std::function<bool(std::string_view)>   url_opener;
     std::vector<std::string>                opened;
+    // The person's own agent (Runtime::link_agent): the host's way to link, what it last heard.
+    Runtime::AgentLinker                    agent_linker;
+    AgentLink                               agent_link;
+    std::uint64_t                           agent_link_revision = 0;
+    std::vector<NodeId>                     action_followers;  // Services::follow_actions
+    std::string                             pointed_out;       // Services::point_out
+    NodeId                                  pointed_by;
 
     std::uint64_t        semantic_revision = 1;
     std::uint64_t        next_token = 1;
@@ -316,6 +323,10 @@ struct Runtime::Impl {
     };
     std::vector<Timer>          timers;
     std::vector<ActionEntry>    journal;
+    // An action journaled (its id the next one, journal_next): its followers told.
+    void journal_add(std::string path, std::string_view action, const Invocation& call, int exit_code);
+    [[nodiscard]] std::uint64_t journal_next() const noexcept { return journal.empty() ? 1 : journal.back().id + 1; }
+    void actions_changed();
     FrameStats                  stats;
     FrameRing                   history;
     ShownFrames                 shown;     // the frames the host showed (frame_shown)
@@ -408,9 +419,9 @@ struct Runtime::Impl {
     std::uint32_t                               motion_gen = 1;
     std::vector<NodeId>                         morphing;
     MotionLevel                                 motion_level = MotionLevel::full;
-    std::string                                 motion_choice;
-    std::string                                 route;            // Runtime::set_route
-    std::uint64_t                               route_revision = 0;  // the person's, among what a slot offers (Runtime::set_motion_choice)
+    std::string                                 motion_choice;   // the person's, among what a slot offers (Runtime::set_motion_choice)
+    std::string                                 route;           // Runtime::set_route
+    std::uint64_t                               route_revision = 0;
     // Performance tiers (D-94): the adaptation now, the governor and the frame costs it weighs (a ring).
     Adaptation                                  adaptation;
     bool                                        governing = false;
@@ -562,6 +573,7 @@ struct Runtime::Impl {
         Value                args;
         std::vector<Inverse> inverse;
         std::string          label;
+        std::uint64_t        entry = 0;  // the journal's entry it was (Services::undoes)
     };
     struct UndoEntry {
         std::string           label;

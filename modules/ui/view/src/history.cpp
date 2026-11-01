@@ -135,7 +135,7 @@ std::expected<std::vector<Runtime::Impl::UndoStep>, Envelope> Runtime::Impl::tak
             again.push_back(std::move(o.undo));
         }
         if (failed) break;
-        UndoStep forward{n, s.path, s.key, {}, {}, {}, s.label};
+        UndoStep forward{n, s.path, s.key, {}, {}, {}, s.label, s.entry};  // still that entry's: the log takes it back again
         if (s.inverse.size() == 1) {
             forward.action = s.inverse.front().action;
             forward.args = s.inverse.front().args;
@@ -315,8 +315,8 @@ Envelope Runtime::rollback_transaction(const Invocation& call) {
     }
     auto back = batch([&] { return d.take_back(revertible, call); });
     if (!t.steps.empty())  // a rollback with nothing done is no action
-        d.journal.push_back({t.scope == d.root || !d.alive(t.scope) ? std::string("app") : path(t.scope), "rollback", call.actor.text(),
-                         back ? spec::exit_code::success : back.error().exit_code().value_or(spec::exit_code::failure)});
+        d.journal_add(t.scope == d.root || !d.alive(t.scope) ? std::string("app") : path(t.scope), "rollback", call,
+                      back ? spec::exit_code::success : back.error().exit_code().value_or(spec::exit_code::failure));
     d.touch(dirty_semantics | dirty_paint);
     if (!back) return back.error();
     Value data;

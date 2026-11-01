@@ -1,5 +1,6 @@
 // Development aids: the debug overlay (bounds, repaint flashes, the hovered
-// node's boxes and source, a frame-time HUD) and node inspection for tools.
+// node's boxes and source, a frame-time HUD) and node inspection for tools;
+// and over them all, the node pointed out (an action's record hovered).
 module openmui.view;
 
 import std;
@@ -57,6 +58,15 @@ Rect plate(render::DisplayList& list, typeset::FontCollection& fonts, const Them
 void Runtime::Impl::paint_debug() {
     const DebugOptions& o = options.debug;
     const Rect window{0, 0, size.width, size.height};
+    if (!pointed_out.empty()) {
+        // The node an action's record acted on (its record hovered): outlined in the accent, not a cursor.
+        if (const NodeId id = self.find(pointed_out); alive(id) && displayed(id) && !at(id).bounds.empty()) {
+            const Rect b = at(id).bounds;
+            const Color accent = theme.color("accent");
+            list.fill_round_rect(b, CornerRadii::all(4), render::Paint::solid(accent.with_alpha(0.1f)));
+            list.stroke_round_rect({b.x - 1, b.y - 1, b.width + 2, b.height + 2}, CornerRadii::all(5), 2, render::Paint::solid(accent));
+        }
+    }
     if (o.bounds) {
         // Every node's border box, a hue per depth.
         constexpr std::array<std::uint32_t, 6> hues{0xef4444, 0xf59e0b, 0x22c55e, 0x06b6d4, 0x6366f1, 0xd946ef};

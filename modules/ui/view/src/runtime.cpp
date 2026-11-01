@@ -711,8 +711,9 @@ void Runtime::performed(NodeId node, std::string_view action, const Value& args,
     Invocation copy;
     const Invocation& call = d.attributed(given, copy);  // an agent's input: the agent's
     const std::string where = path(node);
-    d.record(d.scope_of(node), {node, where, {}, std::string(action), args, std::move(inverse), std::format("{} on '{}'", action, where)}, Effect::reversible);
-    d.journal.push_back({where, std::string(action), call.actor.text(), 0});
+    d.record(d.scope_of(node), {node, where, {}, std::string(action), args, std::move(inverse), std::format("{} on '{}'", action, where), d.journal_next()},
+             Effect::reversible);
+    d.journal_add(where, action, call, 0);
 }
 
 void Runtime::text_input(NodeId node, std::optional<Rect> caret) {
@@ -751,6 +752,80 @@ bool Runtime::open_url(std::string_view url) {
 void Runtime::set_url_opener(std::function<bool(std::string_view)> open) { impl_->url_opener = std::move(open); }
 
 const std::vector<std::string>& Runtime::opened() const noexcept { return impl_->opened; }
+
+// ── what others did here, and the person's own agent ──
+
+void Runtime::Impl::journal_add(std::string where, std::string_view action, const Invocation& call, int exit_code) {
+    journal.push_back({std::move(where), std::string(action), call.actor.text(), exit_code, call.args, journal_next(), clock.now().count()});
+    actions_changed();
+}
+
+void Runtime::Impl::actions_changed() {
+    std::erase_if(action_followers, [&](NodeId n) { return !alive(n); });
+    for (NodeId n : action_followers) layout.mark_dirty(at(n).layout);
+    if (!action_followers.empty()) touch(dirty_layout | dirty_paint | dirty_semantics);
+}
+
+NodeId Runtime::undoes(std::uint64_t entry) const {
+    const Impl& d = *impl_;
+    if (entry == 0) return {};
+    for (const Impl::ScopeHistory& h : d.histories) {
+        if (h.undo.empty() || h.undo.back().barrier) continue;
+        const auto& steps = h.undo.back().steps;
+        if (std::ranges::any_of(steps, [&](const Impl::UndoStep& s) { return s.entry == entry; })) return h.scope;
+    }
+    return {};
+}
+
+bool Runtime::undo_entry(std::uint64_t entry, const Actor* actor) {
+    const NodeId scope = undoes(entry);
+    if (!valid(scope)) return false;
+    Invocation call;
+    call.actor = actor ? *actor : Actor{"person", "user", {}};
+    return act(scope, "undo", call).exit_code() == std::optional<int>(0);
+}
+
+std::string Runtime::link_agent() {
+    Impl& d = *impl_;
+    return d.agent_linker.link ? d.agent_linker.link() : std::string();
+}
+
+void Runtime::unlink_agent() {
+    if (impl_->agent_linker.unlink) impl_->agent_linker.unlink();
+}
+
+const AgentLink& Runtime::agent_link() const noexcept { return impl_->agent_link; }
+std::uint64_t Runtime::agent_link_revision() const noexcept { return impl_->agent_link_revision; }
+
+void Runtime::set_agent_linker(AgentLinker linker) {
+    Impl& d = *impl_;
+    d.agent_linker = std::move(linker);
+    agent_link_changed({d.agent_linker.link ? "idle" : "unavailable", {}, {}, {}, 0});
+}
+
+void Runtime::agent_link_changed(AgentLink link) {
+    Impl& d = *impl_;
+    d.agent_link = std::move(link);
+    ++d.agent_link_revision;
+    d.actions_changed();
+    d.frame_requested = true;
+}
+
+void Runtime::follow_actions(NodeId node, bool follow) {
+    Impl& d = *impl_;
+    std::erase(d.action_followers, node);
+    if (follow && d.alive(node)) d.action_followers.push_back(node);
+}
+
+void Runtime::point_out(NodeId by, std::string_view path) {
+    Impl& d = *impl_;
+    if (d.pointed_out == path && d.pointed_by == by) return;
+    d.pointed_out = std::string(path);
+    d.pointed_by = path.empty() ? NodeId{} : by;
+    d.touch(dirty_paint);
+}
+
+const std::string& Runtime::pointed_out() const noexcept { return impl_->pointed_out; }
 
 std::string_view Runtime::cursor() const {
     const Impl& d = *impl_;

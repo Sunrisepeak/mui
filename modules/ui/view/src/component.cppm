@@ -121,6 +121,30 @@ struct Inverse {
 
 class Services;
 
+// One performed action, for audit (openas: who did what, with what result):
+// the journal's (Runtime::action_journal), oldest first.
+struct ActionEntry {
+    std::string   path;
+    std::string   action;
+    std::string   actor;
+    int           exit_code = 0;
+    Value         args;        // what it was given
+    std::uint64_t id = 0;      // the journal's own count, from 1 (Services::undoes)
+    double        at = 0;      // when, in seconds of the runtime's clock
+};
+
+// The person's own agent, linked through a bridge on their machine (agent
+// connect, D-95): unavailable (the host cannot: off the Web, or turned off),
+// idle, waiting (for a bridge with `code`), paired (with `agent`), lost (the
+// bridge went: looked for again), expired (ten minutes without one), stopped.
+struct AgentLink {
+    std::string state = "unavailable";
+    std::string code;   // what the person gives their agent (XXXX-XXXX)
+    std::string agent;  // who paired, as the bridge says (its --name)
+    std::string error;  // the last thing the bridge refused, said plainly
+    int         port = 0;
+};
+
 // A demand while it lasts (RAII): released when it goes — or when the
 // runtime that granted it goes first (a program's model may outlive it).
 class FrameDemandLease {
@@ -251,6 +275,28 @@ public:
     virtual void text_input(NodeId node, std::optional<Rect> caret) = 0;
     [[nodiscard]] virtual std::string clipboard_text() = 0;
     virtual void set_clipboard_text(std::string_view text) = 0;
+    // What others did here (a panel of another actor's actions): the
+    // journal, oldest first; the scope whose `undo` takes an entry back now
+    // — it is the last its history holds — if any; that undo, performed as
+    // `actor` (none: the person), through the same checks.
+    [[nodiscard]] virtual std::span<const ActionEntry> action_journal() const noexcept { return {}; }
+    [[nodiscard]] virtual NodeId undoes(std::uint64_t entry) const { (void)entry; return {}; }
+    virtual bool undo_entry(std::uint64_t entry, const Actor* actor) { (void)entry, (void)actor; return false; }
+    // The person's own agent: the link's state; starting it answers the pairing code (empty where the host cannot).
+    [[nodiscard]] virtual const AgentLink& agent_link() const noexcept {
+        static const AgentLink none;
+        return none;
+    }
+    virtual std::string link_agent() { return {}; }
+    virtual void unlink_agent() {}
+    // While followed, the node is laid out, painted and stated again when an
+    // action is journaled or the agent link changes.
+    virtual void follow_actions(NodeId node, bool follow) { (void)node, (void)follow; }
+    // A node pointed out over the frame by another — the one an action's
+    // record acted on, its record hovered — outlined until another is
+    // (empty: none), or `by` goes. Not a cursor: the pixels show it, the
+    // tree does not change.
+    virtual void point_out(NodeId by, std::string_view path) { (void)by, (void)path; }
     // A spring or tween on one scalar of the node (scroll offsets, thumbs).
     virtual hanim::Set& animations() = 0;
     // Runs `fn` at the first frame at or after now + delay, on the clock of

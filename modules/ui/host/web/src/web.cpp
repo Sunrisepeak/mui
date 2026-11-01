@@ -112,6 +112,19 @@ struct Web::Impl {
     bool                                     caret_sent = false;
 
     // Joins the runtime to the page: its clipboard, the store, the mirror.
+    // The agent link's state changed: the application's runtime and its listener hear it.
+    void heard(AgentLink l) {
+        link = std::move(l);
+        if (link_heard) link_heard(link);
+        runtime->agent_link_changed(link);
+    }
+    std::string link_start() {
+        if (!options.agent_link || !opened) return {};
+        std::string code = page::link_start(options.app);
+        if (!code.empty() && link.code != code) heard({"waiting", code, {}, {}, 0});
+        return code;
+    }
+
     void attach() {
         runtime->set_renderer(std::string(drawn_by));
         // The Web (performance tiers §1: T2), and the governor on where a page shows the frames to a person.
@@ -120,6 +133,11 @@ struct Web::Impl {
         if (!opened) return;
         runtime->set_clipboard([] { return page::clipboard(); }, [](std::string_view t) { page::set_clipboard(t); });
         runtime->set_url_opener([](std::string_view url) { return page::open_url(url); });
+        // The person's own agent, for the application to offer (its actor log, a "copy the prompt").
+        if (options.agent_link) {
+            link.state = "idle";
+            runtime->set_agent_linker({[this] { return link_start(); }, [] { page::link_stop(); }});
+        }
         mirror = std::make_unique<DomMirror>(*runtime);
         if (page::storage()) {
             page_store = std::make_unique<PageStore>(options.app);
@@ -159,10 +177,9 @@ struct Web::Impl {
             auto v = parse_json(text);
             if (!v) return;
             auto str = [&](std::string_view k) { return std::string(v->get(k) ? v->get(k)->as_string() : ""); };
-            link = {str("state"), str("code"), str("agent"), str("error"), static_cast<int>(v->get("port") ? v->get("port")->as_int() : 0)};
             constexpr Log link_log{"agent"};
-            link_log.info("the agent link: {}{}{}", link.state, link.agent.empty() ? "" : " with ", link.agent);
-            if (link_heard) link_heard(link);
+            link_log.info("the agent link: {}{}{}", str("state"), str("agent").empty() ? "" : " with ", str("agent"));
+            heard({str("state"), str("code"), str("agent"), str("error"), static_cast<int>(v->get("port") ? v->get("port")->as_int() : 0)});
             return;
         }
         if (kind == page::Request::Kind::agent) {
@@ -469,16 +486,7 @@ void Web::request(std::string_view line, std::function<void(std::string_view)> r
 
 Store& Web::store() noexcept { return omui::store(); }
 
-std::string Web::link_agent() {
-    Impl& d = *impl_;
-    if (!d.options.agent_link || !d.opened) return {};
-    std::string code = page::link_start(d.options.app);
-    if (!code.empty() && d.link.code != code) {
-        d.link = {"waiting", code, {}, {}, 0};
-        if (d.link_heard) d.link_heard(d.link);
-    }
-    return code;
-}
+std::string Web::link_agent() { return impl_->link_start(); }
 
 void Web::unlink_agent() {
     if (impl_->opened) page::link_stop();

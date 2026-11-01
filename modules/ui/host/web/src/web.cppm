@@ -69,17 +69,6 @@ struct WebOptions {
     bool                    agent_link = true;
 };
 
-// The agent link's state (Web::agent_link): idle, waiting (for a bridge with
-// this code), paired (with `agent`), lost (the bridge went: looked for
-// again), expired (ten minutes without one), stopped.
-struct AgentLink {
-    std::string state = "idle";
-    std::string code;   // what the person gives their agent (XXXX-XXXX)
-    std::string agent;  // who paired, as the bridge says (its --name)
-    std::string error;  // the last thing the bridge refused, said plainly
-    int         port = 0;
-};
-
 class Web {
 public:
     explicit Web(WebOptions options = {});
@@ -130,6 +119,8 @@ public:
     // connect §3): starts looking for one and answers the pairing code the
     // person gives their agent (with the prompt); the same code while it
     // still looks. Empty off the Web, or when the application turned it off.
+    // The same as the runtime's (Runtime::link_agent, agent_link), which an
+    // application's own controls use; its state is omui::AgentLink.
     std::string link_agent();
     void unlink_agent();
     [[nodiscard]] const AgentLink& agent_link() const noexcept;

@@ -133,6 +133,8 @@ void Runtime::Impl::destroy(NodeId id) {
 
     Node& m = at(id);
     if (m.type->destroy) m.type->destroy(m.instance);
+    if (pointed_by == id) pointed_out.clear(), pointed_by = {};  // what it pointed out goes with it
+    std::erase(action_followers, id);
     for (hanim::Set::Channel c : m.channels)
         if (anims.valid(c)) anims.remove(c);
     for (const Node::PropAnimation& a : m.prop_animations)

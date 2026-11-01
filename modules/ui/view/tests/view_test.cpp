@@ -1553,6 +1553,68 @@ int main(int argc, char** argv) {
         check(rt.semantic_node(rt.find("main/lamp")).states.has(State::readonly), "the state");
     });
 
+    s.test("what others did here: the journal's entries numbered, timed and with their arguments; the one an undo takes back now; undone as its actor", [] {
+        Runtime rt(options());
+        rt.mount("main", column({}, {tally("a"), box({.id = "panel"}, {tally("b")}).prop("undo_scope", Source{Value(true), {}, {}})}));
+        rt.frame();
+        const NodeId a = rt.find("main/a"), b = rt.find("main/panel/b"), panel = rt.find("main/panel");
+        Invocation agent;
+        agent.actor = {"agent", "guide", {}};
+        agent.args = Value{}.set("value", std::int64_t{5});
+        check(rt.act(a, "set_value", agent).exit_code() == std::optional<int>(0));
+        rt.clock().advance(seconds(1));
+        check(rt.act(b, "increment").exit_code() == std::optional<int>(0));
+        const auto j = rt.action_journal();
+        check(j.size() == 2 && j[0].id == 1 && j[1].id == 2, "numbered from 1");
+        check(j[0].actor == "agent:guide" && j[0].args.get("value") && j[0].args.get("value")->as_int() == 5, "whose, with what");
+        check(j[1].at > j[0].at, "when");
+        check(rt.undoes(1) == rt.root() && rt.undoes(2) == panel, "each the last of its history: its scope's undo takes it back");
+        check(rt.act(a, "increment").exit_code() == std::optional<int>(0));
+        check(!rt.valid(rt.undoes(1)) && rt.undoes(3) == rt.root(), "not the last any more");
+        check(rt.undo_entry(3, nullptr) && rt.semantic_node(a).value.as_int() == 5, "taken back, as the person");
+        check(rt.action_journal().back().actor == Actor{"person", "user", {}}.text() && rt.action_journal().back().action == "undo", "the undo journaled as its actor's");
+        check(rt.undoes(1) == rt.root(), "the agent's is the last again");
+        check(rt.undo_entry(1, &agent.actor) && rt.semantic_node(a).value.as_int() == 0, "taken back by the agent");
+        check(rt.redo(rt.root()).exit_code() == std::optional<int>(0) && rt.undoes(1) == rt.root(), "done again, still that entry");
+        check(!rt.undo_entry(99, nullptr), "no such entry");
+    });
+
+    s.test("the person's own agent: none where the host cannot link one; the host's linker, its states heard; a node pointed out over the frame", [] {
+        Runtime rt(options());
+        check(rt.agent_link().state == "unavailable" && rt.link_agent().empty(), "no host linker: unavailable");
+        int stops = 0;
+        rt.set_agent_linker({[&] {
+                                 rt.agent_link_changed({"waiting", "K7Q4-42MX", {}, {}, 47110});
+                                 return std::string("K7Q4-42MX");
+                             },
+                             [&] { ++stops; }});
+        check(rt.agent_link().state == "idle", "a host that can: idle");
+        const std::uint64_t r = rt.agent_link_revision();
+        check(rt.link_agent() == "K7Q4-42MX" && rt.agent_link().state == "waiting" && rt.agent_link().port == 47110);
+        rt.agent_link_changed({"paired", "K7Q4-42MX", "claude-code", {}, 47110});
+        check(rt.agent_link().agent == "claude-code" && rt.agent_link_revision() == r + 2);
+        rt.unlink_agent();
+        check_eq(stops, 1);
+        rt.mount("main", column({.padding = 10}, {box({.id = "target", .width = 40, .height = 20})}));
+        rt.frame();
+        typeset::GlyphCache glyphs(fonts());
+        auto hash = [&] {
+            Hash h;
+            const raster::Surface px = draw(rt, glyphs);
+            for (int y = 0; y < px.height(); ++y) h.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
+            return h.hex();
+        };
+        const std::string plain = hash();
+        const std::uint64_t tree = rt.semantic_revision();
+        rt.point_out(rt.root(), "main/target");
+        rt.frame();
+        check(hash() != plain && rt.pointed_out() == "main/target", "outlined");
+        check_eq(rt.semantic_revision(), tree);
+        rt.point_out(rt.root(), "");
+        rt.frame();
+        check_eq(hash(), plain);
+    });
+
     s.test("history (S-12): undo and redo, barriers, scopes, the keyboard", [] {
         Runtime rt(options());
         int changes = 0;

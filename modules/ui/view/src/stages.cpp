@@ -45,7 +45,7 @@ pl::Port input_port() { return pl::port<FrameInput>(std::string(res::input)); }
 
 bool debugging(const Runtime::Impl& d) noexcept {
     const DebugOptions& o = d.options.debug;
-    return o.bounds || o.repaints || o.inspector || o.hud;
+    return o.bounds || o.repaints || o.inspector || o.hud || !d.pointed_out.empty();
 }
 
 struct Plugin {
@@ -116,7 +116,7 @@ std::vector<Plugin> plugins() {
          [](Runtime::Impl& d, pl::Context&) {
              if (d.bounds_ran) d.run_motion();
          }, 6000},
-        {"debug", "the development overlays over the display list (DebugOptions)", {tree(), bounds_port(), display()}, {display()},
+        {"debug", "the development overlays over the display list (DebugOptions), and the node pointed out (Services::point_out)", {tree(), bounds_port(), display()}, {display()},
          [](Runtime::Impl& d, pl::Context&) {
              if (d.bounds_ran && debugging(d)) d.paint_debug();
          }, 3000},

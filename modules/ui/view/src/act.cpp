@@ -399,8 +399,10 @@ Envelope Runtime::act(NodeId node, std::string_view action, const Invocation& gi
     --d.acting;
     if (out.ran && out.undo.empty() && out.effect == Effect::reversible) out.undo = std::move(d.program_inverse);
     d.program_inverse = std::move(outer);
-    if (out.ran) d.record(scope, {node, where, {}, std::string(action), call.args, std::move(out.undo), std::format("{} on '{}'", action, where)}, out.effect);
-    d.journal.push_back({std::move(where), std::string(action), call.actor.text(), e.exit_code().value_or(0)});
+    if (out.ran)
+        d.record(scope, {node, where, {}, std::string(action), call.args, std::move(out.undo), std::format("{} on '{}'", action, where), d.journal_next()},
+                 out.effect);
+    d.journal_add(std::move(where), action, call, e.exit_code().value_or(0));
     return e;
 }
 
@@ -483,9 +485,10 @@ Envelope Runtime::act_item(NodeId holder, std::string_view key, std::string_view
     Impl::Outcome out;
     Envelope e = d.perform_item(holder, key, action, call, &out);
     if (out.ran)
-        d.record(scope, {holder, path_of, std::string(key), std::string(action), call.args, std::move(out.undo), std::format("{} on '{}'", action, where)},
+        d.record(scope,
+                 {holder, path_of, std::string(key), std::string(action), call.args, std::move(out.undo), std::format("{} on '{}'", action, where), d.journal_next()},
                  out.effect);
-    d.journal.push_back({where, std::string(action), call.actor.text(), e.exit_code().value_or(0)});
+    d.journal_add(where, action, call, e.exit_code().value_or(0));
     return e;
 }
 

@@ -8,8 +8,8 @@
 //   beats       every cut and every `hit:` marker within a frame of a beat of
 //               the music as it plays there; every cue on its frame's first sample;
 //               and in the sound itself, an onset within a frame of each hit
-//   frames      each frame's typography at rest inside the title-safe area and
-//               apart; no blank frame
+//   frames      each frame's typography at rest inside the title-safe area,
+//               apart, and no smaller than least_type as drawn; no blank frame
 //   determinism the same bytes drawn twice
 //   seek        frames drawn directly the same as played to
 export module openmui.showcase.promo_video:checks;

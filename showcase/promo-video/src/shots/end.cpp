@@ -39,7 +39,7 @@ public:
         const bool portrait = c_.portrait();
         const Size screen = c_.size;
         auto st = s_;
-        const float size = portrait ? 30.0f : 36.0f;
+        const float size = portrait ? 34.0f : 46.0f;
         Element back = painter({.id = "backdrop",
                                 .width = Dim(layout::pct(100)),
                                 .height = Dim(layout::pct(100)),
@@ -76,18 +76,19 @@ public:
                             type),
              column({.id = "data", .gap = 8, .align = "start", .opacity = 0.0f},
                     {text({.id = "caption", .text = "this film is data — promo.timeline.omui.toml, and scenes in C++", .style = "code",
-                           .color = Fill(hex(ink::muted)), .wrap = false, .size = 15.0f}),
+                           .color = Fill(hex(ink::muted)), .wrap = false, .size = 21.0f}),
                      std::move(editor)})});
         Element card = column(
             {.id = "card", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .gap = 14, .justify = "center", .align = "center"},
             {animate_glyphs(text({.id = "wordmark", .text = "OPENMUI", .style = "display", .color = Fill(hex(ink::cyan)), .wrap = false,
                                   .size = portrait ? 110.0f : 150.0f, .weight = 800.0f}),
                             gather),
-             animate_glyphs(text({.id = "zh", .text = "这部片子由 agent 用 openmui 制作 · 源码见仓库", .style = "title", .color = Fill(hex(ink::ice)), .wrap = false,
-                                  .size = portrait ? 30.0f : 36.0f, .weight = 600.0f}),
+             // Where to go: the standard, in the open.
+             animate_glyphs(text({.id = "where", .text = "github.com/openlifa/openmui", .style = "code", .color = Fill(hex(ink::ice)), .wrap = false,
+                                  .size = portrait ? 34.0f : 44.0f, .weight = 600.0f}),
                             rise),
-             animate_glyphs(text({.id = "en", .text = "Made by an agent with openmui · the source: showcase/promo-video", .style = "body",
-                                  .color = Fill(hex(ink::muted)), .wrap = portrait, .size = portrait ? 20.0f : 24.0f, .max_width = Dim(screen.width * 0.86f)}),
+             animate_glyphs(text({.id = "made", .text = "这部片子由 agent 用 openmui 制作 · Made by an agent with openmui", .style = "body",
+                                  .color = Fill(hex(ink::muted)), .wrap = portrait, .size = portrait ? 22.0f : 26.0f, .max_width = Dim(screen.width * 0.86f)}),
                             rise2)});
         Element type_layer = stack({.id = "type", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .align = "start"},
                                    {std::move(first), std::move(card)});

@@ -70,7 +70,10 @@ public:
                                 .label = "A pixel of the settings panel, magnified, and the panel's semantic tree",
                                 .paint = [s, refs](PaintContext& p) { paint(p, *s, *refs); }});
         // The typography: the pixel's label, the wordmark and its band of light.
-        Element label = text({.id = "provenance", .text = panel_picture().provenance, .style = "code", .color = Fill(hex(ink::ice)), .wrap = false,
+        // What the pixel is, a fact a line, beside it.
+        std::string facts = panel_picture().provenance;
+        for (std::size_t at; (at = facts.find(" · ")) != std::string::npos;) facts.replace(at, std::string_view(" · ").size(), "\n");
+        Element label = text({.id = "provenance", .text = facts, .style = "code", .color = Fill(hex(ink::ice)), .wrap = false,
                               .size = portrait ? 28.0f : 36.0f, .weight = 500.0f});
         GlyphMotion typed = GlyphMotion::typewriter(hanim::seconds(0.022));
         typed.transition.delay = hanim::seconds(0.55);
@@ -80,7 +83,7 @@ public:
                                .style = "code",
                                .color = Fill(hex(ink::muted)),
                                .wrap = false,
-                               .size = portrait ? 15.0f : 17.0f});
+                               .size = portrait ? 18.0f : 21.0f});
         GlyphMotion later = typed;
         later.transition.delay = hanim::seconds(1.25);
         later.stagger = hanim::seconds(0.012);
@@ -90,10 +93,10 @@ public:
         };
         Element light = box({.id = "sweep-from"}, {box({.id = "sweep-to"}, {mark("light", hex(0xffffff))})});
         Element word = stack({.id = "word", .opacity = 0.0f}, {mark("wordmark", hex(ink::cyan)), std::move(light)});
-        GlyphMotion lift = GlyphMotion::rise(hanim::seconds(0.04));
+        GlyphMotion lift = GlyphMotion::rise(hanim::seconds(0.02));
         lift.transition.delay = hanim::seconds(6.35);
         Element tagline = animate_glyphs(text({.id = "tagline", .text = "an open UI specification · its reference implementation in C++ modules", .style = "code",
-                                               .color = Fill(hex(ink::muted)), .wrap = false, .size = portrait ? 15.0f : 19.0f}),
+                                               .color = Fill(hex(ink::muted)), .wrap = false, .size = portrait ? 19.0f : 25.0f}),
                                          lift);
         Element type = stack({.id = "type", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .align = "start"},
                              {column({.id = "label", .gap = 6, .opacity = 0.0f}, {animate_glyphs(std::move(label), typed), animate_glyphs(std::move(coords), later)}),
@@ -145,10 +148,11 @@ public:
         const double label_on = smooth(t, 0.45, 0.6) * (1 - smooth(t, 2.4, 2.9));
         rt.set(label_, "opacity", Value(label_on));
         const Rect lb = rt.bounds(label_);
-        rt.set(label_, "translate_x", Value(std::clamp(static_cast<double>(p.x) + screen.width * 0.04, screen.width * 0.06,
+        rt.set(label_, "translate_x", Value(std::clamp(static_cast<double>(p.x) + screen.width * 0.025, screen.width * 0.06,
                                                        std::max(screen.width * 0.06, screen.width * 0.94 - lb.width))));
-        // Clear of the lines along the bottom.
-        rt.set(label_, "translate_y", Value(std::clamp(static_cast<double>(p.y) + screen.height * off * 0.25, screen.height * 0.08, screen.height * 0.66 - lb.height)));
+        // Its foot on the pixel's, clear of the lines along the bottom.
+        rt.set(label_, "translate_y", Value(std::clamp(static_cast<double>(p.y) - lb.height + screen.height * off * 0.05, screen.height * 0.08,
+                                                       screen.height * 0.66 - lb.height)));
         // The wordmark: filled in as the dashes settle, then the band of light.
         const double filled = smooth(s.gather, 0.82, 1.0);
         rt.set(word_, "opacity", Value(filled));
@@ -203,42 +207,49 @@ void Origin::layout_tree() {
         path.push_back(next);
     }
     if (path.empty()) return;
-    const Rect area = portrait ? Rect{screen.width * 0.06f, screen.height * 0.5f, screen.width * 0.88f, screen.height * 0.38f}
+    const Rect area = portrait ? Rect{screen.width * 0.08f, screen.height * 0.5f, screen.width * 0.84f, screen.height * 0.36f}
                                : Rect{screen.width * 0.6f, screen.height * 0.14f, screen.width * 0.36f, screen.height * 0.72f};
+    // An outline, as an inspector shows it: the path from the root a level a row, each indented under the
+    // last; at the foot the button among its siblings (five at most). Each box as wide as its label.
+    constexpr float type = 18, pitch = 44, box_h = 34, indent = 30;
+    const float advance = type * 0.6f;  // JetBrains Mono's
+    struct Shown {
+        const spec::SemanticNode* node;
+        int                       level;
+        bool                      lit;
+    };
+    std::vector<Shown> rows;
     const std::size_t levels = path.size();
-    const float box_w = portrait ? 150 : 170, box_h = 24;
-    std::vector<Rect> lit_rects;
-    for (std::size_t l = 0; l < levels; ++l) {
-        // The level's nodes: the path's node among its siblings (at most five shown, it among them).
+    for (std::size_t l = 0; l + 1 < levels; ++l) rows.push_back({path[l], static_cast<int>(l), false});
+    {
         std::vector<std::string> ids;
-        if (l == 0) ids.push_back(path[0]->id);
+        if (levels == 1) ids.push_back(path[0]->id);
         else
-            for (const std::string& child : path[l - 1]->children) ids.push_back(child);
-        std::size_t lit = std::ranges::find(ids, path[l]->id) - ids.begin();
+            for (const std::string& child : path[levels - 2]->children) ids.push_back(child);
+        const std::size_t lit = std::ranges::find(ids, path.back()->id) - ids.begin();
         const std::size_t keep = 5;
         std::size_t from = lit >= keep / 2 ? lit - keep / 2 : 0;
         from = std::min(from, ids.size() > keep ? ids.size() - keep : 0);
-        const std::size_t to = std::min(ids.size(), from + keep);
-        const float col = portrait ? area.y + area.height * static_cast<float>(l) / static_cast<float>(std::max<std::size_t>(levels - 1, 1))
-                                   : area.x + (area.width - box_w) * static_cast<float>(l) / static_cast<float>(std::max<std::size_t>(levels - 1, 1));
-        for (std::size_t i = from; i < to; ++i) {
-            const auto it = by_id.find(ids[i]);
-            if (it == by_id.end()) continue;
-            const spec::SemanticNode& n = *it->second;
-            const std::string id = n.id.substr(n.id.rfind('/') + 1);
-            const float k = static_cast<float>(i - from) - static_cast<float>(lit - from);
-            Rect r = portrait ? Rect{area.x + area.width / 2 - box_w / 2 + k * (box_w + 14), col, box_w, box_h}
-                              : Rect{col, area.y + area.height / 2 - box_h / 2 + k * (box_h + 16), box_w, box_h};
-            s.boxes.push_back({std::format("{} {}", spec::name(n.role), id), r, static_cast<int>(l), i == lit});
-            if (i == lit) lit_rects.push_back(r);
-        }
+        for (std::size_t i = from; i < std::min(ids.size(), from + keep); ++i)
+            if (const auto it = by_id.find(ids[i]); it != by_id.end()) rows.push_back({it->second, static_cast<int>(levels - 1), i == lit});
     }
-    // Edges: from each lit box to the boxes of the next level.
-    for (const TreeBox& b : s.boxes) {
-        if (b.level == 0) continue;
-        const Rect& parent = lit_rects[static_cast<std::size_t>(b.level - 1)];
-        if (portrait) s.edges.push_back({{parent.x + parent.width / 2, parent.y + parent.height}, {b.rect.x + b.rect.width / 2, b.rect.y}, b.lit, b.level});
-        else s.edges.push_back({{parent.x + parent.width, parent.y + parent.height / 2}, {b.rect.x, b.rect.y + b.rect.height / 2}, b.lit, b.level});
+    const float top = area.y + (area.height - static_cast<float>(rows.size()) * pitch) / 2;
+    std::vector<Rect> path_rects;
+    for (std::size_t k = 0; k < rows.size(); ++k) {
+        const spec::SemanticNode& n = *rows[k].node;
+        const std::string label = std::format("{} {}", spec::name(n.role), n.id.substr(n.id.rfind('/') + 1));
+        const float w = std::min(area.width - static_cast<float>(rows[k].level) * indent, static_cast<float>(label.size()) * advance + 24);
+        const Rect r{area.x + static_cast<float>(rows[k].level) * indent, top + static_cast<float>(k) * pitch, w, box_h};
+        const bool on_path = rows[k].level + 1 < static_cast<int>(levels) || rows[k].lit;
+        s.boxes.push_back({label, r, rows[k].level, on_path});
+        if (rows[k].level + 1 < static_cast<int>(levels)) path_rects.push_back(r);
+        // Its elbow from its parent's box: down the parent's left, across to it.
+        if (rows[k].level > 0) {
+            const Rect& parent = path_rects[static_cast<std::size_t>(rows[k].level - 1)];
+            const Point down{parent.x + 14, parent.y + parent.height}, corner{parent.x + 14, r.y + r.height / 2};
+            s.edges.push_back({down, corner, on_path, rows[k].level});
+            s.edges.push_back({corner, {r.x, r.y + r.height / 2}, on_path, rows[k].level});
+        }
     }
 }
 
@@ -395,7 +406,7 @@ void Origin::paint(PaintContext& p, State& s, const std::pair<render::ImageRef, 
             if (on <= 0) continue;
             list.fill_round_rect(b.rect, CornerRadii::all(4), render::Paint::solid(hex(b.lit ? 0x0d3b55 : ink::panel, 0.92f * on)));
             list.stroke_round_rect(b.rect, CornerRadii::all(4), b.lit ? 1.6f : 1, render::Paint::solid(hex(b.lit ? ink::cyan : ink::line, on)));
-            const auto& l = s.labels.get(fonts, b.label, 12.5f, hex(b.lit ? ink::ice : ink::muted, on), 500, "JetBrains Mono");
+            const auto& l = s.labels.get(fonts, b.label, 18, hex(b.lit ? ink::ice : ink::muted, on), 500, "JetBrains Mono");
             list.push_clip({b.rect.x + 6, b.rect.y, b.rect.width - 12, b.rect.height});
             l.paint(list, {b.rect.x + 9, b.rect.y + b.rect.height / 2 - l.size().height / 2});
             list.pop_clip();
@@ -407,7 +418,7 @@ void Origin::paint(PaintContext& p, State& s, const std::pair<render::ImageRef, 
         if (last) {
             const float on = static_cast<float>(smooth(grow, 0.85, 1.0)) * solid;
             const Point z = panel_to_screen({panel.button.x + panel.button.width, panel.button.y + panel.button.height / 2}, s.at, s.look, s.zoom);
-            const Point a = screen.height > screen.width ? Point{last->rect.x + last->rect.width / 2, last->rect.y} : Point{last->rect.x, last->rect.y + last->rect.height / 2};
+            const Point a{last->rect.x, last->rect.y + last->rect.height / 2};
             if (on > 0) paint_line(list, a, {a.x + (z.x - a.x) * on, a.y + (z.y - a.y) * on}, hex(ink::cyan, 0.9f), 1.5f);
         }
     }
@@ -448,8 +459,8 @@ void Origin::paint(PaintContext& p, State& s, const std::pair<render::ImageRef, 
             const float dy = w.y - 30;
             list.fill_rect({w.x, dy, w.width * reach, 1}, line);
             for (const float x : {w.x, w.x + w.width}) list.fill_rect({x - 4, dy - 4, 9, 1}, line), list.fill_rect({x, dy - 4, 1, 9}, line);
-            const auto& dim = s.labels.get(fonts, "one semantic tree · one wordmark", 14, hex(ink::muted, lines), 500, "JetBrains Mono");
-            list.fill_rect({cx - dim.size().width / 2 - 8, dy - 9, dim.size().width + 16, 18}, hex(ink::paper, lines));
+            const auto& dim = s.labels.get(fonts, "one semantic tree · one wordmark", 18, hex(ink::muted, lines), 500, "JetBrains Mono");
+            list.fill_rect({cx - dim.size().width / 2 - 10, dy - 12, dim.size().width + 20, 24}, hex(ink::paper, lines));
             dim.paint(list, {cx - dim.size().width / 2, dy - dim.size().height / 2});
             const float radius = w.width * 0.6f;
             const double sweep = hanim::dm::two_pi * smooth(s.t, 6.0, 7.4);

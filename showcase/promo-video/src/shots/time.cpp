@@ -183,7 +183,7 @@ public:
         const float side = c_.portrait() ? 54 : 96;
         Element type = stack({.id = "type", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .align = "start"},
                              {column({.id = "hud", .width = Dim(layout::pct(100)), .padding = Edges(Insets{r.y - 30, side, 0, side}), .align = "end"},
-                                     {text({.id = "sim", .text = "", .style = "code", .color = Fill(hex(ink::ice)), .wrap = false, .size = 16.0f})}),
+                                     {text({.id = "sim", .text = "", .style = "code", .color = Fill(hex(ink::ice)), .wrap = false, .size = 22.0f})}),
                               column({.id = "stamp", .width = Dim(layout::pct(100)), .padding = Edges(Insets{r.y + r.height * 0.36f, side, 0, side}),
                                       .gap = 6, .align = "center", .opacity = 0.0f},
                                      {text({.id = "match", .text = "", .style = "display", .color = Fill(hex(ink::mint)), .wrap = false, .size = 64.0f, .weight = 800.0f}),

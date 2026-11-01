@@ -185,6 +185,7 @@ double opacity_of(const Runtime& rt, NodeId n) {
 struct Typeset {
     std::string id, text;
     Rect        rect;
+    float       size = 0;  // as drawn: its size by the scale it is drawn at (0: the style's)
 };
 void collect(Runtime& rt, std::string_view under, std::vector<Typeset>& out) {
     const NodeId root = rt.find(under);
@@ -200,7 +201,9 @@ void collect(Runtime& rt, std::string_view under, std::vector<Typeset>& out) {
                 moving = state && state->get("animating") && state->get("animating")->as_bool();
             }
             const Rect r = rt.drawn_bounds(n);
-            if (!text.empty() && !moving && opacity_of(rt, n) >= 0.99 && r.width > 0 && r.height > 0) out.push_back({rt.path(n), text, r});
+            const Rect laid = rt.bounds(n);
+            const float size = static_cast<float>(rt.get(n, "size").as_double(0)) * (laid.height > 0 ? r.height / laid.height : 1);
+            if (!text.empty() && !moving && opacity_of(rt, n) >= 0.99 && r.width > 0 && r.height > 0) out.push_back({rt.path(n), text, r, size});
         }
         for (const NodeId c : rt.children(n)) walk(c);
     };
@@ -221,6 +224,9 @@ std::vector<Finding> check_frame(Player& player, std::int64_t frame, const raste
             out.push_back({"safe area", std::format("`{}` ({}) at {:.0f},{:.0f} {:.0f}×{:.0f} is outside the title-safe area", t.text.substr(0, 40), t.id, r.x, r.y, r.width, r.height),
                            frame});
     }
+    for (const Typeset& t : type)
+        if (t.size > 0 && t.size < least_type - 0.01f)
+            out.push_back({"small type", std::format("`{}` ({}) is {:.1f} px, under the film's least {}", t.text.substr(0, 40), t.id, t.size, least_type), frame});
     for (std::size_t i = 0; i < type.size(); ++i)
         for (std::size_t j = i + 1; j < type.size(); ++j) {
             const Rect& a = type[i].rect;

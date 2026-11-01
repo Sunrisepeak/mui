@@ -66,7 +66,7 @@ public:
     View view() override {
         return stack({.id = "infinite", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .align = "start"},
                      {canvas({.id = "wall",
-                              .behaviors = std::vector<std::string>{"minimap"},
+                              .behaviors = std::vector<std::string>{std::format("minimap:top-right {} {}", c_.size.width * 0.05f, c_.size.height * 0.05f + 44)},
                               .cache_mb = 96,
                               .label = "A wall of a thousand documents",
                               .max_zoom = 8,
@@ -77,15 +77,15 @@ public:
                               .zoom = model_.zoom,
                               .width = Dim(layout::pct(100)),
                               .height = Dim(layout::pct(100))}),
-                      column({.id = "type", .width = Dim(layout::pct(100)), .padding = Edges(Insets{c_.size.height * 0.05f + 44, c_.size.width * 0.05f, 0, 0}),
+                      column({.id = "type", .width = Dim(layout::pct(100)), .padding = Edges(Insets{c_.size.height * 0.05f + 44 + 136 + 16, c_.size.width * 0.05f, 0, 0}),
                               .align = "end"},
-                             {column({.id = "hud", .padding = Edges(12.0f, 16.0f), .gap = 4, .align = "end", .background = Fill(hex(ink::paper, 0.82f)),
+                             {column({.id = "hud", .padding = Edges(14.0f, 18.0f), .gap = 6, .align = "end", .background = Fill(hex(ink::paper, 0.82f)),
                                       .border_color = Fill(hex(ink::cyan, 0.3f)), .border_width = 1, .radius = 6},
-                                     {text({.id = "count", .text = "", .style = "code", .color = Fill(hex(ink::ice)), .wrap = false, .size = 30.0f, .weight = 700.0f}),
-                                      text({.id = "tiers", .text = "", .style = "code", .color = Fill(hex(ink::muted)), .wrap = false, .size = 14.0f}),
-                                      text({.id = "zoom", .text = "", .style = "code", .color = Fill(hex(ink::cyan)), .wrap = false, .size = 14.0f}),
+                                     {text({.id = "count", .text = "", .style = "code", .color = Fill(hex(ink::ice)), .wrap = false, .size = 40.0f, .weight = 700.0f}),
+                                      text({.id = "tiers", .text = "", .style = "code", .color = Fill(hex(ink::muted)), .wrap = false, .size = 22.0f}),
+                                      text({.id = "zoom", .text = "", .style = "code", .color = Fill(hex(ink::cyan)), .wrap = false, .size = 22.0f}),
                                       text({.id = "budget", .text = "≤ 1 ms of CPU a frame · tests/bench", .style = "code", .color = Fill(hex(ink::muted, 0.8f)),
-                                            .wrap = false, .size = 12.0f})})})});
+                                            .wrap = false, .size = 19.0f})})})});
     }
 
     void mounted(Runtime& rt) override {

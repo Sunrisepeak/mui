@@ -110,7 +110,7 @@ at = "55s"
 name = "chapter:end"
 
 [[marker]]
-at = "59s"
+at = "58.5s"
 name = "hit:sting"
 
 # ── the picture ──────────────────────────────────────────────────────────
@@ -237,15 +237,16 @@ fade = { in = "0f", out = "0.5s", ease = "in_quad" }
 # Back into the pixel; the command typed; the closing line.
 [[track.clip.property]]
 name = "dive"
-keys = [["0s", -0.6, "in_expo"], ["1.4s", 9.6]]
+keys = [["0s", -0.6, "in_expo"], ["1.2s", 9.6]]
 
 [[track.clip.property]]
 name = "typed"
-keys = [["1.6s", 0, "linear"], ["2.6s", 1]]
+keys = [["1.3s", 0, "linear"], ["2.1s", 1]]
 
+# The command held whole a second, then the card, landing with the sting.
 [[track.clip.property]]
 name = "close"
-keys = [["3.2s", 0, "out_cubic"], ["4s", 1]]
+keys = [["3.1s", 0, "out_cubic"], ["3.6s", 1]]
 
 # ── the lines ────────────────────────────────────────────────────────────
 
@@ -382,5 +383,5 @@ length = "1s"
 [[track.clip]]
 name = "closing"
 source = "sound:sting"
-at = "59s"
+at = "58.5s"
 length = "1s"

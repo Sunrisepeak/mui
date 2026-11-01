@@ -264,8 +264,16 @@ void paint_line(render::DisplayList& list, Point a, Point b, Color c, float widt
     list.stroke_path(path, st, render::Paint::solid(c));
 }
 
+namespace {
+std::atomic<float> smallest_label{std::numeric_limits<float>::infinity()};
+}
+
+float Labels::smallest() noexcept { return smallest_label.load(std::memory_order_relaxed); }
+
 const typeset::Paragraph& Labels::get(typeset::FontCollection& fonts, std::string_view text, float size, Color color, float weight,
                                       std::string_view family, float width) {
+    for (float was = smallest_label.load(std::memory_order_relaxed); size < was && !smallest_label.compare_exchange_weak(was, size, std::memory_order_relaxed);) {
+    }
     hash::Fnv1a key;
     key.text(text).byte(0xff).text(family).byte(0xff);
     for (float f : {size, color.r, color.g, color.b, color.a, weight, width}) key.object(f).byte(0xff);

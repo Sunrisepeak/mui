@@ -129,6 +129,33 @@ const Tally& tally_of(std::string_view language, float scale) {
     return *it->second;
 }
 
+// The lines that build the tree, out of a version as shown: from the
+// column at its root to where the code leaves the column's indentation,
+// out-dented to it — the code large enough to read at 480 across.
+std::string tree_lines(std::string_view code) {
+    std::vector<std::string_view> lines;
+    for (std::size_t at = 0; at <= code.size();) {
+        const std::size_t end = std::min(code.find('\n', at), code.size());
+        lines.push_back(code.substr(at, end - at));
+        at = end + 1;
+    }
+    const auto indent = [](std::string_view l) { return std::min(l.find_first_not_of(' '), l.size()); };
+    const auto root = std::ranges::find_if(lines, [](std::string_view l) {
+        return !l.starts_with("import") && (l.find("column(") != std::string_view::npos || l.find("Column {") != std::string_view::npos);
+    });
+    if (root == lines.end()) return std::string(code);
+    const std::size_t by = indent(*root);
+    std::vector<std::string_view> kept;
+    for (auto it = root; it != lines.end(); ++it) {
+        if (it->find_first_not_of(' ') != std::string_view::npos && indent(*it) < by) break;
+        kept.push_back(it->substr(std::min(by, it->size())));
+    }
+    while (!kept.empty() && kept.back().find_first_not_of(' ') == std::string_view::npos) kept.pop_back();
+    std::string out;
+    for (std::size_t i = 0; i < kept.size(); ++i) out += std::string(kept[i]) + (i + 1 < kept.size() ? "\n" : "");
+    return out;
+}
+
 std::size_t typed_chars(std::string_view code) {
     std::size_t n = 0;
     for (std::size_t i = 0; i < code.size(); ++i) {
@@ -156,13 +183,19 @@ public:
     explicit Code(const ShotContext& c) : c_(c), s_(std::make_shared<State>()) {
         const bool portrait = c.portrait();
         const Size screen = c.size;
-        size_ = 16.0f;
+        size_ = portrait ? 18.0f : 22.0f;
         State& s = *s_;
-        s.shown_scale = portrait ? 2.2f : 1.8f;
-        s.panel = portrait ? Rect{54, 120, screen.width - 108, 720} : Rect{96, 96, 1010, 790};
+        s.shown_scale = portrait ? 2.2f : 1.35f;
+        std::size_t rows = 0;
+        for (std::size_t i = 0; i < languages.size(); ++i) {
+            code_[i] = tree_lines(shown_code(source_of(languages[i]), languages[i]));
+            rows = std::max<std::size_t>(rows, static_cast<std::size_t>(std::ranges::count(code_[i], '\n')) + 1);
+        }
+        const float tall = 14 + 30 + 14 + static_cast<float>(rows) * std::round(size_ * 1.55f) + 18;
+        s.panel = portrait ? Rect{40, 120, screen.width - 80, tall} : Rect{96, 96, 1210, tall};
         const float dw = tally_size.width * s.shown_scale, dh = tally_size.height * s.shown_scale;
-        s.device = portrait ? Rect{screen.width / 2 - dw / 2, 930, dw, dh} : Rect{1180 + (screen.width - 1180 - 96 - dw) / 2, 170, dw, dh};
-        for (std::size_t i = 0; i < languages.size(); ++i) code_[i] = shown_code(source_of(languages[i]), languages[i]);
+        s.device = portrait ? Rect{screen.width / 2 - dw / 2, s.panel.y + tall + 90, dw, dh}
+                            : Rect{1330 + (screen.width - 1330 - 96 - dw) / 2, 170, dw, dh};
         // How fast tally.ts is typed: its characters over the clip's `typed` keys.
         const auto keys = c.steps("typed");
         if (keys.size() >= 2) {
@@ -204,10 +237,10 @@ public:
             blocks.push_back(std::move(b));
         }
         Element title = row({.id = "title", .gap = 14, .align = "center"},
-                            {text({.id = "file", .text = std::string(file_names[0]), .style = "code", .color = Fill(hex(ink::ice)), .wrap = false, .size = 17.0f,
+                            {text({.id = "file", .text = std::string(file_names[0]), .style = "code", .color = Fill(hex(ink::ice)), .wrap = false, .size = 22.0f,
                                    .weight = 600.0f}),
                              text({.id = "language", .text = std::string(language_names[0]), .style = "code", .color = Fill(hex(ink::cyan)), .wrap = false,
-                                   .size = 14.0f})});
+                                   .size = 18.0f})});
         Element panel = column({.id = "panel", .width = Dim(s.panel.width), .padding = Edges(Insets{14, 20, 14, 20}), .gap = 14, .translate_x = s.panel.x,
                                 .translate_y = s.panel.y},
                                {std::move(title), stack({.id = "blocks", .align = "start"}, std::move(blocks))});
@@ -215,13 +248,13 @@ public:
         std::vector<Element> chips;
         for (std::size_t i = 0; i < languages.size(); ++i)
             chips.push_back(text({.id = std::format("chip-{}", languages[i]), .text = std::format("{} ✓", language_names[i]), .style = "code",
-                                  .color = Fill(hex(ink::muted, 0.35f)), .wrap = false, .size = 16.0f, .weight = 600.0f}));
+                                  .color = Fill(hex(ink::muted, 0.35f)), .wrap = false, .size = 20.0f, .weight = 600.0f}));
         Element badges = column({.id = "badges", .width = Dim(portrait ? s.device.width : s.device.width), .gap = 10, .align = "start",
                                  .translate_x = s.device.x, .translate_y = s.device.y + s.device.height + 34},
                                 {text({.id = "verdict", .text = "", .style = "title", .color = Fill(hex(ink::mint)), .wrap = false, .size = 34.0f, .weight = 700.0f}),
-                                 text({.id = "tree", .text = "", .style = "code", .color = Fill(hex(ink::ice)), .wrap = false, .size = 16.0f}),
-                                 text({.id = "pixels", .text = "", .style = "code", .color = Fill(hex(ink::ice)), .wrap = false, .size = 16.0f}),
-                                 row({.id = "chips", .gap = 22}, std::move(chips))});
+                                 text({.id = "tree", .text = "", .style = "code", .color = Fill(hex(ink::ice)), .wrap = false, .size = 20.0f}),
+                                 text({.id = "pixels", .text = "", .style = "code", .color = Fill(hex(ink::ice)), .wrap = false, .size = 20.0f}),
+                                 row({.id = "chips", .gap = 14}, std::move(chips))});
         Element type = stack({.id = "type", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .align = "start"}, {std::move(panel), std::move(badges)});
         return stack({.id = "code", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .align = "start"}, {std::move(back), std::move(type)});
     }
@@ -339,7 +372,7 @@ void Code::paint(PaintContext& p, State& s) {
     // The code's sheet.
     list.fill_round_rect(s.panel, CornerRadii::all(10), render::Paint::solid(hex(ink::panel, 0.92f)));
     list.stroke_round_rect(s.panel, CornerRadii::all(10), 1, render::Paint::solid(hex(ink::line, 0.8f)));
-    list.fill_rect({s.panel.x + 1, s.panel.y + 50, s.panel.width - 2, 1}, hex(ink::line, 0.6f));
+    list.fill_rect({s.panel.x + 1, s.panel.y + 57, s.panel.width - 2, 1}, hex(ink::line, 0.6f));
     paint_ticks(list, {s.panel.x - 8, s.panel.y - 8, s.panel.width + 16, s.panel.height + 16}, hex(ink::cyan, 0.5f), 14, 1.5f, 0);
     const Rect d = s.device;
     const int lang = s.language;
@@ -366,7 +399,7 @@ void Code::paint(PaintContext& p, State& s) {
                     if (fresh > 0) {
                         paint_ticks(list, {dst.x - 4, dst.y - 4, dst.width + 8, dst.height + 8}, hex(ink::cyan, static_cast<float>(fresh)), 8, 1.5f, 0.5f);
                         const auto& tag = s.labels.get(p.services.fonts(), std::format("#{}", id.substr(id.rfind('/') == std::string::npos ? 0 : id.rfind('/') + 1)),
-                                                       12, hex(ink::cyan, static_cast<float>(fresh)), 500, "JetBrains Mono");
+                                                       18, hex(ink::cyan, static_cast<float>(fresh)), 500, "JetBrains Mono");
                         tag.paint(list, {dst.x + dst.width + 8, dst.y + 2});
                     }
                 }
@@ -375,21 +408,22 @@ void Code::paint(PaintContext& p, State& s) {
             }
         }
         paint_ticks(list, {d.x - 10, d.y - 10, d.width + 20, d.height + 20}, hex(ink::cyan, 0.6f), 16, 1.5f, 0);
-        const auto& cap = s.labels.get(p.services.fonts(), std::format("runs in {} · 360 × 240", language_names[i]), 13, hex(ink::muted), 500, "JetBrains Mono");
-        cap.paint(list, {d.x, d.y - 32});
+        const auto& cap = s.labels.get(p.services.fonts(), std::format("runs in {} · 360 × 240", language_names[i]), 18, hex(ink::muted), 500, "JetBrains Mono");
+        cap.paint(list, {d.x, d.y - 38});
     } else {
         // All four, side by side: the same pixels.
         const double u = smooth(s.t, s.switched, s.switched + 0.5);
-        const float w = d.width * 0.48f, h = d.height * 0.48f;
+        // Two rows with room for the names between them, as tall as the one counter was.
+        const float h = (d.height - 38) / 2, w = h * tally_size.width / tally_size.height;
         for (std::size_t i = 0; i < 4; ++i) {
-            const Rect to{d.x + (i % 2) * (d.width - w), d.y + (i / 2) * (d.height - h), w, h};
+            const Rect to{d.x + (i % 2) * (d.width - w), d.y + (i / 2) * (h + 38), w, h};
             const Rect r{static_cast<float>(mix(d.x, to.x, u)), static_cast<float>(mix(d.y, to.y, u)), static_cast<float>(mix(d.width, to.width, u)),
                          static_cast<float>(mix(d.height, to.height, u))};
             list.fill_round_rect(r, CornerRadii::all(6), render::Paint::solid(hex(ink::paper)));
             if (s.tallies[i] && s.tallies[i]->pixels) list.draw_image(s.images[i], img_rect(i), r, render::Sampling::linear);
             paint_ticks(list, {r.x - 5, r.y - 5, r.width + 10, r.height + 10}, hex(ink::cyan, 0.6f), 10, 1.5f, 0);
-            const auto& cap = s.labels.get(p.services.fonts(), std::string(language_names[i]), 13, hex(ink::cyan, static_cast<float>(u)), 600, "JetBrains Mono");
-            cap.paint(list, {r.x + 6, r.y - 24});
+            const auto& cap = s.labels.get(p.services.fonts(), std::string(language_names[i]), 18, hex(ink::cyan, static_cast<float>(u)), 600, "JetBrains Mono");
+            cap.paint(list, {r.x + 6, r.y - 28});
         }
     }
 }

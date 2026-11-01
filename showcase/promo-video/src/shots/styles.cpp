@@ -92,10 +92,11 @@ public:
                                        .wrap = false, .size = 26.0f, .weight = 600.0f})}));
         }
         const float side = c_.portrait() ? 54 : 96;
-        Element type = column({.id = "type", .width = Dim(layout::pct(100)), .padding = Edges(Insets{c_.portrait() ? 160.0f : 80.0f, side, 0, side}), .gap = 8},
+        Element type = column({.id = "type", .width = Dim(layout::pct(100)), .padding = Edges(Insets{c_.portrait() ? 160.0f : 90.0f, side, 0, side}), .gap = 8},
                               {row({.id = "head", .align = "end"},
                                    {stack({.id = "names", .align = "start", .grow = 1}, std::move(names)),
-                                    text({.id = "tree", .text = "", .style = "code", .color = Fill("success"), .wrap = false, .size = 17.0f})})});
+                                    text({.id = "tree", .text = "", .style = "code", .color = Fill("success"), .wrap = false,
+                                         .size = c_.portrait() ? 18.0f : 22.0f})})});
         return stack({.id = "styles", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .align = "start"},
                      {std::move(back), std::move(studio), std::move(type)});
     }

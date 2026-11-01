@@ -64,9 +64,16 @@ void paint_ticks(render::DisplayList& list, Rect r, Color c, float tick = 14, fl
 // A straight line.
 void paint_line(render::DisplayList& list, Point a, Point b, Color c, float width = 1.5f);
 
+// The least size of the film's type, in logical pixels of its 1920 × 1080
+// (9 px when it plays 960 across): what a painter's labels and the type
+// layers' text are drawn at, at the least — checked (checks.cppm `frames`).
+inline constexpr float least_type = 18;
+
 // Text shaped once, by its look, for painters.
 class Labels {
 public:
+    // The smallest size any painter has asked for since the process began (∞ before).
+    [[nodiscard]] static float smallest() noexcept;
     const typeset::Paragraph& get(typeset::FontCollection& fonts, std::string_view text, float size, Color color, float weight = 500,
                                   std::string_view family = "Inter", float width = 0);
     void clear() { cache_.clear(); }

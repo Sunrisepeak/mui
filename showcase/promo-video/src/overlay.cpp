@@ -68,12 +68,15 @@ View Overlay::view() {
     for (std::size_t i = 0; i < lines_.size(); ++i) {
         const Showing& s = lines_[i];
         const double from = tl::to_seconds(s.clip->at);
-        GlyphMotion rise = GlyphMotion::rise(hanim::seconds(0.05));
+        // Each line rises whole, to be read at once, the English a moment after.
+        GlyphMotion rise = GlyphMotion::rise(hanim::seconds(0));
+        rise.domain = GlyphDomain::line;
+        rise.transition = Transition::tween(hanim::seconds(0.3), hanim::ease::out_cubic);
         rise.transition.delay = hanim::seconds(from);
         Element zh = text({.id = "zh", .text = s.line->zh, .style = "title", .color = Fill(hex(ink::ice)), .align = "center", .wrap = false,
                            .size = subtitle_zh, .weight = 600.0f});
         GlyphMotion later = rise;
-        later.transition.delay = hanim::seconds(from + 0.12);
+        later.transition.delay = hanim::seconds(from + 0.08);
         Element en = text({.id = "en", .text = s.line->en, .style = "body", .color = Fill(hex(ink::muted)), .align = "center", .wrap = false,
                            .size = subtitle_en, .weight = 450.0f});
         lines.push_back(column({.id = std::format("line-{}", i),
@@ -101,7 +104,7 @@ View Overlay::view() {
                                                    .style = "code",
                                                    .color = Fill(hex(ink::muted)),
                                                    .wrap = false,
-                                                   .size = 15.0f}),
+                                                   .size = 18.0f}),
                                              type)}));
     }
     // The cut along the bottom: its picture clips, its hits, the playhead.
@@ -156,7 +159,7 @@ View Overlay::view() {
     std::vector<Element> top;
     top.push_back(stack({.id = "chapters", .grow = 1}, std::move(labels)));
     Element bottom = row({.id = "timeline", .width = Dim(layout::pct(100)), .gap = 16, .align = "center"},
-                         {std::move(bar), text({.id = "timecode", .text = "00:00.00", .style = "code", .color = Fill(hex(ink::muted)), .wrap = false, .size = 14.0f})});
+                         {std::move(bar), text({.id = "timecode", .text = "00:00.00", .style = "code", .color = Fill(hex(ink::muted)), .wrap = false, .size = 18.0f})});
     Element type = column({.id = "type",
                            .width = Dim(layout::pct(100)),
                            .height = Dim(layout::pct(100)),
@@ -226,8 +229,9 @@ void Overlay::at(Runtime& rt, std::int64_t frame, const std::optional<Shown>& sh
         rt.set(rt.find("main/type/tape-row/tape/speed"), "text",
                Value(speed < 0 ? std::format("◀◀  ×{}", static_cast<int>(-speed)) : std::format("▶  ×{}", static_cast<int>(speed))));
         const double wave = 0.5 + 0.5 * hanim::dm::sin(t * 23.0);
-        rt.set(look_, "pixel_effect", Value{}.set("name", "displace").set("amount", 3.0 + 3.0 * wave).set("wavelength", 170.0).set("phase", std::fmod(t * 3.1, 1.0)));
-        rt.set(colour_, "pixel_effect", Value{}.set("name", "chromatic").set("offset", 5.0).set("angle", 0.0));
+        // Enough to feel the tape, little enough that the frames it plays back stay legible.
+        rt.set(look_, "pixel_effect", Value{}.set("name", "displace").set("amount", 1.5 + 1.5 * wave).set("wavelength", 170.0).set("phase", std::fmod(t * 3.1, 1.0)));
+        rt.set(colour_, "pixel_effect", Value{}.set("name", "chromatic").set("offset", 2.0).set("angle", 0.0));
     } else {
         rt.set(look_, "pixel_effect", Value{});
         rt.set(colour_, "pixel_effect", Value{});

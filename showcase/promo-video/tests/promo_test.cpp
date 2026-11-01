@@ -2,7 +2,8 @@
 // both cuts read and hold together; their duration, spec, lines, beats and
 // the onsets heard in the sound; frames of each chapter pinned on every
 // platform (and one at 4K); frames drawn directly the frames played to; the
-// typography of sampled frames inside the title-safe area and apart, none
+// typography of sampled frames inside the title-safe area, apart and no
+// smaller than the film's least (painters' labels too), none
 // blank, at 16:9 and 9:16; the rewind the film's own frames, backwards, and
 // the replay the first play's very frames. The full render is a command
 // (`omui-promo render promo --out promo.webm`); the tests draw what CI can
@@ -103,7 +104,7 @@ int main(int argc, char** argv) {
             for (const auto& f : a.findings) fail(std::format("{}: {} (frame {})", f.check, f.what, f.frame));
             // The sound pinned: the same samples everywhere.
             std::println("    {:<6} sound {} ({} cues)", name, hex(audio::hash(track->samples)), track->cues.size());
-            check_eq(hex(audio::hash(track->samples)), std::string(name == "promo" ? "441f28809077b0f8" : "4cd8e041d7edf38a"));
+            check_eq(hex(audio::hash(track->samples)), std::string(name == "promo" ? "fb3c40f65ec1f389" : "4cd8e041d7edf38a"));
         }
     });
 
@@ -125,15 +126,15 @@ int main(int argc, char** argv) {
                                                                           (*px)->width() * 4, imageio::Alpha::premultiplied})
                       .has_value());
         }
-        check_eq(all.hex(), std::string("28ee85ec5053bdeb"));
+        check_eq(all.hex(), std::string("3b548f58f43df92c"));
         promo::Player full(film(), c, {.scale = 1, .fonts = &fonts(), .parallel_raster = false});
         auto hd = full.frame(1860);
         check(hd && (*hd)->width() == 1920 && (*hd)->height() == 1080, "1080p");
-        if (hd) check_eq(hex(promo::pixel_hash(**hd)), std::string("14c0e11ba9c3286a"));
+        if (hd) check_eq(hex(promo::pixel_hash(**hd)), std::string("0639f23553d1d3df"));
         promo::Player uhd(film(), c, {.scale = 2, .fonts = &fonts(), .parallel_raster = false});
         auto k4 = uhd.frame(400);
         check(k4 && (*k4)->width() == 3840 && (*k4)->height() == 2160, "4K");
-        if (k4) check_eq(hex(promo::pixel_hash(**k4)), std::string("4e3f3873159366fe"));
+        if (k4) check_eq(hex(promo::pixel_hash(**k4)), std::string("533c1e7b062c8236"));
     });
 
     s.test("seek: a frame drawn directly is the frame played to — in every chapter, after its moments, and through the rewind", [] {
@@ -183,7 +184,7 @@ int main(int argc, char** argv) {
         check(std::set<std::uint64_t>(first.begin(), first.end()).size() > 30, "and the game moves");
     });
 
-    s.test("every sampled frame's typography at rest is inside the title-safe area and apart, and none is blank — 16:9, and the short at 9:16", [] {
+    s.test("every sampled frame's typography at rest is inside the title-safe area, apart and no smaller than the film's least, and none is blank — 16:9, and the short at 9:16", [] {
         struct Run {
             std::string_view name;
             Size             size;
@@ -205,6 +206,9 @@ int main(int argc, char** argv) {
             }
             std::println("    {} at {}: {} frames, {} problems", run.name, run.size.width > 0 ? "9:16" : "16:9", n, problems);
         }
+        // The painters' labels too: none under the film's least size.
+        check(promo::Labels::smallest() >= promo::least_type,
+              std::format("a painter's label at {} px, under the film's least {}", promo::Labels::smallest(), promo::least_type));
     });
 
     s.test("the README's loop: a few seconds of every chapter — an animated WebP under 1 MB", [] {

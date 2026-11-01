@@ -1485,6 +1485,9 @@ AppSpec app(std::string_view place, std::string_view lang) {
     a.title = "openmui — one tree, many renderings";
     a.size = {1280, 800};
     a.theme = Theme::dark_theme();
+    // The page's time is a live readout of the clock: it is drawn where the time is, never eased there
+    // (universal motion: a morph is for a change, not for a clock ticking).
+    a.theme.motion_rules.push_back({"timebar", "update", MotionSpec{.kind = MotionSpec::Kind::none}});
     // Drawn by the machine's GPU where it has one (WebGPU, else WebGL 2; a
     // software adapter counts as none), else by the CPU: a camera's flight at
     // the display's rate. The CPU's pixels are the reference, the same bytes
@@ -1774,7 +1777,8 @@ AppSpec app(std::string_view place, std::string_view lang) {
                                       return t;
                                   }),
                                   .style = "caption"}),
-                            only_when(row({.id = "proof"}, {text({.id = "hash", .text = s->hash, .style = "caption"})}), [s] { return !s->compact.get(); }),
+                            // Monospace: a new hash keeps its width, so nothing beside it moves.
+                            only_when(row({.id = "proof"}, {text({.id = "hash", .text = s->hash, .style = "code"})}), [s] { return !s->compact.get(); }),
                             only_when(button({.id = "ci_check",
                                     .text = say("Check against CI", "对照 CI"),
                                     .variant = computed([s] { return s->checking.get() ? ButtonVariant::primary : ButtonVariant::ghost; }),

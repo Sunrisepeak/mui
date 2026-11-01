@@ -34,9 +34,9 @@ FrameReading read_frames(const ShownFrames& f, std::string_view renderer) {
     FrameReading r;
     r.renderer = std::string(renderer.empty() ? "cpu" : renderer);
     if (f.empty()) return r;
-    // Runs: frames each shown within run_gap of the one before. A run of one
-    // frame is a change, not motion (a hover; the meter's own frame saying
-    // the page is at rest): the page is idle after it.
+    // Runs: frames each shown within run_gap of the one before. A run of a
+    // few frames is a change, not motion (a hover; a readout redrawn; the
+    // meter's own frame saying the page is at rest): the page is idle after it.
     const auto run_start = [&](std::size_t end) {  // the first frame of the run ending at `end`
         std::size_t first = end;
         while (first > 0 && f[first].at.count() - f[first - 1].at.count() < run_gap) --first;
@@ -44,12 +44,13 @@ FrameReading read_frames(const ShownFrames& f, std::string_view renderer) {
     };
     std::size_t end = f.size() - 1, first = run_start(end);
     r.idle = first == end || f.now.count() - f[end].at.count() >= FrameMeter::rest;
-    // What is read: the last run that moved (of two frames or more).
-    while (first == end && first > 0) {
+    // What is read: the last run that moved (a tenth of a second at 60 Hz, or more).
+    constexpr std::size_t least_motion = 6;
+    while (end + 1 - first < least_motion && first > 0) {
         end = first - 1;
         first = run_start(end);
     }
-    if (first == end) return r;
+    if (end + 1 - first < least_motion) return r;
     const double last = f[end].at.count();
     r.frames = end + 1 - first;
     // Its last second: the rate, and the median cost.

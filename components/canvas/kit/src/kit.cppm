@@ -18,8 +18,8 @@
 //   connect   ⌥-drag from a node to another connects them; `connect` /
 //             `disconnect` {to}
 //   grid      lines under the nodes, a cell 16–32 pixels at any zoom ("grid:40": its base)
-//   minimap   the whole scene in a corner ("minimap:top-left"), the view
-//             outlined; press or drag in it to go there
+//   minimap   the whole scene in a corner ("minimap:top-left"; "minimap:top-right
+//             96 54", its margins), the view outlined; press or drag in it to go there
 //   delete    Delete / Backspace removes the selection; a node's `delete`
 //             (irreversible: its answer is "yes")
 //

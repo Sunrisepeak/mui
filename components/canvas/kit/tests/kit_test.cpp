@@ -491,6 +491,13 @@ int main(int argc, char** argv) {
         h.step({press(inside)});
         h.step({release(inside)});
         check(x.get() < -100 && y.get() < -100, std::format("the view moved up and left: {}, {}", x.get(), y.get()));
+        // In another corner, at the margins it is given: a 110, 76 into the panel as before.
+        Headless h2({.size = {800, 600}});
+        h2.mount("main", column({.width = 800, .height = 600},
+                                {canvas({.id = "board", .behaviors = std::vector<std::string>{"minimap:top-left 40 30"}, .scene = "mini", .width = 800, .height = 600})}));
+        h2.settle();
+        const auto moved = h2.pixels().at(150, 106);
+        check(moved.g > moved.r + 40 && moved.g > moved.b + 40, std::format("a is green in the top-left minimap, 40 and 30 in: {} {} {}", moved.r, moved.g, moved.b));
     });
 
     s.test("declarative: a statechart from TOML drags a group by its label, commits, and adds its actions", [] {
@@ -586,7 +593,7 @@ int main(int argc, char** argv) {
         std::vector<std::string> all;
         for (const std::string& name : world::behaviors()) all.push_back(name);
         // With arguments, as canvases name them.
-        for (const char* more : {"select:marquee", "snap:grid", "snap:20", "grid:25", "minimap:top-left"}) all.emplace_back(more);
+        for (const char* more : {"select:marquee", "snap:grid", "snap:20", "grid:25", "minimap:top-left", "minimap:top-right 96 54"}) all.emplace_back(more);
         check(all.size() >= 14, std::format("{} behaviours", all.size()));
         for (const std::string& b : all)
             for (const std::string& p : conformance(b)) check(false, p);

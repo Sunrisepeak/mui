@@ -81,12 +81,30 @@ private:
 // more when the changes stop.
 class Minimap final : public Behavior {
 public:
+    // "corner", or "corner across down": its margins from the viewport's edges (12 px each, unless said).
     explicit Minimap(std::string_view args) {
-        if (args.empty() || args == "bottom-right") corner_ = 3;
-        else if (args == "top-left") corner_ = 0;
-        else if (args == "top-right") corner_ = 1;
-        else if (args == "bottom-left") corner_ = 2;
-        else warn("canvas-kit: minimap takes a corner (top-left, top-right, bottom-left, bottom-right), not `{}`", args);
+        const std::size_t space = args.find(' ');
+        const std::string_view corner = args.substr(0, space);
+        if (corner.empty() || corner == "bottom-right") corner_ = 3;
+        else if (corner == "top-left") corner_ = 0;
+        else if (corner == "top-right") corner_ = 1;
+        else if (corner == "bottom-left") corner_ = 2;
+        else warn("canvas-kit: minimap takes a corner (top-left, top-right, bottom-left, bottom-right), not `{}`", corner);
+        if (space == std::string_view::npos) return;
+        std::string_view rest = args.substr(space + 1);
+        float* into[] = {&margin_x_, &margin_y_};
+        for (std::size_t i = 0; i < 2 && !rest.empty(); ++i) {
+            while (rest.starts_with(' ')) rest.remove_prefix(1);
+            float v = 0;
+            const auto r = std::from_chars(rest.data(), rest.data() + rest.size(), v);
+            if (r.ec != std::errc{} || v < 0) {
+                warn("canvas-kit: a minimap's margins are pixels (`top-right 96 54`), not `{}`", rest);
+                break;
+            }
+            *into[i] = v;
+            if (i == 0) margin_y_ = v;  // one margin: both
+            rest.remove_prefix(static_cast<std::size_t>(r.ptr - rest.data()));
+        }
     }
     std::string_view name() const override { return "minimap"; }
     int priority() const override { return 100; }
@@ -147,8 +165,8 @@ private:
 
     Rect panel(Host& h) const {
         const Size vp = h.viewport();
-        const float w = std::min(200.0f, vp.width * 0.3f), hgt = std::min(136.0f, vp.height * 0.3f), m = 12;
-        const float x = corner_ % 2 == 0 ? m : vp.width - w - m, y = corner_ < 2 ? m : vp.height - hgt - m;
+        const float w = std::min(200.0f, vp.width * 0.3f), hgt = std::min(136.0f, vp.height * 0.3f);
+        const float x = corner_ % 2 == 0 ? margin_x_ : vp.width - w - margin_x_, y = corner_ < 2 ? margin_y_ : vp.height - hgt - margin_y_;
         return {x, y, w, hgt};
     }
 
@@ -279,6 +297,7 @@ private:
     static constexpr std::size_t per_frame = 12000;  // slots a frame's pass visits
 
     int              corner_ = 3;  // top-left, top-right, bottom-left, bottom-right
+    float            margin_x_ = 12, margin_y_ = 12;
     bool             active_ = false;
     Map              held_;
     render::ImageRef image_;

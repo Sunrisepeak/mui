@@ -56,6 +56,19 @@ struct Options {
     // ahead by `stretch` of the distance left (at most 40% of its width), a
     // little thinner — a drop pulled, not a box moved; it rests round.
     float  stretch = 0;
+    // While it moves, all it draws goes through an effect (a liquid's drops
+    // merging, ink's line wavering): the effect's `param` from its value in
+    // `params` to `peak` half-way and back, so it is not there at either end
+    // — an effect a motion carries (component × effect × motion, D-93). The
+    // layer's shapes are the moving fills where they are.
+    struct Travel {
+        render::EffectRef  effect;
+        std::vector<float> params;
+        int                param = -1;
+        float              peak = 0;
+        friend bool operator==(const Travel&, const Travel&) = default;
+    };
+    std::optional<Travel> travel;
 };
 
 struct MorphStats {
@@ -93,6 +106,8 @@ public:
     [[nodiscard]] const Matter& to() const noexcept { return to_; }
     [[nodiscard]] const Options& options() const noexcept { return options_; }
     [[nodiscard]] const MorphStats& stats() const noexcept { return stats_; }
+    // How strongly its travel effect is on at `t`: 0 at rest, 1 half-way.
+    [[nodiscard]] double travel(double t) const noexcept;
 
 private:
     struct Pair {

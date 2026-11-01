@@ -438,7 +438,54 @@ Morph::Morph(Matter from, Matter to, Options options, double start)
 
 // ── drawing ─────────────────────────────────────────────────────────────
 
-void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, const PushLayer* live) const { draw(t, out, nested, false, live); }
+double Morph::travel(double t) const noexcept {
+    if (!options_.travel || t <= start_) return 0;
+    return det::sin(std::numbers::pi * clamp01(options_.curve.at(t - start_)));
+}
+
+void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, const PushLayer* live) const {
+    const double on = travel(t);
+    if (on <= 1e-3 || options_.travel->effect.id == 0) return draw(t, out, nested, false, live);
+    // Drawn aside, then inside the travel effect's layer, its shapes the fills where they are now.
+    thread_local DisplayList aside;
+    thread_local std::vector<float> params;
+    aside.clear();
+    draw(t, aside, nested, false, live);
+    std::array<EffectShape, 8> shapes{};
+    std::size_t                count = 0;
+    std::array<Affine, 64>     stack{};
+    std::size_t                depth = 0;
+    Affine                     at{};
+    Rect                       all = from_.bounds().united(to_.bounds());
+    for (const Command& c : aside.commands()) {
+        if (const auto* p = std::get_if<PushTransform>(&c)) {
+            if (depth < stack.size()) stack[depth++] = at;
+            at = at * p->transform;
+        } else if (std::holds_alternative<PopTransform>(c)) {
+            if (depth > 0) at = stack[--depth];
+        } else if (const auto* f = std::get_if<FillRect>(&c)) {
+            const Rect r = at.map(f->rect);
+            all = all.united(r);
+            if (count < shapes.size()) shapes[count++] = {r, {}};
+        } else if (const auto* f = std::get_if<FillRoundRect>(&c)) {
+            const Rect r = at.map(f->rect);
+            all = all.united(r);
+            if (count < shapes.size()) shapes[count++] = {r, f->radii};
+        }
+    }
+    const Options::Travel& tr = *options_.travel;
+    params.assign(tr.params.begin(), tr.params.end());
+    if (tr.param >= 0 && static_cast<std::size_t>(tr.param) < params.size()) {
+        float& p = params[static_cast<std::size_t>(tr.param)];
+        p = mixf(p, tr.peak, on);
+    }
+    // What the effect draws beyond the shapes (a waver, a drop's bridge): its own reach at these numbers.
+    const float reach = render::effects().reach(tr.effect, params) + 2;
+    out.push_layer(1, BlendMode::normal, tr.effect, params, {all.x - reach, all.y - reach, all.width + 2 * reach, all.height + 2 * reach},
+                   std::span(shapes.data(), count));
+    for (const Command& c : aside.commands()) out.append_command(c);
+    out.pop_layer();
+}
 
 Matter Morph::snapshot(double t, const NestedDraw& nested) const {
     DisplayList list;

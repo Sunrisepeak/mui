@@ -571,17 +571,37 @@ float smooth_noise(float seed, float x, float y, std::uint64_t salt) {
 }
 void wobble(const EffectInput& in) {
     const float amount = in.params[0] * in.scale, size = std::max(1.0f, in.params[1] * in.scale), seed = in.params[2], ink = clamp01(in.params[3]);
+    const int reach = static_cast<int>(std::ceil(std::abs(amount))) + 1;
+    const int w = in.source.width(), h = in.source.height();
+    auto alpha = [&](int px, int py) -> int {
+        return static_cast<unsigned>(px) < static_cast<unsigned>(w) && static_cast<unsigned>(py) < static_cast<unsigned>(h) ? in.source.at(px, py).a : 0;
+    };
     for (int y = in.row_begin; y < in.last_row(); ++y) {
         Rgba8* out = in.target.row(y);
+        const Rgba8* row = in.source.row(y);
         for (int x = 0; x < in.target.width(); ++x) {
+            // Pushed about only near the layer's own edge (its alpha changing within reach, whole pixels away):
+            // inside, what the layer holds — its text, its figures — stays where it is, sharp; the hand shows in
+            // the outline.
+            const int a0 = alpha(x, y);
+            const int n = std::abs(alpha(x + reach, y) - a0) + std::abs(alpha(x - reach, y) - a0) + std::abs(alpha(x, y + reach) - a0) +
+                          std::abs(alpha(x, y - reach) - a0);
+            if (n == 0) {
+                // Far from it nothing moves (the offset is near × noise: 0): the pixel as it is, inked where its
+                // alpha changes — most of a layer's area a copy.
+                const int al = alpha(x - 1, y), ar = alpha(x + 1, y), au = alpha(x, y - 1), ad = alpha(x, y + 1);
+                if (al == ar && au == ad) {
+                    out[x] = row[x];
+                    continue;
+                }
+                const float e = clamp01(static_cast<float>(std::abs(ar - al) + std::abs(ad - au)) / 255.0f);
+                const float k = 1 - ink * 0.7f * e;
+                const Rgba8 c = row[x];
+                out[x] = Rgba8{q8(static_cast<float>(c.r) * k), q8(static_cast<float>(c.g) * k), q8(static_cast<float>(c.b) * k), c.a};
+                continue;
+            }
+            const float near = clamp01(static_cast<float>(n) / 255.0f);
             const float qx = static_cast<float>(x) + 0.5f, qy = static_cast<float>(y) + 0.5f;
-            // Pushed about only near the layer's own edge (its alpha changing within reach): inside, what the
-            // layer holds — its text, its figures — stays where it is, sharp; the hand shows in the outline.
-            const float reach = std::abs(amount) + 1;
-            const auto h0 = sample(in.source, qx, qy);
-            const auto e0 = sample(in.source, qx - reach, qy), e1 = sample(in.source, qx + reach, qy);
-            const auto e2 = sample(in.source, qx, qy - reach), e3 = sample(in.source, qx, qy + reach);
-            const float near = clamp01((std::abs(e1[3] - h0[3]) + std::abs(e0[3] - h0[3]) + std::abs(e3[3] - h0[3]) + std::abs(e2[3] - h0[3])) / 255.0f);
             const float ox = smooth_noise(seed, qx / size, qy / size, 1) * amount * near, oy = smooth_noise(seed, qx / size, qy / size, 2) * amount * near;
             const auto c = sample(in.source, qx - ox, qy - oy);
             // Ink where the alpha changes: an edge.

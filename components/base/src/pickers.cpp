@@ -290,7 +290,7 @@ spec::SemanticNode DatePicker::day_item(std::string_view path, chr::year_month_d
     if (const NodeId c = expanded() ? calendar() : NodeId{}) {
         const Value at = services().get(c, std::format("at:{}", key));
         if (const Value::List* l = at.list(); l && l->size() == 4)
-            n.bounds = spec::Rect{(*l)[0].as_double(), (*l)[1].as_double(), (*l)[2].as_double(), (*l)[3].as_double()};
+            n.bounds = spec::Rect{static_cast<float>((*l)[0].as_double()), static_cast<float>((*l)[1].as_double()), static_cast<float>((*l)[2].as_double()), static_cast<float>((*l)[3].as_double())};
     }
     if (ok && key != props.value) n.actions.push_back({"activate", Effect::reversible, {}, {}, {}});
     return n;
@@ -319,7 +319,7 @@ std::optional<spec::SemanticNode> DatePicker::virtual_item(std::string_view path
         n.name = key == "previous_month" ? "Previous month" : "Next month";
         const Value at = services().get(c, key == "previous_month" ? "at:previous" : "at:next");
         if (const Value::List* l = at.list(); l && l->size() == 4)
-            n.bounds = spec::Rect{(*l)[0].as_double(), (*l)[1].as_double(), (*l)[2].as_double(), (*l)[3].as_double()};
+            n.bounds = spec::Rect{static_cast<float>((*l)[0].as_double()), static_cast<float>((*l)[1].as_double()), static_cast<float>((*l)[2].as_double()), static_cast<float>((*l)[3].as_double())};
         n.actions.push_back({"activate", Effect::read, {}, {}, {}});
         return n;
     }
@@ -936,7 +936,7 @@ spec::SemanticNode ColorPicker::item(std::string_view path, std::string_view key
     if (const NodeId p = expanded() ? panel() : NodeId{}) {
         const Value r = services().get(p, at);
         if (const Value::List* l = r.list(); l && l->size() == 4)
-            n.bounds = spec::Rect{(*l)[0].as_double(), (*l)[1].as_double(), (*l)[2].as_double(), (*l)[3].as_double()};
+            n.bounds = spec::Rect{static_cast<float>((*l)[0].as_double()), static_cast<float>((*l)[1].as_double()), static_cast<float>((*l)[2].as_double()), static_cast<float>((*l)[3].as_double())};
     }
     return n;
 }

@@ -305,7 +305,7 @@ std::optional<spec::SemanticNode> Combobox::virtual_item(std::string_view path, 
     if (expanded() && at != shown_.end()) {
         const Value r = services().get(popup(), std::format("at:{}", at - shown_.begin()));
         if (const Value::List* l = r.list(); l && l->size() == 4)
-            n.bounds = spec::Rect{(*l)[0].as_double(), (*l)[1].as_double(), (*l)[2].as_double(), (*l)[3].as_double()};
+            n.bounds = spec::Rect{static_cast<float>((*l)[0].as_double()), static_cast<float>((*l)[1].as_double()), static_cast<float>((*l)[2].as_double()), static_cast<float>((*l)[3].as_double())};
     } else n.states.set(State::offscreen);
     if (!props.disabled) n.actions.push_back({"activate", Effect::reversible, {}, {}, {}});
     return n;

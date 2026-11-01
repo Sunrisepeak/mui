@@ -104,6 +104,9 @@ Player::Player(const Film& film, const Cut& cut, PlayerOptions options) : film_(
                                                                .app = "openmui-promo",
                                                                .parallel_raster = options_.parallel_raster,
                                                                .complete_frames = true});
+    // A film's frames are drawn in any order (seeking, chunks on many workers): its motion is its timeline's,
+    // never inferred from the frame drawn before (universal motion's morphs are for interfaces in use).
+    overlay_host_->runtime().set_motion_level(MotionLevel::off);
     overlay_host_->mount("main", overlay_->view());
     out_ = raster::Surface(width(), height());
     store_ = options_.store ? options_.store : std::make_shared<FrameStore>();
@@ -157,6 +160,7 @@ std::expected<void, std::string> Player::draw_scene(const Shown& s) {
                                                                  .parallel_raster = options_.parallel_raster,
                                                                  .complete_frames = true});
         scene_.reset();  // the one before goes first (its scenes, its timers)
+        scene->host->runtime().set_motion_level(MotionLevel::off);  // its motion is the timeline's (above)
         scene->host->mount("main", scene->shot->view());
         scene->shot->mounted(scene->host->runtime());
         scene_ = std::move(scene);

@@ -24,15 +24,14 @@ std::string digest_text(std::uint64_t d) { return std::format("{:016x}", d); }
 
 namespace {
 
-// How the frame is drawn (performance tiers, D-94), as a session keeps it: an input a replay applies.
-std::string adaptation_json(const Adaptation& a) {
+// How the frame is drawn (performance tiers, D-94; the person's motion chosen, universal motion §5.2), as a session
+// keeps it: an input a replay applies.
+std::string adaptation_json(const Adaptation& a, std::string_view choice) {
     static constexpr std::array<std::string_view, 3> levels{"full", "reduced", "off"};
-    return Value{}
-        .set("tier", pipeline::name(a.tier))
-        .set("motion", levels[static_cast<std::size_t>(a.motion)])
-        .set("effects", pipeline::name(a.effects))
-        .set("reason", a.reason)
-        .json();
+    Value v;
+    v.set("tier", pipeline::name(a.tier)).set("motion", levels[static_cast<std::size_t>(a.motion)]).set("effects", pipeline::name(a.effects)).set("reason", a.reason);
+    if (!choice.empty()) v.set("choice", choice);
+    return v.json();
 }
 
 std::optional<Adaptation> adaptation_from(const Value& v) {
@@ -62,16 +61,18 @@ Recorder::Recorder(Tree& tree, session::Session& session) : tree_(tree), session
     if (rt.clock().kind() == hanim::ClockKind::render) h.fps = rt.clock().frame_rate().fps();
     // How it is drawn from the start (its tier, its levels): applied before the first frame is replayed.
     adapted_ = rt.adaptation();
-    (void)session_.add(rt.now().count(), "adapt", adaptation_json(adapted_));
+    chosen_ = rt.motion_choice();
+    (void)session_.add(rt.now().count(), "adapt", adaptation_json(adapted_, chosen_));
 }
 
 FrameOutput Recorder::frame(const FrameInput& input) {
     Runtime& rt = tree_.runtime();
     FrameOutput out = rt.frame(input);
     // The governor changed how it is drawn: recorded after the frame that did it, applied before the next.
-    if (!(rt.adaptation() == adapted_)) {
+    if (!(rt.adaptation() == adapted_) || rt.motion_choice() != chosen_) {
         adapted_ = rt.adaptation();
-        (void)session_.add(rt.now().count(), "adapt", adaptation_json(adapted_));
+        chosen_ = rt.motion_choice();
+        (void)session_.add(rt.now().count(), "adapt", adaptation_json(adapted_, chosen_));
     }
     Value body = Value(Value::Map{});
     if (!input.events.empty()) {
@@ -138,8 +139,12 @@ void Player::run(const session::Entry& entry) {
         (void)rt.frame(in);
         ++r.frames;
     } else if (entry.kind == "adapt") {
-        if (auto a = adaptation_from(*body)) rt.set_adaptation(*a);
-        else r.mismatches.push_back(std::format("t={}: an adaptation this runtime cannot read: {}", entry.time, entry.body));
+        if (auto a = adaptation_from(*body)) {
+            rt.set_adaptation(*a);
+            rt.set_motion_choice(std::string(body->get("choice") ? body->get("choice")->as_string() : ""));
+        } else {
+            r.mismatches.push_back(std::format("t={}: an adaptation this runtime cannot read: {}", entry.time, entry.body));
+        }
     } else if (entry.kind == "act") {
         Invocation call;
         if (const Value* a = body->get("args")) call.args = *a;

@@ -64,6 +64,14 @@ Element track(Signal<float> x, std::string_view motion = "morph motion.normal") 
     return e;
 }
 
+// Whether the frame's list draws a layer with the named effect.
+bool draws(Runtime& rt, std::string_view effect) {
+    const auto ref = render::effects().find(effect);
+    for (const auto& c : rt.display_list().commands())
+        if (const auto* l = std::get_if<render::PushLayer>(&c); l && ref && l->effect.id == ref->id) return true;
+    return false;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -239,6 +247,133 @@ int main(int argc, char** argv) {
         check(rt.motions().size() == 1 && rt.motions()[0].from_only == 1, "a leaves by its motion");
         for (double t = 1.2; t < 2.5; t += 0.1) rt.frame({seconds(t), {}});
         check(!rt.valid(a), "gone once it rests");
+    });
+
+    s.test("one switch, three motions (use case 7): the first that fits, the person's choice among them, and below their tiers the one that does", [&] {
+        auto x = signal(0.0f);
+        Runtime rt(options());
+        Element sw = track(x);
+        sw.prop("motion", Source(Value(Value::List{Value("liquid"), Value("ink"), Value("simple")})));
+        rt.mount("main", column({}, {std::move(sw)}));
+        rt.frame({seconds(0), {}});
+        rt.frame({seconds(0.016), {}});
+        // Moved at `at`, looked at a moment later: which travel effect it goes through, and how long it takes.
+        auto move = [&](double at, float to, std::string_view effect) {
+            x.set(to);
+            rt.frame({seconds(at), {}});
+            rt.frame({seconds(at + 0.06), {}});
+            const bool through = effect.empty() ? !draws(rt, "metaball") && !draws(rt, "wobble") : draws(rt, effect);
+            const double length = rt.motions().empty() ? 0 : rt.motions()[0].end - rt.motions()[0].start;
+            for (double t = at + 0.1; t < at + 2.9; t += 0.1) rt.frame({seconds(t), {}});
+            check(rt.motions().empty(), "at rest");
+            return std::pair{through, length};
+        };
+        const auto liquid = move(0.1, 100, "metaball");
+        check(liquid.first, "the first that fits: liquid, its drops merging on the way");
+        rt.set_motion_choice("ink");
+        const auto ink = move(3.1, 0, "wobble");
+        check(ink.first, "the person chose ink: its line wavering on the way");
+        check(ink.second > 0.4 && ink.second < 0.6, std::format("ink is unhurried: {}", ink.second));
+        rt.set_motion_choice("simple");
+        const auto simple = move(6.1, 100, "");
+        check(simple.first && simple.second < 0.2, std::format("simple: no effect, short: {}", simple.second));
+        // An embedded board: neither drops nor ink run there — the one that fits, whatever was chosen.
+        rt.set_motion_choice("ink");
+        rt.set_device_tier(pipeline::Tier::t1, "an embedded board");
+        const auto board = move(9.1, 0, "");
+        check(board.first && board.second < 0.2, std::format("on T1, simple: {}", board.second));
+        check(!draws(rt, "metaball") && !draws(rt, "wobble"), "at rest, no travel effect anywhere");
+    });
+
+    s.test("a change's slot: a state (focus shown, nothing written), an order, a replacement — each its own; one holding none moves by the update slot's", [&] {
+        {
+            Runtime rt(options());
+            Element b = box({.id = "b", .width = 60, .height = 20, .background = "#334155"});
+            b.prop("focusable", Source(Value(true)));
+            b.prop("motion", Source(Value(Value::Map{{"update", Value("none")}, {"state", Value("simple")}})));
+            rt.mount("main", column({.padding = 8}, {std::move(b)}));
+            rt.frame({seconds(0), {}});
+            rt.frame({seconds(0.016), {}});
+            rt.focus_visibly(rt.find("main/b"));
+            rt.frame({seconds(0.1), {}});
+            check(rt.motions().size() == 1 && rt.motions()[0].end - rt.motions()[0].start < 0.2, "its ring comes in by the state slot's tween");
+        }
+        auto order = signal(std::vector<std::string>{"a", "b", "c"});
+        auto list = [&](Value motion) {
+            Element l = column({.id = "list", .gap = 4}, {dynamic([order] {
+                                   std::vector<Element> rows;
+                                   for (const std::string& k : order()) {
+                                       Element r = box({.id = k, .width = 40, .height = 10, .background = "#334155"});
+                                       r.key = k;
+                                       rows.push_back(std::move(r));
+                                   }
+                                   return rows;
+                               })});
+            l.prop("motion", Source(std::move(motion)));
+            return l;
+        };
+        {
+            order.set({"a", "b", "c"});
+            Runtime rt(options());
+            rt.mount("main", column({}, {list(Value(Value::Map{{"update", Value("none")}, {"reorder", Value("morph motion.normal")}}))}));
+            rt.frame({seconds(0), {}});
+            rt.frame({seconds(0.016), {}});
+            order.set({"c", "a", "b"});
+            rt.frame({seconds(0.1), {}});
+            check_eq(rt.motions().size(), std::size_t{1});
+            for (double t = 0.2; t < 2; t += 0.1) rt.frame({seconds(t), {}});
+            order.set({"x", "y"});
+            rt.frame({seconds(2.1), {}});
+            check(rt.motions().empty(), "a replacement is not an order: the update slot holds none");
+        }
+        {
+            order.set({"a", "b", "c"});
+            Runtime rt(options());
+            rt.mount("main", column({}, {list(Value(Value::Map{{"update", Value("morph motion.normal")}}))}));
+            rt.frame({seconds(0), {}});
+            rt.frame({seconds(0.016), {}});
+            order.set({"x", "y"});
+            rt.frame({seconds(0.1), {}});
+            check(rt.motions().size() == 1 && rt.motions()[0].from_only == 3 && rt.motions()[0].to_only == 2,
+                  "a slot holding none of its own (replace) moves by the update slot's");
+        }
+    });
+
+    s.test("a handle on a morph: paused, sought, reversed — its own time; kept at rest while held; released, on from where it is", [&] {
+        auto x = signal(0.0f);
+        Runtime rt(options());
+        rt.mount("main", column({}, {track(x)}));
+        rt.frame({seconds(0), {}});
+        rt.frame({seconds(0.016), {}});
+        const auto before = draw(rt);
+        x.set(100);
+        rt.frame({seconds(0.1), {}});
+        const NodeId t = rt.find("main/track");
+        check(rt.hold_motion(t), "a morph under way is held");
+        rt.pause_motion(t);
+        rt.frame({seconds(0.2), {}});
+        const auto paused = draw(rt);
+        rt.frame({seconds(0.5), {}});
+        check(same(paused, draw(rt)), "paused: the same drawing as time goes on");
+        rt.seek_motion(t, 0);
+        rt.frame({seconds(0.6), {}});
+        check(same(before, draw(rt)), "sought to its start: the first drawing");
+        const auto length = rt.motion_time(t);
+        check(length && length->first > 0.1, "its length");
+        rt.seek_motion(t, length ? length->first : 1);
+        rt.frame({seconds(0.7), {}});
+        const auto rest = draw(rt);
+        rt.frame({seconds(3), {}});
+        check(rt.motion_time(t).has_value(), "at rest, held: kept");
+        rt.set_motion_rate(t, -1);
+        rt.play_motion(t);
+        rt.frame({seconds(3.1), {}});
+        const int back = left_of(draw(rt), 10, rose);
+        check(back >= 0 && back < left_of(rest, 10, rose), std::format("backwards: the thumb going back ({} < {})", back, left_of(rest, 10, rose)));
+        rt.release_motion(t);
+        for (double u = 3.2; u < 6; u += 0.1) rt.frame({seconds(u), {}});
+        check(!rt.motion_time(t), "released: on to rest, and done");
+        check(same(rest, draw(rt)), "at rest: the drawing as it is");
     });
 
     return s.run(argc, argv);

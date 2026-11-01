@@ -597,14 +597,20 @@ void Runtime::Impl::paint_node(NodeId id) {
                 if (static_cast<int>(i) != fx.progress) fx.params[i] = static_cast<float>(fx.from[i] + (target[i] - fx.from[i]) * e);
     }
     const bool effected = fxs != nullptr;
-    if (effected) {
-        auto& fx = *fxs;
-        if (fx.duration && fx.progress >= 0) {
+    // More of its own over it (a list), each where it runs (performance tiers: below its tiers, left out).
+    std::size_t more = 0;
+    for (auto& fx : n.more_effects)
+        if (const render::EffectInfo* info = render::effects().info(fx.effect); info && (info->tiers & pipeline::tier_bit(effects_now())) &&
+                                                                               !(info->backdrop && reduce_transparency))
+            ++more;
+    if (effected || more > 0) {
+        auto progress = [&](Node::PixelEffectState& fx) {
+            if (!fx.duration || fx.progress < 0) return;
             const double u = (now() - fx.start - fx.delay).count() / std::max(1e-6, fx.duration->count());
             double p = reduce_motion ? 1.0 : fx.ease(std::clamp(u, 0.0, 1.0));
             if (fx.reverse) p = 1 - p;
             fx.params[static_cast<std::size_t>(fx.progress)] = static_cast<float>(p);
-        }
+        };
         // The layer's shapes: what the node paints as surfaces — its own
         // rounded box, and each child's that has a background or a border
         // (a group's members: what neon lights and metaball merges).
@@ -625,7 +631,17 @@ void Runtime::Impl::paint_node(NodeId id) {
             const Rect f = k.frame;
             shapes[count++] = {{f.x + k.visual[Field::translate_x], f.y + k.visual[Field::translate_y], f.width, f.height}, k.visual.corners(f.size())};
         }
-        list.push_layer(1, render::BlendMode::normal, fx.effect, fx.params, box, std::span(shapes.data(), count));
+        // The last of the list outermost: pushed first.
+        for (auto it = n.more_effects.rbegin(); it != n.more_effects.rend(); ++it) {
+            const render::EffectInfo* info = render::effects().info(it->effect);
+            if (!info || !(info->tiers & pipeline::tier_bit(effects_now())) || (info->backdrop && reduce_transparency)) continue;
+            progress(*it);
+            list.push_layer(1, render::BlendMode::normal, it->effect, it->params, box, std::span(shapes.data(), count));
+        }
+        if (effected) {
+            progress(*fxs);
+            list.push_layer(1, render::BlendMode::normal, fxs->effect, fxs->params, box, std::span(shapes.data(), count));
+        }
     }
     if (layer) list.push_layer(v[Field::opacity], render::BlendMode::normal, {}, {}, box);
 
@@ -695,6 +711,7 @@ void Runtime::Impl::paint_node(NodeId id) {
 
     if (layer) list.pop_layer();
     if (effected) list.pop_layer();
+    for (std::size_t i = 0; i < more; ++i) list.pop_layer();
     list.pop_transform();
     list.end_node();
 }

@@ -442,6 +442,7 @@ void Runtime::Impl::apply(NodeId id, std::string_view name, const Value& value) 
 void Runtime::Impl::apply_now(NodeId id, std::string_view name, const Value& value) {
     if (options.debug.repaints) flashes.emplace_back(id, now());
     Node& n = at(id);
+    ++n.changes;  // an update of its drawing, not a state's (universal motion's slots)
     if (value.is_null()) {
         if (auto it = n.props.find(name); it != n.props.end()) n.props.erase(it);
     } else {
@@ -510,8 +511,16 @@ void Runtime::Impl::apply_now(NodeId id, std::string_view name, const Value& val
     }
     if (name == "pixel_effect") {
         Node& g = at(id);
-        g.pixel_effect = effect_state(value, "pixel_effect");
-        if (g.pixel_effect && g.pixel_effect->duration) {
+        // One, or a list: the first drawn nearest, each next over it (component × effect, composed).
+        g.more_effects.clear();
+        if (const Value::List* l = value.list()) {
+            g.pixel_effect = l->empty() ? std::nullopt : effect_state(l->front(), "pixel_effect");
+            for (std::size_t i = 1; i < l->size(); ++i)
+                if (auto more = effect_state((*l)[i], std::format("pixel_effect[{}]", i))) g.more_effects.push_back(std::move(*more));
+        } else {
+            g.pixel_effect = effect_state(value, "pixel_effect");
+        }
+        if ((g.pixel_effect && g.pixel_effect->duration) || std::ranges::any_of(g.more_effects, [](const auto& fx) { return fx.duration.has_value(); })) {
             if (!g.state.animating) {
                 g.state.animating = true;
                 what |= dirty_semantics;

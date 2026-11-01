@@ -583,6 +583,7 @@ void Runtime::write_back(NodeId node, std::string_view property, const Value& va
         auto cur = m.props.find(property);
         if (cur == m.props.end() || !(cur->second == value)) {
             m.props.insert_or_assign(std::string(property), value);
+            ++m.changes;
             d.touch(dirty_paint | dirty_semantics);
         }
     }

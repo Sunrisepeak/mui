@@ -161,10 +161,12 @@ struct Node {
         hanim::Ease          transition_ease = hanim::ease::out_back;
     };
     std::optional<PixelEffectState> pixel_effect;
+    std::vector<PixelEffectState>   more_effects;   // a list's: each over the one before (`pixel_effect = [noise, neon]`)
     std::optional<PixelEffectState> styled_effect;  // what the style's rules give its type or role
     PixelEffectState     stood_in;                   // what stands in for its effect below the effect's tiers (paint's, a frame's)
     [[nodiscard]] bool effect_moving(seconds now) const noexcept {
-        return (pixel_effect && pixel_effect->duration && now - pixel_effect->start < *pixel_effect->duration + pixel_effect->delay) ||
+        auto moving = [&](const PixelEffectState& fx) { return fx.duration && now - fx.start < *fx.duration + fx.delay; };
+        return (pixel_effect && moving(*pixel_effect)) || std::ranges::any_of(more_effects, moving) ||
                (styled_effect && !styled_effect->variants.empty() && now - styled_effect->changed < styled_effect->transition);
     }
     [[nodiscard]] bool glyphs_moving(seconds now) const noexcept { return glyph_motion && now - glyph_motion->start < glyph_motion->ends; }
@@ -189,8 +191,19 @@ struct Node {
     // property, its scope's rules, the defaults; `motion_gen` says against
     // which it was resolved — what it drew last (a hash, its nested roots'
     // ranges left out: they move themselves) and its morph under way.
-    std::array<std::optional<MotionSpec>, 3> slot_motions;  // update, enter, exit
+    std::array<std::vector<MotionSpec>, 6> slot_motions;  // candidates, by slot (motion_slots)
     std::uint32_t                         motion_gen = 0;
+    std::uint32_t                         changes = 0;  // its properties written (a count): an update, not a state
+    // What it was drawn with last: its subtree's changes and interaction states, its children (which slot a change is).
+    std::uint64_t                         drawn_changes = 0, drawn_states = 0;
+    std::vector<NodeId>                   drawn_children;
+    // Its morph's own time (a handle's: paused, sought, reversed, slowed): local = at_local + (now − at) × rate.
+    struct MotionClock {
+        double at = 0, at_local = 0, rate = 1;
+        bool   paused = false, held = false;  // held: a handle has it (kept when it rests)
+        [[nodiscard]] double local(double now) const noexcept { return paused ? at_local : at_local + (now - at) * rate; }
+    };
+    MotionClock                           clock;
     bool                                  exiting = false, exit_begun = false;  // removed, leaving by its exit slot's motion
     bool                                  ghost = false;  // no longer drawn (hidden), its last drawing vanishing by its morph
     std::uint64_t                         drawn_hash = 0;
@@ -395,6 +408,7 @@ struct Runtime::Impl {
     std::uint32_t                               motion_gen = 1;
     std::vector<NodeId>                         morphing;
     MotionLevel                                 motion_level = MotionLevel::full;
+    std::string                                 motion_choice;  // the person's, among what a slot offers (Runtime::set_motion_choice)
     // Performance tiers (D-94): the adaptation now, the governor and the frame costs it weighs (a ring).
     Adaptation                                  adaptation;
     bool                                        governing = false;
@@ -412,8 +426,14 @@ struct Runtime::Impl {
     std::vector<std::size_t>                    marker_stack;
     void run_motion();
     // A slot's motion (0 update, 1 enter, 2 exit), when it holds one.
-    [[nodiscard]] const MotionSpec* slot_motion(NodeId id, std::size_t slot);
+    // What a slot holds now: of its candidates, the person's choice, else the first that fits the device; a slot
+    // holding nothing of its own (state, reorder, replace) falls back to the update slot's when `fallback`.
+    [[nodiscard]] const MotionSpec* slot_motion(NodeId id, std::size_t slot, bool fallback = true);
     [[nodiscard]] const MotionSpec* update_motion(NodeId id) { return slot_motion(id, 0); }
+    // Whether a change of its drawing is moved at all (any slot but enter and exit holds a morph).
+    [[nodiscard]] bool moves_on_change(NodeId id) {
+        return slot_motion(id, 0) || slot_motion(id, 3, false) || slot_motion(id, 4, false) || slot_motion(id, 5, false);
+    }
     void emit_motion_range(std::size_t begin, std::size_t end, render::DisplayList& out, double t);
     seconds                     last_slow_log{-1e9};  // slow frames are logged at most once a second
 

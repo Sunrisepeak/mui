@@ -142,6 +142,36 @@ std::vector<MotionRule> default_motion_rules() {
     return rules;
 }
 
+std::map<std::string, MotionSpec, std::less<>> default_motion_library() {
+    std::map<std::string, MotionSpec, std::less<>> lib;
+    MotionSpec morph;  // a spring, the runtime's standard one
+    morph.name = "morph";
+    lib.emplace("morph", morph);
+    MotionSpec simple;
+    simple.curve = Transition::tween(hanim::seconds(0.16));
+    simple.name = "simple";
+    lib.emplace("simple", simple);
+    MotionSpec spring;
+    spring.curve = Transition::token("motion.spring.gentle").value_or(Transition::spring_with());
+    spring.name = "spring";
+    lib.emplace("spring", spring);
+    // A drop: pulled out along its way, the shapes it passes merging with it.
+    MotionSpec liquid = spring;
+    liquid.name = "liquid";
+    liquid.stretch = 0.6f;
+    liquid.travel = MotionSpec::Travel{.effect = "metaball", .params = {{"smoothness", 0}}, .param = "smoothness", .peak = 14, .color = "accent"};
+    lib.emplace("liquid", liquid);
+    // A brush: unhurried, the line wavering as it goes, the far pieces a little later.
+    MotionSpec ink;
+    ink.name = "ink";
+    ink.curve = Transition::tween(hanim::seconds(0.42));
+    ink.order = MotionSpec::Order::distance;
+    ink.stagger = 0.015;
+    ink.travel = MotionSpec::Travel{.effect = "wobble", .params = {{"amount", 0}, {"size", 14}, {"ink", 0.7f}}, .param = "amount", .peak = 3};
+    lib.emplace("ink", ink);
+    return lib;
+}
+
 std::optional<MotionSpec> parse_motion(const Value& v, const Theme& theme) {
     MotionSpec m;
     auto curve = [&](std::string_view token) -> bool {
@@ -150,19 +180,27 @@ std::optional<MotionSpec> parse_motion(const Value& v, const Theme& theme) {
         if (auto t = Transition::token(token)) return m.curve = *t, true;
         return false;
     };
+    // "morph", or a library's motion, as the rest starts from.
+    auto use = [&](std::string_view name) -> bool {
+        if (name == "morph" && !theme.motion_library.contains("morph")) return true;
+        const auto it = theme.motion_library.find(name);
+        if (it == theme.motion_library.end()) return false;
+        m = it->second;
+        return true;
+    };
     if (v.type() == Value::Type::text) {
         std::string_view s = v.as_string();
         const std::size_t space = s.find(' ');
-        const std::string_view use = s.substr(0, space);
-        if (use == "none") return MotionSpec{.kind = MotionSpec::Kind::none};
-        if (use != "morph") return std::nullopt;
+        const std::string_view name = s.substr(0, space);
+        if (name == "none") return MotionSpec{.kind = MotionSpec::Kind::none};
+        if (!use(name)) return std::nullopt;
         if (space != std::string_view::npos && !curve(s.substr(space + 1))) return std::nullopt;
         return m;
     }
     if (!v.map()) return std::nullopt;
     if (const Value* u = v.get("use")) {
         if (u->as_string() == "none") return MotionSpec{.kind = MotionSpec::Kind::none};
-        if (u->as_string() != "morph") return std::nullopt;
+        if (!use(u->as_string())) return std::nullopt;
     }
     if (const Value* c = v.get("curve"); c && !curve(c->as_string())) return std::nullopt;
     if (const Value* o = v.get("order")) {
@@ -178,7 +216,41 @@ std::optional<MotionSpec> parse_motion(const Value& v, const Theme& theme) {
     if (const Value* r = v.get("rise")) m.rise = static_cast<float>(r->as_double());
     if (const Value* g = v.get("grow")) m.grow = static_cast<float>(std::clamp(g->as_double(1), 0.0, 4.0));
     if (const Value* st = v.get("stretch")) m.stretch = static_cast<float>(std::clamp(st->as_double(), 0.0, 2.0));
+    if (const Value* tr = v.get("travel")) {
+        if (tr->is_null() || tr->as_string() == "none") {
+            m.travel.reset();
+        } else {
+            const Value::Map* fields = tr->map();
+            const Value* effect = tr->get("effect");
+            if (!fields || !effect || effect->as_string().empty()) return std::nullopt;
+            MotionSpec::Travel t{.effect = std::string(effect->as_string())};
+            if (const Value* p = tr->get("param")) t.param = std::string(p->as_string());
+            if (const Value* p = tr->get("peak")) t.peak = static_cast<float>(p->as_double());
+            if (const Value* c = tr->get("color")) t.color = std::string(c->as_string());
+            for (const auto& [k, x] : *fields)
+                if (k != "effect" && k != "param" && k != "peak" && k != "color" && x.is_number()) t.params.emplace_back(k, static_cast<float>(x.as_double()));
+            m.travel = std::move(t);
+        }
+    }
+    // Its name, as a person chooses it: the library's it uses, unless it says its own.
+    if (const Value* n = v.get("name")) m.name = std::string(n->as_string());
     return m;
+}
+
+std::optional<std::vector<MotionSpec>> parse_motions(const Value& v, const Theme& theme) {
+    std::vector<MotionSpec> out;
+    if (const Value::List* l = v.list()) {
+        for (const Value& x : *l) {
+            auto m = parse_motion(x, theme);
+            if (!m) return std::nullopt;
+            out.push_back(std::move(*m));
+        }
+        return out;
+    }
+    auto m = parse_motion(v, theme);
+    if (!m) return std::nullopt;
+    out.push_back(std::move(*m));
+    return out;
 }
 
 }  // namespace omui

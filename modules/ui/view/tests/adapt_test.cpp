@@ -60,6 +60,28 @@ int main(int argc, char** argv) {
         check_eq(rt.adaptation().reason, std::string("an MCU"));
     });
 
+    s.test("effects composed: a list, each over the one before; below its tiers one is left out, the others kept", [] {
+        Runtime rt(options());
+        Element card = box({.id = "card", .width = 60, .height = 30, .background = "#334155"});
+        card.prop("pixel_effect", Source(Value(Value::List{Value{}.set("name", "noise"), Value{}.set("name", "neon")})));
+        rt.mount("main", column({}, {std::move(card)}));
+        rt.frame({seconds(0), {}});
+        check(draws(rt, "noise") && draws(rt, "neon"), "both");
+        // Nested: neon's layer outside noise's.
+        int neon_at = -1, noise_at = -1, i = 0;
+        for (const auto& c : rt.display_list().commands()) {
+            if (const auto* l = std::get_if<render::PushLayer>(&c)) {
+                if (l->effect.id == render::effects().find("neon")->id) neon_at = i;
+                if (l->effect.id == render::effects().find("noise")->id) noise_at = i;
+            }
+            ++i;
+        }
+        check(neon_at >= 0 && neon_at < noise_at, "the list's last outermost");
+        rt.set_device_tier(pipeline::Tier::t1, "an embedded board");
+        rt.frame({seconds(0.016), {}});
+        check(draws(rt, "noise") && !draws(rt, "neon"), "on T1: the grain, no light");
+    });
+
     s.test("the governor: off unless turned on; frames over their budget lower motion, then effects; room raises them again", [] {
         Runtime rt(options());
         for (int i = 0; i < 60; ++i) rt.frame_shown({seconds(i / 60.0), 40});

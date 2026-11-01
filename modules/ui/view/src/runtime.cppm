@@ -420,8 +420,27 @@ public:
     // (short tweens, no stagger) or off. Reduced motion asked by the system is off.
     void set_motion_level(MotionLevel level);
     [[nodiscard]] MotionLevel motion_level() const noexcept;
+    // The person's choice among the motions a slot offers (universal motion
+    // §5.2: a setting the application exposes — "simple", "liquid", "ink"):
+    // a slot whose candidates include it moves by it while it fits the
+    // device; others, as they would. Empty: none.
+    void set_motion_choice(std::string name);
+    [[nodiscard]] const std::string& motion_choice() const noexcept;
     // The morphs under way: whose, how far, how much of the two drawings was matched.
     [[nodiscard]] std::vector<MotionState> motions() const;
+    // A hold on a node's morph under way (universal motion §6.2: a tool's —
+    // the motion studio, a time knob — or a program's): its own time paused,
+    // sought, reversed, slowed. Held, it is kept when it rests, until
+    // released (then it goes on from where it is, at the runtime's pace). A
+    // node with no morph under way: false, nothing held.
+    bool hold_motion(NodeId node);
+    void release_motion(NodeId node);
+    void pause_motion(NodeId node);
+    void play_motion(NodeId node);
+    void seek_motion(NodeId node, double seconds);  // since its start: 0 the first drawing, its length the second
+    void set_motion_rate(NodeId node, double rate);  // negative: backwards
+    // Its length (seconds until it rests) and its own time now; nullopt with no morph under way.
+    [[nodiscard]] std::optional<std::pair<double, double>> motion_time(NodeId node) const;
     // The device's tier, as its host finds it (the GPU it has, the Web, an MCU).
     void set_device_tier(pipeline::Tier tier, std::string reason);
     [[nodiscard]] const Adaptation& adaptation() const noexcept;

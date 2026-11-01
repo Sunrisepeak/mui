@@ -27,7 +27,7 @@ namespace {
 
 constexpr std::size_t none = static_cast<std::size_t>(-1);
 
-motion::Options options_of(const MotionSpec& spec, MotionLevel level) {
+motion::Options options_of(const MotionSpec& spec, MotionLevel level, const Theme& theme) {
     motion::Options o;
     if (level == MotionLevel::reduced) {
         o.curve.kind = motion::Curve::Kind::tween;
@@ -50,33 +50,57 @@ motion::Options options_of(const MotionSpec& spec, MotionLevel level) {
     o.rise = spec.rise;
     o.grow = spec.grow;
     o.stretch = spec.stretch;
+    if (spec.travel)
+        if (const auto ref = render::effects().find(spec.travel->effect)) {
+            motion::Options::Travel t{.effect = *ref};
+            t.params = render::effects().params(*ref, {});
+            if (const render::EffectInfo* info = render::effects().info(*ref)) {
+                for (const auto& [k, x] : spec.travel->params)
+                    for (std::size_t i = 0; i < info->params.size() && i < t.params.size(); ++i)
+                        if (info->params[i].name == k) t.params[i] = x;
+                for (std::size_t i = 0; i < info->params.size(); ++i) {
+                    if (info->params[i].name == spec.travel->param) t.param = static_cast<int>(i);
+                    // Its colour by the theme's name: the accent of whatever theme it is drawn in.
+                    if (!spec.travel->color.empty() && i + 2 < t.params.size() && info->params[i].name.ends_with("_r") &&
+                        info->params[i + 1].name.ends_with("_g") && info->params[i + 2].name.ends_with("_b")) {
+                        const Color c = theme.color(spec.travel->color);
+                        t.params[i] = c.r, t.params[i + 1] = c.g, t.params[i + 2] = c.b;
+                    }
+                }
+            }
+            t.peak = spec.travel->peak;
+            o.travel = std::move(t);
+        }
     return o;
 }
 
 }  // namespace
 
-const MotionSpec* Runtime::Impl::slot_motion(NodeId id, std::size_t slot) {
-    static constexpr std::array<std::string_view, 3> slots{"update", "enter", "exit"};
+const MotionSpec* Runtime::Impl::slot_motion(NodeId id, std::size_t slot, bool fallback) {
     Node& n = at(id);
     if (n.motion_gen != motion_gen) {
+        // Its slots resolved again (a property, a theme, a level, a tier, a choice changed), the layers over each
+        // other (universal motion §5.2): the framework's defaults and the style's rules (the theme's), the
+        // application's (its rules there too), the node's own `motion`; the person's choice and the device below.
         n.motion_gen = motion_gen;
-        for (auto& m : n.slot_motions) m.reset();
+        for (auto& m : n.slot_motions) m.clear();
         const Theme& theme = theme_of(id);
         const auto own = n.props.find("motion");
-        // A map by slot ({update, enter, exit}), or one motion: the update slot's.
+        // A map by slot ({update, enter, …}), or one motion (or candidates): the update slot's.
         const bool by_slot = own != n.props.end() && own->second.map() && !own->second.get("use") &&
-                             (own->second.get("update") || own->second.get("enter") || own->second.get("exit"));
+                             std::ranges::any_of(motion_slots, [&](std::string_view k) { return own->second.get(k) != nullptr; });
         Role role = n.type->contract ? n.type->contract->role : n.type->role;
         if (const auto r = n.props.find("role"); r != n.props.end())
             if (auto parsed = spec::parse_role(r->second.as_string())) role = *parsed;
         const std::string by_role = std::format("role:{}", spec::name(role));
-        for (std::size_t k = 0; k < slots.size(); ++k) {
-            const Value* v = own == n.props.end() ? nullptr : by_slot ? own->second.get(slots[k]) : k == 0 ? &own->second : nullptr;
+        for (std::size_t k = 0; k < motion_slots.size(); ++k) {
+            const Value* v = own == n.props.end() ? nullptr : by_slot ? own->second.get(motion_slots[k]) : k == 0 ? &own->second : nullptr;
             if (v) {
-                if (auto spec = parse_motion(*v, theme)) n.slot_motions[k] = *spec;
+                if (auto specs = parse_motions(*v, theme)) n.slot_motions[k] = std::move(*specs);
                 else {
                     constexpr Log motion_log{"motion"};
-                    motion_log.warn("{}: a motion is \"none\", \"morph\", \"morph <curve>\" or {{use, curve, order, stagger, glyphs, meaning, rise, grow}}, not {}",
+                    motion_log.warn("{}: a motion is \"none\", \"morph\", a library's name (\"liquid\"), either with a curve after it, "
+                                    "{{use, curve, order, stagger, glyphs, meaning, rise, grow, stretch, travel}}, or a list of them; not {}",
                                     self.path(id), v->json());
                 }
                 continue;
@@ -85,15 +109,40 @@ const MotionSpec* Runtime::Impl::slot_motion(NodeId id, std::size_t slot) {
             const MotionRule* best = nullptr;
             int rank = 0;
             for (const MotionRule& rule : theme.motion_rules) {
-                if (rule.slot != slots[k]) continue;
+                if (rule.slot != motion_slots[k]) continue;
                 const int r = rule.target == n.type->name ? 3 : rule.target == by_role ? 2 : rule.target == "*" ? 1 : 0;
                 if (r > rank) best = &rule, rank = r;
             }
-            if (best) n.slot_motions[k] = best->spec;
+            if (best) {
+                n.slot_motions[k].push_back(best->spec);
+                n.slot_motions[k].insert(n.slot_motions[k].end(), best->instead.begin(), best->instead.end());
+            }
         }
     }
-    const auto& m = n.slot_motions[slot];
-    return m && m->kind == MotionSpec::Kind::morph ? &*m : nullptr;
+    const auto& candidates = n.slot_motions[slot];
+    if (candidates.empty()) return fallback && slot >= 3 ? slot_motion(id, 0) : nullptr;
+    // Fits: its travel effect runs at the effects' tier now (else the next is taken).
+    const pipeline::Tier tier = effects_now();
+    auto fits = [&](const MotionSpec& m) {
+        if (!m.travel) return true;
+        const auto ref = render::effects().find(m.travel->effect);
+        const render::EffectInfo* info = ref ? render::effects().info(*ref) : nullptr;
+        return info && (info->tiers & pipeline::tier_bit(tier));
+    };
+    const MotionSpec* chosen = nullptr;
+    if (!motion_choice.empty())
+        for (const MotionSpec& m : candidates)
+            if (m.name == motion_choice && fits(m)) {
+                chosen = &m;
+                break;
+            }
+    if (!chosen)
+        for (const MotionSpec& m : candidates)
+            if (fits(m)) {
+                chosen = &m;
+                break;
+            }
+    return chosen && chosen->kind == MotionSpec::Kind::morph ? chosen : nullptr;
 }
 
 void Runtime::Impl::emit_motion_range(std::size_t begin, std::size_t end, render::DisplayList& out, double t) {
@@ -105,7 +154,7 @@ void Runtime::Impl::emit_motion_range(std::size_t begin, std::size_t end, render
                 out.begin_node(b->node);
                 const std::size_t w = b->node < marker_wrapper.size() ? marker_wrapper[b->node] : none;
                 const auto* live = w != none ? std::get_if<render::PushLayer>(&cmds[w]) : nullptr;
-                at(id).morph->draw(t, out, [this, t](std::uint32_t marker, render::DisplayList& into) {
+                at(id).morph->draw(at(id).clock.local(t), out, [this, t](std::uint32_t marker, render::DisplayList& into) {
                     if (marker < marker_ranges.size() && marker_ranges[marker].first != none)
                         emit_motion_range(marker_ranges[marker].first, marker_ranges[marker].second, into, t);
                 }, live);
@@ -154,7 +203,7 @@ void Runtime::Impl::run_motion() {
         const Node& n = at(id);
         // An effect's own transition (a style's pressed glass) is not a drawing's change: the morph draws it live.
         if (n.glyphs_moving(now()) || n.props_moving()) marker_flags[m] |= 2;
-        if (update_motion(id) || slot_motion(id, 1) || n.exiting) marker_flags[m] |= 1;
+        if (moves_on_change(id) || slot_motion(id, 1) || n.exiting) marker_flags[m] |= 1;
     }
 
     // Each root: did it draw something else?
@@ -165,6 +214,11 @@ void Runtime::Impl::run_motion() {
         const auto [b, e] = marker_ranges[m];
         std::uint64_t h = hash::Fnv1a::offset;
         bool by_itself = (marker_flags[m] & 2) != 0;
+        // Its subtree's property writes and interaction states (which slot a change is: a state's, or an update's).
+        auto state_bits = [](const Node& x) -> std::uint64_t {
+            return (x.state.hovered ? 1u : 0u) | (x.state.pressed ? 2u : 0u) | (x.state.focused ? 4u : 0u) | (x.state.focus_visible ? 8u : 0u);
+        };
+        std::uint64_t changes = n.changes, states = state_bits(n);
         for (std::size_t i = b; i < e; ++i) {
             // An effect's numbers are left out: their own transition is not a change of the drawing.
             if (const auto* l = std::get_if<render::PushLayer>(&cmds[i]); l && l->effect.id != 0) {
@@ -180,6 +234,10 @@ void Runtime::Impl::run_motion() {
                     continue;
                 }
                 if (marker_flags[inner->node] & 2) by_itself = true;
+                if (const NodeId who = by_index[inner->node]; alive(who)) {
+                    changes += at(who).changes;
+                    states = states * 1099511628211ull ^ state_bits(at(who));
+                }
             }
             h = render::hash_command(cmds[i], h);
         }
@@ -208,9 +266,10 @@ void Runtime::Impl::run_motion() {
                 n.morph.reset();
                 return;
             }
-            motion::Options options = options_of(spec, level);
+            motion::Options options = options_of(spec, level, theme_of(id));
             options.curve.velocity = velocity;
             n.morph = std::make_shared<const motion::Morph>(std::move(*from), std::move(to), std::move(options), t);
+            n.clock = {};  // a new change: its own time is the runtime's again (a handle held the last)
             if (std::ranges::find(morphing, id) == morphing.end()) morphing.push_back(id);
             touch(dirty_semantics);
         };
@@ -230,24 +289,37 @@ void Runtime::Impl::run_motion() {
             // was there, hidden, drawn again (a dialog opening): its update slot's, from nothing.
             const bool fresh = !n.shown;
             n.drawn = true;
-            n.drawn_hash = h;
+            n.drawn_hash = h, n.drawn_changes = changes, n.drawn_states = states, n.drawn_children = n.children;
             const MotionSpec* spec = fresh ? slot_motion(id, 1) : update_motion(id);
             const NodeId parent = n.parent;
             const bool into_drawn = n.type->overlay || (alive(parent) && at(parent).index < drawn_by.size() && drawn_by[at(parent).index] == parent);
             // Hidden, then drawn again before its ghost had vanished: from where the ghost is.
             std::optional<motion::Matter> from;
-            if (n.ghost && n.morph) from = n.morph->snapshot(t);
+            if (n.ghost && n.morph) from = n.morph->snapshot(n.clock.local(t));
             else from = motion::Matter{};
             n.ghost = false;
             if (spec && into_drawn && !off) start(std::move(from), motion::Matter::extract(list, b, e, resolver), *spec, 0);
             else n.morph.reset();
             continue;
         }
-        if (h == n.drawn_hash || !update_motion(id)) {
-            n.drawn_hash = h;
+        // Which slot the change is: an order (the same children in another), a replacement (none of the children
+        // it had), a state (only hover, press, focus changed in it), else an update.
+        std::size_t slot = 0;
+        if (h != n.drawn_hash) {
+            const auto& was = n.drawn_children;
+            const auto& is = n.children;
+            if (was.size() == is.size() && was.size() <= 256 && was != is && std::ranges::is_permutation(was, is)) slot = 4;
+            else if (!was.empty() && !is.empty() && is.size() <= 256 &&
+                     std::ranges::none_of(is, [&](NodeId c) { return std::ranges::find(was, c) != was.end(); }))
+                slot = 5;
+            else if (changes == n.drawn_changes && states != n.drawn_states) slot = 3;
+        }
+        const MotionSpec* spec = slot_motion(id, slot);
+        if (h == n.drawn_hash || !spec) {
+            n.drawn_hash = h, n.drawn_changes = changes, n.drawn_states = states, n.drawn_children = n.children;
             continue;
         }
-        n.drawn_hash = h;
+        n.drawn_hash = h, n.drawn_changes = changes, n.drawn_states = states, n.drawn_children = n.children;
         // Changing on and on (a meter, a playhead, a scroll gliding, a camera flying): it moves by itself, shown as it
         // is; a morph is for a change, not for a motion.
         const bool continuous = t - n.changed_at < 0.05;
@@ -277,8 +349,8 @@ void Runtime::Impl::run_motion() {
         std::optional<motion::Matter> from;
         double velocity = 0;
         if (n.morph) {
-            velocity = std::clamp(n.morph->rate(t), 0.0, 20.0);
-            from = n.morph->snapshot(t, [this, t](std::uint32_t marker, render::DisplayList& into) {
+            velocity = std::clamp(n.morph->rate(n.clock.local(t)), 0.0, 20.0);
+            from = n.morph->snapshot(n.clock.local(t), [this, t](std::uint32_t marker, render::DisplayList& into) {
                 if (marker < marker_ranges.size() && marker_ranges[marker].first != none)
                     emit_motion_range(marker_ranges[marker].first, marker_ranges[marker].second, into, t);
             });
@@ -286,7 +358,7 @@ void Runtime::Impl::run_motion() {
             from = motion::Matter::extract(previous_list, was->first, was->second, before);
         }
         if (!from) continue;
-        start(std::move(from), motion::Matter::extract(list, b, e, resolver), *update_motion(id), velocity);
+        start(std::move(from), motion::Matter::extract(list, b, e, resolver), *spec, velocity);
     }
 
     // Roots drawn the last frame, alive, not drawn now (hidden): their last drawing vanishes as a ghost.
@@ -305,10 +377,11 @@ void Runtime::Impl::run_motion() {
                                   if (alive(who)) key = self.path(who);
                               }};
         std::optional<motion::Matter> from;
-        if (n.morph) from = n.morph->snapshot(t);
+        if (n.morph) from = n.morph->snapshot(n.clock.local(t));
         else from = motion::Matter::extract(previous_list, was->first, was->second, keys);
-        motion::Options options = options_of(*update_motion(id), level);
+        motion::Options options = options_of(*update_motion(id), level, theme_of(id));
         n.morph = std::make_shared<const motion::Morph>(std::move(*from), motion::Matter{}, std::move(options), t);
+        n.clock = {};
         n.ghost = true;
         n.drawn = false;  // drawn again later: from nothing
         if (std::ranges::find(morphing, id) == morphing.end()) morphing.push_back(id);
@@ -319,7 +392,8 @@ void Runtime::Impl::run_motion() {
     const bool held = time_control.controlled && (time_control.paused || time_control.rate != 1 || time_control.seek);
     std::erase_if(morphing, [&](NodeId id) {
         if (!alive(id) || !at(id).morph) return true;
-        if (at(id).morph->settled(t) && !held) {
+        // Held by a handle: kept, at rest or not, until it is released.
+        if (at(id).morph->settled(at(id).clock.local(t)) && !held && !at(id).clock.held) {
             at(id).morph.reset();
             at(id).ghost = false;
             touch(dirty_semantics);
@@ -346,7 +420,7 @@ void Runtime::Impl::run_motion() {
             const Affine parent = n.type->overlay || !alive(n.parent) ? Affine{} : at(n.parent).world;
             morph_scratch.push_transform(parent);
             morph_scratch.begin_node(n.index);
-            n.morph->draw(t, morph_scratch);
+            n.morph->draw(n.clock.local(t), morph_scratch);
             morph_scratch.end_node();
             morph_scratch.pop_transform();
         }
@@ -369,6 +443,76 @@ void Runtime::set_motion_level(MotionLevel level) {
 
 MotionLevel Runtime::motion_level() const noexcept { return impl_->motion_level; }
 
+void Runtime::set_motion_choice(std::string name) {
+    Impl& d = *impl_;
+    if (d.motion_choice == name) return;
+    d.motion_choice = std::move(name);
+    ++d.motion_gen;
+    d.touch(dirty_paint);
+}
+
+const std::string& Runtime::motion_choice() const noexcept { return impl_->motion_choice; }
+
+bool Runtime::hold_motion(NodeId node) {
+    Impl& d = *impl_;
+    if (!d.alive(node) || !d.at(node).morph) return false;
+    Node& n = d.at(node);
+    if (n.clock.held) return true;
+    n.clock.held = true;
+    return true;
+}
+
+void Runtime::release_motion(NodeId node) {
+    Impl& d = *impl_;
+    if (!d.alive(node) || !d.at(node).clock.held) return;
+    Node& n = d.at(node);
+    // On from where it is, at the runtime's pace (at rest already: done at the next frame).
+    const double t = d.now().count();
+    n.clock = {.at = t, .at_local = n.clock.local(t), .rate = 1, .paused = false, .held = false};
+    d.touch(dirty_paint | dirty_semantics);
+}
+
+void Runtime::pause_motion(NodeId node) {
+    Impl& d = *impl_;
+    if (!hold_motion(node)) return;
+    Node& n = d.at(node);
+    const double t = d.now().count();
+    n.clock.at_local = n.clock.local(t), n.clock.at = t, n.clock.paused = true;
+    d.touch(dirty_paint);
+}
+
+void Runtime::play_motion(NodeId node) {
+    Impl& d = *impl_;
+    if (!hold_motion(node)) return;
+    Node& n = d.at(node);
+    n.clock.at = d.now().count(), n.clock.paused = false;
+    d.touch(dirty_paint);
+}
+
+void Runtime::seek_motion(NodeId node, double seconds) {
+    Impl& d = *impl_;
+    if (!hold_motion(node)) return;
+    Node& n = d.at(node);
+    n.clock.at = d.now().count(), n.clock.at_local = n.morph->start() + std::clamp(seconds, 0.0, n.morph->end() - n.morph->start());
+    d.touch(dirty_paint);
+}
+
+void Runtime::set_motion_rate(NodeId node, double rate) {
+    Impl& d = *impl_;
+    if (!hold_motion(node)) return;
+    Node& n = d.at(node);
+    const double t = d.now().count();
+    n.clock.at_local = n.clock.local(t), n.clock.at = t, n.clock.rate = rate;
+    d.touch(dirty_paint);
+}
+
+std::optional<std::pair<double, double>> Runtime::motion_time(NodeId node) const {
+    const Impl& d = *impl_;
+    if (!d.alive(node) || !d.at(node).morph) return std::nullopt;
+    const Node& n = d.at(node);
+    return std::pair{n.morph->end() - n.morph->start(), n.clock.local(d.now().count()) - n.morph->start()};
+}
+
 std::vector<MotionState> Runtime::motions() const {
     const Impl& d = *impl_;
     std::vector<MotionState> out;
@@ -377,7 +521,7 @@ std::vector<MotionState> Runtime::motions() const {
         if (!d.alive(id) || !d.at(id).morph) continue;
         const motion::Morph& m = *d.at(id).morph;
         const auto& st = m.stats();
-        out.push_back({id, path(id), m.progress(t), m.start(), m.end(), st.matched, st.from_only, st.to_only, st.glyphs_kept});
+        out.push_back({id, path(id), m.progress(d.at(id).clock.local(t)), m.start(), m.end(), st.matched, st.from_only, st.to_only, st.glyphs_kept});
     }
     return out;
 }

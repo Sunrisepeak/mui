@@ -44,24 +44,57 @@ struct MotionSpec {
     float      rise = 0;         // what appears (or vanishes) comes from lower by this
     float      grow = 1;         // … and scaled by this, about the middle of the drawing
     float      stretch = 0;      // a moving fill drawn out along its way (a tab's lens)
+    // While it moves, all it draws goes through an effect (universal motion
+    // §6.2; component × effect × motion): the effect, its numbers, and the
+    // one that rises to `peak` half-way and back — at rest it is not there.
+    // Below the effect's tiers the motion does not fit (a slot's next
+    // candidate is taken).
+    struct Travel {
+        std::string                                effect;
+        std::vector<std::pair<std::string, float>> params;
+        std::string                                param;
+        float                                      peak = 0;
+        std::string                                color;  // the theme's colour by name for the effect's (its _r, _g, _b)
+        friend bool operator==(const Travel&, const Travel&) = default;
+    };
+    std::optional<Travel> travel;
+    std::string           name;  // a library's motion ("simple", "liquid", "ink"); empty: written out
     friend bool operator==(const MotionSpec&, const MotionSpec&) = default;
 };
 
 // Which nodes a slot's motion is for: "*" (every node), a component type's
 // name ("toggle"), or "role:<role>" ("role:switch"). The slots: "update"
-// (the node drew something else: a value, a state, an order, a text, a
-// dialog opened), "enter" (its first drawing, inserted where the window was
-// already drawn) and "exit" (removed: it stays until its motion rests).
+// (the node drew something else: a value, a text, a dialog opened), "enter"
+// (its first drawing, inserted where the window was already drawn), "exit"
+// (removed: it stays until its motion rests), "state" (only hover, press or
+// focus changed in it), "reorder" (the same children in another order) and
+// "replace" (none of the children it had). A slot holding nothing of its
+// own — state, reorder, replace — moves by the update slot's.
+//
+// A slot holds a motion, or candidates (a strategy): `spec`, then
+// `instead`, in order. The person's choice (Runtime::set_motion_choice) is
+// taken when the slot offers it; else the first that fits the device (its
+// travel effect within the effects' tier).
 struct MotionRule {
-    std::string target;
-    std::string slot = "update";
-    MotionSpec  spec;
+    std::string             target;
+    std::string             slot = "update";
+    MotionSpec              spec;
+    std::vector<MotionSpec> instead;
 };
+
+inline constexpr std::array<std::string_view, 6> motion_slots{"update", "enter", "exit", "state", "reorder", "replace"};
 
 // The framework's default rules: every control's drawing moves on a snappy
 // spring when it changes (a toggle's thumb, a tab's lens, a value's fill,
 // a button's colour); what opens and closes rises a little and grows.
 [[nodiscard]] std::vector<MotionRule> default_motion_rules();
+
+// The framework's motion library, by name: "morph" (the standard spring),
+// "simple" (a short tween, nothing drawn out), "spring" (a gentle spring),
+// "liquid" (a gentle spring, a fill drawn out like a drop, the shapes
+// merging on the way: metaball, from T3) and "ink" (an unhurried tween, the
+// line wavering on the way: wobble, from T2).
+[[nodiscard]] std::map<std::string, MotionSpec, std::less<>> default_motion_library();
 
 class Theme {
 public:
@@ -79,6 +112,8 @@ public:
     // What each slot holds, by node (the first rule that fits wins: a type's,
     // then a role's, then "*"); the framework's defaults move every control.
     std::vector<MotionRule>                         motion_rules = default_motion_rules();
+    // Motions by name, which a slot's motion may use ("liquid", {use = "ink", stagger = 0.02}).
+    std::map<std::string, MotionSpec, std::less<>>  motion_library = default_motion_library();
 
     // A token name, or a literal #rgb / #rrggbb / #rrggbbaa.
     [[nodiscard]] Color color(std::string_view token_or_hex, Color fallback = Color::black()) const;
@@ -94,10 +129,15 @@ public:
 };
 
 // A slot's motion as a property, a style or a rule writes it: "none",
-// "morph", "morph <curve token>" ("morph motion.spring.gentle"), or
-// {use, curve, order ("together", "document", "distance"), stagger, glyphs,
-// meaning, rise, grow}. Nullopt when it is none of these (the caller says
-// why). A node's `motion` property is one (its update slot's) or a map of
-// them by slot: {update, enter, exit}.
+// "morph", a library's name ("liquid"), either with a curve token after it
+// ("morph motion.spring.gentle"), or {use, curve, order ("together",
+// "document", "distance"), stagger, glyphs, meaning, rise, grow, stretch,
+// travel = {effect, param, peak, <numbers>…}} — `use` a library's name the
+// rest changes. Nullopt when it is none of these (the caller says why). A
+// node's `motion` property is one (its update slot's), a list of them
+// (candidates), or a map of them by slot: {update, enter, exit, state,
+// reorder, replace}.
 [[nodiscard]] std::optional<MotionSpec> parse_motion(const Value& v, const Theme& theme);
+// One, or a list of candidates.
+[[nodiscard]] std::optional<std::vector<MotionSpec>> parse_motions(const Value& v, const Theme& theme);
 }  // namespace omui

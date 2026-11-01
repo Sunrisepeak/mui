@@ -33,6 +33,7 @@ private:
     Tree&            tree_;
     session::Session& session_;
     Adaptation       adapted_;  // as last recorded
+    std::string      chosen_;   // the person's motion, as last recorded
 };
 
 struct ReplayReport {

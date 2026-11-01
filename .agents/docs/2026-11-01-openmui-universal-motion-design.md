@@ -172,12 +172,22 @@ auto t = rt.play(morph(...));  t.pause();  t.seek(0.4);  t.reverse();
 ```
 
 ```toml
-# 风格包的动效设定（L1）
-[style.ink.motion]
-update = { spring = "gentle" }
-exit = { use = "dissolve", grain = "fibers", tiers = ["fade"] }
-replace = { use = "morph", stagger = "by_distance", unmatched = "ink-bleed" }
+# 风格包的动效设定（L1）。`motions` 表：槽名对规则覆盖的所有节点生效，
+# 类型或角色名对它自己的槽生效；值是一个动画对象，或候选列表（策略）。
+# （`motion` 表仍是曲线令牌 motion.fast 等，两者分开。）
+[style.ink.motions]
+update        = ["ink", "simple"]                  # 先用 ink；档位不够时用 simple
+state         = "simple"
+"role:dialog" = { enter = { use = "spring", rise = 12 } }
 ```
+
+C1 落地的形状（`openmui.view`）：
+
+- 六个槽 `update / enter / exit / state / reorder / replace`；`state`、`reorder`、`replace` 没有自己的对象时用 `update` 的。变化归哪个槽：子节点同一集合换了顺序是 reorder，一个都不剩是 replace，只有悬停 / 按下 / 焦点变了（没有属性写入）是 state，其余是 update。
+- 动画库 `Theme::motion_library`：`morph`、`simple`、`spring`、`liquid`（拉成水滴 + metaball，T3 起）、`ink`（慢一点的补间 + wobble，T2 起）；`travel` 是动画携带的效果，强度在半程最大、两端为零。
+- 叠加链：框架默认规则 → 风格包的 `motions` → 应用的规则 → 节点的 `motion` 属性 → 用户的选择（`Runtime::set_motion_choice`，只在槽提供了这个候选时生效）→ 设备（候选的效果不在当前档位就取下一个）；用户的选择和档位一起记进会话的 `adapt` 记录。
+- 句柄：`hold_motion / pause_motion / play_motion / seek_motion / set_motion_rate / release_motion / motion_time`——变形有自己的时间，握住时到终点也保留，松开后从当前位置按运行时的速度继续。
+- 多效果：`pixel_effect` 可以是列表，后面的包在前面的外层，各自按档位取舍。
 
 ## 11. 组合动画库（首批）
 

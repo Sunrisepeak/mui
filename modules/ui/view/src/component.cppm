@@ -143,6 +143,7 @@ struct AgentLink {
     std::string agent;  // who paired, as the bridge says (its --name)
     std::string error;  // the last thing the bridge refused, said plainly
     int         port = 0;
+    std::string guide;  // where the application's agent.md is (the Web: beside the page), for the prompt
 };
 
 // A demand while it lasts (RAII): released when it goes — or when the

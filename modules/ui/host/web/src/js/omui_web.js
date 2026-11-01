@@ -742,6 +742,13 @@ addToLibrary({
     }
     return window.omuiRoute.moves;
   },
+  // Where the application's agent.md is: beside the page.
+  omui_web_agent_guide__deps: ['$stringToNewUTF8'],
+  omui_web_agent_guide: function () {
+    var g = '';
+    try { g = new URL('agent.md', location.href.split('#')[0]).href; } catch (e) {}
+    return stringToNewUTF8(g);
+  },
   omui_web_set_route__deps: ['$UTF8ToString'],
   omui_web_set_route: function (route) {
     try {

@@ -16,6 +16,14 @@ struct VerbSpec {
     VerbFn   fn;
 };
 
+// The self-check agent.md gives an agent once it is linked (agent connect
+// §5.2): activate one node, and another's name then says `expect`.
+struct AgentCheck {
+    std::string activate;
+    std::string read;
+    std::string expect;
+};
+
 struct AppSpec {
     std::string            id = "openmui-app";   // reverse-DNS: org.example.notes
     std::string            title = "openmui";
@@ -65,6 +73,10 @@ struct AppSpec {
     // the same bytes on every machine — or "gpu" (insisted on). --gpu and
     // --cpu override it.
     std::string              renderer = "automatic";
+    // What agent.md says of it (`--agent-guide`): a line on what it is, and
+    // the self-check an agent does once linked.
+    std::string              description;
+    AgentCheck               agent_check;
 };
 
 // How to run, from the command line:
@@ -90,6 +102,7 @@ struct AppSpec {
 //   --profile FILE            record a trace of the run (Chrome / Perfetto JSON)
 //   --lang TAGS               the person's languages, best first: zh-CN,en (default: the system's)
 //   --window MODE             who draws the window's frame: native, framework, switchable (default: the application's)
+//   --agent-guide DIR         write what an agent needs to operate it — agent.md, .well-known/openmui-agent.json — into DIR, and link its page there
 struct RunOptions {
     bool                  headless = false;
     bool                  serve = false;
@@ -110,6 +123,7 @@ struct RunOptions {
     std::filesystem::path profile;
     std::vector<std::string> languages;  // --lang
     std::string           window;          // --window native|framework|switchable
+    std::filesystem::path agent_guide;     // --agent-guide DIR (a headless run that writes it, then ends)
 
     [[nodiscard]] static std::expected<RunOptions, std::string> parse(std::span<const std::string_view> args);
     // Whether the option takes the argument after it (--size 800x600): what a

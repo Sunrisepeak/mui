@@ -38,5 +38,6 @@ bool reload_with(std::string_view, std::string_view) { return false; }
 std::string route() { return {}; }
 int route_moves() { return 0; }
 void set_route(std::string_view) {}
+std::string agent_guide() { return {}; }
 
 }  // namespace omui::page

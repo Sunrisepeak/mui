@@ -85,5 +85,7 @@ bool reload_with(std::string_view name, std::string_view value);
 [[nodiscard]] std::string route();
 [[nodiscard]] int route_moves();
 void set_route(std::string_view route);
+// Where the application's agent.md is: beside the page (its address without the hash).
+[[nodiscard]] std::string agent_guide();
 
 }  // namespace omui::page

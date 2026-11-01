@@ -12,14 +12,15 @@ import openmui.i18n;
 import openmui.i18n.cldr;
 import mcpplibs.os;
 import :app;
+import :agent_guide;
 import :shown;
 
 namespace omui {
 
 bool RunOptions::takes_value(std::string_view option) noexcept {
-    constexpr std::array<std::string_view, 10> with{"--frames", "--png",   "--level", "--agent-dir", "--agent-name",
-                                                    "--window", "--size",  "--debug", "--log",       "--lang"};
-    return option == "--profile" || std::ranges::contains(with, option);
+    constexpr std::array<std::string_view, 12> with{"--frames", "--png",   "--level", "--agent-dir", "--agent-name", "--agent-guide",
+                                                    "--window", "--size",  "--debug", "--log",       "--lang",       "--profile"};
+    return std::ranges::contains(with, option);
 }
 
 std::expected<RunOptions, std::string> RunOptions::parse(std::span<const std::string_view> args) {
@@ -104,13 +105,18 @@ std::expected<RunOptions, std::string> RunOptions::parse(std::span<const std::st
                 if (!i18n::Locale::parse(item)) return std::unexpected(std::format("--lang: `{}` is not a language tag (zh-CN, en)", item));
                 o.languages.emplace_back(item);
             }
+        } else if (a == "--agent-guide") {
+            auto v = value();
+            if (!v) return std::unexpected("--agent-guide takes a directory");
+            o.agent_guide = std::filesystem::path(*v);
+            o.headless = true;
         } else if (a == "--profile") {
             auto v = value();
             if (!v) return std::unexpected("--profile takes a file");
             o.profile = std::filesystem::path(*v);
         } else {
             return std::unexpected(std::format("unknown option `{}` (--headless, --frames N, --png FILE, --level hN, --serve, "
-                                               "--agent-dir DIR, --agent-name NAME, --no-agent, --agent-input, --no-agent-input, --no-accessibility, --dark, --gpu, --cpu, --reduce-transparency, --size WxH, --debug LIST, --log FILTER, --profile FILE, --lang TAGS, --window MODE)",
+                                               "--agent-dir DIR, --agent-name NAME, --agent-guide DIR, --no-agent, --agent-input, --no-agent-input, --no-accessibility, --dark, --gpu, --cpu, --reduce-transparency, --size WxH, --debug LIST, --log FILTER, --profile FILE, --lang TAGS, --window MODE)",
                                                a));
         }
     }
@@ -264,6 +270,15 @@ int headless(AppSpec app, const RunOptions& o) {
             host.step();
             (void)mcpplibs::os::interrupt::wait(std::chrono::milliseconds(4));
         }
+    }
+    if (!o.agent_guide.empty()) {
+        // What an agent needs, from the application as it is mounted.
+        const Value snapshot = host.tree().snapshot().to_value();
+        if (auto r = write_agent_guide(agent_guide(app, host.runtime(), snapshot), o.agent_guide); !r) {
+            error("{}", r.error());
+            return 1;
+        }
+        std::println(std::cout, "{{\"command\": \"agent-guide\", \"ok\": true, \"dir\": \"{}\"}}", utf8(o.agent_guide));
     }
     if (!o.png.empty()) {
         if (auto r = host.save_png(o.png); !r) {

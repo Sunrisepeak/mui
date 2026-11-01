@@ -115,6 +115,7 @@ struct Web::Impl {
     // The agent link's state changed: the application's runtime and its listener hear it.
     void heard(AgentLink l) {
         link = std::move(l);
+        link.guide = page::agent_guide();
         if (link_heard) link_heard(link);
         runtime->agent_link_changed(link);
     }
@@ -135,8 +136,8 @@ struct Web::Impl {
         runtime->set_url_opener([](std::string_view url) { return page::open_url(url); });
         // The person's own agent, for the application to offer (its actor log, a "copy the prompt").
         if (options.agent_link) {
-            link.state = "idle";
             runtime->set_agent_linker({[this] { return link_start(); }, [] { page::link_stop(); }});
+            heard({"idle", {}, {}, {}, 0});  // where its agent.md is, for the prompt
         }
         mirror = std::make_unique<DomMirror>(*runtime);
         if (page::storage()) {

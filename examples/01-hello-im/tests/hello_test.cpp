@@ -68,6 +68,33 @@ int main(int argc, char** argv) {
         check(omui::run(std::move(odd), run) == 2, "an unknown frame mode is refused");
     });
 
+    s.test("--agent-guide: what an agent needs to operate it, beside its page — agent.md, its JSON twin, the page's link to them (once)", [] {
+        hello::State state;
+        const auto dir = scratch_dir("hello-im-agent-guide");
+        std::array<std::string_view, 2> args{"--agent-guide", "out"};
+        auto o = omui::RunOptions::parse(args);
+        check(o && o->headless && o->agent_guide == "out", "a headless run that writes it");
+        check(omui::RunOptions::takes_value("--agent-guide"));
+        std::ofstream(dir / "index.html") << "<html><head><title>hello</title></head><body></body></html>";
+        omui::RunOptions run;
+        run.headless = true;
+        run.agent_guide = dir;
+        check(omui::run(hello::app(state), run) == 0);
+        check(omui::run(hello::app(state), run) == 0, "again: the same files, the link once");
+        auto read = [](const std::filesystem::path& f) {
+            std::ifstream in(f, std::ios::binary);
+            return std::string{std::istreambuf_iterator<char>(in), {}};
+        };
+        const std::string md = read(dir / "agent.md"), page = read(dir / "index.html");
+        check(md.starts_with("# Hello, openmui — for agents") && md.contains("omui connect --code") && md.contains("/omui/v1/hello"), md.substr(0, 200));
+        const auto json = omui::parse_json(read(dir / ".well-known" / "openmui-agent.json"));
+        check(json && json->get("app") && json->get("app")->get("id")->as_string() == "org.openmui.examples.hello-im" &&
+                  json->get("protocol")->as_string() == "openmui.tree@0.1",
+              "for a program");
+        const std::string link = R"(<link rel="openmui-agent" href="agent.md">)";
+        check(page.contains(link) && page.find(link) == page.rfind(link) && page.find(link) < page.find("</head>"), page);
+    });
+
     s.test("the development switches: overlays, log levels, a profile of the run", [] {
         hello::State state;
         std::array<std::string_view, 7> args{"--debug", "bounds,hud", "--log", "frame=debug,*=warning", "--profile", "run.trace.json", "--headless"};

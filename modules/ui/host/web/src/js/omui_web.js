@@ -726,6 +726,31 @@ addToLibrary({
     }
   },
 
+  // The page's route (its address's hash without "#/"), how many times the
+  // person moved it (back, forward, a typed address), and a new step of the
+  // browser's history to it.
+  omui_web_route__deps: ['$stringToNewUTF8'],
+  omui_web_route: function () {
+    var h = '';
+    try { h = decodeURIComponent((location.hash || '').replace(/^#\/?/, '')); } catch (e) {}
+    return stringToNewUTF8(h);
+  },
+  omui_web_route_moves: function () {
+    if (!window.omuiRoute) {
+      window.omuiRoute = { moves: 0 };
+      window.addEventListener('hashchange', function () { window.omuiRoute.moves++; });
+    }
+    return window.omuiRoute.moves;
+  },
+  omui_web_set_route__deps: ['$UTF8ToString'],
+  omui_web_set_route: function (route) {
+    try {
+      var h = '#/' + UTF8ToString(route);
+      var now = location.hash || '#/';
+      if (now !== h) history.pushState(null, '', h);  // pushState fires no hashchange: not a move of the person's
+    } catch (e) {}
+  },
+
   omui_web_languages__deps: ['$stringToNewUTF8'],
   omui_web_languages: function () {
     var list = (navigator.languages && navigator.languages.length) ? navigator.languages : [navigator.language || ''];

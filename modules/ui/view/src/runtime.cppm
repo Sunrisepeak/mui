@@ -420,6 +420,14 @@ public:
     // (short tweens, no stagger) or off. Reduced motion asked by the system is off.
     void set_motion_level(MotionLevel level);
     [[nodiscard]] MotionLevel motion_level() const noexcept;
+    // Where the application is within itself — a page's place, `zh/features`
+    // — for hosts with an address to show it (the Web: the URL's hash, a
+    // step of the browser's history) and to set it when a person goes back
+    // or forward. The application sets it as it goes, and follows it when
+    // it changes otherwise (route_revision says when).
+    void set_route(std::string route);
+    [[nodiscard]] const std::string& route() const noexcept;
+    [[nodiscard]] std::uint64_t route_revision() const noexcept;
     // The person's choice among the motions a slot offers (universal motion
     // §5.2: a setting the application exposes — "simple", "liquid", "ink"):
     // a slot whose candidates include it moves by it while it fits the

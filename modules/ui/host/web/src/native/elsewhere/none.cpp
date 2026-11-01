@@ -35,5 +35,8 @@ std::vector<std::string> locales() { return {}; }
 std::string query(std::string_view) { return {}; }
 bool matches(std::string_view) { return false; }
 bool reload_with(std::string_view, std::string_view) { return false; }
+std::string route() { return {}; }
+int route_moves() { return 0; }
+void set_route(std::string_view) {}
 
 }  // namespace omui::page

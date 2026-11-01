@@ -568,6 +568,17 @@ NodeState Runtime::state(NodeId node) const { return valid(node) ? impl_->at(nod
 
 void Runtime::emit(NodeId node, std::string_view event, const Value& args) { impl_->call_handlers(node, event, args); }
 
+void Runtime::set_route(std::string route) {
+    Impl& d = *impl_;
+    if (d.route == route) return;
+    d.route = std::move(route);
+    ++d.route_revision;
+    d.frame_requested = true;
+}
+
+const std::string& Runtime::route() const noexcept { return impl_->route; }
+std::uint64_t Runtime::route_revision() const noexcept { return impl_->route_revision; }
+
 void Runtime::write_back(NodeId node, std::string_view property, const Value& value) {
     Impl& d = *impl_;
     if (!d.alive(node)) return;

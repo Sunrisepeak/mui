@@ -1748,5 +1748,21 @@ int main(int argc, char** argv) {
         check(rt.semantic_revision() == revision, "the tree did not move");
     });
 
+    s.test("the route: set by the application, a revision only when it changes; a node's `selected` stated", [] {
+        Runtime rt(RuntimeOptions{.size = {200, 100}});
+        check(rt.route().empty() && rt.route_revision() == 0, "none at first");
+        rt.set_route("zh/features");
+        rt.set_route("zh/features");
+        check(rt.route() == "zh/features" && rt.route_revision() == 1, "one change, one revision");
+        rt.set_route("");
+        check_eq(rt.route_revision(), std::uint64_t{2});
+        Element here = box({.id = "here", .width = 10, .height = 10});
+        here.prop("selected", Source(Value(true)));
+        rt.mount("main", column({}, {std::move(here), box({.id = "there", .width = 10, .height = 10})}));
+        rt.frame({});
+        check(rt.semantic_node(rt.find("main/here")).states.has(spec::State::selected) && !rt.semantic_node(rt.find("main/there")).states.has(spec::State::selected),
+              "the current one says so");
+    });
+
     return s.run(argc, argv);
 }

@@ -40,6 +40,9 @@ char* omui_web_store_keys(const char* prefix);
 char* omui_web_query(const char* name);
 int  omui_web_matches(const char* media);
 int  omui_web_reload_with(const char* name, const char* value);
+char* omui_web_route();
+int  omui_web_route_moves();
+void omui_web_set_route(const char* route);
 }
 
 namespace omui::page {
@@ -373,6 +376,10 @@ bool loop(void (*tick)(void*), void* user) {
 std::string query(std::string_view name) { return taken(omui_web_query(std::string(name).c_str())); }
 
 bool matches(std::string_view media) { return omui_web_matches(std::string(media).c_str()) != 0; }
+
+std::string route() { return taken(omui_web_route()); }
+int route_moves() { return omui_web_route_moves(); }
+void set_route(std::string_view route) { omui_web_set_route(std::string(route).c_str()); }
 
 bool reload_with(std::string_view name, std::string_view value) {
     return omui_web_reload_with(std::string(name).c_str(), std::string(value).c_str()) != 0;

@@ -79,5 +79,11 @@ bool loop(void (*tick)(void*), void* user);
 // A media query the page matches now: "(prefers-reduced-motion: reduce)" …
 [[nodiscard]] bool matches(std::string_view media);
 bool reload_with(std::string_view name, std::string_view value);
+// The page's route: its address's hash without "#/" ("zh/features"); how
+// many times the person moved it (back, forward, a link); set as a step of
+// the browser's history (none when it is that already).
+[[nodiscard]] std::string route();
+[[nodiscard]] int route_moves();
+void set_route(std::string_view route);
 
 }  // namespace omui::page

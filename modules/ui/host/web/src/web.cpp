@@ -87,6 +87,8 @@ struct Web::Impl {
     bool                                     quitting = false;
     int                                      exit_code = 0;
     bool                                     idle = false;
+    int                                      route_moves = 0;   // the person's moves of the page's route, as last seen
+    std::uint64_t                            route_shown = 0;   // the route revision the address shows
     bool                                     woken = false;  // the next paced step frames
     FrameDemand                              demand;
     std::chrono::steady_clock::time_point    last_frame{};
@@ -343,6 +345,13 @@ struct Web::Impl {
                 if (now - last_frame < std::chrono::duration<double>(interval * 0.98)) return false;
             }
         }
+        // The person moved the page's route (back, forward, a typed address): the application's, before the frame.
+        if (opened)
+            if (const int moves = page::route_moves(); moves != route_moves) {
+                route_moves = moves;
+                runtime->set_route(page::route());
+                route_shown = runtime->route_revision();
+            }
         FrameInput in;
         in.events = std::move(events);
         in.present_at = now + std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::duration<double>(1.0 / 60));
@@ -357,6 +366,11 @@ struct Web::Impl {
         if (frames_shown != before)
             runtime->frame_shown({runtime->clock().now(), std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - now).count()});
         sync_page();
+        // The application moved its route: a step of the browser's history (the address follows it).
+        if (opened && runtime->route_revision() != route_shown) {
+            route_shown = runtime->route_revision();
+            page::set_route(runtime->route());
+        }
         // An agent waiting for a condition: checked after each frame, frames until it holds or times out.
         if (protocol) {
             protocol->poll();

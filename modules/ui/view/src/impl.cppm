@@ -408,7 +408,9 @@ struct Runtime::Impl {
     std::uint32_t                               motion_gen = 1;
     std::vector<NodeId>                         morphing;
     MotionLevel                                 motion_level = MotionLevel::full;
-    std::string                                 motion_choice;  // the person's, among what a slot offers (Runtime::set_motion_choice)
+    std::string                                 motion_choice;
+    std::string                                 route;            // Runtime::set_route
+    std::uint64_t                               route_revision = 0;  // the person's, among what a slot offers (Runtime::set_motion_choice)
     // Performance tiers (D-94): the adaptation now, the governor and the frame costs it weighs (a ring).
     Adaptation                                  adaptation;
     bool                                        governing = false;

@@ -111,6 +111,8 @@ spec::SemanticNode Runtime::Impl::semantics(NodeId id) const {
     if (const Value* v = prop("label")) s.name = std::string(v->as_string());
     if (const Value* v = prop("description")) s.description = std::string(v->as_string());
     if (readonly_of(prop("readonly"))) s.states.set(State::readonly);
+    // Stated by the program: the one of its kind that is current (a site's place in its navigation).
+    if (const Value* v = prop("selected"); v && v->as_bool()) s.states.set(State::selected);
     if (const Value* v = prop("origin"))
         if (auto o = spec::parse_origin(v->as_string())) s.origin = *o;
 

@@ -70,7 +70,12 @@ int main(int argc, char** argv) {
         }
         os::process::spawn_options o;
         o.program = *py;
-        o.args = {"-m", "unittest", "discover", "-s", os::fs::utf8(repo() / "lang" / "python" / "tests"), "-v"};
+        // A test that hangs ends after four minutes with every thread's stack printed (before the runner's five
+        // kill it with nothing to show).
+        o.args = {"-X", "faulthandler", "-c",
+                  std::format("import faulthandler, unittest; faulthandler.dump_traceback_later(240, exit=True); "
+                              "unittest.main(module=None, argv=['unittest', 'discover', '-s', {}, '-v'])",
+                              std::format("r'{}'", os::fs::utf8(repo() / "lang" / "python" / "tests")))};
         o.env = {{"PYTHONPATH", os::fs::utf8(stage)}, {"OMUI_HEADLESS", "1"}, {"PYTHONUTF8", "1"}};
         // Under AddressSanitizer (the nightly's sanitize profile) the
         // extension is instrumented and the interpreter is not: the sanitizer's

@@ -45,6 +45,8 @@ void register_base_components() {
     register_type(component_type<DatePicker>());
     register_type(component_type<TimePicker>());
     register_type(component_type<ColorPicker>());
+    register_type(component_type<SplitView>());
+    register_type(component_type<Drawer>());
 }
 
 }  // namespace omui

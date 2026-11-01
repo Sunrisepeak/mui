@@ -296,6 +296,80 @@ int main(int argc, char** argv) {
         check(hash.value() == 0x746751dd38b85266ULL, std::format("pickers {:016x}", hash.value()));
     });
 
+    s.test("split view: two panes sharing their room as the handle says; the handle a splitter of its own; dragged and taken back whole; kept within min", [] {
+        Headless h(options({600, 300}));
+        auto share = signal(0.5);
+        h.mount("main", column({.padding = 0}, {split_view({.id = "split", .label = "Panels", .ratio = share, .width = Dim(600.0f), .height = Dim(300.0f)},
+                                                           {box({.id = "list", .background = "surface_variant"}), box({.id = "detail", .background = "surface"})})}));
+        h.settle();
+        auto width = [&](std::string_view id) { return h.runtime().screen_bounds(h.runtime().find(id)).width; };
+        check(std::abs(width("main/split/list") - 296) < 1 && std::abs(width("main/split/detail") - 296) < 1, std::format("halves: {}", width("main/split/list")));
+        auto it = items(h, "main/split");
+        check(it.size() == 1 && it[0].role == Role::splitter && it[0].name == "Resize Panels" && it[0].value.get("value")->as_double() == 50, "its handle");
+        check(act(h, "main/split/handle", "set_value", Value{}.set("value", 30.0)) == 0 && std::abs(share.peek() - 0.3) < 1e-9, "an agent moves it");
+        h.settle();
+        check(std::abs(width("main/split/list") - 0.3f * 592) < 1, std::format("the list narrower: {}", width("main/split/list")));
+        check(undo(h) == 0 && share.peek() == 0.5, "taken back");
+        check(act(h, "main/split/handle", "set_value", Value{}.set("value", 2.0)) == 0 && share.peek() == 0.15, "kept within min");
+        check(undo(h) == 0 && share.peek() == 0.5);
+        // The person drags the handle: one action.
+        const auto handle = *items(h, "main/split")[0].bounds;
+        drag(h, middle(handle), {middle(handle).x + 120, middle(handle).y});
+        h.settle();
+        check(share.peek() > 0.65 && share.peek() < 0.75, std::format("dragged to {}", share.peek()));
+        check(undo(h) == 0 && share.peek() == 0.5, "the drag taken back whole");
+        h.key(Key::right);
+        h.step();
+        check(std::abs(share.peek() - 0.55) < 1e-9, std::format("a step by the arrows: {}", share.peek()));
+    });
+
+    s.test("drawer: along the window's edge, as tall as it, over the page; Escape, its × or an agent close it", [] {
+        Headless h(options({640, 400}));
+        auto open = signal(false);
+        int closed = 0;
+        h.mount("main", column({.padding = 16}, {button({.id = "filters", .text = "Filters", .on_activated = [&] { open.set(true); }}),
+                                                 drawer({.id = "panel", .open = open, .title = "Filters", .on_closed = [&] { ++closed; }},
+                                                        {checkbox({.id = "mine", .label = "Only mine"})})}));
+        h.settle();
+        check(sem(h, "main/panel")->states.has(State::hidden), "closed: hidden");
+        check(h.click("main/filters"));
+        h.settle();
+        const Rect b = h.runtime().screen_bounds(h.runtime().find("main/panel"));
+        check(b.x == 640 - 360 && b.y == 0 && b.height == 400 && b.width == 360, std::format("along the right edge, as tall as the window: {} {} {}×{}", b.x, b.y, b.width, b.height));
+        check(sem(h, "main/panel")->role == Role::dialog && sem(h, "main/panel")->name == "Filters" && offers(*sem(h, "main/panel"), "dismiss"), "a named dialog");
+        check(h.runtime().path(h.runtime().focused()) == "main/panel/mine", "its first control focused (modal)");
+        h.key(Key::escape);
+        h.settle();
+        check(!open.peek() && closed == 1, "Escape closes it");
+        open.set(true);
+        h.settle();
+        check(act(h, "main/panel", "dismiss") == 0 && !open.peek() && closed == 2, "an agent closes it");
+    });
+
+    s.test("a split view and a drawer, the same pixels on every platform", [] {
+        typeset::FontCollection own;
+        check(own.add_defaults().has_value());
+        HeadlessOptions o = options({560, 320});
+        o.fonts = &own;
+        o.scale = 2;
+        Headless h(o);
+        h.mount("main", column({.padding = 16}, {
+                                   split_view({.id = "split", .ratio = 0.4, .width = Dim(528.0f), .height = Dim(288.0f)},
+                                              {column({.id = "list", .padding = 12, .gap = 6, .background = "surface_variant"},
+                                                      {text({.text = "Inbox", .style = "label"}), text({.text = "Drafts"}), text({.text = "Sent"})}),
+                                               column({.id = "detail", .padding = 12, .background = "surface"}, {text({.text = "No message chosen.", .style = "caption"})})}),
+                                   drawer({.id = "panel", .modal = false, .open = true, .size = 200.0, .title = "Filters"},
+                                          {checkbox({.id = "mine", .label = "Only mine"}), checkbox({.id = "unread", .checked = true, .label = "Unread"})}),
+                               }));
+        h.settle();
+        Hash hash;
+        const auto& px = h.pixels();
+        for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
+        std::println("ui.base containers {:016x}", hash.value());
+        check(h.save_png(scratch_dir("ui-base-containers") / "containers@2x.png").has_value());
+        check(hash.value() == 0x31a066ff3681ddfcULL, std::format("containers {:016x}", hash.value()));
+    });
+
     s.test("the gallery: the second batch, the same pixels on every platform", [] {
         typeset::FontCollection own;
         check(own.add_defaults().has_value());

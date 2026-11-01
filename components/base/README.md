@@ -42,6 +42,8 @@ made into code when the package builds — `build.mcpp`, openmui.build.contracts
 | `date_picker` | `combo_box` | an ISO date chosen from a month's calendar (arrows a day or a week, PageUp/PageDown a month, Enter chooses); any date an item of the picker an agent chooses without opening it (`<id>/2026-11-05`), within `min`–`max`; the month's days and its arrows items while open |
 | `time_picker` | `group` | a time of day, its hours and minutes spin buttons of their own (`<id>/hours`, `<id>/minutes`; `<id>/period` in 12-hour), stepped (Up, Down; Left, Right between them) or typed, kept on `step` minutes |
 | `color_picker` | `combo_box` | a colour (#rrggbb) from a saturation–brightness field, a hue strip and the application's swatches — items of its own while open (`<id>/field`, `<id>/hue`, `<id>/swatch_<n>`); a grey keeps its hue; a drag taken back whole |
+| `split_view` | `group` | two panes (its children) sharing their room as `ratio` says; its handle a splitter of its own (`<id>/handle`, a percentage) dragged (taken back whole), stepped by the arrows, set by an agent, kept `min` from either edge |
+| `drawer` | `dialog` | a sheet along the window's left or right edge, as tall as the window (a placement of its own: `left`, `right`), over the page — modal by default, its first control focused; Escape, a press outside, its × or an agent closes it |
 
 They draw what they are now: how a change of them moves is their slots'
 (universal motion), never their own code. Their gallery (`tests/kit_test.cpp`)

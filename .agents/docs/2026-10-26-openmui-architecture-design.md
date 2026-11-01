@@ -519,7 +519,7 @@ M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten，渲�
 | Q-32 | ~~只有 GPU 版本的自定义效果~~ **已定**：默认要求 CPU 参考实现；只有 GPU 版本的允许，声明 `deterministic = false`、不参与像素固定（[通用动画](2026-11-01-openmui-universal-motion-design.md) §9） |
 | Q-33 | `openmui.player` 和三个脚本宿主（Lua、QuickJS-ng、PocketPy）能否都编译到 wasm、体积是否可接受——C2 前实测（[定位与官网](2026-11-01-openmui-positioning-site-design.md) §3） |
 | Q-34 | 官网首屏的最终预算：建议 4G 下可见 ≤ 1 s、可交互 ≤ 2.5 s（[性能分档](2026-11-01-openmui-performance-tiers-design.md) §7） |
-| Q-35 | ~~T0 的目标板子~~ **已定**：ESP32，首选 ESP32-S3，备选 ESP32-P4；宿主 `openmui.host.esp32`；C1 做工具链 spike（同上 §1） |
+| Q-35 | ~~T0 的目标板子~~ **已定**：ESP32，首选 ESP32-S3，备选 ESP32-P4；宿主 `openmui.host.esp32`；C1 做工具链 spike（同上 §1）。**spike 的结果**：Xtensa 没有工具链，按备选先做 P4（RISC-V）；mcu 配置档缺完整标准库（[ESP32 spike](2026-11-01-openmui-esp32-spike.md)） |
 | Q-36 | ~~Safari 下本地连接的默认行为~~ **已定**：先直连，失败时 agent 改用 `omui connect --serve`（[agent 接入与回溯](2026-11-01-openmui-agent-connect-rewind-design.md) §8） |
 | Q-37 | 按 actor 回溯的依赖判断，第一版的规则是否够用（同上 §6） |
 | Q-38 | 官网的重型页面（实验室要带三个脚本宿主、影片要带全部场景）：Emscripten 动态链接，还是单独程序加页面跳转？C3 前由 wasm 体积分析定（[总体方案](2026-11-01-openmui-master-plan-design.md) §9）。**分析的建议**：单独程序、按需加载（[wasm 体积分析](2026-11-01-openmui-wasm-size-analysis.md) §4），待评审 |

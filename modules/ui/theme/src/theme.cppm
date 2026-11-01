@@ -84,6 +84,20 @@ struct Layer {
 //     button        = { effect = "neon", radius = 12 }
 //     "role:switch" = { effect = "metaball", smoothness = 14 }
 //     window        = { effect = "crt", curvature = 0.06 }
+//     [style.neon.motions]
+//     update        = ["liquid", "simple"]   # what its controls' update slots hold (candidates)
+//     "role:dialog" = { enter = "spring" }   # a type's or a role's slots
+//
+// Its motions (universal motion §5.2, the style's layer over the
+// framework's): a slot's name for every node the rules move (each rule of
+// that slot, or — a slot with none — each the update slot's rules move),
+// or a type's or role's table of slots; each a motion, or candidates.
+struct StyleMotion {
+    std::string target;  // empty: every node the rules move
+    std::string slot;
+    Value       motion;
+};
+
 struct Style {
     std::string              name;
     std::string              doc;
@@ -91,6 +105,7 @@ struct Style {
     std::vector<std::string> layers;      // the theme, then overlays ("dark", "compact")
     Layer                    tokens;      // what it changes: an overlay over them
     std::vector<EffectRule>  effects;     // window, a type, or role:<role>
+    std::vector<StyleMotion> motions;     // what its slots hold
     double                   crossfade = 0.35;  // seconds: how a switch to it is seen
 };
 

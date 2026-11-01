@@ -18,3 +18,8 @@ xl     = 28
 
 [style.liquid.effects]
 slider = { effect = "metaball", smoothness = 12, color = "accent" }  # the drop in the accent: an edited accent, an edited drop
+
+[style.liquid.motions]
+# A control's change is a drop's: drawn out along its way, merging with what it
+# passes (metaball, from a computer up); below, a short tween.
+update = ["liquid", "simple"]

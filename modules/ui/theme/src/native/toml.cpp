@@ -17,7 +17,8 @@ constexpr std::array<std::string_view, 11> theme_keys{"doc",     "dark",   "exte
                                                       "text",    "spacing", "radius", "shadows", "motion"};
 constexpr std::array<std::string_view, 5> text_keys{"size", "weight", "line_height", "letter_spacing", "families"};
 constexpr std::array<std::string_view, 5> shadow_keys{"x", "y", "blur", "spread", "color"};
-constexpr std::array<std::string_view, 10> style_keys{"doc", "theme", "crossfade", "effects", "colors", "text", "spacing", "radius", "shadows", "motion"};
+constexpr std::array<std::string_view, 11> style_keys{"doc",    "theme",   "crossfade", "effects", "motions", "colors",
+                                                      "text",   "spacing", "radius",    "shadows", "motion"};
 constexpr std::array<std::string_view, 5> effect_control_keys{"effect", "duration", "delay", "ease", "transition"};
 
 std::size_t distance(std::string_view a, std::string_view b) {
@@ -277,6 +278,30 @@ std::expected<std::vector<Layer>, Diagnostics> read(std::string_view source, std
     return out;
 }
 
+namespace {
+
+// A TOML value as a Value (a motion as its slot holds it).
+Value value_of(const toml::node& n) {
+    // By the node's own type (value<T> converts: an integer is a bool to it).
+    if (const auto* x = n.as_string()) return Value(x->get());
+    if (const auto* x = n.as_boolean()) return Value(x->get());
+    if (const auto* x = n.as_integer()) return Value(static_cast<std::int64_t>(x->get()));
+    if (const auto* x = n.as_floating_point()) return Value(x->get());
+    if (const toml::array* a = n.as_array()) {
+        Value::List l;
+        for (const toml::node& x : *a) l.push_back(value_of(x));
+        return Value(std::move(l));
+    }
+    if (const toml::table* t = n.as_table()) {
+        Value v = Value(Value::Map{});
+        for (auto&& [k, x] : *t) v.set(std::string(k.str()), value_of(x));
+        return v;
+    }
+    return Value{};
+}
+
+}  // namespace
+
 std::expected<std::vector<Style>, Diagnostics> read_styles(std::string_view source, std::string_view file) {
     Diagnostics problems;
     toml::table root;
@@ -395,6 +420,34 @@ std::expected<std::vector<Style>, Diagnostics> read_styles(std::string_view sour
                     }
                     st.effects.push_back({selector, std::move(effect)});
                 }
+        }
+        if (const toml::node* m = t->get("motions")) {
+            const toml::table* mt = m->as_table();
+            if (!mt) {
+                r.error(m, "`motions` must be a table", "update = \"liquid\" (a slot's motion), \"role:dialog\" = { enter = \"spring\" }");
+            } else {
+                auto slot_name = [](std::string_view k) { return std::ranges::find(motion_slots, k) != motion_slots.end(); };
+                for (auto&& [k, v] : *mt) {
+                    const std::string key(k.str());
+                    if (slot_name(key)) {
+                        st.motions.push_back({"", key, value_of(v)});
+                        continue;
+                    }
+                    const toml::table* slots = v.as_table();
+                    if (!slots) {
+                        r.error(&v, std::format("`{}` is not a slot; a type's or a role's motions are a table of slots", key),
+                                "update, enter, exit, state, reorder, replace");
+                        continue;
+                    }
+                    for (auto&& [sk, sv] : *slots) {
+                        if (!slot_name(sk.str())) {
+                            r.error(&sv, std::format("`{}` is not a slot", sk.str()), "update, enter, exit, state, reorder, replace");
+                            continue;
+                        }
+                        st.motions.push_back({key, std::string(sk.str()), value_of(sv)});
+                    }
+                }
+            }
         }
         out.push_back(std::move(st));
     }

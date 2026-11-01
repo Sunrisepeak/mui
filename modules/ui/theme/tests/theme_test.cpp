@@ -293,5 +293,48 @@ card   = { radius = 3 }
         }
     });
 
+    s.test("a style's motions (universal motion §5.2): over the framework's rules, a slot's for every node they move, a role's own; candidates; mistakes refused", [&] {
+        const char* ink = R"toml(
+[style.inky]
+theme = "light"
+[style.inky.motions]
+update        = ["ink", "simple"]
+state         = "simple"
+"role:dialog" = { enter = { use = "spring", rise = 12 } }
+)toml";
+        auto added = lib.add_styles(ink, "inky.style.omui.toml");
+        check(added.has_value(), added ? "" : all(added.error()));
+        const auto st = lib.find_style("inky");
+        check(st && st->motions.size() == 3, "three motions read");
+        auto t = lib.compose_style("inky");
+        check(t.has_value(), t ? "" : t.error());
+        if (t) {
+            std::size_t updates = 0, states = 0;
+            for (const MotionRule& r : t->motion_rules) {
+                if (r.slot == "update") {
+                    ++updates;
+                    check(r.spec.name == "ink" && r.instead.size() == 1 && r.instead[0].name == "simple", std::format("{}: ink, else simple", r.target));
+                }
+                if (r.slot == "state") ++states;
+            }
+            check(updates > 10 && states == updates, std::format("every control the rules move: {} updates, {} states", updates, states));
+            const auto dialog = std::ranges::find_if(t->motion_rules, [](const MotionRule& r) { return r.target == "role:dialog" && r.slot == "enter"; });
+            check(dialog != t->motion_rules.end() && dialog->spec.name == "spring" && dialog->spec.rise == 12,
+                  dialog == t->motion_rules.end() ? std::string("the dialog's enter: none") : std::format("the dialog's enter: {} {}", dialog->spec.name, dialog->spec.rise));
+        }
+        // Written out and read back: the same motions.
+        if (st) {
+            const std::string text = theme::write_style(*st);
+            auto again = theme::read_styles(text, "again.style.omui.toml");
+            check(again && again->front().motions.size() == 3 && theme::write_style(again->front()) == text, text);
+        }
+        auto wrong = theme::read_styles("[style.w]\ntheme = \"light\"\n[style.w.motions]\nupdtae = \"ink\"\nbutton = { later = \"ink\" }\n", "w.style.omui.toml");
+        check(!wrong.has_value() && all(wrong.error()).contains("`updtae` is not a slot") && all(wrong.error()).contains("`later` is not a slot"),
+              wrong ? "accepted" : all(wrong.error()));
+        check(lib.add_styles("[style.v]\ntheme = \"light\"\n[style.v.motions]\nupdate = \"swirl\"\n", "v.style.omui.toml").has_value());
+        auto unknown = lib.compose_style("v");
+        check(!unknown.has_value() && unknown.error().contains("`\"swirl\"` is not a motion"), unknown ? "composed" : unknown.error());
+    });
+
     return s.run(argc, argv);
 }

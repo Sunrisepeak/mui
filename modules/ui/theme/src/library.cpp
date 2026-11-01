@@ -213,6 +213,36 @@ std::expected<Theme, std::string> Library::compose_style(std::string_view name) 
     if (!t) return std::unexpected(std::format("{}: the style `{}` starts from what cannot be composed: {}", st->file, name, t.error()));
     if (auto r = layer_onto(st->tokens, *t, true); !r) return std::unexpected(r.error());
     t->name = std::format("{}@{}", t->name, name);
+    // Its motions over the framework's rules: the slots of every node they move first, then a type's or a role's.
+    for (const bool targeted : {false, true})
+        for (const StyleMotion& m : st->motions) {
+            if (m.target.empty() == targeted) continue;
+            auto specs = parse_motions(m.motion, *t);
+            if (!specs || specs->empty())
+                return std::unexpected(std::format("{}: the style `{}`: `{}` is not a motion for {}{} (none, morph, {}or {{use, curve, …}})", st->file, name,
+                                                   m.motion.json(), m.target.empty() ? "" : m.target + "'s ", m.slot, [&] {
+                                                       std::string names;
+                                                       for (const auto& [n, _] : t->motion_library) names += n + ", ";
+                                                       return names;
+                                                   }()));
+            MotionRule rule{.target = m.target, .slot = m.slot, .spec = specs->front(), .instead = {specs->begin() + 1, specs->end()}};
+            auto& rules = t->motion_rules;
+            if (targeted) {
+                auto it = std::ranges::find_if(rules, [&](const MotionRule& r) { return r.target == m.target && r.slot == m.slot; });
+                if (it != rules.end()) *it = std::move(rule);
+                else rules.push_back(std::move(rule));
+                continue;
+            }
+            bool any = false;
+            for (MotionRule& r : rules)
+                if (r.slot == m.slot) r.spec = rule.spec, r.instead = rule.instead, any = true;
+            if (!any) {
+                std::vector<MotionRule> more;
+                for (const MotionRule& r : rules)
+                    if (r.slot == "update") more.push_back({.target = r.target, .slot = m.slot, .spec = rule.spec, .instead = rule.instead});
+                rules.insert(rules.end(), more.begin(), more.end());
+            }
+        }
     return t;
 }
 
@@ -241,6 +271,21 @@ std::string value_of(const Value& v) {
     if (v.type() == Value::Type::boolean) return v.as_bool() ? "true" : "false";
     if (v.type() == Value::Type::integer) return std::format("{}", v.as_int());
     return std::format("{}", static_cast<float>(v.as_double()));
+}
+
+// Any value inline (a motion: a name, candidates, a table with a travel table in it).
+std::string inline_value(const Value& v) {
+    if (const Value::List* l = v.list()) {
+        std::string out;
+        for (const Value& x : *l) out += std::format("{}{}", out.empty() ? "" : ", ", inline_value(x));
+        return std::format("[{}]", out);
+    }
+    if (const Value::Map* m = v.map()) {
+        std::string out;
+        for (const auto& [k, x] : *m) out += std::format("{}{} = {}", out.empty() ? "" : ", ", key_of(k), inline_value(x));
+        return std::format("{{ {} }}", out);
+    }
+    return value_of(v);
 }
 
 }  // namespace
@@ -294,6 +339,20 @@ std::string write_style(const Style& st) {
                 for (const auto& [k, v] : *m)
                     if (k != "name") f += std::format(", {} = {}", key_of(k), value_of(v));
             out += std::format("{} = {{ {} }}\n", key_of(r.selector), f);
+        }
+    }
+    if (!st.motions.empty()) {
+        out += std::format("\n[{}.motions]\n", at);
+        for (const StyleMotion& m : st.motions)
+            if (m.target.empty()) out += std::format("{} = {}\n", m.slot, inline_value(m.motion));
+        std::vector<std::string> targets;
+        for (const StyleMotion& m : st.motions)
+            if (!m.target.empty() && std::ranges::find(targets, m.target) == targets.end()) targets.push_back(m.target);
+        for (const std::string& target : targets) {
+            std::string f;
+            for (const StyleMotion& m : st.motions)
+                if (m.target == target) f += std::format("{}{} = {}", f.empty() ? "" : ", ", m.slot, inline_value(m.motion));
+            out += std::format("{} = {{ {} }}\n", key_of(target), f);
         }
     }
     return out;

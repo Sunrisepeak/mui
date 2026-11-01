@@ -23,3 +23,8 @@ track           = "#d6cbb1"
 window        = { effect = "paper", grain = 0.3, warmth = 0.7, edge = 0.4 }
 button        = { effect = "wobble", amount = 1.2, size = 16, ink = 0.6 }
 "role:region" = { effect = "wobble", amount = 1.5, size = 22, ink = 0.5 }
+
+[style.ink.motions]
+# A brush's: unhurried, the line wavering as it goes (from the Web up); below, a
+# short tween.
+update = ["ink", "simple"]

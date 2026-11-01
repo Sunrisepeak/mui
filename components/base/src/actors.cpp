@@ -249,8 +249,6 @@ void ActorLog::semantics(SemanticsContext&, spec::SemanticNode& node) const {
     if (node.name.empty()) node.name = "What agents did here";
     const std::string state = attached() ? services().agent_link().state : std::string("unavailable");
     node.value = Value{}.set("link", state).set("records", static_cast<std::int64_t>(records().size()));
-    if (!props.link || (state != "waiting" && state != "paired" && state != "lost"))
-        std::erase_if(node.actions, [](const spec::ActionDesc& a) { return a.name == "unlink"; });
 }
 
 std::vector<spec::SemanticNode> ActorLog::virtual_items(std::string_view path) const {
@@ -271,11 +269,6 @@ ActResult ActorLog::act_item(ActContext& ctx, std::string_view key, std::string_
     const auto id = entry_of(key);
     if (!id || action != "undo") return ActResult::fail(std::format("a record is undone, not '{}'", action));
     return undo(*id, ctx.actor);
-}
-
-ActResult ActorLog::unlink(ActContext&) {
-    services().unlink_agent();
-    return ActResult::done();
 }
 
 ActResult ActorLog::next(ActContext&) {

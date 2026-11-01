@@ -33,7 +33,7 @@ made into code when the package builds — `build.mcpp`, openmui.build.contracts
 | `breadcrumb` | `navigation` | each place a link of its own in the semantic tree (`<id>/<index>`); going up leaves the places below |
 | `pagination` | `navigation` | previous, the first, the pages around the current one, the last, gaps (…), next; each page a link (`<id>/<page>`); stepped, set, taken back |
 | `number_input` | `spin_button` | typed (Enter or leaving keeps it, Escape drops it) or stepped (−, +, arrows), kept within `min`–`max` on `step`; undo restores it exactly |
-| `actor_log` | `log` | who else acts here (agent connect §3.2): the person's agent link (waiting with its code, linked, lost) and its actors' actions from the runtime's journal, newest last, each a node (`<id>/<entry>`); the last its history holds taken back from here (Undo, or the item's `undo`, as whoever asks); a record hovered or focused points out the node it acted on — an outline over the frame, not a cursor; `unlink` ends the link, touching no history; its words in another language through `phrases` |
+| `actor_log` | `log` | who else acts here (agent connect §3.2): the person's agent link (waiting with its code, linked, lost) and its actors' actions from the runtime's journal, newest last, each a node (`<id>/<entry>`); the last its history holds taken back from here (Undo, or the item's `undo`, as whoever asks); a record hovered or focused points out the node it acted on — an outline over the frame, not a cursor; ending the link is the application's control, the person's own (S-10); its words in another language through `phrases` |
 
 They draw what they are now: how a change of them moves is their slots'
 (universal motion), never their own code. Their gallery (`tests/kit_test.cpp`)

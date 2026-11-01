@@ -573,11 +573,12 @@ int main(int argc, char** argv) {
         a.h.settle();
         check(a.text("main/body/guide/prompt").find("omui agent") != std::string::npos && a.h.runtime().clipboard_text().empty(), a.text("main/body/guide/prompt"));
         // As the Web links one: a code, the page's agent.md.
+        int ended = 0;
         a.h.runtime().set_agent_linker({[&] {
                                             a.h.runtime().agent_link_changed({"waiting", "K7Q4-42MX", {}, {}, 47110, "https://openmui.dev/agent.md"});
                                             return std::string("K7Q4-42MX");
                                         },
-                                        [] {}});
+                                        [&] { ++ended; }});
         check(a.h.click("main/body/guide/copy_prompt"));
         a.h.settle();
         const std::string prompt = a.text("main/body/guide/prompt");
@@ -606,6 +607,13 @@ int main(int argc, char** argv) {
         check(a.h.tree().act(items[1].id, "undo", person).exit_code() == std::optional<int>(0));
         a.h.settle();
         check(!a.h.tree().node(box)->states.has(State::checked), "taken back");
+        // Ending the link is the person's: the agent cannot, the person can.
+        Invocation over_the_bus = agent;
+        over_the_bus.remote = true;  // as the bridge brings it
+        check(a.h.tree().act("main/body/guide/disconnect", "activate", over_the_bus).exit_code() != std::optional<int>(0), "not the agent's to press");
+        check(a.h.click("main/body/guide/disconnect"));
+        a.h.settle();
+        check(ended == 1 && a.text("main/body/guide/prompt").empty(), "ended by the person");
     });
 
     s.test("the site's pixels pinned on every platform: home, the components, the wireframe, the agent's JSON, the timeline editor, getting started, an agent asking, the settings, Chinese, the page's time held", [] {

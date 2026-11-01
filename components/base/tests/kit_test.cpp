@@ -265,7 +265,7 @@ int main(int argc, char** argv) {
         h.step();
         check(sem(h, "main/log")->role == Role::log, "a log");
         check(h.runtime().virtual_items(h.runtime().find("main/log")).empty(), "nothing yet");
-        check(!offers(*sem(h, "main/log"), "unlink"), "no link here to end (the headless host links none)");
+        check(sem(h, "main/log")->value.get("link")->as_string() == "unavailable", "the headless host links none");
         check(act(h, "main/set/dark", "toggle") == 0 && dark.peek(), "an agent turns it on");
         h.advance(seconds(1));
         check(act(h, "main/set/volume", "set_value", Value{}.set("value", 70.0)) == 0);
@@ -299,16 +299,12 @@ int main(int argc, char** argv) {
         h.settle();
         check(h.runtime().pointed_out().empty(), "left: nothing pointed out");
         // The agent link, as a host that can link one says it.
-        int ended = 0;
-        h.runtime().set_agent_linker({[&] { return std::string("K7Q4-42MX"); }, [&] { ++ended; }});
+        h.runtime().set_agent_linker({[&] { return std::string("K7Q4-42MX"); }, [] {}});
         h.runtime().agent_link_changed({"waiting", "K7Q4-42MX", {}, {}, 47110});
         h.settle();
-        check(sem(h, "main/log")->value.get("link")->as_string() == "waiting" && offers(*sem(h, "main/log"), "unlink"), "waiting: it can end it");
+        check(sem(h, "main/log")->value.get("link")->as_string() == "waiting" && !offers(*sem(h, "main/log"), "unlink"), "waiting; ending it is the person's, not an action here");
         h.runtime().agent_link_changed({"paired", "K7Q4-42MX", "claude-code", {}, 47110});
         h.settle();
-        const std::size_t undoable = h.runtime().history(h.runtime().root()).undo.size();
-        check(act(h, "main/log", "unlink") == 0 && ended == 1, "ended");
-        check_eq(h.runtime().history(h.runtime().root()).undo.size(), undoable);  // no barrier: what was done before can still be undone
         // The picture: the agent's last toggle, its Undo, hovered — the toggle outlined.
         check(act(h, "main/set/dark", "toggle") == 0);
         h.settle();
@@ -321,7 +317,7 @@ int main(int argc, char** argv) {
         const auto& px = h.pixels();
         for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
         std::println("ui.base actor log {:016x}", hash.value());
-        check(hash.value() == 0xc1c4885cfcdc4957ULL, std::format("actor log {:016x}", hash.value()));
+        check(hash.value() == 0x891e492c7ba785f2ULL, std::format("actor log {:016x}", hash.value()));
     });
 
     s.test("the gallery: the ten, the same pixels on every platform", [] {

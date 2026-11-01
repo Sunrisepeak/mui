@@ -678,6 +678,15 @@ Element guide_panel(const std::shared_ptr<Site>& s) {
                  .variant = ButtonVariant::primary,
                  .on_activated = [s] { s->give_prompt(); }}),
          only_when(text({.id = "prompt", .text = s->prompt, .style = "code", .selectable = true}), [s] { return !s->prompt.get().empty(); }),
+         // Ending the link is the person's own (S-10): an agent pressing it is refused.
+         only_when(mine(button({.id = "disconnect",
+                                .text = say("Disconnect your agent", "断开你的 agent"),
+                                .variant = ButtonVariant::ghost,
+                                .on_activated = [s] {
+                                    if (s->runtime) s->runtime->unlink_agent();
+                                    s->prompt.set(std::string());
+                                }})),
+                   [s] { return !s->prompt.get().empty(); }),
          actor_log({.id = "log",
                     .phrases = computed([s, zh_phrases] { return s->lang.get() == "zh" ? zh_phrases : Value{}; }),
                     .width = Dim(layout::pct(100)),

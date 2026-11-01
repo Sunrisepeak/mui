@@ -28,7 +28,6 @@ public:
     [[nodiscard]] std::optional<spec::SemanticNode> virtual_item(std::string_view path, std::string_view key) const;
     ActResult act_item(ActContext& ctx, std::string_view key, std::string_view action);
 
-    ActResult unlink(ActContext& ctx);
     ActResult next(ActContext& ctx);
     ActResult previous(ActContext& ctx);
 

@@ -16,6 +16,12 @@ import :shown;
 
 namespace omui {
 
+bool RunOptions::takes_value(std::string_view option) noexcept {
+    constexpr std::array<std::string_view, 10> with{"--frames", "--png",   "--level", "--agent-dir", "--agent-name",
+                                                    "--window", "--size",  "--debug", "--log",       "--lang"};
+    return option == "--profile" || std::ranges::contains(with, option);
+}
+
 std::expected<RunOptions, std::string> RunOptions::parse(std::span<const std::string_view> args) {
     RunOptions o;
     for (std::size_t i = 0; i < args.size(); ++i) {

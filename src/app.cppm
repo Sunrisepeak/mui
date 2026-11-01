@@ -112,6 +112,9 @@ struct RunOptions {
     std::string           window;          // --window native|framework|switchable
 
     [[nodiscard]] static std::expected<RunOptions, std::string> parse(std::span<const std::string_view> args);
+    // Whether the option takes the argument after it (--size 800x600): what a
+    // program reading its own arguments among these passes over.
+    [[nodiscard]] static bool takes_value(std::string_view option) noexcept;
 };
 
 // Who draws, as the person chooses it while the application runs:

@@ -11,7 +11,7 @@ int main(int argc, char** argv) {
     std::optional<std::string> document;
     for (int i = 1; i < argc; ++i) {
         const std::string_view a = argv[i];
-        if (!a.starts_with("--") && !document && (i == 1 || std::string_view(argv[i - 1]) != "--png")) document = std::string(a);
+        if (!a.starts_with("--") && !document && (i == 1 || !omui::RunOptions::takes_value(argv[i - 1]))) document = std::string(a);
         else rest.push_back(argv[i]);
     }
     if (!model.open(document ? std::filesystem::path(std::u8string(document->begin(), document->end())) : std::filesystem::current_path()))

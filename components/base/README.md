@@ -18,6 +18,26 @@ The Core components (spec §11), contract-first (component-binding §2):
 | `list`, `list_view` | `list` | virtualised (S-7): the rows in view are nodes, the rest are stated by the semantic tree and materialised when acted on; measured heights; roving focus; none, single or multiple selection |
 | `tooltip` | `tooltip` | describes the element before it; shown after `delay` on hover or focus, on the runtime's timers |
 
+Beside them, the package's own components (their contracts in `contract/`,
+made into code when the package builds — `build.mcpp`, openmui.build.contracts):
+
+| Component | Role | Behaviour |
+|---|---|---|
+| `badge` | `status` | a label, a count (`99+` past `max`) or a dot, in a tone (neutral, accent, success, warning, danger) |
+| `avatar` | `image` | a stored picture (`image:<n>`), else initials on the name's own colour (the same name, the same hue); a status dot said as its description |
+| `skeleton` | `progress` | the shape of what is coming (lines, a block, a circle), `busy`; its bones are its effect shapes (a style's shimmer) |
+| `card` | `group`, or `button` when `interactive` | a title, a subtitle and its content on a raised, outlined or filled surface; activated whole by pointer, keys or agents |
+| `accordion` | `region` | its header always shown, its content while `expanded`; only the header opens it; `expand`, `collapse` taken back by each other |
+| `toast` | `status` | over a corner of the window (toasts at one corner stack), gone after `duration` or dismissed; one action at most |
+| `popover` | `dialog` | beside the element before it, not modal; Escape, a press outside it and its button, or `dismiss` closes it |
+| `breadcrumb` | `navigation` | each place a link of its own in the semantic tree (`<id>/<index>`); going up leaves the places below |
+| `pagination` | `navigation` | previous, the first, the pages around the current one, the last, gaps (…), next; each page a link (`<id>/<page>`); stepped, set, taken back |
+| `number_input` | `spin_button` | typed (Enter or leaving keeps it, Escape drops it) or stepped (−, +, arrows), kept within `min`–`max` on `step`; undo restores it exactly |
+
+They draw what they are now: how a change of them moves is their slots'
+(universal motion), never their own code. Their gallery (`tests/kit_test.cpp`)
+is pinned like the Core's.
+
 Each class derives from the CRTP base `omui-gen cpp` makes from its contract
 (`src/generated`, committed and checked by the generator's tests); a
 contract action without an implementation does not compile. Components use

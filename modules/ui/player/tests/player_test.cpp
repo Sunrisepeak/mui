@@ -48,11 +48,11 @@ player::Language stub() {
 
 constexpr std::string_view counter = R"j({"omui": "0.1", "view": {"signals": {"count": {"type": "int"}},
   "root": {"type": "column", "children": [
-    {"type": "badge", "id": "badge", "props": {"label": "clicks"}},
+    {"type": "tally_tag", "id": "badge", "props": {"label": "clicks"}},
     {"type": "text", "id": "n", "props": {"text": {"expr": "format('{} clicks', count)"}}},
     {"type": "button", "id": "inc", "props": {"text": "+1"}, "on": {"activated": [{"set": "count", "expr": "count + 1"}]}}]}}})j";
 
-constexpr std::string_view badge = R"j({"omui": "0.1", "component": {"name": "badge",
+constexpr std::string_view badge_doc = R"j({"omui": "0.1", "component": {"name": "tally_tag",
   "interface": {"props": {"label": {"type": "string"}}},
   "root": {"type": "text", "id": "t", "props": {"text": {"expr": "upper(label)"}}}}})j";
 
@@ -70,7 +70,7 @@ int main(int argc, char** argv) {
     s.test("a manifest's components, views and scripts start; saved files reload in place", [] {
         const auto dir = scratch_dir("player");
         write(dir / "ui" / "main.view.omui.json", counter);
-        write(dir / "ui" / "badge.view.omui.json", badge);
+        write(dir / "ui" / "badge.view.omui.json", badge_doc);
         write(dir / "logic" / "side.stub", R"j({"omui": "0.1", "view": {"root": {"type": "text", "id": "hello", "props": {"text": "from a script"}}}})j");
         player::Manifest m;
         m.id = "org.openmui.player-test";
@@ -102,7 +102,7 @@ int main(int argc, char** argv) {
         h.settle();
         check_eq(name_of(h, "main/n"), std::string("1 taps"));
         // A component saved: its instances rebuilt.
-        std::string loud(badge);
+        std::string loud(badge_doc);
         loud.replace(loud.find("upper(label)"), 12, "format('<{}>', label)");
         write(dir / "ui" / "badge.view.omui.json", loud);
         check(p.poll() == std::vector<std::string>{"ui/badge.view.omui.json"});

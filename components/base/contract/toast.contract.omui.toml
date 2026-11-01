@@ -1,0 +1,32 @@
+# A short message about something that just happened, over the corner of the
+# window, gone after a while or when dismissed; with one action at most
+# (Undo). A danger one is an alert, the rest a status (read out politely).
+[contract.toast]
+role = "status"
+spec = "0.1"
+doc  = "A short message about what just happened, over a corner of the window; gone after a while, with one action at most."
+
+[contract.toast.props]
+message  = { type = "string", default = "", bindable = true, doc = "Also the accessible name." }
+open     = { type = "bool", default = false, bindable = true }
+tone     = { type = "enum", values = ["neutral", "success", "warning", "danger"], default = "neutral" }
+action   = { type = "string", default = "", doc = "Its one action's label (Undo); none: no action." }
+duration = { type = "f64", default = 5, doc = "Seconds it stays; 0: until dismissed." }
+corner   = { type = "enum", values = ["bottom_right", "bottom_left", "top_right", "top_left", "bottom", "top"], default = "bottom_right" }
+
+[contract.toast.events]
+dismissed = { args = {} }
+acted     = { args = {} }
+
+[contract.toast.actions]
+dismiss  = { effect = "reversible" }
+activate = { effect = "reversible", doc = "Its action (when it has one)." }
+
+[contract.toast.keys]
+"Escape" = "dismiss"
+
+[contract.toast.parts]
+surface = {}
+message = {}
+action  = {}
+close   = {}

@@ -1,6 +1,9 @@
 // openmui.ui.base — the Core components (spec §11) as behaviour: each class
 // derives from the CRTP base omui-gen made from its contract, and uses the
 // runtime's public API only (component-binding §1). The look is the theme's.
+// Beside them, the package's own (its contract/ directory, made into code
+// when it builds): badge, avatar, skeleton, card, accordion, toast, popover,
+// breadcrumb, pagination, number input.
 //
 //     import openmui.ui.base;
 //     omui::register_base_components();   // view documents and immediate mode find them by name
@@ -28,6 +31,16 @@ export import :menu_item_contract;
 export import :dialog_contract;
 export import :tooltip_contract;
 export import :list_contract;
+export import :badge_contract;
+export import :avatar_contract;
+export import :skeleton_contract;
+export import :card_contract;
+export import :accordion_contract;
+export import :toast_contract;
+export import :popover_contract;
+export import :breadcrumb_contract;
+export import :pagination_contract;
+export import :number_input_contract;
 export import :button;
 export import :toggle;
 export import :slider;
@@ -38,6 +51,10 @@ export import :menu;
 export import :dialog;
 export import :select;
 export import :list;
+export import :status;
+export import :surfaces;
+export import :navigation;
+export import :number_input;
 
 export namespace omui {
 

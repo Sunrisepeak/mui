@@ -4,7 +4,9 @@
 # partitions in src/generated are omui-gen's (`omui-gen cpp … --namespace omui
 # --catalog`),
 # the classes beside them are the behaviour, and the look comes from the
-# theme's tokens.
+# theme's tokens. The package's own components (badge, card, pagination …)
+# have their contracts in contract/, made into code when it builds
+# (build.mcpp, openmui.build.contracts).
 [package]
 namespace   = "openmui.ui"
 name        = "base"
@@ -27,6 +29,10 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 openmui.core    = { path = "../../modules/ui/core" }
 openmui.view    = { path = "../../modules/ui/view" }
 openmui.unicode = { path = "../../modules/base/unicode" }
+openmui.hash    = { path = "../../modules/base/hash" }
+
+[build-dependencies]
+openmui.build.contracts = { path = "../../mcpp/contracts", host-module = true }
 
 [dev-dependencies]
 openmui.testing       = { path = "../../modules/base/testing" }

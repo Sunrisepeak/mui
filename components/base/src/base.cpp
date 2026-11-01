@@ -25,6 +25,17 @@ void register_base_components() {
     register_type(component_type<Tooltip>());
     register_type(component_type<List>());
     register_type(component_type<ListItem>());
+    // The package's own (contract/): status, surfaces, navigation, number input.
+    register_type(component_type<Badge>());
+    register_type(component_type<Avatar>());
+    register_type(component_type<Skeleton>());
+    register_type(component_type<Card>());
+    register_type(component_type<Accordion>());
+    register_type(component_type<Toast>());
+    register_type(component_type<Popover>());
+    register_type(component_type<Breadcrumb>());
+    register_type(component_type<Pagination>());
+    register_type(component_type<NumberInput>());
 }
 
 }  // namespace omui

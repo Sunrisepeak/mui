@@ -486,7 +486,7 @@ int main(int argc, char** argv) {
                                                           .options = std::vector<std::string>{"cpp", "ts", "py", "lua"}, .value = lang})}));
         h.step();
         check(sem(h, "main/lang")->role == Role::combo_box && sem(h, "main/lang/field")->name == "Language", "a combo box, its field named");
-        check(h.tree().node("main/lang/field")->value.get("text")->as_string() == "C++" || sem(h, "main/lang/field")->value.as_string() == "C++", "the field shows C++'s label");
+        check(sem(h, "main/lang/field")->value.as_string() == "C++", std::format("the field shows C++'s label: {}", sem(h, "main/lang/field")->value.json()));
         auto it = items(h, "main/lang");
         check(it.size() == 4 && it[0].role == Role::option && it[0].states.has(State::selected), "four options, C++ chosen");
         check(act(h, "main/lang/py", "activate") == 0 && lang.peek() == "py", "an agent chooses Python");

@@ -22,6 +22,90 @@ Modifier word_modifier() { return primary_modifier() == Modifier::meta ? Modifie
 
 bool only(Modifiers m, Modifiers wanted) { return (m.bits & ~static_cast<std::uint8_t>(Modifier::shift)) == wanted.bits; }
 
+constexpr float gutter_w = 40;
+
+// Code's colours, by what a stretch is: a word of the language, a string, a number, a comment.
+struct Lexicon {
+    std::vector<std::string_view> words;
+    std::string_view              line_comment;  // to the end of the line
+    bool                          block_comments = false;  // /* … */
+};
+
+const Lexicon& lexicon(std::string_view language) {
+    static const Lexicon cpp{{"auto", "bool", "break", "case", "catch", "char", "class", "co_await", "co_return", "const", "consteval", "constexpr", "continue",
+                              "default", "delete", "do", "double", "else", "enum", "explicit", "export", "extern", "false", "float", "for", "friend", "if", "import",
+                              "inline", "int", "long", "module", "namespace", "new", "noexcept", "nullptr", "operator", "private", "protected", "public", "requires",
+                              "return", "short", "signed", "sizeof", "static", "static_cast", "struct", "switch", "template", "this", "throw", "true", "try",
+                              "typename", "union", "unsigned", "using", "virtual", "void", "volatile", "while"},
+                             "//",
+                             true};
+    static const Lexicon ts{{"as", "async", "await", "break", "case", "catch", "class", "const", "continue", "default", "delete", "do", "else", "enum", "export",
+                             "extends", "false", "finally", "for", "from", "function", "if", "import", "in", "instanceof", "interface", "let", "new", "null", "of",
+                             "return", "static", "super", "switch", "this", "throw", "true", "try", "type", "typeof", "undefined", "var", "void", "while", "yield"},
+                            "//",
+                            true};
+    static const Lexicon python{{"and", "as", "assert", "async", "await", "break", "class", "continue", "def", "del", "elif", "else", "except", "False", "finally",
+                                 "for", "from", "global", "if", "import", "in", "is", "lambda", "None", "nonlocal", "not", "or", "pass", "raise", "return", "self",
+                                 "True", "try", "while", "with", "yield"},
+                                "#"};
+    static const Lexicon lua{{"and", "break", "do", "else", "elseif", "end", "false", "for", "function", "goto", "if", "in", "local", "nil", "not", "or",
+                              "repeat", "return", "then", "true", "until", "while"},
+                             "--"};
+    static const Lexicon json{{"true", "false", "null"}, ""};
+    static const Lexicon toml{{"true", "false"}, "#"};
+    static const Lexicon plain{};
+    if (language == "cpp") return cpp;
+    if (language == "typescript") return ts;
+    if (language == "python") return python;
+    if (language == "lua") return lua;
+    if (language == "json") return json;
+    if (language == "toml") return toml;
+    return plain;
+}
+
+std::vector<typeset::StyledRange> code_ranges(std::string_view text, std::string_view language, const Theme& th, const typeset::TextStyle& base) {
+    std::vector<typeset::StyledRange> out;
+    const Lexicon& lx = lexicon(language);
+    auto mark = [&](std::size_t from, std::size_t to, std::string_view colour) {
+        typeset::TextStyle st = base;
+        st.color = th.color(colour);
+        out.push_back({from, to, std::move(st)});
+    };
+    auto word_char = [](char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_'; };
+    for (std::size_t i = 0; i < text.size();) {
+        const char c = text[i];
+        if (!lx.line_comment.empty() && text.substr(i).starts_with(lx.line_comment)) {
+            const std::size_t end = std::min(text.size(), text.find('\n', i));
+            mark(i, end, "text_muted");
+            i = end;
+        } else if (lx.block_comments && text.substr(i).starts_with("/*")) {
+            const std::size_t close = text.find("*/", i + 2);
+            const std::size_t end = close == std::string_view::npos ? text.size() : close + 2;
+            mark(i, end, "text_muted");
+            i = end;
+        } else if (c == '"' || c == '\'' || (c == '`' && language == "typescript")) {
+            std::size_t j = i + 1;
+            while (j < text.size() && text[j] != c && (text[j] != '\n' || c == '`')) j += text[j] == '\\' ? 2 : 1;
+            const std::size_t end = std::min(text.size(), j + 1);
+            mark(i, end, "success");
+            i = end;
+        } else if (c >= '0' && c <= '9' && (i == 0 || !word_char(text[i - 1]))) {
+            std::size_t j = i + 1;
+            while (j < text.size() && (word_char(text[j]) || text[j] == '.')) ++j;
+            mark(i, j, "warning");
+            i = j;
+        } else if (word_char(c) && (i == 0 || !word_char(text[i - 1]))) {
+            std::size_t j = i + 1;
+            while (j < text.size() && word_char(text[j])) ++j;
+            if (std::ranges::contains(lx.words, text.substr(i, j - i))) mark(i, j, "accent");
+            i = j;
+        } else {
+            ++i;
+        }
+    }
+    return out;
+}
+
 }  // namespace
 
 TextBox::~TextBox() {
@@ -68,16 +152,22 @@ void TextBox::prop_changed(TextBoxProp p) {
 void TextBox::restyle() { paragraph_dirty_ = true; }
 
 bool TextBox::set_prop(std::string_view k, const Value& v) {
-    if (k != "bare") return TextBoxContract<TextBox>::set_prop(k, v);
-    bare_ = v.as_bool();
-    if (attached()) services().restyle(node()), services().invalidate_paint(node());
+    if (k == "bare") bare_ = v.as_bool();
+    else if (k == "language") language_ = std::string(v.as_string()), paragraph_dirty_ = true;
+    else return TextBoxContract<TextBox>::set_prop(k, v);
+    if (attached()) services().restyle(node()), services().invalidate_layout(node());
     return true;
 }
 
-Value TextBox::get_prop(std::string_view k) const { return k == "bare" ? Value(bare_) : TextBoxContract<TextBox>::get_prop(k); }
+Value TextBox::get_prop(std::string_view k) const {
+    if (k == "bare") return Value(bare_);
+    if (k == "language") return Value(language_);
+    return TextBoxContract<TextBox>::get_prop(k);
+}
 
 void TextBox::style(const Theme& theme, layout::Style& s) const {
     s.padding = bare_ ? Insets{4, 4, 4, 4} : Insets{pad_y, pad_x, pad_y, pad_x};
+    if (!language_.empty()) s.padding.left += gutter_w;  // its line numbers
     s.border = bare_ ? Insets{} : Insets::all(1);
     s.min_height = layout::pt(bare_ ? 28 : 36);
 }
@@ -123,7 +213,7 @@ typeset::Paragraph& TextBox::paragraph(Services& s, float width) const {
     const std::string text = shown();
     if (paragraph_dirty_ || !paragraph_ || text != paragraph_text_) {
         const Theme& theme = s.theme();
-        const TextToken& tok = theme.text_style("body");
+        const TextToken& tok = theme.text_style(language_.empty() ? "body" : "code");
         typeset::ParagraphStyle ps;
         ps.style.families = tok.families;
         ps.style.size = tok.size;
@@ -132,7 +222,10 @@ typeset::Paragraph& TextBox::paragraph(Services& s, float width) const {
         ps.style.color = theme.color("text");
         ps.wrap = props.multiline;
         line_height_ = tok.size * tok.line_height;
-        paragraph_.emplace(s.fonts(), text, std::move(ps));
+        // Code: coloured by what each stretch is.
+        std::vector<typeset::StyledRange> ranges;
+        if (!language_.empty() && !props.password) ranges = code_ranges(text, language_, theme, ps.style);
+        paragraph_.emplace(s.fonts(), text, std::move(ps), std::move(ranges));
         paragraph_text_ = text;
         paragraph_width_ = -1;
         paragraph_dirty_ = false;
@@ -191,6 +284,25 @@ void TextBox::paint(PaintContext& ctx) const {
         scroll_x_ = std::clamp(scroll_x_, 0.0f, limit);
     }
     const Point origin = text_origin(ctx.content);
+
+    if (!language_.empty()) {
+        // The gutter: each line of the text numbered where it starts (a wrapped line's rest has none).
+        const Rect gutter{ctx.content.x - gutter_w - 4, 0, gutter_w, ctx.size.height};
+        ctx.list.fill_rect({gutter.right() - 1, 4, 1, ctx.size.height - 8}, th.color("border"));
+        const std::string& t = paragraph_text_;
+        std::size_t number = 1, label = 0;
+        std::size_t seen = 0;
+        for (const typeset::Line& line : p.lines()) {
+            for (; seen < line.begin && seen < t.size(); ++seen)
+                if (t[seen] == '\n') ++number;
+            if (line.begin != 0 && (line.begin > t.size() || t[line.begin - 1] != '\n')) continue;
+            if (label >= numbers_.size()) numbers_.emplace_back(), numbers_.back().set_style("code");
+            parts::Label& n = numbers_[label++];
+            n.set_text(std::to_string(number));
+            const Size ns = n.measure(ctx.services, th.color("text_disabled"));
+            n.paint(ctx, {gutter.right() - 10 - ns.width, origin.y + line.top + (line.height - ns.height) / 2}, th.color("text_disabled"));
+        }
+    }
 
     ctx.list.push_clip(ctx.content.outset({2, 2, 2, 2}));
     const typeset::Selection sel = editor_.selection();
@@ -267,6 +379,7 @@ void TextBox::blink(bool restart) {
 }
 
 bool TextBox::key(const KeyEvent& e) {
+    if (e.key != Key::escape && e.key != Key::tab) escaped_ = false;
     const bool shift = e.mods.has(Modifier::shift);
     const Modifiers primary = Modifiers(primary_modifier());
     const Modifiers word = Modifiers(word_modifier());
@@ -312,12 +425,31 @@ bool TextBox::key(const KeyEvent& e) {
             editor_.delete_forward(unit);
             edited();
             return true;
-        case Key::enter:
+        case Key::enter: {
             if (!props.multiline || !editable) return false;  // single line: the contract's key submits
-            editor_.insert("\n");
+            // Code keeps the line's indent.
+            std::string indent;
+            if (!language_.empty()) {
+                const std::string& t = editor_.text();
+                const std::size_t at = std::min(editor_.selection().begin(), t.size());
+                const std::size_t start = t.rfind('\n', at == 0 ? 0 : at - 1);
+                for (std::size_t i = start == std::string::npos || at == 0 ? 0 : start + 1; i < at && (t[i] == ' ' || t[i] == '\t'); ++i) indent += t[i];
+            }
+            editor_.insert("\n" + indent);
+            edited();
+            return true;
+        }
+        case Key::tab:
+            // Code indents with Tab; Escape first lets Tab leave, as everywhere else.
+            if (language_.empty() || !editable || e.mods.has(Modifier::shift) || std::exchange(escaped_, false)) return false;
+            editor_.insert("    ");
             edited();
             return true;
         case Key::escape:
+            if (!language_.empty() && !editor_.composing()) {
+                escaped_ = true;
+                return false;
+            }
             if (!editor_.composing()) return false;
             editor_.cancel_composition();
             caret_moved();

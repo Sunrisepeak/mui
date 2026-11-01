@@ -552,6 +552,50 @@ int main(int argc, char** argv) {
         check(hash.value() == 0x81534110e198a1bfULL, std::format("entry {:016x}", hash.value()));
     });
 
+    s.test("code editor: its field a text box in code; set whole and taken back; Enter keeps the indent, Tab indents, Escape then Tab leaves", [] {
+        Headless h(options({480, 360}));
+        auto code = signal(std::string("int main() {\n    return 0;"));
+        h.mount("main", column({.padding = 8, .gap = 8}, {code_editor({.id = "code", .text = code}), button({.id = "after", .text = "Run"})}));
+        h.step();
+        check(sem(h, "main/code")->name == "C++ code" && sem(h, "main/code")->value.get("lines")->as_int() == 2, "named for its language, its lines counted");
+        check(sem(h, "main/code/text")->role == Role::text_box && sem(h, "main/code/text")->states.has(State::multiline), "its field a multi-line text box");
+        check(act(h, "main/code", "set_value", Value{}.set("value", "x = 1")) == 0 && code.peek() == "x = 1", "set whole");
+        check(undo(h) == 0 && code.peek() == "int main() {\n    return 0;", "taken back");
+        // Typed at the end: Enter keeps the indent; Tab indents.
+        check(h.click("main/code/text"));
+        h.key(Key::end, Modifiers(Modifier::ctrl));
+        h.key(Key::enter);
+        h.type("x;");
+        h.step();
+        check(code.peek().ends_with("return 0;\n    x;"), std::format("{:?}", code.peek()));
+        h.key(Key::tab);
+        h.step();
+        check(code.peek().ends_with("x;    ") && h.runtime().path(h.runtime().focused()) == "main/code/text", "Tab indents, the focus kept");
+        h.key(Key::escape);
+        h.key(Key::tab);
+        h.step();
+        check_eq(h.runtime().path(h.runtime().focused()), std::string("main/after"));
+    });
+
+    s.test("a code editor, the same pixels on every platform", [] {
+        typeset::FontCollection own;
+        check(own.add_defaults().has_value());
+        HeadlessOptions o = options({480, 250});
+        o.fonts = &own;
+        o.scale = 2;
+        Headless h(o);
+        h.mount("main", column({.padding = 16}, {code_editor({.id = "code", .lines = 7,
+                                                              .text = std::string("// A greeting, counted.\nimport std;\n\nint main() {\n    int n = 3;\n"
+                                                                                  "    std::println(\"hello, openmui\");\n    return n - 3;\n}")})}));
+        h.settle();
+        Hash hash;
+        const auto& px = h.pixels();
+        for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
+        std::println("ui.base code {:016x}", hash.value());
+        check(h.save_png(scratch_dir("ui-base-code") / "code@2x.png").has_value());
+        check(hash.value() == 0xfee8a273eccca542ULL, std::format("code {:016x}", hash.value()));
+    });
+
     s.test("the gallery: the second batch, the same pixels on every platform", [] {
         typeset::FontCollection own;
         check(own.add_defaults().has_value());

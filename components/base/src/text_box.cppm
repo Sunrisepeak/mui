@@ -26,8 +26,11 @@ public:
     void mounted();
     void prop_changed(TextBoxProp p);
     void restyle();
-    // Its contract's properties, and `bare`: a field that is part of another
-    // component (a tag input's), drawn without a surface or a border of its own.
+    // Its contract's properties, and two a component made of it sets: `bare`,
+    // a field that is part of another (a tag input's), drawn without a
+    // surface or a border of its own; `language`, code (a code editor's) —
+    // its text coloured, its lines numbered, Tab indenting (Escape, then
+    // Tab, leaves it), Enter keeping the line's indent.
     bool set_prop(std::string_view k, const Value& v);
     [[nodiscard]] Value get_prop(std::string_view k) const;
 
@@ -77,6 +80,9 @@ private:
     mutable Rect          content_{};
     bool                  focused_ = false;
     bool                  bare_ = false;
+    std::string           language_;      // code, when set
+    bool                  escaped_ = false;  // Escape was pressed: the next Tab leaves
+    mutable std::vector<parts::Label> numbers_;  // a code field's line numbers
     bool                  caret_on_ = true;
     bool                  selecting_ = false;
     std::uint64_t         blink_timer_ = 0;

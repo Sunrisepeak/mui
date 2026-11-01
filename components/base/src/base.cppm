@@ -5,7 +5,8 @@
 // when it builds): badge, avatar, skeleton, card, accordion, toast, popover,
 // breadcrumb, pagination, number input; who else acts here (actor log);
 // segmented, chip, range slider, alert, stepper; date, time and colour
-// pickers; split view, drawer; tree view, data grid; combobox, tag input.
+// pickers; split view, drawer; tree view, data grid; combobox, tag input;
+// code editor.
 //
 //     import openmui.ui.base;
 //     omui::register_base_components();   // view documents and immediate mode find them by name
@@ -58,6 +59,7 @@ export import :tree_view_contract;
 export import :data_grid_contract;
 export import :combobox_contract;
 export import :tag_input_contract;
+export import :code_editor_contract;
 export import :button;
 export import :toggle;
 export import :slider;
@@ -79,6 +81,7 @@ export import :pickers;
 export import :containers;
 export import :collections;
 export import :entry;
+export import :code;
 
 export namespace omui {
 

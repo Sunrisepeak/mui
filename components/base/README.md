@@ -48,6 +48,7 @@ made into code when the package builds — `build.mcpp`, openmui.build.contracts
 | `data_grid` | `grid` | a model's rows in columns (pixels or shares); sorted by a header pressed (ascending, descending, none; numbers by value, text regardless of case); rows chosen one or several (Ctrl, Space); each row (`<id>/<key>`, its fields its value) and header (`<id>/col_<field>`) an item; drawn as they come into view |
 | `combobox` | `combo_box` | one value typed or chosen: its text box filters the options to those whose labels hold what is typed (regardless of case), the arrows move among them, Enter or a press chooses, Escape closes; each option an item (`<id>/<value>`); a value typed that is no option stands only when `free` |
 | `tag_input` | `group` | tags gathered by typing (Enter or a comma keeps one) or choosing a suggestion that holds what is typed; each a chip (`<id>/tag_<n>`) removed by its ×; `add`, `remove` by name, each taken back exactly (its place kept) |
+| `code_editor` | `group` | code edited in its field (`<id>/text`, a text box in its code mode): coloured by what each stretch is (the language's words, strings, numbers, comments — C++, TypeScript, Python, Lua, JSON, TOML), its lines numbered, Tab indenting (Escape, then Tab, leaves), Enter keeping the indent; set whole with `set_value`, taken back |
 
 They draw what they are now: how a change of them moves is their slots'
 (universal motion), never their own code. Their gallery (`tests/kit_test.cpp`)

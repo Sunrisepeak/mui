@@ -70,6 +70,13 @@ public:
 
     std::expected<FaceId, std::string> add_file(const std::filesystem::path& file);
     std::expected<FaceId, std::string> add_data(std::vector<std::uint8_t> data);
+    // A font that arrives after text was first shaped (a page's later batch:
+    // the Chinese font a page fetches once it is drawn): added, and tried in
+    // the fallback chain at `at` (after Inter, where the defaults have it).
+    std::expected<FaceId, std::string> add_fallback(const std::filesystem::path& file, std::size_t at = 1);
+    // Moves whenever a face is added or the fallback chain changes: text
+    // shaped at an older revision shapes again (its glyphs may be others now).
+    [[nodiscard]] std::uint64_t revision() const noexcept;
 
     [[nodiscard]] std::size_t face_count() const noexcept;
     [[nodiscard]] const FaceInfo& face(FaceId id) const;

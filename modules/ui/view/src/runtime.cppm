@@ -394,6 +394,9 @@ public:
 
     // ── theme ──
     void set_theme(Theme theme);
+    // Its fonts changed (one arrived later: FontCollection::add_fallback):
+    // every text shapes and lays out again, drawn in what it has now.
+    void fonts_changed();
     // Theme scopes: a subtree with a theme and effect rules of its own — a
     // style pack previewed inside a page that keeps its own. A node joins the
     // scope its `theme_scope` property names, and its descendants with it

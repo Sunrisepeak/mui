@@ -405,6 +405,13 @@ void Runtime::set_theme(Theme theme) {
     d.touch(dirty_layout | dirty_paint | dirty_semantics);
 }
 
+void Runtime::fonts_changed() {
+    Impl& d = *impl_;
+    // Their paragraphs are stale (their fonts' revision moved): each measured, laid out and drawn again.
+    walk([&](NodeId id, int) { d.layout.mark_dirty(d.at(id).layout); });
+    d.touch(dirty_layout | dirty_paint | dirty_semantics);
+}
+
 // ── theme scopes ──
 
 const Theme& Runtime::Impl::theme_of(NodeId id) const {

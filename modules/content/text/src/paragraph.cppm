@@ -126,6 +126,9 @@ public:
     [[nodiscard]] float max_intrinsic_width() const;        // the widest line without wrapping
     [[nodiscard]] float first_baseline() const noexcept;
     [[nodiscard]] bool truncated() const noexcept;          // lines were dropped by max_lines
+    // Its fonts changed since it was shaped (a font that arrived later): a
+    // cache that keeps it shapes it again.
+    [[nodiscard]] bool stale() const noexcept;
 
     // Hit testing and carets (byte offsets on grapheme boundaries).
     [[nodiscard]] std::size_t offset_at(Point p) const;
@@ -143,6 +146,7 @@ public:
 
 private:
     std::unique_ptr<Shaped> shaped_;
+    std::uint64_t           fonts_revision_ = 0;  // its fonts' revision when shaped
     std::vector<Line>       lines_;
     Size                    size_{};
     bool                    truncated_ = false;

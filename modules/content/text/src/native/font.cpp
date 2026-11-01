@@ -85,6 +85,7 @@ struct FontCollection::Impl {
     std::deque<Instance>               instances;
     mutable std::shared_mutex          lock;
     std::vector<FaceId>                fallback;
+    std::atomic<std::uint64_t>         revision{0};
     // What a collection with no faces shapes with: HarfBuzz's empty face, which
     // has no glyphs, so text takes no room and draws nothing instead of
     // reaching past the end of `faces`.
@@ -207,8 +208,20 @@ std::expected<FaceId, std::string> FontCollection::add_data(std::vector<std::uin
         }
     std::unique_lock g(impl_->lock);
     impl_->faces.push_back(std::move(f));
+    ++impl_->revision;
     return static_cast<FaceId>(impl_->faces.size() - 1);
 }
+
+std::expected<FaceId, std::string> FontCollection::add_fallback(const std::filesystem::path& file, std::size_t at) {
+    auto id = add_file(file);
+    if (!id) return id;
+    std::vector<FaceId> chain = impl_->fallback;
+    chain.insert(chain.begin() + static_cast<std::ptrdiff_t>(std::min(at, chain.size())), *id);
+    set_fallback(std::move(chain));
+    return id;
+}
+
+std::uint64_t FontCollection::revision() const noexcept { return impl_->revision.load(); }
 
 std::expected<FaceId, std::string> FontCollection::add_file(const std::filesystem::path& file) {
     std::ifstream in(file, std::ios::binary);
@@ -261,7 +274,10 @@ std::optional<FaceId> FontCollection::find_family(std::string_view family) const
 
 bool FontCollection::covers(FaceId id, char32_t cp) const { return hb_set_has(impl_->at(id).unicodes, cp); }
 
-void FontCollection::set_fallback(std::vector<FaceId> chain) { impl_->fallback = std::move(chain); }
+void FontCollection::set_fallback(std::vector<FaceId> chain) {
+    impl_->fallback = std::move(chain);
+    ++impl_->revision;
+}
 std::span<const FaceId> FontCollection::fallback() const noexcept { return impl_->fallback; }
 
 FaceId FontCollection::select(std::span<const std::string> families, std::u32string_view cluster) const {

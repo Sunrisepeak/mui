@@ -211,7 +211,7 @@ std::size_t TextBox::from_shown(std::size_t o) const {
 
 typeset::Paragraph& TextBox::paragraph(Services& s, float width) const {
     const std::string text = shown();
-    if (paragraph_dirty_ || !paragraph_ || text != paragraph_text_) {
+    if (paragraph_dirty_ || !paragraph_ || text != paragraph_text_ || paragraph_->stale()) {
         const Theme& theme = s.theme();
         const TextToken& tok = theme.text_style(language_.empty() ? "body" : "code");
         typeset::ParagraphStyle ps;

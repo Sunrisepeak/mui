@@ -10,8 +10,10 @@ import :shaped;
 
 namespace omui::typeset {
 
+bool Paragraph::stale() const noexcept { return shaped_ && shaped_->fonts && shaped_->fonts->revision() != fonts_revision_; }
+
 Paragraph::Paragraph(FontCollection& fonts, std::string text, ParagraphStyle style, std::vector<StyledRange> ranges)
-    : shaped_(std::make_unique<Shaped>()) {
+    : shaped_(std::make_unique<Shaped>()), fonts_revision_(fonts.revision()) {
     Shaped& s = *shaped_;
     s.fonts = &fonts;
     s.text = std::move(text);

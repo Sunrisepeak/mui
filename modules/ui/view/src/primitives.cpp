@@ -226,7 +226,7 @@ struct TextNode {
     }
 
     typeset::Paragraph& shaped(Services& s) const {
-        if (!paragraph) {
+        if (!paragraph || paragraph->stale()) {
             const Theme& theme = s.theme();
             const TextToken& tok = theme.text_style(style_token);
             typeset::ParagraphStyle ps;

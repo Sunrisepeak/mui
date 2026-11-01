@@ -284,7 +284,7 @@ void Text::style(const Theme&, layout::Style& s) const {
 }
 
 typeset::Paragraph& Text::shaped(Services& s) const {
-    if (!paragraph_) {
+    if (!paragraph_ || paragraph_->stale()) {
         const Theme& theme = s.theme();
         typeset::ParagraphStyle ps;
         ps.style = text_style(theme, data->block);
@@ -742,7 +742,7 @@ void Code::style(const Theme&, layout::Style& s) const {
 }
 
 typeset::Paragraph& Code::shaped(Services& s) const {
-    if (!paragraph_) {
+    if (!paragraph_ || paragraph_->stale()) {
         typeset::ParagraphStyle ps;
         ps.style = text_style(s.theme(), data->block);
         ps.wrap = false;

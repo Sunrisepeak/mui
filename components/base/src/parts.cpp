@@ -75,7 +75,7 @@ void Label::set_max_lines(int lines) {
 }
 
 typeset::Paragraph& Label::shaped(Services& services, Color color, float width) {
-    if (dirty_ || !paragraph_ || !(color == color_)) {
+    if (dirty_ || !paragraph_ || !(color == color_) || paragraph_->stale()) {
         const Theme& theme = services.theme();
         const TextToken& tok = theme.text_style(style_);
         typeset::ParagraphStyle ps;

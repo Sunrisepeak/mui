@@ -554,7 +554,7 @@ int main(int argc, char** argv) {
         };
         check_eq(agrees(), std::size_t{0});
         std::println("    chamber {:016x}", chamber);
-        check_eq(chamber, std::uint64_t{0xd6cc76f6f3783b42});  // GCC (LLVM: CI)
+        check_eq(chamber, std::uint64_t{0x663feb87b79bca0c});  // GCC (LLVM: CI)
     });
 
     s.test("room 4: dark but round the ball and the paddle; the X-ray shows what hides, then recharges; the gate comes round", [] {
@@ -585,8 +585,8 @@ int main(int argc, char** argv) {
         check(g.act("scan"), "recharged");
         check_eq(g.disagreement(), std::string());
         std::println("    dark {:016x}, scanned {:016x}", dark, scanned);
-        check_eq(dark, std::uint64_t{0x453d099d008ed484});  // GCC (LLVM: CI)
-        check_eq(scanned, std::uint64_t{0xf306abec06d1fdac});
+        check_eq(dark, std::uint64_t{0x5cc90481b32d09cf});  // GCC (LLVM: CI)
+        check_eq(scanned, std::uint64_t{0x21cc17f45eca6268});
     });
 
     s.test("room 5: the copilot plays the top paddle from outside — the semantic tree in, guard_to out, journaled as its own; an order changes where it sends the ball; with a player below, they shut it down", [] {
@@ -765,6 +765,16 @@ int main(int argc, char** argv) {
         const auto heard = audio::hash(samples);
         check(audio::peak(samples) > 0.05f && audio::peak(samples) <= 1.0f, std::format("peak {}", audio::peak(samples)));
         std::println("    heard {:016x} ({} sounds)", heard, begun);
+        // Its level, measured: never clipped (a peak under −0.5 dBFS), loud enough to be heard over a room, not a wall of sound.
+        double energy = 0;
+        float top = 0;
+        for (const float v : samples) {
+            energy += static_cast<double>(v) * v;
+            top = std::max(top, std::abs(v));
+        }
+        const double rms_db = 10 * std::log10(energy / static_cast<double>(std::max<std::size_t>(1, samples.size()))), peak_db = 20 * std::log10(std::max(top, 1e-9f));
+        std::println("    level: peak {:.1f} dBFS, RMS {:.1f} dBFS", peak_db, rms_db);
+        check(peak_db <= -0.5 && rms_db > -24 && rms_db < -10, std::format("peak {:.1f}, RMS {:.1f} dBFS", peak_db, rms_db));
         // To listen to: the run as heard, its theme under it.
         const auto wav = audio::wav(samples, sounds.mixer().rate());
         std::ofstream(scratch_dir("breakout-heard") / "heard.wav", std::ios::binary).write(reinterpret_cast<const char*>(wav.data()), static_cast<std::streamsize>(wav.size()));

@@ -333,7 +333,9 @@ void fill_scene(const RoomDef& r) {
 std::vector<Element> room_bricks(const RoomDef& r, std::function<void(std::size_t)> changed) {
     std::vector<Element> out;
     if (r.canvas) {  // the scene's camera is the field's (it takes no pointer: that moves the paddle); the room fills it when it begins
-        out.push_back(std::move(canvas({.id = "cloud", .inertia = false, .label = "The cloud", .max_zoom = 4, .min_zoom = 0.05, .scene = std::string(cloud_scene),
+        out.push_back(std::move(canvas({.id = "cloud",
+                                        .background = Fill(Color::transparent()),  // clear: the panel's ghost shows behind the cloud
+                                        .inertia = false, .label = "The cloud", .max_zoom = 4, .min_zoom = 0.05, .scene = std::string(cloud_scene),
                                         .x = field_w / 2, .y = r.height - field_h / 2, .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100))})
                                      .prop("pointer_events", Source(Value("none")))));
         return out;

@@ -191,8 +191,18 @@ void Field::paint(PaintContext& ctx) const {
     ctx.list.fill_rect({0, 0, ctx.size.width, ctx.size.height}, theme.color("background", hex(0x0d111c)));
     const State* s = state();
     const RoomDef& def = room(props.room);
-    if (!s || def.canvas) return;  // a canvas room: its canvas draws the room, the overlays come after it
+    if (!s) return;
     auto& out = ctx.list;
+    if (def.canvas) {
+        // A canvas room: its canvas draws the room over a clear ground, the panel's ghost behind it as in every room.
+        // (Its face where the room's last screen is: a tall room's bottom, where the play is.)
+        out.push_transform(Affine::scale(ctx.size.width / static_cast<float>(field_w), ctx.size.height / static_cast<float>(field_h)));
+        out.push_transform(Affine::translate(0, -static_cast<float>(s->height - field_h)));
+        haunt(out, *s, theme);
+        out.pop_transform();
+        out.pop_transform();
+        return;
+    }
     out.push_transform(Affine::scale(ctx.size.width / static_cast<float>(field_w), ctx.size.height / static_cast<float>(field_h)));
     const Color plate = theme.color("surface_variant", hex(0x1b2235));
     haunt(out, *s, theme);

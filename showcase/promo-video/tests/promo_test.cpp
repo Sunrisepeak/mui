@@ -125,11 +125,11 @@ int main(int argc, char** argv) {
                                                                           (*px)->width() * 4, imageio::Alpha::premultiplied})
                       .has_value());
         }
-        check_eq(all.hex(), std::string("ac4e314e63420100"));
+        check_eq(all.hex(), std::string("28ee85ec5053bdeb"));
         promo::Player full(film(), c, {.scale = 1, .fonts = &fonts(), .parallel_raster = false});
         auto hd = full.frame(1860);
         check(hd && (*hd)->width() == 1920 && (*hd)->height() == 1080, "1080p");
-        if (hd) check_eq(hex(promo::pixel_hash(**hd)), std::string("5295fe499b1362dd"));
+        if (hd) check_eq(hex(promo::pixel_hash(**hd)), std::string("14c0e11ba9c3286a"));
         promo::Player uhd(film(), c, {.scale = 2, .fonts = &fonts(), .parallel_raster = false});
         auto k4 = uhd.frame(400);
         check(k4 && (*k4)->width() == 3840 && (*k4)->height() == 2160, "4K");

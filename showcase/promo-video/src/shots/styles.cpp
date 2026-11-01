@@ -20,6 +20,9 @@ namespace {
 constexpr std::array<std::string_view, 6> packs{"blueprint", "glass", "neon", "retro", "ink", "liquid"};
 constexpr std::array<std::string_view, 6> packs_zh{"蓝图", "玻璃", "霓虹", "复古", "水墨", "液态"};
 constexpr Size studio_size{1440, 900};
+// What the shot shows of the workshop: the interface in the pack — its settings and its numbers — not the
+// workshop's own lists and sliders around it, so a phone's 480 pixels across still read its words.
+constexpr Rect crop{236, 22, 888, 462};
 
 struct State {
     double t = 0;
@@ -37,8 +40,8 @@ public:
         const Size screen = c.size;
         const bool portrait = c.portrait();
         const float top = portrait ? 300 : 150, bottom = portrait ? 420 : 210, side = portrait ? 54 : 96;
-        const float k = std::min((screen.width - 2 * side) / studio_size.width, (screen.height - top - bottom) / studio_size.height);
-        const float w = studio_size.width * k, h = studio_size.height * k;
+        const float k = std::min((screen.width - 2 * side) / crop.width, (screen.height - top - bottom) / crop.height);
+        const float w = crop.width * k, h = crop.height * k;
         s_->studio = {std::round((screen.width - w) / 2), std::round(top + (screen.height - top - bottom - h) / 2), std::round(w), std::round(h)};
         scale_ = k;
     }
@@ -61,15 +64,18 @@ public:
                                     const Rect& s = st->studio;
                                     p.list.box_shadow(s, CornerRadii::all(6), {0, 16}, 44, 0, hex(0x000000, 0.55f));
                                 }});
-        // The workshop at its own size, scaled into the frame (laid out at 1440 × 900, so it never reflows).
-        Element studio = box({.id = "frame",
+        // The workshop at its own size (laid out at 1440 × 900, so it never reflows), scaled about its middle so that
+        // the crop fills the frame's window onto it.
+        const float cx = studio_size.width / 2, cy = studio_size.height / 2;
+        Element inside = box({.id = "frame",
                               .width = Dim(studio_size.width),
                               .height = Dim(studio_size.height),
-                              .translate_x = r.x - (studio_size.width - r.width) / 2,
-                              .translate_y = r.y - (studio_size.height - r.height) / 2,
-                              .scale = scale_,
-                              .clip = true},
+                              .translate_x = -cx - (crop.x - cx) * scale_,
+                              .translate_y = -cy - (crop.y - cy) * scale_,
+                              .scale = scale_},
                              {spec_.view()});
+        Element studio = box({.id = "window", .width = Dim(r.width), .height = Dim(r.height), .radius = 10, .translate_x = r.x, .translate_y = r.y, .clip = true},
+                             {std::move(inside)});
         // Each pack's name as it comes in (the blueprint twice: first and last).
         std::vector<Element> names;
         for (std::size_t k = 0; k < segments().size(); ++k) {

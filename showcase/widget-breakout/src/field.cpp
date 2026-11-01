@@ -572,6 +572,10 @@ bool Field::on_event(EventContext& ctx, const InputEvent& e) {
 void Field::semantics(SemanticsContext&, spec::SemanticNode& node) const {
     const RoomDef& def = room(props.room);
     node.name = std::format("{} {}", def.name, def.title);
+    // What it can do now: a frame at a time while paused; on to the next room once this one is over.
+    std::erase_if(node.actions, [&](const spec::ActionDesc& a) {
+        return (a.name == "step" && !props.paused) || (a.name == "next" && !(timeline_ && timeline_->state().over));
+    });
     if (!timeline_) return;
     const State& s = timeline_->state();
     Value v;

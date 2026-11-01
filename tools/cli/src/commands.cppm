@@ -57,6 +57,10 @@ void register_components();
 int connect(const mcpplibs::cmdline::ParsedArgs& p, std::optional<std::filesystem::path> dir, std::ostream& out, std::ostream& err);
 int page(const mcpplibs::cmdline::ParsedArgs& p, std::optional<std::filesystem::path> dir, std::ostream& out, std::ostream& err);
 
+// omui agent sweep and omui page sweep (sweep.cpp): every action of every
+// operable node performed through `call` (one request, its records).
+int sweep(const std::function<std::vector<Value>(const Value&)>& call, const mcpplibs::cmdline::ParsedArgs& a, std::ostream& out, std::ostream& err);
+
 // omui video (video.cpp).
 [[nodiscard]] mcpplibs::cmdline::App video_command();
 int video(const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ostream& err);

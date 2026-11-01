@@ -4,6 +4,7 @@ import std;
 import openmui.cli;
 import mcpplibs.cmdline;
 import openmui.host.headless;
+import openmui.ui.base;
 import openmui.testing;
 import openmui.core;
 import mcpplibs.os;
@@ -158,6 +159,66 @@ int main(int argc, char** argv) {
         // journal ends with the undo that was refused before it.
         check(!journal.empty() && journal.back().action == "undo" && journal.back().actor == "agent:omui-cli",
               journal.empty() ? "nothing journalled" : journal.back().action + " by " + journal.back().actor);
+    });
+
+    s.test("omui agent sweep: every action performed, undone as it was; an answer only asked; a dead control fails it", [] {
+        auto dir = scratch_dir("cli-sweep");
+        HeadlessOptions o;
+        o.level = HeadlessLevel::session;
+        o.size = {360, 240};
+        o.app = "sweep-cli";
+        o.endpoint_directory = dir;
+        Headless h(o);
+        int deleted = 0;
+        (void)h.runtime().verbs().add({"notes.delete", "Delete every note", Effect::irreversible, "yes", {}}, [&](const Value&) -> VerbResult {
+            ++deleted;
+            return Value{};
+        });
+        // A verb that always refuses: a control nothing can make work.
+        (void)h.runtime().verbs().add({"notes.broken", "Never works", Effect::reversible, {}, {}},
+                                      [](const Value&) -> VerbResult { return std::unexpected(std::string("it never works")); });
+        auto agree = signal(false);
+        auto level = signal(0.37);  // off its steps: an undo puts it back as it was, not snapped
+        auto mount = [&](bool broken) {
+            std::vector<Element> items{
+                checkbox({.id = "agree", .checked = agree, .label = "I agree"}),
+                slider({.id = "level", .label = "Level", .step = 0.1, .value = level, .width = 160}),
+                box({.id = "delete", .width = 80, .height = 24, .background = "danger", .label = "Delete all"}).prop("verb", Source{Value("notes.delete"), {}, {}}),
+                button({.id = "off", .disabled = true, .text = "Off"}),
+            };
+            if (broken) items.push_back(box({.id = "broken", .width = 80, .height = 24, .label = "Broken"}).prop("verb", Source{Value("notes.broken"), {}, {}}));
+            h.mount("main", column({.padding = 8, .gap = 4}, std::move(items)));
+            h.step();
+        };
+        mount(false);
+        if (!h.endpoint()) {
+            std::println("    skipped: local endpoints are not supported here");
+            return;
+        }
+        const std::string d = dir.string();
+        auto r = with_app(h, {{"agent", "sweep", "sweep-cli", "--dir", d}});
+        check(r.size() == 1 && r[0].code == 0, r.empty() ? "" : r[0].out + r[0].err);
+        auto verdict = [&](const Result& x, std::string_view node, std::string_view action) {
+            for (auto line : x.out | std::views::split('\n')) {
+                const std::string_view l(line.begin(), line.end());
+                if (l.contains(std::format(R"("node":"{}")", node)) && l.contains(std::format(R"("action":"{}")", action))) {
+                    const auto at = l.find(R"("verdict":")");
+                    if (at != std::string_view::npos) return std::string(l.substr(at + 11, l.find('"', at + 11) - at - 11));
+                }
+            }
+            return std::string("(none)");
+        };
+        check_eq(verdict(r[0], "main/agree", "toggle"), std::string("ok"));
+        check_eq(verdict(r[0], "main/level", "decrement"), std::string("ok"));
+        check_eq(verdict(r[0], "main/delete", "activate"), std::string("asks"));
+        check(deleted == 0, "an irreversible action is only asked");
+        check(!agree.peek() && level.peek() == 0.37, std::format("as they were: {} {}", agree.peek(), level.peek()));
+        // A control that cannot work fails the sweep.
+        mount(true);
+        r = with_app(h, {{"agent", "sweep", "sweep-cli", "--dir", d}});
+        check(r.size() == 1 && r[0].code == 1, r.empty() ? "" : r[0].out + r[0].err);
+        check_eq(verdict(r[0], "main/broken", "activate"), std::string("failed"));
+        check(r[0].out.contains(R"("failed":1)"), r[0].out);
     });
 
     s.test("omui check: located diagnostics, as text and as JSON", [] {

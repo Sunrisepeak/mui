@@ -13,6 +13,7 @@ omui agent transaction <app> '<steps JSON>' [--label TEXT] [--actor ACTOR] [--dr
 omui agent wait <app> [--q JSON] [--absent] [--settled] [--timeout SECONDS]
 omui agent capture <app> [--node ID] [--out FILE.png]
 omui agent call <app> '<request JSON>'
+omui agent sweep <app> [--root ID] [--actor ACTOR]   every action of every node an agent can operate, performed
 
 omui agent inspect <app> [NODE]                 type, source line, props, layout, state
 omui agent stats <app>                          frame times: mean, p50, p95, p99, max; phases; counts
@@ -32,6 +33,15 @@ Output is the envelope's records, one JSON object per line; the exit code is
 the envelope's: 0 done, 1 failed, 2 needs an answer (an irreversible or
 external action: call again with `--answer`), 3 not ready (a wait timed out).
 Actions are recorded with their actor (`agent:omui-cli` unless `--actor`).
+
+`sweep` is the interaction sweep (D-91; every program in CI,
+`tools/ci/sweep.sh`): leaves first, each action asked about (a dry run),
+then performed — what can be undone, undone, and the node must be as it was;
+what an answer is a person's (irreversible, external) only asked. A verdict a
+line: `ok`, `asks`, `disabled`, `readonly`, `gone` (an action before took it
+out of the tree), `arguments` (made-up arguments refused: it needs real ones),
+`unrecorded` (no inverse given, which S-12 allows), `failed` (refused with
+none to make up, or not as it was after its undo). A failure exits 1.
 
 ## omui video
 

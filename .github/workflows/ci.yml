@@ -208,6 +208,18 @@ jobs:
           PROFILE: ${{ matrix.profile }}
         run: tools/ci/agent-e2e.sh
 
+      - name: The interaction sweep — every program, every action an agent can perform (D-91)
+        if: runner.os == 'Linux' && matrix.profile == 'dev'
+        run: tools/ci/sweep.sh
+
+      - name: Upload the sweep's verdicts
+        if: always() && runner.os == 'Linux' && matrix.profile == 'dev'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sweep-${{ matrix.os }}-${{ matrix.toolchain }}
+          path: target/sweep
+          if-no-files-found: ignore
+
       - name: A screen reader's protocol reads and operates examples 03 and 07 (AT-SPI over D-Bus)
         if: runner.os == 'Linux' && runner.arch == 'X64'
         env:

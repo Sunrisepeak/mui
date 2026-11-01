@@ -453,6 +453,18 @@ int page(const cmd::ParsedArgs& p, std::optional<std::filesystem::path> dir, std
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
         }
     }
+    if (p.subcommand_name() == "sweep") {
+        // The page's answers are {exitCode, data, errors, records}: their records, as the endpoint's are.
+        return sweep(
+            [&](const Value& req) -> std::vector<Value> {
+                auto reply = ask_bridge(*bridge, "POST", "/omui/v1/call", req.json(), std::chrono::seconds(40));
+                std::string why = reply ? std::string("an answer without records") : reply.error();
+                if (reply)
+                    if (auto v = parse_json(*reply); v && v->get("records") && v->get("records")->list()) return *v->get("records")->list();
+                return {Value{}.set("kind", "error").set("text", why), Value{}.set("kind", "result").set("exitCode", 1)};
+            },
+            sub, out, err);
+    }
     auto request = agent_request(p, 0);
     if (!request) {
         err << "omui page " << p.subcommand_name() << ": " << request.error() << '\n';

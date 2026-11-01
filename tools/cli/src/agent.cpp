@@ -130,6 +130,11 @@ cmd::App operations(cmd::App a, bool app) {
     pipe.option("toml").help("show the description as <name>.pipeline.omui.toml");
     (void)a.subcommand(std::move(pipe));
 
+    cmd::App sw = with_app("sweep", "Every action of every node an agent can operate, really performed (and undone where it can be); a failure exits 1");
+    sw.option("root").takes_value().value_name("ID").help("only this subtree");
+    sw.option("actor").takes_value().value_name("ACTOR").help("who performs them (default agent:omui-sweep)");
+    (void)a.subcommand(std::move(sw));
+
     cmd::App call = with_app("call", "Send a raw request");
     call.arg("request").required().help(R"(e.g. '{"op":"snapshot","depth":1}')");
     (void)a.subcommand(std::move(call));
@@ -398,12 +403,20 @@ int agent(const cmd::ParsedArgs& p, std::optional<std::string> dir_option, std::
             out << std::format("{}\t{}\t{}\n", e.name, e.app.empty() ? "-" : e.app, e.interface_name);
         return 0;
     }
+    const std::string app_name(sub.positional(0));
+    if (p.subcommand_name() == "sweep") {
+        auto client = agent::Client::connect(app_name, dir);
+        if (!client) {
+            err << client.error() << "\n(omui agent ls lists the applications that listen)\n";
+            return 1;
+        }
+        return sweep([&](const Value& req) { return client->call(req, std::chrono::seconds(30)); }, sub, out, err);
+    }
     auto request = agent_request(p);
     if (!request) {
         err << "omui agent " << p.subcommand_name() << ": " << request.error() << '\n';
         return 1;
     }
-    const std::string app_name(sub.positional(0));
     auto client = agent::Client::connect(app_name, dir);
     if (!client) {
         err << client.error() << "\n(omui agent ls lists the applications that listen)\n";

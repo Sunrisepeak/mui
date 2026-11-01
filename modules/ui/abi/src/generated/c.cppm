@@ -103,6 +103,7 @@ enum OmuiRole : std::int32_t {
     OMUI_ROLE_BLOCKQUOTE = 63,
     OMUI_ROLE_NAVIGATION = 64,
     OMUI_ROLE_MAIN = 65,
+    OMUI_ROLE_LOG = 66,
     OMUI_ROLE_MAX_ENUM = 0x7FFFFFFF,
 };
 

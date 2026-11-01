@@ -93,6 +93,7 @@ static_assert(static_cast<long long>(::OMUI_ROLE_TIMELINE) == static_cast<long l
 static_assert(static_cast<long long>(::OMUI_ROLE_BLOCKQUOTE) == static_cast<long long>(omui::abi::OMUI_ROLE_BLOCKQUOTE));
 static_assert(static_cast<long long>(::OMUI_ROLE_NAVIGATION) == static_cast<long long>(omui::abi::OMUI_ROLE_NAVIGATION));
 static_assert(static_cast<long long>(::OMUI_ROLE_MAIN) == static_cast<long long>(omui::abi::OMUI_ROLE_MAIN));
+static_assert(static_cast<long long>(::OMUI_ROLE_LOG) == static_cast<long long>(omui::abi::OMUI_ROLE_LOG));
 static_assert(static_cast<long long>(::OMUI_STATE_DISABLED_BIT) == static_cast<long long>(omui::abi::OMUI_STATE_DISABLED_BIT));
 static_assert(static_cast<long long>(::OMUI_STATE_FOCUSABLE_BIT) == static_cast<long long>(omui::abi::OMUI_STATE_FOCUSABLE_BIT));
 static_assert(static_cast<long long>(::OMUI_STATE_FOCUSED_BIT) == static_cast<long long>(omui::abi::OMUI_STATE_FOCUSED_BIT));

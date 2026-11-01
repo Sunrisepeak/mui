@@ -1,9 +1,11 @@
 // The visitor's path (D-95; W3's CI case): the built site in a real browser,
 // as a person opens it, and that person's own agent operating it — the way
-// the page's prompt tells an agent to: the page gives a pairing code (its
-// "copy the prompt" press: window.omui.link()), the agent starts the bridge
+// the page's prompt tells an agent to: the person presses "Copy the prompt"
+// (real clicks) and the prompt gives a pairing code and the page's agent.md;
+// the agent reads it, starts the bridge
 // with it (`omui connect --code … --name …`), waits for the page
-// (`omui page status --wait`), then reads and operates the page with
+// (`omui page status --wait`), does agent.md's self-check (which the
+// person's log then shows), then reads and operates the page with
 // `omui page …`: its semantic tree, an action, the interaction sweep over
 // every control. Both ends say how it stands — the agent's `omui page
 // status`, the page's window.omui.linkState() — and when the bridge stops,
@@ -41,10 +43,31 @@ try {
   }
   step(await b.value('!!window.omui'), 'the page runs: window.omui answers');
 
-  // 1. The person's press: the page makes a pairing code and looks for a bridge.
-  const code = await b.value('window.omui.link()');
-  step(/^[A-Z2-9]{4}-[A-Z2-9]{4}$/.test(code ?? ''), 'the page gives a pairing code', code);
+  // 1. The person's presses (real clicks): the agent panel, then "Copy the prompt" — a pairing code, and the page's agent.md.
+  const node = async (id) => {
+    const r = await b.value(`window.omui.snapshot({root: ${JSON.stringify(id)}, depth: 0}).then((r) => JSON.stringify(r.data))`);
+    return (JSON.parse(r ?? '{}').nodes ?? []).find((n) => n.id === id || n.id?.endsWith(id)) ?? null;
+  };
+  const press = async (id) => {
+    const n = await node(id);
+    if (!n?.bounds) return false;
+    const [x, y, w, h] = n.bounds;
+    for (const type of ['mouseMoved', 'mousePressed', 'mouseReleased'])
+      await b.call('Input.dispatchMouseEvent', { type, x: x + w / 2, y: y + h / 2, button: 'left', clickCount: 1 });
+    await sleep(600);
+    return true;
+  };
+  step(await press('main/bar/guide_toggle'), 'the person opens the agent panel');
+  step(await press('main/body/guide/copy_prompt'), 'the person presses "Copy the prompt"');
+  const prompt = (await node('main/body/guide/prompt'))?.name ?? '';
+  const code = (prompt.match(/[A-Z2-9]{4}-[A-Z2-9]{4}/) ?? [])[0];
+  const guideUrl = (prompt.match(/https?:\/\/\S+agent\.md/) ?? [])[0];
+  step(code && /^[A-Z2-9]{4}-[A-Z2-9]{4}$/.test(code), 'the prompt gives a pairing code', prompt.slice(0, 300));
   step((await b.value('window.omui.linkState()'))?.state === 'waiting', 'the page waits for its agent');
+  // What the prompt points the agent at: the page's agent.md, and its twin for a program.
+  const guide = guideUrl ? await (await fetch(guideUrl)).text() : '';
+  const card = guideUrl ? await (await fetch(new URL('.well-known/openmui-agent.json', guideUrl))).json().catch(() => null) : null;
+  step(guide.includes('omui connect --code') && card?.check?.activate, "the agent reads the page's agent.md", guideUrl ?? 'no address in the prompt');
 
   // 2. The agent, as the prompt tells it: the bridge with the code, then waiting for the page.
   bridge = spawn(omui, ['connect', '--code', code, '--name', 'CI agent', '--dir', bridgeDir], { stdio: ['ignore', 'pipe', 'pipe'] });
@@ -57,7 +80,14 @@ try {
   const state = await b.value('window.omui.linkState()');
   step(state?.state === 'paired' && state?.agent === 'CI agent', 'the page sees its agent, by name', JSON.stringify(state));
 
-  // 3. The agent operates the page through its semantic tree.
+  // 3. The self-check agent.md gives, then the person's log shows what the agent did.
+  const hello = page('act', card.check.activate, 'activate');
+  const read = page('snapshot', '--root', card.check.read, '--depth', '0');
+  step(hello.code === 0 && read.out.includes(card.check.expect), `the self-check: ${card.check.activate}, then "${card.check.expect}"`, (hello.out + read.out).slice(0, 400));
+  const log = (await node('main/body/guide/log'))?.value ?? {};
+  step(log.link === 'paired' && log.records >= 1, "the person's log: the link, and the agent's action", JSON.stringify(log));
+
+  // 4. The agent operates the page through its semantic tree.
   const snap = page('snapshot', '--interactive');
   step(snap.code === 0 && snap.out.includes('main/bar/nav'), 'the agent reads the page (omui page snapshot)', snap.err.slice(0, 300));
   const act = page('act', 'main/bar/nav/to_features', 'activate');

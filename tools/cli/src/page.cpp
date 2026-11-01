@@ -31,6 +31,21 @@ namespace os = mcpplibs::os;
 
 namespace {
 
+// The name an agent gave (`--name "Claude Code"`, as the page shows it) as an
+// actor's (openas: letters, digits, - _ . @): `claude-code`; none, `local`.
+std::string actor_name(std::string_view shown) {
+    std::string out;
+    for (const char c : shown) {
+        const bool keep = (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '.' || c == '@';
+        if (keep) out += c;
+        else if (c >= 'A' && c <= 'Z') out += static_cast<char>(c - 'A' + 'a');
+        else if (!out.empty() && out.back() != '-') out += '-';
+    }
+    while (!out.empty() && out.back() == '-') out.pop_back();
+    return out.empty() ? std::string("local") : out;
+}
+
+
 constexpr std::uint16_t first_port = 47110;
 constexpr int ports = 4;
 constexpr std::string_view version = "0.1.0";
@@ -183,7 +198,7 @@ void serve(Bridge& b, os::ipc::connection c) {
             return;
         }
         // Every request is the agent's: its actor, whatever it names.
-        request->set("actor", std::format("agent:{}", b.agent_name.empty() ? std::string("local") : b.agent_name));
+        request->set("actor", std::format("agent:{}", actor_name(b.agent_name)));
         std::unique_lock g(b.m);
         if (!b.paired()) {
             respond(c, 503, R"({"error":"no page is paired yet: omui page status --wait"})", "");
@@ -427,31 +442,38 @@ int page(const cmd::ParsedArgs& p, std::optional<std::filesystem::path> dir, std
         err << "usage: omui page <status|describe|snapshot|changes|find|act|undo|redo|history|transaction|wait|capture|call> …\n";
         return 2;
     }
-    auto bridge = find_bridge(dir);
-    if (!bridge) {
-        err << bridge.error() << '\n';
-        return 1;
-    }
     const cmd::ParsedArgs& sub = p.subcommand()->get();
     if (p.subcommand_name() == "status") {
+        // Waiting, the bridge too may be on its way (an agent starts `omui connect` and waits at once).
         double limit = 600;
         if (auto t = sub.value("timeout")) std::from_chars(t->data(), t->data() + t->size(), limit);
         const auto until = std::chrono::steady_clock::now() + std::chrono::duration<double>(limit);
+        const bool wait = sub.is_flag_set("wait");
         for (;;) {
-            auto s = ask_bridge(*bridge, "GET", "/omui/v1/status", "", std::chrono::seconds(10));
+            auto bridge = find_bridge(dir);
+            auto s = bridge ? ask_bridge(*bridge, "GET", "/omui/v1/status", "", std::chrono::seconds(10)) : std::expected<std::string, std::string>(std::unexpected(bridge.error()));
             if (!s) {
+                if (wait && std::chrono::steady_clock::now() < until) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(250));
+                    continue;
+                }
                 err << s.error() << '\n';
                 return 1;
             }
             auto v = parse_json(*s);
             const bool paired = v && v->get("paired") && v->get("paired")->as_bool();
-            if (paired || !sub.is_flag_set("wait") || std::chrono::steady_clock::now() >= until) {
+            if (paired || !wait || std::chrono::steady_clock::now() >= until) {
                 out << Value{}.set("kind", "data").set("data", v ? *v : Value{}).json() << '\n';
                 out << Value{}.set("kind", "result").set("exitCode", paired ? 0 : 3).json() << '\n';
                 return paired ? 0 : 3;
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
         }
+    }
+    auto bridge = find_bridge(dir);
+    if (!bridge) {
+        err << bridge.error() << '\n';
+        return 1;
     }
     if (p.subcommand_name() == "sweep") {
         // The page's answers are {exitCode, data, errors, records}: their records, as the endpoint's are.

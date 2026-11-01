@@ -167,6 +167,11 @@ addToLibrary({
         // The person's own agent, through a bridge on this machine (D-95): the pairing code to give it, and the end of it.
         link: function () { return P.linkStart(P.LINK_PORTS, P.link ? P.link.app : ''); },
         unlink: function () { P.linkStop(); },
+        // How it stands (what the program shows: waiting, paired with whom, lost, expired, stopped); null before one began.
+        linkState: function () {
+          var l = P.link;
+          return l ? { state: l.state, code: l.code, agent: l.agent, port: l.port, error: l.error || '' } : null;
+        },
       };
       window.omui = Object.freeze(omui);
     },

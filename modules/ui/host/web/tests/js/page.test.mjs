@@ -359,6 +359,7 @@ test('the agent link: a code made in the page, a bridge found at its port, the a
   const code = context.omui_web_link_start('org.example.notes');
   assert.match(code, /^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/, 'eight letters and digits, none easily misread');
   assert.equal(window.omui.link(), code, 'asked again while it looks: the same code');
+  assert.equal(window.omui.linkState().code, code, 'its state, read: the code it shows');
   const said = () => heard.filter((h) => h[0] === P.LINK).map((h) => JSON.parse(h[3]));
   assert.equal(said()[0].state, 'waiting');
   b = bridge(code, [{ id: 1, request: { op: 'snapshot', actor: 'agent:Claude Code' } }]);

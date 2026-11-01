@@ -317,9 +317,13 @@ int main(int argc, char** argv) {
 
     s.test("omui connect and omui page: a page pairs with the code, the agent's requests reach it as the agent's, its answers come back; strangers refused", [] {
         const auto dir = scratch_dir("omui-bridge");
+        // Before any bridge: --wait waits for one to come (an agent starts `omui connect` and waits at once), then says none came.
+        const auto before = std::chrono::steady_clock::now();
+        auto none = omui_cmd({"--dir", omui::utf8(dir), "page", "status", "--wait", "--timeout", "0.5"});
+        check(none.code == 1 && std::chrono::steady_clock::now() - before >= std::chrono::milliseconds(400), none.out + none.err);
         std::atomic<std::uint16_t> port{0};
         std::jthread bridge([&](std::stop_token stop) {
-            auto r = cli::run_bridge({.code = "ABCD-EFGH", .name = "tester", .any_port = true, .dir = dir}, stop, [&](std::uint16_t p) { port = p; });
+            auto r = cli::run_bridge({.code = "ABCD-EFGH", .name = "Claude Code", .any_port = true, .dir = dir}, stop, [&](std::uint16_t p) { port = p; });
             check(r.has_value(), r ? "" : r.error());
         });
         for (int i = 0; i < 500 && !port; ++i) std::this_thread::sleep_for(std::chrono::milliseconds(5));
@@ -353,7 +357,7 @@ int main(int argc, char** argv) {
         the_page.join();
         check(snap.code == 0, snap.err);
         check(snap.out.contains("\"kind\":\"data\"") && !snap.out.contains("\"re\""), snap.out);
-        check(seen.contains("\"op\":\"snapshot\"") && seen.contains("\"actor\":\"agent:tester\"") && seen.contains("\"interactive\":true"),
+        check(seen.contains("\"op\":\"snapshot\"") && seen.contains("\"actor\":\"agent:claude-code\"") && seen.contains("\"interactive\":true"),
               std::format("the request as the page took it: {}", seen));
         // Strangers: the agent's side from a page (an Origin), or without the token, is refused; a page with a wrong session too.
         check_eq(http(port, "POST", "/omui/v1/call", R"({"op":"snapshot"})", "Origin: https://evil.example\r\n").first, 401);

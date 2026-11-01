@@ -22,6 +22,9 @@ on:
       - 'tools/ci/site.sh'
       - 'tools/ci/site-*'
       - 'tools/ci/wasm-size.sh'
+      - 'tools/ci/visitor-path.*'
+      - 'tools/cli/src/page.cpp'
+      - 'modules/ui/host/web/src/js/**'
       - 'tools/gen/src/wasm_size.cpp'
       - 'tools/ci/page.mjs'
       - '.github/workflows/pages.yml'
@@ -75,6 +78,11 @@ jobs:
         # (site/delivery.budget.omui.json); the browser's accessibility tree
         # and the keyboard's way in by the skip link.
         run: tools/ci/site-browser.sh
+      - name: The visitor's path — the page paired with an agent through omui connect, operated by omui page (D-95)
+        # tools/ci/visitor-path.sh: the pairing code the page gives, the bridge
+        # with it, both ends seeing the pairing, an action, the interaction
+        # sweep through the page, the bridge's end seen by the page.
+        run: tools/ci/visitor-path.sh
       - name: Where the site's WebAssembly bytes go (W8; Q-38)
         # tools/ci/wasm-size.sh: the release's code with its functions' names
         # kept, by owner (module, namespace, library) and its largest functions.

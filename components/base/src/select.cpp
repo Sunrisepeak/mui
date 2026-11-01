@@ -25,6 +25,7 @@ std::string Select::label_of(std::string_view value) const {
 void Select::mounted() {
     hover_ = 0;
     label_.set_style("body");
+    label_.set_max_lines(1);  // a field's one line: a label longer than the field ends in "…" before the chevron
     label_.set_text(props.value.empty() ? std::string("Choose…") : label_of(props.value));
 }
 
@@ -157,7 +158,7 @@ void Select::paint(PaintContext& ctx) const {
     const Color border = open ? th.color("accent") : th.color("border");
     ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, render::Paint::solid(border));
     const Color c = props.value.empty() ? th.color("text_muted") : th.color("text");
-    const Size t = label_.measure(ctx.services, c);
+    const Size t = label_.measure(ctx.services, c, ctx.content.width);
     label_.paint(ctx, {ctx.content.x, ctx.content.y + (ctx.content.height - t.height) / 2}, c);
     parts::chevron(ctx, {box.width - th.scaled(pad_x) - 6, box.height / 2}, 10, th.color("text_muted"));
     if (off) ctx.list.pop_layer();

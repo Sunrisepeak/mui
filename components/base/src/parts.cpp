@@ -43,6 +43,12 @@ void Label::set_style(std::string token) {
     dirty_ = true;
 }
 
+void Label::set_max_lines(int lines) {
+    if (lines == max_lines_) return;
+    max_lines_ = lines;
+    dirty_ = true;
+}
+
 typeset::Paragraph& Label::shaped(Services& services, Color color, float width) {
     if (dirty_ || !paragraph_ || !(color == color_)) {
         const Theme& theme = services.theme();
@@ -54,6 +60,7 @@ typeset::Paragraph& Label::shaped(Services& services, Color color, float width) 
         ps.style.line_height = tok.line_height;
         ps.style.letter_spacing = tok.letter_spacing;
         ps.style.color = color;
+        ps.max_lines = max_lines_;
         ps.wrap = true;  // whatever width it is first shaped at: an infinite one does not wrap, a later finite one does
         paragraph_.emplace(services.fonts(), text_, std::move(ps));
         color_ = color;

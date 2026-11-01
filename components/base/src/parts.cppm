@@ -32,6 +32,8 @@ class Label {
 public:
     void set_text(std::string text);
     void set_style(std::string token);
+    // At most this many lines at the width it is measured at, the last ending in "…" (0: as many as it takes).
+    void set_max_lines(int lines);
     [[nodiscard]] const std::string& text() const noexcept { return text_; }
     [[nodiscard]] Size measure(Services& services, Color color, float max_width = std::numeric_limits<float>::infinity());
     // Its widest unbreakable piece (a word): narrower than this, it would break inside one.
@@ -44,6 +46,7 @@ private:
 
     std::string                       text_;
     std::string                       style_ = "label";
+    int                               max_lines_ = 0;
     std::optional<typeset::Paragraph> paragraph_;
     Color                             color_{};
     float                             width_ = -1;

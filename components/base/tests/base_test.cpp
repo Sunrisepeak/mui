@@ -590,6 +590,29 @@ int main(int argc, char** argv) {
         h.settle();
     });
 
+    s.test("select: a label longer than the field ends in \"…\" before the chevron, never under it", [] {
+        Headless h(options({360, 120}));
+        h.mount("main", column({.padding = 12}, {
+                                   select({.id = "drawn", .label = "Who draws", .labels = std::vector<std::string>{"Automatic (a GPU when there is one)", "The CPU"},
+                                           .options = std::vector<std::string>{"automatic", "cpu"}, .value = std::string("automatic"), .width = Dim(180.0f)}),
+                               }));
+        h.settle();
+        const Rect b = bounds(h, "main/drawn");
+        check(b.width == 180, "the field as wide as it was told");
+        // Between the text's room and the chevron: the field's own colour only, top to bottom.
+        const auto& px = h.pixels();
+        const int right = static_cast<int>(b.x + b.width);
+        const auto ground = px.row(static_cast<int>(b.y) + 4)[right - 30];
+        int inked = 0;
+        for (int y = static_cast<int>(b.y) + 4; y < static_cast<int>(b.y + b.height) - 4; ++y)
+            for (int x = right - 35; x < right - 24; ++x) {
+                const auto p = px.row(y)[x];
+                inked += p.r != ground.r || p.g != ground.g || p.b != ground.b;
+            }
+        check(inked == 0, std::format("{} pixels of text under the chevron's room", inked));
+        check(sem(h, "main/drawn").value.get("value")->as_string() == "automatic", "its value whole");
+    });
+
     s.test("overlays in a picture: an open select and an open menu", [] {
         typeset::FontCollection own;
         check(own.add_defaults().has_value());

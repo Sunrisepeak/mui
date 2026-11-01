@@ -1,5 +1,6 @@
 // The package's own components (contract/): badge, avatar, skeleton, card,
-// accordion, toast, popover, breadcrumb, pagination and number input —
+// accordion, toast, popover, breadcrumb, pagination, number input and the
+// actor log —
 // driven as people and agents drive them (pointer, keys, actions, an item of
 // a component as a node of its own), their semantics, their history, and a
 // gallery whose pixels are pinned for every platform.
@@ -251,6 +252,76 @@ int main(int argc, char** argv) {
         (void)h.tree().act("app", "undo", call);
         h.step();
         check_eq(qty.peek(), 3.5);
+    });
+
+    s.test("actor log: an agent's actions, newest last, each a node; the last of its history taken back from here, by the person or the agent; the node it acted on pointed out; the agent link said", [] {
+        Headless h(options({420, 240}));
+        auto dark = signal(false);
+        auto volume = signal(40.0);
+        h.mount("main", column({.padding = 8, .gap = 8}, {
+                                   row({.id = "set", .gap = 8}, {toggle({.id = "dark", .checked = dark, .label = "Dark"}), slider({.id = "volume", .label = "Volume", .value = volume, .width = 140})}),
+                                   actor_log({.id = "log", .width = Dim(400.0f)}),
+                               }));
+        h.step();
+        check(sem(h, "main/log")->role == Role::log, "a log");
+        check(h.runtime().virtual_items(h.runtime().find("main/log")).empty(), "nothing yet");
+        check(!offers(*sem(h, "main/log"), "unlink"), "no link here to end (the headless host links none)");
+        check(act(h, "main/set/dark", "toggle") == 0 && dark.peek(), "an agent turns it on");
+        h.advance(seconds(1));
+        check(act(h, "main/set/volume", "set_value", Value{}.set("value", 70.0)) == 0);
+        check(h.click("main/set/dark") && !dark.peek(), "the person's own: not listed");
+        h.settle();
+        auto items = h.runtime().virtual_items(h.runtime().find("main/log"));
+        check(items.size() == 2 && items[0].role == Role::list_item && items[0].name == "test toggle …/set/dark" && items[1].name == "test set_value …/set/volume 70" && items[0].value.get("node")->as_string() == "main/set/dark",
+              items.empty() ? std::string("none") : items[0].name + " | " + items.back().name);
+        check(!offers(items[0], "undo") && !offers(items[1], "undo"), "the person acted since: neither is the last its history holds");
+        // The person undoes their own: the agent's volume is the last again.
+        Invocation person;
+        person.actor = {"person", "user", {}};
+        check(h.tree().act("app", "undo", person).exit_code() == std::optional<int>(0) && dark.peek());
+        h.settle();
+        items = h.runtime().virtual_items(h.runtime().find("main/log"));
+        check(offers(items[1], "undo"), "the volume's is the last now");
+        // An agent takes back its own, through the log.
+        check(act(h, std::format("main/log/{}", items[1].id.substr(items[1].id.rfind('/') + 1)), "undo") == 0 && volume.peek() == 40.0, "taken back by the agent");
+        items = h.runtime().virtual_items(h.runtime().find("main/log"));
+        check(offers(items[0], "undo") && !offers(items.back(), "undo"), "then the toggle's (the agent's undo listed too, as it did it)");
+        // The person: its Undo pressed.
+        h.settle();
+        const Rect log = h.runtime().screen_bounds(h.runtime().find("main/log"));
+        h.move({log.x + 200, log.y + 14});
+        h.settle();
+        check(h.runtime().pointed_out() == "main/set/dark", "hovered: the toggle pointed out");
+        h.click({log.x + log.width - 20, log.y + 14});
+        h.settle();
+        check(!dark.peek(), "the person's Undo: the agent's toggle taken back");
+        h.move({4, 4});
+        h.settle();
+        check(h.runtime().pointed_out().empty(), "left: nothing pointed out");
+        // The agent link, as a host that can link one says it.
+        int ended = 0;
+        h.runtime().set_agent_linker({[&] { return std::string("K7Q4-42MX"); }, [&] { ++ended; }});
+        h.runtime().agent_link_changed({"waiting", "K7Q4-42MX", {}, {}, 47110});
+        h.settle();
+        check(sem(h, "main/log")->value.get("link")->as_string() == "waiting" && offers(*sem(h, "main/log"), "unlink"), "waiting: it can end it");
+        h.runtime().agent_link_changed({"paired", "K7Q4-42MX", "claude-code", {}, 47110});
+        h.settle();
+        const std::size_t undoable = h.runtime().history(h.runtime().root()).undo.size();
+        check(act(h, "main/log", "unlink") == 0 && ended == 1, "ended");
+        check_eq(h.runtime().history(h.runtime().root()).undo.size(), undoable);  // no barrier: what was done before can still be undone
+        // The picture: the agent's last toggle, its Undo, hovered — the toggle outlined.
+        check(act(h, "main/set/dark", "toggle") == 0);
+        h.settle();
+        const auto last = *h.runtime().virtual_item(h.runtime().find("main/log"), std::to_string(h.runtime().action_journal().back().id))->bounds;
+        h.move({static_cast<float>(last.x) + 100, static_cast<float>(last.y + last.height / 2)});
+        h.settle();
+        check(h.runtime().pointed_out() == "main/set/dark");
+        check(h.save_png(scratch_dir("ui-base-actor-log") / "actor-log.png").has_value());
+        Hash hash;
+        const auto& px = h.pixels();
+        for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
+        std::println("ui.base actor log {:016x}", hash.value());
+        check(hash.value() == 0xc1c4885cfcdc4957ULL, std::format("actor log {:016x}", hash.value()));
     });
 
     s.test("the gallery: the ten, the same pixels on every platform", [] {

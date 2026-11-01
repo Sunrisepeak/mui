@@ -49,6 +49,7 @@ constexpr RoleName role_names[] = {
     {"ListBox", ACCESSKIT_ROLE_LIST_BOX},
     {"ListBoxOption", ACCESSKIT_ROLE_LIST_BOX_OPTION},
     {"ListItem", ACCESSKIT_ROLE_LIST_ITEM},
+    {"Log", ACCESSKIT_ROLE_LOG},
     {"Menu", ACCESSKIT_ROLE_MENU},
     {"MenuBar", ACCESSKIT_ROLE_MENU_BAR},
     {"MenuItem", ACCESSKIT_ROLE_MENU_ITEM},

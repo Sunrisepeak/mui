@@ -1,6 +1,7 @@
 # Who else acts here, and what each did (agent connect §3.2): the agent the
 # person linked — its link's state, its name — and the actions of the actors
-# it follows (agents, by default) from the runtime's journal, newest last.
+# it follows (agents, by default) from the runtime's journal, newest last,
+# each timed from their first.
 # Each record is a node a screen reader or an agent reads; while it is the
 # last its history holds, it is taken back from here (its scope's undo).
 # Hovering or focusing a record points out the node it acted on: an outline

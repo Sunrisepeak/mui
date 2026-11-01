@@ -420,7 +420,7 @@ int main(int argc, char** argv) {
         auto sort = signal(std::string());
         auto chosen = signal(std::vector<std::string>{});
         std::vector<std::string> activated;
-        h.mount("main", column({.padding = 8}, {data_grid({.id = "people", .columns = std::vector<std::string>{"name", "age", "city"},
+        h.mount("main", column({.padding = 8}, {data_grid({.id = "people", .fields = std::vector<std::string>{"name", "age", "city"},
                                                            .headers = std::vector<std::string>{"Name", "Age", "City"}, .label = "People", .model = "people",
                                                            .multiple = true, .selected = chosen, .sort = sort,
                                                            .on_activated = [&](std::string k) { activated.push_back(k); }, .width = Dim(460.0f)})}));
@@ -466,7 +466,7 @@ int main(int argc, char** argv) {
         h.mount("main", row({.padding = 16, .gap = 16, .align = "start"}, {
                                 tree_view({.id = "files", .expanded = std::vector<std::string>{"src", "ui"}, .model = "files", .value = std::string("button"),
                                            .width = Dim(200.0f), .height = Dim(220.0f)}),
-                                data_grid({.id = "people", .columns = std::vector<std::string>{"name", "age", "city"},
+                                data_grid({.id = "people", .fields = std::vector<std::string>{"name", "age", "city"},
                                            .headers = std::vector<std::string>{"Name", "Age", "City"}, .model = "people", .selected = std::vector<std::string>{"alan"},
                                            .sort = std::string("-age"), .widths = std::vector<std::string>{"*", "70", "*"}, .width = Dim(472.0f)}),
                             }));

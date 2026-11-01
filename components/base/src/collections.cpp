@@ -406,10 +406,10 @@ const std::vector<std::size_t>& DataGrid::order() const {
     return order_;
 }
 
-std::string DataGrid::header_of(std::size_t c) const { return c < props.headers.size() ? props.headers[c] : props.columns[c]; }
+std::string DataGrid::header_of(std::size_t c) const { return c < props.headers.size() ? props.headers[c] : props.fields[c]; }
 
 std::vector<float> DataGrid::column_widths(float width) const {
-    std::vector<float> w(props.columns.size(), -1);
+    std::vector<float> w(props.fields.size(), -1);
     float fixed = 0;
     std::size_t flexible = 0;
     for (std::size_t c = 0; c < w.size(); ++c) {
@@ -443,7 +443,7 @@ void DataGrid::paint(PaintContext& ctx) const {
     // The rows in view, under the header.
     const std::size_t from = static_cast<std::size_t>(std::max(0.0f, offset_ / grid_row));
     const std::size_t to = std::min(ord.size(), static_cast<std::size_t>((offset_ + ctx.size.height - grid_head) / grid_row) + 1);
-    const std::size_t cells = (to - std::min(from, to)) * props.columns.size();
+    const std::size_t cells = (to - std::min(from, to)) * props.fields.size();
     if (cells_.size() < cells) cells_.resize(cells);
     std::size_t k = 0;
     for (std::size_t i = from; i < to; ++i) {
@@ -453,8 +453,8 @@ void DataGrid::paint(PaintContext& ctx) const {
         else if (hover_ == static_cast<int>(i)) ctx.list.fill_rect(rr, th.color("surface_variant"));
         ctx.list.fill_rect({0, rr.bottom() - 1, ctx.size.width, 1}, th.color("border"));
         float x = 0;
-        for (std::size_t c = 0; c < props.columns.size(); ++c) {
-            const Value* v = row.fields.get(props.columns[c]);
+        for (std::size_t c = 0; c < props.fields.size(); ++c) {
+            const Value* v = row.fields.get(props.fields[c]);
             parts::Label& l = cells_[k++];
             l.set_style("body");
             l.set_max_lines(1);
@@ -470,14 +470,14 @@ void DataGrid::paint(PaintContext& ctx) const {
     // The header over them, each column's name and its sort.
     ctx.list.fill_rect({0, 0, ctx.size.width, grid_head}, th.color("surface_variant"));
     ctx.list.fill_rect({0, grid_head - 1, ctx.size.width, 1}, th.color("border_strong"));
-    headers_.resize(props.columns.size());
+    headers_.resize(props.fields.size());
     float x = 0;
-    for (std::size_t c = 0; c < props.columns.size(); ++c) {
+    for (std::size_t c = 0; c < props.fields.size(); ++c) {
         parts::Label& h = headers_[c];
         h.set_style("label");
         h.set_max_lines(1);
         h.set_text(header_of(c));
-        const bool by = props.sort == props.columns[c] || props.sort == "-" + props.columns[c];
+        const bool by = props.sort == props.fields[c] || props.sort == "-" + props.fields[c];
         const Color hc = by ? th.color("text") : th.color("text_muted");
         const Size t = h.measure(ctx.services, hc, std::max(0.0f, widths[c] - 2 * grid_pad - 14));
         if (hover_ == -2 - static_cast<int>(c)) ctx.list.fill_rect({x, 0, widths[c], grid_head - 1}, th.color("surface_pressed").with_alpha(0.5f));
@@ -540,7 +540,7 @@ bool DataGrid::on_event(EventContext& ctx, const InputEvent& e) {
     services().focus(node());
     if (over <= -2) {
         const std::size_t c = static_cast<std::size_t>(-2 - over);
-        (void)services().perform(node(), "set_sort", Value{}.set("sort", sort_after(props.columns[c])));
+        (void)services().perform(node(), "set_sort", Value{}.set("sort", sort_after(props.fields[c])));
         return true;
     }
     const std::size_t i = static_cast<std::size_t>(over);
@@ -579,7 +579,7 @@ ActResult DataGrid::select(std::vector<std::string> keys) {
 
 ActResult DataGrid::sort_to(std::string sort) {
     const std::string field = sort.starts_with('-') ? sort.substr(1) : sort;
-    if (!sort.empty() && std::ranges::find(props.columns, field) == props.columns.end())
+    if (!sort.empty() && std::ranges::find(props.fields, field) == props.fields.end())
         return ActResult::fail(std::format("`{}` is not one of its columns", field));
     const std::string old = props.sort;
     if (sort != props.sort) {
@@ -639,11 +639,11 @@ ActResult DataGrid::toggle(ActContext&) {
 
 spec::SemanticNode DataGrid::header_item(std::string_view path, std::size_t c) const {
     spec::SemanticNode n;
-    n.id = std::format("{}/col_{}", path, props.columns[c]);
+    n.id = std::format("{}/col_{}", path, props.fields[c]);
     n.role = Role::column_header;
     n.name = header_of(c);
-    const std::string sort = props.sort == props.columns[c] ? "ascending" : props.sort == "-" + props.columns[c] ? "descending" : "none";
-    n.value = Value{}.set("field", props.columns[c]).set("sort", sort);
+    const std::string sort = props.sort == props.fields[c] ? "ascending" : props.sort == "-" + props.fields[c] ? "descending" : "none";
+    n.value = Value{}.set("field", props.fields[c]).set("sort", sort);
     if (attached() && size_.width > 0) {
         const auto widths = column_widths(size_.width);
         float x = 0;
@@ -660,10 +660,10 @@ spec::SemanticNode DataGrid::row_item(std::string_view path, std::size_t at) con
     spec::SemanticNode n;
     n.id = std::format("{}/{}", path, row.key);
     n.role = Role::row;
-    const Value* first = props.columns.empty() ? nullptr : row.fields.get(props.columns.front());
+    const Value* first = props.fields.empty() ? nullptr : row.fields.get(props.fields.front());
     n.name = first ? text_of(*first) : row.key;
     Value cells = Value(Value::Map{});
-    for (const std::string& c : props.columns)
+    for (const std::string& c : props.fields)
         if (const Value* v = row.fields.get(c)) cells.set(c, *v);
     n.value = std::move(cells);
     n.states.set(State::selected, chosen(row.key));
@@ -687,15 +687,15 @@ void DataGrid::semantics(SemanticsContext&, spec::SemanticNode& node) const {
 
 std::vector<spec::SemanticNode> DataGrid::virtual_items(std::string_view path) const {
     std::vector<spec::SemanticNode> out;
-    for (std::size_t c = 0; c < props.columns.size(); ++c) out.push_back(header_item(path, c));
+    for (std::size_t c = 0; c < props.fields.size(); ++c) out.push_back(header_item(path, c));
     for (std::size_t i = 0; i < order().size(); ++i) out.push_back(row_item(path, i));
     return out;
 }
 
 std::optional<spec::SemanticNode> DataGrid::virtual_item(std::string_view path, std::string_view key) const {
     if (key.starts_with("col_")) {
-        for (std::size_t c = 0; c < props.columns.size(); ++c)
-            if (props.columns[c] == key.substr(4)) return header_item(path, c);
+        for (std::size_t c = 0; c < props.fields.size(); ++c)
+            if (props.fields[c] == key.substr(4)) return header_item(path, c);
     }
     if (const auto i = position_of(key)) return row_item(path, *i);
     return std::nullopt;

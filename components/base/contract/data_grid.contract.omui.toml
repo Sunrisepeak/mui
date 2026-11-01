@@ -1,4 +1,4 @@
-# A table of a model's rows: its columns (fields of the rows), sorted by a
+# A table of a model's rows: its columns (the rows' `fields`), sorted by a
 # column header pressed (ascending, descending, as the model has it), rows
 # chosen one or several at a time. Each row an item of its own
 # (`<id>/<key>`, its fields its value), each column header too
@@ -11,7 +11,7 @@ doc  = "A table of a model's rows: sorted by a column, rows chosen, read whole b
 
 [contract.data_grid.props]
 model    = { type = "string", default = "", doc = "The model whose rows it shows." }
-columns  = { type = "list<string>", default = [], doc = "The fields shown, in order." }
+fields   = { type = "list<string>", default = [], doc = "The rows' fields shown as its columns, in order (named `fields`: `columns` is a grid layout's)." }
 headers  = { type = "list<string>", default = [], doc = "Their headers (else the fields' names)." }
 widths   = { type = "list<string>", default = [], doc = "Each column's width in pixels; empty or * shares what is left." }
 sort     = { type = "string", default = "", bindable = true, doc = "The column sorted by: a field, ascending; -field, descending; empty: the model's order." }

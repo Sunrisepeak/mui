@@ -146,16 +146,23 @@ void ActorLog::paint(PaintContext& ctx) const {
     times_.resize(recs.size());
     texts_.resize(recs.size());
     undos_.resize(recs.size());
+    // When, from its actors' first record on: how far into their session each came.
+    double since = recs.front()->at;
+    for (const ActionEntry& e : services().action_journal())
+        if (e.actor.starts_with(props.actors)) {
+            since = e.at;
+            break;
+        }
     for (std::size_t i = 0; i < recs.size(); ++i) {
         const ActionEntry& e = *recs[i];
         const Rect r{0, y, w, row_h};
         rows_.push_back(r);
         shown_.push_back(e.id);
         if (hover_ == static_cast<int>(i)) ctx.list.fill_round_rect(r, CornerRadii::all(4), render::Paint::solid(th.color("surface_variant")));
-        // When (m:ss of the runtime's clock), what, and its Undo while it is the last its history holds.
+        // When (m:ss since the first), what, and its Undo while it is the last its history holds.
         parts::Label& when = times_[i];
         when.set_style("caption");
-        const auto s = static_cast<std::int64_t>(e.at);
+        const auto s = static_cast<std::int64_t>(e.at - since);
         when.set_text(std::format("{}:{:02}", s / 60, s % 60));
         const Size tw = when.measure(ctx.services, th.color("text_muted"));
         when.paint(ctx, {pad_x, y + (row_h - tw.height) / 2}, th.color("text_muted"));

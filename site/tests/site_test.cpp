@@ -678,7 +678,7 @@ int main(int argc, char** argv) {
         a.h.advance(seconds(1));
         shot("time.png");
         std::println("    pixels {}", all.hex());
-        check_eq(all.hex(), std::string("bf7e33bc6b3461c1"));
+        check_eq(all.hex(), std::string("c488e1057c8e99bb"));
     });
 
     s.test("the components: each live, its code in four languages; a style pack styles the gallery alone, the tree the same in every pack", [] {

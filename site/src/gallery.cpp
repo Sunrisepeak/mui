@@ -183,10 +183,99 @@ std::vector<Entry> entries() {
                                    row({.gap = 8}, {button({.id = "cancel", .text = "Cancel", .on_activated = [d = g.dialog] { d.set(false); }}),
                                                     button({.id = "delete", .text = "Delete", .variant = ButtonVariant::danger, .on_activated = [d = g.dialog] { d.set(false); }})})})});
     });
+    // The second batch (C2·W4).
+    const auto strings = [](std::initializer_list<std::string_view> l) {
+        Value::List out;
+        for (std::string_view x : l) out.emplace_back(std::string(x));
+        return V(std::move(out));
+    };
+    add("segmented", "Segmented control", "分段控件", {"segmented", {{"id", V("view")}, {"options", strings({"day", "week", "month"})}, {"value", V("week")}}},
+        [](Gallery& g) {
+            return segmented({.id = "view", .label = "View", .labels = std::vector<std::string>{"Day", "Week", "Month"},
+                              .options = std::vector<std::string>{"day", "week", "month"}, .value = g.view, .width = Dim(320.0f)});
+        });
+    add("chip", "Chip", "标签", {"chip", {{"id", V("open")}, {"selectable", V(true)}, {"text", V("Open")}}}, [](Gallery& g) {
+        return row({.gap = 8, .wrap = "wrap"}, {chip({.id = "help", .text = "Help"}), chip({.id = "open", .selectable = true, .selected = g.filter, .text = "Open"}),
+                                               chip({.id = "design", .removable = true, .text = "design"})});
+    });
+    add("range_slider", "Range slider", "范围滑块", {"range_slider", {{"id", V("price")}, {"label", V("Price")}, {"low", V(20)}, {"high", V(80)}}}, [](Gallery& g) {
+        return range_slider({.id = "price", .high = g.high, .label = "Price", .low = g.low, .step = 5.0, .width = 300});
+    });
+    add("alert", "Alert", "提醒", {"alert", {{"id", V("quota")}, {"title", V("Almost full")}, {"tone", V("warning")}, {"action", V("Upgrade")}}}, [](Gallery& g) {
+        return column({.gap = 10}, {alert({.id = "saved", .message = "Your changes are saved.", .tone = AlertTone::success}),
+                                    alert({.id = "quota", .action = "Upgrade", .dismissible = true, .message = "You have used 90% of your storage.", .open = g.alert,
+                                           .title = "Almost full", .tone = AlertTone::warning})});
+    });
+    add("stepper", "Stepper", "步骤条", {"stepper", {{"id", V("checkout")}, {"steps", strings({"Cart", "Address", "Payment", "Review"})}, {"value", V(2)}}},
+        [](Gallery& g) {
+            return stepper({.id = "checkout", .steps = std::vector<std::string>{"Cart", "Address", "Payment", "Review"}, .value = g.step, .width = Dim(480.0f)});
+        });
+    add("date_picker", "Date picker", "日期选择", {"date_picker", {{"id", V("arrival")}, {"label", V("Arrival")}, {"value", V("2026-11-12")}}}, [](Gallery& g) {
+        return date_picker({.id = "arrival", .label = "Arrival", .value = g.date});
+    });
+    add("time_picker", "Time picker", "时间选择", {"time_picker", {{"id", V("start")}, {"step", V(5)}, {"value", V("09:30")}}}, [](Gallery& g) {
+        return row({.gap = 12}, {time_picker({.id = "start", .label = "Start", .step = 5, .value = g.time}),
+                                 time_picker({.id = "end", .hour12 = true, .label = "End", .value = std::string("17:45")})});
+    });
+    add("color_picker", "Colour picker", "颜色选择", {"color_picker", {{"id", V("ink")}, {"value", V("#4f46e5")}}}, [](Gallery& g) {
+        return color_picker({.id = "ink", .label = "Ink", .swatches = std::vector<std::string>{"#ef4444", "#f59e0b", "#22c55e", "#06b6d4", "#3b82f6", "#6366f1", "#d946ef", "#111827"},
+                             .value = g.ink});
+    });
+    add("split_view", "Split view", "分栏", {"split_view", {{"id", V("panes")}, {"ratio", V(0.4)}}}, [](Gallery& g) {
+        return split_view({.id = "panes", .label = "Panes", .ratio = g.ratio, .width = Dim(480.0f), .height = Dim(160.0f)},
+                          {column({.id = "list", .padding = 12, .gap = 6, .background = "surface_variant"},
+                                  {text({.text = "Inbox", .style = "label"}), text({.text = "Drafts"}), text({.text = "Sent"})}),
+                           column({.id = "detail", .padding = 12}, {text({.text = "No message chosen.", .style = "caption"})})});
+    });
+    add("drawer", "Drawer", "抽屉", {"drawer", {{"id", V("filters")}, {"title", V("Filters")}}}, [](Gallery& g) {
+        return column({}, {button({.id = "show", .text = "Filters…", .on_activated = [d = g.drawer] { d.set(true); }}),
+                           drawer({.id = "filters", .open = g.drawer, .title = "Filters"},
+                                  {checkbox({.id = "mine", .label = "Only mine"}), checkbox({.id = "unread", .checked = true, .label = "Unread"})})});
+    });
+    add("tree_view", "Tree view", "树", {"tree_view", {{"id", V("files")}, {"model", V("gallery_files")}}}, [](Gallery& g) {
+        return tree_view({.id = "files", .expanded = g.open, .label = "Files", .model = "gallery_files", .value = g.file, .width = Dim(280.0f), .height = Dim(200.0f)});
+    });
+    add("data_grid", "Data grid", "数据表格", {"data_grid", {{"id", V("people")}, {"model", V("gallery_people")}, {"fields", strings({"name", "age", "city"})}}},
+        [](Gallery& g) {
+            return data_grid({.id = "people", .fields = std::vector<std::string>{"name", "age", "city"}, .headers = std::vector<std::string>{"Name", "Age", "City"},
+                              .label = "People", .model = "gallery_people", .selected = g.picked, .sort = g.sort,
+                              .widths = std::vector<std::string>{"*", "70", "*"}, .width = Dim(480.0f)});
+        });
+    add("combobox", "Combobox", "组合框", {"combobox", {{"id", V("lang")}, {"options", strings({"cpp", "ts", "py", "lua"})}, {"value", V("ts")}}}, [](Gallery& g) {
+        return combobox({.id = "lang", .label = "Language", .labels = std::vector<std::string>{"C++", "TypeScript", "Python", "Lua"},
+                         .options = std::vector<std::string>{"cpp", "ts", "py", "lua"}, .value = g.lang_choice, .width = Dim(240.0f)});
+    });
+    add("tag_input", "Tag input", "标签输入", {"tag_input", {{"id", V("topics")}, {"tags", strings({"design", "motion"})}}}, [](Gallery& g) {
+        return tag_input({.id = "topics", .label = "Topics", .suggestions = std::vector<std::string>{"agents", "layout", "motion", "design", "effects"},
+                          .tags = g.tags, .width = Dim(360.0f)});
+    });
+    add("code_editor", "Code editor", "代码编辑器", {"code_editor", {{"id", V("snippet")}, {"language", V("cpp")}}}, [](Gallery& g) {
+        return code_editor({.id = "snippet", .lines = 5, .text = g.code, .width = Dim(480.0f)});
+    });
     return e;
 }
 
 }  // namespace
+
+void fill_gallery_models(Runtime& rt) {
+    Model& files = rt.model("gallery_files");
+    if (files.size() == 0) {
+        std::vector<Row> rows;
+        for (const auto& [key, label, parent] : {std::tuple{"src", "src", ""}, {"app", "app.cpp", "src"}, {"ui", "ui", "src"}, {"button", "button.cpp", "ui"},
+                                                 {"slider", "slider.cpp", "ui"}, {"readme", "README.md", ""}}) {
+            Value f = Value{}.set("label", label);
+            if (*parent) f.set("parent", parent);
+            rows.push_back({key, std::move(f)});
+        }
+        (void)files.push(std::move(rows));
+    }
+    Model& people = rt.model("gallery_people");
+    if (people.size() == 0)
+        (void)people.push({{"ada", Value{}.set("name", "Ada Lovelace").set("age", 36.0).set("city", "London")},
+                           {"alan", Value{}.set("name", "Alan Turing").set("age", 41.0).set("city", "Wilmslow")},
+                           {"grace", Value{}.set("name", "Grace Hopper").set("age", 85.0).set("city", "Arlington")},
+                           {"linus", Value{}.set("name", "Linus Torvalds").set("age", 56.0).set("city", "Portland")}});
+}
 
 Element gallery(Gallery& g, const GallerySite& site, bool, float width) {
     Signal<std::string>* lang = site.lang;

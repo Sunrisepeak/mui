@@ -32,7 +32,19 @@ struct Gallery {
     Signal<std::string> name = signal(std::string("Ada")), size = signal(std::string("medium")), tab = signal(std::string("overview"));
     Signal<std::int64_t> page = signal(std::int64_t{4}), unread = signal(std::int64_t{3});
     Signal<std::vector<std::string>> path = signal(std::vector<std::string>{"Home", "Docs", "Motion"});
+    // The second batch's (C2·W4).
+    Signal<std::string> view = signal(std::string("week")), date = signal(std::string("2026-11-12")), time = signal(std::string("09:30")),
+                        ink = signal(std::string("#4f46e5")), file = signal(std::string("button")), lang_choice = signal(std::string("ts")), sort = signal(std::string("-age")),
+                        code = signal(std::string("import std;\n\nint main() {\n    std::println(\"hello, openmui\");\n}"));
+    Signal<bool>        filter = signal(true), alert = signal(true), drawer = signal(false);
+    Signal<double>      low = signal(20.0), high = signal(80.0), ratio = signal(0.4);
+    Signal<std::int64_t> step = signal(std::int64_t{2});
+    Signal<std::vector<std::string>> open = signal(std::vector<std::string>{"src", "ui"}), picked = signal(std::vector<std::string>{"alan"}),
+                                     tags = signal(std::vector<std::string>{"design", "motion"});
 };
+
+// The rows the gallery's tree view and data grid show (models of the runtime's).
+void fill_gallery_models(Runtime& rt);
 
 struct GallerySite {
     Signal<std::string>*               lang = nullptr;

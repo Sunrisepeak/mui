@@ -1089,6 +1089,7 @@ AppSpec app(std::string_view place, std::string_view lang) {
         register_base_components();
         register_type(component_type<Timebar>());
         register_type(component_type<FrameMeter>());
+        fill_gallery_models(rt);  // the components page's tree view and data grid
         s->hero_site = {.runtime = &s->runtime,
                         .lang = &s->lang,
                         .nodes = &s->nodes,
@@ -1315,7 +1316,9 @@ std::string static_html(std::string_view lang) {
             out += chinese ? "<h1>组件</h1>\n<p>openmui.ui.base 的每个组件。可以操作的组件、四种语言的代码和风格包需要 JavaScript。</p>\n<ul>\n"
                            : "<h1>Components</h1>\n<p>Every component of openmui.ui.base. Operating them, their code in four languages and the style packs need JavaScript.</p>\n<ul>\n";
             for (const std::string_view name : {"button", "toggle", "checkbox", "radio", "slider", "number_input", "text_box", "select", "tabs", "breadcrumb", "pagination",
-                                                "progress", "badge", "avatar", "card", "accordion", "skeleton", "tooltip", "popover", "toast", "dialog"})
+                                                "progress", "badge", "avatar", "card", "accordion", "skeleton", "tooltip", "popover", "toast", "dialog", "segmented", "chip",
+                                                "range_slider", "alert", "stepper", "date_picker", "time_picker", "color_picker", "split_view", "drawer", "tree_view",
+                                                "data_grid", "combobox", "tag_input", "code_editor"})
                 if (const ComponentType* t = find_type(name); t && t->contract)
                     out += std::format("<li><b>{}</b> ({}) — {}</li>\n", name, spec::name(t->contract->role), escaped(t->contract->doc));
             out += "</ul>\n";

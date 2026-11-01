@@ -4,7 +4,7 @@
 // Beside them, the package's own (its contract/ directory, made into code
 // when it builds): badge, avatar, skeleton, card, accordion, toast, popover,
 // breadcrumb, pagination, number input; who else acts here (actor log);
-// segmented, chip, range slider, alert, stepper.
+// segmented, chip, range slider, alert, stepper; date, time and colour pickers.
 //
 //     import openmui.ui.base;
 //     omui::register_base_components();   // view documents and immediate mode find them by name
@@ -48,6 +48,9 @@ export import :chip_contract;
 export import :range_slider_contract;
 export import :alert_contract;
 export import :stepper_contract;
+export import :date_picker_contract;
+export import :time_picker_contract;
+export import :color_picker_contract;
 export import :button;
 export import :toggle;
 export import :slider;
@@ -65,6 +68,7 @@ export import :number_input;
 export import :actors;
 export import :choices;
 export import :notices;
+export import :pickers;
 
 export namespace omui {
 

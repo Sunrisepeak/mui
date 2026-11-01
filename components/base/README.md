@@ -39,6 +39,9 @@ made into code when the package builds — `build.mcpp`, openmui.build.contracts
 | `range_slider` | `group` | two thumbs on one track, the low never past the high; each a slider of its own (`<id>/low`, `<id>/high`); dragged (taken back whole), stepped (Tab between them), set |
 | `alert` | `status` | a message in the page that needs attention: its tone said, a title, one action at most, dismissible when it may be (then hidden to every reader) |
 | `stepper` | `navigation` | the steps of a sequence: done (checked), current, ahead; a done one gone back to (`<id>/<index>`), ahead only when `free`; taken back |
+| `date_picker` | `combo_box` | an ISO date chosen from a month's calendar (arrows a day or a week, PageUp/PageDown a month, Enter chooses); any date an item of the picker an agent chooses without opening it (`<id>/2026-11-05`), within `min`–`max`; the month's days and its arrows items while open |
+| `time_picker` | `group` | a time of day, its hours and minutes spin buttons of their own (`<id>/hours`, `<id>/minutes`; `<id>/period` in 12-hour), stepped (Up, Down; Left, Right between them) or typed, kept on `step` minutes |
+| `color_picker` | `combo_box` | a colour (#rrggbb) from a saturation–brightness field, a hue strip and the application's swatches — items of its own while open (`<id>/field`, `<id>/hue`, `<id>/swatch_<n>`); a grey keeps its hue; a drag taken back whole |
 
 They draw what they are now: how a change of them moves is their slots'
 (universal motion), never their own code. Their gallery (`tests/kit_test.cpp`)

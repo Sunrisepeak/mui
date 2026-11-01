@@ -1,5 +1,5 @@
 // openmui.ui.base's second batch (C2·W4): segmented, chip, range slider,
-// alert, stepper, … — driven as people and agents drive them (pointer, keys,
+// alert, stepper, the date, time and colour pickers, … — driven as people and agents drive them (pointer, keys,
 // actions, an item of a component as a node of its own), their semantics,
 // their history, and a gallery whose pixels are pinned for every platform.
 import std;
@@ -189,6 +189,111 @@ int main(int argc, char** argv) {
         h.click(middle(*items(h, "main/checkout")[0].bounds));
         h.step();
         check_eq(at.peek(), std::int64_t{0});
+    });
+
+    s.test("date picker: any date an item an agent chooses, open or not; min and max hold; the month's days while open; arrows and Enter; taken back", [] {
+        Headless h(options({420, 420}));
+        auto when = signal(std::string("2026-11-02"));
+        h.mount("main", column({.padding = 8}, {date_picker({.id = "when", .label = "Arrival", .max = "2026-12-20", .min = "2026-10-15", .value = when})}));
+        h.step();
+        const auto n = sem(h, "main/when");
+        check(n && n->role == Role::combo_box && n->name == "Arrival" && !n->states.has(State::expanded), "a combo box, closed");
+        check(items(h, "main/when").empty(), "no days listed while closed");
+        check(act(h, "main/when/2026-11-05", "activate") == 0 && when.peek() == "2026-11-05", "an agent chooses without opening");
+        check(undo(h) == 0 && when.peek() == "2026-11-02", "taken back");
+        check(act(h, "main/when/2026-12-25", "activate") != 0 && when.peek() == "2026-11-02", "after max: refused");
+        check(act(h, "main/when", "set_value", Value{}.set("value", "tomorrow")) == 1, "not a date");
+        check(act(h, "main/when", "expand") == 0 && sem(h, "main/when")->states.has(State::expanded), "open");
+        auto days = items(h, "main/when");
+        check(days.size() == 2 + 30 && days[2].name == "1 November 2026" && days[2].bounds && days[3].states.has(State::selected), "November's 30 days, placed; the 2nd chosen");
+        check(act(h, "main/when/next_month", "activate") == 0 && items(h, "main/when").size() == 2 + 31, "December");
+        h.click(middle(*h.runtime().virtual_item(h.runtime().find("main/when"), "2026-12-03")->bounds));
+        h.step();
+        check(when.peek() == "2026-12-03" && !sem(h, "main/when")->states.has(State::expanded), "pressed: chosen, closed");
+        check(undo(h) == 0 && when.peek() == "2026-11-02", "the press taken back");
+        // Keys: open, a day on, Enter.
+        check(h.click("main/when"));
+        h.step();
+        h.key(Key::right);
+        h.key(Key::enter);
+        h.step();
+        check_eq(when.peek(), std::string("2026-11-03"));
+    });
+
+    s.test("time picker: its hours and minutes spin buttons of their own; stepped, typed, kept on its step; 12-hour with its AM and PM; taken back", [] {
+        Headless h(options());
+        auto at = signal(std::string("09:30")), late = signal(std::string("21:05"));
+        h.mount("main", column({.padding = 8, .gap = 8}, {time_picker({.id = "at", .label = "Start", .step = 5, .value = at}),
+                                                          time_picker({.id = "late", .hour12 = true, .label = "End", .value = late})}));
+        h.step();
+        auto it = items(h, "main/at");
+        check(it.size() == 2 && it[0].role == Role::spin_button && it[0].value.get("value")->as_int() == 9 && it[1].value.get("value")->as_int() == 30, "hours, minutes");
+        check(act(h, "main/at/hours", "increment") == 0 && at.peek() == "10:30" && undo(h) == 0 && at.peek() == "09:30", "stepped, taken back");
+        check(act(h, "main/at/minutes", "set_value", Value{}.set("value", std::int64_t{47})) == 0 && at.peek() == "09:45", "kept on its 5 minutes");
+        check(act(h, "main/at", "set_value", Value{}.set("value", "25:00")) == 1, "not a time");
+        h.click("main/at");
+        h.step();
+        h.key(Key::up);
+        h.key(Key::right);
+        h.key(Key::digit1);
+        h.key(Key::digit5);
+        h.step();
+        check(at.peek() == "10:15", at.peek());
+        auto pm = items(h, "main/late");
+        check(pm.size() == 3 && pm[0].value.get("value")->as_int() == 9 && pm[2].name == "PM", "09 PM");
+        check(act(h, "main/late/period", "activate") == 0 && late.peek() == "09:05", "to the morning");
+    });
+
+    s.test("colour picker: set at once; its field, hue strip and swatches items of its own while open; grey keeps its hue; a drag taken back whole", [] {
+        Headless h(options({420, 420}));
+        auto ink = signal(std::string("#4f46e5"));
+        h.mount("main", column({.padding = 8}, {color_picker({.id = "ink", .label = "Ink", .swatches = std::vector<std::string>{"#ef4444", "#22c55e", "#3b82f6", "#111827"},
+                                                               .value = ink})}));
+        h.step();
+        check(sem(h, "main/ink")->role == Role::combo_box && sem(h, "main/ink")->value.as_string() == "#4f46e5", "its value said");
+        check(act(h, "main/ink", "set_value", Value{}.set("value", "#FF0000")) == 0 && ink.peek() == "#ff0000", "set, written as #rrggbb");
+        check(undo(h) == 0 && ink.peek() == "#4f46e5", "taken back");
+        check(act(h, "main/ink", "set_value", Value{}.set("value", "red")) == 1, "not a colour");
+        check(act(h, "main/ink", "expand") == 0, "open");
+        auto it = items(h, "main/ink");
+        check(it.size() == 2 + 4 && it[0].name == "Saturation and brightness" && it[1].name == "Hue" && it[2].name == "#ef4444" && it[2].bounds, "its parts");
+        check(act(h, "main/ink/swatch_1", "activate") == 0 && ink.peek() == "#22c55e", "a swatch");
+        check(act(h, "main/ink/hue", "set_value", Value{}.set("value", 0.0)) == 0 && ink.peek().starts_with("#c"), ink.peek());
+        check(act(h, "main/ink/field", "set_value", Value{}.set("saturation", 0.0).set("brightness", 100.0)) == 0 && ink.peek() == "#ffffff", "white");
+        check(act(h, "main/ink/field", "set_value", Value{}.set("saturation", 100.0).set("brightness", 100.0)) == 0 && ink.peek() == "#ff0000",
+              std::format("its hue kept through white: {}", ink.peek()));
+        // The person drags in the field: one action, taken back whole.
+        const auto field = *items(h, "main/ink")[0].bounds;
+        const std::size_t before = h.runtime().history(h.runtime().root()).undo.size();
+        drag(h, {static_cast<float>(field.x + 10), static_cast<float>(field.y + 10)}, middle(field));
+        check(ink.peek() != "#ff0000" && h.runtime().history(h.runtime().root()).undo.size() == before + 1, std::format("dragged to {}", ink.peek()));
+        check(undo(h) == 0 && ink.peek() == "#ff0000", "taken back whole");
+    });
+
+    s.test("the pickers open, the same pixels on every platform", [] {
+        typeset::FontCollection own;
+        check(own.add_defaults().has_value());
+        HeadlessOptions o = options({660, 400});
+        o.fonts = &own;
+        o.scale = 2;
+        Headless h(o);
+        h.mount("main", row({.padding = 16, .gap = 24, .align = "start"}, {
+                                date_picker({.id = "d", .label = "Arrival", .min = "2026-11-03", .value = std::string("2026-11-12")}),
+                                spacer(),
+                                column({.id = "right", .gap = 12, .align = "end"}, {time_picker({.id = "t", .hour12 = true, .value = std::string("21:05")}),
+                                                     color_picker({.id = "c", .swatches = std::vector<std::string>{"#ef4444", "#f59e0b", "#22c55e", "#06b6d4", "#3b82f6",
+                                                                                                                   "#6366f1", "#d946ef", "#111827"},
+                                                                   .value = std::string("#3b82f6")})}),
+                            }));
+        h.step();
+        check(act(h, "main/d", "expand") == 0 && act(h, "main/right/c", "expand") == 0);
+        h.settle();
+        Hash hash;
+        const auto& px = h.pixels();
+        for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
+        std::println("ui.base pickers {:016x}", hash.value());
+        check(h.save_png(scratch_dir("ui-base-pickers") / "pickers@2x.png").has_value());
+        check(hash.value() == 0x746751dd38b85266ULL, std::format("pickers {:016x}", hash.value()));
     });
 
     s.test("the gallery: the second batch, the same pixels on every platform", [] {

@@ -124,14 +124,15 @@ void Rating::semantics(omui::SemanticsContext&, omui::spec::SemanticNode& node) 
 omui::ActResult Rating::change(double v) {
     if (props.readonly) return omui::ActResult::fail("the rating is read-only");
     v = snap(v);
-    if (v != props.value) {
-        write_value(v);
-        emit_changed(v);
-        fill_ = v;
-        services().invalidate_paint(node());
-        services().invalidate_semantics(node());
-    }
-    return omui::ActResult::done(omui::Value(props.value));
+    const double old = props.value;
+    if (v == old) return omui::ActResult::done(omui::Value(props.value));
+    write_value(v);
+    emit_changed(v);
+    fill_ = v;
+    services().invalidate_paint(node());
+    services().invalidate_semantics(node());
+    // Taken back by setting the value it replaced (S-12).
+    return omui::ActResult::done(omui::Value(props.value)).undo_by("set_value", omui::Value{}.set("value", old));
 }
 
 omui::ActResult Rating::set_value(omui::ActContext&, const omui::Value& value) {

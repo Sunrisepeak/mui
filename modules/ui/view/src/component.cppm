@@ -335,6 +335,9 @@ struct ActContext {
     // Who acts (openas): a person, an agent, a program — what a component
     // that seats players or keeps owners checks. Null outside an action.
     const Actor* actor = nullptr;
+    // An undo or redo putting back what was (S-12): a value as it was,
+    // exactly — not snapped to a step, not rounded.
+    bool restoring = false;
 };
 
 struct SemanticsContext {

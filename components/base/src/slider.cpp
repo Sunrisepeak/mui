@@ -56,14 +56,14 @@ Size Slider::measure(MeasureContext&, std::optional<float> width, std::optional<
     return {w, h.value_or(height)};
 }
 
-bool Slider::change(double v, bool animate, bool commit) {
-    v = snap(v);
+bool Slider::change(double v, bool commit, bool exact) {
+    v = exact ? v : snap(v);
     const bool moved = v != props.value;
     if (moved) {
         write_value(v);
         emit_changed(v);
     }
-    (void)animate;  // how it moves is its update slot's (universal motion): it draws where it is
+    // How it moves is its update slot's (universal motion): it draws where it is.
     thumb_ = fraction(v);
     if (commit && moved) emit_committed(v);
     services().invalidate_paint(node());
@@ -123,11 +123,11 @@ bool Slider::on_event(EventContext& ctx, const InputEvent& e) {
             dragging_ = true;
             drag_from_ = props.value;
             services().capture_pointer(node());
-            change(value_at(ctx.local.x), false, false);
+            change(value_at(ctx.local.x), false);
             return true;
         case PointerKind::move:
             if (!dragging_) return false;
-            change(value_at(ctx.local.x), false, false);
+            change(value_at(ctx.local.x), false);
             return true;
         case PointerKind::up:
         case PointerKind::cancel:
@@ -174,24 +174,25 @@ std::expected<double, std::string> slider_target(const SliderProps& p, std::stri
 // Each step is taken back by setting the value it replaced (S-12).
 ActResult Slider::increment(ActContext&) {
     const double old = props.value;
-    change(props.value + (props.step > 0 ? props.step : (props.max - props.min) / 100), true, true);
+    change(props.value + (props.step > 0 ? props.step : (props.max - props.min) / 100), true);
     return ActResult::done(Value(props.value)).undo_by("set_value", Value{}.set("value", old));
 }
 
 ActResult Slider::decrement(ActContext&) {
     const double old = props.value;
-    change(props.value - (props.step > 0 ? props.step : (props.max - props.min) / 100), true, true);
+    change(props.value - (props.step > 0 ? props.step : (props.max - props.min) / 100), true);
     return ActResult::done(Value(props.value)).undo_by("set_value", Value{}.set("value", old));
 }
 
-ActResult Slider::set_value(ActContext&, const Value& value) {
+ActResult Slider::set_value(ActContext& ctx, const Value& value) {
     const double old = props.value;
     double v = props.value;
     if (value.is_number()) v = value.as_double();
     else if (value.as_string() == "min") v = props.min;
     else if (value.as_string() == "max") v = props.max;
     else return ActResult::fail(std::format("set_value takes a number (or min, max), not {}", value.json()));
-    change(v, true, true);
+    // Taken back: the value it had, off its steps or not (a value set from outside need not be on them).
+    change(v, true, ctx.restoring && value.is_number());
     return ActResult::done(Value(props.value)).undo_by("set_value", Value{}.set("value", old));
 }
 

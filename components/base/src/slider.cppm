@@ -34,7 +34,8 @@ public:
 
 private:
     // Sets the value; `animate` glides the thumb (keys), else it follows (drags).
-    bool change(double v, bool animate, bool commit);
+    // To v, snapped to its step unless exact (an undo putting back what was).
+    bool change(double v, bool commit, bool exact = false);
     [[nodiscard]] double fraction(double v) const noexcept;
     [[nodiscard]] Rect track(Size size) const noexcept;
 

@@ -340,7 +340,7 @@ Envelope Runtime::Impl::perform(NodeId id, std::string_view action, const Invoca
 
     ActResult r = ActResult::done();
     if (at(id).type->act) {
-        ActContext ctx{self, id, call.args, &call.actor};
+        ActContext ctx{self, id, call.args, &call.actor, replaying > 0};
         auto use = use_theme(id);
         r = at(id).type->act(at(id).instance, ctx, action);
     }
@@ -444,7 +444,7 @@ Envelope Runtime::Impl::perform_item(NodeId holder, std::string_view key, std::s
         return dry_run_answer("run", effect, std::move(more));
     }
     ActResult r = batch([&] {
-        ActContext ctx{self, holder, call.args, &call.actor};
+        ActContext ctx{self, holder, call.args, &call.actor, replaying > 0};
         auto use = use_theme(holder);
         return at(holder).type->act_item(at(holder).instance, ctx, key, action);
     });

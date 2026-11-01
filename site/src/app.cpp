@@ -90,6 +90,9 @@ struct Site {
     Signal<std::string> agent = signal(std::string()), test = signal(std::string()), hash = signal(std::string());
 
     Signal<bool>        panel = signal(false);     // the agent panel open
+    // The person's own agent: the prompt given to it, the self-check it presses.
+    Signal<std::string> prompt = signal(std::string());
+    Signal<std::int64_t> hellos = signal(std::int64_t{0});
     Signal<bool>        settings = signal(false);  // the settings panel open
     // A narrow window (a phone): the places and the switches in a menu, a panel in the place's place.
     static constexpr float compact_below = 900;
@@ -201,6 +204,37 @@ struct Site {
     }
     void show_route() {
         if (runtime) runtime->set_route(route_of(place.peek(), lang.peek()));
+    }
+    // The person's own agent (agent connect §5.1): a pairing code from the
+    // host, and the prompt that gives it to their agent — copied, and shown
+    // to read. Where the host cannot link one (a window, a test), the prompt
+    // says how instead.
+    void give_prompt() {
+        if (!runtime) return;
+        const std::string code = runtime->link_agent();
+        const AgentLink& l = runtime->agent_link();
+        const bool zh = lang.peek() == "zh";
+        const std::string guide = l.guide.empty() ? std::string("agent.md") : l.guide;
+        const int port = l.port ? l.port : 47110;
+        std::string text;
+        if (code.empty())
+            text = zh ? "这里连不了本机的 agent：在浏览器里打开这一页，或者用 `omui agent` 操作桌面窗口里的它。"
+                      : "Your agent links to this page in a browser; a window is operated with `omui agent`.";
+        else if (zh)
+            text = std::format("请连接并操作我浏览器里打开的 openmui 应用。\n配对码：{}（10 分钟内有效），端口 {}。\n\n按 {} 的说明进行：\n"
+                               "1. 获取 omui（校验 sha256）或按规范自己写本地桥，用配对码运行；\n2. 用 `omui page status --wait` 确认已经配对；\n"
+                               "3. 完成说明里的自检任务；\n4. 然后按我接下来的要求操作页面，完成后告诉我结果。\n"
+                               "只通过页面的语义接口操作；需要我确认的动作，等我在页面上确认。",
+                               code, port, guide);
+        else
+            text = std::format("Please connect to the openmui application open in my browser and operate it.\nPairing code: {} (valid for 10 minutes), port {}.\n\n"
+                               "Follow {}:\n1. get omui (check its sha256), or write the local bridge from its specification, and run it with the code;\n"
+                               "2. confirm the pairing with `omui page status --wait`;\n3. do the self-check it describes;\n"
+                               "4. then operate the page as I ask next, and tell me the result.\n"
+                               "Only operate through the page's semantic interface; for an action that needs my answer, wait for me to answer it on the page.",
+                               code, port, guide);
+        if (!code.empty()) runtime->set_clipboard_text(text);
+        prompt.set(std::move(text));
     }
     // A route the person moved to (back, forward, a typed address): its place and its language.
     void follow_route(std::string_view route) {
@@ -604,17 +638,26 @@ Element guide_panel(const std::shared_ptr<Site>& s) {
                                        .text = computed([zh] { return std::string(zh() ? "不允许" : "No"); }),
                                        .variant = ButtonVariant::ghost,
                                        .on_activated = [s] { s->guide->deny(); }}))});
-    return column(
-        {.id = "guide", .width = computed([s] { return s->compact.get() ? Dim(layout::pct(100)) : Dim(380.0f); }), .min_width = computed([s] { return s->compact.get() ? Dim(layout::pct(100)) : Dim(380.0f); }), .padding = Edges(20.0f, 16.0f), .gap = 10, .shrink = 0, .background = "surface"},
-        {text({.id = "guide_title", .text = computed([zh] { return std::string(zh() ? "这一页上的 agent" : "An agent on this page"); }), .style = "heading"}),
-         text({.id = "guide_about",
-               .text = computed([zh] {
-                   return std::string(zh() ? "一个按脚本行动的 agent：它像 Claude Code 经 omui mcp 那样，用 openmui.tree@0.1 经总线发请求，每一个都由 openas 决定。"
-                                           : "A scripted agent. It sends openmui.tree@0.1 requests over the bus, as Claude Code does through omui mcp, and openas decides each one.");
-               }),
-               .style = "caption"}),
-         column({.id = "tasks", .gap = 4}, std::move(asks)),
-         only_when(column({.id = "asking", .padding = Edges(10.0f), .gap = 6, .background = "background"},
+    auto say = [s](std::string_view en, std::string_view han) {
+        return computed([s, en = std::string(en), han = std::string(han)] { return s->lang.get() == "zh" ? han : en; });
+    };
+    // The log's words in Chinese (its own are English).
+    Value zh_phrases = Value{}
+                           .set("idle", "你的 agent 还没有连接。")
+                           .set("waiting", "等你的 agent 连接 — 配对码 {code}")
+                           .set("paired", "{agent} 已连接")
+                           .set("lost", "{agent} 的桥断开了，正在重新寻找")
+                           .set("expired", "配对码过期了：再复制一次提示词，换一个新的")
+                           .set("stopped", "连接已结束")
+                           .set("empty", "还没有 agent 在这里操作过。")
+                           .set("undo", "撤销")
+                           .set("asked", "问了你")
+                           .set("refused", "被拒绝");
+    Element panel = scroll(
+        {.id = "guide", .width = computed([s] { return s->compact.get() ? Dim(layout::pct(100)) : Dim(380.0f); }), .gap = 10, .padding = Edges(20.0f, 16.0f), .background = "surface"},
+        {text({.id = "guide_title", .text = say("Your agent, on this page", "你的 agent，操作这一页"), .style = "heading"}),
+         // An agent's question for the person first: theirs to answer (S-10), above all else.
+         only_when(column({.id = "asking", .padding = Edges(10.0f), .gap = 6, .background = "accent_subtle"},
                           {text({.id = "question",
                                  .text = computed([s, zh] {
                                      const std::string what = s->guide ? s->guide->asking.get() : std::string();
@@ -624,6 +667,39 @@ Element guide_panel(const std::shared_ptr<Site>& s) {
                                  .style = "body"}),
                            std::move(answer)}),
                    [s] { return s->guide && !s->guide->asking.get().empty(); }),
+         text({.id = "guide_about",
+               .text = say("Your own agent — Claude Code, Codex, any that runs commands — operates this page by its semantic tree, through a bridge on your machine. "
+                           "openas decides each request; what is yours to answer stays yours.",
+                           "你自己的 agent（Claude Code、Codex，任何能执行命令的 agent）经本机的一个桥，按语义树操作这一页。"
+                           "每个请求由 openas 决定；该你回答的，只有你能回答。"),
+               .style = "caption"}),
+         button({.id = "copy_prompt",
+                 .text = say("Copy the prompt for your agent", "复制给 agent 的提示词"),
+                 .variant = ButtonVariant::primary,
+                 .on_activated = [s] { s->give_prompt(); }}),
+         only_when(text({.id = "prompt", .text = s->prompt, .style = "code", .selectable = true}), [s] { return !s->prompt.get().empty(); }),
+         actor_log({.id = "log",
+                    .phrases = computed([s, zh_phrases] { return s->lang.get() == "zh" ? zh_phrases : Value{}; }),
+                    .width = Dim(layout::pct(100)),
+                    .label = "What agents did here"}),
+         // The self-check agent.md gives an agent: press it, and the count says so.
+         row({.id = "check", .gap = 8, .align = "center"},
+             {button({.id = "hello", .text = say("Hello, agent", "你好，agent"), .variant = ButtonVariant::secondary, .on_activated = [s] { s->hellos.set(s->hellos.peek() + 1); }}),
+              text({.id = "hellos",
+                    .text = computed([s] {
+                        const std::int64_t n = s->hellos.get();
+                        return s->lang.get() == "zh" ? std::format("按过 {} 次", n) : std::format("pressed {} {}", n, n == 1 ? "time" : "times");
+                    }),
+                    .style = "caption"})}),
+         // A scripted one, marked so: what a real agent does, shown without one.
+         row({.id = "simulated", .gap = 8, .align = "center"},
+             {text({.id = "sim_title", .text = say("A simulated agent", "模拟的 agent"), .style = "label"}),
+              badge({.id = "sim_tag", .text = say("Simulated", "模拟")})}),
+         text({.id = "sim_about",
+               .text = say("Scripted, no model. Each step is a real openmui.tree@0.1 request on the bus, as your agent's are, and openas decides it.",
+                           "按脚本行动，没有模型。每一步都是总线上真实的 openmui.tree@0.1 请求，和你的 agent 发的一样，由 openas 决定。"),
+               .style = "caption"}),
+         column({.id = "tasks", .gap = 4}, std::move(asks)),
          row({.id = "held", .gap = 8, .align = "center"},
              {text({.id = "grants",
                     .text = computed([s, zh] {
@@ -636,8 +712,12 @@ Element guide_panel(const std::shared_ptr<Site>& s) {
                            .text = computed([zh] { return std::string(zh() ? "收回" : "Revoke"); }),
                            .variant = ButtonVariant::ghost,
                            .on_activated = [s] { s->guide->revoke(); }}))}),
-         scroll({.id = "said", .grow = 1, .padding = Edges(10.0f), .background = "background"},
+         scroll({.id = "said", .height = Dim(220.0f), .padding = Edges(10.0f), .background = "background"},
                 {text({.id = "transcript", .text = computed([s] { return s->guide ? s->guide->transcript.get() : std::string(); }), .style = "code"})})});
+    // Beside the place it keeps its width (a phone: the whole of it).
+    panel.prop("min_width", Prop<Dim>(computed([s] { return s->compact.get() ? Dim(layout::pct(100)) : Dim(380.0f); })));
+    panel.prop("shrink", Source{Value(0.0), {}, {}});
+    return panel;
 }
 
 Element check_panel(const std::shared_ptr<Site>& s) {
@@ -969,6 +1049,9 @@ AppSpec app(std::string_view place, std::string_view lang) {
     a.id = "org.openmui.site";
     a.title = "openmui — one tree, many renderings";
     a.size = {1280, 800};
+    a.description = "It is openmui's own website: its places, every component live, the documents, a timeline editor — and you, its agent, read and operate it as the person does.";
+    // What agent.md asks of an agent once it is linked (the panel is open: the person copied the prompt there).
+    a.agent_check = {"main/body/guide/check/hello", "main/body/guide/check/hellos", "pressed 1 time"};
     // The site's own theme (its tokens: the design language), over the framework's default themes and the style packs
     // (the components page shows them in a scope of its own).
     if (auto r = themes::add_styles(); !r) site_log.warn("the style packs: {}", r.error().empty() ? std::string() : r.error().front().text());

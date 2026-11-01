@@ -492,8 +492,18 @@ int main(int argc, char** argv) {
 
     s.test("an agent on the page: real requests, openas deciding — it asks first, the person answers, and only the person", [] {
         Site a;
+        // In the panel, as a person reaches it: scrolled to, then pressed.
+        auto press = [&](const std::string& id) {
+            (void)a.h.tree().act(id, "scroll_into_view");
+            a.h.settle();
+            return a.h.click(id);
+        };
         auto run = [&](std::string_view task) {
-            check(a.h.click(std::format("main/body/guide/tasks/task_{}", task)), std::format("the task {}", task));
+            // Below the panel's fold, as a person reaches it: scrolled to, then clicked.
+            const std::string id = std::format("main/body/guide/tasks/task_{}", task);
+            (void)a.h.tree().act(id, "scroll_into_view");
+            a.h.settle();
+            check(a.h.click(id), std::format("the task {}", task));
             a.h.advance(seconds(4));
             a.h.settle(seconds(1));
         };
@@ -528,7 +538,7 @@ int main(int argc, char** argv) {
         check(said().find("person-only") != std::string::npos || said().find("person's own") != std::string::npos, said());
         check(a.visible("main/body/guide/asking"), "still asking");
         // The person allows it once: the request again with the answer.
-        check(a.h.click("main/body/guide/asking/answer/allow_once"));
+        check(press("main/body/guide/asking/answer/allow_once"));
         a.h.advance(seconds(1));
         a.h.settle(seconds(1));
         check(a.h.runtime().opened() == std::vector<std::string>{"https://github.com/openlifa/openas"}, "opened, once");
@@ -536,22 +546,66 @@ int main(int argc, char** argv) {
         // Once was once; for this visit is a grant.
         run("link");
         check(a.visible("main/body/guide/asking"), "asks again");
-        check(a.h.click("main/body/guide/asking/answer/allow"));
+        check(press("main/body/guide/asking/answer/allow"));
         a.h.advance(seconds(1));
         a.h.settle(seconds(1));
         check(a.h.runtime().opened().size() == 2, "opened");
         check(a.text("main/body/guide/held/grants") == "Grants: agent:guide=external@open_link", a.text("main/body/guide/held/grants"));
         run("link");
         check(!a.visible("main/body/guide/asking") && a.h.runtime().opened().size() == 3, "within the grant: it runs without asking");
-        check(a.h.click("main/body/guide/held/revoke"));
+        check(press("main/body/guide/held/revoke"));
         a.h.settle();
         check(a.text("main/body/guide/held/grants") == "Grants: none");
         run("link");
         check(a.visible("main/body/guide/asking"), "revoked: it asks again");
-        check(a.h.click("main/body/guide/asking/answer/deny"));
+        check(press("main/body/guide/asking/answer/deny"));
         a.h.settle();
         check(a.h.runtime().opened().size() == 3 && !a.visible("main/body/guide/asking"), "no");
         agent_access().revoke_all();
+    });
+
+    s.test("your own agent: the prompt with its pairing code, copied; its actions in the log, each taken back from there; the self-check it presses", [] {
+        Site a;
+        check(a.h.click("main/bar/guide_toggle"));
+        a.h.settle();
+        // No host to link one here: the prompt says how instead, and nothing is copied.
+        check(a.h.click("main/body/guide/copy_prompt"));
+        a.h.settle();
+        check(a.text("main/body/guide/prompt").find("omui agent") != std::string::npos && a.h.runtime().clipboard_text().empty(), a.text("main/body/guide/prompt"));
+        // As the Web links one: a code, the page's agent.md.
+        a.h.runtime().set_agent_linker({[&] {
+                                            a.h.runtime().agent_link_changed({"waiting", "K7Q4-42MX", {}, {}, 47110, "https://openmui.dev/agent.md"});
+                                            return std::string("K7Q4-42MX");
+                                        },
+                                        [] {}});
+        check(a.h.click("main/body/guide/copy_prompt"));
+        a.h.settle();
+        const std::string prompt = a.text("main/body/guide/prompt");
+        check(prompt.find("K7Q4-42MX") != std::string::npos && prompt.find("https://openmui.dev/agent.md") != std::string::npos && prompt.find("port 47110") != std::string::npos,
+              prompt);
+        check_eq(a.h.runtime().clipboard_text(), prompt);
+        check(a.h.tree().node("main/body/guide/log")->value.get("link")->as_string() == "waiting", "the log says it waits");
+        a.h.runtime().agent_link_changed({"paired", "K7Q4-42MX", "claude-code", {}, 47110, "https://openmui.dev/agent.md"});
+        a.h.settle();
+        // The agent, as agent.md has it: the self-check, then the person's task (a box of the checklist).
+        Invocation agent;
+        agent.actor = {"agent", "claude-code", {}};
+        check(a.h.tree().act("main/body/guide/check/hello", "activate", agent).exit_code() == std::optional<int>(0));
+        a.h.settle();
+        check(a.text("main/body/guide/check/hellos") == "pressed 1 time", a.text("main/body/guide/check/hellos"));
+        const std::string box = "main/body/view/home/page/hero/demo/specimen/items/tests";
+        check(a.h.tree().act(box, "toggle", agent).exit_code() == std::optional<int>(0));
+        a.h.settle();
+        check(a.h.tree().node(box)->states.has(State::checked), "checked by the agent");
+        auto items = a.h.runtime().virtual_items(a.h.runtime().find("main/body/guide/log"));
+        check(items.size() == 2 && items[0].name == "claude-code activate …/check/hello" && items[1].name.starts_with("claude-code toggle"),
+              items.empty() ? std::string("none") : items.back().name);
+        // The person takes it back from the log.
+        check(std::ranges::any_of(items[1].actions, [](const spec::ActionDesc& d) { return d.name == "undo"; }), "the last its history holds");
+        Invocation person;
+        check(a.h.tree().act(items[1].id, "undo", person).exit_code() == std::optional<int>(0));
+        a.h.settle();
+        check(!a.h.tree().node(box)->states.has(State::checked), "taken back");
     });
 
     s.test("the site's pixels pinned on every platform: home, the components, the wireframe, the agent's JSON, the timeline editor, getting started, an agent asking, the settings, Chinese, the page's time held", [] {
@@ -616,7 +670,7 @@ int main(int argc, char** argv) {
         a.h.advance(seconds(1));
         shot("time.png");
         std::println("    pixels {}", all.hex());
-        check_eq(all.hex(), std::string("71846031b0019bc4"));
+        check_eq(all.hex(), std::string("bf7e33bc6b3461c1"));
     });
 
     s.test("the components: each live, its code in four languages; a style pack styles the gallery alone, the tree the same in every pack", [] {

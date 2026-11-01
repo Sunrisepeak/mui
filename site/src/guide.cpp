@@ -148,6 +148,10 @@ void Guide::answer_of(const std::string& line) {
         const std::string what = href.empty() ? act : std::format("{} ({})", href, act);
         asking.set(what);
         busy.set(false);
+        // The question in view once it is laid out: the panel may be scrolled down to its tasks.
+        (void)runtime_.after(seconds(0), [this] {
+            if (const NodeId n = runtime_.find("main/body/guide/asking"); runtime_.valid(n)) runtime_.scroll_into_view(n);
+        });
         return;
     }
     (void)runtime_.after(pace_, [this] { next(); });

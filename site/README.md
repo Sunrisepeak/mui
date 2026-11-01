@@ -33,12 +33,13 @@ The site shows openmui's thesis instead of describing it: **the interface is a s
   - **Tree**: the semantic tree's wireframe over the pixels. Each node gets its box and role; nodes that an agent or a person can change are outlined in amber.
   - **Agent**: the JSON an agent receives, one node per line.
   - **Test**: the assertions a test would write.
-- **An agent on this page.** The agent is scripted, since no model runs in the page, but every step it takes is a real `openmui.tree@0.1` request on the bus. Claude Code sends the same requests through `omui mcp`, and a page's script through `window.omui`. Because of that, openas decides each step (S-11):
-  - Reading, switching places and editing the timeline (then undoing it) run.
-  - Opening a link is external, so the agent asks the person first.
-  - The person answers in the panel: once, for this visit (a grant openas records), or no.
-  - The answer buttons are the person's own (S-10). When the agent tries to press them, it is refused whatever actor it names.
-  - The panel shows each request and its records.
+- **Your agent, on this page** (agent connect, D-95). The visitor's own agent — Claude Code, Codex, any that runs commands — operates the page by its semantic tree through a bridge on their machine; the page has no chat box, no model and no key of its own.
+  - **Copy the prompt** starts the page's agent link (`Runtime::link_agent`, the Web host's): a pairing code, good for ten minutes, in a prompt the person pastes to their agent. It points the agent at the site's `agent.md`.
+  - The **actor log** (`actor_log`, openmui.ui.base) says the link's state and lists each agent's actions as they come, newest last. The last one its history holds is taken back from there; hovering one outlines the node it acted on.
+  - **Hello, agent** is the self-check `agent.md` gives: the agent presses it, and the count says so.
+  - Above everything, a question an agent asks the person: an external action waits for the person's answer, once or for the visit (a grant openas records), or no. The answer buttons are the person's own (S-10): an agent pressing them is refused whatever actor it names.
+  - **A simulated agent**, marked so: a scripted one, no model, whose every step is still a real `openmui.tree@0.1` request on the bus that openas decides (S-11) — reading, switching places, editing the timeline and undoing it, opening a link (it asks first). The panel shows each request and its records.
+- **`agent.md`.** What an agent needs to operate the site, beside the page: how to link (the code, `omui connect` or a bridge written from the protocol it gives), the tools, the places its navigation offers, the self-check, and the rules. The program writes it (`omui-site --agent-guide target/site`), as every openmui application does, with its machine-readable twin `.well-known/openmui-agent.json` and the page's `<link rel="openmui-agent">`. Prebuilt `omui` for Linux, macOS and Windows comes from the omui workflow, with SHA256SUMS.
 - **Links.** A document's link to another document moves to that place. Any other link is opened by the host: the system's browser on the desktop, a new tab on the Web. This goes through `Runtime::open_url`, which accepts only http, https and mailto.
 - **The page's time.** The footer is a strip of the page's last 20 seconds, with what happened marked where it did: a place reached, a language, a lens. It runs on a second at a time, on frames the page draws anyway, so an idle page stays idle and the strip is drawn the same whenever it is drawn again.
   - Drag the playhead back, or let an agent set it (the strip is a slider on the bus), and the page is drawn as it was: a place's page arriving, the letters of a language switch gathering, a lens fading in.
@@ -101,7 +102,7 @@ The same script then reads the page as assistive technology does (`tools/ci/site
 - every place, in both languages, one live at a time;
 - the language switch: letters on their way, the tree already switched, at rest the very pixels of the page opened in Chinese;
 - links: to another place, or out through the host (never a script);
-- the agent panel: real requests, a person's answer once and for the visit, the S-10 refusal, a revoked grant asking again;
+- the agent panel: real requests, a person's answer once and for the visit, the S-10 refusal, a revoked grant asking again; your own agent's prompt with its code, its actions in the log and taken back from there, the self-check it presses;
 - the lens's four renderings of the same nodes;
 - the home tree's hash, pinned, and the same in a narrower window;
 - the timeline editor: an agent's edit followed by the tree, then undone;

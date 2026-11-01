@@ -4,7 +4,8 @@
 # subpath serves it as it is), then its places pre-rendered into that page by
 # the same program built natively (`omui-site --prerender`): the documents as
 # md4c-html writes them, in a section a reader without JavaScript and a
-# search engine read, hidden when the program starts. The page is checked
+# search engine read, hidden when the program starts; and what an agent needs
+# to operate it (`omui-site --agent-guide`: agent.md beside the page). The page is checked
 # for what it must carry, and copied to target/site/ — what Pages uploads,
 # and what a person serves to look at it (python3 -m http.server -d target/site).
 #
@@ -24,16 +25,23 @@ cp -r "$(dirname "$index")" "$out"
 
 "$mcpp" run omui-site -p openmui.site -- --prerender "$out/index.html" \
   || { echo "::error::the site's places were not pre-rendered"; exit 1; }
+# What an agent needs to operate it (agent connect §5.2), as every openmui
+# application writes it: agent.md, .well-known/openmui-agent.json, the page's link.
+"$mcpp" run omui-site -p openmui.site -- --agent-guide "$out" \
+  || { echo "::error::the site's agent guide was not written"; exit 1; }
 
 python3 - "$out" <<'PY'
 import os, sys
 out = sys.argv[1]
 page = open(os.path.join(out, "index.html"), encoding="utf-8").read()
 need = ['<main id="omui-static"', '<section id="/home">', '<section id="/features">', "<h1>One interface. Every rendering.</h1>",
-        "Module.onRuntimeInitialized = function", "@font-face", '<canvas id="canvas"']
+        "Module.onRuntimeInitialized = function", "@font-face", '<canvas id="canvas"', '<link rel="openmui-agent" href="agent.md">']
 missing = [n for n in need if n not in page]
 if missing:
     sys.exit(f"::error::the page lacks {missing}")
+for f in ("agent.md", os.path.join(".well-known", "openmui-agent.json")):
+    if not os.path.isfile(os.path.join(out, f)):
+        sys.exit(f"::error::the site has no {f}")
 if "toy-sdk" in page:
     sys.exit("::error::the site loads Toy's SDK")
 files = [(os.path.join(d, f)) for d, _, fs in os.walk(out) for f in fs]

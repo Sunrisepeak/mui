@@ -1,7 +1,8 @@
 // `omui-site` — openmui's website in a window, in a browser (dist-toy's page),
 // or, with --prerender <index.html> [--lang en|zh], its places written into a
 // packed page as static HTML (what a reader without JavaScript and a search
-// engine read until the program runs). The page's hash route picks the place
+// engine read until the program runs); with --agent-guide <dir>, what an agent
+// needs to operate it (agent.md), as every openmui application writes it. The page's hash route picks the place
 // and the language: #/zh/features runs it with --zh --features.
 import std;
 import openmui.site;
@@ -14,7 +15,7 @@ int main(int argc, char** argv) {
         if (a == "--prerender" && i + 1 < argc) prerender = argv[++i];
         else if (a == "--lang" && i + 1 < argc) lang = argv[++i];
         else if (a == "--zh" || a == "--en") lang = a.substr(2);
-        else if (a == "--overview" || std::ranges::any_of(omui::site::places(), [&](const omui::site::Place& p) { return a == std::format("--{}", p.id); }))
+        else if (std::ranges::any_of(omui::site::places(), [&](const omui::site::Place& p) { return a == std::format("--{}", p.id); }))
             place = a.substr(2);
         else rest.push_back(argv[i]);
     }

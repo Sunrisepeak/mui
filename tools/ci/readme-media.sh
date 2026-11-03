@@ -61,6 +61,18 @@ for show in "${shows[@]}"; do
                 cp "$source" "$destination"
             fi
         done
+        for name in overview-en-1280 button-en-1280 text_box-en-1280 data_grid-en-1280 overview-zh-390 button-zh-390 text_box-zh-390 code_editor-zh-390; do
+            source="$scratch/site-catalog/$name.png"
+            destination="$folder/media/catalog-$name.png"
+            if [ $check = 1 ]; then
+                if ! cmp -s "$source" "$destination"; then
+                    echo "::error::$destination is not what the component layout tests draw" >&2
+                    status=1
+                fi
+            else
+                cp "$source" "$destination"
+            fi
+        done
     fi
 done
 exit $status

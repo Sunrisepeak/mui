@@ -68,4 +68,14 @@ for c in r["checks"]:
     print(f"  {'ok  ' if c['ok'] else 'FAIL'} {c['what']}")
 PY
 [ "$fonts" = 0 ] || { echo "::error::first-frame glyph coverage or font handoff failed (target/site-fonts.report.omui.json)"; status=1; }
+catalog=0
+CHROME=$chrome "$node_bin" "${flags[@]}" tools/ci/site-catalog.mjs target/site > target/site-catalog.report.omui.json || catalog=$?
+python3 - target/site-catalog.report.omui.json <<'CATALOG'
+import json, sys
+r = json.load(open(sys.argv[1]))
+print("site component catalog:")
+for c in r["checks"]:
+    print(f"  {'ok  ' if c['ok'] else 'FAIL'} {c['what']}")
+CATALOG
+[ "$catalog" = 0 ] || { echo "::error::component catalog browser checks failed (target/site-catalog.report.omui.json)"; status=1; }
 exit "$status"

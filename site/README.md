@@ -24,7 +24,7 @@ Current rendered structure: [Home](media/structure-home-en-desktop.png), [Docs](
 - **The home page's screens** (`src/screens.*`), after the opening, one strength each: *your agent works here, as you do* (the prompt, a simulated agent, a live actor log of what agents did on the page); *every moment, drawn again* (the page's time replayed, this page's tree hash beside CI's, the pixel check); *one motion for every change* (a list becomes three cards — one box, two drawings, its morph held to the page's scroll, the scroll its time); *fast on every device* (the device's tier and who draws, another tier chosen as the settings choose it, three switches whose motions fall back where the tier cannot afford them). The hash shown and the device's facts are live readouts the tree's hash leaves out.
 - **Places.** The bar names them, and the one shown is `selected` in its semantics (a screen reader says which; an agent reads it):
   - **Home**: the opening, four interactive strength screens, then real programs and a start action. Long documentation is kept in Docs.
-  - **Components** (`src/gallery.*`): every component of `openmui.ui.base`, live, with its contract's words (its role, its actions, what it is) and its code in C++, TypeScript, Python or Lua. A style pack (plain, glass, neon, retro, ink, liquid) styles the gallery alone: it is a theme scope (D-89), and the tree is the same in every pack.
+  - **Components** (`src/catalog.cppm`, `src/gallery.*`): eight selected live previews by default, with name/purpose search and six use categories covering 36 components. Each component has its own address, for example `#/components/text-box` or `#/zh/components/data-grid`. Its workspace contains the live fixture, reset, optional appearance/disabled controls, and optional builder/behaviour/live-semantics panels. Six existing style choices (plain, glass, neon, retro, ink, liquid) affect the specimens' theme scope alone. Builder expressions in C++, TypeScript, Python and Lua follow the fixture's editable values and can be copied; complete fixture export and clean-consumer execution remain open redesign requirements.
   - **Docs**: an overview with guide search and a documentation directory. **Core ideas** and **Practical guide** are reading pages under the same directory.
   - **Explore**: two existing programs, the mark study and timeline editor, with clear links to open them. The animation/effect galleries and recipes remain in the redesign plan.
   - **Get started**: example 01 (`examples/01-hello-im`), a short omui program, running beside its own source. A person or an agent types into it and clicks it.
@@ -93,11 +93,11 @@ python3 -m http.server -d target/site            # and look at it
 
 | Measure | Result |
 |---|---|
-| before the program's first-frame proxy | 3,417,145 bytes |
-| total transfer, including the later Chinese font | 4,815,338 bytes |
-| first-frame proxy / `window.omui` readiness | 1661.6 / 1608.0 ms |
-| rAF intervals | p50 16.7, p95 16.7, max 66.7 ms; 1 over 33.4 ms |
-| memory at the end | JS heap 11.2 MB, wasm memory 28.2 MB |
+| before the program's first-frame proxy | 3,466,958 bytes |
+| total transfer, including the later Chinese font | 4,865,151 bytes |
+| first-frame proxy / `window.omui` readiness | 1714.1 / 1653.6 ms |
+| rAF intervals | p50 16.7, p95 16.8, max 33.3 ms; 0 over 33.4 ms |
+| memory at the end | JS heap 11.9 MB, wasm memory 28.2 MB |
 
 The first-frame proxy is the semantic mirror's first populated frame; it is not FCP, LCP or a direct measurement of presented frame rate. The full Chinese font still loads after presentation on English visits; its initial two-character asset is 230,568 bytes raw / 41,244 bytes with gzip. Chinese visits fetch only the regular font before presentation. Reports and pixel evidence are kept in the Pages workflow's `site-checks` artifact.
 
@@ -119,7 +119,7 @@ The same script then reads the page as assistive technology does (`tools/ci/site
 - the home tree's hash, pinned, and the same in a narrower window;
 - the timeline editor: an agent's edit followed by the tree, then undone;
 - the page's time: an agent dragging it back into a language switch (the view exactly as it was), live again, played backwards to the strip's start and forwards to live;
-- the components: each live, its code in four languages, a style pack styling the gallery alone, the tree the same in every pack;
+- the components: curated previews, search/empty/reset, detail routing, real value changes, reset and disabled state, four builder-reference languages and clipboard feedback, live semantics, scoped styling, all 36 detail destinations, and controls inside five viewport widths in both languages;
 - example 01 typed into and clicked; the settings, each choice's name drawn and read by it and each changing what it says;
 - on a phone: the bar wrapped, a panel in the place's place, the agent's tour putting it away;
 - the pixels of home, the components, the wireframe, the agent's JSON, the timeline, getting started, the agent asking, the settings, the Chinese page and the page's time dragged back into a language switch, pinned on every platform (each picture's own hash printed, so a platform that differs shows which);
@@ -133,3 +133,7 @@ Changing a document changes the pinned hashes. Look at the pictures (`$TMPDIR/op
 `tools/ci/site-structure.mjs` checks canonical and legacy routes without JavaScript, holds wasm while a person clicks a static link, checks handoff and focus, and follows Back/Forward without document reload. It runs in `tools/ci/site-browser.sh`. Native tests also render Home, Docs, Explore, Get started and Core ideas at desktop and phone sizes in both languages.
 
 `tools/ci/site-fonts.mjs` holds the regular Chinese font while checking actual initial/complete pixels at desktop and phone sizes, a Chinese direct visit and an English visit with a Chinese browser locale. It also checks the waiting reference panel, its retained selection after reopening, and all 59 browser replay hashes against the native CI table. Reports and cropped pixels are retained as the Pages workflow's `site-checks` artifact.
+
+`tools/ci/site-catalog.mjs` checks no-JavaScript detail destinations, direct live handoff, input/reference/reset consistency, real pointer clicks on a catalog link and specimen, retained search over Back/Forward, and the Chinese phone detail. It runs in `tools/ci/site-browser.sh`; reports and browser screenshots are retained with `site-checks`.
+
+Component layout review: [desktop overview](media/catalog-overview-en-1280.png), [button workspace](media/catalog-button-en-1280.png), [input workspace](media/catalog-text_box-en-1280.png), [data workspace](media/catalog-data_grid-en-1280.png), [Chinese phone overview](media/catalog-overview-zh-390.png), [phone button](media/catalog-button-zh-390.png), [phone input](media/catalog-text_box-zh-390.png), [phone code editor](media/catalog-code_editor-zh-390.png). These native renders are checked by the media gate. They establish the gallery's new structure; they do not close the remaining specimen states, full exports, art review or the whole R2 checkpoint.

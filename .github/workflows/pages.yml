@@ -96,6 +96,7 @@ jobs:
             target/site-*.report.omui.json
             target/visitor-path.json
             target/site-fonts/
+            target/site-catalog/
           if-no-files-found: ignore
       - name: Where the site's WebAssembly bytes go (W8; Q-38)
         # tools/ci/wasm-size.sh: the release's code with its functions' names

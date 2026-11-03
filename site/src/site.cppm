@@ -5,6 +5,7 @@
 export module openmui.site;
 
 export import openmui;
+export import :catalog;
 export import :routes;
 export import :wayfinding;
 export import :lens_contract;

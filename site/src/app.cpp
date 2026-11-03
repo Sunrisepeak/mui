@@ -225,12 +225,12 @@ struct Site {
     [[nodiscard]] std::string root() const { return std::string(place_root) + place.get() + "/page"; }
 
     // The route a place has in a language: its address's hash ("features", "zh/features"; the English home, none).
-    [[nodiscard]] static std::string route_of(std::string_view place, std::string_view lang) {
-        return canonical_route(place, lang);
+    [[nodiscard]] static std::string route_of(std::string_view place, std::string_view lang, std::string_view component = {}) {
+        return canonical_route(place, lang, component);
     }
     void show_route() {
         if (!runtime) return;
-        if (place.peek() != "not_found") { runtime->set_route(route_of(place.peek(), lang.peek())); return; }
+        if (place.peek() != "not_found") { runtime->set_route(route_of(place.peek(), lang.peek(), gallery.selected.peek())); return; }
         std::string_view path = missing_route.peek();
         if (path.starts_with('#')) path.remove_prefix(1);
         while (path.starts_with('/')) path.remove_prefix(1);
@@ -302,6 +302,8 @@ struct Site {
         }
         // A browser history move must not push a new entry, including an old alias.
         if (compact.peek()) menu.set(false), panel.set(false), settings.set(false), checking.set(false);
+        gallery.selected.set(parsed->component);
+        gallery.dialog.set(false); gallery.popover.set(false); gallery.drawer.set(false); gallery.toast.set(false);
         place.set(parsed->place);
         soon();
     }
@@ -320,9 +322,21 @@ struct Site {
             const bool zh = lang.peek() == "zh";
             if (it != all.end()) mark(std::string(zh ? it->zh : it->en));
         }
+        if (to == "components") gallery.selected.set("");
+        gallery.dialog.set(false); gallery.popover.set(false); gallery.drawer.set(false); gallery.toast.set(false);
         place.set(std::string(to));
         show_route();
         soon();
+    }
+
+    void open_component(std::string id) {
+        if (!id.empty() && !find_component(id)) return;
+        gallery.dialog.set(false); gallery.popover.set(false); gallery.drawer.set(false); gallery.toast.set(false);
+        gallery.pane.set(""); gallery.states.set(false); gallery.copied.set(false);
+        gallery.selected.set(std::move(id));
+        place.set("components");
+        if (compact.peek()) menu.set(false), panel.set(false), settings.set(false), checking.set(false);
+        show_route(); soon();
     }
 
     // The page's time (the timebar, D-60): live, it is the host's; dragged,
@@ -539,7 +553,7 @@ public:
         // The person moved the route (back, forward): the place and the language it names.
         if (rt.route_revision() != route_seen_) {
             route_seen_ = rt.route_revision();
-            if (rt.route() != Site::route_of(site_.place.peek(), site_.lang.peek())) {
+            if (rt.route() != Site::route_of(site_.place.peek(), site_.lang.peek(), site_.gallery.selected.peek())) {
                 const std::string route = rt.route();
                 (void)rt.after(seconds(0.0), [this, route] { site_.follow_route(route); });
             }
@@ -1072,6 +1086,7 @@ Element document_page(const std::shared_ptr<Site>& s, const std::string& id, flo
 
 // A place: its page, scrolled, its content as wide as the design's measure, centred.
 Element place_page(const std::shared_ptr<Site>& s, const std::string& id) {
+    const std::string scroll_key = id == "components" ? canonical_route(id, "en", s->gallery.selected.get()) : id;
     const float view = s->room;
     const bool narrow = view < 700;
     const float margin = narrow ? 20 : 48;
@@ -1119,12 +1134,12 @@ Element place_page(const std::shared_ptr<Site>& s, const std::string& id) {
     body.prop("max_width", Source(Value(static_cast<double>(content_width))));
     body.prop("align_self", Source(Value("center")));
     // Filling the view (a stack: the place under the lens's renderings).
-    Element page = scroll({.id = id, .y = static_cast<float>(s->scroll_positions[id]), .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .padding = Edges(narrow ? 24.0f : 56.0f, margin), .background = "background"},
+    Element page = scroll({.id = id, .y = static_cast<float>(s->scroll_positions[scroll_key]), .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .padding = Edges(narrow ? 24.0f : 56.0f, margin), .background = "background"},
                           {std::move(body)});
     // The home page's scroll is its motion screen's time.
-    page.on("scrolled", [s, id](const Value& at) {
+    page.on("scrolled", [s, id, scroll_key](const Value& at) {
         const double y = at.get("y") ? at.get("y")->as_double() : 0;
-        s->scroll_positions[id] = y;
+        s->scroll_positions[scroll_key] = y;
         if (id == "home") scrolled(s->screens, s->screens_site, std::string(place_root) + "home", y);
     });
     return page;
@@ -1156,6 +1171,7 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
     if (const auto parsed = parse_site_route(place, lang)) {
         s->place.set(parsed->place);
         s->lang.set(parsed->language);
+        s->gallery.selected.set(parsed->component);
     } else {
         s->place.set(std::string("not_found"));
         s->missing_route.set(std::string(incoming_route.empty() ? place : incoming_route));
@@ -1202,7 +1218,10 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
                         }};
         // The components page in a theme scope of its own: plain (the site's theme), or a style pack.
         rt.set_scope(gallery_scope, rt.theme());
-        s->gallery_site = {.lang = &s->lang, .style = [p = s.get()](std::string pack) {
+        s->gallery_site = {.lang = &s->lang, .tree = &s->nodes,
+                           .open = [p = s.get()](std::string id) { p->open_component(std::move(id)); },
+                           .clipboard = [p = s.get()](std::string text) { if (p->runtime) p->runtime->set_clipboard_text(std::move(text)); },
+                           .style = [p = s.get()](std::string pack) {
                                if (!p->runtime) return;
                                if (pack == "plain") {
                                    p->runtime->crossfade(seconds(0.35), gallery_scope);
@@ -1472,19 +1491,18 @@ std::string static_html(std::string_view lang) {
                 out += html;
                 if (p.id == "hello") out += std::format("<pre><code>{}</code></pre>", escaped(hello::hello_source));
             } else if (p.id == "components") {
-                out += chinese ? "<h1>组件</h1>\n<p>omui 的组件。运行中的样张、四语言代码和风格切换需要 JavaScript。</p>\n<ul>\n"
-                               : "<h1>Components</h1>\n<p>omui's components. Live specimens, code in four languages and style switching need JavaScript.</p>\n<ul>\n";
-                for (const std::string_view name : {"button", "toggle", "checkbox", "radio", "slider", "number_input", "text_box", "select", "tabs", "breadcrumb", "pagination",
-                                                    "progress", "badge", "avatar", "card", "accordion", "skeleton", "tooltip", "popover", "toast", "dialog", "segmented", "chip",
-                                                    "range_slider", "alert", "stepper", "date_picker", "time_picker", "color_picker", "split_view", "drawer", "tree_view",
-                                                    "data_grid", "combobox", "tag_input", "code_editor"})
-                    if (const ComponentType* t = find_type(name); t && t->contract)
-                        out += std::format("<li><b>{}</b> ({}) — {}</li>\n", name, spec::name(t->contract->role), escaped(t->contract->doc));
-                out += "</ul>\n";
+                out += gallery_html(chinese);
             } else if (p.id == "timeline")
                 out += chinese ? "<h1>时间线编辑器</h1>\n<p>拖动、修剪、切开，每次编辑都能撤销。运行编辑器需要 JavaScript。</p>\n"
                                : "<h1>A timeline editor</h1>\n<p>Drag, trim and split clips, then undo. Running the editor needs JavaScript.</p>\n";
             out += "</section>\n";
+        }
+        for (const auto& component : component_catalog) {
+            const std::string route = canonical_route("components", language, component.id);
+            out += std::format("<section id=\"/{}\" lang=\"{}\" data-place=\"components\" data-live-root=\"main/body/view/components/page/gallery/detail/{}\">", route, chinese ? "zh-CN" : "en", component.id);
+            const std::string alias = std::string(chinese ? "zh/" : "") + "components/" + std::string(component.id);
+            if (alias != route) out += std::format("<span class=\"route-alias\" id=\"/{}\"></span>", alias);
+            out += gallery_html(chinese, component.id) + "</section>\n";
         }
         out += std::format("<section id=\"/{}not_found\" lang=\"{}\" data-place=\"not_found\"><h1>{}</h1><code data-missing-route></code><p><a href=\"{}\">{}</a></p></section>",
                            chinese ? "zh/" : "", chinese ? "zh-CN" : "en", chinese ? "没有找到这一页。" : "This page isn't here.", href("home", chinese), chinese ? "回到首页" : "Back to home");

@@ -2,6 +2,7 @@
 export module openmui.site:routes;
 
 import std;
+export import :catalog;
 
 export namespace omui::site {
 
@@ -33,7 +34,7 @@ struct Place {
 }
 
 struct SiteRoute {
-    std::string place, language;
+    std::string place, language, component;
 };
 
 [[nodiscard]] inline std::optional<SiteRoute> parse_site_route(std::string_view route, std::string_view language = "en") {
@@ -48,12 +49,17 @@ struct SiteRoute {
         lang = "en";
         route = route.size() > 2 ? route.substr(3) : std::string_view();
     }
+    if (route.starts_with("components/")) {
+        if (const auto* c = component_at(route.substr(11))) return SiteRoute{"components", std::move(lang), std::string(c->id)};
+        return std::nullopt;
+    }
     for (const Place& p : places())
         if (route == p.id || route == p.route) return SiteRoute{std::string(p.id), std::move(lang)};
     return std::nullopt;
 }
 
-[[nodiscard]] inline std::string canonical_route(std::string_view place, std::string_view language = "en") {
+[[nodiscard]] inline std::string canonical_route(std::string_view place, std::string_view language = "en", std::string_view component = {}) {
+    if (place == "components" && find_component(component)) return std::string(language == "zh" ? "zh/" : "") + "components/" + component_slug(component);
     const Place* p = find_place(place);
     if (!p) return {};
     if (language != "zh") return std::string(p->route);

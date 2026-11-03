@@ -734,39 +734,123 @@ int main(int argc, char** argv) {
         a.h.advance(seconds(1));
         shot("time.png");
         std::println("    pixels {}", all.hex());
-        check_eq(all.hex(), std::string("aa7ba957b4f0dbdd"));
+        check_eq(all.hex(), std::string("0a3bb831376e9626"));
     });
 
-    s.test("the components: each live, its code in four languages; a style pack styles the gallery alone, the tree the same in every pack", [] {
+    s.test("the components: curated search, live detail, reset, languages and scoped appearance", [] {
         Site a("components");
-        a.h.move({4, 796});
-        a.h.advance(seconds(1));
-        const std::string page = "main/body/view/components/page/gallery";
-        const auto items = a.h.tree().find({.under = page + "/items", .role = Role::button});
-        check(items.size() >= 10, std::format("the specimens' buttons: {}", items.size()));
-        check(a.text(page + "/items/badge/code/source") == "badge({.count = 120, .id = \"mail\", .tone = BadgeTone::danger})", a.text(page + "/items/badge/code/source"));
-        Invocation agent;
-        agent.actor = {"agent", "visitor", {}};
-        check(a.h.tree().act(page + "/controls/language/languages/python", "activate", agent).exit_code() == std::optional<int>(0), "Python's code");
-        a.h.settle();
-        check(a.text(page + "/items/badge/code/source") == "omui.badge(id=\"mail\", count=120, tone=\"danger\")", a.text(page + "/items/badge/code/source"));
-        check(a.h.tree().act(page + "/controls/language/languages/lua", "activate", agent).exit_code() == std::optional<int>(0));
-        a.h.settle();
-        check(a.text(page + "/items/badge/code/source") == "omui.Badge { id = \"mail\", count = 120, tone = \"danger\" }", a.text(page + "/items/badge/code/source"));
-        // A pack: the gallery's specimens in it, the site around them as they were, the tree the same.
+        a.h.move({4, 796}); a.h.advance(seconds(1));
+        const std::string root = "main/body/view/components/page/gallery";
+        const std::string overview = root + "/overview";
+        check_eq(a.text(overview + "/results/count"), std::string("8 / 36"));
+        check(!a.h.tree().node(root + "/detail"), "only previews initially; no open code panels");
+        Invocation visitor; visitor.actor = {"agent", "visitor", {}};
+        auto act = [&](const std::string& id, std::string_view action, Value args = {}) {
+            visitor.args = std::move(args);
+            check(a.h.tree().act(id, action, visitor).exit_code() == std::optional<int>(0), id + " " + std::string(action));
+            a.h.settle(); a.h.advance(seconds(0.1));
+        };
+        act(overview + "/filter/search", "set_value", Value{}.set("value", Value("BADGE")));
+        check_eq(a.text(overview + "/results/count"), std::string("1 / 36"));
+        act(overview + "/results/r0/badge/heading/open", "activate");
+        const std::string detail = root + "/detail/badge";
+        check_eq(a.h.runtime().route(), std::string("components/badge"));
+        check(a.h.tree().node(detail + "/stage/specimen").has_value());
+        check(!a.h.tree().node(detail + "/code"), "source is optional");
+        act(detail + "/panes/code", "activate");
+        check_eq(a.text(detail + "/code/scroll/source"), std::string("badge({.count = 3, .id = \"mail\", .tone = BadgeTone::danger})"));
+        for (const auto& [language, expected] : {
+                 std::pair{"python", "omui.badge(id=\"mail\", count=3, tone=\"danger\")"},
+                 std::pair{"lua", "omui.Badge { id = \"mail\", count = 3, tone = \"danger\" }"},
+                 std::pair{"ts", "badge({ id: \"mail\", count: 3, tone: \"danger\" })"}}) {
+            act(detail + "/code/language/" + language, "activate");
+            check_eq(a.text(detail + "/code/scroll/source"), std::string(expected));
+        }
+        act(detail + "/code/copy", "activate");
+        check_eq(a.h.runtime().clipboard_text(), a.text(detail + "/code/scroll/source"));
+        check_eq(a.text(detail + "/code/copied"), std::string("Expression copied"));
+        act(detail + "/panes/semantics", "activate");
+        const std::string semantics = a.text(detail + "/semantics/scroll/json");
+        check(semantics.contains("specimen") && semantics.contains("mail"), "the actual specimen's semantic nodes");
+        act(root + "/detail/directory/all", "activate");
+        check_eq(a.text(overview + "/results/count"), std::string("1 / 36"));
+        act(overview + "/filter/search", "set_value", Value{}.set("value", Value("no-such-component")));
+        check(a.h.tree().node(overview + "/results/empty").has_value(), "useful empty search");
+        act(overview + "/filter/clear", "activate");
+        act(overview + "/results/r0/button/heading/open", "activate");
+        const std::string button = root + "/detail/button";
+        act(button + "/stage/specimen/variants/primary", "activate");
+        check_eq(a.text(button + "/stage/specimen/variants/primary"), std::string("Saved 1"));
+        act(button + "/stage/actions/reset", "activate");
+        check_eq(a.text(button + "/stage/specimen/variants/primary"), std::string("Save"));
         auto tree = [&] {
             std::vector<std::string> out;
-            for (const auto& n : a.h.tree().snapshot({.root = page + "/items"}).nodes) out.push_back(std::format("{} {} {}", n.id, spec::name(n.role), n.name));
+            for (const auto& n : a.h.tree().snapshot({.root = button + "/stage/specimen"}).nodes) out.push_back(std::format("{} {} {}", n.id, spec::name(n.role), n.name));
             return out;
         };
         const auto plain = tree();
-        const std::uint64_t chrome = a.pixels_in({0, 0, 1280, 56});
-        const std::uint64_t shown = a.pixels_of(page + "/items/button/specimen");
-        check(a.h.tree().act(page + "/controls/style/packs/neon", "activate", agent).exit_code() == std::optional<int>(0), "the neon pack");
+        const auto chrome = a.pixels_in({0, 0, 1280, 56});
+        const auto shown = a.pixels_of(button + "/stage/specimen");
+        act(button + "/stage/actions/states", "activate");
+        act(button + "/options/style", "set_value", Value{}.set("value", Value("neon")));
         a.h.advance(seconds(1));
-        check(a.pixels_of(page + "/items/button/specimen") != shown, "the specimens in another pack");
+        check(a.pixels_of(button + "/stage/specimen") != shown, "the specimen in another style");
         check(a.pixels_in({0, 0, 1280, 56}) == chrome, "the site's bar as it was");
-        check(tree() == plain, "only pixels change");
+        check(tree() == plain, "only specimen pixels change");
+        act(button + "/options/disabled", "toggle");
+        check(a.h.tree().node(button + "/stage/specimen/variants/primary")->states.has(State::disabled), "disabled state reaches the real sample");
+        visitor.args = {};
+        check(a.h.tree().act(button + "/stage/specimen/variants/primary", "activate", visitor).exit_code() != std::optional<int>(0), "disabled blocks real activation");
+        act(button + "/stage/actions/reset", "activate");
+        check(!a.h.tree().node(button + "/stage/specimen/variants/primary")->states.has(State::disabled), "reset restores enabled");
+        check(a.h.tree().node(button + "/stage/specimen/variants/off")->states.has(State::disabled), "the always-disabled variant stays disabled");
+        act(button + "/panes/semantics", "activate");
+        act(button + "/stage/specimen/variants/primary", "activate");
+        check(a.text(button + "/semantics/scroll/json").contains("Saved 1"), "semantics follows an actual specimen action");
+        a.h.advance(seconds(1));
+        const auto quiet = a.h.step();
+        check(quiet.demand.idle() || quiet.demand.max_hz <= 10, "live semantics does not create a frame feedback loop");
+        a.h.runtime().set_route("zh/components/text-box"); a.h.settle(); a.h.advance(seconds(0.2));
+        check_eq(a.text(root + "/detail/text_box/title"), std::string("文本框"));
+        check_eq(a.h.runtime().route(), std::string("zh/components/text-box"));
+    });
+
+    s.test("all component addresses mount alone, come to rest and have a readable static destination", [] {
+        Site a("components");
+        const auto html = site::static_html("en");
+        for (const auto& component : site::component_catalog) {
+            const auto route = site::canonical_route("components", "en", component.id);
+            const auto parsed = site::parse_site_route(route);
+            check(parsed && parsed->component == component.id, route);
+            check(html.contains("id=\"/" + route + "\""), route + " has static content");
+            a.h.runtime().set_route(route); a.h.settle(); a.h.advance(seconds(0.5));
+            const auto id = "main/body/view/components/page/gallery/detail/" + std::string(component.id);
+            check_eq(a.text(id + "/title"), std::string(component.en));
+            check(a.h.tree().node(id + "/stage/specimen").has_value(), route);
+            const auto frame = a.h.step();
+            check(frame.demand.idle() || frame.demand.max_hz <= 10, route + " rests");
+        }
+        const auto multiline = site::code_of("cpp", {"code_editor", {{"text", Value("a\nb\t\"c\"")}}});
+        check(multiline.contains("a\\nb\\t\\\"c\\\""), "multiline API text is escaped");
+        check(!site::parse_site_route("components/unknown"));
+    });
+
+    s.test("component layouts: real controls fit phone, tablet and desktop in both languages", [] {
+        const auto dir = scratch_dir("site-catalog");
+        for (const float width : {360.0f, 390.0f, 768.0f, 1280.0f, 1440.0f}) for (std::string_view language : {"en", "zh"}) {
+            Headless h{HeadlessOptions{.size = {width, 844}}};
+            auto spec = site::app("components", language); h.runtime().set_theme(spec.theme); spec.setup(h.runtime()); h.mount("main", spec.view()); h.settle();
+            for (std::string_view component : {"", "button", "text_box", "data_grid", "code_editor"}) {
+                h.runtime().set_route(site::canonical_route("components", language, component)); h.settle(); h.advance(seconds(0.3));
+                const auto nodes = h.tree().snapshot({.root = "main/body/view/components/page"}).nodes;
+                for (const auto& node : nodes) if ((node.role == Role::button || node.role == Role::text_box) && node.bounds &&
+                        !node.states.has(State::hidden) && !node.states.has(State::offscreen))
+                    check(node.bounds->x >= -0.5f && node.bounds->right() <= width + 0.5f,
+                          std::format("{} {} {} at {}: {} + {}", component, language, node.id, width, node.bounds->x, node.bounds->width));
+                if ((width == 390 && language == "zh") || (width == 1280 && language == "en"))
+                    check(h.save_png(dir / std::format("{}-{}-{}.png", component.empty() ? "overview" : component, language, static_cast<int>(width))).has_value());
+            }
+        }
     });
 
     s.test("the reference run: each sampled frame's pixels hashed as a browser hashes them, pinned (reference/ci.frames.omui.json)", [] {

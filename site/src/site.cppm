@@ -20,6 +20,8 @@ export import :timebar;
 export import :frame_meter_contract;
 export import :frame_meter;
 export import :reference;
+export import :first_frame;
+export import :offline;
 export import :ci_frames;
 export import :content_files;
 export import :en_files;

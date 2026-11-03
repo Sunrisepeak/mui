@@ -40,6 +40,7 @@ inline constexpr std::uint64_t pinned_home_hash = 0xc89a1a4ded7d6da9;
 // `page` (dist-toy's index.html) with `fragment` in its body, a style that
 // shows it until the program runs and a script that hides it then; the
 // page's language set. Nothing when the page is not one dist-toy wrote.
-[[nodiscard]] std::optional<std::string> inject(std::string_view page, std::string_view fragment, std::string_view lang);
+[[nodiscard]] std::optional<std::string> inject(std::string_view page, std::string_view fragment, std::string_view lang,
+                                               std::string_view opening_assets = {});
 
 }  // namespace omui::site

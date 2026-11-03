@@ -18,11 +18,15 @@ struct Engine::Request {
     Available            avail_height;
     std::optional<float> parent_width;   // the parent's content box, for percentages
     std::optional<float> parent_height;
+    // Internal width contribution: flex may return an intrinsic height that
+    // must not be consumed as a normal layout result. Its separate cache key
+    // lets auto-width ancestors share the unbounded measurement safely.
+    bool                 intrinsic_width = false;
     bool                 perform = false;
 
     [[nodiscard]] bool same_constraints(const Request& o) const noexcept {
         return width == o.width && height == o.height && avail_width == o.avail_width &&
-               avail_height == o.avail_height && parent_width == o.parent_width && parent_height == o.parent_height;
+               avail_height == o.avail_height && parent_width == o.parent_width && parent_height == o.parent_height && intrinsic_width == o.intrinsic_width;
     }
 };
 

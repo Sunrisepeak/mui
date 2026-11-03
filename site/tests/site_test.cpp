@@ -1221,12 +1221,12 @@ int main(int argc, char** argv) {
             check(html.find(md::to_html(md::parse(site::document("features", lang)))) != std::string::npos, "the features as md4c-html writes them");
         }
         const std::string en = site::static_html("en");
-        check(en.find("<h1>One interface. Every perspective.</h1>") != std::string::npos, "the thesis, readable without JavaScript");
+        check(en.find("aria-label=\"One interface. Every perspective.\"") != std::string::npos && en.find("One interface.<br>Every perspective.") != std::string::npos, "the thesis and deliberate line break, readable without JavaScript");
         // The site's own part pinned (the docs change with the framework; they are held to md4c-html's bytes above).
         auto own = [](const std::string& html) { return html.substr(0, html.find("<section id=\"/", html.find("<section id=\"/") + 1)); };
         std::println("    static en {:016x} zh {:016x}", fnv(own(en)), fnv(own(site::static_html("zh"))));
-        check_eq(std::format("{:016x}", fnv(own(en))), std::string("0bbf9da042957673"));
-        check_eq(std::format("{:016x}", fnv(own(site::static_html("zh")))), std::string("e642014ea2d54aa9"));
+        check_eq(std::format("{:016x}", fnv(own(en))), std::string("85286cf4ad05c4b5"));
+        check_eq(std::format("{:016x}", fnv(own(site::static_html("zh")))), std::string("efc510de8e1f2947"));
 
         const auto out = site::inject(page, en, "zh");
         check(out.has_value(), "dist-toy's page");
@@ -1238,8 +1238,19 @@ int main(int argc, char** argv) {
         check(hide != std::string::npos && hide < loader, "hidden by a script before the program's");
         check(p.find("#omui-static{") < p.find("</head>"), "its style in the head");
         check(p.find("@font-face{font-family:'Inter';src:url(assets/4304c4ca3090.ttf)") != std::string::npos, "in the program's own font");
+        check(p.contains("#omui-static>nav[data-default]{display:flex}"), "the selected static navigation keeps its layout");
+        std::string initial_page(page);
+        const auto font_url = initial_page.find("\"assets/4304c4ca3090.ttf\"");
+        initial_page.replace(font_url, std::string_view("\"assets/4304c4ca3090.ttf\"").size(), "\"assets/full.ttf\",[],\"assets/initial.ttf\"");
+        const auto initial_out = site::inject(initial_page, en, "en");
+        check(initial_out && initial_out->contains("font-family:'Inter';src:url(assets/initial.ttf)"), "the readable opening uses its initial face instead of a second full-face request");
         check(!site::inject("<html><body>nothing</body></html>", en, "en").has_value(), "a page dist-toy did not write");
         check(!site::inject(p, en, "en").has_value(), "a page already pre-rendered");
+        const auto openings = site::inject(page, en, "en", R"({"version":1,"previews":[],"note":"</script><script>bad()</script>"})");
+        check(openings && openings->contains("id=\"omui-first-frames\""), "build-time asset references precede the bootstrap");
+        check(openings && !openings->contains("<script>bad()"), "asset catalogue data cannot close its script element");
+        check(!site::inject(page, en, "en", "not json"), "malformed opening metadata is rejected");
+        check(!site::inject(page, en, "en", R"({"version":2,"previews":[]})"), "unknown opening metadata version is rejected");
     });
 
     s.test("on a phone: the agent's tour — the panel covers the place, the tour puts it away and the place is read", [] {

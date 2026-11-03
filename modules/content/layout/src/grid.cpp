@@ -208,6 +208,7 @@ Size GridAlgorithm::run(Engine& e, NodeId node, const Engine::Request& r) {
 
     auto measure = [&](NodeId c, std::optional<float> w, std::optional<float> h, Available aw, Available ah) {
         Engine::Request cr;
+        cr.intrinsic_width = r.intrinsic_width;
         cr.width = w;
         cr.height = h;
         cr.avail_width = aw;
@@ -371,6 +372,7 @@ Size GridAlgorithm::run(Engine& e, NodeId node, const Engine::Request& r) {
             float avail_w = std::max(0.0f, cell_w - cs.margin.horizontal());
             float avail_h = std::max(0.0f, cell_h - cs.margin.vertical());
             Engine::Request cr;
+            cr.intrinsic_width = r.intrinsic_width;
             cr.parent_width = iw;
             cr.parent_height = ih;
             cr.avail_width = Available::definite(avail_w);

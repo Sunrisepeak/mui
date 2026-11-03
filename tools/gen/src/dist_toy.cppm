@@ -18,6 +18,15 @@
 // (`window.toy`). Toy has no manifest file: what `toy create` asks (title,
 // slug, cover) is written beside the package, in `<name>.toy.omui.json`,
 // with every file's size.
+//
+// Generated pages expose window.omuiLoad and synchronous `omui-load` events
+// (detail is a data-only snapshot, version 1). Byte counts are decoded bodies
+// of managed wasm/fonts/later assets; they exclude the launcher script and
+// reset per asset attempt. Unknown total/ratio is null. `startup` excludes
+// deferred assets, while the top-level count includes them. The presented
+// phase is emitted only from the native first-frame hook, never the fallback
+// timer. retry(id?) retries failed assets without initializing main twice;
+// a fatal runtime/launcher error instead returns reason `reload_required`.
 export module openmui.gen.dist_toy;
 
 import std;
@@ -56,7 +65,9 @@ struct ToyPackage {
     // /later/fonts, where the Web host takes it.
     std::vector<std::pair<std::string, std::vector<std::string>>> font_languages;
     // Tiny initial coverage when a font is deferred. Literal UTF-8; full-language
-    // visits fetch only the regular asset. Mounted under the same /fonts basename.
+    // visits fetch only the regular asset. Without font_languages this always
+    // uses initial coverage before main and defers the full face until the
+    // first frame, for every language. Mounted under the same /fonts basename.
     std::vector<std::pair<std::string, std::string>> font_initial;
 };
 

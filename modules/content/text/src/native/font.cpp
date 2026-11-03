@@ -13,6 +13,15 @@ namespace omui::typeset {
 
 namespace {
 
+// Family names use ASCII case folding. Comparing views avoids allocating
+// lowercase strings while choosing a face for every shaped cluster.
+bool same_family(std::string_view a, std::string_view b) noexcept {
+    if (a.size() != b.size()) return false;
+    auto lower = [](char c) { return c >= 'A' && c <= 'Z' ? static_cast<char>(c - 'A' + 'a') : c; };
+    for (std::size_t i = 0; i < a.size(); ++i) if (lower(a[i]) != lower(b[i])) return false;
+    return true;
+}
+
 // UTF-8 text of a path (generic separators for `generic_utf8`), never
 // through the process's code page: std::filesystem::path::string() throws on
 // Windows for a name the ANSI code page cannot spell (lint rule `paths`).
@@ -254,21 +263,15 @@ std::size_t FontCollection::face_count() const noexcept {
 const FaceInfo& FontCollection::face(FaceId id) const { return impl_->at(id).info; }
 
 std::optional<FaceId> FontCollection::find_family(std::string_view family) const {
-    auto lower = [](std::string_view s) {
-        std::string o(s);
-        for (char& c : o) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-        return o;
-    };
-    std::string want = lower(family);
     {
         std::shared_lock g(impl_->lock);
         for (std::size_t i = 0; i < impl_->faces.size(); ++i)
-            if (lower(impl_->faces[i]->info.family) == want) return static_cast<FaceId>(i);
+            if (same_family(impl_->faces[i]->info.family, family)) return static_cast<FaceId>(i);
     }
     // Generic families.
-    if (want == "sans-serif" || want == "system-ui" || want == "ui") return find_family("Inter");
-    if (want == "monospace" || want == "code") return find_family("JetBrains Mono");
-    if (want == "emoji") return find_family("Twemoji Mozilla");
+    if (same_family(family, "sans-serif") || same_family(family, "system-ui") || same_family(family, "ui")) return find_family("Inter");
+    if (same_family(family, "monospace") || same_family(family, "code")) return find_family("JetBrains Mono");
+    if (same_family(family, "emoji")) return find_family("Twemoji Mozilla");
     return std::nullopt;
 }
 
@@ -281,21 +284,29 @@ void FontCollection::set_fallback(std::vector<FaceId> chain) {
 std::span<const FaceId> FontCollection::fallback() const noexcept { return impl_->fallback; }
 
 FaceId FontCollection::select(std::span<const std::string> families, std::u32string_view cluster) const {
-    auto ok = [&](FaceId f) {
+    auto covers_cluster = [&](const Face& face) {
         for (char32_t cp : cluster) {
             // Joiners, variation selectors and tags do not need a glyph of their own.
             if (cp == 0x200D || cp == 0x200C || (cp >= 0xFE00 && cp <= 0xFE0F) || (cp >= 0xE0020 && cp <= 0xE007F)) continue;
-            if (!covers(f, cp)) return false;
+            if (!hb_set_has(face.unicodes, cp)) return false;
         }
         return true;
     };
+    auto ok = [&](FaceId face) { return covers_cluster(impl_->at(face)); };
     bool emoji = !cluster.empty() && unicode::extended_pictographic(cluster.front()) &&
                  (cluster.size() > 1 || cluster.front() >= 0x1F000);
     if (emoji)
         for (FaceId f : impl_->fallback)
             if (impl_->at(f).info.color && ok(f)) return f;
-    for (const std::string& fam : families)
-        if (auto f = find_family(fam); f && ok(*f)) return *f;
+    for (const std::string& fam : families) if (const auto first = find_family(fam)) {
+        // Resolve a generic name exactly as find_family does. The original
+        // sparse face remains preferred where it covers the cluster; later
+        // full faces of that family precede every cross-family fallback.
+        const std::string_view actual = impl_->at(*first).info.family;
+        std::shared_lock g(impl_->lock);
+        for (std::size_t i = 0; i < impl_->faces.size(); ++i)
+            if (same_family(impl_->faces[i]->info.family, actual) && covers_cluster(*impl_->faces[i])) return static_cast<FaceId>(i);
+    }
     for (FaceId f : impl_->fallback)
         if (ok(f)) return f;
     // Nothing covers it: the first family's face (which draws .notdef).

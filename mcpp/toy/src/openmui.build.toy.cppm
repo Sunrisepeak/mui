@@ -52,6 +52,7 @@ struct toy_options {
     std::vector<std::pair<std::string, std::vector<std::string>>> font_languages;
     // Before a deferred font arrives, these literal UTF-8 characters use a tiny
     // subset of that same face. A page opened in its language loads the full face only.
+    // With no language rule, every page starts with this subset, then takes the full face.
     std::vector<std::pair<std::string, std::string>> font_initial;
     std::string              out_dir = std::string(mcpp::out_dir());
 };

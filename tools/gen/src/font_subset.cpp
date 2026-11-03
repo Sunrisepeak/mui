@@ -41,6 +41,228 @@ std::uint32_t checksum(std::span<const std::uint8_t> d) {
     return sum;
 }
 
+// Preserve substitution outputs without changing glyph ids or layout tables.
+// Scan every lookup, including contextual lookup targets, irrespective of the
+// enabled features. A rule fires only when all of its input glyphs are kept.
+struct SubstitutionRule {
+    std::vector<std::uint16_t> inputs, outputs;
+};
+
+struct Substitutions {
+    std::span<const std::uint8_t> data;
+    std::size_t glyphs;
+    std::uint16_t lookup_count = 0;
+    std::string error;
+    std::vector<SubstitutionRule> rules;
+
+    bool fail(std::string_view message) {
+        if (error.empty()) error = std::format("GSUB: {}", message);
+        return false;
+    }
+    bool has(std::size_t at, std::size_t bytes) {
+        return (at <= data.size() && bytes <= data.size() - at) || fail("truncated table or invalid offset");
+    }
+    std::uint16_t word(std::size_t at) { return has(at, 2) ? u16(data, at) : 0; }
+    std::size_t relative(std::size_t base, std::size_t delta) {
+        if (!delta || !has(base, delta) || !has(base + delta, 2)) { fail("invalid relative offset"); return data.size(); }
+        return base + delta;
+    }
+    bool glyph(std::uint16_t id) { return id < glyphs || fail("glyph id exceeds maxp glyph count"); }
+    std::vector<std::uint16_t> coverage(std::size_t at) {
+        std::vector<std::uint16_t> out;
+        const auto format = word(at), count = word(at + 2);
+        if (!error.empty()) return out;
+        if (format == 1) {
+            if (!has(at + 4, std::size_t{count} * 2)) return out;
+            for (std::size_t i = 0; i < count; ++i) {
+                const auto id = word(at + 4 + i * 2);
+                if (!glyph(id) || (!out.empty() && id <= out.back())) { fail("invalid coverage order"); return {}; }
+                out.push_back(id);
+            }
+        } else if (format == 2) {
+            if (!has(at + 4, std::size_t{count} * 6)) return out;
+            for (std::size_t i = 0; i < count; ++i) {
+                const auto first = word(at + 4 + i * 6), last = word(at + 6 + i * 6), start = word(at + 8 + i * 6);
+                if (first > last || start != out.size() || !glyph(last) || (!out.empty() && first <= out.back())) {
+                    fail("invalid coverage range"); return {};
+                }
+                for (std::uint32_t id = first; id <= last; ++id) out.push_back(static_cast<std::uint16_t>(id));
+            }
+        } else fail("unsupported coverage format");
+        return out;
+    }
+    bool class_definition(std::size_t at) {
+        const auto format = word(at);
+        if (format == 1) {
+            const auto start = word(at + 2), count = word(at + 4);
+            return has(at + 6, std::size_t{count} * 2) && (std::size_t{start} + count <= glyphs || fail("invalid class glyph range"));
+        }
+        if (format == 2) {
+            const auto count = word(at + 2);
+            if (!has(at + 4, std::size_t{count} * 6)) return false;
+            std::uint32_t previous = 0;
+            for (std::size_t i = 0; i < count; ++i) {
+                const auto first = word(at + 4 + i * 6), last = word(at + 6 + i * 6);
+                if (first > last || !glyph(last) || (i && first <= previous)) return fail("invalid class range");
+                previous = last;
+            }
+            return error.empty();
+        }
+        return fail("unsupported class definition format");
+    }
+    bool records(std::size_t at, std::size_t count, std::size_t inputs) {
+        if (!has(at, count * 4)) return false;
+        for (std::size_t i = 0; i < count; ++i)
+            if (word(at + i * 4) >= inputs || word(at + i * 4 + 2) >= lookup_count) return fail("invalid contextual lookup record");
+        return error.empty();
+    }
+    // Context tables introduce no output glyphs themselves. Validate their
+    // structures; their referenced lookups are scanned independently below.
+    bool context(std::uint16_t type, std::size_t at, std::uint16_t format) {
+        const bool chain = type == 6;
+        if (format == 3) {
+            std::size_t cursor = at + 2, inputs = 0, substitutions = 0;
+            if (!chain) { inputs = word(cursor); substitutions = word(cursor + 2); cursor += 4; }
+            for (int group = 0; group < (chain ? 3 : 1); ++group) {
+                const std::size_t count = chain ? word(cursor) : inputs;
+                if (chain) cursor += 2;
+                if (group == (chain ? 1 : 0)) inputs = count;
+                if (!has(cursor, count * 2)) return false;
+                for (std::size_t i = 0; i < count; ++i) coverage(relative(at, word(cursor + i * 2)));
+                cursor += count * 2;
+            }
+            if (chain) { substitutions = word(cursor); cursor += 2; }
+            if (!inputs) return fail("empty contextual input");
+            return error.empty() && records(cursor, substitutions, inputs);
+        }
+        if (format != 1 && format != 2) return fail("unsupported contextual substitution format");
+        const auto covered = coverage(relative(at, word(at + 2)));
+        std::size_t count_at = at + 4;
+        if (format == 2) {
+            const int classes = chain ? 3 : 1;
+            for (int i = 0; i < classes; ++i) class_definition(relative(at, word(at + 4 + std::size_t(i) * 2)));
+            count_at += std::size_t(classes) * 2;
+        }
+        const auto count = word(count_at);
+        if (format == 1 && count != covered.size()) return fail("contextual set count does not match coverage");
+        if (!error.empty() || !has(count_at + 2, std::size_t{count} * 2)) return false;
+        for (std::size_t i = 0; i < count; ++i) {
+            const auto delta = word(count_at + 2 + i * 2);
+            if (!delta) continue;  // no rules for this input/class
+            const auto set = relative(at, delta);
+            const auto n = word(set);
+            if (!has(set + 2, std::size_t{n} * 2)) return false;
+            for (std::size_t j = 0; j < n; ++j) {
+                const auto rule = relative(set, word(set + 2 + j * 2));
+                std::size_t cursor = rule, inputs = 0, substitutions = 0;
+                if (!chain) { inputs = word(cursor); substitutions = word(cursor + 2); cursor += 4; }
+                for (int group = 0; group < (chain ? 3 : 1); ++group) {
+                    const std::size_t count_glyphs = chain ? word(cursor) : inputs;
+                    if (chain) cursor += 2;
+                    const bool input = group == (chain ? 1 : 0);
+                    if (input) inputs = count_glyphs;
+                    if (input && !count_glyphs) return fail("empty contextual input");
+                    const auto stored = count_glyphs - (input ? 1 : 0);
+                    if (!has(cursor, stored * 2)) return false;
+                    if (format == 1) for (std::size_t k = 0; k < stored; ++k) if (!glyph(word(cursor + k * 2))) return false;
+                    cursor += stored * 2;
+                }
+                if (chain) { substitutions = word(cursor); cursor += 2; }
+                if (!error.empty() || !records(cursor, substitutions, inputs)) return false;
+            }
+        }
+        return error.empty();
+    }
+    bool subtable(std::uint16_t type, std::size_t at) {
+        auto format = word(at);
+        if (type == 7) {
+            if (format != 1 || !has(at, 8)) return fail("unsupported or truncated extension format");
+            type = word(at + 2);
+            if (type == 7 || type < 1 || type > 8) return fail("invalid extension lookup type");
+            at = relative(at, u32(data, at + 4)); format = word(at);
+        }
+        if (type == 5 || type == 6) return context(type, at, format);
+        if (type < 1 || type > 8) return fail("unsupported substitution lookup type");
+        if ((type == 1 && format != 1 && format != 2) || (type != 1 && format != 1)) return fail("unsupported substitution format");
+        const auto covered = coverage(relative(at, word(at + 2)));
+        if (!error.empty()) return false;
+        if (type == 1 && format == 1) {
+            const auto delta = word(at + 4);
+            for (const auto id : covered) {
+                const auto output = static_cast<std::uint16_t>(id + delta);
+                if (!glyph(output)) return false;
+                rules.push_back({{id}, {output}});
+            }
+        } else if (type == 8) {
+            std::size_t cursor = at + 4;
+            for (int group = 0; group < 2; ++group) {
+                const auto count = word(cursor); cursor += 2;
+                if (!has(cursor, std::size_t{count} * 2)) return false;
+                for (std::size_t i = 0; i < count; ++i) coverage(relative(at, word(cursor + i * 2)));
+                cursor += std::size_t{count} * 2;
+            }
+            const auto count = word(cursor); cursor += 2;
+            if (count != covered.size() || !has(cursor, std::size_t{count} * 2)) return fail("invalid reverse substitution count");
+            for (std::size_t i = 0; i < count; ++i) {
+                const auto output = word(cursor + i * 2);
+                if (!glyph(output)) return false;
+                rules.push_back({{covered[i]}, {output}});
+            }
+        } else {
+            const auto count = word(at + 4);
+            if (count != covered.size() || !has(at + 6, std::size_t{count} * 2)) return fail("substitution count does not match coverage");
+            for (std::size_t i = 0; i < count; ++i) {
+                if (type == 1) {
+                    const auto output = word(at + 6 + i * 2);
+                    if (!glyph(output)) return false;
+                    rules.push_back({{covered[i]}, {output}});
+                    continue;
+                }
+                const auto set = relative(at, word(at + 6 + i * 2));
+                const auto n = word(set);
+                if (!has(set + 2, std::size_t{n} * 2)) return false;
+                if (type == 2 || type == 3) {
+                    SubstitutionRule rule{{covered[i]}, {}};
+                    for (std::size_t j = 0; j < n; ++j) {
+                        const auto id = word(set + 2 + j * 2);
+                        if (!glyph(id)) return false;
+                        rule.outputs.push_back(id);
+                    }
+                    rules.push_back(std::move(rule));
+                } else if (type == 4) {
+                    for (std::size_t j = 0; j < n; ++j) {
+                        const auto ligature = relative(set, word(set + 2 + j * 2));
+                        const auto output = word(ligature), components = word(ligature + 2);
+                        if (!glyph(output) || !components || !has(ligature + 4, (std::size_t{components} - 1) * 2)) return fail("invalid ligature components");
+                        SubstitutionRule rule{{covered[i]}, {output}};
+                        for (std::size_t k = 1; k < components; ++k) {
+                            const auto id = word(ligature + 2 + k * 2);
+                            if (!glyph(id)) return false;
+                            rule.inputs.push_back(id);
+                        }
+                        rules.push_back(std::move(rule));
+                    }
+                }
+            }
+        }
+        return error.empty();
+    }
+    bool parse() {
+        if (!has(0, 10) || word(0) != 1 || word(2) > 1) return fail("unsupported or truncated version");
+        if (word(2) == 1 && !has(0, 14)) return false;
+        const auto list = relative(0, word(8)); lookup_count = word(list);
+        if (!has(list + 2, std::size_t{lookup_count} * 2)) return false;
+        for (std::size_t i = 0; i < lookup_count; ++i) {
+            const auto lookup = relative(list, word(list + 2 + i * 2));
+            const auto type = word(lookup), flags = word(lookup + 2), count = word(lookup + 4);
+            if (type < 1 || type > 8 || !has(lookup + 6, std::size_t{count} * 2 + ((flags & 0x10) ? 2 : 0))) return fail("invalid lookup header");
+            for (std::size_t j = 0; j < count; ++j)
+                if (!subtable(type, relative(lookup, word(lookup + 6 + j * 2)))) return false;
+        }
+        return error.empty();
+    }
+};
+
 // The glyph ids `cmap` gives the characters (its Unicode subtable: format 12, else 4).
 std::expected<std::map<char32_t, std::uint32_t>, std::string> glyphs_of(std::span<const std::uint8_t> cmap, const std::set<char32_t>& keep) {
     const std::uint16_t n = u16(cmap, 2);
@@ -140,6 +362,7 @@ void always_kept(std::set<char32_t>& into) {
 std::expected<Bytes, std::string> subset_font(std::span<const std::uint8_t> font, const std::set<char32_t>& keep, FontSubsetReport* report) {
     if (font.size() < 12 || (u32(font, 0) != 0x00010000 && u32(font, 0) != 0x74727565)) return std::unexpected("not a TrueType font (glyf outlines)");
     const std::uint16_t count = u16(font, 4);
+    if (12 + std::size_t{count} * 16 > font.size()) return std::unexpected("truncated font table directory");
     std::vector<Table> tables;
     std::map<std::string, std::span<const std::uint8_t>, std::less<>> by;
     for (std::uint16_t i = 0; i < count; ++i) {
@@ -157,31 +380,50 @@ std::expected<Bytes, std::string> subset_font(std::span<const std::uint8_t> font
     const bool long_loca = u16(head, 50) == 1;
     auto offset = [&](std::size_t g) -> std::size_t { return long_loca ? u32(loca, g * 4) : std::size_t{u16(loca, g * 2)} * 2; };
 
-    // The glyphs kept: .notdef, what the characters map to, and the components of composites, closed over.
+    if (!glyphs || head.size() < 54 || maxp.size() < 6 || loca.size() < (glyphs + 1) * (long_loca ? 4 : 2))
+        return std::unexpected("truncated glyph metadata");
+    for (std::size_t g = 0; g < glyphs; ++g)
+        if (offset(g) > offset(g + 1) || offset(g + 1) > glyf.size()) return std::unexpected("invalid glyph offsets");
+    Substitutions substitutions{by.contains("GSUB") ? by["GSUB"] : std::span<const std::uint8_t>{}, glyphs};
+    if (by.contains("GSUB") && !substitutions.parse()) return std::unexpected(substitutions.error);
     auto mapped = glyphs_of(by["cmap"], keep);
     if (!mapped) return std::unexpected(mapped.error());
     std::vector<bool> kept(glyphs, false);
     std::vector<std::uint32_t> todo{0};
-    for (const auto& [cp, g] : *mapped) todo.push_back(g);
+    for (const auto& [cp, g] : *mapped) {
+        if (g >= glyphs) return std::unexpected("cmap glyph exceeds maxp glyph count");
+        todo.push_back(g);
+    }
     const Bytes new_cmap = cmap_for(*mapped);
-    while (!todo.empty()) {
-        const std::uint32_t g = todo.back();
-        todo.pop_back();
-        if (g >= glyphs || kept[g]) continue;
-        kept[g] = true;
-        const std::size_t at = offset(g), end = offset(g + 1);
-        if (end <= at || static_cast<std::int16_t>(u16(glyf, at)) >= 0) continue;
-        // A composite: its components.
-        std::size_t p = at + 10;
-        for (;;) {
-            const std::uint16_t flags = u16(glyf, p);
-            todo.push_back(u16(glyf, p + 2));
-            p += 4 + ((flags & 0x0001) ? 4 : 2);
-            if (flags & 0x0008) p += 2;
-            else if (flags & 0x0040) p += 4;
-            else if (flags & 0x0080) p += 8;
-            if (!(flags & 0x0020) || p >= end) break;
+    // Alternate substitution and composite expansion to a fixed point. A GSUB
+    // output can itself be a composite or an input to another lookup.
+    for (;;) {
+        while (!todo.empty()) {
+            const std::uint32_t g = todo.back(); todo.pop_back();
+            if (kept[g]) continue;
+            kept[g] = true;
+            const std::size_t at = offset(g), end = offset(g + 1);
+            if (end == at) continue;
+            if (end - at < 10) return std::unexpected("truncated glyph outline");
+            if (static_cast<std::int16_t>(u16(glyf, at)) >= 0) continue;
+            std::size_t p = at + 10;
+            for (;;) {
+                if (p > end || end - p < 4) return std::unexpected("truncated composite component");
+                const std::uint16_t flags = u16(glyf, p), component = u16(glyf, p + 2);
+                if (component >= glyphs) return std::unexpected("invalid composite glyph id");
+                todo.push_back(component);
+                p += 4 + ((flags & 0x0001) ? 4 : 2);
+                if (flags & 0x0008) p += 2;
+                else if (flags & 0x0040) p += 4;
+                else if (flags & 0x0080) p += 8;
+                if (p > end) return std::unexpected("truncated composite transform");
+                if (!(flags & 0x0020)) break;
+            }
         }
+        for (const auto& rule : substitutions.rules)
+            if (std::ranges::all_of(rule.inputs, [&](auto id) { return kept[id]; }))
+                for (const auto id : rule.outputs) if (!kept[id]) todo.push_back(id);
+        if (todo.empty()) break;
     }
 
     // glyf and loca again: the kept glyphs as they were, the others empty (long offsets).

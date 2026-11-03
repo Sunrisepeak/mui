@@ -20,6 +20,8 @@ on:
       - 'components/timeline/**'
       - 'mcpp/toy/**'
       - 'tools/gen/src/dist_toy.*'
+      - 'tools/gen/tests/dist_toy_test.cpp'
+      - 'tools/ci/dist-toy-loading.mjs'
       - 'tools/gen/src/font_subset.*'
       - 'tools/ci/site.sh'
       - 'tools/ci/site-*'
@@ -74,6 +76,11 @@ jobs:
           mcpp toolchain default gcc@16.1.0
       - name: The site, packed for the Web and pre-rendered
         run: tools/ci/site.sh
+      - name: The generated loader handles real streams, failures and retries
+        run: |
+          mcpp test dist_toy -p openmui.gen
+          fixture="$(python3 -c 'import os,tempfile; print(os.path.join(tempfile.gettempdir(), "openmui-tests", "dist-toy-loading", "index.html"))')"
+          node tools/ci/dist-toy-loading.mjs "$fixture" > target/dist-toy-loading.report.omui.json
       - name: The site in a real browser — its delivery within budget, what assistive technology reads
         # tools/ci/site-browser.sh: the page served as Pages serves it; a cold
         # visit over 20 Mbit/s — transfer, first frame, readiness, frame tails
@@ -98,6 +105,9 @@ jobs:
             target/site-fonts/
             target/site-catalog/
             target/site-workspace/
+            target/site-motion/
+            target/site-loading/
+            target/dist-toy-loading.report.omui.json
           if-no-files-found: ignore
       - name: Where the site's WebAssembly bytes go (W8; Q-38)
         # tools/ci/wasm-size.sh: the release's code with its functions' names

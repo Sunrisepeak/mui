@@ -138,7 +138,7 @@ int main(int argc, char** argv) {
         const auto index = read(p.out / "index.html");
         const auto entry = index.find("[\"NotoSansSC.ttf\"");
         check(entry != std::string::npos && index.substr(entry, index.find('\n', entry) - entry).contains("[\"zh\"], \"assets/"));
-        check(index.contains("file = f[3]") && index.contains("fetch(file)") && index.contains("window.omuiFontLanguage"));
+        check(index.contains("file = f[3]") && index.contains("omuiFetchBytes") && index.contains("window.omuiFontLanguage"));
         check(index.contains("FS.symlink(canonical, f[0])") && index.contains("FS.unlink('/fonts/.partial')"), "later fonts refresh the canonical source, then clear readiness");
         std::optional<fs::path> tiny;
         for (const auto& f : r->files) if (f.path.ends_with(".ttf") && f.size > 100 && f.size < 1000000) tiny = p.out / f.path;
@@ -166,7 +166,50 @@ int main(int argc, char** argv) {
         p.font_initial = {{"Missing", "中文"}};
         check(!gen::package_for_toy(p), "an unselected initial font is a configuration error");
         p.font_initial = {{"NotoSansSC", "中文"}}; p.font_languages.clear();
-        check(!gen::package_for_toy(p), "initial coverage needs a deferred full font");
+        check(gen::package_for_toy(p).has_value(), "initial coverage without language rules defers the full font for every language");
+        p.font_initial = {{"NotoSansSC", ""}};
+        check(!gen::package_for_toy(p), "initial coverage remains nonempty");
+        p.font_initial = {{"NotoSansSC", "中文"}, {"NotoSansSC", "文"}};
+        check(!gen::package_for_toy(p), "duplicate initial coverage remains a configuration error");
+    });
+
+    s.test("decoded asset sizes and an executable loading fixture accompany the actual package", [] {
+        Tree t;
+        fs::copy_file(omui::typeset::FontCollection::default_directory() / "NotoSansSC.ttf", t.root / "fonts" / "NotoSansSC.ttf", fs::copy_options::overwrite_existing);
+        put(t.root / "words.txt", "A readable page 中文 龙");
+        put(t.root / "art" / "later.webp", "deferred picture bytes");
+        auto p = t.package(); p.sdk = false; p.out = scratch_dir("dist-toy-loading");
+        p.fonts = {"Inter", "NotoSansSC"}; p.font_languages = {{"NotoSansSC", {"zh"}}}; p.font_initial = {{"NotoSansSC", "中文"}};
+        p.subsets = {{"NotoSansSC", {t.root / "words.txt"}}}; p.later = {{t.root / "art", ".webp", "/later/art"}};
+        const auto result = gen::package_for_toy(p); check(result.has_value(), result ? "" : result.error()); if (!result) return;
+        const auto html = read(p.out / "index.html");
+        check(html.contains("var omuiAssetBytes = {") && html.contains("window.omuiLoad = {") && html.contains("new CustomEvent('omui-load'"));
+        check(html.contains("this.focus(); });\n</script>\n<script src=\""), "the inline loader closes before the external launcher script");
+        check(html.contains("basis: 'decoded'") && html.contains("WebAssembly.instantiateStreaming(body.response, imports)"));
+        check(html.contains("headers.delete('Content-Length')") && html.contains("headers.delete('Content-Encoding')"));
+        check(html.contains("runtimeInitialized: omuiInitialized, presented: omuiPresented") && html.contains("omuiPublish('presented')"));
+        check(html.contains("omuiPlanFonts();\n    var job = omuiJob(omuiWasmAsset") && html.contains("if (omuiPreRan) return; omuiPlanFonts(); omuiPreRan = true;"),
+              "font plans follow bootstrap and are rechecked before any startup font fetch");
+        check(html.contains("setTimeout(function () { omuiFetchLater(); }, 4000)") && !html.contains("window.omuiFirstFrame = null;"), "the timer never impersonates a native presentation");
+        for (const auto& file : result->files) if (file.path.ends_with(".ttf") || file.path.ends_with(".wasm") || file.path.ends_with(".webp"))
+            check(html.contains(std::format("\"{}\":{}", file.path, file.size)), file.path);
+        std::println("dist-toy loading fixture: {}", (p.out / "index.html").string());
+
+        // Keep the existing mixed-language fixture intact and add a real
+        // Inter package for the all-language first-paint typography branch.
+        fs::copy_file(omui::typeset::FontCollection::default_directory() / "Inter.ttf", t.root / "fonts" / "Inter.ttf", fs::copy_options::overwrite_existing);
+        auto initial = t.package(); initial.sdk = false; initial.out = p.out / "all-language-initial"; initial.font_initial = {{"Inter", "omui"}};
+        const auto packed = gen::package_for_toy(initial); check(packed.has_value(), packed ? "" : packed.error());
+        bool tiny_face = false, full_face = false;
+        if (packed) for (const auto& file : packed->files) if (file.path.ends_with(".ttf")) {
+            omui::typeset::FontCollection faces; const auto face = faces.add_file(initial.out / file.path); check(face.has_value());
+            if (face) {
+                const bool full = faces.covers(*face, U'Z');
+                tiny_face = tiny_face || (faces.covers(*face, U'o') && !full); full_face = full_face || full;
+            }
+        }
+        check(tiny_face && full_face, "real Inter initial coverage and the complete face both travel in the package");
+        if (packed) check(read(initial.out / "index.html").contains("[], \"assets/"), "the initial asset needs no artificial language rule");
     });
 
     return s.run(argc, argv);

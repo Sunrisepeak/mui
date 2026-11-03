@@ -50,15 +50,53 @@ struct FlexLine {
     float       offset = 0;     // cross position of the line
 };
 
+// Scratch belongs to one uncached flex pass. Reuse it across all lines and
+// freeze iterations; cached intrinsic/resolved requests never construct it.
+struct FlexScratch {
+    std::vector<NodeId> children;
+    std::vector<FlexItem> items;
+    std::vector<FlexLine> lines;
+    std::vector<float> violation;
+};
+
 }  // namespace
 
 struct FlexAlgorithm {
-    static Size run(Engine& e, NodeId node, const Engine::Request& r);
+    static Size run(Engine& e, NodeId node, const Engine::Request& r, FlexScratch& scratch);
 };
 
-Size Engine::layout_flex(NodeId node, const Request& r) { return FlexAlgorithm::run(*this, node, r); }
+Size Engine::layout_flex(NodeId node, const Request& r) {
+    if (!r.width && !r.intrinsic_width && r.avail_width.kind != Available::Kind::min_content) {
+        // Intrinsic inline size is independent of the room offered by an
+        // ancestor: wrapping first and then using the longest wrapped line
+        // as the containing width makes nested auto boxes shrink again.
+        // Percentages in this intrinsic contribution remain indefinite;
+        // the original containing block is used for the final min/max below.
+        Request intrinsic = r;
+        intrinsic.parent_width.reset();
+        intrinsic.avail_width = Available::max_content();
+        intrinsic.intrinsic_width = true;
+        intrinsic.perform = false;
+        const Size measured = layout(node, intrinsic);
+        const Style& style = at(node).style;
+        float used_width = measured.width;
+        if (r.avail_width.is_definite() && style.overflow_x != Overflow::scroll)
+            used_width = std::min(used_width, r.avail_width.value);
+        used_width = clamp_opt(used_width, style.min_width.resolve(r.parent_width), style.max_width.resolve(r.parent_width));
+        // Both stages go through the ordinary cache. In particular, parents
+        // can reuse this resolved-width natural height before freezing their
+        // own flex bases, rather than recursively repeating the second pass.
+        // Engine::layout owns border-box clamping and stores the final size.
+        Request resolved = r;
+        resolved.width = used_width;
+        return layout(node, resolved);
+    }
+    FlexScratch scratch;
+    scratch.children = at(node).children;
+    return FlexAlgorithm::run(*this, node, r, scratch);
+}
 
-Size FlexAlgorithm::run(Engine& e, NodeId node, const Engine::Request& r) {
+Size FlexAlgorithm::run(Engine& e, NodeId node, const Engine::Request& r, FlexScratch& scratch) {
     const Style& s = e.at(node).style;
     const bool row = is_row(s.direction);
     const float pb_l = s.padding.left + s.border.left, pb_t = s.padding.top + s.border.top;
@@ -94,14 +132,17 @@ Size FlexAlgorithm::run(Engine& e, NodeId node, const Engine::Request& r) {
         cr.avail_height = row ? ac : am;
         cr.parent_width = inner_w;
         cr.parent_height = inner_h;
+        // Keep the whole intrinsic subtree in one pass, not just its root.
+        cr.intrinsic_width = r.intrinsic_width;
         cr.perform = perform;
         Size sz = e.layout(c, cr);
         return std::pair{row ? sz.width : sz.height, row ? sz.height : sz.width};
     };
 
     // ── items ──
-    std::vector<FlexItem> items;
-    for (NodeId c : std::vector<NodeId>(e.at(node).children)) {
+    auto& items = scratch.items;
+    items.clear();
+    for (NodeId c : scratch.children) {
         const Style& cs = e.at(c).style;
         if (cs.display == Display::none) {
             e.at(c).frame = {};
@@ -174,7 +215,10 @@ Size FlexAlgorithm::run(Engine& e, NodeId node, const Engine::Request& r) {
         if (inner_main) line_limit = *inner_main;
         else if (avail_main.is_definite()) line_limit = avail_main.value;
     }
-    std::vector<FlexLine> lines;
+    auto& lines = scratch.lines;
+    lines.clear();
+    // At most one line per item; reserve once for both width passes.
+    lines.reserve(std::max<std::size_t>(1, items.size()));
     {
         FlexLine line;
         float used = 0;
@@ -265,7 +309,9 @@ Size FlexAlgorithm::run(Engine& e, NodeId node, const Engine::Request& r) {
             }
             // Clamp and freeze violators (§9.7.4 d, e).
             float total = 0;
-            std::vector<float> violation(n, 0);
+            auto& violation = scratch.violation;
+            if (violation.size() < n) violation.resize(n);
+            std::fill_n(violation.begin(), n, 0.0f);
             for (std::size_t i = l.begin; i < l.end; ++i) {
                 FlexItem& it = items[i];
                 if (it.frozen) continue;
@@ -429,6 +475,7 @@ Size FlexAlgorithm::run(Engine& e, NodeId node, const Engine::Request& r) {
         float final_inner_w = std::max(0.0f, width - pb_w), final_inner_h = std::max(0.0f, height - pb_h);
         for (FlexItem& it : items) {
             Engine::Request cr;
+            cr.intrinsic_width = r.intrinsic_width;
             cr.width = row ? it.target : it.cross;
             cr.height = row ? it.cross : it.target;
             cr.avail_width = Available::definite(*cr.width);

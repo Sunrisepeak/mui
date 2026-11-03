@@ -1464,7 +1464,7 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
             links.insert(links.begin(), row({.id = "core", .gap = 0, .align = "center"}, {std::move(core_open), std::move(core_panel)}));
             Element nav = row({.id = "nav", .gap = 4, .align = "center", .wrap = "wrap", .label = "Places"}, std::move(links));
             nav.prop("role", Source(Value("navigation")));
-            if (compact) nav.prop("width", Source(Value(static_cast<double>(s->width.get() - 32))));
+            if (compact) nav.prop("width", Source(Value("100%")));
             Element start = button({.id = "start", .text = label("Get started", "开始使用"), .variant = ButtonVariant::primary,
                                     .on_activated = [s] { s->go("hello"); }});
             Element settings = button({.id = "settings_toggle", .text = label("Settings", "设置"), .variant = ButtonVariant::ghost,
@@ -1719,7 +1719,7 @@ std::string static_html(std::string_view lang) {
     return out + "</div></main>\n";
 }
 
-std::optional<std::string> inject(std::string_view page, std::string_view fragment, std::string_view lang) {
+std::optional<std::string> inject(std::string_view page, std::string_view fragment, std::string_view lang, std::string_view opening_assets) {
     std::string out(page);
     const auto canvas = out.find("<canvas id=\"canvas\"");
     const auto head = out.find("</head>");
@@ -1727,44 +1727,88 @@ std::optional<std::string> inject(std::string_view page, std::string_view fragme
     if (canvas == std::string::npos || head == std::string::npos || loader == std::string::npos || loader < canvas) return std::nullopt;
     if (out.contains("id=\"omui-static\"")) return std::nullopt;  // once
     // The static view is handed over only after presented pixels and the live mirror agree on the route.
-    out.insert(loader, "<script>" + std::string(files::static_bootstrap) + "</script>\n");
+    std::string opening_data;
+    if (!opening_assets.empty()) {
+        const auto parsed = parse_json(opening_assets);
+        if (!parsed || !parsed->get("version") || parsed->get("version")->as_int() != 1 ||
+            !parsed->get("previews") || !parsed->get("previews")->list()) return std::nullopt;
+        // JSON is inert data. Escape HTML's script terminator even if a
+        // future catalogue adds text originating outside the build.
+        for (const char c : opening_assets) {
+            if (c == '<') opening_data += "\\u003c";
+            else if (c == '>') opening_data += "\\u003e";
+            else if (c == '&') opening_data += "\\u0026";
+            else opening_data += c;
+        }
+        opening_data = "<script id=\"omui-first-frames\" type=\"application/json\">" + opening_data + "</script>\n";
+    }
+    out.insert(loader, opening_data + "<script>" + std::string(files::static_bootstrap) + "</script>\n");
     out.insert(canvas, std::string(fragment));
     // The static page in the program's own fonts: the files the page already lists for it (omuiFonts).
     std::string faces;
+    Value font_entries;
+    constexpr std::string_view font_declaration = "var omuiFonts = ";
+    if (const auto at = out.find(font_declaration); at != std::string::npos) {
+        const auto from = at + font_declaration.size(), to = out.find(';', from);
+        if (to != std::string::npos) if (auto entries = parse_json(std::string_view(out).substr(from, to - from))) font_entries = std::move(*entries);
+    }
     for (const auto& [stem, family] : {std::pair{"Inter", "Inter"}, std::pair{"JetBrainsMono", "JetBrains Mono"}, std::pair{"NotoSansSC", "Noto Sans SC"}}) {
-        const std::string key = std::format("\"{}.ttf\", \"", stem);
-        const auto at = out.find(key);
-        if (at == std::string::npos) continue;
-        const auto from = at + key.size(), to = out.find('"', from);
+        std::string source;
+        if (const auto* entries = font_entries.list()) for (const auto& entry : *entries) {
+            const auto* row = entry.list();
+            if (!row || row->size() < 2 || (*row)[0].as_string() != std::format("{}.ttf", stem)) continue;
+            const std::size_t initial = family == std::string_view("Inter") && row->size() > 3 ? 3 : 1;
+            source = (*row)[initial].as_string();
+        }
+        if (source.empty()) continue;
         // The Chinese font only for a Chinese page: an English one fetching it for a word or two (中文) would fetch it before the
         // program, which takes it just after its first frame; the system's font draws those.
         if (family == std::string_view("Noto Sans SC") && lang != "zh") continue;
-        faces += std::format("@font-face{{font-family:'{}';src:url({});font-display:swap}}", family, out.substr(from, to - from));
+        faces += std::format("@font-face{{font-family:'{}';src:url({});font-display:swap{}}}", family, source,
+                             family == std::string_view("Inter") ? ";font-weight:100 900" : "");
     }
     // In the site's own colours (site.theme.omui.toml's light tokens).
     out.insert(head,
                "<style>" + faces +
                    "#omui-static{position:fixed;inset:0;z-index:1;overflow:auto;padding:32px 48px;background:#fbfbfa;color:#16161a;"
                    "font:16px/1.6 Inter,'Noto Sans SC',system-ui,sans-serif;user-select:text}#omui-static[hidden]{display:none}"
-                   "#omui-static nav{margin-bottom:32px}#omui-static a{color:#4f46e5}#omui-static nav a{margin-right:16px}"
+                   "#omui-static nav{display:flex;flex-wrap:wrap;align-items:center;gap:24px;margin-bottom:32px}#omui-static a{color:#4f46e5}#omui-static nav a{font-size:14px;text-decoration:none}"
                    "#omui-static .skip{position:absolute;left:8px;top:-60px;padding:8px 14px;background:#16161a;color:#fbfbfa}#omui-static .skip:focus{top:8px}"
-                   "#omui-static section{max-width:860px;margin-bottom:64px}#omui-static code{font:14px 'JetBrains Mono',monospace;background:#f3f3f1;"
+                   "#omui-static section{max-width:860px;margin-bottom:64px;scroll-margin-top:100vh}#omui-static code{font:14px 'JetBrains Mono',monospace;background:#f3f3f1;"
                    "padding:1px 4px;border-radius:3px}#omui-static pre{white-space:pre-wrap}#omui-static table{border-collapse:collapse}"
                    "#omui-static td,#omui-static th{border:1px solid #e6e6e3;padding:4px 8px}"
                    "#omui-static .brand{display:inline-flex;align-items:center;gap:8px}#omui-static .brand svg{width:32px;height:32px}"
-                   "#omui-static .core-navigation{display:inline-block;position:relative;margin-right:16px;vertical-align:middle}"
+                   "#omui-static .core-navigation{display:inline-block;position:relative;vertical-align:middle}"
                    "#omui-static .core-navigation[open]>a{display:block}#omui-static .core-navigation summary{cursor:pointer;color:#4f46e5}"
+                   "#omui-static .static-links{display:flex;gap:24px;align-items:center}"
+                   "#omui-static .static-menu{margin-left:auto;border:0;background:transparent;padding:8px;color:#4f46e5;font:inherit;cursor:pointer}"
+                   "#omui-static nav[data-compact=true] .static-links{flex-basis:100%;flex-direction:column;align-items:stretch;gap:12px}"
                    "#omui-static section[data-place=home]{max-width:1120px;margin:auto}#omui-static .landing-static{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center;min-height:560px}"
-                   "#omui-static .landing-static h1{font-size:48px;line-height:1.3;letter-spacing:-1px}#omui-static .landing-mark{text-align:center}#omui-static .landing-mark svg{width:248px;height:248px}"
+                   "#omui-static .landing-static h1{font-size:48px;line-height:1.3;font-weight:600;letter-spacing:-1px;margin:0 0 24px}"
+                   "#omui-static .landing-eyebrow{font-size:14px;color:#4f46e5;margin:0 0 24px}#omui-static .landing-lead{color:#65656d;margin:0 0 24px}"
+                   "#omui-static .landing-actions{display:flex;gap:12px;align-items:center;margin:0}#omui-static .landing-actions a{text-decoration:none;padding:8px 12px;border-radius:10px}"
+                   "#omui-static .landing-actions a:first-child{background:#4f46e5;color:#fff}"
+                   "#omui-static .landing-mark{text-align:center}#omui-static .landing-mark svg{width:248px;height:248px}"
                    "@media(max-width:900px){#omui-static .landing-static{display:flex;flex-direction:column;gap:28px;align-items:stretch;min-height:0}#omui-static .landing-static h1{font-size:38px}}"
+                   "#omui-static .omui-opening{max-width:100%;margin:28px auto;pointer-events:none}"
+                   "#omui-static .omui-opening-picture{position:relative;line-height:0;overflow:hidden;border-radius:16px}"
+                   "#omui-static .omui-opening-picture>img{display:block;width:100%;height:auto}"
+                   "#omui-static .omui-opening-picture>svg{position:absolute;inset:0;width:100%;height:100%;fill:none;stroke:#4f46e5;stroke-width:1;overflow:hidden}"
+                   "#omui-static .omui-opening-picture rect{vector-effect:non-scaling-stroke;transition:stroke-dashoffset .12s linear}"
+                   "#omui-static .omui-opening[data-phase=reading] img{opacity:.3}"
+                   "#omui-static .omui-opening[data-phase=initializing] svg{opacity:.18}"
+                   "#omui-static .omui-opening figcaption{margin-top:10px;color:#65656d;font-size:12px;line-height:1.5;text-align:center}"
+                   "#omui-static .omui-loading-note{margin:24px 0 0;color:#65656d;font-size:13px}"
+                   "#omui-static .omui-loading-note button{margin-left:12px;padding:6px 12px;border:1px solid #dedee4;border-radius:8px;background:#fff;color:#4f46e5;cursor:pointer}"
+                   "@media(prefers-reduced-motion:reduce){#omui-static .omui-opening-picture>svg{display:none}#omui-static .omui-opening[data-phase] img{opacity:1}#omui-static .omui-opening-picture rect{transition:none}}"
                    "#omui-static [hidden]{display:none!important}#omui-static>.routes>section{display:none}"
                    "#omui-static>.routes>section[data-default]{display:block}"
                    "#omui-static:has(.routes :target)>.routes>section{display:none}"
                    "#omui-static:has(.routes :target)>.routes>section:target,#omui-static:has(.routes :target)>.routes>section:has(.route-alias:target){display:block}"
-                   "#omui-static>nav[data-locale]{display:none}#omui-static>nav[data-default]{display:block}"
+                   "#omui-static>nav[data-locale]{display:none}#omui-static>nav[data-default]{display:flex}"
                    "#omui-static:has(.routes :target)>nav[data-locale]{display:none}"
-                   "#omui-static:has(section[lang=zh-CN]:target,section[lang=zh-CN] .route-alias:target)>nav[data-locale=zh]{display:block}"
-                   "#omui-static:has(section[lang=en]:target,section[lang=en] .route-alias:target)>nav[data-locale=en]{display:block}"
+                   "#omui-static:has(section[lang=zh-CN]:target,section[lang=zh-CN] .route-alias:target)>nav[data-locale=zh]{display:flex}"
+                   "#omui-static:has(section[lang=en]:target,section[lang=en] .route-alias:target)>nav[data-locale=en]{display:flex}"
                    "@media(max-width:700px){#omui-static{padding:24px 20px}#omui-static nav{display:flex;flex-wrap:wrap}}"
                    "</style>\n<meta name=\"description\" content=\"omui: a UI framework implementing the openmui specification. One semantic tree, many renderings.\">\n");
     // A reader may zoom the page (WCAG 1.4.4): the packer's viewport forbids it.

@@ -344,8 +344,27 @@ struct Web::Impl {
         bool any = false;
         for (const auto& e : std::filesystem::directory_iterator("/later/fonts", ec))
             if (e.path().extension() == ".ttf") {
-                if (auto r = runtime->fonts().add_fallback(e.path()); r) any = true;
-                else warn("a later font: {}", r.error());
+                auto& fonts = runtime->fonts();
+                if (const auto added = fonts.add_file(e.path()); added) {
+                    // Keep each family's original fallback priority whatever
+                    // order the deferred files arrive in. Loading adds a new
+                    // FaceId; old shaped runs and morphs retain their face.
+                    const auto family = fonts.find_family(fonts.face(*added).family);
+                    std::vector<typeset::FaceId> chain(fonts.fallback().begin(), fonts.fallback().end());
+                    // A previously absent family keeps add_fallback's old
+                    // priority after the primary, now after that entire
+                    // family block rather than between its tiny/full faces.
+                    std::size_t after = 0;
+                    if (!chain.empty()) {
+                        const auto primary = fonts.find_family(fonts.face(chain.front()).family);
+                        do { ++after; } while (after < chain.size() && fonts.find_family(fonts.face(chain[after]).family) == primary);
+                    }
+                    for (std::size_t i = 0; i < chain.size(); ++i)
+                        if (fonts.find_family(fonts.face(chain[i]).family) == family) after = i + 1;
+                    chain.insert(chain.begin() + static_cast<std::ptrdiff_t>(after), *added);
+                    fonts.set_fallback(std::move(chain));
+                    any = true;
+                } else warn("a later font: {}", added.error());
             }
         if (any) runtime->fonts_changed();
     }

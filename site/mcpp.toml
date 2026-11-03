@@ -34,6 +34,12 @@ main = "src/main.cpp"
 sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
+[target.'cfg(not(os = "emscripten"))'.build]
+sources = ["src/targets/native.cppm"]
+
+[target.'cfg(os = "emscripten")'.build]
+sources = ["src/targets/web.cppm"]
+
 [dependencies]
 openmui.sdk         = { path = ".." }
 openmui.ui.markdown = { path = "../components/markdown" }

@@ -158,26 +158,34 @@ float clamp_size(float v, std::optional<float> lo, std::optional<float> hi) {
 
 Size Engine::layout(NodeId node, const Request& request) {
     Node& n = at(node);
-    // Served from cache: the same constraints as a previous request.
+    const Style& s = n.style;
+    // The containing block matters here only to the node's own percentage
+    // sizes. Descendants resolve against this node's decided content box,
+    // not its parent's. Keeping an unrelated parent height in the key makes
+    // a measure request and its placement repeat the whole auto-width tree.
+    Request key = request;
+    auto percentage = [](Length v) { return v.unit == Length::Unit::percent; };
+    if (!percentage(s.width) && !percentage(s.min_width) && !percentage(s.max_width)) key.parent_width.reset();
+    if (!percentage(s.height) && !percentage(s.min_height) && !percentage(s.max_height)) key.parent_height.reset();
+    // Served from cache: the same effective constraints as a previous request.
     if (request.perform) {
-        if (n.performed && n.performed->request.same_constraints(request)) {
+        if (n.performed && n.performed->request.same_constraints(key)) {
             ++stats_.cache_hits;
             return n.performed->size;
         }
     } else {
         for (std::uint8_t i = 0; i < n.cache_count; ++i)
-            if (n.cache[i].request.same_constraints(request)) {
+            if (n.cache[i].request.same_constraints(key)) {
                 ++stats_.cache_hits;
                 return n.cache[i].size;
             }
-        if (n.performed && n.performed->request.same_constraints(request)) {
+        if (n.performed && n.performed->request.same_constraints(key)) {
             ++stats_.cache_hits;
             return n.performed->size;
         }
     }
     ++stats_.layouts;
 
-    const Style& s = n.style;
     Request r = request;
     // The node's own definite sizes: the parent's decision, else the style.
     std::optional<float> min_w = s.min_width.resolve(r.parent_width);
@@ -210,10 +218,10 @@ Size Engine::layout(NodeId node, const Request& request) {
     if (!r.height) size.height = clamp_size(size.height, min_h, max_h);
     if (s.aspect_ratio > 0 && !r.width && !r.height) size.height = size.width / s.aspect_ratio;
 
-    if (s.display != Display::none) layout_absolute(node, size, request.perform);
+    if (s.display != Display::none && !r.intrinsic_width) layout_absolute(node, size, request.perform);
 
     Node& m = at(node);  // `nodes_` does not grow during layout; refresh the reference anyway
-    Node::Entry entry{request, size, m.baseline};
+    Node::Entry entry{key, size, m.baseline};
     if (request.perform) {
         m.performed = entry;
     } else {
@@ -316,6 +324,7 @@ Size Engine::layout_stack(NodeId node, const Request& r) {
         Align h = cs.justify_self == Align::auto_ ? s.align_items : cs.justify_self;
         Align v = cs.align_self == Align::auto_ ? s.align_items : cs.align_self;
         Request cr;
+        cr.intrinsic_width = r.intrinsic_width;
         cr.parent_width = inner_w;
         cr.parent_height = inner_h;
         cr.avail_width = aw.is_definite() ? Available::definite(std::max(0.0f, aw.value - cs.margin.horizontal())) : aw;
@@ -336,6 +345,7 @@ Size Engine::layout_stack(NodeId node, const Request& r) {
             const Style& cs = at(it.id).style;
             // A stretched item that the container's own size now determines.
             Request cr;
+            cr.intrinsic_width = r.intrinsic_width;
             cr.parent_width = iw;
             cr.parent_height = ih;
             cr.avail_width = Available::definite(std::max(0.0f, iw - cs.margin.horizontal()));

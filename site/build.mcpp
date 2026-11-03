@@ -23,10 +23,16 @@ int main() {
     std::vector<std::string> text{here + "/content", here + "/src", here + "/contract", here + "/../docs"};
     for (const char* dep : {"openmui.example.hello-im", "openmui.ui.timeline", "openmui.ui.base", "openmui.ui.markdown"})
         if (const char* d = mcpp::dep_dir(dep); d && *d) text.push_back(std::string(d) + "/src");
+    // The opening uses the same Inter outlines before the full face arrives.
+    // ASCII covers the initial UI; keep the shared symbols and standard Latin
+    // ligatures too. Full input coverage still comes from the regular face.
+    std::string initial_latin;
+    for (int c = 32; c < 127; ++c) initial_latin += static_cast<char>(c);
+    initial_latin += " áéíóúàèìòùäëïöüÿÁÉÍÓÚÀÈÌÒÙÄËÏÖÜÑñÆæØøßÇçµαβγΔΣπΩμ°€£¥±·×−–—‘’“”…→←↔↑↓✓✗ﬁﬂﬀﬃﬄﬅﬆ";
     const bool page = openmui::build::dist_toy({.target = "omui-site", .title = "omui", .fonts = {"Inter", "JetBrainsMono", "NotoSansSC"}, .background = "#fbfbfa", .sdk = false,
                                                 .subsets = {{.font = "NotoSansSC", .text = std::move(text)}},
                                                 // The Chinese font before the first frame only for a page opened in Chinese; else just after it.
                                                 .font_languages = {{"NotoSansSC", {"zh"}}},
-                                                .font_initial = {{"NotoSansSC", "中文"}}});
+                                                .font_initial = {{"Inter", std::move(initial_latin)}, {"NotoSansSC", "中文"}}});
     return lens && content && en && zh && frames && theme && bootstrap && page ? 0 : 1;
 }

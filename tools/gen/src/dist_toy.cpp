@@ -84,7 +84,8 @@ std::string js_string(std::string_view s) {
 // loader — the program's arguments from the hash route, its /fonts filled
 // before main, its .wasm by its hashed name.
 std::string page(const ToyPackage& p, std::string_view js, std::string_view wasm, std::span<const std::pair<std::string, std::string>> fonts,
-                 std::span<const std::pair<std::string, std::string>> later, std::span<const std::pair<std::string, std::string>> initial) {
+                 std::span<const std::pair<std::string, std::string>> later, std::span<const std::pair<std::string, std::string>> initial,
+                 const std::map<std::string, std::uintmax_t>& decoded_sizes) {
     std::string font_list, later_list;
     for (const auto& [name, file] : fonts) {
         // Its languages, if it is for some: ["zh"].
@@ -111,17 +112,17 @@ std::string page(const ToyPackage& p, std::string_view js, std::string_view wasm
     html += "</head>\n<body>\n<canvas id=\"canvas\" tabindex=\"0\"></canvas>\n<div id=\"status\">…</div>\n<script>\n";
     html += std::format("var omuiFonts = [{}];\n", font_list);
     html += std::format("var omuiWasm = {};\n", js_string(wasm));
+    html += std::format("var omuiLauncher = {};\n", js_string(js));
     html += std::format("var omuiLater = [{}];\n", later_list);
+    html += std::format("var omuiAssetBytes = {};\n", nlohmann::json(decoded_sizes).dump());
     html += "var omuiFontPending = 0;\n";
     html += R"(var omuiStatus = document.getElementById('status');
-// Hash routes are the program's flags: #/training runs it with --training.
+// Hash routes are the program's flags; the loader never mutates the route.
 function omuiArguments() {
   return (document.URL.split('#')[1] || '').replace(/^\//, '').split('/').filter(function (s) { return /^[A-Za-z0-9_-]+$/.test(s); })
     .map(function (s) { return '--' + s; });
 }
-// Whether the page opens in one of these languages: its route's first part (#/zh/…), or the browser's first language.
 function omuiWants(langs) {
-  // A prerendered application can state the language it actually opens in.
   if (typeof window.omuiFontLanguage === 'string') {
     var chosen = window.omuiFontLanguage.toLowerCase();
     return langs.some(function (l) { return chosen === l || chosen.indexOf(l + '-') === 0; });
@@ -130,67 +131,237 @@ function omuiWants(langs) {
   var first = ((navigator.languages && navigator.languages[0]) || navigator.language || '').toLowerCase();
   return langs.some(function (l) { return route === l || first === l || first.indexOf(l + '-') === 0; });
 }
-var Module = {
-  canvas: document.getElementById('canvas'),
-  arguments: omuiArguments(),
-  locateFile: function (path) { return /\.wasm$/.test(path) ? omuiWasm : path; },
-  print: function (text) { console.log(text); },
-  printErr: function (text) { console.warn(text); },
-  preRun: [function () {
-    // The fonts the program draws with, in its /fonts before main — but a
-    // font for some languages only when the page opens in one of them; else
-    // it comes once the program is drawn (omuiFetchLater, /later/fonts).
-    FS.mkdir('/fonts');
-    omuiFonts.forEach(function (f) {
-      var file = f[1];
-      if (f[2].length && !omuiWants(f[2])) {
-        omuiLater.push(['/later/fonts/' + f[0], file]);
-        ++omuiFontPending;
-        FS.writeFile('/fonts/.partial', '');
-        if (!f[3]) return;
-        file = f[3];
-      }
-      Module.addRunDependency('font ' + f[0]);
-      fetch(file).then(function (r) { return r.arrayBuffer(); }).then(function (b) {
-        FS.writeFile('/fonts/' + f[0], new Uint8Array(b));
-        Module.removeRunDependency('font ' + f[0]);
-      });
+// All counts are decoded body bytes for managed assets, not wire bytes or
+// the launcher's script element. A retry starts that asset's count again.
+var omuiAssets = [], omuiJobs = Object.create(null), omuiStartupFonts = [], omuiLaterJobs = [], omuiFontLater = [], omuiFontPlan = null;
+var omuiPhase = 'boot', omuiStatusText = '', omuiFatal = null;
+var omuiInitialized = false, omuiPresented = false, omuiLaterStarted = false, omuiPreRan = false, omuiPartial = false, omuiWasmReceived = false;
+function omuiAsset(id, url, kind, group, state) {
+  var raw = omuiAssetBytes[url];
+  var a = {id: id, url: url, kind: kind, group: group, loaded: 0, total: Number.isSafeInteger(raw) && raw >= 0 ? raw : null,
+           state: state || 'queued', attempt: 0, error: null};
+  omuiAssets.push(a); return a;
+}
+function omuiProgress(assets) {
+  var loaded = 0, total = 0, known = true;
+  assets.forEach(function (a) { if (a.state === 'skipped') return; loaded += a.loaded; if (a.total === null || a.loaded > a.total) known = false; else total += a.total; });
+  return {loaded: loaded, total: known ? total : null, ratio: known && total > 0 ? loaded / total : null};
+}
+function omuiPublish(phase) {
+  if (phase) omuiPhase = phase;
+  var problem = omuiFatal || (omuiAssets.find(function (a) { return a.error; }) || {}).error || null;
+  var all = omuiProgress(omuiAssets), startup = omuiProgress(omuiAssets.filter(function (a) { return a.group === 'startup'; }));
+  var data = {version: 1, basis: 'decoded', phase: problem ? 'error' : omuiPhase, status: omuiStatusText,
+    assets: omuiAssets.map(function (a) { return Object.freeze(Object.assign({}, a, {error: a.error && Object.freeze(Object.assign({}, a.error))})); }),
+    loaded: all.loaded, total: all.total, ratio: all.ratio, startup: startup,
+    runtimeInitialized: omuiInitialized, presented: omuiPresented, error: problem && Object.freeze(Object.assign({}, problem))};
+  Object.freeze(data.assets); Object.freeze(data.startup); Object.freeze(data);
+  Object.assign(window.omuiLoad, data);
+  window.dispatchEvent(new CustomEvent('omui-load', {detail: data}));
+}
+function omuiFailure(a, error) {
+  a.state = 'error';
+  a.error = {id: a.id, url: a.url, message: String(error && error.message || error), attempt: a.attempt,
+             retryable: !omuiFatal && !(a.kind === 'wasm' && omuiWasmReceived)};
+  omuiStatus.textContent = a.error.message;
+  omuiPublish('error');
+}
+function omuiError(message, automatic) { var e = new Error(message); e.automatic = !!automatic; return e; }
+function omuiAllReady() { return omuiAssets.every(function (a) { return a.state === 'ready' || a.state === 'skipped'; }); }
+function omuiFinished() {
+  if (omuiLaterStarted && omuiLaterJobs.length && omuiLaterJobs.every(function (j) { return j.asset.state === 'ready'; })) {
+    FS.mkdirTree('/later'); FS.writeFile('/later/.ready', '');
+  }
+  if (omuiPresented && omuiAllReady()) omuiPublish('complete');
+}
+// The same response feeds streaming compilation. Synthetic Response headers
+// describe decoded data: never copy a gzip Content-Length into that stream.
+async function omuiFetchBody(a, controller) {
+  var timer, generation = a.attempt;
+  function arm(ms) { clearTimeout(timer); timer = setTimeout(function () { controller.abort(omuiError('No decoded data for ' + ms + 'ms loading ' + a.url, true)); }, ms); }
+  function current() { if (a.attempt !== generation || controller.signal.aborted) throw controller.signal.reason || omuiError('Superseded asset request', false); }
+  function reason(error) { return controller.signal.aborted && controller.signal.reason || error; }
+  try {
+    arm(15000);
+    var response = await fetch(a.url, {credentials: 'same-origin', signal: controller.signal});
+    if (!response.ok) throw omuiError('HTTP ' + response.status + ' loading ' + a.url, response.status >= 500 || response.status === 408 || response.status === 429);
+    var reader = response.body && typeof response.body.getReader === 'function' && typeof ReadableStream === 'function' ? response.body.getReader() : null;
+    if (!reader) {
+      arm(60000); var buffer = await response.arrayBuffer(); clearTimeout(timer); current();
+      a.loaded = buffer.byteLength;
+      if (a.total !== null && a.total !== a.loaded) throw omuiError('Decoded size mismatch loading ' + a.url, true);
+      if (a.total === null) a.total = a.loaded;
+      a.state = 'downloaded'; omuiPublish(a.kind === 'wasm' ? 'compiling' : 'fetching');
+      return {buffer: buffer};
+    }
+    var stream = new ReadableStream({
+      async pull(output) {
+        try {
+          arm(15000); var part = await reader.read(); clearTimeout(timer); current();
+          if (part.done) {
+            if (a.total !== null && a.total !== a.loaded) throw omuiError('Decoded size mismatch loading ' + a.url, true);
+            if (a.total === null) a.total = a.loaded;
+            a.state = 'downloaded'; omuiPublish(a.kind === 'wasm' ? 'compiling' : 'fetching'); output.close(); return;
+          }
+          a.loaded += part.value.byteLength;
+          if (a.total !== null && a.loaded > a.total) throw omuiError('Decoded size exceeds package metadata for ' + a.url, true);
+          omuiPublish(); output.enqueue(part.value); arm(15000);
+        } catch (error) { clearTimeout(timer); try { await reader.cancel(error); } catch (_) {} output.error(reason(error)); }
+      },
+      cancel(reason) { clearTimeout(timer); return reader.cancel(reason); }
     });
+    var headers = new Headers(response.headers); headers.delete('Content-Length'); headers.delete('Content-Encoding');
+    return {response: new Response(stream, {status: response.status, statusText: response.statusText, headers: headers})};
+  } catch (error) { clearTimeout(timer); throw reason(error); }
+}
+async function omuiFetchBytes(a, controller) {
+  var body = await omuiFetchBody(a, controller);
+  return new Uint8Array(body.buffer || await body.response.arrayBuffer());
+}
+function omuiStart(job, manual) {
+  if (job.running) return job.running;
+  if (job.asset.state === 'ready' || job.asset.state === 'skipped') return Promise.resolve({id: job.asset.id, state: job.asset.state});
+  job.running = (async function () {
+    var limit = manual ? 1 : 3;
+    for (var attempt = 0; attempt < limit; ++attempt) {
+      var a = job.asset, controller = new AbortController(); a.attempt++; a.loaded = 0; a.error = null; a.state = 'fetching';
+      omuiPublish('fetching');
+      try {
+        var result = await job.run(controller);
+        a.state = 'ready'; a.error = null; omuiPublish();
+        if (job.commit) job.commit(result);
+        omuiFinished(); return {id: a.id, state: 'ready'};
+      } catch (error) {
+        controller.abort(); omuiFailure(a, error);
+        var automatic = error && (error.automatic === true || error.automatic === undefined && !(error instanceof WebAssembly.CompileError) && !(error instanceof WebAssembly.LinkError));
+        if (!automatic || attempt + 1 === limit || omuiFatal || a.kind === 'wasm' && omuiWasmReceived) return {id: a.id, state: 'error'};
+        await new Promise(function (resolve) { setTimeout(resolve, attempt === 0 ? 250 : 1000); });
+      }
+    }
+  })().finally(function () { job.running = null; });
+  return job.running;
+}
+window.omuiLoad = {retry: function (id) {
+  if (omuiFatal) return Promise.resolve({retried: [], blocked: [id || '*'], reason: 'reload_required'});
+  var jobs = Object.values(omuiJobs).filter(function (j) { return (!id || j.asset.id === id) && j.asset.state === 'error'; });
+  var runnable = jobs.filter(function (j) { return j.asset.error && j.asset.error.retryable; });
+  return Promise.all(runnable.map(function (j) { return omuiStart(j, true); })).then(function (results) {
+    return {retried: results.map(function (r) { return r.id; }), blocked: jobs.filter(function (j) { return !runnable.includes(j); }).map(function (j) { return j.asset.id; }), results: results};
+  });
+}};
+function omuiJob(asset, run, commit) { var job = {asset: asset, run: run, commit: commit, running: null}; omuiJobs[asset.id] = job; return job; }
+function omuiEnsureFonts() { FS.mkdirTree('/fonts'); if (omuiFontPending && !omuiPartial) { FS.writeFile('/fonts/.partial', ''); omuiPartial = true; } }
+function omuiLaterJob(f, asset) {
+  var installed = false;
+  var job = omuiJob(asset, async function (controller) {
+    var bytes = await omuiFetchBytes(asset, controller);
+    FS.mkdirTree(f[0].substring(0, f[0].lastIndexOf('/')));
+    if (f[0].indexOf('/later/fonts/') === 0) {
+      var canonical = '/fonts/' + f[0].substring('/later/fonts/'.length);
+      FS.writeFile(canonical, bytes);
+      try { FS.unlink(f[0]); } catch (_) {}
+      FS.symlink(canonical, f[0]);
+      if (!installed) {
+        if (omuiFontPending === 1 && omuiPartial) { FS.unlink('/fonts/.partial'); omuiPartial = false; }
+        --omuiFontPending;
+      }
+    } else FS.writeFile(f[0], bytes);
+    installed = true;
+  });
+  omuiLaterJobs.push(job); return job;
+}
+// Ordinary later assets are language independent. Font planning waits until
+// instantiateWasm: a prerender bootstrap runs after this inline loader and
+// sets the page's actual language before loading the external launcher.
+omuiLater.forEach(function (f) { omuiLaterJob(f, omuiAsset('later:' + f[0], f[1], 'asset', 'deferred', 'deferred')); });
+function omuiPlanFonts() {
+  if (omuiPreRan) return; // Never replace jobs whose FS/dependency work began.
+  var plan = omuiFonts.map(omuiDeferredFont);
+  var key = JSON.stringify(plan); if (key === omuiFontPlan) return;
+  // Until preRun no font has fetched or acquired a runDependency. Rebuild
+  // just these queued jobs if static navigation changed the opening language
+  // while wasm was in flight, preserving unrelated later files and wasm.
+  omuiAssets = omuiAssets.filter(function (a) { return a.kind !== 'font'; });
+  Object.keys(omuiJobs).forEach(function (id) { if (omuiJobs[id].asset.kind === 'font') delete omuiJobs[id]; });
+  omuiLaterJobs = omuiLaterJobs.filter(function (j) { return j.asset.kind !== 'font'; });
+  omuiLater = omuiLater.filter(function (f) { return !omuiFontLater.includes(f); });
+  omuiFontLater = []; omuiStartupFonts = []; omuiFontPending = 0; omuiPartial = false;
+omuiFonts.forEach(function (f) {
+  var deferred = omuiDeferredFont(f), file = f[1];
+  var full = omuiAsset('font:' + f[0], file, 'font', deferred ? 'deferred' : 'startup', deferred ? 'deferred' : 'queued');
+  if (deferred) {
+    var queued = ['/later/fonts/' + f[0], file]; omuiLater.push(queued); omuiFontLater.push(queued); ++omuiFontPending;
+    omuiLaterJob(omuiLater[omuiLater.length - 1], full);
+  }
+  if (f[3]) omuiAsset('initial-font:' + f[0], f[3], 'font', 'startup', deferred ? 'queued' : 'skipped');
+  if (deferred && !f[3]) return;
+  var asset = full;
+  if (deferred) { file = f[3]; asset = omuiAssets.find(function (a) { return a.id === 'initial-font:' + f[0]; }); }
+  var dependency = 'font ' + f[0], held = false;
+  var job = omuiJob(asset, async function (controller) {
+    var bytes = await omuiFetchBytes(asset, controller); omuiEnsureFonts(); FS.writeFile('/fonts/' + f[0], bytes);
+  }, function () { if (held) { Module.removeRunDependency(dependency); held = false; } });
+  job.depend = function () { if (!held) { Module.addRunDependency(dependency); held = true; } };
+  omuiStartupFonts.push(job);
+});
+  omuiFontPlan = key; omuiPublish();
+}
+function omuiDeferredFont(f) { return f[2].length ? !omuiWants(f[2]) : !!f[3]; }
+var omuiWasmAsset = omuiAsset('wasm', omuiWasm, 'wasm', 'startup');
+var Module = {
+  canvas: document.getElementById('canvas'), arguments: omuiArguments(),
+  locateFile: function (path) { return /\.wasm$/.test(path) ? omuiWasm : path; },
+  print: function (text) { console.log(text); }, printErr: function (text) { console.warn(text); },
+  instantiateWasm: function (imports, receive) {
+    omuiPlanFonts();
+    var job = omuiJob(omuiWasmAsset, async function (controller) {
+      var body = await omuiFetchBody(omuiWasmAsset, controller);
+      if (body.response && typeof WebAssembly.instantiateStreaming === 'function' && /^application\/wasm(?:;|$)/i.test(body.response.headers.get('Content-Type') || ''))
+        return WebAssembly.instantiateStreaming(body.response, imports);
+      var buffer = body.buffer || await body.response.arrayBuffer();
+      return WebAssembly.instantiate(buffer, imports);
+    }, function (result) {
+      if (omuiWasmReceived) return; omuiWasmReceived = true; receive(result.instance, result.module);
+    });
+    omuiStart(job, false); return {};
+  },
+  preRun: [function () {
+    if (omuiPreRan) return; omuiPlanFonts(); omuiPreRan = true;
+    omuiStartupFonts.forEach(function (j) { j.depend(); });
+    try { omuiEnsureFonts(); omuiStartupFonts.forEach(function (j) { omuiStart(j, false); }); }
+    catch (error) { omuiStartupFonts.forEach(function (j) { omuiFailure(j.asset, error); }); }
   }],
   onRuntimeInitialized: function () {
-    omuiStatus.style.display = 'none';
-    Module.canvas.focus();
-    // What comes after the first frame starts once it is shown (the program says so), so it never slows it; or in a while, whatever.
+    omuiInitialized = true; omuiPublish('initialized'); omuiStatus.style.display = 'none'; Module.canvas.focus();
     window.omuiFirstFrame = omuiFetchLater;
-    setTimeout(function () { var f = window.omuiFirstFrame; window.omuiFirstFrame = null; if (f) f(); }, 4000);
+    // A fallback may begin deferred I/O, but must preserve the native first
+    // presentation hook. It is never evidence that a frame was presented.
+    setTimeout(function () { omuiFetchLater(); }, 4000);
   },
-  setStatus: function (text) { if (text) omuiStatus.textContent = text; },
+  setStatus: function (text) { omuiStatusText = String(text || ''); if (text) omuiStatus.textContent = text; omuiPublish(/^Running/.test(omuiStatusText) ? 'initializing' : null); },
+  onAbort: function (reason) {
+    omuiFatal = {id: 'runtime', message: String(reason), retryable: false}; omuiStatus.style.display = ''; omuiStatus.textContent = String(reason); omuiPublish('error');
+  }
 };
-// What the program takes once it is drawn: fetched now, written into its
-// file system, /later/.ready last (the program looks for it).
 function omuiFetchLater() {
-  var left = omuiLater.length;
-  if (!left) return;
-  omuiLater.forEach(function (f) {
-    fetch(f[1]).then(function (r) { return r.arrayBuffer(); }).then(function (b) {
-      FS.mkdirTree(f[0].substring(0, f[0].lastIndexOf('/')));
-      if (f[0].indexOf('/later/fonts/') === 0) {
-        // Future font collections use /fonts too; the alias avoids a second copy in MEMFS.
-        var canonical = '/fonts/' + f[0].substring('/later/fonts/'.length);
-        FS.writeFile(canonical, new Uint8Array(b));
-        FS.symlink(canonical, f[0]);
-        if (--omuiFontPending === 0) FS.unlink('/fonts/.partial');
-      } else FS.writeFile(f[0], new Uint8Array(b));
-      if (--left === 0) FS.writeFile('/later/.ready', '');
-    });
-  });
+  if (window.omuiHasPresented === true && !omuiPresented) { omuiPresented = true; omuiPublish('presented'); }
+  if (omuiLaterStarted) { omuiFinished(); return; }
+  omuiLaterStarted = true;
+  omuiLaterJobs.forEach(function (j) { omuiStart(j, false); }); omuiFinished();
 }
-if (typeof WebAssembly !== 'object') omuiStatus.textContent = 'WebAssembly is needed';
-// A new hash route: the program started again with its flags — unless it follows its route itself (it has set one: Back and Forward move it).
+if (typeof WebAssembly !== 'object') { omuiFatal = {id: 'wasm', message: 'WebAssembly is needed', retryable: false}; omuiStatus.textContent = omuiFatal.message; }
+omuiPublish('boot');
 window.addEventListener('hashchange', function () { if (!window.omuiFollowsRoute) location.reload(); });
+window.addEventListener('error', function (event) {
+  var launcher = new URL(omuiLauncher, document.URL).href;
+  if (event.target && event.target.src === launcher || event.filename === launcher) {
+    omuiFatal = {id: 'launcher', url: launcher, message: event.message || 'Program launcher failed to load', retryable: false};
+    omuiStatus.textContent = omuiFatal.message; omuiPublish('error');
+  }
+}, true);
 document.getElementById('canvas').addEventListener('pointerdown', function () { this.focus(); });
-</script>
 )";
+    html += "</script>\n";
     html += std::format("<script src=\"{}\"></script>\n</body>\n</html>\n", js);
     return html;
 }
@@ -239,9 +410,8 @@ std::expected<ToyReport, std::string> package_for_toy(const ToyPackage& p) {
         std::ranges::sort(stems);
     }
     for (const auto& [font, text] : p.font_initial) {
-        const auto lang = std::ranges::find(p.font_languages, font, &std::pair<std::string, std::vector<std::string>>::first);
-        if (text.empty() || std::ranges::find(stems, font) == stems.end() || lang == p.font_languages.end() || lang->second.empty())
-            return std::unexpected(std::format("--font-initial {} needs nonempty text, a selected font and --font-languages", font));
+        if (text.empty() || std::ranges::find(stems, font) == stems.end())
+            return std::unexpected(std::format("--font-initial {} needs nonempty text and a selected font", font));
         if (std::ranges::count(p.font_initial, font, &std::pair<std::string, std::string>::first) != 1)
             return std::unexpected(std::format("--font-initial {} is repeated", font));
     }
@@ -330,7 +500,16 @@ std::expected<ToyReport, std::string> package_for_toy(const ToyPackage& p) {
             later.emplace_back(std::format("{}/{}", l.mount, utf8(f.filename())), asset);
         }
     }
-    const std::string index = page(p, js_name, wasm_name, fonts, later, initial);
+    // Fetch exposes decoded bodies even when the server reports a compressed
+    // Content-Length. These raw sizes give that body an honest denominator.
+    std::map<std::string, std::uintmax_t> decoded_sizes;
+    auto record_size = [&](const std::string& file) { if (!ec) decoded_sizes[file] = fs::file_size(p.out / file, ec); };
+    record_size(wasm_name);
+    for (const auto& [name, file] : fonts) record_size(file);
+    for (const auto& [name, file] : initial) record_size(file);
+    for (const auto& [name, file] : later) record_size(file);
+    if (ec) return std::unexpected(std::format("managed asset size: {}", ec.message()));
+    const std::string index = page(p, js_name, wasm_name, fonts, later, initial, decoded_sizes);
     if (auto w = write(p.out / "index.html", index); !w) return std::unexpected(w.error());
 
     ToyReport report;

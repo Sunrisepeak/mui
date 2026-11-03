@@ -23,7 +23,13 @@ index=$(python3 -c 'import json,sys; print(next(a["path"] for a in json.load(ope
 rm -rf "$out"
 cp -r "$(dirname "$index")" "$out"
 
-"$mcpp" run omui-site -p openmui.site -- --prerender "$out/index.html" \
+# The actual native program draws each opening. The launch envelope preserves
+# mcpp's selected executable/environment; physical paths are stripped from
+# published geometry, and hidden pages have no image src to prefetch.
+"$mcpp" run omui-site -p openmui.site --print-launch --locked > target/site-native.launch.json
+python3 tools/ci/site-frames.py --launch target/site-native.launch.json --out "$out"
+
+"$mcpp" run omui-site -p openmui.site -- --prerender "$out/index.html" --opening-assets "$out/first-frames.assets.omui.json" \
   || { echo "::error::the site's places were not pre-rendered"; exit 1; }
 # What an agent needs to operate it (agent connect §5.2), as every openmui
 # application writes it: agent.md, .well-known/openmui-agent.json, the page's link.
@@ -34,12 +40,13 @@ python3 - "$out" <<'PY'
 import os, sys
 out = sys.argv[1]
 page = open(os.path.join(out, "index.html"), encoding="utf-8").read()
-need = ['<main id="omui-static"', '<section id="/home"', '<section id="/docs/features"', "<h1>One interface. Every perspective.</h1>",
-        "window.omuiHasPresented", "@font-face", '<canvas id="canvas"', '<link rel="openmui-agent" href="agent.md">']
+need = ['<main id="omui-static"', '<section id="/home"', '<section id="/docs/features"', 'aria-label="One interface. Every perspective."',
+        "window.omuiHasPresented", "@font-face", '<canvas id="canvas"', '<link rel="openmui-agent" href="agent.md">',
+        'id="omui-first-frames"']
 missing = [n for n in need if n not in page]
 if missing:
     sys.exit(f"::error::the page lacks {missing}")
-for f in ("agent.md", os.path.join(".well-known", "openmui-agent.json")):
+for f in ("agent.md", os.path.join(".well-known", "openmui-agent.json"), "first-frames.assets.omui.json"):
     if not os.path.isfile(os.path.join(out, f)):
         sys.exit(f"::error::the site has no {f}")
 if "toy-sdk" in page:

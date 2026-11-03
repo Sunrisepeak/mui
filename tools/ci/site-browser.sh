@@ -98,4 +98,14 @@ for c in r["checks"]:
     print(f"  {'ok  ' if c['ok'] else 'FAIL'} {c['what']}")
 MOTION
 [ "$motion" = 0 ] || { echo "::error::motion and creative browser checks failed (target/site-motion.report.omui.json)"; status=1; }
+loading=0
+CHROME=$chrome "$node_bin" "${flags[@]}" tools/ci/site-loading.mjs target/site > target/site-loading.report.omui.json || loading=$?
+python3 - target/site-loading.report.omui.json <<'LOADING'
+import json, sys
+r = json.load(open(sys.argv[1]))
+print("site opening assets and loading:")
+for c in r["checks"]:
+    print(f"  {'ok  ' if c['ok'] else 'FAIL'} {c['what']}")
+LOADING
+[ "$loading" = 0 ] || { echo "::error::opening pixels, progress or retry failed (target/site-loading.report.omui.json)"; status=1; }
 exit "$status"

@@ -102,6 +102,12 @@ python3 -m http.server -d target/site            # and look at it
 - stays readable during loading, then hands over after a real presented frame and the current route's semantic mirror are ready;
 - follows static link clicks during loading, restores scroll and the focused primary navigation, and exposes one accessible surface at a time.
 
+The native `--first-frame` command also renders opening PNGs and semantic geometry from the production view at a fixed time. `tools/ci/site-frames.py` generates the seven feature openings for two languages, two viewport sizes and full/reduced motion. The static page requests only its current opening, labels it as a preview, and draws actual tree rectangles using decoded startup-resource progress. It keeps readable content and a retry action on failure; presentation and the selected semantic root must both be ready before handoff. `tools/ci/site-loading.mjs` exercises this path with real browser input, holds wasm, checks failure recovery and compares the first CPU frame with native reference pixels.
+
+Browser review captures with wasm held: [English opening](media/loading-home-en-1280.png) and [Chinese phone with reduced motion](media/loading-home-zh-390.png). These capture the readable loading page in Chromium; they are separate from the deterministic native media gate and the full first-frame pixel comparisons.
+
+Initial Inter and later complete faces preserve the same glyph ids and contextual substitution outlines. The complete face extends coverage within its family before another family's fallback; existing face references stay valid. Full Chinese input coverage, complete per-page font delivery and separate heavy programs remain open. Implementation and acceptance boundaries are in the [first-frame/loading design](../.agents/docs/2026-11-04-omui-first-frame-loading-design.md).
+
 `.github/workflows/pages.yml` publishes `target/site` to GitHub Pages. `tools/ci/drive-page.mjs` loads the page in a real browser (headless Chromium, in real time) and can drive it through `window.omui`. That is how the packed site was checked: the same tree hash as CI at three window sizes, the routes, and places reached by a page agent.
 
 ## Delivery
@@ -110,13 +116,13 @@ python3 -m http.server -d target/site            # and look at it
 
 | Measure | Result |
 |---|---|
-| before the program's first-frame proxy | 3,310,617 bytes |
-| total transfer, including the later Chinese font | 4,709,480 bytes |
-| first-frame proxy / `window.omui` readiness | 1791.6 / 1757.8 ms |
+| before the program's first-frame proxy | 3,048,689 bytes |
+| total transfer, including the later Chinese font | 4,965,880 bytes |
+| first-frame proxy / `window.omui` readiness | 1679.7 / 1645.5 ms |
 | rAF intervals | p50 16.7, p95 16.8, max 50.0 ms; 1 over 33.4 ms |
-| memory at the end | JS heap 11.2 MB, wasm memory 23.6 MB |
+| memory at the end | JS heap 10.0 MB, wasm memory 23.6 MB |
 
-The first-frame proxy is the semantic mirror's first populated frame; it is not FCP, LCP or a direct measurement of presented frame rate. The full Chinese font still loads after presentation on English visits; its initial two-character asset is 230,568 bytes raw / 41,244 bytes with gzip. Chinese visits fetch only the regular font before presentation. Reports and pixel evidence are kept in the Pages workflow's `site-checks` artifact.
+The first-frame proxy is the semantic mirror's first populated frame; it is not FCP, LCP or a direct measurement of presented frame rate. The full Chinese font still loads after presentation on English visits; its initial two-character asset is 230,568 bytes raw / 41,244 bytes with gzip. Chinese visits fetch only the regular font before presentation. Only 34,120 bytes remain below the existing 5 MB total-transfer budget; shared font delivery, per-page fonts and heavy-program splitting remain priorities. Reports and pixel evidence are kept in the Pages workflow's `site-checks` artifact.
 
 The same script then reads the page as assistive technology does (`tools/ci/site-a11y.mjs`), from Chromium's own accessibility tree, which is what a screen reader on the page is given. It checks that:
 - the places are a navigation landmark and the place shown is the main one;

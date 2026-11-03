@@ -298,15 +298,7 @@ Element hero(Hero& h, const HeroSite& site, bool live, float width) {
                        {button({.id = "to_start",
                                 .text = say("Build with it", "用它来做"),
                                 .variant = ButtonVariant::primary,
-                                .on_activated = [sp, zh_now, lang = site.lang] {
-                                    // The page's own section: three commands from nothing to an application an agent can press.
-                                    if (!sp->runtime || !*sp->runtime || !sp->root) return;
-                                    Runtime& rt = **sp->runtime;
-                                    const bool zh = lang ? lang->peek() == "zh" : zh_now;
-                                    Invocation call;
-                                    call.args = Value{}.set("anchor", std::string(zh ? "用它来做" : "build-with-it"));
-                                    (void)rt.act(rt.find(sp->root() + "/doc"), "scroll_to_anchor", call);
-                                }}),
+                                .on_activated = [sp] { if (sp->go) sp->go("hello"); }}),
                         button({.id = "to_features",
                                 .text = say("What sets it apart", "它的不同之处"),
                                 .variant = ButtonVariant::secondary,

@@ -28,13 +28,7 @@ constexpr Log site_log{"site"};
 // Where the places are in the tree (the window mounts the site as "main").
 constexpr std::string_view place_root = "main/body/view/";
 
-constexpr std::array<Place, 7> all{{{"home", "Home", "首页"},
-                                     {"components", "Components", "组件"},
-                                     {"features", "Features", "特性"},
-                                     {"practices", "Practices", "实践"},
-                                     {"hello", "Get started", "开始使用"},
-                                     {"timeline", "Timeline editor", "时间线编辑器"},
-                                     {"brand", "The mark", "标志", false}}};
+const auto all = places();
 
 // The widest a place's content is (the design language's 1200, less its margins).
 constexpr float content_width = 1120;
@@ -96,6 +90,12 @@ fade = { out = "30f" }
 struct Site {
     Runtime*            runtime = nullptr;
     BrandStudy          brand;
+    DocsState           docs;
+    SiteLinks           links;
+    Signal<bool>        tools = signal(false);
+    std::map<std::string, double, std::less<>> scroll_positions;
+    std::string         initial_route;
+    Signal<std::string> missing_route = signal(std::string());
     Signal<std::string> place = signal(std::string("home")), lang = signal(std::string("en")), lens = signal(std::string("pixels"));
     Signal<Value>       nodes = signal(Value{});
     Signal<std::string> agent = signal(std::string()), test = signal(std::string()), hash = signal(std::string());
@@ -211,12 +211,18 @@ struct Site {
 
     // The route a place has in a language: its address's hash ("features", "zh/features"; the English home, none).
     [[nodiscard]] static std::string route_of(std::string_view place, std::string_view lang) {
-        const std::string p = place == "home" ? std::string() : std::string(place);
-        if (lang != "zh") return p;
-        return p.empty() ? std::string("zh") : "zh/" + p;
+        return canonical_route(place, lang);
     }
     void show_route() {
-        if (runtime) runtime->set_route(route_of(place.peek(), lang.peek()));
+        if (!runtime) return;
+        if (place.peek() != "not_found") { runtime->set_route(route_of(place.peek(), lang.peek())); return; }
+        std::string_view path = missing_route.peek();
+        if (path.starts_with('#')) path.remove_prefix(1);
+        while (path.starts_with('/')) path.remove_prefix(1);
+        if (path.starts_with("zh/") || path.starts_with("en/")) path.remove_prefix(3);
+        std::string address = lang.peek() == "zh" ? "zh/" + std::string(path) : std::string(path);
+        missing_route.set(address);
+        runtime->set_route(address);
     }
     // The person's own agent (agent connect §5.1): a pairing code from the
     // host, and the prompt that gives it to their agent — copied, and shown
@@ -265,18 +271,26 @@ struct Site {
     }
     // A route the person moved to (back, forward, a typed address): its place and its language.
     void follow_route(std::string_view route) {
-        std::string_view r = route;
-        std::string l = "en";
-        if (r == "zh" || r.starts_with("zh/")) l = "zh", r = r.size() > 2 ? r.substr(3) : std::string_view();
-        const std::string p = r.empty() ? std::string("home") : std::string(r);
-        if (!std::ranges::any_of(all, [&](const Place& x) { return x.id == p; })) return;
-        if (l != lang.peek()) {
-            lang.set(l);
+        const auto parsed = parse_site_route(route);
+        if (!parsed) {
+            if (compact.peek()) menu.set(false), panel.set(false), settings.set(false), checking.set(false);
+            missing_route.set(std::string(route));
+            lang.set(route == "zh" || route.starts_with("zh/") ? std::string("zh") : std::string("en"));
+            place.set(std::string("not_found"));
+            soon();
+            return;
+        }
+        if (parsed->language != lang.peek()) {
+            lang.set(parsed->language);
             switches.set(switches.peek() + 1);
             switched_at = runtime ? runtime->now().count() : 0;
         }
-        go(p);
+        // A browser history move must not push a new entry, including an old alias.
+        if (compact.peek()) menu.set(false), panel.set(false), settings.set(false), checking.set(false);
+        place.set(parsed->place);
+        soon();
     }
+
     // To a place: shown, its page from its top; the address follows.
     void go(std::string_view to) {
         // On a phone a panel or the menu covers the place: going somewhere puts them away, so it is seen.
@@ -551,11 +565,9 @@ Element lens_button(const std::shared_ptr<Site>& s, std::string_view id, std::st
 
 }  // namespace
 
-std::span<const Place> places() { return all; }
-
 std::string_view document(std::string_view place, std::string_view lang) {
     const bool zh = lang == "zh";
-    if (place == "home") return embedded(files::content_files, zh ? "home.zh.md" : "home.en.md");
+    if (place == "hello") return embedded(files::content_files, zh ? "start.zh.md" : "start.en.md");
     if (place == "features") return embedded(zh ? files::zh_files : files::en_files, "features.md");
     if (place == "practices") return embedded(zh ? files::zh_files : files::en_files, "best-practices.md");
     return {};
@@ -899,23 +911,29 @@ Element hello_page(const std::shared_ptr<Site>& s, float room) {
         return computed([s, en = std::string(en), han = std::string(han)] { return s->lang.get() == "zh" ? han : en; });
     };
     const bool narrow = room < 900;
+    Element title = retyped(text({.id = "title", .text = say("Get started", "开始使用"), .style = "title"}), s);
+    title.prop("role", Source(Value("heading"))).prop("level", Source(Value(std::int64_t{1})));
+    Element instructions = column({.id = "instructions", .max_width = Dim(720.0f), .gap = 16}, {
+        std::move(title),
+        markdown({.id = "start", .source = computed([s] { return std::string(document("hello", s->lang.get())); }),
+                   .on_link_activated = [s](std::string href) { follow(*s, href); }, .max_width = Dim(720.0f)}),
+        button({.id = "copy_commands", .text = say("Copy commands", "复制命令"), .on_activated = [s] {
+            if (s->runtime) s->runtime->set_clipboard_text(quickstart_commands);
+        }, .align_self = "start"})});
     Element intro = column({.id = "intro", .width = narrow ? Dim(layout::pct(100)) : Dim(440.0f), .gap = 16},
-                           {retyped(text({.id = "title", .text = say("Get started", "开始使用"), .style = "title"}), s),
-                            text({.id = "about",
-                                  .text = say("Example 01, a whole omui program, running here: type a name, press the button. Its interface is declared each "
-                                              "frame in plain C++; an agent finds the field by its role, and renaming the button keeps its id.",
-                                              "示例 01，一个完整的 omui 程序，就在这里运行：输入名字，按按钮。界面每一帧用普通的 C++ 声明；agent 按角色找到输入框，"
-                                              "按钮改名后 id 不变。"),
-                                  .style = "body",
-                                  .size = 20.0f}),
+                           {text({.id = "about",
+                                  .text = say("Example 01, running here: type a name, press the button. Its interface is declared each frame in plain C++; an agent finds the field by its role, and renaming the button keeps its id.",
+                                              "示例 01，就在这里运行：输入名字，按按钮。界面每一帧用普通的 C++ 声明；agent 按角色找到输入框，按钮改名后 id 不变。"),
+                                  .style = "body"}),
                             box({.id = "run", .width = narrow ? Dim(layout::pct(100)) : Dim(440.0f), .height = Dim(280.0f), .background = "surface",
                                  .border_color = "border", .border_width = 1, .radius = 14, .clip = true},
                                 {hello::app(s->hello).view()})});
     // The source as written: lines kept whole (indentation is meaning), scrolled sideways when long.
     Element code = scroll({.id = "code", .horizontal = true, .vertical = narrow, .grow = 1, .padding = Edges(20.0f, 24.0f), .background = "surface_variant"},
                           {text({.id = "source", .text = std::string(hello::hello_source), .style = "code", .wrap = false})});
-    if (narrow) return column({.id = "page", .gap = 24}, {std::move(intro), std::move(code)});
-    return row({.id = "page", .gap = 40, .align = "stretch"}, {std::move(intro), std::move(code)});
+    Element example = narrow ? column({.id = "example", .gap = 24}, {std::move(intro), std::move(code)})
+                             : row({.id = "example", .gap = 40, .align = "stretch"}, {std::move(intro), std::move(code)});
+    return column({.id = "page", .gap = 32}, {std::move(instructions), std::move(example)});
 }
 
 // The timeline editor: a working one, its program monitor above it.
@@ -1001,9 +1019,9 @@ Element document_page(const std::shared_ptr<Site>& s, const std::string& id, flo
                                     .origin = MarkdownOrigin::app,
                                     .source = computed([s, id] { return std::string(document(id, s->lang.get())); }),
                                     .on_link_activated = [s](std::string href) { follow(*s, href); },
-                                    .max_width = Dim(720.0f)}),
+                                    .max_width = Dim(room >= 900 ? 640.0f : std::min(room, 720.0f))}),
                           s, Arrival::lines);
-    if (id == "home") return std::move(doc);
+    doc.prop("min_width", Source(Value(0.0)));
     auto rail = [s, id](std::string_view lang) {
         std::vector<Element> entries;
         entries.push_back(text({.id = "label", .text = std::string(lang == "zh" ? "本页内容" : "On this page"), .style = "caption", .color = "text_muted"}));
@@ -1012,7 +1030,7 @@ Element document_page(const std::shared_ptr<Site>& s, const std::string& id, flo
         md::walk(d.root, [&](const md::Block& b) {
             if (b.kind != md::Kind::heading || b.level > 2) return;
             ButtonOptions o{.id = std::format("s{}", i++), .text = md::plain_text(b), .variant = ButtonVariant::ghost};
-            o.max_width = Dim(260.0f);
+            o.max_width = Dim(200.0f);
             o.align_self = "start";
             o.on_activated = [s, id, anchor = b.anchor] {
                 if (!s->runtime) return;
@@ -1026,13 +1044,13 @@ Element document_page(const std::shared_ptr<Site>& s, const std::string& id, flo
     };
     std::vector<Element> both;
     both.push_back(std::move(doc));
-    if (room >= 1100) {
-        Element contents = column({.id = "contents", .width = Dim(280.0f), .gap = 2, .label = "Sections"}, {dynamic([s, rail] { return rail(s->lang.get()); })});
+    if (room >= 900) {
+        Element contents = column({.id = "contents", .width = Dim(200.0f), .gap = 2, .label = "Sections"}, {dynamic([s, rail] { return rail(s->lang.get()); })});
         contents.prop("shrink", Source(Value(0.0)));
         both.push_back(std::move(contents));
     }
     // Narrower, one column: the document as wide as there is room (at most its measure).
-    return room >= 1100 ? row({.id = "read", .min_width = Dim(0.0f), .gap = 64, .align = "start"}, std::move(both))
+    return room >= 900 ? row({.id = "read", .min_width = Dim(0.0f), .gap = 32, .align = "start", .grow = 1}, std::move(both))
                         : column({.id = "read", .min_width = Dim(0.0f)}, std::move(both));
 }
 
@@ -1050,7 +1068,7 @@ Element place_page(const std::shared_ptr<Site>& s, const std::string& id) {
         content.push_back(time_screen(s->screens_site, room));
         content.push_back(motion_screen(s->screens, s->screens_site, room));
         content.push_back(fast_screen(s->screens_site, room));
-        content.push_back(document_page(s, id, room));
+        content.push_back(home_destinations(s->links, room));
     } else if (id == "components") {
         content.push_back(gallery(s->gallery, s->gallery_site, true, room));
     } else if (id == "hello") {
@@ -1059,29 +1077,46 @@ Element place_page(const std::shared_ptr<Site>& s, const std::string& id) {
         content.push_back(timeline_page(s, room));
     } else if (id == "brand") {
         content.push_back(brand_study(s->brand, s->runtime, s->lang, room));
+    } else if (id == "explore") {
+        content.push_back(explore_landing(s->links, room));
+    } else if (id == "docs") {
+        content.push_back(docs_landing(s->docs, s->links, room >= 1000 ? room - 196 : room));
+    } else if (id == "not_found") {
+        auto message = [s](std::string en, std::string zh) { return computed([s, en, zh] { return s->lang.get() == "zh" ? zh : en; }); };
+        content.push_back(column({.id = "missing", .gap = 24}, {
+            text({.id = "title", .text = message("This page isn't here.", "没有找到这一页。"), .style = "title"}).prop("role", Source(Value("heading"))).prop("level", Source(Value(std::int64_t{1}))),
+            text({.id = "route", .text = s->missing_route, .style = "code", .origin = "user_content", .max_width = Dim(room)}),
+            button({.id = "home", .text = message("Back to home", "回到首页"), .variant = ButtonVariant::primary, .on_activated = [s] { s->go("home"); }, .align_self = "start"})}));
     } else {
-        content.push_back(document_page(s, id, room));
+        content.push_back(document_page(s, id, room >= 1000 ? room - 196 : room));
     }
     Element body = id == "hello" || id == "timeline" ? std::move(content.front())
                                                      : column({.id = "page", .gap = 64}, std::move(content));
+    if (is_document(id)) {
+        const bool rail = room >= 1000 && id != "hello";
+        body.children.insert(body.children.begin(), docs_directory(s->links, id, rail));
+        body.prop("direction", Source(Value(rail ? "row" : "column")));
+        body.prop("gap", Source(Value(32.0)));
+    }
     // The design's measure, centred in the window (`…/<place>/page` is where its tree is read).
     body.prop("width", Source(Value("100%")));
     body.prop("max_width", Source(Value(static_cast<double>(content_width))));
     body.prop("align_self", Source(Value("center")));
     // Filling the view (a stack: the place under the lens's renderings).
-    Element page = scroll({.id = id, .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .padding = Edges(narrow ? 24.0f : 56.0f, margin), .background = "background"},
+    Element page = scroll({.id = id, .y = static_cast<float>(s->scroll_positions[id]), .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .padding = Edges(narrow ? 24.0f : 56.0f, margin), .background = "background"},
                           {std::move(body)});
     // The home page's scroll is its motion screen's time.
-    if (id == "home")
-        page.on("scrolled", [s](const Value& at) {
-            scrolled(s->screens, s->screens_site, std::string(place_root) + "home", at.get("y") ? at.get("y")->as_double() : 0);
-        });
+    page.on("scrolled", [s, id](const Value& at) {
+        const double y = at.get("y") ? at.get("y")->as_double() : 0;
+        s->scroll_positions[id] = y;
+        if (id == "home") scrolled(s->screens, s->screens_site, std::string(place_root) + "home", y);
+    });
     return page;
 }
 
 }  // namespace
 
-AppSpec app(std::string_view place, std::string_view lang) {
+AppSpec app(std::string_view place, std::string_view lang, std::string_view incoming_route) {
     AppSpec a;
     a.id = "org.openmui.site";
     a.title = "omui — one tree, many renderings";
@@ -1102,8 +1137,18 @@ AppSpec app(std::string_view place, std::string_view lang) {
     // within tolerances of them.
     a.renderer = "automatic";
     auto s = std::make_shared<Site>();
-    if (std::ranges::any_of(all, [&](const Place& p) { return p.id == place; })) s->place.set(std::string(place));
-    s->lang.set(lang == "zh" ? "zh" : "en");
+    if (const auto parsed = parse_site_route(place, lang)) {
+        s->place.set(parsed->place);
+        s->lang.set(parsed->language);
+    } else {
+        s->place.set(std::string("not_found"));
+        s->missing_route.set(std::string(incoming_route.empty() ? place : incoming_route));
+        s->lang.set(lang == "zh" || place.starts_with("zh/") ? std::string("zh") : std::string("en"));
+    }
+    s->initial_route = incoming_route;
+    s->links = {.language = &s->lang, .go = [p = s.get()](std::string id) { p->go(id); },
+                .open_url = [p = s.get()](std::string href) { if (p->runtime) (void)p->runtime->open_url(href); },
+                .document = [](std::string_view id, std::string_view language) { return document(id, language); }};
     a.setup = [s](Runtime& rt) {
         s->runtime = &rt;
         register_type(component_type<Lens>());
@@ -1126,7 +1171,7 @@ AppSpec app(std::string_view place, std::string_view lang) {
                                p->panel.set(false), p->settings.set(false);
                                p->checking.set(true);
                            },
-                           .replay = [p = s.get()] { p->backwards(); },
+                           .replay = [p = s.get()] { p->tools.set(true); p->backwards(); },
                            .set_effects = [p = s.get()](std::string v) { p->choose_effects(std::move(v)); }};
         s->hero_site = {.runtime = &s->runtime,
                         .lang = &s->lang,
@@ -1135,6 +1180,7 @@ AppSpec app(std::string_view place, std::string_view lang) {
                         .go = [p = s.get()](std::string id) { p->go(id); },
                         .tree_lens = [p = s.get()] {
                             if (p->lens.peek() != "tree") p->mark(p->lang.peek() == "zh" ? "镜头 Tree" : "Lens Tree");
+                            p->tools.set(true);
                             p->lens.set("tree");
                             p->soon();
                         }};
@@ -1167,7 +1213,8 @@ AppSpec app(std::string_view place, std::string_view lang) {
                                });
         if (auto in = rt.frame_pipeline().insert({"tree_watch", "openmui.site.tree_watch", {"paint"}, {}}, rt.stage_plugins()); !in)
             site_log.warn("the tree watch is not in the frame: {}", pipeline::to_text(in.error()));
-        s->show_route();
+        if (!s->initial_route.empty()) rt.set_route(s->initial_route);
+        else s->show_route();
         s->soon();
     };
     a.view = [s] {
@@ -1175,54 +1222,75 @@ AppSpec app(std::string_view place, std::string_view lang) {
             return computed([s, en = std::string(en), han = std::string(han)] { return s->lang.get() == "zh" ? han : en; });
         };
         auto wide = [s] { return !s->compact.get(); };
-        // The places: where you are, said to every reader (selected) and seen (outlined).
-        std::vector<Element> places;
-        for (const Place& p : all) {
-            if (!p.navigation) continue;
-            const std::string id(p.id);
-            Element b = button({.id = "to_" + id,
-                                .text = computed([s, en = p.en, zh = p.zh] { return std::string(s->lang.get() == "zh" ? zh : en); }),
-                                .variant = computed([s, id] { return s->place.get() == id ? ButtonVariant::secondary : ButtonVariant::ghost; }),
-                                .on_activated = [s, id] { s->go(id); }});
-            b.prop("selected", derive([s, id] { return s->place.get() == id; }));
-            places.push_back(retyped(std::move(b), s));
-        }
-        Element nav = row({.id = "nav", .gap = 2, .align = "center", .wrap = "wrap", .label = "Places"}, std::move(places));
-        nav.prop("role", Source(Value("navigation")));  // a landmark
-        // Narrow: a line of its own, its places wrapping within it.
-        nav.prop("width", derive([s] { return s->compact.get() ? Value(static_cast<double>(s->width.get() - 48)) : Value{}; }));
-        // The bar: the mark, the places, the switches. Narrow, it wraps: the places on a line of their own.
-        Element bar = row({.id = "bar", .padding = Edges(12.0f, 24.0f), .gap = 8, .align = "center", .wrap = "wrap", .background = "bar"},
-                          {brand_mark("logo", 32), button({.id = "mark", .text = "omui", .variant = ButtonVariant::ghost,
-                                                           .on_activated = [s] { s->go("brand"); }, .description = "omui — the mark, drawn by the framework"}),
-                           box({.id = "space", .width = Dim(16.0f)}),
-                           std::move(nav), only_when(box({.id = "fill", .grow = 1}), wide),
-                           only_when(frame_meter({.id = "frames", .label = say("Frame rate", "帧率")}), [s] { return s->width.get() >= 1400; }),
-                           button({.id = "settings_toggle",
-                                   .text = say("Settings", "设置"),
-                                   .variant = computed([s] { return s->settings.get() ? ButtonVariant::secondary : ButtonVariant::ghost; }),
-                                   .on_activated = [s] {
-                                       s->settings.set(!s->settings.peek());
-                                       if (s->settings.peek()) s->panel.set(false), s->checking.set(false);
-                                   }}),
-                           button({.id = "guide_toggle",
-                                   .text = say("Ask an agent", "让 agent 来"),
-                                   .variant = computed([s] { return s->panel.get() ? ButtonVariant::primary : ButtonVariant::secondary; }),
-                                   .on_activated = [s] {
-                                       s->panel.set(!s->panel.peek());
-                                       if (s->panel.peek()) s->settings.set(false), s->checking.set(false);
-                                   }}),
-                           button({.id = "lang",
-                                   .text = computed([s] { return std::string(s->lang.get() == "zh" ? "English" : "中文"); }),
-                                   .variant = ButtonVariant::ghost,
-                                   .on_activated = [s] {
-                                       s->mark(s->lang.peek() == "zh" ? "English" : "中文");
-                                       s->switched_at = s->runtime ? s->runtime->now().count() : 0;
-                                       s->lang.set(s->lang.get() == "zh" ? "en" : "zh");
-                                       s->switches.set(s->switches.get() + 1);
-                                       s->show_route();
-                                       s->soon();
-                                   }})});
+        Element bar = dynamic([s] {
+            const bool compact = s->compact.get(), menu = s->menu.get();
+            auto label = [s](std::string_view en, std::string_view zh) {
+                return computed([s, en = std::string(en), zh = std::string(zh)] { return s->lang.get() == "zh" ? zh : en; });
+            };
+            std::vector<Element> links;
+            for (const Place& p : all) {
+                if (!p.navigation) continue;
+                const std::string id(p.id);
+                auto selected = [s, id] {
+                    const Place* current = find_place(s->place.get());
+                    return current && current->section == id;
+                };
+                Element b = button({.id = "to_" + id, .text = label(p.en, p.zh),
+                                    .variant = computed([selected] { return selected() ? ButtonVariant::secondary : ButtonVariant::ghost; }),
+                                    .on_activated = [s, id] { s->go(id); }});
+                b.prop("selected", derive(selected));
+                links.push_back(retyped(std::move(b), s));
+            }
+            Element nav = row({.id = "nav", .gap = 4, .align = "center", .wrap = "wrap", .label = "Places"}, std::move(links));
+            nav.prop("role", Source(Value("navigation")));
+            if (compact) nav.prop("width", Source(Value(static_cast<double>(s->width.get() - 32))));
+            Element start = button({.id = "start", .text = label("Get started", "开始使用"), .variant = ButtonVariant::primary,
+                                    .on_activated = [s] { s->go("hello"); }});
+            Element settings = button({.id = "settings_toggle", .text = label("Settings", "设置"), .variant = ButtonVariant::ghost,
+                                        .on_activated = [s] {
+                                            s->settings.set(!s->settings.peek());
+                                            if (s->settings.peek()) s->panel.set(false), s->checking.set(false), s->menu.set(false);
+                                        }});
+            std::vector<Element> items;
+            items.push_back(brand_mark("logo", compact ? 24.0f : 32.0f));
+            Element home = button({.id = "mark", .text = "omui", .variant = ButtonVariant::ghost,
+                                   .on_activated = [s] { s->go("home"); }, .description = "omui — home"});
+            home.prop("selected", derive([s] { return s->place.get() == "home"; }));
+            items.push_back(std::move(home));
+            if (!compact) items.push_back(std::move(nav));
+            items.push_back(box({.id = "fill", .grow = 1}));
+            if (compact) items.push_back(button({.id = "menu_toggle", .text = label("Menu", "菜单"),
+                                                .variant = menu ? ButtonVariant::secondary : ButtonVariant::ghost,
+                                                .on_activated = [s] { s->menu.set(!s->menu.peek()); }}));
+            if (!compact) {
+                items.push_back(only_when(frame_meter({.id = "frames", .label = label("Frame rate", "帧率")}), [s] { return s->tools.get() && s->width.get() >= 1400; }));
+                items.push_back(std::move(settings));
+            }
+            items.push_back(button({.id = "guide_toggle", .text = std::string("Agent"),
+                                     .variant = computed([s] { return s->panel.get() ? ButtonVariant::primary : ButtonVariant::ghost; }),
+                                     .on_activated = [s] {
+                                         s->panel.set(!s->panel.peek());
+                                         if (s->panel.peek()) s->settings.set(false), s->checking.set(false), s->menu.set(false);
+                                     }}));
+            items.push_back(button({.id = "lang", .text = computed([s] { return std::string(s->lang.get() == "zh" ? "English" : "中文"); }),
+                                     .variant = ButtonVariant::ghost, .on_activated = [s] {
+                                         s->mark(s->lang.peek() == "zh" ? "English" : "中文");
+                                         s->switched_at = s->runtime ? s->runtime->now().count() : 0;
+                                         s->lang.set(s->lang.get() == "zh" ? "en" : "zh");
+                                         s->switches.set(s->switches.get() + 1);
+                                         s->show_route(); s->soon();
+                                     }}));
+            if (!compact) items.push_back(std::move(start));
+            if (compact && menu) {
+                items.push_back(std::move(nav));
+                items.push_back(std::move(start));
+                items.push_back(std::move(settings));
+            }
+            if (compact) for (auto& item : items)
+                if (item.id == "mark" || item.id == "menu_toggle" || item.id == "guide_toggle" || item.id == "lang")
+                    item.prop("padding_x", Source(Value(4.0)));
+            return std::vector<Element>{row({.id = "bar", .padding = Edges(12.0f, compact ? 16.0f : 24.0f), .gap = compact ? 4.0f : 8.0f, .align = "center", .wrap = "wrap", .background = "bar"}, std::move(items))};
+        });
         // The place, one at a time; built again when another is shown or the window crosses a width band.
         std::vector<Element> shown;
         shown.push_back(dynamic([s] {
@@ -1248,8 +1316,21 @@ AppSpec app(std::string_view place, std::string_view lang) {
                             only_when(check_panel(s), [s] { return s->checking.get(); })});
         // The foot: the lenses, the page's time (drag it, play it, play it backwards) and the tree's hash.
         auto mode_is = [s](std::string_view m) { return s->time_mode.get() == m; };
-        Element foot = row({.id = "foot", .padding = Edges(6.0f, 16.0f), .gap = 6, .align = "center", .background = "bar"},
-                           {lens_button(s, "pixels", "Pixels"), lens_button(s, "tree", "Tree"), lens_button(s, "agent", "Agent"), lens_button(s, "test", "Test"),
+        Element foot = row({.id = "foot", .padding = Edges(6.0f, 16.0f), .gap = 6, .align = "center", .wrap = "wrap", .background = "bar"}, {
+            button({.id = "tools_toggle", .text = say("Inspect", "检查"),
+                     .variant = computed([s] { return s->tools.get() ? ButtonVariant::secondary : ButtonVariant::ghost; }),
+                     .on_activated = [s] {
+                         s->tools.set(!s->tools.peek());
+                         if (!s->tools.peek()) { s->lens.set(std::string("pixels")); s->checking.set(false); s->live(); }
+                     }}),
+            dynamic([s, mode_is] {
+                if (!s->tools.get()) return std::vector<Element>{text({.id = "signature", .text = std::string("Built with omui"), .style = "caption", .color = "text_muted"})};
+                return untracked([s, mode_is] {
+                auto wide = [s] { return !s->compact.get(); };
+                auto say = [s](std::string_view en, std::string_view zh) {
+                    return computed([s, en = std::string(en), zh = std::string(zh)] { return s->lang.get() == "zh" ? zh : en; });
+                };
+                return std::vector<Element>{lens_button(s, "pixels", "Pixels"), lens_button(s, "tree", "Tree"), lens_button(s, "agent", "Agent"), lens_button(s, "test", "Test"),
                             only_when(box({.id = "between", .width = Dim(1.0f), .height = Dim(20.0f), .margin = Edges(Insets{0, 6, 0, 6}), .background = "border"}), wide),
                             // A phone: the lenses, Live and the strip (the playhead dragged); the rest of the time's controls on a wider screen.
                             only_when(button({.id = "time_back",
@@ -1297,12 +1378,14 @@ AppSpec app(std::string_view place, std::string_view lang) {
                                                   s->checking.set(open);
                                                   if (open) s->panel.set(false), s->settings.set(false);
                                               }}),
-                                      wide)});
+                                      wide)};
+                });
+            })});
         Element site = column({.id = "site", .grow = 1, .background = "background"}, {std::move(bar), std::move(body), std::move(foot)});
         // Esc puts away what is open over the place: a panel.
         site.on("key_down", [s](const Value& e) {
             if (!e.get("key") || e.get("key")->as_string() != "Escape") return;
-            for (Signal<bool>* open : {&s->panel, &s->settings, &s->checking})
+            for (Signal<bool>* open : {&s->menu, &s->panel, &s->settings, &s->checking})
                 if (open->peek()) open->set(false);
         });
         return site;
@@ -1330,55 +1413,67 @@ std::string escaped(std::string_view text) {
 }  // namespace
 
 std::string static_html(std::string_view lang) {
-    const bool chinese = lang == "zh";
     const Theme theme = site_theme();
-    // A skip link first (WCAG 2.4.1): past the places to the first one's text.
-    std::string out = std::format("<main id=\"omui-static\" lang=\"{}\">\n<a class=\"skip\" href=\"#/{}home\">{}</a>\n<nav aria-label=\"{}\">",
-                                  chinese ? "zh-CN" : "en", chinese ? "zh/" : "", chinese ? "跳到正文" : "Skip to content", chinese ? "页面" : "Places");
-    // Each place's section by its whole route (#/home too: the static page's own anchors).
-    auto href = [&](std::string_view place) { return std::format("#/{}{}", chinese ? "zh/" : "", place); };
-    out += std::format("<a class=\"brand\" href=\"{}\" aria-label=\"omui\">{}<b>omui</b></a> ", href("brand"), brand_svg(theme.color("accent")));
-    for (const Place& p : all)
-        if (p.navigation) out += std::format("<a href=\"{}\">{}</a> ", href(p.id), chinese ? p.zh : p.en);
-    out += "</nav>\n";
-    for (const Place& p : all) {
-        out += std::format("<section id=\"{}\">\n", href(p.id).substr(1));
-        if (p.id == "home") out += hero_html(chinese);
-        if (p.id == "brand") out += brand_html(chinese, theme.color("accent"));
-        if (const std::string_view doc = document(p.id, lang); !doc.empty()) {
-            // Links to the site's own documents go to their sections, as they go to their places when the program runs.
-            std::string html = md::to_html(md::parse(doc));
-            for (const auto& [file, place] : {std::pair{"best-practices.md", "practices"}, std::pair{"features.md", "features"}})
-                for (std::string from = std::format("href=\"{}", file), to = std::format("href=\"{}", href(place));;) {
-                    const auto at = html.find(from);
-                    if (at == std::string::npos) break;
-                    const auto end = html.find('"', at + 6);
-                    html.replace(at, end - at, to);
-                }
-            out += html;
-        } else if (p.id == "components") {
-            // Every component, what it is to every reader: its contract's words.
-            out += chinese ? "<h1>组件</h1>\n<p>openmui.ui.base 的每个组件。可以操作的组件、四种语言的代码和风格包需要 JavaScript。</p>\n<ul>\n"
-                           : "<h1>Components</h1>\n<p>Every component of openmui.ui.base. Operating them, their code in four languages and the style packs need JavaScript.</p>\n<ul>\n";
-            for (const std::string_view name : {"button", "toggle", "checkbox", "radio", "slider", "number_input", "text_box", "select", "tabs", "breadcrumb", "pagination",
-                                                "progress", "badge", "avatar", "card", "accordion", "skeleton", "tooltip", "popover", "toast", "dialog", "segmented", "chip",
-                                                "range_slider", "alert", "stepper", "date_picker", "time_picker", "color_picker", "split_view", "drawer", "tree_view",
-                                                "data_grid", "combobox", "tag_input", "code_editor"})
-                if (const ComponentType* t = find_type(name); t && t->contract)
-                    out += std::format("<li><b>{}</b> ({}) — {}</li>\n", name, spec::name(t->contract->role), escaped(t->contract->doc));
-            out += "</ul>\n";
-        } else if (p.id == "timeline")
-            out += chinese ? "<h1>时间线编辑器</h1>\n<p>一个可用的时间线编辑器：拖动、修剪、切开，每次编辑都能精确撤销。需要 JavaScript。</p>\n"
-                           : "<h1>A timeline editor</h1>\n<p>A working timeline editor: drag, trim and split clips, every edit undone exactly. It needs JavaScript.</p>\n";
-        else if (p.id == "hello")
-            out += std::format("<h1>{}</h1>\n<p>{}</p>\n<pre><code>{}</code></pre>\n", chinese ? "开始使用" : "Get started",
-                               chinese ? "示例 01，一个完整的 omui 程序。运行它需要 JavaScript；它的全部源码如下。"
-                                       : "Example 01, a whole omui program. Running it needs JavaScript; here is all of its source.",
-                               escaped(hello::hello_source));
-        out += "</section>\n";
+    const bool first_chinese = lang == "zh";
+    std::string out = std::format("<main id=\"omui-static\" lang=\"{}\">\n<a class=\"skip\" href=\"#/{}home\">{}</a>\n",
+                                  first_chinese ? "zh-CN" : "en", first_chinese ? "zh/" : "", first_chinese ? "跳到正文" : "Skip to content");
+    auto href = [](std::string_view place, bool zh) {
+        const std::string route = place == "home" ? (zh ? "zh/home" : "home") : canonical_route(place, zh ? "zh" : "en");
+        return "#/" + route;
+    };
+    const std::array<bool, 2> languages{first_chinese, !first_chinese};
+    for (const bool chinese : languages) {
+        out += std::format("<nav aria-label=\"{}\" data-locale=\"{}\"{}>", chinese ? "页面" : "Places", chinese ? "zh" : "en", chinese == first_chinese ? " data-default" : "");
+        out += std::format("<a class=\"brand\" href=\"{}\" data-omui-target=\"main/bar/mark\" aria-label=\"omui\">{}<b>omui</b></a> ", href("home", chinese), brand_svg(theme.color("accent")));
+        for (const Place& p : all)
+            if (p.navigation) out += std::format("<a href=\"{}\" data-omui-target=\"main/bar/nav/to_{}\">{}</a> ", href(p.id, chinese), p.id, chinese ? p.zh : p.en);
+        out += std::format("<a href=\"{}\" data-omui-target=\"main/bar/start\">{}</a></nav>\n", href("hello", chinese), chinese ? "开始使用" : "Get started");
     }
-    out += "</main>\n";
-    return out;
+    out += "<div class=\"routes\">\n";
+    for (const bool chinese : languages) {
+        const std::string language = chinese ? "zh" : "en";
+        for (const Place& p : all) {
+            out += std::format("<section id=\"{}\" lang=\"{}\" data-place=\"{}\"{}>\n", href(p.id, chinese).substr(1), chinese ? "zh-CN" : "en", p.id,
+                               p.id == "home" && chinese == first_chinese ? " data-default" : "");
+            const std::string alias = std::format("/{}{}", chinese ? "zh/" : "", p.id);
+            if (alias != href(p.id, chinese).substr(1)) out += std::format("<span class=\"route-alias\" id=\"{}\"></span>", alias);
+            if (p.id == "home") {
+                out += std::format("<span class=\"route-alias\" id=\"{}\"></span>", chinese ? "/zh" : "/");
+                out += hero_html(chinese) + destinations_html(chinese);
+            } else if (p.id == "brand") out += brand_html(chinese, theme.color("accent"));
+            else if (p.id == "docs") out += docs_html(chinese);
+            else if (p.id == "explore") out += explore_html(chinese);
+            if (const std::string_view doc = document(p.id, language); !doc.empty()) {
+                if (p.id == "hello") out += std::format("<h1>{}</h1>", chinese ? "开始使用" : "Get started");
+                std::string html = md::to_html(md::parse(doc));
+                for (const auto& [file, place] : {std::pair{"best-practices.md", "practices"}, std::pair{"features.md", "features"}})
+                    for (std::string from = std::format("href=\"{}", file), to = std::format("href=\"{}", href(place, chinese));;) {
+                        const auto at = html.find(from);
+                        if (at == std::string::npos) break;
+                        const auto end = html.find('"', at + 6);
+                        html.replace(at, end - at, to);
+                    }
+                out += html;
+                if (p.id == "hello") out += std::format("<pre><code>{}</code></pre>", escaped(hello::hello_source));
+            } else if (p.id == "components") {
+                out += chinese ? "<h1>组件</h1>\n<p>omui 的组件。运行中的样张、四语言代码和风格切换需要 JavaScript。</p>\n<ul>\n"
+                               : "<h1>Components</h1>\n<p>omui's components. Live specimens, code in four languages and style switching need JavaScript.</p>\n<ul>\n";
+                for (const std::string_view name : {"button", "toggle", "checkbox", "radio", "slider", "number_input", "text_box", "select", "tabs", "breadcrumb", "pagination",
+                                                    "progress", "badge", "avatar", "card", "accordion", "skeleton", "tooltip", "popover", "toast", "dialog", "segmented", "chip",
+                                                    "range_slider", "alert", "stepper", "date_picker", "time_picker", "color_picker", "split_view", "drawer", "tree_view",
+                                                    "data_grid", "combobox", "tag_input", "code_editor"})
+                    if (const ComponentType* t = find_type(name); t && t->contract)
+                        out += std::format("<li><b>{}</b> ({}) — {}</li>\n", name, spec::name(t->contract->role), escaped(t->contract->doc));
+                out += "</ul>\n";
+            } else if (p.id == "timeline")
+                out += chinese ? "<h1>时间线编辑器</h1>\n<p>拖动、修剪、切开，每次编辑都能撤销。运行编辑器需要 JavaScript。</p>\n"
+                               : "<h1>A timeline editor</h1>\n<p>Drag, trim and split clips, then undo. Running the editor needs JavaScript.</p>\n";
+            out += "</section>\n";
+        }
+        out += std::format("<section id=\"/{}not_found\" lang=\"{}\" data-place=\"not_found\"><h1>{}</h1><code data-missing-route></code><p><a href=\"{}\">{}</a></p></section>",
+                           chinese ? "zh/" : "", chinese ? "zh-CN" : "en", chinese ? "没有找到这一页。" : "This page isn't here.", href("home", chinese), chinese ? "回到首页" : "Back to home");
+    }
+    return out + "</div></main>\n";
 }
 
 std::optional<std::string> inject(std::string_view page, std::string_view fragment, std::string_view lang) {
@@ -1388,10 +1483,8 @@ std::optional<std::string> inject(std::string_view page, std::string_view fragme
     const auto loader = out.rfind("<script src=\"");
     if (canvas == std::string::npos || head == std::string::npos || loader == std::string::npos || loader < canvas) return std::nullopt;
     if (out.contains("id=\"omui-static\"")) return std::nullopt;  // once
-    // The program's own script last: before it, hide what was read without it once it runs.
-    out.insert(loader,
-               "<script>(function () { var f = Module.onRuntimeInitialized; Module.onRuntimeInitialized = function () {"
-               " var s = document.getElementById('omui-static'); if (s) s.hidden = true; if (f) f(); }; })();</script>\n");
+    // The static view is handed over only after presented pixels and the live mirror agree on the route.
+    out.insert(loader, "<script>" + std::string(files::static_bootstrap) + "</script>\n");
     out.insert(canvas, std::string(fragment));
     // The static page in the program's own fonts: the files the page already lists for it (omuiFonts).
     std::string faces;
@@ -1416,6 +1509,15 @@ std::optional<std::string> inject(std::string_view page, std::string_view fragme
                    "padding:1px 4px;border-radius:3px}#omui-static pre{white-space:pre-wrap}#omui-static table{border-collapse:collapse}"
                    "#omui-static td,#omui-static th{border:1px solid #e6e6e3;padding:4px 8px}"
                    "#omui-static .brand{display:inline-flex;align-items:center;gap:8px}#omui-static .brand svg{width:32px;height:32px}"
+                   "#omui-static [hidden]{display:none!important}#omui-static>.routes>section{display:none}"
+                   "#omui-static>.routes>section[data-default]{display:block}"
+                   "#omui-static:has(.routes :target)>.routes>section{display:none}"
+                   "#omui-static:has(.routes :target)>.routes>section:target,#omui-static:has(.routes :target)>.routes>section:has(.route-alias:target){display:block}"
+                   "#omui-static>nav[data-locale]{display:none}#omui-static>nav[data-default]{display:block}"
+                   "#omui-static:has(.routes :target)>nav[data-locale]{display:none}"
+                   "#omui-static:has(section[lang=zh-CN]:target,section[lang=zh-CN] .route-alias:target)>nav[data-locale=zh]{display:block}"
+                   "#omui-static:has(section[lang=en]:target,section[lang=en] .route-alias:target)>nav[data-locale=en]{display:block}"
+                   "@media(max-width:700px){#omui-static{padding:24px 20px}#omui-static nav{display:flex;flex-wrap:wrap}}"
                    "</style>\n<meta name=\"description\" content=\"omui: a UI framework implementing the openmui specification. One semantic tree, many renderings.\">\n");
     // A reader may zoom the page (WCAG 1.4.4): the packer's viewport forbids it.
     if (const auto at = out.find(", maximum-scale=1, user-scalable=no"); at != std::string::npos) out.erase(at, std::string_view(", maximum-scale=1, user-scalable=no").size());

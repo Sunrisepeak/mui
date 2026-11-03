@@ -48,5 +48,19 @@ for show in "${shows[@]}"; do
         cp "$src"/* "$folder/media/"
         ls -l "$folder/media/"
     fi
+    if [ "$show" = site ]; then
+        for name in home-en-desktop docs-en-desktop explore-en-desktop hello-en-desktop docs-zh-phone features-zh-phone; do
+            source="$scratch/site-structure/$name.png"
+            destination="$folder/media/structure-$name.png"
+            if [ $check = 1 ]; then
+                if ! cmp -s "$source" "$destination"; then
+                    echo "::error::$destination is not what the site's layout tests draw" >&2
+                    status=1
+                fi
+            else
+                cp "$source" "$destination"
+            fi
+        done
+    fi
 done
 exit $status

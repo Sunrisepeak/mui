@@ -48,4 +48,14 @@ for c in r["checks"]:
     print(f"  {'ok  ' if c['ok'] else 'FAIL'} {c['what']}")
 PY
 [ "$a11y" = 0 ] || { echo "::error::the browser's accessibility tree or the keyboard's way in is wrong (target/site-a11y.json)"; status=1; }
+structure=0
+CHROME=$chrome "$node_bin" "${flags[@]}" tools/ci/site-structure.mjs target/site > target/site-structure.report.omui.json || structure=$?
+python3 - target/site-structure.report.omui.json <<'PY'
+import json, sys
+r = json.load(open(sys.argv[1]))
+print("site structure and handoff:")
+for c in r["checks"]:
+    print(f"  {'ok  ' if c['ok'] else 'FAIL'} {c['what']}")
+PY
+[ "$structure" = 0 ] || { echo "::error::site routing or static handoff failed (target/site-structure.report.omui.json)"; status=1; }
 exit "$status"

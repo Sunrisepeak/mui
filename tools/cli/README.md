@@ -35,12 +35,13 @@ external action: call again with `--answer`), 3 not ready (a wait timed out).
 Actions are recorded with their actor (`agent:omui-cli` unless `--actor`).
 
 `sweep` is the interaction sweep (D-91; every program in CI,
-`tools/ci/sweep.sh`): leaves first, each action asked about (a dry run),
+`tools/ci/sweep.sh`): leaves first, each ordinary action asked about (a dry run),
 then performed — what can be undone, undone, and the node must be as it was;
 what an answer is a person's (irreversible, external) only asked. A verdict a
 line: `ok`, `asks`, `disabled`, `readonly`, `gone` (an action before took it
 out of the tree), `arguments` (made-up arguments refused: it needs real ones),
-`unrecorded` (no inverse given, which S-12 allows), `failed` (refused with
+`unrecorded` (no inverse given, which S-12 allows), `person` (a person-only
+action actually refused to the agent with the node unchanged, S-10), `failed` (refused with
 none to make up, or not as it was after its undo). A failure exits 1.
 
 ## omui video

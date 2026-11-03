@@ -87,7 +87,7 @@ struct Web::Impl {
     bool                                     quitting = false;
     int                                      exit_code = 0;
     bool                                     idle = false;
-    int                                      route_moves = 0;   // the person's moves of the page's route, as last seen
+    int                                      route_moves = -1;  // read the initial route too: it may move while wasm loads
     std::uint64_t                            route_shown = 0;   // the route revision the address shows
     bool                                     woken = false;  // the next paced step frames
     FrameDemand                              demand;

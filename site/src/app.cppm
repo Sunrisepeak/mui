@@ -3,15 +3,9 @@ export module openmui.site:app;
 
 import std;
 import openmui;
+export import :routes;
 
 export namespace omui::site {
-
-// A place on the site: its id, its name in each language.
-struct Place {
-    std::string_view id, en, zh;
-    bool navigation = true;  // secondary exhibits have routes without crowding the main bar
-};
-[[nodiscard]] std::span<const Place> places();
 
 // A place's Markdown in a language ("en", "zh"); empty for a place that is not a document.
 [[nodiscard]] std::string_view document(std::string_view place, std::string_view lang);
@@ -21,7 +15,7 @@ struct Place {
 
 // The site as an application, opening at a place in a language (the page's
 // hash route: #/zh/features runs it with --zh --features).
-[[nodiscard]] AppSpec app(std::string_view place = "home", std::string_view lang = "en");
+[[nodiscard]] AppSpec app(std::string_view place = "home", std::string_view lang = "en", std::string_view incoming_route = {});
 
 // What a lens shows of a place's semantic snapshot (openmui.semantic's to_value):
 // the JSON an agent reads (a node a line), and the assertions a test would write.
@@ -36,7 +30,7 @@ struct Place {
 // on any machine.
 [[nodiscard]] std::uint64_t tree_hash(const Value& snapshot);
 // The home page's tree hash in English, as CI pins it (tests/site_test.cpp).
-inline constexpr std::uint64_t pinned_home_hash = 0x4fc0f4cfb9985122;
+inline constexpr std::uint64_t pinned_home_hash = 0x99ebe721208e00a8;
 
 // Every place as static HTML (the documents through openmui.markdown's
 // to_html, byte for byte md4c-html's), in a <main id="omui-static"> that a

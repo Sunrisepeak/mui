@@ -96,19 +96,23 @@ const inMain = (id) => typeof id === 'string' && id.startsWith('main/body/view/'
 check(inMain(after.id), `Enter: the page's focus in the main landmark (${after.id ?? after.tag})`);
 check((focused ?? []).some(inMain), `and the program's (${JSON.stringify(focused)})`);
 
-// Follow the brand link with the person's real pointer, then read the live
-// construction study through the same semantic protocol an agent uses.
-const mark = await b.value(`window.omui.snapshot({root:'main/bar/mark',depth:0}).then(r =>
-  (r.data?.nodes ?? []).find(n => n.id === 'main/bar/mark'))`);
-if (mark?.bounds?.length === 4) {
-  const [x, y, w, h] = mark.bounds;
+// Follow the visible Explore link and then open its brand program with real clicks.
+const clickNode = async (id) => {
+  const n = await b.value(`window.omui.snapshot({root:${JSON.stringify(id)},depth:0}).then(r => (r.data?.nodes ?? []).find(n => n.id === ${JSON.stringify(id)}))`);
+  if (n?.bounds?.length !== 4) return false;
+  const [x, y, w, h] = n.bounds;
   for (const type of ['mouseMoved', 'mousePressed', 'mouseReleased'])
     await b.call('Input.dispatchMouseEvent', { type, x: x + w / 2, y: y + h / 2, button: 'left', clickCount: 1 });
   await sleep(1200);
-}
+  return true;
+};
+await clickNode('main/bar/nav/to_explore');
+await clickNode('main/body/view/explore/page/explore/works/brand/open');
 const study = await b.value(`window.omui.snapshot({root:'main/body/view/brand/page/identity/title',depth:0}).then(r =>
   (r.data?.nodes ?? []).find(n => n.id.endsWith('/identity/title'))?.name ?? '')`);
-check(study === 'A mark. Made here.', 'the omui brand link opens the live construction study with a real click');
+check(study === 'A mark. Made here.', 'Explore opens the live brand study with real clicks');
+await clickNode('main/bar/mark');
+check(await b.value(`document.querySelector('[data-omui-id="main/body/view/home/page/hero"]') !== null`), 'the brand link returns home');
 
 report.ok = report.checks.every((c) => c.ok);
 console.log(JSON.stringify(report, null, 2));

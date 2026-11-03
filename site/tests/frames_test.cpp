@@ -29,6 +29,8 @@ struct Run {
         for (auto& v : spec.verbs) (void)h.runtime().verbs().add(v.desc, v.fn);
         h.mount("main", spec.view());
         h.settle();
+        check(h.click("main/foot/tools_toggle"));
+        h.settle();
     }
     struct Times {
         std::vector<double> frame, raster;

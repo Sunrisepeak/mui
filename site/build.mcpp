@@ -16,6 +16,7 @@ int main() {
     const bool frames = openmui::build::embed({.module = "openmui.site", .ns = "omui::site::files", .dir = "reference", .suffix = ".frames.omui.json", .tag = "frames"});
     // Its own theme: the design language's tokens, light and dark.
     const bool theme = openmui::build::embed({.module = "openmui.site", .ns = "omui::site::files", .dir = "theme", .suffix = ".theme.omui.toml", .tag = "theme", .index = true});
+    const bool bootstrap = openmui::build::embed({.module = "openmui.site", .ns = "omui::site::files", .dir = "src", .suffix = ".bootstrap.js", .tag = "bootstrap"});
     // The Chinese font cut down to the characters the site draws (2.7 of the 7.7 MB before its first frame):
     // its text, the docs it shows, the program it runs — and the common characters people type.
     const std::string here = mcpp::manifest_dir();
@@ -26,5 +27,5 @@ int main() {
                                                 .subsets = {{.font = "NotoSansSC", .text = std::move(text)}},
                                                 // The Chinese font before the first frame only for a page opened in Chinese; else just after it.
                                                 .font_languages = {{"NotoSansSC", {"zh"}}}});
-    return lens && content && en && zh && frames && theme && page ? 0 : 1;
+    return lens && content && en && zh && frames && theme && bootstrap && page ? 0 : 1;
 }

@@ -5,6 +5,8 @@
 export module openmui.site;
 
 export import openmui;
+export import :routes;
+export import :wayfinding;
 export import :lens_contract;
 export import :lens;
 export import :timebar_contract;
@@ -22,4 +24,5 @@ export import :brand;
 export import :gallery;
 export import :screens;
 export import :theme_files;
+export import :static_bootstrap;
 export import :app;

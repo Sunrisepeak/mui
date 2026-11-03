@@ -9,10 +9,11 @@ import openmui.site;
 
 int main(int argc, char** argv) {
     std::vector<char*> rest{argv[0]};
-    std::string prerender, lang = "en", place = "home";
+    std::string prerender, lang = "en", place = "home", route;
     for (int i = 1; i < argc; ++i) {
         const std::string_view a = argv[i];
         if (a == "--prerender" && i + 1 < argc) prerender = argv[++i];
+        else if (a == "--route" && i + 1 < argc) route = argv[++i];
         else if (a == "--lang" && i + 1 < argc) lang = argv[++i];
         else if (a == "--zh" || a == "--en") lang = a.substr(2);
         else if (std::ranges::any_of(omui::site::places(), [&](const omui::site::Place& p) { return a == std::format("--{}", p.id); }))
@@ -31,5 +32,5 @@ int main(int argc, char** argv) {
         std::println("{{\"command\": \"prerender\", \"ok\": true, \"page\": \"{}\", \"bytes\": {}}}", prerender, out->size());
         return 0;
     }
-    return omui::run(omui::site::app(place, lang), static_cast<int>(rest.size()), rest.data());
+    return omui::run(omui::site::app(route.empty() ? place : route, lang, route), static_cast<int>(rest.size()), rest.data());
 }

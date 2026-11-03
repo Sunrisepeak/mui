@@ -744,6 +744,7 @@ addToLibrary({
   },
   // The program's first frame is shown: the page's hook, once (dist-toy fetches its later files then).
   omui_web_first_frame: function () {
+    window.omuiHasPresented = true;
     var f = window.omuiFirstFrame;
     window.omuiFirstFrame = null;
     if (typeof f === 'function') f();

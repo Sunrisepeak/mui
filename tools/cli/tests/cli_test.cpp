@@ -177,6 +177,7 @@ int main(int argc, char** argv) {
         // A verb that always refuses: a control nothing can make work.
         (void)h.runtime().verbs().add({"notes.broken", "Never works", Effect::reversible, {}, {}},
                                       [](const Value&) -> VerbResult { return std::unexpected(std::string("it never works")); });
+        int person_actions = 0;
         auto agree = signal(false);
         auto level = signal(0.37);  // off its steps: an undo puts it back as it was, not snapped
         auto mount = [&](bool broken) {
@@ -185,6 +186,7 @@ int main(int argc, char** argv) {
                 slider({.id = "level", .label = "Level", .step = 0.1, .value = level, .width = 160}),
                 box({.id = "delete", .width = 80, .height = 24, .background = "danger", .label = "Delete all"}).prop("verb", Source{Value("notes.delete"), {}, {}}),
                 button({.id = "off", .disabled = true, .text = "Off"}),
+                button({.id = "person", .text = "Only the person", .on_activated = [&] { ++person_actions; }}).prop("person", Source{Value(true), {}, {}}),
             };
             if (broken) items.push_back(box({.id = "broken", .width = 80, .height = 24, .label = "Broken"}).prop("verb", Source{Value("notes.broken"), {}, {}}));
             h.mount("main", column({.padding = 8, .gap = 4}, std::move(items)));
@@ -211,6 +213,8 @@ int main(int argc, char** argv) {
         check_eq(verdict(r[0], "main/agree", "toggle"), std::string("ok"));
         check_eq(verdict(r[0], "main/level", "decrement"), std::string("ok"));
         check_eq(verdict(r[0], "main/delete", "activate"), std::string("asks"));
+        check_eq(verdict(r[0], "main/person", "activate"), std::string("person"));
+        check(person_actions == 0 && r[0].out.contains(R"("person":1)"), "the protected control was refused without running");
         check(deleted == 0, "an irreversible action is only asked");
         check(!agree.peek() && level.peek() == 0.37, std::format("as they were: {} {}", agree.peek(), level.peek()));
         // A control that cannot work fails the sweep.
@@ -219,6 +223,7 @@ int main(int argc, char** argv) {
         check(r.size() == 1 && r[0].code == 1, r.empty() ? "" : r[0].out + r[0].err);
         check_eq(verdict(r[0], "main/broken", "activate"), std::string("failed"));
         check(r[0].out.contains(R"("failed":1)"), r[0].out);
+        check(person_actions == 0, "a dead ordinary control still fails; a person-only control still does not run");
     });
 
     s.test("omui check: located diagnostics, as text and as JSON", [] {

@@ -83,9 +83,9 @@ int main(int argc, char** argv) {
         check(h->tree().act(root + "/controls/assemble", "activate", call).exit_code() == std::optional<int>(0));
         h->settle();
         check(h->tree().node(root + "/controls/assemble")->name == "重新组装");
-        check(h->click("main/bar/mark"), "the omui brand link reaches the study");
+        check(h->click("main/bar/mark"), "the omui brand link returns home");
         h->settle();
-        check(h->tree().node(root).has_value());
+        check(h->tree().node("main/body/view/home/page/hero").has_value());
     });
 
     return s.run(argc, argv);

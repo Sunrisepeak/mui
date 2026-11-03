@@ -90,14 +90,14 @@ try {
   // 4. The agent operates the page through its semantic tree.
   const snap = page('snapshot', '--interactive');
   step(snap.code === 0 && snap.out.includes('main/bar/nav'), 'the agent reads the page (omui page snapshot)', snap.err.slice(0, 300));
-  const act = page('act', 'main/bar/nav/to_features', 'activate');
+  const act = page('act', 'main/bar/nav/to_docs', 'activate');
   step(act.code === 0, 'the agent acts on it (omui page act … activate)', (act.out + act.err).slice(0, 300));
   await sleep(1500);
-  // Where it is, as the agent reads it: the features' place on screen, home's gone from the tree.
+  // Where it is, as the agent reads it: the documentation overview on screen, home's gone from the tree.
   const there = page('snapshot');
-  step(there.out.includes('"main/body/view/features') && !there.out.includes('"main/body/view/home'), 'the page went where the agent took it',
+  step(there.out.includes('"main/body/view/docs') && !there.out.includes('"main/body/view/home'), 'the page went where the agent took it',
        there.err.slice(0, 300));
-  const back = page('act', 'main/bar/nav/to_home', 'activate');
+  const back = page('act', 'main/bar/mark', 'activate');
   step(back.code === 0, 'and back home', (back.out + back.err).slice(0, 300));
   await sleep(1000);
 
@@ -106,6 +106,8 @@ try {
   const summary = sweep.out.split('\n').filter((l) => l.includes('"nodes"')).pop() ?? '';
   const failed = sweep.out.split('\n').filter((l) => l.includes('"verdict":"failed"'));
   step(sweep.code === 0, 'the interaction sweep through the page (omui page sweep)', summary + (failed.length ? ' ' + failed.join(' ').slice(0, 800) : ''));
+  const protectedActions = summary ? JSON.parse(summary).data?.person ?? 0 : 0;
+  step(protectedActions >= 2, 'the link controls refuse the agent and keep their state (S-10)', `${protectedActions} protected actions checked`);
 
   // 5. The bridge stops: the page knows.
   bridge.kill();

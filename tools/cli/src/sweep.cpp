@@ -92,7 +92,7 @@ int sweep(const std::function<std::vector<Value>(const Value&)>& call, const cmd
         offset += static_cast<std::int64_t>(d->get("nodes")->list()->size());
         if (d->get("nodes")->list()->empty() || !d->get("total") || offset >= d->get("total")->as_int()) break;
     }
-    std::size_t ok = 0, asks = 0, failed = 0, unchanged = 0, arguments = 0, disabled = 0, live = 0, gone = 0, held = 0, unrecorded = 0;
+    std::size_t ok = 0, asks = 0, failed = 0, unchanged = 0, arguments = 0, disabled = 0, live = 0, gone = 0, held = 0, unrecorded = 0, person = 0;
     // A node as it is now (its actions, value and states), by its id.
     auto now_of = [&](const std::string& id) -> std::optional<Value> {
         const auto r = call(Value{}.set("op", "find").set("q", Value{}.set("id", id)));
@@ -142,6 +142,16 @@ int sweep(const std::function<std::vector<Value>(const Value&)>& call, const cmd
                 Value made;
                 for (const auto& [k, type] : *args->map()) made.set(k, sample(type.as_string(), node.get("value")));
                 req.set("args", made);
+            }
+            const auto own = std::ranges::find_if(*offered->list(), [&](const Value& x) { return x.get("name") && x.get("name")->as_string() == name; });
+            if (own != offered->list()->end() && own->get("person") && own->get("person")->as_bool()) {
+                // S-10 is a successful boundary only if the real request is refused and its state stays put.
+                const auto denied = call(req);
+                const auto after = now_of(id);
+                if (exit_of(denied) == 1 && code_of(denied) == "refused" && after && seen(*after) == seen(node))
+                    ++person, say(node, name, effect, "person", "refused to the agent, with the node unchanged (S-10)");
+                else ++failed, say(node, name, effect, "failed", std::format("person-only action was not refused unchanged: {}", errors_of(denied)));
+                continue;
             }
             Value dry = req;
             dry.set("dry_run", true);
@@ -238,7 +248,7 @@ int sweep(const std::function<std::vector<Value>(const Value&)>& call, const cmd
     Value summary;
     summary.set("kind", "data").set("data", Value{}.set("nodes", static_cast<std::int64_t>(nodes.size())).set("ok", static_cast<std::int64_t>(ok))
                                                  .set("unchanged", static_cast<std::int64_t>(unchanged)).set("live", static_cast<std::int64_t>(live))
-                                                 .set("asks", static_cast<std::int64_t>(asks)).set("arguments", static_cast<std::int64_t>(arguments))
+                                                 .set("asks", static_cast<std::int64_t>(asks)).set("person", static_cast<std::int64_t>(person)).set("arguments", static_cast<std::int64_t>(arguments))
                                                  .set("disabled", static_cast<std::int64_t>(disabled)).set("gone", static_cast<std::int64_t>(gone)).set("readonly", static_cast<std::int64_t>(held)).set("unrecorded", static_cast<std::int64_t>(unrecorded)).set("failed", static_cast<std::int64_t>(failed)));
     out << summary.json() << '\n';
     out << Value{}.set("kind", "result").set("exitCode", failed ? 1 : 0).json() << '\n';

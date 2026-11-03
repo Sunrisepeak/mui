@@ -9,7 +9,7 @@ namespace {
 
 constexpr std::array<GuideTask, 5> tasks{{
     {"read", "Read this page", "读这一页"},
-    {"tour", "Switch the language, open Features", "切换语言，打开“特性”"},
+    {"tour", "Switch language, read Core ideas", "切换语言，阅读“核心概念”"},
     {"edit", "Split the title clip, then undo it", "切开 title 片段，再撤销"},
     {"link", "Open the openas standard (external)", "打开 openas 标准（外部）"},
     {"self", "Answer for the person (S-10)", "替人回答（S-10）"},
@@ -63,13 +63,34 @@ std::vector<std::string> Guide::steps(std::string_view task) const {
         const std::string at = std::format("main/body/view/{}/page", place_());
         return {std::format(R"({{"op":"snapshot","actor":"{}","root":"{}","depth":2}})", guide_actor, at)};
     }
-    if (task == "tour") return {act("main/bar/lang", "activate"), act("main/bar/nav/to_features", "activate"), wait("main/body/view/features/page/read/doc")};
-    if (task == "edit")
-        return {act("main/bar/nav/to_timeline", "activate"), wait(editor), act(editor, "seek", R"({"frame":30})"), act(editor, "select", R"({"track":0,"clip":0})"),
-                act(editor, "split"), std::format(R"({{"op":"undo","actor":"{}","scope":"{}"}})", guide_actor, editor)};
-    if (task == "link")
-        return {act("main/bar/nav/to_home", "activate"), wait("main/body/view/home/page/doc"),
-                act("main/body/view/home/page/doc", "open_link", std::format(R"({{"href":"{}"}})", openas_url))};
+    std::vector<std::string> route;
+    if (runtime_.valid(runtime_.find("main/bar/menu_toggle"))) route.push_back(act("main/bar/menu_toggle", "activate"));
+    auto visit = [&](std::string_view section) { route.push_back(act(std::format("main/bar/nav/to_{}", section), "activate")); };
+    if (task == "tour") {
+        route.insert(route.begin(), act("main/bar/lang", "activate"));
+        visit("docs");
+        route.push_back(wait("main/body/view/docs/page/directory/to_features"));
+        route.push_back(act("main/body/view/docs/page/directory/to_features", "activate"));
+        route.push_back(wait("main/body/view/features/page/read/doc"));
+        return route;
+    }
+    if (task == "edit") {
+        visit("explore");
+        route.push_back(wait("main/body/view/explore/page/explore/works/timeline/open"));
+        route.push_back(act("main/body/view/explore/page/explore/works/timeline/open", "activate"));
+        route.push_back(wait(editor));
+        route.push_back(act(editor, "seek", R"({"frame":30})"));
+        route.push_back(act(editor, "select", R"({"track":0,"clip":0})"));
+        route.push_back(act(editor, "split"));
+        route.push_back(std::format(R"({{"op":"undo","actor":"{}","scope":"{}"}})", guide_actor, editor));
+        return route;
+    }
+    if (task == "link") {
+        visit("docs");
+        route.push_back(wait("main/body/view/docs/page/read/resources"));
+        route.push_back(act("main/body/view/docs/page/read/resources", "open_link", std::format(R"({{"href":"{}"}})", openas_url)));
+        return route;
+    }
     if (task == "self") return {act("main/body/guide/asking/answer/allow_once", "activate")};
     return {};
 }

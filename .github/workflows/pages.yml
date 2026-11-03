@@ -107,6 +107,7 @@ jobs:
             target/site-workspace/
             target/site-motion/
             target/site-loading/
+            target/site-font-delivery/
             target/dist-toy-loading.report.omui.json
           if-no-files-found: ignore
       - name: Where the site's WebAssembly bytes go (W8; Q-38)

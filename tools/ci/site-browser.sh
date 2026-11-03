@@ -28,7 +28,7 @@ flags=()
 budget=site/delivery.budget.omui.json
 network=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["network"])' "$budget")
 status=0
-CHROME=$chrome "$node_bin" "${flags[@]}" tools/ci/site-perf.mjs --serve target/site --network "$network" --budget "$budget" > target/site-perf.json || status=$?
+CHROME=$chrome "$node_bin" "${flags[@]}" tools/ci/site-perf.mjs --serve target/site --network "$network" --budget "$budget" --request-log target/site-perf-requests.report.omui.json > target/site-perf.json || status=$?
 python3 - target/site-perf.json <<'PY'
 import json, sys
 r = json.load(open(sys.argv[1]))
@@ -38,6 +38,16 @@ for b in r.get("budgets", []):
     print(f"  {'ok  ' if b['pass'] else 'OVER'} {b['metric']}: {b['value']} (budget {b['max']})")
 PY
 [ "$status" = 0 ] || echo "::error::the site's delivery is over its budget (target/site-perf.json)"
+no_cache=0
+CHROME=$chrome "$node_bin" "${flags[@]}" tools/ci/site-perf.mjs --serve target/site --cache disabled --network "$network" --budget "$budget" --request-log target/site-perf-no-cache-requests.report.omui.json > target/site-perf-no-cache.report.omui.json || no_cache=$?
+python3 - target/site-perf-no-cache.report.omui.json <<'NO_CACHE'
+import json, sys
+r = json.load(open(sys.argv[1]))
+print(f"site delivery without HTTP cache: {r['transfer']['total']} bytes, first frame {r['first_frame_ms']:.0f} ms")
+for b in r.get("budgets", []):
+    print(f"  {'ok  ' if b['pass'] else 'OVER'} {b['metric']}: {b['value']} (budget {b['max']})")
+NO_CACHE
+[ "$no_cache" = 0 ] || { echo "::error::delivery without HTTP cache is over the same budget"; status=1; }
 a11y=0
 CHROME=$chrome "$node_bin" "${flags[@]}" tools/ci/site-a11y.mjs --serve target/site > target/site-a11y.json || a11y=$?
 python3 - target/site-a11y.json <<'PY'
@@ -108,4 +118,14 @@ for c in r["checks"]:
     print(f"  {'ok  ' if c['ok'] else 'FAIL'} {c['what']}")
 LOADING
 [ "$loading" = 0 ] || { echo "::error::opening pixels, progress or retry failed (target/site-loading.report.omui.json)"; status=1; }
+sharing=0
+CHROME=$chrome "$node_bin" "${flags[@]}" tools/ci/site-font-sharing.mjs target/site > target/site-font-sharing.report.omui.json || sharing=$?
+python3 - target/site-font-sharing.report.omui.json <<'SHARING'
+import json, sys
+r = json.load(open(sys.argv[1]))
+print("site shared font delivery:")
+for c in r["checks"]:
+    print(f"  {'ok  ' if c['ok'] else 'FAIL'} {c['what']}")
+SHARING
+[ "$sharing" = 0 ] || { echo "::error::static and runtime fonts fetched twice or failed shared ownership/retry (target/site-font-sharing.report.omui.json)"; status=1; }
 exit "$status"

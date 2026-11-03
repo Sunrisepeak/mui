@@ -17,6 +17,8 @@ try {
       return Array.from(root.querySelectorAll('section[data-place]')).filter(n=>getComputedStyle(n).display!=='none').map(n=>({place:n.dataset.place,lang:n.lang}));
     })()`);
     check(result?.length === 1 && result[0].place === expected && result[0].lang === lang, 'without JavaScript: ' + route + ' shows only its own content', result);
+    const ownFont = await b.value(`document.fonts.ready.then(()=>[...document.fonts].some(f=>f.family.replace(/['"]/g,'')==='Inter'&&f.status==='loaded'))`);
+    check(ownFont, 'without JavaScript: ' + route + ' loads its own body font through noscript');
   }
   await b.call('Emulation.setScriptExecutionDisabled', { value: false });
   // Hold wasm itself; the real static links must work throughout this wait.

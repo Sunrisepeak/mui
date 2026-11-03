@@ -27,6 +27,24 @@
 // phase is emitted only from the native first-frame hook, never the fallback
 // timer. retry(id?) retries failed assets without initializing main twice;
 // a fatal runtime/launcher error instead returns reason `reload_required`.
+// fontBytes(basename) explicitly starts a shared decoded font transfer before
+// wasm/preRun. It returns a Promise of {id, url, buffer: ArrayBuffer, release()}.
+// Each lease owns a mutable copy, isolated from pending native FS bytes.
+// release is idempotent and clears lease.buffer; callers must release after
+// FontFace.load finishes. Native FS installation shares the transfer. Late
+// calls use the installed full face when available, otherwise startup coverage;
+// id/url always describe the returned bytes. Errors have code font_not_found,
+// font_deferred, font_fetch_failed, or reload_required (network errors also
+// expose id/url/retryable). retry(id) then a new fontBytes call recovers errors.
+// No DOM consumer means font downloads still begin only in preRun. Byte caches
+// are released after FS installation and the last outstanding DOM lease.
+// Multiple basenames sharing one content URL have independent FS/dependency
+// installations and one decoded-byte progress entry (with names[]). Retrying
+// its physical error.id resumes every currently eligible installation, even
+// when the failed basename differs from the one naming the shared URL. A started
+// font no longer required after a preRun locale replan is reported as retired:
+// its transferState/error history remains, but it is excluded from the current
+// plan totals, current error, completion barrier, and automatic retry selection.
 export module openmui.gen.dist_toy;
 
 import std;

@@ -1238,6 +1238,11 @@ int main(int argc, char** argv) {
         check(hide != std::string::npos && hide < loader, "hidden by a script before the program's");
         check(p.find("#omui-static{") < p.find("</head>"), "its style in the head");
         check(p.find("@font-face{font-family:'Inter';src:url(assets/4304c4ca3090.ttf)") != std::string::npos, "in the program's own font");
+        const auto no_script = p.find("<noscript><style>"), no_script_end = p.find("</style></noscript>", no_script);
+        const auto font_face = p.find("@font-face");
+        check(no_script < font_face && font_face < no_script_end, "URL fonts are only a no-JavaScript fallback; active JavaScript shares managed bytes");
+        check(p.contains("id=\"omui-static-fonts\" type=\"application/json\""), "static font consumers get inert descriptors before bootstrap");
+        check(p.contains("\"name\":\"Inter.ttf\"") && p.contains("\"when\":\"body\""), "the body face is declared by the same selected font list");
         check(p.contains("#omui-static>nav[data-default]{display:flex}"), "the selected static navigation keeps its layout");
         std::string initial_page(page);
         const auto font_url = initial_page.find("\"assets/4304c4ca3090.ttf\"");

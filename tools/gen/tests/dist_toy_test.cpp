@@ -138,8 +138,10 @@ int main(int argc, char** argv) {
         const auto index = read(p.out / "index.html");
         const auto entry = index.find("[\"NotoSansSC.ttf\"");
         check(entry != std::string::npos && index.substr(entry, index.find('\n', entry) - entry).contains("[\"zh\"], \"assets/"));
-        check(index.contains("file = f[3]") && index.contains("omuiFetchBytes") && index.contains("window.omuiFontLanguage"));
-        check(index.contains("FS.symlink(canonical, f[0])") && index.contains("FS.unlink('/fonts/.partial')"), "later fonts refresh the canonical source, then clear readiness");
+        check(index.contains("omuiFontRecord('initial-font:' + f[0], f[3], f[0])") && index.contains("var startup = deferred ? initial : full") &&
+              index.contains("(deferred && font[3] ? 'initial-font:' : 'font:') + name") && index.contains("window.omuiFontLanguage"),
+              "both native startup and DOM consumers select the actual locale-dependent initial/full source");
+        check(index.contains("FS.symlink('/fonts/' + name, alias)") && index.contains("FS.unlink('/fonts/.partial')"), "later fonts refresh the canonical source, then clear readiness");
         std::optional<fs::path> tiny;
         for (const auto& f : r->files) if (f.path.ends_with(".ttf") && f.size > 100 && f.size < 1000000) tiny = p.out / f.path;
         check(tiny.has_value(), "a small, separately addressable initial font");
@@ -185,11 +187,13 @@ int main(int argc, char** argv) {
         const auto html = read(p.out / "index.html");
         check(html.contains("var omuiAssetBytes = {") && html.contains("window.omuiLoad = {") && html.contains("new CustomEvent('omui-load'"));
         check(html.contains("this.focus(); });\n</script>\n<script src=\""), "the inline loader closes before the external launcher script");
+        check(html.contains("fontBytes: omuiFontBytes") && html.contains("omuiFontRecords[url]") && html.contains("record.buffer = null"),
+              "explicit DOM font consumers share URL transfers and release installed byte buffers");
         check(html.contains("basis: 'decoded'") && html.contains("WebAssembly.instantiateStreaming(body.response, imports)"));
         check(html.contains("headers.delete('Content-Length')") && html.contains("headers.delete('Content-Encoding')"));
         check(html.contains("runtimeInitialized: omuiInitialized, presented: omuiPresented") && html.contains("omuiPublish('presented')"));
         check(html.contains("omuiPlanFonts();\n    var job = omuiJob(omuiWasmAsset") && html.contains("if (omuiPreRan) return; omuiPlanFonts(); omuiPreRan = true;"),
-              "font plans follow bootstrap and are rechecked before any startup font fetch");
+              "font plans follow bootstrap and are rechecked before ordinary startup installation");
         check(html.contains("setTimeout(function () { omuiFetchLater(); }, 4000)") && !html.contains("window.omuiFirstFrame = null;"), "the timer never impersonates a native presentation");
         for (const auto& file : result->files) if (file.path.ends_with(".ttf") || file.path.ends_with(".wasm") || file.path.ends_with(".webp"))
             check(html.contains(std::format("\"{}\":{}", file.path, file.size)), file.path);
@@ -210,6 +214,17 @@ int main(int argc, char** argv) {
         }
         check(tiny_face && full_face, "real Inter initial coverage and the complete face both travel in the package");
         if (packed) check(read(initial.out / "index.html").contains("[], \"assets/"), "the initial asset needs no artificial language rule");
+
+        // Different selected basenames can have identical content hashes.
+        // They share a transfer but each must exist under its own FS name.
+        fs::copy_file(t.root / "fonts" / "Inter.ttf", t.root / "fonts" / "InterAlias.ttf");
+        auto aliases = t.package(); aliases.sdk = false; aliases.out = p.out / "shared-font-url"; aliases.fonts = {"Inter", "InterAlias"};
+        const auto shared = gen::package_for_toy(aliases); check(shared.has_value(), shared ? "" : shared.error());
+        if (shared) {
+            check(std::ranges::count_if(shared->files, [](const auto& file) { return file.path.ends_with(".ttf"); }) == 1,
+                  "two basenames package as one actual content-hashed TTF asset");
+            check(read(aliases.out / "index.html").contains("InterAlias.ttf"), "the shared-content fixture retains the second logical font name");
+        }
     });
 
     return s.run(argc, argv);

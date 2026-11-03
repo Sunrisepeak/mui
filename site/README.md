@@ -108,21 +108,23 @@ Browser review captures with wasm held: [English opening](media/loading-home-en-
 
 Initial Inter and later complete faces preserve the same glyph ids and contextual substitution outlines. The complete face extends coverage within its family before another family's fallback; existing face references stay valid. Full Chinese input coverage, complete per-page font delivery and separate heavy programs remain open. Implementation and acceptance boundaries are in the [first-frame/loading design](../.agents/docs/2026-11-04-omui-first-frame-loading-design.md).
 
+Static FontFaces now consume `omuiLoad.fontBytes` leases from the same decoded transfers as runtime FS installation. Body, code and Chinese faces are activated for the current static page, then released on handoff; URL faces remain in `noscript`. The [shared-font gate](../tools/ci/site-font-sharing.mjs) disables HTTP caches, observes actual requests and verifies both consumers, retry, cleanup and byte identity. Its review captures show the [Chinese phone with its actual loaded face](media/shared-font-home-zh-phone.png) and [the document's loaded body and code faces](media/shared-font-docs-en-desktop.png); only protocol publication was temporarily held for observation, while native presentation remained real. See the [shared delivery design](../.agents/docs/2026-11-04-omui-shared-font-delivery-design.md).
+
 `.github/workflows/pages.yml` publishes `target/site` to GitHub Pages. `tools/ci/drive-page.mjs` loads the page in a real browser (headless Chromium, in real time) and can drive it through `window.omui`. That is how the packed site was checked: the same tree hash as CI at three window sizes, the routes, and places reached by a page agent.
 
 ## Delivery
 
-`tools/ci/site-browser.sh` measures the built page in a real browser (`tools/ci/site-perf.mjs`), against `delivery.budget.omui.json`. It serves `target/site` with gzip and makes a cold English visit at 1280×800 over a 20 Mbit/s, 40 ms connection, then goes through Docs to Core ideas and back home. Single-run record, 2026-11-04, using `site-web` (headless Chromium 156):
+`tools/ci/site-browser.sh` measures the built page in a real browser (`tools/ci/site-perf.mjs`), against `delivery.budget.omui.json`. It serves `target/site` with gzip and makes a cold English visit at 1280×800 over a 20 Mbit/s, 40 ms connection, then goes through Docs to Core ideas and back home. Single-run record, 2026-11-04, using `site-web` (headless Chromium 156), a fresh profile with within-visit HTTP cache enabled:
 
 | Measure | Result |
 |---|---|
-| before the program's first-frame proxy | 3,048,689 bytes |
-| total transfer, including the later Chinese font | 4,965,880 bytes |
-| first-frame proxy / `window.omui` readiness | 1679.7 / 1645.5 ms |
+| before the program's first-frame proxy | 3,051,367 bytes |
+| total transfer, including the later Chinese font | 4,968,558 bytes |
+| first-frame proxy / `window.omui` readiness | 1812.8 / 1777.0 ms |
 | rAF intervals | p50 16.7, p95 16.8, max 50.0 ms; 1 over 33.4 ms |
 | memory at the end | JS heap 10.0 MB, wasm memory 23.6 MB |
 
-The first-frame proxy is the semantic mirror's first populated frame; it is not FCP, LCP or a direct measurement of presented frame rate. The full Chinese font still loads after presentation on English visits; its initial two-character asset is 230,568 bytes raw / 41,244 bytes with gzip. Chinese visits fetch only the regular font before presentation. Only 34,120 bytes remain below the existing 5 MB total-transfer budget; shared font delivery, per-page fonts and heavy-program splitting remain priorities. Reports and pixel evidence are kept in the Pages workflow's `site-checks` artifact.
+The first-frame proxy is the semantic mirror's first populated frame; it is not FCP, LCP or a direct measurement of presented frame rate. The full Chinese font still loads after presentation on English visits; its initial two-character asset is 230,568 bytes raw / 41,244 bytes with gzip. Chinese visits fetch only the regular font before presentation. Only 31,442 bytes remain below the existing 5 MB total-transfer budget; per-page fonts and heavy-program splitting remain priorities. Shared delivery removes the dependency on within-visit HTTP cache reuse: with cache disabled, the preceding build transferred 5,166,818 bytes, while this build transfers 4,968,558 bytes and passes all seven budgets. Normal cache-enabled transfer was 4,965,880 bytes previously; the shared loader adds 2,678 bytes of compressed document overhead, so this is not a normal-visit size reduction. `site-perf.mjs --cache disabled --request-log FILE` retains the same budget and records cache flags plus actual response byte events. Reports and pixel evidence are kept in the Pages workflow's `site-checks` artifact.
 
 The same script then reads the page as assistive technology does (`tools/ci/site-a11y.mjs`), from Chromium's own accessibility tree, which is what a screen reader on the page is given. It checks that:
 - the places are a navigation landmark and the place shown is the main one;

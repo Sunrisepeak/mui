@@ -4,6 +4,7 @@
 
 | 文档 | 内容 |
 |---|---|
+| [2026-11-04-omui-shared-font-delivery-design.md](2026-11-04-omui-shared-font-delivery-design.md) | **共享字体交付**：静态 FontFace／运行时一次下载、字节租约与释放、语言重计划／别名／失败重试、真实网络计数门禁；完整按页交付继续单列 |
 | [2026-11-04-omui-first-frame-loading-design.md](2026-11-04-omui-first-frame-loading-design.md) | **首帧与加载收口**：生产视图导出图像／真实语义几何、按页开场预览、真实解压字节进度、失败重试、字体子集与后加载优先级、百分比换行的深层回归；最终结果与尚未完成边界分开记录 |
 | [2026-11-04-omui-site-navigation-motion-execution-design.md](2026-11-04-omui-site-navigation-motion-execution-design.md) | **最新 review 细案**：顶级 Agent 原生、核心特色导航、简化首页／动态标志、渐进披露、40 基础动画与 20 创意组合逐项清单、37 类组件默认配方、worktree 并行与本地优先验收 |
 | [2026-11-03-openmui-site-redesign-implementation-design.md](2026-11-03-openmui-site-redesign-implementation-design.md) | **omui 官网重构与质量收口（已开始实施）**：openmui 规范与 omui 实现的品牌边界、O 内含 mui 的代码标志与官方作品、官网／文档分离、美术与各馆、创意组合、R0–R6 对应 C2–C6 的实施包和验收；官网重构以本文及维护者最新指示为准；最新记录含简化首页／动态标志、核心特色与顶级 Agent 导航、40 基础设计／20 创意组合、37 类默认配方、单舞台渐进披露、保留的发布工作台、中英实图及本地验证边界 |

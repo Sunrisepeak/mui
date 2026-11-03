@@ -12,21 +12,37 @@
 // is within its budget.
 //
 //   CHROME=<chromium> node tools/ci/site-perf.mjs (<url> | --serve DIR) [--width W] [--height H] [--network 20/40] [--budget FILE]
-import { readFileSync } from 'node:fs';
+//       [--cache enabled|disabled] [--request-log FILE]
+// A fresh profile still permits HTTP cache reuse within one visit by default.
+import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { browser, serve, sleep, usage } from './page.mjs';
 
 const args = process.argv.slice(2);
 const opt = (name, fallback) => { const i = args.indexOf(`--${name}`); return i >= 0 ? args[i + 1] : fallback; };
 const w = +opt('width', 1280), h = +opt('height', 800), budgetFile = opt('budget', ''), dir = opt('serve', ''), network = opt('network', '');
 const chrome = process.env.CHROME;
+const cache = opt('cache', 'enabled');
+if (!['enabled','disabled'].includes(cache)) usage('site-perf.mjs', ' --cache enabled|disabled');
 let url = args[0] && !args[0].startsWith('--') ? args[0] : '';
 if (!chrome || (!url && !dir)) usage('site-perf.mjs', ' [--width W] [--height H] [--network MBIT/RTT] [--budget FILE]');
 const server = dir ? await serve(dir) : null;
 if (server) url = server.url;
 
-const b = await browser(chrome, { width: w, height: h });
-const responses = new Map(), bytes = {}, errors = [];
+const profile = mkdtempSync(join(tmpdir(), 'omui-site-perf-'));
+const b = await browser(chrome, { width: w, height: h, flags:['--user-data-dir='+profile] });
+const responses = new Map(), bytes = {}, errors = [], requestLog = [], byId = new Map();
 b.on((method, p) => {
+  if (method === 'Network.requestWillBeSent') {
+    const row = {id:p.requestId,path:new URL(p.request.url).pathname,kind:p.type,initiator:p.initiator?.type,encoded_body_event_bytes:0,finished_bytes:[]};
+    requestLog.push(row); byId.set(p.requestId,row);
+  }
+  const row = byId.get(p.requestId);
+  if (row && method === 'Network.responseReceived') Object.assign(row,{status:p.response.status,cache:!!row.cache||!!p.response.fromDiskCache||!!p.response.fromPrefetchCache,service_worker:!!p.response.fromServiceWorker});
+  if (row && method === 'Network.requestServedFromCache') row.cache = true;
+  if (row && method === 'Network.dataReceived') row.encoded_body_event_bytes += p.encodedDataLength;
+  if (row && method === 'Network.loadingFinished') row.finished_bytes.push(p.encodedDataLength);
   if (method === 'Network.responseReceived') responses.set(p.requestId, p.type);
   if (method === 'Network.loadingFinished') {
     const kind = (responses.get(p.requestId) || 'Other').toLowerCase();
@@ -35,6 +51,8 @@ b.on((method, p) => {
   if (method === 'Runtime.exceptionThrown') errors.push(JSON.stringify(p.exceptionDetails).slice(0, 300));
 });
 await b.call('Network.enable');
+await b.call('Network.setCacheDisabled',{cacheDisabled:cache==='disabled'});
+await b.call('Network.setBypassServiceWorker',{bypass:true});
 if (network) {
   const [mbit, rtt] = network.split('/').map(Number);
   await b.call('Network.emulateNetworkConditions', { offline: false, latency: rtt, downloadThroughput: mbit * 125000, uploadThroughput: mbit * 125000 / 4 });
@@ -77,8 +95,9 @@ const tails = await b.value(`new Promise(async (done) => {
 const memory = await b.value(`({ heap: performance.memory ? performance.memory.usedJSHeapSize : null,
   wasm: typeof HEAP8 !== 'undefined' ? HEAP8.length : null })`);
 const total = Object.values(bytes).reduce((x, y) => x + y, 0);
-const report = { url, size: [w, h], network: network || null, browser: b.version,
+const report = { url, size: [w, h], network: network || null, cache, browser: b.version,
   transfer: { total, before_first_frame: before_first, by_kind: bytes }, first_frame_ms: first, ready_ms: ready, frames: tails, memory, errors };
+if (opt('request-log','')) writeFileSync(opt('request-log',''),JSON.stringify(requestLog,null,2));
 let ok = true;
 if (budgetFile) {
   report.budgets = [];
@@ -92,5 +111,6 @@ if (budgetFile) {
 }
 console.log(JSON.stringify(report, null, 2));
 b.close();
+rmSync(profile,{recursive:true,force:true,maxRetries:3,retryDelay:100});
 if (server) server.close();
 process.exit(ok ? 0 : 1);

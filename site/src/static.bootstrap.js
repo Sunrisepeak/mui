@@ -7,7 +7,53 @@
   var focusTarget = null;
   var preview = null, previewAbort = null, previewKey = '';
   var catalogue = null, latestLoad = window.omuiLoad || null;
+  var fontEntries = [], fontTasks = Object.create(null), fontNeeded = [], fontProblem = null;
   var reduceQuery = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
+  function fontStatus() {
+    var active = fontNeeded.map(function (name) { return fontTasks[name]; }).filter(Boolean);
+    fontProblem = (active.find(function (entry) { return entry.error; }) || {}).error || null;
+    window.omuiStaticFonts = {
+      supported: typeof FontFace === 'function' && !!window.omuiLoad && typeof window.omuiLoad.fontBytes === 'function',
+      active: !statik.hidden, requested: fontNeeded.slice(),
+      loaded: active.filter(function (entry) { return !!entry.face; }).map(function (entry) { return entry.name; }),
+      pending: active.filter(function (entry) { return !entry.face && !entry.error; }).map(function (entry) { return entry.name; }),
+      error: fontProblem && {id: fontProblem.id, message: fontProblem.message}
+    };
+    loadNotice();
+  }
+  function requestFonts(page, retryFailed) {
+    if (!page || statik.hidden || typeof FontFace !== 'function' || !window.omuiLoad || typeof window.omuiLoad.fontBytes !== 'function') return;
+    fontNeeded = fontEntries.filter(function (entry) {
+      return entry.when === 'body' || entry.when === 'code' && !!page.querySelector('pre,code') || entry.when === 'chinese' && page.lang === 'zh-CN';
+    }).map(function (entry) { return entry.name; });
+    fontEntries.forEach(function (descriptor) {
+      if (!fontNeeded.includes(descriptor.name)) return;
+      var entry = fontTasks[descriptor.name] || (fontTasks[descriptor.name] = {name: descriptor.name, face: null, pending: null, error: null});
+      if (entry.face || entry.pending || entry.error && !retryFailed) return;
+      entry.error = null;
+      var lease = null;
+      entry.pending = Promise.resolve(window.omuiLoad.fontBytes(descriptor.name)).then(function (source) {
+        lease = source;
+        if (statik.hidden) return null;
+        var face = new FontFace(descriptor.family, lease.buffer, {weight: descriptor.weight, display: 'swap'});
+        return face.load();
+      }).then(function (face) {
+        if (face && !statik.hidden) { document.fonts.add(face); entry.face = face; }
+      }).catch(function (error) {
+        entry.error = {id: error && error.id, message: String(error && error.message || error)};
+      }).finally(function () {
+        if (lease) lease.release();
+        entry.pending = null; fontStatus();
+      });
+    });
+    fontStatus();
+  }
+  function releaseFonts() {
+    Object.values(fontTasks).forEach(function (entry) {
+      if (entry.face) { document.fonts.delete(entry.face); entry.face = null; }
+    });
+    fontNeeded = []; fontStatus();
+  }
   function menus() {
     statik.querySelectorAll('nav[data-locale]').forEach(function (nav) {
       if (!nav._menu) {
@@ -30,6 +76,11 @@
     var data = document.getElementById('omui-first-frames');
     if (data) catalogue = JSON.parse(data.textContent);
   } catch (_) { /* Readable HTML remains the fallback. */ }
+  try {
+    var descriptions = document.getElementById('omui-static-fonts');
+    if (descriptions) fontEntries = JSON.parse(descriptions.textContent);
+    if (!Array.isArray(fontEntries)) fontEntries = [];
+  } catch (_) { /* Native font loading still proceeds independently. */ }
   var note = document.createElement('div');
   note.className = 'omui-loading-note';
   var notice = document.createElement('span');
@@ -40,7 +91,7 @@
   statik.appendChild(note);
   function chinese() { return statik.lang === 'zh-CN'; }
   function loadNotice() {
-    var failed = latestLoad && latestLoad.error;
+    var failed = latestLoad && latestLoad.error || fontProblem;
     var text = failed ? (chinese() ? '交互界面暂未就绪，页面仍可阅读。' : 'The interactive view could not load. You can still read this page.')
       : (chinese() ? '正在准备交互界面…' : 'Opening the interactive view…');
     if (notice.textContent !== text) notice.textContent = text;
@@ -49,8 +100,11 @@
   }
   retry.addEventListener('click', function () {
     if (!window.omuiLoad || typeof window.omuiLoad.retry !== 'function') { location.reload(); return; }
-    Promise.resolve(window.omuiLoad.retry()).then(function (result) {
+    var pending = window.omuiLoad.retry();
+    requestFonts(selected(), true);
+    Promise.resolve(pending).then(function (result) {
       if (result && (result.reload_required || result.reason === 'reload_required')) location.reload();
+      else requestFonts(selected(), true);
     }).catch(function () { loadNotice(); });
   });
   function clearPreview() {
@@ -179,6 +233,7 @@
     }
     statik.lang = zh ? 'zh-CN' : 'en';
     document.documentElement.lang = statik.lang;
+    requestFonts(page, false);
     var heading = page && page.querySelector('h1');
     if (heading && heading.nextElementSibling !== note) heading.insertAdjacentElement('afterend', note);
     loadNotice();
@@ -204,6 +259,7 @@
       observer.disconnect();
       statik.hidden = true;
       statik.inert = true;
+      releaseFonts();
       mirror.inert = false;
       mirror.removeAttribute('aria-hidden');
       if (target) {

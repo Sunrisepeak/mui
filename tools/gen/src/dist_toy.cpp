@@ -134,6 +134,7 @@ function omuiWants(langs) {
 // All counts are decoded body bytes for managed assets, not wire bytes or
 // the launcher's script element. A retry starts that asset's count again.
 var omuiAssets = [], omuiJobs = Object.create(null), omuiStartupFonts = [], omuiLaterJobs = [], omuiFontLater = [], omuiFontPlan = null;
+var omuiFontRecords = Object.create(null), omuiFontTargets = Object.create(null), omuiFontCanonical = Object.create(null);
 var omuiPhase = 'boot', omuiStatusText = '', omuiFatal = null;
 var omuiInitialized = false, omuiPresented = false, omuiLaterStarted = false, omuiPreRan = false, omuiPartial = false, omuiWasmReceived = false;
 function omuiAsset(id, url, kind, group, state) {
@@ -144,15 +145,15 @@ function omuiAsset(id, url, kind, group, state) {
 }
 function omuiProgress(assets) {
   var loaded = 0, total = 0, known = true;
-  assets.forEach(function (a) { if (a.state === 'skipped') return; loaded += a.loaded; if (a.total === null || a.loaded > a.total) known = false; else total += a.total; });
+  assets.forEach(function (a) { if (a.state === 'skipped' || a.retired) return; loaded += a.loaded; if (a.total === null || a.loaded > a.total) known = false; else total += a.total; });
   return {loaded: loaded, total: known ? total : null, ratio: known && total > 0 ? loaded / total : null};
 }
 function omuiPublish(phase) {
   if (phase) omuiPhase = phase;
-  var problem = omuiFatal || (omuiAssets.find(function (a) { return a.error; }) || {}).error || null;
+  var problem = omuiFatal || (omuiAssets.find(function (a) { return a.error && !a.retired; }) || {}).error || null;
   var all = omuiProgress(omuiAssets), startup = omuiProgress(omuiAssets.filter(function (a) { return a.group === 'startup'; }));
   var data = {version: 1, basis: 'decoded', phase: problem ? 'error' : omuiPhase, status: omuiStatusText,
-    assets: omuiAssets.map(function (a) { return Object.freeze(Object.assign({}, a, {error: a.error && Object.freeze(Object.assign({}, a.error))})); }),
+    assets: omuiAssets.map(function (a) { return Object.freeze(Object.assign({}, a, {state: a.retired ? 'retired' : a.state, transferState: a.retired ? a.state : undefined, error: a.error && Object.freeze(Object.assign({}, a.error))})); }),
     loaded: all.loaded, total: all.total, ratio: all.ratio, startup: startup,
     runtimeInitialized: omuiInitialized, presented: omuiPresented, error: problem && Object.freeze(Object.assign({}, problem))};
   Object.freeze(data.assets); Object.freeze(data.startup); Object.freeze(data);
@@ -163,11 +164,11 @@ function omuiFailure(a, error) {
   a.state = 'error';
   a.error = {id: a.id, url: a.url, message: String(error && error.message || error), attempt: a.attempt,
              retryable: !omuiFatal && !(a.kind === 'wasm' && omuiWasmReceived)};
-  omuiStatus.textContent = a.error.message;
-  omuiPublish('error');
+  if (!a.retired) omuiStatus.textContent = a.error.message;
+  omuiPublish(a.retired ? null : 'error');
 }
 function omuiError(message, automatic) { var e = new Error(message); e.automatic = !!automatic; return e; }
-function omuiAllReady() { return omuiAssets.every(function (a) { return a.state === 'ready' || a.state === 'skipped'; }); }
+function omuiAllReady() { return omuiAssets.every(function (a) { return a.retired || a.state === 'ready' || a.state === 'skipped'; }); }
 function omuiFinished() {
   if (omuiLaterStarted && omuiLaterJobs.length && omuiLaterJobs.every(function (j) { return j.asset.state === 'ready'; })) {
     FS.mkdirTree('/later'); FS.writeFile('/later/.ready', '');
@@ -219,34 +220,38 @@ async function omuiFetchBytes(a, controller) {
   return new Uint8Array(body.buffer || await body.response.arrayBuffer());
 }
 function omuiStart(job, manual) {
+  if (job.font) return omuiStartFont(job, manual);
   if (job.running) return job.running;
-  if (job.asset.state === 'ready' || job.asset.state === 'skipped') return Promise.resolve({id: job.asset.id, state: job.asset.state});
+  if (job.asset.state === 'ready' || job.asset.state === 'skipped' || job.readyState && job.asset.state === job.readyState) return Promise.resolve({id: job.asset.id, state: job.asset.state});
   job.running = (async function () {
     var limit = manual ? 1 : 3;
     for (var attempt = 0; attempt < limit; ++attempt) {
+      // Locale planning can retire this asset while retry backoff is pending.
+      // Recheck before incrementing attempts or beginning another request.
+      if (job.asset.retired) return {id: job.asset.id, state: 'error'};
       var a = job.asset, controller = new AbortController(); a.attempt++; a.loaded = 0; a.error = null; a.state = 'fetching';
       omuiPublish('fetching');
       try {
         var result = await job.run(controller);
-        a.state = 'ready'; a.error = null; omuiPublish();
+        a.state = job.readyState || 'ready'; a.error = null; omuiPublish();
         if (job.commit) job.commit(result);
         omuiFinished(); return {id: a.id, state: 'ready'};
       } catch (error) {
         controller.abort(); omuiFailure(a, error);
         var automatic = error && (error.automatic === true || error.automatic === undefined && !(error instanceof WebAssembly.CompileError) && !(error instanceof WebAssembly.LinkError));
-        if (!automatic || attempt + 1 === limit || omuiFatal || a.kind === 'wasm' && omuiWasmReceived) return {id: a.id, state: 'error'};
+        if (!automatic || a.retired || attempt + 1 === limit || omuiFatal || a.kind === 'wasm' && omuiWasmReceived) return {id: a.id, state: 'error'};
         await new Promise(function (resolve) { setTimeout(resolve, attempt === 0 ? 250 : 1000); });
       }
     }
   })().finally(function () { job.running = null; });
   return job.running;
 }
-window.omuiLoad = {retry: function (id) {
+window.omuiLoad = {fontBytes: omuiFontBytes, retry: function (id) {
   if (omuiFatal) return Promise.resolve({retried: [], blocked: [id || '*'], reason: 'reload_required'});
-  var jobs = Object.values(omuiJobs).filter(function (j) { return (!id || j.asset.id === id) && j.asset.state === 'error'; });
-  var runnable = jobs.filter(function (j) { return j.asset.error && j.asset.error.retryable; });
+  var jobs = Object.values(omuiJobs).filter(function (j) { return (!id || (j.id || j.asset.id) === id) && j.asset.state === 'error'; });
+  var runnable = jobs.filter(function (j) { return j.asset.error && j.asset.error.retryable && !j.asset.retired; });
   return Promise.all(runnable.map(function (j) { return omuiStart(j, true); })).then(function (results) {
-    return {retried: results.map(function (r) { return r.id; }), blocked: jobs.filter(function (j) { return !runnable.includes(j); }).map(function (j) { return j.asset.id; }), results: results};
+    return {retried: results.map(function (r) { return r.id; }), blocked: jobs.filter(function (j) { return !runnable.includes(j); }).map(function (j) { return j.id || j.asset.id; }), results: results};
   });
 }};
 function omuiJob(asset, run, commit) { var job = {asset: asset, run: run, commit: commit, running: null}; omuiJobs[asset.id] = job; return job; }
@@ -270,40 +275,141 @@ function omuiLaterJob(f, asset) {
   });
   omuiLaterJobs.push(job); return job;
 }
-// Ordinary later assets are language independent. Font planning waits until
-// instantiateWasm: a prerender bootstrap runs after this inline loader and
+// Ordinary later assets are language independent. Implicit font planning waits
+// until instantiateWasm (or an explicit fontBytes call): bootstrap runs after this loader and
 // sets the page's actual language before loading the external launcher.
 omuiLater.forEach(function (f) { omuiLaterJob(f, omuiAsset('later:' + f[0], f[1], 'asset', 'deferred', 'deferred')); });
+// A transfer belongs to its content URL, independently of a font's current
+// startup/deferred installation role. DOM consumers explicitly opt into early
+// I/O; ordinary packages still wait for preRun. Settled transfer promises hold
+// no byte array, and installed bytes are dropped after the last DOM lease.
+function omuiFontRecord(id, url, name) {
+  var record = omuiFontRecords[url];
+  if (!record) {
+    var asset = omuiAsset(id, url, 'font', 'startup', 'queued');
+    record = {asset: asset, buffer: null, leases: 0, done: false, targets: []};
+    record.transfer = {asset: asset, running: null, readyState: 'downloaded', run: async function (controller) {
+      var bytes = await omuiFetchBytes(asset, controller); record.buffer = bytes.buffer; record.done = true;
+    }};
+    omuiFontRecords[url] = record;
+  } else if (!omuiAssets.includes(record.asset)) omuiAssets.push(record.asset);
+  var target = omuiFontTargets[id];
+  if (!target) {
+    // Names/dependencies belong to installations, never to the shared URL.
+    target = {id: id, name: name, record: record, asset: record.asset, role: null, installed: false, held: false};
+    var job = {id: id, asset: record.asset, font: target}; target.job = job; omuiJobs[id] = job;
+    job.depend = function () { if (!target.held) { Module.addRunDependency('font ' + name); target.held = true; } };
+    record.targets.push(target); omuiFontTargets[id] = target;
+    record.asset.names = Object.freeze(Array.from(new Set(record.targets.map(function (t) { return t.name; }))));
+  }
+  return target;
+}
+function omuiReleaseFont(record) {
+  // Even when every DOM lease was released early, keep the transfer until
+  // every currently planned basename has installed its own canonical file.
+  if (!record.leases && omuiPreRan && record.targets.every(function (t) { return !t.role || t.installed; })) record.buffer = null;
+}
+function omuiInstallFont(target) {
+  if (!target.role || target.installed) return;
+  var record = target.record, bytes = new Uint8Array(record.buffer), name = target.name;
+  omuiEnsureFonts(); FS.writeFile('/fonts/' + name, bytes); omuiFontCanonical[name] = record.asset.url;
+  if (target.role === 'later') {
+    FS.mkdirTree('/later/fonts'); var alias = '/later/fonts/' + name;
+    try { FS.unlink(alias); } catch (_) {} FS.symlink('/fonts/' + name, alias);
+    if (omuiFontPending === 1 && omuiPartial) { FS.unlink('/fonts/.partial'); omuiPartial = false; }
+    --omuiFontPending;
+  }
+  target.installed = true; record.asset.error = null;
+  record.asset.state = record.targets.every(function (t) { return !t.role || t.installed; }) ? 'ready' : 'downloaded';
+  // Clear held first: removeRunDependency may synchronously initialize main.
+  if (target.held) { target.held = false; Module.removeRunDependency('font ' + name); }
+  omuiReleaseFont(record);
+}
+async function omuiStartFont(job, manual) {
+  var target = job.font, record = target.record, asset = record.asset;
+  if (asset.error && !manual && !record.transfer.running) return {id: target.id, state: 'error'};
+  if (!record.done) {
+    var result = await omuiStart(record.transfer, manual);
+    if (result.state === 'error') return {id: target.id, state: 'error'};
+  }
+  try {
+    // A transfer/error ID identifies the physical asset. Retrying that ID
+    // must also resume eligible aliases whose earlier jobs failed with it.
+    // Installation is per-target and idempotent, including an FS-only retry.
+    record.targets.forEach(function (candidate) {
+      if (candidate.role === 'startup' && omuiPreRan || candidate.role === 'later' && omuiLaterStarted) omuiInstallFont(candidate);
+    });
+    omuiReleaseFont(record); omuiPublish(); omuiFinished(); return {id: target.id, state: asset.state};
+  } catch (error) { omuiFailure(asset, error); return {id: target.id, state: 'error'}; }
+}
+function omuiFontError(code, message, asset) {
+  var error = new Error(message); error.code = code;
+  if (asset) { error.id = asset.id; error.url = asset.url; error.retryable = !!(asset.error && asset.error.retryable); }
+  return error;
+}
+async function omuiFontBytes(name) {
+  if (omuiFatal) throw omuiFontError('reload_required', 'Reload is required after a runtime or launcher failure');
+  var font = omuiFonts.find(function (f) { return f[0] === name; });
+  if (!font) throw omuiFontError('font_not_found', 'Unknown packaged font: ' + name);
+  omuiPlanFonts();
+  var full = omuiFontTargets['font:' + name], deferred = full.role === 'later';
+  var target = full.installed ? full : omuiFontTargets[(deferred && font[3] ? 'initial-font:' : 'font:') + name];
+  var record = target.record;
+  if (deferred && !font[3] && !omuiPresented && !(full && full.installed)) throw omuiFontError('font_deferred', 'This font is deferred until presentation', full && full.asset);
+  if (record.asset.error) throw omuiFontError('font_fetch_failed', record.asset.error.message, record.asset);
+  ++record.leases; // Reserve before awaiting: preRun cannot release our bytes.
+  try {
+    var result = await omuiStartFont(target.job, false);
+    if (result.state === 'error') throw omuiFontError('font_fetch_failed', record.asset.error.message, record.asset);
+    var buffer = record.buffer;
+    if (!buffer) {
+      if (omuiFontCanonical[name] !== record.asset.url) {
+        // Full installation can race this await after the initial cache was
+        // released. Select the real current face instead of mislabelling FS.
+        if (full !== target && full.installed) { --record.leases; omuiReleaseFont(record); return omuiFontBytes(name); }
+        throw omuiFontError('font_not_available', 'Installed font version has changed', record.asset);
+      }
+      // MEMFS owns the canonical copy after all earlier leases were released.
+      var bytes = FS.readFile('/fonts/' + name); buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+      record.buffer = buffer;
+    }
+    // Each public lease owns a copy: DOM consumers cannot mutate the bytes
+    // which an in-flight native startup still needs to install.
+    var released = false;
+    var lease = {id: target.id, url: record.asset.url, buffer: buffer.slice(0), release: function () {
+      if (released) return; released = true; lease.buffer = null; --record.leases; omuiReleaseFont(record);
+    }};
+    return lease;
+  } catch (error) { --record.leases; omuiReleaseFont(record); throw error; }
+}
 function omuiPlanFonts() {
-  if (omuiPreRan) return; // Never replace jobs whose FS/dependency work began.
-  var plan = omuiFonts.map(omuiDeferredFont);
-  var key = JSON.stringify(plan); if (key === omuiFontPlan) return;
-  // Until preRun no font has fetched or acquired a runDependency. Rebuild
-  // just these queued jobs if static navigation changed the opening language
-  // while wasm was in flight, preserving unrelated later files and wasm.
-  omuiAssets = omuiAssets.filter(function (a) { return a.kind !== 'font'; });
-  Object.keys(omuiJobs).forEach(function (id) { if (omuiJobs[id].asset.kind === 'font') delete omuiJobs[id]; });
+  if (omuiPreRan) return;
+  var plan = omuiFonts.map(omuiDeferredFont), key = JSON.stringify(plan); if (key === omuiFontPlan) return;
+  // Preserve started transfers across static language navigation. Only untouched
+  // plan entries can disappear; their bytes have never contributed to progress.
+  omuiAssets = omuiAssets.filter(function (a) { return a.kind !== 'font' || a.attempt > 0; });
+  Object.values(omuiFontTargets).forEach(function (t) { t.role = null; });
   omuiLaterJobs = omuiLaterJobs.filter(function (j) { return j.asset.kind !== 'font'; });
   omuiLater = omuiLater.filter(function (f) { return !omuiFontLater.includes(f); });
-  omuiFontLater = []; omuiStartupFonts = []; omuiFontPending = 0; omuiPartial = false;
-omuiFonts.forEach(function (f) {
-  var deferred = omuiDeferredFont(f), file = f[1];
-  var full = omuiAsset('font:' + f[0], file, 'font', deferred ? 'deferred' : 'startup', deferred ? 'deferred' : 'queued');
-  if (deferred) {
-    var queued = ['/later/fonts/' + f[0], file]; omuiLater.push(queued); omuiFontLater.push(queued); ++omuiFontPending;
-    omuiLaterJob(omuiLater[omuiLater.length - 1], full);
-  }
-  if (f[3]) omuiAsset('initial-font:' + f[0], f[3], 'font', 'startup', deferred ? 'queued' : 'skipped');
-  if (deferred && !f[3]) return;
-  var asset = full;
-  if (deferred) { file = f[3]; asset = omuiAssets.find(function (a) { return a.id === 'initial-font:' + f[0]; }); }
-  var dependency = 'font ' + f[0], held = false;
-  var job = omuiJob(asset, async function (controller) {
-    var bytes = await omuiFetchBytes(asset, controller); omuiEnsureFonts(); FS.writeFile('/fonts/' + f[0], bytes);
-  }, function () { if (held) { Module.removeRunDependency(dependency); held = false; } });
-  job.depend = function () { if (!held) { Module.addRunDependency(dependency); held = true; } };
-  omuiStartupFonts.push(job);
-});
+  omuiFontLater = []; omuiStartupFonts = []; omuiFontPending = 0;
+  omuiFonts.forEach(function (f, index) {
+    var deferred = plan[index], full = omuiFontRecord('font:' + f[0], f[1], f[0]);
+    full.role = deferred ? 'later' : 'startup';
+    if (deferred) {
+      var queued = ['/later/fonts/' + f[0], f[1]]; omuiLater.push(queued); omuiFontLater.push(queued);
+      ++omuiFontPending; omuiLaterJobs.push(full.job);
+    }
+    var initial = f[3] && omuiFontRecord('initial-font:' + f[0], f[3], f[0]);
+    var startup = deferred ? initial : full;
+    if (startup) { startup.role = 'startup'; omuiStartupFonts.push(startup.job); }
+  });
+  Object.values(omuiFontRecords).forEach(function (r) {
+    var active = r.targets.filter(function (t) { return t.role; });
+    r.asset.retired = !active.length && r.asset.attempt > 0;
+    r.asset.group = active.some(function (t) { return t.role === 'startup'; }) ? 'startup' : 'deferred';
+    if (!r.asset.attempt) r.asset.state = !active.length ? 'skipped' : r.asset.group === 'startup' ? 'queued' : 'deferred';
+    omuiReleaseFont(r);
+  });
   omuiFontPlan = key; omuiPublish();
 }
 function omuiDeferredFont(f) { return f[2].length ? !omuiWants(f[2]) : !!f[3]; }
@@ -328,6 +434,7 @@ var Module = {
   preRun: [function () {
     if (omuiPreRan) return; omuiPlanFonts(); omuiPreRan = true;
     omuiStartupFonts.forEach(function (j) { j.depend(); });
+    Object.values(omuiFontRecords).forEach(omuiReleaseFont);
     try { omuiEnsureFonts(); omuiStartupFonts.forEach(function (j) { omuiStart(j, false); }); }
     catch (error) { omuiStartupFonts.forEach(function (j) { omuiFailure(j.asset, error); }); }
   }],

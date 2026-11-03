@@ -1746,6 +1746,7 @@ std::optional<std::string> inject(std::string_view page, std::string_view fragme
     out.insert(canvas, std::string(fragment));
     // The static page in the program's own fonts: the files the page already lists for it (omuiFonts).
     std::string faces;
+    Value::List static_fonts;
     Value font_entries;
     constexpr std::string_view font_declaration = "var omuiFonts = ";
     if (const auto at = out.find(font_declaration); at != std::string::npos) {
@@ -1761,6 +1762,9 @@ std::optional<std::string> inject(std::string_view page, std::string_view fragme
             source = (*row)[initial].as_string();
         }
         if (source.empty()) continue;
+        static_fonts.push_back(Value{}.set("name", std::format("{}.ttf", stem)).set("family", std::string(family))
+            .set("weight", family == std::string_view("Inter") ? "100 900" : "400")
+            .set("when", family == std::string_view("Inter") ? "body" : family == std::string_view("JetBrains Mono") ? "code" : "chinese"));
         // The Chinese font only for a Chinese page: an English one fetching it for a word or two (中文) would fetch it before the
         // program, which takes it just after its first frame; the system's font draws those.
         if (family == std::string_view("Noto Sans SC") && lang != "zh") continue;
@@ -1769,7 +1773,8 @@ std::optional<std::string> inject(std::string_view page, std::string_view fragme
     }
     // In the site's own colours (site.theme.omui.toml's light tokens).
     out.insert(head,
-               "<style>" + faces +
+               "<script id=\"omui-static-fonts\" type=\"application/json\">" + Value(std::move(static_fonts)).json() + "</script>"
+                   "<noscript><style>" + faces + "</style></noscript><style>"
                    "#omui-static{position:fixed;inset:0;z-index:1;overflow:auto;padding:32px 48px;background:#fbfbfa;color:#16161a;"
                    "font:16px/1.6 Inter,'Noto Sans SC',system-ui,sans-serif;user-select:text}#omui-static[hidden]{display:none}"
                    "#omui-static nav{display:flex;flex-wrap:wrap;align-items:center;gap:24px;margin-bottom:32px}#omui-static a{color:#4f46e5}#omui-static nav a{font-size:14px;text-decoration:none}"

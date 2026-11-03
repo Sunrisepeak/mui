@@ -4,6 +4,7 @@
 
 | 文档 | 内容 |
 |---|---|
+| [2026-11-03-openmui-site-redesign-implementation-design.md](2026-11-03-openmui-site-redesign-implementation-design.md) | **官网重构与质量收口实施方案（待 review 提案）**：官网与文档分离、信息结构、美术与首页构图、组件／动画／效果馆、六组创意组合与实验室、底层缺口、R0–R6 对应 C2–C6 的实施包和验收；采纳前不替代当前总体方案 |
 | [2026-11-01-openmui-master-plan-design.md](2026-11-01-openmui-master-plan-design.md) | **总体方案与实施计划（顶层，先读）**：目标、定位、总体架构、新包的位置、规范的改动、九个工作流、检查点 C0–C6 的展开表、依赖、规则、风险、决策、自我评审；链接下面五份子设计 |
 | [2026-11-01-openmui-strategy-backlog-design.md](2026-11-01-openmui-strategy-backlog-design.md) | **推进策略与待办**：为什么改变推进方式；核心是框架和引擎的能力、官网是唯一的验收对象；范围完整、按检查点 C0–C6；评估的改变；不在主线上的作品和事项 |
 | [2026-11-01-openmui-positioning-site-design.md](2026-11-01-openmui-positioning-site-design.md) | **定位与官网**：一个基础、三个亮点、一个前提；和同类的对比；官网的信息结构、首页、各页、全站元素、场景、作品（影片是程序）、视觉方向 B、分批和创意加载、验收 |

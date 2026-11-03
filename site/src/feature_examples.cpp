@@ -127,7 +127,7 @@ Element useful_preview(FeatureExamples* s, const FeatureExamplesContext& c, std:
     else controls.push_back(level_control(s, c, inside, id));
     controls.push_back(quiet_control(s, c, inside, id)); controls.push_back(mark_control(s, c, id));
     controls.push_back(feature_text("state", s->active_preview.get() == id ? feature_words(c, "Interactive · your changes are shared", "正在交互 · 修改会同步") : feature_words(c, "Hover or Tab into the real controls", "悬停或 Tab 进入真实控件"), inside, "caption"));
-    auto e = column({.id = id, .width = Dim(width), .height = Dim(280), .padding = Edges(12), .gap = 12, .background = "surface", .border_color = "border", .border_width = 1,
+    auto e = column({.id = id, .width = Dim(width), .padding = Edges(12), .gap = 12, .background = "surface", .border_color = "border", .border_width = 1,
         .radius = static_cast<float>(std::clamp(s->radius.get(), 4.0, 28.0)), .clip = true}, std::move(controls));
     e.prop("theme_scope", Source(Value(c.scope))).prop("undo_scope", Source(Value(true))); preview_interaction(e, s, id); return e;
 }
@@ -215,6 +215,9 @@ void observe_feature_examples(FeatureExamples& s, const FeatureExamplesContext& 
         s.pause_node = rt->find(c.root + "/preview_controls/preview_pause");
         for (const auto suffix : {"comparison/default", "comparison/styled", "previews/sound", "previews/note", "workspace/object"})
             s.preview_nodes[index++] = rt->find(c.root + "/" + suffix);
+        // A narrow comparison mounts one full-width specimen. Keep the first
+        // handle usable by the visible-page coordinator in either view.
+        if (!rt->valid(s.preview_nodes[0])) s.preview_nodes[0] = s.preview_nodes[1];
     }
     bool interacting = false;
     // Explicit Resume must be able to resume while its own button has focus.
@@ -229,7 +232,8 @@ void observe_feature_examples(FeatureExamples& s, const FeatureExamplesContext& 
 void feature_examples_demo_step(FeatureExamples& s, const FeatureExamplesContext& c, std::string_view page) {
     if (page != "interface" && page != "styles") return;
     auto* rt = feature_runtime(c); if (!rt || c.root.empty() || !rt->valid(rt->find(c.root))) return;
-    const auto id = rt->find(page == "interface" ? object_path(c) + "/mark" : c.root + "/comparison/styled/controls/quiet");
+    auto id = rt->find(page == "interface" ? object_path(c) + "/mark" : c.root + "/comparison/styled/controls/quiet");
+    if (page == "styles" && !rt->valid(id)) id = rt->find(c.root + "/comparison/default/controls/quiet");
     if (!rt->valid(id)) return;
     Invocation call; call.actor = {"agent", "feature-preview-simulated", {}}; call.remote = true;
     const auto result = rt->act(id, page == "interface" ? "activate" : "toggle", call);
@@ -240,28 +244,44 @@ Element styles_feature(FeatureExamples& state, const FeatureExamplesContext& con
     auto* s = &state; const auto c = context; width = std::max(240.0f, width);
     return column({.id = "styles_feature", .width = Dim(width), .gap = 20}, {dynamic([s, c, width] {
         if (s->applied_style != s->style_name.get() && c.style) { c.style(s->style_name.peek()); s->applied_style = s->style_name.peek(); }
+        const bool narrow = width < 620;
         const float half = (width - 12) / 2;
         ComboboxOptions pack; pack.id = "style"; pack.label = feature_words(c, "Material", "材质"); pack.options = std::vector<std::string>{"glass", "ink", "neon", "retro", "liquid"};
         pack.labels = std::vector<std::string>{feature_words(c, "Glass", "玻璃"), feature_words(c, "Ink", "水墨"), feature_words(c, "Neon", "霓虹"), feature_words(c, "Retro", "复古"), feature_words(c, "Liquid", "液态")};
         pack.value = s->style_name; pack.width = Dim(std::min(width, 320.0f)); pack.on_changed = [s, c](std::string name) { if (c.style) { c.style(name); s->applied_style = name; } };
+        std::vector<Element> samples;
+        if (narrow) {
+            SegmentedOptions view; view.id = "view"; view.label = feature_words(c, "Compare material", "材质对照");
+            view.options = std::vector<std::string>{"default", "styled"};
+            view.labels = std::vector<std::string>{feature_words(c, "Default", "默认"), feature_words(c, "Styled", "材质效果")};
+            view.value = s->comparison_view; view.width = Dim(width);
+            samples.push_back(segmented(std::move(view)));
+            const bool styled = s->comparison_view.get() == "styled";
+            samples.push_back(control_group(s, c, styled ? "styled" : "default", styled ? feature_words(c, "Styled", "风格化") : feature_words(c, "Default", "默认"), width, styled));
+        } else {
+            samples.push_back(control_group(s, c, "default", feature_words(c, "Default", "默认"), half, false));
+            samples.push_back(control_group(s, c, "styled", feature_words(c, "Styled", "风格化"), half, true));
+        }
+        auto comparison = narrow ? column({.id = "comparison", .width = Dim(width), .gap = 12}, std::move(samples))
+                                 : row({.id = "comparison", .width = Dim(width), .gap = 12, .align = "start"}, std::move(samples));
         std::vector<Element> content{feature_heading(c, "Same meaning. A new material.", "同一语义，不同材质。", width),
-            feature_text("lead", feature_words(c, "Both sides share one model. Change either; see the same state through a different style.", "两侧共享一个模型。改变任意一侧，看看相同状态如何以另一种风格呈现。"), width), combobox(std::move(pack)),
-            preview_controls(s, c, width),
+            feature_text("lead", narrow ? feature_words(c, "Switch views to compare the same state. Your changes stay with the object.", "切换视图，对照同一状态。你的修改会保留在同一对象中。")
+                                        : feature_words(c, "Both sides share one model. Change either; see the same state through a different style.", "两侧共享一个模型。改变任意一侧，看看相同状态如何以另一种风格呈现。"), width),
+            combobox(std::move(pack)), preview_controls(s, c, width),
             feature_text("material_use", feature_words(c, "Notification controls float over your local session's level and cue marks.", "通知控件浮在本地会话的强度曲线与记号之上。"), width, "caption"),
-            row({.id = "comparison", .width = Dim(width), .gap = 12, .align = "start"}, {
-                control_group(s, c, "default", feature_words(c, "Default", "默认"), half, false), control_group(s, c, "styled", feature_words(c, "Styled", "风格化"), half, true)}),
+            std::move(comparison),
             feature_actions("actions", {feature_button("demonstrate", feature_words(c, "Try a semantic action", "试一次语义动作"), [s, c] { feature_examples_demo_step(*s, c, "styles"); }),
                 feature_button("details", s->styles_details.get() ? feature_words(c, "Close details", "关闭详情") : feature_words(c, "Details", "详情"), [s] { s->styles_details.set(!s->styles_details.peek()); }, ButtonVariant::ghost)})};
-        const bool narrow = width < 620; const float sample_width = narrow ? width : (width - 16) / 2;
-        auto previews = std::vector<Element>{useful_preview(s, c, "sound", sample_width, false), useful_preview(s, c, "note", sample_width, true)};
-        content.push_back(narrow ? column({.id = "previews", .width = Dim(width), .gap = 16}, std::move(previews)) : row({.id = "previews", .width = Dim(width), .gap = 16, .align = "start"}, std::move(previews)));
         if (!s->status.get().empty()) content.push_back(feature_text("status", s->status.get(), width, "caption"));
         if (s->styles_details.get()) {
             SliderOptions radius; radius.id = "radius"; radius.label = feature_words(c, "Sample corner radius", "样张圆角"); radius.min = 4; radius.max = 28; radius.step = 1; radius.value = s->radius; radius.width = Dim(width);
             content.push_back(column({.id = "details", .width = Dim(width), .gap = 12}, {slider(std::move(radius)),
-                feature_text("method", feature_words(c, "The right sample and the two workspaces share a scoped style. Glass refracts controls over the drawn backdrop; Ink uses paper and line effects; Neon glows; Retro uses CRT; Liquid merges the slider handle into its track. The renderer chooses a supported tier and respects reduced motion.",
-                    "右侧样张与下方工作区共享限定作用域的风格。玻璃让控件折射背后的图形；水墨使用纸张与线条效果；霓虹发光；复古使用 CRT；液态让滑块手柄与轨道融合。渲染器按支持的分档呈现，并尊重减少动效设置。"), width, "caption"),
+                feature_text("method", feature_words(c, "The material view and the workspaces below share a scoped style. Glass refracts controls over the drawn backdrop; Ink uses paper and line effects; Neon glows; Retro uses CRT; Liquid merges the slider handle into its track. The renderer chooses a supported tier and respects reduced motion.",
+                    "材质视图与下方工作区共享限定作用域的风格。玻璃让控件折射背后的图形；水墨使用纸张与线条效果；霓虹发光；复古使用 CRT；液态让滑块手柄与轨道融合。渲染器按支持的分档呈现，并尊重减少动效设置。"), width, "caption"),
                 source_text("scope", "theme::apply_style(runtime, " + Value(s->style_name.get()).json() + ", " + Value(c.scope).json() + ", false);\n// Apply theme_scope only to the specimen roots.", width)}));
+            const float sample_width = narrow ? width : (width - 16) / 2;
+            auto previews = std::vector<Element>{useful_preview(s, c, "sound", sample_width, false), useful_preview(s, c, "note", sample_width, true)};
+            content.push_back(narrow ? column({.id = "previews", .width = Dim(width), .gap = 16}, std::move(previews)) : row({.id = "previews", .width = Dim(width), .gap = 16, .align = "start"}, std::move(previews)));
         }
         return content;
     })});

@@ -13,6 +13,7 @@ struct FeatureExamples {
     Signal<double> intensity = signal(40.0);
     Signal<double> radius = signal(16.0);
     Signal<std::int64_t> marks = signal(std::int64_t(0));
+    Signal<std::string> comparison_view = signal(std::string("styled"));
     Signal<std::string> style_name = signal(std::string("glass")), language = signal(std::string("cpp"));
     Signal<bool> styles_details = signal(false), interface_details = signal(false), interacting = signal(false), paused = signal(false);
     Signal<std::string> active_preview = signal(std::string());

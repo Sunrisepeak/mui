@@ -236,6 +236,9 @@ try {
     await pointer(root + '/history/undo');
     await requireCheck(async () => !(await label(root + '/specimen/receipt')).includes('Recorded here'), 'the real task action can be undone');
     await segment(root + '/modes', 1, 3, 'develop');
+    check(!await exists(root + '/develop/expected'), 'development parameters start unmounted');
+    await pointer(root + '/method/toggle');
+    await requireCheck(() => exists(root + '/develop/expected'), 'explicit Agent details mounts protocol controls');
     await type(root + '/develop/expected', 'Browser verified idea');
     await pointer(root + '/develop/requests/assert');
     await requireCheck(async () => (await label(root + '/status')).startsWith('FAIL'), 'Assert genuinely fails before the requested change');
@@ -244,6 +247,9 @@ try {
     await pointer(root + '/develop/requests/change'); await pointer(root + '/develop/requests/assert');
     await requireCheck(async () => (await label(root + '/status')).startsWith('PASS') && await scalar(root + '/specimen/title') === 'Browser verified idea', 'Change then Assert passes on the actual current value');
     await segment(root + '/modes', 2, 3, 'design');
+    check(!await exists(root + '/design/spacing'), 'design parameters start unmounted');
+    await pointer(root + '/method/toggle');
+    await requireCheck(() => exists(root + '/design/spacing'), 'explicit Agent details mounts design parameters');
     await segment(root + '/design/layout', 1, 2, 'cards');
     await pointer(root + '/design/spacing'); await key('End', 'End', 35);
     await requireCheck(async () => await scalar(root + '/design/spacing') === 24, 'Design changes the live specimen spacing');

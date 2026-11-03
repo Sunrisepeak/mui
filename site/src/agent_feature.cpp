@@ -72,36 +72,164 @@ Reply request(AgentFeature* s, const AgentFeatureContext& c, Value req) {
 Value snapshot_request(const AgentFeatureContext& c, std::string_view leaf = {}) {
     return Value{}.set("op", "snapshot").set("actor", std::string(developer_actor)).set("root", path(c, leaf)).set("depth", leaf.empty() ? 2 : 0);
 }
-void stop(AgentFeature* s, const AgentFeatureContext& c) {
-    cancel_agent_feature(*s); s->status.set(say(c, "Simulation stopped. Completed actions remain undoable.", "模拟已停止，已经完成的动作仍可撤销。"));
+std::size_t mode_index(std::string_view mode) { return mode == "develop" ? 1 : mode == "design" ? 2 : 0; }
+void develop(AgentFeature*, const AgentFeatureContext&, std::string_view);
+void begin_preview(AgentFeature*, const AgentFeatureContext&, bool automatic);
+
+Value guard(const AgentFeature& s) {
+    return Value{}.set("title", s.title.peek()).set("reviewed", s.reviewed.peek()).set("recorded", s.recorded.peek())
+        .set("expected", s.request_text.peek()).set("layout", s.layout.peek()).set("spacing", s.spacing.peek()).set("style", s.style_name.peek());
 }
-void simulated_step(AgentFeature* s, AgentFeatureContext c, std::uint64_t generation, int step) {
+void cache_nodes(AgentFeature& s, const AgentFeatureContext& c) {
+    auto* rt = runtime(c); if (!rt) return;
+    if (s.preview_runtime != rt) {
+        // An old runtime destroys its timers; never cancel through its address.
+        ++s.generation; s.preview_timer = 0; s.running.set(false); s.preview_root = {}; s.preview_stage = {};
+        s.preview_runtime = rt;
+    }
+    if (s.cached_root_path == c.root && rt->valid(s.preview_root) && rt->valid(s.preview_stage)) return;
+    s.cached_root_path = c.root; s.preview_root = rt->find(c.root); s.preview_stage = rt->find(path(c));
+    if (!rt->valid(s.preview_root)) return;
+    s.task_nodes = {rt->find(path(c, "title")), rt->find(path(c, "reviewed")), rt->find(path(c, "record"))};
+}
+std::string_view unavailable(AgentFeature& s, const AgentFeatureContext& c) {
+    auto* rt = runtime(c); if (!rt) return "away";
+    cache_nodes(s, c);
+    if (!rt->valid(s.preview_root) || !rt->valid(s.preview_stage)) return "away";
+    if (c.preview_blocked && c.preview_blocked()) return "blocked";
+    // Explicit local tasks remain usable without automatic motion. Their
+    // bounded steps still yield to real input, occlusion and value changes.
+    if (!(s.preview_manual && s.running.peek()) && (rt->reduce_motion() || rt->motion_level() != MotionLevel::full)) return "reduced";
+    if (s.preview_paused.peek()) return "paused";
+    if (s.preview_interactive.peek()) return "interactive";
+    const auto bounds = rt->screen_bounds(s.preview_stage);
+    auto visible = bounds.intersection({0, 0, rt->size().width, rt->size().height});
+    for (auto node = rt->parent(s.preview_stage); rt->valid(node); node = rt->parent(node))
+        if (rt->type(node).name == "scroll" || rt->get(node, "clip").as_bool()) visible = visible.intersection(rt->screen_bounds(node));
+    if (bounds.empty() || visible.width * visible.height < bounds.width * bounds.height * 0.4f) return "offscreen";
+    if (!s.applying_preview) {
+        if (rt->state(s.preview_stage).hovered) return "interactive";
+        for (auto node = rt->focused(); rt->valid(node); node = rt->parent(node)) if (node == s.preview_stage) return "interactive";
+    }
+    return {};
+}
+void bind_takeover(Element& element, AgentFeature* s) {
+    for (const auto event : {"pointer_enter", "pointer_down", "focus", "text_input", "preedit", "key_down"})
+        element.on(event, [s](const Value&) { if (!s->applying_preview) takeover_agent_feature(*s); });
+    for (auto& child : element.children) bind_takeover(child, s);
+}
+void finish_preview(AgentFeature* s, const AgentFeatureContext& c) {
+    s->running.set(false); s->preview_manual = false; s->preview_status.set("complete");
+    if (s->mode.peek() == "use") s->status.set(say(c, "Local scripted task complete. Undo or start a new draft to edit a recorded idea.", "本地脚本任务已完成。已记下的想法可撤销，或新建草稿继续编辑。"));
+}
+void arrange(AgentFeature* s, const AgentFeatureContext& c) {
+    const auto before_layout = s->layout.peek(); const double before_spacing = s->spacing.peek();
+    const std::string next = before_layout == "cards" ? "list" : "cards"; const double spacing = next == "cards" ? 20 : 12;
+    s->layout.set(next); s->spacing.set(spacing);
+    if (auto* rt = runtime(c)) rt->taken_back_by([s, before_layout, before_spacing] { s->layout.set(before_layout); s->spacing.set(before_spacing); },
+        [s, next, spacing] { s->layout.set(next); s->spacing.set(spacing); });
+    s->status.set(say(c, "The same local task is regrouped; its text and action IDs remain.", "同一项本地任务已重新分组，文本与动作 ID 保持不变。"));
+}
+void preview_step(AgentFeature* s, AgentFeatureContext c, std::uint64_t generation, int step);
+void schedule_step(AgentFeature* s, AgentFeatureContext c, std::uint64_t generation, int step, double delay) {
+    auto* rt = runtime(c); if (!rt) return;
+    const auto lifetime = std::weak_ptr<unsigned char>(s->lifetime);
+    s->preview_timer = rt->after(seconds(delay), [s, c, generation, step, lifetime] {
+        if (lifetime.expired() || generation != s->generation) return;
+        s->preview_timer = 0;
+        preview_step(s, c, generation, step);
+    });
+}
+void preview_step(AgentFeature* s, AgentFeatureContext c, std::uint64_t generation, int step) {
     auto* rt = runtime(c);
-    if (!rt || generation != s->generation || s->mode.peek() != "use" || !rt->valid(rt->find(path(c)))) return;
-    if (step >= 2) { s->running.set(false); s->status.set(say(c, "Recorded through real actions. Try Undo in the log.", "已通过真实动作记下。可在日志中撤销。")); return; }
-    const auto id = rt->find(path(c, step == 0 ? "reviewed" : "record"));
-    if (!rt->valid(id)) { s->running.set(false); s->status.set(say(c, "The task is no longer on this page.", "任务已不在当前页面。")); return; }
-    const auto node = rt->semantic_node(id);
-    const bool already = step == 0 && node.states.has(State::checked);
-    if (!already) {
-        Invocation call; call.actor = {"agent", "agent-feature-simulated", {}}; call.remote = true;
-        const std::string action = step == 0 ? "toggle" : "activate";
-        const auto result = rt->act(id, action, call);
-        s->requests.set(s->requests.peek() + 1);
-        s->request_json.set(Value{}.set("op", "act").set("actor", std::string(simulated_actor)).set("node", path(c, step == 0 ? "reviewed" : "record")).set("action", action).json());
-        const auto exit = result.exit_code(); s->result_json.set(Value{}.set("exitCode", exit.value_or(-1)).json());
-        if (exit != std::optional<std::int64_t>(0)) {
-            s->running.set(false); s->status.set(say(c, "The runtime stopped this action. Inspect the log for its decision.", "运行时阻止了这个动作，请在日志中查看决定。")); return;
+    if (!rt || generation != s->generation || s->preview_mode != s->mode.peek()) return;
+    cache_nodes(*s, c);
+    const auto reason = unavailable(*s, c);
+    if (!reason.empty() || guard(*s) != s->preview_guard) {
+        if (reason == "interactive" || guard(*s) != s->preview_guard) takeover_agent_feature(*s);
+        else { cancel_agent_feature(*s); s->preview_status.set(std::string(reason)); }
+        return;
+    }
+    const auto mode = s->mode.peek();
+    if (step >= (mode == "use" ? 2 : 3)) { finish_preview(s, c); return; }
+    s->applying_preview = true;
+    if (mode == "use") {
+        if (s->recorded.peek()) {
+            (void)request(s, c, snapshot_request(c));
+            s->applying_preview = false; finish_preview(s, c); return;
+        }
+        const auto id = s->task_nodes[step == 0 ? 1 : 2];
+        if (!rt->valid(id)) { s->applying_preview = false; cancel_agent_feature(*s); s->status.set(say(c, "The task is no longer mounted.", "任务已不再挂载。")); return; }
+        const bool already = step == 0 && s->reviewed.peek();
+        if (!already && rt->valid(id)) {
+            Invocation call; call.actor = {"agent", "agent-feature-simulated", {}}; call.remote = true;
+            const std::string action = step == 0 ? "toggle" : "activate";
+            const auto result = rt->act(id, action, call);
+            s->requests.set(s->requests.peek() + 1);
+            s->request_json.set(Value{}.set("op", "act").set("actor", std::string(simulated_actor)).set("node", path(c, step == 0 ? "reviewed" : "record")).set("action", action).json());
+            s->result_json.set(Value{}.set("exitCode", result.exit_code().value_or(-1)).json());
+            if (result.exit_code() != std::optional<std::int64_t>(0)) {
+                s->applying_preview = false; cancel_agent_feature(*s); s->status.set(say(c, "The runtime refused the local action; inspect Details.", "运行时拒绝了本地动作，请展开详情查看。")); return;
+            }
+        }
+        s->status.set(step == 0 ? say(c, "Review checked. Next: record the local decision.", "已审阅，下一步记下本地决定。") : say(c, "A real local receipt is ready.", "真实的本地回执已就绪。"));
+    } else if (mode == "develop") develop(s, c, step == 0 ? "read" : step == 1 ? "change" : "assert");
+    else {
+        if (step != 1) {
+            const auto reply = request(s, c, snapshot_request(c));
+            s->status.set(reply.exit == 0 ? say(c, "Read the mounted task and its stable actions.", "已读取挂载任务及其稳定动作。") : say(c, "The runtime could not read this task.", "运行时无法读取这项任务。"));
+        } else {
+            const auto id = rt->find(c.root + "/preview/actions/run");
+            Invocation call; call.actor = {"agent", "agent-feature-design", {}}; call.remote = true;
+            const auto result = rt->act(id, "activate", call);
+            s->requests.set(s->requests.peek() + 1);
+            s->request_json.set(Value{}.set("op", "act").set("actor", "agent:agent-feature-design").set("node", c.root + "/preview/actions/run").set("action", "activate").json());
+            s->result_json.set(Value{}.set("exitCode", result.exit_code().value_or(-1)).json());
+            if (result.exit_code() != std::optional<std::int64_t>(0)) { s->applying_preview = false; cancel_agent_feature(*s); return; }
         }
     }
-    s->status.set(step == 0 ? say(c, "Review checked. Next: record this local decision.", "已经勾选审阅，下一步记下这项本地决定。") : say(c, "The local record is ready.", "本地记录已就绪。"));
-    (void)rt->after(seconds(0.65), [s, c, generation, step] { simulated_step(s, c, generation, step + 1); });
+    s->applying_preview = false; s->preview_guard = guard(*s);
+    // A semantic write can change another control's derived disabled state.
+    // Always let regions reconcile before asking for the next real action.
+    // Manual reduced/off tasks use only these finite next-frame steps.
+    const bool short_steps = s->preview_manual && (rt->reduce_motion() || rt->motion_level() != MotionLevel::full);
+    schedule_step(s, c, generation, step + 1, short_steps ? 1.0 / 60.0 : mode == "use" ? 0.65 : 0.5);
 }
-void play(AgentFeature* s, const AgentFeatureContext& c) {
-    auto* rt = runtime(c); if (!rt || s->running.peek() || s->recorded.peek() || s->title.peek().empty()) return;
-    s->running.set(true); s->status.set(say(c, "Scripted simulation: review, then record. No model is connected.", "按脚本模拟：审阅，再记下。未连接模型。"));
-    const auto generation = ++s->generation;
-    (void)rt->after(seconds(0.4), [s, c, generation] { simulated_step(s, c, generation, 0); });
+void begin_preview(AgentFeature* s, const AgentFeatureContext& c, bool automatic) {
+    auto* rt = runtime(c); if (!rt) return;
+    cancel_agent_feature(*s); cache_nodes(*s, c);
+    s->preview_seen[mode_index(s->mode.peek())] = true;
+    s->preview_mode = s->mode.peek(); s->preview_manual = !automatic; s->preview_interactive.set(false); s->preview_paused.set(false);
+    s->preview_guard = guard(*s); s->running.set(true); s->preview_status.set("playing");
+    s->status.set(say(c, "Simulated agent · finite local script, no language model.", "模拟 agent · 有限本地脚本，没有语言模型。"));
+    const bool short_steps = s->preview_manual && (rt->reduce_motion() || rt->motion_level() != MotionLevel::full);
+    schedule_step(s, c, s->generation, 0, short_steps ? 1.0 / 60.0 : automatic ? 0.45 : 0.4);
+}
+void stop(AgentFeature* s, const AgentFeatureContext& c) {
+    cancel_agent_feature(*s); s->preview_paused.set(true); s->preview_status.set("paused");
+    s->status.set(say(c, "Simulation stopped. Completed actions remain undoable.", "模拟已停止，已经完成的动作仍可撤销。"));
+}
+void play(AgentFeature* s, const AgentFeatureContext& c) { if (!s->running.peek() && !s->title.peek().empty()) begin_preview(s, c, false); }
+Element preview_controls(AgentFeature* s, const AgentFeatureContext& c, float width) {
+    std::vector<Element> actions;
+    if (s->mode.get() != "use") {
+        actions.push_back(command("pause", say(c, "Pause preview", "暂停预览"), [s, c] { stop(s, c); }, ButtonVariant::ghost, s->preview_paused.get()));
+        actions.push_back(command("replay", say(c, "Replay preview", "重播预览"), [s, c] { begin_preview(s, c, false); }, ButtonVariant::ghost));
+        actions.push_back(command("run", s->mode.get() == "develop" ? say(c, "Run read → change → check", "运行读取 → 修改 → 验证") : say(c, "Switch the task layout", "切换任务布局"), [s, c] {
+            if (s->mode.peek() == "design") { if (!s->applying_preview) takeover_agent_feature(*s); arrange(s, c); }
+            else begin_preview(s, c, false);
+        }, ButtonVariant::primary));
+    }
+    return column({.id = "preview", .gap = 8}, {
+        words("label", say(c, "Simulated agent · local script, no LLM", "模拟 agent · 本地脚本，无大模型"), width, "caption"),
+        commands("actions", std::move(actions)),
+        words("state", s->preview_interactive.get() ? say(c, "Yours to use. Replay only when you ask.", "现在由你操作，仅在你要求时重播。")
+            : s->preview_paused.get() ? say(c, "Preview paused. Replay when you are ready.", "预览已暂停，可在准备好时重播。")
+            : s->preview_status.get() == "complete" ? say(c, "One local demonstration completed.", "一轮本地演示已完成。")
+            : s->preview_status.get() == "reduced" ? say(c, "Automatic preview is off. Controls and explicit Replay remain available.", "自动预览已关闭，仍可操作控件或主动重播。")
+            : s->preview_status.get() == "blocked" || s->preview_status.get() == "offscreen" || s->preview_status.get() == "away"
+                ? say(c, "Preview stopped while away. Ask to replay; your data stays here.", "离开时已停止预览；可主动重播，数据保持在这里。")
+                : say(c, "A short preview gives way to pointer, touch or keyboard.", "短预览遇到指针、触摸或键盘操作即交还控制。"), width, "caption")});
 }
 
 Element specimen(AgentFeature* s, const AgentFeatureContext& c, float width) {
@@ -109,11 +237,13 @@ Element specimen(AgentFeature* s, const AgentFeatureContext& c, float width) {
     const float inside = std::max(120.0f, width - 34);
     const float gap = design ? static_cast<float>(std::clamp(s->spacing.get(), 8.0, 24.0)) : 12;
     TextBoxOptions title; title.id = "title"; title.label = say(c, "Your idea", "你的想法"); title.text = s->title; title.max_length = 48;
-    title.disabled = s->recorded.get(); title.width = Dim(inside); title.on_changed = [s](std::string) { s->status.set("idle"); };
+    title.disabled = s->recorded.get(); title.width = Dim(inside); title.on_changed = [s](std::string) { if (!s->applying_preview) takeover_agent_feature(*s); s->status.set("idle"); };
     CheckboxOptions reviewed; reviewed.id = "reviewed"; reviewed.label = say(c, "I reviewed this idea", "我已审阅这个想法"); reviewed.checked = s->reviewed;
     reviewed.disabled = s->recorded.get(); reviewed.width = Dim(inside);
+    reviewed.on_changed = [s](bool) { if (!s->applying_preview) takeover_agent_feature(*s); };
     auto record = command("record", say(c, "Record decision", "记下决定"), [s, c] {
         if (s->title.peek().empty() || !s->reviewed.peek() || s->recorded.peek()) return;
+        if (!s->applying_preview) takeover_agent_feature(*s);
         s->recorded.set(true);
         if (auto* rt = runtime(c)) rt->taken_back_by([s] { s->recorded.set(false); }, [s] { s->recorded.set(true); });
     }, ButtonVariant::primary, s->title.get().empty() || !s->reviewed.get() || s->recorded.get());
@@ -132,13 +262,14 @@ Element specimen(AgentFeature* s, const AgentFeatureContext& c, float width) {
     stage.prop("undo_scope", Source(Value(true)));
     stage.prop("motion", Source(Value("morph")));
     if (design) stage.prop("theme_scope", Source(Value(c.scope)));
+    bind_takeover(stage, s);
     return stage;
 }
 
 Element usage(AgentFeature* s, const AgentFeatureContext& c, float width) {
     auto connect = command("connect", say(c, "Connect your agent", "连接你的 agent"), [c] { if (c.connect) c.connect(); }, ButtonVariant::primary, !c.connect);
     connect.prop("person", Source(Value(true)));
-    ActorLogOptions log; log.id = "log"; log.actors = "agent:"; log.link = true; log.limit = 8; log.width = Dim(width);
+    ActorLogOptions log; log.id = "log"; log.actors = "agent:"; log.link = true; log.limit = s->method.get() ? 8 : 3; log.width = Dim(width);
     log.label = say(c, "Agents and their real actions", "agent 与它们的真实动作");
     Value phrases; phrases.set("idle", say(c, "Your own agent is not connected.", "尚未连接你自己的 agent。"))
         .set("empty", say(c, "Agent actions appear here; the latest can be undone.", "agent 的动作会出现在这里，最近的动作可以撤销。"))
@@ -146,8 +277,8 @@ Element usage(AgentFeature* s, const AgentFeatureContext& c, float width) {
         .set("paired", say(c, "Connected: {agent}", "已连接：{agent}")); log.phrases = phrases;
     return column({.id = "use", .width = Dim(width), .gap = 12}, {
         words("label", say(c, "Simulated agent · scripted, no LLM", "模拟 agent · 固定脚本，无大模型"), width, "label"),
-        commands("actions", {command("play", say(c, "Play simulation", "播放模拟"), [s, c] { play(s, c); }, ButtonVariant::secondary,
-            s->running.get() || s->recorded.get() || s->title.get().empty()), command("stop", say(c, "Stop", "停止"), [s, c] { stop(s, c); }, ButtonVariant::ghost, !s->running.get()), std::move(connect)}),
+        commands("actions", {command("play", s->preview_seen[0] ? say(c, "Replay simulation", "重播模拟") : say(c, "Play simulation", "播放模拟"), [s, c] { play(s, c); }, ButtonVariant::secondary,
+            s->running.get() || s->title.get().empty()), command("stop", say(c, "Stop", "停止"), [s, c] { stop(s, c); }, ButtonVariant::ghost, !s->running.get()), std::move(connect)}),
         words("about", say(c, "The simulation reviews and records your current idea through the same checked actions your agent can use. Stop cancels pending steps; completed changes stay in the log.",
             "模拟通过与你的 agent 相同的受检动作，审阅并记下当前想法。停止会取消待办步骤，已经完成的改变仍留在日志中。"), width, "caption"), actor_log(std::move(log))});
 }
@@ -172,6 +303,7 @@ void develop(AgentFeature* s, const AgentFeatureContext& c, std::string_view ope
 }
 Element development(AgentFeature* s, const AgentFeatureContext& c, float width) {
     TextBoxOptions input; input.id = "expected"; input.label = say(c, "Change to / expect this text", "改为／期望这个文本"); input.text = s->request_text; input.max_length = 48; input.width = Dim(width);
+    input.on_changed = [s](std::string) { takeover_agent_feature(*s); };
     std::string live;
     if (const auto* nodes = s->observed.get().list()) for (const auto& node : *nodes) {
         const auto* id = node.get("id"); const auto* value = node.get("value");
@@ -179,33 +311,35 @@ Element development(AgentFeature* s, const AgentFeatureContext& c, float width) 
     }
     Element live_value = words("live_value", say(c, "Current semantic title: ", "当前语义标题：") + Value(live).json(), width, "caption");
     live_value.prop("origin", Source(Value("user_content")));
-    return column({.id = "develop", .width = Dim(width), .gap = 12}, {text_box(std::move(input)),
-        commands("requests", {command("read", say(c, "Read", "读取"), [s, c] { develop(s, c, "read"); }),
-            command("change", say(c, "Change", "修改"), [s, c] { develop(s, c, "change"); }), command("assert", say(c, "Assert", "断言"), [s, c] { develop(s, c, "assert"); })}),
+    auto result = column({.id = "develop", .width = Dim(width), .gap = 12}, {text_box(std::move(input)),
+        commands("requests", {command("read", say(c, "Read", "读取"), [s, c] { takeover_agent_feature(*s); develop(s, c, "read"); }),
+            command("change", say(c, "Change", "修改"), [s, c] { takeover_agent_feature(*s); develop(s, c, "change"); }), command("assert", say(c, "Assert", "断言"), [s, c] { takeover_agent_feature(*s); develop(s, c, "assert"); })}),
         std::move(live_value), words("about", say(c, "Read is a real snapshot request. Change is a real set_value action. Assert reads again and compares the returned value with your expected text. It can fail; try it before Change.",
             "读取发出真实快照请求；修改发出真实 set_value 动作；断言重新读取并比较返回值与期望文本。它可以失败：先于修改运行它试试。"), width, "caption"),
         command("copy_reproduction", say(c, "Copy reproduction expression", "复制复现表达式"), [s, c] {
             if (auto* rt = runtime(c)) { rt->set_clipboard_text(agent_feature_reproduction(*s, c)); s->status.set(say(c, "Reproduction expression sent to the clipboard.", "复现表达式已交给剪贴板。")); }
         })});
+    bind_takeover(result, s); return result;
 }
 
 Element design(AgentFeature* s, const AgentFeatureContext& c, float width) {
     ComboboxOptions style; style.id = "style"; style.label = say(c, "Specimen style", "样张风格");
     style.options = std::vector<std::string>{"glass", "ink", "neon", "retro", "plain"}; style.value = s->style_name; style.width = Dim(width);
-    style.on_changed = [s, c](std::string name) { s->style_name.set(name); if (c.style) { c.style(name); s->applied_style = name; } };
+    style.on_changed = [s, c](std::string name) { takeover_agent_feature(*s); s->style_name.set(name); if (c.style) { c.style(name); s->applied_style = name; } };
     SegmentedOptions layout; layout.id = "layout"; layout.label = say(c, "Layout", "布局"); layout.options = std::vector<std::string>{"list", "cards"};
-    layout.labels = std::vector<std::string>{say(c, "List", "列表"), say(c, "Card", "卡片")}; layout.value = s->layout; layout.width = Dim(width);
-    SliderOptions spacing; spacing.id = "spacing"; spacing.label = say(c, "Spacing", "间距"); spacing.min = 8; spacing.max = 24; spacing.step = 1; spacing.value = s->spacing; spacing.width = Dim(width);
-    return column({.id = "design", .width = Dim(width), .gap = 12}, {combobox(std::move(style)), segmented(std::move(layout)), slider(std::move(spacing)),
+    layout.labels = std::vector<std::string>{say(c, "List", "列表"), say(c, "Card", "卡片")}; layout.value = s->layout; layout.width = Dim(width); layout.on_changed = [s](std::string) { takeover_agent_feature(*s); };
+    SliderOptions spacing; spacing.id = "spacing"; spacing.label = say(c, "Spacing", "间距"); spacing.min = 8; spacing.max = 24; spacing.step = 1; spacing.value = s->spacing; spacing.width = Dim(width); spacing.on_changed = [s](double) { takeover_agent_feature(*s); };
+    auto result = column({.id = "design", .width = Dim(width), .gap = 12}, {combobox(std::move(style)), segmented(std::move(layout)), slider(std::move(spacing)),
         words("about", say(c, "Change the real task's material, grouping and rhythm. Its meaning and action IDs stay usable. Only this specimen receives the style.",
             "改变真实任务的材质、分组与节奏。语义与动作 ID 保持可用，风格只应用于这张样张。"), width, "caption"),
         command("copy_prompt", say(c, "Copy agent design prompt", "复制 agent 设计提示词"), [s, c, width] {
             if (auto* rt = runtime(c)) { rt->set_clipboard_text(agent_feature_design_prompt(*s, c, width)); s->status.set(say(c, "Design prompt sent to the clipboard.", "设计提示词已交给剪贴板。")); }
         }, ButtonVariant::primary)});
+    bind_takeover(result, s); return result;
 }
 
 Element method(AgentFeature* s, const AgentFeatureContext& c, float width) {
-    std::vector<Element> content{command("toggle", s->method.get() ? say(c, "Hide method and requests", "收起方法与请求") : say(c, "Method and exact requests", "方法与精确请求"), [s] { s->method.set(!s->method.peek()); }, ButtonVariant::ghost)};
+    std::vector<Element> content{command("toggle", s->method.get() ? say(c, "Close details", "收起详情") : say(c, "View details", "查看详情"), [s] { takeover_agent_feature(*s); s->method.set(!s->method.peek()); }, ButtonVariant::ghost)};
     if (s->method.get()) {
         const auto mode = s->mode.get();
         content.push_back(words("principle", mode == "use" ? say(c, "One semantic tree serves the person, accessibility and agents. The simulation has no language model; a connected agent uses the same checked surface. Reversible actions remain visible and undoable.",
@@ -223,7 +357,31 @@ Element method(AgentFeature* s, const AgentFeatureContext& c, float width) {
 
 }  // namespace
 
-void cancel_agent_feature(AgentFeature& s) { ++s.generation; s.running.set(false); }
+void cancel_agent_feature(AgentFeature& s) {
+    if (s.preview_timer && s.preview_runtime) s.preview_runtime->cancel(std::exchange(s.preview_timer, 0));
+    ++s.generation; s.running.set(false); s.preview_manual = false;
+    if (!s.preview_mode.empty()) s.preview_seen[mode_index(s.preview_mode)] = true;
+}
+void takeover_agent_feature(AgentFeature& s) {
+    if (s.applying_preview) return;
+    cancel_agent_feature(s); s.preview_interactive.set(true); s.preview_status.set("interactive");
+}
+void tick_agent_feature(AgentFeature& s, const AgentFeatureContext& c) {
+    cache_nodes(s, c);
+    observe_agent_feature(s, c);
+    if (s.preview_mode != s.mode.peek()) { cancel_agent_feature(s); s.preview_mode = s.mode.peek(); }
+    const auto reason = unavailable(s, c);
+    if (!reason.empty()) {
+        if (reason == "interactive") takeover_agent_feature(s);
+        else {
+            if (s.preview_timer || s.running.peek()) cancel_agent_feature(s);
+            s.preview_seen[mode_index(s.mode.peek())] = true;
+            if (s.preview_status.peek() != reason) s.preview_status.set(std::string(reason));
+        }
+        return;
+    }
+    if (!s.preview_seen[mode_index(s.mode.peek())]) begin_preview(&s, c, true);
+}
 
 void observe_agent_feature(AgentFeature& s, const AgentFeatureContext& c) {
     auto* rt = runtime(c); if (!rt || !rt->valid(rt->find(c.root))) return;
@@ -282,11 +440,13 @@ Element agent_feature(AgentFeature& state, const AgentFeatureContext& context, f
         auto heading = words("heading", title, width, "heading");
         heading.prop("role", Source(Value("heading"))).prop("level", Source(Value(1)));
         std::vector<Element> content{std::move(heading), specimen(s, c, width)};
-        content.push_back(mode == "use" ? usage(s, c, width) : mode == "develop" ? development(s, c, width) : design(s, c, width));
+        content.push_back(preview_controls(s, c, width));
+        if (mode == "use") content.push_back(usage(s, c, width));
+        else if (s->method.get()) content.push_back(mode == "develop" ? development(s, c, width) : design(s, c, width));
         if (s->status.get() != "idle") content.push_back(words("status", s->status.get(), width, "caption"));
-        content.push_back(commands("history", {command("undo", say(c, "Undo task action", "撤销任务动作"), [c] { if (auto* rt = runtime(c)) (void)rt->undo(rt->find(path(c))); }, ButtonVariant::ghost),
-            command("new", say(c, "New local draft", "新建本地草稿"), [s, c] { cancel_agent_feature(*s); const auto before = s->recorded.peek(); const auto reviewed = s->reviewed.peek(); s->recorded.set(false); s->reviewed.set(false); s->status.set("idle");
-                if (auto* rt = runtime(c)) rt->taken_back_by([s, before, reviewed] { s->recorded.set(before); s->reviewed.set(reviewed); }, [s] { s->recorded.set(false); s->reviewed.set(false); }); }, ButtonVariant::ghost)}));
+        content.push_back(commands("history", {command("undo", say(c, "Undo task action", "撤销任务动作"), [s, c] { takeover_agent_feature(*s); if (auto* rt = runtime(c)) (void)rt->undo(rt->find(path(c))); }, ButtonVariant::ghost),
+            command("new", say(c, "New local draft", "新建本地草稿"), [s, c] { takeover_agent_feature(*s); const auto before = s->recorded.peek(); const auto reviewed = s->reviewed.peek(); s->recorded.set(false); s->reviewed.set(false); s->status.set("idle");
+                if (auto* rt = runtime(c)) rt->taken_back_by([s, before, reviewed] { s->recorded.set(before); s->reviewed.set(reviewed); }, [s] { s->recorded.set(false); s->reviewed.set(false); }); }, s->recorded.get() ? ButtonVariant::primary : ButtonVariant::ghost)}));
         content.push_back(method(s, c, width)); return content;
     })});
 }

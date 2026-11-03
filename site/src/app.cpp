@@ -98,6 +98,7 @@ struct Site {
     std::string         initial_route;
     Signal<std::string> missing_route = signal(std::string());
     Signal<std::string> place = signal(std::string("home")), lang = signal(std::string("en")), lens = signal(std::string("pixels"));
+    bool foreground = true;
     Signal<Value>       nodes = signal(Value{});
     Signal<std::string> agent = signal(std::string()), test = signal(std::string()), hash = signal(std::string());
 
@@ -426,7 +427,7 @@ struct Site {
         if (p == "components") tick_gallery(gallery, gallery_site);
         if (p == "motion") motion_gallery_tick(basic, basic_site);
         if (p == "explore") motion_gallery_tick(creative, creative_site);
-        if (p == "agent") observe_agent_feature(agent_feature_state, agent_site);
+        if (p == "agent") tick_agent_feature(agent_feature_state, agent_site);
         if (p != "styles" && p != "interface") return;
         auto& state = p == "styles" ? style_examples : interface_examples;
         auto& context = p == "styles" ? style_site : interface_site;
@@ -638,6 +639,53 @@ void follow(Site& s, std::string_view href) {
         }
     if (s.runtime) (void)s.runtime->open_url(href);
 }
+
+// The public pipeline lets input cancel scheduled preview work before the
+// runtime's timer stage. Otherwise an already-due step could change a task
+// immediately before the person's pointer, text or window-blur event.
+class PreviewInputGuard final : public pipeline::Stage {
+public:
+    explicit PreviewInputGuard(Site& site) : site_(site) {}
+    [[nodiscard]] std::vector<pipeline::Port> reads() const override {
+        return {pipeline::port<FrameInput>(std::string(frame_resource::input))};
+    }
+    [[nodiscard]] std::vector<pipeline::Port> writes() const override { return {}; }
+    std::expected<void, std::string> run(pipeline::Context& context) override {
+        const auto* input = context.resources.get<FrameInput>(frame_resource::input);
+        if (!input || input->events.empty() || !site_.runtime) return {};
+        auto& rt = *site_.runtime;
+        if (site_.place.peek() == "agent" && (runtime_ != &rt || !rt.valid(specimen_))) {
+            runtime_ = &rt;
+            specimen_ = rt.find(site_.agent_site.root + "/specimen");
+        }
+        for (const auto& event : input->events) {
+            if (const auto* focus = std::get_if<FocusEvent>(&event)) {
+                site_.foreground = focus->gained;
+                if (!focus->gained) cancel_agent_feature(site_.agent_feature_state);
+                continue;
+            }
+            if (site_.place.peek() != "agent" || !rt.valid(specimen_)) continue;
+            bool takeover = false;
+            if (const auto* pointer = std::get_if<PointerEvent>(&event)) {
+                takeover = pointer->kind != PointerKind::leave && pointer->kind != PointerKind::cancel
+                        && rt.screen_bounds(specimen_).contains(pointer->position);
+            } else if (const auto* key = std::get_if<KeyEvent>(&event)) {
+                // Button contracts activate on key-down. A later key-up must
+                // not cancel the task the person just explicitly requested.
+                takeover = key->kind == KeyKind::down;
+            } else if (std::holds_alternative<TextEvent>(event)
+                       || std::holds_alternative<PreeditEvent>(event) || std::holds_alternative<WheelEvent>(event)) {
+                takeover = true;
+            }
+            if (takeover) takeover_agent_feature(site_.agent_feature_state);
+        }
+        return {};
+    }
+private:
+    Site& site_;
+    Runtime* runtime_ = nullptr;
+    NodeId specimen_;
+};
 
 // A stage of the window's frame (D-66) after paint: the window's width
 // (compact or not, the place's room), the route the person moved, the page's
@@ -1399,7 +1447,10 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
         s->agent_site = {.runtime = &s->runtime, .lang = &s->lang,
                          .connect = [p = s.get()] { p->panel.set(true); p->give_prompt(); },
                          .style = [p = s.get()](std::string pack) { p->apply_scope("agent-design", std::move(pack)); },
-                         .open_mode = [p = s.get()](std::string mode) { p->open_agent_mode(std::move(mode)); }};
+                         .open_mode = [p = s.get()](std::string mode) { p->open_agent_mode(std::move(mode)); },
+                         .preview_blocked = [p = s.get()] {
+                             return !p->foreground || (p->compact.peek() && (p->panel.peek() || p->settings.peek() || p->checking.peek() || p->menu.peek()));
+                         }};
         s->compact.set(rt.size().width < Site::compact_below);
         s->width.set(rt.size().width);
         s->room.set(rt.size().width);
@@ -1412,6 +1463,19 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
             const bool zh = s->lang.peek() == "zh";
             if (it != all.end()) s->mark(std::string(zh ? it->zh : it->en));
         }
+        (void)rt.stage_plugins().add({.name = "openmui.site.preview_input_guard", .kind = "stage", .description = "person input cancels pending task previews before timers",
+                                      .cost = pipeline::Cost{.cpu_us = 50}},
+                               [site = s.get()](const pipeline::Config&) -> std::expected<std::unique_ptr<pipeline::Stage>, std::string> {
+                                   return std::make_unique<PreviewInputGuard>(*site);
+                               });
+        auto guarded = rt.frame_pipeline().description();
+        guarded.stages.insert(guarded.stages.begin(), {"preview_input_guard", "openmui.site.preview_input_guard", {}, {}});
+        for (auto& stage : guarded.stages) if (stage.name == "timers") stage.after.push_back("preview_input_guard");
+        const std::array<pipeline::Port, 2> frame_inputs{
+            pipeline::port<FrameInput>(std::string(frame_resource::input)), pipeline::port<FrameTree>(std::string(frame_resource::tree))};
+        if (auto ready = pipeline::Pipeline::build(guarded, rt.stage_plugins(), frame_inputs); ready)
+            rt.frame_pipeline() = std::move(*ready);
+        else site_log.warn("the preview input guard is not in the frame: {}", pipeline::to_text(ready.error()));
         (void)rt.stage_plugins().add({.name = "openmui.site.tree_watch", .kind = "stage", .description = "the site's place read again when its tree changed",
                                       .cost = pipeline::Cost{.cpu_us = 200}},
                                [site = s.get()](const pipeline::Config&) -> std::expected<std::unique_ptr<pipeline::Stage>, std::string> {

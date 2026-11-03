@@ -106,6 +106,7 @@ jobs:
             target/site-catalog/
             target/site-workspace/
             target/site-motion/
+            target/site-presentation/
             target/site-loading/
             target/site-font-delivery/
             target/dist-toy-loading.report.omui.json

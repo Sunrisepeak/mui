@@ -369,12 +369,64 @@ Element motion_gallery(MotionGallery& g, const MotionGalleryContext& c, bool cre
     return column({.id = "motion_gallery", .width = Dim(width), .gap = 20}, std::move(content));
 }
 std::string motion_gallery_html(bool zh, bool creative, std::string_view id) {
-    const auto* info = find_motion_case(id, creative);
-    std::string out = std::format("<section><h1>{}</h1><p>{}</p>", zh ? (creative ? "创意演示" : "基础动画") : (creative ? "Creative demos" : "Basic motion"),
-        zh ? "在同一棵语义树上，组合组件、动效和风格。" : "Components, motion and materials composed on one semantic tree.");
-    if (info) out += std::format("<h2>{}</h2><p>{}</p><p>{}</p>", escape(zh ? info->zh : info->en), escape(zh ? info->purpose_zh : info->purpose_en), escape(info->components));
-    else for (const auto& entry : creative ? creative_motions() : basic_motions())
-        out += std::format("<p><a href=\"#/{}{}/{}\">{}</a> — {}</p>", zh ? "zh/" : "", creative ? "demos" : "motion", entry.id, escape(zh ? entry.zh : entry.en), escape(zh ? entry.purpose_zh : entry.purpose_en));
+    const auto entries = creative ? creative_motions() : basic_motions();
+    const std::string route = std::string(zh ? "zh/" : "") + (creative ? "demos" : "motion");
+    const auto* info = find_motion_case(id.empty() ? (creative ? "palette-studio" : "list-grid") : id, creative);
+    // app.cpp owns each outer route section, its anchor and live handoff root.
+    // This fragment must not introduce another route target or hide the selected
+    // title inside a catalogue. Keep only the overview's directory in the HTML:
+    // repeating all 40/20 links on every detail route inflates the Toy package.
+    std::string out = std::format("<section class=\"static-gallery\"><h1>{}</h1><p>{}</p>",
+        zh ? (creative ? "创意演示" : "基础动画") : (creative ? "Creative demos" : "Basic motion"),
+        zh ? "先看一个样张，再按用途选择其他设计。" : "Start with one example, then choose another by its purpose.");
+    if (!id.empty()) out += std::format("<p><a href=\"#/{}\">{}</a></p>", route,
+        zh ? "返回概览与分类目录" : "Back to the overview and catalogue");
+    if (info) {
+        out += std::format("<article data-gallery-current=\"{}\" style=\"padding:16px;border:1px solid #dedee4;border-radius:16px\"><h2>{}</h2><p>{}</p>",
+            escape(info->id), escape(zh ? info->zh : info->en), escape(zh ? info->purpose_zh : info->purpose_en));
+        // Readable HTML endpoints, explicitly static. They do not impersonate
+        // a live omui control or a native frame exported by the renderer.
+        if (info->id == "list-grid") {
+            out += std::format("<figure data-gallery-preview=\"static\" style=\"margin:16px 0\"><figcaption>{}</figcaption><div style=\"display:flex;flex-wrap:wrap;gap:16px\">",
+                zh ? "静态状态：同样三项，从列表排成卡片。" : "Static states: the same three items, from a list to cards.");
+            for (const bool cards : {false, true}) {
+                out += std::format("<div style=\"flex:1 1 12rem;min-width:0\"><p>{}</p><ul style=\"list-style:none;padding:0;margin:0;display:flex;gap:8px;flex-wrap:wrap;flex-direction:{}\">",
+                    zh ? (cards ? "B · 卡片" : "A · 列表") : (cards ? "B · Cards" : "A · List"), cards ? "row" : "column");
+                for (const auto& labels : {std::pair{"Passport", "证件"}, std::pair{"Tickets", "车票"}, std::pair{"Keys", "钥匙"}})
+                    out += std::format("<li style=\"padding:10px;border:1px solid #dedee4;border-radius:10px\">{}</li>", zh ? labels.second : labels.first);
+                out += "</ul></div>";
+            }
+            out += "</div></figure>";
+        } else if (info->id == "palette-studio") {
+            out += std::format("<figure data-gallery-preview=\"static\" style=\"margin:16px 0\"><figcaption>{}</figcaption>"
+                               "<div style=\"display:flex;align-items:center;flex-wrap:wrap;gap:16px;padding:16px 0\">"
+                               "<span aria-hidden=\"true\" style=\"display:inline-block;width:64px;height:64px;border-radius:16px;background:#6366f1\"></span>"
+                               "<div><p>{}</p><code>#6366f1</code><p>{}</p></div></div></figure>",
+                zh ? "静态起始墨色" : "Static starting ink", zh ? "靛蓝" : "Indigo",
+                zh ? "界面就绪后，可选择颜色、调整明暗，并复制生成的 CSS 色板。" : "When the view is ready, choose an ink, adjust its contrast and copy the resulting CSS palette.");
+        }
+        out += std::format("<p>{}</p>", zh ? "动画播放与真实控件交互需要 JavaScript。" : "Animated playback and live controls require JavaScript.");
+        if (id.empty()) out += std::format("<p><a href=\"#/{}/{}\">{}</a></p>", route, info->id,
+            zh ? "查看这个样张" : "Open this example");
+        out += std::format("<details data-gallery-details><summary>{}</summary><dl><dt>{}</dt><dd>{}</dd><dt>{}</dt><dd>{}</dd><dt>{}</dt><dd>{}</dd></dl></details></article>",
+            zh ? "查看构成" : "About this design", zh ? "组件" : "Components", escape(info->components),
+            zh ? "动效配方" : "Motion recipe", escape(info->use), zh ? "风格" : "Style", escape(info->style));
+    } else out += std::format("<p role=\"status\">{}</p>", zh ? "没有找到这个样张。请返回概览，按用途选择一个设计。" : "This example was not found. Return to the overview to choose a design by its purpose.");
+    if (id.empty()) {
+        out += std::format("<details data-gallery-catalog><summary>{} · {}</summary><div role=\"region\" aria-label=\"{}\" style=\"max-height:24rem;overflow:auto;overscroll-behavior:contain\">",
+            zh ? "选择其他设计" : "Choose another design", entries.size(), zh ? "分类目录" : "Design catalogue");
+        std::vector<std::string_view> groups;
+        for (const auto& entry : entries) if (std::ranges::find(groups, entry.group) == groups.end()) groups.push_back(entry.group);
+        for (const auto group : groups) {
+            const auto count = std::ranges::count(entries, group, &MotionCaseInfo::group);
+            out += std::format("<details data-gallery-group=\"{}\"><summary>{} · {}</summary><ul>", escape(group), escape(group_name(group, zh)), count);
+            for (const auto& entry : entries) if (entry.group == group)
+                out += std::format("<li><a href=\"#/{}/{}\"{}>{}</a></li>", route, entry.id,
+                    info && entry.id == info->id ? " aria-current=\"true\"" : "", escape(zh ? entry.zh : entry.en));
+            out += "</ul></details>";
+        }
+        out += "</div></details>";
+    }
     return out + "</section>";
 }
 }  // namespace omui::site

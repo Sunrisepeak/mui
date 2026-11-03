@@ -136,7 +136,9 @@ for (const scenario of scenarios) {
         const bounds=await b.value(`(()=>{let r=document.getElementById('omui-load-retry').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2,w:r.width,h:r.height};})()`);
         ensure(bounds?.w>0&&bounds?.h>0, 'an actual visible retry control is available');
         for(const type of ['mouseMoved','mousePressed','mouseReleased']) await b.call('Input.dispatchMouseEvent',{type,x:bounds.x,y:bounds.y,button:'left',clickCount:1});
-        for (let i=0;!fontResponse&&i<100;i++) await sleep(50);
+        // Fetch and Network are separate CDP domains: the held response can
+        // arrive before Network's request event. Observe both before counting.
+        for (let i=0;(!fontResponse||count(initial)<2)&&i<100;i++) await sleep(50);
         ensure(!!fontResponse && count(initial)===2, 'simultaneous DOM/runtime retries share one new request', {requests:count(initial)});
         ensure(await b.value(`!window.omuiStaticFonts.loaded.includes('Inter.ttf') && !window.omuiLoad.assets.some(a=>a.id==='initial-font:Inter.ttf'&&a.state==='ready')`), 'a held retry cannot prematurely report either consumer ready');
       }

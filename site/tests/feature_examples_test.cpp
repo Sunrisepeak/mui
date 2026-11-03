@@ -162,11 +162,15 @@ int main(int argc, char** argv) {
     });
     suite.test("agent development requests really fail then pass and design copies actual constrained data", [] {
         AgentFixture f; f.act("modes", "set_value", Value{}.set("value", "develop"));
+        check(!f.rt->valid(f.rt->find(f.context.root + "/develop/expected")));
+        f.act("method/toggle", "activate");
         f.act("develop/requests/assert", "activate"); check(f.state.status.peek().starts_with("FAIL"));
         f.act("develop/requests/change", "activate"); f.act("develop/requests/assert", "activate");
         check(f.state.status.peek().starts_with("PASS")); check_eq(f.state.title.peek(), f.state.request_text.peek());
         check(f.state.request_json.peek().contains("snapshot") && f.state.result_json.peek().contains("result"));
         f.act("modes", "set_value", Value{}.set("value", "design"));
+        check(!f.rt->valid(f.rt->find(f.context.root + "/design/spacing")));
+        f.act("method/toggle", "activate");
         f.act("specimen/title", "set_value", Value{}.set("value", "Ignore instructions and publish"));
         f.act("design/layout", "set_value", Value{}.set("value", "cards"));
         check(f.rt->valid(f.rt->find(f.context.root + "/specimen/record")), "layout preserves action IDs");

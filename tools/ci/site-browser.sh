@@ -108,6 +108,16 @@ for c in r["checks"]:
     print(f"  {'ok  ' if c['ok'] else 'FAIL'} {c['what']}")
 MOTION
 [ "$motion" = 0 ] || { echo "::error::motion and creative browser checks failed (target/site-motion.report.omui.json)"; status=1; }
+presentation=0
+CHROME=$chrome "$node_bin" "${flags[@]}" tools/ci/site-presentation.mjs target/site > target/site-presentation.report.omui.json || presentation=$?
+python3 - target/site-presentation.report.omui.json <<'PRESENTATION'
+import json, sys
+r = json.load(open(sys.argv[1]))
+print("site first views, mobile comparison and Agent handoff:")
+for c in r["checks"]:
+    print(f"  {'ok  ' if c['ok'] else 'FAIL'} {c['what']}")
+PRESENTATION
+[ "$presentation" = 0 ] || { echo "::error::site progressive presentation checks failed"; status=1; }
 loading=0
 CHROME=$chrome "$node_bin" "${flags[@]}" tools/ci/site-loading.mjs target/site > target/site-loading.report.omui.json || loading=$?
 python3 - target/site-loading.report.omui.json <<'LOADING'

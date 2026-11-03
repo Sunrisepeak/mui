@@ -20,6 +20,18 @@ struct AgentFeature {
     Signal<std::string> request_json = signal(std::string()), result_json = signal(std::string());
     std::uint64_t generation = 0, seen_revision = ~std::uint64_t(0);
     std::string applied_style;
+    Signal<bool> preview_paused = signal(false), preview_interactive = signal(false);
+    Signal<std::string> preview_status = signal(std::string("idle"));
+    std::array<bool, 3> preview_seen{};
+    std::uint64_t preview_timer = 0;
+    bool applying_preview = false, preview_manual = false;
+    std::string preview_mode, cached_root_path;
+    Value preview_guard;
+    Runtime* preview_runtime = nullptr;
+    NodeId preview_root{}, preview_stage{};
+    std::array<NodeId, 3> task_nodes{};
+    // Timer callbacks test the weak token before touching this model.
+    std::shared_ptr<unsigned char> lifetime = std::make_shared<unsigned char>(0);
 };
 
 struct AgentFeatureContext {
@@ -30,10 +42,16 @@ struct AgentFeatureContext {
     std::function<void(std::string)> open_mode;
     std::string root = "main/body/view/agent/page/agent_feature";
     std::string scope = "agent-design";
+    // Host panels, background windows or other site-level occlusion.
+    std::function<bool()> preview_blocked;
 };
 
 [[nodiscard]] Element agent_feature(AgentFeature&, const AgentFeatureContext&, float width = 900);
 void cancel_agent_feature(AgentFeature&);
+void takeover_agent_feature(AgentFeature&);
+// A visible-page coordinator calls this after updates. Only a finite local
+// script is scheduled; the runtime still owns every component's motion.
+void tick_agent_feature(AgentFeature&, const AgentFeatureContext&);
 // Call only while this page is active, after runtime updates. Structural
 // comparison excludes animation/hover/bounds so inspecting cannot feed itself.
 void observe_agent_feature(AgentFeature&, const AgentFeatureContext&);

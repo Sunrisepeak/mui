@@ -724,3 +724,29 @@ Linux x86_64、固定 mcpp 2026.11.2.2、GCC 16.1.0、LLVM 23.1.3、Chromium 156
 需求式字体调查还发现：当前 Noto 的 full 是全站文案子集，不是源字体全部字形；Web 宿主以全局 later ready 一次性扫描字体。后续需逐资源就绪、多次安装、真实 text coverage 和源字形交付，并覆盖键盘、输入法、粘贴及 agent 改值；不能仅停止自动下载来压缩传输。
 
 实施分 P0 布局／披露、公共预览契约、资源需求接口三路，再做 P1 三条 Agent 主演示及三馆任务闭环。共享运行时与路由串行整合，各 worktree 保持独立文件范围；本地相关 dev／release、必要 sanitizer、真实浏览器与中英实图通过后继续下一独立包。跨平台 CI 异步反馈，提交仍追加 PR #1；美术、创意、完整工程、真实 LLM 与 R3–R6 继续按原条件验收。
+
+### 15.17 P0 展示壳、输入交接与本地验证
+
+本轮将 §15.16 的首批缺口落实为代码。细节与剩余动态问题见[执行细案 §9](2026-11-04-omui-site-navigation-motion-execution-design.md#9-p0-首批实现与本地证据)。三个独立 worktree 分别改手机首页／材质对照、Agent 展示壳与有限流程、静态动画／创意目录；根整合公开输入管线、浏览器与全站证据。新增场景、C2、R0–R6 与美术验收仍未整体完成。
+
+| 交付 | 当前行为及证据 |
+|---|---|
+| 首页／材质 | 手机 CTA 紧随介绍；窄屏一个全宽默认／材质样张共享模型，宽屏保留双列；额外样张与参数仅详情后挂载。新布局 3 组用例覆盖双语实际字体、几何、命中、导航、共享模型、作用域与详情 |
+| Agent 展示壳 | 开发／设计参数明确展开；一次有限真实演示，接管后不自动抢回；取消、值保护、卸载与弱生命周期、off/reduced 手动动作共 9 组回归；仍未把同一想法台当作九个独立场景 |
+| 输入顺序 | 公开 pipeline 在 timers 前处理预览接管与窗口失焦；同帧指针、失焦、跨帧 Enter 松开共 3 组回归；不改变组件自身绘制或默认 motion 机制 |
+| 静态／NoScript | 当前样张、折叠分类、折叠构成，保留 40／20 链接与正确中英详情；5 组原生加真实浏览器目录操作，不再默认铺开长列表 |
+| native／Web 产物 | 最终 GCC dev 原生程序、site-web 发布包真实重建；生产视图重新导出 56 份开场引用与 8 份全图参考，并用新 native 程序预渲染／生成 agent.md |
+| GCC dev／release、LLVM ASan／UBSan | 最终各 117 项通过，15 个测试程序；包括原有 97 和新增 20 项。此前的编译／用例失败日志独立保留，不放宽动作、几何、像素或预算断言 |
+| 最终 Chromium 功能 | 无障碍 15、结构 18、字体 19、组件 40、工作台 24、动画／创意／Agent 110、加载 88、共享字体 146、呈现 119，合计 579 项通过；字体中的 59 帧不重复累加，首个 CPU 呈现帧仍按两条件逐像素比较 |
+| CLI 访客 | 复用源码未变的 CLI 二进制及其实际运行环境，对最终 Web 运行 17 步通过；实际复制提示词、配对、自检、日志、扫描、本人控制拒绝与断桥均保留，不声称新构建 CLI 或真实 LLM 自主完成 |
+| 媒体与 lint | 原生媒体重新复制／比对；新增真实稳态图片与已观察到的中间态证据，源图未做图像加工；完整 schema lint 及变更空白检查通过 |
+
+**实际失败和修复边界。** 第一版管线调用误用了不存在的 before 参数，改用公开 description／build 及 timers 的 after 约束；新测试的 spec／geom 几何转换与重复点击正在运行的 Play 前提也经真实编译／运行修正。reduced/off 同步递归会让 Record 被尚未更新的 disabled 状态拒绝，三个本地配置均复现；最终显式手动流程采用有限跨帧动作，不修改 disabled、不绕过 runtime act。共享字体 gate 曾在 Fetch 比 Network 事件先到时过早计数，最终等待两个观测条件再断言原本的两次请求，146 项通过；产品加载器未改。
+
+**视觉边界。** 新增审图为真实 Chromium 的[中文首页](../../site/media/presentation-home-zh-phone.png)、[手机材质](../../site/media/presentation-styles-zh-phone.png)、[桌面 Agent](../../site/media/presentation-agent-design-en-desktop.png)、[中文 Agent](../../site/media/presentation-agent-design-zh-phone.png)。首轮抓到模式切换的[手机按钮交叉](../../site/media/presentation-transition-agent-design-zh-390.png)和[桌面字形／对比过渡](../../site/media/presentation-transition-agent-design-en-1280.png)，证据保留；500ms 后稳态布局、文字、对比恢复。没有关闭默认动画来取得静帧，**中间帧的可读性与避让仍需下一轮独立修复和连续帧验收**；本轮功能与稳态结果不能关闭动态美术或最终 ≥90 的要求。
+
+**独立冷访问，预算未改。** 关闭构建和其他测试浏览器后分别测两个 fresh profile，20 Mbit/s／40ms、1280×800、Chromium 156。cache enabled 与 disabled 均总传输 **4,982,298 B**、首帧代理前 **3,065,107 B**，各 7／7 预算通过。enabled 首帧代理／ready 为 1751.6／1717.3ms、rAF p95 16.8ms／1 长间隔，heap 11.2MB／wasm 23.6MB；disabled 为 1803.9／1769.7ms、p95 16.7ms／0 长间隔，heap 11.9MB／wasm 23.6MB。每条件只有一份样本，不作稳定速度或内存变化结论；代理不是 FCP／LCP，rAF 不是实际绘制成本。
+
+相对 `78f7eda` 增加 **13,740 B**，现有 5 MB 门禁只余 **17,702 B**。需求式字体／源字形覆盖、重程序拆分必须与后续内容并进；150KB 字体就绪静态批次仍未达标。原字体覆盖边界、9 个 Agent 场景、完整消费者工程、复杂操作和 R3–R6 保留，不用本轮展示壳数量替代。
+
+命令与本地报告：`mcpp build -p openmui.site --locked --message-format json`；`mcpp test -p openmui.site --profile release --locked --timeout 120`（dev 省略 profile）；sanitize 加 `--toolchain llvm@23.1.3 --profile sanitize`；`mcpp pack -p openmui.site --target wasm32-emscripten --profile site-web --pkg-format dist-toy --locked --message-format json`。实际使用 mcpp 2026.11.2.2、GCC 16.1.0／LLVM 23.1.3、每构建 2 jobs。最终构件与报告在 target/site-p0-final/、target/site-p0-final*.json、target/site-*-p0-*.report.omui.json、target/site-perf-p0-{cache,no-cache}.report.omui.json；三配置日志为 /tmp/omui-p0-{dev,release,sanitize}-final-117.log，汇总与实际源文件／构件 SHA-256 在 target/site-p0-evidence.report.omui.json。native 启动信封从实际 build artifact 的 launch 元数据产生，不用旧程序预渲染新页面。用户 mcpp.lock 差异原样保留，不纳入提交；CI 继续异步反馈。

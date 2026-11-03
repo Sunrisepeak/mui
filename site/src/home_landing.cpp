@@ -97,11 +97,11 @@ Element home_landing(HomeLanding& state, const HomeLandingSite& site, float widt
             .style = "body", .color = "text_muted", .max_width = Dim(copy_width)})};
     words[1].prop("role", Source(Value("heading"))).prop("level", Source(Value(std::int64_t{1})));
     words[1].prop("label", derive([lang = site.lang] { return lang && lang->get() == "zh" ? std::string("一个界面，不止一种可能。") : std::string("One interface. Every perspective."); }));
-    if (!narrow) words.push_back(landing_actions(site));
+    words.push_back(landing_actions(site));
     Element copy = column({.id = "intro", .width = Dim(copy_width), .gap = narrow ? 16.0f : 24.0f}, std::move(words));
     Element scene = landing_scene(state, site, scene_width, narrow);
     if (!narrow) return row({.id = "landing", .width = Dim(width), .min_height = Dim(560), .gap = gap, .align = "center"}, {std::move(copy), std::move(scene)});
-    return column({.id = "landing", .width = Dim(width), .gap = 28}, {std::move(copy), std::move(scene), landing_actions(site)});
+    return column({.id = "landing", .width = Dim(width), .gap = 28}, {std::move(copy), std::move(scene)});
 }
 
 void cancel_home_landing(HomeLanding& state, const HomeLandingSite& site) {

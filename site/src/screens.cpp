@@ -36,6 +36,20 @@ std::string_view tier_name(pipeline::Tier t, bool zh) {
     }
 }
 
+// A bounded retry owned by the runtime's timers. A function capturing its
+// own shared_ptr keeps itself (and its captures) alive after the last retry.
+void hold_scroll_motion(Screens& screens, Runtime& rt, NodeId shape, int tries) {
+    if (!rt.valid(shape)) return;
+    if (!rt.hold_motion(shape)) {
+        if (tries > 0)
+            (void)rt.after(seconds(1.0 / 60), [&screens, &rt, shape, tries] { hold_scroll_motion(screens, rt, shape, tries - 1); });
+        return;
+    }
+    rt.pause_motion(shape);
+    screens.held = true;
+    if (const auto t = rt.motion_time(shape)) rt.seek_motion(shape, screens.at * t->first);
+}
+
 }  // namespace
 
 Element agent_screen(const ScreensSite& site, float room) {
@@ -167,18 +181,7 @@ void scrolled(Screens& screens, const ScreensSite& site, std::string_view place,
     if (screens.shaped.peek() || screens.at <= 0) return;
     // The change, then its morph held to the scroll: the frame after it starts the morph, so the hold is tried until it takes.
     screens.shaped.set(true);
-    auto hold = std::make_shared<std::function<void(int)>>();
-    *hold = [&screens, &rt, shape, hold, seek](int tries) {
-        if (!rt.valid(shape)) return;
-        if (!rt.hold_motion(shape)) {
-            if (tries > 0) (void)rt.after(seconds(1.0 / 60), [hold, tries] { (*hold)(tries - 1); });
-            return;
-        }
-        rt.pause_motion(shape);
-        screens.held = true;
-        seek();
-    };
-    (void)rt.after(seconds(0), [hold] { (*hold)(8); });
+    (void)rt.after(seconds(0), [&screens, &rt, shape] { hold_scroll_motion(screens, rt, shape, 8); });
 }
 
 }  // namespace omui::site

@@ -5,6 +5,7 @@
 import std;
 import openmui.gen.dist_toy;
 import openmui.testing;
+import openmui.text;
 
 using namespace omui::testing;
 namespace gen = omui::gen;
@@ -122,6 +123,50 @@ int main(int argc, char** argv) {
     s.test("the file types Toy keeps", [] {
         check(gen::toy_keeps(".wasm") && gen::toy_keeps(".ttf") && gen::toy_keeps(".webp") && gen::toy_keeps(".md"));
         check(!gen::toy_keeps(".txt") && !gen::toy_keeps(".mjs") && !gen::toy_keeps(".map") && !gen::toy_keeps(""));
+    });
+
+    s.test("initial font coverage is a separate hashed asset, selected only while the full font is deferred", [] {
+        Tree t;
+        fs::copy_file(omui::typeset::FontCollection::default_directory() / "NotoSansSC.ttf", t.root / "fonts" / "NotoSansSC.ttf", fs::copy_options::overwrite_existing);
+        auto p = t.package();
+        p.fonts = {"Inter", "NotoSansSC"};
+        p.font_languages = {{"NotoSansSC", {"zh"}}};
+        p.font_initial = {{"NotoSansSC", "中文"}};
+        auto r = gen::package_for_toy(p);
+        check(r.has_value(), r ? "" : r.error());
+        if (!r) return;
+        const auto index = read(p.out / "index.html");
+        const auto entry = index.find("[\"NotoSansSC.ttf\"");
+        check(entry != std::string::npos && index.substr(entry, index.find('\n', entry) - entry).contains("[\"zh\"], \"assets/"));
+        check(index.contains("file = f[3]") && index.contains("fetch(file)") && index.contains("window.omuiFontLanguage"));
+        check(index.contains("FS.symlink(canonical, f[0])") && index.contains("FS.unlink('/fonts/.partial')"), "later fonts refresh the canonical source, then clear readiness");
+        std::optional<fs::path> tiny;
+        for (const auto& f : r->files) if (f.path.ends_with(".ttf") && f.size > 100 && f.size < 1000000) tiny = p.out / f.path;
+        check(tiny.has_value(), "a small, separately addressable initial font");
+        if (tiny) {
+            omui::typeset::FontCollection fonts;
+            auto face = fonts.add_file(*tiny);
+            check(face && fonts.covers(*face, U'中') && !fonts.covers(*face, U'龙'));
+        }
+        put(t.root / "only.txt", "A");
+        p.subsets = {{"NotoSansSC", {t.root / "only.txt"}}};
+        const auto subset = gen::package_for_toy(p);
+        check(subset.has_value(), subset ? "" : subset.error());
+        int full_faces = 0;
+        if (subset) for (const auto& f : subset->files) if (f.path.ends_with(".ttf")) {
+            omui::typeset::FontCollection fonts;
+            const auto face = fonts.add_file(p.out / f.path);
+            if (face && fonts.covers(*face, U'A')) {
+                ++full_faces;
+                check(fonts.covers(*face, U'中') && fonts.covers(*face, U'文') && !fonts.covers(*face, U'龙'),
+                      "the full subset includes declared initial characters even when its source text does not");
+            }
+        }
+        check(full_faces == 1);
+        p.font_initial = {{"Missing", "中文"}};
+        check(!gen::package_for_toy(p), "an unselected initial font is a configuration error");
+        p.font_initial = {{"NotoSansSC", "中文"}}; p.font_languages.clear();
+        check(!gen::package_for_toy(p), "initial coverage needs a deferred full font");
     });
 
     return s.run(argc, argv);

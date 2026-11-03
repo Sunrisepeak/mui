@@ -41,6 +41,8 @@ bool dist_toy(toy_options opt) {
         for (const std::string& l : langs) list += (list.empty() ? "" : ",") + l;
         a.arg("--font-languages").arg(std::format("{}={}", font, list).c_str());
     }
+    for (const auto& [font, text] : opt.font_initial)
+        a.arg("--font-initial").arg(std::format("{}={}", font, text).c_str());
     for (const font_subset& s : opt.subsets) {
         std::string list;
         for (const std::string& t : s.text) list += (list.empty() ? "" : ",") + t;

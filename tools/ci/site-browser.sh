@@ -58,4 +58,14 @@ for c in r["checks"]:
     print(f"  {'ok  ' if c['ok'] else 'FAIL'} {c['what']}")
 PY
 [ "$structure" = 0 ] || { echo "::error::site routing or static handoff failed (target/site-structure.report.omui.json)"; status=1; }
+fonts=0
+CHROME=$chrome "$node_bin" "${flags[@]}" tools/ci/site-fonts.mjs target/site > target/site-fonts.report.omui.json || fonts=$?
+python3 - target/site-fonts.report.omui.json <<'PY'
+import json, sys
+r = json.load(open(sys.argv[1]))
+print("site first-frame font coverage:")
+for c in r["checks"]:
+    print(f"  {'ok  ' if c['ok'] else 'FAIL'} {c['what']}")
+PY
+[ "$fonts" = 0 ] || { echo "::error::first-frame glyph coverage or font handoff failed (target/site-fonts.report.omui.json)"; status=1; }
 exit "$status"

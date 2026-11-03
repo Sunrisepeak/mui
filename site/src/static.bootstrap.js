@@ -31,6 +31,7 @@
       s.style.display = s === page ? 'block' : '';
     });
     var zh = page && page.lang === 'zh-CN';
+    window.omuiFontLanguage = zh ? 'zh' : 'en';
     statik.querySelectorAll('nav[data-locale]').forEach(function (n) { n.hidden = n.dataset.locale !== (zh ? 'zh' : 'en'); });
     if (page && page.dataset.place === 'not_found') {
       var missing = page.querySelector('[data-missing-route]');

@@ -42,7 +42,7 @@ std::uint32_t checksum(std::span<const std::uint8_t> d) {
 }
 
 // The glyph ids `cmap` gives the characters (its Unicode subtable: format 12, else 4).
-std::expected<std::set<std::uint32_t>, std::string> glyphs_of(std::span<const std::uint8_t> cmap, const std::set<char32_t>& keep) {
+std::expected<std::map<char32_t, std::uint32_t>, std::string> glyphs_of(std::span<const std::uint8_t> cmap, const std::set<char32_t>& keep) {
     const std::uint16_t n = u16(cmap, 2);
     std::size_t best = 0;
     int best_rank = 0;
@@ -56,13 +56,14 @@ std::expected<std::set<std::uint32_t>, std::string> glyphs_of(std::span<const st
         if (rank > best_rank) best = at, best_rank = rank;
     }
     if (best_rank == 0) return std::unexpected("no Unicode cmap subtable (format 12 or 4)");
-    std::set<std::uint32_t> out;
+    std::map<char32_t, std::uint32_t> out;
     if (best_rank == 2) {
         const std::uint32_t groups = u32(cmap, best + 12);
         for (std::uint32_t g = 0; g < groups; ++g) {
             const std::size_t at = best + 16 + std::size_t{g} * 12;
             const std::uint32_t first = u32(cmap, at), last = u32(cmap, at + 4), glyph = u32(cmap, at + 8);
-            for (auto it = keep.lower_bound(static_cast<char32_t>(first)); it != keep.end() && *it <= last; ++it) out.insert(glyph + (*it - first));
+            for (auto it = keep.lower_bound(static_cast<char32_t>(first)); it != keep.end() && *it <= last; ++it)
+                if (const auto id = glyph + (*it - first); id != 0) out.emplace(*it, id);
         }
         return out;
     }
@@ -78,9 +79,31 @@ std::expected<std::set<std::uint32_t>, std::string> glyphs_of(std::span<const st
                 g = u16(cmap, ranges + s * 2 + range + 2 * (*it - start));
                 if (g) g = static_cast<std::uint16_t>(g + delta);
             }
-            if (g) out.insert(g);
+            if (g) out.emplace(*it, g);
         }
     }
+    return out;
+}
+
+// Unicode format 12, shared by the Unicode and Windows UCS-4 records.
+// Glyph ids stay original; characters outside the subset are available to fallback fonts.
+Bytes cmap_for(const std::map<char32_t, std::uint32_t>& mapping) {
+    struct Group { std::uint32_t first, last, glyph; };
+    std::vector<Group> groups;
+    for (const auto& [cp, glyph] : mapping) {
+        const auto c = static_cast<std::uint32_t>(cp);
+        if (!groups.empty() && c == groups.back().last + 1 && glyph == groups.back().glyph + c - groups.back().first)
+            groups.back().last = c;
+        else groups.push_back({c, c, glyph});
+    }
+    Bytes out;
+    push16(out, 0); push16(out, 2);
+    push16(out, 0); push16(out, 4); push32(out, 20);
+    push16(out, 3); push16(out, 10); push32(out, 20);
+    push16(out, 12); push16(out, 0);
+    push32(out, static_cast<std::uint32_t>(16 + groups.size() * 12));
+    push32(out, 0); push32(out, static_cast<std::uint32_t>(groups.size()));
+    for (const auto& g : groups) { push32(out, g.first); push32(out, g.last); push32(out, g.glyph); }
     return out;
 }
 
@@ -139,7 +162,8 @@ std::expected<Bytes, std::string> subset_font(std::span<const std::uint8_t> font
     if (!mapped) return std::unexpected(mapped.error());
     std::vector<bool> kept(glyphs, false);
     std::vector<std::uint32_t> todo{0};
-    for (const std::uint32_t g : *mapped) todo.push_back(g);
+    for (const auto& [cp, g] : *mapped) todo.push_back(g);
+    const Bytes new_cmap = cmap_for(*mapped);
     while (!todo.empty()) {
         const std::uint32_t g = todo.back();
         todo.pop_back();
@@ -208,6 +232,7 @@ std::expected<Bytes, std::string> subset_font(std::span<const std::uint8_t> font
         if (t.tag == "glyf") out_tables.push_back({t.tag, new_glyf});
         else if (t.tag == "loca") out_tables.push_back({t.tag, new_loca});
         else if (t.tag == "head") out_tables.push_back({t.tag, new_head});
+        else if (t.tag == "cmap") out_tables.push_back({t.tag, new_cmap});
         else if (t.tag == "gvar") out_tables.push_back({t.tag, new_gvar});
         else out_tables.push_back({t.tag, t.data});
     }

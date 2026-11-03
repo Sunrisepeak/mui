@@ -84,7 +84,7 @@ std::string js_string(std::string_view s) {
 // loader — the program's arguments from the hash route, its /fonts filled
 // before main, its .wasm by its hashed name.
 std::string page(const ToyPackage& p, std::string_view js, std::string_view wasm, std::span<const std::pair<std::string, std::string>> fonts,
-                 std::span<const std::pair<std::string, std::string>> later) {
+                 std::span<const std::pair<std::string, std::string>> later, std::span<const std::pair<std::string, std::string>> initial) {
     std::string font_list, later_list;
     for (const auto& [name, file] : fonts) {
         // Its languages, if it is for some: ["zh"].
@@ -92,7 +92,9 @@ std::string page(const ToyPackage& p, std::string_view js, std::string_view wasm
         const std::string stem = name.substr(0, name.rfind('.'));
         if (const auto fl = std::ranges::find(p.font_languages, stem, &std::pair<std::string, std::vector<std::string>>::first); fl != p.font_languages.end())
             for (const std::string& l : fl->second) langs += std::format("{}{}", langs.empty() ? "" : ", ", js_string(l));
-        font_list += std::format("{}[{}, {}, [{}]]", font_list.empty() ? "" : ", ", js_string(name), js_string(file), langs);
+        const auto first = std::ranges::find(initial, stem, &std::pair<std::string, std::string>::first);
+        font_list += std::format("{}[{}, {}, [{}]{}]", font_list.empty() ? "" : ", ", js_string(name), js_string(file), langs,
+                                 first == initial.end() ? "" : ", " + js_string(first->second));
     }
     for (const auto& [path, file] : later) later_list += std::format("{}[{}, {}]", later_list.empty() ? "" : ",\n  ", js_string(path), js_string(file));
     std::string html;
@@ -110,6 +112,7 @@ std::string page(const ToyPackage& p, std::string_view js, std::string_view wasm
     html += std::format("var omuiFonts = [{}];\n", font_list);
     html += std::format("var omuiWasm = {};\n", js_string(wasm));
     html += std::format("var omuiLater = [{}];\n", later_list);
+    html += "var omuiFontPending = 0;\n";
     html += R"(var omuiStatus = document.getElementById('status');
 // Hash routes are the program's flags: #/training runs it with --training.
 function omuiArguments() {
@@ -118,6 +121,11 @@ function omuiArguments() {
 }
 // Whether the page opens in one of these languages: its route's first part (#/zh/…), or the browser's first language.
 function omuiWants(langs) {
+  // A prerendered application can state the language it actually opens in.
+  if (typeof window.omuiFontLanguage === 'string') {
+    var chosen = window.omuiFontLanguage.toLowerCase();
+    return langs.some(function (l) { return chosen === l || chosen.indexOf(l + '-') === 0; });
+  }
   var route = (document.URL.split('#')[1] || '').replace(/^\//, '').split('/')[0];
   var first = ((navigator.languages && navigator.languages[0]) || navigator.language || '').toLowerCase();
   return langs.some(function (l) { return route === l || first === l || first.indexOf(l + '-') === 0; });
@@ -134,9 +142,16 @@ var Module = {
     // it comes once the program is drawn (omuiFetchLater, /later/fonts).
     FS.mkdir('/fonts');
     omuiFonts.forEach(function (f) {
-      if (f[2].length && !omuiWants(f[2])) { omuiLater.push(['/later/fonts/' + f[0], f[1]]); return; }
+      var file = f[1];
+      if (f[2].length && !omuiWants(f[2])) {
+        omuiLater.push(['/later/fonts/' + f[0], file]);
+        ++omuiFontPending;
+        FS.writeFile('/fonts/.partial', '');
+        if (!f[3]) return;
+        file = f[3];
+      }
       Module.addRunDependency('font ' + f[0]);
-      fetch(f[1]).then(function (r) { return r.arrayBuffer(); }).then(function (b) {
+      fetch(file).then(function (r) { return r.arrayBuffer(); }).then(function (b) {
         FS.writeFile('/fonts/' + f[0], new Uint8Array(b));
         Module.removeRunDependency('font ' + f[0]);
       });
@@ -159,7 +174,13 @@ function omuiFetchLater() {
   omuiLater.forEach(function (f) {
     fetch(f[1]).then(function (r) { return r.arrayBuffer(); }).then(function (b) {
       FS.mkdirTree(f[0].substring(0, f[0].lastIndexOf('/')));
-      FS.writeFile(f[0], new Uint8Array(b));
+      if (f[0].indexOf('/later/fonts/') === 0) {
+        // Future font collections use /fonts too; the alias avoids a second copy in MEMFS.
+        var canonical = '/fonts/' + f[0].substring('/later/fonts/'.length);
+        FS.writeFile(canonical, new Uint8Array(b));
+        FS.symlink(canonical, f[0]);
+        if (--omuiFontPending === 0) FS.unlink('/fonts/.partial');
+      } else FS.writeFile(f[0], new Uint8Array(b));
       if (--left === 0) FS.writeFile('/later/.ready', '');
     });
   });
@@ -217,14 +238,34 @@ std::expected<ToyReport, std::string> package_for_toy(const ToyPackage& p) {
             if (e.path().extension() == ".ttf") stems.push_back(utf8(e.path().stem()));
         std::ranges::sort(stems);
     }
-    std::vector<std::pair<std::string, std::string>> fonts;
+    for (const auto& [font, text] : p.font_initial) {
+        const auto lang = std::ranges::find(p.font_languages, font, &std::pair<std::string, std::vector<std::string>>::first);
+        if (text.empty() || std::ranges::find(stems, font) == stems.end() || lang == p.font_languages.end() || lang->second.empty())
+            return std::unexpected(std::format("--font-initial {} needs nonempty text, a selected font and --font-languages", font));
+        if (std::ranges::count(p.font_initial, font, &std::pair<std::string, std::string>::first) != 1)
+            return std::unexpected(std::format("--font-initial {} is repeated", font));
+    }
+    std::vector<std::pair<std::string, std::string>> fonts, initial;
     for (const std::string& stem : stems) {
         auto bytes = read(fonts_dir / (stem + ".ttf"));
         if (!bytes) return std::unexpected(std::format("font {}: {}", stem, bytes.error()));
+        const auto first = std::ranges::find(p.font_initial, stem, &std::pair<std::string, std::string>::first);
+        if (first != p.font_initial.end()) {
+            std::set<char32_t> keep;
+            characters_of(first->second, keep);
+            auto cut = subset_font(std::span(reinterpret_cast<const std::uint8_t*>(bytes->data()), bytes->size()), keep);
+            if (!cut) return std::unexpected(std::format("initial font {}: {}", stem, cut.error()));
+            const std::string_view data(reinterpret_cast<const char*>(cut->data()), cut->size());
+            const std::string asset = std::format("assets/{}.ttf", content_hash(data));
+            if (auto w = write(p.out / asset, data); !w) return std::unexpected(w.error());
+            initial.emplace_back(stem, asset);
+            std::println("dist-toy: {} initial glyphs: {} bytes", stem, cut->size());
+        }
         // Cut down to the characters the program's text holds, where asked.
         if (const auto sub = std::ranges::find(p.subsets, stem, &ToyPackage::Subset::font); sub != p.subsets.end()) {
             std::set<char32_t> keep;
             always_kept(keep);
+            if (first != p.font_initial.end()) characters_of(first->second, keep);
             if (auto common = read(fonts_dir / (stem + ".common.txt"))) characters_of(*common, keep);
             static constexpr std::array<std::string_view, 7> text_kinds{".md", ".cpp", ".cppm", ".toml", ".json", ".txt", ".js"};
             auto take = [&](const fs::path& f) {
@@ -289,7 +330,7 @@ std::expected<ToyReport, std::string> package_for_toy(const ToyPackage& p) {
             later.emplace_back(std::format("{}/{}", l.mount, utf8(f.filename())), asset);
         }
     }
-    const std::string index = page(p, js_name, wasm_name, fonts, later);
+    const std::string index = page(p, js_name, wasm_name, fonts, later, initial);
     if (auto w = write(p.out / "index.html", index); !w) return std::unexpected(w.error());
 
     ToyReport report;
@@ -328,7 +369,8 @@ int dist_toy_main(int argc, char** argv) {
     auto usage = [] {
         std::println(std::cerr, "usage: omui-gen dist-toy <staged tree> --target <name> --out <dir> [--title T] [--fonts a,b|all]\n"
                                 "                         [--fonts-dir <dir>] [--graph <file>] [--background #rrggbb] [--no-sdk]\n"
-                                "                         [--later <dir>|<suffix>|</later/mount>]...");
+                                "                         [--later <dir>|<suffix>|</later/mount>]... [--subset <font>=<path>,<path>...]...\n"
+                                "                         [--font-languages <font>=<lang>,<lang>...]... [--font-initial <font>=<UTF-8 text>]...");
         return 2;
     };
     ToyPackage p;
@@ -365,6 +407,11 @@ int dist_toy_main(int argc, char** argv) {
                 at = end + 1;
             }
             p.subsets.push_back(std::move(s));
+        }
+        else if (a == "--font-initial" && (v = value())) {
+            const auto eq = v->find('=');
+            if (eq == std::string::npos || eq == 0 || eq + 1 == v->size()) return usage();
+            p.font_initial.emplace_back(v->substr(0, eq), v->substr(eq + 1));
         }
         else if (a == "--font-languages" && (v = value())) {  // <font>=<lang>,<lang>…
             const auto eq = v->find('=');

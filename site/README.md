@@ -57,7 +57,7 @@ Current rendered structure: [Home](media/structure-home-en-desktop.png), [Docs](
   - Animations are functions of time, so every moment can be drawn again. The runtime re-evaluates what it holds (D-60), and components that animate on their own are told the time (`retimed`).
   - Only the drawing goes back; the tree stays as it is now.
 - **Checked against CI, frame by frame.** **Check against CI** in the footer opens a panel that replays a fixed script offscreen in your browser: go to Features, switch to Chinese, turn the lens to Tree, 5.9 seconds in all (`src/reference.*`).
-  - It plays on a host of its own, at CI's size (1280×800), with only the program's own fonts (Inter, Noto Sans SC, JetBrains Mono), rastered in one band, every frame complete (`complete_frames`).
+  - It waits while the canonical font sources are incomplete, retaining the latest requested frame. Once they are ready it plays on a host of its own, at CI's size (1280×800), with only the program's own fonts (Inter, Noto Sans SC, JetBrains Mono), rastered in one band, every frame complete (`complete_frames`).
   - Ten frames a second are sampled; each frame's RGBA bytes are hashed (FNV-1a).
   - Drag to a frame and the panel draws it, with its hash here, CI's hash for it and whether they are the same.
   - CI's table is a data file, `reference/ci.frames.omui.json`, embedded in the program. `site_test` makes every frame and checks it against the table.
@@ -67,7 +67,7 @@ Current rendered structure: [Home](media/structure-home-en-desktop.png), [Docs](
   - It leaves out what follows the window: boxes, how far a view scrolls, and what is off screen. It also leaves out the pointer's hover and press, and motion under way.
   - So any window size gives the same hash.
   - A stage of the frame's pipeline reads the place again whenever its tree changes.
-- **Both languages.** English and 中文. The node ids are the structure's, not the text's, so the tree keeps its ids when the language changes. On a switch, the labels' letters gather into the other language and the document's lines rise in, in reading order. This is glyph motion (D-68) applied to whole components, which do nothing for it. The tree is the other language's from the first frame, and at rest the pixels are those of the page opened in that language.
+- **Both languages.** English and 中文. The English first frame carries the two characters of its language button; the regular Chinese face arrives after presentation. Chinese visits load that face before presentation and skip the initial asset. The selected page language takes precedence over the browser language for this choice. The node ids are the structure's, not the text's, so the tree keeps its ids when the language changes. On a switch, the labels' letters gather into the other language and the document's lines rise in, in reading order. This is glyph motion (D-68) applied to whole components, which do nothing for it. The tree is the other language's from the first frame, and at rest the pixels are those of the page opened in that language.
 - **Routes.** Where the site is within itself is its route (`Runtime::set_route`): `/docs/features`, `/zh/explore/timeline`. On the Web the address's hash shows it, each move a step of the browser's history, and Back and Forward move the site. A link to `#/zh/explore/timeline` opens that place in that language.
 
 ## How it is built
@@ -89,17 +89,17 @@ python3 -m http.server -d target/site            # and look at it
 
 ## Delivery
 
-`tools/ci/site-browser.sh` measures the built page in a real browser (`tools/ci/site-perf.mjs`), and the Pages workflow holds every build to `delivery.budget.omui.json`. It serves `target/site` as Pages does (gzip) and makes a cold visit at 1280×800 over a 20 Mbit/s, 40 ms connection. It then goes to the features and back through `window.omui`. Measured 2026-11-02 (headless Chromium 156):
+`tools/ci/site-browser.sh` measures the built page in a real browser (`tools/ci/site-perf.mjs`), against `delivery.budget.omui.json`. It serves `target/site` with gzip and makes a cold English visit at 1280×800 over a 20 Mbit/s, 40 ms connection, then goes through Docs to Core ideas and back home. Single-run record, 2026-11-03 (headless Chromium 156):
 
-| | |
+| Measure | Result |
 |---|---|
-| on the way to the first frame | 4.4 MB, all of it: the program (its wasm 2.4 MB compressed, its script 89 KB) and the fonts (2.0 MB) |
-| first frame | 2.1 s, nearly all of it the transfer at 20 Mbit/s |
-| `window.omui` answers | 2.1 s |
-| frames while it moves | p50 16.7 ms, p95 16.7 ms, max 50 ms; 1 frame over 33 ms in 303 |
-| memory at the end | JS heap 10 MB, wasm memory 28 MB |
+| before the program's first-frame proxy | 3,417,145 bytes |
+| total transfer, including the later Chinese font | 4,815,338 bytes |
+| first-frame proxy / `window.omui` readiness | 1661.6 / 1608.0 ms |
+| rAF intervals | p50 16.7, p95 16.7, max 66.7 ms; 1 over 33.4 ms |
+| memory at the end | JS heap 11.2 MB, wasm memory 28.2 MB |
 
-The fonts are most of what is left: Noto Sans SC is there for any Chinese a visitor types.
+The first-frame proxy is the semantic mirror's first populated frame; it is not FCP, LCP or a direct measurement of presented frame rate. The full Chinese font still loads after presentation on English visits; its initial two-character asset is 230,568 bytes raw / 41,244 bytes with gzip. Chinese visits fetch only the regular font before presentation. Reports and pixel evidence are kept in the Pages workflow's `site-checks` artifact.
 
 The same script then reads the page as assistive technology does (`tools/ci/site-a11y.mjs`), from Chromium's own accessibility tree, which is what a screen reader on the page is given. It checks that:
 - the places are a navigation landmark and the place shown is the main one;
@@ -131,3 +131,5 @@ The tests run natively on every CI row and on wasm32 under node in the Web row, 
 Changing a document changes the pinned hashes. Look at the pictures (`$TMPDIR/openmui-tests/site/`), then update the pins.
 
 `tools/ci/site-structure.mjs` checks canonical and legacy routes without JavaScript, holds wasm while a person clicks a static link, checks handoff and focus, and follows Back/Forward without document reload. It runs in `tools/ci/site-browser.sh`. Native tests also render Home, Docs, Explore, Get started and Core ideas at desktop and phone sizes in both languages.
+
+`tools/ci/site-fonts.mjs` holds the regular Chinese font while checking actual initial/complete pixels at desktop and phone sizes, a Chinese direct visit and an English visit with a Chinese browser locale. It also checks the waiting reference panel, its retained selection after reopening, and all 59 browser replay hashes against the native CI table. Reports and cropped pixels are retained as the Pages workflow's `site-checks` artifact.

@@ -2,9 +2,9 @@
 // draws (performance tiers §7: the page's Chinese font, 2.7 MB of the first
 // frame's 7.7). Glyph ids are kept — what no kept character reaches is
 // emptied (its outline in `glyf`, its variations in `gvar`), not removed —
-// so `cmap`, the layout tables (GSUB, GPOS) and the metrics stay valid as
-// they are: a character outside the subset draws nothing rather than
-// another glyph. TrueType outlines (`glyf`, `loca`; variable fonts' `gvar`);
+// so layout tables (GSUB, GPOS) and metrics retain their glyph ids. The Unicode
+// cmap contains only requested characters, allowing other fonts to provide
+// the rest. TrueType outlines (`glyf`, `loca`; variable fonts' `gvar`);
 // a composite glyph keeps its components.
 export module openmui.gen.font_subset;
 

@@ -50,6 +50,9 @@ struct toy_options {
     // Fonts for some languages ({"NotoSansSC", {"zh"}}): before the program
     // starts only when the page opens in one; else once it is drawn.
     std::vector<std::pair<std::string, std::vector<std::string>>> font_languages;
+    // Before a deferred font arrives, these literal UTF-8 characters use a tiny
+    // subset of that same face. A page opened in its language loads the full face only.
+    std::vector<std::pair<std::string, std::string>> font_initial;
     std::string              out_dir = std::string(mcpp::out_dir());
 };
 

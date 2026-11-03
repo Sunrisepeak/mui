@@ -5,6 +5,7 @@
 import std;
 import openmui.gen.font_subset;
 import openmui.testing;
+import openmui.text;
 
 using namespace omui::testing;
 using namespace omui;
@@ -63,6 +64,27 @@ int main(int argc, char** argv) {
         std::set<char32_t> got;
         gen::characters_of("a中\xff文\xe4", got);
         check(got == std::set<char32_t>{U'a', U'中', U'文'});
+    });
+
+    s.test("initial coverage: HarfBuzz sees only the two characters; the later face supplies the rest", [&] {
+        auto cut = gen::subset_font(font, {U'中', U'文'});
+        check(cut.has_value(), cut ? "" : cut.error());
+        if (!cut) return;
+        typeset::FontCollection fonts;
+        const auto initial = fonts.add_data(*cut), full = fonts.add_data(font);
+        check(initial.has_value() && full.has_value());
+        if (!initial || !full) return;
+        check(fonts.covers(*initial, U'中') && fonts.covers(*initial, U'文'));
+        check(!fonts.covers(*initial, U'龙') && !fonts.covers(*initial, U'A'), "the tiny face must not claim emptied glyphs");
+        fonts.set_fallback({*initial, *full});
+        const std::array<std::string, 1> family{"Noto Sans SC"};
+        check(fonts.select(family, U"中文") == *initial);
+        check(fonts.select(family, U"龙") == *full, "including an explicitly requested family, full coverage remains reachable");
+        const auto a = fonts.metrics(fonts.font(*initial, 500, typeset::Slant::normal), 14);
+        const auto b = fonts.metrics(fonts.font(*full, 500, typeset::Slant::normal), 14);
+        check(a.ascent == b.ascent && a.descent == b.descent, "the same face keeps its metrics");
+        auto twice = gen::subset_font(*cut, {U'中', U'文'});
+        check(twice && *twice == *cut, "coverage and bytes are stable on a second cut");
     });
 
     return s.run(argc, argv);

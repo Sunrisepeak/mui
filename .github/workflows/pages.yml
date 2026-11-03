@@ -1,6 +1,6 @@
 name: Pages
 
-# openmui's website (D-84 §6.6, W3): site/ built for the Web, its places
+# omui's website (D-84 §6.6, W3): site/ built for the Web, its places
 # pre-rendered, published to GitHub Pages (tools/ci/site.sh) at
 # https://sunrisepeak.github.io/mui/. A pull request that touches the site or
 # the documents it shows builds it (the built site kept as an artifact); a
@@ -18,13 +18,15 @@ on:
       - 'docs/**'
       - 'components/markdown/**'
       - 'components/timeline/**'
-      - 'tools/gen/src/dist_toy.cpp'
+      - 'mcpp/toy/**'
+      - 'tools/gen/src/dist_toy.*'
+      - 'tools/gen/src/font_subset.*'
       - 'tools/ci/site.sh'
       - 'tools/ci/site-*'
       - 'tools/ci/wasm-size.sh'
       - 'tools/ci/visitor-path.*'
       - 'tools/cli/src/page.cpp'
-      - 'modules/ui/host/web/src/js/**'
+      - 'modules/ui/host/web/src/**'
       - 'tools/gen/src/wasm_size.cpp'
       - 'tools/ci/page.mjs'
       - '.github/workflows/pages.yml'
@@ -83,6 +85,18 @@ jobs:
         # with it, both ends seeing the pairing, an action, the interaction
         # sweep through the page, the bridge's end seen by the page.
         run: tools/ci/visitor-path.sh
+      - name: Keep the site checks and font handoff pixels
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-checks
+          path: |
+            target/site-perf.json
+            target/site-a11y.json
+            target/site-*.report.omui.json
+            target/visitor-path.json
+            target/site-fonts/
+          if-no-files-found: ignore
       - name: Where the site's WebAssembly bytes go (W8; Q-38)
         # tools/ci/wasm-size.sh: the release's code with its functions' names
         # kept, by owner (module, namespace, library) and its largest functions.

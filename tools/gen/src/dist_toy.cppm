@@ -55,6 +55,9 @@ struct ToyPackage {
     // first language); else fetched once the program is drawn, into
     // /later/fonts, where the Web host takes it.
     std::vector<std::pair<std::string, std::vector<std::string>>> font_languages;
+    // Tiny initial coverage when a font is deferred. Literal UTF-8; full-language
+    // visits fetch only the regular asset. Mounted under the same /fonts basename.
+    std::vector<std::pair<std::string, std::string>> font_initial;
 };
 
 struct ToyFile {

@@ -16,6 +16,7 @@ import openmui.timeline;
 import openmui.theme;
 import openmui.theme.styles;
 import hello;
+import mcpplibs.os;
 import openmui.semantic;
 import openmui.trace;
 
@@ -175,20 +176,34 @@ struct Site {
     Signal<bool>        checking = signal(false);
     Signal<double>      ref_frame = signal(0.0);
     Signal<std::string> ref_mine = signal(std::string()), ref_ci = signal(std::string());
-    Signal<int>         ref_verdict = signal(0), ref_shown = signal(0);  // verdict: 1 the same, −1 not, 0 none pinned
+    Signal<int>         ref_verdict = signal(0), ref_shown = signal(0);  // 2 loading, 1 same, −1 not, 0 unpinned
     std::unique_ptr<ReferenceReplay> replay;
     render::ImageRef    ref_image{};
     // A frame asked for (a handler's request, played by the frame stage
     // after paint: driving another runtime inside a handler would run in the
     // page's batch, its own effects held back until the batch ends).
     std::optional<std::int32_t> ref_wanted;
+    std::int32_t ref_target = 0;
+    bool ref_waiting = false;
     void want_frame(std::int32_t f) {
+        ref_target = f;
         ref_wanted = f;
         if (runtime) runtime->request_frame();
     }
     void check_frame(std::int32_t f) {
         if (!runtime) return;
         trace::Span span("reference frame", "site");
+        if (mcpplibs::os::fs::read(typeset::FontCollection::default_directory() / ".partial")) {
+            ref_verdict.set(2);
+            if (!ref_waiting) {
+                ref_waiting = true;
+                (void)runtime->after(seconds(0.1), [this] {
+                    ref_waiting = false;
+                    if (checking.peek()) want_frame(ref_target);
+                });
+            }
+            return;
+        }
         if (!replay) replay = std::make_unique<ReferenceReplay>();
         const std::uint64_t mine = replay->hash(f);
         if (ref_image.id != 0) runtime->images().remove(ref_image);
@@ -817,6 +832,7 @@ Element check_panel(const std::shared_ptr<Site>& s) {
                          .text = computed([s] {
                              const bool zh = s->lang.get() == "zh";
                              const int v = s->ref_verdict.get();
+                             if (v == 2) return std::string(zh ? "参考回放所需字体正在加载…" : "Waiting for the reference fonts…");
                              return std::string(v > 0 ? (zh ? "✓ 同样的像素，逐位相同" : "✓ the same pixels, bit for bit")
                                                 : v < 0 ? (zh ? "✗ 像素不同" : "✗ not the same pixels")
                                                         : (zh ? "这一帧 CI 还没有固定" : "CI has not pinned this frame"));
@@ -1167,7 +1183,7 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
                            },
                            .open_agent = [p = s.get()] { p->settings.set(false), p->checking.set(false), p->panel.set(true); },
                            .open_check = [p = s.get()] {
-                               if (!p->replay) p->want_frame(0);
+                               if (!p->replay) p->want_frame(p->ref_target);
                                p->panel.set(false), p->settings.set(false);
                                p->checking.set(true);
                            },
@@ -1374,7 +1390,7 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
                                               .variant = computed([s] { return s->checking.get() ? ButtonVariant::primary : ButtonVariant::ghost; }),
                                               .on_activated = [s] {
                                                   const bool open = !s->checking.peek();
-                                                  if (open && !s->replay) s->want_frame(0);
+                                                  if (open && !s->replay) s->want_frame(s->ref_target);
                                                   s->checking.set(open);
                                                   if (open) s->panel.set(false), s->settings.set(false);
                                               }}),

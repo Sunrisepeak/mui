@@ -157,9 +157,9 @@ Element fast_screen(const ScreensSite& site, float room) {
     Element switches = row({.id = "switches", .gap = 28, .wrap = "wrap"},
                            {flip("liquid", "liquid", "Liquid · T3"), flip("ink", "ink", "Ink · T2"), flip("morph", "morph", "Morph · T1")});
     return screen(site, "fast", {"Performance tiers", "性能分档"}, {"Fast on every device.", "在每一种设备上都快。"},
-                  {"openmui measures what the device can afford and draws the effects that fit: the same page on a phone, a laptop or a workstation, "
+                  {"omui measures what the device can afford and draws the effects that fit: the same page on a phone, a laptop or a workstation, "
                    "every frame on time. Draw as another tier, and flip the switches.",
-                   "openmui 测出设备负担得起什么，就画什么效果：同一页在手机、笔记本、工作站上，每一帧都准时。换一个档位画，再拨一拨开关。"},
+                   "omui 测出设备负担得起什么，就画什么效果：同一页在手机、笔记本、工作站上，每一帧都准时。换一个档位画，再拨一拨开关。"},
                   column({.id = "shown", .gap = 16}, {std::move(facts), std::move(tiers), std::move(switches)}));
 }
 

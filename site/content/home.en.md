@@ -1,13 +1,13 @@
 ## One tree, many renderings
 
-openmui is a UI framework and an open specification built around one idea: **the interface is a semantic tree**, and everything else is a rendering of it.
+omui is a UI framework implementing the openmui specification, built around one idea: **the interface is a semantic tree**, and everything else is a rendering of it.
 
 - The **pixels** you see are one rendering. Your GPU draws them where it can; the CPU draws the reference, the same on every platform, bit for bit. The meter in the bar says who draws, and how fast.
 - **Assistive technology** reads another, the tree's roles, names and states.
 - An **agent** reads the tree as data and acts through the same actions a person's input reaches, with the same checks and the same undo.
 - A **test** asserts on the tree and pins the pixels.
 
-This site is built with openmui. Switch the **lens** above to see the page you are reading as each of those renderings: its pixels, its tree's wireframe, the JSON an agent receives, the assertions a test would write.
+This site is built with omui. Switch the **lens** above to see the page you are reading as each of those renderings: its pixels, its tree's wireframe, the JSON an agent receives, the assertions a test would write.
 
 ## Build with it
 
@@ -19,7 +19,7 @@ This site is built with openmui. Switch the **lens** above to see the page you a
 
 ## What is here
 
-- **Features** and **Practices**: the framework's documents, in English and 中文. Read [what sets openmui apart](features.md) first.
+- **Features** and **Practices**: the framework's documents, in English and 中文. Read [what sets omui apart](features.md) first.
 - **Timeline**: a working timeline editor. Drag a clip, trim its edge, press S to split it at the playhead, then Ctrl+Z. Every edit is one exact change with its exact inverse.
 
 - **An agent on this page**: ask it to read the page, edit the timeline or open a link. Each step is a real request on the bus, decided by [openas](https://github.com/openlifa/openas). What is external asks you first, and the buttons that answer are yours alone.

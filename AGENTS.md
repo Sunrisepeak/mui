@@ -6,7 +6,7 @@
 
 - 仓库暂时是私有的 `Sunrisepeak/mui`。**身份用全名 `openmui`**（包、模块 `openmui.*`、总线接口）；**需要反复输入的地方用缩写 `omui`**（C++ 命名空间 `omui::`、C ABI `omui*` / `Omui*` / `OMUI_*`、`OMUI_EXT_*`、命令行短名）。不要使用裸的 `mui`。
 - 设计记录在 `.agents/docs/`，从 `.agents/docs/README.md` 开始读。总体架构文档里的决策记录（D-xx）和待决问题（Q-xx）是当前的基线。
-- 当前阶段：设计 review。代码按[实施计划](.agents/docs/2026-10-26-openmui-implementation-plan.md)从 M0 开始搭建。
+- 当前阶段：按[官网重构方案](.agents/docs/2026-11-03-openmui-site-redesign-implementation-design.md)的 R0–R6 推进实现与评审，同时保留[实施计划](.agents/docs/2026-10-26-openmui-implementation-plan.md)的技术与质量基线。开始实施不等于 C2 或后续检查点已验收，完成状态必须有证据。
 - 工程文件只有 `mcpp.toml`（openmui 自己的声明放在 `[package.metadata.openmui]`）；构建、测试、打包都使用 mcpp；工具通过 xlings 安装。带命名空间的依赖写成 `[dependencies]` 里的点分键（`compat.sdl3 = "3.4.18"`、`nlohmann.json = "3.12.0"`），不单独开 `[dependencies.<ns>]` 表（lint 规则 `manifest`）。
 - **包的身份就是模块名**：`[package] namespace = "openmui"`、`name = "core"` 得到 `openmui.core`，和 `import openmui.core;` 一致。
   - 组件用命名空间 `openmui.ui`（`openmui.ui.base`），宿主用 `openmui.host`（`openmui.host.headless`）。

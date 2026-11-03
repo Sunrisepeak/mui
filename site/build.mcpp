@@ -22,7 +22,7 @@ int main() {
     std::vector<std::string> text{here + "/content", here + "/src", here + "/contract", here + "/../docs"};
     for (const char* dep : {"openmui.example.hello-im", "openmui.ui.timeline", "openmui.ui.base", "openmui.ui.markdown"})
         if (const char* d = mcpp::dep_dir(dep); d && *d) text.push_back(std::string(d) + "/src");
-    const bool page = openmui::build::dist_toy({.target = "omui-site", .title = "openmui", .fonts = {"Inter", "JetBrainsMono", "NotoSansSC"}, .background = "#fbfbfa", .sdk = false,
+    const bool page = openmui::build::dist_toy({.target = "omui-site", .title = "omui", .fonts = {"Inter", "JetBrainsMono", "NotoSansSC"}, .background = "#fbfbfa", .sdk = false,
                                                 .subsets = {{.font = "NotoSansSC", .text = std::move(text)}},
                                                 // The Chinese font before the first frame only for a page opened in Chinese; else just after it.
                                                 .font_languages = {{"NotoSansSC", {"zh"}}}});

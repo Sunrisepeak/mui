@@ -82,7 +82,7 @@ int main(int argc, char** argv) {
     s.test("every place shown comes to rest, and the frame meter then says the page is idle", [] {
         Run r(timing ? 2.0f : 1.0f);
         for (const site::Place& p : site::places()) {
-            if (p.id == "home") continue;  // where the page opens
+            if (p.id == "home" || !p.navigation) continue;  // secondary exhibits are covered in brand_test
             check(r.h.click(std::format("main/bar/nav/to_{}", p.id)), std::format("the nav's {}", p.id));
             const Run::Times t = r.frames(300);
             report(std::format("to {}", p.id), t);

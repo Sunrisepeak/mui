@@ -1,4 +1,4 @@
-# openmui 的特色
+# omui 的特色
 
 按优先级排列。每一项写清楚：它是什么、为什么别的框架做不到或做得不完整、现在已经有什么证据（测试、基准、作品）、还差什么。状态以仓库里的代码和 CI 为准，没有实现的不写成已有。
 
@@ -86,7 +86,7 @@
 
 ## 对比总表
 
-| | openmui | Qt | Flutter | SwiftUI | Compose | React / Electron | Dear ImGui |
+| | omui | Qt | Flutter | SwiftUI | Compose | React / Electron | Dear ImGui |
 |---|---|---|---|---|---|---|---|
 | 语义树是一等公民 | ✅ | 部分（无障碍） | 部分（Semantics） | 部分 | 部分 | 部分（ARIA） | ✗ |
 | 内建 agent 接口 / MCP | ✅ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |

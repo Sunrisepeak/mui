@@ -60,6 +60,20 @@ check(page.lang, `the page's language (${page.lang})`);
 check(!/user-scalable\s*=\s*no|maximum-scale\s*=\s*1(\D|$)/.test(page.viewport), `zoom allowed (${page.viewport})`);
 check(page.statik === true, 'the static page hidden once the program runs');
 
+// The implementation's identity, including the browser tab: the generated
+// icon is the same font-free original, rather than a separately drawn asset.
+report.identity = await b.value(`(() => {
+  const href = document.querySelector('link[rel="icon"]')?.getAttribute('href') ?? '';
+  const svg = href.startsWith('data:image/svg+xml,')
+    ? new DOMParser().parseFromString(decodeURIComponent(href.slice(href.indexOf(',') + 1)), 'image/svg+xml') : null;
+  return { title: document.title, icon: svg?.querySelector('title')?.textContent ?? '',
+    paths: svg?.querySelectorAll('path').length ?? 0, external: svg?.querySelectorAll('text,image').length ?? 0,
+    errors: svg?.querySelectorAll('parsererror').length ?? 1 };
+})()`);
+check(report.identity.title.startsWith('omui'), 'the implementation is named omui in the browser tab');
+check(report.identity.icon === 'omui' && report.identity.paths === 5 && report.identity.external === 0 && report.identity.errors === 0,
+  'the tab icon is the generated O and inner letters, with no font or image dependencies');
+
 // The keyboard's way in: Tab from the top of the page, then Enter.
 const key = async (k, code, vk) => {
   await b.call('Input.dispatchKeyEvent', { type: 'keyDown', key: k, code, windowsVirtualKeyCode: vk });
@@ -81,6 +95,20 @@ report.after_skip = { page: after, program: focused };
 const inMain = (id) => typeof id === 'string' && id.startsWith('main/body/view/');
 check(inMain(after.id), `Enter: the page's focus in the main landmark (${after.id ?? after.tag})`);
 check((focused ?? []).some(inMain), `and the program's (${JSON.stringify(focused)})`);
+
+// Follow the brand link with the person's real pointer, then read the live
+// construction study through the same semantic protocol an agent uses.
+const mark = await b.value(`window.omui.snapshot({root:'main/bar/mark',depth:0}).then(r =>
+  (r.data?.nodes ?? []).find(n => n.id === 'main/bar/mark'))`);
+if (mark?.bounds?.length === 4) {
+  const [x, y, w, h] = mark.bounds;
+  for (const type of ['mouseMoved', 'mousePressed', 'mouseReleased'])
+    await b.call('Input.dispatchMouseEvent', { type, x: x + w / 2, y: y + h / 2, button: 'left', clickCount: 1 });
+  await sleep(1200);
+}
+const study = await b.value(`window.omui.snapshot({root:'main/body/view/brand/page/identity/title',depth:0}).then(r =>
+  (r.data?.nodes ?? []).find(n => n.id.endsWith('/identity/title'))?.name ?? '')`);
+check(study === 'A mark. Made here.', 'the omui brand link opens the live construction study with a real click');
 
 report.ok = report.checks.every((c) => c.ok);
 console.log(JSON.stringify(report, null, 2));

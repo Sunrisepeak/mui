@@ -94,7 +94,7 @@ int main(int argc, char** argv) {
     Suite s{"site"};
     s.test("every place has its document in both languages; the content is what the docs say", [] {
         for (const site::Place& p : site::places()) {
-            if (p.id == "timeline" || p.id == "components" || p.id == "hello") {
+            if (p.id == "timeline" || p.id == "components" || p.id == "hello" || p.id == "brand") {
                 check(site::document(p.id, "en").empty(), std::format("{} is a live page, not a document", p.id));
                 continue;
             }
@@ -114,6 +114,7 @@ int main(int argc, char** argv) {
         check(a.shown("home"), "home first");
         check(!a.shown("features"), "one place at a time");
         for (const site::Place& p : site::places()) {
+            if (!p.navigation) continue;  // the mark is reached through the brand link (brand_test)
             check(a.h.click(std::format("main/bar/nav/to_{}", p.id)), std::format("the nav's {}", p.id));
             a.h.settle();
             for (const site::Place& q : site::places())
@@ -479,7 +480,7 @@ int main(int argc, char** argv) {
         // Clicked with the pointer, as a visitor does.
         Site b;
         const auto links = b.h.tree().find({.under = "main/body/view/home/page/doc", .role = Role::link});
-        const auto to_features = std::ranges::find_if(links, [](const auto& n) { return n.name.contains("sets openmui apart"); });
+        const auto to_features = std::ranges::find_if(links, [](const auto& n) { return n.name.contains("sets omui apart"); });
         check(to_features != links.end(), "the link to the features");
         if (to_features != links.end()) {
             (void)b.h.tree().act(to_features->id, "scroll_into_view");  // below the opening: brought into view, as a reader scrolls
@@ -710,7 +711,7 @@ int main(int argc, char** argv) {
         a.h.advance(seconds(1));
         shot("time.png");
         std::println("    pixels {}", all.hex());
-        check_eq(all.hex(), std::string("a41d60b40d674a01"));
+        check_eq(all.hex(), std::string("00a5c1d14648d7ec"));
     });
 
     s.test("the components: each live, its code in four languages; a style pack styles the gallery alone, the tree the same in every pack", [] {
@@ -802,8 +803,8 @@ int main(int argc, char** argv) {
         // The site's own part pinned (the docs change with the framework; they are held to md4c-html's bytes above).
         auto own = [](const std::string& html) { return html.substr(0, html.find("<section id=\"/", html.find("<section id=\"/") + 1)); };
         std::println("    static en {:016x} zh {:016x}", fnv(own(en)), fnv(own(site::static_html("zh"))));
-        check_eq(std::format("{:016x}", fnv(own(en))), std::string("6f7002018b2f62a8"));
-        check_eq(std::format("{:016x}", fnv(own(site::static_html("zh")))), std::string("5fd8dfe72a66426b"));
+        check_eq(std::format("{:016x}", fnv(own(en))), std::string("b47b197a9a6bd9c6"));
+        check_eq(std::format("{:016x}", fnv(own(site::static_html("zh")))), std::string("e895b16da6820108"));
 
         const auto out = site::inject(page, en, "zh");
         check(out.has_value(), "dist-toy's page");

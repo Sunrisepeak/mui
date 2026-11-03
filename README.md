@@ -1,6 +1,6 @@
 <div align="center">
 
-# openmui
+# omui
 
 **One semantic tree — rendered as pixels, accessibility, agents and tests.**
 
@@ -14,7 +14,7 @@
 
 </div>
 
-An open UI specification and its reference implementation in C++ modules — in development. A view is one tree: the pixels on screen, what a screen reader announces, what an agent reads and acts on, and what a test checks all come from it. The CPU renderer draws the same bytes on Linux, macOS and Windows, with GCC and LLVM; CI holds every pinned image to that.
+omui is a UI framework implementing the open [openmui specification](https://github.com/openlifa/openmui) in C++ modules — in development. A view is one tree: the pixels on screen, what a screen reader announces, what an agent reads and acts on, and what a test checks all come from it. The CPU renderer draws the same bytes on Linux, macOS and Windows, with GCC and LLVM; CI holds every pinned image to that. Existing package and module names remain `openmui.*`.
 
 ## Works
 

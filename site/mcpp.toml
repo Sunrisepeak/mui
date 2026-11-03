@@ -15,7 +15,7 @@
 namespace   = "openmui"
 name        = "site"
 version     = "0.1.0"
-description = "openmui's website: one semantic tree, many renderings — places, a lens, the docs, a live work"
+description = "omui's website: the implementation of the openmui specification, one tree and many renderings"
 license     = "Apache-2.0"
 repo        = "https://github.com/Sunrisepeak/mui"
 

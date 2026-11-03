@@ -9,6 +9,7 @@ export namespace omui::site {
 // A place on the site: its id, its name in each language.
 struct Place {
     std::string_view id, en, zh;
+    bool navigation = true;  // secondary exhibits have routes without crowding the main bar
 };
 [[nodiscard]] std::span<const Place> places();
 
@@ -35,7 +36,7 @@ struct Place {
 // on any machine.
 [[nodiscard]] std::uint64_t tree_hash(const Value& snapshot);
 // The home page's tree hash in English, as CI pins it (tests/site_test.cpp).
-inline constexpr std::uint64_t pinned_home_hash = 0x7d014bef5372b5dd;
+inline constexpr std::uint64_t pinned_home_hash = 0x4fc0f4cfb9985122;
 
 // Every place as static HTML (the documents through openmui.markdown's
 // to_html, byte for byte md4c-html's), in a <main id="omui-static"> that a

@@ -1,4 +1,4 @@
-# What sets openmui apart
+# What sets omui apart
 
 In order of priority. Each entry says what it is, why other frameworks lack it or have only part of it, what in the repository proves it (tests, benchmarks, works), and what is still missing. Only what the code and CI show is claimed.
 
@@ -78,7 +78,7 @@ Chinese typography follows CSS Text 4: autospace between Chinese and Latin text,
 
 ## Side by side
 
-| | openmui | Qt | Flutter | SwiftUI | Compose | React / Electron | Dear ImGui |
+| | omui | Qt | Flutter | SwiftUI | Compose | React / Electron | Dear ImGui |
 |---|---|---|---|---|---|---|---|
 | Semantic tree as the primary model | ✅ | partly (a11y) | partly (Semantics) | partly | partly | partly (ARIA) | ✗ |
 | Built-in agent interface / MCP | ✅ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |

@@ -28,12 +28,13 @@ constexpr Log site_log{"site"};
 // Where the places are in the tree (the window mounts the site as "main").
 constexpr std::string_view place_root = "main/body/view/";
 
-constexpr std::array<Place, 6> all{{{"home", "Home", "首页"},
+constexpr std::array<Place, 7> all{{{"home", "Home", "首页"},
                                      {"components", "Components", "组件"},
                                      {"features", "Features", "特性"},
                                      {"practices", "Practices", "实践"},
                                      {"hello", "Get started", "开始使用"},
-                                     {"timeline", "Timeline editor", "时间线编辑器"}}};
+                                     {"timeline", "Timeline editor", "时间线编辑器"},
+                                     {"brand", "The mark", "标志", false}}};
 
 // The widest a place's content is (the design language's 1200, less its margins).
 constexpr float content_width = 1120;
@@ -42,6 +43,15 @@ std::string_view embedded(std::span<const std::pair<std::string_view, std::strin
     for (const auto& [name, text] : table)
         if (name == file) return text;
     return {};
+}
+
+Theme site_theme() {
+    if (auto r = themes::add_styles(); !r) site_log.warn("the style packs: {}", r.error().empty() ? std::string() : r.error().front().text());
+    if (auto r = theme::library().add(embedded(files::theme_files, "site.theme.omui.toml"), "site.theme.omui.toml"); !r)
+        site_log.warn("the site's theme: {}", r.error().empty() ? std::string() : r.error().front().text());
+    if (auto t = theme::library().compose(std::vector<std::string>{"site"}); t) return std::move(*t);
+    site_log.warn("the site's theme could not be composed");
+    return Theme::light();
 }
 
 constexpr std::string_view sample = R"([timeline]
@@ -85,6 +95,7 @@ fade = { out = "30f" }
 // What the site keeps between its setup and its view.
 struct Site {
     Runtime*            runtime = nullptr;
+    BrandStudy          brand;
     Signal<std::string> place = signal(std::string("home")), lang = signal(std::string("en")), lens = signal(std::string("pixels"));
     Signal<Value>       nodes = signal(Value{});
     Signal<std::string> agent = signal(std::string()), test = signal(std::string()), hash = signal(std::string());
@@ -223,13 +234,13 @@ struct Site {
             text = zh ? "这里连不了本机的 agent：在浏览器里打开这一页，或者用 `omui agent` 操作桌面窗口里的它。"
                       : "Your agent links to this page in a browser; a window is operated with `omui agent`.";
         else if (zh)
-            text = std::format("请连接并操作我浏览器里打开的 openmui 应用。\n配对码：{}（10 分钟内有效），端口 {}。\n\n按 {} 的说明进行：\n"
+            text = std::format("请连接并操作我浏览器里打开的 omui 应用。\n配对码：{}（10 分钟内有效），端口 {}。\n\n按 {} 的说明进行：\n"
                                "1. 获取 omui（校验 sha256）或按规范自己写本地桥，用配对码运行；\n2. 用 `omui page status --wait` 确认已经配对；\n"
                                "3. 完成说明里的自检任务；\n4. 然后按我接下来的要求操作页面，完成后告诉我结果。\n"
                                "只通过页面的语义接口操作；需要我确认的动作，等我在页面上确认。",
                                code, port, guide);
         else
-            text = std::format("Please connect to the openmui application open in my browser and operate it.\nPairing code: {} (valid for 10 minutes), port {}.\n\n"
+            text = std::format("Please connect to the omui application open in my browser and operate it.\nPairing code: {} (valid for 10 minutes), port {}.\n\n"
                                "Follow {}:\n1. get omui (check its sha256), or write the local bridge from its specification, and run it with the code;\n"
                                "2. confirm the pairing with `omui page status --wait`;\n3. do the self-check it describes;\n"
                                "4. then operate the page as I ask next, and tell me the result.\n"
@@ -829,8 +840,8 @@ Element settings_panel(const std::shared_ptr<Site>& s) {
                    .label = "Settings"},
                   {text({.id = "title", .text = say("Settings", "设置"), .style = "heading"}),
                    text({.id = "about",
-                         .text = say("Yours, as far as this site lets you: a program on openmui says which of the framework's choices its users make.",
-                                     "这些是你的选择，以这个网站开放的为限：基于 openmui 的程序自己决定把框架的哪些选择交给用户。"),
+                         .text = say("Yours, as far as this site lets you: a program on omui says which of the framework's choices its users make.",
+                                     "这些是你的选择，以这个网站开放的为限：基于 omui 的程序自己决定把框架的哪些选择交给用户。"),
                          .style = "caption",
                          .color = "text_muted"}),
                    labelled("theme", "Theme", "主题", {.labels = labels({"Light", "Dark"}, {"浅色", "深色"}),
@@ -891,9 +902,9 @@ Element hello_page(const std::shared_ptr<Site>& s, float room) {
     Element intro = column({.id = "intro", .width = narrow ? Dim(layout::pct(100)) : Dim(440.0f), .gap = 16},
                            {retyped(text({.id = "title", .text = say("Get started", "开始使用"), .style = "title"}), s),
                             text({.id = "about",
-                                  .text = say("Example 01, a whole openmui program, running here: type a name, press the button. Its interface is declared each "
+                                  .text = say("Example 01, a whole omui program, running here: type a name, press the button. Its interface is declared each "
                                               "frame in plain C++; an agent finds the field by its role, and renaming the button keeps its id.",
-                                              "示例 01，一个完整的 openmui 程序，就在这里运行：输入名字，按按钮。界面每一帧用普通的 C++ 声明；agent 按角色找到输入框，"
+                                              "示例 01，一个完整的 omui 程序，就在这里运行：输入名字，按按钮。界面每一帧用普通的 C++ 声明；agent 按角色找到输入框，"
                                               "按钮改名后 id 不变。"),
                                   .style = "body",
                                   .size = 20.0f}),
@@ -1046,6 +1057,8 @@ Element place_page(const std::shared_ptr<Site>& s, const std::string& id) {
         content.push_back(hello_page(s, room));
     } else if (id == "timeline") {
         content.push_back(timeline_page(s, room));
+    } else if (id == "brand") {
+        content.push_back(brand_study(s->brand, s->runtime, s->lang, room));
     } else {
         content.push_back(document_page(s, id, room));
     }
@@ -1071,21 +1084,14 @@ Element place_page(const std::shared_ptr<Site>& s, const std::string& id) {
 AppSpec app(std::string_view place, std::string_view lang) {
     AppSpec a;
     a.id = "org.openmui.site";
-    a.title = "openmui — one tree, many renderings";
+    a.title = "omui — one tree, many renderings";
     a.size = {1280, 800};
-    a.description = "It is openmui's own website: its places, every component live, the documents, a timeline editor — and you, its agent, read and operate it as the person does.";
+    a.description = "omui's own website: a UI framework implementing the openmui specification. Its components, identity and tools are live, and your agent can operate them.";
     // What agent.md asks of an agent once it is linked (the panel is open: the person copied the prompt there).
     a.agent_check = {"main/body/guide/check/hello", "main/body/guide/check/hellos", "pressed 1 time"};
     // The site's own theme (its tokens: the design language), over the framework's default themes and the style packs
     // (the components page shows them in a scope of its own).
-    if (auto r = themes::add_styles(); !r) site_log.warn("the style packs: {}", r.error().empty() ? std::string() : r.error().front().text());
-    if (auto r = theme::library().add(embedded(files::theme_files, "site.theme.omui.toml"), "site.theme.omui.toml"); !r)
-        site_log.warn("the site's theme: {}", r.error().empty() ? std::string() : r.error().front().text());
-    if (auto t = theme::library().compose(std::vector<std::string>{"site"}); t) a.theme = std::move(*t);
-    else {
-        site_log.warn("the site's theme: {}", t.error());
-        a.theme = Theme::light();
-    }
+    a.theme = site_theme();
     // The page's time is a live readout of the clock: it is drawn where the time is, never eased there
     // (universal motion: a morph is for a change, not for a clock ticking).
     a.theme.motion_rules.push_back({"timebar", "update", MotionSpec{.kind = MotionSpec::Kind::none}});
@@ -1172,6 +1178,7 @@ AppSpec app(std::string_view place, std::string_view lang) {
         // The places: where you are, said to every reader (selected) and seen (outlined).
         std::vector<Element> places;
         for (const Place& p : all) {
+            if (!p.navigation) continue;
             const std::string id(p.id);
             Element b = button({.id = "to_" + id,
                                 .text = computed([s, en = p.en, zh = p.zh] { return std::string(s->lang.get() == "zh" ? zh : en); }),
@@ -1186,7 +1193,9 @@ AppSpec app(std::string_view place, std::string_view lang) {
         nav.prop("width", derive([s] { return s->compact.get() ? Value(static_cast<double>(s->width.get() - 48)) : Value{}; }));
         // The bar: the mark, the places, the switches. Narrow, it wraps: the places on a line of their own.
         Element bar = row({.id = "bar", .padding = Edges(12.0f, 24.0f), .gap = 8, .align = "center", .wrap = "wrap", .background = "bar"},
-                          {brand_mark("logo", 26), text({.id = "mark", .text = "openmui", .style = "heading"}), box({.id = "space", .width = Dim(16.0f)}),
+                          {brand_mark("logo", 32), button({.id = "mark", .text = "omui", .variant = ButtonVariant::ghost,
+                                                           .on_activated = [s] { s->go("brand"); }, .description = "omui — the mark, drawn by the framework"}),
+                           box({.id = "space", .width = Dim(16.0f)}),
                            std::move(nav), only_when(box({.id = "fill", .grow = 1}), wide),
                            only_when(frame_meter({.id = "frames", .label = say("Frame rate", "帧率")}), [s] { return s->width.get() >= 1400; }),
                            button({.id = "settings_toggle",
@@ -1322,16 +1331,20 @@ std::string escaped(std::string_view text) {
 
 std::string static_html(std::string_view lang) {
     const bool chinese = lang == "zh";
+    const Theme theme = site_theme();
     // A skip link first (WCAG 2.4.1): past the places to the first one's text.
     std::string out = std::format("<main id=\"omui-static\" lang=\"{}\">\n<a class=\"skip\" href=\"#/{}home\">{}</a>\n<nav aria-label=\"{}\">",
                                   chinese ? "zh-CN" : "en", chinese ? "zh/" : "", chinese ? "跳到正文" : "Skip to content", chinese ? "页面" : "Places");
     // Each place's section by its whole route (#/home too: the static page's own anchors).
     auto href = [&](std::string_view place) { return std::format("#/{}{}", chinese ? "zh/" : "", place); };
-    for (const Place& p : all) out += std::format("<a href=\"{}\">{}</a> ", href(p.id), chinese ? p.zh : p.en);
+    out += std::format("<a class=\"brand\" href=\"{}\" aria-label=\"omui\">{}<b>omui</b></a> ", href("brand"), brand_svg(theme.color("accent")));
+    for (const Place& p : all)
+        if (p.navigation) out += std::format("<a href=\"{}\">{}</a> ", href(p.id), chinese ? p.zh : p.en);
     out += "</nav>\n";
     for (const Place& p : all) {
         out += std::format("<section id=\"{}\">\n", href(p.id).substr(1));
         if (p.id == "home") out += hero_html(chinese);
+        if (p.id == "brand") out += brand_html(chinese, theme.color("accent"));
         if (const std::string_view doc = document(p.id, lang); !doc.empty()) {
             // Links to the site's own documents go to their sections, as they go to their places when the program runs.
             std::string html = md::to_html(md::parse(doc));
@@ -1359,8 +1372,8 @@ std::string static_html(std::string_view lang) {
                            : "<h1>A timeline editor</h1>\n<p>A working timeline editor: drag, trim and split clips, every edit undone exactly. It needs JavaScript.</p>\n";
         else if (p.id == "hello")
             out += std::format("<h1>{}</h1>\n<p>{}</p>\n<pre><code>{}</code></pre>\n", chinese ? "开始使用" : "Get started",
-                               chinese ? "示例 01，一个完整的 openmui 程序。运行它需要 JavaScript；它的全部源码如下。"
-                                       : "Example 01, a whole openmui program. Running it needs JavaScript; here is all of its source.",
+                               chinese ? "示例 01，一个完整的 omui 程序。运行它需要 JavaScript；它的全部源码如下。"
+                                       : "Example 01, a whole omui program. Running it needs JavaScript; here is all of its source.",
                                escaped(hello::hello_source));
         out += "</section>\n";
     }
@@ -1401,14 +1414,23 @@ std::optional<std::string> inject(std::string_view page, std::string_view fragme
                    "#omui-static .skip{position:absolute;left:8px;top:-60px;padding:8px 14px;background:#16161a;color:#fbfbfa}#omui-static .skip:focus{top:8px}"
                    "#omui-static section{max-width:860px;margin-bottom:64px}#omui-static code{font:14px 'JetBrains Mono',monospace;background:#f3f3f1;"
                    "padding:1px 4px;border-radius:3px}#omui-static pre{white-space:pre-wrap}#omui-static table{border-collapse:collapse}"
-                   "#omui-static td,#omui-static th{border:1px solid #e6e6e3;padding:4px 8px}</style>\n"
-                   "<meta name=\"description\" content=\"openmui: one semantic tree, many renderings — pixels, accessibility, agents and tests.\">\n");
+                   "#omui-static td,#omui-static th{border:1px solid #e6e6e3;padding:4px 8px}"
+                   "#omui-static .brand{display:inline-flex;align-items:center;gap:8px}#omui-static .brand svg{width:32px;height:32px}"
+                   "</style>\n<meta name=\"description\" content=\"omui: a UI framework implementing the openmui specification. One semantic tree, many renderings.\">\n");
     // A reader may zoom the page (WCAG 1.4.4): the packer's viewport forbids it.
     if (const auto at = out.find(", maximum-scale=1, user-scalable=no"); at != std::string::npos) out.erase(at, std::string_view(", maximum-scale=1, user-scalable=no").size());
     if (const auto html = out.find("<html lang=\""); html != std::string::npos) {
         const auto end = out.find('"', html + 12);
         out.replace(html + 12, end - (html + 12), lang == "zh" ? "zh-CN" : "en");
     }
+    // The tab's mark is the same vector original; no second hand-maintained icon.
+    const std::string svg = brand_svg(site_theme().color("accent"));
+    std::string uri;
+    for (const unsigned char c : svg) uri += std::format("%{:02X}", c);
+    out.insert(out.find("</head>"), std::format("<link rel=\"icon\" type=\"image/svg+xml\" href=\"data:image/svg+xml,{}\">\n", uri));
+    if (const auto title = out.find("<title>"); title != std::string::npos)
+        if (const auto end = out.find("</title>", title); end != std::string::npos)
+            out.replace(title + 7, end - title - 7, "omui — one tree, many renderings");
     return out;
 }
 

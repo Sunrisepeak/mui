@@ -1,10 +1,10 @@
 # Best practices
 
-What building the showcases taught, as rules a program on openmui can follow. Each rule names the showcase it came from; their dev stories (`showcase/*/dev-story.md`) tell how. This is a living document: a showcase's self-review that finds something general adds it here.
+What building the showcases taught, as rules a program on omui can follow. Each rule names the showcase it came from; their dev stories (`showcase/*/dev-story.md`) tell how. This is a living document: a showcase's self-review that finds something general adds it here.
 
 ## 1. Put each piece at its layer
 
-openmui is layered (D-82): independent components (`modules/`), the UI framework, the game engine services (`mgame`), specialised frameworks (`gongfu`), and applications. A capability goes to the lowest layer where it is general:
+omui is layered (D-82): independent components (`modules/`), the UI framework, the game engine services (`mgame`), specialised frameworks (`gongfu`), and applications. A capability goes to the lowest layer where it is general:
 
 - Recolouring a range of drawn commands is a renderer capability (`DisplayList::recolor`), even if one fighter's time stop is what needed it.
 - Compiling TypeScript from an editor's text is the script binding's (`compile_typescript_source`), even if one workshop asked for it.

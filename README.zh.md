@@ -1,6 +1,6 @@
 <div align="center">
 
-# openmui
+# omui
 
 **一棵语义树，同时是像素、无障碍、agent 和测试。**
 
@@ -14,7 +14,7 @@
 
 </div>
 
-一套开放的 UI 规范，和它用 C++ Modules 写的参考实现（实现中）。一个视图就是一棵树：屏幕上的像素、读屏软件念出的内容、agent 读到和操作的对象、测试检查的结果，都来自这棵树。CPU 渲染器在 Linux、macOS、Windows 上，用 GCC 和 LLVM，画出的字节完全相同；CI 用固定的金图检查每一处。
+omui 是用 C++ Modules 实现 [openmui 开放规范](https://github.com/openlifa/openmui)的 UI 框架（实现中）。一个视图就是一棵树：屏幕上的像素、读屏软件念出的内容、agent 读到和操作的对象、测试检查的结果，都来自这棵树。CPU 渲染器在 Linux、macOS、Windows 上，用 GCC 和 LLVM，画出的字节完全相同；CI 用固定的金图检查每一处。现有包和模块名继续使用 `openmui.*`。
 
 ## 作品
 

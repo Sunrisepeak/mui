@@ -35,11 +35,6 @@ struct HeroSite {
 // The opening: live (operable, its panels following the tree) or a still
 // (a picture of it, nothing operable), `width` wide (narrow — a phone — it stacks).
 [[nodiscard]] Element hero(Hero& h, const HeroSite& site, bool live, float width = 1100);
-// The mark: one node branching into its four renderings (a pixel, a focus ring, braces, a check).
-[[nodiscard]] Element brand_mark(std::string id, float size);
-// The mark itself, `s` wide, its top left at `at`: drawn where an element is not.
-void paint_mark(render::DisplayList& out, const Theme& theme, Point at, float s);
-
 // The opening for readers without the program (the static page): the claim,
 // the checklist and the three renderings of its button, as HTML.
 [[nodiscard]] std::string hero_html(bool zh);

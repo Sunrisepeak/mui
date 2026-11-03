@@ -93,58 +93,12 @@ std::string hero_html(bool zh) {
     };
     const Value ship = still_node(zh);
     std::string out = std::format("<h1>{}</h1>\n<p>{}</p>\n<ul>\n", zh ? "一个界面，每一种呈现。" : "One interface. Every rendering.",
-                                  zh ? "openmui 从一棵语义树画出界面：你看到的像素、读屏软件读出的、agent 操作的、测试断言的，是同一批节点。"
-                                     : "openmui draws an interface from one semantic tree: the pixels you see, what a screen reader says, what an agent acts on and what a test asserts are the same nodes.");
+                                  zh ? "omui 从一棵语义树画出界面：你看到的像素、读屏软件读出的、agent 操作的、测试断言的，是同一批节点。"
+                                     : "omui draws an interface from one semantic tree: the pixels you see, what a screen reader says, what an agent acts on and what a test asserts are the same nodes.");
     for (const Item& it : items) out += std::format("<li>☐ {}</li>\n", zh ? it.zh : it.en);
     out += std::format("</ul>\n<p><strong>{}</strong></p>\n<pre><code>{}\n{}\n{}</code></pre>\n", zh ? "发布 0.1（等三项都勾上）" : "Ship 0.1 (waits for all three)",
                        esc(reader_line(ship, zh)), esc(agent_line(ship, {})), esc(test_line(ship)));
     return out;
-}
-
-void paint_mark(render::DisplayList& out, const Theme& theme, Point at, float s) {
-    const bool moved = at.x != 0 || at.y != 0;
-    if (moved) out.push_transform(Affine::translate(at.x, at.y));
-    const Color stem = theme.color("accent");
-    const Point root{s * 0.17f, s * 0.5f};
-    constexpr std::array<float, 4> ys{0.14f, 0.38f, 0.62f, 0.86f};
-    render::StrokeStyle line{.width = std::max(1.2f, s * 0.05f), .cap = render::LineCap::round};
-    for (const float y : ys) {
-        render::Path p;
-        const Point end{s * 0.7f, s * y};
-        p.move_to(root).cubic_to({s * 0.42f, root.y}, {s * 0.42f, end.y}, end);
-        out.stroke_path(p, line, render::Paint::solid(stem.with_alpha(0.75f)));
-    }
-    out.fill_round_rect({root.x - s * 0.1f, root.y - s * 0.1f, s * 0.2f, s * 0.2f}, CornerRadii::all(s * 0.1f), render::Paint::solid(stem));
-    const float t = s * 0.16f, x = s * 0.74f;
-    // A pixel.
-    out.fill_rect({x, s * ys[0] - t / 2, t, t}, theme.color("text"));
-    // A focus ring.
-    out.stroke_round_rect({x, s * ys[1] - t / 2, t, t}, CornerRadii::all(t / 2), std::max(1.0f, s * 0.035f),
-                          render::Paint::solid(Color::hex(reader_hue)));
-    // Braces: what an agent reads.
-    render::StrokeStyle thin{.width = std::max(1.0f, s * 0.035f), .cap = render::LineCap::round, .join = render::LineJoin::round};
-    for (const float side : {-1.0f, 1.0f}) {
-        render::Path b;
-        const float cx = x + t / 2 + side * t * 0.38f, y = s * ys[2], h = t / 2, w = t * 0.18f;
-        b.move_to({cx + side * w, y - h}).line_to({cx, y - h * 0.6f}).line_to({cx, y - h * 0.15f}).line_to({cx - side * w, y})
-            .line_to({cx, y + h * 0.15f}).line_to({cx, y + h * 0.6f}).line_to({cx + side * w, y + h});
-        out.stroke_path(b, thin, render::Paint::solid(Color::hex(agent_hue)));
-    }
-    // A check: what a test asserts.
-    render::Path c;
-    const float y = s * ys[3];
-    c.move_to({x, y}).line_to({x + t * 0.38f, y + t * 0.36f}).line_to({x + t, y - t * 0.42f});
-    out.stroke_path(c, render::StrokeStyle{.width = std::max(1.2f, s * 0.045f), .cap = render::LineCap::round, .join = render::LineJoin::round},
-                    render::Paint::solid(Color::hex(test_hue)));
-    if (moved) out.pop_transform();
-}
-
-Element brand_mark(std::string id, float size) {
-    return painter({.id = std::move(id),
-                    .width = Dim(size),
-                    .height = Dim(size),
-                    .role = Role::none,
-                    .paint = [size](PaintContext& ctx) { paint_mark(ctx.list, ctx.theme, {0, 0}, size); }});
 }
 
 Element hero(Hero& h, const HeroSite& site, bool live, float width) {
@@ -336,8 +290,8 @@ Element hero(Hero& h, const HeroSite& site, bool live, float width) {
                                     .prop("role", Source{Value("heading"), {}, {}})  // the page's first heading, to a screen reader too
                                     .prop("level", Source{Value(std::int64_t{1}), {}, {}}),
                                 text({.id = "thesis",
-                                      .text = say("openmui draws an interface from one semantic tree: the pixels you see, what a screen reader says, what an agent acts on and what a test asserts are the same nodes.",
-                                                  "openmui 从一棵语义树画出界面：你看到的像素、读屏软件读出的、agent 操作的、测试断言的，是同一批节点。"),
+                                      .text = say("omui draws an interface from one semantic tree: the pixels you see, what a screen reader says, what an agent acts on and what a test asserts are the same nodes.",
+                                                  "omui 从一棵语义树画出界面：你看到的像素、读屏软件读出的、agent 操作的、测试断言的，是同一批节点。"),
                                       .style = "body",
                                       .max_width = Dim(680.0f)})})}),
                    row({.id = "cta", .gap = 10, .align = "center", .wrap = "wrap"},

@@ -18,6 +18,7 @@ export import :en_files;
 export import :zh_files;
 export import :guide;
 export import :hero;
+export import :brand;
 export import :gallery;
 export import :screens;
 export import :theme_files;

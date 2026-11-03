@@ -50,6 +50,9 @@ motion::Options options_of(const MotionSpec& spec, MotionLevel level, const Them
     o.rise = spec.rise;
     o.grow = spec.grow;
     o.stretch = spec.stretch;
+    o.fade_out = spec.fade_out;
+    o.fade_in = spec.fade_in;
+    o.local_presence = spec.local_presence;
     if (spec.travel)
         if (const auto ref = render::effects().find(spec.travel->effect)) {
             motion::Options::Travel t{.effect = *ref};
@@ -110,8 +113,9 @@ const MotionSpec* Runtime::Impl::slot_motion(NodeId id, std::size_t slot, bool f
             int rank = 0;
             for (const MotionRule& rule : theme.motion_rules) {
                 if (rule.slot != motion_slots[k]) continue;
-                const int r = rule.target == n.type->name ? 3 : rule.target == by_role ? 2 : rule.target == "*" ? 1 : 0;
-                if (r > rank) best = &rule, rank = r;
+                const int specificity = rule.target == n.type->name ? 3 : rule.target == by_role ? 2 : rule.target == "*" ? 1 : 0;
+                const int r = specificity ? 4 * static_cast<int>(rule.layer) + specificity : 0;
+                if (r > 0 && r >= rank) best = &rule, rank = r;
             }
             if (best) {
                 n.slot_motions[k].push_back(best->spec);
@@ -165,6 +169,20 @@ void Runtime::Impl::emit_motion_range(std::size_t begin, std::size_t end, render
         }
         out.append_command(cmds[i]);
     }
+}
+
+bool Runtime::Impl::motion_moving(NodeId id) const {
+    if (time_control.controlled && (time_control.paused || time_control.rate == 0)) return false;
+    if (!alive(id)) return false;
+    const auto& node = at(id);
+    if (!node.morph || node.clock.paused || node.clock.rate == 0) return false;
+    const double global_rate = time_control.controlled ? time_control.rate : 1;
+    const double local = node.clock.local(now().count());
+    return node.clock.rate * global_rate > 0 ? local < node.morph->end() : local > node.morph->start();
+}
+
+bool Runtime::Impl::motions_moving() const {
+    return std::ranges::any_of(morphing, [&](NodeId id) { return motion_moving(id); });
 }
 
 void Runtime::Impl::run_motion() {
@@ -316,6 +334,12 @@ void Runtime::Impl::run_motion() {
         }
         const MotionSpec* spec = slot_motion(id, slot);
         if (h == n.drawn_hash || !spec) {
+            // A direct content update supersedes a focus/hover transition.
+            // In particular, typing must not replay an older text drawing.
+            if (!spec && h != n.drawn_hash && n.morph) {
+                n.morph.reset();
+                touch(dirty_semantics);
+            }
             n.drawn_hash = h, n.drawn_changes = changes, n.drawn_states = states, n.drawn_children = n.children;
             continue;
         }
@@ -425,7 +449,7 @@ void Runtime::Impl::run_motion() {
             morph_scratch.pop_transform();
         }
         std::swap(list, morph_scratch);
-        touch(dirty_paint);  // the next frame draws them further
+        if (motions_moving()) touch(dirty_paint);  // the next frame draws moving clocks further
     }
     // Who drew each marker: the next frame's "before" is this drawing.
     drawn_by.assign(markers, NodeId{});

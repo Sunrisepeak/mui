@@ -145,9 +145,9 @@ std::vector<Entry> entries() {
     add("pagination", {"pagination", {{"id", V("pages")}, {"page", V(4)}, {"pages", V(12)}}}, [](Gallery& g) {
         return pagination({.id = "pages", .page = g.page, .pages = std::int64_t{12}});
     });
-    add("progress", {"progress", {{"id", V("upload")}, {"label", V("Uploading")}, {"value", V(0.6)}}}, [](Gallery&) {
+    add("progress", {"progress", {{"id", V("upload")}, {"label", V("Uploading")}, {"value", V(0.6)}}}, [](Gallery& g) {
         // Determinate only: an indeterminate one sweeps for as long as it is there, and the page would never rest.
-        return column({.gap = 12}, {progress({.id = "upload", .label = "Uploading", .value = 0.6, .width = 280}),
+        return column({.gap = 12}, {progress({.id = "upload", .label = "Uploading", .value = g.upload, .width = 280}),
                                     progress({.id = "done", .label = "Done", .value = 1.0, .width = 280})});
     });
     add("badge", {"badge", {{"id", V("mail")}, {"count", V(120)}, {"tone", V("danger")}}}, [](Gallery& g) {
@@ -155,15 +155,16 @@ std::vector<Entry> entries() {
                                                     badge({.id = "draft", .text = "Draft"}), badge({.id = "done", .text = "Done", .tone = BadgeTone::success}),
                                                     badge({.id = "unread", .dot = true, .text = "Unread"})});
     });
-    add("avatar", {"avatar", {{"id", V("ada")}, {"name", V("Ada Lovelace")}, {"status", V("online")}}}, [](Gallery&) {
-        return row({.gap = 12, .align = "center"}, {avatar({.id = "ada", .name = "Ada Lovelace", .size = 40.0, .status = AvatarStatus::online}),
+    add("avatar", {"avatar", {{"id", V("ada")}, {"name", V("Ada Lovelace")}, {"status", V("online")}}}, [](Gallery& g) {
+        return row({.gap = 12, .align = "center"}, {avatar({.id = "ada", .name = g.avatar_name, .size = 40.0, .status = AvatarStatus::online}),
                                                     avatar({.id = "alan", .name = "Alan Turing", .size = 40.0, .status = AvatarStatus::away}),
                                                     avatar({.id = "lin", .name = "林黛玉", .size = 40.0}),
                                                     avatar({.id = "team", .name = "Design Team", .shape = AvatarShape::square, .size = 40.0})});
     });
-    add("card", {"card", {{"id", V("report")}, {"title", V("Q3 report")}, {"interactive", V(true)}}}, [](Gallery&) {
+    add("card", {"card", {{"id", V("report")}, {"title", V("Q3 report")}, {"interactive", V(true)}}}, [](Gallery& g) {
         return row({.gap = 12, .wrap = "wrap"},
-                   {card({.id = "report", .interactive = true, .subtitle = "Updated today", .title = "Q3 report", .width = 220}, {text({.text = "Revenue up 12%", .style = "body"})}),
+                   {card({.id = "report", .interactive = true, .selected = g.card_selected,
+                          .subtitle = "Updated today", .title = "Q3 report", .on_activated = [picked = g.card_selected] { picked.set(!picked.peek()); }, .width = 220}, {text({.text = "Revenue up 12%", .style = "body"})}),
                     card({.id = "plain", .subtitle = "Outlined", .title = "A note", .variant = CardVariant::outlined, .width = 220},
                          {text({.text = "Read only.", .style = "body"})})});
     });
@@ -173,8 +174,8 @@ std::vector<Entry> entries() {
                                  {text({.text = "One semantic tree, many renderings: pixels, accessibility, agents and tests.", .style = "body"})}),
                        accordion({.id = "why", .title = "Why a semantic tree?"}, {text({.text = "Everything else is a rendering of it.", .style = "body"})})});
     });
-    add("skeleton", {"skeleton", {{"id", V("loading")}, {"lines", V(3)}}}, [](Gallery&) {
-        return row({.gap = 16, .align = "start"}, {skeleton({.id = "pic", .shape = SkeletonShape::circle}), skeleton({.id = "loading", .lines = 3, .width = 240})});
+    add("skeleton", {"skeleton", {{"id", V("loading")}, {"lines", V(3)}}}, [](Gallery& g) {
+        return row({.gap = 16, .align = "start"}, {skeleton({.id = "pic", .shape = SkeletonShape::circle}), skeleton({.id = "loading", .lines = g.skeleton_lines, .width = 240})});
     });
     add("tooltip", {"tooltip", {{"text", V("Saves the document")}}}, [](Gallery&) {
         return row({}, {button({.id = "save", .text = "Hover me"}), tooltip({.id = "tip", .text = "Saves the document"})});
@@ -325,6 +326,7 @@ Sample current_sample(const Entry& entry, Gallery& g) {
     auto list = [](const std::vector<std::string>& values) { Value::List out; for (const auto& value : values) out.emplace_back(value); return Value(std::move(out)); };
     if (entry.id == "button") set("text", Value(g.saves.get() == 0 ? std::string("Save") : std::format("Saved {}", g.saves.get())));
     if (entry.id == "select") set("value", Value(g.size.get()));
+    if (entry.id == "radio") set("group", Value(g.size.get()));
     if (entry.id == "tabs") set("selected", Value(g.tab.get()));
     if (entry.id == "breadcrumb") set("items", list(g.path.get()));
     if (entry.id == "pagination") set("page", Value(g.page.get()));
@@ -338,6 +340,10 @@ Sample current_sample(const Entry& entry, Gallery& g) {
     if (entry.id == "tree_view") { set("expanded", list(g.open.get())); set("value", Value(g.file.get())); }
     if (entry.id == "data_grid") { set("selected", list(g.picked.get())); set("sort", Value(g.sort.get())); }
     if (entry.id == "badge") set("count", Value(g.unread.get()));
+    if (entry.id == "progress") set("value", Value(g.upload.get()));
+    if (entry.id == "avatar") set("name", Value(g.avatar_name.get()));
+    if (entry.id == "card") set("selected", Value(g.card_selected.get()));
+    if (entry.id == "skeleton") set("lines", Value(g.skeleton_lines.get()));
     if (entry.id == "slider") set("value", Value(g.volume.get()));
     if (entry.id == "toggle") set("checked", Value(g.wifi.get()));
     if (entry.id == "checkbox") set("checked", Value(g.agree.get()));
@@ -367,6 +373,10 @@ void reset(Gallery& g, std::string_view id) {
     if (id == "breadcrumb") g.path.set({"Home", "Docs", "Motion"});
     if (id == "pagination") g.page.set(4);
     if (id == "badge") g.unread.set(3);
+    if (id == "progress") g.upload.set(0.6);
+    if (id == "avatar") g.avatar_name.set("Ada Lovelace");
+    if (id == "card") g.card_selected.set(false);
+    if (id == "skeleton") g.skeleton_lines.set(3);
     if (id == "accordion") g.details.set(false);
     if (id == "popover") g.popover.set(false);
     if (id == "toast") g.toast.set(false);
@@ -389,6 +399,50 @@ void reset(Gallery& g, std::string_view id) {
     if (auto it = g.disabled.find(id); it != g.disabled.end()) it->second.set(false);
     g.copied.set(false);
 }
+// A visible way to exercise a component's native feedback, including parts
+// such as progress and badges whose data normally comes from an application.
+// These are real state changes; the component and runtime decide how to draw.
+void change_state(Gallery& g, const GallerySite& site, std::string_view id, bool automatic = false) {
+    if (id == "button") g.saves.set(g.saves.peek() + 1);
+    if (id == "toggle") g.wifi.set(!g.wifi.peek());
+    if (id == "checkbox") g.agree.set(!g.agree.peek());
+    if (id == "radio" || id == "select") g.size.set(g.size.peek() == "medium" ? "large" : "medium");
+    if (id == "slider") g.volume.set(g.volume.peek() < 60 ? 80 : 25);
+    if (id == "number_input") g.qty.set(g.qty.peek() < 5 ? 7.5 : 2);
+    if (id == "text_box") g.name.set(g.name.peek() == "Ada" ? "Grace" : "Ada");
+    if (id == "tabs") g.tab.set(g.tab.peek() == "overview" ? "activity" : "overview");
+    if (id == "breadcrumb") g.path.set(g.path.peek().size() == 3 ? std::vector<std::string>{"Home", "Motion"} : std::vector<std::string>{"Home", "Docs", "Motion"});
+    if (id == "pagination") g.page.set(g.page.peek() < 6 ? 8 : 4);
+    if (id == "progress") g.upload.set(g.upload.peek() < 0.8 ? 1.0 : 0.35);
+    if (id == "badge") g.unread.set(g.unread.peek() < 10 ? 24 : 3);
+    if (id == "avatar") g.avatar_name.set(g.avatar_name.peek() == "Ada Lovelace" ? "Grace Hopper" : "Ada Lovelace");
+    if (id == "card") g.card_selected.set(!g.card_selected.peek());
+    if (id == "accordion") g.details.set(!g.details.peek());
+    if (id == "skeleton") g.skeleton_lines.set(g.skeleton_lines.peek() == 3 ? 5 : 3);
+    if (id == "tooltip" && !automatic && site.runtime && *site.runtime) {
+        auto& runtime = **site.runtime;
+        runtime.focus(runtime.find("main/body/view/components/page/gallery/detail/tooltip/stage/specimen/variants/save"));
+    }
+    if (id == "popover") g.popover.set(!g.popover.peek());
+    if (id == "toast") g.toast.set(!g.toast.peek());
+    if (id == "dialog") g.dialog.set(!g.dialog.peek());
+    if (id == "segmented") g.view.set(g.view.peek() == "week" ? "month" : "week");
+    if (id == "chip") g.filter.set(!g.filter.peek());
+    if (id == "range_slider") { const bool low = g.low.peek() < 30; g.low.set(low ? 35 : 20); g.high.set(low ? 65 : 80); }
+    if (id == "alert") g.alert.set(!g.alert.peek());
+    if (id == "stepper") g.step.set(g.step.peek() == 2 ? 3 : 2);
+    if (id == "date_picker") g.date.set(g.date.peek() == "2026-11-12" ? "2026-11-18" : "2026-11-12");
+    if (id == "time_picker") g.time.set(g.time.peek() == "09:30" ? "14:45" : "09:30");
+    if (id == "color_picker") g.ink.set(g.ink.peek() == "#4f46e5" ? "#0891b2" : "#4f46e5");
+    if (id == "split_view") g.ratio.set(g.ratio.peek() < 0.5 ? 0.65 : 0.4);
+    if (id == "drawer") g.drawer.set(!g.drawer.peek());
+    if (id == "tree_view") g.open.set(g.open.peek().empty() ? std::vector<std::string>{"src", "ui"} : std::vector<std::string>{});
+    if (id == "data_grid") { g.sort.set(g.sort.peek() == "-age" ? "name" : "-age"); g.picked.set(g.picked.peek() == std::vector<std::string>{"alan"} ? std::vector<std::string>{"ada"} : std::vector<std::string>{"alan"}); }
+    if (id == "combobox") g.lang_choice.set(g.lang_choice.peek() == "ts" ? "cpp" : "ts");
+    if (id == "tag_input") g.tags.set(g.tags.peek().size() == 2 ? std::vector<std::string>{"design", "motion", "agents"} : std::vector<std::string>{"design", "motion"});
+    if (id == "code_editor") g.code.set(g.code.peek().contains("hello, omui") ? "import std;\n\nint main() {\n    std::println(\"one tree, many renderings\");\n}" : "import std;\n\nint main() {\n    std::println(\"hello, omui\");\n}");
+    g.copied.set(false);
+}
 // Disabled is a component state, so bind each actual control's property.
 // A container's disabled flag alone does not change its children's semantics.
 void bind_disabled(Element& e, Signal<bool> disabled) {
@@ -399,152 +453,373 @@ void bind_disabled(Element& e, Signal<bool> disabled) {
     }
     for (auto& child : e.children) bind_disabled(child, disabled);
 }
-Element specimen(const Entry& entry, Gallery& g, float width, bool preview) {
+// A user override applies locally; the default writes no motion property,
+// so each component keeps its own typed motion and the style's rules.
+void bind_motion(Element& element, const std::string& motion) {
+    if (motion == "default") return;
+    element.prop("motion", Source(Value(motion)));
+    for (auto& child : element.children) bind_motion(child, motion);
+}
+
+void bind_agent_interaction(Element& element, Gallery& gallery, const GallerySite& site) {
+    if (element.type && element.type->contract) for (const auto& event : element.type->contract->events)
+        element.on(std::string(event.name), [state = &gallery, site](const Value&) {
+            if (!site.runtime || !*site.runtime) return;
+            if (const auto actor = (*site.runtime)->acting(); actor && actor->kind == "agent") state->manual_interaction.set(true);
+        });
+    for (auto& child : element.children) bind_agent_interaction(child, gallery, site);
+}
+
+bool has_variants(std::string_view id) {
+    return id == "button" || id == "toggle" || id == "checkbox" || id == "text_box" || id == "progress" ||
+           id == "badge" || id == "avatar" || id == "card" || id == "accordion" || id == "chip" || id == "time_picker";
+}
+
+Element specimen(const Entry& entry, Gallery& g, const GallerySite& site, float width, bool compact, const std::string& motion, bool preview) {
     Element sample = entry.specimen(g);
-    if (preview && sample.type && (sample.type->name == "row" || sample.type->name == "column") && sample.children.size() > 1 && entry.id != "dialog" && entry.id != "popover" && entry.id != "drawer" && entry.id != "toast") {
-        Element first = std::move(sample.children.front());
-        sample = std::move(first);
+    if (compact && has_variants(entry.id) && sample.children.size() > 1) {
+        std::string main;
+        for (const auto& [name, value] : entry.sample.props) if (name == "id") main = value.as_string();
+        if (entry.id == "button") main = "primary";
+        const auto chosen = std::ranges::find(sample.children, main, &Element::id);
+        if (chosen != sample.children.end()) {
+            Element first = std::move(*chosen);
+            sample.children = {std::move(first)};
+        }
     }
     if (sample.id.empty()) sample.id = "variants";
     fit(sample, width);
+    if (preview) {
+        // Preview overlays stay non-modal; a real detail page keeps the
+        // component's normal modality. Their viewport is the stage boundary.
+        auto nonmodal = [&](auto&& self, Element& node) -> void {
+            if (node.type && (node.type->name == "dialog" || node.type->name == "drawer")) node.prop("modal", Source(Value(false)));
+            for (auto& child : node.children) self(self, child);
+        };
+        nonmodal(nonmodal, sample);
+    }
+    bind_motion(sample, motion);
+    bind_agent_interaction(sample, g, site);
     sample.prop("theme_scope", Source(Value(std::string(gallery_scope))));
     return sample;
 }
-Element overview(Gallery& g, const GallerySite& site, float width) {
-    auto* state = &g;
-    Element title = text({.id = "title", .text = width < 700 ? words(site, "Small parts.\nComplete interfaces.", "从小处，\n构成完整界面。") : words(site, "Small parts. Complete interfaces.", "从小处，构成完整界面。"), .style = "title"});
-    title.prop("role", Source(Value("heading"))).prop("level", Source(Value(std::int64_t{1})));
-    std::vector<std::string> options{"featured", "all"}, labels{site.lang && site.lang->get() == "zh" ? "精选组件" : "Selected parts", site.lang && site.lang->get() == "zh" ? "全部组件" : "All parts"};
-    for (const auto& c : component_groups) { options.emplace_back(c.id); labels.emplace_back(site.lang && site.lang->get() == "zh" ? c.zh : c.en); }
-    return column({.id = "overview", .gap = 28}, {
-        text({.id = "eyebrow", .text = words(site, "OMUI / COMPONENTS", "OMUI / 组件"), .style = "label", .color = "accent"}), std::move(title),
-        text({.id = "lead", .text = words(site, "Find a part for what you are making. Try it here, then open its own workspace.", "为正在做的事情找到合适的组件。在这里试用，再打开它自己的工作台。"), .style = "body", .max_width = Dim(720.0f)}),
-        row({.id = "filter", .gap = 16, .align = "center", .wrap = "wrap"}, {
-            text_box({.id = "search", .label = words(site, "Search components", "搜索组件"), .placeholder = words(site, "Name or purpose…", "名称或用途…"), .text = g.query, .width = Dim(std::min(width, 360.0f))}),
-            select({.id = "category", .label = words(site, "Component category", "组件分类"), .labels = labels, .options = options, .value = g.category, .width = Dim(std::min(width, 220.0f))}),
-            button({.id = "clear", .text = words(site, "Reset filters", "重置筛选"), .variant = ButtonVariant::ghost, .on_activated = [state] { state->query.set(""); state->category.set("featured"); }})}),
-        dynamic([state, site, width] {
-            const auto query = folded(state->query.get()), category = state->category.get();
-            std::vector<Element> rows, cards; int found = 0;
-            const int columns = width >= 1000 ? 3 : width >= 650 ? 2 : 1;
-            const float card_width = (width - 28.0f * static_cast<float>(columns - 1)) / static_cast<float>(columns);
-            for (const auto& entry : entries()) {
-                const auto* info = find_component(entry.id); if (!info) continue;
-                if (category != "all" && category != "featured" && category != info->group) continue;
-                if (category == "featured" && query.empty() && !info->featured) continue;
-                if (!query.empty() && !folded(std::string(info->id) + " " + std::string(info->en) + " " + std::string(info->zh) + " " + std::string(info->purpose_en) + " " + std::string(info->purpose_zh)).contains(query)) continue;
-                const std::string id(entry.id); ++found;
-                cards.push_back(column({.id = id, .width = Dim(card_width), .min_width = Dim(0), .gap = 10}, {
-                    column({.id = "preview", .height = Dim(176.0f), .padding = Edges(20), .justify = "center", .align = "center", .background = "surface_variant", .radius = 16}, {specimen(entry, *state, card_width - 40, true)}),
-                    row({.id = "heading", .gap = 8, .align = "center", .wrap = "wrap"}, {
-                        button({.id = "open", .text = words(site, info->en, info->zh), .variant = ButtonVariant::ghost, .on_activated = [open = site.open, id] { if (open) open(id); }}),
-                        text({.id = "identifier", .text = id, .style = "caption", .color = "text_muted"})}),
-                    text({.id = "purpose", .text = words(site, info->purpose_en, info->purpose_zh), .style = "body", .color = "text_muted"})}));
-                if (cards.size() == static_cast<std::size_t>(columns)) { rows.push_back(row({.id = "r" + std::to_string(rows.size()), .gap = 28, .align = "start"}, std::move(cards))); cards.clear(); }
-            }
-            if (!cards.empty()) rows.push_back(row({.id = "r" + std::to_string(rows.size()), .gap = 28, .align = "start"}, std::move(cards)));
-            if (found == 0) rows.push_back(text({.id = "empty", .text = words(site, "No matching part. Try another name or reset the filters.", "没有匹配的组件。可以换个词，或重置筛选。"), .style = "body"}));
-            rows.insert(rows.begin(), text({.id = "count", .text = std::format("{} / {}", found, component_catalog.size()), .style = "caption", .color = "text_muted"}));
-            return std::vector<Element>{column({.id = "results", .gap = 32}, std::move(rows))};
-        })});
+
+// Navigation owns a bounded deferred focus request: after the new specimen
+// mounts, find an actual enabled control rather than focusing a stale id.
+void focus_specimen(GallerySite site, std::string id, Actor actor, int tries = 5, bool interact = true) {
+    if (!site.runtime || !*site.runtime) return;
+    auto& runtime = **site.runtime;
+    const auto route = parse_site_route(runtime.route());
+    if (!route || route->place != "components") return;
+    const std::string root = "main/body/view/components/page/gallery/detail/" + id;
+    if (!runtime.valid(runtime.find(root + "/stage/specimen"))) {
+        if (tries > 0) (void)runtime.after(seconds(1.0 / 60), [site, id, actor, tries, interact] { focus_specimen(site, id, actor, tries - 1, interact); });
+        return;
+    }
+    semantic::Tree tree(runtime);
+    std::string chosen = interact ? root + "/stage/actions/change" : root + "/title";
+    if (interact) for (const auto& node : tree.snapshot({.root = root + "/stage/specimen"}).nodes)
+        if (node.states.has(State::focusable) && !node.states.has(State::disabled) && !node.states.has(State::hidden)) { chosen = node.id; break; }
+    const auto target = runtime.find(chosen);
+    runtime.focus(target);
+    Invocation call; call.actor = std::move(actor);
+    (void)runtime.act(target, "scroll_into_view", call);
 }
 
-Element detail(Gallery& g, const GallerySite& site, const Entry& entry, float width) {
-    const auto* info = find_component(entry.id); auto* state = &g;
-    const std::string id(entry.id); const bool rail = width >= 1000;
-    const float main_width = width - (rail ? 200.0f : 0.0f), inner = std::max(40.0f, main_width - 48);
-    auto disabled = g.disabled.try_emplace(id, signal(false)).first->second;
-    const auto* type = find_type(entry.sample.component); const auto* contract = type ? type->contract : nullptr;
-    bool can_disable = contract && std::ranges::any_of(contract->props, [](const auto& p) { return p.name == "disabled"; });
-    std::vector<Element> navigation{button({.id = "all", .text = words(site, "All components", "全部组件"), .variant = ButtonVariant::ghost, .on_activated = [open = site.open] { if (open) open(""); }, .align_self = "start"})};
-    if (rail) {
-        navigation.push_back(text({.id = "category", .text = computed([site, group = info->group] { return std::string(group_name(group, site.lang && site.lang->get() == "zh")); }), .style = "caption", .color = "text_muted"}));
-        for (const auto& c : component_catalog) if (c.group == info->group) {
-            Element link = button({.id = std::string(c.id), .text = words(site, c.en, c.zh), .variant = c.id == id ? ButtonVariant::secondary : ButtonVariant::ghost,
-                                   .on_activated = [open = site.open, to = std::string(c.id)] { if (open) open(to); }, .align_self = "start"});
-            link.prop("selected", Source(Value(c.id == id))); navigation.push_back(std::move(link));
+void choose(Gallery& state, const GallerySite& site, std::string id) {
+    state.focus.set(id);
+    state.browser_open.set(false);
+    state.variants.set(false);
+    state.states.set(false);
+    state.pane.set("");
+    state.manual_interaction.set(false);
+    state.preview_changed = false;
+    const auto actor = site.runtime && *site.runtime ? (*site.runtime)->acting().value_or(Actor{}) : Actor{};
+    // Choosing a part changes the live preview. Only the explicit Details
+    // action opens its language, source and deeper configuration.
+    if (!state.selected.peek().empty() && site.open) site.open("");
+    if (site.runtime && *site.runtime)
+        (void)(*site.runtime)->after(seconds(0), [site, id, actor] { focus_specimen(site, id, actor, 5, false); });
+}
+
+Element overview(Gallery& g, const GallerySite& site, float width, const std::string& active, bool rail) {
+    auto* state = &g;
+    Element title = text({.id = "title", .text = words(site, "Components", "组件"), .style = "heading", .size = rail ? 30.0f : 28.0f});
+    title.prop("role", Source(Value("heading"))).prop("level", Source(Value(std::int64_t{1})));
+    std::vector<Element> contents;
+    if (rail) contents.push_back(text({.id = "eyebrow", .text = "OMUI / LIBRARY", .style = "caption", .color = "accent"}));
+    contents.push_back(std::move(title));
+    if (rail) contents.push_back(text({.id = "lead", .text = words(site, "Choose a part. Make it yours.", "选一个组件，把它变成你的。"), .style = "body", .color = "text_muted"}));
+    if (!rail) contents.push_back(button({.id = "browse", .text = computed([state, site] {
+        const bool zh = site.lang && site.lang->get() == "zh";
+        return std::string(state->browser_open.get() ? (zh ? "收起目录" : "Close library") : (zh ? "选择组件" : "Browse"));
+    }), .variant = ButtonVariant::secondary, .on_activated = [state] { state->browser_open.set(!state->browser_open.peek()); }, .align_self = "start"}));
+    contents.push_back(dynamic([state, site, width, rail] {
+        if (!rail && !state->browser_open.get()) return std::vector<Element>{};
+        std::vector<std::string> options{"featured", "all"}, labels{site.lang && site.lang->get() == "zh" ? "精选" : "Selected", site.lang && site.lang->get() == "zh" ? "全部组件" : "All components"};
+        for (const auto& group : component_groups) { options.emplace_back(group.id); labels.emplace_back(site.lang && site.lang->get() == "zh" ? group.zh : group.en); }
+        return std::vector<Element>{column({.id = "filter", .width = Dim(width), .gap = 10}, {
+            text_box({.id = "search", .label = words(site, "Search components", "搜索组件"), .placeholder = words(site, "Name or purpose…", "名称或用途…"), .text = state->query, .width = Dim(width)}),
+            select({.id = "category", .label = words(site, "Component category", "组件分类"), .labels = labels, .options = options, .value = state->category, .width = Dim(width)}),
+            button({.id = "clear", .text = words(site, "Reset filters", "重置筛选"), .variant = ButtonVariant::ghost, .on_activated = [state] { state->query.set(""); state->category.set("featured"); }, .align_self = "start"})})};
+    }));
+    contents.push_back(dynamic([state, site, width, active, rail] {
+        const auto query = folded(state->query.get()), category = state->category.get();
+        const bool expanded = rail || state->browser_open.get();
+        std::vector<Element> rows; int found = 0;
+        for (const auto& info : component_catalog) {
+            if (category != "all" && category != "featured" && category != info.group) continue;
+            if (category == "featured" && query.empty() && !info.featured) continue;
+            if (!query.empty() && !folded(std::string(info.id) + " " + std::string(info.en) + " " + std::string(info.zh) + " " + std::string(info.purpose_en) + " " + std::string(info.purpose_zh)).contains(query)) continue;
+            const std::string id(info.id);
+            if (expanded) {
+                Element open = button({.id = "open", .text = words(site, info.en, info.zh), .variant = id == active ? ButtonVariant::secondary : ButtonVariant::ghost,
+                    .on_activated = [state, site, id] { choose(*state, site, id); }, .width = Dim(width - 4)});
+                open.prop("selected", Source(Value(id == active)));
+                rows.push_back(column({.id = "r" + std::to_string(found), .width = Dim(width - 4)}, {
+                    column({.id = id}, {row({.id = "heading", .width = Dim(width - 4)}, {std::move(open)})})}));
+            }
+            ++found;
         }
-    }
-    Element directory = column({.id = "directory", .width = rail ? Dim(168) : Dim(layout::pct(100)), .gap = 8, .label = "Component directory"}, std::move(navigation));
+        if (found == 0) rows.push_back(text({.id = "empty", .text = words(site, "Nothing matched. Your current specimen stays open. Try another name or reset the filters.", "没有匹配项，当前样张仍然保留。可以换个词，或重置筛选。"), .style = "body", .color = "text_muted"}));
+        rows.insert(rows.begin(), text({.id = "count", .text = std::format("{} / {}", found, component_catalog.size()), .style = "caption", .color = "text_muted"}));
+        Element results = scroll({.id = "results", .y = static_cast<float>(state->browser_y.peek()), .width = Dim(width),
+            .max_height = Dim(expanded ? (rail ? 330.0f : 230.0f) : 60.0f), .gap = 3, .label = "Component results"}, std::move(rows));
+        results.on("scrolled", [state](const Value& at) { if (const auto* y = at.get("y")) state->browser_y.set(y->as_double()); });
+        return std::vector<Element>{std::move(results)};
+    }));
+    return rail ? column({.id = "overview", .width = Dim(width), .min_width = Dim(0), .gap = 14}, std::move(contents))
+                : row({.id = "overview", .width = Dim(width), .min_width = Dim(0), .gap = 12, .align = "center", .wrap = "wrap"}, std::move(contents));
+}
+
+Element detail(Gallery& g, const GallerySite& site, const Entry& entry, float width, bool detailed) {
+    const auto* info = find_component(entry.id); auto* state = &g;
+    const std::string id(entry.id);
+    const float inner = std::max(40.0f, width - 48), panel_inner = std::max(40.0f, width - 40);
+    auto disabled = g.disabled.try_emplace(id, signal(false)).first->second;
+    auto motion = g.motions.try_emplace(id, signal(std::string("default"))).first->second;
+    const auto* type = find_type(entry.sample.component); const auto* contract = type ? type->contract : nullptr;
+    const bool can_disable = contract && std::ranges::any_of(contract->props, [](const auto& p) { return p.name == "disabled"; });
+    Element directory = row({.id = "directory", .gap = 12, .align = "center", .wrap = "wrap", .label = "Component directory"}, {
+        button({.id = "all", .text = words(site, "All components", "全部组件"), .variant = ButtonVariant::ghost,
+            .on_activated = [state, site, id] { state->focus.set(id); state->browser_open.set(true); if (site.open) site.open(""); }}),
+        text({.id = "category", .text = computed([site, group = info->group] { return std::string(group_name(group, site.lang && site.lang->get() == "zh")); }), .style = "caption", .color = "text_muted"})});
     directory.prop("role", Source(Value("navigation")));
-    Element heading = text({.id = "title", .text = words(site, info->en, info->zh), .style = "title"});
-    heading.prop("role", Source(Value("heading"))).prop("level", Source(Value(std::int64_t{1})));
-    Element fixture = specimen(entry, g, inner, false);
-    bind_disabled(fixture, disabled);
-    Element sample = column({.id = "specimen", .width = Dim(layout::pct(100)), .min_height = Dim(220), .gap = 16, .justify = "center", .align = "center"}, {std::move(fixture)});
-    sample.prop("disabled", derive([disabled] { return disabled.get(); }));
+    Element heading = text({.id = "title", .text = words(site, info->en, info->zh), .style = "heading", .size = width < 700 ? 30.0f : 36.0f});
+    heading.prop("role", Source(Value("heading"))).prop("level", Source(Value(std::int64_t{2})));
+    heading.prop("focusable", Source(Value(true)));
     std::vector<Element> controls{
-        text({.id = "identifier", .text = id, .style = "code", .color = "text_muted"}),
-        button({.id = "reset", .text = words(site, "Reset specimen", "重置样张"), .variant = ButtonVariant::ghost, .on_activated = [state, id] { reset(*state, id); }}),
-        button({.id = "states", .text = words(site, "Appearance & state", "外观与状态"), .variant = ButtonVariant::ghost, .on_activated = [state] { state->states.set(!state->states.peek()); }})};
-    std::vector<Element> body{std::move(heading), text({.id = "purpose", .text = words(site, info->purpose_en, info->purpose_zh), .style = "body"}),
-        column({.id = "stage", .padding = Edges(24), .gap = 20, .background = "surface_variant", .radius = 20}, {
-            row({.id = "actions", .gap = 12, .align = "center", .wrap = "wrap"}, std::move(controls)), std::move(sample)}),
-        dynamic([state, site, disabled, can_disable] {
-            if (!state->states.get()) return std::vector<Element>{};
-            std::vector<Element> items;
-            std::vector<std::string> packs{"plain", "glass", "neon", "retro", "ink", "liquid"};
-            items.push_back(select({.id = "style", .label = words(site, "Specimen style", "样张风格"), .options = packs, .value = state->style,
-                                    .on_changed = [pick = site.style](std::string p) { if (pick) pick(p); }, .width = Dim(220)}));
+        button({.id = "change", .text = words(site, "Change", "改变状态"), .variant = ButtonVariant::primary,
+            .on_activated = [state, site, id] { state->manual_interaction.set(true); change_state(*state, site, id); }}),
+        button({.id = "reset", .text = words(site, "Reset", "重置"), .variant = ButtonVariant::ghost, .on_activated = [state, id] { state->manual_interaction.set(true); reset(*state, id); }})};
+    controls.push_back(button({.id = "details", .text = detailed ? words(site, "Back to preview", "返回预览") : words(site, "View details", "查看详情"),
+        .variant = ButtonVariant::ghost, .on_activated = [state, site, id, detailed] {
+            state->focus.set(id); state->manual_interaction.set(false);
+            if (site.open) site.open(detailed ? std::string() : id);
+        }}));
+    if (detailed) controls.push_back(button({.id = "states", .text = width < 700 ? words(site, "Tune", "调整") : words(site, "Customize", "调整"), .variant = computed([state] { return state->states.get() ? ButtonVariant::secondary : ButtonVariant::ghost; }),
+            .on_activated = [state] { state->states.set(!state->states.peek()); }}));
+    if (detailed && has_variants(id)) controls.push_back(button({.id = "variants", .text = words(site, "Variants", "变体"),
+        .variant = computed([state] { return state->variants.get() ? ButtonVariant::secondary : ButtonVariant::ghost; }),
+        .on_activated = [state] { state->variants.set(!state->variants.peek()); }}));
+    if (!detailed) {
+        controls.push_back(button({.id = "pause", .disabled = computed([state] { const auto status = state->preview_status.get(); return status == "reduced" || status == "off"; }),
+            .text = computed([state, site] { const bool zh = site.lang && site.lang->get() == "zh"; return std::string(state->preview_paused.get() ? (zh ? "播放预览" : "Play preview") : (zh ? "暂停预览" : "Pause auto")); }),
+            .variant = ButtonVariant::ghost, .on_activated = [state] { state->preview_paused.set(!state->preview_paused.peek()); state->manual_interaction.set(false); }}));
+        controls.push_back(button({.id = "interact", .text = computed([state, site] { const bool zh = site.lang && site.lang->get() == "zh"; return std::string(state->manual_interaction.get() ? (zh ? "返回自动预览" : "Return to preview") : (zh ? "进入交互" : "Interact")); }),
+            .variant = ButtonVariant::ghost, .on_activated = [state, site, id] {
+                const bool on = !state->manual_interaction.peek(); state->manual_interaction.set(on);
+                if (on && site.runtime && *site.runtime) {
+                    const auto actor = (*site.runtime)->acting().value_or(Actor{});
+                    (void)(*site.runtime)->after(seconds(0), [site, id, actor] { focus_specimen(site, id, actor); });
+                } else if (site.runtime && *site.runtime) {
+                    auto& runtime = **site.runtime;
+                    runtime.focus(runtime.find("main/body/view/components/page/gallery/detail/" + id + "/stage/actions/interact"));
+                }
+            }}));
+    }
+    std::vector<Element> body;
+    if (width >= 700) body.push_back(text({.id = "eyebrow", .text = words(site, "THE LIVE SPECIMEN", "当前样张"), .style = "caption", .color = "accent"}));
+    body.push_back(std::move(heading));
+    body.push_back(
+        text({.id = "purpose", .text = words(site, info->purpose_en, info->purpose_zh), .style = "body", .color = "text_muted"}));
+    body.push_back(column({.id = "stage", .gap = 12}, {
+            row({.id = "actions", .gap = 6, .align = "center", .wrap = "wrap"}, std::move(controls)),
+            dynamic([state, site, entry, disabled, motion, inner, detailed] {
+                const bool expanded = state->variants.get();
+                Element fixture = specimen(entry, *state, site, inner, !expanded, motion.get(), !detailed);
+                bind_disabled(fixture, disabled);
+                Element field = painter({.id = "field", .width = Dim(layout::pct(100)), .height = Dim(220), .role = Role::none,
+                    .paint = [](PaintContext& ctx) {
+                        const Color ink = ctx.theme.color("accent").with_alpha(0.1f);
+                        for (float y = 10; y < ctx.size.height; y += 28)
+                            for (float x = 10; x < ctx.size.width; x += 28)
+                                ctx.list.fill_round_rect({x, y, 1.5f, 1.5f}, CornerRadii::all(0.75f), render::Paint::solid(ink));
+                    }});
+                field.prop("pointer_events", Source(Value("none")));
+                Element sample = stack({.id = "specimen", .width = Dim(layout::pct(100)), .min_height = Dim(300), .padding = Edges(24), .align = "center",
+                    .background = "surface", .border_color = "border", .border_width = 1, .radius = 18, .clip = !detailed}, {std::move(field), std::move(fixture)});
+                if (!detailed) sample.prop("overlay_boundary", Source(Value(true)));
+                sample.prop("disabled", derive([disabled] { return disabled.get(); }));
+                return std::vector<Element>{std::move(sample)};
+            }),
+            text({.id = "hint", .text = computed([motion, state, site, detailed] {
+                const bool zh = site.lang && site.lang->get() == "zh";
+                if (!detailed) {
+                    const auto status = state->preview_status.get();
+                    if (status == "interactive") return std::string(zh ? "交互模式：你正在直接操作这个组件。" : "Interactive: this component is yours to use.");
+                    if (status == "paused") return std::string(zh ? "自动预览已暂停，控件仍可操作。" : "Automatic preview paused. The controls remain usable.");
+                    if (status == "reduced") return std::string(zh ? "已按减少动态效果设置暂停自动预览。" : "Automatic preview follows your reduced-motion preference.");
+                    if (status == "off") return std::string(zh ? "这个样张的动效已关闭，可在详情中恢复默认。" : "Motion is off for this specimen. Restore its default in Details.");
+                    if (status == "offscreen") return std::string(zh ? "样张重新可见时恢复自动预览。" : "Automatic preview resumes when this specimen is visible.");
+                    if (status == "tooltip") return std::string(zh ? "悬停或聚焦按钮，显示真实提示。" : "Hover or focus its button to reveal the real tooltip.");
+                    return std::string(zh ? "动态预览：移入或聚焦这个区域，即可交互。" : "Live preview: move into or focus this area to interact.");
+                }
+                if (motion.get() == "default") return std::string(zh ? "实时样张，保留组件自己的默认动效。" : "Live, with this component's own motion.");
+                if (motion.get() == "none") return std::string(zh ? "这个样张的动效已关闭，可在“调整”中恢复默认。" : "Motion is off for this specimen. Open its options to restore the default.");
+                return std::string(zh ? "这个样张正在使用自选动效。" : "This specimen uses your chosen motion.");
+            }), .style = "caption", .color = "text_muted"})}));
+    body.push_back(dynamic([state, site, disabled, motion, can_disable, width, panel_inner, detailed] {
+            if (!detailed || !state->states.get()) return std::vector<Element>{};
+            const bool zh = site.lang && site.lang->get() == "zh";
+            std::vector<Element> items{
+                text({.id = "title", .text = words(site, "Make this part yours", "调整这个组件"), .style = "heading"}),
+                text({.id = "scope", .text = words(site, "These choices affect the specimen. The site keeps its own appearance.", "这些设置只影响样张，官网保持自己的外观。"), .style = "caption", .color = "text_muted"}),
+                select({.id = "style", .label = words(site, "Specimen style", "样张风格"),
+                    .labels = zh ? std::vector<std::string>{"本色", "玻璃", "霓虹", "复古", "墨", "液态"} : std::vector<std::string>{"Essential", "Glass", "Neon", "Retro", "Ink", "Liquid"},
+                    .options = std::vector<std::string>{"plain", "glass", "neon", "retro", "ink", "liquid"}, .value = state->style,
+                    .on_changed = [pick = site.style](std::string pack) { if (pick) pick(pack); }, .width = Dim(std::min(panel_inner, 260.0f))}),
+                select({.id = "motion", .label = words(site, "Specimen motion", "样张动效"),
+                    .labels = zh ? std::vector<std::string>{"组件默认", "简短", "弹簧", "变形", "墨", "液态", "关闭"} : std::vector<std::string>{"Component default", "Simple", "Spring", "Morph", "Ink", "Liquid", "Off"},
+                    .options = std::vector<std::string>{"default", "simple", "spring", "morph", "ink", "liquid", "none"}, .value = motion,
+                    .width = Dim(std::min(panel_inner, 260.0f))})};
             if (can_disable) items.push_back(checkbox({.id = "disabled", .checked = disabled, .label = words(site, "Disabled", "禁用")}));
-            return std::vector<Element>{row({.id = "options", .gap = 20, .align = "center", .wrap = "wrap"}, std::move(items))};
-        })};
+            return std::vector<Element>{column({.id = "options", .width = Dim(width), .padding = Edges(20), .gap = 12,
+                .background = "surface", .border_color = "border", .border_width = 1, .radius = 14}, std::move(items))};
+        }));
     std::vector<Element> pane_tabs;
-    for (const auto& [key, en, zh] : {std::tuple{"code", "Builder reference", "构造参考"}, {"behavior", "Behaviour", "行为"}, {"semantics", "Live semantics", "实时语义"}}) {
+    for (const auto& [key, en, zh] : {std::tuple{"code", "Code", "代码"}, {"behavior", "Behaviour", "行为"}, {"semantics", "Semantics", "语义"}}) {
         Element b = button({.id = key, .text = words(site, en, zh), .variant = computed([state, key] { return state->pane.get() == key ? ButtonVariant::secondary : ButtonVariant::ghost; }),
                             .on_activated = [state, key] { state->pane.set(state->pane.peek() == key ? "" : key); state->copied.set(false); }});
         b.prop("selected", derive([state, key] { return state->pane.get() == key; })); pane_tabs.push_back(std::move(b));
     }
-    body.push_back(row({.id = "panes", .gap = 8, .wrap = "wrap"}, std::move(pane_tabs)));
-    body.push_back(dynamic([state, site, entry, id, contract, main_width] {
+    if (detailed) body.push_back(row({.id = "panes", .gap = 8, .wrap = "wrap"}, std::move(pane_tabs)));
+    body.push_back(dynamic([state, site, entry, id, contract, width, panel_inner, detailed] {
+        if (!detailed) return std::vector<Element>{};
         const auto pane = state->pane.get();
         if (pane.empty()) return std::vector<Element>{};
         if (pane == "code") {
             std::vector<Element> languages;
-            for (const auto& [key, label] : {std::pair{"cpp", "C++"}, {"ts", "TypeScript"}, {"python", "Python"}, {"lua", "Lua"}})
+            for (const auto& [key, label] : {std::pair{"cpp", "C++"}, {"ts", "TS"}, {"python", "Python"}, {"lua", "Lua"}})
                 languages.push_back(tab({.id = key, .text = label}));
-            return std::vector<Element>{column({.id = "code", .gap = 16}, {
+            return std::vector<Element>{column({.id = "code", .width = Dim(width), .padding = Edges(20), .gap = 16,
+                .background = "surface", .border_color = "border", .border_width = 1, .radius = 14}, {
                 text({.id = "scope", .text = words(site, "An API expression. The running fixture also includes state, event bindings and, where needed, child views or models.", "这里展示 API 表达式。运行中的样张还包含状态、事件绑定，以及需要的子视图或模型。"), .style = "caption", .color = "text_muted"}),
                 tabs({.id = "language", .selected = state->language, .on_changed = [state](std::string) { state->copied.set(false); }}, std::move(languages)),
-                scroll({.id = "scroll", .horizontal = true, .vertical = false, .width = Dim(main_width), .padding = Edges(16), .background = "surface_variant"}, {
+                button({.id = "copy", .text = words(site, "Copy expression", "复制表达式"), .on_activated = [state, site, entry] {
+                    if (site.clipboard) { const auto source = code_of(state->language.peek(), current_sample(entry, *state)); site.clipboard(source); state->copied_source.set(source); state->copied.set(true); }
+                }, .align_self = "start"}),
+                scroll({.id = "scroll", .horizontal = true, .vertical = false, .width = Dim(panel_inner), .padding = Edges(16), .background = "surface_variant"}, {
                     text({.id = "source", .text = computed([state, entry] { return code_of(state->language.get(), current_sample(entry, *state)); }), .style = "code", .wrap = false})}),
-                button({.id = "copy", .text = words(site, "Copy expression", "复制表达式"), .on_activated = [state, site, entry] { if (site.clipboard) { site.clipboard(code_of(state->language.peek(), current_sample(entry, *state))); state->copied.set(true); } }, .align_self = "start"}),
-                text({.id = "copied", .text = computed([state, site] { return state->copied.get() ? std::string(site.lang && site.lang->get() == "zh" ? "已复制表达式" : "Expression copied") : std::string(); }), .style = "caption", .color = "text_muted"})})};
+                text({.id = "copied", .text = computed([state, site, entry] {
+                    const bool same = state->copied.get() && state->copied_source.get() == code_of(state->language.get(), current_sample(entry, *state));
+                    return same ? std::string(site.lang && site.lang->get() == "zh" ? "已复制表达式" : "Expression copied") : std::string();
+                }), .style = "caption", .color = "text_muted"})})};
         }
         if (pane == "behavior") {
             std::vector<Element> lines;
             if (contract) {
                 lines.push_back(text({.id = "doc", .text = std::string(contract->doc), .style = "body"}));
                 lines.push_back(text({.id = "role", .text = "role: " + std::string(spec::name(contract->role)), .style = "code"}));
-                for (const auto& a : contract->actions) lines.push_back(text({.id = std::string(a.name), .text = std::string(a.name), .style = "code"}));
+                for (const auto& action : contract->actions) lines.push_back(text({.id = std::string(action.name), .text = std::string(action.name), .style = "code"}));
             }
-            return std::vector<Element>{column({.id = "behavior", .gap = 12}, std::move(lines))};
+            return std::vector<Element>{column({.id = "behavior", .width = Dim(width), .padding = Edges(20), .gap = 12,
+                .background = "surface", .border_color = "border", .border_width = 1, .radius = 14}, std::move(lines))};
         }
-        return std::vector<Element>{column({.id = "semantics", .gap = 12}, {
+        return std::vector<Element>{column({.id = "semantics", .width = Dim(width), .padding = Edges(20), .gap = 12,
+            .background = "surface", .border_color = "border", .border_width = 1, .radius = 14}, {
             text({.id = "scope", .text = words(site, "Read from the running specimen. The same ids, roles, values and actions an agent receives.", "读取当前运行样张，呈现 agent 获得的同一批 ID、角色、值和动作。"), .style = "caption", .color = "text_muted"}),
-            scroll({.id = "scroll", .horizontal = true, .vertical = true, .width = Dim(main_width), .max_height = Dim(360)}, {
-            text({.id = "json", .text = computed([site, id] {
-                Value::List nodes;
-                if (site.tree) { const Value tree = site.tree->get(); if (tree.list())
-                    for (const auto& n : *tree.list()) if (const auto* name = n.get("id"); name && name->as_string().starts_with("main/body/view/components/page/gallery/detail/" + id + "/stage/specimen")) nodes.push_back(n);
-                }
-                return Value(std::move(nodes)).json();
-            }), .style = "code", .wrap = false})})})};
+            scroll({.id = "scroll", .horizontal = true, .vertical = true, .width = Dim(panel_inner), .max_height = Dim(360)}, {
+                text({.id = "json", .text = computed([site, id] {
+                    Value::List nodes;
+                    if (site.tree) { const Value tree = site.tree->get(); if (tree.list())
+                        for (const auto& node : *tree.list()) if (const auto* name = node.get("id"); name && name->as_string().starts_with("main/body/view/components/page/gallery/detail/" + id + "/stage/specimen")) nodes.push_back(node);
+                    }
+                    return Value(std::move(nodes)).json();
+                }), .style = "code", .wrap = false})})})};
     }));
-    Element main = column({.id = id, .width = Dim(main_width), .min_width = Dim(0), .gap = 24}, std::move(body));
-    return rail ? row({.id = "detail", .gap = 32, .align = "start"}, {std::move(directory), std::move(main)})
-                : column({.id = "detail", .gap = 24}, {std::move(directory), std::move(main)});
+    Element main = column({.id = id, .width = Dim(width), .min_width = Dim(0), .gap = width < 700 ? 12.0f : 16.0f}, std::move(body));
+    return column({.id = "detail", .width = Dim(width), .min_width = Dim(0), .gap = width < 700 ? 12.0f : 18.0f}, {std::move(directory), std::move(main)});
 }
 } // namespace
+
+void tick_gallery(Gallery& gallery, const GallerySite& site) {
+    if (!site.runtime || !*site.runtime) return;
+    auto& runtime = **site.runtime;
+    const auto preview = runtime.find(gallery.preview_path);
+    const auto route = parse_site_route(runtime.route());
+    const bool mounted = runtime.valid(preview) && route && route->place == "components" && gallery.selected.peek().empty();
+    auto stop = [&] {
+        if (gallery.preview_timer) runtime.cancel(std::exchange(gallery.preview_timer, 0));
+        ++gallery.preview_generation;
+    };
+    if (preview != gallery.preview_node) {
+        stop(); gallery.preview_node = preview; gallery.preview_changed = false;
+    }
+    std::string_view status = "playing";
+    if (!mounted) status = "details";
+    else if (runtime.reduce_motion() || runtime.motion_level() != MotionLevel::full) status = "reduced";
+    else {
+        const auto motion = gallery.motions.find(gallery.focus.peek());
+        if (motion != gallery.motions.end() && motion->second.peek() == "none") status = "off";
+        else {
+            bool focused = false;
+            for (auto node = runtime.focused(); runtime.valid(node); node = runtime.parent(node))
+                if (node == preview) { focused = true; break; }
+            const auto viewport = runtime.find("main/body/view/components");
+            const auto bounds = runtime.screen_bounds(preview);
+            const auto visible = runtime.screen_bounds(viewport);
+            const float width = std::max(0.0f, std::min(bounds.right(), visible.right()) - std::max(bounds.x, visible.x));
+            const float height = std::max(0.0f, std::min(bounds.bottom(), visible.bottom()) - std::max(bounds.y, visible.y));
+            if (width * height < bounds.width * bounds.height * 0.25f || width <= 0 || height <= 0) status = "offscreen";
+            else if (gallery.manual_interaction.peek() || runtime.state(preview).hovered || focused) status = "interactive";
+            else if (gallery.preview_paused.peek()) status = "paused";
+            else if (gallery.focus.peek() == "tooltip") status = "tooltip";
+        }
+    }
+    if (gallery.preview_status.peek() != status) gallery.preview_status.set(std::string(status));
+    if (status != "playing") { if (gallery.preview_timer) stop(); return; }
+    if (gallery.preview_timer) return;
+    const auto generation = gallery.preview_generation;
+    const auto lifetime = std::weak_ptr<unsigned char>(gallery.lifetime);
+    gallery.preview_timer = runtime.after(seconds(1.6), [state = &gallery, site, generation, lifetime] {
+        if (lifetime.expired() || !site.runtime || !*site.runtime) return;
+        if (state->preview_generation != generation) return;
+        state->preview_timer = 0;
+        // The after-paint observer cancels when hover, focus, route or the
+        // viewport changes. Recheck before changing the fixture as well.
+        tick_gallery(*state, site);
+        if (state->preview_status.peek() != "playing") return;
+        if (state->preview_changed) reset(*state, state->focus.peek());
+        else change_state(*state, site, state->focus.peek(), true);
+        state->preview_changed = !state->preview_changed;
+    });
+}
 
 Element gallery(Gallery& g, const GallerySite& site, bool, float width) {
     auto* state = &g;
     return dynamic([state, site, width] {
         const std::string selected = state->selected.get();
-        std::vector<Element> content;
-        if (selected.empty()) content.push_back(overview(*state, site, width));
-        else for (const auto& e : entries()) if (e.id == selected) { content.push_back(detail(*state, site, e, width)); break; }
-        return std::vector<Element>{column({.id = "gallery", .width = Dim(width), .gap = 24}, std::move(content))};
+        const std::string active = selected.empty() ? state->focus.get() : selected;
+        state->preview_path = "main/body/view/components/page/gallery/detail/" + active + "/stage/specimen";
+        const bool rail = width >= 1000;
+        const float directory_width = rail ? 240.0f : width;
+        const float main_width = rail ? width - directory_width - 40 : width;
+        std::vector<Element> content{overview(*state, site, directory_width, active, rail)};
+        for (const auto& entry : entries()) if (entry.id == active) { content.push_back(detail(*state, site, entry, main_width, !selected.empty())); break; }
+        Element layout = rail ? row({.id = "gallery", .width = Dim(width), .gap = 40, .align = "start"}, std::move(content))
+                              : column({.id = "gallery", .width = Dim(width), .gap = 20}, std::move(content));
+        return std::vector<Element>{std::move(layout)};
     });
 }
 
@@ -553,7 +828,7 @@ std::string gallery_html(bool zh, std::string_view component) {
     if (const auto* c = find_component(component))
         return std::format("<p><a href=\"#/{}components\">{}</a></p><h1>{}</h1><p>{}</p><p>{}</p>", prefix, zh ? "全部组件" : "All components", zh ? c->zh : c->en,
                            zh ? c->purpose_zh : c->purpose_en, zh ? "运行样张、状态、风格与代码参考需要 JavaScript。" : "The live specimen, states, styles and builder reference require JavaScript.");
-    std::string out = zh ? "<h1>从小处，构成完整界面。</h1><p>按用途寻找组件，打开独立样张。</p>" : "<h1>Small parts. Complete interfaces.</h1><p>Find a component by what you want to do.</p>";
+    std::string out = zh ? "<h1>组件</h1><p>按用途找到一个组件，在主舞台试用，再按需展开变体、外观、动效与代码。</p>" : "<h1>Components</h1><p>Find a part by its purpose. Try one live specimen, then reveal its variants, appearance, motion and code when needed.</p>";
     for (const auto& group : component_groups) {
         out += std::format("<h2>{}</h2><ul>", zh ? group.zh : group.en);
         for (const auto& c : component_catalog) if (c.group == group.id) out += std::format("<li><a href=\"#/{}components/{}\">{}</a> — {}</li>", prefix, component_slug(c.id), zh ? c.zh : c.en, zh ? c.purpose_zh : c.purpose_en);

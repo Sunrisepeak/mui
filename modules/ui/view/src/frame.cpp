@@ -89,7 +89,10 @@ FrameOutput Runtime::frame(const FrameInput& input) {
                        t.total, t.timers, t.input, t.regions, t.animations, t.layout, t.bounds, t.paint, t.other, d.stats.nodes,
                        d.stats.laid_out, d.stats.painted);
     }
-    const bool more = !d.animating.empty() || !d.morphing.empty() || !d.removing.empty() || d.frame_requested || !d.dirty_regions.empty() || d.fading.has_value() ||
+    // Retaining a seekable handle does not imply movement. A paused handle
+    // or one at its directional endpoint must let the host become idle.
+    const bool moving_morph = d.motions_moving();
+    const bool more = !d.animating.empty() || moving_morph || d.frame_requested || !d.dirty_regions.empty() || d.fading.has_value() ||
                       d.options.debug.hud || !d.flashes.empty();
     // What frames are wanted for from now on (D-70).
     {
@@ -101,7 +104,7 @@ FrameOutput Runtime::frame(const FrameInput& input) {
                 d.input_until = d.now() + seconds(0.3);
         }
         FrameDemand want;
-        if (!d.animating.empty() || !d.morphing.empty() || d.fading) want = merge(want, FrameDemand::fastest("animation"));
+        if (!d.animating.empty() || moving_morph || d.fading) want = merge(want, FrameDemand::fastest("animation"));
         if (d.now() < d.input_until) want = merge(want, FrameDemand::fastest("input"));
         for (const auto& [token, lease] : d.leases) want = merge(want, lease);
         // A timer: as often as it is due (a caret's blink), at most 60 a second.
@@ -349,6 +352,8 @@ void Runtime::Impl::run_layout() {
     if (!(dirty & dirty_layout)) return;
     layout.reset_stats();
     layout.compute(at(root).layout, size);
+    for (const NodeId id : overlays)
+        if (alive(id)) at(id).overlay_measured = layout.frame(at(id).layout).size();
     stats.laid_out = layout.stats().layouts;
     dirty |= dirty_paint | dirty_semantics;
     ++semantic_revision;  // bounds moved
@@ -396,57 +401,113 @@ void Runtime::Impl::place_overlays() {
     const Rect window{0, 0, size.width, size.height};
     // How far each edge's and corner's overlays reach in so far (they stack).
     std::array<float, 13> stacked{};
-    for (NodeId id : overlays) {
+    for (std::size_t overlay_index = 0; overlay_index < overlays.size(); ++overlay_index) {
+        const NodeId id = overlays[overlay_index];
         if (!alive(id) || !displayed(id)) continue;
         Node& n = at(id);
         const Placement p = n.type->placement ? n.type->placement(n.instance) : Placement{};
+        const bool was_bounded = alive(n.overlay_boundary);
+        n.overlay_boundary = {};
+        for (NodeId ancestor = n.parent; alive(ancestor); ancestor = at(ancestor).parent) {
+            const auto flag = at(ancestor).props.find("overlay_boundary");
+            if (flag != at(ancestor).props.end() && flag->second.as_bool()) {
+                n.overlay_boundary = ancestor;
+                break;
+            }
+        }
+        Rect area = window;
+        if (alive(n.overlay_boundary)) {
+            const Node& boundary = at(n.overlay_boundary);
+            area = area.intersection(boundary.world.map({0, 0, boundary.frame.width, boundary.frame.height}));
+            for (NodeId ancestor = n.parent; alive(ancestor); ancestor = at(ancestor).parent) {
+                const Node& parent = at(ancestor);
+                if (parent.visual.clip || parent.type->clips)
+                    area = area.intersection(parent.world.map({0, 0, parent.frame.width, parent.frame.height}));
+            }
+            // Resolve a side panel's auto height against its local viewport;
+            // other auto dimensions retain their measured extent, constrained
+            // by the available region. Layout's cache makes unchanged requests free.
+            const Size measured = n.overlay_measured;
+            const bool side = p.side == Placement::Side::left || p.side == Placement::Side::right;
+            const auto before = layout.stats().layouts;
+            layout.compute(n.layout, {std::min(measured.width, area.width), side ? area.height : std::min(measured.height, area.height)});
+            stats.laid_out += layout.stats().layouts - before;
+        }
+        if (was_bounded && !n.overlay_boundary) {
+            const bool side = p.side == Placement::Side::left || p.side == Placement::Side::right;
+            const auto before = layout.stats().layouts;
+            layout.compute(n.layout, {n.overlay_measured.width, side ? window.height : n.overlay_measured.height});
+            stats.laid_out += layout.stats().layouts - before;
+        }
+        n.overlay_area = area;
+        n.overlay_stacked = 0;
         const Rect frame = layout.frame(n.layout);
-        Rect anchor = alive(n.parent) ? at(n.parent).bounds : window;
+        auto anchor_of = [&](NodeId who) {
+            const Node& parent = at(who);
+            return n.overlay_boundary ? parent.world.map({0, 0, parent.frame.width, parent.frame.height}) : parent.bounds;
+        };
+        Rect anchor = alive(n.parent) ? anchor_of(n.parent) : area;
         if (p.anchor == Placement::Anchor::previous && alive(n.parent)) {
             NodeId before;
             for (NodeId c : at(n.parent).children) {
                 if (c == id) break;
                 if (!at(c).type->overlay) before = c;
             }
-            if (alive(before)) anchor = at(before).bounds;
+            if (alive(before)) anchor = anchor_of(before);
         }
         const float w = frame.width, h = frame.height;
         Point at{};
         switch (p.side) {
-            case Placement::Side::center: at = {(window.width - w) / 2, (window.height - h) / 2}; break;
-            case Placement::Side::left: at = {p.offset, 0}; break;  // as tall as the window (its style: top and bottom 0)
-            case Placement::Side::right: at = {window.width - w - p.offset, 0}; break;
+            case Placement::Side::center: at = {area.x + (area.width - w) / 2, area.y + (area.height - h) / 2}; break;
+            case Placement::Side::left: at = {area.x + p.offset, area.y}; break;
+            case Placement::Side::right: at = {area.right() - w - p.offset, area.y}; break;
             case Placement::Side::below:
             case Placement::Side::above: {
                 const float below = anchor.bottom() + p.offset, above = anchor.y - p.offset - h;
-                const bool down = p.side == Placement::Side::below ? (below + h <= window.bottom() || above < 0)
-                                                                   : !(above >= 0 || below + h > window.bottom());
+                const bool down = p.side == Placement::Side::below ? (below + h <= area.bottom() || above < area.y)
+                                                                   : !(above >= area.y || below + h > area.bottom());
                 at = {anchor.x, down ? below : above};
                 break;
             }
             case Placement::Side::start:
             case Placement::Side::end: {
                 const float after = anchor.right() + p.offset, before = anchor.x - p.offset - w;
-                const bool right = p.side == Placement::Side::end ? (after + w <= window.right() || before < 0)
-                                                                  : !(before >= 0 || after + w > window.right());
+                const bool right = p.side == Placement::Side::end ? (after + w <= area.right() || before < area.x)
+                                                                  : !(before >= area.x || after + w > area.right());
                 at = {right ? after : before, anchor.y};
                 break;
             }
             default: {  // an edge or a corner of the window, past those already there
-                float& in = stacked[static_cast<std::size_t>(p.side)];
+                float local_stack = 0;
+                if (n.overlay_boundary) {
+                    // The last overlay on this boundary/edge carries its
+                    // accumulated extent. No per-frame map or vector is needed.
+                    for (std::size_t previous = overlay_index; previous-- > 0;) {
+                        const NodeId other = overlays[previous];
+                        if (!alive(other) || !displayed(other)) continue;
+                        const Node& old = this->at(other);
+                        const Placement op = old.type->placement ? old.type->placement(old.instance) : Placement{};
+                        if (old.overlay_boundary == n.overlay_boundary && op.side == p.side) {
+                            local_stack = old.overlay_stacked;
+                            break;
+                        }
+                    }
+                }
+                float& in = n.overlay_boundary ? local_stack : stacked[static_cast<std::size_t>(p.side)];
                 const bool top = p.side == Placement::Side::top || p.side == Placement::Side::top_start || p.side == Placement::Side::top_end;
                 const bool start = p.side == Placement::Side::top_start || p.side == Placement::Side::bottom_start;
                 const bool end = p.side == Placement::Side::top_end || p.side == Placement::Side::bottom_end;
-                const float x = start ? p.offset : end ? window.width - w - p.offset : (window.width - w) / 2;
-                const float y = top ? p.offset + in : window.height - h - p.offset - in;
+                const float x = start ? area.x + p.offset : end ? area.right() - w - p.offset : area.x + (area.width - w) / 2;
+                const float y = top ? area.y + p.offset + in : area.bottom() - h - p.offset - in;
                 in += h + p.offset / 2;
+                n.overlay_stacked = in;
                 at = {x, y};
                 break;
             }
         }
-        // Inside the window, as far as it fits.
-        at.x = std::clamp(at.x, 0.0f, std::max(0.0f, window.width - w));
-        at.y = std::clamp(at.y, 0.0f, std::max(0.0f, window.height - h));
+        // Inside its available region, as far as it fits.
+        at.x = std::clamp(at.x, area.x, std::max(area.x, area.right() - w));
+        at.y = std::clamp(at.y, area.y, std::max(area.y, area.bottom() - h));
         compute_bounds(id, {0, 0}, Affine{}, Affine{}, at);
         if (p.match_width && w < anchor.width) {
             sync_style(id);  // the anchor's width became known: lay out again next frame
@@ -533,11 +594,28 @@ void Runtime::Impl::paint() {
     for (NodeId id : overlays) {
         if (!alive(id) || !displayed(id)) continue;
         const Node& n = at(id);
+        const bool bounded = alive(n.overlay_boundary);
+        std::size_t clips = 0;
+        if (bounded) {
+            list.push_clip(n.overlay_area);
+            ++clips;
+            // Retain transformed/rounded ancestor clips too: their bounding
+            // rectangles alone would let pixels escape at rotated corners.
+            for (NodeId ancestor = n.parent; alive(ancestor); ancestor = at(ancestor).parent) {
+                const Node& parent = at(ancestor);
+                if (!(parent.visual.clip || parent.type->clips)) continue;
+                list.push_transform(parent.world);
+                list.push_clip({0, 0, parent.frame.width, parent.frame.height}, parent.visual.corners(parent.frame.size()));
+                list.pop_transform();
+                ++clips;
+            }
+        }
         if (n.type->placement && n.type->placement(n.instance).scrim) {
             const Color scrim = theme_of(id).color("scrim", Color::hex(0x0f172a, 0.45f));
-            list.fill_rect({0, 0, size.width, size.height}, scrim.with_alpha(scrim.a * std::clamp(n.visual[Field::opacity], 0.0f, 1.0f)));
+            list.fill_rect(bounded ? n.overlay_area : Rect{0, 0, size.width, size.height}, scrim.with_alpha(scrim.a * std::clamp(n.visual[Field::opacity], 0.0f, 1.0f)));
         }
         paint_node(id);
+        while (clips > 0) { list.pop_clip(); --clips; }
     }
     // Components' own motions: a node said moving is animating; one no longer said, settled (readers told either way).
     for (const NodeId id : moving_flagged)
@@ -830,8 +908,29 @@ NodeId Runtime::hit_test(Point window) const {
     // Overlays first, top to bottom; a modal one hides what is below it.
     for (auto it = d.overlays.rbegin(); it != d.overlays.rend(); ++it) {
         if (!d.alive(*it) || !d.displayed(*it)) continue;
-        if (NodeId h = d.hit(*it, window, std::nullopt)) return h;
         const Node& o = d.at(*it);
+        bool inside_boundary = true;
+        if (d.alive(o.overlay_boundary)) {
+            inside_boundary = o.overlay_area.contains(window);
+            for (NodeId ancestor = o.parent; inside_boundary && d.alive(ancestor); ancestor = d.at(ancestor).parent) {
+                const Node& parent = d.at(ancestor);
+                if (!(parent.visual.clip || parent.type->clips)) continue;
+                const Point local = local_point(parent, window);
+                inside_boundary = Rect{0, 0, parent.frame.width, parent.frame.height}.contains(local);
+                if (!inside_boundary) break;
+                const CornerRadii corners = parent.visual.corners(parent.frame.size());
+                auto corner = [&](float radius, bool left, bool top) {
+                    const Point center{left ? radius : parent.frame.width - radius, top ? radius : parent.frame.height - radius};
+                    if (!(left ? local.x < center.x : local.x > center.x) || !(top ? local.y < center.y : local.y > center.y)) return true;
+                    const float dx = local.x - center.x, dy = local.y - center.y;
+                    return dx * dx + dy * dy <= radius * radius;
+                };
+                inside_boundary = corner(corners.top_left, true, true) && corner(corners.top_right, false, true) &&
+                                  corner(corners.bottom_left, true, false) && corner(corners.bottom_right, false, false);
+            }
+        }
+        if (inside_boundary)
+            if (NodeId h = d.hit(*it, window, std::nullopt)) return h;
         if (o.type->placement && o.type->placement(o.instance).modal) return *it;
     }
     NodeId h = d.hit(d.root, window, std::nullopt);

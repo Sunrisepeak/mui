@@ -6,6 +6,11 @@ export module openmui.site;
 
 export import openmui;
 export import :catalog;
+export import :motion_catalog;
+export import :motion_gallery;
+export import :home_landing;
+export import :feature_examples;
+export import :agent_feature;
 export import :routes;
 export import :wayfinding;
 export import :lens_contract;

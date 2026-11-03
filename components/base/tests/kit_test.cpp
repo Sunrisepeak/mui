@@ -317,7 +317,9 @@ int main(int argc, char** argv) {
         const auto& px = h.pixels();
         for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
         std::println("ui.base actor log {:016x}", hash.value());
-        check(hash.value() == 0x891e492c7ba785f2ULL, std::format("actor log {:016x}", hash.value()));
+        // Purposeful default motions also change the settled virtual times
+        // shown by this log; the final controls and real records stay pinned.
+        check(hash.value() == 0x63ff43abfa3ef767ULL, std::format("actor log {:016x}", hash.value()));
     });
 
     s.test("the gallery: the ten, the same pixels on every platform", [] {

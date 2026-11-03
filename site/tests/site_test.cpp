@@ -28,22 +28,35 @@ struct Site {
         spec.setup(h.runtime());
         for (auto& v : spec.verbs) (void)h.runtime().verbs().add(v.desc, v.fn);
         h.mount("main", spec.view());
-        h.settle();
+        h.settle(seconds(0.9));
+        // These broad regression tests inspect fixed states. Dedicated
+        // landing/gallery tests cover the default automatic previews.
+        for (const auto id : {"main/body/view/home/page/landing/scene/controls/pause", "main/body/view/components/page/gallery/detail/button/stage/actions/pause"})
+            if (const auto node = h.runtime().find(id); h.runtime().valid(node)) (void)h.runtime().act(node, "activate");
+        h.settle(seconds(0.5));
     }
-    void inspect_object() { if (!h.tree().node("main/body/view/home/page/hero/demo/renderings")) { check(h.click("main/body/view/home/page/hero/demo/context/inspect")); h.settle(); } }
+    void inspect_object() { if (!h.tree().node("main/body/view/release/page/hero/demo/renderings")) { check(h.click("main/body/view/release/page/hero/demo/context/inspect")); h.settle(); } }
     void inspect() { if (!h.tree().node("main/foot/lens_tree")) { check(h.click("main/foot/tools_toggle")); h.settle(); } }
     bool navigate(std::string_view place) {
         if (place == "home") return h.click("main/bar/mark");
         if (place == "hello") return h.click("main/bar/start");
+        if (const auto* destination = site::find_place(place); destination && destination->section == "core") {
+            if (!h.click("main/bar/nav/core/open")) return false;
+            h.settle(seconds(0.5));
+            return h.click(std::format("main/bar/nav/core/menu/to_{}", place));
+        }
         if (place == "features" || place == "practices") {
             if (!h.click("main/bar/nav/to_docs")) return false;
             h.settle();
             return h.click(std::format("main/body/view/docs/page/directory/to_{}", place));
         }
-        if (place == "brand" || place == "timeline") {
+        if (place == "brand" || place == "timeline" || place == "release") {
             if (!h.click("main/bar/nav/to_explore")) return false;
             h.settle();
-            return h.click(std::format("main/body/view/explore/page/explore/works/{}/open", place));
+            const auto open = std::format("main/body/view/explore/page/explore/works/{}/open", place);
+            if (h.tree().act(open, "scroll_into_view").exit_code() != std::optional<int>(0)) return false;
+            h.settle(seconds(0.5));
+            return h.click(open);
         }
         return h.click(std::format("main/bar/nav/to_{}", place));
     }
@@ -137,7 +150,7 @@ int main(int argc, char** argv) {
         check(!a.shown("features"), "one place at a time");
         for (const site::Place& p : site::places()) {
             if (!p.navigation) continue;  // the mark is reached through the brand link (brand_test)
-            check(a.h.click(std::format("main/bar/nav/to_{}", p.id)), std::format("the nav's {}", p.id));
+            check(a.navigate(p.id), std::format("the nav's {}", p.id));
             a.h.settle();
             for (const site::Place& q : site::places())
                 check(a.shown(q.id) == (p.id == q.id), std::format("{} shown: {}", p.id, q.id));
@@ -156,7 +169,7 @@ int main(int argc, char** argv) {
         check_eq(a.text("main/bar/nav/to_docs"), std::string("文档"));
         check_eq(a.text("main/bar/lang"), std::string("English"));
         const std::string doc = a.snapshot("home").json();
-        check(doc.find("一棵语义树") != std::string::npos, "the Chinese home page");
+        check(doc.find("一个界面，不止一种可能。") != std::string::npos, "the Chinese home page");
         // The ids are the structure's, not the text's: the same nodes in Chinese.
         std::vector<std::string> zh;
         for (const auto& n : a.h.tree().snapshot({}).nodes) zh.push_back(n.id);
@@ -168,6 +181,13 @@ int main(int argc, char** argv) {
 
     s.test("switching the language: the letters gather into the other language, and end as the page drawn in it", [] {
         Site a, zh("home", "zh");
+        // Pause is an actual control and its handler focuses that control.
+        // Clicking the language button then moves focus out of the page;
+        // the directly opened Chinese fixture must start without that extra
+        // focused state when we compare their language semantics.
+        std::println("    language fixture focus: switched {}, direct {}",
+                     a.h.runtime().path(a.h.runtime().focused()), zh.h.runtime().path(zh.h.runtime().focused()));
+        a.h.runtime().focus({}); zh.h.runtime().focus({});
         zh.h.move({4, 796});
         zh.h.settle();
         const auto direct = zh.page();
@@ -176,15 +196,24 @@ int main(int argc, char** argv) {
         a.h.advance(seconds(0.12));
         const auto moving = a.page();
         check(moving != direct, "under way: the letters still gathering");
-        check(site::tree_hash(a.snapshot("home")) == site::tree_hash(zh.snapshot("home")), "the tree is already the other language's: the motion is only paint");
+        const auto switched_tree = a.snapshot("home"), direct_tree = zh.snapshot("home");
+        if (site::tree_hash(switched_tree) != site::tree_hash(direct_tree)) {
+            const auto dir = scratch_dir("site-language-tree");
+            std::ofstream(dir / "switched.json") << switched_tree.json();
+            std::ofstream(dir / "direct.json") << direct_tree.json();
+            std::println("    language semantic snapshots: {}; focus switched {}, direct {}", dir.string(),
+                         a.h.runtime().path(a.h.runtime().focused()), zh.h.runtime().path(zh.h.runtime().focused()));
+        }
+        check(site::tree_hash(switched_tree) == site::tree_hash(direct_tree), "the tree is already the other language's: the motion is only paint");
         a.h.settle(seconds(3));
         (void)a.h.save_png(scratch_dir("site-sw") / "a.png");
         check(a.page() == direct, "at rest: the very pixels of the page opened in Chinese (above the foot, where the switch is marked)");
+        check(site::tree_hash(a.snapshot("home")) == site::tree_hash(direct_tree), "the semantic tree also remains the directly opened Chinese tree at rest");
     });
 
-    s.test("the opening: a checklist as a person sees it, and its node as a screen reader says it, an agent sends it, a test asserts it", [] {
-        Site a;
-        const std::string hero = "main/body/view/home/page/hero";
+    s.test("the release scene: a checklist as a person sees it, and its node as a screen reader says it, an agent sends it, a test asserts it", [] {
+        Site a("release");
+        const std::string hero = "main/body/view/release/page/hero";
         check(!a.h.tree().node(hero + "/demo/renderings"), "technical views start closed"); a.inspect_object();
         const auto ship = a.h.tree().node(hero + "/demo/specimen/actions/ship");
         check(ship.has_value() && ship->role == Role::button && ship->states.has(State::disabled), "Ship 0.1 waits for its checks");
@@ -201,8 +230,8 @@ int main(int argc, char** argv) {
     });
 
     s.test("the release workspace: add, rename, remove, undo, reset and share the same data with the motion scene", [] {
-        Site a;
-        const std::string hero = "main/body/view/home/page/hero", board = hero + "/demo/specimen", shape = "main/body/view/home/page/motion/shown/shape";
+        Site a("release");
+        const std::string hero = "main/body/view/release/page/hero", board = hero + "/demo/specimen", shape = "main/body/view/release/page/motion/shown/shape";
         Invocation person;
         auto act = [&](std::string id, std::string_view action, Value args = {}) { person.args = std::move(args); check(a.h.tree().act(id, action, person).exit_code() == std::optional<int>(0), id + " " + std::string(action)); a.h.settle(); };
         act(board + "/add/submit", "activate");
@@ -243,7 +272,7 @@ int main(int argc, char** argv) {
         check(!a.h.tree().node(board + "/items/task-1/done"));
         act(board + "/history/undo", "activate");
         check_eq(a.text(board + "/items/task-1/done"), std::string("Review the keyboard and focus paths"));
-        check(a.navigate("docs")); a.h.settle(); check(a.navigate("home")); a.h.settle();
+        check(a.navigate("docs")); a.h.settle(); check(a.navigate("release")); a.h.settle();
         check_eq(a.text(shape + "/task-1/title"), std::string("Review the keyboard and focus paths"));
         check(a.h.click("main/bar/lang")); a.h.advance(seconds(1));
         check_eq(a.text(board + "/items/task-1/done"), std::string("Review the keyboard and focus paths"));
@@ -260,19 +289,19 @@ int main(int argc, char** argv) {
         const auto dir = workspace_media();
         std::map<std::string, std::uint64_t, std::less<>> baseline;
         for (const float width : {360.0f, 390.0f, 768.0f, 1280.0f, 1440.0f}) for (std::string_view lang : {"en", "zh"}) {
-            Headless h{HeadlessOptions{.size = {width, 844}}}; auto spec = site::app("home", lang);
+            Headless h{HeadlessOptions{.size = {width, 844}}}; auto spec = site::app("release", lang);
             h.runtime().set_theme(spec.theme); spec.setup(h.runtime()); h.mount("main", spec.view()); h.settle();
-            const std::string hero = "main/body/view/home/page/hero", board = hero + "/demo/specimen";
+            const std::string hero = "main/body/view/release/page/hero", board = hero + "/demo/specimen";
             auto inside = [&] {
                 for (const auto& n : h.tree().snapshot({.root = hero}).nodes) if ((n.role == Role::button || n.role == Role::text_box || n.role == Role::checkbox) && n.bounds && !n.states.has(State::hidden) && !n.states.has(State::offscreen))
                     check(n.bounds->x >= -0.5f && n.bounds->right() <= width + 0.5f, std::format("{} {} at {}: {} + {}", lang, n.id, width, n.bounds->x, n.bounds->width));
             };
             inside();
-            const auto hash = site::tree_hash(h.tree().snapshot({.root = "main/body/view/home/page"}).to_value());
+            const auto hash = site::tree_hash(h.tree().snapshot({.root = "main/body/view/release/page"}).to_value());
             const auto [same, added] = baseline.try_emplace(std::string(lang), hash);
             check(added || same->second == hash, std::format("{} at {} keeps the same semantic tree: {:016x} / {:016x}", lang, width, same->second, hash));
             const bool capture = (width == 390 && lang == "zh") || (width == 1280 && lang == "en");
-            if (capture) check(h.save_png(dir / std::format("home-{}-{}.png", lang, static_cast<int>(width))).has_value());
+            if (capture) check(h.save_png(dir / std::format("release-{}-{}.png", lang, static_cast<int>(width))).has_value());
             Invocation input; input.args = Value{}.set("value", lang == "zh" ? "和设计与无障碍团队一起检查这一轮发布的键盘导航和焦点恢复" : "Review this release with the design and accessibility teams, including keyboard navigation");
             check(h.tree().act(board + "/add/title", "set_value", input).exit_code() == std::optional<int>(0)); h.settle();
             check(h.tree().act(board + "/add/submit", "activate").exit_code() == std::optional<int>(0)); h.settle();
@@ -284,7 +313,7 @@ int main(int argc, char** argv) {
     });
 
     s.test("the task view changes layouts with stable ids, can be interrupted and works with motion off", [] {
-        Site a; const std::string scene = "main/body/view/home/page/motion/shown", shape = scene + "/shape";
+        Site a("release"); const std::string scene = "main/body/view/release/page/motion/shown", shape = scene + "/shape";
         auto act = [&](std::string id, std::string_view action) { check(a.h.tree().act(id, action).exit_code() == std::optional<int>(0), id); a.h.settle(); };
         act(scene + "/controls/change", "scroll_into_view"); a.h.advance(seconds(0.3));
         act(scene + "/controls/follow", "toggle");
@@ -319,13 +348,13 @@ int main(int argc, char** argv) {
         a.h.runtime().set_motion_level(MotionLevel::full);
         act(scene + "/controls/follow", "toggle"); a.h.advance(seconds(0.5));
         check(a.h.runtime().motion_time(a.h.runtime().find(shape)).has_value(), "scroll seeking restarts after manual mode");
-        check(a.navigate("docs")); a.h.settle(); check(a.navigate("home")); a.h.settle(); a.h.advance(seconds(0.5));
+        check(a.navigate("docs")); a.h.settle(); check(a.navigate("release")); a.h.settle(); a.h.advance(seconds(0.5));
         check(a.h.runtime().motion_time(a.h.runtime().find(shape)).has_value(), "restored scroll binds the new scene after a page visit");
     });
 
     s.test("the simulated agent uses edited task ids, and leaving the page cancels its pending run", [] {
-        Site a;
-        const std::string hero = "main/body/view/home/page/hero", board = hero + "/demo/specimen";
+        Site a("release");
+        const std::string hero = "main/body/view/release/page/hero", board = hero + "/demo/specimen";
         Invocation person; person.args = Value{}.set("value", "Check the new task");
         check(a.h.tree().act(board + "/add/title", "set_value", person).exit_code() == std::optional<int>(0)); a.h.settle();
         check(a.h.tree().act(board + "/add/submit", "activate").exit_code() == std::optional<int>(0)); a.h.settle();
@@ -340,14 +369,14 @@ int main(int argc, char** argv) {
         check(!a.h.tree().node(board + "/items/tests/done")->states.has(State::checked), "stopping cancels the pending scripted step");
         check(a.h.tree().act(hero + "/agent_row/let_agent", "activate").exit_code() == std::optional<int>(0));
         check(a.navigate("docs")); a.h.advance(seconds(6));
-        check(a.navigate("home")); a.h.settle();
+        check(a.navigate("release")); a.h.settle();
         check(!a.h.tree().node(board + "/items/tests/done")->states.has(State::checked), "cancelled timer does not edit after navigation");
         check(!a.h.tree().node(hero + "/agent_row/let_agent")->states.has(State::disabled));
     });
 
-    s.test("the opening's agent ships it: each step a real action as an agent, through the same checks, each one undoable", [] {
-        Site a;
-        const std::string hero = "main/body/view/home/page/hero";
+    s.test("the release scene's agent ships it: each step a real action as an agent, through the same checks, each one undoable", [] {
+        Site a("release");
+        const std::string hero = "main/body/view/release/page/hero";
         a.inspect_object();
         check(a.h.tree().act(hero + "/agent_row/let_agent", "scroll_into_view").exit_code() == std::optional<int>(0)); a.h.settle();
         check(a.h.click(hero + "/agent_row/let_agent"), "a person asks the agent");
@@ -384,7 +413,7 @@ int main(int argc, char** argv) {
 
     s.test("on a phone: one header line, a compact menu, the full-width place and a panel in its place", [] {
         Headless h{HeadlessOptions{.size = {390, 844}}};
-        AppSpec spec = site::app("home", "zh");
+        AppSpec spec = site::app("release", "zh");
         h.runtime().set_theme(spec.theme);
         spec.setup(h.runtime());
         h.mount("main", spec.view());
@@ -404,17 +433,17 @@ int main(int argc, char** argv) {
         check(nav.x >= 0 && nav.x + nav.width <= 390.5f, std::format("the places within the phone: {} + {}", nav.x, nav.width));
         const Rect view = h.runtime().screen_bounds(h.runtime().find("main/body/view"));
         check(view.width == 390, std::format("the view the whole width: {}", view.width));
-        check(h.tree().act("main/body/view/home/page/hero/demo/context/inspect", "activate").exit_code() == std::optional<int>(0)); h.settle();
+        check(h.tree().act("main/body/view/release/page/hero/demo/context/inspect", "activate").exit_code() == std::optional<int>(0)); h.settle();
         // The renderings' words whole: no line of a card below its card's bottom.
         for (const char* card : {"reader", "agent", "test"}) {
-            const std::string base = std::format("main/body/view/home/page/hero/demo/renderings/{}", card);
+            const std::string base = std::format("main/body/view/release/page/hero/demo/renderings/{}", card);
             check(h.runtime().valid(h.runtime().find(base + "/body/line")), base);
             const Rect c = h.runtime().screen_bounds(h.runtime().find(base));
             const Rect l = h.runtime().screen_bounds(h.runtime().find(base + "/body/line"));
             check(l.y + l.height <= c.y + c.height + 0.5f, std::format("{}'s line inside its card: {} vs {}", card, l.y + l.height, c.y + c.height));
         }
         for (const char* id : {"hero/demo/specimen/actions/ship", "hero/agent_row/let_agent", "hero/cta/to_explore"}) {
-            const Rect r = h.runtime().screen_bounds(h.runtime().find(std::format("main/body/view/home/page/{}", id)));
+            const Rect r = h.runtime().screen_bounds(h.runtime().find(std::format("main/body/view/release/page/{}", id)));
             check(r.x >= 0 && r.x + r.width <= 390, std::format("{} inside: {} + {}", id, r.x, r.width));
         }
         // A panel takes the place's room; Esc puts it away, wherever the focus is.
@@ -469,7 +498,7 @@ int main(int argc, char** argv) {
         Site a;
         a.inspect();
         const auto plain = a.page();
-        check(!a.visible("main/body/view/wireframe") && !a.visible("main/body/view/agent"), "only the pixels");
+        check(!a.visible("main/body/view/wireframe") && !a.visible("main/body/view/lens_agent"), "only the pixels");
         check(a.h.click("main/foot/lens_tree"));
         a.h.advance(seconds(0.3));
         a.h.settle(seconds(0.1));
@@ -483,9 +512,9 @@ int main(int argc, char** argv) {
         check(a.h.click("main/foot/lens_agent"));
         a.h.advance(seconds(0.3));
         a.h.settle(seconds(0.1));
-        const std::string json = a.text("main/body/view/agent/agent_text");
+        const std::string json = a.text("main/body/view/lens_agent/agent_text");
         check(json.starts_with("// openmui.tree@0.1's snapshot of main/body/view/home"), "the place named once");
-        check(json.find("\"id\":\"…/page/hero/demo/specimen/actions/ship\"") != std::string::npos, "the nodes as an agent reads them, from the place");
+        check(json.find("\"id\":\"…/page/landing/intro/title\"") != std::string::npos, "the nodes as an agent reads them, from the place");
         for (const Value& n : *home.get("nodes")->list()) {
             std::string id = std::string(n.get("id")->as_string());
             if (id.starts_with("main/body/view/home/")) id = "…/" + id.substr(std::string_view("main/body/view/home/").size());
@@ -495,9 +524,9 @@ int main(int argc, char** argv) {
         check(a.h.click("main/foot/lens_test"));
         a.h.advance(seconds(0.3));
         a.h.settle(seconds(0.1));
-        const std::string lines = a.text("main/body/view/test/test_text");
+        const std::string lines = a.text("main/body/view/lens_test/test_text");
         check(lines.find("tree.node(std::format(\"main/body/view/home/{}\", path))") != std::string::npos, "the place's nodes found under it");
-        check(lines.find("check_eq(node(\"page/hero/demo/specimen/actions/ship\").role, \"button\");") != std::string::npos, "the title's role asserted");
+        check(lines.find("check_eq(node(\"page/landing/intro/title\").role, \"heading\");") != std::string::npos, "the title's role asserted");
 
         check(a.h.click("main/foot/lens_pixels"));
         a.h.move({4, 796});  // the pointer off the buttons (no hover)
@@ -524,10 +553,26 @@ int main(int argc, char** argv) {
         check(a.text(base + "program/monitor/time/row:0/timecode").starts_with("05:"), a.text(base + "program/monitor/time/row:0/timecode"));
     });
 
-    s.test("Get started: the primary action opens the quickstart and real program", [] {
+    s.test("the home is a short landing with one shared mark and two clear destinations", [] {
         Site a;
-        check(!a.h.tree().node("main/body/view/home/page/doc"), "the home page has no long document");
-        check(a.h.click("main/body/view/home/page/hero/cta/to_start"));
+        const std::string landing = "main/body/view/home/page/landing";
+        const auto title = a.h.tree().node(landing + "/intro/title");
+        check(title && title->role == Role::heading && title->name == "One interface. Every perspective.");
+        for (const auto section : {"hero", "agent", "time", "motion", "fast", "doc"})
+            check(!a.h.tree().node(std::string("main/body/view/home/page/") + section), "the full workspaces live on their own pages");
+        for (const auto part : {"outline", "letter_m", "letter_u", "letter_i"})
+            check(a.h.tree().node(landing + "/scene/visual/mark/" + part + "/path").has_value(), part);
+        check(a.h.click(landing + "/intro/actions/explore")); a.h.settle();
+        check(a.shown("components"));
+        check(a.navigate("home")); a.h.settle();
+        check(a.h.click(landing + "/intro/actions/creative")); a.h.settle();
+        check(a.shown("explore"));
+    });
+
+    s.test("the release scene's Get started action opens the quickstart and real program", [] {
+        Site a("release");
+        check(!a.h.tree().node("main/body/view/release/page/doc"), "the live scene has no long document");
+        check(a.h.click("main/body/view/release/page/hero/cta/to_start"));
         a.h.settle(seconds(2));
         check(a.shown("hello"));
         const std::string intro = "main/body/view/hello/page/example/intro";
@@ -541,15 +586,26 @@ int main(int argc, char** argv) {
         a.inspect();
         const auto h = site::tree_hash(a.snapshot("home"));
         std::println("    home tree {:016x}", h);
-        check(h == site::pinned_home_hash, "the hash the footer compares");
-        check(a.text("main/foot/proof/hash").find("✓") != std::string::npos, a.text("main/foot/proof/hash"));
-        // A narrower window moves every box, scrolls further and leaves some of the page off screen: not the tree.
+        check(h == site::pinned_home_hash, "the controlled home baseline is pinned");
+        check(a.text("main/foot/proof/hash") == std::format("tree {:08x}", h >> 32), "the footer describes the visitor's current tree");
+        Value changed_boxes = a.snapshot("home");
+        Value::List moved = *changed_boxes.get("nodes")->list();
+        for (auto& node : moved) node.set("bounds", Value::List{Value(100), Value(200), Value(30), Value(40)});
+        changed_boxes.set("nodes", Value(std::move(moved)));
+        check(site::tree_hash(changed_boxes) == h, "geometry does not change the semantic hash");
+        // The compact landing places the CTAs after the visual. The same
+        // heading and actions remain available through that responsive layout.
         Headless narrow{HeadlessOptions{.size = {820, 640}}};
         AppSpec spec = site::app();
+        narrow.runtime().set_theme(spec.theme);
         spec.setup(narrow.runtime());
         narrow.mount("main", spec.view());
-        narrow.settle();
-        check(site::tree_hash(narrow.tree().snapshot({.root = "main/body/view/home/page"}).to_value()) == h, "the same tree, another window");
+        narrow.settle(seconds(0.9));
+        check(narrow.tree().node("main/body/view/home/page/landing/intro/title")->name == "One interface. Every perspective.");
+        for (const auto name : {"Explore components", "Creative demos"}) {
+            const auto buttons = narrow.tree().find({.under = "main/body/view/home/page/landing", .role = Role::button});
+            check(std::ranges::any_of(buttons, [name](const auto& node) { return node.name == name; }), name);
+        }
         // The Chinese page is another tree.
         check(a.h.click("main/bar/lang"));
         a.h.settle();
@@ -578,31 +634,41 @@ int main(int argc, char** argv) {
     });
 
     s.test("the page's time: dragged back into a motion, the page is drawn as it was then; played backwards and forwards; live again", [] {
-        Site a;
+        Site a("features");
         a.inspect();
-        // The bar: its places' names gather into the other language (the place below the opening is below the fold).
-        constexpr std::string_view view = "main/bar", bar = "main/foot/time";
+        // Documents retain their reading-order line arrival. Navigation uses
+        // short native feedback, so it is not this long-motion replay fixture.
+        constexpr std::string_view view = "main/body/view/features/page/read/doc", bar = "main/foot/time";
+        auto document_pixels = [&] {
+            const auto& rt = a.h.runtime();
+            Rect area = rt.screen_bounds(rt.find(view)).intersection(rt.screen_bounds(rt.find("main/body/view/features")));
+            // Keep the sampled opening inside the document's viewport. Its
+            // full text extends below the fold; the time controls do not.
+            area.height = std::min(area.height, 320.0f);
+            check(area.width > 0 && area.height > 0, "the real document is visible");
+            return a.pixels_in(area);
+        };
         a.h.advance(seconds(0.5));
         const double switched = a.h.runtime().now().count();
         check(a.h.click("main/bar/lang"));
         a.h.move({4, 796});
         a.h.settle(seconds(3));
-        const auto at_rest = a.pixels_of(view);
+        const auto at_rest = document_pixels();
         check(a.h.tree().node(bar) && a.h.tree().node(bar)->role == Role::slider, "the page's time, a slider");
         check(a.text("main/foot/clock") == "现在", "live");
-        // An agent drags the playhead into the switch: the letters gathering, as they were then.
+        // An agent drags the playhead into the document's actual line arrival.
         Invocation agent;
         agent.actor = {"agent", "visitor", {}};
         agent.args = Value{}.set("value", Value(switched + 0.15));
         check(a.h.tree().act(bar, "set_value", agent).exit_code() == std::optional<int>(0), "set by an agent, as a person drags it");
         a.h.settle(seconds(2));
-        const auto then = a.pixels_of(view);
-        check(then != at_rest, std::format("the switch under way, held: {}", a.text("main/foot/clock")));
+        const auto then = document_pixels();
+        check(then != at_rest, std::format("the document's lines arriving, held: {}", a.text("main/foot/clock")));
         check(a.text("main/foot/clock").starts_with("−"), std::format("seconds before the newest: {} (value {}, target {})", a.text("main/foot/clock"), a.value(bar), switched + 0.15));
         // Live again: the page as it is.
         check(a.h.click("main/foot/time_live"));
         a.h.settle(seconds(2));
-        check(a.pixels_of(view) == at_rest && a.text("main/foot/clock") == "现在", "live: at rest");
+        check(document_pixels() == at_rest && a.text("main/foot/clock") == "现在", "live: at rest");
         // Backwards: the playhead earlier each frame, until the strip's start.
         check(a.h.click("main/foot/time_back"));
         const double from = a.value(bar);
@@ -615,7 +681,7 @@ int main(int argc, char** argv) {
         a.h.advance(seconds(30));
         a.h.settle(seconds(2));
         check(a.text("main/foot/clock") == "现在", "live at the end");
-        check(a.pixels_of(view) == at_rest, "at rest, as it was");
+        check(document_pixels() == at_rest, "at rest, as it was");
     });
 
     s.test("getting started: example 01 runs beside its source, typed into and clicked", [] {
@@ -742,9 +808,9 @@ int main(int argc, char** argv) {
         agent_access().revoke_all();
     });
 
-    s.test("the home page's screens: your agent, time, motion, speed — the agent panel from its button; the scroll the motion's time; the tier chosen the settings' own", [] {
-        Site a;
-        const std::string home = "main/body/view/home/page/";
+    s.test("the release scene's screens: your agent, time, motion, speed — the agent panel from its button; the scroll the motion's time; the tier chosen the settings' own", [] {
+        Site a("release");
+        const std::string home = "main/body/view/release/page/";
         for (const char* id : {"agent", "time", "motion", "fast"}) check(a.h.tree().node(home + id + "/claim").has_value(), std::format("the {} screen", id));
         // The agent screen: the panel, a prompt in it.
         check(a.h.tree().act(home + "agent/shown/actions/copy", "activate").exit_code() == std::optional<int>(0));
@@ -756,14 +822,14 @@ int main(int argc, char** argv) {
         const NodeId shape = a.h.runtime().find(home + "motion/shown/shape");
         Invocation person;
         person.args = Value{}.set("x", 0.0).set("y", 1300.0);
-        check(a.h.tree().act("main/body/view/home", "scroll_to", person).exit_code() == std::optional<int>(0));
+        check(a.h.tree().act("main/body/view/release", "scroll_to", person).exit_code() == std::optional<int>(0));
         a.h.settle();
         a.h.advance(seconds(0.5));  // the hold takes in the frames after the morph starts
         auto at = a.h.runtime().motion_time(shape);
         check(at.has_value(), "its morph held");
         const double part = at ? at->second / at->first : 0;
         person.args = Value{}.set("x", 0.0).set("y", 1700.0);
-        (void)a.h.tree().act("main/body/view/home", "scroll_to", person);
+        (void)a.h.tree().act("main/body/view/release", "scroll_to", person);
         a.h.settle();
         at = a.h.runtime().motion_time(shape);
         check(at && at->second / at->first > part, std::format("further down, further on: {} then {}", part, at ? at->second / at->first : -1));
@@ -775,7 +841,7 @@ int main(int argc, char** argv) {
     });
 
     s.test("your own agent: the prompt with its pairing code, copied; its actions in the log, each taken back from there; the self-check it presses", [] {
-        Site a;
+        Site a("release");
         check(a.h.click("main/bar/guide_toggle"));
         a.h.settle();
         // No host to link one here: the prompt says how instead, and nothing is copied.
@@ -804,7 +870,7 @@ int main(int argc, char** argv) {
         check(a.h.tree().act("main/body/guide/check/hello", "activate", agent).exit_code() == std::optional<int>(0));
         a.h.settle();
         check(a.text("main/body/guide/check/hellos") == "pressed 1 time", a.text("main/body/guide/check/hellos"));
-        const std::string box = "main/body/view/home/page/hero/demo/specimen/items/tests/done";
+        const std::string box = "main/body/view/release/page/hero/demo/specimen/items/tests/done";
         check(a.h.tree().act(box, "toggle", agent).exit_code() == std::optional<int>(0));
         a.h.settle();
         check(a.h.tree().node(box)->states.has(State::checked), "checked by the agent");
@@ -889,7 +955,7 @@ int main(int argc, char** argv) {
         a.h.advance(seconds(1));
         shot("time.png");
         std::println("    pixels {}", all.hex());
-        check_eq(all.hex(), std::string("99b61e50a9e03946"));
+        check_eq(all.hex(), std::string("95749d68f8877faf"));
     });
 
     s.test("the components: curated search, live detail, reset, languages and scoped appearance", [] {
@@ -898,7 +964,8 @@ int main(int argc, char** argv) {
         const std::string root = "main/body/view/components/page/gallery";
         const std::string overview = root + "/overview";
         check_eq(a.text(overview + "/results/count"), std::string("8 / 36"));
-        check(!a.h.tree().node(root + "/detail"), "only previews initially; no open code panels");
+        check(a.h.tree().node(root + "/detail/button/stage/specimen").has_value(), "one live specimen initially");
+        check(!a.h.tree().node(root + "/detail/button/code") && !a.h.tree().node(root + "/detail/button/options"), "details start closed");
         Invocation visitor; visitor.actor = {"agent", "visitor", {}};
         auto act = [&](const std::string& id, std::string_view action, Value args = {}) {
             visitor.args = std::move(args);
@@ -909,6 +976,9 @@ int main(int argc, char** argv) {
         check_eq(a.text(overview + "/results/count"), std::string("1 / 36"));
         act(overview + "/results/r0/badge/heading/open", "activate");
         const std::string detail = root + "/detail/badge";
+        check_eq(a.h.runtime().route(), std::string("components"));
+        check(!a.h.tree().node(detail + "/panes/code"), "choosing a preview does not open the API reference");
+        act(detail + "/stage/actions/details", "activate");
         check_eq(a.h.runtime().route(), std::string("components/badge"));
         check(a.h.tree().node(detail + "/stage/specimen").has_value());
         check(!a.h.tree().node(detail + "/code"), "source is optional");
@@ -931,6 +1001,7 @@ int main(int argc, char** argv) {
         check_eq(a.text(overview + "/results/count"), std::string("1 / 36"));
         act(overview + "/filter/search", "set_value", Value{}.set("value", Value("no-such-component")));
         check(a.h.tree().node(overview + "/results/empty").has_value(), "useful empty search");
+        check(a.h.tree().node(detail + "/stage/specimen").has_value(), "an empty directory keeps the current live specimen");
         act(overview + "/filter/clear", "activate");
         act(overview + "/results/r0/button/heading/open", "activate");
         const std::string button = root + "/detail/button";
@@ -938,6 +1009,8 @@ int main(int argc, char** argv) {
         check_eq(a.text(button + "/stage/specimen/variants/primary"), std::string("Saved 1"));
         act(button + "/stage/actions/reset", "activate");
         check_eq(a.text(button + "/stage/specimen/variants/primary"), std::string("Save"));
+        act(button + "/stage/actions/details", "activate");
+        act(button + "/stage/actions/variants", "activate");
         auto tree = [&] {
             std::vector<std::string> out;
             for (const auto& n : a.h.tree().snapshot({.root = button + "/stage/specimen"}).nodes) out.push_back(std::format("{} {} {}", n.id, spec::name(n.role), n.name));
@@ -1107,11 +1180,13 @@ int main(int argc, char** argv) {
         check(a.h.tree().node("main/body/view/brand/page/identity/controls/assemble").has_value());
         check(a.h.tree().node("main/bar/nav/to_explore")->states.has(State::selected));
         check(a.navigate("home")); a.h.settle();
+        check(a.h.tree().node("main/body/view/home/page/landing").has_value(), "the mark returns to the simplified home");
+        check(a.navigate("release")); a.h.settle();
         Invocation scroll; scroll.args = Value{}.set("x", 0.0).set("y", 400.0);
-        check(a.h.tree().act("main/body/view/home", "scroll_to", scroll).exit_code() == std::optional<int>(0)); a.h.settle();
-        const float before = a.h.runtime().screen_bounds(a.h.runtime().find("main/body/view/home/page/hero")).y;
-        check(a.navigate("docs")); a.h.settle(); check(a.navigate("home")); a.h.settle();
-        const float after = a.h.runtime().screen_bounds(a.h.runtime().find("main/body/view/home/page/hero")).y;
+        check(a.h.tree().act("main/body/view/release", "scroll_to", scroll).exit_code() == std::optional<int>(0)); a.h.settle();
+        const float before = a.h.runtime().screen_bounds(a.h.runtime().find("main/body/view/release/page/hero")).y;
+        check(a.navigate("docs")); a.h.settle(); check(a.navigate("release")); a.h.settle();
+        const float after = a.h.runtime().screen_bounds(a.h.runtime().find("main/body/view/release/page/hero")).y;
         check(std::abs(before - after) < 1, std::format("page scroll restored: {} vs {}", before, after));
         a.inspect(); check(a.h.click("main/foot/lens_tree")); a.h.settle();
         check(a.h.click("main/foot/tools_toggle")); a.h.settle();
@@ -1121,7 +1196,7 @@ int main(int argc, char** argv) {
     s.test("the new page roles: desktop and phone, English and Chinese, controls stay within the viewport", [] {
         const auto dir = scratch_dir("site-structure");
         for (const bool phone : {false, true}) for (std::string_view lang : {"en", "zh"})
-            for (std::string_view place : {"home", "docs", "explore", "hello", "features"}) {
+            for (std::string_view place : {"home", "release", "docs", "explore", "hello", "features"}) {
                 const Size size = phone ? Size{390, 844} : Size{1280, 800};
                 Headless h{HeadlessOptions{.size = size}};
                 AppSpec spec = site::app(place, lang); h.runtime().set_theme(spec.theme); spec.setup(h.runtime()); h.mount("main", spec.view()); h.settle();
@@ -1146,12 +1221,12 @@ int main(int argc, char** argv) {
             check(html.find(md::to_html(md::parse(site::document("features", lang)))) != std::string::npos, "the features as md4c-html writes them");
         }
         const std::string en = site::static_html("en");
-        check(en.find("<h1>One interface. Every rendering.</h1>") != std::string::npos, "the thesis, readable without JavaScript");
+        check(en.find("<h1>One interface. Every perspective.</h1>") != std::string::npos, "the thesis, readable without JavaScript");
         // The site's own part pinned (the docs change with the framework; they are held to md4c-html's bytes above).
         auto own = [](const std::string& html) { return html.substr(0, html.find("<section id=\"/", html.find("<section id=\"/") + 1)); };
         std::println("    static en {:016x} zh {:016x}", fnv(own(en)), fnv(own(site::static_html("zh"))));
-        check_eq(std::format("{:016x}", fnv(own(en))), std::string("2d5568c74afdb569"));
-        check_eq(std::format("{:016x}", fnv(own(site::static_html("zh")))), std::string("95cd2ddd72b50c23"));
+        check_eq(std::format("{:016x}", fnv(own(en))), std::string("0bbf9da042957673"));
+        check_eq(std::format("{:016x}", fnv(own(site::static_html("zh")))), std::string("e642014ea2d54aa9"));
 
         const auto out = site::inject(page, en, "zh");
         check(out.has_value(), "dist-toy's page");

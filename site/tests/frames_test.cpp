@@ -28,9 +28,40 @@ struct Run {
         spec.setup(h.runtime());
         for (auto& v : spec.verbs) (void)h.runtime().verbs().add(v.desc, v.fn);
         h.mount("main", spec.view());
-        h.settle();
+        h.settle(seconds(0.9));
+        pause_preview("home");
+        h.settle(seconds(0.8));
         check(h.click("main/foot/tools_toggle"));
         h.settle();
+    }
+    bool navigate(const site::Place& place) {
+        if (place.section == "core") {
+            if (!h.click("main/bar/nav/core/open")) return false;
+            h.settle(seconds(0.5));
+            return h.click(std::format("main/bar/nav/core/menu/to_{}", place.id));
+        }
+        return h.click(std::format("main/bar/nav/to_{}", place.id));
+    }
+    // Automatic previews deliberately keep moving while they are visible.
+    // Exercise their actual public pause controls before asserting idleness;
+    // keep full motion so these tests still measure transitions and language FPS.
+    void pause_preview(std::string_view place) {
+        std::string control;
+        if (place == "home") control = "main/body/view/home/page/landing/scene/controls/pause";
+        else if (place == "components") control = "main/body/view/components/page/gallery/detail/button/stage/actions/pause";
+        else if (place == "motion" || place == "explore") control = std::format("main/body/view/{}/page/motion_gallery/transport/buttons/play", place);
+        else if (place == "styles") control = "main/body/view/styles/page/styles_feature/preview_controls/preview_pause";
+        else if (place == "interface") control = "main/body/view/interface/page/interface_feature/preview_controls/preview_pause";
+        if (control.empty()) return;
+        const auto button = h.tree().node(control);
+        check(button.has_value(), control);
+        if (!button) return;
+        if (button->name == "Pause" || button->name == "Pause auto" || button->name == "Pause preview") {
+            check(h.tree().act(control, "activate").exit_code() == std::optional<int>(0), control);
+            h.step();
+        }
+        const auto paused = h.tree().node(control);
+        check(paused && (paused->name == "Play" || paused->name == "Play preview" || paused->name == "Resume preview"), std::string(place) + ": preview explicitly paused");
     }
     struct Times {
         std::vector<double> frame, raster;
@@ -85,7 +116,9 @@ int main(int argc, char** argv) {
         Run r(timing ? 2.0f : 1.0f);
         for (const site::Place& p : site::places()) {
             if (p.id == "home" || !p.navigation) continue;  // secondary exhibits are covered in brand_test
-            check(r.h.click(std::format("main/bar/nav/to_{}", p.id)), std::format("the nav's {}", p.id));
+            check(r.navigate(p), std::format("the nav's {}", p.id));
+            r.h.step();
+            r.pause_preview(p.id);
             const Run::Times t = r.frames(300);
             report(std::format("to {}", p.id), t);
             check(t.rested, std::format("to {}: at rest within 5 s (still: {})", p.id, t.wants));

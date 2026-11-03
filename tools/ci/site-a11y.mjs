@@ -98,6 +98,8 @@ check((focused ?? []).some(inMain), `and the program's (${JSON.stringify(focused
 
 // Follow the visible Explore link and then open its brand program with real clicks.
 const clickNode = async (id) => {
+  await b.value(`window.omui.act(${JSON.stringify(id)},'scroll_into_view')`);
+  await sleep(400);
   const n = await b.value(`window.omui.snapshot({root:${JSON.stringify(id)},depth:0}).then(r => (r.data?.nodes ?? []).find(n => n.id === ${JSON.stringify(id)}))`);
   if (n?.bounds?.length !== 4) return false;
   const [x, y, w, h] = n.bounds;
@@ -112,7 +114,7 @@ const study = await b.value(`window.omui.snapshot({root:'main/body/view/brand/pa
   (r.data?.nodes ?? []).find(n => n.id.endsWith('/identity/title'))?.name ?? '')`);
 check(study === 'A mark. Made here.', 'Explore opens the live brand study with real clicks');
 await clickNode('main/bar/mark');
-check(await b.value(`document.querySelector('[data-omui-id="main/body/view/home/page/hero"]') !== null`), 'the brand link returns home');
+check(await b.value(`document.querySelector('[data-omui-id="main/body/view/home/page/landing"]') !== null`), 'the brand link returns home');
 
 report.ok = report.checks.every((c) => c.ok);
 console.log(JSON.stringify(report, null, 2));

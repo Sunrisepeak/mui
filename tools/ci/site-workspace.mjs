@@ -6,13 +6,13 @@ const b = await browser(process.env.CHROME, { width: 1280, height: 800 });
 const report = { checks: [] };
 const check = (ok, what, detail) => report.checks.push({ ok: !!ok, what, ...(detail ? { detail } : {}) });
 const until = async expression => { for (let i = 0; i < 300; i++) { if (await b.value(expression)) return true; await sleep(100); } return false; };
-const hero = 'main/body/view/home/page/hero', board = hero + '/demo/specimen', motion = 'main/body/view/home/page/motion/shown';
+const hero = 'main/body/view/release/page/hero', board = hero + '/demo/specimen', motion = 'main/body/view/release/page/motion/shown';
 const node = id => `document.querySelector('[data-omui-id="${id}"]')`;
 const name = id => `(${node(id)}?.getAttribute('aria-label') ?? ${node(id)}?.textContent)`;
 const act = (id, action, args = {}) => b.value(`window.omui.act(${JSON.stringify(id)},${JSON.stringify(action)},{args:${JSON.stringify(args)}})`);
-const intoView = async id => {
+const intoView = async (id, viewport = 'main/body/view/release') => {
   for (let i = 0; i < 20; i++) {
-    const [bounds, view] = await b.value(`Promise.all([${JSON.stringify(id)},'main/body/view/home'].map(root=>window.omui.snapshot({root,depth:0}).then(r=>r.data?.nodes?.[0]?.bounds)))`);
+    const [bounds, view] = await b.value(`Promise.all([${JSON.stringify(id)},${JSON.stringify(viewport)}].map(root=>window.omui.snapshot({root,depth:0}).then(r=>r.data?.nodes?.[0]?.bounds)))`);
     // A preceding click can mount this control on the next rendered frame.
     if (!Array.isArray(bounds) || !Array.isArray(view)) { await sleep(100); continue; }
     if (!bounds.every(Number.isFinite)) throw new Error('Invalid bounds: ' + id);
@@ -24,8 +24,8 @@ const intoView = async id => {
   }
   throw new Error('The control did not enter the live viewport: ' + id);
 };
-const click = async id => {
-  const bounds = await intoView(id);
+const click = async (id, viewport) => {
+  const bounds = await intoView(id, viewport);
   const [x, y, width, height] = bounds;
   for (const type of ['mouseMoved','mousePressed','mouseReleased']) {
     const r = await b.call('Input.dispatchMouseEvent', { type, x: x + width / 2, y: y + height / 2, button: 'left', clickCount: 1 });
@@ -38,9 +38,9 @@ const shot = async name => {
 };
 try {
   await mkdir('target/site-workspace', { recursive: true });
-  await b.call('Page.navigate', { url: server.url });
+  await b.call('Page.navigate', { url: server.url + '#/scenes/release' });
   const ready = await until(`window.omuiStaticHandedOff && ${node(board + '/add/title')}`);
-  check(ready, 'the home opens the live release workspace'); if (!ready) throw new Error('Workspace did not become ready');
+  check(ready, 'the release route opens the live workspace'); if (!ready) throw new Error('Workspace did not become ready');
   check(!await b.value(node(hero + '/demo/renderings')), 'technical views start closed');
   await shot('home-en-desktop');
   await click(board + '/add/title');
@@ -79,15 +79,25 @@ try {
   await shot('motion-en-desktop');
   await act('main/bar/nav/to_docs','activate');
   await until(node('main/body/view/docs/page'));
-  await act('main/bar/mark','activate');
-  check(await until(`${name(board + '/items/task-1/done')}==='Review keyboard and focus'`), 'visiting documentation preserves the workspace data');
+  // The brand returns to the landing. The release workspace is a separate
+  // working tool under Creative demos; open it without reloading the runtime.
+  await act('main/bar/nav/to_explore','activate');
+  const release = 'main/body/view/explore/page/explore/works/release/open';
+  const toolReady = await until(node(release));
+  check(toolReady, 'Creative demos exposes the release workspace');
+  if (!toolReady) throw new Error('The release workspace destination did not appear');
+  await click(release, 'main/body/view/explore');
+  const restored = await until(`location.hash==='#/scenes/release' && ${name(board + '/items/task-1/done')}==='Review keyboard and focus'`);
+  check(restored, 'visiting documentation preserves the workspace data');
+  if (!restored) throw new Error('Returning to the release route did not restore the edited workspace');
   await b.call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
   await act('main/bar/lang','activate');
   check(await until(`${name(board + '/items/docs/done')}==='文档已审阅'`), 'Chinese translates the seeded tasks');
   check(await b.value(name(board + '/items/task-1/done')) === 'Review keyboard and focus', 'changing language preserves user text');
-  await act('main/body/view/home','scroll_to',{x:0,y:0});
+  await act('main/body/view/release','scroll_to',{x:0,y:0});
   await shot('home-zh-phone');
   const layout = await b.value(`window.omui.snapshot({root:${JSON.stringify(board)}}).then(r=>r.data.nodes.filter(n=>n.role==='button'&&n.bounds&&!n.state?.includes('hidden')&&!n.state?.includes('offscreen')).map(n=>({id:n.id,b:n.bounds})))`);
+  if (!Array.isArray(layout)) throw new Error('The phone workspace snapshot was unavailable: ' + JSON.stringify(layout));
   check(layout?.length>3 && layout.every(n=>n.b[0]>=-0.5&&n.b[0]+n.b[2]<=390.5), 'phone workspace controls fit the viewport');
   const short = layout.filter(n=>n.id.endsWith('/edit')||n.id.endsWith('/add/submit'));
   check(short.length>0 && short.every(n=>n.b[3]<45), 'short Chinese action labels stay on one line');

@@ -16,6 +16,9 @@ struct BrandShape {
 [[nodiscard]] std::span<const BrandShape> brand_geometry();
 void paint_mark(render::DisplayList& out, const Theme& theme, Point at, float size);
 [[nodiscard]] Element brand_mark(std::string id, float size);
+// The same geometry in named runtime motion groups. The owner supplies the
+// state; hover, focus and a short first-visit assembly need no custom paint loop.
+[[nodiscard]] Element animated_brand_mark(std::string id, float size, Signal<bool> unfolded);
 [[nodiscard]] std::string brand_svg(Color ink);
 
 struct BrandStudy {

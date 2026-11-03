@@ -185,6 +185,15 @@ opt     = 2
 debug   = false
 ldflags = ["--profiling-funcs"]
 
+# The shipped website: optimize every translation unit for size, keeping
+# the normal release profile available for native performance checks.
+# Delivery and interactive frame budgets are both checked in Chromium.
+[workspace.profile.site-web]
+opt        = "s"
+debug      = false
+ndebug     = true
+trim_paths = true
+
 [workspace.package]
 standard = "c++23"
 mcpp     = ">=2026.10.26.1"

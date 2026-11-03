@@ -84,8 +84,14 @@ int main(int argc, char** argv) {
         h->settle();
         check(h->tree().node(root + "/controls/assemble")->name == "重新组装");
         check(h->click("main/bar/mark"), "the omui brand link returns home");
-        h->settle();
-        check(h->tree().node("main/body/view/home/page/hero").has_value());
+        h->settle(seconds(0.9));
+        const std::string landing = "main/body/view/home/page/landing";
+        check(h->tree().node(landing).has_value());
+        const auto title = h->tree().node(landing + "/intro/title");
+        check(title && title->name == "一个界面，不止一种可能。", "the brand returns to the simplified Chinese landing");
+        check(h->tree().act(landing + "/scene/controls/pause", "activate").exit_code() == std::optional<int>(0));
+        h->settle(seconds(0.8));
+        check(h->runtime().frame_demand().idle(), "the landing can also rest after its real Pause action");
     });
 
     return s.run(argc, argv);

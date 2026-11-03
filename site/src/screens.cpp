@@ -125,7 +125,7 @@ Element motion_screen(Screens& screens, const ScreensSite& site, float room) {
     shape.prop("wrap", derive([shaped] { return std::string(shaped.get() ? "wrap" : "nowrap"); }));
     shape.prop("motion", Source(Value("morph")));
     auto release = [state, site] {
-        if (site.runtime && *site.runtime) { auto& rt = **site.runtime; rt.release_motion(rt.find("main/body/view/home/page/motion/shown/shape")); }
+        if (site.runtime && *site.runtime) { auto& rt = **site.runtime; rt.release_motion(rt.find("main/body/view/release/page/motion/shown/shape")); }
         state->held = false;
     };
     return screen(site, "motion", {"Universal motion", "通用动画"}, {"The same tasks. A different view.", "同一批任务，换一种视图。"},
@@ -139,8 +139,8 @@ Element motion_screen(Screens& screens, const ScreensSite& site, float room) {
                     .on_changed = [state, site, release](bool on) { release(); if (on) {
                         state->shaped.set(false);
                         if (site.runtime && *site.runtime) (void)(*site.runtime)->after(seconds(2.0 / 60), [state, site] { if (state->follow.peek() && site.runtime && *site.runtime) {
-                            auto& rt = **site.runtime; const double y = rt.get(rt.find("main/body/view/home"), "y").as_double();
-                            state->last_y = y; scrolled(*state, site, "main/body/view/home", y);
+                            auto& rt = **site.runtime; const double y = rt.get(rt.find("main/body/view/release"), "y").as_double();
+                            state->last_y = y; scrolled(*state, site, "main/body/view/release", y);
                         } });
                     } }})}),
             // The explanation precedes the moving viewport; its target

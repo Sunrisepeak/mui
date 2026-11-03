@@ -109,8 +109,12 @@ struct Site {
     // A narrow window (a phone): the places and the switches in a menu, a panel in the place's place.
     static constexpr float compact_below = 900;
     Signal<bool>        compact = signal(false), menu = signal(false);
+    Signal<bool>        core_menu = signal(false), logo_unfolded = signal(true);
+    bool                logo_introduced = false;
+    std::uint64_t       logo_timer = 0;
+    std::uint64_t       feature_timer = 0;
     Signal<float>       width = signal(1280.0f);  // the window's width, logical px
-    float               room = 1280;              // the place's: the view's width (the window's, less an open panel's)
+    Signal<float>       room = signal(1280.0f);   // actual available width, including changes inside one responsive band
     // Its band (a place's page is built again when it changes): a phone, a tablet, a laptop, a wide screen.
     Signal<int>         band = signal(2);
     [[nodiscard]] static int band_of(float w) noexcept { return w < 700 ? 0 : w < 1100 ? 1 : w < 1400 ? 2 : 3; }
@@ -170,6 +174,14 @@ struct Site {
     ScreensSite         screens_site;
     Gallery             gallery;               // the components page: the style, the code's language, the samples' values
     GallerySite         gallery_site;
+    HomeLanding         landing;
+    HomeLandingSite     landing_site;
+    MotionGallery       basic, creative;
+    MotionGalleryContext basic_site, creative_site;
+    FeatureExamples     style_examples, interface_examples;
+    FeatureExamplesContext style_site, interface_site;
+    AgentFeature        agent_feature_state;
+    AgentFeatureContext agent_site;
     // The reference run (the foot's check against CI): played here, on a
     // headless runtime of its own, when asked; the frame shown, its hash as
     // this machine drew it, and CI's.
@@ -225,12 +237,34 @@ struct Site {
     [[nodiscard]] std::string root() const { return std::string(place_root) + place.get() + "/page"; }
 
     // The route a place has in a language: its address's hash ("features", "zh/features"; the English home, none).
-    [[nodiscard]] static std::string route_of(std::string_view place, std::string_view lang, std::string_view component = {}) {
-        return canonical_route(place, lang, component);
+    [[nodiscard]] static std::string route_of(std::string_view place, std::string_view lang, std::string_view component = {}, std::string_view example = {}) {
+        return canonical_route(place, lang, component, example);
+    }
+    [[nodiscard]] std::string route_now() const {
+        const auto& p = place.peek();
+        const auto example = p == "motion" && basic.detail.peek() ? basic.selected.peek()
+                           : p == "explore" && creative.detail.peek() ? creative.selected.peek()
+                           : p == "agent" ? agent_feature_state.mode.peek() : std::string();
+        return route_of(p, lang.peek(), gallery.selected.peek(), example);
+    }
+    void stop_previews(std::string_view next) {
+        if (feature_timer && runtime) runtime->cancel(std::exchange(feature_timer, 0));
+        if (next != "components") {
+            if (gallery.preview_timer && runtime) runtime->cancel(std::exchange(gallery.preview_timer, 0));
+            ++gallery.preview_generation;
+        }
+        if (next != "home") cancel_home_landing(landing, landing_site);
+        if (next != "release") { ++hero.generation; hero.agent_running.set(false); }
+        if (next != "motion") motion_gallery_cancel(basic, basic_site);
+        if (next != "explore") motion_gallery_cancel(creative, creative_site);
+        if (next != "agent") cancel_agent_feature(agent_feature_state);
+        if (next != "styles") cancel_feature_examples(style_examples);
+        if (next != "interface") cancel_feature_examples(interface_examples);
+        core_menu.set(false);
     }
     void show_route() {
         if (!runtime) return;
-        if (place.peek() != "not_found") { runtime->set_route(route_of(place.peek(), lang.peek(), gallery.selected.peek())); return; }
+        if (place.peek() != "not_found") { runtime->set_route(route_now()); return; }
         std::string_view path = missing_route.peek();
         if (path.starts_with('#')) path.remove_prefix(1);
         while (path.starts_with('/')) path.remove_prefix(1);
@@ -287,7 +321,7 @@ struct Site {
     // A route the person moved to (back, forward, a typed address): its place and its language.
     void follow_route(std::string_view route) {
         const auto parsed = parse_site_route(route);
-        if (!parsed || parsed->place != "home") { ++hero.generation; hero.agent_running.set(false); }
+        stop_previews(parsed ? parsed->place : "not_found");
         if (!parsed) {
             if (compact.peek()) menu.set(false), panel.set(false), settings.set(false), checking.set(false);
             missing_route.set(std::string(route));
@@ -304,6 +338,10 @@ struct Site {
         // A browser history move must not push a new entry, including an old alias.
         if (compact.peek()) menu.set(false), panel.set(false), settings.set(false), checking.set(false);
         gallery.selected.set(parsed->component);
+        gallery.pane.set(""); gallery.states.set(false); gallery.variants.set(false); gallery.browser_open.set(false);
+        if (parsed->place == "motion") { if (!parsed->example.empty()) basic.selected.set(parsed->example); basic.detail.set(!parsed->example.empty()); }
+        if (parsed->place == "explore") { if (!parsed->example.empty()) creative.selected.set(parsed->example); creative.detail.set(!parsed->example.empty()); }
+        if (parsed->place == "agent") agent_feature_state.mode.set(parsed->example.empty() ? "use" : parsed->example);
         gallery.dialog.set(false); gallery.popover.set(false); gallery.drawer.set(false); gallery.toast.set(false);
         place.set(parsed->place);
         soon();
@@ -311,7 +349,8 @@ struct Site {
 
     // To a place: shown, its page from its top; the address follows.
     void go(std::string_view to) {
-        if (to != "home") { ++hero.generation; hero.agent_running.set(false); }
+        if (!find_place(to)) return;
+        stop_previews(to);
         // On a phone a panel or the menu covers the place: going somewhere puts them away, so it is seen.
         if (compact.peek()) {
             menu.set(false);
@@ -325,6 +364,8 @@ struct Site {
             if (it != all.end()) mark(std::string(zh ? it->zh : it->en));
         }
         if (to == "components") gallery.selected.set("");
+        if (to == "motion") basic.detail.set(false);
+        if (to == "explore") creative.detail.set(false);
         gallery.dialog.set(false); gallery.popover.set(false); gallery.drawer.set(false); gallery.toast.set(false);
         place.set(std::string(to));
         show_route();
@@ -333,12 +374,81 @@ struct Site {
 
     void open_component(std::string id) {
         if (!id.empty() && !find_component(id)) return;
+        stop_previews("components");
         gallery.dialog.set(false); gallery.popover.set(false); gallery.drawer.set(false); gallery.toast.set(false);
         gallery.pane.set(""); gallery.states.set(false); gallery.copied.set(false);
         gallery.selected.set(std::move(id));
         place.set("components");
         if (compact.peek()) menu.set(false), panel.set(false), settings.set(false), checking.set(false);
         show_route(); soon();
+    }
+
+    void open_example(bool is_creative, std::string id) {
+        if (!id.empty() && !find_motion_case(id, is_creative)) return;
+        const std::string next = is_creative ? "explore" : "motion";
+        stop_previews(next);
+        auto& target = is_creative ? creative : basic;
+        if (!id.empty()) target.selected.set(id);
+        target.detail.set(!id.empty());
+        place.set(next); menu.set(false); show_route(); soon();
+    }
+    void open_agent_mode(std::string mode) {
+        if (mode != "use" && mode != "develop" && mode != "design") return;
+        cancel_agent_feature(agent_feature_state);
+        stop_previews("agent"); agent_feature_state.mode.set(mode);
+        place.set("agent"); menu.set(false); show_route(); soon();
+    }
+
+    void apply_scope(std::string_view scope, std::string pack) {
+        if (!runtime) return;
+        if (pack == "plain") {
+            runtime->crossfade(seconds(0.25), scope);
+            runtime->set_scope(scope, runtime->theme());
+        } else if (auto r = theme::apply_style(*runtime, pack, scope, true); !r) site_log.warn("the style {}: {}", pack, r.error());
+    }
+
+    void refresh_plain_scopes() {
+        if (!runtime) return;
+        for (const auto& [scope, plain] : {
+                 std::pair{gallery_scope, gallery.style.peek() == "plain"},
+                 std::pair{std::string_view("motion-preview"), basic.style.peek() == "plain"},
+                 std::pair{std::string_view("creative-preview"), creative.style.peek() == "plain"},
+                 std::pair{std::string_view("interface-feature"), true},
+                 std::pair{std::string_view("style-feature"), style_examples.style_name.peek() == "plain"},
+                 std::pair{std::string_view("agent-design"), agent_feature_state.style_name.peek() == "plain"}})
+            if (plain) runtime->set_scope(scope, runtime->theme());
+    }
+
+    void tick_features() {
+        if ((runtime->reduce_motion() || runtime->motion_level() != MotionLevel::full)) logo_unfolded.set(false);
+        const auto& p = place.peek();
+        if (p == "home") tick_home_landing(landing, landing_site);
+        if (p == "components") tick_gallery(gallery, gallery_site);
+        if (p == "motion") motion_gallery_tick(basic, basic_site);
+        if (p == "explore") motion_gallery_tick(creative, creative_site);
+        if (p == "agent") observe_agent_feature(agent_feature_state, agent_site);
+        if (p != "styles" && p != "interface") return;
+        auto& state = p == "styles" ? style_examples : interface_examples;
+        auto& context = p == "styles" ? style_site : interface_site;
+        observe_feature_examples(state, context);
+        const auto preview = state.preview_nodes[p == "styles" ? 0 : 4];
+        const auto id = runtime->valid(preview) ? runtime->parent(preview) : NodeId{};
+        const auto box = runtime->valid(id) ? runtime->screen_bounds(id) : Rect{};
+        const bool visible = runtime->valid(id) && !(compact.peek() && (panel.peek() || settings.peek() || checking.peek()))
+                          && box.y + box.height > 80 && box.y < runtime->size().height - 44;
+        const bool details = p == "styles" ? state.styles_details.peek() : state.interface_details.peek();
+        if (!visible || state.paused.peek() || state.interacting.peek() || details || (runtime->reduce_motion() || runtime->motion_level() != MotionLevel::full)) {
+            if (feature_timer) runtime->cancel(std::exchange(feature_timer, 0));
+            return;
+        }
+        if (feature_timer) return;
+        feature_timer = runtime->after(seconds(2.2), [this, p] {
+            feature_timer = 0;
+            if (place.peek() != p || (runtime->reduce_motion() || runtime->motion_level() != MotionLevel::full)) return;
+            auto& state = p == "styles" ? style_examples : interface_examples;
+            const auto& context = p == "styles" ? style_site : interface_site;
+            if (!state.paused.peek() && !state.interacting.peek()) feature_examples_demo_step(state, context, p);
+        });
     }
 
     // The page's time (the timebar, D-60): live, it is the host's; dragged,
@@ -459,10 +569,9 @@ struct Site {
         agent.set(agent_text(snapshot, place_path));
         test.set(test_text(snapshot, place_path));
         const std::uint64_t h = tree_hash(snapshot);
-        const bool pinned = place.get() == "home" && lang.get() == "en" && pinned_home_hash != 0;
-        // Eight digits of each (they are compared whole).
-        hash.set(pinned ? std::format("tree {:08x} · CI {:08x} {}", h >> 32, pinned_home_hash >> 32, h == pinned_home_hash ? "✓ the same" : "✗ not the pinned tree")
-                        : std::format("tree {:08x}", h >> 32));
+        // This is the visitor's changing tree. The explicit reference player
+        // compares an isolated, fixed script with CI's complete frame hashes.
+        hash.set(std::format("tree {:08x}", h >> 32));
     }
     // After the frame that shows what changed: once, and then, while a lens
     // shows the tree, a few times a second (the page moves under it: a
@@ -549,27 +658,29 @@ public:
         }
         if (std::abs(w - site_.width.peek()) >= 1) site_.width.set(w);
         // The place's room: the view as laid out (a panel open beside it takes some); its band, when it changes, builds the page again.
-        if (const NodeId v = rt.find("main/body/view"); rt.valid(v) && rt.bounds(v).width > 0) site_.room = rt.bounds(v).width;
-        else site_.room = w;
-        if (const int b = Site::band_of(site_.room); b != site_.band.peek()) site_.band.set(b);
+        const NodeId view = rt.find("main/body/view");
+        const float available = rt.valid(view) && rt.bounds(view).width > 0 ? rt.bounds(view).width : w;
+        if (std::abs(available - site_.room.peek()) >= 1) site_.room.set(available);
+        if (const int b = Site::band_of(available); b != site_.band.peek()) site_.band.set(b);
         // The person moved the route (back, forward): the place and the language it names.
         if (rt.route_revision() != route_seen_) {
             route_seen_ = rt.route_revision();
-            if (rt.route() != Site::route_of(site_.place.peek(), site_.lang.peek(), site_.gallery.selected.peek())) {
+            if (rt.route() != site_.route_now()) {
                 const std::string route = rt.route();
                 (void)rt.after(seconds(0.0), [this, route] { site_.follow_route(route); });
             }
         }
-        const NodeId motion = rt.find("main/body/view/home/page/motion/shown/shape");
+        site_.tick_features();
+        const NodeId motion = rt.find("main/body/view/release/page/motion/shown/shape");
         const int motion_band = site_.band.peek();
         if (motion != motion_seen_ || motion_band != motion_band_) {
             motion_seen_ = motion; motion_band_ = motion_band;
             if (rt.valid(motion)) (void)rt.after(seconds(2.0 / 60), [this, motion, motion_band] {
                 auto& runtime = *site_.runtime;
-                if (site_.place.peek() != "home" || site_.band.peek() != motion_band || runtime.find("main/body/view/home/page/motion/shown/shape") != motion) return;
-                const double y = runtime.get(runtime.find("main/body/view/home"), "y").as_double();
+                if (site_.place.peek() != "release" || site_.band.peek() != motion_band || runtime.find("main/body/view/release/page/motion/shown/shape") != motion) return;
+                const double y = runtime.get(runtime.find("main/body/view/release"), "y").as_double();
                 site_.screens.last_y = y;
-                scrolled(site_.screens, site_.screens_site, "main/body/view/home", y);
+                scrolled(site_.screens, site_.screens_site, "main/body/view/release", y);
             });
         }
         site_.tick_time();
@@ -911,6 +1022,7 @@ Element settings_panel(const std::shared_ptr<Site>& s) {
                                    if (auto t = theme::library().compose(std::vector<std::string>{v == "dark" ? "site_dark" : "site"}); t) {
                                        s->runtime->crossfade(seconds(0.3));
                                        s->runtime->set_theme(std::move(*t));
+                                       s->refresh_plain_scopes();
                                    }
                            }}),
                    labelled("motion", "Motion", "动效", {.labels = labels({"Full", "Reduced (short fades)", "Off"}, {"完整", "精简（短暂的淡化）", "关闭"}),
@@ -1102,13 +1214,20 @@ Element document_page(const std::shared_ptr<Site>& s, const std::string& id, flo
 
 // A place: its page, scrolled, its content as wide as the design's measure, centred.
 Element place_page(const std::shared_ptr<Site>& s, const std::string& id) {
-    const std::string scroll_key = id == "components" ? canonical_route(id, "en", s->gallery.selected.get()) : id;
-    const float view = s->room;
+    std::string scroll_key = id;
+    if (id == "components") scroll_key = canonical_route(id, "en", s->gallery.selected.get());
+    else if (id == "motion" || id == "explore") {
+        const auto& gallery = id == "motion" ? s->basic : s->creative;
+        scroll_key = canonical_route(id, "en", {}, gallery.detail.get() ? gallery.selected.get() : std::string());
+    }
+    const float view = s->room.get();
     const bool narrow = view < 700;
     const float margin = narrow ? 20 : 48;
     const float room = std::min(content_width, view - 2 * margin);
     std::vector<Element> content;
     if (id == "home") {
+        content.push_back(home_landing(s->landing, s->landing_site, room));
+    } else if (id == "release") {
         content.push_back(hero(s->hero, s->hero_site, true, room));
         // A screen a strength: your agent, time, motion, speed; then what it is, in words.
         content.push_back(agent_screen(s->screens_site, room));
@@ -1118,6 +1237,14 @@ Element place_page(const std::shared_ptr<Site>& s, const std::string& id) {
         content.push_back(home_destinations(s->links, room));
     } else if (id == "components") {
         content.push_back(gallery(s->gallery, s->gallery_site, true, room));
+    } else if (id == "motion") {
+        content.push_back(motion_gallery(s->basic, s->basic_site, false, room));
+    } else if (id == "styles") {
+        content.push_back(styles_feature(s->style_examples, s->style_site, room));
+    } else if (id == "interface") {
+        content.push_back(interface_feature(s->interface_examples, s->interface_site, room));
+    } else if (id == "agent") {
+        content.push_back(agent_feature(s->agent_feature_state, s->agent_site, room));
     } else if (id == "hello") {
         content.push_back(hello_page(s, room));
     } else if (id == "timeline") {
@@ -1125,6 +1252,7 @@ Element place_page(const std::shared_ptr<Site>& s, const std::string& id) {
     } else if (id == "brand") {
         content.push_back(brand_study(s->brand, s->runtime, s->lang, room));
     } else if (id == "explore") {
+        content.push_back(motion_gallery(s->creative, s->creative_site, true, room));
         content.push_back(explore_landing(s->links, room));
     } else if (id == "docs") {
         content.push_back(docs_landing(s->docs, s->links, room >= 1000 ? room - 196 : room));
@@ -1156,7 +1284,7 @@ Element place_page(const std::shared_ptr<Site>& s, const std::string& id) {
     page.on("scrolled", [s, id, scroll_key](const Value& at) {
         const double y = at.get("y") ? at.get("y")->as_double() : 0;
         s->scroll_positions[scroll_key] = y;
-        if (id == "home") scrolled(s->screens, s->screens_site, std::string(place_root) + "home", y);
+        if (id == "release") scrolled(s->screens, s->screens_site, std::string(place_root) + "release", y);
     });
     return page;
 }
@@ -1188,6 +1316,9 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
         s->place.set(parsed->place);
         s->lang.set(parsed->language);
         s->gallery.selected.set(parsed->component);
+        if (parsed->place == "motion") { s->basic.selected.set(parsed->example); s->basic.detail.set(!parsed->example.empty()); }
+        if (parsed->place == "explore") { s->creative.selected.set(parsed->example); s->creative.detail.set(!parsed->example.empty()); }
+        if (parsed->place == "agent") s->agent_feature_state.mode.set(parsed->example.empty() ? "use" : parsed->example);
     } else {
         s->place.set(std::string("not_found"));
         s->missing_route.set(std::string(incoming_route.empty() ? place : incoming_route));
@@ -1224,7 +1355,7 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
         s->hero_site = {.runtime = &s->runtime,
                         .lang = &s->lang,
                         .nodes = &s->nodes,
-                        .root = [] { return std::string(place_root) + "home/page"; },
+                        .root = [] { return std::string(place_root) + "release/page"; },
                         .go = [p = s.get()](std::string id) { p->go(id); },
                         .tree_lens = [p = s.get()] {
                             if (p->lens.peek() != "tree") p->mark(p->lang.peek() == "zh" ? "镜头 Tree" : "Lens Tree");
@@ -1246,11 +1377,35 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
                                    site_log.warn("the style {}: {}", pack, r.error());
                                }
                                p->soon();
-                           }};
+                           }, .runtime = &s->runtime};
+        for (const auto scope : {"motion-preview", "creative-preview", "style-feature", "interface-feature", "agent-design"}) rt.set_scope(scope, rt.theme());
+        s->landing_site = {.runtime = &s->runtime, .lang = &s->lang, .go = [p = s.get()](std::string id) { p->go(id); }};
+        s->basic_site = {.runtime = &s->runtime, .lang = &s->lang,
+                         .open_detail = [p = s.get()](std::string id) { p->open_example(false, std::move(id)); },
+                         .style = [p = s.get()](std::string pack) { p->apply_scope("motion-preview", std::move(pack)); },
+                         .root = "main/body/view/motion/page/motion_gallery", .scope = "motion-preview"};
+        s->creative_site = {.runtime = &s->runtime, .lang = &s->lang,
+                            .open_detail = [p = s.get()](std::string id) { p->open_example(true, std::move(id)); },
+                            .style = [p = s.get()](std::string pack) { p->apply_scope("creative-preview", std::move(pack)); },
+                            .root = "main/body/view/explore/page/motion_gallery", .scope = "creative-preview"};
+        s->style_site = {.runtime = &s->runtime, .lang = &s->lang,
+                         .style = [p = s.get()](std::string pack) { p->apply_scope("style-feature", std::move(pack)); },
+                         .go = [p = s.get()](std::string id) { p->go(id); },
+                         .root = "main/body/view/styles/page/styles_feature", .scope = "style-feature"};
+        s->interface_site = {.runtime = &s->runtime, .lang = &s->lang,
+                             .style = [p = s.get()](std::string pack) { p->apply_scope("interface-feature", std::move(pack)); },
+                             .go = [p = s.get()](std::string id) { p->go(id); },
+                             .root = "main/body/view/interface/page/interface_feature", .scope = "interface-feature"};
+        s->agent_site = {.runtime = &s->runtime, .lang = &s->lang,
+                         .connect = [p = s.get()] { p->panel.set(true); p->give_prompt(); },
+                         .style = [p = s.get()](std::string pack) { p->apply_scope("agent-design", std::move(pack)); },
+                         .open_mode = [p = s.get()](std::string mode) { p->open_agent_mode(std::move(mode)); }};
         s->compact.set(rt.size().width < Site::compact_below);
         s->width.set(rt.size().width);
-        s->room = rt.size().width;
+        s->room.set(rt.size().width);
         s->band.set(Site::band_of(rt.size().width));
+        if ((rt.reduce_motion() || rt.motion_level() != MotionLevel::full)) s->logo_unfolded.set(false);
+        else s->logo_timer = rt.after(seconds(0.15), [p = s.get()] { p->logo_timer = 0; p->logo_unfolded.set(false); });
         s->guide = std::make_unique<Guide>(rt, [site = s.get()] { return site->place.get(); });
         {
             const auto it = std::ranges::find_if(all, [&](const Place& p) { return p.id == s->place.peek(); });
@@ -1279,19 +1434,34 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
                 return computed([s, en = std::string(en), zh = std::string(zh)] { return s->lang.get() == "zh" ? zh : en; });
             };
             std::vector<Element> links;
+            std::vector<Element> core_links;
             for (const Place& p : all) {
                 if (!p.navigation) continue;
                 const std::string id(p.id);
                 auto selected = [s, id] {
                     const Place* current = find_place(s->place.get());
-                    return current && current->section == id;
+                    return current && (current->id == id || current->section == id);
                 };
                 Element b = button({.id = "to_" + id, .text = label(p.en, p.zh),
                                     .variant = computed([selected] { return selected() ? ButtonVariant::secondary : ButtonVariant::ghost; }),
                                     .on_activated = [s, id] { s->go(id); }});
                 b.prop("selected", derive(selected));
-                links.push_back(retyped(std::move(b), s));
+                // Navigation uses the same typed default recipe as other
+                // buttons. Large letter-scatter effects belong in a scene.
+                if (p.section == "core") core_links.push_back(std::move(b));
+                else links.push_back(std::move(b));
             }
+            auto core_open = button({.id = "open", .text = label("Core features", "核心特色"),
+                .variant = computed([s] { const auto* p = find_place(s->place.get()); return s->core_menu.get() || (p && p->section == "core") ? ButtonVariant::secondary : ButtonVariant::ghost; }),
+                .on_activated = [s] { s->core_menu.set(!s->core_menu.peek()); }});
+            core_open.prop("expanded", derive([s] { return s->core_menu.get(); }));
+            PopoverOptions core_options;
+            core_options.id = "menu"; core_options.label = label("Core features", "核心特色");
+            core_options.open = s->core_menu; core_options.side = PopoverSide::below;
+            core_options.width = Dim(std::min(300.0f, s->width.get() - 48));
+            auto core_panel = popover(std::move(core_options), std::move(core_links));
+            core_panel.prop("direction", Source(Value("column"))).prop("gap", Source(Value(4)));
+            links.insert(links.begin(), row({.id = "core", .gap = 0, .align = "center"}, {std::move(core_open), std::move(core_panel)}));
             Element nav = row({.id = "nav", .gap = 4, .align = "center", .wrap = "wrap", .label = "Places"}, std::move(links));
             nav.prop("role", Source(Value("navigation")));
             if (compact) nav.prop("width", Source(Value(static_cast<double>(s->width.get() - 32))));
@@ -1303,10 +1473,14 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
                                             if (s->settings.peek()) s->panel.set(false), s->checking.set(false), s->menu.set(false);
                                         }});
             std::vector<Element> items;
-            items.push_back(brand_mark("logo", compact ? 24.0f : 32.0f));
+            items.push_back(animated_brand_mark("logo", compact ? 24.0f : 32.0f, s->logo_unfolded));
             Element home = button({.id = "mark", .text = "omui", .variant = ButtonVariant::ghost,
                                    .on_activated = [s] { s->go("home"); }, .description = "omui — home"});
             home.prop("selected", derive([s] { return s->place.get() == "home"; }));
+            home.on("pointer_enter", [s](const Value&) { if (s->runtime && !s->runtime->reduce_motion() && s->runtime->motion_level() == MotionLevel::full) s->logo_unfolded.set(true); });
+            home.on("pointer_leave", [s](const Value&) { s->logo_unfolded.set(false); });
+            home.on("focus", [s](const Value&) { if (s->runtime && !s->runtime->reduce_motion() && s->runtime->motion_level() == MotionLevel::full) s->logo_unfolded.set(true); });
+            home.on("blur", [s](const Value&) { s->logo_unfolded.set(false); });
             items.push_back(std::move(home));
             if (!compact) items.push_back(std::move(nav));
             items.push_back(box({.id = "fill", .grow = 1}));
@@ -1317,7 +1491,7 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
                 items.push_back(only_when(frame_meter({.id = "frames", .label = label("Frame rate", "帧率")}), [s] { return s->tools.get() && s->width.get() >= 1400; }));
                 items.push_back(std::move(settings));
             }
-            items.push_back(button({.id = "guide_toggle", .text = std::string("Agent"),
+            items.push_back(button({.id = "guide_toggle", .text = label("Connect", "连接"),
                                      .variant = computed([s] { return s->panel.get() ? ButtonVariant::primary : ButtonVariant::ghost; }),
                                      .on_activated = [s] {
                                          s->panel.set(!s->panel.peek());
@@ -1353,7 +1527,7 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
                                  [s] { return s->lens.get() == "tree"; }));
         for (const std::string_view which : {"agent", "test"}) {
             const std::string key(which);
-            shown.push_back(fades_in(scroll({.id = key, .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .padding = Edges(32.0f, 48.0f), .background = "background"},
+            shown.push_back(fades_in(scroll({.id = "lens_" + key, .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .padding = Edges(32.0f, 48.0f), .background = "background"},
                                              {text({.id = key + "_text", .text = key == "agent" ? s->agent : s->test, .style = "code"})}),
                                       [s, key] { return s->lens.get() == key; }));
         }
@@ -1436,7 +1610,7 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
         // Esc puts away what is open over the place: a panel.
         site.on("key_down", [s](const Value& e) {
             if (!e.get("key") || e.get("key")->as_string() != "Escape") return;
-            for (Signal<bool>* open : {&s->menu, &s->panel, &s->settings, &s->checking})
+            for (Signal<bool>* open : {&s->menu, &s->core_menu, &s->panel, &s->settings, &s->checking})
                 if (open->peek()) open->set(false);
         });
         return site;
@@ -1476,8 +1650,12 @@ std::string static_html(std::string_view lang) {
     for (const bool chinese : languages) {
         out += std::format("<nav aria-label=\"{}\" data-locale=\"{}\"{}>", chinese ? "页面" : "Places", chinese ? "zh" : "en", chinese == first_chinese ? " data-default" : "");
         out += std::format("<a class=\"brand\" href=\"{}\" data-omui-target=\"main/bar/mark\" aria-label=\"omui\">{}<b>omui</b></a> ", href("home", chinese), brand_svg(theme.color("accent")));
+        out += std::format("<details class=\"core-navigation\"><summary data-omui-target=\"main/bar/nav/core/open\">{}</summary>", chinese ? "核心特色" : "Core features");
         for (const Place& p : all)
-            if (p.navigation) out += std::format("<a href=\"{}\" data-omui-target=\"main/bar/nav/to_{}\">{}</a> ", href(p.id, chinese), p.id, chinese ? p.zh : p.en);
+            if (p.navigation && p.section == "core") out += std::format("<a href=\"{}\" data-omui-target=\"main/bar/nav/core/open\">{}</a> ", href(p.id, chinese), chinese ? p.zh : p.en);
+        out += "</details>";
+        for (const Place& p : all)
+            if (p.navigation && p.section != "core") out += std::format("<a href=\"{}\" data-omui-target=\"main/bar/nav/to_{}\">{}</a> ", href(p.id, chinese), p.id, chinese ? p.zh : p.en);
         out += std::format("<a href=\"{}\" data-omui-target=\"main/bar/start\">{}</a></nav>\n", href("hello", chinese), chinese ? "开始使用" : "Get started");
     }
     out += "<div class=\"routes\">\n";
@@ -1490,10 +1668,15 @@ std::string static_html(std::string_view lang) {
             if (alias != href(p.id, chinese).substr(1)) out += std::format("<span class=\"route-alias\" id=\"{}\"></span>", alias);
             if (p.id == "home") {
                 out += std::format("<span class=\"route-alias\" id=\"{}\"></span>", chinese ? "/zh" : "/");
-                out += hero_html(chinese) + destinations_html(chinese);
-            } else if (p.id == "brand") out += brand_html(chinese, theme.color("accent"));
+                out += "<div class=\"landing-static\"><div>" + home_landing_html(chinese) + "</div><div class=\"landing-mark\">" + brand_svg(theme.color("accent")) + "</div></div>";
+            } else if (p.id == "release") out += hero_html(chinese) + destinations_html(chinese);
+            else if (p.id == "motion") out += motion_gallery_html(chinese, false);
+            else if (p.id == "styles") out += chinese ? "<h1>同一语义，不同材质。</h1><p>对照同一组真实控件，切换玻璃、墨纸、霓虹、复古与液态风格。交互演示需要 JavaScript；参数与源码按需展开。</p>" : "<h1>Same meaning. A new material.</h1><p>Compare the same live controls in glass, ink, neon, retro and liquid styles. Interactive previews need JavaScript; parameters and source open on request.</p>";
+            else if (p.id == "interface") out += chinese ? "<h1>一套接口，多种入口。</h1><p>修改真实工作台并读回同一对象的语义；查看详情后对照 C++、TypeScript、Python、Lua 的接口表达式。</p>" : "<h1>One interface. Every way in.</h1><p>Edit a live workspace and read the same object's semantics. Open details to compare C++, TypeScript, Python and Lua API expressions.</p>";
+            else if (p.id == "agent") out += chinese ? "<h1>让 agent 直接理解界面。</h1><p>使用、开发、设计：通过真实语义操作、动作回执和可撤销记录理解 Agent 原生。内置脚本明确标注为演示，连接入口用于你自己的 agent。</p>" : "<h1>An interface your agent can understand.</h1><p>Use, develop and design with real semantic actions, receipts and undoable records. Scripted previews are marked; connect your own agent to operate this page.</p>";
+            else if (p.id == "brand") out += brand_html(chinese, theme.color("accent"));
             else if (p.id == "docs") out += docs_html(chinese);
-            else if (p.id == "explore") out += explore_html(chinese);
+            else if (p.id == "explore") out += motion_gallery_html(chinese, true);
             if (const std::string_view doc = document(p.id, language); !doc.empty()) {
                 if (p.id == "hello") out += std::format("<h1>{}</h1>", chinese ? "开始使用" : "Get started");
                 std::string html = md::to_html(md::parse(doc));
@@ -1519,6 +1702,16 @@ std::string static_html(std::string_view lang) {
             const std::string alias = std::string(chinese ? "zh/" : "") + "components/" + std::string(component.id);
             if (alias != route) out += std::format("<span class=\"route-alias\" id=\"/{}\"></span>", alias);
             out += gallery_html(chinese, component.id) + "</section>\n";
+        }
+        for (const bool creative : {false, true}) for (const auto& item : creative ? creative_motions() : basic_motions()) {
+            const auto place = creative ? "explore" : "motion";
+            const std::string route = canonical_route(place, language, {}, item.id);
+            out += std::format("<section id=\"/{}\" lang=\"{}\" data-place=\"{}\" data-live-root=\"main/body/view/{}/page/motion_gallery/stage/scene\" data-live-name=\"{}\">", route, chinese ? "zh-CN" : "en", place, place, escaped(chinese ? item.zh : item.en));
+            out += motion_gallery_html(chinese, creative, item.id) + "</section>\n";
+        }
+        for (const auto mode : {"use", "develop", "design"}) {
+            out += std::format("<section id=\"/{}\" lang=\"{}\" data-place=\"agent\" data-live-root=\"main/body/view/agent/page/agent_feature\"><h1>{}</h1><p>{}</p></section>",
+                canonical_route("agent", language, {}, mode), chinese ? "zh-CN" : "en", chinese ? "Agent 原生" : "Agent native", mode);
         }
         out += std::format("<section id=\"/{}not_found\" lang=\"{}\" data-place=\"not_found\"><h1>{}</h1><code data-missing-route></code><p><a href=\"{}\">{}</a></p></section>",
                            chinese ? "zh/" : "", chinese ? "zh-CN" : "en", chinese ? "没有找到这一页。" : "This page isn't here.", href("home", chinese), chinese ? "回到首页" : "Back to home");
@@ -1559,6 +1752,11 @@ std::optional<std::string> inject(std::string_view page, std::string_view fragme
                    "padding:1px 4px;border-radius:3px}#omui-static pre{white-space:pre-wrap}#omui-static table{border-collapse:collapse}"
                    "#omui-static td,#omui-static th{border:1px solid #e6e6e3;padding:4px 8px}"
                    "#omui-static .brand{display:inline-flex;align-items:center;gap:8px}#omui-static .brand svg{width:32px;height:32px}"
+                   "#omui-static .core-navigation{display:inline-block;position:relative;margin-right:16px;vertical-align:middle}"
+                   "#omui-static .core-navigation[open]>a{display:block}#omui-static .core-navigation summary{cursor:pointer;color:#4f46e5}"
+                   "#omui-static section[data-place=home]{max-width:1120px;margin:auto}#omui-static .landing-static{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center;min-height:560px}"
+                   "#omui-static .landing-static h1{font-size:48px;line-height:1.3;letter-spacing:-1px}#omui-static .landing-mark{text-align:center}#omui-static .landing-mark svg{width:248px;height:248px}"
+                   "@media(max-width:900px){#omui-static .landing-static{display:flex;flex-direction:column;gap:28px;align-items:stretch;min-height:0}#omui-static .landing-static h1{font-size:38px}}"
                    "#omui-static [hidden]{display:none!important}#omui-static>.routes>section{display:none}"
                    "#omui-static>.routes>section[data-default]{display:block}"
                    "#omui-static:has(.routes :target)>.routes>section{display:none}"

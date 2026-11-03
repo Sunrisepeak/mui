@@ -847,7 +847,8 @@ int main(int argc, char** argv) {
         std::println("ui.base motion cases {:016x} {:016x} {:016x}", before, mid, rest);
         check(mid != before && mid != rest, "mid-way is neither drawing");
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
-        check(mid == 0x4818defc48dc7532ULL, std::format("mid {:016x}", mid));
+        // Typed toggle/button recipes now compose their own reusable parts.
+        check(mid == 0xca8dddc7b099a25cULL, std::format("mid {:016x}", mid));
         check(rest == 0xfa5cbbab36eaa981ULL, std::format("rest {:016x}", rest));
     });
 

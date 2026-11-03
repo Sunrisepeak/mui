@@ -516,10 +516,11 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
     auto marker_b = [&](const Piece& pb) -> std::uint32_t { return to_.nodes()[pb.node].marker; };
     // Appearing and vanishing: `away` 1 is all the way (lower by rise, scaled by grow about the middle), 0 in place.
     const Point middle = (to_.empty() ? from_.bounds() : to_.bounds()).center();
-    auto shaped = [&](double away) -> Affine {
+    auto shaped = [&](double away, const Rect& bounds) -> Affine {
         if (away <= 0 || (options_.rise == 0 && options_.grow == 1)) return Affine{};
         const float g = mixf(1, options_.grow, away);
-        return Affine::translate(middle.x, middle.y + mixf(0, options_.rise, away)) * Affine::scale(g, g) * Affine::translate(-middle.x, -middle.y);
+        const Point origin = options_.local_presence ? bounds.center() : middle;
+        return Affine::translate(origin.x, origin.y + mixf(0, options_.rise, away)) * Affine::scale(g, g) * Affine::translate(-origin.x, -origin.y);
     };
     const auto A = from_.pieces();
     const auto B = to_.pieces();
@@ -566,7 +567,7 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
             const float o = static_cast<float>(pa.opacity * gone);
             if (o <= 0) continue;
             e.begin(marker_a(pa));
-            e.piece(from_, pa, shaped(1 - gone) * pa.transform, o, false);
+            e.piece(from_, pa, shaped(1 - gone, pa.bounds) * pa.transform, o, false);
             e.end();
             continue;
         }
@@ -574,7 +575,7 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
         // A group of a nested root is inside its own marker already.
         e.begin(pb.cls == PieceClass::group && pb.nested ? 0 : marker_b(pb));
         if (p.a < 0) {  // only in the second: appearing where it is (from below, smaller, when it is asked to)
-            e.piece(to_, pb, shaped(1 - clamp01(u)) * pb.transform, static_cast<float>(pb.opacity * fade_in(u, options_.fade_in)), true);
+            e.piece(to_, pb, shaped(1 - clamp01(u), pb.bounds) * pb.transform, static_cast<float>(pb.opacity * fade_in(u, options_.fade_in)), true);
             e.end();
             continue;
         }

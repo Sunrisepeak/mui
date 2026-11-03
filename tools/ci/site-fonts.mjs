@@ -36,6 +36,12 @@ for (const c of [
     if (data) writeFileSync(`target/site-fonts/${c.name}-${suffix}.png`, Buffer.from(data, 'base64'));
     return data;
   };
+  const captureHeading = async suffix => {
+    const bounds = await b.value(`window.omui.snapshot({root:'main/body/view/home/page/landing/intro/title',depth:0}).then(r=>r.data?.nodes?.[0]?.bounds)`);
+    if (!Array.isArray(bounds) || bounds.length !== 4) throw new Error('The actual home heading has no bounds');
+    const [x,y,width,height] = bounds;
+    return capture({x,y,width,height}, suffix);
+  };
   try {
     await b.call('Network.enable');
     let source = `(() => { let value=false; Object.defineProperty(window,'omuiHasPresented',{get:()=>value,set:v=>{value=v;if(v&&!window.__fontPresentedAt)window.__fontPresentedAt=performance.now();},configurable:true}); })();`;
@@ -52,7 +58,7 @@ for (const c of [
       check(timing?.language === 'zh' && timing.full > 0 && timing.full <= timing.frame && !requests.some(r=>r.endsWith(chinese[3])),
         'chinese: the full face arrives before presentation, without a redundant initial download', timing);
       await sleep(500);
-      const direct = await capture({ x: 80, y: 120, width: 1000, height: 140 }, 'body');
+      const direct = await captureHeading('body');
       check(direct && direct === switchedBody, 'switching to Chinese after the full face arrives matches a direct Chinese visit');
       continue;
     }
@@ -95,7 +101,7 @@ for (const c of [
       if(mismatch)await capture({x:0,y:0,width:1280,height:800},'reference-mismatch');
       await act('main/foot/ci_check'); await act('main/foot/tools_toggle');
       await b.value(`window.omui.act('main/bar/lang','activate')`); await sleep(1500);
-      switchedBody = await capture({ x: 80, y: 120, width: 1000, height: 140 }, 'chinese-body');
+      switchedBody = await captureHeading('chinese-body');
     }
   } catch (e) { check(false, `${c.name}: scenario completes`, String(e.stack || e)); }
   finally { b.close(); }

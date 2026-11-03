@@ -309,17 +309,13 @@ state         = "simple"
         auto t = lib.compose_style("inky");
         check(t.has_value(), t ? "" : t.error());
         if (t) {
-            std::size_t updates = 0, states = 0;
-            for (const MotionRule& r : t->motion_rules) {
-                if (r.slot == "update") {
-                    ++updates;
-                    check(r.spec.name == "ink" && r.instead.size() == 1 && r.instead[0].name == "simple", std::format("{}: ink, else simple", r.target));
-                }
-                if (r.slot == "state") ++states;
-            }
-            check(updates > 10 && states == updates, std::format("every control the rules move: {} updates, {} states", updates, states));
+            const auto update = std::ranges::find_if(t->motion_rules, [](const MotionRule& r) { return r.layer == MotionRule::Layer::style && r.target == "*" && r.slot == "update"; });
+            check(update != t->motion_rules.end() && update->spec.name == "ink" && update->instead.size() == 1 && update->instead[0].name == "simple", "the style applies ink to every node, with a simple fallback");
+            const auto state = std::ranges::find_if(t->motion_rules, [](const MotionRule& r) { return r.layer == MotionRule::Layer::style && r.target == "*" && r.slot == "state"; });
+            check(state != t->motion_rules.end() && state->spec.name == "simple", "state feedback is the style's own slot");
+            check(std::ranges::any_of(t->motion_rules, [](const MotionRule& r) { return r.layer == MotionRule::Layer::framework && r.target == "checkbox" && r.spec.name == "default.check"; }), "typed defaults remain available under the style layer");
             const auto dialog = std::ranges::find_if(t->motion_rules, [](const MotionRule& r) { return r.target == "role:dialog" && r.slot == "enter"; });
-            check(dialog != t->motion_rules.end() && dialog->spec.name == "spring" && dialog->spec.rise == 12,
+            check(dialog != t->motion_rules.end() && dialog->spec.name == "spring" && dialog->spec.rise == 12 && dialog->layer == MotionRule::Layer::style_targeted,
                   dialog == t->motion_rules.end() ? std::string("the dialog's enter: none") : std::format("the dialog's enter: {} {}", dialog->spec.name, dialog->spec.rise));
         }
         // Written out and read back: the same motions.

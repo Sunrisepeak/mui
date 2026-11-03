@@ -103,6 +103,12 @@ struct Node {
     bool                 explicit_id = false;
     std::string          key;
     NodeId               parent;
+    // Cached by placement for overlay nodes only. A boundary is a view
+    // property, never a component-specific overlay convention.
+    NodeId               overlay_boundary;
+    Rect                 overlay_area;
+    Size                 overlay_measured;
+    float                overlay_stacked = 0;
     std::vector<ChildSlot> slots;
     std::vector<NodeId>  children;      // the slots flattened
     layout::NodeId       layout = layout::no_node;
@@ -438,6 +444,8 @@ struct Runtime::Impl {
     std::vector<std::size_t>                    marker_wrapper; // its wrapper's PushLayer in `list` this frame (npos: none)
     std::vector<std::size_t>                    marker_stack;
     void run_motion();
+    [[nodiscard]] bool motions_moving() const;
+    [[nodiscard]] bool motion_moving(NodeId id) const;
     // A slot's motion (0 update, 1 enter, 2 exit), when it holds one.
     // What a slot holds now: of its candidates, the person's choice, else the first that fits the device; a slot
     // holding nothing of its own (state, reorder, replace) falls back to the update slot's when `fallback`.

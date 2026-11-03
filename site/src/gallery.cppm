@@ -24,14 +24,28 @@ struct Sample {
 // The page's own state: the style shown, the code's language, and the samples' values as a person left them.
 struct Gallery {
     Signal<std::string> selected = signal(std::string()), query = signal(std::string()), category = signal(std::string("featured")), pane = signal(std::string());
-    Signal<bool> copied = signal(false), states = signal(false);
+    Signal<std::string> focus = signal(std::string("button")), copied_source = signal(std::string());
+    Signal<bool> copied = signal(false), states = signal(false), browser_open = signal(false), variants = signal(false);
+    Signal<bool> preview_paused = signal(false), manual_interaction = signal(false);
+    Signal<std::string> preview_status = signal(std::string("playing"));
+    Signal<double> browser_y = signal(0.0);
+    std::string preview_path;
+    NodeId preview_node{};
+    std::uint64_t preview_timer = 0, preview_generation = 0;
+    bool preview_changed = false;
+    std::shared_ptr<unsigned char> lifetime = std::make_shared<unsigned char>(0);
     std::map<std::string, Signal<bool>, std::less<>> disabled;
+    std::map<std::string, Signal<std::string>, std::less<>> motions;
     Signal<std::int64_t> saves = signal(std::int64_t{0});
     Signal<std::string> style = signal(std::string("plain"));
     Signal<std::string> language = signal(std::string("cpp"));
     Signal<bool>        wifi = signal(true), agree = signal(false), dialog = signal(false), toast = signal(false), popover = signal(false),
                         details = signal(false);
     Signal<double>      volume = signal(40.0), qty = signal(2.0);
+    Signal<double>      upload = signal(0.6);
+    Signal<std::int64_t> skeleton_lines = signal(std::int64_t{3});
+    Signal<std::string> avatar_name = signal(std::string("Ada Lovelace"));
+    Signal<bool>        card_selected = signal(false);
     Signal<std::string> name = signal(std::string("Ada")), size = signal(std::string("medium")), tab = signal(std::string("overview"));
     Signal<std::int64_t> page = signal(std::int64_t{4}), unread = signal(std::int64_t{3});
     Signal<std::vector<std::string>> path = signal(std::vector<std::string>{"Home", "Docs", "Motion"});
@@ -55,10 +69,15 @@ struct GallerySite {
     std::function<void(std::string)>   open;
     std::function<void(std::string)>   clipboard;
     std::function<void(std::string)>   style;  // a pack shown in the gallery's scope ("plain": none)
+    Runtime**                         runtime = nullptr;
 };
 
 // The page at its available width; selected state chooses overview or detail.
 [[nodiscard]] Element gallery(Gallery& g, const GallerySite& site, bool live, float width);
+
+// One gallery-level scheduler; the site's frame observer calls this after
+// paint. Only the visible preview advances, and pointer/focus wins at once.
+void tick_gallery(Gallery& gallery, const GallerySite& site);
 
 [[nodiscard]] std::string gallery_html(bool zh, std::string_view component = {});
 

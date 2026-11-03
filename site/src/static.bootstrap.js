@@ -46,7 +46,9 @@
     if (mirror) { mirror.inert = true; mirror.setAttribute('aria-hidden', 'true'); }
     if (!window.omuiHasPresented || !mirror || !page || !window.omui) return;
     var root = 'main/body/view/' + page.dataset.place;
-    if (!mirror.querySelector('[data-omui-id="' + (page.dataset.liveRoot || root) + '"]')) return;
+    var live = mirror.querySelector('[data-omui-id="' + (page.dataset.liveRoot || root) + '"]');
+    if (!live) return;
+    if (page.dataset.liveName && (live.getAttribute('aria-label') || live.textContent) !== page.dataset.liveName) return;
     busy = true;
     var active = document.activeElement;
     // Fragment navigation can put DOM focus on body; keep the clicked nav destination.

@@ -28,6 +28,13 @@ struct ShadowToken {
     Color color{0, 0, 0, 0.15f};
 };
 
+// Reusable operations compiled into one seekable motion. They share a
+// clock; unlike a slot's candidate list, every operation here is applied.
+enum class MotionPrimitive : std::uint16_t {
+    match_drawing = 1, match_glyphs = 2, fade = 4, lift = 8, panel_lift = 16,
+    grow = 32, check_grow = 64, stretch = 128, stagger = 256, distance = 512
+};
+
 // A motion a node's slot holds (universal motion §5, D-93): none, or a morph
 // between the node's two drawings — what it drew before a change and what
 // it draws after (openmui.motion). Components write no animation; the slot
@@ -44,6 +51,9 @@ struct MotionSpec {
     float      rise = 0;         // what appears (or vanishes) comes from lower by this
     float      grow = 1;         // … and scaled by this, about the middle of the drawing
     float      stretch = 0;      // a moving fill drawn out along its way (a tab's lens)
+    double     fade_out = 0.6, fade_in = 0.3;
+    bool       local_presence = false;  // appear about each part, rather than the whole control
+    std::uint16_t primitives = 0;  // the built-in operations this recipe composes
     // While it moves, all it draws goes through an effect (universal motion
     // §6.2; component × effect × motion): the effect, its numbers, and the
     // one that rises to `peak` half-way and back — at rest it is not there.
@@ -62,6 +72,19 @@ struct MotionSpec {
     friend bool operator==(const MotionSpec&, const MotionSpec&) = default;
 };
 
+// Components describe state; recipes combine shared operations in their
+// theme rules. Matching includes geometry and paint, glyph matching keeps
+// common letters, and presence/ordering operations add their own movement.
+[[nodiscard]] MotionSpec compose_motion(std::initializer_list<MotionPrimitive> parts,
+                                        Transition timing = Transition::spring_with());
+[[nodiscard]] std::optional<MotionPrimitive> motion_primitive(std::string_view name);
+[[nodiscard]] std::string_view motion_primitive_name(MotionPrimitive primitive);
+
+struct ComponentMotionRecipe {
+    std::string_view component, update, state, enter, exit;
+};
+[[nodiscard]] std::span<const ComponentMotionRecipe> default_component_motion_recipes();
+
 // Which nodes a slot's motion is for: "*" (every node), a component type's
 // name ("toggle"), or "role:<role>" ("role:switch"). The slots: "update"
 // (the node drew something else: a value, a text, a dialog opened), "enter"
@@ -76,17 +99,19 @@ struct MotionSpec {
 // taken when the slot offers it; else the first that fits the device (its
 // travel effect within the effects' tier).
 struct MotionRule {
+    enum class Layer : std::uint8_t { framework, style, style_targeted, application };
     std::string             target;
     std::string             slot = "update";
     MotionSpec              spec;
     std::vector<MotionSpec> instead;
+    Layer                  layer = Layer::application;
 };
 
 inline constexpr std::array<std::string_view, 6> motion_slots{"update", "enter", "exit", "state", "reorder", "replace"};
 
-// The framework's default rules: every control's drawing moves on a snappy
-// spring when it changes (a toggle's thumb, a tab's lens, a value's fill,
-// a button's colour); what opens and closes rises a little and grows.
+// Component-specific defaults compose the shared operations: selection,
+// values, text, surfaces and presence have different recipes. Editing and
+// pointer tracking stay immediate; focus and other feedback still move.
 [[nodiscard]] std::vector<MotionRule> default_motion_rules();
 
 // The framework's motion library, by name: "morph" (the standard spring),
@@ -109,8 +134,8 @@ public:
     std::map<std::string, float, std::less<>>       radius;
     std::map<std::string, ShadowToken, std::less<>> shadows;
     std::map<std::string, Transition, std::less<>>  motion;
-    // What each slot holds, by node (the first rule that fits wins: a type's,
-    // then a role's, then "*"); the framework's defaults move every control.
+    // Defaults, style, targeted style, then application rules. Within a
+    // layer a type beats a role, then "*"; the later equal match wins.
     std::vector<MotionRule>                         motion_rules = default_motion_rules();
     // Motions by name, which a slot's motion may use ("liquid", {use = "ink", stagger = 0.02}).
     std::map<std::string, MotionSpec, std::less<>>  motion_library = default_motion_library();
@@ -134,7 +159,9 @@ public:
 // "document", "distance"), stagger, glyphs, meaning, rise, grow, stretch,
 // travel = {effect, param, peak, <numbers>…}} — `use` a library's name the
 // rest changes. Nullopt when it is none of these (the caller says why). A
-// node's `motion` property is one (its update slot's), a list of them
+// `compose = ["match", "glyphs", "fade", "lift", "grow", "stretch", "stagger"]`
+// applies reusable operations together, unlike the list of candidates.
+// A node's `motion` property is one (its update slot's), a list of them
 // (candidates), or a map of them by slot: {update, enter, exit, state,
 // reorder, replace}.
 [[nodiscard]] std::optional<MotionSpec> parse_motion(const Value& v, const Theme& theme);

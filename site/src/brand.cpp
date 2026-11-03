@@ -94,6 +94,27 @@ Element brand_mark(std::string id, float size) {
                      .paint = [size](PaintContext& ctx) { paint_mark(ctx.list, ctx.theme, {0, 0}, size); }});
 }
 
+Element animated_brand_mark(std::string id, float size, Signal<bool> unfolded) {
+    const float spread = size <= 40 ? 0.36f : 1.0f;
+    constexpr std::array<std::string_view, 4> names{"outline", "letter_m", "letter_u", "letter_i"};
+    constexpr std::array<std::string_view, 4> labels{"O", "m", "u", "i"};
+    constexpr std::array<float, 4> horizontal{-0.03f, -0.16f, 0, 0.12f};
+    constexpr std::array<float, 4> vertical{-0.10f, 0.20f, 0.20f, 0.20f};
+    std::vector<Element> parts;
+    for (std::size_t i = 0; i < names.size(); ++i) {
+        const std::string part(names[i]);
+        Element drawing = painter({.id = "path", .width = Dim(size), .height = Dim(size), .role = Role::image, .label = std::string(labels[i]),
+            .paint = [part, size](PaintContext& ctx) { paint_shapes(ctx.list, ctx.theme.color("accent"), {0, 0}, size, part); }});
+        Element group = box({.id = part, .width = Dim(size), .height = Dim(size),
+            .translate_x = computed([unfolded, size, spread, x = horizontal[i]] { return unfolded.get() ? size * spread * x : 0.0f; }),
+            .translate_y = computed([unfolded, size, spread, y = vertical[i]] { return unfolded.get() ? size * spread * y : 0.0f; })}, {std::move(drawing)});
+        group.prop("motion", Source(Value("morph")));
+        group.prop("role", Source(Value("group"))).prop("label", Source(Value(std::string(labels[i]))));
+        parts.push_back(std::move(group));
+    }
+    return stack({.id = std::move(id), .width = Dim(size), .height = Dim(size), .justify = "center", .align = "center", .label = "omui"}, std::move(parts));
+}
+
 std::string brand_svg(Color ink) {
     auto channel = [](float v) { return static_cast<int>(std::clamp(v, 0.0f, 1.0f) * 255 + 0.5f); };
     const std::string colour = std::format("#{:02x}{:02x}{:02x}", channel(ink.r), channel(ink.g), channel(ink.b));

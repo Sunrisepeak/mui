@@ -122,23 +122,113 @@ Theme Theme::dark_theme() {
     return t;
 }
 
+namespace {
+
+constexpr std::pair<std::string_view, MotionPrimitive> primitive_names[]{
+    {"match", MotionPrimitive::match_drawing}, {"glyphs", MotionPrimitive::match_glyphs},
+    {"fade", MotionPrimitive::fade}, {"lift", MotionPrimitive::lift}, {"panel-lift", MotionPrimitive::panel_lift},
+    {"grow", MotionPrimitive::grow}, {"check-grow", MotionPrimitive::check_grow},
+    {"stretch", MotionPrimitive::stretch}, {"stagger", MotionPrimitive::stagger}, {"distance", MotionPrimitive::distance}
+};
+
+void add_primitive(MotionSpec& m, MotionPrimitive part) {
+    m.primitives |= static_cast<std::uint16_t>(part);
+    switch (part) {
+        case MotionPrimitive::match_drawing: m.kind = MotionSpec::Kind::morph; break;
+        case MotionPrimitive::match_glyphs: m.glyphs = true; break;
+        case MotionPrimitive::fade: m.fade_out = 0.6; m.fade_in = 0.3; break;
+        case MotionPrimitive::lift: m.rise = 8; break;
+        case MotionPrimitive::panel_lift: m.rise = 20; break;
+        case MotionPrimitive::grow: m.grow = 0.96f; break;
+        case MotionPrimitive::check_grow: m.grow = 0.72f; m.local_presence = true; break;
+        case MotionPrimitive::stretch: m.stretch = 0.35f; break;
+        case MotionPrimitive::stagger: m.order = MotionSpec::Order::document; m.stagger = 0.018; break;
+        case MotionPrimitive::distance: m.order = MotionSpec::Order::distance; m.stagger = 0.012; break;
+    }
+}
+
+} // namespace
+
+std::optional<MotionPrimitive> motion_primitive(std::string_view name) {
+    for (const auto& [key, part] : primitive_names) if (key == name) return part;
+    return std::nullopt;
+}
+
+std::string_view motion_primitive_name(MotionPrimitive primitive) {
+    for (const auto& [key, part] : primitive_names) if (part == primitive) return key;
+    return {};
+}
+
+MotionSpec compose_motion(std::initializer_list<MotionPrimitive> parts, Transition timing) {
+    MotionSpec m; m.curve = std::move(timing); m.glyphs = false;
+    for (const auto part : parts) add_primitive(m, part);
+    return m;
+}
+
+std::span<const ComponentMotionRecipe> default_component_motion_recipes() {
+    static constexpr ComponentMotionRecipe recipes[]{
+        {"button", "default.action", "default.focus", "default.reveal", "default.reveal"},
+        {"toggle", "default.toggle", "default.focus", "default.reveal", "default.reveal"},
+        {"checkbox", "default.check", "default.focus", "default.reveal", "default.reveal"},
+        {"radio", "default.check", "default.focus", "default.reveal", "default.reveal"},
+        {"slider", "default.value", "default.focus", "default.reveal", "default.reveal"},
+        {"range_slider", "default.value", "default.focus", "default.reveal", "default.reveal"},
+        {"number_input", "default.count", "default.focus", "default.reveal", "default.reveal"},
+        {"text_box", "none", "default.focus", "default.reveal", "default.reveal"},
+        {"select", "default.selection", "default.focus", "default.reveal", "default.reveal"},
+        {"tabs", "default.selection", "default.focus", "default.reveal", "default.reveal"},
+        {"segmented", "default.selection", "default.focus", "default.reveal", "default.reveal"},
+        {"breadcrumb", "default.structure", "default.focus", "default.reveal", "default.reveal"},
+        {"pagination", "default.count", "default.focus", "default.reveal", "default.reveal"},
+        {"progress", "default.value", "default.focus", "default.reveal", "default.reveal"},
+        {"badge", "default.count", "default.focus", "default.check", "default.reveal"},
+        {"avatar", "default.action", "default.focus", "default.check", "default.reveal"},
+        {"card", "default.surface", "default.focus", "default.reveal", "default.reveal"},
+        {"accordion", "default.structure", "default.focus", "default.reveal", "default.reveal"},
+        {"skeleton", "default.surface", "default.focus", "default.reveal", "default.reveal"},
+        {"tooltip", "default.notice", "default.focus", "default.notice", "default.notice"},
+        {"popover", "default.panel", "default.focus", "default.panel", "default.panel"},
+        {"toast", "default.notice", "default.focus", "default.notice", "default.notice"},
+        {"dialog", "default.panel", "default.focus", "default.panel", "default.panel"},
+        {"drawer", "default.panel", "default.focus", "default.panel", "default.panel"},
+        {"chip", "default.check", "default.focus", "default.check", "default.reveal"},
+        {"alert", "default.notice", "default.focus", "default.notice", "default.notice"},
+        {"stepper", "default.steps", "default.focus", "default.reveal", "default.reveal"},
+        {"date_picker", "default.selection", "default.focus", "default.panel", "default.panel"},
+        {"time_picker", "default.count", "default.focus", "default.panel", "default.panel"},
+        {"color_picker", "default.surface", "default.focus", "default.panel", "default.panel"},
+        {"split_view", "default.structure", "default.focus", "default.reveal", "default.reveal"},
+        {"tree_view", "default.structure", "default.focus", "default.reveal", "default.reveal"},
+        {"data_grid", "default.structure", "default.focus", "default.reveal", "default.reveal"},
+        {"combobox", "default.selection", "default.focus", "default.panel", "default.panel"},
+        {"tag_input", "default.structure", "default.focus", "default.reveal", "default.reveal"},
+        {"code_editor", "none", "default.focus", "default.reveal", "default.reveal"},
+        {"actor_log", "default.structure", "default.focus", "default.reveal", "default.reveal"}
+    };
+    return recipes;
+}
+
 std::vector<MotionRule> default_motion_rules() {
+    const auto library = default_motion_library();
+    auto preset = [&](std::string_view name) {
+        if (name == "none") return MotionSpec{.kind = MotionSpec::Kind::none};
+        const auto it = library.find(name);
+        return it == library.end() ? MotionSpec{.kind = MotionSpec::Kind::none} : it->second;
+    };
     std::vector<MotionRule> rules;
-    MotionSpec snappy;
-    snappy.curve = Transition::token("motion.spring.snappy").value_or(Transition::spring_with());
+    // Roles are the fallback for application-defined controls; known
+    // components below choose recipes for their shape and purpose.
     for (std::string_view role : {"button", "toggle_button", "checkbox", "radio", "switch", "slider", "spin_button", "progress", "meter", "combo_box",
                                   "option", "list_item", "menu_item", "menu_item_checkbox", "menu_item_radio", "tab", "tree_item", "link"})
-        rules.push_back({std::format("role:{}", role), "update", snappy});
-    // A tab list's lens slides to the tab chosen, drawn out along its way.
-    MotionSpec sliding = snappy;
-    sliding.stretch = 0.35f;
-    rules.push_back({"role:tab_list", "update", sliding});
-    // What opens and closes: from a little lower and smaller, on a gentle spring.
-    MotionSpec opening;
-    opening.curve = Transition::token("motion.spring.gentle").value_or(Transition::spring_with());
-    opening.rise = 8;
-    opening.grow = 0.96f;
-    for (std::string_view role : {"dialog", "alert_dialog", "menu", "tooltip", "list_box"}) rules.push_back({std::format("role:{}", role), "update", opening});
+        rules.push_back({std::format("role:{}", role), "update", preset("default.action")});
+    rules.push_back({"role:tab_list", "update", preset("default.selection")});
+    for (std::string_view role : {"dialog", "alert_dialog", "menu", "tooltip", "list_box"})
+        rules.push_back({std::format("role:{}", role), "update", preset("default.panel")});
+    for (const auto& recipe : default_component_motion_recipes())
+        for (const auto& [slot, name] : {std::pair{"update", recipe.update}, std::pair{"state", recipe.state},
+                                       std::pair{"enter", recipe.enter}, std::pair{"exit", recipe.exit}})
+            if (!name.empty()) rules.push_back({std::string(recipe.component), slot, preset(name)});
+    for (auto& rule : rules) rule.layer = MotionRule::Layer::framework;
     return rules;
 }
 
@@ -169,6 +259,23 @@ std::map<std::string, MotionSpec, std::less<>> default_motion_library() {
     ink.stagger = 0.015;
     ink.travel = MotionSpec::Travel{.effect = "wobble", .params = {{"amount", 0}, {"size", 14}, {"ink", 0.7f}}, .param = "amount", .peak = 3};
     lib.emplace("ink", ink);
+    using P = MotionPrimitive;
+    const auto quick = Transition::token("motion.spring.snappy").value_or(Transition::spring_with());
+    const auto gentle = Transition::token("motion.spring.gentle").value_or(Transition::spring_with());
+    auto add = [&](std::string name, MotionSpec spec) { spec.name = name; lib.emplace(std::move(name), std::move(spec)); };
+    add("default.action", compose_motion({P::match_drawing, P::match_glyphs, P::fade}, quick));
+    add("default.focus", compose_motion({P::match_drawing, P::match_glyphs, P::fade}, Transition::tween(hanim::seconds(0.10))));
+    add("default.toggle", compose_motion({P::match_drawing, P::match_glyphs, P::fade, P::stretch}, quick));
+    add("default.check", compose_motion({P::match_drawing, P::match_glyphs, P::fade, P::check_grow}, quick));
+    add("default.selection", compose_motion({P::match_drawing, P::match_glyphs, P::stretch}, quick));
+    add("default.value", compose_motion({P::match_drawing, P::match_glyphs, P::fade}, quick));
+    add("default.count", compose_motion({P::match_drawing, P::match_glyphs, P::fade}, Transition::tween(hanim::seconds(0.22))));
+    add("default.surface", compose_motion({P::match_drawing, P::match_glyphs, P::fade}, Transition::tween(hanim::seconds(0.18))));
+    add("default.structure", compose_motion({P::match_drawing, P::match_glyphs, P::fade}, gentle));
+    add("default.reveal", compose_motion({P::match_drawing, P::match_glyphs, P::fade, P::grow}, quick));
+    add("default.panel", compose_motion({P::match_drawing, P::match_glyphs, P::fade, P::panel_lift, P::grow}, gentle));
+    add("default.notice", compose_motion({P::match_drawing, P::match_glyphs, P::fade, P::lift, P::grow}, quick));
+    add("default.steps", compose_motion({P::match_drawing, P::match_glyphs, P::fade, P::stretch}, quick));
     return lib;
 }
 
@@ -201,6 +308,25 @@ std::optional<MotionSpec> parse_motion(const Value& v, const Theme& theme) {
     if (const Value* u = v.get("use")) {
         if (u->as_string() == "none") return MotionSpec{.kind = MotionSpec::Kind::none};
         if (!use(u->as_string())) return std::nullopt;
+    }
+    if (const Value* parts = v.get("compose")) {
+        if (!parts->list()) return std::nullopt;
+        if (!v.get("use")) m.glyphs = false;
+        for (const Value& name : *parts->list()) {
+            const auto part = motion_primitive(name.as_string());
+            if (!part) return std::nullopt;
+            add_primitive(m, *part);
+        }
+    }
+    for (const auto& [key, destination] : {std::pair{"fade_out", &m.fade_out}, std::pair{"fade_in", &m.fade_in}})
+        if (const Value* value = v.get(key)) {
+            if (!value->is_number() || !std::isfinite(value->as_double())) return std::nullopt;
+            *destination = std::clamp(value->as_double(), 0.0, 1.0);
+        }
+    if (const Value* origin = v.get("origin")) {
+        if (origin->as_string() == "piece") m.local_presence = true;
+        else if (origin->as_string() == "container") m.local_presence = false;
+        else return std::nullopt;
     }
     if (const Value* c = v.get("curve"); c && !curve(c->as_string())) return std::nullopt;
     if (const Value* o = v.get("order")) {

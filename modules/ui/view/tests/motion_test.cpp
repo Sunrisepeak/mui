@@ -245,6 +245,12 @@ int main(int argc, char** argv) {
         rt.frame({seconds(1.12), {}});
         check(rt.valid(a) && rt.semantic_node(a).states.has(spec::State::removing), "a is leaving");
         check(rt.motions().size() == 1 && rt.motions()[0].from_only == 1, "a leaves by its motion");
+        check(rt.hold_motion(a)); rt.pause_motion(a);
+        rt.frame({seconds(1.14), {}});
+        const auto paused_exit = rt.frame({seconds(1.16), {}});
+        check(paused_exit.demand.idle() && !paused_exit.animating, "a paused exit stays seekable without requesting more frames");
+        check(rt.valid(a), "retained exit material is not destroyed while its handle is paused");
+        rt.release_motion(a);
         for (double t = 1.2; t < 2.5; t += 0.1) rt.frame({seconds(t), {}});
         check(!rt.valid(a), "gone once it rests");
     });
@@ -339,6 +345,25 @@ int main(int argc, char** argv) {
         }
     });
 
+    s.test("composition applies every reusable operation while a strategy preserves separate fallback candidates", [] {
+        const Theme theme = Theme::light();
+        const auto composed = parse_motion(Value{}.set("compose", Value(Value::List{"match", "glyphs", "fade", "check-grow", "stretch", "stagger"})), theme);
+        check(composed.has_value());
+        if (!composed) return;
+        using P = MotionPrimitive;
+        const auto contains = [&](P part) { return (composed->primitives & static_cast<std::uint16_t>(part)) != 0; };
+        check(contains(P::match_drawing) && contains(P::match_glyphs) && contains(P::fade) && contains(P::check_grow) && contains(P::stretch) && contains(P::stagger));
+        check(composed->glyphs && composed->local_presence && composed->grow < 1 && composed->stretch > 0 && composed->stagger > 0);
+        const auto candidates = parse_motions(Value(Value::List{"liquid", "simple"}), theme);
+        check(candidates && candidates->size() == 2 && candidates->front().travel && !candidates->back().travel,
+              "a fallback list must not silently compose incompatible strategies");
+        check(!parse_motion(Value{}.set("compose", Value(Value::List{"match", "unknown-operation"})), theme));
+        check(!parse_motion(Value{}.set("compose", "match"), theme));
+        check(!parse_motion(Value{}.set("origin", "unknown-origin"), theme));
+        const auto local = parse_motion(Value{}.set("compose", Value(Value::List{"match", "grow"})).set("origin", "piece"), theme);
+        check(local && local->local_presence, "the same grow operation can apply about each real piece");
+    });
+
     s.test("a handle on a morph: paused, sought, reversed — its own time; kept at rest while held; released, on from where it is", [&] {
         auto x = signal(0.0f);
         Runtime rt(options());
@@ -352,9 +377,12 @@ int main(int argc, char** argv) {
         check(rt.hold_motion(t), "a morph under way is held");
         rt.pause_motion(t);
         rt.frame({seconds(0.2), {}});
+        check(!rt.semantic_node(t).states.has(spec::State::animating), "a paused handle is stationary to the semantic reader too");
         const auto paused = draw(rt);
-        rt.frame({seconds(0.5), {}});
+        const auto idle = rt.frame({seconds(0.5), {}});
         check(same(paused, draw(rt)), "paused: the same drawing as time goes on");
+        check(rt.frame_demand().idle(), "a paused retained morph does not request animation frames");
+        check(!idle.animating, "paused drawing must not dirty the next frame unconditionally");
         rt.seek_motion(t, 0);
         rt.frame({seconds(0.6), {}});
         check(same(before, draw(rt)), "sought to its start: the first drawing");
@@ -365,9 +393,11 @@ int main(int argc, char** argv) {
         const auto rest = draw(rt);
         rt.frame({seconds(3), {}});
         check(rt.motion_time(t).has_value(), "at rest, held: kept");
+        check(rt.frame_demand().idle(), "a held endpoint lets the display rest");
         rt.set_motion_rate(t, -1);
         rt.play_motion(t);
         rt.frame({seconds(3.1), {}});
+        check(!rt.frame_demand().idle(), "reverse playback requests animation frames again");
         const int back = left_of(draw(rt), 10, rose);
         check(back >= 0 && back < left_of(rest, 10, rose), std::format("backwards: the thumb going back ({} < {})", back, left_of(rest, 10, rose)));
         rt.release_motion(t);

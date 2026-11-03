@@ -114,12 +114,13 @@ Element docs_landing(DocsState& docs, const SiteLinks& links, float width) {
 }
 
 Element explore_landing(const SiteLinks& links, float width) {
-    Element title = text({.id = "title", .text = words(links, "Programs you can touch.", "可以亲手改变的作品。"), .style = "title", .max_width = Dim(width)});
-    title.prop("role", Source(Value("heading"))).prop("level", Source(Value(std::int64_t{1})));
-    return column({.id = "explore", .gap = 28}, {
-        text({.id = "eyebrow", .text = words(links, "OMUI / EXPLORE", "OMUI / 探索"), .style = "label", .color = "accent"}), std::move(title),
-        text({.id = "lead", .text = words(links, "Use the framework's own tools and identity. Every exhibit opens a working program.", "使用框架自己的工具和品牌作品，每个入口都通向可操作的程序。"), .style = "body", .max_width = Dim(700.0f)}),
-        exhibits(links, width)});
+    std::vector<Element> tools;
+    for (const auto& [id, en, zh] : {std::tuple{"brand", "The mark", "标志构造"}, std::tuple{"timeline", "Timeline editor", "时间线编辑器"}, std::tuple{"release", "Release workspace", "发布工作台"}})
+        tools.push_back(column({.id = id}, {button({.id = "open", .text = words(links, en, zh), .variant = ButtonVariant::ghost,
+            .on_activated = [go = links.go, id] { if (go) go(id); }})}));
+    return column({.id = "explore", .max_width = Dim(width), .gap = 12}, {
+        text({.id = "title", .text = words(links, "More working tools", "更多可用工具"), .style = "label"}),
+        row({.id = "works", .gap = 8, .wrap = "wrap"}, std::move(tools))});
 }
 
 Element home_destinations(const SiteLinks& links, float width) {

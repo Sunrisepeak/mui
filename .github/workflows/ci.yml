@@ -167,6 +167,21 @@ jobs:
       - name: Build every member
         run: mcpp build --workspace --profile '${{ matrix.profile }}' --exclude openmui.entry.python --exclude openmui.reflect
 
+      - name: An unchanged build leaves compilation outputs untouched
+        timeout-minutes: 10
+        run: python3 tools/ci/incremental.py --workspace --profile '${{ matrix.profile }}' --exclude openmui.entry.python --exclude openmui.reflect
+
+      - name: Keep the incremental build check
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: incremental-${{ matrix.os }}-${{ matrix.toolchain }}-${{ matrix.profile }}
+          path: |
+            target/incremental.report.omui.json
+            target/incremental-*.events.omui.jsonl
+            target/incremental-*.log
+          if-no-files-found: ignore
+
       - name: Test every member
         run: |
           mcpp test --workspace --profile '${{ matrix.profile }}' --exclude openmui.entry.python --exclude openmui.reflect 2>&1 | tee tests.log

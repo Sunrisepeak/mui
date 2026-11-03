@@ -52,6 +52,7 @@ struct Options {
     // opening, a menu dropping, a node entering.
     float  rise = 0;
     float  grow = 1;
+    bool   local_presence = false;  // scale an appearing part about its own bounds
     // A moving fill (or effect shape) drawn out along its way: its leading edge
     // ahead by `stretch` of the distance left (at most 40% of its width), a
     // little thinner — a drop pulled, not a box moved; it rests round.

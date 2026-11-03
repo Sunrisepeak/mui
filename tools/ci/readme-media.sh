@@ -4,8 +4,9 @@
 # readme-<showcase>; the files are deterministic, so they are committed in
 # showcase/<showcase>/media/ and CI holds them to what the tests draw.
 #
-# omui's identity study is covered too: its tests draw the mark's size sheet
-# and live study into scratch_dir("brand"), committed under site/media/.
+# The site's brand, structure, component catalogue and release workspace
+# remain covered. Its landing, focused component stage and shared motion
+# player add review stills and two representative animations under site/media/.
 #
 #     tools/ci/readme-media.sh [showcase… | site]          # run the tests, copy what they drew
 #     tools/ci/readme-media.sh --check [showcase… | site]  # after the tests: the committed media are what they drew
@@ -74,7 +75,9 @@ for show in "${shows[@]}"; do
             fi
         done
         for name in home-en-1280 home-zh-390 technical-en-1280 technical-zh-390 edited-zh motion-list motion-between motion-cards; do
-            source="$scratch/site-workspace/$name.png"
+            # The workspace moved off Home; retain published media links.
+            generated=${name/#home-/release-}
+            source="$scratch/site-workspace/$generated.png"
             destination="$folder/media/workspace-$name.png"
             if [ $check = 1 ]; then
                 if ! cmp -s "$source" "$destination"; then
@@ -85,6 +88,46 @@ for show in "${shows[@]}"; do
                 cp "$source" "$destination"
             fi
         done
+        # Keep the earlier gates above. This explicit selection adds current
+        # product evidence without copying every test frame into the repository.
+        # Only one desktop and one phone animation are published; both galleries
+        # have stills at both canvas widths. WebP references stay below 1 MiB.
+        while IFS='|' read -r generated published; do
+            source="$scratch/$generated"
+            destination="$folder/media/$published"
+            if [ ! -f "$source" ]; then
+                echo "::error::readme-media: missing $source (run the site's native tests)" >&2
+                status=1
+                continue
+            fi
+            if [[ "$generated" = *.webp ]] && ! python3 -c 'import os, sys; sys.exit(os.path.getsize(sys.argv[1]) > 1024 * 1024)' "$source"; then
+                echo "::error::$source exceeds the 1 MiB README animation budget" >&2
+                status=1
+                continue
+            fi
+            if [ $check = 1 ]; then
+                if ! cmp -s "$source" "$destination"; then
+                    echo "::error::$destination is not what the site's review tests draw: run tools/ci/readme-media.sh site" >&2
+                    status=1
+                fi
+            else
+                cp "$source" "$destination"
+            fi
+        done <<'SITE_REVIEW_MEDIA'
+home-landing/home-en-desktop.png|landing-home-en-desktop.png
+home-landing/home-zh-phone.png|landing-home-zh-phone.png
+gallery-redesign/workspace-en-desktop.png|components-workspace-en-desktop.png
+gallery-redesign/workspace-zh-phone.png|components-workspace-zh-phone.png
+gallery-redesign/options-zh-phone.png|components-options-zh-phone.png
+motion-gallery/basic-gallery-700.png|motion-basic-gallery-700.png
+motion-gallery/basic-gallery-300.png|motion-basic-gallery-300.png
+motion-gallery/creative-gallery-700.png|motion-creative-gallery-700.png
+motion-gallery/creative-gallery-300.png|motion-creative-gallery-300.png
+motion-gallery/basic-player-700.webp|motion-basic-player-700.webp
+motion-gallery/creative-player-300.webp|motion-creative-player-300.webp
+creative-motion/palette-useful-zh-300.png|creative-palette-zh-300.png
+feature-examples/glass-session-refracted.png|style-glass-session.png
+SITE_REVIEW_MEDIA
     fi
 done
 exit $status

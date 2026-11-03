@@ -17,7 +17,7 @@ out=target/site
 mkdir -p target
 
 envelope=target/site.pack.json
-"$mcpp" pack -p openmui.site --target wasm32-emscripten --release --format dist-toy --message-format json > "$envelope" \
+"$mcpp" pack -p openmui.site --target wasm32-emscripten --profile site-web --pkg-format dist-toy --message-format json > "$envelope" \
   || { echo "::error::openmui.site did not pack for the Web"; exit 1; }
 index=$(python3 -c 'import json,sys; print(next(a["path"] for a in json.load(open(sys.argv[1]))["data"]["artifacts"] if a["format"] == "dist-toy"))' "$envelope")
 rm -rf "$out"
@@ -34,7 +34,7 @@ python3 - "$out" <<'PY'
 import os, sys
 out = sys.argv[1]
 page = open(os.path.join(out, "index.html"), encoding="utf-8").read()
-need = ['<main id="omui-static"', '<section id="/home"', '<section id="/docs/features"', "<h1>One interface. Every rendering.</h1>",
+need = ['<main id="omui-static"', '<section id="/home"', '<section id="/docs/features"', "<h1>One interface. Every perspective.</h1>",
         "window.omuiHasPresented", "@font-face", '<canvas id="canvas"', '<link rel="openmui-agent" href="agent.md">']
 missing = [n for n in need if n not in page]
 if missing:

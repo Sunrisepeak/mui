@@ -134,6 +134,10 @@ struct Transition {
     hanim::SpringParams spring = hanim::springs::standard;
     hanim::seconds      delay{0};
 
+    friend constexpr bool operator==(const Transition& a, const Transition& b) noexcept {
+        return a.kind == b.kind && a.duration == b.duration && a.ease == b.ease && a.spring == b.spring && a.delay == b.delay;
+    }
+
     [[nodiscard]] static Transition tween(hanim::seconds d, hanim::Ease e = hanim::ease::standard) {
         return {Kind::tween, d, e, {}, {}};
     }

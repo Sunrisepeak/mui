@@ -113,6 +113,8 @@ spec::SemanticNode Runtime::Impl::semantics(NodeId id) const {
     if (readonly_of(prop("readonly"))) s.states.set(State::readonly);
     // Stated by the program: the one of its kind that is current (a site's place in its navigation).
     if (const Value* v = prop("selected"); v && v->as_bool()) s.states.set(State::selected);
+    if (const Value* v = prop("expanded"); v && v->type() == Value::Type::boolean)
+        s.states.set(State::collapsible).set(State::expanded, v->as_bool());
     if (const Value* v = prop("origin"))
         if (auto o = spec::parse_origin(v->as_string())) s.origin = *o;
 
@@ -124,7 +126,7 @@ spec::SemanticNode Runtime::Impl::semantics(NodeId id) const {
         .set(State::pressed, n.state.pressed)
         .set(State::removing, n.state.removing)
         .set(State::animating, n.state.animating || (id == root && fading.has_value()) || std::ranges::find(moving_flagged, id) != moving_flagged.end() ||
-                                   (n.morph && !n.morph->settled(now().count())))  // a style's cross-fade: the window is still changing
+                                   motion_moving(id))  // seekable handles report their own clock, including pause and direction
         .set(State::hidden, !displayed(id));
     // Without layout (H0) a node has no place: neither bounds nor offscreen.
     const bool placed = this->placed;  // the pipeline computes bounds

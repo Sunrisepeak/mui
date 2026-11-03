@@ -225,23 +225,9 @@ std::expected<Theme, std::string> Library::compose_style(std::string_view name) 
                                                        for (const auto& [n, _] : t->motion_library) names += n + ", ";
                                                        return names;
                                                    }()));
-            MotionRule rule{.target = m.target, .slot = m.slot, .spec = specs->front(), .instead = {specs->begin() + 1, specs->end()}};
-            auto& rules = t->motion_rules;
-            if (targeted) {
-                auto it = std::ranges::find_if(rules, [&](const MotionRule& r) { return r.target == m.target && r.slot == m.slot; });
-                if (it != rules.end()) *it = std::move(rule);
-                else rules.push_back(std::move(rule));
-                continue;
-            }
-            bool any = false;
-            for (MotionRule& r : rules)
-                if (r.slot == m.slot) r.spec = rule.spec, r.instead = rule.instead, any = true;
-            if (!any) {
-                std::vector<MotionRule> more;
-                for (const MotionRule& r : rules)
-                    if (r.slot == "update") more.push_back({.target = r.target, .slot = m.slot, .spec = rule.spec, .instead = rule.instead});
-                rules.insert(rules.end(), more.begin(), more.end());
-            }
+            t->motion_rules.push_back({.target = m.target.empty() ? "*" : m.target, .slot = m.slot,
+                                       .spec = specs->front(), .instead = {specs->begin() + 1, specs->end()},
+                                       .layer = targeted ? MotionRule::Layer::style_targeted : MotionRule::Layer::style});
         }
     return t;
 }

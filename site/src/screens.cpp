@@ -39,7 +39,7 @@ std::string_view tier_name(pipeline::Tier t, bool zh) {
 // A bounded retry owned by the runtime's timers. A function capturing its
 // own shared_ptr keeps itself (and its captures) alive after the last retry.
 void hold_scroll_motion(Screens& screens, Runtime& rt, NodeId shape, int tries) {
-    if (!rt.valid(shape)) return;
+    if (!screens.follow.peek() || !rt.valid(shape)) return;
     if (!rt.hold_motion(shape)) {
         if (tries > 0)
             (void)rt.after(seconds(1.0 / 60), [&screens, &rt, shape, tries] { hold_scroll_motion(screens, rt, shape, tries - 1); });
@@ -82,46 +82,71 @@ Element agent_screen(const ScreensSite& site, float room) {
 
 Element time_screen(const ScreensSite& site, float room) {
     Element proof = card("proof",
-                         {text({.id = "said", .text = say(site, "This page's semantic tree, as your browser computed it, and as CI pinned it:",
-                                                          "这一页的语义树，你的浏览器算出的，和 CI 固定的："),
+                         {text({.id = "said", .text = say(site, "Seek visual time, or compare an independent reference run against CI.",
+                                                          "寻址视觉时间，或用独立的参考回放对照 CI。"),
                                 .style = "caption", .color = "text_muted"}),
-                          text({.id = "hash", .text = computed([h = site.hash] { return h ? h->get() : std::string(); }), .style = "code"}),
                           row({.id = "do", .gap = 10, .wrap = "wrap"},
                               {button({.id = "replay", .text = say(site, "Replay the last seconds", "回放刚才"), .on_activated = site.replay}),
                                button({.id = "check", .text = say(site, "Check the pixels against CI", "对照 CI 的像素"), .variant = ButtonVariant::ghost,
                                        .on_activated = site.open_check})})},
                          std::min(room, 720.0f));
     return screen(site, "time", {"Deterministic", "确定性"}, {"Every moment, drawn again.", "每一刻，都能再画一次。"},
-                  {"Animations are functions of time: drag the page's time at the foot of the window, play it backwards, and it is drawn exactly as it was. "
-                   "The tree your browser computes is the one CI pins on Linux, macOS and Windows.",
-                   "动画是时间的函数：拖动窗口底部的页面时间、倒着放，页面就按当时的样子精确地重画。你的浏览器算出的语义树，就是 CI 在 Linux、macOS、Windows 上固定的那一棵。"},
+                  {"Seek animations without changing your task data. Use Undo in the release workspace to restore edits; the pixel comparison runs in its own reference instance.",
+                   "寻址动画不会改变任务数据。要恢复编辑，可以使用发布工作台的撤销；像素对照在独立的参考实例中运行。"},
                   std::move(proof));
 }
 
 Element motion_screen(Screens& screens, const ScreensSite& site, float room) {
-    // One box, two drawings: a list of three, or three cards. Nothing here says how one becomes the other.
-    const float w = std::min(room, 560.0f);
-    auto shaped = screens.shaped;
-    auto piece = [shaped, w](std::string id, std::string colour, int i) {
-        Element p = box({.id = std::move(id),
-                         .width = computed([shaped, w] { return shaped.get() ? Dim((w - 48) / 3) : Dim(w * 0.72f); }),
-                         .height = computed([shaped] { return shaped.get() ? Dim(150.0f) : Dim(36.0f); }),
-                         .background = computed([shaped, colour, i] { return Fill(shaped.get() ? colour : i == 0 ? std::string("accent") : std::string("surface_variant")); })});
-        p.prop("radius", derive([shaped] { return shaped.get() ? 20.0 : 8.0; }));
-        return p;
-    };
-    Element shape = column({.id = "shape", .width = Dim(w), .height = Dim(190.0f), .padding = Edges(12.0f), .gap = 12, .background = "surface", .border_color = "border",
-                            .border_width = 1, .radius = 16},
-                           {piece("a", "#6366f1", 0), piece("b", "#22c55e", 1), piece("c", "#f59e0b", 2)});
+    const float w = std::min(room, 760.0f); const int columns = w >= 600 ? 3 : 2;
+    constexpr float edge = 12, border = 1, gutter = 12;
+    const float inner = w - 2 * (edge + border);
+    if (screens.follow.peek()) {
+        screens.held = false;
+        screens.shaped.set(false);  // the new view starts from its list before the restored scroll seeks it
+    }
+    auto shaped = screens.shaped; auto* state = &screens;
+    Element shape = column({.id = "shape", .width = Dim(w), .padding = Edges(edge), .gap = gutter, .background = "surface", .border_color = "border", .border_width = border, .radius = 16, .clip = true}, {
+        dynamic([site, shaped, inner, columns, gutter] {
+            const Value tasks = site.tasks ? site.tasks->tasks.get() : release_tasks();
+            std::vector<Element> cards;
+            if (tasks.list()) for (const auto& task : *tasks.list()) {
+                const auto* key = task.get("id"); if (!key) continue; const std::string id(key->as_string());
+                const bool done = task.get("done") && task.get("done")->as_bool();
+                cards.push_back(column({.id = id,
+                    .width = computed([shaped, inner, columns, gutter] { return shaped.get() ? Dim(std::floor((inner - gutter * static_cast<float>(columns - 1)) / static_cast<float>(columns))) : Dim(inner); }),
+                    .min_height = computed([shaped] { return shaped.get() ? Dim(120) : Dim(48); }), .padding = Edges(12), .gap = 8, .background = done ? "accent_subtle" : "surface_variant", .radius = 10}, {
+                    text({.id = "title", .text = computed([task, lang = site.lang] { return task_title(task, lang && lang->get() == "zh"); }), .style = "body", .origin = task.get("title") ? "user_content" : "app"}),
+                    text({.id = "state", .text = done ? say(site, "Complete", "已完成") : say(site, "Next up", "待完成"), .style = "caption", .color = "text_muted"})}));
+            }
+            if (cards.empty()) cards.push_back(text({.id = "empty", .text = say(site, "Add a task in the release workspace above.", "先在上方工作台添加一项任务。"), .style = "body"}));
+            return cards;
+        })});
     shape.prop("direction", derive([shaped] { return std::string(shaped.get() ? "row" : "column"); }));
-    shape.prop("motion", Source(Value("morph")));  // whatever its drawing becomes, it moves there
-    return screen(site, "motion", {"Universal motion", "通用动画"}, {"One motion for every change.", "一种动画，适用于每一种变化。"},
-                  {"Whatever changed moves from its old drawing to its new one — a control, a list, a page. Scroll: this list becomes three cards, "
-                   "and the scroll is the motion's time.",
-                   "变了的东西，从旧的样子移动到新的样子——控件、列表、整页都一样。往下滚：这个列表变成三张卡片，滚动就是这段动画的时间轴。"},
-                  column({.id = "shown", .gap = 10}, {std::move(shape),
-                                                      text({.id = "note", .text = say(site, "Its code says only the two drawings.", "代码里只有这两种样子。"),
-                                                            .style = "caption", .color = "text_muted"})}));
+    shape.prop("wrap", derive([shaped] { return std::string(shaped.get() ? "wrap" : "nowrap"); }));
+    shape.prop("motion", Source(Value("morph")));
+    auto release = [state, site] {
+        if (site.runtime && *site.runtime) { auto& rt = **site.runtime; rt.release_motion(rt.find("main/body/view/home/page/motion/shown/shape")); }
+        state->held = false;
+    };
+    return screen(site, "motion", {"Universal motion", "通用动画"}, {"The same tasks. A different view.", "同一批任务，换一种视图。"},
+        {"The release tasks you edited above keep their names and completion state. Switch between a list and cards, interrupt the change, or let scrolling seek through it.",
+         "刚才编辑的发布任务，名称与完成状态都保留。切换列表与卡片，随时打断变化，也可以用滚动来寻址。"},
+        column({.id = "shown", .width = Dim(w), .gap = 16, .clip = true}, {
+            row({.id = "controls", .gap = 12, .align = "center", .wrap = "wrap"}, {
+                button({.id = "change", .text = computed([shaped, lang = site.lang] { const bool zh = lang && lang->get() == "zh"; return std::string(shaped.get() ? (zh ? "切换列表" : "Show list") : (zh ? "切换卡片" : "Show cards")); }),
+                    .on_activated = [state, release] { release(); state->follow.set(false); state->shaped.set(!state->shaped.peek()); }}),
+                checkbox({.id = "follow", .checked = state->follow, .label = say(site, "Follow scrolling", "跟随滚动"),
+                    .on_changed = [state, site, release](bool on) { release(); if (on) {
+                        state->shaped.set(false);
+                        if (site.runtime && *site.runtime) (void)(*site.runtime)->after(seconds(2.0 / 60), [state, site] { if (state->follow.peek() && site.runtime && *site.runtime) {
+                            auto& rt = **site.runtime; const double y = rt.get(rt.find("main/body/view/home"), "y").as_double();
+                            state->last_y = y; scrolled(*state, site, "main/body/view/home", y);
+                        } });
+                    } }})}),
+            // The explanation precedes the moving viewport; its target
+            // layout cannot overlap cards still travelling from the list.
+            text({.id = "note", .text = say(site, "The objects keep their ids. The framework moves between their layouts.", "对象保留原来的 ID，布局之间的变化由框架完成。"), .style = "caption", .color = "text_muted"}),
+            std::move(shape)}));
 }
 
 Element fast_screen(const ScreensSite& site, float room) {
@@ -156,15 +181,14 @@ Element fast_screen(const ScreensSite& site, float room) {
     };
     Element switches = row({.id = "switches", .gap = 28, .wrap = "wrap"},
                            {flip("liquid", "liquid", "Liquid · T3"), flip("ink", "ink", "Ink · T2"), flip("morph", "morph", "Morph · T1")});
-    return screen(site, "fast", {"Performance tiers", "性能分档"}, {"Fast on every device.", "在每一种设备上都快。"},
-                  {"omui measures what the device can afford and draws the effects that fit: the same page on a phone, a laptop or a workstation, "
-                   "every frame on time. Draw as another tier, and flip the switches.",
-                   "omui 测出设备负担得起什么，就画什么效果：同一页在手机、笔记本、工作站上，每一帧都准时。换一个档位画，再拨一拨开关。"},
+    return screen(site, "fast", {"Performance tiers", "性能分档"}, {"One interface. A fitting budget.", "同一个界面，合适的预算。"},
+                  {"Compare effect tiers on this device. The readout names the renderer and effective tier; choosing a higher tier stays within the device's reported capability.",
+                   "在当前设备上比较效果档位。下方显示实际渲染器和生效档位；选择更高档位时，仍受设备报告的能力限制。"},
                   column({.id = "shown", .gap = 16}, {std::move(facts), std::move(tiers), std::move(switches)}));
 }
 
 void scrolled(Screens& screens, const ScreensSite& site, std::string_view place, double y) {
-    if (!site.runtime || !*site.runtime) return;
+    if (!site.runtime || !*site.runtime || !screens.follow.peek()) return;
     Runtime& rt = **site.runtime;
     const NodeId view = rt.find(place), shape = rt.find(std::format("{}/page/motion/shown/shape", place));
     if (!rt.valid(view) || !rt.valid(shape)) return;

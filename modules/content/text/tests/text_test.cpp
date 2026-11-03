@@ -234,6 +234,16 @@ int main(int argc, char** argv) {
         check_eq(typing.text(), std::string(""), std::source_location::current());
     });
 
+    s.test("a length-limited editor can replace its selection with empty text and undo it", [] {
+        for (const std::string original : {std::string("abc"), std::string("你好吗"), std::string("a👩‍💻b")}) {
+            text::TextEditor editor(original, {.max_length = 3}); editor.select_all();
+            check(editor.insert("")); check_eq(editor.text(), std::string());
+            check(editor.undo()); check_eq(editor.text(), original);
+            check(editor.redo()); check_eq(editor.text(), std::string());
+            check(editor.insert("")); check_eq(editor.text(), std::string());
+        }
+    });
+
     s.test("pixels: mixed scripts and emoji, pinned", [] {
         auto st = style(18);
         st.style.color = geom::Color::hex(0x0f172a);

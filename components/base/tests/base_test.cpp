@@ -88,6 +88,25 @@ int main(int argc, char** argv) {
         check(b.height == 36 && b.width > 60, std::format("{}x{}", b.width, b.height));
     });
 
+    s.test("toggle and checkbox: long labels wrap to their available width and keep their full accessible name", [] {
+        for (const std::string label : {std::string("Review the release notes with the design and accessibility teams"), std::string("与设计和无障碍团队一起检查这一轮发布说明和待办事项")}) {
+            Headless h(options({220, 360}));
+            auto check_box = checkbox({.id = "check", .label = label});
+            auto switch_box = toggle({.id = "switch", .label = label});
+            check_box.prop("width", Source(Value(180.0)));
+            switch_box.prop("width", Source(Value(180.0)));
+            h.mount("main", column({.padding = 20, .gap = 20}, {std::move(check_box), std::move(switch_box)})); h.settle();
+            for (const auto id : {"main/check", "main/switch"}) {
+                const auto box = bounds(h, id);
+                check(box.height > 40 && box.right() <= 200.5f, std::format("{} wraps inside its width: {} x {}", id, box.width, box.height));
+                check_eq(sem(h, id).name, label);
+                check(h.click(id));
+                check(sem(h, id).states.has(State::checked));
+            }
+            check(h.save_png(scratch_dir("choice-labels") / (label.starts_with("Review") ? "english.png" : "chinese.png")).has_value());
+        }
+    });
+
     s.test("toggle and checkbox: two-way bindings, events, states", [] {
         Headless h(options());
         auto wifi = signal(false);
@@ -330,6 +349,17 @@ int main(int argc, char** argv) {
         check(refused.exit_code() == 1 && refused.ndjson().find("cannot be taken back") != std::string::npos, refused.ndjson());
         check(wifi.peek() && volume.peek() == 35, "and changes nothing");
         h.settle();
+    });
+
+    s.test("text box: empty values in a limited field remain reversible through semantic actions", [] {
+        Headless h(options()); auto value = signal(std::string("你好吗"));
+        h.mount("main", text_box({.id = "field", .label = "Limited name", .max_length = 3, .text = value})); h.settle();
+        check_eq(act(h, "main", "set_value", Value{}.set("value", "")), std::int64_t{0});
+        check_eq(value.peek(), std::string());
+        check_eq(h.runtime().undo({}).exit_code().value_or(-1), std::int64_t{0}); h.settle();
+        check_eq(value.peek(), std::string("你好吗"));
+        check_eq(h.runtime().redo({}).exit_code().value_or(-1), std::int64_t{0}); h.settle();
+        check_eq(value.peek(), std::string());
     });
 
     s.test("text box: a line of 600 graphemes for assistive technology, cut where words begin, each part going on along the last", [] {

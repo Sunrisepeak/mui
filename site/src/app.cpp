@@ -287,6 +287,7 @@ struct Site {
     // A route the person moved to (back, forward, a typed address): its place and its language.
     void follow_route(std::string_view route) {
         const auto parsed = parse_site_route(route);
+        if (!parsed || parsed->place != "home") { ++hero.generation; hero.agent_running.set(false); }
         if (!parsed) {
             if (compact.peek()) menu.set(false), panel.set(false), settings.set(false), checking.set(false);
             missing_route.set(std::string(route));
@@ -310,6 +311,7 @@ struct Site {
 
     // To a place: shown, its page from its top; the address follows.
     void go(std::string_view to) {
+        if (to != "home") { ++hero.generation; hero.agent_running.set(false); }
         // On a phone a panel or the menu covers the place: going somewhere puts them away, so it is seen.
         if (compact.peek()) {
             menu.set(false);
@@ -558,6 +560,18 @@ public:
                 (void)rt.after(seconds(0.0), [this, route] { site_.follow_route(route); });
             }
         }
+        const NodeId motion = rt.find("main/body/view/home/page/motion/shown/shape");
+        const int motion_band = site_.band.peek();
+        if (motion != motion_seen_ || motion_band != motion_band_) {
+            motion_seen_ = motion; motion_band_ = motion_band;
+            if (rt.valid(motion)) (void)rt.after(seconds(2.0 / 60), [this, motion, motion_band] {
+                auto& runtime = *site_.runtime;
+                if (site_.place.peek() != "home" || site_.band.peek() != motion_band || runtime.find("main/body/view/home/page/motion/shown/shape") != motion) return;
+                const double y = runtime.get(runtime.find("main/body/view/home"), "y").as_double();
+                site_.screens.last_y = y;
+                scrolled(site_.screens, site_.screens_site, "main/body/view/home", y);
+            });
+        }
         site_.tick_time();
         if (const auto f = std::exchange(site_.ref_wanted, std::nullopt)) site_.check_frame(*f);
         if (rt.semantic_revision() != site_.seen && !queued_) {
@@ -574,6 +588,8 @@ private:
     Site&         site_;
     bool          queued_ = false;
     std::uint64_t route_seen_ = 0;
+    NodeId        motion_seen_;
+    int           motion_band_ = -1;
 };
 
 // A lens's switch: highlighted when it is the lens.
@@ -1188,7 +1204,7 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
         register_type(component_type<Timebar>());
         register_type(component_type<FrameMeter>());
         fill_gallery_models(rt);  // the components page's tree view and data grid
-        s->screens_site = {.runtime = &s->runtime,
+        s->screens_site = {.runtime = &s->runtime, .tasks = &s->hero,
                            .lang = &s->lang,
                            .hash = &s->hash,
                            .effects = &s->effects,

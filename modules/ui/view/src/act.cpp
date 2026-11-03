@@ -394,12 +394,17 @@ Envelope Runtime::act(NodeId node, std::string_view action, const Invocation& gi
     std::vector<Inverse> outer = std::exchange(d.program_inverse, {});
     ++d.acting;
     d.actors.push_back(call.actor);
+    const auto history_before = d.history_moves;
     Envelope e = batch([&] { return d.perform(node, action, call, false, &out); });
     d.actors.pop_back();
     --d.acting;
     if (out.ran && out.undo.empty() && out.effect == Effect::reversible) out.undo = std::move(d.program_inverse);
     d.program_inverse = std::move(outer);
-    if (out.ran)
+    // A toolbar may delegate to undo/redo. Its enclosing activation must
+    // not clear the redo just produced by that traversal. Explicit new
+    // inverses and irreversible barriers still record normally.
+    const bool history_control = out.effect == Effect::reversible && out.undo.empty() && history_before != d.history_moves;
+    if (out.ran && !history_control)
         d.record(scope, {node, where, {}, std::string(action), call.args, std::move(out.undo), std::format("{} on '{}'", action, where), d.journal_next()},
                  out.effect);
     d.journal_add(std::move(where), action, call, e.exit_code().value_or(0));
@@ -483,8 +488,13 @@ Envelope Runtime::act_item(NodeId holder, std::string_view key, std::string_view
     const std::string where = d.alive(holder) ? std::format("{}/{}", path_of, key) : std::string(key);
     const NodeId scope = d.scope_of(holder);
     Impl::Outcome out;
+    const auto history_before = d.history_moves;
     Envelope e = d.perform_item(holder, key, action, call, &out);
-    if (out.ran)
+    // A toolbar may delegate to undo/redo. Its enclosing activation must
+    // not clear the redo just produced by that traversal. Explicit new
+    // inverses and irreversible barriers still record normally.
+    const bool history_control = out.effect == Effect::reversible && out.undo.empty() && history_before != d.history_moves;
+    if (out.ran && !history_control)
         d.record(scope,
                  {holder, path_of, std::string(key), std::string(action), call.args, std::move(out.undo), std::format("{} on '{}'", action, where), d.journal_next()},
                  out.effect);

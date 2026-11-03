@@ -17,9 +17,9 @@ constexpr float gap = 8;
 
 Color label_color(const Theme& t, bool off) { return off ? t.color("text_disabled") : t.color("text"); }
 
-Size with_label(parts::Label& label, Services& s, Color color, Size control) {
+Size with_label(parts::Label& label, Services& s, Color color, Size control, float available = std::numeric_limits<float>::infinity()) {
     if (label.text().empty()) return control;
-    const Size t = label.measure(s, color);
+    const Size t = label.measure(s, color, std::max(0.0f, available - control.width - gap));
     return {control.width + gap + std::ceil(t.width), std::max(control.height, std::ceil(t.height))};
 }
 
@@ -46,14 +46,15 @@ void Toggle::prop_changed(ToggleProp p) {
     }
 }
 
-Size Toggle::measure(MeasureContext& m, std::optional<float>, std::optional<float>, layout::Available, layout::Available) {
-    return with_label(label_, m.services, label_color(m.services.theme(), props.disabled), {track_w, track_h});
+Size Toggle::measure(MeasureContext& m, std::optional<float> width, std::optional<float>, layout::Available aw, layout::Available) {
+    const float room = width.value_or(aw.is_definite() ? aw.value : std::numeric_limits<float>::infinity());
+    return with_label(label_, m.services, label_color(m.services.theme(), props.disabled), {track_w, track_h}, room);
 }
 
 float Toggle::baseline(MeasureContext& m, Size content) {
     const Color c = label_color(m.services.theme(), props.disabled);
     if (label_.text().empty()) return content.height;
-    const Size t = label_.measure(m.services, c);
+    const Size t = label_.measure(m.services, c, std::max(0.0f, content.width - track_w - gap));
     return (content.height - t.height) / 2 + label_.baseline(m.services, c);
 }
 
@@ -91,7 +92,7 @@ void Toggle::paint(PaintContext& ctx) const {
 
     if (!label_.text().empty()) {
         const Color lc = label_color(th, false);
-        const Size ts = label_.measure(ctx.services, lc);
+        const Size ts = label_.measure(ctx.services, lc, std::max(0.0f, content.width - track_w - gap));
         label_.paint(ctx, {content.x + track_w + gap, content.y + (content.height - ts.height) / 2}, lc);
     }
     if (off) ctx.list.pop_layer();
@@ -140,14 +141,15 @@ void Checkbox::prop_changed(CheckboxProp p) {
     }
 }
 
-Size Checkbox::measure(MeasureContext& m, std::optional<float>, std::optional<float>, layout::Available, layout::Available) {
-    return with_label(label_, m.services, label_color(m.services.theme(), props.disabled), {box_size, box_size});
+Size Checkbox::measure(MeasureContext& m, std::optional<float> width, std::optional<float>, layout::Available aw, layout::Available) {
+    const float room = width.value_or(aw.is_definite() ? aw.value : std::numeric_limits<float>::infinity());
+    return with_label(label_, m.services, label_color(m.services.theme(), props.disabled), {box_size, box_size}, room);
 }
 
 float Checkbox::baseline(MeasureContext& m, Size content) {
     const Color c = label_color(m.services.theme(), props.disabled);
     if (label_.text().empty()) return content.height;
-    const Size t = label_.measure(m.services, c);
+    const Size t = label_.measure(m.services, c, std::max(0.0f, content.width - box_size - gap));
     return (content.height - t.height) / 2 + label_.baseline(m.services, c);
 }
 
@@ -194,7 +196,7 @@ void Checkbox::paint(PaintContext& ctx) const {
     }
     if (!label_.text().empty()) {
         const Color lc = label_color(th, false);
-        const Size ts = label_.measure(ctx.services, lc);
+        const Size ts = label_.measure(ctx.services, lc, std::max(0.0f, content.width - box_size - gap));
         label_.paint(ctx, {content.x + box_size + gap, content.y + (content.height - ts.height) / 2}, lc);
     }
     if (off) ctx.list.pop_layer();

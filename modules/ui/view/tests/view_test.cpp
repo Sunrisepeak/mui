@@ -1694,6 +1694,30 @@ int main(int argc, char** argv) {
         check(std::ranges::count(j, std::string("undo"), &ActionEntry::action) >= 4, "undo is journaled as an action");
     });
 
+    s.test("history (S-12): toolbar callbacks preserve redo and keep the delegated scope", [] {
+        Runtime rt(options());
+        int extra = 0;
+        rt.mount("main", column({}, {
+            box({.id = "panel"}, {tally("count")}).prop("undo_scope", Source(Value(true))),
+            box({.id = "undo", .label = "Undo", .on = {{"press", [&](const Value&) { (void)rt.undo(rt.find("main/panel")); }}}}),
+            box({.id = "redo", .label = "Redo", .on = {{"press", [&](const Value&) { (void)rt.redo(rt.find("main/panel")); }}}}),
+            box({.id = "new_edit", .label = "Undo then edit", .on = {{"press", [&](const Value&) {
+                (void)rt.undo(rt.find("main/panel")); ++extra;
+                rt.taken_back_by([&] { --extra; }, [&] { ++extra; });
+            }}}})})); rt.frame();
+        const auto panel = rt.find("main/panel"), count = rt.find("main/panel/count");
+        auto perform = [&](std::string_view id) { check_eq(rt.act(rt.find(id), "activate").exit_code().value_or(-1), std::int64_t{0}); };
+        check_eq(rt.act(count, "increment").exit_code().value_or(-1), std::int64_t{0});
+        check_eq(rt.act(count, "increment").exit_code().value_or(-1), std::int64_t{0});
+        perform("main/undo"); check_eq(rt.semantic_node(count).value.as_int(), std::int64_t{1});
+        check_eq(rt.history(panel).redo.size(), std::size_t{1}); check(rt.history(rt.root()).undo.empty());
+        perform("main/redo"); check_eq(rt.semantic_node(count).value.as_int(), std::int64_t{2});
+        check_eq(rt.history(panel).undo.size(), std::size_t{2}); check(rt.history(rt.root()).undo.empty());
+        perform("main/new_edit"); check_eq(extra, 1);
+        check_eq(rt.history(rt.root()).undo.size(), std::size_t{1});
+        check_eq(rt.undo({}).exit_code().value_or(-1), std::int64_t{0}); check_eq(extra, 0);
+    });
+
     s.test("history (S-12): an action whose handler says how the program takes it back (taken_back_by)", [] {
         Runtime rt(options());
         bool shipped = false;

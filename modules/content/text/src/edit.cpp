@@ -81,7 +81,7 @@ bool TextEditor::insert(std::string_view input) {
         if (current >= options_.max_length) return false;
         std::size_t room = options_.max_length - current;
         auto b = unicode::grapheme_boundaries(s);
-        if (b.size() - 1 > room) s.resize(b[room]);
+        if (!b.empty() && b.size() - 1 > room) s.resize(b[room]);
     }
     replace(selection_.begin(), selection_.end(), s, true);
     return true;

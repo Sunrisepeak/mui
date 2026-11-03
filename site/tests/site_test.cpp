@@ -15,6 +15,11 @@ using namespace omui;
 
 namespace {
 
+const std::filesystem::path& workspace_media() {
+    static const auto dir = scratch_dir("site-workspace");
+    return dir;
+}
+
 struct Site {
     Headless h;
     explicit Site(std::string_view place = "home", std::string_view lang = "en") : h{HeadlessOptions{.size = {1280, 800}}} {
@@ -25,6 +30,7 @@ struct Site {
         h.mount("main", spec.view());
         h.settle();
     }
+    void inspect_object() { if (!h.tree().node("main/body/view/home/page/hero/demo/renderings")) { check(h.click("main/body/view/home/page/hero/demo/context/inspect")); h.settle(); } }
     void inspect() { if (!h.tree().node("main/foot/lens_tree")) { check(h.click("main/foot/tools_toggle")); h.settle(); } }
     bool navigate(std::string_view place) {
         if (place == "home") return h.click("main/bar/mark");
@@ -179,27 +185,175 @@ int main(int argc, char** argv) {
     s.test("the opening: a checklist as a person sees it, and its node as a screen reader says it, an agent sends it, a test asserts it", [] {
         Site a;
         const std::string hero = "main/body/view/home/page/hero";
-        const auto ship = a.h.tree().node(hero + "/demo/specimen/ship");
+        check(!a.h.tree().node(hero + "/demo/renderings"), "technical views start closed"); a.inspect_object();
+        const auto ship = a.h.tree().node(hero + "/demo/specimen/actions/ship");
         check(ship.has_value() && ship->role == Role::button && ship->states.has(State::disabled), "Ship 0.1 waits for its checks");
         const std::string panel = hero + "/demo/renderings/";
-        check_eq(a.text(panel + "reader/body/line"), std::string("\"Ship 0.1\", button, dimmed"));
-        check(a.text(panel + "agent/body/line").find("\"act\": \"specimen/ship\", \"action\": \"activate\"") != std::string::npos, a.text(panel + "agent/body/line"));
-        check(a.text(panel + "test/body/line").find("check(node(\"specimen/ship\").states.has(\"disabled\"));") != std::string::npos, a.text(panel + "test/body/line"));
+        check_eq(a.text(panel + "reader/body/line"), std::string("\"Record release\", button, dimmed"));
+        check(a.text(panel + "agent/body/line").find("\"act\": \"specimen/actions/ship\", \"action\": \"activate\"") != std::string::npos, a.text(panel + "agent/body/line"));
+        check(a.text(panel + "test/body/line").find("check(node(\"specimen/actions/ship\").states.has(\"disabled\"));") != std::string::npos, a.text(panel + "test/body/line"));
         // A person checks one: the panels follow it, read again from the tree.
-        check(a.h.click(hero + "/demo/specimen/items/docs"));
+        check(a.h.click(hero + "/demo/specimen/items/docs/done"));
         a.h.advance(seconds(0.5));
         check_eq(a.text(panel + "reader/body/line"), std::string("\"Docs reviewed\", checkbox, checked"));
-        check(a.text(panel + "test/body/line").find("check(node(\"specimen/items/docs\").states.has(\"checked\"));") != std::string::npos,
+        check(a.text(panel + "test/body/line").find("check(node(\"specimen/items/docs/done\").states.has(\"checked\"));") != std::string::npos,
               a.text(panel + "test/body/line"));
+    });
+
+    s.test("the release workspace: add, rename, remove, undo, reset and share the same data with the motion scene", [] {
+        Site a;
+        const std::string hero = "main/body/view/home/page/hero", board = hero + "/demo/specimen", shape = "main/body/view/home/page/motion/shown/shape";
+        Invocation person;
+        auto act = [&](std::string id, std::string_view action, Value args = {}) { person.args = std::move(args); check(a.h.tree().act(id, action, person).exit_code() == std::optional<int>(0), id + " " + std::string(action)); a.h.settle(); };
+        act(board + "/add/submit", "activate");
+        check(a.text(board + "/validation").contains("name"), "empty names get a visible error");
+        act(board + "/add/title", "set_value", Value{}.set("value", "  Check the keyboard journey  "));
+        act(board + "/add/submit", "activate");
+        check_eq(a.text(board + "/items/task-1/done"), std::string("Check the keyboard journey"));
+        check_eq(a.text(shape + "/task-1/title"), std::string("Check the keyboard journey"));
+        check(a.h.tree().node(board + "/items/task-1/done")->origin == spec::Origin::user_content);
+        check(a.h.tree().node(shape + "/task-1/title")->origin == spec::Origin::user_content);
+        act(board + "/add/title", "set_value", Value{}.set("value", "A task entered with the keyboard"));
+        a.h.runtime().focus(a.h.runtime().find(board + "/add/title"));
+        a.h.key(Key::enter); a.h.settle();
+        check(a.h.tree().node(board + "/items/task-2/done").has_value(), "Enter submits the task");
+        act(board + "/history/undo", "activate");
+        check(!a.h.tree().node(board + "/items/task-2/done"), "keyboard submission joins the same undo history");
+        act(board + "/items/task-1/done", "toggle");
+        check_eq(a.text(shape + "/task-1/state"), std::string("Complete"));
+        act(board + "/items/task-1/edit", "activate");
+        check(a.h.runtime().path(a.h.runtime().focused()) == board + "/editor/title", "editing focuses the real title field");
+        act(board + "/editor/title", "set_value", Value{}.set("value", "Review the keyboard and focus paths"));
+        act(board + "/editor/actions/save", "activate");
+        check_eq(a.text(shape + "/task-1/title"), std::string("Review the keyboard and focus paths"));
+        check(a.h.runtime().path(a.h.runtime().focused()) == board + "/items/task-1/edit", "save restores focus to the task");
+        act(board + "/history/undo", "activate");
+        check_eq(a.text(board + "/items/task-1/done"), std::string("Check the keyboard journey"));
+        act(board + "/items/task-1/edit", "activate");
+        act(board + "/editor/actions/cancel", "activate");
+        act(board + "/history/redo", "activate");
+        check_eq(a.text(shape + "/task-1/title"), std::string("Review the keyboard and focus paths"));
+        act(board + "/items/task-1/edit", "activate");
+        act(board + "/editor/actions/remove", "activate");
+        check(!a.h.tree().node(board + "/items/task-1/done"));
+        check(!a.h.tree().node(shape + "/task-1/title"));
+        act(board + "/history/undo", "activate");
+        check(a.h.tree().node(board + "/items/task-1/done")->states.has(State::checked));
+        act(board + "/actions/reset", "activate");
+        check(!a.h.tree().node(board + "/items/task-1/done"));
+        act(board + "/history/undo", "activate");
+        check_eq(a.text(board + "/items/task-1/done"), std::string("Review the keyboard and focus paths"));
+        check(a.navigate("docs")); a.h.settle(); check(a.navigate("home")); a.h.settle();
+        check_eq(a.text(shape + "/task-1/title"), std::string("Review the keyboard and focus paths"));
+        check(a.h.click("main/bar/lang")); a.h.advance(seconds(1));
+        check_eq(a.text(board + "/items/task-1/done"), std::string("Review the keyboard and focus paths"));
+        check_eq(a.text(board + "/items/docs/done"), std::string("文档已审阅"));
+        check_eq(a.text(shape + "/task-1/state"), std::string("已完成"));
+        act(board + "/history/copy", "activate");
+        check(a.h.runtime().clipboard_text().starts_with("# 发布清单\n"));
+        check(a.h.runtime().clipboard_text().contains("- [x] Review the keyboard and focus paths\n"));
+        check_eq(a.text(board + "/history/copy"), std::string("清单已复制"));
+        check(a.h.save_png(workspace_media() / "edited-zh.png").has_value());
+    });
+
+    s.test("workspace layouts: five widths, both languages, editable long names and optional technical views", [] {
+        const auto dir = workspace_media();
+        std::map<std::string, std::uint64_t, std::less<>> baseline;
+        for (const float width : {360.0f, 390.0f, 768.0f, 1280.0f, 1440.0f}) for (std::string_view lang : {"en", "zh"}) {
+            Headless h{HeadlessOptions{.size = {width, 844}}}; auto spec = site::app("home", lang);
+            h.runtime().set_theme(spec.theme); spec.setup(h.runtime()); h.mount("main", spec.view()); h.settle();
+            const std::string hero = "main/body/view/home/page/hero", board = hero + "/demo/specimen";
+            auto inside = [&] {
+                for (const auto& n : h.tree().snapshot({.root = hero}).nodes) if ((n.role == Role::button || n.role == Role::text_box || n.role == Role::checkbox) && n.bounds && !n.states.has(State::hidden) && !n.states.has(State::offscreen))
+                    check(n.bounds->x >= -0.5f && n.bounds->right() <= width + 0.5f, std::format("{} {} at {}: {} + {}", lang, n.id, width, n.bounds->x, n.bounds->width));
+            };
+            inside();
+            const auto hash = site::tree_hash(h.tree().snapshot({.root = "main/body/view/home/page"}).to_value());
+            const auto [same, added] = baseline.try_emplace(std::string(lang), hash);
+            check(added || same->second == hash, std::format("{} at {} keeps the same semantic tree: {:016x} / {:016x}", lang, width, same->second, hash));
+            const bool capture = (width == 390 && lang == "zh") || (width == 1280 && lang == "en");
+            if (capture) check(h.save_png(dir / std::format("home-{}-{}.png", lang, static_cast<int>(width))).has_value());
+            Invocation input; input.args = Value{}.set("value", lang == "zh" ? "和设计与无障碍团队一起检查这一轮发布的键盘导航和焦点恢复" : "Review this release with the design and accessibility teams, including keyboard navigation");
+            check(h.tree().act(board + "/add/title", "set_value", input).exit_code() == std::optional<int>(0)); h.settle();
+            check(h.tree().act(board + "/add/submit", "activate").exit_code() == std::optional<int>(0)); h.settle();
+            check(h.tree().act(board + "/items/task-1/done", "scroll_into_view").exit_code() == std::optional<int>(0)); h.settle(); inside();
+            check(h.tree().act(board + "/items/task-1/edit", "activate").exit_code() == std::optional<int>(0)); h.settle(); inside();
+            check(h.tree().act(hero + "/demo/context/inspect", "activate").exit_code() == std::optional<int>(0)); h.settle(); inside();
+            if (capture) check(h.save_png(dir / std::format("technical-{}-{}.png", lang, static_cast<int>(width))).has_value());
+        }
+    });
+
+    s.test("the task view changes layouts with stable ids, can be interrupted and works with motion off", [] {
+        Site a; const std::string scene = "main/body/view/home/page/motion/shown", shape = scene + "/shape";
+        auto act = [&](std::string id, std::string_view action) { check(a.h.tree().act(id, action).exit_code() == std::optional<int>(0), id); a.h.settle(); };
+        act(scene + "/controls/change", "scroll_into_view"); a.h.advance(seconds(0.3));
+        act(scene + "/controls/follow", "toggle");
+        if (a.text(scene + "/controls/change") == "Show list") act(scene + "/controls/change", "activate");
+        a.h.advance(seconds(1));
+        act(shape, "scroll_into_view"); a.h.advance(seconds(0.2));
+        const auto rows = a.h.tree().snapshot({.root = shape}).nodes;
+        const auto wide = a.h.runtime().bounds(a.h.runtime().find(shape + "/tests"));
+        const auto list_pixels = a.pixels_in(a.h.runtime().screen_bounds(a.h.runtime().find(shape)));
+        check(a.h.save_png(workspace_media() / "motion-list.png").has_value());
+        const auto list_page = a.page();
+        check(a.h.tree().act(scene + "/controls/change", "activate").exit_code() == std::optional<int>(0));
+        a.h.advance(seconds(0.1));
+        const auto moving_page = a.page();
+        check(a.h.step().animating, "the interruption is issued while the transition is active");
+        check(a.h.save_png(workspace_media() / "motion-between.png").has_value());
+        check(a.h.tree().act(scene + "/controls/change", "activate").exit_code() == std::optional<int>(0));
+        a.h.advance(seconds(1));
+        check(std::abs(a.h.runtime().bounds(a.h.runtime().find(shape + "/tests")).width - wide.width) < 1, "an interrupted change returns to the list");
+        act(scene + "/controls/change", "activate"); a.h.advance(seconds(1));
+        const auto cards = a.h.tree().snapshot({.root = shape}).nodes;
+        std::vector<std::string> before, after;
+        for (const auto& n : rows) before.push_back(n.id); for (const auto& n : cards) after.push_back(n.id);
+        check(before == after, "task ids and descendants remain stable across the two layouts");
+        check(a.h.runtime().bounds(a.h.runtime().find(shape + "/tests")).width < wide.width, "the cards use multiple columns");
+        check(a.pixels_in(a.h.runtime().screen_bounds(a.h.runtime().find(shape))) != list_pixels, "the real task scene changes its layout");
+        check(moving_page != list_page && moving_page != a.page(), "the sampled middle frame differs from both endpoint drawings");
+        check(a.h.save_png(workspace_media() / "motion-cards.png").has_value());
+        a.h.runtime().set_motion_level(MotionLevel::off);
+        act(scene + "/controls/change", "activate"); a.h.advance(seconds(0.1));
+        check(std::abs(a.h.runtime().bounds(a.h.runtime().find(shape + "/tests")).width - wide.width) < 1, "motion off still reaches the chosen layout");
+        a.h.runtime().set_motion_level(MotionLevel::full);
+        act(scene + "/controls/follow", "toggle"); a.h.advance(seconds(0.5));
+        check(a.h.runtime().motion_time(a.h.runtime().find(shape)).has_value(), "scroll seeking restarts after manual mode");
+        check(a.navigate("docs")); a.h.settle(); check(a.navigate("home")); a.h.settle(); a.h.advance(seconds(0.5));
+        check(a.h.runtime().motion_time(a.h.runtime().find(shape)).has_value(), "restored scroll binds the new scene after a page visit");
+    });
+
+    s.test("the simulated agent uses edited task ids, and leaving the page cancels its pending run", [] {
+        Site a;
+        const std::string hero = "main/body/view/home/page/hero", board = hero + "/demo/specimen";
+        Invocation person; person.args = Value{}.set("value", "Check the new task");
+        check(a.h.tree().act(board + "/add/title", "set_value", person).exit_code() == std::optional<int>(0)); a.h.settle();
+        check(a.h.tree().act(board + "/add/submit", "activate").exit_code() == std::optional<int>(0)); a.h.settle();
+        check(a.h.tree().act(hero + "/agent_row/let_agent", "activate").exit_code() == std::optional<int>(0));
+        a.h.advance(seconds(7));
+        check(a.h.tree().node(board + "/items/task-1/done")->states.has(State::checked));
+        check(a.text(board + "/shipped").starts_with("Shipped"));
+        check(a.h.tree().act(board + "/actions/reset", "activate").exit_code() == std::optional<int>(0)); a.h.settle();
+        check(a.h.tree().act(hero + "/agent_row/let_agent", "activate").exit_code() == std::optional<int>(0));
+        a.h.advance(seconds(0.2));
+        check(a.h.tree().act(hero + "/agent_row/let_agent", "activate").exit_code() == std::optional<int>(0)); a.h.advance(seconds(1));
+        check(!a.h.tree().node(board + "/items/tests/done")->states.has(State::checked), "stopping cancels the pending scripted step");
+        check(a.h.tree().act(hero + "/agent_row/let_agent", "activate").exit_code() == std::optional<int>(0));
+        check(a.navigate("docs")); a.h.advance(seconds(6));
+        check(a.navigate("home")); a.h.settle();
+        check(!a.h.tree().node(board + "/items/tests/done")->states.has(State::checked), "cancelled timer does not edit after navigation");
+        check(!a.h.tree().node(hero + "/agent_row/let_agent")->states.has(State::disabled));
     });
 
     s.test("the opening's agent ships it: each step a real action as an agent, through the same checks, each one undoable", [] {
         Site a;
         const std::string hero = "main/body/view/home/page/hero";
+        a.inspect_object();
+        check(a.h.tree().act(hero + "/agent_row/let_agent", "scroll_into_view").exit_code() == std::optional<int>(0)); a.h.settle();
         check(a.h.click(hero + "/agent_row/let_agent"), "a person asks the agent");
         a.h.advance(seconds(6));
         for (const char* item : {"tests", "docs", "notes"}) {
-            const auto n = a.h.tree().node(hero + "/demo/specimen/items/" + item);
+            const auto n = a.h.tree().node(hero + "/demo/specimen/items/" + item + "/done");
             check(n && n->states.has(State::checked), std::format("{} checked by the agent", item));
         }
         check(a.text(hero + "/demo/specimen/shipped").starts_with("Shipped"), "shipped");
@@ -208,22 +362,22 @@ int main(int argc, char** argv) {
         check(agents >= 4, std::format("{} actions journaled as the agent's", agents));
         // Every step can be taken back, the shipping too: undo unships it, the panels with it; redo ships it again.
         const auto shipped = [&] { return a.text(hero + "/demo/specimen/shipped").starts_with("Shipped"); };
-        check_eq(a.h.runtime().undo({}).exit_code().value_or(-1), std::int64_t{0});
+        check_eq(a.h.runtime().undo(a.h.runtime().find(hero + "/demo/specimen")).exit_code().value_or(-1), std::int64_t{0});
         a.h.advance(seconds(0.3));
         check(!shipped(), "undone: not shipped");
         check(a.text(hero + "/demo/renderings/agent/body/line").find("done") == std::string::npos, "the agent's request is past");
         const auto items_checked = [&] {
             int n = 0;
             for (const char* item : {"tests", "docs", "notes"})
-                if (auto x = a.h.tree().node(hero + "/demo/specimen/items/" + item); x && x->states.has(State::checked)) ++n;
+                if (auto x = a.h.tree().node(hero + "/demo/specimen/items/" + item + "/done"); x && x->states.has(State::checked)) ++n;
             return n;
         };
         check_eq(items_checked(), 3);  // the checks stay: the shipping alone was taken back
-        check_eq(a.h.runtime().redo({}).exit_code().value_or(-1), std::int64_t{0});
+        check_eq(a.h.runtime().redo(a.h.runtime().find(hero + "/demo/specimen")).exit_code().value_or(-1), std::int64_t{0});
         a.h.advance(seconds(0.3));
         check(shipped(), "redone: shipped");
-        check_eq(a.h.runtime().undo({}).exit_code().value_or(-1), std::int64_t{0});
-        check_eq(a.h.runtime().undo({}).exit_code().value_or(-1), std::int64_t{0});
+        check_eq(a.h.runtime().undo(a.h.runtime().find(hero + "/demo/specimen")).exit_code().value_or(-1), std::int64_t{0});
+        check_eq(a.h.runtime().undo(a.h.runtime().find(hero + "/demo/specimen")).exit_code().value_or(-1), std::int64_t{0});
         a.h.advance(seconds(0.3));
         check(!shipped() && items_checked() == 2, "then the last check");
     });
@@ -250,6 +404,7 @@ int main(int argc, char** argv) {
         check(nav.x >= 0 && nav.x + nav.width <= 390.5f, std::format("the places within the phone: {} + {}", nav.x, nav.width));
         const Rect view = h.runtime().screen_bounds(h.runtime().find("main/body/view"));
         check(view.width == 390, std::format("the view the whole width: {}", view.width));
+        check(h.tree().act("main/body/view/home/page/hero/demo/context/inspect", "activate").exit_code() == std::optional<int>(0)); h.settle();
         // The renderings' words whole: no line of a card below its card's bottom.
         for (const char* card : {"reader", "agent", "test"}) {
             const std::string base = std::format("main/body/view/home/page/hero/demo/renderings/{}", card);
@@ -258,7 +413,7 @@ int main(int argc, char** argv) {
             const Rect l = h.runtime().screen_bounds(h.runtime().find(base + "/body/line"));
             check(l.y + l.height <= c.y + c.height + 0.5f, std::format("{}'s line inside its card: {} vs {}", card, l.y + l.height, c.y + c.height));
         }
-        for (const char* id : {"hero/demo/specimen/ship", "hero/agent_row/let_agent", "hero/cta/to_features"}) {
+        for (const char* id : {"hero/demo/specimen/actions/ship", "hero/agent_row/let_agent", "hero/cta/to_explore"}) {
             const Rect r = h.runtime().screen_bounds(h.runtime().find(std::format("main/body/view/home/page/{}", id)));
             check(r.x >= 0 && r.x + r.width <= 390, std::format("{} inside: {} + {}", id, r.x, r.width));
         }
@@ -330,7 +485,7 @@ int main(int argc, char** argv) {
         a.h.settle(seconds(0.1));
         const std::string json = a.text("main/body/view/agent/agent_text");
         check(json.starts_with("// openmui.tree@0.1's snapshot of main/body/view/home"), "the place named once");
-        check(json.find("\"id\":\"…/page/hero/demo/specimen/ship\"") != std::string::npos, "the nodes as an agent reads them, from the place");
+        check(json.find("\"id\":\"…/page/hero/demo/specimen/actions/ship\"") != std::string::npos, "the nodes as an agent reads them, from the place");
         for (const Value& n : *home.get("nodes")->list()) {
             std::string id = std::string(n.get("id")->as_string());
             if (id.starts_with("main/body/view/home/")) id = "…/" + id.substr(std::string_view("main/body/view/home/").size());
@@ -342,7 +497,7 @@ int main(int argc, char** argv) {
         a.h.settle(seconds(0.1));
         const std::string lines = a.text("main/body/view/test/test_text");
         check(lines.find("tree.node(std::format(\"main/body/view/home/{}\", path))") != std::string::npos, "the place's nodes found under it");
-        check(lines.find("check_eq(node(\"page/hero/demo/specimen/ship\").role, \"button\");") != std::string::npos, "the title's role asserted");
+        check(lines.find("check_eq(node(\"page/hero/demo/specimen/actions/ship\").role, \"button\");") != std::string::npos, "the title's role asserted");
 
         check(a.h.click("main/foot/lens_pixels"));
         a.h.move({4, 796});  // the pointer off the buttons (no hover)
@@ -649,7 +804,7 @@ int main(int argc, char** argv) {
         check(a.h.tree().act("main/body/guide/check/hello", "activate", agent).exit_code() == std::optional<int>(0));
         a.h.settle();
         check(a.text("main/body/guide/check/hellos") == "pressed 1 time", a.text("main/body/guide/check/hellos"));
-        const std::string box = "main/body/view/home/page/hero/demo/specimen/items/tests";
+        const std::string box = "main/body/view/home/page/hero/demo/specimen/items/tests/done";
         check(a.h.tree().act(box, "toggle", agent).exit_code() == std::optional<int>(0));
         a.h.settle();
         check(a.h.tree().node(box)->states.has(State::checked), "checked by the agent");
@@ -734,7 +889,7 @@ int main(int argc, char** argv) {
         a.h.advance(seconds(1));
         shot("time.png");
         std::println("    pixels {}", all.hex());
-        check_eq(all.hex(), std::string("0a3bb831376e9626"));
+        check_eq(all.hex(), std::string("99b61e50a9e03946"));
     });
 
     s.test("the components: curated search, live detail, reset, languages and scoped appearance", [] {
@@ -995,8 +1150,8 @@ int main(int argc, char** argv) {
         // The site's own part pinned (the docs change with the framework; they are held to md4c-html's bytes above).
         auto own = [](const std::string& html) { return html.substr(0, html.find("<section id=\"/", html.find("<section id=\"/") + 1)); };
         std::println("    static en {:016x} zh {:016x}", fnv(own(en)), fnv(own(site::static_html("zh"))));
-        check_eq(std::format("{:016x}", fnv(own(en))), std::string("eb5551f0765c7fd5"));
-        check_eq(std::format("{:016x}", fnv(own(site::static_html("zh")))), std::string("83464b4a228e55d5"));
+        check_eq(std::format("{:016x}", fnv(own(en))), std::string("2d5568c74afdb569"));
+        check_eq(std::format("{:016x}", fnv(own(site::static_html("zh")))), std::string("95cd2ddd72b50c23"));
 
         const auto out = site::inject(page, en, "zh");
         check(out.has_value(), "dist-toy's page");

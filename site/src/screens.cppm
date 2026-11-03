@@ -6,13 +6,13 @@ export module openmui.site:screens;
 
 import std;
 import openmui;
+import :hero;
 
 export namespace omui::site {
 
-// Their own state: the motion screen's drawing (false the first, true the
-// second) and whether its morph is held to the scroll.
+// The task scene's chosen layout and whether scrolling controls its morph.
 struct Screens {
-    Signal<bool> shaped = signal(false);
+    Signal<bool> shaped = signal(false), follow = signal(true);
     bool         held = false;
     double       at = 0;      // how far it is to be: 0 the list, 1 the cards
     double       last_y = 0;  // the home page's offset the bounds last drawn are at
@@ -21,6 +21,7 @@ struct Screens {
 // What they need of the site.
 struct ScreensSite {
     Runtime**                runtime = nullptr;
+    Hero*                    tasks = nullptr;
     Signal<std::string>*     lang = nullptr;
     Signal<std::string>*     hash = nullptr;       // the tree's hash, as the foot says it
     Signal<std::string>*     effects = nullptr;    // the effects tier the person chose ("auto", "t1" … "t4")

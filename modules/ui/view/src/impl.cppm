@@ -594,6 +594,7 @@ struct Runtime::Impl {
         int                   depth = 1;
     };
     std::vector<ScopeHistory>  histories;
+    std::uint64_t             history_moves = 0;  // successful undo/redo traversals, including those called by a control
     std::optional<Transaction> transaction;
     int                        replaying = 0;  // undoing, redoing, rolling back: nothing is recorded
     std::string                last_failure;   // the last frame's failed stage, if it failed

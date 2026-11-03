@@ -78,4 +78,14 @@ for c in r["checks"]:
     print(f"  {'ok  ' if c['ok'] else 'FAIL'} {c['what']}")
 CATALOG
 [ "$catalog" = 0 ] || { echo "::error::component catalog browser checks failed (target/site-catalog.report.omui.json)"; status=1; }
+workspace=0
+CHROME=$chrome "$node_bin" "${flags[@]}" tools/ci/site-workspace.mjs target/site > target/site-workspace.report.omui.json || workspace=$?
+python3 - target/site-workspace.report.omui.json <<'WORKSPACE'
+import json, sys
+r = json.load(open(sys.argv[1]))
+print("site release workspace:")
+for c in r["checks"]:
+    print(f"  {'ok  ' if c['ok'] else 'FAIL'} {c['what']}")
+WORKSPACE
+[ "$workspace" = 0 ] || { echo "::error::release workspace checks failed (target/site-workspace.report.omui.json)"; status=1; }
 exit "$status"

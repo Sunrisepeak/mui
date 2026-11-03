@@ -73,6 +73,18 @@ for show in "${shows[@]}"; do
                 cp "$source" "$destination"
             fi
         done
+        for name in home-en-1280 home-zh-390 technical-en-1280 technical-zh-390 edited-zh motion-list motion-between motion-cards; do
+            source="$scratch/site-workspace/$name.png"
+            destination="$folder/media/workspace-$name.png"
+            if [ $check = 1 ]; then
+                if ! cmp -s "$source" "$destination"; then
+                    echo "::error::$destination is not what the release workspace tests draw" >&2
+                    status=1
+                fi
+            else
+                cp "$source" "$destination"
+            fi
+        done
     fi
 done
 exit $status

@@ -53,9 +53,10 @@ try {
   await act('main/body/view/components', 'scroll_to', { x: 0, y: 240 }); await sleep(200);
   await pointer(detail('text_box') + '/code/copy');
   check(await until(`${name(detail('text_box') + '/code/copied')}==='Expression copied'`), 'pointer copy shows completion feedback');
-  const copied = await b.value('navigator.clipboard.readText()');
   const source = await b.value(name(detail('text_box') + '/code/scroll/source'));
-  check(copied && copied === source, 'the permitted browser clipboard contains the displayed expression');
+  // The host's writeText is asynchronous; label feedback is not its completion.
+  const copied = source && await until(`navigator.clipboard.readText().then(t=>t===${JSON.stringify(source)})`);
+  check(copied, 'the permitted browser clipboard contains the displayed expression', copied ? undefined : { source, clipboard: await b.value('navigator.clipboard.readText().catch(e=>String(e))') });
   await act('main/body/view/components', 'scroll_to', { x: 0, y: 0 });
   await act(root + '/detail/directory/all', 'activate');
   check(await until(`${name(overview + '/results/count')}==='8 / 36'`), 'overview starts with eight live selected specimens');

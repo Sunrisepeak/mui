@@ -1,11 +1,7 @@
-// openmui.site:hero — the home page's opening: one thing, rendered four ways.
-//
-// A real checklist (three checks, then "Ship 0.1", which waits for them) as a
-// person sees it, and beside it the same node — the one last touched — as a
-// screen reader says it, as an agent asks for it, and as a test asserts it,
-// read from the page's semantic tree (the lens's snapshot), joined to it by a
-// line. "Let an agent ship it" performs the same actions a person's clicks
-// reach, one after another, as an agent, through the runtime's checks.
+// The release workspace, shared with the task layout scene below it.
+// Stable task ids, editable titles, scoped undo and Markdown copying;
+// optional views read the selected object from the actual semantic tree.
+// The explicitly simulated agent uses those same checked actions.
 export module openmui.site:hero;
 
 import std;
@@ -13,14 +9,24 @@ import openmui;
 
 export namespace omui::site {
 
+[[nodiscard]] Value release_tasks();
+[[nodiscard]] std::string task_title(const Value& task, bool zh);
+[[nodiscard]] bool release_ready(const Value& tasks);
+
 // The opening's own state: the checklist, the node the panels show, what the agent did.
 struct Hero {
-    std::array<Signal<bool>, 3> checks{signal(false), signal(false), signal(false)};
+    Signal<Value>              tasks = signal(release_tasks());
+    Signal<std::string>         draft = signal(std::string()), editing = signal(std::string()), edit_text = signal(std::string()), validation = signal(std::string());
+    Signal<bool>                inspect = signal(false);
+    std::uint64_t              next_task = 1, generation = 0;
     Signal<bool>                shipped = signal(false);
     Signal<std::string>         selected = signal(std::string("ship"));  // a specimen node's id: tests, docs, notes, ship
+    Signal<std::string>         copied_tasks = signal(std::string());
     Signal<std::string>         exchange = signal(std::string());       // the agent's last request and its answer
     Signal<bool>                agent_running = signal(false);
 };
+
+[[nodiscard]] Prop<bool> task_binding(Hero& hero, std::string id);
 
 // What the opening needs of the site around it.
 struct HeroSite {
@@ -32,11 +38,9 @@ struct HeroSite {
     std::function<void()>                    tree_lens;        // the lens to the tree
 };
 
-// The opening: live (operable, its panels following the tree) or a still
-// (a picture of it, nothing operable), `width` wide (narrow — a phone — it stacks).
+// The opening at its available width; the site uses its live scene.
 [[nodiscard]] Element hero(Hero& h, const HeroSite& site, bool live, float width = 1100);
-// The opening for readers without the program (the static page): the claim,
-// the checklist and the three renderings of its button, as HTML.
+// Readable claim and seed checklist for the static page.
 [[nodiscard]] std::string hero_html(bool zh);
 
 // The panels' lines for one node of a semantic snapshot (exported for the tests).

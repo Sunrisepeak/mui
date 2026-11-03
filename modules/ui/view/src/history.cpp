@@ -183,6 +183,7 @@ Envelope Runtime::Impl::history_action(NodeId scope, bool redo, const Invocation
         touch(dirty_semantics);
         return back.error();
     }
+    ++history_moves;
     const std::size_t steps = back->size();
     (redo ? after.undo : after.redo).push_back({entry.label, std::move(*back), false});
     touch(dirty_semantics | dirty_paint);
@@ -230,6 +231,7 @@ Envelope Runtime::invoke(std::string_view verb, const Invocation& given) {
     std::vector<Inverse> outer = std::exchange(d.program_inverse, {});
     ++d.acting;
     d.actors.push_back(call.actor);
+    const auto history_before = d.history_moves;
     Envelope e = batch([&] { return d.verbs.invoke(verb, call); });
     d.actors.pop_back();
     --d.acting;
@@ -238,7 +240,8 @@ Envelope Runtime::invoke(std::string_view verb, const Invocation& given) {
     // A verb gives no inverse of its own, unless its function said how
     // (taken_back_by): a reversible one without is not recorded (but clears
     // what could be redone); an irreversible or external one is a barrier.
-    if (v && e.exit_code() == spec::exit_code::success)
+    const bool history_control = effect == Effect::reversible && inverse.empty() && history_before != d.history_moves;
+    if (v && e.exit_code() == spec::exit_code::success && !history_control)
         d.record(d.root, {d.root, "app", {}, std::string(verb), call.args, std::move(inverse), std::format("`{}`", verb)}, effect);
     return e;
 }

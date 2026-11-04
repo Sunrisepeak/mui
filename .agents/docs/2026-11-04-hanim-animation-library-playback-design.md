@@ -43,6 +43,10 @@
 
 孔洞／拓扑变化仍明确报告不支持；dash 的起点／方向重排连续性尚未验收，不能用实线 stroke 的通过代替。公共 HObject／统一播放入口、真实像素域及完整动画库继续按下文交付。
 
+公共路径已进入正式 `openmui.bench`，源码与定义见 [bench README](../../tests/bench/README.md#public-geometry-and-material-plans)。首个 GCC 16.1 release／i9-13900K 实跑包括准备、500×32 cubic 采样、16 叶子材质准备、500 次采样加 arena 记录、256² 单几何 CPU 绘制五项；对应 p95 为 0.060143／0.061022／0.000363／0.197220／1.796332 ms。两个暖采样工作负载逐次实测最大分配为 0，已加入并复跑 `max_allocations=0` 预算；形状／材质准备分别分配 8／11 次，CPU 绘制均值约 1.0112、最大 2 次，不能声称完整每帧零分配。
+
+原 motion 五项及 ui/frame 五项适用预算同二进制实跑通过，原 60 条预算逐项未改；两个软件 Vulkan case 沿用既有硬件时限排除条款。完整原始报告 `/tmp/omui-public-motion-verification.report.omui.json` 保留命令、源码／二进制 SHA、环境和各次 JSON；重复运行不重复计独立 case。新延迟预算需按整帧分配及对应 CI 数据另定，未用一次本机速度直接反推门槛。CPU 墙钟、encode 时间或含 wait_idle 的软件读回时间均不是实体 GPU timestamp。这些是公开 plan 的可复用性与成本证据，不代替 A1 完整统一入口及 A2 的 40 个动画条目。
+
 ## 3. 完整动画产品的分层与目录建议
 
 **按维护者要求，hanim 对外就是完整引擎，而不是只能算数值的工具库。** 对内保持可裁剪分层：core 只依赖标准库与 `openmui.math`；对象、配方、效果、播放器是同一产品的其它包。UI／视频／其它框架是消费者。为统一入口让 core 反向依赖 UI 或复制一套渲染器，都不能解决缺口。

@@ -1,6 +1,6 @@
 # hanim.core
 
-A general animation engine in C++23 modules. It depends on the standard library and `openmui.math` only (its deterministic functions, D-87) and knows nothing of UI, so a game, a video composition or another framework can use it as is.
+The renderer-independent deterministic core of the hanim animation product, in C++23 modules. It depends on the standard library and `openmui.math` only (its deterministic functions, D-87) and knows nothing of UI, so a game, a video composition or another framework can consume it directly. The public [hanim umbrella](..) re-exports these same entities; the object/player and pixel-domain architecture remains separate work.
 
 **Every animation is a pure function of time.** The value at time *t* is computed from *t* and the parameters alone, so a frame can be rendered in any order, a game can rewind, and a test is reproducible bit for bit. Results are **the same bits on every platform**: the elementary functions are fdlibm transcriptions (`hanim::dm`), the package is compiled with `-ffp-contract=off`, and the tests pin hashes of sampled curves that GCC and Clang on Linux, macOS and Windows must all reproduce.
 

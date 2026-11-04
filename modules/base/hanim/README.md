@@ -25,5 +25,6 @@ hanim::Tween<double> opacity{.from = 0, .to = 1,
 
 Core API, numeric boundaries, review media and conformance tests are documented
 in [core/README.md](core/README.md). Run `mcpp test -p hanim.core` for those
-existing algorithm and determinism checks. This split itself adds no HObject
+existing algorithm and determinism checks, and `mcpp test -p hanim` for the
+thin umbrella compatibility checks. This split itself adds no HObject
 player, renderer, material interpolation or reusable animation catalog.

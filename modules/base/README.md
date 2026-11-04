@@ -13,6 +13,7 @@ Depends on: the standard library and third-party libraries. Used by: every other
 | [fuzzy](fuzzy) | Fuzzy matching and ranking with highlight positions |
 | [trace](trace) | Spans, counters and marks; Chrome trace JSON; near-free while off |
 | [session](session) | Recorded sessions (`*.session.omui.jsonl`): timestamped, seekable, mergeable |
+| [simulation](simulation) | Independent fixed-step clock, owned checkpoint/input replay, and optional integer cellular rules |
 | [pipeline](pipeline) | Pipelines of stage plugins over typed resources: checked, deterministic, traced, replaceable while running |
 | [image](image) | Image buffers, premultiplication, PNG, animated PNG and WebP |
 | [log](log) | Independent logging, category filters, sinks, record history and invariants; the standard library only |

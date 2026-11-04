@@ -226,19 +226,22 @@ modules/
     time/                          [新增] 时间值/映射；不拥有各域时钟
     control/                       [新增] 中立操作/provider接口；不导入UI/网络
     resource/                      [新增] 稳定资源身份、版本和租约契约
-    compute/                       [新增] 数据/算子/CPU执行；优先复用生态
+    compute/                       [候选] 共性算子/调度；有多个消费者后提取，优先生态
     ai/                            [新增] 决策/模型任务契约；内置能力按feature选用
       core/ policy/ model/ agent/  [新增] port、通用策略、模型适配契约、Agent编排
       provider/llmapi/ control/    [新增] 复用llmapi；AI自身可观察/可控制
-    simulation/                    [新增] 状态推进、checkpoint、输入重建
-      cellular/ physics/ material/ [新增] 按模型选择，不随core全量导入
+    simulation/                    已下沉固定步长/owned checkpoint/输入重建
+      cellular/                    已有通用整数规则/逻辑halo/独立CPU执行
+      physics/ material/           [新增] 按模型选择，不随core全量导入
   gfx/
     rhi/{sdl,webgpu,webgl,cts}/     唯一GPU设备/资源/队列/同步底座
     shader/rules/                  kernel/shader构建、反射及必要运行数据
     raster/
     render/{vector,effect,cts}/    同一渲染图与池
       mesh/ particle/ field/      [新增] 2D/3D/场的渲染特性
-    compute/rhi/                   [新增] GPU计算执行，直接消费RHI
+    simulation/cellular/rhi/       已有整数规则GPU执行；直接复用RHI/Slang
+      cts/                         相同过程用例在SDL_GPU/WebGPU执行
+    compute/rhi/                   [候选] 跨算子的共性计划；不重复RHI设备/提交
     ai/inference/                  [新增] 确有需求时的可选推理实现/设备互操作
     hanim/                         [迁移] 唯一 package hanim / import hanim
       object/ library/ effect/
@@ -333,9 +336,11 @@ src/entry/                         宿主/应用入口；根包仍是 openmui.sd
 
 GPU 近似误差可能改变离散反应分支，不能只用图像 epsilon 证明状态等价。区分逐位确定、可重复误差界和视觉近似；权威状态默认采用被验证的数值配置。带状态反应通过 checkpoint＋输入重放恢复，不承诺所有 seek 为 O(1)。
 
+首批实现见[实施台账§12](2026-11-05-system-implementation-checkpoints-design.md#12-s4首批独立模拟与整数反应的cpugpu过程一致性)：原`mgame.sim`时钟／回放下沉为唯一`openmui.simulation`实现；可选cellular库以类型化规则生成一份整数执行描述，CPU与RHI kernel消费相同数据。通道／状态／邻域不硬编码材料场景，GPU不拥有第二世界或时钟。逻辑halo、完整状态过程比对和重放已验证；稀疏物理halo交换、守恒移动、科学solver、可视化材料画布及Noita规模预算仍开放。
+
 ### 7.2 compute、RHI 与分块渲染
 
-mcpp 是构建工具，GPU／HPC 插件负责 kernel 编译、变体、绑定、资源与构件；运行时由独立compute库负责数据、调度和设备执行。优先消费生态的taskflow及适用算子／库，不重新写一个通用任务系统。
+mcpp 是构建工具，GPU／HPC 插件负责 kernel 编译、变体、绑定、资源与构件；运行时域算子直接消费已有RHI设备／buffer／队列契约。多个算子证实共同需求后，再提取独立compute的数据／调度层，不先包装一套重复设备API。优先消费生态的taskflow及适用算子／库，不重新写一个通用任务系统。
 
 设备资源记录 owner、generation、格式／layout、memory domain、访问模式和fence。兼容设备间共享 view；不兼容时产生显式可计量复制。CPU提交、上传、GPU执行、同步、读回、渲染分别测量；没有GPU时间查询时报告缺失。
 

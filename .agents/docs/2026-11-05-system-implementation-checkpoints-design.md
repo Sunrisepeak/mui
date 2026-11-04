@@ -339,3 +339,70 @@ float shown = (*gain)->at_sample(24000); // 只读，不推进音频或触发事
 自审修正：①保持sidechain pre-gain语义；②插件非有限／过量增益明确处理；③用小型值契约替代最初的虚接口，保持批量调用与owner寿命；④CLI拒绝不能精确换算的帧率；⑤后续文件写入失败时返回`ok:false`，列出此前已写文件。输出不是多文件原子事务。静默换绑、无窗口、只读观察和独立依赖均写入公开契约，不能由接口名称推断尚不存在的能力。
 
 尚未完成：跨线程有界参数／结构发布、sample-accurate transport事件、设备时钟及延迟校准、带状态DSP的seek／checkpoint、完整调制图、通用媒体播放、音频CLI依赖拆分、GUI编辑与官网混音作品。视觉采样、离线PCM一致和block预算不能证明声卡低延迟、无爆音的实时换绑或人的听觉／动画节奏体验。S1–S10与公共40／20、Web／Toy／TUI、PPet等目标继续保留。
+
+## 12. S4首批：独立模拟与整数反应的CPU／GPU过程一致性
+
+执行基线`5d7dc66`。按S2／S4／S5交错推进，本批交付可独立选择的固定步长／状态重建、通用整数格点规则与可选RHI kernel。**S4仍在实施；材料画布、真实视觉过程、物理halo交换与Noita规模验收尚未完成。** 没有在官网写另一套模拟、compute设备或渲染器。
+
+### 12.1 局部核心与共享归属
+
+| 所属包 | 实际职责／依赖 |
+|---|---|
+| `modules/base/simulation`：`openmui.simulation` | 从原`mgame.sim`下沉唯一Clock／Timeline实现，依赖std、trace、log；owned State可深拷贝，Input仍为plain data。旧游戏包保留source-compatible aliases与Game约束，删除原clock实现 |
+| `modules/base/simulation/cellular` | 类型化channel、range、邻域offset、条件与write；冷prepare生成一份只读整数描述；CPU完整／部分tile执行。只依赖std、trace、log，不自动引入clock／UI／game／GPU |
+| `modules/gfx/simulation/cellular/rhi` | 直接复用RHI的device／buffer／command list／queue与现有Slang规则；同一描述交给整数compute kernel。拥有规则buffer／pipeline，不拥有世界、时钟或场状态 |
+| `…/rhi/cts` | 同一组域用例由既有SDL_GPU／WebGPU测试调用。测试依赖不进入普通后端的运行时闭包，不再建立测试后端／线程池／设备接口 |
+
+类型化规则围绕本域能力组合：每个cell可以具有材料、状态、年龄等多个uint32通道；条件支持自身区间和显式邻域计数。按作者顺序首个匹配规则生效，所有读取来自同一旧状态；set、饱和加／减为通用写算子，未写通道原样复制。材料反应只是调用方配置，不是内核枚举或场景分支。空writes阻止后续规则，空规则集为identity；±32范围、offset重复、形状／容量、通道与写冲突在prepare／执行边界检查。
+
+```cpp
+namespace ca = omui::simulation::cellular;
+auto program = ca::Program::prepare(channels, rules);
+if (!program) { /* code + rule + item */ return; }
+auto result = program->step(shape, before, after, {.tile = {32, 32}});
+if (result) before.swap(after); // 发布由宿主掌握
+
+auto kernel = ca::gpu::Kernel::prepare(device, *program); // 显式选择GPU
+if (!kernel) { /* RHI error */ return; }
+auto recorded = (*kernel)->record(commands, input_field, output_field, boundary);
+if (recorded) { /* 宿主submit、检查fence／错误，再发布 */ }
+```
+
+CPU tile从完整旧field读取逻辑halo，分块大小和遍历方向不影响结果；可把互不相交的输出tile交给既有任务系统。GPU workgroup为8×8，与CPU tile／未来render tile独立；连续12步可只在设备中交换两个buffer，期间不读回。kernel不在record中上传、submit、等待或推进时钟。输入／输出owner、有效handle、shape、容量和usage在追加命令前验证；失败保留调用方原命令及payload。异步设备执行仍可能失败，不能把record原子性说成GPU事务。
+
+共享Timeline预填快照bank，固定形状的vector State复用容量；seek通过快照＋输入重放恢复，观察不触发外部副作用。规则／拓扑修改需要宿主重建，不偷偷改变旧历史。自审还发现原Timeline在ring淘汰旧历史后回退开分支，会用降低后的latest重新计算earliest，使已覆盖的过去再次变为“可seek”。现在在显式branch与隐式step分支前保留已淘汰边界，真实回归覆盖两种入口且错误seek保留状态。Clock还修复了原来先float→int、后截断大stall的风险，支持有限负时间起点并明确非有限时间／scale处理。大型history容量仍是可信调用方前置条件，尚无不可信文件解析／存储预算工厂。旧C++消费者需重编译，不保证旧预编译ABI。
+
+设计随证据收敛：RHI已经提供设备计算所需基本操作，本轮不增加一个转调RHI的空`compute`包装层。跨算子计划／调度有多个实际消费者后再提取，继续保留HPC独立产品方向；mcpp仍只负责构建。各公共包有README、契约、最小Agent／人SOP、trace span与`simulation`日志类别。
+
+### 12.2 验证完整演变，不只检查首尾
+
+CPU CTS使用独立手写标量参考，不调用被测encoding／tile循环。19×11、三个通道、可反应／惰性材料与状态／年龄规则，四种tile大小×正反顺序连续24步比较完整状态；另验constant／clamp／wrap、partial tile、饱和写、错误保留、owned快照／输入分支。真实breakout消费者保留原machine与game hash，验证原接口迁移。
+
+GPU域CTS的16组场景覆盖逐tick读回、12步驻留批次、checkpoint上传后重放、1×1／奇数尺寸、±32 halo、wrap重复映射、barrier／identity与饱和写。每个后端实际执行**266步、168次完整比较、61,320个uint32值、129项拒绝／命令保留检查**，过程hash均为`0769cee00d2cbf3a`。离散分支用完整整数状态等价验收，不用画面epsilon掩盖差异。
+
+这属于模拟过程的状态验收，**尚不能代替材料动画画面的视觉验收**。动画总规范继续要求同源renderer时间采样、关键事件前后帧、回放和实时节奏；核心设计准则§9.5新增显式过程门槛，§9.6保留完整SOP。后续画布需在这些状态上做真实像素／交互审查，不能直接把本批CPU／GPU hash计为视觉通过。
+
+### 12.3 本地证据
+
+命令、最终源码hash、执行日志、独立消费者源码与真实resolution、benchmark结果记录在[机器证据](../../tools/ci/2026-11-05-simulation-cellular.report.omui.json)。本轮不等待其他平台CI。
+
+| 验证 | 实际结果与范围 |
+|---|---|
+| native dev／release | 各5个成员、6个测试程序、46例通过；含共享simulation、cellular、原mgame.sim、真实breakout及SDL_GPU原有／新增用例 |
+| Wasm计算 | Emscripten6.0.9、wasm-test／Node实际运行4个程序、36例；不是仅编译 |
+| 本地GPU | SDL offscreen＋Vulkan llvmpipe，完整域CTS通过；这是软件GPU执行，不是物理GPU性能 |
+| 浏览器GPU | mcpp wasm-browser构建，Chromium真实WebGPU／SwiftShader，7例通过，域过程结果与native一致；独立Node无WebGPU不计为此项 |
+| 独立CPU消费者 | 外部临时mcpp工程dev／release实际运行；闭包仅消费者、simulation、cellular、trace、log，无UI／game／renderer／RHI／shader；报告保留准确工程内容 |
+| 参考步进成本 | Linux i9-13900K，release；256² cells、3通道、3规则、32² tiles，591次测量p95 **0.716792ms**，最大分配0。排除初始场重置、准备、传输、渲染与GPU |
+| 检查点成本 | 64² cells的反应步进＋每步深快照，8,917次测量p95 **0.047030ms**，最大分配0；排除bank准备和回退。沿用现有benchmark harness及预算 |
+| 工程 | lint／链接／diff检查；现有后端测试与workspace测试进入原CI路径；源`mcpp.lock`字节保持不变，不纳入提交 |
+
+本机最初GPU运行因同时加载LLVM20和lavapipe的LLVM22而SIGSEGV，gdb显示LLVM22调用进入LLVM20的内部符号。显式预加载本机lavapipe配套LLVM22后原有RHI与新增CTS全部通过；只修正本地验证环境，没有在产品中写死系统路径、降低断言或跳过GPU。该环境边界随报告记录；浏览器走独立SwiftShader实现，也实际执行。
+
+新增GPU包首次触发旧生成host build-program锁的resolution差异：只在错误指出的`target/.build-mcpp/host/…`内用offline mcpp重建，父命令继续`--locked`，不改变仓库源锁。没有清理任何用户文件或等待CI。
+
+### 12.4 自审、剩余范围与下一步
+
+自审重点：未复制已有Clock／Timeline／RHI；状态深拷贝和冷容量准备有可用模型与分配证据；GPU只执行已验证的整数描述，buffer／状态发布归宿主；失败追加与设备执行失败区分；逐步状态检查不能假冒像素审查。规则准备支持的预算和Timeline仍要求可信容量分别写清。
+
+继续开放：稀疏／活动区域、物理halo交换、多cell移动／守恒与冲突仲裁、通用有状态反应图、浮点科学solver、GPU帧图资源自动编排／device-loss恢复／时间查询、真实硬件吞吐、Noita规模压力矩阵、材料画布与规则编辑／openas provider。下一条纵切优先以公共cellular能力做可操作材料作品，沿用共享renderer／headless采样；不在site复制规则或播放器。S4、全局S1–S10与40／20等目标仍未整体验收。

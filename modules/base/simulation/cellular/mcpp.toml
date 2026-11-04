@@ -1,0 +1,25 @@
+[package]
+namespace = "openmui.simulation"
+name = "cellular"
+version = "0.1.0"
+description = "Prepared integer field rules with immutable reads, bounded neighborhoods and tiled writes"
+license = "Apache-2.0"
+platforms = ["linux", "macos", "windows", "emscripten"]
+repo = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "module"
+
+[targets.openmui-simulation-cellular]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+openmui.trace = { path = "../../trace" }
+openmui.log = { path = "../../log" }
+
+[dev-dependencies]
+openmui.testing = { path = "../../testing" }
+openmui.simulation = { path = ".." }

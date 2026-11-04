@@ -1,0 +1,447 @@
+{
+  "format": "openmui.simulation.cellular.validation@0.1",
+  "ok": true,
+  "recorded_utc": "2026-11-04T23:37:53.179050+00:00",
+  "source_commit_before_changes": "5d7dc66654abdf810a209795c43f7c3a1157eeb9",
+  "source_files_sha256": {
+    ".agents/docs/2026-11-05-local-global-composable-architecture-design.md": "5bb3140d5ed202435f331a86d8407c77cbc1b04a8a8048eadf2ba90f2223219c",
+    ".agents/docs/2026-11-05-system-implementation-checkpoints-design.md": "0ddc3c0d5c99f665251d9597b8d7af84b5a8b44730107b337644dcf3d0c952cd",
+    ".agents/docs/2026-11-05-system-subsystem-architecture-and-api-design.md": "3afbcb39e7b7f412a2d25ce051c8ea6edafee879f4a8a1c736a611e6f1a5fb4d",
+    ".agents/docs/README.md": "726f423c201c4592e818a4192977671acf73a19bae2bd6f02047f513a90d530b",
+    "mcpp.toml": "640ee50d106f9d0be0bfa7516d6fabb9754d95e7681a001f2225e40d7e8a2dc7",
+    "mgame/sim/README.md": "261b0b63e1934e300f45f20512b05f837d08505a10da4425d58209a9071e0c50",
+    "mgame/sim/mcpp.toml": "6fe00c376284087f0fcf96f45dc4d8415d0c694a98e2755b533d9e793ad519ac",
+    "mgame/sim/src/sim.cppm": "ee4121a208a825ded1974962f31255fa834344cdf9b84d4691c4a29788b37b64",
+    "modules/base/README.md": "601c4bc70e000d96b8038763013d3b963cba3753e06d4c415fdb0a5eca35d894",
+    "modules/base/simulation/CONTRACT.md": "e6d4f35830b346701f8687f8d06a07d90ee9ba98b55a9347fed20d0194709c5d",
+    "modules/base/simulation/README.md": "36946d9b8102401fc3c02ecc0d4aed4ce5eb85985b7a3a58b324e39fed4b07ee",
+    "modules/base/simulation/cellular/CONTRACT.md": "a566d2d44bbf27ef8b5823bed351349e874d34764ccc78be4ce0940ec3b0c4de",
+    "modules/base/simulation/cellular/README.md": "593c51b3206e82150c18be6392a3f4c8a80b838795fa0fc57db4ab94ddf3fe58",
+    "modules/base/simulation/cellular/mcpp.toml": "ee9122b597c1d9a37114732fb1c0acb0158f724182006565b4765d17fcbf5101",
+    "modules/base/simulation/cellular/src/cellular.cpp": "6f2adc775c6be456ca79bea0ba4d350d3764f707176267d0586e9836d49a513e",
+    "modules/base/simulation/cellular/src/cellular.cppm": "ab3fb0e936e595f75fd5b0ea7b0b206e5101bcf2e2f35cbd01b00cefd9eaf3bd",
+    "modules/base/simulation/cellular/tests/cellular_test.cpp": "894fa7e23dd331be20d5d244513962e2d7f047ab826a71aeb1890058f4dca72e",
+    "modules/base/simulation/mcpp.toml": "850c55b5ac7df75d698c705a3a99b4cc52c1518f5922aa3fc4b1a83dd5154d33",
+    "modules/base/simulation/src/clock.cpp": "d25a2b307c3101c2ef6c4e28a992f145043abe1866ae9e55d50f40eb13ce980a",
+    "modules/base/simulation/src/simulation.cppm": "de8456fb05354fd1723f8d1b2c7f571c25ce7ecf36cae65b574fe2c226690c2d",
+    "modules/base/simulation/tests/simulation_test.cpp": "af939843a4b43db8fe34bfb3a8c13d6ee5c4e593bbc0486b6c4a31d66781b38f",
+    "modules/gfx/README.md": "f631fb38daaf01182b722805a7c982ce5d2be356f94b4468d0864b5a0fd05f95",
+    "modules/gfx/rhi/sdl/mcpp.toml": "c214473595669ecf841bc0f5779da0fa0e583f94632e8f64f31d61c02a841c54",
+    "modules/gfx/rhi/sdl/tests/sdl_test.cpp": "d27f56598c8aa0b91714ed63a554a5a4ef7c653434b0bba58ead19d9c9f0f304",
+    "modules/gfx/rhi/webgpu/mcpp.toml": "8f1ef188f3c6adf7b52e41b720f66cad6f739c35e960c1de252c8d5520773297",
+    "modules/gfx/rhi/webgpu/tests/webgpu_test.cpp": "5522bc2ccde39142738ffdd415a22a7c2fad06f6de25d1f20d941d762ca82001",
+    "modules/gfx/simulation/README.md": "2f2718a7c81b3528e416b14dab9e985103644e860af6b9d6a3fa8c5e3bfae5d4",
+    "modules/gfx/simulation/cellular/README.md": "e143e334bdd29ff28c173249861ed425feab0745902741bfdcb775ff4f86e3c9",
+    "modules/gfx/simulation/cellular/rhi/CONTRACT.md": "0c8bd07a9eb45c5416cad62864832b0abb18e68fff28a2e70108ece0b1a2414b",
+    "modules/gfx/simulation/cellular/rhi/README.md": "aa629978f23d4d27475735615ada29050873ae5f5099a5d880586936ed3cf186",
+    "modules/gfx/simulation/cellular/rhi/build.mcpp": "041f78a9c6400c08f178b2edfa2447a01de14766d3aab26e9770d864916c2f62",
+    "modules/gfx/simulation/cellular/rhi/cts/README.md": "cd5bf0d7f73acc18275d789c80377bea06328aa50645fa70b0c2c9ad5c7cd68d",
+    "modules/gfx/simulation/cellular/rhi/cts/mcpp.toml": "6fc2899223a01c83e983e40a3a1b0582613cdb9524e405fc602c4c72bfea54e4",
+    "modules/gfx/simulation/cellular/rhi/cts/src/cts.cpp": "70f19fdd074fb1657495d4cac926c980d845a74a8edd65d9d048dfe020e48f27",
+    "modules/gfx/simulation/cellular/rhi/cts/src/cts.cppm": "1e0d26214640b36a7997fc99d43d568e15942d4b3bdd19d82987e39139348f1f",
+    "modules/gfx/simulation/cellular/rhi/mcpp.toml": "e204c4022a0c2cf63bacd3d95bdb112e9a0bd51f28e0813cc298ea90ca7a3ea1",
+    "modules/gfx/simulation/cellular/rhi/shaders/rules.slang": "e1d66abfce59ee5868f1d6d33c24c351832af4012cd7d36983c15552d69c8fee",
+    "modules/gfx/simulation/cellular/rhi/src/rhi.cpp": "82b74081ae3f54e78b113fede8ab6dfd2e175002138dc3fcb4f55e32e4f172bc",
+    "modules/gfx/simulation/cellular/rhi/src/rhi.cppm": "d4a564f8c15644bdd7b96c355945d240bd2a7894f869c0fe920402d2000febfe",
+    "tests/bench/budgets.bench.omui.json": "3965238e9c92e96a019769bb6be88e851c3bcd075a7a6da296e159c3737f022d",
+    "tests/bench/mcpp.toml": "7f2e2165d6b9776f8b4394e04d3f3305df5ffa1e5bda4f86671565e1f71acf59",
+    "tests/bench/src/bench.cppm": "96ad7c7ee8905f71f699d87049faa18df1ba41cf43f39fbea1d39bc31b9bd282",
+    "tests/bench/src/scenes.cpp": "53562fa6ef509b92eebedfc9154862bcab7721c411443804f4ccd40eb2f7d538",
+    "tests/bench/src/simulation.cpp": "9c54f9dba448666728e670c365e11ff71c867ec36f4dd3c9460f655bd72a3d3f",
+    "tests/bench/src/simulation.cppm": "561971cf5ce47c758b75c93962373cd2ed5fc441959b7ef5914638c6656b2529"
+  },
+  "source_lock_sha256": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+  "toolchain": {
+    "mcpp": "2026.11.2.2",
+    "native": "GCC 16.1.0",
+    "wasm": "Emscripten 6.0.9"
+  },
+  "native_gpu_environment": {
+    "OMUI_REQUIRE_GPU": "1",
+    "OMUI_GPU_VIDEO_DRIVER": "offscreen",
+    "LD_PRELOAD": "/home/speak/.xlings/data/xpkgs/xim-x-mesa-lavapipe/26.2.1/lib/libLLVM.so.22.1",
+    "MCPP_JOBS": "2"
+  },
+  "software_devices": [
+    "Vulkan llvmpipe (LLVM 22.1.8, 256 bits)",
+    "Chromium WebGPU google swiftshader"
+  ],
+  "gpu_domain_cts": {
+    "scenarios": 16,
+    "steps": 266,
+    "comparisons": 168,
+    "compared_values": 61320,
+    "validation_checks": 129,
+    "process_hash": "0769cee00d2cbf3a",
+    "numerical_level": "exact uint32 state equality",
+    "sampling": "every tick plus device-resident 12-step batches and explicit upload/replay"
+  },
+  "runs": [
+    {
+      "name": "native-dev",
+      "argv": [
+        "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+        "test",
+        "--locked",
+        "-p",
+        "openmui.simulation",
+        "-p",
+        "openmui.simulation.cellular",
+        "-p",
+        "mgame.sim",
+        "-p",
+        "openmui.showcase.widget_breakout.sim",
+        "-p",
+        "openmui.rhi.sdl",
+        "--profile",
+        "dev"
+      ],
+      "exit_code": 0,
+      "programs": 6,
+      "cases": 46,
+      "suites": [
+        [
+          "simulation",
+          "3",
+          "0"
+        ],
+        [
+          "simulation.cellular",
+          "4",
+          "0"
+        ],
+        [
+          "rhi.sdl-lifetime-probe",
+          "4",
+          "0"
+        ],
+        [
+          "rhi.sdl",
+          "6",
+          "0"
+        ],
+        [
+          "mgame.sim",
+          "3",
+          "0"
+        ],
+        [
+          "breakout.sim",
+          "26",
+          "0"
+        ]
+      ],
+      "log_sha256": "0ddd36d5689d4a9022621cc083c3554bc0243e901a94a0fdd7b3ef6ea76ca05c",
+      "output": "   Workspace building 5 members: mgame.sim, openmui.rhi.sdl, openmui.showcase.widget_breakout.sim, openmui.simulation, openmui.simulation.cellular\n   Resolving toolchain\n    Resolved gcc@16.1.0 → @mcpp/registry/data/xpkgs/xim-x-gcc/16.1.0/bin/g++\n      Target x86_64-linux-gnu → x86_64-unknown-linux-gnu\n             kernel-abi        openkal        (openkal-linux@0.18.2, graph)\n  build.mcpp openmui.rhi.cts                  ran 0.44s\n  build.mcpp openmui.simulation.cellular.rhi  ran 0.44s\n   Compiling simulation v0.1.0 (modules/base/simulation)\n   Compiling cellular v0.1.0 (modules/base/simulation/cellular)\n   Compiling sdl v0.1.0 (modules/gfx/rhi/sdl)\n   Compiling sim v0.1.0 (mgame/sim)\n   Compiling sim v0.1.0 (showcase/widget-breakout/sim)\n   Compiling openmui.log (path)\n   Compiling openmui.trace (path)\n   Compiling openmui.testing (path) (dev)\n   Compiling openmui.simulation (path) (dev)\n      Cached mcpplibs.mwrap.sdl3 v3.4.18 (4 units)\n   Compiling openmui.memory (path)\n   Compiling openmui.rhi (path)\n      Cached mcpplibs.os v0.2.2 (43 units) (dev)\n   Compiling openmui.rhi.cts (path) (dev)\n   Compiling openmui.simulation.cellular.rhi.cts (path) (dev)\n   Compiling mgame.input (path)\n   Compiling mgame.physics (path)\n   Compiling mgame.sim (path)\n   Compiling mgame.world (path)\n   Compiling openmui.hash (path)\n   Compiling openmui.math (path)\n   Compiling simulation v0.1.0 (modules/base/simulation)\n   Compiling sim v0.1.0 (mgame/sim)\n   Compiling sim v0.1.0 (showcase/widget-breakout/sim)\n   Workspace built members modules/base/simulation, modules/base/simulation/cellular, modules/gfx/rhi/sdl, mgame/sim, showcase/widget-breakout/sim in 5.75s; slowest: obj/openmui_showcase_widget_breakout_sim/tests/sim_test.o 1.2s\n   Workspace testing member 'modules/base/simulation' (1/5)\n   Compiling simulation_test (test)\n     Running bin/simulation_test\n  ok    simulation/owned snapshots do not alias mutable field buffers and replay a branch exactly (0.0 ms)\n  ok    simulation/a clock handles signed origins, non-finite inputs and huge stalls without invalid integer conversion (0.0 ms)\n  ok    simulation/branching after ring eviction never makes overwritten past frames reachable again (0.0 ms)\nsimulation: 3 passed, 0 failed\nsimulation_test ... ok (0.01s)\n\n test result ok. 1 passed; 0 failed; finished in 8.68s (build 5.75s + run 0.01s)\n   Workspace member 'modules/base/simulation' (1/5) ok — 1 passed, run 0.01s\n   Workspace testing member 'modules/base/simulation/cellular' (2/5)\n   Compiling cellular_test (test)\n     Running bin/cellular_test\n  ok    simulation.cellular/state/threshold/neighborhood rules agree with a scalar oracle across tile sizes and both orders (2.7 ms)\n  ok    simulation.cellular/partial tile writes leave the rest untouched; constant/clamp/wrap read the full logical halo (0.0 ms)\n  ok    simulation.cellular/first match and saturating writes are explicit; errors preserve output and moved plans are unprepared (0.0 ms)\n  ok    simulation.cellular/the shared owned-state history rebuilds cellular states and inputs without a second checkpoint engine (0.4 ms)\nsimulation.cellular: 4 passed, 0 failed\ncellular_test ... ok (0.01s)\n\n test result ok. 1 passed; 0 failed; finished in 8.68s (build 5.75s + run 0.01s)\n   Workspace member 'modules/base/simulation/cellular' (2/5) ok — 1 passed, run 0.01s\n   Workspace testing member 'modules/gfx/rhi/sdl' (3/5)\n   Compiling lifetime_probe_test (test)\n   Compiling sdl_test (test)\nlifetime_probe_test ... ok (0.09s)\n  ok    rhi.sdl-lifetime-probe/no-device control (0.0 ms)\n    device: llvmpipe (LLVM 22.1.8, 256 bits) (vulkan, software=true)\n    device explicitly destroyed without creating any application pipeline\n  ok    rhi.sdl-lifetime-probe/device-only create wait destroy (27.5 ms)\n    device: llvmpipe (LLVM 22.1.8, 256 bits) (vulkan, software=true)\n    one pipeline and device explicitly destroyed, submit=false\n  ok    rhi.sdl-lifetime-probe/one-pipeline create destroy without submission (22.7 ms)\n    device: llvmpipe (LLVM 22.1.8, 256 bits) (vulkan, software=true)\n    one pipeline and device explicitly destroyed, submit=true\n  ok    rhi.sdl-lifetime-probe/one-pipeline submit readback wait destroy (28.9 ms)\nrhi.sdl-lifetime-probe: 4 passed, 0 failed\nsdl_test ... ok (0.22s)\ndevice: llvmpipe (LLVM 22.1.8, 256 bits) on vulkan (software)\n  ok    rhi.sdl/a device: its backend, the shader formats it takes of those asked for (25.8 ms)\ndevice: llvmpipe (LLVM 22.1.8, 256 bits) on vulkan (software)\n  ok    rhi.sdl/upload, clear, copy, read back: the bytes, exactly (19.3 ms)\ndevice: llvmpipe (LLVM 22.1.8, 256 bits) on vulkan (software)\n  ok    rhi.sdl/buffers: an upload at an offset, read back (17.5 ms)\ndevice: llvmpipe (LLVM 22.1.8, 256 bits) on vulkan (software)\n  cts clear            ok\n  cts orientation      ok\n  cts instancing       ok\n  cts firsts           ok\n  cts indexed          ok\n  cts blending         ok\n  cts scissor          ok\n  cts viewport         ok\n  cts texture_nearest  ok\n  cts uniforms         ok\n  cts load_keeps       ok\n  cts copy             ok\n  cts compute          ok\n  cts formats          ok\n  cts ordering         ok\n  cts buffers          ok\n  cts depth_test       ok\n  cts depth_kept       ok\n  cts multisample      ok\n  ok    rhi.sdl/the omui.rhi conformance suite (level B): every case, exactly (49.2 ms)\ndevice: llvmpipe (LLVM 22.1.8, 256 bits) on vulkan (software)\n  ok    rhi.sdl/an invalid list never reaches SDL (23.9 ms)\ndevice: llvmpipe (LLVM 22.1.8, 256 bits) on vulkan (software)\ncellular: 16 scenarios, 266 steps, 168 comparisons / 61320 values, 129 validation checks, process 0769cee00d2cbf3a\n  ok    rhi.sdl/cellular: CPU/GPU equality throughout reactions, resident batches and checkpoint replay (73.4 ms)\nrhi.sdl: 6 passed, 0 failed\n\n test result ok. 2 passed; 0 failed; finished in 8.89s (build 5.75s + run 0.22s)\n   Workspace member 'modules/gfx/rhi/sdl' (3/5) ok — 2 passed, run 0.22s\n   Workspace testing member 'mgame/sim' (4/5)\n   Compiling sim_test (test)\n     Running bin/sim_test\n  ok    mgame.sim/the clock: 120 steps a second in sixtieths; a stall is not owed past its limit; at half speed, half as many (0.0 ms)\n  ok    mgame.sim/the timeline: any kept frame reached exactly; none outside what is kept (0.1 ms)\n  ok    mgame.sim/a branch: back two seconds, other inputs, a new future; the same inputs again reach the same bytes as straight through (0.0 ms)\nmgame.sim: 3 passed, 0 failed\nsim_test ... ok (0.01s)\n\n test result ok. 1 passed; 0 failed; finished in 8.68s (build 5.75s + run 0.01s)\n   Workspace member 'mgame/sim' (4/5) ok — 1 passed, run 0.01s\n   Workspace testing member 'showcase/widget-breakout/sim' (5/5)\n   Compiling sim_test (test)\n     Running bin/sim_test\n  ok    breakout.sim/launched, a ball breaks bricks; the top row takes two; the score grows with the chain (9.3 ms)\n  ok    breakout.sim/a ball too fast for a sampled step still hits a thin brick (0.0 ms)\n  ok    breakout.sim/a paddle swung into the ball's path catches it; the input of a frame moves the paddle that frame (0.0 ms)\n  ok    breakout.sim/a ball already past the paddle's face, the paddle swept onto it late from the side, goes on down: never lodged inside it (0.0 ms)\n  ok    breakout.sim/a ball into the seam between two bricks bounces straight back, as off a face (0.0 ms)\n  ok    breakout.sim/a gate is a wall but on its frames: a ball through it then, bounced off it before and after (0.2 ms)\n  ok    breakout.sim/a taller field: the paddle at its bottom, the camera out to keep the highest ball in sight, or all of it while looking (0.2 ms)\n  ok    breakout.sim/capsules give: wide, three balls for one, slow motion, piercing, the magnet (0.0 ms)\n  ok    breakout.sim/rules: a level's, bounded; changed by a step's input from that step on, kept in the state so a rewind brings the old back; a brick's own gift always drops (2.3 ms)\n  ok    breakout.sim/lives run out with nobody at the paddle; a cleared field ends it (4.5 ms)\n  ok    breakout.sim/a timeline rewinds five seconds and replays to the same bytes; a new branch goes elsewhere (350.4 ms)\n  ok    breakout.sim/the launch goes along the aim: it sweeps while the ball waits, or holds where an agent puts it (0.1 ms)\n  ok    breakout.sim/a paddle moving as it returns the ball gives it spin: its path curves the way the paddle went, and the spin dies away (0.0 ms)\n  ok    breakout.sim/a switch flips with every hit and moves its circuit: a shutter opens (a ball goes through), a kicker turns; hit again, back (0.2 ms)\n  ok    breakout.sim/a capacitor charges a step a hit; full, it fires along its row to the nearest wall each way: bricks take its charge, a switch flips, another capacitor charges — set up, it fires too (0.0 ms)\n  ok    breakout.sim/a switch discharges a capacitor on its circuit early, as strong as its charge (0.0 ms)\n  ok    breakout.sim/a kicker sends the ball where it points (0.0 ms)\n  ok    breakout.sim/a core: each hit a short hit-stop; broken, the room shuts down — a wave from it breaks every brick left, then it is cleared (0.1 ms)\n  ok    breakout.sim/a chain is banked as sparks when the ball comes back to the paddle; the last ball lost loses it; a step's input spends them (0.0 ms)\n  ok    breakout.sim/the magnet holds a returned ball on the paddle, where it met, for another aim (0.0 ms)\n  ok    breakout.sim/two paddles: alternate returns ready the finisher; the bottom paddle's next return fires a beam up its column (0.0 ms)\n  ok    breakout.sim/a gate comes round: open its frames of every period (0.1 ms)\n  ok    breakout.sim/a ball into a taller room's upper chamber: the breach — the first a hit-stop and sparks — and out again (0.0 ms)\n  ok    breakout.sim/never along a row for ever: a bounce keeps a ball climbing or falling; nothing moving six seconds, the next wall turns it (0.1 ms)\n    machine 1b119ff7016dfad3 (3672 frames, score 840, over 1, 9 flips, 0 beams, 1 kicks, 130 sparks)\n  ok    breakout.sim/a machine played by a script: switches, shutters, kickers, a capacitor, a core — its checksum is the same everywhere (423.0 ms)\n    game 44161a195811b4c0 (9472 frames, score 410, over 1)\n  ok    breakout.sim/a whole game played by a script: its checksum is the same everywhere (1085.3 ms)\nbreakout.sim: 26 passed, 0 failed\nsim_test ... ok (1.89s)\n\n test result ok. 1 passed; 0 failed; finished in 10.55s (build 5.75s + run 1.89s)\n   Workspace member 'showcase/widget-breakout/sim' (5/5) ok — 1 passed, run 1.89s\nworkspace result ok. 5 member(s); 6 passed; 0 failed; finished in 10.88s\n    slowest: showcase/widget-breakout/sim 1.9s\n"
+    },
+    {
+      "name": "native-release",
+      "argv": [
+        "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+        "test",
+        "--locked",
+        "-p",
+        "openmui.simulation",
+        "-p",
+        "openmui.simulation.cellular",
+        "-p",
+        "mgame.sim",
+        "-p",
+        "openmui.showcase.widget_breakout.sim",
+        "-p",
+        "openmui.rhi.sdl",
+        "--profile",
+        "release"
+      ],
+      "exit_code": 0,
+      "programs": 6,
+      "cases": 46,
+      "suites": [
+        [
+          "simulation",
+          "3",
+          "0"
+        ],
+        [
+          "simulation.cellular",
+          "4",
+          "0"
+        ],
+        [
+          "rhi.sdl-lifetime-probe",
+          "4",
+          "0"
+        ],
+        [
+          "rhi.sdl",
+          "6",
+          "0"
+        ],
+        [
+          "mgame.sim",
+          "3",
+          "0"
+        ],
+        [
+          "breakout.sim",
+          "26",
+          "0"
+        ]
+      ],
+      "log_sha256": "e7b50e65fde4ae132e468975d0c8449498d4f07537675915c673f2b19c617290",
+      "output": "   Workspace building 5 members: mgame.sim, openmui.rhi.sdl, openmui.showcase.widget_breakout.sim, openmui.simulation, openmui.simulation.cellular\n   Resolving toolchain\n    Resolved gcc@16.1.0 → @mcpp/registry/data/xpkgs/xim-x-gcc/16.1.0/bin/g++\n      Target x86_64-linux-gnu → x86_64-unknown-linux-gnu\n             kernel-abi        openkal        (openkal-linux@0.18.2, graph)\n  build.mcpp openmui.rhi.cts                  ran 0.01s\n  build.mcpp openmui.simulation.cellular.rhi  ran 0.01s\n   Compiling simulation v0.1.0 (modules/base/simulation)\n   Compiling cellular v0.1.0 (modules/base/simulation/cellular)\n   Compiling sdl v0.1.0 (modules/gfx/rhi/sdl)\n   Compiling sim v0.1.0 (mgame/sim)\n   Compiling sim v0.1.0 (showcase/widget-breakout/sim)\n   Compiling openmui.log (path)\n   Compiling openmui.trace (path)\n   Compiling openmui.testing (path) (dev)\n   Compiling openmui.simulation (path) (dev)\n      Cached mcpplibs.mwrap.sdl3 v3.4.18 (4 units)\n   Compiling openmui.memory (path)\n   Compiling openmui.rhi (path)\n      Cached mcpplibs.os v0.2.2 (43 units) (dev)\n   Compiling openmui.rhi.cts (path) (dev)\n   Compiling openmui.simulation.cellular.rhi.cts (path) (dev)\n   Compiling mgame.input (path)\n   Compiling mgame.physics (path)\n   Compiling mgame.sim (path)\n   Compiling mgame.world (path)\n   Compiling openmui.hash (path)\n   Compiling openmui.math (path)\n   Compiling simulation v0.1.0 (modules/base/simulation)\n   Compiling sim v0.1.0 (mgame/sim)\n   Compiling sim v0.1.0 (showcase/widget-breakout/sim)\n   Workspace built members modules/base/simulation, modules/base/simulation/cellular, modules/gfx/rhi/sdl, mgame/sim, showcase/widget-breakout/sim in 7.41s; slowest: obj/openmui_showcase_widget_breakout_sim/tests/sim_test.o 2.6s, obj/openmui_simulation_cellular/tests/cellular_test.o 2.0s, obj/openmui_simulation/tests/simulation_test.o 1.7s\n   Workspace testing member 'modules/base/simulation' (1/5)\n   Compiling simulation_test (test)\n     Running bin/simulation_test\n  ok    simulation/owned snapshots do not alias mutable field buffers and replay a branch exactly (0.0 ms)\n  ok    simulation/a clock handles signed origins, non-finite inputs and huge stalls without invalid integer conversion (0.0 ms)\n  ok    simulation/branching after ring eviction never makes overwritten past frames reachable again (0.0 ms)\nsimulation: 3 passed, 0 failed\nsimulation_test ... ok (0.01s)\n\n test result ok. 1 passed; 0 failed; finished in 9.93s (build 7.41s + run 0.01s)\n   Workspace member 'modules/base/simulation' (1/5) ok — 1 passed, run 0.01s\n   Workspace testing member 'modules/base/simulation/cellular' (2/5)\n   Compiling cellular_test (test)\n     Running bin/cellular_test\n  ok    simulation.cellular/state/threshold/neighborhood rules agree with a scalar oracle across tile sizes and both orders (1.0 ms)\n  ok    simulation.cellular/partial tile writes leave the rest untouched; constant/clamp/wrap read the full logical halo (0.0 ms)\n  ok    simulation.cellular/first match and saturating writes are explicit; errors preserve output and moved plans are unprepared (0.0 ms)\n  ok    simulation.cellular/the shared owned-state history rebuilds cellular states and inputs without a second checkpoint engine (0.2 ms)\nsimulation.cellular: 4 passed, 0 failed\ncellular_test ... ok (0.01s)\n\n test result ok. 1 passed; 0 failed; finished in 9.93s (build 7.41s + run 0.01s)\n   Workspace member 'modules/base/simulation/cellular' (2/5) ok — 1 passed, run 0.01s\n   Workspace testing member 'modules/gfx/rhi/sdl' (3/5)\n   Compiling lifetime_probe_test (test)\n   Compiling sdl_test (test)\nlifetime_probe_test ... ok (0.08s)\n  ok    rhi.sdl-lifetime-probe/no-device control (0.0 ms)\n    device: llvmpipe (LLVM 22.1.8, 256 bits) (vulkan, software=true)\n    device explicitly destroyed without creating any application pipeline\n  ok    rhi.sdl-lifetime-probe/device-only create wait destroy (26.2 ms)\n    device: llvmpipe (LLVM 22.1.8, 256 bits) (vulkan, software=true)\n    one pipeline and device explicitly destroyed, submit=false\n  ok    rhi.sdl-lifetime-probe/one-pipeline create destroy without submission (19.3 ms)\n    device: llvmpipe (LLVM 22.1.8, 256 bits) (vulkan, software=true)\n    one pipeline and device explicitly destroyed, submit=true\n  ok    rhi.sdl-lifetime-probe/one-pipeline submit readback wait destroy (25.7 ms)\nrhi.sdl-lifetime-probe: 4 passed, 0 failed\nsdl_test ... ok (0.23s)\ndevice: llvmpipe (LLVM 22.1.8, 256 bits) on vulkan (software)\n  ok    rhi.sdl/a device: its backend, the shader formats it takes of those asked for (26.5 ms)\ndevice: llvmpipe (LLVM 22.1.8, 256 bits) on vulkan (software)\n  ok    rhi.sdl/upload, clear, copy, read back: the bytes, exactly (19.3 ms)\ndevice: llvmpipe (LLVM 22.1.8, 256 bits) on vulkan (software)\n  ok    rhi.sdl/buffers: an upload at an offset, read back (23.0 ms)\ndevice: llvmpipe (LLVM 22.1.8, 256 bits) on vulkan (software)\n  cts clear            ok\n  cts orientation      ok\n  cts instancing       ok\n  cts firsts           ok\n  cts indexed          ok\n  cts blending         ok\n  cts scissor          ok\n  cts viewport         ok\n  cts texture_nearest  ok\n  cts uniforms         ok\n  cts load_keeps       ok\n  cts copy             ok\n  cts compute          ok\n  cts formats          ok\n  cts ordering         ok\n  cts buffers          ok\n  cts depth_test       ok\n  cts depth_kept       ok\n  cts multisample      ok\n  ok    rhi.sdl/the omui.rhi conformance suite (level B): every case, exactly (55.3 ms)\ndevice: llvmpipe (LLVM 22.1.8, 256 bits) on vulkan (software)\n  ok    rhi.sdl/an invalid list never reaches SDL (20.8 ms)\ndevice: llvmpipe (LLVM 22.1.8, 256 bits) on vulkan (software)\ncellular: 16 scenarios, 266 steps, 168 comparisons / 61320 values, 129 validation checks, process 0769cee00d2cbf3a\n  ok    rhi.sdl/cellular: CPU/GPU equality throughout reactions, resident batches and checkpoint replay (74.7 ms)\nrhi.sdl: 6 passed, 0 failed\n\n test result ok. 2 passed; 0 failed; finished in 10.15s (build 7.41s + run 0.23s)\n   Workspace member 'modules/gfx/rhi/sdl' (3/5) ok — 2 passed, run 0.23s\n   Workspace testing member 'mgame/sim' (4/5)\n   Compiling sim_test (test)\n     Running bin/sim_test\n  ok    mgame.sim/the clock: 120 steps a second in sixtieths; a stall is not owed past its limit; at half speed, half as many (0.0 ms)\n  ok    mgame.sim/the timeline: any kept frame reached exactly; none outside what is kept (0.0 ms)\n  ok    mgame.sim/a branch: back two seconds, other inputs, a new future; the same inputs again reach the same bytes as straight through (0.0 ms)\nmgame.sim: 3 passed, 0 failed\nsim_test ... ok (0.01s)\n\n test result ok. 1 passed; 0 failed; finished in 9.93s (build 7.41s + run 0.01s)\n   Workspace member 'mgame/sim' (4/5) ok — 1 passed, run 0.01s\n   Workspace testing member 'showcase/widget-breakout/sim' (5/5)\n   Compiling sim_test (test)\n     Running bin/sim_test\n  ok    breakout.sim/launched, a ball breaks bricks; the top row takes two; the score grows with the chain (1.7 ms)\n  ok    breakout.sim/a ball too fast for a sampled step still hits a thin brick (0.0 ms)\n  ok    breakout.sim/a paddle swung into the ball's path catches it; the input of a frame moves the paddle that frame (0.0 ms)\n  ok    breakout.sim/a ball already past the paddle's face, the paddle swept onto it late from the side, goes on down: never lodged inside it (0.0 ms)\n  ok    breakout.sim/a ball into the seam between two bricks bounces straight back, as off a face (0.0 ms)\n  ok    breakout.sim/a gate is a wall but on its frames: a ball through it then, bounced off it before and after (0.0 ms)\n  ok    breakout.sim/a taller field: the paddle at its bottom, the camera out to keep the highest ball in sight, or all of it while looking (0.0 ms)\n  ok    breakout.sim/capsules give: wide, three balls for one, slow motion, piercing, the magnet (0.0 ms)\n  ok    breakout.sim/rules: a level's, bounded; changed by a step's input from that step on, kept in the state so a rewind brings the old back; a brick's own gift always drops (2.7 ms)\n  ok    breakout.sim/lives run out with nobody at the paddle; a cleared field ends it (1.0 ms)\n  ok    breakout.sim/a timeline rewinds five seconds and replays to the same bytes; a new branch goes elsewhere (201.3 ms)\n  ok    breakout.sim/the launch goes along the aim: it sweeps while the ball waits, or holds where an agent puts it (0.0 ms)\n  ok    breakout.sim/a paddle moving as it returns the ball gives it spin: its path curves the way the paddle went, and the spin dies away (0.0 ms)\n  ok    breakout.sim/a switch flips with every hit and moves its circuit: a shutter opens (a ball goes through), a kicker turns; hit again, back (0.0 ms)\n  ok    breakout.sim/a capacitor charges a step a hit; full, it fires along its row to the nearest wall each way: bricks take its charge, a switch flips, another capacitor charges — set up, it fires too (0.0 ms)\n  ok    breakout.sim/a switch discharges a capacitor on its circuit early, as strong as its charge (0.0 ms)\n  ok    breakout.sim/a kicker sends the ball where it points (0.0 ms)\n  ok    breakout.sim/a core: each hit a short hit-stop; broken, the room shuts down — a wave from it breaks every brick left, then it is cleared (0.0 ms)\n  ok    breakout.sim/a chain is banked as sparks when the ball comes back to the paddle; the last ball lost loses it; a step's input spends them (0.0 ms)\n  ok    breakout.sim/the magnet holds a returned ball on the paddle, where it met, for another aim (0.0 ms)\n  ok    breakout.sim/two paddles: alternate returns ready the finisher; the bottom paddle's next return fires a beam up its column (0.0 ms)\n  ok    breakout.sim/a gate comes round: open its frames of every period (0.0 ms)\n  ok    breakout.sim/a ball into a taller room's upper chamber: the breach — the first a hit-stop and sparks — and out again (0.0 ms)\n  ok    breakout.sim/never along a row for ever: a bounce keeps a ball climbing or falling; nothing moving six seconds, the next wall turns it (0.0 ms)\n    machine 1b119ff7016dfad3 (3672 frames, score 840, over 1, 9 flips, 0 beams, 1 kicks, 130 sparks)\n  ok    breakout.sim/a machine played by a script: switches, shutters, kickers, a capacitor, a core — its checksum is the same everywhere (232.9 ms)\n    game 44161a195811b4c0 (9472 frames, score 410, over 1)\n  ok    breakout.sim/a whole game played by a script: its checksum is the same everywhere (600.6 ms)\nbreakout.sim: 26 passed, 0 failed\nsim_test ... ok (1.05s)\n\n test result ok. 1 passed; 0 failed; finished in 10.97s (build 7.41s + run 1.05s)\n   Workspace member 'showcase/widget-breakout/sim' (5/5) ok — 1 passed, run 1.05s\nworkspace result ok. 5 member(s); 6 passed; 0 failed; finished in 11.31s\n    slowest: showcase/widget-breakout/sim 1.0s\n"
+    },
+    {
+      "name": "wasm-node",
+      "argv": [
+        "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+        "test",
+        "--locked",
+        "-p",
+        "openmui.simulation",
+        "-p",
+        "openmui.simulation.cellular",
+        "-p",
+        "mgame.sim",
+        "-p",
+        "openmui.showcase.widget_breakout.sim",
+        "--target",
+        "wasm32-emscripten",
+        "--profile",
+        "wasm-test"
+      ],
+      "exit_code": 0,
+      "programs": 4,
+      "cases": 36,
+      "suites": [
+        [
+          "simulation",
+          "3",
+          "0"
+        ],
+        [
+          "simulation.cellular",
+          "4",
+          "0"
+        ],
+        [
+          "mgame.sim",
+          "3",
+          "0"
+        ],
+        [
+          "breakout.sim",
+          "26",
+          "0"
+        ]
+      ],
+      "log_sha256": "ac8a30dea7cd14c2decb349f84720efca083780edd12f80710eb01a5cf71b2d5",
+      "output": "   Workspace building 4 members: mgame.sim, openmui.showcase.widget_breakout.sim, openmui.simulation, openmui.simulation.cellular\n   Resolving toolchain\n    Resolved emsdk@6.0.9 → wasm32-emscripten → @mcpp/registry/data/xpkgs/xim-x-emsdk/6.0.9/emscripten/em++\n             target default for wasm32-emscripten, replacing your gcc@16.1.0 — override with `[target.wasm32-emscripten] toolchain`\nwarning: `sim` declares [target.<selector>.abi], which only the root manifest decides; a dependency states what it needs with `requires_abi = { threads = true }` or `requires_abi = { exceptions = true }`\nwarning: `simulation` declares [target.<selector>.abi], which only the root manifest decides; a dependency states what it needs with `requires_abi = { threads = true }` or `requires_abi = { exceptions = true }`\nwarning: `cellular` declares [target.<selector>.abi], which only the root manifest decides; a dependency states what it needs with `requires_abi = { threads = true }` or `requires_abi = { exceptions = true }`\nwarning: `testing` declares [target.<selector>.abi], which only the root manifest decides; a dependency states what it needs with `requires_abi = { threads = true }` or `requires_abi = { exceptions = true }`\nwarning: `input` declares [target.<selector>.abi], which only the root manifest decides; a dependency states what it needs with `requires_abi = { threads = true }` or `requires_abi = { exceptions = true }`\nwarning: `physics` declares [target.<selector>.abi], which only the root manifest decides; a dependency states what it needs with `requires_abi = { threads = true }` or `requires_abi = { exceptions = true }`\nwarning: `world` declares [target.<selector>.abi], which only the root manifest decides; a dependency states what it needs with `requires_abi = { threads = true }` or `requires_abi = { exceptions = true }`\nwarning: `hash` declares [target.<selector>.abi], which only the root manifest decides; a dependency states what it needs with `requires_abi = { threads = true }` or `requires_abi = { exceptions = true }`\nwarning: `math` declares [target.<selector>.abi], which only the root manifest decides; a dependency states what it needs with `requires_abi = { threads = true }` or `requires_abi = { exceptions = true }`\nwarning: `log` declares [target.<selector>.abi], which only the root manifest decides; a dependency states what it needs with `requires_abi = { threads = true }` or `requires_abi = { exceptions = true }`\nwarning: `trace` declares [target.<selector>.abi], which only the root manifest decides; a dependency states what it needs with `requires_abi = { threads = true }` or `requires_abi = { exceptions = true }`\n      Target wasm32-emscripten → wasm32-unknown-emscripten\n   Compiling simulation v0.1.0 (modules/base/simulation)\n   Compiling cellular v0.1.0 (modules/base/simulation/cellular)\n   Compiling sim v0.1.0 (mgame/sim)\n   Compiling sim v0.1.0 (showcase/widget-breakout/sim)\n   Compiling openmui.log (path)\n   Compiling openmui.trace (path)\n   Compiling openmui.testing (path) (dev)\n   Compiling openmui.simulation (path) (dev)\n   Compiling mgame.input (path)\n   Compiling mgame.physics (path)\n   Compiling mgame.sim (path)\n   Compiling mgame.world (path)\n   Compiling openmui.hash (path)\n   Compiling openmui.math (path)\n   Compiling simulation v0.1.0 (modules/base/simulation)\n   Compiling sim v0.1.0 (mgame/sim)\n   Compiling sim v0.1.0 (showcase/widget-breakout/sim)\n   Workspace built members modules/base/simulation, modules/base/simulation/cellular, mgame/sim, showcase/widget-breakout/sim in 3.60s; slowest: obj/openmui_showcase_widget_breakout_sim/tests/sim_test.o 1.5s\n   Workspace testing member 'modules/base/simulation' (1/4)\n   Compiling simulation_test (test)\n     Running bin/simulation_test\n  ok    simulation/owned snapshots do not alias mutable field buffers and replay a branch exactly (0.2 ms)\n  ok    simulation/a clock handles signed origins, non-finite inputs and huge stalls without invalid integer conversion (0.0 ms)\n  ok    simulation/branching after ring eviction never makes overwritten past frames reachable again (0.1 ms)\nsimulation: 3 passed, 0 failed\nsimulation_test ... ok (0.02s)\n\n test result ok. 1 passed; 0 failed; finished in 3.91s (build 3.60s + run 0.02s)\n   Workspace member 'modules/base/simulation' (1/4) ok — 1 passed, run 0.02s\n   Workspace testing member 'modules/base/simulation/cellular' (2/4)\n   Compiling cellular_test (test)\n     Running bin/cellular_test\n  ok    simulation.cellular/state/threshold/neighborhood rules agree with a scalar oracle across tile sizes and both orders (2.4 ms)\n  ok    simulation.cellular/partial tile writes leave the rest untouched; constant/clamp/wrap read the full logical halo (0.1 ms)\n  ok    simulation.cellular/first match and saturating writes are explicit; errors preserve output and moved plans are unprepared (0.4 ms)\n  ok    simulation.cellular/the shared owned-state history rebuilds cellular states and inputs without a second checkpoint engine (0.4 ms)\nsimulation.cellular: 4 passed, 0 failed\ncellular_test ... ok (0.03s)\n\n test result ok. 1 passed; 0 failed; finished in 3.92s (build 3.60s + run 0.03s)\n   Workspace member 'modules/base/simulation/cellular' (2/4) ok — 1 passed, run 0.03s\n   Workspace testing member 'mgame/sim' (3/4)\n   Compiling sim_test (test)\n     Running bin/sim_test\n  ok    mgame.sim/the clock: 120 steps a second in sixtieths; a stall is not owed past its limit; at half speed, half as many (0.5 ms)\n  ok    mgame.sim/the timeline: any kept frame reached exactly; none outside what is kept (0.3 ms)\n  ok    mgame.sim/a branch: back two seconds, other inputs, a new future; the same inputs again reach the same bytes as straight through (0.1 ms)\nmgame.sim: 3 passed, 0 failed\nsim_test ... ok (0.03s)\n\n test result ok. 1 passed; 0 failed; finished in 3.92s (build 3.60s + run 0.03s)\n   Workspace member 'mgame/sim' (3/4) ok — 1 passed, run 0.03s\n   Workspace testing member 'showcase/widget-breakout/sim' (4/4)\n   Compiling sim_test (test)\n     Running bin/sim_test\n  ok    breakout.sim/launched, a ball breaks bricks; the top row takes two; the score grows with the chain (3.5 ms)\n  ok    breakout.sim/a ball too fast for a sampled step still hits a thin brick (0.0 ms)\n  ok    breakout.sim/a paddle swung into the ball's path catches it; the input of a frame moves the paddle that frame (0.0 ms)\n  ok    breakout.sim/a ball already past the paddle's face, the paddle swept onto it late from the side, goes on down: never lodged inside it (0.1 ms)\n  ok    breakout.sim/a ball into the seam between two bricks bounces straight back, as off a face (0.1 ms)\n  ok    breakout.sim/a gate is a wall but on its frames: a ball through it then, bounced off it before and after (0.1 ms)\n  ok    breakout.sim/a taller field: the paddle at its bottom, the camera out to keep the highest ball in sight, or all of it while looking (0.2 ms)\n  ok    breakout.sim/capsules give: wide, three balls for one, slow motion, piercing, the magnet (0.0 ms)\n  ok    breakout.sim/rules: a level's, bounded; changed by a step's input from that step on, kept in the state so a rewind brings the old back; a brick's own gift always drops (2.0 ms)\n  ok    breakout.sim/lives run out with nobody at the paddle; a cleared field ends it (1.2 ms)\n  ok    breakout.sim/a timeline rewinds five seconds and replays to the same bytes; a new branch goes elsewhere (194.2 ms)\n  ok    breakout.sim/the launch goes along the aim: it sweeps while the ball waits, or holds where an agent puts it (0.3 ms)\n  ok    breakout.sim/a paddle moving as it returns the ball gives it spin: its path curves the way the paddle went, and the spin dies away (0.1 ms)\n  ok    breakout.sim/a switch flips with every hit and moves its circuit: a shutter opens (a ball goes through), a kicker turns; hit again, back (0.1 ms)\n  ok    breakout.sim/a capacitor charges a step a hit; full, it fires along its row to the nearest wall each way: bricks take its charge, a switch flips, another capacitor charges — set up, it fires too (0.1 ms)\n  ok    breakout.sim/a switch discharges a capacitor on its circuit early, as strong as its charge (0.0 ms)\n  ok    breakout.sim/a kicker sends the ball where it points (0.0 ms)\n  ok    breakout.sim/a core: each hit a short hit-stop; broken, the room shuts down — a wave from it breaks every brick left, then it is cleared (0.1 ms)\n  ok    breakout.sim/a chain is banked as sparks when the ball comes back to the paddle; the last ball lost loses it; a step's input spends them (0.1 ms)\n  ok    breakout.sim/the magnet holds a returned ball on the paddle, where it met, for another aim (0.1 ms)\n  ok    breakout.sim/two paddles: alternate returns ready the finisher; the bottom paddle's next return fires a beam up its column (0.0 ms)\n  ok    breakout.sim/a gate comes round: open its frames of every period (0.1 ms)\n  ok    breakout.sim/a ball into a taller room's upper chamber: the breach — the first a hit-stop and sparks — and out again (0.1 ms)\n  ok    breakout.sim/never along a row for ever: a bounce keeps a ball climbing or falling; nothing moving six seconds, the next wall turns it (0.1 ms)\n    machine 1b119ff7016dfad3 (3672 frames, score 840, over 1, 9 flips, 0 beams, 1 kicks, 130 sparks)\n  ok    breakout.sim/a machine played by a script: switches, shutters, kickers, a capacitor, a core — its checksum is the same everywhere (234.7 ms)\n    game 44161a195811b4c0 (9472 frames, score 410, over 1)\n  ok    breakout.sim/a whole game played by a script: its checksum is the same everywhere (605.0 ms)\nbreakout.sim: 26 passed, 0 failed\nsim_test ... ok (1.07s)\n\n test result ok. 1 passed; 0 failed; finished in 4.96s (build 3.60s + run 1.07s)\n   Workspace member 'showcase/widget-breakout/sim' (4/4) ok — 1 passed, run 1.07s\nworkspace result ok. 4 member(s); 4 passed; 0 failed; finished in 5.08s\n    slowest: showcase/widget-breakout/sim 1.1s\n"
+    },
+    {
+      "name": "browser-webgpu",
+      "argv": [
+        "node",
+        "tools/ci/browser.mjs",
+        "--chrome",
+        "/home/speak/.cache/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell",
+        "target/wasm32-emscripten/01bdd3b010ef9962/bin/webgpu/webgpu_test.js",
+        "--require-webgpu"
+      ],
+      "exit_code": 0,
+      "programs": 1,
+      "cases": 7,
+      "suites": [
+        [
+          "rhi.webgpu",
+          "7",
+          "0"
+        ]
+      ],
+      "log_sha256": "3f3659edf0a941723b621c3f9ca8e86cb102ed4aff992817d4b90a491bc8ab84",
+      "output": "  ok    rhi.webgpu/without WebGPU: unsupported, and why (0.2 ms)\ndevice: google swiftshader on webgpu (software)\n  ok    rhi.webgpu/a device: WebGPU's, taking WGSL, four samples, one at a time (1.2 ms)\ndevice: google swiftshader on webgpu (software)\n  ok    rhi.webgpu/upload, clear, copy, read back: the bytes, exactly (12.3 ms)\ndevice: google swiftshader on webgpu (software)\n  ok    rhi.webgpu/buffers: an upload at an offset, a length that ends the buffer, read back (3.3 ms)\ndevice: google swiftshader on webgpu (software)\n  ok    rhi.webgpu/an upload WebGPU cannot write, and an invalid list, never reach the page (0.9 ms)\ndevice: google swiftshader on webgpu (software)\n  cts clear            ok\n  cts orientation      ok\n  cts instancing       ok\n  cts firsts           ok\n  cts indexed          ok\n  cts blending         ok\n  cts scissor          ok\n  cts viewport         ok\n  cts texture_nearest  ok\n  cts uniforms         ok\n  cts load_keeps       ok\n  cts copy             ok\n  cts compute          ok\n  cts formats          ok\n  cts ordering         ok\n  cts buffers          ok\n  cts depth_test       ok\n  cts depth_kept       ok\n  cts multisample      ok\n  ok    rhi.webgpu/the omui.rhi conformance suite (level B): every case, exactly (221.2 ms)\ndevice: google swiftshader on webgpu (software)\ncellular: 16 scenarios, 266 steps, 168 comparisons / 61320 values, 129 validation checks, process 0769cee00d2cbf3a\n  ok    rhi.webgpu/cellular: CPU/GPU equality throughout reactions, resident batches and checkpoint replay (833.4 ms)\nrhi.webgpu: 7 passed, 0 failed\n"
+    }
+  ],
+  "browser_build": {
+    "argv": [
+      "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+      "test",
+      "--locked",
+      "-p",
+      "openmui.rhi.webgpu",
+      "--target",
+      "wasm32-emscripten",
+      "--profile",
+      "wasm-browser",
+      "--no-run"
+    ],
+    "output": "   Workspace building member 'openmui.rhi.webgpu'\n   Resolving toolchain\n    Resolved emsdk@6.0.9 → wasm32-emscripten → @mcpp/registry/data/xpkgs/xim-x-emsdk/6.0.9/emscripten/em++\n             target default for wasm32-emscripten, replacing your gcc@16.1.0 — override with `[target.wasm32-emscripten] toolchain`\nwarning: `webgpu` declares [target.<selector>.abi], which only the root manifest decides; a dependency states what it needs with `requires_abi = { threads = true }` or `requires_abi = { exceptions = true }`\nwarning: `memory` declares [target.<selector>.abi], which only the root manifest decides; a dependency states what it needs with `requires_abi = { threads = true }` or `requires_abi = { exceptions = true }`\nwarning: `rhi` declares [target.<selector>.abi], which only the root manifest decides; a dependency states what it needs with `requires_abi = { threads = true }` or `requires_abi = { exceptions = true }`\nwarning: `cts` declares [target.<selector>.abi], which only the root manifest decides; a dependency states what it needs with `requires_abi = { threads = true }` or `requires_abi = { exceptions = true }`\nwarning: `testing` declares [target.<selector>.abi], which only the root manifest decides; a dependency states what it needs with `requires_abi = { threads = true }` or `requires_abi = { exceptions = true }`\nwarning: `hash` declares [target.<selector>.abi], which only the root manifest decides; a dependency states what it needs with `requires_abi = { threads = true }` or `requires_abi = { exceptions = true }`\nwarning: `rules` declares [target.<selector>.abi], which only the root manifest decides; a dependency states what it needs with `requires_abi = { threads = true }` or `requires_abi = { exceptions = true }`\nwarning: `cellular` declares [target.<selector>.abi], which only the root manifest decides; a dependency states what it needs with `requires_abi = { threads = true }` or `requires_abi = { exceptions = true }`\nwarning: `shader` declares [target.<selector>.abi], which only the root manifest decides; a dependency states what it needs with `requires_abi = { threads = true }` or `requires_abi = { exceptions = true }`\nwarning: `log` declares [target.<selector>.abi], which only the root manifest decides; a dependency states what it needs with `requires_abi = { threads = true }` or `requires_abi = { exceptions = true }`\nwarning: `trace` declares [target.<selector>.abi], which only the root manifest decides; a dependency states what it needs with `requires_abi = { threads = true }` or `requires_abi = { exceptions = true }`\n    Resolved host toolchain for build.mcpp: gcc 16.1.0 (x86_64-linux-gnu)\n      Target wasm32-emscripten → wasm32-unknown-emscripten\n             kernel-abi        openkal        (openkal-emscripten@0.6.0, graph)\n  build.mcpp openmui.rhi.cts                  ran 0.42s\n  build.mcpp openmui.simulation.cellular.rhi  ran 0.42s\n  build.mcpp openmui.rhi.webgpu               ran 0.00s\n   Compiling webgpu v0.1.0 (modules/gfx/rhi/webgpu)\n   Compiling openmui.memory (path)\n   Compiling openmui.rhi (path)\n      Cached mcpplibs.os v0.2.2 (39 units) (dev)\n   Compiling openmui.rhi.cts (path) (dev)\n   Compiling openmui.simulation.cellular.rhi.cts (path) (dev)\n   Compiling openmui.testing (path) (dev)\n   Compiling cellular v0.1.0 (modules/base/simulation/cellular)\n   Compiling cts v0.1.0 (modules/gfx/simulation/cellular/rhi/cts)\n   Compiling webgpu_test (test)\n\n test result ok. 0 passed; 0 failed; 1 built, not run; finished in 3.73s (build 2.65s + run 0.00s)\n"
+  },
+  "independent_consumer": {
+    "project": "/tmp/omui-s4-consumer-0nmfj8z9",
+    "manifest": "[package]\nnamespace=\"openmui.validation\"\nname=\"simulation_consumer\"\nversion=\"0.1.0\"\nlicense=\"Apache-2.0\"\n[targets.simulation-consumer]\nkind=\"bin\"\nmain=\"src/main.cpp\"\n[build]\nsources=[\"src/*.cpp\"]\n[dependencies]\n\"openmui.simulation\"={path=\"/home/speak/workspace/mui/modules/base/simulation\"}\n\"openmui.simulation.cellular\"={path=\"/home/speak/workspace/mui/modules/base/simulation/cellular\"}\n",
+    "source": "import std;\nimport openmui.simulation;\nimport openmui.simulation.cellular;\nnamespace ca=omui::simulation::cellular;\nstruct Model {\n struct State {ca::Program program;std::vector<std::uint32_t> a,b;bool ok=true;};\n struct Input {bool unused=false;};\n static void step(State& s,const Input&) {s.ok=bool(s.program.step({7,3},s.a,s.b,{.tile={2,2},.boundary={ca::Edge::wrap}}));s.a.swap(s.b);}\n};\nint main() {\n const std::array rules{ca::Rule{{},{{0,ca::WriteKind::add_saturating,1}}}};\n auto program=ca::Program::prepare(1,rules);if(!program)return 1;\n omui::simulation::Timeline<Model> history({*program,std::vector<std::uint32_t>(21),std::vector<std::uint32_t>(21)},30,3);\n for(int i=0;i<20;++i)history.step({});\n for(int f:{20,1,13,0,19}) {if(!history.seek(f) || !history.state().ok)return 2;for(auto x:history.state().a)if(x!=static_cast<unsigned>(f))return 3;}\n std::println(\"{{\\\"kind\\\":\\\"simulation.consumer\\\",\\\"ok\\\":true,\\\"steps\\\":20,\\\"queries\\\":5}}\");\n}\n",
+    "commands": [
+      {
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "build",
+          "--offline",
+          "--profile",
+          "dev"
+        ],
+        "exit": 0,
+        "stdout": "",
+        "stderr": "   Resolving toolchain\n    Resolved gcc@16.1.0 → @mcpp/registry/data/xpkgs/xim-x-gcc/16.1.0/bin/g++\n      Target x86_64-linux-gnu → x86_64-unknown-linux-gnu\n   Compiling openmui.log v0.1.0 (../../home/speak/workspace/mui/modules/base/log)\n   Compiling openmui.trace v0.1.0 (../../home/speak/workspace/mui/modules/base/trace)\n   Compiling openmui.simulation v0.1.0 (../../home/speak/workspace/mui/modules/base/simulation)\n   Compiling openmui.simulation.cellular v0.1.0 (../../home/speak/workspace/mui/modules/base/simulation/cellular)\n   Compiling simulation_consumer v0.1.0 (.)\n\n    Finished dev [unoptimized + debuginfo] in 3.16s\n"
+      },
+      {
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "run",
+          "--locked",
+          "--profile",
+          "dev"
+        ],
+        "exit": 0,
+        "stdout": "{\"kind\":\"simulation.consumer\",\"ok\":true,\"steps\":20,\"queries\":5}\n",
+        "stderr": "   Resolving toolchain\n    Resolved gcc@16.1.0 → @mcpp/registry/data/xpkgs/xim-x-gcc/16.1.0/bin/g++\n      Target x86_64-linux-gnu → x86_64-unknown-linux-gnu\n\n    Finished dev [unoptimized + debuginfo] in 0.12s\n     Running `target/x86_64-linux-gnu/439205c6f00d3ab8/bin/simulation-consumer`\n\n"
+      },
+      {
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "run",
+          "--locked",
+          "--profile",
+          "release"
+        ],
+        "exit": 0,
+        "stdout": "{\"kind\":\"simulation.consumer\",\"ok\":true,\"steps\":20,\"queries\":5}\n",
+        "stderr": "   Resolving toolchain\n    Resolved gcc@16.1.0 → @mcpp/registry/data/xpkgs/xim-x-gcc/16.1.0/bin/g++\n      Target x86_64-linux-gnu → x86_64-unknown-linux-gnu\n   Compiling openmui.log v0.1.0 (../../home/speak/workspace/mui/modules/base/log)\n   Compiling openmui.trace v0.1.0 (../../home/speak/workspace/mui/modules/base/trace)\n   Compiling openmui.simulation v0.1.0 (../../home/speak/workspace/mui/modules/base/simulation)\n   Compiling openmui.simulation.cellular v0.1.0 (../../home/speak/workspace/mui/modules/base/simulation/cellular)\n   Compiling simulation_consumer v0.1.0 (.)\n\n    Finished release [optimized] in 4.83s\n     Running `target/x86_64-linux-gnu/5ab9e9b12274ca69/bin/simulation-consumer`\n\n"
+      }
+    ],
+    "profiles": [
+      {
+        "profile": "dev",
+        "packages": [
+          "openmui.log",
+          "openmui.simulation",
+          "openmui.simulation.cellular",
+          "openmui.trace",
+          "openmui.validation.simulation_consumer"
+        ],
+        "result": {
+          "kind": "simulation.consumer",
+          "ok": true,
+          "steps": 20,
+          "queries": 5
+        }
+      },
+      {
+        "profile": "release",
+        "packages": [
+          "openmui.log",
+          "openmui.simulation",
+          "openmui.simulation.cellular",
+          "openmui.trace",
+          "openmui.validation.simulation_consumer"
+        ],
+        "result": {
+          "kind": "simulation.consumer",
+          "ok": true,
+          "steps": 20,
+          "queries": 5
+        }
+      }
+    ],
+    "ok": true
+  },
+  "benchmark": {
+    "argv": [
+      "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+      "run",
+      "--locked",
+      "-p",
+      "openmui.bench",
+      "--profile",
+      "release",
+      "--",
+      "--filter",
+      "simulation/",
+      "--check",
+      "tests/bench/budgets.bench.omui.json",
+      "--json",
+      "/tmp/omui-s4-cpu.bench.omui.json"
+    ],
+    "report": {
+      "format": "openmui.bench@0.1",
+      "label": "",
+      "platform": "linux",
+      "hardware_threads": 32,
+      "started": "2026-11-04T23:37:20Z",
+      "machine": {
+        "cpu": "13th Gen Intel(R) Core(TM) i9-13900K",
+        "arch": "x86_64",
+        "system": "Ubuntu 24.04.1 LTS, kernel 6.8.0-147-generic",
+        "memory": 67147726848
+      },
+      "results": [
+        {
+          "name": "simulation/cellular-256",
+          "description": "256x256 integer cells: 3 channels, first-match reaction rules, 32x32 tiles",
+          "iterations": 591,
+          "notes": {
+            "scope": "one scalar CPU step with immutable reads and wrap boundary; state reset, preparation, upload, rendering and GPU excluded"
+          },
+          "min_ms": 0.66515,
+          "mean_ms": 0.6774810829103223,
+          "p50_ms": 0.673685,
+          "p95_ms": 0.716792,
+          "p99_ms": 0.731036,
+          "max_ms": 0.817767,
+          "items": 65536,
+          "ns_per_item": 10.33754093796268,
+          "allocations": 0,
+          "max_allocations": 0,
+          "counters": {}
+        },
+        {
+          "name": "simulation/checkpoint-64",
+          "description": "64x64 cells: one reaction step and one deep snapshot in the shared timeline",
+          "iterations": 8917,
+          "notes": {
+            "scope": "scalar step plus owned-state snapshot every tick; fixed topology; checkpoint bank allocation and rewind excluded"
+          },
+          "min_ms": 0.043859,
+          "mean_ms": 0.04486061702366256,
+          "p50_ms": 0.044523,
+          "p95_ms": 0.04703,
+          "p99_ms": 0.051931,
+          "max_ms": 0.057602,
+          "items": 4096,
+          "ns_per_item": 10.952299078042618,
+          "allocations": 0,
+          "max_allocations": 0,
+          "counters": {}
+        }
+      ]
+    },
+    "output": "   Workspace building member 'openmui.bench'\n   Resolving toolchain\n    Resolved gcc@16.1.0 → @mcpp/registry/data/xpkgs/xim-x-gcc/16.1.0/bin/g++\n      Target x86_64-linux-gnu → x86_64-unknown-linux-gnu\n             kernel-abi        openkal        (openkal-linux@0.18.2, graph)\n   Compiling simulation v0.1.0 (modules/base/simulation)\n   Compiling sim v0.1.0 (mgame/sim)\n   Compiling sim v0.1.0 (showcase/widget-breakout/sim)\n   Compiling bench v0.1.0 (tests/bench)\n\n    Finished release [optimized] in 13.63s\n     Running `~/workspace/mui/target/x86_64-linux-gnu/676693b5a82b7db5/bin/bench/omui-bench`\n\nbenchmark                           iters   mean ms       p50       p95       max    ns/item    allocs\nsimulation/cellular-256               591     0.677     0.674     0.717     0.818       10.3       0.0\n    scope: one scalar CPU step with immutable reads and wrap boundary; state reset, preparation, upload, rendering and GPU excluded\nsimulation/checkpoint-64             8917     0.045     0.045     0.047     0.058       11.0       0.0\n    scope: scalar step plus owned-state snapshot every tick; fixed topology; checkpoint bank allocation and rewind excluded\n(linux, 32 hardware threads)\nbudgets: 71 checked, 0 over\n"
+  },
+  "environment_investigation": {
+    "initial_failure": "native SDL compute process SIGSEGV with both LLVM20 and LLVM22 loaded",
+    "gdb_evidence": [
+      "AddNodeIDCustom in libLLVM.so.20.1",
+      "caller llvm::FoldingSetBase::GetOrInsertNode in lavapipe libLLVM.so.22.1"
+    ],
+    "resolution": "Preload the installed lavapipe LLVM22 in this validation environment; existing and added RHI tests pass. No product hard-coded path or skipped GPU checks.",
+    "build_cache": "Generated host build-program lock refreshed with mcpp build --offline in target/.build-mcpp/host/d1ba76655f70; source lock untouched; final parent commands --locked."
+  },
+  "scope": [
+    "Shared fixed clock/history extracted once; mgame source names retained, no prebuilt ABI claim.",
+    "Optional typed integer cellular rules and logical full-field halo, with RHI adapter consuming the same prepared encoding.",
+    "No UI/game/RHI dependency in CPU consumer; no second clock, device, renderer, task system or test harness.",
+    "Native/WebGPU here are actual software GPU execution, not physical GPU performance.",
+    "No visual material canvas, pixel capture, generic openas provider, sparse/physical halo exchange, conservation solver, device-loss recovery or Noita-scale acceptance.",
+    "State-process agreement is not animation image or human real-time experience acceptance; AGENTS and design 9.6 retain those gates."
+  ]
+}

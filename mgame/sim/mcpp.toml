@@ -5,7 +5,7 @@
 # every frame, so any frame of the last seconds is reached exactly — rewind,
 # rollback, seek — and playing on from one starts a new branch. Any game
 # whose state is plain data and whose step is a function of the state and
-# the input plugs in. The standard library alone.
+# the input plugs in. Source-compatible aliases to openmui.simulation; one implementation.
 [package]
 namespace   = "mgame"
 name        = "sim"
@@ -20,6 +20,9 @@ kind = "lib"
 
 [build]
 sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+openmui.simulation = { path = "../../modules/base/simulation" }
 
 [dev-dependencies]
 openmui.testing = { path = "../../modules/base/testing" }

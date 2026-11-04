@@ -11,6 +11,7 @@ import std;
 import openmui.rhi;
 import openmui.rhi.webgpu;
 import openmui.rhi.cts;
+import openmui.simulation.cellular.rhi.cts;
 import mcpplibs.os;
 import openmui.testing;
 
@@ -142,6 +143,25 @@ int main(int argc, char** argv) {
         for (const cts::Outcome& o : outcomes) {
             std::println("  cts {:<16} {}", o.name, o.passed ? "ok" : o.detail);
             check(o.passed, std::format("{}: {}", o.name, o.detail));
+        }
+    });
+
+    s.test("cellular: CPU/GPU equality throughout reactions, resident batches and checkpoint replay", [] {
+        auto d = open_device();
+        if (!d) return;
+        if (!webgpu::can_wait()) {
+            check(!required(), "cellular CTS requires actual WebGPU readback");
+            std::println("cellular CTS not run: this link cannot wait for WebGPU");
+            return;
+        }
+        auto report = omui::simulation::cellular::gpu::cts::run(*d);
+        check(report.has_value(), report ? "" : report.error().message);
+        if (report) {
+            check_eq(report->scenarios, 16u);
+            check_eq(report->validation_checks, 129u);
+            std::println("cellular: {} scenarios, {} steps, {} comparisons / {} values, {} validation checks, process {:016x}",
+                report->scenarios, report->steps, report->comparisons, report->compared_values,
+                report->validation_checks, report->process_hash);
         }
     });
 

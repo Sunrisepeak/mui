@@ -1,0 +1,25 @@
+[package]
+namespace = "openmui"
+name = "simulation"
+version = "0.1.0"
+description = "Independent fixed-step clocks and owned checkpoint/input replay"
+license = "Apache-2.0"
+platforms = ["linux", "macos", "windows", "emscripten"]
+repo = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "module"
+
+[targets.openmui-simulation]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-fno-fast-math", "-ffp-contract=off"]
+
+[dependencies]
+openmui.trace = { path = "../trace" }
+openmui.log = { path = "../log" }
+
+[dev-dependencies]
+openmui.testing = { path = "../testing" }

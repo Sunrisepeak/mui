@@ -22,4 +22,4 @@ timeline.step(other);                                  // on from there: a new b
   - Stepping on from there is a new branch: what came after it is forgotten.
   - Rewind, rollback and replay are all this.
 
-The standard library alone.
+The implementation now lives in independent `openmui.simulation`, with shared trace/log support. This package retains `mgame::Clock`, the plain-data `Game` constraint and `mgame::Timeline` as C++ source-compatible aliases; rebuild module consumers. New owned-container models may use [openmui.simulation](../../modules/base/simulation) directly. There is one clock/history implementation, no dependency from the foundation back to games.

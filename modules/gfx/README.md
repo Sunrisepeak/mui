@@ -9,6 +9,7 @@ Depends on: [base](../base). Used by: [content](../content), [ui](../ui).
 | [hanim](hanim) | Independent object, library, effect, nested program and playback packages, with an optional shared-renderer adapter; generalized domains, effect scopes and GPU evaluation remain planned |
 | [rhi](rhi) | The GPU abstraction (`omui.rhi`): descriptions checked before a backend sees them, command lists as data; backends (SDL_GPU, WebGPU, WebGL2) and their conformance suite inside it |
 | [shader](shader) | Slang shaders compiled per backend format, bindings read back, emitted as C++; its build rule inside it |
+| [simulation](simulation) | Optional domain compute adapters: prepared integer cellular rules on the shared RHI |
 | [raster](raster) | The deterministic CPU rasteriser: paths, strokes, gradients, images, clips, layers, blend modes, shadows |
 | [render](render) | The rendering architecture: a frame as a checked graph of passes, transient textures pooled; inside it the rendering features — [vector](render/vector) (the display list, its CPU reference and GPU renderers) and [effect](render/effect) (a program's own pixel effects) |
 

@@ -1,0 +1,23 @@
+[package]
+namespace = "openmui.simulation.cellular.rhi"
+name = "cts"
+version = "0.1.0"
+description = "Integer cellular CPU/GPU conformance on a caller-provided RHI device"
+license = "Apache-2.0"
+platforms = ["linux", "macos", "windows", "emscripten"]
+repo = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "backend"
+
+[targets.openmui-simulation-cellular-rhi-cts]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+"openmui.simulation.cellular" = { path = "../../../../../base/simulation/cellular" }
+"openmui.simulation.cellular.rhi" = { path = ".." }
+openmui.rhi = { path = "../../../../rhi" }
+openmui.hash = { path = "../../../../../base/hash" }

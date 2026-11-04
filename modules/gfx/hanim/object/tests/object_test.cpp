@@ -3,6 +3,7 @@ import hanim.object;
 import openmui.log;
 import openmui.trace;
 import openmui.testing;
+import mcpplibs.os;
 
 using namespace hanim;
 using namespace omui::testing;
@@ -47,16 +48,18 @@ int main(int argc, char** argv) {
         }
         check(frozen.revision() == 1 && frozen.find("root") == root);
         check((*frozen.get(root))->contours.front().view()->segments.front().end == Vec2{10, 5}, "no producer or registry memory is borrowed");
-        std::atomic<bool> good{true};
-        std::array<std::jthread, 4> readers;
-        for (auto& thread : readers) thread = std::jthread([frozen, root, &good] {
-            for (int i = 0; i < 1000; ++i) {
-                auto part = frozen.get(root);
-                if (!part || (*part)->local.tx != 12 || (*part)->contours.front().view()->segments.front().end.x != 10) good = false;
-            }
-        });
-        for (auto& thread : readers) thread.join();
-        check(good.load(), "readonly leases outlive their registry and support concurrent reads");
+        if constexpr (!mcpplibs::os::is_emscripten) {
+            std::atomic<bool> good{true};
+            std::array<std::jthread, 4> readers;
+            for (auto& thread : readers) thread = std::jthread([frozen, root, &good] {
+                for (int i = 0; i < 1000; ++i) {
+                    auto part = frozen.get(root);
+                    if (!part || (*part)->local.tx != 12 || (*part)->contours.front().view()->segments.front().end.x != 10) good = false;
+                }
+            });
+            for (auto& thread : readers) thread.join();
+            check(good.load(), "readonly leases outlive their registry and support concurrent reads");
+        }
     });
     s.test("foreign owner object generation and part generation are independently checked", [] {
         auto a = ObjectRegistry::make({.max_objects = 1}), b = ObjectRegistry::make({.max_objects = 1}); check(a && b);

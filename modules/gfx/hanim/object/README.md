@@ -97,10 +97,18 @@ Mutations and failures use the existing `hanim.object` log category. Trace
 spans cover object/contour operations; identity counters split 64-bit values
 into exact 32-bit halves. Read-only queries never format logs. `capture` copies
 ownership and records fixed-buffer trace events; tracing first warms its
-existing per-thread buffer. A separate CTS checkpoint will measure repeated warm capture/query
-operations and an independent core-plan consumer; those measurements are not
-claimed by the initial eight lifecycle/graph cases. Log callbacks may capture committed
-state; reentrant mutation returns `reentrant_mutation` without another log.
+existing per-thread buffer. A CTS measures 2,000 warm capture/name/ref/resource
+query iterations with tracing enabled and observes zero new scalar or array
+allocations. An independent host adapter captures a triangle and a circle,
+then consumes them through the real core `PreparedShapeMorph`; sampling
+continues deterministically after producer, registry and endpoint captures
+are released. These tests do not imply rendering or an Engine implementation.
+Log callbacks may capture committed state; reentrant mutation returns
+`reentrant_mutation` without another log.
 
 See [CONTRACT.md](CONTRACT.md) for the lifecycle and failure matrix.
 Tests: `mcpp test -p hanim.object --locked` after workspace registration.
+The three test programs contain ten cases. Native lifecycle tests also run
+four concurrent snapshot readers; the default Emscripten build skips only
+that thread phase, retaining all owned-lifetime and synchronous queries.
+Web command: `mcpp test -p hanim.object --target wasm32-emscripten --profile wasm-test --locked`.

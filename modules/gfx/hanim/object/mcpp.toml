@@ -24,3 +24,4 @@ openmui.trace = { path = "../../../base/trace" }
 
 [dev-dependencies]
 openmui.testing = { path = "../../../base/testing" }
+mcpplibs.os = "0.2.2"

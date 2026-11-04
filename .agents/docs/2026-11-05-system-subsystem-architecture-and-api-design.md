@@ -4,7 +4,7 @@
 
 后续补充基线 `3401262`：[Feature、可插拔AI／Agent及局部像素风格](2026-11-05-features-ai-agent-scoped-style-design.md)加入核心/可选feature边界、llmapi复用、规则／内置Agent／openas外部Agent三种决策来源，以及theme×effect×motion的局部style设计与自我review。以下§3保留上一检查点实际运行结果；本次补充没有重跑或扩大其验收范围。
 
-后续应用补充基线 `7b748a4`：[pixelpet（PPet）应用方案](2026-11-05-pixelpet-generative-capabilities-design.md)采用项目TS与动态业务插件，主交互session专职服务人，其他任务交给worker，全双工消息与统一提交并行。现场生成服装／绘画、积累参数化技能、把实时用量UI装备到头顶／衣服，验证公共资产、领域操作、hanim、UI、renderer及内外Agent的组合。UI定义、数据绑定和安装实例分别管理；数据变化不反复调用模型。K0–K5是既有P/F阶段的应用验收，不新建宠物专用底层或替代官网40／20范围；当前均为设计要求，现有TS/Web/reload缺口见专项§8.1。
+后续应用补充基线 `7b748a4`：[pixelpet（PPet）应用方案](2026-11-05-pixelpet-generative-capabilities-design.md)采用C++核心＋项目TS及所选语言混合实现与动态业务插件，主交互session专职服务人，其他任务交给worker，全双工消息与统一提交并行。现场生成服装／绘画、积累参数化技能、把实时用量UI装备到头顶／衣服，验证公共资产、领域操作、hanim、UI、renderer及内外Agent的组合。UI定义、数据绑定和安装实例分别管理；数据变化不反复调用模型。K0–K5是既有P/F阶段的应用验收，不新建宠物专用底层或替代官网40／20范围；当前均为设计要求，现有TS/Web/reload缺口见专项§8.1。
 
 ## 1. 结论与评估
 
@@ -12,7 +12,7 @@
 
 推荐：**以独立产品为边界、以本域能力为内核、以类型化契约组合全局；日常 API 简短，复杂约束逐级显露，所有层级复用同一执行体系。**
 
-当前主要问题是能力链路尚未全部贯通。S1已将严格 2D hanim的真实对象、编排、播放和动画中心authoring接到公共 `import hanim`；渲染仍显式可选。S2分批贯通通用PointPath、typed过程效果、UI动效配置和官网形变开场，详见[实施台账§6–§7](2026-11-05-system-implementation-checkpoints-design.md)。UI默认动效仍主要消费 `hanim.core`，通用通道IR／混合、组scope和GPU资源编排仍未完成。官网目前41个基础场景、20个创意场景，也不能等同框架用户可带走的40个公共动画和20个完整组合工程。
+当前主要问题是能力链路尚未全部贯通。S1已将严格 2D hanim的真实对象、编排、播放和动画中心authoring接到公共 `import hanim`；渲染仍显式可选。S2分批贯通通用PointPath、typed过程效果、UI动效配置和官网形变开场，并扩展显式组合图像scope、编译层级与原子Program帧，详见[实施台账§6–§8](2026-11-05-system-implementation-checkpoints-design.md)。UI默认动效仍主要消费 `hanim.core`，通用通道IR／混合、GPU资源编排及组合scope的公共UI接入仍未完成。官网目前41个基础场景、20个创意场景，也不能等同框架用户可带走的40个公共动画和20个完整组合工程。
 
 | 评估维度 | 当前证据 | 设计与实施结论 |
 |---|---|---|
@@ -362,7 +362,7 @@ DSP callback 无分配、无阻塞、无GUI锁、无网络／openas、无GPU同�
 
 以桌面二维角色为验证：随机wander无需模型；模型／外部Agent只给高层目标和表情，hanim连续执行运动。人拖动会使迟到决策失效。控制、授权和状态提交共用原有owner，AI不直接写引擎私有状态。llmapi已有同步/协程外观接口，但当前chat_async仍调用同步I/O；异步／取消与Web支持按上游适配计划验证，不将它放进实时帧路径。详细分工与源码依据见专项方案§3–5。
 
-PPet进一步要求主交互session与worker任务隔离：主会话不执行或等待创作任务，模型与后台工作不阻塞native实时运行。公共AI任务控制提供有界调度、上下文隔离、取消、事件和结果提案；全双工消息不取消领域写入仲裁。TS用于应用／插件编排，native引擎执行热路径；现有player同步编译、脚本同步回调、非事务式reload和缺失Web执行层须先补齐。详见[pixelpet方案§2、§8](2026-11-05-pixelpet-generative-capabilities-design.md)。
+PPet进一步要求主交互session与worker任务隔离：主会话不执行或等待创作任务，模型与后台工作不阻塞native实时运行。公共AI任务控制提供有界调度、上下文隔离、取消、事件和结果提案；全双工消息不取消领域写入仲裁。应用允许**C++核心＋项目TS及所选语言混合**，TS适合动态业务／插件编排，native引擎执行热路径；语言与reload能力分别配置，按需裁剪运行时。跨语言使用公共生成契约和稳定handle；TS／数据热替换不等于C++核心或动态库可直接卸载，native动态更新按后端、ABI及静默回收条件单独验收。现有player同步编译、脚本同步回调、非事务式reload和缺失Web执行层须先补齐。详见[pixelpet方案§2、§8](2026-11-05-pixelpet-generative-capabilities-design.md)。
 
 ## 9. Web 优先、多后端与按需成本
 
@@ -445,7 +445,7 @@ P2-A/B/C是三个**尽早验证的不同领域**，不是先造完hanim再考虑
 以下是推荐方案，供维护者审阅，不新增未批准D-xx：
 
 1. **主入口**：直接 `anim::morph(a,b)`／`move_to(object,target)`，以 `play(animation)` 为中心；显式prepare与高级注册分层。柯里化和运算符DSL不作为第一入口。
-2. **效果表达**：叶子typed effect与组合输出scope明确区分，是否采用 `composite(...)` 名字待定；低层必须保留完整作用域语义。
+2. **效果表达**：叶子typed effect与组合输出scope明确区分；当前实现采用 `composite(...)`，保留作者层级、时间与嵌套作用域，见实施台账§8。通道混合、设备资源编排和更广effect类型仍继续评审与实现。
 3. **公开产品入口**：hanim伞包迁gfx，core保留base；renderer/GPU/provider可选，现有技术标识不整体更名。
 4. **共享契约**：仅提取已证明的时间/资源/控制机制，各域IR与状态owner保留；integrations只做可选上层装配，先扩lint再落包。
 5. **近期关键路径**：先API/IR与UI断点，同时用小型状态反应/GPU和audio任务检验全局契约；不先实现九个大编辑器。

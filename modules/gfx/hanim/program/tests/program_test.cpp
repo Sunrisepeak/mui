@@ -75,6 +75,59 @@ bool all_same(const FrameView& a,const FrameView& b) {
 }
 int main(int argc,char** argv) {
     Suite suite{"hanim.program"};
+    suite.test("composite preserves author hierarchy timing and changing segment membership",[] {
+        Fixture f;
+        const auto scoped=composite(parallel(anim::morph(f.a,f.c).duration(seconds(4)),
+            composite(anim::morph(f.b,f.c).duration(seconds(2))).with_effect(fx::blur(0,8))))
+            .with_effect(fx::blur(2,10));
+        const auto plan=take(PreparedProgram::prepare(sequence(anim::morph(f.a,f.b).duration(seconds(2)),scoped)));
+        check(plan.duration()==seconds(6) && plan.nodes().size()==7 && plan.scopes().size()==2);
+        check(plan.nodes()[0].subtree_end==7 && plan.nodes()[2].parent==0 && plan.nodes()[2].subtree_end==7);
+        check(plan.scopes()[0].start==seconds(2) && plan.scopes()[0].duration==seconds(4));
+        check(plan.scopes()[1].parent==0 && plan.scopes()[1].depth==2 && plan.scopes()[1].parameter_offset==1);
+        check(plan.nodes()[4].track==0 && plan.nodes()[4].segment==1 && plan.nodes()[4].scope==0);
+        std::array<float,3> values{-1,-1,123};
+        take(plan.sample_scopes(seconds(1),values));check(values[0]==2 && values[1]==0 && values[2]==123);
+        take(plan.sample_scopes(seconds(3),values));check(values[0]==4 && values[1]==4);
+        take(plan.sample_scopes(seconds(100),values));check(values[0]==10 && values[1]==8);
+        take(plan.sample_scopes(seconds(100),values,true));check(values[0]==2 && values[1]==0);
+        Buffer buffer(plan.tracks()[0]);
+        check(plan.segments()[buffer.sample(plan,0,1.99).segment_index].scope==invalid_program_index);
+        check(plan.segments()[buffer.sample(plan,0,2).segment_index].scope==0);
+        check(buffer.sample(plan,0,2).geometry.parts[0].local.tx==10,"source chaining survives scope boundaries");
+    });
+    suite.test("scope easing affects only effects with explicit restore and instant semantics",[] {
+        Fixture f;
+        const auto recipe=composite(anim::morph(f.a,f.b)).with_effect(fx::blur(0,8))
+            .effect_easing(Ease::stepped(4,StepPosition::jump_start));
+        const auto plan=take(PreparedProgram::prepare(recipe));Buffer buffer(plan.tracks()[0]);std::array<float,1> values;
+        take(plan.sample_scopes(seconds(0),values));check(values[0]==2);
+        check(buffer.sample(plan,0,0).geometry.parts[0].local.tx==0,"scope easing never warps the child clock");
+        take(plan.sample_scopes(seconds(0),values,true));check(values[0]==0);
+        const auto instant=take(PreparedProgram::prepare(composite(anim::morph(f.a,f.b).duration(seconds(0))).with_effect(fx::blur(2,7))));
+        take(instant.sample_scopes(seconds(-1),values));check(values[0]==2);
+        take(instant.sample_scopes(seconds(0),values));check(values[0]==7);
+    });
+    suite.test("scope budgets and invalid output preserve diagnostics and caller storage",[] {
+        Fixture f;const auto recipe=composite(anim::morph(f.a,f.b).with_effect(fx::blur(0,2))).with_effect(fx::blur(1,4));
+        const auto absent=PreparedProgram::prepare(recipe,{.max_scopes=0});
+        check(!absent && absent.error().code==ProgramError::scope_budget && absent.error().node==0 && absent.error().scope==0);
+        check(PreparedProgram::prepare(recipe,{.max_total_effect_parameters=1}).error().code==ProgramError::effect_parameter_budget);
+        const auto plan=take(PreparedProgram::prepare(recipe));std::array<float,1> values{123};
+        check(plan.sample_scopes(seconds(.5),{}).error().code==ProgramError::output_too_small);
+        check(plan.sample_scopes(seconds(std::numeric_limits<double>::infinity()),values).error().code==ProgramError::invalid_time);
+        check(values[0]==123);
+        auto bad=ease::linear;bad.kind=static_cast<EaseKind>(255);
+        check(PreparedProgram::prepare(composite(anim::morph(f.a,f.b)).effect_easing(bad)).error().code==ProgramError::invalid_ease);
+    });
+    suite.test("nested scope sampling is allocation free and leaves output tails untouched",[] {
+        Fixture f;const auto plan=take(PreparedProgram::prepare(composite(composite(anim::morph(f.a,f.b))
+            .with_effect(fx::blur(2,8))).with_effect(fx::tone({}, {.r=.2f,.amount=1}))));
+        std::vector<float> values(plan.scope_parameter_count()+1,123);
+        omui::trace::start();take(plan.sample_scopes(seconds(.5),values));const auto before=allocations.load();bool good=true;
+        for(int i=0;i<1000;++i)good &= plan.sample_scopes(seconds(static_cast<double>(i%97)/96),values).has_value();
+        const auto after=allocations.load();omui::trace::stop();check(good && before==after && values.back()==123);
+    });
     suite.test("typed path targets compose with image effects and retain a single preparation path",[] {
         Fixture f;
         const auto base=anim::morph(f.a,f.b);

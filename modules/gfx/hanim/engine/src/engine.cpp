@@ -23,6 +23,8 @@ struct TrackPlayback {
 struct Playback {
     PreparedProgram program;
     std::vector<TrackPlayback> tracks;
+    std::vector<ProgramTrackView> views;
+    std::vector<float> scope_values, next_scope_values;
     double position = 0, rate = 1, progress = 0;
     double pending_position = 0, pending_linear_progress = 0;
     bool paused = false, cancelled = false;
@@ -57,7 +59,7 @@ EngineFailure program_failure(ProgramFailure error) noexcept {
         case ProgramError::object: code = EngineError::object; break;
         case ProgramError::node_budget: case ProgramError::depth_budget: case ProgramError::track_budget:
         case ProgramError::segment_budget: case ProgramError::part_budget: case ProgramError::cubic_budget:
-        case ProgramError::effect_parameter_budget: code = EngineError::capacity; break;
+        case ProgramError::effect_parameter_budget: case ProgramError::scope_budget: code = EngineError::capacity; break;
         default: break;
     }
     return {.code = code, .object = error.object, .animation = error.animation, .effect = error.effect, .program = error};
@@ -88,7 +90,8 @@ PlaybackInfo info(const detail::EngineData& data, detail::PlaybackKey key, const
     PlaybackInfo result{.ref = {data.objects.owner(), key.index, key.generation}, .plan_revision = playback.revision,
         .state = state(playback), .position = seconds(playback.position), .duration = playback.program.duration(),
         .rate = playback.rate, .progress = playback.progress,
-        .track_count = playback.tracks.size(), .segment_count = playback.program.segments().size()};
+        .track_count = playback.tracks.size(), .segment_count = playback.program.segments().size(),
+        .scope_count = playback.program.scopes().size()};
     if (playback.tracks.size() == 1) {
         const auto& current = playback.tracks[0];
         const auto& animation = playback.program.segments()[current.segment].animation;
@@ -107,6 +110,10 @@ std::expected<detail::Playback*, EngineFailure> resolve(detail::EngineData* data
     return playback;
 }
 Status sample_next(detail::Playback& playback, double position, bool exact_source = false) noexcept {
+    if(!playback.program.scopes().empty()) {
+        const auto sampled=playback.program.sample_scopes(seconds(position),playback.next_scope_values,exact_source);
+        if(!sampled)return std::unexpected(program_failure(sampled.error()));
+    }
     for (std::size_t i = 0; i < playback.tracks.size(); ++i) {
         auto& track = playback.tracks[i];
         auto sampled = playback.program.sample(i, seconds(position), track.scratch.output(), track.next_values, exact_source);
@@ -124,12 +131,20 @@ void publish(detail::Playback& playback) noexcept {
         track.current.swap(track.scratch); track.values.swap(track.next_values);
         track.segment = track.pending_segment; track.progress = track.pending_progress;
     }
+    playback.scope_values.swap(playback.next_scope_values);
+    for(std::size_t i=0;i<playback.tracks.size();++i) {
+        const auto& track=playback.tracks[i];const auto& segment=playback.program.segments()[track.segment];
+        playback.views[i]={geometry(playback,i),track.segment,std::span<const float>(track.values).first(segment.effects.parameter_count())};
+    }
     playback.position = playback.pending_position; playback.progress = playback.pending_linear_progress;
 }
 std::expected<detail::Playback, EngineFailure> make_playback(PreparedProgram program) {
     detail::Playback playback;
     playback.program = std::move(program);
     playback.tracks.resize(playback.program.tracks().size());
+    playback.views.resize(playback.tracks.size());
+    playback.scope_values.resize(playback.program.scope_parameter_count());
+    playback.next_scope_values.resize(playback.program.scope_parameter_count());
     for (std::size_t i = 0; i < playback.tracks.size(); ++i) {
         auto& track = playback.tracks[i]; const auto& required = playback.program.tracks()[i];
         track.current.resize(required.requirements); track.scratch.resize(required.requirements);
@@ -142,7 +157,7 @@ std::expected<detail::Playback, EngineFailure> make_playback(PreparedProgram pro
 }
 struct Counts { std::size_t parts = 0, cubics = 0, parameters = 0; };
 Counts counts(const PreparedProgram& program) noexcept {
-    Counts result;
+    Counts result{.parameters=program.scope_parameter_count()};
     for (const auto& track : program.tracks()) {
         result.parts += track.requirements.parts; result.cubics += track.requirements.cubics;
         result.parameters += track.max_effect_parameters;
@@ -166,6 +181,11 @@ std::expected<PlaybackRef, EngineFailure> insert_playback(detail::EngineData* da
     for (const auto& segment : program.segments()) {
         if (segment.effects.effects().size() > data->limits.effects.max_effects ||
             segment.effects.parameter_count() > data->limits.effects.max_parameters)
+            return std::unexpected(effect_failure(EffectError::capacity));
+    }
+    for(const auto& scope:program.scopes()) {
+        if(scope.effects.effects().size()>data->limits.effects.max_effects ||
+            scope.effects.parameter_count()>data->limits.effects.max_parameters)
             return std::unexpected(effect_failure(EffectError::capacity));
     }
     bool bound = false;
@@ -322,7 +342,7 @@ Status Engine::retarget(PlaybackRef ref, anim::MorphTo animation, PlayOptions op
 Status Engine::retarget(PlaybackRef ref, Snapshot to, PlayOptions options, MorphOptions morph) {
     return mutate(data_.get(), writing_, ref, "retarget", [&](detail::Playback& old) -> Status {
         if (auto result = active(old); !result) return result;
-        if (old.tracks.size() != 1) return std::unexpected(fail(EngineError::unsupported_operation));
+        if (old.tracks.size() != 1 || !old.program.scopes().empty()) return std::unexpected(fail(EngineError::unsupported_operation));
         if (old.revision == std::numeric_limits<std::uint64_t>::max()) return std::unexpected(fail(EngineError::version_exhausted));
         auto animation = PreparedObjectMorph::retarget(geometry(old, 0), std::move(to), morph);
         if (!animation) return std::unexpected(animation_failure(animation.error()));
@@ -436,6 +456,12 @@ std::expected<EngineFrame, EngineFailure> Engine::frame(PlaybackRef ref, std::si
     return EngineFrame{info(*data_, {ref.slot, ref.generation}, value), geometry(value, track),
         &selected.animation, &selected.effects, std::span<const float>(current.values).first(selected.effects.parameter_count()),
         track, current.segment};
+}
+std::expected<EngineProgramFrame, EngineFailure> Engine::program_frame(PlaybackRef ref) const noexcept {
+    const auto playback=resolve(data_.get(),ref);if(!playback)return std::unexpected(playback.error());
+    const auto& value=**playback;
+    return EngineProgramFrame{info(*data_,{ref.slot,ref.generation},value),
+        {value.views,value.scope_values,seconds(value.position),value.program.identity()}};
 }
 std::expected<std::size_t, EngineFailure> Engine::list(std::span<PlaybackInfo> output) const noexcept {
     if (!data_) return std::unexpected(fail(EngineError::uninitialized));

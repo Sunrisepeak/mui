@@ -47,10 +47,10 @@ bool equal(const Pose& a,const Pose& b) {
     for(std::size_t i=0;i<a.cubics.size();++i)if(coordinates(a.cubics[i])!=coordinates(b.cubics[i]))return false;
     return true;
 }
-static_assert(api::Animation<anim::Morph> && api::Animation<h::Program>);
+static_assert(api::Animation<anim::Morph> && api::Animation<h::Program> && api::Animation<anim::Composite>);
 static_assert(!api::Animation<int> && !api::Animation<h::ObjectRef>);
 template<class T> concept HasGroupEffect = requires(const T& value) { value.with_effect(h::fx::blur(0,1)); };
-static_assert(HasGroupEffect<anim::Morph> && !HasGroupEffect<h::Program>);
+static_assert(HasGroupEffect<anim::Morph> && HasGroupEffect<anim::Composite> && !HasGroupEffect<h::Program>);
 }
 int main() {
     auto host=h::ObjectRegistry::make(); auto made=h::Engine::make();
@@ -282,5 +282,20 @@ int main() {
     if(!check(bool(live_frozen)&&bool(engine.seek(*live_frozen,h::seconds(.3))),"prepared_ref_plan_survives_object_destruction"))return finish();
     check(equal(live_mid,copy(*engine.frame(*live_frozen))),"prepared_ref_plan_keeps_owned_geometry");
     check(bool(engine.release(*live_frozen)) && engine.size()==0,"all_playback_resources_released");
+    const auto scoped_recipe=h::composite(h::parallel(anim::morph(*a,*b),
+        h::composite(anim::morph(*c,*b)).with_effect(h::fx::blur(0,4)))).with_effect(h::fx::blur(0,8));
+    const auto scoped=hengine.prepare(scoped_recipe);
+    if(!check(bool(scoped),"public_composite_prepares_without_renderer"))return finish();
+    check(scoped->nodes().size()==5 && scoped->scopes().size()==2 && scoped->scopes()[1].parent==0,
+          "scope_hierarchy_retained_by_the_public_compiler");
+    const auto group=hengine.play(*scoped);
+    if(!check(group && hengine.seek_progress(*group,.5),"public_composite_plays_on_the_shared_clock"))return finish();
+    const auto scene=hengine.program_frame(*group);
+    check(scene && scene->scene.tracks.size()==2 && scene->scene.scope_effect_values.size()==2 &&
+          scene->scene.scope_effect_values[0]==4 && scene->scene.scope_effect_values[1]==2 &&
+          scene->scene.preparation==scoped->identity(),"program_frame_publishes_geometry_and_scope_values_together");
+    check(bool(hengine.cancel(*group,h::CancelMode::restore)) &&
+          hengine.program_frame(*group)->scene.scope_effect_values[0]==0,"composite_restore_uses_exact_source_parameters");
+    check(bool(hengine.release(*group)) && hengine.size()==0,"composite_releases_all_playback_resources");
     return finish();
 }

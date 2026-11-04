@@ -1,8 +1,8 @@
-# Playback contract v1: first object morph stage
+# Playback contract: strict morph programs and explicit image scopes
 
 This implementation contract covers owned endpoints, explicit relative time,
 strict morph/effect segments, nested Program schedules and common lifecycle.
-General channel/effect-scope composition remains implementation work.
+General typed channels and device/resource composition remain implementation work.
 
 | Operation | Observable behavior |
 |---|---|
@@ -36,3 +36,13 @@ Log observers can inspect committed state, but mutation reentry is refused
 without another recursive log. Preparation and explicit retarget may allocate;
 steady native advance/query reuse buffers. The optional renderer, materials,
 OpenAS provider/transport and application semantics remain outside this player.
+
+## Program image scopes
+
+Program-frame queries expose all selected track views plus a flat scope-parameter
+view and preparation identity. Geometry and leaf/scope parameters are sampled
+into staging buffers and published together. Borrowed views have the same
+lifetime as existing EngineFrame views. Normal pause, seek, reverse and cancel
+apply to the single program clock. Scope parameter storage counts towards the
+existing parameter budget. Retargeting a scoped program is explicitly refused
+until a scope-preserving retarget contract exists; it must not discard effects.

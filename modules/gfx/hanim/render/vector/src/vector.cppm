@@ -4,10 +4,11 @@ export module hanim.render.vector;
 import std;
 export import hanim.library;
 export import hanim.effect;
+export import hanim.program;
 export import openmui.render.vector;
 export import openmui.geom;
 
-namespace hanim::detail { struct VectorData; }
+namespace hanim::detail { struct VectorData; struct VectorProgramData; }
 
 export namespace hanim::vector_render {
 enum class VectorError : std::uint8_t {
@@ -21,6 +22,7 @@ enum class VectorError : std::uint8_t {
 struct VectorFailure {
     VectorError code;
     std::size_t entry = 0, detail = 0;
+    std::size_t track = invalid_program_index, segment = invalid_program_index, scope = invalid_program_index;
 };
 [[nodiscard]] std::string_view vector_error_name(VectorError code) noexcept;
 struct MaterialBinding {
@@ -54,6 +56,33 @@ public:
         FrameView frame, std::span<const float> effect_values,
         omui::render::DisplayList& destination, VectorScratch scratch) const;
 private:
+    friend class PreparedVectorProgram;
     std::shared_ptr<const detail::VectorData> data_;
+};
+struct ProgramVectorLimits {
+    std::size_t max_prepared_backend_parameters = 65536, max_prepared_effect_layers = 65536;
+};
+struct ProgramVectorRequirements {
+    VectorRequirements buffers;
+    std::size_t tracks = 0, scopes = 0, scope_depth = 0;
+};
+struct ProgramVectorScratch {
+    VectorScratch buffers;
+    // bounds: tracks followed by scopes. Index buffers must not overlap.
+    std::span<omui::geom::Rect> bounds;
+    std::span<std::size_t> scope_members, order, scope_stack;
+};
+class PreparedVectorProgram {
+public:
+    PreparedVectorProgram() noexcept = default;
+    [[nodiscard]] static std::expected<PreparedVectorProgram, VectorFailure> bind(
+        const PreparedProgram&, ProgramVectorLimits limits = {});
+    [[nodiscard]] ProgramVectorRequirements requirements() const noexcept;
+    // Draws selected bindings in author preorder; nested effects apply once
+    // after their subtree. No Engine dependency and no private rasterizer.
+    [[nodiscard]] std::expected<void, VectorFailure> record(
+        ProgramFrameView frame, omui::render::DisplayList& destination, ProgramVectorScratch scratch) const;
+private:
+    std::shared_ptr<const detail::VectorProgramData> data_;
 };
 } // namespace hanim::vector_render

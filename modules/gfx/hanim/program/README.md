@@ -27,8 +27,18 @@ is prepared once, so sampling 1.5, 0.25, 2, 0 in arbitrary order gives the same
 results as forward playback. B remains a separate object if explicitly bound as
 `sequence({bind(a,b),bind(b,c)})`; target identity never implicitly merges tracks.
 Nested sequence/parallel/stagger preserve explicit scheduling. Strict whole-object
-overlap is rejected; complete per-channel blends and effect scopes remain future
-work in the [composition design](../../../../.agents/docs/2026-11-04-hanim-play-api-design.md).
+overlap is rejected; complete per-channel blends and device resource scheduling
+remain work in the [composition design](../../../../.agents/docs/2026-11-04-hanim-play-api-design.md).
+
+`composite(parallel(anim::morph(a,b), anim::morph(c,d))).with_effect(fx::blur(0,4))`
+processes the composed subtree once. Nested scopes preserve their own ordered
+effect chains, after leaf effects. `.effect_easing(...)` controls scope parameters
+only, not child time; vertex/translation path effects stay typed leaf operations.
+The explicit form is `composite(program, Effects, CompositeOptions)`.
+`nodes()` retains author preorder, parents, subtree boundaries and absolute time;
+`scopes()` exposes parent/depth, time and parameter ranges. Segments identify
+their current scope. `sample_scopes(time, output)` uses reusable caller storage,
+and `scope_parameter_count()` reports its size. Plain groups introduce no scopes.
 
 The [contract](CONTRACT.md) defines boundaries, gaps, instantaneous stages,
 versions, preparation limits and failure atomicity. Read tracks()/segments() for

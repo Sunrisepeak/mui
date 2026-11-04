@@ -20,6 +20,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 [dependencies]
 hanim.library = { path = "../../library" }
 hanim.effect = { path = "../../effect" }
+hanim.program = { path = "../../program" }
 openmui.render.vector = { path = "../../../render/vector" }
 openmui.geom = { path = "../../../../base/geom" }
 openmui.log = { path = "../../../../base/log" }

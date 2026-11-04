@@ -26,6 +26,42 @@ struct Fixture {
 }
 int main(int argc, char** argv) {
     Suite suite{"hanim.engine"};
+    suite.test("scopes share atomic frame publication and all playback controls",[] {
+        Fixture f;const auto plan=f.engine.prepare(composite(anim::morph(f.a,f.b).with_effect(fx::blur(0,2))).with_effect(fx::blur(0,8)));
+        check(plan.has_value());const auto ref=*f.engine.play(*plan);
+        check(f.engine.seek_progress(ref,.5).has_value());auto current=f.engine.program_frame(ref);
+        check(current->scene.preparation==plan->identity() && current->info.scope_count==1 && current->scene.tracks.size()==1);
+        check(current->scene.scope_effect_values[0]==4 && current->scene.tracks[0].effect_values[0]==1);
+        check(current->scene.tracks[0].geometry.parts[1].local.tx==20);
+        check(f.engine.pause(ref).has_value() && f.engine.advance(seconds(100)).has_value());
+        check(f.engine.program_frame(ref)->scene.position==seconds(.5));
+        check(f.engine.reverse(ref).has_value() && f.engine.resume(ref).has_value() && f.engine.advance(seconds(.25)).has_value());
+        check(f.engine.program_frame(ref)->scene.scope_effect_values[0]==2);
+        check(f.engine.retarget(ref,anim::morph_to(f.b)).error().code==EngineError::unsupported_operation);
+        check(f.engine.program_frame(ref)->scene.scope_effect_values[0]==2 && f.engine.inspect(ref)->plan_revision==1);
+        check(f.engine.cancel(ref,CancelMode::restore).has_value());
+        current=f.engine.program_frame(ref);check(current->scene.scope_effect_values[0]==0 && current->scene.tracks[0].effect_values[0]==0);
+        check(f.engine.release(ref).has_value() && f.engine.program_frame(ref).error().code==EngineError::stale_handle);
+    });
+    suite.test("scope storage and effect limits are included in player admission and release",[] {
+        Fixture f({.max_total_effect_parameters=1});
+        const auto plan=f.engine.prepare(composite(anim::morph(f.a,f.b).with_effect(fx::blur(0,1))).with_effect(fx::blur(0,2)));
+        check(plan.has_value() && f.engine.play(*plan).error().code==EngineError::capacity && f.engine.size()==0);
+        const auto small=f.engine.prepare(composite(anim::morph(f.a,f.b)).with_effect(fx::blur(0,2)));
+        const auto ref=f.engine.play(*small);check(ref.has_value() && f.engine.release(*ref).has_value() && f.engine.play(*small).has_value());
+        Fixture limited({.effects={.max_effects=1}});
+        const auto oversized=PreparedProgram::prepare(composite(anim::morph(*limited.engine.capture_object(limited.a),
+            *limited.engine.capture_object(limited.b))).with_effect(fx::blur(0,1)).with_effect(fx::blur(0,2)));
+        check(oversized.has_value() && limited.engine.play(*oversized).error().code==EngineError::effect && limited.engine.size()==0);
+    });
+    suite.test("failed geometry cannot publish newly sampled scope parameters",[] {
+        Fixture f;const auto huge=*f.engine.create_object(shape(false,1e308)),other=*f.engine.create_object(shape(true,-1e308));
+        const auto ref=f.engine.play(composite(parallel(anim::morph(f.a,f.b),anim::morph(huge,other))).with_effect(fx::blur(0,8)));
+        check(ref.has_value());const auto status=f.engine.advance(seconds(.5));check(!status && status.error().code==EngineError::animation);
+        const auto frame=f.engine.program_frame(*ref);check(frame->scene.position==seconds(0) && frame->scene.scope_effect_values[0]==0);
+        check(frame->scene.tracks[0].geometry.parts[1].local.tx==0);
+        check(f.engine.seek(*ref,seconds(1)).has_value() && f.engine.program_frame(*ref)->scene.scope_effect_values[0]==8);
+    });
     suite.test("the public player samples geometry transform fill and ordered effects on one time", [] {
         Fixture f;
         const auto effects = fx::chain({fx::blur(0,8), fx::tone({}, {.r=1,.g=0,.b=0,.amount=0.5f})});

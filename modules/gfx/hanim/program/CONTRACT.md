@@ -1,4 +1,4 @@
-# Program contract v1: strict whole-object schedules
+# Program contract v2: strict object schedules and explicit image scopes
 
 Program is immutable shared input data. Builders bind owned snapshots and return
 new values without changing a registry, starting time, rendering or invoking
@@ -22,8 +22,8 @@ Overlapping writes fail with node/track/segment indices. Shared positive-duratio
 boundaries are permitted. Multiple instantaneous writes at the same start require
 an explicit sequence dependency; parallel instantaneous writers conflict. Child
 order is retained for a sequence of instantaneous changes. This first stage does
-not claim per-channel blending, group transforms/foreach, repeat/reverse time
-expressions or effect isolation scopes.
+not claim per-channel blending, group transforms/foreach or repeat/reverse time
+expressions. Explicit image scopes are defined below.
 
 The compiler retains one immutable preparation per segment and no AST or producer
 registry. Preparation limits bound expanded node/depth/track/segment counts and
@@ -64,3 +64,36 @@ multi-track frame publication; Program does not introduce a second player.
 Trace/log category: hanim.program. prepare records bounded graph cardinality,
 refusals identify indices, and sample records a span without formatting logs.
 Process-local ObjectRefs and preparation witnesses are not persistent Agent IDs.
+
+## Composite scope extension
+
+`composite(animation).with_effect(image_effect)` wraps one animation subtree.
+It processes the composed output once; a leaf's effects still process that
+leaf's output before its containing scopes. Process effects such as vertex
+paths remain typed leaf operations. Sequence, parallel and stagger themselves
+do not allocate image layers or broadcast effects.
+
+The prepared plan retains author nodes in preorder, with parent, exclusive
+subtree end, absolute start/duration and nearest image scope. Segments retain
+their author node and scope. Scope records retain their parent, node, timing,
+effect easing, ordered effects and parameter range. This is a hierarchy/time
+view of the same compiled Program, not a second AST, player or renderer. The
+strict whole-object write domain is unchanged; general typed channels and
+resource/device scheduling remain separate work.
+
+Scope duration is derived from its subtree. Its easing controls effect
+parameters only; it does not warp child clocks. Before its start, hold raw
+source parameters; afterwards hold the eased endpoint. Zero duration takes the
+target at its start. Cancel/restore selects raw source values. A track's selected
+segment determines its scope membership, including held source/endpoints and
+gaps. Membership changes at the same exact boundaries as geometry; scopes do
+not create extra copies of a track. Changing scopes can change compositing order
+and is explicit authored behavior, without an implicit visual crossfade.
+
+The optional Program renderer orders active bindings by author-node preorder,
+making each active scope contiguous. Track indices remain stable identity order;
+legacy per-track callers retain control of their own drawing order. Empty image
+chains are identity scopes and can omit layers; ordinary one-segment tracks use
+the same direct order without sorting. All scope parameters count towards
+preparation/Engine budgets. Sampling is deterministic, bounded and allocation
+free after preparation; errors preserve published frame data.

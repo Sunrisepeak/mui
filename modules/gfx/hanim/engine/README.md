@@ -15,7 +15,8 @@ sequence/parallel/stagger retain the existing schedule/source/conflict rules.
 playback storage. Node/depth/geometry limits belong to preparation; EngineLimits
 still govern live playback capacity. Reentrant mutations during capture/prepare
 are rejected and failures preserve existing playbacks. No new clock, automatic
-business-state writes, group effect scope or channel blending is implied.
+business-state writes or channel blending is implied. Explicit `composite(...)`
+uses the same player and publishes image-scope parameters with its child frames.
 
 `Engine::play(object, anim::morph_to(target), effects, options)` captures owned
 endpoints from its registry. External hosts can instead publish two public
@@ -34,7 +35,8 @@ Finished and cancelled handles retain their poses/resources and budgets until
 explicit release. Engine totals bound the sum of each track's maximum mutable
 part/cubic/effect-parameter capacities. ProgramLimits separately bound retained
 preparations across all segments. Neither is a byte/RSS or external-lease limit.
-Prepared programs also obey the engine's per-segment effect limits.
+Prepared programs also obey the engine's effect limits for every segment and
+scope. Scope parameter buffers count towards the same total parameter budget.
 
 Pause/resume preserve time; seek clamps finite local time/progress without
 changing pause intent; reverse changes the sign of the rate (and can restart a
@@ -45,7 +47,9 @@ segment with the prior rate's magnitude and pause intent. Failed preparation
 does not replace the old plan. `cancel(hold)` ends playback at its current pose;
 `cancel(restore)` returns every track to its first segment's raw source.
 Neither undoes model state. Multi-track-to-single-target retarget reports
-`unsupported_operation`; selective track/channel replacement remains future work.
+`unsupported_operation`; scoped programs also refuse retarget, so their hierarchy
+and effects cannot be silently discarded. Selective track/channel replacement
+and scope-preserving retarget remain future work.
 Cancelled bindings retain source occupancy until release. Restore bypasses
 easing to sample the exact source. Retargeted noninstant segments anchor time
 zero to the captured pose consistently for initial display and arbitrary seek;
@@ -65,6 +69,10 @@ Single owning thread/external synchronization; move only while quiescent.
 single track also has its active segment's optional sampled progress and target;
 multi-track programs have no invented common eased progress or object/target.
 `frame(ref)` reports `ambiguous_frame` for multiple tracks; use `frame(ref,index)`.
+`program_frame(ref)` exposes all selected tracks, scope parameters, position and
+the immutable preparation identity as one borrowed frame. `scope_count` is also
+available in playback metadata. Sampling errors preserve this entire published
+frame, including scope values. Restore returns scope parameters to raw sources.
 Frame geometry progress and segment index identify the actual current segment.
 Prebind each segment's optional renderer before playback; use the returned
 segment index when recording, and rebind the plan after explicit retarget. The

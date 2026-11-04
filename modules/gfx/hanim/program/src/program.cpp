@@ -8,12 +8,16 @@ struct ProgramNode {
     ProgramKind kind = ProgramKind::empty;
     ProgramBinding binding;
     std::optional<ProgramInputs> inputs;
+    CompositeSpec scope;
     std::vector<Program> children;
     seconds step{0};
 };
 struct ProgramData {
     std::vector<ProgramTrack> tracks;
     std::vector<PreparedSegment> segments;
+    std::vector<ProgramNodeInfo> nodes;
+    std::vector<PreparedScope> scopes;
+    std::size_t scope_parameters = 0;
     seconds duration{0};
 };
 }
@@ -33,7 +37,7 @@ ProgramFailure effect_failure(EffectError error, std::size_t node, std::size_t t
 bool valid_limits(ProgramLimits limits) noexcept {
     return limits.max_nodes && limits.max_nodes<=65536 && limits.max_depth && limits.max_depth<=256 &&
         limits.max_tracks && limits.max_tracks<=65536 && limits.max_segments && limits.max_segments<=65536 &&
-        limits.max_total_parts;
+        limits.max_total_parts && limits.max_scopes<=65536;
 }
 std::optional<ProgramError> invalid_options(SegmentOptions options) noexcept {
     if (!std::isfinite(options.duration.count()) || options.duration.count()<0) return ProgramError::invalid_time;
@@ -62,12 +66,16 @@ struct Leaf {
     std::string path;
     seconds start{0};
     std::vector<Branch> branches;
+    std::size_t scope=invalid_program_index;
 };
+struct ScopeInput { const CompositeSpec* spec; PreparedScope prepared; };
 struct Collect {
     ProgramLimits limits;
     const ObjectRegistry* registry = nullptr;
     std::vector<Leaf> leaves;
     std::size_t nodes=0;
+    std::vector<ProgramNodeInfo> hierarchy;
+    std::vector<ScopeInput> scopes;
     std::expected<Snapshot,ProgramFailure> capture(const ObjectInput& input,std::size_t node) const {
         if(const auto* snapshot=std::get_if<Snapshot>(&input))return *snapshot;
         if(!registry)return std::unexpected(failure(ProgramError::unresolved_object,node));
@@ -79,11 +87,25 @@ struct Collect {
         return *snapshot;
     }
     std::expected<double,ProgramFailure> visit(const Program& value,double start,std::size_t depth,
-                                              std::string path,std::vector<Branch>& branches) {
+                                              std::string path,std::vector<Branch>& branches,
+                                              std::size_t parent=invalid_program_index,std::size_t scope=invalid_program_index) {
         const auto node=nodes++;
         if(node>=limits.max_nodes)return std::unexpected(failure(ProgramError::node_budget,node));
         if(depth>limits.max_depth)return std::unexpected(failure(ProgramError::depth_budget,node));
         if(!value)return std::unexpected(failure(ProgramError::empty_program,node));
+        hierarchy.push_back({.kind=value.kind(),.parent=parent,.subtree_end=node+1,.start=seconds(start),.scope=scope});
+        if(value.kind()==ProgramKind::composite) {
+            const auto* spec=value.scope();
+            if(scopes.size()>=limits.max_scopes) {
+                auto error=failure(ProgramError::scope_budget,node);error.scope=scopes.size();return std::unexpected(error);
+            }
+            if(const auto invalid=invalid_options({seconds(0),spec->options.effect_easing}))
+                return std::unexpected(failure(*invalid,node));
+            const auto next=scopes.size();
+            scopes.push_back({spec,{.node=node,.parent=scope,.depth=scope==invalid_program_index?1:scopes[scope].prepared.depth+1,
+                .start=seconds(start),.effect_easing=spec->options.effect_easing}});
+            scope=next;hierarchy[node].scope=scope;
+        }
         if(value.kind()==ProgramKind::binding) {
             const auto* binding=value.binding();
             if(!binding)return std::unexpected(failure(ProgramError::invalid_snapshot,node));
@@ -97,7 +119,8 @@ struct Collect {
                 from=std::move(*first);to=std::move(*last);
             }
             if(!from || !to)return std::unexpected(failure(ProgramError::invalid_snapshot,node));
-            leaves.push_back({binding,std::move(from),std::move(to),node,0,std::move(path),seconds(start),branches});
+            leaves.push_back({binding,std::move(from),std::move(to),node,0,std::move(path),seconds(start),branches,scope});
+            hierarchy[node].duration=binding->options.duration;
             return binding->options.duration.count();
         }
         const auto children=value.children();
@@ -108,7 +131,7 @@ struct Collect {
         for(std::size_t i=0;i<children.size();++i) {
             const auto child_start=sum(start,offset,node);if(!child_start)return std::unexpected(child_start.error());
             branches.push_back({node,i,value.kind()});
-            auto length=visit(children[i],*child_start,depth+1,path+"/"+std::to_string(i),branches);
+            auto length=visit(children[i],*child_start,depth+1,path+"/"+std::to_string(i),branches,node,scope);
             branches.pop_back();if(!length)return std::unexpected(length.error());
             const auto child_end=sum(offset,*length,node);if(!child_end)return std::unexpected(child_end.error());
             end=std::max(end,*child_end);
@@ -118,6 +141,8 @@ struct Collect {
             }
         }
         const auto absolute_end=sum(start,end,node);if(!absolute_end)return std::unexpected(absolute_end.error());
+        hierarchy[node].duration=seconds(end);hierarchy[node].subtree_end=nodes;
+        if(value.kind()==ProgramKind::composite)scopes[scope].prepared.duration=seconds(end);
         return end;
     }
 };
@@ -131,20 +156,25 @@ bool serial_before(const Leaf& a,const Leaf& b) noexcept {
     return false;
 }
 struct Progress { double linear, sampled; };
+std::expected<Progress,ProgramFailure> progress_at(seconds start,SegmentOptions options,bool anchor_source,
+    seconds time,bool exact_source,ProgramFailure error) noexcept {
+    if(exact_source || time<start)return Progress{0,0};
+    const auto duration=options.duration.count();
+    const auto linear=duration==0?1:Tween<double>{.from=0,.to=1,
+        .duration=options.duration,.ease=ease::linear,.delay=start}.value(time);
+    if(anchor_source && duration>0 && linear==0)return Progress{linear,0};
+    const auto eased=options.easing(linear);
+    if(!std::isfinite(eased))return std::unexpected(error);
+    return Progress{linear,std::clamp(eased,0.0,1.0)};
+}
 std::expected<Progress,ProgramFailure> progress_at(const PreparedSegment& segment,seconds time,bool exact_source,
                                                 std::size_t index) noexcept {
-    if(exact_source || time<segment.start)return Progress{0,0};
-    const auto duration=segment.options.duration.count();
     // The compiled first-stage segment has only offset/duration and both fills.
     // Use the core's simple inline time primitive instead of evaluating the
     // general repeat/alternate mapper for every object. Author easing is still
     // applied below, including jump-start at zero.
-    const auto linear=duration==0?1:Tween<double>{.from=0,.to=1,
-        .duration=segment.options.duration,.ease=ease::linear,.delay=segment.start}.value(time);
-    if(segment.anchor_source && duration>0 && linear==0)return Progress{linear,0};
-    const auto eased=segment.options.easing(linear);
-    if(!std::isfinite(eased))return std::unexpected(failure(ProgramError::invalid_ease,segment.node,segment.track,index));
-    return Progress{linear,std::clamp(eased,0.0,1.0)};
+    return progress_at(segment.start,segment.options,segment.anchor_source,time,exact_source,
+        failure(ProgramError::invalid_ease,segment.node,segment.track,index));
 }
 std::expected<PreparedObjectMorph,ProgramFailure> from_previous(const PreparedSegment& previous,const Snapshot& to,
     MorphOptions options,std::size_t node,std::size_t track,std::size_t segment) {
@@ -180,6 +210,7 @@ ProgramKind Program::kind() const noexcept {return node_?node_->kind:ProgramKind
 std::span<const Program> Program::children() const & noexcept {return node_?std::span<const Program>(node_->children):std::span<const Program>{};}
 const ProgramBinding* Program::binding() const & noexcept {return node_ && node_->kind==ProgramKind::binding?&node_->binding:nullptr;}
 const ProgramInputs* Program::inputs() const & noexcept {return node_ && node_->inputs?&*node_->inputs:nullptr;}
+const CompositeSpec* Program::scope() const & noexcept {return node_ && node_->kind==ProgramKind::composite?&node_->scope:nullptr;}
 seconds Program::step() const noexcept {return node_?node_->step:seconds(0);}
 Program bind(Snapshot from,Snapshot to,Effects effects,SegmentOptions options,MorphOptions morph,ProgramSource source) {
     auto node=std::make_shared<detail::ProgramNode>();node->kind=ProgramKind::binding;
@@ -198,6 +229,10 @@ Program parallel(std::span<const Program> children) {
 }
 Program stagger(seconds step,std::span<const Program> children) {
     auto node=std::make_shared<detail::ProgramNode>();node->kind=ProgramKind::stagger;node->step=step;node->children.assign(children.begin(),children.end());return Program(std::move(node));
+}
+Program composite(Program child,Effects effects,CompositeOptions options) {
+    auto node=std::make_shared<detail::ProgramNode>();node->kind=ProgramKind::composite;
+    node->scope={std::move(effects),options};node->children.push_back(std::move(child));return Program(std::move(node));
 }
 Program sequence(std::initializer_list<Program> children) {return sequence(std::span<const Program>(children.begin(),children.size()));}
 Program parallel(std::initializer_list<Program> children) {return parallel(std::span<const Program>(children.begin(),children.size()));}
@@ -226,6 +261,7 @@ std::string_view program_error_name(ProgramError error) noexcept {
         case ProgramError::output_too_small:return "output-too-small";
         case ProgramError::unresolved_object:return "unresolved-object";
         case ProgramError::object:return "object";
+        case ProgramError::scope_budget:return "scope-budget";
     }return "unknown";
 }
 std::expected<PreparedProgram,ProgramFailure> PreparedProgram::prepare(const Program& program,ProgramLimits limits) {
@@ -243,6 +279,20 @@ std::expected<PreparedProgram,ProgramFailure> PreparedProgram::prepare_with(cons
     Collect collect{limits,registry};std::vector<Branch> branches;
     const auto duration=collect.visit(program,0,1,"0",branches);if(!duration)return refuse(duration.error());
     auto data=std::make_shared<detail::ProgramData>();data->duration=seconds(*duration);
+    data->nodes=std::move(collect.hierarchy);
+    for(auto& input:collect.scopes) {
+        auto& scope=input.prepared;const auto index=data->scopes.size();
+        const auto effects=PreparedEffects::prepare(input.spec->effects,limits.effects);
+        if(!effects) {
+            auto error=effect_failure(effects.error(),scope.node,invalid_program_index,invalid_program_index);
+            error.scope=index;return refuse(error);
+        }
+        if(effects->parameter_count()>limits.max_total_effect_parameters-data->scope_parameters) {
+            auto error=failure(ProgramError::effect_parameter_budget,scope.node);error.scope=index;return refuse(error);
+        }
+        scope.parameter_offset=data->scope_parameters;scope.effects=*effects;
+        data->scope_parameters+=effects->parameter_count();data->scopes.push_back(std::move(scope));
+    }
     for(auto& leaf:collect.leaves) {
         const auto object=leaf.from.object();
         auto found=std::ranges::find(data->tracks,object,&ProgramTrack::object);
@@ -256,7 +306,7 @@ std::expected<PreparedProgram,ProgramFailure> PreparedProgram::prepare_with(cons
         if(a.start!=b.start)return a.start<b.start;
         return a.node<b.node;
     });
-    std::size_t parts=0,cubics=0,parameters=0;
+    std::size_t parts=0,cubics=0,parameters=data->scope_parameters;
     const Leaf* previous_leaf=nullptr;
     for(const auto& leaf:collect.leaves) {
         const auto& binding=*leaf.binding;auto& track=data->tracks[leaf.track];
@@ -282,11 +332,13 @@ std::expected<PreparedProgram,ProgramFailure> PreparedProgram::prepare_with(cons
         if(!animation)return refuse(animation.error());
         const auto effects=PreparedEffects::prepare(binding.effects,limits.effects);
         if(!effects)return refuse(effect_failure(effects.error(),leaf.node,leaf.track,index));
-        const auto added=account(*data,{leaf.track,leaf.node,leaf.path,leaf.start,binding.options,*animation,*effects,chained},limits,parts,cubics,parameters);
+        const auto added=account(*data,{leaf.track,leaf.node,leaf.path,leaf.start,binding.options,*animation,*effects,chained,leaf.scope},limits,parts,cubics,parameters);
         if(!added)return refuse(added.error());previous_leaf=&leaf;
+        data->nodes[leaf.node].track=leaf.track;data->nodes[leaf.node].segment=index;
     }
     omui::trace::count("tracks",static_cast<double>(data->tracks.size()),"hanim.program");
     omui::trace::count("segments",static_cast<double>(data->segments.size()),"hanim.program");
+    omui::trace::count("scopes",static_cast<double>(data->scopes.size()),"hanim.program");
     diagnostic.info("prepared {} tracks and {} segments",data->tracks.size(),data->segments.size());
     PreparedProgram result;result.data_=std::move(data);return result;
 }
@@ -301,6 +353,7 @@ std::expected<PreparedProgram,ProgramFailure> PreparedProgram::single(PreparedOb
     if(effects.effects().size()>limits.effects.max_effects || effects.parameter_count()>limits.effects.max_parameters)
         return std::unexpected(effect_failure(EffectError::capacity,0,0,0));
     auto data=std::make_shared<detail::ProgramData>();data->duration=options.duration;
+    data->nodes.push_back({.kind=ProgramKind::binding,.subtree_end=1,.duration=options.duration,.track=0,.segment=0});
     data->tracks.push_back({.object=animation.source_object(),.source_revision=animation.source_revision()});
     std::size_t parts=0,cubics=0,parameters=0;
     auto added=account(*data,{0,0,"0",seconds(0),options,std::move(animation),std::move(effects),anchor_source},limits,parts,cubics,parameters);
@@ -310,6 +363,31 @@ std::expected<PreparedProgram,ProgramFailure> PreparedProgram::single(PreparedOb
 seconds PreparedProgram::duration() const noexcept {return data_?data_->duration:seconds(0);}
 std::span<const ProgramTrack> PreparedProgram::tracks() const & noexcept {return data_?std::span<const ProgramTrack>(data_->tracks):std::span<const ProgramTrack>{};}
 std::span<const PreparedSegment> PreparedProgram::segments() const & noexcept {return data_?std::span<const PreparedSegment>(data_->segments):std::span<const PreparedSegment>{};}
+std::span<const ProgramNodeInfo> PreparedProgram::nodes() const & noexcept {return data_?std::span<const ProgramNodeInfo>(data_->nodes):std::span<const ProgramNodeInfo>{};}
+std::span<const PreparedScope> PreparedProgram::scopes() const & noexcept {return data_?std::span<const PreparedScope>(data_->scopes):std::span<const PreparedScope>{};}
+std::size_t PreparedProgram::scope_parameter_count() const noexcept {return data_?data_->scope_parameters:0;}
+std::expected<void,ProgramFailure> PreparedProgram::sample_scopes(seconds time,std::span<float> output,bool exact_source) const noexcept {
+    if(!data_)return std::unexpected(failure(ProgramError::unprepared));
+    if(!std::isfinite(time.count()))return std::unexpected(failure(ProgramError::invalid_time));
+    if(output.size()<data_->scope_parameters)return std::unexpected(failure(ProgramError::output_too_small));
+    if(data_->scopes.empty())return {};
+    omui::trace::Span span("sample-scopes","hanim.program");
+    auto progress=[&](std::size_t i) {
+        const auto& scope=data_->scopes[i];auto error=failure(ProgramError::invalid_ease,scope.node);error.scope=i;
+        return progress_at(scope.start,{scope.duration,scope.effect_easing},false,time,exact_source,error);
+    };
+    // Preflight every easing before touching caller output; immutable effects
+    // cannot fail once capacity and finite normalized progress are known.
+    for(std::size_t i=0;i<data_->scopes.size();++i) {
+        const auto value=progress(i);if(!value)return std::unexpected(value.error());
+    }
+    for(std::size_t i=0;i<data_->scopes.size();++i) {
+        const auto& scope=data_->scopes[i];const auto value=progress(i);
+        const auto result=scope.effects.sample(value->sampled,output.subspan(scope.parameter_offset,scope.effects.parameter_count()));
+        if(!result) {auto error=effect_failure(result.error(),scope.node,invalid_program_index,invalid_program_index);error.scope=i;return std::unexpected(error);}
+    }
+    return {};
+}
 std::expected<ProgramSample,ProgramFailure> PreparedProgram::sample(std::size_t track_index,seconds time,FrameBuffer output,
     std::span<float> values,bool exact_source) const noexcept {
     omui::trace::Span span("sample","hanim.program");

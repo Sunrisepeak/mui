@@ -66,11 +66,11 @@ Depends on `openmui` (the runtime, the base components, the headless host),
 
 ## Public geometry and material plans
 
-These eight cases use the same harness, allocation counter, JSON/Markdown
+These nine cases use the same harness, allocation counter, JSON/Markdown
 reports and CLI as the existing benchmarks. Their implementation imports only
 public `hanim.core`, `hanim.object`, `hanim.engine`, geometry, raster and vector APIs; it does not call UI Runtime,
 components or website builders. Preparation and steady-state work are distinct.
-All eight measure **CPU wall-clock work**. They neither submit GPU work nor
+All nine measure **CPU wall-clock work**. They neither submit GPU work nor
 measure GPU execution, and say so in each result's notes.
 
 ```text
@@ -80,6 +80,7 @@ mcpp run -p openmui.bench --profile release -- --filter public-motion/ --json pu
 | Case (`public-motion/` prefix) | One iteration / reported item |
 |---|---|
 | `program-seek-100x2` | Seek 100 independent instances sharing one nested two-track/three-segment plan through 17 changing times; select phases, sample both tracks and publish each instance atomically. One item = one object-track update. Preparation/rendering excluded; zero steady-state allocations are a budget. |
+| `scoped-program-seek-100x2` | The same 100 instances with two nested image scopes and five scope parameters each, plus atomic program-frame queries. One item = one track update including its share of scopes. Preparation, command recording and image processing excluded; zero steady-state allocations are a budget. |
 | `engine-advance-500` | Advance and atomically publish 500 independent contour/transform/fill morphs plus blur parameters through the public Engine. Setup/matching excluded; duration keeps every handle active. One item = one playback update, including its share of batch preparation/commit; zero steady-state allocations are a budget. Rendering is excluded. |
 | `object-query-500` | Capture 500 independently registered two-part objects, resolve each outline by name/ref, view its owned contour and check its capability. Preparation excluded. One item = one complete object's query batch; zero steady-state allocations are a budget. This does not evaluate an animation or render a frame. |
 | `shape-prepare-star32` | Prepare and destroy one 32-edge concave star → four-cubic circle correspondence, using 64 arc samples and 32 alignment samples. Allocations are preparation costs, not forbidden frame allocations. One item = one plan. |

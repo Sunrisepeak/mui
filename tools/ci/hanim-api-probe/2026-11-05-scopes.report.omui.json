@@ -1,0 +1,1416 @@
+{
+  "format": "openmui.system-checkpoint@0.1",
+  "checkpoint": "S2-third-composite-image-scopes",
+  "base_commit": "e47b624d0a9bd809609fa29babb4596be6e71229",
+  "recorded_at": "2026-11-04T21:01:10.065377+00:00",
+  "status": "local-verification-passed",
+  "source_lock_sha256": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+  "source_files_sha256": {
+    "modules/gfx/hanim/engine/src/engine.cpp": "ea75e83a795a4d8352304b116f423cefbcb8e6765c2badf36aecb237135390bb",
+    "modules/gfx/hanim/engine/src/engine.cppm": "563ffa555340e246a628828e498cab4699c8fd735347fc6ba9561527af8c87c7",
+    "modules/gfx/hanim/engine/tests/composite_test.cpp": "7daad3fb848bb9e149cf1b116a8fbfaaaeae97060028502139aed8307fd95a62",
+    "modules/gfx/hanim/engine/tests/engine_test.cpp": "e769fd1f6e5a4a2ca81bdb7acd09ceab0b9ff390fde0a33487b09ffe8e00134f",
+    "modules/gfx/hanim/program/src/program.cpp": "39812596c5edf58506b429daf190e616794cc6d26d69e967119af1db34beae96",
+    "modules/gfx/hanim/program/src/program.cppm": "e6680fad04aedfaa7c5895cfd56afaa5370e06f5780a040f398d60421233c710",
+    "modules/gfx/hanim/program/tests/program_test.cpp": "c43f7f78567c4bd9ca919869dc25acfe222e7fd9013e7ffd58c99f9331da877f",
+    "modules/gfx/hanim/render/vector/mcpp.toml": "bd7acbe0ce990d302e6f05eaf1af5350bad8cd4bfc3dc097afac9444fdd2f62a",
+    "modules/gfx/hanim/render/vector/src/vector.cpp": "814956b3c225c40b6d23b310d43a6031712ecbc1adcac77a6da115fae0e5e9d0",
+    "modules/gfx/hanim/render/vector/src/vector.cppm": "1018c023ab7cdf61aeb8088e634ed537770c99bbd830be0488703835b1e36f04",
+    "tests/bench/src/public_motion.cpp": "66b9830ece146b21a08060b11f1c826e7596c26066640c0851afc2487f0c8843",
+    "tools/ci/hanim-api-probe/run.py": "c46825e8fb1671610b600d9d055ceebcd541deb696dbb61dd0a4385cec23f266",
+    "tools/ci/hanim-api-probe/src/main.cpp": "78b26cb7a6bc31f16b23028c38e4a51e229731f52591765ed7fabceb4877b216"
+  },
+  "scope": [
+    "Public composite animation values and explicit compiled hierarchy/time/scope metadata.",
+    "One Program and Engine: atomic geometry/leaf/scope publication and bounded scratch.",
+    "Optional shared vector renderer applies nested scope effects once to composed subtrees.",
+    "PPet mixed C++ plus project TS/selected-language hot-reload design only; no PPet runtime delivery."
+  ],
+  "unit_suites": {
+    "dev": {
+      "log": "/tmp/omui-scopes-dev-final.log",
+      "sha256": "a9ea7ca3c39fb5e41bda241645b76d868c2d65f338c090940b979999a621ddec",
+      "cases": 63,
+      "suites": {
+        "hanim.compatibility": {
+          "passed": 3,
+          "failed": 0
+        },
+        "hanim.program": {
+          "passed": 20,
+          "failed": 0
+        },
+        "hanim.engine": {
+          "passed": 23,
+          "failed": 0
+        },
+        "hanim.composite": {
+          "passed": 7,
+          "failed": 0
+        },
+        "hanim.engine.visual": {
+          "passed": 2,
+          "failed": 0
+        },
+        "hanim.render.vector": {
+          "passed": 8,
+          "failed": 0
+        }
+      },
+      "group_pixel_hash": "10621815397696455029"
+    },
+    "release": {
+      "log": "/tmp/omui-scopes-release.log",
+      "sha256": "22a479566e1c2ed7d65ffd31961aa8e406d28826fafd69e70f5788c41736265b",
+      "cases": 63,
+      "suites": {
+        "hanim.compatibility": {
+          "passed": 3,
+          "failed": 0
+        },
+        "hanim.program": {
+          "passed": 20,
+          "failed": 0
+        },
+        "hanim.engine": {
+          "passed": 23,
+          "failed": 0
+        },
+        "hanim.composite": {
+          "passed": 7,
+          "failed": 0
+        },
+        "hanim.engine.visual": {
+          "passed": 2,
+          "failed": 0
+        },
+        "hanim.render.vector": {
+          "passed": 8,
+          "failed": 0
+        }
+      },
+      "group_pixel_hash": "10621815397696455029"
+    },
+    "wasm-test": {
+      "log": "/tmp/omui-scopes-wasm.log",
+      "sha256": "219d56bbba07d634c5ebbf9067701651f83bc9345de6da4b74b7348e72cd1063",
+      "cases": 62,
+      "suites": {
+        "hanim.compatibility": {
+          "passed": 3,
+          "failed": 0
+        },
+        "hanim.program": {
+          "passed": 19,
+          "failed": 0
+        },
+        "hanim.engine": {
+          "passed": 23,
+          "failed": 0
+        },
+        "hanim.composite": {
+          "passed": 7,
+          "failed": 0
+        },
+        "hanim.engine.visual": {
+          "passed": 2,
+          "failed": 0
+        },
+        "hanim.render.vector": {
+          "passed": 8,
+          "failed": 0
+        }
+      },
+      "group_pixel_hash": "10621815397696455029"
+    }
+  },
+  "final_scope_regressions": {
+    "release": {
+      "log": "/tmp/omui-scopes-composite-release-final.log",
+      "sha256": "75b072324f34d58a3b9973a63de1e0abc22759cf328efb67cf3b8d3e2bbe715e",
+      "cases": 7,
+      "failed": 0
+    },
+    "wasm-test": {
+      "log": "/tmp/omui-scopes-composite-wasm-final.log",
+      "sha256": "093c18ddbdb9a2f28771a6d4b30d2d712642f0de1b2c26ae9813d3db658dc439",
+      "cases": 7,
+      "failed": 0
+    }
+  },
+  "test_commands": [
+    "MCPP_JOBS=2 mcpp test --locked -p hanim.program -p hanim.engine -p hanim.render.vector -p hanim --profile dev",
+    "MCPP_JOBS=2 mcpp test --locked -p hanim.program -p hanim.engine -p hanim.render.vector -p hanim --profile release",
+    "MCPP_JOBS=2 mcpp test --locked -p hanim.program -p hanim.engine -p hanim.render.vector -p hanim --target wasm32-emscripten --profile wasm-test",
+    "MCPP_JOBS=2 mcpp test composite --locked -p hanim.engine --profile release",
+    "MCPP_JOBS=2 mcpp test composite --locked -p hanim.engine --target wasm32-emscripten --profile wasm-test"
+  ],
+  "authoring": {
+    "format": "hanim.public-authoring@0.2",
+    "ok": true,
+    "source_root": "/home/speak/workspace/mui",
+    "source_commit": "e47b624d0a9bd809609fa29babb4596be6e71229",
+    "project": "/tmp/hanim-api-probe-hiz46lhp",
+    "source_lock_before": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+    "commands": [
+      {
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "build",
+          "--profile",
+          "dev"
+        ],
+        "exit_code": 0,
+        "seconds": 11.581386635021772,
+        "stdout": "/home/speak/workspace/mui/target/hanim-scopes-api.report.omui-artifacts/bootstrap.stdout.log",
+        "stderr": "/home/speak/workspace/mui/target/hanim-scopes-api.report.omui-artifacts/bootstrap.stderr.log"
+      },
+      {
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "run",
+          "--locked",
+          "--profile",
+          "dev"
+        ],
+        "exit_code": 0,
+        "seconds": 0.14200726198032498,
+        "stdout": "/home/speak/workspace/mui/target/hanim-scopes-api.report.omui-artifacts/dev.stdout.log",
+        "stderr": "/home/speak/workspace/mui/target/hanim-scopes-api.report.omui-artifacts/dev.stderr.log"
+      },
+      {
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "build",
+          "--locked",
+          "--profile",
+          "dev",
+          "--configure-only"
+        ],
+        "exit_code": 0,
+        "seconds": 0.14875168696744367,
+        "stdout": "/home/speak/workspace/mui/target/hanim-scopes-api.report.omui-artifacts/dev-metadata.stdout.log",
+        "stderr": "/home/speak/workspace/mui/target/hanim-scopes-api.report.omui-artifacts/dev-metadata.stderr.log"
+      },
+      {
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "run",
+          "--locked",
+          "--profile",
+          "release"
+        ],
+        "exit_code": 0,
+        "seconds": 16.10695896303514,
+        "stdout": "/home/speak/workspace/mui/target/hanim-scopes-api.report.omui-artifacts/release.stdout.log",
+        "stderr": "/home/speak/workspace/mui/target/hanim-scopes-api.report.omui-artifacts/release.stderr.log"
+      },
+      {
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "build",
+          "--locked",
+          "--profile",
+          "release",
+          "--configure-only"
+        ],
+        "exit_code": 0,
+        "seconds": 0.1492085380014032,
+        "stdout": "/home/speak/workspace/mui/target/hanim-scopes-api.report.omui-artifacts/release-metadata.stdout.log",
+        "stderr": "/home/speak/workspace/mui/target/hanim-scopes-api.report.omui-artifacts/release-metadata.stderr.log"
+      }
+    ],
+    "profiles": [
+      {
+        "profile": "dev",
+        "result": {
+          "kind": "hanim.api-probe",
+          "ok": true,
+          "checks": [
+            {
+              "name": "registry_and_engine_created",
+              "ok": true
+            },
+            {
+              "name": "public_contours_created",
+              "ok": true
+            },
+            {
+              "name": "object_refs_created",
+              "ok": true
+            },
+            {
+              "name": "owned_snapshots_created",
+              "ok": true
+            },
+            {
+              "name": "description_construction_has_no_playback_or_object_side_effect",
+              "ok": true
+            },
+            {
+              "name": "fluent_values_reuse_without_mutating_recipe",
+              "ok": true
+            },
+            {
+              "name": "explicit_prepare_succeeds",
+              "ok": true
+            },
+            {
+              "name": "prepare_does_not_start_clock",
+              "ok": true
+            },
+            {
+              "name": "convenient_play_uses_public_engine",
+              "ok": true
+            },
+            {
+              "name": "convenient_pose_t0",
+              "ok": true
+            },
+            {
+              "name": "convenient_pose_t015",
+              "ok": true
+            },
+            {
+              "name": "convenient_pose_t030",
+              "ok": true
+            },
+            {
+              "name": "convenient_pose_t045",
+              "ok": true
+            },
+            {
+              "name": "convenient_pose_t060",
+              "ok": true
+            },
+            {
+              "name": "true_cubic_geometry_transform_effect_midpoint",
+              "ok": true
+            },
+            {
+              "name": "playback_never_writes_business_object",
+              "ok": true
+            },
+            {
+              "name": "release_convenient_instance",
+              "ok": true
+            },
+            {
+              "name": "prepared_play_succeeds",
+              "ok": true
+            },
+            {
+              "name": "convenient_and_explicit_prepare_identical_under_unordered_seek",
+              "ok": true
+            },
+            {
+              "name": "occupied_source_error_is_preserved",
+              "ok": true
+            },
+            {
+              "name": "release_prepared_instance",
+              "ok": true
+            },
+            {
+              "name": "released_handle_is_stale",
+              "ok": true
+            },
+            {
+              "name": "typed_process_paths_prepare",
+              "ok": true
+            },
+            {
+              "name": "typed_process_paths_play",
+              "ok": true
+            },
+            {
+              "name": "typed_process_paths_expose_frame",
+              "ok": true
+            },
+            {
+              "name": "translation_path_is_typed_and_image_effect_is_retained",
+              "ok": true
+            },
+            {
+              "name": "vertex_path_changes_geometry_before_renderer",
+              "ok": true
+            },
+            {
+              "name": "process_paths_preserve_exact_endpoint_channels",
+              "ok": true
+            },
+            {
+              "name": "release_process_path_instance",
+              "ok": true
+            },
+            {
+              "name": "prepared_process_path_replay",
+              "ok": true
+            },
+            {
+              "name": "process_path_convenient_and_prepared_equal",
+              "ok": true
+            },
+            {
+              "name": "release_process_path_replay",
+              "ok": true
+            },
+            {
+              "name": "ordered_effect_chain_prepares",
+              "ok": true
+            },
+            {
+              "name": "ordered_effect_chain_samples",
+              "ok": true
+            },
+            {
+              "name": "leaf_effects_preserve_order_values_and_fluent_reuse",
+              "ok": true
+            },
+            {
+              "name": "release_layered_effects",
+              "ok": true
+            },
+            {
+              "name": "sequence_prepares_on_existing_compiler",
+              "ok": true
+            },
+            {
+              "name": "sequence_plays",
+              "ok": true
+            },
+            {
+              "name": "sequence_boundary_seek",
+              "ok": true
+            },
+            {
+              "name": "sequence_second_segment_seek",
+              "ok": true
+            },
+            {
+              "name": "sequence_second_source_is_preceding_endpoint",
+              "ok": true
+            },
+            {
+              "name": "release_sequence",
+              "ok": true
+            },
+            {
+              "name": "nested_parallel_plays",
+              "ok": true
+            },
+            {
+              "name": "parallel_retains_two_tracks_three_segments",
+              "ok": true
+            },
+            {
+              "name": "multitrack_requires_explicit_frame_selection",
+              "ok": true
+            },
+            {
+              "name": "release_parallel",
+              "ok": true
+            },
+            {
+              "name": "stagger_prepares",
+              "ok": true
+            },
+            {
+              "name": "stagger_before_second_start",
+              "ok": true
+            },
+            {
+              "name": "stagger_holds_unstarted_track_source",
+              "ok": true
+            },
+            {
+              "name": "release_stagger",
+              "ok": true
+            },
+            {
+              "name": "invalid_duration_keeps_structured_program_error_and_no_playback",
+              "ok": true
+            },
+            {
+              "name": "invalid_snapshot_is_rejected",
+              "ok": true
+            },
+            {
+              "name": "same_object_overlap_is_not_silently_blended",
+              "ok": true
+            },
+            {
+              "name": "prepare_respects_node_budget",
+              "ok": true
+            },
+            {
+              "name": "convenient_prepare_respects_configured_limits",
+              "ok": true
+            },
+            {
+              "name": "explicit_prepare_uses_same_limits_as_convenient_play",
+              "ok": true
+            },
+            {
+              "name": "effect_validation_error_is_preserved",
+              "ok": true
+            },
+            {
+              "name": "snapshot_stays_frozen_after_host_update",
+              "ok": true
+            },
+            {
+              "name": "host_objects_destroyed",
+              "ok": true
+            },
+            {
+              "name": "prepared_plan_survives_destroyed_host_objects",
+              "ok": true
+            },
+            {
+              "name": "frozen_geometry_retains_owned_inputs",
+              "ok": true
+            },
+            {
+              "name": "release_frozen_snapshot_playback",
+              "ok": true
+            },
+            {
+              "name": "live_engine_objects_created",
+              "ok": true
+            },
+            {
+              "name": "object_ref_description_has_no_capture_or_play_side_effect",
+              "ok": true
+            },
+            {
+              "name": "live_source_updated_after_description",
+              "ok": true
+            },
+            {
+              "name": "object_ref_prepare_captures_current_revision",
+              "ok": true
+            },
+            {
+              "name": "standalone_compiler_requires_registry_for_live_inputs",
+              "ok": true
+            },
+            {
+              "name": "snapshot_recipe_prepares_without_engine_or_registry",
+              "ok": true
+            },
+            {
+              "name": "explicit_registry_rejects_foreign_live_ref",
+              "ok": true
+            },
+            {
+              "name": "live_source_accepts_frozen_external_target",
+              "ok": true
+            },
+            {
+              "name": "legacy_snapshot_program_composes_with_public_recipe",
+              "ok": true
+            },
+            {
+              "name": "object_ref_convenient_play",
+              "ok": true
+            },
+            {
+              "name": "capture_is_deferred_until_prepare_not_description_creation",
+              "ok": true
+            },
+            {
+              "name": "release_live_convenient",
+              "ok": true
+            },
+            {
+              "name": "object_ref_prepared_play",
+              "ok": true
+            },
+            {
+              "name": "object_ref_convenient_and_prepared_equivalent",
+              "ok": true
+            },
+            {
+              "name": "release_live_prepared",
+              "ok": true
+            },
+            {
+              "name": "object_ref_sequence_plays",
+              "ok": true
+            },
+            {
+              "name": "object_ref_sequence_uses_previous_endpoint",
+              "ok": true
+            },
+            {
+              "name": "release_live_sequence",
+              "ok": true
+            },
+            {
+              "name": "explicit_reset_sequence_plays",
+              "ok": true
+            },
+            {
+              "name": "explicit_source_mode_resets_to_captured_pose",
+              "ok": true
+            },
+            {
+              "name": "release_reset_sequence",
+              "ok": true
+            },
+            {
+              "name": "authoring_lowering_depth_is_bounded",
+              "ok": true
+            },
+            {
+              "name": "foreign_owner_error_is_preserved",
+              "ok": true
+            },
+            {
+              "name": "live_objects_destroyed",
+              "ok": true
+            },
+            {
+              "name": "stale_description_rejected_without_partial_playback",
+              "ok": true
+            },
+            {
+              "name": "new_generation_objects_created",
+              "ok": true
+            },
+            {
+              "name": "destroyed_source_slot_was_reused_with_new_generation",
+              "ok": true
+            },
+            {
+              "name": "old_ref_does_not_rebind_after_slot_reuse",
+              "ok": true
+            },
+            {
+              "name": "new_generation_objects_destroyed",
+              "ok": true
+            },
+            {
+              "name": "prepared_ref_plan_survives_object_destruction",
+              "ok": true
+            },
+            {
+              "name": "prepared_ref_plan_keeps_owned_geometry",
+              "ok": true
+            },
+            {
+              "name": "all_playback_resources_released",
+              "ok": true
+            },
+            {
+              "name": "public_composite_prepares_without_renderer",
+              "ok": true
+            },
+            {
+              "name": "scope_hierarchy_retained_by_the_public_compiler",
+              "ok": true
+            },
+            {
+              "name": "public_composite_plays_on_the_shared_clock",
+              "ok": true
+            },
+            {
+              "name": "program_frame_publishes_geometry_and_scope_values_together",
+              "ok": true
+            },
+            {
+              "name": "composite_restore_uses_exact_source_parameters",
+              "ok": true
+            },
+            {
+              "name": "composite_releases_all_playback_resources",
+              "ok": true
+            }
+          ]
+        },
+        "packages": [
+          "hanim.core",
+          "hanim.effect",
+          "hanim.engine",
+          "hanim.library",
+          "hanim.object",
+          "hanim.program",
+          "hanim.validation.api_probe",
+          "mcpplibs.hanim",
+          "openmui.log",
+          "openmui.math",
+          "openmui.memory",
+          "openmui.trace"
+        ],
+        "compiled_sources": [
+          "/home/speak/.mcpp/registry/data/xpkgs/xim-x-gcc/16.1.0/include/c++/16.1.0/bits/std.cc",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/core.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/ease.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/ease.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/math.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/motion.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/motion.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/path.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/path.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/set.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/set.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/shape.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/shape.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/time.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/time.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/timeline.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/timeline.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/value.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/value.cppm",
+          "/home/speak/workspace/mui/modules/base/log/src/log.cpp",
+          "/home/speak/workspace/mui/modules/base/log/src/log.cppm",
+          "/home/speak/workspace/mui/modules/base/math/src/color.cppm",
+          "/home/speak/workspace/mui/modules/base/math/src/det.cpp",
+          "/home/speak/workspace/mui/modules/base/math/src/det.cppm",
+          "/home/speak/workspace/mui/modules/base/math/src/math.cppm",
+          "/home/speak/workspace/mui/modules/base/math/src/random.cppm",
+          "/home/speak/workspace/mui/modules/base/memory/src/arena.cpp",
+          "/home/speak/workspace/mui/modules/base/memory/src/arena.cppm",
+          "/home/speak/workspace/mui/modules/base/memory/src/function.cppm",
+          "/home/speak/workspace/mui/modules/base/memory/src/handle.cppm",
+          "/home/speak/workspace/mui/modules/base/memory/src/memory.cppm",
+          "/home/speak/workspace/mui/modules/base/memory/src/slots.cppm",
+          "/home/speak/workspace/mui/modules/base/trace/src/trace.cpp",
+          "/home/speak/workspace/mui/modules/base/trace/src/trace.cppm",
+          "/home/speak/workspace/mui/modules/gfx/hanim/effect/src/effect.cpp",
+          "/home/speak/workspace/mui/modules/gfx/hanim/effect/src/effect.cppm",
+          "/home/speak/workspace/mui/modules/gfx/hanim/engine/src/engine.cpp",
+          "/home/speak/workspace/mui/modules/gfx/hanim/engine/src/engine.cppm",
+          "/home/speak/workspace/mui/modules/gfx/hanim/library/src/library.cpp",
+          "/home/speak/workspace/mui/modules/gfx/hanim/library/src/library.cppm",
+          "/home/speak/workspace/mui/modules/gfx/hanim/object/src/object.cpp",
+          "/home/speak/workspace/mui/modules/gfx/hanim/object/src/object.cppm",
+          "/home/speak/workspace/mui/modules/gfx/hanim/program/src/program.cpp",
+          "/home/speak/workspace/mui/modules/gfx/hanim/program/src/program.cppm",
+          "/home/speak/workspace/mui/modules/gfx/hanim/src/hanim.cppm",
+          "/tmp/hanim-api-probe-hiz46lhp/src/main.cpp"
+        ],
+        "source_files_sha256": {
+          "modules/base/hanim/core/src/core.cppm": "ecdc0172eddf8448fafcaed48175e40ac58edf8bbe0e8bc0d3e7cd18bab8a458",
+          "modules/base/hanim/core/src/ease.cpp": "df318b3d47ba56252d60858d85e8d9e01d68360b2ea2fe91a95013a68a9f2de4",
+          "modules/base/hanim/core/src/ease.cppm": "b43599eee8e3642e1609777af5be4890a082cddb953aff73a705cb4c87aba044",
+          "modules/base/hanim/core/src/math.cppm": "2cf5c0f7b2d61516ba4464d126fa9a921c19076b13cad0221404cb706d8693e9",
+          "modules/base/hanim/core/src/motion.cpp": "39457ec62bfa40cd0715b0c2f45434868ed0bf0aef0f168a8b1ee6770c954618",
+          "modules/base/hanim/core/src/motion.cppm": "3741d1351824a869d5af96b644eaecc44476256c2c6458eee28be5b4c0f3e436",
+          "modules/base/hanim/core/src/path.cpp": "7f4f8627d762fed3d90852f4df159a0a56f93ac1c034fb97bc0fe5452994718d",
+          "modules/base/hanim/core/src/path.cppm": "d1ea8d75068e036b6f9f93e7e75a05dbd2c27d25a68bed13c1b1caff27edac56",
+          "modules/base/hanim/core/src/set.cpp": "555c887d0aaf7bfdae97d46633c9fb577ac0ad44da1bdf2d27836614636ebbdf",
+          "modules/base/hanim/core/src/set.cppm": "5df90d61b8f4c9d4721fca9a79048be7face5a3b1c471a7805242f4f022957cc",
+          "modules/base/hanim/core/src/shape.cpp": "30968d4f2b799545b0903ec9e3e8fb2a5ce684fff17f065ae295d931adc3ad80",
+          "modules/base/hanim/core/src/shape.cppm": "8f2b8d443409f581eb0eb1c06c5327245a3c6cdba29ac06c249469b5b02fc463",
+          "modules/base/hanim/core/src/time.cpp": "e22baaca35c596c9c4d5565c05b4928e1730f4204b0dec453e4705ab82d070a5",
+          "modules/base/hanim/core/src/time.cppm": "a7e8d6ecfca6e593484f59a2661557d551db4afd7f9b6cf55b3604fc30a7aaaa",
+          "modules/base/hanim/core/src/timeline.cpp": "4f8928509e45533448107e1cf94579ecb29bbeafdbc1976071b02638c58505a7",
+          "modules/base/hanim/core/src/timeline.cppm": "f91bb2e4c10289705dcd2f995edc5237a9df320ceaa32c67819a2caabc7a131f",
+          "modules/base/hanim/core/src/value.cpp": "04e35cdd9e386067f63649a05c015e2760a123e1630b356ee08cb2b6a20c1fc3",
+          "modules/base/hanim/core/src/value.cppm": "dccbb6e135146983b3dfaf719d792fa12bddd5fa6b2cfc26201874ad7545f926",
+          "modules/base/log/src/log.cpp": "e53a904664ef4aedd8427afe687f79a7de9a0b0ed93237fc0d49a9854a52ac43",
+          "modules/base/log/src/log.cppm": "5e9dc5bf1ec327ac8050f8d298d85bccd2b01bc88da695449c9c96784f6b7c35",
+          "modules/base/math/src/color.cppm": "0bf26bcd84c5317c0d992dc02ddd92c38b1d4e8e365d6caa1a870f8587b07d49",
+          "modules/base/math/src/det.cpp": "4f475be69a518141e005a45b0b0d06540ba96e61eb83c7cb4cacc05ed7d8c64e",
+          "modules/base/math/src/det.cppm": "44f2a3ee6a2c2e98a680725bd1d527bd9f2c2690bd67150c476bad78e11100bd",
+          "modules/base/math/src/math.cppm": "16104515ed5113c10f4c7bb33f13b5b8af7e7917b7c58f367e68749723cac1c6",
+          "modules/base/math/src/random.cppm": "46df72cbc1ad333a21330d9b93727bda2f131f3d83601b62592e5dfc3bb9c562",
+          "modules/base/memory/src/arena.cpp": "971d79859651edcf92cbeb2ab4ff2560eaa7ceeda3790b17b27051abc42b144b",
+          "modules/base/memory/src/arena.cppm": "84d4ceab9fc36c8eac2398b9b94d6acbdb0c827640f808f7db4405c879f7f6fd",
+          "modules/base/memory/src/function.cppm": "c02058a7572c1890d26bcafdb71a6a0f23b0382399a87364a169ecf1d80d7dbd",
+          "modules/base/memory/src/handle.cppm": "b43d8e7d00a816dd961c8a93c25fd3ff47d25fe44d671cd883b316f9df2bb41d",
+          "modules/base/memory/src/memory.cppm": "0ab605950b5d8016abb26d6fb4e9708798343cb130a4907a8ccc1f3c8facf4ff",
+          "modules/base/memory/src/slots.cppm": "35a479cc40ab294652b521ea3656e74a057f71520066cae36c195c5a6ec09cbc",
+          "modules/base/trace/src/trace.cpp": "6ac0d632a395568de2ba87eda1cb922a524ab1d06ae04d9002a9aedeba57fda4",
+          "modules/base/trace/src/trace.cppm": "1985ccf2b3f5536b3ade39163b4d565bc300ce6d0c9b898e46195b69271b57be",
+          "modules/gfx/hanim/effect/src/effect.cpp": "a8ee5d32965ec21bc5ba45e840466dc36f13e47c7c9afc86d3147233990e3144",
+          "modules/gfx/hanim/effect/src/effect.cppm": "d76de3a89fe4b07b91d787243487a25c56071d0cc46fc0af983f9e7bd1491978",
+          "modules/gfx/hanim/engine/src/engine.cpp": "ea75e83a795a4d8352304b116f423cefbcb8e6765c2badf36aecb237135390bb",
+          "modules/gfx/hanim/engine/src/engine.cppm": "563ffa555340e246a628828e498cab4699c8fd735347fc6ba9561527af8c87c7",
+          "modules/gfx/hanim/library/src/library.cpp": "b28925e3747ce392bd19696fe287b78be9d0cde6ea68840aa07f8d69bb935c4b",
+          "modules/gfx/hanim/library/src/library.cppm": "bc2eb5dd721d2dcb8f53f39958a8f0ee4314ab9932a3ef2c1635e40b34b7cb7f",
+          "modules/gfx/hanim/object/src/object.cpp": "f7b882e962f57e813b37a08c418a823fa9f7e08d3a910974175c23c4a1e09eeb",
+          "modules/gfx/hanim/object/src/object.cppm": "65ba64989e4e14557a6d9cf41a74011c00a959d1b2cbea0f0253086b48ba07c2",
+          "modules/gfx/hanim/program/src/program.cpp": "39812596c5edf58506b429daf190e616794cc6d26d69e967119af1db34beae96",
+          "modules/gfx/hanim/program/src/program.cppm": "e6680fad04aedfaa7c5895cfd56afaa5370e06f5780a040f398d60421233c710",
+          "modules/gfx/hanim/src/hanim.cppm": "f37667dee4bc780775aa365ad452ec4386eb3c63ac21e299ab0c1e48bf458c18"
+        },
+        "toolchain": {
+          "abi": "glibc",
+          "spec": "gcc 16.1.0 (x86_64-linux-gnu)",
+          "stdlib": "libstdc++",
+          "triple": "x86_64-linux-gnu"
+        },
+        "resolution": "/home/speak/workspace/mui/target/hanim-scopes-api.report.omui-artifacts/dev.resolution.json",
+        "cdb": "/home/speak/workspace/mui/target/hanim-scopes-api.report.omui-artifacts/dev.compile_commands.json"
+      },
+      {
+        "profile": "release",
+        "result": {
+          "kind": "hanim.api-probe",
+          "ok": true,
+          "checks": [
+            {
+              "name": "registry_and_engine_created",
+              "ok": true
+            },
+            {
+              "name": "public_contours_created",
+              "ok": true
+            },
+            {
+              "name": "object_refs_created",
+              "ok": true
+            },
+            {
+              "name": "owned_snapshots_created",
+              "ok": true
+            },
+            {
+              "name": "description_construction_has_no_playback_or_object_side_effect",
+              "ok": true
+            },
+            {
+              "name": "fluent_values_reuse_without_mutating_recipe",
+              "ok": true
+            },
+            {
+              "name": "explicit_prepare_succeeds",
+              "ok": true
+            },
+            {
+              "name": "prepare_does_not_start_clock",
+              "ok": true
+            },
+            {
+              "name": "convenient_play_uses_public_engine",
+              "ok": true
+            },
+            {
+              "name": "convenient_pose_t0",
+              "ok": true
+            },
+            {
+              "name": "convenient_pose_t015",
+              "ok": true
+            },
+            {
+              "name": "convenient_pose_t030",
+              "ok": true
+            },
+            {
+              "name": "convenient_pose_t045",
+              "ok": true
+            },
+            {
+              "name": "convenient_pose_t060",
+              "ok": true
+            },
+            {
+              "name": "true_cubic_geometry_transform_effect_midpoint",
+              "ok": true
+            },
+            {
+              "name": "playback_never_writes_business_object",
+              "ok": true
+            },
+            {
+              "name": "release_convenient_instance",
+              "ok": true
+            },
+            {
+              "name": "prepared_play_succeeds",
+              "ok": true
+            },
+            {
+              "name": "convenient_and_explicit_prepare_identical_under_unordered_seek",
+              "ok": true
+            },
+            {
+              "name": "occupied_source_error_is_preserved",
+              "ok": true
+            },
+            {
+              "name": "release_prepared_instance",
+              "ok": true
+            },
+            {
+              "name": "released_handle_is_stale",
+              "ok": true
+            },
+            {
+              "name": "typed_process_paths_prepare",
+              "ok": true
+            },
+            {
+              "name": "typed_process_paths_play",
+              "ok": true
+            },
+            {
+              "name": "typed_process_paths_expose_frame",
+              "ok": true
+            },
+            {
+              "name": "translation_path_is_typed_and_image_effect_is_retained",
+              "ok": true
+            },
+            {
+              "name": "vertex_path_changes_geometry_before_renderer",
+              "ok": true
+            },
+            {
+              "name": "process_paths_preserve_exact_endpoint_channels",
+              "ok": true
+            },
+            {
+              "name": "release_process_path_instance",
+              "ok": true
+            },
+            {
+              "name": "prepared_process_path_replay",
+              "ok": true
+            },
+            {
+              "name": "process_path_convenient_and_prepared_equal",
+              "ok": true
+            },
+            {
+              "name": "release_process_path_replay",
+              "ok": true
+            },
+            {
+              "name": "ordered_effect_chain_prepares",
+              "ok": true
+            },
+            {
+              "name": "ordered_effect_chain_samples",
+              "ok": true
+            },
+            {
+              "name": "leaf_effects_preserve_order_values_and_fluent_reuse",
+              "ok": true
+            },
+            {
+              "name": "release_layered_effects",
+              "ok": true
+            },
+            {
+              "name": "sequence_prepares_on_existing_compiler",
+              "ok": true
+            },
+            {
+              "name": "sequence_plays",
+              "ok": true
+            },
+            {
+              "name": "sequence_boundary_seek",
+              "ok": true
+            },
+            {
+              "name": "sequence_second_segment_seek",
+              "ok": true
+            },
+            {
+              "name": "sequence_second_source_is_preceding_endpoint",
+              "ok": true
+            },
+            {
+              "name": "release_sequence",
+              "ok": true
+            },
+            {
+              "name": "nested_parallel_plays",
+              "ok": true
+            },
+            {
+              "name": "parallel_retains_two_tracks_three_segments",
+              "ok": true
+            },
+            {
+              "name": "multitrack_requires_explicit_frame_selection",
+              "ok": true
+            },
+            {
+              "name": "release_parallel",
+              "ok": true
+            },
+            {
+              "name": "stagger_prepares",
+              "ok": true
+            },
+            {
+              "name": "stagger_before_second_start",
+              "ok": true
+            },
+            {
+              "name": "stagger_holds_unstarted_track_source",
+              "ok": true
+            },
+            {
+              "name": "release_stagger",
+              "ok": true
+            },
+            {
+              "name": "invalid_duration_keeps_structured_program_error_and_no_playback",
+              "ok": true
+            },
+            {
+              "name": "invalid_snapshot_is_rejected",
+              "ok": true
+            },
+            {
+              "name": "same_object_overlap_is_not_silently_blended",
+              "ok": true
+            },
+            {
+              "name": "prepare_respects_node_budget",
+              "ok": true
+            },
+            {
+              "name": "convenient_prepare_respects_configured_limits",
+              "ok": true
+            },
+            {
+              "name": "explicit_prepare_uses_same_limits_as_convenient_play",
+              "ok": true
+            },
+            {
+              "name": "effect_validation_error_is_preserved",
+              "ok": true
+            },
+            {
+              "name": "snapshot_stays_frozen_after_host_update",
+              "ok": true
+            },
+            {
+              "name": "host_objects_destroyed",
+              "ok": true
+            },
+            {
+              "name": "prepared_plan_survives_destroyed_host_objects",
+              "ok": true
+            },
+            {
+              "name": "frozen_geometry_retains_owned_inputs",
+              "ok": true
+            },
+            {
+              "name": "release_frozen_snapshot_playback",
+              "ok": true
+            },
+            {
+              "name": "live_engine_objects_created",
+              "ok": true
+            },
+            {
+              "name": "object_ref_description_has_no_capture_or_play_side_effect",
+              "ok": true
+            },
+            {
+              "name": "live_source_updated_after_description",
+              "ok": true
+            },
+            {
+              "name": "object_ref_prepare_captures_current_revision",
+              "ok": true
+            },
+            {
+              "name": "standalone_compiler_requires_registry_for_live_inputs",
+              "ok": true
+            },
+            {
+              "name": "snapshot_recipe_prepares_without_engine_or_registry",
+              "ok": true
+            },
+            {
+              "name": "explicit_registry_rejects_foreign_live_ref",
+              "ok": true
+            },
+            {
+              "name": "live_source_accepts_frozen_external_target",
+              "ok": true
+            },
+            {
+              "name": "legacy_snapshot_program_composes_with_public_recipe",
+              "ok": true
+            },
+            {
+              "name": "object_ref_convenient_play",
+              "ok": true
+            },
+            {
+              "name": "capture_is_deferred_until_prepare_not_description_creation",
+              "ok": true
+            },
+            {
+              "name": "release_live_convenient",
+              "ok": true
+            },
+            {
+              "name": "object_ref_prepared_play",
+              "ok": true
+            },
+            {
+              "name": "object_ref_convenient_and_prepared_equivalent",
+              "ok": true
+            },
+            {
+              "name": "release_live_prepared",
+              "ok": true
+            },
+            {
+              "name": "object_ref_sequence_plays",
+              "ok": true
+            },
+            {
+              "name": "object_ref_sequence_uses_previous_endpoint",
+              "ok": true
+            },
+            {
+              "name": "release_live_sequence",
+              "ok": true
+            },
+            {
+              "name": "explicit_reset_sequence_plays",
+              "ok": true
+            },
+            {
+              "name": "explicit_source_mode_resets_to_captured_pose",
+              "ok": true
+            },
+            {
+              "name": "release_reset_sequence",
+              "ok": true
+            },
+            {
+              "name": "authoring_lowering_depth_is_bounded",
+              "ok": true
+            },
+            {
+              "name": "foreign_owner_error_is_preserved",
+              "ok": true
+            },
+            {
+              "name": "live_objects_destroyed",
+              "ok": true
+            },
+            {
+              "name": "stale_description_rejected_without_partial_playback",
+              "ok": true
+            },
+            {
+              "name": "new_generation_objects_created",
+              "ok": true
+            },
+            {
+              "name": "destroyed_source_slot_was_reused_with_new_generation",
+              "ok": true
+            },
+            {
+              "name": "old_ref_does_not_rebind_after_slot_reuse",
+              "ok": true
+            },
+            {
+              "name": "new_generation_objects_destroyed",
+              "ok": true
+            },
+            {
+              "name": "prepared_ref_plan_survives_object_destruction",
+              "ok": true
+            },
+            {
+              "name": "prepared_ref_plan_keeps_owned_geometry",
+              "ok": true
+            },
+            {
+              "name": "all_playback_resources_released",
+              "ok": true
+            },
+            {
+              "name": "public_composite_prepares_without_renderer",
+              "ok": true
+            },
+            {
+              "name": "scope_hierarchy_retained_by_the_public_compiler",
+              "ok": true
+            },
+            {
+              "name": "public_composite_plays_on_the_shared_clock",
+              "ok": true
+            },
+            {
+              "name": "program_frame_publishes_geometry_and_scope_values_together",
+              "ok": true
+            },
+            {
+              "name": "composite_restore_uses_exact_source_parameters",
+              "ok": true
+            },
+            {
+              "name": "composite_releases_all_playback_resources",
+              "ok": true
+            }
+          ]
+        },
+        "packages": [
+          "hanim.core",
+          "hanim.effect",
+          "hanim.engine",
+          "hanim.library",
+          "hanim.object",
+          "hanim.program",
+          "hanim.validation.api_probe",
+          "mcpplibs.hanim",
+          "openmui.log",
+          "openmui.math",
+          "openmui.memory",
+          "openmui.trace"
+        ],
+        "compiled_sources": [
+          "/home/speak/.mcpp/registry/data/xpkgs/xim-x-gcc/16.1.0/include/c++/16.1.0/bits/std.cc",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/core.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/ease.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/ease.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/math.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/motion.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/motion.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/path.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/path.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/set.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/set.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/shape.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/shape.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/time.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/time.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/timeline.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/timeline.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/value.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/value.cppm",
+          "/home/speak/workspace/mui/modules/base/log/src/log.cpp",
+          "/home/speak/workspace/mui/modules/base/log/src/log.cppm",
+          "/home/speak/workspace/mui/modules/base/math/src/color.cppm",
+          "/home/speak/workspace/mui/modules/base/math/src/det.cpp",
+          "/home/speak/workspace/mui/modules/base/math/src/det.cppm",
+          "/home/speak/workspace/mui/modules/base/math/src/math.cppm",
+          "/home/speak/workspace/mui/modules/base/math/src/random.cppm",
+          "/home/speak/workspace/mui/modules/base/memory/src/arena.cpp",
+          "/home/speak/workspace/mui/modules/base/memory/src/arena.cppm",
+          "/home/speak/workspace/mui/modules/base/memory/src/function.cppm",
+          "/home/speak/workspace/mui/modules/base/memory/src/handle.cppm",
+          "/home/speak/workspace/mui/modules/base/memory/src/memory.cppm",
+          "/home/speak/workspace/mui/modules/base/memory/src/slots.cppm",
+          "/home/speak/workspace/mui/modules/base/trace/src/trace.cpp",
+          "/home/speak/workspace/mui/modules/base/trace/src/trace.cppm",
+          "/home/speak/workspace/mui/modules/gfx/hanim/effect/src/effect.cpp",
+          "/home/speak/workspace/mui/modules/gfx/hanim/effect/src/effect.cppm",
+          "/home/speak/workspace/mui/modules/gfx/hanim/engine/src/engine.cpp",
+          "/home/speak/workspace/mui/modules/gfx/hanim/engine/src/engine.cppm",
+          "/home/speak/workspace/mui/modules/gfx/hanim/library/src/library.cpp",
+          "/home/speak/workspace/mui/modules/gfx/hanim/library/src/library.cppm",
+          "/home/speak/workspace/mui/modules/gfx/hanim/object/src/object.cpp",
+          "/home/speak/workspace/mui/modules/gfx/hanim/object/src/object.cppm",
+          "/home/speak/workspace/mui/modules/gfx/hanim/program/src/program.cpp",
+          "/home/speak/workspace/mui/modules/gfx/hanim/program/src/program.cppm",
+          "/home/speak/workspace/mui/modules/gfx/hanim/src/hanim.cppm",
+          "/tmp/hanim-api-probe-hiz46lhp/src/main.cpp"
+        ],
+        "source_files_sha256": {
+          "modules/base/hanim/core/src/core.cppm": "ecdc0172eddf8448fafcaed48175e40ac58edf8bbe0e8bc0d3e7cd18bab8a458",
+          "modules/base/hanim/core/src/ease.cpp": "df318b3d47ba56252d60858d85e8d9e01d68360b2ea2fe91a95013a68a9f2de4",
+          "modules/base/hanim/core/src/ease.cppm": "b43599eee8e3642e1609777af5be4890a082cddb953aff73a705cb4c87aba044",
+          "modules/base/hanim/core/src/math.cppm": "2cf5c0f7b2d61516ba4464d126fa9a921c19076b13cad0221404cb706d8693e9",
+          "modules/base/hanim/core/src/motion.cpp": "39457ec62bfa40cd0715b0c2f45434868ed0bf0aef0f168a8b1ee6770c954618",
+          "modules/base/hanim/core/src/motion.cppm": "3741d1351824a869d5af96b644eaecc44476256c2c6458eee28be5b4c0f3e436",
+          "modules/base/hanim/core/src/path.cpp": "7f4f8627d762fed3d90852f4df159a0a56f93ac1c034fb97bc0fe5452994718d",
+          "modules/base/hanim/core/src/path.cppm": "d1ea8d75068e036b6f9f93e7e75a05dbd2c27d25a68bed13c1b1caff27edac56",
+          "modules/base/hanim/core/src/set.cpp": "555c887d0aaf7bfdae97d46633c9fb577ac0ad44da1bdf2d27836614636ebbdf",
+          "modules/base/hanim/core/src/set.cppm": "5df90d61b8f4c9d4721fca9a79048be7face5a3b1c471a7805242f4f022957cc",
+          "modules/base/hanim/core/src/shape.cpp": "30968d4f2b799545b0903ec9e3e8fb2a5ce684fff17f065ae295d931adc3ad80",
+          "modules/base/hanim/core/src/shape.cppm": "8f2b8d443409f581eb0eb1c06c5327245a3c6cdba29ac06c249469b5b02fc463",
+          "modules/base/hanim/core/src/time.cpp": "e22baaca35c596c9c4d5565c05b4928e1730f4204b0dec453e4705ab82d070a5",
+          "modules/base/hanim/core/src/time.cppm": "a7e8d6ecfca6e593484f59a2661557d551db4afd7f9b6cf55b3604fc30a7aaaa",
+          "modules/base/hanim/core/src/timeline.cpp": "4f8928509e45533448107e1cf94579ecb29bbeafdbc1976071b02638c58505a7",
+          "modules/base/hanim/core/src/timeline.cppm": "f91bb2e4c10289705dcd2f995edc5237a9df320ceaa32c67819a2caabc7a131f",
+          "modules/base/hanim/core/src/value.cpp": "04e35cdd9e386067f63649a05c015e2760a123e1630b356ee08cb2b6a20c1fc3",
+          "modules/base/hanim/core/src/value.cppm": "dccbb6e135146983b3dfaf719d792fa12bddd5fa6b2cfc26201874ad7545f926",
+          "modules/base/log/src/log.cpp": "e53a904664ef4aedd8427afe687f79a7de9a0b0ed93237fc0d49a9854a52ac43",
+          "modules/base/log/src/log.cppm": "5e9dc5bf1ec327ac8050f8d298d85bccd2b01bc88da695449c9c96784f6b7c35",
+          "modules/base/math/src/color.cppm": "0bf26bcd84c5317c0d992dc02ddd92c38b1d4e8e365d6caa1a870f8587b07d49",
+          "modules/base/math/src/det.cpp": "4f475be69a518141e005a45b0b0d06540ba96e61eb83c7cb4cacc05ed7d8c64e",
+          "modules/base/math/src/det.cppm": "44f2a3ee6a2c2e98a680725bd1d527bd9f2c2690bd67150c476bad78e11100bd",
+          "modules/base/math/src/math.cppm": "16104515ed5113c10f4c7bb33f13b5b8af7e7917b7c58f367e68749723cac1c6",
+          "modules/base/math/src/random.cppm": "46df72cbc1ad333a21330d9b93727bda2f131f3d83601b62592e5dfc3bb9c562",
+          "modules/base/memory/src/arena.cpp": "971d79859651edcf92cbeb2ab4ff2560eaa7ceeda3790b17b27051abc42b144b",
+          "modules/base/memory/src/arena.cppm": "84d4ceab9fc36c8eac2398b9b94d6acbdb0c827640f808f7db4405c879f7f6fd",
+          "modules/base/memory/src/function.cppm": "c02058a7572c1890d26bcafdb71a6a0f23b0382399a87364a169ecf1d80d7dbd",
+          "modules/base/memory/src/handle.cppm": "b43d8e7d00a816dd961c8a93c25fd3ff47d25fe44d671cd883b316f9df2bb41d",
+          "modules/base/memory/src/memory.cppm": "0ab605950b5d8016abb26d6fb4e9708798343cb130a4907a8ccc1f3c8facf4ff",
+          "modules/base/memory/src/slots.cppm": "35a479cc40ab294652b521ea3656e74a057f71520066cae36c195c5a6ec09cbc",
+          "modules/base/trace/src/trace.cpp": "6ac0d632a395568de2ba87eda1cb922a524ab1d06ae04d9002a9aedeba57fda4",
+          "modules/base/trace/src/trace.cppm": "1985ccf2b3f5536b3ade39163b4d565bc300ce6d0c9b898e46195b69271b57be",
+          "modules/gfx/hanim/effect/src/effect.cpp": "a8ee5d32965ec21bc5ba45e840466dc36f13e47c7c9afc86d3147233990e3144",
+          "modules/gfx/hanim/effect/src/effect.cppm": "d76de3a89fe4b07b91d787243487a25c56071d0cc46fc0af983f9e7bd1491978",
+          "modules/gfx/hanim/engine/src/engine.cpp": "ea75e83a795a4d8352304b116f423cefbcb8e6765c2badf36aecb237135390bb",
+          "modules/gfx/hanim/engine/src/engine.cppm": "563ffa555340e246a628828e498cab4699c8fd735347fc6ba9561527af8c87c7",
+          "modules/gfx/hanim/library/src/library.cpp": "b28925e3747ce392bd19696fe287b78be9d0cde6ea68840aa07f8d69bb935c4b",
+          "modules/gfx/hanim/library/src/library.cppm": "bc2eb5dd721d2dcb8f53f39958a8f0ee4314ab9932a3ef2c1635e40b34b7cb7f",
+          "modules/gfx/hanim/object/src/object.cpp": "f7b882e962f57e813b37a08c418a823fa9f7e08d3a910974175c23c4a1e09eeb",
+          "modules/gfx/hanim/object/src/object.cppm": "65ba64989e4e14557a6d9cf41a74011c00a959d1b2cbea0f0253086b48ba07c2",
+          "modules/gfx/hanim/program/src/program.cpp": "39812596c5edf58506b429daf190e616794cc6d26d69e967119af1db34beae96",
+          "modules/gfx/hanim/program/src/program.cppm": "e6680fad04aedfaa7c5895cfd56afaa5370e06f5780a040f398d60421233c710",
+          "modules/gfx/hanim/src/hanim.cppm": "f37667dee4bc780775aa365ad452ec4386eb3c63ac21e299ab0c1e48bf458c18"
+        },
+        "toolchain": {
+          "abi": "glibc",
+          "spec": "gcc 16.1.0 (x86_64-linux-gnu)",
+          "stdlib": "libstdc++",
+          "triple": "x86_64-linux-gnu"
+        },
+        "resolution": "/home/speak/workspace/mui/target/hanim-scopes-api.report.omui-artifacts/release.resolution.json",
+        "cdb": "/home/speak/workspace/mui/target/hanim-scopes-api.report.omui-artifacts/release.compile_commands.json"
+      }
+    ],
+    "fixture_sha256": {
+      "mcpp.toml.in": "ee8de4e9d07e9ca05049da3cabd8f55cd650401728e16cc377d8e0f3da1a73ea",
+      "run.py": "c46825e8fb1671610b600d9d055ceebcd541deb696dbb61dd0a4385cec23f266",
+      "src/main.cpp": "78b26cb7a6bc31f16b23028c38e4a51e229731f52591765ed7fabceb4877b216"
+    },
+    "scope": [
+      "Public import hanim; no consumer facade or second compiler/player.",
+      "Real strict contour/transform/fill morph and parameter effects only.",
+      "ObjectRef uses borrowed Engine registry; external hosts use explicit Snapshot inputs.",
+      "Explicit nested composite scopes, hierarchy and atomic program frames; no renderer required.",
+      "No GPU execution, move/reveal, general typed channels or Agent provider.",
+      "No hot-path performance/allocation or sanitizer claim."
+    ],
+    "temporary_lock_sha256": null,
+    "temporary_lock_present": false,
+    "source_lock_after": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+    "project_retained": false
+  },
+  "pixels": {
+    "path": "/tmp/openmui-tests/hanim-composite/group-blur.png",
+    "png_sha256": "ecaede4e899d2b7c6260cce2ad5615f15fe38a2fe9ff598361bc65b95881018e",
+    "surface_hash": "10621815397696455029",
+    "profiles_identical": [
+      "dev",
+      "release",
+      "wasm-test"
+    ],
+    "oracle": "Two overlapping translucent objects in one shared DisplayList blur layer; outside object retains sharp edges. Per-leaf blur is demonstrably different.",
+    "viewport": [
+      112,
+      64
+    ],
+    "renderer": "existing CPU reference; no GUI/window"
+  },
+  "benchmark": {
+    "command": "MCPP_JOBS=2 mcpp run --locked -p openmui.bench --profile release -- --filter program-seek --check tests/bench/budgets.bench.omui.json --json target/hanim-scopes.bench.omui.json",
+    "log": "/tmp/omui-scopes-bench-final-verified.log",
+    "log_sha256": "c5f7fe4d62ae7a01f12f8f0e94c3c4e85dce5e8bae09896f03653698e873d5ff",
+    "report": {
+      "format": "openmui.bench@0.1",
+      "label": "",
+      "platform": "linux",
+      "hardware_threads": 32,
+      "started": "2026-11-04T21:00:15Z",
+      "machine": {
+        "cpu": "13th Gen Intel(R) Core(TM) i9-13900K",
+        "arch": "x86_64",
+        "system": "Ubuntu 24.04.1 LTS, kernel 6.8.0-147-generic",
+        "memory": 67147726848
+      },
+      "results": [
+        {
+          "name": "public-motion/program-seek-100x2",
+          "description": "100 independent instances of a shared nested two-track three-segment program; arbitrary seeks cross phases; setup excluded",
+          "iterations": 13346,
+          "notes": {
+            "timing": "CPU wall-clock only; no GPU submission, device execution or physical-GPU performance measured",
+            "work": "One immutable nested schedule reused by 100 separately owned Engine instances. Each seek samples both object tracks, selects the active phase and atomically publishes geometry/effects. Seventeen changing times exercise both stages and endpoints. Source matching, compilation, allocation and rendering excluded. One item is one object-track update including its share of selection/publication; not an entire rendered frame."
+          },
+          "min_ms": 0.029426,
+          "mean_ms": 0.029973650082421692,
+          "p50_ms": 0.029773,
+          "p95_ms": 0.030321,
+          "p99_ms": 0.032485,
+          "max_ms": 0.200456,
+          "items": 200,
+          "ns_per_item": 149.86825041210847,
+          "allocations": 0,
+          "max_allocations": 0,
+          "counters": {
+            "tracks": 200,
+            "segments_per_instance": 3,
+            "checksum": 4149.480975525991
+          }
+        },
+        {
+          "name": "public-motion/scoped-program-seek-100x2",
+          "description": "100 two-track programs with two nested image scopes; arbitrary seeks and atomic frame queries; setup excluded",
+          "iterations": 11071,
+          "notes": {
+            "timing": "CPU wall-clock only; no GPU submission, device execution or physical-GPU performance measured",
+            "work": "One immutable nested schedule reused by 100 separately owned Engine instances. Each seek samples both object tracks, selects the active phase and atomically publishes geometry/effects. Seventeen changing times exercise both stages and endpoints. Source matching, compilation, allocation and rendering excluded. One item is one object-track update including its share of selection/publication; not an entire rendered frame.",
+            "scope": "Two nested image scopes add five shared effect parameters per instance; query publishes all track/scope views. No image processing or renderer recording is measured."
+          },
+          "min_ms": 0.035676,
+          "mean_ms": 0.036131422906692946,
+          "p50_ms": 0.036026,
+          "p95_ms": 0.036458,
+          "p99_ms": 0.038317,
+          "max_ms": 0.052222,
+          "items": 200,
+          "ns_per_item": 180.65711453346475,
+          "allocations": 0,
+          "max_allocations": 0,
+          "counters": {
+            "tracks": 200,
+            "segments_per_instance": 3,
+            "checksum": 4203.994159697633
+          }
+        }
+      ]
+    },
+    "limits": "Measured CPU sampling/publication only, not complete frame, effect execution, GPU or cross-machine performance."
+  },
+  "verification": {
+    "lint": {
+      "log": "/tmp/omui-scopes-lint-final.log",
+      "exit_code": 0
+    },
+    "diff_check": "passed",
+    "markdown_files": 12,
+    "local_links": 108,
+    "missing_local_links": 0
+  },
+  "resolved_attempts": [
+    {
+      "log": "/tmp/omui-scopes-dev.log",
+      "issue": "New composite fixture initially compared EffectRef with unavailable operator==; corrected to compare explicit IDs. Final complete suites pass."
+    },
+    {
+      "logs": [
+        "/tmp/omui-scopes-bench.log",
+        "/tmp/omui-scopes-bench-final.log",
+        "/tmp/omui-scopes-bench-seeded.log",
+        "/tmp/omui-scopes-bench-verified.log"
+      ],
+      "issue": "Generated host-tool and build-program workspaces had missing/inapplicable locks under --locked, before benchmark compilation.",
+      "resolution": "Bootstrapped only generated build-program workspaces; seeded host-tool scratch lock from existing repository versions and removed unrelated entries based on the resolution diagnostic. Final parent run stays --locked. Source repository lock remains byte-identical."
+    }
+  ],
+  "not_completed": [
+    "General typed channels and blends",
+    "Scope-preserving retarget",
+    "GPU/device resource and batch scheduling",
+    "Program-level gradient/material authoring",
+    "Public UI scope adapter and interactive website scope presentation",
+    "Full 40 public recipes / 20 complete creative projects",
+    "PPet runtime, AI workers and transactional mixed-language reload",
+    "Native Windows/macOS/mobile or browser GPU scope acceptance"
+  ],
+  "wasm_limit": "One native concurrent-sampling test is excluded because the fixture uses the default no-threads capability; 62 actual executed cases, not 63."
+}

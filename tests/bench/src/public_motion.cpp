@@ -76,7 +76,7 @@ std::expected<render::RecordedPath, render::PathRecordError> record_shape(
 
 void add_public_motion_benchmarks() {
     static bool added = false; if (added) return; added = true;
-    add("public-motion/program-seek-100x2", "100 independent instances of a shared nested two-track three-segment program; arbitrary seeks cross phases; setup excluded", [](State& s) {
+    auto program_seek=[](State& s,bool scoped) {
         const ShapeFixture input;
         auto triangle = hanim::Contour::copy({{0,-1},input.triangle}), circle = hanim::Contour::copy({{0,-1},input.circle});
         auto registry = hanim::ObjectRegistry::make();
@@ -87,10 +87,13 @@ void add_public_motion_benchmarks() {
         const auto a=object(0,*triangle),b=object(40,*circle),c=object(80,*triangle),d=object(100,*triangle),e=object(140,*circle);
         if (!a || !b || !c || !d || !e) { s.fail("program object publication failed"); return; }
         const auto source=*registry->capture(*a);
-        auto plan=hanim::PreparedProgram::prepare(hanim::parallel({
+        auto animation=hanim::parallel({
             hanim::sequence({hanim::bind(source,*registry->capture(*b),{hanim::fx::blur(0,4)}),
                              hanim::bind(source,*registry->capture(*c),{hanim::fx::blur(4,0)})}),
-            hanim::bind(*registry->capture(*d),*registry->capture(*e),{}, {.duration=hanim::seconds(2)})}));
+            hanim::bind(*registry->capture(*d),*registry->capture(*e),{}, {.duration=hanim::seconds(2)})});
+        if(scoped)animation=hanim::composite(hanim::composite(animation).with_effect(hanim::fx::blur(0,4)))
+            .with_effect(hanim::fx::tone({}, {.r=.3f,.g=.7f,.b=1,.amount=.5f}));
+        auto plan=hanim::PreparedProgram::prepare(animation);
         if (!plan) { s.fail("program compilation failed"); return; }
         std::vector<hanim::Engine> engines; engines.reserve(100);
         std::array<hanim::PlaybackRef,100> refs;
@@ -102,6 +105,7 @@ void add_public_motion_benchmarks() {
             refs[i]=*played; engines.push_back(std::move(*engine));
         }
         cpu_note(s,"One immutable nested schedule reused by 100 separately owned Engine instances. Each seek samples both object tracks, selects the active phase and atomically publishes geometry/effects. Seventeen changing times exercise both stages and endpoints. Source matching, compilation, allocation and rendering excluded. One item is one object-track update including its share of selection/publication; not an entire rendered frame.");
+        if(scoped)s.note("scope", "Two nested image scopes add five shared effect parameters per instance; query publishes all track/scope views. No image processing or renderer recording is measured.");
         s.items(200);std::size_t iteration=0;
         while (s.next()) {
             double checksum=0;
@@ -111,10 +115,19 @@ void add_public_motion_benchmarks() {
                 auto frame=engines[i].frame(refs[i],0);
                 if (!sought || !frame || frame->geometry.cubics.empty()) { s.fail("program seek did not produce geometry"); return; }
                 checksum+=frame->geometry.parts[0].local.tx+frame->effect_values[0]+frame->geometry.cubics.front().control1.x;
+                if(scoped) {
+                    const auto scene=engines[i].program_frame(refs[i]);
+                    if(!scene || scene->scene.scope_effect_values.size()!=5) {s.fail("missing scope publication");return;}
+                    checksum+=scene->scene.scope_effect_values[0];
+                }
             }
             ++iteration;s.counter("tracks",200);s.counter("segments_per_instance",3);s.counter("checksum",checksum);
         }
-    });
+    };
+    add("public-motion/program-seek-100x2", "100 independent instances of a shared nested two-track three-segment program; arbitrary seeks cross phases; setup excluded",
+        [program_seek](State& s){program_seek(s,false);});
+    add("public-motion/scoped-program-seek-100x2", "100 two-track programs with two nested image scopes; arbitrary seeks and atomic frame queries; setup excluded",
+        [program_seek](State& s){program_seek(s,true);});
     add("public-motion/engine-advance-500", "500 public object morph playbacks and blur parameters advanced and committed as one native batch; setup excluded", [](State& s) {
         auto engine = hanim::Engine::make({.objects={.max_objects=instances*2,.max_parts=1},.max_playbacks=instances});
         const ShapeFixture input;

@@ -57,8 +57,11 @@ A sequence's later source starts at the previous actual endpoint unless
 `.source(ProgramSource::snapshot)` explicitly requests a reset. Prepared plans
 retain owned geometry after source destruction; original business objects never
 change during playback. Engine preparation requires the owning thread and
-rejects reentrant mutation. Full channel mixing, group/render effect scopes,
-image/pixel/rig domains and UI adapters are separate implementation work.
+rejects reentrant mutation. `composite(animation).with_effect(...)` retains
+explicit nested image scopes. The public probe samples their parameters and
+queries atomic program frames without introducing a renderer dependency.
+Full channel mixing, device/resource scheduling, image/pixel/rig domains and
+complete UI adapters are separate implementation work.
 
 ## Run and inspect
 
@@ -87,7 +90,7 @@ entry with the shared CPU renderer and real cropped pixels.
 
 The JSON report records commands, checks, toolchain, dependency graph, actual
 compiled source hashes and lock hashes. It does not establish GPU performance,
-all-platform support, general scope semantics or the complete public catalog.
+all-platform support, all effect domains or the complete public catalog.
 The CI workflow runs this gate; local passing results need not wait for CI.
 
 [The original 76-assertion report](2026-11-05.report.omui.json) belongs to its
@@ -103,3 +106,12 @@ subsequent typed process effects: dev/release each pass 94 external assertions
 and 178 related native cases, 68 core/umbrella cases execute under the Wasm
 fixture profile, and each profile exports 9 CPU pixel cases. General channels,
 group scopes and interactive website integration remain outside this checkpoint.
+
+[The subsequent S2 scope checkpoint](2026-11-05-scopes.report.omui.json) records
+explicit nested image scopes, atomic program frames and the optional shared
+vector renderer: native dev/release each pass 63 cases and 100 independent
+consumer assertions; Wasm executes 62 cases (one native threading case excluded).
+CPU group/leaf blur differs as expected while the explicit shared-layer oracle
+matches. Warm record and scope-seek allocation checks pass. General channels,
+scope-preserving retarget, GPU scheduling and the public UI scope adapter remain
+open; PPet mixed-language hot replacement is a documented target, not delivered runtime.

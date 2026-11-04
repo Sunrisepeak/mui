@@ -65,7 +65,19 @@ Typed `fx::vertex_path(PointPath)` and `fx::translation_path(PointPath)` alter
 matched control-point and local-position trajectories before rendering. They
 compose with the ordered image-effect parameters. See [the effect contract](effect/README.md)
 for units, additive path composition and limitations. These are leaf effects,
-not group/image scopes. Unsupported
+not group/image scopes. For the latter, use an explicit animation expression:
+
+```cpp
+auto animation = hanim::composite(hanim::parallel(
+    hanim::anim::morph(card, panel),
+    hanim::anim::morph(icon, final_icon)))
+    .with_effect(hanim::fx::blur(0, 4));
+auto playback = hengine.play(animation);
+```
+
+The scope applies once to its combined child output. Its parameters and child
+frames are published together by `program_frame`; the optional
+`PreparedVectorProgram` consumes them through the shared renderer. Unsupported
 topologies, invalid inputs, limits and conflicting writes return typed failures;
 no fallback silently discards an effect. Outputs never write business objects.
 
@@ -75,6 +87,6 @@ runs dev/release from only this package, auditing the actual dependency graph.
 The public player first supports strict named-part contour/transform/fill
 morphs, typed point-path modifiers and ordered effect parameters; the optional vector adapter records the
 current geometry through the existing renderer. Pixel/glyph/rig domains, full
-channel mixing and catalog, group effect scopes and the UI adapter remain
+channel mixing and catalog, GPU resource scheduling and the complete UI adapter remain
 implementation work. CPU/GPU renderer support is evaluated by its own adapter
 tests, not inferred from effect-parameter interpolation.

@@ -30,7 +30,7 @@
 | **S4 / P2-B：反应／计算／渲染** | 两材料、状态属性、阈值／邻域、chunk/halo、检查点；一个真实WebGPU算子 | 创意作品中可操作材料画布／反应实验 | CPU参考、边界／顺序／重建、设备资源／数值等级；Noita扩负载单列吞吐与内存预算 |
 | **S5 / P2-C：音频／时间映射** | 现有audio/timeline的自动化和视觉同步；math与CLI依赖收敛 | 可交互混音／节奏作品 | CLI同源WAV与画面；30/60/120fps不改音频；seek不重复副作用 |
 | **S6 / P3＋F1：公共控制与观测** | 从实际消费者提取中立control/resource/time；hanim和UI通过同一openas adapter | Agent页开发／使用／设计真实任务与可审查过程 | 非UI引擎独立控制、授权／revision／取消、真区域像素、trace；DAG防反向依赖 |
-| **S7 / F2＋K0：TS／AI全双工底座** | player编译移worker、插件prepare/migrate/swap；主会话／worker隔离；llmapi复用；Web脚本bridge | 统一接口×多语言、Agent作品，PPet入口 | 饱和仍可输入／取消、旧回调失效、热换失败保留；TS-only闭包；模型与Web分别实测 |
+| **S7 / F2＋K0：混合语言／AI全双工底座** | C++核心＋项目TS／所选语言；player编译移worker、插件prepare/migrate/swap；主会话／worker隔离；llmapi复用；Web脚本bridge | 统一接口×多语言、Agent作品，PPet入口 | 饱和仍可输入／取消、旧回调失效、热换失败保留；按选用语言裁剪闭包；模型与Web分别实测；native动态卸载另列可选能力 |
 | **S8 / P4＋R：公共库与官网质量** | ≥40公共基础动画、≥20可用创意工程；完整组件默认配方；官网渐进披露与按页交付 | 简洁首页、动态logo、核心特色／Agent／创意作品导航 | 每项公共定义／参数／独立工程／真实交互／视觉／预算；不以主题或速度变体凑数 |
 | **S9 / K1–K5＋P5：应用与工具纵切** | PPet新服装／实时UI／技能／绘画；Inspector、动画／UI工具优先，之后素材／音频／关卡／玩法 | 可使用的作品和工具展示 | CLI完整、GUI可选、重启重用、可编辑源、技能版本／权限；3D/rig分别验收 |
 | **S10 / P5–P6：多后端与完整质量** | Web/Toy重点、原生／移动／TUI适配；扩3D、模拟与制作链；独立产品交付 | 真实支持矩阵、跨设备布局／能力降档 | 共用CTS＋后端CTS、成熟场景矩阵、性能／稳定性／无障碍及C2–C6逐项证据 |
@@ -160,3 +160,54 @@ auto playback = hengine.play(animation); // 与prepare后play使用同一编译�
 | 工程与审查材料 | lint、文档链接、格式及README媒体检查；真实中间态图片见[官网README](../../site/README.md)。现有mcpp.lock字节保持不变，不纳入提交 |
 
 异平台CI继续异步反馈。完整通道IR／混合、组效果scope、GPU资源编排、统一呈现几何及更广组件迁移仍是S2后续范围；本轮没有新增GPU性能或全平台完成结论。
+
+## 8. S2第三批：显式组合图像scope与混合语言应用补充
+
+执行基线 `e47b624`。**本批交付嵌套图像scope的公共闭环，S2整体仍未完成。** 编译层级／时间视图是完整IR演进的一部分；通道读写、状态跨tick边与GPU资源／批次编排继续开放。
+
+### 8.1 从公共表达式到同一个播放器
+
+```cpp
+auto animation = hanim::composite(hanim::parallel(
+    hanim::anim::morph(card, panel).with_effect(hanim::fx::vertex_path(hanim::PointPath::bend(.2))),
+    hanim::anim::morph(icon, final_icon)))
+    .with_effect(hanim::fx::blur(0, 4));
+auto prepared = hengine.prepare(animation);
+// 检查expected后：hengine.play(*prepared)；简单调用仍可play(animation)。
+```
+
+- `composite(...)`明确作用于合成后的子树输出；叶子image effect先于外层scope。sequence／parallel／stagger本身不隐式广播效果或创建离屏层。顶点／位移路径继续是typed叶子过程效果。
+- Program v2保留作者preorder节点、父节点、子树边界、绝对起点／时长和最近scope；每段保留node／scope；scope保留父级／深度、时长、效果缓动、顺序与参数范围。没有第二套AST、播放器或渲染器。
+- `.effect_easing(...)`只改变scope参数，子动画使用自己的时间／缓动；scope时长来自子树。before-start、hold、零时长、restore与现有时间语义对齐。
+- `program_frame(ref)`借用同一次发布的所有track帧、scope参数、时刻和prepared identity；seek／倒放／暂停／取消共用既有时钟。几何或参数失败时全批保留原发布帧。scope参数计入准备／播放预算，scope数量有独立上限。
+
+### 8.2 可选共享renderer与真实像素
+
+`hanim.render.vector::PreparedVectorProgram`作为普通消费者绑定整个准备计划。它复用既有几何校验／写入、effect参数映射、DisplayList、CPU renderer与raster；单对象`PreparedVector`和程序入口使用同一实现。没有私有纹理池或另一个像素循环。程序入口首批使用当前solid fill；显式gradient material仍经单对象接口，不能宣称程序material编排全部完成。
+
+每帧先验证并测量叶子，按内→外计算scope范围（含blur等声明的output reach），再按作者顺序记录嵌套层。活动segment决定scope归属，包含held source／endpoint；同一track不会因scope出现多份。普通单段tracks保持直接顺序，跨段归属变化才需要排序；空效果链不增加层，无轮廓的子树不创建空图像层。预备后端参数／层数有总预算，包含未显式提供而由backend补齐的默认参数。
+
+真实CPU测试把两个半透明重叠对象作为一组模糊，与手工使用共享DisplayList离屏层得到相同像素；分别对两个叶子模糊得到不同像素。组外对象保持锐利，halo不被截断。另覆盖嵌套顺序、空scope恒等、跨阶段排序和任意seek、容量、错误参数、stale effect generation及失败不追加半帧。预热后seek＋Program查询＋record在trace开启时512次零分配；CPU实际滤镜执行的分配不属于该结论。
+
+### 8.3 本地验收与可复核边界
+
+[机器证据](../../tools/ci/hanim-api-probe/2026-11-05-scopes.report.omui.json)记录源码hash、实际命令、工具链、断言、像素hash及初次失败和修正；基线commit不是新实现的唯一身份。
+
+| 验证 | 结果 |
+|---|---|
+| Linux GCC16.1 dev／release | 各6个程序、63例通过；最终补充scope stale-generation检查后，相关7例在两配置复验通过 |
+| Emscripten wasm-test实际执行 | 6个程序、62例通过；默认无threads故不运行1例并发采样测试；最终7例scope消费者复验通过。不是浏览器GPU验证 |
+| 独立公共入口 | 临时mcpp工程只依赖`hanim`，dev／release各100项断言通过；实际依赖图无UI、spec、renderer或RHI |
+| 像素与分配 | 三配置组合输出hash一致；相同CPU层的独立oracle、组外对象和不同leaf结果均通过；新增scope基准及零分配预算。100个双track实例的本机release采样／发布p95约0.030ms，加入各2层scope／5参数和Program查询后约0.036ms，两项最大分配均为0；不含record、滤镜执行或整帧成本 |
+| 工程 | lint、diff格式和文档链接检查；现有`mcpp.lock`字节保持不变、不纳入提交；不等待异平台CI |
+
+### 8.4 自我review、PPet补充与下一步
+
+1. 作用域不能简化为给每条track复制effect。此次保留层级并验证重叠alpha的真实像素差异；GPU计划将消费同一语义，但还没有GPU资源调度交付。
+2. 时间段选择与对象identity分开。作用域变化可改变叠放次序，这是显式行为；没有隐式crossfade。单对象旧入口不改变调用方自定绘制顺序。
+3. 旧单track `retarget`会规整成一段；本批对带scope程序明确返回`unsupported_operation`，禁止丢失层级／效果。保持scope的中断重编排后续单列。
+4. 全scope／track更新先staging再发布；计数预算包含scope。record错误只改scratch，不改目标列表。仍要求单owner或外部同步、effect注册表在静默边界更新；借用视图不成为永久资源句柄。
+5. [PPet §8.1](2026-11-05-pixelpet-generative-capabilities-design.md)按维护者补充改为C++核心＋项目TS及所选语言混合。语言与reload能力分别声明，数据／脚本热替换、静态核心升级和可选native动态插件分别验收；跨语言共用生成契约、稳定handle、资源owner、状态schema和generation。主交互／worker全双工目标不变，此项是设计补充，尚未交付运行时。
+6. 下一步需把通道／scope通过公共UI adapter映射到实际交互，不在官网复制编排实现；同时按台账穿插S4反应／分块与S5音频时钟纵切。S1–S10、公共40／20、PPet K0–K5、Web／Toy／TUI及其他平台范围全部保留。
+
+构建复查：共用benchmark工具的依赖包含既有作品构建器，`--filter`只筛运行用例，不裁剪其构建闭包。首次运行遇到生成的host-tool／build-program缓存lock缺项；在生成工作区完成bootstrap，host-tool只采用现有仓库依赖版本并剔除无关项后，最终父命令保持`--locked`通过。仓库lock始终未变。公共hanim独立消费者不含这些作品依赖；后续拆分共用harness需保留单一实现，不能为每个引擎复制测试框架。

@@ -6,13 +6,15 @@ export import hanim.effect;
 
 namespace hanim::detail { struct ProgramNode; struct ProgramData; }
 export namespace hanim {
-inline constexpr std::uint32_t program_contract_version = 1;
+inline constexpr std::uint32_t program_contract_version = 2;
 inline constexpr std::size_t invalid_program_index = std::numeric_limits<std::size_t>::max();
 struct SegmentOptions { seconds duration{1}; Ease easing = ease::linear; };
 // The first binding always uses its frozen source. Subsequent default bindings
 // of that logical ObjectRef use the preceding segment's actual boundary pose.
 enum class ProgramSource : std::uint8_t { previous_endpoint, snapshot };
-enum class ProgramKind : std::uint8_t { empty, binding, sequence, parallel, stagger };
+enum class ProgramKind : std::uint8_t { empty, binding, sequence, parallel, stagger, composite };
+struct CompositeOptions { Ease effect_easing = ease::linear; };
+struct CompositeSpec { Effects effects; CompositeOptions options; };
 struct ProgramBinding {
     Snapshot from, to;
     Effects effects;
@@ -37,6 +39,8 @@ public:
     // its from/to stay empty; PreparedProgram owns the resolved snapshots.
     [[nodiscard]] const ProgramInputs* inputs() const & noexcept;
     const ProgramInputs* inputs() const && = delete;
+    [[nodiscard]] const CompositeSpec* scope() const & noexcept;
+    const CompositeSpec* scope() const && = delete;
     [[nodiscard]] seconds step() const noexcept;
 private:
     friend Program bind(Snapshot, Snapshot, Effects, SegmentOptions, MorphOptions, ProgramSource);
@@ -44,6 +48,7 @@ private:
     friend Program sequence(std::span<const Program>);
     friend Program parallel(std::span<const Program>);
     friend Program stagger(seconds, std::span<const Program>);
+    friend Program composite(Program, Effects, CompositeOptions);
     explicit Program(std::shared_ptr<const detail::ProgramNode> node) noexcept : node_(std::move(node)) {}
     std::shared_ptr<const detail::ProgramNode> node_;
 };
@@ -57,10 +62,10 @@ private:
 [[nodiscard]] Program parallel(std::initializer_list<Program> children);
 [[nodiscard]] Program stagger(seconds step, std::span<const Program> children);
 [[nodiscard]] Program stagger(seconds step, std::initializer_list<Program> children);
+[[nodiscard]] Program composite(Program child, Effects effects, CompositeOptions options = {});
 
 namespace anim {
-// A reusable leaf value. Group/image effect scopes are intentionally not
-// represented as leaf setters; they require their own typed IR contract.
+// A reusable leaf value. Process effects are distinct from image scopes.
 class Morph {
 public:
     Morph(ObjectInput from, ObjectInput to, MorphOptions options = {})
@@ -98,9 +103,26 @@ private:
 [[nodiscard]] inline Morph morph(ObjectInput from, ObjectInput to, MorphOptions options = {}) {
     return Morph{std::move(from), std::move(to), options};
 }
+class Composite {
+public:
+    explicit Composite(Program child) : child_(std::move(child)) {}
+    [[nodiscard]] Composite with_effect(EffectSpec value) const {
+        auto result = *this; result.spec_.effects.push_back(std::move(value)); return result;
+    }
+    // This affects image parameters, never the timing of child animations.
+    [[nodiscard]] Composite effect_easing(Ease value) const {
+        auto result = *this; result.spec_.options.effect_easing = value; return result;
+    }
+    [[nodiscard]] operator Program() const { return composite(child_, spec_.effects, spec_.options); }
+private:
+    Program child_;
+    CompositeSpec spec_;
+};
 }
+[[nodiscard]] inline anim::Composite composite(Program child) { return anim::Composite{std::move(child)}; }
 template<class T> concept Animation = std::same_as<std::remove_cvref_t<T>, Program> ||
-                                    std::same_as<std::remove_cvref_t<T>, anim::Morph>;
+                                    std::same_as<std::remove_cvref_t<T>, anim::Morph> ||
+                                    std::same_as<std::remove_cvref_t<T>, anim::Composite>;
 template<Animation... T> requires (sizeof...(T) > 0)
 [[nodiscard]] Program sequence(const T&... values) { return sequence({Program(values)...}); }
 template<Animation... T> requires (sizeof...(T) > 0)
@@ -112,13 +134,14 @@ struct ProgramLimits {
     // Retained preparation counts across all segments, not bytes or AST input.
     std::size_t max_total_parts = 65536, max_total_cubics = 1048576, max_total_effect_parameters = 65536;
     EffectLimits effects;
+    std::size_t max_scopes = 1024;
 };
 enum class ProgramError : std::uint8_t {
     unprepared, invalid_limits, empty_program, invalid_snapshot, invalid_source,
     invalid_time, invalid_ease, node_budget, depth_budget, track_budget,
     segment_budget, part_budget, cubic_budget, effect_parameter_budget,
     source_version_mismatch, binding_conflict, animation, effect,
-    invalid_track, output_too_small, unresolved_object, object
+    invalid_track, output_too_small, unresolved_object, object, scope_budget
 };
 struct ProgramFailure {
     ProgramError code;
@@ -126,6 +149,7 @@ struct ProgramFailure {
     std::optional<MorphFailure> animation;
     std::optional<EffectError> effect;
     std::optional<ObjectError> object;
+    std::size_t scope = invalid_program_index;
 };
 [[nodiscard]] std::string_view program_error_name(ProgramError error) noexcept;
 struct PreparedSegment {
@@ -136,6 +160,20 @@ struct PreparedSegment {
     PreparedObjectMorph animation;
     PreparedEffects effects;
     bool anchor_source = false;
+    std::size_t scope = invalid_program_index;
+};
+// Author preorder; [node, subtree_end) is contiguous. Timing is absolute.
+struct ProgramNodeInfo {
+    ProgramKind kind = ProgramKind::empty;
+    std::size_t parent = invalid_program_index, subtree_end = 0;
+    seconds start{0}, duration{0};
+    std::size_t scope = invalid_program_index, track = invalid_program_index, segment = invalid_program_index;
+};
+struct PreparedScope {
+    std::size_t node = 0, parent = invalid_program_index, depth = 1, parameter_offset = 0;
+    seconds start{0}, duration{0};
+    Ease effect_easing = ease::linear;
+    PreparedEffects effects;
 };
 struct ProgramTrack {
     ObjectRef object;
@@ -148,6 +186,17 @@ struct ProgramSample {
     std::size_t segment_index = 0;
     double linear_progress = 0, sample_progress = 0;
     std::size_t effect_parameters = 0;
+};
+struct ProgramTrackView {
+    FrameView geometry;
+    std::size_t segment_index = 0;
+    std::span<const float> effect_values;
+};
+struct ProgramFrameView {
+    std::span<const ProgramTrackView> tracks;
+    std::span<const float> scope_effect_values;
+    seconds position{0};
+    const void* preparation = nullptr;
 };
 class PreparedProgram {
 public:
@@ -170,6 +219,14 @@ public:
     std::span<const ProgramTrack> tracks() const && = delete;
     [[nodiscard]] std::span<const PreparedSegment> segments() const & noexcept;
     std::span<const PreparedSegment> segments() const && = delete;
+    [[nodiscard]] std::span<const ProgramNodeInfo> nodes() const & noexcept;
+    std::span<const ProgramNodeInfo> nodes() const && = delete;
+    [[nodiscard]] std::span<const PreparedScope> scopes() const & noexcept;
+    std::span<const PreparedScope> scopes() const && = delete;
+    [[nodiscard]] std::size_t scope_parameter_count() const noexcept;
+    [[nodiscard]] const void* identity() const noexcept { return data_.get(); }
+    [[nodiscard]] std::expected<void, ProgramFailure> sample_scopes(
+        seconds time, std::span<float> output, bool exact_source = false) const noexcept;
     // Finite local time clamps per track. Gaps hold the preceding segment;
     // before the first start, hold its exact source. Later starts win at a
     // shared boundary. exact_source selects the first segment and raw zero.

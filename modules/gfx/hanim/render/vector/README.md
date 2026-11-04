@@ -1,6 +1,6 @@
 # hanim.render.vector
 
-An optional ordinary consumer of `hanim.library` and `hanim.effect`. It records
+An optional ordinary consumer of `hanim.library`, `hanim.effect` and `hanim.program`. It records
 the current contour frame into the existing `openmui.render.vector.DisplayList`;
 the existing CPU renderer/rasterizer produces pixels. No UI, Engine, host,
 second geometry interpolator, material mixer or effect algorithm is introduced.
@@ -52,3 +52,40 @@ consumers that need material C0 must explicitly prepare their next
 `PreparedPaintMix` from the sampled current material. Engine-independent
 recording and actual CPU pixels are this adapter's scope; GPU/device capability
 and pixel-domain object transport remain separate work.
+
+## Composite programs
+
+`PreparedVectorProgram::bind(prepared_program)` binds every segment and explicit
+image scope through the same effect schema checks and geometry writer. This
+initial program adapter uses sampled solid fills; explicit gradient material
+bindings remain available through the single-object `PreparedVector` API.
+No Engine dependency is added. Its `record(ProgramFrameView, destination, scratch)`
+accepts independently sampled data or `Engine::program_frame(ref)->scene`.
+The frame must match the preparation identity, track count, selected segment
+ranges and exact scope-parameter count; geometry/effect validation is shared
+with `PreparedVector`.
+
+`requirements()` returns the track-max transform/parameter/layer capacities,
+track and scope counts, and maximum scope depth. `ProgramVectorScratch` supplies
+these buffers, one staging DisplayList, bounds for tracks followed by scopes,
+scope membership counts, track order and an ancestor stack. Scratch is exclusive
+to the recording call and must not alias its input frame or destination; the
+index buffers and the two bounds arrays must also be distinct. Returned errors
+preserve the destination and identify track/segment/scope where applicable.
+
+Selected segments determine scope membership, including held endpoints and
+gaps. Drawing uses author-node preorder, so each scope is contiguous even when
+one logical track moves between scopes in a sequence. That explicit membership
+change can also change stacking order. Ordinary one-segment author order avoids
+sorting. Empty chains create no effect layers; subtrees without contours create
+no image layer at all. Inner output bounds include declared effect reach before
+their parent scope is measured. Ordered chains run first-to-last, after child
+output; effect parameters do not warp child animation time.
+
+`ProgramVectorLimits` bounds total prepared backend parameters and effect layers,
+including backend defaults not present in authored parameters. All recording
+uses the existing DisplayList and renderer; no private texture pool, pixel loop
+or GPU scheduling path is created. CPU pixel tests cover overlapping group blur
+versus per-leaf blur, nested effects, scope changes, outside objects, identity
+scopes, failure atomicity and warmed allocation-free recording. CPU layer
+execution allocations and whole-frame/GPU performance remain separate budgets.

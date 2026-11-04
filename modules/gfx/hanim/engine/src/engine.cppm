@@ -49,7 +49,7 @@ struct PlaybackInfo {
     double rate = 1, progress = 0;
     // Multi-track programs have no single eased object progress.
     std::optional<double> sample_progress;
-    std::size_t track_count = 0, segment_count = 0;
+    std::size_t track_count = 0, segment_count = 0, scope_count = 0;
 };
 // All spans/pointers borrow the Engine until its next mutating operation.
 // Queries do not resample. Copy immutable plans to keep their preparation;
@@ -62,6 +62,7 @@ struct EngineFrame {
     std::span<const float> effect_values;
     std::size_t track_index = 0, segment_index = 0;
 };
+struct EngineProgramFrame { PlaybackInfo info; ProgramFrameView scene; };
 
 // One owning thread or external synchronization. No event loop, window,
 // renderer, UI, transport or business setter. advance() is the batch boundary.
@@ -116,6 +117,7 @@ public:
     [[nodiscard]] std::expected<PlaybackInfo, EngineFailure> inspect(PlaybackRef) const noexcept;
     [[nodiscard]] std::expected<EngineFrame, EngineFailure> frame(PlaybackRef) const noexcept;
     [[nodiscard]] std::expected<EngineFrame, EngineFailure> frame(PlaybackRef, std::size_t track) const noexcept;
+    [[nodiscard]] std::expected<EngineProgramFrame, EngineFailure> program_frame(PlaybackRef) const noexcept;
     [[nodiscard]] std::expected<std::size_t, EngineFailure> list(std::span<PlaybackInfo> output) const noexcept;
 private:
     std::unique_ptr<detail::EngineData> data_;

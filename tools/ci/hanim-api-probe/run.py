@@ -36,7 +36,8 @@ def main() -> int:
               'scope':['Public import hanim; no consumer facade or second compiler/player.',
                        'Real strict contour/transform/fill morph and parameter effects only.',
                        'ObjectRef uses borrowed Engine registry; external hosts use explicit Snapshot inputs.',
-                       'No renderer, GPU, move/reveal, general effect scopes or Agent provider.',
+                       'Explicit nested composite scopes, hierarchy and atomic program frames; no renderer required.',
+                       'No GPU execution, move/reveal, general typed channels or Agent provider.',
                        'No hot-path performance/allocation or sanitizer claim.']}
     def run(label, argv, bootstrap=False):
         env=os.environ.copy(); env.setdefault('MCPP_JOBS','2')

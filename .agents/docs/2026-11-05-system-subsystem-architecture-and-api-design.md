@@ -4,6 +4,8 @@
 
 后续补充基线 `3401262`：[Feature、可插拔AI／Agent及局部像素风格](2026-11-05-features-ai-agent-scoped-style-design.md)加入核心/可选feature边界、llmapi复用、规则／内置Agent／openas外部Agent三种决策来源，以及theme×effect×motion的局部style设计与自我review。以下§3保留上一检查点实际运行结果；本次补充没有重跑或扩大其验收范围。
 
+后续应用补充基线 `7b748a4`：[pixelpet（PPet）应用方案](2026-11-05-pixelpet-generative-capabilities-design.md)采用项目TS与动态业务插件，主交互session专职服务人，其他任务交给worker，全双工消息与统一提交并行。现场生成服装／绘画、积累参数化技能、把实时用量UI装备到头顶／衣服，验证公共资产、领域操作、hanim、UI、renderer及内外Agent的组合。UI定义、数据绑定和安装实例分别管理；数据变化不反复调用模型。K0–K5是既有P/F阶段的应用验收，不新建宠物专用底层或替代官网40／20范围；当前均为设计要求，现有TS/Web/reload缺口见专项§8.1。
+
 ## 1. 结论与评估
 
 推荐：**以独立产品为边界、以本域能力为内核、以类型化契约组合全局；日常 API 简短，复杂约束逐级显露，所有层级复用同一执行体系。**
@@ -355,6 +357,8 @@ DSP callback 无分配、无阻塞、无GUI锁、无网络／openas、无GPU同�
 内置AI／Agent是可选的决策和编排产品，现有openmui.agent仍表示控制endpoint。推荐DecisionPort以观察、约束、revision和期限请求Intent；来源可选本地规则、复用llmapi的内置Agent，或通过openas委派的外部Agent。外部Agent既可直接操作，也可作为应用请求的决策来源；提议模式和委派执行模式须区分以避免重复动作。
 
 以桌面二维角色为验证：随机wander无需模型；模型／外部Agent只给高层目标和表情，hanim连续执行运动。人拖动会使迟到决策失效。控制、授权和状态提交共用原有owner，AI不直接写引擎私有状态。llmapi已有同步/协程外观接口，但当前chat_async仍调用同步I/O；异步／取消与Web支持按上游适配计划验证，不将它放进实时帧路径。详细分工与源码依据见专项方案§3–5。
+
+PPet进一步要求主交互session与worker任务隔离：主会话不执行或等待创作任务，模型与后台工作不阻塞native实时运行。公共AI任务控制提供有界调度、上下文隔离、取消、事件和结果提案；全双工消息不取消领域写入仲裁。TS用于应用／插件编排，native引擎执行热路径；现有player同步编译、脚本同步回调、非事务式reload和缺失Web执行层须先补齐。详见[pixelpet方案§2、§8](2026-11-05-pixelpet-generative-capabilities-design.md)。
 
 ## 9. Web 优先、多后端与按需成本
 

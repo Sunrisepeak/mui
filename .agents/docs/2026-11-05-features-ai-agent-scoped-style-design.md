@@ -132,6 +132,16 @@ auto behavior = ai::drive(pet_port, source, drive_options);
 
 验收任务：无需改角色／动画代码，依次切换本地策略、内置模型Agent、外部Agent；三者均完成移动／表情任务。人拖动时旧决策失效；离线仍可漫游；录制回放可重现接受的决策；GUI关闭后CLI能控制并获取真实区域像素。
 
+后续[pixelpet（PPet）应用方案](2026-11-05-pixelpet-generative-capabilities-design.md)扩展为运行时创作与积累：生成非内置服装、细粒度改色、保存参数化动作技能、真实绘画，以及现场组合UI组件显示实时token用量／额度并安装到头顶或衣服。应用采用项目TS和动态业务插件；复用同一公共资产catalog和领域操作，创作结果是有版本的内容，实时数值走独立数据绑定。DecisionPort的revision与控制epoch按实际读写域检查，避免角色移动或token增长使无关创作永久过期；这些是待实现契约。
+
+### 3.5 主交互与worker：公共全双工任务机制
+
+主交互session专职人与应用的对话、输入、派发／取消与进度解释；规划、创作、检索、编译、验证等任务走worker session，提交返回任务句柄。主session不等待任务完成；worker的结果通过公共事件与状态返回，已获授权的提交由宿主完成，不等主对话模型再次空闲。native输入、动画、音频和视图运行独立于两类模型会话。
+
+worker独立持有Client／conversation和任务上下文，获得版本化引用、读写范围、epoch、权限和预算；大产物留在公共资产系统，主会话按需读取摘要／引用。控制、进度和结果可以双向同时在途，冲突域仍由状态owner仲裁。共用有界任务broker／执行基础，前台保留处理资源；进度可合并，任务终态可查询。取消受理、停止结果提交、底层执行结束分开观测。
+
+此机制归可选AI／Agent产品及公共控制／调度基础，不为PPet另起专用运行时；脚本Session、模型conversation、openas授权会话和记录session有不同身份／生命周期。原生与Web需要各自实现实际异步和执行隔离，不能把 `async`、多个session或独立线程当成已满足不阻塞。详见[PPet全双工设计与当前源码缺口](2026-11-05-pixelpet-generative-capabilities-design.md)。
+
 ## 4. llmapi复用与上游适配边界
 
 维护者指定复用 [mcpplibs/llmapi](https://github.com/mcpplibs/llmapi)。本轮实际核查版本为0.2.8、提交 `a48d0cd3147b5bf67b4c25f98764d47cf7f028d1`；采用其 `Client<Provider>`、消息／工具／响应类型与provider能力，避免在本仓再实现供应商HTTP、SSE和消息序列化。[公开API](https://github.com/mcpplibs/llmapi/blob/a48d0cd3147b5bf67b4c25f98764d47cf7f028d1/docs/en/cpp-api.md)

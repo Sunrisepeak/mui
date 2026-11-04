@@ -6,6 +6,7 @@
 |---|---|
 | [2026-11-05-system-subsystem-architecture-and-api-design.md](2026-11-05-system-subsystem-architecture-and-api-design.md) | **当前综合 review 入口**：顶层产品×子系统局部架构、目标代码树与兼容迁移、分级 hanim API 的真实最小实验、scope／通道／资源与共享 owner、Agent／Web／工具／素材，以及分期交付与待 review 决策；已验证子集与目标明确分开 |
 | [2026-11-05-features-ai-agent-scoped-style-design.md](2026-11-05-features-ai-agent-scoped-style-design.md) | **最新补充与自我review**：核心/可选feature真实裁剪、规则/内置Agent/openas外部Agent决策来源、llmapi固定版本核查及上游适配、桌面角色场景；局部pixel风格的theme×effect×motion分工、scope/portal/文字/命中/高DPI端点与验收 |
+| [2026-11-05-pixelpet-generative-capabilities-design.md](2026-11-05-pixelpet-generative-capabilities-design.md) | **pixelpet（PPet）应用／review稿**：项目TS＋动态业务插件；主交互/worker全双工、资源隔离与现有TS/Web/reload阻塞点；现场创作服装、绘画和技能；实时用量UI的定义×绑定×安装点、真实来源、动态加载与真像素；共用资产与分期验收 |
 | [2026-11-05-local-global-composable-architecture-design.md](2026-11-05-local-global-composable-architecture-design.md) | **核心架构准则（已入AGENTS）**：局部能力中心×全局契约组合；hanim／audio／渲染／反应等本域视角、数据／算子／自定义、公共基础单一归属、不同时间／实时约束、跨模块协作及验收 |
 | [2026-11-05-hanim-composable-operators-reactions-ir-design.md](2026-11-05-hanim-composable-operators-reactions-ir-design.md) | **可组合内核补充**：对象／属性／顶点／相机及运动均可控；通用匹配／路径算子、主动effect与属性／状态／触发反应（场／事件／邻域等）、端点策略、状态重建、多视图IR和CPU／GPU批次；中立契约与单一归属，原型与目标分开 |
 | [2026-11-04-hanim-generality-style-gpu-review-design.md](2026-11-04-hanim-generality-style-gpu-review-design.md) | **通用性／质量／性能比较稿**：对象／动画／IR三种中心视角的取舍，表示、匹配、插值、动画、效果和CPU／GPU异构执行；Manim／游戏动画真实基线、风格自由度、局部与全局边界、领先验收；候选接口不直接定案 |

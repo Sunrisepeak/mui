@@ -21,6 +21,21 @@ namespace {
 struct Tag;
 using Key = SlotKey<Tag>;
 enum class Error { capacity, rejected };
+struct MoveCount {
+    inline static unsigned moves = 0, copies = 0;
+    int value;
+    explicit MoveCount(int n) : value(n) {}
+    MoveCount(const MoveCount& other) : value(other.value) { ++copies; }
+    MoveCount(MoveCount&& other) noexcept : value(std::exchange(other.value, -1)) { ++moves; }
+    static void reset() { moves = copies = 0; }
+};
+struct MoveOnlyCount {
+    inline static unsigned moves = 0;
+    std::unique_ptr<int> value;
+    explicit MoveOnlyCount(int n) : value(std::make_unique<int>(n)) {}
+    MoveOnlyCount(const MoveOnlyCount&) = delete;
+    MoveOnlyCount(MoveOnlyCount&& other) noexcept : value(std::move(other.value)) { ++moves; }
+};
 static_assert(sizeof(Handle<Tag>) == 8);
 static_assert(std::is_standard_layout_v<Handle<Tag>>);
 static_assert(Handle<Tag>{0x89abcdefu, 0x12345678u}.bits() == 0x1234567889abcdefull);
@@ -55,7 +70,8 @@ int main(int argc, char** argv) {
         const auto after = allocations.load(std::memory_order_relaxed);
         check_eq(after, before);
         check_eq(large.slot_count(), std::size_t{0}); check_eq(large.max_slots(), std::size_t{1'000'000});
-        check(!zero.next_handle() && zero.insert(4).error() == SlotStorageError::capacity);
+        const auto full = zero.insert(4);
+        check(!zero.next_handle() && !full && full.error() == SlotStorageError::capacity);
         SlotStorage<int, Key> addressable(std::numeric_limits<std::size_t>::max());
         check_eq(addressable.max_slots(), static_cast<std::size_t>(Key::invalid_index));
     });
@@ -190,6 +206,65 @@ int main(int argc, char** argv) {
         Storage assigned(0); assigned = std::move(destination);
         check(destination.empty() && destination.slot_count() == 0 && destination.max_slots() == 2);
         check(assigned.contains(key) && **assigned.get(key) == 23);
+    });
+    suite.test("move contract: legacy fresh and recycled prvalues need one move", [] {
+        SlotMap<MoveCount, Tag> legacy;
+        MoveCount::reset();
+        const auto first = legacy.insert(MoveCount{7});
+        check(legacy.get(first) && legacy.get(first)->value == 7);
+        check_eq(MoveCount::copies, 0u); check_eq(MoveCount::moves, 1u);
+        check(legacy.erase(first));
+        MoveCount::reset();
+        const auto recycled = legacy.insert(MoveCount{9});
+        check(recycled.index == first.index && legacy.get(recycled)->value == 9);
+        check_eq(MoveCount::copies, 0u); check_eq(MoveCount::moves, 1u);
+    });
+    suite.test("move contract: shared const values copy once and rvalues move once", [] {
+        SlotStorage<MoveCount, Key> storage(1);
+        const MoveCount constant(23);
+        MoveCount::reset();
+        const auto copied = storage.insert(constant).value();
+        check(storage.get(copied)->value == 23 && constant.value == 23);
+        check_eq(MoveCount::copies, 1u); check_eq(MoveCount::moves, 0u);
+        check(storage.erase(copied));
+        MoveCount movable(41);
+        MoveCount::reset();
+        const auto moved = storage.insert(std::move(movable)).value();
+        check(storage.get(moved)->value == 41 && movable.value == -1);
+        check_eq(MoveCount::copies, 0u); check_eq(MoveCount::moves, 1u);
+        check(storage.erase(moved));
+        MoveCount::reset();
+        const auto temporary = storage.insert(MoveCount{53}).value();
+        check(storage.get(temporary)->value == 53);
+        check_eq(MoveCount::copies, 0u); check_eq(MoveCount::moves, 1u);
+    });
+    suite.test("move contract: factory expected in-place reaches fresh and recycled slots with one value move", [] {
+        SlotStorage<MoveCount, Key> storage(1);
+        auto prepare = [](Key) -> std::expected<MoveCount, Error> { return std::expected<MoveCount, Error>(std::in_place, 71); };
+        MoveCount::reset();
+        const auto fresh = storage.try_insert(prepare, Error::capacity).value();
+        check(storage.get(fresh)->value == 71);
+        check_eq(MoveCount::copies, 0u); check_eq(MoveCount::moves, 1u);
+        check(storage.erase(fresh));
+        MoveCount::reset();
+        const auto reused = storage.try_insert(prepare, Error::capacity).value();
+        check(storage.get(reused)->value == 71 && reused.index == fresh.index);
+        check_eq(MoveCount::copies, 0u); check_eq(MoveCount::moves, 1u);
+    });
+    suite.test("move contract: move-only resources have no intermediate insertion value", [] {
+        SlotStorage<MoveOnlyCount, Key> storage(1);
+        static_assert(!std::is_copy_constructible_v<decltype(storage)>);
+        MoveOnlyCount::moves = 0;
+        const auto fresh = storage.insert(MoveOnlyCount{97}).value();
+        check(*storage.get(fresh)->value == 97);
+        check_eq(MoveOnlyCount::moves, 1u);
+        check(storage.erase(fresh));
+        MoveOnlyCount value(101);
+        const auto pointer = value.value.get();
+        MoveOnlyCount::moves = 0;
+        const auto reused = storage.insert(std::move(value)).value();
+        check(storage.get(reused)->value.get() == pointer && !value.value);
+        check_eq(MoveOnlyCount::moves, 1u);
     });
     suite.test("mutable and const queries and traversal perform no allocation", [] {
         SlotStorage<int, Key> storage(100);

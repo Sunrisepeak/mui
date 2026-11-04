@@ -37,6 +37,8 @@
 
 ## 3. 总体架构
 
+**2026-11-04 维护者补充的整体架构 review：**[独立引擎／UI／Agent 与高密度模拟](2026-11-04-omui-engine-framework-architecture-design.md)及 [hanim 完整产品](2026-11-04-hanim-animation-library-playback-design.md)将独立动画产品、共享 renderer、UI 普通消费者、rig／physics／fluid、硬件加速、Agent 控制与可观测性一并展开，并将 Noita 类像素反应负载纳入基础设施验收。下面原表中“hanim 仅时间内核、通用动画归 UI”的职责划分须按新契约迁移，不能据此收窄维护者目标；具体新包／接口仍为讨论稿，规范变更另走 OpenLifa 流程。
+
 ```
 ┌──────────────────── 作品与官网 ─────────────────────────────────┐
 │ 官网（唯一验收对象）· 场景 · 影片是程序 · 时间线编辑器           │

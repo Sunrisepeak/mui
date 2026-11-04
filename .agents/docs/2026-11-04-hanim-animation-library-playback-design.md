@@ -6,13 +6,15 @@
 
 与[通用动画设计 D-93](2026-11-01-openmui-universal-motion-design.md)、[官网重构方案](2026-11-03-openmui-site-redesign-implementation-design.md)、[中间态修复记录](2026-11-04-omui-motion-readability-presentation-design.md)共同阅读。保留原范围、40／20 数量下限、本地真实验收优先、PR #1 单分支协作；同时工作的 subagent 上限为 **2**。
 
+维护者后续补充的骨骼／模拟／硬件加速、渲染／UI／Agent 总体边界与 Noita 类材料反应压力标准，见[整体引擎与框架架构讨论](2026-11-04-omui-engine-framework-architecture-design.md)。core 统一时间、值域、计划和批处理；rig／physics／fluid 等独立模块提供算法；有状态模拟须以检查点和输入重建，不能假装都能解析 O(1) 寻址。
+
 ## 1. 当前实现到底在哪里
 
 以下是当前工作树源码核对，不是最终发布验收声明。
 
 | 目录／模块 | 已有真实能力 | 尚缺的公共产品边界 |
 |---|---|---|
-| `modules/base/hanim/`，`import hanim;` | Tween、Track、Spring、Decay、Motion；Timeline 的 at／then／with／stagger／nest；时间映射、寻址、倒放、确定性采样 | 不认识 UI 对象、图层与风格；不是现成的对象播放入口 |
+| `modules/base/hanim/`，`import hanim;` | Tween、Track、Spring、Decay、Motion；Timeline 编排、时间映射与确定性采样；新增 PreparedShapeMorph 的单闭合轮廓准备／无分配采样，已有独立图形消费者 | 尚无完整 HObject／Engine；形状检查点不等于任意拓扑、像素对应或完整动画库 |
 | `modules/ui/motion/`，`import openmui.motion;` | Matter 提取显示列表；Morph 对两个绘制状态匹配、采样、绘制 | 通用轮廓归一化／对应关系不完整；可复用 clip 图与统一播放句柄未收成用户产品 |
 | `modules/ui/view/` | `motion` 槽、默认规则、暂停／寻址／倒放节点 motion、`pixel_effect` 及效果列表 | 不同动画通道尚未统一为一个完整 AnimationPlan／Handle；同属性混合不能统称已支持 |
 | `modules/gfx/render/vector/` | 16 个内置图层／像素效果、CPU／GPU 后端、效果参数 | 效果处理器不等于完成设计的时间动画；不同效果类型的材质插值需要独立契约 |
@@ -26,6 +28,8 @@
 ## 2. 三角形 → 圆的核对结果
 
 当前 `mix_paths` 要求 verb 数、点数、verb 序列均相同。普通三角形是 move／line／line／close；圆是 move／四段 cubic／close，二者不兼容。当前分支会绘制 A、B 两份形状并交叉淡化，不是真正的轮廓变形。
+
+**本地新增的第一块公共能力**：`hanim:shape` 的 PreparedShapeMorph 可独立准备 line／quad／cubic 单闭合轮廓，保形细分后采样真实 triangle→circle；图形消费者以单条 Path 绘制并组合既有材质／效果，三配置通过，见整体架构稿 §11 与 hanim README。当前 UI Morph 尚未接入这个计划，所以本段对 UI 旧路径分支的结论仍成立；也不能把新几何能力称为像素域或完整播放器已交付。
 
 同类圆角矩形通过 radius 改成圆可以连续插值，这不能作为任意三角形→圆已经支持的证据。`hanim::MotionPath` 解决沿路径的位移与朝向，不负责路径 A→B 的轮廓对应。
 

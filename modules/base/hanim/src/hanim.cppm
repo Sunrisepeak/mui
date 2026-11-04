@@ -11,6 +11,7 @@
 //   :value     what can be animated (lanes), colours in OKLab, transforms
 //   :motion    tween, keyframes, spring, decay, interruptible motion, interpolate
 //   :path      motion along a curve by arc length
+//   :shape     renderer-independent prepared closed-contour morphs
 //   :timeline  clips placed in time, nested, with markers
 //   :set       the batch of a running UI, evaluated in one pass
 export module hanim;
@@ -21,6 +22,7 @@ export import :ease;
 export import :value;
 export import :motion;
 export import :path;
+export import :shape;
 export import :timeline;
 export import :set;
 

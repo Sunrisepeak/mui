@@ -63,6 +63,8 @@
 
 ## 1. 目标与访客路径
 
+**2026-11-04 整体架构补充讨论：**[引擎／框架／Agent 与高密度模拟](2026-11-04-omui-engine-framework-architecture-design.md)承接维护者对独立 hanim、共享 renderer、omui 普通消费者、骨骼／物理／水体、硬件加速与 Noita 类像素反应负载的要求。性能、profiling、Agent 控制、跨平台能力与分级从契约阶段设计；具体能力仍须逐项实施与真实消费者验收，不用官网演示数量替代。
+
 **2026-11-04 动画产品补充讨论：**[hanim 完整引擎草案](2026-11-04-hanim-animation-library-playback-design.md)按维护者明确的范围定义 **core＋基础动画库＋效果、hobject／hengine.play、真实像素级插值、完整 Manim 功能目标与三轴分级**；UI 全部适配同一引擎。当前时间内核、绘制 Morph、16 个效果和 40 个官网设计只覆盖部分能力；普通三角→圆仍会因路径结构不兼容而淡化，统一对象／播放器未交付。先以不依赖 UI／site 的消费者证明轮廓与像素物质两域、几何＋材料过渡，再迁移库条目、组件默认配方及官网。新 API 与目录为讨论草案，不作为已实现能力。
 
 官网必须同时完成三件事：**让第一次来的访客看懂并愿意继续探索；让开发者快速找到可用能力；让感兴趣的人把效果带回自己的程序。**
@@ -758,3 +760,9 @@ Linux x86_64、固定 mcpp 2026.11.2.2、GCC 16.1.0、LLVM 23.1.3、Chromium 156
 细案与验收契约见[文字、约束与真实交互](2026-11-04-omui-motion-readability-presentation-design.md)。此轮从 §15.17 的真实坏帧继续，保留默认动效，分别处理无关句子的可读替换、字形快照打断、历史主题层范围、明暗交换时的文字对比度，以及目标布局／呈现／点击坐标不一致。组件仍不持有动画时钟。
 
 新增真实字体与实际绘制探针，已复现中英说明文字约 1.14:1 的对比度低谷；官网探针原 80 个失败经真实底色、效果输出范围、混合字体与嵌套绘制复核后，在一次局部运行中已通过（中英各 390／1280、24 帧，8-bit 测量最低约 4.426／4.428，门槛 4.4；解析目标 4.5）。同期 Agent guard／preview／contrast／transition-layout 四个程序共 16 个用例通过，见 `/tmp/omui-site-agent-quality-second.log`。这不覆盖所有材料／GPU／文字，也不是最终候选的完整验收。响应式仍发现 segmented 选择面与标签错位、显式父级布局动画与默认子动效协调问题；快照上下文及浮点边框修复尚待重新集成验证。不能用上一轮 579 项浏览器结果或本轮局部通过数字替代。
+
+### 15.19 独立 hanim 几何检查点与整体架构 review
+
+维护者明确独立动画产品、UI 普通消费者、骨骼／物理／水体、Agent 控制、硬件加速及 Noita 类像素反应能力，见[整体架构讨论稿](2026-11-04-omui-engine-framework-architecture-design.md)。新增公开 `hanim::PreparedShapeMorph`：单闭合 line／quad／cubic 轮廓准备、保形细分、方向／起点对应，采样写调用者缓冲；独立于 UI／site 的 renderer 消费者以同一当前路径使用真实材料及 tone＋blur。真实三角→圆帧条／WebP 已导出并审图，见 [hanim README](../../modules/base/hanim/README.md)。
+
+本地 dev／release／LLVM sanitizer 各通过 hanim 8 程序 62 用例（shape 15），及图形消费者 5 用例；几何指纹跨 GCC／LLVM 一致，全 lint 0 问题。具体日志与误差边界见整体架构稿 §11。UI 旧 Morph 尚未接入该新计划，HObject／Engine、像素配对、模拟／compute、40 项库化和 Manim 全表仍未完成；不以此关闭 R0–R6／C2。

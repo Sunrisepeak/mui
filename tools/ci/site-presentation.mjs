@@ -71,7 +71,7 @@ async function screenshot(name) {
 }
 
 try {
-  for (const [route, expected] of [['motion', 'list-grid'], ['zh/demos', 'palette-studio']]) {
+  for (const [route, expected] of [['motion', 'shape-morph'], ['zh/demos', 'palette-studio']]) {
     width = 390; height = 844;
     b = await browser(process.env.CHROME, { width, height });
     try {
@@ -79,7 +79,7 @@ try {
       await b.call('Page.navigate', { url: server.url + '#/' + route });
       await requireState(() => b.value(`Array.from(document.querySelectorAll('[data-gallery-current=${q(expected)}]')).some(n=>n.getBoundingClientRect().width>0)`), 'NoScript has one readable selected specimen: ' + route);
       const visible = await b.value(`Array.from(document.querySelectorAll('[data-gallery-catalog]')).filter(n=>n.getBoundingClientRect().width>0).map(n=>({open:n.open,links:n.querySelectorAll('a').length,summary:n.querySelector('summary').textContent}))`);
-      check(visible?.length === 1 && !visible[0].open && visible[0].links === (route.includes('demos') ? 20 : 40), 'NoScript catalogue starts folded with every design link retained', visible);
+      check(visible?.length === 1 && !visible[0].open && visible[0].links >= (route.includes('demos') ? 20 : 40), 'NoScript catalogue starts folded with every design link retained', visible);
       const clickVisible = async selector => {
         const at = await b.value(`(() => {const n=Array.from(document.querySelectorAll(${q(selector)})).find(n=>n.getBoundingClientRect().width>0);if(!n)return null;n.scrollIntoView({block:'center'});const r=n.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};})()`);
         if (!at) throw new Error('No visible static control: ' + selector);

@@ -78,7 +78,8 @@ struct MotionSpec {
     };
     std::optional<Travel> travel;
     std::string           name;  // a library's motion ("simple", "liquid", "ink"); empty: written out
-    friend bool operator==(const MotionSpec&, const MotionSpec&) = default;
+    hanim::PointPath      vertex_path; // matched path geometry only; reduced motion uses the linear default
+    friend bool operator==(const MotionSpec&, const MotionSpec&);
 };
 
 // Components describe state; recipes combine shared operations in their
@@ -166,6 +167,7 @@ public:
 // "morph", a library's name ("liquid"), either with a curve token after it
 // ("morph motion.spring.gentle"), or {use, curve, order ("together",
 // "document", "distance"), stagger, glyphs, text (glyphs/replace/auto), text_rise (ems), text_contrast (0 or 1..4.5), meaning, rise, grow, stretch,
+// vertex_path = {bend: fraction} or {control1: [along, normal], control2: [along, normal]},
 // travel = {effect, param, peak, <numbers>…}} — `use` a library's name the
 // rest changes. Nullopt when it is none of these (the caller says why). A
 // `compose = ["match", "readable-text", "fade", "lift", "grow", "stretch", "stagger"]`

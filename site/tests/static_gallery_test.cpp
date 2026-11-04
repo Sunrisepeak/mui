@@ -53,7 +53,7 @@ int main(int argc, char** argv) {
         for (const bool zh : {false, true}) for (const bool creative : {false, true}) {
             const auto html = site::motion_gallery_html(zh, creative);
             const auto shown = outside_disclosures(html);
-            const auto id = creative ? "palette-studio" : "list-grid";
+            const auto id = creative ? "palette-studio" : "shape-morph";
             const auto* current = site::find_motion_case(id, creative);
             check(current != nullptr); if (!current) continue;
             check(occurrences(html, "<article data-gallery-current=") == 1 && html.contains(std::format("data-gallery-current=\"{}\"", id)), "the fallback starts with the same default sample as the live player");

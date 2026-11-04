@@ -58,6 +58,7 @@ motion::Options options_of(const MotionSpec& spec, MotionLevel level, const Them
     o.fade_out = spec.fade_out;
     o.fade_in = spec.fade_in;
     o.local_presence = spec.local_presence;
+    o.vertex_path = spec.vertex_path;
     if (spec.travel)
         if (const auto ref = render::effects().find(spec.travel->effect)) {
             motion::Options::Travel t{.effect = *ref};
@@ -108,7 +109,7 @@ const MotionSpec* Runtime::Impl::slot_motion(NodeId id, std::size_t slot, bool f
                 else {
                     constexpr Log motion_log{"motion"};
                     motion_log.warn("{}: a motion is \"none\", \"morph\", a library's name (\"liquid\"), either with a curve after it, "
-                                    "{{use, curve, order, stagger, glyphs, text, text_rise, text_contrast, meaning, rise, grow, stretch, travel}}, or a list of them; not {}",
+                                    "{{use, curve, order, stagger, glyphs, text, text_rise, text_contrast, meaning, rise, grow, stretch, vertex_path, travel}}, or a list of them; not {}",
                                     self.path(id), v->json());
                 }
                 continue;
@@ -502,7 +503,10 @@ void Runtime::Impl::run_motion() {
     std::erase_if(morphing, [&](NodeId id) {
         if (!alive(id) || !at(id).morph) return true;
         // Held by a handle: kept, at rest or not, until it is released.
-        if (at(id).morph->settled(at(id).clock.local(t)) && !held && !at(id).clock.held) {
+        // Accessibility off also retires a paused/held morph whose endpoint
+        // drawing did not change. The hash fast path above must not preserve it.
+        if (reduce_motion || level == MotionLevel::off ||
+            (at(id).morph->settled(at(id).clock.local(t)) && !held && !at(id).clock.held)) {
             at(id).morph.reset();
             at(id).ghost = false;
             touch(dirty_semantics);

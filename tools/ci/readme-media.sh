@@ -120,6 +120,7 @@ gallery-redesign/workspace-en-desktop.png|components-workspace-en-desktop.png
 gallery-redesign/workspace-zh-phone.png|components-workspace-zh-phone.png
 gallery-redesign/options-zh-phone.png|components-options-zh-phone.png
 motion-gallery/basic-gallery-700.png|motion-basic-gallery-700.png
+motion-gallery/shape-path-middle.png|motion-shape-path-middle.png
 motion-gallery/basic-gallery-300.png|motion-basic-gallery-300.png
 motion-gallery/creative-gallery-700.png|motion-creative-gallery-700.png
 motion-gallery/creative-gallery-300.png|motion-creative-gallery-300.png

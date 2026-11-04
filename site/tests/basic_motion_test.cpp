@@ -1,4 +1,4 @@
-// The forty designs are real drawings, with measurable endpoints and
+// The designs are real drawings, with measurable endpoints and
 // sampled motion in between; the site's shared player is tested separately.
 import std;
 import openmui;
@@ -30,6 +30,8 @@ struct Probe {
         Value spec = Value{}.set("use", info ? info->use : "morph").set("order", info ? info->order : "together")
                                 .set("stagger", info ? info->stagger : 0.0).set("rise", info ? info->rise : 0.0f)
                                 .set("grow", info ? info->grow : 1.0f).set("stretch", info ? info->stretch : 0.0f);
+        if (info && !info->curve.empty()) spec.set("curve", info->curve);
+        if (info && info->vertex_path) spec.set("vertex_path", Value{}.set("bend", info->bend));
         Element preview = box({.id = "preview", .width = Dim(width), .height = Dim(360)}, {
             dynamic([this, width] {
                 site::MotionSceneContext context{.state = &state, .language = &language, .width = width, .height = 360, .changed = [this] { ++changes; }};
@@ -87,7 +89,7 @@ int main(int argc, char** argv) {
     });
 
     suite.test("colour, depth, transforms, text, layout and rhythm have real intermediate frames", [] {
-        for (const std::string_view id : {"surface-color", "outline-weight", "corner-shape", "depth", "slide-card", "lift-card", "scale-card", "turn-tile", "squash-chip", "list-grid", "reorder-list", "title-replace", "stagger-grid"}) {
+        for (const std::string_view id : {"shape-morph", "surface-color", "outline-weight", "corner-shape", "depth", "slide-card", "lift-card", "scale-card", "turn-tile", "squash-chip", "list-grid", "reorder-list", "title-replace", "stagger-grid"}) {
             Probe p(id);
             const auto before = p.pixels();
             check(p.h.save_png(media() / (std::string(id) + "-a.png")).has_value());

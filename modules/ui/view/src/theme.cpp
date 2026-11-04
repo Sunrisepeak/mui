@@ -5,6 +5,10 @@ import openmui.core;
 
 namespace omui {
 
+// Keep synthesis in the defining module: GCC 16 crashes when importing and
+// instantiating the defaulted comparison with a cross-module PointPath member.
+bool operator==(const MotionSpec&, const MotionSpec&) = default;
+
 Color Theme::color(std::string_view token, Color fallback) const {
     if (token.empty()) return fallback;
     if (token.front() == '#') return spec::Color::parse(token).transform([](spec::Color c) { return Color{c.r, c.g, c.b, c.a}; }).value_or(fallback);
@@ -377,6 +381,32 @@ std::optional<MotionSpec> parse_motion(const Value& v, const Theme& theme) {
     if (const Value* r = v.get("rise")) m.rise = static_cast<float>(r->as_double());
     if (const Value* g = v.get("grow")) m.grow = static_cast<float>(std::clamp(g->as_double(1), 0.0, 4.0));
     if (const Value* st = v.get("stretch")) m.stretch = static_cast<float>(std::clamp(st->as_double(), 0.0, 2.0));
+    if (const Value* path = v.get("vertex_path")) {
+        hanim::PointPath parsed;
+        if (path->is_null() || path->as_string() == "linear") {
+            m.vertex_path = parsed;
+        } else {
+            const auto* fields = path->map();
+            if (!fields) return std::nullopt;
+            if (const auto* bend = path->get("bend")) {
+                if (fields->size() != 1 || !bend->is_number() || !std::isfinite(bend->as_double())) return std::nullopt;
+                parsed = hanim::PointPath::bend(bend->as_double());
+            } else {
+                if (fields->size() != 2) return std::nullopt;
+                auto point = [](const Value* value) -> std::optional<hanim::Vec2> {
+                    if (!value || !value->list() || value->list()->size() != 2) return std::nullopt;
+                    const auto& list = *value->list();
+                    if (!list[0].is_number() || !list[1].is_number()) return std::nullopt;
+                    return hanim::Vec2{list[0].as_double(), list[1].as_double()};
+                };
+                const auto a = point(path->get("control1")), b = point(path->get("control2"));
+                if (!a || !b) return std::nullopt;
+                parsed = {*a, *b};
+            }
+            if (!parsed.valid()) return std::nullopt;
+            m.vertex_path = parsed;
+        }
+    }
     if (const Value* tr = v.get("travel")) {
         if (tr->is_null() || tr->as_string() == "none") {
             m.travel.reset();

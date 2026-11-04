@@ -15,6 +15,18 @@ The retained and immediate view runtime (plan §3–§5):
   The nearest scope wins, whole. A component's hooks are told their scope's
   theme by `Services::theme()`; "window" rules apply to the node that joins;
   `crossfade(length, scope)` fades that area only;
+- **path motion**: the `motion` property accepts reusable `vertex_path` data,
+  e.g. `{"use":"morph","curve":"motion.slow","vertex_path":{"bend":0.22}}`.
+  The runtime passes it to the public `hanim::PointPath` operator after path
+  matching; components still paint only their endpoint states. A bend is a
+  signed fraction of each point's endpoint displacement, not a pixel distance.
+  Explicit `{"control1":[along,normal],"control2":[along,normal]}` offsets allow
+  asymmetric cubic paths; `null` or `"linear"` resets an inherited modifier.
+  Nested fields are checked strictly, with finite controls bounded to ±1e6.
+  This affects matched fill/stroke geometry, not text, images or hit contours.
+  Reduced transitions use their short default spatial interpolation; off and
+  system reduced motion also retire already-held morphs. Timing, render styles
+  and image effects remain separate controls;
 - **the runtime**: nodes with structural and explicit ids (S-8), fine-grained
   bindings, transitions on animation channels (enter, exit with S-4), timers
   on the injected clock, incremental layout, painting into a display list with

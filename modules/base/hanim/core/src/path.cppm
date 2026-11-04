@@ -18,6 +18,9 @@ export namespace hanim {
 // channel, independent of position, orientation and scale. Zero is linear.
 struct PointPath {
     Vec2 control1{}, control2{};
+    friend constexpr bool operator==(const PointPath& a, const PointPath& b) noexcept {
+        return a.control1 == b.control1 && a.control2 == b.control2;
+    }
     // Bounded dimensionless controls; consumers validate once at prepare.
     [[nodiscard]] bool valid() const noexcept;
     [[nodiscard]] constexpr bool linear() const noexcept {

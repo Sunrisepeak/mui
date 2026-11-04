@@ -43,7 +43,7 @@ void prepare(MotionGallery& g, const MotionGalleryContext& c, bool creative, con
     g.scene = MotionSceneState{};
     g.pending = false; g.started = false; g.resetting = false; g.resume_on_view = false; g.stage = {}; g.direction = 1; g.seek_target = -1;
     g.interactive.set(false); g.playing.set(play_intent); g.progress.set(0); g.page.set(0);
-    g.style.set(std::string(info.style)); g.curve.set("default"); g.stagger.set(-1);
+    g.style.set(std::string(info.style)); g.curve.set("default"); g.stagger.set(-1); g.bend.set(info.bend);
     if (c.style) c.style(std::string(info.style));
 }
 bool contains_focus(Runtime& rt, NodeId stage) {
@@ -148,7 +148,7 @@ Element controls(MotionGallery& g, const MotionGalleryContext& c, float width) {
 }
 Element detail(MotionGallery& g, const MotionGalleryContext& c, const MotionCaseInfo& info, float width) {
     auto recompose = [&g, c] { g.interactive.set(false); g.playing.set(true); g.resetting = false; g.direction = 1; begin(g, c); };
-    return column({.id = "details", .padding = 20, .gap = 16, .background = "surface_variant", .radius = 16}, {
+    std::vector<Element> children{
         text({.id = "components", .text = std::string(info.components), .style = "label", .max_width = Dim(std::max(1.0f, width - 40))}),
         text({.id = "explanation", .text = words(c, "One clock coordinates the scene and each control's own reusable recipe. Shorter motions finish first.",
             "同一时钟统筹场景与各控件自身的可复用配方，较短的动效先完成。"), .max_width = Dim(std::max(1.0f, width - 40))}),
@@ -161,13 +161,25 @@ Element detail(MotionGallery& g, const MotionGalleryContext& c, const MotionCase
                 .on_changed = [&g, c](double) { rates(g, runtime(c)); }, .width = Dim(std::max(100.0f, width - 40))}),
         slider({.id = "stagger", .label = words(c, "Delay between pieces (seconds)", "部件错开间隔（秒）"), .max = 0.10, .min = 0.0, .step = 0.005,
                 .value = Source{std::nullopt, [&g, base = info.stagger] { return Value(g.stagger.get() < 0 ? base : g.stagger.get()); }, [&g](const Value& v) { g.stagger.set(v.as_double()); }},
-                .on_changed = [recompose](double) { recompose(); }, .width = Dim(std::max(100.0f, width - 40))}),
+                .on_changed = [recompose](double) { recompose(); }, .width = Dim(std::max(100.0f, width - 40))})};
+    if (info.vertex_path) children.push_back(slider({.id = "bend", .label = words(c, "Path bend", "路径弯曲"),
+        .max = .3, .min = -.3, .step = .01, .value = g.bend, .on_changed = [recompose](double) { recompose(); },
+        .width = Dim(std::max(100.0f, width - 40))}));
+    children.push_back(select({.id = "style", .label = words(c, "Style in this scene", "此场景的风格"),
+        .labels = std::vector<std::string>{words(c,"Plain","原色"),words(c,"Glass","玻璃"),words(c,"Neon","霓虹"),words(c,"Retro","复古"),words(c,"Ink","水墨"),words(c,"Liquid","流体")},
+        .options = std::vector<std::string>{"plain","glass","neon","retro","ink","liquid"}, .value = g.style,
+        .on_changed = [c,recompose](std::string pack) { if (c.style) c.style(std::move(pack)); recompose(); }, .width = 200}));
+    std::vector<Element> configuration{
         text({.id = "config-label", .text = words(c, "Motion configuration · JSON", "动效配置 · JSON"), .style = "label"}),
         text({.id = "config-scope", .text = words(c, "This is the scene root's configuration, not a complete exported project. Controls retain their framework defaults.",
             "这是场景根节点的配置，并非完整工程导出；控件保留框架默认配方。"), .style = "caption", .color = "text_muted", .max_width = Dim(std::max(1.0f, width - 40))}),
+        text({.id = "style-scope", .text = words(c, "Style is applied to this scene separately from the copied motion configuration.",
+            "风格仅应用到此场景，需单独设置，不包含在复制的动效配置中。"), .style = "caption", .color = "text_muted", .max_width = Dim(std::max(1.0f, width - 40))}),
         code_editor({.id = "config", .language = CodeEditorLanguage::json, .lines = 5, .readonly = true,
-                     .text = computed([&g, info] { (void)g.curve.get(); (void)g.stagger.get(); return motion_gallery_config(g, info).json(); }), .width = Dim(std::max(100.0f, width - 40))}),
-        button({.id = "copy", .text = words(c, "Copy configuration", "复制配置"), .on_activated = [&g, c, info] { if (auto* rt = runtime(c)) rt->set_clipboard_text(motion_gallery_config(g, info).json()); g.copied.set(true); }})});
+                     .text = computed([&g, info] { (void)g.curve.get(); (void)g.stagger.get(); (void)g.bend.get(); return motion_gallery_config(g, info).json(); }), .width = Dim(std::max(100.0f, width - 40))}),
+        button({.id = "copy", .text = words(c, "Copy configuration", "复制配置"), .on_activated = [&g, c, info] { if (auto* rt = runtime(c)) rt->set_clipboard_text(motion_gallery_config(g, info).json()); g.copied.set(true); }})};
+    for (auto& child : configuration) children.push_back(std::move(child));
+    return column({.id = "details", .padding = 20, .gap = 16, .background = "surface_variant", .radius = 16}, std::move(children));
 }
 }  // namespace
 
@@ -180,6 +192,8 @@ Value motion_gallery_config(const MotionGallery& g, const MotionCaseInfo& info) 
     Value main = Value{}.set("use", info.use).set("order", order).set("stagger", g.stagger.peek() < 0 ? info.stagger : g.stagger.peek())
         .set("rise", info.rise).set("grow", info.grow).set("stretch", info.stretch);
     if (g.curve.peek() != "default") main.set("curve", g.curve.peek());
+    else if (!info.curve.empty()) main.set("curve", info.curve);
+    if (info.vertex_path) main.set("vertex_path", Value{}.set("bend", g.bend.peek()));
     if (info.use == "liquid" || info.use == "ink") return Value(Value::List{main, Value("simple")});
     return main;
 }
@@ -283,13 +297,13 @@ Element motion_gallery(MotionGallery& g, const MotionGalleryContext& c, bool cre
     const bool zh = c.lang && c.lang->get() == "zh";
     const auto entries = creative ? creative_motions() : basic_motions();
     const auto* info = find_motion_case(g.selected.get(), creative);
-    if (!info) info = find_motion_case(creative ? "palette-studio" : "list-grid", creative);
+    if (!info) info = find_motion_case(creative ? "palette-studio" : "shape-morph", creative);
     if (!info && !entries.empty()) info = &entries.front();
     if (!info) return text({.id = "motion_gallery", .text = words(c, "No motion designs are available.", "暂无可用动效。")});
     prepare(g, c, creative, *info);
     const float inset = width < 520 ? 8.0f : 16.0f;
     const float scene_width = std::max(200.0f, width - 2 * inset);
-    const float scene_height = info->id == "palette-studio" ? 300.0f : width < 520 && info->id == "list-grid" ? 280.0f : width < 520 ? 430.0f : 360.0f;
+    const float scene_height = info->id == "palette-studio" || info->vertex_path ? 300.0f : width < 520 && info->id == "list-grid" ? 280.0f : width < 520 ? 430.0f : 360.0f;
     const MotionCaseInfo current = *info;
     auto scene = box({.id = "scene", .width = Dim(scene_width), .height = Dim(scene_height)}, {dynamic([&g, c, current, creative, scene_width, scene_height] {
         MotionSceneContext context{.state = &g.scene, .language = c.lang, .width = scene_width, .height = scene_height,
@@ -300,7 +314,7 @@ Element motion_gallery(MotionGallery& g, const MotionGalleryContext& c, bool cre
     scene.key = std::string(info->id);
     scene.prop("label", Source(Value(std::string(zh ? current.zh : current.en))))
          .prop("theme_scope", Source(Value(c.scope))).prop("overlay_boundary", Source(Value(true)))
-         .prop("motion", derive([&g, current] { (void)g.curve.get(); (void)g.stagger.get(); return motion_gallery_config(g, current); }));
+         .prop("motion", derive([&g, current] { (void)g.curve.get(); (void)g.stagger.get(); (void)g.bend.get(); return motion_gallery_config(g, current); }));
     auto stage = column({.id = "stage", .width = Dim(width), .height = Dim(scene_height + 2 * inset), .padding = Edges(inset), .background = "surface_variant", .radius = 20, .clip = true,
                          .label = words(c, "Interactive motion canvas", "可交互动效画布"), .on = {
         {"pointer_enter", [&g, c](const Value&) { motion_gallery_interact(g, c); g.automatic_interaction = true; }},
@@ -371,7 +385,7 @@ Element motion_gallery(MotionGallery& g, const MotionGalleryContext& c, bool cre
 std::string motion_gallery_html(bool zh, bool creative, std::string_view id) {
     const auto entries = creative ? creative_motions() : basic_motions();
     const std::string route = std::string(zh ? "zh/" : "") + (creative ? "demos" : "motion");
-    const auto* info = find_motion_case(id.empty() ? (creative ? "palette-studio" : "list-grid") : id, creative);
+    const auto* info = find_motion_case(id.empty() ? (creative ? "palette-studio" : "shape-morph") : id, creative);
     // app.cpp owns each outer route section, its anchor and live handoff root.
     // This fragment must not introduce another route target or hide the selected
     // title inside a catalogue. Keep only the overview's directory in the HTML:
@@ -386,7 +400,12 @@ std::string motion_gallery_html(bool zh, bool creative, std::string_view id) {
             escape(info->id), escape(zh ? info->zh : info->en), escape(zh ? info->purpose_zh : info->purpose_en));
         // Readable HTML endpoints, explicitly static. They do not impersonate
         // a live omui control or a native frame exported by the renderer.
-        if (info->id == "list-grid") {
+        if (info->id == "shape-morph") {
+            out += std::format("<figure data-gallery-preview=\"static\" style=\"margin:16px 0\"><figcaption>{}</figcaption>"
+                               "<p aria-hidden=\"true\" style=\"font-size:48px;letter-spacing:16px\">△ → ○</p><p>{}</p></figure>",
+                zh ? "静态端点：A · 三角形 → B · 圆形" : "Static endpoints: A · triangle → B · circle",
+                zh ? "界面就绪后，可以切换形状，在详情中调整顶点路径并复制配置。" : "When ready, change the shape, then open Details to tune the point path and copy its configuration.");
+        } else if (info->id == "list-grid") {
             out += std::format("<figure data-gallery-preview=\"static\" style=\"margin:16px 0\"><figcaption>{}</figcaption><div style=\"display:flex;flex-wrap:wrap;gap:16px\">",
                 zh ? "静态状态：同样三项，从列表排成卡片。" : "Static states: the same three items, from a list to cards.");
             for (const bool cards : {false, true}) {

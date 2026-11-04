@@ -9,6 +9,7 @@ struct MotionGallery {
     Signal<std::string> selected = signal(std::string()), query = signal(std::string()), category = signal(std::string("all"));
     Signal<bool> detail = signal(false), browser_open = signal(false), playing = signal(true), loop = signal(true), interactive = signal(false), visible = signal(true);
     Signal<double> progress = signal(0.0), speed = signal(1.0), stagger = signal(-1.0);
+    Signal<double> bend = signal(0.0);
     Signal<std::string> curve = signal(std::string("default")), style = signal(std::string("plain"));
     Signal<std::int64_t> page = signal(std::int64_t{0});
     Signal<bool> copied = signal(false);

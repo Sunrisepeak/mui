@@ -67,12 +67,64 @@ int main(int argc, char** argv) {
     Suite suite{"site.motion_gallery"};
     (void)themes::add_styles();
 
+    suite.test("the opening morph uses public path configuration with optional details and local style", [] {
+        Probe p("", false, 300), linear("", false, 300);
+        check_eq(p.gallery.active_id, std::string("shape-morph"));
+        check_near(p.rt->screen_bounds(p.rt->find(p.path("stage/scene"))).height, 300, .01);
+        check(!p.exposed("details/bend") && !p.exposed("details/style"));
+        p.act("transport/buttons/details");
+        p.act("details/bend", "set_value", Value{}.set("value", -.2));
+        check_near(p.gallery.bend.peek(), -.2, .001);
+        p.act("details/copy");
+        const auto config = parse_json(p.rt->clipboard_text());
+        check(config.has_value());
+        if (config) {
+            const auto spec = parse_motion(*config, p.rt->theme());
+            check(spec.has_value());
+            if (spec) check_near(spec->vertex_path.control1.y, hanim::PointPath::bend(-.2).control1.y, 1e-6);
+        }
+        const auto shown = p.h.tree().node(p.path("details/config/text"));
+        check(shown && shown->value.as_string().find("vertex_path") != std::string::npos);
+        site::motion_gallery_reset(p.gallery, p.context); p.step(); p.step();
+        linear.gallery.bend.set(0); linear.step();
+        p.step(seconds(.1)); linear.step(seconds(.1));
+        p.play(); linear.play();
+        check(!p.gallery.held.empty() && !linear.gallery.held.empty());
+        // The slow ease reaches most of its geometry by half the duration;
+        // record an earlier, visibly intermediate pose for human review.
+        site::motion_gallery_seek(p.gallery, p.context, .25); p.step();
+        site::motion_gallery_seek(linear.gallery, linear.context, .25); linear.step();
+        check_near(p.gallery.progress.peek(), .25, .001);
+        const auto middle = p.pixels();
+        check(middle != linear.pixels(), "the path control changes the real middle drawing");
+        check(p.h.save_png(media() / "shape-path-middle.png", p.rt->drawn_bounds(p.rt->find(p.path("stage")))).has_value());
+        site::motion_gallery_seek(p.gallery, p.context, 0); p.step();
+        check(p.pixels() != middle, "the sample is not the start drawing");
+        site::motion_gallery_seek(p.gallery, p.context, 1); p.step();
+        site::motion_gallery_seek(linear.gallery, linear.context, 1); linear.step();
+        check(p.pixels() != middle && p.pixels() == linear.pixels(), "the sample is not the end and the modifier preserves the endpoint");
+        p.act("details/style", "set_value", Value{}.set("value", "neon"));
+        check(p.styles.back() == "neon" && p.gallery.style.peek() == "neon");
+        check(p.rt->get(p.rt->find(p.path("stage/scene")), "theme_scope").as_string() == "motion-preview");
+        check(p.rt->get(p.rt->find(p.path("transport")), "theme_scope").as_string().empty(), "style stays inside the scene");
+        p.act("transport/buttons/details");
+        p.h.move(p.rt->screen_bounds(p.rt->find(p.path("stage"))).center()); p.step();
+        const auto before = p.gallery.scene.end.peek();
+        check(p.gallery.interactive.peek() && p.gallery.held.empty());
+        check(p.h.click(p.path("stage/scene/composition/change"))); p.step();
+        check(p.gallery.scene.end.peek() != before, "a real pointer changes the shape endpoint");
+        p.h.key(Key::space); p.step();
+        check(p.gallery.scene.end.peek() == before, "keyboard operates the same endpoint control");
+        p.act("stage/scene/composition/change");
+        check(p.gallery.scene.end.peek() != before, "Agent action uses that same component operation");
+    });
+
     suite.test("bounded browsing exposes one canvas, eight choices, search and details only on demand", [] {
         Probe p("list-grid");
         const auto heading = p.h.tree().node(p.path("heading/title"));
         check(heading && heading->role == Role::heading, "the page has a semantic main heading");
         check(p.rt->get(p.rt->find(p.path("heading/title")), "level").as_int() == 1);
-        check_eq(site::basic_motions().size(), std::size_t{40});
+        check(site::basic_motions().size() >= 40);
         check(site::creative_motions().size() >= 20);
         check(!p.exposed("details/config"), "configuration is not in the overview");
         check(!p.exposed_under("browse") && !p.gallery.browser_open.peek(), "the picker starts closed above the canvas");

@@ -52,12 +52,26 @@ combined with blur/tone, preserve endpoints, and share the core point operator
 with the C++ UI path adapter. Repeated path modifiers add displacement in the
 same endpoint frame; they do not change matching rules.
 
+UI motion exposes the same operator through ordinary configuration:
+
+```cpp
+auto motion = Value{}.set("use", "morph")
+    .set("vertex_path", Value{}.set("bend", 0.22));
+drawing.prop("motion", Source(motion));
+```
+
+Components draw states; the runtime animates matched fill/stroke paths. The
+basic-motion page opens with a triangle-to-circle example; Details reveals
+path, timing and local style controls, plus reusable motion JSON. A bend is a
+fraction of each point's displacement. It does not change text, image geometry
+or hit contours. Reduced transitions omit this displacement.
+
 **Evidence**: an independent public consumer tests geometry and controls in
 dev/release; a separate consumer uses the shared CPU renderer for actual pixels
 and region exports. Rendering is opt-in; the base `hanim.core` stays independent.
 
 **Next**: general property/channel mixing, group effect scopes, image/pixel/rig
-domains and the full UI/interactive-gallery integration. Current UI motion primarily uses core primitives;
+domains and broader UI integration. Current UI motion primarily uses core primitives;
 the website's scene count is not a count of public engine recipes.
 
 ## 6. Rendering: a CPU reference and a GPU path; effects first-class

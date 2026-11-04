@@ -12,6 +12,9 @@ struct MotionCaseInfo {
     std::string_view style = "plain", use = "morph", order = "together";
     double stagger = 0;
     float rise = 0, grow = 1, stretch = 0;
+    bool vertex_path = false;
+    double bend = 0;
+    std::string_view curve;
 };
 
 struct MotionSceneState {

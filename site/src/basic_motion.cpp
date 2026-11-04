@@ -1,4 +1,4 @@
-// Forty small motion designs. Each describes two meaningful drawings;
+// Small motion designs. Each describes two meaningful drawings;
 // the gallery's shared motion root owns time, matching and playback.
 module openmui.site;
 
@@ -10,7 +10,11 @@ namespace omui::site {
 
 namespace {
 
-constexpr std::array<MotionCaseInfo, 40> examples{{
+constexpr std::array<MotionCaseInfo, 41> examples{{
+    {.id = "shape-morph", .en = "Shape the journey", .zh = "让形状自由流动", .group = "transform",
+     .purpose_en = "A triangle becomes a circle. Shape each point's journey, then copy the reusable motion.",
+     .purpose_zh = "三角形变为圆。调整每个点经过的路径，再复制可复用的动效配置。",
+     .components = "painter, button", .vertex_path = true, .bend = 0.22, .curve = "motion.slow"},
     {"surface-color", "Surface colour", "表面换色", "appearance", "A status surface changes its tone without changing its shape.", "状态表面换一种色调，形状与位置保持连续。", "box, text"},
     {"outline-weight", "Outline emphasis", "边框强调", "appearance", "A selected document gains a stronger outline.", "文档被选中时，用边框粗细传达强调。", "box, text"},
     {"corner-shape", "Corner shape", "圆角变形", "appearance", "A compact tile softens into a rounded token.", "紧凑图块过渡为圆润的标记。", "box, text"},
@@ -131,6 +135,28 @@ Element basic_motion_scene(std::string_view id, const MotionSceneContext& contex
     const float card_w = std::min(s.w - 24, 300.0f), cx = (s.w - card_w) / 2;
     const float top = std::max(12.0f, (s.h - 210) / 2);
 
+    if (id == "shape-morph") {
+        auto drawing = painter({.id = "shape", .width = Dim(s.w), .height = Dim(240), .role = Role::image,
+            .label = s.say(s.end ? "B: circle" : "A: triangle", s.end ? "B：圆形" : "A：三角形"),
+            .paint = [end = s.end](PaintContext& ctx) {
+                const float travel = std::min(160.0f, ctx.size.width * .42f);
+                const float radius = std::min(44.0f, ctx.size.width * .13f);
+                const float center = ctx.size.width / 2, cy = 120;
+                const float x = center + (end ? .5f : -.5f) * travel;
+                render::Path guide;
+                guide.move_to({center - travel / 2, cy}).line_to({center + travel / 2, cy});
+                ctx.list.stroke_path(guide, {.width = 1}, render::Paint::solid(ctx.theme.color("border")));
+                render::Path shape;
+                if (end) shape.add_circle({x, cy}, radius);
+                else shape.move_to({x, cy - radius}).line_to({x - radius, cy + radius}).line_to({x + radius, cy + radius}).close();
+                ctx.list.fill_path(shape, render::FillRule::nonzero, render::Paint::solid(ctx.theme.color("accent")));
+            }});
+        drawing.prop("motion", Source(Value("none"))); // the scene's public motion policy owns the transition
+        return column({.id = "composition", .width = Dim(s.w), .height = Dim(s.h), .gap = 12, .justify = "center", .align = "center"}, {
+            std::move(drawing),
+            button({.id = "change", .text = s.say("Change shape", "切换形状"),
+                    .variant = ButtonVariant::secondary, .on_activated = change(s)})});
+    }
     if (id == "surface-color") {
         return frame(s, {at(note("status", s.say("A place for the next idea", "为下一个想法留个位置"), s.say("The surface carries the change.", "由表面来传达变化。"), card_w, 132,
                                 s.end ? "accent_subtle" : "surface_variant"), cx, (s.h - 132) / 2)});

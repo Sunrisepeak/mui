@@ -1,0 +1,23 @@
+# Materialized into a fresh external project; no parent workspace or lock.
+[package]
+namespace = "hanim.validation"
+name = "play_consumer"
+version = "0.1.0"
+license = "Apache-2.0"
+
+[targets.hanim-play-consumer]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+hanim.engine = { path = {{engine_path}} }
+hanim.render.vector = { path = {{adapter_path}} }
+openmui.raster = { path = {{raster_path}} }
+openmui.image = { path = {{image_path}} }
+openmui.hash = { path = {{hash_path}} }
+mcpplibs.os = "0.2.2"
+nlohmann.json = "3.12.0"

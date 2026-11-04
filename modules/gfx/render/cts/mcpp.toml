@@ -8,6 +8,9 @@ license = "Apache-2.0"
 platforms = ["linux", "macos", "windows"]
 repo = "https://github.com/Sunrisepeak/mui"
 
+[build]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
 [dev-dependencies]
 "openmui.render" = { path = ".." }
 "openmui.render.vector" = { path = "../vector" }

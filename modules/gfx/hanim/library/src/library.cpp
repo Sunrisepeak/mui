@@ -152,13 +152,18 @@ compile(Input from, Input to, MorphOptions options) {
         if (from.parts[a[i]].id!=to.parts[b[i]].id) return std::unexpected(failure(MorphError::part_set_mismatch,a[i]));
         matched[a[i]]=b[i];
     }
-    auto result=std::make_shared<detail::ObjectMorphData>();
-    result->ids.reserve(count); result->parts.reserve(count); result->states.reserve(count);
+    // A parent change is a hierarchy error even when it also changes the
+    // children sequence of an earlier group in the canonical traversal.
     for (std::size_t i=0;i<count;++i) {
         const auto& x=from.parts[i]; const auto& y=to.parts[matched[i]];
         if ((x.parent==invalid_object_slot)!=(y.parent==invalid_object_slot) ||
             (x.parent!=invalid_object_slot && from.parts[x.parent].id!=to.parts[y.parent].id))
             return std::unexpected(failure(MorphError::hierarchy_mismatch,i));
+    }
+    auto result=std::make_shared<detail::ObjectMorphData>();
+    result->ids.reserve(count); result->parts.reserve(count); result->states.reserve(count);
+    for (std::size_t i=0;i<count;++i) {
+        const auto& x=from.parts[i]; const auto& y=to.parts[matched[i]];
         if (x.children.size()!=y.children.size()) return std::unexpected(failure(MorphError::hierarchy_mismatch,i));
         for (std::size_t child=0;child<x.children.size();++child)
             if (from.parts[x.children[child]].id!=to.parts[y.children[child]].id)

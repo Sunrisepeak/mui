@@ -251,6 +251,19 @@ jobs:
         if: runner.os == 'Linux' && matrix.profile == 'dev'
         run: tools/ci/templates.sh
 
+      - name: Independent core and log consumer has no UI or renderer dependency
+        timeout-minutes: 10
+        if: matrix.os == 'ubuntu-24.04' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'release'
+        run: python3 tools/ci/hanim-core-consumer.py
+
+      - name: Keep the independent consumer graph and results
+        if: always() && matrix.os == 'ubuntu-24.04' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: hanim-core-independent-consumer
+          path: target/hanim-core-consumer
+          if-no-files-found: ignore
+
       - name: Benchmarks against their budgets (M1 acceptance ⑤; tests/bench)
         if: matrix.profile == 'release'
         run: |

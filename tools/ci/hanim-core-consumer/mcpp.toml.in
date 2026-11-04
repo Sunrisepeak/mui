@@ -1,0 +1,19 @@
+# Materialized outside the repository workspace by hanim-core-consumer.py.
+# Only the independent public packages are dependencies; no dev dependencies.
+[package]
+namespace = "hanim.validation"
+name = "core_consumer"
+version = "0.1.0"
+license = "Apache-2.0"
+
+[targets.hanim-core-consumer]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+hanim.core = { path = {{core_path}} }
+openmui.log = { path = {{log_path}} }

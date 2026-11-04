@@ -8,6 +8,7 @@
 export module openmui.memory:handle;
 
 import std;
+import :slots;
 
 export namespace omui {
 
@@ -34,70 +35,28 @@ struct Handle {
     }
 };
 
-// Dense storage with stable handles. Erased slots are reused; their
-// generation is bumped so old handles stop matching.
+// Compatibility adapter over the shared slot mechanism. The original
+// index32/generation32 ABI and generation-zero first insertion are preserved.
+// Exhaustion now safely retires the slot instead of wrapping to generation 0.
 template <class T, class Tag>
 class SlotMap {
 public:
     using handle_type = Handle<Tag>;
-
     handle_type insert(T value) {
-        std::uint32_t i;
-        if (!free_.empty()) {
-            i = free_.back();
-            free_.pop_back();
-            slots_[i].value.emplace(std::move(value));
-        } else {
-            i = static_cast<std::uint32_t>(slots_.size());
-            slots_.push_back({std::optional<T>(std::move(value)), 0});
-        }
-        ++size_;
-        return {i, slots_[i].generation};
+        auto result = storage_.insert(std::move(value));
+        return result ? *result : handle_type{};
     }
-
-    bool erase(handle_type h) {
-        if (!contains(h)) return false;
-        slots_[h.index].value.reset();
-        ++slots_[h.index].generation;
-        free_.push_back(h.index);
-        --size_;
-        return true;
-    }
-
-    [[nodiscard]] bool contains(handle_type h) const noexcept {
-        return h.index < slots_.size() && slots_[h.index].generation == h.generation && slots_[h.index].value.has_value();
-    }
-
-    [[nodiscard]] T* get(handle_type h) noexcept { return contains(h) ? &*slots_[h.index].value : nullptr; }
-    [[nodiscard]] const T* get(handle_type h) const noexcept { return contains(h) ? &*slots_[h.index].value : nullptr; }
-
-    [[nodiscard]] std::size_t size() const noexcept { return size_; }
-    [[nodiscard]] bool empty() const noexcept { return size_ == 0; }
-
-    template <class F>
-    void for_each(F&& f) {
-        for (std::uint32_t i = 0; i < slots_.size(); ++i)
-            if (slots_[i].value) f(handle_type{i, slots_[i].generation}, *slots_[i].value);
-    }
-
-    void clear() {
-        for (std::uint32_t i = 0; i < slots_.size(); ++i) {
-            if (!slots_[i].value) continue;
-            slots_[i].value.reset();
-            ++slots_[i].generation;
-            free_.push_back(i);
-        }
-        size_ = 0;
-    }
-
+    bool erase(handle_type key) { return storage_.erase(key); }
+    [[nodiscard]] bool contains(handle_type key) const noexcept { return storage_.contains(key); }
+    [[nodiscard]] T* get(handle_type key) noexcept { return storage_.get(key); }
+    [[nodiscard]] const T* get(handle_type key) const noexcept { return storage_.get(key); }
+    [[nodiscard]] std::size_t size() const noexcept { return storage_.size(); }
+    [[nodiscard]] bool empty() const noexcept { return storage_.empty(); }
+    template <class F> void for_each(F&& function) { storage_.for_each(std::forward<F>(function)); }
+    template <class F> void for_each(F&& function) const { storage_.for_each(std::forward<F>(function)); }
+    void clear() { storage_.clear(); }
 private:
-    struct Slot {
-        std::optional<T> value;
-        std::uint32_t    generation = 0;
-    };
-    std::vector<Slot>          slots_;
-    std::vector<std::uint32_t> free_;
-    std::size_t                size_ = 0;
+    SlotStorage<T, handle_type, 0> storage_;
 };
 
-}  // namespace omui
+} // namespace omui

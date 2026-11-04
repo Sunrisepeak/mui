@@ -4,5 +4,6 @@
 export module openmui.memory;
 
 export import :arena;
+export import :slots;
 export import :handle;
 export import :function;

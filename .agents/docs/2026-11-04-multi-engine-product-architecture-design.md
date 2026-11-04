@@ -4,7 +4,7 @@
 
 维护者已澄清：规范名称是 **openmui**；**mcpp 是构建工具，其构建插件支持 GPU／HPC 库及算子的开发、构建和交付**。运行时计算能力由可复用库提供，各框架／引擎按需消费。规范、产品、包名与构建工具的身份分别明确。
 
-动画的对象×动画×效果×配置组合，统一见[play／Program细案](2026-11-04-hanim-play-api-design.md)：四类嵌套表达经同一编译管线产生PreparedPlan，简单四参数入口不另设播放器；分清组／逐对象、A→B及阶段源、通道冲突、效果作用域、typed配置继承与硬限制。当前仅首条独立严格形变链路，完整Program与UI迁移仍开放，实证见[hanim §16](2026-11-04-hanim-animation-library-playback-design.md#16-首条公开播放器与无gui消费者证据)。
+最新综合review见[顶层×子系统架构与API验证](2026-11-05-system-subsystem-architecture-and-api-design.md)，包含目标代码树、共享owner、分级入口和实施顺序。动画的对象×动画×效果×配置专项语义继续见[play／Program细案](2026-11-04-hanim-play-api-design.md)：各入口复用同一Program/PreparedPlan，最新推荐以 `play(animation)` 为主；四参数保留为当前兼容入口。严格对象的sequence/parallel/stagger编排已实现，完整通道／scope／GPU和UI迁移仍开放，不能将“完整Program未完成”误读为“完全没有编排”。
 
 维护者补充：hanim的目标是比Manim及常见动画／游戏动画系统更通用、效果更好、性能更高；主入口只是比较思路，详见[通用性／风格／GPU比较稿](2026-11-04-hanim-generality-style-gpu-review-design.md)。创作接口与执行内核分别比较，复用全局的计算／RHI／renderer；已有CPU原型不等于目标已达到。
 

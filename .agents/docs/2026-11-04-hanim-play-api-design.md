@@ -2,6 +2,8 @@
 
 2026-11-04。状态：**接口 review 稿；严格对象域的嵌套 Program 首批实施中**，区分当前播放器与完整目标API。配套[hanim完整产品](2026-11-04-hanim-animation-library-playback-design.md)。维护者讨论 `play(obj, anim, effect, config)` 与 `play(anim(obj), effect, config)` 的取舍。
 
+2026-11-05 最新：[综合架构与最小API验证](2026-11-05-system-subsystem-architecture-and-api-design.md#3-最小接口实验验证什么如何使用)推荐以 `anim::morph(source,target)`、`play(animation)` 为日常入口，具名组合、显式prepare和扩展作者接口逐级展开。消费者实验复用现有Program/Engine，不能据此声称正式API或完整IR已经迁移。本文四参数示例保留为当前已实现入口，后续章节的早期推荐不覆盖这一最新review方向。
+
 ## 1. 候选层次与当前讨论状态
 
 2026-11-05补充：[可组合算子／反应／相机IR](2026-11-05-hanim-composable-operators-reactions-ir-design.md)将effect扩展为匹配、路径、属性、条件／触发反应和呈现等阶段的typed算子；相机及其运动／镜头／视图、动画与effect参数也可作为目标。环境场只是刺激来源之一，亦覆盖事件／阈值／接触／邻域和材料规则。主动／被动是绑定方式，与pure／stateful及执行阶段分别建模。主入口语法仍待review，先保证共同契约、作用域和执行计划可表达。
@@ -103,7 +105,7 @@ auto prepared = engine.prepare(program, prepare_config);
 auto playback = engine.play(prepared, playback_config);
 ```
 
-对象绑定处的效果只作用于该对象／域；组合节点效果作用于该组合的当前合成结果。不同位置的blur或tone不可互换。链是有序处理；材料mix是同一当前几何上的材料结果混合；风格还可能展开字体／布局、部件和降档规则。需要分清作用域，不能把任意effect作为无作用域的最后一个参数附到所有并行动画。
+对象绑定处的效果只作用于声明的对象／域／阶段。组合输出的效果需要明确的合成scope；最新方案考虑显式 `composite(animation).with_effect(...)`，不让所有组合自动建立离屏纹理，也不将过程effect隐式广播。不同位置的blur或tone不可互换。链是有序处理；材料mix是同一当前几何上的材料结果混合；风格还可能展开字体／布局、部件和降档规则。上述早期组合节点写法仍是候选，不代表已经确定所有effect的统一合成语义。
 
 同一对象不同通道可按规则并行；同通道冲突必须有replace／add／multiply／blend等显式策略及优先级，不能由函数调用顺序碰巧决定。当前编译器支持严格整对象轨道及非重叠分段，冲突明确拒绝；完整通道混合图仍未交付。
 

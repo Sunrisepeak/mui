@@ -1,6 +1,6 @@
 # modules
 
-Reusable libraries shared by the project's independent products, organized by dependency layer. A package depends only on its own layer and the layers below it; `tools/lint` checks every dependency. Product roles and selective composition are described in the [top-level architecture](../.agents/docs/2026-11-04-multi-engine-product-architecture-design.md).
+Reusable libraries shared by the project's independent products, organized by dependency layer. A package depends only on its own layer and the layers below it; `tools/lint` checks every dependency. Product roles and selective composition are described in the [top-level architecture](../.agents/docs/2026-11-04-multi-engine-product-architecture-design.md). The [system/subsystem review proposal](../.agents/docs/2026-11-05-system-subsystem-architecture-and-api-design.md) includes a target code tree and staged migrations; proposed packages are not existing capabilities.
 
 | Layer | What it is | Depends on |
 |---|---|---|

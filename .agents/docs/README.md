@@ -4,10 +4,11 @@
 
 | 文档 | 内容 |
 |---|---|
+| [2026-11-05-system-subsystem-architecture-and-api-design.md](2026-11-05-system-subsystem-architecture-and-api-design.md) | **当前综合 review 入口**：顶层产品×子系统局部架构、目标代码树与兼容迁移、分级 hanim API 的真实最小实验、scope／通道／资源与共享 owner、Agent／Web／工具／素材，以及分期交付与待 review 决策；已验证子集与目标明确分开 |
 | [2026-11-05-local-global-composable-architecture-design.md](2026-11-05-local-global-composable-architecture-design.md) | **核心架构准则（已入AGENTS）**：局部能力中心×全局契约组合；hanim／audio／渲染／反应等本域视角、数据／算子／自定义、公共基础单一归属、不同时间／实时约束、跨模块协作及验收 |
 | [2026-11-05-hanim-composable-operators-reactions-ir-design.md](2026-11-05-hanim-composable-operators-reactions-ir-design.md) | **可组合内核补充**：对象／属性／顶点／相机及运动均可控；通用匹配／路径算子、主动effect与属性／状态／触发反应（场／事件／邻域等）、端点策略、状态重建、多视图IR和CPU／GPU批次；中立契约与单一归属，原型与目标分开 |
 | [2026-11-04-hanim-generality-style-gpu-review-design.md](2026-11-04-hanim-generality-style-gpu-review-design.md) | **通用性／质量／性能比较稿**：对象／动画／IR三种中心视角的取舍，表示、匹配、插值、动画、效果和CPU／GPU异构执行；Manim／游戏动画真实基线、风格自由度、局部与全局边界、领先验收；候选接口不直接定案 |
-| [2026-11-04-hanim-play-api-design.md](2026-11-04-hanim-play-api-design.md) | **play／组合架构 review**：对象×动画×效果×配置的四类嵌套表达，简单四参数入口与统一 Program／PreparedPlan；组、A→B、阶段源、通道混合、效果作用域、时间／配置继承、交叉播放、控制与分期；严格对象Program首批与完整目标分别标明 |
+| [2026-11-04-hanim-play-api-design.md](2026-11-04-hanim-play-api-design.md) | **play／组合专项 review**：对象×动画×效果×配置的四类表达、统一 Program／PreparedPlan；组、A→B、阶段源、通道混合、scope、时间／配置、交叉播放与控制；四参数为已实现兼容入口，最新动画中心主入口与真实接口实验见综合方案 |
 | [2026-11-04-indie-game-tools-assets-design.md](2026-11-04-indie-game-tools-assets-design.md) | **独立游戏工具／素材补充**：六类基础工具扩为九类＋共享发布验证底座；场景关卡、玩法数据、素材资源编辑与依赖／重导入／目标变体、角色／存档等缺口；按类型支持矩阵与真实游戏生产链 |
 | [2026-11-04-multi-engine-product-architecture-design.md](2026-11-04-multi-engine-product-architecture-design.md) | **顶层产品架构／review 稿**：对等的 UI／动画／渲染／模拟／音频／计算产品，物理／化学／元胞模型，分块与计算优化；mcpp GPU／HPC 构建插件、Web 重点与 Toy 子后端、TUI、多输出及单平台先验证的后端路线；独立标准、Agent、通用风格、后置双视角工具／MIDI 编辑器、可裁剪及单一实现归属 |
 | [2026-11-04-dual-user-tools-validation-design.md](2026-11-04-dual-user-tools-validation-design.md) | **核心工具／应用讨论稿**：六类真实创作和调试工具，共用工作台与编译／构建基础；同一项目／操作／事务／观测下的人类可视化与 openas Agent 控制；第一条完整验收任务、工具后置与 Web／Toy／TUI 分期 |
@@ -18,7 +19,7 @@
 | [2026-11-04-omui-first-frame-loading-design.md](2026-11-04-omui-first-frame-loading-design.md) | **首帧与加载收口**：生产视图导出图像／真实语义几何、按页开场预览、真实解压字节进度、失败重试、字体子集与后加载优先级、百分比换行的深层回归；最终结果与尚未完成边界分开记录 |
 | [2026-11-04-omui-site-navigation-motion-execution-design.md](2026-11-04-omui-site-navigation-motion-execution-design.md) | **§8 review 细案／§9 P0 实施事实**：顶级 Agent 三路径九场景目标、直观开场与三级披露；手机 CTA、全宽材质对照、Agent 有限预览与输入保护、NoScript 目录已整合；中间态交叉、字体／完整场景仍开放；40／20 清单与本地验收 |
 | [2026-11-03-openmui-site-redesign-implementation-design.md](2026-11-03-openmui-site-redesign-implementation-design.md) | **omui 官网重构与质量收口（已开始实施）**：openmui 规范与 omui 实现的品牌边界、O 内含 mui 的代码标志与官方作品、官网／文档分离、美术与各馆、创意组合、R0–R6 对应 C2–C6 的实施包和验收；官网重构以本文及维护者最新指示为准；最新记录含简化首页／动态标志、核心特色与顶级 Agent 导航、40 基础设计／20 创意组合、37 类默认配方、单舞台渐进披露、保留的发布工作台、中英实图及本地验证边界 |
-| [2026-11-01-openmui-master-plan-design.md](2026-11-01-openmui-master-plan-design.md) | **总体方案与实施计划（顶层，先读）**：目标、定位、总体架构、新包的位置、规范的改动、九个工作流、检查点 C0–C6 的展开表、依赖、规则、风险、决策、自我评审；链接下面五份子设计 |
+| [2026-11-01-openmui-master-plan-design.md](2026-11-01-openmui-master-plan-design.md) | **既有总体计划与检查点基线**：目标、定位、九个工作流、检查点 C0–C6、依赖、规则、风险与决策；最新多引擎架构 review 见首项综合方案，官网范围与质量门槛继续保留 |
 | [2026-11-01-openmui-strategy-backlog-design.md](2026-11-01-openmui-strategy-backlog-design.md) | **推进策略与待办**：为什么改变推进方式；核心是框架和引擎的能力、官网综合验收与新增独立消费者／工具验收；范围完整、按检查点 C0–C6；评估的改变；不在主线上的作品和事项 |
 | [2026-11-01-openmui-positioning-site-design.md](2026-11-01-openmui-positioning-site-design.md) | **定位与官网**：一个基础、三个亮点、一个前提；和同类的对比；官网的信息结构、首页、各页、全站元素、场景、作品（影片是程序）、视觉方向 B、分批和创意加载、验收 |
 | [2026-11-01-openmui-universal-motion-design.md](2026-11-01-openmui-universal-motion-design.md) | **通用动画**：组件 × 效果 × 动画三维三级；物质表示；槽、策略和叠加链；`morph` 的四层匹配和编排；幽灵层和粒子；动效工作室；定制分级；验收用例 |

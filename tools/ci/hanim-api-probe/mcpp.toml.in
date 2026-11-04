@@ -1,0 +1,17 @@
+# Materialized into an external workspace, with its own resolution/build graph.
+[package]
+namespace = "hanim.validation"
+name = "api_probe"
+version = "0.1.0"
+license = "Apache-2.0"
+
+[targets.hanim-api-probe]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+hanim.engine = { path = {{engine_path}} }

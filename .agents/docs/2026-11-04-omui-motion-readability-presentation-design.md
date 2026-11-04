@@ -94,3 +94,13 @@
 嵌套 travel 的共享 TLS 列表另引发真实 heap-use-after-free，已用独立重入 CTS 复现并改为递归租约池，见 [hanim 讨论稿 §2](2026-11-04-hanim-animation-library-playback-design.md#2-三角形--圆的核对结果)。修复后的 motion／SDK／site 在 dev、release、LLVM sanitizer 各 27 程序、187 组通过；之后官网实例授权迁移新增 2 组，Site 全部 19 程序、125 组在三配置通过。历史局部日志继续保留，不能将它们与首次失败混写为一次通过。
 
 59 帧参考中有 16 帧随本轮修复变化，实际中英开场、组件、授权、设置、时间回放与代表参考帧已审图，原表保存在 `target/site-motion-reference-review`；新表和总像素 pin 经 GCC／LLVM 重查通过。真实 Web 构件／浏览器连续输入、新媒体与冷访问预算仍须重新构建验证，旧 579 项浏览器结果只归属旧检查点。
+
+#### 新 Web 构件的实际验证
+
+源 `77979b5` 正式 mcpp `site-web` pack 与 native prerender／opening-assets 均已完成。新构件的结构 18、字体 19（含全部 59 帧实际 CPU 像素与 native 逐帧相同）、无障碍 15、组件 40、工作台 24、加载 88、字体共享 146、呈现 129、动画／创意／Agent 123，共 **602 项浏览器检查通过**。同一动画专项旧 115 项运行由加入发布策略的 123 项运行替代，不重复累加；59 帧不是额外 59 个独立检查。报告在 `target/site-agent-motion-*.report.omui.json`，真实手机中英及桌面截图位于 `target/site-agent-motion-presentation/`。
+
+独立 `site-transition.mjs` 在无其它重任务干扰时另有 **145 项通过**：中英、390／1280 四组，每组模式切换、切换中缩窄、恢复宽度三个阶段，真实 CPU canvas 连续捕获、CDP 可信指针和键盘、真实模型及公开 history。点击从饱和实绘像素选择，语义边界只用于确认该像素属于当前 incoming primary，不用语义中心代替取像素。原探针把尚未呈现的 Arrange 对应到 outgoing Verify，且漏识别 scoped 深色 primary；现已修正。纯外部 resize 按 follow_layout 契约可直接跟随分配，不强求 `animating`，等待 Runtime 采用新宽度及连续两个相同实绘分配后再点击。
+
+本次保留原 250 ms 早期采样窗口及 80 ms 像素年龄门槛。安静运行中实际可信 pointerup 距阶段开始 84.4–241.8 ms、距采样 27.9–49.6 ms；报告 `target/site-agent-motion-transition-quiet.report.omui.json`。此前负载下有超出窗口的 coverage gap，不能将它们当产品延迟失败或抹去；该窗口不是产品性能预算，专项在共享 CI runner 的稳定性仍未收口，尚未并入默认 `site-browser.sh`。以上只证明对应操作和像素的一致性，不关闭全部响应式中间态、美术质量或独立 hanim 引擎目标。
+
+新独立冷访问也发现交付回归：20 Mbit/s、40 ms、新 profile、访问内 cache enabled，实测总传输 **5,067,540 B，超过原 5,000,000 B 上限**；首帧代理约 1845.4 ms、首帧前 3,150,349 B，其余六项门槛通过。未调整预算；字体交付优化及余下 W8 继续推进，不能以功能检查通过宣称官网验收完成。

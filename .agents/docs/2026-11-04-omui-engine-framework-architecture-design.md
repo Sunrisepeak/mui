@@ -227,6 +227,10 @@ SDK 现在从 mcpp 实际 profile 生成 constexpr 元数据；`AppSpec.agent_mo
 
 当前 operation 集合支持精确名、`prefix.*` 和 `*`；空列表明确拒绝。资源／对象范围、授权到期、transport peer 的逐连接会话配置、用户配置持久化、全部语言模板、独立引擎 provider、完整控制操作的 actor／trace 关联与打包默认值继续保留为实施项，不把 operation 前缀匹配或首个 C++ SDK 消费者当作这些能力已经完成。`agent_policy_for_profile` 当前属于 UI 层的 openmui.core，只供 omui 宿主与外层 adapter 复用；无 UI／spec 依赖的控制／preset 契约须另行下沉，不能让 hanim core／base／gfx 直接 import openmui.core。
 
+目标 Web 构件现已实际核验，而非从 native dev 生成器推断：源 `77979b5` 的 `site-web` wasm 经正式 mcpp pack，在 Chromium 156 由 `describe.agent_policy` 返回 `dual-user`／`profile:site-web`、实例绑定、入口及 input 开启、有效会话，且 development grant／预授权 development controls 均为 false。请求伪造 `dev`／`mode`／真人 actor 不改变该结果。真实原生 Agent input 穿过 Wasm 帧循环打开 Core 菜单，action journal 保留 `agent:deployment-check;via=service:input`；随后真实 CDP 真人指针关闭同一菜单。该 8 项并入既有 `tools/ci/site-motion.mjs`，本轮全 123 项通过，日志与 JSON 为 `target/site-agent-motion-policy-browser.report.omui.json`。
+
+对 SDK、三个宿主、Protocol、Guide、CLI guide 与应用／示例／游戏／语言层的配置调用交叉审计，未发现其它生产消费者仍错误修改 legacy 全局权限。生产 free `agent_access()` 只保留明确未绑定 Runtime 的兼容回退；不能机械删除兼容 CTS。本次是源码审计，没有把它另计为新增测试通过。上述发布构件证据不关闭前段列出的独立引擎、资源作用域、持久配置及全部语言模板工作。
+
 ## 9. 可观测性与 profiling
 
 建立关联链：**一次请求 → 状态 revision → 准备／匹配 → 动画／模拟批次 → 渲染 pass／submission → 呈现帧**。可以回答“为什么动、为什么降档、哪次请求触发、哪里慢、资源为什么仍被占用”。

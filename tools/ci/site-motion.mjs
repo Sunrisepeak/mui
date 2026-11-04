@@ -1,5 +1,6 @@
 // Real browser input through the site's core, creative and agent paths.
-// The semantic API is read-only here: every change uses mouse or keyboard.
+// Gallery changes use real mouse/keyboard input. The deployment-policy case
+// also sends native Agent input through the same delivered Web host.
 import { mkdir, writeFile } from 'node:fs/promises';
 import { browser, serve, sleep } from './page.mjs';
 
@@ -139,6 +140,33 @@ try {
   await dispatch('Page.navigate', { url: report.url });
   const ready = await wait(() => page.value(`window.omuiStaticHandedOff && !!window.omui && !!${mirror('main/bar/nav/core/open')}`), 60000);
   check(ready, 'the real site hands off to the new live navigation'); if (!ready) throw new Error('The new live site did not become ready');
+
+  await scenario('published-agent-policy', async () => {
+    const description = await page.value('window.omui.describe()');
+    const policy = description?.data?.agent_policy;
+    check(description?.exitCode === 0 && policy?.mode === 'dual-user' && policy?.source === 'profile:site-web',
+      'the delivered Web build selects its own published profile', policy);
+    check(policy?.enabled === true && policy?.input === true && policy?.binding === 'instance' && policy?.session_valid === true,
+      'published applications retain an instance-bound Agent endpoint and input');
+    check(policy?.development_grant === false && policy?.development_controls === false,
+      'the Web artifact does not inherit the native generator development session');
+    const forged = await page.value(`window.omui.request({op:'describe',actor:'person:owner',dev:true,mode:'development'})`);
+    check(forged?.exitCode === 0 && forged?.data?.agent_policy?.mode === 'dual-user' && forged?.data?.agent_policy?.development_grant === false,
+      'remote actor and development claims do not upgrade the published policy');
+    const input = await page.value(`window.omui.request({op:'input',actor:'agent:deployment-check',events:[{type:'click',node:'main/bar/nav/core/open'}]})`);
+    check(input?.exitCode === 0, 'native Agent input completes through the delivered Wasm frame loop', input);
+    check(input?.data?.actions?.some(a => a.node === 'main/bar/nav/core/open' && a.exitCode === 0 && a.actor === 'agent:deployment-check;via=service:input'),
+      'the real input action records its Agent provenance', input?.data?.actions);
+    await requireCheck(async () => {
+      const item = await node('main/bar/nav/core/menu/to_motion');
+      return !!item && !item.state?.includes('hidden');
+    }, 'Agent input opens the same visible Core menu');
+    await pointer('main/bar/nav/core/open');
+    await requireCheck(async () => {
+      const item = await node('main/bar/nav/core/menu/to_motion');
+      return !item || item.state?.includes('hidden');
+    }, 'a real person pointer closes that same menu without replacing the runtime');
+  });
 
   await scenario('basic-motion', async () => {
     await core('motion'); const root = gallery('motion');

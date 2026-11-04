@@ -8,7 +8,7 @@ const server = await serve(process.argv[2] || 'target/site');
 const output = process.argv[3] || 'target/site-transition';
 await mkdir(output, { recursive: true });
 const report = { checks: [], scenarios: [], exceptions: [], renderer: 'cpu',
-  pixelSelection: 'Bottommost connected saturated site-accent fill below y=200; at least 65×12 CSS px and 400 pixels; disabled fills and disconnected text excluded.',
+  pixelSelection: 'Bottommost connected saturated blue fill below y=200, including the scoped dark primary; at least 65×12 CSS px and 400 pixels; disabled fills and disconnected text excluded. Semantic bounds confirm association, never choose the click pixel.',
   coverage: { earlyWindowMs: 250, maxPixelAgeMs: 80, note: 'An early-motion sampling window; not a product latency budget.' } };
 const root = 'main/body/view/agent/page/agent_feature', q = JSON.stringify;
 let b;
@@ -67,7 +67,9 @@ function recordCanvas(duration) {
       const maxY = Math.min(h, Math.ceil((innerHeight - 44 - box.y) * sy));
       for (let y = minY; y < maxY; ++y) for (let x = 0; x < w; ++x) {
         const i = y * w + x, p = i * 4, r = rgba[p], g = rgba[p + 1], blue = rgba[p + 2];
-        if (r < 155 && g < 155 && blue > 210 && blue > r + 100 && blue > g + 100 && rgba[p + 3] > 230) mask[i] = 1;
+        // The scoped Design style darkens its primary. Keep saturated blue
+        // fills, including that actual style; muted disabled fills remain out.
+        if (r < 155 && g < 155 && blue > 155 && blue > r + 75 && blue > g + 75 && rgba[p + 3] > 230) mask[i] = 1;
       }
       const components = [];
       for (let y = minY; y < maxY; ++y) for (let x = 0; x < w; ++x) {
@@ -134,19 +136,36 @@ async function phase(scenario, spec) {
   await b.value(`(${recordCanvas.toString()})(650)`);
   try {
     await spec.trigger();
-    let probe;
+    let probe, associated = false;
     for (let i = 0; i < 20; ++i) {
-      probe = await b.value(`(async()=>{const c=window.__omuiTransitionCapture;const r=await window.omui.snapshot({root:${q(root + '/preview/actions/arrange')},depth:0});const f=c?.frames.at(-1);return {now:performance.now(),start:c?.start,frame:f?{at:f.at,components:f.components}:null,node:r.data?.nodes?.find(n=>n.id===${q(root + '/preview/actions/arrange')})}})()`);
-      if (live(probe?.node) && probe.frame?.components?.length) break;
+      probe = await b.value(`(async()=>{const c=window.__omuiTransitionCapture;const [r,v]=await Promise.all([window.omui.snapshot({root:${q(root + '/preview/actions/arrange')},depth:0}),window.omui.snapshot({root:'main/body/view/agent',depth:0})]);const f=c?.frames.at(-1),p=c?.frames.at(-2);return {now:performance.now(),start:c?.start,viewport:innerWidth,runtimeWidth:v.data?.nodes?.find(n=>n.id==='main/body/view/agent')?.bounds?.[2],previous:p?{at:p.at,components:p.components}:null,frame:f?{at:f.at,components:f.components}:null,node:r.data?.nodes?.find(n=>n.id===${q(root + '/preview/actions/arrange')})}})()`);
+      // During insertion the new semantic node exists before its pixels do.
+      // Do not mistake an outgoing Verify button for the incoming Arrange.
+      // Bounds only confirm the identity of the detected painted component;
+      // the click point still comes exclusively from the pixel mask.
+      const bounds = probe?.node?.bounds, painted = probe.frame?.components?.[0];
+      associated = probe?.runtimeWidth === probe?.viewport && live(probe?.node) && !probe.node.state?.includes('offscreen') && bounds?.[2] > 0 && bounds?.[3] > 0 && painted &&
+        painted.point.x >= bounds[0] && painted.point.x <= bounds[0] + bounds[2] &&
+        painted.point.y >= bounds[1] && painted.point.y <= bounds[1] + bounds[3];
+      if (spec.requireMoving === false) {
+        // A resize can expose the old child allocation for one frame while
+        // its responsive region rebuilds. Observe two matching painted
+        // allocations, rather than click an obsolete pre-resize rectangle.
+        const previous = probe.previous?.components?.[0];
+        associated &&= !!previous && painted.bounds.every((v, i) => Math.abs(v - previous.bounds[i]) <= 0.5);
+      }
+      if (associated) break;
       if (probe && probe.now - probe.start > report.coverage.earlyWindowMs) break;
       await sleep(8);
     }
     record.probe = probe;
     const painted = probe?.frame?.components?.[0];
-    const early = painted && probe.now - probe.start <= report.coverage.earlyWindowMs && probe.now - probe.frame.at < report.coverage.maxPixelAgeMs;
+    record.pixelAssociatedWithPrimary = !!associated;
+    const early = associated && painted && probe.now - probe.start <= report.coverage.earlyWindowMs && probe.now - probe.frame.at < report.coverage.maxPixelAgeMs;
     check(early, `${scenario.name}/${spec.name}: a fresh painted primary is covered in the early motion window`, probe, 'coverage');
     if (!early) throw Object.assign(new Error('Coverage gap: sampling/CDP missed the early window; this does not establish a product timing failure'), { name: 'CoverageGap' });
-    check(probe.node.state?.includes('animating'), `${scenario.name}/${spec.name}: the real primary is still moving at the pixel probe`, probe.node.state, 'coverage');
+    if (spec.requireMoving !== false)
+      check(probe.node.state?.includes('animating'), `${scenario.name}/${spec.name}: the real primary is still moving at the pixel probe`, probe.node.state, 'coverage');
     // Record semantic bounds as a comparison, never as the source of this point.
     record.pixelPoint = painted.point;
     await click(painted.point);
@@ -206,7 +225,11 @@ try {
         await sleep(30);
         await dispatch('Emulation.setDeviceMetricsOverride', { width: 360, height: 844, deviceScaleFactor: 1, mobile: false });
       } });
-      await phase(scenario, { name: 'restore-width', trigger: () => dispatch('Emulation.setDeviceMetricsOverride', { width, height: 844, deviceScaleFactor: 1, mobile: false }) });
+      // Pure external constraints follow the new layout by contract; they
+      // need not animate. Still require early, fresh-pixel input after the
+      // Runtime has actually adopted the browser's restored width.
+      await phase(scenario, { name: 'restore-width', requireMoving: false,
+        trigger: () => dispatch('Emulation.setDeviceMetricsOverride', { width, height: 844, deviceScaleFactor: 1, mobile: false }) });
     } catch (error) { check(false, `${scenario.name}: transition scenario completes`, String(error.stack || error), error.name === 'CoverageGap' ? 'coverage' : 'interaction'); }
     finally { b.close(); b = null; }
   }

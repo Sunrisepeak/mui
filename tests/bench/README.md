@@ -62,3 +62,53 @@ omui::bench::add("ui/frame/mine", "what it measures", [](omui::bench::State& s) 
 
 Depends on `openmui` (the runtime, the base components, the headless host),
 `openmui.trace` and `mcpplibs.os`.
+
+
+## Public geometry and material plans
+
+These five cases use the same harness, allocation counter, JSON/Markdown
+reports and CLI as the existing benchmarks. Their implementation imports only
+public `hanim`, geometry, raster and vector APIs; it does not call UI Runtime,
+components or website builders. Preparation and steady-state work are distinct.
+All five measure **CPU wall-clock work**. They neither submit GPU work nor
+measure GPU execution, and say so in each result's notes.
+
+```text
+mcpp run -p openmui.bench --profile release -- --filter public-motion/ --json public-motion.bench.omui.json
+```
+
+| Case (`public-motion/` prefix) | One iteration / reported item |
+|---|---|
+| `shape-prepare-star32` | Prepare and destroy one 32-edge concave star → four-cubic circle correspondence, using 64 arc samples and 32 alignment samples. Allocations are preparation costs, not forbidden frame allocations. One item = one plan. |
+| `shape-sample-500` | Sample all prepared cubic segments of 500 differently phased objects through `sample_segment` into preallocated buffers; consume every coordinate in a checksum pass. Preparation/output allocation excluded. One item = one cubic sample, including its output write/checksum share; the actual cubic count is reported. |
+| `paint-prepare-16` | Flatten, deduplicate and deep-own one material plan between 8 solids and 8 distinct two-stop gradients, then destroy it. One item = one of its 16 distinct leaves. No shader execution. |
+| `paint-sample-record-500` | For 500 objects, call `sample` into a caller buffer and separately `record` into a reused DisplayList arena. Record samples again: 1000 API calls and 16,000 term writes per iteration, including owned gradient-stop copies. One item = one object doing both APIs. No drawing. |
+| `draw-cpu-256` | Sample triangle→circle, record its current geometry and a gradient/normal-lit-image mixture, emit exactly one FillPath, clear and rasterize the 256×256 frame through CpuRenderer. Plan/resource preparation excluded. One item = one canvas pixel, including uncovered pixels. |
+
+The last case includes current geometry preparation *sampling*, DisplayList
+recording, leaf shader setup, once-only path coverage, CPU shading and
+compositing. It reports real renderer allocation counts; those are not assumed
+to be zero. It is neither a GPU benchmark nor a claim that 500 fully rendered
+objects fit a frame. These different workloads must not be summed as if they
+were measurements of one complete scene.
+
+### Budget proposal, awaiting measured limits
+
+Existing `budgets.bench.omui.json` limits remain unchanged. The new latency
+limits are deliberately pending release measurements on the named machine and
+CI runner; no guessed percentages or copied unrelated limits are enforceable
+budgets. The immediate design constraints and next acceptance step are:
+
+| Cases | Proposed gate / evidence needed before adding the active entry |
+|---|---|
+| `shape-sample-500`, `paint-sample-record-500` | `max_allocations = 0` for the warmed sampling/arena workload, as required by the public API and existing allocation CTS. Confirm the exact official benchmark workload is zero before adding these entries to the active budget file. |
+| `shape-prepare-star32`, `paint-prepare-16` | Record `p95_ms`, `ns_per_item`, allocations and exact prepared/output counts. Preparation may allocate. Assign latency limits after measuring, against the first-transition CPU preparation work that must fit the chosen frame; do not gate preparation at zero allocations. |
+| `shape-sample-500`, `paint-sample-record-500` | Record per-batch p95 plus per-cubic/per-object cost, respectively. D-94's 120 Hz objective gives **8.33 ms for an entire frame**, not 8.33 ms for each stage. Allocate stage limits only after measuring the corresponding end-to-end workload and its remaining frame budget. |
+| `draw-cpu-256` | Record CPU p95/p99 and allocation counts as the reference-renderer workload. Choose an explicit preview/frame target and validate it on the named CPU before assigning a ceiling. Do not reuse hardware GPU limits for this case. |
+
+After the first official run, add only justified limits to
+`budgets.bench.omui.json`, retaining the report, machine/toolchain/profile,
+iteration configuration and reasoning beside the checkpoint. Physical GPU
+performance, GPU timestamps, larger object counts, pixel-domain morphs and the
+complete Engine are separate acceptance work. Software GPU correctness/LSAN
+results are not performance evidence for those items.

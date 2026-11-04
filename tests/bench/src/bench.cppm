@@ -8,3 +8,4 @@ export import :harness;
 export import :scenes;
 export import :game;
 export import :audio;
+export import :public_motion;

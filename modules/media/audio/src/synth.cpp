@@ -8,7 +8,7 @@
 module openmui.audio;
 
 import std;
-import hanim.core;
+import openmui.math;
 import :dsp;
 import :synth;
 
@@ -17,7 +17,7 @@ namespace omui::audio::synth {
 namespace {
 
 using namespace dsp;
-namespace dm = hanim::dm;
+namespace dm = omui::math::det;
 
 constexpr double middle_c = 261.6255653005986;
 constexpr std::array<double, 2> mode_ratio{1.593, 2.135};  // a circular membrane's (1,1) and (2,1) modes

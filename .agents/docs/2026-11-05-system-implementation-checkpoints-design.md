@@ -284,3 +284,58 @@ UI示例：`{"name":"pixelate","size":8,"duration":0.4,"animate":{"amount":[0,1]
 图片比对还发现：UI的零强度效果即使跳过滤镜，保留额外普通合成层也会重复应用祖先抗锯齿clip。UI现在按通用identity声明省去自身无opacity／blend的效果wrapper，节点真正的透明度层保留；显式renderer组合层仍保持调用方要求的隔离语义。加入圆角祖先的零强度回归，并复核原官网图片，不以换参考图代替修正。
 
 剩余：palette／dither与像素字体、按角色组织的完整pixel风格／默认motion、通用paint-domain／parts及portal、完整链命中逆映射、旋转／剪切网格策略、typed通道／混合／retarget、feature实际闭包裁剪。没有新增硬件GPU性能、全平台支持或S1–S10整体完成结论。
+
+## 11. S5首批：样本时钟自动化与无窗口审查
+
+执行基线 `458fa32`。按S2／S4／S5交错推进的规则，本批验证audio与timeline的真实组合，交付可独立使用的适配包和现有CLI入口。**S5仍在实施，官网混音作品与实时设备同步尚未完成。**
+
+### 11.1 局部契约与单一归属
+
+- audio仅定义`GainSource`：保留共享不可变owner，要求`rate()`与`sample(first, values)`，每个bus／block一次类型擦除函数调用，无继承要求、新增虚函数或逐sample接口派发。新源先准备，`Mixer::automate_gain`在静默边界绑定／清除；未知总线、采样率不符均保留旧源。没有把控制消息放进逐sample循环。
+- 独立可选`openmui.timeline.audio`冻结选定property与clip位置／level／fade。曲线沿用`hanim::Track<double>`，时间映射沿用timeline的整数Flicks；不另造播放器、数学库或插值器。key是clip-local呈现时间，source trim／speed不改写它；片段外值显式配置，end为开区间。
+- adapter准备验证键值、时间／fade范围、溢出、property身份和缓动。`Ease::valid()`收敛原Program的验证，两个消费者共用一处规则。采样率须能精确换算；乱序／反向读取和超出整数时间范围的查询有明确结果。
+- 增益在效果／ducking之后、路由和master limiter之前乘总线静态gain；sidechain继续读取pre-gain信号。有限值限于0–8，非有限插件值转为静音并计入trace。控制源的准备／替换与热循环分开，共享owner不在采样时增减引用计数。
+- audio原来只因确定性数学间接依赖hanim；本批改为直接`openmui.math`，既有音频和音乐hash保留。JSON因包内音乐CLI仍在实际依赖中，不能宣称纯DSP依赖已经完全裁剪。
+
+```cpp
+auto gain = omui::timeline::GainAutomation::prepare(
+    clip, {.sample_rate = mixer.rate(), .property = "gain", .outside = 0});
+if (!gain) { /* handle typed preparation error */ return; }
+auto bound = mixer.automate_gain("music", *gain); // 静默边界
+if (!bound) { /* old source remains installed */ return; }
+float shown = (*gain)->at_sample(24000); // 只读，不推进音频或触发事件
+```
+
+### 11.2 无窗口真实任务与过程审查
+
+现有`omui` CLI新增`audio automation FILE --track NAME --clip NAME --out PREFIX [--property gain] [--seconds 2] [--fps 60]`。它将选中曲线应用于真实220Hz校准音，输出float WAV、omui自身绘制的8帧PNG、无损WebP回放和结构化报告。无需创建窗口、启动显示服务或打开音频设备。报告包含源timeline快照、property、精确Flicks／秒时间戳、采样率、增益、PCM／像素hash、后端／DPI／区域等。
+
+这是有明确用途的自动化曲线试听与审查入口；不会假装播放`clip.source`里的任意素材。现阶段只导出校准音、曲线图和增益条，完整媒体播放、实时GUI编辑及外部openas provider分别实施。各公共包README随附最小SOP，纯库消费者无需CLI或UI。
+
+30／60／120fps分别导出61／121／241个真实过程帧，WAV字节相同；视觉读取不改变audio时钟／voice计数。算法CTS另覆盖hold转折前后1个Flick、片段排他终点、不同render block划分和反向查询，避免仅以A／B端点或少量截图判定通过。8帧图仅为审查索引，完整时间序列保留在报告／WebP中。
+
+### 11.3 本地验证与证据
+
+本批以本地native dev／release、Wasm实际执行、独立mcpp消费者、现有音频benchmark和真实导出文件验证，不等待异平台CI。最终源码、命令、测试结果、产物hash及运行范围记录在[机器证据](../../tools/ci/2026-11-05-audio-automation.report.omui.json)。
+
+| 验证 | 结果与范围 |
+|---|---|
+| 最终native回归 | GCC16.1 dev／release各5个程序、43例通过，含既有CLI操作／视频／配对回归；不是全仓库重跑 |
+| 最终Web计算回归 | Emscripten6.0.9、Node实际执行3个程序、32例通过；不代表浏览器音频设备测试 |
+| 确定性 | adapter测试的PCM为`9a6e430560827945`，三配置和三种观察帧率相同；既有音乐固定hash`ab0350d3813bbcc8`保留 |
+| 真实导出 | 校准音PCM为`ac9eeb86d84d2cad`；30／60／120fps各自的PNG、WebP与WAV在dev／release之间字节一致，三种fps的WAV也字节一致 |
+| 公共独立使用 | 两个临时mcpp工程只声明audio或timeline.audio；release真实运行并检查实际resolution。audio闭包无hanim／timeline／UI／renderer；adapter只增加所需timeline和hanim.core，仍无UI／renderer。JSON依赖尚未拆掉 |
+| 热路径预算 | i9-13900K、Linux release：48声部＋echo＋64键控制曲线，128个立体声帧，8,651次测量p95为0.052994ms、最大分配0，满足0.5ms／零分配预算。既有mix-48同次运行p95为0.050961ms；两负载并非严格只差一个变量，不据此宣称精确额外开销。排除准备、voice补充、文件、设备和GUI |
+| 工程 | lint、diff格式、链接检查；原`mcpp.lock`字节不变，不纳入提交；相关新增用例随workspace测试进入CI |
+
+审查产物：[8帧图](media/2026-11-05-audio-automation.png)、[121帧回放](media/2026-11-05-audio-automation.webp)、[真实校准音WAV](media/2026-11-05-audio-automation.wav)。图像来自384×256、DPI 1、CPU renderer、背景`#101827`，PNG按从左到右、从上到下排列；时刻约为0、0.283、0.567、0.850、1.133、1.417、1.700、2.000秒。首尾增益均为0，中间包含渐变、保持和声明的跳变；仅看端点会漏掉整个过程。已查看可读性和曲线／游标／数值对应，没有把截图审查记为主观听音或实时音画同步验收。
+
+离线CLI保留帧用于编码；60fps／2秒的RGBA帧本身约47.6MB，另有编码和渲染scratch，不能宣称该工具逐帧零分配。WebP含末帧一个显示间隔，WAV独立导出，未封装为同步音视频；精确时刻以报告为准。既有CI只在失败时收集PNG，不自动上传成功运行的全部回放。
+
+本地构建恢复沿用§8.4记录的工具缓存边界：分别补齐生成的host-tool／build-program锁记录，版本全部取自当前仓库已有依赖；最终父命令保持`--locked`，仓库lock未写入。公共benchmark仍连带作品／工具构建，`--filter`只筛运行用例；后续拆出单一共享harness再按域选择目标，不复制多套测试基础。该构建成本不属于独立audio消费者的依赖闭包。
+
+### 11.4 自审与保留范围
+
+自审修正：①保持sidechain pre-gain语义；②插件非有限／过量增益明确处理；③用小型值契约替代最初的虚接口，保持批量调用与owner寿命；④CLI拒绝不能精确换算的帧率；⑤后续文件写入失败时返回`ok:false`，列出此前已写文件。输出不是多文件原子事务。静默换绑、无窗口、只读观察和独立依赖均写入公开契约，不能由接口名称推断尚不存在的能力。
+
+尚未完成：跨线程有界参数／结构发布、sample-accurate transport事件、设备时钟及延迟校准、带状态DSP的seek／checkpoint、完整调制图、通用媒体播放、音频CLI依赖拆分、GUI编辑与官网混音作品。视觉采样、离线PCM一致和block预算不能证明声卡低延迟、无爆音的实时换绑或人的听觉／动画节奏体验。S1–S10与公共40／20、Web／Toy／TUI、PPet等目标继续保留。

@@ -73,7 +73,7 @@ mcpp是构建工具，借GPU／HPC构建插件交付运行时库和算子；运�
 
 音频callback必须遵守无分配、无阻塞／GUI锁／网络／GPU同步等待等本域实时要求。GUI／CLI／Agent经有界命令通道控制，结构更新在合法边界准备／发布。离线输出和实际设备共用领域算法，设备生命周期与调度仍有自己的契约。
 
-本仓库已有独立[openmui.audio](../../modules/media/audio/README.md)及音源／总线／效果、音乐和离线工具原料；本稿不把这些记作完整通用调制图或跨引擎自动化已经落地。
+本仓库已有独立[openmui.audio](../../modules/media/audio/README.md)及音源／总线／效果、音乐和离线工具。首条跨域自动化由可选[openmui.timeline.audio](../../modules/media/timeline/audio/README.md)实现：冻结时间线曲线并按sample clock驱动总线增益，同一源供视觉／Agent只读查询；不为audio另造插值器，也不让audio内核依赖hanim。当前换绑要求静默边界，完整通用调制图、跨线程实时发布与有状态DSP重建仍未交付。
 
 ## 7. 属性＋状态＋条件／触发的反应是通用模式
 

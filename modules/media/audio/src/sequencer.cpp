@@ -10,7 +10,7 @@ module openmui.audio;
 
 import std;
 import openmui.math;
-import hanim.core;
+import openmui.math;
 import openmui.trace;
 import :dsp;
 import :detail;
@@ -20,7 +20,7 @@ namespace omui::audio {
 
 namespace {
 
-namespace dm = hanim::dm;
+namespace dm = omui::math::det;
 
 struct Event {
     std::int64_t tick = 0;       // in its section

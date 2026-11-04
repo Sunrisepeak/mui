@@ -58,6 +58,7 @@ members = [
     "modules/media/video",
     "modules/media/video/webm",
     "modules/media/timeline",
+    "modules/media/timeline/audio",
     "modules/ui/abi",
     "modules/ui/accessibility",
     "modules/ui/agent",

@@ -41,17 +41,7 @@ bool valid_limits(ProgramLimits limits) noexcept {
 }
 std::optional<ProgramError> invalid_options(SegmentOptions options) noexcept {
     if (!std::isfinite(options.duration.count()) || options.duration.count()<0) return ProgramError::invalid_time;
-    if (options.easing.kind>EaseKind::steps) return ProgramError::invalid_ease;
-    for (double value:options.easing.p) if (!std::isfinite(value)) return ProgramError::invalid_ease;
-    if (options.easing.kind==EaseKind::cubic_bezier &&
-        (options.easing.p[0]<0 || options.easing.p[0]>1 || options.easing.p[2]<0 || options.easing.p[2]>1))
-        return ProgramError::invalid_ease;
-    if (options.easing.kind==EaseKind::steps &&
-        (options.easing.p[0]<1 || options.easing.p[0]>1000000 ||
-         static_cast<double>(static_cast<std::uint32_t>(options.easing.p[0]))!=options.easing.p[0] ||
-         options.easing.p[1]<0 || options.easing.p[1]>3 ||
-         static_cast<double>(static_cast<std::uint32_t>(options.easing.p[1]))!=options.easing.p[1]))
-        return ProgramError::invalid_ease;
+    if (!options.easing.valid()) return ProgramError::invalid_ease;
     return {};
 }
 std::expected<double,ProgramFailure> sum(double a,double b,std::size_t node) noexcept {

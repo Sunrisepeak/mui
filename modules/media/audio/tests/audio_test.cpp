@@ -37,6 +37,35 @@ void operator delete[](void* p, const std::nothrow_t&) noexcept { std::free(p); 
 
 namespace {
 
+class FlatSource final : public audio::Source {
+public:
+    explicit FlatSource(std::int32_t bus) : bus_(bus) {}
+    void render(std::int64_t, std::int32_t frames, std::span<const audio::BusBlock> buses) noexcept override {
+        for (std::int32_t i = 0; i < frames; ++i) {
+            buses[static_cast<std::size_t>(bus_)].left[static_cast<std::size_t>(i)] += .05f;
+            buses[static_cast<std::size_t>(bus_)].right[static_cast<std::size_t>(i)] += .025f;
+        }
+    }
+private:
+    std::int32_t bus_;
+};
+class StepGain final {
+public:
+    std::int32_t sample_rate = 48000;
+    [[nodiscard]] std::int32_t rate() const noexcept { return sample_rate; }
+    void sample(std::int64_t first, std::span<float> out) const noexcept {
+        for (std::size_t i = 0; i < out.size(); ++i) out[i] = first + static_cast<std::int64_t>(i) < 137 ? .25f : .75f;
+    }
+};
+class ValuesGain final {
+public:
+    std::array<float,5> values{};
+    [[nodiscard]] std::int32_t rate() const noexcept { return 48000; }
+    void sample(std::int64_t first,std::span<float> out) const noexcept {
+        for(std::size_t i=0;i<out.size();++i)out[i]=values[(static_cast<std::size_t>(first)+i)%values.size()];
+    }
+};
+
 constexpr std::string_view file = R"(doc = "Two sounds: a punch and a bell."
 
 [sound.punch]
@@ -93,6 +122,72 @@ int crossings(std::span<const float> lr, std::size_t from, std::size_t to) {
 
 int main(int argc, char** argv) {
     Suite s{"audio"};
+
+    s.test("gain source retains a typed owner without inheritance; empty and moved-from views are neutral", [] {
+        auto prepared=std::make_shared<StepGain>();
+        std::weak_ptr<const StepGain> lifetime=prepared;
+        audio::GainSource source=prepared;prepared.reset();
+        audio::GainSource copy=source;
+        audio::GainSource moved=std::move(source);
+        check(!source && source.rate()==0 && moved && moved.rate()==48000);
+        std::array<float,3> values{};source.sample(137,values);
+        check(std::ranges::all_of(values,[](float v){return v==1;}));
+        moved.sample(136,values);check(values[0]==.25f && values[1]==.75f && values[2]==.75f);
+        copy=std::move(moved);check(copy && !moved);
+        copy=nullptr;check(lifetime.expired());
+    });
+
+    s.test("prepared gain is sample accurate across blocks and routing; failed binding preserves its owner", [] {
+        audio::Mixer mixer;
+        const auto bus = mixer.bus("lead"); mixer.route("lead", "music");
+        mixer.bus_gain("lead", .5f); mixer.bus_gain("music", .5f);
+        mixer.add_source(std::make_shared<FlatSource>(bus));
+        auto gain = std::make_shared<StepGain>();
+        std::weak_ptr<const StepGain> lifetime = gain;
+        check(mixer.automate_gain("lead", gain).has_value());
+        auto wrong = std::make_shared<StepGain>(); wrong->sample_rate = 44100;
+        check(mixer.automate_gain("lead", wrong).error() == audio::AutomationError::rate_mismatch);
+        check(mixer.automate_gain("missing", gain).error() == audio::AutomationError::unknown_bus);
+        gain.reset(); check(!lifetime.expired());
+        const auto rendered = audio::render(mixer, 289);
+        for (std::size_t i = 0; i < 289; ++i) {
+            const float expected = (i < 137 ? .25f : .75f) * .5f;
+            check(rendered[2*i] == (.05f * expected) * .5f);
+            check(rendered[2*i+1] == (.025f * expected) * .5f);
+        }
+        check(mixer.automate_gain("lead", nullptr).has_value() && lifetime.expired());
+        const auto plain = audio::render(mixer, 1); check(plain[0] == .05f * .25f);
+    });
+
+    s.test("automated gain uses the existing no-allocation block path", [] {
+        audio::Mixer mixer; mixer.add_source(std::make_shared<FlatSource>(mixer.bus("music")));
+        check(mixer.automate_gain("music", std::make_shared<StepGain>()).has_value());
+        std::array<float, 2 * 317> block{}; mixer.render(block);
+        const auto before = allocations.load();
+        for (int i = 0; i < 400; ++i) mixer.render(block);
+        const auto count = allocations.load() - before;
+        check(count == 0);
+        check(block[0] == .05f * .75f);
+    });
+
+    s.test("untrusted gain values are bounded and automation does not change sidechain pre-gain semantics", [] {
+        audio::Mixer mixer;mixer.add_source(std::make_shared<FlatSource>(mixer.bus("music")));
+        auto signal=std::make_shared<ValuesGain>();
+        signal->values={std::numeric_limits<float>::quiet_NaN(),std::numeric_limits<float>::infinity(),-1,20,.5f};
+        check(mixer.automate_gain("music",signal).has_value());
+        const auto out=audio::render(mixer,5);
+        const std::array<float,5> expected{0,0,0,.05f*8,.05f*.5f};
+        for(std::size_t i=0;i<5;++i)check(out[2*i]==expected[i]);
+        auto ducked=[](bool automated) {
+            audio::Mixer m;m.add_source(std::make_shared<FlatSource>(m.bus("sfx")));
+            m.add_source(std::make_shared<FlatSource>(m.bus("music")));
+            m.duck("music",{.key="sfx",.depth=.8f,.threshold=.01f});
+            if(automated)check(m.automate_gain("sfx",std::make_shared<ValuesGain>()).has_value());
+            else m.bus_gain("sfx",0);
+            return audio::render(m,1024);
+        };
+        check(ducked(true)==ducked(false),"gain automation and static gain leave the same pre-gain sidechain signal");
+    });
 
     s.test("a sound file reads, and what is written reads back as itself; its problems at their line and column", [] {
         auto sounds = audio::read_sounds(file, "test.sound.omui.toml");

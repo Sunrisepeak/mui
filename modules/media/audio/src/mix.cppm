@@ -136,6 +136,53 @@ public:
     virtual void render(std::int64_t clock, std::int32_t frames, std::span<const BusBlock> buses) noexcept = 0;
 };
 
+// An immutable, prepared control signal on an explicit sample clock. Retains
+// any shared owner with rate() and sample(first, values) noexcept methods;
+// no inheritance or virtual function is required. One erased function call
+// per bus/block, not per sample. Sampling must fill every value without
+// allocation, locks, events or external I/O; repeated/overlapping/out-of-order
+// queries must agree. A timeline/curve adapter is optional.
+class GainSource {
+public:
+    GainSource() noexcept = default;
+    GainSource(std::nullptr_t) noexcept {}
+    GainSource(const GainSource&) noexcept = default;
+    GainSource& operator=(const GainSource&) noexcept = default;
+    GainSource(GainSource&& other) noexcept
+        : rate_(std::exchange(other.rate_, 0)), owner_(std::move(other.owner_)),
+          sample_(std::exchange(other.sample_, nullptr)) {}
+    GainSource& operator=(GainSource&& other) noexcept {
+        if (this != &other) {
+            rate_ = std::exchange(other.rate_, 0);
+            owner_ = std::move(other.owner_);
+            sample_ = std::exchange(other.sample_, nullptr);
+        }
+        return *this;
+    }
+    template<class T> requires requires(const T& value, std::int64_t first, std::span<float> values) {
+        { value.rate() } noexcept -> std::same_as<std::int32_t>;
+        { value.sample(first, values) } noexcept -> std::same_as<void>;
+    }
+    GainSource(std::shared_ptr<T> source) noexcept
+        : rate_(source ? source->rate() : 0), owner_(std::move(source)) {
+        if (owner_) sample_ = [](const void* data, std::int64_t first, std::span<float> values) noexcept {
+            static_cast<const T*>(data)->sample(first, values);
+        };
+    }
+    [[nodiscard]] explicit operator bool() const noexcept { return sample_ != nullptr; }
+    [[nodiscard]] std::int32_t rate() const noexcept { return rate_; }
+    void sample(std::int64_t first, std::span<float> values) const noexcept {
+        if (sample_) sample_(owner_.get(), first, values);
+        else std::fill(values.begin(), values.end(), 1.0f); // an empty source is neutral
+    }
+private:
+    std::int32_t rate_ = 0;
+    std::shared_ptr<const void> owner_;
+    void (*sample_)(const void*, std::int64_t, std::span<float>) noexcept = nullptr;
+};
+
+enum class AutomationError : std::uint8_t { unknown_bus, rate_mismatch };
+
 // How hard the master's limiter has worked so far.
 struct LimiterStats {
     float        deepest = 1;  // the lowest gain it applied (1: never)
@@ -167,6 +214,12 @@ public:
     // A bus by name (made on first use; "sfx" and "music" exist): its gain
     // and its effects, in order, before the master.
     void bus_gain(std::string_view bus, float gain);
+    // Multiplies the bus's static gain, after effects/ducking and before route.
+    // Set up at a quiescent boundary, like effects. No implicit bus creation;
+    // null removes it. A failed bind preserves the previous source. The mixer
+    // retains its owner until cleared/destroyed. Signal values clamp to [0,8],
+    // non-finite values become silence. This is not a cross-thread edit queue.
+    [[nodiscard]] std::expected<void, AutomationError> automate_gain(std::string_view bus, GainSource source);
     void add_effect(std::string_view bus, std::unique_ptr<Effect> effect);
     // Its index (made on first use), what a source adds into.
     std::int32_t bus(std::string_view name);

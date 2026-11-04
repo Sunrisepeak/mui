@@ -2,7 +2,7 @@
 
 Media that is not drawn: sound, video, and the timeline every editor shares (D-86).
 
-Depends on: [base](../base) (hanim's deterministic math, image, trace). Used by: [ui](../ui), mgame and the works.
+Depends on: [base](../base) (shared math, hanim curves where selected, image, trace). Used by: [ui](../ui), mgame and the works. Audio's DSP uses math directly; the optional [timeline/audio](timeline/audio) adapter connects frozen keyed controls to its sample clock without adding a UI dependency.
 
 | Package | |
 |---|---|

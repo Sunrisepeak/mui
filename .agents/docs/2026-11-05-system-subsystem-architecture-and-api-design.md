@@ -252,9 +252,12 @@ modules/
     asset/                         [新增] 素材图/处理器契约，codec按需插件
     hanim/text/                    [新增] 文字域adapter，不能反向拉入gfx默认伞
   media/
-    audio/device/
-      midi/ automation/ control/  [新增] 各自明确成本与实时契约
-    timeline/ video/webm/
+    audio/
+      device/                      已有设备适配；控制信号契约归audio
+      midi/ control/               [新增] 各自明确成本与实时契约
+    timeline/
+      audio/                       已有可选key/fade→sample-clock增益adapter
+    video/webm/
   ui/
     core/ view/ semantic/ agent/ accessibility/ ...
     motion/                        UI状态/部件/命中→hanim公开能力
@@ -304,7 +307,7 @@ src/entry/                         宿主/应用入口；根包仍是 openmui.sd
 | trace／log／录制基础 | 现有公共库 | session记录容器不等于授权会话；业务undo、模拟rollback、视觉seek分别处理 |
 | 工程／素材／历史／构建 | 共用工具模型＋领域处理器＋mcpp | 九个工具不各造素材数据库、保存格式和发布器 |
 
-先列四项真实收敛工作：①UI motion→hanim；②完整hanim伞包；③audio源码目前通过 `hanim::dm` 用数学，可改直接math，先确认全部用途；④audio的JSON目前用于CLI，评估拆CLI目标／包以降低纯DSP依赖成本。后两项属于已发现的依赖机会，未测链接结果前不声称能节省多少字节。
+四项收敛工作按证据推进：①UI motion→hanim仍在迁移；②公共hanim伞包已交付；③已核对audio全部`hanim::dm`用途并改为直接消费`openmui.math`，移除audio→hanim依赖，固定PCM／音乐hash保持不变；④audio的JSON仍用于包内CLI，拆分CLI目标／包继续开放。③的独立消费者与跨域时间adapter见[实施台账§11](2026-11-05-system-implementation-checkpoints-design.md#11-s5首批样本时钟自动化与无窗口审查)。依赖移除不直接换算为体积收益；尚未测得的节省不作声明。
 
 “不重复”约束同职责的权威实现；CPU／SIMD／GPU、不同数值精度和不同DSP算法是可验证变体，并非必须合并成一段低效代码。共享机制不能损害领域约束。
 
@@ -345,6 +348,8 @@ mcpp 是构建工具，GPU／HPC 插件负责 kernel 编译、变体、绑定、
 DSP callback 无分配、无阻塞、无GUI锁、无网络／openas、无GPU同步等待；控制经有界命令在合法block／sample边界发布。结构变更先冷准备。采样／重采样可共享算法机制，但声道、抗混叠与实时要求保留本域语义。
 
 全局宿主记录“哪个时刻、哪个版本的数据送给谁”，不接管所有域状态。需要原子跨域编辑时只能使用各方支持的prepare/commit协议；否则明确补偿／部分成功。撤销编辑、恢复模拟、倒放视觉、重放外部事件分别定义。
+
+首批已实现独立`openmui.timeline.audio`：冻结选定的key／clip fade，按audio绝对sample clock求值；Mixer只消费带owner的批量`GainSource`值契约，不依赖动画引擎或UI。每block一次类型擦除函数调用，无新增虚函数／逐sample派发。视觉／Agent任意顺序查询同一冻结源，不推进DSP、不重复声音事件。现有`omui audio automation`可导出真实WAV与omui离屏过程图／回放；这是控制曲线试听工具，尚不是通用timeline媒体播放器、设备时钟同步或完整openas provider。实时跨线程换绑和有状态DSP重建保留为后续能力。
 
 ## 8. Agent 原生：控制面与数据面分离
 

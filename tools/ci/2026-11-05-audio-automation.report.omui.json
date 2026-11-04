@@ -1,0 +1,3177 @@
+{
+  "format": "omui.audio-automation-checkpoint@0.1",
+  "ok": true,
+  "base_commit": "458fa3248246e7eec4360255011de0958a283f8d",
+  "scope": "S5/P2-C partial: public frozen timeline gain adapter, shared scalar math/easing, independent audio block control, real CLI WAV and omui headless process capture. Not full media transport, realtime device synchronization or website integration.",
+  "source_identity_note": "Base commit plus source hashes identify the tested changes. Earlier shared-core tests and final adapter/CLI runs are distinct. Existing user-owned lock is read-only and excluded from commit.",
+  "source_lock_sha256": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+  "source_files_sha256": {
+    "mcpp.toml": "b81d29c521e43adc0e3a7230f975e16a4a976559f43bc9c6500db65f77cf3e16",
+    "modules/base/hanim/core/src/ease.cpp": "755750fd2cc2958bbcaeccad9a2f02818c5d2c8acb2c55d9b7be070b611197f0",
+    "modules/base/hanim/core/src/ease.cppm": "f09264c2685375cb3efb93810006392a634902fc0c7b55751679c1e0774e5b47",
+    "modules/base/hanim/core/tests/ease_test.cpp": "132ae45e4e0f60791bf394220d712d550ca8d156ecb2fcf4930663ef4ac22806",
+    "modules/gfx/hanim/program/src/program.cpp": "c5774382e45c125d3f63ded2ee51af8bae16769915406c5c115e3219ca31fff9",
+    "modules/media/audio/mcpp.toml": "978a7685fb747c7f059b66bf59a57ca7310cd4304cf0c68a913dde9bf0055411",
+    "modules/media/audio/src/dsp.cppm": "113481d12a10a7732a17444ec1ec3f38163ba869739546910ae95a8ea9ef6964",
+    "modules/media/audio/src/effects.cpp": "5fd7d0ad531828b5e70f4735016a72d3fdce5f2d206da3cece0405496036ab87",
+    "modules/media/audio/src/levels.cpp": "a59c6160f291095817c2ea0fe59b5e3a9a19e94c342368fd755d2272f2afcfb2",
+    "modules/media/audio/src/main.cpp": "807f876417995f202ed8393151ba43e6380a2f1919e57a4be11b6fb20f48ef10",
+    "modules/media/audio/src/mix.cppm": "1afe5351eb23fc0ce7073dc39977e8f7a0d38365b908579d2bfc96e367de546a",
+    "modules/media/audio/src/mixer.cpp": "6c717eeed8c7b5cf536aa5b70fa390e6e11f7f4ae438e4a5bea93aac9bfdfcb9",
+    "modules/media/audio/src/sequencer.cpp": "9ac58cc64c39179ea5b287276f481257458e55122e5c050717c70a1530a49fb6",
+    "modules/media/audio/src/synth.cpp": "1b98ee6fed98062894523378ac35d4f0899fba8f904892b54d84d9880a9f237f",
+    "modules/media/audio/src/takes.cpp": "13c70148d339c3debfb16920177e81238a87619902eb7ae1c10e628b6b6afeb9",
+    "modules/media/audio/tests/audio_test.cpp": "4999da01f66e783ba81fa75681044700eac5be6b555422102f4c243e00f38096",
+    "modules/media/timeline/audio/mcpp.toml": "c168862950892cada2c7c3143043281aa00e2e90668a4c68a9f22d70fadf3297",
+    "modules/media/timeline/audio/src/audio.cpp": "11c14edc81fccd7fa659161dcd1044b08e86852735ec438c1801b9baddd3657d",
+    "modules/media/timeline/audio/src/audio.cppm": "7da3d33cc5b1e7abf3e32aa55ca4fc8c58fbcc40b0107a03ae1031eaba4fe6a5",
+    "modules/media/timeline/audio/tests/automation_test.cpp": "7de28cf8f03a3b44c65838eb104b7eb0fa3dfdf225e25398cef1e6fdcda7d817",
+    "tests/bench/budgets.bench.omui.json": "70cc7fc420b68739e23dd84619eee2c7a8908ec77511f0169db8b571d6805dac",
+    "tests/bench/mcpp.toml": "4344624c766abbe7b1026775570411dff1c12fe9d7f8e9cef561d36b81d326ce",
+    "tests/bench/src/audio.cpp": "dbae2f3d38fa52722dc3867af6691dd2153c65fee207ce87d09eafbeb6373ddb",
+    "tools/cli/mcpp.toml": "4375ab440c05e411aeab8434d32120cb3c0f0e89883ac6c1d6af1c434e85cfcd",
+    "tools/cli/src/agent.cpp": "2f08b1f4659560b5e46c9b5ad062b42a8657793c3dd14e414e5e62d4ef3d93a3",
+    "tools/cli/src/audio.cpp": "e188db1c2ee6ce926c540bf825b4b2c5e437e5f994594b1de8f7cf42651b7ed8",
+    "tools/cli/src/commands.cppm": "6cf2f14aaa554b155d3503484ce5f2a931a9942a3ec8956f35f16001c6da87c7",
+    "tools/cli/tests/audio_test.cpp": "84507c910089cf54d20726d9772f4cfc8d806d3736be96c51f8dd78ef768dd6c"
+  },
+  "toolchains": {
+    "mcpp": "2026.11.2.2",
+    "native": "GCC 16.1.0; x86_64-linux-gnu",
+    "wasm": "Emscripten 6.0.9; wasm-test actual Node execution, not browser GPU or audio device"
+  },
+  "final_tests": [
+    {
+      "command": "MCPP_JOBS=2 mcpp test --locked -p openmui.audio -p openmui.timeline.audio -p openmui.cli --profile dev",
+      "exit_code": 0,
+      "programs": 5,
+      "cases": 43,
+      "suites": [
+        {
+          "suite": "audio",
+          "passed": 14,
+          "failed": 0
+        },
+        {
+          "suite": "music",
+          "passed": 14,
+          "failed": 0
+        },
+        {
+          "suite": "timeline.audio",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "suite": "cli",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "suite": "cli.audio",
+          "passed": 3,
+          "failed": 0
+        }
+      ],
+      "log": "/tmp/omui-audio-final-dev.log",
+      "log_sha256": "52d3cca8102b45f1c14003c0a36f7c5211edb6618d38662b8c2f7d3980a21330"
+    },
+    {
+      "command": "MCPP_JOBS=2 TMPDIR=/tmp/omui-audio-release-scratch mcpp test --locked -p openmui.audio -p openmui.timeline.audio -p openmui.cli --profile release",
+      "exit_code": 0,
+      "programs": 5,
+      "cases": 43,
+      "suites": [
+        {
+          "suite": "audio",
+          "passed": 14,
+          "failed": 0
+        },
+        {
+          "suite": "music",
+          "passed": 14,
+          "failed": 0
+        },
+        {
+          "suite": "timeline.audio",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "suite": "cli",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "suite": "cli.audio",
+          "passed": 3,
+          "failed": 0
+        }
+      ],
+      "log": "/tmp/omui-audio-final-release.log",
+      "log_sha256": "fbc61311d298072a03bc41336787cea20c9580198553a978eb7c4f2996a67959"
+    },
+    {
+      "command": "MCPP_JOBS=2 TMPDIR=/tmp/omui-audio-wasm-scratch mcpp test --locked -p openmui.audio -p openmui.timeline.audio --target wasm32-emscripten --profile wasm-test",
+      "exit_code": 0,
+      "programs": 3,
+      "cases": 32,
+      "suites": [
+        {
+          "suite": "audio",
+          "passed": 14,
+          "failed": 0
+        },
+        {
+          "suite": "music",
+          "passed": 14,
+          "failed": 0
+        },
+        {
+          "suite": "timeline.audio",
+          "passed": 4,
+          "failed": 0
+        }
+      ],
+      "log": "/tmp/omui-audio-final-wasm.log",
+      "log_sha256": "96d7beaa5552513d7e9a2b021799edb67f0dc600f132314b5f8639aca9330614"
+    }
+  ],
+  "earlier_shared_core_and_timeline_checks": [
+    {
+      "log": "/tmp/omui-audio-automation-dev.log",
+      "sha256": "b924d009ce4800922dfdca01915c49e5320db01b45653c209aa2d66bd2284cc4",
+      "note": "Initial shared Ease::valid/Program regression; earlier audio binding interface superseded by final runs.",
+      "suite_results": [
+        {
+          "suite": "hanim.golden",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "suite": "hanim.ease",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "suite": "hanim.motion",
+          "passed": 13,
+          "failed": 0
+        },
+        {
+          "suite": "hanim.math",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "suite": "hanim.set",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "suite": "hanim.timeline",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "suite": "hanim.value",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "suite": "hanim.shape",
+          "passed": 18,
+          "failed": 0
+        },
+        {
+          "suite": "hanim.program",
+          "passed": 20,
+          "failed": 0
+        },
+        {
+          "suite": "audio",
+          "passed": 12,
+          "failed": 0
+        },
+        {
+          "suite": "music",
+          "passed": 14,
+          "failed": 0
+        },
+        {
+          "suite": "timeline.audio",
+          "passed": 4,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "log": "/tmp/omui-audio-automation-release.log",
+      "sha256": "d7fdf166f3b3c7355a330b2d81b85c54e25898d834eb2b87fcc3cfaf0a6597c3",
+      "note": "Core and Program suites passed; audio tests initially failed because TMPDIR did not exist, then reran successfully. Not an all-pass run.",
+      "suite_results": [
+        {
+          "suite": "hanim.golden",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "suite": "hanim.ease",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "suite": "hanim.motion",
+          "passed": 13,
+          "failed": 0
+        },
+        {
+          "suite": "hanim.math",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "suite": "hanim.set",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "suite": "hanim.timeline",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "suite": "hanim.value",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "suite": "hanim.shape",
+          "passed": 18,
+          "failed": 0
+        },
+        {
+          "suite": "hanim.program",
+          "passed": 20,
+          "failed": 0
+        },
+        {
+          "suite": "timeline.audio",
+          "passed": 4,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "log": "/tmp/omui-audio-automation-wasm.log",
+      "sha256": "77259e83628573ef1b52ef4bcc5633869dbaadbb161e2e9b6b0dee8f14462d02",
+      "note": "Shared easing validation and original adapter; later binding interface covered by final Wasm run.",
+      "suite_results": [
+        {
+          "suite": "hanim.golden",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "suite": "hanim.ease",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "suite": "hanim.motion",
+          "passed": 13,
+          "failed": 0
+        },
+        {
+          "suite": "hanim.math",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "suite": "hanim.set",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "suite": "hanim.shape",
+          "passed": 18,
+          "failed": 0
+        },
+        {
+          "suite": "hanim.timeline",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "suite": "hanim.value",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "suite": "hanim.program",
+          "passed": 19,
+          "failed": 0
+        },
+        {
+          "suite": "audio",
+          "passed": 12,
+          "failed": 0
+        },
+        {
+          "suite": "music",
+          "passed": 14,
+          "failed": 0
+        },
+        {
+          "suite": "timeline.audio",
+          "passed": 4,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "log": "/tmp/omui-audio-release-final2.log",
+      "sha256": "2a9f818d29f1b71530403d8e85878a4b6b998ef9e4ea24463cd0185d1356ee3c",
+      "note": "Includes unchanged timeline 6-case regression; audio binding subsequently refined.",
+      "suite_results": [
+        {
+          "suite": "audio",
+          "passed": 13,
+          "failed": 0
+        },
+        {
+          "suite": "music",
+          "passed": 14,
+          "failed": 0
+        },
+        {
+          "suite": "timeline",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "suite": "timeline.audio",
+          "passed": 4,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "log": "/tmp/omui-audio-wasm-final.log",
+      "sha256": "2e10f8ba9ad87fb0283f3711110d1121391fd8ceefe35fd2bb2c0840ba297d69",
+      "note": "Includes unchanged timeline 6-case regression; audio binding subsequently refined.",
+      "suite_results": [
+        {
+          "suite": "audio",
+          "passed": 13,
+          "failed": 0
+        },
+        {
+          "suite": "music",
+          "passed": 14,
+          "failed": 0
+        },
+        {
+          "suite": "timeline",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "suite": "timeline.audio",
+          "passed": 4,
+          "failed": 0
+        }
+      ]
+    }
+  ],
+  "contracts_checked": [
+    "frozen selected key state and clip fades; no borrowed lifetime",
+    "96,000 exact-sample values versus existing timeline oracle",
+    "44.1 kHz irregular blocks, one-Flick cut boundaries, exclusive clip end",
+    "typed preparation errors, extreme absolute sample index overflow guard",
+    "same PCM at 30/60/120 fps with forward/reverse reads and different audio block partitions; one voice only",
+    "shared typed control ownership; moved/empty values; failed bus/rate binding retains old plan",
+    "gain sanitation, static gain multiplication, routing and pre-gain sidechain semantics",
+    "400 repeated 317-frame mixer renders with zero allocation",
+    "real WAV decoding and nonzero signal; PNG/WebP decoding; write-failure diagnostics",
+    "shared Ease::valid preserves Program validation; pinned historical music hash ab0350d3813bbcc8"
+  ],
+  "pcm_hashes": {
+    "adapter_fixture": "9a6e430560827945",
+    "cli_reference_tone": "ac9eeb86d84d2cad",
+    "existing_music_piece": "ab0350d3813bbcc8"
+  },
+  "independent_consumers": {
+    "audio": {
+      "packages": [
+        "mcpplibs.audio-consumer@0.1.0",
+        "openmui.audio@0.1.0",
+        "marzer.tomlplusplus@3.4.0",
+        "nlohmann.json@3.12.0",
+        "openmui.hash@0.1.0",
+        "openmui.math@0.1.0",
+        "openmui.trace@0.1.0"
+      ],
+      "source": "import std;\nimport openmui.audio;\nint main() {\n    omui::audio::Mixer mixer;\n    omui::audio::Sound tone{.name=\"tone\", .gain=.1f};\n    tone.layers.push_back({.length=1, .envelope={.attack=.01f,.hold=1,.sustain=1,.release=.01f}});\n    if (!mixer.play(mixer.add(tone),0)) return 1;\n    const auto pcm=omui::audio::render(mixer,48000);\n    if (mixer.clock()!=48000 || mixer.begun()!=1 || omui::audio::peak(pcm)<.01f) return 2;\n    std::println(\"audio-only samples={} pcm={:016x}\",mixer.clock(),omui::audio::hash(pcm));\n}\n",
+      "manifest": "[package]\nname = \"audio-consumer\"\nversion = \"0.1.0\"\n[targets.audio-consumer]\nkind = \"bin\"\nmain = \"src/main.cpp\"\n[build]\nsources = [\"src/*.cpp\"]\ncxxflags = [\"-fno-fast-math\", \"-ffp-contract=off\"]\n[dependencies]\nopenmui.audio = { path = \"/home/speak/workspace/mui/modules/media/audio\" }\n",
+      "command": "mcpp build --configure-only --offline --profile release; mcpp run --locked --offline --profile release",
+      "resolution_sha256": "54f585efd6a0cf90b92cae62bb7f3cecf898150d02a92fe51afe7f10623ac9b7",
+      "compile_commands": 29,
+      "stdout": "   Resolving toolchain\n    Resolved gcc@16.1.0 → @mcpp/registry/data/xpkgs/xim-x-gcc/16.1.0/bin/g++\n      Target x86_64-linux-gnu → x86_64-unknown-linux-gnu\n   Compiling openmui.audio v0.1.0 (../../../home/speak/workspace/mui/modules/media/audio)\n   Compiling audio-consumer v0.1.0 (.)\n\n    Finished release [optimized] in 14.05s\n     Running `target/x86_64-linux-gnu/5ab9e9b12274ca69/bin/audio-consumer`\n\naudio-only samples=48000 pcm=ef9754e36f5712e1\n",
+      "binary_bytes": 11167968
+    },
+    "adapter": {
+      "packages": [
+        "mcpplibs.adapter-consumer@0.1.0",
+        "openmui.timeline.audio@0.1.0",
+        "hanim.core@0.1.0",
+        "openmui.audio@0.1.0",
+        "openmui.timeline@0.1.0",
+        "openmui.trace@0.1.0",
+        "openmui.math@0.1.0",
+        "marzer.tomlplusplus@3.4.0",
+        "nlohmann.json@3.12.0",
+        "openmui.hash@0.1.0"
+      ],
+      "source": "import std;\nimport openmui.audio;\nimport openmui.timeline;\nimport openmui.timeline.audio;\nimport hanim.core;\nint main() {\n    namespace tl=omui::timeline;\n    omui::audio::Mixer mixer;\n    tl::Clip clip{.length=tl::from_seconds(1)};\n    tl::Property p{.name=\"gain\"};\n    p.keys.key(hanim::seconds(0),0).key(hanim::seconds(1),1);\n    clip.properties.push_back(std::move(p));\n    const auto gain=tl::GainAutomation::prepare(clip,{.sample_rate=mixer.rate(),.outside=0});\n    if(!gain || !mixer.automate_gain(\"music\",*gain)) return 1;\n    omui::audio::Sound tone{.name=\"tone\", .gain=.1f, .bus=\"music\"};\n    tone.layers.push_back({.length=1, .envelope={.attack=.01f,.hold=1,.sustain=1,.release=.01f}});\n    if (!mixer.play(mixer.add(tone),0)) return 2;\n    const auto pcm=omui::audio::render(mixer,48000);\n    if((*gain)->at_sample(24000)!=.5f || mixer.clock()!=48000 || mixer.begun()!=1 || omui::audio::peak(pcm)<.01f) return 3;\n    std::println(\"adapter samples={} pcm={:016x} gain={}\",mixer.clock(),omui::audio::hash(pcm),(*gain)->at_sample(24000));\n}\n",
+      "manifest": "[package]\nname = \"adapter-consumer\"\nversion = \"0.1.0\"\n[targets.adapter-consumer]\nkind = \"bin\"\nmain = \"src/main.cpp\"\n[build]\nsources = [\"src/*.cpp\"]\ncxxflags = [\"-fno-fast-math\", \"-ffp-contract=off\"]\n[dependencies]\nopenmui.timeline.audio = { path = \"/home/speak/workspace/mui/modules/media/timeline/audio\" }\n",
+      "command": "mcpp build --configure-only --offline --profile release; mcpp run --locked --offline --profile release",
+      "resolution_sha256": "30d77c259d6107a8951d123067b8dfbe41290eb8772ba69465947de991182e65",
+      "compile_commands": 57,
+      "stdout": "   Resolving toolchain\n    Resolved gcc@16.1.0 → @mcpp/registry/data/xpkgs/xim-x-gcc/16.1.0/bin/g++\n      Target x86_64-linux-gnu → x86_64-unknown-linux-gnu\n   Compiling openmui.audio v0.1.0 (../../../home/speak/workspace/mui/modules/media/audio)\n   Compiling openmui.timeline.audio v0.1.0 (../../../home/speak/workspace/mui/modules/media/timeline/audio)\n   Compiling adapter-consumer v0.1.0 (.)\n\n    Finished release [optimized] in 15.44s\n     Running `target/x86_64-linux-gnu/5ab9e9b12274ca69/bin/adapter-consumer`\n\nadapter samples=48000 pcm=2a560e69efd172ad gain=0.5\n",
+      "binary_bytes": 12144392
+    }
+  },
+  "consumer_size_note": "Raw release ELF file lengths are recorded only, unstripped and not comparable to a production download or before/after size saving. JSON remains in audio dependency graph.",
+  "headless_audition": {
+    "command": "mcpp run --locked -p openmui.cli --profile dev -- audio automation /tmp/openmui-tests/audio-automation/audition.timeline.omui.toml --track music --clip fade --out /tmp/omui-audio-command --seconds 2 --fps 60",
+    "exit_code": 0,
+    "rate": 48000,
+    "duration_seconds": 2,
+    "tone_hz": 220,
+    "tone_gain": 0.1,
+    "renderer": "omui Headless / shared CPU renderer",
+    "viewport": [
+      384,
+      256
+    ],
+    "dpi": 1,
+    "background": "#101827",
+    "property": "gain",
+    "timeline_snapshot": "[timeline]\nname = \"Audition\"\nrate = 60\nsample_rate = 48000\nsize = [384, 256]\n\n[[track]]\nname = \"music\"\nkind = \"animation\"\n\n[[track.clip]]\nname = \"fade\"\nsource = \"gain-control\"\nat = \"15f\"\nlength = \"90f\"\nlevel = 0.75\nfade = { in = \"6f\", out = \"12f\", ease = \"in_out_cubic\" }\n\n[[track.clip.property]]\nname = \"gain\"\nkeys = [[\"0f\", 0.2, \"in_out_cubic\"], [\"30f\", 0.9], [\"48f\", 0.4, \"hold\"], [\"66f\", 0.7], [\"90f\", 0.1]]\n",
+    "visual_review": "Contact sheet inspected: readable times/levels, cursor position, piecewise gain including declared hold/cut. No claim of subjective listening or realtime device quality.",
+    "replay_note": "WebP includes a final-frame display interval; exact source timestamps are in observations. WAV is exported separately, not muxed into WebP.",
+    "retained_frame_storage_note": "CLI retains RGBA frames for export; this is an offline audition, not a zero-allocation realtime UI benchmark. At 60 fps/2 s the frames occupy 47,579,136 bytes before encoder/scratch overhead.",
+    "rates": [
+      {
+        "fps": 30,
+        "frames": 61,
+        "pcm_hash": "ac9eeb86d84d2cad",
+        "samples": 96000,
+        "voices_begun": 1,
+        "outputs": {
+          "png": {
+            "sha256": "0840be98fea45153c5214026a17dfba030cac3fe84307154b76f006ae9f534bd",
+            "bytes": 44664,
+            "dev_equals_release": true
+          },
+          "webp": {
+            "sha256": "eec62fc8a589bf58ab33ac24285ebf43ef6e49bfe03f8b6e00cd7793cf7eb600",
+            "bytes": 67944,
+            "dev_equals_release": true
+          },
+          "wav": {
+            "sha256": "4813a99b7597b51958ce370da5fe1fea473da5316f0a659e635bf9a9bcd68743",
+            "bytes": 768044,
+            "dev_equals_release": true
+          }
+        },
+        "observations": [
+          {
+            "flicks": 0,
+            "seconds": 0,
+            "gain": 0,
+            "pixel_hash": "e6c0984556667fb2"
+          },
+          {
+            "flicks": 23520000,
+            "seconds": 0.03333333333333333,
+            "gain": 0,
+            "pixel_hash": "ed909e3d4a22d527"
+          },
+          {
+            "flicks": 47040000,
+            "seconds": 0.06666666666666667,
+            "gain": 0,
+            "pixel_hash": "ece46b6090a8b4b3"
+          },
+          {
+            "flicks": 70560000,
+            "seconds": 0.1,
+            "gain": 0,
+            "pixel_hash": "309210a96d588872"
+          },
+          {
+            "flicks": 94080000,
+            "seconds": 0.13333333333333333,
+            "gain": 0,
+            "pixel_hash": "bbb7e3c3c38e0a0f"
+          },
+          {
+            "flicks": 117600000,
+            "seconds": 0.16666666666666666,
+            "gain": 0,
+            "pixel_hash": "916e797ac0a1c8c5"
+          },
+          {
+            "flicks": 141120000,
+            "seconds": 0.2,
+            "gain": 0,
+            "pixel_hash": "4cb1509de1d31c38"
+          },
+          {
+            "flicks": 164640000,
+            "seconds": 0.23333333333333334,
+            "gain": 0,
+            "pixel_hash": "f204abc6a9834574"
+          },
+          {
+            "flicks": 188160000,
+            "seconds": 0.26666666666666666,
+            "gain": 0.0027792181354016066,
+            "pixel_hash": "42c71f98af496106"
+          },
+          {
+            "flicks": 211680000,
+            "seconds": 0.3,
+            "gain": 0.07604999840259552,
+            "pixel_hash": "d01e965cc374d1e4"
+          },
+          {
+            "flicks": 235200000,
+            "seconds": 0.3333333333333333,
+            "gain": 0.15676440298557281,
+            "pixel_hash": "93fd30fc50f9ced5"
+          },
+          {
+            "flicks": 258720000,
+            "seconds": 0.36666666666666664,
+            "gain": 0.17667777836322784,
+            "pixel_hash": "4801c327e7be01bb"
+          },
+          {
+            "flicks": 282240000,
+            "seconds": 0.4,
+            "gain": 0.20669999718666077,
+            "pixel_hash": "2f6912089edd5c3c"
+          },
+          {
+            "flicks": 305760000,
+            "seconds": 0.43333333333333335,
+            "gain": 0.25352221727371216,
+            "pixel_hash": "560bb21db676c1fa"
+          },
+          {
+            "flicks": 329280000,
+            "seconds": 0.4666666666666667,
+            "gain": 0.3208777904510498,
+            "pixel_hash": "8641f3e583aabbf8"
+          },
+          {
+            "flicks": 352800000,
+            "seconds": 0.5,
+            "gain": 0.4124999940395355,
+            "pixel_hash": "7376591ff289b0f3"
+          },
+          {
+            "flicks": 376320000,
+            "seconds": 0.5333333333333333,
+            "gain": 0.5041221976280212,
+            "pixel_hash": "14d3f1d531977fb8"
+          },
+          {
+            "flicks": 399840000,
+            "seconds": 0.5666666666666667,
+            "gain": 0.5714777708053589,
+            "pixel_hash": "c004a030a5cd2bc9"
+          },
+          {
+            "flicks": 423360000,
+            "seconds": 0.6,
+            "gain": 0.6183000206947327,
+            "pixel_hash": "f74e2887d3183d79"
+          },
+          {
+            "flicks": 446880000,
+            "seconds": 0.6333333333333333,
+            "gain": 0.6483222246170044,
+            "pixel_hash": "2fb7aaff0b12728a"
+          },
+          {
+            "flicks": 470400000,
+            "seconds": 0.6666666666666666,
+            "gain": 0.6652777791023254,
+            "pixel_hash": "498ec10d66df1295"
+          },
+          {
+            "flicks": 493920000,
+            "seconds": 0.7,
+            "gain": 0.6729000210762024,
+            "pixel_hash": "24c4ecd14e0c79cf"
+          },
+          {
+            "flicks": 517440000,
+            "seconds": 0.7333333333333333,
+            "gain": 0.6749222278594971,
+            "pixel_hash": "18b9b741c1069ac8"
+          },
+          {
+            "flicks": 540960000,
+            "seconds": 0.7666666666666667,
+            "gain": 0.6541666388511658,
+            "pixel_hash": "84c666892683bcab"
+          },
+          {
+            "flicks": 564480000,
+            "seconds": 0.8,
+            "gain": 0.612500011920929,
+            "pixel_hash": "43003a568b14daf6"
+          },
+          {
+            "flicks": 588000000,
+            "seconds": 0.8333333333333334,
+            "gain": 0.5708333253860474,
+            "pixel_hash": "4d1e06851f228a7e"
+          },
+          {
+            "flicks": 611520000,
+            "seconds": 0.8666666666666667,
+            "gain": 0.5291666388511658,
+            "pixel_hash": "05f9fda29bcbee70"
+          },
+          {
+            "flicks": 635040000,
+            "seconds": 0.9,
+            "gain": 0.48750001192092896,
+            "pixel_hash": "0feb8fa87def92aa"
+          },
+          {
+            "flicks": 658560000,
+            "seconds": 0.9333333333333333,
+            "gain": 0.44583332538604736,
+            "pixel_hash": "077a544b8f5bacaf"
+          },
+          {
+            "flicks": 682080000,
+            "seconds": 0.9666666666666667,
+            "gain": 0.40416666865348816,
+            "pixel_hash": "ec6abc849d6f480e"
+          },
+          {
+            "flicks": 705600000,
+            "seconds": 1,
+            "gain": 0.36250001192092896,
+            "pixel_hash": "fcecbbc3eb91cf25"
+          },
+          {
+            "flicks": 729120000,
+            "seconds": 1.0333333333333334,
+            "gain": 0.32083332538604736,
+            "pixel_hash": "4c4d8e8d7329a5a6"
+          },
+          {
+            "flicks": 752640000,
+            "seconds": 1.0666666666666667,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "1eb5ab966fddcfb0"
+          },
+          {
+            "flicks": 776160000,
+            "seconds": 1.1,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "b8678824acd9f3ce"
+          },
+          {
+            "flicks": 799680000,
+            "seconds": 1.1333333333333333,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "6130dc63deb6d23a"
+          },
+          {
+            "flicks": 823200000,
+            "seconds": 1.1666666666666667,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "4af303bf913662ab"
+          },
+          {
+            "flicks": 846720000,
+            "seconds": 1.2,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "7fbadae38ec05490"
+          },
+          {
+            "flicks": 870240000,
+            "seconds": 1.2333333333333334,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "bf3706d2c5e33de6"
+          },
+          {
+            "flicks": 893760000,
+            "seconds": 1.2666666666666666,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "d61e47647a76ef8e"
+          },
+          {
+            "flicks": 917280000,
+            "seconds": 1.3,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "6ece152962d5a360"
+          },
+          {
+            "flicks": 940800000,
+            "seconds": 1.3333333333333333,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "71d60d5367a44d2f"
+          },
+          {
+            "flicks": 964320000,
+            "seconds": 1.3666666666666667,
+            "gain": 0.5062500238418579,
+            "pixel_hash": "87046c6d265ffba2"
+          },
+          {
+            "flicks": 987840000,
+            "seconds": 1.4,
+            "gain": 0.46875,
+            "pixel_hash": "e0c946cb4f8a2f97"
+          },
+          {
+            "flicks": 1011360000,
+            "seconds": 1.4333333333333333,
+            "gain": 0.4312500059604645,
+            "pixel_hash": "ec019779fe5a3c78"
+          },
+          {
+            "flicks": 1034880000,
+            "seconds": 1.4666666666666666,
+            "gain": 0.39375001192092896,
+            "pixel_hash": "d6db36932e71e263"
+          },
+          {
+            "flicks": 1058400000,
+            "seconds": 1.5,
+            "gain": 0.35624998807907104,
+            "pixel_hash": "e752504a92fb5f5b"
+          },
+          {
+            "flicks": 1081920000,
+            "seconds": 1.5333333333333334,
+            "gain": 0.3187499940395355,
+            "pixel_hash": "47ad5ae892a242d1"
+          },
+          {
+            "flicks": 1105440000,
+            "seconds": 1.5666666666666667,
+            "gain": 0.2805989682674408,
+            "pixel_hash": "e24584d2166a8196"
+          },
+          {
+            "flicks": 1128960000,
+            "seconds": 1.6,
+            "gain": 0.228515625,
+            "pixel_hash": "2a2f27903da8dd80"
+          },
+          {
+            "flicks": 1152480000,
+            "seconds": 1.6333333333333333,
+            "gain": 0.14657117426395416,
+            "pixel_hash": "75f4f05f70f1242d"
+          },
+          {
+            "flicks": 1176000000,
+            "seconds": 1.6666666666666667,
+            "gain": 0.048828125,
+            "pixel_hash": "27a3be6f4b2344b4"
+          },
+          {
+            "flicks": 1199520000,
+            "seconds": 1.7,
+            "gain": 0.00820312462747097,
+            "pixel_hash": "76bc04e172d516cd"
+          },
+          {
+            "flicks": 1223040000,
+            "seconds": 1.7333333333333334,
+            "gain": 0.00021701389050576836,
+            "pixel_hash": "616643122bdd3391"
+          },
+          {
+            "flicks": 1246560000,
+            "seconds": 1.7666666666666666,
+            "gain": 0,
+            "pixel_hash": "64d4d2a17090deca"
+          },
+          {
+            "flicks": 1270080000,
+            "seconds": 1.8,
+            "gain": 0,
+            "pixel_hash": "581db29d0fd26440"
+          },
+          {
+            "flicks": 1293600000,
+            "seconds": 1.8333333333333333,
+            "gain": 0,
+            "pixel_hash": "eb80ef89bf77929f"
+          },
+          {
+            "flicks": 1317120000,
+            "seconds": 1.8666666666666667,
+            "gain": 0,
+            "pixel_hash": "7175010c07c4b880"
+          },
+          {
+            "flicks": 1340640000,
+            "seconds": 1.9,
+            "gain": 0,
+            "pixel_hash": "150f64597e647091"
+          },
+          {
+            "flicks": 1364160000,
+            "seconds": 1.9333333333333333,
+            "gain": 0,
+            "pixel_hash": "03f0808ca9565d0f"
+          },
+          {
+            "flicks": 1387680000,
+            "seconds": 1.9666666666666666,
+            "gain": 0,
+            "pixel_hash": "9e83d5faefdc4eda"
+          },
+          {
+            "flicks": 1411200000,
+            "seconds": 2,
+            "gain": 0,
+            "pixel_hash": "abe5f69a17621209"
+          }
+        ]
+      },
+      {
+        "fps": 60,
+        "frames": 121,
+        "pcm_hash": "ac9eeb86d84d2cad",
+        "samples": 96000,
+        "voices_begun": 1,
+        "outputs": {
+          "png": {
+            "sha256": "80cec2064a860a2a1b5a886a3678391a120564dbd5f04dbeee6f14e2f117e34b",
+            "bytes": 45584,
+            "dev_equals_release": true
+          },
+          "webp": {
+            "sha256": "62b7877545eb183a6c801e0594a59a987dbd612994bbcee4029ef82810835e64",
+            "bytes": 131628,
+            "dev_equals_release": true
+          },
+          "wav": {
+            "sha256": "4813a99b7597b51958ce370da5fe1fea473da5316f0a659e635bf9a9bcd68743",
+            "bytes": 768044,
+            "dev_equals_release": true
+          }
+        },
+        "observations": [
+          {
+            "flicks": 0,
+            "seconds": 0,
+            "gain": 0,
+            "pixel_hash": "e6c0984556667fb2"
+          },
+          {
+            "flicks": 11760000,
+            "seconds": 0.016666666666666666,
+            "gain": 0,
+            "pixel_hash": "2c22af7f81e18890"
+          },
+          {
+            "flicks": 23520000,
+            "seconds": 0.03333333333333333,
+            "gain": 0,
+            "pixel_hash": "ed909e3d4a22d527"
+          },
+          {
+            "flicks": 35280000,
+            "seconds": 0.05,
+            "gain": 0,
+            "pixel_hash": "0f4286c1491fc721"
+          },
+          {
+            "flicks": 47040000,
+            "seconds": 0.06666666666666667,
+            "gain": 0,
+            "pixel_hash": "ece46b6090a8b4b3"
+          },
+          {
+            "flicks": 58800000,
+            "seconds": 0.08333333333333333,
+            "gain": 0,
+            "pixel_hash": "45793b4d2c9441f0"
+          },
+          {
+            "flicks": 70560000,
+            "seconds": 0.1,
+            "gain": 0,
+            "pixel_hash": "309210a96d588872"
+          },
+          {
+            "flicks": 82320000,
+            "seconds": 0.11666666666666667,
+            "gain": 0,
+            "pixel_hash": "3f2048f3711286a0"
+          },
+          {
+            "flicks": 94080000,
+            "seconds": 0.13333333333333333,
+            "gain": 0,
+            "pixel_hash": "bbb7e3c3c38e0a0f"
+          },
+          {
+            "flicks": 105840000,
+            "seconds": 0.15,
+            "gain": 0,
+            "pixel_hash": "a675996c29f68845"
+          },
+          {
+            "flicks": 117600000,
+            "seconds": 0.16666666666666666,
+            "gain": 0,
+            "pixel_hash": "916e797ac0a1c8c5"
+          },
+          {
+            "flicks": 129360000,
+            "seconds": 0.18333333333333332,
+            "gain": 0,
+            "pixel_hash": "201d27213dee4128"
+          },
+          {
+            "flicks": 141120000,
+            "seconds": 0.2,
+            "gain": 0,
+            "pixel_hash": "4cb1509de1d31c38"
+          },
+          {
+            "flicks": 152880000,
+            "seconds": 0.21666666666666667,
+            "gain": 0,
+            "pixel_hash": "32cc4d196874fcd0"
+          },
+          {
+            "flicks": 164640000,
+            "seconds": 0.23333333333333334,
+            "gain": 0,
+            "pixel_hash": "f204abc6a9834574"
+          },
+          {
+            "flicks": 176400000,
+            "seconds": 0.25,
+            "gain": 0,
+            "pixel_hash": "0aad7c598d5c1341"
+          },
+          {
+            "flicks": 188160000,
+            "seconds": 0.26666666666666666,
+            "gain": 0.0027792181354016066,
+            "pixel_hash": "42c71f98af496106"
+          },
+          {
+            "flicks": 199920000,
+            "seconds": 0.2833333333333333,
+            "gain": 0.02231440320611,
+            "pixel_hash": "5a1152bc3d5173a7"
+          },
+          {
+            "flicks": 211680000,
+            "seconds": 0.3,
+            "gain": 0.07604999840259552,
+            "pixel_hash": "d01e965cc374d1e4"
+          },
+          {
+            "flicks": 223440000,
+            "seconds": 0.31666666666666665,
+            "gain": 0.1320181041955948,
+            "pixel_hash": "4b1c10b593aa4dcf"
+          },
+          {
+            "flicks": 235200000,
+            "seconds": 0.3333333333333333,
+            "gain": 0.15676440298557281,
+            "pixel_hash": "93fd30fc50f9ced5"
+          },
+          {
+            "flicks": 246960000,
+            "seconds": 0.35,
+            "gain": 0.16680000722408295,
+            "pixel_hash": "82ee8ea3edaf688b"
+          },
+          {
+            "flicks": 258720000,
+            "seconds": 0.36666666666666664,
+            "gain": 0.17667777836322784,
+            "pixel_hash": "4801c327e7be01bb"
+          },
+          {
+            "flicks": 270480000,
+            "seconds": 0.38333333333333336,
+            "gain": 0.1898222267627716,
+            "pixel_hash": "06469a361aa5901a"
+          },
+          {
+            "flicks": 282240000,
+            "seconds": 0.4,
+            "gain": 0.20669999718666077,
+            "pixel_hash": "2f6912089edd5c3c"
+          },
+          {
+            "flicks": 294000000,
+            "seconds": 0.4166666666666667,
+            "gain": 0.22777777910232544,
+            "pixel_hash": "7874505274cd91ac"
+          },
+          {
+            "flicks": 305760000,
+            "seconds": 0.43333333333333335,
+            "gain": 0.25352221727371216,
+            "pixel_hash": "560bb21db676c1fa"
+          },
+          {
+            "flicks": 317520000,
+            "seconds": 0.45,
+            "gain": 0.28439998626708984,
+            "pixel_hash": "ec7ac4932a1c2d1d"
+          },
+          {
+            "flicks": 329280000,
+            "seconds": 0.4666666666666667,
+            "gain": 0.3208777904510498,
+            "pixel_hash": "8641f3e583aabbf8"
+          },
+          {
+            "flicks": 341040000,
+            "seconds": 0.48333333333333334,
+            "gain": 0.3634222149848938,
+            "pixel_hash": "2ce789aa7af7e971"
+          },
+          {
+            "flicks": 352800000,
+            "seconds": 0.5,
+            "gain": 0.4124999940395355,
+            "pixel_hash": "7376591ff289b0f3"
+          },
+          {
+            "flicks": 364560000,
+            "seconds": 0.5166666666666667,
+            "gain": 0.46157777309417725,
+            "pixel_hash": "39d3306c178ae483"
+          },
+          {
+            "flicks": 376320000,
+            "seconds": 0.5333333333333333,
+            "gain": 0.5041221976280212,
+            "pixel_hash": "14d3f1d531977fb8"
+          },
+          {
+            "flicks": 388080000,
+            "seconds": 0.55,
+            "gain": 0.5406000018119812,
+            "pixel_hash": "9299126c2bf8ebc8"
+          },
+          {
+            "flicks": 399840000,
+            "seconds": 0.5666666666666667,
+            "gain": 0.5714777708053589,
+            "pixel_hash": "c004a030a5cd2bc9"
+          },
+          {
+            "flicks": 411600000,
+            "seconds": 0.5833333333333334,
+            "gain": 0.5972222089767456,
+            "pixel_hash": "ac5c25d44c1ea0f8"
+          },
+          {
+            "flicks": 423360000,
+            "seconds": 0.6,
+            "gain": 0.6183000206947327,
+            "pixel_hash": "f74e2887d3183d79"
+          },
+          {
+            "flicks": 435120000,
+            "seconds": 0.6166666666666667,
+            "gain": 0.6351777911186218,
+            "pixel_hash": "04d4f3f8673add3d"
+          },
+          {
+            "flicks": 446880000,
+            "seconds": 0.6333333333333333,
+            "gain": 0.6483222246170044,
+            "pixel_hash": "2fb7aaff0b12728a"
+          },
+          {
+            "flicks": 458640000,
+            "seconds": 0.65,
+            "gain": 0.6582000255584717,
+            "pixel_hash": "cc19ee6d42cfd2fa"
+          },
+          {
+            "flicks": 470400000,
+            "seconds": 0.6666666666666666,
+            "gain": 0.6652777791023254,
+            "pixel_hash": "498ec10d66df1295"
+          },
+          {
+            "flicks": 482160000,
+            "seconds": 0.6833333333333333,
+            "gain": 0.6700222492218018,
+            "pixel_hash": "7ae3dfd8d679f086"
+          },
+          {
+            "flicks": 493920000,
+            "seconds": 0.7,
+            "gain": 0.6729000210762024,
+            "pixel_hash": "24c4ecd14e0c79cf"
+          },
+          {
+            "flicks": 505680000,
+            "seconds": 0.7166666666666667,
+            "gain": 0.6743777990341187,
+            "pixel_hash": "69e363cc71898561"
+          },
+          {
+            "flicks": 517440000,
+            "seconds": 0.7333333333333333,
+            "gain": 0.6749222278594971,
+            "pixel_hash": "18b9b741c1069ac8"
+          },
+          {
+            "flicks": 529200000,
+            "seconds": 0.75,
+            "gain": 0.675000011920929,
+            "pixel_hash": "cc75f4f180a5d4a5"
+          },
+          {
+            "flicks": 540960000,
+            "seconds": 0.7666666666666667,
+            "gain": 0.6541666388511658,
+            "pixel_hash": "84c666892683bcab"
+          },
+          {
+            "flicks": 552720000,
+            "seconds": 0.7833333333333333,
+            "gain": 0.6333333253860474,
+            "pixel_hash": "3843dac7085227bf"
+          },
+          {
+            "flicks": 564480000,
+            "seconds": 0.8,
+            "gain": 0.612500011920929,
+            "pixel_hash": "43003a568b14daf6"
+          },
+          {
+            "flicks": 576240000,
+            "seconds": 0.8166666666666667,
+            "gain": 0.5916666388511658,
+            "pixel_hash": "db4fdfde47c29949"
+          },
+          {
+            "flicks": 588000000,
+            "seconds": 0.8333333333333334,
+            "gain": 0.5708333253860474,
+            "pixel_hash": "4d1e06851f228a7e"
+          },
+          {
+            "flicks": 599760000,
+            "seconds": 0.85,
+            "gain": 0.550000011920929,
+            "pixel_hash": "18cbb9d68aa9d813"
+          },
+          {
+            "flicks": 611520000,
+            "seconds": 0.8666666666666667,
+            "gain": 0.5291666388511658,
+            "pixel_hash": "05f9fda29bcbee70"
+          },
+          {
+            "flicks": 623280000,
+            "seconds": 0.8833333333333333,
+            "gain": 0.5083333253860474,
+            "pixel_hash": "1da3e37f03aae2ac"
+          },
+          {
+            "flicks": 635040000,
+            "seconds": 0.9,
+            "gain": 0.48750001192092896,
+            "pixel_hash": "0feb8fa87def92aa"
+          },
+          {
+            "flicks": 646800000,
+            "seconds": 0.9166666666666666,
+            "gain": 0.46666666865348816,
+            "pixel_hash": "646d33e74895637a"
+          },
+          {
+            "flicks": 658560000,
+            "seconds": 0.9333333333333333,
+            "gain": 0.44583332538604736,
+            "pixel_hash": "077a544b8f5bacaf"
+          },
+          {
+            "flicks": 670320000,
+            "seconds": 0.95,
+            "gain": 0.42500001192092896,
+            "pixel_hash": "40971485204825fe"
+          },
+          {
+            "flicks": 682080000,
+            "seconds": 0.9666666666666667,
+            "gain": 0.40416666865348816,
+            "pixel_hash": "ec6abc849d6f480e"
+          },
+          {
+            "flicks": 693840000,
+            "seconds": 0.9833333333333333,
+            "gain": 0.38333332538604736,
+            "pixel_hash": "0438acd57145bd6d"
+          },
+          {
+            "flicks": 705600000,
+            "seconds": 1,
+            "gain": 0.36250001192092896,
+            "pixel_hash": "fcecbbc3eb91cf25"
+          },
+          {
+            "flicks": 717360000,
+            "seconds": 1.0166666666666666,
+            "gain": 0.34166666865348816,
+            "pixel_hash": "11d7636452019812"
+          },
+          {
+            "flicks": 729120000,
+            "seconds": 1.0333333333333334,
+            "gain": 0.32083332538604736,
+            "pixel_hash": "4c4d8e8d7329a5a6"
+          },
+          {
+            "flicks": 740880000,
+            "seconds": 1.05,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "f8e7b22963cf7ffc"
+          },
+          {
+            "flicks": 752640000,
+            "seconds": 1.0666666666666667,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "1eb5ab966fddcfb0"
+          },
+          {
+            "flicks": 764400000,
+            "seconds": 1.0833333333333333,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "aa3b04b8879fdee4"
+          },
+          {
+            "flicks": 776160000,
+            "seconds": 1.1,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "b8678824acd9f3ce"
+          },
+          {
+            "flicks": 787920000,
+            "seconds": 1.1166666666666667,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "dcfb885b39b06173"
+          },
+          {
+            "flicks": 799680000,
+            "seconds": 1.1333333333333333,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "6130dc63deb6d23a"
+          },
+          {
+            "flicks": 811440000,
+            "seconds": 1.15,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "e0df1a5a6fb03f7d"
+          },
+          {
+            "flicks": 823200000,
+            "seconds": 1.1666666666666667,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "4af303bf913662ab"
+          },
+          {
+            "flicks": 834960000,
+            "seconds": 1.1833333333333333,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "bf5f5f8981b1a6a6"
+          },
+          {
+            "flicks": 846720000,
+            "seconds": 1.2,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "7fbadae38ec05490"
+          },
+          {
+            "flicks": 858480000,
+            "seconds": 1.2166666666666666,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "6012eda1e4875e6e"
+          },
+          {
+            "flicks": 870240000,
+            "seconds": 1.2333333333333334,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "bf3706d2c5e33de6"
+          },
+          {
+            "flicks": 882000000,
+            "seconds": 1.25,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "74d839a941533a22"
+          },
+          {
+            "flicks": 893760000,
+            "seconds": 1.2666666666666666,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "d61e47647a76ef8e"
+          },
+          {
+            "flicks": 905520000,
+            "seconds": 1.2833333333333334,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "4f9d618b2f6d498f"
+          },
+          {
+            "flicks": 917280000,
+            "seconds": 1.3,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "6ece152962d5a360"
+          },
+          {
+            "flicks": 929040000,
+            "seconds": 1.3166666666666667,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "674552ef53f51385"
+          },
+          {
+            "flicks": 940800000,
+            "seconds": 1.3333333333333333,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "71d60d5367a44d2f"
+          },
+          {
+            "flicks": 952560000,
+            "seconds": 1.35,
+            "gain": 0.5249999761581421,
+            "pixel_hash": "3d87e48671b800cc"
+          },
+          {
+            "flicks": 964320000,
+            "seconds": 1.3666666666666667,
+            "gain": 0.5062500238418579,
+            "pixel_hash": "87046c6d265ffba2"
+          },
+          {
+            "flicks": 976080000,
+            "seconds": 1.3833333333333333,
+            "gain": 0.48750001192092896,
+            "pixel_hash": "f93df01b6b1cb515"
+          },
+          {
+            "flicks": 987840000,
+            "seconds": 1.4,
+            "gain": 0.46875,
+            "pixel_hash": "e0c946cb4f8a2f97"
+          },
+          {
+            "flicks": 999600000,
+            "seconds": 1.4166666666666667,
+            "gain": 0.44999998807907104,
+            "pixel_hash": "4e873b413eeb34a1"
+          },
+          {
+            "flicks": 1011360000,
+            "seconds": 1.4333333333333333,
+            "gain": 0.4312500059604645,
+            "pixel_hash": "ec019779fe5a3c78"
+          },
+          {
+            "flicks": 1023120000,
+            "seconds": 1.45,
+            "gain": 0.4124999940395355,
+            "pixel_hash": "f9f7814d1069dba8"
+          },
+          {
+            "flicks": 1034880000,
+            "seconds": 1.4666666666666666,
+            "gain": 0.39375001192092896,
+            "pixel_hash": "d6db36932e71e263"
+          },
+          {
+            "flicks": 1046640000,
+            "seconds": 1.4833333333333334,
+            "gain": 0.375,
+            "pixel_hash": "4591e1261c1a8886"
+          },
+          {
+            "flicks": 1058400000,
+            "seconds": 1.5,
+            "gain": 0.35624998807907104,
+            "pixel_hash": "e752504a92fb5f5b"
+          },
+          {
+            "flicks": 1070160000,
+            "seconds": 1.5166666666666666,
+            "gain": 0.3375000059604645,
+            "pixel_hash": "f41260f60b32a6a1"
+          },
+          {
+            "flicks": 1081920000,
+            "seconds": 1.5333333333333334,
+            "gain": 0.3187499940395355,
+            "pixel_hash": "47ad5ae892a242d1"
+          },
+          {
+            "flicks": 1093680000,
+            "seconds": 1.55,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "0c0e758c5a155e14"
+          },
+          {
+            "flicks": 1105440000,
+            "seconds": 1.5666666666666667,
+            "gain": 0.2805989682674408,
+            "pixel_hash": "e24584d2166a8196"
+          },
+          {
+            "flicks": 1117200000,
+            "seconds": 1.5833333333333333,
+            "gain": 0.2576389014720917,
+            "pixel_hash": "805cd8cf6e0352b2"
+          },
+          {
+            "flicks": 1128960000,
+            "seconds": 1.6,
+            "gain": 0.228515625,
+            "pixel_hash": "2a2f27903da8dd80"
+          },
+          {
+            "flicks": 1140720000,
+            "seconds": 1.6166666666666667,
+            "gain": 0.19166666269302368,
+            "pixel_hash": "cebe6e2e7de870e0"
+          },
+          {
+            "flicks": 1152480000,
+            "seconds": 1.6333333333333333,
+            "gain": 0.14657117426395416,
+            "pixel_hash": "75f4f05f70f1242d"
+          },
+          {
+            "flicks": 1164240000,
+            "seconds": 1.65,
+            "gain": 0.09375,
+            "pixel_hash": "4873988cf0681270"
+          },
+          {
+            "flicks": 1176000000,
+            "seconds": 1.6666666666666667,
+            "gain": 0.048828125,
+            "pixel_hash": "27a3be6f4b2344b4"
+          },
+          {
+            "flicks": 1187760000,
+            "seconds": 1.6833333333333333,
+            "gain": 0.02222222276031971,
+            "pixel_hash": "40e86cd3e83af3e6"
+          },
+          {
+            "flicks": 1199520000,
+            "seconds": 1.7,
+            "gain": 0.00820312462747097,
+            "pixel_hash": "76bc04e172d516cd"
+          },
+          {
+            "flicks": 1211280000,
+            "seconds": 1.7166666666666666,
+            "gain": 0.0020833334419876337,
+            "pixel_hash": "9f4bd1ba6496e031"
+          },
+          {
+            "flicks": 1223040000,
+            "seconds": 1.7333333333333334,
+            "gain": 0.00021701389050576836,
+            "pixel_hash": "616643122bdd3391"
+          },
+          {
+            "flicks": 1234800000,
+            "seconds": 1.75,
+            "gain": 0,
+            "pixel_hash": "c26ca5229aaf7291"
+          },
+          {
+            "flicks": 1246560000,
+            "seconds": 1.7666666666666666,
+            "gain": 0,
+            "pixel_hash": "64d4d2a17090deca"
+          },
+          {
+            "flicks": 1258320000,
+            "seconds": 1.7833333333333334,
+            "gain": 0,
+            "pixel_hash": "a7f1e3b88682336e"
+          },
+          {
+            "flicks": 1270080000,
+            "seconds": 1.8,
+            "gain": 0,
+            "pixel_hash": "581db29d0fd26440"
+          },
+          {
+            "flicks": 1281840000,
+            "seconds": 1.8166666666666667,
+            "gain": 0,
+            "pixel_hash": "a866320c3def346c"
+          },
+          {
+            "flicks": 1293600000,
+            "seconds": 1.8333333333333333,
+            "gain": 0,
+            "pixel_hash": "eb80ef89bf77929f"
+          },
+          {
+            "flicks": 1305360000,
+            "seconds": 1.85,
+            "gain": 0,
+            "pixel_hash": "2f824e1da86cbd82"
+          },
+          {
+            "flicks": 1317120000,
+            "seconds": 1.8666666666666667,
+            "gain": 0,
+            "pixel_hash": "7175010c07c4b880"
+          },
+          {
+            "flicks": 1328880000,
+            "seconds": 1.8833333333333333,
+            "gain": 0,
+            "pixel_hash": "ba7ed578afc8d41f"
+          },
+          {
+            "flicks": 1340640000,
+            "seconds": 1.9,
+            "gain": 0,
+            "pixel_hash": "150f64597e647091"
+          },
+          {
+            "flicks": 1352400000,
+            "seconds": 1.9166666666666667,
+            "gain": 0,
+            "pixel_hash": "0704fc5a1cc721b8"
+          },
+          {
+            "flicks": 1364160000,
+            "seconds": 1.9333333333333333,
+            "gain": 0,
+            "pixel_hash": "03f0808ca9565d0f"
+          },
+          {
+            "flicks": 1375920000,
+            "seconds": 1.95,
+            "gain": 0,
+            "pixel_hash": "64d203677d6b7db0"
+          },
+          {
+            "flicks": 1387680000,
+            "seconds": 1.9666666666666666,
+            "gain": 0,
+            "pixel_hash": "9e83d5faefdc4eda"
+          },
+          {
+            "flicks": 1399440000,
+            "seconds": 1.9833333333333334,
+            "gain": 0,
+            "pixel_hash": "fd9240b3ea685545"
+          },
+          {
+            "flicks": 1411200000,
+            "seconds": 2,
+            "gain": 0,
+            "pixel_hash": "abe5f69a17621209"
+          }
+        ]
+      },
+      {
+        "fps": 120,
+        "frames": 241,
+        "pcm_hash": "ac9eeb86d84d2cad",
+        "samples": 96000,
+        "voices_begun": 1,
+        "outputs": {
+          "png": {
+            "sha256": "01e4b92772fb0edcd201ad0a274d3753bed2642a3cfaef1c0823b403d13b283d",
+            "bytes": 44606,
+            "dev_equals_release": true
+          },
+          "webp": {
+            "sha256": "b6b901d61b8d4c0d20dd46958a946996af438a818f01bb0569bf5bed49daf20c",
+            "bytes": 225814,
+            "dev_equals_release": true
+          },
+          "wav": {
+            "sha256": "4813a99b7597b51958ce370da5fe1fea473da5316f0a659e635bf9a9bcd68743",
+            "bytes": 768044,
+            "dev_equals_release": true
+          }
+        },
+        "observations": [
+          {
+            "flicks": 0,
+            "seconds": 0,
+            "gain": 0,
+            "pixel_hash": "e6c0984556667fb2"
+          },
+          {
+            "flicks": 5880000,
+            "seconds": 0.008333333333333333,
+            "gain": 0,
+            "pixel_hash": "dadfd2f5ab138f01"
+          },
+          {
+            "flicks": 11760000,
+            "seconds": 0.016666666666666666,
+            "gain": 0,
+            "pixel_hash": "2c22af7f81e18890"
+          },
+          {
+            "flicks": 17640000,
+            "seconds": 0.025,
+            "gain": 0,
+            "pixel_hash": "ac0c76e77b676253"
+          },
+          {
+            "flicks": 23520000,
+            "seconds": 0.03333333333333333,
+            "gain": 0,
+            "pixel_hash": "ed909e3d4a22d527"
+          },
+          {
+            "flicks": 29400000,
+            "seconds": 0.041666666666666664,
+            "gain": 0,
+            "pixel_hash": "4d778562829c821d"
+          },
+          {
+            "flicks": 35280000,
+            "seconds": 0.05,
+            "gain": 0,
+            "pixel_hash": "0f4286c1491fc721"
+          },
+          {
+            "flicks": 41160000,
+            "seconds": 0.058333333333333334,
+            "gain": 0,
+            "pixel_hash": "3593f3325352b2cc"
+          },
+          {
+            "flicks": 47040000,
+            "seconds": 0.06666666666666667,
+            "gain": 0,
+            "pixel_hash": "ece46b6090a8b4b3"
+          },
+          {
+            "flicks": 52920000,
+            "seconds": 0.075,
+            "gain": 0,
+            "pixel_hash": "82cc407d15684668"
+          },
+          {
+            "flicks": 58800000,
+            "seconds": 0.08333333333333333,
+            "gain": 0,
+            "pixel_hash": "45793b4d2c9441f0"
+          },
+          {
+            "flicks": 64680000,
+            "seconds": 0.09166666666666666,
+            "gain": 0,
+            "pixel_hash": "315678603959e8f4"
+          },
+          {
+            "flicks": 70560000,
+            "seconds": 0.1,
+            "gain": 0,
+            "pixel_hash": "309210a96d588872"
+          },
+          {
+            "flicks": 76440000,
+            "seconds": 0.10833333333333334,
+            "gain": 0,
+            "pixel_hash": "976ff1c2ef09d2ff"
+          },
+          {
+            "flicks": 82320000,
+            "seconds": 0.11666666666666667,
+            "gain": 0,
+            "pixel_hash": "3f2048f3711286a0"
+          },
+          {
+            "flicks": 88200000,
+            "seconds": 0.125,
+            "gain": 0,
+            "pixel_hash": "69e73baf79472d40"
+          },
+          {
+            "flicks": 94080000,
+            "seconds": 0.13333333333333333,
+            "gain": 0,
+            "pixel_hash": "bbb7e3c3c38e0a0f"
+          },
+          {
+            "flicks": 99960000,
+            "seconds": 0.14166666666666666,
+            "gain": 0,
+            "pixel_hash": "e7e442618c293f41"
+          },
+          {
+            "flicks": 105840000,
+            "seconds": 0.15,
+            "gain": 0,
+            "pixel_hash": "a675996c29f68845"
+          },
+          {
+            "flicks": 111720000,
+            "seconds": 0.15833333333333333,
+            "gain": 0,
+            "pixel_hash": "c379960b42aca988"
+          },
+          {
+            "flicks": 117600000,
+            "seconds": 0.16666666666666666,
+            "gain": 0,
+            "pixel_hash": "916e797ac0a1c8c5"
+          },
+          {
+            "flicks": 123480000,
+            "seconds": 0.175,
+            "gain": 0,
+            "pixel_hash": "d0c4adcec248ae89"
+          },
+          {
+            "flicks": 129360000,
+            "seconds": 0.18333333333333332,
+            "gain": 0,
+            "pixel_hash": "201d27213dee4128"
+          },
+          {
+            "flicks": 135240000,
+            "seconds": 0.19166666666666668,
+            "gain": 0,
+            "pixel_hash": "5caf3643aff35960"
+          },
+          {
+            "flicks": 141120000,
+            "seconds": 0.2,
+            "gain": 0,
+            "pixel_hash": "4cb1509de1d31c38"
+          },
+          {
+            "flicks": 147000000,
+            "seconds": 0.20833333333333334,
+            "gain": 0,
+            "pixel_hash": "01473aa982056bbe"
+          },
+          {
+            "flicks": 152880000,
+            "seconds": 0.21666666666666667,
+            "gain": 0,
+            "pixel_hash": "32cc4d196874fcd0"
+          },
+          {
+            "flicks": 158760000,
+            "seconds": 0.225,
+            "gain": 0,
+            "pixel_hash": "e7f8deac59a8eddc"
+          },
+          {
+            "flicks": 164640000,
+            "seconds": 0.23333333333333334,
+            "gain": 0,
+            "pixel_hash": "f204abc6a9834574"
+          },
+          {
+            "flicks": 170520000,
+            "seconds": 0.24166666666666667,
+            "gain": 0,
+            "pixel_hash": "404653304d04ebf7"
+          },
+          {
+            "flicks": 176400000,
+            "seconds": 0.25,
+            "gain": 0,
+            "pixel_hash": "0aad7c598d5c1341"
+          },
+          {
+            "flicks": 182280000,
+            "seconds": 0.25833333333333336,
+            "gain": 0.0003472447278909385,
+            "pixel_hash": "2e770bd805463a9b"
+          },
+          {
+            "flicks": 188160000,
+            "seconds": 0.26666666666666666,
+            "gain": 0.0027792181354016066,
+            "pixel_hash": "42c71f98af496106"
+          },
+          {
+            "flicks": 194040000,
+            "seconds": 0.275,
+            "gain": 0.009391406551003456,
+            "pixel_hash": "fbd81246ff3dfd34"
+          },
+          {
+            "flicks": 199920000,
+            "seconds": 0.2833333333333333,
+            "gain": 0.02231440320611,
+            "pixel_hash": "5a1152bc3d5173a7"
+          },
+          {
+            "flicks": 205800000,
+            "seconds": 0.2916666666666667,
+            "gain": 0.043754421174526215,
+            "pixel_hash": "fb8faf9b8feb8958"
+          },
+          {
+            "flicks": 211680000,
+            "seconds": 0.3,
+            "gain": 0.07604999840259552,
+            "pixel_hash": "d01e965cc374d1e4"
+          },
+          {
+            "flicks": 217560000,
+            "seconds": 0.30833333333333335,
+            "gain": 0.10896703600883484,
+            "pixel_hash": "a1cea4f685f0812c"
+          },
+          {
+            "flicks": 223440000,
+            "seconds": 0.31666666666666665,
+            "gain": 0.1320181041955948,
+            "pixel_hash": "4b1c10b593aa4dcf"
+          },
+          {
+            "flicks": 229320000,
+            "seconds": 0.325,
+            "gain": 0.14726953208446503,
+            "pixel_hash": "5e5182b9e6223d11"
+          },
+          {
+            "flicks": 235200000,
+            "seconds": 0.3333333333333333,
+            "gain": 0.15676440298557281,
+            "pixel_hash": "93fd30fc50f9ced5"
+          },
+          {
+            "flicks": 241080000,
+            "seconds": 0.3416666666666667,
+            "gain": 0.16256310045719147,
+            "pixel_hash": "833d9d64e52b1b01"
+          },
+          {
+            "flicks": 246960000,
+            "seconds": 0.35,
+            "gain": 0.16680000722408295,
+            "pixel_hash": "82ee8ea3edaf688b"
+          },
+          {
+            "flicks": 252840000,
+            "seconds": 0.35833333333333334,
+            "gain": 0.17135971784591675,
+            "pixel_hash": "7a04d8392d670f4f"
+          },
+          {
+            "flicks": 258720000,
+            "seconds": 0.36666666666666664,
+            "gain": 0.17667777836322784,
+            "pixel_hash": "4801c327e7be01bb"
+          },
+          {
+            "flicks": 264600000,
+            "seconds": 0.375,
+            "gain": 0.18281249701976776,
+            "pixel_hash": "d550fdf89e7dbc09"
+          },
+          {
+            "flicks": 270480000,
+            "seconds": 0.38333333333333336,
+            "gain": 0.1898222267627716,
+            "pixel_hash": "06469a361aa5901a"
+          },
+          {
+            "flicks": 276360000,
+            "seconds": 0.39166666666666666,
+            "gain": 0.1977652758359909,
+            "pixel_hash": "25aef91b155862ad"
+          },
+          {
+            "flicks": 282240000,
+            "seconds": 0.4,
+            "gain": 0.20669999718666077,
+            "pixel_hash": "2f6912089edd5c3c"
+          },
+          {
+            "flicks": 288120000,
+            "seconds": 0.4083333333333333,
+            "gain": 0.2166847288608551,
+            "pixel_hash": "8599718d271869c1"
+          },
+          {
+            "flicks": 294000000,
+            "seconds": 0.4166666666666667,
+            "gain": 0.22777777910232544,
+            "pixel_hash": "7874505274cd91ac"
+          },
+          {
+            "flicks": 299880000,
+            "seconds": 0.425,
+            "gain": 0.24003750085830688,
+            "pixel_hash": "d9a808978c3d3aa2"
+          },
+          {
+            "flicks": 305760000,
+            "seconds": 0.43333333333333335,
+            "gain": 0.25352221727371216,
+            "pixel_hash": "560bb21db676c1fa"
+          },
+          {
+            "flicks": 311640000,
+            "seconds": 0.44166666666666665,
+            "gain": 0.26829028129577637,
+            "pixel_hash": "852feac07c5372ed"
+          },
+          {
+            "flicks": 317520000,
+            "seconds": 0.45,
+            "gain": 0.28439998626708984,
+            "pixel_hash": "ec7ac4932a1c2d1d"
+          },
+          {
+            "flicks": 323400000,
+            "seconds": 0.4583333333333333,
+            "gain": 0.3019097149372101,
+            "pixel_hash": "57a37d5e68eaa494"
+          },
+          {
+            "flicks": 329280000,
+            "seconds": 0.4666666666666667,
+            "gain": 0.3208777904510498,
+            "pixel_hash": "8641f3e583aabbf8"
+          },
+          {
+            "flicks": 335160000,
+            "seconds": 0.475,
+            "gain": 0.34136250615119934,
+            "pixel_hash": "d0d740b64fb221ed"
+          },
+          {
+            "flicks": 341040000,
+            "seconds": 0.48333333333333334,
+            "gain": 0.3634222149848938,
+            "pixel_hash": "2ce789aa7af7e971"
+          },
+          {
+            "flicks": 346920000,
+            "seconds": 0.49166666666666664,
+            "gain": 0.3871152698993683,
+            "pixel_hash": "9968a1d7c01b595b"
+          },
+          {
+            "flicks": 352800000,
+            "seconds": 0.5,
+            "gain": 0.4124999940395355,
+            "pixel_hash": "7376591ff289b0f3"
+          },
+          {
+            "flicks": 358680000,
+            "seconds": 0.5083333333333333,
+            "gain": 0.43788471817970276,
+            "pixel_hash": "0e3c2f7f0071bab5"
+          },
+          {
+            "flicks": 364560000,
+            "seconds": 0.5166666666666667,
+            "gain": 0.46157777309417725,
+            "pixel_hash": "39d3306c178ae483"
+          },
+          {
+            "flicks": 370440000,
+            "seconds": 0.525,
+            "gain": 0.4836375117301941,
+            "pixel_hash": "e1d44226ba81eafa"
+          },
+          {
+            "flicks": 376320000,
+            "seconds": 0.5333333333333333,
+            "gain": 0.5041221976280212,
+            "pixel_hash": "14d3f1d531977fb8"
+          },
+          {
+            "flicks": 382200000,
+            "seconds": 0.5416666666666666,
+            "gain": 0.5230903029441833,
+            "pixel_hash": "420b986decf2d52d"
+          },
+          {
+            "flicks": 388080000,
+            "seconds": 0.55,
+            "gain": 0.5406000018119812,
+            "pixel_hash": "9299126c2bf8ebc8"
+          },
+          {
+            "flicks": 393960000,
+            "seconds": 0.5583333333333333,
+            "gain": 0.5567097067832947,
+            "pixel_hash": "f7478c5f12252f79"
+          },
+          {
+            "flicks": 399840000,
+            "seconds": 0.5666666666666667,
+            "gain": 0.5714777708053589,
+            "pixel_hash": "c004a030a5cd2bc9"
+          },
+          {
+            "flicks": 405720000,
+            "seconds": 0.575,
+            "gain": 0.5849624872207642,
+            "pixel_hash": "22ea753234c12156"
+          },
+          {
+            "flicks": 411600000,
+            "seconds": 0.5833333333333334,
+            "gain": 0.5972222089767456,
+            "pixel_hash": "ac5c25d44c1ea0f8"
+          },
+          {
+            "flicks": 417480000,
+            "seconds": 0.5916666666666667,
+            "gain": 0.6083152890205383,
+            "pixel_hash": "9409e266c5db7c25"
+          },
+          {
+            "flicks": 423360000,
+            "seconds": 0.6,
+            "gain": 0.6183000206947327,
+            "pixel_hash": "f74e2887d3183d79"
+          },
+          {
+            "flicks": 429240000,
+            "seconds": 0.6083333333333333,
+            "gain": 0.627234697341919,
+            "pixel_hash": "89bee3fe6fbdee01"
+          },
+          {
+            "flicks": 435120000,
+            "seconds": 0.6166666666666667,
+            "gain": 0.6351777911186218,
+            "pixel_hash": "04d4f3f8673add3d"
+          },
+          {
+            "flicks": 441000000,
+            "seconds": 0.625,
+            "gain": 0.6421874761581421,
+            "pixel_hash": "bcdebd5a7f7e5588"
+          },
+          {
+            "flicks": 446880000,
+            "seconds": 0.6333333333333333,
+            "gain": 0.6483222246170044,
+            "pixel_hash": "2fb7aaff0b12728a"
+          },
+          {
+            "flicks": 452760000,
+            "seconds": 0.6416666666666667,
+            "gain": 0.6536402702331543,
+            "pixel_hash": "aa3d6b6d1fb00a49"
+          },
+          {
+            "flicks": 458640000,
+            "seconds": 0.65,
+            "gain": 0.6582000255584717,
+            "pixel_hash": "cc19ee6d42cfd2fa"
+          },
+          {
+            "flicks": 464520000,
+            "seconds": 0.6583333333333333,
+            "gain": 0.6620597243309021,
+            "pixel_hash": "9ac26cb68cf34c66"
+          },
+          {
+            "flicks": 470400000,
+            "seconds": 0.6666666666666666,
+            "gain": 0.6652777791023254,
+            "pixel_hash": "498ec10d66df1295"
+          },
+          {
+            "flicks": 476280000,
+            "seconds": 0.675,
+            "gain": 0.667912483215332,
+            "pixel_hash": "6136cb546ce68f6c"
+          },
+          {
+            "flicks": 482160000,
+            "seconds": 0.6833333333333333,
+            "gain": 0.6700222492218018,
+            "pixel_hash": "7ae3dfd8d679f086"
+          },
+          {
+            "flicks": 488040000,
+            "seconds": 0.6916666666666667,
+            "gain": 0.6716652512550354,
+            "pixel_hash": "2d8a64d01ac4109c"
+          },
+          {
+            "flicks": 493920000,
+            "seconds": 0.7,
+            "gain": 0.6729000210762024,
+            "pixel_hash": "24c4ecd14e0c79cf"
+          },
+          {
+            "flicks": 499800000,
+            "seconds": 0.7083333333333334,
+            "gain": 0.6737847328186035,
+            "pixel_hash": "81abbd82212fcf6c"
+          },
+          {
+            "flicks": 505680000,
+            "seconds": 0.7166666666666667,
+            "gain": 0.6743777990341187,
+            "pixel_hash": "69e363cc71898561"
+          },
+          {
+            "flicks": 511560000,
+            "seconds": 0.725,
+            "gain": 0.6747375130653381,
+            "pixel_hash": "59afadc1aa5c38e7"
+          },
+          {
+            "flicks": 517440000,
+            "seconds": 0.7333333333333333,
+            "gain": 0.6749222278594971,
+            "pixel_hash": "18b9b741c1069ac8"
+          },
+          {
+            "flicks": 523320000,
+            "seconds": 0.7416666666666667,
+            "gain": 0.6749902963638306,
+            "pixel_hash": "e3730f25803a85e2"
+          },
+          {
+            "flicks": 529200000,
+            "seconds": 0.75,
+            "gain": 0.675000011920929,
+            "pixel_hash": "cc75f4f180a5d4a5"
+          },
+          {
+            "flicks": 535080000,
+            "seconds": 0.7583333333333333,
+            "gain": 0.6645833253860474,
+            "pixel_hash": "0027275a5d1a643e"
+          },
+          {
+            "flicks": 540960000,
+            "seconds": 0.7666666666666667,
+            "gain": 0.6541666388511658,
+            "pixel_hash": "84c666892683bcab"
+          },
+          {
+            "flicks": 546840000,
+            "seconds": 0.775,
+            "gain": 0.643750011920929,
+            "pixel_hash": "77be058a652bb756"
+          },
+          {
+            "flicks": 552720000,
+            "seconds": 0.7833333333333333,
+            "gain": 0.6333333253860474,
+            "pixel_hash": "3843dac7085227bf"
+          },
+          {
+            "flicks": 558600000,
+            "seconds": 0.7916666666666666,
+            "gain": 0.6229166388511658,
+            "pixel_hash": "00a50cae13ad17c6"
+          },
+          {
+            "flicks": 564480000,
+            "seconds": 0.8,
+            "gain": 0.612500011920929,
+            "pixel_hash": "43003a568b14daf6"
+          },
+          {
+            "flicks": 570360000,
+            "seconds": 0.8083333333333333,
+            "gain": 0.6020833253860474,
+            "pixel_hash": "341d1115887b36d7"
+          },
+          {
+            "flicks": 576240000,
+            "seconds": 0.8166666666666667,
+            "gain": 0.5916666388511658,
+            "pixel_hash": "db4fdfde47c29949"
+          },
+          {
+            "flicks": 582120000,
+            "seconds": 0.825,
+            "gain": 0.581250011920929,
+            "pixel_hash": "f0d075058e21f9fc"
+          },
+          {
+            "flicks": 588000000,
+            "seconds": 0.8333333333333334,
+            "gain": 0.5708333253860474,
+            "pixel_hash": "4d1e06851f228a7e"
+          },
+          {
+            "flicks": 593880000,
+            "seconds": 0.8416666666666667,
+            "gain": 0.5604166388511658,
+            "pixel_hash": "0d671adf5bb32498"
+          },
+          {
+            "flicks": 599760000,
+            "seconds": 0.85,
+            "gain": 0.550000011920929,
+            "pixel_hash": "18cbb9d68aa9d813"
+          },
+          {
+            "flicks": 605640000,
+            "seconds": 0.8583333333333333,
+            "gain": 0.5395833253860474,
+            "pixel_hash": "affaaef33ce664cb"
+          },
+          {
+            "flicks": 611520000,
+            "seconds": 0.8666666666666667,
+            "gain": 0.5291666388511658,
+            "pixel_hash": "05f9fda29bcbee70"
+          },
+          {
+            "flicks": 617400000,
+            "seconds": 0.875,
+            "gain": 0.518750011920929,
+            "pixel_hash": "17d12d78f3b4d4b3"
+          },
+          {
+            "flicks": 623280000,
+            "seconds": 0.8833333333333333,
+            "gain": 0.5083333253860474,
+            "pixel_hash": "1da3e37f03aae2ac"
+          },
+          {
+            "flicks": 629160000,
+            "seconds": 0.8916666666666667,
+            "gain": 0.49791666865348816,
+            "pixel_hash": "45d4fcab39bef7c3"
+          },
+          {
+            "flicks": 635040000,
+            "seconds": 0.9,
+            "gain": 0.48750001192092896,
+            "pixel_hash": "0feb8fa87def92aa"
+          },
+          {
+            "flicks": 640920000,
+            "seconds": 0.9083333333333333,
+            "gain": 0.47708332538604736,
+            "pixel_hash": "06510dcc1924c8c0"
+          },
+          {
+            "flicks": 646800000,
+            "seconds": 0.9166666666666666,
+            "gain": 0.46666666865348816,
+            "pixel_hash": "646d33e74895637a"
+          },
+          {
+            "flicks": 652680000,
+            "seconds": 0.925,
+            "gain": 0.45625001192092896,
+            "pixel_hash": "525336c2f10e412d"
+          },
+          {
+            "flicks": 658560000,
+            "seconds": 0.9333333333333333,
+            "gain": 0.44583332538604736,
+            "pixel_hash": "077a544b8f5bacaf"
+          },
+          {
+            "flicks": 664440000,
+            "seconds": 0.9416666666666667,
+            "gain": 0.43541666865348816,
+            "pixel_hash": "a6aa84d243bd2607"
+          },
+          {
+            "flicks": 670320000,
+            "seconds": 0.95,
+            "gain": 0.42500001192092896,
+            "pixel_hash": "40971485204825fe"
+          },
+          {
+            "flicks": 676200000,
+            "seconds": 0.9583333333333334,
+            "gain": 0.41458332538604736,
+            "pixel_hash": "43974355417db71d"
+          },
+          {
+            "flicks": 682080000,
+            "seconds": 0.9666666666666667,
+            "gain": 0.40416666865348816,
+            "pixel_hash": "ec6abc849d6f480e"
+          },
+          {
+            "flicks": 687960000,
+            "seconds": 0.975,
+            "gain": 0.39375001192092896,
+            "pixel_hash": "d6d268a7e22a7a21"
+          },
+          {
+            "flicks": 693840000,
+            "seconds": 0.9833333333333333,
+            "gain": 0.38333332538604736,
+            "pixel_hash": "0438acd57145bd6d"
+          },
+          {
+            "flicks": 699720000,
+            "seconds": 0.9916666666666667,
+            "gain": 0.37291666865348816,
+            "pixel_hash": "a90ea2b83c30c204"
+          },
+          {
+            "flicks": 705600000,
+            "seconds": 1,
+            "gain": 0.36250001192092896,
+            "pixel_hash": "fcecbbc3eb91cf25"
+          },
+          {
+            "flicks": 711480000,
+            "seconds": 1.0083333333333333,
+            "gain": 0.35208332538604736,
+            "pixel_hash": "6333788c2f731f21"
+          },
+          {
+            "flicks": 717360000,
+            "seconds": 1.0166666666666666,
+            "gain": 0.34166666865348816,
+            "pixel_hash": "11d7636452019812"
+          },
+          {
+            "flicks": 723240000,
+            "seconds": 1.025,
+            "gain": 0.33125001192092896,
+            "pixel_hash": "a8febc939bd8ffa0"
+          },
+          {
+            "flicks": 729120000,
+            "seconds": 1.0333333333333334,
+            "gain": 0.32083332538604736,
+            "pixel_hash": "4c4d8e8d7329a5a6"
+          },
+          {
+            "flicks": 735000000,
+            "seconds": 1.0416666666666667,
+            "gain": 0.31041666865348816,
+            "pixel_hash": "a014f70f2e9d6a17"
+          },
+          {
+            "flicks": 740880000,
+            "seconds": 1.05,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "f8e7b22963cf7ffc"
+          },
+          {
+            "flicks": 746760000,
+            "seconds": 1.0583333333333333,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "a16d789381b6ea19"
+          },
+          {
+            "flicks": 752640000,
+            "seconds": 1.0666666666666667,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "1eb5ab966fddcfb0"
+          },
+          {
+            "flicks": 758520000,
+            "seconds": 1.075,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "288ad047980f012a"
+          },
+          {
+            "flicks": 764400000,
+            "seconds": 1.0833333333333333,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "aa3b04b8879fdee4"
+          },
+          {
+            "flicks": 770280000,
+            "seconds": 1.0916666666666666,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "60fb1fc7fc1c3274"
+          },
+          {
+            "flicks": 776160000,
+            "seconds": 1.1,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "b8678824acd9f3ce"
+          },
+          {
+            "flicks": 782040000,
+            "seconds": 1.1083333333333334,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "62e8f716680905f5"
+          },
+          {
+            "flicks": 787920000,
+            "seconds": 1.1166666666666667,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "dcfb885b39b06173"
+          },
+          {
+            "flicks": 793800000,
+            "seconds": 1.125,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "be6a376b51569049"
+          },
+          {
+            "flicks": 799680000,
+            "seconds": 1.1333333333333333,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "6130dc63deb6d23a"
+          },
+          {
+            "flicks": 805560000,
+            "seconds": 1.1416666666666666,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "ad481b9f3dce99c0"
+          },
+          {
+            "flicks": 811440000,
+            "seconds": 1.15,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "e0df1a5a6fb03f7d"
+          },
+          {
+            "flicks": 817320000,
+            "seconds": 1.1583333333333334,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "59669dcfa4dd9175"
+          },
+          {
+            "flicks": 823200000,
+            "seconds": 1.1666666666666667,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "4af303bf913662ab"
+          },
+          {
+            "flicks": 829080000,
+            "seconds": 1.175,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "059b16e50eff7f85"
+          },
+          {
+            "flicks": 834960000,
+            "seconds": 1.1833333333333333,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "bf5f5f8981b1a6a6"
+          },
+          {
+            "flicks": 840840000,
+            "seconds": 1.1916666666666667,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "80142fe762f42f16"
+          },
+          {
+            "flicks": 846720000,
+            "seconds": 1.2,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "7fbadae38ec05490"
+          },
+          {
+            "flicks": 852600000,
+            "seconds": 1.2083333333333333,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "dbd97ef933c6cba0"
+          },
+          {
+            "flicks": 858480000,
+            "seconds": 1.2166666666666666,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "6012eda1e4875e6e"
+          },
+          {
+            "flicks": 864360000,
+            "seconds": 1.225,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "a615176450143cb4"
+          },
+          {
+            "flicks": 870240000,
+            "seconds": 1.2333333333333334,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "bf3706d2c5e33de6"
+          },
+          {
+            "flicks": 876120000,
+            "seconds": 1.2416666666666667,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "f1f50c0e2ad3d7ac"
+          },
+          {
+            "flicks": 882000000,
+            "seconds": 1.25,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "74d839a941533a22"
+          },
+          {
+            "flicks": 887880000,
+            "seconds": 1.2583333333333333,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "50f1562833e5981e"
+          },
+          {
+            "flicks": 893760000,
+            "seconds": 1.2666666666666666,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "d61e47647a76ef8e"
+          },
+          {
+            "flicks": 899640000,
+            "seconds": 1.275,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "ba0ced76cf7ed052"
+          },
+          {
+            "flicks": 905520000,
+            "seconds": 1.2833333333333334,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "4f9d618b2f6d498f"
+          },
+          {
+            "flicks": 911400000,
+            "seconds": 1.2916666666666667,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "1e1cb25a0a793fbf"
+          },
+          {
+            "flicks": 917280000,
+            "seconds": 1.3,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "6ece152962d5a360"
+          },
+          {
+            "flicks": 923160000,
+            "seconds": 1.3083333333333333,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "cdf5c037e3d170a3"
+          },
+          {
+            "flicks": 929040000,
+            "seconds": 1.3166666666666667,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "674552ef53f51385"
+          },
+          {
+            "flicks": 934920000,
+            "seconds": 1.325,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "4b2977185b4d8477"
+          },
+          {
+            "flicks": 940800000,
+            "seconds": 1.3333333333333333,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "71d60d5367a44d2f"
+          },
+          {
+            "flicks": 946680000,
+            "seconds": 1.3416666666666666,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "acabdd721147019d"
+          },
+          {
+            "flicks": 952560000,
+            "seconds": 1.35,
+            "gain": 0.5249999761581421,
+            "pixel_hash": "3d87e48671b800cc"
+          },
+          {
+            "flicks": 958440000,
+            "seconds": 1.3583333333333334,
+            "gain": 0.515625,
+            "pixel_hash": "3e876eea709782ac"
+          },
+          {
+            "flicks": 964320000,
+            "seconds": 1.3666666666666667,
+            "gain": 0.5062500238418579,
+            "pixel_hash": "87046c6d265ffba2"
+          },
+          {
+            "flicks": 970200000,
+            "seconds": 1.375,
+            "gain": 0.49687498807907104,
+            "pixel_hash": "4ea1cb71f988de64"
+          },
+          {
+            "flicks": 976080000,
+            "seconds": 1.3833333333333333,
+            "gain": 0.48750001192092896,
+            "pixel_hash": "f93df01b6b1cb515"
+          },
+          {
+            "flicks": 981960000,
+            "seconds": 1.3916666666666666,
+            "gain": 0.4781250059604645,
+            "pixel_hash": "2957a84660af6e31"
+          },
+          {
+            "flicks": 987840000,
+            "seconds": 1.4,
+            "gain": 0.46875,
+            "pixel_hash": "e0c946cb4f8a2f97"
+          },
+          {
+            "flicks": 993720000,
+            "seconds": 1.4083333333333334,
+            "gain": 0.4593749940395355,
+            "pixel_hash": "5251fb1b005c215e"
+          },
+          {
+            "flicks": 999600000,
+            "seconds": 1.4166666666666667,
+            "gain": 0.44999998807907104,
+            "pixel_hash": "4e873b413eeb34a1"
+          },
+          {
+            "flicks": 1005480000,
+            "seconds": 1.425,
+            "gain": 0.44062501192092896,
+            "pixel_hash": "6637431586d8a1fb"
+          },
+          {
+            "flicks": 1011360000,
+            "seconds": 1.4333333333333333,
+            "gain": 0.4312500059604645,
+            "pixel_hash": "ec019779fe5a3c78"
+          },
+          {
+            "flicks": 1017240000,
+            "seconds": 1.4416666666666667,
+            "gain": 0.421875,
+            "pixel_hash": "30a9a58f47b153d0"
+          },
+          {
+            "flicks": 1023120000,
+            "seconds": 1.45,
+            "gain": 0.4124999940395355,
+            "pixel_hash": "f9f7814d1069dba8"
+          },
+          {
+            "flicks": 1029000000,
+            "seconds": 1.4583333333333333,
+            "gain": 0.40312498807907104,
+            "pixel_hash": "749c4cb070ce2c08"
+          },
+          {
+            "flicks": 1034880000,
+            "seconds": 1.4666666666666666,
+            "gain": 0.39375001192092896,
+            "pixel_hash": "d6db36932e71e263"
+          },
+          {
+            "flicks": 1040760000,
+            "seconds": 1.475,
+            "gain": 0.3843750059604645,
+            "pixel_hash": "21e9e182559d705f"
+          },
+          {
+            "flicks": 1046640000,
+            "seconds": 1.4833333333333334,
+            "gain": 0.375,
+            "pixel_hash": "4591e1261c1a8886"
+          },
+          {
+            "flicks": 1052520000,
+            "seconds": 1.4916666666666667,
+            "gain": 0.3656249940395355,
+            "pixel_hash": "0f60afaca7d5b9cc"
+          },
+          {
+            "flicks": 1058400000,
+            "seconds": 1.5,
+            "gain": 0.35624998807907104,
+            "pixel_hash": "e752504a92fb5f5b"
+          },
+          {
+            "flicks": 1064280000,
+            "seconds": 1.5083333333333333,
+            "gain": 0.34687501192092896,
+            "pixel_hash": "fe8b3221579a01c4"
+          },
+          {
+            "flicks": 1070160000,
+            "seconds": 1.5166666666666666,
+            "gain": 0.3375000059604645,
+            "pixel_hash": "f41260f60b32a6a1"
+          },
+          {
+            "flicks": 1076040000,
+            "seconds": 1.525,
+            "gain": 0.328125,
+            "pixel_hash": "fdede8c2c7f2e583"
+          },
+          {
+            "flicks": 1081920000,
+            "seconds": 1.5333333333333334,
+            "gain": 0.3187499940395355,
+            "pixel_hash": "47ad5ae892a242d1"
+          },
+          {
+            "flicks": 1087800000,
+            "seconds": 1.5416666666666667,
+            "gain": 0.30937498807907104,
+            "pixel_hash": "a35f702852f13263"
+          },
+          {
+            "flicks": 1093680000,
+            "seconds": 1.55,
+            "gain": 0.30000001192092896,
+            "pixel_hash": "0c0e758c5a155e14"
+          },
+          {
+            "flicks": 1099560000,
+            "seconds": 1.5583333333333333,
+            "gain": 0.2905409038066864,
+            "pixel_hash": "d3ffa9715653c54f"
+          },
+          {
+            "flicks": 1105440000,
+            "seconds": 1.5666666666666667,
+            "gain": 0.2805989682674408,
+            "pixel_hash": "e24584d2166a8196"
+          },
+          {
+            "flicks": 1111320000,
+            "seconds": 1.575,
+            "gain": 0.2697509825229645,
+            "pixel_hash": "0f4b657f0a40b29d"
+          },
+          {
+            "flicks": 1117200000,
+            "seconds": 1.5833333333333333,
+            "gain": 0.2576389014720917,
+            "pixel_hash": "805cd8cf6e0352b2"
+          },
+          {
+            "flicks": 1123080000,
+            "seconds": 1.5916666666666666,
+            "gain": 0.24396972358226776,
+            "pixel_hash": "88a11c9ce0b12d8c"
+          },
+          {
+            "flicks": 1128960000,
+            "seconds": 1.6,
+            "gain": 0.228515625,
+            "pixel_hash": "2a2f27903da8dd80"
+          },
+          {
+            "flicks": 1134840000,
+            "seconds": 1.6083333333333334,
+            "gain": 0.2111138254404068,
+            "pixel_hash": "844e5163cda86eac"
+          },
+          {
+            "flicks": 1140720000,
+            "seconds": 1.6166666666666667,
+            "gain": 0.19166666269302368,
+            "pixel_hash": "cebe6e2e7de870e0"
+          },
+          {
+            "flicks": 1146600000,
+            "seconds": 1.625,
+            "gain": 0.17014160752296448,
+            "pixel_hash": "ff7f20a26f7e40fa"
+          },
+          {
+            "flicks": 1152480000,
+            "seconds": 1.6333333333333333,
+            "gain": 0.14657117426395416,
+            "pixel_hash": "75f4f05f70f1242d"
+          },
+          {
+            "flicks": 1158360000,
+            "seconds": 1.6416666666666666,
+            "gain": 0.1210530623793602,
+            "pixel_hash": "ac5b514556689437"
+          },
+          {
+            "flicks": 1164240000,
+            "seconds": 1.65,
+            "gain": 0.09375,
+            "pixel_hash": "4873988cf0681270"
+          },
+          {
+            "flicks": 1170120000,
+            "seconds": 1.6583333333333334,
+            "gain": 0.06860080361366272,
+            "pixel_hash": "298cbbd9343332fb"
+          },
+          {
+            "flicks": 1176000000,
+            "seconds": 1.6666666666666667,
+            "gain": 0.048828125,
+            "pixel_hash": "27a3be6f4b2344b4"
+          },
+          {
+            "flicks": 1181880000,
+            "seconds": 1.675,
+            "gain": 0.03361816331744194,
+            "pixel_hash": "22320f3249ee7a83"
+          },
+          {
+            "flicks": 1187760000,
+            "seconds": 1.6833333333333333,
+            "gain": 0.02222222276031971,
+            "pixel_hash": "40e86cd3e83af3e6"
+          },
+          {
+            "flicks": 1193640000,
+            "seconds": 1.6916666666666667,
+            "gain": 0.01395670510828495,
+            "pixel_hash": "8acbe5397cabae3e"
+          },
+          {
+            "flicks": 1199520000,
+            "seconds": 1.7,
+            "gain": 0.00820312462747097,
+            "pixel_hash": "76bc04e172d516cd"
+          },
+          {
+            "flicks": 1205400000,
+            "seconds": 1.7083333333333333,
+            "gain": 0.0044080945663154125,
+            "pixel_hash": "d0a07763d3d263bb"
+          },
+          {
+            "flicks": 1211280000,
+            "seconds": 1.7166666666666666,
+            "gain": 0.0020833334419876337,
+            "pixel_hash": "9f4bd1ba6496e031"
+          },
+          {
+            "flicks": 1217160000,
+            "seconds": 1.725,
+            "gain": 0.0008056640508584678,
+            "pixel_hash": "2cd74cfd5439642c"
+          },
+          {
+            "flicks": 1223040000,
+            "seconds": 1.7333333333333334,
+            "gain": 0.00021701389050576836,
+            "pixel_hash": "616643122bdd3391"
+          },
+          {
+            "flicks": 1228920000,
+            "seconds": 1.7416666666666667,
+            "gain": 2.441406286379788e-05,
+            "pixel_hash": "de2d5dd572fba33d"
+          },
+          {
+            "flicks": 1234800000,
+            "seconds": 1.75,
+            "gain": 0,
+            "pixel_hash": "c26ca5229aaf7291"
+          },
+          {
+            "flicks": 1240680000,
+            "seconds": 1.7583333333333333,
+            "gain": 0,
+            "pixel_hash": "20e1655d89ac127d"
+          },
+          {
+            "flicks": 1246560000,
+            "seconds": 1.7666666666666666,
+            "gain": 0,
+            "pixel_hash": "64d4d2a17090deca"
+          },
+          {
+            "flicks": 1252440000,
+            "seconds": 1.775,
+            "gain": 0,
+            "pixel_hash": "04c8e55710a7dbf2"
+          },
+          {
+            "flicks": 1258320000,
+            "seconds": 1.7833333333333334,
+            "gain": 0,
+            "pixel_hash": "a7f1e3b88682336e"
+          },
+          {
+            "flicks": 1264200000,
+            "seconds": 1.7916666666666667,
+            "gain": 0,
+            "pixel_hash": "e438d9b00d29fbc0"
+          },
+          {
+            "flicks": 1270080000,
+            "seconds": 1.8,
+            "gain": 0,
+            "pixel_hash": "581db29d0fd26440"
+          },
+          {
+            "flicks": 1275960000,
+            "seconds": 1.8083333333333333,
+            "gain": 0,
+            "pixel_hash": "5e5aa3b3f62c63ec"
+          },
+          {
+            "flicks": 1281840000,
+            "seconds": 1.8166666666666667,
+            "gain": 0,
+            "pixel_hash": "a866320c3def346c"
+          },
+          {
+            "flicks": 1287720000,
+            "seconds": 1.825,
+            "gain": 0,
+            "pixel_hash": "3d5193e8e030aeff"
+          },
+          {
+            "flicks": 1293600000,
+            "seconds": 1.8333333333333333,
+            "gain": 0,
+            "pixel_hash": "eb80ef89bf77929f"
+          },
+          {
+            "flicks": 1299480000,
+            "seconds": 1.8416666666666666,
+            "gain": 0,
+            "pixel_hash": "58dd0d77fe56bb99"
+          },
+          {
+            "flicks": 1305360000,
+            "seconds": 1.85,
+            "gain": 0,
+            "pixel_hash": "2f824e1da86cbd82"
+          },
+          {
+            "flicks": 1311240000,
+            "seconds": 1.8583333333333334,
+            "gain": 0,
+            "pixel_hash": "7b6d8e63b581d7bb"
+          },
+          {
+            "flicks": 1317120000,
+            "seconds": 1.8666666666666667,
+            "gain": 0,
+            "pixel_hash": "7175010c07c4b880"
+          },
+          {
+            "flicks": 1323000000,
+            "seconds": 1.875,
+            "gain": 0,
+            "pixel_hash": "b1c91329b6d5609b"
+          },
+          {
+            "flicks": 1328880000,
+            "seconds": 1.8833333333333333,
+            "gain": 0,
+            "pixel_hash": "ba7ed578afc8d41f"
+          },
+          {
+            "flicks": 1334760000,
+            "seconds": 1.8916666666666666,
+            "gain": 0,
+            "pixel_hash": "db877dd31bcb3bb8"
+          },
+          {
+            "flicks": 1340640000,
+            "seconds": 1.9,
+            "gain": 0,
+            "pixel_hash": "150f64597e647091"
+          },
+          {
+            "flicks": 1346520000,
+            "seconds": 1.9083333333333334,
+            "gain": 0,
+            "pixel_hash": "829a54ee6e3efd9a"
+          },
+          {
+            "flicks": 1352400000,
+            "seconds": 1.9166666666666667,
+            "gain": 0,
+            "pixel_hash": "0704fc5a1cc721b8"
+          },
+          {
+            "flicks": 1358280000,
+            "seconds": 1.925,
+            "gain": 0,
+            "pixel_hash": "3752d4354238d414"
+          },
+          {
+            "flicks": 1364160000,
+            "seconds": 1.9333333333333333,
+            "gain": 0,
+            "pixel_hash": "03f0808ca9565d0f"
+          },
+          {
+            "flicks": 1370040000,
+            "seconds": 1.9416666666666667,
+            "gain": 0,
+            "pixel_hash": "ed713762cbc40e7f"
+          },
+          {
+            "flicks": 1375920000,
+            "seconds": 1.95,
+            "gain": 0,
+            "pixel_hash": "64d203677d6b7db0"
+          },
+          {
+            "flicks": 1381800000,
+            "seconds": 1.9583333333333333,
+            "gain": 0,
+            "pixel_hash": "ab27e7a5bd7fefb1"
+          },
+          {
+            "flicks": 1387680000,
+            "seconds": 1.9666666666666666,
+            "gain": 0,
+            "pixel_hash": "9e83d5faefdc4eda"
+          },
+          {
+            "flicks": 1393560000,
+            "seconds": 1.975,
+            "gain": 0,
+            "pixel_hash": "625cb52f7dbb1cc5"
+          },
+          {
+            "flicks": 1399440000,
+            "seconds": 1.9833333333333334,
+            "gain": 0,
+            "pixel_hash": "fd9240b3ea685545"
+          },
+          {
+            "flicks": 1405320000,
+            "seconds": 1.9916666666666667,
+            "gain": 0,
+            "pixel_hash": "81709b0b655a0881"
+          },
+          {
+            "flicks": 1411200000,
+            "seconds": 2,
+            "gain": 0,
+            "pixel_hash": "abe5f69a17621209"
+          }
+        ]
+      }
+    ]
+  },
+  "artifacts": {
+    ".agents/docs/media/2026-11-05-audio-automation.png": {
+      "sha256": "80cec2064a860a2a1b5a886a3678391a120564dbd5f04dbeee6f14e2f117e34b",
+      "bytes": 45584
+    },
+    ".agents/docs/media/2026-11-05-audio-automation.webp": {
+      "sha256": "62b7877545eb183a6c801e0594a59a987dbd612994bbcee4029ef82810835e64",
+      "bytes": 131628
+    },
+    ".agents/docs/media/2026-11-05-audio-automation.wav": {
+      "sha256": "4813a99b7597b51958ce370da5fe1fea473da5316f0a659e635bf9a9bcd68743",
+      "bytes": 768044
+    }
+  },
+  "benchmark": {
+    "command": "MCPP_JOBS=2 mcpp run --locked -p openmui.bench --profile release -- --filter audio/ --check tests/bench/budgets.bench.omui.json --json target/audio-automation.bench.omui.json",
+    "log": "/tmp/omui-audio-bench-final.log",
+    "log_sha256": "73a838fefbe24826360a4eefbb9f26b9c866c53eefc3942e29ae79457c636218",
+    "report": {
+      "format": "openmui.bench@0.1",
+      "label": "",
+      "platform": "linux",
+      "hardware_threads": 32,
+      "started": "2026-11-04T23:00:55Z",
+      "machine": {
+        "cpu": "13th Gen Intel(R) Core(TM) i9-13900K",
+        "arch": "x86_64",
+        "system": "Ubuntu 24.04.1 LTS, kernel 6.8.0-147-generic",
+        "memory": 67147726848
+      },
+      "results": [
+        {
+          "name": "audio/automated-mix",
+          "description": "128 stereo frames: 48 voices, echo and sample-clock gain from an immutable 64-key timeline curve",
+          "iterations": 8651,
+          "notes": {
+            "scope": "CPU mix plus sample-accurate keyed gain, 128 stereo frames; setup, voice refill and files excluded. No device latency, GUI or GPU measured."
+          },
+          "min_ms": 0.027083,
+          "mean_ms": 0.04623937302046001,
+          "p50_ms": 0.045849,
+          "p95_ms": 0.052994,
+          "p99_ms": 0.059057,
+          "max_ms": 0.24772,
+          "items": 128,
+          "ns_per_item": 361.2451017223438,
+          "allocations": 0,
+          "max_allocations": 0,
+          "counters": {
+            "voices": 48
+          }
+        },
+        {
+          "name": "audio/mix-48",
+          "description": "a block of 128 frames at 48 kHz with 48 voices sounding (filtered noise, gliding sines, saws), an echo and the limiter (D-86)",
+          "iterations": 9037,
+          "min_ms": 0.0255,
+          "mean_ms": 0.0442668091180704,
+          "p50_ms": 0.044222,
+          "p95_ms": 0.050961,
+          "p99_ms": 0.055003,
+          "max_ms": 0.064622,
+          "items": 128,
+          "ns_per_item": 345.834446234925,
+          "allocations": 0,
+          "max_allocations": 0,
+          "counters": {
+            "voices": 48
+          }
+        }
+      ]
+    },
+    "cpu": "13th Gen Intel Core i9-13900K",
+    "scope": "128 stereo frames at 48 kHz, 48 voices plus echo and a prepared 64-key gain curve. Setup/voice refill/files excluded. No device latency, GPU, render-frame time or dedicated isolated-machine comparison. Concurrent unrelated host activity may affect timings."
+  },
+  "build_recoveries": [
+    "Initial native release audio tests used nonexistent TMPDIR; created separate scratch directories and reran successfully.",
+    "Early CLI integration fixed Theme factory and filesystem helper names; final tests cover real CLI. One release build overlapped API editing and used stale BMI; fresh build succeeded.",
+    "Existing benchmark harness includes a studio host tool. Generated build-program locks were bootstrapped in the generated cache and root target/.build-mcpp directory, then generated host-tool lock populated only with its 10 exact existing repository dependency entries. Final parent command remained --locked and repository lock bytes unchanged."
+  ],
+  "engineering": {
+    "lint_log": "/tmp/omui-audio-lint-final.log",
+    "source_lock_untouched": true,
+    "ci": "Workspace tests pick up the new package and CLI test; cross-platform CI not awaited. Existing failed-test PNG collection is not an automatic success replay uploader."
+  },
+  "remaining": [
+    "live bounded cross-thread binding and control/event queue",
+    "stateful DSP checkpoint/rebuild and transport seek",
+    "audio device clock/latency calibration and realtime playback review",
+    "general modulation graph, arbitrary source media player and audio CLI dependency split",
+    "independent openas engine provider and interactive GUI/editor",
+    "website mixing/rhythm work, S1-S10 and >=40 public animations / >=20 creative works remain open"
+  ]
+}

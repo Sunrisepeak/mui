@@ -33,6 +33,11 @@ intro.at(seconds(0), "title.opacity", Tween<double>{.from = 0, .to = 1, .duratio
 
 Tests: `mcpp test -p hanim.core`.
 
+`Ease::valid()` validates data supplied by another subsystem before it publishes
+a prepared curve: finite parameters, legal Bezier x controls and integer step
+counts/positions. Overshoot remains legal. Program preparation and the optional
+timeline/audio adapter share this validation; it does not alter curve sampling.
+
 `ShapeMorphOptions::point_path` optionally changes matched vertex/control-point
 trajectories. `PointPath::bend(0.25)` moves a midpoint by one quarter of its
 endpoint chord length along `(-dy,dx)`. Two custom control offsets can describe

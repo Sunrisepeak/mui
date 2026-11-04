@@ -2,6 +2,9 @@ module openmui.bench;
 
 import std;
 import openmui.audio;
+import openmui.timeline;
+import openmui.timeline.audio;
+import hanim.core;
 
 namespace omui::bench {
 
@@ -41,6 +44,28 @@ gain = 0.3
 }  // namespace
 
 void add_audio_benchmarks() {
+    add("audio/automated-mix", "128 stereo frames: 48 voices, echo and sample-clock gain from an immutable 64-key timeline curve",
+        [](State& s) {
+            audio::Mixer mixer({.voices = 48});
+            const auto list = *audio::read_sounds(sounds, "bench.sound.omui.toml");
+            std::vector<std::int32_t> ids;
+            for (const auto& sound : list) ids.push_back(mixer.add(sound));
+            mixer.add_effect("sfx", audio::echo(.09f, .3f, .25f, mixer.rate()));
+            timeline::Clip clip{.length=timeline::from_seconds(3600)};
+            timeline::Property gain{.name="gain"};
+            for(int i=0;i<64;++i) gain.keys.key(hanim::seconds(i * 3600. / 63), i%2 ? .9 : .2, hanim::ease::in_out_cubic);
+            clip.properties.push_back(std::move(gain));
+            const auto automation=timeline::GainAutomation::prepare(clip);
+            if(!automation || !mixer.automate_gain("sfx",*automation)) { s.fail("gain preparation/bind failed"); return; }
+            std::array<float,2*audio::block_frames> block{};
+            std::int64_t played=0;
+            auto fill=[&] { for(auto k=mixer.sounding();k<48;++k,++played) (void)mixer.play(ids[static_cast<std::size_t>(played%2)],mixer.clock(),.5f); };
+            for(int i=0;i<64;++i) {fill();mixer.render(block);}
+            s.items(audio::block_frames);
+            while(s.next()) {s.pause();fill();s.resume();mixer.render(block);}
+            s.counter("voices",48);
+            s.note("scope","CPU mix plus sample-accurate keyed gain, 128 stereo frames; setup, voice refill and files excluded. No device latency, GUI or GPU measured.");
+        });
     add("audio/mix-48", "a block of 128 frames at 48 kHz with 48 voices sounding (filtered noise, gliding sines, saws), an echo and the limiter (D-86)",
         [](State& s) {
             audio::Mixer mixer({.voices = 48});

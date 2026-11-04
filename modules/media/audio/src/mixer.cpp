@@ -2,13 +2,13 @@ module openmui.audio;
 
 import std;
 import openmui.hash;
-import hanim.core;
+import openmui.math;
 import openmui.trace;
 import :dsp;
 
 namespace omui::audio {
 
-namespace dm = hanim::dm;
+namespace dm = omui::math::det;
 
 using namespace dsp;
 
@@ -78,6 +78,7 @@ struct Bus {
     std::int32_t                         key = -1;  // ducked under this bus (−1: never)
     Duck                                 duck;
     double                               attack = 0, release = 0, level = 0;  // the ducking's follower
+    GainSource                          automation;
 };
 
 }  // namespace
@@ -103,6 +104,7 @@ struct Mixer::Impl {
     std::vector<Command>       pending;  // taken off the queue, waiting for their sample
     std::size_t                waiting = 0;
     std::array<float, block_frames> master_left{}, master_right{};
+    std::array<float, block_frames> gain_values{};  // reused for one bus at a time
     double                     limit = 1, release = 0;
     LimiterStats               limited;
     std::vector<std::int32_t>  order;  // the buses, each after those routed into it and its key
@@ -292,11 +294,28 @@ struct Mixer::Impl {
                     b.left[i] *= g, b.right[i] *= g;
                 }
             }
+            if (b.automation) {
+                b.automation.sample(clock, std::span(gain_values).first(n));
+                std::size_t invalid = 0;
+                for (std::size_t i = 0; i < n; ++i) {
+                    const float value = gain_values[i];
+                    invalid += !std::isfinite(value);
+                    const float gain = std::isfinite(value) ? std::clamp(value, 0.0f, 8.0f) : 0.0f;
+                    gain_values[i] = b.gain * gain;
+                }
+                omui::trace::count("audio.automation.invalid", static_cast<double>(invalid), "audio");
+            }
             if (b.to >= 0) {
                 Bus& into = buses[static_cast<std::size_t>(b.to)];
-                for (std::size_t i = 0; i < n; ++i) into.left[i] += b.left[i] * b.gain, into.right[i] += b.right[i] * b.gain;
+                for (std::size_t i = 0; i < n; ++i) {
+                    const float gain = b.automation ? gain_values[i] : b.gain;
+                    into.left[i] += b.left[i] * gain; into.right[i] += b.right[i] * gain;
+                }
             } else {
-                for (std::size_t i = 0; i < n; ++i) master_left[i] += b.left[i] * b.gain, master_right[i] += b.right[i] * b.gain;
+                for (std::size_t i = 0; i < n; ++i) {
+                    const float gain = b.automation ? gain_values[i] : b.gain;
+                    master_left[i] += b.left[i] * gain; master_right[i] += b.right[i] * gain;
+                }
             }
         }
         // The limiter: down at once to hold a peak under the ceiling, back up slowly.
@@ -394,6 +413,14 @@ std::int32_t Mixer::find(std::string_view name) const noexcept {
 }
 
 void Mixer::bus_gain(std::string_view bus, float gain) { impl_->buses[static_cast<std::size_t>(impl_->bus_index(bus))].gain = gain; }
+
+std::expected<void, AutomationError> Mixer::automate_gain(std::string_view bus, GainSource source) {
+    auto found = std::ranges::find(impl_->buses, bus, &Bus::name);
+    if (found == impl_->buses.end()) return std::unexpected(AutomationError::unknown_bus);
+    if (source && source.rate() != rate()) return std::unexpected(AutomationError::rate_mismatch);
+    found->automation = std::move(source);
+    return {};
+}
 
 void Mixer::add_effect(std::string_view bus, std::unique_ptr<Effect> effect) {
     impl_->buses[static_cast<std::size_t>(impl_->bus_index(bus))].effects.push_back(std::move(effect));

@@ -19,7 +19,7 @@
 import std;
 import nlohmann.json;
 import openmui.audio;
-import hanim.core;
+import openmui.math;
 
 namespace audio = omui::audio;
 
@@ -75,7 +75,7 @@ nlohmann::ordered_json problems_json(std::span<const audio::Problem> problems) {
     return a;
 }
 
-double db(double linear) { return linear > 0 ? 20 * hanim::dm::log(linear) / 2.302585092994046 : -200.0; }
+double db(double linear) { return linear > 0 ? 20 * omui::math::det::log(linear) / 2.302585092994046 : -200.0; }
 
 // A float as the double its shortest text is (0.35, not 0.3499999940395355).
 double tidy(float f) {
@@ -288,7 +288,7 @@ int takes(const std::filesystem::path& file, int argc, char** argv) {
         j["take"] = n + 1;
         j["at"] = static_cast<double>(t.begin) / r->rate;
         j["seconds"] = static_cast<double>(t.end - t.begin) / r->rate;
-        j["peak_db"] = t.peak > 0 ? 20 * hanim::dm::log(static_cast<double>(t.peak)) / hanim::dm::log(10.0) : -200.0;
+        j["peak_db"] = t.peak > 0 ? 20 * omui::math::det::log(static_cast<double>(t.peak)) / omui::math::det::log(10.0) : -200.0;
         j["rms_db"] = t.rms;
         j["pitch_hz"] = t.pitch;
         j["voiced"] = t.voiced;

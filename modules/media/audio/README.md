@@ -15,7 +15,7 @@ mixer.render(block);                                                      // on 
 ```
 
 - **Sounds** (`*.sound.omui.toml`): `[sound.<name>]` tables, each with layers.
-  - A layer is a source: a sine (a table made with hanim's math), a triangle, a band-limited square or saw (polyBLEP), or seeded noise.
+  - A layer is a source: a sine (a table made with shared `openmui.math`), a triangle, a band-limited square or saw (polyBLEP), or seeded noise.
   - Its pitch glides exponentially from one value to another over its length. Its filter (low, high or band pass) has a cutoff that glides too.
   - An envelope (attack, hold, decay, sustain, release) shapes it, then soft clipping, gain and an equal-power pan.
   - A punch is a burst of low-passed noise over a falling sine; a bell is a sine and its overtone.
@@ -24,13 +24,14 @@ mixer.render(block);                                                      // on 
 - **The mix** (`Mixer`):
   - Voices start on their exact sample. Past the most at once, the oldest gives way.
   - Buses ("sfx", "music", or any name) have a gain and effects, in order. A bus can be routed into another (`route`) and ducked under another (`duck`: a peak follower on the key, the sidechain).
+  - `automate_gain(bus, prepared_source)` multiplies a bus's static gain on its exact sample clock. `GainSource` retains a shared immutable owner with `rate()` and `sample(first, values)` noexcept methods; no inheritance or virtual function is needed. It calls one erased function per bus/block, with no per-sample dispatch, event or GUI clock. Empty/moved-from sources are neutral; null clears a binding. Bind/clear at a quiescent boundary; an unknown bus or rate mismatch preserves the old owner. Samples clamp to 0–8, non-finite values become silence with a trace counter. Sidechain keys remain pre-gain. The optional [timeline adapter](../timeline/audio) reuses hanim's keyed curves; the audio engine itself does not depend on hanim or a timeline.
   - An effect is a plugin (`Effect`). Built in (`effect(EffectSpec)`): low, high and band pass filters, an echo (straight or ping-pong, in seconds or in beats), a reverb (Freeverb: eight damped combs and four allpasses a side, a pre-delay) and a chorus. A program can write its own.
   - A source is a plugin too (`Source`): it adds its own voices into the buses on the mixer's clock. The sequencer is one.
   - The master has a peak limiter (peaks under −1 dBFS); `limiter()` says how hard it has worked.
   - `play` may be called from one thread while another renders: a lock-free queue sits between them.
   - Nothing is allocated while rendering; a sound's tables are made when it is added. Buses, effects and sources are set up before another thread renders.
 - **Offline** (`render`, `wav`, `hash`, `levels`): a video's track, or a test's pinned bits.
-  - The DSP uses `-ffp-contract=off` and no fast-math. Every transcendental comes from `hanim::dm`, so no platform's libm enters a sample; denormals are flushed by hand, the same everywhere.
+  - The DSP uses `-ffp-contract=off` and no fast-math. Every transcendental comes directly from `omui::math::det`, so no platform's libm enters a sample; denormals are flushed by hand, the same everywhere. The historical hanim math alias is no longer a dependency. JSON still belongs to the existing `omui-music` CLI dependency set; it has not yet been split into a separate package.
   - `levels` measures a mix: peak, RMS, integrated loudness (ITU-R BS.1770: K-weighted, gated), the energy of five bands and the channels' correlation.
   - The test scene's hash is the same on GCC, LLVM and wasm.
 

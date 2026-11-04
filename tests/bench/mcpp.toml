@@ -33,6 +33,8 @@ openmui.sdk             = { path = "../.." }
 openmui.trace           = { path = "../../modules/base/trace" }
 openmui.markdown        = { path = "../../modules/content/markdown" }
 openmui.audio           = { path = "../../modules/media/audio" }
+"openmui.timeline"       = { path = "../../modules/media/timeline" }
+"openmui.timeline.audio" = { path = "../../modules/media/timeline/audio" }
 "openmui.ui.canvas"       = { path = "../../components/canvas" }
 "openmui.ui.canvas.kit"   = { path = "../../components/canvas/kit" }
 openmui.showcase.markdown_wall   = { path = "../../showcase/markdown-wall" }

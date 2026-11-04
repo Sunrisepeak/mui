@@ -20,3 +20,9 @@ tl::apply(*t, *undo);                                            // and the time
 - **The file.** `*.timeline.omui.toml` is written for people and agents. Times are text: `90f` (frames), `1.5s`, `250ms`, or `123fl` (flicks) for a time that is neither. Every problem is reported at its line and column with the nearest right word, and what `write_timeline` writes reads back as itself.
 
 Tests (`mcpp test -p openmui.timeline`): exact frame and sample times; times as text both ways; reading, and what plays at moments (fades, half speed, eased keys); located problems; each edit, its undo and its redo restoring the file's very text, and refused edits leaving it as it was; a minute of frames hashed, the same on GCC, LLVM and wasm.
+
+## Optional adapters
+
+| Package | Purpose |
+|---|---|
+| [audio](audio) | Frozen keys/clip fades on an audio sample clock; read-only visual queries and the mixer's prepared gain source. Neither parent imports the adapter. |

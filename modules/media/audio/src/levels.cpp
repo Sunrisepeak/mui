@@ -2,18 +2,18 @@
 // loudness by ITU-R BS.1770-4 (K-weighting, 400 ms blocks overlapping by
 // 75%, gated at −70 LUFS and 10 LU under the ungated mean) and five bands
 // (Linkwitz–Riley crossovers), with the channels' correlation. Offline, for
-// tools and tests; the same numbers everywhere (hanim's transcendentals).
+// tools and tests; the same numbers everywhere (the shared deterministic transcendentals).
 module openmui.audio;
 
 import std;
-import hanim.core;
+import openmui.math;
 import :dsp;
 
 namespace omui::audio {
 
 namespace {
 
-namespace dm = hanim::dm;
+namespace dm = omui::math::det;
 using dsp::Biquad;
 using dsp::BiquadState;
 

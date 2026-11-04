@@ -1,18 +1,18 @@
 // openmui.audio:dsp — the building blocks every voice and effect shares (not
 // exported): a sine table, band-limited steps, biquads, seeded noise, and
 // the curves an envelope falls by. Each is written out with the five
-// correctly rounded operations and hanim's transcendentals, so a sample is
+// correctly rounded operations and the shared deterministic transcendentals, so a sample is
 // the same bits on every platform (the package is built with
 // -ffp-contract=off and no fast-math).
 module openmui.audio:dsp;
 
 import std;
-import hanim.core;
+import openmui.math;
 import :mix;
 
 namespace omui::audio::dsp {
 
-namespace dm = hanim::dm;
+namespace dm = omui::math::det;
 
 inline constexpr std::int32_t table_size = 4096;
 inline constexpr std::int32_t control = 16;  // samples between a filter's coefficients

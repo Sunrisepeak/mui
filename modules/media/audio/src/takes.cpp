@@ -2,13 +2,13 @@
 module openmui.audio;
 
 import std;
-import hanim.core;
+import openmui.math;
 
 namespace omui::audio {
 
 namespace {
 
-namespace dm = hanim::dm;
+namespace dm = omui::math::det;
 
 double db(double linear) { return linear > 0 ? 20 * dm::log(linear) / dm::log(10.0) : -200; }
 

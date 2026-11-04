@@ -45,6 +45,10 @@ struct Ease {
     // The eased progress for linear progress t; t outside [0, 1] is clamped.
     [[nodiscard]] double operator()(double t) const noexcept;
 
+    // Valid serializable parameters for prepared consumers. This does not
+    // require monotone output: back/elastic and Bezier y values may overshoot.
+    [[nodiscard]] bool valid() const noexcept;
+
     // d(eased)/dt at t, by a fixed central difference (deterministic); used to
     // carry velocity when a tween is interrupted by a spring.
     [[nodiscard]] double slope(double t) const noexcept;

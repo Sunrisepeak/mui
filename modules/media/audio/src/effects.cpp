@@ -5,7 +5,7 @@
 module openmui.audio;
 
 import std;
-import hanim.core;
+import openmui.math;
 import :dsp;
 
 namespace omui::audio {

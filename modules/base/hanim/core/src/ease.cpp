@@ -181,6 +181,16 @@ double Ease::operator()(double t) const noexcept {
     return t;
 }
 
+bool Ease::valid() const noexcept {
+    if (kind > EaseKind::steps) return false;
+    for (double value : p) if (!std::isfinite(value)) return false;
+    if (kind == EaseKind::cubic_bezier && (p[0] < 0 || p[0] > 1 || p[2] < 0 || p[2] > 1)) return false;
+    if (kind == EaseKind::steps && (p[0] < 1 || p[0] > 1000000 ||
+        static_cast<double>(static_cast<std::uint32_t>(p[0])) != p[0] || p[1] < 0 || p[1] > 3 ||
+        static_cast<double>(static_cast<std::uint32_t>(p[1])) != p[1])) return false;
+    return true;
+}
+
 double Ease::slope(double t) const noexcept {
     constexpr double h = 1.0 / 4096.0;  // a power of two: t ± h is exact for t on the 2^-12 grid
     double a = t - h < 0.0 ? 0.0 : t - h;

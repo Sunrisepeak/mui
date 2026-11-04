@@ -7,6 +7,17 @@ using namespace omui::testing;
 int main(int argc, char** argv) {
     Suite s{"hanim.ease"};
 
+    s.test("prepared consumers share parameter validation without forbidding overshoot", [] {
+        using namespace hanim;
+        check(ease::out_back.valid() && Ease::bezier(.2, -4, .8, 3).valid());
+        check(Ease::stepped(12).valid());
+        for (const auto bad : {Ease{static_cast<EaseKind>(255)},
+            Ease{EaseKind::linear, {std::numeric_limits<double>::quiet_NaN()}},
+            Ease{EaseKind::cubic_bezier, {-1, 0, .5, 1}},
+            Ease{EaseKind::steps, {2.5, 1}}, Ease{EaseKind::steps, {4, 4}},
+            Ease{EaseKind::steps, {1000001, 1}}}) check(!bad.valid());
+    });
+
     s.test("every named curve starts at 0 and ends at 1", [] {
         for (int k = 0; k <= static_cast<int>(hanim::EaseKind::in_out_bounce); ++k) {
             hanim::Ease e{static_cast<hanim::EaseKind>(k)};

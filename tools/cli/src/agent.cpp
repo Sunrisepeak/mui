@@ -365,6 +365,7 @@ cmd::App app() {
     (void)a.subcommand(fmt_command());
     (void)a.subcommand(schema_command());
     (void)a.subcommand(video_command());
+    (void)a.subcommand(audio_command());
     (void)a.subcommand(connect_command());
     cmd::App pg{"page"};
     (void)a.subcommand(page_command(operations(std::move(pg), false)));
@@ -488,6 +489,7 @@ int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err)
                "  omui fmt FILE…       the canonical format (--check)\n"
                "  omui schema          the JSON Schema of view documents\n"
                "  omui video render | still | check | probe | timing   videos: frames and sound on exact counts\n"
+               "  omui audio automation FILE --track NAME --clip NAME --out PREFIX   audition and inspect a gain curve\n"
                "  omui mcp             an MCP server: agents operate running applications (claude mcp add openmui -- omui mcp)\n"
                "  omui connect --code CODE   the bridge a page in your browser pairs with (its prompt gives the code)\n"
                "  omui page status | describe | snapshot | find | act | wait | …   operate the paired page\n\n"
@@ -499,6 +501,7 @@ int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err)
     if (parsed->subcommand_name() == "fmt") return fmt(parsed->subcommand()->get(), out, err);
     if (parsed->subcommand_name() == "schema") return schema(parsed->subcommand()->get(), out, err);
     if (parsed->subcommand_name() == "video") return video(parsed->subcommand()->get(), out, err);
+    if (parsed->subcommand_name() == "audio") return audio(parsed->subcommand()->get(), out, err);
     if (parsed->subcommand_name() == "connect") return connect(parsed->subcommand()->get(), global(*parsed, "dir"), out, err);
     if (parsed->subcommand_name() == "page") return page(parsed->subcommand()->get(), global(*parsed, "dir"), out, err);
     if (parsed->subcommand_name() == "mcp") {

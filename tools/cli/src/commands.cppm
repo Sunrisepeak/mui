@@ -65,4 +65,8 @@ int sweep(const std::function<std::vector<Value>(const Value&)>& call, const mcp
 [[nodiscard]] mcpplibs::cmdline::App video_command();
 int video(const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ostream& err);
 
+// omui audio (audio.cpp): offline automation audition and visual inspection.
+[[nodiscard]] mcpplibs::cmdline::App audio_command();
+int audio(const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ostream& err);
+
 }  // namespace omui::cli

@@ -81,4 +81,6 @@
 
 维护者进一步明确 hanim 须交付 core＋库＋效果、hobject／hengine.play、真实像素物质插值与完整 Manim 功能目标，见[完整引擎讨论稿](2026-11-04-hanim-animation-library-playback-design.md)。本轮 UI 中间态修复不能替代该基础设施，后续通用对象／算法应归入 hanim 家族，UI 保留适配与默认配方。
 
+后续局部验证：`/tmp/omui-motion-snapshot-context-final.log` 的 motion 对比度／上下文快照 21 项通过；`/tmp/omui-view-snapshot-context-final.log` 的 release view 七程序共 103 项通过（presentation 8、adapt 4、motion 10、constraint 13、text-policy 9、theme 7、原 view 52）。这覆盖上下文快照打断连续性与浮点边框回归，未关闭上述 segmented／父子布局策略问题，也不证明目标 hanim 对象引擎已实现。
+
 不以本轮修复关闭其它原范围：三条 Agent 路径的九个真实场景、40 个设计的意图迁移、20 个创意任务的完整操作、复杂组件部件与低档质量、干净工程出口、需求式字体及源字形覆盖、真实外部 agent、R3–R6 仍按总方案继续。

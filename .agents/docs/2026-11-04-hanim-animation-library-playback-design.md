@@ -237,3 +237,71 @@ CPU 为确定性参考；GPU 通过同一计划与渲染图执行，按声明的
 5. **H4 完整覆盖与质量**：公式／图表／向量场／3D／相机／联动／媒体与插件逐项补齐，完成 Manim 全表及“更好”的对照基准。
 
 各阶段沿用原 R0–R6／C2–C6 的任务映射，本地真实验证优先、CI 异步；同时工作的 subagent 不超过 2。此文是讨论与 review 产物，不宣称上述迁移或能力已经实现。
+
+## 12. 旧 Sunrisepeak/Hanim 的参考取舍
+
+维护者提供 [Sunrisepeak/Hanim](https://github.com/Sunrisepeak/Hanim)，要求选择性参考。2026-11-04 通过 GitHub 读取源码；本节审阅固定版本 **`27f9ebee6ab94d8513e40390b3968a6b9c0ef95a`**，不是旧项目运行／性能验收。README 标注 WIP，仓库同时保留 `core/` 与 `old_project/` 两代实现，不能把不同代际接口拼成一个当前契约。
+
+### 12.1 保留的设计意图
+
+1. **执行器、行为、对象分离**：[原设计说明](https://github.com/Sunrisepeak/Hanim/blob/27f9ebee6ab94d8513e40390b3968a6b9c0ef95a/old_project/docs/design-thinking.md)明确 HEngine／HAnimate／HObject 三者的独立性；这与当前完整产品目标一致。HEffect 加入后同样保持独立可组合。
+2. **独立原生场景与对象库**：形状、PixelPanel、Transform、DrawBorder 等直接用于动画程序，说明动画库本来就应能独立于 UI 使用。
+3. **组合动画**：HAnimGroup 与 HParallelAnimate 表达复用和对子对象应用的意图。新实现保留组合能力，重做通道冲突、时间映射与执行模型。
+4. **跨框架适配的方向**：[旧 ImGui 适配](https://github.com/Sunrisepeak/Hanim/blob/27f9ebee6ab94d8513e40390b3968a6b9c0ef95a/old_project/ImGui.hanim.hpp)展示由外部 UI 消费动画值的方向；新适配须通过公开对象、计划和呈现契约，不沿用宏、全局当前 ID 或逐组件包装动画。
+
+### 12.2 不沿用的实现机制
+
+| 源码证据 | 问题与推导 | 新契约 |
+|---|---|---|
+| [core/engine.hpp](https://github.com/Sunrisepeak/Hanim/blob/27f9ebee6ab94d8513e40390b3968a6b9c0ef95a/core/engine.hpp) 的静态 Instance／Config、构造时初始化 Render／Recorder | Engine 与全局窗口、录制和设备生命周期绑在一起，不利于宿主嵌入、多实例与无窗口使用 | Engine 显式实例化；时钟／后端／目标由使用方注入；独立 viewer 是普通宿主 |
+| [core/scene.hpp](https://github.com/Sunrisepeak/Hanim/blob/27f9ebee6ab94d8513e40390b3968a6b9c0ef95a/core/scene.hpp) 的 play_internal → render，内部循环推进全部帧，并保存每帧对象副本 | play 同时编排、推进和渲染；target_frame 读取已生成帧缓存。不能据此证明未计算帧随机寻址，且场景长度影响保留量 | play 提交计划并返回句柄；宿主驱动 evaluate(t)；离线直接采样所需时间，缓存有明确预算 |
+| [animations/animation.hpp](https://github.com/Sunrisepeak/Hanim/blob/27f9ebee6ab94d8513e40390b3968a6b9c0ef95a/animations/animation.hpp) Rotate 使用 mOldValue 计算增量；[creation.hpp](https://github.com/Sunrisepeak/Hanim/blob/27f9ebee6ab94d8513e40390b3968a6b9c0ef95a/animations/creation.hpp) DrawBorder 依据当前 points.size 推进 | 结果依赖此前 update 顺序，不能直接支持任意顺序采样、倒放和并行帧 | 不可变源数据＋时间直接生成当前状态；需要累积的算法明确求解／检查点契约 |
+| [core/framework/object.hpp](https://github.com/Sunrisepeak/Hanim/blob/27f9ebee6ab94d8513e40390b3968a6b9c0ef95a/core/framework/object.hpp) 的 ref／clone／move_sema 与复制赋值共同控制 mData | 对象身份、复制状态与共享资源的语义交织；动画 begin／finish 又修改 move flag，难以推导并发动画生命周期 | 分开 HObjectRef、不可变 Snapshot 和资源租约；普通 C++ 值／移动语义不随播放状态改变 |
+| 同上 align_components／align_data_style1 复制部件／重复点，并缩放透明度；[interpolate.hpp](https://github.com/Sunrisepeak/Hanim/blob/27f9ebee6ab94d8513e40390b3968a6b9c0ef95a/core/framework/interpolate.hpp) 按数组位置及较短长度处理 | 点数相等不等于轮廓／部件语义对应，也不能保证形状、coverage 或颜色守恒；空输入与不兼容状态需要显式校验 | 准备阶段建立有类型的对应；保形细分、方向／起点、birth／death、像素权重各自定义；失败返回原因 |
+| [core/framework/animate.hpp](https://github.com/Sunrisepeak/Hanim/blob/27f9ebee6ab94d8513e40390b3968a6b9c0ef95a/core/framework/animate.hpp) 逐动画虚函数与整对象写回；通用插值构建对象／vector | 热路径模型与当前无虚调用、暖帧零分配目标不一致；同属性并行动画缺少统一解析 | 配方编译为按类型批量执行的计划；明确 replace／add／multiply／blend、空间与优先级 |
+| HObject 直接包含 DrawMode，并导入 gl_interface；[core/render.hpp](https://github.com/Sunrisepeak/Hanim/blob/27f9ebee6ab94d8513e40390b3968a6b9c0ef95a/core/render.hpp) 管理 GLFW／GL 和逐对象绘制 | 通用对象契约绑定具体绘制接口，无法自然复用当前共享 renderer／多后端 | 中立对象数据；renderer 为后端，窗口为宿主；沿用共享 RHI、渲染图、纹理池与 CPU 参考 |
+| [objects/pixels.hpp](https://github.com/Sunrisepeak/Hanim/blob/27f9ebee6ab94d8513e40390b3968a6b9c0ef95a/objects/pixels.hpp) 的 PixelPanel 是小矩形构成的对象组 | 像素题材对象有参考价值，但该类本身不能证明真实图片／UI 像素采样、跨对象对应、运输与重组 | 从真实内容与 mask 准备像素域，公开采样密度、源坐标、颜色／alpha、面积权重和匹配质量 |
+
+以上是源码静态推导，不把未运行的旧实现写成已复现崩溃或性能数字；本轮不复制旧源码、不修改旧仓库。
+
+## 13. omui 以普通用户身份使用 hanim
+
+### 13.1 接口边界
+
+**独立引擎不导入 UI，omui 不访问引擎私有成员。** UI 适配只使用公开的 Adapter／Snapshot／PreparedPlan／Presentation 接口；其它 UI 框架有相同接入权。hanim 的配对与时间算法不写 button、toggle、Runtime 或无障碍角色的特例。
+
+| 模块 | 所有权与职责 |
+|---|---|
+| hanim | 对象、域、匹配、动画／效果计划、求值、句柄和资源引用契约 |
+| renderer／host | 图形设备、共享渲染图、像素输出；窗口／编码／离屏目标 |
+| omui adapter | UI ID ↔ HObjectRef，部件、坐标、资源、状态版本与呈现结果的转换 |
+| omui 默认配方／theme | 根据组件角色、形状、用途与风格选择公共动画条目，定义触发与覆盖规则 |
+| 应用 | 业务状态、交互意图、可选覆盖与创意组合 |
+
+HObject 的使用接口至少区分：
+
+- **冻结 capture**：导出独立 Snapshot 与资源租约，可在 UI 销毁后按约定继续采样和离线输出。
+- **实时 bind**：公开 Binding 关联宿主对象，版本变化触发重新准备；对象销毁／代次失效有明确结果，不借用临时 UI 内存。
+- **子域选择**：整组件、命名部件、某段字形／轮廓／像素使用统一 selector，不为每一种控件手写专用引擎动画。
+
+转换优先保留矢量、真实 shaping、图片引用、clip、层次、命名部件和布局 reference；需要像素动画才捕获真实像素。一个复合组件仍是有结构的 HObject，不能强制压成一张平面截图。
+
+### 13.2 一次 UI 状态变化的完整流程
+
+1. UI 业务状态提交为 B，语义及时生效；adapter 取得当前呈现 A 与 B 的目标快照及命名部件。
+2. 默认规则选公共库配方，准备器生成同一 hanim Plan；应用显式配置也走相同接口。
+3. 框架的帧管线使用宿主时间批量 evaluate；play 不占有事件循环，不内部等待动画结束。
+4. 引擎产出当前物质与 Presentation；共享 renderer 执行同一渲染图，adapter 用同一呈现结果维护命中、局部坐标、裁切及 agent 可见几何。
+5. 打断从当前采样状态建立新计划；删除后的退出物质保留所需资源，退出物质不成为新的可操作业务对象。
+
+单击、undo、业务 setter 不由可视采样逐帧重复调用。命名部件的状态运动与外部分配／父布局运动分别组合；选中面跟随其选项的 reference，不按旧绝对坐标独立漂移。端点、布局版本、异步字体／资源更新都必须显式处理，不能依赖捕获后永远不变的假设。
+
+### 13.3 独立性必须能被测试证明
+
+1. **纯动画程序**只依赖 hanim 和选定 renderer／host，创建对象、组合动画与效果，交互和离线输出均不构造 omui Runtime。
+2. **omui 程序**经公开 adapter 将真实组件转为 HObject，组合相同库条目；禁止直接引用引擎 implementation partition 或私有状态。
+3. **第三方／合成宿主 adapter** 使用相同接入 CTS，证明 omui 没有特权接口；不需要为此引入另一个大型 UI 框架依赖。
+4. 同一计划在任意采样顺序、暂停／倒放、打断、对象删除、资源变更下有证据；真实像素与真实输入均检查，不能只测数值轨道。
+5. 40 个基础库条目与 20 个组合都引用公开 hanim；官网只持有业务模型与场景内容。未迁移的现有 UI 特有能力列入清单，不能用新旧两套长期并存宣称统一完成。
+
+这些条目是后续实施和迁移的验收边界，本节不宣称当前已有该 adapter 或完整 HObject／Engine API。

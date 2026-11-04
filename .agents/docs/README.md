@@ -4,7 +4,7 @@
 
 | 文档 | 内容 |
 |---|---|
-| [2026-11-04-hanim-animation-library-playback-design.md](2026-11-04-hanim-animation-library-playback-design.md) | **hanim 完整引擎／讨论稿**：core＋动画库＋效果，hobject 与 `hengine.play`，真实像素物质与轮廓插值，三轴分级；UI 适配同一引擎；Manim 全覆盖目标及差距、目录迁移与独立消费者验收，40／20 不替代底层能力 |
+| [2026-11-04-hanim-animation-library-playback-design.md](2026-11-04-hanim-animation-library-playback-design.md) | **hanim 完整引擎／讨论稿**：core＋动画库＋效果，hobject 与 `hengine.play`，真实像素物质与轮廓插值、三轴分级；旧 Hanim 固定版本的取舍；omui 通过公开 adapter 作为普通用户消费引擎；Manim 全覆盖与独立消费者验收，40／20 不替代底层能力 |
 | [2026-11-04-omui-motion-readability-presentation-design.md](2026-11-04-omui-motion-readability-presentation-design.md) | **动画中间态质量（实施中）**：默认可读文字与显式字形变形、打断快照、实色承载面对比度、历史主题层隔离、呈现／点击几何与响应式约束；真实失败证据与局部验证边界 |
 | [2026-11-04-omui-shared-font-delivery-design.md](2026-11-04-omui-shared-font-delivery-design.md) | **共享字体交付**：静态 FontFace／运行时一次下载、字节租约与释放、语言重计划／别名／失败重试、真实网络计数门禁；完整按页交付继续单列 |
 | [2026-11-04-omui-first-frame-loading-design.md](2026-11-04-omui-first-frame-loading-design.md) | **首帧与加载收口**：生产视图导出图像／真实语义几何、按页开场预览、真实解压字节进度、失败重试、字体子集与后加载优先级、百分比换行的深层回归；最终结果与尚未完成边界分开记录 |

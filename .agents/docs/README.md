@@ -4,6 +4,8 @@
 
 | 文档 | 内容 |
 |---|---|
+| [2026-11-04-hanim-animation-library-playback-design.md](2026-11-04-hanim-animation-library-playback-design.md) | **hanim 完整引擎／讨论稿**：core＋动画库＋效果，hobject 与 `hengine.play`，真实像素物质与轮廓插值，三轴分级；UI 适配同一引擎；Manim 全覆盖目标及差距、目录迁移与独立消费者验收，40／20 不替代底层能力 |
+| [2026-11-04-omui-motion-readability-presentation-design.md](2026-11-04-omui-motion-readability-presentation-design.md) | **动画中间态质量（实施中）**：默认可读文字与显式字形变形、打断快照、实色承载面对比度、历史主题层隔离、呈现／点击几何与响应式约束；真实失败证据与局部验证边界 |
 | [2026-11-04-omui-shared-font-delivery-design.md](2026-11-04-omui-shared-font-delivery-design.md) | **共享字体交付**：静态 FontFace／运行时一次下载、字节租约与释放、语言重计划／别名／失败重试、真实网络计数门禁；完整按页交付继续单列 |
 | [2026-11-04-omui-first-frame-loading-design.md](2026-11-04-omui-first-frame-loading-design.md) | **首帧与加载收口**：生产视图导出图像／真实语义几何、按页开场预览、真实解压字节进度、失败重试、字体子集与后加载优先级、百分比换行的深层回归；最终结果与尚未完成边界分开记录 |
 | [2026-11-04-omui-site-navigation-motion-execution-design.md](2026-11-04-omui-site-navigation-motion-execution-design.md) | **§8 review 细案／§9 P0 实施事实**：顶级 Agent 三路径九场景目标、直观开场与三级披露；手机 CTA、全宽材质对照、Agent 有限预览与输入保护、NoScript 目录已整合；中间态交叉、字体／完整场景仍开放；40／20 清单与本地验收 |

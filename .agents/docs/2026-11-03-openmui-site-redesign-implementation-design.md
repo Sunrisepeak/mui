@@ -63,6 +63,8 @@
 
 ## 1. 目标与访客路径
 
+**2026-11-04 动画产品补充讨论：**[hanim 完整引擎草案](2026-11-04-hanim-animation-library-playback-design.md)按维护者明确的范围定义 **core＋基础动画库＋效果、hobject／hengine.play、真实像素级插值、完整 Manim 功能目标与三轴分级**；UI 全部适配同一引擎。当前时间内核、绘制 Morph、16 个效果和 40 个官网设计只覆盖部分能力；普通三角→圆仍会因路径结构不兼容而淡化，统一对象／播放器未交付。先以不依赖 UI／site 的消费者证明轮廓与像素物质两域、几何＋材料过渡，再迁移库条目、组件默认配方及官网。新 API 与目录为讨论草案，不作为已实现能力。
+
 官网必须同时完成三件事：**让第一次来的访客看懂并愿意继续探索；让开发者快速找到可用能力；让感兴趣的人把效果带回自己的程序。**
 
 | 访客 | 主要路径 | 完成标志 |
@@ -750,3 +752,9 @@ Linux x86_64、固定 mcpp 2026.11.2.2、GCC 16.1.0、LLVM 23.1.3、Chromium 156
 相对 `78f7eda` 增加 **13,740 B**，现有 5 MB 门禁只余 **17,702 B**。需求式字体／源字形覆盖、重程序拆分必须与后续内容并进；150KB 字体就绪静态批次仍未达标。原字体覆盖边界、9 个 Agent 场景、完整消费者工程、复杂操作和 R3–R6 保留，不用本轮展示壳数量替代。
 
 命令与本地报告：`mcpp build -p openmui.site --locked --message-format json`；`mcpp test -p openmui.site --profile release --locked --timeout 120`（dev 省略 profile）；sanitize 加 `--toolchain llvm@23.1.3 --profile sanitize`；`mcpp pack -p openmui.site --target wasm32-emscripten --profile site-web --pkg-format dist-toy --locked --message-format json`。实际使用 mcpp 2026.11.2.2、GCC 16.1.0／LLVM 23.1.3、每构建 2 jobs。最终构件与报告在 target/site-p0-final/、target/site-p0-final*.json、target/site-*-p0-*.report.omui.json、target/site-perf-p0-{cache,no-cache}.report.omui.json；三配置日志为 /tmp/omui-p0-{dev,release,sanitize}-final-117.log，汇总与实际源文件／构件 SHA-256 在 target/site-p0-evidence.report.omui.json。native 启动信封从实际 build artifact 的 launch 元数据产生，不用旧程序预渲染新页面。用户 mcpp.lock 差异原样保留，不纳入提交；CI 继续异步反馈。
+
+### 15.18 动画中间态的公共修复（实施中）
+
+细案与验收契约见[文字、约束与真实交互](2026-11-04-omui-motion-readability-presentation-design.md)。此轮从 §15.17 的真实坏帧继续，保留默认动效，分别处理无关句子的可读替换、字形快照打断、历史主题层范围、明暗交换时的文字对比度，以及目标布局／呈现／点击坐标不一致。组件仍不持有动画时钟。
+
+新增真实字体与实际绘制探针，已复现中英说明文字约 1.14:1 的对比度低谷；官网探针原 80 个失败经真实底色、效果输出范围、混合字体与嵌套绘制复核后，在一次局部运行中已通过（中英各 390／1280、24 帧，8-bit 测量最低约 4.426／4.428，门槛 4.4；解析目标 4.5）。同期 Agent guard／preview／contrast／transition-layout 四个程序共 16 个用例通过，见 `/tmp/omui-site-agent-quality-second.log`。这不覆盖所有材料／GPU／文字，也不是最终候选的完整验收。响应式仍发现 segmented 选择面与标签错位、显式父级布局动画与默认子动效协调问题；快照上下文及浮点边框修复尚待重新集成验证。不能用上一轮 579 项浏览器结果或本轮局部通过数字替代。

@@ -1,0 +1,21 @@
+# Independent diagnostics: the standard library only; no UI/spec/renderer.
+[package]
+namespace = "openmui"
+name = "log"
+version = "0.1.0"
+description = "Independent logging and invariants: categories, filters, sinks, history and JSON lines"
+license = "Apache-2.0"
+platforms = ["linux", "macos", "windows", "emscripten"]
+repo = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "module"
+
+[targets.openmui-log]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dev-dependencies]
+openmui.testing = { path = "../testing" }

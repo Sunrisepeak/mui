@@ -1,4 +1,4 @@
-module openmui.core;
+module openmui.log;
 
 import std;
 

@@ -14,8 +14,8 @@ sources = ["src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-hanim.engine = { path = {{engine_path}} }
-hanim.render.vector = { path = {{adapter_path}} }
+"hanim" = { path = {{engine_path}} }
+"hanim.render.vector" = { path = {{adapter_path}} }
 openmui.raster = { path = {{raster_path}} }
 openmui.image = { path = {{image_path}} }
 openmui.hash = { path = {{hash_path}} }

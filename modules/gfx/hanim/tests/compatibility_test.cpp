@@ -35,5 +35,20 @@ int main(int argc, char** argv) {
             check(start[i].start == middle[i].start && start[i].end == middle[i].end);
         }
     });
+    suite.test("the product import alone supports animation first playback without a renderer", [] {
+        auto made=hanim::Engine::make();check(made.has_value());if(!made)return;
+        auto& engine=*made;
+        const auto a=engine.create_object({{{.id="item"}}});
+        const auto b=engine.create_object({{{.id="item",.local={.tx=40}}}});
+        check(a && b);if(!a || !b)return;
+        const auto recipe=hanim::anim::morph(*a,*b).duration(std::chrono::milliseconds(600))
+            .with_effect(hanim::fx::blur(0,8));
+        const auto playback=engine.play(recipe);check(playback.has_value());if(!playback)return;
+        check(engine.seek(*playback,hanim::seconds(.3)).has_value());
+        const auto frame=engine.frame(*playback);check(frame.has_value());if(!frame)return;
+        check(frame->geometry.parts[0].local.tx==20 && frame->effect_values[0]==4);
+        check(engine.capture_object(*a)->parts()[0].local.tx==0);
+        check(engine.release(*playback).has_value());
+    });
     return suite.run(argc, argv);
 }

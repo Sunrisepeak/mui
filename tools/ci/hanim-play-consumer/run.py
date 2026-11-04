@@ -27,7 +27,7 @@ def audit(project: Path, repo: Path, artifacts: Path, profile: str) -> dict:
         raise RuntimeError("unrecognized resolution schema")
     names = []
     forbidden = {"openmui.core", "openmui.sdk", "openmui.testing", "openlifa.openmui", "openmui.spec"}
-    required = {"hanim.engine", "hanim.program", "hanim.library", "hanim.object", "hanim.core", "hanim.effect",
+    required = {"mcpplibs.hanim", "hanim.engine", "hanim.program", "hanim.library", "hanim.object", "hanim.core", "hanim.effect",
                 "hanim.render.vector", "openmui.render.vector", "openmui.raster", "openmui.image"}
     def independent_source(path: Path) -> None:
         path = path.resolve()
@@ -112,7 +112,7 @@ def main() -> int:
     try:
         (project / "src").mkdir()
         manifest = (fixture / "mcpp.toml.in").read_text()
-        for key, relative in {"engine": "gfx/hanim/engine", "adapter": "gfx/hanim/render/vector", "raster": "gfx/raster",
+        for key, relative in {"engine": "gfx/hanim", "adapter": "gfx/hanim/render/vector", "raster": "gfx/raster",
                               "image": "base/image", "hash": "base/hash"}.items():
             manifest = manifest.replace("{{" + key + "_path}}", json.dumps(str(repo / "modules" / relative)))
         (project / "mcpp.toml").write_text(manifest)

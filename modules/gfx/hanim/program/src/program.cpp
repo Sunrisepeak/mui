@@ -7,6 +7,7 @@ namespace hanim::detail {
 struct ProgramNode {
     ProgramKind kind = ProgramKind::empty;
     ProgramBinding binding;
+    std::optional<ProgramInputs> inputs;
     std::vector<Program> children;
     seconds step{0};
 };
@@ -56,6 +57,7 @@ std::expected<double,ProgramFailure> sum(double a,double b,std::size_t node) noe
 struct Branch { std::size_t node, child; ProgramKind kind; };
 struct Leaf {
     const ProgramBinding* binding=nullptr;
+    Snapshot from, to;
     std::size_t node=0,track=0;
     std::string path;
     seconds start{0};
@@ -63,8 +65,19 @@ struct Leaf {
 };
 struct Collect {
     ProgramLimits limits;
+    const ObjectRegistry* registry = nullptr;
     std::vector<Leaf> leaves;
     std::size_t nodes=0;
+    std::expected<Snapshot,ProgramFailure> capture(const ObjectInput& input,std::size_t node) const {
+        if(const auto* snapshot=std::get_if<Snapshot>(&input))return *snapshot;
+        if(!registry)return std::unexpected(failure(ProgramError::unresolved_object,node));
+        auto snapshot=registry->capture(std::get<ObjectRef>(input));
+        if(!snapshot) {
+            auto error=failure(ProgramError::object,node);error.object=snapshot.error();
+            return std::unexpected(error);
+        }
+        return *snapshot;
+    }
     std::expected<double,ProgramFailure> visit(const Program& value,double start,std::size_t depth,
                                               std::string path,std::vector<Branch>& branches) {
         const auto node=nodes++;
@@ -73,11 +86,18 @@ struct Collect {
         if(!value)return std::unexpected(failure(ProgramError::empty_program,node));
         if(value.kind()==ProgramKind::binding) {
             const auto* binding=value.binding();
-            if(!binding || !binding->from || !binding->to)return std::unexpected(failure(ProgramError::invalid_snapshot,node));
+            if(!binding)return std::unexpected(failure(ProgramError::invalid_snapshot,node));
             if(binding->source>ProgramSource::snapshot)return std::unexpected(failure(ProgramError::invalid_source,node));
             if(const auto invalid=invalid_options(binding->options))return std::unexpected(failure(*invalid,node));
             if(leaves.size()>=limits.max_segments)return std::unexpected(failure(ProgramError::segment_budget,node));
-            leaves.push_back({binding,node,0,std::move(path),seconds(start),branches});
+            Snapshot from=binding->from,to=binding->to;
+            if(const auto* inputs=value.inputs()) {
+                auto first=capture(inputs->from,node);if(!first)return std::unexpected(first.error());
+                auto last=capture(inputs->to,node);if(!last)return std::unexpected(last.error());
+                from=std::move(*first);to=std::move(*last);
+            }
+            if(!from || !to)return std::unexpected(failure(ProgramError::invalid_snapshot,node));
+            leaves.push_back({binding,std::move(from),std::move(to),node,0,std::move(path),seconds(start),branches});
             return binding->options.duration.count();
         }
         const auto children=value.children();
@@ -159,10 +179,16 @@ std::expected<void,ProgramFailure> account(detail::ProgramData& data,PreparedSeg
 ProgramKind Program::kind() const noexcept {return node_?node_->kind:ProgramKind::empty;}
 std::span<const Program> Program::children() const & noexcept {return node_?std::span<const Program>(node_->children):std::span<const Program>{};}
 const ProgramBinding* Program::binding() const & noexcept {return node_ && node_->kind==ProgramKind::binding?&node_->binding:nullptr;}
+const ProgramInputs* Program::inputs() const & noexcept {return node_ && node_->inputs?&*node_->inputs:nullptr;}
 seconds Program::step() const noexcept {return node_?node_->step:seconds(0);}
 Program bind(Snapshot from,Snapshot to,Effects effects,SegmentOptions options,MorphOptions morph,ProgramSource source) {
     auto node=std::make_shared<detail::ProgramNode>();node->kind=ProgramKind::binding;
     node->binding={std::move(from),std::move(to),std::move(effects),options,morph,source};return Program(std::move(node));
+}
+Program bind(ProgramInputs inputs,Effects effects,SegmentOptions options,MorphOptions morph,ProgramSource source) {
+    auto node=std::make_shared<detail::ProgramNode>();node->kind=ProgramKind::binding;
+    node->binding={{},{},std::move(effects),options,morph,source};
+    node->inputs=std::move(inputs);return Program(std::move(node));
 }
 Program sequence(std::span<const Program> children) {
     auto node=std::make_shared<detail::ProgramNode>();node->kind=ProgramKind::sequence;node->children.assign(children.begin(),children.end());return Program(std::move(node));
@@ -198,9 +224,14 @@ std::string_view program_error_name(ProgramError error) noexcept {
         case ProgramError::effect:return "effect";
         case ProgramError::invalid_track:return "invalid-track";
         case ProgramError::output_too_small:return "output-too-small";
+        case ProgramError::unresolved_object:return "unresolved-object";
+        case ProgramError::object:return "object";
     }return "unknown";
 }
 std::expected<PreparedProgram,ProgramFailure> PreparedProgram::prepare(const Program& program,ProgramLimits limits) {
+    return prepare_with(program,nullptr,limits);
+}
+std::expected<PreparedProgram,ProgramFailure> PreparedProgram::prepare_with(const Program& program,const ObjectRegistry* registry,ProgramLimits limits) {
     omui::trace::Span span("prepare","hanim.program");
     auto refuse=[](ProgramFailure error)->std::expected<PreparedProgram,ProgramFailure>{
         diagnostic.warn("prepare refused: {} node={} track={}",program_error_name(error.code),error.node,error.track);
@@ -209,15 +240,15 @@ std::expected<PreparedProgram,ProgramFailure> PreparedProgram::prepare(const Pro
     if(!valid_limits(limits))return refuse(failure(ProgramError::invalid_limits));
     const auto empty_effects=PreparedEffects::prepare({},limits.effects);
     if(!empty_effects)return refuse(effect_failure(empty_effects.error(),invalid_program_index,invalid_program_index,invalid_program_index));
-    Collect collect{limits};std::vector<Branch> branches;
+    Collect collect{limits,registry};std::vector<Branch> branches;
     const auto duration=collect.visit(program,0,1,"0",branches);if(!duration)return refuse(duration.error());
     auto data=std::make_shared<detail::ProgramData>();data->duration=seconds(*duration);
     for(auto& leaf:collect.leaves) {
-        const auto object=leaf.binding->from.object();
+        const auto object=leaf.from.object();
         auto found=std::ranges::find(data->tracks,object,&ProgramTrack::object);
         if(found==data->tracks.end()) {
             if(data->tracks.size()>=limits.max_tracks)return refuse(failure(ProgramError::track_budget,leaf.node));
-            leaf.track=data->tracks.size();data->tracks.push_back({.object=object,.source_revision=leaf.binding->from.revision()});
+            leaf.track=data->tracks.size();data->tracks.push_back({.object=object,.source_revision=leaf.from.revision()});
         }else leaf.track=static_cast<std::size_t>(found-data->tracks.begin());
     }
     std::ranges::stable_sort(collect.leaves,[](const Leaf& a,const Leaf& b){
@@ -230,21 +261,21 @@ std::expected<PreparedProgram,ProgramFailure> PreparedProgram::prepare(const Pro
     for(const auto& leaf:collect.leaves) {
         const auto& binding=*leaf.binding;auto& track=data->tracks[leaf.track];
         const auto index=data->segments.size();const PreparedSegment* previous=nullptr;
-        if(!track.segment_count)track.source_revision=binding.from.revision();
+        if(!track.segment_count)track.source_revision=leaf.from.revision();
         if(track.segment_count)previous=&data->segments.back();
         if(previous) {
             const auto end=previous->start+previous->options.duration;
             if(leaf.start<end || (leaf.start==previous->start &&
                 (binding.options.duration.count()==0 || previous->options.duration.count()==0) && !serial_before(*previous_leaf,leaf)))
                 return refuse(failure(ProgramError::binding_conflict,leaf.node,leaf.track,index));
-            if(binding.source==ProgramSource::previous_endpoint && binding.from.revision()!=track.source_revision)
+            if(binding.source==ProgramSource::previous_endpoint && leaf.from.revision()!=track.source_revision)
                 return refuse(failure(ProgramError::source_version_mismatch,leaf.node,leaf.track,index));
         }
         std::expected<PreparedObjectMorph,ProgramFailure> animation=std::unexpected(failure(ProgramError::animation));
         const bool chained=previous && binding.source==ProgramSource::previous_endpoint;
-        if(chained)animation=from_previous(*previous,binding.to,binding.morph,leaf.node,leaf.track,index);
+        if(chained)animation=from_previous(*previous,leaf.to,binding.morph,leaf.node,leaf.track,index);
         else {
-            const auto result=PreparedObjectMorph::prepare(binding.from,binding.to,binding.morph);
+            const auto result=PreparedObjectMorph::prepare(leaf.from,leaf.to,binding.morph);
             if(!result)return refuse(animation_failure(result.error(),leaf.node,leaf.track,index));
             animation=*result;
         }

@@ -8,9 +8,11 @@
 
 ## 1. 结论与评估
 
+实施入口：[检查点台账](2026-11-05-system-implementation-checkpoints-design.md)。维护者已要求从本方案开始实现；S1落实公开hanim入口和动画中心authoring，后续保留完整P/F/K/R/C范围。以下§3的76项仍是原始实验历史，不能与新公共入口的验证混记；当前事实以实施台账与新源码／报告为准。
+
 推荐：**以独立产品为边界、以本域能力为内核、以类型化契约组合全局；日常 API 简短，复杂约束逐级显露，所有层级复用同一执行体系。**
 
-当前主要问题是能力链路尚未贯通。严格 2D hanim 已有真实对象、编排、播放和可选渲染；UI 默认动效仍主要消费 `hanim.core`。官网的 40 个基础场景、20 个创意场景，也不能等同框架用户可带走的 40 个公共动画和 20 个完整组合工程。继续扩大官网私有实现会放大这个断点。
+当前主要问题是能力链路尚未全部贯通。S1已将严格 2D hanim的真实对象、编排、播放和动画中心authoring接到公共 `import hanim`；渲染仍显式可选。UI 默认动效仍主要消费 `hanim.core`。官网的 40 个基础场景、20 个创意场景，也不能等同框架用户可带走的 40 个公共动画和 20 个完整组合工程。继续扩大官网私有实现会放大这个断点。
 
 | 评估维度 | 当前证据 | 设计与实施结论 |
 |---|---|---|
@@ -279,7 +281,7 @@ src/entry/                         宿主/应用入口；根包仍是 openmui.sd
 
 新包身份按“路径就是包名”逐项落定；这里的 simulation／compute 等目录不是新产品品牌的定案。现有 `openmui.*` 技术名继续兼容。独立产品可在未来抽仓，外部依赖通过 mcpp 包解析，不能跨成员相对路径 include 源码。
 
-**hanim 伞包迁移是必要且有限的。** 将 package `hanim` 从 `modules/base/hanim` 移至 `modules/gfx/hanim`，core 保留原路径／身份；base/hanim 变为分组。默认产品伞导出 object／library／effect／program／engine，渲染、GPU、provider 与 UI 均显式可选。原 `import hanim` 可保留 core 符号；旧 path 依赖须给迁移说明。不能同时注册两个 `hanim` 包，也不能让 base 反依赖 gfx。同步修改 workspace、依赖路径、lint fixture、README 和独立消费者；本轮先 review，不实际搬包。
+**hanim 伞包迁移是必要且有限的。** S1将 package `hanim` 从 `modules/base/hanim` 移至 `modules/gfx/hanim`，core 保留原路径／身份；base/hanim 变为分组。默认产品伞导出 object／library／effect／program／engine，渲染、GPU、provider 与 UI 均显式可选。原 `import hanim` 保留 core 符号；旧 path 依赖的迁移说明见包README。不能同时注册两个 `hanim` 包，也不能让 base 反依赖 gfx。workspace、lint fixture和独立消费者随S1同步修改；当前验证见实施台账，原始API实验尚未搬包的历史结论不再表示当前工作树。
 
 `integrations` 位于应用装配层，仅组合已公开能力；底层域不能反依赖它。`integrations/openas` 只依赖control、必要base和外部openas，复用 `openas::decide`，不导入具体引擎／UI或实现第二套总线。领域provider依赖自身引擎＋control，不反依赖该协议适配。
 
@@ -418,7 +420,7 @@ Web现有实测预算与精确范围见评审：总传输4,718,757 B、首帧代
 
 | 包 | 交付 | 本地退出条件／依赖 |
 |---|---|---|
-| **P0 本轮** | 最小API外部实验＋本综合方案＋review项 | dev/release真实求值、依赖审计、文档索引；公共API未冻结 |
+| **P0 原始实验** | 最小API外部实验＋本综合方案＋review项 | 历史dev/release真实求值、依赖审计、文档索引；S1已推进公共入口子集 |
 | **P1 入口与最小契约** | hanim伞包、四层authoring入口、错误/生命周期、必要typed通道与scope；独立成本基线 | 旧API兼容、外部工程可用、简单与显式prepare同源；无需先完成所有域 |
 | **P2-A 动画→UI→渲染** | 一个过程modifier、四类组件adapter/default recipe、共享输出 | 按钮/开关/浮层/列表，人/Agent触发；中间态、命中、焦点、打断、reduced/off |
 | **P2-B 反应→计算→渲染** | 两材料+阈值+邻域；CPU参考、chunk/checkpoint、一个WebGPU批次 | 顺序/边界/重建/资源驻留；有单独Noita扩负载计划，不宣称已达标 |
@@ -454,6 +456,6 @@ P2-A/B/C是三个**尽早验证的不同领域**，不是先造完hanim再考虑
 
 本稿作为当前综合review入口；[局部×全局准则](2026-11-05-local-global-composable-architecture-design.md)仍是AGENTS规则来源；[多引擎产品](2026-11-04-multi-engine-product-architecture-design.md)、[play细案](2026-11-04-hanim-play-api-design.md)、[可组合IR](2026-11-05-hanim-composable-operators-reactions-ir-design.md)、[独立游戏工具](2026-11-04-indie-game-tools-assets-design.md)保留专项细节。旧文档的四参数主入口、官网唯一验收、全平台CI等待措辞按最新要求修正；历史实测保留原提交归属。
 
-本轮没有移动正式包、迁移UI算法、完成GPU／模拟／全部工具、重建官网或重新验收整个workspace。最小实验只为接口决策提供真实证据，不将方案篇幅或原型成功计为完整产品进度。
+原始实验轮没有移动正式包、迁移UI算法、完成GPU／模拟／全部工具、重建官网或重新验收整个workspace。后续S1实施公开入口和authoring子集；其实际结果独立记录在实施台账。最小实验只为接口决策提供真实证据，不将方案篇幅或原型成功计为完整产品进度。
 
 集成核对：两profile共用的47项实验／运行时代码哈希与报告一致，76项检查名和结果逐项匹配；根工作树lint为0问题，本轮变更文档的本地链接与差异格式检查通过。用户已有mcpp.lock保持字节不变且不纳入提交。历史全项目验证仍保持原提交归属。

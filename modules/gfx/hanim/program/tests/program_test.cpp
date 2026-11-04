@@ -75,6 +75,23 @@ bool all_same(const FrameView& a,const FrameView& b) {
 }
 int main(int argc,char** argv) {
     Suite suite{"hanim.program"};
+    suite.test("standalone live inputs capture once and retain geometry after registry changes",[] {
+        Fixture f;
+        const auto recipe=anim::morph(f.ar,f.br).duration(seconds(1));
+        take(f.registry.update(f.ar,shape(4)));
+        const auto plan=take(PreparedProgram::prepare(recipe,f.registry));
+        check(plan.tracks()[0].source_revision==2);
+        Buffer output(plan.tracks()[0]);
+        check(output.sample(plan,0,.5).geometry.parts[0].local.tx==7);
+        take(f.registry.update(f.ar,shape(8)));
+        take(f.registry.destroy(f.ar));take(f.registry.destroy(f.br));
+        check(output.sample(plan,0,.5).geometry.parts[0].local.tx==7);
+        const auto stale=PreparedProgram::prepare(recipe,f.registry);
+        check(!stale && stale.error().code==ProgramError::object && stale.error().object==ObjectError::stale_object);
+        const auto missing=PreparedProgram::prepare(recipe);
+        check(!missing && missing.error().code==ProgramError::unresolved_object);
+        check(PreparedProgram::prepare(bind(f.a,f.b),{}).has_value(),"legacy braced default limits stay unambiguous");
+    });
     suite.test("immutable nested sequence parallel and stagger compile to owned bounded object schedules",[] {
         Fixture f;const auto first=bind(f.a,f.b);const auto copy=first;
         const auto input=sequence({parallel({first,stagger(seconds(.5),{bind(f.b,f.c),bind(f.c,f.a)})}),bind(f.a,f.c)});

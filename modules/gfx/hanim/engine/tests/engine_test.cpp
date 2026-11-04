@@ -191,6 +191,25 @@ int main(int argc, char** argv) {
         check(result.has_value() && observer.calls == 1 && observer.paused && observer.refused);
         check(f.engine.inspect(ref)->state == PlaybackState::paused);
     });
+    suite.test("animation preparation freezes inputs and rejects observer mutation", [] {
+        Fixture f;
+        struct Observer { Engine* engine; ObjectRef object; int calls=0; bool refused=false, prepare_refused=false; }
+            observer{&f.engine,f.b};
+        check(omui::set_log_filter("hanim.program=debug,*=warning").has_value());
+        omui::set_log_sink([](void* context,const omui::LogRecord& record) {
+            if(record.category!="hanim.program")return;
+            auto& state=*static_cast<Observer*>(context);++state.calls;
+            auto removed=state.engine->destroy_object(state.object);
+            state.refused=!removed && removed.error()==ObjectError::reentrant_mutation;
+            auto nested=state.engine->prepare(anim::morph(state.object,state.object));
+            state.prepare_refused=!nested && nested.error().code==EngineError::reentrant_mutation;
+        },&observer);
+        const auto plan=f.engine.prepare(anim::morph(f.a,f.b));
+        omui::set_log_sink(nullptr,nullptr);check(omui::set_log_filter("*=info").has_value());
+        check(plan && observer.calls>0 && observer.refused && observer.prepare_refused);
+        check(f.engine.size()==0 && f.engine.capture_object(f.b).has_value());
+        check(plan->tracks()[0].source_revision==f.engine.capture_object(f.a)->revision());
+    });
     suite.test("steps retain their ordinary start but restore and retarget anchor the exact source", [] {
         Fixture f;
         const auto step = Ease::stepped(2,StepPosition::jump_start);

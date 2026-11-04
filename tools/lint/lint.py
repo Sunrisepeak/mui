@@ -701,11 +701,11 @@ def self_test() -> int:
     for rule, planted in cases.items():
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            members = ["modules/base/hanim", "modules/base/hanim/core", "modules/ui/core", "spec"]
-            names = {"modules/base/hanim": 'name = "hanim"', "modules/base/hanim/core": 'namespace = "hanim"\nname = "core"', "modules/ui/core": 'namespace = "openmui"\nname = "core"',
+            members = ["modules/gfx/hanim", "modules/base/hanim/core", "modules/ui/core", "spec"]
+            names = {"modules/gfx/hanim": 'name = "hanim"', "modules/base/hanim/core": 'namespace = "hanim"\nname = "core"', "modules/ui/core": 'namespace = "openmui"\nname = "core"',
                      "spec": 'namespace = "openlifa"\nname = "openmui"'}
             if rule == "layout":
-                names["modules/base/hanim"] = 'name = "anim"'
+                names["modules/gfx/hanim"] = 'name = "anim"'
             if rule == "platforms":
                 names["modules/ui/core"] += '\nplatforms = ["linux", "emscripten"]'
             pin = ""
@@ -717,7 +717,7 @@ def self_test() -> int:
             (root / "tools" / "lint").mkdir(parents=True, exist_ok=True)
             (root / "tools" / "lint" / "licenses.toml").write_text(
                 '[packages]\n"ns.kernel" = ["MIT"]\n"ns.os" = ["MIT"]\n"compat.sdl3" = ["Zlib"]\n', encoding="utf-8")
-            readmes = {"modules": "[base](base) [ui](ui)", "modules/base": "[hanim](hanim)", "modules/base/hanim": "[core](core)", "modules/ui": "[core](core)"}
+            readmes = {"modules": "[base](base) [gfx](gfx) [ui](ui)", "modules/base": "[hanim](hanim)", "modules/base/hanim": "[core](core)", "modules/gfx": "[hanim](hanim)", "modules/ui": "[core](core)"}
             for d, text in readmes.items():
                 (root / d).mkdir(parents=True, exist_ok=True)
                 (root / d / "README.md").write_text(text + "\n", encoding="utf-8")
@@ -726,19 +726,19 @@ def self_test() -> int:
                 deps = ""
                 if rule == "layering" and m == "spec":
                     deps = '[dependencies]\ncore = { path = "../modules/ui/core" }\n'
-                if rule == "modules" and m == "modules/base/hanim":
+                if rule == "modules" and m == "modules/gfx/hanim":
                     deps = '[dependencies]\ncore = { path = "../../ui/core" }\n'
                 if rule == "manifest" and m == "modules/ui/core":
                     deps = '[dependencies.compat]\nsdl3 = "3.4.18"\n'
                 if rule == "pins" and m == "modules/ui/core":
                     deps = '[dependencies]\nns.os = "0.1.0"\n'  # reaches ns.os, does not pin ns.kernel
                 if rule == "platforms" and m == "modules/ui/core":
-                    deps = '[dependencies]\nhanim = { path = "../../base/hanim" }\n'
+                    deps = '[dependencies]\nhanim = { path = "../../gfx/hanim" }\n'
                 if rule == "licenses" and m == "modules/ui/core":
                     deps = '[dependencies]\nacme.copyleft = "1.0.0"\n'
                     with (root / "tools" / "lint" / "licenses.toml").open("a", encoding="utf-8") as f:
                         f.write('"acme.copyleft" = ["GPL-3.0-only"]\n')
-                flags = '[build]\ncxxflags = ["-ffp-contract=off"]\n' if m in ("modules/base/hanim", "modules/base/hanim/core") else ""
+                flags = '[build]\ncxxflags = ["-ffp-contract=off"]\n' if m in ("modules/gfx/hanim", "modules/base/hanim/core") else ""
                 (root / m / "mcpp.toml").write_text(f'[package]\n{names[m]}\nversion = "0.1.0"\n{flags}{deps}',
                                                     encoding="utf-8")
             if rule == "documents":

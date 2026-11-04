@@ -32,6 +32,16 @@ bytes. Track maxima separately describe reusable output buffer capacities.
 Geometry matching, deep boundary capture and allocation occur only at prepare.
 Failure never returns a partially prepared value or mutates source objects.
 
+Animation-first leaves use typed `ProgramInputs`: each endpoint is either an
+ObjectRef resolved by the supplied registry or an owned Snapshot. All endpoints
+are resolved during the bounded collection pass before matching starts. Without
+a registry, a live reference reports `unresolved_object`; a failed capture
+reports `object` with the node index and nested ObjectError. Explicit snapshots
+may come from another registry. Old snapshot bindings and new leaves can share
+one tree and preserve the same source chaining rules. Registry mutation must
+remain externally synchronized during standalone preparation; the Engine entry
+also rejects reentrant writes. Preparation never changes the original Program.
+
 Sampling is a pure function of a frozen plan, track and finite local time. Core
 time primitives handle segment local time and fills; core easing and existing library
 samplers handle values. Before the first start, the exact source is held. Gaps

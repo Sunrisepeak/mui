@@ -36,9 +36,23 @@ Compared with today's major UI frameworks: Qt (Widgets / QML), Flutter, SwiftUI,
 
 **Evidence**: CTS scenarios record byte-identical traces in the three script languages; `omui-gen` generates bindings, stubs and schemas.
 
-## 5. Strong animation: every visual property, down to glyphs and pixels
+## 5. Independent animation, composable playback
 
-**What**: an independent animation engine (`hanim`) whose clock can be injected, paused, stepped and reversed; any visual property transitions; effect parameters are animatable properties too.
+**Available**: `import hanim;` exposes objects, reusable strict contour morphs,
+ordered effect parameters, sequence/parallel/stagger and an explicit-clock
+Engine. A leaf such as `hanim::anim::morph(source, target).duration(600ms)` can
+be passed to `hengine.play(animation)` or prepared once with
+`hengine.prepare(animation)` and replayed. Live refs capture at preparation;
+explicit snapshots stay frozen. The same player supports seek, pause, reverse
+and current-pose retargeting without changing the application's business state.
+
+**Evidence**: an independent public consumer tests geometry and controls in
+dev/release; a separate consumer uses the shared CPU renderer for actual pixels
+and region exports. Rendering is opt-in; the base `hanim.core` stays independent.
+
+**Next**: general property/channel mixing, group effect scopes, image/pixel/rig
+domains and the UI adapter. Current UI motion primarily uses core primitives;
+the website's scene count is not a count of public engine recipes.
 
 ## 6. Rendering: a CPU reference and a GPU path; effects first-class
 

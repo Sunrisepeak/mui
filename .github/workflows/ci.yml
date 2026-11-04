@@ -269,6 +269,19 @@ jobs:
         if: matrix.os == 'ubuntu-24.04' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'release'
         run: python3 tools/ci/hanim-play-consumer/run.py --output target/hanim-play-consumer/report.omui.json
 
+      - name: Public hanim authoring and umbrella stay independent
+        timeout-minutes: 15
+        if: matrix.os == 'ubuntu-24.04' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'release'
+        run: python3 tools/ci/hanim-api-probe/run.py --output target/hanim-public-authoring/report.omui.json
+
+      - name: Keep public authoring checks and dependency evidence
+        if: always() && matrix.os == 'ubuntu-24.04' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: hanim-public-authoring
+          path: target/hanim-public-authoring
+          if-no-files-found: ignore
+
       - name: Keep the independent playback graph pixels and provenance
         if: always() && matrix.os == 'ubuntu-24.04' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'release'
         uses: actions/upload-artifact@v4

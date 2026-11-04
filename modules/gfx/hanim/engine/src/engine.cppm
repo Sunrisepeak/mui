@@ -81,6 +81,12 @@ public:
     [[nodiscard]] std::expected<void, ObjectError> destroy_object(ObjectRef);
     [[nodiscard]] std::expected<Snapshot, ObjectError> capture_object(ObjectRef) const noexcept;
 
+    // Animation-first authoring uses the same Program compiler/player as the
+    // explicit snapshot API. Preparation captures all live inputs before any
+    // matching and rejects reentrant writes; it does not publish or start time.
+    [[nodiscard]] std::expected<PreparedProgram, EngineFailure> prepare(const Program&, ProgramLimits limits = {});
+    [[nodiscard]] std::expected<PlaybackRef, EngineFailure> play(const Program&, ProgramLimits limits = {});
+
     [[nodiscard]] std::expected<PlaybackRef, EngineFailure> play(
         ObjectRef object, anim::MorphTo animation, std::span<const EffectSpec> effects = {}, PlayOptions options = {});
     [[nodiscard]] std::expected<PlaybackRef, EngineFailure> play(

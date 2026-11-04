@@ -4,6 +4,16 @@ Immutable bound expressions and prepared per-object schedules. This package
 consumes the existing object morph/effect plans and core time mapping, with no
 UI, renderer, window, script, transport or player dependency.
 
+Animation-first leaves use `anim::morph(source,target).duration(600ms)` and
+`.easing(...)`, `.with_effect(...)`, `.source(ProgramSource::snapshot)`.
+Inputs can independently be live `ObjectRef`s or immutable `Snapshot`s. Leaves
+convert to this same `Program`; variadic sequence/parallel/stagger also accept
+existing low-level Programs. There is no second authoring AST or compiler.
+For live inputs, call `PreparedProgram::prepare(program, registry, limits)` or
+`Engine::prepare(program, limits)`. Without a registry, live inputs report
+`unresolved_object`; snapshot-only descriptions still prepare independently.
+`ProgramFailure` retains the offending node and nested `ObjectError`.
+
 ```cpp
 import hanim.program;
 using namespace hanim;

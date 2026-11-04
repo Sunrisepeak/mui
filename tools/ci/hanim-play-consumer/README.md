@@ -1,10 +1,16 @@
 # External CLI playback consumer
 
 `run.py` creates a fresh project outside this repository, uses absolute `path`
-dependencies on public Engine and vector packages, bootstraps only that project's
+dependencies on the public hanim umbrella and vector adapter, bootstraps only that project's
 resolution, then builds/runs dev and release with `--locked`. It checks actual
 `resolution.json` and compilation commands for UI, spec, testing, site, host or SDK
 dependencies. The source repository's lock must stay unchanged.
+
+The source imports `hanim` and creates its pixel fixture through
+`engine.play(anim::morph(source,target).with_effect(...))`. It also retains an
+advanced snapshot Program, proving both authoring levels use the same player.
+The TOML quotes both `"hanim"` and `"hanim.render.vector"`; the audit checks the
+umbrella's existing mcpp-normalized identity `mcpplibs.hanim`.
 
 Before the fixed pixel fixture, each invocation directly compiles a nested
 two-track/three-segment Program through the public API and exercises shared

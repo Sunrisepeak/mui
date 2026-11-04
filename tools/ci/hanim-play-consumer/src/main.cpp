@@ -1,6 +1,6 @@
 // Public console consumer. This translation unit never imports a UI or test API.
 import std;
-import hanim.engine;
+import hanim;
 import hanim.render.vector;
 import openmui.raster;
 import openmui.image;
@@ -105,7 +105,9 @@ int main(int argc,char** argv) {
     if(!engine.reverse(*instance) || !engine.resume(*instance) || !engine.advance(seconds(.5)) ||
        engine.inspect(*instance)->position!=seconds(1) || !engine.cancel(*instance,CancelMode::restore) || !engine.release(*instance))
         return fail("program reverse/restore/release");
-    const auto played=engine.play(*source,anim::morph_to(*target),effects,{.duration=seconds{1},.easing=ease::linear});
+    auto animation=anim::morph(*source,*target).duration(seconds(1)).easing(ease::linear);
+    for(const auto& effect:effects)animation=animation.with_effect(effect);
+    const auto played=engine.play(animation);
     if(!played)return fail("Engine::play");
     // Execute real controls, then explicitly select the requested output time.
     if(!engine.pause(*played) || !engine.advance(seconds{.1}))return fail("pause/advance");

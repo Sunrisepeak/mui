@@ -1,4 +1,4 @@
-# Public hanim compatibility/product umbrella; implementation lives in core.
+# Public hanim product: core plus object/library/effect/program/engine. Rendering is opt-in.
 [package]
 name = "hanim"
 version = "0.1.0"
@@ -18,7 +18,8 @@ sources = ["src/*.cppm"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-hanim.core = { path = "core" }
+hanim.core = { path = "../../base/hanim/core" }
+hanim.engine = { path = "engine" }
 
 [dev-dependencies]
-openmui.testing = { path = "../testing" }
+openmui.testing = { path = "../../base/testing" }

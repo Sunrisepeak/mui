@@ -6,7 +6,7 @@ Depends on: the standard library and third-party libraries. Used by: every other
 
 | Package | |
 |---|---|
-| [hanim](hanim) | The animation product umbrella; its independent hanim.core owns deterministic time, values, curves and prepared shape morphs |
+| [hanim](hanim) | Independent hanim.core: deterministic time, values, curves and prepared shape morphs; the product umbrella lives in gfx/hanim |
 | [geom](geom) | 2D geometry: points, rectangles, colours, affine transforms, pixel snapping |
 | [memory](memory) | Frame arena, generational handles, slot maps, `FunctionRef` |
 | [unicode](unicode) | Line breaking (UAX #14) and segmentation (UAX #29) without ICU |

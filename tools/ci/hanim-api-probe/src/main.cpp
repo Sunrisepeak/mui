@@ -1,10 +1,10 @@
 // External authoring consumer: real public geometry, plans and player controls.
 import std;
-import hanim.validation.api_probe;
+import hanim;
 using namespace std::chrono_literals;
 namespace h = hanim;
-namespace api = api_probe;
-namespace anim = api_probe::anim;
+namespace api = hanim;
+namespace anim = hanim::anim;
 namespace {
 struct Check { std::string_view name; bool ok; };
 std::vector<Check> checks;
@@ -47,15 +47,15 @@ bool equal(const Pose& a,const Pose& b) {
     for(std::size_t i=0;i<a.cubics.size();++i)if(coordinates(a.cubics[i])!=coordinates(b.cubics[i]))return false;
     return true;
 }
-static_assert(api::Animation<api::Morph> && api::Animation<api::Description>);
+static_assert(api::Animation<anim::Morph> && api::Animation<h::Program>);
 static_assert(!api::Animation<int> && !api::Animation<h::ObjectRef>);
 template<class T> concept HasGroupEffect = requires(const T& value) { value.with_effect(h::fx::blur(0,1)); };
-static_assert(HasGroupEffect<api::Morph> && !HasGroupEffect<api::Description>);
+static_assert(HasGroupEffect<anim::Morph> && !HasGroupEffect<h::Program>);
 }
 int main() {
     auto host=h::ObjectRegistry::make(); auto made=h::Engine::make();
     if(!check(bool(host)&&bool(made),"registry_and_engine_created"))return finish();
-    auto& engine=*made; api::HEngine hengine{engine};
+    auto& engine=*made; auto& hengine=engine;
     const auto da=shape(false,0),db=shape(true,40),dc=shape(false,100);
     if(!check(bool(da)&&bool(db)&&bool(dc),"public_contours_created"))return finish();
     const auto ar=host->create(*da),br=host->create(*db),cr=host->create(*dc);
@@ -151,7 +151,7 @@ int main() {
     if(!check(bool(engine.release(*delayed_play)),"release_stagger"))return finish();
 
     const auto invalid=hengine.play(base.duration(-1ms));
-    check(!invalid && invalid.error().code==h::EngineError::program && invalid.error().program &&
+    check(!invalid && invalid.error().code==h::EngineError::invalid_time && invalid.error().program &&
           invalid.error().program->code==h::ProgramError::invalid_time && engine.size()==0,
           "invalid_duration_keeps_structured_program_error_and_no_playback");
     const auto empty=hengine.prepare(anim::morph(h::Snapshot{},*b));
@@ -161,13 +161,12 @@ int main() {
     h::ProgramLimits limits;limits.max_nodes=1;
     const auto limited=hengine.prepare(series,limits);
     check(!limited && limited.error().program && limited.error().program->code==h::ProgramError::node_budget,"prepare_respects_node_budget");
-    api::HEngine restricted{engine,limits};
-    const auto implicit_limited=restricted.play(series);
+    const auto implicit_limited=hengine.play(series,limits);
     check(!implicit_limited && implicit_limited.error().program && implicit_limited.error().program->code==h::ProgramError::node_budget,
           "convenient_prepare_respects_configured_limits");
-    const auto default_limited=restricted.prepare(series);
+    const auto default_limited=hengine.prepare(series,limits);
     check(!default_limited && default_limited.error().program && default_limited.error().program->code==h::ProgramError::node_budget,
-          "explicit_prepare_uses_same_default_limits_as_convenient_play");
+          "explicit_prepare_uses_same_limits_as_convenient_play");
     auto badfx=h::fx::blur(0,1);badfx.parameters.push_back(badfx.parameters.front());
     const auto effect_error=hengine.prepare(base.with_effect(std::move(badfx)));
     check(!effect_error && effect_error.error().program && effect_error.error().program->code==h::ProgramError::effect &&
@@ -193,6 +192,21 @@ int main() {
     if(!check(bool(engine.update_object(*live_a,shifted)),"live_source_updated_after_description"))return finish();
     auto live_plan=hengine.prepare(live_quick);
     if(!check(bool(live_plan),"object_ref_prepare_captures_current_revision"))return finish();
+    const auto unresolved=h::PreparedProgram::prepare(live_quick);
+    check(!unresolved && unresolved.error().code==h::ProgramError::unresolved_object && unresolved.error().node==0,
+          "standalone_compiler_requires_registry_for_live_inputs");
+    const auto independent=h::PreparedProgram::prepare(anim::morph(*a,*b));
+    check(bool(independent),"snapshot_recipe_prepares_without_engine_or_registry");
+    const auto registry_recipe=h::PreparedProgram::prepare(anim::morph(*live_a,*live_b),*host);
+    check(!registry_recipe && registry_recipe.error().code==h::ProgramError::object &&
+          registry_recipe.error().object==h::ObjectError::foreign_owner,
+          "explicit_registry_rejects_foreign_live_ref");
+    const auto mixed=hengine.prepare(anim::morph(*live_a,*b));
+    check(mixed && mixed->segments()[0].animation.from().revision()==2 &&
+          mixed->segments()[0].animation.to().object()==b->object(),"live_source_accepts_frozen_external_target");
+    const auto advanced=hengine.prepare(api::sequence(h::bind(*a,*b),anim::morph(*a,*c).duration(600ms)));
+    check(advanced && advanced->segments().size()==2 && advanced->duration()==h::seconds(1.6),
+          "legacy_snapshot_program_composes_with_public_recipe");
     auto live_play=hengine.play(live_quick);
     if(!check(bool(live_play)&&bool(engine.seek(*live_play,h::seconds(.3))),"object_ref_convenient_play"))return finish();
     const auto live_mid=copy(*engine.frame(*live_play));
@@ -210,6 +224,11 @@ int main() {
     check(std::abs(engine.frame(*live_series_play)->geometry.parts[0].local.tx-70)<1e-10,
           "object_ref_sequence_uses_previous_endpoint");
     if(!check(bool(engine.release(*live_series_play)),"release_live_sequence"))return finish();
+    const auto reset=hengine.play(api::sequence(live_quick,anim::morph(*live_a,*live_c)
+        .duration(600ms).source(h::ProgramSource::snapshot)));
+    if(!check(reset && engine.seek(*reset,h::seconds(.6)),"explicit_reset_sequence_plays"))return finish();
+    check(engine.frame(*reset)->geometry.parts[0].local.tx==10,"explicit_source_mode_resets_to_captured_pose");
+    if(!check(bool(engine.release(*reset)),"release_reset_sequence"))return finish();
     auto depth_limits=h::ProgramLimits{};depth_limits.max_depth=1;
     const auto deep=hengine.prepare(api::parallel(live_quick),depth_limits);
     check(!deep && deep.error().program && deep.error().program->code==h::ProgramError::depth_budget,

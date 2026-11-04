@@ -1,124 +1,97 @@
-# Hanim authoring API experiment
+# Public hanim authoring consumer
 
-This external consumer tests an API candidate against the existing public
-Hanim implementation. It does **not** add or freeze a product API. Its only
-library dependency is `hanim.engine`; `api_probe` belongs to this test project.
-
-The experiment uses an animation-first factory with ordinary arguments. These
-are the exact supported calls (`source`/`target` are Engine-owned `ObjectRef`s,
-`engine` is an existing `hanim::Engine`):
+This directory began as an API experiment. It now validates the real product:
+its only library dependency is `hanim`, and its source imports `hanim` directly.
+The consumer-local facade and second description tree have been removed.
 
 ```cpp
 import std;
-import hanim.validation.api_probe; // consumer fixture, not a product module
+import hanim;
 using namespace std::chrono_literals;
-namespace anim = api_probe::anim;
 
-api_probe::HEngine hengine{engine}; // borrows; engine must outlive it
-auto animation = anim::morph(source, target)
+// hengine is a hanim::Engine; source/target are its ObjectRefs.
+auto animation = hanim::anim::morph(source, target)
     .duration(600ms)
     .easing(hanim::ease::linear)
     .with_effect(hanim::fx::blur(0, 8));
-
-auto playback = hengine.play(animation); // expected<PlaybackRef, EngineFailure>
+auto played = hengine.play(animation);
+if (!played) { report(played.error()); return; }
 ```
 
-For repeated playback or explicit resource limits, use the same description:
+Explicit preparation is the alternative entry:
 
 ```cpp
 hanim::ProgramLimits limits;
 limits.max_nodes = 128;
 auto prepared = hengine.prepare(animation, limits);
-if (!prepared) return std::unexpected(prepared.error());
-auto playback = hengine.play(*prepared);
+if (!prepared) { report(prepared.error()); return; }
+auto played = hengine.play(*prepared);
+if (!played) { report(played.error()); return; }
 ```
 
-These examples are alternative entry paths: starting both concurrently for the
-same object gives the existing `binding_conflict` error. `Engine` still owns
-seek/pause/resume/release and output buffers. Application code must check errors
-and release playback handles; this adapter introduces no automatic clock.
+These snippets are alternatives, not concurrent plays on the same source.
+Release a playback before creating a new binding for its object. Preparation
+and playback-buffer reservation are cold work; the engine has no automatic
+clock or business setter. Frame spans expire at the next engine mutation.
 
 ```cpp
-auto animation = api_probe::parallel(
-    api_probe::sequence(
-        anim::morph(card, panel).duration(600ms),
-        anim::morph(card, expanded).duration(400ms)),
-    api_probe::stagger(100ms,
-        anim::morph(title, final_title),
-        anim::morph(icon, final_icon)));
+auto animation = hanim::parallel(
+    hanim::sequence(
+        hanim::anim::morph(card, panel).duration(600ms),
+        hanim::anim::morph(card, expanded).duration(400ms)),
+    hanim::stagger(100ms,
+        hanim::anim::morph(title, final_title),
+        hanim::anim::morph(icon, final_icon)));
 ```
 
-Timing in a sequence and the second segment's source pose come from the real
-`hanim.program` compiler. A later segment for `card` starts from the previous
-segment's endpoint, even though its description names the same live `card`.
-Parallel writes to the same logical object are rejected; no implicit blend is
-invented. Multi-track frames require an explicit track index.
+The leaf converts into the existing immutable Program. Its setters return new
+values, and group effects are deliberately not a leaf setter on a group. The
+same Program compiler handles legacy snapshot bindings and modern leaves.
+Live ObjectRefs capture at prepare; explicit snapshots stay frozen, including
+mixed live-source/frozen-target inputs. Standalone preparation accepts a registry
+for live inputs; without one it reports `unresolved_object`. Foreign/stale refs,
+invalid geometry/effects, depth/node budgets and conflicting writes are failures,
+not silent fallbacks. Engine failures preserve nested diagnostics.
 
-## What the experiment establishes
+A sequence's later source starts at the previous actual endpoint unless
+`.source(ProgramSource::snapshot)` explicitly requests a reset. Prepared plans
+retain owned geometry after source destruction; original business objects never
+change during playback. Engine preparation requires the owning thread and
+rejects reentrant mutation. Full channel mixing, group/render effect scopes,
+image/pixel/rig domains and UI adapters are separate implementation work.
 
-| Concern | Actual behavior |
-| --- | --- |
-| Simple and prepared paths | Same `PreparedProgram::prepare` and `Engine::play`; no second matcher, compiler, player, scheduler or evaluator |
-| Authoring | Small immutable descriptor tree, normalized to existing `Program`; concepts restrict composition to this fixture's expressions |
-| Live inputs | Description retains `ObjectRef`; `prepare` captures the Engine's current revision, not the revision at description creation |
-| Frozen inputs | `morph(Snapshot, Snapshot)` uses the explicit owned endpoints; external registries currently require this overload |
-| Ownership | `PreparedProgram` retains geometry after original objects are destroyed; stale/foreign refs are rejected before playback |
-| Value reuse | `.duration`, `.easing`, `.with_effect` return a new leaf; reusing the base expression preserves it |
-| Composition | `sequence`, `parallel`, `stagger` preserve structure until the existing compiler prepares it |
-| Effects | Ordered **leaf parameter chains**, tested with blur then tone; nested/group effect scope is deliberately unavailable |
-| Errors | `std::expected` preserves nested object/program/effect failures; `[[nodiscard]]` and chrono durations keep mistakes visible |
-| Limits | Adapter bounds lowering by node/depth limits; the real compiler checks its remaining budgets and semantic errors |
-
-Creating descriptions, capturing refs and compiling plans are cold-path work.
-They may allocate and retain leases; convenient `play(description)` pays that
-preparation cost on every call. No implicit preparation cache is claimed. The
-facade and Engine require one owning thread or external synchronization. A
-prepared plan does not update or write back into the original business object.
-Borrowed `EngineFrame` spans still expire on the next engine mutation; the tests
-copy frames before seeking again. Engine-owner lifetime is a caller contract,
-not a dynamically checked weak reference.
-
-There is no `move`, `reveal`, arbitrary property animation, matching plugin,
-disturbance/field simulation, group effect scope, general HObject adapter,
-GPU resource graph, renderer, pixel output or OpenAS provider in this fixture.
-The effect test checks parameter ordering/interpolation, not the visible blur
-or tone result. True contour interpolation is checked through actual cubic
-coordinates and object transforms, not a time/progress-only surrogate.
-Use [the existing renderer consumer](../hanim-play-consumer/README.md) for its
-separate CPU pixel evidence. This test does not establish throughput, allocation
-budgets, sanitizer results, cross-platform support or superiority to another
-animation engine. The descriptor tree and facade remain a disposable prototype.
-
-## Reproduce and inspect
+## Run and inspect
 
 ```sh
 MCPP_JOBS=2 python3 tools/ci/hanim-api-probe/run.py \
   --mcpp /path/to/mcpp \
-  --output /tmp/hanim-api-probe.report.omui.json --keep-project
+  --output /tmp/hanim-public-authoring.report.omui.json --keep-project
 ```
 
-`--source-root /path/to/checkout` can select the public libraries independently
-of the fixture checkout. The script creates a fresh external workspace,
-bootstraps its resolution, and builds/runs dev and release with `--locked`.
-Only local path dependencies are present; mcpp may create no lockfile for this
-closure. The report records that explicitly and checks that both the optional
-consumer lock and the source checkout's lock remain unchanged. The root
-manifest and workspace membership are never edited.
+The runner creates a fresh external mcpp workspace, resolves the actual public
+umbrella, then runs dev and release with locked resolution. It audits C++23
+compilation and the package graph, rejecting UI/spec/renderer/RHI dependencies.
+The root source lock and the optional consumer lock must stay byte-identical.
+mcpp currently qualifies the pre-existing unnamespaced package as
+`mcpplibs.hanim`; the dependency key and module remain `hanim`. The audit also
+checks the resolved umbrella source path.
 
-JSON includes per-check results, commands, exit codes, logs, compiler metadata,
-fixture and compiled source hashes, resolution graphs and compilation commands.
-The audit requires C++23 compilation of both consumer sources and the actual
-Hanim packages; it rejects UI, spec, testing, host, site and rendering packages.
-`--keep-project` retains the consumer for inspection. Evidence artifacts remain
-beside the report even if the temporary project is removed.
+Checks cover real cubic geometry, transforms, effect parameter order, seek,
+value reuse, live capture/frozen snapshots, nesting, explicit source reset,
+legacy composition, stale/foreign/generation errors and resource lifetime.
+These are assertions, not animation-library entries. The separate
+[rendering consumer](../hanim-play-consumer/README.md) exercises this public
+entry with the shared CPU renderer and real cropped pixels.
 
-The checks cover real geometry midpoints, out-of-order seeking, simple/prepared
-equivalence, source immutability, reusable leaves, effect order, nested tracks,
-stagger pre-start poses, sequence endpoint continuity, limits, bad effects,
-conflicts, foreign/stale refs, generation reuse and owned prepared geometry.
-Several checks guard setup/lifecycle; their count is not a feature count.
+The JSON report records commands, checks, toolchain, dependency graph, actual
+compiled source hashes and lock hashes. It does not establish GPU performance,
+all-platform support, general scope semantics or the complete public catalog.
+The CI workflow runs this gate; local passing results need not wait for CI.
 
-[Recorded local evidence](2026-11-05.report.omui.json) retains the actual
-dev/release results, toolchain, complete assertion names, ten-library dependency
-closure, fixture/source hashes and unchanged source-lock hashes. It is a result
-from the recorded source commit, not a guarantee that later revisions pass.
+[The original 76-assertion report](2026-11-05.report.omui.json) belongs to its
+recorded historical commit and consumer-local prototype. It is retained as
+history and is not evidence for the current public API. Current execution
+results are recorded separately in the [S1 public API report](2026-11-05-public.report.omui.json)
+with their own source hashes: dev/release each pass 84 assertions, related suites
+each pass 40 cases, and the Wasm umbrella executes 3 cases. The same report
+includes the independent CPU renderer consumer's results and explicit limits.

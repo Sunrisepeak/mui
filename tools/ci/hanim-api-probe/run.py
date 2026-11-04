@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate a consumer-local API proposal against the real public hanim engine."""
+"""Validate animation-first authoring using only the public hanim umbrella."""
 from __future__ import annotations
 import argparse
 import hashlib
@@ -29,11 +29,11 @@ def main() -> int:
     artifacts = output.parent / (output.stem + '-artifacts'); artifacts.mkdir(exist_ok=True)
     project = Path(tempfile.mkdtemp(prefix='hanim-api-probe-'))
     lock = digest(repo/'mcpp.lock')
-    report = {'format':'hanim.api-probe@0.1', 'ok':False, 'source_root':str(repo),
+    report = {'format':'hanim.public-authoring@0.2', 'ok':False, 'source_root':str(repo),
               'source_commit':subprocess.check_output(['git','-C',str(repo),'rev-parse','HEAD'],text=True).strip(),
               'project':str(project), 'source_lock_before':lock, 'commands':[], 'profiles':[],
               'fixture_sha256':{str(p.relative_to(fixture)):digest(p) for p in sorted([fixture/'run.py',fixture/'mcpp.toml.in',*fixture.glob('src/*')])},
-              'scope':['Consumer-local API experiment; no public hanim API frozen or changed.',
+              'scope':['Public import hanim; no consumer facade or second compiler/player.',
                        'Real strict contour/transform/fill morph and parameter effects only.',
                        'ObjectRef uses borrowed Engine registry; external hosts use explicit Snapshot inputs.',
                        'No renderer, GPU, move/reveal, general effect scopes or Agent provider.',
@@ -53,7 +53,7 @@ def main() -> int:
         return process.stdout
     try:
         (project/'src').mkdir()
-        text=(fixture/'mcpp.toml.in').read_text().replace('{{engine_path}}',json.dumps(str(repo/'modules/gfx/hanim/engine')))
+        text=(fixture/'mcpp.toml.in').read_text().replace('{{hanim_path}}',json.dumps(str(repo/'modules/gfx/hanim')))
         (project/'mcpp.toml').write_text(text)
         for p in fixture.glob('src/*'):shutil.copyfile(p,project/'src'/p.name)
         shutil.copyfile(project/'mcpp.toml',artifacts/'consumer.mcpp.toml')
@@ -74,7 +74,13 @@ def main() -> int:
                 p=entry['package'];name=(p.get('namespace','')+'.'+p['name']).lstrip('.');names.append(name)
                 if name in {'openmui.core','openmui.sdk','openmui.testing','openlifa.openmui','openmui.spec'} or name.startswith(('openmui.ui.','openmui.host.','openmui.site','openmui.rhi','openmui.render')):
                     raise RuntimeError(f'forbidden UI/renderer dependency: {name}')
-            if not {'hanim.engine','hanim.program','hanim.library','hanim.effect','hanim.object','hanim.core'}.issubset(names):
+            # mcpp's existing default namespace normalizes the unqualified
+            # package hanim to mcpplibs.hanim; the module/import stays hanim.
+            umbrella=next((p['package'] for p in data['graph']['packages']
+                           if p['package']['name']=='hanim'),None)
+            if not umbrella or umbrella['source']!='path+'+str(repo/'modules/gfx/hanim'):
+                raise RuntimeError('umbrella did not resolve to the public source package')
+            if not {'mcpplibs.hanim','hanim.engine','hanim.program','hanim.library','hanim.effect','hanim.object','hanim.core'}.issubset(names):
                 raise RuntimeError('real public hanim package missing')
             cdb=resolution.parent/'compile_commands.json';entries=json.loads(cdb.read_text())
             sources=[];source_hashes={}
@@ -87,7 +93,7 @@ def main() -> int:
                 if p.is_relative_to(repo):source_hashes[str(p.relative_to(repo))]=digest(p)
                 if p.is_relative_to(project/'src') and '-std=c++23' not in item.get('arguments',[]):
                     raise RuntimeError('consumer was not compiled as C++23')
-            if not {str(project/'src/main.cpp'),str(project/'src/api.cppm')}.issubset(sources):
+            if not {str(project/'src/main.cpp')}.issubset(sources):
                 raise RuntimeError('actual compilation omitted consumer source')
             shutil.copyfile(resolution,artifacts/(profile+'.resolution.json'))
             shutil.copyfile(cdb,artifacts/(profile+'.compile_commands.json'))

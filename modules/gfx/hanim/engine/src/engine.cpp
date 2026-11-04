@@ -54,12 +54,13 @@ EngineFailure program_failure(ProgramFailure error) noexcept {
         case ProgramError::binding_conflict: code = EngineError::binding_conflict; break;
         case ProgramError::animation: code = EngineError::animation; break;
         case ProgramError::effect: code = EngineError::effect; break;
+        case ProgramError::object: code = EngineError::object; break;
         case ProgramError::node_budget: case ProgramError::depth_budget: case ProgramError::track_budget:
         case ProgramError::segment_budget: case ProgramError::part_budget: case ProgramError::cubic_budget:
         case ProgramError::effect_parameter_budget: code = EngineError::capacity; break;
         default: break;
     }
-    return {.code = code, .animation = error.animation, .effect = error.effect, .program = error};
+    return {.code = code, .object = error.object, .animation = error.animation, .effect = error.effect, .program = error};
 }
 struct WriteScope {
     bool& writing;
@@ -267,6 +268,22 @@ std::expected<void, ObjectError> Engine::destroy_object(ObjectRef ref) {
 }
 std::expected<Snapshot, ObjectError> Engine::capture_object(ObjectRef ref) const noexcept {
     return data_ ? data_->objects.capture(ref) : std::expected<Snapshot, ObjectError>(std::unexpected(ObjectError::uninitialized));
+}
+std::expected<PreparedProgram, EngineFailure> Engine::prepare(const Program& description, ProgramLimits limits) {
+    if (writing_) return std::unexpected(fail(EngineError::reentrant_mutation));
+    if (!data_) return std::unexpected(fail(EngineError::uninitialized));
+    WriteScope write(writing_); omui::trace::Span span("prepare", "hanim.engine");
+    auto program = PreparedProgram::prepare(description, data_->objects, limits);
+    if (!program) return std::unexpected(program_failure(program.error()));
+    return std::move(*program);
+}
+std::expected<PlaybackRef, EngineFailure> Engine::play(const Program& description, ProgramLimits limits) {
+    if (writing_) return std::unexpected(fail(EngineError::reentrant_mutation));
+    if (!data_) return std::unexpected(fail(EngineError::uninitialized));
+    WriteScope write(writing_); omui::trace::Span span("play-animation", "hanim.engine");
+    auto program = PreparedProgram::prepare(description, data_->objects, limits);
+    if (!program) return std::unexpected(program_failure(program.error()));
+    return insert_playback(data_.get(), std::move(*program));
 }
 std::expected<PlaybackRef, EngineFailure> Engine::play(ObjectRef object, anim::MorphTo animation, const EffectSpec& effect, PlayOptions options) {
     return play(object, animation, std::span<const EffectSpec>(&effect, 1), options);

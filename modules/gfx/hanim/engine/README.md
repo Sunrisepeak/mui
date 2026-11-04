@@ -6,6 +6,17 @@ strict named-part contour/transform/fill morph; ordered effects share its
 bounded eased progress. This is not the complete animation catalog, pixel or
 rig domains, general channel/effect composition or full Engine acceptance.
 
+The animation-first entry is `play(anim::morph(source,target).duration(600ms))`.
+`prepare(program, ProgramLimits)` captures live refs from the Engine registry
+and returns the same immutable `PreparedProgram` used by `play(prepared)`.
+Explicit snapshots can come from external registries. Leaf setters are values;
+sequence/parallel/stagger retain the existing schedule/source/conflict rules.
+`play(program, ProgramLimits)` performs the same cold preparation then reserves
+playback storage. Node/depth/geometry limits belong to preparation; EngineLimits
+still govern live playback capacity. Reentrant mutations during capture/prepare
+are rejected and failures preserve existing playbacks. No new clock, automatic
+business-state writes, group effect scope or channel blending is implied.
+
 `Engine::play(object, anim::morph_to(target), effects, options)` captures owned
 endpoints from its registry. External hosts can instead publish two public
 Snapshots to the same player. Sampling never calls a business setter. Every

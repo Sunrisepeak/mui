@@ -12,4 +12,4 @@ Reusable libraries shared by the project's independent products, organized by de
 
 `base`, `gfx`, `content` and `media` are independent components: they do not depend on the UI runtime or UI specification, and each can be used and published on its own (D-55). The UI framework never depends on a game engine; games can consume its public UI APIs (D-82).
 
-A package's directory is its name: `openmui.rhi.sdl` lives in `gfx/rhi/sdl`, `hanim.core` in `base/hanim/core`, and `hanim.object` in `gfx/hanim/object` (D-80). The current `hanim` compatibility umbrella in `base/hanim` exports core only; a complete product entry point is separate implementation work.
+A package's directory is its name: `openmui.rhi.sdl` lives in `gfx/rhi/sdl`, `hanim.core` in `base/hanim/core`, and `hanim.object` in `gfx/hanim/object` (D-80). The `hanim` product umbrella lives in `gfx/hanim` and exports core, objects, library, effects, programs and the Engine; renderer adapters are opt-in. `base/hanim` is a grouping directory for the independent core.

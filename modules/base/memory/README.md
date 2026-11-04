@@ -13,7 +13,7 @@ not compatibility with the former exhaustion-time wraparound.
 
 A `SlotStorage` limit bounds materialized slots, including reusable vacancies
 and retired slots. It does not preallocate the maximum and is not a byte budget
-for allocator/vector spare capacity. Queries and traversal do not allocate.
+for allocator/vector spare capacity. Queries and traversal add no storage allocation; caller callbacks may allocate.
 `clear()` invalidates live keys while retaining generation/retirement history.
 Values/references may move when storage grows, while handles remain stable.
 
@@ -31,3 +31,22 @@ a moved-from storage is empty and keeps its configured limit. Mutation needs
 one owning thread or external synchronization. Traversal visits live slots in
 index order; erasing the current entry is allowed if the callback stops using
 its value afterwards. Insertion/swap during traversal is unsupported.
+
+
+Keys are local to a storage identity space, not global capabilities. A staging
+copy intentionally contains the same keys with independently copied values;
+swap publishes that complete state. Reusing a moved-from source starts a new
+local identity space and may produce the same numeric keys as the moved-to
+storage. An owning registry supplies its own owner/lineage identity when keys
+must be distinguished across containers. Copying an old state back is an
+explicit identity-state replacement, not a guarantee against stale keys across
+arbitrary rollback or unrelated storages.
+
+`SlotStorage::insert` forwards its argument to the final value: a `const T&`
+needs one copy, and a `T` rvalue needs one move. Fresh slots construct their
+optional value directly, with no intermediate `T` parameter or temporary
+`Slot`. `try_insert` likewise moves a successful prepared value once into its
+slot; any construction/moves performed by the factory itself belong to the
+factory. Relocation of other values during vector growth is separate. The
+legacy `SlotMap::insert(T)` signature is preserved; its prvalue parameter is
+constructed directly and then moved once to the final slot.

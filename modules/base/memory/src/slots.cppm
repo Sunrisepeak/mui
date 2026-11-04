@@ -96,10 +96,11 @@ public:
         return *candidate;
     }
 
-    [[nodiscard]] std::expected<H, SlotStorageError> insert(T value) {
+    template <class U>
+    [[nodiscard]] std::expected<H, SlotStorageError> insert(U&& value) requires std::constructible_from<T, U&&> {
         const auto candidate = next_handle();
         if (!candidate) return std::unexpected(SlotStorageError::capacity);
-        commit(*candidate, std::move(value));
+        commit(*candidate, std::forward<U>(value));
         return *candidate;
     }
     [[nodiscard]] bool contains(H key) const noexcept {
@@ -137,15 +138,18 @@ public:
 
 private:
     struct Slot {
+        template <class U>
+        Slot(std::in_place_t, U&& initial) : value(std::in_place, std::forward<U>(initial)) {}
         std::optional<T> value;
         generation_type generation = InitialGeneration;
         std::uint32_t next_free = H::invalid_index;
     };
-    void commit(H key, T value) {
-        if (key.index == slots_.size()) slots_.push_back(Slot{std::optional<T>(std::move(value)), InitialGeneration, H::invalid_index});
+    template <class U>
+    void commit(H key, U&& value) {
+        if (key.index == slots_.size()) slots_.emplace_back(std::in_place, std::forward<U>(value));
         else {
             Slot& slot = slots_[key.index];
-            slot.value.emplace(std::move(value));
+            slot.value.emplace(std::forward<U>(value));
             head_ = slot.next_free;
             slot.next_free = H::invalid_index;
         }

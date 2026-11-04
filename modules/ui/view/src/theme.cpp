@@ -1,6 +1,7 @@
 module openmui.view;
 
 import std;
+import openmui.core;
 
 namespace omui {
 
@@ -126,6 +127,7 @@ namespace {
 
 constexpr std::pair<std::string_view, MotionPrimitive> primitive_names[]{
     {"match", MotionPrimitive::match_drawing}, {"glyphs", MotionPrimitive::match_glyphs},
+    {"readable-text", MotionPrimitive::readable_text},
     {"fade", MotionPrimitive::fade}, {"lift", MotionPrimitive::lift}, {"panel-lift", MotionPrimitive::panel_lift},
     {"grow", MotionPrimitive::grow}, {"check-grow", MotionPrimitive::check_grow},
     {"stretch", MotionPrimitive::stretch}, {"stagger", MotionPrimitive::stagger}, {"distance", MotionPrimitive::distance}
@@ -135,7 +137,8 @@ void add_primitive(MotionSpec& m, MotionPrimitive part) {
     m.primitives |= static_cast<std::uint16_t>(part);
     switch (part) {
         case MotionPrimitive::match_drawing: m.kind = MotionSpec::Kind::morph; break;
-        case MotionPrimitive::match_glyphs: m.glyphs = true; break;
+        case MotionPrimitive::match_glyphs: m.glyphs = true; m.text = MotionSpec::TextTransition::glyphs; break;
+        case MotionPrimitive::readable_text: m.glyphs = true; m.text = MotionSpec::TextTransition::automatic; break;
         case MotionPrimitive::fade: m.fade_out = 0.6; m.fade_in = 0.3; break;
         case MotionPrimitive::lift: m.rise = 8; break;
         case MotionPrimitive::panel_lift: m.rise = 20; break;
@@ -262,8 +265,12 @@ std::map<std::string, MotionSpec, std::less<>> default_motion_library() {
     using P = MotionPrimitive;
     const auto quick = Transition::token("motion.spring.snappy").value_or(Transition::spring_with());
     const auto gentle = Transition::token("motion.spring.gentle").value_or(Transition::spring_with());
-    auto add = [&](std::string name, MotionSpec spec) { spec.name = name; lib.emplace(std::move(name), std::move(spec)); };
-    add("default.action", compose_motion({P::match_drawing, P::match_glyphs, P::fade}, quick));
+    auto add = [&](std::string name, MotionSpec spec) {
+        spec.name = name;
+        spec.placement = MotionSpec::PlacementPolicy::follow_layout;
+        lib.emplace(std::move(name), std::move(spec));
+    };
+    add("default.action", compose_motion({P::match_drawing, P::readable_text, P::fade}, quick));
     add("default.focus", compose_motion({P::match_drawing, P::match_glyphs, P::fade}, Transition::tween(hanim::seconds(0.10))));
     add("default.toggle", compose_motion({P::match_drawing, P::match_glyphs, P::fade, P::stretch}, quick));
     add("default.check", compose_motion({P::match_drawing, P::match_glyphs, P::fade, P::check_grow}, quick));
@@ -336,7 +343,35 @@ std::optional<MotionSpec> parse_motion(const Value& v, const Theme& theme) {
         else if (order == "distance") m.order = MotionSpec::Order::distance;
         else return std::nullopt;
     }
+    if (const Value* p = v.get("placement")) {
+        if (p->as_string() == "automatic") m.placement = MotionSpec::PlacementPolicy::automatic;
+        else if (p->as_string() == "animate") m.placement = MotionSpec::PlacementPolicy::animate;
+        else if (p->as_string() == "follow_layout") m.placement = MotionSpec::PlacementPolicy::follow_layout;
+        else return std::nullopt;
+    }
     if (const Value* st = v.get("stagger")) m.stagger = std::max(0.0, st->as_double());
+    if (const Value* t = v.get("text")) {
+        if (t->as_string() == "glyphs") m.text = MotionSpec::TextTransition::glyphs;
+        else if (t->as_string() == "replace") m.text = MotionSpec::TextTransition::replace;
+        else if (t->as_string() == "auto") m.text = MotionSpec::TextTransition::automatic;
+        else return std::nullopt;
+        m.glyphs = true;
+    }
+    if (const Value* r = v.get("text_rise")) {
+        if (!r->is_number() || !std::isfinite(r->as_double())) return std::nullopt;
+        m.text_rise = static_cast<float>(std::clamp(r->as_double(), 0.0, 2.0));
+    }
+    if (const Value* r = v.get("text_contrast")) {
+        if (!r->is_number() || !std::isfinite(r->as_double())) return std::nullopt;
+        const double value = r->as_double();
+        if (value > 4.5) {
+            constexpr Log motion_log{"motion"};
+            motion_log.warn("text_contrast: ink-only policy cannot guarantee higher contrast than 4.5; choose a background policy");
+            return std::nullopt;
+        }
+        if (value != 0 && value < 1) return std::nullopt;
+        m.minimum_text_contrast = value;
+    }
     if (const Value* g = v.get("glyphs")) m.glyphs = g->as_bool(true);
     if (const Value* g = v.get("meaning")) m.meaning = g->as_bool(true);
     if (const Value* r = v.get("rise")) m.rise = static_cast<float>(r->as_double());

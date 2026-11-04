@@ -10,7 +10,10 @@ namespace omui::site {
 namespace {
 
 constexpr std::array<MotionCaseInfo, 20> combinations{{
-    {"packing-board", "A bag, ready to go", "整理一只出行包", "organise", "Pack a list, then carry the same items into cards.", "勾好行李，再把同一批物品收拢成卡片。", "checkbox + card + button", "glass", "spring", "document", 0.035},
+    // Edge-to-edge reflow uses the bounded tween recipe: a spring's valid
+    // overshoot would carry the final card outside this usable workspace.
+    // Each control retains the framework's own default state feedback.
+    {"packing-board", "A bag, ready to go", "整理一只出行包", "organise", "Pack a list, then carry the same items into cards.", "勾好行李，再把同一批物品收拢成卡片。", "checkbox + card + button", "glass", "simple", "document", 0.035},
     {"inbox-triage", "Give a message a home", "给消息一个归处", "organise", "Move a reviewed message from the inbox into its archive.", "把读过的消息从收件箱移到归档。", "avatar + badge + card + button", "ink", "ink", "document", 0.025},
     {"focus-session", "Find a quieter hour", "留一段专注时间", "control", "Tune a session and turn its settings into a focused readout.", "调整专注时长，把设置收成清晰的运行状态。", "slider + progress + toggle + button", "neon", "spring", "distance", 0.025},
     {"release-steps", "From ready to released", "从准备到发布", "workflow", "Keep progress, review steps and a release receipt together.", "让步骤、进度与发布回执保持连续。", "stepper + progress + badge + button", "retro", "morph", "document", 0.045},

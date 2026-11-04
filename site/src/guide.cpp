@@ -107,7 +107,7 @@ void Guide::say(std::string line, bool begins) {
 
 void Guide::show_grants() {
     std::string out;
-    for (const openas::Grant& g : agent_access().grants())
+    for (const openas::Grant& g : runtime_.agent_access().grants())
         if (g.actor == to_openas(*Actor::parse(guide_actor))) out += (out.empty() ? "" : "  ") + openas::format(g);
     grants.set(std::move(out));
 }
@@ -194,7 +194,7 @@ void Guide::allow() {
     // For this visit: the agent may do this kind of request without asking (a grant, S-11).
     auto req = parse_json(waiting_);
     const std::string action = req && req->get("action") ? std::string(req->get("action")->as_string()) : std::string("*");
-    if (auto g = openas::parse_grant(std::format("{}=external@{}", guide_actor, action))) agent_access().give(*g);
+    if (auto g = openas::parse_grant(std::format("{}=external@{}", guide_actor, action))) runtime_.agent_access().give(*g);
     show_grants();
     say(std::format("  the person allows {} for this visit", action), true);
     asking.set(std::string());
@@ -212,7 +212,7 @@ void Guide::deny() {
 }
 
 void Guide::revoke() {
-    const std::size_t n = agent_access().revoke(to_openas(*Actor::parse(guide_actor)));
+    const std::size_t n = runtime_.agent_access().revoke(to_openas(*Actor::parse(guide_actor)));
     say(std::format("  the person revokes the agent's grants ({})", n), true);
     show_grants();
 }

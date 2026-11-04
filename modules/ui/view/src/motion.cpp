@@ -29,6 +29,13 @@ constexpr std::size_t none = static_cast<std::size_t>(-1);
 
 motion::Options options_of(const MotionSpec& spec, MotionLevel level, const Theme& theme) {
     motion::Options o;
+    o.glyphs = spec.glyphs;
+    o.text = spec.text == MotionSpec::TextTransition::automatic ? motion::TextTransition::automatic
+           : spec.text == MotionSpec::TextTransition::replace ? motion::TextTransition::replace
+                                                           : motion::TextTransition::glyphs;
+    o.text_rise = level == MotionLevel::reduced ? 0 : spec.text_rise;
+    o.semantic = spec.meaning;
+    o.minimum_text_contrast = spec.minimum_text_contrast;
     if (level == MotionLevel::reduced) {
         o.curve.kind = motion::Curve::Kind::tween;
         o.curve.duration = 0.12;
@@ -45,8 +52,6 @@ motion::Options options_of(const MotionSpec& spec, MotionLevel level, const Them
               : spec.order == MotionSpec::Order::distance ? motion::Order::distance
                                                           : motion::Order::together;
     o.stagger = spec.stagger;
-    o.glyphs = spec.glyphs;
-    o.semantic = spec.meaning;
     o.rise = spec.rise;
     o.grow = spec.grow;
     o.stretch = spec.stretch;
@@ -103,7 +108,7 @@ const MotionSpec* Runtime::Impl::slot_motion(NodeId id, std::size_t slot, bool f
                 else {
                     constexpr Log motion_log{"motion"};
                     motion_log.warn("{}: a motion is \"none\", \"morph\", a library's name (\"liquid\"), either with a curve after it, "
-                                    "{{use, curve, order, stagger, glyphs, meaning, rise, grow, stretch, travel}}, or a list of them; not {}",
+                                    "{{use, curve, order, stagger, glyphs, text, text_rise, text_contrast, meaning, rise, grow, stretch, travel}}, or a list of them; not {}",
                                     self.path(id), v->json());
                 }
                 continue;
@@ -152,6 +157,16 @@ const MotionSpec* Runtime::Impl::slot_motion(NodeId id, std::size_t slot, bool f
 void Runtime::Impl::emit_motion_range(std::size_t begin, std::size_t end, render::DisplayList& out, double t) {
     const auto cmds = list.commands();
     for (std::size_t i = begin; i < end; ++i) {
+        if (history_range.second > history_range.first && i == history_range.first) {
+            // The old frame remains a balanced visual layer with its original
+            // renderer ownership. Never replace its repeated node markers by
+            // current live morphs; copy the whole layer without interpreting it.
+            emitted_history_range.first = out.size();
+            for (std::size_t j = i; j < history_range.second; ++j) out.append_command(cmds[j]);
+            emitted_history_range.second = out.size();
+            i = history_range.second - 1;
+            continue;
+        }
         if (const auto* b = std::get_if<render::BeginNode>(&cmds[i]); b && b->node < marker_ranges.size() && marker_ranges[b->node].first == i) {
             const NodeId id = b->node < by_index.size() ? by_index[b->node] : NodeId{};
             if (alive(id) && at(id).morph) {
@@ -193,12 +208,32 @@ void Runtime::Impl::run_motion() {
     if (!repainted) return;
     const auto cmds = list.commands();
     const std::size_t markers = by_index.size();
+    auto previous_range = [&](std::uint32_t marker) -> std::optional<std::pair<std::size_t, std::size_t>> {
+        const auto before = previous_list.commands();
+        if (previous_history_range.second > previous_history_range.first) {
+            // Current overlays follow history in paint order. Searching only
+            // the first prefix would lose those current ranges; searching the
+            // entire list would instead find their historical copies first.
+            if (auto range = motion::find_range(before.first(previous_history_range.first), marker)) return range;
+            return motion::find_range(before, marker, previous_history_range.second);
+        }
+        return motion::find_range(before, marker);
+    };
+    auto snapshot_context = [&](std::uint32_t marker) {
+        motion::SnapshotContext context;
+        if (const auto range = previous_range(marker)) context.prefix = previous_list.commands().first(range->first);
+        return context;
+    };
 
     // Where each marker's range is this frame.
     marker_ranges.assign(markers, {none, none});
     marker_flags.assign(markers, 0);
     marker_stack.clear();
     for (std::size_t i = 0; i < cmds.size(); ++i) {
+        if (history_range.second > history_range.first && i == history_range.first) {
+            i = history_range.second - 1;
+            continue;
+        }
         if (const auto* b = std::get_if<render::BeginNode>(&cmds[i])) {
             if (b->node < markers) marker_ranges[b->node].first = i;
             marker_stack.push_back(b->node);
@@ -248,6 +283,22 @@ void Runtime::Impl::run_motion() {
             if (const auto* inner = std::get_if<render::BeginNode>(&cmds[i]); inner && i != b && inner->node < markers) {
                 if (marker_flags[inner->node] & 1) {  // a nested root: its own
                     h = render::hash_command(cmds[i], h);
+                    const NodeId child = by_index[inner->node];
+                    if (alive(child)) {
+                        const MotionSpec* spec = update_motion(child);
+                        if (spec && spec->placement == MotionSpec::PlacementPolicy::follow_layout) {
+                            // Default feedback owns state paint, while this
+                            // root owns the child's layout envelope. Without
+                            // the allocation in this comparison, a row/column
+                            // reflow containing only default-motion controls
+                            // looks unchanged and snaps directly to its end.
+                            // Do not include animated visual properties here:
+                            // hover/press feedback must remain independent.
+                            const Rect allocation = at(child).frame;
+                            h = hash::Fnv1a(h).f32(allocation.x).f32(allocation.y)
+                                .f32(allocation.width).f32(allocation.height).value();
+                        }
+                    }
                     i = marker_ranges[inner->node].second - 1;
                     continue;
                 }
@@ -275,7 +326,18 @@ void Runtime::Impl::run_motion() {
             },
             .nested = [this, root_marker](std::uint32_t marker) {
                 return marker != root_marker && marker < marker_flags.size() && (marker_flags[marker] & 1);
+            },
+            .nested_placement = [this](std::uint32_t marker) {
+                const NodeId child = marker < by_index.size() ? by_index[marker] : NodeId{};
+                if (!alive(child)) return false;
+                const MotionSpec* spec = update_motion(child);
+                return spec && spec->placement == MotionSpec::PlacementPolicy::follow_layout;
             }};
+        const bool external_layout = std::ranges::any_of(constraint_boundaries, [&](NodeId boundary) {
+            return alive(boundary) && (contains(boundary, id) || contains(id, boundary));
+        });
+        const bool rebase_existing = external_layout && n.constraint_epoch != constraint_epoch && n.morph;
+        n.constraint_epoch = constraint_epoch;
         auto start = [&](std::optional<motion::Matter> from, motion::Matter to, const MotionSpec& spec, double velocity) {
             // More pieces than the device's tier moves in a frame (performance tiers §3): shown as it is.
             const std::size_t pieces = (from ? from->pieces().size() : 0) + to.pieces().size();
@@ -285,9 +347,31 @@ void Runtime::Impl::run_motion() {
                 return;
             }
             motion::Options options = options_of(spec, level, theme_of(id));
+            options.proof_scale = scale;
+            options.current_proof_scale = [this] { return scale; };
+            if (options.minimum_text_contrast > 0) {
+                if (!motion_glyphs) motion_glyphs = std::make_unique<typeset::GlyphCache>(*fonts);
+                options.glyph_bounds = [cache = motion_glyphs.get(), lock = &motion_glyph_mutex](const render::DrawGlyphs& run, const Affine& transform) {
+                    const std::scoped_lock guard(*lock);
+                    return motion::glyph_ink_bounds(run, transform, *cache);
+                };
+            }
             options.curve.velocity = velocity;
+            options.rebase_layout = spec.placement == MotionSpec::PlacementPolicy::follow_layout ||
+                (spec.placement == MotionSpec::PlacementPolicy::automatic && external_layout);
+            if (options.rebase_layout && spec.placement == MotionSpec::PlacementPolicy::automatic &&
+                std::ranges::find(constraint_boundaries, root) == constraint_boundaries.end())
+                for (NodeId boundary : constraint_boundaries)
+                    if (alive(boundary) && (contains(boundary, id) || contains(id, boundary))) options.layout_scopes.push_back(self.path(boundary));
+            const auto previous_clock = n.clock;
+            const bool keep_control = external_layout && n.morph && n.clock.held;
             n.morph = std::make_shared<const motion::Morph>(std::move(*from), std::move(to), std::move(options), t);
-            n.clock = {};  // a new change: its own time is the runtime's again (a handle held the last)
+            n.clock = {};  // a new content change follows runtime time again
+            if (keep_control) {
+                n.clock = previous_clock;
+                n.clock.at = t;
+                n.clock.at_local = t; // rebased source is sampled exactly, even while held
+            }
             if (std::ranges::find(morphing, id) == morphing.end()) morphing.push_back(id);
             touch(dirty_semantics);
         };
@@ -296,7 +380,7 @@ void Runtime::Impl::run_motion() {
             if (!n.exit_begun) {
                 n.exit_begun = true;
                 const MotionSpec* exit = slot_motion(id, 2);
-                const auto was = motion::find_range(previous_list.commands(), static_cast<std::uint32_t>(m));
+                const auto was = previous_range(static_cast<std::uint32_t>(m));
                 if (exit && was && !off) start(motion::Matter::extract(previous_list, was->first, was->second, resolver), motion::Matter{}, *exit, 0);
             }
             continue;
@@ -313,7 +397,7 @@ void Runtime::Impl::run_motion() {
             const bool into_drawn = n.type->overlay || (alive(parent) && at(parent).index < drawn_by.size() && drawn_by[at(parent).index] == parent);
             // Hidden, then drawn again before its ghost had vanished: from where the ghost is.
             std::optional<motion::Matter> from;
-            if (n.ghost && n.morph) from = n.morph->snapshot(n.clock.local(t));
+            if (n.ghost && n.morph) from = n.morph->snapshot(n.clock.local(t), {}, snapshot_context(static_cast<std::uint32_t>(m)));
             else from = motion::Matter{};
             n.ghost = false;
             if (spec && into_drawn && !off) start(std::move(from), motion::Matter::extract(list, b, e, resolver), *spec, 0);
@@ -333,7 +417,7 @@ void Runtime::Impl::run_motion() {
             else if (changes == n.drawn_changes && states != n.drawn_states) slot = 3;
         }
         const MotionSpec* spec = slot_motion(id, slot);
-        if (h == n.drawn_hash || !spec) {
+        if ((h == n.drawn_hash && !rebase_existing) || !spec) {
             // A direct content update supersedes a focus/hover transition.
             // In particular, typing must not replay an older text drawing.
             if (!spec && h != n.drawn_hash && n.morph) {
@@ -348,13 +432,14 @@ void Runtime::Impl::run_motion() {
         // is; a morph is for a change, not for a motion.
         const bool continuous = t - n.changed_at < 0.05;
         n.changed_at = t;
-        if (continuous) {
+        if (continuous && !external_layout) {
             if (n.morph) n.morph.reset(), touch(dirty_semantics);
             continue;
         }
         // Held by the pointer (dragged), moving by itself, or motion off: shown as it is.
         const bool held = alive(capture) && (capture == id || contains(id, capture));
-        if (off || held || by_itself) {
+        const bool rebase_held = external_layout && !reduce_motion && level != MotionLevel::off;
+        if ((off && !rebase_held) || held || by_itself) {
             if (n.morph) n.morph.reset(), touch(dirty_semantics);
             continue;
         }
@@ -377,8 +462,8 @@ void Runtime::Impl::run_motion() {
             from = n.morph->snapshot(n.clock.local(t), [this, t](std::uint32_t marker, render::DisplayList& into) {
                 if (marker < marker_ranges.size() && marker_ranges[marker].first != none)
                     emit_motion_range(marker_ranges[marker].first, marker_ranges[marker].second, into, t);
-            });
-        } else if (const auto was = motion::find_range(previous_list.commands(), static_cast<std::uint32_t>(m))) {
+            }, snapshot_context(static_cast<std::uint32_t>(m)));
+        } else if (const auto was = previous_range(static_cast<std::uint32_t>(m))) {
             from = motion::Matter::extract(previous_list, was->first, was->second, before);
         }
         if (!from) continue;
@@ -394,14 +479,14 @@ void Runtime::Impl::run_motion() {
         // Its parent drawn still (else its whole branch went) — an overlay stands alone.
         const NodeId parent = n.parent;
         if (!n.type->overlay && !(alive(parent) && at(parent).index < markers && marker_ranges[at(parent).index].first != none)) continue;
-        const auto was = motion::find_range(previous_list.commands(), static_cast<std::uint32_t>(m));
+        const auto was = previous_range(static_cast<std::uint32_t>(m));
         if (!was) continue;
         motion::Resolver keys{.keys = [this](std::uint32_t marker, std::string& key, std::string&) {
                                   const NodeId who = marker < by_index.size() ? by_index[marker] : NodeId{};
                                   if (alive(who)) key = self.path(who);
                               }};
         std::optional<motion::Matter> from;
-        if (n.morph) from = n.morph->snapshot(n.clock.local(t));
+        if (n.morph) from = n.morph->snapshot(n.clock.local(t), {}, snapshot_context(static_cast<std::uint32_t>(m)));
         else from = motion::Matter::extract(previous_list, was->first, was->second, keys);
         motion::Options options = options_of(*update_motion(id), level, theme_of(id));
         n.morph = std::make_shared<const motion::Morph>(std::move(*from), motion::Matter{}, std::move(options), t);
@@ -434,6 +519,7 @@ void Runtime::Impl::run_motion() {
                 const auto [rb, re] = marker_ranges[at(id).index];
                 if (const auto w = motion::wrapper_of(cmds, rb, re)) marker_wrapper[at(id).index] = *w;
             }
+        emitted_history_range = {};
         morph_scratch.clear();
         morph_scratch.reserve(cmds.size() + 64);
         emit_motion_range(0, cmds.size(), morph_scratch, t);
@@ -449,12 +535,14 @@ void Runtime::Impl::run_motion() {
             morph_scratch.pop_transform();
         }
         std::swap(list, morph_scratch);
+        history_range = emitted_history_range;
         if (motions_moving()) touch(dirty_paint);  // the next frame draws moving clocks further
     }
     // Who drew each marker: the next frame's "before" is this drawing.
     drawn_by.assign(markers, NodeId{});
     for (std::size_t m = 1; m < markers; ++m)
         if (marker_ranges[m].first != none) drawn_by[m] = by_index[m];
+    collect_presentation();
 }
 
 void Runtime::set_motion_level(MotionLevel level) {

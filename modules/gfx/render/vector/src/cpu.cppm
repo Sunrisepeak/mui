@@ -31,6 +31,7 @@ struct RenderReport {
     std::size_t uploaded = 0;  // GPU: bytes the frame sent to the device (images once, coverage, instances)
     std::size_t external_skipped = 0;
     std::size_t missing_images = 0;
+    std::size_t invalid_paints = 0; // invalid flat mixture; never silently accepted
     std::size_t missing_glyphs = 0;
     std::size_t rows = 0;      // rows drawn
     std::size_t skipped = 0;   // draw commands outside every band

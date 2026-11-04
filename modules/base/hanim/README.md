@@ -119,6 +119,9 @@ or mutable caches, supports arbitrary seek/reverse order and concurrent reads
 with separate output buffers, and has O(prepared segment count) work. A caller
 can prepare a new plan from sampled cubics for positional continuity;
 velocity-preserving retargeting belongs to the future object/player layer.
+`sample_segment(progress, index)` returns one cubic by value with the same
+clamping/error policy and no allocation. It supports direct streaming into a
+consumer-owned arena; `invalid_segment` reports an out-of-range index.
 This is the reusable contour preparation primitive, not the complete HObject,
 Engine, material transition, pixel correspondence or Manim feature set.
 

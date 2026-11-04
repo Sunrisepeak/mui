@@ -49,8 +49,24 @@ Value default_of(const spec::DefaultValue& d) {
 
 }  // namespace
 
+std::expected<void, std::string> validate_input_attribution(const FrameInput& input) {
+    std::size_t previous_end = 0;
+    for (const auto& range : input.attribution) {
+        if (range.begin >= range.end)
+            return std::unexpected(std::format("input attribution [{},{}) must be nonempty", range.begin, range.end));
+        if (range.end > input.events.size())
+            return std::unexpected(std::format("input attribution [{},{}) exceeds {} events", range.begin, range.end, input.events.size()));
+        if (range.begin < previous_end)
+            return std::unexpected("input attribution ranges must be ordered and non-overlapping");
+        previous_end = range.end;
+    }
+    return {};
+}
+
 Runtime::Runtime(RuntimeOptions options) : impl_(std::make_unique<Impl>(*this)) {
     Impl& d = *impl_;
+    d.verbs.set_invocation_context(&d.invocation_context);
+    set_agent_access(options.access);
     d.theme = std::move(options.theme);
     d.make_opaque();
     d.clock = options.clock;
@@ -294,10 +310,21 @@ const render::DisplayList& Runtime::display_list() const noexcept { return impl_
 void Runtime::resize(Size size, float scale) {
     Impl& d = *impl_;
     if (size.width == d.size.width && size.height == d.size.height && scale == d.scale) return;
+    constraints_changed(d.root);
     d.size = size;
     d.scale = scale;
     d.layout.mark_dirty(d.at(d.root).layout);
     d.touch(dirty_layout | dirty_paint | dirty_semantics);
+}
+
+void Runtime::constraints_changed(NodeId boundary) {
+    Impl& d = *impl_;
+    if (!d.alive(boundary)) return;
+    if (std::ranges::find(d.constraint_boundaries, boundary) == d.constraint_boundaries.end())
+        d.constraint_boundaries.push_back(boundary);
+    ++d.constraint_epoch;
+    d.layout.mark_dirty(d.at(boundary).layout);
+    d.touch(dirty_layout | dirty_paint);
 }
 
 Size Runtime::size() const noexcept { return impl_->size; }
@@ -333,7 +360,27 @@ void Runtime::set_renderer(std::string name) { impl_->renderer = std::move(name)
 
 std::string_view Runtime::renderer() const noexcept { return impl_->renderer; }
 
-void Runtime::set_input_actor(std::optional<Actor> actor) { impl_->input_actor = std::move(actor); }
+void Runtime::set_input_actor(std::optional<Actor> actor, std::shared_ptr<const AgentSession> session) {
+    Impl& d = *impl_;
+    d.input_actor = std::move(actor);
+    d.input_call.reset();
+    if (d.input_actor) {
+        Invocation call;
+        call.actor = *d.input_actor;
+        call.remote = true;
+        call.access = d.access;
+        call.session = std::move(session);
+        call.operation = "input";
+        d.input_call = std::move(call);
+    }
+}
+void Runtime::set_agent_access(std::shared_ptr<AgentAccess> access) {
+    impl_->access = std::move(access);
+    impl_->verbs.set_agent_access(impl_->access);
+}
+AgentAccess& Runtime::agent_access() noexcept { return impl_->access ? *impl_->access : omui::agent_access(); }
+const AgentAccess& Runtime::agent_access() const noexcept { return impl_->access ? *impl_->access : omui::agent_access(); }
+std::shared_ptr<AgentAccess> Runtime::agent_access_binding() const noexcept { return impl_->access; }
 
 FrameDemandLease Runtime::demand_frames(FrameDemand d) {
     const std::uint64_t token = impl_->next_lease++;
@@ -364,6 +411,9 @@ void Runtime::crossfade(seconds length) {
     Impl& d = *impl_;
     if (!(length.count() > 0) || d.list.commands().empty()) return;
     render::DisplayList before;
+    // Keep the visible snapshot's original markers for renderer ownership.
+    // paint records it as one historical range; motion never indexes that
+    // range as current nodes, even if this snapshot interrupts another fade.
     before.append(d.list);
     d.fading = std::move(before);
     d.fade_clip.reset();
@@ -407,6 +457,11 @@ void Runtime::set_theme(Theme theme) {
 
 void Runtime::fonts_changed() {
     Impl& d = *impl_;
+    // Active Morph callbacks retain this exact cache address.
+    {
+        const std::scoped_lock guard(d.motion_glyph_mutex);
+        if (d.motion_glyphs) d.motion_glyphs->clear();
+    }
     // Their paragraphs are stale (their fonts' revision moved): each measured, laid out and drawn again.
     walk([&](NodeId id, int) { d.layout.mark_dirty(d.at(id).layout); });
     d.touch(dirty_layout | dirty_paint | dirty_semantics);
@@ -569,6 +624,7 @@ Rect Runtime::screen_bounds(NodeId node) const { return valid(node) ? impl_->at(
 Rect Runtime::drawn_bounds(NodeId node) const {
     if (!valid(node)) return {};
     const auto& n = impl_->at(node);
+    if (impl_->presentation_epoch != 0) return n.presented_epoch == impl_->presentation_epoch ? n.presented_bounds : Rect{};
     return n.world.map({0, 0, n.frame.width, n.frame.height});
 }
 NodeState Runtime::state(NodeId node) const { return valid(node) ? impl_->at(node).state : NodeState{}; }

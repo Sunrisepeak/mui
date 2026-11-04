@@ -2,6 +2,18 @@
 
 2D vector rendering (module `openmui.render.vector`, D-57), a rendering feature of [openmui.render](..) (D-81) — its GPU passes are recorded through the render graph: the display list of contract ⑤ (paths, paints, gradients, strokes, clips, transforms, layers with blend modes and effect parameters, glyph runs, images, external textures, node markers), resources by reference (an image store; glyphs from the text engine through `GlyphSource`), and backends. The CPU backend renders through openmui.raster, byte-for-byte the same on every platform, records pixel provenance, and reports what a CPU cannot draw (effects, external textures — spec R-3). Knows nothing of nodes or views.
 
+**Prepared geometry and materials.** `DisplayList::record_path` writes geometry
+directly into the caller's arena; its checked recording can feed a fill and
+stroke without copying the path. A cleared, moved or foreign list invalidates
+the recording token. `PreparedPaintMix` owns and deduplicates flat leaf paints,
+samples into caller storage and records an owned brush in a display list.
+The default limit is 16 distinct leaves; overflow is an explicit preparation
+error. CPU and GPU mix premultiplied material fields before applying the
+current geometry's coverage and clip once. Existing gradient, image and
+normal-lighting code is shared. These graphics contracts have no UI dependency;
+see the path-recording and paint-mix CTS for lifetime, retarget and readback
+checks. Image-store resources retain their existing caller-owned lifetime.
+
 **Incremental frames** (`:damage`, D-62). A `DamageTracker` compares a display list with the previous one, segment by segment (the node markers; a segment's hash covers its own commands and its children's order, its bounds are in device space) and returns the bands of rows that can differ. The CPU backend draws only those rows over the previous frame (`CpuOptions::rows`), skipping commands that cannot reach them, and the result is the full render byte-for-byte — `tests/damage_test.cpp` holds it to that for every kind of change (colours, moves with shadows, rotations under rounded clips, clips, layer opacity, z-order, nodes appearing and going, strokes), and the headless host's tests for real frames. On the 1000-node dashboard of M1 ⑤ at 1080p a one-label frame goes from 28 ms to under 2 ms (`tests/bench`). With a `Parallel` (`CpuOptions::parallel`, the host's task pool) the bands are cut into tasks drawn at the same time — each by its own pooled canvas, glyph masks resolved first on the calling thread — and the bytes are still the serial render's: every band is exact — also under contention, several renderers on several threads each drawing in bands at once, effect layers and pictures included (`tests/effects_test.cpp`). `CpuOptions::measure` fills `RenderReport::kinds`: count and time per kind of command (`command_kind_name`), which is where a frame's raster time goes (the `ui/raster/full-1080p` benchmark reports it).
 
 

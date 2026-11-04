@@ -66,10 +66,12 @@ struct MaterialSetup {
 // how a normal in image space turns into device space.
 [[nodiscard]] std::array<float, 4> orthogonal_part(const Affine& m) noexcept;
 
+struct WeightedPaint;
+inline constexpr std::size_t max_paint_mix_terms = 16;
 struct Paint {
     // image_mask: the image's alpha as coverage of `color` (an ink stroke's
     // silhouette in any colour).
-    enum class Kind : std::uint8_t { solid, gradient, image, image_mask };
+    enum class Kind : std::uint8_t { solid, gradient, image, image_mask, mix };
     Kind kind = Kind::solid;
     Color color;  // solid; the tint (alpha) of an image
 
@@ -87,6 +89,7 @@ struct Paint {
 
     Affine transform;  // paint space to device space
     float  opacity = 1;
+    std::span<const WeightedPaint> mix; // flat leaf shaders, never recursive
 
     [[nodiscard]] static Paint solid(Color c) noexcept {
         Paint p;
@@ -94,6 +97,8 @@ struct Paint {
         return p;
     }
 };
+
+struct WeightedPaint { Paint paint; float weight = 0; };
 
 // A paint ready to produce pixels: the inverse transform and lookup table
 // computed once per fill.
@@ -129,6 +134,26 @@ private:
     std::uint32_t         opacity8_ = 255;
     std::uint32_t         image_k_ = 255;  // an image's tint times the opacity, in 1/255
     std::uint64_t         serial_ = 0;     // this shader's own number (its columns' cache, below)
+};
+
+// Caller-owned reusable setup/row scratch. Every leaf is shaded by Shader;
+// only premultiplied colours are accumulated here, before geometry coverage.
+// One instance belongs to a Canvas, never shared across concurrent canvases.
+class MixShader {
+public:
+    [[nodiscard]] bool reset(const Paint& paint);
+    [[nodiscard]] bool solid() const noexcept { return solid_; }
+    [[nodiscard]] Rgba8 solid_color() const noexcept { return color_; }
+    void shade(int x, int y, int count, Rgba8* output) const;
+private:
+    std::vector<Paint> paints_;
+    std::vector<Shader> shaders_;
+    std::vector<float> weights_;
+    mutable std::vector<Rgba8> row_;
+    mutable std::vector<std::array<float, 4>> sums_;
+    std::uint32_t opacity_ = 255;
+    bool solid_ = false;
+    Rgba8 color_{};
 };
 
 }  // namespace omui::raster

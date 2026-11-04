@@ -51,7 +51,7 @@ struct Invocation {
 };
 
 [[nodiscard]] const Invocation& bind_invocation(const Invocation& given, Invocation& copy,
-    const std::shared_ptr<const AgentAccess>& access, const Invocation* parent = nullptr);
+    const std::shared_ptr<const AgentAccess>& access, const Invocation* parent = nullptr, std::string_view operation = {});
 
 // An instance-owned dynamic call context. A Runtime and its Verbs share
 // this stack, so callbacks cannot shed remote authority by changing entry

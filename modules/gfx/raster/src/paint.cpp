@@ -53,18 +53,38 @@ Shader::Shader(const Paint& paint) : paint_(&paint) {
         material_ = material_setup(*paint.material, paint.transform);
     if (paint.kind == Paint::Kind::gradient) {
         // The table: premultiplied stops, interpolated linearly in premultiplied sRGB.
-        std::vector<Stop> stops(paint.stops.begin(), paint.stops.end());
-        if (stops.empty()) stops.push_back({0, Color::transparent()});
-        std::ranges::stable_sort(stops, {}, &Stop::offset);
+        const Stop transparent{0, Color::transparent()};
+        const std::span<const Stop> stops = paint.stops.empty() ? std::span(&transparent, 1) : paint.stops;
+        const bool ordered = std::ranges::is_sorted(stops, {}, &Stop::offset);
+        const Stop* first = &stops.front();
+        if (!ordered) for (const auto& stop : stops) if (stop.offset < first->offset) first = &stop;
+        std::size_t cursor = 0;
         for (int i = 0; i < 256; ++i) {
             float t = static_cast<float>(i) / 255.0f;
-            std::size_t k = 0;
-            while (k + 1 < stops.size() && stops[k + 1].offset <= t) ++k;
-            const Stop& a = stops[k];
-            const Stop& b = k + 1 < stops.size() ? stops[k + 1] : stops[k];
+            const Stop* left = first;
+            const Stop* right = nullptr;
+            if (ordered) {
+                while (cursor + 1 < stops.size() && stops[cursor + 1].offset <= t) ++cursor;
+                left = &stops[cursor];
+                right = cursor + 1 < stops.size() ? &stops[cursor + 1] : left;
+            } else {
+                // Same stable tie rule as stable_sort, without copying,
+                // allocating or sorting per frame. Below a stop's offset the
+                // FIRST tied stop wins; at the offset the LAST tied stop wins.
+                bool found = false;
+                for (const auto& stop : stops) {
+                    if (stop.offset <= t) {
+                        if (!found || stop.offset >= left->offset) left = &stop;
+                        found = true;
+                    } else if (!right || stop.offset < right->offset) right = &stop;
+                }
+                if (!right) right = left;
+            }
+            const Stop& a = *left;
+            const Stop& b = *right;
             float span = b.offset - a.offset;
             float u = span > 0 ? std::clamp((t - a.offset) / span, 0.0f, 1.0f) : 0.0f;
-            if (t < stops.front().offset) u = 0;
+            if (t < first->offset) u = 0;
             float aa = a.color.a, ba = b.color.a;
             float r = (a.color.r * aa) * (1 - u) + (b.color.r * ba) * u;
             float g = (a.color.g * aa) * (1 - u) + (b.color.g * ba) * u;
@@ -371,6 +391,61 @@ void Shader::shade(int x, int y, int count, Rgba8* out) const {
         return;
     }
     for (int i = 0; i < count; ++i) out[i] = gradient_at(static_cast<float>(x + i) + 0.5f, py);
+}
+
+namespace {
+Rgba8 mix_bytes(const std::array<float, 4>& sums, std::uint32_t opacity) {
+    auto byte = [opacity](float value) {
+        const auto result = static_cast<std::uint32_t>(std::clamp(value, 0.0f, 255.0f) + 0.5f);
+        return static_cast<std::uint8_t>(mul255(result, opacity));
+    };
+    return {byte(sums[0]), byte(sums[1]), byte(sums[2]), byte(sums[3])};
+}
+}
+bool MixShader::reset(const Paint& paint) {
+    if (paint.kind != Paint::Kind::mix || paint.mix.empty() || paint.mix.size() > max_paint_mix_terms ||
+        !std::isfinite(paint.opacity) || paint.opacity < 0 || paint.opacity > 1) return false;
+    double total = 0;
+    for (const auto& term : paint.mix) {
+        if (term.paint.kind == Paint::Kind::mix || !std::isfinite(term.weight) || term.weight < 0 || term.weight > 1) return false;
+        if (term.paint.kind != Paint::Kind::solid && term.paint.kind != Paint::Kind::gradient &&
+            term.paint.kind != Paint::Kind::image && term.paint.kind != Paint::Kind::image_mask) return false;
+        total += term.weight;
+    }
+    if (std::abs(total - 1) > 1e-5) return false;
+    opacity_ = static_cast<std::uint32_t>(paint.opacity * 255 + 0.5f);
+    shaders_.clear();
+    paints_.resize(paint.mix.size()); weights_.resize(paint.mix.size());
+    shaders_.reserve(paint.mix.size());
+    solid_ = true;
+    std::array<float, 4> sum{};
+    for (std::size_t i = 0; i < paint.mix.size(); ++i) {
+        paints_[i] = paint.mix[i].paint;
+        paints_[i].transform = paint.transform * paints_[i].transform;
+        weights_[i] = static_cast<float>(paint.mix[i].weight / total);
+        shaders_.emplace_back(paints_[i]);
+        solid_ = solid_ && shaders_.back().solid();
+        if (shaders_.back().solid()) {
+            const auto c = shaders_.back().solid_color(); const auto w = weights_[i];
+            sum[0] += w * c.r; sum[1] += w * c.g; sum[2] += w * c.b; sum[3] += w * c.a;
+        }
+    }
+    color_ = solid_ ? mix_bytes(sum, opacity_) : Rgba8{};
+    return true;
+}
+void MixShader::shade(int x, int y, int count, Rgba8* output) const {
+    if (solid_) { std::fill_n(output, count, color_); return; }
+    row_.resize(static_cast<std::size_t>(count));
+    sums_.assign(static_cast<std::size_t>(count), std::array<float, 4>{});
+    for (std::size_t i = 0; i < shaders_.size(); ++i) {
+        shaders_[i].shade(x, y, count, row_.data());
+        const float w = weights_[i];
+        for (int j = 0; j < count; ++j) {
+            auto& sum = sums_[static_cast<std::size_t>(j)]; const auto c = row_[static_cast<std::size_t>(j)];
+            sum[0] += w * c.r; sum[1] += w * c.g; sum[2] += w * c.b; sum[3] += w * c.a;
+        }
+    }
+    for (int j = 0; j < count; ++j) output[j] = mix_bytes(sums_[static_cast<std::size_t>(j)], opacity_);
 }
 
 }  // namespace omui::raster

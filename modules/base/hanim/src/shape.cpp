@@ -290,6 +290,17 @@ PreparedShapeMorph::sample(double progress, std::span<ShapeCubic> output) const 
     return from_.size();
 }
 
+std::expected<ShapeCubic, ShapeMorphError>
+PreparedShapeMorph::sample_segment(double progress, std::size_t segment) const noexcept {
+    if (from_.empty()) return std::unexpected(ShapeMorphError::unprepared);
+    if (!std::isfinite(progress)) return std::unexpected(ShapeMorphError::invalid_progress);
+    if (segment >= from_.size()) return std::unexpected(ShapeMorphError::invalid_segment);
+    const double t = std::clamp(progress, 0.0, 1.0);
+    const auto& a = from_[segment]; const auto& b = to_[segment];
+    return ShapeCubic{shape_mix(a.start, b.start, t), shape_mix(a.control1, b.control1, t),
+                      shape_mix(a.control2, b.control2, t), shape_mix(a.end, b.end, t)};
+}
+
 std::string_view shape_morph_error_name(ShapeMorphError error) noexcept {
     switch (error) {
     case ShapeMorphError::empty_contour: return "empty_contour";
@@ -303,6 +314,7 @@ std::string_view shape_morph_error_name(ShapeMorphError error) noexcept {
     case ShapeMorphError::invalid_progress: return "invalid_progress";
     case ShapeMorphError::output_too_small: return "output_too_small";
     case ShapeMorphError::unprepared: return "unprepared";
+    case ShapeMorphError::invalid_segment: return "invalid_segment";
     }
     return "unknown";
 }

@@ -153,6 +153,7 @@ struct Web::Impl {
             agent::ProtocolOptions o;
             o.app = options.app;
             o.default_actor = "agent:page";
+            o.input = options.agent_input;
             o.remote = true;  // window.omui is the bus: openas decides, never the person (S-10, S-11)
             o.capture = [this](Rect region) -> std::expected<std::vector<std::uint8_t>, std::string> {
                 // The frame on the canvas, cut to the region (logical pixels).
@@ -381,7 +382,14 @@ struct Web::Impl {
         const bool asked_any = !requests.empty() || !asked.empty();
         for (const page::Request& r : requests) serve(r.kind, r.text, [](std::string_view line) { page::agent_reply(line); });
         for (const Asked& a : std::exchange(asked, {})) serve(a.kind, a.text, a.reply);
-        if (asked_any) woken = true;
+        const auto agent_begin = events.size();
+        std::optional<agent::AgentInput> given;
+        if (protocol) {
+            given = protocol->take_input();
+            if (given) events.insert(events.end(), std::make_move_iterator(given->events.begin()), std::make_move_iterator(given->events.end()));
+        }
+        const auto agent_end = events.size();
+        if (asked_any || given) woken = true;
         // The page hidden or shown again: the application's hook, then the window's focus.
         if (const bool h = opened && page::hidden(); h != is_hidden) {
             is_hidden = h;
@@ -414,6 +422,11 @@ struct Web::Impl {
         in.present_at = now + std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::duration<double>(1.0 / 60));
         in.display_hz = 60;
         last_frame = now;
+        std::array<InputAttribution, 1> attribution;
+        if (given && agent_end > agent_begin) {
+            attribution[0] = {agent_begin, agent_end, given->actor, given->session};
+            in.attribution = attribution;
+        }
         FrameOutput out = runtime->frame(in);
         events = std::move(in.events);
         demand = out.demand;

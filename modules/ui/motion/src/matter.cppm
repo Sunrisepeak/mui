@@ -21,6 +21,7 @@ using geom::Color;
 using geom::CornerRadii;
 using geom::Point;
 using geom::Rect;
+using geom::Size;
 
 // What a piece is, for matching: two pieces of one node pair only when they are of one class.
 enum class PieceClass : std::uint8_t { fill, stroke, shadow, path_fill, path_stroke, image, glyphs, texture, group, count_ };
@@ -36,6 +37,45 @@ struct Piece {
     float         opacity = 1;  // the plain layers' around it, multiplied
     Rect          bounds;       // in the range's space (a glyph run's from its glyphs' origins and size)
     std::uint32_t nested = 0;   // a nested root's range drawn whole: its marker (0: not one)
+    // A nested root may delegate its external placement to this owner's
+    // curve, while retaining its own local state animation. Its original
+    // paint keeps that placement; cancel it only when sampling an in-between
+    // envelope. Exact endpoint emission retains the original parent matrix.
+    bool nested_envelope = false;
+    Affine nested_inverse;
+    Affine nested_parent;
+    int part = -1; // declarative paint part; never an extra drawable/stagger rank
+    std::uint32_t part_ordinal = 0;
+};
+
+// Border metadata is kept outside drawable pieces: it must not add stagger
+// ranks, move visual bounds/centres, count in statistics or consume tier budget.
+struct Frame {
+    std::uint32_t node = 0;
+    Rect rect;
+    Affine transform;
+    int clip = -1;
+    float opacity = 1;
+    Rect placement;
+    Size constraint;
+    Affine visual; // own state transform, without external layout translation
+};
+
+struct Reference {
+    std::uint32_t node = 0;
+    std::string key;
+    Rect allocation; // owner-border coordinates, not a sampled window AABB
+};
+struct Part {
+    std::uint32_t node = 0;
+    std::string role, id;
+    Rect allocation;
+    Point anchor{0.5f,0.5f};
+    render::PartKind kind = render::PartKind::content;
+    std::vector<render::ReferenceWeight> lineage;
+    [[nodiscard]] render::PartFrame view(std::uint32_t owner) const {
+        return {owner,role,id,allocation,anchor,kind,lineage};
+    }
 };
 
 // A clip as pushed: its command and the transform it was pushed under.
@@ -43,6 +83,7 @@ struct ClipEntry {
     int         parent = -1;
     Affine      transform;
     std::size_t command = 0;
+    bool transient = false; // allocation crop; exact target drawing omits it
 };
 
 // A node marker met in the range, and its keys.
@@ -58,6 +99,9 @@ struct Resolver {
     std::function<void(std::uint32_t marker, std::string& key, std::string& semantic)> keys;
     // A marker inside the range whose range is drawn whole (a nested root: it moves itself).
     std::function<bool(std::uint32_t marker)> nested;
+    // A nested root whose layout allocation follows its containing motion.
+    // This is a typed placement contract, never inferred from a type/name.
+    std::function<bool(std::uint32_t marker)> nested_placement;
 };
 
 // The range's own effect layer around all it draws (a style's neon or glass
@@ -85,6 +129,9 @@ public:
 
     [[nodiscard]] const render::DisplayList& list() const noexcept { return list_; }
     [[nodiscard]] std::span<const Piece> pieces() const noexcept { return pieces_; }
+    [[nodiscard]] std::span<const Frame> frames() const noexcept { return frames_; }
+    [[nodiscard]] std::span<const Reference> references() const noexcept { return references_; }
+    [[nodiscard]] std::span<const Part> parts() const noexcept { return parts_; }
     [[nodiscard]] std::span<const ClipEntry> clips() const noexcept { return clips_; }
     [[nodiscard]] std::span<const NodeKeys> nodes() const noexcept { return nodes_; }
     [[nodiscard]] const Wrapper& wrapper() const noexcept { return wrapper_; }
@@ -93,10 +140,18 @@ public:
     [[nodiscard]] std::uint64_t hash() const noexcept { return list_.hash(); }
     // Of every piece.
     [[nodiscard]] Rect bounds() const noexcept;
+    // Rebase allocation, never glyph/font scale or local state geometry. Full
+    // border carriers adopt the new allocation; outgoing reflow text is clipped
+    // to its current owner. Only callers that own the layout policy use this.
+    void follow_layout(Matter& target, std::span<const std::string> scopes = {});
 
 private:
     render::DisplayList    list_;
     std::vector<Piece>     pieces_;
+    std::vector<Frame>     frames_;
+    std::vector<Reference> references_;
+    std::vector<Part>      parts_;
+    std::list<std::string> reference_names_; // stable storage across arena rebuilds/moves
     std::vector<ClipEntry> clips_;
     std::vector<NodeKeys>  nodes_;
     Wrapper                wrapper_;

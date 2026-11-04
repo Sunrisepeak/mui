@@ -33,6 +33,9 @@ struct AgentPolicy {
     std::string source = "explicit";
     AgentRestrictions developer, user;
 };
+// A reusable startup preset for SDKs, embedded hosts and independent
+// control providers. Only the exact dev profile selects development.
+[[nodiscard]] AgentPolicy agent_policy_for_profile(std::string_view profile, AgentMode requested = AgentMode::automatic);
 struct AgentPolicyState {
     AgentMode mode = AgentMode::dual_user;
     openas::Cap cap;

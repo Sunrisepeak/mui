@@ -60,3 +60,4 @@ openmui.build.toy       = { path = "../mcpp/toy", host-module = true }
 
 [dev-dependencies]
 openmui.testing = { path = "../modules/base/testing" }
+openmui.math = { path = "../modules/base/math" }

@@ -198,7 +198,8 @@ namespace {
 
 }  // namespace
 
-void Canvas::composite(const Coverage& cov, const Shader& shader, int dx, int dy) {
+template<class Shading>
+void Canvas::composite(const Coverage& cov, const Shading& shader, int dx, int dy) {
     const Clip& c = clip();
     PixelRect placed{cov.bounds.x + dx, cov.bounds.y + dy, cov.bounds.width, cov.bounds.height};
     PixelRect box = intersect(placed, c.scissor);
@@ -258,7 +259,8 @@ void Canvas::composite(const Coverage& cov, const Shader& shader, int dx, int dy
     }
 }
 
-void Canvas::composite(const Spans& spans, const Shader& shader) {
+template<class Shading>
+void Canvas::composite(const Spans& spans, const Shading& shader) {
     // The dense composite's arithmetic, a run at a time: one coverage value
     // per run, so one scaled colour per run for a solid paint.
     const Clip& c = clip();
@@ -312,22 +314,37 @@ void Canvas::composite(const Spans& spans, const Shader& shader) {
     }
 }
 
+void Canvas::composite(const Coverage& coverage, const Paint& paint, int dx, int dy) {
+    if (paint.kind != Paint::Kind::mix) { composite(coverage, Shader(paint), dx, dy); return; }
+    if (!mix_shader_) mix_shader_ = std::make_unique<MixShader>();
+    if (mix_shader_->reset(paint)) composite(coverage, *mix_shader_, dx, dy);
+}
+void Canvas::composite(const Spans& spans, const Paint& paint) {
+    if (paint.kind != Paint::Kind::mix) { composite(spans, Shader(paint)); return; }
+    if (!mix_shader_) mix_shader_ = std::make_unique<MixShader>();
+    if (mix_shader_->reset(paint)) composite(spans, *mix_shader_);
+}
+
 void Canvas::fill_path(PathData path, FillRule rule, const Paint& paint, const Affine& m) {
     polygons_.clear();
     flatten(path, m, polygons_);
     rasterizer_.rasterize(polygons_, rule, clip().scissor, spans_);
-    composite(spans_, Shader(paint));
+    composite(spans_, paint);
 }
 
 void Canvas::stroke_path(PathData path, const Stroke& stroke, const Paint& paint, const Affine& m) {
     polygons_.clear();
     stroke_outline(path, m, stroke, polygons_);
     rasterizer_.rasterize(polygons_, FillRule::nonzero, clip().scissor, spans_);
-    composite(spans_, Shader(paint));
+    composite(spans_, paint);
 }
 
 void Canvas::fill_rect(const Rect& r, const Paint& paint, const Affine& m) {
     if (m.translation_only() || (m.b == 0 && m.c == 0)) {
+        if (paint.kind == Paint::Kind::mix) {
+            rect_coverage(m.map(r), clip().scissor, coverage_);
+            composite(coverage_, paint); return;
+        }
         const Shader shader(paint);
         if (shader.solid() && !clip().mask) {
             fill_solid_rect(m.map(r), shader.solid_color());
@@ -406,7 +423,7 @@ void Canvas::fill_round_rect(const Rect& r, const CornerRadii& radii, const Pain
 }
 
 void Canvas::fill_coverage(const Coverage& coverage, const Paint& paint, int dx, int dy) {
-    composite(coverage, Shader(paint), dx, dy);
+    composite(coverage, paint, dx, dy);
 }
 
 void Canvas::draw_image(const ImageView& image, const Rect& source, const Rect& dest, Sampling sampling, float opacity,

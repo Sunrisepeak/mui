@@ -132,10 +132,14 @@ spec::SemanticNode Runtime::Impl::semantics(NodeId id) const {
     const bool placed = this->placed;  // the pipeline computes bounds
     // Off screen: outside the window, or outside what an ancestor clips to (a scroll view's viewport): drawn nowhere.
     if (placed && id != root) {
-        Rect seen{0, 0, size.width, size.height};
-        for (NodeId c = n.parent; alive(c) && c != root; c = at(c).parent)
-            if (const Node& a = at(c); a.visual.clip || a.type->scroll_offset) seen = seen.intersection(a.screen);
-        if (!n.screen.intersects(seen)) s.states.set(State::offscreen);
+        if (presentation_epoch != 0) {
+            if (n.presented_epoch != presentation_epoch || n.presented_visible.empty()) s.states.set(State::offscreen);
+        } else {
+            Rect seen{0, 0, size.width, size.height};
+            for (NodeId c = n.parent; alive(c) && c != root; c = at(c).parent)
+                if (const Node& a = at(c); a.visual.clip || a.type->scroll_offset) seen = seen.intersection(a.screen);
+            if (!n.screen.intersects(seen)) s.states.set(State::offscreen);
+        }
     }
 
     // Actions: the contract's, then the verb's classification of activate.
@@ -194,7 +198,10 @@ spec::SemanticNode Runtime::Impl::semantics(NodeId id) const {
             break;
         }
 
-    if (placed) s.bounds = to_spec(n.screen);  // where it is on the window: through a canvas's camera too
+    // Keep the full current border, including coordinates outside a viewport:
+    // readers need those to reveal a clipped node. Offscreen and hit clipping
+    // use presented_visible; the geometry agrees with drawn_bounds.
+    if (placed) s.bounds = to_spec(presentation_epoch != 0 ? (n.presented_epoch == presentation_epoch ? n.presented_bounds : Rect{}) : n.screen);
     for (NodeId c : n.children) s.children.push_back(self.path(c));
     if (n.type->semantics) {
         SemanticsContext ctx{self, id, n.state};
@@ -288,7 +295,7 @@ Envelope Runtime::Impl::perform(NodeId id, std::string_view action, const Invoca
     if (a && a->person && call.remote) return stop(person_only(std::format("{} on '{}'", action, where)));
     // Over the bus, an action is decided by the verb it invokes, or by its own name (S-11).
     const openas::Decision clear = clearance(a && !a->verb.empty() ? std::string_view(a->verb) : action, effect, a && a->person, call);
-    if (clear == openas::Decision::refuse) return stop(above_cap(std::format("{} on '{}' ({})", action, where, spec::name(effect))));
+    if (clear == openas::Decision::refuse) return stop(above_cap(std::format("{} on '{}' ({})", action, where, spec::name(effect)), call));
     // Refused before it asks: no answer would let a transaction take it back.
     if (transaction && !replaying && spec::requires_answer(effect))
         return stop(not_in_transaction(std::format("{} on '{}'", action, where), effect));
@@ -396,6 +403,7 @@ Envelope Runtime::act(NodeId node, std::string_view action, const Invocation& gi
     std::vector<Inverse> outer = std::exchange(d.program_inverse, {});
     ++d.acting;
     d.actors.push_back(call.actor);
+    InvocationScope active(d.invocation_context, call);
     const auto history_before = d.history_moves;
     Envelope e = batch([&] { return d.perform(node, action, call, false, &out); });
     d.actors.pop_back();
@@ -444,7 +452,7 @@ Envelope Runtime::Impl::perform_item(NodeId holder, std::string_view key, std::s
     if (out) out->effect = effect;
     if (a->person && call.remote) return stop(person_only(std::format("{} on '{}'", action, where)));
     const openas::Decision clear = clearance(!a->verb.empty() ? std::string_view(a->verb) : action, a->effect, a->person, call);
-    if (clear == openas::Decision::refuse) return stop(above_cap(std::format("{} on '{}' ({})", action, where, spec::name(a->effect))));
+    if (clear == openas::Decision::refuse) return stop(above_cap(std::format("{} on '{}' ({})", action, where, spec::name(a->effect)), call));
     if (transaction && !replaying && spec::requires_answer(effect))
         return stop(not_in_transaction(std::format("{} on '{}'", action, where), effect));
     if (clear != openas::Decision::run && spec::requires_answer(a->effect) && call.answer != a->answer)
@@ -491,7 +499,10 @@ Envelope Runtime::act_item(NodeId holder, std::string_view key, std::string_view
     const NodeId scope = d.scope_of(holder);
     Impl::Outcome out;
     const auto history_before = d.history_moves;
+    d.actors.push_back(call.actor);
+    InvocationScope active(d.invocation_context, call);
     Envelope e = d.perform_item(holder, key, action, call, &out);
+    d.actors.pop_back();
     // A toolbar may delegate to undo/redo. Its enclosing activation must
     // not clear the redo just produced by that traversal. Explicit new
     // inverses and irreversible barriers still record normally.

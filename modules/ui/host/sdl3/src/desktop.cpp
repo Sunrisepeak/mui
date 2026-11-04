@@ -440,6 +440,7 @@ bool Desktop::step(bool wait) {
         if (std::chrono::steady_clock::now() >= *d.closed_at) d.quitting = true;
     }
     std::optional<agent::AgentInput> given;
+    const auto agent_begin = polled.events.size();
     if (d.endpoint) {
         d.endpoint->pump();
         // An agent's input, a frame's worth, after the person's own.
@@ -462,9 +463,12 @@ bool Desktop::step(bool wait) {
             if (const auto* f = std::get_if<FocusEvent>(&e)) d.access->window_focus(f->gained);
         if (!d.closed_at) (void)d.mirror->serve();
     }
-    if (given) d.runtime->set_input_actor(given->actor);
+    std::array<InputAttribution, 1> attribution;
+    if (given && in.events.size() > agent_begin) {
+        attribution[0] = {agent_begin, in.events.size(), given->actor, given->session};
+        in.attribution = attribution;
+    }
     FrameOutput out = d.runtime->frame(in);
-    if (given) d.runtime->set_input_actor(std::nullopt);
     if (d.access) {
         d.access->set_scale(d.runtime->scale());
         d.access->update();

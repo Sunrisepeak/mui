@@ -16,6 +16,7 @@ export module openmui.render.vector;
 export import openmui.render;
 
 export import :display;
+export import :paint_mix;
 export import :resources;
 export import :damage;
 export import :cpu;

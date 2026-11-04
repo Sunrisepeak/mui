@@ -6,6 +6,7 @@ import std;
 import openmui.core;
 import openmui.layout;
 import openmui.render.vector;
+import openmui.raster;
 import openmui.text;
 import openmui.trace;
 import openmui.pipeline;
@@ -26,6 +27,15 @@ Insets content_insets_of(const layout::Style& s) {
 
 FrameOutput Runtime::frame(const FrameInput& input) {
     Impl& d = *impl_;
+    if (auto valid = validate_input_attribution(input); !valid) {
+        constexpr Log input_log{"agent"};
+        input_log.warn("{}", valid.error());
+        FrameOutput refused;
+        refused.list = &d.list;
+        refused.revision = d.semantic_revision;
+        refused.failure = valid.error();
+        return refused;
+    }
     FrameTimings& t = d.stats.timings;
     const auto started = std::chrono::steady_clock::now();
     trace::Span whole("frame", "frame");
@@ -69,6 +79,10 @@ FrameOutput Runtime::frame(const FrameInput& input) {
                      : &t.other;
         *into += st.ms;
     }
+    // Only causal layout work keeps an external allocation transaction open.
+    // Bounds hooks may schedule a responsive region for the following frame;
+    // semantic notifications, ordinary animation frames and future timers do not.
+    if (d.dirty_regions.empty() && !(d.dirty & (dirty_layout | dirty_tree))) d.constraint_boundaries.clear();
     const bool repainted = d.repainted;
     if (repainted) d.drawn[d.drawn_next++ % d.drawn.size()] = std::chrono::steady_clock::now();
     // Nodes that lived through a frame are shown: their changes may animate
@@ -570,24 +584,28 @@ void Runtime::Impl::compute_bounds(NodeId id, Point origin, const Affine& parent
 void Runtime::Impl::paint() {
     // The last frame's drawing is kept: what a change moves from (motion.cpp).
     std::swap(list, previous_list);
+    previous_history_range = history_range;
+    history_range = {};
     list.clear();
     glyph_movers.clear();
     moving_said.clear();
     paint_node(root);
     // What was on screen before a style's change, fading out over what comes.
     if (fading) {
-        const double u = reduce_motion ? 1.0 : (now() - fade_start).count() / std::max(1e-6, fade_length.count());
+        const double u = reduce_motion || motion_now() == MotionLevel::off ? 1.0 : (now() - fade_start).count() / std::max(1e-6, fade_length.count());
         if (u >= 1) {
             fading.reset();
             touch(dirty_semantics);  // settled: said at the next frame
             frame_requested = true;
         }
         else {
+            history_range.first = list.size();
             if (fade_clip) list.push_clip(*fade_clip);  // a scope's: only its area
             list.push_layer(static_cast<float>(1 - hanim::ease::standard(u)), render::BlendMode::normal);
             list.append(*fading);
             list.pop_layer();
             if (fade_clip) list.pop_clip();
+            history_range.second = list.size();
         }
     }
     // Overlays above everything, bottom to top; a modal one darkens what is below.
@@ -739,6 +757,13 @@ void Runtime::Impl::paint_node(NodeId id) {
     if (layer) list.push_layer(v[Field::opacity], render::BlendMode::normal, {}, {}, box);
 
     const CornerRadii radii = v.corners(size);
+    Size constraint = this->size;
+    if (alive(n.parent)) {
+        const Node& parent = at(n.parent);
+        const Insets inset = content_insets_of(layout.style(parent.layout));
+        constraint = {std::max(0.0f, parent.frame.width - inset.horizontal()), std::max(0.0f, parent.frame.height - inset.vertical())};
+    }
+    list.node_frame(n.index, box, 1, n.frame, constraint, Affine::translate(-n.frame.x, -n.frame.y) * local);
     if (!v.shadow.empty())
         if (auto it = theme.shadows.find(v.shadow); it != theme.shadows.end())
             list.box_shadow(box, radii, it->second.offset, it->second.blur, it->second.spread, it->second.color);
@@ -880,21 +905,123 @@ void Runtime::Impl::restyle_glyphs(NodeId id, std::size_t first) {
     }
 }
 
+void Runtime::Impl::collect_presentation() {
+    trace::Span span("presentation geometry", "frame");
+    const auto previous_epoch = presentation_epoch++;
+    presentation_transforms.assign(1, Affine{});
+    presentation_clip_stack.assign(1, -1);
+    presentation_opacity.assign(1, 1);
+    presentation_clip_count = 0;
+    const auto commands = list.commands();
+    bool changed = false;
+    auto add_clip = [&](PresentationClip clip) {
+        clip.parent = presentation_clip_stack.back();
+        clip.world = presentation_transforms.back(); clip.inverse = clip.world.inverse();
+        if (clip.parent >= 0) clip.bounds = clip.bounds.intersection(presentation_clips[static_cast<std::size_t>(clip.parent)].bounds);
+        const auto index = presentation_clip_count++;
+        if (index == presentation_clips.size()) presentation_clips.push_back(std::move(clip));
+        else presentation_clips[index] = std::move(clip);
+        presentation_clip_stack.push_back(static_cast<int>(index));
+    };
+    for (std::size_t i = 0; i < commands.size(); ++i) {
+        if (history_range.second > history_range.first && i == history_range.first) { i = history_range.second - 1; continue; }
+        const auto& command = commands[i];
+        if (const auto* t = std::get_if<render::PushTransform>(&command)) presentation_transforms.push_back(presentation_transforms.back() * t->transform);
+        else if (std::holds_alternative<render::PopTransform>(command)) { if (presentation_transforms.size() > 1) presentation_transforms.pop_back(); }
+        else if (const auto* c = std::get_if<render::PushClipRect>(&command)) {
+            PresentationClip clip; clip.rect = *c; clip.bounds = presentation_transforms.back().map(c->rect); add_clip(std::move(clip));
+        } else if (const auto* c = std::get_if<render::PushClipPath>(&command)) {
+            PresentationClip clip; clip.path = *c;
+            if (!c->path.points.empty()) {
+                Point first = presentation_transforms.back().apply(c->path.points.front());
+                float left = first.x, top = first.y, right = first.x, bottom = first.y;
+                for (const auto point : c->path.points) {
+                    const auto at = presentation_transforms.back().apply(point);
+                    left = std::min(left, at.x); right = std::max(right, at.x); top = std::min(top, at.y); bottom = std::max(bottom, at.y);
+                }
+                clip.bounds = {left, top, right - left, bottom - top};
+            }
+            add_clip(std::move(clip));
+        } else if (std::holds_alternative<render::PopClip>(command)) { if (presentation_clip_stack.size() > 1) presentation_clip_stack.pop_back(); }
+        else if (const auto* layer = std::get_if<render::PushLayer>(&command)) presentation_opacity.push_back(presentation_opacity.back() * layer->opacity);
+        else if (std::holds_alternative<render::PopLayer>(command)) { if (presentation_opacity.size() > 1) presentation_opacity.pop_back(); }
+        else if (const auto* frame = std::get_if<render::NodeFrame>(&command); frame && frame->node < by_index.size() && alive(by_index[frame->node])) {
+            Node& node = at(by_index[frame->node]);
+            if (!(frame->opacity * presentation_opacity.back() > 0)) continue;
+            const Rect border = presentation_transforms.back().map(frame->rect);
+            Rect visible = border.intersection({0, 0, size.width, size.height});
+            const int clip = presentation_clip_stack.back();
+            if (clip >= 0) visible = visible.intersection(presentation_clips[static_cast<std::size_t>(clip)].bounds);
+            changed = changed || node.presented_epoch != previous_epoch || node.presented_bounds != border || node.presented_visible != visible;
+            node.presented_epoch = presentation_epoch; node.presented_bounds = border; node.presented_visible = visible; node.presented_clip = clip;
+            // Components receive coordinates in their current local border box,
+            // normalized from the sampled border. This is also the hit inverse.
+            const float sx = node.frame.width > 0 ? frame->rect.width / node.frame.width : 1;
+            const float sy = node.frame.height > 0 ? frame->rect.height / node.frame.height : 1;
+            node.presented_world = presentation_transforms.back() * Affine::translate(frame->rect.x, frame->rect.y) * Affine::scale(sx, sy);
+            node.presented_inverse = node.presented_world.inverse();
+        }
+    }
+    for (const auto id : by_index) if (alive(id) && at(id).presented_epoch == previous_epoch) { at(id).presented_inverse.reset(); changed = true; }
+    if (changed) {
+        // This frame already carries the new geometry. Publish its revision
+        // without requesting a redundant animation frame after it settles.
+        dirty |= dirty_semantics;
+        ++semantic_revision;
+    }
+}
+
+bool Runtime::Impl::presentation_contains(const Node& node, Point window) const {
+    if (node.presented_epoch != presentation_epoch || !node.presented_inverse || !Rect{0, 0, size.width, size.height}.contains(window)) return false;
+    for (int at = node.presented_clip; at >= 0; at = presentation_clips[static_cast<std::size_t>(at)].parent) {
+        const auto& clip = presentation_clips[static_cast<std::size_t>(at)];
+        if (!clip.bounds.contains(window) || !clip.inverse) return false;
+        if (clip.rect) {
+            const auto p = clip.inverse->apply(window); const auto& rect = clip.rect->rect;
+            if (!rect.contains(p)) return false;
+            const auto radii = clip.rect->radii.fitted(rect.size());
+            auto corner = [&](float radius, bool left, bool top) {
+                const Point center{left ? rect.x + radius : rect.right() - radius, top ? rect.y + radius : rect.bottom() - radius};
+                if (!(left ? p.x < center.x : p.x > center.x) || !(top ? p.y < center.y : p.y > center.y)) return true;
+                const float x = p.x - center.x, y = p.y - center.y; return x * x + y * y <= radius * radius;
+            };
+            if (!corner(radii.top_left, true, true) || !corner(radii.top_right, false, true) ||
+                !corner(radii.bottom_left, true, false) || !corner(radii.bottom_right, false, false)) return false;
+        } else if (clip.path) {
+            // Use the renderer's existing curve flattener/coverage convention,
+            // not a separately approximated path or any GPU/pixel readback.
+            const auto& path = clip.path->path;
+            presentation_path_verbs.resize(path.verbs.size());
+            for (std::size_t i = 0; i < path.verbs.size(); ++i) presentation_path_verbs[i] = static_cast<raster::Verb>(path.verbs[i]);
+            const raster::PathData data{presentation_path_verbs, path.points};
+            const auto matrix = Affine::scale(scale, scale) * clip.world;
+            raster::flatten(data, matrix, presentation_path_polygons);
+            const int x = static_cast<int>(window.x * scale), y = static_cast<int>(window.y * scale); // window is inside the nonnegative viewport
+            presentation_path_rasterizer.rasterize(presentation_path_polygons, static_cast<raster::FillRule>(clip.path->rule), {x, y, 1, 1}, presentation_path_coverage);
+            if (presentation_path_coverage.empty() || (x < presentation_path_coverage.bounds.x || y < presentation_path_coverage.bounds.y || x >= presentation_path_coverage.bounds.x + presentation_path_coverage.bounds.width || y >= presentation_path_coverage.bounds.y + presentation_path_coverage.bounds.height) || presentation_path_coverage.at(x, y) < 128) return false;
+        }
+    }
+    return true;
+}
+
 NodeId Runtime::Impl::hit(NodeId id, Point window, std::optional<Rect>) const {
     const Node& n = at(id);
     if (!n.visual.visible || n.visual[Field::opacity] <= 0 || n.state.removing) return {};
     if (!n.visual.hit) return {};  // pointer_events: none — it and all inside it take no pointer (a HUD, a picture over a field)
     if (layout.style(n.layout).display == layout::Display::none) return {};
+    const bool presented = presentation_epoch != 0;
+    if (presented && n.presented_epoch != presentation_epoch) return {};
+    if (presented && !presentation_contains(n, window)) return {};
     Point p = local_point(n, window);
     // An effect that moves what is drawn (a bulging screen): the point seen
     // is where it was drawn from, for this node and what is inside it.
     if (const Node::PixelEffectState* fx = n.pixel_effect ? &*n.pixel_effect : (n.styled_effect ? &*n.styled_effect : nullptr))
         if (const render::EffectInfo* info = render::effects().info(fx->effect); info && info->source_of) {
             p = info->source_of(p, {0, 0, n.frame.width, n.frame.height}, fx->params);
-            window = n.world.apply(p);
+            window = (presented ? n.presented_world : n.world).apply(p);
         }
     const bool inside = p.x >= 0 && p.y >= 0 && p.x < n.frame.width && p.y < n.frame.height;
-    if ((n.visual.clip || n.type->clips) && !inside) return {};
+    if (!presented && (n.visual.clip || n.type->clips) && !inside) return {};
     for (std::size_t i = n.children.size(); i-- > 0;) {
         if (at(n.children[i]).type->overlay) continue;
         if (NodeId h = hit(n.children[i], window, std::nullopt)) return h;
@@ -910,7 +1037,8 @@ NodeId Runtime::hit_test(Point window) const {
         if (!d.alive(*it) || !d.displayed(*it)) continue;
         const Node& o = d.at(*it);
         bool inside_boundary = true;
-        if (d.alive(o.overlay_boundary)) {
+        if (d.presentation_epoch != 0) inside_boundary = o.presented_epoch == d.presentation_epoch && d.presentation_contains(o, window);
+        else if (d.alive(o.overlay_boundary)) {
             inside_boundary = o.overlay_area.contains(window);
             for (NodeId ancestor = o.parent; inside_boundary && d.alive(ancestor); ancestor = d.at(ancestor).parent) {
                 const Node& parent = d.at(ancestor);

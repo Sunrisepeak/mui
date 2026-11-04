@@ -12,14 +12,28 @@ import openmui.i18n;
 import openmui.i18n.cldr;
 import mcpplibs.os;
 import :app;
+import :build_profile;
 import :agent_guide;
 import :shown;
 
 namespace omui {
 
+std::string_view application_build_profile() noexcept { return build::profile; }
+
+std::expected<AgentPolicy, std::string> application_agent_policy(const AppSpec& app, std::optional<AgentMode> startup_mode) {
+    auto cap = parse_cap(app.agent);
+    if (!cap) return std::unexpected(std::format("AppSpec::agent `{}` is not a cap (none, read, reversible, irreversible, external)", app.agent));
+    auto policy = agent_policy_for_profile(application_build_profile(), startup_mode.value_or(app.agent_mode));
+    policy.cap = *cap;
+    policy.input = app.agent_input;
+    policy.developer = app.agent_developer;
+    policy.user = app.agent_user;
+    return policy;
+}
+
 bool RunOptions::takes_value(std::string_view option) noexcept {
-    constexpr std::array<std::string_view, 12> with{"--frames", "--png",   "--level", "--agent-dir", "--agent-name", "--agent-guide",
-                                                    "--window", "--size",  "--debug", "--log",       "--lang",       "--profile"};
+    constexpr std::array<std::string_view, 13> with{"--frames", "--png",   "--level", "--agent-dir", "--agent-name", "--agent-guide",
+                                                    "--agent-mode", "--window", "--size",  "--debug", "--log",       "--lang",       "--profile"};
     return std::ranges::contains(with, option);
 }
 
@@ -34,6 +48,12 @@ std::expected<RunOptions, std::string> RunOptions::parse(std::span<const std::st
         if (a == "--headless") o.headless = true;
         else if (a == "--serve") o.serve = o.headless = true;
         else if (a == "--no-agent") o.agent = false;
+        else if (a == "--agent-mode") {
+            const auto v = value();
+            const auto mode = v ? parse_agent_mode(*v) : std::nullopt;
+            if (!mode) return std::unexpected("--agent-mode is automatic, development or dual-user");
+            o.agent_mode = *mode;
+        }
         else if (a == "--agent-input") o.agent_input = true;
         else if (a == "--no-agent-input") o.agent_input = false;
         else if (a == "--no-accessibility") o.accessibility = false;
@@ -116,7 +136,7 @@ std::expected<RunOptions, std::string> RunOptions::parse(std::span<const std::st
             o.profile = std::filesystem::path(*v);
         } else {
             return std::unexpected(std::format("unknown option `{}` (--headless, --frames N, --png FILE, --level hN, --serve, "
-                                               "--agent-dir DIR, --agent-name NAME, --agent-guide DIR, --no-agent, --agent-input, --no-agent-input, --no-accessibility, --dark, --gpu, --cpu, --reduce-transparency, --size WxH, --debug LIST, --log FILTER, --profile FILE, --lang TAGS, --window MODE)",
+                                               "--agent-dir DIR, --agent-name NAME, --agent-guide DIR, --agent-mode MODE, --no-agent, --agent-input, --no-agent-input, --no-accessibility, --dark, --gpu, --cpu, --reduce-transparency, --size WxH, --debug LIST, --log FILTER, --profile FILE, --lang TAGS, --window MODE)",
                                                a));
         }
     }
@@ -163,25 +183,24 @@ void languages_of(const AppSpec& app, const RunOptions& o, std::vector<std::stri
     l.request(std::move(requested));
 }
 
-// The application's cap and the grants it starts with (S-11).
-bool agent_access_of(const AppSpec& app) {
-    const auto cap = parse_cap(app.agent);
-    if (!cap) {
-        error("AppSpec::agent `{}` is not a cap (none, read, reversible, irreversible, external)", app.agent);
-        return false;
-    }
-    AgentAccess& access = agent_access();
-    access.set_cap(*cap);
-    access.revoke_all();
+// Each application startup owns its policy and grants. An endpoint may
+// already exist; its Protocol binds this instance lazily at first request.
+std::shared_ptr<AgentAccess> agent_access_of(const AppSpec& app, const RunOptions& options) {
+    auto policy = application_agent_policy(app, options.agent_mode);
+    if (!policy) { error("{}", policy.error()); return {}; }
+    policy->enabled &= options.agent;
+    if (!options.agent) policy->source += ";startup:no-agent";
+    auto access = std::make_shared<AgentAccess>();
+    access->set_policy(std::move(*policy));
     for (const std::string& text : app.grants) {
-        auto g = openas::parse_grant(text);
-        if (!g) {
+        auto grant = openas::parse_grant(text);
+        if (!grant) {
             error("AppSpec::grants `{}` is not a grant (actor=effect[@scope,…], openas §5.5)", text);
-            return false;
+            return {};
         }
-        access.give(std::move(*g));
+        access->give(std::move(*grant));
     }
-    return true;
+    return access;
 }
 
 // Who draws the window's frame: --window, else the application's choice.
@@ -213,14 +232,15 @@ struct HeadlessWindow final : WindowHost {
     }
 };
 
-void prepare(Runtime& rt, AppSpec& app) {
+void prepare(Runtime& rt, AppSpec& app, const std::shared_ptr<AgentAccess>& access) {
+    rt.set_agent_access(access);
     for (VerbSpec& v : app.verbs)
         if (auto r = rt.verbs().add(std::move(v.desc), std::move(v.fn)); !r) warn("verb not added: {}", r.error());
     if (app.setup) app.setup(rt);
     if (app.view) rt.mount("main", app.view());
 }
 
-int headless(AppSpec app, const RunOptions& o) {
+int headless(AppSpec app, const RunOptions& o, const std::shared_ptr<AgentAccess>& access) {
     HeadlessOptions h;
     h.level = static_cast<HeadlessLevel>(std::clamp(o.level, 0, 3));
     if (!o.agent && h.level == HeadlessLevel::session) h.level = HeadlessLevel::pixels;
@@ -243,7 +263,7 @@ int headless(AppSpec app, const RunOptions& o) {
             if (attached) window().detach();
         }
     } detach{mode != "native"};
-    prepare(host.runtime(), app);
+    prepare(host.runtime(), app, access);
     const auto framed = frame_of(host.runtime(), app, mode);
     if (o.frames) {
         for (int i = 0; i < *o.frames; ++i) host.step();
@@ -313,12 +333,13 @@ int run(AppSpec app, const RunOptions& o) {
         }
     } profile{o.profile};
     languages_of(app, o, o.headless ? std::vector<std::string>{} : detail::host_locales());
-    if (!agent_access_of(app)) return 2;
-    if (o.headless) return headless(std::move(app), o);
+    auto access = agent_access_of(app, o);
+    if (!access) return 2;
+    if (o.headless) return headless(std::move(app), o, access);
     // A window on the desktop, the page's canvas on the Web (src/host/<where>/shown.cpp).
     const std::string mode = window_mode(app, o);
     return detail::shown(app, o, [&](Runtime& rt) -> std::shared_ptr<void> {
-        prepare(rt, app);
+        prepare(rt, app, access);
         return std::shared_ptr<FramedWindow>(frame_of(rt, app, mode));
     });
 }

@@ -37,11 +37,21 @@ const raster::Material* material_of(const Material* m, const Resources& res, Ren
 }
 
 struct PaintConv {
+    std::vector<PaintConv> leaves;
+    std::vector<raster::WeightedPaint> terms;
     std::vector<raster::Stop> stops;
     raster::Material          material;  // the converted paint's (one paint is drawn at a time)
     raster::Paint convert(const Paint& p, const Resources& res, RenderReport& report) {
         raster::Paint out;
         switch (p.kind) {
+            case Paint::Kind::mix: {
+                if (!validate_paint_mix(p)) { ++report.invalid_paints; return raster::Paint::solid(Color::transparent()); }
+                leaves.resize(p.mix.size()); terms.resize(p.mix.size());
+                for (std::size_t i = 0; i < p.mix.size(); ++i)
+                    terms[i] = {leaves[i].convert(p.mix[i].paint, res, report), p.mix[i].weight};
+                out.kind = raster::Paint::Kind::mix; out.mix = terms; out.opacity = p.mix_opacity;
+                break;
+            }
             case Paint::Kind::solid:
                 out = raster::Paint::solid(p.color);
                 break;
@@ -93,7 +103,7 @@ std::string_view command_kind_name(std::size_t index) noexcept {
     static constexpr std::array<std::string_view, std::variant_size_v<Command>> names{
         "fill_rect", "fill_round_rect", "stroke_round_rect", "box_shadow", "fill_path", "stroke_path", "draw_image", "draw_glyphs",
         "push_clip_rect", "push_clip_path", "pop_clip", "push_transform", "pop_transform", "push_layer", "pop_layer",
-        "external_texture", "begin_node", "end_node"};
+        "external_texture", "begin_node", "end_node", "node_frame", "reference_box", "begin_part", "end_part"};
     return index < names.size() ? names[index] : std::string_view{};
 }
 
@@ -411,6 +421,7 @@ RenderReport CpuRenderer::render(const DisplayList& list, raster::Surface& targe
         report.effects_skipped += r.effects_skipped;
         report.external_skipped += r.external_skipped;
         report.missing_images += r.missing_images;
+        report.invalid_paints += r.invalid_paints;
         report.missing_glyphs += r.missing_glyphs;
         report.rows += r.rows;
         report.skipped += r.skipped;
@@ -478,6 +489,7 @@ void CpuRenderer::prepare_effects(const DisplayList& list, const raster::Surface
             const RenderReport r = out.offscreen->render(out.inner, out.source, res, o);
             report.missing_glyphs += r.missing_glyphs;
             report.missing_images += r.missing_images;
+            report.invalid_paints += r.invalid_paints;
             report.effects_skipped += r.effects_skipped;
             // The shapes in the surface's pixels: the layer's, or its bounds.
             const Affine& m = transforms.back();
@@ -670,7 +682,10 @@ void CpuRenderer::draw(Scratch& sc, const DisplayList& list, raster::Surface& ta
                                                       {static_cast<float>(b.x), static_cast<float>(b.y), static_cast<float>(b.width),
                                                        static_cast<float>(b.height)},
                                                       raster::Sampling::linear, c.paint.color.a * opacity, to);
-                                } else {
+                                } else if (!gm.coverage || !gm.coverage->empty()) {
+                                    // A known empty mask is a valid blank glyph. A nonempty
+                                    // coverage-only bitmap still needs transform support:
+                                    // keep that unsupported case explicit rather than dropping it.
                                     ++report.missing_glyphs;
                                 }
                             }

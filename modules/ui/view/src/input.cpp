@@ -78,6 +78,42 @@ KeyTarget parse_key_target(std::string_view text) {
     return t;
 }
 
+void Runtime::Impl::input_frame(const FrameInput& input) {
+    const auto previous_actor = input_actor;
+    const auto previous_call = input_call;
+    const InputAttribution* active_range = nullptr;
+    std::size_t next_range = 0;
+    // Explicit ranges supersede the legacy whole-frame attribution. No
+    // range preserves set_input_actor for low-level compatibility.
+    if (!input.attribution.empty()) self.set_input_actor(std::nullopt);
+    for (std::size_t index = 0; index < input.events.size(); ++index) {
+        while (next_range < input.attribution.size() && input.attribution[next_range].end <= index) ++next_range;
+        const auto* range = next_range < input.attribution.size() && input.attribution[next_range].begin <= index ?
+            &input.attribution[next_range] : nullptr;
+        if (!input.attribution.empty() && range != active_range) {
+            if (range) self.set_input_actor(range->actor, range->session);
+            else self.set_input_actor(std::nullopt);
+            active_range = range;
+        }
+        Invocation given, copy;
+        const Invocation& call = attributed(given, copy, "input");
+        const auto& event = input.events[index];
+        const auto* pointer = std::get_if<PointerEvent>(&event);
+        const bool cancel = pointer && pointer->kind == PointerKind::cancel;
+        if (!cancel && clearance("input", Effect::reversible, false, call) == openas::Decision::refuse) {
+            (void)above_cap("input event", call);
+            journal_add("app", "input", call, spec::exit_code::failure);
+            continue;
+        }
+        // The scope includes batch's reactive flush. Restoring it per event
+        // prevents a later person's event from borrowing agent authority.
+        InvocationScope active(invocation_context, call);
+        batch([&] { dispatch(event); });
+    }
+    input_actor = previous_actor;
+    input_call = previous_call;
+}
+
 void Runtime::Impl::dispatch(const InputEvent& e) {
     std::visit(
         [&](const auto& x) {
@@ -145,7 +181,7 @@ void Runtime::Impl::pointer_event(const PointerEvent& e) {
                 if (!alive(o) || !displayed(o)) continue;
                 const Node& on = at(o);
                 const Placement p = on.type->placement ? on.type->placement(on.instance) : Placement{};
-                const bool outside = !on.bounds.contains(e.position);
+                const bool outside = presentation_epoch != 0 ? !presentation_contains(on, e.position) || !Rect{0, 0, on.frame.width, on.frame.height}.contains(local_point(on, e.position)) : !on.bounds.contains(e.position);
                 // A modal overlay answers hit tests on its scrim itself: outside is what counts.
                 if (contains(o, target) && !(p.modal && outside)) break;
                 if (p.modal) {

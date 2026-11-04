@@ -56,6 +56,10 @@ int main(int argc, char** argv) {
             Fixture f(mode, width, lang); const auto before = f.task();
             check(f.has("specimen/title") && f.has("specimen/reviewed") && f.has("specimen/record") && f.has("specimen/receipt"));
             check(!f.has("develop/expected") && !f.has("develop/requests/read") && !f.has("design/style") && !f.has("design/spacing") && !f.has("method/material") && !f.has("method/expression"));
+            if (std::string_view(mode) != "use") {
+                check(f.has(std::string_view(mode) == "develop" ? "preview/actions/verify" : "preview/actions/arrange"));
+                check(!f.has(std::string_view(mode) == "develop" ? "preview/actions/arrange" : "preview/actions/verify"));
+            }
             const auto toggle=f.h.tree().node(f.path("method/toggle"));
             check(toggle && toggle->name == (std::string_view(lang)=="zh" ? "查看详情" : "View details"));
             check(f.h.tree().node(f.path("heading"))->role == Role::heading);
@@ -90,6 +94,7 @@ int main(int argc, char** argv) {
             } else {
                 check_eq(f.state.title.peek(),title); check(!f.state.reviewed.peek() && !f.state.recorded.peek());
                 check(f.state.layout.peek()=="cards" && f.state.spacing.peek()==20 && f.state.requests.peek()>=3);
+                check(std::ranges::any_of(f.rt->action_journal(),[&](const auto& entry){ return entry.path==f.path("preview/actions/arrange") && entry.actor=="agent:agent-feature-design" && entry.exit_code==0; }), "design replay invokes the real renamed arrange action");
                 check(f.rt->valid(stage) && f.has("specimen/title") && f.has("specimen/record"), "layout preserves actual action identity");
             }
             const auto count=f.state.requests.peek(); f.advance(4); check(f.state.requests.peek()==count,"the completed preview does not loop");
@@ -176,18 +181,18 @@ int main(int argc, char** argv) {
     suite.test("explicit tasks retain manual authorization across reduced-motion ticks and yield to new input", [] {
         for (const auto level : {MotionLevel::off, MotionLevel::reduced}) {
             Fixture develop("develop"); develop.rt->set_motion_level(level); develop.tick();
-            develop.act("preview/actions/run"); develop.tick();
+            develop.act("preview/actions/verify"); develop.tick();
             check(develop.state.preview_manual && develop.state.running.peek(), "a normal coordinator tick preserves explicit authorization");
             develop.advance(1);
             check(develop.state.status.peek().starts_with("PASS") && develop.state.requests.peek()>=3);
             check_eq(develop.state.title.peek(),develop.state.request_text.peek());
             Fixture design("design"); design.rt->set_motion_level(level); design.tick(); const auto data=design.task();
-            design.act("preview/actions/run"); design.tick();
+            design.act("preview/actions/arrange"); design.tick();
             check(design.state.layout.peek()=="cards" && design.task()==data, "the manual layout action works without animation and preserves task data");
             design.act("preview/actions/replay"); design.tick(); design.advance(1);
             check(design.state.requests.peek()>=3 && !design.state.running.peek(), "explicit design replay also completes its finite semantic sequence");
             Fixture interrupted("develop"); interrupted.rt->set_motion_level(level); interrupted.tick();
-            interrupted.act("preview/actions/run"); interrupted.tick();
+            interrupted.act("preview/actions/verify"); interrupted.tick();
             interrupted.act("specimen/title","set_value",Value{}.set("value","a newer manual title")); interrupted.advance(1);
             check_eq(interrupted.state.title.peek(),std::string("a newer manual title"));
             check(interrupted.state.preview_interactive.peek() && !interrupted.state.preview_timer && !interrupted.state.running.peek());

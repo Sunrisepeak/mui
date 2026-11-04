@@ -796,6 +796,12 @@ void register_builtins(EffectRegistry& r) {
         glass.backdrop = true;
         glass.row_local = true;
         glass.backdrop_blur = [](std::span<const float> p) { return p[2]; };
+        // CPU and Slang both return source unchanged when coverage is zero.
+        // smooth_min can extend coverage beyond the shapes: iterating it
+        // remains >= min(original distances) - k, even for a group. Thus k
+        // bounds generated pixels, independently of refraction/blur capture;
+        // the 0.5-device-pixel coverage fringe is the caller's AA allowance.
+        glass.output_reach = [](std::span<const float> p) { return std::abs(p[10]); };
         r.add(std::move(glass));
     }
     r.add(local({"tone", "The layer in one colour: each pixel's brightness kept, its hue the tint's (a world grey while time stands still).",
@@ -946,6 +952,13 @@ float EffectRegistry::reach(EffectRef ref, std::span<const float> params) const 
     const EffectInfo* e = info(ref);
     if (!e || !e->reach || params.size() < e->params.size()) return 0;
     return e->reach(params);
+}
+
+std::optional<float> EffectRegistry::output_reach(EffectRef ref, std::span<const float> params) const {
+    const EffectInfo* e = info(ref);
+    if (!e || params.size() < e->params.size()) return std::nullopt;
+    if (e->output_reach) return e->output_reach(params);
+    return e->reach ? e->reach(params) : 0.0f;
 }
 
 EffectRegistry& effects() {

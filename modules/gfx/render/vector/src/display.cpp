@@ -179,6 +179,85 @@ Rect Path::bounds() const noexcept {
 
 // ── DisplayList ───────────────────────────────────────────────────────────
 
+DisplayList::DisplayList(DisplayList&& other) noexcept
+    : mesh_scratch_(std::move(other.mesh_scratch_)), material_(std::move(other.material_)),
+      commands_(std::move(other.commands_)), arena_(std::move(other.arena_)) {
+    ++other.path_generation_;
+}
+DisplayList& DisplayList::operator=(DisplayList&& other) noexcept {
+    if (this == &other) return *this;
+    mesh_scratch_ = std::move(other.mesh_scratch_);
+    material_ = std::move(other.material_);
+    commands_ = std::move(other.commands_);
+    arena_ = std::move(other.arena_);
+    ++path_generation_; ++other.path_generation_;
+    return *this;
+}
+
+std::expected<RecordedPath, PathRecordError> DisplayList::record_path(
+    std::size_t verb_count, std::size_t point_count, omui::FunctionRef<void(MutablePathView)> writer) {
+    if (verb_count == 0 || point_count == 0 ||
+        verb_count > std::numeric_limits<std::size_t>::max() / sizeof(PathVerb) ||
+        point_count > std::numeric_limits<std::size_t>::max() / sizeof(Point))
+        return std::unexpected(PathRecordError::invalid_storage_count);
+    auto verbs = arena_.array<PathVerb>(verb_count);
+    auto* points = static_cast<Point*>(arena_.allocate(sizeof(Point) * point_count, alignof(Point)));
+    for (std::size_t i = 0; i < point_count; ++i) std::construct_at(points + i);
+    const std::span<Point> positions(points, point_count);
+    writer({verbs, positions});
+    std::size_t used = 0;
+    bool moved = false;
+    for (const auto verb : verbs) {
+        std::size_t count = 0;
+        switch (verb) {
+        case PathVerb::move: count = 1; moved = true; break;
+        case PathVerb::line: count = 1; break;
+        case PathVerb::quad: count = 2; break;
+        case PathVerb::cubic: count = 3; break;
+        case PathVerb::close: break;
+        default: return std::unexpected(PathRecordError::invalid_path);
+        }
+        if (!moved || count > point_count - used) return std::unexpected(PathRecordError::invalid_path);
+        used += count;
+    }
+    if (used != point_count) return std::unexpected(PathRecordError::invalid_path);
+    Point lo = points[0], hi = lo;
+    for (const auto point : positions) {
+        if (!std::isfinite(point.x) || !std::isfinite(point.y)) return std::unexpected(PathRecordError::invalid_path);
+        lo.x = std::min(lo.x, point.x); lo.y = std::min(lo.y, point.y);
+        hi.x = std::max(hi.x, point.x); hi.y = std::max(hi.y, point.y);
+    }
+    RecordedPath recorded;
+    recorded.owner_ = this; recorded.generation_ = path_generation_;
+    recorded.path_ = {verbs, positions}; recorded.bounds_ = Rect::ltrb(lo.x, lo.y, hi.x, hi.y);
+    if (!std::isfinite(recorded.bounds_.width) || !std::isfinite(recorded.bounds_.height))
+        return std::unexpected(PathRecordError::invalid_path);
+    return recorded;
+}
+bool DisplayList::fill_path(const RecordedPath& path, FillRule rule, const Paint& paint) {
+    if (path.owner_ != this || path.generation_ != path_generation_) return false;
+    commands_.emplace_back(FillPath{path.path_, rule, own(paint)});
+    return true;
+}
+bool DisplayList::stroke_path(const RecordedPath& path, const StrokeStyle& style, const Paint& paint) {
+    if (path.owner_ != this || path.generation_ != path_generation_) return false;
+    commands_.emplace_back(StrokePath{path.path_, own(style), own(paint)});
+    return true;
+}
+
+std::expected<Paint, PaintMixError> DisplayList::record_paint_mix(
+    std::size_t count, omui::FunctionRef<void(std::span<WeightedPaint>)> writer, float opacity) {
+    if (count == 0 || count > max_paint_mix_terms) return std::unexpected(PaintMixError::term_budget);
+    auto* storage = static_cast<WeightedPaint*>(arena_.allocate(sizeof(WeightedPaint) * count, alignof(WeightedPaint)));
+    for (std::size_t i = 0; i < count; ++i) std::construct_at(storage + i);
+    const std::span<WeightedPaint> terms(storage, count);
+    writer(terms);
+    Paint result; result.kind = Paint::Kind::mix; result.mix = terms; result.mix_opacity = opacity;
+    if (auto ok = validate_paint_mix(result); !ok) return std::unexpected(ok.error());
+    for (auto& term : terms) term.paint = own(term.paint);
+    return result;
+}
+
 const Material* DisplayList::own(const Material* m) {
     if (!m) return nullptr;
     if (material_.at && (material_.at == m || *material_.at == *m)) return material_.at;
@@ -188,6 +267,16 @@ const Material* DisplayList::own(const Material* m) {
 
 Paint DisplayList::own(const Paint& p) {
     Paint out = p;
+    if (p.kind == Paint::Kind::mix) {
+        if (!validate_paint_mix(p)) { Paint invalid; invalid.kind = Paint::Kind::mix; return invalid; }
+        auto* terms = static_cast<WeightedPaint*>(arena_.allocate(sizeof(WeightedPaint) * p.mix.size(), alignof(WeightedPaint)));
+        for (std::size_t i = 0; i < p.mix.size(); ++i) {
+            std::construct_at(terms + i);
+            terms[i] = {own(p.mix[i].paint), p.mix[i].weight};
+        }
+        out.mix = std::span<const WeightedPaint>(terms, p.mix.size());
+        return out;
+    }
     if (p.kind == Paint::Kind::gradient) out.gradient.stops = arena_.copy(p.gradient.stops);
     out.material = p.kind == Paint::Kind::image || p.kind == Paint::Kind::image_mask ? own(p.material) : nullptr;
     return out;
@@ -327,6 +416,37 @@ void DisplayList::external_texture(std::uint64_t texture, const Rect& dest, floa
 }
 void DisplayList::begin_node(std::uint32_t node) { commands_.emplace_back(BeginNode{node}); }
 void DisplayList::end_node() { commands_.emplace_back(EndNode{}); }
+void DisplayList::node_frame(std::uint32_t node, Rect rect, float opacity, Rect placement, Size constraint, Affine visual) { commands_.emplace_back(NodeFrame{node, rect, opacity, placement, constraint, visual}); }
+
+const PartFrame* DisplayList::own(const PartFrame& part) {
+    PartFrame copy = part;
+    copy.role = arena_.copy(part.role); copy.id = arena_.copy(part.id);
+    auto* weights = static_cast<ReferenceWeight*>(arena_.allocate(sizeof(ReferenceWeight) * part.lineage.size(), alignof(ReferenceWeight)));
+    for (std::size_t i = 0; i < part.lineage.size(); ++i)
+        std::construct_at(weights + i, ReferenceWeight{arena_.copy(part.lineage[i].key), part.lineage[i].weight});
+    copy.lineage = {weights, part.lineage.size()};
+    return arena_.make<PartFrame>(copy);
+}
+void DisplayList::reference_box(std::uint32_t owner, std::string_view key, Rect allocation) {
+    commands_.emplace_back(ReferenceBox{owner, arena_.copy(key), allocation});
+}
+void DisplayList::begin_part(const PartFrame& part) { commands_.emplace_back(BeginPart{own(part)}); }
+void DisplayList::begin_part(const PartFrame& from, const PartFrame& to, double u) {
+    PartFrame part = to;
+    auto mix = [u](float a, float b) { return static_cast<float>(a + (b - a) * u); };
+    part.allocation = {mix(from.allocation.x,to.allocation.x),mix(from.allocation.y,to.allocation.y),
+        std::max(0.0f,mix(from.allocation.width,to.allocation.width)),std::max(0.0f,mix(from.allocation.height,to.allocation.height))};
+    part.role = arena_.copy(to.role); part.id = arena_.copy(to.id);
+    part.anchor = {mix(from.anchor.x,to.anchor.x),mix(from.anchor.y,to.anchor.y)};
+    const auto count = from.lineage.size() + to.lineage.size();
+    auto* weights = static_cast<ReferenceWeight*>(arena_.allocate(sizeof(ReferenceWeight) * count, alignof(ReferenceWeight)));
+    std::size_t i = 0;
+    for (const auto& source : from.lineage) std::construct_at(weights + i++, ReferenceWeight{arena_.copy(source.key),source.weight * (1-u)});
+    for (const auto& target : to.lineage) std::construct_at(weights + i++, ReferenceWeight{arena_.copy(target.key),target.weight * u});
+    part.lineage = {weights,count};
+    commands_.emplace_back(BeginPart{arena_.make<PartFrame>(part)});
+}
+void DisplayList::end_part() { commands_.emplace_back(EndPart{}); }
 
 Command DisplayList::own(const Command& c) {
     return std::visit(
@@ -340,6 +460,8 @@ Command DisplayList::own(const Command& c) {
                 copy.glyphs = arena_.copy(cmd.glyphs);
                 copy.styles = arena_.copy(cmd.styles);
             }
+            if constexpr (std::same_as<T, ReferenceBox>) copy.key = arena_.copy(cmd.key);
+            if constexpr (std::same_as<T, BeginPart>) copy.frame = cmd.frame ? own(*cmd.frame) : nullptr;
             if constexpr (std::same_as<T, PushLayer>) {
                 copy.params = arena_.copy(cmd.params);
                 copy.shapes = arena_.copy(cmd.shapes);
@@ -355,7 +477,7 @@ void DisplayList::append(const DisplayList& other) {
 }
 
 bool DisplayList::balanced() const noexcept {
-    int clips = 0, transforms = 0, layers = 0, nodes = 0;
+    int clips = 0, transforms = 0, layers = 0, nodes = 0, parts = 0;
     for (const Command& c : commands_) {
         std::visit(
             [&](const auto& cmd) {
@@ -368,11 +490,13 @@ bool DisplayList::balanced() const noexcept {
                 else if constexpr (std::same_as<T, PopLayer>) --layers;
                 else if constexpr (std::same_as<T, BeginNode>) ++nodes;
                 else if constexpr (std::same_as<T, EndNode>) --nodes;
+                else if constexpr (std::same_as<T, BeginPart>) ++parts;
+                else if constexpr (std::same_as<T, EndPart>) --parts;
             },
             c);
-        if (clips < 0 || transforms < 0 || layers < 0 || nodes < 0) return false;
+        if (clips < 0 || transforms < 0 || layers < 0 || nodes < 0 || parts < 0) return false;
     }
-    return clips == 0 && transforms == 0 && layers == 0 && nodes == 0;
+    return clips == 0 && transforms == 0 && layers == 0 && nodes == 0 && parts == 0;
 }
 
 namespace {
@@ -398,6 +522,10 @@ struct Hasher {
     void put(const Paint& p) {
         put(p.kind);
         put(p.color);
+        if (p.kind == Paint::Kind::mix) {
+            put(p.mix_opacity); put(p.mix.size());
+            for (const auto& term : p.mix) { put(term.weight); put(term.paint); }
+        }
         if (p.kind == Paint::Kind::gradient) {
             put(p.gradient.kind); put(p.gradient.start); put(p.gradient.end); put(p.gradient.radius); put(p.gradient.spread);
             for (const auto& s : p.gradient.stops) { put(s.offset); put(s.color); }
@@ -407,6 +535,7 @@ struct Hasher {
             const Material& m = *p.material;
             put(m.normal.id); put(m.light); put(m.light_z); put(m.shadow); put(m.shadow_strength); put(m.bands); put(m.softness);
             put(m.rim); put(m.rim_strength); put(m.rim_width);
+            if (m.key != Color::white()) put(m.key);
         }
     }
     void put(const StrokeStyle& s) {
@@ -418,6 +547,10 @@ struct Hasher {
 }  // namespace
 
 std::uint64_t hash_command(const Command& c, std::uint64_t seed) noexcept {
+    // Presentation metadata is not rendered content and must never retime a
+    // visual morph or invalidate damage merely because a constraint changed.
+    if (std::holds_alternative<NodeFrame>(c) || std::holds_alternative<ReferenceBox>(c) ||
+        std::holds_alternative<BeginPart>(c) || std::holds_alternative<EndPart>(c)) return seed;
     Hasher h{seed};
     h.put(c.index());
     std::visit(
@@ -445,6 +578,7 @@ std::uint64_t hash_command(const Command& c, std::uint64_t seed) noexcept {
             }
             else if constexpr (std::same_as<T, ExternalTexture>) { h.put(cmd.texture); h.put(cmd.dest); h.put(cmd.opacity); }
             else if constexpr (std::same_as<T, BeginNode>) { h.put(cmd.node); }
+            else if constexpr (std::same_as<T, NodeFrame>) { h.put(cmd.rect); h.put(cmd.opacity); h.put(cmd.placement); h.put(cmd.constraint.width); h.put(cmd.constraint.height); }
         },
         c);
     return h.h;
@@ -457,6 +591,7 @@ std::uint64_t DisplayList::hash() const noexcept {
 }
 
 void DisplayList::clear() noexcept {
+    ++path_generation_;
     commands_.clear();
     arena_.reset();
     material_.at = nullptr;

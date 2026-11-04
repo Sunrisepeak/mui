@@ -7,7 +7,9 @@ import mcpp;
 import openmui.shader.rules;
 
 int main() {
-    const bool drawing = openmui::shader::rules::shaders({.module = "openmui.render.vector", .ns = "omui::render::shaders"});
+    // ui.slang and material.slang produce separate resource layouts/partitions;
+    // both import the same resource-free types and shading functions.
+    const bool drawing = openmui::shader::rules::shaders({.module = "openmui.render.vector", .ns = "omui::render::shaders", .includes = {"shaders/lib"}});
     const bool effects = openmui::shader::rules::shaders(
         {.module = "openmui.render.vector", .ns = "omui::render::shaders", .shaders = "effects", .includes = {"effects/lib"}});
     return drawing && effects ? 0 : 1;

@@ -185,11 +185,15 @@ int main(int argc, char** argv) {
             Scene a(entry(id), 700); a.state.end.set(true); (void)a.h.step();
             const auto motions = a.h.runtime().motions();
             check(!motions.empty(), id);
+            if (std::string_view(id) == "packing-board")
+                check(std::ranges::any_of(motions, [](const auto& motion) { return motion.path == "main/composition"; }),
+                    "the explicit parent detects its default-motion cards changing allocation during reflow");
             for (const auto& motion : motions) a.h.runtime().pause_motion(motion.node);
             std::set<std::uint64_t> drawings;
             for (int frame = 0; frame <= 16; ++frame) {
                 for (const auto& motion : motions) if (const auto time = a.h.runtime().motion_time(motion.node)) a.h.runtime().seek_motion(motion.node, time->first * static_cast<double>(frame) / 16.0);
                 (void)a.h.step(); a.h.record(); drawings.insert(a.pixels());
+                if (std::string_view(id) == "packing-board") a.inside();
                 if (frame == 8) check(a.h.save_png(media / (std::string(id) + "-midpoint.png")).has_value());
             }
             check(drawings.size() >= 3, std::format("{} has distinct intermediate drawings", id));

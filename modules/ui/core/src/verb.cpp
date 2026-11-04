@@ -6,14 +6,15 @@ import openas;
 namespace omui {
 
 const Invocation& bind_invocation(const Invocation& given, Invocation& copy,
-    const std::shared_ptr<const AgentAccess>& access, const Invocation* parent) {
+    const std::shared_ptr<const AgentAccess>& access, const Invocation* parent, std::string_view operation) {
     const bool inherit = parent && parent->remote && !given.remote;
     const bool bind = access && given.access != access;
     const auto& source = inherit ? *parent : given;
     const auto* policy = access ? access.get() : source.access.get();
     const bool delegate = source.remote && source.session && policy &&
         policy->effective(source.session.get()).development_grant;
-    if (!inherit && !bind && !delegate) return given;
+    const bool identify = source.remote && source.operation.empty() && !operation.empty();
+    if (!inherit && !bind && !delegate && !identify) return given;
     copy = given;
     if (inherit) {
         copy.actor = parent->actor;
@@ -23,6 +24,7 @@ const Invocation& bind_invocation(const Invocation& given, Invocation& copy,
         copy.operation = parent->operation;
     }
     if (access) copy.access = access;
+    if (identify) copy.operation = std::string(operation);
     if (delegate) copy.actor = copy.session->attribute(copy.actor);
     return copy;
 }
@@ -127,7 +129,7 @@ Envelope dry_run_of(const Envelope& stopped, Effect effect) {
 Envelope Verbs::invoke(std::string_view name, const Invocation& given) {
     Invocation copy;
     InvocationContext& context = context_ ? *context_ : own_context_;
-    const Invocation& call = bind_invocation(given, copy, access_, context.current());
+    const Invocation& call = bind_invocation(given, copy, access_, context.current(), "invoke");
     auto record = [&](int code) {
         if (!call.dry_run) journal_.push_back({std::string(name), call.actor.text(), call.args, code});
     };

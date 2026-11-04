@@ -32,7 +32,7 @@ struct ShadowToken {
 // clock; unlike a slot's candidate list, every operation here is applied.
 enum class MotionPrimitive : std::uint16_t {
     match_drawing = 1, match_glyphs = 2, fade = 4, lift = 8, panel_lift = 16,
-    grow = 32, check_grow = 64, stretch = 128, stagger = 256, distance = 512
+    grow = 32, check_grow = 64, stretch = 128, stagger = 256, distance = 512, readable_text = 1024
 };
 
 // A motion a node's slot holds (universal motion §5, D-93): none, or a morph
@@ -42,16 +42,25 @@ enum class MotionPrimitive : std::uint16_t {
 struct MotionSpec {
     enum class Kind : std::uint8_t { none, morph };
     enum class Order : std::uint8_t { together, document, distance };
+    enum class TextTransition : std::uint8_t { glyphs, replace, automatic };
+    // External placement belongs to layout; state/content still morphs. An
+    // explicit morph animates model layout, except in a constraints_changed
+    // transaction. animate opts out; follow_layout always follows allocation.
+    enum class PlacementPolicy : std::uint8_t { automatic, animate, follow_layout };
     Kind       kind = Kind::morph;
     Transition curve = Transition::spring_with();
     Order      order = Order::together;
     double     stagger = 0;      // seconds between pieces, in `order`
-    bool       glyphs = true;    // text changes glyph by glyph
+    bool       glyphs = true;    // false: legacy whole-run crossfade
+    TextTransition text = TextTransition::glyphs; // explicit glyph matching remains compatible
+    float      text_rise = 0.35f; // whole-run replacement travel, in ems
+    double     minimum_text_contrast = 4.5; // opaque unchanged text on a provable solid carrier
     bool       meaning = true;   // a node whose key changed found again by its role and name
     float      rise = 0;         // what appears (or vanishes) comes from lower by this
     float      grow = 1;         // … and scaled by this, about the middle of the drawing
     float      stretch = 0;      // a moving fill drawn out along its way (a tab's lens)
     double     fade_out = 0.6, fade_in = 0.3;
+    PlacementPolicy placement = PlacementPolicy::automatic;
     bool       local_presence = false;  // appear about each part, rather than the whole control
     std::uint16_t primitives = 0;  // the built-in operations this recipe composes
     // While it moves, all it draws goes through an effect (universal motion
@@ -156,11 +165,14 @@ public:
 // A slot's motion as a property, a style or a rule writes it: "none",
 // "morph", a library's name ("liquid"), either with a curve token after it
 // ("morph motion.spring.gentle"), or {use, curve, order ("together",
-// "document", "distance"), stagger, glyphs, meaning, rise, grow, stretch,
+// "document", "distance"), stagger, glyphs, text (glyphs/replace/auto), text_rise (ems), text_contrast (0 or 1..4.5), meaning, rise, grow, stretch,
 // travel = {effect, param, peak, <numbers>…}} — `use` a library's name the
 // rest changes. Nullopt when it is none of these (the caller says why). A
-// `compose = ["match", "glyphs", "fade", "lift", "grow", "stretch", "stagger"]`
+// `compose = ["match", "readable-text", "fade", "lift", "grow", "stretch", "stagger"]`
+// readable-text keeps substantial contiguous edits (Save -> Saved), and
+// otherwise replaces the whole run without interleaving unrelated letters.
 // applies reusable operations together, unlike the list of candidates.
+// Explicit text:"replace" always replaces; text:"glyphs" keeps expressive LCS.
 // A node's `motion` property is one (its update slot's), a list of them
 // (candidates), or a map of them by slot: {update, enter, exit, state,
 // reorder, replace}.

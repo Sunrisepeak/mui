@@ -306,6 +306,16 @@ public:
     virtual void cancel(std::uint64_t timer) = 0;
 };
 
+// A component states its current layout relationship; it does not animate.
+// `box` describes box-shaped carrier geometry, `content` retains local shapes
+// and font size. anchor chooses the fixed point when its allocation changes.
+struct PaintPart {
+    std::string_view role, id, reference;
+    Rect allocation;
+    Point anchor{0.5f,0.5f};
+    render::PartKind kind = render::PartKind::content;
+};
+
 struct PaintContext {
     Services&            services;
     render::DisplayList& list;
@@ -314,6 +324,15 @@ struct PaintContext {
     Rect                 content;  // the content box (inside padding and border), local coordinates
     NodeState            state;
     const Theme&         theme;
+    template <class Draw> requires std::invocable<Draw&>
+    void part(const PaintPart& part, Draw&& draw) {
+        if (!part.reference.empty()) list.reference_box(0,part.reference,part.allocation);
+        const render::ReferenceWeight reference{part.reference,1};
+        const auto lineage = part.reference.empty() ? std::span<const render::ReferenceWeight>{} : std::span<const render::ReferenceWeight>(&reference,1);
+        list.begin_part({0,part.role,part.id,part.allocation,part.anchor,part.kind,lineage});
+        std::invoke(draw);
+        list.end_part();
+    }
 };
 
 struct MeasureContext {

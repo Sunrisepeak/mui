@@ -847,8 +847,13 @@ int main(int argc, char** argv) {
         std::println("ui.base motion cases {:016x} {:016x} {:016x}", before, mid, rest);
         check(mid != before && mid != rest, "mid-way is neither drawing");
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
-        // Typed toggle/button recipes now compose their own reusable parts.
-        check(mid == 0xca8dddc7b099a25cULL, std::format("mid {:016x}", mid));
+        // The explicit parent owns reorder placement/stagger; default child
+        // controls retain their state motion and the readable-text policy.
+        // selection_layout_test checks real bodies, full label ink and parent
+        // timing. The reviewed middle frame agrees on GCC and LLVM; both
+        // source and rest remain unchanged.
+        check(before == 0x386e25e3b6af0078ULL, std::format("before {:016x}", before));
+        check(mid == 0xebd32a0410f5fad5ULL, std::format("mid {:016x}", mid));
         check(rest == 0xfa5cbbab36eaa981ULL, std::format("rest {:016x}", rest));
     });
 

@@ -179,11 +179,11 @@ void preview_step(AgentFeature* s, AgentFeatureContext c, std::uint64_t generati
             const auto reply = request(s, c, snapshot_request(c));
             s->status.set(reply.exit == 0 ? say(c, "Read the mounted task and its stable actions.", "已读取挂载任务及其稳定动作。") : say(c, "The runtime could not read this task.", "运行时无法读取这项任务。"));
         } else {
-            const auto id = rt->find(c.root + "/preview/actions/run");
+            const auto id = rt->find(c.root + "/preview/actions/arrange");
             Invocation call; call.actor = {"agent", "agent-feature-design", {}}; call.remote = true;
             const auto result = rt->act(id, "activate", call);
             s->requests.set(s->requests.peek() + 1);
-            s->request_json.set(Value{}.set("op", "act").set("actor", "agent:agent-feature-design").set("node", c.root + "/preview/actions/run").set("action", "activate").json());
+            s->request_json.set(Value{}.set("op", "act").set("actor", "agent:agent-feature-design").set("node", c.root + "/preview/actions/arrange").set("action", "activate").json());
             s->result_json.set(Value{}.set("exitCode", result.exit_code().value_or(-1)).json());
             if (result.exit_code() != std::optional<std::int64_t>(0)) { s->applying_preview = false; cancel_agent_feature(*s); return; }
         }
@@ -215,14 +215,22 @@ Element preview_controls(AgentFeature* s, const AgentFeatureContext& c, float wi
     if (s->mode.get() != "use") {
         actions.push_back(command("pause", say(c, "Pause preview", "暂停预览"), [s, c] { stop(s, c); }, ButtonVariant::ghost, s->preview_paused.get()));
         actions.push_back(command("replay", say(c, "Replay preview", "重播预览"), [s, c] { begin_preview(s, c, false); }, ButtonVariant::ghost));
-        actions.push_back(command("run", s->mode.get() == "develop" ? say(c, "Run read → change → check", "运行读取 → 修改 → 验证") : say(c, "Switch the task layout", "切换任务布局"), [s, c] {
-            if (s->mode.peek() == "design") { if (!s->applying_preview) takeover_agent_feature(*s); arrange(s, c); }
-            else begin_preview(s, c, false);
-        }, ButtonVariant::primary));
+        const bool verify = s->mode.get() == "develop";
+        auto primary = command(verify ? "verify" : "arrange", verify ? say(c, "Run read → change → check", "运行读取 → 修改 → 验证") : say(c, "Switch the task layout", "切换任务布局"), [s, c, verify] {
+            if (verify) begin_preview(s, c, false);
+            else { if (!s->applying_preview) takeover_agent_feature(*s); arrange(s, c); }
+        }, ButtonVariant::primary);
+        // Reserve a complete task row on phones. A task's changing natural
+        // label width must not send it diagonally through playback controls.
+        // IDs name distinct actions; unrelated phrases do not share a glyph morph.
+        if (width < 620) primary.prop("width", Source(Value(width)));
+        actions.push_back(std::move(primary));
     }
-    return column({.id = "preview", .gap = 8}, {
+    auto controls = commands("actions", std::move(actions));
+    controls.prop("width", Source(Value(width)));
+    return column({.id = "preview", .width = Dim(width), .gap = 8}, {
         words("label", say(c, "Simulated agent · local script, no LLM", "模拟 agent · 本地脚本，无大模型"), width, "caption"),
-        commands("actions", std::move(actions)),
+        std::move(controls),
         words("state", s->preview_interactive.get() ? say(c, "Yours to use. Replay only when you ask.", "现在由你操作，仅在你要求时重播。")
             : s->preview_paused.get() ? say(c, "Preview paused. Replay when you are ready.", "预览已暂停，可在准备好时重播。")
             : s->preview_status.get() == "complete" ? say(c, "One local demonstration completed.", "一轮本地演示已完成。")

@@ -326,6 +326,29 @@ int main(int argc, char** argv) {
         check_eq(digest.hex(), std::string("37b21beebb9bc81e"));
     });
 
+    s.test("streaming segment samples equal bulk output in arbitrary order without allocating", [] {
+        const auto prepared = PreparedShapeMorph::prepare(tri(), disk());
+        check(prepared.has_value());
+        if (!prepared) return;
+        for (double t : {1.0, 0.37, 0.0, -1.0, 2.0}) {
+            const auto bulk = sample(*prepared, t);
+            bool equal = true;
+            const auto before = allocations.load(std::memory_order_relaxed);
+            for (std::size_t i = bulk.size(); i > 0; --i) {
+                const auto streamed = prepared->sample_segment(t, i - 1);
+                equal = equal && streamed.has_value() && same(*streamed, bulk[i - 1]);
+            }
+            const auto after = allocations.load(std::memory_order_relaxed);
+            check(equal); check_eq(after, before);
+        }
+        const auto invalid = prepared->sample_segment(0.5, prepared->segment_count());
+        check(!invalid && invalid.error() == ShapeMorphError::invalid_segment);
+        const auto nonfinite = prepared->sample_segment(std::numeric_limits<double>::infinity(), 0);
+        check(!nonfinite && nonfinite.error() == ShapeMorphError::invalid_progress);
+        const auto empty = PreparedShapeMorph{}.sample_segment(0.5, 0);
+        check(!empty && empty.error() == ShapeMorphError::unprepared);
+    });
+
     s.test("warm sampling performs no scalar or array allocation and has immutable storage", [] {
         const auto prepared = PreparedShapeMorph::prepare(tri(), disk());
         check(prepared.has_value());

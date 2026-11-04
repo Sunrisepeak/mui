@@ -94,8 +94,10 @@ private:
 
     [[nodiscard]] Surface& target() noexcept { return layers_.empty() ? *base_ : *layers_.back().surface; }
     [[nodiscard]] const Clip& clip() const noexcept { return clips_.back(); }
-    void composite(const Coverage& coverage, const Shader& shader, int dx = 0, int dy = 0);
-    void composite(const Spans& spans, const Shader& shader);
+    template<class Shading> void composite(const Coverage& coverage, const Shading& shader, int dx = 0, int dy = 0);
+    template<class Shading> void composite(const Spans& spans, const Shading& shader);
+    void composite(const Coverage& coverage, const Paint& paint, int dx = 0, int dy = 0);
+    void composite(const Spans& spans, const Paint& paint);
     void fill_solid_rect(const Rect& device, Rgba8 color);
     void push_mask(const Coverage& coverage);
 
@@ -110,6 +112,7 @@ private:
     Coverage                   coverage_;
     Spans                      spans_;
     std::vector<Rgba8>         row_;
+    std::unique_ptr<MixShader> mix_shader_; // lazy, retained with this canvas
     std::vector<std::unique_ptr<Surface>> layer_pool_;
     std::vector<std::shared_ptr<Mask>>    mask_pool_;
     PathBuilder                path_;      // scratch for rectangles and rounded rectangles

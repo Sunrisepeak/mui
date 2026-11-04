@@ -117,7 +117,8 @@ struct EffectInfo {
     std::string_view         name;
     std::string_view         doc;
     std::vector<EffectParam> params;
-    // How far, in logical pixels, the effect may move pixels outside the layer.
+    // Capture reach, in logical pixels: how far outside the layer the renderer
+    // must retain pixels for the effect to read or produce its result.
     std::function<float(std::span<const float> params)> reach;
     void (*cpu)(const EffectInput& in) = nullptr;
     EffectGpu                gpu;
@@ -147,6 +148,15 @@ struct EffectInfo {
     // effect's name, or none (the layer drawn as it is).
     std::uint8_t     tiers = 0x1f;
     std::string_view degrade;
+    // Where the effect can change or generate pixels relative to its input
+    // source, beyond the union of the layer rectangle and its shape rectangles
+    // (logical pixels; raster antialiasing is additional). Existing source
+    // commands can lie outside that union and must also be retained by a
+    // consumer computing the result's bounds. This does not reduce capture:
+    // e.g. a lens reads distant backdrop pixels but only writes its shapes.
+    // Empty: conservatively use capture reach. External effects can declare
+    // the same guarantee; no declaration is inferred from an effect's name.
+    std::function<float(std::span<const float> params)> output_reach;
 };
 
 // Runs an effect's CPU reference over its rows — in bands on `parallel` when
@@ -175,6 +185,9 @@ public:
     [[nodiscard]] std::vector<float> params(EffectRef ref, std::span<const std::pair<std::string_view, float>> values) const;
     // The reach in logical pixels for these parameters.
     [[nodiscard]] float reach(EffectRef ref, std::span<const float> params) const;
+    // Output reach, falling back to capture reach when not declared. Unknown
+    // refs or an incomplete parameter vector have no provable output bound.
+    [[nodiscard]] std::optional<float> output_reach(EffectRef ref, std::span<const float> params) const;
 
 private:
     mutable std::shared_mutex  lock_;

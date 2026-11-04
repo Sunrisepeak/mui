@@ -37,7 +37,7 @@ struct ShapeCubic {
 enum class ShapeMorphError : std::uint8_t {
     empty_contour, open_contour, invalid_verb, nonfinite_coordinate,
     numerical_range, degenerate_contour, segment_budget, invalid_options,
-    invalid_progress, output_too_small, unprepared
+    invalid_progress, output_too_small, unprepared, invalid_segment
 };
 [[nodiscard]] std::string_view shape_morph_error_name(ShapeMorphError error) noexcept;
 
@@ -73,6 +73,10 @@ public:
     // No allocation, matching, callbacks or renderer dependency here.
     [[nodiscard]] std::expected<std::size_t, ShapeMorphError>
         sample(double progress, std::span<ShapeCubic> output) const noexcept;
+    // Streaming consumers can write directly into their own arena without a
+    // temporary vector. Same progress policy as sample; no mutable scratch.
+    [[nodiscard]] std::expected<ShapeCubic, ShapeMorphError>
+        sample_segment(double progress, std::size_t segment) const noexcept;
 
 private:
     std::vector<ShapeCubic> from_, to_;

@@ -236,6 +236,10 @@ try {
     await pointer(root + '/history/undo');
     await requireCheck(async () => !(await label(root + '/specimen/receipt')).includes('Recorded here'), 'the real task action can be undone');
     await segment(root + '/modes', 1, 3, 'develop');
+    await requireCheck(() => exists(root + '/preview/actions/verify'), 'Develop exposes its stable Verify action');
+    check(!await exists(root + '/preview/actions/run'), 'different task meanings do not share the legacy Run identity');
+    await pointer(root + '/preview/actions/verify');
+    await requireCheck(async () => (await label(root + '/status')).startsWith('PASS'), 'the real Verify primary runs read, change and check');
     check(!await exists(root + '/develop/expected'), 'development parameters start unmounted');
     await pointer(root + '/method/toggle');
     await requireCheck(() => exists(root + '/develop/expected'), 'explicit Agent details mounts protocol controls');
@@ -247,6 +251,12 @@ try {
     await pointer(root + '/develop/requests/change'); await pointer(root + '/develop/requests/assert');
     await requireCheck(async () => (await label(root + '/status')).startsWith('PASS') && await scalar(root + '/specimen/title') === 'Browser verified idea', 'Change then Assert passes on the actual current value');
     await segment(root + '/modes', 2, 3, 'design');
+    await requireCheck(() => exists(root + '/preview/actions/arrange'), 'Design exposes its distinct Arrange action');
+    await pointer(root + '/specimen/title', 0.5, true);
+    const previousCard = await node(root + '/specimen/decision_card');
+    const beforeCard = !!previousCard && !previousCard.state?.includes('removing');
+    await pointer(root + '/preview/actions/arrange');
+    await requireCheck(async () => { const card = await node(root + '/specimen/decision_card'); return (!!card && !card.state?.includes('removing')) !== beforeCard; }, 'the real Arrange primary changes this task grouping');
     check(!await exists(root + '/design/spacing'), 'design parameters start unmounted');
     await pointer(root + '/method/toggle');
     await requireCheck(() => exists(root + '/design/spacing'), 'explicit Agent details mounts design parameters');

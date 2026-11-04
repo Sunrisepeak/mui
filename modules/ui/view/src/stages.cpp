@@ -67,7 +67,7 @@ std::vector<Plugin> plugins() {
          [](Runtime::Impl& d, pl::Context& c) {
              const FrameInput* in = c.resources.get<FrameInput>(res::input);
              if (!in) return;
-             for (const InputEvent& e : in->events) batch([&] { d.dispatch(e); });
+             d.input_frame(*in);
          }, 800},
         {"regions", "the regions whose sources changed are rebuilt and reconciled by key", {tree()}, {tree()},
          [](Runtime::Impl& d, pl::Context&) { d.reconcile_regions(); }, 3000},

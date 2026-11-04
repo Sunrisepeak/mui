@@ -245,7 +245,9 @@ sources = ["src/host/desktop/*.cppm", "src/host/desktop/*.cpp"]
 [target.'cfg(os = "emscripten")'.build]
 sources = ["src/host/web/*.cppm", "src/host/web/*.cpp"]
 
-# The root package has no test programs of its own: tests/ holds members
-# (modules/base/testing, and the cross-member suites), each discovered by itself.
+# SDK startup CTS exercise the actual generated profile and AppSpec run path.
+[dev-dependencies]
+openmui.testing = { path = "modules/base/testing" }
+
 [test]
-discover = []
+discover = ["tests/*_test.cpp"]

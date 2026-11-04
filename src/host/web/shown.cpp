@@ -15,6 +15,8 @@ int shown(const AppSpec& app, const RunOptions& o, const Prepare& prepare) {
     WebOptions w;
     w.title = app.title;
     w.app = app.id;
+    w.agent_link = o.agent;
+    w.agent_input = o.agent_input.value_or(app.agent_input);
     w.size = o.size.value_or(app.size);
     w.theme = o.dark ? Theme::dark_theme() : app.theme;
     // The person's settings, as every page reads them.

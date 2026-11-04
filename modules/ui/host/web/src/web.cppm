@@ -67,6 +67,8 @@ struct WebOptions {
     // looks for a bridge on their machine. False: it never does (the
     // application's choice; openas decides what a linked agent may do either way).
     bool                    agent_link = true;
+    // Trusted host switch; the effective Runtime policy can narrow it.
+    bool                    agent_input = true;
 };
 
 class Web {

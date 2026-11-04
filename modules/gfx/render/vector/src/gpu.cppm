@@ -38,6 +38,7 @@ import :display;
 import :resources;
 import :cpu;
 export import :ui_shaders;
+export import :material_shaders;
 export import :blend_shaders;
 
 export namespace omui::render {

@@ -12,11 +12,24 @@ namespace omui::agent {
 namespace {
 
 constexpr std::size_t default_children_limit = 256;
+constexpr Log protocol_log{"agent"};
 
 
 constexpr std::array<std::string_view, 20> operations{"describe", "snapshot", "changes", "find",     "act",   "invoke",  "undo",
                                                        "redo",     "transaction", "history", "wait", "capture", "input", "inspect",
                                                        "stats",    "profile",  "logs",     "debug",   "pipeline", "clock"};
+
+// Policy classifies protocol controls too; an act/invoke is checked again
+// against the actual action/verb effect by the Runtime. No caller-supplied
+// mode, cap, grant or presence field participates in authorization.
+Effect operation_effect(std::string_view op, const Value& req) {
+    if (op == "input" || op == "undo" || op == "redo" || op == "transaction" || op == "profile" || op == "debug")
+        return Effect::reversible;
+    const auto* action = req.get("action");
+    if ((op == "clock" || op == "pipeline") && action && !action->as_string().empty() && action->as_string() != "show")
+        return Effect::reversible;
+    return Effect::read;
+}
 
 // A stage's configuration from a request's JSON object.
 pipeline::Config config_of(const Value* v) {
@@ -151,12 +164,14 @@ std::expected<std::deque<std::vector<InputEvent>>, std::string> frames_of(const 
         const Value* v = e.get(k);
         return v && v->is_number() ? v->as_double() : fallback;
     };
-    // A point: [x, y], or the centre of a node's bounds as it is laid out now.
+    // A point: [x, y], or the centre of the node as currently presented.
+    // Target layout can be far ahead of a moving control. drawn_bounds also
+    // retains the layout-only fallback for hosts that do not paint.
     auto point = [&](const Value& e, std::string_view xy, std::string_view node) -> std::expected<Point, std::string> {
         if (const Value* v = e.get(node); v && !v->as_string().empty()) {
             const NodeId n = rt.find(v->as_string());
             if (!rt.valid(n)) return std::unexpected(std::format("no node '{}'", v->as_string()));
-            const Rect b = rt.screen_bounds(n);
+            const Rect b = rt.drawn_bounds(n);
             if (b.empty()) return std::unexpected(std::format("'{}' has no bounds (not laid out, or not shown)", v->as_string()));
             return b.center();
         }
@@ -311,11 +326,35 @@ std::vector<std::string> lines(const Envelope& envelope, const Value& re) {
 Protocol::Protocol(Runtime& runtime, ProtocolOptions options)
     : runtime_(runtime), tree_(runtime), options_(std::move(options)) {}
 
+void Protocol::ensure_session() {
+    if (!options_.remote || options_.session) {
+        session_ = options_.session;
+        return;
+    }
+    auto& access = runtime_.agent_access();
+    if (session_access_ == &access) return;
+    // A host may have constructed the endpoint before AppSpec::prepare.
+    // Rebind only when its instance changes, never on cap/grant revocation.
+    session_binding_ = runtime_.agent_access_binding();
+    session_access_ = &access;
+    session_ = access.open_session(options_.session_limits);
+}
+
+std::optional<Envelope> Protocol::denied(const Invocation& given, Effect effect) const {
+    if (!given.remote) return std::nullopt;
+    Invocation call = given;
+    call.access = runtime_.agent_access_binding();
+    if (clearance(call.operation, effect, false, call) == openas::Decision::refuse)
+        return above_cap(std::format("Agent operation `{}`", call.operation), call);
+    return std::nullopt;
+}
+
 void Protocol::send(const Reply& reply, const Envelope& envelope, const Value& re) const {
     for (const std::string& l : lines(envelope, re)) reply(l);
 }
 
 void Protocol::request(std::string_view line, const Reply& reply) {
+    trace::Span span("request", "agent");
     auto req = parse_json(line);
     if (!req) {
         send(reply, invalid(std::format("the request is not JSON: {}", req.error().text()),
@@ -330,12 +369,41 @@ void Protocol::request(std::string_view line, const Reply& reply) {
     const Value re = req->get("re") ? *req->get("re") : Value{};
     bool deferred = false;
     Envelope e = handle(*req, re, reply, deferred);
+    const auto op = text_of(*req, "op");
+    if (op == "clock" || op == "pipeline" || op == "profile" || op == "debug") {
+        auto by = Actor::parse(text_of(*req, "actor").empty() ? options_.default_actor : text_of(*req, "actor"));
+        if (by && session_ && runtime_.agent_access().effective(session_.get()).development_grant) *by = session_->attribute(*by);
+        protocol_log.info("Agent control {} by {}: exit={}", op, by ? by->text() : "invalid-actor", e.exit_code().value_or(-1));
+    }
     if (!deferred) send(reply, e, re);
 }
 
 Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply, bool& deferred) {
     const std::string_view op = text_of(req, "op");
     Envelope e;
+    ensure_session();
+    // Who asks, with what: the actor, the answer, the arguments, a dry run.
+    auto invocation = [&](const Value& from) -> std::expected<Invocation, Envelope> {
+        Invocation call;
+        if (const Value* a = from.get("args")) call.args = *a;
+        call.answer = std::string(text_of(from, "answer"));
+        if (call.answer.empty()) call.answer = std::string(text_of(req, "answer"));
+        const std::string_view actor = text_of(req, "actor");
+        auto parsed = Actor::parse(actor.empty() ? std::string_view(options_.default_actor) : actor);
+        if (!parsed)
+            return std::unexpected(invalid(std::format("`{}` is not an actor", actor), "kind:name[;via=kind:name], e.g. agent:planner;via=person:alice"));
+        call.actor = std::move(*parsed);
+        call.access = runtime_.agent_access_binding();
+        call.session = session_;
+        call.operation = std::string(op);
+        call.remote = options_.remote;  // over the bus: whatever actor it names (S-10)
+        if (const Value* d = req.get("dry_run")) call.dry_run = d->as_bool();  // only what would happen (S-13)
+        return call;
+    };
+    auto current = invocation(req);
+    if (!current) return current.error();
+    if (op != "describe" && std::ranges::find(operations, op) != operations.end())
+        if (auto stopped = denied(*current, operation_effect(op, req))) return std::move(*stopped);
     if (op == "describe") {
         Value::List ops;
         for (std::string_view o : operations) ops.emplace_back(o);
@@ -343,6 +411,32 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
         d.set("interface", interface_name).set("spec", spec::version).set("app", options_.app).set("operations", Value(std::move(ops)));
         d.set("revision", static_cast<std::int64_t>(runtime_.semantic_revision()));
         d.set("capture", static_cast<bool>(options_.capture));
+        const auto state = runtime_.agent_access().effective(session_.get());
+        Value policy = state.to_value();
+        constexpr std::array<std::string_view, 4> mutable_controls{"clock", "pipeline", "profile", "debug"};
+        const bool preauthorized_control = state.enabled && state.development_grant && state.cap.allows(openas::Effect::reversible) &&
+            std::ranges::any_of(mutable_controls, [&](std::string_view name) { return state.allows(name); });
+        policy.set("binding", runtime_.agent_access_binding() ? "instance" : "legacy-global")
+            .set("transport_input", options_.input)
+            .set("input", options_.input && state.allows("input") && state.cap.allows(openas::Effect::reversible))
+            .set("development_controls", preauthorized_control)
+            .set("development_controls_meaning", "At least one mutable control is preauthorized by this development session; not all controls. "
+                "Published or explicitly granted configurations use per-operation decisions.");
+        if (session_) policy.set("session_owner", session_->owner());
+        Value::List permissions;
+        for (std::string_view name : operations) {
+            Value permission;
+            const bool allowed = name == "describe" || (!denied(Invocation{.actor = current->actor, .remote = options_.remote,
+                .access = current->access, .session = session_, .operation = std::string(name)},
+                operation_effect(name, Value{})) && (name != "input" || options_.input));
+            permission.set("operation", name).set("allowed", allowed);
+            if (!allowed) permission.set("reason", !state.session_valid ? "session-invalid" :
+                !state.enabled ? "disabled" : name == "input" && !options_.input ? "host-input-disabled" :
+                !state.allows(name) ? "restricted-by-layer" : "above-cap");
+            permissions.push_back(std::move(permission));
+        }
+        policy.set("operations", Value(std::move(permissions)));
+        d.set("agent_policy", std::move(policy));
         // The application's verbs: what ui_invoke / invoke can name, with what they take.
         Value::List verbs;
         for (const VerbDesc* v : runtime_.verbs().list()) {
@@ -353,6 +447,8 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
             if (!v->answer.empty()) one.set("answer", v->answer);
             if (v->person) one.set("person", true);
             if (v->undoable) one.set("undoable", true);
+            const auto decision = runtime_.agent_access().decide(v->name, v->effect, v->person, current->actor, session_.get(), "invoke");
+            one.set("agent_decision", decision == openas::Decision::run ? "run" : decision == openas::Decision::ask ? "needs-answer" : "refused");
             verbs.push_back(std::move(one));
         }
         d.set("verbs", Value(std::move(verbs)));
@@ -387,21 +483,6 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
         for (const spec::SemanticNode& n : tree_.find(*query)) nodes.push_back(spec::to_value(n));
         return e.data(Value{}.set("nodes", Value(std::move(nodes)))).result(spec::exit_code::success);
     }
-    // Who asks, with what: the actor, the answer, the arguments, a dry run.
-    auto invocation = [&](const Value& from) -> std::expected<Invocation, Envelope> {
-        Invocation call;
-        if (const Value* a = from.get("args")) call.args = *a;
-        call.answer = std::string(text_of(from, "answer"));
-        if (call.answer.empty()) call.answer = std::string(text_of(req, "answer"));
-        const std::string_view actor = text_of(req, "actor");
-        auto parsed = Actor::parse(actor.empty() ? std::string_view(options_.default_actor) : actor);
-        if (!parsed)
-            return std::unexpected(invalid(std::format("`{}` is not an actor", actor), "kind:name[;via=kind:name], e.g. agent:planner;via=person:alice"));
-        call.actor = std::move(*parsed);
-        call.remote = options_.remote;  // over the bus: whatever actor it names (S-10)
-        if (const Value* d = req.get("dry_run")) call.dry_run = d->as_bool();  // only what would happen (S-13)
-        return call;
-    };
     if (op == "act") {
         const std::string_view node = text_of(req, "node");
         const std::string_view action = text_of(req, "action");
@@ -469,7 +550,7 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
         deferred = true;
         const auto deadline = std::chrono::steady_clock::now() +
                               std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::duration<double>(std::max(0.0, timeout)));
-        waits_.push_back({std::move(*condition), re, deadline, reply});
+        waits_.push_back({std::move(*condition), re, deadline, reply, *current});
         runtime_.request_frame();
         return e;
     }
@@ -529,7 +610,7 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
         Actor by = call->actor;
         by.via.emplace_back("service:input");
         deferred = true;
-        deliveries_.push_back({re, reply, std::move(by), std::move(*frames), 0, runtime_.action_journal().size(), {}});
+        deliveries_.push_back({re, reply, std::move(by), std::move(*frames), 0, runtime_.action_journal().size(), {}, *call});
         runtime_.request_frame();
         return e;
     }
@@ -723,8 +804,22 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
 }
 
 std::optional<AgentInput> Protocol::take_input() {
-    for (Delivery& d : deliveries_) {
-        if (d.frames.empty()) continue;
+    for (auto it = deliveries_.begin(); it != deliveries_.end();) {
+        Delivery& d = *it;
+        if (d.frames.empty()) { ++it; continue; }
+        // Grants, policy or binding may have changed while frames queued.
+        // Refuse before dispatch, including text/key events whose component
+        // may commit state directly rather than invoke a semantic action.
+        if (auto stopped = denied(d.call, Effect::reversible)) {
+            send(d.reply, *stopped, d.re);
+            const bool began = d.delivered > 0;
+            AgentInput cleanup{{PointerEvent{.kind = PointerKind::cancel}}, d.actor, d.call.session};
+            it = deliveries_.erase(it);
+            // No activation is synthesized. Cancel only releases capture and
+            // the transient pressed state from a prior authorized down frame.
+            if (began) return cleanup;
+            continue;
+        }
         std::vector<InputEvent> batch = std::move(d.frames.front());
         d.frames.pop_front();
         ++d.delivered;
@@ -752,7 +847,7 @@ std::optional<AgentInput> Protocol::take_input() {
             d.pressed.push_back(std::move(hit));
         }
         runtime_.request_frame();
-        return AgentInput{std::move(batch), d.actor};
+        return AgentInput{std::move(batch), d.actor, d.call.session};
     }
     return std::nullopt;
 }
@@ -784,6 +879,10 @@ void Protocol::poll() {
     const auto now = std::chrono::steady_clock::now();
     std::vector<Wait> still;
     for (Wait& w : waits_) {
+        if (auto stopped = denied(w.call, Effect::read)) {
+            send(w.reply, *stopped, w.re);
+            continue;
+        }
         const semantic::WaitState s = tree_.check(w.condition);
         Envelope e;
         if (s.satisfied) {

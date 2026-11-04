@@ -12,3 +12,4 @@ export module openmui.math;
 
 export import :det;
 export import :random;
+export import :color;

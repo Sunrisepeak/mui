@@ -45,6 +45,11 @@ struct ProtocolOptions {
     // or the person turns it off (AppSpec::agent_input, --no-agent-input);
     // the protocol alone, without a host to deliver it, does not.
     bool        input = false;
+    // Only the trusted host supplies a session handle or its narrowing
+    // limits. Request JSON (including dev/person fields) cannot create one.
+    // With none, the first request opens a session for the Runtime binding.
+    std::shared_ptr<const AgentSession> session;
+    AgentRestrictions session_limits;
 };
 
 // A frame's worth of an agent's input, and who gives it (the actions it
@@ -52,6 +57,7 @@ struct ProtocolOptions {
 struct AgentInput {
     std::vector<InputEvent> events;
     Actor                   actor;
+    std::shared_ptr<const AgentSession> session;
 };
 
 class Protocol {
@@ -77,6 +83,7 @@ private:
         Value                                 re;
         std::chrono::steady_clock::time_point deadline;
         Reply                                 reply;
+        Invocation                            call;
     };
     // An `input` request being delivered: its frames' events, what its
     // presses hit, and where the journal stood when it came.
@@ -88,13 +95,19 @@ private:
         std::size_t                         delivered = 0;
         std::size_t                         journal = 0;
         Value::List                         pressed;
+        Invocation                          call;
     };
+    void ensure_session();
+    [[nodiscard]] std::optional<Envelope> denied(const Invocation& call, Effect effect) const;
     void send(const Reply& reply, const Envelope& envelope, const Value& re) const;
     Envelope handle(const Value& req, const Value& re, const Reply& reply, bool& deferred);
 
     Runtime&          runtime_;
     semantic::Tree    tree_;
     ProtocolOptions   options_;
+    std::shared_ptr<const AgentSession> session_;
+    std::shared_ptr<AgentAccess> session_binding_;
+    const AgentAccess* session_access_ = nullptr;
     std::vector<Wait> waits_;
     std::deque<Delivery> deliveries_;
 };

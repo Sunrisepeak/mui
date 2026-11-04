@@ -147,11 +147,13 @@ try {
         `${lang} ${w}: entering and typing cancels pending automatic task steps`);
       await pointer(agent + '/modes', 0.5);
       await requireState(async () => await scalar(agent + '/modes') === 'develop', 'the Develop path opens through real input');
+      check(await present(agent + '/preview/actions/verify') && !await present(agent + '/preview/actions/run'), 'Develop uses its own stable Verify action identity');
       check(!await present(agent + '/develop/expected') && !await present(agent + '/develop/requests'), 'development protocol parameters are absent from the overview');
       await pointer(agent + '/method/toggle');
       await requireState(() => present(agent + '/develop/expected'), 'explicit details mounts development controls');
       await pointer(agent + '/modes', 5 / 6);
       await requireState(async () => await scalar(agent + '/modes') === 'design', 'the Design path opens through real input');
+      check(await present(agent + '/preview/actions/arrange') && !await present(agent + '/preview/actions/run'), 'Design uses its own stable Arrange action identity');
       check(!await present(agent + '/design/style') && !await present(agent + '/design/spacing'), 'design parameters are absent from the overview');
       await screenshot(`agent-design-${lang}-${w}`);
       await pointer(agent + '/method/toggle');

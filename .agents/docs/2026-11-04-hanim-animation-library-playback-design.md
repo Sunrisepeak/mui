@@ -27,13 +27,21 @@
 
 ## 2. 三角形 → 圆的核对结果
 
-当前 `mix_paths` 要求 verb 数、点数、verb 序列均相同。普通三角形是 move／line／line／close；圆是 move／四段 cubic／close，二者不兼容。当前分支会绘制 A、B 两份形状并交叉淡化，不是真正的轮廓变形。
+本轮开始前，`mix_paths` 要求 verb 数、点数、verb 序列均相同。普通三角形是 move／line／line／close；圆是 move／四段 cubic／close，二者不兼容。旧分支绘制 A、B 两份形状并交叉淡化，不是真正的轮廓变形。
 
-**本地新增的第一块公共能力**：`hanim:shape` 的 PreparedShapeMorph 可独立准备 line／quad／cubic 单闭合轮廓，保形细分后采样真实 triangle→circle；图形消费者以单条 Path 绘制并组合既有材质／效果，三配置通过，见整体架构稿 §11 与 hanim README。当前 UI Morph 尚未接入这个计划，所以本段对 UI 旧路径分支的结论仍成立；也不能把新几何能力称为像素域或完整播放器已交付。
+**第一块公共能力（已提交）**：`hanim:shape` 的 PreparedShapeMorph 可独立准备 line／quad／cubic 单闭合轮廓，保形细分后采样真实 triangle→circle；图形消费者以单条 Path 绘制并组合既有材质／效果，三配置通过，见整体架构稿 §11 与 hanim README。
+
+**后续本地整合候选**：公开 `sample_segment` 与 `DisplayList::record_path` 将准备后的曲线直接写入调用者 arena，UI Morph 已消费同一个 hanim 计划；不在 UI 再写轮廓算法。`PreparedPaintMix` 把不同 solid／gradient／image／Material 展平为有界叶子材料，在当前一条几何上着色、再应用一次 coverage／clip。CPU 复用既有 shader，GPU 使用共享无资源着色函数与独立绑定入口；不是两端轮廓截图混合。快照保留当前几何和材料，连续打断测试不再残留旧轮廓。严格准备超过 16 个不同叶子报告错误、旧计划仍可采样；当前 UI Morph 的失败诊断与未来 Engine::play 的失败保留 handle 契约仍须区分。
+
+本地 dev／release 各 **4 包、28 个程序、194 组通过**（hanim 63／raster 19／vector 60／motion 52）。材质打断探针原有 2 条失败已转绿；真实 Vulkan/lavapipe 的 8 张材质读回最大每通道差 **1/255**，声明阈值 2/255 之外为 0 像素。LLVM sanitizer 的用例断言通过，但 3 个 GPU 程序退出被 LeakSanitizer 判失败；已符号定位到 driver／LLVM JIT 分配，仍用纯 RHI 生命周期基线复核，不记为 sanitizer 整套通过，也不关闭泄漏检测。以上均未证明实体显卡性能、HObject／Engine 或像素域物质迁移已完成。
+
+纯 RHI 生命周期复核已实跑：`modules/gfx/rhi/sdl/tests/lifetime_probe_test.cpp` 的 4 个 case 分别独立进程，无设备退出 0／无泄漏；仅创建设备与仅创建后销毁一条管线均为 2800B／28 次分配；提交读回并销毁后为 3512B／36 次分配。每个 case 的断言均通过，后三者退出 1。符号与加载地址映射定位到 lavapipe 26.2.1 所用 LLVM 22.1.8 的 `createIntelJITEventListener`，提交另含 Mesa `u_mmInit`／SSE2 emit 分配；设备基线不依赖 vector、Material 或 UI。报告 `/tmp/omui-rhi-lifetime-baseline.report.omui.json` 保留环境、二进制 SHA、原始及符号日志。该复现将驱动残留与本轮消费者分开，仍不抹掉 GPU sanitizer 失败记录。
+
+更广的官网 sanitizer 还捕获了独立的真实 UAF，不能归给 driver：嵌套 travel Morph 共用单一 TLS DisplayList，重入时向正在遍历的列表追加命令，扩容后读取失效的 152B Command。真实特性页及新 `travel_reentry_test` 均先复现。修复为每个活动递归深度独占稳定 scratch／params 的 RAII 租约池；6 组检查父子效果、12 层、同一 Morph 重入、寻址／倒放／端点、并发和预热后标量／数组分配不增。修复后 SDK／motion／site 在 dev、release、LLVM sanitizer 各 27 程序、187 组通过，原特性页 6 组全部恢复。该池仍是旧 UI travel 作用域的 TLS 实现，不替代未来 Engine 的实例／调用者 scratch、容量预算与观测契约。
 
 同类圆角矩形通过 radius 改成圆可以连续插值，这不能作为任意三角形→圆已经支持的证据。`hanim::MotionPath` 解决沿路径的位移与朝向，不负责路径 A→B 的轮廓对应。
 
-另一个耦合问题是：即使路径兼容，Paint 无法混合时，当前路径分支也可能整体退回交叉淡化。目标应是**几何变形继续产生同一当前形状，材质过渡独立使用该形状**，不能让材质不兼容静默取消几何变形。
+孔洞／拓扑变化仍明确报告不支持；dash 的起点／方向重排连续性尚未验收，不能用实线 stroke 的通过代替。公共 HObject／统一播放入口、真实像素域及完整动画库继续按下文交付。
 
 ## 3. 完整动画产品的分层与目录建议
 

@@ -125,6 +125,12 @@ int main(int argc, char** argv) {
         check(act(h, "main/faq", "expand") == 0 && open.peek(), "expanded by an agent: the binding follows");
         h.step();
         check(!sem(h, "main/faq/answer")->states.has(State::hidden), "its content shown");
+        // The model is expanded before its enter motion paints the answer.
+        // Test content activation at its presented box, rather than clicking
+        // an invisible future layout position during the fade's initial delay.
+        const auto answer = h.runtime().find("main/faq/answer");
+        for (int frame = 0; frame < 120 && h.runtime().drawn_bounds(answer).empty(); ++frame) h.step();
+        check(!h.runtime().drawn_bounds(answer).empty(), "the opening answer has reached a real presented frame");
         // A press on its content is the content's: it stays open.
         check(h.click("main/faq/answer") && open.peek(), "the content pressed: still open");
         // Its header: closes it.

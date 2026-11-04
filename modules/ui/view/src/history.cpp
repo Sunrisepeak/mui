@@ -162,7 +162,7 @@ Envelope Runtime::Impl::history_action(NodeId scope, bool redo, const Invocation
     const std::string where = scope == root ? std::string("app") : self.path(scope);
     auto stop = [&](Envelope e) { return call.dry_run ? dry_run_of(e, Effect::reversible) : e; };
     if (clearance(name, Effect::reversible, false, call) == openas::Decision::refuse)
-        return stop(above_cap(std::format("{} on '{}' (reversible)", name, where)));
+        return stop(above_cap(std::format("{} on '{}' (reversible)", name, where), call));
     if (transaction && replaying == 0) return stop(refused(std::format("{} inside a transaction: commit or roll it back first (S-13)", name)));
     const ScopeHistory* h = find_history(scope);
     const std::vector<UndoEntry>* from = h ? (redo ? &h->redo : &h->undo) : nullptr;
@@ -222,7 +222,7 @@ Envelope Runtime::redo(NodeId scope, const Invocation& call) { return act(valid(
 Envelope Runtime::invoke(std::string_view verb, const Invocation& given) {
     Impl& d = *impl_;
     Invocation copy;
-    const Invocation& call = d.attributed(given, copy);
+    const Invocation& call = d.attributed(given, copy, "invoke");
     if (call.dry_run) return d.verbs.invoke(verb, call);
     const VerbDesc* v = d.verbs.find(verb);
     if (v && d.transaction && d.replaying == 0 && spec::requires_answer(v->effect))
@@ -231,6 +231,7 @@ Envelope Runtime::invoke(std::string_view verb, const Invocation& given) {
     std::vector<Inverse> outer = std::exchange(d.program_inverse, {});
     ++d.acting;
     d.actors.push_back(call.actor);
+    InvocationScope active(d.invocation_context, call);
     const auto history_before = d.history_moves;
     Envelope e = batch([&] { return d.verbs.invoke(verb, call); });
     d.actors.pop_back();
@@ -304,8 +305,10 @@ Envelope Runtime::commit_transaction() {
     return e;
 }
 
-Envelope Runtime::rollback_transaction(const Invocation& call) {
+Envelope Runtime::rollback_transaction(const Invocation& given) {
     Impl& d = *impl_;
+    Invocation copy;
+    const Invocation& call = d.attributed(given, copy, "transaction");
     if (!d.transaction) return refused("no transaction is open");
     // A rollback anywhere ends the outermost transaction: all or nothing.
     Impl::Transaction t = std::move(*d.transaction);

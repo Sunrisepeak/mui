@@ -84,3 +84,13 @@
 后续局部验证：`/tmp/omui-motion-snapshot-context-final.log` 的 motion 对比度／上下文快照 21 项通过；`/tmp/omui-view-snapshot-context-final.log` 的 release view 七程序共 103 项通过（presentation 8、adapt 4、motion 10、constraint 13、text-policy 9、theme 7、原 view 52）。这覆盖上下文快照打断连续性与浮点边框回归，未关闭上述 segmented／父子布局策略问题，也不证明目标 hanim 对象引擎已实现。
 
 不以本轮修复关闭其它原范围：三条 Agent 路径的九个真实场景、40 个设计的意图迁移、20 个创意任务的完整操作、复杂组件部件与低档质量、干净工程出口、需求式字体及源字形覆盖、真实外部 agent、R3–R6 仍按总方案继续。
+
+### 后续整合证据
+
+此前开放的两个具体缺陷现已补上：segmented 的选择面／标签通过稳定 part 与布局 reference lineage 在外部 320→1120 分配中保持对应；显式父级重排包住默认子反馈的布局位置，并保留父级曲线和 stagger。`selection_layout_test` 3 组检查实际字形、预裁切 ink、选择面、真实命中及正常选择动画，`motion/reference_test` 4 组验证引用与打断；不以裁掉错位字尾取得通过。节点寻址 Agent input 改取呈现位置，3 组覆盖移动中点击、显式坐标原样与 H1。
+
+更广回归还发现 packing-board 的父级未识别只有默认动效子节点的分配变化，原 17 个 seek 画面全相同。父级比较现在计入 follow_layout 子节点的布局分配；临边排布选有界 simple 配方，避免 gentle spring 的合法 7.35% 过冲把可用控件带出舞台。逐帧交互控件范围与至少三个真实画面继续验证。完整尺寸轨迹、部件随重排的避让和美术评审仍要继续；位置动画与范围通过不代表所有重排尺寸策略已达标。
+
+嵌套 travel 的共享 TLS 列表另引发真实 heap-use-after-free，已用独立重入 CTS 复现并改为递归租约池，见 [hanim 讨论稿 §2](2026-11-04-hanim-animation-library-playback-design.md#2-三角形--圆的核对结果)。修复后的 motion／SDK／site 在 dev、release、LLVM sanitizer 各 27 程序、187 组通过；之后官网实例授权迁移新增 2 组，Site 全部 19 程序、125 组在三配置通过。历史局部日志继续保留，不能将它们与首次失败混写为一次通过。
+
+59 帧参考中有 16 帧随本轮修复变化，实际中英开场、组件、授权、设置、时间回放与代表参考帧已审图，原表保存在 `target/site-motion-reference-review`；新表和总像素 pin 经 GCC／LLVM 重查通过。真实 Web 构件／浏览器连续输入、新媒体与冷访问预算仍须重新构建验证，旧 579 项浏览器结果只归属旧检查点。

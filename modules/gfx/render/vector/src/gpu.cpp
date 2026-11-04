@@ -11,6 +11,7 @@ namespace omui::render {
 namespace {
 
 namespace ui = shaders::ui;
+namespace material = shaders::material;
 namespace blend = shaders::blend;
 
 // One instance of the shader's quad (shaders/ui.slang, struct Prim).
@@ -111,6 +112,7 @@ struct Pass {
     rhi::LoadOp          load = rhi::LoadOp::load;
     std::array<float, 4> clear{};
     std::vector<Draw>    draws;   // draws
+    bool material_mix = false;   // rgba16_float additive leaf fields, no coverage
     BlendPass            blend;   // blend
     EffectStep           effect;  // effect
 };
@@ -211,6 +213,7 @@ struct GpuRenderer::Impl {
     rhi::Device&          d;
     rhi::GraphicsPipeline pipeline, blend_pipeline;
     rhi::GraphicsPipeline lit_pipeline;  // ui_lit_fs: images lit by a material
+    rhi::GraphicsPipeline material_pipeline, material_lit_pipeline; // lazy rgba16_float accumulation
     rhi::Sampler          nearest;  // every texture is read texel by texel; bilinear images are weighed in the shader
     rhi::Texture          white, white_mask, zero_row;
     rhi::Texture          ramps;
@@ -307,9 +310,21 @@ struct GpuRenderer::Impl {
         for (rhi::Texture t : {white, white_mask, zero_row, ramps, atlas}) d.destroy(t);
         d.destroy(instances);
         d.destroy(nearest);
-        for (rhi::GraphicsPipeline p : {pipeline, lit_pipeline, blend_pipeline, blur_pipeline, particles_pipeline}) d.destroy(p);
+        for (rhi::GraphicsPipeline p : {pipeline, lit_pipeline, blend_pipeline, blur_pipeline, particles_pipeline, material_pipeline, material_lit_pipeline}) d.destroy(p);
         for (auto& [k, p] : effect_pipelines) d.destroy(p);
         d.destroy(pixelate_pipeline);
+    }
+
+    rhi::Result<void> material_pipelines() {
+        if (material_pipeline && material_lit_pipeline) return {};
+        auto plain = d.create(rhi::GraphicsPipelineDesc{.vertex = &ui::ui_vs, .fragment = &material::ui_material_fs,
+            .vertex_buffers = layout, .target = rhi::Format::rgba16_float, .blend = rhi::Blend::additive(), .label = "render.material.mix"});
+        if (!plain) return std::unexpected(plain.error());
+        auto lit = d.create(rhi::GraphicsPipelineDesc{.vertex = &ui::ui_vs, .fragment = &material::ui_material_lit_fs,
+            .vertex_buffers = layout, .target = rhi::Format::rgba16_float, .blend = rhi::Blend::additive(), .label = "render.material.mix.lit"});
+        if (!lit) { d.destroy(*plain); return std::unexpected(lit.error()); }
+        material_pipeline = *plain; material_lit_pipeline = *lit;
+        return {};
     }
 
     rhi::Result<void> init() {
@@ -800,9 +815,10 @@ rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, rhi::Textur
         // The paint's colour fields; false when it cannot be drawn (a missing image).
         // The shader works in the CPU's bytes: a solid colour premultiplied as
         // raster premultiplies it, an image paint's tint as a byte.
-        auto paint_into = [&](Prim& p, Draw& d, int& flags, const Paint& paint) -> bool {
+        auto leaf_paint_into = [&](Prim& p, Draw& d, int& flags, const Paint& paint) -> bool {
             p.shape[1] = 255;
             switch (paint.kind) {
+                case Paint::Kind::mix: return false; // validated flat leaves only
                 case Paint::Kind::solid: {
                     p.color = premultiplied(paint.color);
                     p.paint = {0, 0, 0, 0};
@@ -859,6 +875,47 @@ rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, rhi::Textur
             }
             return false;
         };
+        auto paint_into = [&](Prim& p, Draw& draw, int& flags, const Paint& paint, Rect bounds) -> bool {
+            if (paint.kind != Paint::Kind::mix) return leaf_paint_into(p, draw, flags, paint);
+            if (!validate_paint_mix(paint)) { ++report.invalid_paints; return false; }
+            if (auto ready = g.material_pipelines(); !ready) { fail(ready.error()); return false; }
+            const auto parent = g.passes[current].target;
+            const auto parent_w = here().w, parent_h = here().h;
+            const auto& clip = clips.back();
+            // Only the material field needed by this current geometry. This is
+            // not a captured old shape, and includes the raster/analytic AA band.
+            const float x0 = std::max(0.0f, std::floor(std::max(bounds.x - 2, clip.x0)));
+            const float y0 = std::max(0.0f, std::floor(std::max(bounds.y - 2, clip.y0)));
+            const float x1 = std::min(static_cast<float>(parent_w), std::ceil(std::min(bounds.right() + 2, clip.x1)));
+            const float y1 = std::min(static_cast<float>(parent_h), std::ceil(std::min(bounds.bottom() + 2, clip.y1)));
+            if (!(x1 > x0 && y1 > y0)) return false;
+            const auto w = static_cast<std::uint32_t>(x1 - x0), h = static_cast<std::uint32_t>(y1 - y0);
+            auto field = g.pooled(w, h, rhi::Format::rgba16_float,
+                rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "render.material.field");
+            if (!field) { fail(field.error()); return false; }
+            draws_into(*field, w, h, rhi::LoadOp::clear, {0, 0, 0, 0});
+            g.passes[current].material_mix = true;
+            const Affine original = m();
+            transforms.back() = Affine::translate(-x0, -y0) * original;
+            double total = 0; for (const auto& term : paint.mix) total += term.weight;
+            for (const auto& term : paint.mix) {
+                if (term.weight == 0) continue;
+                Draw leaf; int leaf_flags = 0;
+                if (!leaf_paint_into(leaf.prim, leaf, leaf_flags, term.paint)) continue;
+                transform(leaf.prim, Affine{}, kind_mask, leaf_flags);
+                set(leaf.prim.rect, 0, 0, static_cast<float>(w), static_cast<float>(h));
+                leaf.prim.shape[3] = static_cast<float>(term.weight / total);
+                g.passes[current].draws.push_back(std::move(leaf));
+            }
+            transforms.back() = original;
+            draws_into(parent, parent_w, parent_h, rhi::LoadOp::load, {});
+            draw.image = *field; draw.lit = -1;
+            p.paint = {4, 0, 0, 0}; p.color = {0, 0, 0, byte_of(paint.mix_opacity)};
+            p.shape[1] = 255;
+            inverse(p, Affine::translate(x0, y0));
+            p.pinv1[2] = static_cast<float>(w); p.pinv1[3] = static_cast<float>(h);
+            return true;
+        };
         auto emit = [&](Draw d) { g.passes[current].draws.push_back(std::move(d)); };
         // An analytic rectangle or rounded rectangle.
         auto shape = [&](const Rect& r, const CornerRadii& radii, const Paint& paint) {
@@ -867,7 +924,7 @@ rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, rhi::Textur
             const Affine& mm = m();
             const bool rounded = !radii.zero();
             int flags = (mm.b == 0 && mm.c == 0 && mm.a != 0 && mm.d != 0) ? flag_axis : 0;
-            if (!paint_into(p, d, flags, paint)) return;
+            if (!paint_into(p, d, flags, paint, mm.map(r))) return;
             clip_into(p, d, flags);
             transform(p, mm, rounded ? kind_rrect : kind_rect, flags);
             set(p.rect, r.x, r.y, r.width, r.height);
@@ -885,7 +942,8 @@ rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, rhi::Textur
             Draw d;
             Prim& p = d.prim;
             int flags = 0;
-            if (!paint_into(p, d, flags, paint)) return;
+            if (!paint_into(p, d, flags, paint, {static_cast<float>(e->bounds.x + dx), static_cast<float>(e->bounds.y + dy),
+                static_cast<float>(e->bounds.width), static_cast<float>(e->bounds.height)})) return;
             p.shape[1] = byte_of(scale);  // a layered glyph's opacity, applied after, as its layer's pop
             clip_into(p, d, flags);
             transform(p, Affine{}, kind_mask, flags);
@@ -1194,7 +1252,7 @@ rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, rhi::Textur
                         Prim& p = d.prim;
                         const Affine& mm = m();
                         int flags = (mm.b == 0 && mm.c == 0 && mm.a != 0 && mm.d != 0) ? flag_axis : 0;
-                        if (!paint_into(p, d, flags, c.paint)) return;
+                        if (!paint_into(p, d, flags, c.paint, mm.map(ring.outer))) return;
                         clip_into(p, d, flags);
                         transform(p, mm, kind_rring, flags);
                         set(p.rect, ring.outer.x, ring.outer.y, ring.outer.width, ring.outer.height);
@@ -1484,9 +1542,9 @@ rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, rhi::Textur
                     list.push_uniforms(rhi::Stage::fragment, 0, frame);
                     list.bind_vertex_buffer(0, g.instances);
                     list.bind_texture(rhi::Stage::fragment, 0, g.ramps, g.nearest);
-                    list.bind_texture(rhi::Stage::fragment, 1, g.atlas, g.nearest);
+                    if (!s.material_mix) list.bind_texture(rhi::Stage::fragment, 1, g.atlas, g.nearest);
                 };
-                use(g.pipeline);
+                use(s.material_mix ? g.material_pipeline : g.pipeline);
                 bool lit = false;
                 std::int32_t lit_pushed = -1;
                 std::size_t i = 0;
@@ -1498,16 +1556,16 @@ rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, rhi::Textur
                         ++j;
                     if ((head.lit >= 0) != lit) {
                         lit = head.lit >= 0;
-                        use(lit ? g.lit_pipeline : g.pipeline);
+                        use(s.material_mix ? (lit ? g.material_lit_pipeline : g.material_pipeline) : (lit ? g.lit_pipeline : g.pipeline));
                         lit_pushed = -1;
                     }
                     if (lit) {
                         if (head.lit != lit_pushed) list.push_uniforms(rhi::Stage::fragment, 1, g.lits[static_cast<std::size_t>(head.lit)]);
                         lit_pushed = head.lit;
-                        list.bind_texture(rhi::Stage::fragment, 4, head.normal, g.nearest);
+                        list.bind_texture(rhi::Stage::fragment, s.material_mix ? 2 : 4, head.normal, g.nearest);
                     }
-                    list.bind_texture(rhi::Stage::fragment, 2, head.image ? head.image : g.white, g.nearest);
-                    list.bind_texture(rhi::Stage::fragment, 3, head.mask ? head.mask : g.white_mask, g.nearest);
+                    list.bind_texture(rhi::Stage::fragment, s.material_mix ? 1 : 2, head.image ? head.image : g.white, g.nearest);
+                    if (!s.material_mix) list.bind_texture(rhi::Stage::fragment, 3, head.mask ? head.mask : g.white_mask, g.nearest);
                     list.draw(6, static_cast<std::uint32_t>(j - i), 0, base + static_cast<std::uint32_t>(i));
                     i = j;
                 }

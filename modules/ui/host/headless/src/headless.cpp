@@ -125,6 +125,7 @@ std::int64_t Headless::frame_index() const noexcept { return impl_->frame; }
 FrameOutput Headless::step(std::vector<InputEvent> events) {
     Impl& d = *impl_;
     std::optional<agent::AgentInput> given;
+    const auto agent_begin = events.size();
     if (d.endpoint) {
         d.endpoint->pump();
         // An agent's input (--agent-input), a frame's worth, after the host's own.
@@ -135,9 +136,12 @@ FrameOutput Headless::step(std::vector<InputEvent> events) {
     FrameInput in;
     in.time = d.options.fps.time_of(d.frame);
     in.events = std::move(events);
-    if (given) d.runtime->set_input_actor(given->actor);
+    std::array<InputAttribution, 1> attribution;
+    if (given && in.events.size() > agent_begin) {
+        attribution[0] = {agent_begin, in.events.size(), given->actor, given->session};
+        in.attribution = attribution;
+    }
     FrameOutput out = d.runtime->frame(in);
-    if (given) d.runtime->set_input_actor(std::nullopt);
     // A frame with something new to show is shown (as a window's host shows
     // it), at its virtual time; its cost is not measured (it would make the
     // pixels differ from run to run).
@@ -205,7 +209,7 @@ bool Headless::click(std::string_view id) {
     }
     NodeId n = rt.find(id);
     if (!rt.valid(n)) return false;
-    const Rect b = rt.screen_bounds(n);
+    const Rect b = rt.drawn_bounds(n);
     if (b.empty()) return false;
     click(b.center());
     return true;

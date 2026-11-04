@@ -40,6 +40,28 @@ struct PathView {
     std::span<const Point>    points;
 };
 
+// Direct, one-call recording into a display list's own arena. A writer
+// populates every element; it must not clear/move/reenter that list or retain
+// writable spans. The list validates commands and finite coordinates after it.
+struct MutablePathView {
+    std::span<PathVerb> verbs;
+    std::span<Point> points;
+};
+enum class PathRecordError : std::uint8_t { invalid_storage_count, invalid_path };
+
+class DisplayList;
+class RecordedPath {
+public:
+    // Bounds are a value, safe to inspect even after the recording expires.
+    [[nodiscard]] Rect bounds() const noexcept { return bounds_; }
+private:
+    friend class DisplayList;
+    const DisplayList* owner_ = nullptr;
+    std::uint64_t generation_ = 0;
+    PathView path_;
+    Rect bounds_;
+};
+
 // A path being built.
 class Path {
 public:
@@ -150,10 +172,13 @@ struct Material {
     friend constexpr bool operator==(const Material&, const Material&) noexcept = default;
 };
 
+struct WeightedPaint;
+inline constexpr std::size_t max_paint_mix_terms = 16;
+
 struct Paint {
     // image_mask: the image's alpha as coverage of `color` (a black ink
     // stroke's silhouette as a rim of light, a picture as a stencil).
-    enum class Kind : std::uint8_t { solid, gradient, image, image_mask };
+    enum class Kind : std::uint8_t { solid, gradient, image, image_mask, mix };
     Kind     kind = Kind::solid;
     Color    color;              // solid, image_mask; the tint (alpha) of an image paint
     Gradient gradient;
@@ -162,6 +187,11 @@ struct Paint {
     Sampling sampling = Sampling::linear;
     // Lit by a material (image and image_mask; arena-owned in a list).
     const Material* material = nullptr;
+    // A flat convex mixture of leaf brushes in premultiplied sRGB. The
+    // current geometry/clip coverage is applied ONCE after material shading.
+    // Leaf kind must not be mix; resources remain owned by their store.
+    std::span<const WeightedPaint> mix;
+    float mix_opacity = 1;
 
     [[nodiscard]] static Paint solid(Color c) noexcept {
         Paint p;
@@ -169,6 +199,16 @@ struct Paint {
         return p;
     }
 };
+
+struct WeightedPaint {
+    Paint paint;
+    float weight = 0;
+};
+enum class PaintMixError : std::uint8_t {
+    invalid_weight, not_normalized, nested_mix, term_budget, invalid_progress,
+    output_too_small, unprepared, invalid_options, invalid_leaf
+};
+[[nodiscard]] std::expected<void, PaintMixError> validate_paint_mix(const Paint& paint) noexcept;
 
 enum class BlendMode : std::uint8_t {
     normal, multiply, screen, overlay, darken, lighten, color_dodge, color_burn, hard_light, soft_light,
@@ -225,10 +265,39 @@ struct PopLayer      {};
 struct ExternalTexture { std::uint64_t texture; Rect dest; float opacity; };
 struct BeginNode     { std::uint32_t node; };
 struct EndNode       {};
+// An explicit owner's border box in the current transform. Non-rendering metadata:
+// unlike ink bounds it also exists for transparent controls and containers.
+// opacity is a motion's coverage multiplier; surrounding layers apply too.
+// placement/constraint describe the current target layout allocation, separate
+// from sampled geometry. constraint records natural parent content size, not
+// evidence of why allocation changed; callers explicitly identify external
+// constraint transactions. visual excludes the owner's layout translation.
+struct NodeFrame     { std::uint32_t node; Rect rect; float opacity = 1; Rect placement; Size constraint; Affine visual; };
+
+// Named layout allocations and paint parts are metadata, not extra nodes.
+// Reference keys are stable model IDs in an owner's border coordinates.
+// A sampled part retains its reference lineage so a later responsive rebase
+// can resolve the same state against current allocations, instead of treating
+// an in-flight state displacement as a stale layout coordinate.
+struct ReferenceWeight { std::string_view key; double weight = 1; };
+// box describes rect/rrect/stroke/shadow carrier geometry. It is not a
+// promise to stretch arbitrary path content, glyphs or opaque effect groups.
+enum class PartKind : std::uint8_t { content, box };
+struct PartFrame {
+    std::uint32_t owner = 0; // zero: the current node marker
+    std::string_view role, id;
+    Rect allocation;
+    Point anchor{0.5f, 0.5f};
+    PartKind kind = PartKind::content;
+    std::span<const ReferenceWeight> lineage;
+};
+struct ReferenceBox { std::uint32_t owner; std::string_view key; Rect allocation; };
+struct BeginPart { const PartFrame* frame; }; // arena-owned, like material payloads
+struct EndPart {};
 
 using Command = std::variant<FillRect, FillRoundRect, StrokeRoundRect, BoxShadow, FillPath, StrokePath, DrawImage,
                              DrawGlyphs, PushClipRect, PushClipPath, PopClip, PushTransform, PopTransform, PushLayer,
-                             PopLayer, ExternalTexture, BeginNode, EndNode>;
+                             PopLayer, ExternalTexture, BeginNode, EndNode, NodeFrame, ReferenceBox, BeginPart, EndPart>;
 
 // FNV-1a of a command's content (its payloads included, never addresses),
 // continuing from `seed`: DisplayList::hash is this over every command.
@@ -239,8 +308,8 @@ public:
     DisplayList() = default;
     DisplayList(const DisplayList&) = delete;
     DisplayList& operator=(const DisplayList&) = delete;
-    DisplayList(DisplayList&&) noexcept = default;
-    DisplayList& operator=(DisplayList&&) noexcept = default;
+    DisplayList(DisplayList&& other) noexcept;
+    DisplayList& operator=(DisplayList&& other) noexcept;
 
     void fill_rect(const Rect& r, const Paint& p);
     void fill_rect(const Rect& r, Color c) { fill_rect(r, Paint::solid(c)); }
@@ -249,6 +318,18 @@ public:
     void box_shadow(const Rect& r, const CornerRadii& radii, Point offset, float blur, float spread, Color c, bool inset = false);
     void fill_path(const Path& path, FillRule rule, const Paint& p);
     void stroke_path(const Path& path, const StrokeStyle& style, const Paint& p);
+    // Allocates only from this list's reusable arena; writer is called once.
+    // A RecordedPath can be painted repeatedly without copying its geometry.
+    // It expires on clear, move or destruction and cannot be used in another
+    // list. Invalid/stale recordings return false without appending commands.
+    [[nodiscard]] std::expected<RecordedPath, PathRecordError> record_path(
+        std::size_t verbs, std::size_t points, omui::FunctionRef<void(MutablePathView)> writer);
+    [[nodiscard]] bool fill_path(const RecordedPath& path, FillRule rule, const Paint& p);
+    [[nodiscard]] bool stroke_path(const RecordedPath& path, const StrokeStyle& style, const Paint& p);
+    // Native writer is called once into this list's reusable arena. Leaf
+    // payloads (stops/materials) are owned before returning the Paint.
+    [[nodiscard]] std::expected<Paint, PaintMixError> record_paint_mix(
+        std::size_t terms, omui::FunctionRef<void(std::span<WeightedPaint>)> writer, float opacity = 1);
     void draw_image(ImageRef image, const Rect& source, const Rect& dest, Sampling s = Sampling::linear, float opacity = 1);
     // A textured mesh (2D skinning: a picture bent by bones): triangles of
     // `indices` over `positions` (where each vertex is drawn) and `uvs` (where
@@ -286,6 +367,13 @@ public:
     void external_texture(std::uint64_t texture, const Rect& dest, float opacity = 1);
     void begin_node(std::uint32_t node);
     void end_node();
+    void node_frame(std::uint32_t node, Rect rect, float opacity = 1, Rect placement = {}, Size constraint = {}, Affine visual = {});
+    void reference_box(std::uint32_t owner, std::string_view key, Rect allocation);
+    void begin_part(const PartFrame& frame);
+    // Copies both bases directly into the reusable arena. There is no
+    // per-frame heap vector; extraction coalesces repeated reference keys.
+    void begin_part(const PartFrame& from, const PartFrame& to, double progress);
+    void end_part();
 
     // Appends another list's commands (copying their payloads into this arena).
     void append(const DisplayList& other);
@@ -336,6 +424,7 @@ private:
         }
     } material_;
     const Material* own(const Material* m);
+    const PartFrame* own(const PartFrame& part);
     void mesh(const Paint& base, std::span<const Point> positions, std::span<const Point> uvs, std::span<const std::uint16_t> indices, float seam);
     Paint own(const Paint& p);
     PathView own(const Path& p);
@@ -344,6 +433,7 @@ private:
 
     std::vector<Command> commands_;
     Arena                arena_{16 * 1024};
+    std::uint64_t        path_generation_ = 1;
 };
 
 }  // namespace omui::render

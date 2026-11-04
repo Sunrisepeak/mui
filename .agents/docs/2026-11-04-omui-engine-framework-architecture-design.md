@@ -213,13 +213,19 @@ openas 继续承担 actor、effect、grant、决定与记录的共同语义。�
 
 本轮开始前已有 app 默认 Agent endpoint／agent_input、AppSpec 的 cap／grant、openas::decide、CLI／Web 接口和操作记录，AgentAccess 为进程级状态。**开发全开放 preset、完整多级策略与独立引擎 provider 尚未收口**；下列候选改进须按实际验证范围判断，不能把已有字段或单个模块通过当作完整默认行为已交付。
 
-#### 第一批本地实施证据（候选，尚未完成宿主集成）
+#### 阶段性实现与本地证据（候选，尚未整体收口）
 
 已增加 `AgentMode`、实例 `AgentAccess`、`AgentPolicy`／`AgentRestrictions` 与可信 `AgentSession`。模式与 effect cap 分开；developer／user／session 的 enabled、input、cap 和 operation 集合逐层相交。开发授权绑定本机 C++ 创建的会话及所属实例，JSON 中的 actor／委托链文本不能创建授权；撤销后同一会话不能自动补回。`Runtime` 和它的 `Verbs` 共用实例内 `InvocationContext`，独立 `Verbs` 自持上下文，不使用全局或线程局部调用栈。
 
-真实失败基线为 `core/tests/agent_context_test.cpp` 与 `view/tests/agent_context_test.cpp`：远端 read 回调发起默认本地调用时，旧实现丢失 remote／actor，实际执行了 cap 之外和 S-10 的动作，分别失败 3／6 条断言。第一批 core 候选在 dev、release、LLVM sanitize 各为 **8 个程序、37 组通过**，包含 6 组策略与 1 组嵌套调用；view、Protocol、三种宿主、SDK profile 默认值和打包尚在继续，不能据此宣称默认开发模式已端到端可用。
+真实失败基线为 `core/tests/agent_context_test.cpp` 与 `view/tests/agent_context_test.cpp`：远端 read 回调发起默认本地调用时，旧实现丢失 remote／actor，实际执行了 cap 之外和 S-10 的动作，分别失败 3／6 条断言。第一批 core 在 dev、release、LLVM sanitize 各 **8 个程序、37 组通过**，已提交为 `20e6f54`。随后 Protocol 的 6 组真实请求基线有 5 组失败、15 条断言失败，已接入实例会话并验证开发预授权、撤销不补授权、晚绑定、逐层收窄与队列投递时重查；新增会话用例覆盖跨实例／重连与失效。
 
-当前 operation 集合支持精确名、`prefix.*` 和 `*`；空列表明确拒绝。资源／对象范围、授权到期、用户配置持久化、独立引擎 provider 继续保留为实施项，不把 operation 前缀匹配当作这些能力已经完成。未绑定实例的底层兼容入口暂保留全局 fallback；应用模板／SDK 的默认路径必须改为实例绑定，并验证两份应用互不串授权。
+SDK 现在从 mcpp 实际 profile 生成 constexpr 元数据；`AppSpec.agent_mode` 默认 automatic，`dev` 选 development，其余 profile 选 dual-user，自定义 profile 可显式选择。已有 `AppSpec.agent` 继续表示 effect cap，不能填 development 冒充模式。`agent_developer`、`agent_user` 提供两级限制，Protocol 提供可信会话及会话限制；可信启动参数 `--agent-mode` 选择 preset，`--no-agent`／`--no-agent-input` 收窄入口。每次 startup 在 setup 前创建并绑定独立 AgentAccess。**迁移时，setup／工具代码须使用 `rt.agent_access()`；free `agent_access()` 只保留未绑定底层消费者的兼容语义，不再是所有应用的全局配置入口。** 官网 Guide 的 3 处旧 global grant／revoke 调用已迁移：2 组真实绑定实例场景先失败 4 条断言，再验证真人 Allow for visit 后请求执行、另一实例仍需回答、撤销只影响本实例；Site 全 19 程序、125 组在三配置通过，不因低层 CTS 通过就略过应用迁移。
+
+三种宿主已传递可信会话；同帧人／Agent 输入使用调用者拥有的 `InputAttribution` 区间，由 Runtime 逐事件进入／恢复上下文，layout／paint 仍一次，未覆盖的事件保持真人。新增真实 Web 基线先失败 2 条断言，修复后通过；底层 6 组覆盖两种事件顺序、S-10／cap、同帧先收窄／撤销、多个区间、timer 和非法范围的零变更拒绝。Guide Markdown 标注生成进程的 profile／有效策略，明确 native dev 生成器不能代替目标 Web 的实际授权；目标以 `describe.agent_policy` 为准，不写会话凭据。
+
+最新 motion／SDK／site 本地集成在 dev、release、LLVM sanitizer 各 **27 个程序、187 组通过**，含 SDK 6 组及真实 Guide 文件。外部 `OMUI_EXPECT_BUILD_PROFILE` 独立核验生成值：dev 实际 development／external 请求退出 0；release、sanitize 实际 dual-user／同请求退出 2，避免用同一个生产 helper 推导期望导致自洽通过。日志 `/tmp/omui-travel-sdk-site-verified-{dev,release,sanitize}.log`。此前更广的 GCC dev 10 包 62 程序通过；GPU sanitizer 的外部 driver 残留另见 hanim 文档，不套作上述纯 CPU 集成失败或通过。
+
+当前 operation 集合支持精确名、`prefix.*` 和 `*`；空列表明确拒绝。资源／对象范围、授权到期、transport peer 的逐连接会话配置、用户配置持久化、全部语言模板、独立引擎 provider、完整控制操作的 actor／trace 关联与打包默认值继续保留为实施项，不把 operation 前缀匹配或首个 C++ SDK 消费者当作这些能力已经完成。`agent_policy_for_profile` 当前属于 UI 层的 openmui.core，只供 omui 宿主与外层 adapter 复用；无 UI／spec 依赖的控制／preset 契约须另行下沉，不能让 hanim core／base／gfx 直接 import openmui.core。
 
 ## 9. 可观测性与 profiling
 

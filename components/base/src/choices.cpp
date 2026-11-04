@@ -77,14 +77,20 @@ void Segmented::paint(PaintContext& ctx) const {
         const Rect& r = at_[i];
         const CornerRadii rr = CornerRadii::all(radius - seg_inset).fitted(r.size());
         if (chosen == i) {
-            parts::shadow(ctx, "sm", r, rr);
-            ctx.list.fill_round_rect(r, rr, render::Paint::solid(th.color("surface")));
+            ctx.part({.role="selection",.reference=props.options[i],.allocation=r,.kind=render::PartKind::box},[&] {
+                parts::shadow(ctx, "sm", r, rr);
+                ctx.list.fill_round_rect(r, rr, render::Paint::solid(th.color("surface")));
+            });
         } else if (hover_ == static_cast<int>(i)) {
-            ctx.list.fill_round_rect(r, rr, render::Paint::solid(th.color("surface_pressed").with_alpha(0.5f)));
+            ctx.part({.role="hover",.reference=props.options[i],.allocation=r,.kind=render::PartKind::box},[&] {
+                ctx.list.fill_round_rect(r, rr, render::Paint::solid(th.color("surface_pressed").with_alpha(0.5f)));
+            });
         }
         const Color c = chosen == i ? th.color("text") : th.color("text_muted");
         const Size t = labels_[i].measure(ctx.services, c);
-        labels_[i].paint(ctx, {r.x + (r.width - t.width) / 2, r.y + (r.height - t.height) / 2}, c);
+        ctx.part({.role="label",.id=props.options[i],.reference=props.options[i],.allocation=r},[&] {
+            labels_[i].paint(ctx, {r.x + (r.width - t.width) / 2, r.y + (r.height - t.height) / 2}, c);
+        });
     }
     if (off) ctx.list.pop_layer();
 }

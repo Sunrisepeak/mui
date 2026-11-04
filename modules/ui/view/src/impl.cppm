@@ -8,6 +8,7 @@ import openmui.layout;
 import hanim;
 import openmui.pipeline;
 import openmui.render.vector;
+import openmui.raster;
 import openmui.text;
 import openmui.motion;
 import :element;
@@ -188,7 +189,13 @@ struct Node {
     Rect                 screen;        // window coordinates, through the visual transforms as set (screen_bounds)
     Point                content_offset;
     Affine               local;         // parent → node: its frame and visual transforms
-    Affine               world;         // node → window
+    Affine               world;         // node → window before whole-drawing morphs
+    // Collected from post-motion NodeFrame metadata, never inferred from ink.
+    std::uint64_t        presented_epoch = 0;
+    Rect                 presented_bounds, presented_visible;
+    Affine               presented_world;
+    std::optional<Affine> presented_inverse;
+    int                  presented_clip = -1;
     std::source_location where;
     std::uint32_t        index = 0;     // display-list node marker; 0 is none
     std::uint32_t        scope = 0;     // its theme scope (Impl::scopes); 0: the runtime's theme
@@ -212,6 +219,7 @@ struct Node {
     MotionClock                           clock;
     bool                                  exiting = false, exit_begun = false;  // removed, leaving by its exit slot's motion
     bool                                  ghost = false;  // no longer drawn (hidden), its last drawing vanishing by its morph
+    std::uint64_t                         constraint_epoch = 0;
     std::uint64_t                         drawn_hash = 0;
     double                                changed_at = -1e9;  // when its drawing last changed (runtime seconds)
     bool                                  drawn = false;
@@ -246,12 +254,15 @@ struct Runtime::Impl {
     Theme                                 theme;
     std::unique_ptr<typeset::FontCollection> own_fonts;
     typeset::FontCollection*                 fonts = nullptr;
+    std::unique_ptr<typeset::GlyphCache>      motion_glyphs;
+    std::mutex                              motion_glyph_mutex;
     render::ImageStore                    images;
     hanim::Clock                           clock;
     bool                                   complete_frames = false;
     hanim::Set                             anims;
     layout::Engine                        layout;
     Verbs                                 verbs;
+    std::shared_ptr<AgentAccess>           access;
     UiQueue                               queue;
     SlotMap<Node, NodeTag>                nodes;
     std::vector<NodeId>                   by_index;   // node index → handle (0 unused)
@@ -274,6 +285,8 @@ struct Runtime::Impl {
 
     std::uint8_t                          dirty = dirty_paint | dirty_layout | dirty_semantics | dirty_tree;
     bool                                  frame_requested = true;
+    std::uint64_t                         constraint_epoch = 0;
+    std::vector<NodeId>                   constraint_boundaries;
     std::vector<std::weak_ptr<RegionState>> dirty_regions;
     std::vector<NodeId>                   animating;  // nodes with moving channels
     std::vector<NodeId>                   removing;   // nodes playing their exit transition (S-4)
@@ -341,12 +354,11 @@ struct Runtime::Impl {
     // machine (set_input_actor): what it does is theirs, and decided as
     // their requests over the bus are (S-10, S-11).
     std::optional<Actor>        input_actor;
-    [[nodiscard]] const Invocation& attributed(const Invocation& call, Invocation& copy) const {
-        if (!input_actor || call.remote || call.actor.kind != "person" || call.actor.name != "user") return call;
-        copy = call;
-        copy.actor = *input_actor;
-        copy.remote = true;
-        return copy;
+    std::optional<Invocation>   input_call;
+    InvocationContext         invocation_context;
+    [[nodiscard]] const Invocation& attributed(const Invocation& call, Invocation& copy, std::string_view operation = "act") const {
+        const Invocation* parent = invocation_context.current() ? invocation_context.current() : input_call ? &*input_call : nullptr;
+        return bind_invocation(call, copy, access, parent, operation);
     }
     // When the last drawn frames were drawn (real time), a ring: the frame
     // rate, up to 512 a second, with no allocation per frame.
@@ -421,6 +433,10 @@ struct Runtime::Impl {
     // scratch list the morphs are drawn into; what invalidates the nodes'
     // resolved slots; the nodes with a morph under way.
     render::DisplayList                         previous_list, morph_scratch;
+    // Theme history keeps renderer node markers (pixel ownership), but is not
+    // a second current tree. Half-open ranges exclude it from motion identity
+    // indexing, including the previous frame used for retargeting and exits.
+    std::pair<std::size_t, std::size_t>          history_range{}, previous_history_range{}, emitted_history_range{};
     std::vector<NodeId>                         drawn_by;
     std::uint32_t                               motion_gen = 1;
     std::vector<NodeId>                         morphing;
@@ -443,6 +459,26 @@ struct Runtime::Impl {
     std::vector<std::uint8_t>                   marker_flags;   // 1: a root, 2: moves by itself
     std::vector<std::size_t>                    marker_wrapper; // its wrapper's PushLayer in `list` this frame (npos: none)
     std::vector<std::size_t>                    marker_stack;
+    struct PresentationClip {
+        int parent = -1;
+        Affine world;
+        std::optional<Affine> inverse;
+        Rect bounds;
+        std::optional<render::PushClipRect> rect;
+        std::optional<render::PushClipPath> path;
+    };
+    std::uint64_t presentation_epoch = 0;
+    std::vector<PresentationClip> presentation_clips;
+    std::size_t presentation_clip_count = 0;
+    std::vector<Affine> presentation_transforms;
+    std::vector<int> presentation_clip_stack;
+    std::vector<float> presentation_opacity;
+    mutable std::vector<raster::Verb> presentation_path_verbs;
+    mutable raster::Polygons presentation_path_polygons;
+    mutable raster::Rasterizer presentation_path_rasterizer;
+    mutable raster::Coverage presentation_path_coverage;
+    void collect_presentation();
+    [[nodiscard]] bool presentation_contains(const Node& node, Point window) const;
     void run_motion();
     [[nodiscard]] bool motions_moving() const;
     [[nodiscard]] bool motion_moving(NodeId id) const;
@@ -537,6 +573,7 @@ struct Runtime::Impl {
 
     // input (input.cpp)
     void   dispatch(const InputEvent& e);
+    void   input_frame(const FrameInput& input);
     void   pointer_event(const PointerEvent& e);
     void   wheel_event(const WheelEvent& e);
     void   key_event(const KeyEvent& e);
@@ -628,6 +665,7 @@ struct Runtime::Impl {
 
 // Pointer position in a node's local coordinates.
 [[nodiscard]] inline Point local_point(const Node& n, Point window) {
+    if (n.presented_inverse) return n.presented_inverse->apply(window);
     if (auto inv = n.world.inverse()) return inv->apply(window);
     return {window.x - n.bounds.x, window.y - n.bounds.y};
 }

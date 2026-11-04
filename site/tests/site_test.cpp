@@ -955,7 +955,10 @@ int main(int argc, char** argv) {
         a.h.advance(seconds(1));
         shot("time.png");
         std::println("    pixels {}", all.hex());
-        check_eq(all.hex(), std::string("95749d68f8877faf"));
+        // Reviewed production frames after the text/contrast, sampled-layout
+        // and nested default-motion corrections. Intermediate ink, bounds,
+        // real input and seek regressions have separate behavioural CTS.
+        check_eq(all.hex(), std::string("3027fb6720e6078d"));
     });
 
     s.test("the components: curated search, live detail, reset, languages and scoped appearance", [] {

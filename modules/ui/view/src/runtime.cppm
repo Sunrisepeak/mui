@@ -80,6 +80,9 @@ struct RuntimeOptions {
     // stage plugins it names to the runtime's registry.
     std::optional<pipeline::Description>            pipeline;
     std::function<void(pipeline::Registry&)>        plugins;
+    // Null preserves the legacy global fallback. Applications and embedded
+    // providers bind an instance so caps, grants and sessions are isolated.
+    std::shared_ptr<AgentAccess> access;
 };
 
 // What the stages of a frame exchange (pipeline resources). The tree, the
@@ -111,6 +114,16 @@ struct EffectRule {
     Value       effect;
 };
 
+// Host-owned attribution for a half-open event interval. These are trusted
+// C++ session handles, never decoded from event/request JSON. Intervals are
+// ordered, nonempty, disjoint and bounded by FrameInput::events. Uncovered
+// events are the person's; one frame still performs layout and paint once.
+struct InputAttribution {
+    std::size_t begin = 0, end = 0;
+    Actor actor{"agent", "anonymous", {}};
+    std::shared_ptr<const AgentSession> session;
+};
+
 struct FrameInput {
     std::optional<hanim::seconds> time;   // virtual and render clocks: the frame's time
     std::vector<InputEvent>      events;
@@ -120,7 +133,11 @@ struct FrameInput {
     std::optional<std::chrono::steady_clock::time_point> present_at;
     // The refresh rate of the display the frame goes to (0: unknown).
     double display_hz = 0;
+    // Borrowed for the synchronous frame call; a host with one agent batch
+    // can provide a stack array, without allocating a container each frame.
+    std::span<const InputAttribution> attribution;
 };
+[[nodiscard]] std::expected<void, std::string> validate_input_attribution(const FrameInput& input);
 
 }  // namespace omui
 
@@ -259,6 +276,12 @@ public:
     FrameOutput frame(const FrameInput& input = {});
     [[nodiscard]] const render::DisplayList& display_list() const noexcept;
     void resize(Size size, float scale);
+    // An external allocation change, scoped to this existing subtree. Unlike
+    // model reordering, placement follows the new layout while content/state
+    // keeps its motion. resize opens this transaction for the whole tree.
+    // Ends after consequent layout and laid_out region rebuilds settle, not
+    // after an animation/timer duration. Invalid boundaries are ignored.
+    void constraints_changed(NodeId boundary);
     [[nodiscard]] Size size() const noexcept;
     [[nodiscard]] float scale() const noexcept;
     [[nodiscard]] hanim::Clock& clock() noexcept;
@@ -298,7 +321,11 @@ public:
     // and decided as their requests over the bus are: the person's own
     // actions refused (S-10), the cap and the grants (S-11), the answer an
     // irreversible one needs. None: the person again.
-    void set_input_actor(std::optional<Actor> actor);
+    void set_input_actor(std::optional<Actor> actor, std::shared_ptr<const AgentSession> session = {});
+    void set_agent_access(std::shared_ptr<AgentAccess> access);
+    [[nodiscard]] AgentAccess& agent_access() noexcept;
+    [[nodiscard]] const AgentAccess& agent_access() const noexcept;
+    [[nodiscard]] std::shared_ptr<AgentAccess> agent_access_binding() const noexcept;
     [[nodiscard]] std::string_view renderer() const noexcept override;
     // The frame's pipeline and the stage plugins it is built from: tools
     // read them, and replace, add or remove stages between frames.
@@ -486,16 +513,15 @@ public:
     [[nodiscard]] hanim::seconds now() const override;
     [[nodiscard]] bool time_paused() const override;
     [[nodiscard]] Rect bounds(NodeId node) const override;
-    // The node's box as it is drawn: through its own and its ancestors'
-    // visual transforms (translate, scale, rotation), the smallest rectangle
-    // round it — where `bounds`, the layout's box, is before them. What a
-    // check of where things are on screen reads (a film's titles in the
-    // safe area).
+    // The sampled border box actually presented by the last painted frame,
+    // including drawing morphs and ancestor transforms. This is independent
+    // of ink (transparent controls still have a frame). Before first paint or
+    // in a layout-only pipeline, visual layout transforms are the fallback.
     [[nodiscard]] Rect drawn_bounds(NodeId node) const;
     // Where it is on the window as set: through its own and its ancestors'
     // transforms as they are set, not part way through their transitions —
-    // a canvas's live node where the camera shows it. What the semantic tree
-    // states, and where a click aimed at the node lands.
+    // a canvas's target node where the camera will show it. Kept as a target
+    // API: semantics and real pointer input use the current presented frame.
     [[nodiscard]] Rect screen_bounds(NodeId node) const;
     [[nodiscard]] Size content_size(NodeId node) const override;
     [[nodiscard]] Insets content_insets(NodeId node) const override;

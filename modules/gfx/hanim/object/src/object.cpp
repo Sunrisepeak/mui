@@ -3,6 +3,7 @@ module hanim.object;
 import std;
 import openmui.log;
 import openmui.trace;
+import openmui.memory;
 
 namespace hanim::detail {
 struct ContourData { Vec2 start; std::vector<ShapeSegment> segments; bool closed = true; };
@@ -15,19 +16,20 @@ struct SnapshotData {
     std::array<Capability, 4> capabilities;
     std::size_t capability_count = 0;
 };
-struct PartIdentity { std::string id; std::uint64_t generation = 1; bool alive = false; };
+struct PartTag;
+struct ObjectTag;
+using PartKey = omui::SlotKey<PartTag>;
+using ObjectKey = omui::SlotKey<ObjectTag>;
+using PartIdentities = omui::SlotStorage<std::string, PartKey>;
 struct ObjectSlot {
-    std::uint64_t generation = 1;
     std::shared_ptr<const SnapshotData> current;
-    std::vector<PartIdentity> parts;
-    std::vector<std::uint32_t> free_parts;
+    PartIdentities parts;
 };
 struct RegistryData {
     std::uint64_t owner = 0;
     ObjectLimits limits;
-    std::size_t alive = 0;
-    std::vector<ObjectSlot> objects;
-    std::vector<std::uint32_t> free_objects;
+    omui::SlotStorage<ObjectSlot, ObjectKey> objects;
+    RegistryData(std::uint64_t identity, ObjectLimits budget) : owner(identity), limits(budget), objects(budget.max_objects) {}
 };
 }
 
@@ -72,14 +74,14 @@ struct WriteScope {
     explicit WriteScope(bool& value) noexcept : writing(value) { writing = true; }
     ~WriteScope() { writing = false; }
 };
-std::expected<std::size_t, ObjectError> resolve(const detail::RegistryData* data, ObjectRef ref) noexcept {
+std::expected<detail::ObjectSlot*, ObjectError> resolve(detail::RegistryData* data, ObjectRef ref) noexcept {
     if (!data) return std::unexpected(ObjectError::uninitialized);
     if (!ref) return std::unexpected(ObjectError::invalid_object);
     if (ref.owner != data->owner) return std::unexpected(ObjectError::foreign_owner);
-    if (ref.slot >= data->objects.size()) return std::unexpected(ObjectError::invalid_object);
-    const auto& slot = data->objects[ref.slot];
-    if (!slot.current || slot.generation != ref.generation) return std::unexpected(ObjectError::stale_object);
-    return ref.slot;
+    if (ref.slot >= data->objects.slot_count()) return std::unexpected(ObjectError::invalid_object);
+    const auto slot = data->objects.get({ref.slot, ref.generation});
+    if (!slot) return std::unexpected(ObjectError::stale_object);
+    return slot;
 }
 std::expected<PartRef, ObjectError> find_part(const detail::SnapshotData& data, std::string_view id) noexcept {
     const auto it = std::lower_bound(data.by_name.begin(), data.by_name.end(), id,
@@ -99,8 +101,7 @@ std::expected<const CapturedPart*, ObjectError> get_part(const detail::SnapshotD
 }
 struct PreparedObject {
     std::shared_ptr<const detail::SnapshotData> snapshot;
-    std::vector<detail::PartIdentity> identities;
-    std::vector<std::uint32_t> free_parts;
+    detail::PartIdentities identities;
 };
 std::expected<PreparedObject, ObjectError> prepare(ObjectRef object, std::uint64_t revision, const ObjectDescription& description,
     ObjectLimits limits, const detail::ObjectSlot* previous) {
@@ -154,37 +155,29 @@ std::expected<PreparedObject, ObjectError> prepare(ObjectRef object, std::uint64
         }
     }
 
-    PreparedObject result;
-    if (previous) { result.identities = previous->parts; result.free_parts = previous->free_parts; }
-    std::map<std::string_view, std::uint32_t, std::less<>> old_names;
-    if (previous) for (std::size_t i = 0; i < previous->parts.size(); ++i) {
-        const auto& old = previous->parts[i];
-        if (!old.alive) continue;
-        if (names.contains(old.id)) old_names.emplace(old.id, static_cast<std::uint32_t>(i));
-        else {
-            auto& removed = result.identities[i]; removed.alive = false; removed.id.clear();
-            // Exhausted slots are retired, never wrapped and never reused.
-            if (removed.generation != exhausted) { ++removed.generation; result.free_parts.push_back(static_cast<std::uint32_t>(i)); }
-        }
-    }
+    PreparedObject result{.identities = previous ? previous->parts : detail::PartIdentities(limits.max_parts)};
+    std::map<std::string_view, detail::PartKey, std::less<>> old_names;
+    if (previous) previous->parts.for_each([&](detail::PartKey key, const std::string& id) {
+        if (names.contains(id)) old_names.emplace(id, key);
+        else result.identities.erase(key);
+    });
     auto data = std::make_shared<detail::SnapshotData>();
     data->object = object; data->revision = revision;
     data->parts.reserve(count); data->by_name.reserve(count);
     for (std::size_t i = 0; i < count; ++i) {
         const auto& source = description.parts[i];
-        std::uint32_t slot;
-        if (const auto old = old_names.find(source.id); old != old_names.end()) slot = old->second;
-        else if (!result.free_parts.empty()) { slot = result.free_parts.back(); result.free_parts.pop_back(); }
+        detail::PartKey key;
+        if (const auto old = old_names.find(source.id); old != old_names.end()) key = old->second;
         else {
-            if (result.identities.size() >= limits.max_parts) return std::unexpected(ObjectError::capacity);
-            slot = static_cast<std::uint32_t>(result.identities.size()); result.identities.emplace_back();
+            const auto inserted = result.identities.insert(source.id);
+            if (!inserted) return std::unexpected(ObjectError::capacity);
+            key = *inserted;
         }
-        auto& identity = result.identities[slot]; identity.id = source.id; identity.alive = true;
-        data->parts.push_back({.ref = {object, slot, identity.generation}, .id = source.id, .local = source.local,
+        data->parts.push_back({.ref = {object, key.index, key.generation}, .id = source.id, .local = source.local,
             .contours = source.contours, .fill = source.fill});
         data->by_name.push_back(static_cast<std::uint32_t>(i));
     }
-    data->by_slot.assign(result.identities.size(), invalid_object_slot);
+    data->by_slot.assign(result.identities.slot_count(), invalid_object_slot);
     for (std::size_t i = 0; i < count; ++i) {
         auto& part = data->parts[i]; data->by_slot[part.ref.slot] = static_cast<std::uint32_t>(i);
         if (parents[i] != invalid_object_slot) {
@@ -292,32 +285,30 @@ std::expected<ObjectRegistry, ObjectError> ObjectRegistry::make(ObjectLimits lim
     do {
         if (owner == exhausted) return std::unexpected(ObjectError::identity_exhausted);
     } while (!next_owner.compare_exchange_weak(owner, owner + 1, std::memory_order_relaxed));
-    ObjectRegistry registry; registry.data_ = std::make_unique<detail::RegistryData>();
-    registry.data_->owner = owner; registry.data_->limits = limits;
+    ObjectRegistry registry; registry.data_ = std::make_unique<detail::RegistryData>(owner, limits);
     return registry;
 }
 std::uint64_t ObjectRegistry::owner() const noexcept { return data_ ? data_->owner : 0; }
-std::size_t ObjectRegistry::size() const noexcept { return data_ ? data_->alive : 0; }
+std::size_t ObjectRegistry::size() const noexcept { return data_ ? data_->objects.size() : 0; }
 bool ObjectRegistry::contains(ObjectRef ref) const noexcept { return bool(resolve(data_.get(), ref)); }
 bool ObjectRegistry::contains(PartRef ref) const noexcept {
     const auto object = resolve(data_.get(), ref.object);
-    return object && bool(get_part(*data_->objects[*object].current, ref));
+    return object && bool(get_part(*(*object)->current, ref));
 }
 std::expected<ObjectRef, ObjectError> ObjectRegistry::create(const ObjectDescription& description) {
     if (writing_) return std::unexpected(ObjectError::reentrant_mutation);
     WriteScope write(writing_); omui::trace::Span span("create", "hanim.object");
     auto refuse = [&](ObjectError error) -> std::expected<ObjectRef, ObjectError> { failed("create", error); return std::unexpected(error); };
     if (!data_) return refuse(ObjectError::uninitialized);
-    if (data_->free_objects.empty() && data_->objects.size() >= data_->limits.max_objects) return refuse(ObjectError::capacity);
-    const auto slot = data_->free_objects.empty() ? static_cast<std::uint32_t>(data_->objects.size()) : data_->free_objects.back();
-    const ObjectRef ref{data_->owner, slot, slot < data_->objects.size() ? data_->objects[slot].generation : 1};
-    auto prepared = prepare(ref, 1, description, data_->limits, nullptr);
-    if (!prepared) return refuse(prepared.error());
-    if (slot == data_->objects.size()) data_->objects.emplace_back(); else data_->free_objects.pop_back();
-    auto& object = data_->objects[slot];
-    object.current = std::move(prepared->snapshot); object.parts = std::move(prepared->identities); object.free_parts = std::move(prepared->free_parts);
-    ++data_->alive;
-    trace_ref(ref); omui::trace::count("objects.live", static_cast<double>(data_->alive), "hanim.object");
+    const auto inserted = data_->objects.try_insert([&](detail::ObjectKey key) -> std::expected<detail::ObjectSlot, ObjectError> {
+        const ObjectRef candidate{data_->owner, key.index, key.generation};
+        auto prepared = prepare(candidate, 1, description, data_->limits, nullptr);
+        if (!prepared) return std::unexpected(prepared.error());
+        return detail::ObjectSlot{std::move(prepared->snapshot), std::move(prepared->identities)};
+    }, ObjectError::capacity);
+    if (!inserted) return refuse(inserted.error());
+    const ObjectRef ref{data_->owner, inserted->index, inserted->generation};
+    trace_ref(ref); omui::trace::count("objects.live", static_cast<double>(data_->objects.size()), "hanim.object");
     object_log.info("created owner={} slot={} generation={} revision=1", ref.owner, ref.slot, ref.generation);
     return ref;
 }
@@ -325,12 +316,12 @@ std::expected<std::uint64_t, ObjectError> ObjectRegistry::update(ObjectRef ref, 
     if (writing_) return std::unexpected(ObjectError::reentrant_mutation);
     WriteScope write(writing_); omui::trace::Span span("update", "hanim.object");
     auto refuse = [&](ObjectError error) -> std::expected<std::uint64_t, ObjectError> { failed("update", error, ref); return std::unexpected(error); };
-    const auto index = resolve(data_.get(), ref); if (!index) return refuse(index.error());
-    auto& slot = data_->objects[*index];
+    const auto resolved = resolve(data_.get(), ref); if (!resolved) return refuse(resolved.error());
+    auto& slot = **resolved;
     if (slot.current->revision == exhausted) return refuse(ObjectError::version_exhausted);
     const auto version = slot.current->revision + 1;
     auto prepared = prepare(ref, version, description, data_->limits, &slot); if (!prepared) return refuse(prepared.error());
-    slot.current = std::move(prepared->snapshot); slot.parts = std::move(prepared->identities); slot.free_parts = std::move(prepared->free_parts);
+    slot.current = std::move(prepared->snapshot); slot.parts.swap(prepared->identities);
     trace_ref(ref);
     object_log.info("updated owner={} slot={} generation={} revision={}", ref.owner, ref.slot, ref.generation, version);
     return version;
@@ -338,28 +329,26 @@ std::expected<std::uint64_t, ObjectError> ObjectRegistry::update(ObjectRef ref, 
 std::expected<void, ObjectError> ObjectRegistry::destroy(ObjectRef ref) {
     if (writing_) return std::unexpected(ObjectError::reentrant_mutation);
     WriteScope write(writing_); omui::trace::Span span("destroy", "hanim.object");
-    const auto index = resolve(data_.get(), ref);
-    if (!index) { failed("destroy", index.error(), ref); return std::unexpected(index.error()); }
-    auto& slot = data_->objects[*index];
-    slot.current.reset(); slot.parts.clear(); slot.free_parts.clear();
-    if (slot.generation != exhausted) { ++slot.generation; data_->free_objects.push_back(*index); }
-    --data_->alive; trace_ref(ref);
+    const auto resolved = resolve(data_.get(), ref);
+    if (!resolved) { failed("destroy", resolved.error(), ref); return std::unexpected(resolved.error()); }
+    data_->objects.erase({ref.slot, ref.generation});
+    trace_ref(ref);
     object_log.info("destroyed owner={} slot={} generation={}", ref.owner, ref.slot, ref.generation);
     return {};
 }
 std::expected<Snapshot, ObjectError> ObjectRegistry::capture(ObjectRef ref) const noexcept {
     omui::trace::Span span("capture", "hanim.object");
-    const auto index = resolve(data_.get(), ref); if (!index) return std::unexpected(index.error());
+    const auto slot = resolve(data_.get(), ref); if (!slot) return std::unexpected(slot.error());
     trace_ref(ref);
-    return Snapshot(data_->objects[*index].current);
+    return Snapshot((*slot)->current);
 }
 std::expected<std::uint64_t, ObjectError> ObjectRegistry::revision(ObjectRef ref) const noexcept {
-    const auto index = resolve(data_.get(), ref); if (!index) return std::unexpected(index.error());
-    return data_->objects[*index].current->revision;
+    const auto slot = resolve(data_.get(), ref); if (!slot) return std::unexpected(slot.error());
+    return (*slot)->current->revision;
 }
 std::expected<PartRef, ObjectError> ObjectRegistry::part(ObjectRef ref, std::string_view id) const noexcept {
-    const auto index = resolve(data_.get(), ref); if (!index) return std::unexpected(index.error());
-    return find_part(*data_->objects[*index].current, id);
+    const auto slot = resolve(data_.get(), ref); if (!slot) return std::unexpected(slot.error());
+    return find_part(*(*slot)->current, id);
 }
 
 } // namespace hanim

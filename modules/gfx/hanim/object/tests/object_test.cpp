@@ -143,6 +143,72 @@ int main(int argc, char** argv) {
         check(registry->revision(*first) == 1 && registry->revision(*second) == 1);
         check(!ObjectRegistry::make({.max_parts = 0}));
     });
+    s.test("failed creation consumes neither a fresh nor a recycled object identity", [] {
+        auto registry = ObjectRegistry::make({.max_objects = 1, .max_parts = 2});
+        check(registry.has_value());
+        auto bad = graph(); bad.parts[1].id = "root";
+        check(registry->create(bad).error() == ObjectError::duplicate_id && registry->size() == 0);
+        const auto first = registry->create(graph()); check(first.has_value());
+        check(first->slot == 0 && first->generation == 1);
+        const auto frozen = registry->capture(*first);
+        check(registry->destroy(*first).has_value());
+        for (int i = 0; i < 4; ++i) {
+            check(registry->create(bad).error() == ObjectError::duplicate_id);
+            check(registry->size() == 0 && registry->capture(*first).error() == ObjectError::stale_object);
+        }
+        const auto replacement = registry->create(graph()); check(replacement.has_value());
+        check(replacement->slot == first->slot && replacement->generation == first->generation + 1,
+            "rejected preparation cannot consume a capacity-limited slot or advance its generation");
+        check(registry->size() == 1 && registry->contains(*replacement));
+        check(frozen->get(frozen->root()).has_value(), "reusing live storage cannot change the retained old capture");
+    });
+    s.test("bounded named-part churn reuses storage and rejected updates cannot advance identities", [] {
+        auto registry = ObjectRegistry::make({.max_objects = 1, .max_parts = 2});
+        const auto object = registry->create(graph()); check(object.has_value());
+        const auto root = registry->part(*object, "root");
+        auto child = *registry->part(*object, "child");
+        const auto first = registry->capture(*object);
+        for (int i = 0; i < 128; ++i) {
+            const std::string child_name = i % 2 == 0 ? "other" : "child";
+            auto next = graph(); next.parts[1].id = child_name;
+            auto bad = next; bad.parts[1].parent = "missing";
+            const auto before = registry->capture(*object);
+            check(registry->update(*object, bad).error() == ObjectError::missing_parent);
+            const auto unchanged = registry->capture(*object);
+            check(unchanged->revision() == before->revision() && unchanged->parts().data() == before->parts().data());
+            check(registry->contains(child) && registry->part(*object, "root") == root);
+            if (i % 2 == 0) std::ranges::reverse(next.parts);
+            check(registry->update(*object, next) == before->revision() + 1);
+            const auto current = registry->part(*object, child_name); check(current.has_value());
+            check(current->slot == child.slot && current->generation == child.generation + 1);
+            check(!registry->contains(child) && before->get(child).has_value());
+            child = *current;
+        }
+        check(registry->size() == 1 && registry->revision(*object) == 129);
+        check(first->find("child")->generation == 1 && first->get(child).error() == ObjectError::stale_part);
+    });
+    s.test("failed updates leave free part identities identical to an uninterrupted consumer", [] {
+        auto changed = ObjectRegistry::make({.max_parts = 3}), control = ObjectRegistry::make({.max_parts = 3});
+        const ObjectDescription initial{{{.id = "root"}, {.id = "a", .parent = "root"}, {.id = "b", .parent = "root"}}};
+        const auto a = changed->create(initial), b = control->create(initial); check(a && b);
+        const auto retained = changed->capture(*a);
+        const ObjectDescription root_only{{{.id = "root"}}};
+        check(changed->update(*a, root_only) == 2 && control->update(*b, root_only) == 2);
+        const auto before = changed->capture(*a);
+        const ObjectDescription bad{{{.id = "new"}, {.id = "c", .parent = "missing"}}};
+        check(changed->update(*a, bad).error() == ObjectError::missing_parent);
+        check(changed->capture(*a)->parts().data() == before->parts().data());
+        // All keys change at full capacity; children may precede their root.
+        const ObjectDescription replacement{{{.id = "c", .parent = "new"}, {.id = "d", .parent = "new"}, {.id = "new"}}};
+        check(changed->update(*a, replacement) == 3 && control->update(*b, replacement) == 3);
+        for (std::string_view id : {"new", "c", "d"}) {
+            const auto actual = changed->part(*a, id), expected = control->part(*b, id); check(actual && expected);
+            check(actual->slot == expected->slot && actual->generation == expected->generation,
+                "a refused update cannot change later identity assignment relative to the same successful operations");
+        }
+        check(retained->find("root").has_value() && retained->find("a").has_value() && retained->find("b").has_value());
+        check(!changed->contains(retained->root()) && before->find("root").has_value());
+    });
     s.test("capabilities describe actual owned domains and open contours remain open", [] {
         auto registry = ObjectRegistry::make(); const auto ref = registry->create(graph());
         const auto snapshot = registry->capture(*ref);

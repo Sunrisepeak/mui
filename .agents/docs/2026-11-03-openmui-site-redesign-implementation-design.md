@@ -779,3 +779,19 @@ Linux x86_64、固定 mcpp 2026.11.2.2、GCC 16.1.0、LLVM 23.1.3、Chromium 156
 新图 SDK／motion／site 在 dev、release、LLVM sanitizer 各28程序189组通过，官网像素pin保持3027fb6720e6078d；重建native／site-web，重新导出开场并prerender后，9组浏览器共602项通过（59参考帧不重复计数）。新独立冷访问总传输5,031,965B，仍超5MB预算31,965B，其余六项通过；不沿用旧检查点的预算通过结果。
 
 本轮没有交付统一 Engine.play、真实像素域、完整动画库、UI HObject adapter、完整3D/HPC/模拟或全引擎Agent控制。审计还确认ObjectRegistry槽位管理与memory SlotMap重叠，下一步应补足共享memory契约后迁移，而不是长期保留两套。正式性能预算、干净完整工程、风格收敛、艺术／创意每维≥90及其余原范围继续开放。新顶层讨论不把已完成前置当作全项目完成。
+
+### 15.21 单一槽位实现、双视角工具与后端路线
+
+维护者补充已进入[顶层产品架构](2026-11-04-multi-engine-product-architecture-design.md)：Web 是首批重点，bilibili Toy 属于 Web 的 SDK／宿主子后端；host、设备执行、SDK 桥接和输出／打包分别扩展。新增上层能力先在一个参考平台验证公开契约，再实现其它后端；TUI 复用状态／语义／动作并按字符单元及能力呈现，尚未实现。编辑器／编曲等完整工具后置，以公共能力开发并作为验证应用。
+
+[核心工具细案](2026-11-04-dual-user-tools-validation-design.md)确定六类建议：Inspector／性能工作台、UI／交互／风格设计器、动画／时间线编辑器、音频／MIDI编曲、模拟／材料实验室、Shader／算子工作台。共用项目／资源／操作／事务／观测基础，人用 omui 可视化控制和审查，Agent 经 openas 共同语义操作同一模型。编译／资源／打包能力复用既有工具和 mcpp 插件；此稿定义工作流，不宣称完整工具已交付。旧“官网唯一验收对象”策略已修订，官网完整门槛仍保留。
+
+本轮将 §15.20 的具体重复机制收敛到现有 memory SlotStorage：旧 SlotMap 和 HObject 对象／部件复用同一空闲链／代次／容量实现，旧32位Handle bits／C ABI保留。对象层移除两套空闲表、自管代次和存活计数，领域owner／命名／验证／快照保留；失败创建不消费候选，更新在副本中准备后发布。共享存储插入的多余中间移动通过真实RED→GREEN消除，详细契约见[hanim细案 §15](2026-11-04-hanim-animation-library-playback-design.md#15-共享槽位机制与对象迁移)。
+
+最终本地基础 memory／object／RHI 在dev、release、LLVM sanitizer、真实Web各 **6程序41组通过**。UI view／C ABI／官网在dev、release、LLVM sanitizer各 **31程序（含C smoke）、251套件用例通过**；官网像素固定值均保持3027fb6720e6078d。初次并行运行只有一次save_png断言失败，发现测试按同名目录清理共享临时文件；配置分配独立TMPDIR后相同断言通过，保留原失败日志。生成工具的 --locked 临时子工程解析失败通过仅准备生成／临时工程自身缓存处理，根锁文件不改。
+
+正式新增 public-motion/object-query-500 release 基准实跑20,566次迭代：每次500个真实对象的完整查询批次，mean 0.01945ms、p95 0.02205ms、38.9ns／对象查询批次，max_allocations=0，新增的1项预算通过；排除准备且不渲染，只是本机CPU单次运行，不作整帧／GPU或相对旧版速度结论。虽然CLI打印载入63项预算，过滤运行只覆盖本case，未运行的预算不计为通过。报告 target/hanim-object-shared-slots.bench.omui.json。
+
+同一正式release程序另测原有ui/frame/idle：1,012节点，2,925次迭代，p95约0.150ms、max_allocations=0，对应0.5ms及零分配两项预算通过。报告 target/shared-slots-ui-idle.bench.omui.json；测量空闲帧，不替代全动画／绘制成本。以上两次过滤运行共覆盖3项预算。
+
+基础最终日志 /tmp/omui-slot-consolidation-moves-final-{dev,release,sanitize,web}.log，UI最终日志 /tmp/omui-slot-consolidation-ui-final-{dev,release,sanitize}.log，正式基准 /tmp/omui-slot-consolidation-object-bench-final-release.log；先前失败和临时工具准备日志保留。原§15.20浏览器／传输报告仍对应其注明源码，本轮原生／基础Web结果不冒充新整站浏览器构件或新的交付预算证明。统一Engine、真实像素域、40公共库／20组合及全部R0–R6／C2–C6仍未关闭。

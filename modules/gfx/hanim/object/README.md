@@ -8,8 +8,11 @@ materials, effects, live host callbacks or a UI adapter.
 The package lives under `modules/gfx/hanim` so `modules/base/hanim/core` keeps
 its strict standard-library plus `openmui.math` dependency boundary. Object
 data itself does not depend on a renderer, UI, OpenLifa specification or site.
-Its dependencies are `hanim.core`, independent `openmui.log`, and
-`openmui.trace`. The complete hanim umbrella migration is separate work.
+Its dependencies are `hanim.core`, independent `openmui.log`,
+`openmui.trace` and `openmui.memory`. Object and part slots reuse memory's
+single `SlotStorage` implementation; the registry owns names, graph validation,
+owner identities and immutable captures, not a second free-list or generation
+algorithm. The complete hanim umbrella migration is separate work.
 
 ```cpp
 import std;
@@ -108,7 +111,14 @@ Log callbacks may capture committed state; reentrant mutation returns
 
 See [CONTRACT.md](CONTRACT.md) for the lifecycle and failure matrix.
 Tests: `mcpp test -p hanim.object --locked` after workspace registration.
-The three test programs contain ten cases. Native lifecycle tests also run
+The three test programs contain thirteen cases. Native lifecycle tests also run
 four concurrent snapshot readers; the default Emscripten build skips only
 that thread phase, retaining all owned-lifetime and synchronous queries.
 Web command: `mcpp test -p hanim.object --target wasm32-emscripten --profile wasm-test --locked`.
+
+The bounded-churn cases also check failed fresh/recycled creation, replacement
+of every part key at full capacity, description order independence, and the
+next successful identity sequence after rejected updates. The official
+`public-motion/object-query-500` release benchmark checks the zero-allocation
+query contract in `tests/bench/budgets.bench.omui.json`; it reports CPU query
+cost, not a complete animation frame or GPU performance.

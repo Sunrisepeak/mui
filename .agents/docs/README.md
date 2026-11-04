@@ -4,7 +4,8 @@
 
 | 文档 | 内容 |
 |---|---|
-| [2026-11-04-multi-engine-product-architecture-design.md](2026-11-04-multi-engine-product-architecture-design.md) | **顶层产品架构／review 稿**：对等的 UI／动画／渲染／模拟／音频／计算产品，物理／化学／元胞模型，分块与计算优化；mcpp 的 GPU／HPC 构建插件、跨平台／设备、独立标准、Agent 横贯开发与使用、通用风格及基于 omui 的双视角工具／MIDI 编辑器；可裁剪与可拆仓边界 |
+| [2026-11-04-multi-engine-product-architecture-design.md](2026-11-04-multi-engine-product-architecture-design.md) | **顶层产品架构／review 稿**：对等的 UI／动画／渲染／模拟／音频／计算产品，物理／化学／元胞模型，分块与计算优化；mcpp GPU／HPC 构建插件、Web 重点与 Toy 子后端、TUI、多输出及单平台先验证的后端路线；独立标准、Agent、通用风格、后置双视角工具／MIDI 编辑器、可裁剪及单一实现归属 |
+| [2026-11-04-dual-user-tools-validation-design.md](2026-11-04-dual-user-tools-validation-design.md) | **核心工具／应用讨论稿**：六类真实创作和调试工具，共用工作台与编译／构建基础；同一项目／操作／事务／观测下的人类可视化与 openas Agent 控制；第一条完整验收任务、工具后置与 Web／Toy／TUI 分期 |
 | [2026-11-04-omui-engine-framework-architecture-design.md](2026-11-04-omui-engine-framework-architecture-design.md) | **整体架构／讨论稿**：独立动画与渲染、UI 普通消费者；默认人／Agent 双用户、开发全开放与多级配置，Agent 操作／控制／观测；骨骼／物理／水体、Noita 类负载、CPU／GPU 批次／同步、跨平台、profiling 与性能验收 |
 | [2026-11-04-hanim-animation-library-playback-design.md](2026-11-04-hanim-animation-library-playback-design.md) | **hanim 完整引擎／讨论稿**：core＋动画库＋效果，hobject 与 `hengine.play`，真实像素物质与轮廓插值、三轴分级；旧 Hanim 固定版本的取舍；omui 通过公开 adapter 作为普通用户消费引擎；Manim 全覆盖与独立消费者验收，40／20 不替代底层能力 |
 | [2026-11-04-omui-motion-readability-presentation-design.md](2026-11-04-omui-motion-readability-presentation-design.md) | **动画中间态质量（实施中）**：默认可读文字与显式字形变形、打断快照、实色承载面对比度、历史主题层隔离、呈现／点击几何与响应式约束；真实失败证据与局部验证边界 |
@@ -13,7 +14,7 @@
 | [2026-11-04-omui-site-navigation-motion-execution-design.md](2026-11-04-omui-site-navigation-motion-execution-design.md) | **§8 review 细案／§9 P0 实施事实**：顶级 Agent 三路径九场景目标、直观开场与三级披露；手机 CTA、全宽材质对照、Agent 有限预览与输入保护、NoScript 目录已整合；中间态交叉、字体／完整场景仍开放；40／20 清单与本地验收 |
 | [2026-11-03-openmui-site-redesign-implementation-design.md](2026-11-03-openmui-site-redesign-implementation-design.md) | **omui 官网重构与质量收口（已开始实施）**：openmui 规范与 omui 实现的品牌边界、O 内含 mui 的代码标志与官方作品、官网／文档分离、美术与各馆、创意组合、R0–R6 对应 C2–C6 的实施包和验收；官网重构以本文及维护者最新指示为准；最新记录含简化首页／动态标志、核心特色与顶级 Agent 导航、40 基础设计／20 创意组合、37 类默认配方、单舞台渐进披露、保留的发布工作台、中英实图及本地验证边界 |
 | [2026-11-01-openmui-master-plan-design.md](2026-11-01-openmui-master-plan-design.md) | **总体方案与实施计划（顶层，先读）**：目标、定位、总体架构、新包的位置、规范的改动、九个工作流、检查点 C0–C6 的展开表、依赖、规则、风险、决策、自我评审；链接下面五份子设计 |
-| [2026-11-01-openmui-strategy-backlog-design.md](2026-11-01-openmui-strategy-backlog-design.md) | **推进策略与待办**：为什么改变推进方式；核心是框架和引擎的能力、官网是唯一的验收对象；范围完整、按检查点 C0–C6；评估的改变；不在主线上的作品和事项 |
+| [2026-11-01-openmui-strategy-backlog-design.md](2026-11-01-openmui-strategy-backlog-design.md) | **推进策略与待办**：为什么改变推进方式；核心是框架和引擎的能力、官网综合验收与新增独立消费者／工具验收；范围完整、按检查点 C0–C6；评估的改变；不在主线上的作品和事项 |
 | [2026-11-01-openmui-positioning-site-design.md](2026-11-01-openmui-positioning-site-design.md) | **定位与官网**：一个基础、三个亮点、一个前提；和同类的对比；官网的信息结构、首页、各页、全站元素、场景、作品（影片是程序）、视觉方向 B、分批和创意加载、验收 |
 | [2026-11-01-openmui-universal-motion-design.md](2026-11-01-openmui-universal-motion-design.md) | **通用动画**：组件 × 效果 × 动画三维三级；物质表示；槽、策略和叠加链；`morph` 的四层匹配和编排；幽灵层和粒子；动效工作室；定制分级；验收用例 |
 | [2026-11-01-openmui-performance-tiers-design.md](2026-11-01-openmui-performance-tiers-design.md) | **性能分档**：T0（MCU）到 T4（独立显卡）；编译期裁剪；代价声明和降档序列；帧预算调度器；三层控制；新预算；Web 交付；对比基准 |

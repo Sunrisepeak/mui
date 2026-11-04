@@ -1,6 +1,7 @@
 module openmui.bench;
 import std;
 import hanim.core;
+import hanim.object;
 import openmui.geom;
 import openmui.raster;
 import openmui.render.vector;
@@ -74,6 +75,40 @@ std::expected<render::RecordedPath, render::PathRecordError> record_shape(
 
 void add_public_motion_benchmarks() {
     static bool added = false; if (added) return; added = true;
+    add("public-motion/object-query-500", "500 independent owned objects: capture, named/ref lookup, contour view and capability query; preparation excluded", [](State& s) {
+        auto objects = hanim::ObjectRegistry::make({.max_objects = instances, .max_parts = 2});
+        const std::array edges{hanim::ShapeSegment::line({10, 5})};
+        const auto contour = hanim::Contour::copy({{1, 2}, edges, false});
+        if (!objects || !contour) { s.fail("owned object setup failed"); return; }
+        std::array<hanim::ObjectRef, instances> refs;
+        for (std::size_t i = 0; i < instances; ++i) {
+            const hanim::ObjectDescription description{{{.id = "group"}, {.id = "outline", .parent = "group",
+                .local = {.tx = static_cast<double>(i)}, .contours = {*contour}}}};
+            const auto created = objects->create(description);
+            if (!created) { s.fail("object publication failed during setup"); return; }
+            refs[i] = *created;
+        }
+        cpu_note(s, "500 real registry captures, named/ref lookups, owned contour views and capability checks per iteration. Object/geometry preparation excluded; tracing disabled by the normal benchmark preset. No animation evaluation, rasterization, GPU or complete frame performance claim. ns/item is per complete object query batch.");
+        s.items(instances);
+        while (s.next()) {
+            double checksum = 0;
+            for (const auto ref : refs) {
+                const auto snapshot = objects->capture(ref);
+                if (!snapshot) { s.fail("capture failed"); return; }
+                const auto named = snapshot->find("outline");
+                if (!named) { s.fail("named part disappeared"); return; }
+                const auto part = snapshot->get(*named);
+                if (!part || (*part)->contours.size() != 1 || snapshot->capability_version("hanim.contours") != 1) {
+                    s.fail("owned query returned wrong domain"); return;
+                }
+                const auto shape = (*part)->contours.front().view();
+                if (!shape || shape->segments.size() != 1) { s.fail("contour lease query failed"); return; }
+                checksum += (*part)->local.tx + shape->segments.front().end.x;
+            }
+            if (checksum != 129750) { s.fail("query outputs were not preserved"); return; }
+            s.counter("objects", static_cast<double>(instances)); s.counter("checksum", checksum);
+        }
+    });
     add("public-motion/shape-prepare-star32", "one preparation and destruction: 32-edge concave star to four-cubic circle, correspondence and owned subdivisions", [](State& s) {
         const ShapeFixture input;
         cpu_note(s, "One prepare+destroy per iteration. Source 32 line segments; target 4 original cubics. Default arc_samples=64/alignment_samples=32. No rasterization.");

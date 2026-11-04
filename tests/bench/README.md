@@ -66,11 +66,11 @@ Depends on `openmui` (the runtime, the base components, the headless host),
 
 ## Public geometry and material plans
 
-These five cases use the same harness, allocation counter, JSON/Markdown
+These six cases use the same harness, allocation counter, JSON/Markdown
 reports and CLI as the existing benchmarks. Their implementation imports only
-public `hanim.core`, geometry, raster and vector APIs; it does not call UI Runtime,
+public `hanim.core`, `hanim.object`, geometry, raster and vector APIs; it does not call UI Runtime,
 components or website builders. Preparation and steady-state work are distinct.
-All five measure **CPU wall-clock work**. They neither submit GPU work nor
+All six measure **CPU wall-clock work**. They neither submit GPU work nor
 measure GPU execution, and say so in each result's notes.
 
 ```text
@@ -79,6 +79,7 @@ mcpp run -p openmui.bench --profile release -- --filter public-motion/ --json pu
 
 | Case (`public-motion/` prefix) | One iteration / reported item |
 |---|---|
+| `object-query-500` | Capture 500 independently registered two-part objects, resolve each outline by name/ref, view its owned contour and check its capability. Preparation excluded. One item = one complete object's query batch; zero steady-state allocations are a budget. This does not evaluate an animation or render a frame. |
 | `shape-prepare-star32` | Prepare and destroy one 32-edge concave star → four-cubic circle correspondence, using 64 arc samples and 32 alignment samples. Allocations are preparation costs, not forbidden frame allocations. One item = one plan. |
 | `shape-sample-500` | Sample all prepared cubic segments of 500 differently phased objects through `sample_segment` into preallocated buffers; consume every coordinate in a checksum pass. Preparation/output allocation excluded. One item = one cubic sample, including its output write/checksum share; the actual cubic count is reported. |
 | `paint-prepare-16` | Flatten, deduplicate and deep-own one material plan between 8 solids and 8 distinct two-stop gradients, then destroy it. One item = one of its 16 distinct leaves. No shader execution. |

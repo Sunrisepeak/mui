@@ -1,6 +1,6 @@
 # hanim 通用对象动画引擎：像素插值、动画库与效果
 
-2026-11-04。**状态：独立 core 与首批 owned 对象已落地；统一播放器、完整库与去重收口仍未完成。** 维护者本轮进一步明确：**hanim 是 core＋基础动画库＋动画效果组成的通用对象动画产品；统一入口为 `hengine.play(hobject, animation, effect)`；对象、部件、几何与真实像素均可插值；UI 全部使用该引擎；完整覆盖 Manim 功能并在可衡量的维度上超过它。** 当前位于 base 的时间／数值模块只是 core 的已有实现，不能据此收窄整个 hanim 的职责。
+2026-11-04。**状态：独立 core、首批 owned 对象与共享槽位已落地；统一播放器、完整库与其余边界仍未完成。** 维护者本轮进一步明确：**hanim 是 core＋基础动画库＋动画效果组成的通用对象动画产品；统一入口为 `hengine.play(hobject, animation, effect)`；对象、部件、几何与真实像素均可插值；UI 全部使用该引擎；完整覆盖 Manim 功能并在可衡量的维度上超过它。** 当前位于 base 的时间／数值模块只是 core 的已有实现，不能据此收窄整个 hanim 的职责。
 
 动画必须是框架用户可以真实复用的能力；官网是消费者与验收场，不是动画库的归宿。本文纠正“官网 40 个设计已等于 40 个通用库条目”的口径，不将新增提议写成已完成。
 
@@ -16,7 +16,7 @@
 |---|---|---|
 | `modules/base/hanim/core/`，`import hanim.core;` | Tween、Track、Spring、Decay、Motion；Timeline 编排、时间映射与确定性采样；PreparedShapeMorph 单闭合轮廓准备／无分配采样，已有独立图形消费者 | 这是独立 core，不是完整 HObject／Engine／像素对应或动画库 |
 | `modules/base/hanim/`，`import hanim;` | 当前只薄导出同一 hanim.core，无第二份算法；仓内底层消费者改为直接依赖 core | 完整产品伞后续迁到 gfx，待 object／library／effect／engine 实际交付后导出 |
-| `modules/gfx/hanim/object/`，`import hanim.object;` | owner／generation 引用、命名层级、owned Contour 与不可变 Snapshot、错误／日志／trace、真实公共 core-plan 消费者 | 尚无完整 Engine、像素／字形／mesh／material 域和 UI adapter；槽位管理仍待收敛到 memory |
+| `modules/gfx/hanim/object/`，`import hanim.object;` | owner／generation 引用、命名层级、owned Contour 与不可变 Snapshot、错误／日志／trace、真实公共 core-plan 消费者；槽位已复用 memory | 尚无完整 Engine、像素／字形／mesh／material 域和 UI adapter |
 | `modules/ui/motion/`，`import openmui.motion;` | Matter 提取显示列表；Morph 对两个绘制状态匹配、采样、绘制 | 通用轮廓归一化／对应关系不完整；可复用 clip 图与统一播放句柄未收成用户产品 |
 | `modules/ui/view/` | `motion` 槽、默认规则、暂停／寻址／倒放节点 motion、`pixel_effect` 及效果列表 | 不同动画通道尚未统一为一个完整 AnimationPlan／Handle；同属性混合不能统称已支持 |
 | `modules/gfx/render/vector/` | 16 个内置图层／像素效果、CPU／GPU 后端、效果参数 | 效果处理器不等于完成设计的时间动画；不同效果类型的材质插值需要独立契约 |
@@ -341,4 +341,18 @@ HObject 的使用接口至少区分：
 
 独立冷访问实际总传输 **5,031,965 B**，超过原 5 MB **31,965 B**；其余六项预算通过。单样本首帧代理约 1849ms 不是 FCP／LCP，不作提速结论，未调高预算。原用户 mcpp.lock 差异保持，未纳入提交。此轮源、命令和报告分别在 /tmp/omui-hanim-*.log、target/site-hanim-core-*.report.omui.json 及 target/hanim-core-log-consumer-root.report.omui.json。
 
-**重复机制仍待移除**：本轮只读审计确认 ObjectRegistry 与 memory SlotMap 各自管理槽位／free-list／代次。需在已有 memory 模块补齐64位代次、耗尽退休、容量和失败原子准备，再迁移对象层，保留旧32位Handle bits／C ABI。当前对象层的独立性和生命周期通过不等于该收敛已完成。统一播放器／真实像素域／40项库／完整跨端资源／HPC／模拟／Agent provider 继续按完整方案实施。
+**该前置检查点留下的重复机制**：ObjectRegistry 与 memory SlotMap 各自管理槽位／free-list／代次，后续按下节收敛。统一播放器／真实像素域／40项库／完整跨端资源／HPC／模拟／Agent provider 继续按完整方案实施。
+
+## 15. 共享槽位机制与对象迁移
+
+现有 openmui.memory 新增 SlotStorage，旧 SlotMap 与对象／部件共用这一实现。旧 Handle 的 index32／generation32、generation 0 初值和 bits／from_bits 保留；wide SlotKey 使用 generation64／初值1。代次上限一律退休，旧 SlotMap 的极限回绕修为不再复活旧引用。容量统计含空闲和退休槽，不按最大限额预分配。
+
+ObjectRegistry 删除自己的两套空闲表、代次与存活计数；保留 owner、稳定名称、层级／数据校验、内容版本、重入保护和快照。创建先取得候选身份，由 expected 工厂准备完整 payload，成功才提交；更新在复制的部件存储中先删除再插入，成功后与新快照一起发布。该原子性指单拥有线程上的失败原子性。
+
+新增3组对象回归覆盖 fresh／recycled create 失败不消耗身份、max_parts=2 的128次换名与拒绝更新、全部键在满额时替换、child在root之前的输入次序，以及与未失败消费者的后续身份序列一致。旧快照、跨 owner／object／part 代次及2000次预热查询零分配继续保留。
+
+共享机制另有16组公共 CTS，加原 memory 4组；含255代uint8耗尽、退休仍占预算、clear／staging／swap／move-only、旧32位固定bits和局部key边界。初次转接增加中间值移动，移动计数CTS真实失败4组9条；转发与最终位置构造消除额外中间值后通过。legacy空槽插入prvalue仅一次move；直接const值一次copy、rvalue一次move；已有值扩容搬迁另计，不宣称插入／准备零分配。
+
+本地最终 memory＋object＋RHI 在dev／release／LLVM sanitizer／Web各 **6程序41组通过**，对象占13组。正式新增 public-motion/object-query-500 基准复用既有harness与预算，测500个真实对象的capture／命名及ref查询／轮廓view／capability；准备排除，零分配门禁单列，CPU成本不代表完整Engine、渲染或GPU性能。UI／ABI／官网及实际基准的后续整合结果在完整官网方案记录。
+
+最终基础日志为 /tmp/omui-slot-consolidation-moves-final-{dev,release,sanitize,web}.log，移动回归原RED为 /tmp/omui-slot-consolidation-moves-red-dev.log。共享key只在所属storage中解释，copy staging可以拥有相同key；registry的owner域不下沉到通用存储，也不由移动后的容器重新使用来证明跨实例身份。

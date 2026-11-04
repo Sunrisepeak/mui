@@ -23,14 +23,40 @@ std::string read(const fs::path& p) {
     return {std::istreambuf_iterator<char>(in), {}};
 }
 
+// A small no-post SFNT fixture. Basic loader tests need real directory /
+// checksum structure, not a renderable typeface; coverage tests below use
+// actual fonts. The 84-byte fixture stays below their tiny-face threshold.
+std::string loader_font(std::uint32_t revision) {
+    std::string font(84, '\0');
+    const auto set = [&](std::size_t at, std::uint32_t value) {
+        for (std::size_t i = 0; i < 4; ++i) font[at + i] = static_cast<char>(value >> (24 - i * 8));
+    };
+    const auto sum = [](std::string_view bytes) {
+        std::uint32_t result = 0;
+        for (std::size_t i = 0; i < bytes.size(); i += 4) {
+            std::uint32_t word = 0;
+            for (std::size_t k = 0; k < 4; ++k) word = word << 8 | (i + k < bytes.size() ? static_cast<unsigned char>(bytes[i + k]) : 0);
+            result += word;
+        }
+        return result;
+    };
+    set(0, 0x00010000u); set(4, 0x00010010u); // 1 table, searchRange 16; selector/shift 0.
+    font.replace(12, 4, "head"); set(20, 28); set(24, 54);
+    set(28, 0x00010000u); set(32, revision); set(40, 0x5f0f3cf5u);
+    font[46] = 3; font[47] = static_cast<char>(0xe8); // unitsPerEm 1000.
+    set(16, sum(std::string_view(font).substr(28, 54)));
+    set(36, 0xB1B0AFBAu - sum(font));
+    return font;
+}
+
 struct Tree {
     fs::path root = fs::temp_directory_path() / std::format("omui-dist-toy-{}", std::chrono::steady_clock::now().time_since_epoch().count());
     Tree() {
         put(root / "stage" / "bin" / "game.js", "var Module; /* the launcher */");
         put(root / "stage" / "bin" / "game.wasm", std::string("\0asm\1\0\0\0", 8));
         put(root / "stage" / "licenses" / "compat.zlib" / "LICENSE", "zlib");
-        put(root / "fonts" / "Inter.ttf", "inter bytes");
-        put(root / "fonts" / "NotoSansSC.ttf", "noto bytes");
+        put(root / "fonts" / "Inter.ttf", loader_font(1));
+        put(root / "fonts" / "NotoSansSC.ttf", loader_font(2));
         put(root / "fonts" / "OFL-inter.txt", "ofl");
     }
     ~Tree() {

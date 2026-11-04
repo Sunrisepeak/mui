@@ -532,11 +532,13 @@ std::expected<ToyReport, std::string> package_for_toy(const ToyPackage& p) {
             characters_of(first->second, keep);
             auto cut = subset_font(std::span(reinterpret_cast<const std::uint8_t*>(bytes->data()), bytes->size()), keep);
             if (!cut) return std::unexpected(std::format("initial font {}: {}", stem, cut.error()));
-            const std::string_view data(reinterpret_cast<const char*>(cut->data()), cut->size());
+            auto delivered = compact_font_post(*cut);
+            if (!delivered) return std::unexpected(std::format("initial font {}: {}", stem, delivered.error()));
+            const std::string_view data(reinterpret_cast<const char*>(delivered->data()), delivered->size());
             const std::string asset = std::format("assets/{}.ttf", content_hash(data));
             if (auto w = write(p.out / asset, data); !w) return std::unexpected(w.error());
             initial.emplace_back(stem, asset);
-            std::println("dist-toy: {} initial glyphs: {} bytes", stem, cut->size());
+            std::println("dist-toy: {} initial glyphs: {} bytes", stem, delivered->size());
         }
         // Cut down to the characters the program's text holds, where asked.
         if (const auto sub = std::ranges::find(p.subsets, stem, &ToyPackage::Subset::font); sub != p.subsets.end()) {
@@ -565,6 +567,12 @@ std::expected<ToyReport, std::string> package_for_toy(const ToyPackage& p) {
             bytes->assign(reinterpret_cast<const char*>(cut->data()), cut->size());
             std::println("dist-toy: {} cut to {} of its {} glyphs: {} → {} bytes", stem, r.kept, r.glyphs, r.bytes_before, r.bytes_after);
         }
+        FontDeliveryReport delivery_report;
+        auto delivered = compact_font_post(std::span(reinterpret_cast<const std::uint8_t*>(bytes->data()), bytes->size()), &delivery_report);
+        if (!delivered) return std::unexpected(std::format("font {}: {}", stem, delivered.error()));
+        bytes->assign(reinterpret_cast<const char*>(delivered->data()), delivered->size());
+        if (delivery_report.names_removed)
+            std::println("dist-toy: {} delivery post names: {} → {} bytes", stem, delivery_report.bytes_before, delivery_report.bytes_after);
         const std::string asset = std::format("assets/{}.ttf", content_hash(*bytes));
         if (auto w = write(p.out / asset, *bytes); !w) return std::unexpected(w.error());
         fonts.emplace_back(stem + ".ttf", asset);

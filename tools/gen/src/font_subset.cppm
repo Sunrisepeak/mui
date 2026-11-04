@@ -17,6 +17,20 @@ struct FontSubsetReport {
     std::size_t bytes_before = 0, bytes_after = 0;
 };
 
+struct FontDeliveryReport {
+    std::size_t bytes_before = 0, bytes_after = 0;
+    bool names_removed = false;
+};
+
+// A derived standalone TrueType delivery file, without stored PostScript
+// glyph names. The post header's other 28 bytes and every other table's
+// payload survive exactly; only head.checkSumAdjustment is recalculated.
+// No post, or post 3, returns the original bytes. Bad SFNT/post structures,
+// unsupported post versions and changes to a digitally signed face fail.
+// This checks delivery structure/checksums, not every outline's validity.
+[[nodiscard]] std::expected<std::vector<std::uint8_t>, std::string> compact_font_post(
+    std::span<const std::uint8_t> font, FontDeliveryReport* report = nullptr);
+
 // The font with every glyph no character of `keep` reaches emptied.
 [[nodiscard]] std::expected<std::vector<std::uint8_t>, std::string> subset_font(std::span<const std::uint8_t> font, const std::set<char32_t>& keep,
                                                                                FontSubsetReport* report = nullptr);

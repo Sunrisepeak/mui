@@ -252,6 +252,9 @@ int main(int argc, char** argv) {
         auto duplicate = inter;
         for (const auto& record : records(duplicate)) if (record.tag == "post") std::memcpy(duplicate.data() + record.directory, "name", 4);
         whole_checksum(duplicate); malformed.push_back(std::move(duplicate));
+        const auto empty_signature = table(mono, "DSIG");
+        Bytes signature(empty_signature.begin(), empty_signature.end()); put16(signature, 4, 1);
+        malformed.push_back(replace_table(mono, "DSIG", signature));
         for (const auto& font : malformed) {
             Package package; package.font("Inter", font);
             const auto result = gen::package_for_toy(package.options());

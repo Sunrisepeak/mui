@@ -41,6 +41,46 @@ std::uint32_t checksum(std::span<const std::uint8_t> d) {
     return sum;
 }
 
+std::expected<std::vector<Table>, std::string> delivery_tables(std::span<const std::uint8_t> font) {
+    if (font.size() < 12 || (u32(font, 0) != 0x00010000 && u32(font, 0) != 0x74727565))
+        return std::unexpected("delivery font is not a standalone TrueType SFNT");
+    const std::size_t count = u16(font, 4), directory_end = 12 + count * 16;
+    if (!count || directory_end > font.size()) return std::unexpected("truncated or empty font table directory");
+    std::size_t power = 1, selector = 0;
+    while (power * 2 <= count) power *= 2, ++selector;
+    if (u16(font, 6) != power * 16 || u16(font, 8) != selector || u16(font, 10) != count * 16 - power * 16)
+        return std::unexpected("invalid SFNT directory search fields");
+    std::vector<Table> tables;
+    std::vector<std::pair<std::size_t, std::size_t>> extents;
+    std::string previous;
+    bool has_head = false;
+    for (std::size_t i = 0; i < count; ++i) {
+        const std::size_t record = 12 + i * 16;
+        std::string tag(reinterpret_cast<const char*>(font.data() + record), 4);
+        if ((!previous.empty() && tag <= previous) || std::ranges::any_of(tag, [](unsigned char c) { return c < 32 || c > 126; }))
+            return std::unexpected("font table tags must be unique and sorted printable ASCII");
+        previous = tag;
+        const std::size_t at = u32(font, record + 8), length = u32(font, record + 12);
+        if (at % 4 || at > font.size() || length > font.size() - at || (length && at < directory_end))
+            return std::unexpected(std::format("table {} has an invalid offset or length", tag));
+        auto data = font.subspan(at, length);
+        auto sum = checksum(data);
+        if (tag == "head") {
+            if (length < 54) return std::unexpected("truncated head table");
+            has_head = true;
+            sum -= u32(data, 8); // head's directory checksum excludes checkSumAdjustment.
+        }
+        if (sum != u32(font, record + 4)) return std::unexpected(std::format("table {} has an invalid checksum", tag));
+        tables.push_back({std::move(tag), data});
+        if (length) extents.emplace_back(at, at + length);
+    }
+    std::ranges::sort(extents);
+    for (std::size_t i = 1; i < extents.size(); ++i)
+        if (extents[i - 1].second > extents[i].first) return std::unexpected("font table payloads overlap");
+    if (!has_head || checksum(font) != 0xB1B0AFBAu) return std::unexpected("missing head or invalid whole-font checksum");
+    return tables;
+}
+
 // Preserve substitution outputs without changing glyph ids or layout tables.
 // Scan every lookup, including contextual lookup targets, irrespective of the
 // enabled features. A rule fires only when all of its input glyphs are kept.
@@ -357,6 +397,96 @@ void always_kept(std::set<char32_t>& into) {
     for (char32_t c = 0x2190; c < 0x2200; ++c) into.insert(c);  // arrows
     for (char32_t c = 0x3000; c < 0x3040; ++c) into.insert(c);  // CJK symbols and punctuation
     for (char32_t c = 0xff00; c < 0xfff0; ++c) into.insert(c);  // full-width forms
+}
+
+std::expected<Bytes, std::string> compact_font_post(std::span<const std::uint8_t> font, FontDeliveryReport* report) {
+    // OpenType post/otff: https://learn.microsoft.com/typography/opentype/spec/post
+    // Only delivery data changes. Keep physical table order and all unrelated
+    // payload/padding bytes, instead of rebuilding glyph or layout tables.
+    auto parsed = delivery_tables(font);
+    if (!parsed) return std::unexpected(parsed.error());
+    auto find = [&](std::string_view tag) -> std::span<const std::uint8_t> {
+        for (const auto& table : *parsed) if (table.tag == tag) return table.data;
+        return {};
+    };
+    auto unchanged = [&]() -> std::expected<Bytes, std::string> {
+        if (report) *report = {font.size(), font.size(), false};
+        return Bytes(font.begin(), font.end());
+    };
+    const auto post = find("post");
+    if (post.empty()) {
+        if (std::ranges::any_of(*parsed, [](const auto& table) { return table.tag == "post"; }))
+            return std::unexpected("empty post table");
+        return unchanged();
+    }
+    if (post.size() < 32) return std::unexpected("truncated post header");
+    const auto version = u32(post, 0);
+    if (version == 0x00030000u) {
+        if (post.size() != 32) return std::unexpected("post 3 table must end after its 32-byte header");
+        return unchanged();
+    }
+    const auto maxp = find("maxp");
+    if (maxp.size() < 6 || !u16(maxp, 4)) return std::unexpected("post names need valid maxp glyph metadata");
+    const auto glyphs = u16(maxp, 4);
+    if (version == 0x00010000u) {
+        if (post.size() != 32 || glyphs != 258) return std::unexpected("invalid post 1 Macintosh glyph metadata");
+    } else if (version == 0x00020000u || version == 0x00025000u) {
+        if (post.size() < 34 || u16(post, 32) != glyphs) return std::unexpected("post glyph count does not match maxp");
+        const std::size_t index_bytes = std::size_t{glyphs} * (version == 0x00020000u ? 2 : 1);
+        if (index_bytes > post.size() - 34) return std::unexpected("truncated post glyph-name indices");
+        if (version == 0x00020000u) {
+            std::uint16_t greatest = 257;
+            for (std::size_t i = 0; i < glyphs; ++i) greatest = std::max(greatest, u16(post, 34 + i * 2));
+            std::size_t strings = 0, cursor = 34 + index_bytes;
+            while (cursor < post.size()) {
+                const std::size_t length = post[cursor++];
+                if (length > post.size() - cursor) return std::unexpected("truncated post glyph-name string");
+                // Names are opaque Pascal strings here. Existing delivery
+                // fonts include non-AGL names; none is used to identify glyphs.
+                cursor += length;
+                ++strings;
+            }
+            if (strings < std::size_t{greatest} - 257) return std::unexpected("post glyph-name index has no string");
+        } else {
+            if (post.size() != 34 + index_bytes) return std::unexpected("invalid post 2.5 glyph-name offsets");
+            for (std::size_t i = 0; i < glyphs; ++i) {
+                const int offset = post[34 + i] < 128 ? post[34 + i] : int(post[34 + i]) - 256;
+                const int index = static_cast<int>(i) + offset;
+                if (index < 0 || index > 257) return std::unexpected("post 2.5 name exceeds Macintosh glyph set");
+            }
+        }
+    } else return std::unexpected("unsupported post table version");
+    const auto signature = find("DSIG");
+    if (!signature.empty() && (signature.size() < 8 || u16(signature, 4) != 0))
+        return std::unexpected("cannot change a digitally signed font's post table");
+
+    const auto post_at = static_cast<std::size_t>(post.data() - font.data());
+    const auto erase_begin = post_at + 32;
+    auto erase_end = post_at + post.size();
+    erase_end += std::min((4 - post.size() % 4) % 4, font.size() - erase_end);
+    const auto removed = erase_end - erase_begin;
+    Bytes out(font.begin(), font.end());
+    out.erase(out.begin() + static_cast<std::ptrdiff_t>(erase_begin), out.begin() + static_cast<std::ptrdiff_t>(erase_end));
+    put32(out, post_at, 0x00030000u);
+    std::size_t head_at = 0;
+    for (std::size_t i = 0; i < parsed->size(); ++i) {
+        const auto record = 12 + i * 16;
+        const auto& table = (*parsed)[i];
+        std::size_t at = u32(font, record + 8);
+        if (at >= erase_end) at -= removed;
+        else if (at >= erase_begin && table.data.empty()) at = erase_begin;
+        put32(out, record + 8, static_cast<std::uint32_t>(at));
+        if (table.tag == "post") put32(out, record + 12, 32);
+        if (table.tag == "head") head_at = at;
+    }
+    put32(out, head_at + 8, 0);
+    for (std::size_t i = 0; i < parsed->size(); ++i) {
+        const auto record = 12 + i * 16;
+        put32(out, record + 4, checksum(std::span(out).subspan(u32(out, record + 8), u32(out, record + 12))));
+    }
+    put32(out, head_at + 8, 0xB1B0AFBAu - checksum(out));
+    if (report) *report = {font.size(), out.size(), true};
+    return out;
 }
 
 std::expected<Bytes, std::string> subset_font(std::span<const std::uint8_t> font, const std::set<char32_t>& keep, FontSubsetReport* report) {

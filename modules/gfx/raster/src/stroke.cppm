@@ -19,8 +19,10 @@ struct Stroke {
     Cap                    cap = Cap::butt;
     Join                   join = Join::miter;
     float                  miter_limit = 4;
-    std::span<const float> dashes;  // on, off, on, off … in device-independent units
-    float                  dash_offset = 0;
+    // on, off, on, off … in path units; odd lists repeat twice per cycle.
+    // Empty/all-zero or negative/nonfinite patterns use a solid stroke.
+    std::span<const float> dashes;
+    float                  dash_offset = 0; // nonfinite: zero; finite offsets wrap through the complete cycle
 };
 
 // Appends the stroke outline of `path` (transformed by `m`) to `out`. The

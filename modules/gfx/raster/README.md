@@ -10,6 +10,17 @@ A deterministic CPU 2D rasterizer (module `openmui.raster`, D-43): the reference
 - **Compositing**: premultiplied 8-bit source-over with exact /255 rounding; layers with opacity and the 14 W3C blend modes; scissor and mask clips; CSS box shadows (outset and inset) blurred by the W3C three-box approximation.
 - **Provenance**: an optional object-id buffer records which node drew each pixel.
 - **Bands of rows are exact.** Every crossing of a row boundary is computed from the edge's own endpoints and rows outside the clip are skipped, not cut, so `Canvas::restrict_rows(top, bottom)` draws those rows byte-for-byte as drawing the whole surface does. Damage-region rendering stands on this.
-- **No allocation per frame** for a canvas that is reused (`reset`): rasteriser cells, scratch paths and coverage, layer surfaces and clip masks come from pools.
+- **Reused storage**: rasteriser cells, scratch paths and coverage, layer surfaces and clip masks retain their capacity across `reset`. Stroke outline preparation and other renderer work can still allocate; zero-allocation claims apply only to separately measured workloads.
 
 The tests pin the bytes of a scene that GCC, LLVM (debug and release) and the Windows target reproduce.
+
+Dash lists use on/off lengths in path units. Odd lists repeat twice per
+cycle, following the [SVG dash-list convention](https://www.w3.org/TR/SVG2/painting.html#StrokeDashing),
+and the pattern restarts on each subpath. Negative/nonfinite lengths disable
+dashing as a whole in this low-level API; empty/all-zero lists also retain
+the solid stroke. A nonfinite offset uses phase zero. Finite offsets use the
+shared exact remainder, including extreme magnitudes. `dash_test` compares
+actual coverage with an explicitly doubled list and checks invalid inputs
+that previously trapped a frame. This does not claim dashed morph phase
+continuity under contour start/winding alignment, complete zero-length cap
+semantics, or a bounded tessellation budget for arbitrarily tiny dash lengths.

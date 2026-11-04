@@ -94,7 +94,7 @@ int rem_pio2(double x, double& y0, double& y1) noexcept {
     std::int32_t hx = high_word(x);
     std::int32_t ix = hx & 0x7fffffff;
     if (ix > 0x413921fb) {
-        x  = std::fmod(x, two_pi);
+        x  = fmod(x, two_pi);
         hx = high_word(x);
         ix = hx & 0x7fffffff;
     }
@@ -156,6 +156,15 @@ constexpr double aT[] = {3.33333333333329318027e-01,  -1.99999999998764832476e-0
 constexpr double pi_lo = 1.2246467991473531772e-16;
 
 }  // namespace
+
+double fmod(double x, double y) noexcept {
+    if (!std::isfinite(x) || std::isnan(y) || y == 0)
+        return std::bit_cast<double>(std::uint64_t{0x7ff8000000000000});
+    if (std::isinf(y)) return x;
+    // The finite binary remainder is exact; keep its implementation here
+    // alongside the reduction already used by the trigonometric functions.
+    return std::fmod(x, y);
+}
 
 double exp(double x) noexcept {
     std::uint32_t hx = static_cast<std::uint32_t>(high_word(x));

@@ -48,21 +48,35 @@ void arc(std::vector<Point>& out, Point c, float h, double a0, double sweep, flo
 }
 
 std::vector<Polyline> dash(const std::vector<Polyline>& lines, std::span<const float> pattern, float offset) {
-    float total = 0;
-    for (float d : pattern) total += std::max(0.0f, d);
+    double total = 0;
+    for (float d : pattern) {
+        // This low-level API has no CSS declaration to reject. Ignore invalid
+        // dashing as a whole, retaining the solid stroke, rather than walking
+        // negative/NaN lengths indefinitely or emitting nonfinite geometry.
+        if (!std::isfinite(d) || d < 0) return lines;
+        total += d;
+    }
     if (pattern.empty() || total <= 0) return lines;
+    // Odd lists repeat twice before the on/off state repeats. Keep a logical
+    // even cycle; no extra allocation or copied dash pattern is needed.
+    const std::size_t cycle = pattern.size() + (pattern.size() % 2 ? pattern.size() : 0);
+    if (pattern.size() % 2) total *= 2;
+    double phase = std::isfinite(offset) ? dm::fmod(static_cast<double>(offset), total) : 0;
+    if (phase < 0) phase += total;
+    if (phase >= total) phase = 0; // rounding when a tiny negative phase is added to a large total
+    std::size_t first = 0;
+    while (first < cycle && phase >= pattern[first % pattern.size()]) {
+        phase -= pattern[first % pattern.size()];
+        ++first;
+    }
+    if (first == cycle) first = 0, phase = 0;
     std::vector<Polyline> out;
     for (const Polyline& l : lines) {
         std::vector<Point> pts = l.points;
         if (l.closed && !pts.empty()) pts.push_back(pts.front());
         // Position in the pattern at the start.
-        float phase = offset - total * std::floor(offset / total);
-        std::size_t k = 0;
-        while (phase >= pattern[k % pattern.size()]) {
-            phase -= pattern[k % pattern.size()];
-            ++k;
-        }
-        float left = pattern[k % pattern.size()] - phase;
+        std::size_t k = first;
+        float left = static_cast<float>(pattern[k % pattern.size()] - phase);
         bool on = k % 2 == 0;
         Polyline cur;
         if (on && !pts.empty()) cur.points.push_back(pts[0]);
@@ -81,8 +95,8 @@ std::vector<Polyline> dash(const std::vector<Polyline>& lines, std::span<const f
                     cur.points = {p};
                 }
                 on = !on;
-                k = (k + 1) % pattern.size();
-                left = std::max(pattern[k], 1e-4f);
+                k = (k + 1) % cycle;
+                left = std::max(pattern[k % pattern.size()], 1e-4f);
             }
             left -= len - pos;
             if (on) cur.points.push_back(b);

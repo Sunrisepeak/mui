@@ -41,6 +41,12 @@ inline constexpr double ln2     = 6.93147180559945286227e-01;
 // x^y for x ≥ 0 (a negative base yields NaN, as the curves that use it need).
 [[nodiscard]] double pow(double x, double y) noexcept;
 
+// Exact truncating remainder: sign follows x, magnitude is below |y|.
+// Unlike x - y*floor(x/y), this does not lose the phase for huge ratios.
+// Signed zero is retained. NaN inputs, infinite x or zero y return one
+// canonical quiet NaN; finite x with infinite y returns x.
+[[nodiscard]] double fmod(double x, double y) noexcept;
+
 // √x is one of the correctly rounded IEEE operations, so the standard one is
 // already identical everywhere; it is named here so animation code reads from
 // one namespace.

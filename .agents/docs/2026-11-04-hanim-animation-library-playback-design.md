@@ -1,6 +1,6 @@
 # hanim 通用对象动画引擎：像素插值、动画库与效果
 
-2026-11-04。**状态：独立 core、首批 owned 对象与共享槽位已落地；统一播放器、完整库与其余边界仍未完成。** 维护者本轮进一步明确：**hanim 是 core＋基础动画库＋动画效果组成的通用对象动画产品；统一入口为 `hengine.play(hobject, animation, effect)`；对象、部件、几何与真实像素均可插值；UI 全部使用该引擎；完整覆盖 Manim 功能并在可衡量的维度上超过它。** 当前位于 base 的时间／数值模块只是 core 的已有实现，不能据此收窄整个 hanim 的职责。
+2026-11-04。**状态：独立 core、owned 对象、共享槽位与首条公开对象形变播放器／效果／CPU渲染链路已落地；完整 Program 编排、40项公共库、UI迁移及其余域仍未完成。** 维护者本轮进一步明确：**hanim 是 core＋基础动画库＋动画效果组成的通用对象动画产品；统一入口为 `hengine.play(hobject, animation, effect)`；对象、部件、几何与真实像素均可插值；UI 全部使用该引擎；完整覆盖 Manim 功能并在可衡量的维度上超过它。** 当前位于 base 的时间／数值模块只是 core 的已有实现，不能据此收窄整个 hanim 的职责。
 
 动画必须是框架用户可以真实复用的能力；官网是消费者与验收场，不是动画库的归宿。本文纠正“官网 40 个设计已等于 40 个通用库条目”的口径，不将新增提议写成已完成。
 
@@ -17,6 +17,10 @@
 | `modules/base/hanim/core/`，`import hanim.core;` | Tween、Track、Spring、Decay、Motion；Timeline 编排、时间映射与确定性采样；PreparedShapeMorph 单闭合轮廓准备／无分配采样，已有独立图形消费者 | 这是独立 core，不是完整 HObject／Engine／像素对应或动画库 |
 | `modules/base/hanim/`，`import hanim;` | 当前只薄导出同一 hanim.core，无第二份算法；仓内底层消费者改为直接依赖 core | 完整产品伞后续迁到 gfx，待 object／library／effect／engine 实际交付后导出 |
 | `modules/gfx/hanim/object/`，`import hanim.object;` | owner／generation 引用、命名层级、owned Contour 与不可变 Snapshot、错误／日志／trace、真实公共 core-plan 消费者；槽位已复用 memory | 尚无完整 Engine、像素／字形／mesh／material 域和 UI adapter |
+| `modules/gfx/hanim/library/`，`import hanim.library;` | 严格稳定部件／层级／绘制顺序对应，多闭合轮廓、transform／fill采样；深拥有当前姿态的C0 retarget | 目前一类对象形变，不是40项库；增删／重父级／拓扑变化及其它域仍需插件 |
+| `modules/gfx/hanim/effect/`，`import hanim.effect;` | 有序效果描述与预备参数计划，blur／tone构造，调用者缓冲采样 | 描述存在不代表后端支持；完整效果图／风格展开和作用域尚未完成 |
+| `modules/gfx/hanim/engine/`，`import hanim.engine;` | 公开四参数play、外部Snapshot入口，pause／seek／reverse／rate／retarget／cancel／release，整批失败不发布；复用共享槽位 | 首阶段每source独占binding；嵌套Program、通道混合、完整域和openas provider尚未完成 |
+| `modules/gfx/hanim/render/vector/`，`import hanim.render.vector;` | 可选CPU适配把当前几何、solid／gradient材料mix和有序效果接入唯一renderer，支持真实离屏区域输出 | 严格CPU子集；GPU绑定、其它材料资源及完整材料历史重定向未验收 |
 | `modules/ui/motion/`，`import openmui.motion;` | Matter 提取显示列表；Morph 对两个绘制状态匹配、采样、绘制 | 通用轮廓归一化／对应关系不完整；可复用 clip 图与统一播放句柄未收成用户产品 |
 | `modules/ui/view/` | `motion` 槽、默认规则、暂停／寻址／倒放节点 motion、`pixel_effect` 及效果列表 | 不同动画通道尚未统一为一个完整 AnimationPlan／Handle；同属性混合不能统称已支持 |
 | `modules/gfx/render/vector/` | 16 个内置图层／像素效果、CPU／GPU 后端、效果参数 | 效果处理器不等于完成设计的时间动画；不同效果类型的材质插值需要独立契约 |
@@ -75,7 +79,7 @@
 
 ## 4. 建议的公开入口
 
-主入口按维护者给出的 **`hengine.play(hobject, animation, effect)`** 收敛；第 8 节给出对象与引擎契约及目标 API 草案，尚不能直接复制运行。上一版 `animplay` 提议最多作为便利函数，必须委托同一 Engine／Plan，不另立播放器。C++ 准备失败使用 `std::expected`，不使用异常。
+主入口按维护者给出的 **`hengine.play(hobject, animation, effect, config)`** 收敛。首个可运行的严格对象形变入口与完整组合设计见[play API细案](2026-11-04-hanim-play-api-design.md)：简单入口规范化成绑定Program，复杂入口显式编排，统一准备和播放。第8节仍为完整目标草案，不表示所有字段已可调用。上一版 `animplay` 提议最多作为便利函数，必须委托同一 Engine／Plan，不另立播放器。C++ 准备失败使用 `std::expected`，不使用异常。
 
 单对象形式绑定一个计划，不要求调用者手写每帧赋值；A→B 形式明确绑定两个端点或状态，不需要用户先手工归一化路径。底层仍可直接构造／采样计划，支持 headless 与离线渲染，不只有交互式 play。
 
@@ -356,3 +360,25 @@ ObjectRegistry 删除自己的两套空闲表、代次与存活计数；保留 o
 本地最终 memory＋object＋RHI 在dev／release／LLVM sanitizer／Web各 **6程序41组通过**，对象占13组。正式新增 public-motion/object-query-500 基准复用既有harness与预算，测500个真实对象的capture／命名及ref查询／轮廓view／capability；准备排除，零分配门禁单列，CPU成本不代表完整Engine、渲染或GPU性能。UI／ABI／官网及实际基准的后续整合结果在完整官网方案记录。
 
 最终基础日志为 /tmp/omui-slot-consolidation-moves-final-{dev,release,sanitize,web}.log，移动回归原RED为 /tmp/omui-slot-consolidation-moves-red-dev.log。共享key只在所属storage中解释，copy staging可以拥有相同key；registry的owner域不下沉到通用存储，也不由移动后的容器重新使用来证明跨实例身份。
+
+
+## 16. 首条公开播放器与无GUI消费者证据
+
+本轮新增四个独立公开包：`hanim.library`、`hanim.effect`、`hanim.engine`、`hanim.render.vector`。Engine运行依赖不含UI、renderer、窗口或网络；可选vector adapter复用现有唯一renderer。具体实现和契约见[engine README](../../modules/gfx/hanim/engine/README.md)、[播放契约](../../modules/gfx/hanim/engine/CONTRACT.md)与[组合接口review](2026-11-04-hanim-play-api-design.md)。本节记录可运行的首阶段，不宣称完整A1或Program已经交付。
+
+**真实范围。** 对象可以包含多个命名部件和闭合轮廓；严格匹配保持层级、子顺序和非零填充孔洞方向。library准备后采样transform／fill／cubic，retarget深拥有当前姿态，不保留无界历史链。effect保存有序描述和参数；只有adapter成功绑定才算实际视觉支持。Engine提供ObjectRef及外部Snapshot入口，同一原生播放器统一几何与效果的时间和控制；整批advance先写预分配暂存，再发布，任一失败均不消费本批elapsed。源绑定、播放槽位、代次和配额复用已有memory。结束／取消保留资源至release；不撤销业务模型。
+
+**实际RED与修复。** steps跳步曲线使restore及retarget零时刻错误取到非源姿态，真实新增用例先有3条断言失败。最终restore直接取精确源；非瞬时retarget的零时刻锚点在任意seek返回零时仍成立，后续正时间保留作者的steps语义。普通初次play仍遵守core jump-start，不改曲线定义。批量失败用例比较全部曲线、transform、fill及blur参数，防止只比较三角／圆相同的首点而漏掉部分发布。原RED保留在 `/tmp/omui-hanim-engine-steps-red-dev.log`。
+
+| 验证对象 | 实际结果与限制 |
+|---|---|
+| 四个新包整合 | GCC dev／release、LLVM ASan＋UBSan各5程序39组通过；真实Emscripten运行5程序38组通过，差一组为已有能力常量明确排除的真实并发。日志 `/tmp/omui-hanim-playback-integrated-{dev,release,sanitize,web}.log`。该根sanitize配置不能证明所有复用依赖均被插桩，完整第一方闭包另见下行 |
+| 独立CLI工程 | [consumer](../../tools/ci/hanim-play-consumer/README.md)在仓库workspace之外真实解析、构建和运行dev／release；29个实际包、359条CDB记录，无UI／spec／testing／site／host依赖。执行start／mid／end／crop／retarget和非法region，无GUI输出PNG及JSON provenance；暂停、seek、倒放、重定向走公开API。不是通用素材编辑器或openas provider |
+| 完整第一方CPU消费者插桩 | 独立源码副本显式设置workspace build flags，LLVM23.1.3下94／94第一方运行时及consumer翻译单元实际含ASan／UBSan；detect_leaks=1、无suppressions、无DISPLAY／WAYLAND，5场景及非法region通过。359条总CDB中的第三方／预编译标准运行时未全量插桩；不宣称整个生态或GPU已通过。报告 `/tmp/omui-hanim-play-consumer-sanitize.report.omui.json`，逐源hash证明副本一致 |
+| 真像素视觉 | Engine→adapter→既有CPU renderer，三角到圆、solid→gradient、tone／blur，导出3帧和64²区域，PNG编解码区域逐像素一致。四配置全帧指纹相同：5536db3e62cc2622／96ec4417adcb7294／527f6e32a2f423e4。这是确定性证据，不是官网美术达标 |
+| 重定向光栅边界 | 当前几何C0一致，但等价曲线细分的flattening可造成覆盖差。旧严格1阶阈值真实失败后保留报告；沿用已有renderer独立边界误差契约18／255，额外独立coverage探针限定只在边界、离边界变化0，总量8192预算不变。实测最大3、总184、127边界像素；不能扩大为全图任意容差 |
+| 正式性能预算 | `public-motion/engine-advance-500`实跑4982次，每次500个独立形变＋blur参数，mean 0.080292ms、p95 0.089940ms、160.58ns／完整playback update，max_allocations=0。仅新增1项零分配预算适用并通过，未运行的其余预算不计；准备、渲染及GPU排除，本机一次CPU运行不作跨设备性能承诺。报告 `target/hanim-engine-advance.bench.omui.json` |
+
+**Web与桌面设备CTS解耦。** 现有render／render.vector增加Web声明，移除对SDL设备测试的强制依赖。mcpp支持target依赖但尚无条件test discover，因此设备case移到单一test-only `modules/gfx/render/cts`，保留原65个case主体与像素pin；只按既有testing::threads能力排除3个线程注册。dev／release各15程序65组通过，其中10个设备case通过软件Vulkan Lavapipe执行，不是物理GPU性能；Web为11程序52组（排除10设备＋3线程）；LLVM sanitizer纯CPU为11程序55组通过，不加载SDL驱动，也不宣称历史Lavapipe LSAN已修复。日志 `/tmp/omui-render-cts-{dev-final,release}.log`、`/tmp/omui-render-portable-{web-first,llvm-sanitize}.log`。
+
+**完整目标仍开放。** 四维嵌套Program、阶段源与通道仲裁／混合、完整效果作用域、公共库40项、UI HObject adapter及全部默认配方迁移、真实像素／字形／rig／3D／模拟、GPU阶段、全引擎openas provider与完整产品伞迁移均未交付。本轮未重新构建或验收整站，§14的官网602项和5,031,965B报告仍对应原源码；不把基础Web测试当作新的官网预算证明。根用户mcpp.lock差异保持原样；本地真实验证收口后向同一PR #1提交，不等待其它平台CI。

@@ -2,6 +2,7 @@ module openmui.bench;
 import std;
 import hanim.core;
 import hanim.object;
+import hanim.engine;
 import openmui.geom;
 import openmui.raster;
 import openmui.render.vector;
@@ -75,6 +76,34 @@ std::expected<render::RecordedPath, render::PathRecordError> record_shape(
 
 void add_public_motion_benchmarks() {
     static bool added = false; if (added) return; added = true;
+    add("public-motion/engine-advance-500", "500 public object morph playbacks and blur parameters advanced and committed as one native batch; setup excluded", [](State& s) {
+        auto engine = hanim::Engine::make({.objects={.max_objects=instances*2,.max_parts=1},.max_playbacks=instances});
+        const ShapeFixture input;
+        auto triangle = hanim::Contour::copy({{0,-1},input.triangle}), circle = hanim::Contour::copy({{0,-1},input.circle});
+        if (!engine || !triangle || !circle) { s.fail("engine setup failed"); return; }
+        std::array<hanim::PlaybackRef,instances> refs;
+        for (std::size_t i=0;i<instances;++i) {
+            const auto a = engine->create_object({{{.id="shape",.contours={*triangle},.fill=hanim::Rgba{1,0,0,1}}}});
+            const auto b = engine->create_object({{{.id="shape",.local={.tx=40},.contours={*circle},.fill=hanim::Rgba{0,0,1,1}}}});
+            if (!a || !b) { s.fail("engine object publication failed"); return; }
+            const auto played = engine->play(*a,hanim::anim::morph_to(*b),hanim::fx::blur(0,4),{.duration=hanim::seconds(3600)});
+            if (!played) { s.fail("public play failed"); return; }
+            refs[i]=*played;
+        }
+        cpu_note(s,"500 independent strict contour/transform/fill morphs plus blur parameters per iteration. All active playbacks prepare into preallocated scratch then commit as a batch. Duration 3600s keeps every handle active even at maximum harness iterations. Preparation, matching, rendering, GPU and business setters excluded. ns/item is per complete playback update, not per cubic or pixel.");
+        s.items(instances);
+        while (s.next()) {
+            const auto advanced=engine->advance(hanim::seconds(1.0/120));
+            const auto frame=engine->frame(refs.back());
+            if (!advanced || !frame || frame->info.state!=hanim::PlaybackState::playing || frame->geometry.cubics.empty() ||
+                frame->geometry.parts[0].local.tx<=0 || frame->effect_values.size()!=1 || frame->effect_values[0]<=0) {
+                s.fail("batch did not produce the expected live geometry and effect outputs"); return;
+            }
+            s.counter("playbacks",static_cast<double>(instances));
+            s.counter("cubics_per_playback",static_cast<double>(frame->geometry.cubics.size()));
+            s.counter("checksum",frame->geometry.cubics.front().control1.x+frame->geometry.parts[0].local.tx+frame->effect_values[0]);
+        }
+    });
     add("public-motion/object-query-500", "500 independent owned objects: capture, named/ref lookup, contour view and capability query; preparation excluded", [](State& s) {
         auto objects = hanim::ObjectRegistry::make({.max_objects = instances, .max_parts = 2});
         const std::array edges{hanim::ShapeSegment::line({10, 5})};

@@ -795,3 +795,14 @@ Linux x86_64、固定 mcpp 2026.11.2.2、GCC 16.1.0、LLVM 23.1.3、Chromium 156
 同一正式release程序另测原有ui/frame/idle：1,012节点，2,925次迭代，p95约0.150ms、max_allocations=0，对应0.5ms及零分配两项预算通过。报告 target/shared-slots-ui-idle.bench.omui.json；测量空闲帧，不替代全动画／绘制成本。以上两次过滤运行共覆盖3项预算。
 
 基础最终日志 /tmp/omui-slot-consolidation-moves-final-{dev,release,sanitize,web}.log，UI最终日志 /tmp/omui-slot-consolidation-ui-final-{dev,release,sanitize}.log，正式基准 /tmp/omui-slot-consolidation-object-bench-final-release.log；先前失败和临时工具准备日志保留。原§15.20浏览器／传输报告仍对应其注明源码，本轮原生／基础Web结果不冒充新整站浏览器构件或新的交付预算证明。统一Engine、真实像素域、40公共库／20组合及全部R0–R6／C2–C6仍未关闭。
+
+
+### 15.22 公开播放链路、四维组合与CLI工具补充
+
+维护者明确对象×动画×效果×配置各自可嵌套，包含多对象、组A→组B、组合编排与交叉play。新增[play／Program review](2026-11-04-hanim-play-api-design.md)：日常四参数入口规范化到同一Program→PreparedPlan→播放器，复杂入口显式bind／sequence／parallel／stagger；明确组与逐对象、阶段边界源、通道读写／冲突／空间、效果作用域、配置继承与硬限制、事件及控制。完整编排尚待实施，不能把首条严格单绑定当作最终架构。
+
+本轮首条独立形变产品链路为hanim.library＋effect＋engine＋可选render.vector；公开play／pause／seek／reverse／retarget／cancel与批量失败原子性可真实使用。新包GCC dev／release／LLVM sanitizer各39组、Web38组通过；独立外部CLI工程dev／release实测29包无UI闭包，真实输出区域PNG和provenance；另以显式build flags完成94／94第一方CPU翻译单元ASan／UBSan插桩。正式500playback advance预算实跑零分配，p95约0.090ms，仅覆盖其1项新增预算。严格steps零时刻RED→GREEN、边界像素误差、插桩和后端范围详见[hanim §16](2026-11-04-hanim-animation-library-playback-design.md#16-首条公开播放器与无gui消费者证据)。render设备CTS从可移植模块中分离，原65个case主体／像素pin保留，Web52组实际运行；软件Vulkan不冒充物理GPU性能。
+
+工具规划扩为[九类与共享发布验证底座](2026-11-04-indie-game-tools-assets-design.md)，补齐素材资源、场景关卡及玩法／叙事编辑等独立游戏生产缺口。所有工具完整任务均须CLI／API可执行、GUI可选，Agent可经openas及同一渲染输出获取指定时间／对象／区域的真像素；完整工具随后作为引擎验证应用。外部CLI消费者只是第一条证据，不能将其算成九类编辑器或所有Agent provider已完成。
+
+仍需推进完整Program／40公共动画／20真实创意组合与组件默认配方的共同消费、官网首页／导航／渐进披露及美术、UI适配与其余R0–R6／C2–C6。此轮没有新整站浏览器／传输报告，最后一次整站总量仍是5,031,965B，超5MB预算31,965B，不能沿用更早预算通过值。原用户锁文件保持不提交，检查点只追加PR #1，跨平台CI异步反馈。

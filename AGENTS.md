@@ -18,6 +18,7 @@
 
 ## 规则（会随着代码落地逐步改成 lint）
 
+- **局部能力为中心，全局契约组合**：各引擎围绕本域核心能力，用可控的类型化数据、通用算子／管线和自定义扩展组合场景；跨系统通过公开契约与 adapter 协作，共享同职责的底层实现，显式映射时间／状态／资源，保留领域语义与实时约束，按需引入依赖。新增能力先确定通用基础、领域插件或上层配方的归属；场景逻辑不硬编码进内核。“统一”统一契约与组合／控制／观测模式，不强制万能对象或重复系统。详见[核心设计准则](.agents/docs/2026-11-05-local-global-composable-architecture-design.md)。
 - 规范（`spec/`）只依赖标准库。实现层负责把 openmui 和其他规范（openas / opensal / openbus）连接起来：actor、效果、信封、授权以 openas 0.2 为准，运行时用 `openas::decide` 决定总线上的请求（S-11）。
 - 依赖只能向下（D-82，lint `layering`）：`modules/base` ← `gfx` ← `content` ← `media`（独立组件）← spec ← `modules/ui`（openmui；宿主在 `modules/ui/host`）← components ← mgame（游戏引擎，以 openmui 作为 UI）← 作品。openmui 永远不依赖 mgame；格斗框架 gongfu 的核心（`mgame/gongfu`）只依赖标准库，以后可以原样拆出；component 只使用 runtime 的公开 API；bridge 只依赖 spec；lang 只依赖 `openmui.h`。
 - **C++23 是基线**；C++26（反射等）只在 `modules/ui/reflect` 里使用（GCC 16，`-freflection`）。

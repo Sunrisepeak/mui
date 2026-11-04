@@ -6,6 +6,8 @@
 
 ## 1. 对照真实能力，而非弱化对手
 
+2026-11-05维护者补充的[通用算子／主动被动effect／反应／相机IR](2026-11-05-hanim-composable-operators-reactions-ir-design.md)进一步细化本稿：每个属性、载体、运动描述、相机及其输出端口可控制；effect可作用于匹配／插值路径／属性和状态反应；环境场仅是刺激来源之一，另有事件／阈值／接触／邻域等。其状态、到达、资源和模块边界先设计，不能用当前后处理参数链替代。
+
 Manim Community 已提供 Cairo 与 OpenGL 渲染器，也有 TransformMatchingShapes 等匹配动画。不能将“常见作品风格接近”推断为不能 GPU 渲染或不能换风格。[渲染器](https://docs.manim.community/en/stable/reference/manim.constants.RendererType.html)、[匹配动画](https://docs.manim.community/en/stable/reference/manim.animation.transform_matching_parts.TransformMatchingShapes.html)。
 
 成熟游戏动画系统的基线同样很高。例如 Unreal 的 AnimGraph 支持姿态混合、局部骨骼叠加及覆盖，并有顶点着色器蒙皮与 compute Skin Cache 路径。[动画混合](https://dev.epicgames.com/documentation/en-us/unreal-engine/blending-animations-in-unreal-engine)、[骨骼渲染路径](https://dev.epicgames.com/documentation/unreal-engine/skeletal-mesh-rendering-paths-in-unreal-engine?lang=en-US)。独立 ozz-animation 已采用面向数据的运行时，强调性能／内存及与 renderer、游戏引擎解耦；“独立 C++ 库”本身也不是领先证明。[ozz 官方仓库](https://github.com/guillaumeblanc/ozz-animation)。

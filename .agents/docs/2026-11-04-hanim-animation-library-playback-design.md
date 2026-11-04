@@ -407,3 +407,14 @@ Engine四参数入口规范化为PreparedProgram::single，`play(PreparedProgram
 两个过滤基准各覆盖1项零分配预算，共2项；CLI载入65项不代表全部65项已运行。准备、渲染、GPU均排除，不作完整帧／物理GPU或跨设备性能承诺。原未优化与一次映射优化的报告／日志保留，不以最新数字覆盖历史。整体证据为 `target/hanim-program-site.report.omui.json`；正式基准为 `target/hanim-program-compiled-{seek,advance}.bench.omui.json`。
 
 底座RHI已有compute／storage／dispatch，WebGPU路径可接compute而WebGL声明不支持；当前hanim对象求值仍是CPU。完整matching算法族、跨域插值、真实像素迁移、rig、GPU evaluator、完整通道／效果／配置作用域、40公共库、UI默认动画迁移及全引擎Agent provider仍开放。未来编译器保留对象／时间／通道／效果／资源多视图，当前flat分轨表不当作最终万能IR。
+
+
+## 18. 通用算子、属性／状态反应与相机的架构补充
+
+2026-11-05，维护者明确每个属性、顶点、插值、变换、对象、相机及运动都可以控制，通过通用动画／effect和自定义组合产生复杂表现。具体基线见[可组合算子与反应IR](2026-11-05-hanim-composable-operators-reactions-ir-design.md)：effect可修饰匹配策略、顶点路径、物质属性与响应，不限于最终画面的滤镜；主动附加与被动响应是参与方式，与执行阶段／有无状态分别定义。
+
+环境场只是一个例子。通用反应包含属性、状态、事件／阈值／接触／邻域／材料条件、触发方式、状态迁移及输出；Noita类像素反应是其中一个场景。相机pose、镜头参数和view output各有typed端口，路径／场／动画参数也可被动画。动力学与到达B的约束、质量／属性迁移、状态重建、反应顺序与外部事件幂等必须明确；core纯求值与独立求解模块的边界保持。
+
+局部以本域核心能力、底层通用能力、可编排算子和扩展为中心；全局经公开契约与adapter协作，单一基础归属且可裁剪。该[核心准则](2026-11-05-local-global-composable-architecture-design.md)已按维护者要求写入根AGENTS.md，audio等系统同样适用，保留采样时钟／实时约束和各域语义。
+
+本轮为设计与准则修订，未实现新的matcher／路径modifier／通用属性／反应器／solver／camera adapter／GPU evaluator。§17的代码与测试证据仍对应79081cc，不将文档增加记为运行能力完成；完整IR升级应先定义共享契约和依赖，再逐步迁移现有Program／效果适配，不创建第二套播放器或重复内核。

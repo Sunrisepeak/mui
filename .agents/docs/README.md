@@ -4,6 +4,8 @@
 
 | 文档 | 内容 |
 |---|---|
+| [2026-11-05-local-global-composable-architecture-design.md](2026-11-05-local-global-composable-architecture-design.md) | **核心架构准则（已入AGENTS）**：局部能力中心×全局契约组合；hanim／audio／渲染／反应等本域视角、数据／算子／自定义、公共基础单一归属、不同时间／实时约束、跨模块协作及验收 |
+| [2026-11-05-hanim-composable-operators-reactions-ir-design.md](2026-11-05-hanim-composable-operators-reactions-ir-design.md) | **可组合内核补充**：对象／属性／顶点／相机及运动均可控；通用匹配／路径算子、主动effect与属性／状态／触发反应（场／事件／邻域等）、端点策略、状态重建、多视图IR和CPU／GPU批次；中立契约与单一归属，原型与目标分开 |
 | [2026-11-04-hanim-generality-style-gpu-review-design.md](2026-11-04-hanim-generality-style-gpu-review-design.md) | **通用性／质量／性能比较稿**：对象／动画／IR三种中心视角的取舍，表示、匹配、插值、动画、效果和CPU／GPU异构执行；Manim／游戏动画真实基线、风格自由度、局部与全局边界、领先验收；候选接口不直接定案 |
 | [2026-11-04-hanim-play-api-design.md](2026-11-04-hanim-play-api-design.md) | **play／组合架构 review**：对象×动画×效果×配置的四类嵌套表达，简单四参数入口与统一 Program／PreparedPlan；组、A→B、阶段源、通道混合、效果作用域、时间／配置继承、交叉播放、控制与分期；严格对象Program首批与完整目标分别标明 |
 | [2026-11-04-indie-game-tools-assets-design.md](2026-11-04-indie-game-tools-assets-design.md) | **独立游戏工具／素材补充**：六类基础工具扩为九类＋共享发布验证底座；场景关卡、玩法数据、素材资源编辑与依赖／重导入／目标变体、角色／存档等缺口；按类型支持矩阵与真实游戏生产链 |

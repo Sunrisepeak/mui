@@ -217,7 +217,7 @@ openas 继续承担 actor、effect、grant、决定与记录的共同语义。�
 
 已增加 `AgentMode`、实例 `AgentAccess`、`AgentPolicy`／`AgentRestrictions` 与可信 `AgentSession`。模式与 effect cap 分开；developer／user／session 的 enabled、input、cap 和 operation 集合逐层相交。开发授权绑定本机 C++ 创建的会话及所属实例，JSON 中的 actor／委托链文本不能创建授权；撤销后同一会话不能自动补回。`Runtime` 和它的 `Verbs` 共用实例内 `InvocationContext`，独立 `Verbs` 自持上下文，不使用全局或线程局部调用栈。
 
-真实失败基线为 `core/tests/agent_context_test.cpp` 与 `view/tests/agent_context_test.cpp`：远端 read 回调发起默认本地调用时，旧实现丢失 remote／actor，实际执行了 cap 之外和 S-10 的动作，分别失败 3／6 条断言。第一批 core 候选的 dev 全套为 **8 个程序、37 组通过**，包含 6 组策略与 1 组嵌套调用；view、Protocol、三种宿主、SDK profile 默认值和打包尚在继续，不能据此宣称默认开发模式已端到端可用。
+真实失败基线为 `core/tests/agent_context_test.cpp` 与 `view/tests/agent_context_test.cpp`：远端 read 回调发起默认本地调用时，旧实现丢失 remote／actor，实际执行了 cap 之外和 S-10 的动作，分别失败 3／6 条断言。第一批 core 候选在 dev、release、LLVM sanitize 各为 **8 个程序、37 组通过**，包含 6 组策略与 1 组嵌套调用；view、Protocol、三种宿主、SDK profile 默认值和打包尚在继续，不能据此宣称默认开发模式已端到端可用。
 
 当前 operation 集合支持精确名、`prefix.*` 和 `*`；空列表明确拒绝。资源／对象范围、授权到期、用户配置持久化、独立引擎 provider 继续保留为实施项，不把 operation 前缀匹配当作这些能力已经完成。未绑定实例的底层兼容入口暂保留全局 fallback；应用模板／SDK 的默认路径必须改为实例绑定，并验证两份应用互不串授权。
 

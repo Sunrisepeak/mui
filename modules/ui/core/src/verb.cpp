@@ -5,6 +5,32 @@ import openas;
 
 namespace omui {
 
+const Invocation& bind_invocation(const Invocation& given, Invocation& copy,
+    const std::shared_ptr<const AgentAccess>& access, const Invocation* parent) {
+    const bool inherit = parent && parent->remote && !given.remote;
+    const bool bind = access && given.access != access;
+    const auto& source = inherit ? *parent : given;
+    const auto* policy = access ? access.get() : source.access.get();
+    const bool delegate = source.remote && source.session && policy &&
+        policy->effective(source.session.get()).development_grant;
+    if (!inherit && !bind && !delegate) return given;
+    copy = given;
+    if (inherit) {
+        copy.actor = parent->actor;
+        copy.remote = true;
+        copy.access = parent->access;
+        copy.session = parent->session;
+        copy.operation = parent->operation;
+    }
+    if (access) copy.access = access;
+    if (delegate) copy.actor = copy.session->attribute(copy.actor);
+    return copy;
+}
+
+const Invocation* InvocationContext::current() const noexcept { return calls_.empty() ? nullptr : calls_.back(); }
+InvocationScope::InvocationScope(InvocationContext& context, const Invocation& call) : context_(context) { context_.calls_.push_back(&call); }
+InvocationScope::~InvocationScope() { context_.calls_.pop_back(); }
+
 bool valid_verb_name(std::string_view name) noexcept {
     if (name.empty() || name.size() > 128) return false;
     bool word_start = true;
@@ -98,7 +124,10 @@ Envelope dry_run_of(const Envelope& stopped, Effect effect) {
     return dry_run_answer(outcome, effect, std::move(more));
 }
 
-Envelope Verbs::invoke(std::string_view name, const Invocation& call) {
+Envelope Verbs::invoke(std::string_view name, const Invocation& given) {
+    Invocation copy;
+    InvocationContext& context = context_ ? *context_ : own_context_;
+    const Invocation& call = bind_invocation(given, copy, access_, context.current());
     auto record = [&](int code) {
         if (!call.dry_run) journal_.push_back({std::string(name), call.actor.text(), call.args, code});
     };
@@ -115,13 +144,14 @@ Envelope Verbs::invoke(std::string_view name, const Invocation& call) {
     const Effect effect = it->desc.effect;
     if (it->desc.person && call.remote) return stop(person_only(std::format("`{}`", name)), effect);
     const openas::Decision clear = clearance(name, effect, it->desc.person, call);
-    if (clear == openas::Decision::refuse) return stop(above_cap(std::format("`{}` ({})", name, spec::name(effect))), effect);
+    if (clear == openas::Decision::refuse) return stop(above_cap(std::format("`{}` ({})", name, spec::name(effect)), call), effect);
     if (clear != openas::Decision::run && spec::requires_answer(effect) && call.answer != it->desc.answer)
         return stop(needs_answer(std::format("`{}` ({})", name, spec::name(effect)), it->desc.answer), effect);
     // A verb states no inverse: a reversible one is not in the history, so it
     // cannot be undone by the runtime (S-12) — unless its function records one.
     if (call.dry_run) return dry_run_answer("run", effect, Value{}.set("undoable", it->desc.undoable && effect == Effect::reversible));
     Envelope e;
+    InvocationScope active(context, call);
     auto result = it->fn(call.args);
     if (result) {
         if (!result->is_null()) e.data(std::move(*result));

@@ -27,6 +27,9 @@ struct VerbDesc {
     bool        undoable = false;
 };
 
+class AgentAccess;
+class AgentSession;
+
 // Who asks, with what, and the answer they give.
 struct Invocation {
     Value       args;
@@ -40,6 +43,34 @@ struct Invocation {
     // performed, answered with the outcome as data, and nothing changes —
     // no state, no history, no journal entry, no event.
     bool        dry_run = false;
+    // Trusted host context, never read from request JSON. Runtime/Verbs bind
+    // the authoritative instance; session restrictions can only narrow it.
+    std::shared_ptr<const AgentAccess> access;
+    std::shared_ptr<const AgentSession> session;
+    std::string operation;
+};
+
+[[nodiscard]] const Invocation& bind_invocation(const Invocation& given, Invocation& copy,
+    const std::shared_ptr<const AgentAccess>& access, const Invocation* parent = nullptr);
+
+// An instance-owned dynamic call context. A Runtime and its Verbs share
+// this stack, so callbacks cannot shed remote authority by changing entry
+// points. It is used only on their owning thread, never process-global.
+class InvocationContext {
+public:
+    [[nodiscard]] const Invocation* current() const noexcept;
+private:
+    friend class InvocationScope;
+    std::vector<const Invocation*> calls_;
+};
+class InvocationScope {
+public:
+    InvocationScope(InvocationContext& context, const Invocation& call);
+    ~InvocationScope();
+    InvocationScope(const InvocationScope&) = delete;
+    InvocationScope& operator=(const InvocationScope&) = delete;
+private:
+    InvocationContext& context_;
 };
 
 // The data of a dry run's answer (S-13): what performing it would do.
@@ -63,6 +94,10 @@ using VerbFn     = std::function<VerbResult(const Value& args)>;
 
 class Verbs {
 public:
+    void set_agent_access(std::shared_ptr<const AgentAccess> access) { access_ = std::move(access); }
+    // The host owns the shared context longer than this registry. Null
+    // restores the registry's own context (standalone Verbs).
+    void set_invocation_context(InvocationContext* context) noexcept { context_ = context; }
     // Refused (with the reason) when the name is malformed, already taken, or
     // the verb needs an answer and states none (S-1).
     std::expected<void, std::string> add(VerbDesc desc, VerbFn fn);
@@ -90,6 +125,9 @@ public:
     void clear_journal() { journal_.clear(); }
 
 private:
+    std::shared_ptr<const AgentAccess> access_;
+    InvocationContext own_context_;
+    InvocationContext* context_ = nullptr;
     struct Slot {
         VerbDesc desc;
         VerbFn   fn;

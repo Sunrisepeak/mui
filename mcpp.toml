@@ -30,6 +30,7 @@ members = [
     "modules/base/testing",
     "modules/base/trace",
     "modules/base/unicode",
+    "modules/gfx/hanim/object",
     "modules/gfx/raster",
     "modules/gfx/render",
     "modules/gfx/render/vector",

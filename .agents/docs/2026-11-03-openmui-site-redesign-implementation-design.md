@@ -768,3 +768,14 @@ Linux x86_64、固定 mcpp 2026.11.2.2、GCC 16.1.0、LLVM 23.1.3、Chromium 156
 维护者明确独立动画产品、UI 普通消费者、骨骼／物理／水体、Agent 控制、硬件加速及 Noita 类像素反应能力，见[整体架构讨论稿](2026-11-04-omui-engine-framework-architecture-design.md)。新增公开 `hanim::PreparedShapeMorph`：单闭合 line／quad／cubic 轮廓准备、保形细分、方向／起点对应，采样写调用者缓冲；独立于 UI／site 的 renderer 消费者以同一当前路径使用真实材料及 tone＋blur。真实三角→圆帧条／WebP 已导出并审图，见 [hanim README](../../modules/base/hanim/README.md)。
 
 本地 dev／release／LLVM sanitizer 各通过 hanim 8 程序 62 用例（shape 15），及图形消费者 5 用例；几何指纹跨 GCC／LLVM 一致，全 lint 0 问题。具体日志与误差边界见整体架构稿 §11。UI 旧 Morph 尚未接入该新计划，HObject／Engine、像素配对、模拟／compute、40 项库化和 Manim 全表仍未完成；不以此关闭 R0–R6／C2。
+
+
+### 15.20 独立产品前置边界与顶层架构补充
+
+维护者进一步明确：omui UI、hanim 动画、共享渲染、模拟／物理／化学／元胞、音频与计算能力在产品层对等，标准独立，mcpp 通过构建插件服务 GPU／HPC，各工具／编辑器可用 omui 构建人与 Agent 双视角。按需承担复杂度／体积、相同职责收敛到一个权威实现成为顶层硬约束，详见[多引擎产品架构](2026-11-04-multi-engine-product-architecture-design.md)。这扩展原工程边界，保持全部官网 R0–R6／C2–C6 和40／20下限。
+
+本轮已提取 hanim.core，迁移内部消费者，父 hanim 暂为单份 core 的薄导出；提取 std-only log，UI diag 薄导出相同 API；新增 hanim.object 的 owned contour、命名层级、代次引用和不可变 capture 首批。具体目录、资源／线程边界及完整证据见[hanim 细案 §14](2026-11-04-hanim-animation-library-playback-design.md#14-core对象日志前置拆分的整合证据)。独立干净工程实际消费 core／math／log，mcpp解析闭包没有UI或renderer，已加入CI。
+
+新图 SDK／motion／site 在 dev、release、LLVM sanitizer 各28程序189组通过，官网像素pin保持3027fb6720e6078d；重建native／site-web，重新导出开场并prerender后，9组浏览器共602项通过（59参考帧不重复计数）。新独立冷访问总传输5,031,965B，仍超5MB预算31,965B，其余六项通过；不沿用旧检查点的预算通过结果。
+
+本轮没有交付统一 Engine.play、真实像素域、完整动画库、UI HObject adapter、完整3D/HPC/模拟或全引擎Agent控制。审计还确认ObjectRegistry槽位管理与memory SlotMap重叠，下一步应补足共享memory契约后迁移，而不是长期保留两套。正式性能预算、干净完整工程、风格收敛、艺术／创意每维≥90及其余原范围继续开放。新顶层讨论不把已完成前置当作全项目完成。

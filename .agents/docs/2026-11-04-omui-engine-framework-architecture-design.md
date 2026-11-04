@@ -4,6 +4,8 @@
 
 继续遵守 D-55／D-59／D-61／D-65／D-66／D-81／D-82／D-87／D-88／D-93，及[hanim 完整引擎讨论](2026-11-04-hanim-animation-library-playback-design.md)、[人物技术与计算分层](2026-10-29-math-fighter-tech-design.md)。本文扩展[官网重构](2026-11-03-openmui-site-redesign-implementation-design.md)的基础能力设计；官网仍须完成全部 R0–R6，但不能作为引擎唯一消费者。规范身份为 openmui，实现与官网品牌为 omui。讨论稿不直接修改 OpenLifa 标准。
 
+维护者后续明确的多产品对等、模拟／元胞、音频／MIDI、mcpp 的 HPC 构建插件、按需复杂度／体积与单一权威实现，统一见[顶层产品架构](2026-11-04-multi-engine-product-architecture-design.md)。本文保留各引擎、Noita 类负载、硬件与控制的技术展开；已有代码与目标能力按各自证据区分。
+
 ## 1. 产品边界与依赖方向
 
 | 产品／模块 | 核心职责 | 不应承担的职责 |

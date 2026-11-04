@@ -1,15 +1,15 @@
 # modules
 
-The libraries openmui is made of, in layers. A package depends only on its own layer and the layers below it; `tools/lint` checks every dependency.
+Reusable libraries shared by the project's independent products, organized by dependency layer. A package depends only on its own layer and the layers below it; `tools/lint` checks every dependency. Product roles and selective composition are described in the [top-level architecture](../.agents/docs/2026-11-04-multi-engine-product-architecture-design.md).
 
 | Layer | What it is | Depends on |
 |---|---|---|
-| [base](base) | Foundations: memory, geometry, Unicode, tracing, sessions, pipelines, images, and the animation engine hanim | the standard library, third-party libraries |
-| [gfx](gfx) | Graphics: the GPU abstraction, shaders, the CPU rasteriser and the renderer | base |
+| [base](base) | Foundations: memory, math, geometry, Unicode, logging, tracing, sessions, pipelines, images, and hanim.core | the standard library, third-party libraries |
+| [gfx](gfx) | Graphics: the GPU abstraction, shaders, CPU rasteriser, renderer and independent hanim object layer | base |
 | [content](content) | Text, layout, Markdown and internationalisation | base, gfx |
-| [media](media) | Media that is not drawn: sound now (audio), video and timelines later | base, gfx, content |
-| [ui](ui) | openmui itself: the runtime, views, semantics, agents, themes and hosts | the layers above, [spec](../spec) |
+| [media](media) | Independent audio, video and timeline libraries and their device/codec packages | base, gfx, content |
+| [ui](ui) | The omui UI implementation: runtime, views, semantics, agents, themes and hosts | the layers above, [spec](../spec) |
 
-`base`, `gfx`, `content` and `media` are independent components: none of them knows of openmui, and each can be used, and published, on its own (D-55). openmui never depends on a game engine; an engine uses openmui as its interface (D-82).
+`base`, `gfx`, `content` and `media` are independent components: they do not depend on the UI runtime or UI specification, and each can be used and published on its own (D-55). The UI framework never depends on a game engine; games can consume its public UI APIs (D-82).
 
-A package's directory is its name: `openmui.rhi.sdl` lives in `gfx/rhi/sdl`, `hanim` in `base/hanim` (D-80).
+A package's directory is its name: `openmui.rhi.sdl` lives in `gfx/rhi/sdl`, `hanim.core` in `base/hanim/core`, and `hanim.object` in `gfx/hanim/object` (D-80). The current `hanim` compatibility umbrella in `base/hanim` exports core only; a complete product entry point is separate implementation work.

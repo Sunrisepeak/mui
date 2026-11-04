@@ -4,6 +4,7 @@
 
 | 文档 | 内容 |
 |---|---|
+| [2026-11-04-multi-engine-product-architecture-design.md](2026-11-04-multi-engine-product-architecture-design.md) | **顶层产品架构／review 稿**：对等的 UI／动画／渲染／模拟／音频／计算产品，物理／化学／元胞模型，分块与计算优化；mcpp 的 GPU／HPC 构建插件、跨平台／设备、独立标准、Agent 横贯开发与使用、通用风格及基于 omui 的双视角工具／MIDI 编辑器；可裁剪与可拆仓边界 |
 | [2026-11-04-omui-engine-framework-architecture-design.md](2026-11-04-omui-engine-framework-architecture-design.md) | **整体架构／讨论稿**：独立动画与渲染、UI 普通消费者；默认人／Agent 双用户、开发全开放与多级配置，Agent 操作／控制／观测；骨骼／物理／水体、Noita 类负载、CPU／GPU 批次／同步、跨平台、profiling 与性能验收 |
 | [2026-11-04-hanim-animation-library-playback-design.md](2026-11-04-hanim-animation-library-playback-design.md) | **hanim 完整引擎／讨论稿**：core＋动画库＋效果，hobject 与 `hengine.play`，真实像素物质与轮廓插值、三轴分级；旧 Hanim 固定版本的取舍；omui 通过公开 adapter 作为普通用户消费引擎；Manim 全覆盖与独立消费者验收，40／20 不替代底层能力 |
 | [2026-11-04-omui-motion-readability-presentation-design.md](2026-11-04-omui-motion-readability-presentation-design.md) | **动画中间态质量（实施中）**：默认可读文字与显式字形变形、打断快照、实色承载面对比度、历史主题层隔离、呈现／点击几何与响应式约束；真实失败证据与局部验证边界 |

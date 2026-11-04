@@ -1,6 +1,6 @@
 # hanim 通用对象动画引擎：像素插值、动画库与效果
 
-2026-11-04。**状态：讨论草案，目标 API 尚未实现。** 维护者本轮进一步明确：**hanim 是 core＋基础动画库＋动画效果组成的通用对象动画产品；统一入口为 `hengine.play(hobject, animation, effect)`；对象、部件、几何与真实像素均可插值；UI 全部使用该引擎；完整覆盖 Manim 功能并在可衡量的维度上超过它。** 当前位于 base 的时间／数值模块只是 core 的已有实现，不能据此收窄整个 hanim 的职责。
+2026-11-04。**状态：独立 core 与首批 owned 对象已落地；统一播放器、完整库与去重收口仍未完成。** 维护者本轮进一步明确：**hanim 是 core＋基础动画库＋动画效果组成的通用对象动画产品；统一入口为 `hengine.play(hobject, animation, effect)`；对象、部件、几何与真实像素均可插值；UI 全部使用该引擎；完整覆盖 Manim 功能并在可衡量的维度上超过它。** 当前位于 base 的时间／数值模块只是 core 的已有实现，不能据此收窄整个 hanim 的职责。
 
 动画必须是框架用户可以真实复用的能力；官网是消费者与验收场，不是动画库的归宿。本文纠正“官网 40 个设计已等于 40 个通用库条目”的口径，不将新增提议写成已完成。
 
@@ -14,7 +14,9 @@
 
 | 目录／模块 | 已有真实能力 | 尚缺的公共产品边界 |
 |---|---|---|
-| `modules/base/hanim/`，`import hanim;` | Tween、Track、Spring、Decay、Motion；Timeline 编排、时间映射与确定性采样；新增 PreparedShapeMorph 的单闭合轮廓准备／无分配采样，已有独立图形消费者 | 尚无完整 HObject／Engine；形状检查点不等于任意拓扑、像素对应或完整动画库 |
+| `modules/base/hanim/core/`，`import hanim.core;` | Tween、Track、Spring、Decay、Motion；Timeline 编排、时间映射与确定性采样；PreparedShapeMorph 单闭合轮廓准备／无分配采样，已有独立图形消费者 | 这是独立 core，不是完整 HObject／Engine／像素对应或动画库 |
+| `modules/base/hanim/`，`import hanim;` | 当前只薄导出同一 hanim.core，无第二份算法；仓内底层消费者改为直接依赖 core | 完整产品伞后续迁到 gfx，待 object／library／effect／engine 实际交付后导出 |
+| `modules/gfx/hanim/object/`，`import hanim.object;` | owner／generation 引用、命名层级、owned Contour 与不可变 Snapshot、错误／日志／trace、真实公共 core-plan 消费者 | 尚无完整 Engine、像素／字形／mesh／material 域和 UI adapter；槽位管理仍待收敛到 memory |
 | `modules/ui/motion/`，`import openmui.motion;` | Matter 提取显示列表；Morph 对两个绘制状态匹配、采样、绘制 | 通用轮廓归一化／对应关系不完整；可复用 clip 图与统一播放句柄未收成用户产品 |
 | `modules/ui/view/` | `motion` 槽、默认规则、暂停／寻址／倒放节点 motion、`pixel_effect` 及效果列表 | 不同动画通道尚未统一为一个完整 AnimationPlan／Handle；同属性混合不能统称已支持 |
 | `modules/gfx/render/vector/` | 16 个内置图层／像素效果、CPU／GPU 后端、效果参数 | 效果处理器不等于完成设计的时间动画；不同效果类型的材质插值需要独立契约 |
@@ -54,8 +56,8 @@
 | 层 | 职责 | 位置建议 |
 |---|---|---|
 | 时间与数值核心 | 曲线、插值、轨道、编排、确定性时间求值 | 建议 `hanim.core`，`modules/base/hanim/core/` |
-| 通用对象与准备计划 | 身份／层级、几何与像素域、资源引用、能力、对应关系 | 建议 `hanim.object`，`modules/base/hanim/object/`；不依赖 UI |
-| 可组合动画库 | 属性／变换／轮廓／字形／像素／粒子与编排配方 | 建议 `hanim.library`，`modules/base/hanim/library/`；数据与算法不依赖 view 或具体 GPU |
+| 通用对象与准备计划 | 身份／层级、几何与像素域、资源引用、能力、对应关系 | `hanim.object`，`modules/gfx/hanim/object/`；首批实施中，不依赖 UI／renderer |
+| 可组合动画库 | 属性／变换／轮廓／字形／像素／粒子与编排配方 | 建议 `hanim.library`，`modules/gfx/hanim/library/`；可绑定对象契约，不依赖 view 或具体 GPU |
 | 动画效果 | 效果描述、材质计划、CPU／GPU 实现绑定、成本与降档 | 建议 `hanim.effect`，`modules/gfx/hanim/effect/`；复用 gfx 中现有单一实现 |
 | 通用引擎与播放器 | 场景、计划准备、对象绑定、生命周期、统一句柄、按批采样与提交 | 建议 `hanim.engine`，`modules/gfx/hanim/engine/`；不依赖 UI |
 | 统一产品入口 | 导出 object／library／effect／engine，对调用者呈现完整 hanim | 建议 `import hanim;`，伞包 `modules/gfx/hanim/` |
@@ -63,13 +65,13 @@
 | UI 适配与组件默认配方 | UI 状态／部件 → hobject；输入／语义协调；按组件用途选库配方 | `modules/ui/motion/`、view、theme；全部消费通用引擎 |
 | 消费者 | 原生／Web 应用、独立动画、官网、影片与测试工程 | 只调用公开 API |
 
-以上是**目标归属草案，不是当前目录**。现有 `modules/base/hanim/` 的 `import hanim;` 是时间核心；若将相同名字变成完整伞模块，必须先迁移为 `hanim.core`，逐项修改依赖与导入，再引入高层伞模块，不能让旧核心导入新伞模块形成环。包身份、路径、过渡兼容与生成绑定需要单独迁移检查点，不在本轮讨论中批量移动文件。
+以上仍包含**目标归属**。前置拆分现已落地：原实现及原测试移到 `modules/base/hanim/core/`；namespace `hanim::` 和原算法保留，父 `hanim` 仅薄导出 `hanim.core`，69 处仓内导入及 17 个直接消费者已迁移。完整产品伞仍须后续迁至 gfx，不能让 base 伞反向依赖 gfx。按现行 AGENTS 的路径硬约束，`modules/base/hanim/` 保持标准库／数学核心；原先把对象放 base 的位置建议调整为 `modules/gfx/hanim/object/`，这样独立对象可使用 base 的单一 log／trace，却不污染 core 的依赖。对象层仍不依赖 UI、spec 或 renderer。包身份、依赖、兼容与真实构建分别验收，不用目录搬迁宣称统一引擎已完成。
 
-实际已有 `raster → hanim`、`render.vector → hanim + raster`，因此在当前 `hanim` 直接 import `render.vector` 会形成真实循环。core 提纯后，这些低层消费者只导入 `hanim.core`；高层引擎再使用 renderer。HObject 的通用数据契约不能依赖高层 DisplayList 类型；DisplayList 是一种 adapter 输入／输出，资源表示与契约也要避免倒置。
+拆分前实际是 `raster → hanim`、`render.vector → hanim + raster`，因此直接让旧 `hanim` import renderer 会形成真实循环。本轮这些低层消费者已改为直接依赖／导入 `hanim.core`；高层引擎后续再使用 renderer。HObject 的通用数据契约不能依赖高层 DisplayList 类型；DisplayList 是一种 adapter 输入／输出，资源表示与契约也要避免倒置。
 
 `openmui.view` 目前依赖 `openmui.motion`；后者的通用 Matter／Morph 部分应下沉为 hanim 的对象／计划能力，UI 语义匹配与布局事务留在适配层。不能把 Runtime 绑定实现塞回引擎形成循环。渲染器、shader 与主题令牌仍各有单一实现，hanim 通过契约与适配使用它们。
 
-base 中的库配方只引用中立的对象域、效果标识与参数契约，不 import gfx 的具体 shader／纹理／DisplayList 类型；实际实现由效果／渲染插件绑定。独立性意味着可只取 core，也可单独使用整个 hanim 产品，不能要求使用完整动画库时先构造 UI Runtime。
+数值／时间原语继续留在 base core；面向 HObject 的公开动画库位于 gfx hanim 家族，引用对象域、效果标识与参数契约，不 import view 或具体 shader／纹理／DisplayList 类型，实际实现由效果／渲染插件绑定。这样对象与库之间没有 base→gfx 倒置，也不用把带日志／trace 的对象生命周期塞回数值 core。独立性意味着可只取 core，也可单独使用整个 hanim 产品，不能要求使用完整动画库时先构造 UI Runtime。
 
 ## 4. 建议的公开入口
 
@@ -321,3 +323,22 @@ HObject 的使用接口至少区分：
 5. 40 个基础库条目与 20 个组合都引用公开 hanim；官网只持有业务模型与场景内容。未迁移的现有 UI 特有能力列入清单，不能用新旧两套长期并存宣称统一完成。
 
 这些条目是后续实施和迁移的验收边界，本节不宣称当前已有该 adapter 或完整 HObject／Engine API。
+
+
+## 14. core／对象／日志前置拆分的整合证据
+
+顶层产品、HPC 构建／运行时、模拟／元胞／音频、双视角工具、按需体积与单一实现约束，现统一见[顶层产品架构](2026-11-04-multi-engine-product-architecture-design.md)。以下是实际交付范围，不能替代完整 Engine／40 项库／20 个组合及原 R0–R6。
+
+- 原 core 算法／8 程序／数学数据仅修改模块归属、导入及相对路径，原指纹未改；仓内低层改为直接依赖 hanim.core，父 hanim 只薄导出。core＋兼容伞在 dev／release／LLVM sanitizer 各 9 程序、65 组通过。
+- 原 UI diag 实现提为 std-only 的 openmui.log，UI :diag 薄导出相同实体。独立 log 与旧 facade 在三配置各 3 程序、11 组通过，含真实 bounded 子进程的 invariant／fatal 终止。未重写 logger／JSON 或宣称原分配行为得到优化。
+- 根目录新图的 SDK／motion／site 在 dev／release／LLVM sanitizer 各 **28 程序、189 组通过**；官网像素 pin 均为 3027fb6720e6078d。release／sanitize 用外部 OMUI_EXPECT_BUILD_PROFILE 校验；dev 本次 expectation 未设置，实际 profile／行为仍记录，不伪装为另一个外部 oracle。
+- 独立干净 consumer 由 mcpp 真实构建／运行，实际 resolution schema 2 与 CDB 审出严格四包：consumer、hanim.core、openmui.math、openmui.log。真实 triangle→circle、Timeline、乱序采样及 8 条日志在 dev／release 通过。脚本 tools/ci/hanim-core-consumer.py 已加入单一 CI job，不依赖 UI、规范、testing、renderer 或 site。
+- hanim.object 首批实现深拥有 contour、图／命名部件与快照，owner／object generation／part generation 分别校验。变更先准备后发布，失败不改变原版本；快照跨 producer／Registry 销毁继续有效。日志复用 log，trace 复用 trace，重入写拒绝不再次递归产生日志。3 程序、10 组在根目录 dev／release／LLVM sanitizer／Web 各通过；Web 仅不运行并发线程阶段，生命周期断言仍执行。
+- 新 query CTS 在 tracing 开启、缓冲预热后运行 2000 轮 capture／find／get／resource view／capability 查询，新增受监测分配为 0。最初测试只替换普通 new/delete，LLVM ASan 在 trace::stop 的 stable_sort nothrow 临时缓冲报 alloc-dealloc-mismatch；真实符号日志定位后，仅测试补齐普通／array／nothrow／aligned 成对入口，12 次探针与原 0alloc 断言均保留，没有关闭 ASan。原 RED /tmp/omui-hanim-object-query-symbolized-red.log 保留。该 CTS 不代表完整引擎性能预算已验收。
+- 共用 math 新增 exact fmod，raster 修复奇数 dash 的双周期相位及负／非有限 pattern 可能卡帧问题。原基线 7 条覆盖断言失败并超时；math／raster／core／伞的 release／LLVM sanitize 各 15 程序、97 组通过，Web core／log／math／伞 14 程序80组、raster 3程序24组通过，原场景及几何 pin 不变。虚线形变的起点／方向连续性、极小合法 dash 的预算及完整 cap 语义仍开放。
+
+新正式 Web／native 已重建并重新导出 56 张开场、8 张全图，实际 prerender 与 agent.md 完成；9 组浏览器共 **602 项通过**，59 帧实际浏览器 CPU 输出与 native 逐帧一致，帧数不重复计数。源 241ed00 的 packed HTML SHA-256 为 1429e153faf57b1ea91cc3d515b3b32b05eba0af8248ef1e5e2a4a2fdab4d624，native 为 c8c4045599dfcce9a8eb1cd576b387d2519c81d477c3a118975207f7f6cb05b1。该官网构件仍使用当前 UI motion，未接入 hanim.object；浏览器结果不作为 UI → HObject 已实现的证明。
+
+独立冷访问实际总传输 **5,031,965 B**，超过原 5 MB **31,965 B**；其余六项预算通过。单样本首帧代理约 1849ms 不是 FCP／LCP，不作提速结论，未调高预算。原用户 mcpp.lock 差异保持，未纳入提交。此轮源、命令和报告分别在 /tmp/omui-hanim-*.log、target/site-hanim-core-*.report.omui.json 及 target/hanim-core-log-consumer-root.report.omui.json。
+
+**重复机制仍待移除**：本轮只读审计确认 ObjectRegistry 与 memory SlotMap 各自管理槽位／free-list／代次。需在已有 memory 模块补齐64位代次、耗尽退休、容量和失败原子准备，再迁移对象层，保留旧32位Handle bits／C ABI。当前对象层的独立性和生命周期通过不等于该收敛已完成。统一播放器／真实像素域／40项库／完整跨端资源／HPC／模拟／Agent provider 继续按完整方案实施。

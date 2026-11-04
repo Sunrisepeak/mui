@@ -6,6 +6,7 @@ Depends on: [base](../base). Used by: [content](../content), [ui](../ui).
 
 | Package | |
 |---|---|
+| [hanim](hanim) | The graphics-facing hanim product family: independent owned object captures now; reusable animation/effect/player packages follow separately |
 | [rhi](rhi) | The GPU abstraction (`omui.rhi`): descriptions checked before a backend sees them, command lists as data; backends (SDL_GPU, WebGPU, WebGL2) and their conformance suite inside it |
 | [shader](shader) | Slang shaders compiled per backend format, bindings read back, emitted as C++; its build rule inside it |
 | [raster](raster) | The deterministic CPU rasteriser: paths, strokes, gradients, images, clips, layers, blend modes, shadows |

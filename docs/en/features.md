@@ -46,12 +46,18 @@ be passed to `hengine.play(animation)` or prepared once with
 explicit snapshots stay frozen. The same player supports seek, pause, reverse
 and current-pose retargeting without changing the application's business state.
 
+Typed `fx::vertex_path(PointPath::bend(0.25))` and `fx::translation_path(...)`
+modify matched geometry or local positions before rendering. They can be
+combined with blur/tone, preserve endpoints, and share the core point operator
+with the C++ UI path adapter. Repeated path modifiers add displacement in the
+same endpoint frame; they do not change matching rules.
+
 **Evidence**: an independent public consumer tests geometry and controls in
 dev/release; a separate consumer uses the shared CPU renderer for actual pixels
 and region exports. Rendering is opt-in; the base `hanim.core` stays independent.
 
 **Next**: general property/channel mixing, group effect scopes, image/pixel/rig
-domains and the UI adapter. Current UI motion primarily uses core primitives;
+domains and the full UI/interactive-gallery integration. Current UI motion primarily uses core primitives;
 the website's scene count is not a count of public engine recipes.
 
 ## 6. Rendering: a CPU reference and a GPU path; effects first-class

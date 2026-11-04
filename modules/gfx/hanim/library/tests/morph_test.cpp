@@ -244,6 +244,11 @@ int main(int argc,char** argv) {
         auto x=description(triangle()),y=description(circle());x.parts[1].local.tx=-1.7e308;y.parts[1].local.tx=1.7e308;
         auto overflow=take(PreparedObjectMorph::prepare(f.add(x),f.add(y)));
         error_is(overflow.sample(.5,buffer.output()),MorphError::nonfinite_transform);unchanged();
+        // Linear translation is representable, but its path effect is not.
+        x.parts[1].local.tx=0;y.parts[1].local.tx=1e308;
+        MorphOptions curved;curved.translation_path=PointPath::bend(8);
+        auto process_overflow=take(PreparedObjectMorph::prepare(f.add(x),f.add(y),curved));
+        error_is(process_overflow.sample(.5,buffer.output()),MorphError::nonfinite_transform);unchanged();
     });
     suite.test("empty groups remain usable and multiple contours preserve compound winding",[] {
         Fixture f;ObjectDescription empty;empty.parts.push_back({.id="group"});

@@ -26,6 +26,9 @@ plan and output counts, not allocator bytes or core preparation scratch. Core
 per-contour limits remain `ShapeMorphOptions`' responsibility; the original
 options are passed through unchanged, and failures preserve `ShapeMorphError`.
 Unused shape options on a group-only plan perform no contour preparation.
+Process-path controls are validated even on a group-only plan; invalid
+`shape.point_path` or `translation_path` returns `invalid_options` before
+capturing/compiling shapes. Other shape-only budgets keep their prior policy.
 Failure returns no partial plan. `MorphFailure.part` uses source DFS index;
 `contour` is the ordinal within it, with max-size sentinels when not applicable.
 
@@ -38,6 +41,14 @@ before any output write. Overflowing transform interpolation returns
 valid progress and exact prechecked spans: unexpected core failure is an
 internal invariant violation, not a partial returned frame. Endpoints retain
 their exact local transforms/colors and original subdivided contour geometry.
+With a nonzero `shape.point_path`, each matched point follows the public
+chord-relative cubic operator after correspondence. `translation_path` applies
+to each part's local tx/ty in the bound morph payload. It does not replace
+parent composition or become a world-space path. Both are pure process
+effects, independent from ordered renderer effects; default zero controls
+preserve the direct interpolation path. Point controls in ±1e6 and core
+coordinate limits ensure representable double shape samples. Modified
+translations participate in the same preflight/failure-atomic check above.
 Trace observation uses the common trace facility; its first thread buffer is
 prepared when tracing starts on that thread, and warm sampling adds no heap
 allocation. No new throughput/latency guarantee is made.

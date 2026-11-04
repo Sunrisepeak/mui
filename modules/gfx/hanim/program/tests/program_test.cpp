@@ -75,6 +75,35 @@ bool all_same(const FrameView& a,const FrameView& b) {
 }
 int main(int argc,char** argv) {
     Suite suite{"hanim.program"};
+    suite.test("typed path targets compose with image effects and retain a single preparation path",[] {
+        Fixture f;
+        const auto base=anim::morph(f.a,f.b);
+        const auto recipe=base.with_effect(fx::vertex_path(PointPath::bend(.35)))
+                              .with_effect(fx::translation_path(PointPath::bend(.25)))
+                              .with_effect(fx::blur(0,8));
+        check(base.binding().morph.shape.point_path.linear() && base.binding().morph.translation_path.linear());
+        const auto braced=base.with_effect({});
+        check(braced.binding().effects.size()==1,"legacy braced image effect stays unambiguous");
+        check(recipe.binding().effects.size()==1,"process effects are not silently passed to the image backend");
+        const auto plan=take(PreparedProgram::prepare(recipe)), plain=take(PreparedProgram::prepare(base));
+        Buffer output(plan.tracks()[0]), reference(plain.tracks()[0]);
+        auto middle=output.sample(plan,0,.5);
+        const auto original=reference.sample(plain,0,.5);
+        check(middle.geometry.parts[0].local.tx==5 && middle.geometry.parts[0].local.ty==2.5);
+        check(middle.geometry.parts[0].fill==original.geometry.parts[0].fill);
+        check(!std::ranges::equal(middle.geometry.cubics,original.geometry.cubics,[](const auto& a,const auto& b){
+            return a.start==b.start && a.control1==b.control1 && a.control2==b.control2 && a.end==b.end;
+        }));
+        check(middle.effect_parameters==1 && output.effects[0]==4);
+        for(double time:{0.,1.})check(all_same(output.sample(plan,0,time).geometry,reference.sample(plain,0,time).geometry));
+        const auto combined=take(PreparedProgram::prepare(base.with_effect(fx::translation_path(PointPath::bend(.125)))
+                                                             .with_effect(fx::translation_path(PointPath::bend(.125)))));
+        Buffer sum(combined.tracks()[0]);
+        check(sum.sample(combined,0,.5).geometry.parts[0].local.ty==2.5);
+        const auto bad=PreparedProgram::prepare(base.with_effect(fx::vertex_path({{std::numeric_limits<double>::quiet_NaN(),0},{}})));
+        check(!bad && bad.error().code==ProgramError::animation && bad.error().node==0 &&
+              bad.error().animation && bad.error().animation->code==MorphError::invalid_options);
+    });
     suite.test("standalone live inputs capture once and retain geometry after registry changes",[] {
         Fixture f;
         const auto recipe=anim::morph(f.ar,f.br).duration(seconds(1));

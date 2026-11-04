@@ -42,9 +42,11 @@
 
 **已有能力**：`import hanim;` 提供对象、可复用的严格轮廓形变、按序效果参数、sequence/parallel/stagger与显式时钟Engine。`hanim::anim::morph(source, target).duration(600ms)`这样的叶子可直接交给 `hengine.play(animation)`，或通过 `hengine.prepare(animation)`准备后复用。实时引用在准备时捕获，显式快照保持冻结；同一播放器支持跳转、暂停、倒放和从当前姿态重定向，不替应用修改业务状态。
 
+类型化的 `fx::vertex_path(PointPath::bend(0.25))` 和 `fx::translation_path(...)` 在渲染前改变匹配后的几何或局部位置轨迹，可与模糊／色调组合，保留端点。C++ UI路径adapter复用同一个core算子；重复的路径修饰在同一端点坐标系中叠加位移，不修改匹配规则。
+
 **证据**：独立公共消费者在dev/release验证几何与控制；另一个消费者通过共享CPU renderer输出真实像素和指定区域。渲染显式选用，基础 `hanim.core` 保持独立。
 
-**待完成**：通用属性／通道混合、组合效果作用域、图像／像素／骨骼域与UI adapter。当前UI动效主要使用core原语；官网场景数量不等于公共引擎配方数量。
+**待完成**：通用属性／通道混合、组合效果作用域、图像／像素／骨骼域与完整UI／官网交互接入。当前UI动效主要使用core原语；官网场景数量不等于公共引擎配方数量。
 
 ## 6. 渲染：CPU 参考 + GPU，效果是一等公民
 

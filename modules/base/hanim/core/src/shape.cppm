@@ -3,6 +3,7 @@ export module hanim.core:shape;
 
 import std;
 import :value;
+import :path;
 
 export namespace hanim {
 
@@ -50,6 +51,7 @@ struct ShapeMorphOptions {
     unsigned alignment_samples = 32; // 4..128, phase candidates and witnesses
     bool align_direction = true;
     bool align_start = true;
+    PointPath point_path; // after correspondence, in each point's endpoint frame
 };
 
 // Single closed contour only. Callers supply simple nonzero-area contours;
@@ -67,6 +69,7 @@ public:
     [[nodiscard]] bool target_reversed() const noexcept { return reversed_; }
     // Fraction of the oriented target perimeter used as its new start.
     [[nodiscard]] double target_start_fraction() const noexcept { return phase_; }
+    [[nodiscard]] PointPath point_path() const noexcept { return point_path_; }
 
     // Arbitrary order / concurrent reads with distinct buffers. Finite progress
     // clamps to [0,1]; NaN/Inf and insufficient buffers fail WITHOUT writing.
@@ -82,6 +85,7 @@ private:
     std::vector<ShapeCubic> from_, to_;
     bool reversed_ = false;
     double phase_ = 0;
+    PointPath point_path_;
 };
 
 } // namespace hanim

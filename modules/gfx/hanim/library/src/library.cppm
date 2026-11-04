@@ -11,6 +11,7 @@ export namespace hanim {
 struct MorphOptions {
     std::size_t max_parts = 4096, max_contours = 4096, max_cubics = 65536;
     ShapeMorphOptions shape;
+    PointPath translation_path; // each part's local tx/ty, not its geometry or parent
 };
 enum class MorphError : std::uint8_t {
     unprepared, invalid_snapshot, invalid_frame, invalid_options,

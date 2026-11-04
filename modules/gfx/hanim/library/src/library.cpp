@@ -14,6 +14,7 @@ struct ObjectMorphData {
     std::vector<MorphEndpoints> states;
     std::vector<PreparedShapeMorph> shapes;
     std::size_t cubic_count = 0;
+    PointPath translation_path;
 };
 }
 namespace hanim {
@@ -36,7 +37,8 @@ bool valid(MorphOptions options) noexcept {
     // These are aggregate preparation limits, not per-frame preallocations.
     return options.max_parts && options.max_parts <= (1u<<16) &&
         options.max_contours && options.max_contours <= (1u<<16) &&
-        options.max_cubics && options.max_cubics <= (1u<<20);
+        options.max_cubics && options.max_cubics <= (1u<<20) &&
+        options.shape.point_path.valid() && options.translation_path.valid();
 }
 struct CurveInput { ShapeContour view; std::vector<ShapeSegment> owned; };
 struct PartInput {
@@ -161,6 +163,7 @@ compile(Input from, Input to, MorphOptions options) {
             return std::unexpected(failure(MorphError::hierarchy_mismatch,i));
     }
     auto result=std::make_shared<detail::ObjectMorphData>();
+    result->translation_path=options.translation_path;
     result->ids.reserve(count); result->parts.reserve(count); result->states.reserve(count);
     for (std::size_t i=0;i<count;++i) {
         const auto& x=from.parts[i]; const auto& y=to.parts[matched[i]];
@@ -246,14 +249,22 @@ std::expected<FrameView,MorphFailure> PreparedObjectMorph::sample(double progres
     const auto needed=requirements();
     if (output.parts.size()<needed.parts || output.cubics.size()<needed.cubics) return std::unexpected(failure(MorphError::output_too_small));
     const double u=std::clamp(progress,0.0,1.0);
+    auto transform = [&](const detail::MorphEndpoints& state) {
+        auto value=lerp(state.from,state.to,u);
+        if (!data_->translation_path.linear()) {
+            const auto position=data_->translation_path.interpolate({state.from.tx,state.from.ty},{state.to.tx,state.to.ty},u);
+            value.tx=position.x; value.ty=position.y;
+        }
+        return value;
+    };
     // Validate every potentially overflowing transform before publishing any
     // part or cubic. Color lanes are bounded by the object/frame contract;
     // core shape plans have already proved the numeric geometry domain.
     for (std::size_t i=0;i<data_->states.size();++i)
-        if (!finite(lerp(data_->states[i].from,data_->states[i].to,u))) return std::unexpected(failure(MorphError::nonfinite_transform,i));
+        if (!finite(transform(data_->states[i]))) return std::unexpected(failure(MorphError::nonfinite_transform,i));
     for (std::size_t i=0;i<needed.parts;++i) {
         const auto& state=data_->states[i];
-        output.parts[i]={data_->parts[i],lerp(state.from,state.to,u),state.from_fill ? std::optional<Rgba>(lerp(*state.from_fill,*state.to_fill,u)) : std::nullopt};
+        output.parts[i]={data_->parts[i],transform(state),state.from_fill ? std::optional<Rgba>(lerp(*state.from_fill,*state.to_fill,u)) : std::nullopt};
     }
     for (std::size_t i=0;i<data_->shapes.size();++i) {
         const auto& range=data_->contours[i];

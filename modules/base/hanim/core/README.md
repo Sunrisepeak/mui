@@ -1,6 +1,6 @@
 # hanim.core
 
-The renderer-independent deterministic core of the hanim animation product, in C++23 modules. It depends on the standard library and `openmui.math` only (its deterministic functions, D-87) and knows nothing of UI, so a game, a video composition or another framework can consume it directly. The public [hanim umbrella](..) re-exports these same entities; the object/player and pixel-domain architecture remains separate work.
+The renderer-independent deterministic core of the hanim animation product, in C++23 modules. It depends on the standard library and `openmui.math` only (its deterministic functions, D-87) and knows nothing of UI, so a game, a video composition or another framework can consume it directly. The public [hanim umbrella](../../../gfx/hanim) re-exports these same entities and adds object/player packages; pixel-domain animation remains separate work.
 
 **Every animation is a pure function of time.** The value at time *t* is computed from *t* and the parameters alone, so a frame can be rendered in any order, a game can rewind, and a test is reproducible bit for bit. Results are **the same bits on every platform**: the elementary functions are fdlibm transcriptions (`hanim::dm`), the package is compiled with `-ffp-contract=off`, and the tests pin hashes of sampled curves that GCC and Clang on Linux, macOS and Windows must all reproduce.
 
@@ -11,7 +11,7 @@ The renderer-independent deterministic core of the hanim animation product, in C
 | `:ease` | `Ease` as data: the standard curves, CSS `cubic-bezier` and `steps`, text form and parser |
 | `:value` | `lanes<T>` / `Animatable`; `Vec2..4`, `Rgba` interpolated in premultiplied OKLab, `Transform2D` |
 | `:motion` | `Tween`, `Track` (keyframes, holds, cuts), analytic `Spring` / `Oscillator`, `Decay` / `Glide`, interruptible and seekable `Motion`, `interpolate` |
-| `:path` | `MotionPath`: position and heading by arc length |
+| `:path` | `MotionPath`: position and heading by arc length; `PointPath`: reusable chord-relative point interpolation |
 | `:shape` | `PreparedShapeMorph`: renderer-independent, prepared single-contour Bezier correspondence; allocation-free sampling |
 | `:timeline` | `Timeline`: clips with time maps (rate, trim, repeat, alternate, reverse, fill), series, stagger, nesting, markers |
 | `:set` | `Set`: the scalar channels of a running UI, evaluated in one pass without allocating |
@@ -33,6 +33,16 @@ intro.at(seconds(0), "title.opacity", Tween<double>{.from = 0, .to = 1, .duratio
 
 Tests: `mcpp test -p hanim.core`.
 
+`ShapeMorphOptions::point_path` optionally changes matched vertex/control-point
+trajectories. `PointPath::bend(0.25)` moves a midpoint by one quarter of its
+endpoint chord length along `(-dy,dx)`. Two custom control offsets can describe
+an asymmetric cubic trajectory. The operator also works directly on any Vec2
+pair; it is neither tied to contours nor to UI. Finite bounded controls are
+validated during preparation. Zero controls keep the original direct sampling
+loop. Endpoints, correspondence and exact contour connectivity are preserved;
+seek order never changes results. It does not guarantee simple topology or
+constant-speed travel. See [typed effect semantics](../../../gfx/hanim/effect/README.md).
+
 The graphics consumer in [render/vector's CTS](../../../gfx/render/vector/tests/shape_morph_test.cpp)
 uses this public plan without a UI Runtime or site dependency. It renders a
 single changing contour, varies a real material's lighting parameters, and
@@ -44,7 +54,7 @@ edge tolerance and requires exact interior/exterior pixels.
 ![A single triangle contour becoming a circle with a changing material](../media/triangle-circle-material.webp)
 
 This is a first geometry checkpoint. It does not yet provide the proposed
-HObject/Engine player, pixel correspondence, arbitrary topology changes,
+pixel correspondence, arbitrary topology changes,
 simulation, or a complete reusable animation catalog. Only the prepared
 plan's sampling is allocation-free; the graphics test also builds display
 lists and encodes review artifacts.

@@ -42,6 +42,13 @@ private:
 };
 
 namespace fx {
+// Typed process-stage effects, evaluated after matching and before rendering.
+// Their targets cannot be confused with image effects' string ids. Repeating
+// one target adds displacements in its endpoint frame, checked at prepare.
+struct VertexPath { PointPath path; };
+struct TranslationPath { PointPath path; };
+[[nodiscard]] constexpr VertexPath vertex_path(PointPath path) noexcept { return {path}; }
+[[nodiscard]] constexpr TranslationPath translation_path(PointPath path) noexcept { return {path}; }
 // Logical pixel radius; backend binding checks its supported range.
 [[nodiscard]] EffectSpec blur(float from, float to);
 struct Tone { float r = 0.79f, g = 0.76f, b = 0.71f, amount = 1; };

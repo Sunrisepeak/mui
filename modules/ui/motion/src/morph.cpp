@@ -124,7 +124,7 @@ std::expected<ShapeInput, PathMorphIssue> shape_input(PathView path) {
 // Caller-owned arena storage, never a shared Morph scratch or per-frame Path
 // vector. Material alternatives can reuse this exact immutable path recording.
 std::optional<RecordedPath> sampled_path(DisplayList& out, const hanim::PreparedShapeMorph* plan,
-                                        const PathView& a, const PathView& b, double u) {
+                                        const PathView& a, const PathView& b, double u, hanim::PointPath point_path) {
     const std::size_t verbs = plan ? plan->segment_count() + 2 : b.verbs.size();
     const std::size_t points = plan ? plan->segment_count() * 3 + 1 : b.points.size();
     bool sampled = true;
@@ -143,11 +143,32 @@ std::optional<RecordedPath> sampled_path(DisplayList& out, const hanim::Prepared
             }
         } else {
             std::ranges::copy(b.verbs, buffer.verbs.begin());
-            for (std::size_t i = 0; i < b.points.size(); ++i) buffer.points[i] = mixp(a.points[i], b.points[i], u);
+            for (std::size_t i = 0; i < b.points.size(); ++i) {
+                if (point_path.linear()) buffer.points[i] = mixp(a.points[i], b.points[i], u);
+                else {
+                    const auto p = point_path.interpolate({a.points[i].x, a.points[i].y}, {b.points[i].x, b.points[i].y}, u);
+                    buffer.points[i] = {static_cast<float>(p.x), static_cast<float>(p.y)};
+                }
+            }
         }
     });
     if (!sampled || !path) return std::nullopt;
     return *path;
+}
+// The renderer stores float points. Check the entire modified [0,1] domain
+// before accepting a path, rather than overflow a cast while emitting pixels.
+// Each prepared cubic stays within the source controls' convex hull.
+bool path_range(const PathView& a, const PathView& b, hanim::PointPath path) {
+    if (!path.valid()) return false;
+    if (path.linear()) return true; // retain the existing compatible path policy
+    double bound = 0;
+    for (const auto& points : {a.points, b.points}) for (auto p : points) {
+        if (!std::isfinite(p.x) || !std::isfinite(p.y)) return false;
+        bound = std::max({bound, std::abs(static_cast<double>(p.x)), std::abs(static_cast<double>(p.y))});
+    }
+    const double x = std::max(std::abs(path.control1.x), std::abs(path.control2.x));
+    const double y = std::max(std::abs(path.control1.y), std::abs(path.control2.y));
+    return bound * (1 + 2 * (x + y)) <= std::numeric_limits<float>::max();
 }
 // Different material programs/resources remain a material transition on ONE
 // current mask. Image lighting cannot silently jump merely because image ids
@@ -985,14 +1006,21 @@ Morph::Morph(Matter from, Matter to, Options options, double start)
                 if (material) { p.paint = std::move(*material); status.material_mode = PathMaterialMode::prepared_mix; }
                 else { status.material_mode = PathMaterialMode::unsupported; status.material_error = material.error(); }
             }
-            p.path_compatible = compatible_paths(a_path, b_path);
-            if (p.path_compatible) {
+            const bool valid_path = path_range(a_path, b_path, options_.vertex_path);
+            p.path_compatible = valid_path && compatible_paths(a_path, b_path);
+            if (!valid_path) {
+                status.issue = PathMorphIssue::geometry;
+                status.geometry_error = options_.vertex_path.valid() ? hanim::ShapeMorphError::numerical_range
+                                                                    : hanim::ShapeMorphError::invalid_options;
+                ++stats_.paths_unsupported;
+            } else if (p.path_compatible) {
                 status.mode = PathMorphMode::compatible; ++stats_.paths_compatible;
             } else {
                 auto aa = shape_input(a_path), bb = shape_input(b_path);
                 if (!aa || !bb) status.issue = !aa ? aa.error() : bb.error();
                 else {
-                    auto prepared = hanim::PreparedShapeMorph::prepare({aa->start, aa->segments}, {bb->start, bb->segments});
+                    hanim::ShapeMorphOptions shape_options; shape_options.point_path = options_.vertex_path;
+                    auto prepared = hanim::PreparedShapeMorph::prepare({aa->start, aa->segments}, {bb->start, bb->segments}, shape_options);
                     if (prepared) {
                         p.path = std::move(*prepared); status.mode = PathMorphMode::prepared; ++stats_.paths_prepared;
                     } else { status.issue = PathMorphIssue::geometry; status.geometry_error = prepared.error(); }
@@ -1510,7 +1538,7 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
                 const auto& fa = std::get<FillPath>(ca);
                 const auto& fb = std::get<FillPath>(cb);
                 if (!p.path && !p.path_compatible) { drawn = false; break; }
-                const auto path = sampled_path(out, p.path ? &*p.path : nullptr, fa.path, fb.path, u);
+                const auto path = sampled_path(out, p.path ? &*p.path : nullptr, fa.path, fb.path, u, options_.vertex_path);
                 if (!path) { drawn = false; break; }
                 if (p.paint) {
                     if (auto paint = p.paint->record(k, out, std::clamp(op, 0.0f, 1.0f))) (void)out.fill_path(*path, fb.rule, *paint);
@@ -1531,7 +1559,7 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
                 const auto& fa = std::get<StrokePath>(ca);
                 const auto& fb = std::get<StrokePath>(cb);
                 if (!p.path && !p.path_compatible) { drawn = false; break; }
-                const auto path = sampled_path(out, p.path ? &*p.path : nullptr, fa.path, fb.path, u);
+                const auto path = sampled_path(out, p.path ? &*p.path : nullptr, fa.path, fb.path, u, options_.vertex_path);
                 if (!path) { drawn = false; break; }
                 StrokeStyle style = fb.style;
                 style.width = std::max(0.0f, mixf(fa.style.width, fb.style.width, u));

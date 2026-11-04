@@ -74,6 +74,15 @@ public:
     [[nodiscard]] Morph with_effect(EffectSpec value) const {
         auto result = *this; result.binding_.effects.push_back(std::move(value)); return result;
     }
+    // Deduction keeps legacy with_effect({}) unambiguous (EffectSpec).
+    template<class Process> requires (std::same_as<Process, fx::VertexPath> || std::same_as<Process, fx::TranslationPath>)
+    [[nodiscard]] Morph with_effect(Process value) const {
+        auto result = *this;
+        if constexpr (std::same_as<Process, fx::VertexPath>)
+            result.binding_.morph.shape.point_path = result.binding_.morph.shape.point_path.added(value.path);
+        else result.binding_.morph.translation_path = result.binding_.morph.translation_path.added(value.path);
+        return result;
+    }
     [[nodiscard]] Morph source(ProgramSource value) const {
         auto result = *this; result.binding_.source = value; return result;
     }

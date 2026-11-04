@@ -4,6 +4,40 @@ Owned, ordered effect parameter plans (`import hanim.effect;`). This package
 depends on `hanim.core`, independent logging and tracing; it has no UI,
 renderer, shader, device, window or playback loop dependency.
 
+Typed process effects are separate from the image-parameter chain:
+
+```cpp
+auto animation = hanim::anim::morph(source, target)
+    .with_effect(hanim::fx::vertex_path(hanim::PointPath::bend(0.25)))
+    .with_effect(hanim::fx::translation_path(hanim::PointPath::bend(-0.2)))
+    .with_effect(hanim::fx::blur(0, 8)); // import hanim for authoring and Engine
+```
+
+`VertexPath` modifies each matched vertex and Bezier control's interpolation,
+after correspondence. `TranslationPath` modifies each part's local tx/ty;
+parent transforms still compose normally. It does not select only the root or
+alter geometry, paint, rotation or scale. Typed targets prevent accidentally
+sending a trajectory modifier to an image backend. They lower to the existing
+morph preparation, not a second player or renderer. Changing matching rules,
+arbitrary property-channel bindings and group scopes remain separate work.
+
+`PointPath` stores two cubic control offsets in the endpoint chord frame:
+x along `(to-from)`, y along `(-dy,dx)`. `bend(f)` gives midpoint displacement
+of `f * chord length`; positive y in screen coordinates points down. Custom
+control pairs express asymmetric paths. Coordinates are local to the animated
+data, not implicitly world space. Endpoints and stationary points stay exact.
+These are parametric paths; easing supplies progress, not constant arc speed.
+
+Repeated path effects on one target **add displacement in the same endpoint
+frame**. They do not compose sequential deformations; image effects retain
+their ordered chain. The accumulated controls must be finite and within
+±1e6, checked at preparation. Core sampling is stateless and allocation-free;
+object frames validate representability before writing. C0 retarget captures
+the actual modified geometry/position; no velocity/C1 guarantee is added.
+The operator neither solves topology nor guarantees simple intermediates.
+
+The original image-parameter API remains available:
+
 ```cpp
 auto descriptions = hanim::fx::chain({
     hanim::fx::blur(0, 8),

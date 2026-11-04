@@ -87,6 +87,53 @@ void shared_geometry(const render::DisplayList& list) {
 
 int main(int argc, char** argv) {
     Suite suite{"motion.path-morph"};
+    suite.test("public point path changes real pixels and retains exact endpoints and interrupted pose", [] {
+        const auto paint = render::Paint::solid(geom::Color::white());
+        const auto a = scene(triangle(), paint), b = scene(circle(), paint);
+        auto curved_options = options(); curved_options.vertex_path = hanim::PointPath::bend(.35);
+        const mo::Morph curved(mo::Matter::extract(a, resolver()), mo::Matter::extract(b, resolver()), curved_options, 0);
+        const auto plain = transition(a, b);
+        check(curved.path_morphs()[0].mode == mo::PathMorphMode::prepared);
+        check(draw(at(curved, 0)).hash() == draw(a).hash());
+        check(draw(at(curved, 1)).hash() == draw(b).hash());
+        const auto actual = draw(at(curved, .37)).hash();
+        check(actual != draw(at(plain, .37)).hash(), "process effect changes coverage, not just metadata");
+        const mo::Morph interrupted(curved.snapshot(.37), mo::Matter::extract(a, resolver()), curved_options, 2);
+        check(draw(at(interrupted, 2)).hash() == actual, "new path starts at the actual curved pose");
+        check(draw(at(interrupted, 3)).hash() == draw(a).hash());
+        for (double time : {1., .7, .1, 0.}) (void)at(curved, time);
+        check(draw(at(curved, .37)).hash() == actual);
+        render::DisplayList out; curved.draw(.5, out); out.clear(); curved.draw(.6, out);
+        const auto before = allocations.load();
+        for (unsigned i = 0; i < 100; ++i) { out.clear(); curved.draw(.37, out); }
+        const auto after = allocations.load(); check_eq(before, after);
+    });
+    suite.test("compatible open paths share the operator and invalid modifiers have an observable fallback", [] {
+        render::Path a_path, b_path;
+        a_path.move_to({20, 20}).line_to({80, 20}); b_path.move_to({20, 20}).line_to({80, 80});
+        const auto paint = render::Paint::solid(geom::Color::white());
+        const auto a = scene(a_path, paint, 2), b = scene(b_path, paint, 2);
+        auto policy = options(); policy.vertex_path = hanim::PointPath::bend(.25);
+        const mo::Morph curved(mo::Matter::extract(a, resolver()), mo::Matter::extract(b, resolver()), policy, 0);
+        check_eq(curved.stats().paths_compatible, std::size_t{1});
+        const auto middle = at(curved, .5); bool seen = false;
+        for (const auto& command : middle.commands()) if (auto* stroke = std::get_if<render::StrokePath>(&command)) {
+            seen = true; check(stroke->path.points[0] == geom::Point{20, 20});
+            check(stroke->path.points[1] == geom::Point{65, 50});
+        }
+        check(seen);
+        policy.vertex_path.control1.x = std::numeric_limits<double>::infinity();
+        const mo::Morph invalid(mo::Matter::extract(a, resolver()), mo::Matter::extract(b, resolver()), policy, 0);
+        check_eq(invalid.stats().paths_unsupported, std::size_t{1});
+        check(invalid.path_morphs()[0].geometry_error == hanim::ShapeMorphError::invalid_options);
+        render::Path huge_a, huge_b;
+        huge_a.move_to({0, 0}).line_to({1e38f, 1e38f}); huge_b.move_to({0, 0}).line_to({-1e38f, 1e38f});
+        const auto large_a = scene(huge_a, paint, 2), large_b = scene(huge_b, paint, 2);
+        policy.vertex_path = hanim::PointPath::bend(8);
+        const mo::Morph overflow(mo::Matter::extract(large_a, resolver()), mo::Matter::extract(large_b, resolver()), policy, 0);
+        check_eq(overflow.stats().paths_unsupported, std::size_t{1});
+        check(overflow.path_morphs()[0].geometry_error == hanim::ShapeMorphError::numerical_range);
+    });
     suite.test("fill triangle to circle prepares hanim correspondence and retains exact original endpoint pixels", [] {
         const auto paint = render::Paint::solid(geom::Color::white());
         const auto a = scene(triangle(), paint), b = scene(circle(), paint);

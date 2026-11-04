@@ -217,7 +217,7 @@ PreparedShapeMorph::prepare(ShapeContour from, ShapeContour to, ShapeMorphOption
     if (options.max_input_segments < 1 || options.max_input_segments > 4096 ||
         options.max_output_segments < 1 || options.max_output_segments > 16384 ||
         options.arc_samples < 4 || options.arc_samples > 256 ||
-        options.alignment_samples < 4 || options.alignment_samples > 128)
+        options.alignment_samples < 4 || options.alignment_samples > 128 || !options.point_path.valid())
         return std::unexpected(ShapeMorphError::invalid_options);
     auto a = cubics(from, options.max_input_segments), b = cubics(to, options.max_input_segments);
     if (!a) return std::unexpected(a.error());
@@ -239,6 +239,7 @@ PreparedShapeMorph::prepare(ShapeContour from, ShapeContour to, ShapeMorphOption
     if (auto ok = valid(ma, aa); !ok) return std::unexpected(ok.error());
     if (auto ok = valid(mb, ab); !ok) return std::unexpected(ok.error());
     PreparedShapeMorph result;
+    result.point_path_ = options.point_path;
     if (options.align_direction && ((aa < 0) != (ab < 0))) {
         reverse(*b);
         result.reversed_ = true;
@@ -282,10 +283,20 @@ PreparedShapeMorph::sample(double progress, std::span<ShapeCubic> output) const 
     if (!std::isfinite(progress)) return std::unexpected(ShapeMorphError::invalid_progress);
     if (output.size() < from_.size()) return std::unexpected(ShapeMorphError::output_too_small);
     const double t = std::clamp(progress, 0.0, 1.0);
+    if (point_path_.linear()) {
+        // Ordinary morphs keep the original direct loop; a process modifier
+        // must not add a dispatch/call to every point of the default path.
+        for (std::size_t i = 0; i < from_.size(); ++i) {
+            const auto& a = from_[i]; const auto& b = to_[i];
+            output[i] = {shape_mix(a.start, b.start, t), shape_mix(a.control1, b.control1, t),
+                         shape_mix(a.control2, b.control2, t), shape_mix(a.end, b.end, t)};
+        }
+        return from_.size();
+    }
     for (std::size_t i = 0; i < from_.size(); ++i) {
         const auto& a = from_[i]; const auto& b = to_[i];
-        output[i] = {shape_mix(a.start, b.start, t), shape_mix(a.control1, b.control1, t),
-                     shape_mix(a.control2, b.control2, t), shape_mix(a.end, b.end, t)};
+        output[i] = {point_path_.interpolate(a.start, b.start, t), point_path_.interpolate(a.control1, b.control1, t),
+                     point_path_.interpolate(a.control2, b.control2, t), point_path_.interpolate(a.end, b.end, t)};
     }
     return from_.size();
 }
@@ -297,8 +308,11 @@ PreparedShapeMorph::sample_segment(double progress, std::size_t segment) const n
     if (segment >= from_.size()) return std::unexpected(ShapeMorphError::invalid_segment);
     const double t = std::clamp(progress, 0.0, 1.0);
     const auto& a = from_[segment]; const auto& b = to_[segment];
-    return ShapeCubic{shape_mix(a.start, b.start, t), shape_mix(a.control1, b.control1, t),
-                      shape_mix(a.control2, b.control2, t), shape_mix(a.end, b.end, t)};
+    if (point_path_.linear())
+        return ShapeCubic{shape_mix(a.start, b.start, t), shape_mix(a.control1, b.control1, t),
+                          shape_mix(a.control2, b.control2, t), shape_mix(a.end, b.end, t)};
+    return ShapeCubic{point_path_.interpolate(a.start, b.start, t), point_path_.interpolate(a.control1, b.control1, t),
+                      point_path_.interpolate(a.control2, b.control2, t), point_path_.interpolate(a.end, b.end, t)};
 }
 
 std::string_view shape_morph_error_name(ShapeMorphError error) noexcept {

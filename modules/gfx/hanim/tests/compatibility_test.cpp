@@ -42,11 +42,12 @@ int main(int argc, char** argv) {
         const auto b=engine.create_object({{{.id="item",.local={.tx=40}}}});
         check(a && b);if(!a || !b)return;
         const auto recipe=hanim::anim::morph(*a,*b).duration(std::chrono::milliseconds(600))
+            .with_effect(hanim::fx::translation_path(hanim::PointPath::bend(.25)))
             .with_effect(hanim::fx::blur(0,8));
         const auto playback=engine.play(recipe);check(playback.has_value());if(!playback)return;
         check(engine.seek(*playback,hanim::seconds(.3)).has_value());
         const auto frame=engine.frame(*playback);check(frame.has_value());if(!frame)return;
-        check(frame->geometry.parts[0].local.tx==20 && frame->effect_values[0]==4);
+        check(frame->geometry.parts[0].local.tx==20 && frame->geometry.parts[0].local.ty==10 && frame->effect_values[0]==4);
         check(engine.capture_object(*a)->parts()[0].local.tx==0);
         check(engine.release(*playback).has_value());
     });

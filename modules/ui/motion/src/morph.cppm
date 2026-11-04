@@ -99,6 +99,10 @@ struct Options {
         friend bool operator==(const Travel&, const Travel&) = default;
     };
     std::optional<Travel> travel;
+    // Optional process effect on matched path vertices/control points only.
+    // Uses the public hanim operator; text/layout/rectangles keep their own
+    // channels. Invalid requests are exposed in path_morphs(), not ignored.
+    hanim::PointPath vertex_path;
 };
 
 struct MorphStats {

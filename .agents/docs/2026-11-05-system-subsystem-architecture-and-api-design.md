@@ -201,6 +201,8 @@ HObject 是动画域身份及表示能力，允许属性、路径、轮廓、mes
 
 `A→B` 的路径扰动可在对应轨迹上加端点为零的包络；需 C1 时还约束端点导数。给 Bezier 控制柄随便加“质量”并不会自动得到合理物理：必须选择刚体、粒子、软体或形变笼模型，并保留拓扑连接约束。高自由度通过模型和契约提供，不靠无类型属性袋。
 
+首个过程算子实施见[检查点S2首批](2026-11-05-system-implementation-checkpoints-design.md#6-s2首批通用点路径与类型化过程效果)：`PointPath`由两对相对控制量描述，不硬编码对象／组件场景。`fx::vertex_path`／`fx::translation_path`明确区分严格morph叶子内的几何点与各part局部tx/ty；相同目标的过程位移相加，blur/tone保留独立的顺序链。它们尚不提供任意part选择器或通道混合，也没有给sequence/parallel添加向子节点广播的effect入口。
+
 ### 4.4 高级自定义与保存能力
 
 算子注册描述包含：稳定 ID／版本、typed ports、读写集、单位／空间、阶段、scope、pure／stateful、CPU 参考、GPU 变体、数值等级、预算、schema 和 trace。用户可替换对应、路径、属性迁移或求解器；脚本只构造／控制，逐帧批次由已准备原生代码或 kernel 执行。

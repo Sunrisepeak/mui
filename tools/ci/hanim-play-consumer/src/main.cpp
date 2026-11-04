@@ -17,6 +17,7 @@ using Json = nlohmann::json;
 namespace {
 struct Options {
     double time = .5;
+    double bend = 0;
     int width = 320, height = 240;
     std::array<int,4> region{0,0,320,240};
     bool cropped = false, retarget = false;
@@ -49,6 +50,7 @@ std::optional<Options> parse(int argc,char** argv) {
         const std::string_view value=argv[++i];
         if(key=="--out") options.output=value;
         else if(key=="--time") {if(!number(value,options.time))return {};}
+        else if(key=="--bend") {if(!number(value,options.bend))return {};}
         else if(key=="--region") {if(!integers(value,options.region))return {};options.cropped=true;}
         else if(key=="--viewport") {
             std::array<int,2> size{};if(!integers(value,size))return {};
@@ -57,7 +59,8 @@ std::optional<Options> parse(int argc,char** argv) {
     }
     if(!options.cropped)options.region={0,0,options.width,options.height};
     const auto [x,y,w,h]=options.region;
-    if(!std::isfinite(options.time) || options.time<0 || options.time>1 || options.output.empty() ||
+    if(!std::isfinite(options.time) || options.time<0 || options.time>1 || !std::isfinite(options.bend) ||
+       std::abs(options.bend)>2 || options.output.empty() ||
        options.width<32 || options.height<32 || options.width>2048 || options.height>2048 ||
        x<0 || y<0 || w<=0 || h<=0 || x>options.width-w || y>options.height-h)return {};
     return options;
@@ -71,7 +74,7 @@ ObjectDescription describe(Contour shape,Rgba fill,int width,int height) {
 
 int main(int argc,char** argv) {
     const auto parsed=parse(argc,argv);
-    if(!parsed)return fail("usage: --out FILE.png [--time SECONDS(0..1)] [--viewport W,H] [--region X,Y,W,H] [--retarget]",2);
+    if(!parsed)return fail("usage: --out FILE.png [--time SECONDS(0..1)] [--bend FRACTION(-2..2)] [--viewport W,H] [--region X,Y,W,H] [--retarget]",2);
     const auto& options=*parsed;
     auto made=Engine::make();if(!made)return fail("Engine::make");
     auto engine=std::move(*made);
@@ -106,6 +109,7 @@ int main(int argc,char** argv) {
        engine.inspect(*instance)->position!=seconds(1) || !engine.cancel(*instance,CancelMode::restore) || !engine.release(*instance))
         return fail("program reverse/restore/release");
     auto animation=anim::morph(*source,*target).duration(seconds(1)).easing(ease::linear);
+    animation=animation.with_effect(fx::vertex_path(PointPath::bend(options.bend)));
     for(const auto& effect:effects)animation=animation.with_effect(effect);
     const auto played=engine.play(animation);
     if(!played)return fail("Engine::play");
@@ -162,7 +166,8 @@ int main(int argc,char** argv) {
         const std::vector<raster::Rgba8> before(pixels.pixels().begin(),pixels.pixels().end());
         raster::Surface original_coverage(options.width,options.height),retarget_coverage(options.width,options.height);
         if(!coverage(original_coverage))return fail("pre-retarget bare coverage");
-        if(!engine.retarget(*played,anim::morph_to(*next),{.duration=seconds{1},.easing=ease::linear}) || !rebind() || !draw())return fail("retarget/rebind/current draw");
+        MorphOptions path_options;path_options.shape.point_path=PointPath::bend(options.bend);
+        if(!engine.retarget(*played,anim::morph_to(*next,path_options),{.duration=seconds{1},.easing=ease::linear}) || !rebind() || !draw())return fail("retarget/rebind/current draw");
         for(std::size_t i=0;i<before.size();++i) {
             const auto a=std::bit_cast<std::array<std::uint8_t,4>>(before[i]),b=std::bit_cast<std::array<std::uint8_t,4>>(pixels.pixels()[i]);
             for(int c=0;c<4;++c)continuity_max=std::max(continuity_max,std::abs(int(a[c])-int(b[c])));
@@ -222,6 +227,7 @@ int main(int argc,char** argv) {
             {"retarget",options.retarget},{"retarget_from_seconds",options.retarget?.7:0},{"retarget_pixel_max_u8",continuity_max},{"retarget_coverage_max_u8",coverage_max},
             {"retarget_coverage_off_boundary",coverage_off_boundary},{"retarget_styled_off_boundary",styled_off_boundary},
             {"retarget_coverage_total_u8",coverage_sum}}}};
+    result["vertex_path"]={{"stage","after-correspondence"},{"space","endpoint-chord"},{"bend",options.bend}};
     const auto provenance=mcpplibs::os::fs::write_atomic(mcpplibs::os::fs::from_utf8(options.output+".provenance.omui.json"),result.dump(2)+"\n");
     if(!provenance)return fail(provenance.error().message());
     std::println("{}",result.dump());

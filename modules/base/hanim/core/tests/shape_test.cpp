@@ -94,6 +94,54 @@ std::array<ShapeCubic, 4> circle_cubics() {
 
 int main(int argc, char** argv) {
     Suite s{"hanim.shape"};
+    s.test("point paths preserve endpoints and express the same bend in any chord frame", [] {
+        const auto path = PointPath::bend(.25);
+        check(path.valid() && !path.linear() && PointPath{}.linear());
+        check(close(path.interpolate({0, 0}, {8, 0}, .5), {4, 2}));
+        check(close(path.interpolate({3, 7}, {3, 15}, .5), {1, 11}));
+        check(close(path.interpolate({0, 0}, {16, 0}, .5), {8, 4}));
+        for (double t : {0., .2, .5, .9, 1.}) check(path.interpolate({2, 3}, {2, 3}, t) == Vec2{2, 3});
+        check(path.interpolate({1, 2}, {9, 2}, 0) == Vec2{1, 2});
+        check(path.interpolate({1, 2}, {9, 2}, 1) == Vec2{9, 2});
+        check(path.interpolate({1, 2}, {9, 2}, 1.5) == Vec2{13, 2}, "extrapolated baseline has no process displacement");
+        const auto combined = PointPath::bend(.125).added(PointPath::bend(.125));
+        check(combined.interpolate({0, 0}, {8, 0}, .5) == path.interpolate({0, 0}, {8, 0}, .5));
+        const PointPath asymmetric{{0, 1}, {0, -1}};
+        check(asymmetric.interpolate({0, 0}, {8, 0}, .25).y > 0);
+        check(asymmetric.interpolate({0, 0}, {8, 0}, .75).y < 0);
+    });
+    s.test("process path changes matched vertex trajectories without changing correspondence or endpoints", [] {
+        const auto plain = PreparedShapeMorph::prepare(tri(), disk());
+        ShapeMorphOptions options; options.point_path = PointPath::bend(.35);
+        const auto curved = PreparedShapeMorph::prepare(tri(), disk(), options);
+        check(plain && curved); if (!plain || !curved) return;
+        check_eq(plain->segment_count(), curved->segment_count());
+        check(plain->target_reversed() == curved->target_reversed());
+        check(plain->target_start_fraction() == curved->target_start_fraction());
+        for (double t : {0., 1., -1., 2.}) {
+            const auto a = sample(*plain, t), b = sample(*curved, t);
+            check(std::ranges::equal(a, b, same));
+        }
+        const auto a = sample(*plain, .37), b = sample(*curved, .37);
+        check(!std::ranges::equal(a, b, same)); connected(b);
+        std::vector<ShapeCubic> output(curved->segment_count());
+        const auto before = allocations.load(); bool valid = true;
+        for (unsigned i = 0; i < 1000; ++i) {
+            const double t = static_cast<double>((i * 37) % 1001) / 1000;
+            valid = valid && curved->sample(t, output).has_value();
+            for (std::size_t j = output.size(); j > 0; --j) {
+                const auto part = curved->sample_segment(t, j - 1);
+                valid = valid && part.has_value() && same(*part, output[j - 1]);
+            }
+        }
+        const auto after = allocations.load(); check(valid); check_eq(before, after);
+        check(std::ranges::equal(b, sample(*curved, .37), same));
+        for (double value : {std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::infinity(), 1e7}) {
+            options.point_path.control2.x = value;
+            const auto bad = PreparedShapeMorph::prepare(tri(), disk(), options);
+            check(!bad && bad.error() == ShapeMorphError::invalid_options);
+        }
+    });
     s.test("triangle to circle is one moving cubic contour with original endpoint geometry", [] {
         const auto prepared = PreparedShapeMorph::prepare(tri(), disk());
         check(prepared.has_value());

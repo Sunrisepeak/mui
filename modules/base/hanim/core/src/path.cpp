@@ -26,6 +26,23 @@ double distance(const Vec2& a, const Vec2& b) noexcept {
 
 }  // namespace
 
+bool PointPath::valid() const noexcept {
+    for (double value : {control1.x, control1.y, control2.x, control2.y})
+        if (!std::isfinite(value) || std::abs(value) > 1e6) return false;
+    return true;
+}
+
+Vec2 PointPath::interpolate(Vec2 from, Vec2 to, double progress) const noexcept {
+    const auto base = lerp(from, to, progress);
+    if (linear() || progress <= 0 || progress >= 1 || from == to) return base;
+    const double a = 3 * (1 - progress) * (1 - progress) * progress;
+    const double b = 3 * (1 - progress) * progress * progress;
+    const double along = a * control1.x + b * control2.x;
+    const double normal = a * control1.y + b * control2.y;
+    const double dx = to.x - from.x, dy = to.y - from.y;
+    return {base.x + dx * along - dy * normal, base.y + dy * along + dx * normal};
+}
+
 MotionPath& MotionPath::move_to(Vec2 p) {
     cursor_ = p;
     subpath_start_ = p;

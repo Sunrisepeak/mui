@@ -4,7 +4,7 @@
 
 | 文档 | 内容 |
 |---|---|
-| [2026-11-05-system-implementation-checkpoints-design.md](2026-11-05-system-implementation-checkpoints-design.md) | **当前实施台账**：综合架构拆为S1–S10，公共入口→UI/官网、能力/布局/style、反应/GPU、audio、Agent、TS/PPet与工具；S1公共hanim＋authoring本地通过：84项独立断言、40个回归用例、Wasm3例与真实CPU像素；其余范围继续开放 |
+| [2026-11-05-system-implementation-checkpoints-design.md](2026-11-05-system-implementation-checkpoints-design.md) | **当前实施台账**：综合架构S1–S10；S1公共入口已交付，S2首批通用PointPath／typed过程效果及C++ UI路径adapter本地通过：独立94项断言、相关178例、Wasm68例、每profile 9组CPU像素；通道／scope、官网交互、组件验收及后续范围继续开放 |
 | [2026-11-05-system-subsystem-architecture-and-api-design.md](2026-11-05-system-subsystem-architecture-and-api-design.md) | **当前综合 review 入口**：顶层产品×子系统局部架构、目标代码树与兼容迁移、分级 hanim API 的真实最小实验、scope／通道／资源与共享 owner、Agent／Web／工具／素材，以及分期交付与待 review 决策；已验证子集与目标明确分开 |
 | [2026-11-05-features-ai-agent-scoped-style-design.md](2026-11-05-features-ai-agent-scoped-style-design.md) | **最新补充与自我review**：核心/可选feature真实裁剪、规则/内置Agent/openas外部Agent决策来源、llmapi固定版本核查及上游适配、桌面角色场景；局部pixel风格的theme×effect×motion分工、scope/portal/文字/命中/高DPI端点与验收 |
 | [2026-11-05-pixelpet-generative-capabilities-design.md](2026-11-05-pixelpet-generative-capabilities-design.md) | **pixelpet（PPet）应用／review稿**：项目TS＋动态业务插件；主交互/worker全双工、资源隔离与现有TS/Web/reload阻塞点；现场创作服装、绘画和技能；实时用量UI的定义×绑定×安装点、真实来源、动态加载与真像素；共用资产与分期验收 |

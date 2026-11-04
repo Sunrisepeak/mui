@@ -109,6 +109,32 @@ int main() {
     if(!check(bool(engine.release(*replay)),"release_prepared_instance"))return finish();
     check(!engine.frame(*replay),"released_handle_is_stale");
 
+    const auto curved=quick.with_effect(h::fx::vertex_path(h::PointPath::bend(.35)))
+                           .with_effect(h::fx::translation_path(h::PointPath::bend(.25)));
+    const auto curved_plan=hengine.prepare(curved);
+    if(!check(bool(curved_plan),"typed_process_paths_prepare"))return finish();
+    auto curved_play=hengine.play(curved);
+    if(!check(bool(curved_play)&&bool(engine.seek(*curved_play,h::seconds(.3))),"typed_process_paths_play"))return finish();
+    const auto curved_frame=engine.frame(*curved_play);
+    if(!check(bool(curved_frame),"typed_process_paths_expose_frame"))return finish();
+    const auto curved_pose=copy(*curved_frame);
+    check(curved_pose.transforms[0].tx==20 && curved_pose.transforms[0].ty==10 && curved_pose.effects==reference[2].effects,
+          "translation_path_is_typed_and_image_effect_is_retained");
+    check(!std::ranges::equal(curved_pose.cubics,reference[2].cubics,[](const auto& x,const auto& y){return coordinates(x)==coordinates(y);}),
+          "vertex_path_changes_geometry_before_renderer");
+    bool endpoints=true;
+    for(auto i:std::array<std::size_t,2>{0,4}) {
+        const auto seek=engine.seek(*curved_play,h::seconds(times[i]));const auto frame=engine.frame(*curved_play);
+        endpoints=endpoints && bool(seek) && bool(frame) && equal(copy(*frame),reference[i]);
+    }
+    check(endpoints,"process_paths_preserve_exact_endpoint_channels");
+    if(!check(bool(engine.release(*curved_play)),"release_process_path_instance"))return finish();
+    const auto curved_replay=hengine.play(*curved_plan);
+    if(!check(bool(curved_replay)&&bool(engine.seek(*curved_replay,h::seconds(.3))),"prepared_process_path_replay"))return finish();
+    const auto replayed_path=engine.frame(*curved_replay);
+    check(replayed_path && equal(copy(*replayed_path),curved_pose),"process_path_convenient_and_prepared_equal");
+    if(!check(bool(engine.release(*curved_replay)),"release_process_path_replay"))return finish();
+
     const auto layered=quick.with_effect(h::fx::tone({.r=0,.g=0,.b=0,.amount=0},{.r=1,.g=1,.b=1,.amount=1}));
     const auto layered_plan=hengine.prepare(layered);
     if(!check(bool(layered_plan),"ordered_effect_chain_prepares"))return finish();

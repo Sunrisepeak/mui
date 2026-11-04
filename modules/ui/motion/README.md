@@ -6,3 +6,15 @@ Universal motion ([D-93](../../../.agents/docs/2026-11-01-openmui-universal-moti
 - **Morph**: two matters matched — by node and place, then by meaning (a node whose key changed but whose role and name did not), then glyph by glyph inside matched text runs (their longest common subsequence) — and drawn between them as a pure function of time: matched pieces travel (transform decomposed, rectangles, radii, OKLab colours, paths of the same verbs, glyph positions and sizes), what only one has fades. Before its start, the first drawing; settled, the second's pixels exactly. Curves are tweens or springs (an interrupted morph's velocity carried on); pieces can start together, in document order or by distance from the middle.
 
 It knows display lists, not views: the view runtime ([view](../view)) gives node markers their keys and decides when a drawing changed and which motion its slot holds.
+
+The C++ `motion::Options::vertex_path` consumes the public `hanim::PointPath`
+operator for matched filled/stroked paths. It works on prepared contour
+correspondence and compatible paths (including legacy open paths); no UI-local
+trajectory implementation is added. Text, rectangles, layout and their hit
+policies are unchanged. This option is not yet exposed through MotionSpec,
+script props or the site's interactive gallery.
+
+The default stays linear. Invalid controls or unrepresentable float geometry
+are reported through `path_morphs()` and the existing unsupported-path fallback.
+Headless CPU tests check changed middle pixels, endpoint equality, actual-pose
+retarget, seek repeatability and warm allocation-free geometry recording.

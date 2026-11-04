@@ -124,20 +124,24 @@ def main() -> int:
         report["temporary_lock_sha256"] = temporary_lock
         for profile in ("dev", "release"):
             results = []
-            for label, time, region, retarget in (
-                ("start", 0, "0,0,320,240", False), ("middle", .5, "0,0,320,240", False),
-                ("end", 1, "0,0,320,240", False), ("crop", .5, "80,40,160,160", False),
-                ("retarget", .5, "0,0,320,240", True),
+            for label, time, region, retarget, bend in (
+                ("start", 0, "0,0,320,240", False, 0), ("middle", .5, "0,0,320,240", False, 0),
+                ("end", 1, "0,0,320,240", False, 0), ("crop", .5, "80,40,160,160", False, 0),
+                ("retarget", .5, "0,0,320,240", True, 0),
+                ("path-start", 0, "0,0,320,240", False, .35), ("path-middle", .5, "0,0,320,240", False, .35),
+                ("path-end", 1, "0,0,320,240", False, .35), ("path-retarget", .5, "0,0,320,240", True, .35),
             ):
                 png = artifacts / f"{profile}-{label}.png"
                 argv = [args.mcpp, "run", "--locked", "--profile", profile, "--", "--time", str(time),
-                        "--region", region, "--out", str(png)] + (["--retarget"] if retarget else [])
+                        "--region", region, "--bend", str(bend), "--out", str(png)] + (["--retarget"] if retarget else [])
                 text = run(profile + "-" + label, argv)
                 rows = [json.loads(line) for line in text.splitlines() if line.lstrip().startswith("{")]
                 rows = [row for row in rows if row.get("kind") == "hanim.play-consumer"]
                 if len(rows) != 1 or not rows[0].get("ok"):
                     raise RuntimeError(f"{profile}-{label}: no successful provenance")
                 result = rows[0]
+                if result["vertex_path"] != {"stage": "after-correspondence", "space": "endpoint-chord", "bend": bend}:
+                    raise RuntimeError("process path provenance disagrees")
                 if result["sample_time_seconds"] != time or result["parts"] != 1 or result["contours"] != 1 or result["visible_pixels"] <= 100:
                     raise RuntimeError("consumer time/geometry/visible pixels disagree")
                 if result["backend"] != "cpu-reference" or result["controls"]["retarget"] != retarget or not result["controls"]["pause_holds"] or not result["controls"]["reverse_moves_backwards"]:
@@ -151,8 +155,13 @@ def main() -> int:
                 results.append(result)
             if len({row["pixel_fnv1a"] for row in results[:3]}) != 3:
                 raise RuntimeError("actual endpoint/midpoint pixels must differ")
-            if results[-1]["target"] == results[-1]["initial_target"] or results[-1]["controls"]["retarget_pixel_max_u8"] > 18 or results[-1]["controls"]["retarget_coverage_off_boundary"] or results[-1]["controls"]["retarget_styled_off_boundary"]:
-                raise RuntimeError("real retarget target/continuity failed")
+            if (results[0]["pixel_fnv1a"] != results[5]["pixel_fnv1a"] or
+                    results[2]["pixel_fnv1a"] != results[7]["pixel_fnv1a"] or
+                    results[1]["pixel_fnv1a"] == results[6]["pixel_fnv1a"]):
+                raise RuntimeError("process path must preserve endpoint pixels and change actual middle pixels")
+            for result in (results[4], results[8]):
+                if result["target"] == result["initial_target"] or result["controls"]["retarget_pixel_max_u8"] > 18 or result["controls"]["retarget_coverage_off_boundary"] or result["controls"]["retarget_styled_off_boundary"]:
+                    raise RuntimeError("real retarget target/continuity failed")
             invalid = artifacts / f"{profile}-invalid.png"
             run(profile + "-invalid-region", [args.mcpp, "run", "--locked", "--profile", profile, "--", "--out", str(invalid), "--region", "319,0,2,240"], expected=2)
             if invalid.exists():

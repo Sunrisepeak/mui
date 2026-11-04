@@ -11,6 +11,36 @@ import :value;
 
 export namespace hanim {
 
+// A point-to-point interpolation modifier, not a route in world space.
+// Each control is an offset from the straight cubic's control in the
+// endpoint chord frame: x along (to-from), y along its left normal (-dy,dx).
+// Thus the same data works on vertices, translations or any other Vec2
+// channel, independent of position, orientation and scale. Zero is linear.
+struct PointPath {
+    Vec2 control1{}, control2{};
+    // Bounded dimensionless controls; consumers validate once at prepare.
+    [[nodiscard]] bool valid() const noexcept;
+    [[nodiscard]] constexpr bool linear() const noexcept {
+        return control1 == Vec2{} && control2 == Vec2{};
+    }
+    // Midpoint displacement as a signed fraction of chord length. Positive
+    // follows (-dy,dx); with screen coordinates positive y points down.
+    [[nodiscard]] static constexpr PointPath bend(double amount) noexcept {
+        return {{0, amount * (4.0 / 3.0)}, {0, amount * (4.0 / 3.0)}};
+    }
+    // Additive displacement in the SAME endpoint frame. This is not ordered
+    // function composition; render effects have their separate ordered chain.
+    [[nodiscard]] constexpr PointPath added(PointPath other) const noexcept {
+        return {{control1.x + other.control1.x, control1.y + other.control1.y},
+                {control2.x + other.control2.x, control2.y + other.control2.y}};
+    }
+    // Pure, allocation-free point evaluation. Requires valid controls and
+    // finite inputs. Like lerp, the baseline extrapolates outside [0,1]; the
+    // modifier is zero outside that interval, including the exact endpoints.
+    // A checked consumer also validates the resulting numerical range.
+    [[nodiscard]] Vec2 interpolate(Vec2 from, Vec2 to, double progress) const noexcept;
+};
+
 class MotionPath {
 public:
     MotionPath& move_to(Vec2 p);

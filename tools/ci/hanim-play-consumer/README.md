@@ -28,6 +28,7 @@ The retained project's executable accepts native typed command-line controls:
 ```sh
 mcpp run --locked --profile release -- --time 0.5 --region 80,40,160,160 --out /tmp/frame.png
 mcpp run --locked --profile release -- --time 0.5 --retarget --out /tmp/retarget.png
+mcpp run --locked --profile release -- --time 0.5 --bend 0.35 --out /tmp/curved.png
 ```
 
 `--time` selects seconds in the current one-second segment; `--viewport W,H`
@@ -44,6 +45,12 @@ advance through Engine. The CPU reference renderer is the existing vector
 renderer; effects use the public blur/tone chain. It writes real PNG pixels,
 stdout JSON and a matching `.png.provenance.omui.json` sidecar with object refs,
 time, viewport, region, backend and pixel hash. No window or GUI startup occurs.
+
+`--bend FRACTION` adds a public typed vertex-path effect before blur/tone.
+The gate exports both ordinary and curved endpoints/middle/retarget pixels:
+the endpoints must be identical, middle pixels must differ, and both retarget
+cases satisfy the same existing boundary-only continuity tolerance. JSON records
+the actual process stage, coordinate frame and bend separately from image effects.
 
 The gate checks original/midpoint/target pixels differ, output crop dimensions
 and PNG round-trip pixels, real retarget continuity, and invalid-region rejection.

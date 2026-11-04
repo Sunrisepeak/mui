@@ -36,6 +36,7 @@ using namespace std::chrono_literals;
 auto animation = hanim::anim::morph(source, target)
     .duration(600ms)
     .easing(hanim::ease::in_out_cubic)
+    .with_effect(hanim::fx::vertex_path(hanim::PointPath::bend(0.25)))
     .with_effect(hanim::fx::blur(0, 2));
 auto played = hengine.play(animation);
 if (!played) { report(played.error()); return; }
@@ -60,7 +61,11 @@ rejects reentrant writes. Prepared geometry remains owned after source removal.
 caller, prepare explicitly and reuse `PreparedProgram`; `play(prepared)` still
 reserves playback buffers. Advanced bindings and the prior
 `play(object, anim::morph_to(target), effects, options)` remain available.
-Effects here are ordered leaf parameters, not group/image scopes. Unsupported
+Typed `fx::vertex_path(PointPath)` and `fx::translation_path(PointPath)` alter
+matched control-point and local-position trajectories before rendering. They
+compose with the ordered image-effect parameters. See [the effect contract](effect/README.md)
+for units, additive path composition and limitations. These are leaf effects,
+not group/image scopes. Unsupported
 topologies, invalid inputs, limits and conflicting writes return typed failures;
 no fallback silently discards an effect. Outputs never write business objects.
 
@@ -68,7 +73,7 @@ no fallback silently discards an effect. Outputs never write business objects.
 runs dev/release from only this package, auditing the actual dependency graph.
 
 The public player first supports strict named-part contour/transform/fill
-morphs and ordered effect parameters; the optional vector adapter records the
+morphs, typed point-path modifiers and ordered effect parameters; the optional vector adapter records the
 current geometry through the existing renderer. Pixel/glyph/rig domains, full
 channel mixing and catalog, group effect scopes and the UI adapter remain
 implementation work. CPU/GPU renderer support is evaluated by its own adapter

@@ -72,3 +72,48 @@ S1之后的优先项为S2：先落typed通道与过程modifier，再接组件与
 相关本地真实测试通过即可进入下一项并提交同一PR #1；异平台CI异步反馈。公开消费者、契约与自动检查加入CI，但不等待其他平台结果才开始下一项。GPU、Web、Agent和无障碍的未测项分别保留，不能用本地CPU回归推导其通过。
 
 允许清理本项目旧构建缓存；清理前检查live进程和目标目录，只删除已确认可再生的历史构建树，保留当前增量及报告／像素证据。用户已有mcpp.lock修改保持字节不变、不会纳入本轮提交。当前约8GB可用，首批独立消费者和复用增量足够，暂不删除缓存。
+
+## 6. S2首批：通用点路径与类型化过程效果
+
+在S1之后先完成“通用过程算子→公共authoring→真实渲染→UI路径adapter”的小纵切。**S2仍在实施，尚未完成typed通道IR、组scope、四类组件完整接入或官网交互开场。** 本轮不增加公共基础动画数量，也不把40个官网场景当作公共库验收。
+
+```cpp
+auto animation = hanim::anim::morph(source, target)
+    .duration(600ms)
+    .with_effect(hanim::fx::vertex_path(hanim::PointPath::bend(0.25)))
+    .with_effect(hanim::fx::translation_path(hanim::PointPath::bend(-0.2)))
+    .with_effect(hanim::fx::blur(0, 8));
+auto playback = hengine.play(animation); // 与prepare后play使用同一编译／播放器
+```
+
+### 6.1 单一实现与明确阶段
+
+- `hanim.core:path`拥有`PointPath`：两个三次控制点的偏移量，x沿端点弦、y沿左法向`(-dy,dx)`；无需归一化／三角函数。`bend(f)`是方便构造，中点偏移为弦长的f倍；自定义两对控制量可产生不对称路径。它也可直接用于任意Vec2属性，不依赖HObject／UI／renderer。
+- `PreparedShapeMorph`在对应关系确定后对各顶点／控制柄应用该算子；不改变匹配，不重新采样端点为多边形，保持闭合连接。零控制量继续原直接循环；形变准备／热采样仍分开。
+- `fx::VertexPath`与`fx::TranslationPath`是类型化过程目标。前者选择绑定morph的几何点，后者选择各part的局部tx/ty；不是world-space路径，也不是默认只移动root。父子transform按原规则组合。本批没有任意部件选择器。
+- 过程效果降入同一个MorphOptions／Program；相同目标反复添加采用**同一端点坐标系内位移相加**。它不是有顺序的任意变形函数复合。图像blur/tone继续自己的顺序参数链。组scope和通道冲突分析没有被平铺参数替代。
+- `openmui.motion::Options::vertex_path`直接复用算子，兼容路径、准备后的闭合路径、fill／stroke共用；不让组件编写动画。当前仅C++ adapter入口，MotionSpec／脚本prop／官网舞台仍待接入。
+
+### 6.2 边界、稳定性和自审
+
+控制量在prepare验证为有限且±1e6内；core几何保留既有数值域。对象translation可能更大，采样先检查所有修改后的transform，再一次性写frame，失败不污染任何输出。UI将路径写入float几何，提前验证整个[0,1]区间的保守界；不支持时记录PathMorphStatus和既有fallback，不能报告成成功连续形变。
+
+端点和静止点不受过程位移影响，任意顺序seek结果不变。retarget捕获真实当前几何／位置，并以相同prepare重新匹配，保证C0而不声称C1／速度继承。路径不是等弧长参数化、不保证不自交，不覆盖像素物质迁移／反应／GPU计算。
+
+自审调整：typed效果重载采用约束模板，保留原`with_effect({})`的EffectSpec解释；默认形变保持原轻路径；公共库和UI都检查数值范围；PPet命名维持**应用pixelpet，简称PPet**，这些算子属于公共hanim，未来由其项目TS绑定消费，未提前建立宠物专用动画实现。
+
+### 6.3 本地验证记录
+
+[本轮机器证据](../../tools/ci/hanim-api-probe/2026-11-05-path.report.omui.json)记录基线commit、实际编译源码哈希、用例、工具链、锁文件与真像素结果。S2首批本地通过；检查点之外的能力不因这次通过而变成完成。
+
+| 验证 | 实际结果 |
+|---|---|
+| 独立公共API | Linux GCC16.1、mcpp2026.11.2.2；dev/release各94项断言，包含新的类型目标、实际几何／位置、端点及直接play与prepare后play等价；11个库＋消费者，没有UI／renderer依赖 |
+| 相关包回归 | dev/release各178个用例；core、library、Program、Engine、公共入口与UI motion。保留原形变fingerprint；新增过程采样／几何记录零分配、非法控制、溢出失败原子性、UI真像素与C0打断检查 |
+| Web实际执行 | emsdk6.0.9，node实际运行Wasm，`wasm-test` profile，共68例；包含公共入口的translation path与blur参数。未覆盖浏览器／GPU／完整官网 |
+| 独立CPU真像素 | dev/release各9组PNG：普通与过程效果起点／中间态／终点、普通crop，以及两种retarget；blur/tone同时执行。两组端点像素相等、中间像素不同；320×240 fixture重定向最大差异普通3/255、弯曲4/255，均只在既有边缘容差内，边缘以外无差异 |
+| 工程约束 | lint 0；现有mcpp.lock字节不变。两个独立消费者沿既有CI gate执行，不等待异平台CI |
+
+最初用默认Web profile运行全core时，数学参考数据未挂载、读取0行；改用仓库声明的`--profile wasm-test`后68例全部通过。该运行配置问题和有效执行记录分开保留，没有删测试绕过失败。
+
+当前剩余入口清楚列出：MotionSpec／脚本prop和官网舞台尚未使用新的路径参数；UI命中几何／焦点／reduced/off、人和Agent触发及四类默认配方属于接下来的S2验收。typed过程目标不等于通用属性通道IR／混合，也不等于完整scope或GPU资源编排。

@@ -79,6 +79,8 @@ checks the resolved umbrella source path.
 Checks cover real cubic geometry, transforms, effect parameter order, seek,
 value reuse, live capture/frozen snapshots, nesting, explicit source reset,
 legacy composition, stale/foreign/generation errors and resource lifetime.
+Typed vertex/translation paths also exercise direct/prepared equivalence,
+changed middle geometry, exact endpoints and simultaneous image effects.
 These are assertions, not animation-library entries. The separate
 [rendering consumer](../hanim-play-consumer/README.md) exercises this public
 entry with the shared CPU renderer and real cropped pixels.
@@ -95,3 +97,9 @@ results are recorded separately in the [S1 public API report](2026-11-05-public.
 with their own source hashes: dev/release each pass 84 assertions, related suites
 each pass 40 cases, and the Wasm umbrella executes 3 cases. The same report
 includes the independent CPU renderer consumer's results and explicit limits.
+
+[The S2 point-path checkpoint](2026-11-05-path.report.omui.json) records the
+subsequent typed process effects: dev/release each pass 94 external assertions
+and 178 related native cases, 68 core/umbrella cases execute under the Wasm
+fixture profile, and each profile exports 9 CPU pixel cases. General channels,
+group scopes and interactive website integration remain outside this checkpoint.

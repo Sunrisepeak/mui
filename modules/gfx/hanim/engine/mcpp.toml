@@ -18,8 +18,7 @@ sources = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-hanim.library = { path = "../library" }
-hanim.effect = { path = "../effect" }
+hanim.program = { path = "../program" }
 openmui.memory = { path = "../../../base/memory" }
 openmui.log = { path = "../../../base/log" }
 openmui.trace = { path = "../../../base/trace" }

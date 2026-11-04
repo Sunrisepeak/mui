@@ -2,6 +2,8 @@
   "format": "openmui.bench.budgets@0.1",
   "about": "Limits for release builds on CI's runners (omui-bench --check). Each says why it is there; raising one needs the same.",
   "budgets": [
+    {"name": "public-motion/program-seek-100x2", "metric": "max_allocations", "max": 0,
+     "why": "100 independent instances of one nested two-track three-segment preparation reuse track-max double buffers across arbitrary phase-crossing seeks; preparation/rendering excluded"},
     {"name": "public-motion/engine-advance-500", "metric": "max_allocations", "max": 0,
      "why": "500 public object playback plans plus effect parameters reuse prepared double buffers during native batch advance; setup excluded, no renderer or whole-frame claim"},
     {"name": "public-motion/object-query-500", "metric": "max_allocations", "max": 0,

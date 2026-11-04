@@ -1,8 +1,7 @@
 // The player owns time and buffers; immutable library plans own correspondence.
 export module hanim.engine;
 import std;
-export import hanim.library;
-export import hanim.effect;
+export import hanim.program;
 
 namespace hanim::detail { struct EngineData; }
 export namespace hanim {
@@ -21,19 +20,18 @@ enum class CancelMode : std::uint8_t { hold, restore };
 enum class EngineError : std::uint8_t {
     uninitialized, invalid_limits, invalid_handle, foreign_engine, stale_handle,
     invalid_time, invalid_ease, invalid_argument, capacity, binding_conflict, cancelled,
-    version_exhausted, object, animation, effect, reentrant_mutation
+    version_exhausted, object, animation, effect, reentrant_mutation,
+    program, ambiguous_frame, unsupported_operation
 };
 struct EngineFailure {
     EngineError code;
     std::optional<ObjectError> object;
     std::optional<MorphFailure> animation;
     std::optional<EffectError> effect;
+    std::optional<ProgramFailure> program;
 };
 [[nodiscard]] std::string_view engine_error_name(EngineError error) noexcept;
-struct PlayOptions {
-    seconds duration{1};
-    Ease easing = ease::linear;
-};
+using PlayOptions = SegmentOptions;
 struct EngineLimits {
     ObjectLimits objects;
     std::size_t max_playbacks = 1024;
@@ -48,7 +46,10 @@ struct PlaybackInfo {
     std::uint64_t target_revision = 0, plan_revision = 0;
     PlaybackState state = PlaybackState::paused;
     seconds position{0}, duration{0};
-    double rate = 1, progress = 0, sample_progress = 0;
+    double rate = 1, progress = 0;
+    // Multi-track programs have no single eased object progress.
+    std::optional<double> sample_progress;
+    std::size_t track_count = 0, segment_count = 0;
 };
 // All spans/pointers borrow the Engine until its next mutating operation.
 // Queries do not resample. Copy immutable plans to keep their preparation;
@@ -59,6 +60,7 @@ struct EngineFrame {
     const PreparedObjectMorph* animation = nullptr;
     const PreparedEffects* effects = nullptr;
     std::span<const float> effect_values;
+    std::size_t track_index = 0, segment_index = 0;
 };
 
 // One owning thread or external synchronization. No event loop, window,
@@ -87,6 +89,9 @@ public:
     // moving their registry into the Engine or invoking their setters per frame.
     [[nodiscard]] std::expected<PlaybackRef, EngineFailure> play(
         Snapshot from, Snapshot to, std::span<const EffectSpec> effects = {}, PlayOptions options = {}, MorphOptions morph = {});
+    // Preparation is explicit and immutable. All tracks use the same clock,
+    // lifecycle and batch publication as the single-object convenience calls.
+    [[nodiscard]] std::expected<PlaybackRef, EngineFailure> play(PreparedProgram program);
     [[nodiscard]] std::expected<void, EngineFailure> retarget(
         PlaybackRef playback, Snapshot to, PlayOptions options = {}, MorphOptions morph = {});
     [[nodiscard]] std::expected<void, EngineFailure> retarget(
@@ -104,6 +109,7 @@ public:
     [[nodiscard]] std::expected<void, EngineFailure> advance(seconds elapsed);
     [[nodiscard]] std::expected<PlaybackInfo, EngineFailure> inspect(PlaybackRef) const noexcept;
     [[nodiscard]] std::expected<EngineFrame, EngineFailure> frame(PlaybackRef) const noexcept;
+    [[nodiscard]] std::expected<EngineFrame, EngineFailure> frame(PlaybackRef, std::size_t track) const noexcept;
     [[nodiscard]] std::expected<std::size_t, EngineFailure> list(std::span<PlaybackInfo> output) const noexcept;
 private:
     std::unique_ptr<detail::EngineData> data_;

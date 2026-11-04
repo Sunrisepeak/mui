@@ -4,7 +4,8 @@
 
 | 文档 | 内容 |
 |---|---|
-| [2026-11-04-hanim-play-api-design.md](2026-11-04-hanim-play-api-design.md) | **play／组合架构 review**：对象×动画×效果×配置的四类嵌套表达，简单四参数入口与统一 Program／PreparedPlan；组、A→B、阶段源、通道混合、效果作用域、时间／配置继承、交叉播放、控制与分期；严格单对象原型和完整目标分别标明 |
+| [2026-11-04-hanim-generality-style-gpu-review-design.md](2026-11-04-hanim-generality-style-gpu-review-design.md) | **通用性／质量／性能比较稿**：对象／动画／IR三种中心视角的取舍，表示、匹配、插值、动画、效果和CPU／GPU异构执行；Manim／游戏动画真实基线、风格自由度、局部与全局边界、领先验收；候选接口不直接定案 |
+| [2026-11-04-hanim-play-api-design.md](2026-11-04-hanim-play-api-design.md) | **play／组合架构 review**：对象×动画×效果×配置的四类嵌套表达，简单四参数入口与统一 Program／PreparedPlan；组、A→B、阶段源、通道混合、效果作用域、时间／配置继承、交叉播放、控制与分期；严格对象Program首批与完整目标分别标明 |
 | [2026-11-04-indie-game-tools-assets-design.md](2026-11-04-indie-game-tools-assets-design.md) | **独立游戏工具／素材补充**：六类基础工具扩为九类＋共享发布验证底座；场景关卡、玩法数据、素材资源编辑与依赖／重导入／目标变体、角色／存档等缺口；按类型支持矩阵与真实游戏生产链 |
 | [2026-11-04-multi-engine-product-architecture-design.md](2026-11-04-multi-engine-product-architecture-design.md) | **顶层产品架构／review 稿**：对等的 UI／动画／渲染／模拟／音频／计算产品，物理／化学／元胞模型，分块与计算优化；mcpp GPU／HPC 构建插件、Web 重点与 Toy 子后端、TUI、多输出及单平台先验证的后端路线；独立标准、Agent、通用风格、后置双视角工具／MIDI 编辑器、可裁剪及单一实现归属 |
 | [2026-11-04-dual-user-tools-validation-design.md](2026-11-04-dual-user-tools-validation-design.md) | **核心工具／应用讨论稿**：六类真实创作和调试工具，共用工作台与编译／构建基础；同一项目／操作／事务／观测下的人类可视化与 openas Agent 控制；第一条完整验收任务、工具后置与 Web／Toy／TUI 分期 |

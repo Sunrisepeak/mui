@@ -1,0 +1,307 @@
+module hanim.program;
+import std;
+import openmui.log;
+import openmui.trace;
+
+namespace hanim::detail {
+struct ProgramNode {
+    ProgramKind kind = ProgramKind::empty;
+    ProgramBinding binding;
+    std::vector<Program> children;
+    seconds step{0};
+};
+struct ProgramData {
+    std::vector<ProgramTrack> tracks;
+    std::vector<PreparedSegment> segments;
+    seconds duration{0};
+};
+}
+namespace hanim {
+namespace {
+constexpr omui::Log diagnostic{"hanim.program"};
+ProgramFailure failure(ProgramError code, std::size_t node = invalid_program_index,
+    std::size_t track = invalid_program_index, std::size_t segment = invalid_program_index) noexcept {
+    return {.code=code,.node=node,.track=track,.segment=segment};
+}
+ProgramFailure animation_failure(MorphFailure error, std::size_t node, std::size_t track, std::size_t segment) noexcept {
+    auto result=failure(ProgramError::animation,node,track,segment);result.animation=error;return result;
+}
+ProgramFailure effect_failure(EffectError error, std::size_t node, std::size_t track, std::size_t segment) noexcept {
+    auto result=failure(ProgramError::effect,node,track,segment);result.effect=error;return result;
+}
+bool valid_limits(ProgramLimits limits) noexcept {
+    return limits.max_nodes && limits.max_nodes<=65536 && limits.max_depth && limits.max_depth<=256 &&
+        limits.max_tracks && limits.max_tracks<=65536 && limits.max_segments && limits.max_segments<=65536 &&
+        limits.max_total_parts;
+}
+std::optional<ProgramError> invalid_options(SegmentOptions options) noexcept {
+    if (!std::isfinite(options.duration.count()) || options.duration.count()<0) return ProgramError::invalid_time;
+    if (options.easing.kind>EaseKind::steps) return ProgramError::invalid_ease;
+    for (double value:options.easing.p) if (!std::isfinite(value)) return ProgramError::invalid_ease;
+    if (options.easing.kind==EaseKind::cubic_bezier &&
+        (options.easing.p[0]<0 || options.easing.p[0]>1 || options.easing.p[2]<0 || options.easing.p[2]>1))
+        return ProgramError::invalid_ease;
+    if (options.easing.kind==EaseKind::steps &&
+        (options.easing.p[0]<1 || options.easing.p[0]>1000000 ||
+         static_cast<double>(static_cast<std::uint32_t>(options.easing.p[0]))!=options.easing.p[0] ||
+         options.easing.p[1]<0 || options.easing.p[1]>3 ||
+         static_cast<double>(static_cast<std::uint32_t>(options.easing.p[1]))!=options.easing.p[1]))
+        return ProgramError::invalid_ease;
+    return {};
+}
+std::expected<double,ProgramFailure> sum(double a,double b,std::size_t node) noexcept {
+    if (b>std::numeric_limits<double>::max()-a) return std::unexpected(failure(ProgramError::invalid_time,node));
+    return a+b;
+}
+struct Branch { std::size_t node, child; ProgramKind kind; };
+struct Leaf {
+    const ProgramBinding* binding=nullptr;
+    std::size_t node=0,track=0;
+    std::string path;
+    seconds start{0};
+    std::vector<Branch> branches;
+};
+struct Collect {
+    ProgramLimits limits;
+    std::vector<Leaf> leaves;
+    std::size_t nodes=0;
+    std::expected<double,ProgramFailure> visit(const Program& value,double start,std::size_t depth,
+                                              std::string path,std::vector<Branch>& branches) {
+        const auto node=nodes++;
+        if(node>=limits.max_nodes)return std::unexpected(failure(ProgramError::node_budget,node));
+        if(depth>limits.max_depth)return std::unexpected(failure(ProgramError::depth_budget,node));
+        if(!value)return std::unexpected(failure(ProgramError::empty_program,node));
+        if(value.kind()==ProgramKind::binding) {
+            const auto* binding=value.binding();
+            if(!binding || !binding->from || !binding->to)return std::unexpected(failure(ProgramError::invalid_snapshot,node));
+            if(binding->source>ProgramSource::snapshot)return std::unexpected(failure(ProgramError::invalid_source,node));
+            if(const auto invalid=invalid_options(binding->options))return std::unexpected(failure(*invalid,node));
+            if(leaves.size()>=limits.max_segments)return std::unexpected(failure(ProgramError::segment_budget,node));
+            leaves.push_back({binding,node,0,std::move(path),seconds(start),branches});
+            return binding->options.duration.count();
+        }
+        const auto children=value.children();
+        if(children.empty())return std::unexpected(failure(ProgramError::empty_program,node));
+        const auto step=value.step().count();
+        if(!std::isfinite(step) || step<0)return std::unexpected(failure(ProgramError::invalid_time,node));
+        double offset=0,end=0;
+        for(std::size_t i=0;i<children.size();++i) {
+            const auto child_start=sum(start,offset,node);if(!child_start)return std::unexpected(child_start.error());
+            branches.push_back({node,i,value.kind()});
+            auto length=visit(children[i],*child_start,depth+1,path+"/"+std::to_string(i),branches);
+            branches.pop_back();if(!length)return std::unexpected(length.error());
+            const auto child_end=sum(offset,*length,node);if(!child_end)return std::unexpected(child_end.error());
+            end=std::max(end,*child_end);
+            if(value.kind()==ProgramKind::sequence)offset=*child_end;
+            else if(value.kind()==ProgramKind::stagger && i+1<children.size()) {
+                const auto next=sum(offset,step,node);if(!next)return std::unexpected(next.error());offset=*next;
+            }
+        }
+        const auto absolute_end=sum(start,end,node);if(!absolute_end)return std::unexpected(absolute_end.error());
+        return end;
+    }
+};
+bool serial_before(const Leaf& a,const Leaf& b) noexcept {
+    const auto count=std::min(a.branches.size(),b.branches.size());
+    for(std::size_t i=0;i<count;++i) {
+        const auto& x=a.branches[i];const auto& y=b.branches[i];
+        if(x.node!=y.node)return false;
+        if(x.child!=y.child)return x.kind==ProgramKind::sequence && x.child<y.child;
+    }
+    return false;
+}
+struct Progress { double linear, sampled; };
+std::expected<Progress,ProgramFailure> progress_at(const PreparedSegment& segment,seconds time,bool exact_source,
+                                                std::size_t index) noexcept {
+    if(exact_source || time<segment.start)return Progress{0,0};
+    const auto duration=segment.options.duration.count();
+    // The compiled first-stage segment has only offset/duration and both fills.
+    // Use the core's simple inline time primitive instead of evaluating the
+    // general repeat/alternate mapper for every object. Author easing is still
+    // applied below, including jump-start at zero.
+    const auto linear=duration==0?1:Tween<double>{.from=0,.to=1,
+        .duration=segment.options.duration,.ease=ease::linear,.delay=segment.start}.value(time);
+    if(segment.anchor_source && duration>0 && linear==0)return Progress{linear,0};
+    const auto eased=segment.options.easing(linear);
+    if(!std::isfinite(eased))return std::unexpected(failure(ProgramError::invalid_ease,segment.node,segment.track,index));
+    return Progress{linear,std::clamp(eased,0.0,1.0)};
+}
+std::expected<PreparedObjectMorph,ProgramFailure> from_previous(const PreparedSegment& previous,const Snapshot& to,
+    MorphOptions options,std::size_t node,std::size_t track,std::size_t segment) {
+    const auto count=previous.animation.requirements();
+    std::vector<FramePart> parts(count.parts);std::vector<ShapeCubic> cubics(count.cubics);
+    const auto progress=progress_at(previous,previous.start+previous.options.duration,false,segment-1);
+    if(!progress)return std::unexpected(progress.error());
+    const auto pose=previous.animation.sample(progress->sampled,{parts,cubics});
+    if(!pose)return std::unexpected(animation_failure(pose.error(),node,track,segment));
+    const auto result=PreparedObjectMorph::retarget(*pose,to,options);
+    if(!result)return std::unexpected(animation_failure(result.error(),node,track,segment));
+    return *result;
+}
+std::expected<void,ProgramFailure> account(detail::ProgramData& data,PreparedSegment segment,ProgramLimits limits,
+    std::size_t& parts,std::size_t& cubics,std::size_t& parameters) {
+    const auto count=segment.animation.requirements();const auto params=segment.effects.parameter_count();
+    const auto index=data.segments.size();
+    if(count.parts>limits.max_total_parts-parts)return std::unexpected(failure(ProgramError::part_budget,segment.node,segment.track,index));
+    if(count.cubics>limits.max_total_cubics-cubics)return std::unexpected(failure(ProgramError::cubic_budget,segment.node,segment.track,index));
+    if(params>limits.max_total_effect_parameters-parameters)return std::unexpected(failure(ProgramError::effect_parameter_budget,segment.node,segment.track,index));
+    parts+=count.parts;cubics+=count.cubics;parameters+=params;
+    auto& track=data.tracks[segment.track];
+    track.requirements.parts=std::max(track.requirements.parts,count.parts);
+    track.requirements.contours=std::max(track.requirements.contours,count.contours);
+    track.requirements.cubics=std::max(track.requirements.cubics,count.cubics);
+    track.max_effect_parameters=std::max(track.max_effect_parameters,params);
+    if(!track.segment_count)track.first_segment=index;
+    ++track.segment_count;data.segments.push_back(std::move(segment));
+    return {};
+}
+}
+ProgramKind Program::kind() const noexcept {return node_?node_->kind:ProgramKind::empty;}
+std::span<const Program> Program::children() const & noexcept {return node_?std::span<const Program>(node_->children):std::span<const Program>{};}
+const ProgramBinding* Program::binding() const & noexcept {return node_ && node_->kind==ProgramKind::binding?&node_->binding:nullptr;}
+seconds Program::step() const noexcept {return node_?node_->step:seconds(0);}
+Program bind(Snapshot from,Snapshot to,Effects effects,SegmentOptions options,MorphOptions morph,ProgramSource source) {
+    auto node=std::make_shared<detail::ProgramNode>();node->kind=ProgramKind::binding;
+    node->binding={std::move(from),std::move(to),std::move(effects),options,morph,source};return Program(std::move(node));
+}
+Program sequence(std::span<const Program> children) {
+    auto node=std::make_shared<detail::ProgramNode>();node->kind=ProgramKind::sequence;node->children.assign(children.begin(),children.end());return Program(std::move(node));
+}
+Program parallel(std::span<const Program> children) {
+    auto node=std::make_shared<detail::ProgramNode>();node->kind=ProgramKind::parallel;node->children.assign(children.begin(),children.end());return Program(std::move(node));
+}
+Program stagger(seconds step,std::span<const Program> children) {
+    auto node=std::make_shared<detail::ProgramNode>();node->kind=ProgramKind::stagger;node->step=step;node->children.assign(children.begin(),children.end());return Program(std::move(node));
+}
+Program sequence(std::initializer_list<Program> children) {return sequence(std::span<const Program>(children.begin(),children.size()));}
+Program parallel(std::initializer_list<Program> children) {return parallel(std::span<const Program>(children.begin(),children.size()));}
+Program stagger(seconds step,std::initializer_list<Program> children) {return stagger(step,std::span<const Program>(children.begin(),children.size()));}
+std::string_view program_error_name(ProgramError error) noexcept {
+    switch(error) {
+        case ProgramError::unprepared:return "unprepared";
+        case ProgramError::invalid_limits:return "invalid-limits";
+        case ProgramError::empty_program:return "empty-program";
+        case ProgramError::invalid_snapshot:return "invalid-snapshot";
+        case ProgramError::invalid_source:return "invalid-source";
+        case ProgramError::invalid_time:return "invalid-time";
+        case ProgramError::invalid_ease:return "invalid-ease";
+        case ProgramError::node_budget:return "node-budget";
+        case ProgramError::depth_budget:return "depth-budget";
+        case ProgramError::track_budget:return "track-budget";
+        case ProgramError::segment_budget:return "segment-budget";
+        case ProgramError::part_budget:return "part-budget";
+        case ProgramError::cubic_budget:return "cubic-budget";
+        case ProgramError::effect_parameter_budget:return "effect-parameter-budget";
+        case ProgramError::source_version_mismatch:return "source-version-mismatch";
+        case ProgramError::binding_conflict:return "binding-conflict";
+        case ProgramError::animation:return "animation";
+        case ProgramError::effect:return "effect";
+        case ProgramError::invalid_track:return "invalid-track";
+        case ProgramError::output_too_small:return "output-too-small";
+    }return "unknown";
+}
+std::expected<PreparedProgram,ProgramFailure> PreparedProgram::prepare(const Program& program,ProgramLimits limits) {
+    omui::trace::Span span("prepare","hanim.program");
+    auto refuse=[](ProgramFailure error)->std::expected<PreparedProgram,ProgramFailure>{
+        diagnostic.warn("prepare refused: {} node={} track={}",program_error_name(error.code),error.node,error.track);
+        omui::trace::mark("refused","hanim.program");return std::unexpected(error);
+    };
+    if(!valid_limits(limits))return refuse(failure(ProgramError::invalid_limits));
+    const auto empty_effects=PreparedEffects::prepare({},limits.effects);
+    if(!empty_effects)return refuse(effect_failure(empty_effects.error(),invalid_program_index,invalid_program_index,invalid_program_index));
+    Collect collect{limits};std::vector<Branch> branches;
+    const auto duration=collect.visit(program,0,1,"0",branches);if(!duration)return refuse(duration.error());
+    auto data=std::make_shared<detail::ProgramData>();data->duration=seconds(*duration);
+    for(auto& leaf:collect.leaves) {
+        const auto object=leaf.binding->from.object();
+        auto found=std::ranges::find(data->tracks,object,&ProgramTrack::object);
+        if(found==data->tracks.end()) {
+            if(data->tracks.size()>=limits.max_tracks)return refuse(failure(ProgramError::track_budget,leaf.node));
+            leaf.track=data->tracks.size();data->tracks.push_back({.object=object,.source_revision=leaf.binding->from.revision()});
+        }else leaf.track=static_cast<std::size_t>(found-data->tracks.begin());
+    }
+    std::ranges::stable_sort(collect.leaves,[](const Leaf& a,const Leaf& b){
+        if(a.track!=b.track)return a.track<b.track;
+        if(a.start!=b.start)return a.start<b.start;
+        return a.node<b.node;
+    });
+    std::size_t parts=0,cubics=0,parameters=0;
+    const Leaf* previous_leaf=nullptr;
+    for(const auto& leaf:collect.leaves) {
+        const auto& binding=*leaf.binding;auto& track=data->tracks[leaf.track];
+        const auto index=data->segments.size();const PreparedSegment* previous=nullptr;
+        if(!track.segment_count)track.source_revision=binding.from.revision();
+        if(track.segment_count)previous=&data->segments.back();
+        if(previous) {
+            const auto end=previous->start+previous->options.duration;
+            if(leaf.start<end || (leaf.start==previous->start &&
+                (binding.options.duration.count()==0 || previous->options.duration.count()==0) && !serial_before(*previous_leaf,leaf)))
+                return refuse(failure(ProgramError::binding_conflict,leaf.node,leaf.track,index));
+            if(binding.source==ProgramSource::previous_endpoint && binding.from.revision()!=track.source_revision)
+                return refuse(failure(ProgramError::source_version_mismatch,leaf.node,leaf.track,index));
+        }
+        std::expected<PreparedObjectMorph,ProgramFailure> animation=std::unexpected(failure(ProgramError::animation));
+        const bool chained=previous && binding.source==ProgramSource::previous_endpoint;
+        if(chained)animation=from_previous(*previous,binding.to,binding.morph,leaf.node,leaf.track,index);
+        else {
+            const auto result=PreparedObjectMorph::prepare(binding.from,binding.to,binding.morph);
+            if(!result)return refuse(animation_failure(result.error(),leaf.node,leaf.track,index));
+            animation=*result;
+        }
+        if(!animation)return refuse(animation.error());
+        const auto effects=PreparedEffects::prepare(binding.effects,limits.effects);
+        if(!effects)return refuse(effect_failure(effects.error(),leaf.node,leaf.track,index));
+        const auto added=account(*data,{leaf.track,leaf.node,leaf.path,leaf.start,binding.options,*animation,*effects,chained},limits,parts,cubics,parameters);
+        if(!added)return refuse(added.error());previous_leaf=&leaf;
+    }
+    omui::trace::count("tracks",static_cast<double>(data->tracks.size()),"hanim.program");
+    omui::trace::count("segments",static_cast<double>(data->segments.size()),"hanim.program");
+    diagnostic.info("prepared {} tracks and {} segments",data->tracks.size(),data->segments.size());
+    PreparedProgram result;result.data_=std::move(data);return result;
+}
+std::expected<PreparedProgram,ProgramFailure> PreparedProgram::single(PreparedObjectMorph animation,PreparedEffects effects,
+    SegmentOptions options,bool anchor_source,ProgramLimits limits) {
+    omui::trace::Span span("single","hanim.program");
+    if(!valid_limits(limits))return std::unexpected(failure(ProgramError::invalid_limits));
+    if(!animation)return std::unexpected(failure(ProgramError::unprepared));
+    if(const auto invalid=invalid_options(options))return std::unexpected(failure(*invalid,0,0,0));
+    const auto empty=PreparedEffects::prepare({},limits.effects);
+    if(!empty)return std::unexpected(effect_failure(empty.error(),0,0,0));
+    if(effects.effects().size()>limits.effects.max_effects || effects.parameter_count()>limits.effects.max_parameters)
+        return std::unexpected(effect_failure(EffectError::capacity,0,0,0));
+    auto data=std::make_shared<detail::ProgramData>();data->duration=options.duration;
+    data->tracks.push_back({.object=animation.source_object(),.source_revision=animation.source_revision()});
+    std::size_t parts=0,cubics=0,parameters=0;
+    auto added=account(*data,{0,0,"0",seconds(0),options,std::move(animation),std::move(effects),anchor_source},limits,parts,cubics,parameters);
+    if(!added)return std::unexpected(added.error());
+    PreparedProgram result;result.data_=std::move(data);return result;
+}
+seconds PreparedProgram::duration() const noexcept {return data_?data_->duration:seconds(0);}
+std::span<const ProgramTrack> PreparedProgram::tracks() const & noexcept {return data_?std::span<const ProgramTrack>(data_->tracks):std::span<const ProgramTrack>{};}
+std::span<const PreparedSegment> PreparedProgram::segments() const & noexcept {return data_?std::span<const PreparedSegment>(data_->segments):std::span<const PreparedSegment>{};}
+std::expected<ProgramSample,ProgramFailure> PreparedProgram::sample(std::size_t track_index,seconds time,FrameBuffer output,
+    std::span<float> values,bool exact_source) const noexcept {
+    omui::trace::Span span("sample","hanim.program");
+    if(!data_)return std::unexpected(failure(ProgramError::unprepared));
+    if(track_index>=data_->tracks.size())return std::unexpected(failure(ProgramError::invalid_track,invalid_program_index,track_index));
+    if(!std::isfinite(time.count()))return std::unexpected(failure(ProgramError::invalid_time,invalid_program_index,track_index));
+    const auto& track=data_->tracks[track_index];auto index=track.first_segment;
+    if(!exact_source) {
+        const auto begin=data_->segments.begin()+static_cast<std::ptrdiff_t>(track.first_segment);
+        const auto end=begin+static_cast<std::ptrdiff_t>(track.segment_count);
+        const auto after=std::ranges::upper_bound(begin,end,time,{},&PreparedSegment::start);
+        if(after!=begin)index=static_cast<std::size_t>((after-1)-data_->segments.begin());
+    }
+    const auto& segment=data_->segments[index];const auto count=segment.animation.requirements();
+    if(output.parts.size()<count.parts || output.cubics.size()<count.cubics || values.size()<segment.effects.parameter_count())
+        return std::unexpected(failure(ProgramError::output_too_small,segment.node,track_index,index));
+    const auto progress=progress_at(segment,time,exact_source,index);if(!progress)return std::unexpected(progress.error());
+    const auto geometry=segment.animation.sample(progress->sampled,output);
+    if(!geometry)return std::unexpected(animation_failure(geometry.error(),segment.node,track_index,index));
+    // Bounds and finite progress were checked before geometry was written;
+    // this immutable effect plan has no remaining sample failure condition.
+    const auto effects=segment.effects.sample(progress->sampled,values);
+    if(!effects)return std::unexpected(effect_failure(effects.error(),segment.node,track_index,index));
+    return ProgramSample{*geometry,index,progress->linear,progress->sampled,segment.effects.parameter_count()};
+}
+} // namespace hanim

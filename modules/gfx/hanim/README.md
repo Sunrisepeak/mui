@@ -11,6 +11,7 @@ layer, using only the standard library and `openmui.math`.
 | [hanim.engine](engine) | Explicit-clock playback and batch sampling, controls, current-pose retarget and typed queries |
 | [hanim.library](library) | Strict public named-part contour morph plans, caller-owned frames and deep C0 retarget preparation |
 | [hanim.object](object) | Generational object/part identities and owned immutable captures of hierarchical 2D parts, actual contours and solid fills |
+| [hanim.program](program) | Immutable nested bindings compiled into owned object schedules; bounded arbitrary-time sampling without a player |
 | [render](render) | Optional renderer consumers: current vector frames, shared native material mixing and effects |
 
 This directory is currently a grouping, not the public `hanim` umbrella.

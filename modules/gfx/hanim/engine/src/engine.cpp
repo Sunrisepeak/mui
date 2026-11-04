@@ -14,15 +14,18 @@ struct FrameStorage {
     FrameBuffer output() noexcept { return {parts, cubics}; }
     void swap(FrameStorage& other) noexcept { parts.swap(other.parts); cubics.swap(other.cubics); }
 };
-struct Playback {
-    PreparedObjectMorph animation;
-    PreparedEffects effects;
+struct TrackPlayback {
     FrameStorage current, scratch;
     std::vector<float> values, next_values;
-    PlayOptions options;
-    double position = 0, rate = 1, progress = 0, sample_progress = 0;
-    double pending_position = 0, pending_progress = 0, pending_linear_progress = 0;
-    bool paused = false, cancelled = false, anchor_source = false;
+    std::size_t segment = 0, pending_segment = 0;
+    double progress = 0, pending_progress = 0;
+};
+struct Playback {
+    PreparedProgram program;
+    std::vector<TrackPlayback> tracks;
+    double position = 0, rate = 1, progress = 0;
+    double pending_position = 0, pending_linear_progress = 0;
+    bool paused = false, cancelled = false;
     std::uint64_t revision = 1;
 };
 struct EngineData {
@@ -43,40 +46,55 @@ EngineFailure fail(EngineError code) noexcept { return {.code = code}; }
 EngineFailure object_failure(ObjectError error) noexcept { return {.code = EngineError::object, .object = error}; }
 EngineFailure animation_failure(MorphFailure error) noexcept { return {.code = EngineError::animation, .animation = error}; }
 EngineFailure effect_failure(EffectError error) noexcept { return {.code = EngineError::effect, .effect = error}; }
+EngineFailure program_failure(ProgramFailure error) noexcept {
+    EngineError code = EngineError::program;
+    switch (error.code) {
+        case ProgramError::invalid_time: code = EngineError::invalid_time; break;
+        case ProgramError::invalid_ease: code = EngineError::invalid_ease; break;
+        case ProgramError::binding_conflict: code = EngineError::binding_conflict; break;
+        case ProgramError::animation: code = EngineError::animation; break;
+        case ProgramError::effect: code = EngineError::effect; break;
+        case ProgramError::node_budget: case ProgramError::depth_budget: case ProgramError::track_budget:
+        case ProgramError::segment_budget: case ProgramError::part_budget: case ProgramError::cubic_budget:
+        case ProgramError::effect_parameter_budget: code = EngineError::capacity; break;
+        default: break;
+    }
+    return {.code = code, .animation = error.animation, .effect = error.effect, .program = error};
+}
 struct WriteScope {
     bool& writing;
     explicit WriteScope(bool& value) noexcept : writing(value) { writing = true; }
     ~WriteScope() { writing = false; }
 };
-bool valid_options(PlayOptions options) noexcept {
-    if (!std::isfinite(options.duration.count()) || options.duration.count() < 0) return false;
-    if (options.easing.kind > EaseKind::steps) return false;
-    for (double value : options.easing.p) if (!std::isfinite(value)) return false;
-    if (options.easing.kind == EaseKind::cubic_bezier &&
-        (options.easing.p[0] < 0 || options.easing.p[0] > 1 || options.easing.p[2] < 0 || options.easing.p[2] > 1)) return false;
-    if (options.easing.kind == EaseKind::steps &&
-        (options.easing.p[0] < 1 || options.easing.p[0] > 1000000 || static_cast<double>(static_cast<std::uint32_t>(options.easing.p[0])) != options.easing.p[0] ||
-         options.easing.p[1] < 0 || options.easing.p[1] > 3 || static_cast<double>(static_cast<std::uint32_t>(options.easing.p[1])) != options.easing.p[1])) return false;
-    return true;
-}
 PlaybackState state(const detail::Playback& playback) noexcept {
     if (playback.cancelled) return PlaybackState::cancelled;
     if (playback.paused) return PlaybackState::paused;
-    if (playback.options.duration.count() == 0 || (playback.rate > 0 ? playback.position >= playback.options.duration.count() : playback.position <= 0))
+    const auto duration = playback.program.duration().count();
+    if (duration == 0 || (playback.rate > 0 ? playback.position >= duration : playback.position <= 0))
         return PlaybackState::finished;
     return PlaybackState::playing;
 }
-FrameView geometry(const detail::Playback& playback) noexcept {
-    return {.parts = playback.current.parts, .contours = playback.animation.contours(), .cubics = playback.current.cubics,
-        .progress = playback.sample_progress, .source_object = playback.animation.source_object(),
-        .source_revision = playback.animation.source_revision(), .preparation = playback.animation.identity()};
+FrameView geometry(const detail::Playback& playback, std::size_t track) noexcept {
+    const auto& current = playback.tracks[track];
+    const auto& animation = playback.program.segments()[current.segment].animation;
+    const auto count = animation.requirements();
+    return {.parts = std::span<const FramePart>(current.current.parts).first(count.parts), .contours = animation.contours(),
+        .cubics = std::span<const ShapeCubic>(current.current.cubics).first(count.cubics),
+        .progress = current.progress, .source_object = animation.source_object(),
+        .source_revision = animation.source_revision(), .preparation = animation.identity()};
 }
 PlaybackInfo info(const detail::EngineData& data, detail::PlaybackKey key, const detail::Playback& playback) noexcept {
-    return {.ref = {data.objects.owner(), key.index, key.generation}, .object = playback.animation.source_object(),
-        .target = playback.animation.to().object(), .target_revision = playback.animation.to().revision(),
-        .plan_revision = playback.revision, .state = state(playback), .position = seconds(playback.position),
-        .duration = playback.options.duration, .rate = playback.rate,
-        .progress = playback.progress, .sample_progress = playback.sample_progress};
+    PlaybackInfo result{.ref = {data.objects.owner(), key.index, key.generation}, .plan_revision = playback.revision,
+        .state = state(playback), .position = seconds(playback.position), .duration = playback.program.duration(),
+        .rate = playback.rate, .progress = playback.progress,
+        .track_count = playback.tracks.size(), .segment_count = playback.program.segments().size()};
+    if (playback.tracks.size() == 1) {
+        const auto& current = playback.tracks[0];
+        const auto& animation = playback.program.segments()[current.segment].animation;
+        result.object = animation.source_object(); result.target = animation.to().object();
+        result.target_revision = animation.to().revision(); result.sample_progress = current.progress;
+    }
+    return result;
 }
 std::expected<detail::Playback*, EngineFailure> resolve(detail::EngineData* data, PlaybackRef ref) noexcept {
     if (!data) return std::unexpected(fail(EngineError::uninitialized));
@@ -88,50 +106,81 @@ std::expected<detail::Playback*, EngineFailure> resolve(detail::EngineData* data
     return playback;
 }
 Status sample_next(detail::Playback& playback, double position, bool exact_source = false) noexcept {
-    const auto duration = playback.options.duration.count();
-    const auto linear = exact_source ? 0 : duration == 0 ? 1 : position / duration;
-    const bool anchored = exact_source || (playback.anchor_source && duration > 0 && linear == 0);
-    double progress = anchored ? 0 : playback.options.easing(linear);
-    if (!std::isfinite(progress)) return std::unexpected(fail(EngineError::invalid_ease));
-    // This contour-domain plan uses the core shape sampler's bounded progress.
-    // Geometry, fill, transform and effects share exactly this same progress.
-    progress = std::clamp(progress, 0.0, 1.0);
-    const auto frame = playback.animation.sample(progress, playback.scratch.output());
-    if (!frame) return std::unexpected(animation_failure(frame.error()));
-    const auto effects = playback.effects.sample(progress, playback.next_values);
-    if (!effects) return std::unexpected(effect_failure(effects.error()));
-    playback.pending_position = position; playback.pending_progress = progress; playback.pending_linear_progress = linear;
+    for (std::size_t i = 0; i < playback.tracks.size(); ++i) {
+        auto& track = playback.tracks[i];
+        auto sampled = playback.program.sample(i, seconds(position), track.scratch.output(), track.next_values, exact_source);
+        if (!sampled) return std::unexpected(program_failure(sampled.error()));
+        track.pending_segment = sampled->segment_index;
+        track.pending_progress = sampled->sample_progress;
+    }
+    playback.pending_position = position;
+    const auto duration = playback.program.duration().count();
+    playback.pending_linear_progress = exact_source ? 0 : duration == 0 ? 1 : position / duration;
     return {};
 }
 void publish(detail::Playback& playback) noexcept {
-    playback.current.swap(playback.scratch); playback.values.swap(playback.next_values);
-    playback.position = playback.pending_position; playback.sample_progress = playback.pending_progress; playback.progress = playback.pending_linear_progress;
+    for (auto& track : playback.tracks) {
+        track.current.swap(track.scratch); track.values.swap(track.next_values);
+        track.segment = track.pending_segment; track.progress = track.pending_progress;
+    }
+    playback.position = playback.pending_position; playback.progress = playback.pending_linear_progress;
 }
-std::expected<detail::Playback, EngineFailure> make_playback(PreparedObjectMorph animation, PreparedEffects effects, PlayOptions options, bool anchor_source = false) {
+std::expected<detail::Playback, EngineFailure> make_playback(PreparedProgram program) {
     detail::Playback playback;
-    playback.animation = std::move(animation); playback.effects = std::move(effects); playback.options = options;
-    playback.anchor_source = anchor_source;
-    const auto count = playback.animation.requirements();
-    playback.current.resize(count); playback.scratch.resize(count);
-    playback.values.resize(playback.effects.parameter_count()); playback.next_values.resize(playback.values.size());
+    playback.program = std::move(program);
+    playback.tracks.resize(playback.program.tracks().size());
+    for (std::size_t i = 0; i < playback.tracks.size(); ++i) {
+        auto& track = playback.tracks[i]; const auto& required = playback.program.tracks()[i];
+        track.current.resize(required.requirements); track.scratch.resize(required.requirements);
+        track.values.resize(required.max_effect_parameters); track.next_values.resize(required.max_effect_parameters);
+    }
     auto sampled = sample_next(playback, 0);
     if (!sampled) return std::unexpected(sampled.error());
     publish(playback);
     return playback;
 }
-bool within_budget(const detail::EngineData& data, const PreparedObjectMorph& animation, const PreparedEffects& effects,
-    const detail::Playback* previous = nullptr) noexcept {
-    const auto count = animation.requirements();
-    const auto old = previous ? previous->animation.requirements() : FrameRequirements{};
+struct Counts { std::size_t parts = 0, cubics = 0, parameters = 0; };
+Counts counts(const PreparedProgram& program) noexcept {
+    Counts result;
+    for (const auto& track : program.tracks()) {
+        result.parts += track.requirements.parts; result.cubics += track.requirements.cubics;
+        result.parameters += track.max_effect_parameters;
+    }
+    return result;
+}
+bool within_budget(const detail::EngineData& data, const PreparedProgram& program, const detail::Playback* previous = nullptr) noexcept {
+    const auto count = counts(program); const auto old = previous ? counts(previous->program) : Counts{};
     return count.parts <= data.limits.max_total_parts - (data.parts - old.parts) &&
         count.cubics <= data.limits.max_total_cubics - (data.cubics - old.cubics) &&
-        effects.parameter_count() <= data.limits.max_total_effect_parameters -
-            (data.parameters - (previous ? previous->effects.parameter_count() : 0));
+        count.parameters <= data.limits.max_total_effect_parameters - (data.parameters - old.parameters);
 }
 void account(detail::EngineData& data, const detail::Playback& playback, bool add) noexcept {
-    const auto count = playback.animation.requirements(); const auto params = playback.effects.parameter_count();
-    if (add) { data.parts += count.parts; data.cubics += count.cubics; data.parameters += params; }
-    else { data.parts -= count.parts; data.cubics -= count.cubics; data.parameters -= params; }
+    const auto count = counts(playback.program);
+    if (add) { data.parts += count.parts; data.cubics += count.cubics; data.parameters += count.parameters; }
+    else { data.parts -= count.parts; data.cubics -= count.cubics; data.parameters -= count.parameters; }
+}
+std::expected<PlaybackRef, EngineFailure> insert_playback(detail::EngineData* data, PreparedProgram program) {
+    if (!data) return std::unexpected(fail(EngineError::uninitialized));
+    if (!program) return std::unexpected(program_failure({ProgramError::unprepared}));
+    for (const auto& segment : program.segments()) {
+        if (segment.effects.effects().size() > data->limits.effects.max_effects ||
+            segment.effects.parameter_count() > data->limits.effects.max_parameters)
+            return std::unexpected(effect_failure(EffectError::capacity));
+    }
+    bool bound = false;
+    data->playbacks.for_each([&](auto, const detail::Playback& old) {
+        for (const auto& existing : old.program.tracks()) for (const auto& added : program.tracks())
+            bound |= existing.object == added.object;
+    });
+    if (bound) return std::unexpected(fail(EngineError::binding_conflict));
+    if (!within_budget(*data, program)) return std::unexpected(fail(EngineError::capacity));
+    const auto inserted = data->playbacks.try_insert([&](detail::PlaybackKey) {
+        return make_playback(std::move(program));
+    }, fail(EngineError::capacity));
+    if (!inserted) return std::unexpected(inserted.error());
+    account(*data, *data->playbacks.get(*inserted), true);
+    engine_log.debug("play owner={} slot={} generation={}", data->objects.owner(), inserted->index, inserted->generation);
+    return PlaybackRef{data->objects.owner(), inserted->index, inserted->generation};
 }
 template <class F>
 Status mutate(detail::EngineData* data, bool& writing, PlaybackRef ref, const char* operation, F&& action) {
@@ -148,12 +197,13 @@ Status active(const detail::Playback& playback) noexcept {
     return playback.cancelled ? Status(std::unexpected(fail(EngineError::cancelled))) : Status{};
 }
 Effects current_effects(const detail::Playback& playback) {
-    Effects effects; effects.reserve(playback.effects.effects().size());
-    const auto parameters = playback.effects.parameters();
-    for (const auto& entry : playback.effects.effects()) {
+    const auto& track = playback.tracks[0]; const auto& prepared = playback.program.segments()[track.segment].effects;
+    Effects effects; effects.reserve(prepared.effects().size());
+    const auto parameters = prepared.parameters();
+    for (const auto& entry : prepared.effects()) {
         EffectSpec effect{.id = entry.id}; effect.parameters.reserve(entry.count);
         for (std::size_t i = entry.offset; i < entry.offset + entry.count; ++i)
-            effect.parameters.push_back({parameters[i].name, playback.values[i], parameters[i].to});
+            effect.parameters.push_back({parameters[i].name, track.values[i], parameters[i].to});
         effects.push_back(std::move(effect));
     }
     return effects;
@@ -178,6 +228,9 @@ std::string_view engine_error_name(EngineError error) noexcept {
         case EngineError::animation: return "animation";
         case EngineError::effect: return "effect";
         case EngineError::reentrant_mutation: return "reentrant-mutation";
+        case EngineError::program: return "program";
+        case EngineError::ambiguous_frame: return "ambiguous-frame";
+        case EngineError::unsupported_operation: return "unsupported-operation";
     }
     return "unknown";
 }
@@ -229,24 +282,19 @@ std::expected<PlaybackRef, EngineFailure> Engine::play(Snapshot from, Snapshot t
     if (writing_) return std::unexpected(fail(EngineError::reentrant_mutation));
     WriteScope write(writing_); omui::trace::Span span("play", "hanim.engine");
     if (!data_) return std::unexpected(fail(EngineError::uninitialized));
-    if (!valid_options(options)) return std::unexpected(fail(!std::isfinite(options.duration.count()) || options.duration.count() < 0 ? EngineError::invalid_time : EngineError::invalid_ease));
-    bool bound = false;
-    data_->playbacks.for_each([&](auto, const detail::Playback& playback) {
-        bound |= playback.animation.source_object() == from.object();
-    });
-    if (bound) return std::unexpected(fail(EngineError::binding_conflict));
-    const auto inserted = data_->playbacks.try_insert([&](detail::PlaybackKey) -> std::expected<detail::Playback, EngineFailure> {
-        auto animation = PreparedObjectMorph::prepare(std::move(from), std::move(to), morph);
-        if (!animation) return std::unexpected(animation_failure(animation.error()));
-        auto effect = PreparedEffects::prepare(effects, data_->limits.effects);
-        if (!effect) return std::unexpected(effect_failure(effect.error()));
-        if (!within_budget(*data_, *animation, *effect)) return std::unexpected(fail(EngineError::capacity));
-        return make_playback(std::move(*animation), std::move(*effect), options);
-    }, fail(EngineError::capacity));
-    if (!inserted) return std::unexpected(inserted.error());
-    account(*data_, *data_->playbacks.get(*inserted), true);
-    engine_log.debug("play owner={} slot={} generation={}", owner(), inserted->index, inserted->generation);
-    return PlaybackRef{owner(), inserted->index, inserted->generation};
+    auto animation = PreparedObjectMorph::prepare(std::move(from), std::move(to), morph);
+    if (!animation) return std::unexpected(animation_failure(animation.error()));
+    auto effect = PreparedEffects::prepare(effects, data_->limits.effects);
+    if (!effect) return std::unexpected(effect_failure(effect.error()));
+    auto program = PreparedProgram::single(std::move(*animation), std::move(*effect), options, false,
+        {.effects = data_->limits.effects});
+    if (!program) return std::unexpected(program_failure(program.error()));
+    return insert_playback(data_.get(), std::move(*program));
+}
+std::expected<PlaybackRef, EngineFailure> Engine::play(PreparedProgram program) {
+    if (writing_) return std::unexpected(fail(EngineError::reentrant_mutation));
+    WriteScope write(writing_); omui::trace::Span span("play-program", "hanim.engine");
+    return insert_playback(data_.get(), std::move(program));
 }
 Status Engine::retarget(PlaybackRef ref, anim::MorphTo animation, PlayOptions options) {
     if (writing_) return std::unexpected(fail(EngineError::reentrant_mutation));
@@ -257,15 +305,18 @@ Status Engine::retarget(PlaybackRef ref, anim::MorphTo animation, PlayOptions op
 Status Engine::retarget(PlaybackRef ref, Snapshot to, PlayOptions options, MorphOptions morph) {
     return mutate(data_.get(), writing_, ref, "retarget", [&](detail::Playback& old) -> Status {
         if (auto result = active(old); !result) return result;
-        if (!valid_options(options)) return std::unexpected(fail(!std::isfinite(options.duration.count()) || options.duration.count() < 0 ? EngineError::invalid_time : EngineError::invalid_ease));
+        if (old.tracks.size() != 1) return std::unexpected(fail(EngineError::unsupported_operation));
         if (old.revision == std::numeric_limits<std::uint64_t>::max()) return std::unexpected(fail(EngineError::version_exhausted));
-        auto animation = PreparedObjectMorph::retarget(geometry(old), std::move(to), morph);
+        auto animation = PreparedObjectMorph::retarget(geometry(old, 0), std::move(to), morph);
         if (!animation) return std::unexpected(animation_failure(animation.error()));
         const auto description = current_effects(old);
         auto effect = PreparedEffects::prepare(description, data_->limits.effects);
         if (!effect) return std::unexpected(effect_failure(effect.error()));
-        if (!within_budget(*data_, *animation, *effect, &old)) return std::unexpected(fail(EngineError::capacity));
-        auto next = make_playback(std::move(*animation), std::move(*effect), options, true);
+        auto program = PreparedProgram::single(std::move(*animation), std::move(*effect), options, true,
+            {.effects = data_->limits.effects});
+        if (!program) return std::unexpected(program_failure(program.error()));
+        if (!within_budget(*data_, *program, &old)) return std::unexpected(fail(EngineError::capacity));
+        auto next = make_playback(std::move(*program));
         if (!next) return std::unexpected(next.error());
         next->paused = old.paused; next->rate = std::abs(old.rate); next->revision = old.revision + 1;
         account(*data_, old, false); old = std::move(*next); account(*data_, old, true);
@@ -301,7 +352,7 @@ Status Engine::seek(PlaybackRef ref, seconds position) {
     return mutate(data_.get(), writing_, ref, "seek", [position](detail::Playback& playback) -> Status {
         if (auto result = active(playback); !result) return result;
         if (!std::isfinite(position.count())) return std::unexpected(fail(EngineError::invalid_time));
-        auto result = sample_next(playback, std::clamp(position.count(), 0.0, playback.options.duration.count()));
+        auto result = sample_next(playback, std::clamp(position.count(), 0.0, playback.program.duration().count()));
         if (!result) return result;
         publish(playback); return {};
     });
@@ -310,7 +361,7 @@ Status Engine::seek_progress(PlaybackRef ref, double progress) {
     if (writing_) return std::unexpected(fail(EngineError::reentrant_mutation));
     const auto playback = resolve(data_.get(), ref); if (!playback) return std::unexpected(playback.error());
     if (!std::isfinite(progress)) return std::unexpected(fail(EngineError::invalid_time));
-    return seek(ref, (*playback)->options.duration * std::clamp(progress, 0.0, 1.0));
+    return seek(ref, (*playback)->program.duration() * std::clamp(progress, 0.0, 1.0));
 }
 Status Engine::cancel(PlaybackRef ref, CancelMode mode) {
     return mutate(data_.get(), writing_, ref, "cancel", [mode](detail::Playback& playback) -> Status {
@@ -337,11 +388,11 @@ Status Engine::advance(seconds elapsed) {
     data_->playbacks.for_each([&](auto, detail::Playback& playback) {
         if (error || state(playback) != PlaybackState::playing) return;
         const bool forward = playback.rate > 0;
-        const auto distance = forward ? playback.options.duration.count() - playback.position : playback.position;
+        const auto distance = forward ? playback.program.duration().count() - playback.position : playback.position;
         const auto speed = std::abs(playback.rate);
         // Saturate before multiplying, including huge finite rates/deltas.
-        const auto position = elapsed.count() >= distance / speed ? (forward ? playback.options.duration.count() : 0) :
-            std::clamp(playback.position + elapsed.count() * playback.rate, 0.0, playback.options.duration.count());
+        const auto position = elapsed.count() >= distance / speed ? (forward ? playback.program.duration().count() : 0) :
+            std::clamp(playback.position + elapsed.count() * playback.rate, 0.0, playback.program.duration().count());
         auto result = sample_next(playback, position);
         if (!result) error = result.error();
     });
@@ -357,8 +408,17 @@ std::expected<PlaybackInfo, EngineFailure> Engine::inspect(PlaybackRef ref) cons
 }
 std::expected<EngineFrame, EngineFailure> Engine::frame(PlaybackRef ref) const noexcept {
     const auto playback = resolve(data_.get(), ref); if (!playback) return std::unexpected(playback.error());
+    if ((*playback)->tracks.size() != 1) return std::unexpected(fail(EngineError::ambiguous_frame));
+    return frame(ref, 0);
+}
+std::expected<EngineFrame, EngineFailure> Engine::frame(PlaybackRef ref, std::size_t track) const noexcept {
+    const auto playback = resolve(data_.get(), ref); if (!playback) return std::unexpected(playback.error());
     const auto& value = **playback;
-    return EngineFrame{info(*data_, {ref.slot, ref.generation}, value), geometry(value), &value.animation, &value.effects, value.values};
+    if (track >= value.tracks.size()) return std::unexpected(fail(EngineError::invalid_argument));
+    const auto& current = value.tracks[track]; const auto& selected = value.program.segments()[current.segment];
+    return EngineFrame{info(*data_, {ref.slot, ref.generation}, value), geometry(value, track),
+        &selected.animation, &selected.effects, std::span<const float>(current.values).first(selected.effects.parameter_count()),
+        track, current.segment};
 }
 std::expected<std::size_t, EngineFailure> Engine::list(std::span<PlaybackInfo> output) const noexcept {
     if (!data_) return std::unexpected(fail(EngineError::uninitialized));

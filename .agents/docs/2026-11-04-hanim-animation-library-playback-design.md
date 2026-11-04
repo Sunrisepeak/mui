@@ -1,6 +1,6 @@
 # hanim 通用对象动画引擎：像素插值、动画库与效果
 
-2026-11-04。**状态：独立 core、owned 对象、共享槽位与首条公开对象形变播放器／效果／CPU渲染链路已落地；完整 Program 编排、40项公共库、UI迁移及其余域仍未完成。** 维护者本轮进一步明确：**hanim 是 core＋基础动画库＋动画效果组成的通用对象动画产品；统一入口为 `hengine.play(hobject, animation, effect)`；对象、部件、几何与真实像素均可插值；UI 全部使用该引擎；完整覆盖 Manim 功能并在可衡量的维度上超过它。** 当前位于 base 的时间／数值模块只是 core 的已有实现，不能据此收窄整个 hanim 的职责。
+2026-11-04。**状态：独立 core、owned 对象、共享槽位与首条公开对象形变播放器／效果／CPU渲染链路已落地；严格对象Program编排首批已落地；完整通道／效果作用域、40项公共库、UI迁移及其余域仍未完成。** 维护者本轮进一步明确：**hanim 是 core＋基础动画库＋动画效果组成的通用对象动画产品；统一入口为 `hengine.play(hobject, animation, effect)`；对象、部件、几何与真实像素均可插值；UI 全部使用该引擎；完整覆盖 Manim 功能并在可衡量的维度上超过它。** 当前位于 base 的时间／数值模块只是 core 的已有实现，不能据此收窄整个 hanim 的职责。
 
 动画必须是框架用户可以真实复用的能力；官网是消费者与验收场，不是动画库的归宿。本文纠正“官网 40 个设计已等于 40 个通用库条目”的口径，不将新增提议写成已完成。
 
@@ -19,7 +19,8 @@
 | `modules/gfx/hanim/object/`，`import hanim.object;` | owner／generation 引用、命名层级、owned Contour 与不可变 Snapshot、错误／日志／trace、真实公共 core-plan 消费者；槽位已复用 memory | 尚无完整 Engine、像素／字形／mesh／material 域和 UI adapter |
 | `modules/gfx/hanim/library/`，`import hanim.library;` | 严格稳定部件／层级／绘制顺序对应，多闭合轮廓、transform／fill采样；深拥有当前姿态的C0 retarget | 目前一类对象形变，不是40项库；增删／重父级／拓扑变化及其它域仍需插件 |
 | `modules/gfx/hanim/effect/`，`import hanim.effect;` | 有序效果描述与预备参数计划，blur／tone构造，调用者缓冲采样 | 描述存在不代表后端支持；完整效果图／风格展开和作用域尚未完成 |
-| `modules/gfx/hanim/engine/`，`import hanim.engine;` | 公开四参数play、外部Snapshot入口，pause／seek／reverse／rate／retarget／cancel／release，整批失败不发布；复用共享槽位 | 首阶段每source独占binding；嵌套Program、通道混合、完整域和openas provider尚未完成 |
+| `modules/gfx/hanim/program/`，`import hanim.program;` | 不可变bind／sequence／parallel／stagger编译为对象分轨／分段，深拥有前段边界，版本／冲突／预算诊断及任意seek | 严格整对象通道；通道混合、组／效果隔离作用域和完整时间表达仍开放 |
+| `modules/gfx/hanim/engine/`，`import hanim.engine;` | 四参数及PreparedProgram入口共用播放器；多轨pause／seek／reverse／rate／cancel／release与整批失败不发布，单轨序列可retarget；复用共享槽位 | 首阶段每source独占binding；完整通道混合、选择性多轨重定向、其它域和openas provider尚未完成 |
 | `modules/gfx/hanim/render/vector/`，`import hanim.render.vector;` | 可选CPU适配把当前几何、solid／gradient材料mix和有序效果接入唯一renderer，支持真实离屏区域输出 | 严格CPU子集；GPU绑定、其它材料资源及完整材料历史重定向未验收 |
 | `modules/ui/motion/`，`import openmui.motion;` | Matter 提取显示列表；Morph 对两个绘制状态匹配、采样、绘制 | 通用轮廓归一化／对应关系不完整；可复用 clip 图与统一播放句柄未收成用户产品 |
 | `modules/ui/view/` | `motion` 槽、默认规则、暂停／寻址／倒放节点 motion、`pixel_effect` 及效果列表 | 不同动画通道尚未统一为一个完整 AnimationPlan／Handle；同属性混合不能统称已支持 |
@@ -382,3 +383,27 @@ ObjectRegistry 删除自己的两套空闲表、代次与存活计数；保留 o
 **Web与桌面设备CTS解耦。** 现有render／render.vector增加Web声明，移除对SDL设备测试的强制依赖。mcpp支持target依赖但尚无条件test discover，因此设备case移到单一test-only `modules/gfx/render/cts`，保留原65个case主体与像素pin；只按既有testing::threads能力排除3个线程注册。dev／release各15程序65组通过，其中10个设备case通过软件Vulkan Lavapipe执行，不是物理GPU性能；Web为11程序52组（排除10设备＋3线程）；LLVM sanitizer纯CPU为11程序55组通过，不加载SDL驱动，也不宣称历史Lavapipe LSAN已修复。日志 `/tmp/omui-render-cts-{dev-final,release}.log`、`/tmp/omui-render-portable-{web-first,llvm-sanitize}.log`。
 
 **完整目标仍开放。** 四维嵌套Program、阶段源与通道仲裁／混合、完整效果作用域、公共库40项、UI HObject adapter及全部默认配方迁移、真实像素／字形／rig／3D／模拟、GPU阶段、全引擎openas provider与完整产品伞迁移均未交付。本轮未重新构建或验收整站，§14的官网602项和5,031,965B报告仍对应原源码；不把基础Web测试当作新的官网预算证明。根用户mcpp.lock差异保持原样；本地真实验证收口后向同一PR #1提交，不等待其它平台CI。
+
+
+## 17. 严格对象Program首批与更通用架构的比较
+
+维护者进一步澄清：对象中心／动画中心只是供比较的思路，目标是在通用性、效果质量和性能上超过Manim及常见动画／游戏动画系统。新增[通用性／风格／GPU比较稿](2026-11-04-hanim-generality-style-gpu-review-design.md)，对照Manim已有OpenGL／匹配、成熟游戏系统的混合／GPU及独立高性能库，分别评估创作API和执行内核；主入口仍待review，不把callable候选语法写成已实现。core／matching／effects／异构执行的能力目标完整保留。
+
+**当前交付。** 新增[hanim.program](../../modules/gfx/hanim/program/README.md)：不可变bind／sequence／parallel／stagger展开为有界逻辑对象轨道和分段；固定端点、前段真正边界的深拥有、显式snapshot跳变、源版本、节点路径、同轨重叠冲突与准备预算均可查询。`sequence(bind(A,B),bind(A,C))`保持A身份并执行A→B→C；`bind(B,C)`明确是B轨道，不猜测身份别名。当前严格整对象通道，不支持任意通道blend／效果隔离作用域。
+
+Engine四参数入口规范化为PreparedProgram::single，`play(PreparedProgram)`复用同一时间、槽位、控制、双缓冲和发布逻辑。每轨预分配最大输出容量；所有活动实例及其轨道成功采样后才发布。`frame(ref,index)`返回当前段的实际几何／效果范围，单参数frame拒绝多轨含糊结果；inspect区分全局时间和仅单轨有效的可选采样进度。单轨序列可从当前实际阶段retarget，多轨替换到单目标明确报unsupported_operation；并未完成选择性通道替换。
+
+**配额与性能边界。** ProgramLimits计全部保留段的准备数据；EngineLimits计各轨最大可变缓冲的总量，两者均非RSS预算。外部PreparedProgram仍受Engine每段effects限制。瞬时／跳步曲线、显式不同源版本、阶段切换后parts／cubics／effects缩小到零时的公开span、失败整批保留及release返还配额都有真实覆盖。重复计算同段时间映射已移除；编译后的简单offset／duration段复用core Tween，避免每个对象使用通用repeat／alternate映射。新增测试逐位对照core map_time，包含零时长、负零、极小／极大有限时间及子正规范围；曲线与数学仍只有core一份。
+
+| 最终本地证据 | 结果及范围 |
+|---|---|
+| Program＋Engine | GCC dev／release、LLVM ASan＋UBSan各3程序35组通过；真实Web为3程序34组，仅真实线程case按既有能力排除。日志 `/tmp/omui-program-compiled-time-{dev,release,sanitize,web}.log`；根sanitize不扩张为全部依赖已插桩的声明 |
+| 实际多轨像素 | 双对象／三段，预先逐段绑定现有CPU adapter；0／.5／1／1.5／2与乱序seek全图一致，四配置PNG逐字节相同。五帧指纹8eb59ed6e8ebed65／5b1af446d0c51ed3／08bd8dd2d811f9b8／d7519a7e78b8da62／8bb61e1c5c048bd2。该fixture不新增计入20创意条目或美术达标 |
+| 干净CLI消费者 | 当前源码dev／release各实际30包、361条CDB，无UI／spec／testing／site／host；每次直接编译两轨三段并测试控制，再输出既有单段fixture的真实PNG／区域／重定向。报告 `target/hanim-program-compiled-consumer.report.omui.json` |
+| 全第一方CPU插桩 | 独立源码副本显式workspace.build flags，96／96第一方运行时／consumer TU实际插桩，源码hash与当前一致；361总CDB中的第三方／标准预构建运行时不扩大声明。detect_leaks=1、无suppressions、无显示环境；5场景及非法region退出码通过。报告 `target/hanim-program-full-sanitize.report.omui.json` |
+| 新增嵌套计划预算 | public-motion/program-seek-100x2：100独立实例共享同一两轨／三段计划，17个时间跨段seek，实跑14557轮，mean0.027479ms／p95 0.028490ms，137.39ns／对象轨道更新，max_allocations=0 |
+| 统一后的旧case | public-motion/engine-advance-500：实跑4399轮，mean0.090950ms／p95 0.102022ms，181.90ns／完整playback update，max_allocations=0。与§16旧单对象p95 0.089940ms为不同时间的本机样本，不能据此宣称抽象零成本或整体性能领先；共同路径与数据局部性继续profile |
+
+两个过滤基准各覆盖1项零分配预算，共2项；CLI载入65项不代表全部65项已运行。准备、渲染、GPU均排除，不作完整帧／物理GPU或跨设备性能承诺。原未优化与一次映射优化的报告／日志保留，不以最新数字覆盖历史。整体证据为 `target/hanim-program-site.report.omui.json`；正式基准为 `target/hanim-program-compiled-{seek,advance}.bench.omui.json`。
+
+底座RHI已有compute／storage／dispatch，WebGPU路径可接compute而WebGL声明不支持；当前hanim对象求值仍是CPU。完整matching算法族、跨域插值、真实像素迁移、rig、GPU evaluator、完整通道／效果／配置作用域、40公共库、UI默认动画迁移及全引擎Agent provider仍开放。未来编译器保留对象／时间／通道／效果／资源多视图，当前flat分轨表不当作最终万能IR。

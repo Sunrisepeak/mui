@@ -210,5 +210,125 @@ int main(int argc, char** argv) {
         check(f.engine.frame(ref)->geometry.parts[1].local.tx == 10 && f.engine.frame(ref)->effect_values[0] == 2,
             "arbitrary seek to the segment start reproduces the same anchored pose");
     });
+    suite.test("nested sequence and parallel bindings share one controllable clock and explicit frames", [] {
+        Fixture f;
+        const auto c = *f.engine.create_object(shape(true,80,{0,1,0,1}));
+        const auto d = *f.engine.create_object(shape(false,100)), e = *f.engine.create_object(shape(true,140));
+        const auto a = *f.engine.capture_object(f.a), b = *f.engine.capture_object(f.b);
+        auto program = PreparedProgram::prepare(parallel({
+            sequence({bind(a,b,{fx::blur(0,8)}),bind(a,*f.engine.capture_object(c),{fx::blur(8,12)})}),
+            bind(*f.engine.capture_object(d),*f.engine.capture_object(e),{}, {.duration=seconds(2)})}));
+        check(program.has_value());
+        const auto ref = f.engine.play(*program); check(ref.has_value());
+        check(f.engine.inspect(*ref)->track_count==2 && f.engine.inspect(*ref)->segment_count==3 && f.engine.inspect(*ref)->duration==seconds(2));
+        check(!f.engine.inspect(*ref)->sample_progress.has_value(), "independent tracks have no invented common easing");
+        check(f.engine.frame(*ref).error().code==EngineError::ambiguous_frame);
+        check(f.engine.frame(*ref,2).error().code==EngineError::invalid_argument);
+        std::size_t ai = program->tracks()[0].object==f.a ? 0 : 1, di = 1-ai;
+        check(f.engine.seek(*ref,seconds(.5)).has_value());
+        check(f.engine.frame(*ref,ai)->geometry.parts[1].local.tx==20 && f.engine.frame(*ref,ai)->effect_values[0]==4);
+        check(f.engine.frame(*ref,di)->geometry.parts[1].local.tx==110);
+        check(f.engine.seek(*ref,seconds(1.5)).has_value());
+        const auto current = f.engine.frame(*ref,ai);
+        check(current->geometry.parts[1].local.tx==60 && current->effect_values[0]==10);
+        check(current->animation->source_object()==f.a && current->animation->to().object()==c);
+        check(f.engine.frame(*ref,di)->geometry.parts[1].local.tx==130);
+        check(f.engine.pause(*ref).has_value() && f.engine.advance(seconds(100)).has_value());
+        check(f.engine.inspect(*ref)->position==seconds(1.5));
+        check(f.engine.reverse(*ref).has_value() && f.engine.resume(*ref).has_value() && f.engine.advance(seconds(1)).has_value());
+        check(f.engine.inspect(*ref)->position==seconds(.5) && f.engine.frame(*ref,ai)->geometry.parts[1].local.tx==20);
+        check(f.engine.capture_object(f.a)->revision()==1 && f.engine.capture_object(d)->revision()==1);
+    });
+    suite.test("prepared programs retain all source occupancy and release every track quota", [] {
+        Fixture f({.max_playbacks=2,.max_total_parts=4});
+        const auto c = *f.engine.create_object(shape(false,0)), d = *f.engine.create_object(shape(true,80));
+        const auto a = *f.engine.capture_object(f.a), b = *f.engine.capture_object(f.b);
+        auto plan = PreparedProgram::prepare(parallel({sequence({bind(a,b),bind(a,b)}),
+            bind(*f.engine.capture_object(c),*f.engine.capture_object(d))})); check(plan.has_value());
+        const auto ref = f.engine.play(*plan); check(ref.has_value());
+        check(f.engine.play(c,anim::morph_to(d)).error().code==EngineError::binding_conflict);
+        const auto extra = *f.engine.create_object(shape(false,10));
+        check(f.engine.play(extra,anim::morph_to(d)).error().code==EngineError::capacity);
+        check(f.engine.cancel(*ref).has_value() && f.engine.play(*plan).error().code==EngineError::binding_conflict);
+        check(f.engine.release(*ref).has_value());
+        const auto replacement = f.engine.play(*plan); check(replacement.has_value());
+        check(replacement->slot==ref->slot && replacement->generation==ref->generation+1);
+        check(f.engine.frame(*ref,0).error().code==EngineError::stale_handle);
+    });
+    suite.test("a later failing program track cannot publish earlier tracks or other playbacks", [] {
+        Fixture f; const auto independent = *f.engine.play(f.a,anim::morph_to(f.b),fx::blur(0,8));
+        const auto c = *f.engine.create_object(shape(false,0)), d = *f.engine.create_object(shape(true,80));
+        const auto x = *f.engine.create_object(shape(false,1e308)), y = *f.engine.create_object(shape(true,-1e308));
+        auto plan = PreparedProgram::prepare(parallel({
+            bind(*f.engine.capture_object(c),*f.engine.capture_object(d),{fx::blur(0,4)}),
+            bind(*f.engine.capture_object(x),*f.engine.capture_object(y))})); check(plan.has_value());
+        const auto ref = f.engine.play(*plan); check(ref.has_value());
+        const auto ci = plan->tracks()[0].object==c ? 0u : 1u;
+        const auto result = f.engine.advance(seconds(.5));
+        check(!result && result.error().code==EngineError::animation && result.error().program.has_value());
+        check(f.engine.inspect(independent)->position==seconds(0) && f.engine.inspect(*ref)->position==seconds(0));
+        check(f.engine.frame(independent)->effect_values[0]==0 && f.engine.frame(*ref,ci)->effect_values[0]==0);
+        check(f.engine.frame(independent)->geometry.parts[1].local.tx==0 && f.engine.frame(*ref,ci)->geometry.parts[1].local.tx==0);
+        check(f.engine.seek(*ref,seconds(1)).has_value() && f.engine.advance(seconds(.5)).has_value());
+        check(f.engine.inspect(independent)->position==seconds(.5));
+    });
+    suite.test("single track sequences can retarget their actual phase while multitrack replacement is explicit", [] {
+        Fixture f; const auto c = *f.engine.create_object(shape(true,80)), d = *f.engine.create_object(shape(true,120));
+        const auto a = *f.engine.capture_object(f.a), b = *f.engine.capture_object(f.b);
+        const auto plan = PreparedProgram::prepare(sequence({bind(a,b,{fx::blur(0,8)}),bind(a,*f.engine.capture_object(c),{fx::blur(8,12)})}));
+        check(plan.has_value()); const auto ref = *f.engine.play(*plan);
+        check(f.engine.seek(ref,seconds(1.5)).has_value() && f.engine.pause(ref).has_value());
+        check(f.engine.retarget(ref,anim::morph_to(d),{.easing=Ease::stepped(2,StepPosition::jump_start)}).has_value());
+        check(f.engine.frame(ref)->geometry.parts[1].local.tx==60 && f.engine.frame(ref)->effect_values[0]==10);
+        check(f.engine.inspect(ref)->segment_count==1 && f.engine.inspect(ref)->plan_revision==2 && f.engine.inspect(ref)->state==PlaybackState::paused);
+        check(f.engine.release(ref).has_value());
+        const auto multiple = PreparedProgram::prepare(parallel({bind(a,b),bind(*f.engine.capture_object(c),*f.engine.capture_object(d))}));
+        const auto multi = *f.engine.play(*multiple);
+        check(f.engine.retarget(multi,anim::morph_to(d)).error().code==EngineError::unsupported_operation);
+        check(f.engine.inspect(multi)->track_count==2 && f.engine.inspect(multi)->plan_revision==1);
+    });
+    suite.test("program copies own inputs and playback instances keep separate cursors", [] {
+        PreparedProgram plan;
+        { Fixture f; const auto d = *f.engine.create_object(shape(false,80)), e = *f.engine.create_object(shape(true,120));
+          auto prepared = PreparedProgram::prepare(stagger(seconds(.5),{
+              bind(*f.engine.capture_object(f.a),*f.engine.capture_object(f.b)),
+              bind(*f.engine.capture_object(d),*f.engine.capture_object(e))})); check(prepared.has_value()); plan=*prepared; }
+        auto first = Engine::make(), second = Engine::make();
+        const auto one = first->play(plan), two = second->play(plan); check(one.has_value() && two.has_value()); plan={};
+        check(first->seek(*one,seconds(1)).has_value() && second->seek(*two,seconds(.25)).has_value());
+        check(first->inspect(*one)->position==seconds(1) && second->inspect(*two)->position==seconds(.25));
+        check(first->frame(*two,0).error().code==EngineError::foreign_engine);
+        check(first->cancel(*one,CancelMode::restore).has_value());
+        check(first->frame(*one,0)->geometry.parts[1].local.tx==0 && first->frame(*one,1)->geometry.parts[1].local.tx==80);
+    });
+    suite.test("prepared program effects cannot bypass the engine's configured per-segment limits", [] {
+        Fixture f({.effects={.max_effects=1}});
+        const auto plan = PreparedProgram::prepare(bind(*f.engine.capture_object(f.a),*f.engine.capture_object(f.b),
+            {fx::blur(0,1),fx::tone({}, {})})); check(plan.has_value());
+        const auto refused = f.engine.play(*plan);
+        check(!refused && refused.error().code==EngineError::effect && refused.error().effect==EffectError::capacity);
+        check(f.engine.size()==0);
+        check(f.engine.play(f.a,anim::morph_to(f.b),fx::blur(0,1)).has_value());
+    });
+    suite.test("phase changes expose actual geometry and effect ranges rather than maximum scratch capacity", [] {
+        Fixture f;
+        const auto before=*f.engine.capture_object(f.a), target=*f.engine.capture_object(f.b);
+        check(f.engine.update_object(f.a,{{{.id="group"}}}).has_value());
+        const auto newer=*f.engine.capture_object(f.a);
+        const auto other=*f.engine.create_object({{{.id="group",.local={.tx=20}}}});
+        const auto plan=PreparedProgram::prepare(sequence({bind(before,target,{fx::blur(0,8)}),
+            bind(newer,*f.engine.capture_object(other),{}, {},{},ProgramSource::snapshot)}));
+        check(plan.has_value());const auto ref=*f.engine.play(*plan);
+        check(f.engine.seek(ref,seconds(.5)).has_value());
+        auto frame=f.engine.frame(ref);
+        check(frame->geometry.parts.size()==2 && !frame->geometry.cubics.empty() && frame->effect_values.size()==1);
+        check(frame->geometry.source_revision==1);
+        check(f.engine.seek(ref,seconds(1.5)).has_value());frame=f.engine.frame(ref);
+        check(frame->geometry.parts.size()==1 && frame->geometry.cubics.empty() && frame->effect_values.empty());
+        check(frame->geometry.parts[0].local.tx==10 && frame->geometry.source_revision==2);
+        check(f.engine.seek(ref,seconds(.5)).has_value());frame=f.engine.frame(ref);
+        check(frame->geometry.parts.size()==2 && !frame->geometry.cubics.empty() && frame->effect_values.size()==1);
+        check(frame->geometry.parts[1].local.tx==20 && frame->effect_values[0]==4);
+    });
     return suite.run(argc,argv);
 }

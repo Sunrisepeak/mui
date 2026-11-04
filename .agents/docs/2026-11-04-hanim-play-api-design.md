@@ -1,26 +1,29 @@
-# hanim play API：对象入口、绑定程序与统一计划
+# hanim play API：候选入口、动画表达与统一计划
 
-2026-11-04。状态：**接口 review 稿**，区分当前首个播放器与完整目标API。配套[hanim完整产品](2026-11-04-hanim-animation-library-playback-design.md)。维护者讨论 `play(obj, anim, effect, config)` 与 `play(anim(obj), effect, config)` 的取舍。
+2026-11-04。状态：**接口 review 稿；严格对象域的嵌套 Program 首批实施中**，区分当前播放器与完整目标API。配套[hanim完整产品](2026-11-04-hanim-animation-library-playback-design.md)。维护者讨论 `play(obj, anim, effect, config)` 与 `play(anim(obj), effect, config)` 的取舍。
 
-## 1. 建议的层次
+## 1. 候选层次与当前讨论状态
 
-**普通单对象入口采用 `play(object, animation, effect, config)`；内核统一消费绑定后的 Program／PreparedPlan。** 多对象编排通过显式bind构造程序，再play程序。`anim(obj)`可以是将来的可选绑定语法糖，但不作为唯一入口。
+维护者澄清对象中心与动画中心都是供比较的思路，不能直接定案。最新比较见[通用性／风格／GPU review](2026-11-04-hanim-generality-style-gpu-review-design.md)。**前稿“四参数为主、anim(obj)仅语法糖”的推荐不再作为定案。**
 
-第一种清楚区分目标、运动描述、效果及执行策略，便于组件默认配方、CLI／Agent参数和错误定位。第二种适合表达已绑定动画，但必须明确它只构造数据，不能在构造时修改对象、启动时钟或发生渲染副作用。高级编排所需要的是可组合的绑定程序，不是让所有动画对象都必须成为可调用函数。
+当前倾向：创作层可采用动画中心的`hengine.play(animation, config)`，`X(obj)`或明确角色的`X(a,b)`构造可组合动画描述；对象中心四参数入口作为适配／便利形式；编译与执行层采用同一Program／PreparedPlan。倾向仍待review，性能与通用性由下层的表示、匹配、求值、效果及批量执行契约保证，不由函数参数顺序保证。
 
-两种层次进入同一条路径：
+动画配方、已绑定描述、准备计划与运行实例分开。构造`X(obj)`不修改对象、不启动时钟、不产生渲染或业务副作用；对象组、逐对象应用、A→B转换也各自有明确语义。C++ callable、原生builder和CLI／openas数据描述都可规范化为相同图，不要求所有语言模拟同一种语法。
 
 ~~~mermaid
 flowchart LR
-    Simple[play object／animation／effect／config] --> Bind[规范化为绑定Program]
-    Compose[bind与sequence／parallel等组合] --> Bind
-    Bind --> Compile[校验能力／版本／冲突／资源及准备计划]
+    Animation[动画中心创作表达] --> IR[绑定／时间／通道／效果IR]
+    Object[对象入口与adapter] --> IR
+    Graph[高级编排／Agent数据] --> IR
+    IR --> Compile[匹配／能力／版本／冲突／资源及预算]
     Compile --> Plan[同一PreparedPlan]
-    Plan --> Play[同一播放器与批量采样]
-    Plan --> Offline[纯时间采样／离线输出]
+    Plan --> CPU[CPU／SIMD批次]
+    Plan --> GPU[可选GPU批次]
+    CPU --> Output[共享呈现／离线输出]
+    GPU --> Output
 ~~~
 
-不为单对象、程序或便利语法分别实现播放器、插值器或时间系统。编排继续复用core时间映射／Timeline机制，通用插值、几何和渲染保持各自单一owner。
+CPU／GPU完整编译仍是目标架构；当前实际严格对象Program和CPU路径见下一节。不为不同入口分别实现播放器、插值器、数学、时钟或renderer。`hengine`可作为示例变量名，当前C++类型为`hanim::Engine`。
 
 ## 2. 当前首个单对象API
 
@@ -49,6 +52,26 @@ if (handle) {
 
 播放器原生输出与可选renderer绑定分开。当前CPU矢量适配把同一当前几何、材质mix与效果交给唯一renderer；GPU、完整材料历史重定向、UI呈现／命中及其它对象域仍需继续实施。
 
+### 2.1 当前首批可运行的 Program
+
+`import hanim.engine;` 导出同一 `hanim.program`，可直接编译嵌套sequence／parallel／stagger；PreparedProgram不拥有时钟，Engine只有一条执行与发布路径。下例a／b／c是公开的owned Snapshot：
+
+```cpp
+auto description = sequence({hanim::bind(a, b), hanim::bind(a, c)});
+auto plan = PreparedProgram::prepare(description);
+if (plan) {
+    auto instance = engine.play(*plan);
+    if (instance) {
+        auto selected = engine.seek(*instance, seconds(1.5));
+        auto frame = engine.frame(*instance); // 此例只有一个逻辑对象轨道。
+    }
+}
+```
+
+第二段从前段真正边界开始，逻辑身份仍为a；显式`bind(b,c)`会创建b轨道，不隐式合并身份。多轨使用`frame(ref, track_index)`，单参数frame明确拒绝含糊结果。准备保留节点路径、版本、时间和分段计划；renderer可预先逐段绑定，用frame的segment_index选择，不在每帧匹配。
+
+首批采用严格整对象通道，重叠写入报binding_conflict；未交付通道混合／组foreach／隔离效果作用域／repeat表达式。每段效果端点显式编写，不把几何连续误称材料／效果历史自动连续。单轨序列可从实际当前阶段retarget成新段；多轨替换到单目标明确报unsupported_operation。完整Program仍按下文扩展。
+
 ## 3. 完整目标的类型分工
 
 | 类型／职责 | 应包含 | 不应混入 |
@@ -64,7 +87,7 @@ if (handle) {
 
 ## 4. 多对象与效果作用域
 
-以下为**目标API示意，Program组合尚未由当前首个播放器交付**：
+以下为**完整作用域目标API示意；首批Program组合已实现，with_effect等嵌套作用域尚未交付**：
 
 ```cpp
 auto program = parallel(
@@ -80,7 +103,7 @@ auto playback = engine.play(prepared, playback_config);
 
 对象绑定处的效果只作用于该对象／域；组合节点效果作用于该组合的当前合成结果。不同位置的blur或tone不可互换。链是有序处理；材料mix是同一当前几何上的材料结果混合；风格还可能展开字体／布局、部件和降档规则。需要分清作用域，不能把任意effect作为无作用域的最后一个参数附到所有并行动画。
 
-同一对象不同通道可按规则并行；同通道冲突必须有replace／add／multiply／blend等显式策略及优先级，不能由函数调用顺序碰巧决定。当前首个播放器只声明一个binding的严格子集，不伪称已实现完整混合图。
+同一对象不同通道可按规则并行；同通道冲突必须有replace／add／multiply／blend等显式策略及优先级，不能由函数调用顺序碰巧决定。当前编译器支持严格整对象轨道及非重叠分段，冲突明确拒绝；完整通道混合图仍未交付。
 
 ## 5. config分准备与播放两部分
 
@@ -98,11 +121,11 @@ play／prepare返回expected，错误定位对象／部件／动画阶段或效�
 
 CLI／openas表示使用同样的object、animation、effect和config契约，复杂场景传绑定Program；人用GUI／TUI编辑同一描述。所有工具均可不开GUI执行和控制；视觉审查经相同renderer／输出层获取指定版本／时间／区域的像素及元数据。业务撤销、视觉seek和模拟恢复各自定义，不把构造Animation表达式等同真实动作执行。
 
-本次推荐先确认两层入口及统一计划语义；后续公共Program、完整40项库、语言绑定及UI迁移按完整方案推进，不能用单对象播放器替代这些交付。
+本次推荐先确认两层入口及统一计划语义；后续Program通道／效果作用域、完整40项库、语言绑定及UI迁移按完整方案推进，不能用单对象播放器替代这些交付。
 
 ## 7. 四个组合维度与交叉播放的完整架构
 
-维护者进一步明确：**对象×动画×效果×配置的每项本身都可组合；对象A到B、复杂编排与交叉播放必须从底层支持。** 因此完整编译入口是Program，单对象四参数调用是规范化便利形式。当前严格单绑定原型只是一个对象形变阶段，不能将它作为最终冲突模型。
+维护者进一步明确：**对象×动画×效果×配置的每项本身都可组合；对象A到B、复杂编排与交叉播放必须从底层支持。** 因此完整编译入口是Program，单对象四参数调用是规范化便利形式。当前编译器的严格整对象域是首阶段，不能将它作为最终通道冲突模型。
 
 ### 7.1 四类表达式与作用域
 
@@ -148,7 +171,7 @@ PreparedPlan以可批量执行的数据和阶段表示，不逐帧递归解释bu
 以下为尚待实现的组合API示意：
 
 ```cpp
-// 日常单对象调用：规范化为一个绑定节点。
+// 现有对象入口：规范化为一个绑定节点。
 engine.play(object, animation, effects, config);
 
 // 同一对象组内含子对象；动画、效果与配置也各自嵌套。
@@ -170,7 +193,7 @@ auto instance = engine.play(plan, playback_config);
 
 至少覆盖：多层对象组与动画／效果／配置交叉嵌套；同对象不同通道并行与同通道混合；A／组A到B／组B及明确增删匹配；中途重定向与任意seek；组与局部暂停／取消；父布局与默认子动效；材料和效果作用域；配置限制与显式降档；多个实例资源复用但状态独立；headless与交互使用同计划；CLI／Agent查询和离屏区域审查。
 
-每项包含端点、中间态、失败语义、生命周期及成本证据。当前单对象原型的通过不替代这些组合场景，也不关闭40项库、20项创意组合或完整Manim／Noita范围。
+每项包含端点、中间态、失败语义、生命周期及成本证据。当前严格对象Program的通过不替代全部域与作用域组合场景，也不关闭40项库、20项创意组合或完整Manim／Noita范围。
 
 ### 7.8 对象组不是隐式广播，通道也不是任意可相加
 

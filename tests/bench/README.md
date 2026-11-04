@@ -66,11 +66,11 @@ Depends on `openmui` (the runtime, the base components, the headless host),
 
 ## Public geometry and material plans
 
-These seven cases use the same harness, allocation counter, JSON/Markdown
+These eight cases use the same harness, allocation counter, JSON/Markdown
 reports and CLI as the existing benchmarks. Their implementation imports only
 public `hanim.core`, `hanim.object`, `hanim.engine`, geometry, raster and vector APIs; it does not call UI Runtime,
 components or website builders. Preparation and steady-state work are distinct.
-All seven measure **CPU wall-clock work**. They neither submit GPU work nor
+All eight measure **CPU wall-clock work**. They neither submit GPU work nor
 measure GPU execution, and say so in each result's notes.
 
 ```text
@@ -79,6 +79,7 @@ mcpp run -p openmui.bench --profile release -- --filter public-motion/ --json pu
 
 | Case (`public-motion/` prefix) | One iteration / reported item |
 |---|---|
+| `program-seek-100x2` | Seek 100 independent instances sharing one nested two-track/three-segment plan through 17 changing times; select phases, sample both tracks and publish each instance atomically. One item = one object-track update. Preparation/rendering excluded; zero steady-state allocations are a budget. |
 | `engine-advance-500` | Advance and atomically publish 500 independent contour/transform/fill morphs plus blur parameters through the public Engine. Setup/matching excluded; duration keeps every handle active. One item = one playback update, including its share of batch preparation/commit; zero steady-state allocations are a budget. Rendering is excluded. |
 | `object-query-500` | Capture 500 independently registered two-part objects, resolve each outline by name/ref, view its owned contour and check its capability. Preparation excluded. One item = one complete object's query batch; zero steady-state allocations are a budget. This does not evaluate an animation or render a frame. |
 | `shape-prepare-star32` | Prepare and destroy one 32-edge concave star → four-cubic circle correspondence, using 64 arc samples and 32 alignment samples. Allocations are preparation costs, not forbidden frame allocations. One item = one plan. |
@@ -96,11 +97,12 @@ were measurements of one complete scene.
 
 ### Verified allocation gates; latency limits pending
 
-The existing `budgets.bench.omui.json` limits remain unchanged. Two new
-`max_allocations = 0` entries cover only the warmed shape sampling and material
-sampling/arena recording workloads. The official release run confirmed both
-at zero, including all measured iterations. Preparation and CPU drawing have
-no zero-allocation gate. New latency limits remain pending an explicit frame
+The existing latency limits remain unchanged. Public-motion allocation gates
+cover warmed shape sampling, material sampling/arena recording, owned-object
+queries, Engine batch advance and nested Program seeks. Each gate applies only
+to its named workload; preparation and CPU drawing have no zero-allocation gate.
+The original two sampling gates and measurements below are the first checkpoint.
+New latency limits remain pending an explicit frame
 allocation and CI evidence; measured local speed alone does not define one.
 
 The first official run (2026-11-04, Intel Core i9-13900K, GCC 16.1.0,

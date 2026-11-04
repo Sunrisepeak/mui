@@ -1,20 +1,20 @@
 # Playback contract v1: first object morph stage
 
 This implementation contract covers owned endpoints, explicit relative time,
-the strict library morph and ordered effect parameters. The complete bound
-Program/channel model is specified separately and remains implementation work.
+strict morph/effect segments, nested Program schedules and common lifecycle.
+General channel/effect-scope composition remains implementation work.
 
 | Operation | Observable behavior |
 |---|---|
-| play | Prepare endpoint snapshots, correspondence, parameter plan and two frame buffers before consuming a slot. Resolve ObjectRefs at preparation; accept explicit external Snapshots through the same player. Source occupancy is exclusive in this first stage. |
+| play | Normalize the single-object form to PreparedProgram::single, or accept a frozen compiled Program. Prepare two frame buffers per track before consuming a slot. Resolve ObjectRefs at preparation; accept external Snapshots through the same player. Every logical source track is exclusively occupied until release. |
 | advance | Validate nonnegative finite elapsed time, stage every active playback, publish only if the whole batch samples successfully. Failure consumes no elapsed time and preserves all visible poses/effects. This is owning-thread failure atomicity, not GPU/physics/business rollback. |
 | pause/resume | Change running intent without moving the frame. A finished directional endpoint remains finished until seek or reverse makes it active. |
 | seek/seek_progress | Clamp finite local time/linear progress; preserve pause intent. Inspection reports both linear and sampled progress. Invalid values preserve visible state. |
 | reverse/rate | Finite nonzero rate controls direction and speed. Reverse at a finished forward endpoint enables backward playback. Large finite elapsed/rate values saturate before multiplication overflow. |
-| retarget | Deep-prepare the current pose as new source. Preserve current effect values/targets and pause intent; begin a forward segment with the old speed magnitude. New plan revision invalidates old renderer bindings. Failed preparation leaves prior revision, frame and budgets unchanged. |
+| retarget | For one track, deep-prepare the actual current phase as new source, replacing a sequence if present. Preserve active effect values/targets and pause intent; begin a forward segment with the old speed magnitude. Multi-track-to-one-target replacement is explicitly unsupported. New plan revision invalidates old renderer bindings. Failure preserves prior state/budgets. |
 | cancel | Hold retains current pose; restore samples the exact segment source, bypassing easing. No business state is undone. Both retain source occupancy/resources until release; cancelled playbacks cannot resume/seek. |
 | release | Free retained buffers/plans, return cardinality quota and invalidate the playback generation. Other handles are unaffected. |
-| inspect/frame/list | Read committed native state without resampling or formatting logs. Too-small list output is rejected before writing. Borrowed frame spans/plan pointers expire at the next Engine mutation or destruction. |
+| inspect/frame/list | Read committed native state without resampling or formatting logs. Inspect has global time and counts; sampled progress/object/target exist for one track only. frame(ref,index) identifies the active segment; frame(ref) refuses ambiguous multiple tracks. Too-small list output is rejected before writing. Borrowed spans/pointers expire at the next Engine mutation or destruction. |
 
 Zero duration samples the target immediately. For retargeted noninstant
 segments, time zero is persistently anchored to the captured source, including
@@ -26,8 +26,10 @@ The Engine owns its convenient ObjectRegistry. External snapshot endpoints
 remain usable after the host/registry disappears. Playback owner issuance
 reuses that registry's process-local identity; slot/generation mechanics reuse
 openmui.memory. Object/plan revisions, playback generations and time are
-separate. Per-engine quotas bound retained part/cubic/parameter counts, including
-finished/cancelled playbacks, not total allocator memory or outside leases.
+separate. Engine quotas bound summed track-max output part/cubic/parameter counts,
+including finished/cancelled playbacks. Program preparation quotas bound the
+retained plans of all segments. Per-segment effect limits cannot be bypassed by
+an externally prepared Program. These are not allocator-byte or outside-lease limits.
 
 Single owning thread or external synchronization; move only while quiescent.
 Log observers can inspect committed state, but mutation reentry is refused

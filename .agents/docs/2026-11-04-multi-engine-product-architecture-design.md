@@ -6,6 +6,8 @@
 
 动画的对象×动画×效果×配置组合，统一见[play／Program细案](2026-11-04-hanim-play-api-design.md)：四类嵌套表达经同一编译管线产生PreparedPlan，简单四参数入口不另设播放器；分清组／逐对象、A→B及阶段源、通道冲突、效果作用域、typed配置继承与硬限制。当前仅首条独立严格形变链路，完整Program与UI迁移仍开放，实证见[hanim §16](2026-11-04-hanim-animation-library-playback-design.md#16-首条公开播放器与无gui消费者证据)。
 
+维护者补充：hanim的目标是比Manim及常见动画／游戏动画系统更通用、效果更好、性能更高；主入口只是比较思路，详见[通用性／风格／GPU比较稿](2026-11-04-hanim-generality-style-gpu-review-design.md)。创作接口与执行内核分别比较，复用全局的计算／RHI／renderer；已有CPU原型不等于目标已达到。
+
 ## 1. 总项目由独立产品组成
 
 omui、hanim、渲染、模拟、计算和音频在**产品层对等**。产品可消费另一产品的公开能力，代码依赖仍保持有向、可裁剪和可验证；对等地位与单向依赖同时成立。

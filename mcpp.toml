@@ -33,6 +33,7 @@ members = [
     "modules/gfx/hanim/object",
     "modules/gfx/hanim/effect",
     "modules/gfx/hanim/library",
+    "modules/gfx/hanim/program",
     "modules/gfx/hanim/engine",
     "modules/gfx/hanim/render/vector",
     "modules/gfx/raster",
@@ -193,11 +194,11 @@ opt     = 2
 debug   = false
 ldflags = ["--profiling-funcs"]
 
-# The shipped website: optimize every translation unit for size, keeping
-# the normal release profile available for native performance checks.
+# The shipped Emscripten website uses LLVM -Oz for size; the normal native
+# release profile remains available for performance checks.
 # Delivery and interactive frame budgets are both checked in Chromium.
 [workspace.profile.site-web]
-opt        = "s"
+opt        = "z"
 debug      = false
 ndebug     = true
 trim_paths = true

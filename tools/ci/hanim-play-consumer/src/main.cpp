@@ -87,6 +87,24 @@ int main(int argc,char** argv) {
     const auto next=engine.create_object(describe(*third,{.8f,.15f,.9f,1},options.width,options.height));
     if(!source || !target || !next)return fail("public object creation");
     const auto effects=fx::chain({fx::blur(0,1.5f),fx::tone({}, {.r=.3f,.g=.8f,.b=1,.amount=.35f})});
+    // Exercise the public compiler and multi-track player from a real external
+    // project too. Pixel export below remains the fixed single-segment fixture.
+    const auto a=engine.capture_object(*source),b=engine.capture_object(*target),c=engine.capture_object(*next);
+    if(!a || !b || !c)return fail("program endpoint capture");
+    const auto compiled=PreparedProgram::prepare(parallel({
+        sequence({bind(*a,*b,effects),bind(*a,*c,effects)}),
+        bind(*b,*c,{}, {.duration=seconds(2)})}));
+    if(!compiled)return fail("public Program compilation");
+    const auto instance=engine.play(*compiled);if(!instance)return fail("prepared Program play");
+    if(!engine.seek(*instance,seconds(1.5)) || !engine.pause(*instance) || !engine.advance(seconds(10)))return fail("program seek/pause/advance");
+    const auto program_info=engine.inspect(*instance);
+    const auto program_frame=engine.frame(*instance,0);
+    if(!program_info || program_info->track_count!=2 || program_info->segment_count!=3 || program_info->position!=seconds(1.5) ||
+       !program_frame || program_frame->animation->source_object()!=*source || program_frame->animation->to().object()!=*next)
+        return fail("prepared Program phase/identity");
+    if(!engine.reverse(*instance) || !engine.resume(*instance) || !engine.advance(seconds(.5)) ||
+       engine.inspect(*instance)->position!=seconds(1) || !engine.cancel(*instance,CancelMode::restore) || !engine.release(*instance))
+        return fail("program reverse/restore/release");
     const auto played=engine.play(*source,anim::morph_to(*target),effects,{.duration=seconds{1},.easing=ease::linear});
     if(!played)return fail("Engine::play");
     // Execute real controls, then explicitly select the requested output time.
@@ -192,7 +210,7 @@ int main(int argc,char** argv) {
     Json result{{"kind","hanim.play-consumer"},{"ok",true},{"fixture","triangle-circle"},
         {"source",object(*source)},{"initial_target",object(*target)},{"target",object(frame->info.target)},
         {"requested_time_seconds",options.time},{"sample_time_seconds",frame->info.position.count()},
-        {"duration_seconds",frame->info.duration.count()},{"sample_progress",frame->info.sample_progress},{"playback_state",frame->info.state==PlaybackState::paused?"paused":"other"},{"playback_rate",frame->info.rate},
+        {"duration_seconds",frame->info.duration.count()},{"sample_progress",frame->info.sample_progress?Json(*frame->info.sample_progress):Json(nullptr)},{"playback_state",frame->info.state==PlaybackState::paused?"paused":"other"},{"playback_rate",frame->info.rate},
         {"viewport",{{"width",options.width},{"height",options.height}}},
         {"region",{{"x",x},{"y",y},{"width",width},{"height",height}}},
         {"backend","cpu-reference"},{"output",options.output},{"png_bytes",encoded->size()},

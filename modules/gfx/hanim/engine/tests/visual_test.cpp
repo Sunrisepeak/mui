@@ -71,5 +71,61 @@ int main(int argc,char** argv) {
         std::println("headless visual: {} source owner={} slot={} target slot={} viewport=128x128 region=32,32,64,64 backend=CPU times=0,.5,1 hashes={},{},{}",
             output.generic_string(),source.owner,source.slot,target.slot,hashes[0],hashes[1],hashes[2]);
     });
+    suite.test("a nested multitrack program renders every current phase through prebound native adapters", [] {
+        auto engine=take(Engine::make());
+        constexpr double k=.5522847498307936;
+        const std::array triangle{ShapeSegment::line({-1,1}),ShapeSegment::line({1,1})};
+        const std::array circle{ShapeSegment::cubic({k,-1},{1,-k},{1,0}),ShapeSegment::cubic({1,k},{k,1},{0,1}),
+            ShapeSegment::cubic({-k,1},{-1,k},{-1,0}),ShapeSegment::cubic({-1,-k},{-k,-1},{0,-1})};
+        const auto tri=take(Contour::copy({{0,-1},triangle})), round=take(Contour::copy({{0,-1},circle}));
+        auto object=[&](Contour shape,double x,Rgba color) {
+            return take(engine.create_object({{{.id="shape",.local={.tx=x,.ty=64,.sx=24,.sy=24},.contours={shape},.fill=color}}}));
+        };
+        const auto a=object(tri,40,{1,.3f,.1f,1}),b=object(round,64,{.2f,.6f,1,1}),c=object(tri,90,{.7f,.3f,.9f,1});
+        const auto d=object(tri,164,{.1f,.8f,.5f,1}),e=object(round,194,{1,.8f,.2f,1});
+        const auto source=take(engine.capture_object(a));
+        const auto plan=take(PreparedProgram::prepare(parallel({
+            sequence({bind(source,take(engine.capture_object(b)),{fx::blur(0,1)}),
+                      bind(source,take(engine.capture_object(c)),{fx::blur(1,0)})}),
+            bind(take(engine.capture_object(d)),take(engine.capture_object(e)),{}, {.duration=seconds(2)})})));
+        const auto playback=take(engine.play(plan));
+        struct Binding {
+            vector_render::PreparedVector plan;
+            std::vector<geom::Affine> world;
+            std::vector<float> parameters;
+            std::vector<geom::Rect> layers;
+        };
+        std::vector<Binding> bindings;
+        for(const auto& segment:plan.segments()) {
+            Binding bound;bound.plan=take(vector_render::PreparedVector::bind(segment.animation,segment.effects));
+            const auto count=bound.plan.requirements();bound.world.resize(count.world_transforms);
+            bound.parameters.resize(count.backend_parameters);bound.layers.resize(count.effect_layers);bindings.push_back(std::move(bound));
+        }
+        render::DisplayList list,recording;render::CpuRenderer renderer;
+        raster::Surface pixels(240,128),strip(1200,128);
+        auto draw=[&](double time) {
+            check(engine.seek(playback,seconds(time)).has_value());list.clear();
+            for(std::size_t track=0;track<plan.tracks().size();++track) {
+                const auto frame=take(engine.frame(playback,track));auto& binding=bindings[frame.segment_index];
+                check(binding.plan.record(frame.geometry,frame.effect_values,list,{&recording,binding.world,binding.parameters,binding.layers}).has_value());
+            }
+            const auto result=renderer.render(list,pixels,{}, {.background=geom::Color::hex(0x111827)});
+            check(!result.invalid_paints && !result.missing_images && !result.effects_skipped);
+            Hash hash;for(int y=0;y<128;++y)hash.bytes(std::as_bytes(std::span(pixels.row(y),240)));
+            return hash.hex();
+        };
+        std::array<std::string,5> hashes;
+        for(int i=0;i<5;++i) {
+            hashes[i]=draw(i*.5);
+            for(int y=0;y<128;++y)std::copy_n(pixels.row(y),240,strip.row(y)+240*i);
+        }
+        for(int i=0;i<5;++i)for(int j=i+1;j<5;++j)check(hashes[i]!=hashes[j]);
+        for(int i:{3,0,4,1,2})check(draw(i*.5)==hashes[i],"unordered seek must reproduce actual composite pixels");
+        const auto output=scratch_dir("hanim-program-visual");
+        const omui::imageio::View sheet{reinterpret_cast<const std::uint8_t*>(strip.row(0)),1200,128,1200*4,omui::imageio::Alpha::premultiplied};
+        check(omui::imageio::save_png(output/"sequence.png",sheet).has_value());
+        std::println("headless program: {} tracks=2 segments=3 times=0,.5,1,1.5,2 hashes={},{},{},{},{}",
+            output.generic_string(),hashes[0],hashes[1],hashes[2],hashes[3],hashes[4]);
+    });
     return suite.run(argc,argv);
 }

@@ -6,6 +6,12 @@ resolution, then builds/runs dev and release with `--locked`. It checks actual
 `resolution.json` and compilation commands for UI, spec, testing, site, host or SDK
 dependencies. The source repository's lock must stay unchanged.
 
+Before the fixed pixel fixture, each invocation directly compiles a nested
+two-track/three-segment Program through the public API and exercises shared
+pause/seek/reverse/advance/restore/release. The graph audit requires the actual
+hanim.program package. Program composite pixels are covered by the engine's
+separate visual CTS; this CLI's exported PNG remains the fixture below.
+
 ```sh
 python3 tools/ci/hanim-play-consumer/run.py --mcpp /path/to/mcpp \
   --output /tmp/hanim-play-consumer.report.omui.json --keep-project

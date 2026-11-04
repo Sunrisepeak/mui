@@ -111,6 +111,8 @@ sources = ["src/targets/windows.cppm", "src/windows/*.cpp"]
 4. **每个成员可以单独构建和测试**：`mcpp build -p <member>`、`mcpp test -p <member>`（具体参数以 mcpp 为准）。
 5. tag 按成员打：`spec-v0.1.0`、`runtime-core-v0.1.0` …（每个包单独打 tag、单独发布，需要在 M0 验证，见 V-02）。
 
+**包粒度修订（D-99）**：以上要求针对已成立的独立库／产品，不要求每个源码目录、实现单元或模块分区各建包。少量内部`.cppm`／`.cpp`先放所属包的`src/<职责>/`，共享清单与测试；有足够内聚实现、明确独立库计划或必要的依赖／平台／工具链等隔离再提取。例外要写明消费者和收益；不设机械行数阈值，不用微型包数量表示模块化进度。具体评审与迁移按[核心准则 §5.1](2026-11-05-local-global-composable-architecture-design.md#51-目录语言模块与独立包分开判断)。
+
 ### 2.2 目录树
 
 > **2026-10-28 修订（D-80）**：目录按层重新分组，现行的目录树见 [structure-render-web-game](2026-10-28-openmui-structure-render-web-game-design.md) §3.2（`modules/{base,gfx,content,media,ui}`、宿主在 `modules/ui/host`、hanim、shader、session）。下面是最初的规划，保留作为记录。
@@ -1045,7 +1047,7 @@ CI 用 `.xlings.json` 安装工具：mcpp、slang、mesa-lavapipe、esbuild、no
 
   | mcpp skill | 规则 | openmui 的做法 |
   |---|---|---|
-  | `mcpp-contributing` §项目结构 | `modules/` 放独立包，各带 `mcpp.toml`、由 `path` 引用、依赖显式声明；子系统的单测放 `modules/<x>/tests/`（只在它自己声明的依赖下构建，能抓到“偷偷依赖了没声明的东西”） | 每个目录一个成员；`modules/*` 不依赖 openmui 的任何包（lint `modules`、`layering`）；每个成员的测试在自己的 `tests/` 里 |
+  | `mcpp-contributing` §项目结构 | `modules/` 放独立包，各带 `mcpp.toml`、由 `path` 引用、依赖显式声明；子系统的单测放 `modules/<x>/tests/`（只在它自己声明的依赖下构建，能抓到“偷偷依赖了没声明的东西”） | 独立包才是成员，普通源码目录／分区共用所属包清单（D-99）；底层独立组件遵循现行层级，不反向依赖UI；每个成员的测试在自己的 `tests/` 里 |
   | `mcpp-contributing` §注意事项 | 平台相关代码集中在一处，不在别的模块里写 `#if defined`；import 指向类型的提供者，而不是它的某个消费者 | 平台代码只经由 `mcpplibs.os`（lint `platform`），没有宏（lint `macros`）；分区和模块按提供者导入 |
   | `mcpp-contributing` §路径窄化不变式 | `std::filesystem::path::string()` 在 Windows 上经过 ANSI 代码页，遇到拼不出的名字就抛异常，而 Linux / macOS 上永远不失败；比较用 `path`，身份和显示用 UTF-8 | `omui::utf8()` / `generic_utf8()`；文件经由 `path` 本身打开；lint `paths` 禁止测试以外的 `string()` / `generic_string()`（`// NARROW-OK:` 写明理由才放行） |
   | `mcpp-contributing` §PR 流程 | 永远走 PR；CI 全部通过 | 所有工作在 PR #1 上，每轮一个提交；7 个 CI 作业加每晚的 sanitizer 全部通过后才算完成一轮 |

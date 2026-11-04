@@ -211,7 +211,7 @@ HObject 是动画域身份及表示能力，允许属性、路径、轮廓、mes
 
 ## 5. 目标代码树与兼容迁移
 
-以下是**方向树**：`[新增]` 为候选位置，达到实际职责与验证门槛才创建 package；不在本轮铺空目录。未标注的目录为已有成员或分组。目录层次表达允许依赖，仍需实际 package DAG 检查同层环。
+以下是**职责与归属方向树，不是逐目录建包清单**：`[新增]` 表示待实现职责；内部小能力优先放所属包的`src/<职责>/`，达到§5.1的独立库／必要隔离门槛才新建`mcpp.toml`。不铺空目录或按一个`.cppm`拆一个包。未标注的目录为已有成员或分组；已有拆分也可按证据收敛。目录层次表达允许依赖，仍需实际package DAG和包内模块依赖检查同层环。
 
 ```text
 spec/                              openlifa.openmui 子模块；std-only
@@ -222,17 +222,17 @@ modules/
     log/ trace/ session/ pipeline/
     hanim/
       core/                        保留 hanim.core：std + openmui.math
-      contract/                    [新增] 最小动画域类型/端口契约，按需提取
+      core/src/contract/           [新增] 最小域类型先归core；确有独立边界再提取
     time/                          [新增] 时间值/映射；不拥有各域时钟
     control/                       [新增] 中立操作/provider接口；不导入UI/网络
     resource/                      [新增] 稳定资源身份、版本和租约契约
     compute/                       [候选] 共性算子/调度；有多个消费者后提取，优先生态
-    ai/                            [新增] 决策/模型任务契约；内置能力按feature选用
-      core/ policy/ model/ agent/  [新增] port、通用策略、模型适配契约、Agent编排
-      provider/llmapi/ control/    [新增] 复用llmapi；AI自身可观察/可控制
+    ai/                            [候选产品] 决策/模型任务；初期一个库，feature选用
+      src/{core,policy,model,agent}/  [新增] 内部目录/模块分区，不各建mcpp.toml
+      src/{provider,control}/      [新增] 复用llmapi；有实际隔离需求再提取provider包
     simulation/                    已下沉固定步长/owned checkpoint/输入重建
       cellular/                    已有通用整数规则/逻辑halo/独立CPU执行
-      physics/ material/           [新增] 按模型选择，不随core全量导入
+      src/{physics,material}/      [新增] 先按域组织；独立求解库/重依赖按需提取
   gfx/
     rhi/{sdl,webgpu,webgl,cts}/     唯一GPU设备/资源/队列/同步底座
     shader/rules/                  kernel/shader构建、反射及必要运行数据
@@ -246,9 +246,9 @@ modules/
     hanim/                         [迁移] 唯一 package hanim / import hanim
       object/ library/ effect/
       program/ engine/
-      ir/                          [新增] 含scope/通道/资源的动画IR
-      pixel/ rig/                  [新增] 域算法/adapter，按需引入
-      control/                     [新增] hanim领域provider
+      program/src/ir/              [新增] scope/通道/资源IR先归现有编排owner
+      library/src/{pixel,rig}/     [新增] 域算法先在库内；明确独立域库后再拆
+      engine/src/control/          [新增] 本域操作先在引擎内；协议adapter另按需接入
       render/vector/               已有可选共享renderer消费者
   content/
     text/ layout/ markdown/ i18n/
@@ -257,7 +257,7 @@ modules/
   media/
     audio/
       device/                      已有设备适配；控制信号契约归audio
-      midi/ control/               [新增] 各自明确成本与实时契约
+      src/{midi,control}/          [新增] 先在本域分区；设备/协议重依赖可选隔离
     timeline/
       audio/                       已有可选key/fade→sample-clock增益adapter
     video/webm/
@@ -279,15 +279,38 @@ mgame/                             玩法/ECS/输入/联网/保存及游戏集�
   gongfu/                          格斗规则独立，不被UI或底层引擎反依赖
 tools/
   cli/ gen/ mcp/ inspector/         现有工具先复用
-  project/                         [新增] 工程、历史与任务模型，非万能编辑器
-  animation/ ui-design/ audio/     [新增] 可选GUI，同一CLI/API任务
-  materials/ operators/ assets/ scene/ gameplay/  [新增] 后续真实制作工具
+  cli/src/<领域>/                  [新增] 首批领域任务优先复用现有工具入口
+  project/                         [候选共享库] 两个真实工具有共同工程/任务模型后提取
+  animation/ ui-design/ audio/     [候选独立工具] 完整制作任务与可选GUI，同一CLI/API
+  materials/ operators/ assets/ scene/ gameplay/  [候选独立工具] 不按每个命令预建包
 mcpp/                              仅构建插件；不成为运行时依赖
 site/ examples/ showcase/          普通消费者与作品，复用公开定义
 src/entry/                         宿主/应用入口；根包仍是 openmui.sdk
 ```
 
-新包身份按“路径就是包名”逐项落定；这里的 simulation／compute 等目录不是新产品品牌的定案。现有 `openmui.*` 技术名继续兼容。独立产品可在未来抽仓，外部依赖通过 mcpp 包解析，不能跨成员相对路径 include 源码。
+### 5.1 包粒度：先内部组织，有独立价值再拆库
+
+源码目录、C++模块／分区与mcpp包是三个不同层次。相关的少量`.cppm`／`.cpp`先共用一个清单，在`src/<职责>/`和所属包测试中组织；局部解耦仍由API、类型、依赖方向和测试保证。**不是每个算子、effect、IR节点、provider或命令都需要独立包**，也不以增加清单数量衡量插件化完成度。
+
+独立包需要有足够内聚实现的复用价值、已明确的独立库／产品计划，或真实的依赖／平台／工具链／许可／host-target隔离。初期小库并非禁止，但要给出具体owner、独立消费者或目标任务、公开接口和验收；仅有“以后可能复用”不足以成立。优先比较同包目录／分区＋feature；feature关闭时需实测源码、依赖、资产和初始化成本，而非只隐藏运行入口。完整准则见[局部×全局 §5.1](2026-11-05-local-global-composable-architecture-design.md#51-目录语言模块与独立包分开判断)（D-99）。
+
+基线`4ab416e`的128个登记workspace成员中，54个成员自身`src/`下不超过两个`.cppm`／`.cpp`。这是排除嵌套成员、测试、shader、脚本和资产后的初筛，**不代表54个包都应合并**；文件数／行数不能替代依赖和产品边界分析。现有重点处理方向：
+
+| 现有边界 | 判断与后续动作 |
+|---|---|
+| `hanim`内的object／effect／library／program／engine | 优先评估收敛为产品包内部职责，保留逻辑模块和公共API；当前UI view直接选用effect，renderer也直接选用若干子包，合并必须保留这些轻量选择。先核对消费者、import身份、feature与最小闭包，不再顺势为IR／新算子增加微型包 |
+| `hanim.core`与可选render adapter | core的std＋math轻量边界、renderer的显式依赖隔离有实际价值；内部收敛不能把UI／renderer强加给独立动画用户 |
+| `hash`／`geom`／`log`／`trace` | 代码小但职责稳定、多个独立消费者使用；保留共享owner，不塞入任意大引擎造成反向依赖或复制 |
+| `simulation`与`simulation.cellular` | 已分别作为时钟／历史和无时钟规则库使用，属于有具体独立用途的早期库；不因只有两份C++源文件就机械合并，也不为每个规则／邻域再建包 |
+| `simulation.cellular.rhi`、`audio.device`、`timeline.audio`、`shader.rules` | 分别隔离GPU／shader构建、miniaudio设备、跨域可选依赖、host-build工具；源码短不取消实际隔离，新的同类细分仍需比较feature方案 |
+| 共享GPU CTS与`mgame.sim`兼容入口 | CTS由两个真实后端测试共用且不进入普通运行时闭包；旧sim只转发到唯一实现。保留当前用途，后续随消费者迁移评估，不把测试包／兼容包复制为每个场景的包 |
+| 新工具、AI、素材与控制能力 | 先在既有owner的`src/<领域>/`完成真实任务；工具具备独立完整用途、共享模型出现实际消费者或需隔离重依赖时再提取库／产品 |
+
+本轮修订不等于既有包已迁移。实际合并须在同一检查点更新清单、源码归属、公开入口兼容、消费者、文档与测试，记录前后依赖闭包、冷／增量构建及产物成本；移除重复实现，必要转发不产生第二套逻辑。不为少几个清单破坏可选性，也不为保留清单长期重复维护。
+
+### 5.2 兼容与跨层迁移
+
+新包身份按“路径就是包名”逐项落定；该规则约束已成立的独立包，不约束每个内部源码目录。这里的simulation／compute等目录不是新产品品牌的定案。现有`openmui.*`技术名继续兼容。独立产品可在未来抽仓，外部依赖通过mcpp包解析，不能跨成员相对路径include源码。
 
 **hanim 伞包迁移是必要且有限的。** S1将 package `hanim` 从 `modules/base/hanim` 移至 `modules/gfx/hanim`，core 保留原路径／身份；base/hanim 变为分组。默认产品伞导出 object／library／effect／program／engine，渲染、GPU、provider 与 UI 均显式可选。原 `import hanim` 保留 core 符号；旧 path 依赖的迁移说明见包README。不能同时注册两个 `hanim` 包，也不能让 base 反依赖 gfx。workspace、lint fixture和独立消费者随S1同步修改；当前验证见实施台账，原始API实验尚未搬包的历史结论不再表示当前工作树。
 
@@ -394,7 +417,7 @@ PPet进一步要求主交互session与worker任务隔离：主会话不执行或
 
 feature按构建能力选择源码／依赖／工具和资产，运行开关只控制已编入功能。mcpp加法feature并集、feature-deps和依赖边default-features需要做全图审计；不使用不存在的CLI开关或宏分支。常规UI保留轻量双用户控制，内置AI/provider/模型资产默认可选；开启也不自动授予操作权限。feature配置、实际设备能力、资源ready、运行启用和权限分别可查询。详见专项方案§2。
 
-Web现有实测预算与精确范围见评审：总传输4,718,757 B、首帧代理前2,817,083 B，是既有构件结果，不是本轮新测，也不是真实FCP/LCP。新增能力同步按页代码／字体／资源交付，不能把123个workspace成员全部拖进首包。
+Web现有实测预算与精确范围见评审：总传输4,718,757 B、首帧代理前2,817,083 B，是既有构件结果，不是本轮新测，也不是真实FCP/LCP。新增能力同步按页代码／字体／资源交付，不能把整个workspace全部拖进首包；包数量不等于最终构件的体积或裁剪效果。
 
 ## 10. 工具、素材与成熟独立游戏制作链
 

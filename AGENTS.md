@@ -9,6 +9,7 @@
 - 当前阶段：按[官网重构方案](.agents/docs/2026-11-03-openmui-site-redesign-implementation-design.md)的 R0–R6 推进实现与评审，同时保留[实施计划](.agents/docs/2026-10-26-openmui-implementation-plan.md)的技术与质量基线。开始实施不等于 C2 或后续检查点已验收，完成状态必须有证据。
 - 工程文件只有 `mcpp.toml`（openmui 自己的声明放在 `[package.metadata.openmui]`）；构建、测试、打包都使用 mcpp；工具通过 xlings 安装。带命名空间的依赖写成 `[dependencies]` 里的点分键（`compat.sdl3 = "3.4.18"`、`nlohmann.json = "3.12.0"`），不单独开 `[dependencies.<ns>]` 表（lint 规则 `manifest`）。
 - **包的身份就是模块名**：`[package] namespace = "openmui"`、`name = "core"` 得到 `openmui.core`，和 `import openmui.core;` 一致。
+  - 这里指包的主要公开入口；源码子目录、实现单元和 C++ 模块分区不因此各自成为包。
   - 组件用命名空间 `openmui.ui`（`openmui.ui.base`），宿主用 `openmui.host`（`openmui.host.headless`）。
   - 伞包是 `openmui.sdk`（`import openmui;`）。
   - 依赖写 `openmui.core = { path = "…" }`，命令行写 `mcpp test -p openmui.core`。
@@ -36,7 +37,8 @@
 - **不用宏，用 constexpr**：平台和特性用清单选择的模块分区 + `inline constexpr` 常量 + `if constexpr`；编译期校验用 `consteval`；断言和日志用函数加 `std::source_location`。唯一的例外是生成的 `openmui.h`。
 - **全仓库只有一个头文件 `spec/include/openmui.h`**；其他全部是模块。第三方头文件只出现在 `native/` 实现分区里，宏在那里转换成 constexpr。
 - 核心代码不用异常、不用 RTTI，错误用 `std::expected`；热路径没有虚函数，每帧零分配。
-- 每个目录都是一个 workspace 成员（独立的 `mcpp.toml`），只通过 `path` 依赖互相引用，不允许跨成员用相对路径引用源文件。
+- **按库／产品边界建包，不按文件或目录拆包**（D-99）：少量 `.cppm`／`.cpp`、几百行的内部职责，默认放所属包的 `src/<职责>/`，用源码目录、实现单元或模块分区组织，共用一个 `mcpp.toml`。只有形成有足够内聚实现的可复用库、明确计划独立使用／发布的产品，或确需依赖、平台／工具链、许可、构建阶段隔离时，才新建 workspace 成员；小型必要契约／适配包可以例外，但要写明消费者、隔离收益和边界，不以“以后可能复用”作为空泛理由。不设机械行数门槛，插件也不要求一插件一包；优先用已有包内目录和 feature，实际需要时再提取。详见[包粒度准则](.agents/docs/2026-11-05-local-global-composable-architecture-design.md#51-目录语言模块与独立包分开判断)。
+- **已成立的独立包**各有一个 `mcpp.toml`，成员之间只通过声明的 `path` 依赖引用，不允许跨成员用相对路径引用源文件。内部整理与包迁移分开；合并既有包需检查公开 import／包名兼容、依赖闭包、feature 裁剪与消费者，不为减少清单数量破坏真正的独立性。
 - **独立组件放在 `modules/{base,gfx,content,media}` 下**（hanim、geom、memory、unicode、trace、session、pipeline、image；rhi、shader、raster、render；text、layout、markdown、i18n）：不允许依赖 openmui 的任何其他包，只依赖标准库、彼此和第三方库，所以随时可以拆成独立仓库（D-55）。
 - **路径就是包名**（D-80，lint `layout`）：库的叶子目录名是包名的最后一段（下划线写成连字符），包里面的包以它命名（`openmui.rhi.sdl` 在 `modules/gfx/rhi/sdl`）；分组目录只做归类；有包的目录都有 README，列出下面的每个包。按角色命名，不按实现命名（`shader` 不叫 slang）；动画引擎叫 `hanim`（`import hanim;`，命名空间 `hanim::`）。父包和子包同时出现在一个依赖表里时，键要加引号（`"openmui.rhi"`、`"openmui.rhi.sdl"`），否则不是合法的 TOML。
 - **优先使用 mcpp 生态**：mcpp-index 里已经有知名、跨平台的库时直接使用（JSON 用 `nlohmann.json`，TOML 用 `marzer.tomlplusplus`，任务用 `taskflow`……），不自己实现；只有生态里没有、或者无法满足确定性要求时才自己写（D-56）。

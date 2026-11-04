@@ -651,7 +651,7 @@ struct GpuRenderer::Impl {
                 };
                 const std::int32_t fx = first(ox), fy = first(oy);
                 const std::int32_t across = (w - fx + size - 1) / size, down = (h - fy + size - 1) / size;
-                const PixelateGrid grid{{w, h, size, 0}, {fx, fy, across, down}};
+                const PixelateGrid grid{{w, h, size, static_cast<std::int32_t>(e.uniforms.derived[3])}, {fx, fy, across, down}};
                 const std::array<rhi::Texture, 1> writes{e.result};
                 list.begin_compute(writes);
                 list.set_pipeline(pixelate_pipeline);
@@ -1102,6 +1102,9 @@ rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, rhi::Textur
                 else if (std::holds_alternative<PopLayer>(all[pop]) && --depth == 0) break;
             }
             if (pop >= all.size()) return false;  // unbalanced: an ordinary layer
+            std::vector<float> params(push.params.begin(), push.params.end());
+            if (info) for (std::size_t k = params.size(); k < info->params.size(); ++k) params.push_back(info->params[k].value);
+            if (info && info->identity && info->identity(params)) return false;
             const bool drawable = info && info->gpu.pass != EffectPass::none &&
                                   (info->gpu.pass != EffectPass::pixel || (info->gpu.fragment && template_shaped(*info->gpu.fragment)));
             if (!drawable) {
@@ -1110,12 +1113,11 @@ rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, rhi::Textur
             }
             EffectStep step;
             step.gpu = info->gpu;
-            std::vector<float> params(push.params.begin(), push.params.end());
-            for (std::size_t k = params.size(); k < info->params.size(); ++k) params.push_back(info->params[k].value);
             const float scale = transforms.front().max_scale();
             const float reach = std::ceil(effects().reach(push.effect, params) * scale) + 1;
+            const float viewport_reach = info->input_radius ? std::max(reach, std::ceil(info->input_radius(params, scale))) : reach;
             const Rect layer = m().map(push.bounds);
-            const Rect screen{-reach, -reach, static_cast<float>(here().w) + 2 * reach, static_cast<float>(here().h) + 2 * reach};
+            const Rect screen{-viewport_reach, -viewport_reach, static_cast<float>(here().w) + 2 * viewport_reach, static_cast<float>(here().h) + 2 * viewport_reach};
             const Rect wanted = Rect{layer.x - reach, layer.y - reach, layer.width + 2 * reach, layer.height + 2 * reach}.intersection(screen);
             if (wanted.empty()) {  // nothing of it on the surface
                 report.commands += pop - index;

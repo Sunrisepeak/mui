@@ -71,6 +71,21 @@ int main(int argc, char** argv) {
     Suite s{"theme"};
 
     theme::Library lib;
+    s.test("effect animation and appearance rules roundtrip with strict channel diagnostics", [] {
+        const std::string source = "[style.pixel_probe]\ntheme = \"light\"\n[style.pixel_probe.effects]\npainter = { effect = \"pixelate\", size = 8, usage = \"appearance\", duration = 0.5, reverse = true, animate = { amount = [0.0, 1.0], origin_x = [-2.0, 3.0] } }\n";
+        const auto read = theme::read_styles(source, "pixel-probe.style.omui.toml");
+        check(read.has_value(), read ? "" : all(read.error())); if (!read) return;
+        const auto written = theme::write_style(read->front());
+        const auto again = theme::read_styles(written, "roundtrip.style.omui.toml");
+        check(again.has_value(), again ? "" : all(again.error())); if (!again) return;
+        check(again->front().effects.front().effect == read->front().effects.front().effect);
+        for (const auto rule : {"animate = { missing = [0, 1] }, duration = 1", "animate = { amount = [0, 2] }, duration = 1",
+            "animate = { amount = [0] }, duration = 1", "animate = { amount = [0, 1] }", "animate = { amount = [0, 1] }, duration = -1",
+            "animate = { amount = [0, 1] }, duration = nan", "usage = \"missing\"", "reverse = 1"}) {
+            const auto bad = theme::read_styles(std::format("[style.x]\ntheme = \"light\"\n[style.x.effects]\npainter = {{ effect = \"pixelate\", {} }}\n", rule), "bad.style.omui.toml");
+            check(!bad, rule);
+        }
+    });
     const auto default_file = theme_dir() / "default" / "default.theme.omui.toml";
     const auto compact_file = theme_dir() / "compact" / "compact.theme.omui.toml";
 

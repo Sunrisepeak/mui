@@ -28,6 +28,7 @@ openmui.core     = { path = "../core" }
 openmui.geom     = { path = "../../base/geom" }
 openmui.memory   = { path = "../../base/memory" }
 hanim.core            = { path = "../../base/hanim/core" }
+hanim.effect          = { path = "../../gfx/hanim/effect" }
 openmui.layout   = { path = "../../content/layout" }
 openmui.raster   = { path = "../../gfx/raster" }
 openmui.render.vector   = { path = "../../gfx/render/vector" }

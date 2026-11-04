@@ -5,6 +5,7 @@ module openmui.view;
 import std;
 import openmui.core;
 import openmui.layout;
+import hanim.effect;
 import :impl;
 
 namespace omui {
@@ -597,15 +598,64 @@ std::optional<Node::PixelEffectState> Runtime::Impl::effect_state(const Value& v
     Node::PixelEffectState st;
     st.effect = *ref;
     st.params = render::effects().params(*ref, given);
-    if (const render::EffectInfo* info = render::effects().info(*ref))
-        for (std::size_t i = 0; i < info->params.size(); ++i)
-            if (info->params[i].name == "progress") st.progress = static_cast<int>(i);
     st.start = now();
-    if (const Value* d = value.get("duration"); d && d->is_number() && st.progress >= 0) st.duration = seconds(d->as_double());
-    if (const Value* d = value.get("delay"); d && d->is_number()) st.delay = seconds(d->as_double());
-    if (const Value* e = value.get("ease"))
+    const auto bad = [&](std::string_view reason) -> std::optional<Node::PixelEffectState> {
+        warn("{}: {}", where, reason); return std::nullopt;
+    };
+    if (const Value* d = value.get("duration")) {
+        if (!d->is_number() || !std::isfinite(d->as_double()) || d->as_double() < 0) return bad("effect duration must be finite and nonnegative");
+        st.duration = seconds(d->as_double());
+    }
+    if (const Value* d = value.get("delay")) {
+        if (!d->is_number() || !std::isfinite(d->as_double()) || d->as_double() < 0) return bad("effect delay must be finite and nonnegative");
+        st.delay = seconds(d->as_double());
+    }
+    if (const Value* e = value.get("ease")) {
         if (auto pe = hanim::parse_ease(e->as_string())) st.ease = *pe;
-    if (const Value* r = value.get("reverse")) st.reverse = r->as_bool();
+        else return bad("unknown effect easing");
+    }
+    if (const Value* r = value.get("reverse")) {
+        if (r->type() != Value::Type::boolean) return bad("effect reverse must be a boolean");
+        st.reverse = r->as_bool();
+    }
+    if (const Value* t = value.get("transition")) {
+        if (!t->is_number() || !std::isfinite(t->as_double()) || t->as_double() < 0) return bad("effect transition must be finite and nonnegative");
+        st.transition = seconds(t->as_double());
+    }
+    if (const Value* usage = value.get("usage")) {
+        if (usage->as_string() != "appearance" && usage->as_string() != "feedback") return bad("effect usage must be appearance or feedback");
+        st.appearance = usage->as_string() == "appearance";
+    }
+    hanim::EffectSpec recipe{std::string(fx->as_string()), {}};
+    std::vector<std::size_t> indices;
+    const auto animate = [&](std::string_view name, double from, double to) {
+        const auto it = std::ranges::find(about->params, name, &render::EffectParam::name);
+        if (it == about->params.end() || !std::isfinite(from) || !std::isfinite(to) ||
+            from < it->min || from > it->max || to < it->min || to > it->max) return false;
+        indices.push_back(static_cast<std::size_t>(it - about->params.begin()));
+        recipe.parameters.push_back({std::string(name), static_cast<float>(from), static_cast<float>(to)});
+        return true;
+    };
+    if (const Value* channels = value.get("animate")) {
+        if (!st.duration || !channels->map() || channels->map()->empty()) return bad("effect animate needs a duration and a nonempty parameter map");
+        for (const auto& [name, ends] : *channels->map()) {
+            const auto* pair = ends.list();
+            if (!pair || pair->size() != 2 || !(*pair)[0].is_number() || !(*pair)[1].is_number() ||
+                !animate(name, (*pair)[0].as_double(), (*pair)[1].as_double()))
+                return bad("effect animate entries must name a parameter and two finite endpoints within its range");
+        }
+    } else if (st.duration && !animate("progress", 0, 1)) {
+        return bad("this effect has no progress parameter; provide animate = { parameter = [from, to] }");
+    }
+    if (!recipe.parameters.empty()) {
+        const std::array recipes{std::move(recipe)};
+        auto prepared = hanim::PreparedEffects::prepare(recipes);
+        if (!prepared) return bad(hanim::effect_error_name(prepared.error()));
+        st.animation = std::make_unique<Node::PixelEffectState::Animation>();
+        st.animation->plan = std::move(*prepared);
+        st.animation->params = std::move(indices);
+        st.animation->samples.resize(st.animation->plan.parameter_count());
+    }
     return st;
 }
 
@@ -635,6 +685,10 @@ void Runtime::Impl::apply_rules(NodeId id) {
     if (!n.styled_effect) return;
     // Its states' rules: the same selector and a state (`button:pressed`), the same effect, their params.
     auto& fx = *n.styled_effect;
+    if (fx.duration) {
+        if (std::ranges::find(animating, id) == animating.end()) animating.push_back(id);
+        frame_requested = true;
+    }
     fx.rest = fx.params;
     for (const auto& [state, bit] : {std::pair{std::string_view(":pressed"), std::uint8_t{1}}, {":hovered", std::uint8_t{2}}, {":focused", std::uint8_t{3}}})
         for (const EffectRule& r : effect_rules) {

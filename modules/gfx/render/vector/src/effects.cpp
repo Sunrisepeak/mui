@@ -238,11 +238,27 @@ void blur(const EffectInput& in) {
     each_pixel(in, [&](int x, int y, Rgba8) { return a.at(x, y); });
 }
 
-int pixelate_size(std::span<const float> params, float scale) { return std::max(1, static_cast<int>(std::round(params[0] * scale))); }
+struct PixelGrid {
+    int size, x, y, weight;
+};
+PixelGrid pixelate_grid(std::span<const float> p, float scale, geom::Rect layer) {
+    const float unit = p[2] >= 0.5f ? 1.0f : scale;
+    return {std::max(1, static_cast<int>(std::round(p[0] * unit))),
+            static_cast<int>(std::floor(layer.x + p[3] * unit)),
+            static_cast<int>(std::floor(layer.y + p[4] * unit)),
+            static_cast<int>(std::round(clamp01(p[1]) * 255.0f))};
+}
+bool pixelate_identity(std::span<const float> p) { return p[1] == 0; }
+float pixelate_input_radius(std::span<const float> p, float scale) {
+    return static_cast<float>(pixelate_grid(p, scale, {}).size);
+}
 
 void pixelate(const EffectInput& in) {
-    const int size = pixelate_size(in.params, in.scale);
-    const int ox = static_cast<int>(std::floor(in.layer.x)), oy = static_cast<int>(std::floor(in.layer.y));
+    const auto [size, ox, oy, weight] = pixelate_grid(in.params, in.scale, in.layer);
+    if (weight == 0 || size == 1) {
+        each_pixel(in, [](int, int, Rgba8 p) { return p; });
+        return;
+    }
     auto first = [&](int v, int o) { return o + static_cast<int>(std::floor(static_cast<float>(v - o) / static_cast<float>(size))) * size; };
     for (int by = first(0, oy); by < in.target.height(); by += size)
         for (int bx = first(0, ox); bx < in.target.width(); bx += size) {
@@ -258,7 +274,12 @@ void pixelate(const EffectInput& in) {
             const Rgba8 avg{static_cast<std::uint8_t>((sum[0] + count / 2) / count), static_cast<std::uint8_t>((sum[1] + count / 2) / count),
                             static_cast<std::uint8_t>((sum[2] + count / 2) / count), static_cast<std::uint8_t>((sum[3] + count / 2) / count)};
             for (int y = std::max(by, 0); y < std::min(by + size, in.target.height()); ++y)
-                for (int x = std::max(bx, 0); x < std::min(bx + size, in.target.width()); ++x) in.target.at(x, y) = avg;
+                for (int x = std::max(bx, 0); x < std::min(bx + size, in.target.width()); ++x) {
+                    if (weight == 255) { in.target.at(x, y) = avg; continue; }
+                    const Rgba8 src = in.source.at(x, y);
+                    const auto mix = [&](int a, int b) { return static_cast<std::uint8_t>((a * (255 - weight) + b * weight + 127) / 255); };
+                    in.target.at(x, y) = {mix(src.r, avg.r), mix(src.g, avg.g), mix(src.b, avg.b), mix(src.a, avg.a)};
+                }
         }
 }
 
@@ -659,9 +680,11 @@ void derive_chromatic(std::span<const float> p, float scale, geom::Rect, EffectF
 }
 void derive_blur(std::span<const float> p, float scale, geom::Rect, EffectFrame& out) { out.derived[0] = static_cast<float>(blur_radius(p, scale)); }
 void derive_pixelate(std::span<const float> p, float scale, geom::Rect layer, EffectFrame& out) {
-    out.derived[0] = static_cast<float>(pixelate_size(p, scale));
-    out.derived[1] = std::floor(layer.x);
-    out.derived[2] = std::floor(layer.y);
+    const auto [size, x, y, weight] = pixelate_grid(p, scale, layer);
+    out.derived[0] = static_cast<float>(size);
+    out.derived[1] = static_cast<float>(x);
+    out.derived[2] = static_cast<float>(y);
+    out.derived[3] = static_cast<float>(weight);
 }
 void derive_particles(std::span<const float> p, float scale, geom::Rect layer, EffectFrame& out) {
     const ParticlesFrame f = particles_frame(p, scale, layer);
@@ -710,8 +733,16 @@ void register_builtins(EffectRegistry& r) {
     r.add({"blur", "A Gaussian-like blur (three box passes each way).",
            {{"radius", 4, 0, 200, "radius in logical pixels"}}, [](std::span<const float> p) { return std::abs(p[0]); }, blur,
            {EffectPass::blur, nullptr, derive_blur, nullptr}});
-    r.add({"pixelate", "The layer in square blocks of their average colour.",
-           {{"size", 6, 1, 256, "block size in logical pixels"}}, no_reach, pixelate, {EffectPass::pixelate, nullptr, derive_pixelate, nullptr}});
+    EffectInfo blocks{"pixelate", "Layer-anchored square blocks of premultiplied average colour, mixed with the source.",
+           {{"size", 6, 1, 256, "block size in the selected unit"},
+            {"amount", 1, 0, 1, "strength quantized to 1/255; exactly zero bypasses the filter"},
+            {"device_pixels", 0, 0, 1, "0: logical pixels times output scale; 1: device pixels (threshold 0.5)"},
+            {"origin_x", 0, -65536, 65536, "grid offset from the layer's left in the selected unit"},
+            {"origin_y", 0, -65536, 65536, "grid offset from the layer's top in the selected unit"}},
+           no_reach, pixelate, {EffectPass::pixelate, nullptr, derive_pixelate, nullptr}};
+    blocks.identity = pixelate_identity;
+    blocks.input_radius = pixelate_input_radius;
+    r.add(std::move(blocks));
     r.add({"particles", "The layer bursts into square particles that fly, fall and fade as progress goes from 0 to 1 "
                         "(backwards: gathers out of a cloud).",
            {{"progress", 0, 0, 1, "0: whole; 1: gone"},

@@ -457,15 +457,17 @@ void CpuRenderer::prepare_effects(const DisplayList& list, const raster::Surface
         }
         if (pop >= all.size()) break;  // unbalanced: drawn as an ordinary layer
         const EffectInfo* info = effects().info(push->effect);
+        std::vector<float> params(push->params.begin(), push->params.end());
+        if (info) for (std::size_t k = params.size(); k < info->params.size(); ++k) params.push_back(info->params[k].value);
+        if (info && info->identity && info->identity(params)) continue;
         if (!info || !info->cpu) {
             ++report.effects_skipped;
             continue;  // drawn without it
         }
-        std::vector<float> params(push->params.begin(), push->params.end());
-        for (std::size_t k = params.size(); k < info->params.size(); ++k) params.push_back(info->params[k].value);
         const float reach = std::ceil(effects().reach(push->effect, params) * scale) + 1;
+        const float viewport_reach = info->input_radius ? std::max(reach, std::ceil(info->input_radius(params, scale))) : reach;
         const Rect layer = transforms.back().map(push->bounds);
-        const Rect screen{-reach, -reach, static_cast<float>(target.width()) + 2 * reach, static_cast<float>(target.height()) + 2 * reach};
+        const Rect screen{-viewport_reach, -viewport_reach, static_cast<float>(target.width()) + 2 * viewport_reach, static_cast<float>(target.height()) + 2 * viewport_reach};
         const Rect wanted = Rect{layer.x - reach, layer.y - reach, layer.width + 2 * reach, layer.height + 2 * reach}.intersection(screen);
         if (d.effect_count == d.effect_layers.size()) d.effect_layers.emplace_back();
         Impl::EffectLayer& out = d.effect_layers[d.effect_count++];

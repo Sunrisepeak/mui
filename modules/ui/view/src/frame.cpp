@@ -201,7 +201,7 @@ void Runtime::Impl::retime() {
             a.resting = settled;
         }
         // Glyph motions are functions of the time: before their end, they move again.
-        if (any || n.props_moving() || n.glyphs_moving(t) || n.effect_moving(t)) {
+        if (any || n.props_moving() || n.glyphs_moving(t) || n.effect_moving(t, !reduce_motion && motion_now() == MotionLevel::full)) {
             if (std::ranges::find(animating, id) == animating.end()) animating.push_back(id);
             if (!n.state.animating) {
                 n.state.animating = true;
@@ -349,7 +349,7 @@ void Runtime::Impl::run_animations() {
             if (!alive(id)) continue;
         }
         Node& after = at(id);
-        if (after.moving || after.props_moving() || after.glyphs_moving(t) || after.effect_moving(t)) still.push_back(id);
+        if (after.moving || after.props_moving() || after.glyphs_moving(t) || after.effect_moving(t, !reduce_motion && motion_now() == MotionLevel::full)) still.push_back(id);
         else if (after.state.animating) {
             after.state.animating = false;
             // Settled: readers waiting for it see a new revision (no further frame is needed).
@@ -685,13 +685,13 @@ void Runtime::Impl::paint_node(NodeId id) {
         }
     // A disabled control is not lit by its style's effect (a neon tube, a
     // glow): the decoration is for what can be used.
-    if (fxs == (n.styled_effect ? &*n.styled_effect : nullptr) && fxs && n.state.disabled) fxs = nullptr;
+    if (fxs == (n.styled_effect ? &*n.styled_effect : nullptr) && fxs && n.state.disabled && !fxs->appearance) fxs = nullptr;
     // A state's params (pressed, hovered, focused), eased to from wherever they were.
     if (fxs && fxs == (n.styled_effect ? &*n.styled_effect : nullptr) && !fxs->variants.empty()) {
         auto& fx = *fxs;
         const Node::PixelEffectState::Variant* want = nullptr;
         for (const auto& v : fx.variants)
-            if (!want && ((v.state == 1 && n.state.pressed) || (v.state == 2 && n.state.hovered) || (v.state == 3 && n.state.focused))) want = &v;
+            if (!want && !n.state.disabled && ((v.state == 1 && n.state.pressed) || (v.state == 2 && n.state.hovered) || (v.state == 3 && n.state.focused))) want = &v;
         const std::uint8_t to = want ? want->state : 0;
         if (to != fx.shown) {
             fx.from = fx.params;
@@ -702,26 +702,38 @@ void Runtime::Impl::paint_node(NodeId id) {
         }
         const std::vector<float>& target = want ? want->params : fx.rest;
         const double u = std::clamp((now() - fx.changed).count() / std::max(1e-6, fx.transition.count()), 0.0, 1.0);
-        const double e = reduce_motion ? 1.0 : fx.transition_ease(u);
+        const double e = reduce_motion || motion_now() != MotionLevel::full ? 1.0 : fx.transition_ease(u);
         if (fx.from.size() == target.size() && fx.params.size() == target.size())
             for (std::size_t i = 0; i < target.size(); ++i)
-                if (static_cast<int>(i) != fx.progress) fx.params[i] = static_cast<float>(fx.from[i] + (target[i] - fx.from[i]) * e);
+                if (!fx.animates(i)) fx.params[i] = hanim::lerp(fx.from[i], target[i], e);
+    }
+    auto sample = [&](Node::PixelEffectState& fx) {
+        if (!fx.duration || !fx.animation) return;
+        const auto local = now() - fx.start - fx.delay;
+        const double u = local.count() < 0 ? 0 : fx.duration->count() == 0 ? 1 : std::clamp(local.count() / fx.duration->count(), 0.0, 1.0);
+        double p = reduce_motion || motion_now() != MotionLevel::full ? 1.0 : u == 0 || u == 1 ? u : fx.ease(u);
+        if (fx.reverse) p = 1 - p;
+        auto& animation = *fx.animation;
+        if (animation.plan.sample(p, animation.samples))
+            for (std::size_t i = 0; i < animation.params.size(); ++i) fx.params[animation.params[i]] = animation.samples[i];
+    };
+    if (fxs) {
+        sample(*fxs);
+        // UI effect wrappers carry no opacity/blend of their own. An identity
+        // needs no extra isolated group (which would reapply ancestor clips).
+        // The node's actual opacity layer below remains independent.
+        if (const auto* info = render::effects().info(fxs->effect); info && info->identity && info->identity(fxs->params)) fxs = nullptr;
     }
     const bool effected = fxs != nullptr;
     // More of its own over it (a list), each where it runs (performance tiers: below its tiers, left out).
     std::size_t more = 0;
     for (auto& fx : n.more_effects)
         if (const render::EffectInfo* info = render::effects().info(fx.effect); info && (info->tiers & pipeline::tier_bit(effects_now())) &&
-                                                                               !(info->backdrop && reduce_transparency))
-            ++more;
+                                                                               !(info->backdrop && reduce_transparency)) {
+            sample(fx);
+            if (!info->identity || !info->identity(fx.params)) ++more;
+        }
     if (effected || more > 0) {
-        auto progress = [&](Node::PixelEffectState& fx) {
-            if (!fx.duration || fx.progress < 0) return;
-            const double u = (now() - fx.start - fx.delay).count() / std::max(1e-6, fx.duration->count());
-            double p = reduce_motion ? 1.0 : fx.ease(std::clamp(u, 0.0, 1.0));
-            if (fx.reverse) p = 1 - p;
-            fx.params[static_cast<std::size_t>(fx.progress)] = static_cast<float>(p);
-        };
         // The layer's shapes: what the node paints as surfaces — its own
         // rounded box, and each child's that has a background or a border
         // (a group's members: what neon lights and metaball merges).
@@ -746,11 +758,10 @@ void Runtime::Impl::paint_node(NodeId id) {
         for (auto it = n.more_effects.rbegin(); it != n.more_effects.rend(); ++it) {
             const render::EffectInfo* info = render::effects().info(it->effect);
             if (!info || !(info->tiers & pipeline::tier_bit(effects_now())) || (info->backdrop && reduce_transparency)) continue;
-            progress(*it);
+            if (info->identity && info->identity(it->params)) continue;
             list.push_layer(1, render::BlendMode::normal, it->effect, it->params, box, std::span(shapes.data(), count));
         }
         if (effected) {
-            progress(*fxs);
             list.push_layer(1, render::BlendMode::normal, fxs->effect, fxs->params, box, std::span(shapes.data(), count));
         }
     }

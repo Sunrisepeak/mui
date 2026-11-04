@@ -79,8 +79,15 @@ The retained and immediate view runtime (plan §3–§5):
 - **pixel effects** (D-68): any node's whole drawing, children included, in an effect layer of
   `render::effects()`: dissolve, wipe, reveal, displace, noise, chromatic, blur, pixelate, particles,
   or one a program registers. The `pixel_effect` property is a map with the effect's name and its
-  parameters by name. With a `duration` (and `ease`, `delay`, `reverse`) the runtime drives `progress`
-  from the time it was set. The effect is seekable, and the node is `animating` until it ends.
+  parameters by name. `animate: {parameter: [from, to]}` with `duration` prepares named scalar
+  channels through public `hanim.effect`; `ease`, `delay` and `reverse` share the runtime clock.
+  The legacy duration-only form still drives `progress`; effects without that parameter require
+  explicit channels. The effect is seekable, with exact endpoints. Reduced/off motion selects
+  the terminal value without scheduling a continuing animation. Style rules may declare
+  `usage: "appearance"` to retain base material on disabled controls; the default `"feedback"`
+  suppresses decoration there. Disabled controls never select hover/press/focus variants.
+  A declared identity omits the UI effect wrapper, avoiding another application of ancestor
+  antialiasing clips; the node's ordinary opacity layer remains intact.
 - **observability** (D-59): every frame times its phases (timers, input,
   regions, animations, layout, bounds, paint) into `FrameStats`, kept for the
   last 240 frames (`frame_history()`) and traced as `openmui.trace` spans;
@@ -93,5 +100,37 @@ The retained and immediate view runtime (plan §3–§5):
   and a frame-time HUD (mean, p95, node counts).
 
 Depends on `openmui.core`, `-layout`, `-render`, `-text`, `-image`, `-anim`,
-`-geom`, `-memory`, `-trace` and `-pipeline`. Paint is deterministic: the reference scene renders to
+`-geom`, `-memory`, `-trace`, `-pipeline` and `hanim.effect`. Paint is deterministic: the reference scene renders to
 the same bytes with GCC and LLVM, on Linux, macOS and Windows.
+
+For a local chart, set `pixel_effect` on its painter, with labels and controls
+as siblings when their drawing must remain unchanged:
+
+```json
+{"name":"pixelate","size":8,"device_pixels":1,"duration":0.4,
+ "animate":{"amount":[0,1]},"ease":"linear"}
+```
+
+An effect wraps everything its node paints; a nested theme reset does not
+cancel an ancestor's image filter. This scalar bridge does not provide a
+general typed-channel mixer, automatic retargeting or a complete pixel style
+pack. Component paint-part isolation remains a separate capability.
+
+Minimal headless workflow: expose normal component actions for the controls,
+discover their stable IDs through openas, invoke the action, inspect its result,
+and capture the selected region using the host's real renderer. Use runtime
+time control for deterministic start/middle/end and replay checks. The site
+feature test exercises `act` and PNG `capture` through `agent::Protocol`
+without a window. Invalid animation names, endpoints or timing are diagnosed;
+the rejected effect is not installed. Cancel/remove it through the owning
+property; no hidden player or GUI lifecycle is needed.
+
+Animation acceptance samples the process, not only its endpoints. The effect
+animation suite renders 61 timestamps over one second at 2× DPI, checks every
+interval's visual change and unchanged outside pixels, retains identity/hit/
+focus, and replays all samples in reverse. It exports the full PNG sequence,
+a lossless one-shot WebP (including one terminal sample interval), and an
+eight-frame contact sheet under `openmui-tests/effect-animation`. The sheet's
+times, left-to-right then top-to-bottom, are 0, .05, .15, .30, .50, .70, .90, 1s.
+Structured output records every timestamp and pixel hash. This deterministic
+sampling does not measure live frame pacing or replace human motion review.

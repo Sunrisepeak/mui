@@ -6,6 +6,7 @@ import std;
 import openmui.core;
 import openmui.layout;
 import hanim.core;
+import hanim.effect;
 import openmui.pipeline;
 import openmui.render.vector;
 import openmui.raster;
@@ -144,16 +145,26 @@ struct Node {
     };
     std::optional<GlyphMotionState> glyph_motion;
     // Its pixel effect (D-68): the node's whole drawing in an effect layer.
-    // With a duration, the runtime drives `progress` from `start`.
+    // Named scalar animation is prepared by hanim.effect. The legacy
+    // duration-only form binds the ordinary `progress` parameter.
     struct PixelEffectState {
         render::EffectRef  effect;
         std::vector<float> params;
-        int                progress = -1;  // the index of `progress` among the params, if any
+        struct Animation {
+            hanim::PreparedEffects plan;
+            std::vector<std::size_t> params;
+            std::vector<float> samples;
+        };
+        std::unique_ptr<Animation> animation; // static/unused effects own no plan or sample buffers
+        bool               appearance = false; // retained when the control is disabled
         seconds            start{0};
         std::optional<seconds> duration;
         seconds            delay{0};
         hanim::Ease         ease = hanim::ease::standard;
         bool               reverse = false;
+        [[nodiscard]] bool animates(std::size_t index) const noexcept {
+            return animation && std::ranges::find(animation->params, index) != animation->params.end();
+        }
         // A style's rules for a state (`button:pressed`, `:hovered`, `:focused`): the params while the node is in it,
         // eased to and back over `transition` from wherever they were — a press the glass answers, not a cut.
         struct Variant {
@@ -171,10 +182,11 @@ struct Node {
     std::vector<PixelEffectState>   more_effects;   // a list's: each over the one before (`pixel_effect = [noise, neon]`)
     std::optional<PixelEffectState> styled_effect;  // what the style's rules give its type or role
     PixelEffectState     stood_in;                   // what stands in for its effect below the effect's tiers (paint's, a frame's)
-    [[nodiscard]] bool effect_moving(seconds now) const noexcept {
+    [[nodiscard]] bool effect_moving(seconds now, bool motion_enabled = true) const noexcept {
+        if (!motion_enabled) return false;
         auto moving = [&](const PixelEffectState& fx) { return fx.duration && now - fx.start < *fx.duration + fx.delay; };
         return (pixel_effect && moving(*pixel_effect)) || std::ranges::any_of(more_effects, moving) ||
-               (styled_effect && !styled_effect->variants.empty() && now - styled_effect->changed < styled_effect->transition);
+               (styled_effect && (moving(*styled_effect) || (!styled_effect->variants.empty() && now - styled_effect->changed < styled_effect->transition)));
     }
     [[nodiscard]] bool glyphs_moving(seconds now) const noexcept { return glyph_motion && now - glyph_motion->start < glyph_motion->ends; }
     [[nodiscard]] bool props_moving() const noexcept {

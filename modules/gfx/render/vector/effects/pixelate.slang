@@ -1,11 +1,12 @@
 // pixelate: square blocks of their average colour. One invocation a block
 // (derived(0): its size; derived(1, 2): the grid's origin, the layer's
-// floored corner) sums its pixels in integers and writes the average to each.
+// floored corner plus an explicit offset) sums pixels in integers, then mixes
+// each source pixel with that average using the same byte weight as the CPU.
 [[vk::binding(0, 0)]] Sampler2D source : register(t0, space0) : register(s0, space0);
 // rgba8: the layer's format (WGSL declares it; SPIR-V and the others take it too).
 [[vk::binding(0, 1)]] [format("rgba8")] RWTexture2D<float4> result : register(u0, space1);
 struct Grid {
-    int4 size;   // surface width, height; block size; -
+    int4 size;   // surface width, height; block size; mix weight (0..255)
     int4 first;  // the first block's corner (≤ 0): x, y; blocks across, down
 };
 [[vk::binding(0, 2)]] ConstantBuffer<Grid> grid : register(b0, space2);
@@ -23,7 +24,12 @@ void pixelate_cs(uint3 id : SV_DispatchThreadID) {
         for (int x = x0; x < x1; ++x)
             sum += uint4(round(saturate(source.SampleLevel((float2(x, y) + 0.5) / float2(grid.size.xy), 0)) * 255.0));
     const uint count = uint((x1 - x0) * (y1 - y0));
-    const float4 avg = float4((sum + count / 2) / count) / 255.0;
+    const uint4 avg = (sum + count / 2) / count;
+    const uint weight = uint(grid.size.w);
     for (int y = y0; y < y1; ++y)
-        for (int x = x0; x < x1; ++x) result[int2(x, y)] = avg;
+        for (int x = x0; x < x1; ++x) {
+            if (weight == 255) { result[int2(x, y)] = float4(avg) / 255.0; continue; }
+            const uint4 original = uint4(round(saturate(source.SampleLevel((float2(x, y) + 0.5) / float2(grid.size.xy), 0)) * 255.0));
+            result[int2(x, y)] = float4((original * (255 - weight) + avg * weight + 127) / 255) / 255.0;
+        }
 }

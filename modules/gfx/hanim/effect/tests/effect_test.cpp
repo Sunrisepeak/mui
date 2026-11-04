@@ -9,6 +9,15 @@ using namespace omui::testing;
 
 int main(int argc, char** argv) {
     Suite s{"hanim.effect"};
+    s.test("pixelate recipe separates animated appearance from a fixed grid", [] {
+        const auto input = fx::chain({fx::pixelate({4, 0}, {12, 1}, {fx::PixelUnit::device, -2, 3})});
+        const auto plan = PreparedEffects::prepare(input); check(plan.has_value()); if (!plan) return;
+        std::array<float, 5> value{};
+        check(plan->sample(.5, value).has_value());
+        check(value == std::array<float, 5>{8, .5f, 1, -2, 3});
+        check(plan->sample(0, value).has_value() && value[1] == 0);
+        check(plan->sample(1, value).has_value() && value[1] == 1);
+    });
     s.test("ordered recipes own endpoint metadata and sample after producer release", [] {
         PreparedEffects plan;
         {

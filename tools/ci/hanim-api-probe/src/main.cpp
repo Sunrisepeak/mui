@@ -297,5 +297,13 @@ int main() {
     check(bool(hengine.cancel(*group,h::CancelMode::restore)) &&
           hengine.program_frame(*group)->scene.scope_effect_values[0]==0,"composite_restore_uses_exact_source_parameters");
     check(bool(hengine.release(*group)) && hengine.size()==0,"composite_releases_all_playback_resources");
+    const auto blocks=hengine.play(anim::morph(*a,*b).easing(h::ease::linear)
+        .with_effect(h::fx::pixelate({4,0},{12,1},{h::fx::PixelUnit::device,-2,3})));
+    if(!check(bool(blocks),"public_pixelate_recipe_plays_without_renderer"))return finish();
+    check(bool(hengine.seek_progress(*blocks,.5)),"pixelate_parameters_seek_on_engine_clock");
+    const auto block_frame=hengine.frame(*blocks);
+    check(block_frame && std::ranges::equal(block_frame->effect_values,std::array<float,5>{8,.5f,1,-2,3}),
+          "pixelate_samples_strength_size_and_fixed_grid");
+    check(bool(hengine.release(*blocks)),"pixelate_resources_released");
     return finish();
 }

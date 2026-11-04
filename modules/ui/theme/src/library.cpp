@@ -323,7 +323,7 @@ std::string write_style(const Style& st) {
             std::string f = std::format("effect = {}", r.effect.get("name") ? toml_string(r.effect.get("name")->as_string()) : std::string("\"\""));
             if (const Value::Map* m = r.effect.map())
                 for (const auto& [k, v] : *m)
-                    if (k != "name") f += std::format(", {} = {}", key_of(k), value_of(v));
+                    if (k != "name") f += std::format(", {} = {}", key_of(k), inline_value(v));
             out += std::format("{} = {{ {} }}\n", key_of(r.selector), f);
         }
     }

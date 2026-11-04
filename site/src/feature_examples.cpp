@@ -69,7 +69,11 @@ Element title_control(FeatureExamples* s, const FeatureExamplesContext& c, float
     auto e = text_box(std::move(o)); interaction(e, s, std::move(preview)); return e;
 }
 
-Element session_backdrop(FeatureExamples* s, const FeatureExamplesContext& c, float width, float height, bool glass) {
+Value chart_effect(const FeatureExamples& state) {
+    return Value{}.set("name", "pixelate").set("size", state.pixel_size.get())
+        .set("amount", state.pixel_amount.get() / 100.).set("device_pixels", state.pixel_device.get() ? 1. : 0.);
+}
+Element session_backdrop(FeatureExamples* s, const FeatureExamplesContext& c, float width, float height, bool glass, bool scoped) {
     const float level = static_cast<float>(std::clamp(s->intensity.get(), 0.0, 100.0) / 100.0);
     const bool quiet = s->quiet.get(); const auto cues = s->marks.get();
     // Build the geometry when data changes. Painting only submits the stored
@@ -93,7 +97,10 @@ Element session_backdrop(FeatureExamples* s, const FeatureExamplesContext& c, fl
     const float inside = std::max(68.0f, width - 24);
     auto series = feature_text("series", feature_words(c, std::format("{:.0f} / 100 · {} cues", s->intensity.get(), cues), std::format("{:.0f} / 100 · {} 记号", s->intensity.get(), cues)), inside, "caption");
     series.prop("translate_x", Source(Value(12.0))).prop("translate_y", Source(Value(height - 38))).prop("size", Source(Value(11.0)));
-    auto e = stack({.id = "backdrop", .width = Dim(width), .height = Dim(height)}, {painter(std::move(chart)), std::move(series)});
+    auto drawing = painter(std::move(chart));
+    // Labels and real controls remain siblings in their original paint order.
+    if (scoped) drawing.prop("pixel_effect", Source(chart_effect(*s)));
+    auto e = stack({.id = "backdrop", .width = Dim(width), .height = Dim(height)}, {std::move(drawing), std::move(series)});
     e.prop("pointer_events", Source(Value("none"))); return e;
 }
 Element notification_tabs(FeatureExamples* s, const FeatureExamplesContext& c, float width, std::string preview) {
@@ -109,7 +116,7 @@ Element notification_tabs(FeatureExamples* s, const FeatureExamplesContext& c, f
 Element control_group(FeatureExamples* s, const FeatureExamplesContext& c, std::string id, std::string label, float width, bool scoped) {
     const float inside = std::max(68.0f, width - 26);
     constexpr float height = 280;
-    auto backdrop = session_backdrop(s, c, width, height, scoped && s->style_name.get() == "glass");
+    auto backdrop = session_backdrop(s, c, width, height, scoped && s->style_name.get() == "glass", scoped);
     auto mark_button = mark_control(s, c, id); mark_button.prop("variant", Source(Value("ghost")));
     auto controls = column({.id = "controls", .width = Dim(width), .height = Dim(height), .padding = Edges(12), .gap = 8}, {
         feature_text("label", std::move(label), inside, "label"), quiet_control(s, c, inside, id), level_control(s, c, inside, id), std::move(mark_button), notification_tabs(s, c, inside, id)});
@@ -275,7 +282,21 @@ Element styles_feature(FeatureExamples& state, const FeatureExamplesContext& con
         if (!s->status.get().empty()) content.push_back(feature_text("status", s->status.get(), width, "caption"));
         if (s->styles_details.get()) {
             SliderOptions radius; radius.id = "radius"; radius.label = feature_words(c, "Sample corner radius", "样张圆角"); radius.min = 4; radius.max = 28; radius.step = 1; radius.value = s->radius; radius.width = Dim(width);
-            content.push_back(column({.id = "details", .width = Dim(width), .gap = 12}, {slider(std::move(radius)),
+            SliderOptions amount; amount.id = "pixel_amount"; amount.label = feature_words(c, "Chart pixelation", "图表像素化强度");
+            amount.min = 0; amount.max = 100; amount.step = 1; amount.value = s->pixel_amount; amount.width = Dim(width);
+            SliderOptions cell; cell.id = "pixel_size"; cell.label = feature_words(c, "Block size", "像素块大小");
+            cell.min = 1; cell.max = 16; cell.step = 1; cell.value = s->pixel_size; cell.width = Dim(width);
+            ToggleOptions unit; unit.id = "pixel_device"; unit.label = feature_words(c, "Use device pixels", "使用设备像素单位"); unit.checked = s->pixel_device;
+            content.push_back(column({.id = "details", .width = Dim(width), .gap = 12}, {
+                feature_text("radius_label", feature_words(c, std::format("Corner radius · {:.0f} px", s->radius.get()), std::format("圆角 · {:.0f} px", s->radius.get())), width, "caption"),
+                slider(std::move(radius)),
+                feature_text("pixel_amount_label", feature_words(c, std::format("Pixelation · {:.0f}%", s->pixel_amount.get()), std::format("像素化强度 · {:.0f}%", s->pixel_amount.get())), width, "caption"),
+                slider(std::move(amount)),
+                feature_text("pixel_size_label", feature_words(c, std::format("Block size · {:.0f} px", s->pixel_size.get()), std::format("像素块大小 · {:.0f} px", s->pixel_size.get())), width, "caption"),
+                slider(std::move(cell)), toggle(std::move(unit)),
+                feature_text("pixel_method", feature_words(c, "Pixelate only the styled chart, then combine it with any material above. Labels and controls keep their own drawing. At zero strength the chart is unchanged, including on high-DPI displays.",
+                    "只把风格化视图中的图表像素化，可与上面的材质组合。文字与控件保留各自的绘制；强度为零时图表像素保持原样，高 DPI 下也一样。"), width, "caption"),
+                source_text("pixel_source", "pixel_effect = " + chart_effect(*s).json(), width),
                 feature_text("method", feature_words(c, "The material view and the workspaces below share a scoped style. Glass refracts controls over the drawn backdrop; Ink uses paper and line effects; Neon glows; Retro uses CRT; Liquid merges the slider handle into its track. The renderer chooses a supported tier and respects reduced motion.",
                     "材质视图与下方工作区共享限定作用域的风格。玻璃让控件折射背后的图形；水墨使用纸张与线条效果；霓虹发光；复古使用 CRT；液态让滑块手柄与轨道融合。渲染器按支持的分档呈现，并尊重减少动效设置。"), width, "caption"),
                 source_text("scope", "theme::apply_style(runtime, " + Value(s->style_name.get()).json() + ", " + Value(c.scope).json() + ", false);\n// Apply theme_scope only to the specimen roots.", width)}));

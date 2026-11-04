@@ -139,6 +139,25 @@ try {
       }
       await screenshot(`styles-${lang}-${w}`);
 
+      await pointer(style + '/actions/details');
+      await requireState(() => present(style + '/details/pixel_amount'), 'local effect controls appear only after Details');
+      await pointer(style + '/details/pixel_amount', 0.8);
+      await requireState(async () => Number(await scalar(style + '/details/pixel_amount')) > 65, 'real pointer changes the chart pixelation strength');
+      await pointer(style + '/details/pixel_size', 0.6);
+      await pointer(style + '/details/pixel_device');
+      await requireState(() => checked(style + '/details/pixel_device'), 'device-pixel units can be selected by a person');
+      const copiedEffect = (await node(style + '/details/pixel_source'))?.name || '';
+      check(copiedEffect.includes('"device_pixels":1') && copiedEffect.includes('"amount":'), 'displayed configuration follows the actual local effect');
+      const amountLabel = await node(style + '/details/pixel_amount_label'), sizeLabel = await node(style + '/details/pixel_size_label');
+      check(amountLabel?.name?.includes('%') && sizeLabel?.name?.includes('px') && amountLabel?.bounds?.[3] > 0 && sizeLabel?.bounds?.[3] > 0,
+        'people see the parameter names and current values as rendered text');
+      await screenshot(`styles-pixel-controls-${lang}-${w}`);
+      // Capturing is a native semantic request, not a DOM reconstruction.
+      await pointer(style + '/comparison/styled/controls/quiet', 0.5, true);
+      const capture = await b.value(`window.omui.request({op:'capture',node:${q(style + '/comparison/styled')},region:[0,0,120,100]})`);
+      check(capture?.exitCode === 0 && capture?.data?.base64?.startsWith('iVBORw0KGgo'), 'Agent obtains actual region PNG pixels from the Web renderer');
+      await screenshot(`styles-local-pixel-${lang}-${w}`);
+
       await open(prefix + 'agent/use', 'agent');
       const agent = 'main/body/view/agent/page/agent_feature', title = agent + '/specimen/title';
       await type(title, lang === 'zh' ? '由我接管的想法' : 'My own handoff draft');

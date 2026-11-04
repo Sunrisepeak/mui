@@ -94,7 +94,7 @@ enum class EffectPass : std::uint8_t {
     none,       // no GPU path: drawn without the effect, counted as skipped
     pixel,      // `fragment`, the template's, once per pixel of the surface
     blur,       // three box passes each way (derived 0: the radius)
-    pixelate,   // a compute pass, one invocation a block (derived 0…2: size, origin)
+    pixelate,   // a compute pass, one invocation a block (derived 0…3: size, origin, byte weight)
     particles,  // one instance a cell (derived 0…7, see effects/particles.slang)
 };
 
@@ -157,6 +157,15 @@ struct EffectInfo {
     // Empty: conservatively use capture reach. External effects can declare
     // the same guarantee; no declaration is inferred from an effect's name.
     std::function<float(std::span<const float> params)> output_reach;
+    // A declared exact identity: keep ordinary layer opacity/blending, but
+    // bypass capture and filtering. Called with all default parameters filled.
+    // Independent of CPU/GPU availability; no effect-name tests in backends.
+    bool (*identity)(std::span<const float> params) = nullptr;
+    // Extra input neighbourhood needed when clipping capture to the viewport,
+    // in device pixels at the supplied output scale. Finite, nonnegative.
+    // This preserves samples used by visible output; it does not expand the
+    // layer's own capture/output bounds. Empty: use the existing capture reach.
+    float (*input_radius)(std::span<const float> params, float scale) = nullptr;
 };
 
 // Runs an effect's CPU reference over its rows — in bands on `parallel` when

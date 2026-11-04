@@ -503,11 +503,14 @@ namespace {
 
 struct Hasher {
     std::uint64_t h = hash::Fnv1a::offset;
-    void bytes(const void* p, std::size_t n) { h = hash::Fnv1a(h).bytes(std::span(static_cast<const std::byte*>(p), n)).value(); }
     template <class T>
         requires std::is_arithmetic_v<T> || std::is_enum_v<T>
     void put(T v) {
-        bytes(&v, sizeof v);
+        if constexpr (std::is_enum_v<T>) put(static_cast<std::underlying_type_t<T>>(v));
+        else if constexpr (std::is_floating_point_v<T>) {
+            using Bits = std::conditional_t<sizeof(T) == 4, std::uint32_t, std::uint64_t>;
+            h = hash::Fnv1a(h).le(std::bit_cast<Bits>(v), sizeof v).value();
+        } else h = hash::Fnv1a(h).le(static_cast<std::uint64_t>(v), sizeof v).value();
     }
     void put(const Point& p) { put(p.x); put(p.y); }
     void put(const Rect& r) { put(r.x); put(r.y); put(r.width); put(r.height); }
@@ -515,7 +518,7 @@ struct Hasher {
     void put(const CornerRadii& r) { put(r.top_left); put(r.top_right); put(r.bottom_right); put(r.bottom_left); }
     void put(const Affine& m) { put(m.a); put(m.b); put(m.c); put(m.d); put(m.e); put(m.f); }
     void put(const PathView& p) {
-        put(p.verbs.size());
+        put(static_cast<std::uint64_t>(p.verbs.size()));
         for (auto v : p.verbs) put(v);
         for (const auto& pt : p.points) put(pt);
     }
@@ -523,7 +526,7 @@ struct Hasher {
         put(p.kind);
         put(p.color);
         if (p.kind == Paint::Kind::mix) {
-            put(p.mix_opacity); put(p.mix.size());
+            put(p.mix_opacity); put(static_cast<std::uint64_t>(p.mix.size()));
             for (const auto& term : p.mix) { put(term.weight); put(term.paint); }
         }
         if (p.kind == Paint::Kind::gradient) {
@@ -552,7 +555,9 @@ std::uint64_t hash_command(const Command& c, std::uint64_t seed) noexcept {
     if (std::holds_alternative<NodeFrame>(c) || std::holds_alternative<ReferenceBox>(c) ||
         std::holds_alternative<BeginPart>(c) || std::holds_alternative<EndPart>(c)) return seed;
     Hasher h{seed};
-    h.put(c.index());
+    // A 32-bit Web consumer and a 64-bit native consumer share one stream;
+    // container counts and variant indices are never native-width size_t.
+    h.put(static_cast<std::uint64_t>(c.index()));
     std::visit(
         [&](const auto& cmd) {
             using T = std::decay_t<decltype(cmd)>;

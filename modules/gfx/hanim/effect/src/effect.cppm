@@ -54,6 +54,12 @@ struct TranslationPath { PointPath path; };
 struct Tone { float r = 0.79f, g = 0.76f, b = 0.71f, amount = 1; };
 // Tint, not a brightness/contrast operation; alpha is retained by the backend.
 [[nodiscard]] EffectSpec tone(Tone from, Tone to);
+enum class PixelUnit : std::uint8_t { logical, device };
+struct Pixelate { float size = 6, amount = 1; };
+struct PixelGrid { PixelUnit unit = PixelUnit::logical; float origin_x = 0, origin_y = 0; };
+// Grid settings are fixed; animate size/strength. amount=0 is an exact backend
+// bypass at every DPI, whereas size=1 logical pixel is not necessarily one texel.
+[[nodiscard]] EffectSpec pixelate(Pixelate from, Pixelate to, PixelGrid grid = {});
 [[nodiscard]] Effects chain(std::initializer_list<EffectSpec> effects);
 }
 } // namespace hanim

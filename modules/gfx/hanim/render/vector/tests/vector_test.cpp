@@ -65,6 +65,28 @@ raster::Surface draw(const render::DisplayList& list) {
 
 int main(int argc, char** argv) {
     Suite s{"hanim.render.vector"};
+    s.test("public pixelate parameters bind independently of UI and render exact off and distinct intermediate frames", [] {
+        auto source = fixture();
+        const auto descriptions = fx::chain({fx::pixelate({7, 0}, {7, 1}, {fx::PixelUnit::device, -2, 3})});
+        const auto effects = PreparedEffects::prepare(descriptions); check(effects.has_value()); if (!effects) return;
+        const auto bound = PreparedVector::bind(source.plan, *effects);
+        const auto plain = PreparedVector::bind(source.plan); check(bound && plain); if (!bound || !plain) return;
+        GeometryBuffers geometry(source.plan); const auto frame = geometry.sample(source.plan, .4);
+        RecordBuffers scratch(*bound), plain_scratch(*plain);
+        render::DisplayList reference; check(plain->record(frame, {}, reference, plain_scratch.get()).has_value());
+        std::vector<float> values(effects->parameter_count());
+        std::array<std::uint64_t, 3> hashes{};
+        for (int step = 0; step < 3; ++step) {
+            check(effects->sample(static_cast<double>(step) / 2, values).has_value());
+            render::DisplayList output; check(bound->record(frame, values, output, scratch.get()).has_value());
+            hashes[static_cast<std::size_t>(step)] = draw(output).hash();
+        }
+        check(hashes[0] == draw(reference).hash());
+        check(hashes[0] != hashes[1] && hashes[1] != hashes[2]);
+        check(effects->sample(.5, values).has_value());
+        render::DisplayList again; check(bound->record(frame, values, again, scratch.get()).has_value());
+        check(draw(again).hash() == hashes[1]);
+    });
     s.test("current contour frame and nested transforms produce real seekable CPU pixels", [] {
         auto source = fixture();
         auto bound = PreparedVector::bind(source.plan); check(bound.has_value()); if (!bound) return;

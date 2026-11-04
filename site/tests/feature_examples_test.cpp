@@ -70,6 +70,45 @@ struct AgentFixture {
 
 int main(int argc, char** argv) {
     Suite suite{"site.feature_examples"}; (void)themes::add_styles(); const auto media = scratch_dir("feature-examples");
+    suite.test("people and native Agent requests control a local chart effect and capture pixels without a GUI", [media] {
+        Fixture f(false);
+        check(!f.rt->valid(f.rt->find(f.context.root + "/details/pixel_amount")), "parameters are progressively disclosed");
+        check(f.h.click(f.context.root + "/actions/details")); f.refresh();
+        const auto base = f.context.root + "/comparison/styled";
+        const auto chart = f.rt->find(base + "/backdrop/chart");
+        const auto quiet = f.rt->find(base + "/controls/quiet");
+        const auto original = f.h.png(f.rt->bounds(f.rt->find(base))); check(original.has_value());
+        const auto outside = f.h.png(f.rt->bounds(f.rt->find(f.context.root + "/comparison/default"))); check(outside.has_value());
+        agent::Protocol protocol(*f.rt, {.capture = f.h.capture()});
+        auto request = [&](Value value) {
+            std::vector<Value> response;
+            protocol.request(value.json(), [&](std::string_view line) { response.push_back(parse_json(line).value()); });
+            check(!response.empty() && response.back().get("exitCode") && response.back().get("exitCode")->as_int() == 0);
+            f.refresh(); return response;
+        };
+        auto set = [&](std::string_view name, double value) {
+            request(Value{}.set("op", "act").set("node", f.context.root + "/details/" + std::string(name))
+                .set("action", "set_value").set("args", Value{}.set("value", value)));
+        };
+        set("pixel_amount", 100); set("pixel_size", 10);
+        check(f.state.pixel_amount.peek() == 100 && f.state.pixel_size.peek() == 10);
+        const auto amount_label = f.h.tree().node(f.context.root + "/details/pixel_amount_label");
+        const auto size_label = f.h.tree().node(f.context.root + "/details/pixel_size_label");
+        check(amount_label && amount_label->name.contains("100%") && size_label && size_label->name.contains("10 px"), "people see each parameter and its current value");
+        const auto changed = f.h.png(f.rt->bounds(f.rt->find(base))); check(changed && original && *changed != *original);
+        const auto unchanged = f.h.png(f.rt->bounds(f.rt->find(f.context.root + "/comparison/default")));
+        check(unchanged && outside && *unchanged == *outside, "the other style scope stays byte-for-byte unchanged");
+        check(f.rt->find(base + "/backdrop/chart") == chart && f.rt->find(base + "/controls/quiet") == quiet);
+        check(f.h.click(f.context.root + "/details/pixel_device")); f.refresh(); check(f.state.pixel_device.peek());
+        const auto captured = request(Value{}.set("op", "capture").set("node", base));
+        bool image = false;
+        for (const auto& reply : captured) if (const auto* data = reply.get("data"))
+            if (const auto* bytes = data->get("base64")) image = bytes->as_string().starts_with("iVBORw0KGgo");
+        check(image, "the openas response carries real PNG bytes from the headless renderer");
+        check(f.h.save_png(media / "local-pixel-chart.png", f.rt->bounds(f.rt->find(base))).has_value());
+        set("pixel_amount", 0);
+        const auto restored = f.h.png(f.rt->bounds(f.rt->find(base))); check(restored && original && *restored == *original);
+    });
     suite.test("five packs draw actual effects while leaving the default comparison unchanged", [] {
         Fixture f(false);
         const auto bounds = f.rt->bounds(f.rt->find(f.context.root + "/comparison/default"));

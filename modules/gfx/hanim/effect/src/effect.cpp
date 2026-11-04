@@ -87,6 +87,11 @@ EffectSpec tone(Tone from, Tone to) {
     return {"tone", {{"color_r", from.r, to.r}, {"color_g", from.g, to.g},
         {"color_b", from.b, to.b}, {"amount", from.amount, to.amount}}};
 }
+EffectSpec pixelate(Pixelate from, Pixelate to, PixelGrid grid) {
+    const float unit = grid.unit == PixelUnit::device ? 1.0f : 0.0f;
+    return {"pixelate", {{"size", from.size, to.size}, {"amount", from.amount, to.amount},
+        {"device_pixels", unit, unit}, {"origin_x", grid.origin_x, grid.origin_x}, {"origin_y", grid.origin_y, grid.origin_y}}};
+}
 Effects chain(std::initializer_list<EffectSpec> effects) { return {effects}; }
 }
 } // namespace hanim

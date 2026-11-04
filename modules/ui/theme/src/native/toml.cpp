@@ -387,9 +387,38 @@ std::expected<std::vector<Style>, Diagnostics> read_styles(std::string_view sour
                     for (auto&& [pk, pv] : *rt) {
                         const std::string_view param = pk.str();
                         if (param == "effect") continue;
-                        if (param == "ease") {
+                        if (param == "ease" || param == "usage") {
                             if (auto e = pv.value<std::string>()) effect.set(param, Value(*e));
-                            else r.error(&pv, "`ease` is a name (\"standard\", \"emphasized\" …)");
+                            else r.error(&pv, std::format("`{}` must be a string", param));
+                            if (param == "usage" && effect.get(param) && effect.get(param)->as_string() != "appearance" && effect.get(param)->as_string() != "feedback")
+                                r.error(&pv, "`usage` must be \"appearance\" or \"feedback\"");
+                            continue;
+                        }
+                        if (param == "animate") {
+                            const auto* channels = pv.as_table();
+                            Value animation{Value::Map{}};
+                            if (!channels || channels->empty()) r.error(&pv, "`animate` must be a nonempty table: amount = [0, 1]");
+                            else for (auto&& [key, endpoints] : *channels) {
+                                const auto name = key.str();
+                                const auto* pair = endpoints.as_array();
+                                const auto entry = std::ranges::find(info->params, name, &render::EffectParam::name);
+                                if (!pair || pair->size() != 2 || entry == info->params.end()) {
+                                    r.error(&endpoints, "animation needs a known effect parameter and two numeric endpoints"); continue;
+                                }
+                                const auto a = (*pair)[0].value<double>(), b = (*pair)[1].value<double>();
+                                if (!a || !b || !std::isfinite(*a) || !std::isfinite(*b) || *a < entry->min || *a > entry->max || *b < entry->min || *b > entry->max) {
+                                    r.error(&endpoints, "animation endpoints must be finite numbers within the effect parameter range"); continue;
+                                }
+                                animation.set(name, Value(Value::List{Value(*a), Value(*b)}));
+                            }
+                            if (const auto d = (*rt)["duration"].value<double>(); !d || !std::isfinite(*d) || *d < 0)
+                                r.error(&pv, "`animate` requires a finite nonnegative duration in seconds");
+                            effect.set(param, std::move(animation));
+                            continue;
+                        }
+                        if (param == "reverse") {
+                            if (pv.is_boolean()) effect.set(param, Value(*pv.value<bool>()));
+                            else r.error(&pv, "`reverse` must be a boolean");
                             continue;
                         }
                         const bool control = std::ranges::find(effect_control_keys, param) != effect_control_keys.end();

@@ -19,7 +19,9 @@ parent transforms still compose normally. It does not select only the root or
 alter geometry, paint, rotation or scale. Typed targets prevent accidentally
 sending a trajectory modifier to an image backend. They lower to the existing
 morph preparation, not a second player or renderer. Changing matching rules,
-arbitrary property-channel bindings and group scopes remain separate work.
+and arbitrary property-channel bindings remain separate work. Image effects
+on composed programs use explicit composite scopes (see `hanim.program`);
+they are not copied to every leaf.
 
 `PointPath` stores two cubic control offsets in the endpoint chord frame:
 x along `(to-from)`, y along `(-dy,dx)`. `bend(f)` gives midpoint displacement
@@ -82,5 +84,31 @@ omit an unsupported effect. Renderer binding/application is a separate adapter.
 Preparation success/failure logs use `hanim.effect`; prepare/sample trace spans
 use the same category. Sampling does not format logs. Trace's existing thread
 buffer may allocate when tracing first attaches, before warm sampling.
+
+`fx::pixelate` describes the shared renderer's grid and strength:
+
+```cpp
+auto blocks = hanim::fx::pixelate(
+    {.size = 6, .amount = 0}, {.size = 12, .amount = 1},
+    {.unit = hanim::fx::PixelUnit::device, .origin_x = -2, .origin_y = 3});
+auto animation = hanim::anim::morph(source, target).with_effect(blocks);
+auto playback = hengine.play(animation); // import hanim; Engine hengine
+```
+
+The grid is layer-anchored and aligned to output axes. Logical units scale
+with output DPI; device units stay in device pixels. Offsets use that same
+unit. Exactly zero `amount` bypasses filtering while retaining ordinary layer
+opacity, blending and nested effects. One logical pixel is not an identity
+at high DPI. Strength is quantized to 1/255 by the shared CPU/GPU renderer.
+This recipe is neither a palette/dither system nor a complete UI style pack.
+
+Minimal consumer SOP: prepare public object snapshots, compose animation and
+effect recipes, `play`/`seek` and inspect the frame, optionally bind the vector
+adapter and capture actual offscreen pixels, compare off/mid/end and replay,
+then release playback. Check every `expected` result and adapter capability;
+preparation success alone does not guarantee rendering support. The
+[independent public API probe](../../../../tools/ci/hanim-api-probe) runs the
+parameter path without UI or a renderer; `hanim.render.vector` tests exercise
+the optional real-pixel path. No GUI is required in either workflow.
 
 Tests: `mcpp test -p hanim.effect --locked` after workspace registration.

@@ -4,11 +4,11 @@
 
 | 文档 | 内容 |
 |---|---|
-| [2026-11-05-system-implementation-checkpoints-design.md](2026-11-05-system-implementation-checkpoints-design.md) | **当前实施台账**：综合架构S1–S10；S1公共入口已交付；S2分批落实PointPath／typed过程效果、MotionSpec公共配置、真实Runtime及官网单舞台形变开场，新增嵌套图像scope／层级／原子Program帧与共享CPU渲染，验证见§6–§8；通道／GPU资源、广泛组件迁移和后续范围继续开放 |
+| [2026-11-05-system-implementation-checkpoints-design.md](2026-11-05-system-implementation-checkpoints-design.md) | **当前实施台账**：综合架构S1–S10；S1公共入口已交付；S2的PointPath、UI配置、嵌套图像scope及共享renderer见§6–§8；§9双第一优先级规范；§10局部pixel单位／精确旁路、命名参数动画、官网人／Agent同源像素验证，以及61时刻的过程采样／回放证据。完整style、通道／GPU资源、广泛组件迁移和后续范围继续开放 |
 | [2026-11-05-system-subsystem-architecture-and-api-design.md](2026-11-05-system-subsystem-architecture-and-api-design.md) | **当前综合 review 入口**：顶层产品×子系统局部架构、目标代码树与兼容迁移、分级 hanim API 的真实最小实验、scope／通道／资源与共享 owner、Agent／Web／工具／素材，以及分期交付与待 review 决策；已验证子集与目标明确分开 |
 | [2026-11-05-features-ai-agent-scoped-style-design.md](2026-11-05-features-ai-agent-scoped-style-design.md) | **最新补充与自我review**：核心/可选feature真实裁剪、规则/内置Agent/openas外部Agent决策来源、llmapi固定版本核查及上游适配、桌面角色场景；局部pixel风格的theme×effect×motion分工、scope/portal/文字/命中/高DPI端点与验收 |
 | [2026-11-05-pixelpet-generative-capabilities-design.md](2026-11-05-pixelpet-generative-capabilities-design.md) | **pixelpet（PPet）应用／review稿**：C++核心＋项目TS及所选语言混合；reload分级＋动态业务插件；主交互/worker全双工、资源隔离与现有TS/Web/reload阻塞点；现场创作服装、绘画和技能；实时用量UI的定义×绑定×安装点、真实来源、动态加载与真像素；共用资产与分期验收 |
-| [2026-11-05-local-global-composable-architecture-design.md](2026-11-05-local-global-composable-architecture-design.md) | **核心架构准则（已入AGENTS）**：局部能力中心×全局契约组合、公共基础单一归属、不同时间／实时约束；§9统一人／Agent双第一优先级、openas原生控制、无GUI真实输出、最小skill／SOP及权限与验收 |
+| [2026-11-05-local-global-composable-architecture-design.md](2026-11-05-local-global-composable-architecture-design.md) | **核心架构准则（已入AGENTS）**：局部能力中心×全局契约组合、公共基础单一归属、不同时间／实时约束；§9统一双第一优先级、openas、headless真实输出、最小skill／SOP及权限；§9.6动画全过程采样、关键时刻与实际播放分别验收，不能只看A/B端点 |
 | [2026-11-05-hanim-composable-operators-reactions-ir-design.md](2026-11-05-hanim-composable-operators-reactions-ir-design.md) | **可组合内核补充**：对象／属性／顶点／相机及运动均可控；通用匹配／路径算子、主动effect与属性／状态／触发反应（场／事件／邻域等）、端点策略、状态重建、多视图IR和CPU／GPU批次；中立契约与单一归属，原型与目标分开 |
 | [2026-11-04-hanim-generality-style-gpu-review-design.md](2026-11-04-hanim-generality-style-gpu-review-design.md) | **通用性／质量／性能比较稿**：对象／动画／IR三种中心视角的取舍，表示、匹配、插值、动画、效果和CPU／GPU异构执行；Manim／游戏动画真实基线、风格自由度、局部与全局边界、领先验收；候选接口不直接定案 |
 | [2026-11-04-hanim-play-api-design.md](2026-11-04-hanim-play-api-design.md) | **play／组合专项 review**：对象×动画×效果×配置的四类表达、统一 Program／PreparedPlan；组、A→B、阶段源、通道混合、scope、时间／配置、交叉播放与控制；四参数为已实现兼容入口，最新动画中心主入口与真实接口实验见综合方案 |

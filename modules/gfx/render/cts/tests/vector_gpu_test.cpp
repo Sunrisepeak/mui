@@ -100,11 +100,11 @@ struct Rig {
     render::RenderReport last{};  // the GPU's, of the last compare
 
     // Both renders of `dl`; how they differ.
-    std::string compare(const render::DisplayList& dl, std::string_view name, Tolerance t) {
+    std::string compare(const render::DisplayList& dl, std::string_view name, Tolerance t, float scale = 1) {
         const geom::Color bg = geom::Color::hex(0xf8fafc);
         raster::Surface ref(W, H);
-        cpu.render(dl, ref, {&images, &glyphs}, {.scale = 1, .background = bg});
-        auto report = gpu.render(dl, target, {&images, &glyphs}, {.scale = 1, .background = bg});
+        cpu.render(dl, ref, {&images, &glyphs}, {.scale = scale, .background = bg});
+        auto report = gpu.render(dl, target, {&images, &glyphs}, {.scale = scale, .background = bg});
         if (!report) return std::format("{}: the GPU render failed: {}", name, report.error().message);
         last = *report;
         auto bytes = d.read(target, {0, 0, W, H});
@@ -514,6 +514,26 @@ const std::vector<Case>& cases() {
 
 int main(int argc, char** argv) {
     Suite s{"render.gpu"};
+
+    s.test("pixel grid units strength and identity on the real compute backend at multiple DPI", [] {
+        auto device = open_device(); if (!device) return;
+        auto gpu = render::GpuRenderer::create(*device); check(gpu.has_value()); if (!gpu) return;
+        auto target = device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, W, H,
+            rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "test.pixelate"});
+        check(target.has_value()); if (!target) return;
+        Rig rig{*device, std::move(*gpu), {}, *target, {}, {}, {}};
+        for (float scale : {1.f, 1.25f, 2.f}) for (float device_pixels : {0.f, 1.f}) for (float amount : {0.f, .5f, 1.f}) {
+            render::DisplayList dl;
+            dl.push_clip({3.5f, 4.25f, 110, 80});
+            effect_scene(dl, "pixelate", {{"size", 7}, {"amount", amount}, {"device_pixels", device_pixels}, {"origin_x", -2}, {"origin_y", 3}},
+                render::BlendMode::multiply, .8f);
+            dl.pop_clip();
+            const auto name = std::format("pixelate DPI {} unit {} amount {}", scale, device_pixels, amount);
+            const auto problem = rig.compare(dl, name, {1, 0}, scale);
+            check(problem.empty(), problem); check(rig.last.effects_skipped == 0);
+        }
+        device->destroy(*target);
+    });
 
     s.test("each scene as the CPU reference draws it, within the scene's tolerance", [] {
         auto device = open_device();

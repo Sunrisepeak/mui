@@ -17,7 +17,7 @@
 
 本地核对入口：[feature夹具](../../tests/features/mcpp.toml)、[独立feature消费者](../../tools/ci/features-consumer/mcpp.toml.in)、[theme接口](../../modules/ui/theme/src/theme.cppm)、[内置效果](../../modules/gfx/render/vector/src/effects.cpp)、[UI授权](../../modules/ui/core/src/access.cpp)、[gongfu.ai](../../mgame/gongfu/ai/README.md)。上游核查固定到llmapi提交 `a48d0cd3147b5bf67b4c25f98764d47cf7f028d1`，详见§4。
 
-进一步源码复审发现：UI的effect_state当前只自动驱动名为`progress`的参数；pixelate只有`size`，不能给它duration就声称size被动画。disabled当前会剥离styled effect，命中目前只处理首个effect的source_of，未组合完整more_effects逆映射。它们分别是通用参数桥接、基础外观／反馈分类、交互映射的缺口。[参数解析](../../modules/ui/view/src/props.cpp)、[绘制／状态／命中](../../modules/ui/view/src/frame.cpp)。这些是代码核查，不冒充本轮浏览器复现。
+原基线源码复审发现：UI的effect_state只自动驱动名为`progress`的参数；pixelate只有`size`，不能给它duration就声称size被动画；disabled会剥离全部styled effect。[后续S3首批](2026-11-05-system-implementation-checkpoints-design.md#10-s3首批局部像素效果与通用参数动画)已补命名标量参数的hanim桥接，以及appearance／feedback分类。完整typed通道／混合、组件部件隔离仍开放；命中目前也只处理首个effect的source_of，未组合完整more_effects逆映射。[参数解析](../../modules/ui/view/src/props.cpp)、[绘制／状态／命中](../../modules/ui/view/src/frame.cpp)。
 
 ## 2. Feature：控制交付物，运行开关控制使用
 
@@ -226,7 +226,7 @@ portal／弹层保留逻辑owner的style context或显式选择目标context；�
 
 建议名称 `pixel`，作为独立可选包或style feature；共用renderer已有pixelate，不复制算法。候选能力包括：grid单位与锚点、cell size、palette资源、色彩空间／量化、固定相位dither、阶梯边缘、描边／阴影、文字保真和style强度。tokens／轻量描边不必创建离屏层；只有需要合成输入的pass才申请纹理与采样范围。
 
-**关键现状缺口：**现有pixelate按逻辑size×DPR生成块并平均。DPR=2时size=1仍可能是2×2采样，故 `1→N→1` 不能作为严格无损开关。需要明确disabled／amount=0旁路、逻辑／设备像素单位、网格原点和端点契约；运动、裁剪、分块或窗口移动时网格相位不能无意跳动。
+**原缺口与实施进展：**DPR=2时逻辑size=1仍可能是2×2采样，故 `1→N→1` 不能作为严格无损开关。S3首批提供`amount=0`精确旁路、逻辑／设备像素单位和层角点相对网格偏移；CPU／GPU共享网格推导，视口裁剪保留一格输入邻域。网格当前沿输出轴对齐，不宣称任意旋转／剪切下的对象局部网格或整个pixel风格包完成。验证及剩余范围见实施台账§10。
 
 palette映射／dither与块采样是不同算子，后续按公共effect扩展；处理线性／显示色、alpha与预乘边界，透明像素不把邻域染黑。字体默认保留清晰label/focus，装饰surface／图标可更强像素化；指定像素字体仍需中英fallback、IME、字号和DPI验证。
 

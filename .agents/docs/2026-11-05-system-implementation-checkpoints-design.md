@@ -219,3 +219,68 @@ auto prepared = hengine.prepare(animation);
 本批明确语义契约先行、完整headless任务与真实离屏视觉、随能力交付最小skill／SOP、开发会话默认full access及发布权限交集、Agent委派和观察数据隐私、纯库的轻量依赖边界。它约束后续各检查点，不将这些要求留到S6才开始考虑；完整公共控制、独立provider及权限链仍在相应检查点实现。
 
 本批只修改开发规范与设计文档；本地检查文档链接、diff格式与仓库lint，不据此宣称新增运行时能力或完成S1–S10。现有`mcpp.lock`保持不变，不纳入提交。
+
+## 10. S3首批：局部像素效果与通用参数动画
+
+执行基线 `4245048`。本批先补可复用的pixel效果和参数桥接，再由官网普通消费者使用。**S3仍在实施；完整pixel风格包、部件／portal隔离及feature产物裁剪尚未完成。**
+
+### 10.1 公开能力与单一实现
+
+- 共享renderer的`pixelate`保留`size`首参数，增加`amount`、逻辑／设备单位、层角点相对`origin_x/y`。逻辑网格随输出DPI缩放；设备网格保持设备像素大小；当前均沿输出轴对齐。`amount=0`经通用identity契约精确旁路，保留普通层opacity／blend和嵌套效果，不把逻辑size=1误当作高DPI恒等。
+- CPU和GPU共用网格参数推导，块均值与强度采用相同预乘字节算法；强度量化为1/255，满强度保留直接写均值路径。原完整捕获场景的默认效果保持既有pinned像素。
+- 裁剪输入需要的邻域与效果输出范围分别声明。`EffectInfo::input_radius`让两后端在视口边缘保留完整网格邻域；不扩大层本身的reach／output_reach。新增回调均可选，无后端效果名特判。
+- `hanim::fx::pixelate(from,to,grid)`只提供公开参数配方，通过既有Program／Engine／PreparedEffects执行；纯hanim不引入renderer、UI或窗口。可选`hanim.render.vector`使用同一真实renderer。
+- UI的`pixel_effect`新增`animate:{参数:[from,to]}`，由公开`hanim.effect`准备和采样；复用Runtime时钟、seek和动画状态。旧duration-only继续驱动progress；没有progress的效果必须显式选择参数。非法通道、非有限端点／时间、越界参数、错误reverse等拒绝安装，不静默假装动画有效。静态参数的全部诊断并未在本批重写。
+- theme读写支持同一嵌套配置；`usage:"appearance"`使disabled保留基础材质，默认feedback保持原抑制规则。disabled不选hover／press／focus反馈。reduced／off选最终静态参数并停止持续调度；这不是完整typed通道混合、冲突策略或自动retarget。
+
+```cpp
+auto animation = hanim::anim::morph(source, target).with_effect(
+    hanim::fx::pixelate({.size=6, .amount=0}, {.size=12, .amount=1},
+                       {.unit=hanim::fx::PixelUnit::device}));
+auto playback = hengine.play(animation);
+```
+
+UI示例：`{"name":"pixelate","size":8,"duration":0.4,"animate":{"amount":[0,1]}}`。参数单位／作用域／结果验收流程见各公共包README；指南与真实能力一并交付。
+
+### 10.2 官网与双视角验收
+
+风格页仍先展示一个可交互样张；进入详情后才挂载图表像素化强度、块大小、设备像素单位与实际配置。只对chart painter应用效果，文字和真实控件保持原绘制顺序中的兄弟节点，可与既有材质组合；默认强度0。此结构证明普通组合能力，不冒充通用组件paint-part隔离。官网没有新增像素算法、时钟或插值器。
+
+人通过真实指针调整；Agent通过同一控件的语义action调整，并由openas协议取得同源renderer的区域PNG。无窗口测试同时比较强度0／中间／终点／回放、外部区域、对象身份、命中和焦点；浏览器验证手机／桌面和中英界面。纯库与官网都提供最小操作流程。
+
+浏览器人工审图发现Slider的语义label并不自动成为画面标题，三条参数轨道缺少可见区分。详情现同时显示每项名称、当前数值与单位，再保留原语义label和action。Agent可操作的自动检查通过不能替代人的可读性验收。
+
+### 10.3 本地结果与自审
+
+[机器证据](../../tools/ci/hanim-api-probe/2026-11-05-pixel-parameters.report.omui.json)记录实际源码hash、命令、日志摘要、锁文件、像素与采样时刻。以下整套回归与后续定向复验分开记录，不将较早运行冒充最后一次修改后的完整重跑。
+
+| 验证 | 本地结果与范围 |
+|---|---|
+| 相关包整套回归 | Linux GCC16.1：dev 45个程序／329例；release另含真实GPU CTS，49个程序／340例。renderer、hanim effect／adapter、view、theme和site全部通过 |
+| Web真实执行 | Emscripten6.0.9的`wasm-test`，Node实际执行25个程序／191例，通过。未将其当作浏览器GPU验证 |
+| 最终定向复验 | UI恒等层修正后，dev和Wasm各12个程序／122例；release UI＋site 31个程序／249例。可见参数标题修正后，两native配置各7例。最后增加过程采样测试，dev／release／Wasm各6例通过 |
+| 独立公共API | 临时mcpp工程只依赖`hanim`；dev／release各104项断言，12包含消费者，无UI／spec／renderer／RHI依赖 |
+| 真实GPU读回 | SDL offscreen＋Vulkan lavapipe，3种DPI×2种单位×3种强度共18组；DPI 1／2与CPU完全相同，1.25最大差1/255，无超差像素。软件GPU验证，不是硬件性能结果 |
+| 正式官网包与浏览器 | mcpp正式打包，56个开场PNG及8个完整参考；真实Chromium展示159项、加载88项、交付预算7项全部通过，无浏览器异常。中英手机／桌面详情已审图 |
+| 交付测量 | 新profile、访问内HTTP缓存开启、1280×800、20Mbit/s＋40ms：总传输4,740,514 bytes，首帧代理前2,838,285 bytes；首帧代理1584.5ms，ready 1548.7ms，rAF p95 16.8ms。单次记录，不据此宣称稳定提速或真实呈现帧率 |
+| 工程与参考图 | lint、diff、文档链接及官网media gate通过；原glass参考图保持字节不变；新增局部图表PNG由真实Agent捕获。现有`mcpp.lock`保持字节不变、不纳入提交 |
+
+### 10.4 动画按全过程验收的首个补充实例
+
+按维护者补充，根[AGENTS.md](../../AGENTS.md)与[核心准则§9.6](2026-11-05-local-global-composable-architecture-design.md#96-动画以过程采样和实际播放验收)明确：时间轴采样、关键事件前后加密、真实语义与像素联合检查、可回放证据，以及实速节奏／性能与人的观感分别验收。既有端点测试不会因此自动获得“过程已验收”状态。
+
+本批`view.effect-animation`以公开Runtime时间控制，在0–1秒间按60Hz采样61个时刻，DPI 2、240×160、CPU同源renderer、合成背景`#f8fafc`。像素强度0→1与网格origin 0→3同时变化；每帧验证实际参数与图像变化、作用域外像素、对象身份／命中／焦点，再反向seek全部61帧逐帧复核。dev／release／Wasm的61张PNG、关键帧图和无损WebP均字节相同。它是参数效果的功能／回归fixture，不作为官网美术作品评分。
+
+提交内保留[8帧审查图](media/2026-11-05-effect-parameter-process.png)和[按时间回放的WebP](media/2026-11-05-effect-parameter-process.webp)，均直接来自上述真实测试输出；从左到右、从上到下的时间为0、0.05、0.15、0.30、0.50、0.70、0.90、1.00秒。WebP包含最后一帧的一个显示间隔，时间戳以结构化采样记录为准。全部61帧保存在本地测试scratch目录；CI既有流程仅在失败时收集其中PNG到`test-pictures`产物，不自动上传成功运行的全部回放。可通过`mcpp test effect_animation --locked -p openmui.view --profile dev`复现；图像哈希与完整时间序列见机器证据。
+
+这批离线采样没有测量该动画的实时呈现帧间隔，官网交付rAF测量也不能替代这个场景的实速手感验收。网格位置取整与强度1/255量化是明确的离散变化；帧hash变化不单独证明流畅或美观。其他动画的事件边界、文字与交互仍按§9.6逐项补证。
+
+### 10.5 自审发现与保留范围
+
+自审发现并修正：①原像素化缺少独立强度，size=1高DPI非恒等；②UI只驱动progress，给其他参数duration没有实际动画；③disabled混淆基础材质与反馈；④TOML库的bool读取接受数值，需要先检查真实类型；⑤区域裁剪缺输入邻域，导致1／1.25／2倍DPI的边缘像素与全图不一致。新增回归先复现后修复，不通过修改golden掩盖问题。
+
+扩展Web真实执行发现旧display-list hash直接编码`size_t`：Wasm32和native64在画面相同的情况下得到不同hash。命令index、path长度和material-mix计数改为固定64位，并经公共hash模块编码明确小端数值；保留原native hash和像素基准。修正后Wasm整套相关测试通过，未更换golden或跳过该测试。
+
+图片比对还发现：UI的零强度效果即使跳过滤镜，保留额外普通合成层也会重复应用祖先抗锯齿clip。UI现在按通用identity声明省去自身无opacity／blend的效果wrapper，节点真正的透明度层保留；显式renderer组合层仍保持调用方要求的隔离语义。加入圆角祖先的零强度回归，并复核原官网图片，不以换参考图代替修正。
+
+剩余：palette／dither与像素字体、按角色组织的完整pixel风格／默认motion、通用paint-domain／parts及portal、完整链命中逆映射、旋转／剪切网格策略、typed通道／混合／retarget、feature实际闭包裁剪。没有新增硬件GPU性能、全平台支持或S1–S10整体完成结论。

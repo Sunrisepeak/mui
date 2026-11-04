@@ -16,6 +16,23 @@ The current product review references come from the running native application:
 
 The [curved shape midway through its morph](media/motion-shape-path-middle.png) is a CPU-rendered stage crop from the same shared player. Its endpoint drawings contain no animation clock; the public runtime policy evaluates the path.
 
+The [locally pixelated chart](media/style-local-pixel-chart.png) is a real
+headless capture after native Agent actions change the normal controls.
+Styles → Details exposes strength, block size, logical/device units and the
+actual `pixel_effect` configuration. Only the chart painter is filtered;
+labels and controls remain siblings in their original paint order, and glass
+still refracts the same backdrop. Zero strength restores the original pixels.
+This is a reusable renderer effect consumed by the website, not the completed
+pixel style pack or general component part-isolation system.
+
+Minimal Agent workflow: discover the styles page's stable control IDs, open
+`actions/details`, use `act`/`set_value` on `details/pixel_amount` and
+`details/pixel_size`, toggle `details/pixel_device` when needed, inspect the
+result, and `capture` `comparison/styled` for actual PNG pixels. Restore
+strength to zero to remove pixelation. The same native `agent::Protocol`
+workflow runs in `feature_examples_test` without a window; browser presentation
+tests also exercise real pointer input and semantic region capture.
+
 The player sizes above are canvas widths; its reference host adds padding. The two WebPs record framework-rendered frames from the shared player. Stills cover both gallery sizes; only one desktop animation and one phone animation are published, each limited to 1 MiB. These are review evidence, not final art acceptance.
 
 The latest presentation pass puts phone destinations immediately after the introduction, gives narrow material comparisons one full-width specimen, and mounts Agent protocol/design parameters only after **View details**. Agent previews perform one finite local script, yield to actual input, and retain explicit manual tasks with reduced motion. Actual Chromium captures after short transitions settle: [Chinese home](media/presentation-home-zh-phone.png), [phone material comparison](media/presentation-styles-zh-phone.png), [desktop Agent overview](media/presentation-agent-design-en-desktop.png), [Chinese Agent overview](media/presentation-agent-design-zh-phone.png). `tools/ci/site-presentation.mjs` checks NoScript links, first-view geometry, real comparison input, input ownership and reduced-motion task completion. These settled references do not close the separately observed intermediate text/layout overlap or final art review.
@@ -120,17 +137,17 @@ Static FontFaces now consume `omuiLoad.fontBytes` leases from the same decoded t
 
 ## Delivery
 
-`tools/ci/site-browser.sh` measures the built page in a real browser (`tools/ci/site-perf.mjs`), against `delivery.budget.omui.json`. It serves `target/site` with gzip and makes a cold English visit at 1280×800 over a 20 Mbit/s, 40 ms connection, then goes through Docs to Core ideas and back home. Single-run record, 2026-11-04, using `site-web` (headless Chromium 156), a fresh profile with within-visit HTTP cache enabled:
+`tools/ci/site-browser.sh` measures the built page in a real browser (`tools/ci/site-perf.mjs`), against `delivery.budget.omui.json`. It serves `target/site` with gzip and makes a cold English visit at 1280×800 over a 20 Mbit/s, 40 ms connection, then goes through Docs to Core ideas and back home. Single-run record, 2026-11-05, using `site-web` (headless Chromium 156), a fresh profile with within-visit HTTP cache enabled:
 
 | Measure | Result |
 |---|---|
-| before the program's first-frame proxy | 3,065,107 bytes |
-| total transfer, including the later Chinese font | 4,982,298 bytes |
-| first-frame proxy / `window.omui` readiness | 1751.6 / 1717.3 ms |
-| rAF intervals | p50 16.7, p95 16.8, max 66.8 ms; 1 over 33.4 ms |
-| memory at the end | JS heap 11.2 MB, wasm memory 23.6 MB |
+| before the program's first-frame proxy | 2,838,285 bytes |
+| total transfer, including the later Chinese font | 4,740,514 bytes |
+| first-frame proxy / `window.omui` readiness | 1584.5 / 1548.7 ms |
+| rAF intervals | p50 16.7, p95 16.8, max 50 ms; 1 over 33.4 ms |
+| memory at the end | JS heap 13,400,000 bytes, wasm memory 28,639,232 bytes |
 
-The first-frame proxy is the semantic mirror's first populated frame; it is not FCP, LCP or a direct measurement of presented frame rate. The site-wide Chinese text face still loads after presentation on English visits; its initial two-character asset is 230,568 raw bytes. Chinese visits use the site-text face before presentation. That face is a site-copy subset, not complete source-font coverage for arbitrary input. Only **17,702 bytes** remain below the existing 5 MB total-transfer budget; per-page/input fonts and heavy-program splitting remain priorities. This presentation pass adds 13,740 transfer bytes to the `78f7eda` shared-font checkpoint. A separate cache-disabled sample also transfers 4,982,298 bytes and passes the same seven budgets (first-frame proxy 1803.9 ms, ready 1769.7 ms). Each condition is one sample, not evidence of a stable speed change. The earlier [shared-font comparison](../.agents/docs/2026-11-04-omui-shared-font-delivery-design.md) distinguishes actual duplicate transfers from within-visit cache reuse. `site-perf.mjs --cache disabled --request-log FILE` records cache flags and actual response byte events; reports and pixel evidence are kept in the Pages workflow's `site-checks` artifact.
+The first-frame proxy is the semantic mirror's first populated frame; it is not FCP, LCP or a direct measurement of presented frame rate. The site-wide Chinese text face still loads after presentation on English visits; its initial two-character asset is 230,568 raw bytes. Chinese visits use the site-text face before presentation. That face is a site-copy subset, not complete source-font coverage for arbitrary input. This run passes all seven budgets with **259,486 bytes** below the existing 5 MB total-transfer limit; per-page/input fonts and heavy-program splitting remain open. This is one sample, not evidence of a stable speed improvement. The [checkpoint report](../tools/ci/hanim-api-probe/2026-11-05-pixel-parameters.report.omui.json) preserves its conditions and results. The earlier [shared-font comparison](../.agents/docs/2026-11-04-omui-shared-font-delivery-design.md) distinguishes actual duplicate transfers from within-visit cache reuse. `site-perf.mjs --cache disabled --request-log FILE` records cache flags and actual response byte events; reports and pixel evidence are kept in the Pages workflow's `site-checks` artifact.
 
 The same script then reads the page as assistive technology does (`tools/ci/site-a11y.mjs`), from Chromium's own accessibility tree, which is what a screen reader on the page is given. It checks that:
 - the places are a navigation landmark and the place shown is the main one;

@@ -128,6 +128,7 @@ motion-gallery/basic-player-700.webp|motion-basic-player-700.webp
 motion-gallery/creative-player-300.webp|motion-creative-player-300.webp
 creative-motion/palette-useful-zh-300.png|creative-palette-zh-300.png
 feature-examples/glass-session-refracted.png|style-glass-session.png
+feature-examples/local-pixel-chart.png|style-local-pixel-chart.png
 SITE_REVIEW_MEDIA
     fi
 done

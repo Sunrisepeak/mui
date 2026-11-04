@@ -1,0 +1,26 @@
+[package]
+namespace = "hanim"
+name = "object"
+version = "0.1.0"
+description = "Renderer-independent object identities, named parts and owned immutable contour captures"
+license = "Apache-2.0"
+platforms = ["linux", "macos", "windows", "emscripten"]
+repo = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "runtime"
+
+[targets.hanim-object]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+hanim.core = { path = "../../../base/hanim/core" }
+openmui.log = { path = "../../../base/log" }
+openmui.trace = { path = "../../../base/trace" }
+
+[dev-dependencies]
+openmui.testing = { path = "../../../base/testing" }

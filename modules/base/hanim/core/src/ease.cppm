@@ -1,4 +1,4 @@
-// hanim:ease — easing curves as values.
+// hanim.core:ease — easing curves as values.
 //
 // An `Ease` is data (a kind and up to four parameters), not a function object:
 // it compares, copies into the SoA of `Set`, travels through a view document as

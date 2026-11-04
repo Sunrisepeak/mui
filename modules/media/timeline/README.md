@@ -1,6 +1,6 @@
 # openmui.timeline
 
-The timeline every editor shares (D-86): a video editor's, a sequencer's, an animation editor's, `gongfu.studio`'s. An independent component: the standard library, [hanim](../../base/hanim) (its eases and keyed tracks) and toml++.
+The timeline every editor shares (D-86): a video editor's, a sequencer's, an animation editor's, `gongfu.studio`'s. An independent component: the standard library, [hanim.core](../../base/hanim/core) (its eases and keyed tracks) and toml++.
 
 ```cpp
 import openmui.timeline;

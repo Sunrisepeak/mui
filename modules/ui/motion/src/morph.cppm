@@ -15,7 +15,7 @@
 export module openmui.motion:morph;
 
 import std;
-import hanim;
+import hanim.core;
 import openmui.geom;
 import openmui.render.vector;
 import :matter;

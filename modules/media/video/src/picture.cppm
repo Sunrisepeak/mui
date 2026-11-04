@@ -10,7 +10,7 @@
 export module openmui.video:picture;
 
 import std;
-import hanim;
+import hanim.core;
 import openmui.image;
 
 export namespace omui::video {

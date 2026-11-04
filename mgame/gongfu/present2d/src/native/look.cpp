@@ -49,7 +49,7 @@ import std;
 import openmui.math;
 import gongfu;
 import gongfu.data;
-import hanim;
+import hanim.core;
 import openmui.geom;
 import openmui.render.vector;
 import tomlplusplus;

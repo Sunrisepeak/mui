@@ -9,7 +9,7 @@
 export module openmui.video:timing;
 
 import std;
-import hanim;
+import hanim.core;
 
 export namespace omui::video {
 

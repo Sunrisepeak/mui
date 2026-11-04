@@ -5,7 +5,7 @@ module openmui.view:impl;
 import std;
 import openmui.core;
 import openmui.layout;
-import hanim;
+import hanim.core;
 import openmui.pipeline;
 import openmui.render.vector;
 import openmui.raster;

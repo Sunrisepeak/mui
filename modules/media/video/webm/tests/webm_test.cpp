@@ -5,7 +5,7 @@
 // video-only file's bytes pinned (one thread: libvpx's portable C writes the
 // same bytes everywhere), the same bytes twice; what Opus cannot take refused.
 import std;
-import hanim;
+import hanim.core;
 import openmui.video;
 import openmui.video.webm;
 import openmui.testing;

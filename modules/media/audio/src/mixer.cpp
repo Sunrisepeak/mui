@@ -2,7 +2,7 @@ module openmui.audio;
 
 import std;
 import openmui.hash;
-import hanim;
+import hanim.core;
 import openmui.trace;
 import :dsp;
 

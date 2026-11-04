@@ -5,7 +5,7 @@
 // display list, the same pixels, everywhere.
 import std;
 import gongfu.present2d;
-import hanim;
+import hanim.core;
 import openmui.geom;
 import openmui.raster;
 import openmui.render.vector;

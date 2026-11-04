@@ -8,7 +8,7 @@
 module openmui.showcase.promo_video;
 
 import std;
-import hanim;
+import hanim.core;
 import openmui;
 import openmui.showcase.widget_breakout;
 import openmui.showcase.widget_breakout.sim;

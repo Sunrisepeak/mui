@@ -2,7 +2,7 @@
 // drawings — matched by node, by meaning and glyph by glyph; pure functions
 // of time; settled, the second drawing's pixels exactly.
 import std;
-import hanim;
+import hanim.core;
 import openmui.geom;
 import openmui.raster;
 import openmui.render.vector;

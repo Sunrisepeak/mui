@@ -7,7 +7,7 @@
 // its problems located, written back as itself; and a sound track whose cues
 // land on their frames' first samples.
 import std;
-import hanim;
+import hanim.core;
 import openmui.image;
 import openmui.audio;
 import openmui.video;

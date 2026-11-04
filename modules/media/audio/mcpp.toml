@@ -6,7 +6,7 @@
 # master, a block at a time with nothing allocated, every sample a function
 # of what was played and when: an offline render is the same bits on every
 # platform. Devices and codecs are plugins (openmui.audio.device).
-# An independent component (D-55): the standard library, hanim (its
+# An independent component (D-55): the standard library, hanim.core (its
 # deterministic math), openmui.trace (spans in category "audio"), toml++ and,
 # for the omui-music tool's JSON, nlohmann.json.
 #
@@ -37,7 +37,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 [dependencies]
 openmui.math = { path = "../../base/math" }
 openmui.hash = { path = "../../base/hash" }
-hanim               = { path = "../../base/hanim" }
+hanim.core               = { path = "../../base/hanim/core" }
 openmui.trace       = { path = "../../base/trace" }
 marzer.tomlplusplus = "3.4.0"
 nlohmann.json       = "3.12.0"

@@ -3,7 +3,7 @@
 module openmui.showcase.promo_video;
 
 import std;
-import hanim;
+import hanim.core;
 import openmui.audio;
 import openmui.video;
 import openmui.timeline;

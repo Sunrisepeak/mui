@@ -6,7 +6,7 @@
 module openmui.audio;
 
 import std;
-import hanim;
+import hanim.core;
 import :dsp;
 
 namespace omui::audio {

@@ -2,7 +2,7 @@ import std;
 import openmui.render.vector;
 import openmui.geom;
 import openmui.memory;
-import hanim;
+import hanim.core;
 import openmui.testing;
 
 using namespace omui::testing;

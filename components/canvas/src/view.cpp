@@ -5,7 +5,7 @@ import openmui.core;
 import openmui.view;
 import openmui.render.vector;
 import openmui.raster;
-import hanim;
+import hanim.core;
 import openmui.trace;
 
 namespace omui {

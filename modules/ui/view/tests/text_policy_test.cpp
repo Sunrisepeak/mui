@@ -1,7 +1,7 @@
 // Public text recipes: configuration, policy overrides, motion levels and
 // font-cache lifetime. Real label matching belongs to the site quality probe.
 import std;
-import hanim;
+import hanim.core;
 import openmui.view;
 import openmui.math;
 import openmui.raster;

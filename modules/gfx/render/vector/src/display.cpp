@@ -2,7 +2,7 @@ module openmui.render.vector;
 
 import std;
 import openmui.hash;
-import hanim;
+import hanim.core;
 
 namespace omui::render {
 

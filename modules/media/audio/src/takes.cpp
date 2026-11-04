@@ -2,7 +2,7 @@
 module openmui.audio;
 
 import std;
-import hanim;
+import hanim.core;
 
 namespace omui::audio {
 

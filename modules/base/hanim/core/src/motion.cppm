@@ -1,4 +1,4 @@
-// hanim:motion — the animation primitives, every one a function of time.
+// hanim.core:motion — the animation primitives, every one a function of time.
 //
 //   Tween<T>     from → to over a duration, through an ease
 //   Track<T>     keyframes, each segment with its own ease, holds and cuts

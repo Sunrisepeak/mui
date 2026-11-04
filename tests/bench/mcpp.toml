@@ -26,6 +26,7 @@ main = "src/main.cpp"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
+hanim.core = { path = "../../modules/base/hanim/core" }
 openmui.sdk             = { path = "../.." }
 openmui.trace           = { path = "../../modules/base/trace" }
 openmui.markdown        = { path = "../../modules/content/markdown" }

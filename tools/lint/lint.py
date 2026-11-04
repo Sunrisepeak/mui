@@ -102,7 +102,7 @@ for _allowed in LAYERS.values():
         _allowed.add("modules/base/hash")
 
 # Members whose results are part of A-level conformance (identical bits).
-DETERMINISTIC = ["modules/base/math", "modules/base/fuzzy", "modules/media/audio", "modules/media/video", "mgame/physics", "showcase/widget-breakout/sim", "modules/base/hanim", "modules/gfx/raster", "modules/content/layout", "modules/base/geom", "modules/gfx/render", "modules/gfx/render/vector", "modules/content/text",
+DETERMINISTIC = ["modules/base/math", "modules/base/fuzzy", "modules/media/audio", "modules/media/video", "mgame/physics", "showcase/widget-breakout/sim", "modules/base/hanim", "modules/base/hanim/core", "modules/gfx/raster", "modules/content/layout", "modules/base/geom", "modules/gfx/render", "modules/gfx/render/vector", "modules/content/text",
                  "modules/content/i18n", "modules/ui/view", "showcase/promo-video"]
 
 # Operating-system headers: platform code goes through mcpplibs.os (D-57), so
@@ -671,12 +671,12 @@ def run(root: Path) -> list[Problem]:
 def self_test() -> int:
     """Each rule must reject a violation planted in a copy of a minimal tree."""
     cases = {
-        "macros": ("modules/base/hanim/src/bad.cpp", "module x;\n#define BAD 1\n"),
+        "macros": ("modules/base/hanim/core/src/bad.cpp", "module x;\n#define BAD 1\n"),
         "headers": ("modules/ui/core/src/util.h", "int f();\n"),
         "naming": ("modules/ui/core/src/a.cpp", "namespace mui { }\n"),
-        "exceptions": ("modules/base/hanim/src/e.cpp", "void f() { throw 1; }\n"),
+        "exceptions": ("modules/base/hanim/core/src/e.cpp", "void f() { throw 1; }\n"),
         "paths": ("modules/ui/core/src/p.cpp", "std::string f(const std::filesystem::path& p) { return p.string(); }\n"),
-        "determinism": ("modules/base/hanim/src/d.cpp", "double f(double x) { return std::sin(x); }\n"),
+        "determinism": ("modules/base/hanim/core/src/d.cpp", "double f(double x) { return std::sin(x); }\n"),
         "hash": ("modules/ui/core/src/h.cpp", "std::uint64_t h = 0xcbf29ce484222325ull;\n"),
         "math": ("modules/ui/core/src/m.cpp", "z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ull;\n"),
         "platform": ("modules/ui/core/src/native/io.cpp", "module;\n#include <unistd.h>\nmodule x;\n"),
@@ -685,7 +685,7 @@ def self_test() -> int:
         "layout": None,
         "licenses": None,
         "platforms": None,
-        "thirdparty": ("modules/base/hanim/src/w.cpp", "module x;\nimport mcpplibs.mwrap.md4c;\n"),
+        "thirdparty": ("modules/base/hanim/core/src/w.cpp", "module x;\nimport mcpplibs.mwrap.md4c;\n"),
         "media": ("docs/huge.png", "x" * (1024 * 1024 + 1)),
         "motion": ("components/base/src/t.cpp", "void Thumb::paint() { services().animations().spring_to(c_, now, 1, s); }\n"),
         "manifest": None,
@@ -701,8 +701,8 @@ def self_test() -> int:
     for rule, planted in cases.items():
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            members = ["modules/base/hanim", "modules/ui/core", "spec"]
-            names = {"modules/base/hanim": 'name = "hanim"', "modules/ui/core": 'namespace = "openmui"\nname = "core"',
+            members = ["modules/base/hanim", "modules/base/hanim/core", "modules/ui/core", "spec"]
+            names = {"modules/base/hanim": 'name = "hanim"', "modules/base/hanim/core": 'namespace = "hanim"\nname = "core"', "modules/ui/core": 'namespace = "openmui"\nname = "core"',
                      "spec": 'namespace = "openlifa"\nname = "openmui"'}
             if rule == "layout":
                 names["modules/base/hanim"] = 'name = "anim"'
@@ -717,7 +717,7 @@ def self_test() -> int:
             (root / "tools" / "lint").mkdir(parents=True, exist_ok=True)
             (root / "tools" / "lint" / "licenses.toml").write_text(
                 '[packages]\n"ns.kernel" = ["MIT"]\n"ns.os" = ["MIT"]\n"compat.sdl3" = ["Zlib"]\n', encoding="utf-8")
-            readmes = {"modules": "[base](base) [ui](ui)", "modules/base": "[hanim](hanim)", "modules/ui": "[core](core)"}
+            readmes = {"modules": "[base](base) [ui](ui)", "modules/base": "[hanim](hanim)", "modules/base/hanim": "[core](core)", "modules/ui": "[core](core)"}
             for d, text in readmes.items():
                 (root / d).mkdir(parents=True, exist_ok=True)
                 (root / d / "README.md").write_text(text + "\n", encoding="utf-8")
@@ -738,7 +738,7 @@ def self_test() -> int:
                     deps = '[dependencies]\nacme.copyleft = "1.0.0"\n'
                     with (root / "tools" / "lint" / "licenses.toml").open("a", encoding="utf-8") as f:
                         f.write('"acme.copyleft" = ["GPL-3.0-only"]\n')
-                flags = '[build]\ncxxflags = ["-ffp-contract=off"]\n' if m == "modules/base/hanim" else ""
+                flags = '[build]\ncxxflags = ["-ffp-contract=off"]\n' if m in ("modules/base/hanim", "modules/base/hanim/core") else ""
                 (root / m / "mcpp.toml").write_text(f'[package]\n{names[m]}\nversion = "0.1.0"\n{flags}{deps}',
                                                     encoding="utf-8")
             if rule == "documents":

@@ -7,7 +7,7 @@
 module openmui.audio:dsp;
 
 import std;
-import hanim;
+import hanim.core;
 import :mix;
 
 namespace omui::audio::dsp {

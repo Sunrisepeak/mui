@@ -1,6 +1,6 @@
 // openmui.timeline: exact time, what plays when, edits and their inverses, the file.
 import std;
-import hanim;
+import hanim.core;
 import openmui.timeline;
 import openmui.testing;
 

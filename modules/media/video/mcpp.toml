@@ -8,7 +8,7 @@
 # (raw YUV 4:2:0, BT.709, integer RGB→YUV) and WAV. Compressed output is a
 # plugin package (openmui.video.webm). Descriptions are data
 # (`*.video.omui.toml`).
-# An independent component (D-55): the standard library, hanim (exact frame
+# An independent component (D-55): the standard library, hanim.core (exact frame
 # rates, deterministic math), openmui.image, openmui.audio, openmui.trace
 # (spans in category "video") and toml++.
 [package]
@@ -32,7 +32,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
 openmui.hash = { path = "../../base/hash" }
-hanim               = { path = "../../base/hanim" }
+hanim.core               = { path = "../../base/hanim/core" }
 openmui.image       = { path = "../../base/image" }
 openmui.trace       = { path = "../../base/trace" }
 openmui.audio       = { path = "../audio" }

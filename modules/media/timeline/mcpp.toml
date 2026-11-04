@@ -4,7 +4,7 @@
 # properties keyed with hanim's curves; markers; what plays at any moment;
 # edits (insert, remove, move, trim, split, ripple) that each give back their
 # inverse, so undo is exact; and the readable file, *.timeline.omui.toml.
-# An independent component (D-55): the standard library, hanim (its eases
+# An independent component (D-55): the standard library, hanim.core (its eases
 # and keyed tracks) and toml++.
 [package]
 namespace   = "openmui"
@@ -26,7 +26,7 @@ sources  = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-hanim               = { path = "../../base/hanim" }
+hanim.core               = { path = "../../base/hanim/core" }
 marzer.tomlplusplus = "3.4.0"
 
 [dev-dependencies]

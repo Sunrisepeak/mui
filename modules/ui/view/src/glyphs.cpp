@@ -4,7 +4,7 @@ import std;
 import openmui.math;
 import openmui.hash;
 import openmui.core;
-import hanim;
+import hanim.core;
 import openmui.render.vector;
 import :element;
 import :glyphs;

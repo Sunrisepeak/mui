@@ -1,7 +1,7 @@
 // Text transitions preserve the drawing that an interrupted motion actually
 // showed. These public-Morph probes need no text engine or component clock.
 import std;
-import hanim;
+import hanim.core;
 import openmui.geom;
 import openmui.render.vector;
 import openmui.motion;

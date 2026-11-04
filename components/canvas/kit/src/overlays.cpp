@@ -5,7 +5,7 @@ import std;
 import openmui.core;
 import openmui.view;
 import openmui.render.vector;
-import hanim;
+import hanim.core;
 import openmui.raster;
 import openmui.ui.canvas;
 import :parts;

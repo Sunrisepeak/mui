@@ -19,7 +19,7 @@
 import std;
 import nlohmann.json;
 import openmui.audio;
-import hanim;
+import hanim.core;
 
 namespace audio = omui::audio;
 

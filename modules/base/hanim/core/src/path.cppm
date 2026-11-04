@@ -1,4 +1,4 @@
-// hanim:path — motion along a curve, parameterised by distance.
+// hanim.core:path — motion along a curve, parameterised by distance.
 //
 // Animating "progress along a path" from 0 to 1 should move at the speed the
 // ease says, not faster on long control-point spans; so the path is sampled

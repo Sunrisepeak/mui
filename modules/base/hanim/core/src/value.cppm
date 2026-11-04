@@ -1,4 +1,4 @@
-// hanim:value — what can be animated, and how a value is interpolated.
+// hanim.core:value — what can be animated, and how a value is interpolated.
 //
 // A type is animatable when it can be taken apart into a fixed number of
 // double "lanes" and put back together (`lanes<T>`). Every primitive in this

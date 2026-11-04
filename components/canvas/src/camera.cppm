@@ -11,7 +11,7 @@ export module openmui.ui.canvas:camera;
 
 import std;
 import openmui.core;
-import hanim;
+import hanim.core;
 import :scene;
 
 export namespace omui::world {

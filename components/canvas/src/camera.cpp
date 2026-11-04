@@ -2,7 +2,7 @@ module openmui.ui.canvas;
 
 import std;
 import openmui.core;
-import hanim;
+import hanim.core;
 
 namespace omui::world {
 

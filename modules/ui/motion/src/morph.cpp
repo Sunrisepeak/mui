@@ -2,7 +2,7 @@
 module openmui.motion;
 
 import std;
-import hanim;
+import hanim.core;
 import openmui.math;
 import openmui.geom;
 import openmui.render.vector;

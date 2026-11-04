@@ -1,6 +1,6 @@
 module openmui.bench;
 import std;
-import hanim;
+import hanim.core;
 import openmui.geom;
 import openmui.raster;
 import openmui.render.vector;

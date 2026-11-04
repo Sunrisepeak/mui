@@ -3,7 +3,7 @@ module openmui.ui.canvas;
 import std;
 import openmui.core;
 import openmui.view;
-import hanim;
+import hanim.core;
 import openmui.geom;
 import openmui.raster;
 import openmui.render.vector;

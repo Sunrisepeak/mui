@@ -68,7 +68,7 @@ Depends on `openmui` (the runtime, the base components, the headless host),
 
 These five cases use the same harness, allocation counter, JSON/Markdown
 reports and CLI as the existing benchmarks. Their implementation imports only
-public `hanim`, geometry, raster and vector APIs; it does not call UI Runtime,
+public `hanim.core`, geometry, raster and vector APIs; it does not call UI Runtime,
 components or website builders. Preparation and steady-state work are distinct.
 All five measure **CPU wall-clock work**. They neither submit GPU work nor
 measure GPU execution, and say so in each result's notes.

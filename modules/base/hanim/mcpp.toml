@@ -19,3 +19,6 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
 hanim.core = { path = "core" }
+
+[dev-dependencies]
+openmui.testing = { path = "../testing" }

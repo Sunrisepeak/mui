@@ -21,7 +21,7 @@ export module gongfu.present2d;
 import std;
 export import gongfu;
 export import gongfu.data;
-import hanim;
+import hanim.core;
 import openmui.geom;
 import openmui.render.vector;
 

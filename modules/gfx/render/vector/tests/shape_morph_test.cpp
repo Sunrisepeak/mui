@@ -2,7 +2,7 @@
 // Geometry is prepared once; each frame is ONE current path. Materials and
 // registered pixel effects consume that path through the existing renderer.
 import std;
-import hanim;
+import hanim.core;
 import openmui.geom;
 import openmui.raster;
 import openmui.render.vector;

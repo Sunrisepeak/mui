@@ -29,7 +29,7 @@ sources = ["src/native/web/*.cpp"]
 
 [dependencies]
 openlifa.openmui = { path = "../../../spec" }
-hanim            = { path = "../../base/hanim" }
+hanim.core            = { path = "../../base/hanim/core" }
 openmui.geom     = { path = "../../base/geom" }
 openmui.memory   = { path = "../../base/memory" }
 openlifa.openas        = "0.2.0"

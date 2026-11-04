@@ -23,7 +23,7 @@ export module openmui.view:glyphs;
 
 import std;
 import openmui.core;
-import hanim;
+import hanim.core;
 import openmui.render.vector;
 import :element;
 

@@ -5,7 +5,7 @@ import openmui.core;
 import openmui.view;
 import gongfu.present2d;
 import gongfu.training;
-import hanim;
+import hanim.core;
 
 namespace omui::fighting::hud {
 

@@ -21,7 +21,7 @@ import std;
 import openmui.core;
 import openmui.view;
 import openmui.render.vector;
-import hanim;
+import hanim.core;
 import :canvas_contract;
 import :scene;
 import :camera;

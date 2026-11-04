@@ -1,6 +1,6 @@
 // Nested effect-bearing Morph draws must never share their mutable scratch.
 import std;
-import hanim;
+import hanim.core;
 import openmui.geom;
 import openmui.render.vector;
 import openmui.motion;

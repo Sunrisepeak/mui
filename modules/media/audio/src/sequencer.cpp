@@ -10,7 +10,7 @@ module openmui.audio;
 
 import std;
 import openmui.math;
-import hanim;
+import hanim.core;
 import openmui.trace;
 import :dsp;
 import :detail;

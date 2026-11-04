@@ -1,4 +1,4 @@
-// hanim:set — the animations of a running UI, evaluated in one pass.
+// hanim.core:set — the animations of a running UI, evaluated in one pass.
 //
 // An interface has hundreds of small animations alive at once (a hover fade,
 // a list item sliding in, a scroll glide). A `Set` keeps them as parallel

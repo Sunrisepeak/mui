@@ -4,7 +4,7 @@ module openmui.showcase.promo_video;
 
 import std;
 import openmui.hash;
-import hanim;
+import hanim.core;
 import openmui;
 import openmui.video;
 

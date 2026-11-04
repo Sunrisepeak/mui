@@ -8,7 +8,7 @@
 module openmui.showcase.promo_video;
 
 import std;
-import hanim;
+import hanim.core;
 import openmui;
 
 namespace omui::promo {

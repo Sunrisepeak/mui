@@ -7,7 +7,7 @@ module gongfu.present2d;
 import std;
 import openmui.math;
 import gongfu;
-import hanim;
+import hanim.core;
 import openmui.geom;
 import openmui.render.vector;
 

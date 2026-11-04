@@ -1,7 +1,7 @@
 module openmui.timeline;
 
 import std;
-import hanim;
+import hanim.core;
 
 namespace omui::timeline {
 

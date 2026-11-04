@@ -1,4 +1,4 @@
-// hanim:time — what "now" is, for an interactive program, a test, and a
+// hanim.core:time — what "now" is, for an interactive program, a test, and a
 // video render.
 //
 // Every animation in openmui is a function of a time value; the clock decides

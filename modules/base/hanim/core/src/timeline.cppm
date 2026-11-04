@@ -1,4 +1,4 @@
-// hanim:timeline — clips placed in time, for UI choreography and video.
+// hanim.core:timeline — clips placed in time, for UI choreography and video.
 //
 // A timeline holds clips, each a primitive (tween, track, spring, motion, or a
 // function of time) bound to a target name and placed at a start time through

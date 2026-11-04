@@ -2,7 +2,7 @@
 module openmui.video;
 
 import std;
-import hanim;
+import hanim.core;
 import openmui.image;
 
 namespace omui::video {

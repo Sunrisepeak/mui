@@ -1,7 +1,7 @@
 // UI motion's display-list adapter consumes the public hanim plan. These are
 // real Matter/Morph/CPU draws, independent of components and the website.
 import std;
-import hanim;
+import hanim.core;
 import openmui.geom;
 import openmui.raster;
 import openmui.render.vector;

@@ -10,7 +10,7 @@ import openmui.text;
 import openmui.trace;
 import openmui.ui.base;
 import openmui.host.headless;
-import hanim;
+import hanim.core;
 import openmui.markdown;
 import openmui.ui.canvas;
 import openmui.ui.canvas.kit;

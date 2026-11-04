@@ -8,7 +8,7 @@ export module openmui.core:base;
 
 import std;
 export import openmui.spec;
-export import hanim;
+export import hanim.core;
 export import openmui.geom;
 export import openmui.memory;
 

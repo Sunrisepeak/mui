@@ -3,7 +3,7 @@
 import std;
 import openmui.geom;
 import openmui.raster;
-import hanim;
+import hanim.core;
 import openmui.testing;
 
 using namespace omui::testing;

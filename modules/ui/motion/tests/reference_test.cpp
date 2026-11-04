@@ -1,7 +1,7 @@
 // Layout relationships are data. They neither add painted pieces nor erase
 // a selection's internal progress when current allocations change.
 import std;
-import hanim;
+import hanim.core;
 import openmui.motion;
 import openmui.render.vector;
 import openmui.raster;

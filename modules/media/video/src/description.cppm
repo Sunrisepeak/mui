@@ -28,7 +28,7 @@
 export module openmui.video:description;
 
 import std;
-import hanim;
+import hanim.core;
 import openmui.audio;
 import :timing;
 import :encode;

@@ -9,7 +9,7 @@
 module openmui.showcase.promo_video;
 
 import std;
-import hanim;
+import hanim.core;
 import openmui;
 import openmui.abi;
 import openmui.lang;

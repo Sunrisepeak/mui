@@ -23,7 +23,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 [dependencies]
 openmui.hash = { path = "../../base/hash" }
 openmui.geom = { path = "../../base/geom" }
-hanim        = { path = "../../base/hanim" }
+hanim.core        = { path = "../../base/hanim/core" }
 
 [dev-dependencies]
 openmui.testing = { path = "../../base/testing" }

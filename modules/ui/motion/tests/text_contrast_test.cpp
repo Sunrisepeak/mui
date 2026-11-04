@@ -1,7 +1,7 @@
 // Solid-carrier protection is a public drawing policy, not component logic.
 // These probes inspect the paints actually emitted at intermediate times.
 import std;
-import hanim;
+import hanim.core;
 import openmui.geom;
 import openmui.raster;
 import openmui.math;

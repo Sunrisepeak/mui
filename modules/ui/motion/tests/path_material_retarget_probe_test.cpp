@@ -1,7 +1,7 @@
 // Originally RED for normal/plus layer snapshots. The public flat sampled
 // material must keep this same probe green without stranding an old shape.
 import std;
-import hanim;
+import hanim.core;
 import openmui.geom;
 import openmui.raster;
 import openmui.render.vector;

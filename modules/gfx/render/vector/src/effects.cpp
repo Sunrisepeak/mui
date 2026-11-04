@@ -8,7 +8,7 @@ import std;
 import openmui.math;
 import openmui.geom;
 import openmui.raster;
-import hanim;
+import hanim.core;
 import :display;
 import :effects;
 import :cpu;

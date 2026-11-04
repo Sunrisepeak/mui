@@ -3,7 +3,7 @@ module openmui.expr;
 import std;
 import openmui.spec;
 import openmui.unicode;
-import hanim;
+import hanim.core;
 import openmui.i18n;
 import :ast;
 import :parse;

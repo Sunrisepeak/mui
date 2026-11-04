@@ -4,6 +4,8 @@
 
 维护者已澄清：规范名称是 **openmui**；**mcpp 是构建工具，其构建插件支持 GPU／HPC 库及算子的开发、构建和交付**。运行时计算能力由可复用库提供，各框架／引擎按需消费。规范、产品、包名与构建工具的身份分别明确。
 
+2026-11-05新增[feature／AI／局部风格补充](2026-11-05-features-ai-agent-scoped-style-design.md)：可选内置AI／Agent独立于默认Agent控制能力；规则、内置模型Agent、openas外部Agent经共同决策port和领域操作接入；模型调用优先复用llmapi。风格包通过局部token、公共effect和motion组合，不在组件硬编码像素／玻璃实现；实际feature闭包与运行开关分别验收。
+
 最新综合review见[顶层×子系统架构与API验证](2026-11-05-system-subsystem-architecture-and-api-design.md)，包含目标代码树、共享owner、分级入口和实施顺序。动画的对象×动画×效果×配置专项语义继续见[play／Program细案](2026-11-04-hanim-play-api-design.md)：各入口复用同一Program/PreparedPlan，最新推荐以 `play(animation)` 为主；四参数保留为当前兼容入口。严格对象的sequence/parallel/stagger编排已实现，完整通道／scope／GPU和UI迁移仍开放，不能将“完整Program未完成”误读为“完全没有编排”。
 
 维护者补充：hanim的目标是比Manim及常见动画／游戏动画系统更通用、效果更好、性能更高；主入口只是比较思路，详见[通用性／风格／GPU比较稿](2026-11-04-hanim-generality-style-gpu-review-design.md)。创作接口与执行内核分别比较，复用全局的计算／RHI／renderer；已有CPU原型不等于目标已达到。
@@ -23,6 +25,7 @@ omui、hanim、渲染、模拟、计算和音频在**产品层对等**。产品�
 | 动画引擎 hanim | core、对象、动画库、效果绑定、播放器、资源生命周期 | 对象表示、准备计划、时间映射、批量求值及播放控制 |
 | 模拟引擎 | 固定步长、输入日志、状态推进、检查点、回放／烘焙；物理、化学、元胞等模型接入 | 权威模拟状态与求解规则，不由可视帧或编辑器私有状态决定 |
 | 音频引擎 | DSP、声音／乐器、音序、总线／效果、设备、离线输出；MIDI 等独立库及适配 | 音频图、采样时钟、声音事件与设备缓冲 |
+| AI／Agent（可选） | 通用决策port、规则与有界编排、llmapi模型调用、openas外部Agent委派 | 任务／观察／意图；领域状态、动作授权和实时执行仍归各owner |
 | UI 框架引擎 omui | 状态、布局、输入、焦点、语义、无障碍、Agent 动作与 host | UI 的行为事实；经公开适配消费动画、渲染及可选其它引擎 |
 | 基于引擎的库 | UI 组件、公共动画、材料／风格包、求解器、算子、内容适配、编解码器 | 可组合的领域能力，不重复实现底层引擎 |
 | 工具与作品 | 编辑器、Inspector／profiler、时间线、音频／MIDI 工具、算子工作台、官网、游戏与创意工具 | 工程／内容的创作与操作流程，复用下面的公共产品 |

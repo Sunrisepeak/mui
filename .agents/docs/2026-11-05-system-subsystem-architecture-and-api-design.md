@@ -2,6 +2,8 @@
 
 2026-11-05。**供维护者 review 的综合方案，不将候选设计记为已实现，也不在本轮冻结公共 API。** 基线为 `2f39e01`；当前能力以[项目评审](../reivews/2026-11-05-project-progress-review.md)及源码为准。本轮另做真实 hanim 消费者接口实验，结果见 §3。本方案整合前期讨论；已有 D-xx、AGENTS、规范和质量要求继续有效，新增目录／接口按本文明确的迁移门槛实施。
 
+后续补充基线 `3401262`：[Feature、可插拔AI／Agent及局部像素风格](2026-11-05-features-ai-agent-scoped-style-design.md)加入核心/可选feature边界、llmapi复用、规则／内置Agent／openas外部Agent三种决策来源，以及theme×effect×motion的局部style设计与自我review。以下§3保留上一检查点实际运行结果；本次补充没有重跑或扩大其验收范围。
+
 ## 1. 结论与评估
 
 推荐：**以独立产品为边界、以本域能力为内核、以类型化契约组合全局；日常 API 简短，复杂约束逐级显露，所有层级复用同一执行体系。**
@@ -21,7 +23,7 @@
 
 ## 2. 产品边界与共同契约
 
-omui、hanim、renderer、simulation、audio、compute 在产品层对等。包依赖仍单向；一个产品可以消费另一产品的公开能力。独立意味着可单独构建、运行、测试、发布和解释依赖，不意味着相互复制数学、资源管理或渲染器。
+omui、hanim、renderer、simulation、audio、compute及可选AI／Agent在产品层对等。包依赖仍单向；一个产品可以消费另一产品的公开能力。独立意味着可单独构建、运行、测试、发布和解释依赖，不意味着相互复制数学、资源管理或渲染器。
 
 ```mermaid
 flowchart TB
@@ -189,6 +191,8 @@ HObject 是动画域身份及表示能力，允许属性、路径、轮廓、mes
 
 主动／被动是 effect 的绑定方式，pure／stateful 是求值性质，匹配／路径／材料是阶段，彼此正交。环境场只是反应输入之一，不能把属性＋状态＋事件／邻域反应收窄成一个“重力场系统”。动画 effect 与 openas 授权中的 action effect 使用不同类型。
 
+风格化可局部作用于对象、部件、scope或显式合成层。像素风的完整style包组合token、公共pixel/palette等effect、部件/role规则及公共motion配方；单个effect也可脱离主题独立使用。已有局部theme_scope不自动隔离父级后处理；pixelate的高DPI端点、portal、文字/命中与disabled外观必须按[专项方案§6–8](2026-11-05-features-ai-agent-scoped-style-design.md#6-effectthemestylemotion的职责)处理。组件不增加按风格名称分支的专属实现。
+
 局部 `.with_effect(...)` 只作用于明确阶段／对象；整个组合图像处理建议显式 `composite(animation).with_effect(...)`（名称待 review）。不把路径 effect 自动广播给所有子对象，也不让所有 parallel 默认创建离屏纹理。能力不支持时失败或按显式策略降档，不能静默忽略效果后报告成功。
 
 `A→B` 的路径扰动可在对应轨迹上加端点为零的包络；需 C1 时还约束端点导数。给 Bezier 控制柄随便加“质量”并不会自动得到合理物理：必须选择刚体、粒子、软体或形变笼模型，并保留拓扑连接约束。高自由度通过模型和契约提供，不靠无类型属性袋。
@@ -217,6 +221,9 @@ modules/
     control/                       [新增] 中立操作/provider接口；不导入UI/网络
     resource/                      [新增] 稳定资源身份、版本和租约契约
     compute/                       [新增] 数据/算子/CPU执行；优先复用生态
+    ai/                            [新增] 决策/模型任务契约；内置能力按feature选用
+      core/ policy/ model/ agent/  [新增] port、通用策略、模型适配契约、Agent编排
+      provider/llmapi/ control/    [新增] 复用llmapi；AI自身可观察/可控制
     simulation/                    [新增] 状态推进、checkpoint、输入重建
       cellular/ physics/ material/ [新增] 按模型选择，不随core全量导入
   gfx/
@@ -226,6 +233,7 @@ modules/
     render/{vector,effect,cts}/    同一渲染图与池
       mesh/ particle/ field/      [新增] 2D/3D/场的渲染特性
     compute/rhi/                   [新增] GPU计算执行，直接消费RHI
+    ai/inference/                  [新增] 确有需求时的可选推理实现/设备互操作
     hanim/                         [迁移] 唯一 package hanim / import hanim
       object/ library/ effect/
       program/ engine/
@@ -250,6 +258,7 @@ modules/
       tui/                         [新增] 独立终端语义呈现与输入
 integrations/                      [新增] 可选上层组合；须先扩展layering规则
   openas/                          协议/授权/传输绑定，连接中立provider
+  ai/openas/                       [新增] 外部Agent决策来源/委派适配
   composition/                     所选域的时钟/资源/操作装配，不默认全导入
 components/                        基于UI的组件库，契约优先，不写动画循环
 lang/                              各语言薄绑定，仍通过生成ABI
@@ -300,6 +309,7 @@ src/entry/                         宿主/应用入口；根包仍是 openmui.sd
 | **hanim** | 可动画数据、对应、时间、通道、effect、计划与控制 | 一个通道＋路径modifier＋scope；独立采样、UI与renderer消费同一结果 |
 | **simulation** | `State[n] + Input[n] → State[n+1]`，规则、约束、积分、邻域与检查点 | CPU参考两材料/阈值/邻域实验；稳定顺序、冲突、chunk halo和重建 |
 | **compute/HPC** | typed views、算子库、计划优化、CPU/SIMD/GPU批次 | 一个算子的CPU参考/GPU实现，驻留与资源交接，数值等级和实测成本 |
+| **AI／Agent（可选）** | Observation→Intent与有界任务；规则/内置Agent/外部Agent可替换 | 一条领域port，seeded策略、llmapi模型任务和openas委派分别验证；领域引擎不反依赖AI |
 | **renderer 2D/3D** | 内容/相机/材料→pass/资源图→图像 | 共用vector/mesh/particle/field特性；先验证一个GPU输出与CPU参考的闭环 |
 | **audio** | 音源/采样、voice、路由、DSP、调制、音序和transport | sample时钟自动化、离线/设备同源；MIDI作为可选输入/输出库 |
 | **omui** | 语义状态、布局、输入、焦点、行为与多种呈现 | 组件只画状态；motion adapter消费公共库，动画/命中/焦点/可访问性一致 |
@@ -340,6 +350,12 @@ DSP callback 无分配、无阻塞、无GUI锁、无网络／openas、无GPU同�
 
 无GUI的视觉审查通过真实renderer输出指定**工程revision、时间、camera／surface、区域、缩放、色彩空间**的像素及provenance。无设备时使用被声明支持的CPU／离屏后端，无法实现的效果明确报告；不能回传示意图当作真实输出。音频同理支持片段导出和分析。
 
+### 8.1 内置智能和外部驱动共享操作边界
+
+内置AI／Agent是可选的决策和编排产品，现有openmui.agent仍表示控制endpoint。推荐DecisionPort以观察、约束、revision和期限请求Intent；来源可选本地规则、复用llmapi的内置Agent，或通过openas委派的外部Agent。外部Agent既可直接操作，也可作为应用请求的决策来源；提议模式和委派执行模式须区分以避免重复动作。
+
+以桌面二维角色为验证：随机wander无需模型；模型／外部Agent只给高层目标和表情，hanim连续执行运动。人拖动会使迟到决策失效。控制、授权和状态提交共用原有owner，AI不直接写引擎私有状态。llmapi已有同步/协程外观接口，但当前chat_async仍调用同步I/O；异步／取消与Web支持按上游适配计划验证，不将它放进实时帧路径。详细分工与源码依据见专项方案§3–5。
+
 ## 9. Web 优先、多后端与按需成本
 
 平台／宿主／设备／输入输出／发布格式是独立维度，按能力选择。Web是第一批架构验证与性能目标；Toy是Web宿主的SDK子后端，不复制renderer或框架。独立引擎不能为了用Web设备而强制导入现有带UI、IME、语义和Agent的UI host，应抽小型共享生命周期／设备适配。
@@ -354,7 +370,9 @@ DSP callback 无分配、无阻塞、无GUI锁、无网络／openas、无GPU同�
 | TUI | 终端单元格、键盘焦点、终端能力下的语义降级 | 同操作可完成；不宣称终端具有液态玻璃同等像素效果 |
 | MCU／低档设备 | 实际工具链/内存/设备配置裁剪 | 真机或明确仿真范围；不是只凭架构图宣称支持 |
 
-至少持续构建七种最小完整配置：纯hanim采样、hanim＋CPU输出、UI＋默认动画、CPU模拟、模拟＋WebGPU、音频离线、完整工具。测实际依赖闭包、产物／传输字节、初始化工作、峰值内存和未选模块加载。关闭默认动画或Agent能力不能作为“默认UI很小”的证明。
+至少持续构建七种基础配置：纯hanim采样、hanim＋CPU输出、UI＋默认动画、CPU模拟、模拟＋WebGPU、音频离线、完整工具；增补规则AI、llmapi/内置Agent、外部委派、局部pixel及其关闭配置。测实际依赖闭包、产物／传输字节、初始化工作、峰值内存和未选模块加载。明确裁剪配置可以关闭所选功能，但不能冒充保留默认动画与Agent控制的常规omui配置。
+
+feature按构建能力选择源码／依赖／工具和资产，运行开关只控制已编入功能。mcpp加法feature并集、feature-deps和依赖边default-features需要做全图审计；不使用不存在的CLI开关或宏分支。常规UI保留轻量双用户控制，内置AI/provider/模型资产默认可选；开启也不自动授予操作权限。feature配置、实际设备能力、资源ready、运行启用和权限分别可查询。详见专项方案§2。
 
 Web现有实测预算与精确范围见评审：总传输4,718,757 B、首帧代理前2,817,083 B，是既有构件结果，不是本轮新测，也不是真实FCP/LCP。新增能力同步按页代码／字体／资源交付，不能把123个workspace成员全部拖进首包。
 
@@ -408,6 +426,8 @@ Web现有实测预算与精确范围见评审：总传输4,718,757 B、首帧代
 
 P2-A/B/C是三个**尽早验证的不同领域**，不是先造完hanim再考虑GPU和audio。最多2名subagent：按当期关键路径给两条可独立任务；主线程负责公共契约、第三条小实验及集成，任务轮换。写操作用隔离worktree、约定文件owner；同一根mcpp.lock不由并行任务各自改写。每轮一个签署检查点追加PR #1，相关本地验证通过后继续，CI异步登记。
 
+新增feature/AI/style工作按专项F0–F4穿插：F0记录裁剪基线；F1规则port和外部控制；F2 llmapi模型任务与外部Agent委派；F3局部pixel风格与公共动画；F4泛化与产品化。AI链检验control/time契约，pixel链检验UI/hanim/render契约。llmapi的通用适配走其独立PR，本仓仍追加PR #1，不在本仓复制供应商实现。
+
 官网继续以简洁首页、代码动态logo、核心特色分组、顶级Agent与创意作品导航组织；每页开场先用真实任务展示差异，再分类选择／单舞台渐进披露，焦点或指针进入时接管互动，详情才展开参数/语言/代码。首页构图和按页交付可以并行；高级演示必须使用公共能力，不再增加私有动画算法。完整范围见[官网方案](2026-11-03-openmui-site-redesign-implementation-design.md)。
 
 40项基础设计与20项任务的逐项清单沿用[导航／动效细案 §3–4](2026-11-04-omui-site-navigation-motion-execution-design.md#3-40-个基础设计清单)，本轮不再复制一套易漂移清单。新增交付映射为“公共动画ID／schema／参数 → 组件类型与部件默认配方 → 官网任务 → 可带走工程 → 版本化证据”。不同主题、语言、速度及easing名称不重复计数；复杂创意组合可使用多个公共动画。现有UI 11项MotionPrimitive及37类默认映射、40/20网站场景保持独立统计，直到逐项迁移与验收后再计入公共引擎库目标。
@@ -422,6 +442,7 @@ P2-A/B/C是三个**尽早验证的不同领域**，不是先造完hanim再考虑
 4. **共享契约**：仅提取已证明的时间/资源/控制机制，各域IR与状态owner保留；integrations只做可选上层装配，先扩lint再落包。
 5. **近期关键路径**：先API/IR与UI断点，同时用小型状态反应/GPU和audio任务检验全局契约；不先实现九个大编辑器。
 6. **交付门槛**：40／20按公共可复用成果计数；官网局部检查不替代引擎/工具/设备验收；本地优先、CI异步。
+7. **可选智能与风格**：feature裁剪控制真实依赖／资源；规则、内置Agent与openas外部Agent通过同一DecisionPort接入；模型调用复用llmapi；pixel作为局部可组合style，effect独立可用、motion公共复用。
 
 已有明确用户要求（Web优先、Agent双视角、CLI完整、可裁剪、单一owner、局部×全局、40／20、最多2名subagent、同PR）不再作为待确认问题。
 

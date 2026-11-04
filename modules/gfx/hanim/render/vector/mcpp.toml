@@ -1,0 +1,30 @@
+[package]
+namespace = "hanim.render"
+name = "vector"
+version = "0.1.0"
+description = "Optional strict vector renderer consumer of current hanim frames"
+license = "Apache-2.0"
+platforms = ["linux", "macos", "windows", "emscripten"]
+repo = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "backend"
+
+[targets.hanim-render-vector]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+hanim.library = { path = "../../library" }
+hanim.effect = { path = "../../effect" }
+openmui.render.vector = { path = "../../../render/vector" }
+openmui.geom = { path = "../../../../base/geom" }
+openmui.log = { path = "../../../../base/log" }
+openmui.trace = { path = "../../../../base/trace" }
+
+[dev-dependencies]
+openmui.testing = { path = "../../../../base/testing" }
+openmui.raster = { path = "../../../raster" }

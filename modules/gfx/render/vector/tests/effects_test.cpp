@@ -275,7 +275,7 @@ int main(int argc, char** argv) {
         check(draw(dl).hash() == plain.hash(), "reveal at 1");
     });
 
-    s.test("under contention: several renderers at once, each in parallel bands, draw what one thread alone draws", [] {
+    if constexpr (threads) s.test("under contention: several renderers at once, each in parallel bands, draw what one thread alone draws", [] {
         // The promo's tape: a picture drawn small inside a chromatic layer,
         // beside a blur and a dissolve; every frame a little different.
         raster::Surface pic(320, 200);
@@ -339,7 +339,7 @@ int main(int argc, char** argv) {
         check_eq(wrong.load(), 0);
     });
 
-    s.test("bands at the same time render the whole layer's effect exactly", [] {
+    if constexpr (threads) s.test("bands at the same time render the whole layer's effect exactly", [] {
         render::DisplayList dl;
         scene(dl, std::pair{std::string_view("particles"), std::vector<std::pair<std::string_view, float>>{{"progress", 0.5f}, {"seed", 2}}});
         const auto whole = draw(dl);

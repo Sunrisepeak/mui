@@ -10,6 +10,7 @@ version     = "0.1.0"
 description = "The rendering architecture: a frame as a checked graph of passes over device textures, transient textures pooled across frames, a trace span per pass"
 license     = "Apache-2.0"
 repo        = "https://github.com/Sunrisepeak/mui"
+platforms   = ["linux", "macos", "windows", "emscripten"]
 
 [package.metadata.openmui]
 kind = "module"
@@ -27,6 +28,4 @@ openmui.trace = { path = "../../base/trace" }
 
 [dev-dependencies]
 openmui.testing = { path = "../../base/testing" }
-openmui.rhi.sdl = { path = "../rhi/sdl" }
 openmui.memory  = { path = "../../base/memory" }
-mcpplibs.os     = "0.2.2"

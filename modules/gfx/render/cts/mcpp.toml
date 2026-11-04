@@ -1,0 +1,22 @@
+# Desktop device CTS only. No runtime artifact or empty library target.
+[package]
+namespace = "openmui.render"
+name = "cts"
+version = "0.1.0"
+description = "Desktop device conformance for rendering graphs, vector pixels and effects"
+license = "Apache-2.0"
+platforms = ["linux", "macos", "windows"]
+repo = "https://github.com/Sunrisepeak/mui"
+
+[dev-dependencies]
+"openmui.render" = { path = ".." }
+"openmui.render.vector" = { path = "../vector" }
+"openmui.rhi" = { path = "../../rhi" }
+"openmui.rhi.sdl" = { path = "../../rhi/sdl" }
+openmui.geom = { path = "../../../base/geom" }
+openmui.memory = { path = "../../../base/memory" }
+openmui.raster = { path = "../../raster" }
+openmui.image = { path = "../../../base/image" }
+openmui.trace = { path = "../../../base/trace" }
+openmui.testing = { path = "../../../base/testing" }
+mcpplibs.os = "0.2.2"

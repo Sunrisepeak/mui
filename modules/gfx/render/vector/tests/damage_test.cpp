@@ -224,7 +224,7 @@ int main(int argc, char** argv) {
         }
     });
 
-    s.test("bands drawn at the same time give the serial bytes and ids", [] {
+    if constexpr (threads) s.test("bands drawn at the same time give the serial bytes and ids", [] {
         Threads pool;
         Knobs k;
         render::DisplayList dl;

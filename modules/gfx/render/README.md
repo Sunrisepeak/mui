@@ -14,7 +14,10 @@ graph.pass({.name = "ui.composite", .reads = {*layer}, .writes = {target}}, [&](
 auto report = graph.record(list, {&target, 1});   // recorded, culled, transients
 ```
 
-`tests/graph_test.cpp` holds the pool's reuse and release, the problems' wording, the plan (what is left out, the order kept), the spans, and — on a real device — the bytes of a frame whose unread pass never ran.
+`tests/graph_test.cpp` holds the portable pool reuse/release, error wording,
+planning and trace cases on a recording device. The actual desktop-device
+bytes remain checked in [cts](cts), whose SDL dependency stays outside this
+portable runtime package. Both this package and its serial tests run on Web.
 
 ## The rendering features
 
@@ -22,5 +25,6 @@ auto report = graph.record(list, {&target, 1});   // recorded, culled, transient
 |---|---|
 | [vector](vector) | 2D vector rendering: the display list, its CPU reference renderer and its GPU renderer, whose passes are this graph's |
 | [effect](effect) | A program's own pixel effects (`*.effect.omui.toml` and Slang), loaded and reloaded while it runs |
+| [cts](cts) | Desktop-only graph/vector device conformance; native workspace CI includes it, Web CI keeps the portable CPU suites |
 
 Depends on: `openmui.rhi`, `openmui.trace`.

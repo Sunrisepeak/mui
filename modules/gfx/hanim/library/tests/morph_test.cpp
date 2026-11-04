@@ -25,17 +25,51 @@ void observe_free(void* pointer) {
     for (std::size_t i=0;i<watching.size();++i) if (pointer && pointer==watching[i].load()) freed[i].store(true);
 }
 }
-void* operator new(std::size_t size) {
+namespace {
+void record_allocation(void* pointer,std::size_t size) noexcept {
     allocations.fetch_add(1,std::memory_order_relaxed);
-    auto* pointer=std::malloc(size ? size : 1); if (!pointer) std::abort();
-    if (recording.load()) { const auto i=recorded_count.fetch_add(1); if(i<recorded.size()) recorded[i]={pointer,size}; }
-    return pointer;
+    if(pointer && recording.load()) {const auto i=recorded_count.fetch_add(1);if(i<recorded.size())recorded[i]={pointer,size};}
 }
-void* operator new[](std::size_t size) { return ::operator new(size); }
-void operator delete(void* p) noexcept { observe_free(p); std::free(p); }
-void operator delete(void* p,std::size_t) noexcept { observe_free(p); std::free(p); }
-void operator delete[](void* p) noexcept { observe_free(p); std::free(p); }
-void operator delete[](void* p,std::size_t) noexcept { observe_free(p); std::free(p); }
+void* allocate(std::size_t size) noexcept {
+    auto* pointer=std::malloc(size?size:1);record_allocation(pointer,size);return pointer;
+}
+void* allocate_aligned(std::size_t size,std::align_val_t alignment) noexcept {
+    const auto align=static_cast<std::size_t>(alignment);
+    if(align<alignof(void*) || (align&(align-1)))return nullptr;
+    const auto overhead=align-1+sizeof(void*);
+    if(size>std::numeric_limits<std::size_t>::max()-overhead-1)return nullptr;
+    auto* base=std::malloc((size?size:1)+overhead);if(!base)return nullptr;
+    auto address=reinterpret_cast<std::uintptr_t>(base)+sizeof(void*);
+    address=(address+align-1)&~(static_cast<std::uintptr_t>(align)-1);
+    auto* pointer=reinterpret_cast<void*>(address);static_cast<void**>(pointer)[-1]=base;
+    record_allocation(pointer,size);return pointer;
+}
+void release(void* pointer) noexcept {observe_free(pointer);std::free(pointer);}
+void release_aligned(void* pointer) noexcept {observe_free(pointer);if(pointer)std::free(static_cast<void**>(pointer)[-1]);}
+void* require(void* pointer) noexcept {if(!pointer)std::abort();return pointer;}
+}
+// Pair every allocation family: ASan's nothrow allocation must not be paired
+// accidentally with a replacement delete whose allocator is malloc/free.
+void* operator new(std::size_t n){return require(allocate(n));}
+void* operator new[](std::size_t n){return require(allocate(n));}
+void* operator new(std::size_t n,const std::nothrow_t&)noexcept{return allocate(n);}
+void* operator new[](std::size_t n,const std::nothrow_t&)noexcept{return allocate(n);}
+void* operator new(std::size_t n,std::align_val_t a){return require(allocate_aligned(n,a));}
+void* operator new[](std::size_t n,std::align_val_t a){return require(allocate_aligned(n,a));}
+void* operator new(std::size_t n,std::align_val_t a,const std::nothrow_t&)noexcept{return allocate_aligned(n,a);}
+void* operator new[](std::size_t n,std::align_val_t a,const std::nothrow_t&)noexcept{return allocate_aligned(n,a);}
+void operator delete(void* p)noexcept{release(p);}
+void operator delete[](void* p)noexcept{release(p);}
+void operator delete(void* p,std::size_t)noexcept{release(p);}
+void operator delete[](void* p,std::size_t)noexcept{release(p);}
+void operator delete(void* p,const std::nothrow_t&)noexcept{release(p);}
+void operator delete[](void* p,const std::nothrow_t&)noexcept{release(p);}
+void operator delete(void* p,std::align_val_t)noexcept{release_aligned(p);}
+void operator delete[](void* p,std::align_val_t)noexcept{release_aligned(p);}
+void operator delete(void* p,std::size_t,std::align_val_t)noexcept{release_aligned(p);}
+void operator delete[](void* p,std::size_t,std::align_val_t)noexcept{release_aligned(p);}
+void operator delete(void* p,std::align_val_t,const std::nothrow_t&)noexcept{release_aligned(p);}
+void operator delete[](void* p,std::align_val_t,const std::nothrow_t&)noexcept{release_aligned(p);}
 namespace {
 template<class T,class E> T take(std::expected<T,E> result) { check(bool(result)); if(!result) std::abort(); return std::move(*result); }
 Contour triangle(bool closed=true) {
@@ -120,6 +154,18 @@ double distance_to(Vec2 point,std::span<const ShapeCubic> original) {
 }
 int main(int argc,char** argv) {
     Suite suite{"hanim.library.morph"};
+    suite.test("allocation instrumentation pairs ordinary array nothrow and aligned families",[] {
+        const auto before=allocations.load();
+        ::operator delete(::operator new(1));::operator delete[](::operator new[](1));
+        ::operator delete(::operator new(1),std::size_t{1});::operator delete[](::operator new[](1),std::size_t{1});
+        ::operator delete(::operator new(1,std::nothrow),std::nothrow);::operator delete[](::operator new[](1,std::nothrow),std::nothrow);
+        constexpr auto align=std::align_val_t{64};auto* p=::operator new(1,align);
+        const bool aligned=reinterpret_cast<std::uintptr_t>(p)%64==0;::operator delete(p,align);
+        ::operator delete[](::operator new[](1,align),align);
+        ::operator delete(::operator new(1,align),std::size_t{1},align);::operator delete[](::operator new[](1,align),std::size_t{1},align);
+        ::operator delete(::operator new(1,align,std::nothrow),align,std::nothrow);::operator delete[](::operator new[](1,align,std::nothrow),align,std::nothrow);
+        check(aligned);check_eq(allocations.load()-before,std::size_t{12});
+    });
     suite.test("explicit ids match reordered input arrays while source parent-first sibling semantics survive",[] {
         Fixture f; auto plan=f.plan(); Buffer buffer(plan);
         check(plan.requirements().parts==2 && plan.requirements().contours==1 && plan.requirements().cubics>=4);

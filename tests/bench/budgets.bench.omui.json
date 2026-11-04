@@ -121,6 +121,10 @@
     {"name": "breakout/seek", "metric": "max_allocations", "max": 0,
      "why": "the timeline's snapshots and inputs are rings made when it starts: seeking allocates nothing"},
     {"name": "gongfu/present2d", "metric": "max_allocations", "max": 0,
-     "why": "D-85 §8.4: a picture is a pure function of the state, drawn by a Painter that reuses its poses and paths: nothing allocated each frame"}
+     "why": "D-85 §8.4: a picture is a pure function of the state, drawn by a Painter that reuses its poses and paths: nothing allocated each frame"},
+    {"name": "public-motion/shape-sample-500", "metric": "max_allocations", "max": 0,
+     "why": "the public prepared shape sampling contract: after setup, 500 objects times 32 cubics write caller-owned buffers with no heap allocation; the exact official release workload was measured at zero"},
+    {"name": "public-motion/paint-sample-record-500", "metric": "max_allocations", "max": 0,
+     "why": "the public prepared material sampling/recording contract: 500 sixteen-leaf sample calls plus 500 arena record calls reuse warmed caller storage with no heap allocation; the exact official release workload was measured at zero"}
   ]
 }

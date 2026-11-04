@@ -92,23 +92,47 @@ to be zero. It is neither a GPU benchmark nor a claim that 500 fully rendered
 objects fit a frame. These different workloads must not be summed as if they
 were measurements of one complete scene.
 
-### Budget proposal, awaiting measured limits
+### Verified allocation gates; latency limits pending
 
-Existing `budgets.bench.omui.json` limits remain unchanged. The new latency
-limits are deliberately pending release measurements on the named machine and
-CI runner; no guessed percentages or copied unrelated limits are enforceable
-budgets. The immediate design constraints and next acceptance step are:
+The existing `budgets.bench.omui.json` limits remain unchanged. Two new
+`max_allocations = 0` entries cover only the warmed shape sampling and material
+sampling/arena recording workloads. The official release run confirmed both
+at zero, including all measured iterations. Preparation and CPU drawing have
+no zero-allocation gate. New latency limits remain pending an explicit frame
+allocation and CI evidence; measured local speed alone does not define one.
+
+The first official run (2026-11-04, Intel Core i9-13900K, GCC 16.1.0,
+mcpp 2026.11.2.2, release, default three warm-ups and 400 ms target) measured:
+
+| Case | Timed iterations | p95 per iteration (ms) | Mean / maximum heap allocations |
+|---|---:|---:|---:|
+| `shape-prepare-star32` | 6,973 | 0.060143 | 8 / 8 |
+| `shape-sample-500` | 6,688 | 0.061022 | 0 / 0 |
+| `paint-prepare-16` | 100,000 | 0.000363 | 11 / 11 |
+| `paint-sample-record-500` | 2,049 | 0.197220 | 0 / 0 |
+| `draw-cpu-256` | 268 | 1.796332 | 1.0112 / 2 |
+
+The material preparation case reached the harness's 100,000-iteration cap
+before 400 ms. These are local CPU wall-clock observations, with no core
+pinning or physical GPU measurement. Re-running the sampling cases as part of
+`--filter motion/` also retained zero allocations. That substring selects both
+`public-motion/` and the five existing switch cases. Existing motion and
+`ui/frame` budgets passed without changing their limits; the two GPU switch
+cases used llvmpipe software Vulkan, so their existing `unless: software`
+hardware-time exclusions applied.
+
+The remaining acceptance work is:
 
 | Cases | Proposed gate / evidence needed before adding the active entry |
 |---|---|
-| `shape-sample-500`, `paint-sample-record-500` | `max_allocations = 0` for the warmed sampling/arena workload, as required by the public API and existing allocation CTS. Confirm the exact official benchmark workload is zero before adding these entries to the active budget file. |
+| `shape-sample-500`, `paint-sample-record-500` | Active `max_allocations = 0` gates cover the exact warmed official workloads above. Continue enforcing them in CI; no allocation claim extends to preparation or rendering. |
 | `shape-prepare-star32`, `paint-prepare-16` | Record `p95_ms`, `ns_per_item`, allocations and exact prepared/output counts. Preparation may allocate. Assign latency limits after measuring, against the first-transition CPU preparation work that must fit the chosen frame; do not gate preparation at zero allocations. |
 | `shape-sample-500`, `paint-sample-record-500` | Record per-batch p95 plus per-cubic/per-object cost, respectively. D-94's 120 Hz objective gives **8.33 ms for an entire frame**, not 8.33 ms for each stage. Allocate stage limits only after measuring the corresponding end-to-end workload and its remaining frame budget. |
 | `draw-cpu-256` | Record CPU p95/p99 and allocation counts as the reference-renderer workload. Choose an explicit preview/frame target and validate it on the named CPU before assigning a ceiling. Do not reuse hardware GPU limits for this case. |
 
-After the first official run, add only justified limits to
-`budgets.bench.omui.json`, retaining the report, machine/toolchain/profile,
-iteration configuration and reasoning beside the checkpoint. Physical GPU
+Add only justified further limits to `budgets.bench.omui.json`, retaining the
+report, machine/toolchain/profile, iteration configuration and reasoning
+beside the checkpoint. Physical GPU
 performance, GPU timestamps, larger object counts, pixel-domain morphs and the
 complete Engine are separate acceptance work. Software GPU correctness/LSAN
 results are not performance evidence for those items.

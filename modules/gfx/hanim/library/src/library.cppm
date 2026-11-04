@@ -1,0 +1,98 @@
+// Public object animation recipes: prepared once, sampled without an event loop.
+export module hanim.library;
+
+import std;
+export import hanim.object;
+
+namespace hanim::detail { struct ObjectMorphData; }
+
+export namespace hanim {
+
+struct MorphOptions {
+    std::size_t max_parts = 4096, max_contours = 4096, max_cubics = 65536;
+    ShapeMorphOptions shape;
+};
+enum class MorphError : std::uint8_t {
+    unprepared, invalid_snapshot, invalid_frame, invalid_options,
+    part_budget, contour_budget, cubic_budget, part_set_mismatch,
+    hierarchy_mismatch, ordering_mismatch, contour_count_mismatch,
+    missing_fill, open_contour, unsupported_topology, shape_failure, invalid_progress,
+    output_too_small, nonfinite_transform
+};
+[[nodiscard]] std::string_view morph_error_name(MorphError error) noexcept;
+struct MorphFailure {
+    MorphError code = MorphError::unprepared;
+    std::size_t part = std::numeric_limits<std::size_t>::max();
+    std::size_t contour = std::numeric_limits<std::size_t>::max();
+    std::optional<ShapeMorphError> shape;
+};
+struct MorphPartInfo {
+    std::string_view id;
+    PartRef from_ref, to_ref;
+    std::uint32_t parent = invalid_object_slot;
+    std::size_t first_contour = 0, contour_count = 0;
+};
+struct MorphContourInfo {
+    std::uint32_t part = 0;
+    std::size_t ordinal = 0, first_cubic = 0, cubic_count = 0;
+};
+struct FramePart {
+    MorphPartInfo info;
+    Transform2D local;
+    std::optional<Rgba> fill;
+};
+struct FrameBuffer {
+    std::span<FramePart> parts;
+    std::span<ShapeCubic> cubics;
+};
+// parts/cubics borrow the caller buffer; contours and ids borrow a retained,
+// unmoved plan (or its O(1) copy). A FrameView itself is not a lifetime lease.
+struct FrameView {
+    std::span<const FramePart> parts;
+    std::span<const MorphContourInfo> contours;
+    std::span<const ShapeCubic> cubics;
+    double progress = 0;
+    ObjectRef source_object;
+    std::uint64_t source_revision = 0;
+    const void* preparation = nullptr; // opaque process-local witness, never an Agent/serialized id
+};
+struct FrameRequirements { std::size_t parts = 0, contours = 0, cubics = 0; };
+
+class PreparedObjectMorph {
+public:
+    PreparedObjectMorph() noexcept = default;
+    [[nodiscard]] static std::expected<PreparedObjectMorph, MorphFailure>
+        prepare(Snapshot from, Snapshot to, MorphOptions options = {});
+    // Deep-copy the current pose into the new preparation. No registry writes
+    // or old plan/frame/snapshot chain is retained. current must remain valid
+    // and unchanged throughout this call. Its logical from_ref is preserved.
+    [[nodiscard]] static std::expected<PreparedObjectMorph, MorphFailure>
+        retarget(FrameView current, Snapshot to, MorphOptions options = {});
+    [[nodiscard]] explicit operator bool() const noexcept { return bool(data_); }
+    [[nodiscard]] FrameRequirements requirements() const noexcept;
+    [[nodiscard]] std::span<const MorphPartInfo> parts() const & noexcept;
+    std::span<const MorphPartInfo> parts() const && = delete;
+    [[nodiscard]] std::span<const MorphContourInfo> contours() const & noexcept;
+    std::span<const MorphContourInfo> contours() const && = delete;
+    [[nodiscard]] const Snapshot& from() const & noexcept { return from_; }
+    const Snapshot& from() const && = delete;
+    [[nodiscard]] const Snapshot& to() const & noexcept { return to_; }
+    const Snapshot& to() const && = delete;
+    [[nodiscard]] ObjectRef source_object() const noexcept { return data_ ? source_ : ObjectRef{}; }
+    [[nodiscard]] std::uint64_t source_revision() const noexcept { return data_ ? revision_ : 0; }
+    [[nodiscard]] const void* identity() const noexcept { return data_.get(); }
+    // Finite progress clamps uniformly to [0,1]. All returned failures occur
+    // before touching output. No matching/allocation/mutable sampling cache.
+    [[nodiscard]] std::expected<FrameView, MorphFailure> sample(double progress, FrameBuffer output) const noexcept;
+private:
+    Snapshot from_, to_;
+    ObjectRef source_;
+    std::uint64_t revision_ = 0;
+    std::shared_ptr<const detail::ObjectMorphData> data_;
+};
+
+namespace anim {
+struct MorphTo { ObjectRef target; MorphOptions options; };
+[[nodiscard]] constexpr MorphTo morph_to(ObjectRef target, MorphOptions options = {}) noexcept { return {target, options}; }
+}
+} // namespace hanim

@@ -7,6 +7,7 @@ layer, using only the standard library and `openmui.math`.
 
 | Package | Responsibility |
 |---|---|
+| [hanim.library](library) | Strict public named-part contour morph plans, caller-owned frames and deep C0 retarget preparation |
 | [hanim.object](object) | Generational object/part identities and owned immutable captures of hierarchical 2D parts, actual contours and solid fills |
 
 This directory is currently a grouping, not the public `hanim` umbrella.

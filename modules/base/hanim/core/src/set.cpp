@@ -1,4 +1,4 @@
-module hanim;
+module hanim.core;
 
 import std;
 

@@ -10,7 +10,7 @@
 // interpolation people expect: colours travel through OKLab (perceptually even,
 // no muddy midpoints) with premultiplied alpha, transforms through their
 // decomposed parts (no shearing midway through a rotation).
-export module hanim:value;
+export module hanim.core:value;
 
 import std;
 import :math;

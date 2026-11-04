@@ -3,7 +3,7 @@
 // same hash is required on every platform and toolchain the CI runs; a change
 // of it is a change of animation results and needs a spec decision.
 import std;
-import hanim;
+import hanim.core;
 import openmui.testing;
 
 using namespace omui::testing;

@@ -3,7 +3,7 @@
 // Animating "progress along a path" from 0 to 1 should move at the speed the
 // ease says, not faster on long control-point spans; so the path is sampled
 // into an arc-length table once, and a position is looked up by length.
-export module hanim:path;
+export module hanim.core:path;
 
 import std;
 import :math;

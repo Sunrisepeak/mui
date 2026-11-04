@@ -1,5 +1,5 @@
 // hanim:shape — prepared, renderer-independent closed contour interpolation.
-export module hanim:shape;
+export module hanim.core:shape;
 
 import std;
 import :value;

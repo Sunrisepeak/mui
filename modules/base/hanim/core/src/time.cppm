@@ -10,7 +10,7 @@
 //   render       a video frame number over a frame rate: frame n is at n/fps,
 //                computed exactly, so frame 1234 is the same instant whether
 //                it is rendered first, last, or alone
-export module hanim:time;
+export module hanim.core:time;
 
 import std;
 

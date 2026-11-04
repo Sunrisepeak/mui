@@ -11,7 +11,7 @@
 // Nothing here integrates step by step. A value at time t is computed from t
 // and the parameters alone, which is what makes a video frame renderable in
 // any order, a game rewindable, and a test reproducible bit for bit.
-export module hanim:motion;
+export module hanim.core:motion;
 
 import std;
 import :math;

@@ -9,7 +9,7 @@
 // timeline does not know what it animates. The consumer — openmui's view
 // layer, a video composition, a game — receives (target, value) pairs and
 // decides what they mean, which is what keeps this package free of UI.
-export module hanim:timeline;
+export module hanim.core:timeline;
 
 import std;
 import :math;

@@ -2,7 +2,7 @@
 // satisfy their equations, settle exactly, carry velocity across interruption,
 // and give the same value however a time is reached.
 import std;
-import hanim;
+import hanim.core;
 import openmui.testing;
 
 using namespace omui::testing;

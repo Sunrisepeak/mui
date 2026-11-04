@@ -5,7 +5,7 @@
 // "out_cubic" or "cubic-bezier(0.2, 0, 0, 1)", and evaluates the same way on
 // every platform. Every curve maps [0, 1] to a value that is 0 at 0 and 1 at 1
 // (back and elastic overshoot in between).
-export module hanim:ease;
+export module hanim.core:ease;
 
 import std;
 

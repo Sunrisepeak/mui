@@ -2,7 +2,7 @@
 // references, exact on the special values, and pinned bit for bit by a hash that
 // every platform must reproduce.
 import std;
-import hanim;
+import hanim.core;
 import openmui.testing;
 
 using namespace omui::testing;

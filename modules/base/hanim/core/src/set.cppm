@@ -8,7 +8,7 @@
 // Unlike `Motion`, a channel keeps only its current motion: retargeting
 // replaces it (continuing position and velocity). That is what an interactive
 // UI needs; video and games, which seek backwards, use `Motion` or timelines.
-export module hanim:set;
+export module hanim.core:set;
 
 import std;
 import :math;

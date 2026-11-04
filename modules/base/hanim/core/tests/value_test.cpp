@@ -1,5 +1,5 @@
 import std;
-import hanim;
+import hanim.core;
 import openmui.testing;
 
 using namespace omui::testing;

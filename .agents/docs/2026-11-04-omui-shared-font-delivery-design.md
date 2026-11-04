@@ -73,3 +73,15 @@ URL `@font-face` 保留在 noscript 中，禁用 JavaScript 的正文仍用自�
 两个本轮样本的七项预算均通过。cache enabled 的首帧代理 1812.8ms、ready 1777.0ms；disabled 为 1772.6／1739.4ms；两者 rAF p95 16.8ms、1 个长间隔、0 runtime 异常，JS heap 10.0MB／wasm 23.6MB。源样本在停止构建及其他测试浏览器后单独测量；单样本不构成稳定速度变化结论，代理仍不是 FCP／LCP，rAF 不是实际呈现帧成本。
 
 当前总量只余 **31,442 B**，完整按页字体／输入字体及重程序拆分仍是下一优先事项。真实 Inter 初始 face 压缩正文的 CDP 字节本身约 201KB，包含字体就绪的静态批次尚未达到 150KB 目标；不能用较早的 fallback 首次绘制或 cache 命中替代。共享下载完成不等于 W8／C2 完成。
+
+## 7. 后续集成回归与派生字体优化
+
+上节数字归属当时的共享下载检查点。后续真实几何／材质、输入和实例策略整合至 `77979b5` 后，重新打包的冷访问为 **5,067,540 B**，超出原 5 MB 上限；没有沿用旧通过结论或提高门槛。
+
+本轮只对派生交付字体调用公开 `compact_font_post`，将 Inter full／initial 与 Mono 的 post 字形名称移除，保留 [OpenType post 规范](https://learn.microsoft.com/en-us/typography/opentype/spec/post) 中的其它 28 字节头字段。实际消费者用 cmap／glyph ID、name family／style 与 shaping，不依赖 glyph names。源字体和许可证未写；非 post 表的 payload 和物理顺序保留，head 的 checkSumAdjustment 与目录／整字体 checksum 重算。已有 post 3／缺 post 输入逐字节幂等；目录越界／重叠／重复、checksum／post 损坏、未知版本及改动真实签名字体均明确拒绝；空 DSIG 保留。此检查不是全部字体结构有效性的证明。
+
+真实 packer CTS 先在旧实现失败 13 条断言（post 未移除 6、坏输入未拒绝 7），其余 metadata／shaping／像素 oracle 已通过；实现后另加签名输入，共 8 种坏输入拒绝。生成器在 dev、release、LLVM ASan／UBSan 各 **5 程序、32 组通过**，真实生成 HTML 的 Node loader **135 项通过**。实际打包的两种 Inter 和 Mono 共减少 **77,672 原始字节、35,905 gzip 字节**；不是修改字体覆盖或删除产品能力。
+
+优化后的正式 mcpp pack 为 `3441fbd`，原始 packed HTML SHA-256 `02256a78b1eba34c31915db443df3eb43335df2225dee8a710f5ee3c3e5a860c`，wasm 与上一构件逐字节相同。已重新导出 56 张开场与 8 张整帧参考，用已验证且未变化的 native 程序 SHA-256 `6fdb78a59bf6f152606c811f886baaaa2b846156aef123ec5844a715f11dac73` prerender／生成 Agent guide，然后再启动浏览器；一次未完成 prerender 就启动的检查已中止／作废，不计入通过。最终 `target/site-font-post-verified-{fonts,font-sharing,loading}.report.omui.json` 分别 **19／146／88 项通过**，含全部 59 帧与 native 像素逐帧相同及中文语言按钮在 full 字体到达前后的相同字形。
+
+新独立 20 Mbit/s、40 ms、新 profile 冷访问的总传输为 **5,031,634 B**，相对整合回归减少 35,906 B（含 HTML 的 1 B 差异），**仍超原预算 31,634 B**；访问内 cache enabled／disabled 实测总量相同，均仅失败总传输这一项，保留原门槛；不能拿 gzip 文件求和代替网络结果。首帧代理不是 FCP／LCP，rAF 不是实际呈现成本；本轮单样本时间不构成稳定提速结论。报告 `target/site-font-post-perf*.report.omui.json` 与逐请求日志保留。按页交付／重页面拆分、静态就绪批次和完整输入字体仍开放，W8／C2 未关闭。

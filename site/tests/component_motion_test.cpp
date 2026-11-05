@@ -30,7 +30,14 @@ struct Run {
         return state && state->channels!=PresentationChannel::none && state->applied && !state->error;
     }
     void details() {act("transport/buttons/details");for(int i=0;i<4;++i)step();}
-    void seek(double progress) {act("transport/seek","set_value",Value{}.set("value",progress));step();}
+    void seek(double progress) {
+        // Setting an unchanged slider value is intentionally not a transport
+        // command. Endpoints use their explicit actions, which always pause.
+        if(progress==0)act("transport/buttons/state-a");
+        else if(progress==1)act("transport/buttons/state-b");
+        else act("transport/seek","set_value",Value{}.set("value",progress));
+        step();
+    }
     std::uint64_t pixels() {
         const auto area=h.runtime().drawn_bounds(node("stage"));const auto& pixels=h.pixels();Hash hash;
         const int x0=std::clamp(static_cast<int>(area.x),0,pixels.width()),x1=std::clamp(static_cast<int>(area.right()),x0,pixels.width());
@@ -109,6 +116,39 @@ int main(int argc,char** argv) {
         r.act("stage/scene/composition/card/actions/save");
         check(r.h.tree().node(r.path("stage/scene/composition/card/actions/saved"))->name.find('2')!=std::string::npos);
         check(r.h.save_png(media()/"real-note-and-receipt.png").has_value());
+    });
+    suite.test("public image scopes combine with component motion and local style without changing note data",[] {
+        Run r;r.details();r.act("stage/scene/composition/card/editor","set_value",Value{}.set("value","Keep the same idea"));
+        r.step(1); // Let the real text-edit feedback finish before replaying a different animation.
+        r.seek(1);const auto ordinary_end=r.pixels();r.seek(0);const auto ordinary=r.pixels();
+        Value::List samples;
+        for(const auto effect:{"blur","tone","pixel","layered"}) {
+            r.act("details/effect","set_value",Value{}.set("value",effect));
+            std::vector<std::uint64_t> frames;
+            for(int i=0;i<=60;++i) {
+                r.seek(i/60.);check(r.bound());frames.push_back(r.pixels());
+                const auto state=r.h.runtime().presentation(r.node("stage/scene/composition/card"));
+                check(state && state->image_effects==(std::string_view(effect)=="layered"?2:1));
+                check(r.h.save_png(media()/std::format("effect-{}-{:03}.png",effect,i),r.h.runtime().drawn_bounds(r.node("stage"))).has_value());
+                const auto position=r.h.tree().node(r.path("transport/seek"))->value.get("value")->as_double();
+                samples.push_back(Value{}.set("effect",effect).set("frame",i).set("requested_progress",i/60.)
+                    .set("sampled_progress",position).set("host_time",r.h.runtime().now().count()));
+            }
+            check(frames.front()==ordinary,std::string(effect)+": the source image is an exact identity, with no extra clipping");
+            check(frames.back()!=ordinary_end,std::string(effect)+": the effect changes actual pixels at the same final pose");
+            check(frames.front()!=frames[30] && frames[30]!=frames.back());
+            for(int i=60;i>=0;--i){r.seek(i/60.);check(r.pixels()==frames[static_cast<std::size_t>(i)],std::format("{} frame {} replays backwards",effect,i));}
+            r.act("details/copy");check(r.h.runtime().clipboard_text()==site::component_motion_source("together",true,1,effect));
+            check(r.h.runtime().clipboard_text().find("hanim::composite")!=std::string::npos);
+        }
+        std::ofstream(media()/"effects.report.omui.json")<<Value{}.set("backend","cpu").set("scale",1).set("samples",Value(std::move(samples))).json();
+        r.act("details/style","set_value",Value{}.set("value","retro"));r.seek(.5);
+        check(r.h.tree().node(r.path("stage/scene/composition/card/editor"))->value.as_string()=="Keep the same idea");
+        r.act("stage/scene/composition/card/actions/save");
+        const auto note=parse_json(r.h.runtime().clipboard_text());check(note && note->get("title")->as_string()=="Keep the same idea");
+        check(r.h.save_png(media()/"effect-style-live-note.png").has_value());
+        r.act("details/effect","set_value",Value{}.set("value","none"));r.seek(.5);
+        check(r.h.runtime().presentation(r.node("stage/scene/composition/card"))->image_effects==0);
     });
     suite.test("a first pointer press takes over a moving component in the same input frame",[] {
         Run r;r.details();r.seek(.25);r.act("transport/buttons/play");r.step(.1);

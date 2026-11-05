@@ -730,9 +730,12 @@ void register_builtins(EffectRegistry& r) {
     r.add(local({"chromatic", "Red and blue drift apart from green, as through a cheap lens.",
            {{"offset", 2, 0, 100, "distance in logical pixels"}, {"angle", 0, -360, 360, "direction in degrees"}},
            [](std::span<const float> p) { return std::abs(p[0]); }, chromatic, pixel(fx::chromatic::chromatic_fs, derive_chromatic)}));
-    r.add({"blur", "A Gaussian-like blur (three box passes each way).",
+    EffectInfo gaussian{"blur", "A Gaussian-like blur (three box passes each way).",
            {{"radius", 4, 0, 200, "radius in logical pixels"}}, [](std::span<const float> p) { return std::abs(p[0]); }, blur,
-           {EffectPass::blur, nullptr, derive_blur, nullptr}});
+           {EffectPass::blur, nullptr, derive_blur, nullptr}};
+    gaussian.identity=[](std::span<const float> p){return p[0]==0;};
+    gaussian.preserves_hit_geometry=true;
+    r.add(std::move(gaussian));
     EffectInfo blocks{"pixelate", "Layer-anchored square blocks of premultiplied average colour, mixed with the source.",
            {{"size", 6, 1, 256, "block size in the selected unit"},
             {"amount", 1, 0, 1, "strength quantized to 1/255; exactly zero bypasses the filter"},
@@ -741,6 +744,7 @@ void register_builtins(EffectRegistry& r) {
             {"origin_y", 0, -65536, 65536, "grid offset from the layer's top in the selected unit"}},
            no_reach, pixelate, {EffectPass::pixelate, nullptr, derive_pixelate, nullptr}};
     blocks.identity = pixelate_identity;
+    blocks.preserves_hit_geometry=true;
     blocks.input_radius = pixelate_input_radius;
     r.add(std::move(blocks));
     r.add({"particles", "The layer bursts into square particles that fly, fall and fade as progress goes from 0 to 1 "
@@ -835,12 +839,15 @@ void register_builtins(EffectRegistry& r) {
         glass.output_reach = [](std::span<const float> p) { return std::abs(p[10]); };
         r.add(std::move(glass));
     }
-    r.add(local({"tone", "The layer in one colour: each pixel's brightness kept, its hue the tint's (a world grey while time stands still).",
+    auto tinted=local({"tone", "The layer in one colour: each pixel's brightness kept, its hue the tint's (a world grey while time stands still).",
            {{"color_r", 0.79f, 0, 1, "the tint, red"},
             {"color_g", 0.76f, 0, 1, "green"},
             {"color_b", 0.71f, 0, 1, "blue"},
             {"amount", 1, 0, 1, "how far toward the tint (0: as it is)"}},
-           no_reach, tone, pixel(fx::tone::tone_fs)}));
+           no_reach, tone, pixel(fx::tone::tone_fs)});
+    tinted.identity=[](std::span<const float> p){return p[3]==0;};
+    tinted.preserves_hit_geometry=true;
+    r.add(std::move(tinted));
 
     // Where each runs (performance tiers §1: bit t is T<t>) and what stands in for it below: the cheap row-local ones
     // from embedded Linux up; what lights, bursts or reads the backdrop (glass: below, its panel drawn solid) from the Web up;

@@ -210,6 +210,7 @@ private:
 }  // namespace
 
 struct GpuRenderer::Impl {
+    LayerBoundsMap layer_bounds;
     mlibs::rhi::Device&          d;
     mlibs::rhi::GraphicsPipeline pipeline, blend_pipeline;
     mlibs::rhi::GraphicsPipeline lit_pipeline;  // ui_lit_fs: images lit by a material
@@ -714,6 +715,7 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
     if (auto a = g.ensure_atlas(); !a) return std::unexpected(a.error());
     mlibs::rhi::Error failure{};
     bool failed = false;
+    bool bounds_measured=false;
     auto fail = [&](const mlibs::rhi::Error& e) {
         if (!failed) failure = e, failed = true;
     };
@@ -1116,7 +1118,15 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
             const float scale = transforms.front().max_scale();
             const float reach = std::ceil(effects().reach(push.effect, params) * scale) + 1;
             const float viewport_reach = info->input_radius ? std::max(reach, std::ceil(info->input_radius(params, scale))) : reach;
-            const Rect layer = m().map(push.bounds);
+            Rect layer=m().map(push.bounds);
+            if(push.bounds_mode==LayerBoundsMode::content) {
+                if(!bounds_measured){(void)g.layer_bounds.measure(dl,Affine::scale(options.scale,options.scale),options.scale,res);bounds_measured=true;}
+                const auto* measured=g.layer_bounds.at(index);
+                if(!measured){++report.effects_skipped;return false;}
+                Point origin;
+                for(const auto& parent:open)if(parent.effect){origin.x+=parent.device.x;origin.y+=parent.device.y;}
+                layer=measured->area.offset({-origin.x,-origin.y});
+            }
             const Rect screen{-viewport_reach, -viewport_reach, static_cast<float>(here().w) + 2 * viewport_reach, static_cast<float>(here().h) + 2 * viewport_reach};
             const Rect wanted = Rect{layer.x - reach, layer.y - reach, layer.width + 2 * reach, layer.height + 2 * reach}.intersection(screen);
             if (wanted.empty()) {  // nothing of it on the surface

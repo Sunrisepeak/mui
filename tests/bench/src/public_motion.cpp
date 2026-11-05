@@ -3,6 +3,7 @@ import std;
 import hanim.core;
 import hanim.object;
 import hanim.engine;
+import hanim.render.vector;
 import openmui.geom;
 import openmui.raster;
 import openmui.render.vector;
@@ -76,6 +77,21 @@ std::expected<render::RecordedPath, render::PathRecordError> record_shape(
 
 void add_public_motion_benchmarks() {
     static bool added = false; if (added) return; added = true;
+    add("public-motion/image-bindings-resolve-64", "64 ordered public image-effect bindings resolve caller-owned samples; no renderer execution", [](State& s) {
+        hanim::Effects effects;effects.reserve(64);
+        for(int i=0;i<64;++i)effects.push_back(i%2?hanim::fx::blur(0,2):hanim::EffectSpec{"tone",{{"amount",0,.2f}}});
+        const auto plan=hanim::PreparedEffects::prepare(effects);
+        if(!plan){s.fail("effect preparation failed");return;}
+        const auto bindings=hanim::vector_render::PreparedImageEffects::bind(*plan);
+        if(!bindings){s.fail("renderer schema binding failed");return;}
+        std::vector<float> sampled(plan->parameter_count()),resolved(bindings->parameter_count());
+        s.items(64);cpu_note(s,"64 effect sample blocks and renderer default/range/generation resolution into preallocated output; no geometry, renderer execution or GPU timing.");
+        while(s.next()) {
+            const double progress=static_cast<double>(s.iteration()%61)/60;
+            if(!plan->sample(progress,sampled) || !bindings->resolve(sampled,resolved)){s.fail("sample/binding failed");return;}
+            s.counter("backend_parameters",static_cast<double>(resolved.size()));
+        }
+    });
     auto program_seek=[](State& s,bool scoped) {
         const ShapeFixture input;
         auto triangle = hanim::Contour::copy({{0,-1},input.triangle}), circle = hanim::Contour::copy({{0,-1},input.circle});

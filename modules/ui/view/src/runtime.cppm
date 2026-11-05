@@ -224,7 +224,7 @@ inline constexpr std::size_t history_limit = 200;
 // An explicitly selected local presentation layer, independent of business
 // layout and style values. All drawable kinds and descendants use the same
 // layer; ordinary component state feedback remains live beneath it.
-enum class PresentationChannel : std::uint8_t { none=0, translation=1, rotation=2, scale=4, shear=8, transform=15 };
+enum class PresentationChannel : std::uint8_t { none=0, translation=1, rotation=2, scale=4, shear=8, transform=15, image=16 };
 [[nodiscard]] constexpr PresentationChannel operator|(PresentationChannel a,PresentationChannel b) noexcept {
     return static_cast<PresentationChannel>(static_cast<unsigned>(a)|static_cast<unsigned>(b));
 }
@@ -233,7 +233,7 @@ struct PresentationTarget {
     PresentationChannel channels=PresentationChannel::transform;
     geom::Point anchor{.5f,.5f};
 };
-enum class PresentationError : std::uint8_t { invalid_node,invalid_configuration,occupied,busy,stale,invalid_pose,capacity,unsupported_frame };
+enum class PresentationError : std::uint8_t { invalid_node,invalid_configuration,occupied,busy,stale,invalid_pose,capacity,unsupported_frame,invalid_effect,stale_effect };
 [[nodiscard]] constexpr std::string_view presentation_error_name(PresentationError error) noexcept {
     switch(error) {
         case PresentationError::invalid_node:return "invalid-node";
@@ -244,6 +244,8 @@ enum class PresentationError : std::uint8_t { invalid_node,invalid_configuration
         case PresentationError::invalid_pose:return "invalid-pose";
         case PresentationError::capacity:return "capacity";
         case PresentationError::unsupported_frame:return "unsupported-frame";
+        case PresentationError::invalid_effect:return "invalid-effect";
+        case PresentationError::stale_effect:return "stale-effect";
     }return "unknown";
 }
 struct PresentationFailure { PresentationError code; std::size_t target=0; };
@@ -254,7 +256,15 @@ struct PresentationState {
     PresentationChannel channels=PresentationChannel::none;
     bool has_frame=false, applied=false;
     std::optional<PresentationError> error;
+    std::size_t image_effects=0,image_parameters=0;
 };
+struct PresentationImageLayer {
+    render::EffectRef effect;
+    std::uint64_t generation=0;
+    std::span<const float> parameters;
+};
+struct PresentationEffects {std::span<const PresentationImageLayer> layers;};
+inline constexpr std::size_t presentation_max_image_layers=64,presentation_max_image_parameters=4096;
 class PresentationLease {
 public:
     PresentationLease() noexcept = default;
@@ -268,7 +278,13 @@ public:
     std::span<const PresentationTarget> targets() const && = delete;
     // All selected fields publish together. No time, playback or callback is
     // owned here. Unselected fields belong to their other declared writers.
-    [[nodiscard]] std::expected<void,PresentationFailure> publish(std::span<const hanim::Transform2D>);
+    // Cold reservation for a selected node's image channel; existing values
+    // remain live. Capacity is bounded and shared with this lease's lifetime.
+    [[nodiscard]] std::expected<void,PresentationFailure> reserve_effects(std::size_t target,std::size_t layers,std::size_t parameters);
+    void release_effects(std::size_t target) noexcept;
+    // An empty effects span leaves image channels alone. Otherwise it has
+    // one entry per target, and poses plus image chains publish atomically.
+    [[nodiscard]] std::expected<void,PresentationFailure> publish(std::span<const hanim::Transform2D>,std::span<const PresentationEffects> = {});
     void release() noexcept;
 private:
     friend class Runtime;
@@ -660,7 +676,9 @@ public:
 private:
     friend class PresentationLease;
     [[nodiscard]] bool owns_presentation(const PresentationLease&) const noexcept;
-    [[nodiscard]] std::expected<void,PresentationFailure> publish_presentation(const PresentationLease&,std::span<const hanim::Transform2D>);
+    [[nodiscard]] std::expected<void,PresentationFailure> reserve_presentation_effects(PresentationLease&,std::size_t,std::size_t,std::size_t);
+    void release_presentation_effects(PresentationLease&,std::size_t) noexcept;
+    [[nodiscard]] std::expected<void,PresentationFailure> publish_presentation(const PresentationLease&,std::span<const hanim::Transform2D>,std::span<const PresentationEffects>);
     void release_presentation(const PresentationLease&) noexcept;
     std::unique_ptr<Impl> impl_;
 };

@@ -116,6 +116,45 @@ std::unique_ptr<rhi::Device> open_device() {
 
 int main(int argc, char** argv) {
     Suite s{"render.effect_output_bounds"};
+    s.test("nested content scopes and scaled objects agree on actual CPU and GPU filter sizes", [] {
+        auto device=open_device();if(!device)return;
+        auto gpu=render::GpuRenderer::create(*device);check(gpu.has_value());if(!gpu)return;
+        const auto blur=*render::effects().find("blur");
+        for(float dpi:{1.f,2.f}) {
+            const auto w=static_cast<std::uint32_t>(W*dpi),h=static_cast<std::uint32_t>(H*dpi);
+            auto texture=device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm,w,h,
+                rhi::TextureUsage::color_target|rhi::TextureUsage::sampled,"test.content_scopes"});
+            check(texture.has_value());if(!texture)return;
+            std::array<std::vector<std::byte>,3> images;
+            for(int variant=0;variant<3;++variant) {
+                render::DisplayList list;
+                if(variant!=2)list.push_transform(geom::Affine::translate(20,20)*geom::Affine::scale(2,2));
+                for(float radius:{2.f,3.f}) {
+                    const auto values=render::effects().params(blur,std::array{std::pair<std::string_view,float>{"radius",radius}});
+                    const auto box=variant==0?geom::Rect{}:variant==1?geom::Rect{0,0,30,30}:geom::Rect{20,20,60,60};
+                    list.push_layer(1,render::BlendMode::normal,blur,values,box,{},
+                        variant==0?render::LayerBoundsMode::content:render::LayerBoundsMode::declared);
+                }
+                list.fill_rect(variant==2?geom::Rect{30,30,20,20}:geom::Rect{5,5,10,10},geom::Color::white());
+                list.pop_layer();list.pop_layer();if(variant!=2)list.pop_transform();
+                const auto report=gpu->render(list,*texture,{}, {.scale=dpi});check(report && report->effects_skipped==0);
+                if(!report)return;
+                const auto bytes=device->read(*texture,{0,0,w,h});check(bytes.has_value());if(!bytes)return;
+                images[static_cast<std::size_t>(variant)].assign(bytes->begin(),bytes->end());
+                raster::Surface reference(static_cast<int>(w),static_cast<int>(h));render::CpuRenderer cpu;
+                const auto cpu_report=cpu.render(list,reference,{}, {.scale=dpi});check(cpu_report.effects_skipped==0);
+                const auto expected=std::as_bytes(reference.pixels());int worst=0;
+                for(std::size_t i=0;i<expected.size();++i)worst=std::max(worst,std::abs(std::to_integer<int>(expected[i])-std::to_integer<int>((*bytes)[i])));
+                check(worst<=2,std::format("DPI {} variant {}: two nested filter roundings differ by at most two levels, got {}",dpi,variant,worst));
+            }
+            for(std::size_t variant=1;variant<3;++variant) {
+                int worst=0;for(std::size_t i=0;i<images[0].size();++i)
+                    worst=std::max(worst,std::abs(std::to_integer<int>(images[0][i])-std::to_integer<int>(images[variant][i])));
+                check(worst<=2,"GPU automatic, declared and flattened captures describe the same picture");
+            }
+            device->destroy(*texture);
+        }
+    });
     s.test("real GPU glass preserves source outside output bounds with single and smooth grouped shapes", [] {
         auto device = open_device();
         if (!device) return;

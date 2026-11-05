@@ -105,6 +105,8 @@ Matter Matter::extract(const render::DisplayList& source, std::size_t begin, std
     m.list_.reserve(end - begin);
     for (std::size_t i = begin; i < end; ++i) m.list_.append_command(all[i]);
     const auto c = m.list_.commands();
+    render::LayerBoundsMap content_bounds;
+    bool measured_content=false,valid_content=false;
 
     // The node index of a marker (its keys asked for once).
     std::vector<std::array<std::uint32_t, static_cast<std::size_t>(PieceClass::count_)>> counts;
@@ -215,6 +217,14 @@ Matter Matter::extract(const render::DisplayList& source, std::size_t begin, std
                     continue;
                 }
                 add(PieceClass::group, i, j + 1, l->bounds, 0);
+                if(l->bounds_mode==render::LayerBoundsMode::content) {
+                    // Matching needs an allocation envelope even when the
+                    // caller deliberately supplied no rectangle. Reuse the
+                    // renderer's conservative glyph fallback here; actual
+                    // capture measures with the renderer's live GlyphSource.
+                    if(!measured_content){valid_content=content_bounds.measure(m.list_,{},1);measured_content=true;}
+                    if(valid_content)if(const auto* extent=content_bounds.at(i))m.pieces_.back().bounds=extent->area;
+                }
                 i = j;
                 continue;
             }

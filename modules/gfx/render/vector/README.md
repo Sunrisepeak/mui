@@ -7,6 +7,31 @@ CPU/GPU paths reach rasterization without allocating or copying a second command
 array; validation uses the same geometry contract as Hanim's path capture.
 Renderer-specific recording, arena ownership and drawing remain here.
 
+**Content-sized image scopes.** The optional final `push_layer` argument
+`LayerBoundsMode::content` unions actual source commands with the declared
+rectangle/shapes. `LayerBoundsMap` measures transforms, clips, actual glyph masks
+and nested output reach once in device coordinates; CPU, GPU and damage share
+this implementation. Clipping outside a scope applies when composing its result,
+while clips inside it constrain captured content. Reuse the map between calls,
+check `measure` before reading entries, and use `at(push_command)` for checked
+lookup. Unbalanced/nonfinite input does not publish a valid lookup. Existing
+declared-mode hashes and recording remain compatible; new mode survives copies
+and morph snapshots. Trace spans use `render.effects`.
+
+The explicit `CpuOptions::effect_scale` is a finite positive output scale for
+filter parameters, separate from geometric transforms. Offscreen recursion
+preserves it; node scale must not multiply the output DPI again. When omitted,
+the initial transform's scale retains the existing public behavior. Content
+measurement is not a GPU throughput claim or a replacement for raster timing.
+
+`EffectInfo::preserves_hit_geometry` lets an optional interactive consumer require
+a provider to preserve source control identity/location. It defaults to unknown
+(`false`); blur, tone and pixelate declare it. This is independent of renderer
+availability and does not restrict standalone rendering. Spatial deformation
+needs a separate input-mapping contract. Registry changes must occur at quiescent
+boundaries. Blur radius zero and tone amount zero now declare exact filter
+identity, retaining the ordinary layer's opacity/blending semantics.
+
 **Prepared geometry and materials.** `DisplayList::record_path` writes geometry
 directly into the caller's arena; its checked recording can feed a fill and
 stroke without copying the path. A cleared, moved or foreign list invalidates

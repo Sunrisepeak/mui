@@ -251,8 +251,9 @@ struct EffectShape {
     Rect        rect;
     CornerRadii radii;
 };
+enum class LayerBoundsMode : std::uint8_t { declared, content };
 struct PushLayer     { float opacity; BlendMode blend; EffectRef effect; std::span<const float> params; Rect bounds;
-                       std::span<const EffectShape> shapes = {}; };
+                       std::span<const EffectShape> shapes = {}; LayerBoundsMode bounds_mode = LayerBoundsMode::declared; };
 struct PopLayer      {};
 struct ExternalTexture { std::uint64_t texture; Rect dest; float opacity; };
 struct BeginNode     { std::uint32_t node; };
@@ -358,7 +359,8 @@ public:
     void push_transform(const Affine& m);
     void pop_transform();
     void push_layer(float opacity, BlendMode blend = BlendMode::normal, EffectRef effect = {},
-                    std::span<const float> params = {}, Rect bounds = {}, std::span<const EffectShape> shapes = {});
+                    std::span<const float> params = {}, Rect bounds = {}, std::span<const EffectShape> shapes = {},
+                    LayerBoundsMode bounds_mode = LayerBoundsMode::declared);
     void pop_layer();
     void external_texture(std::uint64_t texture, const Rect& dest, float opacity = 1);
     void begin_node(std::uint32_t node);

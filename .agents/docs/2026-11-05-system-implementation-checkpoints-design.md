@@ -999,3 +999,48 @@ geom／raster／hanim／vector／motion 五个包的原生 dev／release 各 32 
 ### 29.4 仍开放的范围
 
 完整 UI 内容／几何 HObject、按顶点和 3D 控制、通道混合／hold-world、通用状态与约束、image-effect scope 到 UI 的映射、任意布局 morph 的采样锚点和动态层级再分区、预算／降级控制、自动宿主安装等仍未完成。默认组件配方批量迁移、40／20 的库与完整工程、其他引擎、AI／PPet、工具、后端和发布门槛继续保留。当前过程图与本机耗时不替代实机跨平台节奏、GPU 或整体产品视觉验收。
+
+## 30. 原生 UI 图像作用域与共享内容边界
+
+2026-11-06，实施基线 `ab4d823`，专项设计见[Hanim × UI 图像作用域](2026-11-06-hanim-ui-image-scope-design.md)。本轮继续 S2／A4，将公共 Hanim 编排里的图像效果接入真实 UI 内容。本轮局部检查点已完成实现与本地真实验证；此状态不关闭全局架构目标或 C2 验收。
+
+### 30.1 已实现的公共能力与归属
+
+- 模块 `hanim.render.vector` 中的 `hanim::vector_render::PreparedImageEffects`公开已有命名参数／默认值／范围／registry generation 的绑定。独立 Vector 消费者和 UI 共用同一实现；`resolve` 只处理已有样本，输入／输出 alias、短 buffer、非法值和过期 provider 都在输出写入前拒绝，没有第二个时钟或滤镜算法。
+- `omui.hanim` 的低层 `Binding::prepare`／`present(EngineProgramFrame)` 接受一个 HObject 的叶子效果及嵌套祖先 scope；owning `Playback::play` 自动准备并选择相应采样路径。纯属性仍用轻量路径。零 authored-parameter 的效果也必须保留 renderer 默认值，不能因为 sample span 为空就丢弃它。
+- 原生 presentation 增加独立 image channel：冷阶段预留、热阶段复制参数，姿态和图像层一次预检／一次发布；每节点上限 64 层／4,096 参数，重复效果保持原顺序。未知、占用、过期、超预算和无效参数有类型化错误；detach 只释放自身通道，后续纯动画清除自身旧图像层。
+- renderer 的 `LayerBoundsMode::content`／`LayerBoundsMap` 统一 CPU、GPU 与 damage 的真实内容边界，包含字形、移动子对象、阴影与嵌套滤镜输出。布局矩形不再冒充像素捕获范围；外部裁剪在合成时应用。UI motion 的快照／嵌套组复用同一边界能力。新文件均在既有包内，无新增微型 `mcpp.toml`。
+- 修正 CPU 递归 offscreen 把对象缩放再次当作滤镜 DPI 的问题；输出尺度显式继承。blur 半径零、tone 强度零声明 identity。底层 renderer 保留普通组的 opacity／blend，UI 可省略其外部零强度装饰层，初始像素精确恢复；普通组件反馈继续执行，外部图像层不烘焙回下一轮默认 morph。
+- `EffectInfo::preserves_hit_geometry` 默认未知。当前 UI 只接收明确保留交互位置／身份、具有 CPU 实现且不读取 backdrop／不含空间逆映射的效果。blur、tone、pixelate 已声明；自定义 native provider 可声明契约，consumer 不按名称写分支。光晕和滤镜边缘不扩大逻辑点击区域。
+
+官网 `component-motion` 的真实便笺在 Details 中增加“整张便笺的图像效果”：无／blur／tone／pixel／blur＋tone。与整组、部件、仅标题的**动画选择**及局部风格分别配置，原有输入、编辑、复制和交互接管保留；复制的 C++ 配方来自同一实际 builder。Hanim image scope 当前覆盖绑定的根，不能把 title-only 的变换选择误读为 title-only 的 image scope；要单独影响文字可另选文字为绑定根。此项没有增加或重算 40／20 场景验收数。
+
+### 30.2 核心验证与性能边界
+
+| 验证 | 实际结果 |
+|---|---|
+| 仓外公开 UI 消费者 | native debug、release、Wasm／Node 各 76 项；各 183 张过程图（显式采样、宿主驱动、三层效果各 61 张），正向／逆向及跨 profile 像素／PNG 一致。覆盖真实鼠标／Agent、2× DPI、错误原子性、容量失败、provider 重载重绑、零参数效果、未知／空间／backdrop 拒绝与通道释放 |
+| feature-off／资源缺失 | 第二个真实应用的实际构建 DAG 不含 UI Hanim adapter、完整 Hanim Engine 或 Hanim vector adapter；缺字体的负例明确失败，不把无字形图当通过 |
+| 相关 native 回归 | view／motion／vector 共 32 个程序，debug 和 release 各 257 项；含文字单独滤镜、1×／2× DPI 下兄弟控件逐像素保持、默认反馈不重复滤镜、内容尺寸快照、裁剪与增量 damage |
+| Web 回归 | 同 32 个程序、254 项；线程相关用例按平台能力选择，其余实际执行。LLVM 指出了新增测试的宽高类型收窄，改为原始有符号尺寸后复验通过 |
+| 独立参数绑定 | 仓外 Hanim Vector 消费者 10 项，通过默认值、参数排序、重复效果、失败原子性、alias 和代际检查 |
+| GPU | required-device CTS 两项通过，实际提交／读回；嵌套内容边界及对象缩放在 1×／2× DPI 下与 CPU 比较。使用软件 Vulkan，不代表物理 GPU 吞吐 |
+| 官网原生 | 全量 21 个程序／136 项通过，参考像素表未修改；最终配方又通过 7 项复验及全过程截图，包含同一最终姿态下效果开关确实改变画面 |
+
+release 基准：64 个效果共 160 个 backend 参数的采样／绑定平均约 **0.00106 ms**、p95 **0.00114 ms**，C++ new 为零。100 个平移组件、两层图像 scope、302-node Runtime paint 及真实字形内容边界测量，平均 **0.1934 ms**、p95 **0.2010 ms**，预热后的 C++ new 为零。预算已入 `tests/bench/budgets.bench.omui.json`。
+
+这不是完整渲染／GPU 成本：后者测试提前准备固定字形、固定字号、DPI 1 下公开 GlyphCache 支持的子像素 mask；新的文字／字号、冷字形栅格化、滤镜逐像素执行与 GPU 时间不在该预算里。第一次未预热字形的测量发现最多 **72 次**分配，原始报告保留在 `target/omui-ui-effects/ui-cold-glyphs.bench.omui.json`，没有提高零分配预算或隐去冷成本。首个基准只测参数路径，同样不代表整帧。
+
+### 30.3 交付复验与剩余边界
+
+最新 site-web 包在 Chromium 中通过 **153 项**实际浏览器检查，保留 **9 张**截图，页面异常为零。效果选择、组合、实际部件运动、编辑、系统剪贴板和关闭效果后数据保持均通过；原有基础／创意／Agent／统一接口／局部风格流程同时回归。浏览器发现通用 Select 缺少 Home／End 导航：已在组件本身补齐展开列表的该行为，首末选项只移动焦点，Enter 才提交；native 定向检查和实际 Web 场景验证该行为，不用网站脚本替代组件交互。
+
+停止构建后以新 profile、缓存开启、1280×800、20 Mbit/s／40 ms 测量：总传输 **4,869,605 B**，首帧前 **2,967,376 B**，首帧代理 **1,622.7 ms**、ready **1,583.3 ms**，rAF p95 **16.7 ms**、长帧 **1**、页面异常 **0**，原有 **7／7** 预算通过。相对 §29 总传输增加 **11,538 B**，5 MB 门禁剩 **130,395 B**；预算未放宽。该样本不证明稳定提速，首帧代理不是 FCP／LCP，rAF 也不是实际 GPU 绘制成本。
+
+原始命令、图像和基准保留于 `target/omui-ui-effects/`，独立场景图在 `/tmp/openmui-tests/site-component-motion/`；结构化摘要在 `tools/ci/2026-11-06-ui-image-scopes.report.omui.json`。
+
+本地 mcpp 多选默认 view 与可选官网根时暴露传递 feature 闭包缺失，按实际消费者独立验证，不扩成默认强制依赖；基准本身直接消费公开 image binding，显式声明 `render-vector`。生成的 build-program 工作区在不同消费者间复用锁造成 resolution 不同，只在对应 `target/.build-mcpp/host/…` 内重新配置，源命令仍 `--locked`，用户已有 `mcpp.lock` 字节不变。额外整工作区 `--locked --configure-only` 探针因 fighting 的同一生成锁切换问题返回 2，因此没有记为全工作区通过；最终官网构建图中 UI adapter／Hanim vector 的 16 条实际源码规则均存在，相关消费者与打包已分别通过。该探针不替代完整构建。异平台 CI 不作为本轮推进的等待条件。
+
+按维护者要求再次清理了 38 个过期生成缓存，移除占用约 0.79 GiB，文件系统实际增加约 0.78 GiB；清理后可用 14.55 GiB。保留源码、worktree／git 元数据、正在运行的应用、当前各 profile 增量和验证图像；过程见 `target/omui-ui-effects/cleanup.report.omui.json`。后续构建会再次使用空间。
+
+完整 UI 几何／顶点／3D、任意跨对象／跨树及逐部件 image-scope IR、空间扭曲的输入映射、backdrop／GPU-only UI 路径、hold-world／混合／动态约束、自动资源与降级控制仍开放；当前 provider registry 重载要求静止边界，不是并发不可变资源租约。现有 blur 内核含整数半径量化，本轮使官网选项进入实际有效范围，没有声称实现连续高品质滤镜内核。完整组件默认配方、40／20 的可带走库和工程、其他引擎、AI／PPet、工具与更多后端按总计划继续，过程采样不替代实机节奏和产品美术验收。

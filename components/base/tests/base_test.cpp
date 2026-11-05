@@ -615,7 +615,13 @@ int main(int argc, char** argv) {
         key(h, Key::enter);
         h.settle();
         check(city.peek() == "tokyo", city.peek());
-        check(act(h, "main/city", "set_value", Value{}.set("value", "paris")) == 0 && city.peek() == "paris");
+        key(h, Key::enter);h.settle();key(h, Key::end);
+        check(city.peek()=="tokyo","End moves option focus without committing a value");
+        key(h, Key::enter);h.settle();check(city.peek()=="lima","Enter commits the final option");
+        key(h, Key::enter);h.settle();key(h, Key::home);
+        check(city.peek()=="lima","Home moves option focus without committing a value");
+        key(h, Key::enter);h.settle();check(city.peek()=="paris","Enter commits the first option");
+        check(act(h, "main/city", "set_value", Value{}.set("value", "tokyo")) == 0 && city.peek() == "tokyo");
         check(act(h, "main/city", "set_value", Value{}.set("value", "berlin")) == 1, "not an option");
         h.settle();
     });

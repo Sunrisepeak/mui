@@ -393,8 +393,8 @@ void DisplayList::pop_clip() { commands_.emplace_back(PopClip{}); }
 void DisplayList::push_transform(const Affine& m) { commands_.emplace_back(PushTransform{m}); }
 void DisplayList::pop_transform() { commands_.emplace_back(PopTransform{}); }
 void DisplayList::push_layer(float opacity, BlendMode blend, EffectRef effect, std::span<const float> params, Rect bounds,
-                             std::span<const EffectShape> shapes) {
-    commands_.emplace_back(PushLayer{opacity, blend, effect, arena_.copy(params), bounds, arena_.copy(shapes)});
+                             std::span<const EffectShape> shapes, LayerBoundsMode bounds_mode) {
+    commands_.emplace_back(PushLayer{opacity, blend, effect, arena_.copy(params), bounds, arena_.copy(shapes), bounds_mode});
 }
 void DisplayList::pop_layer() { commands_.emplace_back(PopLayer{}); }
 void DisplayList::external_texture(std::uint64_t texture, const Rect& dest, float opacity) {
@@ -569,6 +569,8 @@ std::uint64_t hash_command(const Command& c, std::uint64_t seed) noexcept {
                 h.put(cmd.opacity); h.put(cmd.blend); h.put(cmd.effect.id); h.put(cmd.bounds);
                 for (float p : cmd.params) h.put(p);
                 for (const EffectShape& sh : cmd.shapes) { h.put(sh.rect); h.put(sh.radii); }
+                // Preserve established hashes for the existing declared mode.
+                if(cmd.bounds_mode!=LayerBoundsMode::declared){h.put(std::uint64_t{0x6c61796572626e64});h.put(cmd.bounds_mode);}
             }
             else if constexpr (std::same_as<T, ExternalTexture>) { h.put(cmd.texture); h.put(cmd.dest); h.put(cmd.opacity); }
             else if constexpr (std::same_as<T, BeginNode>) { h.put(cmd.node); }

@@ -505,6 +505,7 @@ std::optional<Rect> effect_ink_bounds(const DisplayList& list, std::size_t first
     auto source = nested_ink_bounds(list, {first + 1, last, transform}, glyph_bounds, scale, depth + 1);
     if (!source) return std::nullopt;
     Rect generated = transform.map(layer.bounds);
+    if(layer.bounds_mode==render::LayerBoundsMode::content)generated=generated.united(*source);
     for (const auto& shape : layer.shapes) generated = generated.united(transform.map(shape.rect));
     const float margin = std::ceil(*reach * scale) + 1; // renderer's device reach and AA convention
     generated = {std::floor(generated.x - margin), std::floor(generated.y - margin),
@@ -1361,7 +1362,7 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
         // The effect's numbers as the node draws them now (its own transition, say), when it is the same effect.
         if (live && live->effect.id == lb.effect.id && live->params.size() == params.size()) params.assign(live->params.begin(), live->params.end());
         out.push_transform(wb.transform);
-        out.push_layer(opacity, lb.blend, lb.effect, params, bounds, shapes);
+        out.push_layer(opacity, lb.blend, lb.effect, params, bounds, shapes, lb.bounds_mode);
         e.base = wb.transform.inverse().value_or(Affine{});
     }
 

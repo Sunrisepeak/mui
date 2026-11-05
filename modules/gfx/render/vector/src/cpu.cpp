@@ -302,6 +302,7 @@ struct CpuRenderer::Impl {
     };
     std::vector<EffectLayer> effect_layers;
     std::size_t              effect_count = 0;
+    LayerBoundsMap            layer_bounds;
 
     Scratch& take(mlibs::raster::Surface& target) {
         std::scoped_lock g(lock);
@@ -435,7 +436,8 @@ void CpuRenderer::prepare_effects(const DisplayList& list, const mlibs::raster::
     const auto& all = list.commands();
     std::vector<Affine> transforms{options.transform.value_or(Affine::scale(options.scale, options.scale))};
     // Logical pixels to device pixels, for the effects' sizes and reaches.
-    const float scale = transforms.front().max_scale();
+    const float scale = options.effect_scale.value_or(transforms.front().max_scale());
+    bool bounds_measured=false;
     for (std::size_t i = 0; i < all.size(); ++i) {
         const Command& c = all[i];
         if (const auto* t = std::get_if<PushTransform>(&c)) {
@@ -465,7 +467,13 @@ void CpuRenderer::prepare_effects(const DisplayList& list, const mlibs::raster::
         }
         const float reach = std::ceil(effects().reach(push->effect, params) * scale) + 1;
         const float viewport_reach = info->input_radius ? std::max(reach, std::ceil(info->input_radius(params, scale))) : reach;
-        const Rect layer = transforms.back().map(push->bounds);
+        Rect layer=transforms.back().map(push->bounds);
+        if(push->bounds_mode==LayerBoundsMode::content) {
+            if(!bounds_measured){(void)d.layer_bounds.measure(list,transforms.front(),scale,res);bounds_measured=true;}
+            const auto* measured=d.layer_bounds.at(i);
+            if(!measured){++report.effects_skipped;continue;}
+            layer=measured->area;
+        }
         const Rect screen{-viewport_reach, -viewport_reach, static_cast<float>(target.width()) + 2 * viewport_reach, static_cast<float>(target.height()) + 2 * viewport_reach};
         const Rect wanted = Rect{layer.x - reach, layer.y - reach, layer.width + 2 * reach, layer.height + 2 * reach}.intersection(screen);
         if (d.effect_count == d.effect_layers.size()) d.effect_layers.emplace_back();
@@ -486,6 +494,7 @@ void CpuRenderer::prepare_effects(const DisplayList& list, const mlibs::raster::
             if (!out.offscreen) out.offscreen = std::make_unique<CpuRenderer>();
             CpuOptions o;
             o.transform = Affine::translate(-x0, -y0) * transforms.back();
+            o.effect_scale = scale;
             o.background = Color::transparent();
             const RenderReport r = out.offscreen->render(out.inner, out.source, res, o);
             report.missing_glyphs += r.missing_glyphs;

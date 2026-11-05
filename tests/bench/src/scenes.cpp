@@ -267,7 +267,7 @@ void add_framework_benchmarks() {
     add_simulation_benchmarks();
     add_public_motion_benchmarks();
 
-    auto presentation = [](State& s, bool draw, bool drive=false) {
+    auto presentation = [](State& s, bool draw, bool drive=false, bool images=false) {
         constexpr std::size_t count=100;
         RuntimeOptions options;options.stages=Stages::paint;options.size={1280,720};
         typeset::FontCollection fonts;
@@ -292,7 +292,10 @@ void add_framework_benchmarks() {
             std::vector<hanim::Program> programs;programs.reserve(count);
             for(std::size_t i=0;i<count;++i)programs.push_back(hanim::anim::to(playback->object(),
                 {.position=hanim::Vec2{20+static_cast<double>(i%5),0},.part=std::format("c{}",i)}).duration(hanim::seconds(1)));
-            if(!playback->play(hanim::parallel(programs),{.alternate=true})){s.fail("Hanim public program failed");return;}
+            auto program=hanim::parallel(programs);
+            if(images)program=hanim::composite(hanim::composite(program).with_effect(hanim::fx::blur(0,2)))
+                .with_effect(hanim::fx::tone({.amount=0},{.amount=.2f}));
+            if(!playback->play(program,{.alternate=true})){s.fail("Hanim public program failed");return;}
             auto added=runtime.stage_plugins().add({.name="omui.bench.playback",.kind="stage",.description="public Hanim host before paint",
                 .trace_category="omui.hanim.playback",.cost=pipeline::Cost{.cpu_us=500}},
                 [&](const pipeline::Config&)->std::expected<std::unique_ptr<pipeline::Stage>,std::string>{return std::make_unique<PlaybackStage>(*playback);});
@@ -310,8 +313,19 @@ void add_framework_benchmarks() {
             lease.emplace(std::move(*acquired));
         }
         std::array<hanim::Transform2D,count> poses;
+        render::LayerBoundsMap content_bounds;typeset::GlyphCache glyphs(fonts);
+        if(images) {
+            // This workload animates translation at DPI 1 with fixed glyphs
+            // and sizes. Prepare every supported subpixel mask before timing
+            // the steady frame; first-use font rasterization is a cold cost.
+            for(const auto& command:runtime.display_list().commands())if(const auto* run=std::get_if<render::DrawGlyphs>(&command))
+                for(const auto& glyph:run->glyphs)for(int y=0;y<typeset::GlyphCache::phases;++y)for(int x=0;x<typeset::GlyphCache::phases;++x)
+                    (void)glyphs.mask(run->font,glyph.id,run->size,{static_cast<float>(x)/typeset::GlyphCache::phases,static_cast<float>(y)/typeset::GlyphCache::phases});
+            s.note("glyph_resources","Fixed glyphs/sizes at DPI 1: all public GlyphCache subpixel phases prepared before timing. Cold mask generation, changing text and new sizes are outside this steady-state budget.");
+        }
         s.items(count);
-        s.note("scope",drive?"100 independently animated card parts under one selected root: public Hanim program sampling, host time mapping, atomic publication and a 302-node Runtime paint frame. Text, controls, bounds and clips included; raster/GPU/setup excluded."
+        s.note("scope",images?"100 translated card parts, two nested image scopes, public Hanim sampling/binding, atomic publication, 302-node Runtime paint and shared content bounds with prepared real glyph masks. Cold glyph generation, raster/filter/GPU execution and setup excluded."
+                           :drive?"100 independently animated card parts under one selected root: public Hanim program sampling, host time mapping, atomic publication and a 302-node Runtime paint frame. Text, controls, bounds and clips included; raster/GPU/setup excluded."
                            :draw?"100 changing group offsets, atomic publication and a real Runtime paint frame, including text, controls, current hit metadata and clips. No raster, Engine sampling or GPU timing."
                            :"100 changing group offsets and atomic Runtime publication. Setup, Engine sampling, frame painting and renderer excluded; ordinary C++ new calls counted by the harness.");
         std::size_t tick=0;
@@ -327,6 +341,9 @@ void add_framework_benchmarks() {
                 const auto state=runtime.presentation(targets.front().node);
                 if(!state || !state->applied || state->error){s.fail("published group was not presented");return;}
                 s.counter("display_commands",static_cast<double>(runtime.display_list().size()));
+                if(images && !content_bounds.measure(runtime.display_list(),{},1,{&runtime.images(),&glyphs})) {
+                    s.fail("image content measurement failed");return;
+                }
             }
             ++tick;
         }
@@ -334,6 +351,7 @@ void add_framework_benchmarks() {
     add("ui/presentation/publish-100","100 group offsets published through typed channel leases",[presentation](State& s){presentation(s,false);});
     add("ui/presentation/frame-100","100 live component groups projected into current paint and input geometry",[presentation](State& s){presentation(s,true);});
     add("ui/presentation/hanim-frame-100","100 component parts animated by the public native Hanim host",[presentation](State& s){presentation(s,true,true);});
+    add("ui/presentation/hanim-effects-frame-100","100 animated component parts with two native image scopes and measured glyph content",[presentation](State& s){presentation(s,true,true,true);});
 
     // ── canvas-markdown §3.5: the canvas's frame while the camera moves ──
     register_canvas_component();

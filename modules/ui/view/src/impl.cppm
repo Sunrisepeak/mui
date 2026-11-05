@@ -210,10 +210,17 @@ struct Node {
     int                  presented_clip = -1;
     struct Presentation {
         hanim::Transform2D pose;
-        std::array<std::uint64_t,4> writers{};
+        std::array<std::uint64_t,5> writers{};
         Point anchor{.5f,.5f};
         bool has_frame=false,applied=false;
         std::optional<PresentationError> error;
+        struct ImageLayer {render::EffectRef effect;std::uint64_t generation;std::size_t offset,count;};
+        struct Images {
+            std::vector<ImageLayer> layers;
+            std::vector<float> parameters;
+            std::size_t layer_limit=0,parameter_limit=0;
+        };
+        std::unique_ptr<Images> images; // unused image channels own no arrays
         [[nodiscard]] bool attached() const noexcept {return std::ranges::any_of(writers,[](auto token){return token!=0;});}
     } presentation;
     bool projected_anchor=false,live_anchor_placement=false;
@@ -470,6 +477,7 @@ struct Runtime::Impl {
         std::size_t begin=0,end=0,depth=0;
         Affine delta;
         bool frame=false;
+        std::size_t image_count=0;
     };
     std::vector<ProjectionRange> projection_ranges;
     std::vector<std::pair<std::uint32_t,std::size_t>> projection_nodes;

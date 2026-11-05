@@ -132,7 +132,10 @@ void DamageTracker::build(const DisplayList& list, float scale, std::int32_t wid
     stack_.push_back(0);
     hashers_.push_back(fnv_basis);
     std::uint32_t order = 0;
-    for (const Command& command : list.commands()) {
+    bool bounds_measured=false;
+    const auto commands=list.commands();
+    for (std::size_t command_index=0;command_index<commands.size();++command_index) {
+        const Command& command=commands[command_index];
         const std::uint32_t at = stack_.back();
         if (const auto* begin = std::get_if<BeginNode>(&command)) {
             // The parent's hash records the child, in order.
@@ -174,8 +177,14 @@ void DamageTracker::build(const DisplayList& list, float scale, std::int32_t wid
             std::vector<float> params(layer->params.begin(), layer->params.end());
             if (const EffectInfo* info = effects().info(layer->effect))
                 for (std::size_t k = params.size(); k < info->params.size(); ++k) params.push_back(info->params[k].value);
-            const float reach = effects().reach(layer->effect, params) * m.max_scale() + 2;
-            const Rect visible = grow(mapped(m, layer->bounds), reach).intersection(clips_.back());
+            const float reach = effects().reach(layer->effect, params) * scale + 2;
+            Rect generated=grow(mapped(m, layer->bounds),reach);
+            if(layer->bounds_mode==LayerBoundsMode::content) {
+                if(!bounds_measured){(void)layer_bounds_.measure(list,Affine::scale(scale,scale),scale,resources);bounds_measured=true;}
+                if(const auto* measured=layer_bounds_.at(command_index))generated=measured->output;
+                else generated={0,0,static_cast<float>(width),static_cast<float>(height)};
+            }
+            const Rect visible=generated.intersection(clips_.back());
             if (!visible.empty()) out[at].own = out[at].own.united(visible);
             // An effect that reads its backdrop changes when anything under it does.
             if (const EffectInfo* info = effects().info(layer->effect); info && info->backdrop && !visible.empty()) backdrops_.push_back(visible);

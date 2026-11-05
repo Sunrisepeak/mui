@@ -270,9 +270,14 @@ try {
     await requireCheck(async () => Math.abs((await node(card)).bounds[0] - partCardA[0]) < .5 &&
       Math.abs((await node(card + '/title')).bounds[0] - titleA[0]) > 2,
       'part animation preserves the card layout while moving its selected title');
+    await pointer(root + '/details/effect'); await key('End', 'End', 35); await key('Enter', 'Enter', 13);
+    await requireCheck(async () => await scalar(root + '/details/effect') === 'layered', 'keyboard composes nested Hanim image effects on the real note');
+    await pointer(root + '/transport/buttons/state-b');
+    await shot('component-motion-nested-effects');
     await pointer(root + '/details/copy');
     const source = await page.value('navigator.clipboard.readText()');
-    check(source.includes('hanim::parallel') && source.includes('.part="title"') && source.includes('playback.play'),
+    check(source.includes('hanim::parallel') && source.includes('.part="title"') && source.includes('playback.play') &&
+      source.includes('hanim::composite') && source.includes('fx::blur') && source.includes('fx::tone'),
       'the browser clipboard receives the public C++ component recipe fragment');
     await type(card + '/editor', 'A browser-made note');
     await pointer(card + '/pin'); const pinned = await checked(card + '/pin');
@@ -283,6 +288,9 @@ try {
     await requireCheck(async () => (await label(root + '/transport/hint')).includes('real interface'),
       'focus in the animated note keeps the stage in real interaction mode');
     await shot('component-motion-live-note');
+    await pointer(root + '/details/effect'); await key('Home', 'Home', 36); await key('Enter', 'Enter', 13);
+    await requireCheck(async () => await scalar(root + '/details/effect') === 'none' && await scalar(card + '/editor') === 'A browser-made note',
+      'removing the effect preserves the actual edited component data');
     await pointer(root + '/transport/buttons/details');
     await requireCheck(async () => !await exists(root + '/details/selection'), 'closing Details removes the component recipe controls');
   });

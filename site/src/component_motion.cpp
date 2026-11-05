@@ -12,18 +12,38 @@ std::optional<Recipe> recipe(std::string_view selection) {
     if(selection=="title")return Recipe{0,12,-3,.06,1};
     return std::nullopt;
 }
+enum class ImageKind {none,blur,tone,pixel,layered};
+struct ImageRecipe {ImageKind kind;float blur=3,tone=.18f,pixel_size=3,pixel_amount=.6f;};
+std::optional<ImageRecipe> image_recipe(std::string_view id) {
+    if(id=="none")return ImageRecipe{ImageKind::none};
+    if(id=="blur")return ImageRecipe{ImageKind::blur};
+    if(id=="tone")return ImageRecipe{ImageKind::tone};
+    if(id=="pixel")return ImageRecipe{ImageKind::pixel};
+    if(id=="layered")return ImageRecipe{ImageKind::layered};
+    return std::nullopt;
 }
-std::expected<hanim::Program,std::string> component_motion_program(hanim::ObjectRef object,std::string_view selection) {
+}
+std::expected<hanim::Program,std::string> component_motion_program(hanim::ObjectRef object,std::string_view selection,std::string_view effect) {
     using namespace std::chrono_literals;
     const auto values=recipe(selection);if(!values)return std::unexpected("Unknown animation selection");
-    return hanim::parallel(
+    const auto image=image_recipe(effect);if(!image)return std::unexpected("Unknown scene effect");
+    auto animation=hanim::parallel(
         hanim::anim::move_to(object,{values->move,0}).duration(1200ms),
         hanim::anim::to(object,{.offset=hanim::Vec2{values->title_x,values->title_y},.rotation=values->turn,.part="title"}).duration(1200ms),
         hanim::anim::to(object,{.scale=hanim::Vec2{values->scale,values->scale},.part="save"}).duration(800ms));
+    if(image->kind==ImageKind::blur || image->kind==ImageKind::layered)
+        animation=hanim::composite(animation).with_effect(hanim::fx::blur(0,image->blur));
+    if(image->kind==ImageKind::tone || image->kind==ImageKind::layered)
+        animation=hanim::composite(animation).with_effect(hanim::fx::tone({.amount=0},{.amount=image->tone}));
+    if(image->kind==ImageKind::pixel)
+        animation=hanim::composite(animation).with_effect(hanim::fx::pixelate({image->pixel_size,0},{image->pixel_size,image->pixel_amount},
+            {hanim::fx::PixelUnit::device}));
+    return animation;
 }
-std::string component_motion_source(std::string_view selection,bool loop,double speed) {
+std::string component_motion_source(std::string_view selection,bool loop,double speed,std::string_view effect) {
     const auto values=recipe(selection);if(!values)return {};
-    return std::format(R"(// Reusable C++ recipe. Bind card, title and save to UI nodes first.
+    const auto image=image_recipe(effect);if(!image)return {};
+    auto source=std::format(R"(// Reusable C++ recipe. Bind card, title and save to UI nodes first.
 using namespace std::chrono_literals;
 auto animation = hanim::parallel(
     hanim::anim::move_to(object, {{{}, 0}}).duration(1200ms),
@@ -31,9 +51,15 @@ auto animation = hanim::parallel(
         .rotation={}, .part="title"}}).duration(1200ms),
     hanim::anim::to(object, {{.scale=hanim::Vec2{{{}, {}}},
         .part="save"}}).duration(800ms));
-auto started = playback.play(animation, {{.alternate={}, .rate={}}});
-// Check started; call playback.update() before bounds/paint.
-)",values->move,values->title_x,values->title_y,values->turn,values->scale,values->scale,loop,speed);
+)",values->move,values->title_x,values->title_y,values->turn,values->scale,values->scale);
+    if(image->kind==ImageKind::blur || image->kind==ImageKind::layered)
+        source+=std::format("animation = hanim::composite(animation).with_effect(hanim::fx::blur(0, {}));\n",image->blur);
+    if(image->kind==ImageKind::tone || image->kind==ImageKind::layered)
+        source+=std::format("animation = hanim::composite(animation).with_effect(hanim::fx::tone({{.amount=0}}, {{.amount={:.2f}f}}));\n",image->tone);
+    if(image->kind==ImageKind::pixel)
+        source+=std::format("animation = hanim::composite(animation).with_effect(hanim::fx::pixelate({{{:.2f}f, 0}}, {{{:.2f}f, {:.2f}f}}, {{hanim::fx::PixelUnit::device}}));\n",image->pixel_size,image->pixel_size,image->pixel_amount);
+    source+=std::format("auto started = playback.play(animation, {{.alternate={}, .rate={}}});\n// Check started; call playback.update() before bounds/paint.\n",loop,speed);
+    return source;
 }
 Element component_motion_scene(const MotionSceneContext& context) {
     auto& state=*context.state;
@@ -68,7 +94,8 @@ bool prepare_component_motion(ComponentMotion& state,Runtime& runtime,std::strin
                               double progress,int direction,double speed,bool loop,bool requested) {
     if(state.playback && state.playback->attached() &&
        !runtime.state(state.playback->targets().front().node).removing &&
-       state.configured_selection==state.selection.peek() && state.configured_loop==loop && state.configured_speed==speed)return true;
+       state.configured_selection==state.selection.peek() && state.configured_effect==state.effect.peek() &&
+       state.configured_loop==loop && state.configured_speed==speed)return true;
     const auto card=runtime.find(std::string(root)+"/composition/card");
     if(!runtime.valid(card)){state.playback.reset();return false;}
     if(state.playback && (!state.playback->attached() || state.playback->targets().front().node!=card))state.playback.reset();
@@ -87,18 +114,18 @@ bool prepare_component_motion(ComponentMotion& state,Runtime& runtime,std::strin
         }
         state.playback=std::move(*attached);fresh=true;
     }
-    const auto selection=state.selection.peek();
-    if(fresh || selection!=state.configured_selection || loop!=state.configured_loop) {
-        const auto program=component_motion_program(state.playback->object(),selection);
+    const auto selection=state.selection.peek(),effect=state.effect.peek();
+    if(fresh || selection!=state.configured_selection || effect!=state.configured_effect || loop!=state.configured_loop) {
+        const auto program=component_motion_program(state.playback->object(),selection,effect);
         if(!program){state.error.set(program.error());return false;}
-        const bool changed=!fresh && selection!=state.configured_selection;
+        const bool changed=!fresh && (selection!=state.configured_selection || effect!=state.configured_effect);
         if(!fresh)if(auto stopped=state.playback->stop();!stopped){state.error.set("The previous animation could not stop.");return false;}
         auto started=state.playback->play(*program,{.alternate=loop,.rate=(changed?1:direction)*speed});
         if(!started){state.error.set("This animation could not start.");return false;}
         if(!state.playback->seek_progress(changed?0:progress) || (requested && !state.playback->resume())) {
             state.error.set("This animation position is unavailable.");return false;
         }
-        state.configured_selection=selection;state.configured_loop=loop;state.configured_speed=speed;state.error.set("");
+        state.configured_selection=selection;state.configured_effect=effect;state.configured_loop=loop;state.configured_speed=speed;state.error.set("");
     } else if(speed!=state.configured_speed) {
         const auto info=state.playback->status().native;
         if(!state.playback->rate((info && info->rate<0?-1:1)*speed)){state.error.set("This playback rate is unavailable.");return false;}

@@ -41,6 +41,29 @@ struct RowSpan {
 // when one is given, and a generous em box otherwise.
 [[nodiscard]] std::optional<Rect> device_bounds(const Command& command, const Affine& m, GlyphSource* glyphs = nullptr);
 
+struct LayerExtent {
+    std::size_t begin=0, end=0;
+    Rect content, area, output; // device coordinates under the initial transform
+};
+// Shared CPU/GPU/damage measurement for opt-in content-sized effect scopes.
+// Transforms, actual glyph resources and nested output reach are measured
+// once. A clip outside a scope constrains composition, not its source capture.
+// The supplied effect scale is the output DPI, independent of object scale.
+class LayerBoundsMap {
+public:
+    [[nodiscard]] bool measure(const DisplayList&,const Affine& initial,float effect_scale,const Resources& = {});
+    [[nodiscard]] const LayerExtent* at(std::size_t push_command) const noexcept;
+    [[nodiscard]] std::span<const LayerExtent> entries() const & noexcept {return entries_;}
+    std::span<const LayerExtent> entries() const && = delete;
+private:
+    std::vector<LayerExtent> entries_;
+    std::vector<std::size_t> indices_,stack_,clip_starts_;
+    std::vector<Affine> transforms_;
+    std::vector<Rect> clips_;
+    std::vector<float> parameters_;
+    bool valid_=false;
+};
+
 class DamageTracker {
 public:
     // The bands of rows of a `width` × `height` surface where `list`, drawn at
@@ -85,6 +108,7 @@ private:
     std::vector<Rect>          rects_;
     std::vector<RowSpan>       rows_;
     std::vector<Rect>          backdrops_;  // the current list's backdrop effects' regions
+    LayerBoundsMap             layer_bounds_;
     std::int32_t               width_ = 0, height_ = 0;
     float                      scale_ = 0;
     bool                       valid_ = false;

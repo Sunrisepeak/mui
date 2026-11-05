@@ -39,7 +39,8 @@ def main() -> int:
                      'Actual standard button, shaped text, mouse and Agent semantic activation without GUI/display server.',
                      'Projected target anchors follow in the current frame; complete sampled-layout constraints remain out of scope.',
                      'Host controls, visibility/interaction/preferences, frame demand and arbitrary clock sampling are exercised without a window.',
-                     'No claim of complete UI geometry capture or 3D/image-effect support.']}
+                     'Single-object leaf/nested image scopes affect real UI pixels, with atomic publication, provider reload and exact reverse sampling.',
+                     'No claim of complete UI geometry capture, 3D or arbitrary cross-object image scopes.']}
 
     def run(label: str,argv: list[str],bootstrap=False,expected_exit=0,overrides=None) -> str:
         env=os.environ.copy();env.setdefault('MCPP_JOBS','2');env.pop('DISPLAY',None);env.pop('WAYLAND_DISPLAY',None)
@@ -103,8 +104,8 @@ def main() -> int:
             stdout=run(profile,['run','--locked','--profile',profile,*target,'--',str(images)])
             records=[json.loads(line) for line in stdout.splitlines() if line.startswith('{')]
             result=next(row for row in records if row.get('kind')=='omui.hanim-consumer')
-            if not result['ok'] or len(result['frames'])!=61 or len(result['driver_frames'])!=61:raise RuntimeError('consumer did not complete the real task')
-            for frame in result['frames']+result['driver_frames']:
+            if not result['ok'] or any(len(result[key])!=61 for key in ['frames','driver_frames','effect_frames']):raise RuntimeError('consumer did not complete the real task')
+            for frame in result['frames']+result['driver_frames']+result['effect_frames']:
                 path=Path(frame['png']);frame['png_sha256']=digest(path)
                 if not path.is_relative_to(images) or path.stat().st_size<100:raise RuntimeError('invalid pixel artifact')
             run(profile+'-metadata',['build','--locked','--profile',profile,*target,'--configure-only'])
@@ -125,9 +126,9 @@ def main() -> int:
             report['profiles'].append({'profile':profile,'result':result,'packages':packages,
                 'source_files_sha256':{str(p.relative_to(repo)):digest(p) for p in sorted(set(sources)) if p.is_relative_to(repo)}})
             if digest(project/'mcpp.lock')!=consumer_lock:raise RuntimeError('consumer lock changed')
-        reference=report['profiles'][0]['result']['frames']+report['profiles'][0]['result']['driver_frames']
+        reference=sum((report['profiles'][0]['result'][key] for key in ['frames','driver_frames','effect_frames']),[])
         for profile in report['profiles'][1:]:
-            frames=profile['result']['frames']+profile['result']['driver_frames']
+            frames=sum((profile['result'][key] for key in ['frames','driver_frames','effect_frames']),[])
             if any(a['pixel_fnv1a']!=b['pixel_fnv1a'] or a['png_sha256']!=b['png_sha256'] for a,b in zip(reference,frames)):
                 raise RuntimeError('profile process pixels differ')
         stdout=run('missing-fonts',['run','--locked','--profile','release','--',str(artifacts/'release')],
@@ -153,7 +154,7 @@ int main() {
         if 'omui.view-without-player: ok' not in stdout:raise RuntimeError('feature-off application did not run')
         run('without-player-metadata',['build','--locked','--profile','dev','--configure-only'])
         resolution,data,cdb,commands,ninja=metadata('dev')
-        if any('/src/hanim/bridge.' in c['file'] or '/hanim/src/engine/' in c['file'] for c in commands):
+        if any('/view/src/hanim/' in c['file'] or '/hanim/src/engine/' in c['file'] or '/hanim/src/render/vector/' in c['file'] for c in commands):
             raise RuntimeError('optional adapter/player leaked into ordinary view build')
         shutil.copyfile(resolution,artifacts/'without-player.resolution.json')
         shutil.copyfile(cdb,artifacts/'without-player.compile_commands.json')

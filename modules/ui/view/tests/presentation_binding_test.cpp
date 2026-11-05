@@ -51,7 +51,7 @@ struct Fixture {
         check(std::ranges::any_of(rt.display_list().commands(),[](const auto& command){
             const auto* glyphs=std::get_if<render::DrawGlyphs>(&command);return glyphs && !glyphs->glyphs.empty();}));
         raster::Surface result(360,220);render::CpuRenderer renderer;
-        const auto report=renderer.render(rt.display_list(),result,{&rt.images(),&glyphs});check(report.missing_glyphs==0);return result;
+        const auto report=renderer.render(rt.display_list(),result,{&rt.images(),&glyphs});check(report.missing_glyphs==0 && report.effects_skipped==0);return result;
     }
     void click(Point point,double time) {
         check(rt.frame({seconds(time),{pointer(PointerKind::move,point),pointer(PointerKind::down,point),pointer(PointerKind::up,point)}}).failure.empty());
@@ -60,6 +60,81 @@ struct Fixture {
 }
 int main(int argc,char** argv) {
     Suite suite{"view.presentation_binding"};
+    suite.test("native image chains and selected poses publish together and replay real text through every frame",[] {
+        Fixture f;const auto ordinary=f.pixels().hash();
+        auto lease=take(f.rt.acquire_presentation(std::array{
+            PresentationTarget{f.card(),PresentationChannel::translation},PresentationTarget{f.label(),PresentationChannel::rotation}}));
+        take(lease.reserve_effects(0,2,16));
+        const auto blur=*render::effects().find("blur"),tone=*render::effects().find("tone");
+        auto blur_values=render::effects().params(blur,{}),tone_values=render::effects().params(tone,{});
+        auto index=[](render::EffectRef ref,std::string_view name){const auto& fields=render::effects().info(ref)->params;
+            return static_cast<std::size_t>(std::ranges::find(fields,name,&render::EffectParam::name)-fields.begin());};
+        const auto radius=index(blur,"radius"),amount=index(tone,"amount");
+        const std::array layers{PresentationImageLayer{blur,render::effects().generation(blur),blur_values},
+            PresentationImageLayer{tone,render::effects().generation(tone),tone_values}};
+        const std::array effects{PresentationEffects{layers},PresentationEffects{}};
+        std::vector<std::uint64_t> hashes;
+        auto sample=[&](int frame) {
+            const double t=frame/60.;blur_values[radius]=static_cast<float>(3*t);tone_values[amount]=static_cast<float>(.3*t);
+            take(lease.publish(std::array{hanim::Transform2D{.tx=20*t},hanim::Transform2D{.rotate=.08*t}},effects));
+            f.frame(3+t);return f.pixels();
+        };
+        const auto images=scratch_dir("presentation-image-scopes");
+        for(int i=0;i<=60;++i) {
+            auto pixels=sample(i);hashes.push_back(pixels.hash());
+            take(mlibs::image::save_png(images/std::format("frame-{:03}.png",i),
+                {reinterpret_cast<const std::uint8_t*>(pixels.pixels().data()),360,220,360*4}));
+            const auto state=f.rt.presentation(f.card());check(state && state->applied && !state->error && state->image_effects==2);
+        }
+        check(hashes.front()==ordinary,"identity image chains do not add another antialiased clip layer");
+        check(hashes[0]!=hashes[30] && hashes[30]!=hashes[60]);
+        for(int i=60;i>=0;--i)check(sample(i).hash()==hashes[static_cast<std::size_t>(i)],"native image parameters replay the whole process exactly");
+        (void)sample(60);const auto accepted=f.pixels().hash();tone_values[amount]=std::numeric_limits<float>::quiet_NaN();
+        const auto bad=lease.publish(std::array{hanim::Transform2D{.tx=99},hanim::Transform2D{}},effects);
+        check(!bad && bad.error().code==PresentationError::invalid_effect);check(f.rt.presentation(f.card())->pose.tx==20);
+        f.frame(5);check(f.pixels().hash()==accepted,"a late invalid effect leaves both prior geometry and every parameter intact");
+        tone_values[amount]=.3f;
+        f.click(f.rt.drawn_bounds(f.control()).center(),5.1);check(f.presses==1);
+        check(f.rt.inspect(f.card()).get("presentation")->get("image_effects")->list()->size()==2);
+    });
+    suite.test("image ownership is independent of transform writers and releases only its own state",[] {
+        Fixture f;
+        auto move=take(f.rt.acquire_presentation(std::array{PresentationTarget{f.card(),PresentationChannel::translation,{0,0}}}));
+        auto image=take(f.rt.acquire_presentation(std::array{PresentationTarget{f.card(),PresentationChannel::image}}));
+        take(move.publish(std::array{hanim::Transform2D{.tx=25}}));
+        check(!image.reserve_effects(0,65,4));take(image.reserve_effects(0,1,8));
+        const auto conflict=move.reserve_effects(0,1,8);check(!conflict && conflict.error().code==PresentationError::occupied);
+        {
+            const auto blur=*render::effects().find("blur");
+            const auto parameters=render::effects().params(blur,std::array{std::pair<std::string_view,float>{"radius",2}});
+            const std::array layers{PresentationImageLayer{blur,render::effects().generation(blur),parameters}};
+            take(image.publish(std::array{hanim::Transform2D{}},std::array{PresentationEffects{layers}}));
+        }
+        f.frame(3);check(f.rt.presentation(f.card())->pose.tx==25 && f.rt.presentation(f.card())->image_effects==1);
+        const auto blurred=f.pixels().hash();image.release();f.frame(3.1);
+        check(f.rt.presentation(f.card())->pose.tx==25 && f.rt.presentation(f.card())->image_effects==0);
+        check(f.pixels().hash()!=blurred);move.release();
+    });
+    suite.test("a text only image selection captures real glyphs without styling its sibling control",[] {
+        Fixture plain,styled;
+        auto lease=take(styled.rt.acquire_presentation(std::array{PresentationTarget{styled.label(),PresentationChannel::image}}));
+        take(lease.reserve_effects(0,1,1));const auto blur=*render::effects().find("blur");
+        const std::array<float,1> values{3};const std::array layers{PresentationImageLayer{blur,render::effects().generation(blur),values}};
+        take(lease.publish(std::array{hanim::Transform2D{}},std::array{PresentationEffects{layers}}));styled.frame(3);plain.frame(3);
+        for(float dpi:{1.f,2.f}) {
+            raster::Surface a(static_cast<int>(360*dpi),static_cast<int>(220*dpi)),b(a.width(),a.height());render::CpuRenderer cpu;
+            const auto reference=cpu.render(plain.rt.display_list(),a,{&plain.rt.images(),&plain.glyphs},{.scale=dpi});
+            const auto result=cpu.render(styled.rt.display_list(),b,{&styled.rt.images(),&styled.glyphs},{.scale=dpi});
+            check(!reference.missing_glyphs && !result.missing_glyphs && !result.effects_skipped && a.hash()!=b.hash());
+            const auto box=styled.rt.drawn_bounds(styled.control());bool same=true;
+            for(int y=static_cast<int>(std::ceil(box.y*dpi));y<static_cast<int>(box.bottom()*dpi);++y)
+                for(int x=static_cast<int>(std::ceil(box.x*dpi));x<static_cast<int>(box.right()*dpi);++x)same=same && a.at(x,y)==b.at(x,y);
+            check(same,"the sibling control retains every pixel at either DPI");
+            take(mlibs::image::save_png(scratch_dir("presentation-image-scopes")/std::format("title-{}x.png",static_cast<int>(dpi)),
+                {reinterpret_cast<const std::uint8_t*>(b.pixels().data()),b.width(),b.height(),b.width()*4}));
+        }
+        styled.click(styled.rt.drawn_bounds(styled.control()).center(),3.1);check(styled.presses==1);
+    });
     suite.test("a whole group moves actual text controls pixels and hit geometry through the same frame",[] {
         Fixture f;const auto card=f.rt.drawn_bounds(f.card()),label=f.rt.drawn_bounds(f.label()),button=f.rt.drawn_bounds(f.control());
         auto lease=take(f.rt.acquire_presentation(std::array{PresentationTarget{f.card(),PresentationChannel::translation}}));
@@ -106,16 +181,28 @@ int main(int argc,char** argv) {
     suite.test("default state feedback continues and projected frames never become automatic morph sources",[] {
         Fixture reference,projected;
         auto lease=take(projected.rt.acquire_presentation(std::array{PresentationTarget{projected.card(),PresentationChannel::translation}}));
-        take(lease.publish(std::array{hanim::Transform2D{.tx=40}}));projected.frame(2.1);reference.frame(2.1);
+        take(lease.reserve_effects(0,1,8));const auto tone=*render::effects().find("tone");
+        const auto values=render::effects().params(tone,std::array{std::pair<std::string_view,float>{"amount",.2f}});
+        const std::array layers{PresentationImageLayer{tone,render::effects().generation(tone),values}};
+        take(lease.publish(std::array{hanim::Transform2D{.tx=40}},std::array{PresentationEffects{layers}}));projected.frame(2.1);reference.frame(2.1);
         projected.color.set("#2563eb");reference.color.set("#2563eb");projected.frame(3);reference.frame(3);
         for(double t:{3.1,3.25,3.5,3.75,4.1}) {
             projected.frame(t);reference.frame(t);
-            const auto a=reference.pixels(),b=projected.pixels();const auto box=reference.rt.drawn_bounds(reference.control());
+            render::DisplayList expected;expected.push_layer(1,render::BlendMode::normal,tone,values,{0,0,360,220});
+            expected.append(reference.rt.display_list());expected.pop_layer();
+            raster::Surface a(360,220);render::CpuRenderer cpu;
+            check(cpu.render(expected,a,{&reference.rt.images(),&reference.glyphs}).effects_skipped==0);
+            const auto b=projected.pixels();const auto box=reference.rt.drawn_bounds(reference.control());
             const int x=static_cast<int>(box.center().x),y=static_cast<int>(box.center().y);
             check(a.row(y)[x]==b.row(y)[x+40]);
+            check(std::ranges::count_if(projected.rt.display_list().commands(),[tone](const auto& command){
+                const auto* layer=std::get_if<render::PushLayer>(&command);return layer && layer->effect.id==tone.id;
+            })==1,"the default morph never captures and reapplies the external image effect");
             check(near(projected.rt.drawn_bounds(projected.control()),box.offset({40,0})));
         }
-        lease.release();projected.frame(4.2);check(near(projected.rt.drawn_bounds(projected.control()),reference.rt.drawn_bounds(reference.control())));
+        lease.release();projected.frame(4.2);reference.frame(4.2);
+        check(near(projected.rt.drawn_bounds(projected.control()),reference.rt.drawn_bounds(reference.control())));
+        check(projected.pixels().hash()==reference.pixels().hash(),"detach restores the live ordinary UI, with no baked image effect");
     });
     suite.test("ancestor clipping remains fixed while local clips and pointer targets follow the selected group",[] {
         Fixture f;auto lease=take(f.rt.acquire_presentation(std::array{PresentationTarget{f.card(),PresentationChannel::translation}}));

@@ -12,17 +12,104 @@ namespace raster=mlibs::raster;
 namespace {
 Value::List checks;
 Value::List driver_frames;
+Value::List effect_frames;
 bool check(bool ok,std::string_view name) {checks.push_back(Value{}.set("name",name).set("ok",ok));return ok;}
 int finish(Value::List frames={}) {
     const bool ok=std::ranges::all_of(checks,[](const Value& v){return v.get("ok")->as_bool();});
     std::println("{}",Value{}.set("kind","omui.hanim-consumer").set("ok",ok).set("checks",Value(std::move(checks)))
-        .set("frames",Value(std::move(frames))).set("driver_frames",Value(std::move(driver_frames))).json());return ok?0:1;
+        .set("frames",Value(std::move(frames))).set("driver_frames",Value(std::move(driver_frames)))
+        .set("effect_frames",Value(std::move(effect_frames))).json());return ok?0:1;
 }
 PointerEvent pointer(PointerKind kind,Point at) {
     PointerEvent event;event.kind=kind;event.position=at;event.button=MouseButton::left;
     event.buttons=kind==PointerKind::down?1u:0u;return event;
 }
 std::string pixel_hash(const raster::Surface& pixels) {return mlibs::hash::Fnv1a{}.bytes(std::as_bytes(pixels.pixels())).hex();}
+
+void image_checks(typeset::FontCollection& fonts,const std::filesystem::path& output) {
+    RuntimeOptions options;options.fonts=&fonts;options.size={400,220};options.stages=Stages::paint;
+    Runtime runtime(options);typeset::GlyphCache glyphs(fonts);render::CpuRenderer renderer;raster::Surface pixels(400,220);
+    int activated=0;
+    runtime.mount("main",column({.padding=20},{column({.id="card",.width=210,.padding=12,.gap=12,.background="surface",.radius=12},{
+        text({.id="title",.text="Real text, shared effects"}),button({.id="action",.text="Use",.on_activated=[&]{++activated;}})})}));
+    bool rendered=true;double time=0;
+    auto paint=[&]{time+=1;const auto frame=runtime.frame({hanim::seconds(time),{}});
+        const auto result=renderer.render(runtime.display_list(),pixels,{&runtime.images(),&glyphs});
+        rendered=rendered && frame.failure.empty() && !result.effects_skipped && !result.missing_glyphs;return pixel_hash(pixels);};
+    paint();const auto plain=paint();const auto card=runtime.find("main/card"),action=runtime.find("main/card/action");
+    const auto base=runtime.drawn_bounds(card);
+    auto made=hanim::Engine::make();if(!check(bool(made),"image_engine_created"))return;
+    auto engine=std::move(*made);auto binding=animation::Binding::attach(runtime,std::array{animation::Target{"card",card}},engine);
+    if(!check(bool(binding),"image_binding_attaches_to_actual_ui_content"))return;
+    const auto object=binding->object();
+    auto recipe=hanim::composite(hanim::composite(hanim::anim::move_to(object,{60,12}).duration(1s)
+        .with_effect(hanim::fx::blur(0,3))).with_effect(hanim::fx::pixelate({3,0},{3,.45f},{hanim::fx::PixelUnit::device})))
+        .with_effect(hanim::fx::tone({.amount=0},{.amount=.2f}));
+    auto plan=engine.prepare(recipe);
+    if(!check(plan && binding->prepare(*plan),"leaf_and_two_nested_scopes_prepare_through_the_public_adapter"))return;
+    auto playback=engine.play(*plan);if(!check(bool(playback),"prepared_image_program_plays"))return;
+    auto sample=[&](double progress) {if(!engine.seek_progress(*playback,progress))return false;
+        const auto frame=engine.program_frame(*playback);return frame && bool(binding->present(*frame));};
+    bool good=true;std::vector<std::string> hashes;
+    for(int i=0;i<=60 && good;++i) {
+        good=sample(i/60.);if(!good)break;hashes.push_back(paint());
+        const auto state=runtime.presentation(card);const auto bounds=runtime.drawn_bounds(card);
+        good=rendered && state && state->applied && !state->error && state->image_effects==3 &&
+            std::abs(bounds.x-base.x-i)<.03 && std::abs(bounds.y-base.y-i/5.)<.03;
+        const auto file=output/std::format("effect-{:03}.png",i);
+        good=good && bool(mlibs::image::save_png(file,{reinterpret_cast<const std::uint8_t*>(pixels.pixels().data()),400,220,400*4}));
+        effect_frames.push_back(Value{}.set("index",i).set("time",i/60.).set("pixel_fnv1a",hashes.back()).set("png",mcpplibs::os::fs::utf8(file)));
+    }
+    if(!check(good && effect_frames.size()==61,"61_real_ui_frames_combine_motion_leaf_effect_and_nested_scopes"))return;
+    check(hashes.front()==plain && hashes[0]!=hashes[30] && hashes[30]!=hashes[60],"zero_strength_is_exact_identity_and_intermediate_pixels_change");
+    for(int i=60;i>=0;--i)good=sample(i/60.) && paint()==hashes[static_cast<std::size_t>(i)] && good;
+    check(good,"all_61_nested_effect_frames_replay_exactly_in_reverse");
+    (void)sample(.5);const auto accepted=paint();const auto pose=runtime.presentation(card)->pose;
+    (void)engine.seek_progress(*playback,.75);auto frame=engine.program_frame(*playback);
+    if(!check(bool(frame),"program_frame_exposes_typed_scope_samples"))return;
+    auto foreign=*frame;foreign.scene.preparation=nullptr;
+    check(!binding->present(foreign) && runtime.presentation(card)->pose==pose && paint()==accepted,"foreign_plan_cannot_publish_matching_sized_buffers");
+    std::vector<float> bad(frame->scene.scope_effect_values.begin(),frame->scene.scope_effect_values.end());bad.back()=std::numeric_limits<float>::quiet_NaN();
+    auto invalid=*frame;invalid.scene.scope_effect_values=bad;
+    check(!binding->present(invalid) && runtime.presentation(card)->pose==pose && paint()==accepted,"late_invalid_scope_preserves_the_complete_accepted_ui_batch");
+    const auto limited=binding->prepare(*plan,{.max_prepared_effect_layers=1});
+    check(!limited && sample(.5) && paint()==accepted,"failed_capacity_preparation_keeps_the_previous_binding_usable");
+    const auto tone=*render::effects().find("tone");const auto original=*render::effects().info(tone);
+    check(render::effects().replace(tone,original),"effect_provider_can_reload_without_replacing_the_ui");
+    const auto stale=binding->present(*frame);
+    check(!stale && stale.error().code==animation::BindingError::rendering && runtime.presentation(card)->pose==pose,"stale_generation_is_rejected_before_pose_publication");
+    check(binding->prepare(*plan) && sample(.5) && paint()==accepted,"explicit_rebind_restores_identical_pixels_after_provider_reload");
+    raster::Surface high_dpi(800,440);const auto dpi=renderer.render(runtime.display_list(),high_dpi,{&runtime.images(),&glyphs},{.scale=2});
+    check(!dpi.effects_skipped && !dpi.missing_glyphs,"the_same_live_glyph_and_effect_chain_renders_at_two_times_dpi");
+    const auto center=runtime.drawn_bounds(action).center();
+    const auto clicked=runtime.frame({hanim::seconds(++time),{pointer(PointerKind::move,center),pointer(PointerKind::down,center),pointer(PointerKind::up,center)}});
+    Invocation invoke;invoke.actor={"agent","image-review",{}};const auto activated_by_agent=runtime.act(action,"activate",invoke);
+    check(clicked.failure.empty() && activated_by_agent.exit_code()==0 && activated==2,"people_and_agents_operate_the_same_effected_standard_button");
+    check(runtime.inspect(card).get("presentation")->get("image_effects")->list()->size()==3,"agent_observation_exposes_the_actual_native_effect_chain");
+    (void)engine.release(*playback);
+    const auto pure=engine.prepare(hanim::anim::move_to(object,{0,0}).duration(1s));
+    if(!check(pure && binding->prepare(*pure),"pure_recipe_prepares_after_an_image_program"))return;
+    const auto plain_play=engine.play(*pure);const auto plain_frame=plain_play?engine.frame(*plain_play):std::expected<hanim::EngineFrame,hanim::EngineFailure>(std::unexpected(hanim::EngineFailure{}));
+    check(plain_frame && binding->present(*plain_frame) && runtime.presentation(card)->image_effects==0 &&
+        (static_cast<unsigned>(runtime.presentation(card)->channels)&16u)==0,"pure_recipe_clears_images_and_releases_only_its_dynamic_image_channel");
+    if(plain_play)(void)engine.release(*plain_play);
+    const auto constant=engine.play(hanim::anim::move_to(object,{5,0}).with_effect(hanim::EffectSpec{"tone",{}}));
+    const auto constant_frame=constant?engine.frame(*constant):std::expected<hanim::EngineFrame,hanim::EngineFailure>(std::unexpected(hanim::EngineFailure{}));
+    check(constant_frame && constant_frame->effect_values.empty() && !binding->present(*constant_frame),
+        "legacy_pose_frame_cannot_silently_discard_a_zero_parameter_default_effect");
+    if(constant) {
+        const auto constant_plan=engine.plan(*constant);const auto sampled=engine.program_frame(*constant);
+        check(constant_plan && sampled && binding->prepare(*constant_plan) && binding->present(*sampled) &&
+            runtime.presentation(card)->image_effects==1,"prepared_program_preserves_zero_parameter_effects_with_renderer_defaults");
+    }
+    if(constant)(void)engine.release(*constant);
+    for(std::string_view unsupported:{"displace","liquid_glass"}) {
+        const auto unsupported_plan=engine.prepare(hanim::anim::move_to(object,{5,0}).with_effect(hanim::EffectSpec{std::string(unsupported),{}}));
+        check(unsupported_plan && !binding->prepare(*unsupported_plan),"unsupported_spatial_or_backdrop_scope_is_refused_explicitly");
+    }
+    binding->detach();check(bool(engine.destroy_object(object)),"image_objects_and_ui_leases_release_independently");
+    check(rendered,"image_process_pixels_render_without_missing_resources_or_skipped_effects");
+}
 
 class DriveStage final : public pipeline::Stage {
 public:
@@ -223,11 +310,12 @@ int main(int argc,char** argv) {
     const auto effect_frame=effect?hengine.frame(*effect):std::expected<hanim::EngineFrame,hanim::EngineFailure>(std::unexpected(hanim::EngineFailure{}));
     const auto unsupported=effect_frame?binding->present(*effect_frame):std::expected<void,animation::BindingFailure>{};
     check(effect && !unsupported && unsupported.error().code==animation::BindingError::unsupported_frame && runtime.presentation(root)->pose==before,
-        "unsupported_image_effect_preserves_all_published_ui_fields");
+        "unprepared_legacy_image_frame_preserves_all_published_ui_fields");
     if(effect)(void)hengine.release(*effect);
     const auto object=binding->object();binding->detach();(void)runtime.frame({9s,{}});
     check(!binding->attached() && std::abs(runtime.drawn_bounds(root).x-base.x)<.03,"detach_restores_live_base_presentation");
     check(bool(hengine.destroy_object(object)) && !hengine.capture_object(object) && hengine.size()==0,"engine_objects_and_playbacks_released");
     driver_checks(fonts,output);
+    image_checks(fonts,output);
     return finish(std::move(frames));
 }

@@ -85,6 +85,9 @@ struct CpuOptions {
     // The device transform the list starts under (default: scale). An
     // effect's layer renders offscreen under its own (D-68).
     std::optional<Affine> transform;
+    // Output logical-pixel scale for image filters. Offscreen recursion
+    // preserves this instead of treating a node's geometry scale as DPI.
+    std::optional<float> effect_scale;
 };
 
 class CpuRenderer {

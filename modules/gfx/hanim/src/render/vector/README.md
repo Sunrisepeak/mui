@@ -24,6 +24,18 @@ registry generations and validates sampled values again. Effect replacement
 must happen at a quiescent boundary, not concurrently with bind/record/render;
 the existing registry does not provide immutable execution leases.
 
+`PreparedImageEffects::bind(prepared_effects)` exposes that same parameter-only
+binding for consumers whose geometry/content is owned elsewhere, such as UI.
+`bindings()` gives ordered renderer refs, generations and output ranges;
+`parameter_count()` includes omitted backend defaults. Allocate output once and
+call `resolve(sampled, output)` with Hanim's already sampled values. No clock,
+interpolation, UI or pixel algorithm is introduced. Invalid values, stale
+providers, short buffers and aliased input/output fail before output writes;
+unused output capacity remains untouched. Even a zero-authored-parameter effect
+can have a nonempty backend parameter block. Input and output views remain the
+caller's responsibility. UI-specific hit geometry requirements belong to its
+consumer and do not restrict independent offline vector rendering.
+
 Allocate caller scratch from `requirements()`: world transforms, backend
 parameter values, stage bounds, plus one reusable native DisplayList recording
 arena. On every `record(frame, sampled_effect_values, destination, scratch)`,

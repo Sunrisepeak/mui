@@ -171,6 +171,11 @@ Element detail(MotionGallery& g, const MotionGalleryContext& c, const MotionCase
             toggle({.id="loop",.checked=g.loop,.label=words(c,"Loop while visible","可见时循环")}),
             slider({.id="speed",.label=words(c,"Playback speed","播放速度"),.max=2.,.min=.25,.step=.25,.value=g.speed,
                 .on_changed=[&g,c](double){rates(g,runtime(c));},.width=Dim(inner)}),
+            select({.id="effect",.label=words(c,"Image effect on the whole note","整张便笺的图像效果"),
+                .labels=std::vector<std::string>{words(c,"None","无"),words(c,"Soft focus","柔焦"),words(c,"Tint","染色"),
+                    words(c,"Pixel","像素"),words(c,"Blur + tint","柔焦 + 染色")},
+                .options=std::vector<std::string>{"none","blur","tone","pixel","layered"},.value=study->effect,
+                .on_changed=[&g](std::string){g.progress.set(0);g.direction=1;g.playing.set(true);g.interactive.set(false);},.width=Dim(std::min(inner,260.f))}),
             select({.id="style",.label=words(c,"Style in this scene","此场景的风格"),
                 .labels=std::vector<std::string>{words(c,"Plain","原色"),words(c,"Glass","玻璃"),words(c,"Neon","霓虹"),words(c,"Retro","复古"),words(c,"Ink","水墨"),words(c,"Liquid","流体")},
                 .options=std::vector<std::string>{"plain","glass","neon","retro","ink","liquid"},.value=g.style,
@@ -179,8 +184,8 @@ Element detail(MotionGallery& g, const MotionGalleryContext& c, const MotionCase
             text({.id="config-scope",.text=words(c,"Bind your nodes as card, title and save with omui.hanim. This recipe changes presentation; controls keep their data and feedback. Style is configured separately.",
                 "通过 omui.hanim 将节点绑定为 card、title 和 save。配方改变呈现，控件保留数据与反馈；风格单独设置。"),.style="caption",.max_width=Dim(inner)}),
             code_editor({.id="config",.language=CodeEditorLanguage::cpp,.lines=8,.readonly=true,
-                .text=computed([study,&g]{return component_motion_source(study->selection.get(),g.loop.get(),g.speed.get());}),.width=Dim(inner)}),
-            button({.id="copy",.text=words(c,"Copy recipe","复制配方"),.on_activated=[study,&g,c]{if(auto* rt=runtime(c))rt->set_clipboard_text(component_motion_source(study->selection.peek(),g.loop.peek(),g.speed.peek()));g.copied.set(true);}}),
+                .text=computed([study,&g]{return component_motion_source(study->selection.get(),g.loop.get(),g.speed.get(),study->effect.get());}),.width=Dim(inner)}),
+            button({.id="copy",.text=words(c,"Copy recipe","复制配方"),.on_activated=[study,&g,c]{if(auto* rt=runtime(c))rt->set_clipboard_text(component_motion_source(study->selection.peek(),g.loop.peek(),g.speed.peek(),study->effect.peek()));g.copied.set(true);}}),
             text({.id="status",.text=study->error,.style="caption",.color="text_muted",.max_width=Dim(inner)})});
     }
     auto recompose = [&g, c] { g.interactive.set(false); g.playing.set(true); g.resetting = false; g.direction = 1; begin(g, c); };

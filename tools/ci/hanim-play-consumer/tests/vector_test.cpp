@@ -65,6 +65,38 @@ raster::Surface draw(const render::DisplayList& list) {
 
 int main(int argc, char** argv) {
     Suite s{"hanim.render.vector"};
+    s.test("public image bindings resolve ordered defaults atomically without owning geometry or a clock", [] {
+        const std::array descriptions{
+            EffectSpec{"tone",{{"amount",0,1}}},fx::blur(0,4),fx::blur(4,0)};
+        const auto effects=PreparedEffects::prepare(descriptions);check(effects.has_value());if(!effects)return;
+        auto binding=PreparedImageEffects::bind(*effects);check(binding.has_value());if(!binding)return;
+        check(binding->bindings().size()==3 && binding->bindings()[1].ref.id==binding->bindings()[2].ref.id,
+              "repeated effects retain separate ordered parameter blocks");
+        std::vector<float> sampled(effects->parameter_count()),resolved(binding->parameter_count()+2,-99);
+        check(effects->sample(.25,sampled).has_value());check(binding->resolve(sampled,resolved).has_value());
+        const auto bound=binding->bindings();
+        for(std::size_t i=0;i<bound.size();++i) {
+            const auto* info=render::effects().info(bound[i].ref);check(info!=nullptr);if(!info)return;
+            for(std::size_t p=0;p<info->params.size();++p) {
+                const auto name=info->params[p].name;
+                const float expected=i==0 && name=="amount"?.25f:i>0 && name=="radius"?(i==1?1.f:3.f):info->params[p].value;
+                check(resolved[bound[i].offset+p]==expected,"renderer parameter order and omitted defaults are resolved");
+            }
+        }
+        check(resolved.back()==-99 && resolved[resolved.size()-2]==-99,"extra capacity is untouched");
+        const auto before=resolved;sampled.back()=std::numeric_limits<float>::quiet_NaN();
+        check(!binding->resolve(sampled,resolved) && resolved==before,"a late invalid parameter never partly publishes the earlier fields");
+        check(effects->sample(.5,sampled).has_value());
+        check(!binding->resolve(sampled,std::span(resolved).first(1)) && resolved==before,"short output is atomic");
+        std::vector<float> alias(std::max(sampled.size(),resolved.size()),2);
+        const auto original_alias=alias;
+        check(!binding->resolve(std::span<const float>(alias).first(sampled.size()),alias) && alias==original_alias,"aliased source/output is refused");
+        const auto ref=bound.front().ref;const auto original=*render::effects().info(ref);
+        check(render::effects().replace(ref,original));const auto stale=binding->resolve(sampled,resolved);
+        check(render::effects().replace(ref,original));
+        check(!stale && stale.error().code==VectorError::stale_effect && resolved==before,"reload requires a rebind before any output changes");
+        const auto empty=PreparedImageEffects::bind({});check(empty.has_value());if(empty)check(empty->resolve({},resolved).has_value() && resolved==before);
+    });
     s.test("public pixelate parameters bind independently of UI and render exact off and distinct intermediate frames", [] {
         auto source = fixture();
         const auto descriptions = fx::chain({fx::pixelate({7, 0}, {7, 1}, {fx::PixelUnit::device, -2, 3})});

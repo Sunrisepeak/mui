@@ -2,14 +2,13 @@ module hanim.render.vector;
 
 import std;
 import openmui.log;
-import openmui.trace;
+import mlibs.trace;
 
 namespace hanim::detail {
 struct VectorParameter { std::size_t source; float value, min, max; };
-struct VectorEffect { xengine::render::EffectRef ref; std::uint64_t generation; std::size_t offset, count; };
 struct VectorEffects {
     PreparedEffects plan;
-    std::vector<VectorEffect> bindings;
+    std::vector<vector_render::BoundImageEffect> bindings;
     std::vector<VectorParameter> parameters;
 };
 struct VectorData {
@@ -66,6 +65,11 @@ bool same(const MorphPartInfo& a, const MorphPartInfo& b) noexcept {
 bool same(const MorphContourInfo& a, const MorphContourInfo& b) noexcept {
     return a.part == b.part && a.ordinal == b.ordinal && a.first_cubic == b.first_cubic && a.cubic_count == b.cubic_count;
 }
+template<class T>bool overlaps(std::span<T> a,std::span<T> b) {
+    if(a.empty() || b.empty())return false;
+    const auto first=reinterpret_cast<std::uintptr_t>(a.data()),second=reinterpret_cast<std::uintptr_t>(b.data());
+    return first<=second?second-first<a.size_bytes():first-second<b.size_bytes();
+}
 std::expected<detail::VectorEffects, VectorFailure> bind_effects(const PreparedEffects& effects) {
     auto refuse=[](VectorError code,std::size_t entry=0,std::size_t detail=0)->std::expected<detail::VectorEffects,VectorFailure> {
         return std::unexpected(VectorFailure{code,entry,detail});
@@ -107,18 +111,35 @@ std::expected<detail::VectorEffects, VectorFailure> bind_effects(const PreparedE
     }
     return data;
 }
+std::expected<void,VectorFailure> resolve_effects(const detail::VectorEffects& data,
+    std::span<const float> effect_values,std::span<float> parameters) noexcept {
+    auto refuse=[](VectorError code,std::size_t entry=0,std::size_t detail=0)->std::expected<void,VectorFailure> {
+        return std::unexpected(VectorFailure{code,entry,detail});
+    };
+    if(effect_values.size()<data.plan.parameter_count() || parameters.size()<data.parameters.size())
+        return refuse(VectorError::buffer_too_small);
+    if(overlaps<const float>(effect_values.first(data.plan.parameter_count()),parameters.first(data.parameters.size())))
+        return refuse(VectorError::recording_alias);
+    auto& registry=render::effects();
+    for(std::size_t i=0;i<data.bindings.size();++i)
+        if(registry.generation(data.bindings[i].ref)!=data.bindings[i].generation)return refuse(VectorError::stale_effect,i);
+    for (std::size_t i = 0; i < data.parameters.size(); ++i) {
+        const auto& binding = data.parameters[i];
+        const auto value = binding.source == no_source ? binding.value : effect_values[binding.source];
+        if (!std::isfinite(value) || value < binding.min || value > binding.max) return refuse(VectorError::invalid_parameter, i);
+    }
+    for(std::size_t i=0;i<data.parameters.size();++i) {
+        const auto& binding=data.parameters[i];
+        parameters[i]=binding.source==no_source?binding.value:effect_values[binding.source];
+    }
+    return {};
+}
 std::expected<geom::Rect,VectorFailure> measure_effects(const detail::VectorEffects& data,
     std::span<const float> effect_values,geom::Rect bounds,VectorScratch scratch) {
     auto refuse=[](VectorError code,std::size_t entry=0,std::size_t detail=0)->std::expected<geom::Rect,VectorFailure> {
         return std::unexpected(VectorFailure{code,entry,detail});
     };
-    if(effect_values.size()<data.plan.parameter_count())return refuse(VectorError::buffer_too_small);
-    for (std::size_t i = 0; i < data.parameters.size(); ++i) {
-        const auto& binding = data.parameters[i];
-        const auto value = binding.source == no_source ? binding.value : effect_values[binding.source];
-        if (!std::isfinite(value) || value < binding.min || value > binding.max) return refuse(VectorError::invalid_parameter, i);
-        scratch.backend_parameters[i] = value;
-    }
+    if(auto resolved=resolve_effects(data,effect_values,scratch.backend_parameters);!resolved)return std::unexpected(resolved.error());
     auto& registry = render::effects();
     for (std::size_t i = 0; i < data.bindings.size(); ++i) {
         const auto& binding = data.bindings[i];
@@ -233,6 +254,19 @@ std::expected<void,VectorFailure> emit(const detail::VectorData& data,FrameView 
 }
 
 }
+std::expected<PreparedImageEffects,VectorFailure> PreparedImageEffects::bind(const PreparedEffects& effects) {
+    mlibs::trace::Span span("bind-image-effects","hanim.render.vector");
+    auto bound=bind_effects(effects);if(!bound)return std::unexpected(bound.error());
+    PreparedImageEffects result;result.data_=std::make_shared<detail::VectorEffects>(std::move(*bound));return result;
+}
+std::span<const BoundImageEffect> PreparedImageEffects::bindings() const & noexcept {
+    return data_?std::span<const BoundImageEffect>(data_->bindings):std::span<const BoundImageEffect>{};
+}
+std::size_t PreparedImageEffects::parameter_count() const noexcept {return data_?data_->parameters.size():0;}
+std::expected<void,VectorFailure> PreparedImageEffects::resolve(std::span<const float> sampled,std::span<float> output) const noexcept {
+    if(!data_)return std::unexpected(VectorFailure{VectorError::unprepared});
+    return resolve_effects(*data_,sampled,output);
+}
 std::string_view vector_error_name(VectorError error) noexcept {
     switch (error) {
         case VectorError::unprepared: return "unprepared";
@@ -256,7 +290,7 @@ std::string_view vector_error_name(VectorError error) noexcept {
 }
 std::expected<PreparedVector, VectorFailure> PreparedVector::bind(
     const PreparedObjectMorph& geometry, const PreparedEffects& effects, std::span<const MaterialBinding> materials) {
-    omui::trace::Span span("bind", "hanim.render.vector");
+    mlibs::trace::Span span("bind", "hanim.render.vector");
     auto refuse = [](VectorError code, std::size_t entry = 0, std::size_t detail = 0) -> std::expected<PreparedVector, VectorFailure> {
         log.warn("bind refused: {} (entry={}, detail={})", vector_error_name(code), entry, detail);
         return std::unexpected(VectorFailure{code, entry, detail});
@@ -287,9 +321,9 @@ VectorRequirements PreparedVector::requirements() const noexcept {
 }
 std::expected<void, VectorFailure> PreparedVector::record(
     FrameView frame, std::span<const float> effect_values, render::DisplayList& destination, VectorScratch scratch) const {
-    omui::trace::Span span("record", "hanim.render.vector");
+    mlibs::trace::Span span("record", "hanim.render.vector");
     auto refuse = [](VectorError code, std::size_t entry = 0, std::size_t detail = 0) -> std::expected<void, VectorFailure> {
-        omui::trace::mark("refused", "hanim.render.vector");
+        mlibs::trace::mark("refused", "hanim.render.vector");
         return std::unexpected(VectorFailure{code, entry, detail});
     };
     if (!data_) return refuse(VectorError::unprepared);
@@ -314,15 +348,10 @@ VectorFailure located(VectorFailure error,std::size_t track=invalid_program_inde
     std::size_t segment=invalid_program_index,std::size_t scope=invalid_program_index) {
     error.track=track;error.segment=segment;error.scope=scope;return error;
 }
-template<class T>bool overlaps(std::span<T> a,std::span<T> b) {
-    if(a.empty() || b.empty())return false;
-    const auto first=reinterpret_cast<std::uintptr_t>(a.data()),second=reinterpret_cast<std::uintptr_t>(b.data());
-    return first<=second?second-first<a.size_bytes():first-second<b.size_bytes();
-}
 }
 std::expected<PreparedVectorProgram,VectorFailure> PreparedVectorProgram::bind(
     const PreparedProgram& program,ProgramVectorLimits limits) {
-    omui::trace::Span span("bind-program","hanim.render.vector");
+    mlibs::trace::Span span("bind-program","hanim.render.vector");
     if(!program)return std::unexpected(VectorFailure{VectorError::unprepared});
     auto data=std::make_shared<detail::VectorProgramData>();data->program=program;
     std::size_t parameters=0,layers=0;
@@ -362,7 +391,7 @@ std::expected<PreparedVectorProgram,VectorFailure> PreparedVectorProgram::bind(
         required.buffers.backend_parameters+=bound->parameters.size();required.buffers.effect_layers+=bound->bindings.size();
         required.scope_depth=std::max(required.scope_depth,scope.depth);data->scopes.push_back(std::move(*bound));
     }
-    omui::trace::count("image-scopes",static_cast<double>(required.scopes),"hanim.render.vector");
+    mlibs::trace::count("image-scopes",static_cast<double>(required.scopes),"hanim.render.vector");
     log.info("bound program with {} tracks and {} image scopes",required.tracks,required.scopes);
     PreparedVectorProgram result;result.data_=std::move(data);return result;
 }
@@ -371,7 +400,7 @@ ProgramVectorRequirements PreparedVectorProgram::requirements() const noexcept {
 }
 std::expected<void,VectorFailure> PreparedVectorProgram::record(
     ProgramFrameView frame,render::DisplayList& destination,ProgramVectorScratch scratch) const {
-    omui::trace::Span span("record-program","hanim.render.vector");
+    mlibs::trace::Span span("record-program","hanim.render.vector");
     auto refuse=[](VectorError code)->std::expected<void,VectorFailure> {return std::unexpected(VectorFailure{code});};
     if(!data_)return refuse(VectorError::unprepared);
     const auto& program=data_->program;const auto required=data_->required;

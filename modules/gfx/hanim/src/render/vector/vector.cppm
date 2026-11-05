@@ -8,7 +8,7 @@ export import hanim.program;
 export import xengine.render.vector;
 export import mlibs.geom;
 
-namespace hanim::detail { struct VectorData; struct VectorProgramData; }
+namespace hanim::detail { struct VectorData; struct VectorProgramData; struct VectorEffects; }
 
 export namespace hanim::vector_render {
 enum class VectorError : std::uint8_t {
@@ -25,6 +25,30 @@ struct VectorFailure {
     std::size_t track = invalid_program_index, segment = invalid_program_index, scope = invalid_program_index;
 };
 [[nodiscard]] std::string_view vector_error_name(VectorError code) noexcept;
+// One binding of Hanim's sampled image parameters to the shared renderer.
+// UI, vector and other content adapters consume these same validated slots;
+// this type owns neither content geometry, a player nor a clock.
+struct BoundImageEffect {
+    xengine::render::EffectRef ref;
+    std::uint64_t generation = 0;
+    std::size_t offset = 0, count = 0;
+};
+class PreparedImageEffects {
+public:
+    PreparedImageEffects() noexcept = default;
+    // Same strict CPU-reference/non-backdrop contract as PreparedVector.
+    [[nodiscard]] static std::expected<PreparedImageEffects, VectorFailure> bind(const PreparedEffects&);
+    [[nodiscard]] std::span<const BoundImageEffect> bindings() const & noexcept;
+    std::span<const BoundImageEffect> bindings() const && = delete;
+    [[nodiscard]] std::size_t parameter_count() const noexcept;
+    // Resolves defaults, declared parameter order and registry generations.
+    // No interpolation or allocation. Failure preserves all output; sampled
+    // input and output may not overlap. Extra output capacity is untouched.
+    [[nodiscard]] std::expected<void, VectorFailure> resolve(
+        std::span<const float> sampled, std::span<float> output) const noexcept;
+private:
+    std::shared_ptr<const detail::VectorEffects> data_;
+};
 struct MaterialBinding {
     std::string part;
     xengine::render::Paint from, to;

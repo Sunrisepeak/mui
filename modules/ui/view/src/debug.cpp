@@ -170,13 +170,24 @@ Value Runtime::inspect(NodeId node) const {
         const auto& p=n.presentation;Value pose;
         pose.set("x",p.pose.tx).set("y",p.pose.ty).set("rotation",p.pose.rotate)
             .set("scale_x",p.pose.sx).set("scale_y",p.pose.sy).set("shear",p.pose.skew_x);
-        constexpr std::array<std::string_view,4> names{"translation","rotation","scale","shear"};
+        constexpr std::array<std::string_view,5> names{"translation","rotation","scale","shear","image"};
         Value::List channels;
-        for(std::size_t i=0;i<4;++i)if(p.writers[i])channels.emplace_back(names[i]);
+        for(std::size_t i=0;i<names.size();++i)if(p.writers[i])channels.emplace_back(names[i]);
         Value presentation;presentation.set("representation","local-presentation-offset").set("pose",std::move(pose))
             .set("channels",Value(std::move(channels))).set("has_frame",p.has_frame).set("applied",p.applied)
             .set("live_anchor_placement",n.live_anchor_placement);
         if(p.error)presentation.set("error",presentation_error_name(*p.error));
+        if(p.writers[4] && p.images) {
+            Value::List layers;
+            for(const auto& layer:p.images->layers) {
+                Value::List params;for(float value:std::span(p.images->parameters).subspan(layer.offset,layer.count))params.emplace_back(value);
+                const auto* info=render::effects().info(layer.effect);
+                layers.push_back(Value{}.set("id",info?info->name:std::string_view{}).set("generation",std::to_string(layer.generation))
+                    .set("parameters",Value(std::move(params))));
+            }
+            presentation.set("image_effects",Value(std::move(layers))).set("image_layer_capacity",static_cast<std::int64_t>(p.images->layer_limit))
+                .set("image_parameter_capacity",static_cast<std::int64_t>(p.images->parameter_limit));
+        }
         v.set("presentation",std::move(presentation));
     }
     return v;

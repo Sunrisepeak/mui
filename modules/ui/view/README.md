@@ -214,9 +214,9 @@ releases only that lease's channels. The Engine owns the created object:
 release playbacks, detach, then destroy it; Binding destruction only releases
 UI leases and is safe after Runtime destruction.
 
-This first tier supports finite 2D local transforms. It refuses cross-portal
-selections and geometry/material/image-effect frames rather than dropping
-their data. Historical crossfade snapshots remain captured images of their
+This first tier supports finite 2D local transforms and the explicitly prepared
+image scopes below. It refuses cross-portal selections and geometry/material
+frames rather than dropping their data. Historical crossfade snapshots remain captured images of their
 original presentation. General constraint/hold-world solving, sampled-base
 anchor tracking during unrelated layout morphs and geometry/3D adapters
 remain separate work. Explicit time
@@ -227,9 +227,64 @@ owning `Playback` below supplies that host transport without another engine.
 The [independent consumer](../../../tools/ci/omui-hanim-consumer/src/main.cpp)
 uses the real button/popover, shaped text, public Hanim composition, renderer
 and Agent actions. Its [runner](../../../tools/ci/omui-hanim-consumer/run.py)
-exports 61 explicit samples and 61 host-driven frames, with exact reverse
+exports 61 explicit samples, 61 host-driven frames and 61 nested-effect frames, with exact reverse
 replay in native dev/release and optional Wasm/Node, without changing the
 source workspace's lock.
+
+## Native image scopes on live UI content
+
+The same optional adapter accepts a single HObject's leaf effects and nested
+`hanim::composite(...).with_effect(...)` scopes. The selected root supplies the
+actual rendered content, including shaped text, child controls and their normal
+state feedback. For example, pass this program to the owning `Playback`:
+
+```cpp
+auto animation = hanim::composite(
+    hanim::anim::move_to(playback.object(), {24, 0})
+        .with_effect(hanim::fx::blur(0, 3)))
+    .with_effect(hanim::fx::tone({.amount=0}, {.amount=.2f}));
+auto started = playback.play(animation); // Check the typed result.
+```
+
+With an externally owned Engine, call `hengine.prepare(animation)`, then
+`binding.prepare(prepared)` before `hengine.play(prepared)`. Sample with
+`hengine.program_frame(handle)` and `binding.present(frame)`. This carries the
+plan identity and all scope samples. The legacy `EngineFrame` pose path refuses
+image effects, including effects whose authored parameter list is empty;
+it must not silently lose renderer defaults.
+
+Hanim remains the only parameter/time evaluator. `hanim.render.vector` supplies
+the same `PreparedImageEffects` name/default/range/generation binding used by
+its standalone vector consumer. UI owns preallocated, copied layer parameters
+and validates the complete pose/effect batch before committing. Renderer content
+bounds capture displaced descendants, glyph overhang and nested filter output;
+layout boxes do not crop the capture. Zero-strength UI image filters are omitted
+when their provider declares exact identity. Local style is independently
+composable; neither changes the underlying component data.
+
+Image ownership is independent of translation/rotation/scale/shear. The native
+`PresentationLease` can reserve an image channel on any selected node, with up
+to 64 layers and 4,096 backend parameters per node. Cold `reserve_effects` owns
+capacity; `publish(poses, effects)` copies spans atomically. An empty effects
+argument preserves the current chain; an explicitly empty per-node chain clears
+it. A later pure Hanim program clears its old filters and releases only an image
+channel acquired by the adapter itself. Release/detach leaves other writers intact.
+
+Current binding requires a CPU reference, no backdrop, no spatial inverse map,
+and the effect provider's explicit `preserves_hit_geometry` declaration. Blur,
+tone and pixelate declare this contract. Custom effects opt in only when they
+retain control identity and location; unknown/deforming providers are refused.
+Changing a provider generation requires rebind at a quiescent boundary. Publication
+failure retains accepted values; paint-time provider invalidation is observable
+as a presentation error and does not promise to reproduce the old shader output.
+
+The Hanim image scope covers the selected **root**, regardless of which child
+transform channels animate. Select text itself as another binding's root for a
+text-only scope. Per-part scope IR, arbitrary cross-object/cross-tree compositing,
+backdrop and spatial input mapping remain separate work. No new network authority
+is added: expose controls and inspection through the application's existing
+authorized openas endpoint. Headless review must render the real frame, check
+presentation errors, sample the process and verify actual component actions.
 
 ## Optional owning playback host
 

@@ -34,6 +34,10 @@ void Playback::reanchor() {
     anchor_time_=runtime_->now();anchor_position_=info->position;direction_=info->rate>0?1:-1;
 }
 Status Playback::publish() {
+    if(binding_.images_) {
+        const auto frame=engine_.program_frame(*playback_);if(!frame)return std::unexpected(failure(frame.error()));
+        const auto result=binding_.present(*frame);if(!result)return std::unexpected(failure(result.error()));return {};
+    }
     const auto frame=engine_.frame(*playback_);if(!frame)return std::unexpected(failure(frame.error()));
     const auto result=binding_.present(*frame);if(!result)return std::unexpected(failure(result.error()));
     return {};
@@ -56,7 +60,9 @@ Status Playback::play(const hanim::Program& program,PlaybackOptions options) {
     if(!attached())return std::unexpected(PlaybackFailure{PlaybackError::stale});
     if(playback_)return std::unexpected(PlaybackFailure{PlaybackError::occupied});
     if(!std::isfinite(options.rate) || options.rate==0)return std::unexpected(PlaybackFailure{PlaybackError::invalid_time});
-    const auto played=engine_.play(program);if(!played)return std::unexpected(failure(played.error()));
+    const auto prepared=engine_.prepare(program);if(!prepared)return std::unexpected(failure(prepared.error()));
+    if(auto bound=binding_.prepare(*prepared);!bound)return std::unexpected(failure(bound.error()));
+    const auto played=engine_.play(*prepared);if(!played)return std::unexpected(failure(played.error()));
     playback_=*played;
     const auto info=engine_.inspect(*playback_);
     const auto shown=sample(options.rate<0?info->duration:hanim::seconds(0),options.rate);

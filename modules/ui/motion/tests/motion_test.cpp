@@ -294,5 +294,27 @@ int main(int argc, char** argv) {
         check(layer && layer->params.size() == 1 && std::abs(layer->params[0] - 0.6f) < 1e-5f, "the effect's strength half way");
     });
 
+    s.test("content sized effect groups retain a measured envelope through morph and snapshots", [] {
+        Names names;const auto blur=*render::effects().find("blur");
+        auto scene=[&](float x){render::DisplayList list;list.begin_node(1);
+            list.fill_rect({0,0,3,3},Color::white());
+            list.push_transform(Affine::translate(x,10));
+            const auto values=render::effects().params(blur,std::array{std::pair<std::string_view,float>{"radius",2}});
+            list.push_layer(1,render::BlendMode::normal,blur,values,{}, {},render::LayerBoundsMode::content);
+            list.fill_rect({10,10,30,20},Color::white());list.pop_layer();list.pop_transform();list.end_node();return list;};
+        auto a=scene(10),b=scene(40);auto source=mo::Matter::extract(a,names.resolver());
+        const auto group=std::ranges::find(source.pieces(),mo::PieceClass::group,&mo::Piece::cls);
+        check(group!=source.pieces().end() && group->bounds.width>=30 && group->bounds.height>=20);
+        mo::Morph morph(std::move(source),mo::Matter::extract(b,names.resolver()),linear(1),0);
+        auto pixels=[](const render::DisplayList& list){raster::Surface surface(120,80);render::CpuRenderer cpu;
+            check(cpu.render(list,surface,{}).effects_skipped==0);return surface.hash();};
+        for(double at:{0.,.25,.5,.75,1.}) {
+            render::DisplayList frame;morph.draw(at,frame);
+            check(std::ranges::any_of(frame.commands(),[](const auto& command){const auto* layer=std::get_if<render::PushLayer>(&command);
+                return layer && layer->bounds_mode==render::LayerBoundsMode::content;}));
+            if(at==0)check(pixels(frame)==pixels(a));if(at==1)check(pixels(frame)==pixels(b));
+            auto snapshot=mo::Matter::extract(frame,names.resolver());check(!snapshot.pieces().empty());
+        }
+    });
     return s.run(argc, argv);
 }

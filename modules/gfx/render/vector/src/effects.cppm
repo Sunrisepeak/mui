@@ -166,6 +166,11 @@ struct EffectInfo {
     // This preserves samples used by visible output; it does not expand the
     // layer's own capture/output bounds. Empty: use the existing capture reach.
     float (*input_radius)(std::span<const float> params, float scale) = nullptr;
+    // This filter preserves the identity/location of interactive source
+    // content (e.g. colour, blur or pixel styling). Optional UI consumers can
+    // keep their existing hit geometry only with this explicit declaration.
+    // Default unknown: a spatial/deforming effect needs its own input mapping.
+    bool preserves_hit_geometry = false;
 };
 
 // Runs an effect's CPU reference over its rows — in bands on `parallel` when

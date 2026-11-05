@@ -270,13 +270,16 @@ void SelectOption::paint(PaintContext& ctx) const {
 
 bool SelectOption::on_event(EventContext&, const InputEvent& e) {
     const auto* k = std::get_if<KeyEvent>(&e);
-    if (!k || k->kind != KeyKind::down || (k->key != Key::down && k->key != Key::up)) return false;
+    if (!k || k->kind != KeyKind::down ||
+        (k->key != Key::down && k->key != Key::up && k->key != Key::home && k->key != Key::end)) return false;
     const auto all = services_->children(services_->parent(node_));
     auto it = std::ranges::find(all, node_);
     if (it == all.end()) return true;
     const std::size_t i = static_cast<std::size_t>(it - all.begin());
     const std::size_t n = all.size();
-    services_->focus(all[k->key == Key::down ? (i + 1) % n : (i + n - 1) % n]);
+    const auto next=k->key==Key::home?std::size_t{0}:k->key==Key::end?n-1:
+        k->key==Key::down?(i+1)%n:(i+n-1)%n;
+    services_->focus(all[next]);
     return true;
 }
 

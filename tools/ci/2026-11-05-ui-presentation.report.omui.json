@@ -1,0 +1,851 @@
+{
+  "format": "omui.ui-presentation-checkpoint@0.1",
+  "date": "2026-11-05T14:02:12.425618+00:00",
+  "ok": true,
+  "base_commit": "0187eed5ba3deba4a4383f80b9f77a794da2a6f7",
+  "source_files_sha256": {
+    "components/base/tests/overlay_boundary_test.cpp": "6748b411a89f2d25156216794d0ae47d3e2874b88ee37f065384d883b86a0017",
+    "modules/gfx/render/vector/src/display.cpp": "423db6945bfb470a53e7306c374cf620c9b4375b6e166b45909b9f1856a2e17c",
+    "modules/gfx/render/vector/src/display.cppm": "a05f6c1e4e9b6c14370a18117ad9a66f6fe48cbf6e07661ac0068891b146a639",
+    "modules/ui/motion/src/matter.cpp": "60a99241dbfa308d06c718a287b252f2d505729a7bf065ef4673a2d41b340302",
+    "modules/ui/motion/src/matter.cppm": "15c108ec96242b6f58d218021374360e0dc955f24ac5af77880420387683b2da",
+    "modules/ui/motion/src/morph.cpp": "207a55cc88b75d78910c9c7508e23cac877e1cbfa9a814bc180f19bb11a5757d",
+    "modules/ui/motion/tests/reference_test.cpp": "c854795fb8999e3827462af357fe710261c3b3297c71f0c359d4a1487ecca150",
+    "modules/ui/view/mcpp.toml": "06d44f393c49f7261e4bca3017ad377df494e3f6527b601bca91c024b7a20641",
+    "modules/ui/view/src/debug.cpp": "e2e67b2cd284e223b63d2a100dbc65502d0bff65677aa18e1f2cea7a50f77007",
+    "modules/ui/view/src/frame.cpp": "7a4a325610c6f1def9ccf0cf833d278d83a1608adef06eb02917ffa6cc7315a7",
+    "modules/ui/view/src/hanim/bridge.cpp": "e8075bc409a5c418dd29d4d19bf96ecc9536a4eeeaa133717b13430fd1802d78",
+    "modules/ui/view/src/hanim/bridge.cppm": "30ce3c794226bed26e670fa0dd11e82a714e108a6ca08415ac0e99eeedbea6ea",
+    "modules/ui/view/src/impl.cppm": "7c5d01c7e8cf93bfb3a543da20eb4c5d603e014f87ea3ab95ccdc45ac865fbb8",
+    "modules/ui/view/src/motion.cpp": "e31c64f3aa243162a5d558e9de6a82744d681969f34e098e6718fa079ad5d5ef",
+    "modules/ui/view/src/presentation.cpp": "bf6334789600e7ad190d67cd9a99f9fc21c585129bc855f5c204cefbba69d852",
+    "modules/ui/view/src/runtime.cpp": "fd2ebc9319e9d13b944ad59bcac80523fd375428b133690f5bcb0676bef23e5a",
+    "modules/ui/view/src/runtime.cppm": "4b58edc7b6a04ae44e799c43afd5f55316b1167e4c06f3d7cbf54135c33d228c",
+    "modules/ui/view/tests/presentation_binding_test.cpp": "611e5ec87963ab0641dc9f777bb746934ed09cd06969efb197a9d1b354aa110f",
+    "tests/bench/budgets.bench.omui.json": "24f641fe4e21c125fe5c351ce7406d470b5449feb1ed0de2c14e97f4de3e51ca",
+    "tests/bench/src/scenes.cpp": "101af8f1a51e739af66a0216078c082b81fd5a7b616e3476c90c4735ac6dd9c7",
+    "tools/ci/omui-hanim-consumer/mcpp.toml.in": "d0976f940b2251e203792f68f96ae43d6e1edbb10238c9e0b0b541eeab534aa4",
+    "tools/ci/omui-hanim-consumer/run.py": "98a7fafb4137ab99a7c3e0a2513a7391b012db22564e25a0899556d0a1e32e08",
+    "tools/ci/omui-hanim-consumer/src/main.cpp": "19e8f13cf86ab57e6ff3803efb773864e0b96c4c21bd0f00896c3560705178b2"
+  },
+  "source_lock_sha256": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+  "implementation": [
+    "Optional omui.hanim module in the existing view package; Engine is the sole explicit player.",
+    "Property-tier local offset representation with named UI hierarchy and independent translation/rotation/scale/shear leases.",
+    "Whole selected node ranges share actual paint, clipping, semantic/input geometry and IME projection.",
+    "Anchored overlays follow projected target placement without a second easing; sampled allocation metadata preserves internal state feedback."
+  ],
+  "local_tests": {
+    "native-dev": {
+      "programs": 39,
+      "cases": 328,
+      "failed": 0,
+      "log": "target/omui-presentation/native-dev.log",
+      "sha256": "cbaa90dd7502bf9f4c9498bbac6a35cd84ef867db5c5a5161a051e693c8d0b77"
+    },
+    "native-release": {
+      "programs": 39,
+      "cases": 328,
+      "failed": 0,
+      "log": "target/omui-presentation/native-release.log",
+      "sha256": "dff808aa715ac17d0e61cde16b5c549af8fbd07051b440530a18c1374a85ac88"
+    },
+    "web": {
+      "programs": 39,
+      "cases": 324,
+      "failed": 0,
+      "log": "target/omui-presentation/web.log",
+      "sha256": "a77df2b062b3e26d773f4f11d68eb1846fe41794692fd0ef6f7fec360c302bc4"
+    },
+    "site": {
+      "programs": 20,
+      "cases": 129,
+      "failed": 0,
+      "log": "target/omui-presentation/site.log",
+      "sha256": "a5782f24bac549b9aaa85bc13f9d959cba706e1b11d12823d9a87dec5cb6fdc3"
+    }
+  },
+  "web_case_differences": {
+    "render.damage": {
+      "native": 6,
+      "web": 5
+    },
+    "render.effects": {
+      "native": 11,
+      "web": 9
+    },
+    "host.headless.agent_policy": {
+      "native": 1,
+      "web": 0
+    }
+  },
+  "consumer": {
+    "report": "target/omui-presentation/consumer.report.omui.json",
+    "sha256": "93d64605cb31cb64b3540fc89ad93fa45f259108240ab10521329d623650390b",
+    "profiles": {
+      "dev": {
+        "checks": 22,
+        "frames": 61,
+        "check_names": [
+          "output_directory_argument",
+          "font_resources_loaded",
+          "native_engine_created",
+          "explicit_root_text_and_component_channels_attached",
+          "presentation_object_retains_selected_hierarchy",
+          "public_independent_channel_program_plays",
+          "61_real_frames_include_shaped_text_component_and_current_bounds",
+          "reverse_sampling_reproduces_all_61_pixels_without_advancing_business_state",
+          "midpoint_pose_published_for_real_input",
+          "real_pointer_activates_the_moving_standard_button",
+          "agent_activates_the_same_component_through_native_semantics",
+          "agent_inspection_describes_the_actual_representation",
+          "actual_popover_anchors_to_the_projected_button",
+          "retarget_keeps_current_child_channels",
+          "popover_follows_new_anchor_in_the_same_frame_without_a_second_easing",
+          "anchor_following_is_observable",
+          "agent_dismisses_the_real_anchored_component",
+          "overlapping_writer_is_explicitly_refused",
+          "original_playback_released",
+          "unsupported_image_effect_preserves_all_published_ui_fields",
+          "detach_restores_live_base_presentation",
+          "engine_objects_and_playbacks_released"
+        ],
+        "packages": [
+          "compat.concurrentqueue",
+          "compat.freetype",
+          "compat.harfbuzz",
+          "compat.libpng",
+          "compat.libwebp",
+          "compat.sheenbidi",
+          "compat.zlib",
+          "hanim.core",
+          "marzer.tomlplusplus",
+          "mcpplibs.hanim",
+          "mcpplibs.mwrap.concurrentqueue",
+          "mcpplibs.mwrap.harfbuzz",
+          "mcpplibs.mwrap.libpng",
+          "mcpplibs.mwrap.libwebp",
+          "mcpplibs.mwrap.sheenbidi",
+          "mcpplibs.openkal",
+          "mcpplibs.openkal-linux",
+          "mcpplibs.os",
+          "mlibs.control",
+          "mlibs.geom",
+          "mlibs.hash",
+          "mlibs.i18n",
+          "mlibs.image",
+          "mlibs.layout",
+          "mlibs.log",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.pipeline",
+          "mlibs.raster",
+          "mlibs.rhi",
+          "mlibs.text",
+          "mlibs.trace",
+          "mlibs.unicode",
+          "nlohmann.json",
+          "omui.validation.hanim_consumer",
+          "openlifa.openas",
+          "openlifa.openmui",
+          "openmui.core",
+          "openmui.motion",
+          "openmui.ui.base",
+          "openmui.view",
+          "taskflow.taskflow",
+          "xengine.render",
+          "xengine.render.vector"
+        ]
+      },
+      "release": {
+        "checks": 22,
+        "frames": 61,
+        "check_names": [
+          "output_directory_argument",
+          "font_resources_loaded",
+          "native_engine_created",
+          "explicit_root_text_and_component_channels_attached",
+          "presentation_object_retains_selected_hierarchy",
+          "public_independent_channel_program_plays",
+          "61_real_frames_include_shaped_text_component_and_current_bounds",
+          "reverse_sampling_reproduces_all_61_pixels_without_advancing_business_state",
+          "midpoint_pose_published_for_real_input",
+          "real_pointer_activates_the_moving_standard_button",
+          "agent_activates_the_same_component_through_native_semantics",
+          "agent_inspection_describes_the_actual_representation",
+          "actual_popover_anchors_to_the_projected_button",
+          "retarget_keeps_current_child_channels",
+          "popover_follows_new_anchor_in_the_same_frame_without_a_second_easing",
+          "anchor_following_is_observable",
+          "agent_dismisses_the_real_anchored_component",
+          "overlapping_writer_is_explicitly_refused",
+          "original_playback_released",
+          "unsupported_image_effect_preserves_all_published_ui_fields",
+          "detach_restores_live_base_presentation",
+          "engine_objects_and_playbacks_released"
+        ],
+        "packages": [
+          "compat.concurrentqueue",
+          "compat.freetype",
+          "compat.harfbuzz",
+          "compat.libpng",
+          "compat.libwebp",
+          "compat.sheenbidi",
+          "compat.zlib",
+          "hanim.core",
+          "marzer.tomlplusplus",
+          "mcpplibs.hanim",
+          "mcpplibs.mwrap.concurrentqueue",
+          "mcpplibs.mwrap.harfbuzz",
+          "mcpplibs.mwrap.libpng",
+          "mcpplibs.mwrap.libwebp",
+          "mcpplibs.mwrap.sheenbidi",
+          "mcpplibs.openkal",
+          "mcpplibs.openkal-linux",
+          "mcpplibs.os",
+          "mlibs.control",
+          "mlibs.geom",
+          "mlibs.hash",
+          "mlibs.i18n",
+          "mlibs.image",
+          "mlibs.layout",
+          "mlibs.log",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.pipeline",
+          "mlibs.raster",
+          "mlibs.rhi",
+          "mlibs.text",
+          "mlibs.trace",
+          "mlibs.unicode",
+          "nlohmann.json",
+          "omui.validation.hanim_consumer",
+          "openlifa.openas",
+          "openlifa.openmui",
+          "openmui.core",
+          "openmui.motion",
+          "openmui.ui.base",
+          "openmui.view",
+          "taskflow.taskflow",
+          "xengine.render",
+          "xengine.render.vector"
+        ]
+      },
+      "wasm-test": {
+        "checks": 22,
+        "frames": 61,
+        "check_names": [
+          "output_directory_argument",
+          "font_resources_loaded",
+          "native_engine_created",
+          "explicit_root_text_and_component_channels_attached",
+          "presentation_object_retains_selected_hierarchy",
+          "public_independent_channel_program_plays",
+          "61_real_frames_include_shaped_text_component_and_current_bounds",
+          "reverse_sampling_reproduces_all_61_pixels_without_advancing_business_state",
+          "midpoint_pose_published_for_real_input",
+          "real_pointer_activates_the_moving_standard_button",
+          "agent_activates_the_same_component_through_native_semantics",
+          "agent_inspection_describes_the_actual_representation",
+          "actual_popover_anchors_to_the_projected_button",
+          "retarget_keeps_current_child_channels",
+          "popover_follows_new_anchor_in_the_same_frame_without_a_second_easing",
+          "anchor_following_is_observable",
+          "agent_dismisses_the_real_anchored_component",
+          "overlapping_writer_is_explicitly_refused",
+          "original_playback_released",
+          "unsupported_image_effect_preserves_all_published_ui_fields",
+          "detach_restores_live_base_presentation",
+          "engine_objects_and_playbacks_released"
+        ],
+        "packages": [
+          "compat.concurrentqueue",
+          "compat.freetype",
+          "compat.harfbuzz",
+          "compat.libpng",
+          "compat.libwebp",
+          "compat.sheenbidi",
+          "compat.zlib",
+          "hanim.core",
+          "marzer.tomlplusplus",
+          "mcpplibs.hanim",
+          "mcpplibs.mwrap.concurrentqueue",
+          "mcpplibs.mwrap.harfbuzz",
+          "mcpplibs.mwrap.libpng",
+          "mcpplibs.mwrap.libwebp",
+          "mcpplibs.mwrap.sheenbidi",
+          "mcpplibs.openkal",
+          "mcpplibs.openkal-emscripten",
+          "mcpplibs.os",
+          "mlibs.control",
+          "mlibs.geom",
+          "mlibs.hash",
+          "mlibs.i18n",
+          "mlibs.image",
+          "mlibs.layout",
+          "mlibs.log",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.pipeline",
+          "mlibs.raster",
+          "mlibs.rhi",
+          "mlibs.text",
+          "mlibs.trace",
+          "mlibs.unicode",
+          "nlohmann.json",
+          "omui.validation.hanim_consumer",
+          "openlifa.openas",
+          "openlifa.openmui",
+          "openmui.core",
+          "openmui.motion",
+          "openmui.ui.base",
+          "openmui.view",
+          "taskflow.taskflow",
+          "xengine.render",
+          "xengine.render.vector"
+        ]
+      }
+    },
+    "all_61_corresponding_frames_equal_across_three_profiles": true,
+    "reverse_replay_all_61_per_profile": true,
+    "font_loading_checked": true,
+    "missing_fonts_refused": true,
+    "title_ink_pixels_min": 222,
+    "feature_off": {
+      "ok": true,
+      "compiled_units": 702,
+      "adapter_and_engine_absent": true,
+      "source_sha256": "331faa035bb0cac51739e871b24d18ebe8a4b4158edd99813a414cce1bf5f9ae"
+    },
+    "frames": [
+      {
+        "index": 0,
+        "time": 0,
+        "pixel_fnv1a": "c734958858d82b58",
+        "png_sha256": "229ddf5c113b3634206df8141fc28ba4dfecac2085cfc4a00fcaa6a408f8974f",
+        "title_ink_pixels": 252
+      },
+      {
+        "index": 1,
+        "time": 0.016666666666666666,
+        "pixel_fnv1a": "fb919e80260a3300",
+        "png_sha256": "ea664acafff21937ccc5f9ff4451d76127635b5fa4d8b0e9b264839626f146b4",
+        "title_ink_pixels": 222
+      },
+      {
+        "index": 2,
+        "time": 0.03333333333333333,
+        "pixel_fnv1a": "0e19ccb9732885e2",
+        "png_sha256": "967e3168739a02c593614bdf4c8ccc42bb04b439deac0f41c2f8550dcf45101e",
+        "title_ink_pixels": 254
+      },
+      {
+        "index": 3,
+        "time": 0.05,
+        "pixel_fnv1a": "bc5d4264071cfd64",
+        "png_sha256": "b462680c40dd3006bb37172c1cf0c307d761168227b99eb3ef6a4b2412cf3a3c",
+        "title_ink_pixels": 237
+      },
+      {
+        "index": 4,
+        "time": 0.06666666666666667,
+        "pixel_fnv1a": "efcd004912e600a4",
+        "png_sha256": "764923c651731b46d83396e951f2ff5abbf274363e71520b355dc4c335f54d95",
+        "title_ink_pixels": 235
+      },
+      {
+        "index": 5,
+        "time": 0.08333333333333333,
+        "pixel_fnv1a": "abe26f2cd738cc2f",
+        "png_sha256": "e2c6c4f337dfd43d1ac5c4aa5bd8aa51fea72f95230dcf3f8427729024ff4571",
+        "title_ink_pixels": 249
+      },
+      {
+        "index": 6,
+        "time": 0.1,
+        "pixel_fnv1a": "40ef845aec138aaa",
+        "png_sha256": "1e96e353697148330fde9703400d94a240af597f50cba05d10cc497dc27e9c8b",
+        "title_ink_pixels": 238
+      },
+      {
+        "index": 7,
+        "time": 0.11666666666666667,
+        "pixel_fnv1a": "9a5cf3e47678b60f",
+        "png_sha256": "3b0118d52174d4d528c1862723691d5b554ca15ceb6ceecd480e7339e907dea9",
+        "title_ink_pixels": 226
+      },
+      {
+        "index": 8,
+        "time": 0.13333333333333333,
+        "pixel_fnv1a": "00cc32ae71a22e80",
+        "png_sha256": "4025ce4423e39d0590124449a7184c04f7a156c3a45c5b67bff28d0f0c193ba5",
+        "title_ink_pixels": 253
+      },
+      {
+        "index": 9,
+        "time": 0.15,
+        "pixel_fnv1a": "f62c4960a1d8e990",
+        "png_sha256": "7d3d5f3c1045df3538b271b6cd01b478073462807147907710ef37dabfb6b2c5",
+        "title_ink_pixels": 239
+      },
+      {
+        "index": 10,
+        "time": 0.16666666666666666,
+        "pixel_fnv1a": "a3189dc9bf06f443",
+        "png_sha256": "00f9e659008b1e9e07051cb37a80577887fcf6bcd2fccb50007227d9ac732a4f",
+        "title_ink_pixels": 239
+      },
+      {
+        "index": 11,
+        "time": 0.18333333333333332,
+        "pixel_fnv1a": "18507ba94cbd6386",
+        "png_sha256": "d99db47257bc333c6c191fed8f167f2c61906ae184c6d783231427128316456d",
+        "title_ink_pixels": 253
+      },
+      {
+        "index": 12,
+        "time": 0.2,
+        "pixel_fnv1a": "bac50464b132d112",
+        "png_sha256": "13cf7440f5e44b854b7ce03788b582566fe8edfa87b056c16c49339abcd3b5fa",
+        "title_ink_pixels": 241
+      },
+      {
+        "index": 13,
+        "time": 0.21666666666666667,
+        "pixel_fnv1a": "2d7f7c9f557b9e1d",
+        "png_sha256": "b0f24b9d89caebb19c4988790b5d63d6fdc2837bd9b77514191f1b290554231a",
+        "title_ink_pixels": 241
+      },
+      {
+        "index": 14,
+        "time": 0.23333333333333334,
+        "pixel_fnv1a": "b6ef7d0115ca4ce0",
+        "png_sha256": "400c8d82cc77eb27afedd6211d92482de5d33e85984bcf34a2ef50d89af16f12",
+        "title_ink_pixels": 243
+      },
+      {
+        "index": 15,
+        "time": 0.25,
+        "pixel_fnv1a": "9e3e17db997f1c22",
+        "png_sha256": "d9b5a575c7b15ecf19e13c9add728b7b3ea17e8558fdd9a7953e06cfb6952fc5",
+        "title_ink_pixels": 238
+      },
+      {
+        "index": 16,
+        "time": 0.26666666666666666,
+        "pixel_fnv1a": "c3f4e4083f591c25",
+        "png_sha256": "90ca376730927c97c0eb719450cf0c2eb3036c89e1e55696dda9f30864481417",
+        "title_ink_pixels": 241
+      },
+      {
+        "index": 17,
+        "time": 0.2833333333333333,
+        "pixel_fnv1a": "660635d1196a05aa",
+        "png_sha256": "c15eb064994ebd0d6782f55e02761f204d8f86cd0ed9726297417101d13aeac9",
+        "title_ink_pixels": 240
+      },
+      {
+        "index": 18,
+        "time": 0.3,
+        "pixel_fnv1a": "f57cd653eb46da68",
+        "png_sha256": "9d5fc3c9b291aa690f101e0cbb7606a932a6d8f7136f7fe19168a1b8262c1fb0",
+        "title_ink_pixels": 231
+      },
+      {
+        "index": 19,
+        "time": 0.31666666666666665,
+        "pixel_fnv1a": "69090fbc411d9f2b",
+        "png_sha256": "ebe2c6d00bd96ec777a2c2edeb8f1700c20aecd11d477f8d04bed6f0bc45d579",
+        "title_ink_pixels": 239
+      },
+      {
+        "index": 20,
+        "time": 0.3333333333333333,
+        "pixel_fnv1a": "c20d7bb090451792",
+        "png_sha256": "ec463455bcb2127a4bfd3ab7f3968ee1266893e46402ee5df18fe87f17702bc0",
+        "title_ink_pixels": 249
+      },
+      {
+        "index": 21,
+        "time": 0.35,
+        "pixel_fnv1a": "45bbabc61f73b6f9",
+        "png_sha256": "4a19fb16ccb12462cdf6383689bc37035e8e33c79a78291950bb68c586bfc996",
+        "title_ink_pixels": 233
+      },
+      {
+        "index": 22,
+        "time": 0.36666666666666664,
+        "pixel_fnv1a": "81dc9f67ed428701",
+        "png_sha256": "5d57fa920dfce9776690cbd4ecec61066b5a815ffedc037fab00977a3b826cd8",
+        "title_ink_pixels": 243
+      },
+      {
+        "index": 23,
+        "time": 0.38333333333333336,
+        "pixel_fnv1a": "fc8f2b7612588d39",
+        "png_sha256": "eae84b9c1a6a83e6719ad49508b171ecd56c2ba8946dbbb937d71b439bfa1975",
+        "title_ink_pixels": 251
+      },
+      {
+        "index": 24,
+        "time": 0.4,
+        "pixel_fnv1a": "5a16e1c883ad6eab",
+        "png_sha256": "636658af4b76482fe05f8d11342e4a9c13f4c4e06b7dc90aca4b17f3d19dee7a",
+        "title_ink_pixels": 234
+      },
+      {
+        "index": 25,
+        "time": 0.4166666666666667,
+        "pixel_fnv1a": "3ad9b4670c2b758f",
+        "png_sha256": "ba5b34e6742509d18995c1d4fde3127200379377610db26a86ae50d62c3b7c47",
+        "title_ink_pixels": 242
+      },
+      {
+        "index": 26,
+        "time": 0.43333333333333335,
+        "pixel_fnv1a": "f4c85460bd48dc0c",
+        "png_sha256": "de179c18df6ae068b23ffdf4702085be7af7d308c98a4ac028c8c4a40d9ea4bc",
+        "title_ink_pixels": 251
+      },
+      {
+        "index": 27,
+        "time": 0.45,
+        "pixel_fnv1a": "1d5385f1dce98dcd",
+        "png_sha256": "77943ffcc3250510ff8cfecb17a2de8c1aa7cde8785ee639463e6461fff62c18",
+        "title_ink_pixels": 240
+      },
+      {
+        "index": 28,
+        "time": 0.4666666666666667,
+        "pixel_fnv1a": "3e1d55510bb300e5",
+        "png_sha256": "43f8f81eebaca0a3003d460263698326806daeb474391540f7f5a1786a878ea4",
+        "title_ink_pixels": 247
+      },
+      {
+        "index": 29,
+        "time": 0.48333333333333334,
+        "pixel_fnv1a": "f234ce02163b262b",
+        "png_sha256": "205a9a6d5e5149ddf7c4a243f78945b6201db4ee22afc40ba211bb2421737f1f",
+        "title_ink_pixels": 237
+      },
+      {
+        "index": 30,
+        "time": 0.5,
+        "pixel_fnv1a": "6a04b0500205dada",
+        "png_sha256": "78c6b77e5604835cc147bfb693d7f059b6a0fa63559d1a74696b5ded49228d55",
+        "title_ink_pixels": 234
+      },
+      {
+        "index": 31,
+        "time": 0.5166666666666667,
+        "pixel_fnv1a": "636125d8cbee207b",
+        "png_sha256": "f3f62e01cd49c7f16cad579bc2efc6c86b5230aa73bf81bf9f593373f2aa14ea",
+        "title_ink_pixels": 259
+      },
+      {
+        "index": 32,
+        "time": 0.5333333333333333,
+        "pixel_fnv1a": "2f31503ded694a4a",
+        "png_sha256": "53c1914bf03b462265b8fd0c121744f0c24425d77b8cada8820d5e1fafbda652",
+        "title_ink_pixels": 238
+      },
+      {
+        "index": 33,
+        "time": 0.55,
+        "pixel_fnv1a": "77e303eb4a459852",
+        "png_sha256": "07a7dbf9516b5fba4d30d8d00c0759a17878a0c1b615ba541d36fd548d03fe06",
+        "title_ink_pixels": 240
+      },
+      {
+        "index": 34,
+        "time": 0.5666666666666667,
+        "pixel_fnv1a": "6225a944d9904afd",
+        "png_sha256": "c3000afa9845c3653a9a6e169961be4e8d484b39e95f4e5eb9dd8c6a40fe5220",
+        "title_ink_pixels": 237
+      },
+      {
+        "index": 35,
+        "time": 0.5833333333333334,
+        "pixel_fnv1a": "17564eac9add0097",
+        "png_sha256": "3384a0bbb0cb9eccc183e2fdfdd5b606569a0e8f4e6d4abc6d31208c5093a731",
+        "title_ink_pixels": 257
+      },
+      {
+        "index": 36,
+        "time": 0.6,
+        "pixel_fnv1a": "2a466483052fd3d7",
+        "png_sha256": "bf334f9ca6c7e82a0b3b94f3cfbbb39580b262d10ae43343a4cf2d5f139af09d",
+        "title_ink_pixels": 234
+      },
+      {
+        "index": 37,
+        "time": 0.6166666666666667,
+        "pixel_fnv1a": "d80db1001bb0c737",
+        "png_sha256": "7c3fe8f10d5d6a7b5effc9084f5ddb67186c364d991bd2686813dc6410be6fd2",
+        "title_ink_pixels": 244
+      },
+      {
+        "index": 38,
+        "time": 0.6333333333333333,
+        "pixel_fnv1a": "2aa68bb06d21a35b",
+        "png_sha256": "5150dc6dcb5f6e222348a7a43e85ffff88cf4eec83dad0d2e3bb2a40b41b0feb",
+        "title_ink_pixels": 254
+      },
+      {
+        "index": 39,
+        "time": 0.65,
+        "pixel_fnv1a": "633a18e0c2db80ae",
+        "png_sha256": "373f1d155d4858cea837364cecab7f0a5266ad4dfa4b228a688e36c6b9b6b5f7",
+        "title_ink_pixels": 233
+      },
+      {
+        "index": 40,
+        "time": 0.6666666666666666,
+        "pixel_fnv1a": "0b38eb3250dac428",
+        "png_sha256": "a3b44b5e6ef20b4d80823d023af1bb7ecaed7da85eb548fd27ea9a7824ee214f",
+        "title_ink_pixels": 239
+      },
+      {
+        "index": 41,
+        "time": 0.6833333333333333,
+        "pixel_fnv1a": "95280ac0cbd2ec5f",
+        "png_sha256": "36eae8e2030a614c12330dbf84c2f2126a743992a7220371bb0fc6eb1e7cbd8f",
+        "title_ink_pixels": 244
+      },
+      {
+        "index": 42,
+        "time": 0.7,
+        "pixel_fnv1a": "8764402b09064737",
+        "png_sha256": "9de346ef2a662373cb5e44e9f98511ecb19a405f63879db7706c2f53047bd047",
+        "title_ink_pixels": 231
+      },
+      {
+        "index": 43,
+        "time": 0.7166666666666667,
+        "pixel_fnv1a": "81cd1f2873692ba2",
+        "png_sha256": "fd6bfc45db9f4d3c314d39f7fa4d8e8f7ca6f48659ebfd818decb4d2acd73131",
+        "title_ink_pixels": 243
+      },
+      {
+        "index": 44,
+        "time": 0.7333333333333333,
+        "pixel_fnv1a": "e1fab1a3db7a7781",
+        "png_sha256": "b7a8fb0819c7f1438f2246422c479121cb6fa6a1d37faf8d5d85d925fc30f423",
+        "title_ink_pixels": 248
+      },
+      {
+        "index": 45,
+        "time": 0.75,
+        "pixel_fnv1a": "96681d6b97122725",
+        "png_sha256": "6a9c3a5682acc3d0e4393e54f01828d3be71706502aa3efc58053a6504e453d5",
+        "title_ink_pixels": 238
+      },
+      {
+        "index": 46,
+        "time": 0.7666666666666667,
+        "pixel_fnv1a": "6be228baab37c666",
+        "png_sha256": "d8571b7de0dae8c2d392e6f6e5bfd5555cb1b755512bfa1caf9573a7b8376189",
+        "title_ink_pixels": 239
+      },
+      {
+        "index": 47,
+        "time": 0.7833333333333333,
+        "pixel_fnv1a": "556b1a1c23fb83a6",
+        "png_sha256": "b09830d8c3b7f7f3ccf3eae74d7f408554a752d3476c2cb1ba6961f333ef07fe",
+        "title_ink_pixels": 244
+      },
+      {
+        "index": 48,
+        "time": 0.8,
+        "pixel_fnv1a": "8b07989d8ff11c5b",
+        "png_sha256": "b376197cf077d4cc3f8ba1644477f117e9e322eddbaa353d80b4d2739c1efcfd",
+        "title_ink_pixels": 241
+      },
+      {
+        "index": 49,
+        "time": 0.8166666666666667,
+        "pixel_fnv1a": "eeb02e1c7da22823",
+        "png_sha256": "d666ddac4dcc02b93615a144c947d2f984028f4e684f5b0d10f60867b1c62c02",
+        "title_ink_pixels": 245
+      },
+      {
+        "index": 50,
+        "time": 0.8333333333333334,
+        "pixel_fnv1a": "e291eefdae932d80",
+        "png_sha256": "329792c353a072489a05b16ff05c2df43f6e75aa685971162f1e8afd27d3ac7a",
+        "title_ink_pixels": 254
+      },
+      {
+        "index": 51,
+        "time": 0.85,
+        "pixel_fnv1a": "762805be3c99edb7",
+        "png_sha256": "1647034022cd18fc431667b9799bc810cb5f83e9dd3039395ddd5fc0320387b8",
+        "title_ink_pixels": 239
+      },
+      {
+        "index": 52,
+        "time": 0.8666666666666667,
+        "pixel_fnv1a": "29945cacfa3b8dae",
+        "png_sha256": "a5c16e4e2a404facc29da6a9a691ed756f4168705d3ebb5d3f658afbe9b1ac1c",
+        "title_ink_pixels": 230
+      },
+      {
+        "index": 53,
+        "time": 0.8833333333333333,
+        "pixel_fnv1a": "8c8fb8d23763f587",
+        "png_sha256": "0984dc3128c2b7346a4f8fcd556fe7286e55abaa216197cb555ea54cd98d6d83",
+        "title_ink_pixels": 248
+      },
+      {
+        "index": 54,
+        "time": 0.9,
+        "pixel_fnv1a": "be4334672393a4ef",
+        "png_sha256": "8f3a89db93d2b32940c2d6c85a8993c0cf786bfe1c54fd70e9f3e0fab9a88f42",
+        "title_ink_pixels": 238
+      },
+      {
+        "index": 55,
+        "time": 0.9166666666666666,
+        "pixel_fnv1a": "ddd235af8981fc40",
+        "png_sha256": "281aa2fde84a5aa0ee741572969637931092cdb3b8d9c38a66458d51f44b103d",
+        "title_ink_pixels": 233
+      },
+      {
+        "index": 56,
+        "time": 0.9333333333333333,
+        "pixel_fnv1a": "0e73faf929005cdb",
+        "png_sha256": "7628d0bd24cdc2b4a5c5d2ca700f23526cb071dbcd73aa238f8cc83db0607a8f",
+        "title_ink_pixels": 239
+      },
+      {
+        "index": 57,
+        "time": 0.95,
+        "pixel_fnv1a": "b7e52d139a1cf7cf",
+        "png_sha256": "35296b4afcb4d7adc0ba137d2be8f11a472624e0dd81b1566375ceaf9d039c93",
+        "title_ink_pixels": 237
+      },
+      {
+        "index": 58,
+        "time": 0.9666666666666667,
+        "pixel_fnv1a": "946c9499e66cb789",
+        "png_sha256": "da28564ccd1992aa66127a6fe3782f5ee36deff92288bd980f7147dc6a386ce3",
+        "title_ink_pixels": 231
+      },
+      {
+        "index": 59,
+        "time": 0.9833333333333333,
+        "pixel_fnv1a": "6da2aa6ee44642f9",
+        "png_sha256": "ce5835f2654273d95012cb62da23a8e8ff2d2c440537af1cf0d935a0fec407ea",
+        "title_ink_pixels": 253
+      },
+      {
+        "index": 60,
+        "time": 1,
+        "pixel_fnv1a": "3f788fb3da335443",
+        "png_sha256": "e161be82f608e4a24819dca60537cd01d0a52923d2ad57e14c829866e8500fec",
+        "title_ink_pixels": 252
+      }
+    ]
+  },
+  "benchmark": {
+    "report": "target/omui-presentation/presentation.bench.omui.json",
+    "sha256": "e44640165d21190ccdd683ea57339a90415ede87c9eb7ae5710f1441e2799071",
+    "machine": {
+      "cpu": "13th Gen Intel(R) Core(TM) i9-13900K",
+      "arch": "x86_64",
+      "system": "Ubuntu 24.04.1 LTS, kernel 6.8.0-147-generic",
+      "memory": 67147726848
+    },
+    "results": [
+      {
+        "name": "ui/presentation/publish-100",
+        "description": "100 group offsets published through typed channel leases",
+        "iterations": 100000,
+        "notes": {
+          "scope": "100 changing group offsets and atomic Runtime publication. Setup, Engine sampling, frame painting and renderer excluded; ordinary C++ new calls counted by the harness."
+        },
+        "min_ms": 0.002473,
+        "mean_ms": 0.0025944510999997266,
+        "p50_ms": 0.002545,
+        "p95_ms": 0.002752,
+        "p99_ms": 0.002766,
+        "max_ms": 0.127295,
+        "items": 100,
+        "ns_per_item": 25.944510999997263,
+        "allocations": 0,
+        "max_allocations": 0,
+        "counters": {}
+      },
+      {
+        "name": "ui/presentation/frame-100",
+        "description": "100 live component groups projected into current paint and input geometry",
+        "iterations": 2682,
+        "notes": {
+          "scope": "100 changing group offsets, atomic publication and a real Runtime paint frame, including text, controls, current hit metadata and clips. No raster, Engine sampling or GPU timing."
+        },
+        "min_ms": 0.145076,
+        "mean_ms": 0.14918481282624918,
+        "p50_ms": 0.148464,
+        "p95_ms": 0.152724,
+        "p99_ms": 0.166976,
+        "max_ms": 0.186335,
+        "items": 100,
+        "ns_per_item": 1491.8481282624916,
+        "allocations": 0,
+        "max_allocations": 0,
+        "counters": {
+          "nodes": 302,
+          "laid_out": 0,
+          "painted": 302,
+          "layout_ms": 4.6858687546606736e-05,
+          "paint_ms": 0.1301350652498134,
+          "runtime_ms": 0.1459245842654735,
+          "declared_cost": 0.007655003838224309,
+          "display_commands": 2206.7203579418347
+        }
+      }
+    ],
+    "scope": "100 preselected transform offsets. publish excludes Engine evaluation and paint; frame includes 302-node Runtime paint/input metadata but excludes raster and GPU. Native Linux release only; no low-end-device or live-pacing claim."
+  },
+  "quality": {
+    "lint": "0 problems, including document schemas",
+    "visual_inspection": [
+      "Native release midpoint: card, rotated shaped title and scaled production button remain visible.",
+      "Projected bounded popup: actual pixels and button input beyond the original clipping boundary."
+    ],
+    "reference_pixel_tables_changed": false
+  },
+  "limits": [
+    "No full UI geometry/material/3D capture, per-vertex selection, hold-world solver or image-scope mapping.",
+    "No automatic clock/reduced-motion/input-protection integration: this API explicitly publishes sampled poses.",
+    "First attachment into an active flattened ancestor morph returns busy; portal-crossing selection is refused.",
+    "Overlay following uses projected target allocation, not arbitrary simultaneous sampled base-layout constraints.",
+    "Current website regressions are preserved; the new configurable website stage is still pending.",
+    "Wasm/Node validation is not browser/device performance certification; threaded local IPC cases remain unavailable there.",
+    "Fonts are supplied as explicit consumer resources; this is not proof that arbitrary shipping packages carry fonts."
+  ],
+  "reproduction": [
+    "python3 tools/ci/omui-hanim-consumer/run.py --output target/omui-presentation/consumer.report.omui.json --web",
+    "mcpp test -p openmui.view -p openmui.motion -p xengine.render.vector -p openmui.ui.base -p openmui.host.headless --locked",
+    "mcpp test -p openmui.view -p openmui.motion -p xengine.render.vector -p openmui.ui.base -p openmui.host.headless --profile release --locked",
+    "mcpp test -p openmui.view -p openmui.motion -p xengine.render.vector -p openmui.ui.base -p openmui.host.headless --target wasm32-emscripten --profile wasm-test --locked",
+    "mcpp run -p openmui.bench --profile release --locked -- --filter ui/presentation --check tests/bench/budgets.bench.omui.json",
+    "mcpp test -p openmui.site --locked"
+  ],
+  "cleanup": {
+    "report": "target/omui-presentation/cleanup.report.omui.json",
+    "sha256": "da35916bda53aa530e318d98545dcb556b24560c20bfdfc56ed84d63b5323b63",
+    "deleted_cache_directories": 87,
+    "deleted_old_logs": 530,
+    "filesystem_free_increase_bytes": 18519351296,
+    "free_after_bytes": 21671108608,
+    "preserved": [
+      "Repository sources and all temporary worktree sources/git metadata",
+      "Latest native dev/release/site and Wasm/Node incremental builds",
+      "Current omui-hanim-consumer workspace and its incremental targets",
+      "Current test/benchmark/pixel reports and images",
+      "Active omui-site/omui-fight instances and their build directory",
+      "Existing user mcpp.lock changes"
+    ]
+  }
+}

@@ -242,7 +242,8 @@ Matter Matter::extract(const render::DisplayList& source, std::size_t begin, std
         } else if (std::holds_alternative<EndPart>(cmd)) {
             if (!parts.empty()) parts.pop_back();
         } else if (const auto* frame = std::get_if<NodeFrame>(&cmd)) {
-            m.frames_.push_back({node_of(frame->node), frame->rect, transforms.back(), clips.back(), opacity.back() * frame->opacity, frame->placement, frame->constraint, frame->visual});
+            m.frames_.push_back({node_of(frame->node), frame->rect, transforms.back(), clips.back(), opacity.back() * frame->opacity,
+                frame->placement, frame->constraint, frame->visual, frame->sampled_placement_origin.value_or(frame->placement.origin())});
         } else if (const auto cls = class_of(cmd)) {
             add(*cls, i, i + 1, local_bounds(cmd), 0);
         }
@@ -282,6 +283,7 @@ void Matter::follow_layout(Matter& target, std::span<const std::string> scopes) 
             frame.rect = after.rect;
             frame.placement = after.placement;
             frame.constraint = after.constraint;
+            frame.sampled_placement_origin = after.sampled_placement_origin;
             break;
         }
     }

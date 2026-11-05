@@ -1,5 +1,9 @@
 # openmui.view
 
+The implementation namespace is `omui`; `openmui.view` remains the compatible
+package and main import. Its optional `hanim` feature adds the public
+`import omui.hanim;` adapter in this same package.
+
 The retained and immediate view runtime (plan §3–§5):
 
 - **elements** (contract ②): `Prop<T>` accepts a value, a signal (two-way
@@ -134,3 +138,93 @@ eight-frame contact sheet under `openmui-tests/effect-animation`. The sheet's
 times, left-to-right then top-to-bottom, are 0, .05, .15, .30, .50, .70, .90, 1s.
 Structured output records every timestamp and pixel hash. This deterministic
 sampling does not measure live frame pacing or replace human motion review.
+
+## Optional Hanim presentation binding (0.1)
+
+Enable `features = ["hanim"]` on the existing `openmui.view` dependency and
+`import omui.hanim;`. This adds the public Hanim player and a native adapter;
+ordinary view consumers retain the smaller existing dependency selection.
+There is no separate adapter package, window or second animation clock.
+
+```cpp
+const std::array selection{
+    omui::animation::Target{"card", card, omui::PresentationChannel::translation},
+    omui::animation::Target{"title", title, omui::PresentationChannel::rotation}
+};
+auto binding = omui::animation::Binding::attach(runtime, selection, hengine);
+if (!binding) return; // Inspect the typed failure and target index.
+auto playback = hengine.play(hanim::parallel(
+    hanim::anim::move_to(binding->object(), {100, 20}),
+    hanim::anim::to(binding->object(), {.rotation = .12, .part = "title"})));
+if (!playback) {
+    const auto object = binding->object();
+    binding->detach();
+    (void)hengine.destroy_object(object);
+    return;
+}
+
+// Explicit sampling on the owning thread; process every expected result.
+if (hengine.seek_progress(*playback, .5)) {
+    if (auto frame = hengine.frame(*playback); frame && binding->present(*frame)) {
+        (void)runtime.frame({hanim::seconds(3), {}});
+        const auto actual = runtime.presentation(card); // has_frame/applied/error
+        // Inspect semantics and render runtime.display_list() without a window.
+    }
+}
+const auto object = binding->object();
+(void)hengine.release(*playback);
+binding->detach();
+(void)hengine.destroy_object(object);
+```
+
+The object represents **selected local presentation offsets**, initially
+identity. It does not capture UI layout, glyph outlines or business state.
+The first selected node is the rendered root; other selections are descendants
+in that same rendered subtree. Any node type, including text, can be selected.
+Unselected descendants inherit the group's transform; they are not pinned in
+world space. Selected descendants compose their own offsets with ancestors.
+An anchor is a normalized border-box point; translation, rotation, scale and
+shear are independent leases. Disjoint writers may share a node with the same
+anchor; overlapping writers return `occupied`.
+
+`present` validates the whole input before publishing selected fields and
+retains no EngineFrame spans. UI painting then commits these offsets around
+complete node ranges, including text, local clips and input metadata. Ordinary
+component feedback remains active. Unprojected paint stays the source of
+automatic morphs, so a published offset does not get interpolated a second
+time. IME caret queries use committed presentation. Anchored overlays follow
+the projected target allocation without a second easing, including bounded
+clips; their state/presence motion remains independent. Explicit
+`placement: "animate"` keeps the authored placement animation instead.
+
+Minimal SOP: supply the application's fonts/assets, resolve stable node IDs after mounting, attach after existing
+flattened morphs settle, prepare/play through Hanim, sample and publish on the
+UI thread, commit a paint frame, then inspect every target's status and actual
+pixels. Sample intermediate times, reversal and interruption, and exercise
+pointer plus Agent actions on the same production controls. A native library
+call does not grant remote authority: expose application control through the
+existing authorized openas endpoint. `Runtime::inspect` reports the selected
+channels, pose and commit status; this adapter adds no new network endpoint.
+
+Invalid/stale selection, busy first attachment, overlapping writers and
+unsupported frames have typed failures. An invalid publication keeps prior
+values. A later paint failure is reported in `PresentationState::error`;
+accepted publication alone is not proof of a rendered result. Detaching
+releases only that lease's channels. The Engine owns the created object:
+release playbacks, detach, then destroy it; Binding destruction only releases
+UI leases and is safe after Runtime destruction.
+
+This first tier supports finite 2D local transforms. It refuses cross-portal
+selections and geometry/material/image-effect frames rather than dropping
+their data. Historical crossfade snapshots remain captured images of their
+original presentation. General constraint/hold-world solving, sampled-base
+anchor tracking during unrelated layout morphs, geometry/3D adapters and
+automatic clock/policy integration remain separate work. Explicit time
+sampling can inspect poses with UI automatic motion disabled; an application's
+live driver must enforce its motion preferences and input policy.
+
+The [independent consumer](../../../tools/ci/omui-hanim-consumer/src/main.cpp)
+uses the real button/popover, shaped text, public Hanim composition, renderer
+and Agent actions. Its [runner](../../../tools/ci/omui-hanim-consumer/run.py)
+exports 61 real frames and checks exact reverse replay in native dev/release
+and optional Wasm/Node, without changing the source workspace's lock.

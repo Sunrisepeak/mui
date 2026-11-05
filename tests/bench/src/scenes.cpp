@@ -251,6 +251,44 @@ void add_framework_benchmarks() {
     add_simulation_benchmarks();
     add_public_motion_benchmarks();
 
+    auto presentation = [](State& s, bool draw) {
+        constexpr std::size_t count=100;
+        RuntimeOptions options;options.stages=Stages::paint;options.size={1280,720};
+        typeset::FontCollection fonts;
+        if(auto loaded=fonts.add_defaults();!loaded){s.fail(loaded.error());return;}
+        options.fonts=&fonts;
+        Runtime runtime(options);std::vector<Element> cards;cards.reserve(count);
+        for(std::size_t i=0;i<count;++i)
+            cards.push_back(column({.id=std::format("c{}",i),.width=110,.height=60,.padding=4,.background="surface",.radius=6},
+                {text({.id="title",.text="Live text"}),button({.id="action",.text="Use"})}));
+        runtime.mount("main",grid({.gap=4},"repeat(10, 1fr)",std::move(cards)));
+        (void)runtime.frame({seconds(0),{}});(void)runtime.frame({seconds(2),{}});
+        std::vector<PresentationTarget> targets;targets.reserve(count);
+        for(std::size_t i=0;i<count;++i)targets.push_back({runtime.find(std::format("main/c{}",i)),PresentationChannel::translation});
+        auto lease=runtime.acquire_presentation(targets);
+        if(!lease){s.fail("presentation attachment failed");return;}
+        std::array<hanim::Transform2D,count> poses;
+        s.items(count);
+        s.note("scope",draw?"100 changing group offsets, atomic publication and a real Runtime paint frame, including text, controls, current hit metadata and clips. No raster, Engine sampling or GPU timing."
+                           :"100 changing group offsets and atomic Runtime publication. Setup, Engine sampling, frame painting and renderer excluded; ordinary C++ new calls counted by the harness.");
+        std::size_t tick=0;
+        while(s.next()) {
+            for(std::size_t i=0;i<count;++i)poses[i].tx=static_cast<double>((tick+i)%61)/2.;
+            if(!lease->publish(poses)){s.fail("presentation publication failed");return;}
+            if(draw) {
+                const auto frame=runtime.frame({seconds(3+tick/120.),{}});
+                if(!frame.failure.empty()){s.fail(frame.failure);return;}
+                frame_counters(s,frame,&runtime);
+                const auto state=runtime.presentation(targets.front().node);
+                if(!state || !state->applied || state->error){s.fail("published group was not presented");return;}
+                s.counter("display_commands",static_cast<double>(runtime.display_list().size()));
+            }
+            ++tick;
+        }
+    };
+    add("ui/presentation/publish-100","100 group offsets published through typed channel leases",[presentation](State& s){presentation(s,false);});
+    add("ui/presentation/frame-100","100 live component groups projected into current paint and input geometry",[presentation](State& s){presentation(s,true);});
+
     // ── canvas-markdown §3.5: the canvas's frame while the camera moves ──
     register_canvas_component();
     auto canvas_frame = [](State& s, std::string_view scene, std::size_t count, double zoom, bool sweep) {

@@ -29,6 +29,8 @@
 
 共享表示已推进首条真实链路：路径数据／校验和已有曲线离散化收敛到 `mlibs.geom`，renderer、raster、Hanim 共用；Hanim 的 `import_path` 捕获拥有生命周期的曲线与源命令映射，UI 现有形变及独立离屏消费者已使用该入口。此次是 A3 的 2D 子集，完整选择策略、文字／3D／材质 adapter 与 A4 的呈现／命中一致性仍按任务验证，见[实施台账 §27](2026-11-05-system-implementation-checkpoints-design.md#27-共享路径基础与公开几何捕获)。
 
+A4 首条属性接入见[实施台账 §28](2026-11-05-system-implementation-checkpoints-design.md#28-可选-hanim-接入与组件属性呈现)：现有 view 包的可选 `hanim` feature 提供 `omui.hanim`，显式选择组／文字／控件的变换通道，使用公共 Engine 求值后发布到同一呈现与命中链路；保留内部状态反馈，浮层目标跟随与 IME 使用相应呈现信息。它是局部 offset 表示，完整几何捕获、世界保持、自动播放／预算策略与官网舞台接入尚未完成。性能分级按[表示方案 §1.4](2026-11-05-hanim-representations-selection-policy-design.md#14-性能策略在三个阶段生效)分别作用于 feature 闭包、prepare 和执行，不把降级做成不同平台的另一套上层框架。
+
 不提供缺少验收分母的总完成百分比。R0–R6、C2–C6、40／20、完整组件默认动效、独立引擎与工具链的目标保留。**本地相关真实验证通过即可继续并提交 PR #1；其他平台 CI 异步反馈，失败按实际影响修复，不作为开始下一项工作的统一等待条件。**
 
 ## 2. 产品边界与共同契约

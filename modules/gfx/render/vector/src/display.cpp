@@ -402,7 +402,10 @@ void DisplayList::external_texture(std::uint64_t texture, const Rect& dest, floa
 }
 void DisplayList::begin_node(std::uint32_t node) { commands_.emplace_back(BeginNode{node}); }
 void DisplayList::end_node() { commands_.emplace_back(EndNode{}); }
-void DisplayList::node_frame(std::uint32_t node, Rect rect, float opacity, Rect placement, Size constraint, Affine visual) { commands_.emplace_back(NodeFrame{node, rect, opacity, placement, constraint, visual}); }
+void DisplayList::node_frame(std::uint32_t node, Rect rect, float opacity, Rect placement, Size constraint, Affine visual,
+                             std::optional<Point> sampled_placement_origin) {
+    commands_.emplace_back(NodeFrame{node, rect, opacity, placement, constraint, visual, sampled_placement_origin});
+}
 
 const PartFrame* DisplayList::own(const PartFrame& part) {
     PartFrame copy = part;

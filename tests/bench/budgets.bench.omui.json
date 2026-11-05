@@ -16,6 +16,8 @@
      "why": "500 public object playback plans plus effect parameters reuse prepared double buffers during native batch advance; setup excluded, no renderer or whole-frame claim"},
     {"name": "public-motion/object-query-500", "metric": "max_allocations", "max": 0,
      "why": "owned capture and prepared name/ref/resource queries must reuse existing storage: 500 complete public object query batches per iteration, after setup and harness warmup; this is not an Engine or whole-frame budget"},
+    {"name": "ui/presentation/publish-100", "metric": "max_allocations", "max": 0,
+     "why": "100 preselected local transform offsets publish atomically through warmed UI channel leases without allocation; excludes Engine sampling, painting and rendering"},
     {"name": "ui/frame/one-label", "metric": "p95_ms", "max": 16.67,
      "why": "M1 acceptance ⑤: a 1000-node interface at 1080p on the CPU renderer holds 60 Hz"},
     {"name": "ui/frame/hover-sweep", "metric": "p95_ms", "max": 16.67,

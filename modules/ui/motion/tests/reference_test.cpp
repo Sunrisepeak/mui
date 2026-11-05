@@ -95,5 +95,26 @@ int main(int argc,char** argv) {
         (void)renderer.render(copy,pixels,{},config);const auto at=slot(320,true).center();
         check(renderer.object_ids()[static_cast<std::size_t>(at.y)*340+static_cast<std::size_t>(at.x)]==1,"paint parts never invent or erase node pixel ownership");
     });
+    suite.test("sampled allocation lineage survives interruption separately from visual state",[] {
+        auto placed=[](float x,float state) {
+            rv::DisplayList list;list.begin_node(1);list.push_transform(Affine::translate(x,20)*Affine::translate(0,state));
+            list.node_frame(1,{0,0,80,32},1,{x,20,80,32},{400,200},Affine::translate(0,state));
+            list.fill_rect({0,0,80,32},rv::Paint::solid(Color::white()));list.pop_transform();list.end_node();return list;
+        };
+        const auto a=placed(20,2),b=placed(120,10),c=placed(200,14);
+        Morph first(Matter::extract(a,resolver()),Matter::extract(b,resolver()),options(),0);
+        auto source=first.snapshot(.25);check(source.frames().size()==1);
+        if(source.frames().empty())return;
+        check(source.frames()[0].sampled_placement_origin==Point{45,20});
+        check(source.frames()[0].transform.apply(Point{})==Point{45,24},"visual state is additional to sampled allocation");
+        Morph second(std::move(source),Matter::extract(c,resolver()),options(),1);
+        auto halfway=second.snapshot(1.5);check(halfway.frames().size()==1);
+        if(halfway.frames().empty())return;
+        check(halfway.frames()[0].sampled_placement_origin==Point{122.5f,20},"interruption retains actual origin, not the old target");
+        check(halfway.frames()[0].transform.apply(Point{})==Point{122.5f,29});
+        auto target=Matter::extract(c,resolver());halfway.follow_layout(target);
+        check(halfway.frames()[0].sampled_placement_origin==Point{200,20});
+        check(halfway.frames()[0].transform.apply(Point{})==Point{200,29},"live allocation replacement keeps unfinished visual feedback");
+    });
     return suite.run(argc,argv);
 }

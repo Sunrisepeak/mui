@@ -254,10 +254,12 @@ void Runtime::Impl::run_motion() {
         if (marker_ranges[m].first == none || marker_ranges[m].second == none) continue;
         const NodeId id = by_index[m];
         if (!alive(id)) continue;
-        const Node& n = at(id);
+        Node& n = at(id);
+        const auto* placement=update_motion(id);
+        n.live_anchor_placement=n.projected_anchor && (!placement || placement->placement!=MotionSpec::PlacementPolicy::animate);
         // An effect's own transition (a style's pressed glass) is not a drawing's change: the morph draws it live.
         if (n.glyphs_moving(now()) || n.props_moving()) marker_flags[m] |= 2;
-        if (moves_on_change(id) || slot_motion(id, 1) || n.exiting) marker_flags[m] |= 1;
+        if (moves_on_change(id) || slot_motion(id, 1) || n.exiting || n.presentation.attached()) marker_flags[m] |= 1;
     }
 
     // Each root: did it draw something else?
@@ -274,6 +276,13 @@ void Runtime::Impl::run_motion() {
         };
         std::uint64_t changes = n.changes, states = state_bits(n);
         for (std::size_t i = b; i < e; ++i) {
+            // Reference-driven allocation is live, while contents and state
+            // retain their own animation. Position changes do not rebuild a
+            // second easing plan for the same already sampled anchor motion.
+            if(n.live_anchor_placement && i==b+1)if(const auto* transform=std::get_if<render::PushTransform>(&cmds[i])) {
+                auto local=*transform;local.transform=Affine::translate(-n.frame.x,-n.frame.y)*local.transform;
+                h=render::hash_command(render::Command(local),h);continue;
+            }
             // An effect's numbers are left out: their own transition is not a change of the drawing.
             if (const auto* l = std::get_if<render::PushLayer>(&cmds[i]); l && l->effect.id != 0) {
                 render::PushLayer bare = *l;
@@ -287,7 +296,7 @@ void Runtime::Impl::run_motion() {
                     const NodeId child = by_index[inner->node];
                     if (alive(child)) {
                         const MotionSpec* spec = update_motion(child);
-                        if (spec && spec->placement == MotionSpec::PlacementPolicy::follow_layout) {
+                        if (at(child).presentation.attached() || (spec && spec->placement == MotionSpec::PlacementPolicy::follow_layout)) {
                             // Default feedback owns state paint, while this
                             // root owns the child's layout envelope. Without
                             // the allocation in this comparison, a row/column
@@ -332,7 +341,7 @@ void Runtime::Impl::run_motion() {
                 const NodeId child = marker < by_index.size() ? by_index[marker] : NodeId{};
                 if (!alive(child)) return false;
                 const MotionSpec* spec = update_motion(child);
-                return spec && spec->placement == MotionSpec::PlacementPolicy::follow_layout;
+                return at(child).presentation.attached() || (spec && spec->placement == MotionSpec::PlacementPolicy::follow_layout);
             }};
         const bool external_layout = std::ranges::any_of(constraint_boundaries, [&](NodeId boundary) {
             return alive(boundary) && (contains(boundary, id) || contains(id, boundary));
@@ -546,6 +555,7 @@ void Runtime::Impl::run_motion() {
     drawn_by.assign(markers, NodeId{});
     for (std::size_t m = 1; m < markers; ++m)
         if (marker_ranges[m].first != none) drawn_by[m] = by_index[m];
+    project_presentation();
     collect_presentation();
 }
 

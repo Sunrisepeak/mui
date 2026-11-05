@@ -59,6 +59,7 @@ struct Frame {
     Rect placement;
     Size constraint;
     Affine visual; // own state transform, without external layout translation
+    Point sampled_placement_origin;
 };
 
 struct Reference {

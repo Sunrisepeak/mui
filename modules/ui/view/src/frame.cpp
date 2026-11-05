@@ -432,11 +432,11 @@ void Runtime::Impl::place_overlays() {
         Rect area = window;
         if (alive(n.overlay_boundary)) {
             const Node& boundary = at(n.overlay_boundary);
-            area = area.intersection(boundary.world.map({0, 0, boundary.frame.width, boundary.frame.height}));
+            area = area.intersection(projected_target_bounds(n.overlay_boundary).value_or(boundary.world.map({0, 0, boundary.frame.width, boundary.frame.height})));
             for (NodeId ancestor = n.parent; alive(ancestor); ancestor = at(ancestor).parent) {
                 const Node& parent = at(ancestor);
                 if (parent.visual.clip || parent.type->clips)
-                    area = area.intersection(parent.world.map({0, 0, parent.frame.width, parent.frame.height}));
+                    area = area.intersection(projected_target_bounds(ancestor).value_or(parent.world.map({0, 0, parent.frame.width, parent.frame.height})));
             }
             // Resolve a side panel's auto height against its local viewport;
             // other auto dimensions retain their measured extent, constrained
@@ -458,6 +458,7 @@ void Runtime::Impl::place_overlays() {
         const Rect frame = layout.frame(n.layout);
         auto anchor_of = [&](NodeId who) {
             const Node& parent = at(who);
+            if(const auto projected=projected_target_bounds(who)){n.projected_anchor=true;return *projected;}
             return n.overlay_boundary ? parent.world.map({0, 0, parent.frame.width, parent.frame.height}) : parent.bounds;
         };
         Rect anchor = alive(n.parent) ? anchor_of(n.parent) : area;
@@ -582,6 +583,11 @@ void Runtime::Impl::compute_bounds(NodeId id, Point origin, const Affine& parent
 }
 
 void Runtime::Impl::paint() {
+    if(presentation_source_valid) {
+        std::swap(list,presentation_source);
+        history_range=presentation_source_history;
+        presentation_source_valid=false;
+    }
     // The last frame's drawing is kept: what a change moves from (motion.cpp).
     std::swap(list, previous_list);
     previous_history_range = history_range;
@@ -622,7 +628,7 @@ void Runtime::Impl::paint() {
             for (NodeId ancestor = n.parent; alive(ancestor); ancestor = at(ancestor).parent) {
                 const Node& parent = at(ancestor);
                 if (!(parent.visual.clip || parent.type->clips)) continue;
-                list.push_transform(parent.world);
+                list.push_transform(projected_target_world(ancestor).value_or(parent.world));
                 list.push_clip({0, 0, parent.frame.width, parent.frame.height}, parent.visual.corners(parent.frame.size()));
                 list.pop_transform();
                 ++clips;

@@ -1378,12 +1378,15 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
         Rect rect = target.rect;
         Affine transform = target.transform;
         float opacity = target.opacity;
+        Point placement_origin = target.sampled_placement_origin;
         if (pair.a >= 0 && pair.b >= 0) {
             const Frame& source = af[static_cast<std::size_t>(pair.a)];
             rect = mixr(source.rect, target.rect, u);
             if (pair.stretch) rect = stretched(rect, source.rect, target.rect, u, options_.stretch);
             transform = mix(source.transform, target.transform, u);
             opacity = mixf(source.opacity, target.opacity, k);
+            placement_origin = {mixf(source.sampled_placement_origin.x, target.sampled_placement_origin.x, u),
+                                mixf(source.sampled_placement_origin.y, target.sampled_placement_origin.y, u)};
             if (u <= 0) { clipping = &from_; clip = source.clip; }
         } else if (pair.b >= 0) {
             const double present = fade_in(u, options_.fade_in);
@@ -1397,7 +1400,8 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
         const auto marker = pair.b >= 0 ? matter.nodes()[target.node].marker : snapshot ? (0x80000000u | target.node) : 0;
         const Pushes pushed = e.enter(*clipping, clip, transform);
         if (pushed.ok) out.node_frame(marker, rect, opacity, target.placement, target.constraint,
-            pair.a >= 0 && pair.b >= 0 ? mix(af[static_cast<std::size_t>(pair.a)].visual, target.visual, u) : target.visual);
+            pair.a >= 0 && pair.b >= 0 ? mix(af[static_cast<std::size_t>(pair.a)].visual, target.visual, u) : target.visual,
+            placement_origin);
         e.leave(pushed);
     }
 

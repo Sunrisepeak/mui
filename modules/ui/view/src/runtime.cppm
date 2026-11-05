@@ -221,6 +221,63 @@ inline constexpr std::size_t history_limit = 200;
 // `openmui.view.<stage>`.
 [[nodiscard]] pipeline::Description runtime_pipeline(Stages stages);
 
+// An explicitly selected local presentation layer, independent of business
+// layout and style values. All drawable kinds and descendants use the same
+// layer; ordinary component state feedback remains live beneath it.
+enum class PresentationChannel : std::uint8_t { none=0, translation=1, rotation=2, scale=4, shear=8, transform=15 };
+[[nodiscard]] constexpr PresentationChannel operator|(PresentationChannel a,PresentationChannel b) noexcept {
+    return static_cast<PresentationChannel>(static_cast<unsigned>(a)|static_cast<unsigned>(b));
+}
+struct PresentationTarget {
+    NodeId node;
+    PresentationChannel channels=PresentationChannel::transform;
+    geom::Point anchor{.5f,.5f};
+};
+enum class PresentationError : std::uint8_t { invalid_node,invalid_configuration,occupied,busy,stale,invalid_pose,capacity,unsupported_frame };
+[[nodiscard]] constexpr std::string_view presentation_error_name(PresentationError error) noexcept {
+    switch(error) {
+        case PresentationError::invalid_node:return "invalid-node";
+        case PresentationError::invalid_configuration:return "invalid-configuration";
+        case PresentationError::occupied:return "occupied";
+        case PresentationError::busy:return "busy";
+        case PresentationError::stale:return "stale";
+        case PresentationError::invalid_pose:return "invalid-pose";
+        case PresentationError::capacity:return "capacity";
+        case PresentationError::unsupported_frame:return "unsupported-frame";
+    }return "unknown";
+}
+struct PresentationFailure { PresentationError code; std::size_t target=0; };
+struct PresentationState {
+    NodeId node;
+    hanim::Transform2D pose;
+    geom::Point anchor;
+    PresentationChannel channels=PresentationChannel::none;
+    bool has_frame=false, applied=false;
+    std::optional<PresentationError> error;
+};
+class PresentationLease {
+public:
+    PresentationLease() noexcept = default;
+    PresentationLease(PresentationLease&&) noexcept;
+    PresentationLease& operator=(PresentationLease&&) noexcept;
+    PresentationLease(const PresentationLease&)=delete;
+    PresentationLease& operator=(const PresentationLease&)=delete;
+    ~PresentationLease();
+    [[nodiscard]] bool attached() const noexcept;
+    [[nodiscard]] std::span<const PresentationTarget> targets() const & noexcept {return targets_;}
+    std::span<const PresentationTarget> targets() const && = delete;
+    // All selected fields publish together. No time, playback or callback is
+    // owned here. Unselected fields belong to their other declared writers.
+    [[nodiscard]] std::expected<void,PresentationFailure> publish(std::span<const hanim::Transform2D>);
+    void release() noexcept;
+private:
+    friend class Runtime;
+    class Runtime* runtime_=nullptr;
+    std::uint64_t token_=0;
+    std::weak_ptr<const void> life_;
+    std::vector<PresentationTarget> targets_;
+};
+
 class Runtime final : public Services {
 public:
     explicit Runtime(RuntimeOptions options = {});
@@ -275,6 +332,8 @@ public:
     // ── frames ──
     FrameOutput frame(const FrameInput& input = {});
     [[nodiscard]] const render::DisplayList& display_list() const noexcept;
+    [[nodiscard]] std::expected<PresentationLease,PresentationFailure> acquire_presentation(std::span<const PresentationTarget>);
+    [[nodiscard]] std::optional<PresentationState> presentation(NodeId) const noexcept;
     void resize(Size size, float scale);
     // An external allocation change, scoped to this existing subtree. Unlike
     // model reordering, placement follows the new layout while content/state
@@ -599,6 +658,10 @@ public:
     struct Impl;  // defined by the implementation (openmui.view:impl)
 
 private:
+    friend class PresentationLease;
+    [[nodiscard]] bool owns_presentation(const PresentationLease&) const noexcept;
+    [[nodiscard]] std::expected<void,PresentationFailure> publish_presentation(const PresentationLease&,std::span<const hanim::Transform2D>);
+    void release_presentation(const PresentationLease&) noexcept;
     std::unique_ptr<Impl> impl_;
 };
 

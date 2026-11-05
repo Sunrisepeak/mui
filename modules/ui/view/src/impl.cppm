@@ -208,6 +208,15 @@ struct Node {
     Affine               presented_world;
     std::optional<Affine> presented_inverse;
     int                  presented_clip = -1;
+    struct Presentation {
+        hanim::Transform2D pose;
+        std::array<std::uint64_t,4> writers{};
+        Point anchor{.5f,.5f};
+        bool has_frame=false,applied=false;
+        std::optional<PresentationError> error;
+        [[nodiscard]] bool attached() const noexcept {return std::ranges::any_of(writers,[](auto token){return token!=0;});}
+    } presentation;
+    bool projected_anchor=false,live_anchor_placement=false;
     std::source_location where;
     std::uint32_t        index = 0;     // display-list node marker; 0 is none
     std::uint32_t        scope = 0;     // its theme scope (Impl::scopes); 0: the runtime's theme
@@ -445,6 +454,27 @@ struct Runtime::Impl {
     // scratch list the morphs are drawn into; what invalidates the nodes'
     // resolved slots; the nodes with a morph under way.
     render::DisplayList                         previous_list, morph_scratch;
+    // The projection is a presentation result. Automatic state morphs retain
+    // the unprojected source, so a published offset cannot be animated twice.
+    render::DisplayList                         presentation_source;
+    bool                                        presentation_source_valid=false;
+    std::pair<std::size_t,std::size_t>            presentation_source_history{};
+    std::uint64_t                               next_presentation_token=1;
+    bool                                       presentation_used=false;
+    std::vector<NodeId>                         presentation_owners;
+    void project_presentation();
+    [[nodiscard]] std::optional<Rect> projected_target_bounds(NodeId) const;
+    [[nodiscard]] std::optional<Affine> projected_target_world(NodeId) const;
+    struct ProjectionRange {
+        std::uint32_t marker=0;
+        std::size_t begin=0,end=0,depth=0;
+        Affine delta;
+        bool frame=false;
+    };
+    std::vector<ProjectionRange> projection_ranges;
+    std::vector<std::pair<std::uint32_t,std::size_t>> projection_nodes;
+    std::vector<Affine> projection_transforms;
+    std::vector<std::size_t> projection_for_node;
     // Theme history keeps renderer node markers (pixel ownership), but is not
     // a second current tree. Half-open ranges exclude it from motion identity
     // indexing, including the previous frame used for retargeting and exits.

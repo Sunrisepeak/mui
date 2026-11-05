@@ -130,6 +130,26 @@ int main(int argc, char** argv) {
         save(h, "independent-toast-stacks");
     });
 
+    suite.test("a projected boundary moves overlay clipping and actual input together", [] {
+        Headless h(options());h.runtime().set_motion_level(MotionLevel::off);
+        int accepted=0;
+        auto stage=boundary("stage",300,220,{
+            button({.id="anchor",.text="Open actions"}),
+            popover({.id="popup",.open=true},{button({.id="accept",.text="Accept",.on_activated=[&]{++accepted;}})})});
+        stage.prop("clip",Source(Value(true)));stage.prop("radius",Source(Value(16)));
+        h.mount("main",column({.padding=32},{std::move(stage)}));h.settle();
+        const auto root=h.runtime().find("main/stage"),control=h.runtime().find("main/stage/popup/accept");
+        const auto before=h.runtime().drawn_bounds(control);
+        auto lease=h.runtime().acquire_presentation(std::array{PresentationTarget{root,PresentationChannel::translation}});
+        check(lease.has_value());if(!lease)return;
+        check(lease->publish(std::array{hanim::Transform2D{.tx=340,.ty=90}}).has_value());h.step();
+        const auto current=h.runtime().drawn_bounds(control);
+        near(current.x,before.x+340);near(current.y,before.y+90);
+        check(h.runtime().hit_test(current.center())==control,"moved clip accepts the control beyond the old boundary");
+        h.click(current.center());h.step();check(accepted==1);save(h,"projected-boundary");
+        lease->release();h.step();near(h.runtime().drawn_bounds(control).x,before.x);
+    });
+
     suite.test("scroll and ancestor clips constrain overlay placement paint and nonmodal hits", [] {
         Headless h(options());
         h.runtime().set_motion_level(MotionLevel::off);

@@ -789,8 +789,9 @@ void Runtime::text_input(NodeId node, std::optional<Rect> caret) {
         return;
     }
     d.text_input_node = node;
-    const Rect b = bounds(node);
-    d.text_input = caret->offset({b.x, b.y});
+    // Retain border-local caret geometry. The host reads it after the frame's
+    // presentation is committed, including automatic and external motion.
+    d.text_input = *caret;
 }
 
 std::string Runtime::clipboard_text() { return impl_->clipboard_read ? impl_->clipboard_read() : impl_->clipboard; }
@@ -901,6 +902,15 @@ std::string_view Runtime::cursor() const {
     return "default";
 }
 hanim::Set& Runtime::animations() { return impl_->anims; }
-std::optional<Rect> Runtime::text_input_rect() const noexcept { return impl_->text_input; }
+std::optional<Rect> Runtime::text_input_rect() const noexcept {
+    const auto& d=*impl_;
+    if(!d.text_input || !d.alive(d.text_input_node))return std::nullopt;
+    const auto& node=d.at(d.text_input_node);
+    if(d.presentation_epoch) {
+        if(node.presented_epoch!=d.presentation_epoch || node.presented_visible.empty())return std::nullopt;
+        return node.presented_world.map(*d.text_input);
+    }
+    return node.world.map(*d.text_input);
+}
 
 }  // namespace omui

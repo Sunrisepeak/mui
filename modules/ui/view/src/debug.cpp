@@ -166,6 +166,19 @@ Value Runtime::inspect(NodeId node) const {
     v.set("frame", rect_value(n.frame)).set("bounds", rect_value(n.bounds));
     v.set("children", static_cast<std::int64_t>(n.children.size()));
     v.set("overlay", n.type->overlay);
+    if(n.presentation.attached() || n.live_anchor_placement) {
+        const auto& p=n.presentation;Value pose;
+        pose.set("x",p.pose.tx).set("y",p.pose.ty).set("rotation",p.pose.rotate)
+            .set("scale_x",p.pose.sx).set("scale_y",p.pose.sy).set("shear",p.pose.skew_x);
+        constexpr std::array<std::string_view,4> names{"translation","rotation","scale","shear"};
+        Value::List channels;
+        for(std::size_t i=0;i<4;++i)if(p.writers[i])channels.emplace_back(names[i]);
+        Value presentation;presentation.set("representation","local-presentation-offset").set("pose",std::move(pose))
+            .set("channels",Value(std::move(channels))).set("has_frame",p.has_frame).set("applied",p.applied)
+            .set("live_anchor_placement",n.live_anchor_placement);
+        if(p.error)presentation.set("error",presentation_error_name(*p.error));
+        v.set("presentation",std::move(presentation));
+    }
     return v;
 }
 

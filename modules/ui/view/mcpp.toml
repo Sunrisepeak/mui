@@ -42,3 +42,11 @@ mcpplibs.os      = "0.2.2"
 
 [dev-dependencies]
 mlibs.testing = { path = "../../base/testing" }
+
+# Optional native adapter. Ordinary views do not force the full Hanim player.
+[features]
+default = []
+hanim = { sources = ["src/hanim/*.cppm", "src/hanim/*.cpp"] }
+
+[feature-deps.hanim]
+hanim = { path = "../../gfx/hanim", default-features = false, features = ["engine"] }

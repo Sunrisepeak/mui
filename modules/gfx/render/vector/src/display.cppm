@@ -264,7 +264,11 @@ struct EndNode       {};
 // from sampled geometry. constraint records natural parent content size, not
 // evidence of why allocation changed; callers explicitly identify external
 // constraint transactions. visual excludes the owner's layout translation.
-struct NodeFrame     { std::uint32_t node; Rect rect; float opacity = 1; Rect placement; Size constraint; Affine visual; };
+// sampled_placement_origin is the sampled allocation origin in parent space,
+// before visual/presence transforms. Absent: placement.origin(). This lineage
+// lets a live reference follow allocation without discarding state animation.
+struct NodeFrame     { std::uint32_t node; Rect rect; float opacity = 1; Rect placement; Size constraint; Affine visual;
+                       std::optional<Point> sampled_placement_origin; };
 
 // Named layout allocations and paint parts are metadata, not extra nodes.
 // Reference keys are stable model IDs in an owner's border coordinates.
@@ -359,7 +363,8 @@ public:
     void external_texture(std::uint64_t texture, const Rect& dest, float opacity = 1);
     void begin_node(std::uint32_t node);
     void end_node();
-    void node_frame(std::uint32_t node, Rect rect, float opacity = 1, Rect placement = {}, Size constraint = {}, Affine visual = {});
+    void node_frame(std::uint32_t node, Rect rect, float opacity = 1, Rect placement = {}, Size constraint = {}, Affine visual = {},
+                    std::optional<Point> sampled_placement_origin = {});
     void reference_box(std::uint32_t owner, std::string_view key, Rect allocation);
     void begin_part(const PartFrame& frame);
     // Copies both bases directly into the reusable arena. There is no

@@ -23,7 +23,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
 openlifa.openmui = { path = "../../../spec" }
-openmui.unicode  = { path = "../../base/unicode" }
+mlibs.unicode  = { path = "../../base/unicode" }
 hanim.core            = { path = "../../base/hanim/core" }
 openmui.i18n     = { path = "../../content/i18n" }
 

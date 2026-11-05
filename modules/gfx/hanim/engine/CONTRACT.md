@@ -25,7 +25,7 @@ progress is bounded to [0,1]; this is not general spring/elastic spatial motion.
 The Engine owns its convenient ObjectRegistry. External snapshot endpoints
 remain usable after the host/registry disappears. Playback owner issuance
 reuses that registry's process-local identity; slot/generation mechanics reuse
-openmui.memory. Object/plan revisions, playback generations and time are
+mlibs.memory. Object/plan revisions, playback generations and time are
 separate. Engine quotas bound summed track-max output part/cubic/parameter counts,
 including finished/cancelled playbacks. Program preparation quotas bound the
 retained plans of all segments. Per-segment effect limits cannot be bypassed by

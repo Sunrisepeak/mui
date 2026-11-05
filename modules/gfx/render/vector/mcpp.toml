@@ -29,8 +29,8 @@ mlibs.math = { path = "../../../base/math" }
 mlibs.hash = { path = "../../../base/hash" }
 openmui.render = { path = ".." }
 openmui.rhi    = { path = "../../rhi" }
-openmui.geom   = { path = "../../../base/geom" }
-openmui.memory = { path = "../../../base/memory" }
+mlibs.geom   = { path = "../../../base/geom" }
+mlibs.memory = { path = "../../../base/memory" }
 hanim.core          = { path = "../../../base/hanim/core" }
 openmui.raster = { path = "../../raster" }
 

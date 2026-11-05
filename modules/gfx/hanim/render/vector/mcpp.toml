@@ -22,7 +22,7 @@ hanim.library = { path = "../../library" }
 hanim.effect = { path = "../../effect" }
 hanim.program = { path = "../../program" }
 openmui.render.vector = { path = "../../../render/vector" }
-openmui.geom = { path = "../../../../base/geom" }
+mlibs.geom = { path = "../../../../base/geom" }
 mlibs.log = { path = "../../../../base/log" }
 mlibs.trace = { path = "../../../../base/trace" }
 

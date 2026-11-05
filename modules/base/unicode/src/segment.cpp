@@ -1,9 +1,9 @@
 // UAX #29: extended grapheme clusters and word boundaries (Unicode 17).
-module openmui.unicode;
+module mlibs.unicode.api;
 
 import std;
 
-namespace omui::unicode {
+namespace mlibs::unicode {
 
 namespace {
 
@@ -205,4 +205,4 @@ std::pair<std::size_t, std::size_t> word_at(std::string_view text, std::size_t o
     return {text.size(), text.size()};
 }
 
-}  // namespace omui::unicode
+}  // namespace mlibs::unicode

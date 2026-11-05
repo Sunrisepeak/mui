@@ -288,7 +288,8 @@ int main(int argc, char** argv) {
         check_eq(morph.stats().paths_prepared, std::size_t{1});
     });
 
-    suite.test("concurrent draws use independent caller-owned recording buffers", [] {
+    suite.test(threads ? "concurrent draws use independent caller-owned recording buffers"
+                       : "threadless draws use independent caller-owned recording buffers", [] {
         const auto paint = render::Paint::solid(geom::Color::white());
         const auto a = scene(triangle(), paint), b = scene(circle(), paint);
         const auto morph = transition(a, b);
@@ -301,7 +302,8 @@ int main(int argc, char** argv) {
                 if (out.hash() != expected) wrong.fetch_add(1, std::memory_order_relaxed);
             }
         };
-        { std::jthread first(run), second(run); }
+        if constexpr (threads) { std::jthread first(run), second(run); }
+        else { run(); run(); }
         check_eq(wrong.load(), 0u);
     });
     return suite.run(argc, argv);

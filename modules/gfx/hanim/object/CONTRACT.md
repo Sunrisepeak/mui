@@ -21,7 +21,7 @@ its own frozen identity space: it can still resolve its captured refs after
 they are stale in a live registry. New-object or new-part generations do not
 resolve inside an older capture even if slot and key happen to match.
 
-Object and part allocation use the shared `openmui.memory` slot storage,
+Object and part allocation use the shared `mlibs.memory` slot storage,
 with 64-bit generations initially 1 and retirement at exhaustion. Creation's
 candidate reference is prepared before a slot is consumed. Part changes use
 a private copy of the identity table: removed keys are released before new

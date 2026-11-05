@@ -15,11 +15,11 @@
 // points that map by one delta, every `stride`th code point from `first` to
 // `last`. Full mappings (SpecialCasing.txt, unconditional): sorted by code
 // point, `count` code points of `to`.
-export module openmui.unicode:tables;
+export module mlibs.unicode.api:tables;
 
 import std;
 
-export namespace omui::unicode {
+export namespace mlibs::unicode {
 
 inline constexpr std::string_view ucd_version = "17.0.0";
 
@@ -52,9 +52,9 @@ enum class Ea : std::uint8_t {
     N, A, F, H, Na, W,
 };
 
-}  // namespace omui::unicode
+}  // namespace mlibs::unicode
 
-export namespace omui::unicode::tables {
+export namespace mlibs::unicode::tables {
 
 inline constexpr std::array<std::uint16_t, 4352> line_stage1{{
     0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,1,21,22,
@@ -5757,4 +5757,4 @@ inline constexpr std::array<CaseSpecial, 28> full_lower{{
     return stage2[static_cast<std::size_t>(stage1[cp >> 8]) * 256 + (cp & 255)];
 }
 
-}  // namespace omui::unicode::tables
+}  // namespace mlibs::unicode::tables

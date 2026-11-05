@@ -21,7 +21,7 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-openmui.memory = { path = "../../base/memory" }
+mlibs.memory = { path = "../../base/memory" }
 mlibs.hash   = { path = "../../base/hash" }
 
 [dev-dependencies]

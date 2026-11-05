@@ -1,7 +1,7 @@
-# openmui.unicode — UAX #14 line breaking and UAX #29 grapheme and word
+# mlibs.unicode — UAX #14 line breaking and UAX #29 grapheme and word
 # segmentation from generated UCD tables (D-47; no ICU). Standard library only.
 [package]
-namespace   = "openmui"
+namespace   = "mlibs"
 name        = "unicode"
 version     = "0.1.0"
 description = "Unicode line breaking (UAX #14) and text segmentation (UAX #29) without ICU"
@@ -12,7 +12,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 kind = "runtime"
 
-[targets.openmui-unicode]
+[targets.mlibs-unicode]
 kind = "lib"
 
 [build]

@@ -1,9 +1,9 @@
 // One generational slot/free-list mechanism for identity-owning libraries.
-export module openmui.memory:slots;
+export module mlibs.memory.api:slots;
 
 import std;
 
-export namespace omui {
+export namespace mlibs::memory {
 
 // Wide keys have no packed ABI. Handle<Tag> retains its existing 32/32 form.
 // valid() checks the index sentinel; only the owning storage proves liveness.
@@ -170,4 +170,4 @@ private:
     std::size_t live_ = 0, retired_ = 0, limit_;
 };
 
-} // namespace omui
+} // namespace mlibs::memory

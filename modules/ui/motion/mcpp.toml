@@ -27,7 +27,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 [dependencies]
 mlibs.math          = { path = "../../base/math" }
 mlibs.hash          = { path = "../../base/hash" }
-openmui.geom          = { path = "../../base/geom" }
+mlibs.geom          = { path = "../../base/geom" }
 hanim.core                 = { path = "../../base/hanim/core" }
 openmui.render.vector = { path = "../../gfx/render/vector" }
 

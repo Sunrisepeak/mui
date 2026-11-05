@@ -6,7 +6,7 @@ export import hanim.library;
 export import hanim.effect;
 export import hanim.program;
 export import openmui.render.vector;
-export import openmui.geom;
+export import mlibs.geom;
 
 namespace hanim::detail { struct VectorData; struct VectorProgramData; }
 
@@ -36,9 +36,9 @@ struct VectorScratch {
     // Reused native recording arena ensures failed recording never appends
     // partial commands to the destination. Must differ from destination.
     omui::render::DisplayList* recording = nullptr;
-    std::span<omui::geom::Affine> world;
+    std::span<mlibs::geom::Affine> world;
     std::span<float> backend_parameters;
-    std::span<omui::geom::Rect> effect_layers;
+    std::span<mlibs::geom::Rect> effect_layers;
 };
 class PreparedVector {
 public:
@@ -69,7 +69,7 @@ struct ProgramVectorRequirements {
 struct ProgramVectorScratch {
     VectorScratch buffers;
     // bounds: tracks followed by scopes. Index buffers must not overlap.
-    std::span<omui::geom::Rect> bounds;
+    std::span<mlibs::geom::Rect> bounds;
     std::span<std::size_t> scope_members, order, scope_stack;
 };
 class PreparedVectorProgram {

@@ -1,9 +1,4 @@
-// openmui.memory — memory and handle utilities shared by openmui's modules
-// and runtime: the frame arena, generational handles and slot maps, and
-// FunctionRef. Standard library only.
-export module openmui.memory;
-
-export import :arena;
-export import :slots;
-export import :handle;
-export import :function;
+// Canonical public root; include the same-package legacy entry in packed interfaces.
+export module mlibs.memory;
+export import mlibs.memory.api;
+export import openmui.memory;

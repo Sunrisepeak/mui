@@ -9,6 +9,16 @@ static_assert(std::same_as<mlibs::log::LogRecord, omui::LogRecord>);
 static_assert(std::same_as<mlibs::trace::Span, omui::trace::Span>);
 static_assert(std::same_as<mlibs::testing::Suite, omui::testing::Suite>);
 static_assert(std::same_as<mlibs::testing::Hash, omui::hash::Fnv1a>);
+static_assert(std::same_as<mlibs::geom::Rect, omui::geom::Rect>);
+static_assert(std::same_as<mlibs::geom::Color, omui::geom::Color>);
+struct ObjectTag;
+static_assert(std::same_as<mlibs::memory::Handle<ObjectTag>, omui::Handle<ObjectTag>>);
+static_assert(sizeof(mlibs::memory::Handle<ObjectTag>) == 8);
+static_assert(mlibs::memory::Handle<ObjectTag>::from_bits(0x1234567889abcdefull).bits() == 0x1234567889abcdefull);
+static_assert(std::same_as<mlibs::memory::SlotStorage<int>, omui::SlotStorage<int>>);
+static_assert(std::same_as<mlibs::memory::FunctionRef<int(int)>, omui::FunctionRef<int(int)>>);
+static_assert(std::same_as<mlibs::unicode::LineBreak, omui::unicode::LineBreak>);
+static_assert(std::same_as<mlibs::fuzzy::Match, omui::fuzzy::Match>);
 
 int main() {
     mlibs::testing::Suite suite("foundation namespace compatibility");
@@ -69,7 +79,61 @@ int main() {
         mlibs::testing::check(&mlibs::testing::check == &omui::testing::check);
         omui::testing::check_eq(mlibs::testing::failures(), 0);
     });
+    suite.test("geometry crosses old and new entry points without conversion", [] {
+        const omui::geom::Point p{2, 3};
+        const auto transform = mlibs::geom::Affine::translate(7, 11) * omui::geom::Affine::scale(2, 4);
+        mlibs::testing::check(transform.apply(p) == mlibs::geom::Point{11, 23});
+        const mlibs::geom::Rect rect{-1.5f, 2.5f, 10, 20};
+        mlibs::testing::check(omui::geom::snap(rect, 2) == mlibs::geom::PixelRect{-3, 5, 20, 40});
+        mlibs::testing::check(rect.contains(omui::geom::Point{0, 3}) && !rect.contains(omui::geom::Point{8.5f, 3}));
+        mlibs::testing::check(omui::geom::Color::parse("#1234") == mlibs::geom::Color::rgba8(17, 34, 51, 68));
+    });
+    suite.test("arena and slots keep one ownership and generation history", [] {
+        mlibs::memory::Arena arena{128};
+        omui::Arena& old_arena = arena;
+        const auto text = old_arena.copy("same allocation");
+        const auto allocations = arena.heap_allocations();
+        arena.reset();
+        const auto next = old_arena.copy("same allocation");
+        mlibs::testing::check(text.data() == next.data() && arena.heap_allocations() == allocations);
+        mlibs::testing::check(&mlibs::memory::Arena::reset == &omui::Arena::reset);
+        mlibs::memory::SlotStorage<int> storage{2};
+        omui::SlotStorage<int>& old_storage = storage;
+        const auto key = storage.insert(17);
+        mlibs::testing::check(key.has_value());
+        if (!key) return;
+        mlibs::testing::check(old_storage.get(*key) && *old_storage.get(*key) == 17);
+        mlibs::testing::check(old_storage.erase(*key) && !storage.contains(*key));
+        const auto replacement = old_storage.insert(23);
+        mlibs::testing::check(replacement && replacement->index == key->index && replacement->generation == key->generation + 1);
+        auto add = [](int value) { return value + 2; };
+        mlibs::memory::FunctionRef<int(int)> fn{add};
+        const omui::FunctionRef<int(int)>& old_fn = fn;
+        mlibs::testing::check_eq(old_fn(40), 42);
+    });
+    suite.test("Unicode properties and grapheme navigation retain their owner", [] {
+        const std::string text = "a\u0301👨‍👩‍👧‍👦中";
+        mlibs::testing::check_eq(mlibs::unicode::grapheme_count(text), std::size_t{3});
+        mlibs::testing::check(omui::unicode::grapheme_boundaries(text) == std::vector<std::size_t>{0, 3, 28, 31});
+        mlibs::testing::check(mlibs::unicode::grapheme_boundaries(text) == omui::unicode::grapheme_boundaries(text));
+        mlibs::testing::check_eq(omui::unicode::upper("Straße"), std::string("STRASSE"));
+        mlibs::testing::check(&mlibs::unicode::decode == &omui::unicode::decode);
+        mlibs::testing::check(&mlibs::unicode::grapheme_boundaries == &omui::unicode::grapheme_boundaries);
+    });
+    suite.test("fuzzy consumes the canonical Unicode library across legacy calls", [] {
+        const std::vector<std::string> choices{"src/main.cpp", "src/memory.cppm", "README.md", "中文文件"};
+        const auto current = mlibs::fuzzy::rank("sm", choices, 10);
+        const auto old = omui::fuzzy::rank("sm", choices, 10);
+        mlibs::testing::check(!current.empty() && current.size() == old.size());
+        if (current.size() != old.size()) return;
+        for (std::size_t i = 0; i < current.size(); ++i) {
+            mlibs::testing::check(current[i].index == old[i].index && current[i].score == old[i].score && current[i].positions == old[i].positions);
+        }
+        const auto chinese = omui::fuzzy::match("中文", "中文文件");
+        mlibs::testing::check(chinese && chinese->positions == std::vector<std::uint32_t>{0, 1});
+        mlibs::testing::check(&mlibs::fuzzy::match == &omui::fuzzy::match);
+    });
     const int result = suite.run();
-    std::println("{{\"kind\":\"mlibs.namespace-consumer\",\"ok\":{},\"cases\":4}}", result == 0);
+    std::println("{{\"kind\":\"mlibs.namespace-consumer\",\"ok\":{},\"cases\":8}}", result == 0);
     return result;
 }

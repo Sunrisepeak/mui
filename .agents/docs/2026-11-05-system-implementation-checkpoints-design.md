@@ -537,3 +537,30 @@ dev／release各执行直线路径与扰动路径两组动画，每组61时刻�
 - 后续继续迁移其余基础库，再处理 renderer／simulation／audio 和 UI／标准连接；正式发布和兼容退役各自验收。S1–S10、40／20、完整默认动效、PPet 与后端覆盖的剩余工作保持开放。
 
 最终检查：全仓 lint 为零、变更清单 TOML／Python 语法、本地文档链接、`git diff --check`；本批以本地证据提交 PR #1，不等待其他平台 CI。
+
+## 17. D-100／N1第二组：共享几何、内存和文本基础
+
+执行基线 `f0bc3ef`。本批迁移 geom、memory、unicode、fuzzy，继续真实消费者与兼容验证；**N1 尚未整体完成**。公开入口和后续边界见[命名方案 §6](2026-11-05-product-namespace-migration-design.md#6-n1第二组几何内存unicode与搜索)，源码、命令及检查点证据见[本轮报告](../../tools/ci/2026-11-05-geometry-memory-unicode-namespaces.report.omui.json)。
+
+### 17.1 唯一实现与实际消费者
+
+四个原包直接成为 `mlibs.geom`、`mlibs.memory`、`mlibs.unicode`、`mlibs.fuzzy`，目录与内部职责划分保留，新旧 import 在同包导出。几何及颜色仍是同一类型，内存模块通过 using 保留旧 `omui::Arena/Handle/SlotStorage/SlotMap/FunctionRef` 等 API；没有新建 library 或复制算法。hanim 对象／播放注册表和 vector adapter 已直接使用新归属，UI／renderer／文字和脚本 adapter 继续正常消费旧入口。
+
+Unicode 生成器一起修改，并从官方 17.0.0 UCD 实际重新生成。对照基线：除 module／namespace 外，5760 行生成文件相同，测试输入原字节不变；`omui-gen unicode ... --check` 通过。字素 766、词边界 1944、断行 4835 个已提交参考输入在原生和 Wasm 都通过；断行是现有四分之一子集，不能写成重跑了全部 19338 条。
+
+现有外部消费 gate 扩到九个基础库，在新名／旧名／混用下分别从源码和实际静态包运行；新增同一类型跨入口传递、arena 复用、slot 撤销与 generation、UTF-8／grapheme／大小写及 fuzzy→Unicode 真实调用。核对图中每库只有一个身份及源码实现集合；geom 没有 `.cpp` 仍保持轻量，Unicode 多实现单元也未被强制拆包。
+
+### 17.2 验证范围与 Web 测试修复
+
+- 原生 dev 与 release 各 62 个不同测试程序通过，报告 421 个套件用例；覆盖四库、hanim.object／engine、text／layout、UI core／motion、C ABI、native fuzzy、Agent、Inspector、官网。C ABI 另运行真实 C 源码消费者。三个 motion 测试在修正后，两个原生 profile 均再次实际运行所在包，继续保留并发验证。
+- Web／Node 共 33 个不同测试程序完成验证，覆盖四库以及 hanim 对象／播放、文字／布局、core、native fuzzy、motion。原始大回归有三个 motion 程序失败，不能把初次执行记成全绿；修正后整个 motion 包七个程序通过。
+- 失败位置均为既有测试无条件调用 `std::jthread`／`std::async(launch::async)`，而当前 Web target 的 `testing::threads` 为 false。用现有 constexpr 能力常量分支：原生保持真实并发，Web 执行独立输出缓冲、重入及重复采样；名称也标明 threadless。未删除数值、像素或分配断言，未宣称 Web 已支持共享内存多线程。
+- 独立 hanim 创作 API 与实际 playback／Agent 控制继续在两个 profile 验证；两组 61 时刻分别采样并反向重放，共 244 个 PNG。产品依赖闭包未混入 UI／testing。
+
+官网 Web 重新打包、原生生成静态页面与 Agent 指南，Chromium 14 项交互检查通过；25 个固定状态／PNG 摘要与此前反应工作台记录完全一致，实际查看中文窄屏画面。实速性能、跨设备 GPU 与人的美术验收不由这些命名回归推导。
+
+### 17.3 仍需完成
+
+共享基础库累计九个完成迁移，另有此前直接新建的 `mlibs.control`；workspace 成员仍为 129。剩余 session／pipeline／image、gfx 与 content 基础库，之后引擎与 UI／标准按依赖顺序迁移。mcpp 打包遗漏传递依赖的限制也存在于 fuzzy→unicode，本轮明确依赖全部安装包，正式索引发布前还需修复并验证只声明顶层库的安装方式。未声称 C++ ABI 稳定、旧 CLI 选择器别名或新平台交付完成。
+
+保留用户已有 lock，规范子模块不变；实际算法／UCD 数据未重写。按本地相关证据提交同一 PR #1，跨平台 CI 异步，不阻塞下一检查点。S1–S10、40／20、PPet 和完整多后端目标继续开放。

@@ -13,7 +13,7 @@ import tarfile
 import tempfile
 import time
 
-NAMES = ("hash", "math", "log", "trace", "testing")
+NAMES = ("hash", "math", "log", "trace", "testing", "geom", "memory", "unicode", "fuzzy")
 
 
 def sha(path: Path) -> str | None:
@@ -40,7 +40,7 @@ def main() -> int:
         "limits": ["Source compatibility after rebuild; not C++ binary ABI compatibility or registry aliases.",
                    "Native release source and archive consumers; this gate does not test other targets.",
                    "Fresh consumer build times can reuse global toolchain caches; they are not clean-machine benchmarks.",
-                   "The packed testing interface imports hash; the external consumer explicitly declares both archives.",
+                   "The packed consumer explicitly declares the hash/testing and unicode/fuzzy dependency pairs.",
                    "No package publication or claim that mcpp pack preserves dependency metadata."],
     }
 
@@ -119,7 +119,7 @@ def main() -> int:
                 argv = [args.mcpp, "run", "--profile", "release"]
                 stdout = command(label, argv, project, bootstrap=True)
                 result = [json.loads(line) for line in stdout.splitlines() if line.startswith('{"kind":"mlibs.namespace-consumer"')]
-                if len(result) != 1 or not result[0].get("ok") or result[0].get("cases") != 4:
+                if len(result) != 1 or not result[0].get("ok") or result[0].get("cases") != 8:
                     raise RuntimeError(label + ": missing real successful consumer result")
                 own_lock = sha(project / "mcpp.lock")
                 command(label + "-incremental", argv + ["--locked"], project)
@@ -161,8 +161,9 @@ def main() -> int:
                 implementations = [p for p in sources if p.endswith(".cpp") and p != str(project / "src/main.cpp")]
                 if source_kind == "packed" and implementations:
                     raise RuntimeError(label + ": binary consumer silently built source implementations")
-                if source_kind == "source" and len(implementations) != 5:
-                    raise RuntimeError(label + ": expected one implementation unit per library")
+                expected_implementations = {str(p.resolve()) for root in source_paths.values() for p in (root / "src").rglob("*.cpp")}
+                if source_kind == "source" and set(implementations) != expected_implementations:
+                    raise RuntimeError(label + ": missing or unexpected implementation units")
                 shutil.copyfile(resolution, artifacts / (label + ".resolution.json"))
                 shutil.copyfile(project / "mcpp.toml", artifacts / (label + ".mcpp.toml"))
                 report["runs"].append({"kind": source_kind, "style": style, "result": result[0],

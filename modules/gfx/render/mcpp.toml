@@ -28,4 +28,4 @@ mlibs.trace = { path = "../../base/trace" }
 
 [dev-dependencies]
 mlibs.testing = { path = "../../base/testing" }
-openmui.memory  = { path = "../../base/memory" }
+mlibs.memory  = { path = "../../base/memory" }

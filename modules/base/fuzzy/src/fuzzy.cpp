@@ -1,13 +1,13 @@
-module openmui.fuzzy;
+module mlibs.fuzzy.api;
 
 import std;
-import openmui.unicode;
+import mlibs.unicode;
 
-namespace omui::fuzzy {
+namespace mlibs::fuzzy {
 
 namespace {
 
-namespace u = omui::unicode;
+namespace u = mlibs::unicode;
 
 enum class Class : std::uint8_t { white, delimiter, nonword, lower, upper, digit, letter };
 
@@ -274,4 +274,4 @@ std::vector<Match> rank(std::string_view query, std::span<const std::string> can
     return all;
 }
 
-}  // namespace omui::fuzzy
+}  // namespace mlibs::fuzzy

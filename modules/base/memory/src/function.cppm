@@ -1,13 +1,13 @@
-// openmui.memory:function — a non-owning reference to a callable.
+// mlibs.memory.api:function — a non-owning reference to a callable.
 //
 // std::function_ref arrives in C++26; until the baseline moves, this is the
 // same idea: two pointers, no allocation, for callbacks that do not outlive
 // the call that receives them (parallel loops, visitors).
-export module openmui.memory:function;
+export module mlibs.memory.api:function;
 
 import std;
 
-export namespace omui {
+export namespace mlibs::memory {
 
 template <class Signature>
 class FunctionRef;
@@ -30,4 +30,4 @@ private:
     R (*call_)(void*, Args...);
 };
 
-}  // namespace omui
+}  // namespace mlibs::memory

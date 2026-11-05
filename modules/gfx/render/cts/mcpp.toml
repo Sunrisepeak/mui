@@ -16,8 +16,8 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 "openmui.render.vector" = { path = "../vector" }
 "openmui.rhi" = { path = "../../rhi" }
 "openmui.rhi.sdl" = { path = "../../rhi/sdl" }
-openmui.geom = { path = "../../../base/geom" }
-openmui.memory = { path = "../../../base/memory" }
+mlibs.geom = { path = "../../../base/geom" }
+mlibs.memory = { path = "../../../base/memory" }
 openmui.raster = { path = "../../raster" }
 openmui.image = { path = "../../../base/image" }
 mlibs.trace = { path = "../../../base/trace" }

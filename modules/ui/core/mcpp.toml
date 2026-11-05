@@ -1,6 +1,6 @@
 # openmui.core — the foundation of the runtime: signals, verbs, input events
 # and keys, JSON, diagnostics, task scheduling; it re-exports the shared
-# geometry, memory utilities and the clock (openmui.geom, -memory, -anim).
+# geometry, memory utilities and the clock (mlibs.geom, -memory, -anim).
 [package]
 namespace   = "openmui"
 name        = "core"
@@ -32,8 +32,8 @@ mlibs.control = { path = "../../base/control" }
 mlibs.log = { path = "../../base/log" }
 openlifa.openmui = { path = "../../../spec" }
 hanim.core            = { path = "../../base/hanim/core" }
-openmui.geom     = { path = "../../base/geom" }
-openmui.memory   = { path = "../../base/memory" }
+mlibs.geom     = { path = "../../base/geom" }
+mlibs.memory   = { path = "../../base/memory" }
 openlifa.openas        = "0.2.0"
 nlohmann.json          = "3.12.0"
 taskflow.taskflow      = "4.1.0"

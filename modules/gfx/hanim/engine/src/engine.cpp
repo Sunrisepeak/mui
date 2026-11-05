@@ -1,12 +1,12 @@
 module hanim.engine;
 import std;
-import openmui.memory;
+import mlibs.memory;
 import openmui.log;
 import openmui.trace;
 
 namespace hanim::detail {
 struct PlaybackTag;
-using PlaybackKey = omui::SlotKey<PlaybackTag>;
+using PlaybackKey = mlibs::memory::SlotKey<PlaybackTag>;
 struct FrameStorage {
     std::vector<FramePart> parts;
     std::vector<ShapeCubic> cubics;
@@ -33,7 +33,7 @@ struct Playback {
 struct EngineData {
     ObjectRegistry objects;
     EngineLimits limits;
-    omui::SlotStorage<Playback, PlaybackKey> playbacks;
+    mlibs::memory::SlotStorage<Playback, PlaybackKey> playbacks;
     std::size_t parts = 0, cubics = 0, parameters = 0;
     EngineData(ObjectRegistry registry, EngineLimits budget)
         : objects(std::move(registry)), limits(budget), playbacks(budget.max_playbacks) {}

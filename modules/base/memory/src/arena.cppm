@@ -1,14 +1,14 @@
-// openmui.memory:arena — the per-frame allocator.
+// mlibs.memory.api:arena — the per-frame allocator.
 //
 // What a frame builds and throws away (display-list payloads, layout scratch,
 // event lists) is bump-allocated here and released all at once by `reset`.
 // Blocks are kept across resets, so a frame of the same shape as the last
 // allocates nothing from the heap: the zero-allocation rule of plan §1.4.
-export module openmui.memory:arena;
+export module mlibs.memory.api:arena;
 
 import std;
 
-export namespace omui {
+export namespace mlibs::memory {
 
 class Arena {
 public:
@@ -68,4 +68,4 @@ private:
     std::size_t        heap_allocations_ = 0;
 };
 
-}  // namespace omui
+}  // namespace mlibs::memory

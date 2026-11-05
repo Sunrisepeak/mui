@@ -30,7 +30,7 @@ sources = ["src/native/elsewhere/*.cpp"]
 
 [dependencies]
 openmui.rhi    = { path = ".." }
-openmui.memory = { path = "../../../base/memory" }
+mlibs.memory = { path = "../../../base/memory" }
 
 [dev-dependencies]
 openmui.simulation.cellular.rhi.cts = { path = "../../simulation/cellular/rhi/cts" }

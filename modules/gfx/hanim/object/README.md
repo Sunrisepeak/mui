@@ -9,7 +9,7 @@ The package lives under `modules/gfx/hanim` so `modules/base/hanim/core` keeps
 its strict standard-library plus `openmui.math` dependency boundary. Object
 data itself does not depend on a renderer, UI, OpenLifa specification or site.
 Its dependencies are `hanim.core`, independent `openmui.log`,
-`openmui.trace` and `openmui.memory`. Object and part slots reuse memory's
+`mlibs.trace` and `mlibs.memory`. Object and part slots reuse memory's
 single `SlotStorage` implementation; the registry owns names, graph validation,
 owner identities and immutable captures, not a second free-list or generation
 algorithm. The complete hanim umbrella migration is separate work.

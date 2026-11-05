@@ -305,11 +305,11 @@ std::expected<std::string, std::string> emit_unicode_tables(const std::filesyste
 // points that map by one delta, every `stride`th code point from `first` to
 // `last`. Full mappings (SpecialCasing.txt, unconditional): sorted by code
 // point, `count` code points of `to`.
-export module openmui.unicode:tables;
+export module mlibs.unicode.api:tables;
 
 import std;
 
-export namespace omui::unicode {{
+export namespace mlibs::unicode {{
 
 inline constexpr std::string_view ucd_version = "{0}";
 
@@ -319,7 +319,7 @@ inline constexpr std::string_view ucd_version = "{0}";
     out += enum_text("Gcb", gcb_values, "Grapheme_Cluster_Break values (UAX #29).");
     out += enum_text("Wb", wb_values, "Word_Break values (UAX #29).");
     out += enum_text("Ea", ea_values, "East_Asian_Width values (UAX #11).");
-    out += "}  // namespace omui::unicode\n\nexport namespace omui::unicode::tables {\n\n";
+    out += "}  // namespace mlibs::unicode\n\nexport namespace mlibs::unicode::tables {\n\n";
     emit_table(out, "line", compress(line));
     emit_table(out, "grapheme", compress(grapheme));
     emit_table(out, "word", compress(word));
@@ -349,7 +349,7 @@ inline constexpr std::string_view ucd_version = "{0}";
     return stage2[static_cast<std::size_t>(stage1[cp >> 8]) * 256 + (cp & 255)];
 }
 
-}  // namespace omui::unicode::tables
+}  // namespace mlibs::unicode::tables
 )";
     return out;
 }

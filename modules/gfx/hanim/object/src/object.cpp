@@ -3,7 +3,7 @@ module hanim.object;
 import std;
 import openmui.log;
 import openmui.trace;
-import openmui.memory;
+import mlibs.memory;
 
 namespace hanim::detail {
 struct ContourData { Vec2 start; std::vector<ShapeSegment> segments; bool closed = true; };
@@ -18,9 +18,9 @@ struct SnapshotData {
 };
 struct PartTag;
 struct ObjectTag;
-using PartKey = omui::SlotKey<PartTag>;
-using ObjectKey = omui::SlotKey<ObjectTag>;
-using PartIdentities = omui::SlotStorage<std::string, PartKey>;
+using PartKey = mlibs::memory::SlotKey<PartTag>;
+using ObjectKey = mlibs::memory::SlotKey<ObjectTag>;
+using PartIdentities = mlibs::memory::SlotStorage<std::string, PartKey>;
 struct ObjectSlot {
     std::shared_ptr<const SnapshotData> current;
     PartIdentities parts;
@@ -28,7 +28,7 @@ struct ObjectSlot {
 struct RegistryData {
     std::uint64_t owner = 0;
     ObjectLimits limits;
-    omui::SlotStorage<ObjectSlot, ObjectKey> objects;
+    mlibs::memory::SlotStorage<ObjectSlot, ObjectKey> objects;
     RegistryData(std::uint64_t identity, ObjectLimits budget) : owner(identity), limits(budget), objects(budget.max_objects) {}
 };
 }

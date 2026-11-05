@@ -19,7 +19,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
 hanim.program = { path = "../program" }
-openmui.memory = { path = "../../../base/memory" }
+mlibs.memory = { path = "../../../base/memory" }
 mlibs.log = { path = "../../../base/log" }
 mlibs.trace = { path = "../../../base/trace" }
 

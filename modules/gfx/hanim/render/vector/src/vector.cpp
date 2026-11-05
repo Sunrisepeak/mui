@@ -30,7 +30,7 @@ struct VectorProgramData {
 namespace hanim::vector_render {
 namespace {
 namespace render = omui::render;
-namespace geom = omui::geom;
+namespace geom = mlibs::geom;
 constexpr auto no_source = std::numeric_limits<std::size_t>::max();
 constexpr omui::Log log{"hanim.render.vector"};
 bool scalar(double value) noexcept {

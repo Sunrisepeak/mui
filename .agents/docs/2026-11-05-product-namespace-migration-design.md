@@ -100,3 +100,24 @@ src/*.cpp         module mlibs.<name>.api：原实现
 `tools/ci/foundation-migration/run.py` 创建仓外工程，覆盖 source／packed × canonical／legacy／mixed 六种组合，各含首次构建与未修改后的运行。它验证类型及函数身份、hash／math 值、共享 log sink／filter／history、共享 trace 开关及记录、同一测试上下文；检查实际 `resolution.json`、编译源和静态产物，拒绝重复 package、双编译或二进制消费者偷用源码实现。测试库是此验证工程明确选择的工具；原有独立 hanim 消费者继续禁止测试运行时进入产品图。
 
 报告记录命令、版本、耗时、包尺寸与摘要。首次构建指新的消费工程，编译器全局缓存可能已热，不能据此宣称冷机性能改善。跨平台与实际消费者的回归记录在[实施台账](2026-11-05-system-implementation-checkpoints-design.md)，各平台 CI 异步执行。
+
+## 6. N1第二组：几何、内存、Unicode与搜索
+
+| 目录 | 当前包／主要 module | 当前 C++ API | 同包兼容 API |
+|---|---|---|---|
+| `modules/base/geom` | `mlibs.geom` | `mlibs::geom` | `openmui.geom`／`omui::geom` |
+| `modules/base/memory` | `mlibs.memory` | `mlibs::memory` | `openmui.memory`／`omui` 的 Arena、Handle、SlotKey、SlotStorage、SlotMap、FunctionRef 等声明 |
+| `modules/base/unicode` | `mlibs.unicode` | `mlibs::unicode` | `openmui.unicode`／`omui::unicode` |
+| `modules/base/fuzzy` | `mlibs.fuzzy` | `mlibs::fuzzy` | `openmui.fuzzy`／`omui::fuzzy` |
+
+沿用 §5 的单包／单实现／新旧入口布局。geom 继续是 constexpr 几何，不为改名新造运行时；memory 的 arena、slot、handle、function 保留同包分区；Unicode 表保留生成分区。hanim.object／engine 直接使用 `mlibs::memory`，hanim vector adapter 直接使用 `mlibs::geom`。fuzzy 实现依赖 `mlibs.unicode`，其他既有消费者可保留旧 import 逐步升级。
+
+几何对象、颜色和变换的新旧名字是同一类型；不在 UI／动画／renderer 间增加转换对象。Handle 仍为原来的 32 位 index＋32 位 generation，bits/from_bits 不变；宽 SlotKey、容量、退役、失败原子性及查询零分配保持原契约。不要把 namespace 迁移视为句柄 wire ABI 重新设计。
+
+Unicode 的生成器和生成结果一起迁移。重新使用[Unicode 官方 17.0.0 UCD](https://www.unicode.org/Public/17.0.0/ucd/)运行 `omui-gen unicode`，只改变生成 module／namespace，数值表及已有测试数据保持相同；记录归档与输入文件摘要，并用 `--check`核对生成一致性。此次没有升级 Unicode 版本或修改分词／断行算法。
+
+`foundation-migration` gate 扩展到九个基础库，继续源码／安装包 × 新名／旧名／混用六种工程，增加几何互操作、同一个 arena／slot 的生命周期、UTF-8／grapheme／大小写与 Unicode 搜索验证。核对实际编译源集合，允许 geom 没有 `.cpp`、Unicode 有多个实现单元；不强迫“一库一 cpp”，也不重复创建清单。CLI 选择器仍使用实际新身份。
+
+前批 mcpp 打包依赖清单的限制同样影响 fuzzy→unicode；当前安装包 gate 显式声明这两者以及 testing→hash。该证据不证明仅声明 fuzzy 或 testing 的索引安装可用。正式发布前修复构建工具的传递依赖清单并逐库验收，不能用另一份 Unicode／hash 实现代替依赖。
+
+N1 仍有 session／pipeline／image、RHI／shader／raster、content 等后续依赖组；N2 引擎与 N3 UI／标准未因此自动完成。遵循原计划的功能与真实质量验收，不把命名数量计为动画或作品数量。

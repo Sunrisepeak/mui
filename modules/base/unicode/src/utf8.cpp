@@ -1,8 +1,8 @@
-module openmui.unicode;
+module mlibs.unicode.api;
 
 import std;
 
-namespace omui::unicode {
+namespace mlibs::unicode {
 
 Decoded decode(std::string_view text, std::size_t offset) noexcept {
     auto b = [&](std::size_t i) { return static_cast<std::uint8_t>(text[i]); };
@@ -93,4 +93,4 @@ bool unassigned(char32_t cp) noexcept {
     return (tables::lookup(tables::grapheme_stage1, tables::grapheme_stage2, cp) & 0x80) != 0;
 }
 
-}  // namespace omui::unicode
+}  // namespace mlibs::unicode

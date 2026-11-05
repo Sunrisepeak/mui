@@ -32,6 +32,6 @@ marzer.tomlplusplus = "3.4.0"
 [dev-dependencies]
 mlibs.testing = { path = "../../../base/testing" }
 openmui.raster  = { path = "../../raster" }
-openmui.geom    = { path = "../../../base/geom" }
+mlibs.geom    = { path = "../../../base/geom" }
 openmui.rhi.sdl = { path = "../../rhi/sdl" }
 mcpplibs.os     = "0.2.2"

@@ -1,10 +1,10 @@
-# openmui.fuzzy — fuzzy matching as a finder does it: a query's characters in
+# mlibs.fuzzy — fuzzy matching as a finder does it: a query's characters in
 # order inside a candidate, scored so that what a person means comes first
 # (word starts, camel humps, path segments, runs), with the matched
 # characters to highlight. Deterministic; standard library and
-# openmui.unicode only (D-55: an independent module).
+# mlibs.unicode only (D-55: an independent module).
 [package]
-namespace   = "openmui"
+namespace   = "mlibs"
 name        = "fuzzy"
 version     = "0.1.0"
 description = "Fuzzy matching and ranking for finders and command palettes, with highlight positions"
@@ -15,7 +15,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 kind = "runtime"
 
-[targets.openmui-fuzzy]
+[targets.mlibs-fuzzy]
 kind = "lib"
 
 [build]
@@ -25,7 +25,7 @@ sources = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off"]
 
 [dependencies]
-openmui.unicode = { path = "../unicode" }
+mlibs.unicode = { path = "../unicode" }
 
 [dev-dependencies]
 mlibs.testing = { path = "../testing" }

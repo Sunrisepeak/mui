@@ -1,16 +1,16 @@
-// openmui.memory:handle — generational handles and the slot map behind them.
+// mlibs.memory.api:handle — generational handles and the slot map behind them.
 //
 // Objects the runtime hands out (nodes, signals, subscriptions, images) are
 // referred to by a handle: an index and a generation. A handle to an object
 // that has gone is detected (its generation no longer matches) instead of
 // reading freed memory, which is what lets a script or an agent hold a handle
 // across frames safely.
-export module openmui.memory:handle;
+export module mlibs.memory.api:handle;
 
 import std;
 import :slots;
 
-export namespace omui {
+export namespace mlibs::memory {
 
 template <class Tag>
 struct Handle {
@@ -59,4 +59,4 @@ private:
     SlotStorage<T, handle_type, 0> storage_;
 };
 
-} // namespace omui
+} // namespace mlibs::memory

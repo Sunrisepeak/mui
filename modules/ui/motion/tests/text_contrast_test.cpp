@@ -372,7 +372,8 @@ int main(int argc, char** argv) {
         const auto empty = mo::glyph_ink_bounds(std::get<render::DrawGlyphs>(blank_list.commands().front()), Affine{}, source);
         check(empty && empty->empty(), "known blank mask is distinct from missing geometry");
     });
-    suite.test("nested draw reentry and concurrent seeking keep independent proof scratch", [&] {
+    suite.test(threads ? "nested draw reentry and concurrent seeking keep independent proof scratch"
+                       : "nested draw reentry and threadless seeking keep independent proof scratch", [&] {
         FixedGlyphs glyphs;
         Frame a = light, b = dark; a.nested_count = b.nested_count = 1;
         auto policy = options();
@@ -392,9 +393,13 @@ int main(int argc, char** argv) {
         const auto expected = draw_once();
         const auto frame = caption_paints(expected);
         check(ratio(frame.ink, frame.background) >= 4.5 - 0.00001);
-        auto first = std::async(std::launch::async, [&] { return draw_once().hash(); });
-        auto second = std::async(std::launch::async, [&] { return draw_once().hash(); });
-        check_eq(first.get(), expected.hash()); check_eq(second.get(), expected.hash());
+        if constexpr (threads) {
+            auto first = std::async(std::launch::async, [&] { return draw_once().hash(); });
+            auto second = std::async(std::launch::async, [&] { return draw_once().hash(); });
+            check_eq(first.get(), expected.hash()); check_eq(second.get(), expected.hash());
+        } else {
+            check_eq(draw_once().hash(), expected.hash()); check_eq(draw_once().hash(), expected.hash());
+        }
     });
     suite.test("proof capacity overflow preserves drawing and conservatively skips ink correction", [&] {
         FixedGlyphs glyphs;

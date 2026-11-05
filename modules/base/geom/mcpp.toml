@@ -1,8 +1,8 @@
-# openmui.geom — the geometry the independent modules share: points, sizes,
+# mlibs.geom — the geometry the independent modules share: points, sizes,
 # rectangles, insets, radii, colours, affine transforms, pixel snapping.
 # Standard library only; header-like (every function is constexpr).
 [package]
-namespace   = "openmui"
+namespace   = "mlibs"
 name        = "geom"
 version     = "0.1.0"
 description = "2D geometry for openmui's modules: points, rectangles, colours, affine transforms, pixel snapping"
@@ -13,7 +13,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 kind = "runtime"
 
-[targets.openmui-geom]
+[targets.mlibs-geom]
 kind = "lib"
 
 [build]

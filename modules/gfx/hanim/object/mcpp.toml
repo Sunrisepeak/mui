@@ -21,7 +21,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 hanim.core = { path = "../../../base/hanim/core" }
 mlibs.log = { path = "../../../base/log" }
 mlibs.trace = { path = "../../../base/trace" }
-openmui.memory = { path = "../../../base/memory" }
+mlibs.memory = { path = "../../../base/memory" }
 
 [dev-dependencies]
 mlibs.testing = { path = "../../../base/testing" }

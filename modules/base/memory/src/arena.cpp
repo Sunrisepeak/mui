@@ -1,8 +1,8 @@
-module openmui.memory;
+module mlibs.memory.api;
 
 import std;
 
-namespace omui {
+namespace mlibs::memory {
 
 namespace {
 
@@ -79,4 +79,4 @@ std::size_t Arena::capacity() const noexcept {
     return n;
 }
 
-}  // namespace omui
+}  // namespace mlibs::memory

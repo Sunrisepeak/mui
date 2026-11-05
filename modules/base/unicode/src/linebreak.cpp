@@ -4,11 +4,11 @@
 // applied by giving every code point an effective class and the index of its
 // base; lookbehind rules (LB8, LB14–LB17, LB20a, LB21a, LB25, LB28a, LB30a)
 // walk back over effective classes.
-module openmui.unicode;
+module mlibs.unicode.api;
 
 import std;
 
-namespace omui::unicode {
+namespace mlibs::unicode {
 
 namespace {
 
@@ -256,4 +256,4 @@ std::vector<LineBreak> line_breaks(std::string_view text) {
     return out;
 }
 
-}  // namespace omui::unicode
+}  // namespace mlibs::unicode

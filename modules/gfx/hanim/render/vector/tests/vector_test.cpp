@@ -7,7 +7,7 @@ using namespace hanim;
 using namespace hanim::vector_render;
 using namespace omui::testing;
 namespace render = omui::render;
-namespace geom = omui::geom;
+namespace geom = mlibs::geom;
 namespace raster = omui::raster;
 
 namespace {

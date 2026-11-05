@@ -1,11 +1,11 @@
 // Case mapping: a binary search of the generated runs and full mappings
 // (tables.cppm), and Final_Sigma's context (Unicode §3.13).
-module openmui.unicode;
+module mlibs.unicode.api;
 
 import std;
 import :tables;
 
-namespace omui::unicode {
+namespace mlibs::unicode {
 
 namespace {
 
@@ -93,4 +93,4 @@ char32_t simple_lower(char32_t cp) noexcept { return mapped(tables::to_lower, cp
 std::string upper(std::string_view text) { return map_text(text, true); }
 std::string lower(std::string_view text) { return map_text(text, false); }
 
-}  // namespace omui::unicode
+}  // namespace mlibs::unicode

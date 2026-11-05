@@ -1,9 +1,11 @@
-# openmui.fuzzy
+# mlibs.fuzzy
 
-Fuzzy matching as a finder does it, for command palettes, file finders and long lists filtered as a person types. It depends only on the standard library and `openmui.unicode` (D-55).
+Fuzzy matching as a finder does it, for command palettes, file finders and long lists filtered as a person types. It depends only on the standard library and `mlibs.unicode` (D-55).
 
 ```cpp
-auto best = omui::fuzzy::rank("mcfg", files, 20);  // best first, with the runs to highlight
+import mlibs.fuzzy;
+
+auto best = mlibs::fuzzy::rank("mcfg", files, 20);  // best first, with the runs to highlight
 ```
 
 - A query matches when its characters appear in the candidate in order.
@@ -18,3 +20,9 @@ auto best = omui::fuzzy::rank("mcfg", files, 20);  // best first, with the runs 
 - **Determinism and speed**: everything is integer arithmetic over code points, so the same input ranks the same everywhere. Long lists are scored on several threads with the same answer; the test pins a hash of 20 000 ranked paths.
 
 Scripts reach it as the official native module `fuzzy` ([modules/ui/native/fuzzy](../../ui/native/fuzzy)).
+
+The canonical package/import is `mlibs.fuzzy` and the API is `mlibs::fuzzy`.
+The legacy `openmui.fuzzy` import remains in this same package, sharing
+the same implementation and types; C++ consumers must rebuild. The old API is
+`omui::fuzzy`. No separate compatibility package is added.
+See the [namespace migration guide](../../../.agents/docs/2026-11-05-product-namespace-migration-design.md#6-n1第二组几何内存unicode与搜索).

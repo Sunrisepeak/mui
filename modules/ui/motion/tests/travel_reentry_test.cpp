@@ -152,7 +152,8 @@ int main(int argc, char** argv) {
         check(out.balanced());
         check_eq(fills(out).size(), fills_per_level * actual.motions.size());
     });
-    suite.test("concurrent seeks share only immutable Morph data", [] {
+    suite.test(threads ? "concurrent seeks share only immutable Morph data"
+                       : "threadless seeks share only immutable Morph data", [] {
         Chain actual(4, true);
         auto sample = [&](double time) {
             std::array<std::uint64_t, 8> hashes{};
@@ -160,10 +161,15 @@ int main(int argc, char** argv) {
             return hashes;
         };
         const auto a = sample(0.25), b = sample(0.75);
-        auto first = std::async(std::launch::async, [&] { return sample(0.25); });
-        auto second = std::async(std::launch::async, [&] { return sample(0.75); });
-        check_eq(first.get(), a);
-        check_eq(second.get(), b);
+        if constexpr (threads) {
+            auto first = std::async(std::launch::async, [&] { return sample(0.25); });
+            auto second = std::async(std::launch::async, [&] { return sample(0.75); });
+            check_eq(first.get(), a);
+            check_eq(second.get(), b);
+        } else {
+            check_eq(sample(0.25), a);
+            check_eq(sample(0.75), b);
+        }
     });
     return suite.run(argc, argv);
 }

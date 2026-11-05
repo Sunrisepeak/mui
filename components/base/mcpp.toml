@@ -28,7 +28,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 [dependencies]
 openmui.core    = { path = "../../modules/ui/core" }
 openmui.view    = { path = "../../modules/ui/view" }
-openmui.unicode = { path = "../../modules/base/unicode" }
+mlibs.unicode = { path = "../../modules/base/unicode" }
 mlibs.hash    = { path = "../../modules/base/hash" }
 
 [build-dependencies]

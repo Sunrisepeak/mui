@@ -6,6 +6,15 @@ resolution, then builds/runs dev and release with `--locked`. It checks actual
 `resolution.json` and compilation commands for UI, spec, testing, site, host or SDK
 dependencies. The source repository's lock must stay unchanged.
 
+The host explicitly selects `mlibs.control` for shared openas authorization;
+hanim's default dependency graph does not import it. Both profiles also run
+`--agent-review`: 61 real CPU frames each for linear and curved morph paths,
+followed by exact reverse replay, with time/revision/pixel provenance. DISPLAY
+and WAYLAND_DISPLAY are removed. Read-only policy, dry run, foreign sessions,
+revoked worker continuations and a denied capture that publishes no files are
+checked against the actual engine/renderer. These checks use the native public
+policy/context library, not a new wire protocol or universal provider registry.
+
 The source imports `hanim` and creates its pixel fixture through
 `engine.play(anim::morph(source,target).with_effect(...))`. It also retains an
 advanced snapshot Program, proving both authoring levels use the same player.
@@ -29,6 +38,7 @@ The retained project's executable accepts native typed command-line controls:
 mcpp run --locked --profile release -- --time 0.5 --region 80,40,160,160 --out /tmp/frame.png
 mcpp run --locked --profile release -- --time 0.5 --retarget --out /tmp/retarget.png
 mcpp run --locked --profile release -- --time 0.5 --bend 0.35 --out /tmp/curved.png
+mcpp run --locked --profile release -- --agent-review --bend 0.35 --out /tmp/review.png
 ```
 
 `--time` selects seconds in the current one-second segment; `--viewport W,H`
@@ -55,6 +65,16 @@ the actual process stage, coordinate frame and bend separately from image effect
 The gate checks original/midpoint/target pixels differ, output crop dimensions
 and PNG round-trip pixels, real retarget continuity, and invalid-region rejection.
 This is a fixed triangle/circle/diamond consumer fixture, not a general asset
-tool, complete Engine validation, Agent provider, sanitizer or GPU-performance
+tool, complete Engine validation, generic remote provider, sanitizer or GPU-performance
 claim. Source compilation may still prepare the optional GPU backend shipped by
 the vector package; runtime selects CPU and creates no graphics device/window.
+
+`--agent-review` is a validation host: it explicitly creates a trusted development
+session even in its release binary. It does not accept session/grant claims from
+JSON, automatically renew revoked sessions, or represent the production default
+policy. It writes `.agent-000.png` through `.agent-060.png` beside the requested
+output, then verifies replay and refusal. `--agent-deny-capture` restricts this
+session to seeking, returns structured failure/exit 3, and writes no images.
+The ordinary requested PNG after a successful review is a local host export;
+all Agent review frames pass through the shared authorization gate. A successful
+offline process review is not a real-time timing or human aesthetic acceptance.

@@ -9,6 +9,7 @@ export module openmui.core:verb;
 
 import std;
 import :base;
+import mlibs.control;
 
 export namespace omui {
 
@@ -56,22 +57,8 @@ struct Invocation {
 // An instance-owned dynamic call context. A Runtime and its Verbs share
 // this stack, so callbacks cannot shed remote authority by changing entry
 // points. It is used only on their owning thread, never process-global.
-class InvocationContext {
-public:
-    [[nodiscard]] const Invocation* current() const noexcept;
-private:
-    friend class InvocationScope;
-    std::vector<const Invocation*> calls_;
-};
-class InvocationScope {
-public:
-    InvocationScope(InvocationContext& context, const Invocation& call);
-    ~InvocationScope();
-    InvocationScope(const InvocationScope&) = delete;
-    InvocationScope& operator=(const InvocationScope&) = delete;
-private:
-    InvocationContext& context_;
-};
+using InvocationContext = mlibs::control::Context<Invocation>;
+using InvocationScope = mlibs::control::Scope<Invocation>;
 
 // The data of a dry run's answer (S-13): what performing it would do.
 //   outcome  run | needs-answer | refused | fails

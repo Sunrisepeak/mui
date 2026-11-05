@@ -211,6 +211,8 @@ HObject 是动画域身份及表示能力，允许属性、路径、轮廓、mes
 
 ## 5. 目标代码树与兼容迁移
 
+命名补充 D-100：`openmui` 归 UI 规范，UI 实现用 `omui`，hanim 等具名产品保留自身身份；通用库用 `mlibs`，尚未定名的领域引擎用 `xengine`。**物理分层和命名归属分别判断**，下列目录不意味着所有包继续叫 openmui；完整映射与分阶段源码／包兼容见[命名迁移方案](2026-11-05-product-namespace-migration-design.md)。既有技术名继续作为迁移期间的兼容入口。
+
 以下是**职责与归属方向树，不是逐目录建包清单**：`[新增]` 表示待实现职责；内部小能力优先放所属包的`src/<职责>/`，达到§5.1的独立库／必要隔离门槛才新建`mcpp.toml`。不铺空目录或按一个`.cppm`拆一个包。未标注的目录为已有成员或分组；已有拆分也可按证据收敛。目录层次表达允许依赖，仍需实际package DAG和包内模块依赖检查同层环。
 
 ```text
@@ -224,7 +226,7 @@ modules/
       core/                        保留 hanim.core：std + openmui.math
       core/src/contract/           [新增] 最小域类型先归core；确有独立边界再提取
     time/                          [新增] 时间值/映射；不拥有各域时钟
-    control/                       [新增] 中立操作/provider接口；不导入UI/网络
+    control/                       mlibs.control：共享授权/会话/调用上下文；provider注册仍待实现
     resource/                      [新增] 稳定资源身份、版本和租约契约
     compute/                       [候选] 共性算子/调度；有多个消费者后提取，优先生态
     ai/                            [候选产品] 决策/模型任务；初期一个库，feature选用
@@ -286,7 +288,7 @@ tools/
   materials/ operators/ assets/ scene/ gameplay/  [候选独立工具] 不按每个命令预建包
 mcpp/                              仅构建插件；不成为运行时依赖
 site/ examples/ showcase/          普通消费者与作品，复用公开定义
-src/entry/                         宿主/应用入口；根包仍是 openmui.sdk
+src/entry/                         宿主/应用入口；根包当前openmui.sdk，目标omui.sdk
 ```
 
 ### 5.1 包粒度：先内部组织，有独立价值再拆库
@@ -311,7 +313,7 @@ src/entry/                         宿主/应用入口；根包仍是 openmui.sd
 
 ### 5.2 兼容与跨层迁移
 
-新包身份按“路径就是包名”逐项落定；该规则约束已成立的独立包，不约束每个内部源码目录。这里的simulation／compute等目录不是新产品品牌的定案。现有`openmui.*`技术名继续兼容。独立产品可在未来抽仓，外部依赖通过mcpp包解析，不能跨成员相对路径include源码。
+新包身份按D-100产品归属及“路径就是包名”逐项落定；后者约束已成立的独立包，不约束每个内部源码目录。这里的simulation／compute等目录不是新产品品牌的定案。现有`openmui.*`实现技术名保留迁移期兼容，新实现不再默认使用这个前缀。独立产品可在未来抽仓，外部依赖通过mcpp包解析，不能跨成员相对路径include源码。
 
 **hanim 伞包迁移是必要且有限的。** S1将 package `hanim` 从 `modules/base/hanim` 移至 `modules/gfx/hanim`，core 保留原路径／身份；base/hanim 变为分组。默认产品伞导出 object／library／effect／program／engine，渲染、GPU、provider 与 UI 均显式可选。原 `import hanim` 保留 core 符号；旧 path 依赖的迁移说明见包README。不能同时注册两个 `hanim` 包，也不能让 base 反依赖 gfx。workspace、lint fixture和独立消费者随S1同步修改；当前验证见实施台账，原始API实验尚未搬包的历史结论不再表示当前工作树。
 

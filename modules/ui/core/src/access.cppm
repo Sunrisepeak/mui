@@ -3,7 +3,7 @@
 export module openmui.core:access;
 
 import std;
-export import openas;
+export import mlibs.control;
 import :base;
 import :verb;
 
@@ -12,29 +12,12 @@ export namespace omui {
 [[nodiscard]] std::optional<openas::Cap> parse_cap(std::string_view text) noexcept;
 [[nodiscard]] std::string cap_name(const openas::Cap& cap);
 
-enum class AgentMode : std::uint8_t { automatic, development, dual_user };
+using AgentMode = mlibs::control::Mode;
+using AgentRestrictions = mlibs::control::Restrictions;
+using AgentPolicy = mlibs::control::Policy;
 [[nodiscard]] std::optional<AgentMode> parse_agent_mode(std::string_view text) noexcept;
 [[nodiscard]] std::string_view agent_mode_name(AgentMode mode) noexcept;
-// Shared by SDK startup and independent hosts/providers. No UI/SDK dependency.
 [[nodiscard]] AgentMode agent_mode_for_profile(std::string_view profile) noexcept;
-
-// Missing values inherit. A present empty operations list denies operations;
-// lists use exact names, prefix.* or *. Layers intersect, never widen.
-struct AgentRestrictions {
-    std::optional<openas::Cap> cap;
-    std::optional<bool> enabled, input;
-    std::optional<AgentMode> mode;
-    std::optional<std::vector<std::string>> operations;
-};
-struct AgentPolicy {
-    AgentMode mode = AgentMode::dual_user;
-    openas::Cap cap;
-    bool enabled = true, input = true;
-    std::string source = "explicit";
-    AgentRestrictions developer, user;
-};
-// A reusable startup preset for SDKs, embedded hosts and independent
-// control providers. Only the exact dev profile selects development.
 [[nodiscard]] AgentPolicy agent_policy_for_profile(std::string_view profile, AgentMode requested = AgentMode::automatic);
 struct AgentPolicyState {
     AgentMode mode = AgentMode::dual_user;
@@ -52,22 +35,22 @@ class AgentSession {
   public:
     [[nodiscard]] Actor attribute(const Actor& requested) const;
     [[nodiscard]] std::string owner() const;
+    // Trusted native integration; this object is never deserialized from JSON.
+    [[nodiscard]] const std::shared_ptr<const mlibs::control::Session>& control_session() const noexcept { return session_; }
 
   private:
     friend class AgentAccess;
-    AgentSession(std::weak_ptr<const void> issuer, std::uint64_t epoch, bool development, openas::Actor owner,
-                 AgentRestrictions restrictions);
-    std::weak_ptr<const void> issuer_;
-    std::uint64_t epoch_ = 0;
-    bool development_ = false;
-    openas::Actor owner_;
-    AgentRestrictions restrictions_;
-    mutable std::atomic<bool> active_{true};
+    explicit AgentSession(std::shared_ptr<const mlibs::control::Session> session);
+    std::shared_ptr<const mlibs::control::Session> session_;
 };
 
 class AgentAccess {
   public:
     AgentAccess();
+    explicit AgentAccess(std::shared_ptr<mlibs::control::Access> access);
+    AgentAccess(const AgentAccess&) = delete;
+    AgentAccess& operator=(const AgentAccess&) = delete;
+    [[nodiscard]] const std::shared_ptr<mlibs::control::Access>& control_binding() const noexcept { return access_; }
     void set_cap(openas::Cap cap);
     [[nodiscard]] openas::Cap cap() const;
     void set_policy(AgentPolicy policy);
@@ -86,12 +69,7 @@ class AgentAccess {
                                           const AgentSession* session = nullptr, std::string_view operation = {}) const;
 
   private:
-    [[nodiscard]] AgentPolicyState effective_locked(const AgentSession* session) const;
-    mutable std::mutex mutex_;
-    AgentPolicy policy_;
-    std::vector<openas::Grant> grants_;
-    std::shared_ptr<const void> identity_;
-    std::uint64_t grant_epoch_ = 0, session_next_ = 0;
+    std::shared_ptr<mlibs::control::Access> access_;
 };
 
 // Compatibility fallback for unbound low-level runtimes and standalone Verbs.

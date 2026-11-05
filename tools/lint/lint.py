@@ -7,7 +7,7 @@
 Rules:
   macros        no `#define` in our sources (spec/include/openmui.h is the one exception)
   headers       no header files but spec/include/openmui.h; `#include` only in `native/` units
-  naming        no bare `mui` identifier: the identity is `openmui`, the abbreviation `omui`
+  naming        no bare `mui`: openmui is the spec, omui the UI; named products, mlibs/xengine own their APIs
   layering      a member depends only on the layers below it (D-82: the independent components,
                 openmui, mgame; gongfu's core on the standard library alone)
   manifest      namespaced dependencies are dotted keys (`compat.sdl3 = "…"`) of [dependencies]
@@ -242,7 +242,7 @@ def check_sources(root: Path) -> list[Problem]:
                 problems.append(Problem("thirdparty", f"{rel_s}:{no}",
                                         "a wrapped C library (mcpplibs.mwrap.*) is used only in a native/ unit (D-83)"))
             if re.search(r"\bmui(::|_[a-z])|\bMUI_|\bnamespace\s+mui\b|\bmodule\s+mui\b|import\s+mui\b", line):
-                problems.append(Problem("naming", f"{rel_s}:{no}", "bare `mui`; write `openmui` (identity) or `omui` (abbreviation)"))
+                problems.append(Problem("naming", f"{rel_s}:{no}", "bare `mui`; use the owner: openmui (spec), omui (UI), a named product, mlibs or xengine"))
 
         top = rel.parts[0] if rel.parts else ""
         is_test = "tests" in rel.parts

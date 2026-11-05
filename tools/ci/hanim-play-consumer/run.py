@@ -28,7 +28,7 @@ def audit(project: Path, repo: Path, artifacts: Path, profile: str) -> dict:
     names = []
     forbidden = {"openmui.core", "openmui.sdk", "openmui.testing", "openlifa.openmui", "openmui.spec"}
     required = {"mcpplibs.hanim", "hanim.engine", "hanim.program", "hanim.library", "hanim.object", "hanim.core", "hanim.effect",
-                "hanim.render.vector", "openmui.render.vector", "openmui.raster", "openmui.image"}
+                "hanim.render.vector", "openmui.render.vector", "openmui.raster", "openmui.image", "mlibs.control", "openlifa.openas"}
     def independent_source(path: Path) -> None:
         path = path.resolve()
         if path.is_relative_to(repo):
@@ -63,6 +63,7 @@ def audit(project: Path, repo: Path, artifacts: Path, profile: str) -> dict:
     shutil.copyfile(resolution, artifacts / f"{profile}.resolution.json")
     shutil.copyfile(cdb, artifacts / f"{profile}.compile_commands.json")
     return {"packages": sorted(names), "compiled_sources": sources,
+            "source_files_sha256": {str(Path(p).relative_to(repo)): digest(Path(p)) for p in sources if Path(p).is_relative_to(repo)},
             "resolution": str(artifacts / f"{profile}.resolution.json"),
             "cdb": str(artifacts / f"{profile}.compile_commands.json"), "toolchain": data["toolchain"]}
 
@@ -81,8 +82,10 @@ def main() -> int:
     artifacts.mkdir(exist_ok=True)
     project = Path(tempfile.mkdtemp(prefix="hanim-public-play-consumer-"))
     lock = digest(repo / "mcpp.lock")
-    report = {"format": "hanim.independent-play-consumer@0.1", "ok": False, "project": str(project),
+    report = {"format": "hanim.independent-play-consumer@0.2", "ok": False, "project": str(project),
+              "source_commit": subprocess.check_output(["git", "-C", str(repo), "rev-parse", "HEAD"], text=True).strip(),
               "fixture_sha256": digest(fixture / "src/main.cpp"), "source_lock_before": lock,
+              "runner_sha256": digest(fixture / "run.py"), "manifest_sha256": digest(fixture / "mcpp.toml.in"),
               "raster_contract": {"source": str(repo / "modules/gfx/render/vector/tests/shape_morph_test.cpp") + ":95",
                                   "source_sha256": digest(repo / "modules/gfx/render/vector/tests/shape_morph_test.cpp"),
                                   "max_boundary_coverage_u8": 18, "off_boundary_changes": 0,
@@ -90,11 +93,14 @@ def main() -> int:
                                   "basis": "Existing 1/32-device-pixel flattening error per representation; independent exact subdivision may differ by 1/16 pixel. Boundary-only coverage tolerance; uniform interior/exterior exact."},
               "commands": [], "profiles": [], "limits": [
                   "Fixed triangle/circle/diamond fixture; not a general asset editor or complete Engine acceptance.",
-                  "CPU reference pixels only; no GUI, window, physical GPU performance or Agent provider claim.",
+                  "CPU reference pixels only; no GUI, window, physical GPU performance or realtime aesthetic claim.",
+                  "Native hanim consumer uses shared authorization/context; no generic provider registry or new wire protocol.",
                   "No sanitizer claim: this gate runs dev and release."]}
 
     def run(label: str, argv: list[str], bootstrap: bool = False, expected: int = 0) -> str:
         env = os.environ.copy()
+        env.pop("DISPLAY", None)
+        env.pop("WAYLAND_DISPLAY", None)
         env.setdefault("MCPP_JOBS", "2")
         if bootstrap:
             env.pop("MCPP_LOCKED", None)
@@ -113,7 +119,7 @@ def main() -> int:
         (project / "src").mkdir()
         manifest = (fixture / "mcpp.toml.in").read_text()
         for key, relative in {"engine": "gfx/hanim", "adapter": "gfx/hanim/render/vector", "raster": "gfx/raster",
-                              "image": "base/image", "hash": "base/hash"}.items():
+                              "image": "base/image", "hash": "base/hash", "control": "base/control"}.items():
             manifest = manifest.replace("{{" + key + "_path}}", json.dumps(str(repo / "modules" / relative)))
         (project / "mcpp.toml").write_text(manifest)
         shutil.copyfile(fixture / "src/main.cpp", project / "src/main.cpp")
@@ -162,12 +168,54 @@ def main() -> int:
             for result in (results[4], results[8]):
                 if result["target"] == result["initial_target"] or result["controls"]["retarget_pixel_max_u8"] > 18 or result["controls"]["retarget_coverage_off_boundary"] or result["controls"]["retarget_styled_off_boundary"]:
                     raise RuntimeError("real retarget target/continuity failed")
+            agent_results = []
+            for label, bend in (("agent-linear", 0), ("agent-curved", .35)):
+                png = artifacts / f"{profile}-{label}.png"
+                text = run(profile + "-" + label, [args.mcpp, "run", "--locked", "--profile", profile, "--",
+                           "--out", str(png), "--bend", str(bend), "--agent-review"])
+                rows = [json.loads(line) for line in text.splitlines() if line.lstrip().startswith("{")]
+                result = next((row for row in rows if row.get("kind") == "hanim.play-consumer"), None)
+                if not result or not result.get("ok"):
+                    raise RuntimeError("independent Agent review did not finish")
+                review = result["agent_review"]
+                if review["authorization"] != "mlibs.control/openas" or review["reverse_replayed"] != 61:
+                    raise RuntimeError("shared authority or process replay missing")
+                for key in ("read_only_preserved_state", "dry_run_preserved_state", "foreign_session_refused",
+                            "revoked_continuation_refused", "claimed_provenance_replaced", "nested_operation_filter_preserved"):
+                    if review.get(key) is not True:
+                        raise RuntimeError(f"Agent control contract failed: {key}")
+                frames = review["frames"]
+                if len(frames) != 61 or len({frame["pixel_fnv1a"] for frame in frames}) != 61:
+                    raise RuntimeError("expected 61 distinct actual process frames")
+                for index, frame in enumerate(frames):
+                    if (frame["index"], frame["time_numerator"], frame["time_denominator"]) != (index, index, 60):
+                        raise RuntimeError("process frame time provenance disagrees")
+                    if frame["sample_time_seconds"] != index / 60:
+                        raise RuntimeError("rendered sample time differs from requested rational time")
+                    image = Path(frame["png"])
+                    raw = image.read_bytes()
+                    if raw[:8] != b"\x89PNG\r\n\x1a\n" or struct.unpack(">II", raw[16:24]) != (320, 240):
+                        raise RuntimeError("process frame is not the actual viewport PNG")
+                    frame["png_sha256"] = digest(image)
+                if digest(Path(frames[30]["png"])) != digest(png):
+                    raise RuntimeError("Agent midpoint differs from the same native renderer output")
+                agent_results.append(result)
+            denied = artifacts / f"{profile}-agent-denied.png"
+            denied_text = run(profile + "-agent-denied", [args.mcpp, "run", "--locked", "--profile", profile, "--",
+                              "--out", str(denied), "--agent-review", "--agent-deny-capture"], expected=3)
+            denials = [json.loads(line) for line in denied_text.splitlines() if line.lstrip().startswith("{")]
+            if not any(row.get("error") == "Agent capture refused" and row.get("ok") is False for row in denials):
+                raise RuntimeError("capture denial did not return its structured failure")
+            if list(artifacts.glob(denied.name + "*")):
+                raise RuntimeError("a refused visual query published pixels or provenance")
             invalid = artifacts / f"{profile}-invalid.png"
             run(profile + "-invalid-region", [args.mcpp, "run", "--locked", "--profile", profile, "--", "--out", str(invalid), "--region", "319,0,2,240"], expected=2)
             if invalid.exists():
                 raise RuntimeError("invalid crop published an image")
             run(profile + "-metadata", [args.mcpp, "build", "--locked", "--profile", profile, "--configure-only"])
-            report["profiles"].append({"profile": profile, "runs": results, **audit(project, repo, artifacts, profile)})
+            report["profiles"].append({"profile": profile, "runs": results, "agent_reviews": agent_results,
+                                      "denied_capture_published_no_files": True, "display_environment_removed": True,
+                                      **audit(project, repo, artifacts, profile)})
             if digest(project / "mcpp.lock") != temporary_lock:
                 raise RuntimeError("locked runs changed the temporary project's resolution")
         report["ok"] = True

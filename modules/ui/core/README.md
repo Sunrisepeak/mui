@@ -8,7 +8,7 @@ The foundation of the openmui runtime (module `openmui.core`):
 | `:diag` | Thin compatibility export of independent [openmui.log](../../base/log): `info` / `warn` / `error`, `std::source_location`, `invariant`, sinks and history |
 | `:signal` | `Signal`, `Computed`, `Watch`, `batch`, `untracked`: push-stale, pull-fresh, glitch-free |
 | `:verb` | `Verbs`: named operations with effects; S-1 enforced at registration, S-2 `needs-answer` at invocation; a journal |
-| `:access` | instance Agent policies, intersecting developer/user/session restrictions, trusted development sessions and `openas::decide` |
+| `:access` | UI compatibility adapters and Value serialization over independent [mlibs.control](../../base/control); policy, session and openas decisions have one owner |
 | `:keys`, `:event` | keys, modifiers, chords (`Mod` = the platform's primary modifier); input events and their JSON form |
 | `:display` | the display list (contract ⑤): paths, paints, gradients, strokes, clips, transforms, layers, glyph runs, node markers; content hashing |
 | `:arena`, `:handle`, `:function` | the frame arena, generational handles and slot maps, `FunctionRef` |
@@ -31,3 +31,12 @@ filters, expiry and persistent user configuration remain separate work.
 `InvocationContext` carries remote authority through nested callbacks; hosts
 can share an instance context with their `Verbs`. Unbound low-level
 callers retain the legacy `agent_access()` fallback.
+
+Independent engines import `mlibs.control` directly. A trusted host can pass a
+shared `mlibs::control::Access` to `AgentAccess`, and use `control_binding()` and
+`AgentSession::control_session()` to share the actual issuer with another domain.
+These native handles never come from request JSON. The existing UI aggregate
+types, operation envelopes and `AgentPolicyState::to_value()` remain available;
+`InvocationContext`/`InvocationScope` alias the shared context mechanism. C++
+module consumers rebuild; this extraction does not promise binary compatibility.
+An omitted operation now falls back to the verb name when applying filters.

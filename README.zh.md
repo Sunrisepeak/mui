@@ -14,7 +14,9 @@
 
 </div>
 
-omui 是用 C++ Modules 实现 [openmui 开放规范](https://github.com/openlifa/openmui)的 UI 框架（实现中）。一个视图就是一棵树：屏幕上的像素、读屏软件念出的内容、agent 读到和操作的对象、测试检查的结果，都来自这棵树。CPU 渲染器在 Linux、macOS、Windows 上，用 GCC 和 LLVM，画出的字节完全相同；CI 用固定的金图检查每一处。现有包和模块名继续使用 `openmui.*`。
+omui 是用 C++ Modules 实现 [openmui 开放规范](https://github.com/openlifa/openmui)的 UI 框架（实现中）。一个视图就是一棵树：屏幕上的像素、读屏软件念出的内容、agent 读到和操作的对象、测试检查的结果，都来自这棵树。CPU 渲染器在 Linux、macOS、Windows 上，用 GCC 和 LLVM，画出的字节完全相同；CI 用固定的金图检查每一处。迁移期间，现有 UI 包和模块名继续兼容 `openmui.*`。
+
+[产品命名方案](.agents/docs/2026-11-05-product-namespace-migration-design.md)规定：`openmui` 归规范，`omui` 归 UI，`hanim` 等具名产品保持自身名字，通用库归 `mlibs`，暂未独立命名的引擎归 `xengine`。首个新增共享库为 [mlibs.control](modules/base/control)；既有包尚未全部改名。
 
 ## 作品
 
@@ -56,10 +58,10 @@ omui agent act org.example.hello main/click activate     # agent 按下同一个
 | | |
 |---|---|
 | [spec](spec) | 规范：标准自己的仓库 [openlifa/openmui](https://github.com/openlifa/openmui) 的子模块 |
-| [modules](modules) | 分层的库：base、gfx、content（都能单独使用），以及 ui（openmui 本身） |
+| [modules](modules) | 分层的库：base、gfx、content（都能单独使用），以及 ui（omui 本身） |
 | [components](components) · [lang](lang) · [tools](tools) | 组件、TypeScript / Python / Lua 绑定、工具 |
 | [examples](examples) · [showcase](showcase) | 用它做出来的东西 |
 
-openmui 实现两个 OpenLifa 标准：[openmui](https://github.com/openlifa/openmui)（界面）和 [openas](https://github.com/openlifa/openas)（actor、效果、授权）。构建、测试、打包都使用 [mcpp](https://github.com/mcpp-community/mcpp)；需要的工具链版本固定在 [.xlings.json](.xlings.json) 里，由 [xlings](https://github.com/openxlings/xlings) 安装。
+omui 实现两个 OpenLifa 标准：[openmui](https://github.com/openlifa/openmui)（界面）和 [openas](https://github.com/openlifa/openas)（actor、效果、授权）。构建、测试、打包都使用 [mcpp](https://github.com/mcpp-community/mcpp)；需要的工具链版本固定在 [.xlings.json](.xlings.json) 里，由 [xlings](https://github.com/openxlings/xlings) 安装。
 
 <sub>实现中 · 代码 Apache-2.0 · 规范 CC BY-SA 4.0</sub>

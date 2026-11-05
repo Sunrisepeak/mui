@@ -28,6 +28,7 @@ sources = ["src/native/pool/*.cpp"]
 sources = ["src/native/web/*.cpp"]
 
 [dependencies]
+mlibs.control = { path = "../../base/control" }
 openmui.log = { path = "../../base/log" }
 openlifa.openmui = { path = "../../../spec" }
 hanim.core            = { path = "../../base/hanim/core" }

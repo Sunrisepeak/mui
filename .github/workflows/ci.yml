@@ -264,7 +264,7 @@ jobs:
           path: target/hanim-core-consumer
           if-no-files-found: ignore
 
-      - name: Independent public playback exports visual regions without a GUI
+      - name: Independent playback and shared Agent control export real process frames without a GUI
         timeout-minutes: 15
         if: matrix.os == 'ubuntu-24.04' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'release'
         run: python3 tools/ci/hanim-play-consumer/run.py --output target/hanim-play-consumer/report.omui.json

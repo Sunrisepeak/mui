@@ -16,6 +16,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [workspace]
 members = [
     "spec",
+    "modules/base/control",
     "modules/base/fuzzy",
     "modules/base/geom",
     "modules/base/hanim/core",

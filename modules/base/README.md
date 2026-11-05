@@ -6,6 +6,7 @@ Depends on: the standard library and third-party libraries. Used by: every other
 
 | Package | |
 |---|---|
+| [control](control) | Independent openas policy, trusted sessions and invocation authority; shared by UI and standalone engines |
 | [hanim](hanim) | Independent hanim.core: deterministic time, values, curves and prepared shape morphs; the product umbrella lives in gfx/hanim |
 | [geom](geom) | 2D geometry: points, rectangles, colours, affine transforms, pixel snapping |
 | [memory](memory) | Frame arena, generational handles, slot maps, `FunctionRef` |

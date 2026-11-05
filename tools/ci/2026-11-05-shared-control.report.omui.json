@@ -1,0 +1,937 @@
+{
+  "format": "omui.shared-control-and-namespace@0.1",
+  "ok": true,
+  "recorded_utc": "2026-11-05T01:27:20.433382+00:00",
+  "source_base_commit": "4833c1ab719e5d82dcc4551ed6e3e1dce8b0cd86",
+  "source_state": "working tree checkpoint; exact implementation hashes below",
+  "scope": [
+    "S6 shared policy/session/context extraction; UI compatibility and independent native hanim consumer",
+    "D-100 namespace ownership and N0 mlibs.control; not a completed repository-wide namespace migration"
+  ],
+  "source_lock_before": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+  "source_lock_after": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+  "source_lock_included_in_commit": false,
+  "source_files_sha256": {
+    "mcpp.toml": "f028702fbce75526e7134e092bd02aa1d74f31a57311db32e0f53c152b1a0b5f",
+    "modules/base/control/README.md": "c3ce32bb878dc41e1363dba5cf5b2c58d524a48797ca91ab64a7f11d9aba6fd0",
+    "modules/base/control/mcpp.toml": "e33be6555428564af343532663ef63fa9731646b25e5525ee257a6c27e6d4832",
+    "modules/base/control/src/access.cpp": "2516792286cfce8ce99626678d9252cd50a702de0d6eb8f53664717c7cee9eea",
+    "modules/base/control/src/control.cppm": "7ffaaff81708d2c52a7cce27e16431d3dfa4ec9bf88f9534c20a3ddc6b46c8c7",
+    "modules/base/control/tests/context_test.cpp": "391f2f6bbe6daae5c62c41a07aa83b8d1a49d1c6dc286a713b55d8621492c55e",
+    "modules/base/control/tests/policy_test.cpp": "6982017b77ffc705a5a02eb5ee4cc7e2fc8b4b37a64ed73c768d2f5a0d532063",
+    "modules/ui/core/mcpp.toml": "2f40b88dec320d32628bcf2d8108ce43d2602040e3cb2cddb4c649c1822cfdc2",
+    "modules/ui/core/src/access.cpp": "e55032bd5cffbc4e188339444c34d87240b05fffdb87df4975d91ace87ff7515",
+    "modules/ui/core/src/access.cppm": "39f9e994d3903998e220d2fa2a9c0bef93a689e8a5ccb1b346e018fdff816722",
+    "modules/ui/core/src/verb.cpp": "c4806e6fe3b37bc6497612945eea98c2138fb2203c2e7716ff18f5b7c3dadcd4",
+    "modules/ui/core/src/verb.cppm": "a9ddca975bd7d6a8f1506ae6eee4b8fd0f59540e8ef363710029318adc88e806",
+    "modules/ui/core/tests/shared_control_test.cpp": "33d0bbf144ab983347d8f078c36e2e23b8fa2c62c254bf861c76d3e60710f654",
+    "modules/ui/core/tests/task_test.cpp": "30b492f1e46fa20c4c3af1ff5ecdf81deb954edee6c79c81fa0db1cf27b53328",
+    "tools/ci/hanim-play-consumer/mcpp.toml.in": "d4c6284540c9d00142e68b839b80d61c5a150d5830733c1a0307f54bf8573f87",
+    "tools/ci/hanim-play-consumer/run.py": "4e117df4b5806f1bff9815f46ac0d3bcfe2f8ef404df6408378373ad3a22edb9",
+    "tools/ci/hanim-play-consumer/src/main.cpp": "a9d30fa76090c97a229b70413bd15ef4368a4b4c5dce11844ad13ae138fabf43"
+  },
+  "local_tests": [
+    {
+      "name": "dev",
+      "argv": [
+        "mcpp",
+        "test",
+        "-p",
+        "mlibs.control",
+        "--locked"
+      ],
+      "exit_code": 0,
+      "programs_passed": 2,
+      "cases_passed": 11,
+      "suites": [
+        {
+          "name": "control.policy",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "name": "control.context",
+          "passed": 4,
+          "failed": 0
+        }
+      ],
+      "stdout": "target/shared-control-validation/dev.log",
+      "stdout_sha256": "ab682a389298e5549e9858460f36ebf5c50613c73ad2b407125108fc4556398d"
+    },
+    {
+      "name": "core",
+      "argv": [
+        "mcpp",
+        "test",
+        "-p",
+        "openmui.core",
+        "--locked"
+      ],
+      "exit_code": 0,
+      "programs_passed": 11,
+      "cases_passed": 41,
+      "suites": [
+        {
+          "name": "core.agent_context",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "core.agent_policy_log",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "core.agent_profile",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "core.agent_policy",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "core.diag",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "core.input",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "core.shared_control",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "core.json",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "core.signal",
+          "passed": 10,
+          "failed": 0
+        },
+        {
+          "name": "core.verb",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "core.task",
+          "passed": 4,
+          "failed": 0
+        }
+      ],
+      "stdout": "target/shared-control-validation/core.log",
+      "stdout_sha256": "c28cd36e3354aefaf80293c4803f3151a90d59b5d4eb8fbd4fbcf8d534acea77"
+    },
+    {
+      "name": "agent",
+      "argv": [
+        "mcpp",
+        "test",
+        "-p",
+        "openmui.agent",
+        "--locked"
+      ],
+      "exit_code": 0,
+      "programs_passed": 5,
+      "cases_passed": 33,
+      "suites": [
+        {
+          "name": "agent.control_policy",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "agent.policy",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "agent",
+          "passed": 15,
+          "failed": 0
+        },
+        {
+          "name": "agent.presentation-input",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "agent.session",
+          "passed": 6,
+          "failed": 0
+        }
+      ],
+      "stdout": "target/shared-control-validation/agent.log",
+      "stdout_sha256": "9d81b7a988754d97f8741d01dc89293a480e08f83b3cfcbc5537ce8e4a565d92"
+    },
+    {
+      "name": "inspector",
+      "argv": [
+        "mcpp",
+        "test",
+        "-p",
+        "openmui.inspector",
+        "--locked"
+      ],
+      "exit_code": 0,
+      "programs_passed": 2,
+      "cases_passed": 9,
+      "suites": [
+        {
+          "name": "inspector",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "inspector.cellular",
+          "passed": 8,
+          "failed": 0
+        }
+      ],
+      "stdout": "target/shared-control-validation/inspector.log",
+      "stdout_sha256": "3401dcbf9b46ff931f6bacaa06b1ef337af9cbf27577d3c4aa708d5d68362eda"
+    },
+    {
+      "name": "release",
+      "argv": [
+        "mcpp",
+        "test",
+        "-p",
+        "mlibs.control",
+        "--locked",
+        "--profile",
+        "release"
+      ],
+      "exit_code": 0,
+      "programs_passed": 2,
+      "cases_passed": 11,
+      "suites": [
+        {
+          "name": "control.policy",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "name": "control.context",
+          "passed": 4,
+          "failed": 0
+        }
+      ],
+      "stdout": "target/shared-control-validation/release.log",
+      "stdout_sha256": "bb8c65f82545a21d214fdc219506d5ad239a1fbc8bc4b147688cf405bf919e2b"
+    },
+    {
+      "name": "core-release",
+      "argv": [
+        "mcpp",
+        "test",
+        "-p",
+        "openmui.core",
+        "--locked",
+        "--profile",
+        "release"
+      ],
+      "exit_code": 0,
+      "programs_passed": 11,
+      "cases_passed": 41,
+      "suites": [
+        {
+          "name": "core.agent_context",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "core.agent_policy_log",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "core.agent_policy",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "core.agent_profile",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "core.diag",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "core.input",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "core.json",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "core.shared_control",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "core.signal",
+          "passed": 10,
+          "failed": 0
+        },
+        {
+          "name": "core.verb",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "core.task",
+          "passed": 4,
+          "failed": 0
+        }
+      ],
+      "stdout": "target/shared-control-validation/core-release.log",
+      "stdout_sha256": "21d6e603fcf4daf592ddea3e9029c4736900591fed513e561e12684fff4b3737"
+    },
+    {
+      "name": "agent-release",
+      "argv": [
+        "mcpp",
+        "test",
+        "-p",
+        "openmui.agent",
+        "--locked",
+        "--profile",
+        "release"
+      ],
+      "exit_code": 0,
+      "programs_passed": 5,
+      "cases_passed": 33,
+      "suites": [
+        {
+          "name": "agent.control_policy",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "agent.policy",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "agent.session",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "agent.presentation-input",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "agent",
+          "passed": 15,
+          "failed": 0
+        }
+      ],
+      "stdout": "target/shared-control-validation/agent-release.log",
+      "stdout_sha256": "a846171fa31a3a89342d9528bf08ac91ea67f058056071c8ac9abe6fbac6b3b2"
+    },
+    {
+      "name": "wasm",
+      "argv": [
+        "mcpp",
+        "test",
+        "-p",
+        "mlibs.control",
+        "--locked",
+        "--target",
+        "wasm32-emscripten",
+        "--profile",
+        "wasm-test"
+      ],
+      "exit_code": 0,
+      "programs_passed": 2,
+      "cases_passed": 11,
+      "suites": [
+        {
+          "name": "control.context",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "control.policy",
+          "passed": 7,
+          "failed": 0
+        }
+      ],
+      "stdout": "target/shared-control-validation/wasm.log",
+      "stdout_sha256": "b7eff3d487e9ee041952ebf01a085f29539aeee12dcd5b810eb534301c78285f"
+    },
+    {
+      "name": "core-wasm",
+      "argv": [
+        "mcpp",
+        "test",
+        "-p",
+        "openmui.core",
+        "--locked",
+        "--target",
+        "wasm32-emscripten",
+        "--profile",
+        "wasm-test"
+      ],
+      "exit_code": 0,
+      "programs_passed": 11,
+      "cases_passed": 41,
+      "suites": [
+        {
+          "name": "core.agent_context",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "core.agent_policy_log",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "core.agent_profile",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "core.agent_policy",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "core.input",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "core.diag",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "core.shared_control",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "core.json",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "core.signal",
+          "passed": 10,
+          "failed": 0
+        },
+        {
+          "name": "core.task",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "core.verb",
+          "passed": 5,
+          "failed": 0
+        }
+      ],
+      "stdout": "target/shared-control-validation/core-wasm.log",
+      "stdout_sha256": "b1fb22bdb77fd2cd987dd9f0d5766a2a8c6725d5ef228c80e562264a2613b84f"
+    },
+    {
+      "name": "agent-wasm",
+      "argv": [
+        "mcpp",
+        "test",
+        "agent_session",
+        "-p",
+        "openmui.agent",
+        "--locked",
+        "--target",
+        "wasm32-emscripten",
+        "--profile",
+        "wasm-test"
+      ],
+      "exit_code": 0,
+      "programs_passed": 1,
+      "cases_passed": 6,
+      "suites": [
+        {
+          "name": "agent.session",
+          "passed": 6,
+          "failed": 0
+        }
+      ],
+      "stdout": "target/shared-control-validation/agent-wasm.log",
+      "stdout_sha256": "f69928bbfcc76312b7b1dd76219ebb89561b891fc0bbb1c850a88cf77e6d6f0c"
+    }
+  ],
+  "independent_consumer": {
+    "argv": [
+      "python3",
+      "tools/ci/hanim-play-consumer/run.py",
+      "--output",
+      "target/hanim-control-consumer/report.omui.json"
+    ],
+    "report": "target/hanim-control-consumer/report.omui.json",
+    "report_sha256": "010d078e32d0aa1497002ba946b32800a950608dcad00dafa3b59ac7deaf1f22",
+    "exit_code": 0,
+    "frames": 244,
+    "reverse_replays": 244,
+    "profiles": [
+      {
+        "profile": "dev",
+        "packages": [
+          "compat.libpng",
+          "compat.libwebp",
+          "compat.zlib",
+          "hanim.core",
+          "hanim.effect",
+          "hanim.engine",
+          "hanim.library",
+          "hanim.object",
+          "hanim.program",
+          "hanim.render.vector",
+          "hanim.validation.play_consumer",
+          "mcpplibs.hanim",
+          "mcpplibs.mwrap.libpng",
+          "mcpplibs.mwrap.libwebp",
+          "mcpplibs.openkal",
+          "mcpplibs.openkal-linux",
+          "mcpplibs.os",
+          "mlibs.control",
+          "nlohmann.json",
+          "openlifa.openas",
+          "openmui.geom",
+          "openmui.hash",
+          "openmui.image",
+          "openmui.log",
+          "openmui.math",
+          "openmui.memory",
+          "openmui.raster",
+          "openmui.render",
+          "openmui.render.vector",
+          "openmui.rhi",
+          "openmui.shader",
+          "openmui.shader.rules",
+          "openmui.trace"
+        ],
+        "control_requested_by": [
+          {
+            "key": "mlibs.control",
+            "requester": "hanim.validation.play_consumer@0.1.0",
+            "table": "[dependencies]"
+          }
+        ],
+        "display_environment_removed": true,
+        "denied_capture_published_no_files": true,
+        "native_playback_runs": 9,
+        "agent_reviews": [
+          {
+            "bend": 0.0,
+            "backend": "cpu-reference",
+            "viewport": {
+              "height": 240,
+              "width": 320
+            },
+            "frame_count": 61,
+            "reverse_replayed": 61,
+            "assertions": {
+              "claimed_provenance_replaced": true,
+              "dry_run_preserved_state": true,
+              "foreign_session_refused": true,
+              "nested_operation_filter_preserved": true,
+              "read_only_preserved_state": true,
+              "revoked_continuation_refused": true
+            },
+            "selected_frames": [
+              {
+                "index": 0,
+                "pixel_fnv1a": "c00db1820f73e61a",
+                "plan_revision": 1,
+                "png": "target/hanim-control-consumer/report.omui-artifacts/dev-agent-linear.png.agent-000.png",
+                "sample_time_seconds": 0.0,
+                "target_revision": 1,
+                "time_denominator": 60,
+                "time_numerator": 0,
+                "png_sha256": "58d203704f219e1d0f4dd2ae35770f1ff3c9d0e222cab2039814c74474ac0df6"
+              },
+              {
+                "index": 15,
+                "pixel_fnv1a": "b0b5e205c9b50003",
+                "plan_revision": 1,
+                "png": "target/hanim-control-consumer/report.omui-artifacts/dev-agent-linear.png.agent-015.png",
+                "sample_time_seconds": 0.25,
+                "target_revision": 1,
+                "time_denominator": 60,
+                "time_numerator": 15,
+                "png_sha256": "b49512a08ec28cf973a7f15e704275e861a673e3bdc77da31b6e027fbf57c5f7"
+              },
+              {
+                "index": 30,
+                "pixel_fnv1a": "31cf00838a070368",
+                "plan_revision": 1,
+                "png": "target/hanim-control-consumer/report.omui-artifacts/dev-agent-linear.png.agent-030.png",
+                "sample_time_seconds": 0.5,
+                "target_revision": 1,
+                "time_denominator": 60,
+                "time_numerator": 30,
+                "png_sha256": "28063a6a46d2ed919c6ead3392f9a2236188224e8c224d61e6db1a385833d4ff"
+              },
+              {
+                "index": 45,
+                "pixel_fnv1a": "82bb67fa290a215e",
+                "plan_revision": 1,
+                "png": "target/hanim-control-consumer/report.omui-artifacts/dev-agent-linear.png.agent-045.png",
+                "sample_time_seconds": 0.75,
+                "target_revision": 1,
+                "time_denominator": 60,
+                "time_numerator": 45,
+                "png_sha256": "19195f27b282ce580a262b1c1b4fdb9834a880033756ba767cc60e7fad69dcb4"
+              },
+              {
+                "index": 60,
+                "pixel_fnv1a": "945c6f85da0e0fd8",
+                "plan_revision": 1,
+                "png": "target/hanim-control-consumer/report.omui-artifacts/dev-agent-linear.png.agent-060.png",
+                "sample_time_seconds": 1.0,
+                "target_revision": 1,
+                "time_denominator": 60,
+                "time_numerator": 60,
+                "png_sha256": "e3143e64134d91b98997bc9cbc7c9877eb67845c420ffb99d2de3138fff5d8d2"
+              }
+            ]
+          },
+          {
+            "bend": 0.35,
+            "backend": "cpu-reference",
+            "viewport": {
+              "height": 240,
+              "width": 320
+            },
+            "frame_count": 61,
+            "reverse_replayed": 61,
+            "assertions": {
+              "claimed_provenance_replaced": true,
+              "dry_run_preserved_state": true,
+              "foreign_session_refused": true,
+              "nested_operation_filter_preserved": true,
+              "read_only_preserved_state": true,
+              "revoked_continuation_refused": true
+            },
+            "selected_frames": [
+              {
+                "index": 0,
+                "pixel_fnv1a": "c00db1820f73e61a",
+                "plan_revision": 1,
+                "png": "target/hanim-control-consumer/report.omui-artifacts/dev-agent-curved.png.agent-000.png",
+                "sample_time_seconds": 0.0,
+                "target_revision": 1,
+                "time_denominator": 60,
+                "time_numerator": 0,
+                "png_sha256": "58d203704f219e1d0f4dd2ae35770f1ff3c9d0e222cab2039814c74474ac0df6"
+              },
+              {
+                "index": 15,
+                "pixel_fnv1a": "cb19f4432ddf2ab8",
+                "plan_revision": 1,
+                "png": "target/hanim-control-consumer/report.omui-artifacts/dev-agent-curved.png.agent-015.png",
+                "sample_time_seconds": 0.25,
+                "target_revision": 1,
+                "time_denominator": 60,
+                "time_numerator": 15,
+                "png_sha256": "1e221a43548bdc7aeedc5fb347aab5b6273de1916f8d7ac5daf93ce571da3204"
+              },
+              {
+                "index": 30,
+                "pixel_fnv1a": "d98779b96b323ab6",
+                "plan_revision": 1,
+                "png": "target/hanim-control-consumer/report.omui-artifacts/dev-agent-curved.png.agent-030.png",
+                "sample_time_seconds": 0.5,
+                "target_revision": 1,
+                "time_denominator": 60,
+                "time_numerator": 30,
+                "png_sha256": "3a02f00bf742fd71f8cb201f79f552d6e0de467d15f23970f1e27d475b024477"
+              },
+              {
+                "index": 45,
+                "pixel_fnv1a": "eb34de8c38efc88a",
+                "plan_revision": 1,
+                "png": "target/hanim-control-consumer/report.omui-artifacts/dev-agent-curved.png.agent-045.png",
+                "sample_time_seconds": 0.75,
+                "target_revision": 1,
+                "time_denominator": 60,
+                "time_numerator": 45,
+                "png_sha256": "a1a7cf1c018ac74f85d7c033bcbbac2b2c9faa21ecad07d43e9d8d8e03cf7252"
+              },
+              {
+                "index": 60,
+                "pixel_fnv1a": "945c6f85da0e0fd8",
+                "plan_revision": 1,
+                "png": "target/hanim-control-consumer/report.omui-artifacts/dev-agent-curved.png.agent-060.png",
+                "sample_time_seconds": 1.0,
+                "target_revision": 1,
+                "time_denominator": 60,
+                "time_numerator": 60,
+                "png_sha256": "e3143e64134d91b98997bc9cbc7c9877eb67845c420ffb99d2de3138fff5d8d2"
+              }
+            ]
+          }
+        ],
+        "toolchain": {
+          "abi": "glibc",
+          "spec": "gcc 16.1.0 (x86_64-linux-gnu)",
+          "stdlib": "libstdc++",
+          "triple": "x86_64-linux-gnu"
+        },
+        "resolution_sha256": "419d858d1dd8aaa2401e5262020446956052d1355af04fa090772c5e3e5ac51b",
+        "compilation_database_sha256": "db9796394742f3f92695df6f6a41d2e906f53f311680ff4f85f4b7dd1d240baf"
+      },
+      {
+        "profile": "release",
+        "packages": [
+          "compat.libpng",
+          "compat.libwebp",
+          "compat.zlib",
+          "hanim.core",
+          "hanim.effect",
+          "hanim.engine",
+          "hanim.library",
+          "hanim.object",
+          "hanim.program",
+          "hanim.render.vector",
+          "hanim.validation.play_consumer",
+          "mcpplibs.hanim",
+          "mcpplibs.mwrap.libpng",
+          "mcpplibs.mwrap.libwebp",
+          "mcpplibs.openkal",
+          "mcpplibs.openkal-linux",
+          "mcpplibs.os",
+          "mlibs.control",
+          "nlohmann.json",
+          "openlifa.openas",
+          "openmui.geom",
+          "openmui.hash",
+          "openmui.image",
+          "openmui.log",
+          "openmui.math",
+          "openmui.memory",
+          "openmui.raster",
+          "openmui.render",
+          "openmui.render.vector",
+          "openmui.rhi",
+          "openmui.shader",
+          "openmui.shader.rules",
+          "openmui.trace"
+        ],
+        "control_requested_by": [
+          {
+            "key": "mlibs.control",
+            "requester": "hanim.validation.play_consumer@0.1.0",
+            "table": "[dependencies]"
+          }
+        ],
+        "display_environment_removed": true,
+        "denied_capture_published_no_files": true,
+        "native_playback_runs": 9,
+        "agent_reviews": [
+          {
+            "bend": 0.0,
+            "backend": "cpu-reference",
+            "viewport": {
+              "height": 240,
+              "width": 320
+            },
+            "frame_count": 61,
+            "reverse_replayed": 61,
+            "assertions": {
+              "claimed_provenance_replaced": true,
+              "dry_run_preserved_state": true,
+              "foreign_session_refused": true,
+              "nested_operation_filter_preserved": true,
+              "read_only_preserved_state": true,
+              "revoked_continuation_refused": true
+            },
+            "selected_frames": [
+              {
+                "index": 0,
+                "pixel_fnv1a": "c00db1820f73e61a",
+                "plan_revision": 1,
+                "png": "target/hanim-control-consumer/report.omui-artifacts/release-agent-linear.png.agent-000.png",
+                "sample_time_seconds": 0.0,
+                "target_revision": 1,
+                "time_denominator": 60,
+                "time_numerator": 0,
+                "png_sha256": "58d203704f219e1d0f4dd2ae35770f1ff3c9d0e222cab2039814c74474ac0df6"
+              },
+              {
+                "index": 15,
+                "pixel_fnv1a": "b0b5e205c9b50003",
+                "plan_revision": 1,
+                "png": "target/hanim-control-consumer/report.omui-artifacts/release-agent-linear.png.agent-015.png",
+                "sample_time_seconds": 0.25,
+                "target_revision": 1,
+                "time_denominator": 60,
+                "time_numerator": 15,
+                "png_sha256": "b49512a08ec28cf973a7f15e704275e861a673e3bdc77da31b6e027fbf57c5f7"
+              },
+              {
+                "index": 30,
+                "pixel_fnv1a": "31cf00838a070368",
+                "plan_revision": 1,
+                "png": "target/hanim-control-consumer/report.omui-artifacts/release-agent-linear.png.agent-030.png",
+                "sample_time_seconds": 0.5,
+                "target_revision": 1,
+                "time_denominator": 60,
+                "time_numerator": 30,
+                "png_sha256": "28063a6a46d2ed919c6ead3392f9a2236188224e8c224d61e6db1a385833d4ff"
+              },
+              {
+                "index": 45,
+                "pixel_fnv1a": "82bb67fa290a215e",
+                "plan_revision": 1,
+                "png": "target/hanim-control-consumer/report.omui-artifacts/release-agent-linear.png.agent-045.png",
+                "sample_time_seconds": 0.75,
+                "target_revision": 1,
+                "time_denominator": 60,
+                "time_numerator": 45,
+                "png_sha256": "19195f27b282ce580a262b1c1b4fdb9834a880033756ba767cc60e7fad69dcb4"
+              },
+              {
+                "index": 60,
+                "pixel_fnv1a": "945c6f85da0e0fd8",
+                "plan_revision": 1,
+                "png": "target/hanim-control-consumer/report.omui-artifacts/release-agent-linear.png.agent-060.png",
+                "sample_time_seconds": 1.0,
+                "target_revision": 1,
+                "time_denominator": 60,
+                "time_numerator": 60,
+                "png_sha256": "e3143e64134d91b98997bc9cbc7c9877eb67845c420ffb99d2de3138fff5d8d2"
+              }
+            ]
+          },
+          {
+            "bend": 0.35,
+            "backend": "cpu-reference",
+            "viewport": {
+              "height": 240,
+              "width": 320
+            },
+            "frame_count": 61,
+            "reverse_replayed": 61,
+            "assertions": {
+              "claimed_provenance_replaced": true,
+              "dry_run_preserved_state": true,
+              "foreign_session_refused": true,
+              "nested_operation_filter_preserved": true,
+              "read_only_preserved_state": true,
+              "revoked_continuation_refused": true
+            },
+            "selected_frames": [
+              {
+                "index": 0,
+                "pixel_fnv1a": "c00db1820f73e61a",
+                "plan_revision": 1,
+                "png": "target/hanim-control-consumer/report.omui-artifacts/release-agent-curved.png.agent-000.png",
+                "sample_time_seconds": 0.0,
+                "target_revision": 1,
+                "time_denominator": 60,
+                "time_numerator": 0,
+                "png_sha256": "58d203704f219e1d0f4dd2ae35770f1ff3c9d0e222cab2039814c74474ac0df6"
+              },
+              {
+                "index": 15,
+                "pixel_fnv1a": "cb19f4432ddf2ab8",
+                "plan_revision": 1,
+                "png": "target/hanim-control-consumer/report.omui-artifacts/release-agent-curved.png.agent-015.png",
+                "sample_time_seconds": 0.25,
+                "target_revision": 1,
+                "time_denominator": 60,
+                "time_numerator": 15,
+                "png_sha256": "1e221a43548bdc7aeedc5fb347aab5b6273de1916f8d7ac5daf93ce571da3204"
+              },
+              {
+                "index": 30,
+                "pixel_fnv1a": "d98779b96b323ab6",
+                "plan_revision": 1,
+                "png": "target/hanim-control-consumer/report.omui-artifacts/release-agent-curved.png.agent-030.png",
+                "sample_time_seconds": 0.5,
+                "target_revision": 1,
+                "time_denominator": 60,
+                "time_numerator": 30,
+                "png_sha256": "3a02f00bf742fd71f8cb201f79f552d6e0de467d15f23970f1e27d475b024477"
+              },
+              {
+                "index": 45,
+                "pixel_fnv1a": "eb34de8c38efc88a",
+                "plan_revision": 1,
+                "png": "target/hanim-control-consumer/report.omui-artifacts/release-agent-curved.png.agent-045.png",
+                "sample_time_seconds": 0.75,
+                "target_revision": 1,
+                "time_denominator": 60,
+                "time_numerator": 45,
+                "png_sha256": "a1a7cf1c018ac74f85d7c033bcbbac2b2c9faa21ecad07d43e9d8d8e03cf7252"
+              },
+              {
+                "index": 60,
+                "pixel_fnv1a": "945c6f85da0e0fd8",
+                "plan_revision": 1,
+                "png": "target/hanim-control-consumer/report.omui-artifacts/release-agent-curved.png.agent-060.png",
+                "sample_time_seconds": 1.0,
+                "target_revision": 1,
+                "time_denominator": 60,
+                "time_numerator": 60,
+                "png_sha256": "e3143e64134d91b98997bc9cbc7c9877eb67845c420ffb99d2de3138fff5d8d2"
+              }
+            ]
+          }
+        ],
+        "toolchain": {
+          "abi": "glibc",
+          "spec": "gcc 16.1.0 (x86_64-linux-gnu)",
+          "stdlib": "libstdc++",
+          "triple": "x86_64-linux-gnu"
+        },
+        "resolution_sha256": "b30faefe35d34dbc681ebfb4df567f8b0a7a0df5e3747df69aaa9614eaf1f49b",
+        "compilation_database_sha256": "e7ec5018ea396b39e737516c23f183dfaa5cc3ad9b272dbfa32262308173928f"
+      }
+    ]
+  },
+  "limits": [
+    "No universal provider registry/transport, resource ACLs, async cancellation, IR editing or AI implementation claim.",
+    "C++ source adapters require rebuilding; no C++ module/binary ABI stability claim.",
+    "Local native Linux and Wasm/Node; no Windows/macOS/physical mobile or browser playback claim for this checkpoint.",
+    "61-frame offline CPU sampling/replay is not real-time cadence, GPU throughput or aesthetic acceptance.",
+    "Existing openmui.* implementation packages retain legacy identities pending N1-N4; standard submodule is unchanged."
+  ],
+  "static_checks": {
+    "lint": {
+      "argv": [
+        "python",
+        "tools/lint/lint.py"
+      ],
+      "problems": 0,
+      "stdout": "target/shared-control-validation/lint.log",
+      "stdout_sha256": "b4824ada9a3b226dd0374ce17b0a73d59d52424ef1b6dd6e76da9547b8365a77"
+    },
+    "changed_markdown_local_links": 216,
+    "changed_python_ast": "passed",
+    "changed_json_parse": "passed",
+    "git_diff_check": "passed"
+  }
+}

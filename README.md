@@ -14,7 +14,9 @@
 
 </div>
 
-omui is a UI framework implementing the open [openmui specification](https://github.com/openlifa/openmui) in C++ modules — in development. A view is one tree: the pixels on screen, what a screen reader announces, what an agent reads and acts on, and what a test checks all come from it. The CPU renderer draws the same bytes on Linux, macOS and Windows, with GCC and LLVM; CI holds every pinned image to that. Existing package and module names remain `openmui.*`.
+omui is a UI framework implementing the open [openmui specification](https://github.com/openlifa/openmui) in C++ modules — in development. A view is one tree: the pixels on screen, what a screen reader announces, what an agent reads and acts on, and what a test checks all come from it. The CPU renderer draws the same bytes on Linux, macOS and Windows, with GCC and LLVM; CI holds every pinned image to that. Existing UI package and module names remain `openmui.*` during migration.
+
+Namespace ownership follows the [product migration plan](.agents/docs/2026-11-05-product-namespace-migration-design.md): `openmui` for the specification, `omui` for UI, named products such as `hanim`, `mlibs` for reusable libraries, and `xengine` for engines awaiting an independent name. The first new shared library is [mlibs.control](modules/base/control); most existing package names have not changed yet.
 
 ## Works
 
@@ -56,10 +58,10 @@ omui agent act org.example.hello main/click activate     # an agent presses the 
 | | |
 |---|---|
 | [spec](spec) | The specification: a submodule of the standard's own repository, [openlifa/openmui](https://github.com/openlifa/openmui) |
-| [modules](modules) | The libraries, in layers: base, gfx, content — each usable alone — and ui, openmui itself |
+| [modules](modules) | The libraries, in layers: base, gfx, content — each usable alone — and ui, omui itself |
 | [components](components) · [lang](lang) · [tools](tools) | Components, TypeScript / Python / Lua bindings, tools |
 | [examples](examples) · [showcase](showcase) | What is made with it |
 
-openmui implements two OpenLifa standards: [openmui](https://github.com/openlifa/openmui) (interfaces) and [openas](https://github.com/openlifa/openas) (actors, effects, grants). It is built, tested and packaged with [mcpp](https://github.com/mcpp-community/mcpp); the toolchain it needs is pinned in [.xlings.json](.xlings.json) and installed by [xlings](https://github.com/openxlings/xlings).
+omui implements two OpenLifa standards: [openmui](https://github.com/openlifa/openmui) (interfaces) and [openas](https://github.com/openlifa/openas) (actors, effects, grants). It is built, tested and packaged with [mcpp](https://github.com/mcpp-community/mcpp); the toolchain it needs is pinned in [.xlings.json](.xlings.json) and installed by [xlings](https://github.com/openxlings/xlings).
 
 <sub>In development · Code Apache-2.0 · Specification CC BY-SA 4.0</sub>

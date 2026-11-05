@@ -38,6 +38,20 @@ int main(int argc, char** argv) {
         f.wait();
         check_eq(done.load(), 1);
         std::atomic<bool> stopped = false;
+        if (tasks.threads() == 1) {
+            // The Web host executes spawn synchronously. Cancellation has to
+            // be requested during that call; a later statement cannot run yet.
+            auto g = tasks.spawn([&](std::stop_token token) {
+                tasks.cancel_all();
+                stopped = token.stop_requested();
+            });
+            g.wait();
+            check(stopped.load());
+            auto next = tasks.spawn([](std::stop_token token) { check(!token.stop_requested()); });
+            next.wait();
+            tasks.wait_idle();
+            return;
+        }
         auto g = tasks.spawn([&](std::stop_token t) {
             while (!t.stop_requested()) std::this_thread::sleep_for(std::chrono::milliseconds(1));
             stopped = true;
@@ -51,12 +65,11 @@ int main(int argc, char** argv) {
 
     s.test("the UI queue takes posts from any thread", [] {
         omui::UiQueue q;
-        std::vector<std::jthread> threads;
-        for (int t = 0; t < 4; ++t)
-            threads.emplace_back([&q] {
+        omui::Tasks tasks(4);
+        tasks.parallel_for(4, 1, [&](std::size_t begin, std::size_t end) {
+            for (auto worker = begin; worker < end; ++worker)
                 for (int i = 0; i < 250; ++i) q.post([] {});
-            });
-        threads.clear();
+        });
         std::size_t ran = 0;
         while (q.approximate_size() > 0) ran += q.drain();
         check_eq(ran, std::size_t{1000});

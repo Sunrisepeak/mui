@@ -30,7 +30,7 @@
 | **S3 / F0＋F3＋R：自适应与局部style** | 复用能力查询和feature选择；theme/effect/motion分工；pixel identity、高DPI、scope/portal及文字失效修复 | 风格页同对象对照，组件舞台按空间调整；局部pixel作品 | 可解释选择／失败；DPI与窄屏、中英、文字可读／命中；未选资源不进闭包 |
 | **S4 / P2-B：反应／计算／渲染** | 两材料、状态属性、阈值／邻域、chunk/halo、检查点；一个真实WebGPU算子 | 创意作品中可操作材料画布／反应实验 | CPU参考、边界／顺序／重建、设备资源／数值等级；Noita扩负载单列吞吐与内存预算 |
 | **S5 / P2-C：音频／时间映射** | 现有audio/timeline的自动化和视觉同步；math与CLI依赖收敛 | 可交互混音／节奏作品 | CLI同源WAV与画面；30/60/120fps不改音频；seek不重复副作用 |
-| **S6 / P3＋F1：公共控制与观测** | 从实际消费者提取中立control/resource/time；hanim和UI通过同一openas adapter | Agent页开发／使用／设计真实任务与可审查过程 | 非UI引擎独立控制、授权／revision／取消、真区域像素、trace；DAG防反向依赖 |
+| **S6 / P3＋F1：公共控制与观测** | §15已提取mlibs.control授权／会话／上下文；继续中立provider/resource/time及公共openas adapter | Agent页开发／使用／设计真实任务与可审查过程 | 非UI引擎独立控制、授权／revision／取消、真区域像素、trace；DAG防反向依赖 |
 | **S7 / F2＋K0：混合语言／AI全双工底座** | C++核心＋项目TS／所选语言；player编译移worker、插件prepare/migrate/swap；主会话／worker隔离；llmapi复用；Web脚本bridge | 统一接口×多语言、Agent作品，PPet入口 | 饱和仍可输入／取消、旧回调失效、热换失败保留；按选用语言裁剪闭包；模型与Web分别实测；native动态卸载另列可选能力 |
 | **S8 / P4＋R：公共库与官网质量** | ≥40公共基础动画、≥20可用创意工程；完整组件默认配方；官网渐进披露与按页交付 | 简洁首页、动态logo、核心特色／Agent／创意作品导航 | 每项公共定义／参数／独立工程／真实交互／视觉／预算；不以主题或速度变体凑数 |
 | **S9 / K1–K5＋P5：应用与工具纵切** | PPet新服装／实时UI／技能／绘画；Inspector、动画／UI工具优先，之后素材／音频／关卡／玩法 | 可使用的作品和工具展示 | CLI完整、GUI可选、重启重用、可编辑源、技能版本／权限；3D/rig分别验收 |
@@ -461,3 +461,44 @@ paint是记录输入，不消耗模拟tick；seek使用history frame，二者不
 - 工具仍是有限整数场工作台：人通过展开的JSON修改规则，尚非成熟节点编辑器；没有刷拖、多工程资产管理或远程协作事务。不把一个新增作品计为40种动画或20个创意作品的整体验收。
 
 最终静态检查：全仓lint、JS／shell语法、变更链接与`git diff --check`；用户已有的`mcpp.lock`保持原字节并排除提交。下一步仍按全局S1–S10的实际缺口推进，复用既有owner和公开契约。
+
+## 15. S6首批共享控制与D-100命名归属
+
+执行基线`4833c1a`。本批交付公共授权、会话与调用上下文，并将维护者的命名补充形成D-100。**S6完整provider／控制与观测链、N1–N4全仓命名迁移均未完成。** 源码、命令和本地证据见[验证报告](../../tools/ci/2026-11-05-shared-control.report.omui.json)。
+
+### 15.1 代码归属与兼容
+
+- `modules/base/control/`以`mlibs.control`包／模块、`mlibs::control`命名空间公开Policy、Restrictions、Access、Session和Invocation／Context／Scope。授权判定继续调用openas 0.2；控制库只依赖openas与已有log／trace，无UI规范Value、renderer、网络或模型依赖。
+- 从`openmui.core`移动实际授权和上下文算法，删除UI原实现；UI保留AgentAccess／AgentSession、聚合PolicyState／Invocation、Value序列化及操作回执。可信宿主可以共享同一个control Access和Session，UI和独立引擎由同一issuer管理；兼容入口不再维护第二份权限状态。
+- 这次建立独立清单的依据是UI与独立hanim两类真实消费者，以及从UI依赖闭包中隔离控制能力。policy／session／context仍在同一包，不逐职责拆清单；默认hanim仍不依赖控制库，由宿主显式选择。遵循D-99，不能将本次提取当作继续创建微型包的理由。
+- 保留开发可信会话的预授权、发布模式权限交集、输入／操作限制、grant epoch、撤销和跨实例拒绝；新增`control` trace类别，现有`agent`日志类别及可重入sink行为不变。低层调用省略operation时，现在按verb名过滤；该行为收紧有单独回归，不再让空参数跳过操作限制。
+- Context属于实例和线程；异步任务复制上下文、执行前重新校验。`Session::attribute`是归因，不能代替live授权；同步决定不承诺取消已经在运行的任务。UI操作过滤沿用其transport类别，独立hanim宿主按当前领域操作过滤，嵌套进入不能把capture权限当成seek权限。
+
+### 15.2 实际独立消费者与过程验收
+
+扩展既有`tools/ci/hanim-play-consumer`，没有另建播放器或协议。外部临时工程明确选择公共hanim、vector renderer与`mlibs.control`，用真正的Engine seek和共享CPU renderer执行Agent审查；实际resolution／编译源闭包不含UI、UI规范、SDK、site、host或testing。
+
+dev／release各执行直线路径与扰动路径两组动画，每组61时刻，输出真实PNG，并按反向61时刻逐帧比对。共244张过程图和244次反向重放核对；输出包含有理采样时间、实际播放位置、计划／目标revision、viewport、像素与PNG摘要。调用前移除DISPLAY／WAYLAND_DISPLAY；无窗口／显示服务器要求。
+
+还验证只读层拒绝seek但允许capture、dry-run不改状态、capture-only会话的嵌套seek被拒绝、跨实例会话失败、已排队调用在session撤销后不能继续改状态或读像素，以及显式禁止capture时非零退出且不写图像／元数据。fixture显式创建可信开发会话，即使release二进制也如此；这不改变生产应用的profile默认策略。成功审查后的普通PNG是本地宿主导出，逐帧Agent审查自身均经过授权。
+
+已实际查看多个中间态，形状、颜色与曲线路径随过程变化。离线采样验证可观察、可重放的过程，**不等于实速播放／帧时延或人的美术观感验收**；没有宣称GPU、物理设备或通用远程provider已完成。
+
+### 15.3 本地验证与修复
+
+| 范围 | 实际通过 |
+|---|---|
+| Linux dev | control 2程序／11用例；UI core 11／41；Agent 5／33；Inspector 2／9 |
+| Linux release | control 2／11；UI core 11／41；Agent 5／33 |
+| Wasm／Node实际执行 | control 2／11；UI core 11／41；Agent session 1／6 |
+| 独立消费者dev／release | 原有Program／region／retarget／路径检查及新增两组61帧过程、权限／嵌套／撤销／拒绝导出；依赖闭包审计 |
+
+过程中修正两个集成问题：初稿`omui::control`与UI内部`control()`重名，D-100要求的新owner `mlibs::control`消除该冲突；既有task测试假定spawn异步，在单线程Web后端形成永久等待。测试现按Tasks报告的能力验证同步取消及后续token状态，队列经可用worker验证；生产Web调度器未因此获得后台线程能力。
+
+全仓lint、变更文档本地链接、Python语法与`git diff --check`纳入收口；用户已有`mcpp.lock`保持原字节且不提交。本轮不等待其他平台CI，没有把Windows／macOS／浏览器实播列为本轮验证。
+
+### 15.4 命名落地与剩余工作
+
+[D-100方案](2026-11-05-product-namespace-migration-design.md)明确openmui规范、omui UI、具名产品、mlibs通用库与xengine暂名引擎的代码树归属；AGENTS、主架构与中英文仓库入口同步。当前实际新入口是`mlibs.control`；其他`openmui.*`实现包仍在兼容迁移期，标准子模块、schema、协议字段、C ABI、第三方包及用户lock没有随之更名。
+
+后续按N1基础库→N2引擎→N3 UI与标准连接→N4兼容收口推进，包别名能力须先实际验证，不能用源码转发冒充包解析兼容或成倍预建空壳包。S6的通用provider注册、资源范围／revision／取消、IR编辑、完整观测与传输接入仍开放；S1–S10的其他功能与40／20、PPet目标不因命名或这批共享控制而计为完成。

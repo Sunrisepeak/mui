@@ -2,22 +2,11 @@ module openmui.core;
 
 import std;
 import openas;
+import mlibs.control;
 
 namespace omui {
 namespace {
 constexpr Log policy_log{"agent"};
-bool covers(std::string_view pattern, std::string_view name) {
-    return pattern == "*" || pattern == name || (pattern.ends_with(".*") && name.starts_with(pattern.substr(0, pattern.size() - 1)));
-}
-openas::Cap intersect(openas::Cap a, openas::Cap b) {
-    return a.effect && b.effect ? openas::Cap{std::min(*a.effect, *b.effect)} : openas::Cap::none();
-}
-void restrict(AgentPolicyState& state, const AgentRestrictions& layer) {
-    if (layer.cap) state.cap = intersect(state.cap, *layer.cap);
-    if (layer.enabled) state.enabled &= *layer.enabled;
-    if (layer.input) state.input &= *layer.input;
-    if (layer.mode == AgentMode::dual_user) state.mode = AgentMode::dual_user;
-}
 Value restrictions_value(const AgentRestrictions& layer) {
     Value out;
     if (layer.cap) out.set("cap", cap_name(*layer.cap));
@@ -33,46 +22,17 @@ Value restrictions_value(const AgentRestrictions& layer) {
     return out;
 }
 } // namespace
-std::optional<openas::Cap> parse_cap(std::string_view text) noexcept {
-    if (text == "none") return openas::Cap::none();
-    if (auto e = openas::parse_effect(text)) return openas::Cap{*e};
-    return std::nullopt;
-}
-std::string cap_name(const openas::Cap& cap) { return cap.effect ? std::string(openas::name(*cap.effect)) : std::string("none"); }
-std::optional<AgentMode> parse_agent_mode(std::string_view text) noexcept {
-    if (text == "automatic" || text == "auto") return AgentMode::automatic;
-    if (text == "development" || text == "dev") return AgentMode::development;
-    if (text == "dual-user" || text == "dual_user") return AgentMode::dual_user;
-    return std::nullopt;
-}
-std::string_view agent_mode_name(AgentMode mode) noexcept {
-    switch (mode) {
-    case AgentMode::automatic:
-        return "automatic";
-    case AgentMode::development:
-        return "development";
-    case AgentMode::dual_user:
-        return "dual-user";
-    }
-    return "dual-user";
-}
-AgentMode agent_mode_for_profile(std::string_view profile) noexcept {
-    return profile == "dev" ? AgentMode::development : AgentMode::dual_user;
-}
+
+std::optional<openas::Cap> parse_cap(std::string_view text) noexcept { return mlibs::control::parse_cap(text); }
+std::string cap_name(const openas::Cap& cap) { return mlibs::control::cap_name(cap); }
+std::optional<AgentMode> parse_agent_mode(std::string_view text) noexcept { return mlibs::control::parse_mode(text); }
+std::string_view agent_mode_name(AgentMode mode) noexcept { return mlibs::control::mode_name(mode); }
+AgentMode agent_mode_for_profile(std::string_view profile) noexcept { return mlibs::control::mode_for_profile(profile); }
 AgentPolicy agent_policy_for_profile(std::string_view profile, AgentMode requested) {
-    AgentPolicy policy;
-    policy.mode = requested == AgentMode::automatic ? agent_mode_for_profile(profile) : requested;
-    policy.source = requested == AgentMode::automatic ? std::format("profile:{}", profile) :
-        std::format("explicit-mode:{} (profile:{})", agent_mode_name(requested), profile);
-    return policy;
+    return mlibs::control::policy_for_profile(profile, requested);
 }
 bool AgentPolicyState::allows(std::string_view operation) const {
-    if (!enabled || !session_valid || (operation == "input" && !input)) return false;
-    for (const auto& layer : layers)
-        if (layer.operations &&
-            !std::ranges::any_of(*layer.operations, [&](const std::string& pattern) { return covers(pattern, operation); }))
-            return false;
-    return true;
+    return mlibs::control::OperationPolicy{enabled, input, session_valid, layers}.allows(operation);
 }
 Value AgentPolicyState::to_value() const {
     Value out;
@@ -89,135 +49,45 @@ Value AgentPolicyState::to_value() const {
         .set("session", restrictions_value(layers[2]));
     return out.set("layers", std::move(hierarchy));
 }
-AgentSession::AgentSession(std::weak_ptr<const void> issuer, std::uint64_t epoch, bool development, openas::Actor owner,
-                           AgentRestrictions restrictions)
-    : issuer_(std::move(issuer)), epoch_(epoch), development_(development), owner_(std::move(owner)),
-      restrictions_(std::move(restrictions)) {}
+
+AgentSession::AgentSession(std::shared_ptr<const mlibs::control::Session> session) : session_(std::move(session)) {}
 Actor AgentSession::attribute(const Actor& requested) const {
-    if (!development_) return requested;
-    // Client provenance is attribution, not proof of delegation. Only the
-    // host-created owner is attached; a reported person never becomes present.
+    if (!session_->created_for_development()) return requested;
     const auto kind = openas::parse_kind(requested.kind).value_or(openas::Kind::agent);
-    const auto delegated = openas::delegate(owner_, kind == openas::Kind::person ? openas::Kind::agent : kind, requested.name);
+    const auto delegated = session_->attribute({kind, requested.name, requested.via});
     return {std::string(openas::name(delegated.kind)), delegated.name, delegated.via};
 }
-std::string AgentSession::owner() const { return openas::format(owner_); }
-AgentAccess::AgentAccess() : identity_(std::make_shared<const std::byte>(std::byte{})) { policy_.source = "legacy-global-or-unbound"; }
-void AgentAccess::set_cap(openas::Cap cap) {
-    {
-        std::scoped_lock lock(mutex_);
-        policy_.cap = cap;
-    }
-    policy_log.debug("Agent cap changed to {}", cap_name(cap));
+std::string AgentSession::owner() const { return session_->owner(); }
+AgentAccess::AgentAccess() : AgentAccess(std::make_shared<mlibs::control::Access>(
+    mlibs::control::Policy{.source = "legacy-global-or-unbound"})) {}
+AgentAccess::AgentAccess(std::shared_ptr<mlibs::control::Access> access) : access_(std::move(access)) {
+    if (!access_) access_ = std::make_shared<mlibs::control::Access>(mlibs::control::Policy{.source = "legacy-global-or-unbound"});
 }
-openas::Cap AgentAccess::cap() const { return effective().cap; }
-void AgentAccess::set_policy(AgentPolicy policy) {
-    if (policy.mode == AgentMode::automatic) policy.mode = AgentMode::dual_user;
-    const auto mode = policy.mode;
-    const auto cap = cap_name(policy.cap);
-    const auto source = policy.source;
-    {
-        std::scoped_lock lock(mutex_);
-        policy_ = std::move(policy);
-    }
-    // Logging can call an application sink which reads this policy again.
-    policy_log.info("Agent policy: mode={}, cap={}, source={}", agent_mode_name(mode), cap, source);
-}
-AgentPolicy AgentAccess::policy() const {
-    std::scoped_lock lock(mutex_);
-    return policy_;
-}
-bool AgentAccess::owns(const AgentSession& session) const { return session.issuer_.lock().get() == identity_.get(); }
-AgentPolicyState AgentAccess::effective_locked(const AgentSession* session) const {
-    AgentPolicyState out;
-    out.mode = policy_.mode;
-    out.cap = policy_.cap;
-    out.enabled = policy_.enabled;
-    out.input = policy_.input;
-    out.source = policy_.source;
-    out.layers[0] = policy_.developer;
-    out.layers[1] = policy_.user;
-    if (session) {
-        out.session_valid = owns(*session) && session->active_.load();
-        if (out.session_valid) out.layers[2] = session->restrictions_;
-    }
-    for (const auto& layer : out.layers)
-        restrict(out, layer);
-    out.enabled &= out.session_valid;
-    out.input &= out.enabled;
-    if (!out.enabled) out.cap = openas::Cap::none();
-    out.development_grant =
-        session && out.session_valid && out.mode == AgentMode::development && session->development_ && session->epoch_ == grant_epoch_;
-    return out;
-}
+void AgentAccess::set_cap(openas::Cap cap) { access_->set_cap(cap); }
+openas::Cap AgentAccess::cap() const { return access_->cap(); }
+void AgentAccess::set_policy(AgentPolicy policy) { access_->set_policy(std::move(policy)); }
+AgentPolicy AgentAccess::policy() const { return access_->policy(); }
 AgentPolicyState AgentAccess::effective(const AgentSession* session) const {
-    std::scoped_lock lock(mutex_);
-    return effective_locked(session);
+    auto state = access_->effective(session ? session->control_session().get() : nullptr);
+    return {.mode = state.mode, .cap = state.cap, .enabled = state.enabled, .input = state.input,
+        .development_grant = state.development_grant, .session_valid = state.session_valid,
+        .source = std::move(state.source), .layers = std::move(state.layers)};
 }
 std::shared_ptr<const AgentSession> AgentAccess::open_session(AgentRestrictions restrictions) {
-    std::shared_ptr<const AgentSession> session;
-    bool development = false;
-    std::string name;
-    {
-        std::scoped_lock lock(mutex_);
-        auto state = effective_locked(nullptr);
-        restrict(state, restrictions);
-        development = state.enabled && state.mode == AgentMode::development;
-        name = std::format("{}-{}", development ? "development-session" : "agent-session", ++session_next_);
-        session = std::shared_ptr<const AgentSession>(
-            new AgentSession(identity_, grant_epoch_, development, {openas::Kind::service, name, {}}, std::move(restrictions)));
-    }
-    policy_log.debug("Agent session opened: owner={}, development={}", name, development);
-    return session;
+    return std::shared_ptr<const AgentSession>(new AgentSession(access_->open_session(std::move(restrictions))));
 }
-bool AgentAccess::revoke_session(const AgentSession& session) {
-    if (!owns(session)) return false;
-    const bool revoked = session.active_.exchange(false);
-    if (revoked) policy_log.debug("Agent session revoked: {}", session.owner());
-    return revoked;
-}
-void AgentAccess::give(openas::Grant grant) {
-    const auto actor = openas::format(grant.actor);
-    {
-        std::scoped_lock lock(mutex_);
-        grants_.push_back(std::move(grant));
-    }
-    policy_log.debug("Agent grant added for {}", actor);
-}
-std::size_t AgentAccess::revoke(const openas::Actor& actor) {
-    std::size_t removed;
-    {
-        std::scoped_lock lock(mutex_);
-        removed = std::erase_if(grants_, [&](const openas::Grant& g) { return g.actor == actor; });
-    }
-    if (removed) policy_log.debug("Agent grants revoked for {}: {}", openas::format(actor), removed);
-    return removed;
-}
-void AgentAccess::revoke_all() {
-    std::uint64_t epoch;
-    {
-        std::scoped_lock lock(mutex_);
-        grants_.clear();
-        epoch = ++grant_epoch_;
-    }
-    policy_log.debug("Agent grants revoked, development epoch={}", epoch);
-}
-std::vector<openas::Grant> AgentAccess::grants() const {
-    std::scoped_lock lock(mutex_);
-    return grants_;
-}
-openas::Decision AgentAccess::decide(std::string_view name, Effect effect, bool person, const Actor& actor, const AgentSession* session,
-                                     std::string_view operation) const {
-    const openas::Verb verb{.name = std::string(name), .effect = openas::read_effect(spec::name(effect)), .person = person};
-    std::scoped_lock lock(mutex_);
-    const auto policy = effective_locked(session);
-    const auto cap = operation.empty() || policy.allows(operation) ? policy.cap : openas::Cap::none();
-    auto grants = grants_;
-    if (policy.development_grant) grants.push_back({session->owner_, openas::Effect::external, {"*"}});
-    // No remote actor is observed present. A session is an authenticated
-    // delegation context, never an exemption from openas or S-10.
-    const Actor bound = policy.development_grant ? session->attribute(actor) : actor;
-    return openas::decide(verb, to_openas(bound), false, cap, grants);
+bool AgentAccess::owns(const AgentSession& session) const { return access_->owns(*session.control_session()); }
+bool AgentAccess::revoke_session(const AgentSession& session) { return access_->revoke_session(*session.control_session()); }
+void AgentAccess::give(openas::Grant grant) { access_->give(std::move(grant)); }
+std::size_t AgentAccess::revoke(const openas::Actor& actor) { return access_->revoke(actor); }
+void AgentAccess::revoke_all() { access_->revoke_all(); }
+std::vector<openas::Grant> AgentAccess::grants() const { return access_->grants(); }
+openas::Decision AgentAccess::decide(std::string_view name, Effect effect, bool person, const Actor& actor,
+    const AgentSession* session, std::string_view operation) const {
+    // Conversion is separate from authority: the shared implementation binds
+    // development delegation and decides against one locked policy snapshot.
+    return access_->decide(name, openas::read_effect(spec::name(effect)), person, to_openas(actor),
+        session ? session->control_session().get() : nullptr, operation);
 }
 AgentAccess& agent_access() {
     static AgentAccess access;

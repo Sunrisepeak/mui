@@ -1,7 +1,7 @@
 // WebP through libwebp: decoding straight into the Image's buffer, encoding
 // with a WebPConfig (exact, single-threaded) into a memory writer; animations
 // through WebPAnimEncoder (libwebpmux) and WebPAnimDecoder (libwebpdemux).
-module openmui.image;
+module mlibs.image.api;
 
 import std;
 import mcpplibs.mwrap.libwebp;
@@ -12,7 +12,7 @@ import mcpplibs.mwrap.libwebp.mux;    // WebPAnimEncoder
 // WebPAnimDecoderOptionsInit, WebPAnimDecoderNew.
 using namespace mcpplibs::mwrap::libwebp;
 
-namespace omui::imageio {
+namespace mlibs::image {
 
 namespace {
 
@@ -231,4 +231,4 @@ std::expected<Animation, std::string> decode_animated_webp(std::span<const std::
     return read_animation(bytes);
 }
 
-}  // namespace omui::imageio
+}  // namespace mlibs::image

@@ -19,7 +19,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 mlibs.geom = { path = "../../../base/geom" }
 mlibs.memory = { path = "../../../base/memory" }
 openmui.raster = { path = "../../raster" }
-openmui.image = { path = "../../../base/image" }
+mlibs.image = { path = "../../../base/image" }
 mlibs.trace = { path = "../../../base/trace" }
 mlibs.testing = { path = "../../../base/testing" }
 mcpplibs.os = "0.2.2"

@@ -12,8 +12,28 @@ import subprocess
 import tarfile
 import tempfile
 import time
+import tomllib
 
-NAMES = ("hash", "math", "log", "trace", "testing", "geom", "memory", "unicode", "fuzzy")
+NAMES = ("hash", "math", "log", "trace", "testing", "geom", "memory", "unicode", "fuzzy", "session", "pipeline", "image")
+EXTERNAL = {"mcpplibs.os", "mcpplibs.openkal", "nlohmann.json", "mcpplibs.mwrap.libpng", "mcpplibs.mwrap.libwebp",
+            "compat.libpng", "compat.libwebp", "compat.zlib"}
+
+
+def locked_packages(path: Path) -> dict:
+    # Older locks spell openkal keys without their default namespace.
+    return {(key if "." in key else data.get("namespace", "mcpplibs") + "." + key): dict(data, lock_key=key)
+            for key, data in tomllib.loads(path.read_text())["package"].items()}
+
+
+def external_source(path: Path, packages: dict) -> bool:
+    # Only the exact selected index package/version installation, not an
+    # arbitrary source from the registry or another repository package.
+    for name, data in packages.items():
+        namespace, leaf = name.rsplit(".", 1)
+        if any(parent.name == data["version"] and parent.parent.name == namespace + "-x-" + leaf
+               for parent in path.parents):
+            return True
+    return False
 
 
 def sha(path: Path) -> str | None:
@@ -40,7 +60,8 @@ def main() -> int:
         "limits": ["Source compatibility after rebuild; not C++ binary ABI compatibility or registry aliases.",
                    "Native release source and archive consumers; this gate does not test other targets.",
                    "Fresh consumer build times can reuse global toolchain caches; they are not clean-machine benchmarks.",
-                   "The packed consumer explicitly declares the hash/testing and unicode/fuzzy dependency pairs.",
+                   "The packed consumer explicitly declares foundation dependencies and session/image index dependencies.",
+                   "mcpp index lock hashes describe namespace/name/version, not downloaded artifact content.",
                    "No package publication or claim that mcpp pack preserves dependency metadata."],
     }
 
@@ -64,6 +85,15 @@ def main() -> int:
         return result.stdout
 
     try:
+        source_lock = locked_packages(repo / "mcpp.lock")
+        allowed_external = {name: data for name, data in source_lock.items()
+                            if name in EXTERNAL or name.startswith("mcpplibs.openkal-")}
+        # mcpp v2026.11.2.2 hashes '<index>:<lock-key>@<version>'; default
+        # namespace keys may be short or qualified. Reuse mlibs.hash in the
+        # real consumer to check both spellings rather than copying FNV here.
+        identity_inputs = sorted({f'{data["namespace"]}:{key}@{data["version"]}'
+                                  for name, data in allowed_external.items() for key in (name, name.rsplit(".", 1)[1])})
+        external_identities = None
         source_paths = {name: repo / "modules/base" / name for name in NAMES}
         packed_paths = {}
         for name, path in source_paths.items():
@@ -113,13 +143,21 @@ def main() -> int:
                 prefixes = ("mlibs", "openmui") if style == "mixed" else (("mlibs",) if style == "canonical" else ("openmui",))
                 dependencies = "\n".join(f'{prefix}.{name} = {{ path = {json.dumps(str(paths[name]))} }}'
                                          for prefix in prefixes for name in NAMES)
+                if source_kind == "packed":
+                    # Current pack omits dependency metadata. Supply the actual
+                    # direct external edges here without editing the archives.
+                    for name in ("mcpplibs.os", "nlohmann.json", "mcpplibs.mwrap.libpng", "mcpplibs.mwrap.libwebp"):
+                        version = json.dumps(source_lock[name]["version"])
+                        value = '{ version = ' + version + ', features = ["demux", "mux"] }' if name.endswith(".libwebp") else version
+                        dependencies += f"\n{name} = {value}"
                 imports = "\n".join(f"import {prefix}.{name};" for prefix in prefixes for name in NAMES)
                 (project / "mcpp.toml").write_text((fixture / "mcpp.toml.in").read_text().replace("{{dependencies}}", dependencies))
-                (project / "src/main.cpp").write_text((fixture / "main.cpp.in").read_text().replace("{{imports}}", imports))
+                (project / "src/main.cpp").write_text((fixture / "main.cpp.in").read_text().replace("{{imports}}", imports)
+                                                      .replace("{{lock_identities}}", ", ".join(map(json.dumps, identity_inputs))))
                 argv = [args.mcpp, "run", "--profile", "release"]
                 stdout = command(label, argv, project, bootstrap=True)
                 result = [json.loads(line) for line in stdout.splitlines() if line.startswith('{"kind":"mlibs.namespace-consumer"')]
-                if len(result) != 1 or not result[0].get("ok") or result[0].get("cases") != 8:
+                if len(result) != 1 or not result[0].get("ok") or result[0].get("cases") != 12:
                     raise RuntimeError(label + ": missing real successful consumer result")
                 own_lock = sha(project / "mcpp.lock")
                 command(label + "-incremental", argv + ["--locked"], project)
@@ -128,22 +166,46 @@ def main() -> int:
                 command(label + "-metadata", [args.mcpp, "build", "--profile", "release", "--locked", "--configure-only"], project)
                 resolution = max((project / "target").glob("*/*/resolution.json"), key=lambda p: p.stat().st_mtime_ns)
                 graph = json.loads(resolution.read_text())
+                shutil.copyfile(resolution, artifacts / (label + ".resolution.json"))
+                shutil.copyfile(project / "mcpp.lock", artifacts / (label + ".mcpp.lock"))
                 if graph.get("schema_version") != 2:
                     raise RuntimeError("unsupported mcpp resolution schema")
                 packages = graph["graph"]["packages"]
                 identities = []
+                external_packages = {}
+                consumer_lock = locked_packages(project / "mcpp.lock")
                 for package in packages:
                     data = package["package"]
                     identity = (data.get("namespace", "") + "." + data["name"]).lstrip(".")
                     identities.append(identity)
+                    if identity in allowed_external:
+                        pinned = allowed_external[identity]
+                        if any(data.get(key) != pinned[key] or consumer_lock.get(identity, {}).get(key) != pinned[key]
+                               for key in ("version", "source")):
+                            raise RuntimeError(label + ": external dependency differs from repository lock: " + identity +
+                                               "; expected=" + json.dumps(pinned) + "; resolved=" + json.dumps(data) +
+                                               "; lock=" + json.dumps(consumer_lock.get(identity)))
+                        for locked in (pinned, consumer_lock[identity]):
+                            key = f'{locked["namespace"]}:{locked["lock_key"]}@{locked["version"]}'
+                            if locked.get("hash") != result[0]["identity_hashes"].get(key):
+                                raise RuntimeError(label + ": invalid index identity digest: " + key)
+                        external_packages[identity] = data
+                        continue
                     expected_path = project if identity == "mlibs.validation.namespace_consumer" else paths.get(data["name"])
                     if expected_path is None or data.get("source") != "path+" + str(expected_path):
                         raise RuntimeError(label + ": unexpected dependency source " + str(data))
-                expected = {"mlibs.validation.namespace_consumer", *("mlibs." + name for name in NAMES)}
+                if not EXTERNAL.issubset(external_packages) or len(set(external_packages) - EXTERNAL) != 1:
+                    raise RuntimeError(label + ": incomplete external closure or multiple OS backends")
+                if external_identities is None:
+                    external_identities = set(external_packages)
+                if set(external_packages) != external_identities:
+                    raise RuntimeError(label + ": external closure changed between consumer styles")
+                expected = {"mlibs.validation.namespace_consumer", *("mlibs." + name for name in NAMES), *external_identities}
                 if set(identities) != expected or len(identities) != len(expected):
                     raise RuntimeError(label + ": duplicate or unexpected package identities")
                 cdb = json.loads((resolution.parent / "compile_commands.json").read_text())
                 sources = []
+                external_sources = []
                 for entry in cdb:
                     directory = Path(entry["directory"])
                     if not directory.is_absolute():
@@ -154,9 +216,11 @@ def main() -> int:
                         sources.append(str(path))
                     elif path.name in {"std.cc", "std.cppm"} and path.is_relative_to(Path(entry["arguments"][0]).resolve().parent.parent):
                         continue  # the selected compiler's standard-library module
+                    elif external_source(path, external_packages):
+                        external_sources.append(str(path))
                     else:
                         raise RuntimeError(label + ": unexpected compiled source " + str(path))
-                if len(sources) != len(set(sources)):
+                if len(sources) != len(set(sources)) or len(external_sources) != len(set(external_sources)):
                     raise RuntimeError(label + ": duplicated implementation compilation")
                 implementations = [p for p in sources if p.endswith(".cpp") and p != str(project / "src/main.cpp")]
                 if source_kind == "packed" and implementations:
@@ -168,6 +232,7 @@ def main() -> int:
                 shutil.copyfile(project / "mcpp.toml", artifacts / (label + ".mcpp.toml"))
                 report["runs"].append({"kind": source_kind, "style": style, "result": result[0],
                                        "packages": sorted(identities), "compiled_sources": sources,
+                                       "external_sources": external_sources, "external_packages": external_packages,
                                        "toolchain": graph["toolchain"]})
         report["ok"] = True
     except (RuntimeError, OSError, ValueError, KeyError, subprocess.TimeoutExpired) as error:

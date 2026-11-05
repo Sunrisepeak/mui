@@ -1,4 +1,4 @@
-# openmui.pipeline — a frame as a graph of stages (D-66): typed resources,
+# mlibs.pipeline — a frame as a graph of stages (D-66): typed resources,
 # stage plugins from a registry, a build that checks producers, types and
 # cycles, a deterministic order, per-stage timing and trace spans, and stages
 # replaced, added or removed between runs. Pipelines are described by
@@ -6,7 +6,7 @@
 # JSON by tools); this package parses nothing.
 # An independent component (D-55): the standard library and mlibs.trace.
 [package]
-namespace   = "openmui"
+namespace   = "mlibs"
 name        = "pipeline"
 version     = "0.1.0"
 description = "Pipelines of stage plugins over typed resources: checked builds, deterministic order, per-stage timing and tracing, hot replacement"
@@ -17,7 +17,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 kind = "module"
 
-[targets.openmui-pipeline]
+[targets.mlibs-pipeline]
 kind = "lib"
 
 [build]

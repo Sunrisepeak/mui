@@ -1,10 +1,10 @@
-# openmui.session — sessions as data: a header and a stream of timestamped
+# mlibs.session — sessions as data: a header and a stream of timestamped
 # entries (events, actions, frames, notes) in NDJSON, ordered by time and
 # seekable, saved and loaded through mcpplibs.os. An independent component
 # (D-57): it knows nothing of nodes or views, so anything with a clock can
 # record into it and replay from it.
 [package]
-namespace   = "openmui"
+namespace   = "mlibs"
 name        = "session"
 version     = "0.1.0"
 description = "Recording and replay: timestamped NDJSON sessions, seekable, mergeable, independent of any UI"
@@ -14,7 +14,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 kind = "module"
 
-[targets.openmui-session]
+[targets.mlibs-session]
 kind = "lib"
 
 [build]

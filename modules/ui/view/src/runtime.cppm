@@ -141,7 +141,7 @@ struct FrameInput {
 
 }  // namespace omui
 
-export namespace omui::pipeline {
+export namespace mlibs::pipeline {
 template <>
 struct resource_type<omui::FrameInput> {
     static constexpr std::string_view name = "omui.FrameInput";
@@ -162,7 +162,7 @@ template <>
 struct resource_type<omui::render::DisplayList> {
     static constexpr std::string_view name = "render.DisplayList";
 };
-}  // namespace omui::pipeline
+}  // namespace mlibs::pipeline
 
 export namespace omui {
 

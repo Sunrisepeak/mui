@@ -26,7 +26,8 @@ Start with [hanim](hanim/README.md).
 
 The current canonical packages are `mlibs.control`, `mlibs.hash`, `mlibs.math`,
 `mlibs.log`, `mlibs.trace`, `mlibs.testing`, `mlibs.geom`, `mlibs.memory`,
-`mlibs.unicode` and `mlibs.fuzzy`. Except control, these retain their old
+`mlibs.unicode`, `mlibs.fuzzy`, `mlibs.session`, `mlibs.pipeline` and
+`mlibs.image`. Except control, these retain their old
 `openmui.*` import within the same package. Other foundations are still being
 migrated; use their manifest identity. `mlibs` is a grouping, not an umbrella
 dependency. See the [migration plan](../../.agents/docs/2026-11-05-product-namespace-migration-design.md).

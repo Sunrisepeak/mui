@@ -31,7 +31,7 @@ openmui.accessibility = { path = "../../accessibility" }
 openmui.raster   = { path = "../../../gfx/raster" }
 openmui.render.vector   = { path = "../../../gfx/render/vector" }
 openmui.text     = { path = "../../../content/text" }
-openmui.image    = { path = "../../../base/image" }
+mlibs.image    = { path = "../../../base/image" }
 mlibs.trace    = { path = "../../../base/trace" }
 # Quoted: as dotted keys of one table, `openmui.rhi.sdl` would extend the
 # inline table `openmui.rhi`, which TOML forbids.

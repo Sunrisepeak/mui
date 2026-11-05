@@ -1,4 +1,4 @@
-# openmui.pipeline
+# mlibs.pipeline
 
 A frame as a graph of stages (D-66). A **stage** is a plugin that reads and
 writes named, typed **resources**; a **pipeline** is a list of stages built
@@ -13,7 +13,7 @@ against a **registry** of plugins.
   updater's place in the declaration decides which readers see what it
   changed: a reader declared before it sees the old value.
 - **Observable.** Each run times every stage (`timings()`) and traces it as a
-  span in its plugin's category (openmui.trace); `describe()` lists the
+  span in its plugin's category (mlibs.trace); `describe()` lists the
   order, each stage's plugin and its ports.
 - **Live.** `replace`, `insert` and `remove` rebuild between runs; a change
   that does not build leaves the pipeline as it was.
@@ -21,9 +21,9 @@ against a **registry** of plugins.
   `Resources::get<T>` returns nothing for the wrong type.
 
 ```cpp
-template <> struct omui::pipeline::resource_type<DisplayList> { static constexpr std::string_view name = "render.DisplayList"; };
+template <> struct mlibs::pipeline::resource_type<DisplayList> { static constexpr std::string_view name = "render.DisplayList"; };
 
-struct Badge final : omui::pipeline::Stage {
+struct Badge final : mlibs::pipeline::Stage {
     std::vector<Port> reads() const override  { return {port<DisplayList>("display")}; }
     std::vector<Port> writes() const override { return {port<DisplayList>("display")}; }   // an updater
     std::expected<void, std::string> run(Context& c) override { c.resources.get<DisplayList>("display")->fill_rect(…); return {}; }
@@ -40,4 +40,13 @@ The runtime's frame is a pipeline of `openmui.view.*` stages
 (`runtime_pipeline(Stages)`: H0, H1, H2), and `omui agent pipeline` shows and
 changes a running application's.
 
-An independent component (D-55): the standard library and openmui.trace.
+An independent component (D-55): the standard library and mlibs.trace.
+
+The canonical module and C++ namespace are `mlibs.pipeline` and `mlibs::pipeline`.
+The same package retains `import openmui.pipeline;` and the namespace alias
+`omui::pipeline` for source compatibility after rebuilding; there is one
+implementation. Select the package as `mcpp test -p mlibs.pipeline`.
+Custom resources can still specialize `omui::pipeline::resource_type<T>`
+using a qualified definition. A namespace alias cannot be reopened: write
+`namespace mlibs::pipeline { ... }` when defining specializations in a block.
+Existing plugin IDs, resource type names and data-file suffixes are unchanged.

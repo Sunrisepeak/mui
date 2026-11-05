@@ -19,6 +19,28 @@ static_assert(std::same_as<mlibs::memory::SlotStorage<int>, omui::SlotStorage<in
 static_assert(std::same_as<mlibs::memory::FunctionRef<int(int)>, omui::FunctionRef<int(int)>>);
 static_assert(std::same_as<mlibs::unicode::LineBreak, omui::unicode::LineBreak>);
 static_assert(std::same_as<mlibs::fuzzy::Match, omui::fuzzy::Match>);
+static_assert(std::same_as<mlibs::session::Session, omui::session::Session>);
+static_assert(std::same_as<mlibs::pipeline::Pipeline, omui::pipeline::Pipeline>);
+static_assert(std::same_as<mlibs::image::Image, omui::imageio::Image>);
+static_assert(mlibs::session::format_name == "openmui.session@0.1");
+
+struct Counter { int value = 0; };
+// Real client specialization through the legacy alias, consumed by new API.
+template <> struct omui::pipeline::resource_type<Counter> {
+    static constexpr std::string_view name = "consumer.Counter";
+};
+struct Add final : mlibs::pipeline::Stage {
+    int amount;
+    explicit Add(int n) : amount(n) {}
+    std::vector<mlibs::pipeline::Port> reads() const override { return {omui::pipeline::port<Counter>("count")}; }
+    std::vector<mlibs::pipeline::Port> writes() const override { return reads(); }
+    std::expected<void, std::string> run(mlibs::pipeline::Context& context) override {
+        auto* counter = context.resources.get<Counter>("count");
+        if (!counter) return std::unexpected("missing count");
+        counter->value += amount;
+        return {};
+    }
+};
 
 int main() {
     mlibs::testing::Suite suite("foundation namespace compatibility");
@@ -133,7 +155,87 @@ int main() {
         mlibs::testing::check(chinese && chinese->positions == std::vector<std::uint32_t>{0, 1});
         mlibs::testing::check(&mlibs::fuzzy::match == &omui::fuzzy::match);
     });
+    suite.test("session data and files cross new and legacy APIs byte-identically", [] {
+        mlibs::session::Session recording;
+        recording.header.app = "org.example.namespace-consumer";
+        recording.header.seed = 42;
+        mlibs::testing::check(recording.add(1, "act", R"({"node":"main/保存","actor":"agent:qa"})").has_value());
+        omui::session::Session& old = recording;
+        mlibs::testing::check(old.add(0.25, "frame", R"({"index":1})").has_value());
+        const auto wire = old.ndjson();
+        mlibs::testing::check(wire.starts_with(R"({"format":"openmui.session@0.1",)"));
+        auto parsed = omui::session::Session::parse(wire);
+        mlibs::testing::check(parsed && parsed->ndjson() == wire && parsed->seek(0.5) == 1);
+        const auto file = mlibs::testing::scratch_dir("namespace") / std::filesystem::path(u8"会话.session.omui.jsonl");
+        mlibs::testing::check(recording.save(file).has_value());
+        auto loaded = omui::session::Session::load(file);
+        mlibs::testing::check(loaded && loaded->ndjson() == wire && loaded->header.seed == 42);
+        mlibs::testing::check(&mlibs::session::Session::parse == &omui::session::Session::parse);
+    });
+    suite.test("one pipeline owns legacy resources replacement and shared traces", [] {
+        omui::pipeline::Registry plugins;
+        mlibs::testing::check(plugins.add({.name = "consumer.add", .trace_category = "consumer.pipeline",
+                                         .cost = mlibs::pipeline::Cost{.cpu_us = 100}},
+            [](const mlibs::pipeline::Config& config) -> std::expected<std::unique_ptr<mlibs::pipeline::Stage>, std::string> {
+                return std::make_unique<Add>(static_cast<int>(config.integer("amount", 2)));
+            }).has_value());
+        const std::array inputs{omui::pipeline::port<Counter>("count")};
+        auto pipeline = mlibs::pipeline::Pipeline::build({"consumer", {{"add", "consumer.add", {}, {}}}}, plugins, inputs);
+        mlibs::testing::check(pipeline.has_value());
+        if (!pipeline) return;
+        Counter counter{1};
+        omui::pipeline::Resources resources;
+        resources.put("count", &counter);
+        omui::pipeline::Pipeline& old = *pipeline;
+        mlibs::trace::start({64});
+        mlibs::testing::check(old.run(resources).has_value());
+        const auto trace = omui::trace::stop();
+        mlibs::testing::check(counter.value == 3 && trace.summary().size() == 1);
+        mlibs::testing::check(!old.replace("add", "missing.plugin", {}, plugins));
+        mlibs::testing::check(pipeline->run(resources).has_value() && counter.value == 5);
+        mlibs::testing::check(pipeline->replace("add", "consumer.add", {{"amount", std::int64_t{7}}}, plugins).has_value());
+        mlibs::testing::check(old.run(resources).has_value() && counter.value == 12);
+        mlibs::testing::check(old.timings().size() == 1 && old.order() == std::vector<std::string>{"add"});
+        mlibs::testing::check(&mlibs::pipeline::Pipeline::build == &omui::pipeline::Pipeline::build);
+    });
+    suite.test("PNG and lossless WebP cross old and new codecs without pixel changes", [] {
+        const mlibs::image::Image picture{2, 2, mlibs::image::Alpha::straight,
+            {255, 0, 0, 255, 0, 255, 0, 128, 0, 0, 255, 255, 23, 42, 67, 0}};
+        const auto png = mlibs::image::encode_png(omui::imageio::view(picture));
+        mlibs::testing::check(png.has_value());
+        if (!png) return;
+        const auto decoded = omui::imageio::decode_png(*png);
+        mlibs::testing::check(decoded && decoded->rgba == picture.rgba);
+        const auto webp = omui::imageio::encode_webp(mlibs::image::view(picture), {.lossless = true});
+        mlibs::testing::check(webp.has_value());
+        if (!webp) return;
+        const auto back = mlibs::image::decode(*webp);
+        mlibs::testing::check(back && back->rgba == picture.rgba);
+        mlibs::testing::check(&mlibs::image::decode_png == &omui::imageio::decode_png);
+        mlibs::testing::check(&mlibs::image::encode_webp == &omui::imageio::encode_webp);
+    });
+    suite.test("animated WebP uses the same mux demux and complete frame pixels", [] {
+        const mlibs::image::Image a{2, 2, mlibs::image::Alpha::straight,
+            {255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 20, 40, 60, 255}};
+        auto b = a;
+        b.rgba[0] = 0;
+        b.rgba[2] = 255;
+        const std::array frames{mlibs::image::view(a), omui::imageio::view(b)};
+        const auto encoded = mlibs::image::encode_animated_webp(frames, {.delay_num = 1, .delay_den = 10, .loops = 3, .lossless = true});
+        mlibs::testing::check(encoded.has_value());
+        if (!encoded) return;
+        const auto decoded = omui::imageio::decode_animated_webp(*encoded);
+        mlibs::testing::check(decoded && decoded->loops == 3 && decoded->frames.size() == 2);
+        if (!decoded || decoded->frames.size() != 2) return;
+        mlibs::testing::check(decoded->frames[0].image.rgba == a.rgba && decoded->frames[1].image.rgba == b.rgba);
+        mlibs::testing::check(decoded->frames[0].delay_ms == 100 && decoded->frames[1].delay_ms == 100);
+    });
     const int result = suite.run();
-    std::println("{{\"kind\":\"mlibs.namespace-consumer\",\"ok\":{},\"cases\":8}}", result == 0);
+    std::string identities;
+    for (std::string_view identity : std::array{ {{lock_identities}} }) {
+        if (!identities.empty()) identities += ',';
+        identities += std::format("\"{}\":\"fnv1a:{}\"", identity, mlibs::hash::Fnv1a().text(identity).hex());
+    }
+    std::println("{{\"kind\":\"mlibs.namespace-consumer\",\"ok\":{},\"cases\":12,\"identity_hashes\":{{{}}}}}", result == 0, identities);
     return result;
 }

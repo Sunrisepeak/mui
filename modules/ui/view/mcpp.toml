@@ -33,10 +33,10 @@ openmui.layout   = { path = "../../content/layout" }
 openmui.raster   = { path = "../../gfx/raster" }
 openmui.render.vector   = { path = "../../gfx/render/vector" }
 openmui.motion   = { path = "../motion" }
-openmui.image    = { path = "../../base/image" }
+mlibs.image    = { path = "../../base/image" }
 openmui.text     = { path = "../../content/text" }
 mlibs.trace    = { path = "../../base/trace" }
-openmui.pipeline = { path = "../../base/pipeline" }
+mlibs.pipeline = { path = "../../base/pipeline" }
 openmui.i18n     = { path = "../../content/i18n" }
 mcpplibs.os      = "0.2.2"
 

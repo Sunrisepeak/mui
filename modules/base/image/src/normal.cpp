@@ -9,11 +9,11 @@
 // to the ridges; painted folds (luminance, blurred the same) are added in
 // proportion to the bevel's height. Sobel slopes and an integer square root
 // make the unit normal.
-module openmui.image;
+module mlibs.image.api;
 
 import std;
 
-namespace omui::imageio {
+namespace mlibs::image {
 
 namespace {
 
@@ -224,4 +224,4 @@ Image normal_map(const Image& img, NormalOptions options) {
     return out;
 }
 
-}  // namespace omui::imageio
+}  // namespace mlibs::image

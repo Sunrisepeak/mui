@@ -3,7 +3,7 @@ import std;
 import hanim;
 import hanim.render.vector;
 import openmui.raster;
-import openmui.image;
+import mlibs.image;
 import openmui.hash;
 import mlibs.control;
 import mcpplibs.os;
@@ -236,8 +236,8 @@ int main(int argc,char** argv) {
         return !report.effects_skipped && !report.external_skipped && !report.invalid_paints && !report.missing_images && !report.missing_glyphs;
     };
     auto save_full=[&](std::string_view suffix) {
-        const omui::imageio::View view{reinterpret_cast<const std::uint8_t*>(pixels.row(0)),options.width,options.height,options.width*4,omui::imageio::Alpha::premultiplied};
-        const auto bytes=omui::imageio::encode_png(view);if(!bytes)return false;
+        const mlibs::image::View view{reinterpret_cast<const std::uint8_t*>(pixels.row(0)),options.width,options.height,options.width*4,mlibs::image::Alpha::premultiplied};
+        const auto bytes=mlibs::image::encode_png(view);if(!bytes)return false;
         return bool(mcpplibs::os::fs::write_atomic(mcpplibs::os::fs::from_utf8(options.output+std::string(suffix)),std::string_view(reinterpret_cast<const char*>(bytes->data()),bytes->size())));
     };
     if(!rebind())return fail("public vector binding");
@@ -294,9 +294,9 @@ int main(int argc,char** argv) {
     if(!engine.seek(*played,seconds{options.time}) || !draw())return fail("requested time draw");
     const auto frame=engine.frame(*played);if(!frame)return fail("public frame query");
     const auto [x,y,width,height]=options.region;
-    const omui::imageio::View crop{reinterpret_cast<const std::uint8_t*>(pixels.row(y)+x),width,height,options.width*4,omui::imageio::Alpha::premultiplied};
-    const auto encoded=omui::imageio::encode_png(crop);if(!encoded)return fail(encoded.error());
-    const auto decoded=omui::imageio::decode_png(*encoded);
+    const mlibs::image::View crop{reinterpret_cast<const std::uint8_t*>(pixels.row(y)+x),width,height,options.width*4,mlibs::image::Alpha::premultiplied};
+    const auto encoded=mlibs::image::encode_png(crop);if(!encoded)return fail(encoded.error());
+    const auto decoded=mlibs::image::decode_png(*encoded);
     if(!decoded || decoded->width!=width || decoded->height!=height)return fail("PNG encode/decode crop dimensions");
     omui::hash::Fnv1a pixel_hash;
     std::size_t visible=0;int crop_delta=0;

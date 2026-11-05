@@ -36,6 +36,6 @@ openmui.raster = { path = "../../raster" }
 
 [dev-dependencies]
 mlibs.testing = { path = "../../../base/testing" }
-openmui.image   = { path = "../../../base/image" }
+mlibs.image   = { path = "../../../base/image" }
 mlibs.trace   = { path = "../../../base/trace" }
 mcpplibs.os     = "0.2.2"

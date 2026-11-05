@@ -1,9 +1,9 @@
-module openmui.pipeline;
+module mlibs.pipeline.api;
 
 import std;
-import openmui.trace;
+import mlibs.trace;
 
-namespace omui::pipeline {
+namespace mlibs::pipeline {
 
 // ── resources ─────────────────────────────────────────────────────────────
 
@@ -457,4 +457,4 @@ std::expected<void, std::vector<Problem>> Pipeline::remove(std::string_view stag
     return {};
 }
 
-}  // namespace omui::pipeline
+}  // namespace mlibs::pipeline

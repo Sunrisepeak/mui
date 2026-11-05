@@ -1,6 +1,6 @@
 # 产品归属、命名空间与兼容迁移
 
-2026-11-05。维护者补充形成 D-100，修订原“所有实现包都使用 openmui”规则；包粒度继续遵循 D-99。**命名规则立即用于新增能力；既有仓库尚未全量完成改名。** N0 已交付共享控制；N1 首组 hash／math／log／trace／testing 的实际入口和兼容范围见 §5，原有 UI API 继续可用。
+2026-11-05。维护者补充形成 D-100，修订原“所有实现包都使用 openmui”规则；包粒度继续遵循 D-99。**命名规则立即用于新增能力；既有仓库尚未全量完成改名。** N0 已交付共享控制；N1 已迁移十二个基础库，实际入口和兼容范围见 §5–§7；UI 实现包的后续迁移另行验收。
 
 ## 1. 五类归属
 
@@ -28,7 +28,7 @@
 | `modules/ui/*`、`components/*`、UI 语言绑定：`openmui.*` | `omui.*`；UI C++ `omui::` 不变 | 保留旧包／import，按 N3 迁移 |
 | 根 `openmui.sdk`／`import openmui` | `omui.sdk`／`import omui` | 保留旧入口，N3 一起迁移 |
 | `modules/base/control/` | `mlibs.control`／`mlibs::control` | 本批直接使用新身份；从 UI 提取已有实现 |
-| base 的 math／geom／hash／memory／unicode／fuzzy／log／trace／session／pipeline／image／testing | 对应 `mlibs.*` | N1，保留现有实现与兼容层 |
+| base 的 math／geom／hash／memory／unicode／fuzzy／log／trace／session／pipeline／image／testing | 对应 `mlibs.*` | N1 十二库已迁移，保留同包旧源码入口，见 §5–§7 |
 | gfx 的 rhi／shader／raster；content 的 text／layout／markdown／i18n | 对应 `mlibs.*` | N1，子包沿同一 owner |
 | `modules/gfx/render/`：`openmui.render.*` | `xengine.render.*` | N2，渲染特性仍记录进同一张图 |
 | `modules/base/simulation/` 和 gfx 下模拟 GPU adapter | `xengine.simulation.*` | N2，不重复时钟／重建／规则实现 |
@@ -120,4 +120,33 @@ Unicode 的生成器和生成结果一起迁移。重新使用[Unicode 官方 17
 
 前批 mcpp 打包依赖清单的限制同样影响 fuzzy→unicode；当前安装包 gate 显式声明这两者以及 testing→hash。该证据不证明仅声明 fuzzy 或 testing 的索引安装可用。正式发布前修复构建工具的传递依赖清单并逐库验收，不能用另一份 Unicode／hash 实现代替依赖。
 
-N1 仍有 session／pipeline／image、RHI／shader／raster、content 等后续依赖组；N2 引擎与 N3 UI／标准未因此自动完成。遵循原计划的功能与真实质量验收，不把命名数量计为动画或作品数量。
+第二组交付时 N1 仍有 session／pipeline／image（现见 §7）、RHI／shader／raster、content 等后续依赖组；N2 引擎与 N3 UI／标准未因此自动完成。遵循原计划的功能与真实质量验收，不把命名数量计为动画或作品数量。
+
+## 7. N1第三组：录制、管线和图像
+
+| 目录 | 当前包／主要 module | 当前 C++ API | 同包兼容入口 |
+|---|---|---|---|
+| `modules/base/session` | `mlibs.session` | `mlibs::session` | `openmui.session`／`omui::session` |
+| `modules/base/pipeline` | `mlibs.pipeline` | `mlibs::pipeline` | `openmui.pipeline`／`omui::pipeline` |
+| `modules/base/image` | `mlibs.image` | `mlibs::image` | `openmui.image`／`omui::imageio` |
+
+继续使用原包与单一实现。三者的 `.api`、主入口和兼容入口均位于原 `src/`；没有新增清单或 workspace 成员。image 的新命名空间与包名一致，旧 `imageio` 只是同一实现的别名。PNG／WebP 的 C 模块仍只在 `src/native/` 使用；pipeline 使用同一个 `mlibs.trace` recorder；session 继续复用 nlohmann.json 与 mcpplibs.os。
+
+### 7.1 保留数据身份，明确源码边界
+
+- 录制数据继续写入并接受 `openmui.session@0.1`，文件后缀仍为 `.session.omui.jsonl`，JSON 字段、排序、时间与回放行为不因包名变化升级。此处是既有数据兼容，不把实现的录制格式改称新的 UI 标准。
+- pipeline 的插件 ID、资源类型名、配置及 `.pipeline.omui.toml` 后缀保持；资源、registry、热替换与 trace 只有一个 owner。
+- `resource_type<T>` 的**限定名特化**仍可通过 `omui::pipeline::resource_type<T>` 定义，并被新 API 使用。C++ namespace alias 不能重新打开；原来写 `namespace omui::pipeline { ... }` 的扩展需要改为 `namespace mlibs::pipeline { ... }`。仓内 UI 的资源注册块已同步，不能把这种有迁移要求的扩展场景宣称为零修改兼容。
+- 新清单、CLI 选择器与产物使用 `mlibs.*`／`mlibs-<name>`；同包旧 import 保留。C++ 使用方须重建，仍未发布 registry 别名或承诺旧 C++ ABI。
+
+### 7.2 独立消费与回归范围
+
+复用 `tools/ci/foundation-migration`，覆盖十二库的源码／真实静态安装包 × 新名／旧名／混用。新增用例检查录制文件读写与字节回环、限定名资源特化、同一管线的替换失败原子性和成功重配、共享 trace、PNG／无损 WebP 像素及动画 WebP mux／demux。外部依赖逐项核对真实 resolution 与仓库锁中的版本／来源／摘要；安装包消费者不编译十二库的 `.cpp`，第三方依赖的编译源另列，不能误算为偷用本仓实现。
+
+独立 hanim playback 的 PNG 消费改用 `mlibs.image`，继续实际采样与反向回放；UI、官网等消费者保留旧 import，检验逐步迁移。相关原生／Wasm、无窗口视觉及浏览器结果见[实施台账 §18](2026-11-05-system-implementation-checkpoints-design.md)。
+
+mcpp 目前的安装包依赖元数据缺口同时影响 pipeline→trace、session→os／json、image→mwrap／codec。fixture 显式提供这些真实依赖，并没有修改包来伪造完整发布能力。新旧 API 的实际链接通过不等于仅声明一个顶层二进制库就能安装；正式发布前仍需上游修复并验证完整依赖闭包。独立第三方库仍保留自己的身份。
+
+锁检查需区分身份摘要与内容摘要：mcpp `v2026.11.2.2` 的 `index_package_digest` 对 `<namespace>:<lock-key>@<version>` 求值，短键 `os` 与限定键 `mcpplibs.os` 可对应同一个解析身份，却有不同 hash。gate 对照版本／来源，并通过现有 `mlibs.hash` 验证各自合法的身份摘要；不复制 hash 算法，不把该字段宣称为下载内容完整性证明，也不为测试改写仓库锁。依据为固定版本的[锁摘要实现](https://github.com/mcpp-community/mcpp/blob/v2026.11.2.2/src/pm/lock_io.cppm)与[记录入口](https://github.com/mcpp-community/mcpp/blob/v2026.11.2.2/src/build/prepare/records.cpp)。
+
+N1 余下 gfx／content 基础库，N2 的 render／simulation／audio 与 N3 的 UI／标准连接继续按依赖顺序推进。名称迁移不增加 S1–S10 或 40／20 的功能验收计数。

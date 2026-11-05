@@ -28,7 +28,7 @@ def audit(project: Path, repo: Path, artifacts: Path, profile: str) -> dict:
     names = []
     forbidden = {"openmui.core", "openmui.sdk", "openmui.testing", "mlibs.testing", "openlifa.openmui", "openmui.spec"}
     required = {"mcpplibs.hanim", "hanim.engine", "hanim.program", "hanim.library", "hanim.object", "hanim.core", "hanim.effect",
-                "hanim.render.vector", "openmui.render.vector", "openmui.raster", "openmui.image", "mlibs.control", "openlifa.openas"}
+                "hanim.render.vector", "openmui.render.vector", "openmui.raster", "mlibs.image", "mlibs.control", "openlifa.openas"}
     def independent_source(path: Path) -> None:
         path = path.resolve()
         if path.is_relative_to(repo):

@@ -31,7 +31,7 @@ openmui.sdk           = { path = "../../.." }
 openmui.abi           = { path = "../../../modules/ui/abi" }
 openmui.lang.python   = { path = "../../../lang/python" }  # and openmui.lang, through it (a TOML key cannot be both)
 openmui.ui.markdown   = { path = "../../../components/markdown" }
-openmui.image         = { path = "../../../modules/base/image" }
+mlibs.image         = { path = "../../../modules/base/image" }
 openmui.native.fuzzy  = { path = "../../../modules/ui/native/fuzzy" }
 openmui.theme.default = { path = "../../../modules/ui/theme/default" }
 openmui.theme.compact = { path = "../../../modules/ui/theme/compact" }

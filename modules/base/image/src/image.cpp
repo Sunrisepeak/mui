@@ -1,8 +1,8 @@
-module openmui.image;
+module mlibs.image.api;
 
 import std;
 
-namespace omui::imageio {
+namespace mlibs::image {
 
 namespace {
 
@@ -501,5 +501,5 @@ Axis principal_axis(const Image& img, std::uint8_t alpha) {
     return a;
 }
 
-}  // namespace omui::imageio
+}  // namespace mlibs::image
 

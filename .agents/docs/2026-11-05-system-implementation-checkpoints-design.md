@@ -564,3 +564,37 @@ Unicode 生成器一起修改，并从官方 17.0.0 UCD 实际重新生成。对
 共享基础库累计九个完成迁移，另有此前直接新建的 `mlibs.control`；workspace 成员仍为 129。剩余 session／pipeline／image、gfx 与 content 基础库，之后引擎与 UI／标准按依赖顺序迁移。mcpp 打包遗漏传递依赖的限制也存在于 fuzzy→unicode，本轮明确依赖全部安装包，正式索引发布前还需修复并验证只声明顶层库的安装方式。未声称 C++ ABI 稳定、旧 CLI 选择器别名或新平台交付完成。
 
 保留用户已有 lock，规范子模块不变；实际算法／UCD 数据未重写。按本地相关证据提交同一 PR #1，跨平台 CI 异步，不阻塞下一检查点。S1–S10、40／20、PPet 和完整多后端目标继续开放。
+
+## 18. D-100／N1第三组：录制、管线和图像
+
+执行基线 `a4ee3ad`。`session`、`pipeline`、`image` 的真实包／模块／实现归属迁至 `mlibs.*`，累计十二个基础库完成此步；另有此前交付的 `mlibs.control`。兼容与使用说明见[命名方案 §7](2026-11-05-product-namespace-migration-design.md)。机器证据在 [session／pipeline／image 报告](../../tools/ci/2026-11-05-session-pipeline-image-namespaces.report.omui.json)。
+
+### 18.1 交付与兼容边界
+
+- 三个原包内保留主入口、`.api` 与旧 import；没有新增 `mcpp.toml` 或 workspace 成员，成员仍为 129。九个实际接口／实现文件在还原 module／namespace 名称后与基线一致，未重写录制、管线或编解码算法。
+- 新 API 分别为 `mlibs::session`、`mlibs::pipeline`、`mlibs::image`；旧 `omui::session`、`omui::pipeline`、`omui::imageio` 指向同一类型和实现。session 的 `openmui.session@0.1`、JSON 字段和文件后缀不变；pipeline 的插件／资源 ID 不变。
+- pipeline 的旧限定名 `resource_type<T>` 特化继续可用。旧 namespace alias 不能重新打开，UI 的资源注册块已改为 `namespace mlibs::pipeline`；外部同类扩展也需此迁移。实际 fixture 检查旧限定名注册、新 API 使用、替换失败保持原管线、成功重配及共享 trace。
+- 17 处消费者清单／模板的依赖键同步新身份；独立 hanim playback 的 PNG 采样直接使用 `mlibs.image`。UI／官网保留旧 import 验证渐进迁移。C ABI／规范子模块未改，用户已有锁文件原样保留。
+
+### 18.2 本地实际验证
+
+| 验证面 | 结果与范围 |
+|---|---|
+| Linux GCC 16.1 dev | 50 个不同测试程序，388 个套件用例；三库、hanim.engine、semantic、view、headless、Agent、Inspector、C ABI、官网；修改测试平台边界后另重跑 headless 两个程序 |
+| Linux GCC 16.1 release | 同样 50 个程序、388 个套件用例；真实本机 IPC 的授权／来源检查保持通过 |
+| Wasm／Node | 20 个含实际测试体的不同程序完成，另一个本机 IPC 程序明确跳过；套件报告 204 项，其中既有 H3 本机 IPC 分支也跳过，实际执行 203 项；没有声称 Web 支持本机 IPC |
+| 源码／安装包 | 十二库分别真实打包；源码／静态安装包 × 新名／旧名／混用，共 6 个外部工程，每个首次及增量运行 12 项；每个依赖图为 12 库＋9 个外部依赖＋消费者，无重复 owner |
+| 编译闭包 | 每个源码工程的编译闭包包含 17 个本仓实现单元；安装包工程不编译这些 `.cpp`。244 个第三方编译单元单列，版本、来源及合法身份摘要对照锁检查 |
+| 独立 hanim | dev／release 各两组 61 时刻采样，共 244 张真实 PNG，反向回放、授权／撤销、拒绝导出检查通过；像素与 PNG 摘要全部等于前批样本，产品图未混入 UI／testing |
+| 官网浏览器 | 新 Wasm 打包、实际原生 prerender／Agent 指南生成；Chromium 14 项交互检查通过，25 个固定状态与 PNG 摘要和之前反应工作台记录一致；实际查看中文窄屏与动画中间帧 |
+
+原生用例数不包含 C ABI 的 C 程序内部原始断言数。报告同时保留重复运行、首次失败和明确跳过，不能把程序执行次数当成不同功能数。实速性能、跨设备 GPU、所有平台或整体美术达标不由这次改名回归推导。
+
+### 18.3 发现的问题与下一步
+
+- 首次扩大 Web 回归时，`headless/agent_policy_test` 要求真实本机 endpoint，当前 Web 的 IPC 返回不支持，因此失败。修正为按现有 `testing::threads` 能力明确跳过整个本机 transport 测试，不制造一项通过用例；原生仍必须启动真实 endpoint。Web 的 in-process 授权、离屏图像／录制、浏览器 Agent 入口仍实际验证。首次失败记录保留在报告中。
+- 外部依赖审计初版误将默认命名空间的短锁键与限定锁键摘要直接比较。核查固定 mcpp `v2026.11.2.2` 源码后，确认摘要基于 `<namespace>:<lock-key>@<version>`，不是产物内容 hash。现在解析到同一身份后对照版本／来源，并复用 `mlibs.hash` 验证两种合法摘要，没有另写算法或改仓库锁。
+- mcpp 安装包缺少传递依赖元数据仍未解决，本轮扩大到了 pipeline→trace、session→os／json、image→mwrap／codec。fixture 显式声明实际依赖，证明可链接与使用；正式发布前仍须修复并验证只声明顶层库的安装。尚未发布索引别名，不承诺 C++ ABI 或旧 CLI 选择器。
+- N1 仍需 gfx／content 基础库，之后 N2 的 render／simulation／audio 与 N3 的 UI／标准连接按依赖推进。S1–S10、40 个公共动画／20 个完整作品、完整默认动效、PPet、多后端与性能预算继续开放。
+
+最终全仓 lint 为零；变更 Python／TOML、本地文档链接与 diff 检查通过。以本地真实验证提交到同一 PR #1，其他平台 CI 异步反馈。

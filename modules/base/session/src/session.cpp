@@ -1,10 +1,10 @@
-module openmui.session;
+module mlibs.session.api;
 
 import std;
 import nlohmann.json;
 import mcpplibs.os;
 
-namespace omui::session {
+namespace mlibs::session {
 
 namespace {
 
@@ -169,4 +169,4 @@ std::expected<Session, std::string> Session::load(const std::filesystem::path& f
     return s;
 }
 
-}  // namespace omui::session
+}  // namespace mlibs::session

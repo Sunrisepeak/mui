@@ -1,12 +1,12 @@
 // PNG through libpng's simplified API, which reports errors in its control
 // structure instead of longjmp-ing through C++ frames.
-module openmui.image;
+module mlibs.image.api;
 
 import std;
 import mcpplibs.mwrap.libpng;
 using namespace mcpplibs::mwrap::libpng::macros;  // PNG_IMAGE_VERSION, PNG_FORMAT_RGBA, PNG_IMAGE_SIZE
 
-namespace omui::imageio {
+namespace mlibs::image {
 
 std::expected<std::vector<std::uint8_t>, std::string> encode_png(const View& pixels, PngOptions) {
     if (!pixels.rgba || pixels.width <= 0 || pixels.height <= 0) return std::unexpected("empty image");
@@ -46,4 +46,4 @@ std::expected<Image, std::string> decode_png(std::span<const std::uint8_t> bytes
     return out;
 }
 
-}  // namespace omui::imageio
+}  // namespace mlibs::image

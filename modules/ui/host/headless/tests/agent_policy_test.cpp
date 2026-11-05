@@ -6,6 +6,13 @@ using namespace omui;
 using namespace omui::testing;
 
 int main(int argc, char** argv) {
+    if constexpr (!threads) {
+        // This transport and its client require background threads. Web
+        // authorization is exercised through the in-process/browser bridge;
+        // do not report a local IPC policy case as having run there.
+        std::println("host.headless.agent_policy: skipped (requires threaded local IPC)");
+        return 0;
+    }
     Suite s{"host.headless.agent_policy"};
     s.test("H3 forwards the trusted session of real endpoint input", [] {
         const auto dir = scratch_dir("headless-agent-policy");

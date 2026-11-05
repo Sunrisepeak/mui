@@ -173,14 +173,16 @@ def main() -> int:
                 if result["target"] == result["initial_target"] or result["controls"]["retarget_pixel_max_u8"] > 18 or result["controls"]["retarget_coverage_off_boundary"] or result["controls"]["retarget_styled_off_boundary"]:
                     raise RuntimeError("real retarget target/continuity failed")
             agent_results = []
-            for label, bend in (("agent-linear", 0), ("agent-curved", .35)):
+            for label, bend, properties in (("agent-linear", 0, False), ("agent-curved", .35, False), ("agent-properties", .35, True)):
                 png = artifacts / f"{profile}-{label}.png"
                 text = run(profile + "-" + label, [args.mcpp, "run", "--locked", "--profile", profile, "--",
-                           "--out", str(png), "--bend", str(bend), "--agent-review"])
+                           "--out", str(png), "--bend", str(bend), "--agent-review", *(["--properties"] if properties else [])])
                 rows = [json.loads(line) for line in text.splitlines() if line.lstrip().startswith("{")]
                 result = next((row for row in rows if row.get("kind") == "hanim.play-consumer"), None)
                 if not result or not result.get("ok"):
                     raise RuntimeError("independent Agent review did not finish")
+                if properties and result["fixture"] != "triangle-properties":
+                    raise RuntimeError("property review did not exercise the public property recipe")
                 review = result["agent_review"]
                 if review["authorization"] != "mlibs.control/openas" or review["reverse_replayed"] != 61:
                     raise RuntimeError("shared authority or process replay missing")

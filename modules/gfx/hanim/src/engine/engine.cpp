@@ -229,6 +229,23 @@ Effects current_effects(const detail::Playback& playback) {
     }
     return effects;
 }
+template<class Prepare>
+Status replace_plan(detail::EngineData& data,detail::Playback& old,PlayOptions options,Prepare&& prepare) {
+    if (auto result=active(old); !result) return result;
+    if (old.tracks.size()!=1 || !old.program.scopes().empty()) return std::unexpected(fail(EngineError::unsupported_operation));
+    if (old.revision==std::numeric_limits<std::uint64_t>::max()) return std::unexpected(fail(EngineError::version_exhausted));
+    auto animation=prepare(geometry(old,0));
+    if (!animation) return std::unexpected(animation_failure(animation.error()));
+    auto effect=PreparedEffects::prepare(current_effects(old),data.limits.effects);
+    if (!effect) return std::unexpected(effect_failure(effect.error()));
+    auto program=PreparedProgram::single(std::move(*animation),std::move(*effect),options,true,{.effects=data.limits.effects});
+    if (!program) return std::unexpected(program_failure(program.error()));
+    if (!within_budget(data,*program,&old)) return std::unexpected(fail(EngineError::capacity));
+    auto next=make_playback(std::move(*program));if(!next)return std::unexpected(next.error());
+    next->paused=old.paused;next->rate=std::abs(old.rate);next->revision=old.revision+1;
+    account(data,old,false);old=std::move(*next);account(data,old,true);
+    return {};
+}
 }
 
 std::string_view engine_error_name(EngineError error) noexcept {
@@ -341,23 +358,16 @@ Status Engine::retarget(PlaybackRef ref, anim::MorphTo animation, PlayOptions op
 }
 Status Engine::retarget(PlaybackRef ref, Snapshot to, PlayOptions options, MorphOptions morph) {
     return mutate(data_.get(), writing_, ref, "retarget", [&](detail::Playback& old) -> Status {
-        if (auto result = active(old); !result) return result;
-        if (old.tracks.size() != 1 || !old.program.scopes().empty()) return std::unexpected(fail(EngineError::unsupported_operation));
-        if (old.revision == std::numeric_limits<std::uint64_t>::max()) return std::unexpected(fail(EngineError::version_exhausted));
-        auto animation = PreparedObjectMorph::retarget(geometry(old, 0), std::move(to), morph);
-        if (!animation) return std::unexpected(animation_failure(animation.error()));
-        const auto description = current_effects(old);
-        auto effect = PreparedEffects::prepare(description, data_->limits.effects);
-        if (!effect) return std::unexpected(effect_failure(effect.error()));
-        auto program = PreparedProgram::single(std::move(*animation), std::move(*effect), options, true,
-            {.effects = data_->limits.effects});
-        if (!program) return std::unexpected(program_failure(program.error()));
-        if (!within_budget(*data_, *program, &old)) return std::unexpected(fail(EngineError::capacity));
-        auto next = make_playback(std::move(*program));
-        if (!next) return std::unexpected(next.error());
-        next->paused = old.paused; next->rate = std::abs(old.rate); next->revision = old.revision + 1;
-        account(*data_, old, false); old = std::move(*next); account(*data_, old, true);
-        return {};
+        return replace_plan(*data_,old,options,[&](FrameView current) {
+            return PreparedObjectMorph::retarget(current,std::move(to),morph);
+        });
+    });
+}
+Status Engine::retarget(PlaybackRef ref, const PropertyTargets& values, PlayOptions options, MorphOptions morph) {
+    return mutate(data_.get(),writing_,ref,"retarget-properties",[&](detail::Playback& old) -> Status {
+        return replace_plan(*data_,old,options,[&](FrameView current) {
+            return PreparedObjectMorph::properties(current,values,morph);
+        });
     });
 }
 Status Engine::pause(PlaybackRef ref) {

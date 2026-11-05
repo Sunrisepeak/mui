@@ -767,3 +767,45 @@ SDL 首次测试发生 SIGSEGV；GDB 显示同进程混入 LLVM 20 与 LLVM 22�
 simulation 预算测试本轮未执行：root locked 解析之后，fighting 的宿主构建临时工程缺六个图像／TOML 锁项，直接重建该临时工程仍在下一次规划时复现。用户的根锁文件没有修改或提交，原预算没有放宽；此项是构建工具门禁待处理，不能据此报告性能改善，也不阻塞已验证的功能推进。
 
 **后续优先级改为真实功能交付。** 命名迁移继续作为配套工作，下一条主线为独立 Hanim 的公开位移／属性动画、组合与 effect、播放控制、过程画面以及官网真实消费。现有 41 个官网基础场景不等于 41 个独立公共 API，20 个组合也仍需按复用性和视觉质量验收。完整属性通道／GPU 编排、UI 默认动画迁移、AI／PPet、后端、发布与工具仍未完成；本轮不增加这些目标的完成计数。
+
+## 24. 公开属性动画：五个简接口与同一条执行链
+
+基线 `6d3a64f`。本轮新增可由框架外程序实际调用的能力，代码仍在 `modules/gfx/hanim/src/{library,program,engine}`，没有新建清单。公共用法见 [Hanim README](../../modules/gfx/hanim/README.md)，可复现的本地证据见[属性动画报告](../../tools/ci/2026-11-05-hanim-property-recipes.report.omui.json)。
+
+### 24.1 简接口、组合与高级入口
+
+新增五个具名配方：`anim::move_to(object, position)`、`move_by(object, offset)`、`rotate_to(object, radians)`、`scale_to(object, scale)`、`fill_to(object, color)`。ObjectRef 在 prepare 时捕获，Snapshot 保持冻结；均可直接交给 `hengine.play`，支持 duration、easing、过程路径 effect 和图像 effect。
+
+```cpp
+auto playback = hengine.play(
+    hanim::anim::move_to(card, {120, 40}).duration(300ms)
+        .with_effect(hanim::fx::translation_path(hanim::PointPath::bend(.25))));
+
+auto animation = hanim::sequence(
+    hanim::anim::move_to(card, {120, 40}),
+    hanim::anim::move_by(card, {20, -10}),
+    hanim::anim::rotate_to(card, std::numbers::pi));
+auto prepared = hengine.prepare(animation);
+```
+
+`anim::to(object, PropertyTargets)` 是多属性入口，可同时指定 position／rotation／scale／fill，或用 `part` 指定稳定部件 ID。默认操作 HObject 的唯一根部件，没有硬编码 `root` 名字。位置是父坐标系中的局部位置，旋转／缩放围绕局部原点；角度保留显式圈数，不擅自改成最短方向。高级入口不另计为一种新动画。
+
+顺序编排从上一段**实际结束姿态**派生目标：先移动，再旋转时不会重置位置；`move_by` 从实际姿态累加；形变与属性动画可以前后组合。未指定的字段、子部件局部变换和几何保持。显式 snapshot 模式仍可选择重置起点。
+
+`retarget(playback, PropertyTargets)` 从当前画面生成新目标，保留暂停意图、速度幅值及当前 effect 参数；非法目标不替换旧计划。与 morph retarget 共用一条替换实现。这里承诺现有 C0 姿态连续，不据此承诺速度／加速度连续。
+
+### 24.2 复用与边界
+
+- `anim::BoundAnimation` 统一形变和属性叶子，旧 `anim::Morph` 为同类型别名；Program contract 升到 v3。同一 compiler／player、时钟和缓冲处理所有配方，未另造一个动画调度器。
+- 变换复用 hanim.core 的分解插值，颜色复用现有 OKLab 路径；纯属性且没有顶点路径效果时，几何准备一次，热路径复制固定 cubics。显式顶点 effect 仍走原几何采样器。准备阶段继续使用既有严格轮廓 compiler，不宣称冷准备已达到最优。
+- 不修改宿主对象，不为属性终点创建虚拟 ObjectRef；对应 PreparedObjectMorph 的 `to()` 为空，source identity／revision 保留。输出供 renderer／adapter 消费，业务状态的写回仍由宿主契约决定。
+- 当前对象域仍为已有闭合矢量 HObject，开放路径、任意应用通道、相机、骨骼没有在本轮完成。同一对象的并行叶子仍按整对象拒绝冲突；同时修改多个字段用一个 `anim::to`，不把这一点宣传成逐通道混合已实现。
+- renderer 继续显式 feature 可选；纯动画库不拉入 UI、窗口或模型。Agent 检查通过既有 mlibs.control／openas adapter 使用同一 Engine 和离屏 renderer，未新增另一个权限系统或宣称通用 provider 注册已经完成。
+
+### 24.3 本地证据与下一步
+
+原生 dev／release 各八个测试程序、83 项，Wasm／Node 81 项；原有线程能力分支保留。新增检查覆盖真实顺序端点、指定部件、形变／属性混排、非法输入和开启 trace 下的过程采样零额外分配。独立 `import hanim` 程序 dev／release 各 119 项，包含五段动画的 301 时刻、当前姿态重定向及失败不变；实际静态安装包同样通过 119 项，七种 feature 闭包继续通过。
+
+renderer 的两个 profile 各 18 项集成用例继续通过。新增属性组合由同源 CPU renderer 各采样 61 帧，并反向重放 61 帧，dev／release PNG 一致；另有 Agent 授权、只读、dry-run、撤销与拒绝像素输出检查。实际查看 0／15／30／45／60 帧，平移、旋转、缩放与所选 tone／blur 连续呈现，参考视口未见裁剪。既有形变的 244 个过程 PNG／pixel 摘要均匹配前基线。采样不替代实速节奏、美术或硬件性能验收。
+
+**下一检查点必须补真实消费者接入。** UI 默认动效仍主要使用 hanim.core；本次五个新配方尚未进入组件默认动画和官网主舞台。先做可复用 UI／HObject adapter，并接一组组件状态与官网交互，再按公共库补足 ≥40 基础动画和 ≥20 创意组合的真实使用与视觉质量。不能用五个函数的参数排列凑数量，也不将已有官网场景数量等同本轮新增公共能力。属性通道仲裁／混合、GPU 资源编排、后续引擎／AI／PPet／工具与发布目标继续保留。

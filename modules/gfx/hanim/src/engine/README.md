@@ -1,8 +1,8 @@
 # hanim.engine
 
 Owned object playback and public native controls, independent of UI, renderer,
-window, networking or scripts. The first supported animation is the library's
-strict named-part contour/transform/fill morph; ordered effects share its
+window, networking or scripts. Supported recipes include the library's
+strict named-part contour/transform/fill morph and typed property targets; ordered effects share their
 bounded eased progress. This is not the complete animation catalog, pixel or
 rig domains, general channel/effect composition or full Engine acceptance.
 
@@ -50,6 +50,9 @@ Neither undoes model state. Multi-track-to-single-target retarget reports
 `unsupported_operation`; scoped programs also refuse retarget, so their hierarchy
 and effects cannot be silently discarded. Selective track/channel replacement
 and scope-preserving retarget remain future work.
+`retarget(playback, PropertyTargets{...})` uses the same replacement path as
+morph retarget. Relative offsets start at the current pose, and unmodified
+properties remain intact. Neither branch partially publishes failed targets.
 Cancelled bindings retain source occupancy until release. Restore bypasses
 easing to sample the exact source. Retargeted noninstant segments anchor time
 zero to the captured pose consistently for initial display and arbitrary seek;

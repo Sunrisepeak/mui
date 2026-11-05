@@ -13,12 +13,25 @@ struct MorphOptions {
     ShapeMorphOptions shape;
     PointPath translation_path; // each part's local tx/ty, not its geometry or parent
 };
+// A typed partial target for one part. Empty part selects the object's unique
+// root, never a magic id. Positions are in the parent's coordinate system;
+// rotation is an explicit radian value (including full turns), scale is about
+// the part's local origin. Unspecified properties and descendants stay intact.
+// position and offset are exclusive. offset uses the actual segment source,
+// including a preceding animation's endpoint or a retarget's current pose.
+struct PropertyTargets {
+    std::optional<Vec2> position, offset;
+    std::optional<double> rotation;
+    std::optional<Vec2> scale;
+    std::optional<Rgba> fill;
+    std::string part;
+};
 enum class MorphError : std::uint8_t {
     unprepared, invalid_snapshot, invalid_frame, invalid_options,
     part_budget, contour_budget, cubic_budget, part_set_mismatch,
     hierarchy_mismatch, ordering_mismatch, contour_count_mismatch,
     missing_fill, open_contour, unsupported_topology, shape_failure, invalid_progress,
-    output_too_small, nonfinite_transform
+    output_too_small, nonfinite_transform, invalid_property, unknown_part
 };
 [[nodiscard]] std::string_view morph_error_name(MorphError error) noexcept;
 struct MorphFailure {
@@ -69,6 +82,14 @@ public:
     // and unchanged throughout this call. Its logical from_ref is preserved.
     [[nodiscard]] static std::expected<PreparedObjectMorph, MorphFailure>
         retarget(FrameView current, Snapshot to, MorphOptions options = {});
+    // Unary property recipes share the same geometry/effect sampler. There is
+    // no synthetic target object or registry mutation; to() is empty for these
+    // plans. Current supported representations are the same closed vector
+    // contours as object morph, not arbitrary application fields or open paths.
+    [[nodiscard]] static std::expected<PreparedObjectMorph, MorphFailure>
+        properties(Snapshot from, const PropertyTargets&, MorphOptions options = {});
+    [[nodiscard]] static std::expected<PreparedObjectMorph, MorphFailure>
+        properties(FrameView current, const PropertyTargets&, MorphOptions options = {});
     [[nodiscard]] explicit operator bool() const noexcept { return bool(data_); }
     [[nodiscard]] FrameRequirements requirements() const noexcept;
     [[nodiscard]] std::span<const MorphPartInfo> parts() const & noexcept;

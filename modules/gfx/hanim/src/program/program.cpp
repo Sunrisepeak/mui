@@ -105,7 +105,7 @@ struct Collect {
             Snapshot from=binding->from,to=binding->to;
             if(const auto* inputs=value.inputs()) {
                 auto first=capture(inputs->from,node);if(!first)return std::unexpected(first.error());
-                auto last=capture(inputs->to,node);if(!last)return std::unexpected(last.error());
+                auto last=binding->properties ? first : capture(inputs->to,node);if(!last)return std::unexpected(last.error());
                 from=std::move(*first);to=std::move(*last);
             }
             if(!from || !to)return std::unexpected(failure(ProgramError::invalid_snapshot,node));
@@ -167,14 +167,15 @@ std::expected<Progress,ProgramFailure> progress_at(const PreparedSegment& segmen
         failure(ProgramError::invalid_ease,segment.node,segment.track,index));
 }
 std::expected<PreparedObjectMorph,ProgramFailure> from_previous(const PreparedSegment& previous,const Snapshot& to,
-    MorphOptions options,std::size_t node,std::size_t track,std::size_t segment) {
+    MorphOptions options,const std::optional<PropertyTargets>& properties,std::size_t node,std::size_t track,std::size_t segment) {
     const auto count=previous.animation.requirements();
     std::vector<FramePart> parts(count.parts);std::vector<ShapeCubic> cubics(count.cubics);
     const auto progress=progress_at(previous,previous.start+previous.options.duration,false,segment-1);
     if(!progress)return std::unexpected(progress.error());
     const auto pose=previous.animation.sample(progress->sampled,{parts,cubics});
     if(!pose)return std::unexpected(animation_failure(pose.error(),node,track,segment));
-    const auto result=PreparedObjectMorph::retarget(*pose,to,options);
+    const auto result=properties ? PreparedObjectMorph::properties(*pose,*properties,options)
+        : PreparedObjectMorph::retarget(*pose,to,options);
     if(!result)return std::unexpected(animation_failure(result.error(),node,track,segment));
     return *result;
 }
@@ -206,9 +207,10 @@ Program bind(Snapshot from,Snapshot to,Effects effects,SegmentOptions options,Mo
     auto node=std::make_shared<detail::ProgramNode>();node->kind=ProgramKind::binding;
     node->binding={std::move(from),std::move(to),std::move(effects),options,morph,source};return Program(std::move(node));
 }
-Program bind(ProgramInputs inputs,Effects effects,SegmentOptions options,MorphOptions morph,ProgramSource source) {
+Program bind(ProgramInputs inputs,Effects effects,SegmentOptions options,MorphOptions morph,ProgramSource source,
+    std::optional<PropertyTargets> properties) {
     auto node=std::make_shared<detail::ProgramNode>();node->kind=ProgramKind::binding;
-    node->binding={{},{},std::move(effects),options,morph,source};
+    node->binding={{},{},std::move(effects),options,morph,source,std::move(properties)};
     node->inputs=std::move(inputs);return Program(std::move(node));
 }
 Program sequence(std::span<const Program> children) {
@@ -313,9 +315,10 @@ std::expected<PreparedProgram,ProgramFailure> PreparedProgram::prepare_with(cons
         }
         std::expected<PreparedObjectMorph,ProgramFailure> animation=std::unexpected(failure(ProgramError::animation));
         const bool chained=previous && binding.source==ProgramSource::previous_endpoint;
-        if(chained)animation=from_previous(*previous,leaf.to,binding.morph,leaf.node,leaf.track,index);
+        if(chained)animation=from_previous(*previous,leaf.to,binding.morph,binding.properties,leaf.node,leaf.track,index);
         else {
-            const auto result=PreparedObjectMorph::prepare(leaf.from,leaf.to,binding.morph);
+            const auto result=binding.properties ? PreparedObjectMorph::properties(leaf.from,*binding.properties,binding.morph)
+                : PreparedObjectMorph::prepare(leaf.from,leaf.to,binding.morph);
             if(!result)return refuse(animation_failure(result.error(),leaf.node,leaf.track,index));
             animation=*result;
         }

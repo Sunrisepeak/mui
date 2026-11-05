@@ -337,5 +337,72 @@ int main(int argc,char** argv) {
             }
         }
     });
+    suite.test("property sequences preserve the actual previous endpoint and explicit snapshot resets",[] {
+        Fixture f;
+        const auto plan=take(PreparedProgram::prepare(sequence(
+            anim::move_to(f.a,{12,8}),anim::move_by(f.a,{6,-4}),anim::rotate_to(f.a,std::numbers::pi))));
+        Buffer output(plan.tracks()[0]);
+        const auto first=output.sample(plan,0,.5).geometry.parts[0].local;
+        check(first.tx==6 && first.ty==4 && first.rotate==0);
+        const auto second=output.sample(plan,0,1.5).geometry.parts[0].local;
+        check(second.tx==15 && second.ty==6);
+        const auto third=output.sample(plan,0,2.5).geometry.parts[0].local;
+        check(third.tx==18 && third.ty==4 && third.rotate==std::numbers::pi/2 && third.sx==1 && third.sy==1);
+        const auto reset=take(PreparedProgram::prepare(sequence(anim::move_to(f.a,{12,8}),
+            anim::move_by(f.a,{6,4}).source(ProgramSource::snapshot))));
+        Buffer reset_output(reset.tracks()[0]);
+        check(reset_output.sample(reset,0,1).geometry.parts[0].local.tx==0);
+        check(reset_output.sample(reset,0,2).geometry.parts[0].local.tx==6);
+    });
+    suite.test("property selection changes one named part and keeps unrelated hierarchy and geometry",[] {
+        Fixture f;auto description=shape(4);description.parts[0].parent="pivot";
+        description.parts.push_back({.id="pivot",.local={.tx=7,.ty=9}});
+        const auto source=take(f.registry.capture(take(f.registry.create(description))));
+        const auto plan=take(PreparedProgram::prepare(anim::to(source,{.position=Vec2{20,30},.scale=Vec2{3,2},.fill=Rgba{0,0,1,1},.part="shape"})));
+        Buffer output(plan.tracks()[0]);auto sample=output.sample(plan,0,.5);
+        check(sample.geometry.parts.size()==2 && sample.geometry.parts[0].info.id=="pivot");
+        check(sample.geometry.parts[0].local.tx==7 && sample.geometry.parts[0].local.ty==9);
+        check(sample.geometry.parts[1].local.tx==12 && sample.geometry.parts[1].local.ty==15);
+        check(sample.geometry.parts[1].local.sx==2 && sample.geometry.parts[1].local.sy==1.5);
+        check(sample.geometry.parts[1].fill->r>0 && sample.geometry.parts[1].fill->b>0);
+        const auto root=take(PreparedProgram::prepare(anim::move_to(source,{30,40})));
+        Buffer root_output(root.tracks()[0]);const auto root_sample=root_output.sample(root,0,1);
+        check(root_sample.geometry.parts[0].local.tx==30 && root_sample.geometry.parts[1].local.tx==4);
+        const auto unchanged=take(f.registry.capture(source.object()));
+        check(unchanged.revision()==source.revision() && take(unchanged.get(unchanged.root()))->local.tx==7);
+    });
+    suite.test("morph then properties keeps the morphed shape and properties then morph keeps correspondence",[] {
+        Fixture f;
+        const auto plan=take(PreparedProgram::prepare(sequence(anim::morph(f.a,f.b),anim::scale_to(f.a,{2,3}),anim::morph(f.a,f.c))));
+        Buffer output(plan.tracks()[0]);const auto middle=output.sample(plan,0,1.5);
+        check(middle.geometry.parts[0].local.tx==10 && middle.geometry.parts[0].local.sx==1.5 && middle.geometry.parts[0].local.sy==2);
+        const auto at_end=output.sample(plan,0,3);
+        check(at_end.geometry.parts[0].local.tx==30 && at_end.geometry.parts[0].local.sx==1);
+    });
+    suite.test("invalid property targets fail at preparation with no registry mutation",[] {
+        Fixture f;
+        for(const auto& values:std::vector<PropertyTargets>{{},{.position=Vec2{1,2},.offset=Vec2{3,4}},
+            {.rotation=std::numeric_limits<double>::quiet_NaN()}, {.scale=Vec2{1,std::numeric_limits<double>::infinity()}},
+            {.fill=Rgba{2,0,0,1}}}) {
+            const auto plan=PreparedProgram::prepare(anim::to(f.a,values));
+            check(!plan && plan.error().animation && plan.error().animation->code==MorphError::invalid_property);
+        }
+        const auto missing=PreparedProgram::prepare(anim::to(f.a,{.position=Vec2{1,2},.part="absent"}));
+        check(!missing && missing.error().animation->code==MorphError::unknown_part);
+        check(take(f.registry.capture(f.ar)).revision()==f.a.revision());
+    });
+    suite.test("property sampling with process and image effects is allocation free across the whole process",[] {
+        Fixture f;
+        const auto plan=take(PreparedProgram::prepare(anim::move_to(f.a,{12,8})
+            .with_effect(fx::translation_path(PointPath::bend(.2))).with_effect(fx::blur(0,4))));
+        Buffer output(plan.tracks()[0]);omui::trace::start();output.sample(plan,0,0);
+        const auto before=allocations.load();bool good=true;
+        for(int i=0;i<=60;++i) {
+            const auto sample=plan.sample(0,seconds(i/60.),{output.parts,output.cubics},output.effects);
+            good=good && sample.has_value() && output.effects[0]>=0 && output.effects[0]<=4;
+        }
+        const auto after=allocations.load();omui::trace::stop();check(good && before==after);
+        check(output.parts[0].local.tx==12 && output.parts[0].local.ty==8);
+    });
     return suite.run(argc,argv);
 }

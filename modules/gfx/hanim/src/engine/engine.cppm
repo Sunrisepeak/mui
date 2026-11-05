@@ -103,6 +103,8 @@ public:
         PlaybackRef playback, Snapshot to, PlayOptions options = {}, MorphOptions morph = {});
     [[nodiscard]] std::expected<void, EngineFailure> retarget(
         PlaybackRef playback, anim::MorphTo animation, PlayOptions options = {});
+    [[nodiscard]] std::expected<void, EngineFailure> retarget(
+        PlaybackRef playback, const PropertyTargets& values, PlayOptions options = {}, MorphOptions morph = {});
     // Retarget preserves effect order/targets, starting them at current values.
     // A different material program requires the renderer's explicit rebind.
     [[nodiscard]] std::expected<void, EngineFailure> pause(PlaybackRef);

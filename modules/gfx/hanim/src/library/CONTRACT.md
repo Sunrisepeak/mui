@@ -1,4 +1,16 @@
-# Prepared object morph contract — initial recipe
+# Prepared object animation contract — morph and property recipes
+
+`properties(snapshot, targets)` and `properties(frame, targets)` derive an owned
+partial target from the source without registry writes or a synthetic ObjectRef.
+They retain source identity/revision; `to()` is empty because no application
+target snapshot exists. The root or explicit named part owns the changed local
+lanes, all others are retained. Position and offset are exclusive; offset is
+relative to the supplied snapshot/frame. Targets validate before publication.
+The same closed-vector contour domain and limits below apply. With no vertex
+path effect, static cubics are prepared once and copied during sampling;
+explicit vertex paths retain the shared geometry sampler. Rotation uses the
+existing decomposed Transform2D lane and colors the existing OKLab machinery.
+No alternate tween, matching implementation or frame callback is introduced.
 
 The plan is immutable and O(1) copyable. `prepare` owns both endpoint snapshots
 and a shared immutable payload of copied ids, endpoint states, contour plans

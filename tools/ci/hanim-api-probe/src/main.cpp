@@ -305,5 +305,50 @@ int main() {
     check(block_frame && std::ranges::equal(block_frame->effect_values,std::array<float,5>{8,.5f,1,-2,3}),
           "pixelate_samples_strength_size_and_fixed_grid");
     check(bool(hengine.release(*blocks)),"pixelate_resources_released");
+    const auto property_object=hengine.create_object(*shape(false,3));
+    if(!check(bool(property_object),"property_object_created_via_public_engine"))return finish();
+    const auto property_recipe=h::sequence(anim::move_to(*property_object,{15,6}),
+        anim::move_by(*property_object,{8,4}),anim::rotate_to(*property_object,std::numbers::pi),
+        anim::scale_to(*property_object,{2,3}),anim::fill_to(*property_object,{0,0,1,1}));
+    const auto property_plan=hengine.prepare(property_recipe);
+    if(!check(property_plan && property_plan->duration()==5s && property_plan->segments().size()==5,
+        "five_property_recipes_share_public_compiler"))return finish();
+    const auto property_play=hengine.play(*property_plan);
+    if(!check(bool(property_play),"prepared_property_program_plays"))return finish();
+    bool chained=true;
+    for(int i=0;i<=300;++i) {
+        const double t=i/60.;chained=chained && bool(hengine.seek(*property_play,h::seconds(t)));
+        const auto sample=hengine.frame(*property_play);
+        if(!sample){chained=false;break;}
+        const auto transform=sample->geometry.parts[0].local;
+        if(t>=2)chained=chained && transform.tx==23 && transform.ty==10;
+        if(t>=3)chained=chained && transform.rotate==std::numbers::pi;
+        if(t>=4)chained=chained && transform.sx==2 && transform.sy==3;
+    }
+    check(chained,"property_sequence_keeps_unmodified_lanes_through_301_samples");
+    check(hengine.capture_object(*property_object)->parts()[0].local.tx==3,
+        "property_program_never_mutates_registry_or_creates_target_objects");
+    check(bool(hengine.seek(*property_play,1500ms)),"property_retarget_selects_current_pose");
+    const auto held=copy(*hengine.frame(*property_play));
+    check(bool(hengine.pause(*property_play)) && bool(hengine.retarget(*property_play,h::PropertyTargets{.offset=h::Vec2{9,-3}})),
+        "property_retarget_from_current_frame_accepted");
+    check(equal(held,copy(*hengine.frame(*property_play))),"property_retarget_preserves_complete_current_pose");
+    check(bool(hengine.seek(*property_play,1s)),"property_retarget_reaches_endpoint");
+    const auto property_end=hengine.frame(*property_play);
+    check(property_end && property_end->geometry.parts[0].local.tx==held.transforms[0].tx+9 &&
+        property_end->geometry.parts[0].local.ty==held.transforms[0].ty-3,"relative_retarget_uses_current_pose_not_original_snapshot");
+    const auto old_revision=hengine.inspect(*property_play)->plan_revision;
+    const auto invalid_property=hengine.retarget(*property_play,h::PropertyTargets{.rotation=std::numeric_limits<double>::quiet_NaN()});
+    check(!invalid_property && hengine.inspect(*property_play)->plan_revision==old_revision,
+        "invalid_property_retarget_preserves_playback");
+    check(bool(hengine.release(*property_play)),"property_resources_released");
+    const auto image_scope=hengine.play(h::composite(anim::to(*property_object,
+        {.position=h::Vec2{20,5},.rotation=std::numbers::pi,.scale=h::Vec2{2,2}})
+        .with_effect(h::fx::translation_path(h::PointPath::bend(.25)))).with_effect(h::fx::blur(0,4)));
+    if(!check(image_scope && hengine.seek(*image_scope,500ms),"typed_property_target_composes_process_and_image_scope"))return finish();
+    check(hengine.program_frame(*image_scope)->scene.scope_effect_values[0]==2,
+        "property_scope_parameters_use_shared_playback_time");
+    check(bool(hengine.release(*image_scope)) && bool(hengine.destroy_object(*property_object)),
+        "public_property_consumer_releases_all_resources");
     return finish();
 }

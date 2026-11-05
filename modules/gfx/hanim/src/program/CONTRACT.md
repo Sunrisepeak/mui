@@ -1,4 +1,4 @@
-# Program contract v2: strict object schedules and explicit image scopes
+# Program contract v3: object schedules, partial property targets and image scopes
 
 Program is immutable shared input data. Builders bind owned snapshots and return
 new values without changing a registry, starting time, rendering or invoking
@@ -24,6 +24,25 @@ an explicit sequence dependency; parallel instantaneous writers conflict. Child
 order is retained for a sequence of instantaneous changes. This first stage does
 not claim per-channel blending, group transforms/foreach or repeat/reverse time
 expressions. Explicit image scopes are defined below.
+
+Unary leaves may carry `PropertyTargets`: absolute position, relative offset,
+rotation, scale and fill, applied to the unique root or one named part. Position
+and offset are mutually exclusive; an empty target, unknown part or nonfinite /
+invalid color value fails preparation. The source is captured only once; there
+is no second target registry object. The target is derived from the actual
+segment source after previous-endpoint chaining, preserving all unspecified
+fields and descendant local transforms. Explicit snapshot mode still resets
+that source. Rotation is a decomposed radian lane, including requested turns.
+The same strict whole-object write domain remains: two parallel property
+bindings to one object conflict; a single `anim::to` combines multiple fields.
+
+`anim::BoundAnimation` is the shared value builder for morph and properties;
+`anim::Morph` remains a source-compatible alias. Property and morph leaves can
+be mixed in any schedule, including before/after a topology-preserving morph.
+Existing Process effects and explicit composite image scopes use the same
+preparation and player. Property-only geometry is retained and copied at sample
+time when no vertex path is requested; cold preparation still uses the existing
+strict contour validation/compiler. This is not the general typed-channel IR.
 
 The compiler retains one immutable preparation per segment and no AST or producer
 registry. Preparation limits bound expanded node/depth/track/segment counts and

@@ -55,6 +55,45 @@ actual source/dependency closures. Renderer tests live in the existing external
 [playback consumer](../../../tools/ci/hanim-play-consumer/README.md), which tests
 the opt-in feature separately from its production program's dependency audit.
 
+For ordinary motion, supply an object and the property target:
+
+```cpp
+using namespace std::chrono_literals;
+auto playback = hengine.play(hanim::anim::move_to(card, {120, 40}).duration(300ms));
+auto trip = hanim::sequence(
+    hanim::anim::move_to(card, {120, 40}),
+    hanim::anim::move_by(card, {20, -10}),
+    hanim::anim::rotate_to(card, std::numbers::pi));
+auto prepared = hengine.prepare(trip);
+```
+
+`move_to`, `move_by`, `rotate_to`, `scale_to` and `fill_to` are five public
+recipes. They accept live ObjectRefs or frozen Snapshots, the same duration,
+easing and effects as morph, and the same sequence/parallel/stagger/player.
+For several properties on one object, use one typed target:
+
+```cpp
+auto change = hanim::anim::to(card, {
+    .position = hanim::Vec2{120, 40}, .rotation = std::numbers::pi,
+    .scale = hanim::Vec2{1.2, 1.2}})
+    .with_effect(hanim::fx::translation_path(hanim::PointPath::bend(.25)));
+auto badge = hanim::anim::to(card, {.fill = hanim::Rgba{1, 0, 0, 1}, .part = "badge"});
+```
+
+The default selection is the unique object root; named parts use stable ids.
+Positions are local to the parent, and rotation/scale use the part's local
+origin. These are explicit rotations in radians, including full turns, not
+shortest-angle guesses. A sequence preserves unmodified properties from its
+actual prior endpoint. `move_by` and `retarget(playback, PropertyTargets{...})`
+use that actual pose. No synthetic target object or business-state mutation is
+performed. `PreparedObjectMorph::to()` is empty for a computed property target.
+
+This first property domain is the existing closed vector object representation.
+Open contours, arbitrary application channels, cameras and rigs are not yet
+covered. Parallel writers to the same object still conflict even for different
+properties; use `anim::to` for an atomic multi-property change. This is five new
+recipes, not completion of the 40-animation catalog or UI adapter migration.
+
 ```cpp
 import std;
 import hanim;

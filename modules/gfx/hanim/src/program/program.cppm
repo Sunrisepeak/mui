@@ -6,7 +6,7 @@ export import hanim.effect;
 
 namespace hanim::detail { struct ProgramNode; struct ProgramData; }
 export namespace hanim {
-inline constexpr std::uint32_t program_contract_version = 2;
+inline constexpr std::uint32_t program_contract_version = 3;
 inline constexpr std::size_t invalid_program_index = std::numeric_limits<std::size_t>::max();
 struct SegmentOptions { seconds duration{1}; Ease easing = ease::linear; };
 // The first binding always uses its frozen source. Subsequent default bindings
@@ -21,6 +21,7 @@ struct ProgramBinding {
     SegmentOptions options;
     MorphOptions morph;
     ProgramSource source = ProgramSource::previous_endpoint;
+    std::optional<PropertyTargets> properties;
 };
 // Live inputs resolve together at preparation; explicit snapshots retain their
 // captured revision. Neither form owns or mutates the application's registry.
@@ -44,7 +45,7 @@ public:
     [[nodiscard]] seconds step() const noexcept;
 private:
     friend Program bind(Snapshot, Snapshot, Effects, SegmentOptions, MorphOptions, ProgramSource);
-    friend Program bind(ProgramInputs, Effects, SegmentOptions, MorphOptions, ProgramSource);
+    friend Program bind(ProgramInputs, Effects, SegmentOptions, MorphOptions, ProgramSource, std::optional<PropertyTargets>);
     friend Program sequence(std::span<const Program>);
     friend Program parallel(std::span<const Program>);
     friend Program stagger(seconds, std::span<const Program>);
@@ -55,7 +56,8 @@ private:
 [[nodiscard]] Program bind(Snapshot from, Snapshot to, Effects effects = {}, SegmentOptions options = {},
                            MorphOptions morph = {}, ProgramSource source = ProgramSource::previous_endpoint);
 [[nodiscard]] Program bind(ProgramInputs inputs, Effects effects = {}, SegmentOptions options = {},
-                           MorphOptions morph = {}, ProgramSource source = ProgramSource::previous_endpoint);
+                           MorphOptions morph = {}, ProgramSource source = ProgramSource::previous_endpoint,
+                           std::optional<PropertyTargets> properties = {});
 [[nodiscard]] Program sequence(std::span<const Program> children);
 [[nodiscard]] Program sequence(std::initializer_list<Program> children);
 [[nodiscard]] Program parallel(std::span<const Program> children);
@@ -66,42 +68,65 @@ private:
 
 namespace anim {
 // A reusable leaf value. Process effects are distinct from image scopes.
-class Morph {
+class BoundAnimation {
 public:
-    Morph(ObjectInput from, ObjectInput to, MorphOptions options = {})
+    BoundAnimation(ObjectInput from, ObjectInput to, MorphOptions options = {})
         : inputs_{std::move(from), std::move(to)} { binding_.morph = options; }
-    [[nodiscard]] Morph duration(seconds value) const {
+    // Constrained deduction preserves Morph(source, {}) as an empty ObjectInput.
+    template<class Values> requires std::same_as<std::remove_cvref_t<Values>, PropertyTargets>
+    BoundAnimation(ObjectInput object, Values&& values, MorphOptions options = {})
+        : inputs_{object, std::move(object)} { binding_.morph = options; binding_.properties = std::forward<Values>(values); }
+    [[nodiscard]] BoundAnimation duration(seconds value) const {
         auto result = *this; result.binding_.options.duration = value; return result;
     }
-    [[nodiscard]] Morph easing(Ease value) const {
+    [[nodiscard]] BoundAnimation easing(Ease value) const {
         auto result = *this; result.binding_.options.easing = value; return result;
     }
-    [[nodiscard]] Morph with_effect(EffectSpec value) const {
+    [[nodiscard]] BoundAnimation with_effect(EffectSpec value) const {
         auto result = *this; result.binding_.effects.push_back(std::move(value)); return result;
     }
     // Deduction keeps legacy with_effect({}) unambiguous (EffectSpec).
     template<class Process> requires (std::same_as<Process, fx::VertexPath> || std::same_as<Process, fx::TranslationPath>)
-    [[nodiscard]] Morph with_effect(Process value) const {
+    [[nodiscard]] BoundAnimation with_effect(Process value) const {
         auto result = *this;
         if constexpr (std::same_as<Process, fx::VertexPath>)
             result.binding_.morph.shape.point_path = result.binding_.morph.shape.point_path.added(value.path);
         else result.binding_.morph.translation_path = result.binding_.morph.translation_path.added(value.path);
         return result;
     }
-    [[nodiscard]] Morph source(ProgramSource value) const {
+    [[nodiscard]] BoundAnimation source(ProgramSource value) const {
         auto result = *this; result.binding_.source = value; return result;
     }
     [[nodiscard]] const ProgramBinding& binding() const & noexcept { return binding_; }
     const ProgramBinding& binding() const && = delete;
     [[nodiscard]] operator Program() const {
-        return bind(inputs_, binding_.effects, binding_.options, binding_.morph, binding_.source);
+        return bind(inputs_, binding_.effects, binding_.options, binding_.morph, binding_.source, binding_.properties);
     }
 private:
     ProgramInputs inputs_;
     ProgramBinding binding_;
 };
+using Morph = BoundAnimation; // source-compatible name for the original recipe
 [[nodiscard]] inline Morph morph(ObjectInput from, ObjectInput to, MorphOptions options = {}) {
     return Morph{std::move(from), std::move(to), options};
+}
+[[nodiscard]] inline BoundAnimation to(ObjectInput object, PropertyTargets values, MorphOptions options = {}) {
+    return BoundAnimation{std::move(object), std::move(values), options};
+}
+[[nodiscard]] inline BoundAnimation move_to(ObjectInput object, Vec2 position) {
+    return to(std::move(object), {.position=position});
+}
+[[nodiscard]] inline BoundAnimation move_by(ObjectInput object, Vec2 offset) {
+    return to(std::move(object), {.offset=offset});
+}
+[[nodiscard]] inline BoundAnimation rotate_to(ObjectInput object, double radians) {
+    return to(std::move(object), {.rotation=radians});
+}
+[[nodiscard]] inline BoundAnimation scale_to(ObjectInput object, Vec2 scale) {
+    return to(std::move(object), {.scale=scale});
+}
+[[nodiscard]] inline BoundAnimation fill_to(ObjectInput object, Rgba fill) {
+    return to(std::move(object), {.fill=fill});
 }
 class Composite {
 public:

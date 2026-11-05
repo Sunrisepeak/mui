@@ -13,6 +13,7 @@ struct ObjectMorphData {
     std::vector<MorphContourInfo> contours;
     std::vector<MorphEndpoints> states;
     std::vector<PreparedShapeMorph> shapes;
+    std::vector<ShapeCubic> static_cubics;
     std::size_t cubic_count = 0;
     PointPath translation_path;
 };
@@ -141,7 +142,7 @@ std::expected<Input,MorphFailure> frame_input(FrameView frame, MorphOptions opti
 }
 
 std::expected<std::shared_ptr<const detail::ObjectMorphData>,MorphFailure>
-compile(Input from, Input to, MorphOptions options) {
+compile(Input from, Input to, MorphOptions options, bool property_only = false) {
     if (from.parts.size()!=to.parts.size()) return std::unexpected(failure(MorphError::part_set_mismatch));
     const auto count=from.parts.size();
     std::vector<std::size_t> a(count),b(count),matched(count);
@@ -196,9 +197,42 @@ compile(Input from, Input to, MorphOptions options) {
         }
     }
     for (std::size_t i=0;i<count;++i) result->parts[i].id=result->ids[i];
+    // Property-only plans retain geometry once. An explicit vertex-path effect
+    // still runs the normal shape sampler; no second interpolation algorithm.
+    if (property_only && options.shape.point_path.linear()) {
+        result->static_cubics.resize(result->cubic_count);
+        for (std::size_t i=0;i<result->shapes.size();++i) {
+            const auto& range=result->contours[i];
+            const auto sample=result->shapes[i].sample(0,std::span(result->static_cubics).subspan(range.first_cubic,range.cubic_count));
+            omui::invariant(sample.has_value(),"property geometry preparation invariant");
+        }
+        result->shapes.clear();
+    }
     omui::trace::count("morph.parts",static_cast<double>(count),"hanim.library");
     omui::trace::count("morph.cubics",static_cast<double>(result->cubic_count),"hanim.library");
     return std::shared_ptr<const detail::ObjectMorphData>(std::move(result));
+}
+std::expected<std::shared_ptr<const detail::ObjectMorphData>,MorphFailure>
+compile_properties(Input from, const PropertyTargets& values, MorphOptions options) {
+    if ((values.position && values.offset) ||
+        (!values.position && !values.offset && !values.rotation && !values.scale && !values.fill))
+        return std::unexpected(failure(MorphError::invalid_property));
+    Input to=from;
+    auto selected=values.part.empty() ? std::ranges::find(to.parts,invalid_object_slot,&PartInput::parent)
+        : std::ranges::find(to.parts,values.part,&PartInput::id);
+    if (selected==to.parts.end()) return std::unexpected(failure(MorphError::unknown_part));
+    const auto index=static_cast<std::size_t>(selected-to.parts.begin());
+    if (values.position) {selected->local.tx=values.position->x;selected->local.ty=values.position->y;}
+    if (values.offset) {selected->local.tx+=values.offset->x;selected->local.ty+=values.offset->y;}
+    if (values.rotation) selected->local.rotate=*values.rotation;
+    if (values.scale) {selected->local.sx=values.scale->x;selected->local.sy=values.scale->y;}
+    if (values.fill) {
+        if (!selected->fill) return std::unexpected(failure(MorphError::missing_fill,index));
+        selected->fill=*values.fill;
+    }
+    if (!finite(selected->local) || !valid(selected->fill))
+        return std::unexpected(failure(MorphError::invalid_property,index));
+    return compile(std::move(from),std::move(to),options,true);
 }
 }
 
@@ -214,6 +248,8 @@ std::string_view morph_error_name(MorphError error) noexcept {
         case MorphError::shape_failure:return "shape-failure";
         case MorphError::invalid_progress:return "invalid-progress";case MorphError::output_too_small:return "output-too-small";
         case MorphError::nonfinite_transform:return "nonfinite-transform";
+        case MorphError::invalid_property:return "invalid-property";
+        case MorphError::unknown_part:return "unknown-part";
     }
     return "unprepared";
 }
@@ -236,6 +272,24 @@ std::expected<PreparedObjectMorph,MorphFailure> PreparedObjectMorph::retarget(Fr
     if (!compiled) { diagnostic.debug("retarget refused: {}",morph_error_name(compiled.error().code)); return std::unexpected(compiled.error()); }
     PreparedObjectMorph result; result.source_=current.source_object; result.revision_=current.source_revision;
     result.to_=std::move(to); result.data_=std::move(*compiled); return result;
+}
+std::expected<PreparedObjectMorph,MorphFailure> PreparedObjectMorph::properties(
+    Snapshot from, const PropertyTargets& values, MorphOptions options) {
+    omui::trace::Span span("properties.prepare","hanim.library");
+    if (!valid(options)) return std::unexpected(failure(MorphError::invalid_options));
+    auto input=snapshot_input(from,options);if(!input)return std::unexpected(input.error());
+    auto compiled=compile_properties(std::move(*input),values,options);if(!compiled)return std::unexpected(compiled.error());
+    PreparedObjectMorph result;result.source_=from.object();result.revision_=from.revision();
+    result.from_=std::move(from);result.data_=std::move(*compiled);return result;
+}
+std::expected<PreparedObjectMorph,MorphFailure> PreparedObjectMorph::properties(
+    FrameView current, const PropertyTargets& values, MorphOptions options) {
+    omui::trace::Span span("properties.retarget","hanim.library");
+    if (!valid(options)) return std::unexpected(failure(MorphError::invalid_options));
+    auto input=frame_input(current,options);if(!input)return std::unexpected(input.error());
+    auto compiled=compile_properties(std::move(*input),values,options);if(!compiled)return std::unexpected(compiled.error());
+    PreparedObjectMorph result;result.source_=current.source_object;result.revision_=current.source_revision;
+    result.data_=std::move(*compiled);return result;
 }
 FrameRequirements PreparedObjectMorph::requirements() const noexcept {
     return data_ ? FrameRequirements{data_->parts.size(),data_->contours.size(),data_->cubic_count} : FrameRequirements{};
@@ -266,7 +320,8 @@ std::expected<FrameView,MorphFailure> PreparedObjectMorph::sample(double progres
         const auto& state=data_->states[i];
         output.parts[i]={data_->parts[i],transform(state),state.from_fill ? std::optional<Rgba>(lerp(*state.from_fill,*state.to_fill,u)) : std::nullopt};
     }
-    for (std::size_t i=0;i<data_->shapes.size();++i) {
+    if (!data_->static_cubics.empty()) std::ranges::copy(data_->static_cubics,output.cubics.begin());
+    else for (std::size_t i=0;i<data_->shapes.size();++i) {
         const auto& range=data_->contours[i];
         const auto sampled=data_->shapes[i].sample(u,output.cubics.subspan(range.first_cubic,range.cubic_count));
         // With a private prepared shape, finite clamped u and its exact

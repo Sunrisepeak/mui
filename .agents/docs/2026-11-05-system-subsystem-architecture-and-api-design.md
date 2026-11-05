@@ -14,12 +14,14 @@
 
 当前主要问题是能力链路尚未全部贯通。S1已将严格 2D hanim的真实对象、编排、播放和动画中心authoring接到公共 `import hanim`；渲染仍显式可选。S2分批贯通通用PointPath、typed过程效果、UI动效配置和官网形变开场，并扩展显式组合图像scope、编译层级与原子Program帧，详见[实施台账§6–§8](2026-11-05-system-implementation-checkpoints-design.md)。UI默认动效仍主要消费 `hanim.core`，通用通道IR／混合、GPU资源编排及组合scope的公共UI接入仍未完成。官网目前41个基础场景、20个创意场景，也不能等同框架用户可带走的40个公共动画和20个完整组合工程。
 
+功能推进补充：在 `6d3a64f` 模拟收敛后，Hanim 增加五个公开属性配方（move_to／move_by／rotate_to／scale_to／fill_to）和类型化多属性 `anim::to`，复用既有编排、路径效果、图像 scope、播放与当前姿态重定向。当前范围是已有闭合矢量 HObject，仍按整对象仲裁写入；不是任意通道／相机／骨骼系统，也未自动迁移 UI 默认动效。证据与下一步见[实施台账 §24](2026-11-05-system-implementation-checkpoints-design.md#24-公开属性动画五个简接口与同一条执行链)。
+
 | 评估维度 | 当前证据 | 设计与实施结论 |
 |---|---|---|
 | 独立性 | base/gfx/content/media 已分层；hanim 外部消费者可真实运行 | 保留现有实现，补齐公开入口和消费闭包，避免全仓搬家 |
-| 语义完备性 | Program 目前是严格整对象形变的嵌套编排 | 演进通道、作用域、状态与资源 IR；流畅语法本身不能补齐这些能力 |
+| 语义完备性 | Program 支持形变和部分属性目标的嵌套编排，仍按整对象仲裁 | 演进通道、作用域、状态与资源 IR；流畅语法本身不能补齐这些能力 |
 | 产品完备性 | UI、音频、渲染、CLI 都已有可运行原料 | 以实际任务评估成熟度；模拟、HPC、完整制作链仍有明显缺口 |
-| 简单使用 | 存在 `play(object, morph_to(target), ...)` 与显式 Program | 推荐直接 `morph(source, target)`＋`play(animation)`；保留高级 prepare |
+| 简单使用 | 已有 `move_to(object, position)`、多属性 `to`、`morph(source,target)` 与显式 Program | 常见场景直接 `play(animation)`，复杂编排和复用逐级使用 prepare；同一编译／播放实现 |
 | 复用与成本 | 数学／内存／渲染已有单一 owner；仍有多余依赖与重叠算法 | 建立迁移台账，按实际闭包和工作负载收敛，不依据目录名称推断体积 |
 | 质量 | 已有局部 CPU／Web／像素／浏览器验证 | 本轮最小实验不替代完整视觉、设备、Agent任务与每维 ≥90 验收 |
 

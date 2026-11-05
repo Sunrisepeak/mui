@@ -71,3 +71,27 @@ source chaining, scoped image effects, arbitrary-time samples and Engine apply.
 `FeedbackOptions` shares duration, per-leg ease and named-part selection.
 They add no scope when unadorned and no special sampling branch. See the
 [product guide](../../README.md) for parameters, phase landmarks and headless SOP.
+
+Custom recipe authors can preserve a typed construction failure without throwing
+or fabricating NaN-valued animation data:
+
+```cpp
+return hanim::invalid_program({.code=hanim::ProgramError::invalid_time});
+```
+
+The resulting immutable value has `ProgramKind::invalid`. Its borrowed
+`failure()` pointer is available before preparation and lives as long as that
+Program's shared node. Normal and empty expressions return null. As before,
+`operator bool` means a nonempty expression, not a successfully validated plan.
+Error payload storage is allocated only on the rejected node; copying or
+composing it shares the immutable value. `prepare` / `Engine::play` refuses it
+with the same typed cause and the actual author-tree node index. The original
+payload is not mutated. Node/depth budgets still apply before visiting errors;
+no invalid node enters a prepared plan or the sampling path.
+
+Feedback factories check finite/nonzero reciprocal domains, doubled-amplitude
+bounds, easing and representable nonzero phase durations before calculating
+legs. Zero total duration retains the existing instantaneous-sequence semantics.
+Object-dependent target overflow is still validated during ordinary preparation.
+The library does not alter the caller's floating-point environment or claim
+that all engine operations support unmasked hardware exceptions.

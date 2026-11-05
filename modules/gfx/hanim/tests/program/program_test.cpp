@@ -410,6 +410,45 @@ int main(int argc,char** argv) {
         check(!PreparedProgram::prepare(anim::shake(source,{1,1},{.duration=seconds(-1)})));
         check(!PreparedProgram::prepare(anim::wobble(source,std::numeric_limits<double>::infinity())));
     });
+    suite.test("deferred authoring errors retain typed causes and acquire the actual composition node",[] {
+        Fixture f;
+        const auto rejected=invalid_program({.code=ProgramError::animation,.node=99,
+            .animation=MorphFailure{.code=MorphError::invalid_property,.part=7}});
+        const auto copy=rejected;
+        check(rejected && rejected.kind()==ProgramKind::invalid && copy.failure()==rejected.failure());
+        check(!rejected.binding() && !rejected.inputs() && !rejected.scope() && rejected.children().empty());
+        const auto nested=sequence(anim::move_to(f.a,{4,0}),parallel(rejected,anim::rotate_to(f.a,1)));
+        const auto prepared=PreparedProgram::prepare(nested);
+        check(!prepared && prepared.error().code==ProgramError::animation && prepared.error().node==3 &&
+            prepared.error().animation && prepared.error().animation->part==7);
+        check(rejected.failure()->node==99,"preparing a composition does not mutate its reusable error expression");
+        const auto bounded=PreparedProgram::prepare(nested,{.max_nodes=2});
+        check(!bounded && bounded.error().code==ProgramError::node_budget);
+        const Program empty;check(!empty.failure());
+    });
+    suite.test("feedback validates arithmetic and representable phase durations before lowering",[] {
+        Fixture f;
+        constexpr double floor=1.0/std::numeric_limits<double>::max();
+        for(const auto& value:{anim::pulse(f.a,{0,1}),anim::pulse(f.a,{floor,1}),
+            anim::pulse(f.a,{std::numeric_limits<double>::infinity(),1}),
+            anim::shake(f.a,{std::numeric_limits<double>::max(),0}),
+            anim::wobble(f.a,std::numeric_limits<double>::max())}) {
+            check(value.kind()==ProgramKind::invalid && value.failure() && value.children().empty());
+            const auto error=PreparedProgram::prepare(value);
+            check(!error && error.error().code==ProgramError::animation && error.error().animation &&
+                error.error().animation->code==MorphError::invalid_property);
+        }
+        for(const auto& value:{anim::pulse(f.a,{1,1},{.duration=seconds(std::numeric_limits<double>::denorm_min())}),
+            anim::shake(f.a,{1,1},{.duration=seconds(3*std::numeric_limits<double>::denorm_min())}),
+            anim::wobble(f.a,.1,{.duration=seconds(-1)})}) {
+            check(value.failure() && value.failure()->code==ProgramError::invalid_time);
+            const auto error=PreparedProgram::prepare(value);check(!error && error.error().code==ProgramError::invalid_time);
+        }
+        const auto safe=std::nextafter(floor,std::numeric_limits<double>::infinity());
+        check(bool(PreparedProgram::prepare(anim::pulse(f.a,{safe,1}))));
+        check(bool(PreparedProgram::prepare(anim::pulse(f.a,{2,2},{.duration=seconds(0)}))));
+        check(bool(PreparedProgram::prepare(anim::shake(f.a,{1,1},{.duration=seconds(4*std::numeric_limits<double>::denorm_min())}))));
+    });
     suite.test("absolute and relative writes share conflicts and reject invalid or overflowing targets",[] {
         Fixture f;
         for(const auto targets:{PropertyTargets{.rotation=0,.rotation_offset=1},

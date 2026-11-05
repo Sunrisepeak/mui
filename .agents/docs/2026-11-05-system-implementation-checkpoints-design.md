@@ -1127,3 +1127,28 @@ Hanim 原生 debug／release 各 **103 项**通过；Wasm **101 项**通过，�
 此前三组共 549 张 UI 过程图仍与 §32 逐像素／PNG 一致，新增 feedback 帧独立计数。源码／fixture 摘要、原始命令和截图保留于 `target/omui-feedback/`，摘要为 `tools/ci/2026-11-06-hanim-feedback-recipes.report.omui.json`；全仓库 lint 为零，用户既有 `mcpp.lock` 字节未变。增强后的公共 API、UI consumer 与浏览器检查沿用既有 CI 入口，不等待远端矩阵才推进。
 
 这三个反馈设计已成为公共能力，但完整 40／20 库／工程、所有组件默认配方迁移、通用时间作用域、任意表示／3D／资源图及全局引擎计划仍开放。
+
+
+## 34. 配方错误的原生表达与数值预检
+
+2026-11-06，基线 `ff6c53d`。复查发现 pulse 的倒数和 shake／wobble 的两倍幅度在 authoring 阶段已经计算：输入零／极大数时，尚未进入 prepare 就可能产生除零／溢出；过小的正时长也可能被分段计算压成瞬时阶段。正常浮点环境下后续校验会拒绝部分非法目标，但这不应成为高级配方生成非法数值的理由。
+
+### 34.1 通用机制与兼容性
+
+新增 `invalid_program(ProgramFailure)` 及 `Program::failure()`。错误是可组合、共享、不可变的源表达式，kind 为追加的 `ProgramKind::invalid`；不是空 Program、异常或用 NaN 冒充动画参数。自定义配方可直接使用同一入口，不要求在每个调用者外再套一套 AST 或错误协议。
+
+编译器沿原有有预算的树遍历，在访问错误节点时保留类型化原因、把 node 上下文改为真实 preorder 位置。原表达式的错误载荷不变；重复 prepare、复制和嵌套组合共用同一语义。节点／深度预算仍先检查。错误节点不会进入 PreparedProgram、热采样或播放器，没有半成功发布。
+
+旧 ProgramKind 的数值保持，prepared 元数据契约仍为版本 5；没有修改 UI 标准、C ABI 或传输协议。C++ Modules 消费者重新构建。有效源节点增加一个空错误指针，错误载荷仅在拒绝节点分配；这不是新增的每帧开销或零准备成本声明。
+
+FeedbackOptions 在拆段前检查时长／缓动，正时长不得小到丢失任何一段；零总时长仍按原有瞬时编排处理。pulse 在求倒数前检查有限、非零和 binary64 可表示边界；shake／wobble 在乘二前检查幅度范围。失败返回已有 invalid-time／invalid-ease／invalid-property 类型，不伪造成功配方。对象相关的派生目标校验仍属于原有 library prepare。
+
+### 34.2 验证与边界
+
+新增测试覆盖嵌套节点定位、immutable 错误复用、预算优先、无半成品播放器、非法倒数／幅度，以及正常／零时长／可表示的极小阶段。公共消费者直接通过 `import hanim` 创建、查询和播放包含错误的组合。Hanim 九个程序在 native debug／release 各 **105 项**、Wasm **103 项**通过；两项线程检查仍仅在原生执行。仓外公共 API 消费者 debug／release 各 **163 项**通过。真实 UI 消费者三种 profile 各 **94 项**，各导出 244 张过程 PNG，共 **732 张**；正反及跨 profile 一致，并与 §33 的每张像素／PNG 摘要一致。缺字体负例与 feature-off 应用通过；关闭 feature 的实际构建图保持排除 UI adapter、完整 Engine 与 Hanim vector adapter。源码／fixture 摘要已核对当前内容，源锁文件字节保持。
+
+原始报告位于 `target/omui-authoring-errors/`，结构化摘要为 `tools/ci/2026-11-06-hanim-authoring-errors.report.omui.json`。全仓库 lint 为零；新增 C++ 用例通过已有 CI 矩阵和公共消费者入口执行。本轮没有重跑浏览器打包／网络性能，也不把上一轮的 Web 交付结果归为当前源码的新增测量。
+
+额外的 Linux x86-64 GDB 实验直接设置 MXCSR／x87 trap 位：反馈预检定向用例正常结束；以已有原始属性乘积溢出用例作为正对照，会收到 SIGFPE，确认 trap 实际生效。第一次用 debugger 函数调用开启的尝试经查询并未保留 trap 状态，未当作有效证据。该实验不构成全引擎或跨平台 trap 支持：原始对象相关算术仍使用正常浮点环境中的非有限检查，库不更改调用者的浮点环境。它不是新的 CI 平台承诺，正式可移植回归仍是上述 C++ 用例。
+
+本轮不修改官网布局／配方参数，不增加动画设计计数；全局目标及完整 40／20 交付继续开放。

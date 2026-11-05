@@ -1,0 +1,183 @@
+{
+  "format": "hanim.authoring-errors-checkpoint@0.1",
+  "recorded_at": "2026-11-05T23:18:06.666164+00:00",
+  "ok": true,
+  "base_commit": "ff6c53de176e19569e13fda2436237f8c9ef34dc",
+  "scope": [
+    "Immutable, composable invalid_program expressions preserve typed causes and receive the actual node context during bounded preparation.",
+    "Feedback factories preflight reciprocal/doubling domains and representable phase durations before lowering.",
+    "Valid prepared plans and sampling retain their existing path; no UI/protocol/renderer implementation changes."
+  ],
+  "source_files_sha256": {
+    ".agents/docs/2026-11-05-system-implementation-checkpoints-design.md": "6c6e3cdbe42958f9b9141e325d4ae506c2d0a6da2f78c5d1493423a36ad11587",
+    ".agents/docs/2026-11-05-system-subsystem-architecture-and-api-design.md": "d11870f4fe1410547aa814114888f018dfb35ed294c5750858b5a57cffb68c87",
+    ".agents/docs/README.md": "5be273cea5f732e861cf8e3284124588399bfb4e3c6fcb65cc5d4ec10348d92d",
+    "modules/gfx/hanim/README.md": "7a0a7806b8a47b85e3ad456567a1ffd088b7482b3d56607e75604f5116b43864",
+    "modules/gfx/hanim/src/program/CONTRACT.md": "1ca0634f146f795aed2b750606e5f8ec2b6880e73900f16d87866ea4962340f9",
+    "modules/gfx/hanim/src/program/README.md": "5b0f421cba795bc3154bbced3d9a84b7784d607d7822c639547455c9d1bea191",
+    "modules/gfx/hanim/src/program/feedback.cpp": "ee21e99eaae65cf04564ec94ef6695a461ef6d8a8aaf2671647da8d5c5fcb198",
+    "modules/gfx/hanim/src/program/program.cpp": "fe50587d347d60110f74248efa297d17015572496c2921503b7c8b463c8d81b9",
+    "modules/gfx/hanim/src/program/program.cppm": "92adec6ba5feec4de5a29f2ca585202d52f5211b355315aeba0f8cd410a84672",
+    "modules/gfx/hanim/tests/program/program_test.cpp": "3b8f57be1bd44a5f4cd91574b845f38d3269eac72c4e5b07e23e296ad94e122d",
+    "tools/ci/hanim-api-probe/src/main.cpp": "7b34687343afdcc518fc94bd26df6e0630a064144effb17ff59fa8a020c0ac95"
+  },
+  "source_lock": {
+    "sha256": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+    "before": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+    "after": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+    "preexisting_user_change_preserved": true,
+    "staged": false
+  },
+  "validation": {
+    "tests": {
+      "hanim-dev": {
+        "programs": 9,
+        "cases": 105,
+        "failed": 0,
+        "log": "target/omui-authoring-errors/hanim-dev.log",
+        "sha256": "88380de6fb1f93c73418c2cd1bc8447154b808abc070f2db2d7c28654d59826d"
+      },
+      "hanim-release": {
+        "programs": 9,
+        "cases": 105,
+        "failed": 0,
+        "log": "target/omui-authoring-errors/hanim-release.log",
+        "sha256": "832636124b97fc9b39e25015c8f6e740c315eea1297d1cf29919f182dd6ff317"
+      },
+      "hanim-web": {
+        "programs": 9,
+        "cases": 103,
+        "failed": 0,
+        "log": "target/omui-authoring-errors/hanim-web.log",
+        "sha256": "8c62cdee91453daf51f15e788f7d10876143220388c76782bb1b4ad88eb8a896"
+      }
+    },
+    "public_consumer": {
+      "path": "target/omui-authoring-errors/api.report.omui.json",
+      "sha256": "ce3c294239d25b84b7c1fd552b165da3d69f9f1d7ed8fdfb6719c9241b39f880",
+      "profiles": [
+        {
+          "profile": "dev",
+          "checks": 163,
+          "ok": true
+        },
+        {
+          "profile": "release",
+          "checks": 163,
+          "ok": true
+        }
+      ]
+    },
+    "ui_consumer": {
+      "path": "target/omui-authoring-errors/ui.report.omui.json",
+      "sha256": "d7c7519658d3495a7c90b7408379213038065978ed5e785a3df861bfa52c2a62",
+      "profiles": [
+        {
+          "profile": "dev",
+          "checks": 94,
+          "ok": true
+        },
+        {
+          "profile": "release",
+          "checks": 94,
+          "ok": true
+        },
+        {
+          "profile": "wasm-test",
+          "checks": 94,
+          "ok": true
+        }
+      ],
+      "png_count": 732,
+      "reverse_and_cross_profile_pixels_identical": true,
+      "prior_process_images_unchanged": 732,
+      "previous_report_sha256": "d29a0be4f8a8f5776d5d91dd66714317f5cf7e31e7f18fc280b32ca46f39d89f",
+      "missing_fonts_refused": true,
+      "feature_off": {
+        "ok": true,
+        "compiled_units": 704,
+        "adapter_and_engine_absent": true,
+        "source_sha256": "331faa035bb0cac51739e871b24d18ebe8a4b4158edd99813a414cce1bf5f9ae"
+      }
+    },
+    "native_debug_experiment": {
+      "platform": "Linux x86-64, GDB; not a cross-platform runtime contract",
+      "binary": "target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/hanim/program/program_test",
+      "binary_sha256": "72e015bcc770534684bd65d9ea75dba83d1e48565d2451706eff1f3ea4a6e047",
+      "registers": {
+        "mxcsr": "0x1900",
+        "fctrl": "0x372"
+      },
+      "unmasked_exceptions": [
+        "invalid operation",
+        "divide by zero",
+        "overflow"
+      ],
+      "feedback_preflight": {
+        "passed": true,
+        "log": "target/omui-authoring-errors/floating-traps-enabled.log",
+        "sha256": "bb9af788c395ab1513c155246afc28ee7bde375cdc9a4e8c67f4d17132cebd79"
+      },
+      "positive_control": {
+        "expected_signal": "SIGFPE",
+        "observed": true,
+        "location": "existing raw property multiplication during preparation",
+        "log": "target/omui-authoring-errors/floating-traps-control.log",
+        "sha256": "f5f4d9651fcd433baf283b78ed4ef8daa1f0e1cb8b66da7cc595c8f39bc5570a"
+      },
+      "initial_debugger_call_attempt": {
+        "traps_verified": false,
+        "counted_as_pass": false,
+        "log": "target/omui-authoring-errors/floating-traps.log",
+        "sha256": "22aac1efa70a712b7f959017821172ad98df2506c5dd6431cab532fd88994a62"
+      }
+    },
+    "lint": {
+      "log": "/tmp/omui-authoring-errors-lint.log",
+      "sha256": "b4824ada9a3b226dd0374ce17b0a73d59d52424ef1b6dd6e76da9547b8365a77",
+      "problems": 0
+    },
+    "commands": [
+      {
+        "label": "hanim-release",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "test",
+          "-p",
+          "hanim",
+          "--locked",
+          "--profile",
+          "release"
+        ],
+        "exit": 0,
+        "seconds": 13.785287535050884,
+        "log": "target/omui-authoring-errors/hanim-release.log"
+      },
+      {
+        "label": "hanim-web",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "test",
+          "-p",
+          "hanim",
+          "--locked",
+          "--profile",
+          "wasm-test",
+          "--target",
+          "wasm32-emscripten"
+        ],
+        "exit": 0,
+        "seconds": 14.542657638899982,
+        "log": "target/omui-authoring-errors/hanim-web.log"
+      }
+    ],
+    "source_fingerprints_match": true,
+    "documentation_links_resolve": true
+  },
+  "limits": [
+    "The local trap experiment covers feedback preflight only; ordinary object-dependent arithmetic is not advertised as universally trap-safe. The library does not change the floating-point environment.",
+    "No new browser package/performance measurement; prior website delivery results are not attributed to this source revision.",
+    "No new animation-design count, complete 40/20 catalog, default component migration or global architecture completion claim.",
+    "Valid source nodes carry an empty error pointer; payload allocation is cold and limited to explicit error nodes, not a zero-cost-preparation claim."
+  ]
+}

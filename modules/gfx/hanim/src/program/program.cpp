@@ -11,6 +11,7 @@ struct ProgramNode {
     CompositeSpec scope;
     std::vector<Program> children;
     seconds step{0};
+    std::unique_ptr<const ProgramFailure> failure;
 };
 struct ProgramData {
     std::vector<ProgramTrack> tracks;
@@ -84,6 +85,10 @@ struct Collect {
         if(node>=limits.max_nodes)return std::unexpected(failure(ProgramError::node_budget,node));
         if(depth>limits.max_depth)return std::unexpected(failure(ProgramError::depth_budget,node));
         if(!value)return std::unexpected(failure(ProgramError::empty_program,node));
+        if(const auto* authored=value.failure()) {
+            auto contextual=*authored;contextual.node=node;
+            return std::unexpected(std::move(contextual));
+        }
         hierarchy.push_back({.kind=value.kind(),.parent=parent,.subtree_end=node+1,.start=seconds(start),.scope=scope});
         if(value.kind()==ProgramKind::composite) {
             const auto* spec=value.scope();
@@ -361,6 +366,11 @@ const ProgramBinding* Program::binding() const & noexcept {return node_ && node_
 const ProgramInputs* Program::inputs() const & noexcept {return node_ && node_->inputs?&*node_->inputs:nullptr;}
 const CompositeSpec* Program::scope() const & noexcept {return node_ && node_->kind==ProgramKind::composite?&node_->scope:nullptr;}
 seconds Program::step() const noexcept {return node_?node_->step:seconds(0);}
+const ProgramFailure* Program::failure() const & noexcept {return node_?node_->failure.get():nullptr;}
+Program invalid_program(ProgramFailure error) {
+    auto node=std::make_shared<detail::ProgramNode>();node->kind=ProgramKind::invalid;
+    node->failure=std::make_unique<const ProgramFailure>(std::move(error));return Program(std::move(node));
+}
 Program bind(Snapshot from,Snapshot to,Effects effects,SegmentOptions options,MorphOptions morph,ProgramSource source) {
     auto node=std::make_shared<detail::ProgramNode>();node->kind=ProgramKind::binding;
     node->binding={std::move(from),std::move(to),std::move(effects),options,morph,source};return Program(std::move(node));

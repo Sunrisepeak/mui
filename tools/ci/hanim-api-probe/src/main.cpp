@@ -180,6 +180,18 @@ int main() {
     check(!invalid && invalid.error().code==h::EngineError::invalid_time && invalid.error().program &&
           invalid.error().program->code==h::ProgramError::invalid_time && engine.size()==0,
           "invalid_duration_keeps_structured_program_error_and_no_playback");
+    const auto authored=h::invalid_program({.code=h::ProgramError::invalid_time,.node=99});
+    const auto authored_play=hengine.play(api::sequence(quick,authored));
+    check(authored.kind()==h::ProgramKind::invalid && authored.failure()->node==99 && !authored_play &&
+          authored_play.error().program && authored_play.error().program->code==h::ProgramError::invalid_time &&
+          authored_play.error().program->node==2 && engine.size()==0,
+          "deferred_authoring_error_keeps_its_cause_with_actual_node_and_no_playback");
+    const auto bad_feedback=anim::pulse(*a,{0,1});
+    const auto refused_feedback=hengine.prepare(bad_feedback);
+    check(bad_feedback.failure() && !refused_feedback && refused_feedback.error().program &&
+          refused_feedback.error().program->animation &&
+          refused_feedback.error().program->animation->code==h::MorphError::invalid_property,
+          "feedback_invalid_arithmetic_is_a_typed_authoring_failure");
     const auto empty=hengine.prepare(anim::morph(h::Snapshot{},*b));
     check(!empty && empty.error().program && empty.error().program->code==h::ProgramError::invalid_snapshot,"invalid_snapshot_is_rejected");
     const auto overlap=hengine.prepare(api::parallel(quick,quick));

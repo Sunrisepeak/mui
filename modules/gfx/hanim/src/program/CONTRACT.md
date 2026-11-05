@@ -177,3 +177,15 @@ chains are identity scopes and can omit layers; ordinary one-segment tracks use
 the same direct order without sorting. All scope parameters count towards
 preparation/Engine budgets. Sampling is deterministic, bounded and allocation
 free after preparation; errors preserve published frame data.
+
+## Deferred authoring failures
+
+`invalid_program(ProgramFailure)` is a nonempty immutable expression with
+`ProgramKind::invalid` and no children, inputs, binding or effect scope.
+`Program::failure()` borrows its domain error; rvalue borrowing is refused.
+Composition does not erase it. The ordinary bounded compiler walk returns
+that cause with `node` set to the actual preorder position, leaving the shared
+source payload unchanged. Limits retain precedence at the node boundary.
+Neither a partial PreparedProgram nor a playback is published. This additive
+source expression cannot occur in valid prepared metadata; the prepared
+contract version and prior kind values remain unchanged. Module users rebuild.

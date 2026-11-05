@@ -12,7 +12,7 @@ struct SegmentOptions { seconds duration{1}; Ease easing = ease::linear; };
 // The first binding always uses its frozen source. Subsequent default bindings
 // of that logical ObjectRef use the preceding segment's actual boundary pose.
 enum class ProgramSource : std::uint8_t { previous_endpoint, snapshot };
-enum class ProgramKind : std::uint8_t { empty, binding, sequence, parallel, stagger, composite };
+enum class ProgramKind : std::uint8_t { empty, binding, sequence, parallel, stagger, composite, invalid };
 struct CompositeOptions { Ease effect_easing = ease::linear; };
 struct CompositeSpec { Effects effects; CompositeOptions options; };
 struct ProgramBinding {
@@ -28,6 +28,7 @@ struct ProgramBinding {
 // captured revision. Neither form owns or mutates the application's registry.
 using ObjectInput = std::variant<Snapshot, ObjectRef>;
 struct ProgramInputs { ObjectInput from, to; };
+struct ProgramFailure;
 class Program {
 public:
     Program() noexcept = default;
@@ -44,7 +45,12 @@ public:
     [[nodiscard]] const CompositeSpec* scope() const & noexcept;
     const CompositeSpec* scope() const && = delete;
     [[nodiscard]] seconds step() const noexcept;
+    // Non-null only for an explicitly rejected authoring expression. Its
+    // domain cause survives composition; preparation supplies the node index.
+    [[nodiscard]] const ProgramFailure* failure() const & noexcept;
+    const ProgramFailure* failure() const && = delete;
 private:
+    friend Program invalid_program(ProgramFailure);
     friend Program bind(Snapshot, Snapshot, Effects, SegmentOptions, MorphOptions, ProgramSource);
     friend Program bind(ProgramInputs, Effects, SegmentOptions, MorphOptions, ProgramSource, std::optional<PropertyTargets>, PropertySet);
     friend Program sequence(std::span<const Program>);
@@ -54,6 +60,7 @@ private:
     explicit Program(std::shared_ptr<const detail::ProgramNode> node) noexcept : node_(std::move(node)) {}
     std::shared_ptr<const detail::ProgramNode> node_;
 };
+[[nodiscard]] Program invalid_program(ProgramFailure);
 [[nodiscard]] Program bind(Snapshot from, Snapshot to, Effects effects = {}, SegmentOptions options = {},
                            MorphOptions morph = {}, ProgramSource source = ProgramSource::previous_endpoint);
 [[nodiscard]] Program bind(ProgramInputs inputs, Effects effects = {}, SegmentOptions options = {},
